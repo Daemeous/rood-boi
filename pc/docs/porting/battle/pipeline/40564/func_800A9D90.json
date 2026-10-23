@@ -1,0 +1,243 @@
+{
+ "function": "func_800A9D90",
+ "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the ROOD_PC empty-slot return; sp10.pad unset as in the C, unread by func_800AA698); spec sound",
+ "plan": {
+  "name": "func_800A9D90",
+  "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+  "stem": "40564",
+  "address": "0x800a9d90",
+  "difficulty": "M",
+  "zig_name": "func_800A9D90",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A9D90",
+  "spec_file": "func_800A9D90.zig",
+  "subsystem": "battle_40564_port",
+  "signature": "pub fn func_800A9D90(arg0: c_int, arg1: ?*v.SVECTOR, arg2: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "?*v.SVECTOR"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "SVECTOR"
+  ],
+  "globals": [
+   "D_800F4538"
+  ],
+  "hooks": [
+   "ROOD_PC block in the source"
+  ],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16558,
+     "completion_tokens": 11587,
+     "reasoning_tokens": 9770,
+     "cost": 0.0074493,
+     "seconds": 49.2,
+     "sample": 1,
+     "conversation": "0296ce449f46b98a0ec98091748aaa63b5ecfa3c305941bdb8ec2a5bd6392b72"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation S4: y offset taken from position.vz: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800A9D90: 30000 iterations, seed 1, 0 mismatches; classes: empty-slot=11392 sentinel=6323 override=12285"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 18520,
+     "completion_tokens": 3418,
+     "reasoning_tokens": 1417,
+     "cost": 0.003561,
+     "seconds": 13.8,
+     "sample": 1,
+     "conversation": "7c58d2597cb455f34d701b577b5b1f4900f49af297632a113317beeab975091f"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "empty-slot": "11392",
+   "sentinel": "6323",
+   "override": "12285"
+  },
+  "mutations": [
+   {
+    "name": "S1: the restore of unk5C2 is dropped",
+    "caught": true
+   },
+   {
+    "name": "S2: the override writes the neighbouring field unk5C4",
+    "caught": true
+   },
+   {
+    "name": "S3: the override store moved after the call",
+    "caught": true
+   },
+   {
+    "name": "S4: y offset taken from position.vz",
+    "caught": true
+   },
+   {
+    "name": "S5: the sentinel test is -2, not -1",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 4,
+   "branches_hit": 4,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 14,
+   "lines_hit": 14,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: null seen"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 18,
+     "text": "if (arg2 == -1) {",
+     "size": 4,
+     "count": 18608,
+     "kind": "against a constant",
+     "outcomes": "== 6323, < 5174, > 7111 (signed); < 12285, > 0 (unsigned)",
+     "operand": "constant -1",
+     "a": "-2147483648..2147483647"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 40030,
+     "completion_tokens": 3047,
+     "reasoning_tokens": 2382,
+     "cost": 0.0055265,
+     "seconds": 13.2,
+     "sample": 1,
+     "conversation": "7b003d88016fb62d369a09dc9ac9823b3e78287cd42c0073ec9154ec2f9617c8"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A9D90.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A9D90.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 32.97743974899822,
+ "wall_seconds": 33.21758344299997,
+ "totals": {
+  "cost": 0.01654,
+  "prompt_tokens": 75108,
+  "completion_tokens": 18052,
+  "model_seconds": 76.2,
+  "check_seconds": 33.0,
+  "calls": 3,
+  "wall_seconds": 33.2
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

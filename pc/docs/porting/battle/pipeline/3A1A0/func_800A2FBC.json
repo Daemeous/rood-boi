@@ -1,0 +1,193 @@
+{
+ "function": "func_800A2FBC",
+ "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_800A2FBC",
+  "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+  "stem": "3A1A0",
+  "address": "0x800a2fbc",
+  "difficulty": "S",
+  "zig_name": "func_800A2FBC",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A2FBC",
+  "spec_file": "func_800A2FBC.zig",
+  "subsystem": "battle_3A1A0_port",
+  "signature": "pub fn func_800A2FBC(arg0: ?*v.D_800F4538_t) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.D_800F4538_t"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F4538_t"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 15794,
+     "completion_tokens": 7440,
+     "reasoning_tokens": 5742,
+     "cost": 0.0052994,
+     "seconds": 30.9,
+     "sample": 1,
+     "conversation": "5b55cedd3a226ea4417c8f2fe405bf0a367d0401ef88a564bde5506a13d77ad9"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "divisor-one": "2873",
+   "divisor-high-bit": "15652",
+   "position-near-wrap": "10860",
+   "negative-velocity": "8950",
+   "plain": "1665"
+  },
+  "mutations": [
+   {
+    "name": "F1: divisor decrement dropped",
+    "caught": true
+   },
+   {
+    "name": "F2: unsigned numerator for vx (negative vx divides wrongly)",
+    "caught": true
+   },
+   {
+    "name": "F3: vy divided by the vz velocity",
+    "caught": true
+   },
+   {
+    "name": "F4: position.vy off by one",
+    "caught": true
+   },
+   {
+    "name": "F5: divisor read as signed 16-bit (high-bit divisors go negative)",
+    "caught": true
+   },
+   {
+    "name": "F6: vz velocity store dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 12,
+   "lines_hit": 12,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39389,
+     "completion_tokens": 2821,
+     "reasoning_tokens": 2089,
+     "cost": 0.0053494,
+     "seconds": 11.9,
+     "sample": 1,
+     "conversation": "663e11e6ce11bdb5907bfccb3b470112a366b42634f22605f53881983e6fb9ae"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A2FBC.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A2FBC.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 26.015328785998463,
+ "wall_seconds": 26.176112942000145,
+ "totals": {
+  "cost": 0.01065,
+  "prompt_tokens": 55183,
+  "completion_tokens": 10261,
+  "model_seconds": 42.8,
+  "check_seconds": 26.0,
+  "calls": 2,
+  "wall_seconds": 26.2
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

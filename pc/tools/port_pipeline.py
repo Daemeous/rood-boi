@@ -442,6 +442,17 @@ def plan_function(name, row, table, names, units, build, work):
         # zig_diff's stand-in cannot copy it (a second copy has its own static)
         # and owned code has none (PORTING §6.3): the C must define it first.
         plan.skip = "a block-scope static (the C must define it outside the function first: PORTING §6.3)"
+    if not plan.skip:
+        # A static helper the port must carry (it cannot call a static) with
+        # its own block-scope static (40564's func_800A9530 -> the inlined
+        # func_800A4A24's ROOD_PC `static platforms[4]`): the port would
+        # need that object, which no symbol names yet.
+        for helper in static_helpers(plan):
+            head, inner = helper[:helper.find("{")], helper[helper.find("{"):]
+            if re.search(r"\bstatic\b", inner):
+                plan.skip = (f"calls the unit's static {re.findall(r'(\w+)\s*\(', head)[-1]}, which holds a block-scope "
+                             "static (the C must define it outside the function first: PORTING §6.3)")
+                break
     return plan, u
 
 

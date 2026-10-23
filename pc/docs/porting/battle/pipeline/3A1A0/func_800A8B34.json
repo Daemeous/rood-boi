@@ -1,0 +1,338 @@
+{
+ "function": "func_800A8B34",
+ "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the bitfield << 9 truncation kept); spec sound",
+ "plan": {
+  "name": "func_800A8B34",
+  "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+  "stem": "3A1A0",
+  "address": "0x800a8b34",
+  "difficulty": "L",
+  "zig_name": "func_800A8B34",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A8B34",
+  "spec_file": "func_800A8B34.zig",
+  "subsystem": "battle_3A1A0_port",
+  "signature": "pub fn func_800A8B34(arg0: ?*v.SVECTOR, arg1: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "?*v.SVECTOR"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_1F8003BC_t",
+   "D_800F45E0_t",
+   "SVECTOR"
+  ],
+  "globals": [
+   "D_800F49F4",
+   "D_800F49F8"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16418,
+     "completion_tokens": 34746,
+     "reasoning_tokens": 31129,
+     "cost": 0.0190148,
+     "seconds": 149.3,
+     "sample": 1,
+     "conversation": "d82f79a111568c5495193e62506d8100229b01f65147a20691d054dd531d03f8"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "busy": "3745",
+   "above-ceiling": "8793",
+   "no-entity": "2244",
+   "no-ground": "6067",
+   "wall": "3295",
+   "sink": "1066",
+   "under-floor": "1527",
+   "blocked": "1104",
+   "accepted": "2159"
+  },
+  "mutations": [
+   {
+    "name": "F1: q >= 0 becomes q > 0 (a zero quotient with a remainder)",
+    "caught": true
+   },
+   {
+    "name": "F2: the ceiling test takes equal heights",
+    "caught": true
+   },
+   {
+    "name": "F3: the vy store is dropped",
+    "caught": true
+   },
+   {
+    "name": "F4: the floor test takes equal heights",
+    "caught": true
+   },
+   {
+    "name": "F5: wrong constant for the entity height (0xBB8 -> 0xBB9)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 28,
+   "branches_hit": 28,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 49,
+   "lines_hit": 49,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 15,
+     "text": "if (actor->unk5AC_9 << 9) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 26255, < 0, > 3745 (signed); < 0, > 3745 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1536"
+    },
+    {
+     "line": 25,
+     "text": "if (limit + sb->unk0 < elev2) {",
+     "size": 4,
+     "count": 26255,
+     "kind": "a == b / a < b",
+     "outcomes": "== 4173, < 13289, > 8793 (signed); < 14028, > 8054 (unsigned)",
+     "operand": "b -2147166119..2147477375",
+     "a": "-16383..16381"
+    },
+    {
+     "line": 37,
+     "text": "if (h < 0) {",
+     "size": 4,
+     "count": 15218,
+     "kind": "against a constant",
+     "outcomes": "== 1097, < 6067, > 8054 (signed); < 0, > 14121 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 46,
+     "text": "if (r != 0) {",
+     "size": 4,
+     "count": 9151,
+     "kind": "against a constant",
+     "outcomes": "== 4514, < 2282, > 2355 (signed); < 0, > 4637 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2146753338..2147076471"
+    },
+    {
+     "line": 50,
+     "text": "if ((*ent >> 17) & 1) {",
+     "size": 4,
+     "count": 9151,
+     "kind": "against a constant",
+     "outcomes": "== 4686, < 0, > 4465 (signed); < 0, > 4465 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..131072"
+    },
+    {
+     "line": 51,
+     "text": "if (h >= 0) {",
+     "size": 4,
+     "count": 4465,
+     "kind": "against a constant",
+     "outcomes": "== 248, < 2082, > 2135 (signed); < 0, > 4217 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2146753338..2147076471"
+    },
+    {
+     "line": 56,
+     "text": "if (h - actor->unk1E < -0x17F) {",
+     "size": 4,
+     "count": 9151,
+     "kind": "against a constant",
+     "outcomes": "== 2368, < 3295, > 3488 (signed); < 6580, > 203 (unsigned)",
+     "operand": "constant -383",
+     "a": "-2146755386..2146894433"
+    },
+    {
+     "line": 62,
+     "text": "if (los == 0) {",
+     "size": 4,
+     "count": 5856,
+     "kind": "against a constant",
+     "outcomes": "== 1561, < 2345, > 1950 (signed); < 0, > 4295 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2145700299..2142288123"
+    },
+    {
+     "line": 71,
+     "text": "if (sb->unk0 < elev2 - h) {",
+     "size": 4,
+     "count": 5856,
+     "kind": "a == b / a < b",
+     "outcomes": "== 1457, < 1066, > 3333 (signed); < 2294, > 2105 (unsigned)",
+     "operand": "b -2146924610..2145696950",
+     "a": "-3000..2147451035"
+    },
+    {
+     "line": 75,
+     "text": "if (h < sb->unk40 + limit) {",
+     "size": 4,
+     "count": 4790,
+     "kind": "a == b / a < b",
+     "outcomes": "== 1633, < 1527, > 1630 (signed); < 1786, > 1371 (unsigned)",
+     "operand": "b -2146534817..2144025277",
+     "a": "-2144401507..2146924610"
+    },
+    {
+     "line": 79,
+     "text": "if (func_800A8E84(actor, arg0) == 0) {",
+     "size": 4,
+     "count": 3263,
+     "kind": "against a constant",
+     "outcomes": "== 1104, < 1120, > 1039 (signed); < 0, > 2159 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2144172363..2137164354"
+    },
+    {
+     "line": 87,
+     "text": "if (q >= 0) {",
+     "size": 4,
+     "count": 2159,
+     "kind": "against a constant",
+     "outcomes": "== 741, < 552, > 866 (signed); < 0, > 1418 (unsigned)",
+     "operand": "constant 0",
+     "a": "-33301029..33545667"
+    },
+    {
+     "line": 91,
+     "text": "if (diff & 0x3F) {",
+     "size": 4,
+     "count": 552,
+     "kind": "against a constant",
+     "outcomes": "== 22, < 0, > 530 (signed); < 0, > 530 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..63"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 40020,
+     "completion_tokens": 9780,
+     "reasoning_tokens": 8555,
+     "cost": 0.008892,
+     "seconds": 38.3,
+     "sample": 1,
+     "conversation": "edccd11afa4c017f4ac55f6ae597cbc53b55d29d7509065d5509e481e9c71fbb"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A8B34.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A8B34.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 53.18616962099986,
+ "wall_seconds": 53.3892680329991,
+ "totals": {
+  "cost": 0.02791,
+  "prompt_tokens": 56438,
+  "completion_tokens": 44526,
+  "model_seconds": 187.6,
+  "check_seconds": 53.2,
+  "calls": 2,
+  "wall_seconds": 53.4
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested 42 / nested 123 / nested 9, 0 mismatches"
+ }
+}

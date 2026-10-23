@@ -1,0 +1,277 @@
+{
+ "function": "func_800DC0D0",
+ "unit": "src/BATTLE/BATTLE.PRG/73700.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound after two tooling fixes (psx.put of a literal null; NULL in a C mutation's replacement)",
+ "plan": {
+  "name": "func_800DC0D0",
+  "unit": "src/BATTLE/BATTLE.PRG/73700.c",
+  "stem": "73700",
+  "address": "0x800dc0d0",
+  "difficulty": "S",
+  "zig_name": "func_800DC0D0",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800DC0D0",
+  "spec_file": "func_800DC0D0.zig",
+  "subsystem": "battle_73700_port",
+  "signature": "pub fn func_800DC0D0() callconv(.c) void",
+  "params": [],
+  "ret": "void",
+  "types": [
+   "D_800F58BC_t",
+   "actorPhaseFlags",
+   "actorTimerState",
+   "func_800E78F4_t"
+  ],
+  "globals": [
+   "D_800F58BC"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12474,
+     "completion_tokens": 10460,
+     "reasoning_tokens": 8950,
+     "cost": 0.0064774,
+     "seconds": 45.0,
+     "sample": 1,
+     "conversation": "87ab3144b7c4ad5f59c2ae98f3c626d77e20116ebbf281bbae3e0155b83a6682"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation M5: the walk stops after the head node: mutation M5: the walk stops after the head node: its `from` text occurs 0 times in the C body of func_800DC0D0 (copy it exactly from the C)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14087,
+     "completion_tokens": 2569,
+     "reasoning_tokens": 1054,
+     "cost": 0.0026932,
+     "seconds": 9.4,
+     "sample": 1,
+     "conversation": "d9fa932a39f5ba9549fcba81427aadae0bcf146d860ffe8a5959975b36c3fd9e"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/func_800DC0D0/spec2/build/spec.zig:49:14: error: no field named 'targetFlags' in struct 'views_73700.func_800E78F4_t'\n    if (head.targetFlags >> 6 == 2) return 1;\n             ^~~~~~~~~~~\npc/build/port-pipeline/gen/73700/fn-func_800DC0D0/views_73700.zig:4:36: note: struct declared here\npub const func_800E78F4_t = extern struct {\n                            ~~~~~~~^~~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:438:36\n    main: pc/tests/zig_diff/main.zig:387:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ]
+   },
+   {
+    "round": 3,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 15970,
+     "completion_tokens": 3098,
+     "reasoning_tokens": 1560,
+     "cost": 0.003146,
+     "seconds": 12.0,
+     "sample": 1,
+     "conversation": "a62a14f444b2ac352a9013c6ca80f5b060296b5732d5fd6977d464d795abcdf0"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 3,
+   "sample": 1
+  },
+  "classes": {
+   "head-null": "9973",
+   "first-skipped": "5884",
+   "phase-0": "884",
+   "phase-16": "928",
+   "phase-other": "12331"
+  },
+  "mutations": [
+   {
+    "name": "M1: skip test shifts by 5, not 6",
+    "caught": true
+   },
+   {
+    "name": "M2: the break after a change is dropped",
+    "caught": true
+   },
+   {
+    "name": "M3: phase steps by 1 instead of direction",
+    "caught": true
+   },
+   {
+    "name": "M4: phase-16 mode is 1, not 2",
+    "caught": true
+   },
+   {
+    "name": "M5: the walk stops after the head node",
+    "caught": true
+   },
+   {
+    "name": "M6: the phase-16 test is 15",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 12,
+   "branches_hit": 12,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 21,
+   "lines_hit": 21,
+   "uncovered": [],
+   "flags": [],
+   "args": [],
+   "compares": [
+    {
+     "line": 10,
+     "text": "if ((state->targetFlags >> 6) != 2) {",
+     "size": 1,
+     "count": 45673,
+     "kind": "against a constant",
+     "outcomes": "== 13385, < 22656, > 9632 (signed); < 22656, > 9632 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..3"
+    },
+    {
+     "line": 11,
+     "text": "if (state->phase == 0) {",
+     "size": 1,
+     "count": 32288,
+     "kind": "against a constant",
+     "outcomes": "== 2023, < 12262, > 18003 (signed); < 0, > 30265 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 15,
+     "text": "} else if (state->phase == 16) {",
+     "size": 1,
+     "count": 30265,
+     "kind": "against a constant",
+     "outcomes": "== 2131, < 17200, > 10934 (signed); < 4938, > 23196 (unsigned)",
+     "operand": "constant 16",
+     "a": "-128..127"
+    },
+    {
+     "line": 21,
+     "text": "if (changed)",
+     "size": 4,
+     "count": 32288,
+     "kind": "against a constant",
+     "outcomes": "== 28134, < 0, > 4154 (signed); < 0, > 4154 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 36068,
+     "completion_tokens": 4688,
+     "reasoning_tokens": 4123,
+     "cost": 0.0059508,
+     "seconds": 20.6,
+     "sample": 1,
+     "conversation": "589531aaefe0cd708549af30ee523e9edd3bb67a8c7a365587a3984e3587d1c8"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800DC0D0.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800DC0D0.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 32.520740237999235,
+ "wall_seconds": 74.82799652899939,
+ "totals": {
+  "cost": 0.01827,
+  "prompt_tokens": 78599,
+  "completion_tokens": 20815,
+  "model_seconds": 87.0,
+  "check_seconds": 32.5,
+  "calls": 4,
+  "wall_seconds": 74.8
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "spec_fixes": [
+   "tooling: psx.put(&field, null) rejected (fixed in psx.zig); a C mutation whose replacement alone spelled NULL did not compile (the preprocessed body has no NULL: zig_diff now writes ((void*)0))"
+  ],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 86 / 124 / 175, 0 mismatches"
+ }
+}

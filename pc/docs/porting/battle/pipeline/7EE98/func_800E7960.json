@@ -1,0 +1,629 @@
+{
+ "function": "func_800E7960",
+ "unit": "src/BATTLE/BATTLE.PRG/7EE98.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec finished by the reviewer (rsqrt stub, radius edges, a +132 waiver, nonzero maxima)",
+ "plan": {
+  "name": "func_800E7960",
+  "unit": "src/BATTLE/BATTLE.PRG/7EE98.c",
+  "stem": "7EE98",
+  "address": "0x800e7960",
+  "difficulty": "L",
+  "zig_name": "func_800E7960",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800E7960",
+  "spec_file": "func_800E7960.zig",
+  "subsystem": "battle_7EE98_port",
+  "signature": "pub fn func_800E7960(state: ?*v.trackingMotionState) callconv(.c) void",
+  "params": [
+   [
+    "state",
+    "?*v.trackingMotionState"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "trackingMotion",
+   "trackingMotionActor",
+   "trackingMotionState",
+   "trackingMotionStats"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 19651,
+     "completion_tokens": 37796,
+     "reasoning_tokens": 34384,
+     "cost": 0.0208631,
+     "seconds": 162.7,
+     "sample": 1,
+     "conversation": "f8ef9bbe947a50c84d687e914b54f7ca50b3e2fed33f5daa950a28b704daae7f"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800E7960: branches 75/76 (98.7%), conditions not measured (GCC < 14: branch coverage only), lines 114/115\n  UNCOVERED +29 b0: branch never taken: `if (difference < 32)`\n  FLAG +22 eq: boundary equality never occurred (32-bit compare, constant 1023: both sides seen; a port's `<` for `<=` could pass): `if (radius < 1024)`\n  FLAG +24 eq: boundary equality never occurred (32-bit compare, constant 1024: both sides seen; a port's `<` for `<=` could pass): `if (radius > 1024)`\n  FLAG +27 eq: boundary equality never occurred (32-bit compare, constant 0: both sides seen; a port's `<` for `<=` could pass): `if (difference < 0)`\n  FLAG +38 eq: boundary equality never occurred (16-bit compare, constant 159: both sides seen; a port's `<` for `<=` could pass): `else if (motion->height < 160)`\n  FLAG +75 eq: boundary equality never occurred (32-bit compare, constant 0: both sides seen; a port's `<` for `<=` could pass): `if (D_800F5918 >= 0)`\n  FLAG +77 eq: boundary equality never occurred (32-bit compare, constant 8519680: both sides seen; a port's `<` for `<=` could pass): `if ((((D_800F5918)>=0)?(D_800F5918):(-(D_800F5918))) > 0x820000)`\n  FLAG +81 eq: boundary equality never occurred (32-bit compare, constant 49151: both sides seen; a port's `<` for `<=` could pass): `if ((!motion->phase && ratio < 0xC000)`\n  FLAG +82 eq: boundary equality never occurred (32-bit compare, constant 16383: both sides seen; a port's `<` for `<=` could pass): `|| (motion->phase == 1 && ratio < 0x4000)) {`\n  FLAG +85 eq: boundary equality never occurred (32-bit compare, constant -262143: both sides seen; a port's `<` for `<=` could pass): `} else if ((((D_800F5918)>=0)?(D_800F5918):(-(D_800F5918))) < 0x40000 && tracking && D_800F591C < 30`\n  FLAG +85 eq: boundary equality never occurred (32-bit compare, constant 262143: both sides seen; a port's `<` for `<=` could pass): `} else if ((((D_800F5918)>=0)?(D_800F5918):(-(D_800F5918))) < 0x40000 && tracking && D_800F591C < 30`\n  FLAG +124 eq: boundary equality occurred only 1 time(s) in 40000 (32-bit compare, b 100..34078720: both sides seen; a port's `<` for `<=` could pass): `if ((((correction)>=0)?(correction):(-(correction))) > magnitude * 4)`\n  FLAG +132 eq: boundary equality never occurred (32-bit compare, constant 1044479: both sides seen; a port's `<` for `<=` could pass): `if (state->targetY >= 0xFF000)`\ncoverage func_800E7960: FAILED (threshold 100%: 1 uncovered, 12 value flag(s) not waived)\nWhat to add:\n- `if (difference < 32)` (+29): one way out of this test (+29 b0) was never taken; add inputs that take it.\n- `if (radius < 1024)` (+22): the two sides of this ordered compare were equal 0 time(s) in 40000. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\n- `if (radius > 1024)` (+24): the two sides of this ordered compare were equal 0 time(s) in 40000. A port's `<` for `<=` would pass; ad"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "uninitialised": "13413",
+   "stateC-set": "4606",
+   "clamped-D": "900",
+   "low-ratio": "14285",
+   "other": "6796"
+  },
+  "mutations": [
+   {
+    "name": "M1: clamp value one too high",
+    "caught": true
+   },
+   {
+    "name": "M2: swing divided by 8 becomes a shift (rounds negatives down)",
+    "caught": true
+   },
+   {
+    "name": "M3: phase-0 trigger bound <= instead of <",
+    "caught": true
+   },
+   {
+    "name": "M4: wrong constant in the heading test (rcos(223))",
+    "caught": true
+   },
+   {
+    "name": "M5: stateE set to 2 instead of 1",
+    "caught": true
+   },
+   {
+    "name": "M6: unsigned-style denominator (no ABS on the swing)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 76,
+   "branches_hit": 76,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 115,
+   "lines_hit": 115,
+   "uncovered": [],
+   "flags": [
+    {
+     "id": "+38 eq",
+     "line": 38,
+     "text": "else if (motion->height < 160)",
+     "kind": "eq",
+     "bits": 16,
+     "equal": 0,
+     "count": 35605,
+     "what": "boundary equality never occurred (16-bit compare, constant 159: both sides seen; a port's `<` for `<=` could pass)"
+    },
+    {
+     "id": "+132 eq",
+     "line": 132,
+     "text": "if (state->targetY >= 0xFF000)",
+     "kind": "eq",
+     "bits": 32,
+     "equal": 0,
+     "count": 40000,
+     "what": "boundary equality never occurred (32-bit compare, constant 1044479: both sides seen; a port's `<` for `<=` could pass)"
+    }
+   ],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 8,
+     "text": "if (!motion->initialized) {",
+     "size": 1,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 13413, < 0, > 26587 (signed); < 0, > 26587 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 16,
+     "text": "if (!motion->flag3) {",
+     "size": 1,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 13385, < 0, > 26615 (signed); < 0, > 26615 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 22,
+     "text": "if (radius < 1024)",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 2580, < 18847, > 18573 (signed); < 18847, > 18573 (unsigned)",
+     "operand": "constant 1023",
+     "a": "8..32767"
+    },
+    {
+     "line": 24,
+     "text": "if (radius > 1024)",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 3400, < 14216, > 22384 (signed); < 14216, > 22384 (unsigned)",
+     "operand": "constant 1024",
+     "a": "40..32767"
+    },
+    {
+     "line": 27,
+     "text": "if (difference < 0)",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 4617, < 24012, > 11371 (signed); < 0, > 35383 (unsigned)",
+     "operand": "constant 0",
+     "a": "-984..31711"
+    },
+    {
+     "line": 29,
+     "text": "if (difference < 32)",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 1334, < 13811, > 24855 (signed); < 13811, > 24855 (unsigned)",
+     "operand": "constant 31",
+     "a": "0..31711"
+    },
+    {
+     "line": 34,
+     "text": "if (difference < 0)",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 2065, < 20119, > 17816 (signed); < 0, > 37935 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32928..32607"
+    },
+    {
+     "line": 36,
+     "text": "if (difference < 16)",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 2318, < 2077, > 35605 (signed); < 2077, > 35605 (unsigned)",
+     "operand": "constant 15",
+     "a": "0..32928"
+    },
+    {
+     "line": 38,
+     "text": "else if (motion->height < 160)",
+     "size": 2,
+     "count": 35605,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 18970, > 16635 (signed); < 5227, > 30378 (unsigned)",
+     "operand": "constant 159",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 47,
+     "text": "if (func_800E78F4((void*)state) && func_800D826C((void*)state)) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 11940, < 0, > 28060 (signed); < 0, > 28060 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 47,
+     "text": "if (func_800E78F4((void*)state) && func_800D826C((void*)state)) {",
+     "size": 4,
+     "count": 28060,
+     "kind": "against a constant",
+     "outcomes": "== 9920, < 0, > 18140 (signed); < 0, > 18140 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 55,
+     "text": "if (D_800F5918 >= 0)",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 3072, < 17231, > 19697 (signed); < 0, > 36928 (unsigned)",
+     "operand": "constant 0",
+     "a": "-9436586..9436364"
+    },
+    {
+     "line": 61,
+     "text": "aligned = ((cosCurrent * sinTarget - sinCurrent * cosTarget) * sign) >= 0;",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 15864, < 16003, > 8133 (signed); < 0, > 24136 (unsigned)",
+     "operand": "constant 0",
+     "a": "-28804444..29781477"
+    },
+    {
+     "line": 62,
+     "text": "if (aligned) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 16003, < 0, > 23997 (signed); < 0, > 23997 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 63,
+     "text": "if ((((D_800F5918)>=0)?(D_800F5918):(-(D_800F5918))) > 0x280000)",
+     "size": 4,
+     "count": 23997,
+     "kind": "against a constant",
+     "outcomes": "== 316, < 14068, > 9613 (signed); < 14068, > 9613 (unsigned)",
+     "operand": "constant 2621440",
+     "a": "0..9436586"
+    },
+    {
+     "line": 69,
+     "text": "if (tracking || rcos(currentAngle - heading) < rcos(222)) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 21860, < 0, > 18140 (signed); < 0, > 18140 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 69,
+     "text": "if (tracking || rcos(currentAngle - heading) < rcos(222)) {",
+     "size": 4,
+     "count": 21860,
+     "kind": "a == b / a < b",
+     "outcomes": "== 9044, < 6436, > 6380 (signed); < 6389, > 6427 (unsigned)",
+     "operand": "b -4095..4094",
+     "a": "-4096..4093"
+    },
+    {
+     "line": 70,
+     "text": "if (!aligned)",
+     "size": 4,
+     "count": 24576,
+     "kind": "against a constant",
+     "outcomes": "== 13168, < 0, > 11408 (signed); < 0, > 11408 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 75,
+     "text": "if (D_800F5918 >= 0)",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 8036, < 14091, > 17873 (signed); < 0, > 31964 (unsigned)",
+     "operand": "constant 0",
+     "a": "-11853863..11818362"
+    },
+    {
+     "line": 77,
+     "text": "if ((((D_800F5918)>=0)?(D_800F5918):(-(D_800F5918))) > 0x820000)",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 4113, < 33009, > 2878 (signed); < 33009, > 2878 (unsigned)",
+     "operand": "constant 8519680",
+     "a": "0..11853863"
+    },
+    {
+     "line": 80,
+     "text": "if (!motion->stateC) {",
+     "size": 2,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 29369, < 5387, > 5244 (signed); < 0, > 10631 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32759..32762"
+    },
+    {
+     "line": 81,
+     "text": "if ((!motion->phase && ratio < 0xC000)",
+     "size": 1,
+     "count": 29369,
+     "kind": "against a constant",
+     "outcomes": "== 5394, < 9302, > 14673 (signed); < 0, > 23975 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 81,
+     "text": "if ((!motion->phase && ratio < 0xC000)",
+     "size": 4,
+     "count": 5394,
+     "kind": "against a constant",
+     "outcomes": "== 696, < 2940, > 1758 (signed); < 1833, > 2865 (unsigned)",
+     "operand": "constant 49151",
+     "a": "-2147483648..2147418112"
+    },
+    {
+     "line": 82,
+     "text": "|| (motion->phase == 1 && ratio < 0x4000)) {",
+     "size": 1,
+     "count": 25733,
+     "kind": "against a constant",
+     "outcomes": "== 5438, < 11060, > 9235 (signed); < 1758, > 18537 (unsigned)",
+     "operand": "constant 1",
+     "a": "-128..127"
+    },
+    {
+     "line": 82,
+     "text": "|| (motion->phase == 1 && ratio < 0x4000)) {",
+     "size": 4,
+     "count": 5438,
+     "kind": "against a constant",
+     "outcomes": "== 712, < 1356, > 3370 (signed); < 279, > 4447 (unsigned)",
+     "operand": "constant 16383",
+     "a": "-2147483648..2147418112"
+    },
+    {
+     "line": 85,
+     "text": "} else if ((((D_800F5918)>=0)?(D_800F5918):(-(D_800F5918))) < 0x40000 && tracking && D_800F591C < 30",
+     "size": 4,
+     "count": 23665,
+     "kind": "against a constant",
+     "outcomes": "== 1946, < 6190, > 15529 (signed); < 20760, > 959 (unsigned)",
+     "operand": "constant -262143",
+     "a": "-8519680..8519680"
+    },
+    {
+     "line": 85,
+     "text": "} else if ((((D_800F5918)>=0)?(D_800F5918):(-(D_800F5918))) < 0x40000 && tracking && D_800F591C < 30",
+     "size": 4,
+     "count": 17475,
+     "kind": "against a constant",
+     "outcomes": "== 2029, < 8845, > 6601 (signed); < 5940, > 9506 (unsigned)",
+     "operand": "constant 262143",
+     "a": "-262143..8519680"
+    },
+    {
+     "line": 85,
+     "text": "} else if ((((D_800F5918)>=0)?(D_800F5918):(-(D_800F5918))) < 0x40000 && tracking && D_800F591C < 30",
+     "size": 4,
+     "count": 10874,
+     "kind": "against a constant",
+     "outcomes": "== 4695, < 0, > 6179 (signed); < 0, > 6179 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 85,
+     "text": "} else if ((((D_800F5918)>=0)?(D_800F5918):(-(D_800F5918))) < 0x40000 && tracking && D_800F591C < 30",
+     "size": 4,
+     "count": 6179,
+     "kind": "against a constant",
+     "outcomes": "== 236, < 2465, > 3478 (signed); < 556, > 5387 (unsigned)",
+     "operand": "constant 29",
+     "a": "-300..1100"
+    },
+    {
+     "line": 86,
+     "text": "&& !(rand() & 511)) {",
+     "size": 4,
+     "count": 2701,
+     "kind": "against a constant",
+     "outcomes": "== 77, < 0, > 2624 (signed); < 0, > 2624 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..511"
+    },
+    {
+     "line": 98,
+     "text": "if (tracking) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 21860, < 0, > 18140 (signed); < 0, > 18140 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 99,
+     "text": "if (aligned) {",
+     "size": 4,
+     "count": 18140,
+     "kind": "against a constant",
+     "outcomes": "== 10499, < 0, > 7641 (signed); < 0, > 7641 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 107,
+     "text": "} else if (aligned) {",
+     "size": 4,
+     "count": 21860,
+     "kind": "against a constant",
+     "outcomes": "== 5504, < 0, > 16356 (signed); < 0, > 16356 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 116,
+     "text": "if (denominator > 0x800)",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 1098, < 22707, > 16195 (signed); < 22707, > 16195 (unsigned)",
+     "operand": "constant 2048",
+     "a": "0..4095"
+    },
+    {
+     "line": 118,
+     "text": "if (!denominator) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 1504, < 0, > 38496 (signed); < 0, > 38496 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..2048"
+    },
+    {
+     "line": 124,
+     "text": "if ((((correction)>=0)?(correction):(-(correction))) > magnitude * 4)",
+     "size": 4,
+     "count": 40000,
+     "kind": "a == b / a < b",
+     "outcomes": "== 8038, < 29640, > 2322 (signed); < 29640, > 2322 (unsigned)",
+     "operand": "b 0..34078720",
+     "a": "0..2025841104"
+    },
+    {
+     "line": 127,
+     "text": "if (D_800F591C < -100)",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 917, < 5628, > 33455 (signed); < 32505, > 6578 (unsigned)",
+     "operand": "constant -100",
+     "a": "-631..1191"
+    },
+    {
+     "line": 129,
+     "text": "if (D_800F591C > 500)",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 690, < 32121, > 7189 (signed); < 18998, > 20312 (unsigned)",
+     "operand": "constant 500",
+     "a": "-100..1191"
+    },
+    {
+     "line": 132,
+     "text": "if (state->targetY >= 0xFF000)",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 24349, > 15651 (signed); < 5842, > 34158 (unsigned)",
+     "operand": "constant 1044479",
+     "a": "-136216576..134574080"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+38 eq",
+    "reason": "This compare runs only when |height - 160| >= 16, so height is never 159 or 160 here; the equal case cannot reach it."
+   },
+   {
+    "id": "+132 eq",
+    "reason": "targetY is (height << 12) - (D_800F591C << 12), a multiple of 0x1000, so it is never 0xFEFFF (GCC's `> 0xFEFFF` form of `>= 0xFF000`); the >= edge itself, 0xFF000, is drawn (height 767 -> 755, D_800F591C clamped to 500)."
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 43261,
+     "completion_tokens": 20592,
+     "reasoning_tokens": 17932,
+     "cost": 0.0146221,
+     "seconds": 79.3,
+     "sample": 1,
+     "conversation": "1a94f4f2dbd70d6ef3c8f3bb597f72c48bef88db15edc7c398d5aa5c65e05317"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800E7960.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800E7960.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 173.27014678900105,
+ "wall_seconds": 173.50901673499993,
+ "totals": {
+  "cost": 0.03549,
+  "prompt_tokens": 62912,
+  "completion_tokens": 58388,
+  "model_seconds": 242.0,
+  "check_seconds": 173.3,
+  "calls": 2,
+  "wall_seconds": 173.5
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "spec_fixes": [
+   "reviewer's round-2 reply: vs_gte_rsqrt was a recording stub (random roots): now the integer square root with two thirds of radiusSquared on the edge squares (1023, 1024, within 32 of 1024); +132 eq waived (targetY is a multiple of 0x1000, never GCC's 0xFEFFF); stats.maximum from edges only (ctx.pick's random half drew 0: a divide by zero in classify on seed 2, which failed Haiku's ports)"
+  ],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

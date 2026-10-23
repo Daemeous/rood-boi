@@ -180,6 +180,14 @@ SVECTOR padding) into its result, the evaluation block `D_800F5900`; with
 in that block on enemy_cast_wait and action_name_window. Found with the
 same watchpoint: the byte's last writer was `func_80085B10`'s copy.
 
+Fixed: `func_800D78F0` (6F014.c) zeroes `sp10.pad` under ROOD_PC (and its
+port, `func_800D78F0.zig`, does too). `vs_battle_lerpVector` writes the
+VECTOR's `vx`..`vz` and `func_800D5260` copies it whole into `D_800F5620`:
+`D_800F5620.unkC` was dead host stack. With `battle_2842C_port` owned (the
+2842C ports leave other frames on the stack) tick and alternate modes
+diverged there (action_name_window from tick 871, enemy_kill from tick 100)
+while call mode matched.
+
 Found by watching the bytes: `ROOD_BINARY` can be a wrapper that runs the
 game under `gdb -batch` with a Python script setting access watchpoints on
 the guest addresses (they are host addresses in the 64-bit build) whose

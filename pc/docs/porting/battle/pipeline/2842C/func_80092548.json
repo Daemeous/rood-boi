@@ -1,0 +1,287 @@
+{
+ "function": "func_80092548",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the record walk on guest addresses); spec sound",
+ "plan": {
+  "name": "func_80092548",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x80092548",
+  "difficulty": "M",
+  "zig_name": "func_80092548",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_80092548",
+  "spec_file": "func_80092548.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_80092548() callconv(.c) void",
+  "params": [],
+  "ret": "void",
+  "types": [
+   "D_800F1DD8_t",
+   "D_800F1DD8_t2",
+   "func_80092548_t"
+  ],
+  "globals": [
+   "D_800F1D00",
+   "D_800F1DD8",
+   "D_800F2258",
+   "D_800F225A",
+   "D_800F225B"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "tex-skip sec-skip": "4632",
+   "tex-skip sec-partial": "4361",
+   "tex-skip sec-exact": "4424",
+   "tex-kind sec-skip": "4381",
+   "tex-kind sec-partial": "4428",
+   "tex-kind sec-exact": "4356",
+   "tex-len sec-skip": "4542",
+   "tex-len sec-partial": "4451",
+   "tex-len sec-exact": "4425"
+  },
+  "mutations": [
+   {
+    "name": "F1: texture kind 6 treated as the end (bound 7 -> 6)",
+    "caught": true
+   },
+   {
+    "name": "F2: section D loop runs one item past an exact length",
+    "caught": true
+   },
+   {
+    "name": "F3: item size read before func_800927AC may change the count",
+    "caught": true
+   },
+   {
+    "name": "F4: wrong first entry index (64 -> 65)",
+    "caught": true
+   },
+   {
+    "name": "F5: texture count store dropped",
+    "caught": true
+   },
+   {
+    "name": "F6: odd-count alignment test uses bit 0 (slip on the mask)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 22,
+   "branches_hit": 22,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 56,
+   "lines_hit": 56,
+   "uncovered": [],
+   "flags": [],
+   "args": [],
+   "compares": [
+    {
+     "line": 15,
+     "text": "if ((int)vs_battle_roomData.header.textureEffectsSectionLen > 0) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 4432, < 8985, > 26583 (signed); < 0, > 35568 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..400"
+    },
+    {
+     "line": 20,
+     "text": "while (consumed < var_s2) {",
+     "size": 4,
+     "count": 193115,
+     "kind": "a == b / a < b",
+     "outcomes": "== 26583, < 166532, > 0 (signed); < 166532, > 0 (unsigned)",
+     "operand": "b 1..400",
+     "a": "0..400"
+    },
+    {
+     "line": 21,
+     "text": "if (((D_800F1DD8_t2*)data)->unk6 < 7",
+     "size": 1,
+     "count": 166532,
+     "kind": "against a constant",
+     "outcomes": "== 38383, < 123722, > 4427 (signed); < 121610, > 6539 (unsigned)",
+     "operand": "constant 6",
+     "a": "-56..8"
+    },
+    {
+     "line": 22,
+     "text": "&& sizes[((D_800F1DD8_t2*)data)->unk6] != 0) {",
+     "size": 4,
+     "count": 159993,
+     "kind": "against a constant",
+     "outcomes": "== 6626, < 0, > 153367 (signed); < 0, > 153367 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..36"
+    },
+    {
+     "line": 24,
+     "text": "D_800F1DD8[var_s3].unk0 = ((D_800F1DD8_t2*)data)->unk5 == 0;",
+     "size": 1,
+     "count": 153367,
+     "kind": "against a constant",
+     "outcomes": "== 77240, < 38406, > 37721 (signed); < 0, > 76127 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 39,
+     "text": "if ((int)vs_battle_roomData.header.sectionDLen > 0) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 4528, < 9027, > 26445 (signed); < 0, > 35472 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..252"
+    },
+    {
+     "line": 44,
+     "text": "while (var_s2 < var_s3) {",
+     "size": 4,
+     "count": 104696,
+     "kind": "a == b / a < b",
+     "outcomes": "== 6589, < 78251, > 19856 (signed); < 78251, > 19856 (unsigned)",
+     "operand": "b 1..252",
+     "a": "0..3265"
+    },
+    {
+     "line": 52,
+     "text": "if (entry->unk0 != 0) {",
+     "size": 1,
+     "count": 78251,
+     "kind": "against a constant",
+     "outcomes": "== 42915, < 0, > 35336 (signed); < 0, > 35336 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..12"
+    },
+    {
+     "line": 56,
+     "text": "if ((entry->unk1 & 3) != 0) {",
+     "size": 4,
+     "count": 78251,
+     "kind": "against a constant",
+     "outcomes": "== 30686, < 0, > 47565 (signed); < 0, > 47565 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..3"
+    },
+    {
+     "line": 62,
+     "text": "size = ((short*)data)[1] == 11 ? 4 : ((short*)data)[0];",
+     "size": 2,
+     "count": 78251,
+     "kind": "against a constant",
+     "outcomes": "== 13304, < 63741, > 1206 (signed); < 63741, > 1206 (unsigned)",
+     "operand": "constant 11",
+     "a": "0..3072"
+    },
+    {
+     "line": 63,
+     "text": "while (size != 0) {",
+     "size": 4,
+     "count": 162359,
+     "kind": "against a constant",
+     "outcomes": "== 78251, < 0, > 84108 (signed); < 0, > 84108 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..3072"
+    },
+    {
+     "line": 66,
+     "text": "size = ((short*)data)[1] == 11 ? 4 : ((short*)data)[0];",
+     "size": 2,
+     "count": 84108,
+     "kind": "against a constant",
+     "outcomes": "== 13071, < 70863, > 174 (signed); < 70863, > 174 (unsigned)",
+     "operand": "constant 11",
+     "a": "0..3072"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_80092548.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_80092548.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 43.91153243699955,
+ "wall_seconds": 63.14028285800123,
+ "totals": {
+  "cost": 0.0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "model_seconds": 0.0,
+  "check_seconds": 43.9,
+  "calls": 0,
+  "wall_seconds": 63.1
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

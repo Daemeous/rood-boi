@@ -1,0 +1,231 @@
+{
+ "function": "func_800A4828",
+ "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_800A4828",
+  "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+  "stem": "3A1A0",
+  "address": "0x800a4828",
+  "difficulty": "S",
+  "zig_name": "func_800A4828",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A4828",
+  "spec_file": "func_800A4828.zig",
+  "subsystem": "battle_3A1A0_port",
+  "signature": "pub fn func_800A4828(arg0: c_int, arg1: ?*v.MATRIX) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "?*v.MATRIX"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F4538_t",
+   "MATRIX"
+  ],
+  "globals": [
+   "D_800F4538"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 15877,
+     "completion_tokens": 10877,
+     "reasoning_tokens": 9167,
+     "cost": 0.0070262,
+     "seconds": 46.3,
+     "sample": 1,
+     "conversation": "00a723ee07b3a172f8fb7140be4c034682f26686076b17b1ba84b2f3eed27b00"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "hidden": "13119",
+   "visible": "13128",
+   "null-matrix": "3753"
+  },
+  "mutations": [
+   {
+    "name": "M1: unk5B2 set to 0 instead of 1",
+    "caught": true
+   },
+   {
+    "name": "M2: visible read after clearing it",
+    "caught": true
+   },
+   {
+    "name": "M3: visible restore dropped",
+    "caught": true
+   },
+   {
+    "name": "M4: func_800AEAE8 and func_800B28A8 swapped",
+    "caught": true
+   },
+   {
+    "name": "M5: func_800B28A8 flag 1 instead of 0",
+    "caught": true
+   },
+   {
+    "name": "M6: matrix call dropped",
+    "caught": true
+   },
+   {
+    "name": "M7: table always entry 0",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 10,
+   "lines_hit": 10,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: null seen"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39487,
+     "completion_tokens": 2980,
+     "reasoning_tokens": 2541,
+     "cost": 0.0054387,
+     "seconds": 13.3,
+     "sample": 1,
+     "conversation": "8cc82dc3e6c27dbbe5156746fa5a8f8f95f63cf310d29441b08ba689840560d1"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/common/psx.zig:230:37: error: access of union field 'pointer' while field 'optional' is active\n    const VT = @typeInfo(@TypeOf(p)).pointer.child;\n               ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/lib/std/lang.zig:640:18: note: union declared here\npub const Type = union(enum) {\n                 ^~~~~\nreferenced by:\n    func_800A4828: game/battle/func_800A4828.zig:14:29\n    main: pc/tests/zig_diff/main.zig:464:31\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 40271,
+     "completion_tokens": 1544,
+     "reasoning_tokens": 1121,
+     "cost": 0.0047991,
+     "seconds": 7.2,
+     "sample": 1,
+     "conversation": "ebd8b9a5e8e7841e75ca0e668a869925e0d12e6f28bb0cbb843d100ea768ecbe"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A4828.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A4828.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 40.549866088999806,
+ "wall_seconds": 40.78204417899997,
+ "totals": {
+  "cost": 0.01726,
+  "prompt_tokens": 95635,
+  "completion_tokens": 15401,
+  "model_seconds": 66.8,
+  "check_seconds": 40.5,
+  "calls": 3,
+  "wall_seconds": 40.8
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

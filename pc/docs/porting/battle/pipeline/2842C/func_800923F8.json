@@ -1,0 +1,245 @@
+{
+ "function": "func_800923F8",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the shift by unk10 masked as the x86 object's sar); spec sound",
+ "plan": {
+  "name": "func_800923F8",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x800923f8",
+  "difficulty": "M",
+  "zig_name": "func_800923F8",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800923F8",
+  "spec_file": "func_800923F8.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_800923F8(arg0: ?*v.D_800F1DD8_t2) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "?*v.D_800F1DD8_t2"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800F1DD8_t2"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "restart": "20325",
+   "sel1": "3906",
+   "sel2": "3921",
+   "sel-other": "11848"
+  },
+  "mutations": [
+   {
+    "name": "F1: fold at 1024 instead of 2048",
+    "caught": true
+   },
+   {
+    "name": "F2: distance test includes equality",
+    "caught": true
+   },
+   {
+    "name": "F3: clamp threshold 0x20 instead of 0x21",
+    "caught": true
+   },
+   {
+    "name": "F4: damping shift amount constant 1",
+    "caught": true
+   },
+   {
+    "name": "F5: wrong flag bit for selector 1",
+    "caught": true
+   },
+   {
+    "name": "F6: restart reloads position from the target",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 16,
+   "branches_hit": 16,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 33,
+   "lines_hit": 33,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 7,
+     "text": "if (arg0->unk4 != 0) {",
+     "size": 1,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 19675, < 10095, > 10230 (signed); < 0, > 20325 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 17,
+     "text": "if (delta > 4096 / 2) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 9034, < 17362, > 13604 (signed); < 17362, > 13604 (unsigned)",
+     "operand": "constant 2048",
+     "a": "0..4095"
+    },
+    {
+     "line": 21,
+     "text": "if (delta < (((arg0->unk8)>=0)?(arg0->unk8):(-(arg0->unk8)))) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "a == b / a < b",
+     "outcomes": "== 4103, < 28004, > 7893 (signed); < 28004, > 7893 (unsigned)",
+     "operand": "b 0..1062922851",
+     "a": "0..2048"
+    },
+    {
+     "line": 24,
+     "text": "if ((((arg0->unk8)>=0)?(arg0->unk8):(-(arg0->unk8))) < 0x21) {",
+     "size": 4,
+     "count": 28004,
+     "kind": "against a constant",
+     "outcomes": "== 513, < 9604, > 17887 (signed); < 25204, > 2287 (unsigned)",
+     "operand": "constant -32",
+     "a": "-961907397..1017548933"
+    },
+    {
+     "line": 24,
+     "text": "if ((((arg0->unk8)>=0)?(arg0->unk8):(-(arg0->unk8))) < 0x21) {",
+     "size": 4,
+     "count": 18400,
+     "kind": "against a constant",
+     "outcomes": "== 425, < 8535, > 9440 (signed); < 5735, > 12240 (unsigned)",
+     "operand": "constant 32",
+     "a": "-32..1017548933"
+    },
+    {
+     "line": 32,
+     "text": "if (arg0->unk7 == 1) {",
+     "size": 1,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 7869, < 16078, > 16053 (signed); < 8000, > 24131 (unsigned)",
+     "operand": "constant 1",
+     "a": "-1..3"
+    },
+    {
+     "line": 35,
+     "text": "} else if (arg0->unk7 == 2) {",
+     "size": 1,
+     "count": 32131,
+     "kind": "against a constant",
+     "outcomes": "== 8000, < 16078, > 8053 (signed); < 8000, > 16131 (unsigned)",
+     "operand": "constant 2",
+     "a": "-1..3"
+    },
+    {
+     "line": 41,
+     "text": "if (ret != 0) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 8960, < 0, > 31040 (signed); < 0, > 31040 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800923F8.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800923F8.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 44.35150054299993,
+ "wall_seconds": 48.3974879590005,
+ "totals": {
+  "cost": 0.0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "model_seconds": 0.0,
+  "check_seconds": 44.4,
+  "calls": 0,
+  "wall_seconds": 48.4
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

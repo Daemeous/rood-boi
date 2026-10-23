@@ -1,0 +1,199 @@
+{
+ "function": "func_800AC500",
+ "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_800AC500",
+  "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+  "stem": "40564",
+  "address": "0x800ac500",
+  "difficulty": "S",
+  "zig_name": "func_800AC500",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800AC500",
+  "spec_file": "func_800AC500.zig",
+  "subsystem": "battle_40564_port",
+  "signature": "pub fn func_800AC500(arg0: ?*v.D_800F4538_t) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.D_800F4538_t"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F4538_unk68"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16164,
+     "completion_tokens": 6233,
+     "reasoning_tokens": 5193,
+     "cost": 0.0047329,
+     "seconds": 26.9,
+     "sample": 1,
+     "conversation": "cd3bd1aa16505e4614056bb56d9550bd23bc736c8c1223649f03d7b2910b498d"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "no-bones": "2456",
+   "one-bone": "2598",
+   "high-bones": "12588",
+   "many-bones": "12358"
+  },
+  "mutations": [
+   {
+    "name": "A1: unk18D0[1] not cleared",
+    "caught": true
+   },
+   {
+    "name": "A2: loop bound off by one (<= nBones)",
+    "caught": true
+   },
+   {
+    "name": "A3: armature field set to 1, not 0",
+    "caught": true
+   },
+   {
+    "name": "A4: nBones read as signed char",
+    "caught": true
+   },
+   {
+    "name": "A5: loop steps by two",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 6,
+   "lines_hit": 6,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 7,
+     "text": "for (i = 0; i < arg0->unk0.nBones; ++i) {",
+     "size": 4,
+     "count": 3251769,
+     "kind": "a == b / a < b",
+     "outcomes": "== 30000, < 3221769, > 0 (signed); < 3221769, > 0 (unsigned)",
+     "operand": "b 0..255",
+     "a": "0..255"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39644,
+     "completion_tokens": 2804,
+     "reasoning_tokens": 2420,
+     "cost": 0.0053664,
+     "seconds": 13.0,
+     "sample": 1,
+     "conversation": "59123c2fe7016621bfe66b3dc93f39cec389259a4db53c48a8df7a294c9a7b31"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800AC500.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800AC500.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 38.34284772999854,
+ "wall_seconds": 75.5368613390001,
+ "totals": {
+  "cost": 0.0101,
+  "prompt_tokens": 55808,
+  "completion_tokens": 9037,
+  "model_seconds": 39.9,
+  "check_seconds": 38.3,
+  "calls": 2,
+  "wall_seconds": 75.5
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 23 / root 46 / root 93, 0 mismatches"
+ }
+}

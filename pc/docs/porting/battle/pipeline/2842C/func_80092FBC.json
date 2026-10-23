@@ -1,0 +1,233 @@
+{
+ "function": "func_80092FBC",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_80092FBC",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x80092fbc",
+  "difficulty": "S",
+  "zig_name": "func_80092FBC",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_80092FBC",
+  "spec_file": "func_80092FBC.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_80092FBC(arg0: ?*v.func_80092F74_t, arg1: ?*v.func_80092F74_t2) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "?*v.func_80092F74_t"
+   ],
+   [
+    "arg1",
+    "?*v.func_80092F74_t2"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "func_80092F74_t",
+   "func_80092F74_t2"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": false,
+    "errors": [
+     "FAIL: mutation F6: wrong sentinel constant: not caught as mismatch (exit 4) (the mutated copy crashes where the C does not: if that is what this mistake does on your inputs, say `expect = \"crash\"`; otherwise choose a mutation your inputs show as a difference): zdiff: MISMATCH iteration 2: memory at 0x407088 [arena] (zdiff_state+0x18): C 53, Zig 52\nzdiff: MISMATCH iteration 9: memory at 0x407088 [arena] (zdiff_state+0x18): C 0, Zig 254\nzdiff: MISMATCH iteration 15: memory at 0x407088 [arena] (zdiff_state+0x18): C 160, Zig 0\nzdiff: CRASH (signal 11) in the Zig run, iteration 56, fault address 0x18 [NULL+0x18: a field of a null pointer]"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "sentinel": "2138",
+   "reaches-limit": "18400",
+   "counting": "9462"
+  },
+  "mutations": [
+   {
+    "name": "F1: selector 2 dispatches the wrong value (callee 2 dropped)",
+    "caught": true
+   },
+   {
+    "name": "F2: '>=' becomes '>' (equal counter does not reset)",
+    "caught": true
+   },
+   {
+    "name": "F3: signed/unsigned slip in the counter compare",
+    "caught": true
+   },
+   {
+    "name": "F4: the counter reset is dropped",
+    "caught": true
+   },
+   {
+    "name": "F5: inverted test of the callee result in the sentinel path",
+    "caught": true
+   },
+   {
+    "name": "F6: final return value off by one (1 becomes 2)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 10,
+   "branches_hit": 10,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 15,
+   "lines_hit": 15,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: null seen"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 5,
+     "text": "if (new_var->unk4[0].u16[1] == 1) {",
+     "size": 2,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 7524, < 7567, > 14909 (signed); < 7567, > 14909 (unsigned)",
+     "operand": "constant 1",
+     "a": "0..3"
+    },
+    {
+     "line": 7,
+     "text": "} else if (new_var->unk4[0].u16[1] == 2) {",
+     "size": 2,
+     "count": 22476,
+     "kind": "against a constant",
+     "outcomes": "== 7478, < 7567, > 7431 (signed); < 7567, > 7431 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..3"
+    },
+    {
+     "line": 11,
+     "text": "if (new_var->unk4[0].u16[0] == 0x8000) {",
+     "size": 2,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 2138, < 0, > 27862 (signed); < 18129, > 9733 (unsigned)",
+     "operand": "constant -32768",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 12,
+     "text": "if (var_a0 == 0) {",
+     "size": 4,
+     "count": 2138,
+     "kind": "against a constant",
+     "outcomes": "== 1492, < 341, > 305 (signed); < 0, > 646 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2145753825..2137131158"
+    },
+    {
+     "line": 17,
+     "text": "if (arg0->unk18 >= new_var->unk4[0].u16[0]) {",
+     "size": 4,
+     "count": 27862,
+     "kind": "a == b / a < b",
+     "outcomes": "== 10351, < 9814, > 7697 (signed); < 4615, > 12896 (unsigned)",
+     "operand": "b 0..65535",
+     "a": "-69990..69998"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_80092FBC.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_80092FBC.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 51.61623037000027,
+ "wall_seconds": 79.22928234399842,
+ "totals": {
+  "cost": 0.0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "model_seconds": 0.0,
+  "check_seconds": 51.6,
+  "calls": 0,
+  "wall_seconds": 79.2
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

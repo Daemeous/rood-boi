@@ -1,0 +1,350 @@
+{
+ "function": "func_800A4494",
+ "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the transition label as the shared tail); spec sound",
+ "plan": {
+  "name": "func_800A4494",
+  "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+  "stem": "3A1A0",
+  "address": "0x800a4494",
+  "difficulty": "M",
+  "zig_name": "func_800A4494",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A4494",
+  "spec_file": "func_800A4494.zig",
+  "subsystem": "battle_3A1A0_port",
+  "signature": "pub fn func_800A4494(contact: c_int, point: ?*v.SVECTOR) callconv(.c) c_int",
+  "params": [
+   [
+    "contact",
+    "c_int"
+   ],
+   [
+    "point",
+    "?*v.SVECTOR"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800F4538_t",
+   "SVECTOR"
+  ],
+  "globals": [
+   "D_800F4538"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16345,
+     "completion_tokens": 35068,
+     "reasoning_tokens": 31736,
+     "cost": 0.0191685,
+     "seconds": 146.2,
+     "sample": 1,
+     "conversation": "b8d35a7de7ffd85b3870c9567658ec8f1348001917fa99052b90b9d54b448855"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/func_800A4494/spec1/build/spec.zig:80:32: error: expected unsigned integer type, found 'c_int'\n    const want: u4 = @truncate(contact);\n                               ^~~~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:430:40\n    main: pc/tests/zig_diff/main.zig:387:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 19933,
+     "completion_tokens": 5094,
+     "reasoning_tokens": 1653,
+     "cost": 0.0045403,
+     "seconds": 17.1,
+     "sample": 1,
+     "conversation": "7a8d479911aa39342e616c772170c35e1455abd5d4b7efa1ff78d2387e02a4e5"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "no-live-actor": "1518",
+   "contact-ready": "8912",
+   "contact-not-ready": "3600",
+   "window-goto": "7457",
+   "window-return": "1787",
+   "outside": "6726"
+  },
+  "mutations": [
+   {
+    "name": "M1: restore of position.vz dropped",
+    "caught": true
+   },
+   {
+    "name": "M2: left x bound with <= (equal side wrong)",
+    "caught": true
+   },
+   {
+    "name": "M3: y upper bound with > instead of >=",
+    "caught": true
+   },
+   {
+    "name": "M4: radius read as signed i16",
+    "caught": true
+   },
+   {
+    "name": "M5: dz read as one signed byte",
+    "caught": true
+   },
+   {
+    "name": "M6: goto transition dropped (continue instead)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 26,
+   "branches_hit": 26,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 45,
+   "lines_hit": 45,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -2143681071, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 6,
+     "text": "for (i = 0; i < 17; i++) {",
+     "size": 4,
+     "count": 246410,
+     "kind": "against a constant",
+     "outcomes": "== 9043, < 228406, > 8961 (signed); < 228406, > 8961 (unsigned)",
+     "operand": "constant 16",
+     "a": "0..17"
+    },
+    {
+     "line": 8,
+     "text": "if (actor == 0 || actor->unk0.skip)",
+     "size": 1,
+     "count": 169425,
+     "kind": "against a constant",
+     "outcomes": "== 141308, < 0, > 28117 (signed); < 0, > 28117 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 10,
+     "text": "if (actor->unk0.unkC_0 == contact) {",
+     "size": 4,
+     "count": 141308,
+     "kind": "a == b / a < b",
+     "outcomes": "== 16375, < 64788, > 60145 (signed); < 54399, > 70534 (unsigned)",
+     "operand": "b 0..15",
+     "a": "-2143681071..2147483647"
+    },
+    {
+     "line": 11,
+     "text": "if (actor->unk0.unkA_3 != 2)",
+     "size": 1,
+     "count": 16375,
+     "kind": "against a constant",
+     "outcomes": "== 5376, < 7318, > 3681 (signed); < 7318, > 3681 (unsigned)",
+     "operand": "constant 16",
+     "a": "0..24"
+    },
+    {
+     "line": 20,
+     "text": "if (!hit)",
+     "size": 4,
+     "count": 5376,
+     "kind": "against a constant",
+     "outcomes": "== 2694, < 1321, > 1361 (signed); < 0, > 2682 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2145330328..2147009896"
+    },
+    {
+     "line": 37,
+     "text": "if (x + 64 < actor->unk0.position.vx - radius",
+     "size": 4,
+     "count": 124933,
+     "kind": "a == b / a < b",
+     "outcomes": "== 8758, < 38242, > 77933 (signed); < 76013, > 40162 (unsigned)",
+     "operand": "b -98302..32767",
+     "a": "-32704..32831"
+    },
+    {
+     "line": 38,
+     "text": "|| x - 64 > actor->unk0.position.vx + radius)",
+     "size": 4,
+     "count": 86691,
+     "kind": "a == b / a < b",
+     "outcomes": "== 8709, < 33775, > 44207 (signed); < 25145, > 52837 (unsigned)",
+     "operand": "b -32768..98301",
+     "a": "-32832..32703"
+    },
+    {
+     "line": 41,
+     "text": "if (z + 64 < actor->unk0.position.vz - radius",
+     "size": 4,
+     "count": 42484,
+     "kind": "a == b / a < b",
+     "outcomes": "== 5794, < 4746, > 31944 (signed); < 22967, > 13723 (unsigned)",
+     "operand": "b -98302..32767",
+     "a": "-32704..32831"
+    },
+    {
+     "line": 42,
+     "text": "|| z - 64 > actor->unk0.position.vz + radius)",
+     "size": 4,
+     "count": 37738,
+     "kind": "a == b / a < b",
+     "outcomes": "== 5779, < 27349, > 4610 (signed); < 14327, > 17632 (unsigned)",
+     "operand": "b -32766..98302",
+     "a": "-32832..32703"
+    },
+    {
+     "line": 45,
+     "text": "if (point->vy < y - 288 || point->vy >= y)",
+     "size": 4,
+     "count": 33128,
+     "kind": "a == b / a < b",
+     "outcomes": "== 6296, < 244, > 26588 (signed); < 8704, > 18128 (unsigned)",
+     "operand": "b -33056..32479",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 45,
+     "text": "if (point->vy < y - 288 || point->vy >= y)",
+     "size": 4,
+     "count": 32884,
+     "kind": "a == b / a < b",
+     "outcomes": "== 8392, < 6135, > 18357 (signed); < 2507, > 21985 (unsigned)",
+     "operand": "b -32768..32767",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 47,
+     "text": "if (actor->unk0.unkA_3 == 2)",
+     "size": 1,
+     "count": 18357,
+     "kind": "against a constant",
+     "outcomes": "== 5944, < 8412, > 4001 (signed); < 8412, > 4001 (unsigned)",
+     "operand": "constant 16",
+     "a": "0..24"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39955,
+     "completion_tokens": 9547,
+     "reasoning_tokens": 8247,
+     "cost": 0.008769,
+     "seconds": 37.2,
+     "sample": 1,
+     "conversation": "5bdef42e54a951f9e775a903cd7d1d319241a01124f9e366fd3cc8dbe64f3b9c"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A4494.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A4494.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 36.10421867000059,
+ "wall_seconds": 40.577509321000434,
+ "totals": {
+  "cost": 0.03248,
+  "prompt_tokens": 76233,
+  "completion_tokens": 49709,
+  "model_seconds": 200.5,
+  "check_seconds": 36.1,
+  "calls": 3,
+  "wall_seconds": 40.6
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

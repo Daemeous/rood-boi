@@ -1,0 +1,364 @@
+{
+ "function": "func_80090EEC",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the three PC_ANCHOR_PACKETS hooks kept in place: the packet cursor read before the draw, pc_hw_anchor_packets through psx.weak after it); spec sound (the three never-linked-hook waivers hold)",
+ "plan": {
+  "name": "func_80090EEC",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x80090eec",
+  "difficulty": "L",
+  "zig_name": "func_80090EEC",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_80090EEC",
+  "spec_file": "func_80090EEC.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_80090EEC() callconv(.c) void",
+  "params": [],
+  "ret": "void",
+  "types": [
+   "_mpdRoomSectionB"
+  ],
+  "globals": [
+   "D_800F1BA4",
+   "D_800F1CDC",
+   "D_800F1D98",
+   "D_800F1DA8",
+   "D_800F1DC4",
+   "D_800F1DCA",
+   "D_800F1DCB",
+   "vs_battle_roomData"
+  ],
+  "hooks": [
+   "pc_anchor_start",
+   "pc_hw_anchor_packets",
+   "ROOD_PC block in the source"
+  ],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14782,
+     "completion_tokens": 18796,
+     "reasoning_tokens": 15854,
+     "cost": 0.0108762,
+     "seconds": 78.1,
+     "sample": 1,
+     "conversation": "6071c431570ca6f161bddbd30c4475599842a861e7ffa6e4ed481f7fed9ca1e7"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_80090EEC: branches 30/33 (90.9%), conditions not measured (GCC < 14: branch coverage only), lines 42/42\n  UNCOVERED +48 b1: branch never taken: `do { void* pc_anchor_start = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); func_8008FDC4(); if (pc_hw_anchor_packets) pc_hw_anchor_packets(pc_anchor_start, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))), PC_ANCHOR_SCENE); } while (0);`\n  UNCOVERED +51 b1: branch never taken: `do { void* pc_anchor_start = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); func_80090434(); if (pc_hw_anchor_packets) pc_hw_anchor_packets(pc_anchor_start, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))), PC_ANCHOR_COVER); } while (0);`\n  UNCOVERED +54 b1: branch never taken: `do { void* pc_anchor_start = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); func_8008FAC8(); if (pc_hw_anchor_packets) pc_hw_anchor_packets(pc_anchor_start, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))), PC_ANCHOR_SCENE); } while (0);`\ncoverage func_80090EEC: FAILED (threshold 100%: 3 uncovered, 0 value flag(s) not waived)\nWhat to add:\n- `do { void* pc_anchor_start = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); func_8008FDC4(); if (pc_hw_anchor_packets) pc_hw_anchor_packets(pc_anchor_start, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))), PC_ANCHOR_SCENE); } while (0);` (+48): one way out of this test (+48 b1) was never taken; add inputs that take it.\n- `do { void* pc_anchor_start = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); func_80090434(); if (pc_hw_anchor_packets) pc_hw_anchor_packets(pc_anchor_start, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))), PC_ANCHOR_COVER); } while (0);` (+51): one way out of this test (+51 b1) was never taken; add inputs that take it.\n- `do { void* pc_anchor_start = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); func_8008FAC8(); if (pc_hw_anchor_packets) pc_hw_anchor_packets(pc_anchor_start, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))), PC_ANCHOR_SCENE); } while (0);` (+54): one way out of this test (+54 b1) was never taken; add inputs that take it.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_80090EEC.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 19177,
+     "completion_tokens": 4514,
+     "reasoning_tokens": 1288,
+     "cost": 0.0041747,
+     "seconds": 16.0,
+     "sample": 1,
+     "conversation": "5865ae2ba83ce7341e31d29377459d6d8351d34db508dd16bd54652cea0793fa"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "no-room": "4043",
+   "idle": "4582",
+   "block-skipped": "10543",
+   "case-1": "3053",
+   "case-2": "2971",
+   "case-3": "3012",
+   "case-4": "2933",
+   "other-case": "8863"
+  },
+  "mutations": [
+   {
+    "name": "F1: sign flip of D_800F1D98[7] dropped",
+    "caught": true
+   },
+   {
+    "name": "F2: DC4 clamp bounds swapped",
+    "caught": true
+   },
+   {
+    "name": "F3: D_800F1D98[5] wrapped at 0x7FF, not 0xFFF",
+    "caught": true
+   },
+   {
+    "name": "F4: the DC4 block's call to func_8009121C dropped",
+    "caught": true
+   },
+   {
+    "name": "F6: the D_800F1CDC + 30 test uses + 31",
+    "caught": true
+   },
+   {
+    "name": "F7: case 4 calls func_8008FDC4, not func_8008FAC8",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 33,
+   "branches_hit": 30,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 42,
+   "lines_hit": 42,
+   "uncovered": [
+    {
+     "id": "+48 b1",
+     "line": 48,
+     "text": "do { void* pc_anchor_start = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); func_8008FDC4(); if (pc_hw_anchor_packets) pc_hw_anchor_packets(pc_anchor_start, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))), PC_ANCHOR_SCENE); } while (0);",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+51 b1",
+     "line": 51,
+     "text": "do { void* pc_anchor_start = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); func_80090434(); if (pc_hw_anchor_packets) pc_hw_anchor_packets(pc_anchor_start, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))), PC_ANCHOR_COVER); } while (0);",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+54 b1",
+     "line": 54,
+     "text": "do { void* pc_anchor_start = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); func_8008FAC8(); if (pc_hw_anchor_packets) pc_hw_anchor_packets(pc_anchor_start, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))), PC_ANCHOR_SCENE); } while (0);",
+     "what": "branch never taken"
+    }
+   ],
+   "flags": [],
+   "args": [],
+   "compares": [
+    {
+     "line": 6,
+     "text": "if ((room != 0) && (D_800F1DCA != 0)) {",
+     "size": 1,
+     "count": 35957,
+     "kind": "against a constant",
+     "outcomes": "== 4582, < 4470, > 26905 (signed); < 0, > 31375 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..6"
+    },
+    {
+     "line": 7,
+     "text": "if ((D_800F1BA4 == 0) && (D_800F1DCB != 0)) {",
+     "size": 2,
+     "count": 31375,
+     "kind": "against a constant",
+     "outcomes": "== 25070, < 3681, > 2624 (signed); < 0, > 6305 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32760"
+    },
+    {
+     "line": 7,
+     "text": "if ((D_800F1BA4 == 0) && (D_800F1DCB != 0)) {",
+     "size": 1,
+     "count": 25070,
+     "kind": "against a constant",
+     "outcomes": "== 4238, < 12272, > 8560 (signed); < 0, > 20832 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 9,
+     "text": "if ((D_800F1CDC & masks[room->unk3A]) == 0) {",
+     "size": 4,
+     "count": 20832,
+     "kind": "against a constant",
+     "outcomes": "== 3875, < 0, > 16957 (signed); < 0, > 16957 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..127"
+    },
+    {
+     "line": 10,
+     "text": "if ((rand() & 7) < 3) {",
+     "size": 4,
+     "count": 3875,
+     "kind": "against a constant",
+     "outcomes": "== 472, < 985, > 2418 (signed); < 985, > 2418 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..7"
+    },
+    {
+     "line": 18,
+     "text": "if (((D_800F1CDC + 30) & masks[room->unk46]) == 0) {",
+     "size": 4,
+     "count": 20832,
+     "kind": "against a constant",
+     "outcomes": "== 1586, < 0, > 19246 (signed); < 0, > 19246 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..127"
+    },
+    {
+     "line": 19,
+     "text": "if ((rand() & 7) < 3) {",
+     "size": 4,
+     "count": 1586,
+     "kind": "against a constant",
+     "outcomes": "== 212, < 403, > 971 (signed); < 403, > 971 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..7"
+    },
+    {
+     "line": 26,
+     "text": "if (((D_800F1CDC + 60) & masks[room->unk40]) == 0) {",
+     "size": 4,
+     "count": 20832,
+     "kind": "against a constant",
+     "outcomes": "== 296, < 0, > 20536 (signed); < 0, > 20536 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..127"
+    },
+    {
+     "line": 27,
+     "text": "if ((rand() & 7) < 3) {",
+     "size": 4,
+     "count": 296,
+     "kind": "against a constant",
+     "outcomes": "== 35, < 66, > 195 (signed); < 66, > 195 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..7"
+    },
+    {
+     "line": 35,
+     "text": "if (changed != 0) {",
+     "size": 4,
+     "count": 20832,
+     "kind": "against a constant",
+     "outcomes": "== 15075, < 0, > 5757 (signed); < 0, > 5757 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 39,
+     "text": "switch (D_800F1DCA) {",
+     "size": 4,
+     "count": 31375,
+     "kind": "switch",
+     "outcomes": "== 16444, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..255"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+48 b1",
+    "reason": "pc_hw_anchor_packets is a weak hook the harness never links (NULL in both runs); the spec cannot supply it, so the non-null arm after func_8008FDC4 is unreachable"
+   },
+   {
+    "id": "+51 b1",
+    "reason": "pc_hw_anchor_packets is a weak hook the harness never links (NULL in both runs); the spec cannot supply it, so the non-null arm after func_80090434 is unreachable"
+   },
+   {
+    "id": "+54 b1",
+    "reason": "pc_hw_anchor_packets is a weak hook the harness never links (NULL in both runs); the spec cannot supply it, so the non-null arm after func_8008FAC8 is unreachable"
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 38149,
+     "completion_tokens": 7825,
+     "reasoning_tokens": 6124,
+     "cost": 0.0077274,
+     "seconds": 31.0,
+     "sample": 1,
+     "conversation": "8a7ca546191bbf7d7c691f818969ba31018d2aa591049481ff71e90c57e84d7e"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_80090EEC.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_80090EEC.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 62.73117607899985,
+ "wall_seconds": 63.09629949800001,
+ "totals": {
+  "cost": 0.02278,
+  "prompt_tokens": 72108,
+  "completion_tokens": 31135,
+  "model_seconds": 125.1,
+  "check_seconds": 62.7,
+  "calls": 3,
+  "wall_seconds": 63.1
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 248 / root 481 / root 850, 0 mismatches"
+ }
+}

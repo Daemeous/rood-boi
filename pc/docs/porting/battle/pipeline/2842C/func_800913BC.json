@@ -1,0 +1,215 @@
+{
+ "function": "func_800913BC",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_800913BC",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x800913bc",
+  "difficulty": "S",
+  "zig_name": "func_800913BC",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800913BC",
+  "spec_file": "func_800913BC.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_800913BC(arg0: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [
+   "D_80068EB4",
+   "D_800F1DBC",
+   "D_800F1DC4"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12041,
+     "completion_tokens": 7279,
+     "reasoning_tokens": 5785,
+     "cost": 0.0048436,
+     "seconds": 31.2,
+     "sample": 1,
+     "conversation": "b53b03b60834a8a4d7b01a6bd2b14f7aa5e762423c4282a62915b93611196353"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "negative": "10876",
+   "zero-arg": "1625",
+   "nonneg-table-zero": "5868",
+   "nonneg-table-nonzero": "11631"
+  },
+  "mutations": [
+   {
+    "name": "F1: sfx gate skips arg0 == 0 (> for >=)",
+    "caught": true
+   },
+   {
+    "name": "F2: sfx argument not narrowed to short",
+    "caught": true
+   },
+   {
+    "name": "F3: returns the global after the store, not the old value",
+    "caught": true
+   },
+   {
+    "name": "F4: wrong constant to the sound callee's flag",
+    "caught": true
+   },
+   {
+    "name": "F5: table test against 1 instead of 0",
+    "caught": true
+   },
+   {
+    "name": "F6: dropped store of the argument to the global",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 4,
+   "branches_hit": 4,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 9,
+   "lines_hit": 9,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 7,
+     "text": "if (arg0 >= 0) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 1625, < 10876, > 17499 (signed); < 0, > 28375 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147483647"
+    },
+    {
+     "line": 8,
+     "text": "if (D_80068EB4[D_800F1DC4] != 0) {",
+     "size": 1,
+     "count": 19124,
+     "kind": "against a constant",
+     "outcomes": "== 6405, < 6430, > 6289 (signed); < 0, > 12719 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35416,
+     "completion_tokens": 2332,
+     "reasoning_tokens": 1837,
+     "cost": 0.0047076,
+     "seconds": 10.5,
+     "sample": 1,
+     "conversation": "b3c76e535760b5a8c59e43ea302836426af8e4a60cd8546fceef70f1d2df0103"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800913BC.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800913BC.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 25.420545369997853,
+ "wall_seconds": 25.604495169000074,
+ "totals": {
+  "cost": 0.00955,
+  "prompt_tokens": 47457,
+  "completion_tokens": 9611,
+  "model_seconds": 41.7,
+  "check_seconds": 25.4,
+  "calls": 2,
+  "wall_seconds": 25.6
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

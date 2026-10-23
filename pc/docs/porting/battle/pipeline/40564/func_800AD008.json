@@ -1,0 +1,332 @@
+{
+ "function": "func_800AD008",
+ "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (psx_to_ptr guest addresses; the pose's 0x400040 words as their halves); spec sound",
+ "plan": {
+  "name": "func_800AD008",
+  "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+  "stem": "40564",
+  "address": "0x800ad008",
+  "difficulty": "M",
+  "zig_name": "func_800AD008",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800AD008",
+  "spec_file": "func_800AD008.zig",
+  "subsystem": "battle_40564_port",
+  "signature": "pub fn func_800AD008(arg0: ?*anyopaque, arg1: ?*anyopaque) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*anyopaque"
+   ],
+   [
+    "arg1",
+    "?*anyopaque"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F4538_unkC54",
+   "SVECTOR"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 19253,
+     "completion_tokens": 37371,
+     "reasoning_tokens": 34671,
+     "cost": 0.0206108,
+     "seconds": 159.1,
+     "sample": 1,
+     "conversation": "c518f76ff47b121e8ebf6c8b1cd7b83632d3c532e43e53a8eb937e6453406597"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "no-bones": "3002",
+   "frame-ff": "2759",
+   "frame-other": "24239"
+  },
+  "mutations": [
+   {
+    "name": "A1: the animation call dropped",
+    "caught": true
+   },
+   {
+    "name": "A2: flag-off fill constant off by one",
+    "caught": true
+   },
+   {
+    "name": "A3: frame-relative header two bytes short",
+    "caught": true
+   },
+   {
+    "name": "A4: data byte read as signed",
+    "caught": true
+   },
+   {
+    "name": "A5: halving by division, not shift",
+    "caught": true
+   },
+   {
+    "name": "A6: the unk548_16 store dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 28,
+   "branches_hit": 28,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 71,
+   "lines_hit": 71,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 11,
+     "text": "if (*(int*)((u_char*)actor + 0x5AC) & 0x800000) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 15009, < 0, > 14991 (signed); < 0, > 14991 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..8388608"
+    },
+    {
+     "line": 26,
+     "text": "if (header[2] == 0) {",
+     "size": 2,
+     "count": 24409,
+     "kind": "against a constant",
+     "outcomes": "== 6207, < 0, > 18202 (signed); < 0, > 18202 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..999"
+    },
+    {
+     "line": 32,
+     "text": "if (i == 0xFF) {",
+     "size": 4,
+     "count": 18202,
+     "kind": "against a constant",
+     "outcomes": "== 1801, < 16401, > 0 (signed); < 16401, > 0 (unsigned)",
+     "operand": "constant 255",
+     "a": "0..255"
+    },
+    {
+     "line": 43,
+     "text": "if (header[4] != 0) {",
+     "size": 2,
+     "count": 24409,
+     "kind": "against a constant",
+     "outcomes": "== 12370, < 0, > 12039 (signed); < 0, > 12039 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..999"
+    },
+    {
+     "line": 50,
+     "text": "if (frame != 0xFF) {",
+     "size": 4,
+     "count": 24409,
+     "kind": "against a constant",
+     "outcomes": "== 2499, < 21910, > 0 (signed); < 21910, > 0 (unsigned)",
+     "operand": "constant 255",
+     "a": "0..255"
+    },
+    {
+     "line": 57,
+     "text": "for (i = 0; i < actor->unk0.nBones; ++i) {",
+     "size": 4,
+     "count": 535699,
+     "kind": "a == b / a < b",
+     "outcomes": "== 24409, < 511290, > 0 (signed); < 511290, > 0 (unsigned)",
+     "operand": "b 0..42",
+     "a": "0..42"
+    },
+    {
+     "line": 63,
+     "text": "if (((u_char*)header)[3] & 1) {",
+     "size": 4,
+     "count": 24409,
+     "kind": "against a constant",
+     "outcomes": "== 12446, < 0, > 11963 (signed); < 0, > 11963 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 64,
+     "text": "for (i = 0; i < actor->unk0.nBones; ++i) {",
+     "size": 4,
+     "count": 262142,
+     "kind": "a == b / a < b",
+     "outcomes": "== 11963, < 250179, > 0 (signed); < 250179, > 0 (unsigned)",
+     "operand": "b 0..42",
+     "a": "0..42"
+    },
+    {
+     "line": 67,
+     "text": "if (data[0] == 0xFE && data[1] == 1) {",
+     "size": 1,
+     "count": 250179,
+     "kind": "against a constant",
+     "outcomes": "== 25656, < 86594, > 137929 (signed); < 198838, > 25685 (unsigned)",
+     "operand": "constant -2",
+     "a": "-128..127"
+    },
+    {
+     "line": 67,
+     "text": "if (data[0] == 0xFE && data[1] == 1) {",
+     "size": 1,
+     "count": 25656,
+     "kind": "against a constant",
+     "outcomes": "== 2626, < 16815, > 6215 (signed); < 2657, > 20373 (unsigned)",
+     "operand": "constant 1",
+     "a": "-128..127"
+    },
+    {
+     "line": 75,
+     "text": "if (frame == 0xFF) {",
+     "size": 4,
+     "count": 2626,
+     "kind": "against a constant",
+     "outcomes": "== 296, < 2330, > 0 (signed); < 2330, > 0 (unsigned)",
+     "operand": "constant 255",
+     "a": "0..255"
+    },
+    {
+     "line": 83,
+     "text": "if (frame == 0xFF) {",
+     "size": 4,
+     "count": 247553,
+     "kind": "against a constant",
+     "outcomes": "== 25310, < 222243, > 0 (signed); < 222243, > 0 (unsigned)",
+     "operand": "constant 255",
+     "a": "0..255"
+    },
+    {
+     "line": 90,
+     "text": "for (i = 0; i < actor->unk0.nBones; ++i) {",
+     "size": 4,
+     "count": 273557,
+     "kind": "a == b / a < b",
+     "outcomes": "== 12446, < 261111, > 0 (signed); < 261111, > 0 (unsigned)",
+     "operand": "b 0..42",
+     "a": "0..42"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 42733,
+     "completion_tokens": 29891,
+     "reasoning_tokens": 27722,
+     "cost": 0.0192188,
+     "seconds": 119.5,
+     "sample": 1,
+     "conversation": "959beea3679331744f92cf2fa2939b2d71ef3355b0a0997eae38148a0053bc14"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800AD008.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800AD008.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 116.03678677100106,
+ "wall_seconds": 394.90744103,
+ "totals": {
+  "cost": 0.03983,
+  "prompt_tokens": 61986,
+  "completion_tokens": 67262,
+  "model_seconds": 278.6,
+  "check_seconds": 116.0,
+  "calls": 2,
+  "wall_seconds": 394.9
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 39 / root 82 / root 49, 0 mismatches"
+ }
+}

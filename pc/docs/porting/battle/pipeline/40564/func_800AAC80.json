@@ -1,0 +1,205 @@
+{
+ "function": "func_800AAC80",
+ "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_800AAC80",
+  "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+  "stem": "40564",
+  "address": "0x800aac80",
+  "difficulty": "M",
+  "zig_name": "func_800AAC80",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800AAC80",
+  "spec_file": "func_800AAC80.zig",
+  "subsystem": "battle_40564_port",
+  "signature": "pub fn func_800AAC80(arg0: ?*v.RECT, arg1: c_int, arg2: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.RECT"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "DR_MOVE",
+   "RECT"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11698,
+     "completion_tokens": 7430,
+     "reasoning_tokens": 6013,
+     "cost": 0.0048848,
+     "seconds": 30.0,
+     "sample": 1,
+     "conversation": "95443d2d48910513283184bd4d0ca0fc881d789f62e9bcd4bf50c4b8c7b40b3e"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "rect-null": "5076",
+   "rect-valid": "14924"
+  },
+  "mutations": [
+   {
+    "name": "D1: store takes drMove + 2, not drMove + 1",
+    "caught": true
+   },
+   {
+    "name": "D2: y argument passed as x",
+    "caught": true
+   },
+   {
+    "name": "D3: func_8007A824 call dropped",
+    "caught": true
+   },
+   {
+    "name": "D4: result stored to scratchpad slot 1, not slot 0",
+    "caught": true
+   },
+   {
+    "name": "D5: x and y arguments swapped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 6,
+   "lines_hit": 6,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 20000,
+     "text": "pointer: null seen"
+    },
+    {
+     "arg": 1,
+     "count": 20000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 20000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35170,
+     "completion_tokens": 3587,
+     "reasoning_tokens": 3092,
+     "cost": 0.0053105,
+     "seconds": 17.3,
+     "sample": 1,
+     "conversation": "33780953fd98d2c439a3e6b68411b07d6b2658b95b92b853fa9cde9010656371"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800AAC80.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800AAC80.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 30.94130479100204,
+ "wall_seconds": 54.81647100200098,
+ "totals": {
+  "cost": 0.0102,
+  "prompt_tokens": 46868,
+  "completion_tokens": 11017,
+  "model_seconds": 47.3,
+  "check_seconds": 30.9,
+  "calls": 2,
+  "wall_seconds": 54.8
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

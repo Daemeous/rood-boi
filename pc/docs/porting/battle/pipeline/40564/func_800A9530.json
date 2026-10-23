@@ -1,0 +1,366 @@
+{
+ "function": "func_800A9530",
+ "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "skipped",
+ "reviewed": "not ported (skipped): it carries the unit's static inline func_800A4A24, whose ROOD_PC `static platforms[4]` no port can reach (Haiku guessed a globalised name that does not exist); the C must define it outside the function first (PORTING \u00a76.3)",
+ "plan": {
+  "name": "func_800A9530",
+  "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+  "stem": "40564",
+  "address": "0x800a9530",
+  "difficulty": "L",
+  "zig_name": "func_800A9530",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A9530",
+  "spec_file": "func_800A9530.zig",
+  "subsystem": "battle_40564_port",
+  "signature": "pub fn func_800A9530(actor: ?*v.D_800F4538_t, offset: ?*v.SVECTOR) callconv(.c) c_int",
+  "params": [
+   [
+    "actor",
+    "?*v.D_800F4538_t"
+   ],
+   [
+    "offset",
+    "?*v.SVECTOR"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "SVECTOR",
+   "func_8008D2C0_t"
+  ],
+  "globals": [
+   "D_800F49F9"
+  ],
+  "hooks": [],
+  "statics": [
+   "func_800A4A24"
+  ],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 17165,
+     "completion_tokens": 28511,
+     "reasoning_tokens": 25879,
+     "cost": 0.015972,
+     "seconds": 122.4,
+     "sample": 1,
+     "conversation": "15a2ce556fe5e33f1833acc65edc9fb10238bd7dd2b79cab37af59a47cae68c5"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800A9530: branches 22/22 (100.0%), conditions not measured (GCC < 14: branch coverage only), lines 54/54\n  FLAG +58 eq: boundary equality never occurred (32-bit compare, constant 268435455: both sides seen; a port's `<` for `<=` could pass): `if (*(u_int*)((char*)actor + 0x5AC) & 0xF0000000) {`\ncoverage func_800A9530: FAILED (threshold 100%: 0 uncovered, 1 value flag(s) not waived)\nWhat to add:\n- `if (*(u_int*)((char*)actor + 0x5AC) & 0xF0000000) {` (+58): the two sides of this ordered compare were equal 0 time(s) in 20118. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800A9530.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 20208,
+     "completion_tokens": 3710,
+     "reasoning_tokens": 949,
+     "cost": 0.0038758,
+     "seconds": 12.8,
+     "sample": 1,
+     "conversation": "1fba84832fdec828427ed877372c6a0d146e0079447c0bf30a1b37a870a03c2d"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "no-platform": "20118",
+   "platform-low": "4134",
+   "platform-high": "15748"
+  },
+  "mutations": [
+   {
+    "name": "M1: unk1800 shifted by 9, not 10",
+    "caught": true
+   },
+   {
+    "name": "M2: upper clamp off by one (>= 32)",
+    "caught": true
+   },
+   {
+    "name": "M3: sign-bit test misses bit 31",
+    "caught": true
+   },
+   {
+    "name": "M4: the position callee is not called",
+    "caught": true
+   },
+   {
+    "name": "M5: signed division replaced by a shift",
+    "caught": true
+   },
+   {
+    "name": "M6: platform id not restored after the call",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 22,
+   "branches_hit": 22,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 54,
+   "lines_hit": 54,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 15,
+     "text": "if (actor->unk0.unkC_0) {",
+     "size": 1,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 20118, < 0, > 19882 (signed); < 0, > 19882 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..15"
+    },
+    {
+     "line": 18,
+     "text": "if ((int)direction < 2) {",
+     "size": 4,
+     "count": 19882,
+     "kind": "against a constant",
+     "outcomes": "== 2121, < 2013, > 15748 (signed); < 2013, > 15748 (unsigned)",
+     "operand": "constant 1",
+     "a": "0..127"
+    },
+    {
+     "line": 23,
+     "text": "if (direction & 1) {",
+     "size": 4,
+     "count": 19882,
+     "kind": "against a constant",
+     "outcomes": "== 8816, < 0, > 11066 (signed); < 0, > 11066 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 34,
+     "text": "if ((int)direction < 2) {",
+     "size": 4,
+     "count": 20118,
+     "kind": "against a constant",
+     "outcomes": "== 2121, < 2073, > 15924 (signed); < 2073, > 15924 (unsigned)",
+     "operand": "constant 1",
+     "a": "0..127"
+    },
+    {
+     "line": 39,
+     "text": "if (direction & 1) {",
+     "size": 4,
+     "count": 20118,
+     "kind": "against a constant",
+     "outcomes": "== 9012, < 0, > 11106 (signed); < 0, > 11106 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 46,
+     "text": "if (offset->vx > 32) {",
+     "size": 2,
+     "count": 20118,
+     "kind": "against a constant",
+     "outcomes": "== 2804, < 8444, > 8870 (signed); < 2117, > 15197 (unsigned)",
+     "operand": "constant 32",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 49,
+     "text": "if (offset->vx < -32) {",
+     "size": 2,
+     "count": 20118,
+     "kind": "against a constant",
+     "outcomes": "== 929, < 4711, > 14478 (signed); < 17115, > 2074 (unsigned)",
+     "operand": "constant -32",
+     "a": "-32768..32703"
+    },
+    {
+     "line": 52,
+     "text": "if (offset->vz > 32) {",
+     "size": 2,
+     "count": 20118,
+     "kind": "against a constant",
+     "outcomes": "== 2294, < 9299, > 8525 (signed); < 1965, > 15859 (unsigned)",
+     "operand": "constant 32",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 55,
+     "text": "if (offset->vz < -32) {",
+     "size": 2,
+     "count": 20118,
+     "kind": "against a constant",
+     "outcomes": "== 1024, < 5580, > 13514 (signed); < 17097, > 1997 (unsigned)",
+     "operand": "constant -32",
+     "a": "-32768..32703"
+    },
+    {
+     "line": 58,
+     "text": "if (*(u_int*)((char*)actor + 0x5AC) & 0xF0000000) {",
+     "size": 4,
+     "count": 20118,
+     "kind": "against a constant",
+     "outcomes": "== 1133, < 12353, > 6632 (signed); < 4048, > 14937 (unsigned)",
+     "operand": "constant 268435455",
+     "a": "-2147483648..2147237845"
+    },
+    {
+     "line": 75,
+     "text": "if (!(flags & 0x1000)) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 20439, < 0, > 19561 (signed); < 0, > 19561 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..4096"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 40679,
+     "completion_tokens": 16099,
+     "reasoning_tokens": 14093,
+     "cost": 0.0121174,
+     "seconds": 65.3,
+     "sample": 1,
+     "conversation": "59c8dcaa85a61029896b4ea0c19b8058965e0d390325c9d4784466885b637278"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 0: call 0 (func_8008D2C0): argument 0: C 0x4c71e0, Zig 0x57ac000000000000\nzdiff: MISMATCH iteration 1: call 0 (func_8008D2C0): argument 0: C 0x4c71e0, Zig 0x57ac000000000000\nzdiff: MISMATCH iteration 3: call 0 (func_8008D2C0): argument 0: C 0x4c71e0, Zig 0x57ac000000000000\nzdiff: func_800A9530: 1990 iterations, seed 1, 1000 mismatches; classes: no-platform=990 platform-low=203 platform-high=797"
+    ],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 1,
+      "mismatches": 1000,
+      "first": "MISMATCH iteration 0: call 0 (func_8008D2C0): argument 0: C 0x4c71e0, Zig 0x57ac000000000000"
+     }
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 42974,
+     "completion_tokens": 4755,
+     "reasoning_tokens": 2473,
+     "cost": 0.0066749,
+     "seconds": 19.7,
+     "sample": 1,
+     "conversation": "f628fe56491b044250aa4fbca0799a148a7cd6452d51c05ffb8153d3f2c5e100"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\nlink: /usr/bin/ld: pc/build/port-pipeline/func_800A9530/port2/build/harness.o: in function `func_800A9530.func_800A9530':\ngame/battle/func_800A9530.zig:23:(.text.func_800A9530.func_800A9530+0x5d): undefined reference to `battle_40564__func_800A4A24_platforms'\n/usr/bin/ld: game/battle/func_800A9530.zig:28:(.text.func_800A9530.func_800A9530+0x74): undefined reference to `battle_40564__func_800A4A24_platforms'\n/usr/bin/ld: game/battle/func_800A9530.zig:28:(.text.func_800A9530.func_800A9530+0x234): undefined reference to `battle_40564__func_800A4A24_platforms'\n/usr/bin/ld: game/battle/func_800A9530.zig:28:(.text.func_800A9530.func_800A9530+0x240): undefined reference to `battle_40564__func_800A4A24_platforms'\n/usr/bin/ld: game/battle/func_800A9530.zig:28:(.text.func_800A9530.func_800A9530+0x255): undefined reference to `battle_40564__func_800A4A24_platforms'\n/usr/bin/ld: game/battle/func_800A9530.zig:28: more undefined references to `battle_40564__func_800A4A24_platforms' follow\n/usr/bin/ld: pc/build/port-pipeline/func_800A9530/port2/build/zdiff: hidden symbol `battle_40564__func_800A4A24_platforms' isn't defined\n/usr/bin/ld: final link failed: bad value\ncollect2: error: ld returned 1 exit status\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 3,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 45880,
+     "completion_tokens": 3420,
+     "reasoning_tokens": 1047,
+     "cost": 0.006298,
+     "seconds": 13.4,
+     "sample": 1,
+     "conversation": "0750469c9e99b385489217fb4d11df240ad0030a0fa2366a2f983ff5d6ebbdf5"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\nlink: /usr/bin/ld: pc/build/port-pipeline/func_800A9530/port3/build/harness.o: in function `func_800A9530.func_800A9530':\ngame/battle/func_800A9530.zig:23:(.text.func_800A9530.func_800A9530+0x5d): undefined reference to `battle_40564__func_800A4A24_platforms'\n/usr/bin/ld: game/battle/func_800A9530.zig:28:(.text.func_800A9530.func_800A9530+0x74): undefined reference to `battle_40564__func_800A4A24_platforms'\n/usr/bin/ld: game/battle/func_800A9530.zig:28:(.text.func_800A9530.func_800A9530+0x234): undefined reference to `battle_40564__func_800A4A24_platforms'\n/usr/bin/ld: game/battle/func_800A9530.zig:28:(.text.func_800A9530.func_800A9530+0x240): undefined reference to `battle_40564__func_800A4A24_platforms'\n/usr/bin/ld: game/battle/func_800A9530.zig:28:(.text.func_800A9530.func_800A9530+0x255): undefined reference to `battle_40564__func_800A4A24_platforms'\n/usr/bin/ld: game/battle/func_800A9530.zig:28: more undefined references to `battle_40564__func_800A4A24_platforms' follow\n/usr/bin/ld: pc/build/port-pipeline/func_800A9530/port3/build/zdiff: hidden symbol `battle_40564__func_800A4A24_platforms' isn't defined\n/usr/bin/ld: final link failed: bad value\ncollect2: error: ld returned 1 exit status\n"
+    ],
+    "runs": []
+   }
+  ]
+ },
+ "written": [],
+ "check_seconds": 38.77419544699842,
+ "wall_seconds": 272.5451251680006,
+ "totals": {
+  "cost": 0.04494,
+  "prompt_tokens": 166906,
+  "completion_tokens": 56495,
+  "model_seconds": 233.6,
+  "check_seconds": 38.8,
+  "calls": 5,
+  "wall_seconds": 272.5
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22"
+ }
+}

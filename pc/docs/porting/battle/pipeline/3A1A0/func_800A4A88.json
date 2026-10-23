@@ -1,0 +1,357 @@
+{
+ "function": "func_800A4A88",
+ "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (an out-of-range mode reads low RAM where the C reads an uninitialised pointer: unreachable, every caller passes 0..2); spec finished by the reviewer (the fall-out waiver)",
+ "plan": {
+  "name": "func_800A4A88",
+  "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+  "stem": "3A1A0",
+  "address": "0x800a4a88",
+  "difficulty": "M",
+  "zig_name": "func_800A4A88",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A4A88",
+  "spec_file": "func_800A4A88.zig",
+  "subsystem": "battle_3A1A0_port",
+  "signature": "pub fn func_800A4A88(actor: ?*v.D_800F4538_t, mode: c_int) callconv(.c) void",
+  "params": [
+   [
+    "actor",
+    "?*v.D_800F4538_t"
+   ],
+   [
+    "mode",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F4538_t",
+   "func_8008D2C0_t"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "mode0-no-contact": "2041",
+   "mode0-contact": "7879",
+   "mode1-masked": "2906",
+   "mode1-no-contact": "1485",
+   "mode1-contact": "5625",
+   "mode2-changed": "6293",
+   "mode2-same": "3771"
+  },
+  "mutations": [
+   {
+    "name": "U1: case 0 takes unk6EF from contact->unk2",
+    "caught": true
+   },
+   {
+    "name": "U2: movement 0x30000 no longer returns in case 1",
+    "caught": true
+   },
+   {
+    "name": "U3: signed char slip on the x step",
+    "caught": true
+   },
+   {
+    "name": "U4: contact->unk2 store to unk17EC[2] dropped",
+    "caught": true
+   },
+   {
+    "name": "U5: case 2 stores the previous id into unk5D",
+    "caught": true
+   },
+   {
+    "name": "U6: contact id compared to the low byte of unk17EC[6]",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 32,
+   "branches_hit": 31,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 47,
+   "lines_hit": 47,
+   "uncovered": [
+    {
+     "id": "+8 b3",
+     "line": 8,
+     "text": "switch (mode) {",
+     "what": "branch never taken"
+    }
+   ],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min 0, max 2, seen zero, never negative, 3 value(s): 2, 1, 0"
+    }
+   ],
+   "compares": [
+    {
+     "line": 8,
+     "text": "switch (mode) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "switch",
+     "outcomes": "== 30000, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..2"
+    },
+    {
+     "line": 10,
+     "text": "if (actor->unk0.unkC_0 == 0) {",
+     "size": 1,
+     "count": 9920,
+     "kind": "against a constant",
+     "outcomes": "== 2041, < 0, > 7879 (signed); < 0, > 7879 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..15"
+    },
+    {
+     "line": 22,
+     "text": "if (movement == 0x20000 || movement == 0x30000) {",
+     "size": 4,
+     "count": 10016,
+     "kind": "against a constant",
+     "outcomes": "== 1483, < 2865, > 5668 (signed); < 2865, > 5668 (unsigned)",
+     "operand": "constant 131072",
+     "a": "0..458752"
+    },
+    {
+     "line": 22,
+     "text": "if (movement == 0x20000 || movement == 0x30000) {",
+     "size": 4,
+     "count": 8533,
+     "kind": "against a constant",
+     "outcomes": "== 1423, < 2865, > 4245 (signed); < 2865, > 4245 (unsigned)",
+     "operand": "constant 196608",
+     "a": "0..458752"
+    },
+    {
+     "line": 25,
+     "text": "if (actor->unk0.unkC_4 != (contactId = actor->unk0.unkC_0)) {",
+     "size": 4,
+     "count": 7110,
+     "kind": "a == b / a < b",
+     "outcomes": "== 2621, < 2601, > 1888 (signed); < 2601, > 1888 (unsigned)",
+     "operand": "b 0..15",
+     "a": "0..15"
+    },
+    {
+     "line": 26,
+     "text": "if (actor->unk0.unkF == 0 && contactId != 0",
+     "size": 1,
+     "count": 4489,
+     "kind": "against a constant",
+     "outcomes": "== 2266, < 1117, > 1106 (signed); < 0, > 2223 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 26,
+     "text": "if (actor->unk0.unkF == 0 && contactId != 0",
+     "size": 4,
+     "count": 2266,
+     "kind": "against a constant",
+     "outcomes": "== 474, < 0, > 1792 (signed); < 0, > 1792 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..15"
+    },
+    {
+     "line": 27,
+     "text": "&& contactId != *(short*)&actor->unk17EC[6]) {",
+     "size": 4,
+     "count": 1792,
+     "kind": "a == b / a < b",
+     "outcomes": "== 617, < 888, > 287 (signed); < 1175, > 0 (unsigned)",
+     "operand": "b -32759..32763",
+     "a": "1..15"
+    },
+    {
+     "line": 33,
+     "text": "if (actor->unk0.unkC_0 == 0) {",
+     "size": 1,
+     "count": 7110,
+     "kind": "against a constant",
+     "outcomes": "== 1485, < 0, > 5625 (signed); < 0, > 5625 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..15"
+    },
+    {
+     "line": 41,
+     "text": "if (current != previous) {",
+     "size": 4,
+     "count": 10064,
+     "kind": "a == b / a < b",
+     "outcomes": "== 3771, < 3610, > 2683 (signed); < 3610, > 2683 (unsigned)",
+     "operand": "b 0..15",
+     "a": "0..15"
+    },
+    {
+     "line": 42,
+     "text": "if (actor->unk0.unkC_0 != 0) {",
+     "size": 1,
+     "count": 6293,
+     "kind": "against a constant",
+     "outcomes": "== 1304, < 0, > 4989 (signed); < 0, > 4989 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..15"
+    },
+    {
+     "line": 47,
+     "text": "if (!((*(u_int*)((char*)actor + 8)) & 0x70000)) {",
+     "size": 4,
+     "count": 1304,
+     "kind": "against a constant",
+     "outcomes": "== 186, < 0, > 1118 (signed); < 0, > 1118 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..458752"
+    },
+    {
+     "line": 53,
+     "text": "if (actor->unk0.unkF == 0 && !((*(u_int*)((char*)actor + 8)) & 0x70000)",
+     "size": 1,
+     "count": 10064,
+     "kind": "against a constant",
+     "outcomes": "== 3451, < 3297, > 3316 (signed); < 0, > 6613 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 53,
+     "text": "if (actor->unk0.unkF == 0 && !((*(u_int*)((char*)actor + 8)) & 0x70000)",
+     "size": 4,
+     "count": 3451,
+     "kind": "against a constant",
+     "outcomes": "== 478, < 0, > 2973 (signed); < 0, > 2973 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..458752"
+    },
+    {
+     "line": 54,
+     "text": "&& actor->unk0.unkC_0 != *(short*)&actor->unk17EC[6]) {",
+     "size": 4,
+     "count": 478,
+     "kind": "a == b / a < b",
+     "outcomes": "== 143, < 215, > 120 (signed); < 318, > 17 (unsigned)",
+     "operand": "b -32766..32301",
+     "a": "0..15"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+8 b3",
+    "reason": "the switch's fall-out (mode not 0..2) leaves `contact` uninitialised and then reads through it (undefined, and the C differs from a copy of itself); every caller passes 0, 1 or 2"
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 40375,
+     "completion_tokens": 13123,
+     "reasoning_tokens": 11278,
+     "cost": 0.010599,
+     "seconds": 50.4,
+     "sample": 1,
+     "conversation": "ee01d742705fa9aedb76b4849c153babe0d45ed2aee4c57f2f78589c931132bf"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A4A88.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A4A88.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 43.26421171600032,
+ "wall_seconds": 98.38111401199967,
+ "totals": {
+  "cost": 0.0106,
+  "prompt_tokens": 40375,
+  "completion_tokens": 13123,
+  "model_seconds": 50.4,
+  "check_seconds": 43.3,
+  "calls": 1,
+  "wall_seconds": 98.4
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "spec_fixes": [
+   "reviewer's round-1 reply: Haiku's waiver named the switch fall-out in words, not by its id (+8 b3); its retry then drew modes outside 0..2, where the C reads through an uninitialised pointer and differs from its own copy"
+  ],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested 1548 / nested 2232 / nested 2997, 0 mismatches"
+ }
+}

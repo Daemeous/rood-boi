@@ -1,0 +1,170 @@
+{
+ "function": "func_80093B04",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_80093B04",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x80093b04",
+  "difficulty": "S",
+  "zig_name": "func_80093B04",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_80093B04",
+  "spec_file": "func_80093B04.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_80093B04(arg0: [*c]c_ushort) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "[*c]c_ushort"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "func_800962E4_t"
+  ],
+  "globals": [
+   "D_800F227E"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "separate": "19985",
+   "overlap": "10015"
+  },
+  "mutations": [
+   {
+    "name": "F1: arg0[2] read as arg0[1]",
+    "caught": true
+   },
+   {
+    "name": "F2: the global increment dropped",
+    "caught": true
+   },
+   {
+    "name": "F3: unk8 stored as 2",
+    "caught": true
+   },
+   {
+    "name": "F4: returns 1",
+    "caught": true
+   },
+   {
+    "name": "F5: unkB store dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 9,
+   "lines_hit": 9,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_80093B04.zig:9:37: error: @ptrCast increases pointer alignment\n    const rec: *v.func_800962E4_t = @ptrCast(c.func_800962E4());\n                                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~\ngame/battle/func_80093B04.zig:9:61: note: '?*anyopaque' has alignment '1'\n    const rec: *v.func_800962E4_t = @ptrCast(c.func_800962E4());\n                                             ~~~~~~~~~~~~~~~^~\ngame/battle/func_80093B04.zig:9:37: note: '*views_2842C.func_800962E4_t' has alignment '2'\ngame/battle/func_80093B04.zig:9:37: note: use @alignCast to assert pointer alignment\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:469:31\n    main: pc/tests/zig_diff/main.zig:392:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_80093B04.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_80093B04.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 67.17116870599784,
+ "wall_seconds": 123.32919946399852,
+ "totals": {
+  "cost": 0.0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "model_seconds": 0.0,
+  "check_seconds": 67.2,
+  "calls": 0,
+  "wall_seconds": 123.3
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

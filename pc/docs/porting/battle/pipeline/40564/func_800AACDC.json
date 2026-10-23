@@ -1,0 +1,214 @@
+{
+ "function": "func_800AACDC",
+ "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec finished by the reviewer (word-aligned packet cursors)",
+ "plan": {
+  "name": "func_800AACDC",
+  "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+  "stem": "40564",
+  "address": "0x800aacdc",
+  "difficulty": "M",
+  "zig_name": "func_800AACDC",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800AACDC",
+  "spec_file": "func_800AACDC.zig",
+  "subsystem": "battle_40564_port",
+  "signature": "pub fn func_800AACDC() callconv(.c) void",
+  "params": [],
+  "ret": "void",
+  "types": [
+   "DR_MOVE",
+   "RECT"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11862,
+     "completion_tokens": 9423,
+     "reasoning_tokens": 7850,
+     "cost": 0.0058977,
+     "seconds": 40.2,
+     "sample": 1,
+     "conversation": "5ad6b77f4b8b2825fb75ac7ad81cb9141d56512f638f4609ec878a9f2f229cad"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation M1: RECT width 16 instead of 18: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800AACDC: 30000 iterations, seed 1, 0 mismatches; classes: null-slot=3836 arena-slot=21796 other-slot=4368",
+     "FAIL: mutation M5: RECT height 35 instead of 36: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800AACDC: 30000 iterations, seed 1, 0 mismatches; classes: null-slot=3836 arena-slot=21796 other-slot=4368"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "null-slot": "3836",
+   "arena-slot": "21796",
+   "other-slot": "4368"
+  },
+  "mutations": [
+   {
+    "name": "M1: RECT width 16 instead of 18",
+    "caught": true
+   },
+   {
+    "name": "M2: SetDrawMove y 384 instead of 400",
+    "caught": true
+   },
+   {
+    "name": "M3: func_8007A824 call dropped",
+    "caught": true
+   },
+   {
+    "name": "M4: slot stores the DR_MOVE one element too far",
+    "caught": true
+   },
+   {
+    "name": "M5: RECT height 35 instead of 36",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 12,
+   "lines_hit": 12,
+   "uncovered": [],
+   "flags": [],
+   "args": [],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35335,
+     "completion_tokens": 2791,
+     "reasoning_tokens": 2280,
+     "cost": 0.004929,
+     "seconds": 12.5,
+     "sample": 1,
+     "conversation": "13401e0de7006205d67c1a56118242f1ed594ee0d3a915cd08ac584b0c7615da"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/common/psx.zig:241:12: error: @ptrCast increases pointer alignment\n    return @ptrCast(p);\n           ^~~~~~~~~~~\ngame/common/psx.zig:241:21: note: '*align(1) views_40564.DR_MOVE' has alignment '1'\n    return @ptrCast(p);\n                    ^\ngame/common/psx.zig:241:12: note: '[*c]c_40564.DR_MOVE' has alignment '4'\ngame/common/psx.zig:241:12: note: use @alignCast to assert pointer alignment\nreferenced by:\n    func_800AACDC: game/battle/func_800AACDC.zig:16:27\n    main: pc/tests/zig_diff/main.zig:469:31\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 36212,
+     "completion_tokens": 1251,
+     "reasoning_tokens": 779,
+     "cost": 0.0042467,
+     "seconds": 5.8,
+     "sample": 1,
+     "conversation": "4391eb1045c24613de771662886999b2c6d0a11f40e459b0ecc4fdf3cc8b1e93"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800AACDC.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800AACDC.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 49.40876102499897,
+ "wall_seconds": 56.515806112000064,
+ "totals": {
+  "cost": 0.01507,
+  "prompt_tokens": 83409,
+  "completion_tokens": 13465,
+  "model_seconds": 58.5,
+  "check_seconds": 49.4,
+  "calls": 3,
+  "wall_seconds": 56.5
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "spec_fixes": [
+   "reviewer's round-2 reply: the scratchpad packet cursor drew unaligned values, on which the port's DR_MOVE pointer (as the game's, word-aligned) trapped; cursors are now word-aligned"
+  ],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

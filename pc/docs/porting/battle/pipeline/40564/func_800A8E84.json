@@ -1,0 +1,380 @@
+{
+ "function": "func_800A8E84",
+ "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_800A8E84",
+  "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+  "stem": "40564",
+  "address": "0x800a8e84",
+  "difficulty": "M",
+  "zig_name": "func_800A8E84",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A8E84",
+  "spec_file": "func_800A8E84.zig",
+  "subsystem": "battle_40564_port",
+  "signature": "pub fn func_800A8E84(actor: ?*v.D_800F4538_t, position: ?*v.SVECTOR) callconv(.c) c_int",
+  "params": [
+   [
+    "actor",
+    "?*v.D_800F4538_t"
+   ],
+   [
+    "position",
+    "?*v.SVECTOR"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "SVECTOR",
+   "actorCollisionExclusion"
+  ],
+  "globals": [
+   "D_800F4538"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 17138,
+     "completion_tokens": 35193,
+     "reasoning_tokens": 31804,
+     "cost": 0.0193103,
+     "seconds": 151.9,
+     "sample": 1,
+     "conversation": "846f35ac55990c265fdb9c2930b5d847e10374884a3ef947a9e3c49b3410e93c"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation F3: actor 0x1000 flag tested as 0x2000: not caught as mismatch (exit 4) (the mutated copy crashes where the C does not: if that is what this mistake does on your inputs, say `expect = \"crash\"`; otherwise choose a mutation your inputs show as a difference): zdiff: CRASH (signal 11) in the Zig run, iteration 4, a wild pointer (a non-canonical address: random bytes used as a pointer?)\nzdiff: crashed on arguments: 0x406070 [arena] 0x407950 [arena] (class flag-0x1000)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 20761,
+     "completion_tokens": 6713,
+     "reasoning_tokens": 3121,
+     "cost": 0.0054326,
+     "seconds": 26.6,
+     "sample": 1,
+     "conversation": "ef4797e7c544afeb6314f5df1b9235e7a8393d8d077a3c92fa447bf106781abe"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "unkF-set": "5142",
+   "flag-0x800": "2428",
+   "flag-0x1000": "2497",
+   "candidate-hit": "323",
+   "candidate-blocked": "3577",
+   "no-candidate": "16033"
+  },
+  "mutations": [
+   {
+    "name": "F1: x-axis test takes equal as outside",
+    "caught": true
+   },
+   {
+    "name": "F2: radius read signed",
+    "caught": true
+   },
+   {
+    "name": "F3: actor 0x1000 flag tested as 0x2000",
+    "caught": true
+   },
+   {
+    "name": "F4: actor's vy radius added, not subtracted",
+    "caught": true
+   },
+   {
+    "name": "F5: scratchpad exclusion check dropped",
+    "caught": true
+   },
+   {
+    "name": "F6: wrong constant for the 0xFC class",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 34,
+   "branches_hit": 34,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 39,
+   "lines_hit": 39,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 5,
+     "text": "if (actor->unk0.unkF == 0) {",
+     "size": 1,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 24858, < 2571, > 2571 (signed); < 0, > 5142 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 6,
+     "text": "if (*(u_int*)((char*)actor + 0x5AC) & 0x800)",
+     "size": 4,
+     "count": 24858,
+     "kind": "against a constant",
+     "outcomes": "== 22430, < 0, > 2428 (signed); < 0, > 2428 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..2048"
+    },
+    {
+     "line": 8,
+     "text": "if (*(u_int*)((char*)actor + 0x5AC) & 0x1000)",
+     "size": 4,
+     "count": 22430,
+     "kind": "against a constant",
+     "outcomes": "== 19933, < 0, > 2497 (signed); < 0, > 2497 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..4096"
+    },
+    {
+     "line": 10,
+     "text": "for (i = 2; i < 17; ++i) {",
+     "size": 4,
+     "count": 270528,
+     "kind": "against a constant",
+     "outcomes": "== 14628, < 241587, > 14313 (signed); < 241587, > 14313 (unsigned)",
+     "operand": "constant 16",
+     "a": "2..17"
+    },
+    {
+     "line": 15,
+     "text": "if (flags & 1)",
+     "size": 4,
+     "count": 193007,
+     "kind": "against a constant",
+     "outcomes": "== 161254, < 0, > 31753 (signed); < 0, > 31753 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 17,
+     "text": "if (*(u_int*)((char*)other + 0x5AC) & 0x1000000)",
+     "size": 4,
+     "count": 161254,
+     "kind": "against a constant",
+     "outcomes": "== 134972, < 0, > 26282 (signed); < 0, > 26282 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..16777216"
+    },
+    {
+     "line": 19,
+     "text": "if (other->unk0.unk13 == 0xFC)",
+     "size": 1,
+     "count": 134972,
+     "kind": "against a constant",
+     "outcomes": "== 17545, < 55557, > 61870 (signed); < 116098, > 1329 (unsigned)",
+     "operand": "constant -4",
+     "a": "-128..127"
+    },
+    {
+     "line": 21,
+     "text": "if ((flags & 0xF000000) == 0x2000000)",
+     "size": 4,
+     "count": 117427,
+     "kind": "against a constant",
+     "outcomes": "== 20876, < 15238, > 81313 (signed); < 15238, > 81313 (unsigned)",
+     "operand": "constant 33554432",
+     "a": "0..251658240"
+    },
+    {
+     "line": 23,
+     "text": "if (((actorCollisionExclusion*)((char*)scratch + i))->excluded)",
+     "size": 1,
+     "count": 96551,
+     "kind": "against a constant",
+     "outcomes": "== 64785, < 0, > 31766 (signed); < 0, > 31766 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 26,
+     "text": "if (other->unk0.position.vx + radius < position->vx)",
+     "size": 4,
+     "count": 64785,
+     "kind": "a == b / a < b",
+     "outcomes": "== 508, < 21365, > 42912 (signed); < 33577, > 30700 (unsigned)",
+     "operand": "b -32768..32763",
+     "a": "-32766..97901"
+    },
+    {
+     "line": 28,
+     "text": "if (position->vx < other->unk0.position.vx - radius)",
+     "size": 4,
+     "count": 43420,
+     "kind": "a == b / a < b",
+     "outcomes": "== 486, < 21279, > 21655 (signed); < 21138, > 21796 (unsigned)",
+     "operand": "b -98259..32766",
+     "a": "-32768..32762"
+    },
+    {
+     "line": 30,
+     "text": "if (other->unk0.position.vz + radius < position->vz)",
+     "size": 4,
+     "count": 22141,
+     "kind": "a == b / a < b",
+     "outcomes": "== 263, < 2300, > 19578 (signed); < 11847, > 10031 (unsigned)",
+     "operand": "b -32767..32765",
+     "a": "-32641..97618"
+    },
+    {
+     "line": 32,
+     "text": "if (position->vz < other->unk0.position.vz - radius)",
+     "size": 4,
+     "count": 19841,
+     "kind": "a == b / a < b",
+     "outcomes": "== 248, < 2405, > 17188 (signed); < 9982, > 9611 (unsigned)",
+     "operand": "b -97785..32561",
+     "a": "-32767..32753"
+    },
+    {
+     "line": 34,
+     "text": "if (other->unk0.position.vy",
+     "size": 4,
+     "count": 17436,
+     "kind": "a == b / a < b",
+     "outcomes": "== 136, < 5992, > 11308 (signed); < 8854, > 8446 (unsigned)",
+     "operand": "b -97623..32767",
+     "a": "-32767..32767"
+    },
+    {
+     "line": 37,
+     "text": "if (actor->unk0.position.vy",
+     "size": 4,
+     "count": 11444,
+     "kind": "a == b / a < b",
+     "outcomes": "== 151, < 5824, > 5469 (signed); < 5194, > 6099 (unsigned)",
+     "operand": "b -97580..32763",
+     "a": "-32758..32728"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 40610,
+     "completion_tokens": 8787,
+     "reasoning_tokens": 7717,
+     "cost": 0.0084545,
+     "seconds": 35.1,
+     "sample": 1,
+     "conversation": "bb48e10e6a5ecb0a8b1dcca9700751d8c02bdd743f9565d32d40e0f1b2d6ba61"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A8E84.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A8E84.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 37.98094709199722,
+ "wall_seconds": 38.29378868799904,
+ "totals": {
+  "cost": 0.0332,
+  "prompt_tokens": 78509,
+  "completion_tokens": 50693,
+  "model_seconds": 213.6,
+  "check_seconds": 38.0,
+  "calls": 3,
+  "wall_seconds": 38.3
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 14 / root 41 / root 3, 0 mismatches"
+ }
+}

@@ -353,6 +353,12 @@ void func_800D78F0(void)
     VECTOR sp10;
     int sp20;
 
+#ifdef ROOD_PC
+    /* vs_battle_lerpVector writes vx..vz only, and func_800D5260 copies the
+     * whole VECTOR into D_800F5620: the pad was host stack residue
+     * (pc/docs/Oracle.md, known hazards). */
+    sp10.pad = 0;
+#endif
     vs_battle_lerpVector(psx_get(D_800F569C->block9Data)->unk0,
         D_800F5330[psx_get(D_800F569C->block9Data)->unk12], &sp10);
     sp20 = func_800CFE1C(psx_get(D_800F569C->block9Data)->unkC,

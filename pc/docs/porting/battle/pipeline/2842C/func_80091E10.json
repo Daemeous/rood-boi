@@ -1,0 +1,224 @@
+{
+ "function": "func_80091E10",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_80091E10",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x80091e10",
+  "difficulty": "S",
+  "zig_name": "func_80091E10",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_80091E10",
+  "spec_file": "func_80091E10.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_80091E10(arg0: ?*v.func_80091E10_t) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "?*v.func_80091E10_t"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "func_80091E10_t"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "holds": "25077",
+   "fires-steady": "43",
+   "fires-moving": "4880"
+  },
+  "mutations": [
+   {
+    "name": "M1: the tick fires at >= delay, not > delay",
+    "caught": true
+   },
+   {
+    "name": "M2: the U wrap takes windowHeight, not windowWidth",
+    "caught": true
+   },
+   {
+    "name": "M3: the U low test is unsigned (a negative u passes)",
+    "caught": true
+   },
+   {
+    "name": "M4: currentV is never stored",
+    "caught": true
+   },
+   {
+    "name": "M5: the opcode test uses 0x24 for 0x34",
+    "caught": true
+   },
+   {
+    "name": "M6: the else branch's last V uses u",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 12,
+   "branches_hit": 12,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 36,
+   "lines_hit": 36,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 10,
+     "text": "if (++arg0->tick > arg0->delay) {",
+     "size": 1,
+     "count": 30000,
+     "kind": "a == b / a < b",
+     "outcomes": "== 16800, < 7358, > 5842 (signed); < 8277, > 4923 (unsigned)",
+     "operand": "b -128..127",
+     "a": "-128..127"
+    },
+    {
+     "line": 16,
+     "text": "if (u < arg0->baseU) {",
+     "size": 4,
+     "count": 4923,
+     "kind": "a == b / a < b",
+     "outcomes": "== 182, < 2242, > 2499 (signed); < 1623, > 3118 (unsigned)",
+     "operand": "b 0..255",
+     "a": "-128..382"
+    },
+    {
+     "line": 19,
+     "text": "if (v < arg0->baseV) {",
+     "size": 4,
+     "count": 4923,
+     "kind": "a == b / a < b",
+     "outcomes": "== 176, < 2267, > 2480 (signed); < 1657, > 3090 (unsigned)",
+     "operand": "b 0..255",
+     "a": "-128..382"
+    },
+    {
+     "line": 22,
+     "text": "if (arg0->baseU + arg0->width < u + arg0->windowWidth) {",
+     "size": 4,
+     "count": 4923,
+     "kind": "a == b / a < b",
+     "outcomes": "== 2258, < 1940, > 725 (signed); < 1940, > 725 (unsigned)",
+     "operand": "b 0..637",
+     "a": "0..510"
+    },
+    {
+     "line": 25,
+     "text": "if (arg0->baseV + arg0->height < v + arg0->windowHeight) {",
+     "size": 4,
+     "count": 4923,
+     "kind": "a == b / a < b",
+     "outcomes": "== 2282, < 1914, > 727 (signed); < 1914, > 727 (unsigned)",
+     "operand": "b 0..637",
+     "a": "0..510"
+    },
+    {
+     "line": 31,
+     "text": "if ((polygon[0xF] & 0x3C) == 0x34) {",
+     "size": 4,
+     "count": 4923,
+     "kind": "against a constant",
+     "outcomes": "== 2407, < 1015, > 1501 (signed); < 1015, > 1501 (unsigned)",
+     "operand": "constant 52",
+     "a": "0..60"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_80091E10.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_80091E10.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 37.95842946999983,
+ "wall_seconds": 38.14023004599949,
+ "totals": {
+  "cost": 0.0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "model_seconds": 0.0,
+  "check_seconds": 38.0,
+  "calls": 0,
+  "wall_seconds": 38.1
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 600 / root 1200 / root 1516, 0 mismatches"
+ }
+}

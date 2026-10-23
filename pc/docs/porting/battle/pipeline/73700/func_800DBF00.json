@@ -1,0 +1,244 @@
+{
+ "function": "func_800DBF00",
+ "unit": "src/BATTLE/BATTLE.PRG/73700.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound after a tooling fix (psx.put of a literal null)",
+ "plan": {
+  "name": "func_800DBF00",
+  "unit": "src/BATTLE/BATTLE.PRG/73700.c",
+  "stem": "73700",
+  "address": "0x800dbf00",
+  "difficulty": "S",
+  "zig_name": "func_800DBF00",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800DBF00",
+  "spec_file": "func_800DBF00.zig",
+  "subsystem": "battle_73700_port",
+  "signature": "pub fn func_800DBF00(arg0: ?*v.func_800E78F4_t) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.func_800E78F4_t"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F58BC_t",
+   "func_800DEB10_t2",
+   "func_800E78F4_t"
+  ],
+  "globals": [
+   "D_800F58BC"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13824,
+     "completion_tokens": 28512,
+     "reasoning_tokens": 26452,
+     "cost": 0.0156384,
+     "seconds": 122.2,
+     "sample": 1,
+     "conversation": "bb680314aee36491d1d92c5e341860f247c90b7f4d6a4ebde7cb53b0f4d74048"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation F2: inverted head test in the step-4 ternary: mutation F2: inverted head test in the step-4 ternary: its `from` text occurs 2 times in the C body of func_800DBF00 (copy it exactly from the C)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 15996,
+     "completion_tokens": 5129,
+     "reasoning_tokens": 3000,
+     "cost": 0.0041641,
+     "seconds": 20.0,
+     "sample": 1,
+     "conversation": "2428c22f1e377833113400d0114c951dfe5b72ce7378a1f6d730cdce5f66a766"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "head-with-next": "10235",
+   "head-alone": "12509",
+   "list-head-is-arg": "6254",
+   "found-in-list": "4291",
+   "not-in-list": "6711"
+  },
+  "mutations": [
+   {
+    "name": "F1: the flag is never cleared",
+    "caught": true
+   },
+   {
+    "name": "F2: unlink also clears unk20 (a dropped test on the head)",
+    "caught": true
+   },
+   {
+    "name": "F3: inverted final test (the head is cleared when non-null)",
+    "caught": true
+   },
+   {
+    "name": "F4: wrong constant stored to unk20 (4 for NULL)",
+    "caught": true
+   },
+   {
+    "name": "F5: the copied successor is the wrong field (unk430)",
+    "caught": true
+   },
+   {
+    "name": "F6: the list walk never runs (wrong loop condition)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 12,
+   "branches_hit": 12,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 16,
+   "lines_hit": 16,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 10,
+     "text": "((void)sizeof((__typeof__((D_800F58BC->unk20).psx_type_[0])){0} = (((__typeof__((((__typeof__((D_800F58BC->unk20).psx_type_[0]))(long unsigned int)(D_800F58BC->unk20).raw)->unk1A0).psx_type_[0]))(long unsigned int)(((__typeof__((D_800F58BC->unk20).psx_type_[0]))(long unsigned int)(D_800F58BC->unk20).raw)->unk1A0).raw) != 0 ? ((__typeof__((((__typeof__((D_800F58BC->unk20).psx_type_[0]))(long unsigned int)(D_800F58BC->unk20).raw)->unk1A0).psx_type_[0]))(long unsigned int)(((__typeof__((D_800F58BC->unk20).psx_type_[0]))(long unsigned int)(D_800F58BC->unk20).raw)->unk1A0).raw) : ((__typeof__((D_800F58BC->unk1C).psx_type_[0]))(long unsigned int)(D_800F58BC->unk1C).raw))), (D_800F58BC->unk20).raw = psx_addr(((__typeof__((((__typeof__((D_800F58BC->unk20).psx_type_[0]))(long unsigned int)(D_800F58BC->unk20).raw)->unk1A0).psx_type_[0]))(long unsigned int)(((__typeof__((D_800F58BC->unk20).psx_type_[0]))(long unsigned int)(D_800F58BC->unk20).raw)->unk1A0).raw) != 0 ? ((__typeof__((((__typeof__((D_800F58BC->unk20).psx_type_[0]))(long unsigned int)(D_800F58BC->unk20).raw)->unk1A0).psx_type_[0]))(long unsigned int)(((__typeof__((D_800F58BC->unk20).psx_type_[0]))(long unsigned int)(D_800F58BC->unk20).raw)->unk1A0).raw) : ((__typeof__((D_800F58BC->unk1C).psx_type_[0]))(long unsigned int)(D_800F58BC->unk1C).raw)))",
+     "size": 4,
+     "count": 22744,
+     "kind": "against a constant",
+     "outcomes": "== 12509, < 3392, > 6843 (signed); < 0, > 10235 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147475456..4240688"
+    },
+    {
+     "line": 27,
+     "text": "if (((__typeof__((D_800F58BC->unk1C).psx_type_[0]))(long unsigned int)(D_800F58BC->unk1C).raw) == 0) {",
+     "size": 4,
+     "count": 30514,
+     "kind": "against a constant",
+     "outcomes": "== 11698, < 6191, > 12625 (signed); < 0, > 18816 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147475456..4240688"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 37426,
+     "completion_tokens": 6205,
+     "reasoning_tokens": 5593,
+     "cost": 0.0068451,
+     "seconds": 24.8,
+     "sample": 1,
+     "conversation": "8718b256f8a0b00278a86999569331ab492609a4f6ceca604c0630dafc0b297d"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800DBF00.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800DBF00.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 38.77440145399942,
+ "wall_seconds": 83.77512626499993,
+ "totals": {
+  "cost": 0.02665,
+  "prompt_tokens": 67246,
+  "completion_tokens": 39846,
+  "model_seconds": 167.0,
+  "check_seconds": 38.8,
+  "calls": 3,
+  "wall_seconds": 83.8
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "spec_fixes": [
+   "tooling: Haiku's first spec set a pointer field with psx.put(&field, null), which psx.put/psx.addr rejected (no harness built); psx now takes a literal null (zig_unit test)"
+  ],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 1 / 3 / 5, 0 mismatches (alternate one-sided in enemy_cast_wait: one call, waived)"
+ }
+}

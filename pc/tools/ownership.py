@@ -194,20 +194,31 @@ def _file_scope_functions(text):
 
 
 def rename_definitions(text, names):
-    """Rename file-scope definitions only; return bytes and per-name counts."""
+    """Rename file-scope definitions only; return bytes and per-name counts.
+    Each renamed definition is preceded by a declaration of the original
+    name with the definition's own header (`T* f(int);`), so the unit's later
+    calls still see the prototype when the definition was the unit's only
+    one: without it they would be implicit `int f()` calls, which truncate a
+    returned pointer on LP64 (2842C's func_8009195C, called by
+    func_800919D8 after it). A K&R definition gets `T f();`."""
     tokens, found = _file_scope_functions(text)
     wanted = {n.encode(): n for n in names}
     counts = {n: 0 for n in names}
     edits = []
-    for name_index, _, _, start in found:
+    for name_index, params, body, start in found:
         token = tokens[name_index][2]
         if token not in wanted:
             continue
         if b"static" in [t[2] for t in tokens[start:name_index]]:
             raise ValueError(f"{wanted[token]}: a static function cannot be routed")
         counts[wanted[token]] += 1
+        close = _matching(tokens, params)
+        head = text[tokens[start][0]:tokens[close][1]]
+        if _skip_attributes(tokens, close + 1) != body:  # K&R parameter declarations follow
+            head = text[tokens[start][0]:tokens[params][0]] + b"()"
+        edits.append((tokens[start][0], tokens[start][0], head + b";\n"))
         edits.append((tokens[name_index][0], tokens[name_index][1], token + b"__orig"))
-    for begin, end, new in reversed(edits):
+    for begin, end, new in sorted(edits, key=lambda e: (e[0], e[1]), reverse=True):
         text = text[:begin] + new + text[end:]
     return text, counts
 

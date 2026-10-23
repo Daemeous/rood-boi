@@ -347,6 +347,67 @@ def wave1(tmp, table):
     return failures
 
 
+def wave2(tmp, table):
+    """The tooling failures wave 2 found (BAKEOFF.md, "Wave 2")."""
+    import zig_diff
+    failures = []
+    # A callee called through a cast to a shorter function type (49268's func_800B1A68:
+    # `((void (*)(MATRIX*, MATRIX*))CompMatrixLV)(a, b)`, CompMatrixLV's prototype has
+    # three parameters): its stub records and NULL-checks only the two passed (the
+    # third was register residue, which the harness took for a field of a null pointer).
+    body = ("void f(MATRIX* m)\n{\n    ((void (*)(MATRIX*, MATRIX*))CompMatrixLV)(\n        m, m);\n"
+            "    ((int (*)(void))g)();\n    h(m);\n}\n")
+    got = zig_diff.cast_call_arities(body)
+    if got != {"CompMatrixLV": 2, "g": 0}:
+        failures.append(f"cast_call_arities: {got}")
+    # NULL only in a C mutation's replacement (73700's func_800DC0D0): the preprocessed body has no NULL.
+    import types
+    text = zig_diff.Build.standin_source(types.SimpleNamespace(function="f"),
+                                         "int* f(int* p)\n{\n    return p;\n}\n",
+                                         {"name": "m", "from": "return p;", "to": "return NULL;"})
+    if "return ((void*)0);" not in text:
+        failures.append(f"a C mutation with NULL in its replacement only: {text}")
+    # A union with bitfields a struct embeds by value (7EE98's movementRecoveryState holds a
+    # vs_battle_movementPosition): the integer of its size, so a port can name the struct's functions.
+    import zig_c
+    import zig_toolchain
+    unit_i = tmp / "embedded.i"
+    # (declared before the union, defined after it, as 7EE98 does: translate-c keeps the struct)
+    unit_i.write_text("typedef struct holder holder;\ntypedef struct holder2 holder2;\n"
+                      "void f(holder*);\nvoid g(holder2*);\n"
+                      "typedef union { unsigned int raw; struct { unsigned int x : 8, y : 8, z : 8, s : 8; } p; } pos;\n"
+                      "typedef union { unsigned short r; struct { unsigned short a : 3; } p; } odd;\n"
+                      "struct holder { int a; pos position; };\n"
+                      "struct holder2 { char c; odd o[2]; };\n"
+                      "typedef union { unsigned int r; struct { unsigned int a : 3; } p; } byref;\n"
+                      "void h(byref*);\n")
+    text = zig_c.translate(zig_toolchain.ensure(), unit_i, tmp / "c_embedded.zig", "x86_64-linux-none").read_text()
+    for want in ("pub const pos = u32;", "pub const odd = u16;", "pub const byref = opaque {"):
+        if want not in text:
+            failures.append(f"zig_c: an opaque embedded by value: {want!r} missing")
+    # ctx.pick draws any value half the time (7EE98's func_800E7960 divided by a picked 0,
+    # 3A1A0's func_800A3310 indexed past its table): the API offers ctx.edge and the prompt says so.
+    api = (ROOT / "pc/tests/zig_diff/zdiff.zig").read_text()
+    if "pub fn edge(" not in api or "`ctx.edge`" not in (ROOT / "pc/tools/spec_bakeoff.py").read_text():
+        failures.append("zdiff: ctx.edge missing from the API or the spec prompt")
+    # A static helper holding a block-scope static (40564's func_800A9530 inlines func_800A4A24, whose
+    # ROOD_PC `static platforms[4]` no port can reach): skipped at the plan, before any call.
+    import port_pipeline as pp
+    rows, names = pp.functions_tsv(), pp.meanings()
+    plan, _ = pp.plan_function("func_800A9530", rows["func_800A9530"], table, names, {}, BUILD, tmp / "plan-A9530")
+    if "func_800A4A24" not in (plan.skip or "") or "block-scope static" not in (plan.skip or ""):
+        failures.append(f"func_800A9530 not skipped for its helper's block-scope static: {plan.skip!r}")
+    # sprintf (variadic with fixed parameters: no recording stub can take it) runs as libc's (2842C).
+    if not {"sprintf", "strlen"} <= zig_diff.LIBC:
+        failures.append("zig_diff: sprintf is stubbed (variadic with fixed parameters: the harness cannot build)")
+    main_zig = (ROOT / "pc/tests/zig_diff/main.zig").read_text()
+    if "compare_return" not in main_zig or "ignore_return" not in main_zig:
+        failures.append("zig_diff main.zig: a spec's ignore_return is not honoured (3A1A0's func_800A3E6C, func_800A6AA0)")
+    if "callArity(name" not in main_zig or "nullFieldArgs(name, args, used)" not in main_zig:
+        failures.append("zig_diff main.zig: stubs no longer honour gen.call_arity")
+    return failures
+
+
 def record(work, function, unit="146C"):
     path = work / "records" / unit / f"{function}.json"
     return json.loads(path.read_text()) if path.exists() else None
@@ -570,6 +631,7 @@ def main():
         failures += head_to_head_7CD68(tmp, table)
         failures += review_7CD68(tmp, table)
         failures += wave1(tmp, table)
+        failures += wave2(tmp, table)
         import port_rounds_test
         failures += port_rounds_test.checks(tmp / "rounds-machine")
         failures += rounds_end_to_end(tmp)

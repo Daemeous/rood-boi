@@ -1,0 +1,280 @@
+{
+ "function": "func_800AB358",
+ "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the packet statics inlined as in func_800AB098); spec sound",
+ "plan": {
+  "name": "func_800AB358",
+  "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+  "stem": "40564",
+  "address": "0x800ab358",
+  "difficulty": "S",
+  "zig_name": "func_800AB358",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800AB358",
+  "spec_file": "func_800AB358.zig",
+  "subsystem": "battle_40564_port",
+  "signature": "pub fn func_800AB358(index: c_int, arg: [*c]u8) callconv(.c) void",
+  "params": [
+   [
+    "index",
+    "c_int"
+   ],
+   [
+    "arg",
+    "[*c]u8"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "DR_MOVE",
+   "RECT"
+  ],
+  "globals": [
+   "D_800E8F30",
+   "D_800E8F90",
+   "D_800F2450",
+   "D_800F4538"
+  ],
+  "hooks": [],
+  "statics": [
+   "vs_battlePacketBegin",
+   "vs_battlePacketEnd"
+  ],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 15744,
+     "completion_tokens": 16048,
+     "reasoning_tokens": 14217,
+     "cost": 0.0095984,
+     "seconds": 66.9,
+     "sample": 1,
+     "conversation": "e46596d4a1b7bfa8b8216c7ac26a11e2b3d931025d833249e5aa2fd52a5aa785"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation F1: wrong field offset for the srcY read: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800AB358: 30000 iterations, seed 1, 0 mismatches; classes: page-zero=7370 bit27-set=11289 bit27-clear=11341",
+     "FAIL: mutation F3: rect.h takes the width: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800AB358: 30000 iterations, seed 1, 0 mismatches; classes: page-zero=7370 bit27-set=11289 bit27-clear=11341",
+     "FAIL: mutation F4: page masked to 3 bits before the x computation: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800AB358: 30000 iterations, seed 1, 0 mismatches; classes: page-zero=7370 bit27-set=11289 bit27-clear=11341",
+     "FAIL: mutation F6: wrong constant in rect.y: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800AB358: 30000 iterations, seed 1, 0 mismatches; classes: page-zero=7370 bit27-set=11289 bit27-clear=11341"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 18091,
+     "completion_tokens": 4576,
+     "reasoning_tokens": 2507,
+     "cost": 0.0040971,
+     "seconds": 18.9,
+     "sample": 1,
+     "conversation": "6421211ab4ca543dba8abfcdb82a9108d256215bacbaf136d14abb72658f2f4e"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "page-zero": "7370",
+   "bit27-set": "11289",
+   "bit27-clear": "11341"
+  },
+  "mutations": [
+   {
+    "name": "F1: wrong field offset for the srcY read",
+    "caught": true
+   },
+   {
+    "name": "F2: wrong bit for the half-scale test (bit 26, not 27)",
+    "caught": true
+   },
+   {
+    "name": "F3: rect.h takes the width",
+    "caught": true
+   },
+   {
+    "name": "F4: page masked to 3 bits before the x computation",
+    "caught": true
+   },
+   {
+    "name": "F5: the draw call is dropped",
+    "caught": true
+   },
+   {
+    "name": "F6: wrong constant in rect.y",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 4,
+   "branches_hit": 4,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 32,
+   "lines_hit": 32,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 8,
+     "text": "if (D_800F2450[D_800E8F2C]) {",
+     "size": 1,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 7370, < 7585, > 15045 (signed); < 0, > 22630 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..16"
+    },
+    {
+     "line": 16,
+     "text": "if (!(*(int*)(actor + 0x5AC) & 0x8000000)) {",
+     "size": 4,
+     "count": 22630,
+     "kind": "against a constant",
+     "outcomes": "== 11341, < 0, > 11289 (signed); < 0, > 11289 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..134217728"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39077,
+     "completion_tokens": 13938,
+     "reasoning_tokens": 12565,
+     "cost": 0.0108767,
+     "seconds": 57.1,
+     "sample": 1,
+     "conversation": "2af212270b2905f2ed2c1da62e683cc8150c84fd75106978245289c6d3883830"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800AB358.zig:35:13: error: local variable is never mutated\n        var height: c_int = actor[partOff + 3];\n            ^~~~~~\ngame/battle/func_800AB358.zig:35:13: note: consider using 'const'\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 40625,
+     "completion_tokens": 1928,
+     "reasoning_tokens": 555,
+     "cost": 0.0050265,
+     "seconds": 7.2,
+     "sample": 1,
+     "conversation": "3490be979c86b1f6358ff7f7ac96530c3b1f5fc196e015ad06091606b1e2f6b6"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800AB358.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800AB358.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 62.4887685090016,
+ "wall_seconds": 73.73728064900024,
+ "totals": {
+  "cost": 0.0296,
+  "prompt_tokens": 113537,
+  "completion_tokens": 36490,
+  "model_seconds": 150.1,
+  "check_seconds": 62.5,
+  "calls": 4,
+  "wall_seconds": 73.7
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

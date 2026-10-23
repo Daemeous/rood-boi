@@ -1,0 +1,234 @@
+{
+ "function": "func_800AA218",
+ "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_800AA218",
+  "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+  "stem": "40564",
+  "address": "0x800aa218",
+  "difficulty": "S",
+  "zig_name": "func_800AA218",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800AA218",
+  "spec_file": "func_800AA218.zig",
+  "subsystem": "battle_40564_port",
+  "signature": "pub fn func_800AA218(arg0: c_int, arg1: ?*v.func_8006EBF8_t_fields, arg2: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "?*v.func_8006EBF8_t_fields"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "func_8006EBF8_t_fields"
+  ],
+  "globals": [
+   "D_800F4538"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16387,
+     "completion_tokens": 9806,
+     "reasoning_tokens": 8112,
+     "cost": 0.0065417,
+     "seconds": 40.5,
+     "sample": 1,
+     "conversation": "301a6c36175b0eec50b377665ca2e23ec53db06d174cc40b262a1ddda1f34906"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/func_800AA218/spec1/build/game/common/psx.zig:84:21: error: opaque 'c_40564.func_8006EBF8_t_fields' has no member named 'bitfields'\n    return @field(S.bitfields, name);\n                    ^~~~~~~~~\npc/build/boot64/zig/c_40564.zig:521:36: note: opaque declared here\npub const func_8006EBF8_t_fields = opaque {};\n                                   ^~~~~~~~~\npc/build/port-pipeline/func_800AA218/spec1/build/game/common/psx.zig:99:76: note: called at comptime here\npub fn setBits(p: anytype, comptime name: []const u8, value: BitInt(bitSpec(@TypeOf(p), name))) void {\n                                                                    ~~~~~~~^~~~~~~~~~~~~~~~~~\npc/build/port-pipeline/func_800AA218/spec1/build/spec.zig:20:44: note: generic function instantiated here\n        if (ctx.value(u1) == 1) psx.setBits(arg1.?, \"unk0_0\", ctx.value(u8));\n                                ~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:235:33\n    f: pc/build/port-pipeline/func_800AA218/spec1/build/game/common/route.zig:39:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 18718,
+     "completion_tokens": 2842,
+     "reasoning_tokens": 1094,
+     "cost": 0.0032928,
+     "seconds": 10.5,
+     "sample": 1,
+     "conversation": "2a2bfa9f6393b0164b678f15b75613aee454a50a028d4906dad34b4ec2bf6199"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "no-actor": "7470",
+   "actor-low-index": "10608",
+   "actor-high-index": "11922"
+  },
+  "mutations": [
+   {
+    "name": "F1: currentTileZ read from the wrong bitfield (unk0_24)",
+    "caught": true
+   },
+   {
+    "name": "F2: unk5D read from unk0_0 instead of unk0_8",
+    "caught": true
+   },
+   {
+    "name": "F3: dropped currentTileX store",
+    "caught": true
+   },
+   {
+    "name": "F4: callee gets unk5C4 instead of unk5C2",
+    "caught": true
+   },
+   {
+    "name": "F5: currentTileX stored before the call (moved across it)",
+    "caught": true
+   },
+   {
+    "name": "F6: arg2 passed as constant 0 to the call",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 8,
+   "lines_hit": 8,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39867,
+     "completion_tokens": 3535,
+     "reasoning_tokens": 3101,
+     "cost": 0.0057542,
+     "seconds": 15.3,
+     "sample": 1,
+     "conversation": "5889c8e1ed239c17723d17671fcb9c077588c75944f003d8cdcd52e8177987c5"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800AA218.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800AA218.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 27.028588550001587,
+ "wall_seconds": 35.69838387100026,
+ "totals": {
+  "cost": 0.01559,
+  "prompt_tokens": 74972,
+  "completion_tokens": 16183,
+  "model_seconds": 66.3,
+  "check_seconds": 27.0,
+  "calls": 3,
+  "wall_seconds": 35.7
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

@@ -102,6 +102,16 @@ check(b"{ F, F2 }" in text, "address-of uses keep F (function pointer tables rou
 check(b"int F2(int x)" in text, "a name that only starts with F is untouched")
 check(b"int K__orig(a, b)" in text, "a K&R definition is renamed")
 check(b"int H__orig(void)" in text, "a definition with a leading attribute is renamed")
+check(b"int F(int x);\nint F__orig(int x)" in text, "a routed definition keeps a prototype of its own name before it")
+check(b"int K();\nint K__orig(a, b)" in text, "a K&R definition gets an unprototyped declaration")
+check(b"__attribute__((noinline)) int H(void);\n__attribute__((noinline)) int H__orig(void)" in text,
+      "the declaration copies the definition's attributes")
+# The unit's only declaration was the definition (2842C's func_8009195C, called by func_800919D8
+# after it): the caller must still see `void* P(int)`, not an implicit int (a truncated pointer on LP64).
+lone = b"void* P(int i) { return (void*)0; }\nint Q(int i) { return P(i) != 0; }\n"
+renamed, _ = ownership.rename_definitions(lone, {"P"})
+check(renamed.startswith(b"void* P(int i);\nvoid* P__orig(int i)") and b"return P(i)" in renamed,
+      f"a lone definition keeps its prototype for later callers: {renamed!r}")
 check(raises(lambda: ownership.rename_definitions(UNIT, {"helper"}), "static"),
       "a static definition cannot be routed")
 _, missing = ownership.rename_definitions(UNIT, {"absent"})

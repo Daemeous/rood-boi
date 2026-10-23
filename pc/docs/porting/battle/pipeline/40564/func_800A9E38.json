@@ -1,0 +1,243 @@
+{
+ "function": "func_800A9E38",
+ "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_800A9E38",
+  "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+  "stem": "40564",
+  "address": "0x800a9e38",
+  "difficulty": "S",
+  "zig_name": "func_800A9E38",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A9E38",
+  "spec_file": "func_800A9E38.zig",
+  "subsystem": "battle_40564_port",
+  "signature": "pub fn func_800A9E38(arg0: c_int, arg1: c_short, arg2: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_short"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [
+   "D_800F4538"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14397,
+     "completion_tokens": 8232,
+     "reasoning_tokens": 6790,
+     "cost": 0.0055557,
+     "seconds": 35.7,
+     "sample": 1,
+     "conversation": "b34bea46f3321fa88fac66b8e3372b7d51b0dfd6451c847ad400383e6650c1ea"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation S6: table index masked to 3 bits: not caught as mismatch (exit 4) (the mutated copy crashes where the C does not: if that is what this mistake does on your inputs, say `expect = \"crash\"`; otherwise choose a mutation your inputs show as a difference): zdiff: CRASH (signal 11) in the Zig run, iteration 4, a wild pointer (a non-canonical address: random bytes used as a pointer?)\nzdiff: crashed on arguments: 0xd 0x7bf5 0x3bd09208 (class store-wide)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16062,
+     "completion_tokens": 3039,
+     "reasoning_tokens": 1479,
+     "cost": 0.0031257,
+     "seconds": 13.1,
+     "sample": 1,
+     "conversation": "6a1c034dd745f596ba79803665ee04824ee4f17511d7a1ded3f43a29b85d0f22"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "sentinel": "3369",
+   "store": "6718",
+   "store-wide": "19913"
+  },
+  "mutations": [
+   {
+    "name": "S1: stored value off by one",
+    "caught": true
+   },
+   {
+    "name": "S2: restore dropped",
+    "caught": true
+   },
+   {
+    "name": "S3: sentinel constant wrong",
+    "caught": true
+   },
+   {
+    "name": "S4: early return dropped (sentinel falls through and calls again)",
+    "caught": true
+   },
+   {
+    "name": "S5: saved halfword read from the wrong field",
+    "caught": true
+   },
+   {
+    "name": "S6: table index masked to 3 bits",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 9,
+   "lines_hit": 9,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "16-bit: min -32767, max 32766, unsigned 0..65533, seen zero/negative"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2147454506, max 2147309259, unsigned 0..4294967295, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 5,
+     "text": "if (arg2 == -1) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 3369, < 10847, > 15784 (signed); < 26631, > 0 (unsigned)",
+     "operand": "constant -1",
+     "a": "-2147454506..2147309259"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 37869,
+     "completion_tokens": 2098,
+     "reasoning_tokens": 1659,
+     "cost": 0.0048359,
+     "seconds": 9.6,
+     "sample": 1,
+     "conversation": "b8026d9011fee8560aaac2f500c6644c150e08303ab7fc6c098414b8822daf6e"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A9E38.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A9E38.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 34.65349547400001,
+ "wall_seconds": 41.29706821699983,
+ "totals": {
+  "cost": 0.01352,
+  "prompt_tokens": 68328,
+  "completion_tokens": 13369,
+  "model_seconds": 58.4,
+  "check_seconds": 34.7,
+  "calls": 3,
+  "wall_seconds": 41.3
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

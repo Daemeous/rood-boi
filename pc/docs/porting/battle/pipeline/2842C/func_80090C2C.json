@@ -1,0 +1,217 @@
+{
+ "function": "func_80090C2C",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "spec-failed",
+ "reviewed": "not ported in this wave (unrouted): spec-failed: FAIL: the coverage gate (zig_diff.py --coverage):",
+ "plan": {
+  "name": "func_80090C2C",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x80090c2c",
+  "difficulty": "M",
+  "zig_name": "func_80090C2C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_80090C2C",
+  "spec_file": "func_80090C2C.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_80090C2C(arg0: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_80090C2C: branches 16/18 (88.9%), conditions not measured (GCC < 14: branch coverage only), lines 43/43\n  UNCOVERED +47 b1: branch never taken: `if (D_800F1DBC != -1) {`\n  UNCOVERED +48 b3: branch never taken: `if ((D_800F1DBC >= 0) && (D_800F1DBC != sound)) {`\n  FLAG +51 eq: boundary equality never occurred (32-bit compare, constant 0: both sides seen; a port's `<` for `<=` could pass): `if (sound >= 0) {`\ncoverage func_80090C2C: FAILED (threshold 100%: 2 uncovered, 1 value flag(s) not waived)\nWhat to add:\n- `if (D_800F1DBC != -1) {` (+47): one way out of this test (+47 b1) was never taken; add inputs that take it.\n- `if ((D_800F1DBC >= 0) && (D_800F1DBC != sound)) {` (+48): one way out of this test (+48 b3) was never taken; add inputs that take it.\n- `if (sound >= 0) {` (+51): the two sides of this ordered compare were equal 0 time(s) in 26237. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_80090C2C.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_80090C2C: branches 16/18 (88.9%), conditions not measured (GCC < 14: branch coverage only), lines 43/43\n  UNCOVERED +47 b1: branch never taken: `if (D_800F1DBC != -1) {`\n  UNCOVERED +48 b3: branch never taken: `if ((D_800F1DBC >= 0) && (D_800F1DBC != sound)) {`\n  waived +51 eq: boundary equality never occurred (32-bit compare, constant 0: both sides seen; a port's `<` for `<=` could pass): `if (sound >= 0) {` (The sound variable is only ever assigned -2 (the initial value) or 21 (case 1) in the C, so `sound >= 0` can never see its sides equal (sound == 0). No input can make it 0.)\ncoverage func_80090C2C: FAILED (threshold 100%: 2 uncovered, 0 value flag(s) not waived)\nWhat to add:\n- `if (D_800F1DBC != -1) {` (+47): one way out of this test (+47 b1) was never taken; add inputs that take it.\n- `if ((D_800F1DBC >= 0) && (D_800F1DBC != sound)) {` (+48): one way out of this test (+48 b3) was never taken; add inputs that take it.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_80090C2C.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   }
+  ],
+  "classes": {
+   "no-room": "3750",
+   "arg-other": "18974",
+   "arg-0": "1454",
+   "arg-1": "1497",
+   "arg-2": "1426",
+   "arg-3": "1456",
+   "arg-4": "1443"
+  },
+  "mutations": [
+   {
+    "name": "F1: the no-case sound stays -1",
+    "caught": true
+   },
+   {
+    "name": "F2: case 4 divides the product by 4, not 2",
+    "caught": true
+   },
+   {
+    "name": "F3: case 1 plays the wrong sound",
+    "caught": true
+   },
+   {
+    "name": "F4: the same-sound guard dropped (negative sounds replayed)",
+    "caught": true
+   },
+   {
+    "name": "F5: the no-room branch tests > 0 (zero sound not stopped)",
+    "caught": true
+   },
+   {
+    "name": "F6: func_80090B28 call dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 18,
+   "branches_hit": 16,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 43,
+   "lines_hit": 43,
+   "uncovered": [
+    {
+     "id": "+47 b1",
+     "line": 47,
+     "text": "if (D_800F1DBC != -1) {",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+48 b3",
+     "line": 48,
+     "text": "if ((D_800F1DBC >= 0) && (D_800F1DBC != sound)) {",
+     "what": "branch never taken"
+    }
+   ],
+   "flags": [
+    {
+     "id": "+51 eq",
+     "line": 51,
+     "text": "if (sound >= 0) {",
+     "kind": "eq",
+     "bits": 32,
+     "equal": 0,
+     "count": 26250,
+     "what": "boundary equality never occurred (32-bit compare, constant 0: both sides seen; a port's `<` for `<=` could pass)"
+    }
+   ],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 17,
+     "text": "switch (arg0) {",
+     "size": 4,
+     "count": 26250,
+     "kind": "switch",
+     "outcomes": "== 7276, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "-2147483648..2147483647"
+    },
+    {
+     "line": 47,
+     "text": "if (D_800F1DBC != -1) {",
+     "size": 2,
+     "count": 26250,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 3733, > 22517 (signed); < 26250, > 0 (unsigned)",
+     "operand": "constant -1",
+     "a": "-32761..32747"
+    },
+    {
+     "line": 48,
+     "text": "if ((D_800F1DBC >= 0) && (D_800F1DBC != sound)) {",
+     "size": 2,
+     "count": 26250,
+     "kind": "against a constant",
+     "outcomes": "== 1, < 3733, > 22516 (signed); < 0, > 26249 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32761..32747"
+    },
+    {
+     "line": 48,
+     "text": "if ((D_800F1DBC >= 0) && (D_800F1DBC != sound)) {",
+     "size": 4,
+     "count": 22517,
+     "kind": "a == b / a < b",
+     "outcomes": "== 0, < 21678, > 839 (signed); < 330, > 22187 (unsigned)",
+     "operand": "b 0..32747",
+     "a": "-2..21"
+    },
+    {
+     "line": 51,
+     "text": "if (sound >= 0) {",
+     "size": 4,
+     "count": 26250,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 24753, > 1497 (signed); < 0, > 26250 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2..21"
+    },
+    {
+     "line": 56,
+     "text": "} else if (D_800F1DBC >= 0) {",
+     "size": 2,
+     "count": 3750,
+     "kind": "against a constant",
+     "outcomes": "== 521, < 1633, > 1596 (signed); < 0, > 3229 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32767"
+    }
+   ],
+   "passed": false
+  }
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 34.17035984499853,
+ "wall_seconds": 34.5177229309993,
+ "totals": {
+  "cost": 0.0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "model_seconds": 0.0,
+  "check_seconds": 34.2,
+  "calls": 0,
+  "wall_seconds": 34.5
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22"
+ }
+}

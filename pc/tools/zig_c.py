@@ -25,7 +25,8 @@ Post-processing:
 - an opaque type (a union or struct with bitfields) a prototype passes by
   value becomes the unsigned integer of its size when that is 1, 2, 4 or 8
   bytes (Zig allows no opaque parameter; the calling conventions pass such
-  an all-integer aggregate as that integer);
+  an all-integer aggregate as that integer), and so does one a struct
+  embeds by value when its alignment is its size (Zig embeds no opaque);
 - `T f();` (no prototype) before the unit's own declaration or definition
   of f with its parameters: the unprototyped one is dropped from the header
   translate-c reads (it keeps the first, `f(...)`, which no port can
@@ -186,12 +187,20 @@ def _routed_names(text):
 _OPAQUE = re.compile(r"^pub const (\w+) = opaque \{\};$", re.M)
 
 
-def by_value_opaques(text):
+def by_value_opaques(text, fields=False):
     """The opaque types (translate-c's demotion of a union or struct with
     bitfields) a prototype passes or returns by value: Zig rejects such a
-    parameter, so neither a port nor zig_diff's stub could name the function."""
+    parameter, so neither a port nor zig_diff's stub could name the function.
+    fields: those a struct embeds by value instead (`position:
+    vs_battle_movementPosition`, 7EE98's movementRecoveryState): Zig cannot
+    embed an opaque, so no port could name a function taking that struct."""
     opaque = set(_OPAQUE.findall(text))
     used = set()
+    if fields:
+        for m in re.finditer(r"^\s+\w+: (?:\[\d+\])*(\w+)(?: = .*)?,$", text, re.M):
+            if m.group(1) in opaque:
+                used.add(m.group(1))
+        return sorted(used)
     for m in re.finditer(r"^pub extern fn \w+\((.*)\) (.+);$", text, re.M):
         for part in [p.strip() for p in m.group(1).split(",")] + [m.group(2).strip()]:
             name = part.split(":")[-1].strip()
@@ -206,7 +215,9 @@ def _sized_opaques(text, zig, decls, target):
     calling convention passes such an all-integer union or struct as that
     integer on every target the game builds (i386 cdecl, x86_64 SysV,
     Windows x64). A port passes its bytes (`psx.byteAt(u32, &tile, 0).*`)."""
-    names = by_value_opaques(text)
+    params = by_value_opaques(text)
+    embedded = [n for n in by_value_opaques(text, fields=True) if n not in params]
+    names = params + embedded
     if not names:
         return text
     def c_name(n):
@@ -221,10 +232,18 @@ def _sized_opaques(text, zig, decls, target):
     if result.returncode:
         raise SystemExit(f"zig_c: sizing {', '.join(names)}: {result.stderr[-2000:]}")
     sizes = {k: int(v) for k, v in re.findall(r"pub const zig_c_size_(\w+): c_int = (\d+);", result.stdout)}
+    aligns = {k: int(v) for k, v in re.findall(r"pub const zig_c_align_(\w+): c_int = (\d+);", result.stdout)}
     for n in names:
-        if sizes.get(n) in (1, 2, 4, 8):
-            text = text.replace(f"pub const {n} = opaque {{}};",
-                                f"pub const {n} = u{sizes[n] * 8}; // passed by value (zig_c.py: an opaque by value)")
+        if sizes.get(n) not in (1, 2, 4, 8):
+            continue
+        if n in embedded:
+            # As a field, the integer must also sit where the C puts the aggregate.
+            if aligns.get(n) != sizes[n]:
+                continue
+            note = "embedded by value (zig_c.py: an opaque field)"
+        else:
+            note = "passed by value (zig_c.py: an opaque by value)"
+        text = text.replace(f"pub const {n} = opaque {{}};", f"pub const {n} = u{sizes[n] * 8}; // {note}")
     return text
 
 

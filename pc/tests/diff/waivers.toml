@@ -22,3 +22,26 @@ func_80070F28 = "pass-through; enemy_cast_wait commits one action: one call"
 func_8007138C = "pass-through; one cast start per recipe: one call"
 func_800704B0 = "pass-through; one phase 5 -> 6 per recipe: one call"
 func_80070278 = "pass-through; one release per recipe: one call"
+
+[alternate_one_side.battle_7C4E8_port]
+func_800E4CE8 = "enemy_cast_wait calls it once (one enemy action ends): runs owned only; call and tick cover it"
+
+[alternate_one_side.battle_73700_port]
+func_800DBF00 = "enemy_cast_wait unlinks one actor once: runs owned only; call and tick cover it"
+
+[alternate_one_side.battle_3A1A0_port]
+func_800A47C4 = "enemy_cast_wait calls it once at the root: runs owned only; call and tick cover it"
+
+[alternate_one_side.battle_40564_port]
+func_800A9C54 = "enemy_cast_wait and action_name_window place one actor once: runs owned only; call and tick cover it"
+func_800AA290 = "called once per recipe (nested under func_800A9C54): runs owned only; call and tick cover it"
+func_800AA850 = "enemy_cast_wait turns one actor once: runs owned only; call and tick cover it"
+func_800ACF54 = "enemy_cast_wait and action_name_window copy one actor's tile once: runs owned only; call and tick cover it"
+
+[alternate_one_side.battle_2842C_port]
+func_800918E8 = "enemy_cast_wait sets the sound pan once: runs owned only; call and tick cover it"
+func_800938AC = "enemy_cast_wait calls it once: runs owned only; call and tick cover it"
+func_80093FEC = "called once per recipe (a label added): runs owned only; call and tick cover it"
+func_8009406C = "called once per recipe (a damage label added): runs owned only; call and tick cover it"
+func_800962E4 = "called once per recipe (nested under the label adds): runs owned only; call and tick cover it"
+func_800971D4 = "enemy_cast_wait calls it once: runs owned only; call and tick cover it"

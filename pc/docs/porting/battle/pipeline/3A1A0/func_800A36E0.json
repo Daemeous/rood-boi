@@ -1,0 +1,245 @@
+{
+ "function": "func_800A36E0",
+ "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the unaligned tile word read); spec sound",
+ "plan": {
+  "name": "func_800A36E0",
+  "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+  "stem": "3A1A0",
+  "address": "0x800a36e0",
+  "difficulty": "S",
+  "zig_name": "func_800A36E0",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A36E0",
+  "spec_file": "func_800A36E0.zig",
+  "subsystem": "battle_3A1A0_port",
+  "signature": "pub fn func_800A36E0(arg0: c_int, arg1: c_int, arg2: ?*v.func_8006EBF8_t) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ],
+   [
+    "arg2",
+    "?*v.func_8006EBF8_t"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F4538_t",
+   "func_8006EBF8_t"
+  ],
+  "globals": [
+   "D_800F4538"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16492,
+     "completion_tokens": 11254,
+     "reasoning_tokens": 9762,
+     "cost": 0.0072762,
+     "seconds": 47.7,
+     "sample": 1,
+     "conversation": "4262367fd7d08df0de934e324505817066680e2c17814ca34cf2ddbb3f7a5459"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "no-actor": "9988",
+   "flag-clear": "14887",
+   "flag-set-0x10": "3783",
+   "flag-set-0x20": "3854",
+   "flag-set-other": "7488"
+  },
+  "mutations": [
+   {
+    "name": "F1: the value store reads the wrong table word",
+    "caught": true
+   },
+   {
+    "name": "F2: the 0x20 test uses the wrong constant",
+    "caught": true
+   },
+   {
+    "name": "F3: facing divided by 16 becomes an arithmetic shift",
+    "caught": true
+   },
+   {
+    "name": "F4: the field store is dropped",
+    "caught": true
+   },
+   {
+    "name": "F5: the int is read from the wrong field",
+    "caught": true
+   },
+   {
+    "name": "F6: the index wraps at 16",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 8,
+   "branches_hit": 8,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 8,
+   "lines_hit": 8,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "32-bit: min -2147191688, max 2147279385, unsigned 0..4294770875, seen zero/negative"
+    },
+    {
+     "arg": 2,
+     "count": 40000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 5,
+     "text": "if (temp_a0->unk0.unkA_5 && ((arg1 == 0x10) || (arg1 == 0x20))) {",
+     "size": 1,
+     "count": 30012,
+     "kind": "against a constant",
+     "outcomes": "== 14887, < 0, > 15125 (signed); < 0, > 15125 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..32"
+    },
+    {
+     "line": 5,
+     "text": "if (temp_a0->unk0.unkA_5 && ((arg1 == 0x10) || (arg1 == 0x20))) {",
+     "size": 4,
+     "count": 15125,
+     "kind": "against a constant",
+     "outcomes": "== 3783, < 5594, > 5748 (signed); < 3748, > 7594 (unsigned)",
+     "operand": "constant 16",
+     "a": "-2145908219..2147041340"
+    },
+    {
+     "line": 5,
+     "text": "if (temp_a0->unk0.unkA_5 && ((arg1 == 0x10) || (arg1 == 0x20))) {",
+     "size": 4,
+     "count": 11342,
+     "kind": "against a constant",
+     "outcomes": "== 3854, < 5594, > 1894 (signed); < 3748, > 3740 (unsigned)",
+     "operand": "constant 32",
+     "a": "-2145908219..2147041340"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 40094,
+     "completion_tokens": 4058,
+     "reasoning_tokens": 3527,
+     "cost": 0.0060384,
+     "seconds": 17.7,
+     "sample": 1,
+     "conversation": "2414750bd9e189b95192840e60a83e79e67a108a0ad7ee8957da9220ecf64d95"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A36E0.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A36E0.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 35.61963334899974,
+ "wall_seconds": 35.815508261000105,
+ "totals": {
+  "cost": 0.01331,
+  "prompt_tokens": 56586,
+  "completion_tokens": 15312,
+  "model_seconds": 65.4,
+  "check_seconds": 35.6,
+  "calls": 2,
+  "wall_seconds": 35.8
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: - / - / root 2, 0 mismatches"
+ }
+}

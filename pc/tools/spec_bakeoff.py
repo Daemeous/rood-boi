@@ -143,7 +143,9 @@ The spec must:
   values, signed vs unsigned reads), zero, null where the C tests for it,
   out-of-range indices the C allows (an unchecked index into an array, as
   far as it stays inside memory the harness owns); every class must occur
-  in the iterations;
+  in the iterations; `ctx.pick` returns any value half the time, so a
+  divisor, an index or a count that must stay in a set comes from
+  `ctx.edge` or `ctx.range`;
 - come with 3-6 mutations of the port (TOML entries in specs.toml's format)
   that your inputs catch, each a mistake a porter could make.
 

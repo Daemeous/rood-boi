@@ -1,0 +1,221 @@
+{
+ "function": "func_8009291C",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_8009291C",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x8009291c",
+  "difficulty": "S",
+  "zig_name": "func_8009291C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_8009291C",
+  "spec_file": "func_8009291C.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_8009291C(arg0: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800F1DD8_t2"
+  ],
+  "globals": [
+   "D_800F1DD8",
+   "D_800F225A",
+   "D_800F225B"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": false,
+    "errors": [
+     "FAIL: your spec's own code (prepare or classify) failed before the C ran: a Zig safety check (an index past an array's length, an integer that does not fit, a null unwrap) or a fault in it:\nzdiff: PANIC in the classify run, iteration 47: incorrect alignment (return address 0x403597)",
+     "(the mutations and the coverage gate are checked once the spec runs)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "below-threshold": "20157",
+   "low-zero": "3906",
+   "above-window": "1467",
+   "live-flag": "3612",
+   "pointer-differs": "388",
+   "clean-copy": "470"
+  },
+  "mutations": [
+   {
+    "name": "F1: bound 0x40 tested with <= (arg0 == 64 takes the wrong branch)",
+    "caught": true
+   },
+   {
+    "name": "F2: window constant 0x3F instead of 0x40",
+    "caught": true
+   },
+   {
+    "name": "F3: signed slip on the threshold (values 128-255 go negative)",
+    "caught": true
+   },
+   {
+    "name": "F4: flag test looks only at the sign bit",
+    "caught": true
+   },
+   {
+    "name": "F5: copy direction swapped (unk8 takes unk4)",
+    "caught": true
+   },
+   {
+    "name": "F6: the heap free is dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 10,
+   "branches_hit": 10,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 15,
+   "lines_hit": 15,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 95, seen zero, never negative"
+    }
+   ],
+   "compares": [
+    {
+     "line": 2,
+     "text": "if (arg0 < D_800F225A) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "a == b / a < b",
+     "outcomes": "== 1801, < 20157, > 8042 (signed); < 20157, > 8042 (unsigned)",
+     "operand": "b 0..255",
+     "a": "0..95"
+    },
+    {
+     "line": 6,
+     "text": "if (arg0 < 0x40) {",
+     "size": 4,
+     "count": 9843,
+     "kind": "against a constant",
+     "outcomes": "== 1039, < 2867, > 5937 (signed); < 2867, > 5937 (unsigned)",
+     "operand": "constant 63",
+     "a": "0..95"
+    },
+    {
+     "line": 9,
+     "text": "if (arg0 < D_800F225B + 0x40) {",
+     "size": 4,
+     "count": 5937,
+     "kind": "a == b / a < b",
+     "outcomes": "== 661, < 4470, > 806 (signed); < 4470, > 806 (unsigned)",
+     "operand": "b 64..319",
+     "a": "64..95"
+    },
+    {
+     "line": 10,
+     "text": "if ((D_800F1DD8[arg0].unk0 != 0)",
+     "size": 1,
+     "count": 4470,
+     "kind": "against a constant",
+     "outcomes": "== 858, < 2089, > 1523 (signed); < 0, > 3612 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_8009291C.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_8009291C.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 42.768734604998826,
+ "wall_seconds": 42.990756275999956,
+ "totals": {
+  "cost": 0.0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "model_seconds": 0.0,
+  "check_seconds": 42.8,
+  "calls": 0,
+  "wall_seconds": 43.0
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

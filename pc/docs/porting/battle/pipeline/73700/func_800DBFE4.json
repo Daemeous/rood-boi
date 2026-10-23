@@ -1,0 +1,307 @@
+{
+ "function": "func_800DBFE4",
+ "unit": "src/BATTLE/BATTLE.PRG/73700.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (the callees rewrite the timers the C re-reads)",
+ "plan": {
+  "name": "func_800DBFE4",
+  "unit": "src/BATTLE/BATTLE.PRG/73700.c",
+  "stem": "73700",
+  "address": "0x800dbfe4",
+  "difficulty": "S",
+  "zig_name": "func_800DBFE4",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800DBFE4",
+  "spec_file": "func_800DBFE4.zig",
+  "subsystem": "battle_73700_port",
+  "signature": "pub fn func_800DBFE4(state: ?*v.actorTimerState) callconv(.c) void",
+  "params": [
+   [
+    "state",
+    "?*v.actorTimerState"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "actorTimerState"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11594,
+     "completion_tokens": 9648,
+     "reasoning_tokens": 7827,
+     "cost": 0.0059834,
+     "seconds": 42.1,
+     "sample": 1,
+     "conversation": "239962a2c63ad0ce46da92a12062f8da2b4da198ed6aa624bf108452576ddb47"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800DBFE4: branches 18/18 (100.0%), conditions not measured (GCC < 14: branch coverage only), lines 20/20\n  FLAG +4 eq: boundary equality occurred only 1 time(s) in 28012 (16-bit compare, constant 7: both sides seen; a port's `<` for `<=` could pass): `if (state->timer8E < 8)`\n  FLAG +6 eq: boundary equality never occurred (16-bit compare, constant 15: both sides seen; a port's `<` for `<=` could pass): `else if (state->timer8E < 16)`\n  FLAG +8 eq: boundary equality occurred only 1 time(s) in 25051 (16-bit compare, constant 23: both sides seen; a port's `<` for `<=` could pass): `else if (state->timer8E < 24)`\ncoverage func_800DBFE4: FAILED (threshold 100%: 0 uncovered, 3 value flag(s) not waived)\nWhat to add:\n- `if (state->timer8E < 8)` (+4): the two sides of this ordered compare were equal 1 time(s) in 28012. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\n- `else if (state->timer8E < 16)` (+6): the two sides of this ordered compare were equal 0 time(s) in 26993. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\n- `else if (state->timer8E < 24)` (+8): the two sides of this ordered compare were equal 1 time(s) in 25051. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800DBFE4.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14136,
+     "completion_tokens": 3481,
+     "reasoning_tokens": 1540,
+     "cost": 0.0031541,
+     "seconds": 13.9,
+     "sample": 1,
+     "conversation": "a8b2d76839d18010646dafe98eca93e193c944ac392006dab6031e102e01602c"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "idle": "886",
+   "wrapped": "853",
+   "active": "9725",
+   "expired-9A-zero": "1597",
+   "expired-9A-nonzero": "16939"
+  },
+  "mutations": [
+   {
+    "name": "F1: wrong arg to 820C (value instead of value + 1)",
+    "caught": true
+   },
+   {
+    "name": "F2: the early return bound is < 120 not <= 120",
+    "caught": true
+   },
+   {
+    "name": "F3: post-decrement tests the old timer9A",
+    "caught": true
+   },
+   {
+    "name": "F4: the expired path drops the 82CC call",
+    "caught": true
+   },
+   {
+    "name": "F5: timer98 decremented by 2",
+    "caught": true
+   },
+   {
+    "name": "F6: the 16..23 window gets value 3 instead of 2",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 18,
+   "branches_hit": 18,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 20,
+   "lines_hit": 20,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 3,
+     "text": "if (state->timer8E && ++state->timer8E) {",
+     "size": 2,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 886, < 10281, > 18833 (signed); < 0, > 29114 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32765"
+    },
+    {
+     "line": 3,
+     "text": "if (state->timer8E && ++state->timer8E) {",
+     "size": 2,
+     "count": 29114,
+     "kind": "against a constant",
+     "outcomes": "== 853, < 9428, > 18833 (signed); < 0, > 28261 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32767..32766"
+    },
+    {
+     "line": 4,
+     "text": "if (state->timer8E < 8)",
+     "size": 2,
+     "count": 28261,
+     "kind": "against a constant",
+     "outcomes": "== 843, < 10343, > 17075 (signed); < 915, > 26503 (unsigned)",
+     "operand": "constant 7",
+     "a": "-32767..32766"
+    },
+    {
+     "line": 6,
+     "text": "else if (state->timer8E < 16)",
+     "size": 2,
+     "count": 26503,
+     "kind": "against a constant",
+     "outcomes": "== 890, < 11171, > 14442 (signed); < 1743, > 23870 (unsigned)",
+     "operand": "constant 15",
+     "a": "-32767..32766"
+    },
+    {
+     "line": 8,
+     "text": "else if (state->timer8E < 24)",
+     "size": 2,
+     "count": 23870,
+     "kind": "against a constant",
+     "outcomes": "== 863, < 11185, > 11822 (signed); < 1757, > 21250 (unsigned)",
+     "operand": "constant 23",
+     "a": "-32767..32766"
+    },
+    {
+     "line": 12,
+     "text": "if (state->timer8E <= 120) {",
+     "size": 2,
+     "count": 28261,
+     "kind": "against a constant",
+     "outcomes": "== 909, < 18244, > 9108 (signed); < 8816, > 18536 (unsigned)",
+     "operand": "constant 120",
+     "a": "-32767..32766"
+    },
+    {
+     "line": 19,
+     "text": "if (state->timer9A) {",
+     "size": 2,
+     "count": 20275,
+     "kind": "against a constant",
+     "outcomes": "== 589, < 10110, > 9576 (signed); < 0, > 19686 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32760"
+    },
+    {
+     "line": 20,
+     "text": "if (--state->timer9A)",
+     "size": 2,
+     "count": 19686,
+     "kind": "against a constant",
+     "outcomes": "== 537, < 9553, > 9596 (signed); < 0, > 19149 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 25,
+     "text": "if (state->timer98)",
+     "size": 2,
+     "count": 20275,
+     "kind": "against a constant",
+     "outcomes": "== 650, < 10106, > 9519 (signed); < 0, > 19625 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32765"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35188,
+     "completion_tokens": 2928,
+     "reasoning_tokens": 2342,
+     "cost": 0.0049828,
+     "seconds": 12.6,
+     "sample": 1,
+     "conversation": "853d9175abf41eef3f9abcfec48d1e83ef423bae3ed2c48309861391366186d5"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800DBFE4.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800DBFE4.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 50.940174556000784,
+ "wall_seconds": 51.16390774700085,
+ "totals": {
+  "cost": 0.01412,
+  "prompt_tokens": 60918,
+  "completion_tokens": 16057,
+  "model_seconds": 68.6,
+  "check_seconds": 50.9,
+  "calls": 3,
+  "wall_seconds": 51.2
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 172 / 248 / 332, 0 mismatches"
+ }
+}

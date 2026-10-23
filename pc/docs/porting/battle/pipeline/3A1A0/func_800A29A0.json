@@ -1,0 +1,353 @@
+{
+ "function": "func_800A29A0",
+ "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the switch's fall-through into cases 4 and 5 as helpers; the status word re-read after each call); spec sound",
+ "plan": {
+  "name": "func_800A29A0",
+  "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+  "stem": "3A1A0",
+  "address": "0x800a29a0",
+  "difficulty": "L",
+  "zig_name": "func_800A29A0",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A29A0",
+  "spec_file": "func_800A29A0.zig",
+  "subsystem": "battle_3A1A0_port",
+  "signature": "pub fn func_800A29A0(arg0: ?*v.D_800F4538_t) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.D_800F4538_t"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F4538_t"
+  ],
+  "globals": [
+   "D_800F4538"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 17092,
+     "completion_tokens": 29655,
+     "reasoning_tokens": 27165,
+     "cost": 0.0165367,
+     "seconds": 123.8,
+     "sample": 1,
+     "conversation": "d4939d6b25ab05bc746c70c785f38505a329c16cf9ff804f82ccb88c51e4c086"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:181:9: error: zdiff: a spec stub gives void where the C prototype has c_int: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:235:29\n    f: pc/build/port-pipeline/func_800A29A0/spec1/build/game/common/route.zig:39:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\npc/tests/zig_diff/main.zig:235:46: error: expected 3 argument(s), found 1\n                return adapt(S, @call(.auto, f, .{&ctx} ++ stubArgs(@TypeOf(f), args)));\n                                             ^\npc/build/port-pipeline/func_800A29A0/spec1/build/spec.zig:51:9: note: function declared here\n    pub fn func_800E4C28(ctx: *zd.Ctx, x: anytype, z: anytype) void {\n    ~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 20159,
+     "completion_tokens": 4177,
+     "reasoning_tokens": 1656,
+     "cost": 0.0041044,
+     "seconds": 14.8,
+     "sample": 1,
+     "conversation": "2ddcab1fd6ecb3482cbb573be92cdf1dd8bfd34774ae08091d754b986b80382e"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:235:46: error: expected 3 argument(s), found 1\n                return adapt(S, @call(.auto, f, .{&ctx} ++ stubArgs(@TypeOf(f), args)));\n                                             ^\npc/build/port-pipeline/func_800A29A0/spec2/build/spec.zig:53:9: note: function declared here\n    pub fn func_800E4C28(ctx: *zd.Ctx, x: anytype, z: anytype) void {\n    ~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nreferenced by:\n    f: pc/build/port-pipeline/func_800A29A0/spec2/build/game/common/route.zig:19:28\n    comptime: pc/tests/zig_diff/main.zig:244:58\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ]
+   },
+   {
+    "round": 3,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 23112,
+     "completion_tokens": 3718,
+     "reasoning_tokens": 1189,
+     "cost": 0.0041702,
+     "seconds": 12.7,
+     "sample": 1,
+     "conversation": "43c9fed4863cf0156aa714d66823f672cd7bdb57b036a245d8268b970c737b58"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 3,
+   "sample": 1
+  },
+  "classes": {
+   "case1": "2468",
+   "case2": "2464",
+   "case3": "2546",
+   "case4": "2545",
+   "case5": "2507",
+   "default": "27470"
+  },
+  "mutations": [
+   {
+    "name": "M1: case 1 leaves bits 8-11 as 7 instead of 6",
+    "caught": true
+   },
+   {
+    "name": "M2: case 2 bound is > 8 instead of >= 8 (equal sides)",
+    "caught": true
+   },
+   {
+    "name": "M3: case 3 tests the wrong constant (== 1 for == 0)",
+    "caught": true
+   },
+   {
+    "name": "M4: the func_800ACF54 call is dropped",
+    "caught": true
+   },
+   {
+    "name": "M5: facing copied from the wrong offset (0x5F0)",
+    "caught": true
+   },
+   {
+    "name": "M6: unk17FD bound is > 2 instead of >= 2 (equal sides)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 24,
+   "branches_hit": 24,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 59,
+   "lines_hit": 59,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 8,
+     "text": "switch (temp_v0) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "switch",
+     "outcomes": "== 12530, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..15"
+    },
+    {
+     "line": 20,
+     "text": "if ((u_int)(((u_int)(*(u_int*)((char*)arg0 + 8)) >> 8) & 0xF) >= 8U) {",
+     "size": 4,
+     "count": 2464,
+     "kind": "against a constant",
+     "outcomes": "== 1102, < 0, > 1362 (signed); < 0, > 1362 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..2048"
+    },
+    {
+     "line": 21,
+     "text": "if (arg0->unk0.unk13 == 0xFC) {",
+     "size": 1,
+     "count": 1362,
+     "kind": "against a constant",
+     "outcomes": "== 668, < 336, > 358 (signed); < 686, > 8 (unsigned)",
+     "operand": "constant -4",
+     "a": "-128..127"
+    },
+    {
+     "line": 26,
+     "text": "< 9U;",
+     "size": 4,
+     "count": 668,
+     "kind": "against a constant",
+     "outcomes": "== 106, < 190, > 372 (signed); < 190, > 372 (unsigned)",
+     "operand": "constant 8",
+     "a": "0..15"
+    },
+    {
+     "line": 29,
+     "text": "if ((*(u_int*)((char*)arg0 + 0x119C)) & 0x20000) {",
+     "size": 4,
+     "count": 694,
+     "kind": "against a constant",
+     "outcomes": "== 335, < 0, > 359 (signed); < 0, > 359 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..131072"
+    },
+    {
+     "line": 32,
+     "text": "if (var_v0_2 == 0) {",
+     "size": 4,
+     "count": 1027,
+     "kind": "against a constant",
+     "outcomes": "== 416, < 0, > 611 (signed); < 0, > 611 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..255"
+    },
+    {
+     "line": 46,
+     "text": "if (!((*(u_int*)((char*)arg0 + 8)) & 0xF00)) {",
+     "size": 4,
+     "count": 2546,
+     "kind": "against a constant",
+     "outcomes": "== 338, < 0, > 2208 (signed); < 0, > 2208 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..3840"
+    },
+    {
+     "line": 47,
+     "text": "if (arg0->unk0.unk13 == 0xFC) {",
+     "size": 1,
+     "count": 338,
+     "kind": "against a constant",
+     "outcomes": "== 166, < 93, > 79 (signed); < 172, > 0 (unsigned)",
+     "operand": "constant -4",
+     "a": "-128..126"
+    },
+    {
+     "line": 52,
+     "text": "if (var_v0_3 == 0) {",
+     "size": 4,
+     "count": 338,
+     "kind": "against a constant",
+     "outcomes": "== 89, < 0, > 249 (signed); < 0, > 249 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..3840"
+    },
+    {
+     "line": 58,
+     "text": "if ((int)arg0->unk17FD >= 2U) {",
+     "size": 1,
+     "count": 5141,
+     "kind": "against a constant",
+     "outcomes": "== 534, < 518, > 4089 (signed); < 518, > 4089 (unsigned)",
+     "operand": "constant 1",
+     "a": "0..16"
+    },
+    {
+     "line": 59,
+     "text": "if ((*(u_int*)((char*)D_800F4538[arg0->unk17FD] + 8)) & 0x0F000000) {",
+     "size": 4,
+     "count": 4089,
+     "kind": "against a constant",
+     "outcomes": "== 1021, < 0, > 3068 (signed); < 0, > 3068 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..251658240"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 40694,
+     "completion_tokens": 20537,
+     "reasoning_tokens": 18897,
+     "cost": 0.0143379,
+     "seconds": 80.9,
+     "sample": 1,
+     "conversation": "994946ac7b3eb6ebce42fda28169558b25a4acaa23c089314be689f8ded87ae4"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A29A0.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A29A0.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 43.43406497200158,
+ "wall_seconds": 45.485035814000184,
+ "totals": {
+  "cost": 0.03915,
+  "prompt_tokens": 101057,
+  "completion_tokens": 58087,
+  "model_seconds": 232.2,
+  "check_seconds": 43.4,
+  "calls": 4,
+  "wall_seconds": 45.5
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested 177 / nested 177 / -, 0 mismatches"
+ }
+}

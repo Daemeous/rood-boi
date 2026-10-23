@@ -1,0 +1,159 @@
+{
+ "function": "func_80094AF8",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_80094AF8",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x80094af8",
+  "difficulty": "S",
+  "zig_name": "func_80094AF8",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_80094AF8",
+  "spec_file": "func_80094AF8.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_80094AF8(arg0: ?*v.D_800F1BAC_t) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.D_800F1BAC_t"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F1BAC_t"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "unk6-zero": "1907",
+   "unk6-min": "2044",
+   "other": "16049"
+  },
+  "mutations": [
+   {
+    "name": "F1: decrement by 2",
+    "caught": true
+   },
+   {
+    "name": "F2: unkB store dropped",
+    "caught": true
+   },
+   {
+    "name": "F3: store goes to unkA, not unkB",
+    "caught": true
+   },
+   {
+    "name": "F4: decrement saturates at zero (wrong at unk6 == 0)",
+    "caught": true
+   },
+   {
+    "name": "F5: decrement saturates at -32768 (wrong at the minimum)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 4,
+   "lines_hit": 4,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 20000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_80094AF8.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_80094AF8.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 53.52036193799722,
+ "wall_seconds": 95.76612489400213,
+ "totals": {
+  "cost": 0.0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "model_seconds": 0.0,
+  "check_seconds": 53.5,
+  "calls": 0,
+  "wall_seconds": 95.8
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

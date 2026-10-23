@@ -1,0 +1,379 @@
+{
+ "function": "func_800B1A68",
+ "unit": "src/BATTLE/BATTLE.PRG/49268.c",
+ "difficulty": "XL",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (CompMatrixLV through the C's two-argument cast; holderRotation.t never read by func_800B196C); spec sound after a tooling fix (Haiku's retry)",
+ "plan": {
+  "name": "func_800B1A68",
+  "unit": "src/BATTLE/BATTLE.PRG/49268.c",
+  "stem": "49268",
+  "address": "0x800b1a68",
+  "difficulty": "XL",
+  "zig_name": "func_800B1A68",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800B1A68",
+  "spec_file": "func_800B1A68.zig",
+  "subsystem": "battle_49268_port",
+  "signature": "pub fn func_800B1A68(object: ?*v.D_800F45E0_t, camera: ?*v.MATRIX) callconv(.c) void",
+  "params": [
+   [
+    "object",
+    "?*v.D_800F45E0_t"
+   ],
+   [
+    "camera",
+    "?*v.MATRIX"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F4538_unk68",
+   "D_800F45E0_t",
+   "D_800F45E0_unk68",
+   "SVECTOR",
+   "VECTOR"
+  ],
+  "globals": [
+   "D_800F3C78"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 27043,
+     "completion_tokens": 29871,
+     "reasoning_tokens": 26905,
+     "cost": 0.0176398,
+     "seconds": 123.7,
+     "sample": 1,
+     "conversation": "33bf4717c983409d836ea2a310f95c2d85c980022b4c03520a9c4b74217ceb50"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:235:46: error: expected 3 argument(s), found 4\n                return adapt(S, @call(.auto, f, .{&ctx} ++ stubArgs(@TypeOf(f), args)));\n                                             ^\npc/build/port-pipeline/func_800B1A68/spec1/build/spec.zig:114:9: note: function declared here\n    pub fn CompMatrixLV(ctx: *zd.Ctx, m0: anytype, m1: anytype) [*c]c.MATRIX {\n    ~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nreferenced by:\n    f: pc/build/port-pipeline/func_800B1A68/spec1/build/game/common/route.zig:34:28\n    comptime: pc/tests/zig_diff/main.zig:244:58\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 30463,
+     "completion_tokens": 4336,
+     "reasoning_tokens": 1318,
+     "cost": 0.0052143,
+     "seconds": 15.3,
+     "sample": 1,
+     "conversation": "c2ff9189973d8caa54bd2da55426d772911f974fef9101eda473adcc06443c66"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "holder": "9946",
+   "ff-rotate": "4983",
+   "low-attached": "5006",
+   "low-plain": "2564",
+   "rotate": "7501"
+  },
+  "mutations": [
+   {
+    "name": "W1: average rounds toward negative infinity (shift, not signed /)",
+    "caught": true
+   },
+   {
+    "name": "W2: unk1A tested for a positive value only",
+    "caught": true
+   },
+   {
+    "name": "W3: the >= 12 flag test becomes >= 13",
+    "caught": true
+   },
+   {
+    "name": "W4: wrong CLUT constant for the dark case",
+    "caught": true
+   },
+   {
+    "name": "W5: D_800F3C78 store dropped",
+    "caught": true
+   },
+   {
+    "name": "W6: signed compare of the flag nibble minus 4",
+    "caught": true
+   },
+   {
+    "name": "W7: holder rotation.vz read from the wrong field",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 28,
+   "branches_hit": 28,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 96,
+   "lines_hit": 96,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 19,
+     "text": "if (attachment >= 4) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 3789, < 11282, > 14929 (signed); < 11282, > 14929 (unsigned)",
+     "operand": "constant 3",
+     "a": "0..7"
+    },
+    {
+     "line": 20,
+     "text": "if (object->unk12 == 0xFF) {",
+     "size": 1,
+     "count": 14929,
+     "kind": "against a constant",
+     "outcomes": "== 4983, < 0, > 9946 (signed); < 9946, > 0 (unsigned)",
+     "operand": "constant -1",
+     "a": "-1..16"
+    },
+    {
+     "line": 44,
+     "text": "} else if (attachment < 2) {",
+     "size": 4,
+     "count": 15071,
+     "kind": "against a constant",
+     "outcomes": "== 3766, < 3804, > 7501 (signed); < 3804, > 7501 (unsigned)",
+     "operand": "constant 1",
+     "a": "0..3"
+    },
+    {
+     "line": 45,
+     "text": "if (object->unk1A != 0) {",
+     "size": 2,
+     "count": 7570,
+     "kind": "against a constant",
+     "outcomes": "== 2564, < 2524, > 2482 (signed); < 0, > 5006 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32737..32731"
+    },
+    {
+     "line": 78,
+     "text": "if (*(int*)&object->unk2C != 0x400040 || object->unk30 != 64) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 11175, < 9451, > 9374 (signed); < 16, > 18809 (unsigned)",
+     "operand": "constant 4194368",
+     "a": "-2147021004..2147460551"
+    },
+    {
+     "line": 78,
+     "text": "if (*(int*)&object->unk2C != 0x400040 || object->unk30 != 64) {",
+     "size": 2,
+     "count": 11175,
+     "kind": "against a constant",
+     "outcomes": "== 8441, < 1419, > 1315 (signed); < 2, > 2732 (unsigned)",
+     "operand": "constant 64",
+     "a": "-32731..32690"
+    },
+    {
+     "line": 91,
+     "text": "if (*(int*)((char*)object + 8) & 2) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 15080, < 0, > 14920 (signed); < 0, > 14920 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..2"
+    },
+    {
+     "line": 92,
+     "text": "if (func_800B3A68(object, (MATRIX*)&object->unk6C[0], (-vs_main_nearClip) << 2,",
+     "size": 4,
+     "count": 14920,
+     "kind": "against a constant",
+     "outcomes": "== 3710, < 0, > 11210 (signed); < 0, > 11210 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 95,
+     "text": "if (object->unk64.unk0 != 0",
+     "size": 1,
+     "count": 11210,
+     "kind": "against a constant",
+     "outcomes": "== 3731, < 3818, > 3661 (signed); < 0, > 7479 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 96,
+     "text": "|| ((*(u_int*)((char*)object + 8) >> 8) & 0xF) >= 6) {",
+     "size": 4,
+     "count": 3731,
+     "kind": "against a constant",
+     "outcomes": "== 240, < 1124, > 2367 (signed); < 1124, > 2367 (unsigned)",
+     "operand": "constant 5",
+     "a": "0..15"
+    },
+    {
+     "line": 103,
+     "text": "if (((flags >> 8) & 0xF) - 4 < 5) {",
+     "size": 4,
+     "count": 11210,
+     "kind": "against a constant",
+     "outcomes": "== 648, < 5525, > 5037 (signed); < 2771, > 7791 (unsigned)",
+     "operand": "constant 4",
+     "a": "-4..11"
+    },
+    {
+     "line": 104,
+     "text": "if ((flags & 0xF00) != 0x600)",
+     "size": 4,
+     "count": 3419,
+     "kind": "against a constant",
+     "outcomes": "== 693, < 1352, > 1374 (signed); < 1352, > 1374 (unsigned)",
+     "operand": "constant 1536",
+     "a": "1024..2048"
+    },
+    {
+     "line": 107,
+     "text": "if (((flags >> 8) & 0xF) >= 12) {",
+     "size": 4,
+     "count": 11210,
+     "kind": "against a constant",
+     "outcomes": "== 696, < 7620, > 2894 (signed); < 7620, > 2894 (unsigned)",
+     "operand": "constant 11",
+     "a": "0..15"
+    },
+    {
+     "line": 110,
+     "text": "if (value) {",
+     "size": 4,
+     "count": 11210,
+     "kind": "against a constant",
+     "outcomes": "== 5590, < 0, > 5620 (signed); < 0, > 5620 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 50539,
+     "completion_tokens": 37059,
+     "reasoning_tokens": 32752,
+     "cost": 0.0235834,
+     "seconds": 138.3,
+     "sample": 1,
+     "conversation": "c84847476269df20f9d749c82e05ca6d23e2a5d6ee1622c8ca294682a06d6ac2"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800B1A68.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800B1A68.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 87.13149326599978,
+ "wall_seconds": 240.87184314100023,
+ "totals": {
+  "cost": 0.04644,
+  "prompt_tokens": 108045,
+  "completion_tokens": 71266,
+  "model_seconds": 277.3,
+  "check_seconds": 87.1,
+  "calls": 3,
+  "wall_seconds": 240.9
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "spec_fixes": [
+   "tooling: the C calls CompMatrixLV through a cast to a two-parameter type; the harness's stub took the third prototype parameter (register residue, 0x1) for a field of a null pointer and stopped the C: zig_diff now records and NULL-checks only the arguments a cast call passes"
+  ],
+  "corpus": "call / tick / alternate (shadow): enemy_kill: root 1700, 0 mismatches (none in enemy_cast_wait, action_name_window)"
+ }
+}

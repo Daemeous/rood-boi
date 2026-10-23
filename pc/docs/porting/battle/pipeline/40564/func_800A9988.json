@@ -1,0 +1,414 @@
+{
+ "function": "func_800A9988",
+ "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the ROOD_PC empty-slot return; the static scanFloor carried, with the C's vx/vx argument slip); spec sound (the +76 sign waiver holds)",
+ "plan": {
+  "name": "func_800A9988",
+  "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+  "stem": "40564",
+  "address": "0x800a9988",
+  "difficulty": "L",
+  "zig_name": "func_800A9988",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A9988",
+  "spec_file": "func_800A9988.zig",
+  "subsystem": "battle_40564_port",
+  "signature": "pub fn func_800A9988(arg0: c_int, arg1: ?*v.SVECTOR, arg2: c_int, arg3: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "?*v.SVECTOR"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ],
+   [
+    "arg3",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F45E0_t",
+   "SVECTOR"
+  ],
+  "globals": [
+   "D_800F4538",
+   "D_800F45E0",
+   "D_800F49F8"
+  ],
+  "hooks": [
+   "ROOD_PC block in the source"
+  ],
+  "statics": [
+   "scanFloor"
+  ],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 22257,
+     "completion_tokens": 23040,
+     "reasoning_tokens": 20306,
+     "cost": 0.0137457,
+     "seconds": 97.4,
+     "sample": 1,
+     "conversation": "9b69577ac6b92151ad0c212125a0d14da943d4adf0e5ac643a38353c0ccfb20b"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800A9988: branches 26/26 (100.0%), conditions not measured (GCC < 14: branch coverage only), lines 52/52\n  FLAG +76 sign: every value above 0 had the sign bit set (a port testing the sign, `< 0`, for this test would pass): `if (var_a0_2 != 0) {`\ncoverage func_800A9988: FAILED (threshold 100%: 0 uncovered, 1 value flag(s) not waived)\nWhat to add:\n- `if (var_a0_2 != 0) {` (+76): this compares a value with 0. Every input where the value was above 0 also had its sign bit set (negative as a signed 32-bit number), so a port that tests the sign instead (`< 0`, or a signed read where the C reads unsigned) would pass your spec. Add inputs where the value is above 0 AND positive (e.g. 1, 256, 2147483647).\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800A9988.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 25399,
+     "completion_tokens": 5001,
+     "reasoning_tokens": 2043,
+     "cost": 0.0050404,
+     "seconds": 19.1,
+     "sample": 1,
+     "conversation": "647b5399b55908363b8672d96c14d096ad9fb313099bac09eb2b0acaddcfafb6"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "null-actor": "6711",
+   "first-pad-8000": "119",
+   "first-pad-other": "834",
+   "equal-pad-8000": "1056",
+   "equal-pad-other": "7563",
+   "ratan-vy-8000": "2396",
+   "ratan-vy-other": "21321"
+  },
+  "mutations": [
+   {
+    "name": "M1: func_800A9EB4 gets arg2 instead of arg3",
+    "caught": true
+   },
+   {
+    "name": "M2: unk5C4 from unk5C0 when arg2 == -1",
+    "caught": true
+   },
+   {
+    "name": "M3: scanFloor result tested as > 0",
+    "caught": true
+   },
+   {
+    "name": "M4: vy read signed, so 0x8000 never matches",
+    "caught": true
+   },
+   {
+    "name": "M5: dropped unk5AC_2 store",
+    "caught": true
+   },
+   {
+    "name": "M6: unk5C6 from arg2 instead of arg3",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 26,
+   "branches_hit": 26,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 52,
+   "lines_hit": 52,
+   "uncovered": [],
+   "flags": [
+    {
+     "id": "+76 sign",
+     "line": 76,
+     "text": "if (var_a0_2 != 0) {",
+     "kind": "sign",
+     "bits": 32,
+     "constant": 0,
+     "what": "every value above 0 had the sign bit set (a port testing the sign, `< 0`, for this test would pass)"
+    }
+   ],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 2,
+     "count": 40000,
+     "text": "32-bit: min -2147367170, max 2147059708, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 3,
+     "count": 40000,
+     "text": "32-bit: min -2146859857, max 2147298359, unsigned 0..4294967295, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 24,
+     "text": "if ((arg2 == 0) && (arg3 == 0)) {",
+     "size": 4,
+     "count": 33289,
+     "kind": "against a constant",
+     "outcomes": "== 5496, < 13871, > 13922 (signed); < 0, > 27793 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147367170..2147059708"
+    },
+    {
+     "line": 24,
+     "text": "if ((arg2 == 0) && (arg3 == 0)) {",
+     "size": 4,
+     "count": 5496,
+     "kind": "against a constant",
+     "outcomes": "== 953, < 2243, > 2300 (signed); < 0, > 4543 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2146859857..2147188593"
+    },
+    {
+     "line": 26,
+     "text": "if (temp_a2 == 0x8000) {",
+     "size": 2,
+     "count": 953,
+     "kind": "against a constant",
+     "outcomes": "== 119, < 0, > 834 (signed); < 487, > 347 (unsigned)",
+     "operand": "constant -32768",
+     "a": "-32768..32759"
+    },
+    {
+     "line": 29,
+     "text": "if ((angle == 0) && (var_a0_2 == 0)) {",
+     "size": 4,
+     "count": 119,
+     "kind": "against a constant",
+     "outcomes": "== 47, < 25, > 47 (signed); < 0, > 72 (unsigned)",
+     "operand": "constant 0",
+     "a": "-60945..56625"
+    },
+    {
+     "line": 29,
+     "text": "if ((angle == 0) && (var_a0_2 == 0)) {",
+     "size": 4,
+     "count": 47,
+     "kind": "against a constant",
+     "outcomes": "== 23, < 9, > 15 (signed); < 0, > 24 (unsigned)",
+     "operand": "constant 0",
+     "a": "-34783..50827"
+    },
+    {
+     "line": 46,
+     "text": "if ((angle == 0) && (var_a0_2 == 0)) {",
+     "size": 4,
+     "count": 32336,
+     "kind": "against a constant",
+     "outcomes": "== 16575, < 7577, > 8184 (signed); < 0, > 15761 (unsigned)",
+     "operand": "constant 0",
+     "a": "-65535..65535"
+    },
+    {
+     "line": 46,
+     "text": "if ((angle == 0) && (var_a0_2 == 0)) {",
+     "size": 4,
+     "count": 16575,
+     "kind": "against a constant",
+     "outcomes": "== 8619, < 3776, > 4180 (signed); < 0, > 7956 (unsigned)",
+     "operand": "constant 0",
+     "a": "-65535..65535"
+    },
+    {
+     "line": 48,
+     "text": "if (temp_v1 != 0x8000) {",
+     "size": 2,
+     "count": 8619,
+     "kind": "against a constant",
+     "outcomes": "== 1056, < 0, > 7563 (signed); < 4297, > 3266 (unsigned)",
+     "operand": "constant -32768",
+     "a": "-32768..32756"
+    },
+    {
+     "line": 58,
+     "text": "if (arg2 == -1) {",
+     "size": 4,
+     "count": 31280,
+     "kind": "against a constant",
+     "outcomes": "== 5370, < 8048, > 17862 (signed); < 25910, > 0 (unsigned)",
+     "operand": "constant -1",
+     "a": "-2147367170..2147059708"
+    },
+    {
+     "line": 63,
+     "text": "if (arg3 == -1) {",
+     "size": 4,
+     "count": 31280,
+     "kind": "against a constant",
+     "outcomes": "== 5284, < 7998, > 17998 (signed); < 25996, > 0 (unsigned)",
+     "operand": "constant -1",
+     "a": "-2146859857..2147298359"
+    },
+    {
+     "line": 71,
+     "text": "if (angle == 0x8000) {",
+     "size": 4,
+     "count": 31280,
+     "kind": "against a constant",
+     "outcomes": "== 3136, < 17254, > 10890 (signed); < 17254, > 10890 (unsigned)",
+     "operand": "constant 32768",
+     "a": "0..65535"
+    },
+    {
+     "line": 76,
+     "text": "if (var_a0_2 != 0) {",
+     "size": 4,
+     "count": 3136,
+     "kind": "against a constant",
+     "outcomes": "== 1913, < 1223, > 0 (signed); < 0, > 1223 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32896..0"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+76 sign",
+    "reason": "scanFloor's result is never positive: it sets var_t0 to 0 whenever var_t0 - 128 is above 0, so the tested value is always zero or negative. No input can make `var_a0_2 != 0` see a positive value, so a sign-bit test (`< 0`) is equivalent to `!= 0` on every reachable input. M3 (`> 0`) is still caught by the negative results."
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 45771,
+     "completion_tokens": 12530,
+     "reasoning_tokens": 10386,
+     "cost": 0.0108421,
+     "seconds": 48.5,
+     "sample": 1,
+     "conversation": "5ec296938f8a7262b03dea85661881ec3e08dac59ebd1e216a4ce0bfd2b78784"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800A9988.zig:51:17: error: local variable is never mutated\n            var a0_2: c_int = @as(c_int, s.vz) -% @as(c_int, temp_s0.unk0.position.vz);\n                ^~~~\ngame/battle/func_800A9988.zig:51:17: note: consider using 'const'\ngame/battle/func_800A9988.zig:27:34: error: expected type 'u8', found 'c_int'\n            v.g.D_800F49F8().* = i;\n                                 ^\ngame/battle/func_800A9988.zig:27:34: note: unsigned 8-bit int cannot represent all possible signed 32-bit values\nreferenced by:\n    func_800A9988: game/battle/func_800A9988.zig:104:25\n    main: pc/tests/zig_diff/main.zig:469:31\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 48311,
+     "completion_tokens": 3099,
+     "reasoning_tokens": 946,
+     "cost": 0.0063806,
+     "seconds": 11.3,
+     "sample": 1,
+     "conversation": "0a5c8a5ade6b06cdc701b9cc9542aa16c173f2d4aa330a7fc5bcedcfa69a1b6b"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A9988.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A9988.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 50.88843988100234,
+ "wall_seconds": 54.2718874730017,
+ "totals": {
+  "cost": 0.03601,
+  "prompt_tokens": 141738,
+  "completion_tokens": 43670,
+  "model_seconds": 176.3,
+  "check_seconds": 50.9,
+  "calls": 4,
+  "wall_seconds": 54.3
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

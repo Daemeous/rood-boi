@@ -1,0 +1,316 @@
+{
+ "function": "func_800AB4F0",
+ "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "spec-failed",
+ "reviewed": "not ported in this wave (unrouted): Haiku's specs crashed the C or made it differ from its own copy, and left a branch uncovered; a reviewer-written spec is the next step",
+ "plan": {
+  "name": "func_800AB4F0",
+  "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+  "stem": "40564",
+  "address": "0x800ab4f0",
+  "difficulty": "M",
+  "zig_name": "func_800AB4F0",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800AB4F0",
+  "spec_file": "func_800AB4F0.zig",
+  "subsystem": "battle_40564_port",
+  "signature": "pub fn func_800AB4F0(actor: ?*anyopaque) callconv(.c) void",
+  "params": [
+   [
+    "actor",
+    "?*anyopaque"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "DR_MOVE",
+   "RECT"
+  ],
+  "globals": [
+   "D_800E8F30",
+   "D_800E8F90",
+   "vs_gametime_tickspeed"
+  ],
+  "hooks": [],
+  "statics": [
+   "vs_battlePacketBegin",
+   "vs_battlePacketEnd"
+  ],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13956,
+     "completion_tokens": 29893,
+     "reasoning_tokens": 27309,
+     "cost": 0.0163421,
+     "seconds": 132.1,
+     "sample": 1,
+     "conversation": "c00b06da860f3a534b8cca96166f6c730d4432ff2c735a082ae1ed68592f58c9"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the C itself crashed on your inputs (the C runs first, so this is the spec's\nbug). The harness fills every global and the arena with random bytes before\nprepare, so every pointer the C follows must be one prepare set: each\nargument, each pointer field of an object you build, and each ENTRY of a\nglobal pointer table the C indexes (only the entry it reads: e.g.\n`v.g.TABLE()[i] = obj`), pointing at an object from `ctx.alloc`/`ctx.allocBytes`\n(sized for every element the C indexes past a `[0]` array), at a global, or\nnull where the C tests for null. An index into a global table must stay\ninside its length (the views accessor's type gives it). Below: the crash, its\nfault address (named when it is inside an object the harness owns) and the\narguments of that iteration:\nzdiff: MISMATCH iteration 224: memory at 0x4088ac [arena] (zdiff_state+0x182c): C 119, Zig 123\nzdiff: MISMATCH iteration 302: memory at 0x4088b4 [arena] (zdiff_state+0x1834): C 122, Zig 120\nzdiff: MISMATCH iteration 380: memory at 0x4088ac [arena] (zdiff_state+0x182c): C 250, Zig 136\nzdiff: CRASH (signal 11) in the C run, iteration 25821, fault address 0x87e [NULL+0x87e: a field of a null pointer]: argument 0 of the call of SetDrawMove, which reads through it\nzdiff: crashed on arguments: 0x407090 [arena] (class edge-equal)",
+     "(the mutations and the coverage gate are checked once the C runs crash-free)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 17139,
+     "completion_tokens": 9212,
+     "reasoning_tokens": 6374,
+     "cost": 0.0063199,
+     "seconds": 39.7,
+     "sample": 1,
+     "conversation": "eb1e59ff98d2d18b3c325c66a7d74c4d272bf0903cd43813dfa97165630e7b09"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the C differs from a copy of itself under this spec (exit 1: the spec is not deterministic: everything prepare does must come from `ctx`):\nzdiff: MISMATCH iteration 228: memory at 0x407080 [arena] (zdiff_state+0): C 87, Zig 214\nzdiff: MISMATCH iteration 729: memory at 0x4088b4 [arena] (zdiff_state+0x1834): C 127, Zig 226\nzdiff: MISMATCH iteration 743: memory at 0x4088ac [arena] (zdiff_state+0x182c): C 1, Zig 4\nzdiff: func_800AB4F0: 30000 iterations, seed 1, 121 mismatches; classes: no-bounds=44 timer-equal=5855 edge-equal=21328 random-walk=2773",
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800AB4F0: branches 23/24 (95.8%), conditions not measured (GCC < 14: branch coverage only), lines 52/52\n  UNCOVERED +20 b1: branch never taken: `if (bounds[2] && bounds[2] != height) {`\n  FLAG +14 sign: every value above 0 had the sign bit set (a port testing the sign, `< 0`, for this test would pass): `if (bounds[2]) {`\n  FLAG +20 sign: every value above 0 had the sign bit set (a port testing the sign, `< 0`, for this test would pass): `if (bounds[2] && bounds[2] != height) {`\ncoverage func_800AB4F0: FAILED (threshold 100%: 1 uncovered, 2 value flag(s) not waived)\nWhat to add:\n- `if (bounds[2] && bounds[2] != height) {` (+20): one way out of this test (+20 b1) was never taken; add inputs that take it.\n- `if (bounds[2]) {` (+14): this compares a value with 0. Every input where the value was above 0 also had its sign bit set (negative as a signed 8-bit number), so a port that tests the sign instead (`< 0`, or a signed read where the C reads unsigned) would pass your spec. Add inputs where the value is above 0 AND positive (e.g. 1, 256, 127).\n- `if (bounds[2] && bounds[2] != height) {` (+20): this compares a value with 0. Every input where the value was above 0 also had its sign bit set (negative as a signed 8-bit number), so a port that tests the sign instead (`< 0`, or a signed read where the C reads unsigned) would pass your spec. Add inputs where the value is above 0 AND positive (e.g. 1, 256, 127).\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800AB4F0.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   }
+  ],
+  "classes": {
+   "no-bounds": "44",
+   "timer-equal": "5855",
+   "edge-equal": "21328",
+   "random-walk": "2773"
+  },
+  "mutations": [
+   {
+    "name": "A1: bounce moves x by dx instead of 2*dx",
+    "caught": true
+   },
+   {
+    "name": "A2: x-bounce test uses <= (equal sides must bounce)",
+    "caught": true
+   },
+   {
+    "name": "A3: timer test uses <= (equal sides must fire)",
+    "caught": true
+   },
+   {
+    "name": "A4: tick / 2 becomes an arithmetic shift (negative odd ticks differ)",
+    "caught": true
+   },
+   {
+    "name": "A5: wrong flag bit for the packet-width branch",
+    "caught": true
+   },
+   {
+    "name": "A6: rect.w off by one",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 24,
+   "branches_hit": 23,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 52,
+   "lines_hit": 52,
+   "uncovered": [
+    {
+     "id": "+20 b1",
+     "line": 20,
+     "text": "if (bounds[2] && bounds[2] != height) {",
+     "what": "branch never taken"
+    }
+   ],
+   "flags": [
+    {
+     "id": "+14 sign",
+     "line": 14,
+     "text": "if (bounds[2]) {",
+     "kind": "sign",
+     "bits": 8,
+     "constant": 0,
+     "what": "every value above 0 had the sign bit set (a port testing the sign, `< 0`, for this test would pass)"
+    },
+    {
+     "id": "+20 sign",
+     "line": 20,
+     "text": "if (bounds[2] && bounds[2] != height) {",
+     "kind": "sign",
+     "bits": 8,
+     "constant": 0,
+     "what": "every value above 0 had the sign bit set (a port testing the sign, `< 0`, for this test would pass)"
+    }
+   ],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 12,
+     "text": "for (i = 0; i < 4; ++i) {",
+     "size": 4,
+     "count": 150000,
+     "kind": "against a constant",
+     "outcomes": "== 30000, < 90000, > 30000 (signed); < 90000, > 30000 (unsigned)",
+     "operand": "constant 3",
+     "a": "0..4"
+    },
+    {
+     "line": 14,
+     "text": "if (bounds[2]) {",
+     "size": 1,
+     "count": 120000,
+     "kind": "against a constant",
+     "outcomes": "== 24098, < 95902, > 0 (signed); < 0, > 95902 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..0"
+    },
+    {
+     "line": 17,
+     "text": "if (state[4] < state[5]) {",
+     "size": 1,
+     "count": 95902,
+     "kind": "a == b / a < b",
+     "outcomes": "== 32248, < 31746, > 31908 (signed); < 47874, > 15780 (unsigned)",
+     "operand": "b -128..127",
+     "a": "-128..127"
+    },
+    {
+     "line": 20,
+     "text": "if (bounds[2] && bounds[2] != height) {",
+     "size": 1,
+     "count": 47874,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 47874, > 0 (signed); < 0, > 47874 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..-6"
+    },
+    {
+     "line": 20,
+     "text": "if (bounds[2] && bounds[2] != height) {",
+     "size": 4,
+     "count": 47874,
+     "kind": "a == b / a < b",
+     "outcomes": "== 134, < 39463, > 8277 (signed); < 39462, > 8278 (unsigned)",
+     "operand": "b 128..250",
+     "a": "-1550392704..255"
+    },
+    {
+     "line": 32,
+     "text": "if (limitX < x + width || x < sx) {",
+     "size": 4,
+     "count": 47740,
+     "kind": "a == b / a < b",
+     "outcomes": "== 16089, < 10929, > 20722 (signed); < 11627, > 20024 (unsigned)",
+     "operand": "b -113..625",
+     "a": "128..504"
+    },
+    {
+     "line": 32,
+     "text": "if (limitX < x + width || x < sx) {",
+     "size": 4,
+     "count": 36811,
+     "kind": "a == b / a < b",
+     "outcomes": "== 8211, < 14910, > 13690 (signed); < 10960, > 17640 (unsigned)",
+     "operand": "b 0..255",
+     "a": "-127..380"
+    },
+    {
+     "line": 33,
+     "text": "if (bounds[6] & 1) {",
+     "size": 4,
+     "count": 25839,
+     "kind": "against a constant",
+     "outcomes": "== 12890, < 0, > 12949 (signed); < 0, > 12949 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 39,
+     "text": "if (limitY < y + height || y < bounds[1]) {",
+     "size": 4,
+     "count": 47740,
+     "kind": "a == b / a < b",
+     "outcomes": "== 16061, < 15823, > 15856 (signed); < 16451, > 15228 (unsigned)",
+     "operand": "b -117..629",
+     "a": "0..510"
+    },
+    {
+     "line": 39,
+     "text": "if (limitY < y + height || y < bounds[1]) {",
+     "size": 4,
+     "count": 31917,
+     "kind": "a == b / a < b",
+     "outcomes": "== 8509, < 12460, > 10948 (signed); < 8935, > 14473 (unsigned)",
+     "operand": "b 0..255",
+     "a": "-127..378"
+    },
+    {
+     "line": 40,
+     "text": "if (bounds[6] & 1) {",
+     "size": 4,
+     "count": 28283,
+     "kind": "against a constant",
+     "outcomes": "== 14094, < 0, > 14189 (signed); < 0, > 14189 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 48,
+     "text": "if (!(*(int*)(actor + 0x5AC) & 0x8000000)) {",
+     "size": 4,
+     "count": 47740,
+     "kind": "against a constant",
+     "outcomes": "== 24090, < 0, > 23650 (signed); < 0, > 23650 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..134217728"
+    }
+   ],
+   "passed": false
+  }
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 14.084827444998155,
+ "wall_seconds": 14.306341785999393,
+ "totals": {
+  "cost": 0.02266,
+  "prompt_tokens": 31095,
+  "completion_tokens": 39105,
+  "model_seconds": 171.8,
+  "check_seconds": 14.1,
+  "calls": 2,
+  "wall_seconds": 14.3
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22"
+ }
+}

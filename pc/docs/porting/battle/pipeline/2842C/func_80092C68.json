@@ -1,0 +1,245 @@
+{
+ "function": "func_80092C68",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_80092C68",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x80092c68",
+  "difficulty": "M",
+  "zig_name": "func_80092C68",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_80092C68",
+  "spec_file": "func_80092C68.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_80092C68(arg0: ?*v.func_80092F74_t, arg1: ?*v.func_80092F74_t2) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "?*v.func_80092F74_t"
+   ],
+   [
+    "arg1",
+    "?*v.func_80092F74_t2"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "func_80092F74_t",
+   "func_80092F74_t2"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": false,
+    "errors": [
+     "FAIL: your spec's own code (prepare or classify) failed before the C ran: a Zig safety check (an index past an array's length, an integer that does not fit, a null unwrap) or a fault in it:\nzdiff: PANIC in the prepare run, iteration 24: integer overflow (return address 0x402a3d)",
+     "(the mutations and the coverage gate are checked once the spec runs)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "wide-x": "8011",
+   "d-not-positive": "15636",
+   "d-positive-x-negative": "6090",
+   "d-positive-x-nonnegative": "10263"
+  },
+  "mutations": [
+   {
+    "name": "F1: unk2A drops the +1",
+    "caught": true
+   },
+   {
+    "name": "F2: unk2C mask 0x1F widened to 0x3F",
+    "caught": true
+   },
+   {
+    "name": "F3: the z<0 test takes z == 0 too",
+    "caught": true
+   },
+   {
+    "name": "F4: unk28 /4 written as a shift (differs for negative values)",
+    "caught": true
+   },
+   {
+    "name": "F5: y base read from the wrong field",
+    "caught": true
+   },
+   {
+    "name": "F6: unk32 stored as 1, not 0",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 12,
+   "branches_hit": 12,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 33,
+   "lines_hit": 33,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 16,
+     "text": "if (d > 0) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 7001, < 18519, > 14480 (signed); < 0, > 32999 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 18,
+     "text": "if (z < 0) {",
+     "size": 4,
+     "count": 14480,
+     "kind": "against a constant",
+     "outcomes": "== 1988, < 5622, > 6870 (signed); < 0, > 12492 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1074150400..1074150400"
+    },
+    {
+     "line": 27,
+     "text": "if (d > 0) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 6974, < 18564, > 14462 (signed); < 0, > 33026 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 28,
+     "text": "if (arg0->unk10 - (arg1->unk4[0].s16[1] << 4) < 0) {",
+     "size": 4,
+     "count": 14462,
+     "kind": "against a constant",
+     "outcomes": "== 1897, < 5545, > 7020 (signed); < 0, > 12565 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1074150400..1074150400"
+    },
+    {
+     "line": 37,
+     "text": "if (d > 0) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 7057, < 18660, > 14283 (signed); < 0, > 32943 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 38,
+     "text": "if (arg0->unk14 - (arg1->unk4[1].s16[0] << 4) < 0) {",
+     "size": 4,
+     "count": 14283,
+     "kind": "against a constant",
+     "outcomes": "== 1916, < 5511, > 6856 (signed); < 0, > 12367 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1074150400..1074150400"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_80092C68.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_80092C68.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 46.154372655999396,
+ "wall_seconds": 66.7822959770001,
+ "totals": {
+  "cost": 0.0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "model_seconds": 0.0,
+  "check_seconds": 46.2,
+  "calls": 0,
+  "wall_seconds": 66.8
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

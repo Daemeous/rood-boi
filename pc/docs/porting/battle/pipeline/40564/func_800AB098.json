@@ -1,0 +1,296 @@
+{
+ "function": "func_800AB098",
+ "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (vs_battlePacketBegin/End inlined as their psx slot load/store); spec sound",
+ "plan": {
+  "name": "func_800AB098",
+  "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+  "stem": "40564",
+  "address": "0x800ab098",
+  "difficulty": "M",
+  "zig_name": "func_800AB098",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800AB098",
+  "spec_file": "func_800AB098.zig",
+  "subsystem": "battle_40564_port",
+  "signature": "pub fn func_800AB098(actor: ?*v.D_800F4538_t, index: c_int, frame: c_int) callconv(.c) void",
+  "params": [
+   [
+    "actor",
+    "?*v.D_800F4538_t"
+   ],
+   [
+    "index",
+    "c_int"
+   ],
+   [
+    "frame",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "DR_MOVE",
+   "RECT",
+   "func_800AB098_t",
+   "texMapOverlay_t"
+  ],
+  "globals": [
+   "D_800E8F30",
+   "D_800E8F90",
+   "D_800F2450"
+  ],
+  "hooks": [],
+  "statics": [
+   "vs_battlePacketBegin",
+   "vs_battlePacketEnd"
+  ],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16156,
+     "completion_tokens": 27249,
+     "reasoning_tokens": 24852,
+     "cost": 0.0152401,
+     "seconds": 115.3,
+     "sample": 1,
+     "conversation": "9b35cab142591ec6bab5f40383b65e582c44e1e6322cc3849a14c5e90c01b2d6"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "hidden": "4914",
+   "fallback-empty": "2809",
+   "fallback-used": "5606",
+   "anim-narrow": "8315",
+   "anim-wide": "8356"
+  },
+  "mutations": [
+   {
+    "name": "M1: hidden test compares 0xFE",
+    "caught": true
+   },
+   {
+    "name": "M2: fallback empty test becomes <= 1",
+    "caught": true
+   },
+   {
+    "name": "M3: frame divided unsigned in the y step",
+    "caught": true
+   },
+   {
+    "name": "M4: wrong bit tested in 0x5AC (bit 26)",
+    "caught": true
+   },
+   {
+    "name": "M5: rect.w takes dstX instead of width",
+    "caught": true
+   },
+   {
+    "name": "M6: func_8007A824 call dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 10,
+   "branches_hit": 10,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 44,
+   "lines_hit": 44,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -1000, max 1000, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -1048483, max 1048420, unsigned 0..4294967295, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 11,
+     "text": "if (actor->unk183E[D_800E8F2C] == 0xFF) {",
+     "size": 1,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 4914, < 8184, > 16902 (signed); < 25086, > 0 (unsigned)",
+     "operand": "constant -1",
+     "a": "-128..127"
+    },
+    {
+     "line": 15,
+     "text": "if (anim->columns == 0) {",
+     "size": 1,
+     "count": 25086,
+     "kind": "against a constant",
+     "outcomes": "== 8415, < 4127, > 12544 (signed); < 0, > 16671 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..3"
+    },
+    {
+     "line": 16,
+     "text": "fallback.overlay = index ? 7 : 5;",
+     "size": 4,
+     "count": 8415,
+     "kind": "against a constant",
+     "outcomes": "== 492, < 3050, > 4873 (signed); < 0, > 7923 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1000..1000"
+    },
+    {
+     "line": 21,
+     "text": "if (fallback.columns == 0) {",
+     "size": 1,
+     "count": 8415,
+     "kind": "against a constant",
+     "outcomes": "== 2809, < 2787, > 2819 (signed); < 0, > 5606 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 32,
+     "text": "if (!(*(int*)((u_char*)actor + 0x5AC) & 0x8000000)) {",
+     "size": 4,
+     "count": 22277,
+     "kind": "against a constant",
+     "outcomes": "== 11078, < 0, > 11199 (signed); < 0, > 11199 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..134217728"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39489,
+     "completion_tokens": 15701,
+     "reasoning_tokens": 14036,
+     "cost": 0.0117994,
+     "seconds": 63.7,
+     "sample": 1,
+     "conversation": "132e2768658e019126d8b7162831dadde54f3e87f5797a866275187949665720"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800AB098.zig:35:9: error: local variable is never mutated\n    var height: c_int = overlay.h;\n        ^~~~~~\ngame/battle/func_800AB098.zig:35:9: note: consider using 'const'\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 41325,
+     "completion_tokens": 2185,
+     "reasoning_tokens": 520,
+     "cost": 0.005225,
+     "seconds": 7.7,
+     "sample": 1,
+     "conversation": "82c55caa25632132cd045ffb4209d5104bd2a06e98a6f6650d3d3479c3c59266"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800AB098.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800AB098.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 40.896930753999186,
+ "wall_seconds": 49.31894324200039,
+ "totals": {
+  "cost": 0.03226,
+  "prompt_tokens": 96970,
+  "completion_tokens": 45135,
+  "model_seconds": 186.7,
+  "check_seconds": 40.9,
+  "calls": 3,
+  "wall_seconds": 49.3
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

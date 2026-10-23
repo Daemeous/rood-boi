@@ -1,0 +1,314 @@
+{
+ "function": "func_800A48CC",
+ "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_800A48CC",
+  "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+  "stem": "3A1A0",
+  "address": "0x800a48cc",
+  "difficulty": "S",
+  "zig_name": "func_800A48CC",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A48CC",
+  "spec_file": "func_800A48CC.zig",
+  "subsystem": "battle_3A1A0_port",
+  "signature": "pub fn func_800A48CC(index: c_int, direction: c_int, distance: c_int) callconv(.c) void",
+  "params": [
+   [
+    "index",
+    "c_int"
+   ],
+   [
+    "direction",
+    "c_int"
+   ],
+   [
+    "distance",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F4538_t",
+   "vs_battleMovementModeFlags"
+  ],
+  "globals": [
+   "D_800F4538"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16300,
+     "completion_tokens": 16130,
+     "reasoning_tokens": 13974,
+     "cost": 0.009695,
+     "seconds": 66.8,
+     "sample": 1,
+     "conversation": "0c13ffb1cc75899c496d6816749a493b39fbfa7bccfb9c32291819c29745ff7d"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:181:9: error: zdiff: a spec stub gives void where the C prototype has c_int: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:235:29\n    f: pc/build/port-pipeline/func_800A48CC/spec1/build/game/common/route.zig:39:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 18794,
+     "completion_tokens": 3121,
+     "reasoning_tokens": 950,
+     "cost": 0.0034399,
+     "seconds": 11.3,
+     "sample": 1,
+     "conversation": "d8e122cc9b8f6793740adf108af3e39521b770a66fc9894caad5930a5ee9604e"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "locked": "8091",
+   "busy": "6300",
+   "stepping": "5200",
+   "stop": "3699",
+   "move-equal": "5762",
+   "move-below": "7457",
+   "move-above": "3491"
+  },
+  "mutations": [
+   {
+    "name": "M1: distance 0 tested as 1 (the stop path is skipped)",
+    "caught": true
+   },
+   {
+    "name": "M2: the speed test is > instead of >=",
+    "caught": true
+   },
+   {
+    "name": "M3: distance read unsigned in the speed test",
+    "caught": true
+   },
+   {
+    "name": "M4: the direction store is dropped",
+    "caught": true
+   },
+   {
+    "name": "M5: unk11 = 6 moved before the func_800A0204 call",
+    "caught": true
+   },
+   {
+    "name": "M6: the moving state is 2 instead of 1",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 10,
+   "branches_hit": 10,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 26,
+   "lines_hit": 26,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "32-bit: min -2147263410, max 2147441101, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 40000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 4,
+     "text": "if (actor->unk5AC_0 != 0)",
+     "size": 1,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 31909, < 0, > 8091 (signed); < 0, > 8091 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..3"
+    },
+    {
+     "line": 6,
+     "text": "if (actor->unk0.unkA_3 != 0)",
+     "size": 1,
+     "count": 31909,
+     "kind": "against a constant",
+     "outcomes": "== 25609, < 0, > 6300 (signed); < 0, > 6300 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..24"
+    },
+    {
+     "line": 8,
+     "text": "if (actor->unk0.unkA_0 != 0) {",
+     "size": 1,
+     "count": 25609,
+     "kind": "against a constant",
+     "outcomes": "== 20409, < 0, > 5200 (signed); < 0, > 5200 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..7"
+    },
+    {
+     "line": 12,
+     "text": "if (distance == 0) {",
+     "size": 4,
+     "count": 20409,
+     "kind": "against a constant",
+     "outcomes": "== 3699, < 3937, > 12773 (signed); < 0, > 16710 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147483647"
+    },
+    {
+     "line": 21,
+     "text": "if (distance / 4096 >= actor->unk5B9) {",
+     "size": 4,
+     "count": 16710,
+     "kind": "a == b / a < b",
+     "outcomes": "== 5762, < 7457, > 3491 (signed); < 4300, > 6648 (unsigned)",
+     "operand": "b 0..255",
+     "a": "-524288..524287"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39903,
+     "completion_tokens": 5494,
+     "reasoning_tokens": 4677,
+     "cost": 0.0067373,
+     "seconds": 22.1,
+     "sample": 1,
+     "conversation": "fb06ddc64de4a54a40640de2d646a5bfc932baf0545e5a7e7fde412bfcef2de1"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800A48CC.zig:23:24: error: value of type 'c_int' ignored\n        c.func_800A0204(index, 0x2F, 0, 4);\n        ~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~\ngame/battle/func_800A48CC.zig:23:24: note: all non-void values must be used\ngame/battle/func_800A48CC.zig:23:24: note: to discard the value, assign it to '_'\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:464:31\n    main: pc/tests/zig_diff/main.zig:387:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 41054,
+     "completion_tokens": 1479,
+     "reasoning_tokens": 659,
+     "cost": 0.0048449,
+     "seconds": 6.1,
+     "sample": 1,
+     "conversation": "63bc08f42b27d8c4abfff0f6ae2e5f2db07a4b418fbac4a6fb6038e5dbb3e6e7"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A48CC.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A48CC.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 41.22293318700031,
+ "wall_seconds": 49.64185085700046,
+ "totals": {
+  "cost": 0.02472,
+  "prompt_tokens": 116051,
+  "completion_tokens": 26224,
+  "model_seconds": 106.3,
+  "check_seconds": 41.2,
+  "calls": 4,
+  "wall_seconds": 49.6
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

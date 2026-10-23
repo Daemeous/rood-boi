@@ -1,0 +1,200 @@
+{
+ "function": "func_800A2C48",
+ "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the self-call through the routed symbol, as the C); spec sound (the stub keeps the recursion one level)",
+ "plan": {
+  "name": "func_800A2C48",
+  "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+  "stem": "3A1A0",
+  "address": "0x800a2c48",
+  "difficulty": "S",
+  "zig_name": "func_800A2C48",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A2C48",
+  "spec_file": "func_800A2C48.zig",
+  "subsystem": "battle_3A1A0_port",
+  "signature": "pub fn func_800A2C48(arg0: ?*v.D_800F4538_t) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.D_800F4538_t"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F4538_t"
+  ],
+  "globals": [
+   "D_800F4538"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 15777,
+     "completion_tokens": 19814,
+     "reasoning_tokens": 18122,
+     "cost": 0.0114847,
+     "seconds": 85.4,
+     "sample": 1,
+     "conversation": "3f40630426017c10c60849ec4d095f17a3f998f2259ae7fcc05d0e14ecc054eb"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "no-recurse": "3115",
+   "recurse-2": "14984",
+   "recurse-3-16": "21901"
+  },
+  "mutations": [
+   {
+    "name": "M1: recursion bound off by one (> 2 instead of >= 2)",
+    "caught": true
+   },
+   {
+    "name": "M2: wrong constant in unkB_0 store (5 for 4)",
+    "caught": true
+   },
+   {
+    "name": "M3: dropped call to func_800A29A0",
+    "caught": true
+   },
+   {
+    "name": "M4: unk6E0 store moved after the call",
+    "caught": true
+   },
+   {
+    "name": "M5: recursion always enters table entry 2",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 8,
+   "lines_hit": 8,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 6,
+     "text": "if (arg0->unk17FD >= 2) {",
+     "size": 1,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 2406, < 2513, > 35081 (signed); < 2513, > 35081 (unsigned)",
+     "operand": "constant 1",
+     "a": "0..16"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39455,
+     "completion_tokens": 4423,
+     "reasoning_tokens": 3891,
+     "cost": 0.006157,
+     "seconds": 19.0,
+     "sample": 1,
+     "conversation": "2082d3656becf8ad4ca5a0669829255f92e62805b6adb56671d7e3c33ad79919"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A2C48.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A2C48.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 29.151055391000227,
+ "wall_seconds": 29.402691582000443,
+ "totals": {
+  "cost": 0.01764,
+  "prompt_tokens": 55232,
+  "completion_tokens": 24237,
+  "model_seconds": 104.4,
+  "check_seconds": 29.2,
+  "calls": 2,
+  "wall_seconds": 29.4
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

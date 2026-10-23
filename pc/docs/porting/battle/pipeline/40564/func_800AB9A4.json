@@ -1,0 +1,578 @@
+{
+ "function": "func_800AB9A4",
+ "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+ "difficulty": "XL",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful as far as reviewed (264 lines: the goto blocks, callee out-params read only where written, unchecked weapon-table reads, var_s5 read only on its set path); spec sound (100% branches; the +200 sign waiver holds)",
+ "plan": {
+  "name": "func_800AB9A4",
+  "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+  "stem": "40564",
+  "address": "0x800ab9a4",
+  "difficulty": "XL",
+  "zig_name": "func_800AB9A4",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800AB9A4",
+  "spec_file": "func_800AB9A4.zig",
+  "subsystem": "battle_40564_port",
+  "signature": "pub fn func_800AB9A4(arg0: ?*v.D_800F45E0_t) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.D_800F45E0_t"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F45E0_t",
+   "SVECTOR",
+   "vs_battle_wepModels_t"
+  ],
+  "globals": [
+   "D_800F45E0",
+   "D_800F4B19",
+   "vs_battle_wepModels",
+   "vs_gametime_tickspeed"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 28155,
+     "completion_tokens": 59136,
+     "reasoning_tokens": 54846,
+     "cost": 0.0323835,
+     "seconds": 247.1,
+     "sample": 1,
+     "conversation": "b04ea7dbb4fafd91294e80698a31551da80358dc1d34c81938a9a5b28d30f410"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800AB9A4: branches 75/75 (100.0%), conditions not measured (GCC < 14: branch coverage only), lines 195/195\n  FLAG +200 sign: every value above 64 had the sign bit set (a port testing the sign, `< 0`, for this test would pass): `if (var_s0 != 0x40) {`\ncoverage func_800AB9A4: FAILED (threshold 100%: 0 uncovered, 1 value flag(s) not waived)\nWhat to add:\n- `if (var_s0 != 0x40) {` (+200): this compares a value with 64. Every input where the value was above 64 also had its sign bit set (negative as a signed 32-bit number), so a port that tests the sign instead (`< 0`, or a signed read where the C reads unsigned) would pass your spec. Add inputs where the value is above 64 AND positive (e.g. 65, 256, 2147483647).\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800AB9A4.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 32859,
+     "completion_tokens": 5773,
+     "reasoning_tokens": 1335,
+     "cost": 0.0061724,
+     "seconds": 20.0,
+     "sample": 1,
+     "conversation": "71c9eb1ccd25cf84aadd80699d7c865c6a4fba8d7e9d57c13d3312f99f24ff3f"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "case2": "1869",
+   "case3": "1867",
+   "case4": "1887",
+   "case6": "1769",
+   "case7": "1889",
+   "case9": "1887",
+   "case10": "1804",
+   "case11": "1892",
+   "case12-14": "3842",
+   "default": "11294"
+  },
+  "mutations": [
+   {
+    "name": "M1: the clamp test is > 0x41 (off by one)",
+    "caught": true
+   },
+   {
+    "name": "M2: unk54 read as signed char in case 4",
+    "caught": true
+   },
+   {
+    "name": "M3: the 0x300 block drops its func_800AC168 call",
+    "caught": true
+   },
+   {
+    "name": "M4: rsin scaled by the wrong field (unk63E)",
+    "caught": true
+   },
+   {
+    "name": "M5: mode increment by 2 instead of 1",
+    "caught": true
+   },
+   {
+    "name": "M6: unsigned compare in case 10 clamp",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 75,
+   "branches_hit": 75,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 195,
+   "lines_hit": 195,
+   "uncovered": [],
+   "flags": [
+    {
+     "id": "+200 sign",
+     "line": 200,
+     "text": "if (var_s0 != 0x40) {",
+     "kind": "sign",
+     "bits": 32,
+     "constant": 64,
+     "what": "every value above 64 had the sign bit set (a port testing the sign, `< 0`, for this test would pass)"
+    }
+   ],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 32,
+     "text": "if ((u_int)((temp_v1 >> 8) & 0xF) < 6U) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 1905, < 9313, > 18782 (signed); < 9313, > 18782 (unsigned)",
+     "operand": "constant 5",
+     "a": "0..15"
+    },
+    {
+     "line": 33,
+     "text": "if (temp_v1 & 0x70000) {",
+     "size": 4,
+     "count": 11218,
+     "kind": "against a constant",
+     "outcomes": "== 1388, < 0, > 9830 (signed); < 0, > 9830 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..458752"
+    },
+    {
+     "line": 36,
+     "text": "if (var_v0 < 0) {",
+     "size": 4,
+     "count": 9830,
+     "kind": "against a constant",
+     "outcomes": "== 4251, < 2786, > 2793 (signed); < 0, > 5579 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2109741936..2137562850"
+    },
+    {
+     "line": 45,
+     "text": "if ((u_int)(*(u_short*)((char*)arg0 + 0xA) & 7) >= 4U) {",
+     "size": 4,
+     "count": 9830,
+     "kind": "against a constant",
+     "outcomes": "== 4459, < 0, > 5371 (signed); < 0, > 5371 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..4"
+    },
+    {
+     "line": 46,
+     "text": "if (arg0->unkF != 0) {",
+     "size": 1,
+     "count": 5371,
+     "kind": "against a constant",
+     "outcomes": "== 1743, < 0, > 3628 (signed); < 0, > 3628 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..9"
+    },
+    {
+     "line": 62,
+     "text": "if (temp_v1_2 & 0x80) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 14815, < 0, > 15185 (signed); < 0, > 15185 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..128"
+    },
+    {
+     "line": 64,
+     "text": "if (*(int*)((char*)arg0 + 0x5AC) & 0x08000000) {",
+     "size": 4,
+     "count": 15185,
+     "kind": "against a constant",
+     "outcomes": "== 7672, < 0, > 7513 (signed); < 0, > 7513 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..134217728"
+    },
+    {
+     "line": 78,
+     "text": "if ((temp_v1_2 & 0xF00) == 0x200) {",
+     "size": 4,
+     "count": 14815,
+     "kind": "against a constant",
+     "outcomes": "== 896, < 1798, > 12121 (signed); < 1798, > 12121 (unsigned)",
+     "operand": "constant 512",
+     "a": "0..3840"
+    },
+    {
+     "line": 83,
+     "text": "switch (temp_v0_2) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "switch",
+     "outcomes": "== 18706, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..15"
+    },
+    {
+     "line": 90,
+     "text": "if (*(u_int*)((char*)arg0 + 8) & 0x80) {",
+     "size": 4,
+     "count": 14927,
+     "kind": "against a constant",
+     "outcomes": "== 7326, < 0, > 7601 (signed); < 0, > 7601 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..128"
+    },
+    {
+     "line": 100,
+     "text": "} while (var_s0 < 2);",
+     "size": 4,
+     "count": 15202,
+     "kind": "against a constant",
+     "outcomes": "== 7601, < 0, > 7601 (signed); < 0, > 7601 (unsigned)",
+     "operand": "constant 1",
+     "a": "1..2"
+    },
+    {
+     "line": 102,
+     "text": "if (((*(u_int*)((char*)arg0 + 8) & 0xF00) == 0x300) && (var_s3 == 0)) {",
+     "size": 4,
+     "count": 14927,
+     "kind": "against a constant",
+     "outcomes": "== 1867, < 1869, > 11191 (signed); < 1869, > 11191 (unsigned)",
+     "operand": "constant 768",
+     "a": "512..3584"
+    },
+    {
+     "line": 102,
+     "text": "if (((*(u_int*)((char*)arg0 + 8) & 0xF00) == 0x300) && (var_s3 == 0)) {",
+     "size": 4,
+     "count": 1867,
+     "kind": "against a constant",
+     "outcomes": "== 655, < 652, > 560 (signed); < 0, > 1212 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2145495490..2147483647"
+    },
+    {
+     "line": 106,
+     "text": "if (*(u_int*)((char*)arg0 + 8) & 0x80) {",
+     "size": 4,
+     "count": 655,
+     "kind": "against a constant",
+     "outcomes": "== 468, < 0, > 187 (signed); < 0, > 187 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..128"
+    },
+    {
+     "line": 115,
+     "text": "} while (var_s0 < 2);",
+     "size": 4,
+     "count": 374,
+     "kind": "against a constant",
+     "outcomes": "== 187, < 0, > 187 (signed); < 0, > 187 (unsigned)",
+     "operand": "constant 1",
+     "a": "1..2"
+    },
+    {
+     "line": 121,
+     "text": "if (*(u_int*)((char*)arg0 + 8) & 0x80) {",
+     "size": 4,
+     "count": 16346,
+     "kind": "against a constant",
+     "outcomes": "== 7791, < 0, > 8555 (signed); < 0, > 8555 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..128"
+    },
+    {
+     "line": 136,
+     "text": "} while (var_s0 < 2);",
+     "size": 4,
+     "count": 17110,
+     "kind": "against a constant",
+     "outcomes": "== 8555, < 0, > 8555 (signed); < 0, > 8555 (unsigned)",
+     "operand": "constant 1",
+     "a": "1..2"
+    },
+    {
+     "line": 142,
+     "text": "if (var_s3 == 0) {",
+     "size": 4,
+     "count": 16814,
+     "kind": "against a constant",
+     "outcomes": "== 5006, < 5890, > 5918 (signed); < 0, > 11808 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147435858..2147483647"
+    },
+    {
+     "line": 148,
+     "text": "if (temp_v1_3 & 0x80) {",
+     "size": 4,
+     "count": 5006,
+     "kind": "against a constant",
+     "outcomes": "== 3464, < 0, > 1542 (signed); < 0, > 1542 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..128"
+    },
+    {
+     "line": 157,
+     "text": "} while (var_s0 < 2);",
+     "size": 4,
+     "count": 3084,
+     "kind": "against a constant",
+     "outcomes": "== 1542, < 0, > 1542 (signed); < 0, > 1542 (unsigned)",
+     "operand": "constant 1",
+     "a": "1..2"
+    },
+    {
+     "line": 169,
+     "text": "if (*(int*)((char*)arg0 + 0x5AC) & 8) {",
+     "size": 4,
+     "count": 1887,
+     "kind": "against a constant",
+     "outcomes": "== 924, < 0, > 963 (signed); < 0, > 963 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..8"
+    },
+    {
+     "line": 186,
+     "text": "if (var_v1 < 0) {",
+     "size": 4,
+     "count": 1887,
+     "kind": "against a constant",
+     "outcomes": "== 373, < 296, > 1218 (signed); < 0, > 1514 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2000..2255"
+    },
+    {
+     "line": 189,
+     "text": "if (var_v1 != 0) {",
+     "size": 4,
+     "count": 1887,
+     "kind": "against a constant",
+     "outcomes": "== 669, < 0, > 1218 (signed); < 0, > 1218 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..2255"
+    },
+    {
+     "line": 197,
+     "text": "if (var_s0 >= 0x41) {",
+     "size": 4,
+     "count": 1887,
+     "kind": "against a constant",
+     "outcomes": "== 89, < 1198, > 600 (signed); < 420, > 1378 (unsigned)",
+     "operand": "constant 64",
+     "a": "-1121..1122"
+    },
+    {
+     "line": 200,
+     "text": "if (var_s0 != 0x40) {",
+     "size": 4,
+     "count": 1887,
+     "kind": "against a constant",
+     "outcomes": "== 689, < 1198, > 0 (signed); < 420, > 778 (unsigned)",
+     "operand": "constant 64",
+     "a": "-1121..64"
+    },
+    {
+     "line": 210,
+     "text": "var_s3 = (u_int)var_v0 < 15;",
+     "size": 4,
+     "count": 1769,
+     "kind": "against a constant",
+     "outcomes": "== 218, < 49, > 1502 (signed); < 49, > 1502 (unsigned)",
+     "operand": "constant 14",
+     "a": "0..255"
+    },
+    {
+     "line": 213,
+     "text": "var_v0 = var_s0 < 0x41;",
+     "size": 4,
+     "count": 1769,
+     "kind": "against a constant",
+     "outcomes": "== 86, < 1080, > 603 (signed); < 373, > 1310 (unsigned)",
+     "operand": "constant 64",
+     "a": "-1126..1125"
+    },
+    {
+     "line": 221,
+     "text": "var_v0 = var_s0 < 0x41;",
+     "size": 4,
+     "count": 1889,
+     "kind": "against a constant",
+     "outcomes": "== 86, < 1139, > 664 (signed); < 401, > 1402 (unsigned)",
+     "operand": "constant 64",
+     "a": "-1128..1126"
+    },
+    {
+     "line": 224,
+     "text": "if (var_v0 == 0) {",
+     "size": 4,
+     "count": 3658,
+     "kind": "against a constant",
+     "outcomes": "== 1267, < 0, > 2391 (signed); < 0, > 2391 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 242,
+     "text": "if (var_s0 < temp_v1_5) {",
+     "size": 4,
+     "count": 1804,
+     "kind": "a == b / a < b",
+     "outcomes": "== 486, < 631, > 687 (signed); < 676, > 642 (unsigned)",
+     "operand": "b -128..127",
+     "a": "-1127..1127"
+    },
+    {
+     "line": 245,
+     "text": "if (var_s0 != temp_v1_5) {",
+     "size": 4,
+     "count": 1804,
+     "kind": "a == b / a < b",
+     "outcomes": "== 1117, < 0, > 687 (signed); < 355, > 332 (unsigned)",
+     "operand": "b -128..127",
+     "a": "-128..1127"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+200 sign",
+    "reason": "The != 0x40 test in case 4 runs after the clamp `if (var_s0 >= 0x41) var_s0 = 0x40;`, so var_s0 is at most 0x40 there: no input can make it a positive value above 64 at that test. Every value it can take is at or below 64, so a sign test cannot differ from the C on it."
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "length",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 51619,
+     "completion_tokens": 64000,
+     "reasoning_tokens": 60678,
+     "cost": 0.0371619,
+     "seconds": 249.1,
+     "sample": 1,
+     "conversation": "a7d9af340ffa56e89bdaa46857a6bed708c9668cd008dcec0625345c4555f657"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: no Zig file in the reply"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 54985,
+     "completion_tokens": 29856,
+     "reasoning_tokens": 24399,
+     "cost": 0.0204265,
+     "seconds": 110.8,
+     "sample": 1,
+     "conversation": "bd27108746cd52e742094672c6155ef30535c105e1f19e48ce80208410e3e1c3"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800AB9A4.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800AB9A4.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 82.40331477600012,
+ "wall_seconds": 86.9435868419987,
+ "totals": {
+  "cost": 0.09614,
+  "prompt_tokens": 167618,
+  "completion_tokens": 158765,
+  "model_seconds": 627.0,
+  "check_seconds": 82.4,
+  "calls": 4,
+  "wall_seconds": 86.9
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 58 / root 58 / root 164, 0 mismatches"
+ }
+}

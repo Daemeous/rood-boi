@@ -1,0 +1,187 @@
+{
+ "function": "vs_battle_renderBattleAbilityTimingResult",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "vs_battle_renderBattleAbilityTimingResult",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x80093e64",
+  "difficulty": "S",
+  "zig_name": "renderBattleAbilityTimingResult",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "render_battle_ability_timing_result",
+  "spec_file": "renderBattleAbilityTimingResult.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn renderBattleAbilityTimingResult(arg0: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800F1BAC_t"
+  ],
+  "globals": [
+   "D_800F1BAC",
+   "D_800F227E"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "no-entries": "9035",
+   "match": "9706",
+   "no-match": "11259"
+  },
+  "mutations": [
+   {
+    "name": "R1: loop bound <= reads one entry past the count",
+    "caught": true
+   },
+   {
+    "name": "R2: count advanced by 2",
+    "caught": true
+   },
+   {
+    "name": "R3: display text length masked with 15, not 7",
+    "caught": true
+   },
+   {
+    "name": "R4: match tests only the low byte of unk8",
+    "caught": true
+   },
+   {
+    "name": "R5: break dropped, so every match is reported",
+    "caught": true
+   },
+   {
+    "name": "R6: store of arg0 replaced by a constant",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 4,
+   "branches_hit": 4,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 14,
+   "lines_hit": 14,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -2147407854, max 2147331249, unsigned 25772..4294885313, seen negative, never zero"
+    }
+   ],
+   "compares": [
+    {
+     "line": 6,
+     "text": "for (i = 0; i < D_800F227E; ++i, ++p) {",
+     "size": 4,
+     "count": 68741,
+     "kind": "a == b / a < b",
+     "outcomes": "== 14248, < 48447, > 6046 (signed); < 54493, > 0 (unsigned)",
+     "operand": "b -32768..5",
+     "a": "0..5"
+    },
+    {
+     "line": 7,
+     "text": "if (p->unk8.u16 == 4) {",
+     "size": 2,
+     "count": 48447,
+     "kind": "against a constant",
+     "outcomes": "== 9706, < 19211, > 19530 (signed); < 1, > 38740 (unsigned)",
+     "operand": "constant 4",
+     "a": "-32766..32767"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/renderBattleAbilityTimingResult.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/render_battle_ability_timing_result.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 61.266727476002416,
+ "wall_seconds": 107.709944162998,
+ "totals": {
+  "cost": 0.0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "model_seconds": 0.0,
+  "check_seconds": 61.3,
+  "calls": 0,
+  "wall_seconds": 107.7
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

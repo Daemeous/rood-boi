@@ -1,0 +1,431 @@
+{
+ "function": "func_800A38E0",
+ "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the 0x5AC/+8 masks as their bitfields, widths checked); spec sound",
+ "plan": {
+  "name": "func_800A38E0",
+  "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+  "stem": "3A1A0",
+  "address": "0x800a38e0",
+  "difficulty": "L",
+  "zig_name": "func_800A38E0",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A38E0",
+  "spec_file": "func_800A38E0.zig",
+  "subsystem": "battle_3A1A0_port",
+  "signature": "pub fn func_800A38E0(actorId: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "actorId",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800F4538_t",
+   "D_800F45E0_t"
+  ],
+  "globals": [
+   "D_800F4538",
+   "D_800F45E0",
+   "D_800F49E8"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 20221,
+     "completion_tokens": 28690,
+     "reasoning_tokens": 25969,
+     "cost": 0.0163671,
+     "seconds": 119.9,
+     "sample": 1,
+     "conversation": "14411f016095539b90d067760a699f5d834b8b2f2e5717175f5bc05274b80c20"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800A38E0: branches 46/46 (100.0%), conditions not measured (GCC < 14: branch coverage only), lines 70/70\n  FLAG +80 eq: boundary equality never occurred (32-bit compare, b -31213..26216: both sides seen; a port's `<` for `<=` could pass): `if (direction < func_800A3BC4(x, z))`\ncoverage func_800A38E0: FAILED (threshold 100%: 0 uncovered, 1 value flag(s) not waived)\nWhat to add:\n- `if (direction < func_800A3BC4(x, z))` (+80): the two sides of this ordered compare were equal 0 time(s) in 11. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800A38E0.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 23326,
+     "completion_tokens": 4771,
+     "reasoning_tokens": 1934,
+     "cost": 0.0047181,
+     "seconds": 17.7,
+     "sample": 1,
+     "conversation": "efa82f7e2d52858bc57f5bbd1075569b7eeaa1bd10c61cd4ad64b0252e0e3ce0"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "null-or-busy": "25799",
+   "fail-flags": "2288",
+   "object-id-branch": "810",
+   "found-branch": "1103"
+  },
+  "mutations": [
+   {
+    "name": "M1: direction 2 takes the minus step (<= for <)",
+    "caught": true
+   },
+   {
+    "name": "M2: z == 0 treated as out of range",
+    "caught": true
+   },
+   {
+    "name": "M3: direction store dropped",
+    "caught": true
+   },
+   {
+    "name": "M4: equal floor height accepted as too low (<= for <)",
+    "caught": true
+   },
+   {
+    "name": "M5: wrong argument to func_800A3C00",
+    "caught": true
+   },
+   {
+    "name": "M6: wrong flag mask (bit 18 only)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 46,
+   "branches_hit": 46,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 70,
+   "lines_hit": 70,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    }
+   ],
+   "compares": [
+    {
+     "line": 16,
+     "text": "if ((*((u_int*)(((char*)actor) + 0x5AC))) & 3)",
+     "size": 4,
+     "count": 26250,
+     "kind": "against a constant",
+     "outcomes": "== 10554, < 0, > 15696 (signed); < 0, > 15696 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..3"
+    },
+    {
+     "line": 19,
+     "text": "if (flags & 0x70000)",
+     "size": 4,
+     "count": 10554,
+     "kind": "against a constant",
+     "outcomes": "== 4201, < 0, > 6353 (signed); < 0, > 6353 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..458752"
+    },
+    {
+     "line": 21,
+     "text": "if (flags & 0x180000)",
+     "size": 4,
+     "count": 4201,
+     "kind": "against a constant",
+     "outcomes": "== 1913, < 0, > 2288 (signed); < 0, > 2288 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1572864"
+    },
+    {
+     "line": 29,
+     "text": "found = (direction < 2) ? (-1) : (1);",
+     "size": 4,
+     "count": 1913,
+     "kind": "against a constant",
+     "outcomes": "== 484, < 938, > 491 (signed); < 938, > 491 (unsigned)",
+     "operand": "constant 1",
+     "a": "0..3"
+    },
+    {
+     "line": 30,
+     "text": "if (direction & 1) {",
+     "size": 4,
+     "count": 1913,
+     "kind": "against a constant",
+     "outcomes": "== 1198, < 0, > 715 (signed); < 0, > 715 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 37,
+     "text": "if ((x < 0) || (z < 0))",
+     "size": 4,
+     "count": 1913,
+     "kind": "against a constant",
+     "outcomes": "== 166, < 52, > 1695 (signed); < 0, > 1747 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..256"
+    },
+    {
+     "line": 37,
+     "text": "if ((x < 0) || (z < 0))",
+     "size": 4,
+     "count": 1861,
+     "kind": "against a constant",
+     "outcomes": "== 165, < 95, > 1601 (signed); < 0, > 1696 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..256"
+    },
+    {
+     "line": 39,
+     "text": "if ((*((u_int*)(((char*)actor) + 0x5AC))) & 8) {",
+     "size": 4,
+     "count": 1766,
+     "kind": "against a constant",
+     "outcomes": "== 1014, < 0, > 752 (signed); < 0, > 752 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..8"
+    },
+    {
+     "line": 44,
+     "text": "if (object->unk1A != 0)",
+     "size": 2,
+     "count": 752,
+     "kind": "against a constant",
+     "outcomes": "== 591, < 0, > 161 (signed); < 0, > 161 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 46,
+     "text": "if (!func_800A3DB4(x, z, actor->unk0.position.vy - 128))",
+     "size": 4,
+     "count": 591,
+     "kind": "against a constant",
+     "outcomes": "== 144, < 229, > 218 (signed); < 0, > 447 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2133017785..2139286235"
+    },
+    {
+     "line": 49,
+     "text": "if (direction < func_800A3BC4(actor->unk0.position.vx, actor->unk0.position.vz))",
+     "size": 4,
+     "count": 447,
+     "kind": "a == b / a < b",
+     "outcomes": "== 350, < 50, > 47 (signed); < 54, > 43 (unsigned)",
+     "operand": "b -33025..32320",
+     "a": "-33025..32320"
+    },
+    {
+     "line": 51,
+     "text": "if (direction < func_800A3BC4(x, z))",
+     "size": 4,
+     "count": 397,
+     "kind": "a == b / a < b",
+     "outcomes": "== 301, < 63, > 33 (signed); < 60, > 36 (unsigned)",
+     "operand": "b -33025..32320",
+     "a": "-33025..32320"
+    },
+    {
+     "line": 56,
+     "text": "if (found == 0)",
+     "size": 4,
+     "count": 1014,
+     "kind": "against a constant",
+     "outcomes": "== 179, < 0, > 835 (signed); < 0, > 835 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..15"
+    },
+    {
+     "line": 60,
+     "text": "if (((*((u_int*)(((char*)object) + 0x16C))) & 0x30) == 0x10)",
+     "size": 4,
+     "count": 835,
+     "kind": "against a constant",
+     "outcomes": "== 216, < 310, > 309 (signed); < 310, > 309 (unsigned)",
+     "operand": "constant 16",
+     "a": "0..48"
+    },
+    {
+     "line": 62,
+     "text": "if (object->unk1A != 0)",
+     "size": 2,
+     "count": 619,
+     "kind": "against a constant",
+     "outcomes": "== 458, < 0, > 161 (signed); < 0, > 161 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 68,
+     "text": "if (object->unk1E < (actor->unk0.position.vy - 128))",
+     "size": 4,
+     "count": 458,
+     "kind": "a == b / a < b",
+     "outcomes": "== 34, < 204, > 220 (signed); < 182, > 242 (unsigned)",
+     "operand": "b -32769..32617",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 70,
+     "text": "if ((actor->unk0.position.vy + 64) < object->unk1E)",
+     "size": 4,
+     "count": 254,
+     "kind": "a == b / a < b",
+     "outcomes": "== 41, < 174, > 39 (signed); < 94, > 119 (unsigned)",
+     "operand": "b -32768..32767",
+     "a": "-32577..32767"
+    },
+    {
+     "line": 72,
+     "text": "if (((*((u_char*)(((char*)object) + 0x16C))) & 7) < 4U) {",
+     "size": 4,
+     "count": 80,
+     "kind": "against a constant",
+     "outcomes": "== 52, < 0, > 28 (signed); < 0, > 28 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..4"
+    },
+    {
+     "line": 73,
+     "text": "if (!func_800A3DB4(farX, farZ, object->unk1E))",
+     "size": 4,
+     "count": 52,
+     "kind": "against a constant",
+     "outcomes": "== 12, < 21, > 19 (signed); < 0, > 40 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2084400393..1956604197"
+    },
+    {
+     "line": 77,
+     "text": "if (direction",
+     "size": 4,
+     "count": 28,
+     "kind": "a == b / a < b",
+     "outcomes": "== 21, < 2, > 5 (signed); < 2, > 5 (unsigned)",
+     "operand": "b -29877..32319",
+     "a": "-29877..32319"
+    },
+    {
+     "line": 80,
+     "text": "if (direction < func_800A3BC4(x, z))",
+     "size": 4,
+     "count": 26,
+     "kind": "a == b / a < b",
+     "outcomes": "== 18, < 5, > 3 (signed); < 3, > 5 (unsigned)",
+     "operand": "b -27447..20529",
+     "a": "-29877..32319"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 43823,
+     "completion_tokens": 16807,
+     "reasoning_tokens": 15302,
+     "cost": 0.0127858,
+     "seconds": 67.5,
+     "sample": 1,
+     "conversation": "24f08cd86cfa9dec185e327f14eb957397acef691efc3f164308889a8a7fbe7e"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A38E0.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A38E0.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 70.07615210600034,
+ "wall_seconds": 70.28133763500045,
+ "totals": {
+  "cost": 0.03387,
+  "prompt_tokens": 87370,
+  "completion_tokens": 50268,
+  "model_seconds": 205.1,
+  "check_seconds": 70.1,
+  "calls": 3,
+  "wall_seconds": 70.3
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

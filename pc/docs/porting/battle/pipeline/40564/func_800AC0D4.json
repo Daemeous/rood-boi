@@ -1,0 +1,265 @@
+{
+ "function": "func_800AC0D4",
+ "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_800AC0D4",
+  "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+  "stem": "40564",
+  "address": "0x800ac0d4",
+  "difficulty": "S",
+  "zig_name": "func_800AC0D4",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800AC0D4",
+  "spec_file": "func_800AC0D4.zig",
+  "subsystem": "battle_40564_port",
+  "signature": "pub fn func_800AC0D4(arg0: [*c]u8, arg1: [*c]u8, arg2: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "[*c]u8"
+   ],
+   [
+    "arg1",
+    "[*c]u8"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11293,
+     "completion_tokens": 9101,
+     "reasoning_tokens": 7769,
+     "cost": 0.0056798,
+     "seconds": 38.8,
+     "sample": 1,
+     "conversation": "339bd6290398aebf4c8ac43f9ead976ed092be637a0a1fbe9532519f0c379e89"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "neg-changed": "11032",
+   "neg-unchanged": "4691",
+   "nonneg-changed": "10222",
+   "nonneg-unchanged": "4055"
+  },
+  "mutations": [
+   {
+    "name": "M1: loop stops one element early",
+    "caught": true
+   },
+   {
+    "name": "M2: sign test becomes <= 0 (arg2 == 0 takes the decrement path)",
+    "caught": true
+   },
+   {
+    "name": "M3: return the constant 0, not var_t0",
+    "caught": true
+   },
+   {
+    "name": "M4: the increase-branch clamp to arg1 dropped",
+    "caught": true
+   },
+   {
+    "name": "M5: negative arg2 bounded at -256 (wrong bound)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 12,
+   "branches_hit": 12,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 17,
+   "lines_hit": 17,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483392, unsigned 0..4294967295, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 5,
+     "text": "for (i = 0; i < 3; ++i) {",
+     "size": 4,
+     "count": 120000,
+     "kind": "against a constant",
+     "outcomes": "== 30000, < 60000, > 30000 (signed); < 60000, > 30000 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..3"
+    },
+    {
+     "line": 6,
+     "text": "if (arg2 < 0) {",
+     "size": 4,
+     "count": 90000,
+     "kind": "against a constant",
+     "outcomes": "== 3579, < 47169, > 39252 (signed); < 0, > 86421 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147483392"
+    },
+    {
+     "line": 7,
+     "text": "if (*arg1 < *arg0) {",
+     "size": 1,
+     "count": 47169,
+     "kind": "a == b / a < b",
+     "outcomes": "== 13824, < 16321, > 17024 (signed); < 16340, > 17005 (unsigned)",
+     "operand": "b -128..127",
+     "a": "-128..127"
+    },
+    {
+     "line": 10,
+     "text": "if (*arg0 < *arg1) {",
+     "size": 1,
+     "count": 16340,
+     "kind": "a == b / a < b",
+     "outcomes": "== 4614, < 6397, > 5329 (signed); < 2051, > 9675 (unsigned)",
+     "operand": "b -128..127",
+     "a": "-128..127"
+    },
+    {
+     "line": 15,
+     "text": "if (*arg0 < *arg1) {",
+     "size": 1,
+     "count": 42831,
+     "kind": "a == b / a < b",
+     "outcomes": "== 12477, < 15174, > 15180 (signed); < 15299, > 15055 (unsigned)",
+     "operand": "b -128..127",
+     "a": "-128..127"
+    },
+    {
+     "line": 18,
+     "text": "if (*arg1 < *arg0) {",
+     "size": 1,
+     "count": 15299,
+     "kind": "a == b / a < b",
+     "outcomes": "== 4529, < 5846, > 4924 (signed); < 1817, > 8953 (unsigned)",
+     "operand": "b -128..127",
+     "a": "-128..127"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34757,
+     "completion_tokens": 2336,
+     "reasoning_tokens": 1810,
+     "cost": 0.0046437,
+     "seconds": 10.2,
+     "sample": 1,
+     "conversation": "8b76f7f363f107f423236c2766b9cb4896efe190193326669bd1d04499710cbf"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800AC0D4.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800AC0D4.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 38.443018924999706,
+ "wall_seconds": 38.62981601000138,
+ "totals": {
+  "cost": 0.01032,
+  "prompt_tokens": 46050,
+  "completion_tokens": 11437,
+  "model_seconds": 49.0,
+  "check_seconds": 38.4,
+  "calls": 2,
+  "wall_seconds": 38.6
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested 69 / nested 69 / -, 0 mismatches"
+ }
+}

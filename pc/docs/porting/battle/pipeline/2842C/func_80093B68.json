@@ -1,0 +1,371 @@
+{
+ "function": "func_80093B68",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "spec-failed",
+ "reviewed": "not ported in this wave (unrouted): the harness did not build (sprintf, variadic with fixed parameters, and an unprototyped strlen as stubs); zig_diff now runs both as libc's and the saved specs build, but they fail their gates (coverage / a C crash) and the wave's budget was spent",
+ "plan": {
+  "name": "func_80093B68",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x80093b68",
+  "difficulty": "M",
+  "zig_name": "func_80093B68",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_80093B68",
+  "spec_file": "func_80093B68.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_80093B68(arg0: c_int, arg1: c_int, arg2: c_int, arg3: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ],
+   [
+    "arg3",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [
+   "D_800691E4"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_80093B68: branches 37/38 (97.4%), conditions not measured (GCC < 14: branch coverage only), lines 57/57\n  UNCOVERED +55 b1: branch never taken: `if ((u_short)position.vy >= 241) {`\n  FLAG +52 eq: boundary equality never occurred (16-bit compare, constant 320: both sides seen; a port's `<` for `<=` could pass): `if ((u_short)position.vx >= 321) {`\ncoverage func_80093B68: FAILED (threshold 100%: 1 uncovered, 1 value flag(s) not waived)\nWhat to add:\n- `if ((u_short)position.vy >= 241) {` (+55): one way out of this test (+55 b1) was never taken; add inputs that take it.\n- `if ((u_short)position.vx >= 321) {` (+52): the two sides of this ordered compare were equal 0 time(s) in 9723. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_80093B68.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_80093B68: branches 37/38 (97.4%), conditions not measured (GCC < 14: branch coverage only), lines 57/57\n  UNCOVERED +55 b1: branch never taken: `if ((u_short)position.vy >= 241) {`\n  FLAG +52 eq: boundary equality never occurred (16-bit compare, constant 320: both sides seen; a port's `<` for `<=` could pass): `if ((u_short)position.vx >= 321) {`\ncoverage func_80093B68: FAILED (threshold 100%: 1 uncovered, 1 value flag(s) not waived)\nWhat to add:\n- `if ((u_short)position.vy >= 241) {` (+55): one way out of this test (+55 b1) was never taken; add inputs that take it.\n- `if ((u_short)position.vx >= 321) {` (+52): the two sides of this ordered compare were equal 0 time(s) in 9723. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_80093B68.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   }
+  ],
+  "classes": {
+   "limb-error": "3654",
+   "no-limb-call": "3805",
+   "buffer-fail": "3692",
+   "pos-1280-fail": "3834",
+   "pos-check": "3733",
+   "pos-251-fail": "3681",
+   "matched": "3756",
+   "scan": "3845"
+  },
+  "mutations": [
+   {
+    "name": "M1: a matching entry needs unk6 > 0",
+    "caught": true
+   },
+   {
+    "name": "M2: frame read from unkA",
+    "caught": true
+   },
+   {
+    "name": "M3: amount bound off by one (1000 not clamped)",
+    "caught": true
+   },
+   {
+    "name": "M4: wrong constant in the window's unk10",
+    "caught": true
+   },
+   {
+    "name": "M5: entry count not advanced",
+    "caught": true
+   },
+   {
+    "name": "M6: signed read of vx in the screen check",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 38,
+   "branches_hit": 37,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 57,
+   "lines_hit": 57,
+   "uncovered": [
+    {
+     "id": "+55 b1",
+     "line": 55,
+     "text": "if ((u_short)position.vy >= 241) {",
+     "what": "branch never taken"
+    }
+   ],
+   "flags": [
+    {
+     "id": "+52 eq",
+     "line": 52,
+     "text": "if ((u_short)position.vx >= 321) {",
+     "kind": "eq",
+     "bits": 16,
+     "equal": 0,
+     "count": 9723,
+     "what": "boundary equality never occurred (16-bit compare, constant 320: both sides seen; a port's `<` for `<=` could pass)"
+    }
+   ],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -2147403040, max 2147074955, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -1, max 7, unsigned 0..4294967295, seen zero/negative/all ones, 7 value(s): 1, 4294967295, 0, 7, 3, 5, 2"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294478211, seen zero/negative/signed max"
+    },
+    {
+     "arg": 3,
+     "count": 30000,
+     "text": "32-bit: min -2147073486, max 2147456686, unsigned 0..4294967295, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 11,
+     "text": "if (arg1 != -1) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 7582, < 0, > 22418 (signed); < 22418, > 0 (unsigned)",
+     "operand": "constant -1",
+     "a": "-1..7"
+    },
+    {
+     "line": 13,
+     "text": "if (limb < 0) {",
+     "size": 4,
+     "count": 22418,
+     "kind": "against a constant",
+     "outcomes": "== 3634, < 4240, > 14544 (signed); < 0, > 18784 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..255"
+    },
+    {
+     "line": 23,
+     "text": "for (; i < D_800F227E; ++i, ++p) {",
+     "size": 4,
+     "count": 168884,
+     "kind": "a == b / a < b",
+     "outcomes": "== 23537, < 143124, > 2223 (signed); < 145347, > 0 (unsigned)",
+     "operand": "b -1..12",
+     "a": "0..12"
+    },
+    {
+     "line": 24,
+     "text": "if ((p->unk8.u8[0] == 1) && (p->unk8.u8[1] == arg0) && (p->unk6 >= 0)) {",
+     "size": 1,
+     "count": 143124,
+     "kind": "against a constant",
+     "outcomes": "== 60257, < 41690, > 41177 (signed); < 12101, > 70766 (unsigned)",
+     "operand": "constant 1",
+     "a": "-128..127"
+    },
+    {
+     "line": 24,
+     "text": "if ((p->unk8.u8[0] == 1) && (p->unk8.u8[1] == arg0) && (p->unk6 >= 0)) {",
+     "size": 4,
+     "count": 60257,
+     "kind": "a == b / a < b",
+     "outcomes": "== 13559, < 24377, > 22321 (signed); < 5138, > 41560 (unsigned)",
+     "operand": "b 0..255",
+     "a": "-2147403040..2146661420"
+    },
+    {
+     "line": 24,
+     "text": "if ((p->unk8.u8[0] == 1) && (p->unk8.u8[1] == arg0) && (p->unk6 >= 0)) {",
+     "size": 2,
+     "count": 13559,
+     "kind": "against a constant",
+     "outcomes": "== 1624, < 1828, > 10107 (signed); < 0, > 11935 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 32,
+     "text": "for (; i < D_800F227E; ++i, ++p) {",
+     "size": 4,
+     "count": 166699,
+     "kind": "a == b / a < b",
+     "outcomes": "== 22007, < 142469, > 2223 (signed); < 144692, > 0 (unsigned)",
+     "operand": "b -1..12",
+     "a": "0..12"
+    },
+    {
+     "line": 33,
+     "text": "if ((p->unk8.u8[0] == 1) && (p->unk8.u8[1] == arg0) && (p->unkA == limb)",
+     "size": 1,
+     "count": 142469,
+     "kind": "against a constant",
+     "outcomes": "== 60060, < 41481, > 40928 (signed); < 12034, > 70375 (unsigned)",
+     "operand": "constant 1",
+     "a": "-128..127"
+    },
+    {
+     "line": 33,
+     "text": "if ((p->unk8.u8[0] == 1) && (p->unk8.u8[1] == arg0) && (p->unkA == limb)",
+     "size": 4,
+     "count": 60060,
+     "kind": "a == b / a < b",
+     "outcomes": "== 13494, < 24294, > 22272 (signed); < 5055, > 41511 (unsigned)",
+     "operand": "b 0..255",
+     "a": "-2147403040..2146661420"
+    },
+    {
+     "line": 33,
+     "text": "if ((p->unk8.u8[0] == 1) && (p->unk8.u8[1] == arg0) && (p->unkA == limb)",
+     "size": 4,
+     "count": 13494,
+     "kind": "a == b / a < b",
+     "outcomes": "== 10727, < 1708, > 1059 (signed); < 1708, > 1059 (unsigned)",
+     "operand": "b 0..255",
+     "a": "0..255"
+    },
+    {
+     "line": 34,
+     "text": "&& (p->unk6 == count - 1)) {",
+     "size": 4,
+     "count": 10727,
+     "kind": "a == b / a < b",
+     "outcomes": "== 1530, < 8243, > 954 (signed); < 7949, > 1248 (unsigned)",
+     "operand": "b -1..11",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 40,
+     "text": "if (limb != 255) {",
+     "size": 4,
+     "count": 25760,
+     "kind": "against a constant",
+     "outcomes": "== 10048, < 15712, > 0 (signed); < 15712, > 0 (unsigned)",
+     "operand": "constant 255",
+     "a": "0..255"
+    },
+    {
+     "line": 45,
+     "text": "if (result != 0) {",
+     "size": 4,
+     "count": 25760,
+     "kind": "against a constant",
+     "outcomes": "== 18612, < 3084, > 4064 (signed); < 0, > 7148 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..1"
+    },
+    {
+     "line": 48,
+     "text": "if (arg3 & 128) {",
+     "size": 4,
+     "count": 18612,
+     "kind": "against a constant",
+     "outcomes": "== 5055, < 0, > 13557 (signed); < 0, > 13557 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..128"
+    },
+    {
+     "line": 49,
+     "text": "if (func_800A1280(arg0, 251, &position, 0) != 0) {",
+     "size": 4,
+     "count": 13557,
+     "kind": "against a constant",
+     "outcomes": "== 9723, < 3834, > 0 (signed); < 0, > 3834 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..0"
+    },
+    {
+     "line": 52,
+     "text": "if ((u_short)position.vx >= 321) {",
+     "size": 2,
+     "count": 9723,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 4508, > 5215 (signed); < 40, > 9683 (unsigned)",
+     "operand": "constant 320",
+     "a": "-32762..32755"
+    },
+    {
+     "line": 55,
+     "text": "if ((u_short)position.vy >= 241) {",
+     "size": 2,
+     "count": 40,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 16, > 24 (signed); < 0, > 40 (unsigned)",
+     "operand": "constant 240",
+     "a": "-30762..31549"
+    },
+    {
+     "line": 60,
+     "text": "if (func_800A190C(arg0, 251, &position, 0) != 0) {",
+     "size": 4,
+     "count": 5055,
+     "kind": "against a constant",
+     "outcomes": "== 3379, < 1676, > 0 (signed); < 0, > 1676 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..0"
+    },
+    {
+     "line": 75,
+     "text": "if (amount > 999) {",
+     "size": 4,
+     "count": 3379,
+     "kind": "against a constant",
+     "outcomes": "== 492, < 536, > 2351 (signed); < 536, > 2351 (unsigned)",
+     "operand": "constant 999",
+     "a": "0..32767"
+    }
+   ],
+   "passed": false
+  }
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 47.26959512900066,
+ "wall_seconds": 47.47160512700066,
+ "totals": {
+  "cost": 0.0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "model_seconds": 0.0,
+  "check_seconds": 47.3,
+  "calls": 0,
+  "wall_seconds": 47.5
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22"
+ }
+}

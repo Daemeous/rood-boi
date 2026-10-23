@@ -1,0 +1,324 @@
+{
+ "function": "func_800A6660",
+ "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec finished by the reviewer (the 2047/-2049 edges)",
+ "plan": {
+  "name": "func_800A6660",
+  "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+  "stem": "3A1A0",
+  "address": "0x800a6660",
+  "difficulty": "S",
+  "zig_name": "func_800A6660",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A6660",
+  "spec_file": "func_800A6660.zig",
+  "subsystem": "battle_3A1A0_port",
+  "signature": "pub fn func_800A6660(arg0: ?*v.D_800F4538_t, arg1: c_int, arg2: ?*v.func_800A6660_t) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.D_800F4538_t"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ],
+   [
+    "arg2",
+    "?*v.func_800A6660_t"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F4538_t",
+   "func_800A6660_t"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16612,
+     "completion_tokens": 20265,
+     "reasoning_tokens": 18214,
+     "cost": 0.0117937,
+     "seconds": 84.5,
+     "sample": 1,
+     "conversation": "5b4c37ce53886efe5552cc4939edfe42f2e568d9f4248d7c5e5afe0c7dca12c7"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800A6660: branches 20/20 (100.0%), conditions not measured (GCC < 14: branch coverage only), lines 25/25\n  FLAG +10 eq: boundary equality occurred only 2 time(s) in 3190 (32-bit compare, constant 2047: both sides seen; a port's `<` for `<=` could pass): `if (delta >= 4096 / 2) {`\ncoverage func_800A6660: FAILED (threshold 100%: 0 uncovered, 1 value flag(s) not waived)\nWhat to add:\n- `if (delta >= 4096 / 2) {` (+10): the two sides of this ordered compare were equal 2 time(s) in 3190. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800A6660.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "early-return": "3157",
+   "no-turn-call": "695",
+   "turn-unk6-zero": "9037",
+   "turn-unk6-set": "17111"
+  },
+  "mutations": [
+   {
+    "name": "F1: wrap mask 0x7FF instead of 0xFFF in the zero-unk6 turn",
+    "caught": true
+   },
+   {
+    "name": "F2: zero-unk6 turn overwrites unk3E instead of adding",
+    "caught": true
+   },
+   {
+    "name": "F3: lock call passes 11 instead of 12",
+    "caught": true
+   },
+   {
+    "name": "F4: signed slip, >> instead of / 32 for the streak",
+    "caught": true
+   },
+   {
+    "name": "F5: set turn off by one",
+    "caught": true
+   },
+   {
+    "name": "F6: wrong field tested for the unk6 branch",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 20,
+   "branches_hit": 20,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 25,
+   "lines_hit": 25,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2144606206, max 2141056287, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "pointer: null seen"
+    }
+   ],
+   "compares": [
+    {
+     "line": 4,
+     "text": "if (arg1 == arg0->unk0.facing) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "a == b / a < b",
+     "outcomes": "== 3157, < 12783, > 14060 (signed); < 14456, > 12387 (unsigned)",
+     "operand": "b -32768..32767",
+     "a": "-2144606206..2141056287"
+    },
+    {
+     "line": 7,
+     "text": "if (arg0->unk0.unk18 != 0) {",
+     "size": 2,
+     "count": 26843,
+     "kind": "against a constant",
+     "outcomes": "== 695, < 10116, > 16032 (signed); < 0, > 26148 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32758"
+    },
+    {
+     "line": 8,
+     "text": "if (arg2->unk6 == 0) {",
+     "size": 2,
+     "count": 26148,
+     "kind": "against a constant",
+     "outcomes": "== 9037, < 7732, > 9379 (signed); < 0, > 17111 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 10,
+     "text": "if (delta >= 4096 / 2) {",
+     "size": 4,
+     "count": 9037,
+     "kind": "against a constant",
+     "outcomes": "== 1834, < 4740, > 2463 (signed); < 171, > 7032 (unsigned)",
+     "operand": "constant 2047",
+     "a": "-2088063373..2141053871"
+    },
+    {
+     "line": 12,
+     "text": "} else if (delta < -4096 / 2) {",
+     "size": 4,
+     "count": 6574,
+     "kind": "against a constant",
+     "outcomes": "== 2107, < 2292, > 2175 (signed); < 4297, > 170 (unsigned)",
+     "operand": "constant -2048",
+     "a": "-2088063373..2047"
+    },
+    {
+     "line": 18,
+     "text": "if (delta >= 4096 / 2) {",
+     "size": 4,
+     "count": 17111,
+     "kind": "against a constant",
+     "outcomes": "== 1946, < 8910, > 6255 (signed); < 623, > 14542 (unsigned)",
+     "operand": "constant 2047",
+     "a": "-2144610302..2126965091"
+    },
+    {
+     "line": 20,
+     "text": "} else if (delta < -4096 / 2) {",
+     "size": 4,
+     "count": 10856,
+     "kind": "against a constant",
+     "outcomes": "== 3096, < 4569, > 3191 (signed); < 7138, > 622 (unsigned)",
+     "operand": "constant -2048",
+     "a": "-2144610302..2047"
+    },
+    {
+     "line": 29,
+     "text": "if (arg0->unk63C > 0x80) {",
+     "size": 2,
+     "count": 26843,
+     "kind": "against a constant",
+     "outcomes": "== 2198, < 15694, > 8951 (signed); < 4499, > 20146 (unsigned)",
+     "operand": "constant 128",
+     "a": "-32768..32766"
+    },
+    {
+     "line": 31,
+     "text": "if (delta < 0) {",
+     "size": 4,
+     "count": 20146,
+     "kind": "against a constant",
+     "outcomes": "== 341, < 10983, > 8822 (signed); < 0, > 19805 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1024..1023"
+    },
+    {
+     "line": 34,
+     "text": "if (arg0->unk0.unk18 < delta) {",
+     "size": 4,
+     "count": 20146,
+     "kind": "a == b / a < b",
+     "outcomes": "== 78, < 4901, > 15167 (signed); < 4901, > 15167 (unsigned)",
+     "operand": "b 0..65535",
+     "a": "0..1024"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 40222,
+     "completion_tokens": 5109,
+     "reasoning_tokens": 4306,
+     "cost": 0.0065767,
+     "seconds": 20.5,
+     "sample": 1,
+     "conversation": "91050e3793b85d79ca8302709483111af6af8749cdf373b3df1517865ad68b31"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A6660.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A6660.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 53.46828652000022,
+ "wall_seconds": 95.54925554499914,
+ "totals": {
+  "cost": 0.01837,
+  "prompt_tokens": 56834,
+  "completion_tokens": 25374,
+  "model_seconds": 105.0,
+  "check_seconds": 53.5,
+  "calls": 2,
+  "wall_seconds": 95.5
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "spec_fixes": [
+   "reviewer's round-2 reply: delta drew 2048 and -2048 only, but GCC tests `> 2047` and `< -2048`: 2047 and -2049 added"
+  ],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested 39 / nested 117 / -, 0 mismatches"
+ }
+}

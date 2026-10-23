@@ -1,0 +1,279 @@
+{
+ "function": "func_80092B04",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the handler table re-indexed on every call, as the C; the flagged/unflagged loops kept); spec sound",
+ "plan": {
+  "name": "func_80092B04",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x80092b04",
+  "difficulty": "M",
+  "zig_name": "func_80092B04",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_80092B04",
+  "spec_file": "func_80092B04.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_80092B04(arg0: ?*v.func_80092B04_t, arg1: c_int, arg2: ?*v.D_800F1DD8_t) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "?*v.func_80092B04_t"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ],
+   [
+    "arg2",
+    "?*v.D_800F1DD8_t"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800F1DD8_t",
+   "D_800F1DD8_t2",
+   "func_80092B04_t",
+   "func_80092B04_t2"
+  ],
+  "globals": [
+   "D_800E85E8",
+   "vs_main_stateFlags"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "no-actors": "9997",
+   "auto-state": "13348",
+   "first-idle": "1633",
+   "chain": "5022"
+  },
+  "mutations": [
+   {
+    "name": "F1: break state B checked against 0xA",
+    "caught": true
+   },
+   {
+    "name": "F2: script bound < 0xC instead of < 0xD",
+    "caught": true
+   },
+   {
+    "name": "F3: auto-state test as > 1",
+    "caught": true
+   },
+   {
+    "name": "F4: the NULL store at the end of the chain dropped",
+    "caught": true
+   },
+   {
+    "name": "F5: return idle == arg1",
+    "caught": true
+   },
+   {
+    "name": "F6: non-auto break tests the handler's result < 0",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 16,
+   "branches_hit": 16,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 18,
+   "lines_hit": 18,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2, max 8, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "pointer: null seen"
+    }
+   ],
+   "compares": [
+    {
+     "line": 5,
+     "text": "for (i = 0; i < arg1; ++i, ++arg0) {",
+     "size": 4,
+     "count": 117088,
+     "kind": "a == b / a < b",
+     "outcomes": "== 23379, < 87088, > 6621 (signed); < 93709, > 0 (unsigned)",
+     "operand": "b -2..8",
+     "a": "0..8"
+    },
+    {
+     "line": 6,
+     "text": "if (((__typeof__((arg0->unk4).psx_type_[0]))(long unsigned int)(arg0->unk4).raw) != 0) {",
+     "size": 4,
+     "count": 87088,
+     "kind": "against a constant",
+     "outcomes": "== 21613, < 0, > 65475 (signed); < 0, > 65475 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..4238272"
+    },
+    {
+     "line": 10,
+     "text": "if ((temp_s0->unk0 != 0) && (temp_s0->unk2 < 0xD)) {",
+     "size": 2,
+     "count": 112758,
+     "kind": "against a constant",
+     "outcomes": "== 26628, < 9598, > 76532 (signed); < 0, > 86130 (unsigned)",
+     "operand": "constant 0",
+     "a": "-4..8"
+    },
+    {
+     "line": 10,
+     "text": "if ((temp_s0->unk0 != 0) && (temp_s0->unk2 < 0xD)) {",
+     "size": 2,
+     "count": 86130,
+     "kind": "against a constant",
+     "outcomes": "== 13390, < 53735, > 19005 (signed); < 53735, > 19005 (unsigned)",
+     "operand": "constant 12",
+     "a": "0..32767"
+    },
+    {
+     "line": 11,
+     "text": "if (vs_main_stateFlags.unkA8 != 0) {",
+     "size": 1,
+     "count": 67125,
+     "kind": "against a constant",
+     "outcomes": "== 21434, < 22782, > 22909 (signed); < 0, > 45691 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..1"
+    },
+    {
+     "line": 12,
+     "text": "if (temp_s0->unk2 == 0xB) {",
+     "size": 2,
+     "count": 45691,
+     "kind": "against a constant",
+     "outcomes": "== 9120, < 27582, > 8989 (signed); < 27582, > 8989 (unsigned)",
+     "operand": "constant 11",
+     "a": "0..12"
+    },
+    {
+     "line": 15,
+     "text": "while (D_800E85E8[temp_s0->unk2](arg0, temp_s0) != 0) { }",
+     "size": 4,
+     "count": 73122,
+     "kind": "against a constant",
+     "outcomes": "== 36571, < 18228, > 18323 (signed); < 0, > 36551 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147368817..2147362849"
+    },
+    {
+     "line": 16,
+     "text": "} else if (D_800E85E8[temp_s0->unk2](arg0, temp_s0) != 0) {",
+     "size": 4,
+     "count": 21434,
+     "kind": "against a constant",
+     "outcomes": "== 10712, < 5315, > 5407 (signed); < 0, > 10722 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147214241..2146983881"
+    },
+    {
+     "line": 29,
+     "text": "return idle != arg1;",
+     "size": 4,
+     "count": 30000,
+     "kind": "a == b / a < b",
+     "outcomes": "== 4469, < 18910, > 6621 (signed); < 25531, > 0 (unsigned)",
+     "operand": "b -2..8",
+     "a": "0..6"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_80092B04.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_80092B04.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 39.84838657199907,
+ "wall_seconds": 62.233671821000826,
+ "totals": {
+  "cost": 0.0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "model_seconds": 0.0,
+  "check_seconds": 39.8,
+  "calls": 0,
+  "wall_seconds": 62.2
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

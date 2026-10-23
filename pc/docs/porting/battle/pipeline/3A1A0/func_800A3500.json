@@ -1,0 +1,244 @@
+{
+ "function": "func_800A3500",
+ "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_800A3500",
+  "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+  "stem": "3A1A0",
+  "address": "0x800a3500",
+  "difficulty": "S",
+  "zig_name": "func_800A3500",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A3500",
+  "spec_file": "func_800A3500.zig",
+  "subsystem": "battle_3A1A0_port",
+  "signature": "pub fn func_800A3500(arg0: c_int, arg1: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800F45E0_t"
+  ],
+  "globals": [
+   "D_800F45E0"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14707,
+     "completion_tokens": 19095,
+     "reasoning_tokens": 16982,
+     "cost": 0.0110182,
+     "seconds": 81.6,
+     "sample": 1,
+     "conversation": "963245a88d3fff2fd411bc172ce02d121052e55a14239ce708f98822f83364c3"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "no-match": "12658",
+   "match-above": "124",
+   "match-below": "557",
+   "match-equal": "16661"
+  },
+  "mutations": [
+   {
+    "name": "M1: unk1E bias is 0x7F, not 0x80",
+    "caught": true
+   },
+   {
+    "name": "M2: arg1 check dropped",
+    "caught": true
+   },
+   {
+    "name": "M3: table loop stops at 15 (slot 15 skipped)",
+    "caught": true
+   },
+   {
+    "name": "M4: sign extension of h dropped",
+    "caught": true
+   },
+   {
+    "name": "M5: unsigned comparison of the streak bound",
+    "caught": true
+   },
+   {
+    "name": "M6: sign-extension shifts 16, not 17",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 10,
+   "branches_hit": 10,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 10,
+   "lines_hit": 10,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 10,
+     "text": "for (i = 0; i < 16; ++i) {",
+     "size": 4,
+     "count": 510000,
+     "kind": "against a constant",
+     "outcomes": "== 30000, < 450000, > 30000 (signed); < 450000, > 30000 (unsigned)",
+     "operand": "constant 15",
+     "a": "0..16"
+    },
+    {
+     "line": 12,
+     "text": "if (actor != 0 && actor->unk1C == arg0 && actor->unk20 == arg1",
+     "size": 4,
+     "count": 319952,
+     "kind": "a == b / a < b",
+     "outcomes": "== 145364, < 147248, > 27340 (signed); < 148528, > 26060 (unsigned)",
+     "operand": "b -32768..32767",
+     "a": "-2147483648..2147483647"
+    },
+    {
+     "line": 12,
+     "text": "if (actor != 0 && actor->unk1C == arg0 && actor->unk20 == arg1",
+     "size": 4,
+     "count": 145364,
+     "kind": "a == b / a < b",
+     "outcomes": "== 92364, < 26069, > 26931 (signed); < 26940, > 26060 (unsigned)",
+     "operand": "b -32768..32767",
+     "a": "-2147483648..2147483647"
+    },
+    {
+     "line": 13,
+     "text": "&& actor->unk1E - 0x80 < h) {",
+     "size": 4,
+     "count": 92364,
+     "kind": "a == b / a < b",
+     "outcomes": "== 26377, < 49723, > 16264 (signed); < 34346, > 31641 (unsigned)",
+     "operand": "b -32896..32639",
+     "a": "-32896..16383"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 38317,
+     "completion_tokens": 2692,
+     "reasoning_tokens": 2177,
+     "cost": 0.0051777,
+     "seconds": 11.5,
+     "sample": 1,
+     "conversation": "df6299b65e265929c08695ec196c768155a5f323b3ce0c928ce7ec2e962f190f"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A3500.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A3500.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 29.988998980999895,
+ "wall_seconds": 30.195500537000044,
+ "totals": {
+  "cost": 0.0162,
+  "prompt_tokens": 53024,
+  "completion_tokens": 21787,
+  "model_seconds": 93.1,
+  "check_seconds": 30.0,
+  "calls": 2,
+  "wall_seconds": 30.2
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

@@ -1,0 +1,210 @@
+{
+ "function": "func_80093FEC",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_80093FEC",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x80093fec",
+  "difficulty": "S",
+  "zig_name": "func_80093FEC",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_80093FEC",
+  "spec_file": "func_80093FEC.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_80093FEC(arg0: c_int, arg1: c_int, arg2: c_int, arg3: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ],
+   [
+    "arg3",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "no-tested-bits": "8033",
+   "all-tested-bits": "8192",
+   "sign-bit": "9972",
+   "other": "3803"
+  },
+  "mutations": [
+   {
+    "name": "L1: loop stops before bit 28",
+    "caught": true
+   },
+   {
+    "name": "L2: loop runs to bit 29",
+    "caught": true
+   },
+   {
+    "name": "L3: callee gets arg1 for arg0",
+    "caught": true
+   },
+   {
+    "name": "L4: wrong constant 0xFA",
+    "caught": true
+   },
+   {
+    "name": "L5: index passed as i+1",
+    "caught": true
+   },
+   {
+    "name": "L6: bit 28 masked out of the test",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 4,
+   "branches_hit": 4,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 5,
+   "lines_hit": 5,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -2146797765, max 2147384870, unsigned 55825..4294775988, seen negative, never zero"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147417567, max 2147337345, unsigned 145742..4294945536, seen negative, never zero"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2147470708, max 2147483647, unsigned 0..4294967294, seen zero/negative/signed max"
+    },
+    {
+     "arg": 3,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147373296, unsigned 0..4294967295, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 5,
+     "text": "for (i = 0, var_s1 = 1; i < 29; ++i, var_s1 <<= 1) {",
+     "size": 4,
+     "count": 900000,
+     "kind": "against a constant",
+     "outcomes": "== 30000, < 840000, > 30000 (signed); < 840000, > 30000 (unsigned)",
+     "operand": "constant 28",
+     "a": "0..29"
+    },
+    {
+     "line": 6,
+     "text": "if (arg2 & var_s1) {",
+     "size": 4,
+     "count": 870000,
+     "kind": "against a constant",
+     "outcomes": "== 450187, < 0, > 419813 (signed); < 0, > 419813 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..268435456"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_80093FEC.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_80093FEC.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 81.93280332699942,
+ "wall_seconds": 129.06218887999785,
+ "totals": {
+  "cost": 0.0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "model_seconds": 0.0,
+  "check_seconds": 81.9,
+  "calls": 0,
+  "wall_seconds": 129.1
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 1 / root 1 / -, 0 mismatches"
+ }
+}

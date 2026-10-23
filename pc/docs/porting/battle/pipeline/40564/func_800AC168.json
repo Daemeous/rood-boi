@@ -1,0 +1,402 @@
+{
+ "function": "func_800AC168",
+ "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the fade label as a shared tail for modes 1 and 5); spec sound",
+ "plan": {
+  "name": "func_800AC168",
+  "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+  "stem": "40564",
+  "address": "0x800ac168",
+  "difficulty": "L",
+  "zig_name": "func_800AC168",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800AC168",
+  "spec_file": "func_800AC168.zig",
+  "subsystem": "battle_40564_port",
+  "signature": "pub fn func_800AC168(colors: [*c]c_ushort, count: c_int, amount: c_int, mode: c_int, reference: [*c]c_ushort) callconv(.c) c_int",
+  "params": [
+   [
+    "colors",
+    "[*c]c_ushort"
+   ],
+   [
+    "count",
+    "c_int"
+   ],
+   [
+    "amount",
+    "c_int"
+   ],
+   [
+    "mode",
+    "c_int"
+   ],
+   [
+    "reference",
+    "[*c]c_ushort"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11969,
+     "completion_tokens": 15377,
+     "reasoning_tokens": 13758,
+     "cost": 0.0088854,
+     "seconds": 68.3,
+     "sample": 1,
+     "conversation": "0f03bd7b9d46f1b7468259d4bb6c160b63b3f5d400ca03a2063f32408bedfc6f"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "no-pixels": "8480",
+   "mode0": "2193",
+   "mode1": "2125",
+   "mode2": "2156",
+   "mode3": "2072",
+   "mode4": "2072",
+   "mode5": "2220",
+   "mode6": "2161",
+   "other-mode": "6521"
+  },
+  "mutations": [
+   {
+    "name": "M1: mode 6 stores 0x8001",
+    "caught": true
+   },
+   {
+    "name": "M2: mode 3 adds amount minus one to r",
+    "caught": true
+   },
+   {
+    "name": "M3: mode 3 clamps r only above 32",
+    "caught": true
+   },
+   {
+    "name": "M4: fade step is amount * 2 in mode 1",
+    "caught": true
+   },
+   {
+    "name": "M5: mode 4 drops the reference's sign bit",
+    "caught": true
+   },
+   {
+    "name": "M6: the pixel loop runs for count 0",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 40,
+   "branches_hit": 40,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 96,
+   "lines_hit": 96,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -1, max 5, unsigned 0..4294967295, seen zero/negative/all ones, 7 value(s): 4, 0, 5, 4294967295, 3, 1, 2"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -268435456, max 268435456, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 3,
+     "count": 30000,
+     "text": "32-bit: min -1, max 8, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 4,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 8,
+     "text": "if (count > 0) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 4278, < 4202, > 21520 (signed); < 0, > 25722 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..5"
+    },
+    {
+     "line": 14,
+     "text": "switch (mode) {",
+     "size": 4,
+     "count": 64695,
+     "kind": "switch",
+     "outcomes": "== 45086, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "-1..8"
+    },
+    {
+     "line": 18,
+     "text": "if (r < 0)",
+     "size": 4,
+     "count": 6707,
+     "kind": "against a constant",
+     "outcomes": "== 52, < 2677, > 3978 (signed); < 0, > 6655 (unsigned)",
+     "operand": "constant 0",
+     "a": "-536870912..536870943"
+    },
+    {
+     "line": 21,
+     "text": "if (g < 0)",
+     "size": 4,
+     "count": 6707,
+     "kind": "against a constant",
+     "outcomes": "== 71, < 2666, > 3970 (signed); < 0, > 6636 (unsigned)",
+     "operand": "constant 0",
+     "a": "-536870912..536870943"
+    },
+    {
+     "line": 24,
+     "text": "if (r != 0)",
+     "size": 4,
+     "count": 6707,
+     "kind": "against a constant",
+     "outcomes": "== 2570, < 0, > 4137 (signed); < 0, > 4137 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..536871935"
+    },
+    {
+     "line": 34,
+     "text": "if (b < 0)",
+     "size": 4,
+     "count": 13071,
+     "kind": "against a constant",
+     "outcomes": "== 134, < 4799, > 8138 (signed); < 0, > 12937 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1073741824..1073741855"
+    },
+    {
+     "line": 37,
+     "text": "if (r < 0)",
+     "size": 4,
+     "count": 13071,
+     "kind": "against a constant",
+     "outcomes": "== 110, < 4798, > 8163 (signed); < 0, > 12961 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1073741824..1073741855"
+    },
+    {
+     "line": 40,
+     "text": "if (g < 0)",
+     "size": 4,
+     "count": 13071,
+     "kind": "against a constant",
+     "outcomes": "== 120, < 4800, > 8151 (signed); < 0, > 12951 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1073741824..1073741855"
+    },
+    {
+     "line": 44,
+     "text": "if (r != 0)",
+     "size": 4,
+     "count": 13071,
+     "kind": "against a constant",
+     "outcomes": "== 4146, < 0, > 8925 (signed); < 0, > 8925 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1073773969"
+    },
+    {
+     "line": 55,
+     "text": "if (r >= 32)",
+     "size": 4,
+     "count": 6242,
+     "kind": "against a constant",
+     "outcomes": "== 102, < 3896, > 2244 (signed); < 2669, > 3471 (unsigned)",
+     "operand": "constant 31",
+     "a": "-268435456..268435487"
+    },
+    {
+     "line": 58,
+     "text": "if (g >= 32)",
+     "size": 4,
+     "count": 6242,
+     "kind": "against a constant",
+     "outcomes": "== 70, < 3177, > 2995 (signed); < 1714, > 4458 (unsigned)",
+     "operand": "constant 31",
+     "a": "-536870912..536870943"
+    },
+    {
+     "line": 61,
+     "text": "if (b >= 32)",
+     "size": 4,
+     "count": 6242,
+     "kind": "against a constant",
+     "outcomes": "== 83, < 3225, > 2934 (signed); < 1759, > 4400 (unsigned)",
+     "operand": "constant 31",
+     "a": "-536870912..536870943"
+    },
+    {
+     "line": 74,
+     "text": "if (r < baseR)",
+     "size": 4,
+     "count": 6298,
+     "kind": "a == b / a < b",
+     "outcomes": "== 2314, < 2173, > 1811 (signed); < 563, > 3421 (unsigned)",
+     "operand": "b 0..31",
+     "a": "-536870912..536870943"
+    },
+    {
+     "line": 77,
+     "text": "if (g < baseG)",
+     "size": 4,
+     "count": 6298,
+     "kind": "a == b / a < b",
+     "outcomes": "== 2320, < 2143, > 1835 (signed); < 532, > 3446 (unsigned)",
+     "operand": "b 0..31",
+     "a": "-536870912..536870943"
+    },
+    {
+     "line": 80,
+     "text": "if (b < color)",
+     "size": 4,
+     "count": 6298,
+     "kind": "a == b / a < b",
+     "outcomes": "== 2310, < 2172, > 1816 (signed); < 561, > 3427 (unsigned)",
+     "operand": "b 0..31",
+     "a": "-536870912..536870943"
+    },
+    {
+     "line": 87,
+     "text": "if (r != (color & 0x7FFF)) {",
+     "size": 4,
+     "count": 6298,
+     "kind": "a == b / a < b",
+     "outcomes": "== 4054, < 12, > 2232 (signed); < 12, > 2232 (unsigned)",
+     "operand": "b 2..32766",
+     "a": "2..536903173"
+    },
+    {
+     "line": 104,
+     "text": "} while (i < count);",
+     "size": 4,
+     "count": 64695,
+     "kind": "a == b / a < b",
+     "outcomes": "== 21520, < 43175, > 0 (signed); < 43175, > 0 (unsigned)",
+     "operand": "b 1..5",
+     "a": "1..5"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35449,
+     "completion_tokens": 8137,
+     "reasoning_tokens": 6714,
+     "cost": 0.0076134,
+     "seconds": 34.5,
+     "sample": 1,
+     "conversation": "eb32af3332a09bfeb4971f32f48238c78ef51a0ed37da0c4fea2e47d70e1f5f2"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800AC168.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800AC168.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 48.00156420100211,
+ "wall_seconds": 77.09840095199979,
+ "totals": {
+  "cost": 0.0165,
+  "prompt_tokens": 47418,
+  "completion_tokens": 23514,
+  "model_seconds": 102.8,
+  "check_seconds": 48.0,
+  "calls": 2,
+  "wall_seconds": 77.1
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested 270 / nested 270 / nested 300, 0 mismatches"
+ }
+}

@@ -1,0 +1,340 @@
+{
+ "function": "func_800A30A0",
+ "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the ROOD_PC NULL-anchor read of low RAM ported); spec sound",
+ "plan": {
+  "name": "func_800A30A0",
+  "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+  "stem": "3A1A0",
+  "address": "0x800a30a0",
+  "difficulty": "L",
+  "zig_name": "func_800A30A0",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A30A0",
+  "spec_file": "func_800A30A0.zig",
+  "subsystem": "battle_3A1A0_port",
+  "signature": "pub fn func_800A30A0(actorId: c_int, placement: ?*v.func_80089888_t, height: c_int, mode: c_int) callconv(.c) void",
+  "params": [
+   [
+    "actorId",
+    "c_int"
+   ],
+   [
+    "placement",
+    "?*v.func_80089888_t"
+   ],
+   [
+    "height",
+    "c_int"
+   ],
+   [
+    "mode",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F4538_t",
+   "SVECTOR",
+   "func_80089888_t"
+  ],
+  "globals": [
+   "D_800F4538"
+  ],
+  "hooks": [
+   "ROOD_PC block in the source"
+  ],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 18768,
+     "completion_tokens": 24568,
+     "reasoning_tokens": 21972,
+     "cost": 0.0141608,
+     "seconds": 105.0,
+     "sample": 1,
+     "conversation": "79e318f85230cb6d67e847b0d491661e3e0b262c98b1a68f35cd84767cdf325f"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:181:9: error: zdiff: a spec stub gives void where the C prototype has c_int: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:235:29\n    f: pc/build/port-pipeline/func_800A30A0/spec1/build/game/common/route.zig:39:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 21702,
+     "completion_tokens": 6537,
+     "reasoning_tokens": 4393,
+     "cost": 0.0054387,
+     "seconds": 28.9,
+     "sample": 1,
+     "conversation": "d4e30fc0bb14a25c7a068ac12ab8bfbcf27b54760aa98224273a5a59f71b5ac3"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "modeA-no-ceiling": "3742",
+   "modeA-ceiling": "10988",
+   "tile7": "1645",
+   "tile-ge2": "20341",
+   "tile-lt2": "3284"
+  },
+  "mutations": [
+   {
+    "name": "M1: value > -0x7F (wrong bound at -127)",
+    "caught": true
+   },
+   {
+    "name": "M2: tile > 2 (wrong bound at 2)",
+    "caught": true
+   },
+   {
+    "name": "M3: mode 0x80 misses the 0x400000 flag",
+    "caught": true
+   },
+   {
+    "name": "M4: signed read of the placement facing byte",
+    "caught": true
+   },
+   {
+    "name": "M5: dropped func_800ACF54 call",
+    "caught": true
+   },
+   {
+    "name": "M6: wrong field for the 0x17F2 tile store",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 20,
+   "branches_hit": 20,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 58,
+   "lines_hit": 58,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 2,
+     "count": 40000,
+     "text": "32-bit: min -2147420845, max 2147174805, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 3,
+     "count": 40000,
+     "text": "32-bit: min 0, max 128, seen zero, never negative, 7 value(s): 16, 64, 32, 0, 17, 48, 128"
+    }
+   ],
+   "compares": [
+    {
+     "line": 17,
+     "text": "if (mode == 0x10 || mode == 0x20) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 9843, < 5085, > 25072 (signed); < 5085, > 25072 (unsigned)",
+     "operand": "constant 16",
+     "a": "0..128"
+    },
+    {
+     "line": 17,
+     "text": "if (mode == 0x10 || mode == 0x20) {",
+     "size": 4,
+     "count": 30157,
+     "kind": "against a constant",
+     "outcomes": "== 4887, < 10184, > 15086 (signed); < 10184, > 15086 (unsigned)",
+     "operand": "constant 32",
+     "a": "0..128"
+    },
+    {
+     "line": 19,
+     "text": "if (ceiling == 0) {",
+     "size": 4,
+     "count": 14730,
+     "kind": "against a constant",
+     "outcomes": "== 3742, < 5510, > 5478 (signed); < 0, > 10988 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147210417..2146617862"
+    },
+    {
+     "line": 23,
+     "text": "if (value >= -0x7F) {",
+     "size": 4,
+     "count": 10988,
+     "kind": "against a constant",
+     "outcomes": "== 5558, < 3388, > 2042 (signed); < 5430, > 0 (unsigned)",
+     "operand": "constant -127",
+     "a": "-2147231726..2146594353"
+    },
+    {
+     "line": 29,
+     "text": "if (func_800A3310(actorId, position) != 0) {",
+     "size": 4,
+     "count": 14730,
+     "kind": "against a constant",
+     "outcomes": "== 3743, < 5483, > 5504 (signed); < 0, > 10987 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147381123..2147480151"
+    },
+    {
+     "line": 35,
+     "text": "if (mode == 0x40 || mode == 0x80) {",
+     "size": 4,
+     "count": 25270,
+     "kind": "against a constant",
+     "outcomes": "== 5132, < 15170, > 4968 (signed); < 15170, > 4968 (unsigned)",
+     "operand": "constant 64",
+     "a": "0..128"
+    },
+    {
+     "line": 35,
+     "text": "if (mode == 0x40 || mode == 0x80) {",
+     "size": 4,
+     "count": 20138,
+     "kind": "against a constant",
+     "outcomes": "== 4968, < 15170, > 0 (signed); < 15170, > 0 (unsigned)",
+     "operand": "constant 128",
+     "a": "0..128"
+    },
+    {
+     "line": 39,
+     "text": "if (tileType == 7) {",
+     "size": 1,
+     "count": 25270,
+     "kind": "against a constant",
+     "outcomes": "== 1645, < 16037, > 7588 (signed); < 6625, > 17000 (unsigned)",
+     "operand": "constant 7",
+     "a": "-128..127"
+    },
+    {
+     "line": 46,
+     "text": "if (tileType >= 2U) {",
+     "size": 1,
+     "count": 23625,
+     "kind": "against a constant",
+     "outcomes": "== 1671, < 11025, > 10929 (signed); < 1613, > 20341 (unsigned)",
+     "operand": "constant 1",
+     "a": "-128..127"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 42370,
+     "completion_tokens": 18158,
+     "reasoning_tokens": 16260,
+     "cost": 0.013316,
+     "seconds": 72.7,
+     "sample": 1,
+     "conversation": "ec051dc8e2bd985e135761982239871c40132dba8d250e03b67d129715479982"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A30A0.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A30A0.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 51.37589480600036,
+ "wall_seconds": 51.5780155399998,
+ "totals": {
+  "cost": 0.03292,
+  "prompt_tokens": 82840,
+  "completion_tokens": 49263,
+  "model_seconds": 206.6,
+  "check_seconds": 51.4,
+  "calls": 3,
+  "wall_seconds": 51.6
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

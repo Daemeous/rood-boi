@@ -1,0 +1,52 @@
+{
+ "unit": "49268",
+ "totals": {
+  "functions": 3,
+  "ported": 3,
+  "cost": 0.1251,
+  "prompt_tokens": 277772,
+  "completion_tokens": 194616,
+  "model_seconds": 784.8,
+  "check_seconds": 211.6,
+  "calls": 8,
+  "statuses": {
+   "ported": 3
+  },
+  "last_run_wall_seconds": 241.1
+ },
+ "functions": [
+  {
+   "function": "func_800B1A68",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 2,
+   "port_attempts": 1,
+   "spec": "retry",
+   "port": "first",
+   "cost": 0.04644,
+   "wall_seconds": 240.9
+  },
+  {
+   "function": "func_800B217C",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 1,
+   "port_attempts": 2,
+   "spec": "first",
+   "port": "retry",
+   "cost": 0.05548,
+   "wall_seconds": 440.2
+  },
+  {
+   "function": "func_800B26B8",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "spec": "first",
+   "port": "first",
+   "cost": 0.02317,
+   "wall_seconds": 192.4
+  }
+ ]
+}

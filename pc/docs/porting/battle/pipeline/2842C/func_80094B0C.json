@@ -1,0 +1,253 @@
+{
+ "function": "func_80094B0C",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (setPolyFT4/setXY4/setUV4/setTPage/setClut expanded to the libgpu macros' values; the bounce table unchecked as the C); spec sound",
+ "plan": {
+  "name": "func_80094B0C",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x80094b0c",
+  "difficulty": "M",
+  "zig_name": "func_80094B0C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_80094B0C",
+  "spec_file": "func_80094B0C.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_80094B0C(x: c_int, y: c_int, p: ?*v.D_800F1BAC_t) callconv(.c) void",
+  "params": [
+   [
+    "x",
+    "c_int"
+   ],
+   [
+    "y",
+    "c_int"
+   ],
+   [
+    "p",
+    "?*v.D_800F1BAC_t"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "CVECTOR",
+   "D_800F1BAC_t",
+   "POLY_FT4"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_80094B0C: branches 12/12 (100.0%), conditions not measured (GCC < 14: branch coverage only), lines 37/37\n  FLAG +14 eq: boundary equality occurred only 1 time(s) in 23288 (16-bit compare, constant 0: both sides seen; a port's `<` for `<=` could pass): `if (!(p->unkC & 0x8000)) {`\n  FLAG +28 eq: boundary equality never occurred (16-bit compare, constant 0: both sides seen; a port's `<` for `<=` could pass): `if (!(p->unkC & 0x8000)) {`\ncoverage func_80094B0C: FAILED (threshold 100%: 0 uncovered, 2 value flag(s) not waived)\nWhat to add:\n- `if (!(p->unkC & 0x8000)) {` (+14): the two sides of this ordered compare were equal 1 time(s) in 23288. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\n- `if (!(p->unkC & 0x8000)) {` (+28): the two sides of this ordered compare were equal 0 time(s) in 6712. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_80094B0C.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "callee-path": "23459",
+   "low-sign": "3266",
+   "low-plain": "3275"
+  },
+  "mutations": [
+   {
+    "name": "P1: the text path starts one unkE step late",
+    "caught": true
+   },
+   {
+    "name": "P2: the on-screen test is signed",
+    "caught": true
+   },
+   {
+    "name": "P3: the frame clamp is <= 16",
+    "caught": true
+   },
+   {
+    "name": "P4: the lower bounce row is read for the sign-bit case",
+    "caught": true
+   },
+   {
+    "name": "P5: the prim stride is 36, not sizeof(POLY_FT4)",
+    "caught": true
+   },
+   {
+    "name": "P6: the ordering table index uses - 16",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 12,
+   "branches_hit": 12,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 37,
+   "lines_hit": 37,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 13,
+     "text": "if (p->unkE >= 3) {",
+     "size": 1,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 2225, < 14044, > 13731 (signed); < 4316, > 23459 (unsigned)",
+     "operand": "constant 2",
+     "a": "-128..127"
+    },
+    {
+     "line": 14,
+     "text": "if (!(p->unkC & 0x8000)) {",
+     "size": 2,
+     "count": 23459,
+     "kind": "against a constant",
+     "outcomes": "== 5876, < 11683, > 5900 (signed); < 0, > 17583 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 23,
+     "text": "if (p->unkB < 16) {",
+     "size": 1,
+     "count": 6541,
+     "kind": "against a constant",
+     "outcomes": "== 638, < 3126, > 2777 (signed); < 823, > 5080 (unsigned)",
+     "operand": "constant 15",
+     "a": "-128..127"
+    },
+    {
+     "line": 28,
+     "text": "if (!(p->unkC & 0x8000)) {",
+     "size": 2,
+     "count": 6541,
+     "kind": "against a constant",
+     "outcomes": "== 1669, < 3266, > 1606 (signed); < 0, > 4872 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32746"
+    },
+    {
+     "line": 38,
+     "text": "for (i = p->displayTextLen - 1; i >= 0; --i, x -= 6) {",
+     "size": 4,
+     "count": 3046558,
+     "kind": "against a constant",
+     "outcomes": "== 28593, < 30000, > 2987965 (signed); < 0, > 3017965 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..254"
+    },
+    {
+     "line": 41,
+     "text": "if ((u_int)(x + 8) < 328) {",
+     "size": 4,
+     "count": 3016558,
+     "kind": "against a constant",
+     "outcomes": "== 434, < 1589787, > 1426337 (signed); < 140363, > 2875761 (unsigned)",
+     "operand": "constant 327",
+     "a": "-2147483647..2147483647"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_80094B0C.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_80094B0C.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 100.66687576299955,
+ "wall_seconds": 128.26982272500027,
+ "totals": {
+  "cost": 0.0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "model_seconds": 0.0,
+  "check_seconds": 100.7,
+  "calls": 0,
+  "wall_seconds": 128.3
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: - / nested 96 / nested 279, 0 mismatches"
+ }
+}

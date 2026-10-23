@@ -57,10 +57,17 @@ pub const Ctx = struct {
         return self.random.uintLessThan(u32, n) == 0;
     }
 
-    /// An edge value half the time, a random one otherwise.
+    /// An edge value half the time, ANY value of T otherwise (0, -1 and the
+    /// extremes included): for a divisor, an index, a count or a selector
+    /// the C must only see as listed, use `edge`.
     pub fn pick(self: *Ctx, comptime T: type, edges: []const T) T {
         if (edges.len != 0 and self.random.boolean()) return edges[self.random.uintLessThan(usize, edges.len)];
         return self.random.int(T);
+    }
+
+    /// One of `edges`, never another value.
+    pub fn edge(self: *Ctx, comptime T: type, edges: []const T) T {
+        return edges[self.random.uintLessThan(usize, edges.len)];
     }
 
     /// A value in [low, high] (inclusive), as T.

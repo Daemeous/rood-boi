@@ -1,0 +1,277 @@
+{
+ "function": "func_800AAE9C",
+ "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "spec-failed",
+ "reviewed": "not ported in this wave (unrouted): Haiku's specs crashed in prepare or made the C differ from its own copy (its table walk reads past the rows the spec sets; the C also returns no value); a reviewer-written spec is the next step",
+ "plan": {
+  "name": "func_800AAE9C",
+  "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+  "stem": "40564",
+  "address": "0x800aae9c",
+  "difficulty": "M",
+  "zig_name": "func_800AAE9C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800AAE9C",
+  "spec_file": "func_800AAE9C.zig",
+  "subsystem": "battle_40564_port",
+  "signature": "pub fn func_800AAE9C(actor: ?*v.D_800F4538_t) callconv(.c) c_int",
+  "params": [
+   [
+    "actor",
+    "?*v.D_800F4538_t"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800F4538_unk180C",
+   "func_800AAE9C_t"
+  ],
+  "globals": [
+   "D_800E909C",
+   "D_800E916C",
+   "D_800F2450"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 17824,
+     "completion_tokens": 17589,
+     "reasoning_tokens": 15418,
+     "cost": 0.0105769,
+     "seconds": 76.1,
+     "sample": 1,
+     "conversation": "030e6a35b17f144e0e48f08666d690860f3b79bd0667eceb00cede1579f91477"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: your spec's own code (prepare or classify) failed before the C ran: a Zig safety check (an index past an array's length, an integer that does not fit, a null unwrap) or a fault in it:\nzdiff: CRASH (signal 11) in the prepare run, iteration 0, fault address 0x1 [NULL+0x1: a field of a null pointer]",
+     "(the mutations and the coverage gate are checked once the spec runs)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 20168,
+     "completion_tokens": 5147,
+     "reasoning_tokens": 3196,
+     "cost": 0.0045903,
+     "seconds": 21.6,
+     "sample": 1,
+     "conversation": "5b8d8c0ddc118daa33e0674ac6fc6809cfa06e0d235dc550e140973c75eef646"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the C differs from a copy of itself under this spec (exit 1: the spec is not deterministic: everything prepare does must come from `ctx`):\nzdiff: MISMATCH iteration 181: memory at 0x407881 [arena] (zdiff_state+0x1811): C 1, Zig 2\nzdiff: MISMATCH iteration 335: memory at 0x407881 [arena] (zdiff_state+0x1811): C 0, Zig 1\nzdiff: MISMATCH iteration 827: memory at 0x407881 [arena] (zdiff_state+0x1811): C 0, Zig 1\nzdiff: func_800AAE9C: 30000 iterations, seed 1, 59 mismatches; classes: gate-closed=3753 slots-idle=4326 mode-2=4311 clear=1036 active=16574"
+    ]
+   }
+  ],
+  "classes": {
+   "gate-closed": "3753",
+   "slots-idle": "4326",
+   "mode-2": "4311",
+   "clear": "1036",
+   "active": "16574"
+  },
+  "mutations": [
+   {
+    "name": "M1: the advance test is <= (an equal count advances early)",
+    "caught": true
+   },
+   {
+    "name": "M2: the stored unk1 is one past the table's value",
+    "caught": true
+   },
+   {
+    "name": "M3: mode 0 tests the count against 0, not 1",
+    "caught": true
+   },
+   {
+    "name": "M4: the callee gets the raw unk1, not unk1 - 1",
+    "caught": true
+   },
+   {
+    "name": "M5: the row reset takes the other table for slot 0",
+    "caught": true
+   },
+   {
+    "name": "M6: mode 0 at unk1 == 1 drops the clear of unk0_0",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 22,
+   "branches_hit": 22,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 30,
+   "lines_hit": 30,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 4,
+     "text": "if (D_800F2450[D_800E8F2C] == 0) {",
+     "size": 1,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 3753, < 13184, > 13063 (signed); < 0, > 26247 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 8,
+     "text": "for (i = 0; i < 2; ++i) {",
+     "size": 4,
+     "count": 78333,
+     "kind": "against a constant",
+     "outcomes": "== 26078, < 26247, > 26008 (signed); < 26247, > 26008 (unsigned)",
+     "operand": "constant 1",
+     "a": "0..2"
+    },
+    {
+     "line": 8,
+     "text": "for (i = 0; i < 2; ++i) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 3753, < 0, > 26247 (signed); < 0, > 26247 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..2"
+    },
+    {
+     "line": 12,
+     "text": "if (slot->unk0_0 == 0) {",
+     "size": 1,
+     "count": 52325,
+     "kind": "against a constant",
+     "outcomes": "== 8417, < 0, > 43908 (signed); < 0, > 43908 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..15"
+    },
+    {
+     "line": 16,
+     "text": "switch (slot->unk0_4) {",
+     "size": 4,
+     "count": 43908,
+     "kind": "switch",
+     "outcomes": "== 25968, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..15"
+    },
+    {
+     "line": 21,
+     "text": "if (slot->unk1 == 1) {",
+     "size": 1,
+     "count": 8723,
+     "kind": "against a constant",
+     "outcomes": "== 2158, < 2192, > 4373 (signed); < 2192, > 4373 (unsigned)",
+     "operand": "constant 1",
+     "a": "0..3"
+    },
+    {
+     "line": 27,
+     "text": "if (i == 0) {",
+     "size": 4,
+     "count": 15180,
+     "kind": "against a constant",
+     "outcomes": "== 7601, < 0, > 7579 (signed); < 0, > 7579 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 35,
+     "text": "if (p->unk1 < slot->unk3) {",
+     "size": 1,
+     "count": 15180,
+     "kind": "a == b / a < b",
+     "outcomes": "== 270, < 7503, > 7407 (signed); < 6941, > 7969 (unsigned)",
+     "operand": "b -128..127",
+     "a": "-128..127"
+    },
+    {
+     "line": 40,
+     "text": "if (p->unk0 == 0) {",
+     "size": 1,
+     "count": 6941,
+     "kind": "against a constant",
+     "outcomes": "== 2619, < 1981, > 2341 (signed); < 0, > 4322 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 42,
+     "text": "p = (i == 0) ? D_800E909C[slot->unk0_0] : D_800E916C[slot->unk0_0];",
+     "size": 4,
+     "count": 2619,
+     "kind": "against a constant",
+     "outcomes": "== 2225, < 0, > 394 (signed); < 0, > 394 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 46,
+     "text": "if (p->unk0 == 0) {",
+     "size": 1,
+     "count": 15180,
+     "kind": "against a constant",
+     "outcomes": "== 239, < 5888, > 9053 (signed); < 0, > 14941 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    }
+   ],
+   "passed": true
+  }
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 12.705681094999818,
+ "wall_seconds": 12.905436536999332,
+ "totals": {
+  "cost": 0.01517,
+  "prompt_tokens": 37992,
+  "completion_tokens": 22736,
+  "model_seconds": 97.7,
+  "check_seconds": 12.7,
+  "calls": 2,
+  "wall_seconds": 12.9
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22"
+ }
+}

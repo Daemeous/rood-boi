@@ -1,0 +1,237 @@
+{
+ "function": "func_8009506C",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_8009506C",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x8009506c",
+  "difficulty": "M",
+  "zig_name": "func_8009506C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_8009506C",
+  "spec_file": "func_8009506C.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_8009506C(arg0: c_int, arg1: c_int, arg2: ?*v.D_800F1BAC_t) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ],
+   [
+    "arg2",
+    "?*v.D_800F1BAC_t"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F1BAC_t",
+   "POLY_FT4"
+  ],
+  "globals": [
+   "D_800E8634",
+   "D_800E8640"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "step-low": "4626",
+   "step-high": "6317",
+   "step-mid": "11597",
+   "clip-edge": "7460"
+  },
+  "mutations": [
+   {
+    "name": "S1: step range upper bound off by one (27 takes the mid step)",
+    "caught": true
+   },
+   {
+    "name": "S2: clip bound <= 320 (a prim at x == 320 is drawn)",
+    "caught": true
+   },
+   {
+    "name": "S3: right-edge test > 0 instead of >= 0 (a prim ending at x == 0 is dropped)",
+    "caught": true
+   },
+   {
+    "name": "S4: wrong V constant on the bottom-left UV (+12, not +10)",
+    "caught": true
+   },
+   {
+    "name": "S5: the scratchpad prim pointer is never stored back",
+    "caught": true
+   },
+   {
+    "name": "S6: the ordering-table slot off by 4 (AddPrim ot - 24, not - 20)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 10,
+   "branches_hit": 10,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 23,
+   "lines_hit": 23,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -400, max 400, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -29999, max 29999, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 8,
+     "text": "if (arg2->unkB < 4) {",
+     "size": 1,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 2632, < 3504, > 23864 (signed); < 3504, > 23864 (unsigned)",
+     "operand": "constant 3",
+     "a": "0..30"
+    },
+    {
+     "line": 10,
+     "text": "} else if (arg2->unkB >= 27) {",
+     "size": 1,
+     "count": 23864,
+     "kind": "against a constant",
+     "outcomes": "== 2603, < 12798, > 8463 (signed); < 12798, > 8463 (unsigned)",
+     "operand": "constant 26",
+     "a": "4..30"
+    },
+    {
+     "line": 21,
+     "text": "for (i = 0; i < 4; ++i) {",
+     "size": 4,
+     "count": 150000,
+     "kind": "against a constant",
+     "outcomes": "== 30000, < 90000, > 30000 (signed); < 90000, > 30000 (unsigned)",
+     "operand": "constant 3",
+     "a": "0..4"
+    },
+    {
+     "line": 22,
+     "text": "if ((arg0 < 320) && ((arg0 + D_800E8640[i].w) >= 0)) {",
+     "size": 4,
+     "count": 120000,
+     "kind": "against a constant",
+     "outcomes": "== 522, < 78517, > 40961 (signed); < 23583, > 95895 (unsigned)",
+     "operand": "constant 319",
+     "a": "-82572..93080"
+    },
+    {
+     "line": 22,
+     "text": "if ((arg0 < 320) && ((arg0 + D_800E8640[i].w) >= 0)) {",
+     "size": 4,
+     "count": 79039,
+     "kind": "against a constant",
+     "outcomes": "== 880, < 52292, > 25867 (signed); < 0, > 78159 (unsigned)",
+     "operand": "constant 0",
+     "a": "-95100..32960"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_8009506C.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_8009506C.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 65.84379727500345,
+ "wall_seconds": 136.23923679899963,
+ "totals": {
+  "cost": 0.0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "model_seconds": 0.0,
+  "check_seconds": 65.8,
+  "calls": 0,
+  "wall_seconds": 136.2
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: - / - / nested 186, 0 mismatches"
+ }
+}

@@ -1,0 +1,388 @@
+{
+ "function": "func_800B217C",
+ "unit": "src/BATTLE/BATTLE.PRG/49268.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (color.cd zeroed where the C leaves it uninitialised with flag 0x40: the drawers' code byte); spec strengthened (the drawers' colour); renamed drawWeaponModel",
+ "plan": {
+  "name": "func_800B217C",
+  "unit": "src/BATTLE/BATTLE.PRG/49268.c",
+  "stem": "49268",
+  "address": "0x800b217c",
+  "difficulty": "L",
+  "zig_name": "func_800B217C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800B217C",
+  "spec_file": "func_800B217C.zig",
+  "subsystem": "battle_49268_port",
+  "signature": "pub fn func_800B217C(weapon: ?*v.vs_battle_wepModels_t, source: ?*v.MATRIX) callconv(.c) void",
+  "params": [
+   [
+    "weapon",
+    "?*v.vs_battle_wepModels_t"
+   ],
+   [
+    "source",
+    "?*v.MATRIX"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "CVECTOR",
+   "D_800F4538_t",
+   "MATRIX",
+   "_wepModelOffsets",
+   "vs_battle_wepModels_t",
+   "weaponMatrix",
+   "weaponRotation",
+   "weaponTransformScratch"
+  ],
+  "globals": [
+   "D_800F2458",
+   "D_800F3C58",
+   "D_800F4538",
+   "vs_battle_wepTextures",
+   "vs_main_nearClip"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 22973,
+     "completion_tokens": 47268,
+     "reasoning_tokens": 44493,
+     "cost": 0.0259313,
+     "seconds": 197.1,
+     "sample": 1,
+     "conversation": "ce32680433d1cc24b9fc835fbe644a5c76205b035d6d177b97cb8c085843672a"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "hidden": "10049",
+   "far-unkF-zero": "7006",
+   "far-unkF-set": "6855",
+   "near-nibble-under-4": "4031",
+   "near-rest": "12059"
+  },
+  "mutations": [
+   {
+    "name": "W1: step divided as unsigned",
+    "caught": true
+   },
+   {
+    "name": "W2: far-away test is > 256, not >= 256",
+    "caught": true
+   },
+   {
+    "name": "W3: flags nibble compared as signed (wrap at 0-3 lost)",
+    "caught": true
+   },
+   {
+    "name": "W4: parent matrix store dropped",
+    "caught": true
+   },
+   {
+    "name": "W5: bone loop runs to nBones inclusive",
+    "caught": true
+   },
+   {
+    "name": "W6: CLUT read from clut1, not clut0",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 28,
+   "branches_hit": 28,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 72,
+   "lines_hit": 72,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 10,
+     "text": "if (weapon->unk13 != 0) {",
+     "size": 1,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 2558, < 15005, > 22437 (signed); < 0, > 37442 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 17,
+     "text": "if ((*(int*)&weapon->clutSlotOffset & 0xFF00FF00) == 0)",
+     "size": 4,
+     "count": 37442,
+     "kind": "against a constant",
+     "outcomes": "== 10287, < 12431, > 14724 (signed); < 0, > 27155 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2130771712"
+    },
+    {
+     "line": 20,
+     "text": "if (weapon->unk11 != 64) {",
+     "size": 1,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 2606, < 32485, > 4909 (signed); < 22043, > 15351 (unsigned)",
+     "operand": "constant 64",
+     "a": "-128..127"
+    },
+    {
+     "line": 31,
+     "text": "for (i = 1; i < weapon->nBones; ++i) {",
+     "size": 4,
+     "count": 87606,
+     "kind": "a == b / a < b",
+     "outcomes": "== 31841, < 47606, > 8159 (signed); < 47606, > 8159 (unsigned)",
+     "operand": "b 0..4",
+     "a": "1..4"
+    },
+    {
+     "line": 56,
+     "text": "if (*(int*)((char*)actor + 8) & 2) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 10049, < 0, > 29951 (signed); < 0, > 29951 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..2"
+    },
+    {
+     "line": 57,
+     "text": "if (*(short*)((char*)actor + 0x1E) >= 256) {",
+     "size": 2,
+     "count": 29951,
+     "kind": "against a constant",
+     "outcomes": "== 2096, < 13994, > 13861 (signed); < 2260, > 25595 (unsigned)",
+     "operand": "constant 255",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 58,
+     "text": "if (actor->unk0.unkF == 0 || func_800BEB00() != 4)",
+     "size": 1,
+     "count": 13861,
+     "kind": "against a constant",
+     "outcomes": "== 7006, < 3417, > 3438 (signed); < 0, > 6855 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 58,
+     "text": "if (actor->unk0.unkF == 0 || func_800BEB00() != 4)",
+     "size": 2,
+     "count": 6855,
+     "kind": "against a constant",
+     "outcomes": "== 3394, < 1734, > 1727 (signed); < 0, > 3461 (unsigned)",
+     "operand": "constant 4",
+     "a": "-32766..32767"
+    },
+    {
+     "line": 61,
+     "text": "if (func_800B3A68(weapon, &((weaponMatrix*)weapon)->matrix,",
+     "size": 4,
+     "count": 19484,
+     "kind": "against a constant",
+     "outcomes": "== 7328, < 6090, > 6066 (signed); < 0, > 12156 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2146293809..2147270272"
+    },
+    {
+     "line": 67,
+     "text": "if (((flags >> 8 & 15) - 4) < 5) {",
+     "size": 4,
+     "count": 12156,
+     "kind": "against a constant",
+     "outcomes": "== 717, < 6096, > 5343 (signed); < 3121, > 8318 (unsigned)",
+     "operand": "constant 4",
+     "a": "-4..11"
+    },
+    {
+     "line": 69,
+     "text": "if ((flags & 0xF00) == 0x600)",
+     "size": 4,
+     "count": 3838,
+     "kind": "against a constant",
+     "outcomes": "== 760, < 1563, > 1515 (signed); < 1563, > 1515 (unsigned)",
+     "operand": "constant 1536",
+     "a": "1024..2048"
+    },
+    {
+     "line": 72,
+     "text": "if ((flags & 0xF00) == 0xF00)",
+     "size": 4,
+     "count": 12156,
+     "kind": "against a constant",
+     "outcomes": "== 786, < 11370, > 0 (signed); < 11370, > 0 (unsigned)",
+     "operand": "constant 3840",
+     "a": "0..3840"
+    },
+    {
+     "line": 74,
+     "text": "if (*(int*)((char*)weapon + 8) & 0x40) {",
+     "size": 4,
+     "count": 12156,
+     "kind": "against a constant",
+     "outcomes": "== 6140, < 0, > 6016 (signed); < 0, > 6016 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..64"
+    },
+    {
+     "line": 81,
+     "text": "if (value) {",
+     "size": 4,
+     "count": 12156,
+     "kind": "against a constant",
+     "outcomes": "== 8292, < 0, > 3864 (signed); < 0, > 3864 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 46478,
+     "completion_tokens": 34508,
+     "reasoning_tokens": 31672,
+     "cost": 0.0219018,
+     "seconds": 135.3,
+     "sample": 1,
+     "conversation": "9b475c51e0735e2a1f9a5517cc7e63dcf9eabc670215d779358c5e7b42e95256"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/common/psx.zig:232:12: error: @ptrCast increases pointer alignment\n    return @ptrCast(p);\n           ^~~~~~~~~~~\ngame/common/psx.zig:232:21: note: '*align(1) views_49268.MATRIX' has alignment '1'\n    return @ptrCast(p);\n                    ^\ngame/common/psx.zig:232:12: note: '[*c]c_49268.MATRIX' has alignment '4'\ngame/common/psx.zig:232:12: note: use @alignCast to assert pointer alignment\nreferenced by:\n    func_800B217C: game/battle/func_800B217C.zig:83:21\n    main: pc/tests/zig_diff/main.zig:454:31\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 49674,
+     "completion_tokens": 5363,
+     "reasoning_tokens": 2400,
+     "cost": 0.0076489,
+     "seconds": 19.5,
+     "sample": 1,
+     "conversation": "38c9517491e16e2fabf5af2f86d8eadbf5bbdf5da4e3283c9283220f971fbc2a"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800B217C.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800B217C.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 88.02094350799985,
+ "wall_seconds": 440.19749879899996,
+ "totals": {
+  "cost": 0.05548,
+  "prompt_tokens": 119125,
+  "completion_tokens": 87139,
+  "model_seconds": 351.9,
+  "check_seconds": 88.0,
+  "calls": 3,
+  "wall_seconds": 440.2
+ },
+ "review": {
+  "renamed": "weapon_model.drawWeaponModel",
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "spec_fixes": [
+   "func_800B516C and func_800B3CF0 were plain recorders and the colour is a stack local the trace only tags: a port that built the colour wrong passed; the stubs now copy its r, g, b (and the code byte when the C copies the whole word) into D_800F2458"
+  ],
+  "mutations_added": [
+   "R1: the colour word from actor+0x50",
+   "R2: the flag-0x40 colour's blue left at 0"
+  ],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 248 / 481 / 2736, 0 mismatches"
+ }
+}

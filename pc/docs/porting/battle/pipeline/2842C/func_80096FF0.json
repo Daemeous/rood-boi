@@ -1,0 +1,186 @@
+{
+ "function": "func_80096FF0",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "spec-failed",
+ "reviewed": "not ported in this wave (unrouted): spec-failed: FAIL: the coverage gate (zig_diff.py --coverage):",
+ "plan": {
+  "name": "func_80096FF0",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x80096ff0",
+  "difficulty": "S",
+  "zig_name": "func_80096FF0",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_80096FF0",
+  "spec_file": "func_80096FF0.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_80096FF0(arg0: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [
+   "D_800F2272",
+   "D_800F2280",
+   "vs_main_settings"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_80096FF0: branches 8/8 (100.0%), conditions not measured (GCC < 14: branch coverage only), lines 13/13\n  FLAG +15 eq: boundary equality never occurred (32-bit compare, constant 287: both sides seen; a port's `<` for `<=` could pass): `if (D_800F2280.vx + d < 288) {`\ncoverage func_80096FF0: FAILED (threshold 100%: 0 uncovered, 1 value flag(s) not waived)\nWhat to add:\n- `if (D_800F2280.vx + d < 288) {` (+15): the two sides of this ordered compare were equal 0 time(s) in 4627. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_80096FF0.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_80096FF0: branches 8/8 (100.0%), conditions not measured (GCC < 14: branch coverage only), lines 13/13\n  FLAG +15 eq: boundary equality never occurred (32-bit compare, constant 287: both sides seen; a port's `<` for `<=` could pass): `if (D_800F2280.vx + d < 288) {`\ncoverage func_80096FF0: FAILED (threshold 100%: 0 uncovered, 1 value flag(s) not waived)\nWhat to add:\n- `if (D_800F2280.vx + d < 288) {` (+15): the two sides of this ordered compare were equal 0 time(s) in 10904. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_80096FF0.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   }
+  ],
+  "classes": {
+   "disabled": "7515",
+   "vy-not-low": "8363",
+   "sum-under-288": "2879",
+   "sum-equal-288": "4789",
+   "sum-over-288": "6454"
+  },
+  "mutations": [
+   {
+    "name": "M1: the vx + d bound is inclusive",
+    "caught": true
+   },
+   {
+    "name": "M2: the clamp distance is 41 - vy",
+    "caught": true
+   },
+   {
+    "name": "M3: the frame counter is decremented",
+    "caught": true
+   },
+   {
+    "name": "M4: vy compared unsigned",
+    "caught": true
+   },
+   {
+    "name": "M5: the callee result is not tested",
+    "caught": true
+   },
+   {
+    "name": "M6: wrong constant passed to the callee",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 8,
+   "branches_hit": 8,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 13,
+   "lines_hit": 13,
+   "uncovered": [],
+   "flags": [
+    {
+     "id": "+15 eq",
+     "line": 15,
+     "text": "if (D_800F2280.vx + d < 288) {",
+     "kind": "eq",
+     "bits": 32,
+     "equal": 0,
+     "count": 10904,
+     "what": "boundary equality never occurred (32-bit compare, constant 287: both sides seen; a port's `<` for `<=` could pass)"
+    }
+   ],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 4,
+     "text": "if (!vs_main_settings.abilityTimingDisplay) {",
+     "size": 1,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 7515, < 0, > 22485 (signed); < 0, > 22485 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..32"
+    },
+    {
+     "line": 8,
+     "text": "if (func_800A1280(0, 0xFB, &D_800F2280, 0) != 0) {",
+     "size": 4,
+     "count": 22485,
+     "kind": "against a constant",
+     "outcomes": "== 17555, < 3765, > 1165 (signed); < 0, > 4930 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2146129379..2144220521"
+    },
+    {
+     "line": 12,
+     "text": "if (D_800F2280.vy < 40) {",
+     "size": 2,
+     "count": 17555,
+     "kind": "against a constant",
+     "outcomes": "== 1026, < 9878, > 6651 (signed); < 3145, > 13384 (unsigned)",
+     "operand": "constant 39",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 15,
+     "text": "if (D_800F2280.vx + d < 288) {",
+     "size": 4,
+     "count": 10904,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 2275, > 8629 (signed); < 394, > 10510 (unsigned)",
+     "operand": "constant 287",
+     "a": "-32767..65575"
+    }
+   ],
+   "passed": false
+  }
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 20.144821801000944,
+ "wall_seconds": 20.34529001300325,
+ "totals": {
+  "cost": 0.0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "model_seconds": 0.0,
+  "check_seconds": 20.1,
+  "calls": 0,
+  "wall_seconds": 20.3
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22"
+ }
+}

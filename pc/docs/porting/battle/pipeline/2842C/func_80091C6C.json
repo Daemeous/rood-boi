@@ -1,0 +1,201 @@
+{
+ "function": "func_80091C6C",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the unsigned frame division of the (u_int) casts); spec sound",
+ "plan": {
+  "name": "func_80091C6C",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x80091c6c",
+  "difficulty": "S",
+  "zig_name": "func_80091C6C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_80091C6C",
+  "spec_file": "func_80091C6C.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_80091C6C(arg0: ?*v.func_80091C6C_t) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "?*v.func_80091C6C_t"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "func_80091C6C_t"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/func_80091C6C/spec1/build/spec.zig:71:20: error: value with comptime-only type 'comptime_int' depends on runtime control flow\n    return kind + (if (tri) 0 else 1);\n                   ^~~~~~~~~~~~~~~~~\npc/build/port-pipeline/func_80091C6C/spec1/build/spec.zig:71:24: note: runtime control flow here\n    return kind + (if (tri) 0 else 1);\n                       ^~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:443:36\n    main: pc/tests/zig_diff/main.zig:392:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "no-advance": "20855",
+   "wrap-tri": "3342",
+   "wrap-quad": "2999",
+   "advance-tri": "1448",
+   "advance-quad": "1356"
+  },
+  "mutations": [
+   {
+    "name": "F1: tick test uses >= (equal sides advance the animation)",
+    "caught": true
+   },
+   {
+    "name": "F2: frame wrap test uses > (frame reaching frameCount is kept)",
+    "caught": true
+   },
+   {
+    "name": "F3: u uses frameHeight for the width step",
+    "caught": true
+   },
+   {
+    "name": "F4: quad path reads u[2] for the fourth corner",
+    "caught": true
+   },
+   {
+    "name": "F5: quad path drops the v[2] store",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 6,
+   "branches_hit": 6,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 26,
+   "lines_hit": 26,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 10,
+     "text": "if (++arg0->tick > arg0->delay) {",
+     "size": 1,
+     "count": 30000,
+     "kind": "a == b / a < b",
+     "outcomes": "== 11658, < 9225, > 9117 (signed); < 9197, > 9145 (unsigned)",
+     "operand": "b -128..127",
+     "a": "-128..127"
+    },
+    {
+     "line": 12,
+     "text": "if (++arg0->frame >= arg0->frameCount) {",
+     "size": 1,
+     "count": 9145,
+     "kind": "a == b / a < b",
+     "outcomes": "== 3473, < 3002, > 2670 (signed); < 2804, > 2868 (unsigned)",
+     "operand": "b -128..127",
+     "a": "-128..127"
+    },
+    {
+     "line": 18,
+     "text": "if ((polygon[0xF] & 0x3C) == 0x34) {",
+     "size": 4,
+     "count": 9145,
+     "kind": "against a constant",
+     "outcomes": "== 4790, < 3755, > 600 (signed); < 3755, > 600 (unsigned)",
+     "operand": "constant 52",
+     "a": "0..60"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_80091C6C.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_80091C6C.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 33.2923436229994,
+ "wall_seconds": 33.5404470400008,
+ "totals": {
+  "cost": 0.0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "model_seconds": 0.0,
+  "check_seconds": 33.3,
+  "calls": 0,
+  "wall_seconds": 33.5
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

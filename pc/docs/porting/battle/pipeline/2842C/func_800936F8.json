@@ -1,0 +1,217 @@
+{
+ "function": "func_800936F8",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_800936F8",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x800936f8",
+  "difficulty": "S",
+  "zig_name": "func_800936F8",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800936F8",
+  "spec_file": "func_800936F8.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_800936F8(arg0: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [
+   "D_800F1DD8",
+   "D_800F225A",
+   "D_800F225B"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "negative-below-bound": "6890",
+   "below-bound": "9842",
+   "second-range": "3810",
+   "outside": "9458"
+  },
+  "mutations": [
+   {
+    "name": "F1: first bound is <= instead of <",
+    "caught": true
+   },
+   {
+    "name": "F2: unsigned compare on the first bound (negatives skip the branch)",
+    "caught": true
+   },
+   {
+    "name": "F3: the first branch drops its store",
+    "caught": true
+   },
+   {
+    "name": "F4: the first store compares unk2 <= 1",
+    "caught": true
+   },
+   {
+    "name": "F5: the second range returns 2",
+    "caught": true
+   },
+   {
+    "name": "F6: the second range bound is off by one (+0x3F)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 6,
+   "branches_hit": 6,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 8,
+   "lines_hit": 8,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -4, max 96, unsigned 0..4294967295, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 2,
+     "text": "if (arg0 < D_800F225A) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "a == b / a < b",
+     "outcomes": "== 3326, < 16732, > 9942 (signed); < 9842, > 16832 (unsigned)",
+     "operand": "b 0..96",
+     "a": "-4..96"
+    },
+    {
+     "line": 3,
+     "text": "D_800F1DD8[arg0].unk2 = D_800F1DD8[arg0].unk2 < 1U;",
+     "size": 1,
+     "count": 16732,
+     "kind": "against a constant",
+     "outcomes": "== 1918, < 5527, > 9287 (signed); < 0, > 14814 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 6,
+     "text": "if ((arg0 >= 0x40) && (arg0 < (D_800F225B + 0x40))) {",
+     "size": 4,
+     "count": 13268,
+     "kind": "against a constant",
+     "outcomes": "== 2424, < 3000, > 7844 (signed); < 3000, > 7844 (unsigned)",
+     "operand": "constant 63",
+     "a": "0..96"
+    },
+    {
+     "line": 6,
+     "text": "if ((arg0 >= 0x40) && (arg0 < (D_800F225B + 0x40))) {",
+     "size": 4,
+     "count": 7844,
+     "kind": "a == b / a < b",
+     "outcomes": "== 2922, < 3810, > 1112 (signed); < 3810, > 1112 (unsigned)",
+     "operand": "b 64..96",
+     "a": "64..96"
+    },
+    {
+     "line": 7,
+     "text": "D_800F1DD8[arg0].unk2 = D_800F1DD8[arg0].unk2 < 1U;",
+     "size": 1,
+     "count": 3810,
+     "kind": "against a constant",
+     "outcomes": "== 777, < 774, > 2259 (signed); < 0, > 3033 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..2"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800936F8.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800936F8.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 48.15950048399827,
+ "wall_seconds": 94.27181435000239,
+ "totals": {
+  "cost": 0.0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "model_seconds": 0.0,
+  "check_seconds": 48.2,
+  "calls": 0,
+  "wall_seconds": 94.3
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

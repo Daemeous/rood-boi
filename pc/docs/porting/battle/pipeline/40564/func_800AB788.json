@@ -1,0 +1,385 @@
+{
+ "function": "func_800AB788",
+ "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (two offsets retyped for the 32-bit build); spec finished by the reviewer (the value-15 edge)",
+ "plan": {
+  "name": "func_800AB788",
+  "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+  "stem": "40564",
+  "address": "0x800ab788",
+  "difficulty": "M",
+  "zig_name": "func_800AB788",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800AB788",
+  "spec_file": "func_800AB788.zig",
+  "subsystem": "battle_40564_port",
+  "signature": "pub fn func_800AB788(actor: [*c]u8, object: [*c]u8, arg2: c_int) callconv(.c) void",
+  "params": [
+   [
+    "actor",
+    "[*c]u8"
+   ],
+   [
+    "object",
+    "[*c]u8"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [
+   "vs_gametime_tickspeed"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13036,
+     "completion_tokens": 14162,
+     "reasoning_tokens": 12289,
+     "cost": 0.0083846,
+     "seconds": 61.3,
+     "sample": 1,
+     "conversation": "50945da8406c6dd9273fb6acd9cad4908ba92d7cb46693cb19b496494001cd8b"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800AB788: branches 40/40 (100.0%), conditions not measured (GCC < 14: branch coverage only), lines 58/58\n  FLAG +26 eq: boundary equality occurred only 4 time(s) in 2441 (32-bit compare, constant 15: both sides seen; a port's `<` for `<=` could pass): `if (value >= 16) {`\ncoverage func_800AB788: FAILED (threshold 100%: 0 uncovered, 1 value flag(s) not waived)\nWhat to add:\n- `if (value >= 16) {` (+26): the two sides of this ordered compare were equal 4 time(s) in 2441. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800AB788.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "object": "13332",
+   "actor-count16": "13394",
+   "actor-count160": "13274"
+  },
+  "mutations": [
+   {
+    "name": "F1: blend adds one extra to b",
+    "caught": true
+   },
+   {
+    "name": "F2: tick speed test against 3, not 4",
+    "caught": true
+   },
+   {
+    "name": "F3: wrong flag bit for the 160-colour count",
+    "caught": true
+   },
+   {
+    "name": "F4: shift instead of signed division for the red fade",
+    "caught": true
+   },
+   {
+    "name": "F5: full-brightness test as >= instead of ==",
+    "caught": true
+   },
+   {
+    "name": "F6: loadClut slot constant for the object path",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 40,
+   "branches_hit": 40,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 58,
+   "lines_hit": 58,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: null seen"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "pointer: null seen"
+    },
+    {
+     "arg": 2,
+     "count": 40000,
+     "text": "32-bit: min -2147365318, max 2147475503, unsigned 25353..4294927040, seen negative, never zero"
+    }
+   ],
+   "compares": [
+    {
+     "line": 17,
+     "text": "if (!(*(u_int*)(actor + 0x5AC) & 0x8000000)) {",
+     "size": 4,
+     "count": 26668,
+     "kind": "against a constant",
+     "outcomes": "== 13394, < 0, > 13274 (signed); < 0, > 13274 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..134217728"
+    },
+    {
+     "line": 23,
+     "text": "if (vs_gametime_tickspeed == 4) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 6623, < 19910, > 13467 (signed); < 6572, > 26805 (unsigned)",
+     "operand": "constant 4",
+     "a": "-2147221108..2147274502"
+    },
+    {
+     "line": 24,
+     "text": "if (!(state[2] & 2)) {",
+     "size": 4,
+     "count": 6623,
+     "kind": "against a constant",
+     "outcomes": "== 4996, < 0, > 1627 (signed); < 0, > 1627 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..2"
+    },
+    {
+     "line": 26,
+     "text": "if (value >= 16) {",
+     "size": 4,
+     "count": 4996,
+     "kind": "against a constant",
+     "outcomes": "== 672, < 1272, > 3052 (signed); < 1272, > 3052 (unsigned)",
+     "operand": "constant 15",
+     "a": "2..257"
+    },
+    {
+     "line": 31,
+     "text": "if (value <= 0) {",
+     "size": 4,
+     "count": 1627,
+     "kind": "against a constant",
+     "outcomes": "== 57, < 99, > 1471 (signed); < 0, > 1570 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2..253"
+    },
+    {
+     "line": 36,
+     "text": "if (!(state[2] & 2)) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 27218, < 0, > 12782 (signed); < 0, > 12782 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..2"
+    },
+    {
+     "line": 38,
+     "text": "if (value >= 16) {",
+     "size": 4,
+     "count": 27218,
+     "kind": "against a constant",
+     "outcomes": "== 3817, < 6976, > 16425 (signed); < 6976, > 16425 (unsigned)",
+     "operand": "constant 15",
+     "a": "0..257"
+    },
+    {
+     "line": 43,
+     "text": "if (value <= 0) {",
+     "size": 4,
+     "count": 12782,
+     "kind": "against a constant",
+     "outcomes": "== 269, < 518, > 11995 (signed); < 0, > 12513 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2..255"
+    },
+    {
+     "line": 48,
+     "text": "for (i = 0; i < count; i++) {",
+     "size": 4,
+     "count": 2591456,
+     "kind": "a == b / a < b",
+     "outcomes": "== 40000, < 2551456, > 0 (signed); < 2551456, > 0 (unsigned)",
+     "operand": "b 16..160",
+     "a": "0..160"
+    },
+    {
+     "line": 54,
+     "text": "if (color != 0) {",
+     "size": 4,
+     "count": 2551456,
+     "kind": "against a constant",
+     "outcomes": "== 213585, < 0, > 2337871 (signed); < 0, > 2337871 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..65535"
+    },
+    {
+     "line": 59,
+     "text": "if (value == 16) {",
+     "size": 4,
+     "count": 2337871,
+     "kind": "against a constant",
+     "outcomes": "== 152799, < 1027272, > 1157800 (signed); < 996527, > 1188545 (unsigned)",
+     "operand": "constant 16",
+     "a": "-2..257"
+    },
+    {
+     "line": 61,
+     "text": "if (r > 31) {",
+     "size": 4,
+     "count": 152799,
+     "kind": "against a constant",
+     "outcomes": "== 2609, < 101580, > 48610 (signed); < 101580, > 48610 (unsigned)",
+     "operand": "constant 31",
+     "a": "8..39"
+    },
+    {
+     "line": 65,
+     "text": "if (g > 31) {",
+     "size": 4,
+     "count": 152799,
+     "kind": "against a constant",
+     "outcomes": "== 2668, < 75730, > 74401 (signed); < 75730, > 74401 (unsigned)",
+     "operand": "constant 31",
+     "a": "18..49"
+    },
+    {
+     "line": 71,
+     "text": "if (r < 0) {",
+     "size": 4,
+     "count": 2185072,
+     "kind": "against a constant",
+     "outcomes": "== 48682, < 1203565, > 932825 (signed); < 0, > 2136390 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..32"
+    },
+    {
+     "line": 75,
+     "text": "if (g > 31) {",
+     "size": 4,
+     "count": 2185072,
+     "kind": "against a constant",
+     "outcomes": "== 35183, < 1066883, > 1083006 (signed); < 1063969, > 1085920 (unsigned)",
+     "operand": "constant 31",
+     "a": "-1..159"
+    },
+    {
+     "line": 80,
+     "text": "if (b > 31) {",
+     "size": 4,
+     "count": 2337871,
+     "kind": "against a constant",
+     "outcomes": "== 46990, < 854819, > 1436062 (signed); < 847034, > 1443847 (unsigned)",
+     "operand": "constant 31",
+     "a": "-2..288"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 36516,
+     "completion_tokens": 11227,
+     "reasoning_tokens": 9778,
+     "cost": 0.0092651,
+     "seconds": 46.3,
+     "sample": 1,
+     "conversation": "43a8265715b8ef2d6d609c6f49bb1a1df012342bcb4b9ad73908ab7a472e59ec"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800AB788.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800AB788.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 63.199512653000056,
+ "wall_seconds": 127.98488316899966,
+ "totals": {
+  "cost": 0.01765,
+  "prompt_tokens": 49552,
+  "completion_tokens": 25389,
+  "model_seconds": 107.6,
+  "check_seconds": 63.2,
+  "calls": 2,
+  "wall_seconds": 128.0
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "spec_fixes": [
+   "reviewer's round-2 reply: the fade byte drew 12/14/15/16, but GCC tests `value > 15` after +2 (or +4): 11 and 13 added"
+  ],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: - / - / root 44, 0 mismatches",
+  "port_fixes": [
+   "after the wave: the 32-bit build rejected two u32 offsets mixed with isize (the gates build 64-bit only); the offsets are isize"
+  ]
+ }
+}

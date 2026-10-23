@@ -1,0 +1,221 @@
+{
+ "function": "func_80091A1C",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_80091A1C",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x80091a1c",
+  "difficulty": "S",
+  "zig_name": "func_80091A1C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_80091A1C",
+  "spec_file": "func_80091A1C.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_80091A1C(arg0: c_int, arg1: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11358,
+     "completion_tokens": 6804,
+     "reasoning_tokens": 5462,
+     "cost": 0.0045378,
+     "seconds": 30.6,
+     "sample": 1,
+     "conversation": "655887ddc60b6d9a63b1d052a1748199660e8d8cd68d3bf3ec53306633dab7dd"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "distinct-args": "21847",
+   "same-args": "8153"
+  },
+  "mutations": [
+   {
+    "name": "S1: the first store is dropped",
+    "caught": true
+   },
+   {
+    "name": "S2: the second store reads the already overwritten *temp_s0",
+    "caught": true
+   },
+   {
+    "name": "S3: arg1 passed to the first call",
+    "caught": true
+   },
+   {
+    "name": "S4: failure returns -1 instead of 0",
+    "caught": true
+   },
+   {
+    "name": "S5: && becomes || (a NULL pointer is dereferenced)",
+    "caught": true
+   },
+   {
+    "name": "S6: success returns 2",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 4,
+   "branches_hit": 4,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 9,
+   "lines_hit": 9,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34831,
+     "completion_tokens": 1683,
+     "reasoning_tokens": 1398,
+     "cost": 0.0043246,
+     "seconds": 10.7,
+     "sample": 1,
+     "conversation": "6a280a949854f968999279cab34fddb45ef10774f202800c24dbf6e1fab850cd"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_80091A1C.zig:11:21: error: cannot dereference non-pointer type '?*anyopaque'\n        const t = s0.*;\n                  ~~^~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:469:31\n    main: pc/tests/zig_diff/main.zig:392:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35348,
+     "completion_tokens": 1131,
+     "reasoning_tokens": 724,
+     "cost": 0.0041003,
+     "seconds": 5.7,
+     "sample": 1,
+     "conversation": "6c3d3f57db43cdfd86f45ed35cefc8cd6a45f4350a778ecd05f7696a0ea96c35"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_80091A1C.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_80091A1C.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 24.366535430001022,
+ "wall_seconds": 24.543873351000002,
+ "totals": {
+  "cost": 0.01296,
+  "prompt_tokens": 81537,
+  "completion_tokens": 9618,
+  "model_seconds": 47.0,
+  "check_seconds": 24.4,
+  "calls": 3,
+  "wall_seconds": 24.5
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

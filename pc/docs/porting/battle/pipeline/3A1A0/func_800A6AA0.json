@@ -1,0 +1,750 @@
+{
+ "function": "func_800A6AA0",
+ "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (returns 0 on the C's bare returns); spec finished by the reviewer (three unreachable arms waived; ignore_return)",
+ "plan": {
+  "name": "func_800A6AA0",
+  "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+  "stem": "3A1A0",
+  "address": "0x800a6aa0",
+  "difficulty": "L",
+  "zig_name": "func_800A6AA0",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A6AA0",
+  "spec_file": "func_800A6AA0.zig",
+  "subsystem": "battle_3A1A0_port",
+  "signature": "pub fn func_800A6AA0(actor: ?*v.D_800F4538_t, speed: c_int, direction: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "actor",
+    "?*v.D_800F4538_t"
+   ],
+   [
+    "speed",
+    "c_int"
+   ],
+   [
+    "direction",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [
+   "D_800E90CC",
+   "D_800E90D0"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 19781,
+     "completion_tokens": 25423,
+     "reasoning_tokens": 22929,
+     "cost": 0.0146896,
+     "seconds": 104.5,
+     "sample": 1,
+     "conversation": "a65f6366a18185d73760babb5177d21364c42950f87c0de2e514f828af74a8d3"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:181:9: error: zdiff: a spec stub gives void where the C prototype has c_int: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:235:29\n    f: pc/build/port-pipeline/func_800A6AA0/spec1/build/game/common/route.zig:34:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 22614,
+     "completion_tokens": 4080,
+     "reasoning_tokens": 1571,
+     "cost": 0.0043014,
+     "seconds": 16.0,
+     "sample": 1,
+     "conversation": "01ccbd374c75636d11ab89bccf0c69ecc49cd2637c151acb0c2ed9abb48d8df9"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:181:9: error: zdiff: a spec stub gives void where the C prototype has c_int: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:235:29\n    f: pc/build/port-pipeline/func_800A6AA0/spec2/build/game/common/route.zig:34:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ]
+   },
+   {
+    "round": 3,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 3,
+   "sample": 1
+  },
+  "classes": {
+   "flag8": "10149",
+   "wide-table": "14977",
+   "queued": "5029",
+   "running": "4274",
+   "walking": "923",
+   "idle": "4648"
+  },
+  "mutations": [
+   {
+    "name": "M1: animation id wrapped by 99, not 100",
+    "caught": true
+   },
+   {
+    "name": "M2: running-branch test takes 3 values, not 2",
+    "caught": true
+   },
+   {
+    "name": "M3: speed compared unsigned against unk5B9",
+    "caught": true
+   },
+   {
+    "name": "M4: idle store to unk5B3 dropped",
+    "caught": true
+   },
+   {
+    "name": "M5: idle clamp at 249, not 250",
+    "caught": true
+   },
+   {
+    "name": "M6: walk table indexed by quadrant ^ 1",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 86,
+   "branches_hit": 83,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 107,
+   "lines_hit": 107,
+   "uncovered": [
+    {
+     "id": "+88 b2",
+     "line": 88,
+     "text": "if (animation == 0xD || animation == 0xF) {",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+127 b3",
+     "line": 127,
+     "text": "if (animation == 0x13 || animation == 0xF || animation == 0xD) {",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+127 b4",
+     "line": 127,
+     "text": "if (animation == 0x13 || animation == 0xF || animation == 0xD) {",
+     "what": "branch never taken"
+    }
+   ],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "32-bit: min -300, max 300, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 40000,
+     "text": "32-bit: min -2147479460, max 2147123322, unsigned 86173..4294962661, seen negative, never zero"
+    }
+   ],
+   "compares": [
+    {
+     "line": 15,
+     "text": "if (animation >= 100) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 1012, < 29926, > 9062 (signed); < 29926, > 9062 (unsigned)",
+     "operand": "constant 99",
+     "a": "0..255"
+    },
+    {
+     "line": 19,
+     "text": "if (actor->unk1848.unk0 == 1) {",
+     "size": 1,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 12011, < 14139, > 13850 (signed); < 4196, > 23793 (unsigned)",
+     "operand": "constant 1",
+     "a": "-128..127"
+    },
+    {
+     "line": 25,
+     "text": "if (flags & 8) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 29851, < 0, > 10149 (signed); < 0, > 10149 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..8"
+    },
+    {
+     "line": 27,
+     "text": "if (speed > 0) {",
+     "size": 4,
+     "count": 10149,
+     "kind": "against a constant",
+     "outcomes": "== 1727, < 3847, > 4575 (signed); < 0, > 8422 (unsigned)",
+     "operand": "constant 0",
+     "a": "-300..300"
+    },
+    {
+     "line": 33,
+     "text": "if (animation == 0x5F) {",
+     "size": 4,
+     "count": 10149,
+     "kind": "against a constant",
+     "outcomes": "== 563, < 8765, > 821 (signed); < 8765, > 821 (unsigned)",
+     "operand": "constant 95",
+     "a": "0..155"
+    },
+    {
+     "line": 38,
+     "text": "if (*(u_int*)((char*)actor + 8) & 0x400000) {",
+     "size": 4,
+     "count": 29851,
+     "kind": "against a constant",
+     "outcomes": "== 14874, < 0, > 14977 (signed); < 0, > 14977 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..4194304"
+    },
+    {
+     "line": 39,
+     "text": "if (speed >= actor->unk5B9) {",
+     "size": 4,
+     "count": 14977,
+     "kind": "a == b / a < b",
+     "outcomes": "== 2048, < 10945, > 1984 (signed); < 5203, > 7726 (unsigned)",
+     "operand": "b 0..255",
+     "a": "-300..300"
+    },
+    {
+     "line": 42,
+     "text": "} else if (speed > 0) {",
+     "size": 4,
+     "count": 10945,
+     "kind": "against a constant",
+     "outcomes": "== 2134, < 5742, > 3069 (signed); < 0, > 8811 (unsigned)",
+     "operand": "constant 0",
+     "a": "-300..254"
+    },
+    {
+     "line": 53,
+     "text": "if (flags & 0x8000) {",
+     "size": 4,
+     "count": 14874,
+     "kind": "against a constant",
+     "outcomes": "== 9845, < 0, > 5029 (signed); < 0, > 5029 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..32768"
+    },
+    {
+     "line": 54,
+     "text": "if ((u_int)(animation - 0x19) < 2) {",
+     "size": 4,
+     "count": 5029,
+     "kind": "against a constant",
+     "outcomes": "== 120, < 2913, > 1996 (signed); < 152, > 4757 (unsigned)",
+     "operand": "constant 1",
+     "a": "-25..130"
+    },
+    {
+     "line": 58,
+     "text": "if ((u_int)(animation - 0x12) >= 2) {",
+     "size": 4,
+     "count": 4757,
+     "kind": "against a constant",
+     "outcomes": "== 256, < 1856, > 2645 (signed); < 112, > 4389 (unsigned)",
+     "operand": "constant 1",
+     "a": "-18..137"
+    },
+    {
+     "line": 59,
+     "text": "if (animation == 0x14 || animation == 0x11) {",
+     "size": 4,
+     "count": 4389,
+     "kind": "against a constant",
+     "outcomes": "== 253, < 1744, > 2392 (signed); < 1744, > 2392 (unsigned)",
+     "operand": "constant 20",
+     "a": "0..155"
+    },
+    {
+     "line": 59,
+     "text": "if (animation == 0x14 || animation == 0x11) {",
+     "size": 4,
+     "count": 4136,
+     "kind": "against a constant",
+     "outcomes": "== 108, < 1636, > 2392 (signed); < 1636, > 2392 (unsigned)",
+     "operand": "constant 17",
+     "a": "0..155"
+    },
+    {
+     "line": 72,
+     "text": "} else if (speed >= actor->unk5B9 - 1) {",
+     "size": 4,
+     "count": 9845,
+     "kind": "a == b / a < b",
+     "outcomes": "== 1576, < 5571, > 2698 (signed); < 2663, > 5606 (unsigned)",
+     "operand": "b -1..254",
+     "a": "-300..300"
+    },
+    {
+     "line": 73,
+     "text": "if ((u_int)(animation - 0x13) < 2) {",
+     "size": 4,
+     "count": 4274,
+     "kind": "against a constant",
+     "outcomes": "== 201, < 1854, > 2219 (signed); < 242, > 3831 (unsigned)",
+     "operand": "constant 1",
+     "a": "-19..136"
+    },
+    {
+     "line": 76,
+     "text": "if ((u_int)(animation - 0xF) < 4 || (u_int)(animation - 0x2E) < 11",
+     "size": 4,
+     "count": 3831,
+     "kind": "against a constant",
+     "outcomes": "== 119, < 1493, > 2219 (signed); < 328, > 3384 (unsigned)",
+     "operand": "constant 3",
+     "a": "-15..140"
+    },
+    {
+     "line": 76,
+     "text": "if ((u_int)(animation - 0xF) < 4 || (u_int)(animation - 0x2E) < 11",
+     "size": 4,
+     "count": 3384,
+     "kind": "against a constant",
+     "outcomes": "== 90, < 2233, > 1061 (signed); < 156, > 3138 (unsigned)",
+     "operand": "constant 10",
+     "a": "-46..109"
+    },
+    {
+     "line": 77,
+     "text": "|| (u_int)(animation - 9) < 4 || animation == 1 || animation == 6) {",
+     "size": 4,
+     "count": 3138,
+     "kind": "against a constant",
+     "outcomes": "== 141, < 813, > 2184 (signed); < 225, > 2772 (unsigned)",
+     "operand": "constant 3",
+     "a": "-9..146"
+    },
+    {
+     "line": 77,
+     "text": "|| (u_int)(animation - 9) < 4 || animation == 1 || animation == 6) {",
+     "size": 4,
+     "count": 2772,
+     "kind": "against a constant",
+     "outcomes": "== 217, < 229, > 2326 (signed); < 229, > 2326 (unsigned)",
+     "operand": "constant 1",
+     "a": "0..155"
+    },
+    {
+     "line": 77,
+     "text": "|| (u_int)(animation - 9) < 4 || animation == 1 || animation == 6) {",
+     "size": 4,
+     "count": 2555,
+     "kind": "against a constant",
+     "outcomes": "== 118, < 246, > 2191 (signed); < 246, > 2191 (unsigned)",
+     "operand": "constant 6",
+     "a": "0..155"
+    },
+    {
+     "line": 88,
+     "text": "if (animation == 0xD || animation == 0xF) {",
+     "size": 4,
+     "count": 2437,
+     "kind": "against a constant",
+     "outcomes": "== 114, < 253, > 2070 (signed); < 253, > 2070 (unsigned)",
+     "operand": "constant 13",
+     "a": "0..155"
+    },
+    {
+     "line": 88,
+     "text": "if (animation == 0xD || animation == 0xF) {",
+     "size": 4,
+     "count": 2323,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 350, > 1973 (signed); < 350, > 1973 (unsigned)",
+     "operand": "constant 15",
+     "a": "0..155"
+    },
+    {
+     "line": 93,
+     "text": "} else if (speed > 0) {",
+     "size": 4,
+     "count": 5571,
+     "kind": "against a constant",
+     "outcomes": "== 1157, < 3491, > 923 (signed); < 0, > 4414 (unsigned)",
+     "operand": "constant 0",
+     "a": "-300..250"
+    },
+    {
+     "line": 94,
+     "text": "if ((u_int)(animation - 0x2E) >= 11 && (u_int)(animation - 9) >= 4) {",
+     "size": 4,
+     "count": 923,
+     "kind": "against a constant",
+     "outcomes": "== 24, < 663, > 236 (signed); < 34, > 865 (unsigned)",
+     "operand": "constant 10",
+     "a": "-46..109"
+    },
+    {
+     "line": 94,
+     "text": "if ((u_int)(animation - 0x2E) >= 11 && (u_int)(animation - 9) >= 4) {",
+     "size": 4,
+     "count": 865,
+     "kind": "against a constant",
+     "outcomes": "== 14, < 178, > 673 (signed); < 44, > 807 (unsigned)",
+     "operand": "constant 3",
+     "a": "-9..146"
+    },
+    {
+     "line": 95,
+     "text": "if ((u_int)(animation - 0xD) < 2) {",
+     "size": 4,
+     "count": 807,
+     "kind": "against a constant",
+     "outcomes": "== 20, < 155, > 632 (signed); < 21, > 766 (unsigned)",
+     "operand": "constant 1",
+     "a": "-13..142"
+    },
+    {
+     "line": 96,
+     "text": "if (quadrant != 2) {",
+     "size": 4,
+     "count": 41,
+     "kind": "against a constant",
+     "outcomes": "== 1, < 39, > 1 (signed); < 39, > 1 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..3"
+    },
+    {
+     "line": 100,
+     "text": "} else if ((u_int)(animation - 0xF) < 2) {",
+     "size": 4,
+     "count": 766,
+     "kind": "against a constant",
+     "outcomes": "== 21, < 166, > 579 (signed); < 32, > 713 (unsigned)",
+     "operand": "constant 1",
+     "a": "-15..140"
+    },
+    {
+     "line": 101,
+     "text": "if (quadrant == 2) {",
+     "size": 4,
+     "count": 53,
+     "kind": "against a constant",
+     "outcomes": "== 5, < 43, > 5 (signed); < 43, > 5 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..3"
+    },
+    {
+     "line": 106,
+     "text": "if (animation == 1 || animation == 6 || animation == 0x11",
+     "size": 4,
+     "count": 713,
+     "kind": "against a constant",
+     "outcomes": "== 52, < 44, > 617 (signed); < 44, > 617 (unsigned)",
+     "operand": "constant 1",
+     "a": "0..155"
+    },
+    {
+     "line": 106,
+     "text": "if (animation == 1 || animation == 6 || animation == 0x11",
+     "size": 4,
+     "count": 661,
+     "kind": "against a constant",
+     "outcomes": "== 33, < 48, > 580 (signed); < 48, > 580 (unsigned)",
+     "operand": "constant 6",
+     "a": "0..155"
+    },
+    {
+     "line": 106,
+     "text": "if (animation == 1 || animation == 6 || animation == 0x11",
+     "size": 4,
+     "count": 628,
+     "kind": "against a constant",
+     "outcomes": "== 28, < 49, > 551 (signed); < 49, > 551 (unsigned)",
+     "operand": "constant 17",
+     "a": "0..155"
+    },
+    {
+     "line": 107,
+     "text": "|| animation == 0x12) {",
+     "size": 4,
+     "count": 600,
+     "kind": "against a constant",
+     "outcomes": "== 26, < 49, > 525 (signed); < 49, > 525 (unsigned)",
+     "operand": "constant 18",
+     "a": "0..155"
+    },
+    {
+     "line": 120,
+     "text": "if (quadrant == 2) {",
+     "size": 4,
+     "count": 304,
+     "kind": "against a constant",
+     "outcomes": "== 19, < 260, > 25 (signed); < 260, > 25 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..3"
+    },
+    {
+     "line": 127,
+     "text": "if (animation == 0x13 || animation == 0xF || animation == 0xD) {",
+     "size": 4,
+     "count": 574,
+     "kind": "against a constant",
+     "outcomes": "== 50, < 49, > 475 (signed); < 49, > 475 (unsigned)",
+     "operand": "constant 19",
+     "a": "0..155"
+    },
+    {
+     "line": 127,
+     "text": "if (animation == 0x13 || animation == 0xF || animation == 0xD) {",
+     "size": 4,
+     "count": 524,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 49, > 475 (signed); < 49, > 475 (unsigned)",
+     "operand": "constant 15",
+     "a": "0..155"
+    },
+    {
+     "line": 127,
+     "text": "if (animation == 0x13 || animation == 0xF || animation == 0xD) {",
+     "size": 4,
+     "count": 524,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 49, > 475 (signed); < 49, > 475 (unsigned)",
+     "operand": "constant 13",
+     "a": "0..155"
+    },
+    {
+     "line": 130,
+     "text": "if (quadrant == 2) {",
+     "size": 4,
+     "count": 574,
+     "kind": "against a constant",
+     "outcomes": "== 47, < 487, > 40 (signed); < 487, > 40 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..3"
+    },
+    {
+     "line": 137,
+     "text": "if ((u_int)(animation - 0xD) < 4) {",
+     "size": 4,
+     "count": 4648,
+     "kind": "against a constant",
+     "outcomes": "== 115, < 1376, > 3157 (signed); < 366, > 4167 (unsigned)",
+     "operand": "constant 3",
+     "a": "-13..142"
+    },
+    {
+     "line": 142,
+     "text": "if (animation != 1 && actor->unk1848.unk0 != 6) {",
+     "size": 4,
+     "count": 4167,
+     "kind": "against a constant",
+     "outcomes": "== 248, < 252, > 3667 (signed); < 252, > 3667 (unsigned)",
+     "operand": "constant 1",
+     "a": "0..155"
+    },
+    {
+     "line": 142,
+     "text": "if (animation != 1 && actor->unk1848.unk0 != 6) {",
+     "size": 1,
+     "count": 3919,
+     "kind": "against a constant",
+     "outcomes": "== 396, < 2613, > 910 (signed); < 1647, > 1876 (unsigned)",
+     "operand": "constant 6",
+     "a": "-128..127"
+    },
+    {
+     "line": 147,
+     "text": "if (actor->unk5B3 >= 250) {",
+     "size": 1,
+     "count": 4167,
+     "kind": "against a constant",
+     "outcomes": "== 22, < 1312, > 2833 (signed); < 3570, > 575 (unsigned)",
+     "operand": "constant -7",
+     "a": "-128..127"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+88 b2",
+    "reason": "animation 0xF never gets here: the (animation - 0xF) < 4 test just above returns for 0xF..0x12"
+   },
+   {
+    "id": "+127 b3",
+    "reason": "walk_start is reached only from the last else: animations 0xD..0x10 took the (animation - 0xD) < 2 or (animation - 0xF) < 2 arms, so animation is never 0xF here"
+   },
+   {
+    "id": "+127 b4",
+    "reason": "walk_start is reached only from the last else: animations 0xD..0x10 took the (animation - 0xD) < 2 or (animation - 0xF) < 2 arms, so animation is never 0xD here"
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 43231,
+     "completion_tokens": 15136,
+     "reasoning_tokens": 12713,
+     "cost": 0.0118911,
+     "seconds": 58.0,
+     "sample": 1,
+     "conversation": "99b432c54e75cd2945c07d12643cf0ad2970cb30b6e3a85b0a3190fc4b109bf6"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800A6AA0.zig:68:24: error: value of type 'c_int' ignored\n        c.func_800AD494(@ptrCast(a), next, &entry);\n        ~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~\ngame/battle/func_800A6AA0.zig:68:24: note: all non-void values must be used\ngame/battle/func_800A6AA0.zig:68:24: note: to discard the value, assign it to '_'\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:469:31\n    main: pc/tests/zig_diff/main.zig:392:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 46000,
+     "completion_tokens": 4381,
+     "reasoning_tokens": 1955,
+     "cost": 0.0067905,
+     "seconds": 16.1,
+     "sample": 1,
+     "conversation": "7499fa171a5b880369cd72010d4a0562065989c7effbcd5b379edf5a9ae9cc67"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800A6AA0.zig:70:24: error: value of type 'c_int' ignored\n        c.func_800A0204(a.unk0.unkF, next, 0, 8);\n        ~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~\ngame/battle/func_800A6AA0.zig:70:24: note: all non-void values must be used\ngame/battle/func_800A6AA0.zig:70:24: note: to discard the value, assign it to '_'\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:469:31\n    main: pc/tests/zig_diff/main.zig:392:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 3,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 48773,
+     "completion_tokens": 4136,
+     "reasoning_tokens": 1683,
+     "cost": 0.0069453,
+     "seconds": 14.9,
+     "sample": 1,
+     "conversation": "0e3e4cd232baf06a93bd8bf490cee523c495e195d43d5116ded5ca3a68eb7812"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 3,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A6AA0.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A6AA0.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 52.77137041400238,
+ "wall_seconds": 84.03886615599913,
+ "totals": {
+  "cost": 0.04462,
+  "prompt_tokens": 180399,
+  "completion_tokens": 53156,
+  "model_seconds": 209.5,
+  "check_seconds": 52.8,
+  "calls": 5,
+  "wall_seconds": 84.0
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "spec_fixes": [
+   "reviewer's round-3 reply: +88 b2, +127 b3 and +127 b4 waived (animations 0xD and 0xF return earlier); the C's bare `return;` paths leave the int undefined and its caller ignores it: `ignore_return`",
+   "after the wave: the CTest run (another iteration path) left +101 b0 (quadrant == 2 in the walk arms) uncovered; unk1848.unk6 now puts the heading in quadrant 2 a third of the time"
+  ],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested 42 / nested 123 / nested 9, 0 mismatches"
+ }
+}

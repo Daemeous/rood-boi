@@ -1,0 +1,251 @@
+{
+ "function": "func_800AAA68",
+ "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_800AAA68",
+  "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+  "stem": "40564",
+  "address": "0x800aaa68",
+  "difficulty": "S",
+  "zig_name": "func_800AAA68",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800AAA68",
+  "spec_file": "func_800AAA68.zig",
+  "subsystem": "battle_40564_port",
+  "signature": "pub fn func_800AAA68(arg0: c_int, arg1: ?*v.SVECTOR, arg2: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "?*v.SVECTOR"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "SVECTOR"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11181,
+     "completion_tokens": 4203,
+     "reasoning_tokens": 2850,
+     "cost": 0.0032196,
+     "seconds": 18.1,
+     "sample": 1,
+     "conversation": "f9256802a8e0bfd8ad8264cec9ac99a871c3a63fe1288bd49bfc6c3e13f06816"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/func_800AAA68/spec1/build/spec.zig:22:32: error: expected type '?*views_40564.SVECTOR', found '[*c]c_40564.SVECTOR'\n        const p: ?*v.SVECTOR = arg1;\n                               ^~~~\npc/build/port-pipeline/func_800AAA68/spec1/build/spec.zig:22:32: note: pointer type child 'c_40564.SVECTOR' cannot cast into pointer type child 'views_40564.SVECTOR'\npc/build/boot64/zig/c_40564.zig:85:28: note: struct declared here\npub const SVECTOR = extern struct {\n                    ~~~~~~~^~~~~~\npc/build/port-pipeline/gen/40564/fn-func_800AAA68/views_40564.zig:4:28: note: struct declared here\npub const SVECTOR = extern struct {\n                    ~~~~~~~^~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:235:33\n    f: pc/build/port-pipeline/func_800AAA68/spec1/build/game/common/route.zig:34:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13059,
+     "completion_tokens": 2445,
+     "reasoning_tokens": 1013,
+     "cost": 0.0025284,
+     "seconds": 9.2,
+     "sample": 1,
+     "conversation": "9a31473176fe27ce52fd4f50a6c4993fff77b071fb26ee02378f01959e8f42ae"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "arg1-null": "7597",
+   "arg1-set": "22403"
+  },
+  "mutations": [
+   {
+    "name": "W1: the call is dropped",
+    "caught": true
+   },
+   {
+    "name": "W2: arg0 and arg2 swapped",
+    "caught": true
+   },
+   {
+    "name": "W3: arg2 masked to 16 bits (signed/unsigned slip)",
+    "caught": true
+   },
+   {
+    "name": "W4: arg0 off by one",
+    "caught": true
+   },
+   {
+    "name": "W5: arg1 passed as null",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 1,
+   "lines_hit": 1,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: null seen"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34653,
+     "completion_tokens": 910,
+     "reasoning_tokens": 653,
+     "cost": 0.0039203,
+     "seconds": 5.3,
+     "sample": 1,
+     "conversation": "921a5b02ae76ccb3b18709de1372759e9e9904213ebab0b76a78e9ce1766e608"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/common/psx.zig:230:37: error: access of union field 'pointer' while field 'optional' is active\n    const VT = @typeInfo(@TypeOf(p)).pointer.child;\n               ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/lib/std/lang.zig:640:18: note: union declared here\npub const Type = union(enum) {\n                 ^~~~~\nreferenced by:\n    func_800AAA68: game/battle/func_800AAA68.zig:10:35\n    main: pc/tests/zig_diff/main.zig:469:31\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35257,
+     "completion_tokens": 799,
+     "reasoning_tokens": 551,
+     "cost": 0.0039252,
+     "seconds": 4.0,
+     "sample": 1,
+     "conversation": "b409c83cb125a91293d52f1a79446e58952ca8e0be70278330b4278f3ccbdef8"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800AAA68.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800AAA68.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 32.05513888599671,
+ "wall_seconds": 49.82399964099932,
+ "totals": {
+  "cost": 0.01359,
+  "prompt_tokens": 94150,
+  "completion_tokens": 8357,
+  "model_seconds": 36.6,
+  "check_seconds": 32.1,
+  "calls": 4,
+  "wall_seconds": 49.8
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

@@ -1,0 +1,365 @@
+{
+ "function": "func_800A8FD4",
+ "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the 17-byte exclusion clear and the entry walk); spec sound",
+ "plan": {
+  "name": "func_800A8FD4",
+  "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+  "stem": "40564",
+  "address": "0x800a8fd4",
+  "difficulty": "L",
+  "zig_name": "func_800A8FD4",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A8FD4",
+  "spec_file": "func_800A8FD4.zig",
+  "subsystem": "battle_40564_port",
+  "signature": "pub fn func_800A8FD4(actor: ?*v.D_800F4538_t, motion: ?*v.SVECTOR) callconv(.c) c_int",
+  "params": [
+   [
+    "actor",
+    "?*v.D_800F4538_t"
+   ],
+   [
+    "motion",
+    "?*v.SVECTOR"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "SVECTOR",
+   "actorCollisionExclusion"
+  ],
+  "globals": [
+   "D_800F4538"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 18315,
+     "completion_tokens": 32217,
+     "reasoning_tokens": 28981,
+     "cost": 0.01794,
+     "seconds": 139.0,
+     "sample": 1,
+     "conversation": "971065cf9763d12fd16b20954d5104527ce8baff3baff49726de937f83588937"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "flagged-out": "6569",
+   "no-candidate": "1",
+   "candidate-zero-motion": "3768",
+   "candidate-moving": "29662"
+  },
+  "mutations": [
+   {
+    "name": "M1: minY offset 127, not 128",
+    "caught": true
+   },
+   {
+    "name": "M2: radius read as a signed short",
+    "caught": true
+   },
+   {
+    "name": "M3: x lower bound inclusive (<= for <)",
+    "caught": true
+   },
+   {
+    "name": "M4: distance test inclusive (<= for <)",
+    "caught": true
+   },
+   {
+    "name": "M5: exclusion mark dropped",
+    "caught": true
+   },
+   {
+    "name": "M6: motion z offset read from vx",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 32,
+   "branches_hit": 32,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 68,
+   "lines_hit": 68,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 9,
+     "text": "for (i = 16, clear = (void*)((char*)scratch + 16); i >= 0;",
+     "size": 4,
+     "count": 720000,
+     "kind": "against a constant",
+     "outcomes": "== 40000, < 40000, > 640000 (signed); < 0, > 680000 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..16"
+    },
+    {
+     "line": 13,
+     "text": "if (flags & 0x800)",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 33431, < 0, > 6569 (signed); < 0, > 6569 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..2048"
+    },
+    {
+     "line": 22,
+     "text": "if (flags & 8)",
+     "size": 4,
+     "count": 33431,
+     "kind": "against a constant",
+     "outcomes": "== 16708, < 0, > 16723 (signed); < 0, > 16723 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..8"
+    },
+    {
+     "line": 24,
+     "text": "for (entry = &D_800F4538[i]; i < 17; ++entry) {",
+     "size": 4,
+     "count": 339395,
+     "kind": "against a constant",
+     "outcomes": "== 13681, < 312721, > 12993 (signed); < 312721, > 12993 (unsigned)",
+     "operand": "constant 16",
+     "a": "2..17"
+    },
+    {
+     "line": 29,
+     "text": "if (otherFlags & 1)",
+     "size": 4,
+     "count": 271940,
+     "kind": "against a constant",
+     "outcomes": "== 177578, < 0, > 94362 (signed); < 0, > 94362 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 31,
+     "text": "if (*(u_int*)((char*)other + 0x5AC) & 0x1000000)",
+     "size": 4,
+     "count": 177578,
+     "kind": "against a constant",
+     "outcomes": "== 130219, < 0, > 47359 (signed); < 0, > 47359 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..16777216"
+    },
+    {
+     "line": 33,
+     "text": "if (other->unk0.unk13 == 0xFC)",
+     "size": 1,
+     "count": 130219,
+     "kind": "against a constant",
+     "outcomes": "== 20915, < 28596, > 80708 (signed); < 57199, > 52105 (unsigned)",
+     "operand": "constant -4",
+     "a": "-128..127"
+    },
+    {
+     "line": 35,
+     "text": "if ((otherFlags & 0xF000000) == 0x2000000)",
+     "size": 4,
+     "count": 109304,
+     "kind": "against a constant",
+     "outcomes": "== 38969, < 9591, > 60744 (signed); < 9591, > 60744 (unsigned)",
+     "operand": "constant 33554432",
+     "a": "0..251658240"
+    },
+    {
+     "line": 38,
+     "text": "if (other->unk0.position.vx + otherRadius < minX)",
+     "size": 4,
+     "count": 70335,
+     "kind": "a == b / a < b",
+     "outcomes": "== 2693, < 64793, > 2849 (signed); < 21270, > 46372 (unsigned)",
+     "operand": "b -32768..98302",
+     "a": "-98247..32728"
+    },
+    {
+     "line": 40,
+     "text": "if (maxX < other->unk0.position.vx - otherRadius)",
+     "size": 4,
+     "count": 67486,
+     "kind": "a == b / a < b",
+     "outcomes": "== 2593, < 2821, > 62072 (signed); < 44928, > 19965 (unsigned)",
+     "operand": "b -98303..32767",
+     "a": "-32722..97990"
+    },
+    {
+     "line": 42,
+     "text": "if (other->unk0.position.vz + otherRadius < minZ)",
+     "size": 4,
+     "count": 64665,
+     "kind": "a == b / a < b",
+     "outcomes": "== 2000, < 60555, > 2110 (signed); < 18894, > 43771 (unsigned)",
+     "operand": "b -32768..98302",
+     "a": "-97839..32713"
+    },
+    {
+     "line": 44,
+     "text": "if (maxZ < other->unk0.position.vz - otherRadius)",
+     "size": 4,
+     "count": 62555,
+     "kind": "a == b / a < b",
+     "outcomes": "== 1992, < 2048, > 58515 (signed); < 42736, > 17827 (unsigned)",
+     "operand": "b -98303..32767",
+     "a": "-32762..98275"
+    },
+    {
+     "line": 46,
+     "text": "if (other->unk0.position.vy < minY)",
+     "size": 4,
+     "count": 60507,
+     "kind": "a == b / a < b",
+     "outcomes": "== 3436, < 52237, > 4834 (signed); < 30001, > 27070 (unsigned)",
+     "operand": "b -32768..32767",
+     "a": "-98372..32676"
+    },
+    {
+     "line": 48,
+     "text": "if (actor->unk0.position.vy",
+     "size": 4,
+     "count": 55673,
+     "kind": "a == b / a < b",
+     "outcomes": "== 3561, < 4770, > 47342 (signed); < 25449, > 26663 (unsigned)",
+     "operand": "b -98303..32680",
+     "a": "-32755..32762"
+    },
+    {
+     "line": 66,
+     "text": "oldDistance = dx < oldDistance;",
+     "size": 4,
+     "count": 50903,
+     "kind": "a == b / a < b",
+     "outcomes": "== 9043, < 20438, > 21422 (signed); < 17091, > 24769 (unsigned)",
+     "operand": "b -2147483648..2147474984",
+     "a": "-2147483648..2147465249"
+    },
+    {
+     "line": 68,
+     "text": "if (oldDistance)",
+     "size": 4,
+     "count": 50903,
+     "kind": "against a constant",
+     "outcomes": "== 30465, < 0, > 20438 (signed); < 0, > 20438 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 41779,
+     "completion_tokens": 12720,
+     "reasoning_tokens": 11076,
+     "cost": 0.0105379,
+     "seconds": 51.0,
+     "sample": 1,
+     "conversation": "e82d93cce4a0e3681bc5868c22361c9b38ccbfdf9e6d02f52865609333124bce"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A8FD4.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A8FD4.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 24.937166268999135,
+ "wall_seconds": 25.247347848999198,
+ "totals": {
+  "cost": 0.02848,
+  "prompt_tokens": 60094,
+  "completion_tokens": 44937,
+  "model_seconds": 190.0,
+  "check_seconds": 24.9,
+  "calls": 2,
+  "wall_seconds": 25.2
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

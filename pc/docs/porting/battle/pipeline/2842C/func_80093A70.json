@@ -1,0 +1,197 @@
+{
+ "function": "func_80093A70",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_80093A70",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x80093a70",
+  "difficulty": "S",
+  "zig_name": "func_80093A70",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_80093A70",
+  "spec_file": "func_80093A70.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_80093A70() callconv(.c) void",
+  "params": [],
+  "ret": "void",
+  "types": [],
+  "globals": [
+   "D_800F2258"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": false,
+    "errors": [
+     "FAIL: the C itself crashed on your inputs (the C runs first, so this is the spec's\nbug). The harness fills every global and the arena with random bytes before\nprepare, so every pointer the C follows must be one prepare set: each\nargument, each pointer field of an object you build, and each ENTRY of a\nglobal pointer table the C indexes (only the entry it reads: e.g.\n`v.g.TABLE()[i] = obj`), pointing at an object from `ctx.alloc`/`ctx.allocBytes`\n(sized for every element the C indexes past a `[0]` array), at a global, or\nnull where the C tests for null. An index into a global table must stay\ninside its length (the views accessor's type gives it). Below: the crash, its\nfault address (named when it is inside an object the harness owns) and the\narguments of that iteration:\nzdiff: CRASH (signal 11) in the C run, iteration 2, fault address 0x1 [NULL+0x1: a field of a null pointer]: argument 1 of the call of func_800462E8, which reads through it\nzdiff: crashed on arguments: (class section14-low-bits)",
+     "(the mutations and the coverage gate are checked once the C runs crash-free)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "outer-off": "10075",
+   "section14-zero": "6681",
+   "section14-high-bit": "6636",
+   "section14-low-bits": "6608"
+  },
+  "mutations": [
+   {
+    "name": "F1: outer test against 0 instead of -1",
+    "caught": true
+   },
+   {
+    "name": "F2: inner test against 1 instead of 0 (raw 0 is skipped, raw 1 is not)",
+    "caught": true
+   },
+   {
+    "name": "F3: wrong constant in the first argument (0x100 for 0x200)",
+    "caught": true
+   },
+   {
+    "name": "F4: slip: the i16 is zero-extended into the u_int argument",
+    "caught": true
+   },
+   {
+    "name": "F5: dropped call",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 4,
+   "branches_hit": 4,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 5,
+   "lines_hit": 5,
+   "uncovered": [],
+   "flags": [],
+   "args": [],
+   "compares": [
+    {
+     "line": 2,
+     "text": "if (D_800F2258 != -1) {",
+     "size": 2,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 10075, < 8355, > 11570 (signed); < 19925, > 0 (unsigned)",
+     "operand": "constant -1",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 3,
+     "text": "if (((__typeof__((vs_battle_roomData.section14).psx_type_[0]))(long unsigned int)(vs_battle_roomData.section14).raw) != 0) {",
+     "size": 4,
+     "count": 19925,
+     "kind": "against a constant",
+     "outcomes": "== 6681, < 6636, > 6608 (signed); < 0, > 13244 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483642..4237312"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": false,
+    "errors": [
+     "FAIL: seed 1: the port differs from the C (exit 3):\nzdiff: PANIC in the Zig run, iteration 6: incorrect alignment (return address 0x403431)"
+    ],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 3,
+      "mismatches": null,
+      "first": "PANIC in the Zig run, iteration 6: incorrect alignment (return address 0x403431)"
+     }
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_80093A70.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_80093A70.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 56.06281367399788,
+ "wall_seconds": 114.20778168299876,
+ "totals": {
+  "cost": 0.0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "model_seconds": 0.0,
+  "check_seconds": 56.1,
+  "calls": 0,
+  "wall_seconds": 114.2
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

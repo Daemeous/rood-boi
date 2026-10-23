@@ -1,0 +1,303 @@
+{
+ "function": "func_800E7698",
+ "unit": "src/BATTLE/BATTLE.PRG/7EE98.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; port tidied (func_800E2CCC through the c module after a zig_c fix); spec sound",
+ "plan": {
+  "name": "func_800E7698",
+  "unit": "src/BATTLE/BATTLE.PRG/7EE98.c",
+  "stem": "7EE98",
+  "address": "0x800e7698",
+  "difficulty": "M",
+  "zig_name": "func_800E7698",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800E7698",
+  "spec_file": "func_800E7698.zig",
+  "subsystem": "battle_7EE98_port",
+  "signature": "pub fn func_800E7698(state: ?*v.radialMotionState) callconv(.c) c_int",
+  "params": [
+   [
+    "state",
+    "?*v.radialMotionState"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800F4538_t",
+   "D_800F5920_t",
+   "radialMotion",
+   "radialMotionActor",
+   "radialMotionContext",
+   "radialMotionState"
+  ],
+  "globals": [
+   "D_800F17DC",
+   "D_800F4538",
+   "D_800F5920"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16787,
+     "completion_tokens": 20396,
+     "reasoning_tokens": 17958,
+     "cost": 0.0118767,
+     "seconds": 86.2,
+     "sample": 1,
+     "conversation": "18e68c4932a85bd5e5694e6bcaaa55d57519a344d3b1fba02a39c673938f82f3"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/gen/7EE98/c_7EE98.zig:4501:15: error: cannot directly embed opaque type 'c_7EE98.vs_battle_movementPosition' in struct\n    position: vs_battle_movementPosition = @import(\"std\").mem.zeroes(vs_battle_movementPosition),\n              ^~~~~~~~~~~~~~~~~~~~~~~~~~\npc/build/port-pipeline/gen/7EE98/c_7EE98.zig:4501:15: note: opaque types have unknown size\npc/build/port-pipeline/gen/7EE98/c_7EE98.zig:4592:40: note: opaque declared here\npub const vs_battle_movementPosition = opaque {};\n                                       ^~~~~~~~~\nreferenced by:\n    func_800E2CCC__func_52: pc/build/port-pipeline/func_800E7698/spec1/build/spec.zig:31:61\n    body: pc/tests/zig_diff/main.zig:235:33\n    6 reference(s) hidden; use '-freference-trace=8' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 19692,
+     "completion_tokens": 5249,
+     "reasoning_tokens": 2659,
+     "cost": 0.0045937,
+     "seconds": 21.5,
+     "sample": 1,
+     "conversation": "c9bb54b9b28b28b9ba53c1728bba72f1779419cff3f24f5928ff0b1427a60097"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "state-0": "11249",
+   "state-1-idle": "505",
+   "state-1-busy": "2257",
+   "state-1-pending": "8389",
+   "state-other": "7600"
+  },
+  "mutations": [
+   {
+    "name": "R1: frame < 14 becomes frame <= 14",
+    "caught": true
+   },
+   {
+    "name": "R2: state not reset after the idle return",
+    "caught": true
+   },
+   {
+    "name": "R3: rcos used for targetZ",
+    "caught": true
+   },
+   {
+    "name": "R4: wrong constant in func_800DEEFC",
+    "caught": true
+   },
+   {
+    "name": "R5: ratan2 arguments swapped in the idle branch",
+    "caught": true
+   },
+   {
+    "name": "R6: facing stored without the 0xFFF mask",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 9,
+   "branches_hit": 9,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 40,
+   "lines_hit": 40,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 6,
+     "text": "context->active = motion->frame < 14;",
+     "size": 1,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 3466, < 9279, > 17255 (signed); < 9279, > 17255 (unsigned)",
+     "operand": "constant 13",
+     "a": "0..30"
+    },
+    {
+     "line": 8,
+     "text": "switch (motion->state) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "switch",
+     "outcomes": "== 22400, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..255"
+    },
+    {
+     "line": 21,
+     "text": "if (!D_800F17DC[motion->frame][0] && !D_800F17DC[motion->frame][1]) {",
+     "size": 2,
+     "count": 11151,
+     "kind": "against a constant",
+     "outcomes": "== 5603, < 2828, > 2720 (signed); < 0, > 5548 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32763..32745"
+    },
+    {
+     "line": 21,
+     "text": "if (!D_800F17DC[motion->frame][0] && !D_800F17DC[motion->frame][1]) {",
+     "size": 2,
+     "count": 5603,
+     "kind": "against a constant",
+     "outcomes": "== 2762, < 1504, > 1337 (signed); < 0, > 2841 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32730..32757"
+    },
+    {
+     "line": 22,
+     "text": "if (((radialMotionActor*)D_800F4538[0])->flags & 0x70000) {",
+     "size": 4,
+     "count": 2762,
+     "kind": "against a constant",
+     "outcomes": "== 505, < 0, > 2257 (signed); < 0, > 2257 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..458752"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 40291,
+     "completion_tokens": 9174,
+     "reasoning_tokens": 7965,
+     "cost": 0.0086161,
+     "seconds": 37.5,
+     "sample": 1,
+     "conversation": "8950554d5e83535ca659ac3d357f531116b251e7a7b47898e0dfa11c3aa6c1df"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/gen/7EE98/c_7EE98.zig:4501:15: error: cannot directly embed opaque type 'c_7EE98.vs_battle_movementPosition' in struct\n    position: vs_battle_movementPosition = @import(\"std\").mem.zeroes(vs_battle_movementPosition),\n              ^~~~~~~~~~~~~~~~~~~~~~~~~~\npc/build/port-pipeline/gen/7EE98/c_7EE98.zig:4501:15: note: opaque types have unknown size\npc/build/port-pipeline/gen/7EE98/c_7EE98.zig:4592:40: note: opaque declared here\npub const vs_battle_movementPosition = opaque {};\n                                       ^~~~~~~~~\nreferenced by:\n    func_800E7698: game/battle/func_800E7698.zig:33:37\n    main: pc/tests/zig_diff/main.zig:464:31\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 41942,
+     "completion_tokens": 3025,
+     "reasoning_tokens": 1692,
+     "cost": 0.0057067,
+     "seconds": 12.5,
+     "sample": 1,
+     "conversation": "0c4583b9ad0abfead6200ac40ae59401772ef6133069930593c42dae00202f03"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800E7698.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800E7698.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 47.153005807001136,
+ "wall_seconds": 47.461786673999995,
+ "totals": {
+  "cost": 0.03079,
+  "prompt_tokens": 118712,
+  "completion_tokens": 37844,
+  "model_seconds": 157.7,
+  "check_seconds": 47.2,
+  "calls": 4,
+  "wall_seconds": 47.5
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "port_fixes": [
+   "Haiku called func_800E2CCC through its own @extern because the c module's movementRecoveryState embedded an opaque union (vs_battle_movementPosition) by value; zig_c now makes such a 4-byte union its integer and the port calls c.func_800E2CCC"
+  ],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

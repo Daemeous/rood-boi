@@ -1,0 +1,308 @@
+{
+ "function": "func_800A9FD0",
+ "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_800A9FD0",
+  "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+  "stem": "40564",
+  "address": "0x800a9fd0",
+  "difficulty": "S",
+  "zig_name": "func_800A9FD0",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A9FD0",
+  "spec_file": "func_800A9FD0.zig",
+  "subsystem": "battle_40564_port",
+  "signature": "pub fn func_800A9FD0(arg0: c_int, arg1: ?*v.SVECTOR, arg2: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "?*v.SVECTOR"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "SVECTOR"
+  ],
+  "globals": [
+   "D_800F4538"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16861,
+     "completion_tokens": 11952,
+     "reasoning_tokens": 10049,
+     "cost": 0.0076621,
+     "seconds": 49.7,
+     "sample": 1,
+     "conversation": "99dc4dadbf4a0f6a3d69ca8d9ac7142bddbffbae61bb6db71071f07dcef77808"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation D1: x wrap test is >= instead of >: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800A9FD0: 30000 iterations, seed 1, 0 mismatches; classes: arg2-is-minus-one=14886 store-no-wrap=244 axis-wraps=14870",
+     "FAIL: mutation D2: y wrap uses 4095: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800A9FD0: 30000 iterations, seed 1, 0 mismatches; classes: arg2-is-minus-one=14886 store-no-wrap=244 axis-wraps=14870",
+     "FAIL: mutation D5: z difference read from unk24 (pitch): not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800A9FD0: 30000 iterations, seed 1, 0 mismatches; classes: arg2-is-minus-one=14886 store-no-wrap=244 axis-wraps=14870",
+     "FAIL: mutation D6: unsigned slip on the z lower wrap test: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800A9FD0: 30000 iterations, seed 1, 0 mismatches; classes: arg2-is-minus-one=14886 store-no-wrap=244 axis-wraps=14870"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 19321,
+     "completion_tokens": 5717,
+     "reasoning_tokens": 3622,
+     "cost": 0.0047906,
+     "seconds": 23.3,
+     "sample": 1,
+     "conversation": "bd21c4eff20de54ebef6e766e82df98c6afc9891925221d77c01eadff3aaf431"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "arg2-is-minus-one": "14886",
+   "store-no-wrap": "244",
+   "axis-wraps": "14870"
+  },
+  "mutations": [
+   {
+    "name": "D1: x wrap test is >= instead of >",
+    "caught": true
+   },
+   {
+    "name": "D2: y wrap uses 4095",
+    "caught": true
+   },
+   {
+    "name": "D3: unk5C0 stores arg0 instead of arg2",
+    "caught": true
+   },
+   {
+    "name": "D4: saved unk5C0 not restored",
+    "caught": true
+   },
+   {
+    "name": "D5: z difference read from unk24 (pitch)",
+    "caught": true
+   },
+   {
+    "name": "D6: unsigned slip on the z lower wrap test",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 14,
+   "branches_hit": 14,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 24,
+   "lines_hit": 24,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 8,
+     "text": "if (sp10.vx > 4096 / 2) {",
+     "size": 2,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 966, < 17915, > 11119 (signed); < 3440, > 25594 (unsigned)",
+     "operand": "constant 2048",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 12,
+     "text": "if (sp10.vx < -4096 / 2) {",
+     "size": 2,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 984, < 11021, > 17995 (signed); < 25066, > 3950 (unsigned)",
+     "operand": "constant -2048",
+     "a": "-32768..28671"
+    },
+    {
+     "line": 18,
+     "text": "if (sp10.vy > 4096 / 2) {",
+     "size": 2,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 994, < 17951, > 11055 (signed); < 3415, > 25591 (unsigned)",
+     "operand": "constant 2048",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 22,
+     "text": "if (sp10.vy < -4096 / 2) {",
+     "size": 2,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 991, < 11074, > 17935 (signed); < 25026, > 3983 (unsigned)",
+     "operand": "constant -2048",
+     "a": "-32768..28671"
+    },
+    {
+     "line": 28,
+     "text": "if (sp10.vz > 4096 / 2) {",
+     "size": 2,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 991, < 17989, > 11020 (signed); < 3560, > 25449 (unsigned)",
+     "operand": "constant 2048",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 32,
+     "text": "if (sp10.vz < -4096 / 2) {",
+     "size": 2,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 1041, < 10921, > 18038 (signed); < 24988, > 3971 (unsigned)",
+     "operand": "constant -2048",
+     "a": "-32768..28671"
+    },
+    {
+     "line": 36,
+     "text": "if (arg2 == -1) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 14886, < 5741, > 9373 (signed); < 15114, > 0 (unsigned)",
+     "operand": "constant -1",
+     "a": "-2147483648..2147483647"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 40325,
+     "completion_tokens": 5352,
+     "reasoning_tokens": 4310,
+     "cost": 0.0067085,
+     "seconds": 22.2,
+     "sample": 1,
+     "conversation": "13a4bdfe34a0a3cf99cac3ed922a240d559b11d783b7953f9ca3cb95da98a862"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A9FD0.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A9FD0.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 47.037267249999786,
+ "wall_seconds": 47.25107339999886,
+ "totals": {
+  "cost": 0.01916,
+  "prompt_tokens": 76507,
+  "completion_tokens": 23021,
+  "model_seconds": 95.2,
+  "check_seconds": 47.0,
+  "calls": 3,
+  "wall_seconds": 47.3
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

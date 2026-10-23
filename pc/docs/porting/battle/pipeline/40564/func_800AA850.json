@@ -1,0 +1,260 @@
+{
+ "function": "func_800AA850",
+ "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_800AA850",
+  "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+  "stem": "40564",
+  "address": "0x800aa850",
+  "difficulty": "S",
+  "zig_name": "func_800AA850",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800AA850",
+  "spec_file": "func_800AA850.zig",
+  "subsystem": "battle_40564_port",
+  "signature": "pub fn func_800AA850(arg0: c_int, arg1: c_ushort, arg2: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_ushort"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [
+   "D_800F4538"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16181,
+     "completion_tokens": 9976,
+     "reasoning_tokens": 8390,
+     "cost": 0.0066061,
+     "seconds": 43.1,
+     "sample": 1,
+     "conversation": "4b141e211698e9fa4b7b057b4a2cab5dcbf4195257ce415a6edec6eb9ed773e8"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation A6: facing replaced by roll: gcc -m64 -fpie ...: zdiff_standin.c: In function \u2018func_800AA850__standin\u2019:\nzdiff_standin.c:11:35: error: \u2018D_800F4538_unk0\u2019 has no member named \u2018roll\u2019\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 17898,
+     "completion_tokens": 2727,
+     "reasoning_tokens": 1132,
+     "cost": 0.0031533,
+     "seconds": 10.6,
+     "sample": 1,
+     "conversation": "d70e8e7cdc52096c0305fb8f80f5d84c80ba89bcc38a3a9e6ed015422047a24e"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "null-entry": "3724",
+   "equal-high": "7888",
+   "equal-low": "8007",
+   "over-half": "4617",
+   "under-half": "4731",
+   "middle": "1033"
+  },
+  "mutations": [
+   {
+    "name": "A1: half-turn test one too loose (>= for >)",
+    "caught": true
+   },
+   {
+    "name": "A2: wrap constant off by one",
+    "caught": true
+   },
+   {
+    "name": "A3: lower bound test with <= instead of <",
+    "caught": true
+   },
+   {
+    "name": "A4: unsigned read of the difference",
+    "caught": true
+   },
+   {
+    "name": "A5: callee gets temp_a1, not the wrapped var_v1",
+    "caught": true
+   },
+   {
+    "name": "A6: facing replaced by roll (the C's unk28)",
+    "caught": true
+   },
+   {
+    "name": "A7: null guard dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 6,
+   "branches_hit": 6,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 11,
+   "lines_hit": 11,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "16-bit: min -32768, max 32765, unsigned 0..65535, seen zero/negative/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2147423004, max 2147318357, unsigned 130245..4294716707, seen negative, never zero"
+    }
+   ],
+   "compares": [
+    {
+     "line": 13,
+     "text": "if (temp_a1 > 4096 / 2) {",
+     "size": 2,
+     "count": 26276,
+     "kind": "against a constant",
+     "outcomes": "== 7888, < 13771, > 4617 (signed); < 600, > 17788 (unsigned)",
+     "operand": "constant 2048",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 17,
+     "text": "if (var_v1 < -4096 / 2) {",
+     "size": 2,
+     "count": 26276,
+     "kind": "against a constant",
+     "outcomes": "== 8007, < 4731, > 13538 (signed); < 17486, > 783 (unsigned)",
+     "operand": "constant -2048",
+     "a": "-32768..28671"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39661,
+     "completion_tokens": 3030,
+     "reasoning_tokens": 2519,
+     "cost": 0.0054811,
+     "seconds": 12.6,
+     "sample": 1,
+     "conversation": "2c90dae751b38eec9c0a7af7613f9e138dbee0e4ff11ed056032ee78344babf7"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800AA850.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800AA850.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 43.11868576299821,
+ "wall_seconds": 45.11919172200032,
+ "totals": {
+  "cost": 0.01524,
+  "prompt_tokens": 73740,
+  "completion_tokens": 15733,
+  "model_seconds": 66.3,
+  "check_seconds": 43.1,
+  "calls": 3,
+  "wall_seconds": 45.1
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 1 / root 2 / -, 0 mismatches"
+ }
+}

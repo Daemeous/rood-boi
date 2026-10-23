@@ -1085,3 +1085,140 @@ touching quality.
 - Budget per function at full price: about $0.02 (7CD68: $0.236 for 12, 11
   passed); a rounds run reserves `--reserve` ($0.02) per request out, so
   `--budget` must cover the functions of a round at once.
+
+### The smoke's open batches, collected (2026-10-22)
+
+The rounds smoke above left three batches open at OpenRouter (its state,
+under `/tmp`, was gone): the two probes (submitted 13:52 and 14:03) and the
+smoke's round 2 (20:13). All three were `completed` the next morning and
+were fetched by id (`GET /api/v1/batches/{id}`; the listing,
+`GET /api/v1/batches`, finds them without the lost state), not resubmitted:
+the probes had finished at 20:13 and 20:14 (6.3 hours), round 2 at 20:17,
+**4 minutes** after it was sent (so the 6-hour rounds of 2026-10-21 were not
+the rule). Round 2's two replies (`func_800E6158`'s spec retry,
+`func_800E5A74`'s port) answered functions 7CD68 had ported and reviewed
+already, so they were not applied (the results stay at OpenRouter for 30
+days: `batch-1792638836-JtVUXls7n9WlQsLovfcE` round 2,
+`batch-1792615935-N10Bw3VTDbJWPk12fk4k` and
+`batch-1792616581-Wd3jfJRKrnbmKfQbFJxm` the probes). The three cost $0.0027
+in all (provider totals).
+
+## Wave 2 (Haiku 5.5 drafts, Opus 5.5 review, 2026-10-22)
+
+Wave 1's process on the next nine units, one branch (`port-wave2`), a commit
+per unit: the pipeline synchronous (`--jobs 3`, default reasoning,
+temperature 0, the feedback retry and one compile-fix round), tooling
+failures fixed with `port_pipeline`/`ownership` CTest cases, the review per
+function, the oracle (`differ.py` call, tick and alternate on the three
+recipes, 64-bit, classic profile; `shadow_battle_smoke --owner
+battle_UNIT_port=shadow`). The wave had a hard $4.00 cap; it spent **$3.90**
+(every recorded call, plus $0.007 the provider charged for calls in flight
+when the last run was stopped at the cap). Model failures the reviewer
+could finish cheaply were finished as in wave 1 (the reviewer's reply placed
+as the failed round's reply, without its `.json`).
+
+| Unit | Ported | Haiku alone | Finished by the reviewer | Review fixes | Cost | Minutes |
+|---|---|---|---|---|---|---|
+| 6FA60 | 1/1 | 1 | 0 | 0 | $0.007 | 3 |
+| 7C4E8 | 1/1 | 1 | 0 | 0 | $0.006 | 5 |
+| 49268 | 3/3 | 2 + 1 after a tooling fix | 0 | 2 specs strengthened, 1 rename | $0.13 | 25 |
+| 5BE50 | 3/3 | 3 | 0 | 0 | $0.03 | 10 |
+| 73700 | 3/3 | 1 + 2 after tooling fixes | 0 | 0 | $0.065 | 20 |
+| 7EE98 | 4/4 | 3 | 1 spec | 1 port tidy (after a tooling fix), 1 comment | $0.16 | 30 |
+| 3A1A0 | 37/39 | 31 | 6 specs | 1 doc comment; 2 left unrouted | $1.02 | 50 |
+| 40564 | 49/53 | 45 | 4 specs | 0; 1 skipped, 3 left unrouted | $1.15 | 70 |
+| 2842C | 71/86 | 71 | 0 | 0; 15 left unrouted (12 the model's, 1 stopped at the cap, 2 PC_TEXT hook functions whose harness did not build) | $1.33 | 130 |
+
+**Totals: 172 of 193 planned functions ported and reviewed** (the nine units'
+portable functions; 40564's bake-off port `func_800AD494` and the units'
+block-scope statics excluded), 21 left unrouted or skipped with a reason in
+their records. Review: 11 specs finished by the reviewer, 2 specs
+strengthened where Haiku's had passed (`func_800B217C`'s drawers read a
+colour local the trace only tags; `func_800B26B8`'s bone index was always
+0), **no port bug in a function Haiku's gates passed**
+(one tidy, two comments). The PC hooks of the ported 2842C functions
+(`func_800941FC`'s PC_HUD for damage, status, chain and buff with their
+PC_ANCHOR_PACKETS and PC_GTE_UNNARROWED; `func_80090EEC`'s three anchors;
+`func_8009147C`'s widescreen sky margin) were checked by hand, in place and
+in order: the harness never links the weak hooks, so their non-null side is
+waived in the specs.
+
+Tooling fixes (each with a CTest case):
+
+- zig_diff: a callee called through a cast to a shorter function type
+  (49268's `((void (*)(MATRIX*, MATRIX*))CompMatrixLV)(a, b)`): its stub
+  records and NULL-checks only the arguments passed (the third prototype
+  argument was register residue, taken for a field of a null pointer);
+- psx.zig: `psx.put(&field, null)` and `psx.addr(null)` (73700: two specs
+  did not build);
+- zig_diff: NULL in a C mutation's replacement only (73700's
+  `func_800DC0D0`);
+- zig_c: an opaque union a struct embeds by value becomes its integer, as a
+  by-value parameter already did (7EE98's `movementRecoveryState` holds a
+  `vs_battle_movementPosition`; Haiku had called `func_800E2CCC` through its
+  own `@extern`);
+- zig_diff: `pub const ignore_return = "<why>"` for C that returns no value
+  on some path (3A1A0's `func_800A3E6C` falls off its end, `func_800A6AA0`
+  has bare `return;`s; their callers ignore the result);
+- zdiff: `ctx.edge` (only the listed values), and the spec prompt says
+  `ctx.pick` draws any value half the time (a picked divisor of 0 in
+  `func_800E7960`, a picked index past the table in `func_800A3310`);
+- port_pipeline: a function whose static helper holds a block-scope static
+  is skipped at the plan (40564's `func_800A9530` carries the inlined
+  `func_800A4A24`, whose ROOD_PC `static platforms[4]` no port can reach;
+  Haiku guessed a globalised name);
+- zig_diff: `sprintf` and the unprototyped `strlen` run as libc's (2842C's
+  `func_80093B68`, `func_80096768`: no stub can be variadic with fixed
+  parameters); their saved specs now build (and fail their own gates);
+- ownership (routing): a routed definition keeps a prototype of its own name
+  before it. 2842C's `func_8009195C` had no other declaration, so after the
+  rename `func_800919D8` called it as an implicit `int f()`, which truncated
+  the returned pointer on LP64: every 2842C oracle run crashed at battle
+  frame 2 in the original C until this was fixed.
+
+Oracle hazard fixed: `func_800D78F0` (6F014.c) zeroes its VECTOR's pad
+under ROOD_PC, and its port does too (Oracle.md, known hazards): with
+`battle_2842C_port` owned, tick and alternate modes diverged in
+`D_800F5620.unkC` (the pad `func_800D5260` copies whole) while call mode
+matched; after the fix they pass. commit-check matches.
+
+The 32-bit build: the pipeline's gates build 64-bit only, and one port
+(`func_800AB788`, u32 offsets mixed with `isize`) did not compile for
+x86-linux; retyped. A 32-bit compile of each written port would catch this
+in the pipeline.
+
+Not fixed: 2842C.c calls `vs_battle_renderTextRawColor` without a prototype
+(it does not include `5BF94.h`), so the c module has no declaration and
+zig_diff takes it for data; `func_800958A4` and `func_80095A4C` (the
+PC_TEXT_STATUS hook functions) cannot be specified until the unit declares it.
+
+Cost notes: prompts change as a unit's views widen with each written port,
+so a `--no-write` run's replies are partly re-asked when the unit is written
+(40564: $0.12, 2842C: a run stopped by its budget). A reply that passed its
+gates can be reused as a hand reply (without its `.json`) instead: the gates
+run again, on the current views; 2842C's last 54 ports were written that way
+at no cost.
+
+Corpus (call / tick / alternate, 0 mismatches wherever reached; the smoke
+passed for each unit): 7C4E8's `func_800E4CE8` (1 / 2 / 3 roots),
+49268's `func_800B217C` (248 / 481 / 2736) and `func_800B1A68` (enemy_kill
+1700), 73700 (all three, 1-332 roots), 3A1A0 (11 reached, `func_800A6EE8`
+2480-9430 roots, `func_800A4A88` 1548-2997 nested), 40564 (19 reached,
+`func_800A8D64`/`func_800A92B8`/`func_800A9378` 2500-9400 roots,
+`func_800ACFA0` 3795-7980 nested), 2842C (16 reached after the residue fix:
+`func_800941FC` and `func_80090EEC` 248 roots in enemy_cast_wait,
+`func_80091E10` 600, the label drawers nested); 6FA60, 5BE50 and 7EE98 are
+not reached by the three recipes. Alternate mode is one-sided for
+functions a recipe calls once (waived per subsystem in `waivers.toml`).
+6F014 (wave 1) passes call, tick and alternate again after its
+`func_800D78F0` change.
+
+Verify (`verify.sh --changed main -- -j 6`, both locks; `--changed` selected
+the full suite): the 32-bit, 64-bit, `--engine-library`, no-Zig and Windows
+builds pass (the 32-bit battle build after the `func_800AB788` retype);
+CTest passes (the first run failed one zig_diff shard on a `func_800A6AA0`
+coverage edge, fixed; the zig_diff tests then passed as ten shards); suites
+64-bit null 13/13, Vulkan 144/146
+(2 skipped), GL 143/146 (3 skipped). The machine ran at its thermal limit
+all afternoon: each suite spent most of its time waiting for the CPU to
+cool.

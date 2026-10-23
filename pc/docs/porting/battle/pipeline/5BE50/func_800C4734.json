@@ -1,0 +1,208 @@
+{
+ "function": "func_800C4734",
+ "unit": "src/BATTLE/BATTLE.PRG/5BE50.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (NULL and every return path)",
+ "plan": {
+  "name": "func_800C4734",
+  "unit": "src/BATTLE/BATTLE.PRG/5BE50.c",
+  "stem": "5BE50",
+  "address": "0x800c4734",
+  "difficulty": "S",
+  "zig_name": "func_800C4734",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800C4734",
+  "spec_file": "func_800C4734.zig",
+  "subsystem": "battle_5BE50_port",
+  "signature": "pub fn func_800C4734() callconv(.c) c_int",
+  "params": [],
+  "ret": "c_int",
+  "types": [
+   "D_800EB9B8_t"
+  ],
+  "globals": [
+   "D_800EB9B8",
+   "vs_main_buttonsState"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11551,
+     "completion_tokens": 5654,
+     "reasoning_tokens": 4464,
+     "cost": 0.0039821,
+     "seconds": 23.7,
+     "sample": 1,
+     "conversation": "70bc7c89d551b9a2636e712c698a3dc8d10b1fde03935361ea02e3bc52fc9528"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "null": "3356",
+   "unk2A-nonzero": "11089",
+   "unk3E-zero": "1851",
+   "bit7-set": "1837",
+   "return-2": "1867"
+  },
+  "mutations": [
+   {
+    "name": "F1: unk2A compared signed-greater (negative unk2A passes)",
+    "caught": true
+   },
+   {
+    "name": "F2: unk3E tested with <= 0 (negative unk3E takes the wrong return)",
+    "caught": true
+   },
+   {
+    "name": "F3: wrong bit mask for the buttons test (0x800 for 0x80)",
+    "caught": true
+   },
+   {
+    "name": "F4: final return is 3, not 2",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 8,
+   "branches_hit": 8,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 6,
+   "lines_hit": 6,
+   "uncovered": [],
+   "flags": [],
+   "args": [],
+   "compares": [
+    {
+     "line": 2,
+     "text": "if ((D_800EB9B8 == 0) || (D_800EB9B8->unk2A != 0)) {",
+     "size": 2,
+     "count": 16644,
+     "kind": "against a constant",
+     "outcomes": "== 5555, < 5592, > 5497 (signed); < 0, > 11089 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 5,
+     "text": "if ((D_800EB9B8->unk3E == 0) || (vs_main_buttonsState & 0x80)) {",
+     "size": 2,
+     "count": 5555,
+     "kind": "against a constant",
+     "outcomes": "== 1851, < 1617, > 2087 (signed); < 0, > 3704 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 5,
+     "text": "if ((D_800EB9B8->unk3E == 0) || (vs_main_buttonsState & 0x80)) {",
+     "size": 4,
+     "count": 3704,
+     "kind": "against a constant",
+     "outcomes": "== 1867, < 0, > 1837 (signed); < 0, > 1837 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..128"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35161,
+     "completion_tokens": 1882,
+     "reasoning_tokens": 1609,
+     "cost": 0.0044571,
+     "seconds": 8.5,
+     "sample": 1,
+     "conversation": "21726e8aee4d856b40e7ac5785b53f657f5a9220d98d6a90070b03fe3454ce32"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800C4734.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800C4734.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 13.499894916999892,
+ "wall_seconds": 13.751458060999994,
+ "totals": {
+  "cost": 0.00844,
+  "prompt_tokens": 46712,
+  "completion_tokens": 7536,
+  "model_seconds": 32.2,
+  "check_seconds": 13.5,
+  "calls": 2,
+  "wall_seconds": 13.8
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

@@ -1,0 +1,192 @@
+{
+ "function": "func_80094E18",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_80094E18",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x80094e18",
+  "difficulty": "M",
+  "zig_name": "func_80094E18",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_80094E18",
+  "spec_file": "func_80094E18.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_80094E18(x: c_int, y: c_int, p: ?*v.D_800F1BAC_t) callconv(.c) c_int",
+  "params": [
+   [
+    "x",
+    "c_int"
+   ],
+   [
+    "y",
+    "c_int"
+   ],
+   [
+    "p",
+    "?*v.D_800F1BAC_t"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800F1BAC_t",
+   "POLY_FT4",
+   "RECT"
+  ],
+  "globals": [
+   "D_80068FAC",
+   "D_800E861C"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "sign-set": "15177",
+   "sign-clear": "14823"
+  },
+  "mutations": [
+   {
+    "name": "F1: width shifted instead of divided (negative sums differ)",
+    "caught": true
+   },
+   {
+    "name": "F2: sign tested with the wrong mask",
+    "caught": true
+   },
+   {
+    "name": "F3: CLUT constant 220 slipped to 221",
+    "caught": true
+   },
+   {
+    "name": "F4: the stored prim pointer is one prim short",
+    "caught": true
+   },
+   {
+    "name": "F5: second poly's u2 off by one",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 24,
+   "lines_hit": 24,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -69999, max 69989, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -69999, max 69992, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 14,
+     "text": "sign = (sign & 0x8000) ? 0 : 8;",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 14823, < 0, > 15177 (signed); < 0, > 15177 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..32768"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_80094E18.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_80094E18.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 62.32582546600315,
+ "wall_seconds": 133.29403249100142,
+ "totals": {
+  "cost": 0.0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "model_seconds": 0.0,
+  "check_seconds": 62.3,
+  "calls": 0,
+  "wall_seconds": 133.3
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

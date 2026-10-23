@@ -1,0 +1,273 @@
+{
+ "function": "func_800AAA88",
+ "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the recenter goto as a shared tail); spec sound",
+ "plan": {
+  "name": "func_800AAA88",
+  "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+  "stem": "40564",
+  "address": "0x800aaa88",
+  "difficulty": "M",
+  "zig_name": "func_800AAA88",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800AAA88",
+  "spec_file": "func_800AAA88.zig",
+  "subsystem": "battle_40564_port",
+  "signature": "pub fn func_800AAA88(arg0: c_int, arg1: ?*v.SVECTOR, arg2: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "?*v.SVECTOR"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "SVECTOR"
+  ],
+  "globals": [
+   "D_800F4538"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16997,
+     "completion_tokens": 16865,
+     "reasoning_tokens": 14754,
+     "cost": 0.0101322,
+     "seconds": 72.4,
+     "sample": 1,
+     "conversation": "30c1296638e052103fb9e1bec70143b8ecb831884822fb5b5eabf95c352e21fc"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "recenter": "8854",
+   "scaled-wraps-to-zero": "963",
+   "scaled-returns": "11033",
+   "set-unk18": "9150"
+  },
+  "mutations": [
+   {
+    "name": "F1: the Y term's ABS dropped (a negative vy stays negative)",
+    "caught": true
+   },
+   {
+    "name": "F2: pitch wrapped with 0x7FF instead of 0xFFF",
+    "caught": true
+   },
+   {
+    "name": "F3: the round-up of the partial unit dropped",
+    "caught": true
+   },
+   {
+    "name": "F4: recenter path drops its unk18 store",
+    "caught": true
+   },
+   {
+    "name": "F5: facing advanced by the wrong SVECTOR component",
+    "caught": true
+   },
+   {
+    "name": "F6: the set path truncates the count to 8 bits",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 12,
+   "branches_hit": 12,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 28,
+   "lines_hit": 28,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -256, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 9,
+     "text": "if (arg2 == 0) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 8854, < 14580, > 6566 (signed); < 0, > 21146 (unsigned)",
+     "operand": "constant 0",
+     "a": "-256..2147483647"
+    },
+    {
+     "line": 18,
+     "text": "} else if (arg2 == -1) {",
+     "size": 4,
+     "count": 21146,
+     "kind": "against a constant",
+     "outcomes": "== 11996, < 2584, > 6566 (signed); < 9150, > 0 (unsigned)",
+     "operand": "constant -1",
+     "a": "-256..2147483647"
+    },
+    {
+     "line": 21,
+     "text": "if (m < (((a->unk0.unk3E)>=0)?(a->unk0.unk3E):(-(a->unk0.unk3E)))) {",
+     "size": 4,
+     "count": 11996,
+     "kind": "a == b / a < b",
+     "outcomes": "== 472, < 5807, > 5717 (signed); < 5807, > 5717 (unsigned)",
+     "operand": "b 0..32768",
+     "a": "0..32768"
+    },
+    {
+     "line": 25,
+     "text": "if (m < (((a->unk0.unk40)>=0)?(a->unk0.unk40):(-(a->unk0.unk40)))) {",
+     "size": 4,
+     "count": 11996,
+     "kind": "a == b / a < b",
+     "outcomes": "== 298, < 3884, > 7814 (signed); < 3884, > 7814 (unsigned)",
+     "operand": "b 0..32768",
+     "a": "0..32768"
+    },
+    {
+     "line": 32,
+     "text": "if (m & 0xFFF) {",
+     "size": 4,
+     "count": 11996,
+     "kind": "against a constant",
+     "outcomes": "== 4582, < 0, > 7414 (signed); < 0, > 7414 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..4095"
+    },
+    {
+     "line": 36,
+     "text": "if (a->unk0.unk18 != 0) {",
+     "size": 2,
+     "count": 11996,
+     "kind": "against a constant",
+     "outcomes": "== 963, < 4724, > 6309 (signed); < 0, > 11033 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32767"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 40469,
+     "completion_tokens": 8058,
+     "reasoning_tokens": 6987,
+     "cost": 0.0080759,
+     "seconds": 32.8,
+     "sample": 1,
+     "conversation": "43ce4447fad53a2dc445393755eddcb43018529d92f8c62797f68d0aaba6019e"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800AAA88.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800AAA88.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 33.54645664200143,
+ "wall_seconds": 51.341893353999694,
+ "totals": {
+  "cost": 0.01821,
+  "prompt_tokens": 57466,
+  "completion_tokens": 24923,
+  "model_seconds": 105.2,
+  "check_seconds": 33.5,
+  "calls": 2,
+  "wall_seconds": 51.3
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

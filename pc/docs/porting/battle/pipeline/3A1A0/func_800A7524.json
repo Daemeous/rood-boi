@@ -1,0 +1,468 @@
+{
+ "function": "func_800A7524",
+ "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (the two eq waivers hold: the compares sit inside != 0)",
+ "plan": {
+  "name": "func_800A7524",
+  "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+  "stem": "3A1A0",
+  "address": "0x800a7524",
+  "difficulty": "M",
+  "zig_name": "func_800A7524",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A7524",
+  "spec_file": "func_800A7524.zig",
+  "subsystem": "battle_3A1A0_port",
+  "signature": "pub fn func_800A7524(actor: ?*v.D_800F4538_t, motion: ?*v.SVECTOR) callconv(.c) void",
+  "params": [
+   [
+    "actor",
+    "?*v.D_800F4538_t"
+   ],
+   [
+    "motion",
+    "?*v.SVECTOR"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F4538_t",
+   "SVECTOR",
+   "collisionResponseScratch"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14761,
+     "completion_tokens": 10902,
+     "reasoning_tokens": 9132,
+     "cost": 0.0069271,
+     "seconds": 46.6,
+     "sample": 1,
+     "conversation": "4a288bf26ff15ffbf2b73adbf83e446b16eb52803edba048517066b689a1e1a4"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation M1: flag tests bit 11 instead of bit 12: not caught as mismatch (exit 4) (the mutated copy crashes where the C does not: if that is what this mistake does on your inputs, say `expect = \"crash\"`; otherwise choose a mutation your inputs show as a difference): zdiff: MISMATCH iteration 0: memory at 0x40675e [arena] (zdiff_state+0x6ee): C 118, Zig 0\nzdiff: MISMATCH iteration 1: memory at 0x40675e [arena] (zdiff_state+0x6ee): C 0, Zig 7\nzdiff: CRASH (signal 11) in the Zig run, iteration 5, fault address 0x0 [NULL+0x0: a field of a null pointer]\nzdiff: crashed on arguments: 0x406070 [arena] 0 (class flag-clear)",
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800A7524: branches 42/42 (100.0%), conditions not measured (GCC < 14: branch coverage only), lines 48/48\n  FLAG +39 eq: boundary equality never occurred (32-bit compare, constant 0: both sides seen; a port's `<` for `<=` could pass): `if (x < 0) {`\n  FLAG +46 eq: boundary equality never occurred (32-bit compare, constant 0: both sides seen; a port's `<` for `<=` could pass): `if (z < 0) {`\ncoverage func_800A7524: FAILED (threshold 100%: 0 uncovered, 2 value flag(s) not waived)\nWhat to add:\n- `if (x < 0) {` (+39): the two sides of this ordered compare were equal 0 time(s) in 13041. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\n- `if (z < 0) {` (+46): the two sides of this ordered compare were equal 0 time(s) in 13013. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800A7524.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 17344,
+     "completion_tokens": 3231,
+     "reasoning_tokens": 1346,
+     "cost": 0.0033499,
+     "seconds": 12.7,
+     "sample": 1,
+     "conversation": "b56389f09d91c81977257bbc6b0270524cebe6c416b5b7b1ba53e195a53c81f7"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "flag-clear": "7619",
+   "no-contacts": "5581",
+   "in-range": "12027",
+   "clamped": "4773"
+  },
+  "mutations": [
+   {
+    "name": "M1: flag tests bit 11 instead of bit 12",
+    "caught": true
+   },
+   {
+    "name": "M2: x clamped to 15, not 16",
+    "caught": true
+   },
+   {
+    "name": "M3: unsigned compare on motion->vx (signed/unsigned slip)",
+    "caught": true
+   },
+   {
+    "name": "M4: unk6EF store dropped",
+    "caught": true
+   },
+   {
+    "name": "M5: contacts[4] pulls z by 8, not 16",
+    "caught": true
+   },
+   {
+    "name": "M6: motion->vz accumulates x",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 42,
+   "branches_hit": 42,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 48,
+   "lines_hit": 48,
+   "uncovered": [],
+   "flags": [
+    {
+     "id": "+39 eq",
+     "line": 39,
+     "text": "if (x < 0) {",
+     "kind": "eq",
+     "bits": 32,
+     "equal": 0,
+     "count": 13156,
+     "what": "boundary equality never occurred (32-bit compare, constant 0: both sides seen; a port's `<` for `<=` could pass)"
+    },
+    {
+     "id": "+46 eq",
+     "line": 46,
+     "text": "if (z < 0) {",
+     "kind": "eq",
+     "bits": 32,
+     "equal": 0,
+     "count": 13197,
+     "what": "boundary equality never occurred (32-bit compare, constant 0: both sides seen; a port's `<` for `<=` could pass)"
+    }
+   ],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 4,
+     "text": "if (*(u_int*)((char*)actor + 0x5AC) & 0x1000) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 7619, < 0, > 22381 (signed); < 0, > 22381 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..4096"
+    },
+    {
+     "line": 7,
+     "text": "z = (scratch->contacts[0] != 0) * 16;",
+     "size": 1,
+     "count": 22381,
+     "kind": "against a constant",
+     "outcomes": "== 14089, < 4849, > 3443 (signed); < 0, > 8292 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 8,
+     "text": "if (scratch->contacts[1]) {",
+     "size": 1,
+     "count": 22381,
+     "kind": "against a constant",
+     "outcomes": "== 13977, < 4965, > 3439 (signed); < 0, > 8404 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 12,
+     "text": "if (scratch->contacts[2])",
+     "size": 1,
+     "count": 22381,
+     "kind": "against a constant",
+     "outcomes": "== 13963, < 4923, > 3495 (signed); < 0, > 8418 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 14,
+     "text": "if (scratch->contacts[3]) {",
+     "size": 1,
+     "count": 22381,
+     "kind": "against a constant",
+     "outcomes": "== 14013, < 4932, > 3436 (signed); < 0, > 8368 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 18,
+     "text": "if (scratch->contacts[4])",
+     "size": 1,
+     "count": 22381,
+     "kind": "against a constant",
+     "outcomes": "== 13984, < 4871, > 3526 (signed); < 0, > 8397 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 20,
+     "text": "if (scratch->contacts[5]) {",
+     "size": 1,
+     "count": 22381,
+     "kind": "against a constant",
+     "outcomes": "== 14026, < 4882, > 3473 (signed); < 0, > 8355 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 24,
+     "text": "if (scratch->contacts[6])",
+     "size": 1,
+     "count": 22381,
+     "kind": "against a constant",
+     "outcomes": "== 14074, < 4783, > 3524 (signed); < 0, > 8307 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 26,
+     "text": "if (scratch->contacts[7]) {",
+     "size": 1,
+     "count": 22381,
+     "kind": "against a constant",
+     "outcomes": "== 14018, < 4943, > 3420 (signed); < 0, > 8363 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 30,
+     "text": "if (x > 16)",
+     "size": 4,
+     "count": 22381,
+     "kind": "against a constant",
+     "outcomes": "== 2183, < 18821, > 1377 (signed); < 12237, > 7961 (unsigned)",
+     "operand": "constant 16",
+     "a": "-32..32"
+    },
+    {
+     "line": 32,
+     "text": "if (x < -16)",
+     "size": 4,
+     "count": 22381,
+     "kind": "against a constant",
+     "outcomes": "== 2007, < 1308, > 19066 (signed); < 17105, > 3269 (unsigned)",
+     "operand": "constant -16",
+     "a": "-32..16"
+    },
+    {
+     "line": 34,
+     "text": "if (z > 16)",
+     "size": 4,
+     "count": 22381,
+     "kind": "against a constant",
+     "outcomes": "== 2124, < 18977, > 1280 (signed); < 12349, > 7908 (unsigned)",
+     "operand": "constant 16",
+     "a": "-32..32"
+    },
+    {
+     "line": 36,
+     "text": "if (z < -16)",
+     "size": 4,
+     "count": 22381,
+     "kind": "against a constant",
+     "outcomes": "== 2116, < 1346, > 18919 (signed); < 17099, > 3166 (unsigned)",
+     "operand": "constant -16",
+     "a": "-32..16"
+    },
+    {
+     "line": 38,
+     "text": "if (x != 0) {",
+     "size": 4,
+     "count": 22381,
+     "kind": "against a constant",
+     "outcomes": "== 9225, < 6584, > 6572 (signed); < 0, > 13156 (unsigned)",
+     "operand": "constant 0",
+     "a": "-16..16"
+    },
+    {
+     "line": 39,
+     "text": "if (x < 0) {",
+     "size": 4,
+     "count": 13156,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 6584, > 6572 (signed); < 0, > 13156 (unsigned)",
+     "operand": "constant 0",
+     "a": "-16..16"
+    },
+    {
+     "line": 40,
+     "text": "if (motion->vx > 0)",
+     "size": 2,
+     "count": 6584,
+     "kind": "against a constant",
+     "outcomes": "== 456, < 3091, > 3037 (signed); < 0, > 6128 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 42,
+     "text": "} else if (motion->vx < 0)",
+     "size": 2,
+     "count": 6572,
+     "kind": "against a constant",
+     "outcomes": "== 499, < 3034, > 3039 (signed); < 0, > 6073 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 45,
+     "text": "if (z != 0) {",
+     "size": 4,
+     "count": 22381,
+     "kind": "against a constant",
+     "outcomes": "== 9184, < 6628, > 6569 (signed); < 0, > 13197 (unsigned)",
+     "operand": "constant 0",
+     "a": "-16..16"
+    },
+    {
+     "line": 46,
+     "text": "if (z < 0) {",
+     "size": 4,
+     "count": 13197,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 6628, > 6569 (signed); < 0, > 13197 (unsigned)",
+     "operand": "constant 0",
+     "a": "-16..16"
+    },
+    {
+     "line": 47,
+     "text": "if (motion->vz > 0)",
+     "size": 2,
+     "count": 6628,
+     "kind": "against a constant",
+     "outcomes": "== 477, < 3051, > 3100 (signed); < 0, > 6151 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 49,
+     "text": "} else if (motion->vz < 0)",
+     "size": 2,
+     "count": 6569,
+     "kind": "against a constant",
+     "outcomes": "== 504, < 3014, > 3051 (signed); < 0, > 6065 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32767"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+39 eq",
+    "reason": "`if (x < 0)` sits inside `if (x != 0)`, so x is never 0 at this compare; a port's `x <= 0` there is the same test and cannot be told apart from `<`."
+   },
+   {
+    "id": "+46 eq",
+    "reason": "`if (z < 0)` sits inside `if (z != 0)`, so z is never 0 at this compare; a port's `z <= 0` there is the same test and cannot be told apart from `<`."
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 38371,
+     "completion_tokens": 4524,
+     "reasoning_tokens": 3622,
+     "cost": 0.0060991,
+     "seconds": 19.1,
+     "sample": 1,
+     "conversation": "bfa5c3e0a872d216d27cca90b1840a959709cb7636be7670f8c4e2f6b1b54445"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A7524.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A7524.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 48.98782503499933,
+ "wall_seconds": 50.00528535199919,
+ "totals": {
+  "cost": 0.01638,
+  "prompt_tokens": 70476,
+  "completion_tokens": 18657,
+  "model_seconds": 78.4,
+  "check_seconds": 49.0,
+  "calls": 3,
+  "wall_seconds": 50.0
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

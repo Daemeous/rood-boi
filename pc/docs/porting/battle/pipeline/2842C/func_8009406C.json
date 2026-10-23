@@ -1,0 +1,296 @@
+{
+ "function": "func_8009406C",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_8009406C",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x8009406c",
+  "difficulty": "S",
+  "zig_name": "func_8009406C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_8009406C",
+  "spec_file": "func_8009406C.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_8009406C(arg0: c_int, arg1: c_int, arg2: c_int, arg3: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ],
+   [
+    "arg3",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800F1BAC_t",
+   "SVECTOR"
+  ],
+  "globals": [
+   "D_800F1BAC",
+   "D_800F227E"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/func_8009406C/spec1/build/spec.zig:53:61: error: expected unsigned integer type, found 'c_int'\n        e.unk8.u8[1] = if (ctx.chance(2)) @as(u8, @truncate(arg0)) else ctx.int(u8);\n                                                            ^~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:435:40\n    main: pc/tests/zig_diff/main.zig:392:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "bit7-clear": "14970",
+   "probe-fails": "3710",
+   "x-too-big": "7520",
+   "y-too-big": "2535",
+   "placed": "1265"
+  },
+  "mutations": [
+   {
+    "name": "M1: frame compared with <= (edge 0x25 taken)",
+    "caught": true
+   },
+   {
+    "name": "M2: unk6 tested with > 0 (zero entries skipped)",
+    "caught": true
+   },
+   {
+    "name": "M3: signed compare of sp10.vx (negative slip)",
+    "caught": true
+   },
+   {
+    "name": "M4: unkC stores arg1 instead of arg2",
+    "caught": true
+   },
+   {
+    "name": "M5: the count increment is dropped",
+    "caught": true
+   },
+   {
+    "name": "M6: unkE keeps the sign bit of arg3",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 18,
+   "branches_hit": 18,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 36,
+   "lines_hit": 36,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -2147041309, max 2147382253, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147447573, max 2147475990, unsigned 108005..4294064322, seen negative, never zero"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2147353806, max 2147279374, unsigned 174478..4294725454, seen negative, never zero"
+    },
+    {
+     "arg": 3,
+     "count": 30000,
+     "text": "32-bit: min -2147387404, max 2147367114, unsigned 24882..4294952148, seen negative, never zero"
+    }
+   ],
+   "compares": [
+    {
+     "line": 9,
+     "text": "for (; i < D_800F227E; ++i, ++p) {",
+     "size": 4,
+     "count": 98576,
+     "kind": "a == b / a < b",
+     "outcomes": "== 27436, < 68576, > 2564 (signed); < 71140, > 0 (unsigned)",
+     "operand": "b -1..5",
+     "a": "0..5"
+    },
+    {
+     "line": 10,
+     "text": "if ((p->unk8.u8[0] == 2) && (p->unk8.u8[1] == arg0)) {",
+     "size": 1,
+     "count": 68576,
+     "kind": "against a constant",
+     "outcomes": "== 25876, < 17510, > 25190 (signed); < 261, > 42439 (unsigned)",
+     "operand": "constant 2",
+     "a": "-128..127"
+    },
+    {
+     "line": 10,
+     "text": "if ((p->unk8.u8[0] == 2) && (p->unk8.u8[1] == arg0)) {",
+     "size": 4,
+     "count": 25876,
+     "kind": "a == b / a < b",
+     "outcomes": "== 4876, < 11179, > 9821 (signed); < 3156, > 17844 (unsigned)",
+     "operand": "b 0..255",
+     "a": "-2147041309..2147382253"
+    },
+    {
+     "line": 12,
+     "text": "if (p->unk6 >= 0) {",
+     "size": 2,
+     "count": 4876,
+     "kind": "against a constant",
+     "outcomes": "== 1146, < 1886, > 1844 (signed); < 0, > 3730 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32755..32766"
+    },
+    {
+     "line": 20,
+     "text": "if (arg3 & 0x80) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 14970, < 0, > 15030 (signed); < 0, > 15030 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..128"
+    },
+    {
+     "line": 21,
+     "text": "if (func_800A1280(arg0, 0xFB, &sp10, 0) != 0) {",
+     "size": 4,
+     "count": 15030,
+     "kind": "against a constant",
+     "outcomes": "== 11320, < 1206, > 2504 (signed); < 0, > 3710 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..256"
+    },
+    {
+     "line": 24,
+     "text": "if ((u_short)sp10.vx >= 0x141) {",
+     "size": 2,
+     "count": 11320,
+     "kind": "against a constant",
+     "outcomes": "== 1925, < 4753, > 4642 (signed); < 1875, > 7520 (unsigned)",
+     "operand": "constant 320",
+     "a": "-32757..32767"
+    },
+    {
+     "line": 27,
+     "text": "if ((u_short)sp10.vy >= 0xF1) {",
+     "size": 2,
+     "count": 3800,
+     "kind": "against a constant",
+     "outcomes": "== 617, < 1607, > 1576 (signed); < 648, > 2535 (unsigned)",
+     "operand": "constant 240",
+     "a": "-32744..32661"
+    },
+    {
+     "line": 37,
+     "text": "if (frame < 0x25) {",
+     "size": 4,
+     "count": 16235,
+     "kind": "against a constant",
+     "outcomes": "== 186, < 14621, > 1428 (signed); < 14621, > 1428 (unsigned)",
+     "operand": "constant 36",
+     "a": "0..267"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_8009406C.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_8009406C.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 67.56830936199913,
+ "wall_seconds": 129.00403771499987,
+ "totals": {
+  "cost": 0.0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "model_seconds": 0.0,
+  "check_seconds": 67.6,
+  "calls": 0,
+  "wall_seconds": 129.0
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested 3 / nested 3 / -, 0 mismatches"
+ }
+}

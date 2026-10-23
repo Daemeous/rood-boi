@@ -1,0 +1,646 @@
+{
+ "function": "func_800941FC",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "XL",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; the ROOD_PC hooks checked by hand (the harness never links them): every PC_HUD (damage, status, chain, buff) and PC_ANCHOR_PACKETS kept in place and in order (the classic site's first-cursor read, then the anchor's, the draw, the anchor hook, the classic site with the end cursor), PC_GTE_UNNARROWED's pc_gte_anchored increments around both RotTransPers; spec sound (seven never-linked-hook waivers hold)",
+ "plan": {
+  "name": "func_800941FC",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x800941fc",
+  "difficulty": "XL",
+  "zig_name": "func_800941FC",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800941FC",
+  "spec_file": "func_800941FC.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_800941FC() callconv(.c) void",
+  "params": [],
+  "ret": "void",
+  "types": [
+   "D_800F1BAC_t",
+   "SVECTOR"
+  ],
+  "globals": [
+   "D_800F1BAC",
+   "D_800F2272",
+   "D_800F2278",
+   "D_800F227A",
+   "D_800F227C",
+   "D_800F227E",
+   "pc_gte_anchored",
+   "vs_gametime_tickspeed"
+  ],
+  "hooks": [
+   "pc_anchor_start",
+   "pc_classic_first",
+   "pc_classic_site",
+   "pc_gte_anchored",
+   "pc_hw_anchor_packets",
+   "ROOD_PC block in the source"
+  ],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800941FC: branches 91/98 (92.9%), conditions not measured (GCC < 14: branch coverage only), lines 127/127\n  UNCOVERED +92 b1: branch never taken: `do { void* pc_classic_first = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); func_80094B0C(screen[0], screen[1], label); if (pc_classic_site) pc_classic_site(PC_HUD_DAMAGE, label, screen[0], screen[1], pc_classic_first, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000)))); } while (0)`\n  UNCOVERED +154 b1: branch never taken: `do { void* pc_classic_first = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); do { void* pc_anchor_start = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); func_800958A4(44, 48, label); if (pc_hw_anchor_packets) pc_hw_anchor_packets(pc_anchor_start, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))), PC_ANCHOR_LEFT_EDGE); } while (0); if (pc_classic_site) pc_classic_site(PC_HUD_STATUS, label, 44, 48, pc_classic_first, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000)))); } while (0)`\n  UNCOVERED +154 b3: branch never taken: `do { void* pc_classic_first = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); do { void* pc_anchor_start = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); func_800958A4(44, 48, label); if (pc_hw_anchor_packets) pc_hw_anchor_packets(pc_anchor_start, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))), PC_ANCHOR_LEFT_EDGE); } while (0); if (pc_classic_site) pc_classic_site(PC_HUD_STATUS, label, 44, 48, pc_classic_first, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000)))); } while (0)`\n  UNCOVERED +167 b1: branch never taken: `do { void* pc_classic_first = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); do { void* pc_anchor_start = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); func_80095A4C(44, 64, label); if (pc_hw_anchor_packets) pc_hw_anchor_packets(pc_anchor_start, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))), PC_ANCHOR_LEFT_EDGE); } while (0); if (pc_classic_site) pc_classic_site(PC_HUD_CHAIN, label, 44, 64, pc_classic_first, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000)))); } while (0)`\n  UNCOVERED +167 b3: branch never taken: `do { void* pc_classic_first = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); do { void* pc_anchor_start = "
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "no-labels": "9957",
+   "type-0": "1363",
+   "type-1-2": "5660",
+   "type-3": "2801",
+   "type-4-5": "2837",
+   "type-6": "10310",
+   "type-7": "2857",
+   "other-types": "4215"
+  },
+  "mutations": [
+   {
+    "name": "M1: type test on a signed char (types 128+ take the position path)",
+    "caught": true
+   },
+   {
+    "name": "M2: right clamp of screen x at 287, not 288",
+    "caught": true
+   },
+   {
+    "name": "M3: visible tested for < 0 instead of <= 0",
+    "caught": true
+   },
+   {
+    "name": "M4: wrong flag bit tested in case 1 (0x40 for 0x80)",
+    "caught": true
+   },
+   {
+    "name": "M5: the frame-countdown call dropped",
+    "caught": true
+   },
+   {
+    "name": "M6: countdown adds 11 to unk12, not 10",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 98,
+   "branches_hit": 91,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 127,
+   "lines_hit": 127,
+   "uncovered": [
+    {
+     "id": "+92 b1",
+     "line": 92,
+     "text": "do { void* pc_classic_first = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); func_80094B0C(screen[0], screen[1], label); if (pc_classic_site) pc_classic_site(PC_HUD_DAMAGE, label, screen[0], screen[1], pc_classic_first, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000)))); } while (0)",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+154 b1",
+     "line": 154,
+     "text": "do { void* pc_classic_first = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); do { void* pc_anchor_start = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); func_800958A4(44, 48, label); if (pc_hw_anchor_packets) pc_hw_anchor_packets(pc_anchor_start, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))), PC_ANCHOR_LEFT_EDGE); } while (0); if (pc_classic_site) pc_classic_site(PC_HUD_STATUS, label, 44, 48, pc_classic_first, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000)))); } while (0)",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+154 b3",
+     "line": 154,
+     "text": "do { void* pc_classic_first = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); do { void* pc_anchor_start = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); func_800958A4(44, 48, label); if (pc_hw_anchor_packets) pc_hw_anchor_packets(pc_anchor_start, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))), PC_ANCHOR_LEFT_EDGE); } while (0); if (pc_classic_site) pc_classic_site(PC_HUD_STATUS, label, 44, 48, pc_classic_first, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000)))); } while (0)",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+167 b1",
+     "line": 167,
+     "text": "do { void* pc_classic_first = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); do { void* pc_anchor_start = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); func_80095A4C(44, 64, label); if (pc_hw_anchor_packets) pc_hw_anchor_packets(pc_anchor_start, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))), PC_ANCHOR_LEFT_EDGE); } while (0); if (pc_classic_site) pc_classic_site(PC_HUD_CHAIN, label, 44, 64, pc_classic_first, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000)))); } while (0)",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+167 b3",
+     "line": 167,
+     "text": "do { void* pc_classic_first = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); do { void* pc_anchor_start = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); func_80095A4C(44, 64, label); if (pc_hw_anchor_packets) pc_hw_anchor_packets(pc_anchor_start, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))), PC_ANCHOR_LEFT_EDGE); } while (0); if (pc_classic_site) pc_classic_site(PC_HUD_CHAIN, label, 44, 64, pc_classic_first, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000)))); } while (0)",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+183 b1",
+     "line": 183,
+     "text": "do { void* pc_classic_first = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); do { void* pc_anchor_start = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); func_8009695C(8, 172, label); if (pc_hw_anchor_packets) pc_hw_anchor_packets(pc_anchor_start, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))), PC_ANCHOR_LEFT_EDGE); } while (0); if (pc_classic_site) pc_classic_site(PC_HUD_BUFF, label, 8, 172, pc_classic_first, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000)))); } while (0)",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+183 b3",
+     "line": 183,
+     "text": "do { void* pc_classic_first = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); do { void* pc_anchor_start = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); func_8009695C(8, 172, label); if (pc_hw_anchor_packets) pc_hw_anchor_packets(pc_anchor_start, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))), PC_ANCHOR_LEFT_EDGE); } while (0); if (pc_classic_site) pc_classic_site(PC_HUD_BUFF, label, 8, 172, pc_classic_first, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000)))); } while (0)",
+     "what": "branch never taken"
+    }
+   ],
+   "flags": [],
+   "args": [],
+   "compares": [
+    {
+     "line": 11,
+     "text": "if (D_800F2272 > 0) {",
+     "size": 2,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 16032, < 8133, > 15835 (signed); < 0, > 23968 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..2"
+    },
+    {
+     "line": 15,
+     "text": "if (D_800F1BA4 == 0) {",
+     "size": 2,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 13317, < 13319, > 13364 (signed); < 0, > 26683 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..2"
+    },
+    {
+     "line": 18,
+     "text": "if (D_800F2278 > 20) {",
+     "size": 2,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 4596, < 14961, > 20443 (signed); < 5582, > 29822 (unsigned)",
+     "operand": "constant 20",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 21,
+     "text": "for (i = 0; i < D_800F227E; ++i, ++label) {",
+     "size": 4,
+     "count": 74208,
+     "kind": "a == b / a < b",
+     "outcomes": "== 17915, < 53765, > 2528 (signed); < 56293, > 0 (unsigned)",
+     "operand": "b -1..6",
+     "a": "0..6"
+    },
+    {
+     "line": 22,
+     "text": "if (label->unk8.u8[0] == 6) {",
+     "size": 1,
+     "count": 53765,
+     "kind": "against a constant",
+     "outcomes": "== 27413, < 20819, > 5533 (signed); < 16966, > 9386 (unsigned)",
+     "operand": "constant 6",
+     "a": "-56..8"
+    },
+    {
+     "line": 23,
+     "text": "if (--label->unk6 == -1) {",
+     "size": 2,
+     "count": 27413,
+     "kind": "against a constant",
+     "outcomes": "== 13073, < 7061, > 7279 (signed); < 14340, > 0 (unsigned)",
+     "operand": "constant -1",
+     "a": "-3..1"
+    },
+    {
+     "line": 24,
+     "text": "for (p = 0; p < i; ++p) {",
+     "size": 4,
+     "count": 35081,
+     "kind": "a == b / a < b",
+     "outcomes": "== 13073, < 0, > 22008 (signed); < 0, > 22008 (unsigned)",
+     "operand": "b 0..5",
+     "a": "0..5"
+    },
+    {
+     "line": 25,
+     "text": "if ((*D_800F1BAC)[p].unk8.u8[0] == 6) {",
+     "size": 1,
+     "count": 22008,
+     "kind": "against a constant",
+     "outcomes": "== 20131, < 1504, > 373 (signed); < 1196, > 681 (unsigned)",
+     "operand": "constant 6",
+     "a": "-56..8"
+    },
+    {
+     "line": 36,
+     "text": "for (i = 0; i < D_800F227E; ++i, ++label) {",
+     "size": 4,
+     "count": 145282,
+     "kind": "a == b / a < b",
+     "outcomes": "== 35055, < 105282, > 4945 (signed); < 110227, > 0 (unsigned)",
+     "operand": "b -1..6",
+     "a": "0..6"
+    },
+    {
+     "line": 37,
+     "text": "if (label->unk8.u8[0] == 0) {",
+     "size": 1,
+     "count": 105282,
+     "kind": "against a constant",
+     "outcomes": "== 4789, < 9934, > 90559 (signed); < 0, > 100493 (unsigned)",
+     "operand": "constant 0",
+     "a": "-56..8"
+    },
+    {
+     "line": 40,
+     "text": "if (label->unk8.u8[0] < 3) {",
+     "size": 1,
+     "count": 100493,
+     "kind": "against a constant",
+     "outcomes": "== 9868, < 19828, > 70797 (signed); < 9894, > 80731 (unsigned)",
+     "operand": "constant 2",
+     "a": "-56..8"
+    },
+    {
+     "line": 41,
+     "text": "if (func_800A190C(label->unk8.u8[1], 0xFB, &position, 0) != 0) {",
+     "size": 4,
+     "count": 19762,
+     "kind": "against a constant",
+     "outcomes": "== 14783, < 4979, > 0 (signed); < 0, > 4979 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..0"
+    },
+    {
+     "line": 44,
+     "text": "if (position.vy > 0) {",
+     "size": 2,
+     "count": 14783,
+     "kind": "against a constant",
+     "outcomes": "== 4977, < 4770, > 5036 (signed); < 0, > 9806 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 56,
+     "text": "if (screen[0] < 32) {",
+     "size": 2,
+     "count": 14783,
+     "kind": "against a constant",
+     "outcomes": "== 1866, < 3694, > 9223 (signed); < 1879, > 11038 (unsigned)",
+     "operand": "constant 31",
+     "a": "-5..289"
+    },
+    {
+     "line": 59,
+     "text": "if (screen[0] > 288) {",
+     "size": 2,
+     "count": 14783,
+     "kind": "against a constant",
+     "outcomes": "== 1839, < 11147, > 1797 (signed); < 11147, > 1797 (unsigned)",
+     "operand": "constant 288",
+     "a": "32..289"
+    },
+    {
+     "line": 62,
+     "text": "if (screen[1] < 40) {",
+     "size": 2,
+     "count": 14783,
+     "kind": "against a constant",
+     "outcomes": "== 1834, < 3739, > 9210 (signed); < 1850, > 11099 (unsigned)",
+     "operand": "constant 39",
+     "a": "-1..201"
+    },
+    {
+     "line": 65,
+     "text": "if (screen[1] > 200) {",
+     "size": 2,
+     "count": 14783,
+     "kind": "against a constant",
+     "outcomes": "== 1823, < 11096, > 1864 (signed); < 11096, > 1864 (unsigned)",
+     "operand": "constant 200",
+     "a": "40..201"
+    },
+    {
+     "line": 68,
+     "text": "} else if (label->unk8.u8[0] == 3) {",
+     "size": 1,
+     "count": 80731,
+     "kind": "against a constant",
+     "outcomes": "== 9863, < 9934, > 60934 (signed); < 0, > 70868 (unsigned)",
+     "operand": "constant 3",
+     "a": "-56..8"
+    },
+    {
+     "line": 78,
+     "text": "if (visible <= 0) {",
+     "size": 4,
+     "count": 95514,
+     "kind": "against a constant",
+     "outcomes": "== 6155, < 6207, > 83152 (signed); < 0, > 89359 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..1"
+    },
+    {
+     "line": 81,
+     "text": "switch (label->unk8.u8[0]) {",
+     "size": 4,
+     "count": 83152,
+     "kind": "switch",
+     "outcomes": "== 68302, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "1..255"
+    },
+    {
+     "line": 83,
+     "text": "if (label->unk6 <= 0) {",
+     "size": 2,
+     "count": 3712,
+     "kind": "against a constant",
+     "outcomes": "== 1235, < 1253, > 1224 (signed); < 0, > 2477 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2..2"
+    },
+    {
+     "line": 87,
+     "text": "if (label->unkE == 2) {",
+     "size": 1,
+     "count": 2488,
+     "kind": "against a constant",
+     "outcomes": "== 262, < 1179, > 1047 (signed); < 549, > 1677 (unsigned)",
+     "operand": "constant 2",
+     "a": "-128..127"
+    },
+    {
+     "line": 99,
+     "text": "if (label->unkB >= 10) {",
+     "size": 1,
+     "count": 2488,
+     "kind": "against a constant",
+     "outcomes": "== 103, < 485, > 1900 (signed); < 366, > 2019 (unsigned)",
+     "operand": "constant 9",
+     "a": "-2..123"
+    },
+    {
+     "line": 102,
+     "text": "if (label->unkB < 31) {",
+     "size": 1,
+     "count": 2488,
+     "kind": "against a constant",
+     "outcomes": "== 97, < 1004, > 1387 (signed); < 885, > 1506 (unsigned)",
+     "operand": "constant 30",
+     "a": "-2..123"
+    },
+    {
+     "line": 109,
+     "text": "if (label->unkE & 0x80) {",
+     "size": 1,
+     "count": 1224,
+     "kind": "against a constant",
+     "outcomes": "== 69, < 523, > 632 (signed); < 0, > 1155 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 116,
+     "text": "if (label->unk6 > 0) {",
+     "size": 2,
+     "count": 3699,
+     "kind": "against a constant",
+     "outcomes": "== 1250, < 1277, > 1172 (signed); < 0, > 2449 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2..2"
+    },
+    {
+     "line": 120,
+     "text": "if (label->unk8.u8[1] != 0 || D_800F227A == 0) {",
+     "size": 1,
+     "count": 2527,
+     "kind": "against a constant",
+     "outcomes": "== 981, < 509, > 1037 (signed); < 0, > 1546 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..5"
+    },
+    {
+     "line": 120,
+     "text": "if (label->unk8.u8[1] != 0 || D_800F227A == 0) {",
+     "size": 2,
+     "count": 981,
+     "kind": "against a constant",
+     "outcomes": "== 500, < 250, > 231 (signed); < 0, > 481 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..1"
+    },
+    {
+     "line": 121,
+     "text": "if (label->unkE == 2) {",
+     "size": 1,
+     "count": 2046,
+     "kind": "against a constant",
+     "outcomes": "== 473, < 1121, > 452 (signed); < 433, > 1140 (unsigned)",
+     "operand": "constant 2",
+     "a": "-128..127"
+    },
+    {
+     "line": 128,
+     "text": "if (label->unkB >= 10) {",
+     "size": 1,
+     "count": 2527,
+     "kind": "against a constant",
+     "outcomes": "== 108, < 504, > 1915 (signed); < 369, > 2050 (unsigned)",
+     "operand": "constant 9",
+     "a": "-2..123"
+    },
+    {
+     "line": 131,
+     "text": "if (label->unkB >= 31) {",
+     "size": 1,
+     "count": 2527,
+     "kind": "against a constant",
+     "outcomes": "== 87, < 998, > 1442 (signed); < 863, > 1577 (unsigned)",
+     "operand": "constant 30",
+     "a": "-2..123"
+    },
+    {
+     "line": 138,
+     "text": "if (label->unkB >= 10) {",
+     "size": 1,
+     "count": 1873,
+     "kind": "against a constant",
+     "outcomes": "== 78, < 390, > 1405 (signed); < 296, > 1499 (unsigned)",
+     "operand": "constant 9",
+     "a": "-2..123"
+    },
+    {
+     "line": 145,
+     "text": "if (label->unkB >= 31) {",
+     "size": 1,
+     "count": 4873,
+     "kind": "against a constant",
+     "outcomes": "== 198, < 1902, > 2773 (signed); < 1679, > 2996 (unsigned)",
+     "operand": "constant 30",
+     "a": "-2..123"
+    },
+    {
+     "line": 160,
+     "text": "if (label->unkB >= 46) {",
+     "size": 1,
+     "count": 5008,
+     "kind": "against a constant",
+     "outcomes": "== 115, < 3116, > 1777 (signed); < 1720, > 3173 (unsigned)",
+     "operand": "constant 45",
+     "a": "-128..127"
+    },
+    {
+     "line": 173,
+     "text": "if (label->unkB >= 91) {",
+     "size": 1,
+     "count": 5004,
+     "kind": "against a constant",
+     "outcomes": "== 101, < 4292, > 611 (signed); < 2949, > 1954 (unsigned)",
+     "operand": "constant 90",
+     "a": "-128..127"
+    },
+    {
+     "line": 179,
+     "text": "if (label->unk6 >= 0) {",
+     "size": 2,
+     "count": 36061,
+     "kind": "against a constant",
+     "outcomes": "== 9920, < 22802, > 3339 (signed); < 0, > 26141 (unsigned)",
+     "operand": "constant 0",
+     "a": "-3..2"
+    },
+    {
+     "line": 188,
+     "text": "if (D_800F1BA4 != 0) {",
+     "size": 2,
+     "count": 22802,
+     "kind": "against a constant",
+     "outcomes": "== 7710, < 7480, > 7612 (signed); < 0, > 15092 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..2"
+    },
+    {
+     "line": 192,
+     "text": "if (label->unkB >= 61) {",
+     "size": 1,
+     "count": 7710,
+     "kind": "against a constant",
+     "outcomes": "== 163, < 5563, > 1984 (signed); < 3434, > 4113 (unsigned)",
+     "operand": "constant 60",
+     "a": "-128..127"
+    },
+    {
+     "line": 206,
+     "text": "if (removed > 0) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 21639, < 0, > 18361 (signed); < 0, > 18361 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..6"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+92 b1",
+    "reason": "PC_HUD hook guard: pc_classic_site is a weak hook the harness never defines, so it is always null; the non-null (plugin) side cannot be linked into the test build."
+   },
+   {
+    "id": "+154 b1",
+    "reason": "PC_HUD hook guard: pc_classic_site is a weak hook the harness never defines, so it is always null; the non-null (plugin) side cannot be linked into the test build."
+   },
+   {
+    "id": "+154 b3",
+    "reason": "Anchor hook guard: pc_hw_anchor_packets is a weak hook the harness never defines, so it is always null; the non-null (plugin) side cannot be linked into the test build."
+   },
+   {
+    "id": "+167 b1",
+    "reason": "PC_HUD hook guard: pc_classic_site is a weak hook the harness never defines, so it is always null; the non-null (plugin) side cannot be linked into the test build."
+   },
+   {
+    "id": "+167 b3",
+    "reason": "Anchor hook guard: pc_hw_anchor_packets is a weak hook the harness never defines, so it is always null; the non-null (plugin) side cannot be linked into the test build."
+   },
+   {
+    "id": "+183 b1",
+    "reason": "PC_HUD hook guard: pc_classic_site is a weak hook the harness never defines, so it is always null; the non-null (plugin) side cannot be linked into the test build."
+   },
+   {
+    "id": "+183 b3",
+    "reason": "Anchor hook guard: pc_hw_anchor_packets is a weak hook the harness never defines, so it is always null; the non-null (plugin) side cannot be linked into the test build."
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800941FC.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800941FC.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 107.09500173999913,
+ "wall_seconds": 127.76275428900044,
+ "totals": {
+  "cost": 0.0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "model_seconds": 0.0,
+  "check_seconds": 107.1,
+  "calls": 0,
+  "wall_seconds": 127.8
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 248 / root 481 / root 850, 0 mismatches"
+ }
+}

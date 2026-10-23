@@ -1,0 +1,281 @@
+{
+ "function": "func_800A3310",
+ "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the 4-byte vx/vy compare as two equal tests); spec finished by the reviewer (arg0 edges only)",
+ "plan": {
+  "name": "func_800A3310",
+  "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+  "stem": "3A1A0",
+  "address": "0x800a3310",
+  "difficulty": "S",
+  "zig_name": "func_800A3310",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A3310",
+  "spec_file": "func_800A3310.zig",
+  "subsystem": "battle_3A1A0_port",
+  "signature": "pub fn func_800A3310(arg0: c_int, arg1: ?*v.SVECTOR) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "?*v.SVECTOR"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800F4538_t",
+   "SVECTOR"
+  ],
+  "globals": [
+   "D_800F4538"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16013,
+     "completion_tokens": 12157,
+     "reasoning_tokens": 10250,
+     "cost": 0.0076798,
+     "seconds": 51.2,
+     "sample": 1,
+     "conversation": "32bc780f1d7d2bd41c5b20172f1d6a7581b411bce88881fac85a7a2df91b94d6"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: your spec's own code (prepare or classify) failed before the C ran: a Zig safety check (an index past an array's length, an integer that does not fit, a null unwrap) or a fault in it:\nzdiff: PANIC in the classify run, iteration 6: index out of bounds: index 17, len 17 (return address 0x402b8a)",
+     "(the mutations and the coverage gate are checked once the spec runs)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "no-loop": "11441",
+   "found": "1535",
+   "not-found": "17024"
+  },
+  "mutations": [
+   {
+    "name": "F1: the search starts at index 1",
+    "caught": true
+   },
+   {
+    "name": "F2: the last index is skipped (bound arg0 - 1)",
+    "caught": true
+   },
+   {
+    "name": "F3: unkA_5 check dropped",
+    "caught": true
+   },
+   {
+    "name": "F4: vz compare dropped",
+    "caught": true
+   },
+   {
+    "name": "F5: only vx compared (short read)",
+    "caught": true
+   },
+   {
+    "name": "F6: not-found returns -1",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 10,
+   "branches_hit": 10,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 8,
+   "lines_hit": 8,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -3, max 17, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 4,
+     "text": "for (i = 2; i < arg0; ++i) {",
+     "size": 4,
+     "count": 175712,
+     "kind": "a == b / a < b",
+     "outcomes": "== 19506, < 147247, > 8959 (signed); < 151539, > 4667 (unsigned)",
+     "operand": "b -3..17",
+     "a": "2..17"
+    },
+    {
+     "line": 6,
+     "text": "if (temp_a2 != 0 && temp_a2->unk0.unkA_5",
+     "size": 1,
+     "count": 117522,
+     "kind": "against a constant",
+     "outcomes": "== 59764, < 0, > 57758 (signed); < 0, > 57758 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..32"
+    },
+    {
+     "line": 7,
+     "text": "&& *(int*)&temp_a2->unk0.position == *(int*)arg1",
+     "size": 4,
+     "count": 57758,
+     "kind": "a == b / a < b",
+     "outcomes": "== 3394, < 27034, > 27330 (signed); < 27338, > 27026 (unsigned)",
+     "operand": "b -2147483648..2147483647",
+     "a": "-2147483648..2147483647"
+    },
+    {
+     "line": 8,
+     "text": "&& temp_a2->unk0.position.vz == arg1->vz) {",
+     "size": 2,
+     "count": 3394,
+     "kind": "a == b / a < b",
+     "outcomes": "== 1535, < 910, > 949 (signed); < 1029, > 830 (unsigned)",
+     "operand": "b -32768..32767",
+     "a": "-32768..32767"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39623,
+     "completion_tokens": 2640,
+     "reasoning_tokens": 2157,
+     "cost": 0.0052823,
+     "seconds": 12.2,
+     "sample": 1,
+     "conversation": "93362ee253dbfac7f975b44f3bf3bb00ea4c7ef4bb0b22c8da2444af7df3990a"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800A3310.zig:2:120: error: expected type expression, found 'a document comment'\n/// Finds the slot from index 2 up to `count` whose actor is flagged and sits at the given position, or 0 if none does.\n                                                                                                                       ^\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 40284,
+     "completion_tokens": 1100,
+     "reasoning_tokens": 694,
+     "cost": 0.0045784,
+     "seconds": 5.6,
+     "sample": 1,
+     "conversation": "c70c1ca9872d43bc51937c7559bab433c76b5d9b4ff1e2ba8a76e5a3d571a922"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A3310.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A3310.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 37.81185037999876,
+ "wall_seconds": 58.49272422299964,
+ "totals": {
+  "cost": 0.01754,
+  "prompt_tokens": 95920,
+  "completion_tokens": 15897,
+  "model_seconds": 69.0,
+  "check_seconds": 37.8,
+  "calls": 3,
+  "wall_seconds": 58.5
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "spec_fixes": [
+   "reviewer's round-2 reply: Haiku's arg0 edges went through ctx.pick, which draws any c_int half the time: the C indexed the 17-entry table up to 0x670d32b2 and crashed; the edges are now drawn as edges"
+  ],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

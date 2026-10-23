@@ -1,0 +1,313 @@
+{
+ "function": "func_800A51A0",
+ "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (a missing entry dereferences NULL as the C does); spec finished by the reviewer (two mutations expect a crash)",
+ "plan": {
+  "name": "func_800A51A0",
+  "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+  "stem": "3A1A0",
+  "address": "0x800a51a0",
+  "difficulty": "M",
+  "zig_name": "func_800A51A0",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A51A0",
+  "spec_file": "func_800A51A0.zig",
+  "subsystem": "battle_3A1A0_port",
+  "signature": "pub fn func_800A51A0(arg0: c_int, arg1: ?*v.SVECTOR) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "?*v.SVECTOR"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "SVECTOR",
+   "func_8008D2C0_t"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11731,
+     "completion_tokens": 18819,
+     "reasoning_tokens": 16545,
+     "cost": 0.0105826,
+     "seconds": 84.0,
+     "sample": 1,
+     "conversation": "9d0a3fdf27e4c55b1ec3a010414ef21de6c8c5af583d4e0023cdacdda2a08f5a"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the C itself crashed on your inputs (the C runs first, so this is the spec's\nbug). The harness fills every global and the arena with random bytes before\nprepare, so every pointer the C follows must be one prepare set: each\nargument, each pointer field of an object you build, and each ENTRY of a\nglobal pointer table the C indexes (only the entry it reads: e.g.\n`v.g.TABLE()[i] = obj`), pointing at an object from `ctx.alloc`/`ctx.allocBytes`\n(sized for every element the C indexes past a `[0]` array), at a global, or\nnull where the C tests for null. An index into a global table must stay\ninside its length (the views accessor's type gives it). Below: the crash, its\nfault address (named when it is inside an object the harness owns) and the\narguments of that iteration:\nzdiff: CRASH (signal 11) in the C run, iteration 0, fault address 0x0 [NULL+0x0: a field of a null pointer]\nzdiff: crashed on arguments: 0x12dc 0x406080 [arena] (class not-found)",
+     "(the mutations and the coverage gate are checked once the C runs crash-free)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "x-high-out": "7296",
+   "x-low-out": "7067",
+   "z-high-out": "3546",
+   "z-low-out": "3666",
+   "inside": "8425"
+  },
+  "mutations": [
+   {
+    "name": "M1: the last sp10 entry is never searched",
+    "caught": true
+   },
+   {
+    "name": "M2: left box test is <= (equal counts as outside)",
+    "caught": true
+   },
+   {
+    "name": "M3: wrong constant in the z bottom bound",
+    "caught": true
+   },
+   {
+    "name": "M4: arg0 offset of 1 instead of 2",
+    "caught": true
+   },
+   {
+    "name": "M5: top z test uses unk0 instead of unk4",
+    "caught": true
+   },
+   {
+    "name": "M6: unsigned compare on the right x bound",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 10,
+   "branches_hit": 9,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 16,
+   "lines_hit": 15,
+   "uncovered": [
+    {
+     "id": "+9 b1",
+     "line": 9,
+     "text": "for (i = 0; i < n; i++) {",
+     "what": "branch never taken"
+    }
+   ],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -32766, max 32769, unsigned 1..4294967295, seen negative/all ones, never zero"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 9,
+     "text": "for (i = 0; i < n; i++) {",
+     "size": 4,
+     "count": 51065,
+     "kind": "a == b / a < b",
+     "outcomes": "== 0, < 51065, > 0 (signed); < 51065, > 0 (unsigned)",
+     "operand": "b 1..4",
+     "a": "0..3"
+    },
+    {
+     "line": 10,
+     "text": "if (sp10[i].unk6 == arg0) {",
+     "size": 4,
+     "count": 51065,
+     "kind": "a == b / a < b",
+     "outcomes": "== 30000, < 10554, > 10511 (signed); < 10513, > 10552 (unsigned)",
+     "operand": "b -32768..32767",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 17,
+     "text": "if (p->unk0 + 0x40 < arg1->vx) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "a == b / a < b",
+     "outcomes": "== 4789, < 7296, > 17915 (signed); < 10698, > 14513 (unsigned)",
+     "operand": "b -32768..32767",
+     "a": "-32704..32831"
+    },
+    {
+     "line": 20,
+     "text": "if (arg1->vx < p->unk0 - 0x40) {",
+     "size": 4,
+     "count": 22704,
+     "kind": "a == b / a < b",
+     "outcomes": "== 4784, < 7067, > 10853 (signed); < 6716, > 11204 (unsigned)",
+     "operand": "b -32832..32703",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 23,
+     "text": "if (p->unk4 + 0x40 < arg1->vz) {",
+     "size": 4,
+     "count": 15637,
+     "kind": "a == b / a < b",
+     "outcomes": "== 2557, < 3546, > 9534 (signed); < 5419, > 7661 (unsigned)",
+     "operand": "b -32768..32767",
+     "a": "-32704..32831"
+    },
+    {
+     "line": 26,
+     "text": "return !(arg1->vz < p->unk4 - 0x40);",
+     "size": 4,
+     "count": 12091,
+     "kind": "a == b / a < b",
+     "outcomes": "== 2669, < 3666, > 5756 (signed); < 3505, > 5917 (unsigned)",
+     "operand": "b -32832..32703",
+     "a": "-32768..32767"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+9 b1",
+    "reason": "the loop's fall-through sets p = NULL and the C then dereferences p unconditionally, so every run with no matching entry faults in the C itself; the spec can only reach it by crashing"
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35333,
+     "completion_tokens": 3492,
+     "reasoning_tokens": 2781,
+     "cost": 0.0052793,
+     "seconds": 15.6,
+     "sample": 1,
+     "conversation": "3a5fc8d3a25ff593ae08458bc8fa5d2bc012e065d657b13177c268e13185fffb"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/common/psx.zig:239:13: error: psx.cptr: [4]views_3A1A0.func_8008D2C0_t and c_3A1A0.func_8008D2C0_t differ in size\n            @compileError(\"psx.cptr: \" ++ vn ++ \" and \" ++ cn ++ \" differ in size\");\n            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nreferenced by:\n    func_800A51A0: game/battle/func_800A51A0.zig:13:39\n    main: pc/tests/zig_diff/main.zig:464:31\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 36401,
+     "completion_tokens": 1401,
+     "reasoning_tokens": 680,
+     "cost": 0.0043406,
+     "seconds": 6.0,
+     "sample": 1,
+     "conversation": "a7b3eff81f95b58283d864a58a77922a2818115abd3635918bb847485839da86"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A51A0.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A51A0.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 41.40864237900041,
+ "wall_seconds": 77.76905278699996,
+ "totals": {
+  "cost": 0.0202,
+  "prompt_tokens": 83465,
+  "completion_tokens": 23712,
+  "model_seconds": 105.6,
+  "check_seconds": 41.4,
+  "calls": 3,
+  "wall_seconds": 77.8
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "spec_fixes": [
+   "reviewer's round-2 reply: mutations M1 (the last entry never searched) and M4 (arg0 - 1) make the copy dereference the NULL no-match pointer: `expect = \"crash\"`"
+  ],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

@@ -1,0 +1,227 @@
+{
+ "function": "func_800ACFA0",
+ "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec finished by the reviewer (an equivalent mutation fixed)",
+ "plan": {
+  "name": "func_800ACFA0",
+  "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+  "stem": "40564",
+  "address": "0x800acfa0",
+  "difficulty": "S",
+  "zig_name": "func_800ACFA0",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800ACFA0",
+  "spec_file": "func_800ACFA0.zig",
+  "subsystem": "battle_40564_port",
+  "signature": "pub fn func_800ACFA0(arg0: ?*v.SVECTOR, arg1: [*c]u8, arg2: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.SVECTOR"
+   ],
+   [
+    "arg1",
+    "[*c]u8"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "SVECTOR"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11393,
+     "completion_tokens": 4979,
+     "reasoning_tokens": 3911,
+     "cost": 0.0036288,
+     "seconds": 21.3,
+     "sample": 1,
+     "conversation": "858ed8c971cd77116fcfdc9dc846951fb359451eda01964659123f9728d9eb07"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation M2: low byte of the second read sign-extended: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800ACFA0: 30000 iterations, seed 1, 0 mismatches; classes: arg2-ff=15078 arg2-not-ff=14922"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "arg2-ff": "14958",
+   "arg2-not-ff": "15042"
+  },
+  "mutations": [
+   {
+    "name": "M1: vx halved (a3 / 2 instead of a3)",
+    "caught": true
+   },
+   {
+    "name": "M2: low byte of the second read sign-extended",
+    "caught": true
+   },
+   {
+    "name": "M3: wrong selector constant in the 0xFF test",
+    "caught": true
+   },
+   {
+    "name": "M4: trailing pad store one element early",
+    "caught": true
+   },
+   {
+    "name": "M5: wrong constant in the initial pad store",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 22,
+   "lines_hit": 22,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2145624097, max 2146392440, unsigned 0..4294967295, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 23,
+     "text": "if (arg2 != 0xFF) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 14958, < 9709, > 5333 (signed); < 4496, > 10546 (unsigned)",
+     "operand": "constant 255",
+     "a": "-2145624097..2146392440"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34857,
+     "completion_tokens": 3110,
+     "reasoning_tokens": 2483,
+     "cost": 0.0050407,
+     "seconds": 13.7,
+     "sample": 1,
+     "conversation": "33718c2c37e6fc8f7d7f4978444eb90590360bf7a035cd2c86d8b751d6b0033b"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800ACFA0.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800ACFA0.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 50.366805038001985,
+ "wall_seconds": 64.28604591800104,
+ "totals": {
+  "cost": 0.00867,
+  "prompt_tokens": 46250,
+  "completion_tokens": 8089,
+  "model_seconds": 35.0,
+  "check_seconds": 50.4,
+  "calls": 2,
+  "wall_seconds": 64.3
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "spec_fixes": [
+   "reviewer's round-2 reply: mutation M2 cast to `char`, which is unsigned in this build (-funsigned-char): an equivalent mutation; now `signed char`"
+  ],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: nested 3795 / nested 7980 / nested 3795, 0 mismatches"
+ }
+}

@@ -10,6 +10,8 @@ const c = @import("c_6F014");
 pub fn func_800D78F0() callconv(.c) void {
     var sp10: v.VECTOR = undefined;
     var sp20: c_int = undefined;
+    // ROOD_PC: the pad is zeroed (func_800D5260 copies the whole VECTOR).
+    sp10.pad = 0;
 
     const block9 = psx.get(v.g.D_800F569C().*.?.block9Data).?;
     c.vs_battle_lerpVector(@ptrCast(&block9.unk0), v.g.D_800F5330()[block9.unk12], @ptrCast(&sp10));

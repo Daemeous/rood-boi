@@ -1,0 +1,229 @@
+{
+ "function": "func_800B26B8",
+ "unit": "src/BATTLE/BATTLE.PRG/49268.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the C's 32-bit address arithmetic kept); spec strengthened (bone 0-3)",
+ "plan": {
+  "name": "func_800B26B8",
+  "unit": "src/BATTLE/BATTLE.PRG/49268.c",
+  "stem": "49268",
+  "address": "0x800b26b8",
+  "difficulty": "L",
+  "zig_name": "func_800B26B8",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800B26B8",
+  "spec_file": "func_800B26B8.zig",
+  "subsystem": "battle_49268_port",
+  "signature": "pub fn func_800B26B8(actor: ?*anyopaque, parent: ?*v.MATRIX, bone: c_int, saved: c_int) callconv(.c) void",
+  "params": [
+   [
+    "actor",
+    "?*anyopaque"
+   ],
+   [
+    "parent",
+    "?*v.MATRIX"
+   ],
+   [
+    "bone",
+    "c_int"
+   ],
+   [
+    "saved",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "MATRIX",
+   "actorBoneMatrix",
+   "boneTransformScratch",
+   "savedBoneMatrix"
+  ],
+  "globals": [
+   "D_800F3C58"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13553,
+     "completion_tokens": 19126,
+     "reasoning_tokens": 17690,
+     "cost": 0.0109183,
+     "seconds": 86.5,
+     "sample": 1,
+     "conversation": "c9002738b7e6f44c42542f91375bc0b57e37c5aa9582f12218a2a14f4ba66ef4"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "saved-small": "23731",
+   "saved-negative": "2044",
+   "saved-wrapped": "4225"
+  },
+  "mutations": [
+   {
+    "name": "S1: savedAddress uses saved, not saved - 1",
+    "caught": true
+   },
+   {
+    "name": "S2: translation.vz read from the vy slot",
+    "caught": true
+   },
+   {
+    "name": "S3: CTC2 of parent+28 into reg 7 dropped",
+    "caught": true
+   },
+   {
+    "name": "S4: table store of the matrix dropped",
+    "caught": true
+   },
+   {
+    "name": "S5: actor's bone matrix copied from parent, not the result",
+    "caught": true
+   },
+   {
+    "name": "S6: matrix restored to its pre-call value after func_800B196C",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 20,
+   "lines_hit": 20,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min 0, max 0, seen zero, never negative, 1 value(s): 0"
+    },
+    {
+     "arg": 3,
+     "count": 30000,
+     "text": "32-bit: min -4, max 134217731, unsigned 0..4294967295, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 37049,
+     "completion_tokens": 17085,
+     "reasoning_tokens": 15668,
+     "cost": 0.0122474,
+     "seconds": 69.1,
+     "sample": 1,
+     "conversation": "ecd9c074117473f2ce27212f38cf586194f5de5df3018425bd17ddd1b12382dc"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800B26B8.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800B26B8.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 36.51132793400029,
+ "wall_seconds": 192.37464591399998,
+ "totals": {
+  "cost": 0.02317,
+  "prompt_tokens": 50602,
+  "completion_tokens": 36211,
+  "model_seconds": 155.6,
+  "check_seconds": 36.5,
+  "calls": 2,
+  "wall_seconds": 192.4
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "spec_fixes": [
+   "the bone was always 0 (the one-entry harness table), so a port that ignored the bone passed; bones 0-3 now (the table spill lands in compared state)"
+  ],
+  "mutations_added": [
+   "R1: the bone offset is bone << 4"
+  ],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

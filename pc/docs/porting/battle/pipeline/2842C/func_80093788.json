@@ -1,0 +1,197 @@
+{
+ "function": "func_80093788",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_80093788",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x80093788",
+  "difficulty": "S",
+  "zig_name": "func_80093788",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_80093788",
+  "spec_file": "func_80093788.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_80093788(arg0: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F1DD8_t2"
+  ],
+  "globals": [
+   "D_800F1DD8"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "out-of-range": "16649",
+   "not-six": "2631",
+   "six-unit0-zero": "3605",
+   "six-unit0-set": "7115"
+  },
+  "mutations": [
+   {
+    "name": "C1: bound <= 0x40 (entry 64 gets touched)",
+    "caught": true
+   },
+   {
+    "name": "C2: temp_v1[5] takes unk1C, not unk18",
+    "caught": true
+   },
+   {
+    "name": "C3: flag mask 0x4000 instead of 0x6000",
+    "caught": true
+   },
+   {
+    "name": "C4: the unk0 flag is not cleared",
+    "caught": true
+   },
+   {
+    "name": "C5: unkC not negated",
+    "caught": true
+   },
+   {
+    "name": "C6: unk18 read after the unk1C store overwrote it",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 6,
+   "branches_hit": 6,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 18,
+   "lines_hit": 18,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 100, seen zero, never negative"
+    }
+   ],
+   "compares": [
+    {
+     "line": 7,
+     "text": "if (arg0 < 0x40) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 3262, < 10089, > 16649 (signed); < 10089, > 16649 (unsigned)",
+     "operand": "constant 63",
+     "a": "0..100"
+    },
+    {
+     "line": 9,
+     "text": "if (D_800F1DD8[arg0].unk1 == 6) {",
+     "size": 1,
+     "count": 13351,
+     "kind": "against a constant",
+     "outcomes": "== 10720, < 1937, > 694 (signed); < 1282, > 1349 (unsigned)",
+     "operand": "constant 6",
+     "a": "-1..7"
+    },
+    {
+     "line": 12,
+     "text": "if (D_800F1DD8[arg0].unk0 != 0) {",
+     "size": 1,
+     "count": 10720,
+     "kind": "against a constant",
+     "outcomes": "== 3605, < 4200, > 2915 (signed); < 0, > 7115 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_80093788.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_80093788.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 49.40688473499904,
+ "wall_seconds": 97.6640328359972,
+ "totals": {
+  "cost": 0.0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "model_seconds": 0.0,
+  "check_seconds": 49.4,
+  "calls": 0,
+  "wall_seconds": 97.7
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

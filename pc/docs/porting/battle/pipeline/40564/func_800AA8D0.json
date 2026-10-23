@@ -1,0 +1,247 @@
+{
+ "function": "func_800AA8D0",
+ "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (a zero rate traps where the C divides by zero); spec sound",
+ "plan": {
+  "name": "func_800AA8D0",
+  "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+  "stem": "40564",
+  "address": "0x800aa8d0",
+  "difficulty": "S",
+  "zig_name": "func_800AA8D0",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800AA8D0",
+  "spec_file": "func_800AA8D0.zig",
+  "subsystem": "battle_40564_port",
+  "signature": "pub fn func_800AA8D0(arg0: c_int, arg1: c_short, arg2: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_short"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [
+   "D_800F4538"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16357,
+     "completion_tokens": 19901,
+     "reasoning_tokens": 17823,
+     "cost": 0.0115862,
+     "seconds": 85.3,
+     "sample": 1,
+     "conversation": "21d52092b94e7b8a10f729a36d40d4f553752a816fe3b0289c01023b7ed22d8f"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "null-entry": "4873",
+   "wrap-high": "5142",
+   "wrap-low": "5200",
+   "in-range-exact": "8092",
+   "in-range-remainder": "6693"
+  },
+  "mutations": [
+   {
+    "name": "M1: wrap-down bound >= instead of >",
+    "caught": true
+   },
+   {
+    "name": "M2: wrap-up bound <= instead of <",
+    "caught": true
+   },
+   {
+    "name": "M3: angle read zero-extended (unsigned slip)",
+    "caught": true
+   },
+   {
+    "name": "M4: remainder round-up dropped",
+    "caught": true
+   },
+   {
+    "name": "M5: wrong constant in the wrap-down step",
+    "caught": true
+   },
+   {
+    "name": "M6: callee gets the undivided step",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 8,
+   "branches_hit": 8,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 16,
+   "lines_hit": 16,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2147483647, max 2147483647, unsigned 1..4294967295, seen negative/signed max/all ones, never zero"
+    }
+   ],
+   "compares": [
+    {
+     "line": 12,
+     "text": "if (arg1 > 4096 / 2) {",
+     "size": 2,
+     "count": 25127,
+     "kind": "against a constant",
+     "outcomes": "== 1059, < 15038, > 9030 (signed); < 3516, > 20552 (unsigned)",
+     "operand": "constant 2048",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 16,
+     "text": "if (arg1 < -4096 / 2) {",
+     "size": 2,
+     "count": 25127,
+     "kind": "against a constant",
+     "outcomes": "== 1061, < 8019, > 16047 (signed); < 19152, > 4914 (unsigned)",
+     "operand": "constant -2048",
+     "a": "-32768..28671"
+    },
+    {
+     "line": 27,
+     "text": "if ((var_v0 % arg2) != 0) {",
+     "size": 4,
+     "count": 25127,
+     "kind": "against a constant",
+     "outcomes": "== 12781, < 0, > 12346 (signed); < 0, > 12346 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..28672"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "ABS(arg2) >= 0 eq",
+    "reason": "arg2 == 0 divides by zero in the C (SIGFPE); the harness can only build nonzero steps"
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39821,
+     "completion_tokens": 3323,
+     "reasoning_tokens": 2660,
+     "cost": 0.0056436,
+     "seconds": 15.1,
+     "sample": 1,
+     "conversation": "4a9652674e7c4644dce8f8cddf8bdd77ec17183dc38328ab863d441633655c66"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800AA8D0.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800AA8D0.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 37.1465526789998,
+ "wall_seconds": 46.67585673600115,
+ "totals": {
+  "cost": 0.01723,
+  "prompt_tokens": 56178,
+  "completion_tokens": 23224,
+  "model_seconds": 100.4,
+  "check_seconds": 37.1,
+  "calls": 2,
+  "wall_seconds": 46.7
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 12 / root 23 / root 154, 0 mismatches"
+ }
+}

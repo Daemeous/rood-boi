@@ -1,0 +1,103 @@
+{
+ "function": "func_80095A4C",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "spec-failed",
+ "reviewed": "not ported in this wave (unrouted): a PC_TEXT_STATUS hook function, and its harness did not build: 2842C.c calls vs_battle_renderTextRawColor without a prototype (5BF94.h is not included), so the c module has no declaration and zig_diff took it for data",
+ "plan": {
+  "name": "func_80095A4C",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x80095a4c",
+  "difficulty": "M",
+  "zig_name": "func_80095A4C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_80095A4C",
+  "spec_file": "func_80095A4C.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_80095A4C(x: c_int, y: c_int, p: ?*v.D_800F1BAC_t) callconv(.c) void",
+  "params": [
+   [
+    "x",
+    "c_int"
+   ],
+   [
+    "y",
+    "c_int"
+   ],
+   [
+    "p",
+    "?*v.D_800F1BAC_t"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F1BAC_t"
+  ],
+  "globals": [],
+  "hooks": [
+   "pc_first",
+   "pc_text_status"
+  ],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\nno size for vs_battle_renderTextRawColor (neither DWARF, imports.ld, native_imports.c nor the defining object)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\nno size for vs_battle_renderTextRawColor (neither DWARF, imports.ld, native_imports.c nor the defining object)"
+    ]
+   },
+   {
+    "round": 3,
+    "sample": 1,
+    "call": null,
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\nno size for vs_battle_renderTextRawColor (neither DWARF, imports.ld, native_imports.c nor the defining object)"
+    ]
+   }
+  ],
+  "classes": {},
+  "mutations": [],
+  "coverage": null
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 0.5520071300015843,
+ "wall_seconds": 0.8166092940009548,
+ "totals": {
+  "cost": 0.0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "model_seconds": 0.0,
+  "check_seconds": 0.6,
+  "calls": 0,
+  "wall_seconds": 0.8
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22"
+ }
+}

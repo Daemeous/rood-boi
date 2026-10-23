@@ -1,0 +1,235 @@
+{
+ "function": "func_800A3DB4",
+ "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (doc comment corrected: the occupied-tile test was missing); spec sound",
+ "plan": {
+  "name": "func_800A3DB4",
+  "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+  "stem": "3A1A0",
+  "address": "0x800a3db4",
+  "difficulty": "S",
+  "zig_name": "func_800A3DB4",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A3DB4",
+  "spec_file": "func_800A3DB4.zig",
+  "subsystem": "battle_3A1A0_port",
+  "signature": "pub fn func_800A3DB4(x: c_int, z: c_int, minimumHeight: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "x",
+    "c_int"
+   ],
+   [
+    "z",
+    "c_int"
+   ],
+   [
+    "minimumHeight",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "SVECTOR"
+  ],
+  "globals": [
+   "D_800F49F0"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11588,
+     "completion_tokens": 10760,
+     "reasoning_tokens": 8969,
+     "cost": 0.0065388,
+     "seconds": 46.1,
+     "sample": 1,
+     "conversation": "133e4ac09e214dabc29972cc3a36eee83aa6d893957fddb15ed4946e3cf3d379"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "flag-set": "20106",
+   "flag-clear-negative-x": "10475",
+   "flag-clear-nonnegative-x": "9419"
+  },
+  "mutations": [
+   {
+    "name": "F1: height test off by one (<= for <)",
+    "caught": true
+   },
+   {
+    "name": "F2: flag read at bit 21, not 20",
+    "caught": true
+   },
+   {
+    "name": "F3: signed slip: x / 128 became x >> 7 (floors negative x)",
+    "caught": true
+   },
+   {
+    "name": "F4: NULL test inverted",
+    "caught": true
+   },
+   {
+    "name": "F5: callee arguments x and z swapped",
+    "caught": true
+   },
+   {
+    "name": "F6: flag check dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 4,
+   "branches_hit": 4,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 9,
+   "lines_hit": 9,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 40000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 7,
+     "text": "if (height < minimumHeight)",
+     "size": 4,
+     "count": 40000,
+     "kind": "a == b / a < b",
+     "outcomes": "== 10075, < 19290, > 10635 (signed); < 18453, > 11472 (unsigned)",
+     "operand": "b -2147483648..2147483647",
+     "a": "-2147483648..2147483647"
+    },
+    {
+     "line": 9,
+     "text": "if ((*D_800F49F0 >> 20) & 1)",
+     "size": 4,
+     "count": 20710,
+     "kind": "against a constant",
+     "outcomes": "== 10410, < 0, > 10300 (signed); < 0, > 10300 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1048576"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35182,
+     "completion_tokens": 3351,
+     "reasoning_tokens": 2924,
+     "cost": 0.0051937,
+     "seconds": 14.1,
+     "sample": 1,
+     "conversation": "7e888569d738a464f9391dd55e68394c99491298e1b661b3bdfe6147cee9485b"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A3DB4.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A3DB4.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 34.34840467199956,
+ "wall_seconds": 34.52959326099972,
+ "totals": {
+  "cost": 0.01173,
+  "prompt_tokens": 46770,
+  "completion_tokens": 14111,
+  "model_seconds": 60.2,
+  "check_seconds": 34.3,
+  "calls": 2,
+  "wall_seconds": 34.5
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "port_fixes": [
+   "doc comment only: it omitted the func_800A3C34 occupancy test"
+  ],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

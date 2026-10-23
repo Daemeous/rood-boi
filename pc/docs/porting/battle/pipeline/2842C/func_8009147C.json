@@ -1,0 +1,368 @@
+{
+ "function": "func_8009147C",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (SKY_LEFT/SKY_RIGHT's ROOD_PC widescreen margin as the macro reads pc_gte_widescreen; the GPU macros expanded); spec sound (the +14 eq waiver holds: col steps by 32)",
+ "plan": {
+  "name": "func_8009147C",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x8009147c",
+  "difficulty": "L",
+  "zig_name": "func_8009147C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_8009147C",
+  "spec_file": "func_8009147C.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_8009147C(arg0: ?*v.vs_battle_backgroundLayout, arg1: c_int, arg2: c_int, arg3: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.vs_battle_backgroundLayout"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ],
+   [
+    "arg3",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "POLY_GT4",
+   "P_TAG",
+   "TILE",
+   "vs_battle_backgroundLayout",
+   "vs_battle_backgroundTile",
+   "vs_scratch_t"
+  ],
+  "globals": [
+   "pc_gte_widescreen"
+  ],
+  "hooks": [
+   "pc_gte_widescreen"
+  ],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 15728,
+     "completion_tokens": 27507,
+     "reasoning_tokens": 24758,
+     "cost": 0.0153263,
+     "seconds": 114.9,
+     "sample": 1,
+     "conversation": "3e404eb693c1ce40efb4cfde37a25a8e492f453d60f88ae304506bc713895b1c"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_8009147C: branches 20/20 (100.0%), conditions not measured (GCC < 14: branch coverage only), lines 39/39\n  FLAG +14 eq: boundary equality never occurred (32-bit compare, constant 1023: both sides seen; a port's `<` for `<=` could pass): `for (col = 0; col < 1024; col += 32) {`\ncoverage func_8009147C: FAILED (threshold 100%: 0 uncovered, 1 value flag(s) not waived)\nWhat to add:\n- `for (col = 0; col < 1024; col += 32) {` (+14): the two sides of this ordered compare were equal 0 time(s) in 2771604. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_8009147C.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 18860,
+     "completion_tokens": 3959,
+     "reasoning_tokens": 1041,
+     "cost": 0.0038655,
+     "seconds": 14.2,
+     "sample": 1,
+     "conversation": "7fb2dc0f1fc68f90a0a9731d83223325bb100b5db433946ee4eccbd3f446b88e"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "no-rows": "6591",
+   "sky-edge": "26752",
+   "widescreen-off": "1727",
+   "widescreen-on": "4930"
+  },
+  "mutations": [
+   {
+    "name": "M1: screenY skip test takes -0x40000 as out of range",
+    "caught": true
+   },
+   {
+    "name": "M2: an empty tile needs both uv.w and uv.h zero",
+    "caught": true
+   },
+   {
+    "name": "M3: tpage takes colors[0].cd",
+    "caught": true
+   },
+   {
+    "name": "M4: column loop runs one column too far",
+    "caught": true
+   },
+   {
+    "name": "M5: y = row + arg2 (sign slip)",
+    "caught": true
+   },
+   {
+    "name": "M6: wrong CLUT constant",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 20,
+   "branches_hit": 20,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 39,
+   "lines_hit": 39,
+   "uncovered": [],
+   "flags": [
+    {
+     "id": "+14 eq",
+     "line": 14,
+     "text": "for (col = 0; col < 1024; col += 32) {",
+     "kind": "eq",
+     "bits": 32,
+     "equal": 0,
+     "count": 2771604,
+     "what": "boundary equality never occurred (32-bit compare, constant 1023: both sides seen; a port's `<` for `<=` could pass)"
+    }
+   ],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "32-bit: min -1048570, max 1048544, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 40000,
+     "text": "32-bit: min -1794048, max 262144, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 3,
+     "count": 40000,
+     "text": "32-bit: min -2147224802, max 2147438522, unsigned 45655..4294538547, seen negative, never zero"
+    }
+   ],
+   "compares": [
+    {
+     "line": 11,
+     "text": "for (row = 0; row < arg0->height * 32; row += 32) {",
+     "size": 4,
+     "count": 123988,
+     "kind": "a == b / a < b",
+     "outcomes": "== 35042, < 83988, > 4958 (signed); < 88946, > 0 (unsigned)",
+     "operand": "b -96..128",
+     "a": "0..128"
+    },
+    {
+     "line": 14,
+     "text": "for (col = 0; col < 1024; col += 32) {",
+     "size": 4,
+     "count": 2771604,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 2687616, > 83988 (signed); < 2687616, > 83988 (unsigned)",
+     "operand": "constant 1023",
+     "a": "0..1024"
+    },
+    {
+     "line": 22,
+     "text": "if ((screenX < (-0x40000 - ((pc_gte_widescreen ? 54 : 0) << 12))) || (screenX > (0x180000 + ((pc_gte_widescreen ? 54 : 0) << 12))) || (screenY < -0x40000)",
+     "size": 4,
+     "count": 2687616,
+     "kind": "against a constant",
+     "outcomes": "== 673312, < 688096, > 1326208 (signed); < 0, > 2014304 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..2"
+    },
+    {
+     "line": 22,
+     "text": "if ((screenX < (-0x40000 - ((pc_gte_widescreen ? 54 : 0) << 12))) || (screenX > (0x180000 + ((pc_gte_widescreen ? 54 : 0) << 12))) || (screenY < -0x40000)",
+     "size": 4,
+     "count": 2687616,
+     "kind": "a == b / a < b",
+     "outcomes": "== 215201, < 1968073, > 504342 (signed); < 626346, > 1846069 (unsigned)",
+     "operand": "b -4665576..4563916",
+     "a": "-483328..-262144"
+    },
+    {
+     "line": 22,
+     "text": "if ((screenX < (-0x40000 - ((pc_gte_widescreen ? 54 : 0) << 12))) || (screenX > (0x180000 + ((pc_gte_widescreen ? 54 : 0) << 12))) || (screenY < -0x40000)",
+     "size": 4,
+     "count": 2183274,
+     "kind": "against a constant",
+     "outcomes": "== 540023, < 560632, > 1082619 (signed); < 0, > 1643251 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..2"
+    },
+    {
+     "line": 22,
+     "text": "if ((screenX < (-0x40000 - ((pc_gte_widescreen ? 54 : 0) << 12))) || (screenX > (0x180000 + ((pc_gte_widescreen ? 54 : 0) << 12))) || (screenY < -0x40000)",
+     "size": 4,
+     "count": 2183274,
+     "kind": "a == b / a < b",
+     "outcomes": "== 212641, < 354260, > 1616373 (signed); < 1195807, > 774826 (unsigned)",
+     "operand": "b -483328..4563916",
+     "a": "1572864..1794048"
+    },
+    {
+     "line": 22,
+     "text": "if ((screenX < (-0x40000 - ((pc_gte_widescreen ? 54 : 0) << 12))) || (screenX > (0x180000 + ((pc_gte_widescreen ? 54 : 0) << 12))) || (screenY < -0x40000)",
+     "size": 4,
+     "count": 1829014,
+     "kind": "against a constant",
+     "outcomes": "== 213728, < 123048, > 1492238 (signed); < 1041037, > 574249 (unsigned)",
+     "operand": "constant -262144",
+     "a": "-4568409..4295715"
+    },
+    {
+     "line": 23,
+     "text": "|| (screenY > 0x130000)) {",
+     "size": 4,
+     "count": 1705966,
+     "kind": "against a constant",
+     "outcomes": "== 214497, < 1132698, > 358771 (signed); < 344721, > 1146748 (unsigned)",
+     "operand": "constant 1245184",
+     "a": "-262144..4295715"
+    },
+    {
+     "line": 27,
+     "text": "if ((tile->uv.w == 0) && (tile->uv.h == 0)) {",
+     "size": 2,
+     "count": 1347195,
+     "kind": "against a constant",
+     "outcomes": "== 674791, < 334668, > 337736 (signed); < 0, > 672404 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32767..32767"
+    },
+    {
+     "line": 27,
+     "text": "if ((tile->uv.w == 0) && (tile->uv.h == 0)) {",
+     "size": 2,
+     "count": 674791,
+     "kind": "against a constant",
+     "outcomes": "== 448840, < 113122, > 112829 (signed); < 0, > 225951 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32766"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+14 eq",
+    "reason": "GCC canonicalises `col < 1024` to a compare against 1023, and col only takes multiples of 32 (0, 32, ..., 1024 at the exit test). Nothing in the inputs can make col equal 1023: col starts at 0 and steps by the constant 32, and no input reaches it. A port's `<` for `<=` is still caught by M4, which makes col reach 1024 and changes the output."
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39209,
+     "completion_tokens": 25270,
+     "reasoning_tokens": 22896,
+     "cost": 0.0165559,
+     "seconds": 98.8,
+     "sample": 1,
+     "conversation": "ad4de455376b8383a1b8d5214270658e491b28f7c235a9df0f1d1d949db8686e"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_8009147C.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_8009147C.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 1016.595915697002,
+ "wall_seconds": 1016.7972368589999,
+ "totals": {
+  "cost": 0.03575,
+  "prompt_tokens": 73797,
+  "completion_tokens": 56736,
+  "model_seconds": 227.9,
+  "check_seconds": 1016.6,
+  "calls": 3,
+  "wall_seconds": 1016.8
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

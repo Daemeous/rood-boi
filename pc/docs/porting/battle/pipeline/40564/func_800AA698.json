@@ -1,0 +1,338 @@
+{
+ "function": "func_800AA698",
+ "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (three square-never-negative waivers hold)",
+ "plan": {
+  "name": "func_800AA698",
+  "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+  "stem": "40564",
+  "address": "0x800aa698",
+  "difficulty": "M",
+  "zig_name": "func_800AA698",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800AA698",
+  "spec_file": "func_800AA698.zig",
+  "subsystem": "battle_40564_port",
+  "signature": "pub fn func_800AA698(arg0: c_int, arg1: ?*v.SVECTOR, arg2: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "?*v.SVECTOR"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "SVECTOR"
+  ],
+  "globals": [
+   "D_800F4538"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 17059,
+     "completion_tokens": 18906,
+     "reasoning_tokens": 16789,
+     "cost": 0.0111589,
+     "seconds": 82.7,
+     "sample": 1,
+     "conversation": "2db31df8c70ea3cb9fda4b50dc0da0ae4e02682250546c97c98535e3c272cf88"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800AA698: branches 13/16 (81.2%), conditions not measured (GCC < 14: branch coverage only), lines 36/39\n  UNCOVERED +28 b0: branch never taken: `if (temp < 0) {`\n  UNCOVERED +34 b0: branch never taken: `if (temp < 0) {`\n  UNCOVERED +40 b0: branch never taken: `if (temp < 0) {`\n  note: waivers no longer needed: +29 b1, +35 b1, +41 b1\ncoverage func_800AA698: FAILED (threshold 100%: 3 uncovered, 0 value flag(s) not waived)\nWhat to add:\n- `if (temp < 0) {` (+28): one way out of this test (+28 b0) was never taken; add inputs that take it.\n- `if (temp < 0) {` (+34): one way out of this test (+34 b0) was never taken; add inputs that take it.\n- `if (temp < 0) {` (+40): one way out of this test (+40 b0) was never taken; add inputs that take it.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800AA698.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 19638,
+     "completion_tokens": 2960,
+     "reasoning_tokens": 830,
+     "cost": 0.0034438,
+     "seconds": 10.5,
+     "sample": 1,
+     "conversation": "99bca3b548dd8a46393b4471904d015a8dc4102900c1afb1abc3de978e2d554a"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "no-actor": "4935",
+   "arg2-zero": "1645",
+   "arg2-minus-one": "1478",
+   "arg2-other": "21942"
+  },
+  "mutations": [
+   {
+    "name": "M1: wrong constant in the +1 round-up test",
+    "caught": true
+   },
+   {
+    "name": "M2: currentTileZ read from position.vx",
+    "caught": true
+   },
+   {
+    "name": "M3: goto taken when unk1A is 1, not 0",
+    "caught": true
+   },
+   {
+    "name": "M4: scale by the wrong actor field (unk5C4)",
+    "caught": true
+   },
+   {
+    "name": "M5: arg2 == 0 path stores 1 instead of 0",
+    "caught": true
+   },
+   {
+    "name": "M6: default path stores arg2 + 1",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 16,
+   "branches_hit": 13,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 39,
+   "lines_hit": 36,
+   "uncovered": [
+    {
+     "id": "+28 b0",
+     "line": 28,
+     "text": "if (temp < 0) {",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+34 b0",
+     "line": 34,
+     "text": "if (temp < 0) {",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+40 b0",
+     "line": 40,
+     "text": "if (temp < 0) {",
+     "what": "branch never taken"
+    }
+   ],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: null seen"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2147434207, max 2147449729, unsigned 0..4294967295, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 14,
+     "text": "if (arg2 == 0) {",
+     "size": 4,
+     "count": 25065,
+     "kind": "against a constant",
+     "outcomes": "== 1645, < 10922, > 12498 (signed); < 0, > 23420 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147434207..2147242500"
+    },
+    {
+     "line": 25,
+     "text": "if (arg2 == -1) {",
+     "size": 4,
+     "count": 23420,
+     "kind": "against a constant",
+     "outcomes": "== 1478, < 9444, > 12498 (signed); < 21942, > 0 (unsigned)",
+     "operand": "constant -1",
+     "a": "-2147434207..2147242500"
+    },
+    {
+     "line": 28,
+     "text": "if (temp < 0) {",
+     "size": 4,
+     "count": 1478,
+     "kind": "against a constant",
+     "outcomes": "== 759, < 0, > 719 (signed); < 0, > 719 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1073741824"
+    },
+    {
+     "line": 34,
+     "text": "if (temp < 0) {",
+     "size": 4,
+     "count": 1478,
+     "kind": "against a constant",
+     "outcomes": "== 697, < 0, > 781 (signed); < 0, > 781 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1073741824"
+    },
+    {
+     "line": 40,
+     "text": "if (temp < 0) {",
+     "size": 4,
+     "count": 1478,
+     "kind": "against a constant",
+     "outcomes": "== 742, < 0, > 736 (signed); < 0, > 736 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1073741824"
+    },
+    {
+     "line": 45,
+     "text": "if (dist & 0x7F) {",
+     "size": 4,
+     "count": 1478,
+     "kind": "against a constant",
+     "outcomes": "== 524, < 0, > 954 (signed); < 0, > 954 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..127"
+    },
+    {
+     "line": 48,
+     "text": "if (actor->unk0.unk1A == 0) {",
+     "size": 2,
+     "count": 1478,
+     "kind": "against a constant",
+     "outcomes": "== 457, < 471, > 550 (signed); < 0, > 1021 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32695"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+28 b0",
+    "reason": "temp is vx*vx of an i16 (range 0..2^30, never negative), so the negate branch is unreachable"
+   },
+   {
+    "id": "+34 b0",
+    "reason": "temp is vy*vy of an i16 (range 0..2^30, never negative), so the negate branch is unreachable"
+   },
+   {
+    "id": "+40 b0",
+    "reason": "temp is vz*vz of an i16 (range 0..2^30, never negative), so the negate branch is unreachable"
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 40539,
+     "completion_tokens": 8268,
+     "reasoning_tokens": 7117,
+     "cost": 0.0081879,
+     "seconds": 33.3,
+     "sample": 1,
+     "conversation": "a56ff929d4e8cd4ebf6fd7df952cf07bcf8295d2b8336e9f83eba6c47f316ce3"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800AA698.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800AA698.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 55.020157555998594,
+ "wall_seconds": 59.4941893719988,
+ "totals": {
+  "cost": 0.02279,
+  "prompt_tokens": 77236,
+  "completion_tokens": 30134,
+  "model_seconds": 126.5,
+  "check_seconds": 55.0,
+  "calls": 3,
+  "wall_seconds": 59.5
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 14 / root 41 / root 3, 0 mismatches"
+ }
+}

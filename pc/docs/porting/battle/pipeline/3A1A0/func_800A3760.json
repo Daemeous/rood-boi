@@ -1,0 +1,357 @@
+{
+ "function": "func_800A3760",
+ "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (bestDist unread until set, as the C); spec sound",
+ "plan": {
+  "name": "func_800A3760",
+  "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+  "stem": "3A1A0",
+  "address": "0x800a3760",
+  "difficulty": "M",
+  "zig_name": "func_800A3760",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A3760",
+  "spec_file": "func_800A3760.zig",
+  "subsystem": "battle_3A1A0_port",
+  "signature": "pub fn func_800A3760(arg0: c_int, arg1: c_int, arg2: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800F4538_t"
+  ],
+  "globals": [
+   "D_800F4538"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16843,
+     "completion_tokens": 21869,
+     "reasoning_tokens": 19196,
+     "cost": 0.0126188,
+     "seconds": 94.1,
+     "sample": 1,
+     "conversation": "ede107e754e3008c709ca6107c6b289308b7b239aa900dc25dfd9e5252d79663"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "self-null": "1765",
+   "crowded": "13118",
+   "sparse": "9045",
+   "extreme": "6072"
+  },
+  "mutations": [
+   {
+    "name": "F1: the radius test is >= (equal distance is cut)",
+    "caught": true
+   },
+   {
+    "name": "F2: angle bound off by one (1023)",
+    "caught": true
+   },
+   {
+    "name": "F3: a tied distance replaces the best (<= for <)",
+    "caught": true
+   },
+   {
+    "name": "F4: dz squared not made positive after overflow",
+    "caught": true
+   },
+   {
+    "name": "F5: skip flag ignored",
+    "caught": true
+   },
+   {
+    "name": "F6: angle call dropped (angle is 0)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 28,
+   "branches_hit": 28,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 36,
+   "lines_hit": 36,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -45994, max 45991, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -1999092445, max 1999848225, unsigned 0..4294967295, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 14,
+     "text": "for (i = 0; i < 17; ++i) {",
+     "size": 4,
+     "count": 508230,
+     "kind": "against a constant",
+     "outcomes": "== 28235, < 451760, > 28235 (signed); < 451760, > 28235 (unsigned)",
+     "operand": "constant 16",
+     "a": "0..17"
+    },
+    {
+     "line": 22,
+     "text": "if (i == arg0) {",
+     "size": 4,
+     "count": 479995,
+     "kind": "a == b / a < b",
+     "outcomes": "== 28235, < 227082, > 224678 (signed); < 227082, > 224678 (unsigned)",
+     "operand": "b 0..16",
+     "a": "0..16"
+    },
+    {
+     "line": 26,
+     "text": "if (actor == 0 || actor->unk0.skip) {",
+     "size": 1,
+     "count": 406810,
+     "kind": "against a constant",
+     "outcomes": "== 325331, < 0, > 81479 (signed); < 0, > 81479 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 30,
+     "text": "if (dy < -arg2 || dy > arg2) {",
+     "size": 4,
+     "count": 325331,
+     "kind": "a == b / a < b",
+     "outcomes": "== 37768, < 75201, > 212362 (signed); < 235753, > 51810 (unsigned)",
+     "operand": "b -1999848225..1999092445",
+     "a": "-65195..65368"
+    },
+    {
+     "line": 30,
+     "text": "if (dy < -arg2 || dy > arg2) {",
+     "size": 4,
+     "count": 250130,
+     "kind": "a == b / a < b",
+     "outcomes": "== 72064, < 102029, > 76037 (signed); < 33258, > 144808 (unsigned)",
+     "operand": "b -3..1999848225",
+     "a": "-65195..64987"
+    },
+    {
+     "line": 36,
+     "text": "if (dist < 0) {",
+     "size": 4,
+     "count": 174093,
+     "kind": "against a constant",
+     "outcomes": "== 7347, < 2881, > 163865 (signed); < 0, > 166746 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147386332..2147210244"
+    },
+    {
+     "line": 40,
+     "text": "if (dz < 0) {",
+     "size": 4,
+     "count": 174093,
+     "kind": "against a constant",
+     "outcomes": "== 32025, < 2985, > 139083 (signed); < 0, > 142068 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147479015..2147210244"
+    },
+    {
+     "line": 44,
+     "text": "if (dist > maxDist) {",
+     "size": 4,
+     "count": 174093,
+     "kind": "a == b / a < b",
+     "outcomes": "== 24534, < 58501, > 91058 (signed); < 53351, > 96208 (unsigned)",
+     "operand": "b 0..2115448036",
+     "a": "-2147342147..2147214173"
+    },
+    {
+     "line": 48,
+     "text": "if (angle < -4096 / 4 || angle > 4096 / 4) {",
+     "size": 4,
+     "count": 83035,
+     "kind": "against a constant",
+     "outcomes": "== 7709, < 18228, > 57098 (signed); < 59674, > 15652 (unsigned)",
+     "operand": "constant -1024",
+     "a": "-2047..2047"
+    },
+    {
+     "line": 48,
+     "text": "if (angle < -4096 / 4 || angle > 4096 / 4) {",
+     "size": 4,
+     "count": 64807,
+     "kind": "against a constant",
+     "outcomes": "== 7928, < 38910, > 17969 (signed); < 15549, > 41330 (unsigned)",
+     "operand": "constant 1024",
+     "a": "-1024..2047"
+    },
+    {
+     "line": 51,
+     "text": "if (best == -1) {",
+     "size": 4,
+     "count": 46838,
+     "kind": "against a constant",
+     "outcomes": "== 14991, < 0, > 31847 (signed); < 31847, > 0 (unsigned)",
+     "operand": "constant -1",
+     "a": "-1..15"
+    },
+    {
+     "line": 54,
+     "text": "} else if (dist < bestDist) {",
+     "size": 4,
+     "count": 31847,
+     "kind": "a == b / a < b",
+     "outcomes": "== 2705, < 10135, > 19007 (signed); < 11362, > 17780 (unsigned)",
+     "operand": "b -2146970759..2019469393",
+     "a": "-2146722366..2065695290"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 40453,
+     "completion_tokens": 5938,
+     "reasoning_tokens": 4984,
+     "cost": 0.0070143,
+     "seconds": 25.2,
+     "sample": 1,
+     "conversation": "9a74a93c0939259ee64d6ca21cabe3f2f4bfa66ea00ef15a2f050d0a30c51cf7"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800A3760.zig:2:128: error: expected type expression, found 'a document comment'\n/// Index of the nearest actor to `selfIndex` within the given horizontal range, vertical band and 90 degrees of facing, or -1.\n                                                                                                                               ^\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 41590,
+     "completion_tokens": 1852,
+     "reasoning_tokens": 980,
+     "cost": 0.005085,
+     "seconds": 7.8,
+     "sample": 1,
+     "conversation": "dd053e38df2bf9f21fcffe6b832cf515795d14ba87e46c0e57689b75d07a1aae"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A3760.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A3760.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 43.623893839999255,
+ "wall_seconds": 43.8211278230001,
+ "totals": {
+  "cost": 0.02472,
+  "prompt_tokens": 98886,
+  "completion_tokens": 29659,
+  "model_seconds": 127.1,
+  "check_seconds": 43.6,
+  "calls": 3,
+  "wall_seconds": 43.8
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

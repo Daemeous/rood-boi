@@ -1,0 +1,200 @@
+{
+ "function": "func_800D8260",
+ "unit": "src/BATTLE/BATTLE.PRG/6FA60.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (no callees; the stores' truncation edges drawn)",
+ "plan": {
+  "name": "func_800D8260",
+  "unit": "src/BATTLE/BATTLE.PRG/6FA60.c",
+  "stem": "6FA60",
+  "address": "0x800d8260",
+  "difficulty": "S",
+  "zig_name": "func_800D8260",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800D8260",
+  "spec_file": "func_800D8260.zig",
+  "subsystem": "battle_6FA60_port",
+  "signature": "pub fn func_800D8260(arg0: ?*v.func_800DEEA4_t2, arg1: c_int, arg2: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.func_800DEEA4_t2"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "func_800DEEA4_t2"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11217,
+     "completion_tokens": 3184,
+     "reasoning_tokens": 2169,
+     "cost": 0.0027137,
+     "seconds": 14.2,
+     "sample": 1,
+     "conversation": "24ec8ef07bd83dd9819ed23a61a07009d7142037fa2e1d6a8dde2cbf81a3b333"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "arg1-fits-u16": "4915",
+   "arg1-wide": "15085"
+  },
+  "mutations": [
+   {
+    "name": "S1: unk138 stores arg1 plus one",
+    "caught": true
+   },
+   {
+    "name": "S2: unk12A stores arg1 instead of arg2",
+    "caught": true
+   },
+   {
+    "name": "S3: unk12A stores arg2 shifted right by one",
+    "caught": true
+   },
+   {
+    "name": "S4: the unk138 store is dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 4,
+   "lines_hit": 4,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 20000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 20000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 20000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34827,
+     "completion_tokens": 972,
+     "reasoning_tokens": 696,
+     "cost": 0.0039687,
+     "seconds": 5.1,
+     "sample": 1,
+     "conversation": "49c93443dbb397fe0420505b860f2dd559ede6cab0ea340259e2c39ed863ed62"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800D8260.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800D8260.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 8.669128364000017,
+ "wall_seconds": 28.124849900000072,
+ "totals": {
+  "cost": 0.00668,
+  "prompt_tokens": 46044,
+  "completion_tokens": 4156,
+  "model_seconds": 19.3,
+  "check_seconds": 8.7,
+  "calls": 2,
+  "wall_seconds": 28.1
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

@@ -1,0 +1,241 @@
+{
+ "function": "func_800A9F64",
+ "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_800A9F64",
+  "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+  "stem": "40564",
+  "address": "0x800a9f64",
+  "difficulty": "S",
+  "zig_name": "func_800A9F64",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A9F64",
+  "spec_file": "func_800A9F64.zig",
+  "subsystem": "battle_40564_port",
+  "signature": "pub fn func_800A9F64(arg0: c_int, arg1: ?*v.SVECTOR, arg2: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "?*v.SVECTOR"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "SVECTOR"
+  ],
+  "globals": [
+   "D_800F4538"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14514,
+     "completion_tokens": 11584,
+     "reasoning_tokens": 10245,
+     "cost": 0.0072434,
+     "seconds": 50.2,
+     "sample": 1,
+     "conversation": "01ab552ef8d86bb234491dce59bec1e8101e5b7dcd767e946569d21d13657566"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation M4: the -1 test compares against -2: not caught as mismatch (exit 4) (the mutated copy crashes where the C does not: if that is what this mistake does on your inputs, say `expect = \"crash\"`; otherwise choose a mutation your inputs show as a difference): zdiff: CRASH (signal 11) in the Zig run, iteration 0, fault address 0x5c0 [NULL+0x5c0: a field of a null pointer]\nzdiff: crashed on arguments: 0x4 0x407950 [arena] 0xffffffff (class minus-one-null-entry)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16085,
+     "completion_tokens": 2078,
+     "reasoning_tokens": 718,
+     "cost": 0.0026475,
+     "seconds": 8.1,
+     "sample": 1,
+     "conversation": "fd4b4268767641b6b9c2cffbed8f075448bb4196bedc4362e374b4ed7f4c204e"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "minus-one": "2140",
+   "minus-one-null-entry": "768",
+   "store-restore": "27092"
+  },
+  "mutations": [
+   {
+    "name": "M1: the saved value is not restored",
+    "caught": true
+   },
+   {
+    "name": "M2: the stored value truncated to 8 bits",
+    "caught": true
+   },
+   {
+    "name": "M3: the store before the call is dropped",
+    "caught": true
+   },
+   {
+    "name": "M4: the -1 test compares against -2 (the -1 null entry then faults)",
+    "caught": true
+   },
+   {
+    "name": "M5: the saved value is arg2, not the field",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 9,
+   "lines_hit": 9,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: null seen"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 6,
+     "text": "if (arg2 == -1) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 2908, < 10480, > 16612 (signed); < 27092, > 0 (unsigned)",
+     "operand": "constant -1",
+     "a": "-2147483648..2147483647"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 37986,
+     "completion_tokens": 2772,
+     "reasoning_tokens": 2308,
+     "cost": 0.0051846,
+     "seconds": 11.8,
+     "sample": 1,
+     "conversation": "f8e55d4a372e64c149963a8b59f7b4ef2a2350440c5b4a31b20be112f82981e4"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A9F64.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A9F64.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 31.717511995999303,
+ "wall_seconds": 31.895892545000606,
+ "totals": {
+  "cost": 0.01508,
+  "prompt_tokens": 68585,
+  "completion_tokens": 16434,
+  "model_seconds": 70.1,
+  "check_seconds": 31.7,
+  "calls": 3,
+  "wall_seconds": 31.9
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

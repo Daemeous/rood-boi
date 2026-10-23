@@ -1,0 +1,193 @@
+{
+ "function": "func_80093824",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_80093824",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x80093824",
+  "difficulty": "S",
+  "zig_name": "func_80093824",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_80093824",
+  "spec_file": "func_80093824.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_80093824(arg0: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F1DD8_t2"
+  ],
+  "globals": [
+   "D_800F1DD8"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "unk7-is-2": "15063",
+   "unk7-other-unk20-min": "1447",
+   "unk7-other": "13490"
+  },
+  "mutations": [
+   {
+    "name": "M1: selector compares unk7 to 3",
+    "caught": true
+   },
+   {
+    "name": "M2: then-branch stores unk1C, not unk18",
+    "caught": true
+   },
+   {
+    "name": "M3: else-branch writes the wrong slot",
+    "caught": true
+   },
+   {
+    "name": "M4: unk8 stores the negation of unk20",
+    "caught": true
+   },
+   {
+    "name": "M5: unkC is not negated",
+    "caught": true
+   },
+   {
+    "name": "M6: unk18 swap reads the new unk1C",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 14,
+   "lines_hit": 14,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 95, seen zero, never negative"
+    }
+   ],
+   "compares": [
+    {
+     "line": 10,
+     "text": "if (temp_a2->unk7 == 2) {",
+     "size": 1,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 15063, < 11115, > 3822 (signed); < 7355, > 7582 (unsigned)",
+     "operand": "constant 2",
+     "a": "-1..3"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": false,
+    "errors": [
+     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 0: memory at 0x406118 [arena] (zdiff_state+0xa8): C 211, Zig 235\nzdiff: MISMATCH iteration 1: memory at 0x406110 [arena] (zdiff_state+0xa0): C 131, Zig 69\nzdiff: MISMATCH iteration 3: memory at 0x406118 [arena] (zdiff_state+0xa8): C 32, Zig 14\nzdiff: func_80093824: 1197 iterations, seed 1, 1000 mismatches; classes: unk7-is-2=619 unk7-other-unk20-min=52 unk7-other=526"
+    ],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 1,
+      "mismatches": 1000,
+      "first": "MISMATCH iteration 0: memory at 0x406118 (zdiff_state+0xa8): C 211, Zig 235"
+     }
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_80093824.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_80093824.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 48.55295218899846,
+ "wall_seconds": 100.15640228600023,
+ "totals": {
+  "cost": 0.0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "model_seconds": 0.0,
+  "check_seconds": 48.6,
+  "calls": 0,
+  "wall_seconds": 100.2
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

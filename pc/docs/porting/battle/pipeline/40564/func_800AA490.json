@@ -1,0 +1,363 @@
+{
+ "function": "func_800AA490",
+ "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (the +46 eq waiver holds)",
+ "plan": {
+  "name": "func_800AA490",
+  "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+  "stem": "40564",
+  "address": "0x800aa490",
+  "difficulty": "L",
+  "zig_name": "func_800AA490",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800AA490",
+  "spec_file": "func_800AA490.zig",
+  "subsystem": "battle_40564_port",
+  "signature": "pub fn func_800AA490(arg0: c_int, arg1: ?*v.func_8006EBF8_t_fields, arg2: c_int, arg3: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "?*v.func_8006EBF8_t_fields"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ],
+   [
+    "arg3",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "func_8006EBF8_t_fields"
+  ],
+  "globals": [
+   "D_800F4538"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 17228,
+     "completion_tokens": 28330,
+     "reasoning_tokens": 25918,
+     "cost": 0.0158878,
+     "seconds": 120.2,
+     "sample": 1,
+     "conversation": "02665d0725a06e05dfe3555a47d8e206202296c2324c53dfaf4cd33dfe1e96da"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation A2: unsigned slip in the pivot count (negative products divide as unsigned): not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800AA490: 30000 iterations, seed 1, 0 mismatches; classes: no-actor=5034 same-tile=8183 arg2-zero=2066 arg2-minus1=2131 arg2-other=12586",
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800AA490: branches 22/22 (100.0%), conditions not measured (GCC < 14: branch coverage only), lines 36/36\n  FLAG +46 eq: boundary equality never occurred (32-bit compare, constant 0: both sides seen; a port's `<` for `<=` could pass): `if (angle < 0) {`\ncoverage func_800AA490: FAILED (threshold 100%: 0 uncovered, 1 value flag(s) not waived)\nWhat to add:\n- `if (angle < 0) {` (+46): the two sides of this ordered compare were equal 0 time(s) in 2949. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800AA490.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 20154,
+     "completion_tokens": 5536,
+     "reasoning_tokens": 2922,
+     "cost": 0.0047834,
+     "seconds": 21.8,
+     "sample": 1,
+     "conversation": "bfab87274d50469b4407890d0e0f56ba4506a599b1ecab0052ee446318fd85b2"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "no-actor": "5034",
+   "same-tile": "8183",
+   "arg2-zero": "2066",
+   "arg2-minus1": "2131",
+   "arg2-other": "12586"
+  },
+  "mutations": [
+   {
+    "name": "A1: the turn bound is > 2048, not >= (angle 2048 is not turned)",
+    "caught": true
+   },
+   {
+    "name": "A2: unsigned slip in the sign test (a negative turn angle is never negated)",
+    "caught": true
+   },
+   {
+    "name": "A3: wrong constant in the ratan2 angle (0xC01 for 0xC00)",
+    "caught": true
+   },
+   {
+    "name": "A4: ratan2 called with its arguments swapped",
+    "caught": true
+   },
+   {
+    "name": "A5: the dropped unk40 clear",
+    "caught": true
+   },
+   {
+    "name": "A6: facing wraps at 2048, not 4096",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 22,
+   "branches_hit": 22,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 36,
+   "lines_hit": 36,
+   "uncovered": [],
+   "flags": [
+    {
+     "id": "+46 eq",
+     "line": 46,
+     "text": "if (angle < 0) {",
+     "kind": "eq",
+     "bits": 32,
+     "equal": 0,
+     "count": 2949,
+     "what": "boundary equality never occurred (32-bit compare, constant 0: both sides seen; a port's `<` for `<=` could pass)"
+    }
+   ],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: null seen"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones, 8 value(s): 0, 2147483648, 65536, 2, 4294967295, 2147483647, 4294967294, 1"
+    },
+    {
+     "arg": 3,
+     "count": 30000,
+     "text": "32-bit: min -500000, max 500000, unsigned 0..4294967295, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 13,
+     "text": "if (angle == 0 && dz == 0) {",
+     "size": 4,
+     "count": 24966,
+     "kind": "against a constant",
+     "outcomes": "== 8252, < 8257, > 8457 (signed); < 0, > 16714 (unsigned)",
+     "operand": "constant 0",
+     "a": "-251..254"
+    },
+    {
+     "line": 13,
+     "text": "if (angle == 0 && dz == 0) {",
+     "size": 4,
+     "count": 8252,
+     "kind": "against a constant",
+     "outcomes": "== 8183, < 40, > 29 (signed); < 0, > 69 (unsigned)",
+     "operand": "constant 0",
+     "a": "-244..215"
+    },
+    {
+     "line": 22,
+     "text": "if (angle >= 4096 / 2) {",
+     "size": 4,
+     "count": 24966,
+     "kind": "against a constant",
+     "outcomes": "== 1314, < 18534, > 5118 (signed); < 6564, > 17088 (unsigned)",
+     "operand": "constant 2047",
+     "a": "-9493..10314"
+    },
+    {
+     "line": 26,
+     "text": "if (angle < -4096 / 2) {",
+     "size": 4,
+     "count": 24966,
+     "kind": "against a constant",
+     "outcomes": "== 2674, < 3794, > 18498 (signed); < 11748, > 10544 (unsigned)",
+     "operand": "constant -2048",
+     "a": "-9493..6218"
+    },
+    {
+     "line": 34,
+     "text": "if (angle == 0) {",
+     "size": 4,
+     "count": 24966,
+     "kind": "against a constant",
+     "outcomes": "== 1296, < 13867, > 9803 (signed); < 0, > 23670 (unsigned)",
+     "operand": "constant 0",
+     "a": "-5397..6218"
+    },
+    {
+     "line": 38,
+     "text": "if (arg2 == 0) {",
+     "size": 4,
+     "count": 23670,
+     "kind": "against a constant",
+     "outcomes": "== 2953, < 8866, > 11851 (signed); < 0, > 20717 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147483647"
+    },
+    {
+     "line": 45,
+     "text": "if (arg2 == -1) {",
+     "size": 4,
+     "count": 20717,
+     "kind": "against a constant",
+     "outcomes": "== 2949, < 5917, > 11851 (signed); < 17768, > 0 (unsigned)",
+     "operand": "constant -1",
+     "a": "-2147483648..2147483647"
+    },
+    {
+     "line": 46,
+     "text": "if (angle < 0) {",
+     "size": 4,
+     "count": 2949,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 1711, > 1238 (signed); < 0, > 2949 (unsigned)",
+     "operand": "constant 0",
+     "a": "-5021..5952"
+    },
+    {
+     "line": 51,
+     "text": "if (angle & 0xFFF) {",
+     "size": 4,
+     "count": 2949,
+     "kind": "against a constant",
+     "outcomes": "== 802, < 0, > 2147 (signed); < 0, > 2147 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..4095"
+    },
+    {
+     "line": 54,
+     "text": "if (actor->unk0.unk18 == 0) {",
+     "size": 2,
+     "count": 2949,
+     "kind": "against a constant",
+     "outcomes": "== 264, < 985, > 1700 (signed); < 0, > 2685 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32623..32669"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+46 eq",
+    "reason": "angle == 0 returns before this test (`if (angle == 0) return;`), and nothing between that return and this compare changes angle, so angle < 0 never sees equal sides: the sides cannot be equal here."
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 40708,
+     "completion_tokens": 6798,
+     "reasoning_tokens": 5799,
+     "cost": 0.0074698,
+     "seconds": 27.7,
+     "sample": 1,
+     "conversation": "38772892dadb31250918c1d4c2a60d32a2432f3ccae8a0ba89bae15c12c3fc91"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800AA490.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800AA490.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 46.854955023,
+ "wall_seconds": 58.64894083299987,
+ "totals": {
+  "cost": 0.02814,
+  "prompt_tokens": 78090,
+  "completion_tokens": 40664,
+  "model_seconds": 169.7,
+  "check_seconds": 46.9,
+  "calls": 3,
+  "wall_seconds": 58.6
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

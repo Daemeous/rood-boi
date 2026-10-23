@@ -1,0 +1,191 @@
+{
+ "function": "func_80096444",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "port-failed",
+ "reviewed": "not ported in this wave (unrouted): port-failed: FAIL: seed 1: the port differs from the C (exit 1):",
+ "plan": {
+  "name": "func_80096444",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x80096444",
+  "difficulty": "S",
+  "zig_name": "func_80096444",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_80096444",
+  "spec_file": "func_80096444.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_80096444(arg0: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [
+   "D_800F1BAC",
+   "D_800F227E"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": false,
+    "errors": [
+     "FAIL: mutation D3: unsigned loop compare (negative arg0 skips the loop): not caught as mismatch (exit None): no result after 300 s (an endless loop?)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "wrap-count": "3053",
+   "arg-equal": "7002",
+   "arg-above": "8740",
+   "arg-below": "11205"
+  },
+  "mutations": [
+   {
+    "name": "D1: the count is not decremented",
+    "caught": true
+   },
+   {
+    "name": "D2: loop runs through the count (<=)",
+    "caught": true
+   },
+   {
+    "name": "D3: unsigned loop compare (negative arg0 skips the loop)",
+    "caught": true
+   },
+   {
+    "name": "D4: memcpy source two slots on",
+    "caught": true
+   },
+   {
+    "name": "D5: memcpy size one byte short",
+    "caught": true
+   },
+   {
+    "name": "D6: bzero clears the element below the count",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 4,
+   "branches_hit": 4,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 8,
+   "lines_hit": 8,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -8, max 32767, unsigned 0..4294967295, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 5,
+     "text": "if (arg0 != D_800F227E) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "a == b / a < b",
+     "outcomes": "== 8543, < 12717, > 8740 (signed); < 9489, > 11968 (unsigned)",
+     "operand": "b 0..32767",
+     "a": "-8..32767"
+    },
+    {
+     "line": 6,
+     "text": "for (i = arg0; i < D_800F227E; ++i) {",
+     "size": 4,
+     "count": 212972,
+     "kind": "a == b / a < b",
+     "outcomes": "== 12717, < 191515, > 8740 (signed); < 176879, > 23376 (unsigned)",
+     "operand": "b 0..32767",
+     "a": "-8..32767"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": false,
+    "errors": [
+     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 0: memory at 0x4070f8 [arena] (zdiff_state+0x88): C 158, Zig 0\nzdiff: MISMATCH iteration 1: memory at 0x4070a4 [arena] (zdiff_state+0x34): C 133, Zig 0\nzdiff: MISMATCH iteration 2: memory at 0x407074 [arena] (zdiff_state+0x4): C 82, Zig 0\nzdiff: func_80096444: 1000 iterations, seed 1, 1000 mismatches; classes: wrap-count=88 arg-equal=244 arg-above=292 arg-below=376"
+    ],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 1,
+      "mismatches": 1000,
+      "first": "MISMATCH iteration 0: memory at 0x4070f8 (zdiff_state+0x88): C 158, Zig 0"
+     }
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": false,
+    "errors": [
+     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 0: memory at 0x407180 [arena] (zdiff_state+0x110): C 113, Zig 0\nzdiff: MISMATCH iteration 1: memory at 0x4070d8 [arena] (zdiff_state+0x68): C 218, Zig 0\nzdiff: MISMATCH iteration 2: memory at 0x407078 [arena] (zdiff_state+0x8): C 220, Zig 0\nzdiff: func_80096444: 1000 iterations, seed 1, 1000 mismatches; classes: wrap-count=88 arg-equal=244 arg-above=292 arg-below=376"
+    ],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 1,
+      "mismatches": 1000,
+      "first": "MISMATCH iteration 0: memory at 0x407180 (zdiff_state+0x110): C 113, Zig 0"
+     }
+    ]
+   }
+  ]
+ },
+ "written": [],
+ "check_seconds": 326.28946628400445,
+ "wall_seconds": 326.49803130500004,
+ "totals": {
+  "cost": 0.0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "model_seconds": 0.0,
+  "check_seconds": 326.3,
+  "calls": 0,
+  "wall_seconds": 326.5
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22"
+ }
+}

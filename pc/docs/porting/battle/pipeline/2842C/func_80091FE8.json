@@ -1,0 +1,235 @@
+{
+ "function": "func_80091FE8",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the unsigned frame division; every RECT field set before MoveImage); spec sound",
+ "plan": {
+  "name": "func_80091FE8",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x80091fe8",
+  "difficulty": "M",
+  "zig_name": "func_80091FE8",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_80091FE8",
+  "spec_file": "func_80091FE8.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_80091FE8(arg0: ?*v.func_80091FE8_t) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "?*v.func_80091FE8_t"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "RECT",
+   "func_80091FE8_t"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": false,
+    "errors": [
+     "FAIL: mutation W1: half width by shift (wrong for odd negative w): not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_80091FE8: 30000 iterations, seed 1, 0 mismatches; classes: idle=21497 step0-advance=4168 scroll-wrap-block=1075 scroll-no-wrap-block=3260"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "idle": "21497",
+   "step0-advance": "4168",
+   "scroll-wrap-block": "1075",
+   "scroll-no-wrap-block": "3260"
+  },
+  "mutations": [
+   {
+    "name": "F1: frame wraps one early (>= frameCount)",
+    "caught": true
+   },
+   {
+    "name": "R1: scroll wrap at frame > rect.h",
+    "caught": true
+   },
+   {
+    "name": "W1: half width by shift (wrong for odd negative w)",
+    "caught": true
+   },
+   {
+    "name": "P1: wrap block runs with frame == 0",
+    "caught": true
+   },
+   {
+    "name": "T1: tick tested before its increment",
+    "caught": true
+   },
+   {
+    "name": "F2: frame reset to 0 instead of 1",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 12,
+   "branches_hit": 12,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 41,
+   "lines_hit": 41,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 10,
+     "text": "if (++arg0->tick > arg0->delay) {",
+     "size": 1,
+     "count": 30000,
+     "kind": "a == b / a < b",
+     "outcomes": "== 10989, < 9102, > 9909 (signed); < 10508, > 8503 (unsigned)",
+     "operand": "b -128..127",
+     "a": "-128..127"
+    },
+    {
+     "line": 14,
+     "text": "if (arg0->scrollStep == 0) {",
+     "size": 4,
+     "count": 8503,
+     "kind": "against a constant",
+     "outcomes": "== 4168, < 2157, > 2178 (signed); < 0, > 4335 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483392..2147483392"
+    },
+    {
+     "line": 15,
+     "text": "if (++arg0->frame > arg0->frameCount) {",
+     "size": 1,
+     "count": 4168,
+     "kind": "a == b / a < b",
+     "outcomes": "== 1505, < 1259, > 1404 (signed); < 1469, > 1194 (unsigned)",
+     "operand": "b -128..127",
+     "a": "-128..127"
+    },
+    {
+     "line": 24,
+     "text": "if (arg0->frame >= arg0->rect.h) {",
+     "size": 4,
+     "count": 4335,
+     "kind": "a == b / a < b",
+     "outcomes": "== 1549, < 1250, > 1536 (signed); < 2277, > 509 (unsigned)",
+     "operand": "b -32768..32767",
+     "a": "0..255"
+    },
+    {
+     "line": 42,
+     "text": "if (arg0->scrollStep != 0 && arg0->frame != 0) {",
+     "size": 4,
+     "count": 8503,
+     "kind": "against a constant",
+     "outcomes": "== 4168, < 2157, > 2178 (signed); < 0, > 4335 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483392..2147483392"
+    },
+    {
+     "line": 42,
+     "text": "if (arg0->scrollStep != 0 && arg0->frame != 0) {",
+     "size": 1,
+     "count": 4335,
+     "kind": "against a constant",
+     "outcomes": "== 3260, < 507, > 568 (signed); < 0, > 1075 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..126"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_80091FE8.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_80091FE8.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 59.833907542000816,
+ "wall_seconds": 89.62919205099934,
+ "totals": {
+  "cost": 0.0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "model_seconds": 0.0,
+  "check_seconds": 59.8,
+  "calls": 0,
+  "wall_seconds": 89.6
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 300 / root 600 / root 1516, 0 mismatches"
+ }
+}

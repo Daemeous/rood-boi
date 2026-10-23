@@ -1,0 +1,158 @@
+{
+ "function": "func_80093AB4",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "port-failed",
+ "reviewed": "not ported in this wave (unrouted): port-failed: FAIL: seed 1: the port differs from the C (exit 1):",
+ "plan": {
+  "name": "func_80093AB4",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x80093ab4",
+  "difficulty": "S",
+  "zig_name": "func_80093AB4",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_80093AB4",
+  "spec_file": "func_80093AB4.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_80093AB4() callconv(.c) void",
+  "params": [],
+  "ret": "void",
+  "types": [],
+  "globals": [
+   "D_800F1BAC",
+   "D_800F2270",
+   "D_800F2272",
+   "D_800F2278",
+   "D_800F227A",
+   "D_800F227E"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "target-null": "10220",
+   "target-arena": "9780"
+  },
+  "mutations": [
+   {
+    "name": "M1: D_800F2270 cleared to 1",
+    "caught": true
+   },
+   {
+    "name": "M2: the D_800F2278 store dropped",
+    "caught": true
+   },
+   {
+    "name": "M3: D_800F227A store moved after the bzero call",
+    "caught": true
+   },
+   {
+    "name": "M4: bzero length off by one",
+    "caught": true
+   },
+   {
+    "name": "M5: bzero call dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 8,
+   "lines_hit": 8,
+   "uncovered": [],
+   "flags": [],
+   "args": [],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": false,
+    "errors": [
+     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 0: memory at 0x407071 [arena] (zdiff_state+0x1): C 0, Zig 224\nzdiff: MISMATCH iteration 1: memory at 0x407071 [arena] (zdiff_state+0x1): C 0, Zig 70\nzdiff: MISMATCH iteration 2: memory at 0x407071 [arena] (zdiff_state+0x1): C 0, Zig 255\nzdiff: func_80093AB4: 1000 iterations, seed 1, 1000 mismatches; classes: target-null=479 target-arena=521"
+    ],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 1,
+      "mismatches": 1000,
+      "first": "MISMATCH iteration 0: memory at 0x407071 (zdiff_state+0x1): C 0, Zig 224"
+     }
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": false,
+    "errors": [
+     "FAIL: no Zig file in the reply"
+    ],
+    "runs": []
+   },
+   {
+    "round": 3,
+    "sample": 1,
+    "call": null,
+    "passed": false,
+    "errors": [
+     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 0: memory at 0x407170 [arena] (zdiff_state+0x100): C 0, Zig 253\nzdiff: MISMATCH iteration 1: memory at 0x407170 [arena] (zdiff_state+0x100): C 0, Zig 180\nzdiff: MISMATCH iteration 2: memory at 0x407170 [arena] (zdiff_state+0x100): C 0, Zig 127\nzdiff: func_80093AB4: 1000 iterations, seed 1, 1000 mismatches; classes: target-null=479 target-arena=521"
+    ],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 1,
+      "mismatches": 1000,
+      "first": "MISMATCH iteration 0: memory at 0x407170 (zdiff_state+0x100): C 0, Zig 253"
+     }
+    ]
+   }
+  ]
+ },
+ "written": [],
+ "check_seconds": 7.191157874996861,
+ "wall_seconds": 7.409220823999931,
+ "totals": {
+  "cost": 0.0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "model_seconds": 0.0,
+  "check_seconds": 7.2,
+  "calls": 0,
+  "wall_seconds": 7.4
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22"
+ }
+}

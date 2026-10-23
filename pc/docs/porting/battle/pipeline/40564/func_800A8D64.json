@@ -1,0 +1,286 @@
+{
+ "function": "func_800A8D64",
+ "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (unk0_10 6/7, where the C falls off the end, return the section); spec finished by the reviewer (the sum-127 edge, a waiver)",
+ "plan": {
+  "name": "func_800A8D64",
+  "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+  "stem": "40564",
+  "address": "0x800a8d64",
+  "difficulty": "M",
+  "zig_name": "func_800A8D64",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A8D64",
+  "spec_file": "func_800A8D64.zig",
+  "subsystem": "battle_40564_port",
+  "signature": "pub fn func_800A8D64(arg0: ?*v.SVECTOR, arg1: c_int) callconv(.c) ?*v._mpdRoomSection3",
+  "params": [
+   [
+    "arg0",
+    "?*v.SVECTOR"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ]
+  ],
+  "ret": "?*v._mpdRoomSection3",
+  "types": [
+   "SVECTOR",
+   "_mpdRoomSection3"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12695,
+     "completion_tokens": 13627,
+     "reasoning_tokens": 11708,
+     "cost": 0.008083,
+     "seconds": 59.9,
+     "sample": 1,
+     "conversation": "008f9153cde29fd5dbe653fab75314ecdce6742d754bd8a30bd8978daffb9368"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:235:46: error: expected 3 argument(s), found 4\n                return adapt(S, @call(.auto, f, .{&ctx} ++ stubArgs(@TypeOf(f), args)));\n                                             ^\npc/build/port-pipeline/func_800A8D64/spec1/build/spec.zig:22:9: note: function declared here\n    pub fn func_8008B764(ctx: *zd.Ctx, arg0: anytype, arg1: anytype) ?*v._mpdRoomSection3 {\n    ~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nreferenced by:\n    f: pc/build/port-pipeline/func_800A8D64/spec1/build/game/common/route.zig:34:28\n    comptime: pc/tests/zig_diff/main.zig:244:58\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "sum-eq-128": "1137",
+   "diff-eq-0": "4532",
+   "other": "34331"
+  },
+  "mutations": [
+   {
+    "name": "M1: vx remainder uses << 6",
+    "caught": true
+   },
+   {
+    "name": "M2: case 1 tests >= 0x80",
+    "caught": true
+   },
+   {
+    "name": "M3: case 3 tests <= 0x80",
+    "caught": true
+   },
+   {
+    "name": "M4: unsigned quotient for vx (signed slip)",
+    "caught": true
+   },
+   {
+    "name": "M5: vz remainder read from vx",
+    "caught": true
+   },
+   {
+    "name": "M6: lookup called with arg1 dropped to 0",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 17,
+   "branches_hit": 16,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 30,
+   "lines_hit": 29,
+   "uncovered": [
+    {
+     "id": "+14 b6",
+     "line": 14,
+     "text": "switch (temp_v0->unk0_10) {",
+     "what": "branch never taken"
+    }
+   ],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 14,
+     "text": "switch (temp_v0->unk0_10) {",
+     "size": 4,
+     "count": 32525,
+     "kind": "switch",
+     "outcomes": "== 32525, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..5"
+    },
+    {
+     "line": 19,
+     "text": "if ((temp_s1 + temp_s0) > 0x80) {",
+     "size": 4,
+     "count": 5452,
+     "kind": "against a constant",
+     "outcomes": "== 165, < 4806, > 481 (signed); < 2903, > 2384 (unsigned)",
+     "operand": "constant 128",
+     "a": "-252..254"
+    },
+    {
+     "line": 25,
+     "text": "if ((temp_s1 - temp_s0) > 0) {",
+     "size": 4,
+     "count": 5458,
+     "kind": "against a constant",
+     "outcomes": "== 663, < 2559, > 2236 (signed); < 0, > 4795 (unsigned)",
+     "operand": "constant 0",
+     "a": "-254..254"
+    },
+    {
+     "line": 31,
+     "text": "if ((temp_s1 + temp_s0) < 0x80) {",
+     "size": 4,
+     "count": 5437,
+     "kind": "against a constant",
+     "outcomes": "== 1190, < 3575, > 672 (signed); < 1737, > 2510 (unsigned)",
+     "operand": "constant 127",
+     "a": "-254..254"
+    },
+    {
+     "line": 37,
+     "text": "if ((temp_s1 - temp_s0) < 0) {",
+     "size": 4,
+     "count": 5429,
+     "kind": "against a constant",
+     "outcomes": "== 596, < 2591, > 2242 (signed); < 0, > 4833 (unsigned)",
+     "operand": "constant 0",
+     "a": "-254..252"
+    },
+    {
+     "line": 43,
+     "text": "return 0;",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 40000, > 0 (signed); < 40000, > 0 (unsigned)",
+     "operand": "constant 1",
+     "a": "0..0"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+14 b6",
+    "reason": "unk0_10 6 and 7 fall off the end of the switch (the C's own BUG comment: an undefined result); the room sections use 0..5"
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 36167,
+     "completion_tokens": 4691,
+     "reasoning_tokens": 3930,
+     "cost": 0.0059622,
+     "seconds": 22.5,
+     "sample": 1,
+     "conversation": "7f6f291db78b719549cdb86daaf82042b70c399c0c35520bcab84a8ec2a5b0b5"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A8D64.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A8D64.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 34.19421169499947,
+ "wall_seconds": 56.969769583000016,
+ "totals": {
+  "cost": 0.01405,
+  "prompt_tokens": 48862,
+  "completion_tokens": 18318,
+  "model_seconds": 82.4,
+  "check_seconds": 34.2,
+  "calls": 2,
+  "wall_seconds": 57.0
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "spec_fixes": [
+   "reviewer's round-2 reply: remainders summing to exactly 127 (GCC's form of `< 0x80`) drawn a quarter of the time; +14 b6 waived (unk0_10 6 and 7 fall off the end: the C's own BUG comment)"
+  ],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 2522, nested 3 / root 4933, nested 3 / root 9439, 0 mismatches"
+ }
+}

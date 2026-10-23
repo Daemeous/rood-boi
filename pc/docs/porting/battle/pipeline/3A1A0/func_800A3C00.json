@@ -1,0 +1,227 @@
+{
+ "function": "func_800A3C00",
+ "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the ROOD_PC empty-slot guard ported); spec sound",
+ "plan": {
+  "name": "func_800A3C00",
+  "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+  "stem": "3A1A0",
+  "address": "0x800a3c00",
+  "difficulty": "S",
+  "zig_name": "func_800A3C00",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A3C00",
+  "spec_file": "func_800A3C00.zig",
+  "subsystem": "battle_3A1A0_port",
+  "signature": "pub fn func_800A3C00(arg0: ?*v.D_800F45E0_t, arg1: c_uint) callconv(.c) ?*v.D_800F4538_t",
+  "params": [
+   [
+    "arg0",
+    "?*v.D_800F45E0_t"
+   ],
+   [
+    "arg1",
+    "c_uint"
+   ]
+  ],
+  "ret": "?*v.D_800F4538_t",
+  "types": [
+   "D_800F4538_t",
+   "D_800F45E0_t"
+  ],
+  "globals": [],
+  "hooks": [
+   "ROOD_PC block in the source"
+  ],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 17774,
+     "completion_tokens": 6843,
+     "reasoning_tokens": 5423,
+     "cost": 0.0051989,
+     "seconds": 28.9,
+     "sample": 1,
+     "conversation": "85a15ff0d21cc38c5c77d88a21f782d5cdfe785223b662b8c28c344da446e860"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation F5: unk1E zero-extended (signed/unsigned slip): gcc -m64 -fpie ...: zdiff_standin.c: In function \u2018func_800A3C00__standin\u2019:\nzdiff_standin.c:10:53: error: \u2018u16\u2019 undeclared (first use in this function)\nzdiff_standin.c:10:53: note: each undeclared identifier is reported only once for each function it appears in\nzdiff_standin.c:10:57: error: expected \u2018)\u2019 before \u2018arg0\u2019\nzdiff_standin.c:10:12: error: too few arguments to function \u2018func_800A3C34\u2019\npc/build/port-pipeline/func_800A3C00/spec1/build/ref.c:2664:15: note: declared here\n 2664 | D_800F4538_t* func_800A3C34(int, int, int, int);\n      |               ^~~~~~~~~~~~~\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 19526,
+     "completion_tokens": 2230,
+     "reasoning_tokens": 807,
+     "cost": 0.0030676,
+     "seconds": 9.0,
+     "sample": 1,
+     "conversation": "9f3a00448fe4675fca6802a77244897cd6a803334980f15ee063907c660f3cf4"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "null": "4841",
+   "unk1E-negative": "11311",
+   "unk1E-zero": "2579",
+   "unk1E-positive": "11269"
+  },
+  "mutations": [
+   {
+    "name": "F1: null guard removed (null arg0 is read)",
+    "caught": true
+   },
+   {
+    "name": "F2: null returns a non-null pointer",
+    "caught": true
+   },
+   {
+    "name": "F3: unk5C and unk5E passed swapped",
+    "caught": true
+   },
+   {
+    "name": "F4: unk1E read as unk1C",
+    "caught": true
+   },
+   {
+    "name": "F5: unk1E zero-extended (signed/unsigned slip)",
+    "caught": true
+   },
+   {
+    "name": "F6: arg1 dropped from the call",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 4,
+   "lines_hit": 4,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: null seen"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 41376,
+     "completion_tokens": 3214,
+     "reasoning_tokens": 2787,
+     "cost": 0.0057446,
+     "seconds": 14.7,
+     "sample": 1,
+     "conversation": "13e62983d70499fa816613d6b494a9f23c69ba09ece8963384899a2cdfe01414"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A3C00.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A3C00.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 39.54475676899983,
+ "wall_seconds": 92.3063982270005,
+ "totals": {
+  "cost": 0.01401,
+  "prompt_tokens": 78676,
+  "completion_tokens": 12287,
+  "model_seconds": 52.6,
+  "check_seconds": 39.5,
+  "calls": 3,
+  "wall_seconds": 92.3
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

@@ -1,0 +1,374 @@
+{
+ "function": "func_800A6EE8",
+ "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (sp.vy zeroed where the C leaves it unset; the callee reads only vx/vz); spec sound",
+ "plan": {
+  "name": "func_800A6EE8",
+  "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+  "stem": "3A1A0",
+  "address": "0x800a6ee8",
+  "difficulty": "M",
+  "zig_name": "func_800A6EE8",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A6EE8",
+  "spec_file": "func_800A6EE8.zig",
+  "subsystem": "battle_3A1A0_port",
+  "signature": "pub fn func_800A6EE8(arg0: ?*v.SVECTOR, arg1: c_int, arg2: c_int, arg3: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "?*v.SVECTOR"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ],
+   [
+    "arg3",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "SVECTOR"
+  ],
+  "globals": [
+   "D_800E9278",
+   "D_800F49F0"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13655,
+     "completion_tokens": 23627,
+     "reasoning_tokens": 21094,
+     "cost": 0.013179,
+     "seconds": 102.7,
+     "sample": 1,
+     "conversation": "ba714c06a3b94344ac67dfc565ea1a97dc52f32238cbefbbff83586b7abafb4f"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "no-ent": "6631",
+   "bit17-mode3": "2111",
+   "bit17-other": "14672",
+   "skip-los": "4166",
+   "plain": "12420"
+  },
+  "mutations": [
+   {
+    "name": "M1: vx read unsigned (negative x offsets wrap wrong)",
+    "caught": true
+   },
+   {
+    "name": "M2: height test is h > 0, not h >= 0",
+    "caught": true
+   },
+   {
+    "name": "M3: wrong constant for the 3000 height",
+    "caught": true
+   },
+   {
+    "name": "M4: dropped restore of the pre-LOS height",
+    "caught": true
+   },
+   {
+    "name": "M5: dropped func_800A92B8 call",
+    "caught": true
+   },
+   {
+    "name": "M6: LOS test ORs the zero check instead of ANDing",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 32,
+   "branches_hit": 32,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 36,
+   "lines_hit": 36,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "32-bit: min -199984, max 199977, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 40000,
+     "text": "32-bit: min -199998, max 199994, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 3,
+     "count": 40000,
+     "text": "32-bit: min 0, max 7, seen zero, never negative, 8 value(s): 1, 5, 0, 2, 7, 4, 6, 3"
+    }
+   ],
+   "compares": [
+    {
+     "line": 20,
+     "text": "if (arg3 == 0) {",
+     "size": 4,
+     "count": 33369,
+     "kind": "against a constant",
+     "outcomes": "== 4231, < 0, > 29138 (signed); < 0, > 29138 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..7"
+    },
+    {
+     "line": 26,
+     "text": "if (h >= 0) {",
+     "size": 4,
+     "count": 33369,
+     "kind": "against a constant",
+     "outcomes": "== 8429, < 8275, > 16665 (signed); < 0, > 24940 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32767..32758"
+    },
+    {
+     "line": 31,
+     "text": "if (arg3 == 2) {",
+     "size": 4,
+     "count": 25094,
+     "kind": "against a constant",
+     "outcomes": "== 3136, < 6325, > 15633 (signed); < 6325, > 15633 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..7"
+    },
+    {
+     "line": 37,
+     "text": "if (r != 0) {",
+     "size": 4,
+     "count": 25094,
+     "kind": "against a constant",
+     "outcomes": "== 6304, < 9434, > 9356 (signed); < 0, > 18790 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147330294..2147431713"
+    },
+    {
+     "line": 41,
+     "text": "if (((*ent >> 17) & 1) && (h >= 0)) {",
+     "size": 4,
+     "count": 25094,
+     "kind": "against a constant",
+     "outcomes": "== 12455, < 0, > 12639 (signed); < 0, > 12639 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..131072"
+    },
+    {
+     "line": 41,
+     "text": "if (((*ent >> 17) & 1) && (h >= 0)) {",
+     "size": 4,
+     "count": 12639,
+     "kind": "against a constant",
+     "outcomes": "== 1091, < 5222, > 6326 (signed); < 0, > 11548 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147330294..2147292047"
+    },
+    {
+     "line": 45,
+     "text": "if (arg3 == 3) {",
+     "size": 4,
+     "count": 7417,
+     "kind": "against a constant",
+     "outcomes": "== 913, < 2863, > 3641 (signed); < 2863, > 3641 (unsigned)",
+     "operand": "constant 3",
+     "a": "0..7"
+    },
+    {
+     "line": 49,
+     "text": "if (los == 0x14) {",
+     "size": 4,
+     "count": 913,
+     "kind": "against a constant",
+     "outcomes": "== 332, < 47, > 534 (signed); < 47, > 534 (unsigned)",
+     "operand": "constant 20",
+     "a": "0..255"
+    },
+    {
+     "line": 55,
+     "text": "if (arg3 != 2 && arg3 != 4) {",
+     "size": 4,
+     "count": 25094,
+     "kind": "against a constant",
+     "outcomes": "== 3136, < 6325, > 15633 (signed); < 6325, > 15633 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..7"
+    },
+    {
+     "line": 55,
+     "text": "if (arg3 != 2 && arg3 != 4) {",
+     "size": 4,
+     "count": 21958,
+     "kind": "against a constant",
+     "outcomes": "== 3173, < 9445, > 9340 (signed); < 9445, > 9340 (unsigned)",
+     "operand": "constant 4",
+     "a": "0..7"
+    },
+    {
+     "line": 61,
+     "text": "if ((los != 0) && (los < h)) {",
+     "size": 4,
+     "count": 18785,
+     "kind": "against a constant",
+     "outcomes": "== 3298, < 7198, > 8289 (signed); < 0, > 15487 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2146919638..2147139733"
+    },
+    {
+     "line": 61,
+     "text": "if ((los != 0) && (los < h)) {",
+     "size": 4,
+     "count": 15487,
+     "kind": "a == b / a < b",
+     "outcomes": "== 118, < 6774, > 8595 (signed); < 6111, > 9258 (unsigned)",
+     "operand": "b -2147257023..2147431713",
+     "a": "-2146919638..2147139733"
+    },
+    {
+     "line": 65,
+     "text": "if (arg3 == 3 && h < arg0->vy - 64) {",
+     "size": 4,
+     "count": 18785,
+     "kind": "against a constant",
+     "outcomes": "== 3120, < 6325, > 9340 (signed); < 6325, > 9340 (unsigned)",
+     "operand": "constant 3",
+     "a": "0..7"
+    },
+    {
+     "line": 65,
+     "text": "if (arg3 == 3 && h < arg0->vy - 64) {",
+     "size": 4,
+     "count": 3120,
+     "kind": "a == b / a < b",
+     "outcomes": "== 151, < 2308, > 661 (signed); < 1189, > 1780 (unsigned)",
+     "operand": "b -32808..32683",
+     "a": "-2146624873..2125013005"
+    },
+    {
+     "line": 74,
+     "text": "if (arg3 == 3) {",
+     "size": 4,
+     "count": 14906,
+     "kind": "against a constant",
+     "outcomes": "== 1905, < 5633, > 7368 (signed); < 5633, > 7368 (unsigned)",
+     "operand": "constant 3",
+     "a": "0..7"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 37144,
+     "completion_tokens": 6808,
+     "reasoning_tokens": 5709,
+     "cost": 0.0071184,
+     "seconds": 28.0,
+     "sample": 1,
+     "conversation": "caa3671635c204c6ed1eacb7ac38071bed5c93ba9bbc516f793d387e6c24ca93"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A6EE8.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A6EE8.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 54.17971254999975,
+ "wall_seconds": 54.40082668000014,
+ "totals": {
+  "cost": 0.0203,
+  "prompt_tokens": 50799,
+  "completion_tokens": 30435,
+  "model_seconds": 130.7,
+  "check_seconds": 54.2,
+  "calls": 2,
+  "wall_seconds": 54.4
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 2480, nested 45 / root 4810, nested 126 / root 9430, nested 9, 0 mismatches"
+ }
+}

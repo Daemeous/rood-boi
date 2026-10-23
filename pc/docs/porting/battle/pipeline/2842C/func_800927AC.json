@@ -1,0 +1,206 @@
+{
+ "function": "func_800927AC",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_800927AC",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x800927ac",
+  "difficulty": "S",
+  "zig_name": "func_800927AC",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800927AC",
+  "spec_file": "func_800927AC.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_800927AC(arg0: ?*v.D_800F1DD8_t) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.D_800F1DD8_t"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F1DD8_t",
+   "D_800F1DD8_t2",
+   "func_80092F74_t"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "empty": "1621",
+   "odd-count": "21707",
+   "aligned-count": "6672"
+  },
+  "mutations": [
+   {
+    "name": "F1: script offset uses mod 2 for the alignment",
+    "caught": true
+   },
+   {
+    "name": "F2: unsigned test of the id (negative ids take the entry path)",
+    "caught": true
+   },
+   {
+    "name": "F3: wrong constant on the second entry field (*8, not *16)",
+    "caught": true
+   },
+   {
+    "name": "F4: the unk18 store is dropped",
+    "caught": true
+   },
+   {
+    "name": "F5: a missing entry marks unk8 as -2, not -1",
+    "caught": true
+   },
+   {
+    "name": "F6: the loop bound is inclusive (one element too many)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 10,
+   "branches_hit": 10,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 25,
+   "lines_hit": 25,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 12,
+     "text": "if (arg0->unk1 % 4) {",
+     "size": 1,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 8293, < 0, > 21707 (signed); < 0, > 21707 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..3"
+    },
+    {
+     "line": 16,
+     "text": "for (i = 0; i < arg0->unk1; ++i, ++elem, ++ids) {",
+     "size": 4,
+     "count": 2401206,
+     "kind": "a == b / a < b",
+     "outcomes": "== 30000, < 2371206, > 0 (signed); < 2371206, > 0 (unsigned)",
+     "operand": "b 0..255",
+     "a": "0..255"
+    },
+    {
+     "line": 19,
+     "text": "if (elem->unk8 >= 0) {",
+     "size": 2,
+     "count": 2371206,
+     "kind": "against a constant",
+     "outcomes": "== 242369, < 1067436, > 1061401 (signed); < 0, > 2128837 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 33,
+     "text": "if (((__typeof__((elem->unk0).psx_type_[0]))(long unsigned int)(elem->unk0).raw) == 0) {",
+     "size": 4,
+     "count": 2371206,
+     "kind": "against a constant",
+     "outcomes": "== 1393865, < 0, > 977341 (signed); < 0, > 977341 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..4258664"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800927AC.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800927AC.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 121.73111015099857,
+ "wall_seconds": 124.51838567199957,
+ "totals": {
+  "cost": 0.0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "model_seconds": 0.0,
+  "check_seconds": 121.7,
+  "calls": 0,
+  "wall_seconds": 124.5
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

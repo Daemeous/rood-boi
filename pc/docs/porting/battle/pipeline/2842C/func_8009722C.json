@@ -1,0 +1,143 @@
+{
+ "function": "func_8009722C",
+ "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "stopped",
+ "reviewed": "not ported in this wave: its run was stopped at the wave's budget",
+ "plan": {
+  "name": "func_8009722C",
+  "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
+  "stem": "2842C",
+  "address": "0x8009722c",
+  "difficulty": "S",
+  "zig_name": "func_8009722C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_8009722C",
+  "spec_file": "func_8009722C.zig",
+  "subsystem": "battle_2842C_port",
+  "signature": "pub fn func_8009722C() callconv(.c) void",
+  "params": [],
+  "ret": "void",
+  "types": [],
+  "globals": [
+   "D_800F227A"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11033,
+     "completion_tokens": 2384,
+     "reasoning_tokens": 1793,
+     "cost": 0.0022953,
+     "seconds": 11.2,
+     "sample": 1,
+     "conversation": "2f59b42e21ef1cde881187eccf8c5289921266326b5971c87f4ed71b544ec857"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: no input classes declared (`classes` and `classify`)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11675,
+     "completion_tokens": 1589,
+     "reasoning_tokens": 754,
+     "cost": 0.001962,
+     "seconds": 6.9,
+     "sample": 1,
+     "conversation": "6aec4f8f9b4b9a013e0a0f857b65fedf04ab2048d714f0a0ce8b549be2f61060"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "already-one": "4913",
+   "low-byte-one": "3817",
+   "other": "11270"
+  },
+  "mutations": [
+   {
+    "name": "F1: stores 2, not 1",
+    "caught": true
+   },
+   {
+    "name": "F2: stores 0, not 1",
+    "caught": true
+   },
+   {
+    "name": "F3: the store is dropped",
+    "caught": true
+   },
+   {
+    "name": "F4: one byte written, the high byte left alone",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 1,
+   "lines_hit": 1,
+   "uncovered": [],
+   "flags": [],
+   "args": [],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 0.0,
+ "stopped": "budget: $0.0000 spent of $0.00",
+ "wall_seconds": 10.387510055999883,
+ "totals": {
+  "cost": 0.00426,
+  "prompt_tokens": 22708,
+  "completion_tokens": 3973,
+  "model_seconds": 18.1,
+  "check_seconds": 0.0,
+  "calls": 2,
+  "wall_seconds": 10.4
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22"
+ }
+}

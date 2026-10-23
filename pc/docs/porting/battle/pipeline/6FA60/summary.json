@@ -1,0 +1,30 @@
+{
+ "unit": "6FA60",
+ "totals": {
+  "functions": 1,
+  "ported": 1,
+  "cost": 0.0067,
+  "prompt_tokens": 46044,
+  "completion_tokens": 4156,
+  "model_seconds": 19.3,
+  "check_seconds": 8.7,
+  "calls": 2,
+  "statuses": {
+   "ported": 1
+  },
+  "last_run_wall_seconds": 28.4
+ },
+ "functions": [
+  {
+   "function": "func_800D8260",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "spec": "first",
+   "port": "first",
+   "cost": 0.00668,
+   "wall_seconds": 28.1
+  }
+ ]
+}

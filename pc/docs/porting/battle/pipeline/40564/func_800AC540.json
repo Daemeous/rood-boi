@@ -1,0 +1,295 @@
+{
+ "function": "func_800AC540",
+ "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_800AC540",
+  "unit": "src/BATTLE/BATTLE.PRG/40564.c",
+  "stem": "40564",
+  "address": "0x800ac540",
+  "difficulty": "M",
+  "zig_name": "func_800AC540",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800AC540",
+  "spec_file": "func_800AC540.zig",
+  "subsystem": "battle_40564_port",
+  "signature": "pub fn func_800AC540(arg0: c_int, arg1: ?*v.D_800F4538_t) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "?*v.D_800F4538_t"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16359,
+     "completion_tokens": 11773,
+     "reasoning_tokens": 9791,
+     "cost": 0.0075224,
+     "seconds": 48.4,
+     "sample": 1,
+     "conversation": "3f5c3f3707b159086273d4f5d55976f9bd63051e00d6d149ee83f8d8ea0fa727"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/func_800AC540/spec1/build/game/common/psx.zig:84:32: error: no field named 'unkA_5' in struct 'views_40564.D_800F4538_t.bitfields__struct_58'\n    return @field(S.bitfields, name);\n                               ^~~~\npc/build/port-pipeline/gen/40564/fn-func_800AC540/views_40564.zig:417:28: note: struct declared here\n    pub const bitfields = .{\n                          ~^\npc/build/port-pipeline/func_800AC540/spec1/build/game/common/psx.zig:99:76: note: called at comptime here\npub fn setBits(p: anytype, comptime name: []const u8, value: BitInt(bitSpec(@TypeOf(p), name))) void {\n                                                                    ~~~~~~~^~~~~~~~~~~~~~~~~~\npc/build/port-pipeline/func_800AC540/spec1/build/spec.zig:36:16: note: generic function instantiated here\n    psx.setBits(obj, \"unkA_5\", ctx.int(u1));\n    ~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:435:40\n    main: pc/tests/zig_diff/main.zig:392:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 18933,
+     "completion_tokens": 3430,
+     "reasoning_tokens": 1443,
+     "cost": 0.0036083,
+     "seconds": 12.6,
+     "sample": 1,
+     "conversation": "3d381c7866e53b3db1762f4a723c6a2f3e3fe6c4d1835a3f2c878abb4e52b233"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "mode0-3": "14978",
+   "case1-skip": "3741",
+   "case1-run": "3721",
+   "case2-skip": "3802",
+   "case2-sentinel": "1245",
+   "case2-run": "2513"
+  },
+  "mutations": [
+   {
+    "name": "M1: wrong constant in the first func_800A0204 call (0x1E for 0x1F)",
+    "caught": true
+   },
+   {
+    "name": "M2: case 1 tests unk5AC_3 instead of unk5AC_2",
+    "caught": true
+   },
+   {
+    "name": "M3: pad masked to 11 bits, not 12",
+    "caught": true
+   },
+   {
+    "name": "M4: the 0x8000 sentinel check dropped",
+    "caught": true
+   },
+   {
+    "name": "M5: the case 2 mode store dropped",
+    "caught": true
+   },
+   {
+    "name": "M6: pad read signed, so the sentinel compare sees -32768",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 15,
+   "branches_hit": 15,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 24,
+   "lines_hit": 24,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -2147366366, max 2147435220, unsigned 100039..4294866078, seen negative, never zero"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 3,
+     "text": "switch (arg1->unk5AC_0) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "switch",
+     "outcomes": "== 15022, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..3"
+    },
+    {
+     "line": 5,
+     "text": "if (arg1->unk0.unk18 == 0) {",
+     "size": 2,
+     "count": 7462,
+     "kind": "against a constant",
+     "outcomes": "== 3721, < 1879, > 1862 (signed); < 0, > 3741 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32767..32751"
+    },
+    {
+     "line": 7,
+     "text": "if (arg1->unk0.unkA_5) {",
+     "size": 1,
+     "count": 3721,
+     "kind": "against a constant",
+     "outcomes": "== 1818, < 0, > 1903 (signed); < 0, > 1903 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..32"
+    },
+    {
+     "line": 13,
+     "text": "if (!(arg1->unk5AC_2 << 2)) {",
+     "size": 1,
+     "count": 3721,
+     "kind": "against a constant",
+     "outcomes": "== 1845, < 0, > 1876 (signed); < 0, > 1876 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..4"
+    },
+    {
+     "line": 24,
+     "text": "if (arg1->unk0.unk1A == 0) {",
+     "size": 2,
+     "count": 7560,
+     "kind": "against a constant",
+     "outcomes": "== 3758, < 1873, > 1929 (signed); < 0, > 3802 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32766..32767"
+    },
+    {
+     "line": 31,
+     "text": "if (temp_a1 != 0x8000) {",
+     "size": 4,
+     "count": 3758,
+     "kind": "against a constant",
+     "outcomes": "== 630, < 1562, > 1566 (signed); < 1562, > 1566 (unsigned)",
+     "operand": "constant 32768",
+     "a": "18..65516"
+    },
+    {
+     "line": 33,
+     "text": "if ((arg1->unk5AC_2 << 2) == 0) {",
+     "size": 1,
+     "count": 3128,
+     "kind": "against a constant",
+     "outcomes": "== 1584, < 0, > 1544 (signed); < 0, > 1544 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..4"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39839,
+     "completion_tokens": 4802,
+     "reasoning_tokens": 3939,
+     "cost": 0.0063849,
+     "seconds": 18.9,
+     "sample": 1,
+     "conversation": "37cf1607004c1da605d7a9b32f88f1ccf041bc5342c3b74d6738a9ec57e9cf63"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800AC540.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800AC540.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 51.61483543000213,
+ "wall_seconds": 79.72169077700164,
+ "totals": {
+  "cost": 0.01752,
+  "prompt_tokens": 75131,
+  "completion_tokens": 20005,
+  "model_seconds": 79.9,
+  "check_seconds": 51.6,
+  "calls": 3,
+  "wall_seconds": 79.7
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

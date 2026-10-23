@@ -1,0 +1,213 @@
+{
+ "function": "func_800A46A4",
+ "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (byte offsets into the scratch view); spec sound",
+ "plan": {
+  "name": "func_800A46A4",
+  "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
+  "stem": "3A1A0",
+  "address": "0x800a46a4",
+  "difficulty": "L",
+  "zig_name": "func_800A46A4",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A46A4",
+  "spec_file": "func_800A46A4.zig",
+  "subsystem": "battle_3A1A0_port",
+  "signature": "pub fn func_800A46A4(actor: ?*v.D_800F4538_t) callconv(.c) c_int",
+  "params": [
+   [
+    "actor",
+    "?*v.D_800F4538_t"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800F4538_t",
+   "collisionScratchView"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 15949,
+     "completion_tokens": 14508,
+     "reasoning_tokens": 12865,
+     "cost": 0.0088489,
+     "seconds": 62.3,
+     "sample": 1,
+     "conversation": "f35107860c978cd39d869596b28ab1e1f95b2f14d36ec6810b661adf0b948fcd"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "radius-zero": "4059",
+   "heading-negative": "16655",
+   "heading-positive": "19286"
+  },
+  "mutations": [
+   {
+    "name": "C1: unsigned slip on the heading index (signed shift of a negative heading)",
+    "caught": true
+   },
+   {
+    "name": "C2: signed division by 4096 replaced by a shift (rounds negatives down)",
+    "caught": true
+   },
+   {
+    "name": "C3: the contact scan stops one short (misses index 7)",
+    "caught": true
+   },
+   {
+    "name": "C4: unkC_0 not restored after the call",
+    "caught": true
+   },
+   {
+    "name": "C5: wrong constant for unkA_3 after the call",
+    "caught": true
+   },
+   {
+    "name": "C6: dropped store of nextContact",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 4,
+   "branches_hit": 4,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 22,
+   "lines_hit": 22,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 21,
+     "text": "for (direction = 0; direction < 8; ++direction) {",
+     "size": 4,
+     "count": 204276,
+     "kind": "against a constant",
+     "outcomes": "== 21423, < 170161, > 12692 (signed); < 170161, > 12692 (unsigned)",
+     "operand": "constant 7",
+     "a": "0..8"
+    },
+    {
+     "line": 22,
+     "text": "if (((collisionScratchView*)((char*)scratch + direction))->contact)",
+     "size": 1,
+     "count": 191584,
+     "kind": "against a constant",
+     "outcomes": "== 164276, < 17922, > 9386 (signed); < 0, > 27308 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39551,
+     "completion_tokens": 5738,
+     "reasoning_tokens": 4985,
+     "cost": 0.0068241,
+     "seconds": 24.0,
+     "sample": 1,
+     "conversation": "adc130228e986f8961e92271225a9a121584ce377185b7d76f5bb3dd973c8414"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A46A4.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A46A4.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 36.64944861500044,
+ "wall_seconds": 36.861442448999696,
+ "totals": {
+  "cost": 0.01567,
+  "prompt_tokens": 55500,
+  "completion_tokens": 20246,
+  "model_seconds": 86.3,
+  "check_seconds": 36.6,
+  "calls": 2,
+  "wall_seconds": 36.9
+ },
+ "review": {
+  "by": "Claude Opus 5.5 (reviewer)",
+  "date": "2026-10-22",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

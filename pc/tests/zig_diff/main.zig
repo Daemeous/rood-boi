@@ -114,8 +114,17 @@ fn address(p: usize) u64 {
     return p;
 }
 
-fn record(id: u16, args: anytype) void {
-    const count = @typeInfo(@TypeOf(args)).@"struct".field_names.len;
+/// The arguments a call of `name` really passes: fewer than its prototype's
+/// when the C calls it through a cast to a shorter function type
+/// (gen.call_arity); the rest are register leftovers, not compared.
+fn callArity(comptime name: []const u8, comptime count: usize) usize {
+    inline for (gen.call_arity) |entry| {
+        if (comptime std.mem.eql(u8, entry[0], name)) return @min(count, entry[1]);
+    }
+    return count;
+}
+
+fn record(id: u16, args: anytype, comptime count: usize) void {
     var e = Entry{ .id = id, .n = count, .args = @splat(0), .state = 0 };
     inline for (0..count) |i| {
         if (i < 8) e.args[i] = word(args[i]);
@@ -194,8 +203,8 @@ fn stubArgs(comptime G: type, args: anytype) StubArgs(G, @TypeOf(args)) {
 /// first page) handed to a callee: the real callee reads through it (the
 /// game faults), a recording stub would not, so the run stops as the game
 /// would. A null pointer itself is an argument like any other.
-fn nullFieldArgs(comptime name: []const u8, args: anytype) void {
-    inline for (0..args.len) |i| {
+fn nullFieldArgs(comptime name: []const u8, args: anytype, comptime used: usize) void {
+    inline for (0..used) |i| {
         const T = @TypeOf(args[i]);
         if (comptime pointerLike(T)) {
             const p: usize = if (@typeInfo(T) == .optional) (if (args[i]) |q| @intFromPtr(q) else 0) else @intFromPtr(args[i]);
@@ -214,8 +223,9 @@ fn Stub(comptime id: u16, comptime name: []const u8) type {
     const S = info.return_type.?;
     return struct {
         fn body(args: std.meta.ArgsTuple(G)) S {
-            nullFieldArgs(name, args);
-            record(id, args);
+            const used = comptime callArity(name, @typeInfo(@TypeOf(args)).@"struct".field_names.len);
+            nullFieldArgs(name, args, used);
+            record(id, args, used);
             defer {
                 ctx.calls += 1;
                 ctx.draws = 0;
@@ -372,6 +382,11 @@ fn coverArg(comptime i: usize, a: anytype) void {
 }
 
 const class_count = if (@hasDecl(spec, "classes")) spec.classes.len else 0;
+/// A spec whose C returns no value on some path (`return;` or falling off the
+/// end of a non-void function: the result register's leftover, which no port
+/// can reproduce) and whose callers all ignore the result says why in
+/// `pub const ignore_return = "...";`: the return value is not compared.
+const compare_return = !@hasDecl(spec, "ignore_return");
 var classes: [class_count]u64 = @splat(0);
 
 export fn main(argc: c_int, argv: [*][*:0]u8) c_int {
@@ -457,7 +472,8 @@ export fn main(argc: c_int, argv: [*][*:0]u8) c_int {
             const before_count = mismatches;
             compareState(after_c);
             if (mismatches == before_count) compareTraces();
-            if (mismatches == before_count and R != void and !std.mem.eql(u8, std.mem.asBytes(&expected), std.mem.asBytes(&actual)))
+            if (mismatches == before_count and R != void and compare_return and
+                !std.mem.eql(u8, std.mem.asBytes(&expected), std.mem.asBytes(&actual)))
                 report("zdiff: MISMATCH iteration %llu: return value\n", .{@as(c_ulonglong, iteration)});
             if (mismatches >= 1000) break;
         }

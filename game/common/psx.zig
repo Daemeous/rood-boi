@@ -29,6 +29,7 @@ pub fn Ptr(comptime T: type) type {
 /// A pointer as a guest address (psx_types.h psx_addr): fatal above 4 GB.
 pub fn addr(p: anytype) u32 {
     const value: usize = switch (@typeInfo(@TypeOf(p))) {
+        .null => 0, // a literal `null` (psx_set(field, NULL))
         .optional => if (p) |q| @intFromPtr(q) else 0,
         else => @intFromPtr(p),
     };
@@ -150,6 +151,14 @@ pub inline fn weak(comptime F: type, comptime name: []const u8) ?F {
 /// psx_ptr field its guest address (psx_addr: fatal above 4 GB).
 pub fn put(field: anytype, p: anytype) void {
     const F = @typeInfo(@TypeOf(field)).pointer.child;
+    if (@TypeOf(p) == @TypeOf(null)) {
+        switch (@typeInfo(F)) {
+            .optional => field.* = null,
+            .pointer => @compileError("psx.put: null into a non-optional pointer field"),
+            else => field.raw = 0,
+        }
+        return;
+    }
     switch (@typeInfo(F)) {
         .optional, .pointer => field.* = @ptrCast(@alignCast(p)),
         else => field.raw = addr(p),
@@ -327,6 +336,13 @@ test "put and rawOf store a pointer field the C way" {
     try std.testing.expectEqual(&x, n.native.?);
     put(&n.next, @as(?*u32, null));
     try std.testing.expectEqual(@as(u32, 0), n.next.raw);
+    // A literal null, as a spec writes psx_set(field, NULL) (wave 2's 73700 specs).
+    put(&n.next, guest);
+    put(&n.next, null);
+    put(&n.native, null);
+    try std.testing.expectEqual(@as(u32, 0), n.next.raw);
+    try std.testing.expectEqual(@as(?*u32, null), n.native);
+    try std.testing.expectEqual(@as(u32, 0), addr(null));
 }
 
 test "byteAt and lowRam are unaligned views" {
