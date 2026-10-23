@@ -1318,8 +1318,10 @@ void pc_title_start(int state)
     fprintf(stderr, "[title] starting mode %d (0=new game, 3/4=idle cutscene)\n", state);
     pc_game_phase = state == 3 || state == 4 ? 2 : 0;
 }
+int pc_title_cursor; /* the title menu's item under the cursor (0 New Game, 1 Continue, ...) */
 void pc_title_selection(int item)
 {
+    pc_title_cursor = item;
     fprintf(stderr, "[title] selected menu item %d\n", item);
 }
 

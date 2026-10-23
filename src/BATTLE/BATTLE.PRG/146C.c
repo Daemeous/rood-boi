@@ -7600,6 +7600,12 @@ void vs_battle_exec(void)
             do {
                 do {
 #ifdef ROOD_PC
+                    /* The cutscene viewer's story scenes (pc/src/story_boot.c):
+                     * one asked for starts afresh from here, as a loaded save. */
+                    extern void pc_story_frame(void);
+                    pc_story_frame();
+#endif
+#ifdef ROOD_PC
                     /* QoL weapon slots (pc/src/weapon_slots.c, option
                      * qol_weapon_slots): the pad read, then the L2 + R2 swap. */
                     extern int pc_weapon_slots_process_pad(void);

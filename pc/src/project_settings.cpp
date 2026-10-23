@@ -26,6 +26,7 @@ extern int pc_native_room, pc_native_occlusion, pc_native_actors, pc_native_acto
     pc_native_objects, pc_native_shadows, pc_native_effects, pc_reconstruct, pc_native_room_order,
     pc_room_texture_lod;
 extern int pc_editor_hide_masks, pc_editor_game_cutaway, pc_editor_cutaway, pc_editor_cutaway_auto;
+extern int pc_photo_full_room; /* room_native.c: a plugin's free camera sees the whole room */
 extern float pc_editor_cutaway_radius, pc_editor_cutaway_opacity;
 extern int pc_lights_snap;
 extern int pc_lights_gizmo_space;
@@ -37,7 +38,7 @@ void pc_emissive_view_settings_write(FILE* f);
 extern int pc_fog_global; /* atmosphere.cpp */
 /* cutscene.cpp: the cutscene player's marks and the instant replay */
 extern int pc_take_interval, pc_take_marks_max, pc_take_budget_mb, pc_instant_replay, pc_instant_replay_seconds,
-    pc_instant_replay_interval;
+    pc_instant_replay_interval, pc_cutscene_auto_advance, pc_cutscene_dialogue_hold;
 extern float pc_fog_disturb[4]; /* atmosphere.cpp: the interactive fog's weights per source */
 extern int pc_fog_sim_budget;
 extern int pc_fog_volume_render, pc_fog_volume_steps, pc_fog_volume_steps_gl, pc_fog_volume_shadows; /* atmosphere.cpp */
@@ -235,6 +236,8 @@ const Entry entries[] = {
     I("instant_replay", pc_instant_replay),
     I("instant_replay_seconds", pc_instant_replay_seconds),
     I("instant_replay_interval", pc_instant_replay_interval),
+    I("cutscene_auto_advance", pc_cutscene_auto_advance),
+    I("cutscene_dialogue_hold", pc_cutscene_dialogue_hold),
     I("native_actors", pc_native_actors),
     I("native_actor_order", pc_native_actor_order),
     I("native_blend", pc_native_blend),
@@ -295,6 +298,7 @@ const Entry entries[] = {
     F("editor_cutaway_radius", pc_editor_cutaway_radius),
     F("editor_cutaway_opacity", pc_editor_cutaway_opacity),
     I("editor_cutaway_auto", pc_editor_cutaway_auto),
+    I("photo_full_room", pc_photo_full_room),
     /* Editor viewport (editor_overlays.h) and snapping. */
     B("editor_show_lights", pc_lights_show_gizmos),
     I("editor_wireframe", pc_overlay_wire),

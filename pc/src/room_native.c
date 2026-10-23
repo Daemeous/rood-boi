@@ -683,6 +683,18 @@ void pc_room_native_tint(const unsigned* start, int dr, int dg, int db, int fade
  * scene (scene_capture.c) keeps the whole room, so shadows are unchanged. */
 int pc_editor_hide_masks = 1;
 int pc_editor_game_cutaway = 1;
+/* A plugin's free camera (the photo mode, the cutscene player) is not the
+ * editor's: the facing masks are for the game camera's directions only (a
+ * room the game's camera sees from a few yaws marks its walls for those
+ * alone, so other directions lost whole walls and floors), so it keeps every
+ * group the room shows (room_editor.h). Never in gameplay: only while
+ * editor_view.cpp's photo camera flies. */
+int pc_photo_full_room = 1;
+extern int pc_editor_photo_camera(void) __attribute__((weak));
+int pc_room_photo_whole(void)
+{
+    return pc_photo_full_room && pc_editor_photo_camera && pc_editor_photo_camera();
+}
 
 #define EDITOR_MAX_GROUPS 4096
 static const void* editor_data; /* the room block the per-group state belongs to */
@@ -763,7 +775,7 @@ int pc_room_group_black(const void* data, unsigned index)
  * view: every group) with pc_editor_game_cutaway off. */
 unsigned pc_room_editor_facing(void)
 {
-    if (!pc_editor_game_cutaway)
+    if (!pc_editor_game_cutaway || pc_room_photo_whole())
         return 0x10000;
     const gte_matrix* view = (const gte_matrix*)(uintptr_t)0x1f800014;
     /* Row 2 is the view direction in world space; the game's yaw is that of
@@ -784,6 +796,8 @@ int pc_room_editor_hidden(const void* data, unsigned index)
 {
     if (!data || !editor_block(data) || index >= editor_count)
         return 0;
+    if (pc_room_photo_whole()) /* the black shells only: they mask the void around the room */
+        return group_is_black(data, index);
     if (editor_hidden[index])
         return 1;
     return pc_editor_hide_masks && group_is_black(data, index);

@@ -105,13 +105,20 @@ suites = ["lua_smoke", "ctest", "hud_bench_smoke", "repl_smoke", "options_classi
 paths = ["pc/src/photo*", "pc/src/lua/lua_api_photo.cpp", "pc/src/lua/lua_photo*", "pc/tests/lua/plugins/test.photo/*",
          "pc/src/state_rewind.c",
          "pc/src/editor_view.cpp", "pc/src/post_profile.cpp", "pc/src/post.h"]
-suites = ["photo_foundation_smoke", "photo_engine_reload_smoke", "photo_mode_smoke", "ctest"]
+suites = ["photo_foundation_smoke", "photo_engine_reload_smoke", "photo_mode_smoke", "photo_full_room_smoke", "ctest"]
 
-# ---- the cutscene player (takes, marks, the Cutscene window, its catalog and opcode names) ----
+# ---- the free camera's view of the room and the sky (photo_full_room; the background sphere) ----
+[[rule]]
+paths = ["pc/src/room_geometry.c", "pc/src/room_native.c", "pc/src/room_editor.h", "pc/src/boot_sdk.c",
+         "pc/tests/photo_full_room_smoke.py"]
+suites = ["photo_full_room_smoke", "editor_cutaway_smoke", "facing_cutaway_smoke"]
+
+# ---- the cutscene player and the story scene viewer (takes, marks, the Cutscene window, its catalog,
+# the story's scenes and how they start, opcode names) ----
 [[rule]]
 paths = ["pc/src/cutscene*", "pc/assets/cutscenes/*", "pc/src/state_rewind.c", "pc/src/scene_submit.inc",
-         "pc/src/boot_controller.*", "pc/src/photo_capture.cpp", "pc/src/photo.cpp"]
-suites = ["cutscene_player_smoke", "ctest"]
+         "pc/src/boot_controller.*", "pc/src/photo_capture.cpp", "pc/src/photo.cpp", "pc/src/story_boot.c"]
+suites = ["cutscene_player_smoke", "cutscene_viewer_smoke", "ctest"]
 
 # ---- the event's screen images (stills, the credits' tear wipe: widened in 16:9) ----
 [[rule]]
@@ -120,7 +127,8 @@ suites = ["cutscene_player_smoke", "widescreen_smoke"]
 
 # ---- the cutscene player's offline tools (catalog scan, opcode names) ----
 [[rule]]
-paths = ["pc/tools/cutscene_scan.py", "pc/tools/cutscene_opcodes.py"]
+paths = ["pc/tools/cutscene_scan.py", "pc/tools/cutscene_opcodes.py", "pc/tools/story_scan.py",
+         "pc/tools/story_verify.py"]
 suites = []
 
 # ---- the shipped photo mode (pc/plugins/rood.photo) and its button (bind_*_photo), plugins' panels ----
@@ -305,7 +313,8 @@ suites = ["camera_stick_smoke", "camera_options_smoke", "facing_cutaway_smoke", 
 paths = ["pc/src/room_browser.cpp", "pc/src/room_warp.*", "pc/src/room_catalog.c", "pc/src/screff2_warp.c",
          "pc/src/map_view.c"]
 suites = ["room_browser_smoke", "room_entry_sound_smoke", "editor_roomload_smoke", "fast_travel_*", "atmosphere_sweep", "void_fog_smoke",
-          "two_model_enemy_smoke", "platform_shadow_smoke", "ui_map_smoke", "narrowed_2d_smoke", "ctest"]
+          "two_model_enemy_smoke", "platform_shadow_smoke", "ui_map_smoke", "narrowed_2d_smoke", "cutscene_viewer_smoke",
+          "ctest"]
 
 [[rule]]
 paths = ["pc/src/fast_travel*", "pc/tools/fast_travel_scan.py"]

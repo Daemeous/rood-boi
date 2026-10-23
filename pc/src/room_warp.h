@@ -31,6 +31,7 @@ int pc_rooms_json(char* out, int size) __attribute__((weak));
 
 /* Ask for a warp (taken in the field loop); 0 and `why` when refused. */
 int pc_room_warp_request(int zone, int room, int entry, char* why, int size) __attribute__((weak));
+int pc_room_door(int zone, int room, int entry, const int cell[4], unsigned char door[12]) __attribute__((weak));
 /* Whether RPC room_goto's arrival cell (when one is given) is on the room's floor. */
 int pc_room_warp_cell_valid(int zone, int room, char* why, int size) __attribute__((weak));
 void pc_room_warp_cancel(void) __attribute__((weak));

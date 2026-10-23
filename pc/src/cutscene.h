@@ -31,6 +31,8 @@ extern int pc_take_budget_mb;          /* cutscene_budget_mb: the marks' memory 
 extern int pc_instant_replay;          /* instant_replay: the rolling take on */
 extern int pc_instant_replay_seconds;  /* instant_replay_seconds */
 extern int pc_instant_replay_interval; /* instant_replay_interval: frames between its marks */
+extern int pc_cutscene_auto_advance;   /* cutscene_auto_advance: a scene's dialogue goes on by itself */
+extern int pc_cutscene_dialogue_hold;  /* cutscene_dialogue_hold: vsyncs a box waits before it goes on */
 
 #ifdef __cplusplus
 }

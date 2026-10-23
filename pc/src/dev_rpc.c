@@ -25,7 +25,8 @@
  *   step {vsyncs}                run N vsyncs, then pause again (not while a
  *                                plugin's photo mode pause holds the game)
  *   photo {render_frames,        the photo mode's state (photo.cpp): phase, owners,
- *          game2d_slots}         renders, camera, hidden layers; tunes its renders
+ *          game2d_slots,         renders, camera, hidden layers; tunes its renders;
+ *          full_room}            full_room: its camera sees the whole room (photo_full_room)
  *   wait {timeout_ms}            reply (as status) once the game is paused with
  *                                no step left, or after timeout_ms (default
  *                                1000, at most 60000): a step's end without
@@ -3916,7 +3917,7 @@ static void handle_method(int fd, const char* request)
         /* The cutscene player (cutscene.cpp; pc/docs/Cutscene_Player.md): {action, ...}; the reply is its
          * status (action list: the catalogued scenes). */
         extern int pc_take_rpc(const char*, char*, int) __attribute__((weak));
-        static char args[4096], out[16384];
+        static char args[4096], out[LINE_MAX_BYTES / 2]; /* (the story's scene list) */
         const char* end = params ? value_end(params) : NULL;
         if (params && end && (size_t)(end - params) < sizeof args) {
             memcpy(args, params, (size_t)(end - params));
@@ -3935,7 +3936,7 @@ static void handle_method(int fd, const char* request)
         reply(fd, id, out);
     } else if (!strcmp(method, "photo")) {
         /* The photo mode's state (photo.cpp): {phase, owners, renders, camera, ...}; params
-         * {render_frames, game2d_slots} tune it. */
+         * {render_frames, game2d_slots, full_room} tune it. */
         extern int pc_photo_rpc(const char*, char*, int) __attribute__((weak));
         static char args[4096], out[4096];
         const char* end = params ? value_end(params) : NULL;

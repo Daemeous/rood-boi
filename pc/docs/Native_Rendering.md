@@ -830,6 +830,49 @@ visible again after 10, and the cut fades in and out over 5 frames
 as a ring with a cross: solid and labelled while it ghosts what hides it,
 dashed while it is in plain view.
 
+**A plugin's free camera sees the whole room (`photo_full_room`, default
+on).** The photo mode's camera (`rood.camera`, `photo_camera.cpp`) and the
+cutscene player's borrow the live free camera (`editor_view.cpp` `photo`),
+but they are not the editor: a photo is taken from anywhere, so the rules
+above, made for seeing into a room from outside, left whole walls and floors
+out (the facing masks mark a wall only for the directions the game camera
+looks from in that room). While such a camera flies, `func_8009723C`
+(`room_geometry.c`, asking `pc_room_photo_whole` in `room_native.c`) draws
+every group the room has:
+
+| Layer (game camera) | With a plugin's free camera |
+| --- | --- |
+| facing cutaway (flags low byte vs the camera's three yaw bits) | none: `pc_room_editor_facing` gives 0x10000 |
+| the hide list (group flag 0x1000: room section 11 by Ashley's place, the camera's direction and zoom, `func_8008C2C0`; cleared by `func_8008C40C`) | ignored |
+| the room's own hides (flag 0x100: event scripts, `func_800919D8` / `func_80091998`) | kept (the room's state) |
+| the alternate set (flag 0x8000 with the mode's bit 0) | kept as the game draws it |
+| black shells | left out (they mask the void around the room; from outside they would cover it) |
+| Outliner hides, cut to focus | not applied |
+| back faces, the ordering-table range | as the PS1 tests them from the free camera (the native list's range is open, as for the editor) |
+| occlusion fades (`occlusion.c`) | suspended (as before) |
+
+The black outside a room's walls stays: the walls are single-sided and their
+outsides are the black shells, so from outside the room there is nothing
+there to draw (rooms open on top stay open). `photo_full_room 0` (settings,
+RPC `photo {full_room}`, the toolbar's "See into rooms" > "Photo camera sees
+the whole room") gives the editor's rules back. Gameplay and the editor's own
+free camera never change; the ray-traced scene already holds every group, so
+lighting is as it was.
+
+**The sky.** The field's only clear is the background sphere
+(`pc_background_packets`, `boot_sdk.c`): a gradient about the eye (Rue
+Vermillion: light blue at the zenith, black below the horizon), placed by
+`func_8008EC48` at the game camera's position through the view matrix. With
+the free camera's view matrix that left it offset by the distance between the
+two eyes, off the screen: black where the sky belongs. While a free camera
+flies the sphere is about its own eye (no translation, as the game's
+camera has). The photo camera also writes its yaw and pitch to the scratch
+camera angles in `func_8007ACB0`'s hook (as its roll), so what is placed
+from them that frame follows it (the sky panorama of `func_8009147C`,
+sprites turned to the camera); renders are rewound, so the game never keeps
+them. (`env sky` is light only, never drawn as pixels.)
+`pc/tests/photo_full_room_smoke.py` checks all of it on GL and Vulkan.
+
 The editor's viewport overlays (`editor_overlays.cpp`: room edges and points,
 snap targets) follow the same rules on the CPU: with the free camera live a
 triangle shows when its group is not hidden, not cut away by the facing mask

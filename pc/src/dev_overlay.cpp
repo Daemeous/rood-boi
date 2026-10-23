@@ -1502,6 +1502,13 @@ static void room_view_controls()
         ImGui::EndDisabled();
     if (!pc_editor_active())
         ImGui::TextDisabled("Applies to the free camera (RMB in the view or F2).");
+    ImGui::Separator();
+    bool whole = pc_photo_full_room != 0;
+    if (ImGui::Checkbox("Photo camera sees the whole room", &whole))
+        pc_photo_full_room = whole; /* (RPC photo full_room also redraws a held moment) */
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("The photo mode's and the cutscene player's free camera: every group the room has\n"
+                          "(no cutaway walls, no cut to focus; the black shells left out). Off: the rules above");
 }
 
 /* Outliner: the room's groups, with per-group visibility in the free

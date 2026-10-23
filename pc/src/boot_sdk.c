@@ -780,6 +780,17 @@ unsigned* pc_background_packets(
 {
     int margin = PC_WIDESCREEN_MARGIN;
     unsigned* first = packet;
+    /* The sphere is about the eye: func_8008EC48 places it at the game
+     * camera's position through the view matrix, which leaves no
+     * translation for the game's camera. The free camera's view matrix is
+     * built from its own eye (func_8007ACB0's hook), so that left the sky
+     * offset by the two eyes' distance, off the screen (black where the sky
+     * belongs): about the free camera's eye instead, as the game's is. */
+    if (pc_live_camera_active && pc_live_camera_active()) {
+        CTC2(0, 5);
+        CTC2(0, 6);
+        CTC2(0, 7);
+    }
     for (int i = 0; i < 34; ++i) {
         MTC2(mesh[0], 0);
         MTC2(mesh[1], 1);

@@ -395,6 +395,35 @@ int pc_room_warp_cell_valid(int zone, int room, char* why, int size)
     return 1;
 }
 
+/* The door record to start a story scene at (the cutscene viewer,
+ * story_boot.c): door `entry` into the room, or a made-up one onto `cell`
+ * (x, level, z, facing; x < 0: none) as the warp makes for rooms without a
+ * door, or onto the middle of its floor when it has neither. 0: no such room. */
+int pc_room_door(int zone, int room, int entry, const int cell[4], unsigned char door[12])
+{
+    pc_rooms_count();
+    const pc_room_info* r = room_at(zone, room);
+    if (!r)
+        return 0;
+    int c[4] = { -1, 0, 0, 0 };
+    if (cell && cell[0] >= 0)
+        memcpy(c, cell, sizeof c);
+    else if (!r->entries)
+        c[0] = r->floor_w > 0 ? r->floor_w / 2 : 0, c[2] = r->floor_h > 0 ? r->floor_h / 2 : 0;
+    if (c[0] >= 0) {
+        int x = c[0] & 31, y = c[1] & 7, z = c[2] & 31, facing = c[3] & 3;
+        unsigned u2 = (unsigned)(x | z << 5 | y << 10), u4 = (unsigned)(x << 8 | facing << 13), u6 = (unsigned)(z << 10);
+        memset(door, 0, 12);
+        door[2] = (unsigned char)u2, door[3] = (unsigned char)(u2 >> 8);
+        door[4] = (unsigned char)u4, door[5] = (unsigned char)(u4 >> 8);
+        door[6] = (unsigned char)u6, door[7] = (unsigned char)(u6 >> 8);
+    } else
+        memcpy(door, r->door[entry >= 0 && entry < r->entries ? entry : 0], 12);
+    door[0] = (unsigned char)r->zone;
+    door[1] = (unsigned char)r->room;
+    return 1;
+}
+
 /* Request a warp (the field loop takes it); 0 when refused (`why`). */
 int pc_room_warp_request(int zone, int room, int entry, char* why, int size)
 {

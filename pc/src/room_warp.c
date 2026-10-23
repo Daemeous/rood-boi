@@ -23,6 +23,8 @@ extern int pc_room_warp_enemies, pc_room_warp_scripts;
 int pc_fast_travel_poll(void); /* fast_travel.c */
 void pc_fast_travel_room_loaded(void);
 int pc_room_warp_warped(int* zone, int* room); /* room_catalog.c */
+int pc_story_field_poll(void); /* story_boot.c */
+void pc_story_room_loaded(void);
 
 /* savePointStates when a chain of warps started. A warp with scripts on runs
  * the room's entry script, and a Circle's room script records the Circle
@@ -96,6 +98,8 @@ volatile int pc_ending_request;
  * requested warp as a door does (1: the loop breaks out, as after a door). */
 int pc_room_warp_poll(void)
 {
+    if (pc_story_field_poll()) /* the cutscene viewer's scene: its event (story_boot.c) */
+        return 1;
     if (pc_ending_request && vs_battle_screenTransitionStep == 0 && D_800F4C34 == 0 && D_800F4BE2 == 0
         && !vs_main_stateFlags.gameOver) {
         pc_ending_request = 0;
@@ -165,6 +169,7 @@ static u_short actor_slots(void)
  * runs next. */
 void pc_room_warp_room_loaded(void)
 {
+    pc_story_room_loaded(); /* the cutscene viewer's scene (story_boot.c) */
     pc_fast_travel_room_loaded(); /* a fast travel trip arrives (fast_travel.c) */
     bench = 0;
     benched = 0;

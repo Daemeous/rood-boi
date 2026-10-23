@@ -54,6 +54,14 @@ extern int pc_room_warp_enemies __attribute__((weak));
 extern int pc_room_warp_scripts __attribute__((weak));
 extern volatile int pc_ending_request __attribute__((weak));
 int pc_photo_camera_begin(const char* owner, char* why, int size) __attribute__((weak));
+int pc_story_request(const unsigned char start[12], const signed char* values, int count, int start_event,
+    const int sfx[4]) __attribute__((weak));
+int pc_story_phase(void) __attribute__((weak));
+void pc_story_where(int* zone, int* room) __attribute__((weak));
+void pc_story_cancel(void) __attribute__((weak));
+void pc_story_done(void) __attribute__((weak));
+int pc_room_door(int zone, int room, int entry, const int cell[4], unsigned char door[12]) __attribute__((weak));
+extern int pc_title_cursor __attribute__((weak));
 void pc_photo_camera_finish(const char* owner) __attribute__((weak));
 
 int pc_take_interval = 30;
@@ -62,6 +70,9 @@ int pc_take_budget_mb = 2048;
 int pc_instant_replay = 0;
 int pc_instant_replay_seconds = 30;
 int pc_instant_replay_interval = 60;
+int pc_cutscene_auto_advance = 1;
+int pc_cutscene_dialogue_hold = 150;
+int pc_battle_event_waiting(void) __attribute__((weak));
 }
 
 namespace cutscene {
@@ -69,6 +80,8 @@ bool armed = false;
 bool hide_text = false;
 int capture_count = 30;
 bool window_open = false;
+bool pad_focus = false;
+unsigned pad_focus_vsync = 0;
 } // namespace cutscene
 
 namespace {
@@ -90,6 +103,7 @@ struct Mark {
 };
 struct Take {
     bool on = false, rolling = false;
+    bool story = false; // a story scene's (the viewer's): its dialogue may go on by itself
     std::string scene, name;
     unsigned start_vsync = 0;
     int first = 0, head = 0, replay_end = 0;
@@ -101,6 +115,10 @@ struct Take {
     long divergences = 0;
     int scan_frame = -1;
     size_t scan_k = 0;
+    // what the event interpreter did in this take's live frames (the viewer's tests: it ran, not a bare warp)
+    int event_frames = 0, dialogue_frames = 0;
+    std::vector<int> event_ids;
+    std::vector<long long> event_places; // (id, thread, offset), at most 4096
 } take;
 bool slot_used[TAKE_SLOTS];
 bool playing = false;
@@ -128,7 +146,13 @@ struct Recipe {
     Scene scene;
     int phase = 0, waited = 0;
     int saved_scripts = 0, saved_enemies = 0;
+    unsigned press = 0; // buttons a recipe holds down before a take (the title menu)
+    int press_frames = 0, press_wait = 0;
+    bool fast = false; // unpaced (a story scene's script played on to its event)
 } recipe;
+int dialogue_wait = 0; // live frames the running event has waited for the player
+std::string return_snapshot; // the game before this session's first story scene (Back to the game)
+bool return_pending = false;
 
 // A repro being loaded (pc_snapshot_load_now does not return; the landing finishes it).
 struct Jump {
@@ -626,6 +650,12 @@ void write_repro_here()
 
 void finish_recipe(const char* why)
 {
+    if (recipe.scene.kind == "story" && pc_story_cancel) {
+        pc_story_cancel();
+        if (pc_story_done && pc_story_phase && pc_story_phase() >= 3)
+            pc_story_done();
+    }
+    recipe.press_frames = 0;
     if (recipe.scene.kind == "warp" && &pc_room_warp_scripts) {
         pc_room_warp_scripts = recipe.saved_scripts;
         pc_room_warp_enemies = recipe.saved_enemies;
@@ -634,6 +664,137 @@ void finish_recipe(const char* why)
         message = why;
     recipe.on = false;
 }
+/* A story scene (story_boot.c): its flags and room asked for, then the game starts there as from a loaded
+ * save (from the title: New Game). The take starts once the room is in (its entry script plays the scene)
+ * or the scene's event was started there. */
+/* While a story scene is being reached: what the running event waits for is pressed at once. */
+void answer(bool vsync)
+{
+    if (vsync && recipe.press_frames == 0 && recipe.press_wait-- <= 0 && pc_battle_event_waiting
+        && pc_battle_event_waiting()) {
+        int mask = pc_battle_event_waiting();
+        recipe.press = (unsigned)(mask & 0x20 ? 0x20 : mask & -mask);
+        recipe.press_frames = 4;
+        recipe.press_wait = 4; /* (released between presses) */
+    }
+}
+void story_service(bool vsync)
+{
+    const Scene& s = recipe.scene;
+    if (vsync && recipe.press_frames > 0)
+        recipe.press_frames--;
+    if (recipe.phase == 0) {
+        unsigned char door[12];
+        if (!pc_room_door(s.zone, s.room, s.entry, s.cell, door)) {
+            finish_recipe(("no zone " + std::to_string(s.zone) + " room " + std::to_string(s.room)).c_str());
+            return;
+        }
+        std::vector<signed char> flags(1088, 0);
+        for (const auto& f : s.flags)
+            if (f.first >= 0 && f.first < (int)flags.size())
+                flags[(size_t)f.first] = (signed char)f.second;
+        bool title = &pc_game_phase && pc_game_phase == 1;
+        if (!title && return_snapshot.empty() && pc_snapshot_point && !take.on) {
+            /* the game as it is: Back to the game returns here */
+            std::string path = std::string(cutscene::dir()) + "/return-to-game.snap";
+            char error[200] = "";
+            make_dirs(cutscene::dir());
+            if (!pc_snapshot_point(path.c_str(), error, (int)sizeof error))
+                return_snapshot = path;
+        }
+        end_take();
+        if (!pc_story_request(door, flags.data(), (int)flags.size(), s.start_event, s.sound)) {
+            finish_recipe("a story scene is starting already");
+            return;
+        }
+        recipe.phase = title ? 1 : 3;
+        recipe.waited = 0;
+        pc_rpc_set_paused(0);
+        return;
+    }
+    if (recipe.phase == 1 || recipe.phase == 2) {
+        /* the title menu: the cursor to New Game (Up), then Start */
+        if (!(&pc_title_input_ready && pc_title_input_ready)) {
+            if (recipe.waited > 1200)
+                finish_recipe("the title menu did not take input");
+            return;
+        }
+        if (recipe.press_frames > 0 || recipe.press_wait-- > 0)
+            return;
+        if (&pc_title_cursor && pc_title_cursor != 0 && recipe.phase == 1) {
+            recipe.press = 1u << 12; /* Up (boot_controller.h order: ... start up right down left) */
+            recipe.press_frames = 2;
+            recipe.press_wait = 20;
+            if (recipe.waited > 600)
+                recipe.phase = 2;
+            return;
+        }
+        recipe.press = 1u << 11; /* Start */
+        recipe.press_frames = 4;
+        recipe.phase = 3;
+        recipe.waited = 0;
+        return;
+    }
+    int phase = pc_story_phase();
+    if (recipe.phase == 3 && phase == 3 && s.start_event >= 0) {
+        /* a trigger's scene: the room's entry script plays first (unpaced, dialogue answered); the room may
+         * start the trigger's event itself on the way (its conditions met as in the story) */
+        int id = pc_battle_event_id ? pc_battle_event_id() : -1;
+        if (id == s.start_event && cutscene::event_info().state == 4) {
+            pc_story_done();
+            recipe.phase = 4;
+            recipe.waited = 0;
+            phase = 4;
+        } else {
+            recipe.fast = true;
+            answer(vsync);
+        }
+    }
+    if (recipe.phase == 3 && phase >= (s.start_event >= 0 ? 4 : 3)) {
+        pc_story_done();
+        recipe.phase = 4;
+        recipe.waited = 0;
+    }
+    if (recipe.phase == 4 && s.until >= 0) {
+        /* an EVT file a script chains to: its script plays on (unpaced, dialogue answered) until it runs */
+        int id = pc_battle_event_id ? pc_battle_event_id() : -1;
+        cutscene::EventInfo e = cutscene::event_info();
+        int zone = -1, room = -1;
+        if (pc_story_where)
+            pc_story_where(&zone, &room);
+        /* An EVT file is known by its number; a room's script by the room it runs in (its id keeps the
+         * number of the last EVT file run: (1 << 12) | _evtFile). */
+        bool reached = (s.until >> 12) == 1
+            ? (id >> 12) == 1 && zone == s.until_room[0] && room == s.until_room[1]
+            : id == s.until && (s.until >> 12 == 0 || s.until_room[0] < 0
+                                   || (zone == s.until_room[0] && room == s.until_room[1]));
+        if (!(reached && e.state == 4)) {
+            recipe.fast = true;
+            answer(vsync);
+            if (recipe.waited > 30000) {
+                recipe.fast = false;
+                finish_recipe("the scene's script did not reach its event");
+            }
+            return;
+        }
+        recipe.fast = false;
+        recipe.press_frames = 0;
+    }
+    if (recipe.phase == 4) {
+        recipe.fast = false;
+        finish_recipe(nullptr);
+        begin_take(s.id, s.name, false);
+        take.story = true;
+        playing = true;
+        pc_rpc_set_paused(0);
+        on_frame(current_frame());
+        message = "playing " + s.name;
+        return;
+    }
+    if (recipe.waited > 3600)
+        finish_recipe(phase == 1 ? "the game did not take the scene (in a menu?)" : "the scene did not start in time");
+}
+
 void recipe_service(bool vsync)
 {
     if (!recipe.on)
@@ -685,6 +846,10 @@ void recipe_service(bool vsync)
         }
         return;
     }
+    if (s.kind == "story") {
+        story_service(vsync);
+        return;
+    }
     if (s.kind == "ending") {
         if (recipe.phase == 0) {
             pc_ending_request = 1;
@@ -702,6 +867,51 @@ void recipe_service(bool vsync)
         return;
     }
     finish_recipe(("unknown recipe " + s.kind).c_str());
+}
+
+/* The event's work in a take (live frames): frames it ran, the events seen, the script places it was at. */
+void note_event()
+{
+    cutscene::EventInfo e = cutscene::event_info();
+    if (!e.running)
+        return;
+    take.event_frames++;
+    if (pc_battle_event_waiting && (pc_battle_event_waiting() & 0x20))
+        take.dialogue_frames++;
+    if (std::find(take.event_ids.begin(), take.event_ids.end(), e.id) == take.event_ids.end())
+        take.event_ids.push_back(e.id);
+    for (int i = 0; i < 4 && take.event_places.size() < 4096; i++) {
+        if (e.threads[i].offset < 0)
+            continue;
+        long long key = (long long)e.id << 32 | (long long)i << 24 | e.threads[i].offset;
+        if (std::find(take.event_places.begin(), take.event_places.end(), key) == take.event_places.end())
+            take.event_places.push_back(key);
+    }
+}
+
+/* A story scene's dialogue goes on by itself (pc_cutscene_auto_advance; the player's other takes are left to
+ * the player's input, as before): when the event has
+ * waited pc_cutscene_dialogue_hold vsyncs for the player (a box shown, a button awaited), the button it
+ * waits for is pressed on the next live frame. The press is a logged input like any other: replays and
+ * seeks give it back exactly. */
+void auto_advance(int f)
+{
+    if (!pc_cutscene_auto_advance || !pc_battle_event_waiting || !take.story || f < take.replay_end
+        || f < take.head - 1) {
+        dialogue_wait = 0;
+        return;
+    }
+    int mask = pc_battle_event_waiting();
+    if (!mask) {
+        dialogue_wait = 0;
+        return;
+    }
+    if (++dialogue_wait < std::max(1, pc_cutscene_dialogue_hold))
+        return;
+    dialogue_wait = 0;
+    unsigned press = (unsigned)(mask & 0x20 ? 0x20 : mask & -mask); /* Circle, or the lowest awaited */
+    for (int i = 1; i <= 4; i++) /* (held 4 vsyncs: a game frame may take 2 to 4) */
+        take.inject[f + i] |= press;
 }
 
 // ---- the boundary ----
@@ -725,6 +935,16 @@ void service(bool vsync)
         on_frame(take.first);
         seek_target = jump_state.frame;
         message = "repro loaded: frame " + std::to_string(jump_state.frame);
+    }
+    if (return_pending) {
+        return_pending = false;
+        char error[200] = "";
+        std::string path = return_snapshot;
+        return_snapshot.clear(); /* (the game is that one again) */
+        pc_snapshot_load_now(path.c_str(), error, (int)sizeof error); /* does not return */
+        return_snapshot = path;
+        message = std::string("cannot go back to the game: ") + error;
+        return;
     }
     if (jump_state.pending) {
         jump_state.pending = false;
@@ -755,6 +975,11 @@ void service(bool vsync)
             return;
     }
     int f = (int)(v - take.start_vsync);
+    if (vsync) {
+        auto_advance(f);
+        if (!take.rolling && f >= take.head - 1)
+            note_event();
+    }
     if (landing) {
         landing = false; /* at the mark (state_rewind.c restored it; dev_rpc.c paused) */
     } else if (f < take.first || f > take.head) {
@@ -798,6 +1023,8 @@ extern "C" int pc_take_active(void) { return take.on; }
 extern "C" int pc_take_buttons(unsigned vsync, unsigned* pad)
 {
     int f = (int)(vsync - take.start_vsync);
+    if (recipe.on && recipe.press_frames > 0)
+        *pad |= recipe.press;
     if (!in_take(f))
         return 0;
     Frame& fr = frame_at(f);
@@ -805,6 +1032,8 @@ extern "C" int pc_take_buttons(unsigned vsync, unsigned* pad)
         *pad = fr.buttons;
         return 1;
     }
+    if (cutscene::pad_focus && pc_vsync_count() - cutscene::pad_focus_vsync < 8 && !take.rolling)
+        *pad = 0; /* the pad drives the viewer while its window has focus and shows (cutscene_panel.cpp) */
     auto it = take.inject.find(f);
     if (it != take.inject.end())
         *pad |= it->second;
@@ -848,7 +1077,7 @@ extern "C" int pc_take_scanlines(int value)
 }
 extern "C" int pc_take_pace(void)
 {
-    if (jump_state.pending || jump_state.landing || (take.on && seek_target >= 0))
+    if (jump_state.pending || jump_state.landing || (take.on && seek_target >= 0) || (recipe.on && recipe.fast))
         return 0;
     return take.on && playing ? speed : 1;
 }
@@ -871,6 +1100,76 @@ const char* dir()
 {
     const char* d = getenv("ROOD_CUTSCENES");
     return d && *d ? d : "pc/user/cutscenes";
+}
+
+/* pc/assets/cutscenes/story.json (pc/tools/story_scan.py): the story's scenes, in story order. */
+void load_story()
+{
+    const char* path = getenv("ROOD_STORY_CATALOG");
+    std::string text = read_file(path && *path ? path : "pc/assets/cutscenes/story.json");
+    if (text.empty())
+        return;
+    prefab::Json j;
+    std::string error;
+    if (!prefab::json_parse(text.c_str(), j, &error)) {
+        message = "story: " + error;
+        return;
+    }
+    const prefab::Json* list = j.get("scenes");
+    if (!list)
+        return;
+    auto str = [](const prefab::Json& o, const char* k) {
+        const prefab::Json* v = o.get(k);
+        return v && v->type == prefab::Json::String ? v->string : std::string();
+    };
+    auto num = [](const prefab::Json& o, const char* k, int def) {
+        const prefab::Json* v = o.get(k);
+        return v && v->type == prefab::Json::Number ? (int)v->number : def;
+    };
+    auto flag = [](const prefab::Json& o, const char* k) {
+        const prefab::Json* v = o.get(k);
+        return v && v->type == prefab::Json::Bool && v->boolean;
+    };
+    for (const prefab::Json& e : list->items) {
+        Scene s;
+        s.kind = "story";
+        s.id = str(e, "id");
+        s.name = str(e, "name");
+        if (s.name.empty())
+            s.name = s.id;
+        s.chapter = str(e, "chapter");
+        s.notes = str(e, "notes");
+        s.zone = num(e, "zone", -1);
+        s.room = num(e, "room", -1);
+        s.entry = num(e, "entry", 0);
+        s.step = num(e, "step", -1);
+        s.start_event = num(e, "force", -1);
+        s.until = num(e, "until", -1);
+        if (const prefab::Json* ur = e.get("until_room"))
+            for (size_t i = 0; i < 2 && i < ur->items.size(); i++)
+                s.until_room[i] = (int)ur->items[i].number;
+        if (const prefab::Json* snd = e.get("sound"))
+            for (size_t i = 0; i < 4 && i < snd->items.size(); i++)
+                s.sound[i] = (int)snd->items[i].number;
+        s.event = num(e, "event", -1);
+        s.frames = num(e, "frames", 0);
+        s.texts = num(e, "texts", 0);
+        s.verified = flag(e, "verified");
+        s.reliable = s.verified;
+        s.major = flag(e, "major");
+        if (const prefab::Json* c = e.get("cell"))
+            for (size_t i = 0; i < 4 && i < c->items.size(); i++)
+                s.cell[i] = (int)c->items[i].number;
+        if (const prefab::Json* f = e.get("flags"))
+            for (const auto& kv : f->members)
+                s.flags.emplace_back(atoi(kv.first.c_str()), (int)kv.second.number);
+        s.from = "story step " + std::to_string(s.step) + ", zone " + std::to_string(s.zone) + " room "
+            + std::to_string(s.room)
+            + (s.until >= 0 ? ", played on into event " + std::to_string(s.until)
+                    : s.start_event >= 0 ? ", its trigger's event" : ", its entry script");
+        if (!s.id.empty() && s.zone >= 0 && !flag(e, "skip"))
+            catalog.push_back(s);
+    }
 }
 
 void reload_catalog()
@@ -915,6 +1214,7 @@ void reload_catalog()
         if (!s.id.empty())
             catalog.push_back(s);
     }
+    load_story();
 }
 const std::vector<Scene>& scenes()
 {
@@ -1000,7 +1300,11 @@ bool start_scene(const std::string& id, std::string* why)
         *why = "this build has no Room Browser / ending jump";
         return false;
     }
-    if (found->kind != "new_game" && &pc_game_phase && pc_game_phase != 0) {
+    if (found->kind == "story" && (!pc_story_request || !pc_room_door)) {
+        *why = "this build has no story scenes (battle builds only)";
+        return false;
+    }
+    if (found->kind != "new_game" && found->kind != "story" && &pc_game_phase && pc_game_phase != 0) {
         *why = "start a game first: this scene is reached from the field";
         return false;
     }
@@ -1182,6 +1486,21 @@ bool free_camera(bool on, std::string* why)
     return true;
 }
 bool free_camera_on() { return camera_on; }
+bool can_return() { return !return_snapshot.empty() && pc_snapshot_load_now; }
+bool return_to_game(std::string* why)
+{
+    if (!can_return()) {
+        *why = "nothing to return to (no story scene was started from a game this session)";
+        return false;
+    }
+    if (recipe.on)
+        finish_recipe("stopped");
+    free_camera(false, nullptr);
+    end_take();
+    return_pending = true;
+    pc_rpc_set_paused(1);
+    return true;
+}
 
 } // namespace cutscene
 
@@ -1195,6 +1514,9 @@ std::string status_json()
     for (int m : s.marks)
         marks += (marks.empty() ? "" : ",") + std::to_string(m);
     cutscene::EventInfo e = cutscene::event_info();
+    std::string ids;
+    for (int id : take.event_ids)
+        ids += (ids.empty() ? "" : ",") + std::to_string(id);
     std::string threads;
     for (int i = 0; i < 4; i++) {
         if (e.threads[i].offset < 0)
@@ -1225,7 +1547,9 @@ std::string status_json()
         + std::to_string(pc_instant_replay_seconds) + ",\"replay_interval\":"
         + std::to_string(pc_instant_replay_interval) + "},\"event\":{\"running\":" + (e.running ? "true" : "false")
         + ",\"id\":" + std::to_string(e.id) + ",\"state\":" + std::to_string(e.state) + ",\"skip\":"
-        + std::to_string(e.skip) + ",\"threads\":[" + threads + "]}}";
+        + std::to_string(e.skip) + ",\"threads\":[" + threads + "]},\"take_event\":{\"frames\":"
+        + std::to_string(take.event_frames) + ",\"dialogue\":" + std::to_string(take.dialogue_frames) + ",\"places\":" + std::to_string(take.event_places.size())
+        + ",\"ids\":[" + ids + "]}}";
     return out;
 }
 std::string scenes_json()
@@ -1237,7 +1561,9 @@ std::string scenes_json()
             + quote(s.kind) + ",\"zone\":" + std::to_string(s.zone) + ",\"room\":" + std::to_string(s.room)
             + ",\"entry\":" + std::to_string(s.entry) + ",\"frames\":" + std::to_string(s.frames) + ",\"event\":"
             + std::to_string(s.event) + ",\"reliable\":" + (s.reliable ? "true" : "false") + ",\"from\":"
-            + quote(s.from) + "}";
+            + quote(s.from) + ",\"chapter\":" + quote(s.chapter) + ",\"step\":" + std::to_string(s.step)
+            + ",\"start_event\":" + std::to_string(s.start_event) + ",\"texts\":" + std::to_string(s.texts)
+            + ",\"verified\":" + (s.verified ? "true" : "false") + ",\"major\":" + (s.major ? "true" : "false") + "}";
         first = false;
     }
     return out + "]}";
@@ -1327,12 +1653,16 @@ extern "C" int pc_take_rpc(const char* params, char* out, int size)
         if (num("hide_text", &n)) cutscene::hide_text = n != 0;
     } else if (action == "hotkey") {
         pc_take_hotkey();
+    } else if (action == "open") {
+        cutscene::window_open = !num("on", &n) || n != 0;
+    } else if (action == "return") {
+        ok = cutscene::return_to_game(&why);
     } else if (action == "camera") {
         ok = cutscene::free_camera(num("on", &n) ? n != 0 : true, &why);
     } else {
         ok = false;
         why = "action: status, list, catalog, start, here, stop, play, pause, step, speed, seek, back, cut, "
-              "capture, repro, jump, settings, hotkey or camera";
+              "capture, repro, jump, settings, hotkey, camera, return or open";
     }
     if (!ok) {
         snprintf(out, (size_t)size, "%s", why.c_str());

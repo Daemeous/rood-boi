@@ -259,6 +259,31 @@ int pc_battle_event_threads(int state[2], int offset[4], int opcode[4], void* ha
     }
     return D_800F4C34 != 0;
 }
+/* What the running event waits for from the player (the cutscene viewer's auto-advance, cutscene.cpp):
+ * the PS1 pad bits a thread waits on (op 0x15, vs_battle_script_buttonPressed: its mask; op 0x11,
+ * vs_battle_script_showTextBox, a dialogue box shown and not yet answered: Circle; op 0x59 with its screen up:
+ * Circle), 0 when nothing.
+ * A box with choices (vs_main_stateFlags.textBoxSelection) takes the default answer. */
+extern char vs_battle_textBoxStatuses[];
+extern char D_800F4BF8;
+int pc_battle_event_waiting(void)
+{
+    int i, mask = 0;
+    if (D_800F4C34 != 4)
+        return 0;
+    for (i = 0; i < 4; ++i) {
+        u_char* pc = D_800F4C38[i];
+        if (pc == NULL)
+            continue;
+        if (pc[0] == 0x15)
+            mask |= pc[1];
+        else if (pc[0] == 0x11 && pc[1] < 8 && vs_battle_textBoxStatuses[pc[1]] != 0)
+            mask |= 0x20;
+        else if (pc[0] == 0x59 && D_800F4BF8 != 0)
+            mask |= 0x20; /* func_800B92F4: a screen of its own shown (an area's end card), waiting to go */
+    }
+    return mask;
+}
 /* The battle camera's target (weapon drawn, a target chosen: the point the
  * camera follows in its modes 1 and 3), as func_8007ACB0's caller reads it. */
 int pc_battle_camera_target(int position[3])

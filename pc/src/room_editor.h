@@ -15,6 +15,16 @@ extern int pc_editor_cutaway; /* cut room polygons between the eye and the focus
 extern float pc_editor_cutaway_radius; /* world units */
 extern float pc_editor_cutaway_opacity; /* share of a cut surface still drawn (a ghost; 0: a hole) */
 extern int pc_editor_cutaway_auto; /* cut only while the focus is hidden from the eye */
+/* A plugin's free camera (the photo mode's rood.camera, the cutscene player's;
+ * editor_view.cpp `photo`) sees the whole room: every group the room has
+ * (not hidden by the room's own flags, the black shells left out), no facing
+ * cutaway, no Outliner hides, no cut to focus (settings key photo_full_room,
+ * RPC photo full_room; 0: the editor's view rules above). */
+extern int pc_photo_full_room;
+/* editor_view.cpp: a plugin's free camera flies (not the editor's own). */
+int pc_editor_photo_camera(void);
+/* 1 while a plugin's free camera flies with photo_full_room on. */
+int pc_room_photo_whole(void);
 
 /* render.c: the cutaway for the frames drawn from now on (the free camera's
  * focus in world space; on 0 while the game camera is in use; amount 0..1

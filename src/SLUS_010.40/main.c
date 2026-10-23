@@ -8350,6 +8350,15 @@ int vs_main_execTitle(void)
     _sysReinit();
     _loadTitlePrg();
     vs_main_startState = vs_title_exec();
+#ifdef ROOD_PC
+    {
+        /* The cutscene viewer: New Game into a story scene (pc/src/story_boot.c). */
+        extern void pc_story_title_exit(int) __attribute__((weak));
+        if (pc_story_title_exit) {
+            pc_story_title_exit(vs_main_startState);
+        }
+    }
+#endif
     vs_main_saveGameClearData = 0;
     _displayLoadingScreen();
     _loadBattlePrg();
@@ -9936,6 +9945,16 @@ void vs_main_playSfx(int arg0, long id, int arg2, int arg3)
         break;
 
     case 0xFF000:
+#ifdef ROOD_PC
+        /* No sound effect set current (none loaded, or freed): the PS1 read
+         * whatever sfxData[-1] or a NULL set held; a scene started out of
+         * its story's order (the cutscene viewer) can get here. Silent. */
+        if (vs_main_soundData.currentSfxId < 1 || vs_main_soundData.currentSfxId > 3
+            || psx_get(vs_main_soundData.sfxData[vs_main_soundData.currentSfxId - 1])
+                   == NULL) {
+            break;
+        }
+#endif
         var_s0_2 = psx_get(vs_main_soundData.sfxData[vs_main_soundData.currentSfxId - 1]);
         var_s0_2 += *((int*)var_s0_2 + id + 1);
         if (func_800123C8(var_s0_2) != 0) {
@@ -10064,6 +10083,15 @@ static int func_80045B28(int arg0, int arg1)
         break;
     case 0xFF000:
     case 0xF00000:
+#ifdef ROOD_PC
+        /* No set current: as in vs_main_playSfx (the cutscene viewer). */
+        if (vs_main_soundData.currentSfxId < 1 || vs_main_soundData.currentSfxId > 3
+            || psx_get(vs_main_soundData.sfxData[vs_main_soundData.currentSfxId - 1])
+                   == NULL) {
+            temp_v1 = 0;
+            break;
+        }
+#endif
         temp_v1 =
             (int)psx_raw(vs_main_soundData.sfxData[vs_main_soundData.currentSfxId - 1]);
         temp_v1 = (int)temp_v1 + (arg1 + psx_to_ptr(int*, temp_v1))[1];

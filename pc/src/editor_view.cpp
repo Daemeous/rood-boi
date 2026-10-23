@@ -662,6 +662,7 @@ struct PsxVector {
     int32_t vx, vy, vz, pad;
 };
 extern "C" int pc_live_camera_active(void) { return (active && live) || photo; }
+extern "C" int pc_editor_photo_camera(void) { return photo; }
 
 /* The cutaway's focus: fixed over RPC (editor_view focus), else the selected
  * light or glow, else Ashley (the middle of her body). */
@@ -860,7 +861,11 @@ extern "C" int pc_live_camera(PsxVector* position, PsxVector* look_at)
         return 0;
     }
     float focus[3];
-    bool has_focus = cutaway_focus(focus);
+    /* A plugin's free camera sees the whole room (room_editor.h pc_photo_full_room): nothing ghosted. */
+    bool whole = photo && pc_room_photo_whole();
+    bool has_focus = !whole && cutaway_focus(focus);
+    if (whole)
+        cutaway_amount = 0, cutaway_hidden = hidden_frames = visible_frames = 0;
     update_cutaway(has_focus, focus);
     if (render_cutaway)
         render_cutaway(has_focus, focus, cutaway_amount);
@@ -876,6 +881,16 @@ extern "C" int pc_live_camera(PsxVector* position, PsxVector* look_at)
     if (photo) {
         /* The roll func_8007ACB0 turns the view by next (vs_scratch.camera.angles.vz, 4096 a turn). */
         *(volatile int32_t*)(uintptr_t)(0x1F800000u + 0x34 + 0x20 + 8) = (int32_t)lroundf(photo_roll * 4096.0f / 360.0f);
+        /* Its yaw and pitch as vs_battle_syncCameraAnglesFromPosition derives them (the direction from the
+         * target to the eye: yaw ratan2(x, z) in 0..4095, pitch ratan2(y, horizontal), y down), for what the
+         * frame draws from them after this: the sky panorama's place (func_8008EC48), sprites turned to
+         * the camera. The game derives them again from its own camera each frame; a render's state is
+         * rewound after it (photo.cpp), so the game never keeps them. */
+        double to_x = -f[0], to_y = -f[1], to_z = -f[2], tau = 2 * 3.14159265358979323846;
+        int32_t game_yaw = ((int32_t)lround(atan2(to_x, to_z) / tau * 4096) + 4096) & 0xfff;
+        int32_t game_pitch = (int32_t)lround(atan2(to_y, sqrt(to_x * to_x + to_z * to_z)) / tau * 4096);
+        *(volatile int32_t*)(uintptr_t)(0x1F800000u + 0x34 + 0x20) = game_pitch;
+        *(volatile int32_t*)(uintptr_t)(0x1F800000u + 0x34 + 0x20 + 4) = game_yaw;
         if (photo_fov > 0 && photo_game_h > 0 && vs_battle_setProjectionDistance) {
             float h = photo_game_h * tanf(photo_game_fov * 3.14159265f / 360.0f) / tanf(photo_fov * 3.14159265f / 360.0f);
             vs_battle_setProjectionDistance((int)lroundf(h < 16 ? 16 : h > 8192 ? 8192 : h));

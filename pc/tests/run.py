@@ -430,6 +430,16 @@ def suites(args, mode="egl"):
                       "Cross / the pad button / Start leave with everything restored (state digest, post values, "
                       "the picture, settings.cfg)")]
           if args.save.exists() else []),
+        *([Suite("photo_full_room_smoke", [PY, str(TESTS / "photo_full_room_smoke.py"), "--card", str(args.save)],
+                 300, note="the photo mode's free camera sees the whole room (every group: no facing cutaway, no "
+                           "hide list; the picture not black where the mesh projects) and the sky (Rue Vermillion, "
+                           "looking up); the game's camera and culling exactly as before afterwards")]
+          if args.save.exists() else []),
+        Suite("cutscene_viewer_smoke", [PY, str(TESTS / "cutscene_viewer_smoke.py")], 900,
+              note="the story scene viewer: five story scenes from five chapters started from the list on a fresh "
+                   "load (from the title, then each from the one before) run their event (frames, script places, "
+                   "dialogue going on by itself), seeking back and forth exact (per-vsync digests, state, picture), "
+                   "Back to the game gives the game's state back"),
         Suite("cutscene_player_smoke", [PY, str(TESTS / "cutscene_player_smoke.py")]
               + (["--card", str(args.save)] if args.save.exists() else []), 600,
               note="the cutscene player on the opening: a take from New Game, back to an earlier mark and replayed "
@@ -719,8 +729,8 @@ CHECKPOINT_SUITES = {
     "ui_ashley_backdrop_smoke", "ui_data_smoke", "ui_container_smoke", "interp_menu_2d_smoke",
     "ui_ashley_detail_smoke", "ui_score_smoke", "snapshot_resume_smoke", "engine_reload_smoke", "frame_cost_smoke",
     "hud_bench_smoke", "classic_hud_smoke",
-    "repl_smoke", "photo_foundation_smoke", "photo_engine_reload_smoke", "photo_mode_smoke",
-    "cutscene_player_smoke",
+    "repl_smoke", "photo_foundation_smoke", "photo_engine_reload_smoke", "photo_mode_smoke", "photo_full_room_smoke",
+    "cutscene_player_smoke", "cutscene_viewer_smoke",
 }
 
 

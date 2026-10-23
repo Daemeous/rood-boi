@@ -523,7 +523,12 @@ and pitch for the plugin's time, the editor's own camera given back after,
 the editor not turned on. World units (y down), degrees. While begun,
 occlusion (see-through walls, `occlusion.c`) is suspended: its fades follow
 the game's camera, so the held moment's renders draw every wall solid (the
-setting itself is kept; RPC `occlusion` lists no subjects meanwhile).
+setting itself is kept; RPC `occlusion` lists no subjects meanwhile). The
+room is drawn whole: every group it has, without the cutaway walls or the
+hide list the game uses for its own camera (the black shells, which mask the
+void outside the room, left out), and the sky about the free camera's eye
+(`photo_full_room`, RPC `photo {full_room}`; pc/docs/Native_Rendering.md "A
+plugin's free camera sees the whole room").
 
 | | |
 |---|---|

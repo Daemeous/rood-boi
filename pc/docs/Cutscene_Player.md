@@ -1,19 +1,85 @@
-# Cutscene player
+# Cutscene player and story scene viewer
 
-A developer tool to find graphical problems in cutscenes: reach a scene,
-freeze it, step it frame by frame, go back to any earlier frame and play it
-again exactly, capture clean frames, and hand a precise frame to someone else.
-The instant replay does the same for a glitch seen in ordinary play.
-Plan: `pc/docs/plans/2026-10-22-cutscene-player.md`.
+Watch any story cutscene as it plays in the story, with a video player's
+controls; and, underneath, a developer tool to find graphical problems in
+cutscenes: freeze a scene, step it frame by frame, go back to any earlier
+frame and play it again exactly, capture clean frames, and hand a precise
+frame to someone else. The instant replay does the same for a glitch seen
+in ordinary play. Plans: `pc/docs/plans/2026-10-22-cutscene-viewer.md`
+(the viewer, how the game starts its scenes, per-scene looks next),
+`pc/docs/plans/2026-10-22-cutscene-player.md` (the player).
 
-Code: `pc/src/cutscene.cpp` (takes, recipes, captures, repros, RPC),
-`pc/src/cutscene_panel.cpp` (the window), `pc/src/state_rewind.c` (the
-marks), hooks in `input_record.c`, `boot_runtime.c` (`func_800E45B4`),
-`dev_rpc.c` (poll), `boot_window.c` (pacing), `scene_submit.inc` (the event
-interpreter's place). Data: `pc/assets/cutscenes/catalog.json` (scenes),
+Code: `pc/src/cutscene.cpp` (takes, recipes, story scenes, captures,
+repros, RPC), `pc/src/cutscene_panel.cpp` (the window),
+`pc/src/story_boot.c` (story scenes, game side), `pc/src/state_rewind.c`
+(the marks), hooks in `input_record.c`, `boot_runtime.c`
+(`func_800E45B4`), `dev_rpc.c` (poll), `boot_window.c` (pacing),
+`scene_submit.inc` (the event interpreter's place, what it waits for),
+`room_warp.c` / `room_catalog.c` (the room's door), and three `ROOD_PC`
+hooks in src (`vs_battle_exec`'s frame, `vs_main_execTitle` after the
+title, `vs_main_playSfx` with no sound set). Data:
+`pc/assets/cutscenes/story.json` (the story's scenes),
+`pc/assets/cutscenes/catalog.json` (the player's recipes),
 `pc/assets/cutscenes/opcodes.json` (opcode names). Tools:
-`pc/tools/cutscene_scan.py`, `pc/tools/cutscene_opcodes.py`. Test:
-`pc/tests/cutscene_player_smoke.py` (run.py `cutscene_player_smoke`).
+`pc/tools/story_scan.py`, `pc/tools/story_verify.py`,
+`pc/tools/cutscene_scan.py`, `pc/tools/cutscene_opcodes.py`. Tests:
+`pc/tests/cutscene_viewer_smoke.py`, `pc/tests/cutscene_player_smoke.py`
+(run.py `cutscene_viewer_smoke`, `cutscene_player_smoke`).
+
+## Watching a scene
+
+Open the **Cutscene** window: F1 > Window > Cutscene, or the instant replay
+key (**F8** by default), which opens the editor on it from anywhere (RPC
+`cutscene {action: "open"}` too).
+
+- The list: the story's scenes in story order, grouped by chapter (the
+  opening, New Game from the title, first; the ending last); search by
+  name, chapter or place; *Key* shows only the scenes the story turns on
+  (marked \*), *Verified* only the scenes seen to start and play
+  (`story_verify.py`; the others are greyed). The scanned room scenes of
+  the player's catalog are under *More*.
+- **Play** (or double-click, Enter, Cross): the scene starts as it plays
+  in the story and plays at once. From the title it is New Game into the
+  scene; from a game, the game starts afresh in the scene's room (as
+  loading a save does). Your game is kept: **Back to the game** returns to
+  it as it was when you first played a scene from it.
+- The player: the scrub bar over the scene (minutes and seconds; the part
+  already played replays exactly, dragging past it plays on to there),
+  previous / next scene, restart, -5 s / +5 s, a frame back / forward,
+  play / pause, speed 1 / 1/2 / 1/4, *Auto-advance dialogue* and its
+  *Hold* (`cutscene_auto_advance`, `cutscene_dialogue_hold`; story scenes
+  only: a box, or an end card, waits that long, then the button it waits
+  for is pressed, as a logged input so replays stay exact), *Free camera*,
+  *Hide HUD*, *Hide dialogue*,
+  **Capture frame**, **Lighting** (pauses and opens the Lighting tab, which
+  edits the room the scene plays in).
+- Keys and the pad while the window has focus (the pad is the viewer's
+  then, not the game's): Space / Triangle play-pause, Left / Right (L2 /
+  R2) a frame, Shift+Left / Right 5 s, Page Up / Down (L1 / R1) the
+  previous / next scene, Home restart, d-pad up / down choose a scene and
+  Cross plays it, Square captures.
+- **Advanced**: the player's controls below (takes, marks, recipes, the
+  event script, captures, repros, the instant replay).
+
+### How a story scene starts
+
+Story progress is state flag 130 (0 at the Wine Cellar after the
+prologue, 83 before the end); scenes are room scripts, triggers' events
+and EVT files scripts chain to (details in the plan). A scene in
+`story.json` has the room the game starts in, the story flags just before
+it (every other flag 0), the sound effect sets loaded before it, and how
+it is reached:
+
+- `entry`: the room's own script plays it on arrival;
+- `trigger`: once the room's script is done, its trigger's event is
+  started as stepping on the cell or examining the thing would;
+- `chain`: the script before it (a room's or a trigger's) is played on,
+  unpaced and with its dialogue answered, until the scene's own script
+  runs; the take starts there.
+
+`pc/tools/story_scan.py --apply` rebuilds the list from the game's scripts
+(keeping names, chapters and notes by id); `pc/tools/story_verify.py
+--apply` plays every scene and records `verified` and `frames`.
 
 ## A take
 
@@ -40,9 +106,10 @@ drops everything after the current frame (to try another branch).
 Measured on the opening (64 bits): a mark is about 12.7 MB and costs about
 2.5 ms once the ring reuses buffers (about 7 ms for a fresh one).
 
-## Reaching a scene
+## Reaching a scene (the player's recipes)
 
-`pc/assets/cutscenes/catalog.json` lists scenes by recipe:
+`pc/assets/cutscenes/catalog.json` lists scenes by recipe (and
+`story.json` the story's, above):
 
 | recipe | from | how |
 |---|---|---|
@@ -64,22 +131,19 @@ scripts on: 15/0 Prisoners' Niche and 48/3 Underdark Fishmarket; they are
 left out. Re-run: `python3 pc/tools/cutscene_scan.py --apply` (about 5
 minutes; `--from-scan scan.json --apply --min-frames N` re-applies one).
 
-Not reachable yet:
+Not reachable as recipes (the story scenes above are):
 
 - story cutscenes that need the story's flags (a warp out of story order
   plays the room's entry script with the flags the card has: some scenes
   play differently or not at all; `notes` say what the scan saw);
-- events started by doors, trigger regions or items (the scan only
-  warps), and zone event files reached only through other events;
 - the movies (FMV: not game-state driven);
 - a scene whose event waits for a choice the scan's presses do not make
   (the eight entries noted "did not end within the scan's cap": 29/0, 31/0,
   32/1, 32/3, 32/6, 32/17, 34/0, 40/21).
 
-## Controls
+## Advanced controls
 
-The **Cutscene** window (Window > Cutscene; the instant replay key opens
-it too):
+Under **Advanced** in the Cutscene window:
 
 - Scene: the catalog (hover: where it starts from), **Start**, **From
   here**, *Start a take when an event script starts*, *Instant replay*.
@@ -135,7 +199,8 @@ replaying, the event script, the last capture, the repro, a message):
 
 | action | params |
 |---|---|
-| `status` (default), `list` (the catalog), `catalog` (reload it) | |
+| `status` (default), `list` (the catalog and the story's scenes), `catalog` (reload both), `open` | `open`: `on` |
+| `return` (Back to the game) | |
 | `start` | `scene` (a catalog id) |
 | `here`, `stop`, `play`, `pause`, `cut`, `hotkey` | `here`: `name` |
 | `step` | `frames` |
@@ -147,7 +212,10 @@ replaying, the event script, the last capture, the repro, a message):
 | `camera` | `on` |
 
 Seeks, captures, repros, jumps and recipes finish at later vsyncs: wait
-until `busy` is false. Also new: `room_goto {action: "reset"}` makes the
+until `busy` is false. `start` takes a story scene's id too; the status's
+`take_event` says what the event interpreter did in the take's live frames
+(`frames` it ran, `dialogue` frames a box waited, script `places`, the
+event `ids`). Also new: `room_goto {action: "reset"}` makes the
 Room Browser's warp machinery idle (it is host state: an RPC rewind does
 not undo it).
 

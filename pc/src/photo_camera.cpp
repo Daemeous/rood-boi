@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "hud/game_query.h"
+#include "room_editor.h"
 #include "scene_capture.h"
 
 extern "C" {
@@ -262,6 +263,7 @@ void reset()
 }
 void json(std::string& out)
 {
+    out += pc_photo_full_room ? ",\"full_room\":true" : ",\"full_room\":false";
     pc_photo_pose pose;
     if (!pc_photo_camera_get(&pose)) {
         out += ",\"camera\":null";
@@ -275,5 +277,21 @@ void json(std::string& out)
         pose.target[1], pose.target[2], pose.yaw, pose.pitch, pose.roll, pose.fov, pose.collision ? "true" : "false");
     out += text;
 }
-photo::Register part({ "camera", release, owners, reset, json, nullptr });
+/* RPC photo {full_room}: the free camera's view of the room (room_editor.h pc_photo_full_room; the
+ * settings key photo_full_room); a render shows it at once. */
+void params(const char* text)
+{
+    int n;
+    const char* v = text ? strstr(text, "\"full_room\"") : nullptr;
+    if (v && (v = strchr(v, ':')) && strspn(v + 1, " ") < 8 && !strncmp(v + 1 + strspn(v + 1, " "), "true", 4))
+        n = 1;
+    else if (!photo::json_int(text, "full_room", &n))
+        return;
+    if ((n != 0) != (pc_photo_full_room != 0)) {
+        pc_photo_full_room = n != 0;
+        if (!camera_owner.empty())
+            pc_photo_redraw();
+    }
+}
+photo::Register part({ "camera", release, owners, reset, json, params });
 } // namespace

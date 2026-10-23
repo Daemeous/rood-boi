@@ -9,15 +9,30 @@
 namespace cutscene {
 
 struct Scene {
-    std::string id, name, kind; // kind: new_game, warp, ending
+    std::string id, name, kind; // kind: new_game, warp, ending, story
     int zone = -1, room = -1, entry = 0;
     int frames = 0;             // how long it runs (0: unknown)
     int event = -1;             // the event id a scan saw ((source << 12) | file)
     bool reliable = false;
     std::string from, notes;
+    // story scenes (pc/assets/cutscenes/story.json, pc/tools/story_scan.py)
+    std::string chapter;        // the part of the story it belongs to (a heading in the viewer's list)
+    int step = -1;              // the story step flag (130) when it starts
+    int start_event = -1;       // an event started once the room's entry script is done (a trigger's; -1 none)
+    int until = -1;             // the event to play on to (a script chained or handed over to; -1: at once)
+    int until_room[2] = {-1, -1}; // ... in this room (zone, room; -1: any)
+    int sound[4] = {0, 0, 0, 0}; // sound effect sets loaded before it (SE files in slots 1-3, the current slot)
+    int cell[4] = {-1, 0, 0, 0}; // a floor cell to arrive on instead of a door (x, level, z, facing)
+    std::vector<std::pair<int, int>> flags; // story flags just before it (index, value; the rest 0)
+    int texts = 0;              // dialogue boxes it opens (the scan's count)
+    bool verified = false;      // seen to start and run its event (story_scan.py --verify)
+    bool major = false;         // a scene the story turns on (named; shown first)
 };
 const std::vector<Scene>& scenes();
 void reload_catalog();
+// The viewer's own: back to the game as it was before the first story scene of this session.
+bool can_return();
+bool return_to_game(std::string* why);
 
 struct Thread {
     int offset = -1, opcode = -1;
@@ -68,6 +83,8 @@ extern bool armed;     // start a take when an event script starts
 extern bool hide_text; // captures hide the game's 2D layer (dialogue) too
 extern int capture_count;
 extern bool window_open;
+extern bool pad_focus; // the viewer has focus: the pad is its (not the game's) in a take
+extern unsigned pad_focus_vsync; // when the window last said so (it is drawn only while the overlay shows)
 const char* dir(); // pc/user/cutscenes (ROOD_CUTSCENES)
 std::string replay_key_name();
 

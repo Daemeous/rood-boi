@@ -338,6 +338,8 @@ extern int pc_gameplay_walls_frame(const void* data, unsigned facing, unsigned m
 extern int pc_gameplay_walls_group(unsigned index, int kept, float* cut, float* cut_previous, int* ghost)
     __attribute__((weak));
 extern void pc_occlusion_frame(int free_camera) __attribute__((weak));
+/* room_native.c (room_editor.h): a plugin's free camera sees the whole room. */
+extern int pc_room_photo_whole(void) __attribute__((weak));
 extern void pc_room_native_tint(const unsigned* start, int dr, int dg, int db, int fade) __attribute__((weak));
 extern const void* pc_scene_room_data(void) __attribute__((weak));
 /* The current room's groups drawn by the latest call (RPC room_groups
@@ -372,6 +374,11 @@ void func_8009723C(void* data, unsigned mode)
     translucent_only = native == 2;
     int free_camera = pc_live_camera_active && pc_live_camera_active();
     unsigned free_facing = free_camera && pc_room_editor_facing ? pc_room_editor_facing() : 0x10000;
+    /* Group flags that leave a group out: 0x100 the room's own (event scripts hide and show groups,
+     * func_800919D8 / func_80091998), 0x1000 the hide list for where Ashley stands and the game camera's
+     * direction and zoom (room section 11, func_8008C2C0; cleared by func_8008C40C). A plugin's free
+     * camera is not the game's: it keeps the groups that list hides for the game camera. */
+    unsigned hidden_flags = free_camera && pc_room_photo_whole && pc_room_photo_whole() ? 0x100 : 0x1100;
     int record = pc_scene_room_data && data == pc_scene_room_data() && count <= DRAWN_MAX;
     if (record) {
         drawn_data = data;
@@ -394,7 +401,7 @@ void func_8009723C(void* data, unsigned mode)
             facing = free_facing;
         if (packet >= limit)
             break;
-        if (flags & 0x1100 || ((flags >> 15) & mode & 1))
+        if (flags & hidden_flags || ((flags >> 15) & mode & 1))
             continue;
         if (free_camera && pc_room_editor_hidden && pc_room_editor_hidden(data, i))
             continue;
