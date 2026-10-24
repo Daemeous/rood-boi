@@ -5,6 +5,7 @@
 // (ui_equip_draw.cpp, ui_ashley_draw.cpp, ui_system_draw.cpp, ui_abilities_draw.cpp, ui_magick_draw.cpp).
 #include "ui/ui_draw_internal.h"
 #include "display_confirm.h"
+#include "quit_options.h"
 #include "ui/map_frame.h"
 #include "ui/data_frame.h"
 #include "ui/container_frame.h"
@@ -690,6 +691,8 @@ static void draw_frame(float dt)
         draw_commands(f, t, top, dt, fresh, m, out);
     if (pc_display_confirm_pending())
         draw_display_confirm(f, t, m, out);
+    else if (pc_quit_pending())
+        draw_quit_confirm(f, t, m, out);
     draw_footer(f, t, out, held, m);
     send_pointer(m);
     last_tab = cur;

@@ -10,12 +10,18 @@
 #include "display_confirm.h"
 #include "ui/ui_theme.h"
 #include "ui/ui_workshop.h"
+#include "quit_options.h"
 #include <cstdio>
 #include <cstring>
 #include <map>
 #include <string>
 
 extern "C" const char* pc_settings_status(void);
+// Quit to title / Quit to desktop (quit_options.h): weak, the probes run without it.
+extern "C" int pc_quit_pending(void) __attribute__((weak));
+extern "C" int pc_quit_ask(int) __attribute__((weak));
+extern "C" void pc_quit_answer(int) __attribute__((weak));
+extern "C" void pc_quit_cancel(void) __attribute__((weak));
 
 namespace {
 
@@ -145,6 +151,8 @@ struct State {
         // or going renumbers them; the focus stays on its page by id.
         unsigned generation = 0;
         std::string page_id, item_page_id;
+        int quit_focus = 1;       // "Unsaved progress will be lost": 0 Yes, 1 No (it opens on No)
+        bool quit_seen = false;   // the question is up (its focus starts on No each time)
         int confirm_focus = 0;    // "Keep these settings?": 0 Keep, 1 Revert
         bool confirm_seen = false; // the modal is up (its focus starts on Keep each time)
     } sys;
@@ -631,6 +639,21 @@ const RowDef SYSTEM_GAME[] = {
     {"manual", "Quick manual", "The game's own guide: controls, battle, magic and maps.", ROW_COMMAND, 9},
 };
 const int SYSTEM_GAMES = sizeof SYSTEM_GAME / sizeof SYSTEM_GAME[0];
+// The last entries of the list, after the settings pages: Quit to title and Quit to desktop
+// (quit_options.h; the same question the F1 overlay's File menu and the classic Option screen ask).
+struct QuitDef {
+    const char* id;
+    const char* label;
+    const char* help;
+    int to; // PC_QUIT_*
+};
+const QuitDef SYSTEM_QUIT[] = {
+    {"quit_title", "Quit to title", "Back to the title screen, as a soft reset does (L1 + L2 + R1 + R2 + Select + Start).",
+        PC_QUIT_TITLE},
+    {"quit_desktop", "Quit to desktop", "Close the game. Settings are saved, as when the window is closed.",
+        PC_QUIT_DESKTOP},
+};
+const int SYSTEM_QUITS = sizeof SYSTEM_QUIT / sizeof SYSTEM_QUIT[0];
 bool on_system() { return TABS[s.tab].screen == SCREEN_SYSTEM; }
 // The game entries shown now (menuFlags), as indices into SYSTEM_GAME.
 int sys_games(int* out)
@@ -644,6 +667,12 @@ int sys_games(int* out)
 int sys_items()
 {
     int g[SYSTEM_GAMES];
+    return sys_games(g) + pc_ui_settings_pages() + SYSTEM_QUITS;
+}
+// The first quit entry's list index.
+int sys_quit_first()
+{
+    int g[SYSTEM_GAMES];
     return sys_games(g) + pc_ui_settings_pages();
 }
 // The settings page of list entry `item`, -1 for a game entry.
@@ -651,7 +680,7 @@ int sys_item_page(int item)
 {
     int g[SYSTEM_GAMES];
     int games = sys_games(g);
-    return item >= games ? item - games : -1;
+    return item >= games && item < games + pc_ui_settings_pages() ? item - games : -1;
 }
 std::string page_key(int page)
 {
@@ -752,6 +781,11 @@ int sys_list_confirm()
     int page = sys_item_page(s.sys.item);
     if (page >= 0) {
         sys_enter(page);
+        return 0;
+    }
+    if (s.sys.item >= sys_quit_first()) { // Quit to title / Quit to desktop: the question, or at once on the title
+        if (pc_quit_ask)
+            pc_quit_ask(SYSTEM_QUIT[s.sys.item - sys_quit_first()].to);
         return 0;
     }
     int g[SYSTEM_GAMES];
@@ -920,6 +954,40 @@ void confirm_json(std::string& j)
     j += buf;
 }
 
+// "Unsaved progress will be lost" (quit_options.h): Quit to title / Quit to desktop wait for Yes or No;
+// the modal takes the input. It opens on No.
+bool quit_up()
+{
+    bool up = pc_quit_pending && pc_quit_pending() != 0;
+    if (up && !s.sys.quit_seen)
+        s.sys.quit_focus = 1;
+    s.sys.quit_seen = up;
+    return up;
+}
+void quit_answer(bool yes)
+{
+    s.sys.quit_seen = false;
+    if (pc_quit_answer)
+        pc_quit_answer(yes ? 1 : 0);
+}
+int quit_tick(const pc_ui_input* in)
+{
+    if (in->repeat & (PC_UI_LEFT | PC_UI_RIGHT | PC_UI_UP | PC_UI_DOWN))
+        s.sys.quit_focus ^= 1;
+    if (in->pressed & PC_UI_CONFIRM)
+        quit_answer(s.sys.quit_focus == 0);
+    else if (in->pressed & (PC_UI_BACK | PC_UI_EXIT))
+        quit_answer(false);
+    return 0;
+}
+void quit_json(std::string& j)
+{
+    int to = pc_quit_pending ? pc_quit_pending() : 0;
+    j += ",\"quit\":{\"pending\":\"";
+    j += to == PC_QUIT_TITLE ? "title" : to == PC_QUIT_DESKTOP ? "desktop" : "";
+    j += s.sys.quit_focus ? "\",\"focus\":\"no\"}" : "\",\"focus\":\"yes\"}";
+}
+
 // The PS1 button's binding row id ("bind_triangle"), "" when none.
 const char* capture_row_id()
 {
@@ -986,6 +1054,7 @@ void system_json(std::string& j)
     pc_ui_manual_json(j);
     pc_ui_score_json(j);
     confirm_json(j);
+    quit_json(j);
     j += "}";
 }
 
@@ -2127,6 +2196,16 @@ bool apply_mouse(pc_ui_input& in)
         }
         return false;
     }
+    if (quit_up()) { // the same: only Yes and No take the pointer
+        s.mouse.wheel = 0;
+        if (m.hover_kind == PC_UI_MOUSE_CONFIRM && m.hover_index < 2)
+            s.sys.quit_focus = m.hover_index;
+        if (m.click_kind == PC_UI_MOUSE_CONFIRM && m.click_index < 2) {
+            quit_answer(m.click_index == 0);
+            return true;
+        }
+        return false;
+    }
     if (capturing()) { // a capture listens: only a right click (Back) or a click on the prompt cancels it
         s.mouse.wheel = 0;
         if (m.click_kind == PC_UI_MOUSE_BUTTON && ((unsigned)m.click_index & PC_UI_BACK))
@@ -2347,6 +2426,9 @@ extern "C" void pc_ui_shell_close(void)
     // shell that is not up has no page open (a capture the RPC started stays)
     if (s.visible || s.holding)
         sys_leave();
+    if (pc_quit_cancel) // (a question left open)
+        pc_quit_cancel();
+    s.sys.quit_seen = false;
     s.visible = false;
     s.drag_x = s.drag_y = 0;
     s.holding = false;
@@ -2367,6 +2449,8 @@ extern "C" int pc_ui_shell_tick(const pc_ui_input* input)
         return 0;
     if (confirm_up()) // "Keep these settings?" waits for its answer
         return confirm_tick(in);
+    if (quit_up()) // so does "Unsaved progress will be lost"
+        return quit_tick(in);
     bool equipment = TABS[s.tab].screen == SCREEN_EQUIPMENT;
     // Cross steps back out of a pick list; at the top it closes, as Triangle does
     if ((in->pressed & PC_UI_BACK) && !(in->pressed & PC_UI_EXIT) && equipment && equip_back())
@@ -2693,12 +2777,14 @@ extern "C" void pc_ui_shell_model_turn(float* yaw_delta, float* pitch_delta)
 }
 
 extern "C" int pc_ui_shell_confirm_focus(void) { return s.sys.confirm_focus; }
+extern "C" int pc_ui_shell_quit_focus(void) { return s.sys.quit_focus; }
 extern "C" void pc_ui_shell_system_view(pc_ui_system_view* v)
 {
     int g[SYSTEM_GAMES];
     v->rows = sys_clamp();
     v->items = sys_items();
     v->games = sys_games(g);
+    v->quit_first = sys_quit_first();
     v->item = s.sys.item;
     v->page = sys_shown_page();
     v->entered = s.sys.page >= 0;
@@ -2710,8 +2796,16 @@ extern "C" int pc_ui_shell_system_item(int i, const char** id, const char** labe
 {
     int g[SYSTEM_GAMES];
     int games = sys_games(g);
-    if (i < 0 || i >= games + pc_ui_settings_pages())
+    int pages = pc_ui_settings_pages();
+    if (i < 0 || i >= games + pages + SYSTEM_QUITS)
         return 0;
+    if (i >= games + pages) {
+        const QuitDef& q = SYSTEM_QUIT[i - games - pages];
+        *id = q.id, *label = q.label, *help = q.help;
+        *enabled = 1;
+        *reason = nullptr;
+        return 1;
+    }
     if (i < games) {
         const RowDef& r = SYSTEM_GAME[g[i]];
         *id = r.id, *label = r.label, *help = r.help;

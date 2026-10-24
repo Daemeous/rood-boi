@@ -395,7 +395,15 @@ in the generated layer): the entry's polygons that are coplanar and
 touch are one pane, the light its bounding rectangle in the pane's plane
 (vertical side up), `offset` in front of the pane's front (-(e1 x e2), as
 the game draws it), facing into the room, in the mean colour of the
-pane's glowing texels (the mask's CLUT indices) x the tint. A room with
+pane's glowing texels x the tint. Matching honors palette (`match.clut`),
+room and surface scopes; model-only scopes never select room polygons.
+Mask rectangles and polygons (at texel centres, with each match's `offset`)
+are a union, intersected with the index, 5-bit colour and luminance filters.
+A fully masked-out pane produces no light. Colour is averaged over each
+selected polygon's UV box, as before; shapes do not crop the fitted world
+rectangle. Painted `mask.map` entries are not supported by this offline
+generator and fail explicitly rather than generating unmasked lights.
+A room with
 more panes than `max_per_room` (6) gets one light per wall (the panes of
 one plane): OpenGL with ray-traced shadows keeps 16 lights, plain lights
 first. Regenerate after changing an entry (`--zone` its zones); the test
@@ -489,6 +497,10 @@ bottom lit only the floor under it and took a traced glow; object faces
 whose front points down are dropped); an entry's `light_reach` and
 `light_lift` set its glows' reach and move them out; the glyph tile of
 29/3 lights from 48 units over the floor with reach 320.
+
+`pc/tests/window_lights_test.py` (run.py suite `window_lights`, no disc or
+game) checks palette reuse, excluded surfaces and model-only scopes,
+mask shapes and offsets, colour/luminance/index filters, and empty masks.
 
 `pc/tests/emissive_catalog_test.py` (run.py suite `emissive_catalog`, no
 game): every curated entry has textures, a mask, a tint and light

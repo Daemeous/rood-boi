@@ -252,12 +252,44 @@ int pc_battle_event_threads(int state[2], int offset[4], int opcode[4], void* ha
     state[0] = D_800F4C34;
     state[1] = D_800F4C2C;
     for (i = 0; i < 4; ++i) {
-        u_char* pc = D_800F4C34 != 0 ? D_800F4C38[i] : NULL;
+        u_char* pc = D_800F4C34 == 4 ? D_800F4C38[i] : NULL;
         offset[i] = pc != NULL && D_800F4C30 != NULL ? (int)(pc - (u_char*)D_800F4C30) : -1;
         opcode[i] = pc != NULL ? *pc : -1;
         handler[i] = pc != NULL ? (void*)_opcodeFunctionTable[*pc] : NULL;
     }
     return D_800F4C34 != 0;
+}
+/* Operand sizes come from the interpreter's own table (573B8.c: func_800BFE34).
+ * These are raw operand bytes; actor resolution is limited to source-verified handlers. */
+extern u_char D_800E9C30[];
+extern int func_800BFE50(u_short);
+int pc_battle_event_arguments(int thread, int* args, int* line, int* actor)
+{
+    u_char* pc;
+    int n = 0, i;
+    *line = *actor = -1;
+    if (D_800F4C34 != 4 || thread < 0 || thread >= 4 || !(pc = D_800F4C38[thread]))
+        return 0;
+    n = (int)D_800E9C30[*pc] - 1;
+    if (n < 0 || n > 16) return 0;
+    if (*pc == 0x11 && n >= 3) *line = pc[2];
+    switch (*pc) {
+    /* 4A0A8.c: object placement, move, face, transform and animation handlers.
+     * Their first short is an actor reference, unlike other unlabelled ops. */
+    case 0x20: case 0x21: case 0x22: case 0x2b: case 0x2c:
+    case 0x33: case 0x34: case 0x35: case 0x36:
+        if (n >= 2) {
+            unsigned ref = pc[1] | ((unsigned)pc[2] << 8);
+            if ((ref >> 12) < 2) {
+                int resolved = func_800BFE50((u_short)ref);
+                if (resolved >= 0 && resolved <= 16) *actor = resolved;
+            }
+        }
+        break;
+    default: break;
+    }
+    for (i = 0; i < n; ++i) args[i] = pc[i + 1];
+    return n;
 }
 /* What the running event waits for from the player (the cutscene viewer's auto-advance, cutscene.cpp):
  * the PS1 pad bits a thread waits on (op 0x15, vs_battle_script_buttonPressed: its mask; op 0x11,

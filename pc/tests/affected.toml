@@ -118,7 +118,7 @@ suites = ["photo_full_room_smoke", "editor_cutaway_smoke", "facing_cutaway_smoke
 [[rule]]
 paths = ["pc/src/cutscene*", "pc/assets/cutscenes/*", "pc/src/state_rewind.c", "pc/src/scene_submit.inc",
          "pc/src/boot_controller.*", "pc/src/photo_capture.cpp", "pc/src/photo.cpp", "pc/src/story_boot.c"]
-suites = ["cutscene_player_smoke", "cutscene_viewer_smoke", "ctest"]
+suites = ["cutscene_player_smoke", "cutscene_viewer_smoke", "cutscene_sequencer_smoke", "ctest"]
 
 # ---- the event's screen images (stills, the credits' tear wipe: widened in 16:9) ----
 [[rule]]
@@ -158,7 +158,12 @@ suites = ["classic_parity", "classic_hud_smoke", "hud_bench_smoke", "ui_text_smo
 paths = ["pc/src/ui/*", "pc/assets/ui/*"]
 suites = ["ui_*", "ctest", "button_roles_smoke", "button_roles_symbols_smoke", "fast_travel_shell_smoke",
           "interp_menu_2d_smoke", "system_settings_smoke", "weapon_slots_smoke", "menu0_levelled_smoke",
-          "save_menu_smoke", "options_*"]
+          "save_menu_smoke", "options_*", "quit_smoke"]
+
+# ---- Quit to title / Quit to desktop (the soft reset's path, the menus' entries) ----
+[[rule]]
+paths = ["pc/src/quit_options.*"]
+suites = ["quit_smoke", "ui_*", "options_*", "rpc_smoke"]
 
 # ---- the Option pages' look and "Keep these settings?" (the settings writer holds its keys) ----
 [[rule]]
@@ -169,7 +174,7 @@ suites = ["options_*", "ui_system_smoke", "system_settings_smoke", "window_mode_
 paths = ["src/MENU/*"]
 suites = ["ui_*", "menu0_levelled_smoke", "save_menu_smoke", "fast_travel_*", "weapon_slots_smoke",
           "button_roles_*", "interp_menu_2d_smoke", "input:data-menu*", "widescreen_smoke", "snapshot_equivalence",
-          "hud_label_solid_smoke", "skip_charging_smoke", "options_*", "narrowed_2d_smoke"]
+          "hud_label_solid_smoke", "skip_charging_smoke", "options_*", "narrowed_2d_smoke", "quit_smoke"]
 
 # ---- the battle overlay (field play too) ----
 [[rule]]
@@ -211,6 +216,18 @@ paths = ["pc/src/emissive*", "pc/assets/emissive/*", "pc/assets/materials/*", "p
          "pc/tools/check_material_maps.py"]
 suites = ["emissive_smoke", "emissive_entries_smoke", "editor_selection_smoke", "editor_undo_smoke",
           "editor_schema_smoke"]
+
+# The catalog's rect_light entries feed the window-light generator as well as
+# runtime emissive masks. The validator declares both inputs in run.py sources
+# (including the generator's transitive imports); exercise their rendered lights too.
+[[rule]]
+paths = ["pc/assets/emissive/catalog.json", "pc/tools/generate_lighting.py"]
+suites = ["emissive_smoke", "fixture_lighting_smoke", "light_actors_smoke"]
+
+# Generated window lights are read by emissive_catalog's per-room budget check.
+[[rule]]
+paths = ["lighting/default/generated/*"]
+suites = ["emissive_catalog"]
 
 # ---- lights, lighting packs, fixtures, prefabs ----
 [[rule]]

@@ -269,8 +269,10 @@ void pc_ui_menu_heartbeat(void)
 /* boot_sdk.c: the game jumps to the title or a new battle (vs_main_resetGame,
  * the soft reset; vs_overlay_jumpToTitle/Battle). The battle loop is gone:
  * the session and a queued model reload's finish are not the next scene's. */
+extern void pc_options_reset(void); /* classic_options.c */
 void pc_ui_menu_reset(void)
 {
+    pc_options_reset(); /* (the classic Option screen's state, a Quit question open in it) */
     pc_ui_manual_bridge_reset(); /* nothing written: the game's memory is the next game's */
     pc_ui_score_bridge_reset();
     pc_ui_ashley_model_forget(); /* the heap is the next game's: nothing to free */

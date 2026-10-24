@@ -6,11 +6,12 @@ cutscenes: freeze a scene, step it frame by frame, go back to any earlier
 frame and play it again exactly, capture clean frames, and hand a precise
 frame to someone else. The instant replay does the same for a glitch seen
 in ordinary play. Plans: `pc/docs/plans/2026-10-22-cutscene-viewer.md`
-(the viewer, how the game starts its scenes, per-scene looks next),
+(the viewer, how the game starts its scenes, per-scene look design),
 `pc/docs/plans/2026-10-22-cutscene-player.md` (the player).
 
 Code: `pc/src/cutscene.cpp` (takes, recipes, story scenes, captures,
 repros, RPC), `pc/src/cutscene_panel.cpp` (the window),
+`pc/src/cutscene_sequencer.cpp` (event samples and scene lighting keys),
 `pc/src/story_boot.c` (story scenes, game side), `pc/src/state_rewind.c`
 (the marks), hooks in `input_record.c`, `boot_runtime.c`
 (`func_800E45B4`), `dev_rpc.c` (poll), `boot_window.c` (pacing),
@@ -32,18 +33,31 @@ Open the **Cutscene** window: F1 > Window > Cutscene, or the instant replay
 key (**F8** by default), which opens the editor on it from anywhere (RPC
 `cutscene {action: "open"}` too).
 
+**First time:** pick a scene in the chapter list, then press the green
+**Play scene** button beside its name (double-click still works). Wait for
+**Reaching scene** to finish. The status then shows **Playing** or **Paused**,
+the exact frame and seconds; errors appear in the window, not only the log.
+Transport and timeline editing are disabled until a take is loaded and while
+it is busy seeking/loading. Drag the sequencer ruler and release to scrub.
+For a different view, enable **Free camera**, then hold **RMB** over the game
+viewport and use **WASD** to fly, **Q/E** down/up, mouse to look, wheel to
+adjust speed, and **Shift** to boost; release RMB to use the editor again.
+On a pad: left stick moves, right stick looks, **L2/R2** move down/up.
+While free camera is on, the pad belongs exclusively to navigation rather
+than scene selection or transport.
+
 - The list: the story's scenes in story order, grouped by chapter (the
   opening, New Game from the title, first; the ending last); search by
   name, chapter or place; *Key* shows only the scenes the story turns on
   (marked \*), *Verified* only the scenes seen to start and play
   (`story_verify.py`; the others are greyed). The scanned room scenes of
   the player's catalog are under *More*.
-- **Play** (or double-click, Enter, Cross): the scene starts as it plays
+- **Play scene** (or double-click, Enter, Cross): the scene starts as it plays
   in the story and plays at once. From the title it is New Game into the
   scene; from a game, the game starts afresh in the scene's room (as
   loading a save does). Your game is kept: **Back to the game** returns to
   it as it was when you first played a scene from it.
-- The player: the scrub bar over the scene (minutes and seconds; the part
+- The player: the sequencer ruler shows seconds and exact frames (the part
   already played replays exactly, dragging past it plays on to there),
   previous / next scene, restart, -5 s / +5 s, a frame back / forward,
   play / pause, speed 1 / 1/2 / 1/4, *Auto-advance dialogue* and its
@@ -51,8 +65,8 @@ key (**F8** by default), which opens the editor on it from anywhere (RPC
   only: a box, or an end card, waits that long, then the button it waits
   for is pressed, as a logged input so replays stay exact), *Free camera*,
   *Hide HUD*, *Hide dialogue*,
-  **Capture frame**, **Lighting** (pauses and opens the Lighting tab, which
-  edits the room the scene plays in).
+  **Capture frame**, **Lighting** (pauses and opens scene-only lighting
+  Details below the sequencer; it does not edit room lighting files).
 - Keys and the pad while the window has focus (the pad is the viewer's
   then, not the game's): Space / Triangle play-pause, Left / Right (L2 /
   R2) a frame, Shift+Left / Right 5 s, Page Up / Down (L1 / R1) the
@@ -60,6 +74,76 @@ key (**F8** by default), which opens the editor on it from anywhere (RPC
   Cross plays it, Square captures.
 - **Advanced**: the player's controls below (takes, marks, recipes, the
   event script, captures, repros, the instant replay).
+
+### Sequencer and scene lighting
+
+The sequencer at the bottom of the window shares one time scale across all
+tracks. Drag its ruler to preview a frame; release to seek exactly. Gold
+ticks are rewind marks; the blue line is the playhead (or seek target).
+**Visible frames** zooms, **Pan** moves the visible interval, and **Fit**
+shows the full scene. The mouse wheel over the ruler zooms around the
+pointer; middle-drag pans. Existing playback shortcuts still work.
+
+Event tracks are grouped by script thread and category. Blue diamond keys
+are interpreter-place samples observed as the scene plays, **not a complete
+instruction execution trace**; unplayed portions have no event keys yet.
+Hover a key for its opcode, event, script offset and available argument
+bytes (and actor/line ids when known); click it to seek there and select its
+Details. Missing arguments are labelled unavailable, never guessed.
+
+Gold lighting keys are separate, authored scene overrides. To author one:
+
+1. Scrub to a moment, press **Lighting** or **Lighting Details**, then
+   **New key at playhead**.
+2. Choose a **Property**, adjust **Value**, and choose step (the default) or
+   **Linear interpolation**. **Key frame** can be edited explicitly.
+3. Press **Add key**. Click a lighting diamond to seek and select it; edit
+   its Details and press **Update key**, or **Delete key** to remove it.
+4. **Save look** writes `pc/user/lighting/cutscenes/<scene id>.json`, in
+   the existing lighting user layer (`ROOD_LIGHTS/cutscenes/` when configured).
+   **Reload look** discards unsaved edits and reloads the saved look.
+
+The scene lighting layer previews while playing, paused and scrubbing;
+it is removed when leaving the take. It never writes the room's lighting
+files. The available properties are the backend's supported numeric
+lighting controls, not every future track in the design plan.
+
+#### Override data and RPC
+
+Shipped defaults are read from `pc/assets/cutscenes/overrides/<scene id>.json`.
+A user-layer document replaces that scene's whole default document, including
+an empty `keys` array to remove its defaults. Save never modifies shipped files.
+The versioned format is, for example (illustrative values, not a shipped look):
+
+```json
+{
+  "version": 1,
+  "scene": "evt-0038",
+  "keys": [
+    {"id": 1, "frame": 120, "target": "light_intensity", "value": 0.5, "ease": "linear"},
+    {"id": 2, "frame": 240, "target": "light_intensity", "value": 1.0, "ease": "step"}
+  ]
+}
+```
+
+Each key has a unique positive `id`; `(target, frame)` must also be unique.
+Before a property's first key, the room's normal lighting is unchanged. From
+that key onward, `linear` blends toward the next key; `step` holds until the
+next key. The last value holds until the take ends. The Details property list
+(and RPC `look` response) supplies supported target names and valid ranges.
+No camera-override track or individual placed-light track is implemented yet.
+
+RPC method `cutscene` supports:
+
+- `{ "action": "tracks", "offset": 0, "limit": 100 }`: sampled keys in
+  thread rows, plus `total` and `next_offset` for paging.
+- `{ "action": "seek", "frame": 120 }`: the same exact seek as clicking a key.
+- `{ "action": "look" }`: keys, available targets and resolved file paths.
+- `{ "action": "look", "op": "set", "frame": 120,
+  "target": "light_intensity", "value": 0.5, "ease": "linear" }`: add a key;
+  include its `id` to update it.
+- `{ "action": "look", "op": "delete", "id": 1 }`, or `op: "save"` /
+  `op: "reload"`: remove, persist or reload scene keys.
 
 ### How a story scene starts
 
@@ -96,8 +180,10 @@ played. While it runs:
   camera stick and every value of the scanline estimate (the one host-clock
   input of game state: the AI reads it as a time budget).
 
-Going to frame t rewinds to the last mark at or before t and steps there
-unpaced. Frames already played **replay** their logged input (the window
+Going to frame t rewinds to an earlier mark and steps there unpaced. When
+available, a short replay lead-in rebuilds native renderer lists and targets
+(the game-state marks do not contain them), avoiding a blank picture when t
+is exactly a mark. Frames already played **replay** their logged input (the window
 says REPLAY), so they are the frames played before, byte for byte (the
 smoke test compares per-vsync state digests, the hashes and both pictures).
 Past the head the game is **live** again and the take grows. *Cut here*

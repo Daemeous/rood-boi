@@ -957,7 +957,7 @@ static void system_tests()
     CHECK(pc_ui_shell_screen() == PC_UI_SCREEN_SYSTEM);
     pc_ui_system_view v;
     pc_ui_shell_system_view(&v);
-    CHECK(v.items == 11 && v.games == 4 && v.item == 0 && v.page == -1 && !v.entered && v.capture == -1);
+    CHECK(v.items == 13 && v.games == 4 && v.item == 0 && v.page == -1 && !v.entered && v.capture == -1);
     CHECK(json_has("\"system\":{\"mode\":\"list\",\"item\":\"data\",\"page\":\"\""));
     CHECK(json_has("\"status\":\"Saved settings to settings.cfg\""));
     // the game's entries follow menuFlags (Score not unlocked: bit 8)
@@ -965,7 +965,7 @@ static void system_tests()
         pc_ui_commands no_score = {0x3FF & ~(1u << 8), 0, 0};
         pc_ui_shell_open(&no_score, 1);
         pc_ui_shell_system_view(&v);
-        CHECK(v.items == 10 && v.games == 3);
+        CHECK(v.items == 12 && v.games == 3);
         CHECK(!json_has("\"id\":\"score\""));
         pc_ui_shell_open(&all, 1);
     }

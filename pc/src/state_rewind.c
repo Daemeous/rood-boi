@@ -42,6 +42,7 @@ extern int pc_fog_state_load(const void*, int) __attribute__((weak));
 extern void pc_cd_restored(void) __attribute__((weak));
 extern void pc_cd_release(void) __attribute__((weak));
 extern void pc_hw_resync(void) __attribute__((weak));
+extern void pc_photo_state_replaced(void) __attribute__((weak));
 extern void pc_input_rewound(void) __attribute__((weak));
 #define MAX_RANGES 170
 #define PC_REWIND_TAKE_FIRST 2   /* cutscene.cpp's slots: PC_REWIND_TAKE_FIRST .. + PC_REWIND_TAKE_SLOTS - 1 */
@@ -185,6 +186,7 @@ static __attribute__((noreturn)) void restore(void)
     /* The photo mode's slot keeps the hardware target (the render's picture: photo.cpp resyncs before
      * the next one and at resume) and the RPC as it is (photo.cpp knows it landed). */
     if (restoring != PHOTO_SLOT) {
+        if (pc_photo_state_replaced) pc_photo_state_replaced();
         if (pc_hw_resync) pc_hw_resync();
         pc_rpc_rewound();
     }

@@ -4149,6 +4149,36 @@ static void handle_method(int fd, const char* request)
         pc_rpc_state(result, sizeof result);
         reply(fd, id, result);
     } else if (!strcmp(method, "quit")) {
+        /* {} the clean quit; {to: "title" | "desktop"} (quit_options.h): the soft reset's path / the window's close
+         * button, with the settings saved first; {ask: true} puts the "Unsaved progress will be lost" question
+         * to whichever menu is up instead (the reply's "asked"; the menus answer it) and quits at once where
+         * nothing can be lost (the title). */
+        extern int pc_quit_ask(int) __attribute__((weak));
+        extern int pc_quit_now(int) __attribute__((weak));
+        extern int pc_quit_pending(void) __attribute__((weak));
+        extern int pc_quit_needs_confirm(int) __attribute__((weak));
+        extern int pc_quit_title_queued(void) __attribute__((weak));
+        char to[16] = "";
+        if (params && member(params, "to") && pc_quit_now) {
+            int target, ask = 0, done;
+            if (!string_value(member(params, "to"), to, sizeof to)
+                || (strcmp(to, "title") && strcmp(to, "desktop"))) {
+                fail(fd, id, -32602, "quit: to is \"title\" or \"desktop\"");
+                return;
+            }
+            target = !strcmp(to, "title") ? 1 : 2;
+            bool_value(member(params, "ask"), &ask);
+            if (target == 2 && (!ask || !pc_quit_needs_confirm(2))) { /* answered before the process goes */
+                reply(fd, id, "{\"to\":\"desktop\",\"done\":true}");
+                pc_quit_now(target);
+                return;
+            }
+            done = ask ? pc_quit_ask(target) : pc_quit_now(target);
+            snprintf(result, sizeof result, "{\"to\":\"%s\",\"done\":%s,\"asked\":%d,\"queued\":%s}", to,
+                done ? "true" : "false", pc_quit_pending(), pc_quit_title_queued() ? "true" : "false");
+            reply(fd, id, result);
+            return;
+        }
         reply(fd, id, "{}");
         fprintf(stderr, "[rpc] quit requested\n");
         pc_quit();

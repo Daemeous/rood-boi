@@ -251,6 +251,7 @@ static const struct {
     { "righttrigger", PC_PAD_AXIS(SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) },
     /* the left stick pushed right / down (tests: RPC system {virtual_pad}) */
     { "leftx", PC_PAD_AXIS(SDL_GAMEPAD_AXIS_LEFTX) }, { "lefty", PC_PAD_AXIS(SDL_GAMEPAD_AXIS_LEFTY) },
+    { "rightx", PC_PAD_AXIS(SDL_GAMEPAD_AXIS_RIGHTX) }, { "righty", PC_PAD_AXIS(SDL_GAMEPAD_AXIS_RIGHTY) },
     { "none", PC_PAD_NONE },
 };
 

@@ -8900,6 +8900,19 @@ int vs_main_processPadState(void)
 
 #define VS_RESET (PADstart | PADselect | PADR1 | PADR2 | PADL1 | PADL2)
 
+#ifdef ROOD_PC
+    /* Quit to title (pc/src/quit_options.c): the soft reset below, taken where it is
+     * taken. */
+    {
+        extern int pc_quit_title_poll(void);
+        if ((_resetEnabled != 0) && pc_quit_title_poll()) {
+            vs_main_settings.monoSound = 0;
+            vs_main_settings.vibrationOn = 1;
+            vs_main_resetGame();
+        }
+    }
+#endif
+
     if ((_resetEnabled != 0) && ((vs_main_buttonsPreviousState & VS_RESET) == VS_RESET)
         && (vs_main_buttonsPressed.all & VS_RESET)) {
         vs_main_settings.monoSound = 0;

@@ -12,6 +12,7 @@
 #include "ui/ui_settings.h"
 #include "button_prompts.h"
 #include "display_confirm.h"
+#include "quit_options.h"
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -316,6 +317,33 @@ void draw_display_confirm(const Frame& f, const ui::Theme& t, Pointer& m, Screen
     out.hint(PC_PROMPT_CROSS, -1, "Revert", PC_UI_BACK);
 }
 
+// "Unsaved progress will be lost" over the whole menu (quit_options.h): Yes and No, No focused first (the
+// shell's modal: pc_ui_shell_quit_focus, PC_UI_MOUSE_CONFIRM 0 Yes / 1 No), drawn as "Keep these settings?".
+void draw_quit_confirm(const Frame& f, const ui::Theme& t, Pointer& m, ScreenOut& out)
+{
+    f.dl->AddRectFilled(f.p(0, 0), f.p(f.W, 720), fade(t.ground | 0xFF000000u, 0.72f));
+    m.hit(PC_UI_MOUSE_CONFIRM, 2, 0, 0, f.W, 720); // the rest of the screen takes nothing
+    float w = 520, h = 180, x0 = (f.W - w) * 0.5f, y0 = 260;
+    f.dl->AddRectFilled(f.p(x0, y0), f.p(x0 + w, y0 + h), t.panel);
+    f.dl->AddRect(f.p(x0, y0), f.p(x0 + w, y0 + h), t.rule2, 0, 0, f.s(1));
+    f.dl->AddRectFilled(f.p(x0, y0), f.p(x0 + w, y0 + 2), t.accent);
+    text(f, fonts.name, 25, x0 + 24, y0 + 18, t.bone, pc_quit_pending() == PC_QUIT_TITLE ? "Quit to title?" : "Quit to desktop?");
+    paragraph(f, t, x0 + 24, y0 + 60, w - 48, t.ash, pc_quit_prompt_text());
+    float bw = 140, bh = 40, by = y0 + h - 60, gx = x0 + w - 24 - bw * 2 - 12;
+    int focus = pc_ui_shell_quit_focus();
+    for (int i = 0; i < 2; ++i) {
+        float bx = gx + i * (bw + 12);
+        bool o = m.hit(PC_UI_MOUSE_CONFIRM, i, bx, by, bx + bw, by + bh);
+        f.dl->AddRectFilled(f.p(bx, by), f.p(bx + bw, by + bh), focus == i ? t.accent : o ? t.rule2 : t.rule, f.s(5));
+        const char* label = i == 0 ? "YES" : "NO";
+        float tw = measure(f, fonts.label, 15, label, 0.26f);
+        text(f, fonts.label, 15, bx + (bw - tw) * 0.5f, by + (bh - 15) * 0.5f - 1, t.bone, label, 0.26f);
+    }
+    out.hint_count = 0;
+    out.hint(PC_PROMPT_CIRCLE, -1, focus == 0 ? "Yes" : "No", PC_UI_CONFIRM);
+    out.hint(PC_PROMPT_CROSS, -1, "No", PC_UI_BACK);
+}
+
 void draw_system(const Frame& f, const ui::Theme& t, float top, float dt, bool fresh, Pointer& m, ScreenOut& out)
 {
     if (pc_ui_shell_manual_shown()) { // the Quick manual has the screen (ui_manual_draw.cpp)
@@ -351,7 +379,7 @@ void draw_system(const Frame& f, const ui::Theme& t, float top, float dt, bool f
         float h = 0, fy = 0;
         int n = 0;
         for (; pc_ui_shell_system_item(n, &id, &label, &help, &enabled, &reason); ++n) {
-            if (n == 0 || n == v.games)
+            if (n == 0 || n == v.games || n == v.quit_first)
                 h += (n ? 14 : 0) + 24;
             if (n == v.item)
                 fy = h;
@@ -377,10 +405,10 @@ void draw_system(const Frame& f, const ui::Theme& t, float top, float dt, bool f
     }
     float list_top = top, list_bottom = BOTTOM - 8;
     for (int i = 0; pc_ui_shell_system_item(i, &id, &label, &help, &enabled, &reason); ++i) {
-        if (i == 0 || i == v.games) {
+        if (i == 0 || i == v.games || i == v.quit_first) {
             if (i)
                 y += 14;
-            uidraw::label(f, t, lx + 16, y + 4, i < v.games ? "Game" : "Settings", t.dim);
+            uidraw::label(f, t, lx + 16, y + 4, i < v.games ? "Game" : i < v.quit_first ? "Settings" : "Exit", t.dim);
             y += 24;
         }
         bool focus = i == v.item;
@@ -392,7 +420,7 @@ void draw_system(const Frame& f, const ui::Theme& t, float top, float dt, bool f
             m.hit(PC_UI_MOUSE_PAGE, i, lx, y, lx + lw, y + ENTRY_H);
         unsigned c = !enabled ? t.dim : focus ? t.bone : v.entered ? t.ash : t.bone;
         text(f, fonts.name, 18, lx + 16, y + (ENTRY_H - 18) * 0.5f - 2, c, label);
-        if (i >= v.games)
+        if (i >= v.games && i < v.quit_first)
             chevron(f, lx + lw - 16, y + ENTRY_H * 0.5f, 1, focus ? t.ash : t.dim, 0.8f);
         if (focus)
             focus_label = label, focus_help = help, focus_reason = reason, focus_id = id;
@@ -412,7 +440,11 @@ void draw_system(const Frame& f, const ui::Theme& t, float top, float dt, bool f
         float by = top + 60 + h + 14;
         f.dl->AddLine(f.p(x0, by), f.p(x1, by), t.rule, f.s(1));
         bool manual = !std::strcmp(focus_id, "manual"); // read here (ui_manual_draw.cpp); Square: the original
-        uidraw::label(f, t, x0, by + 14, manual ? "Read here, or on the game's own screen" : "Opens the game's own screen",
+        bool quit = !std::strncmp(focus_id, "quit_", 5);  // asks first (quit_options.h)
+        uidraw::label(f, t, x0, by + 14,
+            quit ? (pc_quit_needs_confirm(PC_QUIT_TITLE) ? "Asks first: unsaved progress will be lost"
+                                                         : "Nothing to lose here: quits at once")
+                 : manual ? "Read here, or on the game's own screen" : "Opens the game's own screen",
             t.dim);
         by += 38;
         if (focus_reason) {
@@ -421,7 +453,7 @@ void draw_system(const Frame& f, const ui::Theme& t, float top, float dt, bool f
         }
         card_end(f, t, card, by + 10);
         out.crumb += std::string(" > ") + focus_label;
-        out.hint(PC_PROMPT_CIRCLE, -1, manual ? "Read" : "Open", PC_UI_CONFIRM);
+        out.hint(PC_PROMPT_CIRCLE, -1, quit ? "Quit" : manual ? "Read" : "Open", PC_UI_CONFIRM);
         if (manual)
             out.hint(PC_PROMPT_SQUARE, -1, "Original screen", PC_UI_ALT);
         out.hint(PC_PROMPT_CROSS, -1, "Close", PC_UI_BACK);

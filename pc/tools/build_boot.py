@@ -1151,7 +1151,7 @@ for name in ["runtime", "window", "controller", "gamepad"]:
             and name in STATE_HOST_UNITS:
         state_sections(obj)
     objects.append(obj)
-for name in ["ownership", "audio_libspu", "audio_output", "input_record", "cd_drive", "xa_audio", "mdec", "memory_card", "dev_rpc", "charge_skip", "camera_stick", "gl_present", "gpu_hw", "render", "render_state", "room_native", "gameplay_walls", "occlusion", "room_effects", "actor_native", "effect_native", "scene_capture", "floor_grid", "shadows", "ptgi", "glows", "overlay_statics", "ui_upscale", "antialias", "ui_text", "button_prompts", "ui_bubbles", "ui_emotes", "room_catalog", "fast_travel_rules", "ui/item_names", "ui/vs_encode", "ui/manual_parse", "ui/manual_cache", "ui/data_plan", "ui/score_format", "ui/score_nav", "ui/mon_parse", "ui/score_mon", "snapshot", "state_diff", "state_rewind", "savestate_slots", "shadow", "frame_cost", "display_confirm", "ui/option_actions", "ui/options_nav", "ui/option_style", "ui/option_peek", "host_format", "classic/classic_parity"] + (["vk_core", "vk_hw", "vk_present", "vk_shadows"] if arch64 else []) \
+for name in ["ownership", "audio_libspu", "audio_output", "input_record", "cd_drive", "xa_audio", "mdec", "memory_card", "dev_rpc", "charge_skip", "camera_stick", "gl_present", "gpu_hw", "render", "render_state", "room_native", "gameplay_walls", "occlusion", "room_effects", "actor_native", "effect_native", "scene_capture", "floor_grid", "shadows", "ptgi", "glows", "overlay_statics", "ui_upscale", "antialias", "ui_text", "button_prompts", "ui_bubbles", "ui_emotes", "room_catalog", "fast_travel_rules", "ui/item_names", "ui/vs_encode", "ui/manual_parse", "ui/manual_cache", "ui/data_plan", "ui/score_format", "ui/score_nav", "ui/mon_parse", "ui/score_mon", "snapshot", "state_diff", "state_rewind", "savestate_slots", "shadow", "frame_cost", "display_confirm", "quit_options", "ui/option_actions", "ui/options_nav", "ui/option_style", "ui/option_peek", "host_format", "classic/classic_parity"] + (["vk_core", "vk_hw", "vk_present", "vk_shadows"] if arch64 else []) \
         + (["engine_host", "engine_reload"] if engine_library else []):
     obj = out / (name.replace("/", "_") + ".o")
     # ui_text rasterizes fonts with the stb_truetype that Dear ImGui vendors.
@@ -1325,6 +1325,8 @@ for source in [
     root / "pc/src/photo_capture.cpp",
     root / "pc/src/photo_input.cpp",
     root / "pc/src/cutscene.cpp",
+    root / "pc/src/cutscene_sequencer.cpp",
+    root / "pc/src/cutscene_camera.cpp",
     root / "pc/src/cutscene_panel.cpp",
     root / "pc/src/fog_sim.cpp",
     root / "pc/src/particles.cpp",
@@ -1467,9 +1469,10 @@ if arch64:
     report = write_report(out, arch64_results)
     print(f"64-bit pass: {report}")
     if any(code for _, _, code, _ in arch64_results):
-        if win:  # a previous rood.exe would otherwise look freshly built
-            raise SystemExit(f"Windows build: units failed to compile (see {report})")
-        raise SystemExit(0)  # measurement only until every unit compiles
+        # Reports survive failure, but an old executable must never make this
+        # build look successful. The stamp stays invalid until finish().
+        platform = "Windows" if win else "Linux64"
+        raise SystemExit(f"{platform} build: units failed to compile (see {report})")
 # SDK/function imports are explicit fail-fast traps. Data imports retain original
 # addresses into the private disc image. Never emit a callable MIPS address.
 addresses = {}

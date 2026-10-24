@@ -39,7 +39,7 @@ and writes lighting/<pack>/generated/zoneZZ_roomRR.txt (lighting/README.md):
   "light gen.window_<entry>.<hash>" fitted to the pane's polygons (coplanar
   polygons of the entry's textures that touch), facing into the room from
   the pane's front, in the colour of the pane's glowing texels (its mask's
-  CLUT indices) times the entry's tint, with the entry's intensity, radius
+  shapes and filters) times the entry's tint, with the entry's intensity, radius
   and offset (what "Fit rect light to window" does in the editor).
 
 The type's parameters, light offset, fixture radius and glow treatment are
@@ -155,20 +155,82 @@ def load_window_entries(path=EMISSIVE_CATALOG):
     return [e for e in entries if e.get("enabled", True) and isinstance(e.get("rect_light"), dict)]
 
 
+def window_match(e, r, p, vram):
+    """First matching texture use allowed by the entry's room/surface scope."""
+    scope = e.get("scope") or {}
+    room = [r["zone"], r["room"]]
+    if scope.get("rooms") and room not in [list(x) for x in scope["rooms"]]:
+        return None
+    surfaces = scope.get("surfaces") or []
+    if surfaces or scope.get("models"):
+        if not any(list(s["room"]) == room and p["off"] in s.get("polygons", []) for s in surfaces):
+            return None  # models never authorize room geometry
+    for m in e.get("match", []):
+        if m["key"] != p["ikey"]:
+            continue
+        if m.get("clut"):
+            depth = (p["tpage"] >> 7) & 3
+            if depth >= 2:
+                continue
+            cx, cy = (p["clut"] & 63) * 16, (p["clut"] >> 6) & 511
+            palette = vram[cy, (cx + np.arange(16 if depth == 0 else 256)) & 1023]
+            if hashlib.md5(palette.astype("<u2").tobytes()).hexdigest()[:10] != m["clut"]:
+                continue
+        return m
+    return None
+
+
+def window_texels(e, m, p, vram):
+    """Glowing texels in this UV box; shapes union, filters intersect (emissive.cpp)."""
+    mask = e.get("mask") or {}
+    if mask.get("map"):
+        raise ValueError(f"{e['id']}: generated rect lights do not support painted masks")
+    us, vs = p["uv"][:, 0], p["uv"][:, 1]
+    gu, gv = np.meshgrid(np.arange(us.min(), us.max() + 1), np.arange(vs.min(), vs.max() + 1))
+    ox, oy = m.get("offset", [0, 0])
+    x, y = gu - us.min() + ox, gv - vs.min() + oy
+    rects, polygons = mask.get("rects", []), mask.get("polygons", [])
+    covered = np.full(x.shape, not (rects or polygons), dtype=bool)
+    for x0, y0, x1, y1 in rects:
+        covered |= (x >= x0) & (y >= y0) & (x < x1) & (y < y1)
+    for polygon in polygons:
+        inside = np.zeros(x.shape, dtype=bool)
+        px, py = x + 0.5, y + 0.5
+        for a, b in zip(polygon, polygon[-1:] + polygon[:-1]):
+            if a[1] != b[1]:
+                inside ^= ((a[1] > py) != (b[1] > py)) & (
+                    px < (b[0] - a[0]) * (py - a[1]) / (b[1] - a[1]) + a[0])
+        covered |= inside
+    t, indices = fl.texel(vram, gu, gv, p["tpage"], p["clut"])
+    covered &= t != 0
+    if "indices" in mask and ((p["tpage"] >> 7) & 3) < 2:
+        covered &= np.isin(indices, mask["indices"])
+    rgb = fl.rgb15(t)
+    covered &= np.all(rgb * 31 >= np.array(mask.get("color_min", [0, 0, 0])), axis=-1)
+    covered &= np.all(rgb * 31 <= np.array(mask.get("color_max", [31, 31, 31])), axis=-1)
+    lo, hi = mask.get("luma", [0, 1])
+    luma = rgb @ np.array([0.299, 0.587, 0.114])
+    covered &= (luma >= lo - 0.5 / 255) & (luma <= hi + 0.5 / 255)
+    return rgb[covered]
+
+
 def window_lights(entries, r, vram, stats):
     """Rect lights fitted to the panes of window entries (load_window_entries) in room r."""
     items = []
     polys = r["polys"]
     for e in entries:
-        rooms = (e.get("scope") or {}).get("rooms")
-        if rooms and [r["zone"], r["room"]] not in [list(x) for x in rooms]:
-            continue
-        keys = {m["key"] for m in e.get("match", [])}
-        idx = [i for i, p in enumerate(polys) if p["ikey"] in keys and fl.captured(p)]
+        colors = {}
+        for i, p in enumerate(polys):
+            if not fl.captured(p):
+                continue
+            m = window_match(e, r, p, vram)
+            if m is not None:
+                texels = window_texels(e, m, p, vram)
+                colors[i] = (texels.sum(0), len(texels))
+        idx = list(colors)
         if not idx:
             continue
         spec = e["rect_light"]
-        indices = set((e.get("mask") or {}).get("indices") or range(256))
         # panes: coplanar polygons whose bounds touch (4 units)
         uf = fl.UF(len(idx))
         lo = [polys[i]["V"].min(0) - 4 for i in idx]
@@ -200,6 +262,9 @@ def window_lights(entries, r, vram, stats):
             panes = list(walls.values())
             stats["window_walls"] += 1
         for members in panes:
+            count = sum(colors[i][1] for i in members)
+            if not count:
+                continue  # A fully masked-out pane is not a white light.
             pts = np.concatenate([polys[i]["V"] for i in members])
             area = sum(polys[i]["area"] for i in members)
             n = -sum(polys[i]["normal"] * polys[i]["area"] for i in members)  # the front: -(e1 x e2)
@@ -214,18 +279,8 @@ def window_lights(entries, r, vram, stats):
             centre = pts.mean(0)
             centre = centre + right * ((u.max() + u.min()) / 2 - float(centre @ right)) \
                 + up * ((v.max() + v.min()) / 2 - float(centre @ up))
-            # the pane's colour: its glowing texels' mean (the mask's CLUT indices), x the tint
-            rgb, count = np.zeros(3), 0
-            for i in members:
-                p = polys[i]
-                us, vs = p["uv"][:, 0], p["uv"][:, 1]
-                gu, gv = np.meshgrid(np.arange(us.min(), us.max() + 1), np.arange(vs.min(), vs.max() + 1))
-                t, ii = fl.texel(vram, gu, gv, p["tpage"], p["clut"])
-                ok = np.isin(ii, list(indices)) & (t != 0)
-                if ok.any():
-                    rgb += fl.rgb15(t[ok]).sum(0)
-                    count += int(ok.sum())
-            rgb = rgb / count if count else np.ones(3)
+            # Only texels passing the matched use's full mask contribute.
+            rgb = sum(colors[i][0] for i in members) / count
             rgb = rgb * np.array(e.get("color", [1, 1, 1]), float)
             rgb = rgb / max(float(rgb.max()), 1e-6)
             pos = centre + n * spec.get("offset", 2)

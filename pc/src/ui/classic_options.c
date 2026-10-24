@@ -18,7 +18,11 @@
  *     at rowInfo 3: flag 4 on the current choice, flag 1 on unavailable ones)
  *     with the row hoisted as its title; a risky display change asks "Keep
  *     these settings?" the same way (KEEP / REVERT, the seconds left in the
- *     information box; display_confirm.h).
+ *     information box; display_confirm.h);
+ *   - after the pages come two entries that are not pages: Quit to title and
+ *     Quit to desktop (quit_options.h). Circle on one asks "Unsaved progress
+ *     will be lost." in the information box with the same flyout, YES / NO,
+ *     the cursor on NO; YES quits, NO (or Cross) is back to the list.
  *
  * Text goes through vs_encode (the game's charset; capitals as the game's
  * own rows, classic_uppercase), so ui_text restyles it like the game's.
@@ -47,6 +51,7 @@
 #include "ui_settings.h"
 #include "vs_encode.h"
 #include "../display_confirm.h"
+#include "../quit_options.h"
 #include "../host_format.h" /* pc_format, pc_log_line, pc_host_seconds */
 #include <libetc.h>
 #include <string.h>
@@ -63,10 +68,11 @@
 #define GLYPH_END 0xE7
 #define GLYPH_SPACING 0xFA
 
-enum { S_NONE, S_ENTER, S_PAGE, S_SWAP, S_FLY_WAIT, S_FLY, S_CONFIRM_WAIT, S_CONFIRM, S_BACK, S_LEAVE };
+enum { S_NONE, S_ENTER, S_PAGE, S_SWAP, S_FLY_WAIT, S_FLY, S_CONFIRM_WAIT, S_CONFIRM, S_BACK, S_LEAVE, S_QUIT_WAIT,
+    S_QUIT };
 /* (RPC options' screen: a list takes input in "page", "flyout", "confirm" and MENU8's "list") */
 static const char* const STATE_NAMES[] = { "none", "entering", "page", "entering", "entering", "flyout", "entering",
-    "confirm", "entering", "leaving" };
+    "confirm", "entering", "leaving", "entering", "quit" };
 
 typedef struct {
     char id[64];
@@ -96,6 +102,7 @@ static struct {
     unsigned short fly_names[16][16], fly_help[16][48];
     /* the confirm */
     int confirm_focus, confirm_placed, confirm_shown;
+    int quit, quit_done;       /* the Quit entry opened (PC_QUIT_*), 0 a page; YES answered */
     int info_seconds;
     char info_key[512];        /* the help the information box shows, whole (its lines take turns) */
     int entries_built;         /* MENU8's list has our entries */
@@ -740,9 +747,8 @@ static void confirm_info(void)
     pc_format(text, sizeof text, "Keep these settings? Reverts in %d s.", s);
     info(text);
 }
-static void confirm_place(void)
+static void confirm_place_names(const char* const names[2])
 {
-    static const char* const names[2] = { "Keep", "Revert" };
     for (int k = 0; k < 2; k++) {
         u_char g[16];
         int n = encode(names[k], g, sizeof g, style(PC_STYLE_UPPERCASE));
@@ -751,6 +757,11 @@ static void confirm_place(void)
         item->state = menuItemStateSlideX;
         item->targetPosition0 = 194;
     }
+}
+static void confirm_place(void)
+{
+    static const char* const names[2] = { "Keep", "Revert" };
+    confirm_place_names(names);
 }
 static void confirm_done(int keep)
 {
@@ -917,21 +928,31 @@ static void refresh_items(void)
 
 /* ---- the protocol ---- */
 
+#define QUIT_ENTRIES 2
+static const char* const QUIT_TITLE[QUIT_ENTRIES] = { "Quit to title", "Quit to desktop" };
+static const char* const QUIT_HELP[QUIT_ENTRIES] = { "Back to the title screen, as a soft reset does.",
+    "Close the game. Settings are saved." };
+static const char* const QUIT_ID[QUIT_ENTRIES] = { "quit_title", "quit_desktop" };
+
 int pc_options_entries(char** strings, int* types, int max)
 {
     static u_short names[PC_OPTIONS_ENTRIES][16], helps[PC_OPTIONS_ENTRIES][48];
-    int pages[PC_OPTIONS_ENTRIES], n = pc_option_pages_children(-1, pages, PC_OPTIONS_ENTRIES), i;
-    if (n > max)
-        n = max;
-    if (n > PC_OPTIONS_ENTRIES)
-        n = PC_OPTIONS_ENTRIES;
-    for (i = 0; i < n; i++) {
+    int pages[PC_OPTIONS_ENTRIES], n = pc_option_pages_children(-1, pages, PC_OPTIONS_ENTRIES - QUIT_ENTRIES), i;
+    int total;
+    if (n > max - QUIT_ENTRIES)
+        n = max - QUIT_ENTRIES;
+    if (n > PC_OPTIONS_ENTRIES - QUIT_ENTRIES)
+        n = PC_OPTIONS_ENTRIES - QUIT_ENTRIES;
+    total = n + QUIT_ENTRIES;
+    for (i = 0; i < total; i++) {
         pc_option_page p;
         u_char g[TEXT];
         int k;
         memset(names[i], 0, sizeof names[i]);
         memset(helps[i], 0, sizeof helps[i]);
-        if (!pc_option_pages_info(pages[i], &p))
+        if (i >= n) { /* Quit to title, Quit to desktop */
+            p.title = QUIT_TITLE[i - n], p.help = QUIT_HELP[i - n];
+        } else if (!pc_option_pages_info(pages[i], &p))
             p.title = "?", p.help = "";
         k = encode(p.title, g, sizeof g - 3, style(PC_STYLE_UPPERCASE));
         k = fit(g, k, 120, p.title);
@@ -947,7 +968,16 @@ int pc_options_entries(char** strings, int* types, int max)
         types[i] = 0;
     }
     S.entries_built = 1;
-    return n;
+    return total;
+}
+
+/* The game left the Option screen without its close path (a soft reset, Quit to title: menu_bridge.c). */
+void pc_options_reset(void)
+{
+    S.state = S_NONE;
+    S.quit = S.quit_done = 0;
+    S.entries_built = 0;
+    S.info_key[0] = 0;
 }
 
 void pc_options_open(int entry)
@@ -961,6 +991,7 @@ void pc_options_open(int entry)
     S.focus_id[0] = 0;
     S.info_key[0] = 0;
     S.page_id[0] = 0;
+    S.quit = S.quit_done = 0;
     S.title_item = -1;
     for (int i = 10; i < 20; i++) /* the row MENU8 hoisted (vs_mainMenu_flyoutMenuRightAndHoistSelection) */
         if (vs_battle_getMenuItem(i)->state == 4)
@@ -969,6 +1000,12 @@ void pc_options_open(int entry)
         pc_format(S.page_id, sizeof S.page_id, "%s", p.id);
     S.state = S_ENTER;
     S.placed = -1;
+    if (entry >= n && entry < n + QUIT_ENTRIES) { /* Quit to title / Quit to desktop: the question, no rows */
+        S.quit = entry - n == 0 ? PC_QUIT_TITLE : PC_QUIT_DESKTOP;
+        S.confirm_focus = 1; /* NO */
+        S.info_key[0] = 0;
+        S.state = S_QUIT_WAIT;
+    }
 }
 
 int pc_options_exec(void)
@@ -1092,6 +1129,52 @@ int pc_options_exec(void)
         draw_cursor(FLY_BASE + S.confirm_focus);
         return 0;
     }
+    case S_QUIT_WAIT:
+        info(pc_quit_prompt_text());
+        if (vs_mainmenu_ready()) {
+            static const char* const names[2] = { "Yes", "No" };
+            confirm_place_names(names);
+            S.state = S_QUIT;
+        }
+        return 0;
+    case S_QUIT: {
+        u_int pressed = vs_main_buttonsPressed.all, repeat = (u_int)vs_main_buttonRepeat;
+        info(pc_quit_prompt_text());
+        if (S.quit_done) { /* YES: the quit waits for the game's next pad poll (to title) or has gone (desktop) */
+            draw_cursor(FLY_BASE);
+            return 0;
+        }
+        if (vs_mainmenu_ready()) {
+            if (pressed & PADRup) { /* Triangle: no, and the menu closes */
+                vs_battle_playMenuLeaveSfx();
+                leave(-2);
+                return 0;
+            }
+            if (pressed & PADRright) { /* Circle */
+                if (S.confirm_focus == 0) {
+                    vs_battle_playMenuSelectSfx();
+                    S.quit_done = 1;
+                    pc_quit_now(S.quit); /* (to title: the soft reset, in the menu as the chord is) */
+                    return 0;
+                }
+                vs_battle_playMenuLeaveSfx();
+                leave(-1);
+                return 0;
+            }
+            if (pressed & PADRdown) { /* Cross: no */
+                vs_battle_playMenuLeaveSfx();
+                leave(-1);
+                return 0;
+            }
+            if (repeat & (PADLup | PADLdown)) {
+                S.confirm_focus ^= 1;
+                vs_battle_playMenuChangeSfx();
+            }
+        }
+        vs_battle_getMenuItem(FLY_BASE + (S.confirm_focus ^ 1))->selected = 0;
+        draw_cursor(FLY_BASE + S.confirm_focus);
+        return 0;
+    }
     case S_BACK: /* the flyout or the confirm away, the rows back in */
         fly_out_rows();
         S.state = S_SWAP;
@@ -1181,13 +1264,20 @@ int pc_options_json(char* out, int size)
     }
     PUT("],\"entries\":[");
     {
-        int pages[PC_OPTIONS_ENTRIES], k = pc_option_pages_children(-1, pages, PC_OPTIONS_ENTRIES);
-        for (i = 0; i < k && i < PC_OPTIONS_ENTRIES; i++) {
+        int pages[PC_OPTIONS_ENTRIES], k = pc_option_pages_children(-1, pages, PC_OPTIONS_ENTRIES - QUIT_ENTRIES);
+        for (i = 0; i < k && i < PC_OPTIONS_ENTRIES - QUIT_ENTRIES; i++) {
             PUT("%s", i ? "," : "");
             TEXT_(pc_option_pages_info(pages[i], &p) ? p.id : "");
         }
+        for (int q = 0; q < QUIT_ENTRIES; q++) { /* (after the pages: not pages) */
+            PUT(",");
+            TEXT_(QUIT_ID[q]);
+        }
     }
-    PUT("],\"cut\":["); /* every page's labels the classic screen cuts (wider than their column) */
+    PUT("],\"quit\":{\"to\":\"%s\",\"focus\":\"%s\",\"done\":%s", S.state == S_QUIT && S.quit == PC_QUIT_TITLE ? "title" : S.state == S_QUIT ? "desktop" : "",
+        S.state == S_QUIT ? (S.confirm_focus ? "no" : "yes") : "", S.quit_done ? "true" : "false");
+    PUT("}");
+    PUT(",\"cut\":["); /* every page's labels the classic screen cuts (wider than their column) */
     {
         int first = 1;
         for (int pg = 0; pg < pc_option_pages_count(); pg++)

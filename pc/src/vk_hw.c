@@ -700,6 +700,8 @@ void pc_vk_hw_replay_copy(int x0, int y0, int x1, int y1)
     vk_barrier();
 }
 
+#include "vk_hw_photo.inc"
+
 /* ---- readbacks ---- */
 
 int pc_vk_hw_dump(const char* path, int replay)

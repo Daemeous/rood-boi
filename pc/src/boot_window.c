@@ -269,6 +269,9 @@ static int photo_blind(void)
 {
     return (&pc_photo_input_captured && pc_photo_input_captured) || (&pc_photo_rendering && pc_photo_rendering);
 }
+/* Raw host camera controls must respect binding capture, including the element held
+ * after capture completed (not merely whether the settings prompt is visible). */
+int pc_window_pad_captured(void) { return capture_filter(NULL); }
 unsigned pc_window_buttons(void)
 {
     if (&pc_photo_rendering && pc_photo_rendering)
@@ -992,6 +995,17 @@ int pc_window_inject_mouse(float x, float y, int button, int down)
     e.type = SDL_EVENT_MOUSE_MOTION;
     e.motion.windowID = SDL_GetWindowID(window);
     e.motion.x = x, e.motion.y = y;
+    /* Synthetic absolute points also carry the relative movement between
+     * injections, as a real SDL motion event does. The first point anchors
+     * the synthetic pointer without turning a relative-mode camera. */
+    static int injected_position_valid;
+    static float injected_x, injected_y;
+    if (injected_position_valid) {
+        e.motion.xrel = x - injected_x;
+        e.motion.yrel = y - injected_y;
+    }
+    injected_x = x, injected_y = y;
+    injected_position_valid = 1;
     if (!SDL_PushEvent(&e))
         return -1;
     memset(&e, 0, sizeof e);

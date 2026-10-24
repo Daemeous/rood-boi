@@ -38,6 +38,7 @@
 #include "camera_stick.h"
 #include <string>
 #include "fast_travel.h"
+#include "quit_options.h"
 #include "ui/ui_shell.h"
 #include "ui/map_frame.h"
 #include "ui/data_frame.h"
@@ -79,6 +80,8 @@ extern "C" void pc_fast_travel_prompt_hud(void);  /* fast_travel_prompt.cpp: the
 extern "C" int pc_editor_active(void);
 extern "C" void pc_editor_toggle(void);
 extern "C" int pc_editor_flying(void);
+extern "C" int pc_cutscene_camera_flying(void);
+extern "C" void pc_cutscene_camera_input(void);
 extern "C" void pc_editor_input(void);
 extern "C" void pc_editor_panel(void);
 extern "C" void pc_editor_grid(void);
@@ -533,10 +536,14 @@ extern "C" int pc_overlay_event(const SDL_Event* event)
             }
             return 1;
         }
-        if (!visible)
+        if (!visible && !cutscene::free_camera_on()) {
+            // A key pressed while flying may be released after the camera was returned.
+            if (!down)
+                ImGui_ImplSDL3_ProcessEvent(event);
             return 0;
+        }
         ImGui_ImplSDL3_ProcessEvent(event);
-        return 1; /* while the editor is open, the keyboard is the editor's (a gamepad still plays) */
+        return 1; /* the editor or cutscene camera owns the keyboard, even with F1 closed */
     }
     case SDL_EVENT_TEXT_INPUT:
     case SDL_EVENT_TEXT_EDITING:
@@ -567,7 +574,8 @@ extern "C" int pc_overlay_event(const SDL_Event* event)
              * against ImGui's pointer. A release always reaches ImGui: the
              * click that closed the shell must not leave its button held
              * there. */
-            if (!pc_ui_shell_drawn() && !pc_ui_map_visible() && !pc_ui_loot_visible() && !pc_ui_data_visible()) {
+            if (!cutscene::free_camera_on() && !pc_ui_shell_drawn() && !pc_ui_map_visible()
+                && !pc_ui_loot_visible() && !pc_ui_data_visible()) {
                 if (event->type == SDL_EVENT_MOUSE_BUTTON_UP)
                     ImGui_ImplSDL3_ProcessEvent(&scaled);
                 return 0;
@@ -590,7 +598,7 @@ extern "C" int pc_overlay_event(const SDL_Event* event)
  * put the pointer back where the drag began. */
 static void update_relative_mouse()
 {
-    bool want = pc_editor_flying() != 0;
+    bool want = (!pc_editor_photo_camera() && pc_editor_flying()) || pc_cutscene_camera_flying();
     if (want == relative)
         return;
     if (want)
@@ -1392,6 +1400,38 @@ static void edit_menu()
     ImGui::TextDisabled("History: this room visit, %d steps kept", PC_UNDO_LIMIT);
 }
 
+/* File > Quit to title / Quit to desktop (quit_options.h): the question is this window's own modal (the menus'
+ * are the System page's and the classic Option screen's); where nothing can be lost it quits at once. */
+static int quit_menu_pick, quit_menu_ask;
+
+static void quit_modal()
+{
+    if (quit_menu_pick) {
+        if (pc_quit_needs_confirm(quit_menu_pick)) {
+            quit_menu_ask = quit_menu_pick;
+            ImGui::OpenPopup("Quit?");
+        } else
+            pc_quit_now(quit_menu_pick);
+        quit_menu_pick = 0;
+    }
+    if (ImGui::BeginPopupModal("Quit?", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::TextUnformatted(quit_menu_ask == PC_QUIT_TITLE ? "Quit to title?" : "Quit to desktop?");
+        ImGui::TextUnformatted(pc_quit_prompt_text());
+        ImGui::Separator();
+        if (ImGui::Button("Yes", ImVec2(90, 0))) {
+            int to = quit_menu_ask;
+            ImGui::CloseCurrentPopup();
+            pc_quit_now(to);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("No", ImVec2(90, 0)) || ImGui::IsKeyPressed(ImGuiKey_Escape))
+            ImGui::CloseCurrentPopup();
+        if (ImGui::IsWindowAppearing())
+            ImGui::SetKeyboardFocusHere(-1); /* No has the focus */
+        ImGui::EndPopup();
+    }
+}
+
 static void menu_bar(float* height)
 {
     if (!ImGui::BeginMainMenuBar())
@@ -1409,6 +1449,11 @@ static void menu_bar(float* height)
             pc_settings_load();
         ImGui::Separator();
         ImGui::MenuItem("Memory cards...", nullptr, &show_memory_cards);
+        ImGui::Separator();
+        if (ImGui::MenuItem("Quit to title"))
+            quit_menu_pick = PC_QUIT_TITLE;
+        if (ImGui::MenuItem("Quit to desktop"))
+            quit_menu_pick = PC_QUIT_DESKTOP;
         ImGui::EndMenu();
     }
     if (ImGui::BeginMenu("Edit")) {
@@ -1463,6 +1508,7 @@ static void menu_bar(float* height)
                : (pc_editor_active() ? "Free camera, playing" : "Playing"));
     *height = ImGui::GetWindowSize().y;
     ImGui::EndMainMenuBar();
+    quit_modal();
 }
 
 /* Seeing into rooms from the free camera (room_editor.h): the game's own
@@ -2201,7 +2247,7 @@ static void viewport_keys()
         return;
     /* Flying the camera (right mouse held in the view): the keys are WASD/QE
      * and their modifiers, never editor shortcuts (Ctrl+D would duplicate). */
-    bool flying = pc_editor_flying() != 0;
+    bool flying = (!pc_editor_photo_camera() && pc_editor_flying()) || pc_cutscene_camera_flying();
     if (!flying)
         editor_shortcuts();
     if (io.WantCaptureMouse)
@@ -2300,8 +2346,10 @@ extern "C" void pc_overlay_frame(int width, int height)
         ImGui::ClearActiveID();
         ImGui::SetWindowFocus(nullptr);
     }
+    pc_cutscene_camera_input();
     if (pc_editor_active()) {
-        pc_editor_input();
+        if (!pc_editor_photo_camera())
+            pc_editor_input();
         if (!hidden_overlay.on)
             pc_editor_grid();
     }

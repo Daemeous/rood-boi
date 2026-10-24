@@ -11,6 +11,7 @@
 // Everything here runs on the game thread at the vsync boundary (dev_rpc.c's poll: pc_take_vsync once
 // per vsync, pc_take_idle in the paused loop) or in the input hooks during a frame.
 #include "cutscene_internal.h"
+#include "cutscene_sequencer.h"
 #include "light_prefabs.h"
 #include "photo.h"
 
@@ -340,6 +341,7 @@ void take_mark(int f)
 
 void end_take()
 {
+    cutscene::sequencer_end();
     drop_all_marks();
     take = Take();
     seek_target = -1;
@@ -355,6 +357,7 @@ void begin_take(const std::string& scene, const std::string& name, bool rolling)
     take.rolling = rolling;
     take.scene = scene;
     take.name = name;
+    cutscene::sequencer_begin(scene);
     take.start_vsync = pc_vsync_count();
     message = (rolling ? "instant replay: " : "take: ") + name;
 }
@@ -394,6 +397,7 @@ void on_frame(int f)
 /* Frames from f on dropped (the boundary f is kept): what plays from here is live and logged anew. */
 void truncate_at(int f)
 {
+    cutscene::sequencer_truncate(std::max(f, take.first));
     if (f >= take.head)
         return;
     f = std::max(f, take.first);
@@ -420,15 +424,19 @@ bool start_seek(int target, std::string* why)
     seek_target = target;
     pc_rpc_set_paused(1);
     playing = false;
+    // Rewind marks contain game state, not the renderer's in-flight native
+    // lists/targets. Replay a short lead-in instead of landing directly on a
+    // mark with an empty or stale picture. The requested game frame is unchanged.
+    int warm_from = std::max(take.first, target - 16);
     if (target >= f) {
-        const Mark* m = mark_at_or_before(target);
+        const Mark* m = mark_at_or_before(warm_from);
         if (!m || m->frame <= f || target == f) {
             if (target > f)
                 pc_rpc_request_step(target - f);
             return true;
         }
     }
-    const Mark* m = mark_at_or_before(target);
+    const Mark* m = mark_at_or_before(warm_from);
     if (!m) {
         seek_target = -1;
         *why = "no mark at or before frame " + std::to_string(target);
@@ -440,6 +448,7 @@ bool start_seek(int target, std::string* why)
     take.replay_end = take.head;
     landing = true;
     char error[160] = "";
+    pc_room_look_clear(); // Never carry a transient look through a restored room's baseline.
     pc_snapshot_rewind_slot(TAKE_FIRST + m->slot, error, (int)sizeof error); /* does not return when it rewinds */
     landing = false;
     seek_target = -1;
@@ -925,6 +934,7 @@ void service(bool vsync)
         take.on = true;
         take.scene = jump_state.scene;
         take.name = jump_state.name;
+        cutscene::sequencer_begin(take.scene);
         take.start_vsync = v - (unsigned)jump_state.base;
         take.first = jump_state.base;
         take.frames.swap(jump_state.frames);
@@ -977,8 +987,10 @@ void service(bool vsync)
     int f = (int)(v - take.start_vsync);
     if (vsync) {
         auto_advance(f);
-        if (!take.rolling && f >= take.head - 1)
-            note_event();
+        if (f >= take.head - 1 && f >= take.replay_end) {
+            cutscene::sequencer_sample(f, cutscene::event_info());
+            if (!take.rolling) note_event();
+        }
     }
     if (landing) {
         landing = false; /* at the mark (state_rewind.c restored it; dev_rpc.c paused) */
@@ -992,6 +1004,8 @@ void service(bool vsync)
         take.scan_frame = -1;
         on_frame(f);
     }
+    cutscene::sequencer_prune(take.first);
+    cutscene::sequencer_evaluate(f);
     seek_service(f);
     capture_service(f);
 }
@@ -1265,14 +1279,30 @@ Status status()
     s.mark_ms = mark_ms;
     s.divergences = take.divergences;
     s.start_vsync = take.start_vsync;
-    if (recipe.on)
-        s.recipe = recipe.scene.kind + " " + std::to_string(recipe.phase);
+    if (recipe.on) {
+        if (recipe.scene.kind == "story") {
+            int phase = pc_story_phase ? pc_story_phase() : 0;
+            if (recipe.phase <= 2)
+                s.recipe = "Starting the game";
+            else if (recipe.phase == 3 && phase < 3)
+                s.recipe = "Loading room " + std::to_string(recipe.scene.zone) + "/" + std::to_string(recipe.scene.room);
+            else
+                s.recipe = "Reaching the scene's event";
+        } else {
+            s.recipe = "Reaching " + recipe.scene.kind;
+        }
+        s.recipe += " - " + std::to_string(recipe.waited) + " frames elapsed";
+    }
     s.capturing = capture_left > 0;
     s.capture_left = capture_left;
     s.last_capture = last_capture;
     s.capture_error = capture_error;
     s.repro_path = repro_path;
     s.message = message;
+    if (!look_error().empty())
+        s.message += "; lighting override error: " + look_error();
+    if (*pc_photo_last_error())
+        s.message += std::string("; last photo error: ") + pc_photo_last_error();
     s.busy = recipe.on || seek_target >= 0 || capture_left > 0 || repro_frame >= 0 || jump_state.pending
         || jump_state.landing || landing;
     return s;
@@ -1601,6 +1631,8 @@ extern "C" int pc_take_rpc(const char* params, char* out, int size)
         return false;
     };
     std::string action = str("action", "status");
+    if (action == "tracks" || action == "look")
+        return cutscene::sequencer_rpc(p, out, size);
     bool ok = true;
     int n;
     if (action == "status") {

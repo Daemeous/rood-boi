@@ -40,6 +40,10 @@ int pc_snapshot_slot_valid(int slot) __attribute__((weak));
 unsigned pc_vsync_count(void);
 unsigned pc_battle_frame_count(void) __attribute__((weak));
 void pc_hw_resync(void) __attribute__((weak));
+int pc_hw_photo_mark(void) __attribute__((weak));
+int pc_hw_photo_prepare(void) __attribute__((weak));
+int pc_hw_photo_restore(void) __attribute__((weak));
+void pc_hw_photo_drop(void) __attribute__((weak));
 extern int pc_hw_active __attribute__((weak));
 extern int pc_game_phase __attribute__((weak)); /* boot_runtime.c: 1 title, 2 attract demo */
 extern unsigned int vs_battle_screenTransitionStep __attribute__((weak)); /* 146C.c: a room transition */
@@ -54,6 +58,8 @@ const char* const PHASES[] = { "running", "asked", "held", "rendering" };
 Phase phase = RUNNING;
 std::vector<std::string> pausers;
 bool redraw_wanted;  /* a render asked for */
+bool restore_wanted; /* camera finish restores the presentation even if another owner still pauses */
+bool view_borrowed, view_captured; /* checkpoint belongs to the camera session, not the whole pause */
 bool landing;        /* a render's rewind is under way: the next poll is at M again */
 bool rendered;       /* a render ran since the hold began (resync at resume) */
 unsigned held_vsync; /* M */
@@ -188,7 +194,7 @@ std::string photo::json_quote(const std::string& s)
     return out + "\"";
 }
 bool photo::paused() { return phase != RUNNING; }
-bool photo::settled() { return phase == RUNNING || (phase == HELD && !redraw_wanted && !landing); }
+bool photo::settled() { return phase == RUNNING || (phase == HELD && !redraw_wanted && !restore_wanted && !landing); }
 unsigned photo::game_frames() { return pc_battle_frame_count ? pc_battle_frame_count() : 0; }
 
 using photo::contains;
@@ -198,6 +204,67 @@ using photo::now_seconds;
 /* ------------------------------------------------------------ the poll (dev_rpc.c) */
 
 extern "C" int pc_photo_holding(void) { return phase == HELD; }
+extern "C" int pc_photo_restoring(void) { return restore_wanted; }
+extern "C" const char* pc_photo_last_error(void) { return last_error.c_str(); }
+
+extern "C" int pc_photo_prepare_view(void)
+{
+    if (restore_wanted || !pc_hw_photo_prepare || !pc_hw_photo_prepare())
+        return 0;
+    view_borrowed = true;
+    view_captured = false;
+    return 1;
+}
+
+extern "C" void pc_photo_restore_view(void)
+{
+    restore_wanted = true;
+    redraw_wanted = false;
+}
+
+extern "C" void pc_photo_state_replaced(void)
+{
+    char owner[256];
+    bool had_camera = pc_photo_camera_owner(owner, sizeof owner) != 0;
+    if (had_camera) {
+        pc_photo_camera_finish(owner);
+        photo::notify(owner, "camera", "the game's state was replaced");
+    }
+    restore_wanted = false;
+    view_borrowed = view_captured = false;
+    // Called after guest memory changes, before hardware resync. Numeric vsync
+    // equality is not identity: seeking to another mark at M also invalidates
+    // the old image. Preserve other plugins' holds, but never restore that image.
+    if (pc_hw_photo_drop)
+        pc_hw_photo_drop();
+    if (pc_snapshot_drop_slot)
+        pc_snapshot_drop_slot(SLOT);
+    redraw_wanted = !pausers.empty() && (had_camera || redraw_wanted || rendered);
+    rendered = false;
+    if (phase == RENDERING || landing)
+        phase = HELD;
+    landing = false;
+    pc_photo_rendering = 0;
+    held_vsync = pc_vsync_count();
+    audio_next = 0;
+    audio_moved = false;
+}
+
+static void redraw_failed()
+{
+    char owner[256];
+    if (pc_photo_camera_owner(owner, sizeof owner)) {
+        pc_photo_camera_finish(owner);
+        photo::notify(owner, "camera", last_error.c_str());
+    }
+    redraw_wanted = false;
+    if (!view_captured) {
+        // No borrowed image was drawn: undo ownership, not the original picture.
+        restore_wanted = view_borrowed = false;
+        if (pc_hw_photo_drop)
+            pc_hw_photo_drop();
+    }
+}
 
 extern "C" int pc_photo_poll(void)
 {
@@ -228,6 +295,10 @@ extern "C" int pc_photo_poll(void)
     if (phase == ASKED) {
         if (pausers.empty()) {
             phase = RUNNING;
+            restore_wanted = redraw_wanted = false;
+            view_borrowed = view_captured = false;
+            if (pc_hw_photo_drop)
+                pc_hw_photo_drop();
             return 0;
         }
         std::string why = unsafe();
@@ -246,13 +317,35 @@ extern "C" int pc_photo_poll(void)
         /* Another state replaced the held one (a save state loaded, the RPC's rewind): held there now. */
         fprintf(stderr, "[photo] the game's state was replaced (vsync %u, held %u): held there\n", pc_vsync_count(),
             held_vsync);
-        held_vsync = pc_vsync_count();
-        if (pc_snapshot_drop_slot)
-            pc_snapshot_drop_slot(SLOT);
-        if (rendered)
-            redraw_wanted = true; /* (the picture is the old moment's) */
+        pc_photo_state_replaced();
     }
-    if (pausers.empty()) {
+    // The game is held at M, but its last presentation may be M-1. Restore
+    // that renderer checkpoint rather than running M again with no camera
+    // override (which produces a different camera and picture).
+    if (restore_wanted || (pausers.empty() && view_captured)) {
+        if (view_captured) {
+            double started = now_seconds();
+            if (!pc_hw_photo_restore || !pc_hw_photo_restore()) {
+                last_error = "cannot restore the original presentation: renderer configuration changed";
+                fprintf(stderr, "[photo] %s\n", last_error.c_str());
+                if (pc_hw_resync)
+                    pc_hw_resync();
+            } else {
+                // Compatibility: renders counts completed presentation updates,
+                // including a restore (zero simulated game vsyncs).
+                ++renders;
+                render_vsyncs = 0;
+                last_render_ms = (now_seconds() - started) * 1000;
+            }
+            rendered = false;
+        }
+        if (pc_hw_photo_drop)
+            pc_hw_photo_drop();
+        view_borrowed = view_captured = false;
+        restore_wanted = false;
+        redraw_wanted = false;
+    }
+    if (pausers.empty() && !redraw_wanted) {
         phase = RUNNING;
         redraw_wanted = false;
         audio_next = 0;
@@ -262,6 +355,9 @@ extern "C" int pc_photo_poll(void)
         if (rendered && pc_hw_resync)
             pc_hw_resync(); /* the hardware target is M's again (the renders' pictures were not) */
         rendered = false;
+        view_borrowed = view_captured = false;
+        if (pc_hw_photo_drop)
+            pc_hw_photo_drop();
         if (pc_snapshot_drop_slot)
             pc_snapshot_drop_slot(SLOT);
         fprintf(stderr, "[photo] resumed at vsync %u\n", pc_vsync_count());
@@ -273,10 +369,12 @@ extern "C" int pc_photo_poll(void)
     redraw_wanted = false;
     if (!(&pc_hw_active && pc_hw_active)) {
         last_error = "a render needs the hardware renderer";
+        redraw_failed();
         return 0;
     }
     if (!pc_snapshot_mark_slot || !pc_snapshot_rewind_slot) {
         last_error = "a render needs save states (x86)";
+        redraw_failed();
         return 0;
     }
     if (audio_moved && pc_snapshot_drop_slot) /* the sound went on: the moment a render returns to is now */
@@ -287,8 +385,17 @@ extern "C" int pc_photo_poll(void)
         if (pc_snapshot_mark_slot(SLOT, error, (int)sizeof error)) {
             last_error = std::string("cannot keep the moment: ") + error;
             fprintf(stderr, "[photo] %s\n", last_error.c_str());
+            redraw_failed();
             return 0;
         }
+    }
+    if (view_borrowed) {
+        if (!pc_hw_photo_mark || !pc_hw_photo_mark()) {
+            last_error = "cannot keep the presented image";
+            redraw_failed();
+            return 0;
+        }
+        view_captured = true;
     }
     /* A render: this vsync and the next ones run from M, then back to it. The hardware target starts
      * from M's VRAM (the last render left its own). */
@@ -355,8 +462,13 @@ extern "C" void pc_photo_resume(const char* owner)
 {
     pc_photo_pause_audio(owner, PC_PHOTO_AUDIO_STOP, 1);
     pausers.erase(std::remove(pausers.begin(), pausers.end(), owner), pausers.end());
-    if (pausers.empty() && phase == ASKED)
+    if (pausers.empty() && phase == ASKED) {
         phase = RUNNING;
+        restore_wanted = redraw_wanted = false;
+        view_borrowed = view_captured = false;
+        if (pc_hw_photo_drop)
+            pc_hw_photo_drop();
+    }
 }
 extern "C" void pc_photo_pause_audio(const char* owner, int mode, float gain)
 {
@@ -402,6 +514,13 @@ extern "C" int pc_photo_engine_unload(char* why, int size)
         return -1;
     }
     pc_photo_release_all();
+    if (view_captured && pc_hw_photo_restore)
+        pc_hw_photo_restore();
+    if (pc_hw_photo_drop)
+        pc_hw_photo_drop();
+    rendered = false;
+    restore_wanted = false;
+    view_borrowed = view_captured = false;
     for (const photo::Part& p : photo::parts())
         p.reset();
     /* Held: the state is M's (renders rewind); resumed here, the next library runs on from it. */

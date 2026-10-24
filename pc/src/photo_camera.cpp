@@ -17,6 +17,7 @@
 extern "C" {
 /* editor_view.cpp: the live free camera, borrowed */
 int pc_editor_photo_begin(void) __attribute__((weak));
+int pc_hw_photo_mark(void) __attribute__((weak));
 void pc_editor_photo_end(void) __attribute__((weak));
 int pc_editor_photo_get(float eye[3], float* yaw, float* pitch, float* roll, float* fov) __attribute__((weak));
 void pc_editor_photo_set(const float eye[3], float yaw, float pitch, float roll, float fov) __attribute__((weak));
@@ -114,6 +115,10 @@ extern "C" int pc_photo_camera_begin(const char* owner, char* why, int size)
         copy_out(why, size, "the game is not paused (rood.game.pause first)");
         return -1;
     }
+    if (pc_photo_restoring()) {
+        copy_out(why, size, "the previous camera is still restoring");
+        return -1;
+    }
     pc_game_query q;
     memset(&q, 0, sizeof q);
     if (pc_game_query_fill)
@@ -122,8 +127,21 @@ extern "C" int pc_photo_camera_begin(const char* owner, char* why, int size)
         copy_out(why, size, "no room to look at");
         return -1;
     }
+    // Allocation/copying belongs to the host poll, not a budgeted Lua callback.
+    // It checkpoints the actual presentation before the first borrowed render;
+    // failure releases this camera and reports photo.released without changing it.
+    if (!pc_hw_photo_mark) {
+        copy_out(why, size, "cannot keep the original presentation");
+        return -1;
+    }
     if (!pc_editor_photo_begin || !pc_editor_photo_begin()) {
         copy_out(why, size, "the camera needs the hardware renderer");
+        return -1;
+    }
+    if (!pc_photo_prepare_view()) {
+        if (pc_editor_photo_end)
+            pc_editor_photo_end();
+        copy_out(why, size, "cannot prepare the original presentation");
         return -1;
     }
     camera_owner = owner;
@@ -151,7 +169,7 @@ extern "C" void pc_photo_camera_finish(const char* owner)
     if (pc_editor_photo_end)
         pc_editor_photo_end();
     camera_owner.clear();
-    pc_photo_redraw(); /* the game's camera at M again */
+    pc_photo_restore_view(); /* restore the borrowed picture, even while another owner keeps M held */
 }
 extern "C" int pc_photo_camera_owner(char* out, int size)
 {

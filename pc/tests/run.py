@@ -179,7 +179,11 @@ def suites(args, mode="egl"):
                   ROOT / "pc/src/state_diff.c", ROOT / "pc/src/snapshot.c", ROOT / "pc/src/input_record.c"]),
         Suite("lighting_lint", [PY, str(ROOT / "pc/tools/lighting_lint.py")], 60, binary=None,
               note="lighting packs in lighting/: syntax, keys, ids, dangling overrides, rooms"),
+        Suite("window_lights", [PY, str(TESTS / "window_lights_test.py")], 60, binary=None,
+              note="disc-free rect-light matching: palettes, room surfaces, mask shapes and filters",
+              sources=[ROOT / "pc/tools/generate_lighting.py"]),
         Suite("emissive_catalog", [PY, str(TESTS / "emissive_catalog_test.py")], 300, binary=None,
+              sources=[ROOT / "pc/assets/emissive/catalog.json", ROOT / "pc/tools/generate_lighting.py"],
               note="curated emissive entries: masks, tints, light settings in range; with the disc, every room's "
                    "emissive glows within the 32 traced, window lights generated and at most 16 a room"),
         Suite("lp64_alias_scan", [PY, str(TESTS / "lp64_alias_scan_test.py")], 60, binary=None,
@@ -435,6 +439,9 @@ def suites(args, mode="egl"):
                            "hide list; the picture not black where the mesh projects) and the sky (Rue Vermillion, "
                            "looking up); the game's camera and culling exactly as before afterwards")]
           if args.save.exists() else []),
+        Suite("cutscene_sequencer_smoke", [PY, str(TESTS / "cutscene_sequencer_smoke.py")], 600,
+              note="sampled event tracks, exact key seek, scene lighting timing and save/reload; "
+                   "synthetic SDL camera input with F1 closed/open (private Xvfb for keyboard focus)"),
         Suite("cutscene_viewer_smoke", [PY, str(TESTS / "cutscene_viewer_smoke.py")], 900,
               note="the story scene viewer: five story scenes from five chapters started from the list on a fresh "
                    "load (from the title, then each from the one before) run their event (frames, script places, "
@@ -599,6 +606,11 @@ def suites(args, mode="egl"):
                       "KEEP / Cross / no answer (3 s, real time) / RPC keep; modern and classic rows = the page "
                       "model's for every core page")]
           if args.save.exists() else []),
+        *([Suite("quit_smoke", [PY, str(TESTS / "quit_smoke.py"), "--card", str(args.save)], 900,
+                 note="Quit to title (the soft reset's path) and Quit to desktop: the modern System entries, the "
+                      "classic Option screen's last two entries, the RPC quit {to}; No keeps the game, Yes goes "
+                      "(the title and Continue again; exit code 0 with the settings written)")]
+          if args.save.exists() else []),
         Suite("window_mode_smoke", [PY, str(TESTS / "window_mode_smoke.py"),
                                     *(["--card", str(args.save)] if args.save.exists() else [])], 300,
               note="window mode cycled both ways twice (save room): no device loss, presents go on, windowed "
@@ -724,13 +736,13 @@ CHECKPOINT_SUITES = {
     "ui_equip_smoke",
     "ui_system_smoke", "ui_abilities_smoke", "ui_items_smoke", "menu0_levelled_smoke", "fast_travel_smoke", "fast_travel_shell_smoke", "post_smoke", "dof_smoke", "dof_subject_smoke", "occlusion_smoke",
     "transition_fade_smoke", "title_fade_smoke", "ui_loot_smoke", "ui_workshop_smoke", "window_mode_smoke",
-    "options_classic_smoke", "options_confirm_smoke",
+    "options_classic_smoke", "options_confirm_smoke", "quit_smoke",
     "ui_map_smoke", "ui_manual_smoke", "hud_label_solid_smoke", "damage_numbers_smoke", "platform_shadow_smoke",
     "ui_ashley_backdrop_smoke", "ui_data_smoke", "ui_container_smoke", "interp_menu_2d_smoke",
     "ui_ashley_detail_smoke", "ui_score_smoke", "snapshot_resume_smoke", "engine_reload_smoke", "frame_cost_smoke",
     "hud_bench_smoke", "classic_hud_smoke",
     "repl_smoke", "photo_foundation_smoke", "photo_engine_reload_smoke", "photo_mode_smoke", "photo_full_room_smoke",
-    "cutscene_player_smoke", "cutscene_viewer_smoke",
+    "cutscene_player_smoke", "cutscene_viewer_smoke", "cutscene_sequencer_smoke",
 }
 
 

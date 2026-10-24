@@ -353,10 +353,17 @@ int pc_controller_virtual_set(int element, int down)
         open_gamepad(id);
         if (!pad)
             return -1;
-        /* the triggers rest at 0 (SDL's virtual axes start there too) */
+        /* Virtual joystick axes are signed. SDL maps a trigger's full
+         * -32768..32767 range to gamepad 0..32767: raw zero is half pressed,
+         * not released. Initialise both endpoints before the first poll. */
+        SDL_SetJoystickVirtualAxis(virtual_pad, SDL_GAMEPAD_AXIS_LEFT_TRIGGER, -32768);
+        SDL_SetJoystickVirtualAxis(virtual_pad, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER, -32768);
     }
-    if (element >= PC_PAD_AXIS(0) && element - PC_PAD_AXIS(0) < SDL_GAMEPAD_AXIS_COUNT)
-        return SDL_SetJoystickVirtualAxis(virtual_pad, element - PC_PAD_AXIS(0), (Sint16)(down ? 32767 : 0)) ? 0 : -1;
+    if (element >= PC_PAD_AXIS(0) && element - PC_PAD_AXIS(0) < SDL_GAMEPAD_AXIS_COUNT) {
+        int axis = element - PC_PAD_AXIS(0);
+        int rest = axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER || axis == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER ? -32768 : 0;
+        return SDL_SetJoystickVirtualAxis(virtual_pad, axis, (Sint16)(down ? 32767 : rest)) ? 0 : -1;
+    }
     if (element >= 0 && element < SDL_GAMEPAD_BUTTON_COUNT)
         return SDL_SetJoystickVirtualButton(virtual_pad, element, down != 0) ? 0 : -1;
     return -1;

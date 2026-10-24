@@ -68,17 +68,25 @@ step() {  # step build|test NAME COMMAND...: run it (under its lock), print one 
         failed=$((failed + 1))
         printf 'FAIL  %-12s %5ds  %s (%s)\n' "$name" $((SECONDS - t)) "$summary" "$log"
     fi
+    return "$status"
 }
 
 step build build-32 python3 pc/tools/build_boot.py
 step build battle-32 python3 pc/tools/build_boot.py --battle
-step build build-64 python3 pc/tools/build_boot.py --arch 64
-# End options before fixed suite names: bare --changed has an optional BASE.
-step cpu suite-64null python3 pc/tests/run.py --arch 64 --renderer null --out "$out/t64null" \
-    "${changed[@]}" "${extra[@]}" -- null_backend_smoke shadow_battle_smoke ownership_smoke battle_corpus_candidate zig_hotswap_smoke trial_corpus classic_parity
-step test suite-64vk python3 pc/tests/run.py --arch 64 --renderer vulkan --out "$out/t64vk" "${changed[@]}" "${extra[@]}"
-if [ ${#changed[@]} -gt 0 ] || [ $gl = 1 ]; then
-    step test suite-64gl python3 pc/tests/run.py --arch 64 --renderer gl --out "$out/t64gl" "${changed[@]}" "${extra[@]}"
+if step build build-64 python3 pc/tools/build_boot.py --arch 64; then
+    # End options before fixed suite names: bare --changed has an optional BASE.
+    step cpu suite-64null python3 pc/tests/run.py --arch 64 --renderer null --out "$out/t64null" \
+        "${changed[@]}" "${extra[@]}" -- null_backend_smoke shadow_battle_smoke ownership_smoke battle_corpus_candidate zig_hotswap_smoke trial_corpus classic_parity
+    step test suite-64vk python3 pc/tests/run.py --arch 64 --renderer vulkan --out "$out/t64vk" "${changed[@]}" "${extra[@]}"
+    if [ ${#changed[@]} -gt 0 ] || [ $gl = 1 ]; then
+        step test suite-64gl python3 pc/tests/run.py --arch 64 --renderer gl --out "$out/t64gl" "${changed[@]}" "${extra[@]}"
+    fi
+else
+    # Failed builds preserve old binaries; never test those as this build.
+    printf 'SKIP  %-12s build-64 failed\n' suite-64null suite-64vk
+    if [ ${#changed[@]} -gt 0 ] || [ $gl = 1 ]; then
+        printf 'SKIP  %-12s build-64 failed\n' suite-64gl
+    fi
 fi
 [ $windows = 1 ] && step build windows nice -n 19 python3 pc/tools/build_boot.py --target windows
 printf '%s in %ds\n' "$([ $failed = 0 ] && echo 'all passed' || echo "$failed failed")" $((SECONDS - start_all))

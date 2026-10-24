@@ -7,9 +7,76 @@ and the window was built around takes, marks and recipes, not watching.
 
 Goal: pick any story cutscene by chapter and name and it plays as it does
 in the story (flags, actors, dialogue, camera), with video-player controls.
-Next (not in this task): a sequencer-style timeline of the event script,
-and per-scene look overrides (lighting) keyed to a scene and a moment; the
-data below is laid out for both.
+The follow-up sequencer implementation is on branch `cutscene-sequencer`.
+The original design below remains useful background; the implemented override
+schema and first-time workflow are in `pc/docs/Cutscene_Player.md`.
+
+## Sequencer follow-up (2026-10-23)
+
+Implemented:
+
+- Prominent selection-side Play, disabled unloaded transport, visible errors,
+  room-loading/reaching stages and playing/paused frame status.
+- Free-flight controls independent of F1: RMB + WASD/QE, mouse look, wheel
+  speed, Shift boost; pad movement/look and vertical triggers. Photo ownership
+  restores the borrowed editor camera and redraws the original game view.
+- Frame/seconds ruler, zoom, fractional middle-drag pan, seek-on-release,
+  rewind marks and thread/category event keys. Known operand sizes come from
+  the interpreter's table; dialogue displays line indices, not extracted text.
+- Scene-only numeric lighting/atmosphere keys with step/linear interpolation,
+  add/edit/delete Details, explicit save/reload, baseline restoration, and
+  paged RPC event tracks. Shipped defaults are
+  `pc/assets/cutscenes/overrides/<scene id>.json`; user edits are
+  `pc/user/lighting/cutscenes/<scene id>.json` (or the configured lighting
+  user directory). These replace the earlier proposed `looks/` / `look.json`
+  layout below. No authored look values are shipped with this implementation.
+- `cutscene_sequencer_smoke` exercises RPC scene start, sampled keys/seeking,
+  lighting images and persistence, and real synthetic SDL camera controls.
+
+Scope boundaries / remaining work:
+
+- Event keys are per-vsync interpreter-place samples, not an exhaustive
+  dispatch trace; instructions that start and finish between samples can be
+  absent. Unplayed portions of a scene have no event keys yet.
+- Actor references resolve only for verified handlers and are displayed as
+  indices. Actor-name lookup and viewport actor highlighting remain open.
+- Camera override keys/new-shot blending, individual placed-light tracks,
+  shot-relative keys, and keyframe undo/redo remain future work.
+- Final verification logs are in the worktree's ignored
+  `pc/build/sequencer-verification/` and `pc/build/verify/` directories.
+
+Final verification (2026-10-23):
+
+- Renderer restoration now preserves GL/Vulkan presentation targets, native
+  lists/meshes and the effective view. Checkpoints belong to camera sessions,
+  not the whole photo pause; acquisition is outside budgeted Lua callbacks.
+- Final focused runs on implementation `654335d9` passed **7/7 on OpenGL**
+  and **7/7 on Vulkan** (`trigger-gl.log`, `trigger-vulkan.log`): sequencer,
+  player, viewer, photo foundation, engine reload, mode and full-room suites.
+  The sequencer asserts exact camera re-entry in both F1 states, no drift
+  after input release, unchanged game hashes/editor state, and a visibly
+  drawn original image restored without seeking (zero differing pixels).
+- Follow-up: seeking now replays a renderer lead-in instead of landing on a
+  game-state mark with missing native targets. The new smoke checks that its
+  camera reference is visibly drawn, not a vacuous black-image comparison.
+  The focused trace run confirmed a visibly drawn reference, zero differing
+  pixels on restore, and identical original view matrices at every begin and
+  restore. Pose drift occurred after begin: virtual trigger release used raw
+  joystick midpoint rather than its signed released endpoint. This is fixed
+  in `82082bbc`; the smoke now also checks no drift after controls release.
+  Temporary trace instrumentation is removed.
+- Final Linux 64/32-bit, Windows and CMake build sweep passed. An earlier
+  standalone CTest run passed 67/67, before renderer checkpoint integration.
+- The required `verify.sh --changed main -- -j 6` completed: **all passed**
+  in 5632 seconds, using per-step build/heavy locks and nice 10.
+  Null: **13/13 passed**. Vulkan: **150 passed, 2 skipped**.
+  OpenGL: **149 passed, 3 skipped**. No failures.
+  Vulkan skips: `gi_lag_smoke` (OpenGL-only), `golden_frames` (missing references).
+  OpenGL skips: `rt_camera_smoke` and `nrd_smoke` (Vulkan-only),
+  `golden_frames` (missing references). These skips are not claimed as tested.
+- Work is parked on the local `cutscene-sequencer` branch, not merged or
+  pushed. Compared with its starting commit `830d5908`, there are no changes
+  to original `src/`, `pc/save`, `pc/user`, or `pc/lights`.
 
 ## How the game starts its scenes (research)
 

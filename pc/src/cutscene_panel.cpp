@@ -2,6 +2,7 @@
 // scene by chapter, Play, a video player's controls) over the cutscene player's engine (cutscene.cpp), whose
 // expert controls are folded under Advanced (pc/docs/Cutscene_Player.md).
 #include "cutscene_internal.h"
+#include "cutscene_sequencer.h"
 #include "imgui.h"
 #include "photo.h"
 
@@ -12,6 +13,8 @@ extern "C" {
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <cmath>
+#include <map>
 #include <string>
 
 extern "C" {
@@ -21,6 +24,13 @@ int pc_overlay_set_details_tab(const char* name);
 }
 
 namespace {
+std::string ui_error;
+void report_error(const std::string& why)
+{
+    ui_error = why;
+    fprintf(stderr, "[cutscene] %s\n", why.c_str());
+}
+
 const ImVec4 WARN(1, 0.6f, 0.4f, 1), DIM(0.6f, 0.6f, 0.6f, 1), LIVE(0.5f, 0.9f, 0.5f, 1), REPLAY(0.5f, 0.75f, 1, 1);
 
 void tip(const char* text)
@@ -41,7 +51,7 @@ void timeline(const cutscene::Status& s)
     if (ImGui::IsItemDeactivated() && dragging >= 0) {
         std::string why;
         if (!cutscene::seek(dragging, &why))
-            fprintf(stderr, "[cutscene] %s\n", why.c_str());
+            report_error(why);
         dragging = -1;
     }
     tip("Drag to any frame of the take: it goes back to the nearest mark and replays to it exactly.");
@@ -99,13 +109,13 @@ void advanced(cutscene::Status& s)
     ImGui::SameLine();
     ImGui::BeginDisabled(list.empty() || !s.recipe.empty());
     if (ImGui::Button("Start") && !start_scene(list[(size_t)chosen].id, &why))
-        fprintf(stderr, "[cutscene] %s\n", why.c_str());
+        report_error(why);
     ImGui::EndDisabled();
     tip("Reach the scene by its recipe (New Game from the title menu, a warp with the room's scripts on, the "
         "ending) and start a take at its first frame.");
     ImGui::SameLine();
-    if (ImGui::Button("From here"))
-        start_here("", &why);
+    if (ImGui::Button("From here") && !start_here("", &why))
+        report_error(why);
     tip("Start a take now, whatever runs.");
     if (!list.empty()) {
         const Scene& sc = list[(size_t)chosen];
@@ -139,7 +149,7 @@ void advanced(cutscene::Status& s)
         /* Transport. */
         auto go = [&](int f) {
             if (!seek(f, &why))
-                fprintf(stderr, "[cutscene] %s\n", why.c_str());
+                report_error(why);
         };
         ImGui::BeginDisabled(s.busy);
         if (ImGui::Button("|<"))
@@ -258,11 +268,11 @@ void advanced(cutscene::Status& s)
     ImGui::SeparatorText("Capture");
     ImGui::BeginDisabled(s.capturing || s.busy);
     if (ImGui::Button("Capture frame") && !capture(1, &why))
-        fprintf(stderr, "[cutscene] %s\n", why.c_str());
+        report_error(why);
     tip("A clean PNG (HUD and this overlay hidden) of the frozen moment, through the photo mode's capture.");
     ImGui::SameLine();
     if (ImGui::Button("Capture next") && !capture(capture_count, &why))
-        fprintf(stderr, "[cutscene] %s\n", why.c_str());
+        report_error(why);
     ImGui::SameLine();
     ImGui::SetNextItemWidth(ImGui::GetFontSize() * 5);
     ImGui::InputInt("frames", &capture_count, 0);
@@ -272,7 +282,7 @@ void advanced(cutscene::Status& s)
     tip("Captures hide the game's 2D layer (talk bubbles, narration, menus) as well.");
     bool cam = free_camera_on();
     if (ImGui::Checkbox("Free camera", &cam) && !free_camera(cam, &why))
-        fprintf(stderr, "[cutscene] %s\n", why.c_str());
+        report_error(why);
     tip("Hold the frame and look around with the editor's free camera (the photo mode's); off gives the game's "
         "camera back exactly.");
     if (s.capturing)
@@ -290,7 +300,7 @@ void advanced(cutscene::Status& s)
         if (repro(&why))
             copy_when_written = true;
         else
-            fprintf(stderr, "[cutscene] %s\n", why.c_str());
+            report_error(why);
     }
     tip("Save this frame for someone else: the state at the mark before it, the take's log and the settings; "
         "the .json path is put on the clipboard. RPC cutscene {action: \"jump\", repro: path} opens it.");
@@ -306,7 +316,7 @@ void advanced(cutscene::Status& s)
     ImGui::SameLine();
     ImGui::BeginDisabled(!open_path[0] || s.busy);
     if (ImGui::Button("Open") && !jump(open_path, -1, &why))
-        fprintf(stderr, "[cutscene] %s\n", why.c_str());
+        report_error(why);
     ImGui::EndDisabled();
     if (!s.repro_path.empty())
         ImGui::TextColored(DIM, "%s", s.repro_path.c_str());
@@ -374,10 +384,13 @@ bool matches(const cutscene::Scene& sc, const char* filter)
 
 void play_scene(const std::string& id)
 {
+    if (cutscene::status().busy)
+        return;
     std::string why;
+    ui_error.clear();
     chosen_id = id;
     if (!cutscene::start_scene(id, &why))
-        fprintf(stderr, "[cutscene] %s\n", why.c_str());
+        report_error(why);
 }
 
 /* Next / previous story scene from the one playing (or chosen). */
@@ -398,35 +411,222 @@ void neighbour(int dir)
         play_scene(list[0]->id);
 }
 
-/* The scrub bar over the scene: frames played so far replay exactly (from the marks); dragging past them
- * plays on live to the frame. */
+bool lighting_details = false;
+int selected_light = -1;
+
+/* One shared horizontal scale for the ruler, interpreter samples and authored look keys.
+ * The drag preview is local: only release requests an expensive exact seek. */
 void scrub(const cutscene::Status& s, int length)
 {
-    static int dragging = -1;
-    int frame = dragging >= 0 ? dragging : (s.seek_target >= 0 ? s.seek_target : s.frame);
-    int lo = s.first, hi = std::max({ s.first + 1, s.head - 1, s.first + length });
-    ImGui::SetNextItemWidth(-1);
-    std::string label = clock_text(frame - lo) + " / " + clock_text(hi - lo);
-    if (ImGui::SliderInt("##scrub", &frame, lo, hi, label.c_str()))
-        dragging = frame;
-    if (ImGui::IsItemDeactivated() && dragging >= 0) {
-        std::string why;
-        if (!cutscene::seek(dragging, &why))
-            fprintf(stderr, "[cutscene] %s\n", why.c_str());
+    using namespace cutscene;
+    static std::string scene, look_notice;
+    static int dragging = -1, origin = 0, span = 1800;
+    static int loaded_id = -2;
+    static bool panning = false;
+    static float pan_origin = 0, pan_mouse_x = 0;
+    static SequencerKey selected_event;
+    static bool has_event = false;
+    int end = std::max({s.first + 1, s.head - 1, s.first + length});
+    for (const auto& k : look_keys()) end = std::max(end, k.frame);
+    if (scene != s.scene) {
+        scene = s.scene;
+        look_notice.clear();
+        origin = s.first;
+        span = end - s.first;
         dragging = -1;
+        panning = false;
+        selected_light = -1;
+        loaded_id = -2;
+        has_event = false;
     }
-    tip("Drag anywhere in the scene. Back: it replays exactly from the nearest mark. Past what has played: it "
-        "plays on to there.");
-    ImVec2 a = ImGui::GetItemRectMin(), b = ImGui::GetItemRectMax();
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-    float w = b.x - a.x, span = (float)std::max(1, hi - lo);
-    float played = a.x + w * (float)(std::max(s.head - 1, lo) - lo) / span;
-    dl->AddRectFilled(ImVec2(a.x, b.y + 1), ImVec2(played, b.y + 4), IM_COL32(110, 170, 255, 200));
-    for (int m : s.marks) {
-        float x = a.x + w * (float)(m - lo) / span;
-        dl->AddLine(ImVec2(x, b.y + 1), ImVec2(x, b.y + 6), IM_COL32(255, 200, 80, 255), 1.5f);
+    span = std::clamp(span, 1, end - s.first);
+    origin = std::clamp(origin, s.first, std::max(s.first, end - span));
+    const float em = ImGui::GetFontSize();
+    ImGui::SeparatorText("Sequencer");
+    ImGui::SetNextItemWidth(em * 12);
+    ImGui::SliderInt("Visible frames", &span, std::min(30, end - s.first), end - s.first);
+    tip("Fewer frames zooms in. Mouse wheel over the ruler zooms around the pointer.");
+    ImGui::SameLine();
+    if (ImGui::SmallButton("Fit")) { origin = s.first; span = end - s.first; }
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(em * 12);
+    ImGui::SliderInt("Pan", &origin, s.first, std::max(s.first, end - span));
+    ImGui::TextDisabled("Drag ruler to scrub | wheel: zoom | middle-drag: pan | gold ticks: rewind marks");
+    auto go = [&](int f) {
+        if (!s.on || s.busy) return;
+        std::string why;
+        if (!seek(std::clamp(f, s.first, end), &why)) report_error(why);
+    };
+    int frame = dragging >= 0 ? dragging : (s.seek_target >= 0 ? s.seek_target : s.frame);
+    if (ImGui::BeginChild("##tracks", ImVec2(0, em * 14), ImGuiChildFlags_Borders)) {
+        float label_w = std::min(em * 13, ImGui::GetContentRegionAvail().x * 0.35f);
+        float width = std::max(20.0f, ImGui::GetContentRegionAvail().x - label_w);
+        ImVec2 start = ImGui::GetCursorScreenPos();
+        float left = start.x + label_w;
+        auto x_at = [&](int f) { return left + width * (f - origin) / (float)span; };
+        auto at_mouse = [&]() { return std::clamp(origin + (int)std::lround((ImGui::GetIO().MousePos.x - left) / width * span), s.first, end); };
+        ImGui::TextUnformatted("Time / frame");
+        ImGui::SameLine();
+        ImGui::SetCursorScreenPos(ImVec2(left, start.y));
+        ImGui::InvisibleButton("##ruler", ImVec2(width, em * 3));
+        bool hovered = ImGui::IsItemHovered();
+        if (ImGui::IsItemActivated()) dragging = at_mouse();
+        if (ImGui::IsItemActive() && ImGui::IsMouseDown(ImGuiMouseButton_Left)) dragging = at_mouse();
+        if (ImGui::IsItemDeactivated() && dragging >= 0) { go(dragging); dragging = -1; }
+        bool owns_wheel = ImGui::SetItemKeyOwner(ImGuiKey_MouseWheelY);
+        if (hovered && owns_wheel && ImGui::GetIO().MouseWheel != 0) {
+            int anchor = at_mouse();
+            float fraction = (anchor - origin) / (float)span;
+            span = std::clamp((int)(span * (ImGui::GetIO().MouseWheel > 0 ? 0.8f : 1.25f)), std::min(30, end - s.first), end - s.first);
+            origin = std::clamp(anchor - (int)(fraction * span), s.first, std::max(s.first, end - span));
+        }
+        if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Middle)) {
+            panning = true;
+            pan_origin = (float)origin;
+            pan_mouse_x = ImGui::GetIO().MousePos.x;
+        }
+        if (!ImGui::IsMouseDown(ImGuiMouseButton_Middle)) panning = false;
+        // Measure the whole drag rather than truncating each frame's sub-frame
+        // movement: slow drags must still pan at high zoom.
+        if (panning)
+            origin = std::clamp((int)std::lround(pan_origin - (ImGui::GetIO().MousePos.x - pan_mouse_x) * span / width), s.first, std::max(s.first, end - span));
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        dl->PushClipRect(ImVec2(left, start.y), ImVec2(left + width, start.y + em * 3), true);
+        int tick = 1;
+        while ((float)span / tick > width / (em * 5)) {
+            if (tick < 5) tick = 5;
+            else if (tick < 15) tick = 15;
+            else if (tick < 60) tick = 60;
+            else tick *= 2;
+        }
+        for (int f = (origin / tick) * tick; f <= origin + span; f += tick) {
+            float x = x_at(f);
+            char text[64];
+            snprintf(text, sizeof text, "%.2fs", f / 60.0f);
+            dl->AddText(ImVec2(x + 3, start.y), IM_COL32(210, 215, 225, 255), text);
+            snprintf(text, sizeof text, "%df", f);
+            dl->AddText(ImVec2(x + 3, start.y + em), IM_COL32(140, 150, 170, 255), text);
+            dl->AddLine(ImVec2(x, start.y), ImVec2(x, start.y + em * 2.5f), IM_COL32(100, 110, 125, 255));
+        }
+        for (int m : s.marks)
+            dl->AddLine(ImVec2(x_at(m), start.y + em * 2.5f), ImVec2(x_at(m), start.y + em * 3), IM_COL32(255, 200, 80, 255), 2);
+        dl->AddLine(ImVec2(x_at(frame), start.y), ImVec2(x_at(frame), start.y + em * 3), IM_COL32(100, 190, 255, 255), 2);
+        dl->PopClipRect();
+        auto row = [&](const std::string& label, const std::vector<const SequencerKey*>& events, const std::vector<const LookKey*>& lights) {
+            ImGui::PushID(label.c_str());
+            ImVec2 a = ImGui::GetCursorScreenPos();
+            ImGui::TextUnformatted(label.c_str());
+            ImGui::SetCursorScreenPos(ImVec2(left, a.y));
+            ImGui::InvisibleButton("##row", ImVec2(width, em * 1.6f));
+            bool hover = ImGui::IsItemHovered();
+            bool click = hover && ImGui::IsMouseClicked(ImGuiMouseButton_Left);
+            dl->PushClipRect(ImVec2(left, a.y), ImVec2(left + width, a.y + em * 1.6f), true);
+            dl->AddRectFilled(ImVec2(left, a.y), ImVec2(left + width, a.y + em * 1.5f), IM_COL32(35, 39, 48, 255));
+            auto key = [&](int f, ImU32 color) {
+                float x = x_at(f), y = a.y + em * 0.75f, r = em * 0.3f;
+                dl->AddQuadFilled(ImVec2(x, y-r), ImVec2(x+r, y), ImVec2(x, y+r), ImVec2(x-r, y), color);
+                return hover && f >= origin && f <= origin + span && std::fabs(ImGui::GetIO().MousePos.x - x) < std::max(5.0f, r);
+            };
+            for (const auto* k : events) if (key(k->frame, IM_COL32(120, 185, 240, 255))) {
+                ImGui::BeginTooltip();
+                ImGui::Text("%s | frame %d | thread %d", k->name.c_str(), k->frame, k->thread);
+                ImGui::Text("event 0x%04x +0x%04x opcode 0x%02x", k->event, k->offset, k->opcode);
+                if (k->arguments.empty()) ImGui::TextDisabled("Arguments unavailable");
+                else { ImGui::TextUnformatted("Arguments:"); for (int v : k->arguments) { ImGui::SameLine(); ImGui::Text("%02x", v); } }
+                if (k->actor >= 0) ImGui::Text("Actor %d", k->actor);
+                if (k->line >= 0) ImGui::Text("Line %d", k->line);
+                ImGui::EndTooltip();
+                if (click) { selected_event = *k; has_event = true; lighting_details = false; go(k->frame); click = false; }
+            }
+            for (const auto* k : lights) if (key(k->frame, k->id == selected_light ? IM_COL32(255, 240, 150, 255) : IM_COL32(225, 165, 75, 255))) {
+                ImGui::SetTooltip("%s = %.3f | frame %d | %s", k->target.c_str(), k->value, k->frame, k->ease.c_str());
+                if (click) { selected_light = k->id; lighting_details = true; go(k->frame); click = false; }
+            }
+            dl->AddLine(ImVec2(x_at(frame), a.y), ImVec2(x_at(frame), a.y + em * 1.5f), IM_COL32(100, 190, 255, 180));
+            dl->PopClipRect();
+            ImGui::PopID();
+        };
+        std::map<std::string, std::vector<const SequencerKey*>> groups;
+        for (const auto& k : sequencer_tracks()) groups["T" + std::to_string(k.thread) + " / " + k.group].push_back(&k);
+        for (const auto& group : groups) row(group.first, group.second, {});
+        if (groups.empty()) ImGui::TextDisabled("Event tracks appear as the scene plays (sampled each frame).");
+        std::map<std::string, std::vector<const LookKey*>> lights;
+        for (const auto& k : look_keys()) lights[k.target].push_back(&k);
+        if (lights.empty()) row("Lighting", {}, {});
+        for (const auto& group : lights) row("Light / " + group.first, {}, group.second);
     }
-    ImGui::Dummy(ImVec2(1, 6));
+    ImGui::EndChild();
+    if (ImGui::Button("Lighting Details")) lighting_details = true;
+    ImGui::SameLine();
+    std::string why;
+    if (ImGui::Button("Save look")) {
+        if (!look_save(&why)) report_error(why);
+        else { look_notice = "Scene look saved."; ui_error.clear(); }
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Reload look")) {
+        if (!look_reload(&why)) report_error(why);
+        else { look_notice = "Scene look reloaded."; ui_error.clear(); }
+        selected_light = -1;
+        loaded_id = -2;
+    }
+    tip("Reload discards unsaved scene keys. Room lighting files are never changed.");
+    if (!look_notice.empty()) { ImGui::SameLine(); ImGui::TextDisabled("%s", look_notice.c_str()); }
+    if (lighting_details) {
+        ImGui::SeparatorText("Details - scene lighting");
+        auto targets = look_targets();
+        static int target = 0;
+        static int key_frame = 0;
+        static float value = 0;
+        static bool linear = false;
+        const LookKey* selected = nullptr;
+        for (const auto& k : look_keys()) if (k.id == selected_light) selected = &k;
+        if (loaded_id != selected_light) {
+            loaded_id = selected_light;
+            if (selected) {
+                key_frame = selected->frame; value = selected->value; linear = selected->ease == "linear";
+                for (int i = 0; i < (int)targets.size(); ++i) if (targets[i].name == selected->target) target = i;
+            }
+        }
+        if (ImGui::Button("New key at playhead")) {
+            selected_light = -1; loaded_id = -1; key_frame = s.frame;
+            if (!targets.empty()) value = targets[std::clamp(target, 0, (int)targets.size()-1)].value;
+        }
+        if (!targets.empty()) {
+            target = std::clamp(target, 0, (int)targets.size()-1);
+            if (ImGui::BeginCombo("Property", targets[target].name.c_str())) {
+                for (int i = 0; i < (int)targets.size(); ++i)
+                    if (ImGui::Selectable(targets[i].name.c_str(), target == i)) { target = i; value = targets[i].value; }
+                ImGui::EndCombo();
+            }
+            ImGui::InputInt("Key frame", &key_frame);
+            key_frame = std::max(0, key_frame);
+            ImGui::SliderFloat("Value", &value, targets[target].minimum, targets[target].maximum, "%.3f");
+            ImGui::Checkbox("Linear interpolation", &linear);
+            tip("Off: hold this value until the next key. On: interpolate toward the next key.");
+            if (ImGui::Button(selected ? "Update key" : "Add key")) {
+                if (!look_set(selected ? selected_light : -1, key_frame, targets[target].name, value, linear ? "linear" : "step", &why)) report_error(why);
+                else {
+                    look_notice = "Unsaved scene lighting changes.";
+                    ui_error.clear();
+                    for (const auto& k : look_keys())
+                        if (k.frame == key_frame && k.target == targets[target].name) selected_light = k.id;
+                }
+            }
+            ImGui::SameLine();
+            ImGui::BeginDisabled(!selected);
+            if (ImGui::Button("Delete key")) {
+                look_delete(selected_light); selected_light = -1;
+                look_notice = "Unsaved scene lighting changes.";
+            }
+            ImGui::EndDisabled();
+        }
+        ImGui::TextDisabled("Scene-only override; Save look writes user lighting/cutscenes/<scene>.json, never room files.");
+    } else if (has_event) {
+        ImGui::SeparatorText("Details - event sample");
+        ImGui::Text("T%d / %s: %s | frame %d | opcode 0x%02x", selected_event.thread, selected_event.group.c_str(), selected_event.name.c_str(), selected_event.frame, selected_event.opcode);
+        ImGui::TextDisabled("Interpreter-place samples, not a complete opcode execution trace.");
+    }
 }
 
 /* Keys and the pad while the window has focus (the pad is the viewer's then, not the game's: the overlay
@@ -454,7 +654,9 @@ void shortcuts(const cutscene::Status& s)
     bool focus = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !ImGui::GetIO().WantTextInput;
     cutscene::pad_focus = focus;
     cutscene::pad_focus_vsync = pc_vsync_count();
-    unsigned pad = focus ? pc_controller_buttons() : 0;
+    // Free-camera navigation owns the pad (including stick-generated d-pad
+    // and triggers); never let movement choose scenes or step the transport.
+    unsigned pad = focus && !cutscene::free_camera_on() ? pc_controller_buttons() : 0;
     unsigned pressed = pad & ~held;
     held = pad;
     if (!focus)
@@ -467,7 +669,7 @@ void shortcuts(const cutscene::Status& s)
         choose(1);
     if ((pressed & PAD_CROSS) && !chosen_id.empty())
         play_scene(chosen_id);
-    if (ImGui::IsKeyPressed(ImGuiKey_Space, false) || (pressed & PAD_TRI))
+    if (s.on && !s.busy && (ImGui::IsKeyPressed(ImGuiKey_Space, false) || (pressed & PAD_TRI)))
         s.paused ? cutscene::play() : cutscene::pause();
     if (ImGui::IsKeyPressed(ImGuiKey_PageUp, false) || (pressed & PAD_L1))
         neighbour(-1);
@@ -483,6 +685,8 @@ void shortcuts(const cutscene::Status& s)
         (void)cutscene::seek(s.first, &why);
     if (pressed & PAD_SQUARE)
         (void)cutscene::capture(1, &why);
+    if (!why.empty())
+        report_error(why);
 }
 
 /* The viewer: the story's scenes by chapter, Play, and a video player's controls. */
@@ -519,7 +723,7 @@ void viewer(cutscene::Status& s)
     ImGui::SameLine();
     ImGui::Checkbox("Verified", &verified_only);
     tip("Only scenes seen to start and play (pc/tools/story_verify.py).");
-    float list_h = ImGui::GetFontSize() * 14;
+    float list_h = ImGui::GetFontSize() * 9;
     if (ImGui::BeginChild("##scenes", ImVec2(-1, list_h), ImGuiChildFlags_Borders)) {
         std::string chapter = "\x01";
         bool open = true;
@@ -570,24 +774,34 @@ void viewer(cutscene::Status& s)
     }
     ImGui::EndChild();
 
+    /* Selection may have changed in the list during this frame. */
+    for (const Scene* sc : list)
+        if (sc->id == chosen_id)
+            chosen = sc;
     /* ---- the chosen scene ---- */
+    ImGui::BeginDisabled(!chosen || s.busy);
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.16f, 0.42f, 0.24f, 1));
+    if (ImGui::Button("Play scene", ImVec2(ImGui::GetFontSize() * 7, 0)) && chosen)
+        play_scene(chosen->id);
+    ImGui::PopStyleColor();
+    ImGui::EndDisabled();
+    tip("Play the selected scene. Double-click or Enter in the list also starts it.");
+    ImGui::SameLine();
+    ImGui::BeginGroup();
     if (chosen) {
         ImGui::TextWrapped("%s", chosen->name.c_str());
         ImGui::TextColored(DIM, "%s%s%s", chapter_of(*chosen).c_str(),
             chosen->texts ? ("  -  " + std::to_string(chosen->texts) + " lines").c_str() : "",
             chosen->frames ? ("  -  about " + clock_text(chosen->frames)).c_str() : "");
     }
-    ImGui::BeginDisabled(!chosen || !s.recipe.empty());
-    if (ImGui::Button("Play", ImVec2(ImGui::GetFontSize() * 6, 0)) && chosen)
-        play_scene(chosen->id);
-    ImGui::EndDisabled();
+    ImGui::EndGroup();
     tip("Start the scene as it plays in the story: its story flags, its room, its actors. The game is replaced "
         "(Back to the game returns to it). Double-click or Enter in the list does the same; on the pad, the "
         "d-pad chooses and Cross plays while this window has focus.");
     if (can_return()) {
         ImGui::SameLine();
         if (ImGui::Button("Back to the game") && !return_to_game(&why))
-            fprintf(stderr, "[cutscene] %s\n", why.c_str());
+            report_error(why);
         tip("Return to the game as it was before the first scene was played (a save state taken then).");
     }
     if (!s.recipe.empty()) {
@@ -599,14 +813,27 @@ void viewer(cutscene::Status& s)
     ImGui::SeparatorText(s.on ? (playing_scene ? playing_scene->name.c_str() : s.name.c_str()) : "Player");
     int length = playing_scene && playing_scene->frames ? playing_scene->frames + 120 : 1800;
     shortcuts(s);
-    if (!s.on) {
-        ImGui::TextDisabled("Pick a scene and Play.");
-        return;
+    if (!s.recipe.empty())
+        ImGui::TextColored(WARN, "Reaching scene (%s)...", s.recipe.c_str());
+    else if (!s.on)
+        ImGui::TextDisabled("Pick a scene and press Play.");
+    else if (s.seek_target >= 0)
+        ImGui::TextColored(WARN, "Seeking frame %d (now %d)...", s.seek_target, s.frame);
+    else
+        ImGui::TextColored(s.paused ? REPLAY : LIVE, "%s | frame %d | %.2f s", s.paused ? "Paused" : "Playing", s.frame, s.frame / 60.0f);
+    if (!s.message.empty())
+        ImGui::TextWrapped("%s", s.message.c_str());
+    if (!s.capture_error.empty())
+        ImGui::TextColored(WARN, "Capture error: %s", s.capture_error.c_str());
+    if (!ui_error.empty()) {
+        ImGui::TextColored(WARN, "Error: %s", ui_error.c_str());
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Dismiss")) ui_error.clear();
     }
-    scrub(s, length);
+    ImGui::BeginDisabled(!s.on || !s.recipe.empty());
     auto go = [&](int f) {
         if (!seek(f, &why))
-            fprintf(stderr, "[cutscene] %s\n", why.c_str());
+            report_error(why);
     };
     float em = ImGui::GetFontSize();
     ImGui::BeginDisabled(s.busy);
@@ -626,12 +853,10 @@ void viewer(cutscene::Status& s)
         go(s.frame - 1);
     tip("One frame back (Left, L2)");
     ImGui::SameLine();
-    ImGui::EndDisabled();
     if (ImGui::Button(s.paused ? "Play##transport" : "Pause##transport", ImVec2(em * 4.5f, 0)))
         s.paused ? play() : pause();
     tip("Space, Triangle");
     ImGui::SameLine();
-    ImGui::BeginDisabled(s.busy);
     if (ImGui::Button("1>"))
         step(1);
     tip("One frame forward (Right, R2)");
@@ -679,8 +904,9 @@ void viewer(cutscene::Status& s)
 
     bool cam = free_camera_on();
     if (ImGui::Checkbox("Free camera", &cam) && !free_camera(cam, &why))
-        fprintf(stderr, "[cutscene] %s\n", why.c_str());
-    tip("Hold the frame and look around (the photo mode's camera); off gives the game's camera back exactly.");
+        report_error(why);
+    tip("Hold RMB over the viewport: mouse look, WASD move, Q/E down/up, wheel speed, Shift boost. "
+        "Pad: left stick move, right stick look, L2 down / R2 up. Off restores the game camera.");
     ImGui::SameLine();
     bool hud = view_hide & PC_PHOTO_HIDE_HUD, text = view_hide & PC_PHOTO_HIDE_GAME2D;
     bool changed = ImGui::Checkbox("Hide HUD", &hud);
@@ -695,7 +921,7 @@ void viewer(cutscene::Status& s)
     if (ImGui::Button("Capture frame")) {
         hide_text = text;
         if (!capture(1, &why))
-            fprintf(stderr, "[cutscene] %s\n", why.c_str());
+            report_error(why);
     }
     ImGui::EndDisabled();
     tip("A clean PNG of this moment (HUD and the overlay hidden; dialogue too with Hide dialogue), in "
@@ -703,14 +929,17 @@ void viewer(cutscene::Status& s)
     ImGui::SameLine();
     if (ImGui::Button("Lighting")) {
         pause();
-        pc_overlay_set_details_tab("Lighting");
+        lighting_details = true;
     }
-    tip("Pause here and open the Lighting tab for this room (the room the scene plays in). Per-scene lighting "
-        "is planned: pc/docs/plans/2026-10-22-cutscene-viewer.md.");
+    tip("Pause here and open scene-only lighting Details below the sequencer. No room files are edited.");
     if (s.capturing)
         ImGui::TextColored(WARN, "capturing...");
     else if (!s.last_capture.empty())
         ImGui::TextColored(DIM, "%s", s.last_capture.c_str());
+    ImGui::EndDisabled();
+    ImGui::BeginDisabled(!s.on || s.busy);
+    scrub(s, length);
+    ImGui::EndDisabled();
 }
 } // namespace
 
@@ -719,7 +948,7 @@ extern "C" void pc_cutscene_window(void)
     using namespace cutscene;
     if (!window_open)
         return;
-    ImGui::SetNextWindowSize(ImVec2(ImGui::GetFontSize() * 32, ImGui::GetFontSize() * 46), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(ImGui::GetFontSize() * 65, ImGui::GetFontSize() * 49), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("Cutscene", &window_open)) {
         ImGui::End();
         return;
@@ -731,7 +960,5 @@ extern "C" void pc_cutscene_window(void)
         advanced(s);
         ImGui::Unindent();
     }
-    if (!s.message.empty())
-        ImGui::TextWrapped("%s", s.message.c_str());
     ImGui::End();
 }

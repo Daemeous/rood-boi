@@ -43,6 +43,15 @@ extern unsigned pc_photo_input_swallowed;
 int pc_photo_poll(void);
 /* The game is held (the paused loop runs while it is). */
 int pc_photo_holding(void);
+/* A foreign rewind/load replaced guest state (never the photo slot itself).
+ * Invalidate the old presentation even if the replacement has the same vsync. */
+void pc_photo_state_replaced(void);
+/* Camera-session presentation ownership; prepare is cheap, allocation is polled. */
+int pc_photo_prepare_view(void);
+/* Camera finish requests the preserved presentation, without releasing pause owners. */
+void pc_photo_restore_view(void);
+int pc_photo_restoring(void);
+const char* pc_photo_last_error(void); /* last asynchronous host error; cleared by a successful render */
 /* RPC photo: the state as JSON ({phase, owners, renders, ...}); params: {render_frames, game2d_slots}. */
 int pc_photo_rpc(const char* params, char* out, int size);
 

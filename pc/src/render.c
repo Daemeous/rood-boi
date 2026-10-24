@@ -413,6 +413,7 @@ typedef struct {
     int uv_effect_count;
 } draw_list;
 static draw_list lists[LIST_RING];
+#include "render_photo.inc"
 static GLuint program;
 static int program_failed;
 
@@ -1357,6 +1358,7 @@ void render_frame_end(const render_stats* hardware)
     memset(&counting, 0, sizeof counting);
     ++frame_serial;
     expire_transient();
+    photo_meshes_expire();
 }
 uint32_t render_frame_serial(void) { return frame_serial; }
 /* Game-side code counts its mesh builds here (actor_native.c). */

@@ -56,7 +56,7 @@ struct Status {
     double mark_ms = 0;     // the last mark's cost
     long divergences = 0;   // replayed reads past what the log holds (should stay 0)
     unsigned start_vsync = 0;
-    std::string recipe;     // a scene being reached: its kind and phase
+    std::string recipe;     // a scene being reached: human-readable stage and elapsed frames
     bool capturing = false;
     int capture_left = 0;
     std::string last_capture, capture_error, repro_path, message;

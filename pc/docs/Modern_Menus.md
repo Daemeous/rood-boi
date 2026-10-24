@@ -73,6 +73,19 @@ menu state, HUD flags, the scene buffer, the field camera and MENU5's VRAM
 rects end equal to the original path's, and MENU5's own scene, room and
 camera after a switch, rooms and a turn, by pad and by pointer
 (`ui_map_smoke`). Plan: `pc/docs/plans/2026-10-14-modern-menus-map.md`.
+Quit to title / Quit to desktop (pc/src/quit_options.c): the last two System
+entries (an "Exit" group after the settings pages). Circle asks "Unsaved
+progress will be lost." in a Yes / No modal (the "Keep these settings?"
+modal's look; focus on No; Cross is No) and quits on Yes; on the title
+nothing can be lost and it quits at once. Quit to title sets a request the
+game takes in processPadState (main.c, ROOD_PC) where it takes the soft reset
+chord, so the game ends as a soft reset leaves it; Quit to desktop saves the
+settings and goes through pc_quit, as the window's close button does. The
+classic Option screen lists the same two after its pages (a flyout YES / NO in
+the game's own style, classic_options.c), the F1 overlay has File > Quit to
+title / Quit to desktop, and the RPC has `quit {to: "title" | "desktop"}`
+(`ask: true` puts the question to the open menu). Test: pc/tests/quit_smoke.py.
+
 Phase 7c: the Quick manual. System > Quick manual is native (MENUE never
 runs for it): a rail of the 14 topics (the original list's window and its
 cursor memories, wrapping on a press) and a card with the focused topic's

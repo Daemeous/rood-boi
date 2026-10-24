@@ -21,6 +21,8 @@ int pc_options_entries(char** strings, int* types, int max);
 /* Circle on entry `entry` (its index among them): the page opens. MENU8 has
  * hoisted the entry's row to the title stack. */
 void pc_options_open(int entry);
+/* The game left the screen without closing it (a soft reset): forget it. */
+void pc_options_reset(void);
 /* Every frame while a page is open: 0 it runs, -1 back to the Option list,
  * -2 the menu closes (Triangle). */
 int pc_options_exec(void);

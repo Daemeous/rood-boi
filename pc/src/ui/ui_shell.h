@@ -353,7 +353,8 @@ int pc_ui_shell_items_focus(int* category, int* inventory);
  * cancels a capture and saves what changed (pc_ui_settings_flush). */
 typedef struct {
     int items;    /* list entries */
-    int games;    /* the first `games` entries are the game's screens; the rest pages 0.. */
+    int games;    /* the first `games` entries are the game's screens; then the pages 0.. */
+    int quit_first; /* the last entries (Quit to title, Quit to desktop) start here */
     int item;     /* focused entry */
     int page;     /* the settings page the card shows (entered, or the focused entry's); -1: a game entry */
     int entered;  /* the page's rows have the focus (else the list) */
@@ -366,6 +367,9 @@ void pc_ui_shell_system_view(pc_ui_system_view* v);
  * the shell's modal takes the input (Left/Right/Up/Down move between Keep and
  * Revert, Circle answers, Cross and Triangle revert); its focus, 0 Keep, 1 Revert. */
 int pc_ui_shell_confirm_focus(void);
+/* "Unsaved progress will be lost" (quit_options.h pc_quit_pending): the same modal for Quit to title and Quit
+ * to desktop; its focus, 0 Yes, 1 No (it opens on No). */
+int pc_ui_shell_quit_focus(void);
 /* The System tab shows the Quick manual (ui_manual.h): ui_system_draw.cpp hands it the screen. */
 int pc_ui_shell_manual_shown(void);
 /* The System tab shows the Score screen (ui_score.h): ui_draw.cpp gives it the whole view. */

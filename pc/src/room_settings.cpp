@@ -15,6 +15,7 @@
 #include <string>
 #include "pc_paths.h"
 #include "lighting_layers.h"
+#include "cutscene_sequencer.h"
 
 #include "imgui.h"
 #include "platform.h"
@@ -96,6 +97,8 @@ Setting settings[] = {
 const int count = sizeof settings / sizeof settings[0];
 bool initialised;
 int initialised_serial;
+struct LookOverride { bool active = false; float before = 0, applied = 0; };
+LookOverride look_overrides[count];
 /* Project defaults: each pack's lighting/<pack>/defaults.txt (lowest first),
  * then the user's (pc/user/lighting/defaults.txt, or the old
  * pc/lights/defaults.txt), which "Use as the project default" writes. */
@@ -125,6 +128,7 @@ void init()
 {
     if (initialised && initialised_serial == lighting::config_serial())
         return;
+    pc_room_look_clear();
     if (!initialised)
         for (int i = 0; i < count; i++)
             builtin[i] = *settings[i].value;
@@ -147,10 +151,42 @@ void init()
 }
 } // namespace
 
+// A transient render layer, separate from Setting::room/base and the user layer's dirty state.
+// If another editor changed the value since we applied it, preserve that edit on removal.
+void pc_room_look_clear()
+{
+    for (int i = 0; i < count; ++i) {
+        LookOverride& o = look_overrides[i];
+        if (o.active && *settings[i].value == o.applied)
+            *settings[i].value = o.before;
+        o.active = false;
+    }
+}
+std::vector<cutscene::LookTarget> pc_room_look_targets()
+{
+    init();
+    std::vector<cutscene::LookTarget> result;
+    for (const Setting& s : settings)
+        result.push_back({s.key, *s.value, s.lo, s.hi});
+    return result;
+}
+void pc_room_look_set(const char* target, float value)
+{
+    init();
+    if (Setting* s = find(target)) {
+        LookOverride& o = look_overrides[s - settings];
+        if (!o.active) o.before = *s->value;
+        o.active = true;
+        o.applied = value;
+        *s->value = value;
+    }
+}
+
 /* A new room: every setting back to its default until the room's file
  * applies its overrides (pc_room_settings_parse). */
 extern "C" void pc_room_settings_reset(void)
 {
+    pc_room_look_clear();
     init();
     for (Setting& s : settings) {
         s.overridden = false;
@@ -167,6 +203,7 @@ extern "C" int pc_room_settings_parse(const char* line)
     if (sscanf(line, "set %63s %f", key, &v) != 2)
         return 0;
     if (Setting* s = find(key)) {
+        pc_room_look_clear();
         s->overridden = true;
         s->room = *s->value = v;
     }
@@ -243,6 +280,7 @@ extern "C" bool pc_room_settings_page(const char* page)
         } else
             edited = ImGui::SliderFloat(s.label, s.value, s.lo, s.hi, s.format, flags);
         if (edited) {
+            look_overrides[&s - settings].active = false; // Explicit user edits replace the baseline, even if equal.
             s.overridden = true;
             s.room = *s.value;
             changed = true;
@@ -251,12 +289,14 @@ extern "C" bool pc_room_settings_page(const char* page)
             ImGui::PopStyleColor();
         if (ImGui::BeginPopupContextItem("default")) {
             if (ImGui::MenuItem("Use as the project default")) {
+                look_overrides[&s - settings].active = false;
                 s.base = *s.value;
                 s.overridden = false;
                 save_defaults();
                 changed = true;
             }
             if (ImGui::MenuItem("Reset to the project default", nullptr, false, s.overridden)) {
+                look_overrides[&s - settings].active = false;
                 s.overridden = false;
                 *s.value = s.base;
                 changed = true;
@@ -266,6 +306,7 @@ extern "C" bool pc_room_settings_page(const char* page)
         if (s.overridden) {
             ImGui::SameLine();
             if (ImGui::SmallButton("reset")) {
+                look_overrides[&s - settings].active = false;
                 s.overridden = false;
                 *s.value = s.base;
                 changed = true;

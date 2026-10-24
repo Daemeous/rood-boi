@@ -140,6 +140,7 @@ void draw_ashley(const Frame& f, const ui::Theme& t, float top, float dt, bool f
 void draw_system(const Frame& f, const ui::Theme& t, float top, float dt, bool fresh, Pointer& m, ScreenOut& out);
 // "Keep these settings?" over the menu while a risky display change waits (ui_system_draw.cpp).
 void draw_display_confirm(const Frame& f, const ui::Theme& t, Pointer& m, ScreenOut& out);
+void draw_quit_confirm(const Frame& f, const ui::Theme& t, Pointer& m, ScreenOut& out);
 // The System tab's Quick manual (ui_manual_draw.cpp): the topics, the page card (draw_system hands it over).
 void draw_manual(const Frame& f, const ui::Theme& t, float top, float dt, bool fresh, Pointer& m, ScreenOut& out);
 // The System tab's Score screen (ui_score_draw.cpp): the whole view (header, section strip, the page), the

@@ -36,6 +36,10 @@ extern void pc_settings_env_override(const char* key) __attribute__((weak)); /* 
 extern int pc_present_rate; /* below */
 extern int pc_hw_scale_setting; /* below */
 extern float pc_present_phase;
+static int photo_restored; /* the restored presentation, until the next game draw */
+static int photo_preparing; /* keep the selected presentation until the host can checkpoint it */
+static render_camera photo_restored_camera;
+static int photo_restored_camera_valid;
 
 typedef struct {
     float x, y; /* VRAM pixels; fractional only for widescreen-compressed 2D */
@@ -859,6 +863,7 @@ static int ot_stale[MAX_OT_STALE][4], ot_stale_count, in_ot;
 void pc_hw_end_ot(void) { in_ot = 0, ot_stale_count = 0; }
 void pc_hw_begin_ot(void)
 {
+    photo_restored = 0;
     in_ot = 1, ot_stale_count = 0;
     if (text_piece_count && !text_emitting)
         text_run_flush(); /* the previous table's last text */
@@ -4821,6 +4826,7 @@ static int op_rewritten(const recording* b, int o, const recording* later)
 }
 static void record_fill(int x, int y, int w, int h, int r, int g, int b)
 {
+    photo_restored = 0;
     recording* rec = recording_now();
     if (rec->op_count >= MAX_RECORDED_OPS) {
         rec->overflow = 1;
@@ -4876,6 +4882,7 @@ void pc_hw_before_write(int x, int y, int w, int h)
 }
 static void record_write(int x, int y, int w, int h)
 {
+    photo_restored = 0;
     recording* rec = recording_now();
     int kept = pending_kept && pending_write[0] == x && pending_write[1] == y && pending_write[2] == w
         && pending_write[3] == h;
@@ -5089,6 +5096,15 @@ int pc_hw_view_camera(float r[3][3], float t[3], float* h, float* ofx, float* of
     int replayed;
     uint32_t room;
     render_camera camera;
+    /* The saved attachments can come from the packet path, with no native
+     * room list. Their effective camera must not fall back to the borrowed
+     * render's later scene-capture matrix. This is the restored image's view. */
+    if ((photo_restored || photo_preparing) && photo_restored_camera_valid) {
+        memcpy(r, photo_restored_camera.rotation, sizeof photo_restored_camera.rotation);
+        memcpy(t, photo_restored_camera.translation, sizeof photo_restored_camera.translation);
+        *h = photo_restored_camera.h, *ofx = photo_restored_camera.ofx, *ofy = photo_restored_camera.ofy;
+        return 1;
+    }
     if (!shown_recording(&replayed, &room))
         return 0;
     if (replayed) {
@@ -5407,6 +5423,8 @@ static void replay_frame(const recording* a, const recording* b, float t)
 /* The display area being presented (VRAM pixels), for the replay. */
 void pc_hw_set_display(int x, int y, int w, int h)
 {
+    if (photo_restored || photo_preparing)
+        return;
     display_rect[0] = x, display_rect[1] = y, display_rect[2] = w, display_rect[3] = h;
     widescreen_picture(display_rect);
     memcpy(shown_rect, display_rect, sizeof shown_rect);
@@ -5705,6 +5723,8 @@ void pc_hw_skip_present(void)
 }
 static GLuint hw_target(void)
 {
+    if (photo_restored || photo_preparing)
+        return presenting_replay ? replay.color : target_texture;
     overlay_update(); /* (for this view: whether the next frame's text is held back) */
     flush();
     ms_end(); /* MSAA: the frame complete in the target */
@@ -5848,18 +5868,22 @@ void pc_hw_gbuffer(GLuint* normal, GLuint* albedo)
  * textured (the colour modulates the texel by 255/128), 0.5 untextured
  * (it is the surface colour), 0 not a lit surface. */
 GLuint pc_hw_shade_texture(void) { return presenting_replay ? replay.shade : shade_texture; }
-/* The present pass is done with the frame (its camera override ends). */
 /* After each present: light animation (lights.cpp) samples its clock
  * afresh for the next image, so every pass of one image sees the same lights. */
 extern void pc_lights_new_frame(void) __attribute__((weak));
 void pc_hw_present_done(void)
 {
-    presenting_replay = 0;
+    /* Keep the selected target/camera until the next presentation. Editor
+     * camera queries and photo checkpoints run between presents and must
+     * describe the actual image, including an interpolated one. hw_target
+     * selects afresh before the next present. */
     if (pc_lights_new_frame)
         pc_lights_new_frame();
 }
 static void forget_recordings(void)
 {
+    photo_restored = 0;
+    presenting_replay = 0;
     for (int i = 0; i < 3; i++) {
         recording* rec = &recordings[i];
         rec->vertex_count = rec->triangle_count = rec->op_count = rec->overflow = rec->writes = 0;
@@ -5867,6 +5891,8 @@ static void forget_recordings(void)
     }
 }
 
+
+#include "gpu_hw_photo.inc"
 
 /* Developer RPC: write the whole scaled VRAM target as a PPM (row 0 = VRAM
  * row 0); `replay`: the last interpolated frame's target instead. Returns 0

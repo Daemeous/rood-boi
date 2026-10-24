@@ -549,8 +549,23 @@ picture shows the moment four frames on, the same each render. A render
 costs the CPU time of those frames, unpaced: about 5 ms (8 vsyncs). Renders
 need the hardware renderer and save states (x86); without them the camera
 and the hidden layers do not show while held (RPC `photo` says why).
-Resuming continues from M exactly (the hardware target is rebuilt from M's
-VRAM, as after a rewind).
+Resuming continues from M exactly. Each camera session also checkpoints its
+**original renderer presentation**: full-resolution live/replay colour,
+G-buffer and depth targets, the displayed rectangle and interpolation state,
+and deep copies of the native lists, palettes and referenced meshes. Camera
+finish (even if another owner keeps the game paused) and release of that
+session restore these, not a new render of M. The baseline is the picture
+at camera begin, including any earlier non-camera photo renders; it can be
+M-1 or an interpolated frame. The host poll allocates the checkpoint
+before the first borrowed render, outside budgeted Lua callbacks. Allocation
+failure releases the camera, emits `photo.released`, and reports `photo.error`
+without rendering a borrowed view. A renderer reconfiguration that
+makes restoration incompatible is reported in `photo.error`, never silently
+claimed as an exact restoration. Loading or seeking to another game state
+discards the old presentation checkpoint and releases/notifies the camera
+owner (other pause owners remain held). The RPC `renders` counter counts
+completed presentation updates, including restoration; a restored image has
+`last_render_vsyncs: 0` because no game frames were simulated.
 
 ### rood.camera
 
@@ -569,7 +584,7 @@ plugin's free camera sees the whole room").
 | | |
 |---|---|
 | `begin() -> true \| nil, why` | needs the game paused (or asked to be) and a room; starts at the game's camera (the same picture), the orbit's target on Ashley's middle (else 1500 units ahead) |
-| `finish()` | the game's camera again: its own state was never touched (the view is built from the free camera inside `func_8007ACB0`'s hook only during renders, which are rewound), so the next render is the held picture exactly |
+| `finish()` | releases the borrowed camera and redraws the held moment with the game's camera; when the last pause owner resumes, the original renderer presentation is restored exactly rather than regenerated from the later pause boundary |
 | `get() -> {position, target, yaw, pitch, roll, fov, collision}` | nil unless begun by this plugin |
 | `set{position, target, yaw, pitch, roll, fov, collision}` | any of them: `position` / `target` as `{x, y, z}` or `{x =, y =, z =}`; a target without yaw / pitch turns the camera to it; a position alone keeps the direction (the target moves along); `pitch` -89..89; `roll` (-180..180) is the game's own view roll (`vs_scratch.camera.angles.vz`); `fov` (5..120, vertical) scales the game's projection distance; `collision` keeps the eye in front of the room's solid surfaces between the target and it |
 | `orbit(yaw, pitch[, zoom])` | about the target, the distance times `zoom` |

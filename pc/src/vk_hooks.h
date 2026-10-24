@@ -55,6 +55,10 @@ void pc_vk_hw_clear_depth(unsigned token, int x0, int y0, int x1, int y1);
  * the replay target. */
 void pc_vk_hw_replay_copy(int x0, int y0, int x1, int y1);
 int pc_vk_hw_dump(const char* path, int replay);
+/* Renderer-owned photo presentation checkpoint (all target attachments). */
+int pc_vk_hw_photo_mark(void);
+int pc_vk_hw_photo_restore(void);
+void pc_vk_hw_photo_drop(void);
 /* The text overlay (gpu_hw.c pc_hw_text_overlay): `count` vertices of
  * distance-texel text, PS1 mode `mode` (4: opaque), over the presented
  * picture in the rendering open now: the view at (view_x, view_y) of the
