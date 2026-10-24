@@ -1393,7 +1393,7 @@ for source in [
     obj = out / ("imgui_" + source.stem + ".o")
     # The object cache decides what recompiles; the 64-bit pass reports
     # every unit (a cached compile replays its warnings).
-    compile_object(["g++", *cxx_flags, "-I" + str(imgui), "-I" + str(root / "pc/third_party/ImGuizmo/src"),
+    compile_object(["g++", *cxx_flags, *(["-msse2", "-mfpmath=sse"] if source.name == "fog_sim.cpp" else []), "-I" + str(imgui), "-I" + str(root / "pc/third_party/ImGuizmo/src"),
         "-I" + str(root / "pc/src"),
         # imgui_impl_vulkan loads its entry points (vk_overlay.cpp hands it the loader)
         *(["-DIMGUI_IMPL_VULKAN_NO_PROTOTYPES"] if arch64 else []),
@@ -1763,6 +1763,7 @@ libc = {
     "__isoc23_strtoul",
     "puts",
     "stderr",
+    "stdin",
     "stdout",
     "__stack_chk_fail",
     "__stack_chk_fail_local",
@@ -1775,6 +1776,7 @@ libc = {
     "calloc",
     "nanosleep",
     "__assert_fail",
+    "__libc_single_threaded",
 }
 # Host libraries the audio objects use (C++ runtime, threads, dlopen, math).
 # Windows' system libraries, for rood.exe's link and --coff's scan.
@@ -1791,21 +1793,26 @@ if coff:
         "kernel32", *WIN_SYSTEM_LIBS]] + [mingw_library(n) for n in ["crt2.o", "crtbegin.o", "crtend.o"]] \
         + [str(win_sdl_library)] + (win_nrd["libraries"] if win_nrd else [])
 else:
-    gcc_lib = "/usr/lib/gcc/x86_64-linux-gnu/" + subprocess.run(["gcc", "-dumpversion"], capture_output=True, text=True).stdout.strip()
+    def gcc_library(name, *flags):
+        result = subprocess.run(
+            ["gcc", *flags, f"-print-file-name={name}"],
+            capture_output=True, text=True, check=True,
+        )
+        candidate = result.stdout.strip()
+        return candidate if candidate and os.path.isfile(candidate) else ""
+
     host_libraries = ([
-        "/usr/lib/x86_64-linux-gnu/libstdc++.so.6",
-        "/lib/x86_64-linux-gnu/libc.so.6",
-        "/lib/x86_64-linux-gnu/libm.so.6",
-        "/usr/lib/x86_64-linux-gnu/libc_nonshared.a",  # atexit, stat, ...
-        gcc_lib + "/libgcc.a",
-        "/lib/x86_64-linux-gnu/libgcc_s.so.1",
+        gcc_library(name) for name in (
+            "libstdc++.so.6", "libc.so.6", "libm.so.6",
+            "libc_nonshared.a", "libgcc.a", "libgcc_s.so.1",
+        )
     ] if arch64 else [
-        "/usr/lib32/libstdc++.so.6",
-        "/lib/i386-linux-gnu/libc.so.6",
-        "/lib/i386-linux-gnu/libm.so.6",
-        gcc_lib + "/32/libgcc.a",
-        "/lib/i386-linux-gnu/libgcc_s.so.1",
+        gcc_library(name, "-m32") for name in (
+            "libstdc++.so.6", "libc.so.6", "libm.so.6",
+            "libgcc.a", "libgcc_s.so.1",
+        )
     ]) + [str(sdl_library)] + (nrd["libraries"] if nrd else [])
+    host_libraries = [library for library in host_libraries if library]
 for library in host_libraries:
     if os.path.exists(library):
         shared = ".so." in os.path.basename(library)  # libc.so.6, libgcc_s.so.1: their dynamic symbols
@@ -2314,14 +2321,26 @@ if engine_library:
     # NRD the library's (hidden symbols: the host could not export them).
     archives = {str(sdl_library): query(["nm", "--defined-only", str(sdl_library)])}
     own_archives = [query(["nm", "--defined-only", str(a)]) for a in (nrd["libraries"] if nrd else [])]
-    shared = set()  # what the library's own links provide: the shared libraries, libc_nonshared, libgcc
-    for library in ["/usr/lib/x86_64-linux-gnu/libstdc++.so.6", "/lib/x86_64-linux-gnu/libc.so.6",
-                    "/lib/x86_64-linux-gnu/libm.so.6", "/lib/x86_64-linux-gnu/libgcc_s.so.1"]:
-        shared |= {parts[2].split("@")[0] for parts in map(str.split, query(["nm", "-D", "--defined-only", library])
-                                                            .splitlines()) if len(parts) >= 3}
-    for library in ["/usr/lib/x86_64-linux-gnu/libc_nonshared.a", gcc_lib + "/libgcc.a"]:
-        shared |= {parts[2] for parts in map(str.split, query(["nm", "--defined-only", library]).splitlines())
-                   if len(parts) == 3}
+    shared = set()  # symbols provided by the host's shared libraries and available archives
+    for library in (
+        gcc_library("libstdc++.so.6"),
+        gcc_library("libc.so.6"),
+        gcc_library("libm.so.6"),
+        gcc_library("libgcc_s.so.1"),
+    ):
+        if library:
+            shared |= {
+                parts[2].split("@")[0]
+                for parts in map(str.split, query(["nm", "-D", "--defined-only", library]).splitlines())
+                if len(parts) >= 3
+            }
+    for library in (gcc_library("libc_nonshared.a"), gcc_library("libgcc.a")):
+        if library:
+            shared |= {
+                parts[2]
+                for parts in map(str.split, query(["nm", "--defined-only", library]).splitlines())
+                if len(parts) == 3
+            }
     try:
         boundary = engine_boundary.generate(host_objects, engine_objects, lambda o: query(["nm", str(o)]), archives,
                                             {line.split(" = ")[0] for line in assign}, shared, out, own_archives)
@@ -2445,6 +2464,7 @@ probe.write_bytes(
 run(
     [
         "gcc",
+        "-std=gnu17",
         "-m32",
         "-fno-builtin",
         "-fno-pie",
