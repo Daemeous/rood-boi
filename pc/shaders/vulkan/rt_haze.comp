@@ -65,7 +65,8 @@ vec3 source_light(int i, vec3 x, out vec3 l, out float d) {
     haze_shadow_reach = -1.0;
     if (i < light_count) {
         centre = lpos(i).xyz; pos = lpos(i); col = lcol(i).rgb;
-        if (lcol(i).w > 1.5) centre += lright(i).xyz * (rand() * 2.0 - 1.0) + lup(i).xyz * (rand() * 2.0 - 1.0);
+        if (window_aperture(i)) centre = window_sample(i, x, vec2(rand(), rand()));
+        else if (lcol(i).w > 1.5) centre = rect_source(i, vec2(rand(), rand()));
         else centre += (vec3(rand(), rand(), rand()) - 0.5) * 2.0 * point_size(i);
     } else {
         int e = i - light_count; pos = emitter_pos[e]; col = emitter_col[e].rgb * fog_glow;
@@ -78,7 +79,10 @@ vec3 source_light(int i, vec3 x, out vec3 l, out float d) {
     vec3 to = centre - x; d = length(to); l = to / max(d, 1e-3);
     float f = clamp(d / pos.w, 0.0, 1.0);
     float a = (1.0 - f * f) * (1.0 - f * f);
-    if (i < light_count) a *= light_shape(lcol(i).w, lpos(i).xyz, ldir(i), lright(i), lup(i), x, l);
+    if (i < light_count) {
+        a *= light_shape(lcol(i).w, lpos(i).xyz, ldir(i), lright(i), lup(i), x, l);
+        if (window_aperture(i)) a *= window_transmission(i, x);
+    }
     return col * a;
 }
 void main() {

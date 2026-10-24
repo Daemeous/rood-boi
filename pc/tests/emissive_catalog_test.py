@@ -37,7 +37,8 @@ OBJECT_KEYS = {"dc51f82ff7", "eaecfa1949", "2e24028557", "1a7a9a0083", "cb0bfa6a
                "b86f16f59b", "7d13c69ada"}
 RANGES = {"strength": (0.0, 4.0), "light": (0.0, 16.0), "light_lift": (0.0, 64.0)}
 RECT = {"intensity": (0.01, 4.0), "radius": (64.0, 2000.0), "offset": (0.0, 32.0), "max_per_room": (1, 16),
-        "min_area": (0.0, 4096.0), "shadows": (0, 1)}
+        "min_area": (0.0, 4096.0), "shadows": (0, 1), "pattern": (0, 1), "pattern_grid": (1, 16),
+        "pattern_mode": (0, 1), "pattern_elevation": (-80, 80), "pattern_spread": (0.01, 15)}
 
 
 def check_entries(entries, problems):

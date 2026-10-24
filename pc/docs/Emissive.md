@@ -293,8 +293,8 @@ additive glows are left alone.
   *New entry for the picked texture*, or *Add the picked texture* to the
   selected entry (pick the other frames of an animated texture the same
   way). The entry's name, enabled, tint, strength, *Is a light* and its
-  weight, reach and lift, mask rects (typed, or drawn: drag on the texture view; Shift adds
-  a rect), the CLUT index filter (typed, or *+ picked* adds the picked
+  weight, reach and lift, mask rects (typed; the Rectangle tool paints additive
+  regions into a user map, Alt subtracts), the CLUT index filter (typed, or *+ picked* adds the picked
   texel's index), the colour range filter, and *Only with the picked
   texture's palette*. The texture view draws the texels from VRAM with the
   mask's texels outlined (yellow: they glow; blue: the filters leave them
@@ -304,7 +304,7 @@ additive glows are left alone.
   double-click or *Fit* fits again, *-* / *+* step the zoom. Zoomed in far
   enough a texel grid shows; under the canvas the texel under the pointer
   (texture and page coordinates) and its CLUT index. Each texture keeps its
-  zoom and pan while you edit; rect drags, Shift + drag and the brush land
+  zoom and pan while you edit; Rectangle drags and the brush land
   on the texels under the pointer at any zoom. *View options* (settings
   `editor_emissive_view_height` 420, the canvas's tallest height in pixels;
   `editor_emissive_view_zoom_max` 64; `editor_emissive_view_grid_zoom` 8,
@@ -312,7 +312,10 @@ additive glows are left alone.
   `emissive {action: ui, view: {...}}`). RPC `emissive {action: ui}`
   reports the view (`texture_view`: canvas rect, zoom, fit, pan, the
   hovered texel and index) and takes `texture {zoom, pan, fit, show}` and
-  `brush {on, radius, hardness, opacity, value}`. Every edit applies live. *Save (yours)* writes the user
+  `brush {on, radius, hardness, opacity, value}`. The [texture tools](Emissive_editor_tools.md)
+  add Pencil (B), Brush, Eraser (E), Rectangle (R), connected Fill (G), and
+  Select colour (W), with X add/remove and shared Ctrl+Z/Ctrl+Y history.
+  Their RPC uses `ui {tool, paint: {...}}`. Every edit applies live. *Save (yours)* writes the user
   file; *Copy JSON for the curated catalog* puts the entry (review
   `checked`) on the clipboard to paste into `catalog.json`; *Revert to
   curated...* / *Delete...* (after a confirm). An entry's *Duplicate* (a
@@ -408,6 +411,100 @@ more panes than `max_per_room` (6) gets one light per wall (the panes of
 one plane): OpenGL with ray-traced shadows keeps 16 lights, plain lights
 first. Regenerate after changing an entry (`--zone` its zones); the test
 `emissive_catalog` fails while a generated file is out of date.
+
+#### Patterned window apertures (Vulkan)
+
+A diffuse textured area emitter integrates to smooth illumination on a
+distant floor: its mask alone cannot project sharp mullion bars. Generated
+windows therefore explicitly model **directional incident light through an
+aperture**, with a finite angular source. These `rect_light` settings become
+fields on each generated light (all tunable in lighting-layer overrides):
+
+- `pattern`: **1** by default; **0** makes the aperture uniformly transmissive
+  for A/B comparison, without changing the angular model.
+- `pattern_mode`: **1** (directional aperture) by default for generated
+  windows; **0** is a diffuse area emitter. Ordinary hand-authored rects
+  retain mode 0 and pattern 0.
+- `pattern_elevation`: **35** degrees below the pane's inward normal, in its
+  vertical plane; range -80–80. This is an artistic incident direction,
+  **not** automatically tied to the room's sun.
+- `pattern_spread`: **2** degrees full width, range 0.01–15. The finite
+  source is rectangular in pane-relative angular slopes (not a circular
+  solar disc). Its footprint grows with receiver distance, giving physical
+  distance-dependent penumbrae rather than fixed-width screen-space blur.
+- `pattern_grid`: **16**, range 1–16. Lower values trade mask detail for
+  work; sub-cell bars and narrow painted strokes are area-averaged, never
+  skipped by a fixed sampling lattice. Finer-than-grid spatial detail is
+  still limited by the grid, not reconstructed by the shadow denoiser.
+
+`pattern_entry` links a generated light to its emissive entry. User-layer
+`rect_light` pattern/mode/elevation/spread/grid edits are read **live** while
+packing the light buffer, without running a generator that reads only the
+shipped catalog. Curated defaults remain the generated/per-light-layer
+values. The Emissive panel's **Window rect light** controls expose Pattern,
+Directional aperture, Incident elevation, Angular spread and Pattern grid.
+Regenerate for geometry/matching changes; for a saved user layer, explicitly
+pass `generate_lighting.py --emissive-user <saved-emissive-layer.json>`
+(and preferably `--root` pointing to a local test pack). The generator never
+implicitly reads a player's user layer into the shipped pack.
+
+Generation writes `pattern_faces`: `texture-key@palette-key#polygon-offset`
+followed by three `rect-x,rect-y,texture-u,texture-v` vertices per triangle,
+with semicolons between triangles (direct-colour textures omit the palette).
+Generation respects room/surface scopes and palette-restricted matches;
+runtime lookup requires the intended entry and palette and checks the
+face's current surface scope, rather than choosing an arbitrary same-key
+use. `pattern_entry` is required for a masked source. Coordinates are
+normalized 0–1; texture vertices address texel centres `(texel+0.5)/size`,
+and sampling is `floor(u*width)` / `floor(v*height)`, as the key sampler.
+This preserves flipped UVs, single-texel backings, pane boundaries and gaps
+in merged wall lights. It does **not** write extracted mask pixels.
+
+At runtime, source triangles are clipped to grid cells and every intersected
+texture texel. Their exact source-plane areas weight live emissive luminance
+(including painted values and palette filters) into the CDF; even a thin
+translated mullion contributes its area instead of falling between sample
+points. The window's authored mean tint is retained.
+All-dark or unresolved sources contribute no light rather than silently
+turning into solid glowing rectangles. Material edits need no generation;
+geometry/matching changes do.
+
+For an aperture, the receiver's incident ray cone intersects the pane.
+The shader integrates the piecewise-constant mask over that footprint and
+importance-samples its overlapping bright cells for shadow rays. Samples
+jitter inside the finite intersection area, not at fixed cell centres.
+Vulkan direct surface lighting, traced visibility, indirect bounces and
+haze share the aperture calculation. Thus the direct-light contribution is
+patterned too; changing only the tracer's bounce lighting would not suffice
+for projected bands. Existing aggregate multi-light shadow visibility is
+retained, so mixed sources still have that renderer's approximation. Direct
+cosine/falloff uses the mean incident direction while bounce samples use
+the sampled direction: this is a **narrow-angle approximation**, hence the
+15-degree maximum spread. The artistic radius falloff and pane-facing
+factor are retained; this is not a full exterior sunlight transport solver.
+
+The normalized CDF is only a **sampling PDF**. Its original mean radiance
+also multiplies the light's colour: painting texels darker cannot brighten
+the remaining glass. Radiance uses live emissive luminance (including its
+strength/tint and painted amount), while chromatic variation within the
+pane is approximated by the light's existing mean colour. Diffuse mode
+uses the same bright-cell distribution over the whole source, with no
+projection claim. Particles retain mean illumination. OpenGL's fixed-uniform
+interface remains the old **uniform diffuse rect**, not the aperture model;
+Vulkan raster shadow maps retain their centre-source shadow approximation
+(use traced shadows to evaluate finite-angle scene visibility).
+
+`pc/tests/window_pattern_smoke.py` captures pattern 0/1 in E008's 37/0,
+38/0 and 69/0 and E017's 28/14, with three warmed GPU timing runs (`ROOD_PERF=1`). It also captures the
+legacy diffuse/uniform mode and a windows-off control. Supply a single
+`--rooms` and reviewed `--dark-roi x,y,w,h` / `--bright-roi x,y,w,h` rectangles
+for the floor-band assertion: window light remaining in the opaque-band
+crop must be lower than the adjacent bright-pane crop, relative to uniform
+aperture minus windows-off. A global brightness reduction cannot pass that
+relative contrast check. `--roi` alone only reports diagnostics. Whole-frame
+brightness/difference metrics alone are **not** proof of visible floor bands.
+Synthetic tests cover mapping, dark cells, energy and finite-area sampling;
+only an inspected floor crop establishes the projected-pattern result.
 
 ## Finding candidates (glow sweep)
 

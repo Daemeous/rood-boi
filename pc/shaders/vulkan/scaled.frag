@@ -82,8 +82,12 @@ struct Light {
     vec4 dir; // direction, cos(half cone)
     vec4 world; // shadow map lookups: position, radius
     ivec4 info; // x: -2 ray-traced visibility (gi alpha), >= 0 its shadow map, else unshadowed
+    vec4 pattern_cdf[64]; // same std430 stride as light_list.h
+    vec4 pattern_dir;
 };
 layout(std430, binding = 16) readonly buffer LightList { Light lights[]; };
+#define WINDOW_LIGHT(i) lights[i]
+#include "window_pattern.glsl"
 layout(binding = 1) uniform sampler2D target;
 layout(binding = 2) uniform sampler2D depth_tex;
 layout(binding = 3) uniform sampler2D normal_tex;
@@ -284,10 +288,12 @@ vec3 low_haze(vec3 c, vec3 world) {
         if (extinction <= 0.0) continue;
         vec3 here = vec3(0.0);
         for (int i = 0; i < light_count; i++) {
-            vec3 to = lights[i].pos.xyz - x; float dl = length(to); vec3 l = to / max(dl, 1e-3);
+            vec3 centre = window_aperture(i) ? window_centre(i, x) : lights[i].pos.xyz;
+            vec3 to = centre - x; float dl = length(to); vec3 l = to / max(dl, 1e-3);
             float f = clamp(dl / lights[i].pos.w, 0.0, 1.0);
             float a = (1.0 - f * f) * (1.0 - f * f);
             a *= light_shape(lights[i].col.w, lights[i].pos.xyz, lights[i].dir, lights[i].right, lights[i].up, x, l);
+            if (window_aperture(i)) a *= window_transmission(i, x);
             here += lights[i].col.rgb * a * medium_phase(dot(dir, l), g);
         }
         if (env_sun_on())
@@ -475,7 +481,8 @@ void main() {
             float ao = u.quality1.y != 0 ? screen_ao(world, world_normal) : 1.0;
             for (int i = 0; i < light_count; i++) {
                 vec3 centre = lights[i].pos.xyz;
-                if (lights[i].col.w > 1.5) { // rect: nearest point on the emitter
+                if (window_aperture(i)) centre = window_centre(i, world);
+                else if (lights[i].col.w > 1.5) { // rect: nearest point on the emitter
                     vec3 rr = lights[i].right.xyz, ru = lights[i].up.xyz, rel = world - centre;
                     centre += rr * clamp(dot(rel, rr) / dot(rr, rr), -1.0, 1.0)
                             + ru * clamp(dot(rel, ru) / dot(ru, ru), -1.0, 1.0);
@@ -487,6 +494,7 @@ void main() {
                 float a = (1.0 - x * x) * (1.0 - x * x) * max(dot(world_normal, l), 0.0);
                 // a spot's edge, a rect's front face and barn doors (light_shape.glsl)
                 a *= light_shape(lights[i].col.w, lights[i].pos.xyz, lights[i].dir, lights[i].right, lights[i].up, world, l);
+                if (window_aperture(i)) a *= window_transmission(i, world);
                 if (light_shadow(i) == -2) // ray-traced
                     a *= clamp(gi.a, 0.0, 1.0);
                 else if (light_shadow(i) >= 0 && a > 0.0) { // shadow map (no ray tracing)

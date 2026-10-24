@@ -160,6 +160,12 @@ target_compile_options(prefab_probe PRIVATE -Wall -Wextra -Werror)
 add_test(NAME prefab_probe COMMAND prefab_probe ${CMAKE_CURRENT_SOURCE_DIR}/assets/prefabs)
 # Lighting packs (lighting/README.md): the game's layered room files, merged
 # and diffed as pc/tools/lighting_format.py does; the lint on the packs.
+add_executable(window_pattern_test tests/window_pattern_test.cpp)
+target_include_directories(window_pattern_test PRIVATE src)
+target_compile_features(window_pattern_test PRIVATE cxx_std_17)
+target_compile_options(window_pattern_test PRIVATE -Wall -Wextra -Werror -UNDEBUG)
+add_test(NAME window_pattern COMMAND window_pattern_test)
+add_test(NAME window_pattern_generator COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/window_pattern_test.py)
 add_executable(lighting_probe tests/lighting_probe.cpp src/lighting_layers.cpp src/light_prefabs.cpp)
 target_include_directories(lighting_probe PRIVATE src)
 target_compile_features(lighting_probe PRIVATE cxx_std_17)

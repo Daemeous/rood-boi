@@ -396,11 +396,18 @@ struct Brush {
     float radius = 1.0f, hardness = 1.0f, value = 255.0f, opacity = 1.0f;
     float reference = 0.6f; /* the texture underneath, its opacity */
     std::string key; /* the stroke's texture */
-    std::vector<uint8_t> values; /* the map being painted (written on release) */
-    std::vector<std::vector<uint8_t>> undo; /* before each stroke (this texture) */
-    std::string undo_key;
+    std::vector<uint8_t> values; /* latest painted values; ordinary editor history owns undo */
 };
 Brush brush;
+enum class Tool { Pencil, Brush, Eraser, Rectangle, Fill, Colour };
+Tool tool = Tool::Pencil;
+bool subtract = false;
+const char* tool_names[] = { "pencil", "brush", "eraser", "rectangle", "fill", "colour" };
+void tip(const char* text)
+{
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+        ImGui::SetTooltip("%s", text);
+}
 void dab(int w, int h, float cx, float cy, float target)
 {
     int r = (int)ceilf(brush.radius);
@@ -416,13 +423,158 @@ void dab(int w, int h, float cx, float cy, float target)
             v = (uint8_t)std::clamp((int)lroundf(v + (target - v) * k), 0, 255);
         }
 }
+struct PaintRecord {
+    int w, h;
+    std::vector<uint8_t> initial, current;
+};
+std::map<std::string, PaintRecord> paint_records;
 bool save_map(const std::string& key, const std::string& channel, int w, int h, const std::vector<uint8_t>& values)
 {
+    if (channel == "emissive" && !paint_records.count(key))
+        paint_records[key] = { w, h, map_values(key, channel, w, h), map_values(key, channel, w, h) };
     std::string error;
     if (!materials::write_channel(key, channel, w, h, values.data(), &error)) {
         snprintf(status_line, sizeof status_line, "%s", error.c_str());
         return false;
     }
+    if (channel == "emissive")
+        paint_records[key].current = values;
+    return true;
+}
+
+bool import_map(const std::string& key, const std::string& channel, const std::string& path,
+    int w, int h, std::string* error)
+{
+    int iw = 0, ih = 0;
+    std::vector<uint8_t> values;
+    if (!materials::read_png_gray(path, &iw, &ih, values, error)) return false;
+    if (iw != w || ih != h) {
+        if (error) *error = "map is " + std::to_string(iw) + "x" + std::to_string(ih)
+            + "; the texture is " + std::to_string(w) + "x" + std::to_string(h);
+        return false;
+    }
+    if (!save_map(key, channel, w, h, values)) {
+        if (error) *error = status_line;
+        return false;
+    }
+    pc_undo_hint("Import emissive map");
+    return true;
+}
+
+/* Preserve the visible spatial mask when turning shapes into a painted map. */
+std::vector<uint8_t> editable_values(Entry& e, const std::string& key, const TextureAt& t)
+{
+    auto values = map_values(key, e.mask.map.empty() ? "emissive" : e.mask.map, t.w(), t.h());
+    if (e.mask.map.empty()) std::fill(values.begin(), values.end(), 255);
+    if (e.mask.map.empty() || !e.mask.rects.empty() || !e.mask.polygons.empty()) {
+        /* Shapes are shared across matches: rasterize every match before
+         * removing them, including textures not currently visible. Their
+         * declared dimensions and offsets suffice; no game art is exported. */
+        for (const Match& match : e.match)
+            if (match.key != key && (match.w <= 0 || match.h <= 0 || match.w > 256 || match.h > 256)) {
+                snprintf(status_line, sizeof status_line, "Painting needs valid sizes for every matched texture.");
+                return {};
+            }
+        for (const Match& match : e.match) {
+            int w = match.key == key ? t.w() : match.w;
+            int h = match.key == key ? t.h() : match.h;
+            if (w <= 0 || h <= 0 || w > 256 || h > 256) continue;
+            auto raster = map_values(match.key, e.mask.map.empty() ? "emissive" : e.mask.map, w, h);
+            if (e.mask.map.empty()) std::fill(raster.begin(), raster.end(), 255);
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                    if (!mask_covers(e.mask, x + match.ox, y + match.oy)) raster[(size_t)y * w + x] = 0;
+            if (match.key == key) values = std::move(raster);
+            else if (!save_map(match.key, "emissive", w, h, raster)) return {};
+        }
+        e.mask.rects.clear();
+        e.mask.polygons.clear();
+    }
+    return values;
+}
+
+/* One tool operation, shared by the canvas and RPC. Coordinates are local texels.
+ * Colour selection edits the index filter; spatial tools write only the user map. */
+bool paint_tool(Entry e, const std::string& key, int x, int y, int x1, int y1, bool remove)
+{
+    TextureAt t = texture_at(key);
+    if (!t.valid || x < 0 || y < 0 || x >= t.w() || y >= t.h())
+        return false;
+    x1 = std::clamp(x1, 0, t.w() - 1);
+    y1 = std::clamp(y1, 0, t.h() - 1);
+    auto index_at = [&](int px, int py) {
+        unsigned index = 0;
+        texel(t.box[0] + px, t.box[1] + py, t.tpage, t.clut, &index);
+        return index;
+    };
+    if (tool == Tool::Colour) {
+        if (((t.tpage >> 7) & 3) >= 2) {
+            snprintf(status_line, sizeof status_line, "Select colour needs a paletted texture (this texture has no CLUT).");
+            return false;
+        }
+        unsigned i = index_at(x, y);
+        if (!e.mask.has_indices) memset(e.mask.indices, 0, sizeof e.mask.indices);
+        e.mask.has_indices = true;
+        e.mask.indices[i >> 3] ^= 1 << (i & 7);
+        put(e);
+        pc_undo_hint("Select emissive colour");
+        return true;
+    }
+    brush.values = editable_values(e, key, t);
+    if (brush.values.empty()) return false;
+    brush.key = key;
+    float value = remove || tool == Tool::Eraser ? 0 : tool == Tool::Brush ? brush.value : 255;
+    if (tool == Tool::Pencil || tool == Tool::Eraser || tool == Tool::Brush) {
+        /* Interpolate mouse samples so a fast stroke cannot skip texels. */
+        int steps = std::max(abs(x1 - x), abs(y1 - y));
+        for (int step = 0; step <= steps; step++) {
+            float f = steps ? (float)step / steps : 0;
+            int px = (int)lroundf(x + (x1 - x) * f), py = (int)lroundf(y + (y1 - y) * f);
+            if (tool == Tool::Brush) dab(t.w(), t.h(), px + 0.5f, py + 0.5f, value);
+            else brush.values[(size_t)py * t.w() + px] = (uint8_t)value;
+        }
+    } else if (tool == Tool::Rectangle) {
+        for (int py = std::min(y, y1); py <= std::max(y, y1); py++)
+            for (int px = std::min(x, x1); px <= std::max(x, x1); px++)
+                if (px >= 0 && py >= 0 && px < t.w() && py < t.h())
+                    brush.values[(size_t)py * t.w() + px] = (uint8_t)value;
+    } else if (tool == Tool::Fill) {
+        unsigned want = index_at(x, y);
+        std::vector<int> pending = { y * t.w() + x };
+        std::vector<bool> seen(brush.values.size(), false);
+        while (!pending.empty()) {
+            int p = pending.back();
+            pending.pop_back();
+            if (seen[p]) continue;
+            seen[p] = true;
+            int px = p % t.w(), py = p / t.w();
+            if (index_at(px, py) != want) continue;
+            brush.values[p] = (uint8_t)value;
+            if (px > 0) pending.push_back(p - 1);
+            if (px + 1 < t.w()) pending.push_back(p + 1);
+            if (py > 0) pending.push_back(p - t.w());
+            if (py + 1 < t.h()) pending.push_back(p + t.w());
+        }
+    }
+    if (!save_map(key, "emissive", t.w(), t.h(), brush.values)) return false;
+    e.mask.map = "emissive";
+    put(e);
+    pc_undo_hint("Paint emissive mask");
+    return true;
+}
+
+bool paint_all(Entry e, const std::string& key, bool invert)
+{
+    TextureAt t = texture_at(key);
+    if (!t.valid) return false;
+    auto values = editable_values(e, key, t);
+    if (values.empty()) return false;
+    for (auto& value : values) value = invert ? 255 - value : 0;
+    if (!save_map(key, "emissive", t.w(), t.h(), values)) return false;
+    e.mask.map = "emissive";
+    put(e);
+    brush.key.clear();
+    pc_undo_hint(invert ? "Invert emissive mask" : "Clear emissive mask");
     return true;
 }
 
@@ -687,17 +839,46 @@ void texture_view(const Entry* e, const Picked* p)
         return;
     }
     int w = box[2] - box[0] + 1, h = box[3] - box[1] + 1;
+    Entry editing = e ? *e : Entry();
+    if (e) {
+        const char* labels[] = { "Pencil (B)", "Brush", "Eraser (E)", "Rectangle (R)", "Fill (G)", "Select colour (W)" };
+        const char* hints[] = { "Paint exactly one texel.", "Paint with radius, hardness and opacity.",
+            "Erase one texel.", "Drag to add a rectangle; Alt subtracts.",
+            "Fill the four-connected region with the same CLUT index.", "Toggle this CLUT index everywhere in the texture's indices filter." };
+        float tool_width = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
+        for (int i = 0; i < 6; i++) {
+            if (i % 2) ImGui::SameLine();
+            if (ImGui::Selectable(labels[i], (int)tool == i, 0, ImVec2(tool_width, 0))) tool = (Tool)i;
+            keep_button((std::string("tool_") + tool_names[i]).c_str());
+            tip(hints[i]);
+        }
+        ImGui::Checkbox("Remove (X)", &subtract);
+        keep_button("tool_remove");
+        tip("Swap add and remove. Alt or right mouse also removes during a stroke.");
+        if (tool == Tool::Brush) {
+            ImGui::SliderFloat("Radius", &brush.radius, 0.5f, 16.0f); tip("Brush radius in texels.");
+            ImGui::SliderFloat("Hardness", &brush.hardness, 0, 1); tip("Solid centre fraction; zero gives a soft falloff.");
+            ImGui::SliderFloat("Opacity", &brush.opacity, 0, 1); tip("Blend amount per brush dab.");
+        }
+        auto all = [&](bool invert) { paint_all(editing, key, invert); };
+        if (ImGui::SmallButton("Clear mask")) all(false);
+        keep_button("tool_clear");
+        tip("Set every painted texel to zero. Ctrl+Z undoes.");
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Invert mask")) all(true);
+        keep_button("tool_invert");
+        tip("Invert painted values only (255 minus each value). CLUT/colour filters and shared shapes still restrict the result. Ctrl+Z undoes.");
+        ImGui::TextWrapped("The mask chooses which texture texels glow; tint and strength set their emission. Painted tools save a user emissive.png; Select colour toggles the indices filter.");
+        ImGui::TextWrapped("%s %s", labels[(int)tool], hints[(int)tool]);
+        ImGui::TextDisabled("X add/remove | Alt subtract | Ctrl+Z / Ctrl+Y");
+        if (editing.match.size() > 1)
+            ImGui::TextWrapped("Shared shapes are converted into maps for every matched texture on first paint, preserving the other matches. CLUT and colour filters still apply.");
+        e = &editing;
+    }
     /* A painted map: its values over the texture (the brush paints them). */
     bool painted = e && !e->mask.map.empty();
     const materials::Channel* map = painted ? materials::channel(key, e->mask.map) : nullptr;
-    bool painting = painted && brush.on;
-    if (painting && (brush.key != key || brush.values.size() != (size_t)w * h)) {
-        brush.key = key;
-        brush.values = map_values(key, e->mask.map, w, h);
-    }
-    const std::vector<uint8_t>* values = painting ? &brush.values
-        : map && map->w == w && map->h == h ? &map->values
-                                            : nullptr;
+    const std::vector<uint8_t>* values = map && map->w == w && map->h == h ? &map->values : nullptr;
     /* The canvas: the panel's width, the texture's shape up to look.height
      * tall; the zoom and pan this texture had. */
     ImGuiIO& io = ImGui::GetIO();
@@ -712,14 +893,17 @@ void texture_view(const Entry* e, const Picked* p)
     if (ImGui::SmallButton("Fit"))
         fit_view(v, w, h, cw, ch);
     keep_button("view_fit");
+    tip("Fit the entire texture into the canvas.");
     ImGui::SameLine();
     if (ImGui::SmallButton("-"))
         zoom_at(v, zoom_step(v.zoom, -1), mid[0], mid[1], cw * 0.5f, ch * 0.5f, fit);
     keep_button("view_out");
+    tip("Zoom out around the canvas centre.");
     ImGui::SameLine();
     if (ImGui::SmallButton("+"))
         zoom_at(v, zoom_step(v.zoom, 1), mid[0], mid[1], cw * 0.5f, ch * 0.5f, fit);
     keep_button("view_in");
+    tip("Zoom in around the canvas centre.");
     ImGui::SameLine();
     ImGui::TextDisabled("%gx (wheel: zoom, middle drag: pan)", roundf(v.zoom * 10) / 10);
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
@@ -813,46 +997,43 @@ void texture_view(const Entry* e, const Picked* p)
     view_shown.fit = fit, view_shown.w = w, view_shown.h = h, view_shown.grid = grid;
     view_shown.hover[0] = over ? hx : -1, view_shown.hover[1] = over ? hy : -1;
     view_shown.hover[2] = over ? (int)hover_index : -1;
-    if (painting) {
-        /* The brush: left paints the value, right erases; one stroke from
-         * press to release, written into the map (your layer) on release. */
-        if (hovered)
-            dl->AddCircle(m, brush.radius * z, IM_COL32(255, 255, 255, 200));
-        if (ImGui::IsItemActivated()) {
-            if (brush.undo_key != key)
-                brush.undo.clear(), brush.undo_key = key;
-            brush.undo.push_back(brush.values);
-            if (brush.undo.size() > 32)
-                brush.undo.erase(brush.undo.begin());
-        }
-        if (ImGui::IsItemActive())
-            dab(w, h, tx, ty, ImGui::IsMouseDown(ImGuiMouseButton_Right) ? 0.0f : brush.value);
-        if (ImGui::IsItemDeactivated() && save_map(key, e->mask.map, w, h, brush.values))
-            snprintf(status_line, sizeof status_line, "Painted %s's %s map", key.c_str(), e->mask.map.c_str());
-    }
-    /* Drag a rectangle on the texture: the mask's first rect. */
+    if (hovered && tool == Tool::Brush)
+        dl->AddCircle(m, brush.radius * z, IM_COL32(255, 255, 255, 200));
+    /* Drag a rectangle on the texture; commit on release. */
     static bool dragging;
     static int drag0[2];
+    static bool drag_remove;
     int cx1 = std::clamp(hx, 0, w - 1), cy1 = std::clamp(hy, 0, h - 1);
-    if (!painting && e && ImGui::IsItemActivated()) {
+    if (hovered && !io.WantTextInput && !io.KeyCtrl) {
+        if (ImGui::IsKeyPressed(ImGuiKey_B)) tool = Tool::Pencil;
+        if (ImGui::IsKeyPressed(ImGuiKey_E)) tool = Tool::Eraser;
+        if (ImGui::IsKeyPressed(ImGuiKey_R)) tool = Tool::Rectangle;
+        if (ImGui::IsKeyPressed(ImGuiKey_G)) tool = Tool::Fill;
+        if (ImGui::IsKeyPressed(ImGuiKey_W)) tool = Tool::Colour;
+        if (ImGui::IsKeyPressed(ImGuiKey_X)) subtract = !subtract;
+    }
+    bool removing = subtract || io.KeyAlt || ImGui::IsMouseDown(ImGuiMouseButton_Right);
+    static int stroke_last[2];
+    if (ImGui::IsItemActivated()) stroke_last[0] = hx, stroke_last[1] = hy;
+    if (e && over && tool != Tool::Rectangle && ImGui::IsItemActive()
+        && (ImGui::IsItemActivated() || ((tool == Tool::Pencil || tool == Tool::Brush || tool == Tool::Eraser)
+            && (stroke_last[0] != hx || stroke_last[1] != hy)))) {
+        paint_tool(editing, key, std::clamp(stroke_last[0], 0, w - 1), std::clamp(stroke_last[1], 0, h - 1), hx, hy, removing);
+        stroke_last[0] = hx, stroke_last[1] = hy;
+    }
+    if (e && tool == Tool::Rectangle && over && ImGui::IsItemActivated()) {
         drag0[0] = cx1, drag0[1] = cy1;
+        drag_remove = removing;
         dragging = true;
     }
-    if (!painting && e && dragging && ImGui::IsItemActive()) {
+    if (e && dragging && ImGui::IsItemActive()) {
         float r[4] = { (float)std::min(drag0[0], cx1), (float)std::min(drag0[1], cy1),
             (float)std::max(drag0[0], cx1) + 1, (float)std::max(drag0[1], cy1) + 1 };
         dl->AddRect(ImVec2(sx(r[0]), sy(r[1])), ImVec2(sx(r[2]), sy(r[3])), IM_COL32(0, 255, 0, 255), 0.0f, 0, 2.0f);
     }
-    if (!painting && e && dragging && ImGui::IsItemDeactivated()) {
+    if (e && dragging && ImGui::IsItemDeactivated()) {
         dragging = false;
-        Entry copy = *e;
-        std::array<int, 4> r = { std::min(drag0[0], cx1) + ox, std::min(drag0[1], cy1) + oy,
-            std::max(drag0[0], cx1) + 1 + ox, std::max(drag0[1], cy1) + 1 + oy };
-        if (io.KeyShift || copy.mask.rects.empty())
-            copy.mask.rects.push_back(r);
-        else
-            copy.mask.rects[0] = r;
-        put(copy);
+        paint_tool(editing, key, drag0[0], drag0[1], cx1, cy1, removing || drag_remove);
     }
     dl->PopClipRect();
     dl->AddRect(origin, ImVec2(origin.x + cw, origin.y + ch), IM_COL32(90, 90, 100, 255));
@@ -860,10 +1041,7 @@ void texture_view(const Entry* e, const Picked* p)
         ImGui::Text("Texel %d, %d (page %d, %d), CLUT index %u", hx, hy, box[0] + hx, box[1] + hy, hover_index);
     else
         ImGui::TextDisabled("Texel: point at the texture");
-    if (painting)
-        ImGui::TextDisabled("%d x %d texels. Left: paint %d, right: erase.", w, h, (int)brush.value);
-    else
-        ImGui::TextDisabled("%d x %d texels. Drag: the mask's rectangle (Shift: add one).", w, h);
+    ImGui::TextDisabled("%d x %d texels. %s: left applies; Alt/right subtracts.", w, h, tool_names[(int)tool]);
     if (ImGui::TreeNode("View options")) {
         ImGui::SliderFloat("Height", &look.height, 96.0f, 1024.0f, "%.0f px");
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
@@ -922,7 +1100,7 @@ void painted_map_section(Entry& e)
             ImGui::SameLine();
             if (ImGui::SmallButton("Import")) {
                 std::string error;
-                if (materials::import_channel(key, e.mask.map, import_path, t.w(), t.h(), &error))
+                if (import_map(key, e.mask.map, import_path, t.w(), t.h(), &error))
                     snprintf(status_line, sizeof status_line, "Imported %s as %s's %s map", import_path, key.c_str(),
                         e.mask.map.c_str());
                 else
@@ -939,8 +1117,8 @@ void painted_map_section(Entry& e)
     }
     ImGui::InputText("PNG to import", import_path, sizeof import_path);
     ImGui::TextDisabled("Grayscale (or its alpha), the texture's size; white glows fully.");
-    ImGui::Checkbox("Paint", &brush.on);
-    if (brush.on) {
+    if (ImGui::TreeNode("Advanced map operations")) {
+        tip("Bulk operations on the current painted map; the texture toolbar provides drawing tools.");
         ImGui::SliderFloat("Brush radius (texels)", &brush.radius, 0.5f, 16.0f, "%.1f");
         ImGui::SliderFloat("Hardness", &brush.hardness, 0.0f, 1.0f, "%.2f");
         ImGui::SliderFloat("Opacity", &brush.opacity, 0.05f, 1.0f, "%.2f");
@@ -949,9 +1127,6 @@ void painted_map_section(Entry& e)
         TextureAt t = texture_at(brush.key);
         if (!brush.key.empty() && t.valid && brush.values.size() == (size_t)t.w() * t.h()) {
             auto edit = [&](const char* what, auto&& change) {
-                if (brush.undo_key != brush.key)
-                    brush.undo.clear(), brush.undo_key = brush.key;
-                brush.undo.push_back(brush.values);
                 change();
                 if (save_map(brush.key, e.mask.map, t.w(), t.h(), brush.values))
                     snprintf(status_line, sizeof status_line, "%s: %s's %s map", what, brush.key.c_str(), e.mask.map.c_str());
@@ -997,15 +1172,9 @@ void painted_map_section(Entry& e)
                             }
                     });
             }
-            if (!brush.undo.empty() && brush.undo_key == brush.key) {
-                ImGui::SameLine();
-                if (ImGui::SmallButton("Undo stroke")) {
-                    brush.values = brush.undo.back();
-                    brush.undo.pop_back();
-                    save_map(brush.key, e.mask.map, t.w(), t.h(), brush.values);
-                }
-            }
+            ImGui::TextDisabled("Ctrl+Z undoes; Ctrl+Y redoes (shared editor history).");
         }
+        ImGui::TreePop();
     }
 }
 
@@ -1064,12 +1233,17 @@ void entry_editor(const Entry& original)
     snprintf(name, sizeof name, "%s", e.name.c_str());
     if (ImGui::InputText("Name", name, sizeof name))
         e.name = name, changed = true;
+    tip("A descriptive name for this emissive entry; its id stays unchanged.");
     changed |= ImGui::Checkbox("Enabled", &e.enabled);
+    tip("Enable this entry without deleting its mask or light settings.");
     changed |= ImGui::ColorEdit3("Tint", e.color);
+    tip("Multiply the texture's own colour by this tint.");
     changed |= ImGui::SliderFloat("Strength", &e.strength, 0.0f, 4.0f, "%.2f");
+    tip("Emission strength: how brightly the selected texels glow and feed bloom.");
     bool light = e.light > 0;
     if (ImGui::Checkbox("Is a light (lights the room with ray tracing / GI)", &light))
         e.light = light ? 1.0f : 0.0f, changed = true;
+    tip("Also emit room lighting through traced emissive glows, independently of the visible emission.");
     if (light) {
         changed |= ImGui::SliderFloat("Light weight", &e.light, 0.05f, 16.0f, "%.2f", ImGuiSliderFlags_Logarithmic);
         if (ImGui::IsItemHovered())
@@ -1087,6 +1261,58 @@ void entry_editor(const Entry& original)
             ImGui::SetTooltip("Its glows sit this far in front of the glowing surface (a floor glyph's light above\n"
                               "the floor, so it lights the floor around it). 0: room surfaces on the surface,\n"
                               "objects the room's glow_emissive_lift.");
+    }
+    bool window_light = e.extra.get("rect_light") && e.extra.get("rect_light")->type == Json::Object;
+    if (ImGui::Checkbox("Generate window rect light", &window_light)) {
+        if (window_light) e.extra.set("rect_light", Json::object());
+        else e.extra.remove("rect_light");
+        changed = true;
+    }
+    tip("Generate a rectangular room light for this texture's panes. Save and regenerate lighting to apply.");
+    if (const Json* spec = e.extra.get("rect_light"); spec && spec->type == Json::Object) {
+        ImGui::SeparatorText("Window rect light");
+        Json rect = *spec;
+        for (const auto& field : { std::pair<const char*, float>("intensity", 1), { "radius", 600 }, { "offset", 2 } }) {
+            const Json* v = rect.get(field.first);
+            float value = v && v->type == Json::Number ? (float)v->number : field.second;
+            if (ImGui::DragFloat(field.first, &value, 0.1f, 0, 10000)) {
+                rect.set(field.first, Json::num(value)); changed = true;
+            }
+            tip(!strcmp(field.first, "intensity") ? "Generated rect-light brightness multiplier. Save and regenerate lighting to apply."
+                : !strcmp(field.first, "radius") ? "Generated rect-light reach in world units. Save and regenerate lighting to apply."
+                : "Distance in front of the window plane in world units. Save and regenerate lighting to apply.");
+        }
+        bool pattern = true;
+        if (const Json* v = rect.get("pattern"))
+            pattern = v->type == Json::Bool ? v->boolean : v->type == Json::Number ? v->number != 0 : true;
+        if (ImGui::Checkbox("Pattern", &pattern)) { rect.set("pattern", Json::boolean_(pattern)); changed = true; }
+        tip("Live on generated Vulkan windows: use the emissive mask. Off keeps a uniform aperture; OpenGL stays a uniform diffuse rectangle.");
+        auto number = [&](const char* key, float fallback) {
+            const Json* v = rect.get(key);
+            return v && v->type == Json::Number ? (float)v->number : fallback;
+        };
+        bool aperture = number("pattern_mode", 1) != 0;
+        if (const Json* mode = rect.get("pattern_mode"); mode && mode->type == Json::Bool)
+            aperture = mode->boolean;
+        if (ImGui::Checkbox("Directional aperture", &aperture)) {
+            rect.set("pattern_mode", Json::num(aperture ? 1 : 0)); changed = true;
+        }
+        tip("Finite-angle incident light through the window projects its mask. Off is a diffuse emitter: its pattern does not project sharp floor bars. Live on existing generated windows.");
+        float elevation = number("pattern_elevation", 35), spread = number("pattern_spread", 2);
+        if (ImGui::SliderFloat("Incident elevation", &elevation, -80, 80, "%.1f deg")) {
+            rect.set("pattern_elevation", Json::num(elevation)); changed = true;
+        }
+        tip("Direction below the window's inward normal (positive travels downward). Authored locally, not automatically the room's sun. Live in aperture mode.");
+        if (ImGui::SliderFloat("Angular spread", &spread, .01f, 15, "%.2f deg")) {
+            rect.set("pattern_spread", Json::num(spread)); changed = true;
+        }
+        tip("Full angular width in pane-relative slopes. Larger gives distance-dependent soft edges. The lighting cosine uses a narrow-angle approximation, so the maximum is 15 degrees.");
+        int grid = (int)std::clamp(number("pattern_grid", 16), 1.0f, 16.0f);
+        if (ImGui::SliderInt("Pattern grid", &grid, 1, 16)) {
+            rect.set("pattern_grid", Json::num(grid)); changed = true;
+        }
+        tip("Grid side (live). Texel areas are integrated conservatively: thin bars cannot be missed, but bars finer than one cell are averaged. Larger grids retain more shape detail at higher cost.");
+        e.extra.set("rect_light", rect);
     }
     ImGui::SeparatorText("Mask");
     for (size_t i = 0; i < e.mask.rects.size(); i++) {
@@ -1116,8 +1342,10 @@ void entry_editor(const Entry& original)
         changed = true;
     }
     bool indices = e.mask.has_indices;
+    tip("Add a texture-space rectangle constraint; x1 and y1 are excluded.");
     if (ImGui::Checkbox("CLUT index filter", &indices))
         e.mask.has_indices = indices, changed = true;
+    tip("Only the listed palette indices glow. An enabled empty list selects nothing; W toggles indices on the canvas.");
     if (indices) {
         char text[1024] = "";
         int n = 0;
@@ -1133,13 +1361,14 @@ void entry_editor(const Entry& original)
             }
             changed = true;
         }
+        tip("Palette indices 0-255, separated by spaces or commas; press Enter to apply.");
         if (picked.valid) {
             unsigned index = 0;
             texel((unsigned)picked.u, (unsigned)picked.v, picked.tpage, picked.clut, &index);
             ImGui::SameLine();
             char label[48];
             snprintf(label, sizeof label, "+ picked (%u)", index);
-            if (ImGui::SmallButton(label)) {
+            if (ImGui::SmallButton(label) && index < 256) {
                 e.mask.indices[index >> 3] |= (uint8_t)(1 << (index & 7));
                 changed = true;
             }
@@ -1148,6 +1377,7 @@ void entry_editor(const Entry& original)
     bool colour = e.mask.has_color;
     if (ImGui::Checkbox("Colour range filter", &colour))
         e.mask.has_color = colour, changed = true;
+    tip("Intersect the mask with an RGB and luminance range from the original texture.");
     if (colour) {
         changed |= ImGui::SliderInt3("Min (5-bit RGB)", e.mask.cmin, 0, 31);
         changed |= ImGui::SliderInt3("Max (5-bit RGB)", e.mask.cmax, 0, 31);
@@ -1287,6 +1517,35 @@ void entry_editor(const Entry& original)
 }
 
 } // namespace
+
+std::string emissive::paint_state()
+{
+    Json j = Json::object();
+    const char* hex = "0123456789abcdef";
+    for (const auto& [key, r] : paint_records) {
+        if (r.current == r.initial) continue;
+        std::string s;
+        for (uint8_t v : r.current) { s += hex[v >> 4]; s += hex[v & 15]; }
+        j.set(key.c_str(), Json::str(s));
+    }
+    return prefab::json_write(j);
+}
+void emissive::restore_paint_state(const std::string& text)
+{
+    Json j;
+    if (!prefab::json_parse(text.empty() ? "{}" : text.c_str(), j, nullptr)) return;
+    for (auto& [key, r] : paint_records) {
+        std::vector<uint8_t> values = r.initial;
+        if (const Json* s = j.get(key.c_str()); s && s->type == Json::String && s->string.size() == values.size() * 2) {
+            auto nibble = [](char c) { return c <= '9' ? c - '0' : c - 'a' + 10; };
+            for (size_t i = 0; i < values.size(); i++)
+                values[i] = (uint8_t)(nibble(s->string[i * 2]) * 16 + nibble(s->string[i * 2 + 1]));
+        }
+        if (values != r.current && save_map(key, "emissive", r.w, r.h, values))
+            r.current = values;
+    }
+    brush.key.clear(); /* next frame reads the restored channel */
+}
 
 /* The texture view's look in the settings file (project_settings.cpp). */
 extern "C" int pc_emissive_view_setting(const char* key, const char* rest)
@@ -1532,7 +1791,7 @@ extern "C" int pc_emissive_rpc(const char* params_text, char* out, int size)
             const Json* path = params.get("path");
             if (!path || path->type != Json::String || !t.valid)
                 return fail("emissive import_map: needs path and the texture in view", out, size);
-            if (!materials::import_channel(key, channel, path->string, t.w(), t.h(), &error))
+            if (!import_map(key, channel, path->string, t.w(), t.h(), &error))
                 return fail("emissive import_map: " + error, out, size);
         } else if (action == "paint") {
             if (!t.valid)
@@ -1551,8 +1810,8 @@ extern "C" int pc_emissive_rpc(const char* params_text, char* out, int size)
                         for (int x = std::max(0, v[0]); x < std::min(t.w(), v[2]); x++)
                             values[(size_t)y * t.w() + x] = (uint8_t)std::clamp(v[4], 0, 255);
                 }
-            if (!materials::write_channel(key, channel, t.w(), t.h(), values.data(), &error))
-                return fail("emissive paint: " + error, out, size);
+            if (!save_map(key, channel, t.w(), t.h(), values))
+                return fail("emissive paint: " + std::string(status_line), out, size);
         }
         /* the texture's channels now */
         Json chans = Json::array();
@@ -1684,6 +1943,19 @@ extern "C" int pc_emissive_rpc(const char* params_text, char* out, int size)
         return reply(j, out, size);
     }
     if (action == "ui") {
+        if (const Json* value = params.get("tool")) {
+            if (value->type != Json::String) return fail("tool must be a name", out, size);
+            std::string name = value->string;
+            if (name == "select_colour" || name == "select_color" || name == "color") name = "colour";
+            if (name == "rect") name = "rectangle";
+            if (name == "erase") name = "eraser";
+            int i = 0;
+            for (; i < 6 && name != tool_names[i]; i++) {}
+            if (i == 6) return fail("unknown emissive tool", out, size);
+            tool = (Tool)i;
+        }
+        if (const Json* value = params.get("subtract"); value && value->type == Json::Bool)
+            subtract = value->boolean;
         /* The entry editor's buttons as last drawn (window pixels x, y, w,
          * h) and the texture view (texture_view: its canvas, zoom, pan, the
          * texel under the pointer). Sets first: texture {zoom, pan [x, y],
@@ -1717,12 +1989,45 @@ extern "C" int pc_emissive_rpc(const char* params_text, char* out, int size)
         if (const Json* b = params.get("brush"); b && b->type == Json::Object) {
             if (const Json* on = b->get("on"); on && on->type == Json::Bool)
                 brush.on = on->boolean;
+            if (brush.on && !params.get("tool")) tool = Tool::Brush;
             for (auto [k, to] : { std::pair<const char*, float*>("radius", &brush.radius), { "hardness", &brush.hardness },
                      { "opacity", &brush.opacity }, { "value", &brush.value } })
                 if (const Json* x = b->get(k); x && x->type == Json::Number)
                     *to = (float)x->number;
         }
+        brush.radius = std::clamp(brush.radius, 0.5f, 16.0f);
+        brush.opacity = std::clamp(brush.opacity, 0.0f, 1.0f);
+        brush.hardness = std::clamp(brush.hardness, 0.0f, 1.0f);
+        brush.value = std::clamp(brush.value, 0.0f, 255.0f);
+        if (const Json* p = params.get("paint")) {
+            const Entry* entry = find(selected);
+            if (!entry || p->type != Json::Object) return fail("ui paint needs selected entry and object", out, size);
+            for (const char* name : { "x", "y", "x1", "y1" })
+                if (const Json* v = p->get(name); v && (v->type != Json::Number || !std::isfinite(v->number)
+                    || v->number < -256 || v->number > 256 || floor(v->number) != v->number))
+                    return fail("ui paint coordinates must be integer texels in -256..256", out, size);
+            auto n = [&](const char* name, int fallback) {
+                const Json* v = p->get(name);
+                return v && v->type == Json::Number ? (int)v->number : fallback;
+            };
+            const Json* k = p->get("key");
+            std::string key = k && k->type == Json::String ? k->string : picked.valid ? picked.key : view_shown.key;
+            if (std::none_of(entry->match.begin(), entry->match.end(), [&](const Match& m) { return m.key == key; }))
+                return fail("ui paint key must match selected entry", out, size);
+            int x = n("x", -1), y = n("y", -1);
+            const Json* sub = p->get("subtract");
+            bool remove = sub && sub->type == Json::Bool ? sub->boolean : subtract;
+            const Json* operation = p->get("operation");
+            bool bulk = operation && operation->type == Json::String;
+            if (bulk && operation->string != "clear" && operation->string != "invert")
+                return fail("ui paint operation must be clear or invert", out, size);
+            if (!(bulk ? paint_all(*entry, key, operation->string == "invert")
+                       : paint_tool(*entry, key, x, y, n("x1", x), n("y1", y), remove)))
+                return fail("ui paint needs a live texture and in-bounds texel", out, size);
+        }
         Json j = Json::object(), rects = Json::object();
+        j.set("tool", Json::str(tool_names[(int)tool]));
+        j.set("subtract", Json::boolean_(subtract));
         bool current = ImGui::GetCurrentContext() && ui_frame >= ImGui::GetFrameCount() - 1;
         for (const auto& kv : ui_rects) {
             if (!current)

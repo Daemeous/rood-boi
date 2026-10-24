@@ -23,6 +23,10 @@ struct Light {
     float cone = 45;
     float inner = 0; // spot: full brightness inside this full angle, fading to the cone (0: the outer quarter fades)
     float size[2] = { 128, 128 }; // rect: width, height (world units)
+    int pattern = 0, pattern_grid = 16, pattern_mode = 0; // mode: 0 diffuse source, 1 directional aperture
+    float pattern_elevation = 35, pattern_spread = 2; // travel below pane normal; full angular width (degrees)
+    std::string pattern_faces; // texture key and three rect-XY/texture-UV vertices per triangle
+    std::string pattern_entry; // live per-entry rect_light overrides, including user-layer pattern switch
     float barn_angle = 45; // rect: its barn doors' angle from its facing (0 straight ahead .. 90 folded flat)
     float barn_length = 0; // rect: how far its doors reach out from each edge (world units; 0: none)
     bool shadows = false;

@@ -21,8 +21,12 @@
 #include <chrono>
 #include <string>
 #include <thread>
+#include <unordered_map>
 #include "pc_paths.h"
 #include "light_list.h"
+#include "window_pattern.h"
+#include "emissive.h"
+#include "emissive_internal.h"
 #include "light_shape.h"
 #include <vector>
 
@@ -1822,6 +1826,8 @@ int pc_lights_budget = 0;
 }
 extern "C" int pc_lights_list(pc_light_gpu* out, int max)
 {
+    track_room();
+    pc_lights_shadows_active = 0;
     if (pc_lights_budget > 0 && max > pc_lights_budget)
         max = pc_lights_budget;
     static float p[PC_LIGHTS_MAX][4], c[PC_LIGHTS_MAX][4], d[PC_LIGHTS_MAX][4], r[PC_LIGHTS_MAX][4], u[PC_LIGHTS_MAX][4];
@@ -1829,6 +1835,47 @@ extern "C" int pc_lights_list(pc_light_gpu* out, int max)
     if (max > PC_LIGHTS_MAX)
         max = PC_LIGHTS_MAX;
     int n = pc_lights_world(p, c, d, r, u, sh, max);
+    bool has_patterns = n > 0 && std::any_of(candidates.begin(), candidates.end(), [](const Candidate& c) {
+        return c.l.type == 2 && !c.l.pattern_faces.empty();
+    });
+    const auto texture_uses = has_patterns ? emissive::use_list(false) : std::vector<emissive::UseInfo>();
+    std::unordered_map<std::string, const emissive::UseInfo*> by_key;
+    std::unordered_map<unsigned, std::string> palette_keys;
+    for (const auto& use : texture_uses) {
+        if (use.refs <= 0 || use.entry.empty()) continue;
+        std::string identity = use.entry + ":" + use.key;
+        auto inserted = by_key.emplace(identity, &use);
+        if (!inserted.second && inserted.first->second && inserted.first->second->clut != use.clut)
+            inserted.first->second = nullptr; // unqualified references must not choose an arbitrary palette
+        unsigned palette_id = ((use.page >> 7) << 16) | use.clut;
+        auto palette = palette_keys.find(palette_id);
+        if (palette == palette_keys.end())
+            palette = palette_keys.emplace(palette_id, emissive::clut_key(use.page, use.clut)).first;
+        if (!palette->second.empty()) by_key.emplace(identity + "@" + palette->second, &use);
+    }
+    struct PatternCache { std::string pixels; float cdf[256] = {}, mean = 0; };
+    static std::unordered_map<std::string, PatternCache> pattern_cache;
+    static uint32_t cached_map = 0, cached_catalog = 0;
+    static int cached_zone = -1, cached_room = -1;
+    uint32_t map = emissive::map_serial(), catalog = emissive::generation();
+    if (map != cached_map || catalog != cached_catalog || zone != cached_zone || room != cached_room
+        || pattern_cache.size() > PC_LIGHTS_MAX) {
+        pattern_cache.clear();
+        cached_map = map; cached_catalog = catalog; cached_zone = zone; cached_room = room;
+    }
+    std::unordered_map<const emissive::UseInfo*, std::string> content_keys;
+    auto pattern_texel = [&](const rood_window::Face& face, float x, float y, float rgb[3], const emissive::Entry* entry) {
+        if (!entry || !entry->enabled || !emissive::scope_allows(*entry, zone, room,
+                emissive::SURFACE_ROOM, face.polygon, 0)) return 0;
+        auto found = by_key.find(entry->id + ":" + face.key);
+        if (found == by_key.end() || !found->second) return 0;
+        const auto& use = *found->second;
+        int w = use.box[2] - use.box[0] + 1, h = use.box[3] - use.box[1] + 1;
+        unsigned tu = use.box[0] + std::min(w - 1, (int)(std::clamp(x, 0.0f, 1.0f) * w));
+        unsigned tv = use.box[1] + std::min(h - 1, (int)(std::clamp(y, 0.0f, 1.0f) * h));
+        return pc_emissive_texel(tu, tv, use.page, use.clut, rgb, nullptr);
+    };
+    pc_lights_set_dropped(pc_lights_last_dropped());
     for (int i = 0; i < n; i++) {
         memcpy(out[i].pos, p[i], sizeof p[i]);
         memcpy(out[i].col, c[i], sizeof c[i]);
@@ -1837,7 +1884,77 @@ extern "C" int pc_lights_list(pc_light_gpu* out, int max)
         memcpy(out[i].up, u[i], sizeof u[i]);
         memcpy(out[i].world, p[i], sizeof p[i]);
         out[i].info[0] = sh[i];
+        pc_lights_shadows_active |= sh[i];
         out[i].info[1] = out[i].info[2] = out[i].info[3] = 0;
+        memset(out[i].pattern_cdf, 0, sizeof out[i].pattern_cdf);
+        Light source = candidates[i].l;
+        /* User emissive edits are live, not generator input. Curated defaults
+         * remain the generated/light-layer values, so per-light overrides work. */
+        if (const auto* entry = emissive::find(source.pattern_entry);
+            entry && entry->origin != emissive::ORIGIN_CURATED) {
+            const auto* rect = entry->extra.get("rect_light");
+            auto value = [&](const char* key, float fallback) {
+                const auto* v = rect ? rect->get(key) : nullptr;
+                if (!v) return fallback;
+                return v->type == prefab::Json::Number ? (float)v->number
+                    : v->type == prefab::Json::Bool ? (v->boolean ? 1.0f : 0.0f) : fallback;
+            };
+            source.pattern = value("pattern", (float)source.pattern) != 0;
+            source.pattern_mode = value("pattern_mode", (float)source.pattern_mode) != 0;
+            source.pattern_grid = (int)std::clamp(value("pattern_grid", (float)source.pattern_grid), 1.0f, 16.0f);
+            source.pattern_elevation = std::clamp(value("pattern_elevation", source.pattern_elevation), -80.0f, 80.0f);
+            source.pattern_spread = std::clamp(value("pattern_spread", source.pattern_spread), 0.01f, 15.0f);
+        }
+        memset(out[i].pattern_dir, 0, sizeof out[i].pattern_dir);
+        if (source.type == 2 && source.pattern_mode) {
+            float forward[3], right[3], up[3];
+            light_frame(source, forward, right, up);
+            float elevation = source.pattern_elevation * (3.14159265f / 180.0f);
+            for (int k = 0; k < 3; ++k)
+                out[i].pattern_dir[k] = forward[k] * cosf(elevation) - up[k] * sinf(elevation);
+            out[i].pattern_dir[3] = tanf(source.pattern_spread * (3.14159265f / 360.0f));
+            out[i].info[2] = 1;
+            out[i].info[1] = 1;
+            out[i].pattern_cdf[0] = 1; // pattern=0: same angular source, uniform aperture
+        }
+        if (source.type == 2 && source.pattern && !source.pattern_faces.empty()) {
+            auto fs = rood_window::faces(source.pattern_faces);
+            std::string pixels;
+            for (auto& face : fs) {
+                auto found = by_key.find(source.pattern_entry + ":" + face.key);
+                if (found != by_key.end() && found->second) {
+                    face.width = found->second->box[2] - found->second->box[0] + 1;
+                    face.height = found->second->box[3] - found->second->box[1] + 1;
+                    auto content = content_keys.find(found->second);
+                    if (content == content_keys.end()) {
+                        const auto& use = *found->second;
+                        content = content_keys.emplace(found->second, emissive::content_key(use.page, use.clut,
+                            use.box[0], use.box[1], use.box[2], use.box[3])).first;
+                    }
+                    pixels += content->second;
+                } else pixels += "missing";
+                pixels += ';';
+            }
+            out[i].info[1] = std::max(1, std::min(16, source.pattern_grid));
+            const auto* entry = emissive::find(source.pattern_entry);
+            auto sample = [&](const rood_window::Face& face, float x, float y, float rgb[3]) {
+                return pattern_texel(face, x, y, rgb, entry);
+            };
+            std::string cache_key = source.pattern_entry + ":" + std::to_string(out[i].info[1]) + ":" + source.pattern_faces;
+            auto& cached = pattern_cache[cache_key];
+            if (cached.pixels != pixels) {
+                cached.mean = rood_window::distribution(fs, out[i].info[1], cached.cdf, sample);
+                cached.pixels = pixels;
+            }
+            memcpy(out[i].pattern_cdf, cached.cdf, sizeof cached.cdf);
+            float mean = cached.mean;
+            for (int k = 0; k < 3; ++k) out[i].col[k] *= mean;
+            out[i].info[3] = (int)std::lround(mean * 65535.0f);
+            if (mean <= 0) {
+                /* Missing/disabled masks must not become a glowing solid rectangle. */
+                out[i].info[1] = 0;
+            }
+        }
     }
     return n;
 }

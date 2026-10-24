@@ -152,8 +152,10 @@ float emitter_shadow_nearest(int i, vec3 p, out vec3 dir) {
 // of looping over a fixed few (pc/docs/Vulkan_Renderer.md, many lights).
 // Field for field light_list.h's pc_light_gpu (as scaled.frag's): any other
 // order or size reads every light after the first from the wrong bytes.
-struct Light { vec4 pos, col, right, up, dir, world; ivec4 info; }; // info.x: casts shadows
+struct Light { vec4 pos, col, right, up, dir, world; ivec4 info; vec4 pattern_cdf[64]; vec4 pattern_dir; }; // info.x: casts shadows
 layout(std430, binding = LIGHT_LIST) readonly buffer LightList { Light lights_[]; };
+#define WINDOW_LIGHT(i) lights_[i]
+#include "window_pattern.glsl"
 vec4 lpos(int i) { return lights_[i].pos; }
 vec4 lcol(int i) { return lights_[i].col; }
 vec4 ldir(int i) { return lights_[i].dir; }
@@ -161,6 +163,10 @@ vec4 lright(int i) { return lights_[i].right; }
 vec4 lup(int i) { return lights_[i].up; }
 int light_shadow(int i) { return lights_[i].info.x; }
 #else
+bool window_aperture(int i) { return false; }
+float window_transmission(int i, vec3 p) { return 1.0; }
+vec3 window_centre(int i, vec3 p) { return light_pos[i].xyz; }
+vec3 window_sample(int i, vec3 p, vec2 r) { return light_pos[i].xyz; }
 vec4 lpos(int i) { return light_pos[i]; }
 vec4 lcol(int i) { return light_col[i]; }
 vec4 ldir(int i) { return light_dir[i]; }
@@ -168,6 +174,36 @@ vec4 lright(int i) { return light_right[i]; }
 vec4 lup(int i) { return light_up[i]; }
 int light_shadow(int i) { return u.light_shadow_[i >> 2][i & 3]; }
 #endif
+// Inverse CDF: select bright source cells, then sample their finite area.
+// Remapping r.x within its CDF interval preserves a uniform intra-cell PDF.
+// The distribution has unit total flux: no extra mask multiplication (which
+// would square the radiance). GL / uniform-buffer consumers retain the rect.
+vec2 rect_source_uv(int i, vec2 r) {
+#ifdef LIGHT_LIST
+    int side = lights_[i].info.y;
+    if (side > 0) {
+        int count = side * side;
+        int lo = 0, hi = count;
+        while (lo < hi) {
+            int mid = (lo + hi) / 2;
+            float next = lights_[i].pattern_cdf[mid >> 2][mid & 3];
+            if (r.x < next) hi = mid; else lo = mid + 1;
+        }
+        int cell = min(lo, count - 1);
+        float next = lights_[i].pattern_cdf[cell >> 2][cell & 3];
+        float previous = cell == 0 ? 0.0 : lights_[i].pattern_cdf[(cell - 1) >> 2][(cell - 1) & 3];
+        if (next > previous) {
+            float jitter = (r.x - previous) / (next - previous);
+            return (vec2(cell % side, cell / side) + vec2(jitter, r.y)) / float(side);
+        }
+    }
+#endif
+    return r;
+}
+vec3 rect_source(int i, vec2 r) {
+    vec2 xy = rect_source_uv(i, r) * 2.0 - 1.0;
+    return lpos(i).xyz + lright(i).xyz * xy.x + lup(i).xyz * xy.y;
+}
 // A point or spot light's emitting radius: its own (light_right.w, light actors) or the room's light size.
 float point_size(int i) { return lright(i).w > 0.0 ? lright(i).w : light_size; }
 // Light i's unshadowed light at p (normal n, centre `centre`): falloff, cosine, spot cone / rect facing.
@@ -176,5 +212,6 @@ float light_falloff(int i, vec3 centre, vec3 p, vec3 n, out vec3 l, out float d)
     float x = clamp(d / lpos(i).w, 0.0, 1.0);
     float a = (1.0 - x * x) * (1.0 - x * x) * max(dot(n, l), 0.0);
     a *= light_shape(lcol(i).w, lpos(i).xyz, ldir(i), lright(i), lup(i), p, l); // spot edge, rect face and barn doors
+    if (window_aperture(i)) a *= window_transmission(i, p);
     return a;
 }

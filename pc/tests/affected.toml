@@ -209,12 +209,12 @@ suites = ["ending_smoke"]
 paths = ["pc/src/editor_*", "pc/src/library_*", "pc/src/selection*", "pc/src/floor_grid.*",
          "pc/assets/editor/*", "pc/src/lighting_editor.cpp", "pc/src/particles_editor.cpp",
          "pc/src/fixture_editor.cpp", "pc/src/emissive_editor.cpp"]
-suites = ["editor_*", "barn_doors_smoke", "emissive_entries_smoke", "light_actors_smoke", "ctest"]
+suites = ["editor_*", "barn_doors_smoke", "emissive_entries_smoke", "emissive_tools_smoke", "light_actors_smoke", "ctest"]
 
 [[rule]]
 paths = ["pc/src/emissive*", "pc/assets/emissive/*", "pc/assets/materials/*", "pc/shaders/vulkan/emissive.glsl",
          "pc/tools/check_material_maps.py"]
-suites = ["emissive_smoke", "emissive_entries_smoke", "editor_selection_smoke", "editor_undo_smoke",
+suites = ["emissive_smoke", "emissive_entries_smoke", "emissive_tools_smoke", "emissive_metadata", "editor_selection_smoke", "editor_undo_smoke",
           "editor_schema_smoke"]
 
 # The catalog's rect_light entries feed the window-light generator as well as

@@ -15,7 +15,10 @@ typedef struct {
                             * up.w: shadow skip; spot: right.x cos(inner half angle) (light_shape.h) */
     float dir[4]; /* direction, cos(half cone) (rect: barn length x cos angle) */
     float world[4]; /* present: shadow map lookups (position, radius) */
-    int info[4]; /* x: shadows (trace: casts; present: -2 traced, >= 0 shadow map slot, -1 none) */
+    int info[4]; /* x: shadows (trace: casts; present: -2 traced, >= 0 shadow map slot, -1 none);
+                    y: pattern grid side (0 uniform). */
+    float pattern_cdf[256]; /* normalized, row-major runtime emissive source distribution; never serialized */
+    float pattern_dir[4]; /* incident travel direction; w: tan(full angular spread / 2). info.z: aperture mode */
 } pc_light_gpu;
 
 #ifdef __cplusplus

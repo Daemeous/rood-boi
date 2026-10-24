@@ -66,6 +66,10 @@ int pc_emissive_active(void);
  * texture window): returns 1 when it glows, with its colour (display light)
  * and the entry's light weight (0: not a light). */
 int pc_emissive_texel(unsigned u, unsigned v, unsigned tpage, unsigned clut, float rgb[3], float* light);
+/* A live texture's normalized UV box, evaluated through the current emissive
+ * map (including painted values), independent of its glow light weight.
+ * Missing/non-emitting texels return 0 and clear rgb; coordinates clamp to 0..1. */
+int pc_emissive_key_texel(const char* key, float u, float v, float rgb[3]);
 /* Room glows from light entries (ptgi.c, glows.c): changes whenever the set
  * of room triangles that are lights changes (then glows.c regroups). */
 uint32_t pc_emissive_light_serial(void);

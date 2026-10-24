@@ -242,6 +242,16 @@ static bool numbers(const Json* j, float* out, int n)
     }
     return true;
 }
+static Json extensions(const Json& object, std::initializer_list<const char*> known)
+{
+    Json result = Json::object();
+    for (const auto& field : object.members) {
+        bool owned = false;
+        for (const char* key : known) owned |= field.first == key;
+        if (!owned) result.set(field.first.c_str(), field.second);
+    }
+    return result;
+}
 bool entry_from_json(const Json& j, Entry& e, std::string* error)
 {
     e = Entry();
@@ -258,6 +268,9 @@ bool entry_from_json(const Json& j, Entry& e, std::string* error)
         const Json* v = j.get(k);
         return v && v->type == Json::Number ? (float)v->number : v && v->type == Json::Bool ? (v->boolean ? 1.0f : 0.0f) : d;
     };
+    /* Preserve generator and future extension fields through editor round trips. */
+    e.extra = extensions(j, { "id", "name", "where", "note", "review", "match", "mask", "scope",
+        "color", "strength", "light", "light_reach", "light_lift", "enabled", "origin", "marked" });
     e.id = str("id");
     e.name = str("name");
     e.where = str("where");
@@ -275,6 +288,7 @@ bool entry_from_json(const Json& j, Entry& e, std::string* error)
             if (mj.type != Json::Object)
                 continue;
             Match m;
+            m.extra = extensions(mj, { "key", "size", "clut", "offset" });
             const Json* k = mj.get("key");
             if (!k || k->type != Json::String || k->string.size() != 10)
                 continue;
@@ -290,6 +304,7 @@ bool entry_from_json(const Json& j, Entry& e, std::string* error)
             e.match.push_back(m);
         }
     if (const Json* mask = j.get("mask"); mask && mask->type == Json::Object) {
+        e.mask.extra = extensions(*mask, { "rects", "polygons", "indices", "color_min", "color_max", "luma", "map" });
         if (const Json* rs = mask->get("rects"); rs && rs->type == Json::Array)
             for (const Json& r : rs->items) {
                 float v[4];
@@ -335,6 +350,7 @@ bool entry_from_json(const Json& j, Entry& e, std::string* error)
             e.mask.map = m->string;
     }
     if (const Json* scope = j.get("scope"); scope && scope->type == Json::Object) {
+        e.scope.extra = extensions(*scope, { "rooms", "surfaces", "models" });
         if (const Json* rs = scope->get("rooms"); rs && rs->type == Json::Array)
             for (const Json& r : rs->items) {
                 float v[2];
@@ -347,9 +363,11 @@ bool entry_from_json(const Json& j, Entry& e, std::string* error)
                 const Json* ps = s.type == Json::Object ? s.get("polygons") : nullptr;
                 if (!numbers(s.type == Json::Object ? s.get("room") : nullptr, room, 2) || !ps || ps->type != Json::Array)
                     continue;
+                e.scope.surface_groups.push_back(s);
                 for (const Json& p : ps->items)
                     if (p.type == Json::Number && p.number >= 0) {
                         Surface f;
+                        f.extra = extensions(s, { "room", "polygons" });
                         f.zone = (int)room[0], f.room = (int)room[1], f.polygon = (uint32_t)p.number;
                         if (std::find(e.scope.surfaces.begin(), e.scope.surfaces.end(), f) == e.scope.surfaces.end())
                             e.scope.surfaces.push_back(f);
@@ -379,7 +397,7 @@ static Json array_of(std::initializer_list<double> v)
 static double tidy(float v) { return round((double)v * 1000.0) / 1000.0; }
 Json entry_to_json(const Entry& e)
 {
-    Json j = Json::object();
+    Json j = e.extra;
     j.set("id", Json::str(e.id));
     if (!e.name.empty())
         j.set("name", Json::str(e.name));
@@ -387,7 +405,7 @@ Json entry_to_json(const Entry& e)
         j.set("where", Json::str(e.where));
     Json ms = Json::array();
     for (const Match& m : e.match) {
-        Json mj = Json::object();
+        Json mj = m.extra;
         mj.set("key", Json::str(m.key));
         if (m.w > 0)
             mj.set("size", array_of({ (double)m.w, (double)m.h }));
@@ -398,7 +416,7 @@ Json entry_to_json(const Entry& e)
         ms.items.push_back(mj);
     }
     j.set("match", ms);
-    Json mask = Json::object();
+    Json mask = e.mask.extra;
     if (!e.mask.rects.empty()) {
         Json rs = Json::array();
         for (const auto& r : e.mask.rects)
@@ -430,26 +448,53 @@ Json entry_to_json(const Entry& e)
     if (!e.mask.map.empty())
         mask.set("map", Json::str(e.mask.map));
     j.set("mask", mask);
-    if (!e.scope.empty()) {
-        Json scope = Json::object();
+    if (!e.scope.empty() || !e.scope.extra.members.empty() || !e.scope.surface_groups.empty()) {
+        Json scope = e.scope.extra;
         if (!e.scope.rooms.empty()) {
             Json rs = Json::array();
             for (const auto& r : e.scope.rooms)
                 rs.items.push_back(array_of({ (double)r[0], (double)r[1] }));
             scope.set("rooms", rs);
         }
-        if (!e.scope.surfaces.empty()) {
-            /* grouped by room, polygons in order */
-            std::vector<Surface> sorted = e.scope.surfaces;
+        if (!e.scope.surfaces.empty() || !e.scope.surface_groups.empty()) {
+            Json ss = Json::array();
+            std::vector<Surface> represented;
+            for (const Json& original : e.scope.surface_groups) {
+                float room[2];
+                const Json* polygons = original.get("polygons");
+                if (!numbers(original.get("room"), room, 2) || !polygons || polygons->type != Json::Array)
+                    continue;
+                Json group = original, ps = Json::array();
+                for (const Json& p : polygons->items) {
+                    if (p.type != Json::Number || p.number < 0) continue;
+                    Surface f;
+                    f.zone = (int)room[0], f.room = (int)room[1], f.polygon = (uint32_t)p.number;
+                    if (std::find(e.scope.surfaces.begin(), e.scope.surfaces.end(), f) != e.scope.surfaces.end()) {
+                        ps.items.push_back(p);
+                        represented.push_back(f);
+                    }
+                }
+                /* Keep originally empty extension-bearing groups, but do not
+                 * retain a nonempty group whose polygons were explicitly removed. */
+                if (!ps.items.empty() || polygons->items.empty()) {
+                    group.set("polygons", ps);
+                    ss.items.push_back(group);
+                }
+            }
+            /* Newly added surfaces still get the canonical room grouping. */
+            std::vector<Surface> sorted;
+            for (const Surface& f : e.scope.surfaces)
+                if (std::find(represented.begin(), represented.end(), f) == represented.end())
+                    sorted.push_back(f);
             std::sort(sorted.begin(), sorted.end(), [](const Surface& a, const Surface& b) {
                 return std::make_tuple(a.zone, a.room, a.polygon) < std::make_tuple(b.zone, b.room, b.polygon);
             });
-            Json ss = Json::array();
             for (size_t i = 0; i < sorted.size();) {
-                Json s = Json::object(), ps = Json::array();
+                Json s = sorted[i].extra, ps = Json::array();
                 s.set("room", array_of({ (double)sorted[i].zone, (double)sorted[i].room }));
                 size_t k = i;
-                for (; k < sorted.size() && sorted[k].zone == sorted[i].zone && sorted[k].room == sorted[i].room; k++)
+                for (; k < sorted.size() && sorted[k].zone == sorted[i].zone && sorted[k].room == sorted[i].room
+                     && prefab::json_write(sorted[k].extra) == prefab::json_write(sorted[i].extra); k++)
                     ps.items.push_back(Json::num(sorted[k].polygon));
                 s.set("polygons", ps);
                 ss.items.push_back(s);
@@ -1512,6 +1557,24 @@ extern "C" int pc_emissive_texel(unsigned u, unsigned v, unsigned tpage, unsigne
     if (light)
         *light = catalog().entries[(size_t)s - 1].light;
     return 1;
+}
+
+extern "C" int pc_emissive_key_texel(const char* key, float u, float v, float rgb[3])
+{
+    if (rgb) rgb[0] = rgb[1] = rgb[2] = 0;
+    if (!key || !*key || !std::isfinite(u) || !std::isfinite(v) || !any_marks)
+        return 0;
+    /* Uses have already been matched by the frame's emissive sync. Avoid
+     * allocating a use_list for every sample of every rect-light cell. */
+    for (const auto& item : uses) {
+        const Use& use = item.second;
+        if (use.refs <= 0 || use.key != key) continue;
+        int w = use.box[2] - use.box[0] + 1, h = use.box[3] - use.box[1] + 1;
+        unsigned x = use.box[0] + std::min(w - 1, (int)(std::clamp(u, 0.0f, 1.0f) * w));
+        unsigned y = use.box[1] + std::min(h - 1, (int)(std::clamp(v, 0.0f, 1.0f) * h));
+        return pc_emissive_texel(x, y, use.page, use.clut, rgb, nullptr);
+    }
+    return 0;
 }
 
 namespace {

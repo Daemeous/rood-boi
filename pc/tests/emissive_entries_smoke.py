@@ -187,7 +187,8 @@ def check_view(s):
         return
     key, (w, h) = picked["key"], picked["size"]
     ident = g.call("emissive", action="new")["id"]
-    g.call("emissive", action="set", id=ident, mask={"rects": [[0, 0, 1, 1]]})
+    g.call("emissive", action="set", id=ident, mask={"map": "emissive"})
+    g.call("emissive", action="ui", tool="rectangle")
     g.call("emissive", action="select", id=ident)
     tv = view(s, texture={"show": True}).get("texture_view")
     tv = view(s).get("texture_view")
@@ -224,7 +225,7 @@ def check_view(s):
     s.check(tv2["zoom"] == zooms[-2] and tv2["hover"][:2] == a, f"view: a notch back out ({tv2['zoom']}x)")
     wheel(s, texel_xy(tv2, *a, 0.3, 0.6), 1)
     tv = view(s)["texture_view"]
-    # a rect dragged at this zoom: the texels under the press and the release (the mask's first rect)
+    # A rectangle at this zoom adds the texels under the press and release to the painted map.
     b = [a[0] + 3, a[1] + 2]
     pa, pb = texel_xy(tv, *a), texel_xy(tv, *b)
     if s.check(inside(tv, pa) and inside(tv, pb), f"view: texels {a} and {b} are in the canvas at {tv['zoom']}x"):
@@ -232,10 +233,17 @@ def check_view(s):
         s.mouse([(pa[0] + pb[0]) / 2, (pa[1] + pb[1]) / 2], down=True)
         s.mouse(pb, down=True)
         s.mouse(pb, down=False)
-        rects = mask_rects(s, ident)
-        s.check(rects == [[a[0], a[1], b[0] + 1, b[1] + 1]],
-                f"view: a drag at {tv['zoom']}x sets the first rect to those texels ({rects})")
-        # Shift adds one (dragged the other way)
+        from PIL import Image
+        path = s.lights_dir / "materials" / key / "emissive.png"
+        img = Image.open(path).convert("L")
+        expected = {(x, y) for y in range(a[1], b[1] + 1) for x in range(a[0], b[0] + 1)}
+        lit = {(x, y) for y in range(h) for x in range(w) if img.getpixel((x, y))}
+        s.check(lit == expected, f"view: rectangle drag at {tv['zoom']}x paints exactly its texels")
+        # Another drag adds one (also while Shift is held, dragged the other way).
+        # First paint removes the missing-map warning above the canvas.
+        # Read its new screen position rather than reusing pre-paint pixels.
+        tv_before = tv
+        tv = view(s)["texture_view"]
         c, d = [a[0] - 2, a[1] + 1], [a[0] - 4, a[1] - 1]
         pc_, pd = texel_xy(tv, *c), texel_xy(tv, *d)
         g.call("editor_input", hold=["shift"])
@@ -245,9 +253,12 @@ def check_view(s):
         s.mouse(pd, down=False)
         g.call("editor_input", release=True)
         g.run(2)
-        rects = mask_rects(s, ident)
-        s.check(rects == [[a[0], a[1], b[0] + 1, b[1] + 1], [d[0], d[1], c[0] + 1, c[1] + 1]],
-                f"view: Shift + drag adds a rect ({rects})")
+        img = Image.open(path).convert("L")
+        expected |= {(x, y) for y in range(d[1], c[1] + 1) for x in range(d[0], c[0] + 1)}
+        lit = {(x, y) for y in range(h) for x in range(w) if img.getpixel((x, y))}
+        s.check(lit == expected, "view: another rectangle drag adds without replacing the first "
+                f"(missing={sorted(expected - lit)}, extra={sorted(lit - expected)}, "
+                f"canvas={tv_before['rect']} -> {tv['rect']})")
     # a middle drag pans by what the pointer moved
     tv = view(s)["texture_view"]
     mid = [tv["rect"][0] + tv["rect"][2] / 2, tv["rect"][1] + tv["rect"][3] / 2]
@@ -277,6 +288,7 @@ def check_view(s):
     s.check(tv["fitted"] and tv["zoom"] == tv["fit"] == fit, f"view: Fit shows the whole texture ({tv['zoom']}x)")
     # the brush at two zooms: one dab each (radius 0.5), on the texel under the pointer
     g.call("emissive", action="set", id=ident, mask={"map": "emissive"})
+    g.call("emissive", action="paint", key=key, fill=0)
     view(s, brush={"on": True, "radius": 0.5, "hardness": 1, "opacity": 1, "value": 255})
     tv = view(s)["texture_view"]
     painted = []

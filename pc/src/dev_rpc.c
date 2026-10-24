@@ -4204,7 +4204,9 @@ static int edits(const char* method, const char* request)
         if (p)
             string_value(member(p, "action"), action, sizeof action);
         return !strcmp(action, "set") || !strcmp(action, "new") || !strcmp(action, "remove")
-            || !strcmp(action, "duplicate") || !strcmp(action, "scope_pick");
+            || !strcmp(action, "duplicate") || !strcmp(action, "scope_pick")
+            || !strcmp(action, "paint") || !strcmp(action, "import_map")
+            || (!strcmp(action, "ui") && p && member(p, "paint"));
     }
     if (!strcmp(method, "lighting")) { /* revert edits the room; the rest load or save it */
         const char* p = member(request, "params");

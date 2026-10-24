@@ -752,13 +752,16 @@ static void fill_present_ubo(present_ubo* u, int x, int y, int w, int h, int vie
     u->fog_range[0] = pf->fog_range[0], u->fog_range[1] = pf->fog_range[1];
     /* Lighting: world-space lights (every one: a storage buffer, binding
      * 16) and the projection to invert. */
-    static float lp[PC_LIGHTS_MAX][4], lc[PC_LIGHTS_MAX][4], ld[PC_LIGHTS_MAX][4], lw[PC_LIGHTS_MAX][4],
-        lr[PC_LIGHTS_MAX][4], lu[PC_LIGHTS_MAX][4];
+    static float lw[PC_LIGHTS_MAX][4];
     static int wants[PC_LIGHTS_MAX], slots[PC_LIGHTS_MAX];
     float hh, ox, oy;
     int count = 0;
     if (pc_scene_projection(&hh, &ox, &oy)) {
-        count = pc_lights_view(lp, lc, ld, lw, wants, lr, lu, PC_LIGHTS_MAX);
+        count = pc_lights_list(present_lights, PC_LIGHTS_MAX);
+        for (int i = 0; i < count; ++i) {
+            memcpy(lw[i], present_lights[i].world, sizeof lw[i]);
+            wants[i] = present_lights[i].info[0];
+        }
         if (gi && pc_rt_shadows)
             for (int i = 0; i < count; i++)
                 slots[i] = wants[i] ? -2 : -1;
@@ -780,16 +783,8 @@ static void fill_present_ubo(present_ubo* u, int x, int y, int w, int h, int vie
         u->projection[1] = hh;
         u->screen_offset[0] = ox, u->screen_offset[1] = oy;
     }
-    for (int i = 0; i < count; i++) {
-        pc_light_gpu* l = &present_lights[i];
-        memcpy(l->pos, lp[i], sizeof lp[i]);
-        memcpy(l->col, lc[i], sizeof lc[i]);
-        memcpy(l->dir, ld[i], sizeof ld[i]);
-        memcpy(l->right, lr[i], sizeof lr[i]);
-        memcpy(l->up, lu[i], sizeof lu[i]);
-        memcpy(l->world, lw[i], sizeof lw[i]);
-        l->info[0] = slots[i], l->info[1] = l->info[2] = l->info[3] = 0;
-    }
+    for (int i = 0; i < count; i++)
+        present_lights[i].info[0] = slots[i];
     present_light_count = count;
     u->i1[0] = pc_gl_view_mode;
     u->i1[1] = count;

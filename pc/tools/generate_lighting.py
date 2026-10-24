@@ -146,12 +146,17 @@ def room_items(cat, r, stats):
 EMISSIVE_CATALOG = ROOT / "pc/assets/emissive/catalog.json"
 
 
-def load_window_entries(path=EMISSIVE_CATALOG):
+def load_window_entries(path=EMISSIVE_CATALOG, user_path=None):
     """The emissive entries that put rect lights on their panes."""
     try:
         entries = json.loads(pathlib.Path(path).read_text(encoding="utf-8")).get("entries", [])
     except OSError:
         return []
+    if user_path:
+        user = json.loads(pathlib.Path(user_path).read_text(encoding="utf-8")).get("entries", [])
+        merged = {e["id"]: e for e in entries}
+        merged.update({e["id"]: e for e in user})
+        entries = list(merged.values())
     return [e for e in entries if e.get("enabled", True) and isinstance(e.get("rect_light"), dict)]
 
 
@@ -214,6 +219,45 @@ def window_texels(e, m, p, vram):
     return rgb[covered]
 
 
+def window_clut_key(vram, p):
+    """Same palette identity as emissive.cpp; no palette pixels serialized."""
+    depth = (p["tpage"] >> 7) & 3
+    if depth >= 2 or vram is None:
+        return ""
+    count = 16 if depth == 0 else 256
+    cx, cy = (p["clut"] & 63) * 16, (p["clut"] >> 6) & 511
+    return hashlib.md5(vram[cy, cx:cx + count].astype("<u2").tobytes()).hexdigest()[:10]
+
+
+def window_polygon_matches(e, p, r, vram):
+    """Match the same room, scoped polygon and palette used for light generation."""
+    return window_match(e, r, p, vram) is not None
+
+
+def window_pattern_faces(polys, members, centre, right, up, size, vram=None):
+    """Geometry + texture identity only; masks are resolved from live materials, never baked here.
+
+    Each semicolon-delimited face is key followed by three (rect x,y,texture u,v)
+    vertices. Both coordinate pairs are normalized 0..1; triangles preserve UV
+    flips, tiling and gaps between panes when several panes become a wall light.
+    """
+    faces = []
+    for i in members:
+        p = polys[i]
+        uv = p["uv"].astype(float)
+        # Normalized texel centres: runtime uses floor(u * width), exactly
+        # like pc_emissive_key_texel. A 1x1 backing is (0.5, 0.5), not (0, 0).
+        uv = (uv - uv.min(0) + 0.5) / (uv.max(0) - uv.min(0) + 1)
+        xy = np.column_stack(((p["V"] - centre) @ right / size[0] + 0.5,
+                              (p["V"] - centre) @ up / size[1] + 0.5))
+        for tri in ([(0, 1, 2), (1, 3, 2)] if p.get("quad", len(uv) == 4) else [(0, 1, 2)]):
+            values = np.column_stack((xy[list(tri)], uv[list(tri)])).ravel()
+            palette = window_clut_key(vram, p)
+            reference = p["ikey"] + ("@" + palette if palette else "") + "#" + str(p["off"])
+            faces.append(reference + "," + ",".join(lf.format_number(float(x), 6) for x in values))
+    return ";".join(faces)
+
+
 def window_lights(entries, r, vram, stats):
     """Rect lights fitted to the panes of window entries (load_window_entries) in room r."""
     items = []
@@ -269,7 +313,7 @@ def window_lights(entries, r, vram, stats):
             area = sum(polys[i]["area"] for i in members)
             n = -sum(polys[i]["normal"] * polys[i]["area"] for i in members)  # the front: -(e1 x e2)
             n = n / (np.linalg.norm(n) + 1e-9)
-            up = np.array([0.0, -1.0, 0.0]) if abs(n[1]) < 0.7 else np.array([0.0, 0.0, 1.0])
+            up = np.array([0.0, -1.0, 0.0]) if abs(n[1]) <= 0.95 else np.array([0.0, 0.0, 1.0])
             up = up - n * float(np.dot(up, n))
             up /= np.linalg.norm(up) + 1e-9
             right = np.cross(up, n)
@@ -293,6 +337,14 @@ def window_lights(entries, r, vram, stats):
                       ("radius", lf.format_number(float(spec.get("radius", 600)), 1)),
                       ("size", vec([max(u.max() - u.min(), 8), max(v.max() - v.min(), 8)])),
                       ("shadows", "1" if spec.get("shadows", 1) else "0")]
+            size = [max(u.max() - u.min(), 8), max(v.max() - v.min(), 8)]
+            fields += [("pattern_entry", e["id"]),
+                       ("pattern", "1" if spec.get("pattern", 1) else "0"),
+                       ("pattern_mode", "1" if spec.get("pattern_mode", 1) else "0"),
+                       ("pattern_elevation", lf.format_number(float(spec.get("pattern_elevation", 35)), 2)),
+                       ("pattern_spread", lf.format_number(float(spec.get("pattern_spread", 2)), 3)),
+                       ("pattern_grid", str(max(1, min(16, int(spec.get("pattern_grid", 16)))))),
+                       ("pattern_faces", window_pattern_faces(polys, members, centre, right, up, size, vram))]
             items.append(lf.Item("light", item_id.split(":", 1)[1], fields))
             stats["windows"] += 1
     return items
@@ -310,7 +362,7 @@ def room_text(zone, room, items):
 
 def zone_rooms(task):
     """One zone's rooms (a worker): [(room, text or None, notes)] and stats."""
-    catalog, zone, rooms_wanted = task
+    catalog, zone, rooms_wanted, emissive_user = task
     cat = fl.load_catalog(catalog)
     disc = fl.Disc()
     stats = collections.Counter()
@@ -318,7 +370,7 @@ def zone_rooms(task):
     out = []
     review = outdoor.load_review()
     moods = outdoor.load_atmosphere()
-    windows = load_window_entries()
+    windows = load_window_entries(user_path=emissive_user)
     try:
         vram, rooms = fl.zone_vram(disc, zone)
     except (OSError, KeyError, ValueError, IndexError):
@@ -354,6 +406,7 @@ def main():
     ap.add_argument("--pack", default="default")
     ap.add_argument("--root", default=str(ROOT / "lighting"), help="the packs' directory")
     ap.add_argument("--catalog", default=str(fl.CATALOG))
+    ap.add_argument("--emissive-user", help="explicit saved emissive user layer over the shipped window catalog")
     ap.add_argument("--dry-run", action="store_true", help="report what would change; write nothing")
     ap.add_argument("--check", action="store_true", help="exit 1 when a generated file is not up to date")
     ap.add_argument("--quiet", action="store_true")
@@ -367,7 +420,7 @@ def main():
     stats = collections.Counter()
     stats["by_type"] = collections.Counter()
     changed, written, removed, notes_all, rooms_seen = [], 0, 0, [], 0
-    tasks = [(args.catalog, zone, args.room) for zone in zones]
+    tasks = [(args.catalog, zone, args.room, args.emissive_user) for zone in zones]
     if args.jobs > 1 and len(tasks) > 1:
         import multiprocessing
         with multiprocessing.Pool(min(args.jobs, len(tasks))) as pool:

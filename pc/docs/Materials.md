@@ -64,11 +64,11 @@ Workflow (Details > Emissive, an entry with *Painted map* on):
 2. Paint `emissive.png` in any editor (Photoshop, Aseprite: the reference
    as a layer underneath); the game reloads it when saved.
 3. Or **Import** a PNG painted elsewhere (its size must be the texture's),
-   or paint in the editor: *Paint* (brush radius, hardness, opacity, value;
-   left paints, right erases; one stroke per press, *Undo stroke*), *Fill*,
-   *Invert*, *Clear*, magic wands (*the filters' texels*: what the entry's
-   shapes and filters pass; *CLUT index (picked)*: the picked texel's index)
-   to seed a selection, and *Texture underneath* (its opacity).
+   or use the [emissive texture toolbar](Emissive_editor_tools.md): Pencil (B),
+   Brush (radius, hardness, opacity), Eraser (E), Rectangle (R; Alt subtracts),
+   connected same-index Fill (G), and Select colour (W). X swaps add/remove;
+   Clear and Invert operate on the painted map, independently of index filters.
+   Painting and imports use ordinary editor Ctrl+Z/Ctrl+Y undo/redo.
 
 RPC `emissive`: `materials {key}` (the texture's channels, map problems,
 the folders), `export_reference {key, dir, channel}`, `import_map {key,

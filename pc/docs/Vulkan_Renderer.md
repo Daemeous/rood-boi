@@ -376,6 +376,22 @@ queries every light now counts, at a cost that stays nearly flat:
   lighting signature) stay put from frame to frame. The present pass and
   the trace each get it as a storage buffer from the frame arena (binding
   16 of the present, 11 of the trace, 10 of the haze).
+- **Textured windows** (`window_pattern.glsl`, `window_pattern.h`): generated
+  rects carry texture-key/UV triangle references, not extracted mask grids.
+  CPU packing conservatively integrates the live emissive map into a 256-cell luminance CDF,
+  preserves its mean radiance in the light colour, and supplies a directional
+  aperture's incident vector/angular spread. `pc_light_gpu` is **1152 bytes**:
+  the original 112-byte prefix, 64 `vec4` CDF values and one `vec4` direction.
+  Conservative source-texel integrals are cached by mapping/grid, catalog/map
+  generation and live texture content; changing a painted channel invalidates
+  the cache, and palette-qualified identities never choose an unrelated use.
+  Keep the present, trace and particle shader strides identical. The present
+  now uses the same packing function as tracing. Pattern/mode/mean/direction
+  changes invalidate NRD history. A receiver's finite angular footprint
+  is integrated over the mask and shadow samples are conditioned on its bright
+  area, giving projected structure with distance-dependent softness; diffuse
+  mode only changes source distribution. See [Emissive.md](Emissive.md#patterned-window-apertures-vulkan)
+  for controls, intensity semantics, the GL fallback and visual/perf harness.
 - **Direct light, unshadowed** (`scaled.frag`): every light's falloff,
   cosine and cone per pixel (ALU only; most lights are out of reach of a
   given pixel and cost a compare).

@@ -182,6 +182,8 @@ def suites(args, mode="egl"):
         Suite("window_lights", [PY, str(TESTS / "window_lights_test.py")], 60, binary=None,
               note="disc-free rect-light matching: palettes, room surfaces, mask shapes and filters",
               sources=[ROOT / "pc/tools/generate_lighting.py"]),
+        Suite("emissive_metadata", [PY, str(TESTS / "emissive_metadata_test.py")], 60, binary=None,
+              note="lossless emissive scope metadata: duplicate/empty groups, repeated round trips and membership edits"),
         Suite("emissive_catalog", [PY, str(TESTS / "emissive_catalog_test.py")], 300, binary=None,
               sources=[ROOT / "pc/assets/emissive/catalog.json", ROOT / "pc/tools/generate_lighting.py"],
               note="curated emissive entries: masks, tints, light settings in range; with the disc, every room's "
@@ -288,6 +290,9 @@ def suites(args, mode="egl"):
             Suite("editor_handles_smoke", [PY, str(TESTS / "editor_handles_smoke.py"), "--card", str(args.save)], 600,
                   note="viewport handles (mouse drags): each changes one field, Ctrl fine, Shift snap, Esc, one undo "
                        "step, hidden while flying; point/spot/rect/sun handles; the colour popover and eyedropper"),
+            Suite("emissive_tools_smoke", [PY, str(TESTS / "emissive_tools_smoke.py"), "--card", str(args.save)],
+                  300, note="emissive pixel tools in a scratch user layer: pencil, eraser, connected fill, colour "
+                            "selection, undo/redo and unknown metadata/rect_light save-reload round trips"),
             Suite("emissive_entries_smoke", [PY, str(TESTS / "emissive_entries_smoke.py"), "--card", str(args.save)],
                   300, note="emissive entries: Duplicate and Delete (a confirm first) by RPC and the panel, one undo step "
                             "each, undo and redo; the texture view: wheel zoom about the pointer's texel, middle-drag "

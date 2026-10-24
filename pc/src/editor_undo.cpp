@@ -75,6 +75,7 @@ struct Snapshot {
     std::map<std::string, std::string> settings; /* key -> the rest of its line */
     std::string kinds; /* the standalone schema kinds' values (rood_schema::standalone_state) */
     std::string emissive; /* the emissive user layer (emissive::user_text) */
+    std::string emissive_paint;
     std::vector<rood_selection::Ref> selection; /* the editor's selection (editor_selection.h) */
 };
 struct Transaction {
@@ -142,6 +143,7 @@ void capture(Snapshot& s)
     parse_settings(capture_text(pc_settings_write), s.settings);
     s.kinds = rood_schema::standalone_state();
     s.emissive = emissive::user_text();
+    s.emissive_paint = emissive::paint_state();
     s.selection = rood_selection::items();
 }
 
@@ -229,7 +231,7 @@ unsigned difference(const Snapshot& a, const Snapshot& b, unsigned parts)
         d |= SETTINGS;
     if ((parts & KINDS) && a.kinds != b.kinds)
         d |= KINDS;
-    if ((parts & EMISSIVE) && a.emissive != b.emissive)
+    if ((parts & EMISSIVE) && (a.emissive != b.emissive || a.emissive_paint != b.emissive_paint))
         d |= EMISSIVE;
     return d;
 }
@@ -389,6 +391,8 @@ void apply(const Snapshot& to, unsigned parts, const Snapshot& from)
         rood_schema::set_standalone_state(to.kinds);
     if (parts & EMISSIVE)
         emissive::set_user_text(to.emissive);
+    if (parts & EMISSIVE)
+        emissive::restore_paint_state(to.emissive_paint);
     /* The selection the state had (references to what it no longer has drop out). */
     rood_selection::set_all(to.selection, rood_selection::FROM_UNDO);
     rood_scene::refresh();

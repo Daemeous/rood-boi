@@ -1062,6 +1062,9 @@ static int vrt_nrd(const float eye[3], int result, int result_extra)
         int what[7] = { (int)floorf(l->pos[0] / 32), (int)floorf(l->pos[1] / 32), (int)floorf(l->pos[2] / 32),
             (int)l->pos[3], (int)l->col[3], l->info[0], (int)(l->right[3] * 4) };
         lights = vrt_hash(lights, what, sizeof what);
+        lights = vrt_hash(lights, &l->info[1], 3 * sizeof l->info[1]);
+        lights = vrt_hash(lights, l->pattern_dir, sizeof l->pattern_dir);
+        lights = vrt_hash(lights, l->pattern_cdf, sizeof l->pattern_cdf);
     }
     float amounts[4] = { pc_gi_baked_bounce, pc_emitter_light, (float)pc_gi_bounces, (float)pc_nrd_glow };
     lights = vrt_hash(lights, amounts, sizeof amounts);

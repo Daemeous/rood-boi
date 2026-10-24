@@ -68,21 +68,22 @@ vec3 emitted(vec3 p, vec3 n) {
 // flat however many lights the room has, and the denoisers (temporal
 // accumulation, NRD) average the rest.
 const int EXACT_LIGHTS = 8;
-vec3 jittered_centre(int i) {
+vec3 jittered_centre(int i, vec3 p) {
+    if (window_aperture(i)) return window_sample(i, p, vec2(rand(), rand()));
     vec3 centre = lpos(i).xyz;
-    if (lcol(i).w > 1.5) return centre + lright(i).xyz * (rand() * 2.0 - 1.0) + lup(i).xyz * (rand() * 2.0 - 1.0);
+    if (lcol(i).w > 1.5) return rect_source(i, vec2(rand(), rand()));
     vec3 r = vec3(rand(), rand(), rand()) * 2.0 - 1.0;
     return centre + normalize(r + 1e-4) * pow(rand(), 0.333) * point_size(i);
 }
 // Light i at p unshadowed, as luminance (the sampling weight).
 float light_weight(int i, vec3 p, vec3 n) {
     vec3 l; float d;
-    return light_falloff(i, lpos(i).xyz, p, n, l, d) * dot(lcol(i).rgb, vec3(0.299, 0.587, 0.114));
+    return light_falloff(i, window_aperture(i) ? window_centre(i, p) : lpos(i).xyz, p, n, l, d) * dot(lcol(i).rgb, vec3(0.299, 0.587, 0.114));
 }
 // Direct light from one light at p through its shadow ray (0 when blocked).
 vec3 light_through(int i, vec3 p, vec3 n) {
     vec3 l; float d, th; int hit; vec2 bc;
-    float a = light_falloff(i, jittered_centre(i), p, n, l, d);
+    float a = light_falloff(i, jittered_centre(i, p), p, n, l, d);
     if (a <= 0.0 || trace(p + n * 1.5, l, d - max(3.0, lup(i).w), true, n, 0.0, th, hit, bc)) return vec3(0.0);
     return lcol(i).rgb * a;
 }
@@ -105,7 +106,7 @@ vec3 direct(vec3 p, vec3 n) {
 }
 // One shadow ray from p to a point of light i: 1 lit, 0 blocked.
 float shadow_ray(int i, vec3 p, vec3 n) {
-    vec3 centre = jittered_centre(i);
+    vec3 centre = jittered_centre(i, p);
     vec3 to = centre - p; float d = length(to); vec3 l = to / max(d, 1e-3);
     float th; int hit; vec2 bc;
     if (dot(n, l) <= 0.0) return 0.0;

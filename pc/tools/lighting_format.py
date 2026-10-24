@@ -81,6 +81,8 @@ SCHEMA = {
         ("dir", 4, "0,1,0", False), ("color", 3, "1,0.75,0.45", False), ("intensity", 3, "1", False),
         ("radius", 1, "600", False), ("cone", 2, "45", False), ("inner", 2, "0", False),
         ("size", 1, "128,128", False), ("barn_angle", 2, "45", False), ("barn_length", 1, "0", False),
+        ("pattern", 0, "0", False), ("pattern_grid", 0, "16", False), ("pattern_faces", -1, None, False), ("pattern_entry", -1, None, False),
+        ("pattern_mode", 0, "0", False), ("pattern_elevation", 2, "35", False), ("pattern_spread", 3, "2", False),
         ("shadows", 0, "0", False), ("enabled", 0, "1", False)]),
     # Post-processing profiles ("post room", "post cutscene", "post event.<id>"): pc/src/post_profile.cpp.
     # Open: any post field (checked there), `preset` a named profile under them.

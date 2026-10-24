@@ -17,6 +17,7 @@ enum { MAX_SLOTS = 256 };
  * (fixture_lib.py ikey), its size in texels, optionally its CLUT's colours
  * (clut key), and where that box sits in the entry's texture space. */
 struct Match {
+    prefab::Json extra = prefab::Json::object();
     std::string key, clut;
     int w = 0, h = 0;
     int ox = 0, oy = 0;
@@ -25,6 +26,7 @@ struct Match {
  * first match's box origin). No rects and no polygons: the whole texture.
  * The filters apply per drawn texel. */
 struct Mask {
+    prefab::Json extra = prefab::Json::object();
     std::vector<std::array<int, 4>> rects; /* x0, y0, x1, y1 (x1, y1 excluded) */
     std::vector<std::vector<std::array<float, 2>>> polygons;
     bool has_indices = false;
@@ -49,11 +51,17 @@ struct Mask {
 struct Surface {
     int zone = -1, room = -1;
     uint32_t polygon = 0;
+    prefab::Json extra = prefab::Json::object();
     bool operator==(const Surface& o) const { return zone == o.zone && room == o.room && polygon == o.polygon; }
 };
 struct Scope {
+    prefab::Json extra = prefab::Json::object();
     std::vector<std::array<int, 2>> rooms;
     std::vector<Surface> surfaces;
+    /* Original valid groups retain opaque metadata, duplicate memberships and
+     * empty groups. Serialization reconciles their polygons with surfaces so
+     * edits to the runtime set never resurrect removed polygons. */
+    std::vector<prefab::Json> surface_groups;
     std::vector<uint32_t> models;
     bool empty() const { return rooms.empty() && surfaces.empty() && models.empty(); }
     /* Limited to some surfaces or models: drawn with a scope bit (emissive.glsl). */
@@ -64,6 +72,7 @@ struct Scope {
  * else (other room blocks, effects: only unscoped and room-scoped entries). */
 enum { SURFACE_ROOM = 0, SURFACE_MODEL = 1, SURFACE_OTHER = 2 };
 struct Entry {
+    prefab::Json extra = prefab::Json::object(); /* fields owned by generators / future versions */
     std::string id, name, where, note, review;
     std::vector<Match> match;
     Mask mask;
@@ -107,6 +116,9 @@ std::string catalog_text(const Catalog& c, const char* comment);
 /* The user layer as text (the editor's undo snapshots: editor_undo.cpp),
  * and back (the layer replaced and unsaved; nothing when it is the same). */
 std::string user_text();
+/* Painted channels participating in the editor's ordinary transactions. */
+std::string paint_state();
+void restore_paint_state(const std::string& text);
 void set_user_text(const std::string& text);
 
 /* Textures and the map */

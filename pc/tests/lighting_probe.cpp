@@ -72,6 +72,26 @@ static int selftest()
             && shaped_back.barn_length == 48 && shaped_item.get("barn_length")
             && !item_from_light(rood_lights::Light()).get("barn_angle"),
         "the inner cone and barn doors round-trip; at their defaults they are left out");
+    shaped.pattern = shaped.pattern_mode = 1;
+    shaped.pattern_grid = 4;
+    shaped.pattern_elevation = -15;
+    shaped.pattern_spread = 3.5f;
+    shaped.pattern_entry = "E008";
+    shaped.pattern_faces = "0123456789,0,0,0,0,1,0,1,0,0,1,0,1";
+    Item patterned = item_from_light(shaped);
+    rood_lights::Light pattern_back;
+    check(light_from_item(patterned, pattern_back) && pattern_back.pattern == 1 && pattern_back.pattern_mode == 1
+            && pattern_back.pattern_grid == 4 && pattern_back.pattern_elevation == -15
+            && pattern_back.pattern_spread == 3.5f && pattern_back.pattern_entry == "E008"
+            && pattern_back.pattern_faces == shaped.pattern_faces,
+        "window aperture controls and texture-key/UV mapping round-trip without mask pixels");
+    patterned.set("pattern_grid", "999");
+    patterned.set("pattern_elevation", "-999");
+    patterned.set("pattern_spread", "0");
+    light_from_item(patterned, pattern_back);
+    check(pattern_back.pattern_grid == 16 && pattern_back.pattern_elevation == -80
+            && pattern_back.pattern_spread == .01f,
+        "window aperture controls clamp to supported bounds");
     Entry e;
     e.item = it;
     e.id = it.id();

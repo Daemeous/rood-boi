@@ -99,6 +99,9 @@ const std::vector<KindSpec>& kinds()
                 { "dir", 4, "0,1,0", false }, { "color", 3, "1,0.75,0.45", false }, { "intensity", 3, "1", false },
                 { "radius", 1, "600", false }, { "cone", 2, "45", false }, { "inner", 2, "0", false },
                 { "size", 1, "128,128", false }, { "barn_angle", 2, "45", false }, { "barn_length", 1, "0", false },
+                { "pattern", 0, "0", false }, { "pattern_grid", 0, "16", false },
+                { "pattern_faces", -1, nullptr, false }, { "pattern_entry", -1, nullptr, false }, { "pattern_mode", 0, "0", false },
+                { "pattern_elevation", 2, "35", false }, { "pattern_spread", 3, "2", false },
                 { "shadows", 0, "0", false }, { "enabled", 0, "1", false } },
             false, 4 },
         /* Post-processing profiles ("post room", "post cutscene", "post event.<id>"): post_profile.cpp.
@@ -1165,6 +1168,15 @@ Item item_from_light(const rood_lights::Light& l)
     it.set("cone", format_number(l.cone, 2));
     it.set("inner", format_number(l.inner, 2));
     it.set("size", vec(l.size, 2, 1));
+    it.set("pattern", l.pattern ? "1" : "0");
+    it.set("pattern_grid", std::to_string(l.pattern_grid));
+    it.set("pattern_mode", l.pattern_mode ? "1" : "0");
+    it.set("pattern_elevation", format_number(l.pattern_elevation, 2));
+    it.set("pattern_spread", format_number(l.pattern_spread, 3));
+    if (!l.pattern_faces.empty())
+        it.set("pattern_faces", l.pattern_faces);
+    if (!l.pattern_entry.empty())
+        it.set("pattern_entry", l.pattern_entry);
     it.set("barn_angle", format_number(l.barn_angle, 2));
     it.set("barn_length", format_number(l.barn_length, 1));
     it.set("shadows", l.shadows ? "1" : "0");
@@ -1191,6 +1203,15 @@ bool light_from_item(const Item& it, rood_lights::Light& l)
     l.cone = (float)get_num(it, "cone", 45);
     l.inner = (float)get_num(it, "inner", 0);
     get_vec(it, "size", l.size, 2);
+    l.pattern = get_num(it, "pattern", 0) != 0;
+    l.pattern_mode = get_num(it, "pattern_mode", 0) != 0;
+    l.pattern_elevation = (float)std::max(-80.0, std::min(80.0, get_num(it, "pattern_elevation", 35)));
+    l.pattern_spread = (float)std::max(0.01, std::min(15.0, get_num(it, "pattern_spread", 2)));
+    l.pattern_grid = (int)std::max(1.0, std::min(16.0, get_num(it, "pattern_grid", 16)));
+    if (const std::string* faces = it.get("pattern_faces"))
+        l.pattern_faces = *faces;
+    if (const std::string* entry = it.get("pattern_entry"))
+        l.pattern_entry = *entry;
     l.barn_angle = (float)get_num(it, "barn_angle", 45);
     l.barn_length = (float)get_num(it, "barn_length", 0);
     l.shadows = get_num(it, "shadows", 0) != 0;

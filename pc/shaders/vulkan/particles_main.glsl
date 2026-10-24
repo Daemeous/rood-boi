@@ -20,7 +20,7 @@ layout(std140, binding = 0) uniform Particles { // particle_math.h pc_particles_
     vec4 glow_col[32];
     vec4 emitters[128]; // 16 x 8
 } pt;
-struct Light { vec4 pos, col, right, up, dir, world; ivec4 info; }; // light_list.h pc_light_gpu; info.x casts
+struct Light { vec4 pos, col, right, up, dir, world; ivec4 info; vec4 pattern_cdf[64]; vec4 pattern_dir; }; // light_list.h pc_light_gpu; info.x casts
 layout(std430, binding = 4) readonly buffer LightList { Light lights[]; };
 layout(binding = 5, r32ui) uniform uimage2D keys;
 layout(binding = 6, rgba32f) uniform writeonly image2D colours;
