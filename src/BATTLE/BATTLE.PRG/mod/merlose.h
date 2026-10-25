@@ -862,6 +862,19 @@ static int _hex(char* out, const u_char* bytes, int count)
     return count * 2;
 }
 
+#ifdef ROOD_PC
+/* The encounter lab's seeded arrivals (pc/src/encounter_lab.c): her interval
+ * timers start from zero, so the fight repeats whatever time passed since the
+ * load (the hostility check's phase decides when she sets off). */
+void vs_mod_reset_timers(void)
+{
+    _gearSaveTimer = 0;
+    _hostilityTimer = 0;
+    _weaponTimer = 0;
+    _leashFrames = 0;
+}
+#endif
+
 /* Her chosen spells, for the RPC state (the MAGIC menu's own count is in menu.c) */
 static int _stateSpellCount(void)
 {

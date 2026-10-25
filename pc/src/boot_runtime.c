@@ -1267,6 +1267,7 @@ extern void pc_window_wait_fraction(int k, int n) __attribute__((weak));
 /* Battle charging skip (charge_skip.c): this vsync judged (before its pacing),
  * and whether it is presented. */
 extern void pc_charge_skip_vsync(void) __attribute__((weak));
+extern void pc_fight_trace_vsync(void) __attribute__((weak)); /* fight_trace.c */
 extern int pc_charge_skip_hidden(void) __attribute__((weak));
 extern void pc_hw_skip_present(void) __attribute__((weak)); /* gpu_hw.c */
 extern int pc_photo_rendering __attribute__((weak));       /* photo.cpp: a photo mode render runs */
@@ -1310,6 +1311,8 @@ static void tick_frame_work(void)
         pc_fog_vsync(); /* once per game vsync, after the RPC's changes, before the frame */
     if (pc_lua_tick && !photo)
         pc_lua_tick(); /* plugins' tick handlers and game-time timers, after the RPC's changes */
+    if (pc_fight_trace_vsync && !photo)
+        pc_fight_trace_vsync(); /* the state the last frame left */
     if (pc_charge_skip_vsync && !photo)
         pc_charge_skip_vsync();
     pc_window_tick();
