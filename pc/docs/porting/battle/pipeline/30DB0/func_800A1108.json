@@ -1,0 +1,198 @@
+{
+ "function": "func_800A1108",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (reads and writes interleaved in the C's order: arg1 may alias the actor); spec sound",
+ "plan": {
+  "name": "func_800A1108",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x800a1108",
+  "difficulty": "S",
+  "zig_name": "func_800A1108",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A1108",
+  "spec_file": "func_800A1108.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_800A1108(arg0: c_int, arg1: ?*anyopaque) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "?*anyopaque"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800F45E0_t"
+  ],
+  "globals": [
+   "D_800F45E0"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 19585,
+     "completion_tokens": 12506,
+     "reasoning_tokens": 10640,
+     "cost": 0.0082115,
+     "seconds": 53.1,
+     "sample": 1,
+     "conversation": "d78d6b40bd4674ece91624b2ed93467cf220cc0ef3ac30f9cfd00dd33c18ff1a"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "first-table": "13991",
+   "fallback": "8019",
+   "not-found": "7990"
+  },
+  "mutations": [
+   {
+    "name": "R1: not-found returns 0, not -1",
+    "caught": true
+   },
+   {
+    "name": "R2: fallback reads the first table again",
+    "caught": true
+   },
+   {
+    "name": "R3: currentTileX read as one unsigned byte, not an int",
+    "caught": true
+   },
+   {
+    "name": "R4: facing store dropped",
+    "caught": true
+   },
+   {
+    "name": "R5: position.vz copied from position.vx",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 4,
+   "branches_hit": 4,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 11,
+   "lines_hit": 11,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative, 5 value(s): 1, 16, 5, 0, 15"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 43065,
+     "completion_tokens": 5024,
+     "reasoning_tokens": 4397,
+     "cost": 0.0068185,
+     "seconds": 21.1,
+     "sample": 1,
+     "conversation": "2bcdcb279402e3b3fc39f038373968c9b90ed57beef7b0b84002b0c2ffd25e79"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A1108.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A1108.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 65.9950296269999,
+ "wall_seconds": 140.51493174699954,
+ "totals": {
+  "cost": 0.01503,
+  "prompt_tokens": 62650,
+  "completion_tokens": 17530,
+  "model_seconds": 74.2,
+  "check_seconds": 66.0,
+  "calls": 2,
+  "wall_seconds": 140.5
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 795 / root 1492 / root 2591, 0 mismatches"
+ }
+}

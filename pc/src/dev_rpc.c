@@ -335,7 +335,7 @@
  *                                "outliner" or "library" ("place" too) beside it;
  *                                details: a Details tab by name (details,
  *                                lighting, inspector, atmosphere, post, graphics,
- *                                emissive, diagnostics); replies the states and
+ *                                emissive, material, diagnostics); replies the states and
  *                                the Details tab shown
  *   editor_select {action, ids, source, x, y | u, v, shift, ctrl, ...}  the
  *                                editor's selection (editor_scene.cpp): list,
@@ -570,6 +570,10 @@ extern void pc_ui_shell_json(char* out, unsigned size); /* ui/ui_shell.cpp */
 extern void pc_ui_draw_pointer(float x, float y, int click, int right, float wheel, int down, int middle,
     int shift); /* ui/ui_draw.cpp */
 extern int pc_ui_menu_active(void) __attribute__((weak)); /* ui/menu_bridge.c (battle builds) */
+/* gpu_hw.c: the game's afterimage left out of free-camera views; environment.cpp:
+ * rain drops the game drew, of them hidden by room geometry (render_stats). */
+extern long pc_hw_afterimages_skipped __attribute__((weak));
+extern long pc_weather_drops __attribute__((weak)), pc_weather_drops_hidden __attribute__((weak));
 extern int pc_native_room __attribute__((weak)), pc_native_occlusion __attribute__((weak)),
     pc_native_actors __attribute__((weak)), pc_native_actor_order __attribute__((weak)),
     pc_native_blend __attribute__((weak)), pc_native_objects __attribute__((weak)),
@@ -3496,7 +3500,8 @@ static void handle_method(int fd, const char* request)
             "\"native_shadows\":%d,\"shadow_markers\":%d,\"shadow_polygons\":%d,\"native_effects\":%d,"
             "\"effect_markers\":%d,\"effect_polygons\":%d,\"skipped_effect_triangles\":%d,"
             "\"legacy_effect_triangles\":%d,\"vram_syncs\":%d,\"stale_rects\":%d,\"uv_effects\":%d,"
-            "\"narrowed_triangles\":%d,\"frame_serial\":%u}",
+            "\"narrowed_triangles\":%d,\"frame_serial\":%u,\"afterimages_skipped\":%ld,"
+            "\"rain_drops\":%ld,\"rain_drops_hidden\":%ld}",
             &pc_native_room ? pc_native_room : 0, st.lists, st.instances, st.native_triangles,
             st.legacy_room_triangles, st.skipped_room_triangles, st.meshes, st.mesh_polygons, st.mesh_updates,
             &pc_native_actors ? pc_native_actors : 0, st.object_lists, st.object_instances, st.object_triangles,
@@ -3507,7 +3512,8 @@ static void handle_method(int fd, const char* request)
             st.legacy_other_triangles, &pc_native_shadows ? pc_native_shadows : 0, st.shadow_markers,
             st.shadow_polygons, &pc_native_effects ? pc_native_effects : 0, st.effect_markers, st.effect_polygons,
             st.skipped_effect_triangles, st.legacy_effect_triangles, st.vram_syncs, st.stale_rects, st.uv_effects,
-            st.narrowed_triangles, render_frame_serial());
+            st.narrowed_triangles, render_frame_serial(), &pc_hw_afterimages_skipped ? pc_hw_afterimages_skipped : 0,
+            &pc_weather_drops ? pc_weather_drops : 0, &pc_weather_drops_hidden ? pc_weather_drops_hidden : 0);
         reply(fd, id, result);
     } else if (!strcmp(method, "scene")) {
         if (!pc_scene_triangles) {
@@ -3602,6 +3608,26 @@ static void handle_method(int fd, const char* request)
             strcpy(args, "{}");
         }
         if (pc_emissive_rpc(args, result, sizeof result) < 0) {
+            fail(fd, id, -32000, result);
+            return;
+        }
+        reply(fd, id, result);
+    } else if (!strcmp(method, "material")) {
+        /* Material response (material_editor.cpp parses the params object). */
+        extern int pc_material_rpc(const char* params, char* out, int size) __attribute__((weak));
+        if (!pc_material_rpc) {
+            fail(fd, id, -32000, "material needs the hardware renderer");
+            return;
+        }
+        static char args[LINE_MAX_BYTES];
+        const char* end = params ? value_end(params) : NULL;
+        if (params && end && (size_t)(end - params) < sizeof args) {
+            memcpy(args, params, (size_t)(end - params));
+            args[end - params] = 0;
+        } else {
+            strcpy(args, "{}");
+        }
+        if (pc_material_rpc(args, result, sizeof result) < 0) {
             fail(fd, id, -32000, result);
             return;
         }

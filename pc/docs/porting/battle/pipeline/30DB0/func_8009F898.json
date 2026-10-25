@@ -1,0 +1,207 @@
+{
+ "function": "func_8009F898",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_8009F898",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x8009f898",
+  "difficulty": "S",
+  "zig_name": "func_8009F898",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_8009F898",
+  "spec_file": "func_8009F898.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_8009F898(arg0: c_int, arg1: c_int, arg2: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "vs_battle_wepModels_t"
+  ],
+  "globals": [
+   "vs_battle_wepModels"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12421,
+     "completion_tokens": 6410,
+     "reasoning_tokens": 5230,
+     "cost": 0.0044471,
+     "seconds": 27.5,
+     "sample": 1,
+     "conversation": "04c61a8affb3b0e7dd4c23d1fdb2e9bb7dc4b587fd94a5d76f6d71136687ec6e"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "no-model": "6018",
+   "model-bit7-set": "12888",
+   "model-bit7-clear": "11094"
+  },
+  "mutations": [
+   {
+    "name": "M1: the byte stored to unk5C0 is masked to 7 bits",
+    "caught": true
+   },
+   {
+    "name": "M2: unk8_6 takes arg2 instead of arg1",
+    "caught": true
+   },
+   {
+    "name": "M3: the odd table slot is read",
+    "caught": true
+   },
+   {
+    "name": "M4: the unk5C0 store is dropped",
+    "caught": true
+   },
+   {
+    "name": "M5: the null-checked store is skipped for arg0 == 3",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 6,
+   "lines_hit": 6,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 9, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2147111182, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35901,
+     "completion_tokens": 1699,
+     "reasoning_tokens": 1366,
+     "cost": 0.0044396,
+     "seconds": 8.2,
+     "sample": 1,
+     "conversation": "36df96fcf54d926dd41101bbe64d03d94baaec32fa2c4e662909409009fcbbcc"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_8009F898.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_8009F898.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 46.93492344299921,
+ "wall_seconds": 113.77050872000018,
+ "totals": {
+  "cost": 0.00889,
+  "prompt_tokens": 48322,
+  "completion_tokens": 8109,
+  "model_seconds": 35.7,
+  "check_seconds": 46.9,
+  "calls": 2,
+  "wall_seconds": 113.8
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

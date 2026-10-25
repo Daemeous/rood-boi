@@ -18,10 +18,13 @@
 #include "lighting_quality.h"
 #include "lights_internal.h"
 #include "particles_internal.h"
+#include "scene_capture.h"
 
 extern "C" {
 extern int pc_lights_enabled;
 void pc_lights_mark_dirty(void);
+/* Room weather (2842C.c); scripts can turn rain on/off mid-scene. */
+int pc_weather_raining(void);
 }
 
 int pc_env_global = 1;
@@ -214,7 +217,10 @@ extern "C" int pc_env_gpu_get(pc_env_gpu* out)
     direction(sun.azimuth, sun.elevation, d);
     memcpy(out->sun_dir, d, sizeof d);
     out->sun_dir[3] = fmaxf(sun.angle, 0.0f) * 0.5f * DEG;
-    if (sun.defined && sun.enabled && sun.intensity > 0) {
+    /* The generated outdoor directional light is moonlight. Rain is an
+     * overcast night, not a clear sky: retain the sky fill but suppress the
+     * moon and its shadows while the original weather is raining. */
+    if (sun.defined && sun.enabled && sun.intensity > 0 && !pc_weather_raining()) {
         for (int k = 0; k < 3; k++)
             out->sun_col[k] = fmaxf(sun.color[k], 0.0f) * sun.intensity;
         out->sun_col[3] = sun.shadows && pc_shadow_mode != PC_SHADOWS_OFF ? 1.0f : 0.0f; /* quality: Shadows Off */
@@ -232,6 +238,121 @@ extern "C" int pc_env_gpu_get(pc_env_gpu* out)
         on = 1;
     }
     return on;
+}
+
+/* The game's rain is projected PS1 lines and splashes (146C.c func_8008F440),
+ * not port emitters. A drop is left out of the picture (never out of the
+ * game's state) when solid room geometry hides it:
+ * - a roof above it: the original drew drops indoors too (its rooms rarely
+ *   show them at its cameras; a free camera does);
+ * - a surface between the eye and it: the PS1's ordering table put a drop
+ *   behind the nearer wall, but the port draws its lines as screen-space
+ *   furniture after the room's native meshes, so rain outside a room showed
+ *   through its walls.
+ * Room triangles already have the game's transforms applied by scene_capture;
+ * translucent ones (glass, glows) hide nothing. */
+extern "C" {
+long pc_weather_drops, pc_weather_drops_hidden; /* asked, hidden (RPC render_stats rain_drops*) */
+}
+static int drop_hidden(int x, int y, int z);
+/* The game still draws every drop (native VRAM, the game's state and its
+ * replays stay the PS1's); the hardware picture leaves the hidden ones' packets
+ * out (boot_runtime.c, until the ordering table is drawn). */
+static std::vector<const void*> hidden_packets;
+extern "C" void pc_weather_drop_packet(const void* packet, int x, int y, int z)
+{
+    ++pc_weather_drops;
+    if (drop_hidden(x, y, z)) {
+        ++pc_weather_drops_hidden;
+        hidden_packets.push_back(packet);
+    }
+}
+extern "C" int pc_weather_packet_hidden(const void* packet)
+{
+    for (const void* p : hidden_packets)
+        if (p == packet)
+            return 1;
+    return 0;
+}
+extern "C" void pc_weather_frame_drawn(void) { hidden_packets.clear(); }
+static int drop_hidden(int x, int y, int z)
+{
+    if (!pc_scene_room_data()) /* a room transition, not this frame's geometry */
+        return 0;
+    struct Solid {
+        float a[3], ab[3], ac[3];
+        float lo[3], hi[3];
+        float inv_det; /* the (x, z) projection's, 0 for walls: roofs only where it is not */
+    };
+    static int serial = -1;
+    static std::vector<Solid> solids;
+    if (serial != pc_scene_serial()) {
+        serial = pc_scene_serial();
+        solids.clear();
+        int count = 0;
+        const scene_triangle* tris = pc_scene_triangle_data(&count);
+        for (int i = 0; i < count && tris; ++i) {
+            const scene_triangle& t = tris[i];
+            if (t.code & 2)
+                continue;
+            const float *a = t.vertex[0].position, *b = t.vertex[1].position, *c = t.vertex[2].position;
+            Solid r;
+            for (int k = 0; k < 3; k++) {
+                r.a[k] = a[k], r.ab[k] = b[k] - a[k], r.ac[k] = c[k] - a[k];
+                r.lo[k] = fminf(a[k], fminf(b[k], c[k])), r.hi[k] = fmaxf(a[k], fmaxf(b[k], c[k]));
+            }
+            float det = r.ab[0] * r.ac[2] - r.ab[2] * r.ac[0];
+            r.inv_det = fabsf(det) < 1e-3f ? 0.0f : 1.0f / det;
+            solids.push_back(r);
+        }
+    }
+    const float p[3] = { (float)x, (float)y, (float)z };
+    /* A roof: a surface above the drop (negative y is up). */
+    for (const Solid& r : solids) {
+        if (!r.inv_det || p[0] < r.lo[0] || p[0] > r.hi[0] || p[2] < r.lo[2] || p[2] > r.hi[2] || r.lo[1] >= p[1] - 2)
+            continue;
+        const float px = p[0] - r.a[0], pz = p[2] - r.a[2];
+        const float u = (px * r.ac[2] - pz * r.ac[0]) * r.inv_det;
+        const float v = (r.ab[0] * pz - r.ab[2] * px) * r.inv_det;
+        if (u >= 0 && v >= 0 && u + v <= 1 && r.a[1] + u * r.ab[1] + v * r.ac[1] < p[1] - 2)
+            return 1;
+    }
+    /* A surface between the eye (the GTE camera the frame is built with:
+     * the free camera's while one flies) and the drop. */
+    float rot[3][3], tr[3], inv[3][3], h, ofx, ofy;
+    if (!pc_scene_game_camera(rot, tr, &h, &ofx, &ofy) || !pc_scene_game_inverse(inv))
+        return 0;
+    float eye[3], d[3], lo[3], hi[3];
+    for (int k = 0; k < 3; k++) {
+        eye[k] = -(inv[k][0] * tr[0] + inv[k][1] * tr[1] + inv[k][2] * tr[2]);
+        d[k] = p[k] - eye[k];
+        lo[k] = fminf(eye[k], p[k]), hi[k] = fmaxf(eye[k], p[k]);
+    }
+    for (const Solid& r : solids) {
+        if (r.hi[0] < lo[0] || r.lo[0] > hi[0] || r.hi[1] < lo[1] || r.lo[1] > hi[1] || r.hi[2] < lo[2]
+            || r.lo[2] > hi[2])
+            continue;
+        /* Moller-Trumbore, either facing; the drop's own end excluded. */
+        const float q[3] = { d[1] * r.ac[2] - d[2] * r.ac[1], d[2] * r.ac[0] - d[0] * r.ac[2],
+            d[0] * r.ac[1] - d[1] * r.ac[0] };
+        const float det = r.ab[0] * q[0] + r.ab[1] * q[1] + r.ab[2] * q[2];
+        if (fabsf(det) < 1e-6f)
+            continue;
+        const float f = 1.0f / det;
+        const float s[3] = { eye[0] - r.a[0], eye[1] - r.a[1], eye[2] - r.a[2] };
+        const float u = f * (s[0] * q[0] + s[1] * q[1] + s[2] * q[2]);
+        if (u < 0 || u > 1)
+            continue;
+        const float w[3] = { s[1] * r.ab[2] - s[2] * r.ab[1], s[2] * r.ab[0] - s[0] * r.ab[2],
+            s[0] * r.ab[1] - s[1] * r.ab[0] };
+        const float v = f * (d[0] * w[0] + d[1] * w[1] + d[2] * w[2]);
+        if (v < 0 || u + v > 1)
+            continue;
+        const float t = f * (r.ac[0] * w[0] + r.ac[1] * w[1] + r.ac[2] * w[2]);
+        if (t > 1e-3f && t < 0.98f)
+            return 1;
+    }
+    return 0; /* open sky, in plain view */
 }
 
 extern "C" unsigned pc_env_hash(void)
@@ -433,6 +554,12 @@ extern "C" int pc_environment_rpc(const char* params_text, char* out, int size)
     changed |= rood_atmo::rpc(params); /* fog, volumes, fog_time (atmosphere.cpp) */
     if (changed)
         pc_lights_mark_dirty();
+    /* rain_probe [x, y, z]: whether a rain drop there is left out of the picture (tests). */
+    std::string probe;
+    if (const prefab::Json* r = params.get("rain_probe"))
+        if (r->type == prefab::Json::Array && r->items.size() == 3)
+            probe = ",\"rain_hidden\":" + jbool(drop_hidden((int)r->items[0].number, (int)r->items[1].number,
+                (int)r->items[2].number));
     pc_env_gpu g;
     int active = pc_env_gpu_get(&g);
     std::string s = "{\"zone\":" + std::to_string(rood_lights::zone) + ",\"room\":" + std::to_string(rood_lights::room)
@@ -446,7 +573,8 @@ extern "C" int pc_environment_rpc(const char* params_text, char* out, int size)
         + ",\"sun_tint\":" + num(sky.sun_tint, 3) + ",\"ambient\":" + num(sky.ambient, 3) + "},\"gpu\":{\"sun_dir\":"
         + jvec(g.sun_dir, 4) + ",\"sun_col\":" + jvec(g.sun_col, 4) + ",\"zenith\":" + jvec(g.zenith, 4)
         + ",\"horizon\":" + jvec(g.horizon, 4) + ",\"ground\":" + jvec(g.ground, 4) + "},\"hash\":"
-        + std::to_string(pc_env_hash()) + "," + rood_atmo::json() + "}";
+        + std::to_string(pc_env_hash()) + ",\"raining\":" + jbool(pc_weather_raining()) + probe + ","
+        + rood_atmo::json() + "}";
     snprintf(out, size, "%s", s.c_str());
     return (int)s.size() < size ? 0 : -1;
 }

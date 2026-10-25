@@ -1,0 +1,237 @@
+{
+ "function": "func_800C86AC",
+ "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the loop walks var_s0 = D_800EB9BC + i; the global re-read inside it and for the free); spec sound",
+ "plan": {
+  "name": "func_800C86AC",
+  "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+  "stem": "5BF94",
+  "address": "0x800c86ac",
+  "difficulty": "S",
+  "zig_name": "func_800C86AC",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800C86AC",
+  "spec_file": "func_800C86AC.zig",
+  "subsystem": "battle_5BF94_port",
+  "signature": "pub fn func_800C86AC() callconv(.c) void",
+  "params": [],
+  "ret": "void",
+  "types": [
+   "gim_t"
+  ],
+  "globals": [
+   "D_800EB9BC"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12252,
+     "completion_tokens": 12413,
+     "reasoning_tokens": 10659,
+     "cost": 0.0074317,
+     "seconds": 49.5,
+     "sample": 1,
+     "conversation": "19c15081de445cfd7daab637dd255c5013c4e7a13ab5505181bc5e47e132dc47"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation M5: global cleared before the free, which gets NULL: not caught as mismatch (exit 3): zdiff: MISMATCH iteration 0: call 1 (vs_main_freeHeapR): argument 0: C 0x408070, Zig 0\nzdiff: PANIC in the Zig run, iteration 2: attempt to use null value (return address 0x401a77)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14166,
+     "completion_tokens": 2892,
+     "reasoning_tokens": 1104,
+     "cost": 0.0028626,
+     "seconds": 10.3,
+     "sample": 1,
+     "conversation": "437234afc087bf0cb929551bb3e787cfd19e2f898716177e6acef60c5c6b94ae"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "null-head": "4921",
+   "head-not-gim": "5486",
+   "gim-no-call": "1655",
+   "gim-with-call": "17938"
+  },
+  "mutations": [
+   {
+    "name": "M1: loop call tests unk0_3 against 2",
+    "caught": true
+   },
+   {
+    "name": "M2: loop call reads the head record, not var_s0",
+    "caught": true
+   },
+   {
+    "name": "M3: loop covers two records, not three",
+    "caught": true
+   },
+   {
+    "name": "M4: freeHeapR call dropped",
+    "caught": true
+   },
+   {
+    "name": "M5: global cleared before the free, which gets NULL",
+    "caught": true
+   },
+   {
+    "name": "M6: guard tests unk0_6 against 2",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 8,
+   "branches_hit": 8,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 11,
+   "lines_hit": 11,
+   "uncovered": [],
+   "flags": [],
+   "args": [],
+   "compares": [
+    {
+     "line": 5,
+     "text": "if ((var_s0 != 0) && (var_s0->unk0_6 == 3)) {",
+     "size": 2,
+     "count": 25079,
+     "kind": "against a constant",
+     "outcomes": "== 19593, < 2349, > 3137 (signed); < 2349, > 3137 (unsigned)",
+     "operand": "constant 192",
+     "a": "0..448"
+    },
+    {
+     "line": 7,
+     "text": "for (i = 0; i < 3; ++i) {",
+     "size": 4,
+     "count": 78372,
+     "kind": "against a constant",
+     "outcomes": "== 19593, < 39186, > 19593 (signed); < 39186, > 19593 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..3"
+    },
+    {
+     "line": 8,
+     "text": "if (var_s0->unk0_3 == 3) {",
+     "size": 1,
+     "count": 58779,
+     "kind": "against a constant",
+     "outcomes": "== 28806, < 12846, > 17127 (signed); < 12846, > 17127 (unsigned)",
+     "operand": "constant 24",
+     "a": "0..56"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35725,
+     "completion_tokens": 4993,
+     "reasoning_tokens": 4362,
+     "cost": 0.006069,
+     "seconds": 21.3,
+     "sample": 1,
+     "conversation": "1b9031307dd795a9ff7748f5377383fe2ca7854dc4eaab6d9f06a483884ad0cc"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800C86AC.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800C86AC.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 48.709114392999254,
+ "wall_seconds": 130.03167762700105,
+ "totals": {
+  "cost": 0.01636,
+  "prompt_tokens": 62143,
+  "completion_tokens": 20298,
+  "model_seconds": 81.1,
+  "check_seconds": 48.7,
+  "calls": 3,
+  "wall_seconds": 130.0
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

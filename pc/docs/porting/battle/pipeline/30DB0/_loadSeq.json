@@ -1,0 +1,479 @@
+{
+ "function": "_loadSeq",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful by reading against the C in full (cursor kept as the u_char* global D_800F22E4; `< 17` compares the cursor's guest address; the odd 'else' arm's table loops and the -1 sentinels; the etm state resume); spec classes cover every actorId arm",
+ "plan": {
+  "name": "_loadSeq",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x8009c3d8",
+  "difficulty": "L",
+  "zig_name": "loadSeq",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "load_seq",
+  "spec_file": "loadSeq.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn loadSeq(object: ?*v.vs_battle_objectData) callconv(.c) c_int",
+  "params": [
+   [
+    "object",
+    "?*v.vs_battle_objectData"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [
+   "D_800E8F2B",
+   "D_800F22E4",
+   "D_800F4768",
+   "D_800F4930"
+  ],
+  "hooks": [],
+  "statics": [
+   "vs_battleFindSharedSequence"
+  ],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 22897,
+     "completion_tokens": 59993,
+     "reasoning_tokens": 56279,
+     "cost": 0.0322862,
+     "seconds": 258.3,
+     "reasoning_effort": "low",
+     "sample": 1,
+     "conversation": "14116af34a0f66b79dd344d0c5e140827b52a6eca6e55dc3e83cd50dbd903897"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "etm": "6119",
+   "actor0-modelId0": "2484",
+   "actor0-modelId255": "1260",
+   "actor0-other": "4867",
+   "actor3": "2148",
+   "actor4-5": "4340",
+   "else": "8782"
+  },
+  "mutations": [
+   {
+    "name": "L1: index bound 3 for the clone (index 2 must not use the shared sequence)",
+    "caught": true
+   },
+   {
+    "name": "L2: the 0xFF path drops its store to unk5D0",
+    "caught": true
+   },
+   {
+    "name": "L3: actorId 3 copies into the wrong global",
+    "caught": true
+   },
+   {
+    "name": "L4: the shared-clone allocation has the wrong size",
+    "caught": true
+   },
+   {
+    "name": "L5: the sentinel written after the first table is 0, not -1",
+    "caught": true
+   },
+   {
+    "name": "L6: the slot clear loop stops one short (slot 16 is never cleared)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 71,
+   "branches_hit": 71,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 132,
+   "lines_hit": 132,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 11,
+     "text": "switch (D_800E8F2B) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "switch",
+     "outcomes": "== 23984, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..2"
+    },
+    {
+     "line": 19,
+     "text": "if (object->actorId == 0) {",
+     "size": 1,
+     "count": 23881,
+     "kind": "against a constant",
+     "outcomes": "== 8611, < 2160, > 13110 (signed); < 0, > 15270 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..6"
+    },
+    {
+     "line": 21,
+     "text": "if (object->modelId != 0) {",
+     "size": 2,
+     "count": 8611,
+     "kind": "against a constant",
+     "outcomes": "== 2484, < 1245, > 4882 (signed); < 0, > 6127 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..32767"
+    },
+    {
+     "line": 22,
+     "text": "if (vs_battleFindSharedSequence(object)) {",
+     "size": 4,
+     "count": 6127,
+     "kind": "against a constant",
+     "outcomes": "== 5010, < 0, > 1117 (signed); < 0, > 1117 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 26,
+     "text": "if (object->modelId == 0) {",
+     "size": 2,
+     "count": 8611,
+     "kind": "against a constant",
+     "outcomes": "== 2484, < 1245, > 4882 (signed); < 0, > 6127 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..32767"
+    },
+    {
+     "line": 27,
+     "text": "if (((u_long)psx_addr(D_800F22E4)) < 17) {",
+     "size": 4,
+     "count": 2484,
+     "kind": "against a constant",
+     "outcomes": "== 58, < 580, > 1846 (signed); < 580, > 1846 (unsigned)",
+     "operand": "constant 16",
+     "a": "0..4256560"
+    },
+    {
+     "line": 37,
+     "text": "if (size & 3) {",
+     "size": 4,
+     "count": 1846,
+     "kind": "against a constant",
+     "outcomes": "== 683, < 0, > 1163 (signed); < 0, > 1163 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..3"
+    },
+    {
+     "line": 47,
+     "text": "if (object->modelId == 0xFF) {",
+     "size": 2,
+     "count": 6127,
+     "kind": "against a constant",
+     "outcomes": "== 1260, < 3658, > 1209 (signed); < 2413, > 2454 (unsigned)",
+     "operand": "constant 255",
+     "a": "-1..32767"
+    },
+    {
+     "line": 51,
+     "text": "if (size & 3) {",
+     "size": 4,
+     "count": 1260,
+     "kind": "against a constant",
+     "outcomes": "== 450, < 0, > 810 (signed); < 0, > 810 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..3"
+    },
+    {
+     "line": 61,
+     "text": "if (((u_long)psx_addr(D_800F22E4)) < 17) {",
+     "size": 4,
+     "count": 4867,
+     "kind": "against a constant",
+     "outcomes": "== 74, < 1975, > 2818 (signed); < 1975, > 2818 (unsigned)",
+     "operand": "constant 16",
+     "a": "0..4256560"
+    },
+    {
+     "line": 65,
+     "text": "if (object->index < 2) {",
+     "size": 1,
+     "count": 2049,
+     "kind": "against a constant",
+     "outcomes": "== 125, < 104, > 1820 (signed); < 104, > 1820 (unsigned)",
+     "operand": "constant 1",
+     "a": "0..16"
+    },
+    {
+     "line": 66,
+     "text": "if (actor->unk0.unkF == 0) {",
+     "size": 1,
+     "count": 229,
+     "kind": "against a constant",
+     "outcomes": "== 115, < 0, > 114 (signed); < 0, > 114 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 84,
+     "text": "if (size != 0 && size != actor->unk0.nBones) {",
+     "size": 4,
+     "count": 2818,
+     "kind": "against a constant",
+     "outcomes": "== 884, < 0, > 1934 (signed); < 0, > 1934 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..4"
+    },
+    {
+     "line": 84,
+     "text": "if (size != 0 && size != actor->unk0.nBones) {",
+     "size": 4,
+     "count": 1934,
+     "kind": "a == b / a < b",
+     "outcomes": "== 699, < 351, > 884 (signed); < 351, > 884 (unsigned)",
+     "operand": "b 0..3",
+     "a": "1..4"
+    },
+    {
+     "line": 89,
+     "text": "if (size & 3) {",
+     "size": 4,
+     "count": 1583,
+     "kind": "against a constant",
+     "outcomes": "== 607, < 0, > 976 (signed); < 0, > 976 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..3"
+    },
+    {
+     "line": 92,
+     "text": "if (actor->unk0.unkF != 0) {",
+     "size": 1,
+     "count": 1583,
+     "kind": "against a constant",
+     "outcomes": "== 769, < 0, > 814 (signed); < 0, > 814 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 107,
+     "text": "} else if (object->actorId == 3) {",
+     "size": 1,
+     "count": 15270,
+     "kind": "against a constant",
+     "outcomes": "== 2148, < 6648, > 6474 (signed); < 4488, > 8634 (unsigned)",
+     "operand": "constant 3",
+     "a": "-1..6"
+    },
+    {
+     "line": 111,
+     "text": "if (size & 3) {",
+     "size": 4,
+     "count": 2148,
+     "kind": "against a constant",
+     "outcomes": "== 805, < 0, > 1343 (signed); < 0, > 1343 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..3"
+    },
+    {
+     "line": 116,
+     "text": "} else if (object->actorId == 4 || object->actorId == 5) {",
+     "size": 1,
+     "count": 13122,
+     "kind": "against a constant",
+     "outcomes": "== 2222, < 6648, > 4252 (signed); < 4488, > 6412 (unsigned)",
+     "operand": "constant 4",
+     "a": "-1..6"
+    },
+    {
+     "line": 116,
+     "text": "} else if (object->actorId == 4 || object->actorId == 5) {",
+     "size": 1,
+     "count": 10900,
+     "kind": "against a constant",
+     "outcomes": "== 2118, < 6648, > 2134 (signed); < 4488, > 4294 (unsigned)",
+     "operand": "constant 5",
+     "a": "-1..6"
+    },
+    {
+     "line": 122,
+     "text": "if (size & 3) {",
+     "size": 4,
+     "count": 4340,
+     "kind": "against a constant",
+     "outcomes": "== 1605, < 0, > 2735 (signed); < 0, > 2735 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..3"
+    },
+    {
+     "line": 140,
+     "text": "for (i = 0; i < count; ++i) {",
+     "size": 4,
+     "count": 13473,
+     "kind": "a == b / a < b",
+     "outcomes": "== 2475, < 10538, > 460 (signed); < 10998, > 0 (unsigned)",
+     "operand": "b -1..15",
+     "a": "0..15"
+    },
+    {
+     "line": 144,
+     "text": "for (i = 0; i < count; ++i) {",
+     "size": 4,
+     "count": 13473,
+     "kind": "a == b / a < b",
+     "outcomes": "== 2475, < 10538, > 460 (signed); < 10998, > 0 (unsigned)",
+     "operand": "b -1..15",
+     "a": "0..15"
+    },
+    {
+     "line": 149,
+     "text": "for (i = 0; i < count; ++i) {",
+     "size": 4,
+     "count": 13473,
+     "kind": "a == b / a < b",
+     "outcomes": "== 2475, < 10538, > 460 (signed); < 10998, > 0 (unsigned)",
+     "operand": "b -1..15",
+     "a": "0..15"
+    },
+    {
+     "line": 153,
+     "text": "for (i = 0; i < count; ++i) {",
+     "size": 4,
+     "count": 13473,
+     "kind": "a == b / a < b",
+     "outcomes": "== 2475, < 10538, > 460 (signed); < 10998, > 0 (unsigned)",
+     "operand": "b -1..15",
+     "a": "0..15"
+    },
+    {
+     "line": 162,
+     "text": "for (i = 0; i < 17; ++i) {",
+     "size": 4,
+     "count": 52830,
+     "kind": "against a constant",
+     "outcomes": "== 2935, < 46960, > 2935 (signed); < 46960, > 2935 (unsigned)",
+     "operand": "constant 16",
+     "a": "0..17"
+    },
+    {
+     "line": 167,
+     "text": "if (object->actorId == 1) {",
+     "size": 1,
+     "count": 2935,
+     "kind": "against a constant",
+     "outcomes": "== 747, < 708, > 1480 (signed); < 0, > 2188 (unsigned)",
+     "operand": "constant 1",
+     "a": "-1..6"
+    },
+    {
+     "line": 172,
+     "text": "if (_loadEtm(object) == -1) {",
+     "size": 4,
+     "count": 8307,
+     "kind": "against a constant",
+     "outcomes": "== 2028, < 0, > 6279 (signed); < 6279, > 0 (unsigned)",
+     "operand": "constant -1",
+     "a": "-1..0"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+36 b1",
+    "reason": "vs_battleFindSharedSequence is only called with modelId != 0, so its modelId == 0 arm (and the psx_get test behind it) cannot be reached from _loadSeq"
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/loadSeq.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/load_seq.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 87.27188668999952,
+ "reasoning_effort": "low",
+ "wall_seconds": 87.53338222400089,
+ "totals": {
+  "cost": 0.03229,
+  "prompt_tokens": 22897,
+  "completion_tokens": 59993,
+  "model_seconds": 258.3,
+  "check_seconds": 87.3,
+  "calls": 1,
+  "wall_seconds": 87.5
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "finished_by_reviewer": "the model's spec passed at --reasoning-effort low (at default effort its spec ran out of 64k tokens three times); its port panicked ('cast causes pointer to be null'): dataPtr returned a non-optional pointer for dataAddr 0, which psx_to_ptr turns into NULL; reviewer's reply (optional pointer) placed as the failed round's reply",
+  "port_fixes": [
+   "dataPtr returns ?[*]u8 (address 0 is NULL)",
+   "psx_ptr fields were copied and rebased through `.raw`, which only exists on 64-bit: psx.put/psx.get/psx.rawOf (the 32-bit --battle build failed on it)"
+  ],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

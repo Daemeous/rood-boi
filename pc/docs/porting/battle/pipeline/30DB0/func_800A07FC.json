@@ -1,0 +1,219 @@
+{
+ "function": "func_800A07FC",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_800A07FC",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x800a07fc",
+  "difficulty": "S",
+  "zig_name": "func_800A07FC",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A07FC",
+  "spec_file": "func_800A07FC.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_800A07FC(arg0: c_int, arg1: ?*v.D_800F4538_unk58_2) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "?*v.D_800F4538_unk58_2"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800F4538_unk58_2"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16162,
+     "completion_tokens": 6671,
+     "reasoning_tokens": 5627,
+     "cost": 0.0049517,
+     "seconds": 28.8,
+     "sample": 1,
+     "conversation": "88be15e4242c465e0be36879f4b4eeadf93cf9c7f58d77f0268deaecbdd9034a"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation M5: null source test inverted: not caught as mismatch (exit 4) (the mutated copy crashes where the C does not: if that is what this mistake does on your inputs, say `expect = \"crash\"`; otherwise choose a mutation your inputs show as a difference): zdiff: CRASH (signal 11) in the Zig run, iteration 0, fault address 0x0 [NULL+0x0: a field of a null pointer]\nzdiff: crashed on arguments: 0x4 0 (class null-src)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 17410,
+     "completion_tokens": 1507,
+     "reasoning_tokens": 443,
+     "cost": 0.0024945,
+     "seconds": 6.1,
+     "sample": 1,
+     "conversation": "60757078aceb67940e2c6f9216f9957bd3266f2aeb60ac0ea75773df89f75c0e"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "no-actor": "7393",
+   "null-src": "7414",
+   "copy": "15193"
+  },
+  "mutations": [
+   {
+    "name": "M1: missing actor returns 0, not -1",
+    "caught": true
+   },
+   {
+    "name": "M2: flag set to 2 (a 1-bit field keeps 0)",
+    "caught": true
+   },
+   {
+    "name": "M3: struct copy dropped",
+    "caught": true
+   },
+   {
+    "name": "M4: copy goes to the wrong field",
+    "caught": true
+   },
+   {
+    "name": "M5: null source test inverted (dereferences null when the source is null)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 4,
+   "branches_hit": 4,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 9,
+   "lines_hit": 9,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: null seen"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39635,
+     "completion_tokens": 1866,
+     "reasoning_tokens": 1427,
+     "cost": 0.0048965,
+     "seconds": 8.8,
+     "sample": 1,
+     "conversation": "664eb2056864366b18aa90a11f3e3a2f34cd14ffaaf3d9f1bbcea5f4ddc10bec"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A07FC.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A07FC.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 74.96566666499893,
+ "wall_seconds": 149.30858424100006,
+ "totals": {
+  "cost": 0.01234,
+  "prompt_tokens": 73207,
+  "completion_tokens": 10044,
+  "model_seconds": 43.7,
+  "check_seconds": 75.0,
+  "calls": 3,
+  "wall_seconds": 149.3
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: not called / not called / root 4, 0 mismatches"
+ }
+}

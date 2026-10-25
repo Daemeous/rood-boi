@@ -271,11 +271,18 @@ def _drop_unprototyped(decls):
     return decls
 
 
+def _void_symbols(decls):
+    """`extern void D_800E9B5C;` (a symbol used only for its address, 4A0A8.c):
+    translate-c refuses a variable of type void. An unsized char array is the
+    same symbol, and `&D_800E9B5C` still compares and casts the same."""
+    return re.sub(rb"^(\s*)extern\s+void\s+(\w+)\s*;", rb"\1extern char \2[];", decls, flags=re.M)
+
+
 def translate(zig, unit_i, out, target):
     out = pathlib.Path(out)
     decls = out.with_suffix(".decls.h")
     source = pathlib.Path(unit_i).read_bytes()
-    decls.write_bytes(_drop_unprototyped(ownership.strip_bodies(source)))
+    decls.write_bytes(_void_symbols(_drop_unprototyped(ownership.strip_bodies(source))))
     result = subprocess.run([str(zig), "translate-c", "-target", target, str(decls)], capture_output=True, text=True)
     if result.returncode:
         raise SystemExit(f"zig translate-c {unit_i}: {result.stderr[-2000:]}")

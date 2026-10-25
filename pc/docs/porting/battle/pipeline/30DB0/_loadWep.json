@@ -1,0 +1,328 @@
+{
+ "function": "_loadWep",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (switch with fallthrough into default and case 1 reproduced); spec sound",
+ "plan": {
+  "name": "_loadWep",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x8009a0b8",
+  "difficulty": "M",
+  "zig_name": "loadWep",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "load_wep",
+  "spec_file": "loadWep.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn loadWep(arg0: ?*v.vs_battle_objectData) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "?*v.vs_battle_objectData"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "vs_battle_objectData",
+   "vs_battle_wepModels_t",
+   "vs_main_CdQueueSlot"
+  ],
+  "globals": [
+   "D_800E8D00",
+   "_loadShpState",
+   "_wepCdSlot",
+   "_wepFile",
+   "_wepFileData",
+   "_wepFileLoaded",
+   "_wepFileSectorOffsets",
+   "vs_battle_wepModels"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14976,
+     "completion_tokens": 29314,
+     "reasoning_tokens": 26443,
+     "cost": 0.0161546,
+     "seconds": 124.9,
+     "sample": 1,
+     "conversation": "30bba321937696059f1270167d2c4a9e0f34c314b17df4485316f8130ab75b76"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "early-return": "4849",
+   "cd-wait": "3059",
+   "parse-only": "6264",
+   "found-in-table": "13632",
+   "fresh-load": "2196"
+  },
+  "mutations": [
+   {
+    "name": "L1: the model scan stops at 18 (misses slot 19)",
+    "caught": true
+   },
+   {
+    "name": "L2: the sector size shifts by 10, not 11",
+    "caught": true
+   },
+   {
+    "name": "L3: the LBA constant is off by one",
+    "caught": true
+   },
+   {
+    "name": "L4: the state-2 store is dropped after the CD wait",
+    "caught": true
+   },
+   {
+    "name": "L5: a parse result below -1 is not passed through",
+    "caught": true
+   },
+   {
+    "name": "L6: the CD state test wants 3, not 4",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 30,
+   "branches_hit": 30,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 46,
+   "lines_hit": 46,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 7,
+     "text": "if ((arg0->modelId == 0) || (arg0->modelId >= 0x80)) {",
+     "size": 2,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 1185, < 0, > 28815 (signed); < 0, > 28815 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..32767"
+    },
+    {
+     "line": 7,
+     "text": "if ((arg0->modelId == 0) || (arg0->modelId >= 0x80)) {",
+     "size": 2,
+     "count": 28815,
+     "kind": "against a constant",
+     "outcomes": "== 1372, < 23779, > 3664 (signed); < 23779, > 3664 (unsigned)",
+     "operand": "constant 127",
+     "a": "1..32767"
+    },
+    {
+     "line": 11,
+     "text": "switch (_loadShpState) {",
+     "size": 4,
+     "count": 25151,
+     "kind": "switch",
+     "outcomes": "== 18901, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..255"
+    },
+    {
+     "line": 13,
+     "text": "for (i = 0; i < 20; ++i) {",
+     "size": 4,
+     "count": 91772,
+     "kind": "against a constant",
+     "outcomes": "== 1561, < 88854, > 1357 (signed); < 88854, > 1357 (unsigned)",
+     "operand": "constant 19",
+     "a": "0..20"
+    },
+    {
+     "line": 14,
+     "text": "if ((i != arg0->index) && (vs_battle_wepModels[i] != 0)",
+     "size": 4,
+     "count": 90415,
+     "kind": "a == b / a < b",
+     "outcomes": "== 4067, < 49988, > 36360 (signed); < 58045, > 28303 (unsigned)",
+     "operand": "b -128..127",
+     "a": "0..19"
+    },
+    {
+     "line": 15,
+     "text": "&& ((vs_battle_wepModels[i]->actorId) || (arg0->index < 4))",
+     "size": 1,
+     "count": 77453,
+     "kind": "against a constant",
+     "outcomes": "== 25779, < 0, > 51674 (signed); < 0, > 51674 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..15"
+    },
+    {
+     "line": 15,
+     "text": "&& ((vs_battle_wepModels[i]->actorId) || (arg0->index < 4))",
+     "size": 1,
+     "count": 25779,
+     "kind": "against a constant",
+     "outcomes": "== 1613, < 5235, > 18931 (signed); < 2812, > 21354 (unsigned)",
+     "operand": "constant 3",
+     "a": "-128..127"
+    },
+    {
+     "line": 16,
+     "text": "&& (vs_battle_wepModels[i]->modelId == arg0->modelId)) {",
+     "size": 4,
+     "count": 58522,
+     "kind": "a == b / a < b",
+     "outcomes": "== 8221, < 2395, > 47906 (signed); < 2395, > 47906 (unsigned)",
+     "operand": "b 1..127",
+     "a": "0..255"
+    },
+    {
+     "line": 24,
+     "text": "if (found != 0) {",
+     "size": 4,
+     "count": 9578,
+     "kind": "against a constant",
+     "outcomes": "== 1357, < 0, > 8221 (signed); < 0, > 8221 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 50,
+     "text": "if (_wepCdSlot->state != 4) {",
+     "size": 2,
+     "count": 7888,
+     "kind": "against a constant",
+     "outcomes": "== 2805, < 3062, > 2021 (signed); < 1005, > 4078 (unsigned)",
+     "operand": "constant 4",
+     "a": "-32762..32750"
+    },
+    {
+     "line": 62,
+     "text": "if (wepData == -1) {",
+     "size": 4,
+     "count": 14485,
+     "kind": "against a constant",
+     "outcomes": "== 3618, < 5467, > 5400 (signed); < 10867, > 0 (unsigned)",
+     "operand": "constant -1",
+     "a": "-2147353323..2147481272"
+    },
+    {
+     "line": 66,
+     "text": "if (_wepFileLoaded != 0) {",
+     "size": 4,
+     "count": 10867,
+     "kind": "against a constant",
+     "outcomes": "== 2673, < 2687, > 5507 (signed); < 0, > 8194 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2146986379..2146839356"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 38326,
+     "completion_tokens": 16846,
+     "reasoning_tokens": 15420,
+     "cost": 0.0122556,
+     "seconds": 67.0,
+     "sample": 1,
+     "conversation": "500e2bada061177d9631a168613aaf2023e9b27ae88cf41bda9f49e005188927"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/loadWep.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/load_wep.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 34.45537659199999,
+ "wall_seconds": 226.57710714899986,
+ "totals": {
+  "cost": 0.02841,
+  "prompt_tokens": 53302,
+  "completion_tokens": 46160,
+  "model_seconds": 191.9,
+  "check_seconds": 34.5,
+  "calls": 2,
+  "wall_seconds": 226.6
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "port_fixes": [
+   "dataAddr stored through psx.addr (psx_to_int is fatal above 4 GB) instead of a truncating conv"
+  ],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

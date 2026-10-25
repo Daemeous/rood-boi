@@ -1,0 +1,238 @@
+{
+ "function": "func_80099854",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; the C's partly written record is zeroed under ROOD_PC (the port zeroes it too)",
+ "plan": {
+  "name": "func_80099854",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x80099854",
+  "difficulty": "M",
+  "zig_name": "func_80099854",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_80099854",
+  "spec_file": "func_80099854.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_80099854(arg0: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "vs_battle_objectData"
+  ],
+  "globals": [
+   "vs_battle_objectDataSlots"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11495,
+     "completion_tokens": 6292,
+     "reasoning_tokens": 5023,
+     "cost": 0.0042955,
+     "seconds": 27.0,
+     "sample": 1,
+     "conversation": "753b4757f97ca38efe70fbb2643bab843606c77df5c02a6c91fe16fff42754e8"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "arg-zero": "6022",
+   "free-first-slot": "1395",
+   "free-later-slot": "21196",
+   "no-free-slot": "1387"
+  },
+  "mutations": [
+   {
+    "name": "F1: the objectData actorId is 2",
+    "caught": true
+   },
+   {
+    "name": "F2: the free-slot test is inverted (finds a used slot)",
+    "caught": true
+   },
+   {
+    "name": "F3: the slot search stops at 15 (slot 15 never used)",
+    "caught": true
+   },
+   {
+    "name": "F4: no free slot writes slot 0 instead of nothing",
+    "caught": true
+   },
+   {
+    "name": "F5: the material is masked to 7 bits",
+    "caught": true
+   },
+   {
+    "name": "F6: the copy drops every field but dataType",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 8,
+   "branches_hit": 8,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 17,
+   "lines_hit": 17,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 8,
+     "text": "if (arg0 == 0) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 6022, < 9336, > 14642 (signed); < 0, > 23978 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147483647"
+    },
+    {
+     "line": 18,
+     "text": "for (i = 0; i < 16; ++i) {",
+     "size": 4,
+     "count": 215304,
+     "kind": "against a constant",
+     "outcomes": "== 2814, < 211103, > 1387 (signed); < 211103, > 1387 (unsigned)",
+     "operand": "constant 15",
+     "a": "0..16"
+    },
+    {
+     "line": 19,
+     "text": "if (vs_battle_objectDataSlots[i].dataType == 0) {",
+     "size": 1,
+     "count": 213917,
+     "kind": "against a constant",
+     "outcomes": "== 22591, < 95935, > 95391 (signed); < 0, > 191326 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 28,
+     "text": "if (slot != -1) {",
+     "size": 4,
+     "count": 23978,
+     "kind": "against a constant",
+     "outcomes": "== 1387, < 0, > 22591 (signed); < 22591, > 0 (unsigned)",
+     "operand": "constant -1",
+     "a": "-1..15"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34983,
+     "completion_tokens": 2253,
+     "reasoning_tokens": 1806,
+     "cost": 0.0046248,
+     "seconds": 10.4,
+     "sample": 1,
+     "conversation": "98a6a73e1ed416adff4a181b0c0b651892c61c83859653043084707fba280fe7"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_80099854.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_80099854.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 20.959572278999985,
+ "wall_seconds": 58.5654111230001,
+ "totals": {
+  "cost": 0.00892,
+  "prompt_tokens": 46478,
+  "completion_tokens": 8545,
+  "model_seconds": 37.4,
+  "check_seconds": 21.0,
+  "calls": 2,
+  "wall_seconds": 58.6
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "c_fixes": [
+   "30DB0.c: objectData is zeroed under ROOD_PC: only 4 of its fields are written and the whole record is copied into the slot (Oracle.md, known hazards)"
+  ],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

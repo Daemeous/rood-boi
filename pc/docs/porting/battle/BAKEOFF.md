@@ -1222,3 +1222,183 @@ coverage edge, fixed; the zig_diff tests then passed as ten shards); suites
 (2 skipped), GL 143/146 (3 skipped). The machine ran at its thermal limit
 all afternoon: each suite spent most of its time waiting for the CPU to
 cool.
+
+## Wave 3 (Haiku 5.5 drafts, Sonnet 5.5 review, 2026-10-24)
+
+Wave 2's process (branch `port-wave3`): `anthropic/claude-haiku-5.5`
+through OpenRouter, synchronous, `--jobs 3`, default reasoning, temperature
+0, the feedback retry and one compile-fix round, privacy filter on; a **hard
+$3.00 cap** over every call of the wave; the review per function; the oracle
+(`differ.py` call, tick and alternate on the three recipes, 64-bit, classic
+profile, and `shadow_battle_smoke --owner battle_UNIT_port=shadow`).
+
+### The plan (written before any spend)
+
+Unported functions left per battle unit (`port_pipeline.py --unit U
+--dry-run`, which skips statics, block-scope statics, functions routed
+elsewhere and the already ported): 146C.c 631, 5BF94.c 280, 4A0A8.c 237
+(its `c_` module does not translate: `extern void D_800E9B5C;`),
+**30DB0.c 100**, 2842C.c 15, the rest 1-5 each (the wave-2 leftovers).
+At wave 2's price ($0.02-0.03 a function) $3 buys 100-120 functions, so
+the wave takes **one whole unit, 30DB0** (actor animation, the model and
+sequence loaders; 66 S, 24 M, 11 L, 2 XL by FUNCTIONS.tsv): the bake-off's
+`func_800A0204` lives there and runs 23-93 times in the three recipes, and
+no other unit fits the cap whole. The two XL functions (`_parseWep`,
+`_parseShp`, 258 and 410 lines) go last and only with budget left. Any
+budget left after 30DB0 goes to the smallest functions of 5BF94.c (text
+and menu drawing, hot in the recipes).
+
+Wave 2's 21 unrouted functions are **not** re-run: 12 were the model's spec
+failures (missed edges), one was stopped by the cap, two (2842C's
+PC_TEXT_STATUS hook functions) need the C to declare
+`vs_battle_renderTextRawColor`, and the rest are listed in their records.
+None was a pipeline fault that has since been fixed.
+
+Tooling fixed first: `zig_views` looked a plan's globals up with
+`gdb.lookup_symbol`, which needs a frame, so a global the C declares only as
+a block-scope `extern` (146C's `vs_battle_exec`, 5BF94's
+`vs_battle_renderImage`) aborted the whole unit's plan; the plan now skips
+that function ("no views accessor generated for ...").
+
+### What was spent and ported
+
+Run in this order (every logged call counted; `$` is OpenRouter's cost per
+call): 30DB0 S/M/L synchronous, `--jobs 3`, default reasoning, temperature 0
+($1.72, 85 of 98 ported); the 13 failures again with two samples each at
+temperature 0.4 and the feedback retry ($0.55, 5 ported); four failures and
+a views-conflict finished with the reviewer's replies placed by hand
+($0.03); the three biggest (`_parseWep` 258 lines, `_parseShp` 410,
+`_loadSeq` 179) at default effort ($0.10: each spec ran out of its 64k output
+tokens) and then at `--reasoning-effort low` ($0.16: `_loadSeq`'s spec passed,
+its port was finished by hand); then the budget left went to 5BF94.c's
+smallest text and UI functions (`--unit 5BF94 --difficulty S --limit 20`,
+$0.21, 16 ported, 2 stopped by the budget). **Total logged: $2.77** (the cap
+was $3.00; up to about $0.1 more for calls in flight when run 4 was killed).
+
+| Unit | Ported | Haiku alone | Finished by the reviewer | Review fixes | Cost | Minutes |
+|---|---|---|---|---|---|---|
+| 30DB0 (S/M/L) | 95/98 | 70 in round 1 + 20 on a retry or the retry sample | 4 (FFA8's port, AA84's waiver, E700's edges, `_loadSeq`'s port) | 2 specs strengthened (`func_8009D208`, `_loadEtm`: the index was always 0), 1 spec hardened after the fact (`func_8009998C`), 5 port tidies/fixes (`_loadWep`, `func_8009CFB0`, `_loadSeq` x2, 5BF94's `func_800C518C`), 2 C hazards zeroed | $2.56 (every call, the XL attempts included) | 300 |
+| 30DB0 XL | 0/2 | - | - | - | (in the 30DB0 row) | - |
+| 5BF94 (S) | 16/18 | 11 + 5 on a retry | 0 | 1 port tidy | $0.21 | 25 |
+
+30DB0's three other unrouted functions: `func_800A0024` and `func_8009EA14`
+read uninitialised locals in the C (`temp_s0 == 0` before it is assigned;
+`var_s4`, a saved register, passed to `func_800A0204`), so the C differs
+from a copy of itself; they need a ROOD_PC decision in the C first.
+`func_8009A028` (a 12-line memcpy and relocate) panics in the spec's setup
+run in all drafts, undiagnosed. The XL pair's specs never fit the model's
+output budget.
+
+### Review
+
+All 111 ported functions were read against the `.c` and the routed `.i`
+(and, for the three with a missing return, the disassembly), per REVIEW.md.
+Findings:
+
+- **No port bug in a function the gates passed that the corpus or the C
+  semantics could expose**, but five things the gates cannot see: (1)
+  `func_80099854` and `func_8009BE5C` copy a partly written local
+  (`vs_battle_objectData`) into game memory, the Oracle.md hazard: the ports
+  zeroed it, the C did not (fixed in the C under ROOD_PC, below); (2)
+  `_loadWep` stored a pointer's low word with a truncating conv where the C's
+  `psx_to_int` is fatal above 4 GB (now `psx.addr`); (3) `func_8009CFB0` and
+  5BF94's `func_800C518C` called through a function pointer cast to a private
+  prototype; (4) `_loadSeq` copied and rebased `psx_ptr` fields through
+  `.raw`, which only exists on 64-bit: the **32-bit `--battle` build failed**
+  (the pipeline gates only build 64-bit; now `psx.put`/`rawOf`); (5)
+  `func_8009FFA8` has no return on its success path: the model returned a
+  guessed register, the 64-bit object returns -1 (GCC loaded `%edx` with it
+  before the test; disassembly), so the port does.
+- **Specs.** Two drafted specs only ever passed index 0 into a table the
+  game indexes 1..3 (`func_8009D208`, taking `D_800F244F`, an unsized
+  `u_char[]` at 0x800F244F, for a one-entry table; `_loadEtm`'s
+  `objdata->index`): two mutations each (a port always indexing [0]) slipped
+  and are now caught. `func_8009998C`'s drafted spec passed its coverage and
+  mutation gates when written but failed both once later ports widened the
+  unit's views (the pipeline re-checks earlier specs after a widening with the
+  plain port compare, not `--self-check --coverage`): the planted object's
+  `+0x80` match and the `actorId == 4` edge occurred too rarely; the spec now
+  plants more often and the stub rewrites `unk1E` less. Running the full
+  `--self-check --coverage` over all 111 afterwards found no other.
+- Three specs were finished by hand (`func_8009AA84`: the one unreachable arm
+  waived; `func_8009E700`: the equal sides of two unsigned window tests;
+  `func_8009FFA8`: the port).
+- Hazards scan: every ported function with a local struct, vector or
+  rectangle was checked for a partial write that is copied whole; the other
+  locals are filled by a callee or only read (`sp10` in
+  `func_8009E228`/`EC9C`/`A1280`, `func_8009D468`'s `D_800F4538_unk64` whose
+  callee reads only `unk0`).
+
+### Oracle
+
+`differ.py battle_30DB0_port` and `battle_5BF94_port`, call, tick and
+alternate on the three recipes, 64-bit, classic profile, `ROOD_RENDERER=null`;
+`shadow_battle_smoke --owner battle_UNIT_port=shadow`.
+
+| Subsystem | Recipe | Call (root calls, 0 mismatches) | Tick (ticks) | Alternate |
+|---|---|---|---|---|
+| `battle_30DB0_port` | enemy_cast_wait | 17 reached, 3192 calls | 600, 0 | pass (two once-called functions waived) |
+| | action_name_window | 17 reached, 5908 calls | 1200, 0 | pass (one waived) |
+| | enemy_kill | 26 reached, 10826 calls | 1700, 0 | pass, 26 functions on both sides |
+| `battle_5BF94_port` | enemy_cast_wait | 3 reached, 242 calls | 600, 0 | pass |
+| | action_name_window | 3 reached, 461 calls | 1200, 0 | pass |
+| | enemy_kill | 12 reached, 596 calls | 1700, 0 | pass |
+
+30DB0: 24 of the 95 are roots in at least one recipe and 6 more nested (the
+object-data queue, the stance and animation setters, `func_800A0BE0`'s
+flag word 1500-4400 calls, `func_800A1108` 800-2600, the movement and
+reaction functions in enemy_kill); 65 are never called by these recipes
+(the loaders run at room load, before the mark, the rest are the
+cast-and-move paths no recipe takes). 5BF94: 8 roots and 4 nested of the 16
+(the text box and font functions `vs_battle_renderTextRaw` 99-458 calls,
+`vs_battle_setTextBox`, `vs_battle_getTextLineLength`; enemy_kill's
+group placement `func_800C553C`/`func_800C5360`/`func_800C5798`). Mismatches:
+**0 in every mode**. Each run prints a `Root calls` line naming the functions its recipe never calls (not waived); the run status is `passed`, and the control, witness, call, tick and alternate modes all passed. The once-called
+`vs_battle_getEmptyObjectDataSlot` and `func_800A01C8` are waived for
+alternate mode in `waivers.toml`.
+`shadow_battle_smoke` with `battle_30DB0_port` shadowed: 3568 routed calls, 0 mismatches,
+0 errors; with `battle_5BF94_port`: 524 calls, 0 and 0; the injected wrong write is caught and
+rolled back in both.
+
+**Tooling fixes**
+
+- `zig_views`: a global the C declares only as a block-scope `extern`
+  (146C's `vs_battle_exec`, 5BF94's `vs_battle_renderImage`) has no global or
+  static symbol, and gdb's frame-less lookup raised "No frame selected",
+  aborting the plan of the whole unit (146C: 631 functions, 5BF94: 280 could
+  not be planned at all). The plan's dump is now lenient: the function is
+  skipped ("no views accessor generated for ..."). CTest `zig_views_test`.
+- `zig_c`: `extern void D_800E9B5C;` (4A0A8.c's address-only symbol) made
+  translate-c refuse the whole unit (4A0A8: 237 functions unplannable); it is
+  an unsized `char` array now (231 plan). CTest `zig_c_test`.
+- Oracle.md: zero a partly written local with a compound literal, not
+  `memset` (zig_diff stubs `memset`).
+
+**Not fixed**
+
+- The pipeline's gates compile 64-bit only (the 32-bit `--battle` build is the
+  first to see a `.raw` on a `psx_ptr`), and after a unit's views widen it
+  re-runs the earlier specs as plain port compares, not their self-check and
+  coverage lanes.
+- 5BF94.c's `vs_battle_exec`/`vs_battle_renderImage` need their block-scope
+  externs hoisted before they can be planned.
+
+### Verification
+
+Builds (each after the last source change): 32-bit, `--battle` (which caught
+`_loadSeq`'s `.raw`), `--arch 64`, `--engine-library`, the no-Zig build
+(`ROOD_NO_ZIG=1`) and Windows (`--target windows`, nice 19) all pass.
+CTest: 69/69 (the ten `zig_diff` shards, `port_pipeline`, `zig_views_test`,
+`zig_c_test` among them). `zig_diff.py --self-check --coverage` over all 111
+ported functions: pass after the `func_8009998C` fix. `verify.sh --changed
+main`: build-32, battle-32, build-64, suite-64null (13/13) and suite-64vk
+(154/156, 2 skipped) passed; it was stopped during suite-64gl on the
+coordinator's instruction (the full verify runs once on main after the
+merge). Not run: the OpenGL suite.
+
+Where this stands: branch `port-wave3` is complete and committed (the
+worktree is removed, the branch kept); nothing is pushed or merged.
+Unported in 30DB0.c: `_parseWep`, `_parseShp`, `func_800A0024`,
+`func_8009EA14`, `func_8009A028` (reasons above). Next: 5BF94.c (262
+unported, now plannable), 4A0A8.c (231, now plannable), 146C.c (631), and
+a 32-bit compile of each written port in the pipeline.

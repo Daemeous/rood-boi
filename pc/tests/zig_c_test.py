@@ -23,6 +23,7 @@ typedef struct { short vx, vy, vz, pad; } SVECTOR;
 enum { kindA = 1, kindB = 2 };
 static inline unsigned int psx_addr(const void* p) { return (unsigned int)(unsigned long)p; }
 extern int shared_count;
+extern void marker_symbol;
 int defined_table[3] = { 1, 2, 3 };
 static int skip_from_set;
 static unsigned skip_from = 4, skip_to;
@@ -31,13 +32,13 @@ static SVECTOR origin = { 0, 0, 0, 0 };
 static void (*hook)(int);
 static int helper(int index) { return lookup[index] + skip_from_set; }
 void api(SVECTOR* v);
-int user(int k) { static int calls; calls++; return helper(k) + shared_count; }
+int user(int k) { static int calls; calls++; return helper(k) + shared_count + (int)(long)&marker_symbol; }
 """
 USES_OK = """
 const c = @import("c");
 export fn probe(v: *c.SVECTOR) c_int {
     c.api(v);
-    return c.shared_count + c.kindB + c.user(1) + c.defined_table[0];
+    return c.shared_count + c.kindB + c.user(1) + c.defined_table[0] + @as(c_int, @intCast(@intFromPtr(&c.marker_symbol) & 0));
 }
 """
 STATICS = ["psx_addr", "skip_from_set", "skip_from", "skip_to", "lookup", "origin", "hook", "helper"]

@@ -1,0 +1,227 @@
+{
+ "function": "func_800A13EC",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the guest address of arg2 via psx.addr; only negative results propagate); spec sound",
+ "plan": {
+  "name": "func_800A13EC",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x800a13ec",
+  "difficulty": "S",
+  "zig_name": "func_800A13EC",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A13EC",
+  "spec_file": "func_800A13EC.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_800A13EC(arg0: c_int, arg1: c_int, arg2: [*c]c_int, arg3: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ],
+   [
+    "arg2",
+    "[*c]c_int"
+   ],
+   [
+    "arg3",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11389,
+     "completion_tokens": 4991,
+     "reasoning_tokens": 3655,
+     "cost": 0.0036344,
+     "seconds": 21.6,
+     "sample": 1,
+     "conversation": "def735d9d9651bf59f71ad8be081945037ffee839ad2b67d5a9f63628308e53b"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "zero": "10105",
+   "negative": "9946",
+   "positive": "9949"
+  },
+  "mutations": [
+   {
+    "name": "F1: the early return tests > 0 instead of < 0",
+    "caught": true
+   },
+   {
+    "name": "F2: the error code is replaced by 0",
+    "caught": true
+   },
+   {
+    "name": "F3: arg0 and arg1 swapped in the call",
+    "caught": true
+   },
+   {
+    "name": "F4: the last argument is off by one",
+    "caught": true
+   },
+   {
+    "name": "F5: the address is passed off by four",
+    "caught": true
+   },
+   {
+    "name": "F6: signed test done unsigned (never negative)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 5,
+   "lines_hit": 5,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "pointer: null seen"
+    },
+    {
+     "arg": 3,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 4,
+     "text": "if (var_v0 < 0) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 10105, < 9946, > 9949 (signed); < 0, > 19895 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2146936441..2147444886"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34862,
+     "completion_tokens": 1110,
+     "reasoning_tokens": 820,
+     "cost": 0.0040412,
+     "seconds": 5.1,
+     "sample": 1,
+     "conversation": "a3709101e286761ef4c8d49159b0e73a2b5a63bc26e9f93081a988075f3cc380"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A13EC.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A13EC.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 65.9090021789998,
+ "wall_seconds": 102.6130684560012,
+ "totals": {
+  "cost": 0.00768,
+  "prompt_tokens": 46251,
+  "completion_tokens": 6101,
+  "model_seconds": 26.7,
+  "check_seconds": 65.9,
+  "calls": 2,
+  "wall_seconds": 102.6
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

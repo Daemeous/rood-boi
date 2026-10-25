@@ -182,6 +182,10 @@ def suites(args, mode="egl"):
         Suite("window_lights", [PY, str(TESTS / "window_lights_test.py")], 60, binary=None,
               note="disc-free rect-light matching: palettes, room surfaces, mask shapes and filters",
               sources=[ROOT / "pc/tools/generate_lighting.py"]),
+        Suite("material_catalog", [PY, str(TESTS / "material_catalog_test.py")], 60, binary=None,
+              sources=[ROOT / "pc/assets/materials/catalog.json", ROOT / "pc/src/materials.cpp",
+                       ROOT / "pc/tools/check_material_maps.py"],
+              note="material catalog schema, presets and grayscale publish guard"),
         Suite("emissive_metadata", [PY, str(TESTS / "emissive_metadata_test.py")], 60, binary=None,
               note="lossless emissive scope metadata: duplicate/empty groups, repeated round trips and membership edits"),
         Suite("emissive_catalog", [PY, str(TESTS / "emissive_catalog_test.py")], 300, binary=None,
@@ -369,6 +373,10 @@ def suites(args, mode="egl"):
                        "nothing else changes, curated entries found in their rooms, editor mask saved and "
                        "reloaded, scopes (room, surfaces, models) and show other uses, filtered masks still "
                        "lights; Vulkan: the coals light the hood (path traced), narrowed too"),
+            Suite("material_smoke", [PY, str(TESTS / "material_smoke.py"), "--card", str(args.save)], 300,
+                  note="material response: catalog layers, scopes and live edits, roughness maps painted, written "
+                       "on disk, of another size; no entries or specular off is pixel-identical; Vulkan: only "
+                       "material pixels change, the highlight moves with the camera; OpenGL: no response"),
             Suite("save_point_glow_smoke", [PY, str(TESTS / "save_point_glow_smoke.py"), "--card", str(args.save)], 300,
                   note="standing in a save point keeps its light (its glow is the column's side); Ashley still "
                        "shadows the floor behind him (High, Ultra)")]
@@ -447,6 +455,11 @@ def suites(args, mode="egl"):
         Suite("cutscene_sequencer_smoke", [PY, str(TESTS / "cutscene_sequencer_smoke.py")], 600,
               note="sampled event tracks, exact key seek, scene lighting timing and save/reload; "
                    "synthetic SDL camera input with F1 closed/open (private Xvfb for keyboard focus)"),
+        Suite("cutscene_freecam_smoke", [PY, str(TESTS / "cutscene_freecam_smoke.py")], 600,
+              note="the opening's story scenes from the free camera: no rain beneath the hall's ceiling or "
+                   "through its walls, rain still in the courtyard; the shot dissolve's afterimage (the game "
+                   "camera's previous frame) left out of the free view only, stable; a group an event hid stays "
+                   "hidden; play / seek give the camera back"),
         Suite("cutscene_viewer_smoke", [PY, str(TESTS / "cutscene_viewer_smoke.py")], 900,
               note="the story scene viewer: five story scenes from five chapters started from the list on a fresh "
                    "load (from the title, then each from the one before) run their event (frames, script places, "
@@ -747,7 +760,7 @@ CHECKPOINT_SUITES = {
     "ui_ashley_detail_smoke", "ui_score_smoke", "snapshot_resume_smoke", "engine_reload_smoke", "frame_cost_smoke",
     "hud_bench_smoke", "classic_hud_smoke",
     "repl_smoke", "photo_foundation_smoke", "photo_engine_reload_smoke", "photo_mode_smoke", "photo_full_room_smoke",
-    "cutscene_player_smoke", "cutscene_viewer_smoke", "cutscene_sequencer_smoke",
+    "cutscene_player_smoke", "cutscene_viewer_smoke", "cutscene_sequencer_smoke", "cutscene_freecam_smoke",
 }
 
 

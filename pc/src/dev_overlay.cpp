@@ -100,11 +100,12 @@ enum DetailsTab {
     TAB_POST,
     TAB_GRAPHICS,
     TAB_EMISSIVE,
+    TAB_MATERIAL,
     TAB_DIAGNOSTICS,
     TAB_COUNT
 };
 static const char* const details_tabs[TAB_COUNT] = { "details", "lighting", "inspector", "atmosphere", "post", "graphics",
-    "emissive", "diagnostics" };
+    "emissive", "material", "diagnostics" };
 static int details_tab_request = -1;
 static int details_tab_shown = TAB_DETAILS;
 extern "C" int pc_lights_place_cancel(void);
@@ -2174,6 +2175,11 @@ static void details(float x, float y, float w, float h, double frame_ms)
         if (ImGui::BeginTabItem("Emissive", nullptr, select[TAB_EMISSIVE])) {
             details_tab_shown = TAB_EMISSIVE;
             pc_emissive_panel(); /* emissive_editor.cpp: glowing textures */
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Material", nullptr, select[TAB_MATERIAL])) {
+            details_tab_shown = TAB_MATERIAL;
+            pc_material_panel(); /* material_editor.cpp: roughness, specular, metal */
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Diagnostics", nullptr, select[TAB_DIAGNOSTICS])) {

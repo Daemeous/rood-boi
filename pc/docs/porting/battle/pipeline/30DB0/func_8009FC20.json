@@ -1,0 +1,198 @@
+{
+ "function": "func_8009FC20",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_8009FC20",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x8009fc20",
+  "difficulty": "S",
+  "zig_name": "func_8009FC20",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_8009FC20",
+  "spec_file": "func_8009FC20.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_8009FC20(arg0: c_int, arg1: [*c]c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "[*c]c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14462,
+     "completion_tokens": 4734,
+     "reasoning_tokens": 3538,
+     "cost": 0.0038132,
+     "seconds": 20.6,
+     "sample": 1,
+     "conversation": "04545078ef4592278c248a0109205f6a87ef504677f721a608b7f04ea0b259df"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "null-entry": "9943",
+   "valid-entry": "16933",
+   "valid-entry-slot-16": "3124"
+  },
+  "mutations": [
+   {
+    "name": "F1: null entry returns 0, not -1",
+    "caught": true
+   },
+   {
+    "name": "F2: unk6E5 read as signed (sign-extended store)",
+    "caught": true
+   },
+   {
+    "name": "F3: wrong field, unk6E4 stored",
+    "caught": true
+   },
+   {
+    "name": "F4: the store is dropped",
+    "caught": true
+   },
+   {
+    "name": "F5: success returns 1",
+    "caught": true
+   },
+   {
+    "name": "F6: null test misses a null entry (dereferences it)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 6,
+   "lines_hit": 6,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 37934,
+     "completion_tokens": 1723,
+     "reasoning_tokens": 1366,
+     "cost": 0.0046549,
+     "seconds": 8.6,
+     "sample": 1,
+     "conversation": "4bb13a75d6dde2604213d32347f8ecf6c71c295ca967544e1921d35eb335bcf6"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_8009FC20.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_8009FC20.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 54.346644854999795,
+ "wall_seconds": 115.8178903070002,
+ "totals": {
+  "cost": 0.00847,
+  "prompt_tokens": 52396,
+  "completion_tokens": 6457,
+  "model_seconds": 29.2,
+  "check_seconds": 54.3,
+  "calls": 2,
+  "wall_seconds": 115.8
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

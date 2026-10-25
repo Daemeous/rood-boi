@@ -1,0 +1,198 @@
+{
+ "function": "vs_battle_getEmptyObjectDataSlot",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "vs_battle_getEmptyObjectDataSlot",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x800995b0",
+  "difficulty": "S",
+  "zig_name": "getEmptyObjectDataSlot",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "get_empty_object_data_slot",
+  "spec_file": "getEmptyObjectDataSlot.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn getEmptyObjectDataSlot() callconv(.c) c_int",
+  "params": [],
+  "ret": "c_int",
+  "types": [],
+  "globals": [
+   "vs_battle_objectDataSlots"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11395,
+     "completion_tokens": 3683,
+     "reasoning_tokens": 2499,
+     "cost": 0.002981,
+     "seconds": 16.5,
+     "sample": 1,
+     "conversation": "3b0aaec2d4b7a7a71735b6a4ae5b1607df27760aa7e4ee310e406e25e045e41a"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "first-slot": "1455",
+   "middle-slot": "19700",
+   "last-slot": "1357",
+   "none": "7488"
+  },
+  "mutations": [
+   {
+    "name": "E1: last slot never checked (wrong bound)",
+    "caught": true
+   },
+   {
+    "name": "E2: not-found returns 0, not -1",
+    "caught": true
+   },
+   {
+    "name": "E3: test inverted (first non-empty slot)",
+    "caught": true
+   },
+   {
+    "name": "E4: slot 0 skipped (loop starts at 1)",
+    "caught": true
+   },
+   {
+    "name": "E5: returns index plus one",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 4,
+   "branches_hit": 4,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 5,
+   "lines_hit": 5,
+   "uncovered": [],
+   "flags": [],
+   "args": [],
+   "compares": [
+    {
+     "line": 4,
+     "text": "for (i = 0; i < 16; ++i) {",
+     "size": 4,
+     "count": 318925,
+     "kind": "against a constant",
+     "outcomes": "== 8845, < 302592, > 7488 (signed); < 302592, > 7488 (unsigned)",
+     "operand": "constant 15",
+     "a": "0..16"
+    },
+    {
+     "line": 5,
+     "text": "if (vs_battle_objectDataSlots[i].dataType == 0) {",
+     "size": 1,
+     "count": 311437,
+     "kind": "against a constant",
+     "outcomes": "== 22512, < 145084, > 143841 (signed); < 0, > 288925 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34806,
+     "completion_tokens": 772,
+     "reasoning_tokens": 469,
+     "cost": 0.0038666,
+     "seconds": 4.3,
+     "sample": 1,
+     "conversation": "b3c18cd3996aa0ead7de5d2cbf32c5cb06f7e6cb4f1c293cc73558a35c890acc"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/getEmptyObjectDataSlot.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/get_empty_object_data_slot.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 18.81765403899999,
+ "wall_seconds": 39.97321685099996,
+ "totals": {
+  "cost": 0.00685,
+  "prompt_tokens": 46201,
+  "completion_tokens": 4455,
+  "model_seconds": 20.8,
+  "check_seconds": 18.8,
+  "calls": 2,
+  "wall_seconds": 40.0
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 1 / root 2 / not called, 0 mismatches"
+ }
+}

@@ -1,0 +1,265 @@
+{
+ "function": "func_8009D6F4",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.4,
+ "samples": 2,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (retry sample)",
+ "plan": {
+  "name": "func_8009D6F4",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x8009d6f4",
+  "difficulty": "S",
+  "zig_name": "func_8009D6F4",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_8009D6F4",
+  "spec_file": "func_8009D6F4.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_8009D6F4() callconv(.c) void",
+  "params": [],
+  "ret": "void",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 16413,
+     "completion_tokens": 8670,
+     "reasoning_tokens": 7280,
+     "cost": 0.0059763,
+     "seconds": 38.9,
+     "sample": 1,
+     "conversation": "09b48c69e75a18caa8c049a65b55afe681a76f7be77adb3fdacb5b1f5c7e3b54"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:235:46: error: expected 4 argument(s), found 1\n                return adapt(S, @call(.auto, f, .{&ctx} ++ stubArgs(@TypeOf(f), args)));\n                                             ^\npc/build/port-pipeline/func_8009D6F4/spec1/build/spec.zig:20:9: note: function declared here\n    pub fn memset(ctx: *zd.Ctx, dst: anytype, val: anytype, n: anytype) ?*anyopaque {\n    ~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nreferenced by:\n    f: pc/build/port-pipeline/func_8009D6F4/spec1/build/game/common/route.zig:19:28\n    comptime: pc/tests/zig_diff/main.zig:244:58\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ]
+   },
+   {
+    "round": 1,
+    "sample": 2,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 16413,
+     "completion_tokens": 9350,
+     "reasoning_tokens": 7952,
+     "cost": 0.0063163,
+     "seconds": 41.5,
+     "sample": 2,
+     "conversation": "ab4b774c4a3f145e22ccf8ada3981b37377337016e61088bc9076fd379c84a71"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:235:46: error: expected 4 argument(s), found 1\n                return adapt(S, @call(.auto, f, .{&ctx} ++ stubArgs(@TypeOf(f), args)));\n                                             ^\npc/build/port-pipeline/func_8009D6F4/spec1s2/build/spec.zig:18:9: note: function declared here\n    pub fn memset(ctx: *zd.Ctx, p: anytype, c: anytype, n: anytype) ?*anyopaque {\n    ~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nreferenced by:\n    f: pc/build/port-pipeline/func_8009D6F4/spec1s2/build/game/common/route.zig:19:28\n    comptime: pc/tests/zig_diff/main.zig:244:58\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 18262,
+     "completion_tokens": 3280,
+     "reasoning_tokens": 2141,
+     "cost": 0.0034662,
+     "seconds": 14.1,
+     "sample": 1,
+     "conversation": "4d795da63a9b4bcdce20a485b9a77d9807a2a307d4696f90abaca5e4b2ff5ec2"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "no-actors": "3090",
+   "bit-set": "23856",
+   "bit-clear": "3054"
+  },
+  "mutations": [
+   {
+    "name": "F1: loop stops one short (slot 16 never cleared)",
+    "caught": true
+   },
+   {
+    "name": "F2: unk5AC_20 store dropped",
+    "caught": true
+   },
+   {
+    "name": "F3: memset call dropped",
+    "caught": true
+   },
+   {
+    "name": "F4: unkA_0 cleared through the unkA_3 field",
+    "caught": true
+   },
+   {
+    "name": "F5: unk5AC_3 test only fires above 1 (a set bit is never cleared)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 6,
+   "branches_hit": 6,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 17,
+   "lines_hit": 17,
+   "uncovered": [],
+   "flags": [],
+   "args": [],
+   "compares": [
+    {
+     "line": 4,
+     "text": "for (i = 0; i < 17; ++i) {",
+     "size": 4,
+     "count": 540000,
+     "kind": "against a constant",
+     "outcomes": "== 30000, < 480000, > 30000 (signed); < 480000, > 30000 (unsigned)",
+     "operand": "constant 16",
+     "a": "0..17"
+    },
+    {
+     "line": 10,
+     "text": "if (actor->unk5AC_3) {",
+     "size": 1,
+     "count": 365455,
+     "kind": "against a constant",
+     "outcomes": "== 202978, < 0, > 162477 (signed); < 0, > 162477 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..8"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 39877,
+     "completion_tokens": 3809,
+     "reasoning_tokens": 3226,
+     "cost": 0.0058922,
+     "seconds": 16.0,
+     "sample": 1,
+     "conversation": "86ced11e86792213bc3face1ccb442245ddac6f61aa234b365f46b004e0d2626"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_8009D6F4.zig:24:26: error: @ptrCast must have a known result type\n            _ = c.memset(@ptrCast(&actor.unk1848), @as(c_int, 0), @as(usize, @sizeOf(v.D_800F4538_unk1848)));\n                         ^~~~~~~~~~~~~~~~~~~~~~~~\ngame/battle/func_8009D6F4.zig:24:25: note: result type is unknown due to anytype parameter\n            _ = c.memset(@ptrCast(&actor.unk1848), @as(c_int, 0), @as(usize, @sizeOf(v.D_800F4538_unk1848)));\n                ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\ngame/battle/func_8009D6F4.zig:24:26: note: use @as to provide explicit result type\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:469:31\n    main: pc/tests/zig_diff/main.zig:392:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 1,
+    "sample": 2,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 39877,
+     "completion_tokens": 4542,
+     "reasoning_tokens": 3932,
+     "cost": 0.0062587,
+     "seconds": 18.7,
+     "sample": 2,
+     "conversation": "cd1f09b67caa6c33ebf33e4495d099babf5f45949b778f141ae0107a504c0927"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 2
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_8009D6F4.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_8009D6F4.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 83.6717165550017,
+ "wall_seconds": 213.11406386499948,
+ "totals": {
+  "cost": 0.02791,
+  "prompt_tokens": 130842,
+  "completion_tokens": 29651,
+  "model_seconds": 129.2,
+  "check_seconds": 83.7,
+  "calls": 5,
+  "wall_seconds": 213.1
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

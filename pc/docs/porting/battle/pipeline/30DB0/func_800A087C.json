@@ -1,0 +1,232 @@
+{
+ "function": "func_800A087C",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (each flag truncated to its bitfield width; the recursive call through the routed symbol); spec sound",
+ "plan": {
+  "name": "func_800A087C",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x800a087c",
+  "difficulty": "S",
+  "zig_name": "func_800A087C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A087C",
+  "spec_file": "func_800A087C.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_800A087C(actorId: c_int, arg1: c_int) callconv(.c) void",
+  "params": [
+   [
+    "actorId",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F45E0_t",
+   "vs_battle_wepModels_t"
+  ],
+  "globals": [
+   "D_800F45E0",
+   "vs_battle_wepModels"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 21203,
+     "completion_tokens": 18685,
+     "reasoning_tokens": 17118,
+     "cost": 0.0114628,
+     "seconds": 83.3,
+     "sample": 1,
+     "conversation": "35c440a49425358b6027d865d0f3836cc9f6025fee1d67a8c44ba5feb5550e39"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "no-actor-no-scratch": "5045",
+   "no-actor-scratch": "15494",
+   "actor-no-recursion": "5221",
+   "actor-recurses": "4240"
+  },
+  "mutations": [
+   {
+    "name": "F1: skip bit not inverted",
+    "caught": true
+   },
+   {
+    "name": "F2: recursion bound off by one (> 2)",
+    "caught": true
+   },
+   {
+    "name": "F3: second model reads bit 11, not 12",
+    "caught": true
+   },
+   {
+    "name": "F4: dropped store to the stats block",
+    "caught": true
+   },
+   {
+    "name": "F5: second model slot uses the first index",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 10,
+   "branches_hit": 10,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 22,
+   "lines_hit": 22,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 15, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 7,
+     "text": "temp_a0->unk8_0 = (arg1 & 1) ^ 1;",
+     "size": 4,
+     "count": 15494,
+     "kind": "against a constant",
+     "outcomes": "== 9038, < 0, > 6456 (signed); < 0, > 6456 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 14,
+     "text": "temp_t0->unk0.skip = (arg1 & 1) ^ 1;",
+     "size": 4,
+     "count": 9461,
+     "kind": "against a constant",
+     "outcomes": "== 5549, < 0, > 3912 (signed); < 0, > 3912 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 31,
+     "text": "if (temp_t0->unk17FD >= 2) {",
+     "size": 1,
+     "count": 9461,
+     "kind": "against a constant",
+     "outcomes": "== 936, < 4285, > 4240 (signed); < 4285, > 4240 (unsigned)",
+     "operand": "constant 1",
+     "a": "0..9"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 44758,
+     "completion_tokens": 4854,
+     "reasoning_tokens": 3977,
+     "cost": 0.0069028,
+     "seconds": 18.9,
+     "sample": 1,
+     "conversation": "c1f6c36366cddf03b569edd2fec526dd214f110a1994146c7ce28dfd27dd4b0a"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A087C.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A087C.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 78.05766615300035,
+ "wall_seconds": 206.6082690379999,
+ "totals": {
+  "cost": 0.01837,
+  "prompt_tokens": 65961,
+  "completion_tokens": 23539,
+  "model_seconds": 102.2,
+  "check_seconds": 78.1,
+  "calls": 2,
+  "wall_seconds": 206.6
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 58 / root 146 / root 306, 0 mismatches"
+ }
+}

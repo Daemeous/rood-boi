@@ -1,0 +1,227 @@
+{
+ "function": "func_800A0BA0",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_800A0BA0",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x800a0ba0",
+  "difficulty": "S",
+  "zig_name": "func_800A0BA0",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A0BA0",
+  "spec_file": "func_800A0BA0.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_800A0BA0(arg0: c_int, arg1: [*c]c_int, arg2: [*c]c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "[*c]c_int"
+   ],
+   [
+    "arg2",
+    "[*c]c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14321,
+     "completion_tokens": 6599,
+     "reasoning_tokens": 5357,
+     "cost": 0.0047316,
+     "seconds": 27.8,
+     "sample": 1,
+     "conversation": "d70112a9cc55264dfc7c41d14e256542a29069a670bab0b81bf5d7cdd97150ce"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation M2: null guard inverted: not caught as mismatch (exit 4) (the mutated copy crashes where the C does not: if that is what this mistake does on your inputs, say `expect = \"crash\"`; otherwise choose a mutation your inputs show as a difference): zdiff: MISMATCH iteration 0: memory at 0x405070 [arena] (zdiff_state+0): C 171, Zig 141\nzdiff: MISMATCH iteration 1: memory at 0x405070 [arena] (zdiff_state+0): C 255, Zig 130\nzdiff: MISMATCH iteration 2: memory at 0x405070 [arena] (zdiff_state+0): C 0, Zig 22\nzdiff: CRASH (signal 11) in the Zig run, iteration 3, fault address 0x5c2 [NULL+0x5c2: a field of a null pointer]",
+     "FAIL: mutation M5: wrong table index (aliasing above 7): not caught as mismatch (exit 4) (the mutated copy crashes where the C does not: if that is what this mistake does on your inputs, say `expect = \"crash\"`; otherwise choose a mutation your inputs show as a difference): zdiff: CRASH (signal 11) in the Zig run, iteration 4, a wild pointer (a non-canonical address: random bytes used as a pointer?)\nzdiff: crashed on arguments: 0x8 0x405070 [arena] 0x405080 [arena] (class set-entry)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16096,
+     "completion_tokens": 3324,
+     "reasoning_tokens": 1837,
+     "cost": 0.0032716,
+     "seconds": 14.4,
+     "sample": 1,
+     "conversation": "3180ea380c71628ba79a0f2961084e121b33a484aefccd054a51c46611446efc"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "null-entry-null-args": "2315",
+   "null-entry-args": "7611",
+   "set-entry": "20074"
+  },
+  "mutations": [
+   {
+    "name": "M1: out1 takes unk5C0",
+    "caught": true
+   },
+   {
+    "name": "M2: null guard inverted",
+    "caught": true
+   },
+   {
+    "name": "M3: signed slip on out1 (u16 read as short)",
+    "caught": true
+   },
+   {
+    "name": "M4: dropped store to out2",
+    "caught": true
+   },
+   {
+    "name": "M5: wrong table index (aliasing above 7)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 6,
+   "lines_hit": 6,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: null seen"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "pointer: null seen"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 37785,
+     "completion_tokens": 1736,
+     "reasoning_tokens": 1361,
+     "cost": 0.0046465,
+     "seconds": 8.2,
+     "sample": 1,
+     "conversation": "72ef872e695384b695fef0a7349c8148a3ab7ce9ecf83ee2acbd34a426012aa5"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A0BA0.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A0BA0.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 71.89291412100101,
+ "wall_seconds": 149.37091458899977,
+ "totals": {
+  "cost": 0.01265,
+  "prompt_tokens": 68202,
+  "completion_tokens": 11659,
+  "model_seconds": 50.4,
+  "check_seconds": 71.9,
+  "calls": 3,
+  "wall_seconds": 149.4
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

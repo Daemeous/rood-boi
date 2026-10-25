@@ -38,7 +38,7 @@ MEANINGS = ROOT / "pc/docs/porting/battle/MEANINGS.tsv"
 
 
 # ---------------------------------------------------------------- gdb half
-def _dump(type_names, global_names):
+def _dump(type_names, global_names, lenient=False):
     wanted, order, types = set(type_names), [], {}
 
     def is_signed(t):
@@ -120,7 +120,13 @@ def _dump(type_names, global_names):
         ref(gdb.lookup_type(name), name)
     globals_ = {}
     for name in global_names:
-        symbol = gdb.lookup_global_symbol(name) or gdb.lookup_static_symbol(name) or gdb.lookup_symbol(name)[0]
+        # (gdb.lookup_symbol needs a selected frame, which an object has not;
+        # a global the C declares only as a block-scope `extern` has no global
+        # or static symbol, so it is absent here: lenient callers, the
+        # pipeline's plan, see that as "no views accessor" and skip.)
+        symbol = gdb.lookup_global_symbol(name) or gdb.lookup_static_symbol(name)
+        if symbol is None and lenient:
+            continue
         if symbol is None:
             raise RuntimeError(f"{name}: no such global in this unit's DWARF")
         globals_[name] = ref(symbol.type, name)
@@ -128,10 +134,11 @@ def _dump(type_names, global_names):
     return {"pointer_size": pointer_size, "order": order, "types": types, "globals": globals_}
 
 
-def dump_with_gdb(obj, type_names, global_names, out):
+def dump_with_gdb(obj, type_names, global_names, out, lenient=False):
     """Run the dump in gdb on `obj`; returns the JSON (also written to `out`)."""
     request = pathlib.Path(str(out) + ".request")
-    request.write_text(json.dumps({"types": list(type_names), "globals": list(global_names), "out": str(out)}))
+    request.write_text(json.dumps({"types": list(type_names), "globals": list(global_names), "out": str(out),
+                                    "lenient": lenient}))
     result = subprocess.run(["gdb", "-batch", "-nx", "-iex", "set auto-load off", str(obj), "-ex",
                              f"python import sys; sys.argv = ['zig_views', {str(request)!r}]",
                              "-x", str(pathlib.Path(__file__).resolve())], capture_output=True, text=True)
@@ -394,7 +401,7 @@ def main(argv=None):
 
 if IN_GDB:
     request = json.loads(pathlib.Path(sys.argv[1]).read_text())
-    result = _dump(request["types"], request["globals"])
+    result = _dump(request["types"], request["globals"], request.get("lenient", False))
     pathlib.Path(request["out"]).write_text(json.dumps(result, indent=1))
 elif __name__ == "__main__":
     main()

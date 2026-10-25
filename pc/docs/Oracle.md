@@ -188,6 +188,19 @@ VECTOR's `vx`..`vz` and `func_800D5260` copies it whole into `D_800F5620`:
 diverged there (action_name_window from tick 871, enemy_kill from tick 100)
 while call mode matched.
 
+Fixed: `func_80099854` and `func_8009BE5C` (30DB0.c) zero their
+`vs_battle_objectData` local under ROOD_PC (`queued = (vs_battle_objectData)
+{ 0 };`; the ports zero theirs too). They set `dataType`, `index`, `actorId`
+and `material` and the whole 20-byte record is copied into an object-data
+slot (`*dst = *src`, or `vs_battleQueueSequenceObject`): `modelId`, `unk4`,
+`dataAddr`, `unkC`, `unk11` and `variant` were dead host stack. Use a
+compound literal, not `memset`: zig_diff stubs `memset` like any external
+call (it records and does not clear), so a memset-zeroed local still differs
+from a port's zeroed one in the harness. No recipe reached these two in the
+three recipes yet (found by reading the locals of every ported 30DB0
+function); `_parseShp` (30DB0.c, `queued`) is the same pattern when it is
+ported.
+
 Found by watching the bytes: `ROOD_BINARY` can be a wrapper that runs the
 game under `gdb -batch` with a Python script setting access watchpoints on
 the guest addresses (they are host addresses in the 64-bit build) whose

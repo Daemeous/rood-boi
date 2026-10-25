@@ -63,6 +63,7 @@ typedef struct {
     int ui_scale; /* the UI atlas's magnification (ui_upscale.c), 0: none */
     float text_factor; /* text's translucent pass: the PS1 mode's alpha factor */
     int emissive; /* emissive texels: the slot map (binding 3) is read */
+    int materials; /* material response (material.glsl) */
 } draw_push;
 typedef struct {
     int rect[4];
@@ -76,7 +77,8 @@ static void make_attachments(vk_attachments* a, const vk_target* t, const vk_ima
     a->colors[1] = t->normal.view;
     a->colors[2] = t->albedo.view;
     a->colors[3] = t->shade.view;
-    a->color_count = 4;
+    a->colors[4] = t->material.view;
+    a->color_count = 5;
     a->depth = depth->view;
     a->width = vk_hw.width;
     a->height = vk_hw.height;
@@ -91,6 +93,7 @@ static int make_target(vk_target* t)
         && vk_image_create(&t->normal, vk_hw.width, vk_hw.height, VK_TARGET_FORMAT, color)
         && vk_image_create(&t->albedo, vk_hw.width, vk_hw.height, VK_TARGET_FORMAT, color)
         && vk_image_create(&t->shade, vk_hw.width, vk_hw.height, VK_TARGET_FORMAT, color)
+        && vk_image_create(&t->material, vk_hw.width, vk_hw.height, VK_TARGET_FORMAT, color)
         && vk_image_create(&t->depth, vk_hw.width, vk_hw.height, vk.depth_format, depth);
 }
 static void destroy_target(vk_target* t)
@@ -99,6 +102,7 @@ static void destroy_target(vk_target* t)
     vk_image_destroy_later(&t->normal);
     vk_image_destroy_later(&t->albedo);
     vk_image_destroy_later(&t->shade);
+    vk_image_destroy_later(&t->material);
     vk_image_destroy_later(&t->depth);
 }
 static int make_targets(int scale)
@@ -192,7 +196,8 @@ static VkPipeline target_pipeline_ms(VkShaderModule vs, VkShaderModule fs, VkPip
     const VkVertexInputBindingDescription* binding, const VkVertexInputAttributeDescription* attributes, int count,
     VkPrimitiveTopology topology, int blend, unsigned masks, int samples, int centre)
 {
-    static const VkFormat formats[4] = { VK_TARGET_FORMAT, VK_TARGET_FORMAT, VK_TARGET_FORMAT, VK_TARGET_FORMAT };
+    static const VkFormat formats[5] = { VK_TARGET_FORMAT, VK_TARGET_FORMAT, VK_TARGET_FORMAT, VK_TARGET_FORMAT,
+        VK_TARGET_FORMAT };
     vk_pipeline_desc d = { .vertex = vs,
         .fragment = fs,
         .layout = layout,
@@ -200,13 +205,13 @@ static VkPipeline target_pipeline_ms(VkShaderModule vs, VkShaderModule fs, VkPip
         .binding = binding,
         .attributes = attributes,
         .attribute_count = count,
-        .color_count = 4,
+        .color_count = 5,
         .color_formats = formats,
         .depth_format = vk.depth_format,
         .blend = blend,
         .samples = samples,
         .centre = centre };
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < 5; i++)
         d.write_masks[i] = (masks >> (i * 4)) & 15;
     return vk_pipeline(&d);
 }
@@ -248,7 +253,7 @@ int pc_vk_hw_init(int scale, size_t vertex_size)
         || !vk_image_create(&vk_hw.vram, 1024, 512, VK_FORMAT_R16_UINT,
             VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT
                 | (vram_storage ? VK_IMAGE_USAGE_STORAGE_BIT : 0))
-        || !vk_image_create(&vk_hw.emissive, PC_EMISSIVE_MAP_W, PC_EMISSIVE_MAP_H, VK_FORMAT_R8_UINT,
+        || !vk_image_create(&vk_hw.emissive, PC_EMISSIVE_MAP_W, PC_EMISSIVE_MAP_H + PC_MATERIAL_MAP_H, VK_FORMAT_R8_UINT,
             VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT)
         || !vk_image_create(&vk_hw.dummy_depth, 1, 1, vk.depth_format,
             VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT)
@@ -278,7 +283,7 @@ int pc_vk_hw_init(int scale, size_t vertex_size)
     VkShaderModule vs = vk_shader(vk_spv_hw_vert, vk_spv_hw_vert_size),
                    fs = vk_shader(vk_spv_hw_frag, vk_spv_hw_frag_size);
     opaque_pipeline = target_pipeline(vs, fs, draw_layout, &binding, attributes, 8,
-        VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, -1, 0xffff);
+        VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, -1, 0xfffff);
     for (int m = 0; m < 4; m++)
         blend_pipelines[m] = target_pipeline(vs, fs, draw_layout, &binding, attributes, 8,
             VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, m, 0x000f);
@@ -287,7 +292,7 @@ int pc_vk_hw_init(int scale, size_t vertex_size)
     cover_pipeline = target_pipeline(vs, fs, draw_layout, &binding, attributes, 8,
         VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 4, 0x0007);
     text_solid_pipeline = target_pipeline(vs, fs, draw_layout, &binding, attributes, 8,
-        VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, -1, 0xfff0);
+        VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, -1, 0xffff0);
     text_add_pipeline = target_pipeline(vs, fs, draw_layout, &binding, attributes, 8,
         VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 5, 0x0007);
     text_sub_pipeline = target_pipeline(vs, fs, draw_layout, &binding, attributes, 8,
@@ -356,25 +361,35 @@ void pc_vk_hw_upload_rects(const uint16_t* vram, const int (*rects)[4], int coun
     vk_barrier();
 }
 
-/* Emissive texels' slot map (emissive.h): rows [row0, row1) of the CPU copy. */
-void pc_vk_hw_upload_emissive(const uint8_t* map, int row0, int row1)
+/* Rows of the slot map image from a CPU copy (`rows` rows at image row `at`). */
+static void upload_slot_rows(const uint8_t* data, int at, int rows)
 {
-    if (row1 <= row0 || !vk_hw.emissive.image)
+    if (rows <= 0 || !vk_hw.emissive.image)
         return;
     vk_end_rendering();
-    VkDeviceSize bytes = (VkDeviceSize)(row1 - row0) * PC_EMISSIVE_MAP_W;
+    VkDeviceSize bytes = (VkDeviceSize)rows * PC_EMISSIVE_MAP_W;
     vk_slice slice = vk_arena(bytes, 16);
     if (!slice.data)
         return;
-    memcpy(slice.data, map + (size_t)row0 * PC_EMISSIVE_MAP_W, (size_t)bytes);
+    memcpy(slice.data, data, (size_t)bytes);
     VkBufferImageCopy region = { .bufferOffset = slice.offset,
         .bufferRowLength = PC_EMISSIVE_MAP_W,
-        .bufferImageHeight = (uint32_t)(row1 - row0),
+        .bufferImageHeight = (uint32_t)rows,
         .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
-        .imageOffset = { 0, row0, 0 },
-        .imageExtent = { PC_EMISSIVE_MAP_W, (uint32_t)(row1 - row0), 1 } };
+        .imageOffset = { 0, at, 0 },
+        .imageExtent = { PC_EMISSIVE_MAP_W, (uint32_t)rows, 1 } };
     vkCmdCopyBufferToImage(vk_cmd(), slice.buffer, vk_hw.emissive.image, VK_IMAGE_LAYOUT_GENERAL, 1, &region);
     vk_barrier();
+}
+/* Emissive texels' slot map (emissive.h): rows [row0, row1) of the CPU copy. */
+void pc_vk_hw_upload_emissive(const uint8_t* map, int row0, int row1)
+{
+    if (row1 > row0)
+        upload_slot_rows(map + (size_t)row0 * PC_EMISSIVE_MAP_W, row0, row1 - row0);
+}
+void pc_vk_hw_upload_material(const uint8_t* planes)
+{
+    upload_slot_rows(planes, PC_MATERIAL_ROW, PC_MATERIAL_MAP_H);
 }
 
 /* ---- packet batches ---- */
@@ -404,7 +419,8 @@ void pc_vk_hw_draw_batch(unsigned fbo, const void* vertices, int count, int blen
     vk_descriptors_image(&d, 2, atlas ? atlas : vk_hw.vram.view, vk.nearest);
     vk_descriptors_image(&d, 3, vk_hw.emissive.view, vk.nearest);
     draw_push push = { .perspective = pc_hw_perspective, .filtering = pc_hw_texture_filter, .occlusion = occlusion,
-        .ui_scale = atlas ? pc_ui_upscale_draw_factor() : 0, .emissive = pc_hw_emissive(NULL) };
+        .ui_scale = atlas ? pc_ui_upscale_draw_factor() : 0, .emissive = pc_hw_emissive(NULL),
+        .materials = pc_material_active() };
     if (occlusion) {
         int s = vk_hw.scale;
         push.occlusion_rect[0] = (float)(occlusion_rect[0] * s);
@@ -599,14 +615,14 @@ void pc_vk_hw_fill(unsigned fbo, int x, int y, int w, int h, int r, int g, int b
         return;
     vk_begin_rendering(a);
     /* Fills store 5-bit colours, clear the G-buffer (unlit) and reset depth. */
-    VkClearAttachment clears[5];
-    for (int i = 0; i < 4; i++)
+    VkClearAttachment clears[6];
+    for (int i = 0; i < 5; i++)
         clears[i] = (VkClearAttachment){ VK_IMAGE_ASPECT_COLOR_BIT, (uint32_t)i, { .color = { { 0, 0, 0, 0 } } } };
     clears[0].clearValue.color.float32[0] = (r >> 3) / 31.0f;
     clears[0].clearValue.color.float32[1] = (g >> 3) / 31.0f;
     clears[0].clearValue.color.float32[2] = (b >> 3) / 31.0f;
-    clears[4] = (VkClearAttachment){ VK_IMAGE_ASPECT_DEPTH_BIT, 0, { .depthStencil = { 1.0f, 0 } } };
-    vkCmdClearAttachments(vk_cmd(), 5, clears, 1, &rect);
+    clears[5] = (VkClearAttachment){ VK_IMAGE_ASPECT_DEPTH_BIT, 0, { .depthStencil = { 1.0f, 0 } } };
+    vkCmdClearAttachments(vk_cmd(), 6, clears, 1, &rect);
 }
 void pc_vk_hw_upload_rect(int x, int y, int w, int h)
 {
@@ -629,10 +645,10 @@ void pc_vk_hw_upload_rect(int x, int y, int w, int h)
     vkCmdPushConstants(cmd, upload_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof push, &push);
     vkCmdDraw(cmd, 4, 1, 0, 0);
     /* The image itself; then mark it unlit (G-buffer cleared, depth kept). */
-    VkClearAttachment clears[3];
-    for (int i = 0; i < 3; i++)
+    VkClearAttachment clears[4];
+    for (int i = 0; i < 4; i++)
         clears[i] = (VkClearAttachment){ VK_IMAGE_ASPECT_COLOR_BIT, (uint32_t)(i + 1), { .color = { { 0, 0, 0, 0 } } } };
-    vkCmdClearAttachments(cmd, 3, clears, 1, &rect);
+    vkCmdClearAttachments(cmd, 4, clears, 1, &rect);
 }
 static void copy_image(const vk_image* from, const vk_image* to, int sx, int sy, int dx, int dy, int w, int h)
 {
@@ -691,11 +707,11 @@ void pc_vk_hw_replay_copy(int x0, int y0, int x1, int y1)
     if (!clamp_rect(&x0, &y0, &x1, &y1))
         return;
     vk_end_rendering();
-    const vk_image* from[5] = { &vk_hw.live.color, &vk_hw.live.normal, &vk_hw.live.albedo, &vk_hw.live.shade,
-        &vk_hw.live.depth };
-    const vk_image* to[5] = { &vk_hw.replay.color, &vk_hw.replay.normal, &vk_hw.replay.albedo, &vk_hw.replay.shade,
-        &vk_hw.replay.depth };
-    for (int i = 0; i < 5; i++)
+    const vk_image* from[6] = { &vk_hw.live.color, &vk_hw.live.normal, &vk_hw.live.albedo, &vk_hw.live.shade,
+        &vk_hw.live.material, &vk_hw.live.depth };
+    const vk_image* to[6] = { &vk_hw.replay.color, &vk_hw.replay.normal, &vk_hw.replay.albedo, &vk_hw.replay.shade,
+        &vk_hw.replay.material, &vk_hw.replay.depth };
+    for (int i = 0; i < 6; i++)
         copy_image(from[i], to[i], x0, y0, x0, y0, x1 - x0, y1 - y0);
     vk_barrier();
 }
@@ -826,6 +842,7 @@ static void ms_destroy(void)
     vk_image_destroy_later(&vk_hw.ms.normal);
     vk_image_destroy_later(&vk_hw.ms.albedo);
     vk_image_destroy_later(&vk_hw.ms.shade);
+    vk_image_destroy_later(&vk_hw.ms.material);
     vk_image_destroy_later(&vk_hw.ms.depth);
     vk_image_destroy_later(&vk_hw.ms_room);
     vk_image_destroy_later(&vk_hw.ms_before);
@@ -861,10 +878,10 @@ static int ms_make_pipelines(int samples)
     ms_load_pipeline = ms_depth_pipeline = ms_resolve_pipeline = ms_sync_pipeline = VK_NULL_HANDLE;
     ms_pipeline_samples = 0;
     if (!ms_set) {
-        VkDescriptorType types[5];
-        for (int i = 0; i < 5; i++)
+        VkDescriptorType types[6];
+        for (int i = 0; i < 6; i++)
             types[i] = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        ms_set = vk_push_layout(types, 5);
+        ms_set = vk_push_layout(types, 6);
         VkPushConstantRange range = { VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, 16 };
         VkPipelineLayoutCreateInfo info = { .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
             .setLayoutCount = 1,
@@ -885,7 +902,7 @@ static int ms_make_pipelines(int samples)
     int ok = 1;
     for (int c = 0; c < 2; c++) {
         ms_opaque[c] = target_pipeline_ms(vs, fs, draw_layout, &binding, attributes, 8,
-            VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, -1, 0xffff, samples, c);
+            VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, -1, 0xfffff, samples, c);
         ok = ok && ms_opaque[c];
         for (int m = 0; m < 4; m++) {
             ms_blend[c][m] = target_pipeline_ms(vs, fs, draw_layout, &binding, attributes, 8,
@@ -896,7 +913,7 @@ static int ms_make_pipelines(int samples)
     ms_cover = target_pipeline_ms(vs, fs, draw_layout, &binding, attributes, 8, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 4,
         0x0007, samples, 1);
     ms_text_solid = target_pipeline_ms(vs, fs, draw_layout, &binding, attributes, 8,
-        VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, -1, 0xfff0, samples, 1);
+        VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, -1, 0xffff0, samples, 1);
     ms_text_add = target_pipeline_ms(vs, fs, draw_layout, &binding, attributes, 8, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
         5, 0x0007, samples, 1);
     ms_text_sub = target_pipeline_ms(vs, fs, draw_layout, &binding, attributes, 8, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
@@ -904,7 +921,7 @@ static int ms_make_pipelines(int samples)
     ok = ok && ms_cover && ms_text_solid && ms_text_add && ms_text_sub;
     /* Load: every sample of the twins (the shader runs once per pixel). */
     ms_load_pipeline = target_pipeline_ms(fullscreen, load, ms_layout, NULL, NULL, 0,
-        VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, -1, 0xffff, samples, 0);
+        VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, -1, 0xfffff, samples, 0);
     vk_pipeline_desc d = { .vertex = fullscreen,
         .fragment = depth,
         .layout = ms_layout,
@@ -920,7 +937,7 @@ static int ms_make_pipelines(int samples)
     ms_sync_pipeline = vk_pipeline(&d);
     /* Resolve: into the single-sampled target. */
     ms_resolve_pipeline = target_pipeline_ms(fullscreen, resolve, ms_layout, NULL, NULL, 0,
-        VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, -1, 0xffff, 1, 0);
+        VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, -1, 0xfffff, 1, 0);
     VkShaderModule modules[7] = { vs, fs, fullscreen, load, depth, resolve, sync };
     for (int i = 0; i < 7; i++)
         vkDestroyShaderModule(vk.device, modules[i], NULL);
@@ -948,6 +965,7 @@ int pc_vk_hw_ms_make(int samples, int width, int height)
         || !vk_image_create_ms(&t->normal, width, height, VK_TARGET_FORMAT, color, samples)
         || !vk_image_create_ms(&t->albedo, width, height, VK_TARGET_FORMAT, color, samples)
         || !vk_image_create_ms(&t->shade, width, height, VK_TARGET_FORMAT, color, samples)
+        || !vk_image_create_ms(&t->material, width, height, VK_TARGET_FORMAT, color, samples)
         || !vk_image_create_ms(&t->depth, width, height, vk.depth_format, depth, samples)
         || !vk_image_create_ms(&vk_hw.ms_room, width, height, vk.depth_format, depth, samples)
         || !vk_image_create_ms(&vk_hw.ms_before, width, height, vk.depth_format, depth, samples)) {
@@ -995,14 +1013,14 @@ void pc_vk_hw_ms_load(unsigned fbo, int x0, int y0, int x1, int y1, int room)
     const vk_target* t = target_of(fbo);
     vk_begin_rendering(&ms_attachments);
     vk_descriptors d = { 0 };
-    const vk_image* from[5] = { &t->color, &t->normal, &t->albedo, &t->shade, &t->depth };
-    for (int i = 0; i < 5; i++)
+    const vk_image* from[6] = { &t->color, &t->normal, &t->albedo, &t->shade, &t->depth, &t->material };
+    for (int i = 0; i < 6; i++)
         vk_descriptors_image(&d, i, from[i]->view, vk.nearest);
     ms_pass(ms_load_pipeline, &d, x0, y0, x1, y1, vk_hw.ms_samples);
     if (room) {
         vk_attachments a = { .depth = vk_hw.ms_room.view, .width = vk_hw.ms_width, .height = vk_hw.ms_height };
         vk_begin_rendering(&a);
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < 6; i++)
             vk_descriptors_image(&d, i, vk_hw.room_depth.view, vk.nearest);
         ms_pass(ms_depth_pipeline, &d, x0, y0, x1, y1, vk_hw.ms_samples);
     }
@@ -1015,8 +1033,9 @@ void pc_vk_hw_ms_resolve(unsigned fbo, int x0, int y0, int x1, int y1)
     vk_section("msaa resolve");
     vk_begin_rendering(vk_hw_attachments(fbo == VK_TOKEN_REPLAY ? VK_TOKEN_REPLAY : VK_TOKEN_LIVE));
     vk_descriptors d = { 0 };
-    const vk_image* from[5] = { &vk_hw.ms.color, &vk_hw.ms.normal, &vk_hw.ms.albedo, &vk_hw.ms.shade, &vk_hw.ms.depth };
-    for (int i = 0; i < 5; i++)
+    const vk_image* from[6] = { &vk_hw.ms.color, &vk_hw.ms.normal, &vk_hw.ms.albedo, &vk_hw.ms.shade, &vk_hw.ms.depth,
+        &vk_hw.ms.material };
+    for (int i = 0; i < 6; i++)
         vk_descriptors_image(&d, i, from[i]->view, vk.nearest);
     ms_pass(ms_resolve_pipeline, &d, x0, y0, x1, y1, vk_hw.ms_samples);
     vk_end_rendering();
@@ -1030,7 +1049,7 @@ void pc_vk_hw_ms_sync_room(int x0, int y0, int x1, int y1)
     vk_attachments a = { .depth = vk_hw.room_depth.view, .width = vk_hw.width, .height = vk_hw.height };
     vk_begin_rendering(&a);
     vk_descriptors d = { 0 };
-    for (int i = 0; i < 5; i++)
+    for (int i = 0; i < 6; i++)
         vk_descriptors_image(&d, i, vk_hw.ms_room.view, vk.nearest);
     ms_pass(ms_sync_pipeline, &d, x0, y0, x1, y1, 1);
     vk_section("draw");

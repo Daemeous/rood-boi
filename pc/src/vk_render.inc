@@ -173,7 +173,8 @@ typedef struct {
     float room_slack[2]; /* surface_test 4 (pc_native_room_slack) */
     int room_order, layer_slack;
     int emissive; /* emissive texels: the slot map (binding 6) is read */
-    int pad_occl[3];
+    int materials; /* material response: the slot map's material planes (material.glsl) */
+    int pad_occl[2];
     float occl_subject[PC_OCCLUSION_SUBJECTS][4], occl_shape[PC_OCCLUSION_SUBJECTS][4]; /* occlusion_params */
     float occl_params[4], occl_instance[4], occl_tint[4]; /* occlusion_params, occlusion_instance */
     float occl_up[4], occl_feet[4]; /* occlusion_params */
@@ -212,7 +213,8 @@ static int vk_native_pipelines(int set, int samples)
         { 6, 0, VK_FORMAT_R8_UINT, offsetof(mesh_vertex, uv_effect) },
         { 7, 0, VK_FORMAT_R16_UINT, offsetof(mesh_vertex, emissive_scope) },
     };
-    static const VkFormat formats[4] = { VK_TARGET_FORMAT, VK_TARGET_FORMAT, VK_TARGET_FORMAT, VK_TARGET_FORMAT };
+    static const VkFormat formats[5] = { VK_TARGET_FORMAT, VK_TARGET_FORMAT, VK_TARGET_FORMAT, VK_TARGET_FORMAT,
+        VK_TARGET_FORMAT };
     vk_pipeline_desc d = { .vertex = vs,
         .geometry = gs,
         .fragment = fs,
@@ -221,10 +223,10 @@ static int vk_native_pipelines(int set, int samples)
         .binding = &binding,
         .attributes = attributes,
         .attribute_count = 8,
-        .color_count = 4,
+        .color_count = 5,
         .color_formats = formats,
         .depth_format = vk.depth_format,
-        .write_masks = { 15, 15, 15, 15 },
+        .write_masks = { 15, 15, 15, 15, 15 },
         .blend = -1,
         .samples = samples };
     vk_native_opaque[set] = vk_pipeline(&d);
@@ -390,6 +392,7 @@ static const render_camera* vk_begin_draw(vk_draw_state* s, const draw_list* lis
     u->perspective = target->perspective;
     u->filtering = target->filtering;
     u->emissive = pc_hw_emissive(NULL);
+    u->materials = pc_material_active();
     u->window = target->window;
     u->mask_set = target->mask_set;
     float hx = cam->h * (list->camera.widescreen ? 0.75f : 1.0f);

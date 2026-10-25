@@ -251,6 +251,11 @@ void func_80099854(int arg0)
         return;
     }
 
+#ifdef ROOD_PC
+    /* Only dataType, index, actorId and material are written; the whole record
+       is copied into the slot (pc/docs/Oracle.md, known hazards). */
+    objectData = (vs_battle_objectData) { 0 };
+#endif
     src = &objectData;
     src->dataType = 7;
     src->index = 0;
@@ -1566,6 +1571,12 @@ int func_8009BE5C(vs_battle_objectData* object)
             return -2;
         D_800F22D8.lba = *(u_int*)(sequences + 0x70 + object->modelId * 4);
         if (object->index == 0 && (model = object->modelId) != 0) {
+#ifdef ROOD_PC
+            /* Only dataType, index, actorId and material are written; the whole
+               record is copied into a queue slot (pc/docs/Oracle.md, known
+               hazards). */
+            queued = (vs_battle_objectData) { 0 };
+#endif
             queued.dataType = 7;
             queued.index = 0;
             queued.actorId = 3;

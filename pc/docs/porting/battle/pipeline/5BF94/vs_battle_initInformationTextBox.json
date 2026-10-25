@@ -1,0 +1,159 @@
+{
+ "function": "vs_battle_initInformationTextBox",
+ "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "stopped",
+ "reviewed": "not ported in this wave (unrouted): stopped by the wave's budget before its spec was drafted",
+ "plan": {
+  "name": "vs_battle_initInformationTextBox",
+  "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+  "stem": "5BF94",
+  "address": "0x800c8e04",
+  "difficulty": "S",
+  "zig_name": "initInformationTextBox",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "init_information_text_box",
+  "spec_file": "initInformationTextBox.zig",
+  "subsystem": "battle_5BF94_port",
+  "signature": "pub fn initInformationTextBox(header: c_uint) callconv(.c) void",
+  "params": [
+   [
+    "header",
+    "c_uint"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11258,
+     "completion_tokens": 3343,
+     "reasoning_tokens": 2282,
+     "cost": 0.0027973,
+     "seconds": 14.6,
+     "sample": 1,
+     "conversation": "6e9a37a96c0be6e6b3e2cc1f2f1d964a1ba0c8d1d5d97903d43c4f9fcc2ce28d"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation M3: header narrowed to 24 bits before the shift: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: vs_battle_initInformationTextBox: 20000 iterations, seed 1, 0 mismatches; classes: fits-24-bits=5497 high-bits-set=14503"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12475,
+     "completion_tokens": 2596,
+     "reasoning_tokens": 1486,
+     "cost": 0.0025455,
+     "seconds": 11.3,
+     "sample": 1,
+     "conversation": "f4e863057f5c110f312996ba06b6fa6af5c4146a13ca7358d2e707ab114c470e"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "fits-24-bits": "6642",
+   "high-bits-set": "13358"
+  },
+  "mutations": [
+   {
+    "name": "M1: wrong flags constant (4 -> 5)",
+    "caught": true
+   },
+   {
+    "name": "M2: header shifted by 7, not 8",
+    "caught": true
+   },
+   {
+    "name": "M3: header shifted by 9, not 8",
+    "caught": true
+   },
+   {
+    "name": "M4: flags masked to 31 bits (sign bit of the wrapped word lost)",
+    "caught": true
+   },
+   {
+    "name": "M5: wrong id argument (7 -> 6)",
+    "caught": true
+   },
+   {
+    "name": "M6: call dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 3,
+   "lines_hit": 3,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 20000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 0.0,
+ "stopped": "budget: $0.2054 spent of $0.25",
+ "wall_seconds": 42.17090782000014,
+ "totals": {
+  "cost": 0.00534,
+  "prompt_tokens": 23733,
+  "completion_tokens": 5939,
+  "model_seconds": 25.9,
+  "check_seconds": 0.0,
+  "calls": 2,
+  "wall_seconds": 42.2
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24"
+ }
+}

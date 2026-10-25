@@ -1,0 +1,187 @@
+{
+ "function": "func_8009F8DC",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (unk542/unk544 saved before and restored after the callee); spec sound",
+ "plan": {
+  "name": "func_8009F8DC",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x8009f8dc",
+  "difficulty": "S",
+  "zig_name": "func_8009F8DC",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_8009F8DC",
+  "spec_file": "func_8009F8DC.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_8009F8DC(arg0: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800F4538_unkC54"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 15190,
+     "completion_tokens": 9801,
+     "reasoning_tokens": 8342,
+     "cost": 0.0064195,
+     "seconds": 43.0,
+     "sample": 1,
+     "conversation": "31543d56931cf2052ac18101a8f875720ba6eed345a75c33a97c9c0c3f4a278b"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "index-0": "4086",
+   "index-16": "4149",
+   "index-mid": "11765"
+  },
+  "mutations": [
+   {
+    "name": "F1: unk542 not restored after the call",
+    "caught": true
+   },
+   {
+    "name": "F2: wrong field saved before the call",
+    "caught": true
+   },
+   {
+    "name": "F3: callee passed the wrong flag",
+    "caught": true
+   },
+   {
+    "name": "F4: returns the saved field, not the callee's result",
+    "caught": true
+   },
+   {
+    "name": "F5: guest pointer store dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 8,
+   "lines_hit": 8,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 20000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 38655,
+     "completion_tokens": 3266,
+     "reasoning_tokens": 2846,
+     "cost": 0.0054985,
+     "seconds": 14.2,
+     "sample": 1,
+     "conversation": "748eff8848686f6d8bfa8843cd748aa03d395fcb46a878d862515d66ce662f13"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_8009F8DC.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_8009F8DC.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 46.57220829199923,
+ "wall_seconds": 104.10803648799993,
+ "totals": {
+  "cost": 0.01192,
+  "prompt_tokens": 53845,
+  "completion_tokens": 13067,
+  "model_seconds": 57.2,
+  "check_seconds": 46.6,
+  "calls": 2,
+  "wall_seconds": 104.1
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: not called / not called / root 5, 0 mismatches"
+ }
+}

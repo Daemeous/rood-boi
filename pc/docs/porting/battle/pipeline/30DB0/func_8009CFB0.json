@@ -1,0 +1,418 @@
+{
+ "function": "func_8009CFB0",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.4,
+ "samples": 2,
+ "status": "ported",
+ "reviewed": "faithful (the model-share and data-share scans, the refcount walk re-reading unk8_4 each pass); spec sound (retry sample)",
+ "plan": {
+  "name": "func_8009CFB0",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x8009cfb0",
+  "difficulty": "L",
+  "zig_name": "func_8009CFB0",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_8009CFB0",
+  "spec_file": "func_8009CFB0.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_8009CFB0(arg0: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [
+   "D_800F46A8"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 18570,
+     "completion_tokens": 38134,
+     "reasoning_tokens": 35468,
+     "cost": 0.020924,
+     "seconds": 159.7,
+     "sample": 1,
+     "conversation": "4e18d8106bb1d0725f3820b1f85b24a02cdec8ee065f59c2ab326f1f48d6c06e"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: input classes never generated: model-unique-heap-unique",
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_8009CFB0: branches 36/38 (94.7%), conditions not measured (GCC < 14: branch coverage only), lines 41/42\n  UNCOVERED +32 b0: branch never taken: `if (i >= 17) {`\n  UNCOVERED +49 b0: branch never taken: `if (i >= 17) {`\n  FLAG +43 eq: boundary equality occurred only 4 time(s) in 48498 (32-bit compare, constant 16: both sides seen; a port's `<` for `<=` could pass): `for (i = 0; i < 17; ++i) {`\ncoverage func_8009CFB0: FAILED (threshold 100%: 2 uncovered, 1 value flag(s) not waived)\nWhat to add:\n- `if (i >= 17) {` (+32): one way out of this test (+32 b0) was never taken; add inputs that take it.\n- `if (i >= 17) {` (+49): one way out of this test (+49 b0) was never taken; add inputs that take it.\n- `for (i = 0; i < 17; ++i) {` (+43): the two sides of this ordered compare were equal 4 time(s) in 48498. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_8009CFB0.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 1,
+    "sample": 2,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 18570,
+     "completion_tokens": 36184,
+     "reasoning_tokens": 33310,
+     "cost": 0.019949,
+     "seconds": 152.3,
+     "sample": 2,
+     "conversation": "d912e19de32f665c628caa4577cae4d93840e06a516d7ad7b4492847cb585103"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_8009CFB0: branches 36/38 (94.7%), conditions not measured (GCC < 14: branch coverage only), lines 41/42\n  UNCOVERED +32 b0: branch never taken: `if (i >= 17) {`\n  UNCOVERED +49 b0: branch never taken: `if (i >= 17) {`\ncoverage func_8009CFB0: FAILED (threshold 100%: 2 uncovered, 0 value flag(s) not waived)\nWhat to add:\n- `if (i >= 17) {` (+32): one way out of this test (+32 b0) was never taken; add inputs that take it.\n- `if (i >= 17) {` (+49): one way out of this test (+49 b0) was never taken; add inputs that take it.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_8009CFB0.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 21807,
+     "completion_tokens": 4416,
+     "reasoning_tokens": 1313,
+     "cost": 0.0043887,
+     "seconds": 16.2,
+     "sample": 1,
+     "conversation": "e8d2e2690852dad3c48d1f3d267f8b86ab79e9d9043da0c44fd8ef1b235aaf09"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "range": "6018",
+   "empty": "2952",
+   "no-model": "3030",
+   "model-shared": "5075",
+   "data-shared": "5079",
+   "walk-refs": "5159",
+   "plain": "2687"
+  },
+  "mutations": [
+   {
+    "name": "M1: bound <= for < (the arg0 == 10 edge)",
+    "caught": true
+   },
+   {
+    "name": "M2: signed model-id compare (ids 0x8000 and up match)",
+    "caught": true
+   },
+   {
+    "name": "M3: dropped store of the table slot",
+    "caught": true
+   },
+   {
+    "name": "M4: wrong constant in the refcount-20 test",
+    "caught": true
+   },
+   {
+    "name": "M5: wrong field freed (unk5D4 for unk5D0)",
+    "caught": true
+   },
+   {
+    "name": "M6: walk loop drops its last iteration",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 38,
+   "branches_hit": 36,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 42,
+   "lines_hit": 41,
+   "uncovered": [
+    {
+     "id": "+32 b0",
+     "line": 32,
+     "text": "if (i >= 17) {",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+49 b0",
+     "line": 49,
+     "text": "if (i >= 17) {",
+     "what": "branch never taken"
+    }
+   ],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 300, seen zero, never negative"
+    }
+   ],
+   "compares": [
+    {
+     "line": 6,
+     "text": "if (arg0 >= 0x11) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 3030, < 20952, > 6018 (signed); < 20952, > 6018 (unsigned)",
+     "operand": "constant 16",
+     "a": "0..300"
+    },
+    {
+     "line": 16,
+     "text": "if (temp_s1->unk6E6 != 0x7F) {",
+     "size": 2,
+     "count": 21030,
+     "kind": "against a constant",
+     "outcomes": "== 3030, < 15059, > 2941 (signed); < 8984, > 9016 (unsigned)",
+     "operand": "constant 127",
+     "a": "-32768..128"
+    },
+    {
+     "line": 23,
+     "text": "for (i = 0; i < 17; ++i) {",
+     "size": 4,
+     "count": 265575,
+     "kind": "against a constant",
+     "outcomes": "== 13023, < 239627, > 12925 (signed); < 239627, > 12925 (unsigned)",
+     "operand": "constant 16",
+     "a": "0..17"
+    },
+    {
+     "line": 24,
+     "text": "if ((i != a2->index) && ((D_800F4538[i] != 0))",
+     "size": 4,
+     "count": 252650,
+     "kind": "a == b / a < b",
+     "outcomes": "== 14688, < 130061, > 107901 (signed); < 130061, > 107901 (unsigned)",
+     "operand": "b 0..16",
+     "a": "0..16"
+    },
+    {
+     "line": 25,
+     "text": "&& (D_800F4538[i]->unk6E6 == a2->modelId)) {",
+     "size": 4,
+     "count": 190819,
+     "kind": "a == b / a < b",
+     "outcomes": "== 5075, < 8881, > 176863 (signed); < 86837, > 98907 (unsigned)",
+     "operand": "b -32768..128",
+     "a": "0..65535"
+    },
+    {
+     "line": 32,
+     "text": "if (i >= 17) {",
+     "size": 4,
+     "count": 12925,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 0, > 12925 (signed); < 0, > 12925 (unsigned)",
+     "operand": "constant 16",
+     "a": "17..17"
+    },
+    {
+     "line": 36,
+     "text": "if (var_v0 == 0) {",
+     "size": 4,
+     "count": 18000,
+     "kind": "against a constant",
+     "outcomes": "== 12925, < 0, > 5075 (signed); < 0, > 5075 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 42,
+     "text": "if (((__typeof__((temp_s1->unk5D4).psx_type_[0]))(long unsigned int)(temp_s1->unk5D4).raw) != 0) {",
+     "size": 4,
+     "count": 18000,
+     "kind": "against a constant",
+     "outcomes": "== 3682, < 0, > 14318 (signed); < 0, > 14318 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..4244112"
+    },
+    {
+     "line": 43,
+     "text": "for (i = 0; i < 17; ++i) {",
+     "size": 4,
+     "count": 164911,
+     "kind": "against a constant",
+     "outcomes": "== 7345, < 150268, > 7298 (signed); < 150268, > 7298 (unsigned)",
+     "operand": "constant 16",
+     "a": "0..17"
+    },
+    {
+     "line": 44,
+     "text": "if ((i != arg0) && ((D_800F4538[i] != 0))",
+     "size": 4,
+     "count": 157613,
+     "kind": "a == b / a < b",
+     "outcomes": "== 9184, < 85357, > 63072 (signed); < 85357, > 63072 (unsigned)",
+     "operand": "b 0..16",
+     "a": "0..16"
+    },
+    {
+     "line": 49,
+     "text": "if (i >= 17) {",
+     "size": 4,
+     "count": 7298,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 0, > 7298 (signed); < 0, > 7298 (unsigned)",
+     "operand": "constant 16",
+     "a": "17..17"
+    },
+    {
+     "line": 57,
+     "text": "if (arg0 < 10) {",
+     "size": 4,
+     "count": 18000,
+     "kind": "against a constant",
+     "outcomes": "== 2787, < 7137, > 8076 (signed); < 7137, > 8076 (unsigned)",
+     "operand": "constant 9",
+     "a": "0..16"
+    },
+    {
+     "line": 62,
+     "text": "if (temp_s1->unk5B0_5) {",
+     "size": 1,
+     "count": 18000,
+     "kind": "against a constant",
+     "outcomes": "== 7526, < 0, > 10474 (signed); < 0, > 10474 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..32"
+    },
+    {
+     "line": 63,
+     "text": "for (i = 0; i < (temp_s1->unk0.unk8_4 + 1); ++i) {",
+     "size": 4,
+     "count": 41835,
+     "kind": "a == b / a < b",
+     "outcomes": "== 10474, < 31361, > 0 (signed); < 31361, > 0 (unsigned)",
+     "operand": "b 1..5",
+     "a": "0..5"
+    },
+    {
+     "line": 67,
+     "text": "if (temp_s1->unk5BB == 20) {",
+     "size": 1,
+     "count": 10474,
+     "kind": "against a constant",
+     "outcomes": "== 1980, < 8494, > 0 (signed); < 8494, > 0 (unsigned)",
+     "operand": "constant 20",
+     "a": "0..20"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+32 b0",
+    "reason": "Both loops that reach this test leave with i == 17 unless a match jumps to exit/exit2 past it, so the fall-through edge where i < 17 is never executed. The taken edge (no match, i == 17) is covered by the no-model and plain classes."
+   },
+   {
+    "id": "+49 b0",
+    "reason": "Same as +32: the second loop only falls through with i == 17 (a sharing object jumps to exit2 past this test), so the i < 17 edge is unreachable. The taken edge is covered by the data-shared-free case."
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 41928,
+     "completion_tokens": 14603,
+     "reasoning_tokens": 13288,
+     "cost": 0.0114943,
+     "seconds": 59.5,
+     "sample": 1,
+     "conversation": "40b5df4c397e043b91b86919d4fc514414bef92969f4ac14b21911e07cacdf16"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_8009CFB0.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_8009CFB0.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 104.3204541139985,
+ "wall_seconds": 492.20620449299895,
+ "totals": {
+  "cost": 0.05676,
+  "prompt_tokens": 100875,
+  "completion_tokens": 93337,
+  "model_seconds": 387.7,
+  "check_seconds": 104.3,
+  "calls": 4,
+  "wall_seconds": 492.2
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "port_fixes": [
+   "func_8004644C was called through a function pointer cast to a private prototype: now a direct call with an @ptrCast argument"
+  ],
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: not called / not called / root 2, 0 mismatches"
+ }
+}

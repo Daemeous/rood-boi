@@ -1,0 +1,117 @@
+{
+ "function": "_parseWep",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "XL",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "spec-failed",
+ "reviewed": "not ported in this wave (unrouted): the model's spec ran out of its 64k output tokens (adaptive reasoning) twice at default effort and once at --reasoning-effort low (a 258-line XL function)",
+ "plan": {
+  "name": "_parseWep",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x8009a2e8",
+  "difficulty": "XL",
+  "zig_name": "parseWep",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "parse_wep",
+  "spec_file": "parseWep.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn parseWep(objectData: ?*v.vs_battle_objectData) callconv(.c) c_int",
+  "params": [
+   [
+    "objectData",
+    "?*v.vs_battle_objectData"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [
+   "D_800E8F29",
+   "_wepFileEpilog",
+   "vs_battle_commonWepBuffs"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 19806,
+     "completion_tokens": 58885,
+     "reasoning_tokens": 55300,
+     "cost": 0.0314231,
+     "seconds": 258.8,
+     "reasoning_effort": "low",
+     "sample": 1,
+     "conversation": "2c1eba49e0e5d9b7483dd751f83dae8c0027116d91f6d9e2ae93309f44bf588f"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/_parseWep/spec1/build/spec.zig:114:52: error: expected unsigned integer type, found 'i16'\n        m.modelId = if (ctx.chance(2)) @truncate(od.modelId) else ctx.int(u8);\n                                                 ~~^~~~~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:435:40\n    main: pc/tests/zig_diff/main.zig:392:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\npc/tests/zig_diff/main.zig:235:46: error: expected 4 argument(s), found 1\n                return adapt(S, @call(.auto, f, .{&ctx} ++ stubArgs(@TypeOf(f), args)));\n                                             ^\npc/build/port-pipeline/_parseWep/spec1/build/spec.zig:51:9: note: function declared here\n    pub fn memcpy(ctx: *zd.Ctx, dest: anytype, src: anytype, n: anytype) ?*anyopaque {\n    ~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\npc/tests/zig_diff/main.zig:235:46: error: expected 4 argument(s), found 1\n                return adapt(S, @call(.auto, f, .{&ctx} ++ stubArgs(@TypeOf(f), args)));\n                                             ^\npc/build/port-pipeline/_parseWep/spec1/build/spec.zig:59:9: note: function declared here\n    pub fn memset(ctx: *zd.Ctx, dest: anytype, val: anytype, n: anytype) ?*anyopaque {\n    ~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 24202,
+     "completion_tokens": 7420,
+     "reasoning_tokens": 3938,
+     "cost": 0.0061302,
+     "seconds": 29.7,
+     "reasoning_effort": "low",
+     "sample": 1,
+     "conversation": "4126fe3a884ad327a34d6f3442bc53484efb75114acecd78e1e57c2aa364f758"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the C itself crashed on your inputs (the C runs first, so this is the spec's\nbug). The harness fills every global and the arena with random bytes before\nprepare, so every pointer the C follows must be one prepare set: each\nargument, each pointer field of an object you build, and each ENTRY of a\nglobal pointer table the C indexes (only the entry it reads: e.g.\n`v.g.TABLE()[i] = obj`), pointing at an object from `ctx.alloc`/`ctx.allocBytes`\n(sized for every element the C indexes past a `[0]` array), at a global, or\nnull where the C tests for null. An index into a global table must stay\ninside its length (the views accessor's type gives it). Below: the crash, its\nfault address (named when it is inside an object the harness owns) and the\narguments of that iteration:\nzdiff: MISMATCH iteration 0: call 0 (vs_main_allocHeap): the state differs when it is called\nzdiff: MISMATCH iteration 1: C makes 11 external calls, Zig 0 (first unmatched: memcpy)\nzdiff: MISMATCH iteration 2: call 0 (vs_main_memcpy): the state differs when it is called\nzdiff: CRASH (signal 11) in the Zig run, iteration 3, fault address 0xd7c0a86b [memory the harness does not own: a pointer from random bytes?]\nzdiff: crashed on arguments: 0x408060 [arena] (class other-state)",
+     "(the mutations and the coverage gate are checked once the C runs crash-free)"
+    ]
+   }
+  ],
+  "classes": {},
+  "mutations": [],
+  "coverage": null
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 0.8545929810006783,
+ "reasoning_effort": "low",
+ "wall_seconds": 289.7595027339994,
+ "totals": {
+  "cost": 0.03755,
+  "prompt_tokens": 44008,
+  "completion_tokens": 66305,
+  "model_seconds": 288.5,
+  "check_seconds": 0.9,
+  "calls": 2,
+  "wall_seconds": 289.8
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24"
+ }
+}

@@ -1,0 +1,93 @@
+#version 460
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_ray_query : require
+// The material response's reflections (pc/docs/Materials.md "Shading"): per
+// GI pixel with a material (rt_surface.comp's material image), one ray in a
+// direction drawn from the GGX lobe around the mirror direction (visible
+// normals), and the light that comes back along it: the hit surface as the
+// game shows it (its texel x vertex colour, the PS1's own light) plus the
+// dynamic lights and the sun on it, with shadow rays (rt_paths.glsl); the sky
+// where the ray leaves the room. reflection_bounces 2 adds one diffuse bounce
+// of the dynamic light at the hit. Raw and noisy: rt_reflect_filter.comp
+// denoises it, the present pass weighs it by the split-sum Fresnel.
+layout(local_size_x = 8, local_size_y = 8) in;
+#include "rt_paths.glsl"
+layout(binding = 12, rgba16f) uniform readonly image2D material_in; // roughness, specular, metal, 1
+layout(binding = 13, rgba16f) uniform writeonly image2D reflect_out; // rgb radiance, a hit distance
+#define roughness_bias u.f2.z
+#define reflection_bounces int(u.f2.w)
+// A microfacet normal from the GGX distribution of visible normals (Heitz
+// 2018) for view v in the tangent frame (z up), roughness alpha.
+vec3 ggx_vndf(vec3 v, float alpha, float r1, float r2) {
+    vec3 vh = normalize(vec3(alpha * v.x, alpha * v.y, v.z));
+    float len2 = vh.x * vh.x + vh.y * vh.y;
+    vec3 t1 = len2 > 0.0 ? vec3(-vh.y, vh.x, 0.0) * inversesqrt(len2) : vec3(1.0, 0.0, 0.0);
+    vec3 t2 = cross(vh, t1);
+    float r = sqrt(r1), phi = 6.2831853 * r2;
+    float p1 = r * cos(phi), p2 = r * sin(phi), s = 0.5 * (1.0 + vh.z);
+    p2 = (1.0 - s) * sqrt(max(1.0 - p1 * p1, 0.0)) + s * p2;
+    vec3 nh = p1 * t1 + p2 * t2 + sqrt(max(1.0 - p1 * p1 - p2 * p2, 0.0)) * vh;
+    return normalize(vec3(alpha * nh.x, alpha * nh.y, max(nh.z, 1e-6)));
+}
+void main() {
+    ivec2 g = ivec2(gl_GlobalInvocationID.xy), size = imageSize(reflect_out);
+    if (any(greaterThanEqual(g, size))) return;
+    vec4 pw = imageLoad(position_in, g), mat = imageLoad(material_in, g);
+    if (pw.w < 0.5 || mat.a < 0.5 || reflection_bounces <= 0) {
+        imageStore(reflect_out, g, vec4(0.0));
+        return;
+    }
+    vec3 p = pw.xyz, n = imageLoad(normal_in, g).xyz;
+    vec3 v = normalize(eye - p);
+    if (dot(n, v) < 0.0) n = -n;
+    rng = uint(g.x) * 7919u + uint(g.y) * 104729u + frame * 15485863u + 0x9e3779b9u;
+    float rough = clamp(mat.r + roughness_bias, 0.03, 1.0), alpha = rough * rough;
+    vec3 t = normalize(cross(abs(n.y) < 0.9 ? vec3(0, 1, 0) : vec3(1, 0, 0), n)), b = cross(n, t);
+    vec3 vt = vec3(dot(v, t), dot(v, b), dot(v, n));
+    vec3 h = ggx_vndf(vt, alpha, rand(), rand());
+    vec3 hw = normalize(t * h.x + b * h.y + n * h.z);
+    vec3 d = reflect(-v, hw);
+    if (dot(d, n) <= 0.0) d = reflect(-v, n);
+    float z = distance(p, eye), lift = 2.0 + z * 0.002;
+    vec3 o = p + n * lift;
+    float th; int hit; vec2 bc;
+    vec3 radiance = vec3(0.0);
+    if (!trace(o, d, 8192.0, false, n, 16.0, th, hit, bc)) {
+        if (env_sky_on()) radiance = env_sky(d);
+        th = 4096.0;
+    } else {
+        Tri tri = tri_at(hit);
+        vec3 y = o + d * th;
+        vec3 ny = normalize(cross(tri.b.xyz - tri.a.xyz, tri.c.xyz - tri.a.xyz));
+        if (dot(ny, d) > 0.0) ny = -ny;
+        vec3 vc = vertex_rgb(tri.a.w) * (1.0 - bc.x - bc.y) + vertex_rgb(tri.b.w) * bc.x + vertex_rgb(tri.c.w) * bc.y;
+        vec3 albedo = vc;
+        if ((tri.info.w & 1u) != 0u) {
+            uint c = surface_texel(tri, bc);
+            albedo = vec3(c & 31u, (c >> 5) & 31u, (c >> 10) & 31u) / 31.0;
+        }
+        // As the game shows it (texel x vertex colour, the PS1's own light), plus the dynamic light on it.
+        vec3 shown = (tri.info.w & 2u) != 0u ? albedo : min(albedo * vc * 2.0, 1.0);
+        vec3 lit = direct(y + ny * 0.5, ny) + sun_light(y + ny * 0.5, ny);
+        if (reflection_bounces >= 2) { // one diffuse bounce of the dynamic light at the hit
+            vec3 d2 = cosine_direction(ny);
+            float t2; int hit2; vec2 bc2;
+            if (trace(y + ny * 1.0, d2, 8192.0, false, ny, 0.0, t2, hit2, bc2)) {
+                Tri tri2 = tri_at(hit2);
+                vec3 y2 = y + ny * 1.0 + d2 * t2;
+                vec3 n2 = normalize(cross(tri2.b.xyz - tri2.a.xyz, tri2.c.xyz - tri2.a.xyz));
+                if (dot(n2, d2) > 0.0) n2 = -n2;
+                vec3 a2 = vertex_rgb(tri2.a.w);
+                if ((tri2.info.w & 1u) != 0u) {
+                    uint c2 = surface_texel(tri2, bc2);
+                    a2 = vec3(c2 & 31u, (c2 >> 5) & 31u, (c2 >> 10) & 31u) / 31.0;
+                }
+                lit += a2 * (direct(y2 + n2 * 0.5, n2) + sun_light(y2 + n2 * 0.5, n2));
+            } else if (env_sky_on())
+                lit += env_sky(d2);
+        }
+        radiance = shown + albedo * lit;
+    }
+    if (any(isnan(radiance)) || any(isinf(radiance))) radiance = vec3(0.0);
+    imageStore(reflect_out, g, vec4(min(radiance, vec3(16.0)), th));
+}

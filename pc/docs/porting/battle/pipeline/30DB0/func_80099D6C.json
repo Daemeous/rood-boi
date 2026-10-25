@@ -1,0 +1,261 @@
+{
+ "function": "func_80099D6C",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (negative arg0 indexes before the table through psx.at); spec sound (negative arg0 not generated: the harness does not own the memory)",
+ "plan": {
+  "name": "func_80099D6C",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x80099d6c",
+  "difficulty": "M",
+  "zig_name": "func_80099D6C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_80099D6C",
+  "spec_file": "func_80099D6C.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_80099D6C(arg0: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800F4538_unk68",
+   "D_800F45E0_t",
+   "D_800F45E0_unk68",
+   "vs_battle_objectData"
+  ],
+  "globals": [
+   "D_800F45E0"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 15925,
+     "completion_tokens": 21751,
+     "reasoning_tokens": 19753,
+     "cost": 0.012468,
+     "seconds": 93.4,
+     "sample": 1,
+     "conversation": "69a8161100f88bd6b9d179ab9d61d6a1ab96ba6f4e0953e1f71f8e97bf36a70e"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "out-of-range": "6091",
+   "no-object": "2947",
+   "inactive": "3439",
+   "not-found": "3279",
+   "found-below": "9951",
+   "found-above": "3440",
+   "found-at-15": "853"
+  },
+  "mutations": [
+   {
+    "name": "F1: bound of arg0 check is 15, not 16",
+    "caught": true
+   },
+   {
+    "name": "F2: scan stops before slot 15",
+    "caught": true
+   },
+   {
+    "name": "F3: a found match still frees the block",
+    "caught": true
+   },
+   {
+    "name": "F4: the table slot is not cleared",
+    "caught": true
+   },
+   {
+    "name": "F5: scan skips only indices above arg0",
+    "caught": true
+   },
+   {
+    "name": "F6: the actorId is read from unk6C[7]",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 16,
+   "branches_hit": 16,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 24,
+   "lines_hit": 24,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 2147483647, seen zero/signed max, never negative"
+    }
+   ],
+   "compares": [
+    {
+     "line": 7,
+     "text": "if (arg0 >= 16) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 1487, < 22422, > 6091 (signed); < 22422, > 6091 (unsigned)",
+     "operand": "constant 15",
+     "a": "0..2147483647"
+    },
+    {
+     "line": 17,
+     "text": "if (temp_s0->unk0 == 0) {",
+     "size": 1,
+     "count": 20962,
+     "kind": "against a constant",
+     "outcomes": "== 3439, < 8661, > 8862 (signed); < 0, > 17523 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 24,
+     "text": "for (i = 0; i < 16; ++i) {",
+     "size": 4,
+     "count": 127388,
+     "kind": "against a constant",
+     "outcomes": "== 4132, < 119977, > 3279 (signed); < 119977, > 3279 (unsigned)",
+     "operand": "constant 15",
+     "a": "0..16"
+    },
+    {
+     "line": 26,
+     "text": "if ((i != a2->index) && (D_800F45E0[i] != 0)",
+     "size": 4,
+     "count": 124109,
+     "kind": "a == b / a < b",
+     "outcomes": "== 7572, < 72152, > 44385 (signed); < 72152, > 44385 (unsigned)",
+     "operand": "b 0..15",
+     "a": "0..15"
+    },
+    {
+     "line": 27,
+     "text": "&& (D_800F45E0[i]->unk6C[8].actorId == a2->actorId)) {",
+     "size": 4,
+     "count": 25208,
+     "kind": "a == b / a < b",
+     "outcomes": "== 14244, < 5441, > 5523 (signed); < 5441, > 5523 (unsigned)",
+     "operand": "b 0..7",
+     "a": "0..7"
+    },
+    {
+     "line": 37,
+     "text": "if (!found) {",
+     "size": 4,
+     "count": 17523,
+     "kind": "against a constant",
+     "outcomes": "== 3279, < 0, > 14244 (signed); < 0, > 14244 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39398,
+     "completion_tokens": 6626,
+     "reasoning_tokens": 5913,
+     "cost": 0.0072528,
+     "seconds": 27.9,
+     "sample": 1,
+     "conversation": "2441faec8071aa3144a7bff1787e53a8ba92fa43f7ef22cd5fc13f1e76ce5f17"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_80099D6C.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_80099D6C.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 31.26689749900015,
+ "wall_seconds": 152.80519424500017,
+ "totals": {
+  "cost": 0.01972,
+  "prompt_tokens": 55323,
+  "completion_tokens": 28377,
+  "model_seconds": 121.3,
+  "check_seconds": 31.3,
+  "calls": 2,
+  "wall_seconds": 152.8
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

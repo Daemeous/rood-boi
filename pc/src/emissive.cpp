@@ -26,6 +26,11 @@
 
 extern "C" {
 float pc_emissive = 1.0f;
+/* Material response (emissive.h): the switch and the tunables. */
+int pc_specular = 1;
+float pc_specular_strength = 1.0f;
+float pc_roughness_bias = 0.0f;
+int pc_reflection_bounces = 1;
 const uint16_t* pc_native_vram(void);
 int pc_hw_present_all_lists(uint32_t* lists, int max) __attribute__((weak));
 }
@@ -803,6 +808,14 @@ uint32_t light_dirty_tiles; /* VRAM tiles changed since the lights' emission was
 uint32_t applied_materials; /* materials::generation() the marks were written with */
 std::vector<MapProblem> problems;
 uint32_t light_pages, marked_pages; /* bit per texture page (tpage & 31): a light entry's / any marked use */
+/* Material response (materials.h): three planes of 512 rows (roughness,
+ * specular, metal; emissive.h PC_MATERIAL_*), cell for cell like the slots. */
+std::vector<uint8_t> material_planes;
+bool materials_changed = true, any_material, material_dirty = true;
+uint32_t applied_material_catalog, applied_material_maps;
+int material_zone = -1, material_room = -1, material_on = -1;
+int material_uses, material_cells;
+std::vector<MaterialUse> material_list;
 
 uint64_t use_key(unsigned page, unsigned clut, const uint8_t box[4])
 {
@@ -1123,11 +1136,16 @@ static void match_use(Use& u)
     u.entry = u.item = -1;
     int w1 = u.box[2] - u.box[0], h1 = u.box[3] - u.box[1];
     if (!sizes.count(w1 << 8 | h1)) {
+        if (!u.key.empty())
+            materials_changed = true;
         u.key.clear();
         u.seen.clear();
         return;
     }
+    std::string was = u.key;
     u.key = content_key(u.page, u.clut, u.box[0], u.box[1], u.box[2], u.box[3]);
+    if (u.key != was && materials::catalog_has_size(w1 + 1, h1 + 1))
+        materials_changed = true; /* (the material planes: write_materials) */
     remember_vram(u);
     pc_cost_count(PC_COUNT_HASHED, (unsigned)((w1 + 1) * (h1 + 1)));
     const Catalog& c = catalog();
@@ -1151,8 +1169,96 @@ static void match_use(Use& u)
     }
 }
 
+/* The material planes: every use whose texture a material entry names (by
+ * content key, size, palette and room), its box's cells written with the
+ * entry's fractions (x 255) and, for roughness, its painted map's values
+ * when the map is the box's size. Unnamed cells: roughness 255, specular and
+ * metal 0, which the draw shaders treat as no material. */
+static void write_materials()
+{
+    material_planes.assign((size_t)PC_MATERIAL_MAP_H * PC_EMISSIVE_MAP_W, 0);
+    memset(material_planes.data(), 255, (size_t)512 * PC_EMISSIVE_MAP_W);
+    material_uses = material_cells = 0;
+    material_list.clear();
+    any_material = false;
+    applied_material_maps = materials::generation();
+    current_room(&material_zone, &material_room);
+    material_on = pc_specular != 0;
+    if (!material_on)
+        return;
+    std::vector<std::pair<const Use*, const materials::Entry*>> order;
+    const std::vector<materials::Entry> entries = materials::catalog_entries();
+    for (auto& kv : uses) {
+        const Use& u = kv.second;
+        if (u.key.empty())
+            continue;
+        int w = u.box[2] - u.box[0] + 1, h = u.box[3] - u.box[1] + 1;
+        if (!materials::catalog_has_size(w, h))
+            continue;
+        const materials::Entry* e = materials::find_match(u.key, w, h, "", material_zone, material_room);
+        bool needs_clut = false;
+        for (const materials::Entry& x : entries)
+            needs_clut |= x.key == u.key && !x.clut.empty();
+        if (needs_clut)
+            e = materials::find_match(u.key, w, h, clut_key(u.page, u.clut), material_zone, material_room);
+        if (e)
+            order.push_back({ &u, e });
+    }
+    /* A stable order (two boxes over the same texels: the same result every time). */
+    std::sort(order.begin(), order.end(), [](const auto& a, const auto& b) {
+        const Use *x = a.first, *y = b.first;
+        return std::make_tuple(x->page, x->clut, x->box[0], x->box[1], x->box[2], x->box[3])
+            < std::make_tuple(y->page, y->clut, y->box[0], y->box[1], y->box[2], y->box[3]);
+    });
+    uint8_t* rough = material_planes.data();
+    uint8_t* spec = rough + (size_t)512 * PC_EMISSIVE_MAP_W;
+    uint8_t* metal = spec + (size_t)512 * PC_EMISSIVE_MAP_W;
+    for (const auto& item : order) {
+        const Use* u = item.first;
+        const materials::Surface& v = item.second->value;
+        int w = u->box[2] - u->box[0] + 1, h = u->box[3] - u->box[1] + 1;
+        const materials::Channel* map = materials::channel(u->key, "roughness");
+        if (map && (map->w != w || map->h != h))
+            map = nullptr; /* never stretched (pc/docs/Materials.md) */
+        uint8_t s = (uint8_t)std::clamp((int)lroundf(v.specular * 255.0f), 0, 255);
+        uint8_t m = (uint8_t)std::clamp((int)lroundf(v.metal * 255.0f), 0, 255);
+        uint8_t r = (uint8_t)std::clamp((int)lroundf(v.roughness * 255.0f), 0, 255);
+        if (!s && !m)
+            continue;
+        ++material_uses;
+        MaterialUse info;
+        info.key = u->key, info.entry = item.second->id, info.page = u->page, info.clut = u->clut;
+        memcpy(info.box, u->box, 4);
+        info.painted = map != nullptr;
+        material_list.push_back(info);
+        int tx = (int)(u->page & 15) * 64, ty = (int)((u->page >> 4) & 1) * 256;
+        int depth = std::min((int)((u->page >> 7) & 3), 2);
+        for (int y = u->box[1]; y <= u->box[3]; y++)
+            for (int x = u->box[0]; x <= u->box[2]; x++) {
+                size_t at = (size_t)(ty + y) * PC_EMISSIVE_MAP_W + ((tx * 4 + (x << depth)) & 4095);
+                material_cells += spec[at] == 0 && metal[at] == 0;
+                rough[at] = map ? map->values[(size_t)(y - u->box[1]) * w + (x - u->box[0])] : r;
+                spec[at] = s, metal[at] = m;
+            }
+    }
+    any_material = material_uses > 0;
+}
+
 uint32_t map_serial() { return map_generation; }
 const uint8_t* map_data() { return the_map.data(); }
+std::vector<MaterialUse> material_use_list() { return material_list; }
+int material_cell_count() { return material_cells; }
+bool material_at(unsigned u, unsigned v, unsigned tpage, int out[3])
+{
+    if (material_planes.empty())
+        return false;
+    int tx = (int)(tpage & 15) * 64, ty = (int)((tpage >> 4) & 1) * 256;
+    int depth = std::min((int)((tpage >> 7) & 3), 2);
+    size_t at = (size_t)(ty + (int)(v & 255)) * PC_EMISSIVE_MAP_W + ((tx * 4 + (int)((u & 255) << depth)) & 4095);
+    size_t plane = (size_t)512 * PC_EMISSIVE_MAP_W;
+    out[0] = material_planes[at], out[1] = material_planes[plane + at], out[2] = material_planes[2 * plane + at];
+    return out[1] || out[2];
+}
 
 } // namespace emissive
 
@@ -1218,6 +1324,8 @@ extern "C" void pc_emissive_mesh_gone(uint32_t mesh)
                 continue;
             if (it->second.entry >= 0)
                 marks_changed = true;
+            if (!it->second.key.empty())
+                materials_changed = true;
             uses.erase(it);
         }
         instance_uses.erase(ii);
@@ -1313,13 +1421,18 @@ extern "C" int pc_emissive_sync(int* row0, int* row1)
     /* Uses are noted and matched whatever the setting (cheap: only textures
      * of a catalogued size are hashed), so switching it on shows the marks at
      * once, even in a paused game; with 0 nothing is written into the map. */
-    if (applied_generation != catalog_generation) {
+    uint32_t material_catalog = materials::catalog_generation();
+    if (applied_generation != catalog_generation || applied_material_catalog != material_catalog) {
         applied_generation = catalog_generation;
+        applied_material_catalog = material_catalog;
+        materials_changed = true;
         sizes.clear();
         for (const Entry& e : catalog().entries)
             for (const Match& m : e.match)
                 if (m.w > 0 && m.h > 0)
                     sizes.insert((m.w - 1) << 8 | (m.h - 1));
+        for (const materials::Entry& e : materials::catalog_entries())
+            sizes.insert((e.w - 1) << 8 | (e.h - 1));
         for (auto& kv : uses)
             kv.second.state = 0;
         marks_changed = params_changed = true;
@@ -1375,6 +1488,18 @@ extern "C" int pc_emissive_sync(int* row0, int* row1)
             ++map_generation;
         applied_strength = strength;
     }
+    {
+        int zone, room;
+        current_room(&zone, &room);
+        if (zone != material_zone || room != material_room || (pc_specular != 0) != material_on
+            || materials::generation() != applied_material_maps)
+            materials_changed = true;
+    }
+    if (materials_changed) {
+        write_materials();
+        material_dirty = true;
+        materials_changed = false;
+    }
     marks_changed = params_changed = false;
     *row0 = dirty_row0, *row1 = dirty_row1;
     dirty_row0 = PC_EMISSIVE_MAP_H, dirty_row1 = 0;
@@ -1393,9 +1518,24 @@ extern "C" int pc_emissive_pending(void)
     }
     if (loaded && materials::generation() != applied_materials)
         return 1;
+    if (loaded && ((pc_specular != 0) != material_on || materials::generation() != applied_material_maps))
+        return 1;
+    /* (the material catalog: two stat calls; edits in the editor bump it at once) */
+    if (loaded && materials::catalog_generation() != applied_material_catalog)
+        return 1;
     return loaded && (applied_generation != catalog_generation || (strength > 0) != marks_on);
 }
 extern "C" int pc_emissive_active(void) { return any_marks && pc_emissive > 0; }
+extern "C" int pc_material_rows(const uint8_t** planes)
+{
+    if (material_planes.empty())
+        write_materials();
+    *planes = material_planes.data();
+    bool dirty = material_dirty;
+    material_dirty = false;
+    return dirty;
+}
+extern "C" int pc_material_active(void) { return any_material && pc_specular != 0; }
 
 namespace emissive {
 /* The slot of a texel position, 0 none. */

@@ -1,0 +1,190 @@
+{
+ "function": "func_8009D460",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (empty body); spec sound",
+ "plan": {
+  "name": "func_8009D460",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x8009d460",
+  "difficulty": "S",
+  "zig_name": "func_8009D460",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_8009D460",
+  "spec_file": "func_8009D460.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_8009D460() callconv(.c) void",
+  "params": [],
+  "ret": "void",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 10983,
+     "completion_tokens": 2144,
+     "reasoning_tokens": 1510,
+     "cost": 0.0021703,
+     "seconds": 10.0,
+     "sample": 1,
+     "conversation": "314aa13029fd7a68f683d99e25b0e2e43a37456cfb6521a4eeb2fa0fe9a57904"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: no input classes declared (`classes` and `classify`)",
+     "FAIL: mutation M1: a scratchpad byte is written: mutation M1: a scratchpad byte is written: its `from` text occurs 0 times in the C body of func_8009D460 (copy it exactly from the C)",
+     "FAIL: mutation M2: a word in PS1 RAM at address 0 is written: mutation M2: a word in PS1 RAM at address 0 is written: its `from` text occurs 0 times in the C body of func_8009D460 (copy it exactly from the C)",
+     "FAIL: mutation M3: a halfword at the scratchpad's last word is written: mutation M3: a halfword at the scratchpad's last word is written: its `from` text occurs 0 times in the C body of func_8009D460 (copy it exactly from the C)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11919,
+     "completion_tokens": 2171,
+     "reasoning_tokens": 1550,
+     "cost": 0.0022774,
+     "seconds": 10.2,
+     "sample": 1,
+     "conversation": "aacab0847d69f7a11e81ed014b2cfbd062f3353f0a7feaf0d9fa12eb73012ecf"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "empty": "20000"
+  },
+  "mutations": [
+   {
+    "name": "M1: a scratchpad byte is written",
+    "caught": true
+   },
+   {
+    "name": "M2: a word in PS1 RAM at address 0 is written",
+    "caught": true
+   },
+   {
+    "name": "M3: a halfword at the scratchpad's last word is written",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 1,
+   "lines_hit": 1,
+   "uncovered": [],
+   "flags": [],
+   "args": [],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34463,
+     "completion_tokens": 305,
+     "reasoning_tokens": 179,
+     "cost": 0.0035988,
+     "seconds": 2.6,
+     "sample": 1,
+     "conversation": "a53c71d4d0b60b4c4ddb31618182f272719b8651760297de25f4eba62491d6d1"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_8009D460.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_8009D460.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 27.883022785998946,
+ "wall_seconds": 50.89115778299947,
+ "totals": {
+  "cost": 0.00805,
+  "prompt_tokens": 57365,
+  "completion_tokens": 4620,
+  "model_seconds": 22.8,
+  "check_seconds": 27.9,
+  "calls": 3,
+  "wall_seconds": 50.9
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

@@ -1,0 +1,307 @@
+{
+ "function": "func_8009D934",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (weaponDrawn is a 1-bit field: stored truncated, compared against the full int); spec sound",
+ "plan": {
+  "name": "func_8009D934",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x8009d934",
+  "difficulty": "M",
+  "zig_name": "func_8009D934",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_8009D934",
+  "spec_file": "func_8009D934.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_8009D934(arg0: c_int, arg1: c_int, arg2: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "vs_battle_wepModels_t"
+  ],
+  "globals": [
+   "D_800E9090",
+   "D_800E909C",
+   "vs_battle_wepModels"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 18913,
+     "completion_tokens": 20707,
+     "reasoning_tokens": 18540,
+     "cost": 0.0122448,
+     "seconds": 87.8,
+     "sample": 1,
+     "conversation": "8ff5547486214fed94b077f098ccc2a2afc74996d24ddb62f954a0f93d06d645"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "no-actor": "5052",
+   "wep-set": "5514",
+   "unchanged": "7366",
+   "holster": "468",
+   "draw": "7665",
+   "draw-6E6-set": "3935"
+  },
+  "mutations": [
+   {
+    "name": "F1: weaponDrawn compared masked to bit 0",
+    "caught": true
+   },
+   {
+    "name": "F2: holster drops the weaponDrawn = 0 store",
+    "caught": true
+   },
+   {
+    "name": "F3: non-zero arg2 uses 15 frames, not 16",
+    "caught": true
+   },
+   {
+    "name": "F4: wepModel draw flag off by one",
+    "caught": true
+   },
+   {
+    "name": "F5: wepModel loop stops at one slot",
+    "caught": true
+   },
+   {
+    "name": "F6: bail-out stores weaponDrawn after the call",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 22,
+   "branches_hit": 22,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 40,
+   "lines_hit": 40,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -1000, max 1000, unsigned 0..4294967295, seen zero/negative/all ones, 8 value(s): 1000, 2, 4294967295, 4294966296, 3, 0, 1, 4294967294"
+    }
+   ],
+   "compares": [
+    {
+     "line": 11,
+     "text": "if (arg2 == 2) {",
+     "size": 4,
+     "count": 24948,
+     "kind": "against a constant",
+     "outcomes": "== 5514, < 13822, > 5612 (signed); < 5578, > 13856 (unsigned)",
+     "operand": "constant 2",
+     "a": "-1000..1000"
+    },
+    {
+     "line": 15,
+     "text": "for (i = 0; i < 2; ++i) {",
+     "size": 4,
+     "count": 16542,
+     "kind": "against a constant",
+     "outcomes": "== 5514, < 5514, > 5514 (signed); < 5514, > 5514 (unsigned)",
+     "operand": "constant 1",
+     "a": "0..2"
+    },
+    {
+     "line": 18,
+     "text": "if (arg1 != 0) {",
+     "size": 4,
+     "count": 8283,
+     "kind": "against a constant",
+     "outcomes": "== 1719, < 2093, > 4471 (signed); < 0, > 6564 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147483647"
+    },
+    {
+     "line": 34,
+     "text": "if (arg2 != 0) {",
+     "size": 4,
+     "count": 19434,
+     "kind": "against a constant",
+     "outcomes": "== 2804, < 8244, > 8386 (signed); < 0, > 16630 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1000..1000"
+    },
+    {
+     "line": 41,
+     "text": "if (func_800BEB00() == 4) {",
+     "size": 2,
+     "count": 19434,
+     "kind": "against a constant",
+     "outcomes": "== 7326, < 5999, > 6109 (signed); < 0, > 12108 (unsigned)",
+     "operand": "constant 4",
+     "a": "-32767..32767"
+    },
+    {
+     "line": 47,
+     "text": "if (arg1 != temp_s0->unk0.weaponDrawn) {",
+     "size": 4,
+     "count": 12108,
+     "kind": "a == b / a < b",
+     "outcomes": "== 4585, < 3443, > 4080 (signed); < 291, > 7232 (unsigned)",
+     "operand": "b 0..1",
+     "a": "-2147483648..2147483647"
+    },
+    {
+     "line": 48,
+     "text": "if (arg1 == 0) {",
+     "size": 4,
+     "count": 7523,
+     "kind": "against a constant",
+     "outcomes": "== 291, < 3152, > 4080 (signed); < 0, > 7232 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147483647"
+    },
+    {
+     "line": 50,
+     "text": "if (temp_s0->unk6E6 == 0) {",
+     "size": 2,
+     "count": 291,
+     "kind": "against a constant",
+     "outcomes": "== 200, < 44, > 47 (signed); < 0, > 91 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32507..31131"
+    },
+    {
+     "line": 62,
+     "text": "if (temp_s0->unk6E6 == 0) {",
+     "size": 2,
+     "count": 7232,
+     "kind": "against a constant",
+     "outcomes": "== 4708, < 1268, > 1256 (signed); < 0, > 2524 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32758"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 42251,
+     "completion_tokens": 9243,
+     "reasoning_tokens": 8050,
+     "cost": 0.0088466,
+     "seconds": 36.6,
+     "sample": 1,
+     "conversation": "bb51bcebcd7cfb56de3dc387d9e679bfeb388529ee67173d659c1adb6630390c"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_8009D934.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_8009D934.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 55.31062593800107,
+ "wall_seconds": 179.94571329500013,
+ "totals": {
+  "cost": 0.02109,
+  "prompt_tokens": 61164,
+  "completion_tokens": 29950,
+  "model_seconds": 124.4,
+  "check_seconds": 55.3,
+  "calls": 2,
+  "wall_seconds": 179.9
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

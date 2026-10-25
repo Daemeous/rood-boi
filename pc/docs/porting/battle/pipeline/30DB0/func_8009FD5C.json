@@ -1,0 +1,246 @@
+{
+ "function": "func_8009FD5C",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (unsigned arg2 range test; both CLUT loads; flag byte re-read after loadClut); spec sound",
+ "plan": {
+  "name": "func_8009FD5C",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x8009fd5c",
+  "difficulty": "S",
+  "zig_name": "func_8009FD5C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_8009FD5C",
+  "spec_file": "func_8009FD5C.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_8009FD5C(arg0: c_int, arg1: c_int, arg2: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800F4538_unk64",
+   "D_800F45E0_t"
+  ],
+  "globals": [
+   "D_800F45E0"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 20656,
+     "completion_tokens": 17365,
+     "reasoning_tokens": 15284,
+     "cost": 0.0107481,
+     "seconds": 74.1,
+     "sample": 1,
+     "conversation": "0f16679f124ce0f4dc680c27d757d466b304011c1ec40e0038595b1196e1fb97"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "no-object": "2233",
+   "busy": "2682",
+   "table-a3": "2194",
+   "table-45": "665",
+   "all-bits": "1450",
+   "bad-bit": "20776"
+  },
+  "mutations": [
+   {
+    "name": "F1: bit 1 of arg1 leaks into unk2",
+    "caught": true
+   },
+   {
+    "name": "F2: unk1 cleared to 1, not 0",
+    "caught": true
+   },
+   {
+    "name": "F3: loadClut count 0xA1 instead of 0xA0",
+    "caught": true
+   },
+   {
+    "name": "F4: arg2 compared signed, negatives pass the bound",
+    "caught": true
+   },
+   {
+    "name": "F5: all-bits flag 0xFE, not 0xFF",
+    "caught": true
+   },
+   {
+    "name": "F6: wrong error code for an out-of-range bit",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 12,
+   "branches_hit": 12,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 22,
+   "lines_hit": 22,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative, 8 value(s): 8, 2, 16, 1, 0, 7, 14, 15"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147396120, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 17,
+     "text": "if (var_s0->unk0 == 0) {",
+     "size": 1,
+     "count": 27767,
+     "kind": "against a constant",
+     "outcomes": "== 13990, < 8023, > 5754 (signed); < 0, > 13777 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 29,
+     "text": "if (arg2 == -1) {",
+     "size": 4,
+     "count": 27767,
+     "kind": "against a constant",
+     "outcomes": "== 1450, < 9555, > 16762 (signed); < 26317, > 0 (unsigned)",
+     "operand": "constant -1",
+     "a": "-2147483648..2147483647"
+    },
+    {
+     "line": 32,
+     "text": "if (arg2 >= 8u) {",
+     "size": 4,
+     "count": 26317,
+     "kind": "against a constant",
+     "outcomes": "== 1371, < 13725, > 11221 (signed); < 4170, > 20776 (unsigned)",
+     "operand": "constant 7",
+     "a": "-2147483648..2147483647"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 44121,
+     "completion_tokens": 8167,
+     "reasoning_tokens": 7255,
+     "cost": 0.0084956,
+     "seconds": 33.9,
+     "sample": 1,
+     "conversation": "4c26b8ed827f9f058a11a1ce0d28ba10965133bfa24a0a1966b34d21cd3869f4"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_8009FD5C.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_8009FD5C.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 55.25448363099986,
+ "wall_seconds": 163.53249677799977,
+ "totals": {
+  "cost": 0.01924,
+  "prompt_tokens": 64777,
+  "completion_tokens": 25532,
+  "model_seconds": 108.0,
+  "check_seconds": 55.3,
+  "calls": 2,
+  "wall_seconds": 163.5
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: not called / not called / root 2, 0 mismatches"
+ }
+}

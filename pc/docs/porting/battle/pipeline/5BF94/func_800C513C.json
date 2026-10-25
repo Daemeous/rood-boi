@@ -1,0 +1,252 @@
+{
+ "function": "func_800C513C",
+ "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (forwarder behind the 0xF0 test); spec sound",
+ "plan": {
+  "name": "func_800C513C",
+  "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+  "stem": "5BF94",
+  "address": "0x800c513c",
+  "difficulty": "S",
+  "zig_name": "func_800C513C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800C513C",
+  "spec_file": "func_800C513C.zig",
+  "subsystem": "battle_5BF94_port",
+  "signature": "pub fn func_800C513C(arg0: c_int, arg1: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11047,
+     "completion_tokens": 3786,
+     "reasoning_tokens": 2534,
+     "cost": 0.0029977,
+     "seconds": 16.8,
+     "sample": 1,
+     "conversation": "b3c79877d39a935da9ad6a84e724410283fc2e7319ebaba99479ee992d47dea9"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:181:9: error: zdiff: a spec stub gives void where the C prototype has c_int: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:235:29\n    f: pc/build/port-pipeline/func_800C513C/spec1/build/game/common/route.zig:29:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12636,
+     "completion_tokens": 1772,
+     "reasoning_tokens": 486,
+     "cost": 0.0021496,
+     "seconds": 6.5,
+     "sample": 1,
+     "conversation": "304bc53cc9623eddba7c87b01be6859b0e7a14168664b7f107c32ac93389548c"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "masked-zero": "6717",
+   "masked-nonzero": "13851",
+   "masked-nonzero-negative": "9432"
+  },
+  "mutations": [
+   {
+    "name": "M1: mask widened to 0xF8 (bit 3 wrongly tested)",
+    "caught": true
+   },
+   {
+    "name": "M2: sign-bit slip, mask 0x70 misses bit 7",
+    "caught": true
+   },
+   {
+    "name": "M3: test inverted",
+    "caught": true
+   },
+   {
+    "name": "M4: call dropped",
+    "caught": true
+   },
+   {
+    "name": "M5: arguments swapped in the call",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 4,
+   "lines_hit": 4,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147273676, unsigned 0..4294967295, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 2,
+     "text": "if (!(arg0 & 0xF0)) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 6717, < 0, > 23283 (signed); < 0, > 23283 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..240"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34528,
+     "completion_tokens": 811,
+     "reasoning_tokens": 567,
+     "cost": 0.0038583,
+     "seconds": 4.5,
+     "sample": 1,
+     "conversation": "ac4b72eae4d7251796b252cffa6db8ed3ee1d8b05d6a6cfd59869135a3ee114e"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800C513C.zig:8:24: error: value of type 'c_int' ignored\n        c.func_8009FE74(arg0, arg1);\n        ~~~~~~~~~~~~~~~^~~~~~~~~~~~\ngame/battle/func_800C513C.zig:8:24: note: all non-void values must be used\ngame/battle/func_800C513C.zig:8:24: note: to discard the value, assign it to '_'\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:469:31\n    main: pc/tests/zig_diff/main.zig:392:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35091,
+     "completion_tokens": 312,
+     "reasoning_tokens": 65,
+     "cost": 0.0036651,
+     "seconds": 2.2,
+     "sample": 1,
+     "conversation": "8cd63be80ba8ee94be5639536194844f66f42705caa1e0526ae48c53e0c86cdd"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800C513C.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800C513C.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 18.571252679999816,
+ "wall_seconds": 48.91148534200147,
+ "totals": {
+  "cost": 0.01267,
+  "prompt_tokens": 93302,
+  "completion_tokens": 6681,
+  "model_seconds": 30.0,
+  "check_seconds": 18.6,
+  "calls": 4,
+  "wall_seconds": 48.9
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: not called / not called / nested 6, 0 mismatches"
+ }
+}

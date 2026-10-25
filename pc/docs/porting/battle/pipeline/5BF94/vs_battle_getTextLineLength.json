@@ -1,0 +1,299 @@
+{
+ "function": "vs_battle_getTextLineLength",
+ "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the control codes are the routed .i's numbers: 229/231/232 terminators, 250 spacing, 254 decimal, 248+ one parameter byte, the PC build's text encoding); spec sound",
+ "plan": {
+  "name": "vs_battle_getTextLineLength",
+  "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+  "stem": "5BF94",
+  "address": "0x800c7010",
+  "difficulty": "S",
+  "zig_name": "getTextLineLength",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "get_text_line_length",
+  "spec_file": "getTextLineLength.zig",
+  "subsystem": "battle_5BF94_port",
+  "signature": "pub fn getTextLineLength(str: [*c]u8) callconv(.c) c_int",
+  "params": [
+   [
+    "str",
+    "[*c]u8"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [
+   "vs_battle_characterWidths"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11784,
+     "completion_tokens": 14561,
+     "reasoning_tokens": 12875,
+     "cost": 0.0084589,
+     "seconds": 65.2,
+     "sample": 1,
+     "conversation": "3386bd79b035ab79f1e14acfd018f790e75b06968261ee42baccab393aa28959"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation L3: spacing argument read unsigned (char is signed): not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: vs_battle_getTextLineLength: 30000 iterations, seed 1, 0 mismatches; classes: empty=2911 widths=4600 spacing=4444 decimal=4492 chunk-skip=4542 pass-through=4501 mixed=4510"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13655,
+     "completion_tokens": 3555,
+     "reasoning_tokens": 1842,
+     "cost": 0.003143,
+     "seconds": 14.2,
+     "sample": 1,
+     "conversation": "ec75e9cde7e84264d7be6554ece23189890c93e130c65a7432dc6cd0761f608d"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "empty": "2911",
+   "widths": "4600",
+   "spacing": "4444",
+   "decimal": "4492",
+   "chunk-skip": "4542",
+   "pass-through": "4501",
+   "mixed": "4510"
+  },
+  "mutations": [
+   {
+    "name": "L1: terminator bound off by one (229 read as a width)",
+    "caught": true
+   },
+   {
+    "name": "L2: wrong divisor on the return",
+    "caught": true
+   },
+   {
+    "name": "L3: spacing argument masked to 7 bits (argument >= 128 differs)",
+    "caught": true
+   },
+   {
+    "name": "L4: decimal digit bound at 10 instead of 9",
+    "caught": true
+   },
+   {
+    "name": "L5: tens digit taken as the remainder",
+    "caught": true
+   },
+   {
+    "name": "L6: chunk branch drops its skip of the next byte",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 16,
+   "branches_hit": 16,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 17,
+   "lines_hit": 17,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 6,
+     "text": "if (c < 229) {",
+     "size": 1,
+     "count": 367008,
+     "kind": "against a constant",
+     "outcomes": "== 5076, < 26120, > 335812 (signed); < 63056, > 298876 (unsigned)",
+     "operand": "constant -28",
+     "a": "-128..127"
+    },
+    {
+     "line": 9,
+     "text": "} else if ((c == 229) || (c == 231) || (c == 232)) {",
+     "size": 1,
+     "count": 298876,
+     "kind": "against a constant",
+     "outcomes": "== 9963, < 0, > 288913 (signed); < 0, > 288913 (unsigned)",
+     "operand": "constant -27",
+     "a": "-27..-1"
+    },
+    {
+     "line": 9,
+     "text": "} else if ((c == 229) || (c == 231) || (c == 232)) {",
+     "size": 1,
+     "count": 288913,
+     "kind": "against a constant",
+     "outcomes": "== 9982, < 11139, > 267792 (signed); < 11139, > 267792 (unsigned)",
+     "operand": "constant -25",
+     "a": "-26..-1"
+    },
+    {
+     "line": 9,
+     "text": "} else if ((c == 229) || (c == 231) || (c == 232)) {",
+     "size": 1,
+     "count": 278931,
+     "kind": "against a constant",
+     "outcomes": "== 10055, < 11139, > 257737 (signed); < 11139, > 257737 (unsigned)",
+     "operand": "constant -24",
+     "a": "-26..-1"
+    },
+    {
+     "line": 11,
+     "text": "} else if (c == vs_char_spacing) {",
+     "size": 1,
+     "count": 268876,
+     "kind": "against a constant",
+     "outcomes": "== 66218, < 89939, > 112719 (signed); < 89939, > 112719 (unsigned)",
+     "operand": "constant -6",
+     "a": "-26..-1"
+    },
+    {
+     "line": 13,
+     "text": "} else if (c == vs_char_printDecimal) {",
+     "size": 1,
+     "count": 202658,
+     "kind": "against a constant",
+     "outcomes": "== 67413, < 124054, > 11191 (signed); < 124054, > 11191 (unsigned)",
+     "operand": "constant -2",
+     "a": "-26..-1"
+    },
+    {
+     "line": 15,
+     "text": "if (c > 9) {",
+     "size": 1,
+     "count": 67413,
+     "kind": "against a constant",
+     "outcomes": "== 3584, < 28003, > 35826 (signed); < 7905, > 55924 (unsigned)",
+     "operand": "constant 9",
+     "a": "-128..127"
+    },
+    {
+     "line": 18,
+     "text": "} else if (c >= vs_char_chunkSize) {",
+     "size": 1,
+     "count": 135245,
+     "kind": "against a constant",
+     "outcomes": "== 11127, < 56005, > 68113 (signed); < 56005, > 68113 (unsigned)",
+     "operand": "constant -9",
+     "a": "-26..-1"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35131,
+     "completion_tokens": 2828,
+     "reasoning_tokens": 2316,
+     "cost": 0.0049271,
+     "seconds": 13.4,
+     "sample": 1,
+     "conversation": "f07a6bf6a125fb0076da6a61a8bd1b19b9c0dd8916febbb31e1766aa47e13d0c"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/getTextLineLength.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/get_text_line_length.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 42.81344566899861,
+ "wall_seconds": 135.8938980490002,
+ "totals": {
+  "cost": 0.01653,
+  "prompt_tokens": 60570,
+  "completion_tokens": 20944,
+  "model_seconds": 92.8,
+  "check_seconds": 42.8,
+  "calls": 3,
+  "wall_seconds": 135.9
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 83 / root 176 / root 36, 0 mismatches"
+ }
+}

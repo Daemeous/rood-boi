@@ -1,0 +1,294 @@
+{
+ "function": "func_800C5360",
+ "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (counters and rows kept in the globals; u8 stores); spec sound",
+ "plan": {
+  "name": "func_800C5360",
+  "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+  "stem": "5BF94",
+  "address": "0x800c5360",
+  "difficulty": "S",
+  "zig_name": "func_800C5360",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800C5360",
+  "spec_file": "func_800C5360.zig",
+  "subsystem": "battle_5BF94_port",
+  "signature": "pub fn func_800C5360(group: c_int) callconv(.c) void",
+  "params": [
+   [
+    "group",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "func_800C56C0_t",
+   "func_800C5798_t"
+  ],
+  "globals": [
+   "D_800EB9B8",
+   "D_800F4C70",
+   "D_800F4C90",
+   "D_800F4C98",
+   "D_800F4CA0",
+   "D_800F4CA8",
+   "D_800F4CB0",
+   "D_800F4CB1",
+   "D_800F4CB2",
+   "D_800F4CB3"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12740,
+     "completion_tokens": 12020,
+     "reasoning_tokens": 10353,
+     "cost": 0.007284,
+     "seconds": 52.7,
+     "sample": 1,
+     "conversation": "e8da84bc22a56fb939599b9d469c9981749ec5c76459ba48a0ce0870a579bba4"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/func_800C5360/spec1/build/spec.zig:29:62: error: expected unsigned integer type, found 'c_int'\n        elems[i].unk9 = if (ctx.chance(4)) @as(u8, @truncate(group)) else ctx.int(u8);\n                                                             ^~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:435:40\n    main: pc/tests/zig_diff/main.zig:392:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14694,
+     "completion_tokens": 2609,
+     "reasoning_tokens": 920,
+     "cost": 0.0027739,
+     "seconds": 9.4,
+     "sample": 1,
+     "conversation": "25931f4cb451bac5babd9a3780ed569960da0a146cd2d5c1b96301206ed3306d"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "no-elements": "2374",
+   "no-match": "11374",
+   "match-else": "11365",
+   "match-then": "4887"
+  },
+  "mutations": [
+   {
+    "name": "F1: free slot records first unshifted (off by one)",
+    "caught": true
+   },
+   {
+    "name": "F2: group not recorded for the then-branch (dropped store and increment)",
+    "caught": true
+   },
+   {
+    "name": "F3: wrong bound on the branch (>= for >)",
+    "caught": true
+   },
+   {
+    "name": "F4: else-branch stores the index plus one",
+    "caught": true
+   },
+   {
+    "name": "F5: then-branch loses its counter increment",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 14,
+   "branches_hit": 14,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 18,
+   "lines_hit": 18,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -1, max 256, unsigned 0..4294967295, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 4,
+     "text": "if (D_800F4CB1 > D_800F4CB0) {",
+     "size": 1,
+     "count": 30000,
+     "kind": "a == b / a < b",
+     "outcomes": "== 11935, < 9081, > 8984 (signed); < 9081, > 8984 (unsigned)",
+     "operand": "b 0..4",
+     "a": "0..4"
+    },
+    {
+     "line": 5,
+     "text": "for (i = 0; i < D_800EB9B8->unk2C; ++i) {",
+     "size": 4,
+     "count": 62766,
+     "kind": "a == b / a < b",
+     "outcomes": "== 8984, < 53782, > 0 (signed); < 53782, > 0 (unsigned)",
+     "operand": "b 0..12",
+     "a": "0..12"
+    },
+    {
+     "line": 6,
+     "text": "if (((__typeof__((D_800EB9B8->unk40).psx_type_[0]))(long unsigned int)(D_800EB9B8->unk40).raw)[i].unk9 == group) {",
+     "size": 4,
+     "count": 53782,
+     "kind": "a == b / a < b",
+     "outcomes": "== 10477, < 28191, > 15114 (signed); < 22220, > 21085 (unsigned)",
+     "operand": "b 0..255",
+     "a": "-1..256"
+    },
+    {
+     "line": 7,
+     "text": "if (!first)",
+     "size": 4,
+     "count": 10477,
+     "kind": "against a constant",
+     "outcomes": "== 4887, < 0, > 5590 (signed); < 0, > 5590 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..11"
+    },
+    {
+     "line": 15,
+     "text": "for (i = 0; i < D_800EB9B8->unk2C; ++i) {",
+     "size": 4,
+     "count": 146037,
+     "kind": "a == b / a < b",
+     "outcomes": "== 21016, < 125021, > 0 (signed); < 125021, > 0 (unsigned)",
+     "operand": "b 0..12",
+     "a": "0..12"
+    },
+    {
+     "line": 16,
+     "text": "if (((__typeof__((D_800EB9B8->unk40).psx_type_[0]))(long unsigned int)(D_800EB9B8->unk40).raw)[i].unk9 == group) {",
+     "size": 4,
+     "count": 125021,
+     "kind": "a == b / a < b",
+     "outcomes": "== 24432, < 65267, > 35322 (signed); < 51105, > 49484 (unsigned)",
+     "operand": "b 0..255",
+     "a": "-1..256"
+    },
+    {
+     "line": 17,
+     "text": "if (!first)",
+     "size": 4,
+     "count": 24432,
+     "kind": "against a constant",
+     "outcomes": "== 11365, < 0, > 13067 (signed); < 0, > 13067 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..11"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 36220,
+     "completion_tokens": 5694,
+     "reasoning_tokens": 4766,
+     "cost": 0.006469,
+     "seconds": 24.0,
+     "sample": 1,
+     "conversation": "390be8f437f50f933cb80d96652d2400fe10ba42c76459bf21fa4c31ca6a63d6"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800C5360.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800C5360.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 19.22881619400141,
+ "wall_seconds": 105.6025384149998,
+ "totals": {
+  "cost": 0.01653,
+  "prompt_tokens": 63654,
+  "completion_tokens": 20323,
+  "model_seconds": 86.1,
+  "check_seconds": 19.2,
+  "calls": 3,
+  "wall_seconds": 105.6
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: not called / not called / nested 6, 0 mismatches"
+ }
+}

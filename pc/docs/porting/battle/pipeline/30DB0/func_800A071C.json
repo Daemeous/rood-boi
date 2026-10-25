@@ -1,0 +1,215 @@
+{
+ "function": "func_800A071C",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (the out struct may alias the entry's bytes: store order visible)",
+ "plan": {
+  "name": "func_800A071C",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x800a071c",
+  "difficulty": "S",
+  "zig_name": "func_800A071C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A071C",
+  "spec_file": "func_800A071C.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_800A071C(arg0: c_int, arg1: ?*v.D_800F4538_unk58_2) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "?*v.D_800F4538_unk58_2"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800F4538_unk58_2"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16118,
+     "completion_tokens": 10165,
+     "reasoning_tokens": 8834,
+     "cost": 0.0066943,
+     "seconds": 44.3,
+     "sample": 1,
+     "conversation": "34e7fb797d7a3f4fa9e2585511c9a7900844861e73c6f428693adcc4ed18eb11"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation I1: index masked to 4 bits (index 16 wraps to 0): not caught as mismatch (exit 4) (the mutated copy crashes where the C does not: if that is what this mistake does on your inputs, say `expect = \"crash\"`; otherwise choose a mutation your inputs show as a difference): zdiff: MISMATCH iteration 40: memory at 0x409230 [arena] (zdiff_state+0x31c0): C 191, Zig 84\nzdiff: MISMATCH iteration 61: memory at 0x409230 [arena] (zdiff_state+0x31c0): C 190, Zig 130\nzdiff: MISMATCH iteration 107: memory at 0x40803f [arena] (zdiff_state+0x1fcf): C 97, Zig 228\nzdiff: CRASH (signal 11) in the Zig run, iteration 485, fault address 0x0 [NULL+0x0: a field of a null pointer]"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 17803,
+     "completion_tokens": 2319,
+     "reasoning_tokens": 1016,
+     "cost": 0.0029398,
+     "seconds": 9.3,
+     "sample": 1,
+     "conversation": "fd59d8d9ae3936ec1f0cdd6419b53698eeaaea319c7c71cd238b5b39e08c8d48"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "null-entry": "7427",
+   "separate-out": "14961",
+   "out-aliases-entry": "7612"
+  },
+  "mutations": [
+   {
+    "name": "F1: unk1 read from unk6F2 (wrong field)",
+    "caught": true
+   },
+   {
+    "name": "R1: not-found returns 0, not -1",
+    "caught": true
+   },
+   {
+    "name": "R2: found entry returns 1, not 0",
+    "caught": true
+   },
+   {
+    "name": "S1: unk2 store dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 8,
+   "lines_hit": 8,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: null seen"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39599,
+     "completion_tokens": 1848,
+     "reasoning_tokens": 1475,
+     "cost": 0.0048839,
+     "seconds": 8.2,
+     "sample": 1,
+     "conversation": "ac66fdc2a7f446e2ba837017a714206913c4bf43802c805d8a9fdc538d132427"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A071C.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A071C.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 75.51900364800076,
+ "wall_seconds": 175.27336679000018,
+ "totals": {
+  "cost": 0.01452,
+  "prompt_tokens": 73520,
+  "completion_tokens": 14332,
+  "model_seconds": 61.8,
+  "check_seconds": 75.5,
+  "calls": 3,
+  "wall_seconds": 175.3
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

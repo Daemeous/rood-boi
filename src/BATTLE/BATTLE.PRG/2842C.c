@@ -337,6 +337,16 @@ void func_80090C2C(int arg0)
     }
 }
 
+#ifdef ROOD_PC
+/* The game's room weather, including event-script overrides. A room's
+ * generated moon must not shine through the overcast during rain. Keep
+ * this a render-only query: the original weather update remains unchanged. */
+int pc_weather_raining(void)
+{
+    return psx_get(vs_battle_roomData.sectionB) != NULL && D_800F1DCA == 1;
+}
+#endif
+
 void func_80090EEC(void)
 {
     int masks[] = { 0xF, 0x1F, 0x3F, 0x7F };

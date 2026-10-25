@@ -11,6 +11,9 @@ extern "C" {
 /* A colour target with its G-buffer and depth (the GL target_fbo set). */
 typedef struct {
     vk_image color, normal, albedo, shade, depth;
+    /* Material response (emissive.h PC_MATERIAL_*): roughness, specular,
+     * metal, a = 1 where a texel has a material (else all 0). */
+    vk_image material;
 } vk_target;
 typedef struct {
     int scale, width, height; /* 1024 x 512 times scale */

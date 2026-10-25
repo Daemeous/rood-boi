@@ -1,0 +1,191 @@
+{
+ "function": "func_8009D458",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (empty body); spec sound (the mutations write the scratchpad and low RAM)",
+ "plan": {
+  "name": "func_8009D458",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x8009d458",
+  "difficulty": "S",
+  "zig_name": "func_8009D458",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_8009D458",
+  "spec_file": "func_8009D458.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_8009D458() callconv(.c) void",
+  "params": [],
+  "ret": "void",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 10983,
+     "completion_tokens": 2190,
+     "reasoning_tokens": 1528,
+     "cost": 0.0021933,
+     "seconds": 10.1,
+     "sample": 1,
+     "conversation": "eb2d446a762096d9bee4daec2ad63c28bab0cabcafaacac26dd3cc8ccea7da2c"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: no input classes declared (`classes` and `classify`)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11696,
+     "completion_tokens": 979,
+     "reasoning_tokens": 240,
+     "cost": 0.0016591,
+     "seconds": 3.9,
+     "sample": 1,
+     "conversation": "2e36d58d6786ffd8bc835d66dc5ba02b2c7df2b461f5242b446d0717075acf63"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "empty": "20000"
+  },
+  "mutations": [
+   {
+    "name": "F1: writes a scratchpad byte",
+    "caught": true
+   },
+   {
+    "name": "F2: writes the last scratchpad byte",
+    "caught": true
+   },
+   {
+    "name": "F3: writes PS1 low RAM",
+    "caught": true
+   },
+   {
+    "name": "F4: writes a word of PS1 low RAM",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 1,
+   "lines_hit": 1,
+   "uncovered": [],
+   "flags": [],
+   "args": [],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34463,
+     "completion_tokens": 358,
+     "reasoning_tokens": 230,
+     "cost": 0.0036253,
+     "seconds": 2.4,
+     "sample": 1,
+     "conversation": "5c82714f2128335abd5effc253046ae67ccffa46b67240f86b77e528f94123ed"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_8009D458.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_8009D458.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 27.704488762000437,
+ "wall_seconds": 44.364235764000114,
+ "totals": {
+  "cost": 0.00748,
+  "prompt_tokens": 57142,
+  "completion_tokens": 3527,
+  "model_seconds": 16.4,
+  "check_seconds": 27.7,
+  "calls": 3,
+  "wall_seconds": 44.4
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

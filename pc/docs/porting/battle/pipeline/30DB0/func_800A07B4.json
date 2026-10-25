@@ -1,0 +1,195 @@
+{
+ "function": "func_800A07B4",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_800A07B4",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x800a07b4",
+  "difficulty": "S",
+  "zig_name": "func_800A07B4",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A07B4",
+  "spec_file": "func_800A07B4.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_800A07B4(arg0: c_int, arg1: ?*v.D_800F4538_unk58_2) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "?*v.D_800F4538_unk58_2"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800F4538_unk58_2"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 15952,
+     "completion_tokens": 7353,
+     "reasoning_tokens": 6273,
+     "cost": 0.0052717,
+     "seconds": 31.2,
+     "sample": 1,
+     "conversation": "cfb872b303be17a257375a66f0da39f7905eb6ac5e099ced98e8fe5e2f49d7a9"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "null-entry": "6708",
+   "valid-entry": "13292"
+  },
+  "mutations": [
+   {
+    "name": "F1: null entry returns 1, not -1",
+    "caught": true
+   },
+   {
+    "name": "F2: success returns -1",
+    "caught": true
+   },
+   {
+    "name": "F3: the copy is dropped",
+    "caught": true
+   },
+   {
+    "name": "F4: only the first byte of unk58 is copied",
+    "caught": true
+   },
+   {
+    "name": "F5: wrong field (unk6F8 for unk0.unk58)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 5,
+   "lines_hit": 5,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 20000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 20000,
+     "text": "pointer: null seen"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39424,
+     "completion_tokens": 1310,
+     "reasoning_tokens": 969,
+     "cost": 0.0045974,
+     "seconds": 6.9,
+     "sample": 1,
+     "conversation": "e20faf0b5f3d7598175ef79037aacb390058a02292c9b6d919f9dd3b06bed186"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A07B4.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A07B4.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 64.14620419199946,
+ "wall_seconds": 112.34476493199963,
+ "totals": {
+  "cost": 0.00987,
+  "prompt_tokens": 55376,
+  "completion_tokens": 8663,
+  "model_seconds": 38.1,
+  "check_seconds": 64.1,
+  "calls": 2,
+  "wall_seconds": 112.3
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

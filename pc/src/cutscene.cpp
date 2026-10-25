@@ -341,6 +341,9 @@ void take_mark(int f)
 
 void end_take()
 {
+    // Scene switches and automatic take endings bypass stop(). Never carry the
+    // borrowed camera (or its photo pause) into the next scene or back to play.
+    cutscene::free_camera(false, nullptr);
     cutscene::sequencer_end();
     drop_all_marks();
     take = Take();
@@ -1491,14 +1494,20 @@ bool jump(const std::string& path, int frame, std::string* why)
 }
 bool free_camera(bool on, std::string* why)
 {
-    if (on == camera_on)
-        return true;
     if (!on) {
+        // An external photo release can leave our flag out of sync until the
+        // next presented frame. Releasing an owner twice is harmless.
         if (pc_photo_camera_finish)
             pc_photo_camera_finish(CAMERA_OWNER);
         pc_photo_resume(CAMERA_OWNER);
         camera_on = false;
         return true;
+    }
+    if (camera_on) {
+        char owner[128] = "";
+        if (pc_photo_camera_owner(owner, sizeof owner) && !strcmp(owner, CAMERA_OWNER))
+            return true;
+        camera_on = false; // the photo safety/state replacement released it
     }
     char w[200] = "";
     if (!pc_photo_camera_begin) {
@@ -1603,8 +1612,8 @@ std::string scenes_json()
 /* params {action: status (default) | list | start {scene} | here {name} | stop | play | pause | step {frames}
  * | speed {value} | seek {frame} | back {frames} | cut | capture {count, hide_text} | repro | jump {repro,
  * frame} | settings {interval, marks_max, budget_mb, instant_replay, replay_seconds, replay_interval, armed,
- * hide_text} | hotkey | camera {on} | catalog (reload)}. The reply is the status (list: the scenes); an
- * error: -1 and the reason in out. Seeks, captures, repros and jumps finish at later vsyncs: wait for
+ * hide_text} | hotkey | camera {on, position, target, yaw, pitch} | catalog (reload)}. The reply is the
+ * status (list: the scenes); an error: -1 and the reason in out. Seeks, captures, repros and jumps finish at later vsyncs: wait for
  * busy false. */
 extern "C" int pc_take_rpc(const char* params, char* out, int size)
 {
@@ -1690,7 +1699,34 @@ extern "C" int pc_take_rpc(const char* params, char* out, int size)
     } else if (action == "return") {
         ok = cutscene::return_to_game(&why);
     } else if (action == "camera") {
-        ok = cutscene::free_camera(num("on", &n) ? n != 0 : true, &why);
+        bool on = num("on", &n) ? n != 0 : true;
+        ok = cutscene::free_camera(on, &why);
+        /* A pose for the borrowed camera (tests, repros): position / target [x, y, z]
+         * (world units, y down), yaw / pitch degrees; as rood.camera.set. */
+        auto vec3 = [&](const char* k, float out[3]) {
+            const prefab::Json* j = p.get(k);
+            if (!j || j->type != prefab::Json::Array || j->items.size() != 3)
+                return false;
+            for (int i = 0; i < 3; i++)
+                out[i] = (float)j->items[i].number;
+            return true;
+        };
+        pc_photo_pose pose = {};
+        unsigned mask = 0;
+        const prefab::Json* f;
+        if (vec3("position", pose.position))
+            mask |= PC_POSE_POSITION;
+        if (vec3("target", pose.target))
+            mask |= PC_POSE_TARGET;
+        if ((f = p.get("yaw")) && f->type == prefab::Json::Number)
+            pose.yaw = (float)f->number, mask |= PC_POSE_YAW;
+        if ((f = p.get("pitch")) && f->type == prefab::Json::Number)
+            pose.pitch = (float)f->number, mask |= PC_POSE_PITCH;
+        char w[200] = "";
+        if (ok && on && mask && pc_photo_camera_set(CAMERA_OWNER, &pose, mask, w, (int)sizeof w)) {
+            ok = false;
+            why = w;
+        }
     } else {
         ok = false;
         why = "action: status, list, catalog, start, here, stop, play, pause, step, speed, seek, back, cut, "

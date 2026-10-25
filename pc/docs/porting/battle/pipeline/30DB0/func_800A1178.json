@@ -1,0 +1,252 @@
+{
+ "function": "func_800A1178",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_800A1178",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x800a1178",
+  "difficulty": "S",
+  "zig_name": "func_800A1178",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A1178",
+  "spec_file": "func_800A1178.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_800A1178(arg0: c_int, arg1: c_int, arg2: ?*v.MATRIX, arg3: [*c]c_uint) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ],
+   [
+    "arg2",
+    "?*v.MATRIX"
+   ],
+   [
+    "arg3",
+    "[*c]c_uint"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "MATRIX"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11319,
+     "completion_tokens": 7638,
+     "reasoning_tokens": 6044,
+     "cost": 0.0049509,
+     "seconds": 31.6,
+     "sample": 1,
+     "conversation": "07f1d362e101ecd12742bb653d39e56749ff2a429ec5be5b32c78bb84f79626e"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "null-matrix": "3818",
+   "buffers": "26182"
+  },
+  "mutations": [
+   {
+    "name": "M1: failure test off by one (<= 0)",
+    "caught": true
+   },
+   {
+    "name": "M2: wrong flag constant to the callee",
+    "caught": true
+   },
+   {
+    "name": "M3: arg1 passed where the result belongs",
+    "caught": true
+   },
+   {
+    "name": "M4: success returns the callee value",
+    "caught": true
+   },
+   {
+    "name": "M5: out-buffer call dropped",
+    "caught": true
+   },
+   {
+    "name": "M6: failure bound one too far (< -1)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 6,
+   "lines_hit": 6,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147296870, max 2147480407, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "pointer: null seen"
+    },
+    {
+     "arg": 3,
+     "count": 30000,
+     "text": "pointer: null seen"
+    }
+   ],
+   "compares": [
+    {
+     "line": 3,
+     "text": "if (temp_v0 < 0) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 10799, < 10270, > 8931 (signed); < 0, > 19201 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147483647"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34799,
+     "completion_tokens": 1825,
+     "reasoning_tokens": 1462,
+     "cost": 0.0043924,
+     "seconds": 8.0,
+     "sample": 1,
+     "conversation": "ba76dc64a1e84cc557f47b9d88626475253e47552a555bb7f7e84ca1cdd349b7"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/common/psx.zig:230:37: error: access of union field 'pointer' while field 'optional' is active\n    const VT = @typeInfo(@TypeOf(p)).pointer.child;\n               ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/lib/std/lang.zig:640:18: note: union declared here\npub const Type = union(enum) {\n                 ^~~~~\nreferenced by:\n    func_800A1178: game/battle/func_800A1178.zig:14:44\n    main: pc/tests/zig_diff/main.zig:469:31\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35507,
+     "completion_tokens": 1040,
+     "reasoning_tokens": 573,
+     "cost": 0.0040707,
+     "seconds": 5.0,
+     "sample": 1,
+     "conversation": "9f0a3f906d6f27547a757baae93e54846b7f5c57773f203e9b923e02e56c140d"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A1178.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A1178.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 70.60427535500003,
+ "wall_seconds": 140.93317817000025,
+ "totals": {
+  "cost": 0.01341,
+  "prompt_tokens": 81625,
+  "completion_tokens": 10503,
+  "model_seconds": 44.6,
+  "check_seconds": 70.6,
+  "calls": 3,
+  "wall_seconds": 140.9
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

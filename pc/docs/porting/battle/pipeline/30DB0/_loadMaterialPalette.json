@@ -1,0 +1,245 @@
+{
+ "function": "_loadMaterialPalette",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "_loadMaterialPalette",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x8009a98c",
+  "difficulty": "S",
+  "zig_name": "loadMaterialPalette",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "load_material_palette",
+  "spec_file": "loadMaterialPalette.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn loadMaterialPalette(index: c_int, material: c_int) callconv(.c) void",
+  "params": [
+   [
+    "index",
+    "c_int"
+   ],
+   [
+    "material",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "vs_battle_wepModels_t"
+  ],
+  "globals": [
+   "_weaponMaterialPaletteMap",
+   "vs_battle_wepModels"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12792,
+     "completion_tokens": 11291,
+     "reasoning_tokens": 9748,
+     "cost": 0.0069247,
+     "seconds": 49.1,
+     "sample": 1,
+     "conversation": "91137c597be06eff388868fef641f94b3cf88484e61b397ae85b6d542dc4843e"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the C differs from a copy of itself under this spec (exit 3: the spec is not deterministic: everything prepare does must come from `ctx`):\nzdiff: PANIC in the C run, iteration 0: @memcpy arguments alias (return address 0x4018ef)",
+     "FAIL: no input classes declared (`classes` and `classify`)",
+     "FAIL: mutation L1: non-double CLUT starts at 8, not 16: not caught as mismatch (exit 3): zdiff: PANIC in the C run, iteration 0: @memcpy arguments alias (return address 0x4018ef)",
+     "FAIL: mutation L2: loadClut count one short: not caught as mismatch (exit 3): zdiff: PANIC in the C run, iteration 0: @memcpy arguments alias (return address 0x4018ef)",
+     "FAIL: mutation L3: second copy into unk500 dropped: not caught as mismatch (exit 3): zdiff: PANIC in the C run, iteration 0: @memcpy arguments alias (return address 0x4018ef)",
+     "FAIL: mutation L4: CLUT row offset 32 units, not 48: not caught as mismatch (exit 3): zdiff: PANIC in the C run, iteration 0: @memcpy arguments alias (return address 0x4018ef)",
+     "FAIL: mutation L5: palette map read as signed: not caught as mismatch (exit 3): zdiff: PANIC in the C run, iteration 0: @memcpy arguments alias (return address 0x4018ef)",
+     "FAIL: mutation L6: material field store dropped: not caught as mismatch (exit 3): zdiff: PANIC in the C run, iteration 0: @memcpy arguments alias (return address 0x4018ef)",
+     "FAIL: the coverage run: coverage run: exit 3: zdiff: PANIC in the C run, iteration 0: @memcpy arguments alias (return address 0x401946)\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 15011,
+     "completion_tokens": 4487,
+     "reasoning_tokens": 2837,
+     "cost": 0.0037446,
+     "seconds": 19.2,
+     "sample": 1,
+     "conversation": "a8f37e353c7ba88b3062b956eb89e1fa287f99dc0cb671fc69d5385ff4ebe201"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "single-clut": "9344",
+   "double-clut": "9418",
+   "palette-high": "11238"
+  },
+  "mutations": [
+   {
+    "name": "L1: non-double CLUT starts at 8, not 16",
+    "caught": true
+   },
+   {
+    "name": "L2: loadClut count one short",
+    "caught": true
+   },
+   {
+    "name": "L3: second copy into unk500 dropped",
+    "caught": true
+   },
+   {
+    "name": "L4: CLUT row offset 32 units, not 48",
+    "caught": true
+   },
+   {
+    "name": "L5: palette map read as signed",
+    "caught": true
+   },
+   {
+    "name": "L6: material field store dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 14,
+   "lines_hit": 14,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 19, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min 0, max 7, seen zero, never negative, 8 value(s): 7, 3, 4, 5, 6, 2, 1, 0"
+    }
+   ],
+   "compares": [
+    {
+     "line": 14,
+     "text": "if (model->isDoubleClut) {",
+     "size": 1,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 14997, < 15003, > 0 (signed); < 0, > 15003 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..0"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 36141,
+     "completion_tokens": 5416,
+     "reasoning_tokens": 4729,
+     "cost": 0.0063221,
+     "seconds": 22.2,
+     "sample": 1,
+     "conversation": "eac7b336c78a0eab5396e8cb9c7043ebdc5734be3e8a79246a3ad541de531405"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/loadMaterialPalette.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/load_material_palette.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 31.46696177299964,
+ "wall_seconds": 122.12665177400004,
+ "totals": {
+  "cost": 0.01699,
+  "prompt_tokens": 63944,
+  "completion_tokens": 21194,
+  "model_seconds": 90.5,
+  "check_seconds": 31.5,
+  "calls": 3,
+  "wall_seconds": 122.1
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

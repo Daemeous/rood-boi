@@ -1,0 +1,155 @@
+{
+ "function": "func_8009A028",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "spec-failed",
+ "reviewed": "not ported in this wave (unrouted): the C differs from a copy of itself under every draft of the spec (state differs at the first external call); the model's stub allocated inside the stub (moved to prepare in a reviewer's reply, same result); not diagnosed (the C is a 12-line memcpy and relocate)",
+ "plan": {
+  "name": "func_8009A028",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x8009a028",
+  "difficulty": "S",
+  "zig_name": "func_8009A028",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_8009A028",
+  "spec_file": "func_8009A028.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_8009A028(arg0: [*c]c_int, arg1: ?*anyopaque, arg2: c_int) callconv(.c) ?*anyopaque",
+  "params": [
+   [
+    "arg0",
+    "[*c]c_int"
+   ],
+   [
+    "arg1",
+    "?*anyopaque"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ]
+  ],
+  "ret": "?*anyopaque",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": false,
+    "errors": [
+     "FAIL: the C differs from a copy of itself under this spec (exit 1: the spec is not deterministic: everything prepare does must come from `ctx`):\nzdiff: MISMATCH iteration 0: call 0 (memcpy): the state differs when it is called\nzdiff: MISMATCH iteration 1: call 0 (vs_main_allocHeap): the state differs when it is called\nzdiff: MISMATCH iteration 2: call 0 (vs_main_allocHeap): the state differs when it is called\nzdiff: func_8009A028: 1000 iterations, seed 1, 1000 mismatches; classes: alloc=342 in-place=658"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13166,
+     "completion_tokens": 4650,
+     "reasoning_tokens": 3381,
+     "cost": 0.0036416,
+     "seconds": 20.5,
+     "sample": 1,
+     "conversation": "508043b8e35262f10d502d77288d99d2925c1b3c4417ade4a5f2b9a78e64413a"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the C differs from a copy of itself under this spec (exit 1: the spec is not deterministic: everything prepare does must come from `ctx`):\nzdiff: MISMATCH iteration 0: call 0 (memcpy): the state differs when it is called\nzdiff: MISMATCH iteration 1: call 0 (vs_main_allocHeap): the state differs when it is called\nzdiff: MISMATCH iteration 2: call 0 (vs_main_allocHeap): the state differs when it is called\nzdiff: func_8009A028: 1000 iterations, seed 1, 1000 mismatches; classes: alloc=342 in-place=658"
+    ]
+   }
+  ],
+  "classes": {
+   "alloc": "342",
+   "in-place": "658"
+  },
+  "mutations": [
+   {
+    "name": "F1: word 12 overwritten instead of accumulated",
+    "caught": true
+   },
+   {
+    "name": "F2: copy drops the tail bytes past a multiple of 4",
+    "caught": true
+   },
+   {
+    "name": "F3: allocation size off by 4",
+    "caught": true
+   },
+   {
+    "name": "F4: returns the source instead of the destination",
+    "caught": true
+   },
+   {
+    "name": "F5: wrong constant on word 15",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 9,
+   "lines_hit": 9,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: null seen"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min 0, max 200, seen zero, never negative"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  }
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 11.78786740400028,
+ "wall_seconds": 32.45883864700227,
+ "totals": {
+  "cost": 0.00364,
+  "prompt_tokens": 13166,
+  "completion_tokens": 4650,
+  "model_seconds": 20.5,
+  "check_seconds": 11.8,
+  "calls": 1,
+  "wall_seconds": 32.5
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24"
+ }
+}

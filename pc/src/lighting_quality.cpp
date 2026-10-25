@@ -29,6 +29,10 @@ extern int pc_lights_enabled, pc_gi_enabled, pc_rt_shadows, pc_baked_shadows, pc
     pc_hw_interpolate;
 extern float pc_gi_resolution, pc_shadow_softness, pc_fog_density, pc_shadow_history;
 extern int pc_gl_compute;
+/* Material response (emissive.h): the specular switch and its tunables. */
+extern int pc_specular, pc_reflection_bounces;
+extern float pc_specular_strength, pc_roughness_bias;
+int pc_material_active(void);
 /* Weak: absent in some builds. */
 extern int pc_vk_active __attribute__((weak));
 int pc_vk_caps(int* ray_query, int* integrated, char* name, int size) __attribute__((weak)); /* vk_core.c */
@@ -127,6 +131,13 @@ Key keys[] = {
     { "probe_rays", INT, &pc_probe_rays, nullptr, 0, true },
     /* The traced haze's froxel size in display pixels (atmosphere.h; Vulkan). */
     { "haze_cell", INT, &pc_haze_cell, nullptr, 0, true },
+    /* Material response (emissive.h, pc/docs/Materials.md): the specular lobe on (0: off entirely, the
+     * picture exactly the one without materials), its global strength, the roughness bias, and the
+     * path tracer's reflection bounces (0: highlights from the lights only). */
+    { "specular", BOOL, &pc_specular, nullptr, 0, false },
+    { "specular_strength", FLOAT_KEY, &pc_specular_strength, nullptr, 0, false },
+    { "roughness_bias", FLOAT_KEY, &pc_roughness_bias, nullptr, 0, false },
+    { "reflection_bounces", INT, &pc_reflection_bounces, nullptr, 0, false },
 };
 const int key_count = sizeof keys / sizeof keys[0];
 
@@ -946,6 +957,27 @@ extern "C" void pc_lighting_panel(void)
                                    : "Ray traced: not available here");
     if (!c.traced)
         ImGui::EndDisabled();
+
+    ImGui::SeparatorText("Materials");
+    checkbox("Specular (material response)", &pc_specular);
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+        ImGui::SetTooltip("Highlights and reflections on surfaces with a material (Details > Material).\n"
+                          "Off: the picture is exactly the one without materials.");
+    if (pc_specular) {
+        ImGui::SliderFloat("Specular strength", &pc_specular_strength, 0, 4, "%.2f");
+        ImGui::SliderFloat("Roughness bias", &pc_roughness_bias, -0.5f, 0.5f, "%+.2f");
+        if (!c.vulkan)
+            dim("OpenGL draws no material response (Vulkan only).");
+        else {
+            if (!c.traced)
+                ImGui::BeginDisabled();
+            ImGui::SliderInt("Reflection bounces", &pc_reflection_bounces, 0, 2,
+                pc_reflection_bounces ? "%d" : "Off (lights' highlights only)");
+            if (!c.traced)
+                ImGui::EndDisabled();
+            dim(pc_material_active() ? "Materials on surfaces in view." : "No material in view.");
+        }
+    }
 
     ImGui::SeparatorText("Volumetrics");
     choice_combo("Haze", "haze", haze_labels,

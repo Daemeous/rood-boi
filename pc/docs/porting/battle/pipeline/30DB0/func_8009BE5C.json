@@ -1,0 +1,452 @@
+{
+ "function": "func_8009BE5C",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.4,
+ "samples": 2,
+ "status": "ported",
+ "reviewed": "faithful (the goto ladder of the C restructured as state dispatch + helpers: state 0 chooses D_800F22D0, sequences loaded per actor kind, the 'special' load shared by cases 4 and 5; the unit's two static helpers re-implemented); spec sound",
+ "plan": {
+  "name": "func_8009BE5C",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x8009be5c",
+  "difficulty": "L",
+  "zig_name": "func_8009BE5C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_8009BE5C",
+  "spec_file": "func_8009BE5C.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_8009BE5C(object: ?*v.vs_battle_objectData) callconv(.c) c_int",
+  "params": [
+   [
+    "object",
+    "?*v.vs_battle_objectData"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [
+   "D_800E8A60",
+   "D_800E8B40",
+   "D_800E8E8E",
+   "D_800E8EA3",
+   "D_800E8EA8",
+   "D_800E8EFC",
+   "D_800F22C8",
+   "D_800F22D0",
+   "D_800F22D8",
+   "D_800F22E0"
+  ],
+  "hooks": [],
+  "statics": [
+   "vs_battleFindSharedSequence",
+   "vs_battleQueueSequenceObject"
+  ],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 19690,
+     "completion_tokens": 38871,
+     "reasoning_tokens": 35979,
+     "cost": 0.0214045,
+     "seconds": 166.8,
+     "sample": 1,
+     "conversation": "626f4756bf1c421057987a374f455b98342243baf4c06d036ef20d7ff11534fd"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation F4: shared-sequence search misses slot 16: mutation F4: shared-sequence search misses slot 16: its `from` text occurs 0 times in the C body of func_8009BE5C (copy it exactly from the C)",
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_8009BE5C: branches 48/49 (98.0%), conditions not measured (GCC < 14: branch coverage only), lines 103/103\n  UNCOVERED +32 b5: branch never taken: `switch (object->actorId) {`\ncoverage func_8009BE5C: FAILED (threshold 100%: 1 uncovered, 0 value flag(s) not waived)\nWhat to add:\n- `switch (object->actorId) {` (+32): one way out of this test (+32 b5) was never taken; add inputs that take it.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_8009BE5C.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 1,
+    "sample": 2,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 19690,
+     "completion_tokens": 49258,
+     "reasoning_tokens": 46031,
+     "cost": 0.026598,
+     "seconds": 211.0,
+     "sample": 2,
+     "conversation": "3ecc68ed582c5fd5ad0d637cf0aff90515c4ca406c358fcc2054c001b784b810"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_8009BE5C: branches 47/49 (95.9%), conditions not measured (GCC < 14: branch coverage only), lines 103/103\n  UNCOVERED +8 b3: branch never taken: `switch (_loadShpState) {`\n  UNCOVERED +32 b5: branch never taken: `switch (object->actorId) {`\ncoverage func_8009BE5C: FAILED (threshold 100%: 2 uncovered, 0 value flag(s) not waived)\nWhat to add:\n- `switch (_loadShpState) {` (+8): one way out of this test (+8 b3) was never taken; add inputs that take it.\n- `switch (object->actorId) {` (+32): one way out of this test (+32 b5) was never taken; add inputs that take it.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_8009BE5C.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 23286,
+     "completion_tokens": 8602,
+     "reasoning_tokens": 5065,
+     "cost": 0.0066296,
+     "seconds": 36.7,
+     "sample": 1,
+     "conversation": "105936ebeaa6529011bc4ac2b136b4b4334a26c4c781acc76322d6a17841cc14"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/func_8009BE5C/spec2/build/spec.zig:84:16: error: struct 'views_30DB0.g' has no member named 'D_800EFC'\n            v.g.D_800EFC()[mat][@intCast(mid)] = if (ctx.chance(3)) 0 else ctx.edge(u8, &.{ 1, 2, 255 });\n            ~~~^~~~~~~~~\npc/build/port-pipeline/gen/30DB0/fn-func_8009BE5C/views_30DB0.zig:1246:15: note: struct declared here\npub const g = struct {\n              ^~~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:435:40\n    main: pc/tests/zig_diff/main.zig:392:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ]
+   },
+   {
+    "round": 3,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 27217,
+     "completion_tokens": 3807,
+     "reasoning_tokens": 268,
+     "cost": 0.0046252,
+     "seconds": 11.8,
+     "sample": 1,
+     "conversation": "bbb40b18eed9ef1f3c4e45e4974421c99c91e45533c0ec44411d2dfb375c2daa"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 3,
+   "sample": 1
+  },
+  "classes": {
+   "parse": "4984",
+   "wait-busy": "2538",
+   "wait-done": "2531",
+   "load-actor0": "6721",
+   "load-other": "8274",
+   "state-outside-switch": "14952"
+  },
+  "mutations": [
+   {
+    "name": "F1: the shared-sequence search also skips index 1",
+    "caught": true
+   },
+   {
+    "name": "F2: case 0 sectors read with a >> 10 shift",
+    "caught": true
+   },
+   {
+    "name": "F3: the special path tests unk6E6 == 3",
+    "caught": true
+   },
+   {
+    "name": "F4: the queued sequence object needs a positive model (signed slip)",
+    "caught": true
+   },
+   {
+    "name": "F5: the shared heap block is never freed",
+    "caught": true
+   },
+   {
+    "name": "F6: wrong lba constant for the sound-bank table",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 49,
+   "branches_hit": 48,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 103,
+   "lines_hit": 103,
+   "uncovered": [
+    {
+     "id": "+32 b5",
+     "line": 32,
+     "text": "switch (object->actorId) {",
+     "what": "branch never taken"
+    }
+   ],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 8,
+     "text": "switch (_loadShpState) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "switch",
+     "outcomes": "== 25048, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..255"
+    },
+    {
+     "line": 10,
+     "text": "switch (object->actorId) {",
+     "size": 4,
+     "count": 14995,
+     "kind": "switch",
+     "outcomes": "== 10024, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..5"
+    },
+    {
+     "line": 12,
+     "text": "if (object->index != 0 && vs_battleFindSharedSequence(object)) {",
+     "size": 1,
+     "count": 6721,
+     "kind": "against a constant",
+     "outcomes": "== 404, < 0, > 6317 (signed); < 0, > 6317 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..16"
+    },
+    {
+     "line": 12,
+     "text": "if (object->index != 0 && vs_battleFindSharedSequence(object)) {",
+     "size": 4,
+     "count": 6317,
+     "kind": "against a constant",
+     "outcomes": "== 4118, < 0, > 2199 (signed); < 0, > 2199 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 32,
+     "text": "switch (object->actorId) {",
+     "size": 4,
+     "count": 27748,
+     "kind": "switch",
+     "outcomes": "== 27748, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..5"
+    },
+    {
+     "line": 36,
+     "text": "if (!sectors)",
+     "size": 4,
+     "count": 11090,
+     "kind": "against a constant",
+     "outcomes": "== 332, < 0, > 10758 (signed); < 0, > 10758 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..31"
+    },
+    {
+     "line": 43,
+     "text": "if (object->index == 0 && (model = object->modelId) != 0) {",
+     "size": 1,
+     "count": 9032,
+     "kind": "against a constant",
+     "outcomes": "== 623, < 0, > 8409 (signed); < 0, > 8409 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..16"
+    },
+    {
+     "line": 43,
+     "text": "if (object->index == 0 && (model = object->modelId) != 0) {",
+     "size": 4,
+     "count": 623,
+     "kind": "against a constant",
+     "outcomes": "== 181, < 97, > 345 (signed); < 0, > 442 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..40"
+    },
+    {
+     "line": 54,
+     "text": "if (!sectors)",
+     "size": 4,
+     "count": 6734,
+     "kind": "against a constant",
+     "outcomes": "== 2217, < 0, > 4517 (signed); < 0, > 4517 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..255"
+    },
+    {
+     "line": 73,
+     "text": "if (!sectors) {",
+     "size": 4,
+     "count": 4574,
+     "kind": "against a constant",
+     "outcomes": "== 1153, < 0, > 3421 (signed); < 0, > 3421 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..255"
+    },
+    {
+     "line": 85,
+     "text": "if (object->modelId == 0)",
+     "size": 2,
+     "count": 3262,
+     "kind": "against a constant",
+     "outcomes": "== 645, < 0, > 2617 (signed); < 0, > 2617 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..4"
+    },
+    {
+     "line": 88,
+     "text": "if (actor->unk6E6 == 2)",
+     "size": 2,
+     "count": 2617,
+     "kind": "against a constant",
+     "outcomes": "== 1312, < 637, > 668 (signed); < 637, > 668 (unsigned)",
+     "operand": "constant 2",
+     "a": "1..3"
+    },
+    {
+     "line": 91,
+     "text": "if (!sectors)",
+     "size": 4,
+     "count": 1305,
+     "kind": "against a constant",
+     "outcomes": "== 33, < 0, > 1272 (signed); < 0, > 1272 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..31"
+    },
+    {
+     "line": 105,
+     "text": "if (D_800F22E0->state != 4)",
+     "size": 2,
+     "count": 25790,
+     "kind": "against a constant",
+     "outcomes": "== 12905, < 7255, > 5630 (signed); < 1666, > 11219 (unsigned)",
+     "operand": "constant 4",
+     "a": "-32766..32766"
+    },
+    {
+     "line": 112,
+     "text": "if (result == -1)",
+     "size": 4,
+     "count": 7183,
+     "kind": "against a constant",
+     "outcomes": "== 3554, < 1859, > 1770 (signed); < 3629, > 0 (unsigned)",
+     "operand": "constant -1",
+     "a": "-2147162783..2147119525"
+    },
+    {
+     "line": 114,
+     "text": "if (D_800F22D0) {",
+     "size": 4,
+     "count": 3629,
+     "kind": "against a constant",
+     "outcomes": "== 1625, < 982, > 1022 (signed); < 0, > 2004 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483647..262144"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+32 b5",
+    "reason": "The second switch's no-match outcome (actorId 6..255) leaves the local `sectors` uninitialised, and the C then stores `sectors << 11` into D_800F22D8.size and passes it on. The C's indeterminate stack value cannot match across the two runs, so no input can be compared there; the spec keeps actorId to the matched cases 0..5."
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 42889,
+     "completion_tokens": 33042,
+     "reasoning_tokens": 29267,
+     "cost": 0.0208099,
+     "seconds": 130.4,
+     "sample": 1,
+     "conversation": "74ff04aa8e1ca0fbbbb94a5b926ff2db86a8a9fd46daf7f25d40f3d6dac589a3"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_8009BE5C.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_8009BE5C.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 124.75061660199935,
+ "wall_seconds": 136.76928547999887,
+ "totals": {
+  "cost": 0.08007,
+  "prompt_tokens": 132772,
+  "completion_tokens": 133580,
+  "model_seconds": 556.7,
+  "check_seconds": 124.8,
+  "calls": 5,
+  "wall_seconds": 136.8
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "c_fixes": [
+   "30DB0.c: `queued` is zeroed under ROOD_PC before its four fields are set: the whole record is copied into an object-data slot by vs_battleQueueSequenceObject (the port zeroes it too)"
+  ],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

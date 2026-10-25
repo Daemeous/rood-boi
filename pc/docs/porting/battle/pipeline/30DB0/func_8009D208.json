@@ -1,0 +1,218 @@
+{
+ "function": "func_8009D208",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the entry re-read after the callee); spec strengthened",
+ "plan": {
+  "name": "func_8009D208",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x8009d208",
+  "difficulty": "S",
+  "zig_name": "func_8009D208",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_8009D208",
+  "spec_file": "func_8009D208.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_8009D208(arg0: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [
+   "D_800F244F"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11334,
+     "completion_tokens": 6735,
+     "reasoning_tokens": 5492,
+     "cost": 0.0045009,
+     "seconds": 28.6,
+     "sample": 1,
+     "conversation": "757aeee4d6f373ad0dc01f3cfa833c450022d46ef30ed66c4ebe4ff392feb22b"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "entry-zero": "6668",
+   "entry-nonzero": "13332"
+  },
+  "mutations": [
+   {
+    "name": "F1: the callee gets arg0 + 1, not arg0 - 1",
+    "caught": true
+   },
+   {
+    "name": "F2: the failure test is inverted",
+    "caught": true
+   },
+   {
+    "name": "F3: wrong failure return code",
+    "caught": true
+   },
+   {
+    "name": "F4: the entry is cleared to the wrong constant",
+    "caught": true
+   },
+   {
+    "name": "F5: the entry test reads only the sign bit as nonzero",
+    "caught": true
+   },
+   {
+    "name": "F6: wrong constant passed to the callee",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 4,
+   "branches_hit": 4,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 7,
+   "lines_hit": 7,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 20000,
+     "text": "32-bit: min 0, max 0, seen zero, never negative, 1 value(s): 0"
+    }
+   ],
+   "compares": [
+    {
+     "line": 2,
+     "text": "if (D_800F244F[arg0] != 0) {",
+     "size": 1,
+     "count": 20000,
+     "kind": "against a constant",
+     "outcomes": "== 6668, < 6642, > 6690 (signed); < 0, > 13332 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 4,
+     "text": "if (func_8007E0A8(D_800F244F[arg0], 1, 4) == 0) {",
+     "size": 4,
+     "count": 13332,
+     "kind": "against a constant",
+     "outcomes": "== 5084, < 4122, > 4126 (signed); < 0, > 8248 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147389805..2147367511"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34709,
+     "completion_tokens": 1623,
+     "reasoning_tokens": 1221,
+     "cost": 0.0042824,
+     "seconds": 7.3,
+     "sample": 1,
+     "conversation": "5562a4ae8b7b893093c83df1b55936d0c64a44acbae8b6c8f42c772495add760"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_8009D208.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_8009D208.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 28.07919932799996,
+ "wall_seconds": 64.281837902,
+ "totals": {
+  "cost": 0.00878,
+  "prompt_tokens": 46043,
+  "completion_tokens": 8358,
+  "model_seconds": 35.9,
+  "check_seconds": 28.1,
+  "calls": 2,
+  "wall_seconds": 64.3
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "spec_fixes": [
+   "the drafted spec only ever passed arg0 = 0 (it took D_800F244F for a one-entry table); the game passes 1..3 (arg + 1 of three slots) and the table is the bytes from 0x800F244F on: arg0 is now 0..3, four table bytes are set, and func_800AB2AC rewrites the entry the C re-reads (arg0 - 1 + 1)"
+  ],
+  "mutations_added": [
+   "R1: the entry cleared at index 0",
+   "R2: the callee argument read from index 0"
+  ],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

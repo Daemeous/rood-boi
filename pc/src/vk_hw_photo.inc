@@ -13,9 +13,9 @@ void pc_vk_hw_photo_drop(void)
 }
 static void photo_copy_target(vk_target* from, vk_target* to)
 {
-    vk_image* a[] = { &from->color, &from->normal, &from->albedo, &from->shade, &from->depth };
-    vk_image* b[] = { &to->color, &to->normal, &to->albedo, &to->shade, &to->depth };
-    for (int i = 0; i < 5; ++i)
+    vk_image* a[] = { &from->color, &from->normal, &from->albedo, &from->shade, &from->material, &from->depth };
+    vk_image* b[] = { &to->color, &to->normal, &to->albedo, &to->shade, &to->material, &to->depth };
+    for (int i = 0; i < 6; ++i)
         copy_image(a[i], b[i], 0, 0, 0, 0, photo_width, photo_height);
 }
 int pc_vk_hw_photo_mark(void)

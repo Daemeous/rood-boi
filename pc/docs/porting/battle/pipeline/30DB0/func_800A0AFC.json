@@ -1,0 +1,218 @@
+{
+ "function": "func_800A0AFC",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (truncating division by ONE; signed >= on the unscaled values); spec sound",
+ "plan": {
+  "name": "func_800A0AFC",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x800a0afc",
+  "difficulty": "S",
+  "zig_name": "func_800A0AFC",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A0AFC",
+  "spec_file": "func_800A0AFC.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_800A0AFC(arg0: c_int, arg1: c_int, arg2: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14561,
+     "completion_tokens": 5294,
+     "reasoning_tokens": 3977,
+     "cost": 0.0041031,
+     "seconds": 22.2,
+     "sample": 1,
+     "conversation": "8bf8a14c5b3f2ebe2beaf0d63982009d376289a9eb11ad37704041bcbb105f60"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "absent": "10008",
+   "present-ge": "13396",
+   "present-lt": "6596"
+  },
+  "mutations": [
+   {
+    "name": "F1: the x-coordinate divides by a shift (signed negatives round down)",
+    "caught": true
+   },
+   {
+    "name": "F2: the clamp test is > instead of >=",
+    "caught": true
+   },
+   {
+    "name": "F3: the comparison is done unsigned",
+    "caught": true
+   },
+   {
+    "name": "F4: the clamp value is 0xFE",
+    "caught": true
+   },
+   {
+    "name": "F5: the arg2 store is dropped",
+    "caught": true
+   },
+   {
+    "name": "F6: the null guard is dropped (a missing entry is written anyway)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 4,
+   "branches_hit": 4,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 8,
+   "lines_hit": 8,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 6,
+     "text": "if (arg1 >= arg2) {",
+     "size": 4,
+     "count": 19992,
+     "kind": "a == b / a < b",
+     "outcomes": "== 6892, < 6596, > 6504 (signed); < 6424, > 6676 (unsigned)",
+     "operand": "b -2147483648..2147483647",
+     "a": "-2147483648..2147483647"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 38026,
+     "completion_tokens": 1790,
+     "reasoning_tokens": 1361,
+     "cost": 0.0046976,
+     "seconds": 8.2,
+     "sample": 1,
+     "conversation": "cf71bc3b23cc97d37caa6bafad90a32f5a44c88e1f63d0befad225a469c98471"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A0AFC.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A0AFC.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 73.05203376099871,
+ "wall_seconds": 173.78179775100034,
+ "totals": {
+  "cost": 0.0088,
+  "prompt_tokens": 52587,
+  "completion_tokens": 7084,
+  "model_seconds": 30.4,
+  "check_seconds": 73.1,
+  "calls": 2,
+  "wall_seconds": 173.8
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

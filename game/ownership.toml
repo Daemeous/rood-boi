@@ -715,3 +715,138 @@ functions = [
 [subsystem.battle_2842C_port.views]
 types = ["CVECTOR", "D_800F1BAC_t", "D_800F1DD8_t", "D_800F1DD8_t2", "POLY_FT4", "POLY_GT4", "P_TAG", "RECT", "SVECTOR", "TILE", "_mpdRoomSectionB", "func_80091C6C_t", "func_80091E10_t", "func_80091FE8_t", "func_80092548_t", "func_80092B04_t", "func_80092B04_t2", "func_80092F74_t", "func_80092F74_t2", "func_80093914_t", "func_80093914_t2", "func_800962E4_t", "vs_battle_backgroundLayout", "vs_battle_backgroundTile", "vs_scratch_t"]
 globals = ["D_80068EB4", "D_80068FAC", "D_800690B4", "D_80069134", "D_80069144", "D_8006917C", "D_800E85E8", "D_800E861C", "D_800E8634", "D_800E8640", "D_800F1BA4", "D_800F1BAC", "D_800F1CDC", "D_800F1D00", "D_800F1D98", "D_800F1DA4", "D_800F1DA8", "D_800F1DB4", "D_800F1DB6", "D_800F1DBC", "D_800F1DC0", "D_800F1DC2", "D_800F1DC4", "D_800F1DCA", "D_800F1DCB", "D_800F1DD4", "D_800F1DD8", "D_800F2258", "D_800F225A", "D_800F225B", "D_800F2260", "D_800F2270", "D_800F2272", "D_800F2278", "D_800F227A", "D_800F227C", "D_800F227E", "D_800F2280", "pc_gte_anchored", "pc_gte_widescreen", "vs_battle_roomData", "vs_gametime_tickspeed", "vs_main_stateFlags"]
+
+[subsystem.battle_30DB0_port]
+overlay = "battle"
+unit = "src/BATTLE/BATTLE.PRG/30DB0.c"
+default = "original"
+roots = []
+functions = [
+    { addr = 0x800995B0, name = "vs_battle_getEmptyObjectDataSlot", zig = "get_empty_object_data_slot.getEmptyObjectDataSlot" },
+    { addr = 0x800995E8, name = "vs_battle_populateDataSlot", zig = "populate_data_slot.populateDataSlot" },
+    { addr = 0x8009967C, name = "vs_battle_processObjectDataQueue", zig = "process_object_data_queue.processObjectDataQueue" },
+    { addr = 0x80099854, name = "func_80099854", zig = "func_80099854.func_80099854" },
+    { addr = 0x80099900, name = "func_80099900", zig = "func_80099900.func_80099900" },
+    { addr = 0x80099960, name = "func_80099960", zig = "func_80099960.func_80099960" },
+    { addr = 0x8009998C, name = "func_8009998C", zig = "func_8009998C.func_8009998C" },
+    { addr = 0x80099D6C, name = "func_80099D6C", zig = "func_80099D6C.func_80099D6C" },
+    { addr = 0x80099E7C, name = "func_80099E7C", zig = "func_80099E7C.func_80099E7C" },
+    { addr = 0x80099FA8, name = "func_80099FA8", zig = "func_80099FA8.func_80099FA8" },
+    { addr = 0x8009A0B8, name = "_loadWep", zig = "load_wep.loadWep" },
+    { addr = 0x8009A98C, name = "_loadMaterialPalette", zig = "load_material_palette.loadMaterialPalette" },
+    { addr = 0x8009AA84, name = "func_8009AA84", zig = "func_8009AA84.func_8009AA84" },
+    { addr = 0x8009AC24, name = "func_8009AC24", zig = "func_8009AC24.func_8009AC24" },
+    { addr = 0x8009AC84, name = "_loadShp", zig = "load_shp.loadShp" },
+    { addr = 0x8009BD90, name = "func_8009BD90", zig = "func_8009BD90.func_8009BD90" },
+    { addr = 0x8009BE5C, name = "func_8009BE5C", zig = "func_8009BE5C.func_8009BE5C" },
+    { addr = 0x8009C378, name = "func_8009C378", zig = "func_8009C378.func_8009C378" },
+    { addr = 0x8009C3D8, name = "_loadSeq", zig = "load_seq.loadSeq" },
+    { addr = 0x8009CAEC, name = "func_8009CAEC", zig = "func_8009CAEC.func_8009CAEC" },
+    { addr = 0x8009CC20, name = "func_8009CC20", zig = "func_8009CC20.func_8009CC20" },
+    { addr = 0x8009CE9C, name = "func_8009CE9C", zig = "func_8009CE9C.func_8009CE9C" },
+    { addr = 0x8009CFA0, name = "func_8009CFA0", zig = "func_8009CFA0.func_8009CFA0" },
+    { addr = 0x8009CFB0, name = "func_8009CFB0", zig = "func_8009CFB0.func_8009CFB0" },
+    { addr = 0x8009D208, name = "func_8009D208", zig = "func_8009D208.func_8009D208" },
+    { addr = 0x8009D270, name = "_loadEtm", zig = "load_etm.loadEtm" },
+    { addr = 0x8009D458, name = "func_8009D458", zig = "func_8009D458.func_8009D458" },
+    { addr = 0x8009D460, name = "func_8009D460", zig = "func_8009D460.func_8009D460" },
+    { addr = 0x8009D468, name = "func_8009D468", zig = "func_8009D468.func_8009D468" },
+    { addr = 0x8009D6F4, name = "func_8009D6F4", zig = "func_8009D6F4.func_8009D6F4" },
+    { addr = 0x8009D7E8, name = "func_8009D7E8", zig = "func_8009D7E8.func_8009D7E8" },
+    { addr = 0x8009D854, name = "func_8009D854", zig = "func_8009D854.func_8009D854" },
+    { addr = 0x8009D88C, name = "func_8009D88C", zig = "func_8009D88C.func_8009D88C" },
+    { addr = 0x8009D934, name = "func_8009D934", zig = "func_8009D934.func_8009D934" },
+    { addr = 0x8009DBDC, name = "func_8009DBDC", zig = "func_8009DBDC.func_8009DBDC" },
+    { addr = 0x8009DC38, name = "func_8009DC38", zig = "func_8009DC38.func_8009DC38" },
+    { addr = 0x8009DC8C, name = "func_8009DC8C", zig = "func_8009DC8C.func_8009DC8C" },
+    { addr = 0x8009DD00, name = "func_8009DD00", zig = "func_8009DD00.func_8009DD00" },
+    { addr = 0x8009DDF4, name = "func_8009DDF4", zig = "func_8009DDF4.func_8009DDF4" },
+    { addr = 0x8009DF3C, name = "func_8009DF3C", zig = "func_8009DF3C.func_8009DF3C" },
+    { addr = 0x8009E070, name = "func_8009E070", zig = "func_8009E070.func_8009E070" },
+    { addr = 0x8009E180, name = "func_8009E180", zig = "func_8009E180.func_8009E180" },
+    { addr = 0x8009E228, name = "func_8009E228", zig = "func_8009E228.func_8009E228" },
+    { addr = 0x8009E2E0, name = "func_8009E2E0", zig = "func_8009E2E0.func_8009E2E0" },
+    { addr = 0x8009E480, name = "func_8009E480", zig = "func_8009E480.func_8009E480" },
+    { addr = 0x8009E4B0, name = "func_8009E4B0", zig = "func_8009E4B0.func_8009E4B0" },
+    { addr = 0x8009E5C4, name = "func_8009E5C4", zig = "func_8009E5C4.func_8009E5C4" },
+    { addr = 0x8009E614, name = "func_8009E614", zig = "func_8009E614.func_8009E614" },
+    { addr = 0x8009E634, name = "func_8009E634", zig = "func_8009E634.func_8009E634" },
+    { addr = 0x8009E700, name = "func_8009E700", zig = "func_8009E700.func_8009E700" },
+    { addr = 0x8009EC9C, name = "func_8009EC9C", zig = "func_8009EC9C.func_8009EC9C" },
+    { addr = 0x8009EE9C, name = "func_8009EE9C", zig = "func_8009EE9C.func_8009EE9C" },
+    { addr = 0x8009EFEC, name = "func_8009EFEC", zig = "func_8009EFEC.func_8009EFEC" },
+    { addr = 0x8009F298, name = "func_8009F298", zig = "func_8009F298.func_8009F298" },
+    { addr = 0x8009F314, name = "func_8009F314", zig = "func_8009F314.func_8009F314" },
+    { addr = 0x8009F530, name = "func_8009F530", zig = "func_8009F530.func_8009F530" },
+    { addr = 0x8009F794, name = "func_8009F794", zig = "func_8009F794.func_8009F794" },
+    { addr = 0x8009F858, name = "func_8009F858", zig = "func_8009F858.func_8009F858" },
+    { addr = 0x8009F898, name = "func_8009F898", zig = "func_8009F898.func_8009F898" },
+    { addr = 0x8009F8DC, name = "func_8009F8DC", zig = "func_8009F8DC.func_8009F8DC" },
+    { addr = 0x8009F940, name = "func_8009F940", zig = "func_8009F940.func_8009F940" },
+    { addr = 0x8009F990, name = "func_8009F990", zig = "func_8009F990.func_8009F990" },
+    { addr = 0x8009F9F4, name = "func_8009F9F4", zig = "func_8009F9F4.func_8009F9F4" },
+    { addr = 0x8009FB64, name = "func_8009FB64", zig = "func_8009FB64.func_8009FB64" },
+    { addr = 0x8009FBD8, name = "func_8009FBD8", zig = "func_8009FBD8.func_8009FBD8" },
+    { addr = 0x8009FC20, name = "func_8009FC20", zig = "func_8009FC20.func_8009FC20" },
+    { addr = 0x8009FC60, name = "func_8009FC60", zig = "func_8009FC60.func_8009FC60" },
+    { addr = 0x8009FD38, name = "func_8009FD38", zig = "func_8009FD38.func_8009FD38" },
+    { addr = 0x8009FD5C, name = "func_8009FD5C", zig = "func_8009FD5C.func_8009FD5C" },
+    { addr = 0x8009FE74, name = "func_8009FE74", zig = "func_8009FE74.func_8009FE74" },
+    { addr = 0x8009FF08, name = "func_8009FF08", zig = "func_8009FF08.func_8009FF08" },
+    { addr = 0x8009FFA8, name = "func_8009FFA8", zig = "func_8009FFA8.func_8009FFA8" },
+    { addr = 0x800A0104, name = "func_800A0104", zig = "func_800A0104.func_800A0104" },
+    { addr = 0x800A01C8, name = "func_800A01C8", zig = "func_800A01C8.func_800A01C8" },
+    { addr = 0x800A0618, name = "func_800A0618", zig = "func_800A0618.func_800A0618" },
+    { addr = 0x800A06B8, name = "func_800A06B8", zig = "func_800A06B8.func_800A06B8" },
+    { addr = 0x800A071C, name = "func_800A071C", zig = "func_800A071C.func_800A071C" },
+    { addr = 0x800A0768, name = "func_800A0768", zig = "func_800A0768.func_800A0768" },
+    { addr = 0x800A07B4, name = "func_800A07B4", zig = "func_800A07B4.func_800A07B4" },
+    { addr = 0x800A07FC, name = "func_800A07FC", zig = "func_800A07FC.func_800A07FC" },
+    { addr = 0x800A0870, name = "func_800A0870", zig = "func_800A0870.func_800A0870" },
+    { addr = 0x800A087C, name = "func_800A087C", zig = "func_800A087C.func_800A087C" },
+    { addr = 0x800A09D8, name = "func_800A09D8", zig = "func_800A09D8.func_800A09D8" },
+    { addr = 0x800A0A1C, name = "func_800A0A1C", zig = "func_800A0A1C.func_800A0A1C" },
+    { addr = 0x800A0A74, name = "func_800A0A74", zig = "func_800A0A74.func_800A0A74" },
+    { addr = 0x800A0ABC, name = "func_800A0ABC", zig = "func_800A0ABC.func_800A0ABC" },
+    { addr = 0x800A0AFC, name = "func_800A0AFC", zig = "func_800A0AFC.func_800A0AFC" },
+    { addr = 0x800A0B5C, name = "func_800A0B5C", zig = "func_800A0B5C.func_800A0B5C" },
+    { addr = 0x800A0BA0, name = "func_800A0BA0", zig = "func_800A0BA0.func_800A0BA0" },
+    { addr = 0x800A0BE0, name = "func_800A0BE0", zig = "func_800A0BE0.func_800A0BE0" },
+    { addr = 0x800A1108, name = "func_800A1108", zig = "func_800A1108.func_800A1108" },
+    { addr = 0x800A1178, name = "func_800A1178", zig = "func_800A1178.func_800A1178" },
+    { addr = 0x800A11D8, name = "func_800A11D8", zig = "func_800A11D8.func_800A11D8" },
+    { addr = 0x800A1280, name = "func_800A1280", zig = "func_800A1280.func_800A1280" },
+    { addr = 0x800A13EC, name = "func_800A13EC", zig = "func_800A13EC.func_800A13EC" },
+]
+
+[subsystem.battle_30DB0_port.views]
+types = ["D_1F80035C_t", "D_800E8FB4_t", "D_800F4538_t2", "D_800F4538_unk1864", "D_800F4538_unk58_2", "D_800F4538_unk64", "D_800F4538_unk68", "D_800F4538_unkC54", "D_800F45E0_t", "D_800F45E0_unk68", "MATRIX", "RECT", "SVECTOR", "VECTOR", "_wepModelOffsets", "func_8009C378_t", "vs_battle_objectData", "vs_battle_wepModels_t", "vs_main_CdQueueSlot"]
+globals = ["D_800E8960", "D_800E8A60", "D_800E8B40", "D_800E8D00", "D_800E8E80", "D_800E8E8E", "D_800E8EA3", "D_800E8EA8", "D_800E8EFC", "D_800E8F2B", "D_800E8F2C", "D_800E8FA8", "D_800E8FB4", "D_800E8FC0", "D_800E8FC4", "D_800E9030", "D_800E9090", "D_800E909C", "D_800E919C", "D_800F22C8", "D_800F22D0", "D_800F22D8", "D_800F22E0", "D_800F22E4", "D_800F244F", "D_800F2450", "D_800F2458", "D_800F4438", "D_800F4448", "D_800F4528", "D_800F457C", "D_800F4580", "D_800F45D8", "D_800F45E0", "D_800F4628", "D_800F46A8", "D_800F4768", "D_800F4810", "D_800F4930", "D_800F4938", "D_800F49D8", "D_800F49E0", "D_800F49E4", "_etmData", "_etmFile", "_etmFileCdSlot", "_etmFileSectorSizes", "_etmLbaOffsets", "_loadEtmState", "_loadShpState", "_shpAllocated", "_shpCdSlot", "_shpData", "_shpFile", "_shpFileSectorSizes", "_shpLbaOffsets", "_weaponMaterialPaletteMap", "_wepCdSlot", "_wepFile", "_wepFileData", "_wepFileLoaded", "_wepFileSectorOffsets", "pc_gte_anchored", "vs_battle_objectDataSlots", "vs_battle_wepModels", "vs_battle_wepTextures", "vs_gametime_tickspeed"]
+
+[subsystem.battle_5BF94_port]
+overlay = "battle"
+unit = "src/BATTLE/BATTLE.PRG/5BF94.c"
+default = "original"
+roots = []
+functions = [
+    { addr = 0x800C513C, name = "func_800C513C", zig = "func_800C513C.func_800C513C" },
+    { addr = 0x800C5164, name = "func_800C5164", zig = "func_800C5164.func_800C5164" },
+    { addr = 0x800C518C, name = "func_800C518C", zig = "func_800C518C.func_800C518C" },
+    { addr = 0x800C51B4, name = "func_800C51B4", zig = "func_800C51B4.func_800C51B4" },
+    { addr = 0x800C5360, name = "func_800C5360", zig = "func_800C5360.func_800C5360" },
+    { addr = 0x800C553C, name = "func_800C553C", zig = "func_800C553C.func_800C553C" },
+    { addr = 0x800C56C0, name = "func_800C56C0", zig = "func_800C56C0.func_800C56C0" },
+    { addr = 0x800C5798, name = "func_800C5798", zig = "func_800C5798.func_800C5798" },
+    { addr = 0x800C58A4, name = "_getStatusString", zig = "get_status_string.getStatusString" },
+    { addr = 0x800C64D0, name = "func_800C64D0", zig = "func_800C64D0.func_800C64D0" },
+    { addr = 0x800C6828, name = "vs_battle_renderTextRaw", zig = "render_text_raw.renderTextRaw" },
+    { addr = 0x800C6850, name = "_writeStringTerminator", zig = "write_string_terminator.writeStringTerminator" },
+    { addr = 0x800C6BF0, name = "vs_battle_setTextBox", zig = "set_text_box.setTextBox" },
+    { addr = 0x800C7010, name = "vs_battle_getTextLineLength", zig = "get_text_line_length.getTextLineLength" },
+    { addr = 0x800C7210, name = "vs_battle_setFontStyle", zig = "set_font_style.setFontStyle" },
+    { addr = 0x800C86AC, name = "func_800C86AC", zig = "func_800C86AC.func_800C86AC" },
+]
+
+[subsystem.battle_5BF94_port.views]
+types = ["func_800C56C0_t", "func_800C56C0_t2", "func_800C5798_t", "gim_t"]
+globals = ["D_800EB9B8", "D_800EB9BC", "D_800F4C70", "D_800F4C90", "D_800F4C98", "D_800F4CA0", "D_800F4CA8", "D_800F4CB0", "D_800F4CB1", "D_800F4CB2", "D_800F4CB3", "D_800F4CB4", "D_800F4CB8", "_fontBrightness", "_fontTable", "vs_battle_characterWidths", "vs_battle_limbNames", "vs_battle_statusStrings"]

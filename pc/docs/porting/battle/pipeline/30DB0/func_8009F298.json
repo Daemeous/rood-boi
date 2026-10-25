@@ -1,0 +1,267 @@
+{
+ "function": "func_8009F298",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (func_800AD494 always writes sp10 first); spec sound",
+ "plan": {
+  "name": "func_8009F298",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x8009f298",
+  "difficulty": "S",
+  "zig_name": "func_8009F298",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_8009F298",
+  "spec_file": "func_8009F298.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_8009F298(arg0: c_int, arg1: ?*v.SVECTOR, arg2: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "?*v.SVECTOR"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "SVECTOR"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14473,
+     "completion_tokens": 10182,
+     "reasoning_tokens": 8391,
+     "cost": 0.0065383,
+     "seconds": 44.1,
+     "sample": 1,
+     "conversation": "4d9d657cf09fe58ed44028cdecef8d01bb2d6333282844870d9c88710c9b6042"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/func_8009F298/spec1/build/spec.zig:48:14: error: type '[*c]c_30DB0.SVECTOR' does not support field access\n            p.vx = ctx.value(i16);\n            ~^~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:235:33\n    f: pc/build/port-pipeline/func_8009F298/spec1/build/game/common/route.zig:34:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16540,
+     "completion_tokens": 3739,
+     "reasoning_tokens": 1840,
+     "cost": 0.0035235,
+     "seconds": 14.3,
+     "sample": 1,
+     "conversation": "abd551c0a39f14a25c128f717f123fa693785a0b2036694c06096f1cbe9e3522"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "arg2-not-1": "26250",
+   "arg2-1-null-entry": "1226",
+   "arg2-1-valid-entry": "2524"
+  },
+  "mutations": [
+   {
+    "name": "F1: the call guard tests != 1 instead of == 1",
+    "caught": true
+   },
+   {
+    "name": "F2: wrong constant to func_800AD494",
+    "caught": true
+   },
+   {
+    "name": "F3: the sp10 guard inverted",
+    "caught": true
+   },
+   {
+    "name": "F4: wrong argument to func_800A01C8",
+    "caught": true
+   },
+   {
+    "name": "F5: func_8009EFEC gets 0 instead of arg2",
+    "caught": true
+   },
+   {
+    "name": "F6: table read at index 0 instead of arg0",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 4,
+   "branches_hit": 4,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 7,
+   "lines_hit": 7,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: null seen"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2146927488, max 2147157100, unsigned 0..4294967295, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 5,
+     "text": "if (arg2 == 1) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 3750, < 15007, > 11243 (signed); < 3823, > 22427 (unsigned)",
+     "operand": "constant 1",
+     "a": "-2146927488..2147157100"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 37953,
+     "completion_tokens": 2389,
+     "reasoning_tokens": 1984,
+     "cost": 0.0049898,
+     "seconds": 10.6,
+     "sample": 1,
+     "conversation": "28bede1b8aa51f92d301ca1857c13cb694ec0a6942bbbe22839487f091b45a05"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_8009F298.zig:14:28: error: value of type 'c_int' ignored\n            c.func_800A01C8(slot, 0xFE, 8, 0);\n            ~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~\ngame/battle/func_8009F298.zig:14:28: note: all non-void values must be used\ngame/battle/func_8009F298.zig:14:28: note: to discard the value, assign it to '_'\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:469:31\n    main: pc/tests/zig_diff/main.zig:392:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\ngame/common/psx.zig:230:37: error: access of union field 'pointer' while field 'optional' is active\n    const VT = @typeInfo(@TypeOf(p)).pointer.child;\n               ~~~~~~~~~~~~~~~~~~~~~^~~~~~~~\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/lib/std/lang.zig:640:18: note: union declared here\npub const Type = union(enum) {\n                 ^~~~~\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 38862,
+     "completion_tokens": 1142,
+     "reasoning_tokens": 698,
+     "cost": 0.0044572,
+     "seconds": 5.5,
+     "sample": 1,
+     "conversation": "42f26520815c597b73affcb4ec11373a86c713d489793b0ad13cdc1b4b77d696"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_8009F298.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_8009F298.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 56.75125665500127,
+ "wall_seconds": 160.09503424800005,
+ "totals": {
+  "cost": 0.01951,
+  "prompt_tokens": 107828,
+  "completion_tokens": 17452,
+  "model_seconds": 74.5,
+  "check_seconds": 56.8,
+  "calls": 4,
+  "wall_seconds": 160.1
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

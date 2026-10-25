@@ -251,7 +251,7 @@ void vk_barrier(void);
  * attachment, over a render area. A scope with the same attachments stays
  * open; otherwise the open one ends, a barrier follows and a new one begins. */
 typedef struct {
-    VkImageView colors[4];
+    VkImageView colors[5];
     int color_count;
     VkImageView depth;
     int width, height;
@@ -291,7 +291,7 @@ typedef struct {
     /* Per colour attachment write masks (RGBA bits 1,2,4,8), and the blend
      * state shared by all attachments that write (-1: none, else the PS1
      * mode 0-3; 4: alpha "over" for the overlay-style passes). */
-    unsigned write_masks[4];
+    unsigned write_masks[5];
     int blend;
     /* Multisampling: samples per pixel (0/1 single), and with centre set
      * every sample at the pixel centre (VK_EXT_sample_locations, when
@@ -305,9 +305,9 @@ VkPipeline vk_compute_pipeline(VkShaderModule module, VkPipelineLayout layout);
 
 /* Push descriptor writes helpers. */
 typedef struct {
-    VkWriteDescriptorSet writes[24];
-    VkDescriptorImageInfo images[24];
-    VkDescriptorBufferInfo buffers[24];
+    VkWriteDescriptorSet writes[32];
+    VkDescriptorImageInfo images[32];
+    VkDescriptorBufferInfo buffers[32];
     VkWriteDescriptorSetAccelerationStructureKHR structures[2];
     VkAccelerationStructureKHR structure_handles[2];
     int count, structure_count;

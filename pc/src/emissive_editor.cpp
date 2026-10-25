@@ -1548,6 +1548,56 @@ void emissive::restore_paint_state(const std::string& text)
 }
 
 /* The texture view's look in the settings file (project_settings.cpp). */
+/* ---------------------------------------------------------------- shared picker */
+
+static TexturePick as_texture_pick(const Picked& p)
+{
+    TexturePick t;
+    t.valid = p.valid;
+    t.key = p.key, t.clut_key = p.clut_key;
+    t.tpage = p.tpage, t.clut = p.clut;
+    memcpy(t.box, p.box, 4);
+    t.u = p.u, t.v = p.v, t.zone = p.zone_id, t.room = p.room_id;
+    memcpy(t.world, p.world, sizeof t.world);
+    return t;
+}
+bool emissive::pick_texture(float x, float y, TexturePick& out)
+{
+    Picked p;
+    if (!pick_pixel(x, y, p))
+        return false;
+    out = as_texture_pick(p);
+    return true;
+}
+bool emissive::pick_texture_world(const float w[3], TexturePick& out)
+{
+    Picked p;
+    if (!pick_world(w, p))
+        return false;
+    out = as_texture_pick(p);
+    return true;
+}
+std::vector<uint8_t> emissive::texture_rgba_box(unsigned tpage, unsigned clut, const uint8_t box[4])
+{
+    TextureAt t;
+    t.valid = true, t.tpage = tpage, t.clut = clut;
+    memcpy(t.box, box, 4);
+    return texture_rgba(t);
+}
+bool emissive::texture_where(const std::string& key, TexturePick& out)
+{
+    for (const UseInfo& u : use_list(true))
+        if (u.key == key) {
+            out = TexturePick();
+            out.valid = true, out.key = key, out.tpage = u.page, out.clut = u.clut;
+            memcpy(out.box, u.box, 4);
+            out.clut_key = clut_key(u.page, u.clut);
+            current_room(&out.zone, &out.room);
+            return true;
+        }
+    return false;
+}
+
 extern "C" int pc_emissive_view_setting(const char* key, const char* rest)
 {
     static const std::pair<const char*, float*> keys[] = { { "editor_emissive_view_height", &look.height },

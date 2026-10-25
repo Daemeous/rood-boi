@@ -1,0 +1,250 @@
+{
+ "function": "vs_battle_processObjectDataQueue",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (state and slot type re-read after each loader; stubs write them); spec sound",
+ "plan": {
+  "name": "vs_battle_processObjectDataQueue",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x8009967c",
+  "difficulty": "M",
+  "zig_name": "processObjectDataQueue",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "process_object_data_queue",
+  "spec_file": "processObjectDataQueue.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn processObjectDataQueue() callconv(.c) c_int",
+  "params": [],
+  "ret": "c_int",
+  "types": [
+   "vs_battle_objectData"
+  ],
+  "globals": [
+   "D_800E8FC4",
+   "D_800F457C",
+   "D_800F4580",
+   "D_800F45D8",
+   "_loadShpState",
+   "vs_battle_objectDataSlots"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12421,
+     "completion_tokens": 17017,
+     "reasoning_tokens": 14635,
+     "cost": 0.0097506,
+     "seconds": 70.0,
+     "sample": 1,
+     "conversation": "e08e40016af7cf54977eecaab8c0332b406d97f160b944f90d1080cad7b854aa"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "type-0": "2460",
+   "loader": "7564",
+   "parser": "7584",
+   "seq-etm": "4915",
+   "unknown": "7477"
+  },
+  "mutations": [
+   {
+    "name": "P1: the shift loop stops one short",
+    "caught": true
+   },
+   {
+    "name": "P2: only ret == -2 and below skip the shift",
+    "caught": true
+   },
+   {
+    "name": "P3: ret == 0 reported as -1",
+    "caught": true
+   },
+   {
+    "name": "P4: equal timings counted as a new maximum",
+    "caught": true
+   },
+   {
+    "name": "P5: type 0 returns 1 instead of 0",
+    "caught": true
+   },
+   {
+    "name": "P6: type 1 dispatches to the parser",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 20,
+   "branches_hit": 20,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 44,
+   "lines_hit": 44,
+   "uncovered": [],
+   "flags": [],
+   "args": [],
+   "compares": [
+    {
+     "line": 8,
+     "text": "switch (slot->dataType) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "switch",
+     "outcomes": "== 22523, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..255"
+    },
+    {
+     "line": 41,
+     "text": "if (_loadShpState == 2) {",
+     "size": 1,
+     "count": 20063,
+     "kind": "against a constant",
+     "outcomes": "== 8775, < 9441, > 1847 (signed); < 5095, > 6193 (unsigned)",
+     "operand": "constant 2",
+     "a": "-128..127"
+    },
+    {
+     "line": 42,
+     "text": "if (D_800E8FC4 < D_800F4580) {",
+     "size": 4,
+     "count": 8775,
+     "kind": "a == b / a < b",
+     "outcomes": "== 1129, < 2930, > 4716 (signed); < 3839, > 3807 (unsigned)",
+     "operand": "b -3..3",
+     "a": "-4..4"
+    },
+    {
+     "line": 49,
+     "text": "if (ret == -1) {",
+     "size": 4,
+     "count": 20063,
+     "kind": "against a constant",
+     "outcomes": "== 4145, < 3925, > 11993 (signed); < 15918, > 0 (unsigned)",
+     "operand": "constant -1",
+     "a": "-2..7"
+    },
+    {
+     "line": 53,
+     "text": "for (i = 1; i < 15; ++i) {",
+     "size": 4,
+     "count": 238770,
+     "kind": "against a constant",
+     "outcomes": "== 15918, < 206934, > 15918 (signed); < 206934, > 15918 (unsigned)",
+     "operand": "constant 14",
+     "a": "1..15"
+    },
+    {
+     "line": 60,
+     "text": "return ret < 0 ? -1 : 1;",
+     "size": 4,
+     "count": 15918,
+     "kind": "against a constant",
+     "outcomes": "== 4012, < 3925, > 7981 (signed); < 0, > 11906 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2..7"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35863,
+     "completion_tokens": 6727,
+     "reasoning_tokens": 5893,
+     "cost": 0.0069498,
+     "seconds": 27.2,
+     "sample": 1,
+     "conversation": "4fd39ba22f57b1ede969c4f90429a29bf9e88052311b7c06826d58123331a90e"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/processObjectDataQueue.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/process_object_data_queue.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 52.489382174000184,
+ "wall_seconds": 151.01125346400022,
+ "totals": {
+  "cost": 0.0167,
+  "prompt_tokens": 48284,
+  "completion_tokens": 23744,
+  "model_seconds": 97.2,
+  "check_seconds": 52.5,
+  "calls": 2,
+  "wall_seconds": 151.0
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 248 / root 481 / root 850, 0 mismatches"
+ }
+}

@@ -36,6 +36,30 @@ extern float pc_emissive;
 /* The shade target's alpha marking an emissive texel (its rgb: emission / 2). */
 #define PC_EMISSIVE_SHADE_ALPHA 0.25f
 
+/* Material response (materials.h, pc/docs/Materials.md): the Vulkan slot
+ * map image has three more planes of 512 rows below the emissive rows, from
+ * PC_MATERIAL_ROW: each cell's roughness, specular and metal (x 255; no
+ * material: 255, 0, 0). The draw shaders write them into the G-buffer's
+ * material target where pc_material_active(); the present pass lights them
+ * (scaled.frag). OpenGL draws no material response. */
+#define PC_MATERIAL_ROW PC_EMISSIVE_MAP_H
+#define PC_MATERIAL_MAP_H 1536
+/* The switch (lighting quality key `specular`, 0: the specular lobe off
+ * entirely, the picture exactly the one without materials) and the
+ * tunables (settings, Lighting panel, RPC lighting): global specular
+ * strength (0..4), roughness bias (-1..1, added before the lobe), and the
+ * traced reflections' bounces (0: none, the lights' highlights only). */
+extern int pc_specular;
+extern float pc_specular_strength;
+extern float pc_roughness_bias;
+extern int pc_reflection_bounces;
+/* The planes (PC_MATERIAL_MAP_H x PC_EMISSIVE_MAP_W bytes); returns whether
+ * they changed since the last call (upload them). Valid after
+ * pc_emissive_sync. */
+int pc_material_rows(const uint8_t** planes);
+/* Whether any drawn texel has a material (and the switch is on). */
+int pc_material_active(void);
+
 /* render.c: an instance of `mesh` was added to a list (its polygons, the
  * instance's texture override: RENDER_OVERRIDE_TEXTURE in `override`). */
 void pc_emissive_note_instance(uint32_t mesh, const void* polygons, int count, int override, unsigned tpage,
@@ -90,6 +114,9 @@ int pc_emissive_object_lights(void* fragments, int max);
 int pc_emissive_rpc(const char* params, char* out, int size);
 /* The editor's panel (dev overlay, Details > Emissive). */
 void pc_emissive_panel(void);
+/* The material editor (material_editor.cpp): Details > Material, RPC material. */
+void pc_material_panel(void);
+int pc_material_rpc(const char* params, char* out, int size);
 
 #ifdef __cplusplus
 }

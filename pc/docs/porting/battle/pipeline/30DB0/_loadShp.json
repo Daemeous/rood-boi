@@ -1,0 +1,305 @@
+{
+ "function": "_loadShp",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the switch restructured into helpers: state 0 shortcut/share/load, default and case 1 shared, state 2 parse); spec sound",
+ "plan": {
+  "name": "_loadShp",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x8009ac84",
+  "difficulty": "M",
+  "zig_name": "loadShp",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "load_shp",
+  "spec_file": "loadShp.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn loadShp(arg0: ?*v.vs_battle_objectData) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "?*v.vs_battle_objectData"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "vs_battle_objectData",
+   "vs_main_CdQueueSlot"
+  ],
+  "globals": [
+   "_loadShpState",
+   "_shpAllocated",
+   "_shpCdSlot",
+   "_shpData",
+   "_shpFile",
+   "_shpFileSectorSizes",
+   "_shpLbaOffsets"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 20849,
+     "completion_tokens": 33959,
+     "reasoning_tokens": 31057,
+     "cost": 0.0190644,
+     "seconds": 142.9,
+     "sample": 1,
+     "conversation": "6e8f0f13df358f7260c18706b6ac5dcbac8078906778b050cf47a97348e62cf4"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "state0-found": "7752",
+   "state0-not-found": "5686",
+   "state0-model-7f": "2699",
+   "state1-slot-done": "1559",
+   "state1-slot-busy": "6395",
+   "state2": "4056",
+   "state-default": "11853"
+  },
+  "mutations": [
+   {
+    "name": "L1: the 0x7F shortcut misses its model",
+    "caught": true
+   },
+   {
+    "name": "L2: the match loop stops before entry 16",
+    "caught": true
+   },
+   {
+    "name": "L3: model ids compared in the low byte only",
+    "caught": true
+   },
+   {
+    "name": "L4: the match index is not stored",
+    "caught": true
+   },
+   {
+    "name": "L5: the CD slot is tested against the wrong state",
+    "caught": true
+   },
+   {
+    "name": "L6: a negative _shpAllocated is not freed",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 26,
+   "branches_hit": 26,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 49,
+   "lines_hit": 49,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 7,
+     "text": "switch (_loadShpState) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "switch",
+     "outcomes": "== 28147, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..255"
+    },
+    {
+     "line": 9,
+     "text": "if (arg0->modelId == 0x7F) {",
+     "size": 2,
+     "count": 16137,
+     "kind": "against a constant",
+     "outcomes": "== 2699, < 6649, > 6789 (signed); < 6649, > 6789 (unsigned)",
+     "operand": "constant 127",
+     "a": "0..255"
+    },
+    {
+     "line": 14,
+     "text": "for (i = 0; i < 17; ++i) {",
+     "size": 4,
+     "count": 138220,
+     "kind": "against a constant",
+     "outcomes": "== 5807, < 126727, > 5686 (signed); < 126727, > 5686 (unsigned)",
+     "operand": "constant 16",
+     "a": "0..17"
+    },
+    {
+     "line": 15,
+     "text": "if ((i != arg0->index) && ((D_800F4538[i] != 0))",
+     "size": 4,
+     "count": 132534,
+     "kind": "a == b / a < b",
+     "outcomes": "== 3795, < 62155, > 66584 (signed); < 100599, > 28140 (unsigned)",
+     "operand": "b -128..127",
+     "a": "0..16"
+    },
+    {
+     "line": 16,
+     "text": "&& (D_800F4538[i]->unk6E6 == arg0->modelId)) {",
+     "size": 4,
+     "count": 61830,
+     "kind": "a == b / a < b",
+     "outcomes": "== 7752, < 6889, > 47189 (signed); < 6889, > 47189 (unsigned)",
+     "operand": "b 0..255",
+     "a": "0..65535"
+    },
+    {
+     "line": 24,
+     "text": "if (found != 0) {",
+     "size": 4,
+     "count": 13438,
+     "kind": "against a constant",
+     "outcomes": "== 5686, < 0, > 7752 (signed); < 0, > 7752 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 34,
+     "text": "if (shpFileSize == 0) {",
+     "size": 4,
+     "count": 17539,
+     "kind": "against a constant",
+     "outcomes": "== 5776, < 0, > 11763 (signed); < 0, > 11763 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..255"
+    },
+    {
+     "line": 54,
+     "text": "if (_shpCdSlot->state != 4) {",
+     "size": 2,
+     "count": 21119,
+     "kind": "against a constant",
+     "outcomes": "== 8068, < 7749, > 5302 (signed); < 1601, > 11450 (unsigned)",
+     "operand": "constant 4",
+     "a": "-32759..32766"
+    },
+    {
+     "line": 69,
+     "text": "if (shpData == -1) {",
+     "size": 4,
+     "count": 14507,
+     "kind": "against a constant",
+     "outcomes": "== 4590, < 4548, > 5369 (signed); < 9917, > 0 (unsigned)",
+     "operand": "constant -1",
+     "a": "-2147265164..2147329156"
+    },
+    {
+     "line": 73,
+     "text": "if (_shpAllocated != 0) {",
+     "size": 4,
+     "count": 9917,
+     "kind": "against a constant",
+     "outcomes": "== 3696, < 3061, > 3160 (signed); < 0, > 6221 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2146502577"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 44197,
+     "completion_tokens": 16691,
+     "reasoning_tokens": 15221,
+     "cost": 0.0127652,
+     "seconds": 67.3,
+     "sample": 1,
+     "conversation": "444deb6c0ba690c00c3019cd06c382050300b861aea0551f7669927f8685c9fb"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/loadShp.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/load_shp.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 45.30924433900009,
+ "wall_seconds": 255.7395829140005,
+ "totals": {
+  "cost": 0.03183,
+  "prompt_tokens": 65046,
+  "completion_tokens": 50650,
+  "model_seconds": 210.2,
+  "check_seconds": 45.3,
+  "calls": 2,
+  "wall_seconds": 255.7
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

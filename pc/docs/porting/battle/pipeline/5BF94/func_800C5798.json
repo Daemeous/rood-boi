@@ -1,0 +1,224 @@
+{
+ "function": "func_800C5798",
+ "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (vs_battle_rMemzero before the field stores; the limb name + 1 as a guest address for kind 2); spec sound",
+ "plan": {
+  "name": "func_800C5798",
+  "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+  "stem": "5BF94",
+  "address": "0x800c5798",
+  "difficulty": "S",
+  "zig_name": "func_800C5798",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800C5798",
+  "spec_file": "func_800C5798.zig",
+  "subsystem": "battle_5BF94_port",
+  "signature": "pub fn func_800C5798(arg0: c_int, arg1: c_int, arg2: c_int) callconv(.c) ?*v.func_800C56C0_t2",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ]
+  ],
+  "ret": "?*v.func_800C56C0_t2",
+  "types": [
+   "func_800C56C0_t",
+   "func_800C56C0_t2",
+   "func_800C5798_t"
+  ],
+  "globals": [
+   "D_800EB9B8",
+   "vs_battle_limbNames"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13000,
+     "completion_tokens": 13383,
+     "reasoning_tokens": 11884,
+     "cost": 0.0079915,
+     "seconds": 56.4,
+     "sample": 1,
+     "conversation": "700fc94ea985d14eb9bbc511418806e75b100c21adfa156f237fff25323b56d7"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "limb-2": "5998",
+   "limb-other": "24002"
+  },
+  "mutations": [
+   {
+    "name": "L1: unk6 uses arg2 * 11 + 31",
+    "caught": true
+   },
+   {
+    "name": "L2: limb-2 unk4 is 321",
+    "caught": true
+   },
+   {
+    "name": "L3: the limb test is arg1 == 3",
+    "caught": true
+   },
+   {
+    "name": "L4: unkC stored as 0 (dropped store)",
+    "caught": true
+   },
+   {
+    "name": "L5: store to unk0 moved across the memzero call",
+    "caught": true
+   },
+   {
+    "name": "L6: limbName off by two (pointer arithmetic slip)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 16,
+   "lines_hit": 16,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 23, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -1, max 3, unsigned 0..4294967295, seen zero/negative/all ones, 5 value(s): 1, 3, 2, 0, 4294967295"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -99993648, max 99993299, unsigned 8951..4294965781, seen negative, never zero"
+    }
+   ],
+   "compares": [
+    {
+     "line": 13,
+     "text": "if (arg1 == 2) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 5998, < 17915, > 6087 (signed); < 11967, > 12035 (unsigned)",
+     "operand": "constant 2",
+     "a": "-1..3"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 36378,
+     "completion_tokens": 6545,
+     "reasoning_tokens": 5859,
+     "cost": 0.0069103,
+     "seconds": 28.6,
+     "sample": 1,
+     "conversation": "6da229e529b0254de3fc06f954bbc8d912c398a61adaffa12ed02beb94301f38"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800C5798.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800C5798.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 28.97035177699945,
+ "wall_seconds": 115.08088236399999,
+ "totals": {
+  "cost": 0.0149,
+  "prompt_tokens": 49378,
+  "completion_tokens": 19928,
+  "model_seconds": 85.0,
+  "check_seconds": 29.0,
+  "calls": 2,
+  "wall_seconds": 115.1
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: not called / not called / root 10, 0 mismatches"
+ }
+}

@@ -1,0 +1,188 @@
+{
+ "function": "func_8009DC38",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (stores after the call; the 4-byte clear of unk34); spec sound (the stub rewrites each field the C clears)",
+ "plan": {
+  "name": "func_8009DC38",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x8009dc38",
+  "difficulty": "S",
+  "zig_name": "func_8009DC38",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_8009DC38",
+  "spec_file": "func_8009DC38.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_8009DC38(arg0: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16028,
+     "completion_tokens": 7488,
+     "reasoning_tokens": 5999,
+     "cost": 0.0053468,
+     "seconds": 32.1,
+     "sample": 1,
+     "conversation": "d67c654f0fd5c6138f67e6f355844d625c33180b298866b7ca4e23f754421fff"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "null-entry": "5012",
+   "present-entry": "14988"
+  },
+  "mutations": [
+   {
+    "name": "D1: unk1A cleared to 1, not 0",
+    "caught": true
+   },
+   {
+    "name": "D2: unk18 store moved before the call",
+    "caught": true
+   },
+   {
+    "name": "D3: the call dropped",
+    "caught": true
+   },
+   {
+    "name": "D4: wrong field (unk16 for unk18)",
+    "caught": true
+   },
+   {
+    "name": "D5: 34 cleared as a 2-byte store",
+    "caught": true
+   },
+   {
+    "name": "D6: null test dropped (null entry is dereferenced)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 8,
+   "lines_hit": 8,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 20000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39500,
+     "completion_tokens": 2553,
+     "reasoning_tokens": 2202,
+     "cost": 0.0052265,
+     "seconds": 11.5,
+     "sample": 1,
+     "conversation": "8a63fe2c61057193ee439ade7c7c957dff71fd7f73d0350c1898cb91c9e5bfdf"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_8009DC38.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_8009DC38.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 42.41177367399905,
+ "wall_seconds": 87.85282839999945,
+ "totals": {
+  "cost": 0.01057,
+  "prompt_tokens": 55528,
+  "completion_tokens": 10041,
+  "model_seconds": 43.6,
+  "check_seconds": 42.4,
+  "calls": 2,
+  "wall_seconds": 87.9
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

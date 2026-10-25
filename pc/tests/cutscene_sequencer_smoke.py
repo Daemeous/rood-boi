@@ -275,8 +275,19 @@ def main():
         restored_difference = pixels_apart(reference, restored_picture)
         check(restored_difference == 0,
               f"original presented game view restored without seek ({restored_difference} differing pixels)")
+        cs(action="camera", on=True)
         cs(action="stop")
-        check(game.call("photo")["camera"] is None, "stop leaves no borrowed camera")
+        check(not cs()["camera"] and game.call("photo")["camera"] is None
+              and "cutscene.camera" not in game.call("photo")["owners"],
+              "stop leaves no borrowed camera or photo pause")
+        cs(action="here")
+        cs(action="camera", on=True)
+        check(cs()["camera"] and game.call("photo")["camera"] is not None,
+              "camera borrowed before switching the viewer scene")
+        switched = cs(action="start", scene=scene)
+        check(not switched["camera"] and game.call("photo")["camera"] is None
+              and "cutscene.camera" not in game.call("photo")["owners"],
+              "switching scenes releases camera and photo pause even without Stop")
     finally:
         game.close()
     print(f"cutscene_sequencer_smoke: {'FAIL' if failures else 'PASS'} ({len(failures)} failures); {out}")

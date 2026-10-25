@@ -58,6 +58,7 @@ extern int pc_scene_projection(float*, float*, float*);
 /* Path-traced GI and shadows on Vulkan (vk_rt.c); 0 when unavailable. */
 extern int pc_vk_gi_update(int x, int y, int w, int h, int replay) __attribute__((weak));
 extern void pc_vk_gi_bind(VkImageView views[4], int* w, int* h, float lo[3], float hi[3]) __attribute__((weak));
+extern int pc_vk_reflect_bind(VkImageView* view) __attribute__((weak)); /* vk_rt.inc: traced reflections */
 extern int pc_vk_haze_bind(VkImageView* view, int grid[4], float range[2]) __attribute__((weak));
 /* The fog volumes' own renderer (vk_fogvol.inc): its passes for this frame, then its result. */
 extern int pc_vk_fogvol_update(int x, int y, int w, int h, int replay, int traced) __attribute__((weak));
@@ -150,6 +151,9 @@ typedef struct {
     float studio[PC_MENU_LIGHT_VEC4S][4];
     int particles[4]; /* the particles (vk_particles.inc): on, the display's size in game pixels */
     float look[4]; /* post.h pc_post_frame: the soft shoulder's start and width, tilt-shift's feather */
+    /* Material response (emissive.h): specular strength, roughness bias, the material target lit,
+     * a traced reflection result bound (binding 24). */
+    float material[4];
 } present_ubo;
 
 /* ---- swapchain ---- */
@@ -271,12 +275,12 @@ static int make_pipelines(void)
 {
     /* 12-15: the probe field (vk_probes.inc); 16: the lights; 17: the medium's texture; 18, 19: the fog volumes;
      * 20: the menu's backdrop (backdrop_keep); 21, 22: the particles (vk_particles.inc) */
-    VkDescriptorType scaled_types[23];
-    for (int i = 0; i < 23; i++)
+    VkDescriptorType scaled_types[25];
+    for (int i = 0; i < 25; i++)
         scaled_types[i] = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     scaled_types[0] = scaled_types[12] = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     scaled_types[16] = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    scaled_set = vk_push_layout(scaled_types, 23);
+    scaled_set = vk_push_layout(scaled_types, 25); /* 23: the material target; 24: traced reflections */
     single_set = vk_push_layout(&scaled_types[1], 1);
     triple_set = vk_push_layout(&scaled_types[1], 3);
     scaled_layout = make_layout(scaled_set, 0);
@@ -1143,6 +1147,15 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
                 pu->particles[0] = 1, pu->particles[1] = w, pu->particles[2] = h;
             vk_descriptors_image(&d, 21, particle_keys, vk.nearest);
             vk_descriptors_image(&d, 22, particle_colours, vk.nearest);
+            /* Material response (emissive.h): the material target, and the traced reflections when bound. */
+            VkImageView reflect_view = vk_hw.dummy_color.view;
+            pu->material[0] = pc_specular_strength < 0 ? 0 : pc_specular_strength > 4 ? 4 : pc_specular_strength;
+            pu->material[1] = pc_roughness_bias < -1 ? -1 : pc_roughness_bias > 1 ? 1 : pc_roughness_bias;
+            pu->material[2] = !pc_gl_show_depth && pc_material_active() ? 1.0f : 0.0f;
+            if (pu->material[2] > 0 && gi && pc_vk_reflect_bind && pc_vk_reflect_bind(&reflect_view))
+                pu->material[3] = 1;
+            vk_descriptors_image(&d, 23, t->material.view, vk.nearest);
+            vk_descriptors_image(&d, 24, reflect_view, vk.linear);
             vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, scaled_layout);
             vkCmdDraw(cmd, 3, 1, 0, 0);
             if (post != PC_AA_OFF)

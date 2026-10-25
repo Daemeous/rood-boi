@@ -1,0 +1,209 @@
+{
+ "function": "func_8009E5C4",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the ROOD_PC empty-slot guard kept in place); spec sound",
+ "plan": {
+  "name": "func_8009E5C4",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x8009e5c4",
+  "difficulty": "S",
+  "zig_name": "func_8009E5C4",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_8009E5C4",
+  "spec_file": "func_8009E5C4.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_8009E5C4(arg0: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [],
+  "hooks": [
+   "ROOD_PC block in the source"
+  ],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14535,
+     "completion_tokens": 7764,
+     "reasoning_tokens": 6576,
+     "cost": 0.0053355,
+     "seconds": 35.0,
+     "sample": 1,
+     "conversation": "bbb17dcb1cc2f855fc8fb8804900933bfd7f47ad434627d95c63cf96633e2417"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "null-slot": "7504",
+   "anim-0x63": "2897",
+   "anim-0xC7": "2790",
+   "other-anim": "16809"
+  },
+  "mutations": [
+   {
+    "name": "F1: wrong constant, 0xC7 read as 0xC6",
+    "caught": true
+   },
+   {
+    "name": "F2: the two animationId tests joined with || not &&",
+    "caught": true
+   },
+   {
+    "name": "F3: the empty-slot path calls func_8009E700 with 0, not 1",
+    "caught": true
+   },
+   {
+    "name": "F4: the animation path drops its func_8009E700 call",
+    "caught": true
+   },
+   {
+    "name": "F5: wrong constant, 0x63 read as 0x62",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 6,
+   "branches_hit": 6,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 7,
+   "lines_hit": 7,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    }
+   ],
+   "compares": [
+    {
+     "line": 10,
+     "text": "if ((D_800F4538[arg0]->animationId != 0x63)",
+     "size": 1,
+     "count": 22496,
+     "kind": "against a constant",
+     "outcomes": "== 2897, < 16773, > 2826 (signed); < 8363, > 11236 (unsigned)",
+     "operand": "constant 99",
+     "a": "-57..100"
+    },
+    {
+     "line": 11,
+     "text": "&& (D_800F4538[arg0]->animationId != 0xC7)) {",
+     "size": 1,
+     "count": 19599,
+     "kind": "against a constant",
+     "outcomes": "== 2790, < 0, > 16809 (signed); < 11189, > 5620 (unsigned)",
+     "operand": "constant -57",
+     "a": "-57..100"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 37999,
+     "completion_tokens": 1719,
+     "reasoning_tokens": 1288,
+     "cost": 0.0046594,
+     "seconds": 7.9,
+     "sample": 1,
+     "conversation": "03d2c489b02713e8104c3b2aabfb3fa48a3bc0e41a89f322216521956ef12955"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_8009E5C4.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_8009E5C4.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 44.382284403000085,
+ "wall_seconds": 107.37765995500013,
+ "totals": {
+  "cost": 0.00999,
+  "prompt_tokens": 52534,
+  "completion_tokens": 9483,
+  "model_seconds": 42.9,
+  "check_seconds": 44.4,
+  "calls": 2,
+  "wall_seconds": 107.4
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 22 / root 60 / root 147, 0 mismatches"
+ }
+}

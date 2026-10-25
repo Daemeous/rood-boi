@@ -1205,7 +1205,7 @@ void vk_begin_rendering(const vk_attachments* a)
     if (rendering && !memcmp(a, &current_attachments, sizeof *a))
         return;
     vk_end_rendering();
-    VkRenderingAttachmentInfo colors[4], depth;
+    VkRenderingAttachmentInfo colors[5], depth;
     for (int i = 0; i < a->color_count; i++)
         colors[i] = (VkRenderingAttachmentInfo){ .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
             .imageView = a->colors[i],
@@ -1461,9 +1461,11 @@ VkShaderModule vk_shader(const uint32_t* code, size_t bytes)
 }
 VkDescriptorSetLayout vk_push_layout(const VkDescriptorType* types, int count)
 {
-    VkDescriptorSetLayoutBinding bindings[24];
-    if (count > 24)
+    VkDescriptorSetLayoutBinding bindings[32]; /* (vk_descriptors holds 32 writes) */
+    if (count > 32) {
+        fprintf(stderr, "[vk] a push descriptor layout of %d bindings (32 at most)\n", count);
         return VK_NULL_HANDLE;
+    }
     for (int i = 0; i < count; i++)
         bindings[i] = (VkDescriptorSetLayoutBinding){ .binding = (uint32_t)i,
             .descriptorType = types[i],
@@ -1561,7 +1563,7 @@ VkPipeline vk_pipeline(const vk_pipeline_desc* d)
         multisample.pNext = &locations;
     VkPipelineDepthStencilStateCreateInfo depth = { .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
         .depthCompareOp = VK_COMPARE_OP_ALWAYS };
-    VkPipelineColorBlendAttachmentState attachments[4];
+    VkPipelineColorBlendAttachmentState attachments[5];
     for (int i = 0; i < d->color_count; i++)
         attachments[i] = blend_state(d->blend, d->write_masks[i]);
     VkPipelineColorBlendStateCreateInfo blend = { .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
@@ -1617,6 +1619,10 @@ VkPipeline vk_compute_pipeline(VkShaderModule module, VkPipelineLayout layout)
 
 static VkWriteDescriptorSet* next_write(vk_descriptors* d, int binding, VkDescriptorType type)
 {
+    if (d->count >= (int)(sizeof d->writes / sizeof d->writes[0])) {
+        fprintf(stderr, "[vk] more than %d descriptor writes\n", d->count);
+        abort();
+    }
     VkWriteDescriptorSet* w = &d->writes[d->count];
     *w = (VkWriteDescriptorSet){ .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
         .dstBinding = (uint32_t)binding,

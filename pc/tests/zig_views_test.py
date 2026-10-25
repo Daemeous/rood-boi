@@ -129,5 +129,24 @@ with tempfile.TemporaryDirectory() as d:
     print(("ok:   " if ok else "FAIL: ") + f"a union's bitfield member is refused ({message})")
     if not ok:
         failures.append("union bitfield")
+# A global the C declares only as a block-scope `extern` (146C's vs_battle_exec,
+# 5BF94's vs_battle_renderImage) has no global or static symbol: gdb has no frame
+# to find it by, so the strict dump fails; the lenient one (the pipeline's plan)
+# leaves it out, and the plan then skips that function.
+with tempfile.TemporaryDirectory() as d:
+    d = pathlib.Path(d)
+    (d / "scoped.c").write_text("int shown;\nint use(void)\n{\n    extern int hidden;\n    return hidden + shown;\n}\n")
+    obj = d / "scoped.o"
+    subprocess.run(["gcc", "-m64", "-g", "-c", str(d / "scoped.c"), "-o", str(obj)], check=True)
+    try:
+        zig_views.dump_with_gdb(obj, [], ["shown", "hidden"], d / "strict.json")
+        strict_fails = False
+    except SystemExit:
+        strict_fails = True
+    dump = zig_views.dump_with_gdb(obj, [], ["shown", "hidden"], d / "lenient.json", lenient=True)
+    ok = strict_fails and "shown" in dump["globals"] and "hidden" not in dump["globals"]
+    print(("ok:   " if ok else "FAIL: ") + "a block-scope extern is missing from the lenient dump (strict refuses it)")
+    if not ok:
+        failures.append("block-scope extern")
 print("FAILED" if failures else "zig views checks passed")
 sys.exit(1 if failures else 0)

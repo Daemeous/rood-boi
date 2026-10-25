@@ -1,0 +1,230 @@
+{
+ "function": "func_800A0A74",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; the C has no return on the NULL-entry path: the 64-bit object returns the NULL pointer left in the result register (0), which the port returns and the harness compares; the only caller (146C.c, func_800A0A1C(arg0, f(arg0) & ~2)) does nothing for a NULL entry; spec sound",
+ "plan": {
+  "name": "func_800A0A74",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x800a0a74",
+  "difficulty": "S",
+  "zig_name": "func_800A0A74",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A0A74",
+  "spec_file": "func_800A0A74.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_800A0A74(arg0: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14484,
+     "completion_tokens": 7135,
+     "reasoning_tokens": 5884,
+     "cost": 0.0050159,
+     "seconds": 30.3,
+     "sample": 1,
+     "conversation": "431267eaa7fc26c0c9411c5020a75fd41a18aca951da25ea58b7ea98bcc08e39"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation F5: table index masked to 4 bits (index 16 wraps to 0): not caught as mismatch (exit 4) (the mutated copy crashes where the C does not: if that is what this mistake does on your inputs, say `expect = \"crash\"`; otherwise choose a mutation your inputs show as a difference): zdiff: CRASH (signal 11) in the Zig run, iteration 0, a wild pointer (a non-canonical address: random bytes used as a pointer?)\nzdiff: crashed on arguments: 0x10 (class null-entry)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 15954,
+     "completion_tokens": 2313,
+     "reasoning_tokens": 1023,
+     "cost": 0.0027519,
+     "seconds": 9.3,
+     "sample": 1,
+     "conversation": "a8ed34b75430647ee3abef823612e74319c929b8cbead367a281475a365b9350"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "null-entry": "9953",
+   "bit11-set": "15017",
+   "bit11-clear-bit9-set": "7489",
+   "bit11-clear-bit9-clear": "7541"
+  },
+  "mutations": [
+   {
+    "name": "F1: wrong bit tested (unk5AC_10 for unk5AC_11)",
+    "caught": true
+   },
+   {
+    "name": "F2: var_v1 read from unk5AC_8",
+    "caught": true
+   },
+   {
+    "name": "F3: wrong constant in the OR",
+    "caught": true
+   },
+   {
+    "name": "F4: OR replaced by assignment (bit 9 lost)",
+    "caught": true
+   },
+   {
+    "name": "F5: table index masked to 4 bits (index 16 wraps to entry 0, which is random bytes: the mutated copy dereferences a wild pointer where the C does not)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 4,
+   "branches_hit": 4,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 8,
+   "lines_hit": 8,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    }
+   ],
+   "compares": [
+    {
+     "line": 5,
+     "text": "if ((temp_a0->unk5AC_11 << 11)) {",
+     "size": 1,
+     "count": 30047,
+     "kind": "against a constant",
+     "outcomes": "== 15030, < 0, > 15017 (signed); < 0, > 15017 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 8,
+     "text": "return var_v1;",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 9953, < 30047, > 0 (signed); < 30047, > 0 (unsigned)",
+     "operand": "constant 1",
+     "a": "0..1"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 37956,
+     "completion_tokens": 1636,
+     "reasoning_tokens": 1265,
+     "cost": 0.0046136,
+     "seconds": 7.8,
+     "sample": 1,
+     "conversation": "b7ee24f8f9d83aed4b758135f2fbf5d82aa78310b0b3718921b4e54695ca5db2"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A0A74.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A0A74.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 89.78915513000084,
+ "wall_seconds": 164.42865721900034,
+ "totals": {
+  "cost": 0.01238,
+  "prompt_tokens": 68394,
+  "completion_tokens": 11084,
+  "model_seconds": 47.4,
+  "check_seconds": 89.8,
+  "calls": 3,
+  "wall_seconds": 164.4
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

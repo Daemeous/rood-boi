@@ -24,8 +24,9 @@ title, `vs_main_playSfx` with no sound set). Data:
 `pc/assets/cutscenes/opcodes.json` (opcode names). Tools:
 `pc/tools/story_scan.py`, `pc/tools/story_verify.py`,
 `pc/tools/cutscene_scan.py`, `pc/tools/cutscene_opcodes.py`. Tests:
-`pc/tests/cutscene_viewer_smoke.py`, `pc/tests/cutscene_player_smoke.py`
-(run.py `cutscene_viewer_smoke`, `cutscene_player_smoke`).
+`pc/tests/cutscene_viewer_smoke.py`, `pc/tests/cutscene_player_smoke.py`,
+`pc/tests/cutscene_freecam_smoke.py` (run.py `cutscene_viewer_smoke`,
+`cutscene_player_smoke`, `cutscene_freecam_smoke`).
 
 ## Watching a scene
 
@@ -295,7 +296,7 @@ replaying, the event script, the last capture, the repro, a message):
 | `capture` | `count`, `hide_text` |
 | `repro`, `jump` | `jump`: `repro` (path), `frame` (optional) |
 | `settings` | `interval`, `marks_max`, `budget_mb`, `instant_replay`, `replay_seconds`, `replay_interval`, `armed`, `hide_text` |
-| `camera` | `on` |
+| `camera` | `on`; a pose for the borrowed camera (as `rood.camera.set`): `position`, `target` ([x, y, z], world units, y down), `yaw`, `pitch` (degrees) |
 
 Seeks, captures, repros, jumps and recipes finish at later vsyncs: wait
 until `busy` is false. `start` takes a story scene's id too; the status's
@@ -304,6 +305,31 @@ until `busy` is false. `start` takes a story scene's id too; the status's
 event `ids`). Also new: `room_goto {action: "reset"}` makes the
 Room Browser's warp machinery idle (it is host state: an RPC rewind does
 not undo it).
+
+### What the free camera shows
+
+The free camera draws the moment as the game built it, from another place:
+
+- **The room is the game's set.** Story rooms are built for the game's
+  cameras: one-sided walls (the PS1 culls their backs too), no outer shells,
+  separate set pieces (the courtyard's close-up floor floats beside the
+  manor in 2/0). Seen from elsewhere they show through, float and end in
+  black; that is the room as it is (`photo_full_room` adds no geometry: in
+  the opening every group is drawn by the game camera too). Groups an event
+  script hides (flag 0x100) stay hidden.
+- **The game's afterimage is the game camera's.** Shot dissolves and the
+  credits' trails draw the previous frame (the other frame buffer) over the
+  new one. From the free camera that frame is the game camera's picture, so
+  the hardware renderer leaves those sprites out while a free camera flies
+  (the game camera's view and native VRAM keep them): the free view is the
+  moment itself, with no game shot smeared over it and no rain piling up
+  render after render.
+- **Rain stays outside.** The game's rain is projected lines; the PS1's
+  ordering table let a nearer wall cover a drop, the port draws them after
+  the room's meshes, so a drop's packet is left out of the hardware picture
+  (the game's state and native VRAM still draw it) when solid room geometry is above it or between the camera
+  and it (`environment.cpp` `pc_weather_drop_hidden`; RPC `environment`
+  `rain_probe`, `render_stats` `rain_drops*`).
 
 ## Limits
 

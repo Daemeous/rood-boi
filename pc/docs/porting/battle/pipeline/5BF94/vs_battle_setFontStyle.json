@@ -1,0 +1,184 @@
+{
+ "function": "vs_battle_setFontStyle",
+ "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (the style is stored as a byte)",
+ "plan": {
+  "name": "vs_battle_setFontStyle",
+  "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+  "stem": "5BF94",
+  "address": "0x800c7210",
+  "difficulty": "S",
+  "zig_name": "setFontStyle",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "set_font_style",
+  "spec_file": "setFontStyle.zig",
+  "subsystem": "battle_5BF94_port",
+  "signature": "pub fn setFontStyle(arg0: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [
+   "D_800F4CB8",
+   "_fontBrightness",
+   "_fontTable"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11200,
+     "completion_tokens": 2291,
+     "reasoning_tokens": 1523,
+     "cost": 0.0022655,
+     "seconds": 10.7,
+     "sample": 1,
+     "conversation": "c24fadc31b62b428eec1daadc2588f1ed5d3d9d704663c615fc847055fb29f5d"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "negative": "7271",
+   "nonnegative": "12729"
+  },
+  "mutations": [
+   {
+    "name": "F1: brightness 385, not 384",
+    "caught": true
+   },
+   {
+    "name": "F2: table cleared to 1, not 0",
+    "caught": true
+   },
+   {
+    "name": "F3: the style store dropped",
+    "caught": true
+   },
+   {
+    "name": "F4: style masked to 7 bits (wrong width)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 5,
+   "lines_hit": 5,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 20000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34666,
+     "completion_tokens": 739,
+     "reasoning_tokens": 499,
+     "cost": 0.0038361,
+     "seconds": 4.0,
+     "sample": 1,
+     "conversation": "85ef46b49a773a6af868fb92bfae7057fa9fa34b820d13b88cebb24e4460b53e"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/setFontStyle.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/set_font_style.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 22.19008715900054,
+ "wall_seconds": 39.327654054999584,
+ "totals": {
+  "cost": 0.0061,
+  "prompt_tokens": 45866,
+  "completion_tokens": 3030,
+  "model_seconds": 14.7,
+  "check_seconds": 22.2,
+  "calls": 2,
+  "wall_seconds": 39.3
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: not called / not called / root 24, 0 mismatches"
+ }
+}

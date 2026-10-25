@@ -1,0 +1,296 @@
+{
+ "function": "func_8009AA84",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the free of the offsets block unless another slot shares the model; the texture refcount decrements with unchecked index); spec sound",
+ "plan": {
+  "name": "func_8009AA84",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x8009aa84",
+  "difficulty": "M",
+  "zig_name": "func_8009AA84",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_8009AA84",
+  "spec_file": "func_8009AA84.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_8009AA84(index: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "index",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "_wepModelOffsets"
+  ],
+  "globals": [
+   "vs_battle_wepTextures"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "null-model": "10026",
+   "no-bones": "3651",
+   "no-actor": "3232",
+   "actor-low-index": "4637",
+   "actor-found": "18074",
+   "actor-not-found": "380"
+  },
+  "mutations": [
+   {
+    "name": "M1: a one-bone model is taken for boneless",
+    "caught": true
+   },
+   {
+    "name": "M2: the wepModels scan stops one slot early",
+    "caught": true
+   },
+   {
+    "name": "M3: the index>=4 gate is off by one",
+    "caught": true
+   },
+   {
+    "name": "M4: wide texture decrements the wrong slot",
+    "caught": true
+   },
+   {
+    "name": "M5: the wepModels slot is not cleared",
+    "caught": true
+   },
+   {
+    "name": "M6: the index<4 free is dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 24,
+   "branches_hit": 23,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 26,
+   "lines_hit": 26,
+   "uncovered": [
+    {
+     "id": "+20 b2",
+     "line": 20,
+     "text": "&& ((vs_battle_wepModels[i]->actorId) || (obj->index < 4))",
+     "what": "branch never taken"
+    }
+   ],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "32-bit: min 0, max 19, seen zero, never negative"
+    }
+   ],
+   "compares": [
+    {
+     "line": 6,
+     "text": "if ((model == 0) || (model->nBones == 0)) {",
+     "size": 1,
+     "count": 29974,
+     "kind": "against a constant",
+     "outcomes": "== 3651, < 8801, > 17522 (signed); < 0, > 26323 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..2"
+    },
+    {
+     "line": 10,
+     "text": "if (model->actorId) {",
+     "size": 1,
+     "count": 26323,
+     "kind": "against a constant",
+     "outcomes": "== 3232, < 0, > 23091 (signed); < 0, > 23091 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..15"
+    },
+    {
+     "line": 14,
+     "text": "if (index >= 4) {",
+     "size": 4,
+     "count": 23091,
+     "kind": "against a constant",
+     "outcomes": "== 1172, < 3465, > 18454 (signed); < 3465, > 18454 (unsigned)",
+     "operand": "constant 3",
+     "a": "0..19"
+    },
+    {
+     "line": 18,
+     "text": "for (i = 0; i < 20; ++i) {",
+     "size": 4,
+     "count": 102958,
+     "kind": "against a constant",
+     "outcomes": "== 449, < 102129, > 380 (signed); < 102129, > 380 (unsigned)",
+     "operand": "constant 19",
+     "a": "0..20"
+    },
+    {
+     "line": 19,
+     "text": "if ((i != obj->index) && ((vs_battle_wepModels[i] != 0))",
+     "size": 4,
+     "count": 102578,
+     "kind": "a == b / a < b",
+     "outcomes": "== 2785, < 86924, > 12869 (signed); < 86924, > 12869 (unsigned)",
+     "operand": "b 4..19",
+     "a": "0..19"
+    },
+    {
+     "line": 20,
+     "text": "&& ((vs_battle_wepModels[i]->actorId) || (obj->index < 4))",
+     "size": 1,
+     "count": 75480,
+     "kind": "against a constant",
+     "outcomes": "== 21046, < 0, > 54434 (signed); < 0, > 54434 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..15"
+    },
+    {
+     "line": 20,
+     "text": "&& ((vs_battle_wepModels[i]->actorId) || (obj->index < 4))",
+     "size": 1,
+     "count": 21046,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 0, > 21046 (signed); < 0, > 21046 (unsigned)",
+     "operand": "constant 3",
+     "a": "4..19"
+    },
+    {
+     "line": 21,
+     "text": "&& (vs_battle_wepModels[i]->modelId == obj->modelId)) {",
+     "size": 4,
+     "count": 54434,
+     "kind": "a == b / a < b",
+     "outcomes": "== 18074, < 18485, > 17875 (signed); < 18485, > 17875 (unsigned)",
+     "operand": "b 1..3",
+     "a": "1..3"
+    },
+    {
+     "line": 30,
+     "text": "if (var_v0 == 0) {",
+     "size": 4,
+     "count": 18454,
+     "kind": "against a constant",
+     "outcomes": "== 380, < 0, > 18074 (signed); < 0, > 18074 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 40,
+     "text": "if (model->isWideTexture) {",
+     "size": 1,
+     "count": 26323,
+     "kind": "against a constant",
+     "outcomes": "== 17495, < 0, > 8828 (signed); < 0, > 8828 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..32"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+20 b2",
+    "reason": "the scan runs only under `if (index >= 4)` and obj->index is that index, so the `(obj->index < 4)` arm of the actorId test can never be true: a slot whose actorId is zero is always skipped here"
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 37231,
+     "completion_tokens": 10635,
+     "reasoning_tokens": 9725,
+     "cost": 0.0090406,
+     "seconds": 44.4,
+     "sample": 1,
+     "conversation": "0141135aecc9a0e8046085127068c997e1ed0336c625594ab5d311a7228d4314"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_8009AA84.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_8009AA84.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 77.70843853899896,
+ "wall_seconds": 125.22132969999984,
+ "totals": {
+  "cost": 0.00904,
+  "prompt_tokens": 37231,
+  "completion_tokens": 10635,
+  "model_seconds": 44.4,
+  "check_seconds": 77.7,
+  "calls": 1,
+  "wall_seconds": 125.2
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "finished_by_reviewer": "spec: the reviewer added the coverage waiver (+20 b2: the `obj->index < 4` arm sits under `index >= 4` and cannot be true)",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: not called / not called / nested 12, 0 mismatches"
+ }
+}

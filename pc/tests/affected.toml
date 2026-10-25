@@ -215,7 +215,13 @@ suites = ["editor_*", "barn_doors_smoke", "emissive_entries_smoke", "emissive_to
 paths = ["pc/src/emissive*", "pc/assets/emissive/*", "pc/assets/materials/*", "pc/shaders/vulkan/emissive.glsl",
          "pc/tools/check_material_maps.py"]
 suites = ["emissive_smoke", "emissive_entries_smoke", "emissive_tools_smoke", "emissive_metadata", "editor_selection_smoke", "editor_undo_smoke",
-          "editor_schema_smoke"]
+          "editor_schema_smoke", "material_smoke", "material_catalog"]
+
+# Material response (pc/docs/Materials.md): the catalog, the editor, the shading and reflections.
+[[rule]]
+paths = ["pc/src/material*", "pc/shaders/vulkan/material.glsl", "pc/shaders/vulkan/rt_reflect*",
+         "pc/shaders/vulkan/rt_paths.glsl"]
+suites = ["material_smoke", "material_catalog", "emissive_smoke", "gi_smoke"]
 
 # The catalog's rect_light entries feed the window-light generator as well as
 # runtime emissive masks. The validator declares both inputs in run.py sources

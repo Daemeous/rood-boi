@@ -23,6 +23,10 @@ func_8007138C = "pass-through; one cast start per recipe: one call"
 func_800704B0 = "pass-through; one phase 5 -> 6 per recipe: one call"
 func_80070278 = "pass-through; one release per recipe: one call"
 
+[alternate_one_side.battle_30DB0_port]
+vs_battle_getEmptyObjectDataSlot = "enemy_cast_wait calls it once: runs owned only; call and tick cover it"
+func_800A01C8 = "called once per recipe (one actor's reaction bytes set): runs owned only; call and tick cover it"
+
 [alternate_one_side.battle_7C4E8_port]
 func_800E4CE8 = "enemy_cast_wait calls it once (one enemy action ends): runs owned only; call and tick cover it"
 

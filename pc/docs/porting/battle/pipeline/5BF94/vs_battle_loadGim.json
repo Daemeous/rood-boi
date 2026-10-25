@@ -1,0 +1,95 @@
+{
+ "function": "vs_battle_loadGim",
+ "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "stopped",
+ "reviewed": "not ported in this wave (unrouted): stopped by the wave's budget before its spec was drafted",
+ "plan": {
+  "name": "vs_battle_loadGim",
+  "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+  "stem": "5BF94",
+  "address": "0x800c8430",
+  "difficulty": "S",
+  "zig_name": "loadGim",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "load_gim",
+  "spec_file": "loadGim.zig",
+  "subsystem": "battle_5BF94_port",
+  "signature": "pub fn loadGim(id: c_int, arg1: c_int) callconv(.c) void",
+  "params": [
+   [
+    "id",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "gim_t",
+   "vs_main_CdFile",
+   "vs_main_CdQueueSlot"
+  ],
+  "globals": [
+   "D_800EB9BC",
+   "_gimLbas"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13902,
+     "completion_tokens": 20225,
+     "reasoning_tokens": 18334,
+     "cost": 0.0115027,
+     "seconds": 85.0,
+     "sample": 1,
+     "conversation": "7737ffe2ac97b52d985d224abf6c32a0af815aa45a7980ebdefd5f261685d6e5"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation G5: signed char cast for the file size: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: vs_battle_loadGim: 30000 iterations, seed 1, 0 mismatches; classes: already-loaded=14868 loads-high-bit=6983 loads=8149"
+    ]
+   }
+  ]
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 0.0,
+ "stopped": "budget: $0.2054 spent of $0.25",
+ "wall_seconds": 98.43363752300138,
+ "totals": {
+  "cost": 0.0115,
+  "prompt_tokens": 13902,
+  "completion_tokens": 20225,
+  "model_seconds": 85.0,
+  "check_seconds": 0.0,
+  "calls": 1,
+  "wall_seconds": 98.4
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24"
+ }
+}

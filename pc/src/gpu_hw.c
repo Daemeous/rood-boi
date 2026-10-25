@@ -1678,6 +1678,9 @@ static void emissive_sync(void)
     if (pc_vk_on()) {
         if (r1 > r0)
             pc_vk_hw_upload_emissive(map, r0, r1);
+        const uint8_t* planes = NULL;
+        if (pc_material_rows(&planes))
+            pc_vk_hw_upload_material(planes);
         return;
     }
 #endif
@@ -2223,6 +2226,37 @@ static int screen_fade(const int* xy, const int* rgb, const int* clip)
     }
     return rgb[0] > 0 && x0 <= clip[0] && y0 <= clip[1] && x1 >= clip[0] + clip[2] - 1 && y1 >= clip[1] + clip[3] - 1;
 }
+/* The game's afterimage: a 2D sprite that draws the other frame buffer (the
+ * picture shown last: the game camera's previous frame) over this frame,
+ * semi-transparent (the opening's shot dissolves and credit trails, 5BF94.c
+ * func_800CC128). From a free camera (the editor's, the photo mode's, the
+ * cutscene player's) that picture is not this view's previous frame: a held
+ * moment's render starts from the native game-camera picture (pc_hw_resync)
+ * and blends it in again each render frame, so the view showed the game
+ * camera's shot smeared over its own and the rain lines piled up. The
+ * hardware target leaves it out while a free camera flies (native VRAM, the
+ * game's own state, still draws it); the game camera's view is unchanged. */
+extern int pc_live_camera_active(void) __attribute__((weak));
+long pc_hw_afterimages_skipped; /* triangles left out (RPC render_stats afterimages_skipped) */
+static int free_camera_afterimage(const int* uv, unsigned code, unsigned tpage, const int* clip)
+{
+    if (!(code & 4) || !primitive_2d || ((tpage >> 7) & 3) != 2 || !clip || clip[2] <= 0 || clip[3] <= 0
+        || !pc_live_camera_active || !pc_live_camera_active())
+        return 0;
+    int u0 = uv[0], u1 = uv[0], v0 = uv[1], v1 = uv[1];
+    for (int i = 1; i < 3; i++) {
+        u0 = uv[i * 2] < u0 ? uv[i * 2] : u0, u1 = uv[i * 2] > u1 ? uv[i * 2] : u1;
+        v0 = uv[i * 2 + 1] < v0 ? uv[i * 2 + 1] : v0, v1 = uv[i * 2 + 1] > v1 ? uv[i * 2 + 1] : v1;
+    }
+    int x0 = (tpage & 15) * 64 + u0, x1 = (tpage & 15) * 64 + u1;
+    int y0 = ((tpage >> 4) & 1) * 256 + v0, y1 = ((tpage >> 4) & 1) * 256 + v1;
+    /* The other buffer: the drawing area's neighbour (side by side). */
+    int other = clip[0] >= clip[2] ? clip[0] - clip[2] : clip[0] + clip[2];
+    if (x0 >= other + clip[2] || x1 < other || y0 >= clip[1] + clip[3] || y1 < clip[1])
+        return 0;
+    ++pc_hw_afterimages_skipped;
+    return 1;
+}
 int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, unsigned tpage,
     unsigned clut, unsigned window, const int* clip, int mask_set, int mask_check)
 {
@@ -2230,7 +2264,7 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
         text_run_flush(); /* buffered text was drawn before this */
     if (!pc_hw_active)
         return 0;
-    if (pc_hw_suppress) {
+    if (pc_hw_suppress || free_camera_afterimage(uv, code, tpage, clip)) {
         has_pending_depth = has_pending_precise = 0;
         return 0;
     }

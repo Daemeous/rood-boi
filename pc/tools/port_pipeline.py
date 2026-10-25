@@ -358,13 +358,13 @@ class Unit:
                 self.base_globals |= set(s.views.get("globals", []))
         self.dwarf_types = gdb_types(self.unit_o, self.c_types)
 
-    def views(self, extra_types=(), extra_globals=(), tag="all"):
+    def views(self, extra_types=(), extra_globals=(), tag="all", lenient=False):
         """Generate views_<stem> for the unit's manifest plus extras; (path, dump)."""
         types = sorted(self.base_types | set(extra_types))
         globals_ = sorted(self.base_globals | set(extra_globals))
         out = self.dir / tag
         out.mkdir(parents=True, exist_ok=True)
-        dump = zig_views.dump_with_gdb(self.unit_o, types, globals_, out / f"views_{self.stem}.json")
+        dump = zig_views.dump_with_gdb(self.unit_o, types, globals_, out / f"views_{self.stem}.json", lenient=lenient)
         path = out / f"views_{self.stem}.zig"
         text = zig_views.emit(dump, zig_views.load_names())
         if not path.exists() or path.read_text() != text:
@@ -409,7 +409,7 @@ def plan_function(name, row, table, names, units, build, work):
     plan.globals = sorted((tokens & u.c_globals) - {name})
     types = (tokens & u.dwarf_types)
     for _ in range(4):
-        _, dump = u.views(types, plan.globals, tag=f"plan-{name}")
+        _, dump = u.views(types, plan.globals, tag=f"plan-{name}", lenient=True)
         more = set()
         for tname, t in dump["types"].items():
             for f in t["fields"]:
@@ -424,7 +424,7 @@ def plan_function(name, row, table, names, units, build, work):
         types |= more
     # Every global the body names gets a views accessor (the prompts show
     # only what exists, so a missing one would leave the model guessing).
-    views_path, _ = u.views(types, plan.globals, tag=f"plan-{name}")
+    views_path, _ = u.views(types, plan.globals, tag=f"plan-{name}", lenient=True)
     missing = sorted(set(plan.globals) - views_globals(views_path.read_text()))
     if missing:
         plan.skip = f"no views accessor generated for {', '.join(missing)}"

@@ -19,7 +19,10 @@
  * distance and NRD's inputs and output (gi_denoiser nrd). */
 enum {
     VRT_MOTION = IMAGES, VRT_MOMENTS_A, VRT_MOMENTS_B, VRT_VARIANCE, VRT_VARIANCE_A, VRT_VARIANCE_B, VRT_HITDIST,
-    VRT_NRD_NORMAL, VRT_NRD_VIEWZ, VRT_NRD_MOTION, VRT_NRD_RADIANCE, VRT_NRD_OUTPUT, VRT_IMAGES
+    VRT_NRD_NORMAL, VRT_NRD_VIEWZ, VRT_NRD_MOTION, VRT_NRD_RADIANCE, VRT_NRD_OUTPUT,
+    /* The material response's reflections (rt_reflect.comp): each GI pixel's material, the raw rays,
+     * the denoised result (two, ping-pong history). */
+    VRT_MATERIAL, VRT_REFLECT_RAW, VRT_REFLECT_A, VRT_REFLECT_B, VRT_IMAGES
 };
 /* NRD RELAX diffuse (vk_nrd.cpp) for the indirect light; with
  * pc_nrd_glow the glows' light goes through it too (else our filter). */
@@ -44,6 +47,11 @@ static struct {
     VkPipelineLayout trace_layout, surface_layout, temporal_layout, atrous_layout, skin_layout, nrd_in_layout,
         nrd_out_layout;
     VkPipeline trace, surface, temporal, atrous, skin, nrd_in, nrd_out;
+    /* Reflections (emissive.h pc_reflection_bounces): the trace (the trace's set) and its filter. */
+    VkDescriptorSetLayout reflect_filter_set;
+    VkPipelineLayout reflect_filter_layout;
+    VkPipeline reflect, reflect_filter;
+    int reflect_current, reflect_valid, reflect_result; /* reflect_result: the image of the last result (0 none) */
     /* Room: opaque and cut-out BLASes over its shading triangles. */
     VkAccelerationStructureKHR room_blas, cutout_blas, tlas;
     vk_buffer room_buffer, cutout_buffer, tlas_buffer, scratch, room_tris, indices;
@@ -152,12 +160,13 @@ static int vrt_init(void)
     const VkDescriptorType U = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, S = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
                            T = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, B = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                            A = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
-    VkDescriptorType trace[12] = { U, A, B, T, S, S, S, S, S, B, S, B }; /* 11: the light list */
-    VkDescriptorType surface[11] = { U, A, B, T, T, T, S, S, S, B, B };
+    /* trace 11: the light list; 12, 13: the reflections' material in and rays out (rt_reflect.comp) */
+    VkDescriptorType trace[14] = { U, A, B, T, S, S, S, S, S, B, S, B, S, S };
+    VkDescriptorType surface[13] = { U, A, B, T, T, T, S, S, S, B, B, T, S }; /* 11, 12: the material */
     VkDescriptorType temporal[17] = { U, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S };
     VkDescriptorType atrous[8] = { S, S, S, S, S, S, S, S };
-    vrt.trace_set = vk_push_layout(trace, 12);
-    vrt.surface_set = vk_push_layout(surface, 11);
+    vrt.trace_set = vk_push_layout(trace, 14);
+    vrt.surface_set = vk_push_layout(surface, 13);
     vrt.temporal_set = vk_push_layout(temporal, 17);
     vrt.atrous_set = vk_push_layout(atrous, 8);
     vrt.trace_layout = vrt_layout(vrt.trace_set, 0);
@@ -165,6 +174,12 @@ static int vrt_init(void)
     vrt.temporal_layout = vrt_layout(vrt.temporal_set, 0);
     vrt.atrous_layout = vrt_layout(vrt.atrous_set, 32);
     vrt.trace = vrt_compute(vk_spv_rt_trace_comp, vk_spv_rt_trace_comp_size, vrt.trace_layout);
+    vrt.reflect = vrt_compute(vk_spv_rt_reflect_comp, vk_spv_rt_reflect_comp_size, vrt.trace_layout);
+    VkDescriptorType reflect_filter[10] = { U, S, S, S, S, S, S, S, S, S };
+    vrt.reflect_filter_set = vk_push_layout(reflect_filter, 10);
+    vrt.reflect_filter_layout = vrt_layout(vrt.reflect_filter_set, 0);
+    vrt.reflect_filter = vrt_compute(vk_spv_rt_reflect_filter_comp, vk_spv_rt_reflect_filter_comp_size,
+        vrt.reflect_filter_layout);
     vrt.surface = vrt_compute(vk_spv_rt_surface_comp, vk_spv_rt_surface_comp_size, vrt.surface_layout);
     vrt.temporal = vrt_compute(vk_spv_rt_temporal_comp, vk_spv_rt_temporal_comp_size, vrt.temporal_layout);
     vrt.atrous = vrt_compute(vk_spv_rt_atrous_comp, vk_spv_rt_atrous_comp_size, vrt.atrous_layout);
@@ -188,7 +203,7 @@ static int vrt_init(void)
     vrt.nrd_in = vrt_compute(vk_spv_rt_nrd_in_comp, vk_spv_rt_nrd_in_comp_size, vrt.nrd_in_layout);
     vrt.nrd_out = vrt_compute(vk_spv_rt_nrd_out_comp, vk_spv_rt_nrd_out_comp_size, vrt.nrd_out_layout);
     if (!vrt.trace || !vrt.surface || !vrt.temporal || !vrt.atrous || !vrt.skin || !vrt.haze || !vrt.integrate
-        || !vrt.nrd_in || !vrt.nrd_out)
+        || !vrt.nrd_in || !vrt.nrd_out || !vrt.reflect || !vrt.reflect_filter)
         return 0;
     vrt.state = 1;
     fprintf(stderr, "[gi] path-traced global illumination ready (Vulkan ray queries)\n");
@@ -833,6 +848,8 @@ static void vrt_images(int w, int h)
     }
     vrt.size[0] = w, vrt.size[1] = h;
     vrt.history_valid = 0;
+    vrt.reflect_valid = 0;
+    vrt.reflect_result = 0;
 }
 static void vrt_dispatch(VkPipeline pipeline, VkPipelineLayout layout, vk_descriptors* d)
 {
@@ -1139,6 +1156,70 @@ static int vrt_nrd(const float eye[3], int result, int result_extra)
     return 1;
 }
 
+/* The reflections (rt_reflect.comp, rt_reflect_filter.comp): only while a
+ * drawn texel has a material and reflection bounces are on; the trace's own
+ * descriptors and uniforms (`trace_ubo`). */
+/* The trace's descriptors (rt_trace.comp, rt_reflect.comp: one set). */
+static void vrt_trace_descriptors(vk_descriptors* d, vk_slice ubo)
+{
+    vk_image* im = vrt.images;
+    vk_descriptors_buffer(d, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ubo.buffer, ubo.offset, sizeof(vrt_trace_ubo));
+    vk_descriptors_structure(d, 1, vrt.tlas);
+    vk_descriptors_buffer(d, 2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, vrt.room_tris.buffer, 0,
+        (VkDeviceSize)(room_triangles ? room_triangles : 1) * sizeof *triangles);
+    vrt_bind_movers(d, 9, -1);
+    vk_descriptors_image(d, 3, vk_hw.vram.view, vk.nearest);
+    vk_descriptors_storage_image(d, 4, im[POSITION].view);
+    vk_descriptors_storage_image(d, 5, im[NORMAL].view);
+    vk_descriptors_storage_image(d, 6, im[RAW].view);
+    vk_descriptors_storage_image(d, 7, im[RAW_EXTRA].view);
+    vk_descriptors_storage_image(d, 8, im[SIGNATURE].view);
+    vk_descriptors_storage_image(d, 10, im[VRT_HITDIST].view);
+    vk_descriptors_buffer(d, 11, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, vrt_lights_slice.buffer, vrt_lights_slice.offset,
+        vrt_lights_bytes);
+    vk_descriptors_storage_image(d, 12, im[VRT_MATERIAL].view);
+    vk_descriptors_storage_image(d, 13, im[VRT_REFLECT_RAW].view);
+}
+static void vrt_reflect(vk_slice trace_ubo, float footprint)
+{
+    if (!pc_material_active() || pc_reflection_bounces <= 0) {
+        vrt.reflect_valid = 0;
+        vrt.reflect_result = 0;
+        return;
+    }
+    vk_section("gi reflect");
+    vk_descriptors d = { 0 };
+    vrt_trace_descriptors(&d, trace_ubo);
+    vrt_dispatch(vrt.reflect, vrt.trace_layout, &d);
+    vk_slice fubo = vk_arena(sizeof(vrt_temporal_ubo), vk.properties.limits.minUniformBufferOffsetAlignment);
+    if (!fubo.data)
+        return;
+    vrt_temporal_ubo* t = fubo.data;
+    memcpy(t->previous_to_image, vrt.previous_to_image, sizeof t->previous_to_image);
+    t->params[0] = footprint;
+    t->params[1] = 16.0f; /* history on fully rough surfaces (4 on mirrors) */
+    t->params[2] = (float)(vrt.history_valid && vrt.reflect_valid);
+    t->params[3] = pc_roughness_bias;
+    int old = VRT_REFLECT_A + vrt.reflect_current, out = VRT_REFLECT_A + (vrt.reflect_current ^ 1);
+    vk_descriptors f = { 0 };
+    vk_descriptors_buffer(&f, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, fubo.buffer, fubo.offset, sizeof *t);
+    int images[9] = { VRT_REFLECT_RAW, POSITION, NORMAL, VRT_MATERIAL, VRT_MOTION, old, POSITION_OLD, NORMAL_OLD, out };
+    for (int i = 0; i < 9; i++)
+        vk_descriptors_storage_image(&f, 1 + i, vrt.images[images[i]].view);
+    vrt_dispatch(vrt.reflect_filter, vrt.reflect_filter_layout, &f);
+    vrt.reflect_current ^= 1;
+    vrt.reflect_valid = 1;
+    vrt.reflect_result = out;
+}
+/* The present pass's reflections (vk_present.c): the last result, if any. */
+int pc_vk_reflect_bind(VkImageView* view)
+{
+    if (!vrt.reflect_result)
+        return 0;
+    *view = vrt.images[vrt.reflect_result].view;
+    return 1;
+}
+
 static void vrt_run(const float to_image[16], const float eye[3], float footprint)
 {
     extern unsigned pc_hw_history_cut; /* gpu_hw.c */
@@ -1194,24 +1275,16 @@ static void vrt_run(const float to_image[16], const float eye[3], float footprin
     u->f1[3] = pc_fog_glow;
     u->f2[0] = pc_lighting_ao_traced() ? pc_ao_radius : 0.0f;
     u->f2[1] = pc_ao_strength;
+    u->f2[2] = pc_roughness_bias; /* the reflections (rt_reflect.comp) */
+    u->f2[3] = (float)(pc_reflection_bounces < 0 ? 0 : pc_reflection_bounces > 2 ? 2 : pc_reflection_bounces);
     u->env = env_now;
     vk_descriptors d = { 0 };
-    vk_descriptors_buffer(&d, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ubo.buffer, ubo.offset, sizeof *u);
-    vk_descriptors_structure(&d, 1, vrt.tlas);
-    vk_descriptors_buffer(&d, 2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, vrt.room_tris.buffer, 0,
-        (VkDeviceSize)(room_triangles ? room_triangles : 1) * sizeof *triangles);
-    vrt_bind_movers(&d, 9, -1);
-    vk_descriptors_image(&d, 3, vk_hw.vram.view, vk.nearest);
-    vk_descriptors_storage_image(&d, 4, im[POSITION].view);
-    vk_descriptors_storage_image(&d, 5, im[NORMAL].view);
-    vk_descriptors_storage_image(&d, 6, im[RAW].view);
-    vk_descriptors_storage_image(&d, 7, im[RAW_EXTRA].view);
-    vk_descriptors_storage_image(&d, 8, im[SIGNATURE].view);
-    vk_descriptors_storage_image(&d, 10, im[VRT_HITDIST].view);
-    vk_descriptors_buffer(&d, 11, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, vrt_lights_slice.buffer, vrt_lights_slice.offset,
-        vrt_lights_bytes);
+    vrt_trace_descriptors(&d, ubo);
     vrt_dispatch(vrt.trace, vrt.trace_layout, &d);
     vrt_haze(ubo);
+
+    /* 1b: the material response's reflections (before the surfaces become the history). */
+    vrt_reflect(ubo, footprint);
 
     /* 2: temporal accumulation into the other history image. */
     vk_section("gi temporal");
@@ -1366,6 +1439,8 @@ int pc_vk_gi_update(int x, int y, int w, int h, int replay)
     vk_descriptors_storage_image(&d, 7, vrt.images[NORMAL].view);
     vk_descriptors_storage_image(&d, 8, vrt.images[VRT_MOTION].view);
     vrt_bind_movers(&d, 9, 10);
+    vk_descriptors_image(&d, 11, target->material.view, vk.nearest);
+    vk_descriptors_storage_image(&d, 12, vrt.images[VRT_MATERIAL].view);
     vrt_dispatch(vrt.surface, vrt.surface_layout, &d);
     /* World -> GI image (column-major, w = view depth), as ptgi.c. */
     float to_image[16];

@@ -1,0 +1,230 @@
+{
+ "function": "vs_battle_setTextBox",
+ "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (the box fields in the C's order, the drawer called before unk2C is set); spec sound",
+ "plan": {
+  "name": "vs_battle_setTextBox",
+  "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+  "stem": "5BF94",
+  "address": "0x800c6bf0",
+  "difficulty": "S",
+  "zig_name": "setTextBox",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "set_text_box",
+  "spec_file": "setTextBox.zig",
+  "subsystem": "battle_5BF94_port",
+  "signature": "pub fn setTextBox(boxId: c_int, str: [*c]u8) callconv(.c) c_int",
+  "params": [
+   [
+    "boxId",
+    "c_int"
+   ],
+   [
+    "str",
+    "[*c]u8"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12665,
+     "completion_tokens": 9625,
+     "reasoning_tokens": 7989,
+     "cost": 0.006079,
+     "seconds": 41.4,
+     "sample": 1,
+     "conversation": "22925edbdbf1a4fa6efd0d16fdaa939aef1759bec901dcc78ab01793d65b54a5"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "null-idle": "3737",
+   "null-busy": "11367",
+   "str-drawn": "7398",
+   "str-undrawn": "7498"
+  },
+  "mutations": [
+   {
+    "name": "S1: unk2C set to 0, not 1",
+    "caught": true
+   },
+   {
+    "name": "S2: callee gets unk2E, not unk2E + 1",
+    "caught": true
+   },
+   {
+    "name": "S3: busy test with || (idle speed 0 reports busy)",
+    "caught": true
+   },
+   {
+    "name": "S4: drawn test on bit 0x10, not 0x20",
+    "caught": true
+   },
+   {
+    "name": "S5: busy return is -2",
+    "caught": true
+   },
+   {
+    "name": "S6: the drawer call dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 8,
+   "branches_hit": 8,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 14,
+   "lines_hit": 14,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 7, seen zero, never negative, 8 value(s): 6, 0, 3, 7, 2, 1, 4, 5"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: null seen"
+    }
+   ],
+   "compares": [
+    {
+     "line": 9,
+     "text": "if (!(box->unk0.unk0_24 & 0x20)) {",
+     "size": 4,
+     "count": 14896,
+     "kind": "against a constant",
+     "outcomes": "== 7498, < 0, > 7398 (signed); < 0, > 7398 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..32"
+    },
+    {
+     "line": 16,
+     "text": "if ((box->speed != 0xFFFF) && (box->speed != 0)) {",
+     "size": 2,
+     "count": 15104,
+     "kind": "against a constant",
+     "outcomes": "== 1874, < 5660, > 7570 (signed); < 13230, > 0 (unsigned)",
+     "operand": "constant -1",
+     "a": "-32739..32763"
+    },
+    {
+     "line": 16,
+     "text": "if ((box->speed != 0xFFFF) && (box->speed != 0)) {",
+     "size": 2,
+     "count": 13230,
+     "kind": "against a constant",
+     "outcomes": "== 1863, < 5660, > 5707 (signed); < 0, > 11367 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32739..32763"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 36028,
+     "completion_tokens": 2170,
+     "reasoning_tokens": 1688,
+     "cost": 0.0046878,
+     "seconds": 9.3,
+     "sample": 1,
+     "conversation": "52d4a77a28150aacae84a3751253154cc316a6eea3740d0acab485e878d7e4c3"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/setTextBox.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/set_text_box.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 27.99758813600056,
+ "wall_seconds": 79.1852936080013,
+ "totals": {
+  "cost": 0.01077,
+  "prompt_tokens": 48693,
+  "completion_tokens": 11795,
+  "model_seconds": 50.7,
+  "check_seconds": 28.0,
+  "calls": 2,
+  "wall_seconds": 79.2
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 60 / root 130 / root 26, 0 mismatches"
+ }
+}

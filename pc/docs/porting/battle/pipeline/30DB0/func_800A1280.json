@@ -1,0 +1,269 @@
+{
+ "function": "func_800A1280",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful (PC_GTE_UNNARROWED kept in place as the ++/-- of pc_gte_anchored around RotTransPers; sp10's high half read as the C's short[1]); spec sound",
+ "plan": {
+  "name": "func_800A1280",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x800a1280",
+  "difficulty": "L",
+  "zig_name": "func_800A1280",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A1280",
+  "spec_file": "func_800A1280.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_800A1280(arg0: c_int, arg1: c_int, arg2: ?*v.SVECTOR, arg3: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ],
+   [
+    "arg2",
+    "?*v.SVECTOR"
+   ],
+   [
+    "arg3",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800F45E0_t",
+   "MATRIX",
+   "SVECTOR"
+  ],
+  "globals": [
+   "D_800F45E0",
+   "pc_gte_anchored"
+  ],
+  "hooks": [
+   "pc_gte_anchored",
+   "ROOD_PC block in the source"
+  ],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 21053,
+     "completion_tokens": 21114,
+     "reasoning_tokens": 18331,
+     "cost": 0.0126623,
+     "seconds": 86.7,
+     "sample": 1,
+     "conversation": "3ff397ab46fe765a7e6c15c2e2a9faf9ccff421d073983a3fb8ad925f3f0322f"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "fb-no-entry": "3501",
+   "fb-fallback-entry": "3563",
+   "fb-actor-flagged": "3801",
+   "fb-actor": "4134",
+   "other-selector": "15001"
+  },
+  "mutations": [
+   {
+    "name": "F1: wrong constant in the fallback y offset",
+    "caught": true
+   },
+   {
+    "name": "F2: fallback y offset from position.vy added, not subtracted",
+    "caught": true
+   },
+   {
+    "name": "F3: unkB_0 tested only for its sign bit",
+    "caught": true
+   },
+   {
+    "name": "F4: RotTransPers called without the pc_gte_anchored bump",
+    "caught": true
+   },
+   {
+    "name": "F5: vy taken from the low half of sp10",
+    "caught": true
+   },
+   {
+    "name": "F6: a zero from func_800A152C is treated as an error",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 12,
+   "branches_hit": 12,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 32,
+   "lines_hit": 32,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -2146597287, max 2147482437, unsigned 0..4294817460, seen zero/negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147303846, max 2146867989, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 3,
+     "count": 30000,
+     "text": "32-bit: min -2147276742, max 2146902775, unsigned 43530..4294871896, seen negative, never zero"
+    }
+   ],
+   "compares": [
+    {
+     "line": 8,
+     "text": "if (arg1 == 0xFB) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 14999, < 9507, > 5494 (signed); < 3869, > 11132 (unsigned)",
+     "operand": "constant 251",
+     "a": "-2147303846..2146867989"
+    },
+    {
+     "line": 22,
+     "text": "if (temp_a1->unk0.unkB_0) {",
+     "size": 1,
+     "count": 7935,
+     "kind": "against a constant",
+     "outcomes": "== 4134, < 0, > 3801 (signed); < 0, > 3801 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..15"
+    },
+    {
+     "line": 48,
+     "text": "if (var_v0 < 0) {",
+     "size": 4,
+     "count": 15001,
+     "kind": "against a constant",
+     "outcomes": "== 1420, < 6888, > 6693 (signed); < 0, > 13581 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147329926..2147226261"
+    },
+    {
+     "line": 54,
+     "text": "if (v1 < 0) {",
+     "size": 4,
+     "count": 8113,
+     "kind": "against a constant",
+     "outcomes": "== 736, < 3643, > 3734 (signed); < 0, > 7377 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147384525..2147058875"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 44533,
+     "completion_tokens": 9874,
+     "reasoning_tokens": 8775,
+     "cost": 0.0093903,
+     "seconds": 42.2,
+     "sample": 1,
+     "conversation": "f1649558d6eef339edfcce541dcf760f4388e54cc9406944e0d079969c6f1602"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A1280.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A1280.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 75.98695107200001,
+ "wall_seconds": 205.48707243400077,
+ "totals": {
+  "cost": 0.02205,
+  "prompt_tokens": 65586,
+  "completion_tokens": 30988,
+  "model_seconds": 128.9,
+  "check_seconds": 76.0,
+  "calls": 2,
+  "wall_seconds": 205.5
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 110 / root 182 / root 368, 0 mismatches"
+ }
+}

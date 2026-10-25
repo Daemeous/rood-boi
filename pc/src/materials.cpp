@@ -5,12 +5,14 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <map>
 #include <system_error>
 
 #include <SDL3/SDL.h>
 
+#include "light_prefabs.h"
 #include "pc_paths.h"
 #include "platform.h"
 
@@ -33,7 +35,7 @@ std::string export_dir()
     const char* e = getenv("ROOD_MATERIAL_EXPORTS");
     return e && *e ? e : "pc/exports/materials";
 }
-bool known_channel(const std::string& name) { return name == "emissive"; }
+bool known_channel(const std::string& name) { return name == "emissive" || name == "roughness"; }
 
 static bool valid_key(const std::string& key)
 {
@@ -346,13 +348,331 @@ bool export_reference(const std::string& key, int w, int h, const uint8_t* rgba,
         written->push_back(reference);
     std::string user = channel_path(user_dir(), key, channel_name);
     if (!stamp(user)) {
-        std::vector<uint8_t> empty((size_t)w * h, 0);
+        std::vector<uint8_t> empty((size_t)w * h, channel_name == "roughness" ? 255 : 0);
         if (!write_channel(key, channel_name, w, h, empty.data(), error))
             return false;
         if (written)
             written->push_back(user);
     }
     return true;
+}
+
+/* Catalog entries are keyed by content (never by a VRAM location). The user
+ * file replaces shipped entries by id, just as the emissive catalog does. */
+namespace {
+using prefab::Json;
+struct CatalogState {
+    std::vector<Entry> entries;
+    std::map<std::string, Surface> presets;
+    std::map<int, bool> sizes; /* (w - 1) << 8 | (h - 1) */
+    long long shipped_stamp = -1, user_stamp = -1;
+    uint32_t generation = 0;
+};
+CatalogState catalog_cache;
+std::vector<Entry> pending_list; /* unsaved editor entries (set_pending) */
+std::vector<std::string> pending_removed;
+uint32_t pending_serial = 1, applied_pending = 0;
+std::string catalog_path()
+{
+    const char* e = getenv("ROOD_MATERIAL_CATALOG");
+    return e && *e ? e : shipped_dir() + "/catalog.json";
+}
+std::string catalog_user_path()
+{
+    const char* e = getenv("ROOD_MATERIAL_CATALOG_USER");
+    return e && *e ? e : pc_path_join("ROOD_LIGHTS", "pc/user/lighting", "materials.json");
+}
+std::string string_field(const Json& j, const char* name)
+{
+    const Json* v = j.get(name);
+    return v && v->type == Json::String ? v->string : "";
+}
+bool number_field(const Json& j, const char* name, float* out)
+{
+    const Json* v = j.get(name);
+    if (!v || v->type != Json::Number || !std::isfinite(v->number) || v->number < 0 || v->number > 1)
+        return false;
+    *out = (float)v->number;
+    return true;
+}
+bool parse_entry(const Json& j, const std::map<std::string, Surface>& presets, Entry& e)
+{
+    if (j.type != Json::Object) return false;
+    e = Entry();
+    e.id = string_field(j, "id"), e.name = string_field(j, "name");
+    e.where = string_field(j, "where"), e.review = string_field(j, "review");
+    e.preset = string_field(j, "preset");
+    if (!e.preset.empty()) {
+        auto p = presets.find(e.preset);
+        if (p == presets.end()) return false;
+        e.value = p->second;
+    }
+    if (const Json* v = j.get("roughness"); v && !number_field(j, "roughness", &e.value.roughness)) return false;
+    if (const Json* v = j.get("specular"); v && !number_field(j, "specular", &e.value.specular)) return false;
+    if (const Json* v = j.get("metal"); v && !number_field(j, "metal", &e.value.metal)) return false;
+    e.explicit_fields = (j.get("roughness") ? 1u : 0u) | (j.get("specular") ? 2u : 0u) | (j.get("metal") ? 4u : 0u);
+    const Json* m = j.get("match");
+    if (!m || m->type != Json::Object) return false;
+    e.key = string_field(*m, "key"), e.clut = string_field(*m, "clut");
+    const Json* size = m->get("size");
+    if (!size || size->type != Json::Array || size->items.size() != 2
+        || size->items[0].type != Json::Number || size->items[1].type != Json::Number) return false;
+    if (!std::isfinite(size->items[0].number) || !std::isfinite(size->items[1].number)
+        || size->items[0].number < 1 || size->items[0].number > 256
+        || size->items[1].number < 1 || size->items[1].number > 256) return false;
+    e.w = (int)size->items[0].number, e.h = (int)size->items[1].number;
+    if (!valid_key(e.key) || (e.clut.size() && !valid_key(e.clut))
+        || size->items[0].number != e.w || size->items[1].number != e.h || e.id.empty()) return false;
+    if (const Json* scope = j.get("scope")) {
+        const Json* room = scope->type == Json::Object ? scope->get("room") : nullptr;
+        if (!room || room->type != Json::Array || room->items.size() != 2
+            || room->items[0].type != Json::Number || room->items[1].type != Json::Number) return false;
+        if (!std::isfinite(room->items[0].number) || !std::isfinite(room->items[1].number)
+            || room->items[0].number < 0 || room->items[0].number > 255
+            || room->items[1].number < 0 || room->items[1].number > 255) return false;
+        e.zone = (int)room->items[0].number, e.room = (int)room->items[1].number;
+        if (e.zone != room->items[0].number || e.room != room->items[1].number) return false;
+    }
+    return true;
+}
+void read_catalog(const std::string& path, std::vector<Entry>& entries, std::map<std::string, Surface>& presets,
+    bool user)
+{
+    FILE* f = fopen(path.c_str(), "rb");
+    if (!f) return;
+    std::string text;
+    char buf[4096]; size_t n;
+    while ((n = fread(buf, 1, sizeof buf, f))) text.append(buf, n);
+    fclose(f);
+    Json j; std::string error;
+    if (!prefab::json_parse(text.c_str(), j, &error) || j.type != Json::Object) {
+        fprintf(stderr, "[materials] %s: %s\n", path.c_str(), error.c_str()); return;
+    }
+    if (const Json* p = j.get("presets"); p && p->type == Json::Object)
+        for (const auto& pair : p->members) {
+            if (pair.second.type != Json::Object) continue;
+            Surface s;
+            if (number_field(pair.second, "roughness", &s.roughness)
+                && number_field(pair.second, "specular", &s.specular)
+                && number_field(pair.second, "metal", &s.metal)) presets[pair.first] = s;
+        }
+    if (const Json* arr = j.get("entries"); arr && arr->type == Json::Array)
+        for (const Json& item : arr->items) {
+            Entry e;
+            if (!parse_entry(item, presets, e)) {
+                fprintf(stderr, "[materials] %s: invalid catalog entry\n", path.c_str()); continue;
+            }
+            e.user = user;
+            auto existing = std::find_if(entries.begin(), entries.end(), [&](const Entry& old) { return old.id == e.id; });
+            if (existing == entries.end()) entries.push_back(e);
+            else *existing = e;
+        }
+}
+const std::vector<Entry>& current_catalog()
+{
+    const long long a = stamp(catalog_path()), b = stamp(catalog_user_path());
+    if (a != catalog_cache.shipped_stamp || b != catalog_cache.user_stamp || applied_pending != pending_serial) {
+        applied_pending = pending_serial;
+        catalog_cache.shipped_stamp = a, catalog_cache.user_stamp = b;
+        catalog_cache.entries.clear();
+        catalog_cache.presets.clear();
+        catalog_cache.sizes.clear();
+        read_catalog(catalog_path(), catalog_cache.entries, catalog_cache.presets, false);
+        read_catalog(catalog_user_path(), catalog_cache.entries, catalog_cache.presets, true);
+        for (const std::string& id : pending_removed)
+            catalog_cache.entries.erase(std::remove_if(catalog_cache.entries.begin(), catalog_cache.entries.end(),
+                [&](const Entry& e) { return e.id == id && e.user; }), catalog_cache.entries.end());
+        for (const Entry& p : pending_list) {
+            auto old = std::find_if(catalog_cache.entries.begin(), catalog_cache.entries.end(),
+                [&](const Entry& e) { return e.id == p.id; });
+            if (old == catalog_cache.entries.end()) catalog_cache.entries.push_back(p);
+            else *old = p;
+        }
+        for (const Entry& e : catalog_cache.entries)
+            catalog_cache.sizes[(e.w - 1) << 8 | (e.h - 1)] = true;
+        ++catalog_cache.generation;
+    }
+    return catalog_cache.entries;
+}
+} // namespace
+static std::map<std::string, Surface> catalog_presets_map()
+{
+    current_catalog();
+    return catalog_cache.presets;
+}
+std::vector<Entry> catalog_entries() { return current_catalog(); }
+const Entry* find_match(const std::string& key, int w, int h, const std::string& clut, int zone, int room)
+{
+    const Entry* found = nullptr;
+    for (const Entry& e : current_catalog())
+        if (e.key == key && e.w == w && e.h == h && (e.clut.empty() || e.clut == clut)
+            && (e.zone < 0 || (e.zone == zone && e.room == room))) found = &e;
+    return found;
+}
+Surface match(const std::string& key, int w, int h, const std::string& clut, int zone, int room)
+{
+    const Entry* e = find_match(key, w, h, clut, zone, room);
+    return e ? e->value : Surface();
+}
+bool catalog_has_size(int w, int h)
+{
+    if (w < 1 || h < 1 || w > 256 || h > 256) return false;
+    return catalog_cache.sizes.count((w - 1) << 8 | (h - 1)) > 0;
+}
+uint32_t catalog_generation()
+{
+    current_catalog();
+    return catalog_cache.generation;
+}
+std::vector<std::pair<std::string, Surface>> catalog_presets()
+{
+    current_catalog();
+    return std::vector<std::pair<std::string, Surface>>(catalog_cache.presets.begin(), catalog_cache.presets.end());
+}
+std::string catalog_user_file() { return catalog_user_path(); }
+
+static double tidy(float v) { return std::round((double)v * 1000.0) / 1000.0; }
+static Json entry_to_json(const Entry& e)
+{
+    Json j = Json::object();
+    j.set("id", Json::str(e.id));
+    if (!e.name.empty()) j.set("name", Json::str(e.name));
+    if (!e.where.empty()) j.set("where", Json::str(e.where));
+    Json m = Json::object();
+    m.set("key", Json::str(e.key));
+    Json size = Json::array();
+    size.items.push_back(Json::num(e.w));
+    size.items.push_back(Json::num(e.h));
+    m.set("size", size);
+    if (!e.clut.empty()) m.set("clut", Json::str(e.clut));
+    j.set("match", m);
+    if (e.zone >= 0) {
+        Json room = Json::array();
+        room.items.push_back(Json::num(e.zone));
+        room.items.push_back(Json::num(e.room));
+        Json scope = Json::object();
+        scope.set("room", room);
+        j.set("scope", scope);
+    }
+    if (!e.preset.empty()) j.set("preset", Json::str(e.preset));
+    if (e.explicit_fields & 1) j.set("roughness", Json::num(tidy(e.value.roughness)));
+    if (e.explicit_fields & 2) j.set("specular", Json::num(tidy(e.value.specular)));
+    if (e.explicit_fields & 4) j.set("metal", Json::num(tidy(e.value.metal)));
+    if (!e.review.empty()) j.set("review", Json::str(e.review));
+    return j;
+}
+std::string entry_json(const Entry& e) { return prefab::json_write(entry_to_json(e), 0); }
+
+/* The user file read as JSON (an empty catalog when it does not exist yet). */
+static bool user_json(Json& j, std::string* error)
+{
+    j = Json::object();
+    FILE* f = fopen(catalog_user_path().c_str(), "rb");
+    if (f) {
+        std::string text;
+        char buf[4096]; size_t n;
+        while ((n = fread(buf, 1, sizeof buf, f))) text.append(buf, n);
+        fclose(f);
+        if (!prefab::json_parse(text.c_str(), j, error) || j.type != Json::Object) {
+            if (error) *error = catalog_user_path() + ": not a catalog (fix or move it first)";
+            return false;
+        }
+    }
+    if (!j.get("format")) j.set("format", Json::num(1));
+    if (!j.get("entries") || j.get("entries")->type != Json::Array) j.set("entries", Json::array());
+    return true;
+}
+static bool write_user_json(const Json& j, std::string* error)
+{
+    std::string path = catalog_user_path(), temp = path + ".tmp";
+    mkdirs(fs::path(path).parent_path().string());
+    FILE* f = fopen(temp.c_str(), "wb");
+    if (!f) {
+        if (error) *error = "cannot write " + temp;
+        return false;
+    }
+    std::string text = prefab::json_write(j, 2) + "\n";
+    bool ok = fwrite(text.data(), 1, text.size(), f) == text.size();
+    ok = fclose(f) == 0 && ok;
+    if (!ok || pc_replace_file(temp.c_str(), path.c_str())) {
+        remove(temp.c_str());
+        if (error) *error = "cannot write " + path;
+        return false;
+    }
+    catalog_cache.user_stamp = -2; /* read again on the next look */
+    return true;
+}
+bool put_user_entry(const Entry& e, std::string* error)
+{
+    std::map<std::string, Surface> presets = catalog_presets_map();
+    Json j;
+    if (!user_json(j, error)) return false;
+    Json item = entry_to_json(e), *entries = j.get("entries");
+    Entry check;
+    if (!parse_entry(item, presets, check)) {
+        if (error) *error = "the entry is not valid (key, size, preset or fractions)";
+        return false;
+    }
+    bool replaced = false;
+    for (Json& old : entries->items) {
+        const Json* id = old.get("id");
+        if (id && id->type == Json::String && id->string == e.id) { old = item; replaced = true; }
+    }
+    if (!replaced) entries->items.push_back(item);
+    return write_user_json(j, error);
+}
+void set_pending(const Entry& e)
+{
+    Entry copy = e;
+    copy.user = true;
+    auto old = std::find_if(pending_list.begin(), pending_list.end(), [&](const Entry& x) { return x.id == e.id; });
+    if (old == pending_list.end()) pending_list.push_back(copy);
+    else *old = copy;
+    pending_removed.erase(std::remove(pending_removed.begin(), pending_removed.end(), e.id), pending_removed.end());
+    ++pending_serial;
+}
+void remove_pending(const std::string& id)
+{
+    pending_list.erase(std::remove_if(pending_list.begin(), pending_list.end(), [&](const Entry& x) { return x.id == id; }),
+        pending_list.end());
+    if (std::find(pending_removed.begin(), pending_removed.end(), id) == pending_removed.end())
+        pending_removed.push_back(id);
+    ++pending_serial;
+}
+std::vector<Entry> pending_entries() { return pending_list; }
+void reload()
+{
+    forget();
+    ++pending_serial; /* (the catalog is read again on the next look) */
+}
+bool pending_dirty() { return !pending_list.empty() || !pending_removed.empty(); }
+void revert_pending()
+{
+    pending_list.clear();
+    pending_removed.clear();
+    ++pending_serial;
+}
+bool save_pending(std::string* error)
+{
+    for (const std::string& id : pending_removed)
+        if (!remove_user_entry(id, error)) return false;
+    for (const Entry& e : pending_list)
+        if (!put_user_entry(e, error)) return false;
+    revert_pending();
+    return true;
+}
+bool remove_user_entry(const std::string& id, std::string* error)
+{
+    Json j;
+    if (!user_json(j, error)) return false;
+    Json* entries = j.get("entries");
+    size_t before = entries->items.size();
+    entries->items.erase(std::remove_if(entries->items.begin(), entries->items.end(), [&](const Json& old) {
+        const Json* v = old.get("id");
+        return v && v->type == Json::String && v->string == id;
+    }), entries->items.end());
+    if (entries->items.size() == before) return true;
+    return write_user_json(j, error);
 }
 
 } // namespace materials

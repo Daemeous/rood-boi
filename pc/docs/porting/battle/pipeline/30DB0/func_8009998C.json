@@ -1,0 +1,385 @@
+{
+ "function": "func_8009998C",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound (actorId above 7 is not generated: the C then reads past D_800E919C)",
+ "plan": {
+  "name": "func_8009998C",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x8009998c",
+  "difficulty": "L",
+  "zig_name": "func_8009998C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_8009998C",
+  "spec_file": "func_8009998C.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_8009998C(arg0: ?*v.vs_battle_objectData) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "?*v.vs_battle_objectData"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800E8FB4_t",
+   "D_800F4538_t2",
+   "D_800F4538_unk68",
+   "D_800F45E0_t",
+   "D_800F45E0_unk68",
+   "vs_battle_objectData"
+  ],
+  "globals": [
+   "D_800E8FA8",
+   "D_800E8FB4",
+   "D_800E919C",
+   "D_800F4448",
+   "D_800F45E0"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "length",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 19679,
+     "completion_tokens": 64000,
+     "reasoning_tokens": 64000,
+     "cost": 0.0339679,
+     "seconds": 276.5,
+     "sample": 1,
+     "conversation": "dce51005b09971dbfc4c44d473fe9296c4700eed6b2627979eea59533e1d0b95"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: no ```zig block in the reply",
+     "FAIL: no ```toml block in the reply"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 19738,
+     "completion_tokens": 55428,
+     "reasoning_tokens": 52540,
+     "cost": 0.0296878,
+     "seconds": 237.7,
+     "sample": 1,
+     "conversation": "d8e52079db59b075ec94c3a3071f522b1cd982539893b295a77e77f8dd9f34ee"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/func_8009998C/spec2/build/spec.zig:122:11: error: name shadows primitive 'u68'\n    const u68 = ctx.alloc(v.D_800F45E0_unk68);\n          ^~~\npc/build/port-pipeline/func_8009998C/spec2/build/spec.zig:122:11: note: consider using @\"u68\" to disambiguate\n"
+    ]
+   },
+   {
+    "round": 3,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 22854,
+     "completion_tokens": 4250,
+     "reasoning_tokens": 1362,
+     "cost": 0.0044104,
+     "seconds": 14.1,
+     "sample": 1,
+     "conversation": "7f66eb22581b41c65b29f51feef80e03ff5b5209be703467a1e05346019e568d"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 3,
+   "sample": 1
+  },
+  "classes": {
+   "already-set": "2450",
+   "no-object": "2725",
+   "found-in-table": "8191",
+   "no-table-object": "3351",
+   "inner-same-actor": "1432",
+   "inner-other-actor": "900",
+   "high-actor": "2663",
+   "low-actor": "8288"
+  },
+  "mutations": [
+   {
+    "name": "M1: already-set check returns -2",
+    "caught": true
+   },
+   {
+    "name": "M2: duplicate search misses entry 15",
+    "caught": true
+   },
+   {
+    "name": "M3: inner same-class search takes actorId >= 4",
+    "caught": true
+   },
+   {
+    "name": "M4: copied object keeps its unk0_4 (store dropped)",
+    "caught": true
+   },
+   {
+    "name": "M5: actorId clamp to 6 instead of 5",
+    "caught": true
+   },
+   {
+    "name": "M6: variant added instead of subtracted",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 34,
+   "branches_hit": 34,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 67,
+   "lines_hit": 67,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 23,
+     "text": "for (i = 0; i < 16; ++i) {",
+     "size": 4,
+     "count": 326667,
+     "kind": "against a constant",
+     "outcomes": "== 15391, < 296375, > 14901 (signed); < 296375, > 14901 (unsigned)",
+     "operand": "constant 15",
+     "a": "0..16"
+    },
+    {
+     "line": 24,
+     "text": "if ((i != arg0->index) && (D_800F45E0[i] != 0)",
+     "size": 4,
+     "count": 311766,
+     "kind": "a == b / a < b",
+     "outcomes": "== 18510, < 160170, > 133086 (signed); < 160170, > 133086 (unsigned)",
+     "operand": "b 0..15",
+     "a": "0..15"
+    },
+    {
+     "line": 25,
+     "text": "&& (D_800F45E0[i]->unk6C[8].actorId == arg0->actorId)) {",
+     "size": 4,
+     "count": 236706,
+     "kind": "a == b / a < b",
+     "outcomes": "== 9924, < 96740, > 130042 (signed); < 96740, > 130042 (unsigned)",
+     "operand": "b 0..7",
+     "a": "0..7"
+    },
+    {
+     "line": 33,
+     "text": "if (var_v0_2 != 0) {",
+     "size": 4,
+     "count": 24825,
+     "kind": "against a constant",
+     "outcomes": "== 14901, < 0, > 9924 (signed); < 0, > 9924 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 42,
+     "text": "if (((__typeof__((s1->unk68).psx_type_[0]))(long unsigned int)(s1->unk68).raw) == 0) {",
+     "size": 4,
+     "count": 14901,
+     "kind": "against a constant",
+     "outcomes": "== 3016, < 0, > 11885 (signed); < 0, > 11885 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..4350864"
+    },
+    {
+     "line": 49,
+     "text": "if (j >= 6) {",
+     "size": 4,
+     "count": 11885,
+     "kind": "against a constant",
+     "outcomes": "== 1152, < 8288, > 2445 (signed); < 8288, > 2445 (unsigned)",
+     "operand": "constant 5",
+     "a": "0..7"
+    },
+    {
+     "line": 67,
+     "text": "if (s1->unk6C[8].actorId == 1) {",
+     "size": 1,
+     "count": 21809,
+     "kind": "against a constant",
+     "outcomes": "== 2631, < 2647, > 16531 (signed); < 2647, > 16531 (unsigned)",
+     "operand": "constant 1",
+     "a": "0..7"
+    },
+    {
+     "line": 88,
+     "text": "if (s1->unk6C[8].actorId > 4) {",
+     "size": 1,
+     "count": 21809,
+     "kind": "against a constant",
+     "outcomes": "== 2665, < 10705, > 8439 (signed); < 10705, > 8439 (unsigned)",
+     "operand": "constant 4",
+     "a": "0..7"
+    },
+    {
+     "line": 90,
+     "text": "for (j = 0; j < arg0->index; ++j) {",
+     "size": 4,
+     "count": 72935,
+     "kind": "a == b / a < b",
+     "outcomes": "== 8422, < 64513, > 0 (signed); < 64513, > 0 (unsigned)",
+     "operand": "b 0..15",
+     "a": "0..15"
+    },
+    {
+     "line": 92,
+     "text": "if ((temp_a0 != 0) && (*(int*)&temp_a0->unk5C == *(int*)&s1->unk5C)",
+     "size": 4,
+     "count": 52737,
+     "kind": "a == b / a < b",
+     "outcomes": "== 23, < 26563, > 26151 (signed); < 95, > 52619 (unsigned)",
+     "operand": "b 214..16776640",
+     "a": "-2147350424..2147276644"
+    },
+    {
+     "line": 93,
+     "text": "&& (temp_a0->unk1E == (s1->unk1E + 0x80))",
+     "size": 4,
+     "count": 23,
+     "kind": "a == b / a < b",
+     "outcomes": "== 20, < 3, > 0 (signed); < 2, > 1 (unsigned)",
+     "operand": "b -31913..32854",
+     "a": "-32682..32056"
+    },
+    {
+     "line": 94,
+     "text": "&& (temp_a0->unk6C[8].actorId > 4)) {",
+     "size": 1,
+     "count": 20,
+     "kind": "against a constant",
+     "outcomes": "== 3, < 0, > 17 (signed); < 0, > 17 (unsigned)",
+     "operand": "constant 4",
+     "a": "4..7"
+    },
+    {
+     "line": 95,
+     "text": "if (temp_a0->unk6C[8].actorId != s1->unk6C[8].actorId) {",
+     "size": 1,
+     "count": 17,
+     "kind": "a == b / a < b",
+     "outcomes": "== 11, < 3, > 3 (signed); < 3, > 3 (unsigned)",
+     "operand": "b 5..7",
+     "a": "5..7"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 42947,
+     "completion_tokens": 25140,
+     "reasoning_tokens": 22756,
+     "cost": 0.0168647,
+     "seconds": 97.2,
+     "sample": 1,
+     "conversation": "3f2381df0cd1efb2c211678da0ddf6753b75fc9c7fb3a24f046683f9c0faf501"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_8009998C.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_8009998C.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 50.480787833999784,
+ "wall_seconds": 676.228213676,
+ "totals": {
+  "cost": 0.08493,
+  "prompt_tokens": 105218,
+  "completion_tokens": 148818,
+  "model_seconds": 625.5,
+  "check_seconds": 50.5,
+  "calls": 4,
+  "wall_seconds": 676.2
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

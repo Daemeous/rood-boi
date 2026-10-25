@@ -1,0 +1,216 @@
+{
+ "function": "func_8009FFA8",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; the C has no return on its success path: the 64-bit object returns %edx, which GCC loaded with -1 before the nBones test, so the port returns -1 there (disassembly checked; the only caller ignores it); spec sound",
+ "plan": {
+  "name": "func_8009FFA8",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x8009ffa8",
+  "difficulty": "S",
+  "zig_name": "func_8009FFA8",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_8009FFA8",
+  "spec_file": "func_8009FFA8.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_8009FFA8(arg0: c_int, arg1: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "sel-ff": "1956",
+   "sel-over-16": "19614",
+   "no-bones": "1025",
+   "ready": "7405"
+  },
+  "mutations": [
+   {
+    "name": "F1: the 0xFF selector tested as 0xFE",
+    "caught": true
+   },
+   {
+    "name": "F2: selector 16 rejected (>= for >)",
+    "caught": true
+   },
+   {
+    "name": "F3: nBones read from arg0's entry, not the selected one",
+    "caught": true
+   },
+   {
+    "name": "F4: the 0xFF path returns -1",
+    "caught": true
+   },
+   {
+    "name": "F5: unk12 read as a signed char (selectors 0x80..0xFF index below the table: the mutated copy crashes)",
+    "caught": true
+   },
+   {
+    "name": "F6: the unk9_5 store dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 6,
+   "branches_hit": 6,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 9,
+   "lines_hit": 9,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 16, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 7,
+     "text": "if (temp_v1 == 0xFF) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 1956, < 28044, > 0 (signed); < 28044, > 0 (unsigned)",
+     "operand": "constant 255",
+     "a": "0..255"
+    },
+    {
+     "line": 11,
+     "text": "if ((temp_v1 > 16) || (D_800F4538[temp_v1]->unk0.nBones == 0)) {",
+     "size": 4,
+     "count": 28044,
+     "kind": "against a constant",
+     "outcomes": "== 1827, < 6603, > 19614 (signed); < 6603, > 19614 (unsigned)",
+     "operand": "constant 16",
+     "a": "0..254"
+    },
+    {
+     "line": 11,
+     "text": "if ((temp_v1 > 16) || (D_800F4538[temp_v1]->unk0.nBones == 0)) {",
+     "size": 1,
+     "count": 8430,
+     "kind": "against a constant",
+     "outcomes": "== 1025, < 4315, > 3090 (signed); < 0, > 7405 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 15,
+     "text": "temp_a0->unk0.unk9_5 = 0;",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 7405, < 22595, > 0 (signed); < 22595, > 0 (unsigned)",
+     "operand": "constant 1",
+     "a": "0..1"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": null,
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_8009FFA8.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_8009FFA8.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 71.1707146830031,
+ "wall_seconds": 71.47648073500022,
+ "totals": {
+  "cost": 0.0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "model_seconds": 0.0,
+  "check_seconds": 71.2,
+  "calls": 0,
+  "wall_seconds": 71.5
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "finished_by_reviewer": "the model's port returned nBones (a guess at %eax) and failed on 1000 of 3990 inputs; reviewer's reply placed as the failed round's reply",
+  "port_fixes": [
+   "success path returns -1, as the object does"
+  ],
+  "corpus": "call / tick / alternate (shadow): not reached by the three recipes"
+ }
+}

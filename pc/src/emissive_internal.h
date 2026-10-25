@@ -154,6 +154,40 @@ struct MapProblem {
 };
 std::vector<MapProblem> map_problems();
 
+/* A texture picked in the view (emissive_editor.cpp's picker, shared with
+ * the material editor, material_editor.cpp): its content key and palette
+ * key, where it is in VRAM (page, CLUT, UV box), the texel under the point
+ * and the room it was picked in. */
+struct TexturePick {
+    bool valid = false;
+    std::string key, clut_key;
+    unsigned tpage = 0, clut = 0;
+    uint8_t box[4] = { 0, 0, 0, 0 };
+    int u = 0, v = 0, zone = -1, room = -1;
+    float world[3] = { 0, 0, 0 };
+    int w() const { return box[2] - box[0] + 1; }
+    int h() const { return box[3] - box[1] + 1; }
+};
+bool pick_texture(float x, float y, TexturePick& out); /* window pixel */
+bool pick_texture_world(const float p[3], TexturePick& out);
+/* The texels of a box as RGBA (nearest, transparent texels transparent). */
+std::vector<uint8_t> texture_rgba_box(unsigned tpage, unsigned clut, const uint8_t box[4]);
+/* Where a texture (by key) is drawn now: a live use's page, CLUT and box. */
+bool texture_where(const std::string& key, TexturePick& out);
+
+/* Material response (emissive.cpp write_materials): the textures drawn now
+ * that a material entry names, and the planes' values at a texel (0..255;
+ * false where it has no material). */
+struct MaterialUse {
+    std::string key, entry;
+    unsigned page = 0, clut = 0;
+    uint8_t box[4] = { 0, 0, 0, 0 };
+    bool painted = false; /* its roughness from its roughness.png */
+};
+std::vector<MaterialUse> material_use_list();
+int material_cell_count();
+bool material_at(unsigned u, unsigned v, unsigned tpage, int out[3]);
+
 /* Scopes */
 bool current_room(int* zone, int* room); /* the room the player is in (dev_state.c) */
 bool in_room(const Scope& s, int zone, int room); /* no rooms: every room */

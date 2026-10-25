@@ -1,0 +1,127 @@
+{
+ "function": "_parseShp",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "XL",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "spec-failed",
+ "reviewed": "not ported in this wave (unrouted): the model's spec ran out of its 64k output tokens at default effort and failed its gates at low effort (a 410-line XL function); it also holds a partly written `queued` record to zero under ROOD_PC when it is ported",
+ "plan": {
+  "name": "_parseShp",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x8009aea0",
+  "difficulty": "XL",
+  "zig_name": "parseShp",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "parse_shp",
+  "spec_file": "parseShp.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn parseShp(object: ?*v.vs_battle_objectData) callconv(.c) c_int",
+  "params": [
+   [
+    "object",
+    "?*v.vs_battle_objectData"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "_armature_t",
+   "func_80089888_t",
+   "vs_battle_objectData_flags"
+  ],
+  "globals": [
+   "D_800E8F29",
+   "D_800E8F30",
+   "D_800E8F90",
+   "D_800F22B4",
+   "D_800F22B8",
+   "D_800F22BC",
+   "D_800F22C0",
+   "D_800F22C4"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "length",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 30692,
+     "completion_tokens": 64000,
+     "reasoning_tokens": 64000,
+     "cost": 0.0350692,
+     "seconds": 296.2,
+     "reasoning_effort": "low",
+     "sample": 1,
+     "conversation": "b0f31e6514e141452923e757b0ab62919fe4f8b756410952c6ddc8e464283ec3"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: no ```zig block in the reply",
+     "FAIL: no ```toml block in the reply"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 30751,
+     "completion_tokens": 38963,
+     "reasoning_tokens": 35358,
+     "cost": 0.0225566,
+     "seconds": 173.6,
+     "reasoning_effort": "low",
+     "sample": 1,
+     "conversation": "1bbf2b2f914f12909d2a06d195097c7cea06eba3b2e4d3a4155e0a14860775f1"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the C itself crashed on your inputs (the C runs first, so this is the spec's\nbug). The harness fills every global and the arena with random bytes before\nprepare, so every pointer the C follows must be one prepare set: each\nargument, each pointer field of an object you build, and each ENTRY of a\nglobal pointer table the C indexes (only the entry it reads: e.g.\n`v.g.TABLE()[i] = obj`), pointing at an object from `ctx.alloc`/`ctx.allocBytes`\n(sized for every element the C indexes past a `[0]` array), at a global, or\nnull where the C tests for null. An index into a global table must stay\ninside its length (the views accessor's type gives it). Below: the crash, its\nfault address (named when it is inside an object the harness owns) and the\narguments of that iteration:\nzdiff: MISMATCH iteration 0: call 0 (vs_main_memcpy): argument 0: C 0x412184, Zig 0x410d60\nzdiff: CRASH (signal 11) in the C run, iteration 1, fault address 0x5c27981d [memory the harness does not own: a pointer from random bytes?]\nzdiff: crashed on arguments: 0x4212a0 [arena] (class size4)",
+     "(the mutations and the coverage gate are checked once the C runs crash-free)"
+    ]
+   }
+  ],
+  "classes": {},
+  "mutations": [],
+  "coverage": null
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 0.6172959619998437,
+ "reasoning_effort": "low",
+ "wall_seconds": 470.9083590659993,
+ "totals": {
+  "cost": 0.05763,
+  "prompt_tokens": 61443,
+  "completion_tokens": 102963,
+  "model_seconds": 469.8,
+  "check_seconds": 0.6,
+  "calls": 2,
+  "wall_seconds": 470.9
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24"
+ }
+}

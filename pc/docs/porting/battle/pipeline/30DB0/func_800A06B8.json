@@ -1,0 +1,215 @@
+{
+ "function": "func_800A06B8",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": "faithful; spec sound",
+ "plan": {
+  "name": "func_800A06B8",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x800a06b8",
+  "difficulty": "S",
+  "zig_name": "func_800A06B8",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A06B8",
+  "spec_file": "func_800A06B8.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_800A06B8(arg0: ?*v.D_800F4538_t, arg1: c_int) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.D_800F4538_t"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F4538_unk1864"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14547,
+     "completion_tokens": 6376,
+     "reasoning_tokens": 4847,
+     "cost": 0.0046427,
+     "seconds": 25.9,
+     "sample": 1,
+     "conversation": "fd74a610cb27493dae82927729149e3cdedd962633dfb0c4432a96ed4ee37be5"
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "zero": "2474",
+   "negative": "12509",
+   "positive": "15017"
+  },
+  "mutations": [
+   {
+    "name": "M1: unkA keeps the sign of unk8",
+    "caught": true
+   },
+   {
+    "name": "M2: shrink difference against unkC, not unkE",
+    "caught": true
+   },
+   {
+    "name": "M3: zero test as a signed bound (arg1 <= 0)",
+    "caught": true
+   },
+   {
+    "name": "M4: shrink rate stored into the expand field",
+    "caught": true
+   },
+   {
+    "name": "M5: unk4 gets a boolean, not the truncated argument",
+    "caught": true
+   },
+   {
+    "name": "M6: expand difference added, not subtracted",
+    "caught": true
+   },
+   {
+    "name": "M7: dropped unk8 reset in the zero branch",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 13,
+   "lines_hit": 13,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 4,
+     "text": "if (arg1 == 0) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 2474, < 12509, > 15017 (signed); < 0, > 27526 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147483647"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 38019,
+     "completion_tokens": 2510,
+     "reasoning_tokens": 1960,
+     "cost": 0.0050569,
+     "seconds": 10.8,
+     "sample": 1,
+     "conversation": "c44c96c92c36ac7a93002e3a6e9dcc960a07902bb5bc8c8968df22246ab4536d"
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800A06B8.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800A06B8.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 70.82051443799901,
+ "wall_seconds": 107.67675249299919,
+ "totals": {
+  "cost": 0.0097,
+  "prompt_tokens": 52566,
+  "completion_tokens": 8886,
+  "model_seconds": 36.7,
+  "check_seconds": 70.8,
+  "calls": 2,
+  "wall_seconds": 107.7
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24",
+  "corpus": "call / tick / alternate (shadow), enemy_cast_wait / action_name_window / enemy_kill: root 11 / root 21 / root 17, 0 mismatches"
+ }
+}

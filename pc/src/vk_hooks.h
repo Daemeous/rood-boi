@@ -42,6 +42,8 @@ void pc_vk_hw_resize(int scale);
 void pc_vk_hw_upload_rects(const uint16_t* vram, const int (*rects)[4], int count);
 /* Emissive texels' slot map (emissive.h): rows [row0, row1) of the CPU copy. */
 void pc_vk_hw_upload_emissive(const uint8_t* map, int row0, int row1);
+/* The material planes (emissive.h PC_MATERIAL_*) into the slot map image. */
+void pc_vk_hw_upload_material(const uint8_t* planes);
 void pc_vk_hw_draw_batch(unsigned fbo, const void* vertices, int count, int blend, const int* clip, int occlusion,
     const int* occlusion_rect);
 void pc_vk_hw_fill(unsigned fbo, int x, int y, int w, int h, int r, int g, int b);

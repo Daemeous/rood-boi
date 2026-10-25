@@ -27,6 +27,9 @@
 #ifdef ROOD_PC
 #include "pc/src/widescreen.h"
 #include "pc/src/classic/classic_hook.h"
+/* environment.cpp: a rain drop's packet, left out of the hardware picture
+ * where solid room geometry hides the drop (native VRAM draws it) */
+void pc_weather_drop_packet(const void* packet, int x, int y, int z);
 int pc_charge_skip(int phase); /* pc/src/charge_skip.inc: battle charging skip */
 int pc_charge_skip_hold(void);
 void pc_charge_skip_name(int now);
@@ -17847,6 +17850,10 @@ void func_8008F440(void)
                     setSemiTrans(line, 1);
                     setRGB0(line, 96, 96, 128);
                     setRGB1(line, 32, 32, 100);
+#ifdef ROOD_PC
+                    pc_weather_drop_packet(
+                        line, particle->unk0, particle->unk2, particle->unk4);
+#endif
                     AddPrim((u_long*)psx_get(((vs_scratch_t*)0x1F800000)->unk4) + depth,
                         line++);
                     psx_set(((vs_scratch_t*)0x1F800000)->unk0, line);
@@ -17894,6 +17901,10 @@ void func_8008F440(void)
                 setRGB0(splash, 128, 128, 128);
                 splash->tpage = 0x71;
                 splash->clut = 0x38BF;
+#ifdef ROOD_PC
+                pc_weather_drop_packet(
+                    splash, particle->unk0, particle->unk2, particle->unk4);
+#endif
                 AddPrim((u_long*)psx_get(((vs_scratch_t*)0x1F800000)->unk4) + depth,
                     splash++);
                 psx_set(((vs_scratch_t*)0x1F800000)->unk0, splash);

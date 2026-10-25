@@ -1,0 +1,161 @@
+{
+ "function": "func_800A0024",
+ "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.4,
+ "samples": 2,
+ "status": "spec-failed",
+ "reviewed": "not ported in this wave (unrouted): the C reads an uninitialised local (`temp_s0 == 0` before it is assigned: 'BUG: Check performed on garbage'): the harness cannot make the C deterministic; the C needs a ROOD_PC decision first",
+ "plan": {
+  "name": "func_800A0024",
+  "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
+  "stem": "30DB0",
+  "address": "0x800a0024",
+  "difficulty": "M",
+  "zig_name": "func_800A0024",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800A0024",
+  "spec_file": "func_800A0024.zig",
+  "subsystem": "battle_30DB0_port",
+  "signature": "pub fn func_800A0024(arg0: c_int, arg1: ?*v.func_800A0024_t) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "?*v.func_800A0024_t"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "func_800A0024_t"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 15776,
+     "completion_tokens": 17072,
+     "reasoning_tokens": 15057,
+     "cost": 0.0101136,
+     "seconds": 73.3,
+     "sample": 1,
+     "conversation": "7398e16dfebef3f2aa8a5fea2cf663034e6305261f7c69d6e2a7141e7a29faef"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\nlink: /usr/bin/ld: pc/build/port-pipeline/func_800A0024/spec1/build/harness.o: in function `spec.prepare':\npc/build/port-pipeline/func_800A0024/spec1/build/spec.zig:25:(.text.main.main+0x7a7): undefined reference to `D_800F45E0'\n/usr/bin/ld: pc/build/port-pipeline/func_800A0024/spec1/build/harness.o:(.debug_info+0x198b): undefined reference to `D_800F45E0'\n/usr/bin/ld: pc/build/port-pipeline/func_800A0024/spec1/build/zdiff: hidden symbol `D_800F45E0' isn't defined\n/usr/bin/ld: final link failed: bad value\ncollect2: error: ld returned 1 exit status\n"
+    ]
+   },
+   {
+    "round": 1,
+    "sample": 2,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 15776,
+     "completion_tokens": 18372,
+     "reasoning_tokens": 16367,
+     "cost": 0.0107636,
+     "seconds": 80.3,
+     "sample": 2,
+     "conversation": "1d5e5e3124b2744332cc2dc00ff5e8e846051324aca21e0b88fe06df80298830"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\nlink: /usr/bin/ld: pc/build/port-pipeline/func_800A0024/spec1s2/build/harness.o: in function `spec.prepare':\npc/build/port-pipeline/func_800A0024/spec1s2/build/spec.zig:45:(.text.main.main+0x607): undefined reference to `D_800F45E0'\n/usr/bin/ld: pc/build/port-pipeline/func_800A0024/spec1s2/build/harness.o: in function `spec.classify':\npc/build/port-pipeline/func_800A0024/spec1s2/build/spec.zig:60:(.text.main.main+0x8d3): undefined reference to `D_800F45E0'\n/usr/bin/ld: pc/build/port-pipeline/func_800A0024/spec1s2/build/harness.o:(.debug_info+0x198b): undefined reference to `D_800F45E0'\n/usr/bin/ld: pc/build/port-pipeline/func_800A0024/spec1s2/build/zdiff: hidden symbol `D_800F45E0' isn't defined\n/usr/bin/ld: final link failed: bad value\ncollect2: error: ld returned 1 exit status\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 18113,
+     "completion_tokens": 4607,
+     "reasoning_tokens": 2506,
+     "cost": 0.0041148,
+     "seconds": 18.3,
+     "sample": 1,
+     "conversation": "583e619782387a648019fff2ec475df36def7adccccb0f5c52c2eabd8b23b3cf"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\nlink: /usr/bin/ld: pc/build/port-pipeline/func_800A0024/spec2/build/harness.o: in function `spec.prepare':\npc/build/port-pipeline/func_800A0024/spec2/build/spec.zig:31:(.text.main.main+0x7a7): undefined reference to `D_800F45E0'\n/usr/bin/ld: pc/build/port-pipeline/func_800A0024/spec2/build/harness.o:(.debug_info+0x198b): undefined reference to `D_800F45E0'\n/usr/bin/ld: pc/build/port-pipeline/func_800A0024/spec2/build/zdiff: hidden symbol `D_800F45E0' isn't defined\n/usr/bin/ld: final link failed: bad value\ncollect2: error: ld returned 1 exit status\n"
+    ]
+   },
+   {
+    "round": 3,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.4,
+     "max_tokens": 64000,
+     "prompt_tokens": 20536,
+     "completion_tokens": 4235,
+     "reasoning_tokens": 2005,
+     "cost": 0.0041711,
+     "seconds": 17.5,
+     "sample": 1,
+     "conversation": "0f43bc1f1850ab8cd89821c16f9f96c2cca95209aecd9e7094c398447991eddd"
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\nlink: /usr/bin/ld: pc/build/port-pipeline/func_800A0024/spec3/build/harness.o: in function `spec.prepare':\npc/build/port-pipeline/func_800A0024/spec3/build/spec.zig:25:(.text.main.main+0x7a7): undefined reference to `D_800F45E0'\n/usr/bin/ld: pc/build/port-pipeline/func_800A0024/spec3/build/harness.o:(.debug_info+0x198b): undefined reference to `D_800F45E0'\n/usr/bin/ld: pc/build/port-pipeline/func_800A0024/spec3/build/zdiff: hidden symbol `D_800F45E0' isn't defined\n/usr/bin/ld: final link failed: bad value\ncollect2: error: ld returned 1 exit status\n"
+    ]
+   }
+  ],
+  "classes": {},
+  "mutations": [],
+  "coverage": null
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 1.2673221870027191,
+ "wall_seconds": 190.82274390600105,
+ "totals": {
+  "cost": 0.02916,
+  "prompt_tokens": 70201,
+  "completion_tokens": 44286,
+  "model_seconds": 189.4,
+  "check_seconds": 1.3,
+  "calls": 4,
+  "wall_seconds": 190.8
+ },
+ "review": {
+  "by": "Claude Sonnet 5.5 (reviewer)",
+  "date": "2026-10-24"
+ }
+}

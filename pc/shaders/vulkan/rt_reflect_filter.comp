@@ -1,0 +1,74 @@
+#version 450
+// Denoises the traced reflections (rt_reflect.comp) at GI resolution: a
+// small edge-aware blur of the raw rays, wider on rougher surfaces (a mirror
+// keeps its detail), then a temporal blend with the previous result where
+// the surface's previous position reprojects to a pixel that saw the same
+// surface (as rt_temporal.comp), its history clamped to this frame's
+// neighbourhood so reflections never smear or ghost. Shorter history on
+// smoother surfaces (what they reflect moves with the eye).
+layout(local_size_x = 8, local_size_y = 8) in;
+layout(std140, binding = 0) uniform Filter {
+    mat4 previous_to_image; // world -> previous GI image (x, y in 0..1) * w, w = view depth
+    vec4 params; // footprint, max history, valid history, roughness bias
+} u;
+layout(binding = 1, rgba16f) uniform readonly image2D raw; // rgb radiance, a hit distance
+layout(binding = 2, rgba32f) uniform readonly image2D position;
+layout(binding = 3, rgba16f) uniform readonly image2D normal;
+layout(binding = 4, rgba16f) uniform readonly image2D material; // roughness, specular, metal, 1
+layout(binding = 5, rgba32f) uniform readonly image2D motion; // previous world position, w 1 = known
+layout(binding = 6, rgba16f) uniform readonly image2D history; // rgb, a history length
+layout(binding = 7, rgba32f) uniform readonly image2D history_position;
+layout(binding = 8, rgba16f) uniform readonly image2D history_normal;
+layout(binding = 9, rgba16f) uniform writeonly image2D result;
+float lum(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
+void main() {
+    ivec2 g = ivec2(gl_GlobalInvocationID.xy), size = imageSize(result);
+    if (any(greaterThanEqual(g, size))) return;
+    vec4 p = imageLoad(position, g), m = imageLoad(material, g);
+    if (p.w < 0.5 || m.a < 0.5) { imageStore(result, g, vec4(0.0)); return; }
+    vec3 n = imageLoad(normal, g).xyz;
+    float rough = clamp(m.r + u.params.w, 0.03, 1.0);
+    // Spatial: radius 0 (mirror) to 3 GI pixels (fully rough).
+    int radius = int(round(rough * 3.0));
+    vec3 sum = vec3(0.0), m1 = vec3(0.0), m2 = vec3(0.0);
+    float weight = 0.0, count = 0.0;
+    for (int y = -radius; y <= radius; y++)
+        for (int x = -radius; x <= radius; x++) {
+            ivec2 q = clamp(g + ivec2(x, y), ivec2(0), size - 1);
+            vec4 qp = imageLoad(position, q), qm = imageLoad(material, q);
+            if (qp.w < 0.5 || qm.a < 0.5) continue;
+            vec3 qn = imageLoad(normal, q).xyz;
+            vec3 c = imageLoad(raw, q).rgb;
+            float plane = abs(dot(qp.xyz - p.xyz, n));
+            float w = pow(max(dot(qn, n), 0.0), 16.0) * exp(-plane * 0.25) * exp(-abs(qm.r - m.r) * 8.0);
+            if (w <= 1e-4) continue;
+            sum += c * w; weight += w;
+            if (abs(x) <= 1 && abs(y) <= 1) { m1 += c; m2 += c * c; count += 1.0; }
+        }
+    vec3 now = weight > 0.0 ? sum / weight : imageLoad(raw, g).rgb;
+    vec3 mean = count > 0.0 ? m1 / count : now, sigma = count > 0.0 ? sqrt(max(m2 / count - mean * mean, 0.0)) : vec3(0.0);
+    // Temporal.
+    float len = 1.0;
+    vec3 out_c = now;
+    vec4 was = imageLoad(motion, g);
+    if (u.params.z > 0.5 && was.w > 0.5) {
+        vec4 v = u.previous_to_image * vec4(was.xyz, 1.0);
+        if (v.w > 1.0) {
+            ivec2 h = ivec2(floor(v.xy / v.w * vec2(size)));
+            if (all(greaterThanEqual(h, ivec2(0))) && all(lessThan(h, size))) {
+                vec4 hp = imageLoad(history_position, h), hn = imageLoad(history_normal, h), hc = imageLoad(history, h);
+                float fp = u.params.x * v.w;
+                bool same = hp.w > 0.5 && dot(hn.xyz, n) >= 0.9 && length(hp.xyz - was.xyz) < 2.0 * fp + 2.0
+                    && !any(isnan(hc)) && !any(isinf(hc));
+                if (same) {
+                    float k = mix(1.0, 3.0, rough);
+                    vec3 lo = min(mean, now) - sigma * k, hi = max(mean, now) + sigma * k;
+                    vec3 kept = clamp(hc.rgb, lo, hi);
+                    len = min(hc.a + 1.0, mix(4.0, u.params.y, rough));
+                    out_c = mix(kept, now, 1.0 / len);
+                }
+            }
+        }
+    }
+    imageStore(result, g, vec4(max(out_c, vec3(0.0)), len));
+}

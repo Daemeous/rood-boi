@@ -19,6 +19,7 @@ layout(push_constant) uniform Push {
     int ui_scale; // the UI atlas's magnification (pc/src/ui_upscale.c), 0: none
     float text_factor; // pass 5: the PS1 mode's alpha factor (B/2 + F/2: 0.5, B + F/4: 0.25)
     int emissive; // emissive texels: the slot map (binding 3) is read
+    int materials; // material response: the slot map's material planes (material.glsl)
 } pc;
 layout(binding = 0) uniform usampler2D vram;
 #ifdef SURFACE_MS // MSAA (hw_ms.frag): the native surfaces' depth multisampled, sample 0
@@ -32,9 +33,11 @@ layout(location = 0) out vec4 color;
 layout(location = 1) out vec4 normal_out;
 layout(location = 2) out vec4 albedo_out;
 layout(location = 3) out vec4 shade_out;
+layout(location = 4) out vec4 material_out; // material.glsl (lit textured 3D packets only)
 #include "vram.glsl"
 #include "text_dist.glsl"
 #include "emissive.glsl"
+#include "material.glsl"
 void main() {
     // A pixel's footprint in texels (text from distance texels: edges one pixel wide).
     vec2 footprint = fwidth(pc.perspective != 0 ? v_uv_persp : v_uv_affine);
@@ -56,6 +59,7 @@ void main() {
     vec3 c = v_color;
     vec3 albedo = v_color;
     vec4 shade = vec4(v_color, 0.5);
+    vec4 material = vec4(0.0);
     if ((flags & 1u) != 0u) {
         uint t;
         vec3 texel;
@@ -108,6 +112,10 @@ void main() {
             vec3 em = emissive_texel(uint(eq.x) & 255u, uint(eq.y) & 255u, tpage, win, t, 0u); // (no scope bits: packets)
             if (any(greaterThan(em, vec3(0.0)))) { c = max(c, min(em, vec3(1.0))); shade = vec4(min(em * 0.5, vec3(1.0)), 0.25); }
         }
+        if (pc.materials != 0 && v_normal.w > 0.5 && (flags & 16u) == 0u) {
+            ivec2 mq = ivec2(floor(v_uv + 0.0001));
+            material = material_texel(uint(mq.x) & 255u, uint(mq.y) & 255u, tpage, win);
+        }
     }
     if ((pc.pass == 1 && semi) || (pc.pass == 2 && !semi)) discard;
     // (texels of a recorded frame redrawn with ui_text original: whole)
@@ -126,5 +134,6 @@ void main() {
     normal_out = lit ? vec4(normalize(v_normal.xyz) * 0.5 + 0.5, v_normal.w > 0.9 ? 1.0 : 0.75) : vec4(0.0);
     albedo_out = lit ? vec4(albedo, 1.0) : vec4(0.0);
     shade_out = lit ? shade : vec4(0.0);
+    material_out = lit ? material : vec4(0.0);
 }
 #endif
