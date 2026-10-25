@@ -3658,6 +3658,64 @@ static void handle_method(int fd, const char* request)
         if (params && bool_value(member(params, "enabled"), &enabled)) pc_hd_enabled = enabled;
         pc_hd_status(result, sizeof result);
         reply(fd, id, result);
+    } else if (!strcmp(method, "encounter")) {
+        /* The encounter lab (encounter_lab.c, pc/tools/encounter.py): {zone,
+         * room, records: [hex of 0x28-byte MPD enemy records], seed} arms the
+         * next arrival there (room_goto, enemies on) to spawn these instead of
+         * the room's enemies; {action: "cancel"}; otherwise the status. */
+        extern int pc_encounter_set(int, int, const unsigned char*, int, int, unsigned) __attribute__((weak));
+        extern void pc_encounter_cancel(void) __attribute__((weak));
+        extern int pc_encounter_status(char*, int) __attribute__((weak));
+        char action[16] = "";
+        if (!pc_encounter_set) {
+            fail(fd, id, -32000, "encounter needs the battle build");
+            return;
+        }
+        if (params)
+            string_value(member(params, "action"), action, sizeof action);
+        if (!strcmp(action, "cancel"))
+            pc_encounter_cancel();
+        else if (params && member(params, "records")) {
+            static unsigned char records[8 * 0x28];
+            long long zone = -1, room = -1, seed = 0;
+            int count = 0, seeded;
+            const char* at = member(params, "records");
+            if (!number_value(member(params, "zone"), &zone) || !number_value(member(params, "room"), &room)) {
+                fail(fd, id, -32602, "encounter needs zone and room");
+                return;
+            }
+            seeded = number_value(member(params, "seed"), &seed);
+            if (*at == '[')
+                at++;
+            while (*at && *at != ']') {
+                char hex[2 * 0x28 + 1];
+                const char* end;
+                while (*at == ' ' || *at == ',')
+                    at++;
+                if (*at != '"')
+                    break;
+                end = strchr(at + 1, '"');
+                if (!end || end - at - 1 != 2 * 0x28 || count == 8) {
+                    fail(fd, id, -32602, "records: up to 8 strings of 80 hex digits");
+                    return;
+                }
+                memcpy(hex, at + 1, 2 * 0x28);
+                hex[2 * 0x28] = 0;
+                for (int k = 0; k < 0x28; k++) {
+                    unsigned v;
+                    if (sscanf(hex + 2 * k, "%2x", &v) != 1) {
+                        fail(fd, id, -32602, "records: not hex");
+                        return;
+                    }
+                    records[count * 0x28 + k] = (unsigned char)v;
+                }
+                count++;
+                at = end + 1;
+            }
+            pc_encounter_set((int)zone, (int)room, records, count, seeded, (unsigned)seed);
+        }
+        pc_encounter_status(result, sizeof result);
+        reply(fd, id, result);
     } else if (!strcmp(method, "emissive")) {
         /* Emissive texels (emissive_editor.cpp parses the params object). */
         extern int pc_emissive_rpc(const char* params, char* out, int size) __attribute__((weak));

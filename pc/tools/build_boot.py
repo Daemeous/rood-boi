@@ -963,6 +963,7 @@ if battle:
         ("pc/src/map_view.c", "map_view"),
         ("pc/src/dev_state.c", "dev_state"),
         ("pc/src/room_warp.c", "room_warp"),
+        ("pc/src/encounter_lab.c", "encounter_lab"),
         ("pc/src/story_boot.c", "story_boot"),
         ("pc/src/fast_travel.c", "fast_travel"),
         ("pc/src/hud/hud_bridge.c", "hud_bridge"),
