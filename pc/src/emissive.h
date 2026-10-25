@@ -37,13 +37,15 @@ extern float pc_emissive;
 #define PC_EMISSIVE_SHADE_ALPHA 0.25f
 
 /* Material response (materials.h, pc/docs/Materials.md): the Vulkan slot
- * map image has three more planes of 512 rows below the emissive rows, from
- * PC_MATERIAL_ROW: each cell's roughness, specular and metal (x 255; no
- * material: 255, 0, 0). The draw shaders write them into the G-buffer's
- * material target where pc_material_active(); the present pass lights them
- * (scaled.frag). OpenGL draws no material response. */
+ * map image has six more planes of 512 rows below the emissive rows, from
+ * PC_MATERIAL_ROW: each cell's roughness, specular and metal (x 255), the
+ * relief's slopes along u and v (0: none, else 128 + slope x 63.5) and its
+ * cavity (x 255); no material: 255, 0, 0, 0, 0, 0. The draw shaders write
+ * them into the G-buffer's material target where pc_material_active(); the
+ * present pass lights them (scaled.frag). OpenGL draws no material response. */
 #define PC_MATERIAL_ROW PC_EMISSIVE_MAP_H
-#define PC_MATERIAL_MAP_H 1536
+#define PC_MATERIAL_PLANES 6
+#define PC_MATERIAL_MAP_H (512 * PC_MATERIAL_PLANES)
 /* The switch (lighting quality key `specular`, 0: the specular lobe off
  * entirely, the picture exactly the one without materials) and the
  * tunables (settings, Lighting panel, RPC lighting): global specular
@@ -53,6 +55,22 @@ extern int pc_specular;
 extern float pc_specular_strength;
 extern float pc_roughness_bias;
 extern int pc_reflection_bounces;
+/* The relief (height.png, or the estimate from a texture's colours where an
+ * entry asks for it): its depth in texels per height unit (0..4; 0 flat),
+ * the estimate's switch and strength (0..2; the planes are rebuilt when they
+ * change), and the cavities' share of ambient light lost (0..1). The
+ * environment: the Fresnel reflection of the room's own light where no
+ * traced reflection is bound (0..1), and how far the game's baked light on
+ * a material obeys its energy split (0..1; 0: baked light untouched). */
+extern float pc_bump_strength;
+extern int pc_auto_height;
+extern float pc_auto_height_strength;
+extern float pc_bump_occlusion;
+extern float pc_env_specular;
+extern float pc_baked_energy;
+/* The editor's preview of the height estimate on every entry in view
+ * (material_editor.cpp; not a setting). */
+extern int pc_auto_height_preview;
 /* The planes (PC_MATERIAL_MAP_H x PC_EMISSIVE_MAP_W bytes); returns whether
  * they changed since the last call (upload them). Valid after
  * pc_emissive_sync. */

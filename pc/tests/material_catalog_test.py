@@ -36,12 +36,24 @@ def main():
                     assert type(value[field]) in (int, float) and 0 <= value[field] <= 1
     for preset in data["presets"].values():
         assert all(0 <= preset[k] <= 1 for k in ("roughness", "specular", "metal"))
+    # Relief fields (entries and presets): auto_height a boolean, bump a multiplier in [0, 4].
+    for value in list(data["presets"].values()) + data["entries"]:
+        if "auto_height" in value:
+            assert type(value["auto_height"]) is bool
+        if "bump" in value:
+            assert type(value["bump"]) in (int, float) and 0 <= value["bump"] <= 4
     # Publish permits single-channel maps only, rejects extracted colour art.
     path = "pc/assets/materials/0123456789/roughness.png"
     png = b"\x89PNG\r\n\x1a\n" + struct.pack(">I4sIIBB", 13, b"IHDR", 31, 31, 8, 0)
     assert guard.problem(path, png) is None
     assert guard.problem(path, png[:-1] + b"\x06") is not None
     assert guard.problem("pc/assets/materials/0123456789/reference.png", png) is not None
+    for channel in ("height", "metal"):
+        assert guard.problem(f"pc/assets/materials/0123456789/{channel}.png", png) is None
+    # Every shipped map passes the guard.
+    for path in sorted((ROOT / "pc/assets/materials").glob("*/*.png")):
+        rel = path.relative_to(ROOT).as_posix()
+        assert guard.problem(rel, path.read_bytes()) is None, rel
     print(f"material catalog: {len(ids)} provisional entries, {len(data['presets'])} presets; grayscale publish guard OK")
 
 

@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include "light_prefabs.h" /* prefab::Json */
+#include "emissive.h" /* PC_MATERIAL_PLANES */
 
 namespace emissive {
 
@@ -183,10 +184,13 @@ struct MaterialUse {
     unsigned page = 0, clut = 0;
     uint8_t box[4] = { 0, 0, 0, 0 };
     bool painted = false; /* its roughness from its roughness.png */
+    bool painted_metal = false; /* its metal from its metal.png */
+    int relief = 0; /* 0 none, 1 its height.png, 2 estimated from its colours */
 };
 std::vector<MaterialUse> material_use_list();
 int material_cell_count();
-bool material_at(unsigned u, unsigned v, unsigned tpage, int out[3]);
+/* The planes at a texel (emissive.h PC_MATERIAL_*: roughness, specular, metal, slopes u and v, cavity). */
+bool material_at(unsigned u, unsigned v, unsigned tpage, int out[PC_MATERIAL_PLANES]);
 
 /* Scopes */
 bool current_room(int* zone, int* room); /* the room the player is in (dev_state.c) */

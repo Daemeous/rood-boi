@@ -190,7 +190,7 @@ CACHE = ROOT / "pc/build/fixture-check"
 
 def inputs_key(zones, disc):
     h = hashlib.sha256()
-    files = [pathlib.Path(__file__)]
+    files = [pathlib.Path(__file__).resolve()]
     for d, pattern in (("pc/tools", "*.py"), ("pc/assets/fixtures", "**/*"), ("pc/assets/prefabs", "**/*"),
                        ("lighting", "**/*")):
         files += sorted(p for p in (ROOT / d).glob(pattern) if p.is_file())

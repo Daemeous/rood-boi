@@ -59,8 +59,16 @@ layout(std140, binding = 0) uniform Present {
     // specular lobe off, the picture exactly as without materials), w 1 a
     // traced reflection result is bound (binding 24, at GI resolution).
     vec4 material_;
+    // x the relief's depth in texels per height unit (bump_strength), y the
+    // cavities' share of ambient light lost (bump_occlusion), z the Fresnel
+    // reflection of the room's own light where no traced reflection is bound
+    // (env_specular), w how far the game's baked light obeys the material's
+    // energy split (baked_energy; 0: baked light untouched). Debug views
+    // (view_mode): 9 the shading normals with the relief, 10 the cavities.
+    vec4 material2_;
 } u;
-layout(binding = 23) uniform sampler2D material_tex; // roughness, specular, metal, 1 (material.glsl)
+#include "material_pack.glsl"
+layout(binding = 23) uniform sampler2D material_tex; // the material target (material_pack.glsl)
 layout(binding = 24) uniform sampler2D reflect_tex; // traced reflections (rgb), GI resolution
 layout(binding = 20) uniform sampler2D backdrop_tex;
 layout(binding = 21) uniform usampler2D particle_keys; // the particles' key image (particles.glsl)
@@ -526,15 +534,31 @@ void main() {
             if ((gi_on & 64) != 0) gi.rgb += probe_irradiance_at(world, world_normal, normalize(world - eye_world));
             float baked_vis = (gi_on & 16) != 0 ? extra.r : 1.0;
             float ao = u.quality1.y != 0 ? screen_ao(world, world_normal) : 1.0;
-            // Material response: this pixel's roughness, specular, metal (material.glsl).
-            vec4 mat = u.material_.z > 0.5 ? texelFetch(material_tex, q, 0) : vec4(0.0);
+            // Material response: this pixel's roughness, specular, metal, relief (material_pack.glsl).
+            Material mp = material_unpack(u.material_.z > 0.5 ? texelFetch(material_tex, q, 0) : vec4(0.0));
+            vec4 mat = mp.surface;
             bool has_mat = mat.a > 0.5;
             float m_rough = clamp(mat.r + u.material_.y, 0.03, 1.0), m_alpha = m_rough * m_rough;
             vec3 m_view = normalize(eye_world - world);
             vec3 m_f0 = mix(vec3(0.04 * mat.g), albedo * mat.g, mat.b);
             float m_f90 = mix(mat.g, 1.0, mat.b);
             vec3 spec = vec3(0.0);
-            vec3 m_r = reflect(-m_view, world_normal);
+            // The relief (bump_strength texels of depth per height unit) bends the shading normal of the
+            // dynamic light and the specular lobe; the geometry's own normal keeps the shadows, GI and AO.
+            // Its normal was made for a unit depth on the polygon's flat normal: its tangential part,
+            // scaled, goes onto the smoothed normal.
+            bool m_relief = has_mat && mp.relief && u.material2_.x > 0.0;
+            vec3 n_s = world_normal;
+            if (m_relief) {
+                vec3 flat_n = normalize(n.xyz * 2.0 - 1.0);
+                float along = max(dot(mp.bent, flat_n), 0.2);
+                vec3 tangential = flat_n - mp.bent / along; // the surface gradient of the height
+                n_s = normalize(normal_to_world() * normalize(normal - tangential * u.material2_.x));
+                if (dot(n_s, m_view) < 0.0 && dot(world_normal, m_view) > 0.0) n_s = normalize(n_s - m_view * dot(n_s, m_view) * 1.01);
+            }
+            // The cavities' ambient occlusion (the baked, indirect and sky light; never the direct lights').
+            float m_cav = has_mat ? 1.0 - mp.cavity * clamp(u.material2_.y, 0.0, 1.0) * min(u.material2_.x, 1.0) : 1.0;
+            vec3 m_r = reflect(-m_view, n_s);
             for (int i = 0; i < light_count; i++) {
                 vec3 centre = lights[i].pos.xyz;
                 if (window_aperture(i)) centre = window_centre(i, world);
@@ -558,35 +582,36 @@ void main() {
                     a *= map_visibility(light_shadow(i), world + world_normal * max(2.0, lights[i].world.w * 0.01), lights[i].world,
                         lights[i].col.w < 1.5 && lights[i].right.w > 0.0 ? lights[i].right.w : u.quality2.x, min(sqrt(1.0 - cosine * cosine) / cosine, 4.0));
                 }
-                sum += lights[i].col.rgb * a;
+                // The light's attenuation without its cosine (the relief's cosine replaces the geometry's).
+                float ndl = max(dot(world_normal, l), 0.0);
+                float att = has_mat && ndl > 1e-3 ? a / ndl : 0.0;
+                sum += lights[i].col.rgb * (m_relief ? att * max(dot(n_s, l), 0.0) : a);
                 if (has_mat && a > 0.0) {
-                    // The light's attenuation without its cosine (the diffuse term's own, untouched).
-                    float ndl = max(dot(world_normal, l), 0.0);
-                    float att = ndl > 1e-3 ? a / ndl : 0.0;
                     vec3 ls = l, ps = centre;
                     if (lights[i].col.w > 1.5 && !window_aperture(i)) { ps = rect_spec_point(i, world, m_r); ls = normalize(ps - world); }
                     float size = lights[i].right.w > 0.0 ? lights[i].right.w : u.quality2.x;
                     float widen = lights[i].col.w > 1.5 ? 0.0 : clamp(size / max(3.0 * distance(ps, world), 1.0), 0.0, 1.0);
-                    spec += lights[i].col.rgb * att * spec_brdf(world_normal, m_view, ls, m_alpha, m_f0, m_f90, widen);
+                    spec += lights[i].col.rgb * att * spec_brdf(n_s, m_view, ls, m_alpha, m_f0, m_f90, widen);
                 }
             }
             // The sun: traced visibility (the trace weighs it into gi.a with the lights), else
             // unshadowed (with the screen-space AO when on); the sky's ambient where nothing traces it.
             if (env_sun_on())
-                sum += env_sun_unshadowed(world_normal) * (u.env_mode.x == -2 ? clamp(gi.a, 0.0, 1.0)
+                sum += env_sun_unshadowed(m_relief ? n_s : world_normal) * (u.env_mode.x == -2 ? clamp(gi.a, 0.0, 1.0)
                     : u.env_mode.x == 0 ? env_sun_map_visibility(world, world_normal, ign(gl_FragCoord.xy) * 6.2831853) : ao);
             if (u.env_mode.y != 0)
-                sum += env_ambient(world_normal) * ao;
+                sum += env_ambient(world_normal) * ao * m_cav;
             if (has_mat && env_sun_on()) { // the sun's highlight: its disc's angular size widens the lobe
                 float sv = u.env_mode.x == -2 ? clamp(gi.a, 0.0, 1.0)
                     : u.env_mode.x == 0 ? env_sun_map_visibility(world, world_normal, ign(gl_FragCoord.xy) * 6.2831853) : ao;
-                spec += env_sun_col.rgb * sv * spec_brdf(world_normal, m_view, env_sun_dir.xyz, m_alpha, m_f0, m_f90, env_sun_dir.w);
+                spec += env_sun_col.rgb * sv * spec_brdf(n_s, m_view, env_sun_dir.xyz, m_alpha, m_f0, m_f90, env_sun_dir.w);
             }
             if ((gi_on & 2) != 0) { color = vec4(min((gi.rgb + extra.gba) * gi_strength, vec3(1.0)), 1.0); return; }
             if ((gi_on & 8) != 0) { color = vec4(vec3(gi.a), 1.0); return; }
             if ((gi_on & 32) != 0) { color = vec4(vec3(baked_vis * ao), 1.0); return; }
-            if ((gi_on & 1) != 0) sum += (gi.rgb * ao + extra.gba) * gi_strength; // indirect + glows
-            else if ((gi_on & (64 | 256)) != 0) sum += gi.rgb * ao * gi_strength; // probes alone (no traced GI result)
+            vec3 indirect = vec3(0.0); // (the material's environment where no reflection is traced)
+            if ((gi_on & 1) != 0) { indirect = gi.rgb * ao * gi_strength; sum += (gi.rgb * ao * m_cav + extra.gba) * gi_strength; } // indirect + glows
+            else if ((gi_on & (64 | 256)) != 0) { indirect = gi.rgb * ao * gi_strength; sum += indirect * m_cav; } // probes alone (no traced GI result)
             vec4 shade = texelFetch(shade_tex, q, 0);
             vec3 vertex_light = shade.a > 0.75 ? shade.rgb * (255.0 / 128.0) : shade.rgb;
             if (view_mode == 3) { color = vec4(shade.a > 0.75 ? albedo : shade.rgb, 1.0); return; }
@@ -595,20 +620,32 @@ void main() {
             if (view_mode == 2) { c = vertex_light * 0.5; albedo = vec3(0.5); }
             if (has_mat) {
                 // Energy: what the lobe reflects (Fresnel at the view) is not diffused; metal diffuses nothing.
-                float nv = max(dot(world_normal, m_view), 1e-4);
+                float nv = max(dot(n_s, m_view), 1e-4);
                 vec2 ab = env_brdf(m_rough, nv);
                 vec3 f_env = m_f0 * ab.x + m_f90 * ab.y;
                 vec3 kd = (1.0 - f_env) * (1.0 - mat.b);
-                // Traced reflections (the path tracer's specular rays, GI resolution).
-                if (u.material_.w > 0.5) spec += texture(reflect_tex, ((vec2(q) + 0.5) / float(scale) - vec2(rect.xy)) / vec2(rect.zw)).rgb * f_env * ao;
+                // The game's baked light on this pixel (its vertex light: the light arriving from the room).
+                vec3 baked_in = (shade.a > 0.75 ? vertex_light : vec3(1.0)) * baked * baked_vis * ao * m_cav;
+                // The environment the lobe reflects, split-sum: the traced reflections (the path
+                // tracer's specular rays, GI resolution) show the room's geometry; the game's baked
+                // light comes from lights the trace cannot see (they have no geometry), so the
+                // light it brings here is reflected as a uniform surround (env_specular), as is the
+                // indirect light where no reflection is traced.
+                float env_k = clamp(u.material2_.z, 0.0, 1.0);
+                if (u.material_.w > 0.5) spec += (texture(reflect_tex, ((vec2(q) + 0.5) / float(scale) - vec2(rect.xy)) / vec2(rect.zw)).rgb * ao * m_cav + baked_in * env_k) * f_env;
+                else spec += (baked_in + indirect * m_cav) * f_env * env_k;
                 spec *= u.material_.x;
                 if (view_mode == 6) { color = vec4(mat.rgb, 1.0); return; }
+                if (view_mode == 9) { color = vec4(n_s * 0.5 + 0.5, 1.0); return; }
+                if (view_mode == 10) { color = vec4(vec3(m_cav), 1.0); return; }
                 // 8: the traced reflections alone (before Fresnel), magenta when none is bound
                 if (view_mode == 8) { color = u.material_.w > 0.5 ? vec4(min(texture(reflect_tex, ((vec2(q) + 0.5) / float(scale) - vec2(rect.xy)) / vec2(rect.zw)).rgb, vec3(1.0)), 1.0) : vec4(1.0, 0.0, 1.0, 1.0); return; }
                 if (view_mode == 7) { color = vec4(min(spec, vec3(1.0)), 1.0); return; }
-                c = c * baked * baked_vis * ao + albedo * sum * mix(vec3(1.0), kd, min(u.material_.x, 1.0)) + spec;
+                // The baked light under the same split as the dynamic light (baked_energy; 0: untouched).
+                vec3 kb = mix(vec3(1.0), kd, clamp(u.material2_.w, 0.0, 1.0) * min(u.material_.x, 1.0));
+                c = c * baked * baked_vis * ao * m_cav * kb + albedo * sum * mix(vec3(1.0), kd, min(u.material_.x, 1.0)) + spec;
             } else {
-                if (view_mode >= 6 && view_mode <= 8) { color = vec4(0.0, 0.0, 0.0, 1.0); return; }
+                if (view_mode >= 6 && view_mode <= 10) { color = vec4(0.0, 0.0, 0.0, 1.0); return; }
                 c = c * baked * baked_vis * ao + albedo * sum;
             }
             if (em_px) c = max(c, em);

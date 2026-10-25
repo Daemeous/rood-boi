@@ -18,7 +18,7 @@ import struct
 import subprocess
 import sys
 
-ALLOWED = {"emissive", "roughness"}
+ALLOWED = {"emissive", "roughness", "height", "metal"}
 PATTERN = re.compile(r"^pc/assets/materials/([0-9a-f]{10})/([a-z0-9_]+)\.png$")
 
 

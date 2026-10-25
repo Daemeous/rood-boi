@@ -11,8 +11,9 @@ extern "C" {
 /* A colour target with its G-buffer and depth (the GL target_fbo set). */
 typedef struct {
     vk_image color, normal, albedo, shade, depth;
-    /* Material response (emissive.h PC_MATERIAL_*): roughness, specular,
-     * metal, a = 1 where a texel has a material (else all 0). */
+    /* Material response (emissive.h PC_MATERIAL_*; material_pack.glsl):
+     * roughness, specular, metal, cavity and the relief normal, packed
+     * (VK_MATERIAL_FORMAT); all 0 where a texel has no material. */
     vk_image material;
 } vk_target;
 typedef struct {
@@ -33,6 +34,8 @@ typedef struct {
 } vk_hw_state;
 extern vk_hw_state vk_hw;
 #define VK_TARGET_FORMAT VK_FORMAT_R8G8B8A8_UNORM
+/* The material target (material_pack.glsl: packed 16-bit words). */
+#define VK_MATERIAL_FORMAT VK_FORMAT_R16G16B16A16_UNORM
 
 /* The attachments a token names (live, replay, object, object replay). */
 const vk_attachments* vk_hw_attachments(unsigned token);

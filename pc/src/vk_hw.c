@@ -93,7 +93,7 @@ static int make_target(vk_target* t)
         && vk_image_create(&t->normal, vk_hw.width, vk_hw.height, VK_TARGET_FORMAT, color)
         && vk_image_create(&t->albedo, vk_hw.width, vk_hw.height, VK_TARGET_FORMAT, color)
         && vk_image_create(&t->shade, vk_hw.width, vk_hw.height, VK_TARGET_FORMAT, color)
-        && vk_image_create(&t->material, vk_hw.width, vk_hw.height, VK_TARGET_FORMAT, color)
+        && vk_image_create(&t->material, vk_hw.width, vk_hw.height, VK_MATERIAL_FORMAT, color)
         && vk_image_create(&t->depth, vk_hw.width, vk_hw.height, vk.depth_format, depth);
 }
 static void destroy_target(vk_target* t)
@@ -197,7 +197,7 @@ static VkPipeline target_pipeline_ms(VkShaderModule vs, VkShaderModule fs, VkPip
     VkPrimitiveTopology topology, int blend, unsigned masks, int samples, int centre)
 {
     static const VkFormat formats[5] = { VK_TARGET_FORMAT, VK_TARGET_FORMAT, VK_TARGET_FORMAT, VK_TARGET_FORMAT,
-        VK_TARGET_FORMAT };
+        VK_MATERIAL_FORMAT };
     vk_pipeline_desc d = { .vertex = vs,
         .fragment = fs,
         .layout = layout,
@@ -965,7 +965,7 @@ int pc_vk_hw_ms_make(int samples, int width, int height)
         || !vk_image_create_ms(&t->normal, width, height, VK_TARGET_FORMAT, color, samples)
         || !vk_image_create_ms(&t->albedo, width, height, VK_TARGET_FORMAT, color, samples)
         || !vk_image_create_ms(&t->shade, width, height, VK_TARGET_FORMAT, color, samples)
-        || !vk_image_create_ms(&t->material, width, height, VK_TARGET_FORMAT, color, samples)
+        || !vk_image_create_ms(&t->material, width, height, VK_MATERIAL_FORMAT, color, samples)
         || !vk_image_create_ms(&t->depth, width, height, vk.depth_format, depth, samples)
         || !vk_image_create_ms(&vk_hw.ms_room, width, height, vk.depth_format, depth, samples)
         || !vk_image_create_ms(&vk_hw.ms_before, width, height, vk.depth_format, depth, samples)) {

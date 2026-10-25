@@ -21,13 +21,26 @@ shipped catalog and a scratch user layer.
   there and only there, and is written as the user layer's roughness.png
   (8-bit grayscale, the texture's size); a map written straight to disk is
   picked up while the game runs; a map of another size is ignored;
+- metal and height maps: metal.png sets the texel's metal (painted over RPC
+  with channel metal; the user layer's over the shipped layer's); a shipped
+  height.png ramp along u gives slopes along u only, the user's flat map
+  wins (flat slopes); without a map an entry with auto_height gets the
+  estimate (RPC uses relief "estimated"), which the global auto_height
+  switch and a zero auto_height_strength turn off;
+- relief identity: an entry with no maps and no flags (and specular and
+  metal 0) marks nothing and the frame is identical to no entries; a
+  relief-only entry with bump_strength 0 is identical too;
 - identity: with no entry (both catalogs empty) the frame is identical,
   byte for byte, to the frame with entries but specular off (and to one
   with entries for other rooms only); the switch off clears RPC active;
 - Vulkan: on, only material pixels change (the material view's mask),
   the specular-only view (view_mode 7) shows a highlight on the floor, and
   the highlight moves across the floor's texels when the camera moves (its
-  brightest pixel picks a different texel);
+  brightest pixel picks a different texel); a height map bends the
+  highlight (the specular view changes on many pixels, the relief normals
+  view differs from the geometry's normals) and bump_strength 0 takes it
+  back exactly; metal tints the highlight by the albedo (brighter than the
+  dielectric's, its colour following the texture's);
 - OpenGL: entries match (RPC) but the picture is the same as without them
   (OpenGL draws no material response).
 """
@@ -106,7 +119,10 @@ def main():
     env = {"ROOD_LIGHTS": str(lights), "ROOD_LIGHTING": str(ROOT / "lighting"), "ROOD_SCALE": "2",
            "ROOD_WINDOW": "1280x960", "ROOD_GI": "1" if vulkan else "0", "ROOD_SETTINGS": str(out / "settings.cfg"),
            "ROOD_MATERIAL_CATALOG": str(shipped), "ROOD_MATERIAL_CATALOG_USER": str(user),
-           "ROOD_MATERIALS": str(out / "maps"), "ROOD_MATERIAL_EXPORTS": str(out / "exports")}
+           "ROOD_MATERIALS": str(out / "maps"), "ROOD_MATERIAL_EXPORTS": str(out / "exports"),
+           "ROOD_MATERIALS_SHIPPED": str(out / "shipped-maps")}
+    shutil.rmtree(out / "maps", ignore_errors=True)
+    shutil.rmtree(out / "shipped-maps", ignore_errors=True)
     os.environ.pop("ROOD_SETTINGS", None)
     socket = os.environ.get("ROOD_RPC") or f"/tmp/rood-material-{os.getpid()}.sock"
     failures = []
@@ -153,11 +169,12 @@ def main():
               f"the shipped entry marks the floor ({len(uses)} uses, {listing['cells']} texels, active "
               f"{listing['active']})")
         at = game.call("material", action="pick", world=floor).get("material")
-        check(at == [51, 255, 0], f"the picked texel's roughness, specular, metal x 255: {at} (expected [51, 255, 0])")
+        check(at == [51, 255, 0, 0, 0, 0], f"the picked texel's roughness, specular, metal x 255, no relief: {at} "
+              "(expected [51, 255, 0, 0, 0, 0])")
         write_json(user, dict(EMPTY, entries=[dict(entry, specular=0.5, roughness=0.6)]))
         settle(game)
         at = game.call("material", action="pick", world=floor).get("material")
-        check(at == [153, 128, 0], f"the user layer's entry of the same id wins: {at} (expected [153, 128, 0])")
+        check(at and at[:3] == [153, 128, 0], f"the user layer's entry of the same id wins: {at} (expected [153, 128, 0])")
         user.unlink()
         for name, scoped in (("another room", dict(entry, scope={"room": [zone, (room + 1) % 256]})),
                              ("another palette", dict(entry, match=dict(entry["match"], clut="0123456789")))):
@@ -217,8 +234,101 @@ def main():
         png.unlink()
         settle(game)
 
+        # ---- metal and height maps, the height estimate
+        def pick():
+            return game.call("material", action="pick", world=floor).get("material") or []
+
+        def relief_of():
+            return [u.get("relief") for u in game.call("material")["uses"] if u["key"] == key]
+
+        box = [max(tx - 1, 0), max(ty - 1, 0), min(tx + 1, size[0] - 1), min(ty + 1, size[1] - 1)]
+        painted = game.call("material", action="paint", key=key, channel="metal", value=255, rects=[box])
+        settle(game)
+        metal_png = maps / "metal.png"
+        img = Image.open(metal_png) if metal_png.exists() else None
+        at = pick()
+        check(painted.get("channel") == "metal" and img is not None and img.mode == "L" and list(img.size) == size
+              and len(at) == 6 and at[2] == 255,
+              f"a metal rect writes {metal_png.name} (8-bit grayscale) and the texel reads metal 255: {at}")
+        values = np.asarray(img) if img is not None else np.zeros((1, 1))
+        check(int((values == 255).sum()) == (box[2] - box[0] + 1) * (box[3] - box[1] + 1) and int(values.max()) == 255
+              and int((values == 0).sum()) == values.size - int((values == 255).sum()),
+              "metal.png: 255 in the rect, the entry's metal (0) elsewhere")
+        shipped_maps = out / "shipped-maps" / key
+        shipped_maps.mkdir(parents=True, exist_ok=True)
+        Image.fromarray(np.full((size[1], size[0]), 128, np.uint8), "L").save(shipped_maps / "metal.png")
+        settle(game)
+        check(pick()[2:3] == [255], f"the user's metal.png wins over the shipped one: {pick()}")
+        metal_png.unlink()
+        settle(game)
+        check(pick()[2:3] == [128], f"without the user's map the shipped metal.png applies: {pick()}")
+        (shipped_maps / "metal.png").unlink()
+        settle(game)
+        check(pick()[2:3] == [0], f"without maps the entry's metal: {pick()}")
+
+        ramp = np.clip(np.arange(size[0])[None, :].repeat(size[1], 0) * 7, 0, 255).astype(np.uint8)
+        Image.fromarray(ramp, "L").save(shipped_maps / "height.png")
+        settle(game)
+        at = pick()
+        inner = 1 <= tx < size[0] - 1 and tx * 7 + 7 <= 255
+        check(len(at) == 6 and (not inner or at[3] > 128) and at[4] == 128 and relief_of() == ["painted"],
+              f"a shipped height.png ramp along u: slopes along u only {at[3:5]} (relief {relief_of()})")
+        Image.fromarray(np.full((size[1], size[0]), 128, np.uint8), "L").save(maps / "height.png")
+        settle(game)
+        at = pick()
+        check(at[3:6] == [128, 128, 0], f"the user's flat height.png wins: slopes and cavity {at[3:6]}")
+        (maps / "height.png").unlink()
+        (shipped_maps / "height.png").unlink()
+        settle(game)
+        check(pick()[3:5] == [0, 0] and relief_of() == [""], f"no height map, no auto_height: no relief {pick()}")
+        write_json(shipped, dict(EMPTY, presets=PRESETS, entries=[dict(entry, auto_height=True)]))
+        settle(game)
+        at = pick()
+        check(relief_of() == ["estimated"] and at[3] != 0, f"auto_height: the estimate from the colours ({at})")
+        estimated = at
+        game.call("graphics", auto_height_strength=1.0)
+        settle(game)
+        stronger = pick()
+        check(relief_of() == ["estimated"] and (estimated[3:5] == [128, 128] or stronger[3:5] != estimated[3:5]),
+              f"auto_height_strength rebuilds the slopes ({estimated[3:5]} -> {stronger[3:5]})")
+        game.call("graphics", auto_height=0)
+        settle(game)
+        check(relief_of() == [""] and pick()[3] == 0, f"the global auto_height switch off: no estimate ({pick()})")
+        game.call("graphics", auto_height=1, auto_height_strength=0)
+        settle(game)
+        check(relief_of() == [""], "auto_height_strength 0: no estimate")
+        game.call("graphics", auto_height_strength=0.5)
+        game.call("material", action="preview", auto_height=True)
+        write_json(shipped, dict(EMPTY, presets=PRESETS, entries=[entry]))
+        settle(game)
+        check(relief_of() == ["estimated"], "the editor's preview estimates entries without auto_height")
+        game.call("material", action="preview", auto_height=False)
+        settle(game)
+
+        # ---- relief identity
+        write_json(shipped, dict(EMPTY, entries=[dict(entry, preset="", specular=0, metal=0, roughness=1)]))
+        settle(game)
+        plain = frame(game, out / "plain-entry.png")
+        check(not game.call("material")["uses"] and np.array_equal(plain, nothing),
+              f"an entry with no maps and no flags (specular, metal 0) marks nothing; identical "
+              f"({int((plain != nothing).any(2).sum())} pixels differ)")
+        write_json(shipped, dict(EMPTY, entries=[dict(entry, preset="", specular=0, metal=0, roughness=1,
+                                                      auto_height=True)]))
+        game.call("graphics", bump_strength=0)
+        settle(game)
+        flat = frame(game, out / "relief-strength0.png")
+        check(relief_of() == ["estimated"] and np.array_equal(flat, nothing),
+              f"a relief-only entry with bump_strength 0: identical ({int((flat != nothing).any(2).sum())} pixels differ)")
+        game.call("graphics", bump_strength=1)
+        settle(game)
+        if vulkan:
+            bumped = frame(game, out / "relief-only.png")
+            check(int((bumped != nothing).any(2).sum()) > 50,
+                  f"a relief-only entry bends the test light's diffuse ({int((bumped != nothing).any(2).sum())} pixels)")
+
         # ---- identity: no entries vs entries with the switch off
-        write_json(shipped, dict(EMPTY, presets=PRESETS, entries=[dict(entry, roughness=0.15, specular=1)]))
+        write_json(shipped, dict(EMPTY, presets=PRESETS, entries=[dict(entry, roughness=0.15, specular=1,
+                                                                         auto_height=True)]))
         settle(game)
         game.call("graphics", specular=0)
         settle(game)
@@ -266,6 +376,63 @@ def main():
             check(peak_a > 30 and peak_b > 30, f"a highlight on the floor from both sides (peaks {peak_a}, {peak_b})")
             check(a is not None and b is not None and a != b,
                   f"the highlight moves across the floor's texels with the camera ({a} -> {b})")
+
+            # ---- the relief bends the highlight; metal tints it
+            game.call("editor_camera", **pose_a)
+            game.run(12)
+            checker = ((np.indices((size[1], size[0])).sum(0) // 2) % 2 * 255).astype(np.uint8)
+            Image.fromarray(checker, "L").save(maps / "height.png")
+            write_json(shipped, dict(EMPTY, presets=PRESETS, entries=[dict(entry, roughness=0.15, specular=1)]))
+            settle(game)
+
+            def view(mode, name):
+                game.call("graphics", view_mode=mode)
+                return frame(game, out / f"{name}.png")
+
+            game.call("graphics", bump_strength=0)
+            settle(game)
+            spec_flat = view(7, "relief-spec-flat")
+            game.call("graphics", bump_strength=2)
+            settle(game)
+            spec_bent = view(7, "relief-spec-bent")
+            normals = view(9, "relief-normals")
+            geometry = view(5, "geometry-normals")
+            game.call("graphics", bump_strength=0)
+            settle(game)
+            spec_back = view(7, "relief-spec-back")
+            game.call("graphics", bump_strength=1, view_mode=0)
+            bent_px = int((np.abs(spec_bent - spec_flat).sum(2) > 6).sum())
+            mask = normals.sum(2) > 0
+            normal_px = int(((np.abs(normals - geometry).sum(2) > 12) & mask).sum())
+            check(bent_px > 200, f"the height map bends the highlight ({bent_px} pixels of the specular view change)")
+            check(normal_px > 200, f"the relief normals differ from the geometry's ({normal_px} pixels)")
+            check(np.array_equal(spec_back, spec_flat), "bump_strength 0 again: the specular view is the flat one")
+            (maps / "height.png").unlink()
+            settle(game)
+            spec_dielectric = view(7, "spec-dielectric").astype(np.float64)
+            write_json(shipped, dict(EMPTY, presets=PRESETS, entries=[dict(entry, roughness=0.15, specular=1,
+                                                                             metal=1)]))
+            settle(game)
+            spec_metal = view(7, "spec-metal").astype(np.float64)
+            albedo = view(3, "albedo").astype(np.float64)
+            game.call("graphics", specular=0)
+            settle(game)
+            hud = view(7, "spec-none")  # the HUD alone (2D draws over every view)
+            game.call("graphics", view_mode=0, specular=1)
+            settle(game)
+            mask = hud.sum(2) == 0
+            # (unsaturated pixels of both: the specular view clips at 1)
+            lit = ((spec_dielectric.sum(2) > 30) & (spec_metal.sum(2) > 30) & (spec_dielectric.max(2) < 250)
+                   & (spec_metal.max(2) < 250) & mask)
+            print(f"specular view means: dielectric {spec_dielectric[mask].mean(0).round(1).tolist()}, "
+                  f"metal {spec_metal[mask].mean(0).round(1).tolist()}")
+            ratio = spec_metal[lit].sum(0) / np.maximum(spec_dielectric[lit].sum(0), 1)
+            tint = albedo[lit].sum(0) / max(albedo[lit].sum(), 1)
+            ratio_tint = ratio / max(ratio.sum(), 1e-6)
+            check(lit.sum() > 20 and spec_metal[lit].sum() > 2 * spec_dielectric[lit].sum()
+                  and np.abs(ratio_tint - tint).max() < 0.08,
+                  f"metal: a brighter highlight tinted by the albedo ({int(lit.sum())} pixels; metal / dielectric "
+                  f"{np.round(ratio, 2).tolist()}, albedo shares {np.round(tint, 3).tolist()})")
             game.call("editor_camera", off=1)
         else:
             check(not changed.any(), f"OpenGL: no material response (the frame is identical; "

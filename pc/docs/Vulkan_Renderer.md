@@ -41,7 +41,7 @@ The Vulkan path reuses everything above the GL calls. Files:
   (vertices, uniforms, palettes, staging; chunks of 16 MB with device
   addresses for AS builds), deferred destruction, pipelines, readbacks.
 - `vk_hw.c/.h`: the scaled VRAM target and G-buffer (colour, normal, albedo,
-  shade, depth; a replay set for interpolation; room depth, the "before"
+  shade, material (RGBA16, packed: `material_pack.glsl`, [Materials.md](Materials.md)), depth; a replay set for interpolation; room depth, the "before"
   depth, native VRAM as R16_UINT) and the operations of `gpu_hw.c`: packet
   batches, fills, uploads, VRAM copies, depth copies, replay copies, dumps,
   picking, VRAM sync readback.

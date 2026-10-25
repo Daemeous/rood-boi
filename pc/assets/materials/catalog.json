@@ -2,11 +2,13 @@
   "format": 1,
   "about": "Material response by texture content key; values are linear fractions. Entries marked new need visual review.",
   "presets": {
-    "wet stone": { "roughness": 0.42, "specular": 0.6, "metal": 0 },
-    "worn wood": { "roughness": 0.88, "specular": 0.35, "metal": 0 },
-    "polished metal": { "roughness": 0.4, "specular": 0.65, "metal": 0.65 },
-    "glass": { "roughness": 0.32, "specular": 0.7, "metal": 0 },
-    "gel": { "roughness": 0.46, "specular": 0.55, "metal": 0 }
+    "stone": { "roughness": 0.7, "specular": 1, "metal": 0, "auto_height": true },
+    "wet stone": { "roughness": 0.32, "specular": 0.5, "metal": 0, "auto_height": true },
+    "worn wood": { "roughness": 0.8, "specular": 1, "metal": 0, "auto_height": true },
+    "worn iron": { "roughness": 0.55, "specular": 1, "metal": 1, "auto_height": true },
+    "polished metal": { "roughness": 0.3, "specular": 1, "metal": 1 },
+    "glass": { "roughness": 0.1, "specular": 1, "metal": 0 },
+    "gel": { "roughness": 0.35, "specular": 0.5, "metal": 0 }
   },
   "entries": [
     {
@@ -22,7 +24,7 @@
     {
       "id": "M003", "name": "Keep glyph stone tile", "where": "zone 29 room 3; stone floor tile with a painted glyph (verify the base is polished)",
       "match": { "key": "66b4521ff4", "size": [31, 31] },
-      "scope": { "room": [29, 3] }, "preset": "wet stone", "roughness": 0.79, "specular": 0.35, "review": "new"
+      "scope": { "room": [29, 3] }, "preset": "stone", "review": "new"
     },
     {
       "id": "M004", "name": "Rain-wet slate roof", "where": "zone 2 room 0 (the Graylands manor in the rain, the prologue's courtyard view); the slate roof below the camera",
@@ -55,14 +57,14 @@
       "scope": { "room": [13, 3] }, "preset": "wet stone", "roughness": 0.48, "specular": 0.45, "review": "new"
     },
     {
-      "id": "M010", "name": "Studded door (upper)", "where": "zone 29 room 3 (the Keep) and wherever the door is drawn; planks with iron studs: its roughness.png makes the iron smooth (70), the wood rough (235)",
+      "id": "M010", "name": "Studded door (upper)", "where": "zone 29 room 3 (the Keep) and wherever the door is drawn; planks with iron studs: its roughness.png makes the iron smooth (70), the wood rough (235), its metal.png makes the studs, bars and fittings metal; relief estimated from the colours",
       "match": { "key": "169816e45a", "size": [31, 33], "clut": "6ec2e0e79a" },
-      "preset": "worn wood", "specular": 0.45, "review": "new"
+      "preset": "worn wood", "review": "new"
     },
     {
-      "id": "M011", "name": "Studded door (lower)", "where": "zone 29 room 3 (the Keep) and wherever the door is drawn; lower planks and hinge: roughness.png as M010",
+      "id": "M011", "name": "Studded door (lower)", "where": "zone 29 room 3 (the Keep) and wherever the door is drawn; lower planks and hinge: roughness.png and metal.png as M010",
       "match": { "key": "fb5e48b7fc", "size": [31, 31], "clut": "6ec2e0e79a" },
-      "preset": "worn wood", "specular": 0.45, "review": "new"
+      "preset": "worn wood", "review": "new"
     }
   ]
 }

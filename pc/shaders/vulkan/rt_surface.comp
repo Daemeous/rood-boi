@@ -22,14 +22,15 @@ layout(std140, binding = 0) uniform Surface {
 } u;
 #define MOVERS_BINDING 9
 #include "rt_common.glsl"
+#include "material_pack.glsl"
 layout(binding = 4) uniform sampler2D normal_tex; // view normal * 0.5 + 0.5, a = lit surface
 layout(binding = 5) uniform sampler2D depth_tex; // SZ / 65536
 layout(binding = 6, rgba32f) uniform writeonly image2D position_out; // world xyz, w 1 = surface, 2 = moving
 layout(binding = 7, rgba16f) uniform writeonly image2D normal_out;
 layout(binding = 8, rgba32f) uniform writeonly image2D motion_out; // previous world xyz, w 1 = known
 layout(std430, binding = 10) readonly buffer Motion { vec4 previous[]; }; // mover triangles' previous a, b, c, -
-layout(binding = 11) uniform sampler2D material_tex; // the G-buffer's material target (material.glsl)
-layout(binding = 12, rgba16f) uniform writeonly image2D material_out; // its value at the GI pixel (rt_reflect.comp)
+layout(binding = 11) uniform sampler2D material_tex; // the G-buffer's material target (material_pack.glsl)
+layout(binding = 12, rgba16f) uniform writeonly image2D material_out; // its roughness, specular, metal, 1 at the GI pixel (rt_reflect.comp)
 // The previous position of moving point p seen along the eye ray.
 bool previous_of(vec3 p, out vec3 was) {
     vec3 eye = u.eye_.xyz, d = p - eye;
@@ -72,7 +73,7 @@ void main() {
         imageStore(material_out, g, vec4(0.0));
         return;
     }
-    imageStore(material_out, g, texelFetch(material_tex, q, 0));
+    imageStore(material_out, g, material_unpack(texelFetch(material_tex, q, 0)).surface);
     vec2 s = display - u.screen_offset_.xy;
     vec3 view = vec3(s.x * z / u.projection_.x, s.y * z / u.projection_.y, z);
     mat3 inverse_rotation = mat3(u.inverse_rotation_[0].xyz, u.inverse_rotation_[1].xyz, u.inverse_rotation_[2].xyz);

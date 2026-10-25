@@ -31,6 +31,13 @@ int pc_specular = 1;
 float pc_specular_strength = 1.0f;
 float pc_roughness_bias = 0.0f;
 int pc_reflection_bounces = 1;
+float pc_bump_strength = 1.0f;
+int pc_auto_height = 1;
+float pc_auto_height_strength = 0.5f;
+float pc_bump_occlusion = 0.5f;
+float pc_env_specular = 1.0f;
+float pc_baked_energy = 1.0f;
+int pc_auto_height_preview = 0;
 const uint16_t* pc_native_vram(void);
 int pc_hw_present_all_lists(uint32_t* lists, int max) __attribute__((weak));
 }
@@ -814,6 +821,7 @@ std::vector<uint8_t> material_planes;
 bool materials_changed = true, any_material, material_dirty = true;
 uint32_t applied_material_catalog, applied_material_maps;
 int material_zone = -1, material_room = -1, material_on = -1;
+float applied_relief[3] = { -1, -1, -1 }; /* the estimate's switch, strength, preview the planes have */
 int material_uses, material_cells;
 std::vector<MaterialUse> material_list;
 
@@ -1169,11 +1177,67 @@ static void match_use(Use& u)
     }
 }
 
+/* The height estimate's settings changed since the planes were written. */
+static bool relief_changed()
+{
+    return applied_relief[0] != (float)pc_auto_height || applied_relief[1] != pc_auto_height_strength
+        || applied_relief[2] != (float)pc_auto_height_preview;
+}
+/* A use's relief (pc/docs/Materials.md "Height and normals"): heights in
+ * height units (one unit: bump_strength texels of depth) per texel of its
+ * box, from its height.png (0..255: 0..1) when the map is the box's size,
+ * else estimated from its own texels' colours when its entry asks for it
+ * (auto_height, and the global switch) or the editor previews the estimate:
+ * the luminance, stretched between the texture's 5th and 95th percentiles
+ * (dark seams and gaps low, bright faces high), times auto_height_strength.
+ * Both times the entry's bump. Transparent texels take the median. Returns
+ * 0 (no relief), 1 (painted) or 2 (estimated). */
+static int use_heights(const Use* u, const materials::Entry* e, int w, int h, std::vector<float>& out)
+{
+    out.clear();
+    float bump = e->value.bump;
+    const materials::Channel* map = materials::channel(u->key, "height");
+    if (map && map->w == w && map->h == h) {
+        out.resize((size_t)w * h);
+        for (size_t i = 0; i < out.size(); i++)
+            out[i] = map->values[i] / 255.0f * bump;
+        return 1;
+    }
+    float strength = std::clamp(pc_auto_height_strength, 0.0f, 2.0f);
+    if (!((e->value.auto_height && pc_auto_height) || pc_auto_height_preview) || strength <= 0 || bump <= 0)
+        return 0;
+    out.assign((size_t)w * h, -1.0f);
+    std::vector<float> seen;
+    seen.reserve(out.size());
+    for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++) {
+            uint16_t c = texel((unsigned)(u->box[0] + x), (unsigned)(u->box[1] + y), u->page, u->clut, nullptr);
+            if (!c)
+                continue; /* transparent */
+            float l = (0.299f * (c & 31) + 0.587f * ((c >> 5) & 31) + 0.114f * ((c >> 10) & 31)) / 31.0f;
+            out[(size_t)y * w + x] = l;
+            seen.push_back(l);
+        }
+    if (seen.size() < 2)
+        return out.clear(), 0;
+    std::sort(seen.begin(), seen.end());
+    float lo = seen[seen.size() * 5 / 100], hi = seen[seen.size() * 95 / 100], mid = seen[seen.size() / 2];
+    float span = hi - lo;
+    if (span < 1.0f / 62.0f)
+        return out.clear(), 0; /* flat colour: no relief to estimate */
+    for (float& v : out)
+        v = std::clamp(((v < 0 ? mid : v) - lo) / span, 0.0f, 1.0f) * strength * bump;
+    return 2;
+}
+
 /* The material planes: every use whose texture a material entry names (by
  * content key, size, palette and room), its box's cells written with the
- * entry's fractions (x 255) and, for roughness, its painted map's values
- * when the map is the box's size. Unnamed cells: roughness 255, specular and
- * metal 0, which the draw shaders treat as no material. */
+ * entry's fractions (x 255), roughness and metal from its painted
+ * roughness.png and metal.png when they are the box's size, and its relief
+ * (use_heights): the slopes along u and v (a Sobel filter, edges clamped to
+ * the box) and the cavity (how far a texel sits below its eight
+ * neighbours' mean). Unnamed cells: roughness 255, the rest 0, which the
+ * draw shaders treat as no material. */
 static void write_materials()
 {
     material_planes.assign((size_t)PC_MATERIAL_MAP_H * PC_EMISSIVE_MAP_W, 0);
@@ -1182,6 +1246,8 @@ static void write_materials()
     material_list.clear();
     any_material = false;
     applied_material_maps = materials::generation();
+    applied_relief[0] = (float)pc_auto_height, applied_relief[1] = pc_auto_height_strength;
+    applied_relief[2] = (float)pc_auto_height_preview;
     current_room(&material_zone, &material_room);
     material_on = pc_specular != 0;
     if (!material_on)
@@ -1210,9 +1276,14 @@ static void write_materials()
         return std::make_tuple(x->page, x->clut, x->box[0], x->box[1], x->box[2], x->box[3])
             < std::make_tuple(y->page, y->clut, y->box[0], y->box[1], y->box[2], y->box[3]);
     });
+    const size_t plane = (size_t)512 * PC_EMISSIVE_MAP_W;
     uint8_t* rough = material_planes.data();
-    uint8_t* spec = rough + (size_t)512 * PC_EMISSIVE_MAP_W;
-    uint8_t* metal = spec + (size_t)512 * PC_EMISSIVE_MAP_W;
+    uint8_t* spec = rough + plane;
+    uint8_t* metal = spec + plane;
+    uint8_t* slope_u = metal + plane;
+    uint8_t* slope_v = slope_u + plane;
+    uint8_t* cavity = slope_v + plane;
+    std::vector<float> heights;
     for (const auto& item : order) {
         const Use* u = item.first;
         const materials::Surface& v = item.second->value;
@@ -1220,25 +1291,51 @@ static void write_materials()
         const materials::Channel* map = materials::channel(u->key, "roughness");
         if (map && (map->w != w || map->h != h))
             map = nullptr; /* never stretched (pc/docs/Materials.md) */
+        const materials::Channel* metal_map = materials::channel(u->key, "metal");
+        if (metal_map && (metal_map->w != w || metal_map->h != h))
+            metal_map = nullptr;
+        int relief = use_heights(u, item.second, w, h, heights);
         uint8_t s = (uint8_t)std::clamp((int)lroundf(v.specular * 255.0f), 0, 255);
         uint8_t m = (uint8_t)std::clamp((int)lroundf(v.metal * 255.0f), 0, 255);
         uint8_t r = (uint8_t)std::clamp((int)lroundf(v.roughness * 255.0f), 0, 255);
-        if (!s && !m)
+        if (!s && !m && !metal_map && !relief)
             continue;
         ++material_uses;
         MaterialUse info;
         info.key = u->key, info.entry = item.second->id, info.page = u->page, info.clut = u->clut;
         memcpy(info.box, u->box, 4);
         info.painted = map != nullptr;
+        info.painted_metal = metal_map != nullptr;
+        info.relief = relief;
         material_list.push_back(info);
         int tx = (int)(u->page & 15) * 64, ty = (int)((u->page >> 4) & 1) * 256;
         int depth = std::min((int)((u->page >> 7) & 3), 2);
+        auto height = [&](int x, int y) {
+            return heights[(size_t)std::clamp(y, 0, h - 1) * w + std::clamp(x, 0, w - 1)];
+        };
         for (int y = u->box[1]; y <= u->box[3]; y++)
             for (int x = u->box[0]; x <= u->box[2]; x++) {
                 size_t at = (size_t)(ty + y) * PC_EMISSIVE_MAP_W + ((tx * 4 + (x << depth)) & 4095);
-                material_cells += spec[at] == 0 && metal[at] == 0;
-                rough[at] = map ? map->values[(size_t)(y - u->box[1]) * w + (x - u->box[0])] : r;
-                spec[at] = s, metal[at] = m;
+                size_t i = (size_t)(y - u->box[1]) * w + (x - u->box[0]);
+                material_cells += spec[at] == 0 && metal[at] == 0 && slope_u[at] == 0;
+                rough[at] = map ? map->values[i] : r;
+                spec[at] = s, metal[at] = metal_map ? metal_map->values[i] : m;
+                slope_u[at] = slope_v[at] = cavity[at] = 0;
+                if (relief) {
+                    int bx = x - u->box[0], by = y - u->box[1];
+                    float gx = (height(bx + 1, by - 1) + 2 * height(bx + 1, by) + height(bx + 1, by + 1)
+                                   - height(bx - 1, by - 1) - 2 * height(bx - 1, by) - height(bx - 1, by + 1)) / 8.0f;
+                    float gy = (height(bx - 1, by + 1) + 2 * height(bx, by + 1) + height(bx + 1, by + 1)
+                                   - height(bx - 1, by - 1) - 2 * height(bx, by - 1) - height(bx + 1, by - 1)) / 8.0f;
+                    float around = 0;
+                    for (int dy = -1; dy <= 1; dy++)
+                        for (int dx = -1; dx <= 1; dx++)
+                            around += dx || dy ? height(bx + dx, by + dy) : 0.0f;
+                    float sunk = std::clamp((around / 8.0f - height(bx, by)) * 2.0f, 0.0f, 1.0f);
+                    slope_u[at] = (uint8_t)std::clamp((int)lroundf(128.0f + gx * 63.5f), 1, 255);
+                    slope_v[at] = (uint8_t)std::clamp((int)lroundf(128.0f + gy * 63.5f), 1, 255);
+                    cavity[at] = (uint8_t)lroundf(sunk * 255.0f);
+                }
             }
     }
     any_material = material_uses > 0;
@@ -1248,7 +1345,7 @@ uint32_t map_serial() { return map_generation; }
 const uint8_t* map_data() { return the_map.data(); }
 std::vector<MaterialUse> material_use_list() { return material_list; }
 int material_cell_count() { return material_cells; }
-bool material_at(unsigned u, unsigned v, unsigned tpage, int out[3])
+bool material_at(unsigned u, unsigned v, unsigned tpage, int out[PC_MATERIAL_PLANES])
 {
     if (material_planes.empty())
         return false;
@@ -1256,8 +1353,9 @@ bool material_at(unsigned u, unsigned v, unsigned tpage, int out[3])
     int depth = std::min((int)((tpage >> 7) & 3), 2);
     size_t at = (size_t)(ty + (int)(v & 255)) * PC_EMISSIVE_MAP_W + ((tx * 4 + (int)((u & 255) << depth)) & 4095);
     size_t plane = (size_t)512 * PC_EMISSIVE_MAP_W;
-    out[0] = material_planes[at], out[1] = material_planes[plane + at], out[2] = material_planes[2 * plane + at];
-    return out[1] || out[2];
+    for (int i = 0; i < PC_MATERIAL_PLANES; i++)
+        out[i] = material_planes[i * plane + at];
+    return out[1] || out[2] || out[3];
 }
 
 } // namespace emissive
@@ -1492,7 +1590,7 @@ extern "C" int pc_emissive_sync(int* row0, int* row1)
         int zone, room;
         current_room(&zone, &room);
         if (zone != material_zone || room != material_room || (pc_specular != 0) != material_on
-            || materials::generation() != applied_material_maps)
+            || materials::generation() != applied_material_maps || relief_changed())
             materials_changed = true;
     }
     if (materials_changed) {
@@ -1518,7 +1616,8 @@ extern "C" int pc_emissive_pending(void)
     }
     if (loaded && materials::generation() != applied_materials)
         return 1;
-    if (loaded && ((pc_specular != 0) != material_on || materials::generation() != applied_material_maps))
+    if (loaded && ((pc_specular != 0) != material_on || materials::generation() != applied_material_maps
+                      || relief_changed()))
         return 1;
     /* (the material catalog: two stat calls; edits in the editor bump it at once) */
     if (loaded && materials::catalog_generation() != applied_material_catalog)

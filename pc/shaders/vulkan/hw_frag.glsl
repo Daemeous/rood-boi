@@ -33,7 +33,7 @@ layout(location = 0) out vec4 color;
 layout(location = 1) out vec4 normal_out;
 layout(location = 2) out vec4 albedo_out;
 layout(location = 3) out vec4 shade_out;
-layout(location = 4) out vec4 material_out; // material.glsl (lit textured 3D packets only)
+layout(location = 4) out vec4 material_out; // material_pack.glsl (lit textured 3D packets only)
 #include "vram.glsl"
 #include "text_dist.glsl"
 #include "emissive.glsl"
@@ -59,7 +59,7 @@ void main() {
     vec3 c = v_color;
     vec3 albedo = v_color;
     vec4 shade = vec4(v_color, 0.5);
-    vec4 material = vec4(0.0);
+    vec4 material = vec4(0.0), relief = vec4(0.0);
     if ((flags & 1u) != 0u) {
         uint t;
         vec3 texel;
@@ -114,7 +114,7 @@ void main() {
         }
         if (pc.materials != 0 && v_normal.w > 0.5 && (flags & 16u) == 0u) {
             ivec2 mq = ivec2(floor(v_uv + 0.0001));
-            material = material_texel(uint(mq.x) & 255u, uint(mq.y) & 255u, tpage, win);
+            material = material_texel(uint(mq.x) & 255u, uint(mq.y) & 255u, tpage, win, relief);
         }
     }
     if ((pc.pass == 1 && semi) || (pc.pass == 2 && !semi)) discard;
@@ -134,6 +134,6 @@ void main() {
     normal_out = lit ? vec4(normalize(v_normal.xyz) * 0.5 + 0.5, v_normal.w > 0.9 ? 1.0 : 0.75) : vec4(0.0);
     albedo_out = lit ? vec4(albedo, 1.0) : vec4(0.0);
     shade_out = lit ? shade : vec4(0.0);
-    material_out = lit ? material : vec4(0.0);
+    material_out = lit ? material_pack(material, vec4(0.0, 0.0, relief.z, 0.0), vec3(0.0)) /* (packets carry no position for the relief's frame: its cavity only) */ : vec4(0.0);
 }
 #endif

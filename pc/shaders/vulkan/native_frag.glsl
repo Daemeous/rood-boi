@@ -29,7 +29,7 @@ layout(location = 0) out vec4 color;
 layout(location = 1) out vec4 normal_out;
 layout(location = 2) out vec4 albedo_out;
 layout(location = 3) out vec4 shade_out;
-layout(location = 4) out vec4 material_out; // material.glsl: roughness, specular, metal, 1 (else 0)
+layout(location = 4) out vec4 material_out; // material_pack.glsl (all 0: no material)
 #include "vram.glsl"
 #include "emissive.glsl"
 #include "material.glsl"
@@ -64,6 +64,10 @@ void main() {
     // a ghost out to 3/4 of the radius (cut_scale.w of its pixels kept, and
     // its polygon edges), blending to solid at the radius (render.c).
     vec3 bary_step = fwidth(v_bary); // outside the branch: derivatives stay defined
+    // The relief's frame (material.glsl relief_normal): the position's and the texture coordinates' derivatives.
+    vec3 relief_dp1 = dFdx(v_view), relief_dp2 = dFdy(v_view);
+    vec2 relief_uv = u.perspective != 0 ? v_uv_persp : v_uv_affine;
+    vec2 relief_duv1 = dFdx(relief_uv), relief_duv2 = dFdy(relief_uv);
     bool ghost = false;
     if ((v_cut & 1) != 0) {
         vec3 f = u.cut_focus.xyz;
@@ -156,7 +160,7 @@ void main() {
     vec2 v_uv = u.perspective != 0 ? v_uv_persp : v_uv_affine;
     vec3 c = v_color, albedo = v_color;
     vec4 shade = vec4(v_color, 0.5);
-    vec4 material = vec4(0.0);
+    vec4 material = vec4(0.0), relief = vec4(0.0);
     uint mask = uint(u.mask_set);
     bool semi = (code & 2u) != 0u;
     if ((code & 4u) != 0u) {
@@ -199,7 +203,7 @@ void main() {
             if (any(greaterThan(em, vec3(0.0)))) { c = max(c, min(em, vec3(1.0))); shade = vec4(min(em * 0.5, vec3(1.0)), 0.25); }
         }
         // Material response: the texel's own cell (nearest, like the colour).
-        if (u.materials != 0) material = material_texel(at.x & 255u, at.y & 255u, tpage, u.window);
+        if (u.materials != 0) material = material_texel(at.x & 255u, at.y & 255u, tpage, u.window, relief);
     }
     if ((u.semi_pass == 1 && semi) || (u.semi_pass == 2 && !semi)) discard;
     // Additive light (B + F, B + F/4: a save point's glow) hides nothing:
@@ -220,7 +224,9 @@ void main() {
     normal_out = vec4(normalize(v_normal) * 0.5 + 0.5, ghost ? 0.55 : u.surface);
     albedo_out = vec4(albedo, 1.0);
     shade_out = shade;
-    material_out = ghost ? vec4(0.0) : material;
+    vec3 bent = relief.w > 0.5 ? relief_normal(normalize(v_normal), relief.xy, relief_dp1, relief_dp2, relief_duv1, relief_duv2)
+                               : vec3(0.0);
+    material_out = ghost ? vec4(0.0) : material_pack(material, relief, bent);
     gl_FragDepth = u.room_order != 0 ? float(v_order) / 16777215.0 : u.layer_slack == 2 ? tested : depth;
 }
 #endif

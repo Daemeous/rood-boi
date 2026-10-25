@@ -214,7 +214,7 @@ static int vk_native_pipelines(int set, int samples)
         { 7, 0, VK_FORMAT_R16_UINT, offsetof(mesh_vertex, emissive_scope) },
     };
     static const VkFormat formats[5] = { VK_TARGET_FORMAT, VK_TARGET_FORMAT, VK_TARGET_FORMAT, VK_TARGET_FORMAT,
-        VK_TARGET_FORMAT };
+        VK_MATERIAL_FORMAT };
     vk_pipeline_desc d = { .vertex = vs,
         .geometry = gs,
         .fragment = fs,

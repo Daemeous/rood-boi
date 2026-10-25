@@ -2,8 +2,10 @@
 // RPC material (pc/docs/Materials.md). Modelled on the emissive panel
 // (emissive_editor.cpp), whose texture picker it shares: pick a texture in
 // the view, see and edit its catalog entry (preset, roughness, specular,
-// metal) live, paint its roughness map, save the entry into the user layer
-// (materials.json) or copy it as JSON for the curated catalog.
+// metal, relief) live, paint its roughness, height and metal maps, preview
+// the height estimate and look at the debug views (relief normals,
+// cavities), save the entry into the user layer (materials.json) or copy it
+// as JSON for the curated catalog.
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,6 +23,8 @@
 using prefab::Json;
 using emissive::TexturePick;
 
+extern "C" int pc_gl_view_mode; /* the present pass's debug views (scaled.frag) */
+
 namespace {
 
 TexturePick picked;
@@ -28,13 +32,16 @@ bool pick_armed;
 std::string selected; /* entry id */
 char status_line[512];
 
-/* The roughness brush (the emissive editor's tools, on one channel). */
+/* The brush (the emissive editor's tools) on one channel at a time. */
+enum Channel { ROUGHNESS, HEIGHT, METAL, CHANNEL_COUNT };
+const char* const channel_names[CHANNEL_COUNT] = { "roughness", "height", "metal" };
+int channel = ROUGHNESS;
 enum class Tool { Pencil, Brush, Eraser, Rectangle, Fill };
 const char* const tool_names[] = { "pencil", "brush", "eraser", "rectangle", "fill" };
 Tool tool = Tool::Pencil;
 float brush_value = 128, brush_radius = 1.5f, brush_hardness = 0.5f, brush_opacity = 1.0f, reference = 0.7f;
 struct Stroke {
-    std::string key;
+    std::string key, channel;
     int w = 0, h = 0;
     std::vector<uint8_t> before;
 };
@@ -95,30 +102,38 @@ void apply_preset(materials::Entry& e, const std::string& name)
         }
 }
 
-/* ---------------------------------------------------------------- the roughness map */
+/* ---------------------------------------------------------------- the maps */
 
-std::vector<uint8_t> map_or_default(const std::string& key, int w, int h, float roughness)
+/* What a texel is without a map: the entry's roughness or metal (x 255), height 128 (flat). */
+uint8_t channel_default(int ch, const materials::Entry* e)
 {
-    const materials::Channel* c = materials::channel(key, "roughness");
+    float v = ch == ROUGHNESS ? (e ? e->value.roughness : 1.0f) : ch == METAL ? (e ? e->value.metal : 0.0f) : -1.0f;
+    return v < 0 ? materials::blank_value(channel_names[ch]) : (uint8_t)std::clamp((int)lroundf(v * 255), 0, 255);
+}
+std::vector<uint8_t> map_or_default(const std::string& key, int w, int h, uint8_t fill, int ch = -1)
+{
+    const materials::Channel* c = materials::channel(key, channel_names[ch < 0 ? channel : ch]);
     if (c && c->w == w && c->h == h)
         return c->values;
-    return std::vector<uint8_t>((size_t)w * h, (uint8_t)std::clamp((int)lroundf(roughness * 255), 0, 255));
+    return std::vector<uint8_t>((size_t)w * h, fill);
 }
-bool write_map(const std::string& key, int w, int h, const std::vector<uint8_t>& values, bool undoable)
+bool write_map(const std::string& key, int w, int h, const std::vector<uint8_t>& values, bool undoable,
+    const char* name = nullptr)
 {
+    if (!name)
+        name = channel_names[channel];
     if (undoable) {
         Stroke s;
-        s.key = key, s.w = w, s.h = h;
-        s.before = map_or_default(key, w, h, 1.0f);
-        const materials::Channel* c = materials::channel(key, "roughness");
-        if (!c || c->w != w || c->h != h)
-            s.before.clear(); /* undo: no map again */
+        s.key = key, s.channel = name, s.w = w, s.h = h;
+        const materials::Channel* c = materials::channel(key, name);
+        if (c && c->w == w && c->h == h)
+            s.before = c->values; /* else empty: undo leaves no map again */
         undo_stack.push_back(s);
         if (undo_stack.size() > 64)
             undo_stack.erase(undo_stack.begin());
     }
     std::string error;
-    if (!materials::write_channel(key, "roughness", w, h, values.data(), &error)) {
+    if (!materials::write_channel(key, name, w, h, values.data(), &error)) {
         snprintf(status_line, sizeof status_line, "%s", error.c_str());
         return false;
     }
@@ -131,12 +146,12 @@ bool undo_map()
     Stroke s = undo_stack.back();
     undo_stack.pop_back();
     if (s.before.empty()) {
-        std::string path = materials::user_dir() + "/" + s.key + "/roughness.png";
+        std::string path = materials::user_dir() + "/" + s.key + "/" + s.channel + ".png";
         remove(path.c_str());
         materials::forget();
         return true;
     }
-    return write_map(s.key, s.w, s.h, s.before, false);
+    return write_map(s.key, s.w, s.h, s.before, false, s.channel.c_str());
 }
 void dab(std::vector<uint8_t>& v, int w, int h, float cx, float cy, float target)
 {
@@ -156,14 +171,15 @@ void dab(std::vector<uint8_t>& v, int w, int h, float cx, float cy, float target
         }
 }
 /* One tool operation from texel (x, y) to (x1, y1) (local texels). */
-bool paint(const TexturePick& t, float base_roughness, int x, int y, int x1, int y1, int value, bool undoable)
+bool paint(const TexturePick& t, uint8_t fill, int x, int y, int x1, int y1, int value, bool undoable)
 {
     int w = t.w(), h = t.h();
     if (x < 0 || y < 0 || x >= w || y >= h)
         return false;
     x1 = std::clamp(x1, 0, w - 1), y1 = std::clamp(y1, 0, h - 1);
-    std::vector<uint8_t> v = map_or_default(t.key, w, h, base_roughness);
-    uint8_t target = (uint8_t)std::clamp(tool == Tool::Eraser ? 255 : value, 0, 255);
+    std::vector<uint8_t> v = map_or_default(t.key, w, h, fill);
+    /* The eraser paints the channel's neutral value (rough, flat, not metal). */
+    uint8_t target = (uint8_t)std::clamp(tool == Tool::Eraser ? (int)materials::blank_value(channel_names[channel]) : value, 0, 255);
     if (tool == Tool::Pencil || tool == Tool::Eraser || tool == Tool::Brush) {
         int steps = std::max(abs(x1 - x), abs(y1 - y));
         for (int s = 0; s <= steps; s++) {
@@ -218,6 +234,8 @@ Json entry_info(const materials::Entry& e)
     v.set("roughness", Json::num(e.value.roughness));
     v.set("specular", Json::num(e.value.specular));
     v.set("metal", Json::num(e.value.metal));
+    v.set("auto_height", Json::boolean_(e.value.auto_height));
+    v.set("bump", Json::num(e.value.bump));
     j.set("value", v);
     return j;
 }
@@ -245,10 +263,10 @@ Json pick_json(const TexturePick& p)
     j.set("room", room);
     const materials::Entry* e = materials::find_match(p.key, p.w(), p.h(), p.clut_key, p.zone, p.room);
     j.set("entry", Json::str(e ? e->id : ""));
-    int m[3];
+    int m[PC_MATERIAL_PLANES];
     if (emissive::material_at((unsigned)p.u, (unsigned)p.v, p.tpage, m)) {
-        Json at = Json::array();
-        for (int k = 0; k < 3; k++)
+        Json at = Json::array(); /* roughness, specular, metal, slope u, slope v, cavity */
+        for (int k = 0; k < PC_MATERIAL_PLANES; k++)
             at.items.push_back(Json::num(m[k]));
         j.set("material", at);
     }
@@ -262,6 +280,13 @@ Json list_json()
     j.set("specular_strength", Json::num(pc_specular_strength));
     j.set("roughness_bias", Json::num(pc_roughness_bias));
     j.set("reflection_bounces", Json::num(pc_reflection_bounces));
+    j.set("bump_strength", Json::num(pc_bump_strength));
+    j.set("auto_height", Json::boolean_(pc_auto_height != 0));
+    j.set("auto_height_strength", Json::num(pc_auto_height_strength));
+    j.set("bump_occlusion", Json::num(pc_bump_occlusion));
+    j.set("env_specular", Json::num(pc_env_specular));
+    j.set("baked_energy", Json::num(pc_baked_energy));
+    j.set("preview", Json::boolean_(pc_auto_height_preview != 0));
     j.set("cells", Json::num(emissive::material_cell_count()));
     j.set("unsaved", Json::boolean_(materials::pending_dirty()));
     j.set("user_file", Json::str(materials::catalog_user_file()));
@@ -276,6 +301,8 @@ Json list_json()
         x.set("size", size);
         x.set("tpage", Json::num(u.page));
         x.set("painted", Json::boolean_(u.painted));
+        x.set("painted_metal", Json::boolean_(u.painted_metal));
+        x.set("relief", Json::str(u.relief == 1 ? "painted" : u.relief == 2 ? "estimated" : ""));
         uses.items.push_back(x);
     }
     j.set("uses", uses);
@@ -289,6 +316,8 @@ Json list_json()
         v.set("roughness", Json::num(p.second.roughness));
         v.set("specular", Json::num(p.second.specular));
         v.set("metal", Json::num(p.second.metal));
+        v.set("auto_height", Json::boolean_(p.second.auto_height));
+        v.set("bump", Json::num(p.second.bump));
         presets.set(p.first.c_str(), v);
     }
     j.set("presets", presets);
@@ -322,8 +351,9 @@ bool number(const Json& j, const char* name, float* out)
     return true;
 }
 /* Fields of a set request onto an entry: name, where, review, preset (its
- * values), roughness, specular, metal, room (bool: this room only), clut
- * (bool: this palette only; needs the texture in view). */
+ * values), roughness, specular, metal, auto_height (bool), bump (0..4), room
+ * (bool: this room only), clut (bool: this palette only; needs the texture
+ * in view). */
 bool apply_fields(materials::Entry& e, const Json& f, std::string* error)
 {
     if (const Json* v = f.get("name"); v && v->type == Json::String) e.name = v->string;
@@ -354,6 +384,16 @@ bool apply_fields(materials::Entry& e, const Json& f, std::string* error)
             e.explicit_fields |= 1u << k;
         }
     }
+    if (const Json* v = f.get("auto_height"); v && v->type == Json::Bool)
+        e.value.auto_height = v->boolean, e.explicit_fields |= 8;
+    float bump;
+    if (number(f, "bump", &bump)) {
+        if (!(bump >= 0 && bump <= 4)) {
+            *error = "bump must be in [0, 4]";
+            return false;
+        }
+        e.value.bump = bump, e.explicit_fields |= 16;
+    }
     if (const Json* v = f.get("room"); v && v->type == Json::Bool) {
         if (v->boolean) {
             if (!emissive::current_room(&e.zone, &e.room)) e.zone = e.room = -1;
@@ -380,15 +420,29 @@ bool apply_fields(materials::Entry& e, const Json& f, std::string* error)
 void texture_canvas(const TexturePick& t, const materials::Entry* e)
 {
     int w = t.w(), h = t.h();
-    const materials::Channel* map = materials::channel(t.key, "roughness");
+    ImGui::SeparatorText("Maps");
+    static const char* channel_labels[CHANNEL_COUNT] = { "Roughness", "Height", "Metal" };
+    for (int i = 0; i < CHANNEL_COUNT; i++) {
+        if (i)
+            ImGui::SameLine();
+        if (ImGui::RadioButton(channel_labels[i], channel == i))
+            channel = i;
+    }
+    const char* name = channel_names[channel];
+    const materials::Channel* map = materials::channel(t.key, name);
     bool has_map = map && map->w == w && map->h == h;
-    float base = e ? e->value.roughness : 1.0f;
-    ImGui::SeparatorText("Roughness map");
+    uint8_t fill = channel_default(channel, e);
     if (map && !has_map)
-        ImGui::TextColored(ImVec4(1, 0.6f, 0.3f, 1), "Its roughness.png is %d x %d; the texture is %d x %d (unused).",
+        ImGui::TextColored(ImVec4(1, 0.6f, 0.3f, 1), "Its %s.png is %d x %d; the texture is %d x %d (unused).", name,
             map->w, map->h, w, h);
-    ImGui::TextDisabled(has_map ? "%s" : "No map: the entry's roughness everywhere. Painting creates %s",
-        has_map ? map->path.c_str() : (materials::user_dir() + "/" + t.key + "/roughness.png").c_str());
+    std::string would = materials::user_dir() + "/" + t.key + "/" + name + ".png";
+    if (has_map)
+        ImGui::TextDisabled("%s", map->path.c_str());
+    else if (channel == HEIGHT)
+        ImGui::TextDisabled("No map: %s. Painting creates %s",
+            e && e->value.auto_height ? "the estimate from the texture's colours" : "flat", would.c_str());
+    else
+        ImGui::TextDisabled("No map: the entry's %s everywhere. Painting creates %s", name, would.c_str());
     static const char* labels[] = { "Pencil", "Brush", "Eraser", "Rectangle", "Fill" };
     for (int i = 0; i < 5; i++) {
         if (i)
@@ -396,9 +450,14 @@ void texture_canvas(const TexturePick& t, const materials::Entry* e)
         if (ImGui::RadioButton(labels[i], tool == (Tool)i))
             tool = (Tool)i;
     }
-    ImGui::SliderFloat("Value (roughness x 255)", &brush_value, 0, 255, "%.0f");
+    static const char* value_labels[CHANNEL_COUNT] = { "Value (roughness x 255)", "Value (height)", "Value (metal x 255)" };
+    static const char* value_tips[CHANNEL_COUNT] = { "0 mirror smooth, 255 fully rough. The eraser paints 255.",
+        "0 lowest, 255 highest (bump_strength texels of depth over the range). The eraser paints 128 (flat).\n"
+        "A painted height.png replaces the estimate entirely.",
+        "0 dielectric (stone, wood), 255 bare metal (tinted reflections, no diffuse light). The eraser paints 0." };
+    ImGui::SliderFloat(value_labels[channel], &brush_value, 0, 255, "%.0f");
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
-        ImGui::SetTooltip("0 mirror smooth, 255 fully rough. The eraser paints 255.");
+        ImGui::SetTooltip("%s", value_tips[channel]);
     if (tool == Tool::Brush) {
         ImGui::SliderFloat("Radius", &brush_radius, 0.5f, 16.0f);
         ImGui::SliderFloat("Hardness", &brush_hardness, 0, 1);
@@ -406,12 +465,28 @@ void texture_canvas(const TexturePick& t, const materials::Entry* e)
     }
     ImGui::SliderFloat("Texture underneath", &reference, 0, 1);
     if (ImGui::SmallButton("Undo stroke") && undo_map())
-        snprintf(status_line, sizeof status_line, "Undid a roughness stroke");
+        snprintf(status_line, sizeof status_line, "Undid a stroke");
     ImGui::SameLine();
-    if (ImGui::SmallButton("Fill with the entry's roughness")) {
-        std::vector<uint8_t> v((size_t)w * h, (uint8_t)std::clamp((int)lroundf(base * 255), 0, 255));
+    char fill_label[64];
+    snprintf(fill_label, sizeof fill_label, "Fill with %d", (int)fill);
+    if (ImGui::SmallButton(fill_label)) {
+        std::vector<uint8_t> v((size_t)w * h, fill);
         write_map(t.key, w, h, v, true);
     }
+    bool preview = pc_auto_height_preview != 0;
+    if (ImGui::Checkbox("Preview the height estimate", &preview))
+        pc_auto_height_preview = preview;
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+        ImGui::SetTooltip("Every material in view without a height.png gets the estimate from its colours\n"
+                          "(as if its entry had auto_height), until switched off. Not saved.");
+    static const char* views = "Lit\0Material (roughness, specular, metal)\0Specular alone\0Traced reflections\0"
+                               "Relief normals\0Cavities\0";
+    int view = pc_gl_view_mode >= 6 && pc_gl_view_mode <= 10 ? pc_gl_view_mode - 5 : 0;
+    if (ImGui::Combo("Debug view", &view, views))
+        pc_gl_view_mode = view ? view + 5 : 0;
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+        ImGui::SetTooltip("The present pass's material views (Vulkan): material pixels only, the rest black.\n"
+                          "Relief normals: the shading normal with the relief, world xyz as rgb.");
     float cw = std::max(ImGui::GetContentRegionAvail().x, 64.0f);
     float fit = std::max(1.0f, floorf(std::min(cw / w, 320.0f / h)));
     float z = zoom > 0 ? zoom : fit;
@@ -423,12 +498,13 @@ void texture_canvas(const TexturePick& t, const materials::Entry* e)
     bool hovered = ImGui::IsItemHovered();
     ImDrawList* dl = ImGui::GetWindowDrawList();
     dl->PushClipRect(origin, ImVec2(origin.x + size.x, origin.y + size.y), true);
-    std::vector<uint8_t> values = map_or_default(t.key, w, h, base);
+    std::vector<uint8_t> values = map_or_default(t.key, w, h, fill);
     for (int y = 0; y < h; y++)
         for (int x = 0; x < w; x++) {
             uint16_t c = emissive::texel((unsigned)(t.box[0] + x), (unsigned)(t.box[1] + y), t.tpage, t.clut, nullptr);
-            float r = values[(size_t)y * w + x] / 255.0f; /* shown: smooth bright, rough dark */
-            float g = (1.0f - r) * (1.0f - reference);
+            /* shown: smooth, high or metal bright */
+            float r = values[(size_t)y * w + x] / 255.0f;
+            float g = (channel == ROUGHNESS ? 1.0f - r : r) * (1.0f - reference);
             auto mix = [&](int ch) { return (int)std::clamp(ch * 255 / 31 * reference + g * 255, 0.0f, 255.0f); };
             ImU32 col = c ? IM_COL32(mix(c & 31), mix((c >> 5) & 31), mix((c >> 10) & 31), 255)
                           : IM_COL32(40, 0, 40, 255);
@@ -440,19 +516,19 @@ void texture_canvas(const TexturePick& t, const materials::Entry* e)
         ImVec2 m = ImGui::GetIO().MousePos;
         int x = (int)floorf((m.x - origin.x) / z), y = (int)floorf((m.y - origin.y) / z);
         if (x >= 0 && y >= 0 && x < w && y < h) {
-            ImGui::SetTooltip("texel %d,%d  roughness %d", x, y, values[(size_t)y * w + x]);
+            ImGui::SetTooltip("texel %d,%d  %s %d", x, y, name, values[(size_t)y * w + x]);
             if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
                 stroking = true;
                 stroke_from[0] = x, stroke_from[1] = y;
                 if (tool != Tool::Rectangle)
-                    paint(t, base, x, y, x, y, (int)brush_value, true);
+                    paint(t, fill, x, y, x, y, (int)brush_value, true);
             } else if (stroking && ImGui::IsMouseDown(ImGuiMouseButton_Left) && tool != Tool::Rectangle
                 && tool != Tool::Fill && (x != stroke_from[0] || y != stroke_from[1])) {
-                paint(t, base, stroke_from[0], stroke_from[1], x, y, (int)brush_value, false);
+                paint(t, fill, stroke_from[0], stroke_from[1], x, y, (int)brush_value, false);
                 stroke_from[0] = x, stroke_from[1] = y;
             }
             if (stroking && ImGui::IsMouseReleased(ImGuiMouseButton_Left) && tool == Tool::Rectangle)
-                paint(t, base, stroke_from[0], stroke_from[1], x, y, (int)brush_value, true);
+                paint(t, fill, stroke_from[0], stroke_from[1], x, y, (int)brush_value, true);
         }
         if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z, false))
             undo_map();
@@ -479,7 +555,7 @@ void entry_editor(const materials::Entry& original)
     std::vector<std::pair<std::string, materials::Surface>> presets = materials::catalog_presets();
     if (ImGui::BeginCombo("Preset", e.preset.empty() ? "(none)" : e.preset.c_str())) {
         if (ImGui::Selectable("(none)", e.preset.empty()))
-            e.preset.clear(), e.explicit_fields = 7, changed = true;
+            e.preset.clear(), e.explicit_fields |= 7, changed = true;
         for (const auto& p : presets) {
             char label[160];
             snprintf(label, sizeof label, "%s  (rough %.2f, spec %.2f, metal %.2f)", p.first.c_str(),
@@ -504,6 +580,25 @@ void entry_editor(const materials::Entry& original)
             ImGui::PopStyleColor();
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
             ImGui::SetTooltip("%s%s", tips[k], own ? "" : "\n(from the preset)");
+    }
+    {
+        bool own = (e.explicit_fields & 8) != 0;
+        if (ImGui::Checkbox("Estimate the height from the colours", &e.value.auto_height))
+            e.explicit_fields |= 8, changed = true;
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+            ImGui::SetTooltip("auto_height: bumps from the texture's luminance (dark low, bright high) where it has\n"
+                              "no height.png. Global switch and strength: Graphics > Lighting quality.%s",
+                own ? "" : "\n(from the preset)");
+        own = (e.explicit_fields & 16) != 0;
+        if (!own)
+            ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+        if (ImGui::SliderFloat("Relief", &e.value.bump, 0, 4, "x %.2f"))
+            e.explicit_fields |= 16, changed = true;
+        if (!own)
+            ImGui::PopStyleColor();
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+            ImGui::SetTooltip("bump: this surface's multiple of the global relief depth (bump_strength)%s",
+                own ? "" : "\n(from the preset)");
     }
     bool room = e.zone >= 0;
     if (ImGui::Checkbox("This room only", &room)) {
@@ -584,6 +679,8 @@ extern "C" void pc_material_panel(void)
         materials::catalog_user_file().c_str());
     ImGui::Text("Specular %s, strength %.2f, roughness bias %+.2f, reflections %d (Graphics > Lighting quality).",
         pc_specular ? "on" : "off", pc_specular_strength, pc_roughness_bias, pc_reflection_bounces);
+    ImGui::Text("Relief %.2f texels, estimate %s (x %.2f), cavities %.2f.", pc_bump_strength,
+        pc_auto_height ? "on" : "off", pc_auto_height_strength, pc_bump_occlusion);
     ImGui::Text("%d textures with a material here, %d texels%s.", (int)emissive::material_use_list().size(),
         emissive::material_cell_count(), pc_material_active() ? "" : " (none lit)");
     if (ImGui::Button(pick_armed ? "Click a surface in the view..." : "Pick texture"))
@@ -634,16 +731,18 @@ extern "C" void pc_material_panel(void)
     if (t.valid)
         texture_canvas(t, e);
     else if (e)
-        ImGui::TextDisabled("The entry's texture is not drawn here (its roughness map can be painted where it is).");
+        ImGui::TextDisabled("The entry's texture is not drawn here (its maps can be painted where it is).");
 }
 
 /* RPC material: {action: list (default) | pick {x, y} or {world: [x, y, z]}
  * | new (for the last pick) | set {id, fields...} or {entry} | select {id} |
  * remove {id} | save | revert | copy {id} (the JSON for the catalog) | paint
- * {key (default: the last pick's), value, rects: [[x0, y0, x1, y1]...],
- * tool (pencil, rectangle, fill, eraser), at: [x, y]} | map {key} (its
- * roughness map: size and values' sum) | undo (the last map stroke) |
- * reload (both catalogs and the maps read again from disk)}. */
+ * {key (default: the last pick's), channel (roughness, height, metal;
+ * default roughness), value, rects: [[x0, y0, x1, y1]...], tool (pencil,
+ * rectangle, fill, eraser), at: [x, y]} | map {key, channel} (its map: size
+ * and values' sum) | undo (the last map stroke) | preview {auto_height:
+ * bool} (the height estimate on every material in view) | reload (both
+ * catalogs and the maps read again from disk)}. */
 extern "C" int pc_material_rpc(const char* params_text, char* out, int size)
 {
     Json params;
@@ -748,6 +847,11 @@ extern "C" int pc_material_rpc(const char* params_text, char* out, int size)
         materials::reload();
         return reply(list_json(), out, size);
     }
+    if (action == "preview") {
+        if (const Json* v = params.get("auto_height"); v && v->type == Json::Bool)
+            pc_auto_height_preview = v->boolean;
+        return reply(list_json(), out, size);
+    }
     if (action == "undo") {
         Json j = Json::object();
         j.set("undone", Json::boolean_(undo_map()));
@@ -760,7 +864,17 @@ extern "C" int pc_material_rpc(const char* params_text, char* out, int size)
         if (!t.valid)
             return fail("material " + action + ": the texture is not in view", out, size);
         const materials::Entry* e = materials::find_match(t.key, t.w(), t.h(), t.clut_key, t.zone, t.room);
-        float base = e ? e->value.roughness : 1.0f;
+        int saved_channel = channel, ch = ROUGHNESS;
+        if (const Json* c = params.get("channel"); c && c->type == Json::String) {
+            ch = -1;
+            for (int i = 0; i < CHANNEL_COUNT; i++)
+                if (c->string == channel_names[i])
+                    ch = i;
+            if (ch < 0)
+                return fail("material " + action + ": channel is roughness, height or metal", out, size);
+        }
+        channel = ch;
+        uint8_t base = channel_default(ch, e);
         if (action == "paint") {
             Tool saved = tool;
             float value = brush_value;
@@ -786,13 +900,17 @@ extern "C" int pc_material_rpc(const char* params_text, char* out, int size)
                          (int)at->items[1].number, (int)value, true)
                     && ok;
             tool = saved;
-            if (!ok)
+            if (!ok) {
+                channel = saved_channel;
                 return fail("material paint: " + std::string(status_line[0] ? status_line : "outside the texture"),
                     out, size);
+            }
         }
-        const materials::Channel* c = materials::channel(t.key, "roughness");
+        channel = saved_channel;
+        const materials::Channel* c = materials::channel(t.key, channel_names[ch]);
         Json j = Json::object();
         j.set("key", Json::str(t.key));
+        j.set("channel", Json::str(channel_names[ch]));
         j.set("map", Json::boolean_(c != nullptr));
         if (c) {
             Json sz = Json::array();

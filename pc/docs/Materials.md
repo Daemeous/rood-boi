@@ -1,8 +1,8 @@
 # Material channel maps
 
 Hand-made maps over a game texture, one 8-bit value per texel: how much a
-texel glows or how rough its surface is, and later its height (normals)
-and other material properties (wet stone in the rain, polished metal). The emissive
+texel glows, how rough its surface is, its height (the relief: per-texel
+normals) and whether it is metal. The emissive
 texels ([Emissive.md](Emissive.md)) are the first consumer; the layout and
 the loader are meant for every channel.
 
@@ -17,7 +17,8 @@ everywhere the texture is drawn.
 
 ```
 <materials>/<key>/emissive.png     how much each texel glows (0 none, 255 fully)
-<materials>/<key>/height.png       (planned) height, for normals
+<materials>/<key>/height.png       height: 0 lowest, 255 highest (the relief)
+<materials>/<key>/metal.png        metal: 0 dielectric, 255 bare metal
 <materials>/<key>/roughness.png    roughness: 0 mirror, 255 fully rough
 ```
 
@@ -41,7 +42,9 @@ everywhere the texture is drawn.
   user's, else the shipped one) and reloads a file that changed on disk
   (`poll()`, about once a second: mtime and size), so a map painted in an
   outside editor shows live. Consumers ask for the channels they know
-  (`known_channel`: `emissive`, `roughness`).
+  (`known_channel`: `emissive`, `roughness`, `height`, `metal`). Blank
+  templates: roughness 255, height 128 (flat, room to carve down or raise),
+  the rest 0.
 
 ## Emissive maps
 
@@ -98,22 +101,35 @@ the PS1 colour (no bilinear filtering).
 lighting directory wins per entry id (`$ROOD_MATERIAL_CATALOG_USER` overrides).
 `$ROOD_MATERIAL_CATALOG` overrides the shipped catalog path. Both contain
 `format: 1`, named `presets` and `entries`. A preset defines `roughness`,
-`specular` and `metal` as fractions in [0,1]. An entry's `preset` selects one;
-explicit fractions override its fields. Its `match` has a 10-digit content
+`specular` and `metal` as fractions in [0,1], and optionally `auto_height`
+(a boolean: estimate the relief from the texture's colours, below) and
+`bump` (a multiple of the global relief depth, 0..4, default 1). An entry's
+`preset` selects one; explicit fields override it. Its `match` has a 10-digit content
 `key`, `size: [width,height]`, and optional palette `clut` hash. Optional
 `scope: {"room": [zone,room]}` restricts it to that room. `id` identifies
 user overrides; `name`, `where`, and `review: "new"` support curation. The
 runtime parser rejects invalid keys, size, fractions, palette and scope.
-Unmatched textures have roughness 1, specular 0, metal 0. A map overrides
-only the uniform roughness, not specular or metal. Presets are suggestions,
-not an inference of material from a disc image.
+Unmatched textures have roughness 1, specular 0, metal 0, no relief. A
+roughness map overrides the uniform roughness, a metal map the uniform metal
+(per texel); specular stays the entry's. Presets are suggestions, not an
+inference of material from a disc image.
+
+Preset values are physical: `specular` 1 is a dielectric's 4% reflectance
+at normal incidence (stone, wood, glass), 0.5 water's 2% (a wet film, gel),
+and metal 1 reflects with the albedo's colour; what makes a wet or polished
+surface read is its low roughness, not a higher reflectance. Shipped:
+`stone` (0.7 rough, auto_height), `wet stone` (0.32, specular 0.5,
+auto_height), `worn wood` (0.8, auto_height), `worn iron` (0.55, metal,
+auto_height), `polished metal` (0.3, metal), `glass` (0.1), `gel` (0.35,
+specular 0.5).
 
 The seeded entries (M001-M011) are provisional (`review: "new"`): wet stone
 in the rain (the manor courtyard 2/0, Snowfly Forest 40/13), a damp cellar
 floor (13/3), the Duke's polished hall floor (1/0), the Keep's glyph tile
 and studded doors (29/3; the doors' `roughness.png` makes the iron studs
-smooth and the planks rough), the glass lamps of 68/0. Values stay subtle:
-specular 0.4-0.6 of a dielectric's, roughness 0.4-0.75.
+smooth and the planks rough, their `metal.png` the studs, bars and
+fittings metal: hand-made masks, the same texels as the roughness maps;
+worn wood with the relief estimated), the glass lamps of 68/0.
 
 ## The data path
 
@@ -122,16 +138,23 @@ specular 0.4-0.6 of a dielectric's, roughness 0.4-0.75.
    (page, CLUT, UV box). A use of a size some entry names is hashed (its
    content key, and its palette key when an entry needs it) and matched
    against the catalog in the current room. The last matching entry wins.
-2. **Material planes**: three planes of 512 rows in the emissive slot map
+2. **Material planes**: six planes of 512 rows in the emissive slot map
    image (Vulkan; `emissive.h` `PC_MATERIAL_ROW`, rows 1028 on), cell for
-   cell like the slots: roughness, specular, metal x 255. A matched use's
-   box gets its entry's fractions, roughness from its `roughness.png` when
-   the map has the box's size. Cells without a material: 255, 0, 0.
-   Rebuilt when the catalog, a map, the room, the uses or the switch change.
+   cell like the slots: roughness, specular, metal x 255; the relief's
+   slopes along u and v (0 none, else 128 + slope x 63.5) and its cavity
+   (x 255). A matched use's box gets its entry's fractions, roughness and
+   metal from its `roughness.png` and `metal.png` when they have the box's
+   size, and its relief (below). Cells without a material: 255, then 0s.
+   Rebuilt when the catalog, a map, the room, the uses, the switch or the
+   estimate's settings change.
 3. **G-buffer**: the native and packet draws (`material.glsl`) read the
    cell of the texel the colour came from (nearest, the texture window
-   applied) into a fifth target, `material` (RGBA8: roughness, specular,
-   metal, 1; else 0). MSAA keeps the representative sample's.
+   applied) into a fifth target, `material` (RGBA16 UNORM, packed by
+   `material_pack.glsl`: roughness and specular, metal and cavity and a
+   "has material" bit, and the relief normal for a unit depth, octahedral;
+   all 0: no material). The native draws build the relief normal from the
+   slopes (below); packets carry no position for it (their cavity only).
+   MSAA keeps the representative sample's.
 4. **Lighting** (`scaled.frag`, the present pass): where the target says
    material, an energy-conserving GGX lobe (below) is added; elsewhere the
    expression is the old one, untouched.
@@ -160,8 +183,73 @@ bias, clamped to 0.03..1.
   its disc's angular size.
 - Indirect: the traced reflections times the split-sum Fresnel (Karis'
   analytic fit of the environment BRDF).
-- Energy: the dynamic diffuse light is scaled by (1 - F_env)(1 - metal);
-  the game's baked vertex light (its own colour) is left as it is.
+- The environment: the traced reflections show the room's geometry, but
+  the game's baked vertex light comes from lights the trace cannot see
+  (they have no geometry), so the light it brings to the pixel is also
+  reflected as a uniform surround (the split-sum's environment at its
+  simplest), times `env_specular`; where no reflection is traced, the
+  indirect light too.
+- Energy: the dynamic diffuse light is scaled by (1 - F_env)(1 - metal),
+  and so is the game's baked light by `baked_energy` (1: metal shows its
+  reflections in place of the baked diffuse; 0: the baked light untouched,
+  as step 1 had it).
+
+### Why step 1 was faint
+
+Measured in the Keep (29/3) at the game camera: the doors' entries set
+`specular` 0.45 (F0 1.8%, under half a real dielectric's), the iron was a
+dielectric too, the room has no dynamic light (its lantern is the game's
+baked light only, no light in the lighting pack), so no lobe ever lit, and
+the traced reflections (the walls' baked look, about 0.1-0.15) times a
+1.8% Fresnel gave about one level of 255 on the door (specular strength x4:
+a mean change of 1.4 levels). Now the studs, bars and fittings are metal (F0 their own colour, about
+50%), the presets are physical, and the baked light is reflected as the
+surround: strength scales the metal's whole response, and the iron reads
+by its tint and its Fresnel. Visible highlights still need light with a
+direction: a dynamic light at the lantern (the fixture catalog) gives them.
+
+## Height and normals (the relief)
+
+A texture's relief comes from its `height.png` (0..255 is 0..1 height
+unit), else, where its entry (or preset) has `auto_height` and the global
+`auto_height` switch is on, from an estimate made at run time from its own
+texels on the player's disc: the luminance, stretched between the
+texture's 5th and 95th percentiles (dark seams and gaps low, bright faces
+high), times `auto_height_strength`. Nothing is shipped from the estimate.
+A painted `height.png` replaces the estimate entirely. Both are times the
+entry's `bump`. Off by default per entry: only entries and presets that
+say `auto_height` get bumps, so a catalog without the flag and without
+maps draws exactly what it did.
+
+- **Slopes**: a Sobel filter over the heights (edges clamped to the box),
+  one slope pair per texel: nearest, so the bumps stay pixel art.
+- **Normals**: the native draw carries the slopes into view space with the
+  texture coordinates' screen derivatives (the cotangent frame), with a
+  texel's size so a height unit is `bump_strength` texels of depth, and
+  stores the relief normal for a unit depth. The present pass scales its
+  tangential part by `bump_strength` onto the smoothed normal.
+- **What it bends**: the dynamic lights' diffuse cosine (the attenuation,
+  shapes and shadows stay the geometry's), the sun's, the GGX lobe and the
+  Fresnel of the environment. The geometry's normal keeps the shadows, GI,
+  AO and the traced reflections' rays.
+- **The baked light** has no direction, so the relief cannot shade it;
+  only the cavities (a texel below its eight neighbours' mean) lose a share
+  of the ambient light (baked, indirect, sky), `bump_occlusion`: physical
+  (a pit sees less of its surround) and subtle.
+
+Tunables (lighting quality keys: settings, Graphics > Lighting quality >
+Materials, RPC `graphics`):
+
+| Key | | Default |
+| --- | --- | --- |
+| `bump_strength` | relief depth in texels per height unit; 0: no relief (identical to none) | 1 |
+| `auto_height` | the estimate's switch (entries with `auto_height`) | 1 |
+| `auto_height_strength` | the estimate's height range, 0..2 | 0.5 |
+| `bump_occlusion` | the cavities' share of ambient light lost, 0..1 | 0.5 |
+| `env_specular` | the baked (and indirect) light reflected as the surround, 0..1 | 1 |
+| `baked_energy` | the baked light under the material's energy split, 0..1 | 1 |
+
+No maps and no flags: the picture is byte-identical (material_smoke).
 
 Tunables (lighting quality keys, so the settings file, Graphics > Lighting
 quality > Materials, and RPC `graphics` set them):
@@ -177,11 +265,13 @@ With no entry matching anything in view (or `specular 0`) the frame is
 byte-identical to the renderer before materials (checked with captures of
 the old and new binaries; `material_smoke` checks the switch and empty
 catalogs). View modes for debugging (RPC `graphics view_mode`): 6 the
-material target, 7 the specular term alone, 8 the traced reflections.
+material target, 7 the specular term alone, 8 the traced reflections, 9
+the shading normals with the relief (world xyz as rgb), 10 the cavities.
 
-**OpenGL** draws no material response: the catalog matches (RPC, the
-editor) but the GL G-buffer has no material target and the GL present
-pass is unchanged. Rooms without dynamic lights show no highlights either
+**OpenGL** draws no material response, relief or metal: the catalog and
+the maps match (RPC, the editor, the planes on the CPU) but the GL
+G-buffer has no material target and the GL present pass is unchanged
+(material_smoke checks the frame is identical). Rooms without dynamic lights show no highlights either
 (the game's baked light has no direction).
 
 ## Editing (Details > Material)
@@ -190,24 +280,36 @@ The emissive panel's texture picker: **Pick texture**, click a surface.
 The panel lists the catalog (`*` your entries, `[n here]` textures in view)
 and edits the selected entry: preset, roughness, specular, metal (greyed
 while they come from the preset), this room only, this palette only, needs
-review. Edits are live (an unsaved layer over both files); **Save** writes
+review, the height estimate (auto_height) and the relief multiple (bump). Edits are live (an unsaved layer over both files); **Save** writes
 them into `materials.json` in the user lighting directory, **Revert** drops
 them, **Copy JSON for the catalog** puts the entry on the clipboard for
-`pc/assets/materials/catalog.json`. Below, the texture with its roughness
-map: Pencil, Brush (radius, hardness, opacity), Eraser (255), Rectangle and
-Fill (connected texels of the same palette index) paint `roughness.png` in
-the user layer with the value set (0 mirror, 255 rough); Undo stroke (and
-Ctrl+Z over the canvas) steps back. The panel keeps its own stroke history
-(not the editor's undo).
+`pc/assets/materials/catalog.json`. Below, the texture with one of its
+maps (Roughness, Height or Metal): Pencil, Brush (radius, hardness,
+opacity), Eraser (the channel's neutral value: 255, 128, 0), Rectangle and
+Fill (connected texels of the same palette index) paint the channel's PNG
+in the user layer with the value set; Undo stroke (and Ctrl+Z over the
+canvas) steps back. The panel keeps its own stroke history (not the
+editor's undo). **Preview the height estimate** gives every material in
+view without a `height.png` the estimate (not saved); **Debug view**
+switches the present pass to the material, specular, reflection, relief
+normal or cavity view.
 
 RPC `material`: `list` (default: switch, tunables, texels, uses, entries,
 presets), `pick {x, y}` or `{world}` (key, palette, size, texel, room, the
 entry and the texel's planes), `new` (for the last pick), `set {id,
 fields}` or `{entry}`, `select`, `remove`, `save`, `revert`, `copy {id}`,
-`paint {key, value, rects, tool, at}`, `map {key}`, `undo`, `reload`.
+`paint {key, channel, value, rects, tool, at}` (channel roughness, height
+or metal), `map {key, channel}`, `undo`, `preview {auto_height}`, `reload`.
+`list` gives the relief tunables and, per use, `painted_metal` and `relief`
+(`painted`, `estimated` or empty); `pick`'s `material` has the six planes.
 
-## Planned: height and normals
+## Next
 
-Height can be estimated at load time from the player's own disc (texel
-colours, edges, palette ramps), never shipped as extracted art. A handmade
-`height.png` could then correct an erroneous inferred ridge or puddle.
+- Actor materials: characters and enemies (slimes: gel, wet; armour:
+  metal) draw through the same native lists, so their textures can take
+  entries; their relief needs the same frame (it is built per pixel, so it
+  follows the animation).
+- Transparency: translucent surfaces (glass, water, slime bodies) write no
+  material today (the translucent passes keep the opaque G-buffer); a
+  material there needs its own pass.
+- Reflections along the relief normal (the traced rays use the geometry's).

@@ -3,7 +3,7 @@
 // fixture catalog's key: the same in every room and wherever the texture
 // lands in VRAM) in a folder of channel images:
 //
-//   <materials>/<key>/<channel>.png     emissive and roughness; height later
+//   <materials>/<key>/<channel>.png     emissive, roughness, height, metal
 //
 // A map is the size of the texture's UV box (the exported reference's
 // size), texel for texel (nearest, no filtering). Two layers: the shipped
@@ -24,6 +24,12 @@ struct Surface {
     float roughness = 1.0f; /* 1: fully rough */
     float specular = 0.0f;  /* fraction of dielectric F0 (0.04) */
     float metal = 0.0f;
+    /* Relief (pc/docs/Materials.md "Height and normals"): estimate a height
+     * from the texture's own colours when it has no height.png (still only
+     * where the global auto_height switch is on), and a multiplier of the
+     * global relief (bump_strength) for this surface. */
+    bool auto_height = false;
+    float bump = 1.0f;
 };
 /* Catalog presets and layered entries: absent or unmatched means Surface{}
  * and must never alter the old shading path. A map overrides roughness only.
@@ -32,8 +38,8 @@ struct Entry {
     std::string id, name, where, review, preset, key, clut;
     int w = 0, h = 0, zone = -1, room = -1;
     Surface value;
-    /* Which fractions the entry sets itself (1 roughness, 2 specular, 4
-     * metal); the rest come from its preset. */
+    /* Which fields the entry sets itself (1 roughness, 2 specular, 4
+     * metal, 8 auto_height, 16 bump); the rest come from its preset. */
     unsigned explicit_fields = 0;
     bool user = false; /* from the user layer (materials.json) */
 };
@@ -86,8 +92,11 @@ std::string shipped_dir();
 std::string export_dir();
 
 /* The channels the loader knows how to use (and the publish guard allows in
- * the shipped layer): "emissive", "roughness". */
+ * the shipped layer): "emissive", "roughness", "height", "metal". */
 bool known_channel(const std::string& name);
+/* A channel's neutral value (an exported blank template): roughness 255
+ * (rough), height 128 (flat, room to carve down or raise), else 0. */
+uint8_t blank_value(const std::string& name);
 
 /* A texture's channel map (the user's over the shipped one), or nullptr. */
 const Channel* channel(const std::string& key, const std::string& name);

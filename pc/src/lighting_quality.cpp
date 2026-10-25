@@ -30,8 +30,9 @@ extern int pc_lights_enabled, pc_gi_enabled, pc_rt_shadows, pc_baked_shadows, pc
 extern float pc_gi_resolution, pc_shadow_softness, pc_fog_density, pc_shadow_history;
 extern int pc_gl_compute;
 /* Material response (emissive.h): the specular switch and its tunables. */
-extern int pc_specular, pc_reflection_bounces;
-extern float pc_specular_strength, pc_roughness_bias;
+extern int pc_specular, pc_reflection_bounces, pc_auto_height;
+extern float pc_specular_strength, pc_roughness_bias, pc_bump_strength, pc_auto_height_strength, pc_bump_occlusion,
+    pc_env_specular, pc_baked_energy;
 int pc_material_active(void);
 /* Weak: absent in some builds. */
 extern int pc_vk_active __attribute__((weak));
@@ -138,6 +139,13 @@ Key keys[] = {
     { "specular_strength", FLOAT_KEY, &pc_specular_strength, nullptr, 0, false },
     { "roughness_bias", FLOAT_KEY, &pc_roughness_bias, nullptr, 0, false },
     { "reflection_bounces", INT, &pc_reflection_bounces, nullptr, 0, false },
+    /* The relief (height maps, the estimate from colours) and the environment (pc/docs/Materials.md). */
+    { "bump_strength", FLOAT_KEY, &pc_bump_strength, nullptr, 0, false },
+    { "auto_height", BOOL, &pc_auto_height, nullptr, 0, false },
+    { "auto_height_strength", FLOAT_KEY, &pc_auto_height_strength, nullptr, 0, false },
+    { "bump_occlusion", FLOAT_KEY, &pc_bump_occlusion, nullptr, 0, false },
+    { "env_specular", FLOAT_KEY, &pc_env_specular, nullptr, 0, false },
+    { "baked_energy", FLOAT_KEY, &pc_baked_energy, nullptr, 0, false },
 };
 const int key_count = sizeof keys / sizeof keys[0];
 
@@ -975,6 +983,28 @@ extern "C" void pc_lighting_panel(void)
                 pc_reflection_bounces ? "%d" : "Off (lights' highlights only)");
             if (!c.traced)
                 ImGui::EndDisabled();
+            ImGui::SliderFloat("Room reflection", &pc_env_specular, 0, 1, "%.2f");
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+                ImGui::SetTooltip("env_specular: where no reflection is traced, materials reflect the room's own\n"
+                                  "light arriving at them (baked and indirect) by their Fresnel.");
+            ImGui::SliderFloat("Baked light energy", &pc_baked_energy, 0, 1, "%.2f");
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+                ImGui::SetTooltip("baked_energy: the game's baked light on a material loses what the surface\n"
+                                  "reflects (Fresnel) and, on metal, its diffuse part. 0: the baked light untouched.");
+            ImGui::SliderFloat("Relief depth", &pc_bump_strength, 0, 4, pc_bump_strength > 0 ? "%.2f texels" : "Off");
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+                ImGui::SetTooltip("bump_strength: texels of depth over a height map's range (height.png or the\n"
+                                  "estimate). Bends the dynamic light and the highlights, per texel.");
+            checkbox("Estimate height from colours", &pc_auto_height);
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+                ImGui::SetTooltip("auto_height: entries marked auto_height (or presets) without a height.png get\n"
+                                  "bumps from their texture's luminance.");
+            if (pc_auto_height)
+                ImGui::SliderFloat("Estimate strength", &pc_auto_height_strength, 0, 2, "%.2f");
+            ImGui::SliderFloat("Cavity occlusion", &pc_bump_occlusion, 0, 1, "%.2f");
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+                ImGui::SetTooltip("bump_occlusion: texels below their neighbours lose this share of the ambient\n"
+                                  "(baked, indirect, sky) light.");
             dim(pc_material_active() ? "Materials on surfaces in view." : "No material in view.");
         }
     }

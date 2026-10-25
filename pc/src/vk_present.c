@@ -154,6 +154,9 @@ typedef struct {
     /* Material response (emissive.h): specular strength, roughness bias, the material target lit,
      * a traced reflection result bound (binding 24). */
     float material[4];
+    /* The relief and the environment (emissive.h): bump_strength, bump_occlusion, env_specular,
+     * baked_energy (scaled.frag material2_). */
+    float material2[4];
 } present_ubo;
 
 /* ---- swapchain ---- */
@@ -1151,6 +1154,10 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
             VkImageView reflect_view = vk_hw.dummy_color.view;
             pu->material[0] = pc_specular_strength < 0 ? 0 : pc_specular_strength > 4 ? 4 : pc_specular_strength;
             pu->material[1] = pc_roughness_bias < -1 ? -1 : pc_roughness_bias > 1 ? 1 : pc_roughness_bias;
+            pu->material2[0] = pc_bump_strength < 0 ? 0 : pc_bump_strength > 4 ? 4 : pc_bump_strength;
+            pu->material2[1] = pc_bump_occlusion < 0 ? 0 : pc_bump_occlusion > 1 ? 1 : pc_bump_occlusion;
+            pu->material2[2] = pc_env_specular < 0 ? 0 : pc_env_specular > 1 ? 1 : pc_env_specular;
+            pu->material2[3] = pc_baked_energy < 0 ? 0 : pc_baked_energy > 1 ? 1 : pc_baked_energy;
             pu->material[2] = !pc_gl_show_depth && pc_material_active() ? 1.0f : 0.0f;
             if (pu->material[2] > 0 && gi && pc_vk_reflect_bind && pc_vk_reflect_bind(&reflect_view))
                 pu->material[3] = 1;

@@ -35,7 +35,11 @@ std::string export_dir()
     const char* e = getenv("ROOD_MATERIAL_EXPORTS");
     return e && *e ? e : "pc/exports/materials";
 }
-bool known_channel(const std::string& name) { return name == "emissive" || name == "roughness"; }
+bool known_channel(const std::string& name)
+{
+    return name == "emissive" || name == "roughness" || name == "height" || name == "metal";
+}
+uint8_t blank_value(const std::string& name) { return name == "roughness" ? 255 : name == "height" ? 128 : 0; }
 
 static bool valid_key(const std::string& key)
 {
@@ -348,7 +352,7 @@ bool export_reference(const std::string& key, int w, int h, const uint8_t* rgba,
         written->push_back(reference);
     std::string user = channel_path(user_dir(), key, channel_name);
     if (!stamp(user)) {
-        std::vector<uint8_t> empty((size_t)w * h, channel_name == "roughness" ? 255 : 0);
+        std::vector<uint8_t> empty((size_t)w * h, blank_value(channel_name));
         if (!write_channel(key, channel_name, w, h, empty.data(), error))
             return false;
         if (written)
@@ -395,6 +399,20 @@ bool number_field(const Json& j, const char* name, float* out)
     *out = (float)v->number;
     return true;
 }
+/* The relief fields (entries and presets): auto_height (a boolean) and bump (a
+ * multiplier of the global relief, 0..4). Absent: left as they are. */
+bool relief_fields(const Json& j, Surface& s)
+{
+    if (const Json* v = j.get("auto_height")) {
+        if (v->type != Json::Bool) return false;
+        s.auto_height = v->boolean;
+    }
+    if (const Json* v = j.get("bump")) {
+        if (v->type != Json::Number || !std::isfinite(v->number) || v->number < 0 || v->number > 4) return false;
+        s.bump = (float)v->number;
+    }
+    return true;
+}
 bool parse_entry(const Json& j, const std::map<std::string, Surface>& presets, Entry& e)
 {
     if (j.type != Json::Object) return false;
@@ -410,7 +428,9 @@ bool parse_entry(const Json& j, const std::map<std::string, Surface>& presets, E
     if (const Json* v = j.get("roughness"); v && !number_field(j, "roughness", &e.value.roughness)) return false;
     if (const Json* v = j.get("specular"); v && !number_field(j, "specular", &e.value.specular)) return false;
     if (const Json* v = j.get("metal"); v && !number_field(j, "metal", &e.value.metal)) return false;
-    e.explicit_fields = (j.get("roughness") ? 1u : 0u) | (j.get("specular") ? 2u : 0u) | (j.get("metal") ? 4u : 0u);
+    if (!relief_fields(j, e.value)) return false;
+    e.explicit_fields = (j.get("roughness") ? 1u : 0u) | (j.get("specular") ? 2u : 0u) | (j.get("metal") ? 4u : 0u)
+        | (j.get("auto_height") ? 8u : 0u) | (j.get("bump") ? 16u : 0u);
     const Json* m = j.get("match");
     if (!m || m->type != Json::Object) return false;
     e.key = string_field(*m, "key"), e.clut = string_field(*m, "clut");
@@ -454,7 +474,8 @@ void read_catalog(const std::string& path, std::vector<Entry>& entries, std::map
             Surface s;
             if (number_field(pair.second, "roughness", &s.roughness)
                 && number_field(pair.second, "specular", &s.specular)
-                && number_field(pair.second, "metal", &s.metal)) presets[pair.first] = s;
+                && number_field(pair.second, "metal", &s.metal) && relief_fields(pair.second, s))
+                presets[pair.first] = s;
         }
     if (const Json* arr = j.get("entries"); arr && arr->type == Json::Array)
         for (const Json& item : arr->items) {
@@ -558,6 +579,8 @@ static Json entry_to_json(const Entry& e)
     if (e.explicit_fields & 1) j.set("roughness", Json::num(tidy(e.value.roughness)));
     if (e.explicit_fields & 2) j.set("specular", Json::num(tidy(e.value.specular)));
     if (e.explicit_fields & 4) j.set("metal", Json::num(tidy(e.value.metal)));
+    if (e.explicit_fields & 8) j.set("auto_height", Json::boolean_(e.value.auto_height));
+    if (e.explicit_fields & 16) j.set("bump", Json::num(tidy(e.value.bump)));
     if (!e.review.empty()) j.set("review", Json::str(e.review));
     return j;
 }
