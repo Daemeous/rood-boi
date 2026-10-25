@@ -19,6 +19,32 @@ static void commands(uint32_t* p, int n)
     p[0] = (unsigned)n << 24 | 0xffffff;
     pc_draw_packet(p, 0);
 }
+/* A 42x10 raw-textured quad (0x2D) stretched over 64x15 texels of an 8-bit
+ * page at (640, 256), CLUT at (768, 0). Its last texel column and row (u 64,
+ * v 15) belong to the atlas neighbour and must never be sampled. */
+static void atlas_tile(int x, int y, int u, int v, int reverse)
+{
+    uint32_t xy[4] = { XY(x, y), XY(x + 42, y), XY(x, y + 10), XY(x + 42, y + 10) };
+    uint32_t uv[4] = { u | v << 8, (u + 64) | v << 8, u | (v + 15) << 8, (u + 64) | (v + 15) << 8 };
+    if (reverse) {
+        uint32_t t = xy[1];
+        xy[1] = xy[2], xy[2] = t;
+        t = uv[1];
+        uv[1] = uv[2], uv[2] = t;
+    }
+    uint32_t p[10] = { 0, 0x2d808080, xy[0], uv[0] | 0x30u << 16, xy[1], uv[1] | 0x9au << 16,
+        xy[2], uv[2], xy[3], uv[3] };
+    commands(p, 9);
+}
+/* Fills a 33x16 halfword block with index 3 (red), its top-left 32x15 with
+ * the given index: 64x15 texels in 8-bit mode, the rest the neighbour. */
+static void atlas_block(int x, int y, uint16_t index)
+{
+    static uint16_t pixels[33 * 16];
+    for (int i = 0; i < 33 * 16; ++i)
+        pixels[i] = i % 33 < 32 && i / 33 < 15 ? index * 0x0101 : 0x0303;
+    pc_vram_transfer(x, y, 33, 16, pixels, 1);
+}
 int main(void)
 {
     pc_draw_env(0, 0, 32, 32, 0, 0, 0);
@@ -131,7 +157,57 @@ int main(void)
     commands(tile8, 4);
     CHECK(read_pixel(4, 4) == 0x3e0 && read_pixel(11, 11) == 0x3e0 && read_pixel(12, 4) == 0);
     CHECK(read_pixel(12, 12) == 31 && read_pixel(27, 27) == 31 && read_pixel(28, 27) == 0);
+    /* Stretched atlas tiles (from VS-NativePort's RasterBoundsTests, CC0):
+     * the lower-right texture endpoints stay outside the quad, with and
+     * without a drawing area, in either vertex order, and adjacent tiles
+     * never sample their neighbour's storage. */
+    {
+        uint16_t palette[4] = { 0, 0x3e0, 0x7c00, 0x001f };
+        pc_vram_transfer(768, 0, 4, 1, palette, 1);
+        atlas_block(640, 256, 1);
+        atlas_block(704, 288, 2);
+        for (int reverse = 0; reverse < 2; ++reverse)
+            for (int clipped = 0; clipped < 2; ++clipped) {
+                pc_draw_env(0, 0, 128, 64, 0, 0, 0);
+                pc_vram_clear(0, 0, 128, 64, 0, 0, 0);
+                if (clipped) {
+                    uint32_t area[] = { 0, 0xe3000000 | 20 | 13 << 10, 0xe4000000 | 50 | 18 << 10 };
+                    commands(area, 2);
+                }
+                atlas_tile(10, 10, 0, 0, reverse);
+                for (int y = 9; y <= 21; ++y)
+                    for (int x = 9; x <= 53; ++x) {
+                        int inside = x >= 10 && x < 52 && y >= 10 && y < 20;
+                        int visible = !clipped || (x >= 20 && x <= 50 && y >= 13 && y <= 18);
+                        if (read_pixel(x, y) != (inside && visible ? 0x3e0 : 0)) {
+                            fprintf(stderr, "FAIL atlas endpoints reverse=%d clipped=%d at %d,%d: %04x\n",
+                                reverse, clipped, x, y, read_pixel(x, y));
+                            return 1;
+                        }
+                    }
+            }
+        for (int reverse = 0; reverse < 2; ++reverse)
+            for (int vertical = 0; vertical < 2; ++vertical) {
+                pc_draw_env(0, 0, 128, 64, 0, 0, 0);
+                pc_vram_clear(0, 0, 128, 64, 0, 0, 0);
+                int next_x = vertical ? 10 : 52, next_y = vertical ? 20 : 10;
+                atlas_tile(next_x, next_y, 128, 32, reverse);
+                atlas_tile(10, 10, 0, 0, reverse);
+                int right = vertical ? 52 : 94, bottom = vertical ? 30 : 20;
+                for (int y = 9; y <= bottom; ++y)
+                    for (int x = 9; x <= right; ++x) {
+                        uint16_t expected = 0;
+                        if (x >= 10 && x < right && y >= 10 && y < bottom)
+                            expected = (vertical ? y >= next_y : x >= next_x) ? 0x7c00 : 0x3e0;
+                        if (read_pixel(x, y) != expected) {
+                            fprintf(stderr, "FAIL adjacent atlas tiles reverse=%d vertical=%d at %d,%d: %04x\n",
+                                reverse, vertical, x, y, read_pixel(x, y));
+                            return 1;
+                        }
+                    }
+            }
+    }
     puts("PASS: polygon winding, shared-edge blending, Gouraud, texture transparency, masks, "
-         "clipping, fixed-size rectangles");
+         "clipping, fixed-size rectangles, stretched atlas tiles");
     return 0;
 }
