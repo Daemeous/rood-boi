@@ -207,8 +207,12 @@ int PadSetMainMode(int port, int mode, int lock)
 }
 /* The CD drive (libds, streaming, XA audio) is pc/src/cd_drive.c. */
 void srand(unsigned int seed) { rng = seed; }
+/* Draws so far and the generator's state, for the fight trace (fight_trace.c). */
+unsigned pc_rand_draws;
+unsigned pc_rand_state(void) { return rng; }
 int rand(void)
 {
+    ++pc_rand_draws;
     rng = rng * 1103515245u + 12345u;
     return (rng >> 16) & 32767;
 }
