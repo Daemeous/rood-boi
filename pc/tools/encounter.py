@@ -6,6 +6,8 @@
       place them (each room's MPD enemy records: tile, the record's index)
   encounter.py run --zone Z --room R --enemy Ghoul@5,7 --enemy 3@6,8:2 [--seed N]
                    [--ashley X,Z[,FACING]] [--entry N] [--save preset.json]
+  encounter.py run ... [--profile NAME] [--stats max_hp=400,strength=90]
+                   [--trace fight.jsonl [--trace-frames N]]
   encounter.py run --preset preset.json
       warps to the room (the Room Browser's room_goto, its scripts off) and
       has the game spawn these enemies there instead of the room's own:
@@ -14,6 +16,21 @@
       has one. The game checks each tile on arrival and leaves out (never
       moves) an enemy whose tile is blocked or off the floor. A seed makes
       the game's random numbers repeat.
+
+      --profile gives Ashley a test setup first (VS-NativePort's Combat Lab
+      profiles): post-prologue (Map and Score menus), post-minotaur (three
+      chain and defense abilities, a spell of each class, the equipped
+      family's first Break Art), all-spells, all-abilities, all-break-arts.
+      --stats sets max HP/MP (refilled) and STR/INT/AGI (1..999). Both only
+      add to the running game, and a save made afterwards keeps them.
+      --trace records the fight from the spawn on: a JSON line for every
+      frame in which something changed (pad, action, each character's HP,
+      MP, Risk, stats, statuses, position, and the random draws), until
+      --trace-frames have passed or `encounter.py trace stop`.
+  encounter.py trace stop | status
+  encounter.py trace summary fight.jsonl
+      what happened in a trace: who was there, every HP/MP/status change
+      with its frame, the actions, and the random draws.
 
 The game side is pc/src/encounter_lab.c (RPC encounter). The running game is
 reached through ROOD_RPC (tcp:PORT[:TOKEN]) or --rpc; the disc is ROOD_DISC
@@ -179,6 +196,10 @@ def cmd_run(args):
             preset["ashley"] = {"tile": v[:2], "facing": v[2] if len(v) > 2 else 0}
         if args.entry is not None:
             preset["entry"] = args.entry
+        if args.profile:
+            preset["profile"] = args.profile
+        if args.stats:
+            preset["stats"] = parse_stats(args.stats)
     if len(preset["enemies"]) > LAB_MAX:
         raise SystemExit(f"at most {LAB_MAX} enemies")
     if args.save:
@@ -193,6 +214,11 @@ def cmd_run(args):
     from rood_rpc import Game
 
     game = Game(args.rpc or os.environ.get("ROOD_RPC") or "tcp:47331")
+    if preset.get("profile") or preset.get("stats"):
+        setup = game.call("ashley", profile=preset.get("profile", ""), **preset.get("stats", {}))
+        print("ashley:", json.dumps(setup))
+        if not setup.get("applied"):
+            raise SystemExit("Ashley's setup was not applied")
     before = game.call("encounter")
     arrival = (before.get("last") or {}).get("arrival", 0)
     params = {"zone": preset["zone"], "room": preset["room"], "records": [r.hex() for r in records]}
@@ -209,7 +235,7 @@ def cmd_run(args):
     while time.monotonic() < deadline:
         status = game.call("encounter")
         last = status.get("last") or {}
-        if last.get("arrival", 0) > arrival and status.get("spawned"):
+        if last.get("arrival", 0) > arrival and status.get("ready"):
             print(json.dumps(status, indent=1))
             callo = game.call("state").get("callo") or {}
             her = callo.get("slot", 0) if callo.get("present") else 0
@@ -217,11 +243,118 @@ def cmd_run(args):
             print("enemies in actor slots", slots, f"(Merlose: slot {her})" if her else "")
             for r in last.get("rejected", []):
                 print(f"left out: enemy {r['enemy']} ({preset['enemies'][r['enemy']]}): {r['why']}")
+            if args.trace:
+                path = str(pathlib.Path(args.trace).resolve())
+                note = f"zone {preset['zone']} room {preset['room']}" + (
+                    f" seed {preset['seed']}" if "seed" in preset else "")
+                print("trace:", json.dumps(game.call("trace", action="start", path=path,
+                                                     frames=args.trace_frames, note=note)))
             return
         time.sleep(0.25)
     game.call("encounter", action="cancel")
     game.call("room_goto", action="cancel")
     raise SystemExit("the warp did not arrive in time (cancelled; is the game in the field, no menu or event?)")
+
+
+STATS = ("max_hp", "max_mp", "strength", "intelligence", "agility")
+PROFILES = ("post-prologue", "post-minotaur", "all-spells", "all-abilities", "all-break-arts")
+
+
+def parse_stats(spec):
+    out = {}
+    for item in spec.split(","):
+        key, _, value = item.partition("=")
+        key = {"hp": "max_hp", "mp": "max_mp", "str": "strength", "int": "intelligence",
+               "agi": "agility"}.get(key.strip(), key.strip())
+        if key not in STATS or not value.strip().isdigit() or not 1 <= int(value) <= 999:
+            raise SystemExit(f"--stats: {item!r} (keys {', '.join(STATS)}; values 1..999)")
+        out[key] = int(value)
+    return out
+
+
+STATUS_NAMES = {}  # bit -> name, from vs_battle_statuses (146C.h) when the checkout is there
+
+
+def status_names():
+    if STATUS_NAMES:
+        return STATUS_NAMES
+    import re
+    header = ROOT / "src/BATTLE/BATTLE.PRG/146C.h"
+    if header.exists():
+        for name, bit in re.findall(r"vsBattleStatus(\w+)\s*=\s*1\s*<<\s*(\d+)", header.read_text()):
+            STATUS_NAMES[int(bit)] = name
+    return STATUS_NAMES
+
+
+def describe_statuses(mask):
+    names = status_names()
+    return ",".join(names.get(b, f"bit{b}") for b in range(32) if mask >> b & 1) or "none"
+
+
+def cmd_trace(args):
+    if args.what in ("stop", "status"):
+        from rood_rpc import Game
+        game = Game(args.rpc or os.environ.get("ROOD_RPC") or "tcp:47331")
+        print(json.dumps(game.call("trace", **({"action": "stop"} if args.what == "stop" else {}))))
+        return
+    if not args.file:
+        raise SystemExit("trace summary needs the trace file")
+    try:
+        table = text_table()
+    except Exception:
+        table = None
+    names, prev, draws, actions, lines, action_names = {}, {}, 0, 0, 0, {}
+    last_action = None
+    first = end = None
+    for raw in pathlib.Path(args.file).read_text().splitlines():
+        rec = json.loads(raw)
+        if rec.get("event") == "begin":
+            print(f"trace begun at frame {rec['frame']} ({rec.get('note') or 'no note'}), rand state {rec['rng']}")
+            continue
+        if rec.get("event") == "end":
+            end = rec
+            continue
+        lines += 1
+        frame = rec["frame"]
+        first = first if first is not None else frame
+        draws += rec["draws"]
+        game = rec["game"]
+        act = game.get("action")
+        key = act and (act["actor"], act["id"], act["chain"])
+        if act and "name" in act:
+            action_names[act["id"]] = decode(bytes.fromhex(act["name"]), table) if table else ""
+        if key and key != last_action:
+            actions += 1
+            who = names.get(act["actor"], f"slot {act['actor']}")
+            tgt = names.get(act["target"], f"slot {act['target']}") if act["target"] >= 0 else "-"
+            what = action_names.get(act["id"]) or "attack"
+            step = f", chain step {act['chain']}" if act["chain"] else ""
+            print(f"{frame:>8}  {who}: {what} (action {act['id']}{step}) on {tgt}")
+        last_action = key
+        for a in game["actors"]:
+            slot = a["slot"]
+            if "name" in a:
+                raw_name = bytes.fromhex(a["name"])
+                names[slot] = decode(raw_name, table) if table else f"slot {slot}"
+                print(f"{frame:>8}  slot {slot}: {names[slot]} HP {a['hp']}/{a['max_hp']} MP {a['mp']}/{a['max_mp']}"
+                      f" STR {a['str']} INT {a['int']} AGI {a['agi']}")
+            old = prev.get(slot)
+            if old:
+                who = names.get(slot, f"slot {slot}")
+                for k, label in (("hp", "HP"), ("mp", "MP")):
+                    if a[k] != old[k]:
+                        print(f"{frame:>8}  {who} {label} {old[k]} -> {a[k]} ({a[k] - old[k]:+d})")
+                if a["statuses"] != old["statuses"]:
+                    print(f"{frame:>8}  {who} statuses: {describe_statuses(a['statuses'])}")
+                if a["defeated"] and not old["defeated"]:
+                    print(f"{frame:>8}  {who} defeated")
+            prev[slot] = a
+    if first is None:
+        print("no frames recorded")
+        return
+    last_frame = end["frame"] if end else frame
+    print(f"{lines} lines over frames {first}..{last_frame}; {actions} actions; {draws} random draws"
+          + (f"; ended: {end['why']}" if end else "; no end line (still running, or the game closed)"))
 
 
 def main():
@@ -242,7 +375,15 @@ def main():
     g.add_argument("--entry", type=int, help="the door to arrive by (default 0)")
     g.add_argument("--save", help="write the preset to this file")
     g.add_argument("--timeout", type=float, default=60)
+    g.add_argument("--profile", choices=PROFILES, help="give Ashley this test setup first")
+    g.add_argument("--stats", help="max_hp=N,max_mp=N,strength=N,intelligence=N,agility=N (or hp, mp, str, int, agi)")
+    g.add_argument("--trace", help="record the fight to this JSON-lines file from the spawn on")
+    g.add_argument("--trace-frames", type=int, default=0, help="stop the trace after N frames (0: until trace stop)")
     g.set_defaults(func=cmd_run)
+    t = sub.add_parser("trace")
+    t.add_argument("what", choices=("stop", "status", "summary"))
+    t.add_argument("file", nargs="?")
+    t.set_defaults(func=cmd_trace)
     args = p.parse_args()
     args.func(args)
 
