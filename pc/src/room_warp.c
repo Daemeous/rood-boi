@@ -24,6 +24,8 @@ int pc_fast_travel_poll(void); /* fast_travel.c */
 void pc_fast_travel_room_loaded(void);
 int pc_room_warp_warped(int* zone, int* room); /* room_catalog.c */
 int pc_story_field_poll(void); /* story_boot.c */
+void pc_encounter_room_loaded(void); /* encounter_lab.c */
+void pc_encounter_room_spawned(void);
 void pc_story_room_loaded(void);
 
 /* savePointStates when a chain of warps started. A warp with scripts on runs
@@ -177,6 +179,7 @@ void pc_room_warp_room_loaded(void)
         return;
     bench = !pc_room_warp_enemies;
     occupied = actor_slots();
+    pc_encounter_room_loaded(); /* the encounter lab's enemies instead of the room's */
     if (!pc_room_warp_scripts) {
         _mpdScriptSection = 0; /* no entry script (cutscene) */
         keep_door_scripts();
@@ -200,6 +203,7 @@ static int entry_trigger(void)
 void pc_room_warp_room_spawned(void)
 {
     int i;
+    pc_encounter_room_spawned();
     if (!bench)
         return;
     benched = actor_slots() & ~occupied;
