@@ -369,6 +369,7 @@ struct CatalogState {
     std::vector<Entry> entries;
     std::map<std::string, Surface> presets;
     std::map<int, bool> sizes; /* (w - 1) << 8 | (h - 1) */
+    bool palette_entries = false; /* any entry matches by palette alone (every size is hashed) */
     long long shipped_stamp = -1, user_stamp = -1;
     uint32_t generation = 0;
 };
@@ -413,6 +414,7 @@ bool relief_fields(const Json& j, Surface& s)
     }
     return true;
 }
+bool parse_scope(const Json& j, Entry& e);
 bool parse_entry(const Json& j, const std::map<std::string, Surface>& presets, Entry& e)
 {
     if (j.type != Json::Object) return false;
@@ -435,14 +437,24 @@ bool parse_entry(const Json& j, const std::map<std::string, Surface>& presets, E
     if (!m || m->type != Json::Object) return false;
     e.key = string_field(*m, "key"), e.clut = string_field(*m, "clut");
     const Json* size = m->get("size");
+    /* A palette entry (no key): every texture drawn with the palette (of
+     * that size, when it names one). A texture's own entry wins over it. */
+    bool palette_entry = !m->get("key");
+    if (palette_entry && (!valid_key(e.clut) || e.id.empty())) return false;
+    if (palette_entry && !size) return parse_scope(j, e);
     if (!size || size->type != Json::Array || size->items.size() != 2
         || size->items[0].type != Json::Number || size->items[1].type != Json::Number) return false;
     if (!std::isfinite(size->items[0].number) || !std::isfinite(size->items[1].number)
         || size->items[0].number < 1 || size->items[0].number > 256
         || size->items[1].number < 1 || size->items[1].number > 256) return false;
     e.w = (int)size->items[0].number, e.h = (int)size->items[1].number;
-    if (!valid_key(e.key) || (e.clut.size() && !valid_key(e.clut))
+    if ((!palette_entry && !valid_key(e.key)) || (e.clut.size() && !valid_key(e.clut))
         || size->items[0].number != e.w || size->items[1].number != e.h || e.id.empty()) return false;
+    return parse_scope(j, e);
+}
+/* The entry's optional scope: {"room": [zone, room]}. */
+bool parse_scope(const Json& j, Entry& e)
+{
     if (const Json* scope = j.get("scope")) {
         const Json* room = scope->type == Json::Object ? scope->get("room") : nullptr;
         if (!room || room->type != Json::Array || room->items.size() != 2
@@ -509,8 +521,11 @@ const std::vector<Entry>& current_catalog()
             if (old == catalog_cache.entries.end()) catalog_cache.entries.push_back(p);
             else *old = p;
         }
-        for (const Entry& e : catalog_cache.entries)
-            catalog_cache.sizes[(e.w - 1) << 8 | (e.h - 1)] = true;
+        catalog_cache.palette_entries = false;
+        for (const Entry& e : catalog_cache.entries) {
+            if (e.w > 0) catalog_cache.sizes[(e.w - 1) << 8 | (e.h - 1)] = true;
+            catalog_cache.palette_entries |= e.key.empty();
+        }
         ++catalog_cache.generation;
     }
     return catalog_cache.entries;
@@ -525,10 +540,20 @@ std::vector<Entry> catalog_entries() { return current_catalog(); }
 const Entry* find_match(const std::string& key, int w, int h, const std::string& clut, int zone, int room)
 {
     const Entry* found = nullptr;
-    for (const Entry& e : current_catalog())
-        if (e.key == key && e.w == w && e.h == h && (e.clut.empty() || e.clut == clut)
-            && (e.zone < 0 || (e.zone == zone && e.room == room))) found = &e;
-    return found;
+    const Entry* palette = nullptr; /* a palette entry: only where no entry names the texture itself */
+    for (const Entry& e : current_catalog()) {
+        if (e.zone >= 0 && (e.zone != zone || e.room != room)) continue;
+        if (e.key.empty()) {
+            if (!clut.empty() && e.clut == clut && (e.w == 0 || (e.w == w && e.h == h))) palette = &e;
+        } else if (e.key == key && e.w == w && e.h == h && (e.clut.empty() || e.clut == clut))
+            found = &e;
+    }
+    return found ? found : palette;
+}
+bool catalog_has_palette_entries()
+{
+    current_catalog();
+    return catalog_cache.palette_entries;
 }
 Surface match(const std::string& key, int w, int h, const std::string& clut, int zone, int room)
 {
@@ -538,7 +563,7 @@ Surface match(const std::string& key, int w, int h, const std::string& clut, int
 bool catalog_has_size(int w, int h)
 {
     if (w < 1 || h < 1 || w > 256 || h > 256) return false;
-    return catalog_cache.sizes.count((w - 1) << 8 | (h - 1)) > 0;
+    return catalog_cache.palette_entries || catalog_cache.sizes.count((w - 1) << 8 | (h - 1)) > 0;
 }
 uint32_t catalog_generation()
 {
@@ -560,11 +585,13 @@ static Json entry_to_json(const Entry& e)
     if (!e.name.empty()) j.set("name", Json::str(e.name));
     if (!e.where.empty()) j.set("where", Json::str(e.where));
     Json m = Json::object();
-    m.set("key", Json::str(e.key));
-    Json size = Json::array();
-    size.items.push_back(Json::num(e.w));
-    size.items.push_back(Json::num(e.h));
-    m.set("size", size);
+    if (!e.key.empty()) m.set("key", Json::str(e.key));
+    if (e.w > 0) {
+        Json size = Json::array();
+        size.items.push_back(Json::num(e.w));
+        size.items.push_back(Json::num(e.h));
+        m.set("size", size);
+    }
     if (!e.clut.empty()) m.set("clut", Json::str(e.clut));
     j.set("match", m);
     if (e.zone >= 0) {

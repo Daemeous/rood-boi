@@ -16,7 +16,8 @@ def main():
     spec.loader.exec_module(guard)
     data = json.loads(CATALOG.read_text())
     assert data["format"] == 1
-    assert {"wet stone", "worn wood", "polished metal", "glass", "gel"} <= data["presets"].keys()
+    assert {"wet stone", "worn wood", "polished metal", "glass", "gel", "rough stone", "flagstone", "plaster",
+            "cloth"} <= data["presets"].keys()
     assert data["entries"]
     ids = set()
     for entry in data["entries"]:
@@ -24,8 +25,12 @@ def main():
         ids.add(entry["id"])
         assert entry["where"] and entry["review"] == "new"
         m = entry["match"]
-        assert len(m["key"]) == 10 and set(m["key"]) <= set("0123456789abcdef")
-        assert len(m["size"]) == 2 and all(type(n) is int and 1 <= n <= 256 for n in m["size"])
+        if "key" in m:
+            assert len(m["key"]) == 10 and set(m["key"]) <= set("0123456789abcdef")
+        else:  # a palette entry: every texture with the palette (a texture's own entry wins); scope it to rooms
+            assert "clut" in m and "scope" in entry, entry["id"]
+        if "key" in m or "size" in m:
+            assert len(m["size"]) == 2 and all(type(n) is int and 1 <= n <= 256 for n in m["size"])
         if "clut" in m:
             assert len(m["clut"]) == 10 and set(m["clut"]) <= set("0123456789abcdef")
         if "preset" in entry:

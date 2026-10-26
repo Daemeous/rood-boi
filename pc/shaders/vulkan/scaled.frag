@@ -66,6 +66,11 @@ layout(std140, binding = 0) uniform Present {
     // energy split (baked_energy; 0: baked light untouched). Debug views
     // (view_mode): 9 the shading normals with the relief, 10 the cavities.
     vec4 material2_;
+    // The baked shadow (room settings baked_shadow_*, lights.cpp): x the baked light at and above
+    // which a room surface is open to the light we add (1 = the game's neutral 128), y the curve
+    // below it, z its strength on the sun and sky, w on the indirect light and glows; [1].x on the
+    // dynamic lights. Debug view (view_mode) 11: the three factors as rgb.
+    vec4 baked_shadow_[2];
 } u;
 #include "material_pack.glsl"
 layout(binding = 23) uniform sampler2D material_tex; // the material target (material_pack.glsl)
@@ -139,6 +144,20 @@ layout(binding = 15) uniform sampler2D probe_data;
 #define dof_radius u.f0.y
 #define aperture u.f0.z
 #define baked u.f0.w
+// The game's baked light as the shadow of the light added to it. The PS1's vertex light is the
+// artists' answer to how much light reaches a room surface: a floor slab under an open sky that
+// they left dark is in shadow there, though nothing above it occludes the moon, the sky or the
+// path tracer's rays. Below baked_shadow_level the sun and sky, the indirect light and the
+// dynamic lights fade as (baked / level)^curve, each by its own strength (0: untouched); only
+// textured room surfaces (G-buffer normal alpha 1), never characters, props or effects.
+// Returns the factors for (sun and sky, indirect and glows, lights).
+vec3 baked_shadow(vec3 vertex_light, float shade_a, float surface)
+{
+    if (surface < 0.9 || shade_a < 0.75 || u.baked_shadow_[0].x <= 0.0) return vec3(1.0);
+    float b = max(vertex_light.r, max(vertex_light.g, vertex_light.b));
+    float v = pow(clamp(b / u.baked_shadow_[0].x, 0.0, 1.0), max(u.baked_shadow_[0].y, 0.05));
+    return mix(vec3(1.0), vec3(v), clamp(vec3(u.baked_shadow_[0].zw, u.baked_shadow_[1].x), 0.0, 1.0));
+}
 #define gi_strength u.f1.x
 #define fog_density u.f1.y
 #define normal_smoothing u.f1.w
@@ -525,6 +544,9 @@ void main() {
             vec3 normal = smooth_normal(q, normalize(n.xyz * 2.0 - 1.0), z);
             vec3 albedo = texelFetch(albedo_tex, q, 0).rgb;
             vec3 sum = vec3(0.0);
+            vec4 shade = texelFetch(shade_tex, q, 0);
+            vec3 vertex_light = shade.a > 0.75 ? shade.rgb * (255.0 / 128.0) : shade.rgb;
+            vec3 bsh = baked_shadow(vertex_light, shade.a, n.a); // (sun and sky, indirect, lights)
             vec3 world = inverse_rotation() * (p - camera_translation);
             vec3 world_normal = normalize(normal_to_world() * normal);
             vec4 extra = vec4(1.0, 0.0, 0.0, 0.0);
@@ -585,6 +607,7 @@ void main() {
                 // The light's attenuation without its cosine (the relief's cosine replaces the geometry's).
                 float ndl = max(dot(world_normal, l), 0.0);
                 float att = has_mat && ndl > 1e-3 ? a / ndl : 0.0;
+                a *= bsh.z, att *= bsh.z;
                 sum += lights[i].col.rgb * (m_relief ? att * max(dot(n_s, l), 0.0) : a);
                 if (has_mat && a > 0.0) {
                     vec3 ls = l, ps = centre;
@@ -597,23 +620,22 @@ void main() {
             // The sun: traced visibility (the trace weighs it into gi.a with the lights), else
             // unshadowed (with the screen-space AO when on); the sky's ambient where nothing traces it.
             if (env_sun_on())
-                sum += env_sun_unshadowed(m_relief ? n_s : world_normal) * (u.env_mode.x == -2 ? clamp(gi.a, 0.0, 1.0)
+                sum += env_sun_unshadowed(m_relief ? n_s : world_normal) * bsh.x * (u.env_mode.x == -2 ? clamp(gi.a, 0.0, 1.0)
                     : u.env_mode.x == 0 ? env_sun_map_visibility(world, world_normal, ign(gl_FragCoord.xy) * 6.2831853) : ao);
             if (u.env_mode.y != 0)
-                sum += env_ambient(world_normal) * ao * m_cav;
+                sum += env_ambient(world_normal) * ao * m_cav * bsh.x;
             if (has_mat && env_sun_on()) { // the sun's highlight: its disc's angular size widens the lobe
                 float sv = u.env_mode.x == -2 ? clamp(gi.a, 0.0, 1.0)
                     : u.env_mode.x == 0 ? env_sun_map_visibility(world, world_normal, ign(gl_FragCoord.xy) * 6.2831853) : ao;
-                spec += env_sun_col.rgb * sv * spec_brdf(n_s, m_view, env_sun_dir.xyz, m_alpha, m_f0, m_f90, env_sun_dir.w);
+                spec += env_sun_col.rgb * sv * bsh.x * spec_brdf(n_s, m_view, env_sun_dir.xyz, m_alpha, m_f0, m_f90, env_sun_dir.w);
             }
             if ((gi_on & 2) != 0) { color = vec4(min((gi.rgb + extra.gba) * gi_strength, vec3(1.0)), 1.0); return; }
             if ((gi_on & 8) != 0) { color = vec4(vec3(gi.a), 1.0); return; }
             if ((gi_on & 32) != 0) { color = vec4(vec3(baked_vis * ao), 1.0); return; }
             vec3 indirect = vec3(0.0); // (the material's environment where no reflection is traced)
-            if ((gi_on & 1) != 0) { indirect = gi.rgb * ao * gi_strength; sum += (gi.rgb * ao * m_cav + extra.gba) * gi_strength; } // indirect + glows
-            else if ((gi_on & (64 | 256)) != 0) { indirect = gi.rgb * ao * gi_strength; sum += indirect * m_cav; } // probes alone (no traced GI result)
-            vec4 shade = texelFetch(shade_tex, q, 0);
-            vec3 vertex_light = shade.a > 0.75 ? shade.rgb * (255.0 / 128.0) : shade.rgb;
+            if ((gi_on & 1) != 0) { indirect = gi.rgb * ao * gi_strength * bsh.y; sum += (gi.rgb * ao * m_cav + extra.gba) * gi_strength * bsh.y; } // indirect + glows
+            else if ((gi_on & (64 | 256)) != 0) { indirect = gi.rgb * ao * gi_strength * bsh.y; sum += indirect * m_cav; } // probes alone (no traced GI result)
+            if (view_mode == 11) { color = vec4(bsh, 1.0); return; }
             if (view_mode == 3) { color = vec4(shade.a > 0.75 ? albedo : shade.rgb, 1.0); return; }
             if (view_mode == 4) { color = vec4(min(shade.a > 0.75 ? vertex_light * 0.5 : shade.rgb, vec3(1.0)), 1.0); return; }
             if (view_mode == 5) { color = vec4(world_normal * 0.5 + 0.5, 1.0); return; }

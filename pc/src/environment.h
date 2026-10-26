@@ -28,6 +28,7 @@ extern "C" {
 /* This frame's environment for the renderers (zeros when off: no sun, no
  * sky). Returns 1 when the sun or the sky is on. */
 int pc_env_gpu_get(pc_env_gpu* out);
+int pc_env_open_sky(void);
 /* A hash of what changes the traced light (sun, sky): history resets. */
 unsigned pc_env_hash(void);
 /* The global switch (settings key `environment`, RPC environment {global}). */

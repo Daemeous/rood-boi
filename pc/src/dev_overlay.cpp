@@ -1826,14 +1826,14 @@ static void toolbar(float x, float y, float w, float* height)
         ImGui::EndPopup();
     }
     /* View mode (0-5, the present shader's view_mode), then the path
-     * tracer's buffers and depth. */
+     * tracer's buffers and depth, and the baked shadow (view_mode 11). */
     group_gap(em * 9);
     ImGui::SetNextItemWidth(em * 9);
-    int show = pc_gl_show_depth ? 9 : pc_gi_debug ? 5 + pc_gi_debug : pc_gl_view_mode;
+    int show = pc_gl_show_depth ? 9 : pc_gi_debug ? 5 + pc_gi_debug : pc_gl_view_mode == 11 ? 10 : pc_gl_view_mode;
     if (ImGui::Combo("##view", &show,
             "Lit\0Unlit\0Lighting only\0Base colour (textures)\0Vertex colours\0World normals\0"
-            "Indirect light\0Shadow visibility\0Baked light visibility\0Depth\0")) {
-        pc_gl_view_mode = show <= 5 ? show : 0;
+            "Indirect light\0Shadow visibility\0Baked light visibility\0Depth\0Baked shadow\0")) {
+        pc_gl_view_mode = show <= 5 ? show : show == 10 ? 11 : 0;
         pc_gi_debug = show >= 6 && show <= 8 ? show - 5 : 0;
         pc_gl_show_depth = show == 9;
     }

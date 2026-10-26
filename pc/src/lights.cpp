@@ -110,6 +110,29 @@ extern "C" {
 int pc_lights_enabled = 1;
 float pc_lights_baked = 1.0f; // scale on the game's baked lighting
 float pc_lights_master = 1.0f;
+/* The baked shadow (room settings baked_shadow_*; the present shaders' baked_shadow,
+ * pc/docs/Vulkan_Renderer.md "The baked shadow"): a room surface the game's vertex light leaves
+ * darker than `level` (1: its neutral 128) takes the light we add as (baked / level)^curve, by
+ * each strength: the sun and sky, the indirect light and glows, the dynamic lights. */
+float pc_baked_shadow_level = 0.8f, pc_baked_shadow_curve = 1.5f, pc_baked_shadow_sky = 1.0f,
+      pc_baked_shadow_indirect = 1.0f, pc_baked_shadow_lights = 0.5f;
+/* The present passes' parameters: level (0: off), curve, sky, indirect, lights. */
+void pc_baked_shadow_params(float out[5])
+{
+    float v[5] = { pc_baked_shadow_level, pc_baked_shadow_curve, pc_baked_shadow_sky, pc_baked_shadow_indirect,
+        pc_baked_shadow_lights };
+    const float hi[5] = { 4.0f, 8.0f, 1.0f, 1.0f, 1.0f };
+    for (int i = 0; i < 5; i++)
+        out[i] = !(v[i] > 0.0f) ? 0.0f : v[i] > hi[i] ? hi[i] : v[i];
+    if (out[1] < 0.05f)
+        out[1] = 0.05f;
+    /* Only where the room is open to the sky: there the traced light finds nothing above to stop
+     * it, and the baked darkness stands in for the missing occluders. Indoors the ceiling already
+     * shadows the sky, GI and glows, and fading them would dim a glow's real light. */
+    extern int pc_env_open_sky(void);
+    if (!pc_env_open_sky())
+        out[0] = 0.0f;
+}
 }
 
 #include "glow_overrides.h"

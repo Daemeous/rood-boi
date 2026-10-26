@@ -109,7 +109,16 @@ lighting directory wins per entry id (`$ROOD_MATERIAL_CATALOG_USER` overrides).
 `scope: {"room": [zone,room]}` restricts it to that room. `id` identifies
 user overrides; `name`, `where`, and `review: "new"` support curation. The
 runtime parser rejects invalid keys, size, fractions, palette and scope.
-Unmatched textures have roughness 1, specular 0, metal 0, no relief. A
+A **palette entry** has no `key` (and usually no `size`): `"match": {"clut":
+"<palette key>"}` matches every texture drawn with that palette (of that
+size, when it names one), wherever no entry names the texture itself (a
+texture's own entry always wins over a palette entry, whatever their
+order). A room's pieces of one painted surface share a palette (the Keep's
+walls are 218 boxes of one palette, its floor 49 of another), so one
+palette entry does what dozens of texture entries would; scope it to the
+room (`scope`), since a palette can be reused elsewhere for other art.
+While any palette entry exists every drawn box is hashed (cheap: once per
+VRAM change). Unmatched textures have roughness 1, specular 0, metal 0, no relief. A
 roughness map overrides the uniform roughness, a metal map the uniform metal
 (per texel); specular stays the entry's. Presets are suggestions, not an
 inference of material from a disc image.
@@ -118,8 +127,11 @@ Preset values are physical: `specular` 1 is a dielectric's 4% reflectance
 at normal incidence (stone, wood, glass), 0.5 water's 2% (a wet film, gel),
 and metal 1 reflects with the albedo's colour; what makes a wet or polished
 surface read is its low roughness, not a higher reflectance. Shipped:
-`stone` (0.7 rough, auto_height), `wet stone` (0.32, specular 0.5,
-auto_height), `worn wood` (0.8, auto_height), `worn iron` (0.55, metal,
+`stone` (0.7 rough, auto_height), `rough stone` (0.82, auto_height: walls,
+mortar relief), `flagstone` (0.62, auto_height, bump 0.7: a worn floor,
+smoother and flatter), `plaster` (0.9, specular 0.8, auto_height, bump 0.4),
+`wet stone` (0.32, specular 0.5, auto_height), `worn wood` (0.8,
+auto_height), `cloth` (0.95, specular 0.5), `worn iron` (0.55, metal,
 auto_height), `polished metal` (0.3, metal), `glass` (0.1), `gel` (0.35,
 specular 0.5).
 
@@ -130,6 +142,72 @@ and studded doors (29/3; the doors' `roughness.png` makes the iron studs
 smooth and the planks rough, their `metal.png` the studs, bars and
 fittings metal: hand-made masks, the same texels as the roughness maps;
 worn wood with the relief estimated), the glass lamps of 68/0.
+
+The Keep (29/3) is seeded room-wide (M012-M016, `review: "new"`), from
+its survey (below): the walls' palette `rough stone` (M012, 54% of the
+room's textured view over the survey's four views), the floor's palette
+`flagstone` (M013, 40%), the studded door's other two boxes (M014, M015:
+the boxes overlap M010's and M011's texels, so their maps are M010's and
+M011's hand-made maps re-cut to the box: the same texels, studs metal), and
+the glyph tile (M016, `flagstone`). With the door's M010/M011 that is 96%
+of the textured view; the rest is the black void beyond the walls (a 1 x 1
+box), Ashley (actor materials: Next) and the lantern. The look, on Vulkan
+from the game camera: without a dynamic light about 3% of the pixels
+change by more than 4 levels (mean 1 level): the floor and walls take a
+faint sheen of the baked lantern light and their mortar seams a little
+ambient occlusion; with a point light near a wall about 15% change (some
+by 30-80 levels): the stone blocks' faces lift towards the light and their
+seams fall into shade, and the flagstones get a soft, rough highlight.
+Nothing reads as plastic: rough stone stays matte.
+
+## Surveying a room
+
+What to give materials first is what covers the screen. Doing a room:
+
+1. `python3 pc/tools/material_survey.py ZONE ROOM` starts its own headless
+   game (its own RPC socket, scratch lighting and material layers: never a
+   running game), goes to the room and surveys it from four standard views
+   (`game`: the game camera; `left`, `right`: the free camera at its eye
+   turned 30 degrees; `back`: from the room's far side looking back, the
+   walls the game camera never faces). It prints the palettes by share
+   (what a palette entry would cover) and the textures (key, size, palette)
+   by mean share, each with its views' shares, its entry and its atlas
+   group (textures whose boxes overlap on one page and palette: pieces of
+   one painted region), and writes `survey.json`, `contact.png` (every
+   texture as drawn, from VRAM, labelled: what each one is) and the views'
+   frames and attribution maps (`map-<view>.png`, the contact sheet's
+   colours) into `pc/build/material_survey/ZONE-ROOM`. These are game art:
+   they stay local, never committed.
+2. In the game, Details > Material > **Textures in this room** lists the
+   same for the current view (the game camera, or the free camera: move it
+   around the room), refreshed about once a second: a thumbnail from VRAM
+   (hover: the texture large), its share of the view, its palette's share,
+   and its entry, or a preset dropdown. Picking a preset creates a user
+   entry with it at once (live, unsaved: Save keeps it), for **its whole
+   palette** (default: a palette entry) or **the texture**, scoped to this
+   room (the texture's entry also to its palette), review "new", its `where`
+   noting the share it had. Then tune it in the entry editor as any other.
+3. Copy the entries worth shipping into the catalog (Copy JSON) and paint
+   maps where a texture is only partly one material (iron fittings on wood:
+   a `metal.png`).
+
+How it measures: the native lists' textured triangles (room, characters,
+props; effect sprites and shadows left out) are rasterised on the CPU
+into a grid over the tools' view (160 cells wide by default), with a depth
+test and the game's back-face rule (the PS1's NCLIP: double-sided polygons
+both ways), and each cell goes to the texture its nearest triangle
+samples, by the polygon's UV box, as the material matching sees it.
+Boxes of the same texture (same key and palette, anywhere in VRAM) merge.
+`material_survey_smoke` checks it against the picker (RPC material pick)
+at sampled pixels.
+
+RPC `material`: `survey {grid, map, cull}` (the view's textures: key, size,
+palette key `clut`, `tpage`, `palette`, `boxes`, `cells`, `share`, `entry`;
+`textured` and `untextured` shares, the view's `eye` and `forward`, `map`:
+the cells' texture index, -1 nothing, -2 untextured; `cull` 0 draws both
+faces), `texture {key, palette}` (a texture in view as base64 RGBA), and
+`new {key, palette, preset, share, whole_palette}` (an entry for a texture
+in view by key, as the panel's one click).
 
 ## The data path
 
@@ -228,6 +306,15 @@ maps draws exactly what it did.
   texel's size so a height unit is `bump_strength` texels of depth, and
   stores the relief normal for a unit depth. The present pass scales its
   tangential part by `bump_strength` onto the smoothed normal.
+- **Where it fades**: the slopes are one per texel, nearest. Where a
+  pixel's footprint in the texture is stretched along one direction (a face
+  edge-on to the view, or one whose texture coordinates collapse to a sliver,
+  like the sides of the Keep's arches and pillars) the cotangent frame is
+  degenerate and the normals speckle in bands. The relief (and its cavities)
+  fades smoothly to flat by the ratio of the footprint's long side to its
+  short one (`relief_aniso`: starts there, gone at twice) and by its long
+  side in texels per pixel (`relief_footprint`, the same). Broad faces are
+  unchanged (the Keep's walls and floor differ by 0 in the normals view).
 - **What it bends**: the dynamic lights' diffuse cosine (the attenuation,
   shapes and shadows stay the geometry's), the sun's, the GGX lobe and the
   Fresnel of the environment. The geometry's normal keeps the shadows, GI,
@@ -246,6 +333,8 @@ Materials, RPC `graphics`):
 | `auto_height` | the estimate's switch (entries with `auto_height`) | 1 |
 | `auto_height_strength` | the estimate's height range, 0..2 | 0.5 |
 | `bump_occlusion` | the cavities' share of ambient light lost, 0..1 | 0.5 |
+| `relief_aniso` | the footprint's stretch (long side / short side) where the relief starts to fade, gone at twice; 0: no limit (Material panel too) | 4 |
+| `relief_footprint` | texels per pixel (long side) where the relief starts to fade, gone at twice; 0: no limit | 3 |
 | `env_specular` | the baked (and indirect) light reflected as the surround, 0..1 | 1 |
 | `baked_energy` | the baked light under the material's energy split, 0..1 | 1 |
 
@@ -296,7 +385,8 @@ normal or cavity view.
 
 RPC `material`: `list` (default: switch, tunables, texels, uses, entries,
 presets), `pick {x, y}` or `{world}` (key, palette, size, texel, room, the
-entry and the texel's planes), `new` (for the last pick), `set {id,
+entry and the texel's planes), `new` (for the last pick, or `{key,
+palette, preset}`: Surveying a room), `survey`, `texture`, `set {id,
 fields}` or `{entry}`, `select`, `remove`, `save`, `revert`, `copy {id}`,
 `paint {key, channel, value, rects, tool, at}` (channel roughness, height
 or metal), `map {key, channel}`, `undo`, `preview {auto_height}`, `reload`.

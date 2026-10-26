@@ -174,7 +174,7 @@ typedef struct {
     int room_order, layer_slack;
     int emissive; /* emissive texels: the slot map (binding 6) is read */
     int materials; /* material response: the slot map's material planes (material.glsl) */
-    int pad_occl[2];
+    float relief_fade[2]; /* the relief fades where the texture is stretched (material.glsl relief_keep) */
     float occl_subject[PC_OCCLUSION_SUBJECTS][4], occl_shape[PC_OCCLUSION_SUBJECTS][4]; /* occlusion_params */
     float occl_params[4], occl_instance[4], occl_tint[4]; /* occlusion_params, occlusion_instance */
     float occl_up[4], occl_feet[4]; /* occlusion_params */
@@ -185,7 +185,7 @@ _Static_assert(offsetof(native_ubo, projection) == 48 && offsetof(native_ubo, ru
         && offsetof(native_ubo, uv_count) == 216 && offsetof(native_ubo, cut_focus) == 224 && offsetof(native_ubo, cut_scale) == 240
         && offsetof(native_ubo, instance_cut) == 256 && offsetof(native_ubo, room_slack) == 272
         && offsetof(native_ubo, room_order) == 280 && offsetof(native_ubo, layer_slack) == 284
-        && offsetof(native_ubo, emissive) == 288 && offsetof(native_ubo, occl_subject) == 304
+        && offsetof(native_ubo, emissive) == 288 && offsetof(native_ubo, relief_fade) == 296 && offsetof(native_ubo, occl_subject) == 304
         && offsetof(native_ubo, occl_shape) == 368 && offsetof(native_ubo, occl_params) == 432
         && offsetof(native_ubo, occl_instance) == 448 && offsetof(native_ubo, occl_tint) == 464
         && offsetof(native_ubo, occl_up) == 480 && offsetof(native_ubo, occl_feet) == 496,
@@ -393,6 +393,7 @@ static const render_camera* vk_begin_draw(vk_draw_state* s, const draw_list* lis
     u->filtering = target->filtering;
     u->emissive = pc_hw_emissive(NULL);
     u->materials = pc_material_active();
+    u->relief_fade[0] = pc_relief_aniso < 0 ? 0 : pc_relief_aniso, u->relief_fade[1] = pc_relief_footprint < 0 ? 0 : pc_relief_footprint;
     u->window = target->window;
     u->mask_set = target->mask_set;
     float hx = cam->h * (list->camera.widescreen ? 0.75f : 1.0f);

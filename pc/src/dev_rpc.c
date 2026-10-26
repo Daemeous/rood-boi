@@ -187,6 +187,10 @@
  *                                edits; "loads" counts layer loads) or "add"
  *                                (a point light at position [x, y, z], selected);
  *                                select: a light's index; baked lighting scale
+ *   room_settings {key: value}   the room's lighting and atmosphere settings
+ *                                (haze_density, baked_shadow_level, ...): a value
+ *                                overrides it for the room, "default" resets it;
+ *                                reply: each one's value, default, room override
  *   actors {action, ...}         light actors (prefab instances) in the room:
  *                                list (default); add {prefab, position | x, y
  *                                | u, v, modes, rotation, params, glow, seed}
@@ -3530,6 +3534,31 @@ static void handle_method(int fd, const char* request)
             pc_scene_serial(), pc_scene_triangles(), lo[0], lo[1], lo[2], hi[0], hi[1], hi[2],
             camera ? "" : "null,\"_\":", rot[0][0], rot[0][1], rot[0][2], rot[1][0], rot[1][1],
             rot[1][2], rot[2][0], rot[2][1], rot[2][2], t[0], t[1], t[2], h, ox, oy);
+        reply(fd, id, result);
+    } else if (!strcmp(method, "room_settings")) {
+        /* The room's lighting and atmosphere settings (room_settings.cpp): {key: value} overrides
+         * one for this room as the editor does, {key: "default"} returns it to the project
+         * default; the reply: every setting's value, default and whether the room overrides it. */
+        extern int pc_room_settings_key(int, const char**) __attribute__((weak));
+        extern void pc_room_settings_set(const char*, float, int) __attribute__((weak));
+        extern int pc_room_settings_json(char*, int) __attribute__((weak));
+        if (!pc_room_settings_json) {
+            fail(fd, id, -32000, "room settings need the editor (hardware renderer)");
+            return;
+        }
+        const char* key;
+        for (int k = 0; params && pc_room_settings_key(k, &key); k++) {
+            const char* v = member(params, key);
+            double value;
+            if (v && !strncmp(v, "\"default\"", 9))
+                pc_room_settings_set(key, 0, 1);
+            else if (v && real_value(v, &value))
+                pc_room_settings_set(key, (float)value, 0);
+        }
+        if (pc_room_settings_json(result, sizeof result)) {
+            fail(fd, id, -32000, "room settings reply too long");
+            return;
+        }
         reply(fd, id, result);
     } else if (!strcmp(method, "lights")) {
         if (!pc_lights_describe) {

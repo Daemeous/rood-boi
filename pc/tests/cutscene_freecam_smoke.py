@@ -14,7 +14,15 @@ rain-soaked courtyard (room-002-00-s000), as the viewer plays them:
   shot and piled-up rain, and two renders of the same pose are the same;
 - a group an event script hides (flag 0x100, func_800919D8) stays out of the
   free camera's whole room (render_stats instances);
-- the free camera is given back by play, seek and Stop.
+- the free camera is given back by play, seek and Stop;
+- the credits card (Art Direction / Character Design, the hall's take at
+  f4200): black behind the text as the native picture (RPC screenshot, the
+  PS1's raster) at the game camera with the editor closed and open, from the
+  editor's free camera and from the viewer's;
+- the baked shadow (room settings baked_shadow_*): the courtyard's far floor
+  slab, which the PS1 baked dark, stays dark under the room's moon and sky
+  (close to the native picture, darker than without the baked shadow) while
+  the moonlit near floor keeps its light.
 
 Pictures are compared with themselves only (game imagery: never committed)."""
 import argparse
@@ -35,6 +43,12 @@ from rood_rpc import OUT, Deadline, RpcError, wait_for_file  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 
 HALL, COURTYARD = "room-001-00-s000", "room-002-00-s000"
+CARD = 4200  # the hall's take: the credits card "Art Direction ... / Character Design ..."
+CLOSE_UP = 1150  # the courtyard's take: Ashley close up, the far floor slab behind her
+# The courtyard's moon and sky as the lighting packs' generated layer gives them (2/0 is open to the sky).
+MOON = {"azimuth": 279, "elevation": 35, "color": [0.582, 0.655, 0.886], "intensity": 0.7, "angle": 2}
+SKY = {"zenith": [0.074, 0.091, 0.149], "horizon": [0.18, 0.182, 0.214], "ground": [0.032, 0.03, 0.033],
+       "sun_tint": 0.25, "ambient": 0.6}
 # vs_battle_roomData (_mpdRoomSection, 146C.h): geometrySection, a 4-byte guest pointer.
 ROOM_GEOMETRY = 0x64
 
@@ -112,12 +126,85 @@ def main():
     def stats():
         return game.call("render_stats")
 
+    def native():
+        path = out / "native.ppm"
+        path.unlink(missing_ok=True)
+        game.call("screenshot", path=str(path))
+        if not wait_for_file(path, 60):
+            raise RpcError("no native picture")
+        time.sleep(0.1)
+        return np.asarray(Image.open(path).convert("RGB")).astype(int)[:224]
+
+    def view(name):
+        """The game's picture alone (the editor's panels cropped off), on the native 320 x 224 grid."""
+        image = picture(name)
+        x, y, w, h = game.call("ui_text")["overlay"]["view"]
+        if w <= 0 or h <= 0:
+            x, y, h, w = 0, 0, image.shape[0], image.shape[1]
+        crop = image[y:y + h, x:x + w].astype(np.uint8)
+        return np.asarray(Image.fromarray(crop).resize((320, 224), Image.BOX)).astype(int)
+
+    def card_black(name, reference):
+        """Mean of the picture where the native card is black (away from its letters), the letters' mean
+        brightness against the native's."""
+        image = view(name)
+        lum, ref = image.max(axis=2), reference.max(axis=2)
+        letters = ref > 40
+        near = np.zeros_like(letters)
+        for dy in range(-3, 4):
+            for dx in range(-3, 4):
+                near |= np.roll(np.roll(letters, dy, 0), dx, 1)
+        ground = ~near & (ref < 10)
+        return float(lum[ground].mean()), float(lum[letters].mean()) / max(float(ref[letters].mean()), 1.0)
+
     def rain_share(image):
         """Share of the picture that is the rain's blue (its lines are 96,96,128 -> 32,32,100)."""
         r, g, b = image[..., 0], image[..., 1], image[..., 2]
         return float(((b > r + 12) & (b > g + 12) & (b > 40)).mean())
 
     try:
+        # ---- the credits card: black behind the text in every camera mode ----
+        game.call("graphics", widescreen=False)
+        scene(HALL, CARD)
+        game.wait_presents(4)
+        reference = native()
+        ok = (reference.max(axis=2) > 40).mean() > 0.01 and (reference.max(axis=2) < 10).mean() > 0.8
+        check(ok, f"f{CARD}: the native picture is the credits card (text on black)")
+        ground, letters = card_black("card-game", reference)
+        check(ground < 4 and letters > 0.6, f"card at the game camera: black behind the text ({ground:.1f}), "
+              f"the letters there ({letters:.2f} of native)")
+        game.call("editor_ui", visible=True)
+        game.wait_presents(6)
+        ground, letters = card_black("card-editor", reference)
+        check(ground < 4 and letters > 0.6, f"card with the editor open: black ({ground:.1f}), letters {letters:.2f}")
+        lo, hi = game.call("environment")["bounds"]
+        centre = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2]
+        for yaw in (0, 90, 200):
+            game.call("editor_camera", x=centre[0], y=centre[1], z=centre[2], yaw=yaw, pitch=-10)
+            cs(action="step", frames=2)
+            settle()
+            game.wait_presents(6)
+            ground, letters = card_black(f"card-editor-free-{yaw}", reference)
+            check(ground < 4 and letters > 0.6, f"card from the editor's free camera (yaw {yaw}): black ({ground:.1f}), "
+                  f"letters {letters:.2f}")
+        game.call("editor_camera", off=1)
+        game.call("editor_ui", visible=False)
+        cs(action="seek", frame=CARD)
+        settle()
+        reference = native()
+        camera(True)
+        pose = game.call("photo")["camera"]
+        for k, (dx, dy) in enumerate(((0, 0), (300, -200), (-400, 100))):
+            camera(True, position=[pose["position"][0] + dx, pose["position"][1] + dy, pose["position"][2]],
+                   target=pose["target"])
+            ground, letters = card_black(f"card-free-{k}", reference)
+            check(ground < 4 and letters > 0.6, f"card from the viewer's free camera (pose {k}): black ({ground:.1f}), "
+                  f"letters {letters:.2f}")
+        camera(False)
+        ground, letters = card_black("card-back", reference)
+        check(ground < 4 and letters > 0.6, f"card at the game camera again: black ({ground:.1f}), letters {letters:.2f}")
+        game.call("graphics", widescreen=True)
+
         # ---- rain in the hall: beneath its ceiling, nothing ----
         scene(HALL, 1620)
         env = game.call("environment")
@@ -206,6 +293,45 @@ def main():
             camera(False)
             game.write(address, struct.pack("<I", flags))
             check(hid == whole - 1, f"the free camera leaves out the group the event hid ({whole} -> {hid} instances)")
+
+        # ---- the baked shadow: the far floor slab the PS1 baked dark stays dark ----
+        game.call("graphics", widescreen=False)
+        scene(COURTYARD, CLOSE_UP)
+        game.call("environment", sun=MOON, sky=SKY)
+        # The surfaces' light alone: the haze in front of the slab (lit by the same moon) is the air's, not the slab's.
+        game.call("room_settings", haze_density=0)
+        game.wait_presents(20)
+        reference = native()
+        game.call("graphics", view_mode=4)  # the vertex light, halved
+        game.wait_presents(6)
+        baked = view("slab-vertex-light").max(axis=2) / 127.5
+        game.call("graphics", view_mode=0)
+        rows = np.zeros(baked.shape, bool)
+        rows[34:56] = True  # the slab's band above the near floor, behind Ashley
+        slab = rows & (baked < 0.12) & (reference.max(axis=2) < 12)
+        floor = np.zeros(baked.shape, bool)
+        floor[150:200, 0:60] = True  # the moonlit near floor, left of Ashley
+        floor &= baked > 0.3
+        check(slab.sum() > 1500 and floor.sum() > 1000, f"the slab's dark-baked pixels ({slab.sum()}) and the "
+              f"near floor's ({floor.sum()})")
+        game.wait_presents(20)
+        after = view("slab-after").max(axis=2)
+        game.call("room_settings", baked_shadow_level=0)
+        game.wait_presents(20)
+        before = view("slab-before").max(axis=2)
+        game.call("room_settings", baked_shadow_level="default")
+        game.call("environment", sun={"enabled": False}, sky={"enabled": False})
+        game.wait_presents(20)
+        unlit = view("slab-unlit").max(axis=2)  # without the moon and sky (the haze and the raster stay)
+        a, b, u = float(after[slab].mean()), float(before[slab].mean()), float(unlit[slab].mean())
+        n = float(reference.max(axis=2)[slab].mean())
+        check(a - u <= 1.5 and b - u >= 2.5, f"the slab: the moon and sky add {a - u:.1f} in the baked shadow, "
+              f"{b - u:.1f} without it (picture {a:.1f}, unlit {u:.1f}, native {n:.1f})")
+        fa, fb, fu = float(after[floor].mean()), float(before[floor].mean()), float(unlit[floor].mean())
+        check(fa - fu >= 0.5 * (fb - fu), f"the moonlit near floor keeps the moon and sky's light "
+              f"(+{fa - fu:.1f}, without the baked shadow +{fb - fu:.1f})")
+        game.call("room_settings", haze_density="default")
+        game.call("graphics", widescreen=True)
     finally:
         game.close()
     log = (out / "game.log").read_text(errors="replace")

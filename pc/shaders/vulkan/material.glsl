@@ -59,4 +59,26 @@ vec3 relief_normal(vec3 n, vec2 slope, vec3 dp1, vec3 dp2, vec2 duv1, vec2 duv2)
     vec3 g = (slope.x * gu + slope.y * gv) * inversesqrt(area);
     return normalize(n - g);
 }
+// How much of the relief a pixel keeps (1: all, 0: flat). The relief is
+// sampled nearest, one slope per texel: where the texture coordinates change
+// fast over a pixel (a face edge-on to the view, stretched along one axis, or
+// many texels to a pixel) the pixel lands on unrelated texels and the normals
+// speckle. duv1, duv2: the texture coordinates' screen derivatives (texels per
+// pixel); their singular values are the footprint's long and short sides.
+// fade.x: the ratio of the long side to the short one (anisotropy) where the
+// relief starts to fade (gone at twice), fade.y: the long side in texels per
+// pixel where it starts to fade (gone at twice). 0 turns a limit off.
+float relief_keep(vec2 duv1, vec2 duv2, vec2 fade)
+{
+    float e = 0.5 * (duv1.x + duv2.y), f = 0.5 * (duv1.x - duv2.y);
+    float g = 0.5 * (duv2.x + duv1.y), h = 0.5 * (duv2.x - duv1.y);
+    float q = sqrt(e * e + h * h), r = sqrt(f * f + g * g);
+    float longest = q + r, shortest = abs(q - r);
+    float keep = 1.0;
+    if (fade.x > 0.0)
+        keep *= 1.0 - smoothstep(fade.x, 2.0 * fade.x, longest / max(shortest, 1e-6));
+    if (fade.y > 0.0)
+        keep *= 1.0 - smoothstep(fade.y, 2.0 * fade.y, longest);
+    return keep;
+}
 #endif

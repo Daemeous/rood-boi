@@ -323,7 +323,11 @@ The free camera draws the moment as the game built it, from another place:
   the hardware renderer leaves those sprites out while a free camera flies
   (the game camera's view and native VRAM keep them): the free view is the
   moment itself, with no game shot smeared over it and no rain piling up
-  render after render.
+  render after render. The hall's credits card (f4200, "Art Direction /
+  Character Design") is black behind its text from every camera, as the
+  original: `cutscene_freecam_smoke` compares it with the native picture at
+  the game camera, with the editor open and from the editor's and the
+  viewer's free cameras.
 - **Rain stays outside.** The game's rain is projected lines; the PS1's
   ordering table let a nearer wall cover a drop, the port draws them after
   the room's meshes, so a drop's packet is left out of the hardware picture

@@ -37,6 +37,7 @@ layout(std140, binding = 0) uniform Draw {
     int layer_slack; // 284: objects, other room blocks: tested room_slack nearer (1), and written so into the surfaces (2)
     int emissive; // 288: emissive texels: the slot map (binding 6) is read
     int materials; // 292: material response: the slot map's material planes are read (material.glsl)
+    vec2 relief_fade; // 296: the relief fades where the texture is stretched (material.glsl relief_keep)
     // 304: occlusion in play (render.c occlusion_params): the subjects in view
     // space with the rows' scales divided out (xyz), the fade (w)
     vec4 occl_subject[4];

@@ -25,7 +25,9 @@ extern float pc_gi_strength, pc_emitter_light, pc_emitter_radius, pc_contact_rad
     pc_lights_baked, pc_lights_master, pc_light_size, pc_gi_baked_bounce, pc_fog_density, pc_fog_anisotropy,
     pc_fog_glow, pc_glow_category[3][5], pc_haze_max_opacity, pc_haze_max_light, pc_haze_shafts, pc_haze_max_forward,
     pc_haze_interior, pc_haze_interior_fill, pc_haze_under_floor, pc_haze_void, pc_haze_void_level, pc_haze_outside,
-    pc_haze_interior_edge, pc_haze_interior_slope, pc_glow_emissive_lift, pc_glow_emissive_disc;
+    pc_haze_interior_edge, pc_haze_interior_slope, pc_glow_emissive_lift, pc_glow_emissive_disc,
+    pc_baked_shadow_level, pc_baked_shadow_curve, pc_baked_shadow_sky, pc_baked_shadow_indirect,
+    pc_baked_shadow_lights;
 }
 
 namespace {
@@ -51,6 +53,14 @@ Setting settings[] = {
     { "baked_ambient", "Ambient share of baked light", "Lighting", &pc_baked_ambient, 0, 1, "%.2f", false },
     { "gi_strength", "Indirect light strength", "Lighting", &pc_gi_strength, 0, 4, "%.2f", false },
     { "baked_bounce", "Baked light bounce", "Lighting", &pc_gi_baked_bounce, 0, 1, "%.2f", false },
+    /* The baked shadow (lights.cpp): the game's vertex light as the shadow of the light we add. A
+     * room surface baked darker than the level (1: the neutral 128; 0: off) takes (baked /
+     * level)^curve of the sun and sky, the indirect light and the lights, by each strength. */
+    { "baked_shadow_level", "Baked shadow: lit from (baked light)", "Lighting", &pc_baked_shadow_level, 0, 2, "%.2f", false },
+    { "baked_shadow_curve", "Baked shadow: curve", "Lighting", &pc_baked_shadow_curve, 0.25f, 4, "%.2f", false },
+    { "baked_shadow_sky", "Baked shadow on the sun and sky", "Lighting", &pc_baked_shadow_sky, 0, 1, "%.2f", false },
+    { "baked_shadow_indirect", "Baked shadow on indirect light", "Lighting", &pc_baked_shadow_indirect, 0, 1, "%.2f", false },
+    { "baked_shadow_lights", "Baked shadow on the lights", "Lighting", &pc_baked_shadow_lights, 0, 1, "%.2f", false },
     { "haze_density", "Haze density", "Atmosphere", &pc_fog_density, 0, 0.004f, "%.5f", true },
     { "haze_anisotropy", "Forward scattering", "Atmosphere", &pc_fog_anisotropy, -0.5f, 0.9f, "%.2f", false },
     { "haze_glow", "Glows in the haze", "Atmosphere", &pc_fog_glow, 0, 4, "%.2f", false },
@@ -124,6 +134,7 @@ Setting* find(const char* key)
     return nullptr;
 }
 float builtin[64];
+static_assert(sizeof settings / sizeof settings[0] <= sizeof builtin / sizeof builtin[0], "builtin[] too small");
 void init()
 {
     if (initialised && initialised_serial == lighting::config_serial())
@@ -215,6 +226,41 @@ extern "C" void pc_room_settings_write(FILE* f)
     for (const Setting& s : settings)
         if (s.overridden)
             fprintf(f, "set %s %g\n", s.key, s.room);
+}
+
+/* RPC room_settings (dev_rpc.c): {key: value, ...} overrides keys for the room (as the editor
+ * does; "default" for a value returns it to the project default); the reply lists every setting:
+ * its value, project default and whether the room overrides it. */
+extern "C" int pc_room_settings_key(int i, const char** key)
+{
+    if (i < 0 || i >= count)
+        return 0;
+    *key = settings[i].key;
+    return 1;
+}
+extern "C" void pc_room_settings_set(const char* key, float value, int reset)
+{
+    init();
+    Setting* s = find(key);
+    if (!s)
+        return;
+    pc_room_look_clear();
+    s->overridden = !reset;
+    s->room = *s->value = reset ? s->base : value;
+}
+extern "C" int pc_room_settings_json(char* out, int size)
+{
+    init();
+    std::string j = "{";
+    char item[192];
+    for (int i = 0; i < count; i++) {
+        snprintf(item, sizeof item, "%s\"%s\":{\"value\":%g,\"default\":%g,\"room\":%s}", i ? "," : "",
+            settings[i].key, *settings[i].value, settings[i].base, settings[i].overridden ? "true" : "false");
+        j += item;
+    }
+    j += "}";
+    snprintf(out, size, "%s", j.c_str());
+    return (int)j.size() < size ? 0 : -1;
 }
 
 extern "C" int pc_room_settings_overrides(void)

@@ -32,6 +32,7 @@ static pc_post_frame post_frame; /* this present's resolved post profile (post.h
 static int post_hdr; /* the present shader's post bit 8: HDR out, the grade pass tone maps */
 static int post_grade_on; /* the grade pass runs this present (emissive texels may exceed 1: post bit 32) */
 extern float pc_shadow_softness, pc_normal_smoothing, pc_lights_baked;
+void pc_baked_shadow_params(float out[5]); /* lights.cpp */
 extern int pc_rt_shadows, pc_gi_enabled, pc_gi_debug, pc_baked_shadows_active;
 extern float pc_gi_strength, pc_fog_density, pc_fog_anisotropy, pc_light_size;
 extern void pc_scene_bounds(float lo[3], float hi[3]);
@@ -157,6 +158,8 @@ typedef struct {
     /* The relief and the environment (emissive.h): bump_strength, bump_occlusion, env_specular,
      * baked_energy (scaled.frag material2_). */
     float material2[4];
+    /* The baked shadow (lights.cpp pc_baked_shadow_params): level, curve, sky, indirect; lights. */
+    float baked_shadow[2][4];
 } present_ubo;
 
 /* ---- swapchain ---- */
@@ -801,6 +804,13 @@ static void fill_present_ubo(present_ubo* u, int x, int y, int w, int h, int vie
                   : 0;
     u->i2[0] = gi_w, u->i2[1] = gi_h;
     u->f0[3] = pc_lighting_baked_scale(pc_lights_baked, count);
+    {
+        float b[5];
+        pc_baked_shadow_params(b);
+        for (int i = 0; i < 4; i++)
+            u->baked_shadow[0][i] = b[i];
+        u->baked_shadow[1][0] = b[4];
+    }
     u->f1[0] = pc_gi_strength;
     u->f1[1] = gi ? pc_fog_density : 0;
     u->f1[2] = pc_shadow_softness;

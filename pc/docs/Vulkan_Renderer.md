@@ -537,6 +537,45 @@ off in the same room):
 
 NRD, the filters and the haze are unchanged (same images, same counts).
 
+### The baked shadow (`scaled.frag` / `gl_present.c` `baked_shadow`)
+
+It applies only in rooms open to the sky (the environment defines a sun/moon or a sky, `pc_env_open_sky`): there the traced light has nothing above to stop it and the baked darkness stands in for the missing occluders. Indoors the ceiling already shadows the sky, GI and glows, and a glow's light on a dark-baked floor stays (emissive_smoke).
+
+The PS1's vertex light is the artists' answer to how much light reaches a
+room surface. The light we add (the sun and sky, the indirect light and the
+glows, the dynamic lights) does not know it: in a set open to the sky
+(2/0, the opening's courtyard) nothing above the far floor slab occludes
+the moon, the sky or the path tracer's rays, so the slab the original shows
+barely visible, in shadow, was lit into a floating plane. The present pass
+now lets the baked light shade the added light: where a textured **room**
+surface (G-buffer normal alpha 1: never characters, props or effects) is
+baked darker than `baked_shadow_level` (1: the neutral 128; its brightest
+channel, so a coloured lantern-lit wall counts as lit), each added term
+fades as `(baked / level) ^ baked_shadow_curve`, by its own strength:
+
+| Room setting | Default | Fades |
+| --- | --- | --- |
+| `baked_shadow_level` | 0.8 | the baked light from which a surface is open to the added light (0: off) |
+| `baked_shadow_curve` | 1.5 | how fast it fades below the level |
+| `baked_shadow_sky` | 1 | the sun's direct light and highlight, the sky's ambient term |
+| `baked_shadow_indirect` | 1 | the traced or probe indirect light and the glows' light |
+| `baked_shadow_lights` | 0.5 | the dynamic lights (lanterns, the user's lights: half, so a light placed by a dark wall still shows) |
+
+They are room settings (`room_settings.cpp`: per room in the lighting
+layers as `set baked_shadow_level value=...`, project defaults, the editor's
+Lighting page; RPC `room_settings {baked_shadow_level: 0}` and `"default"`).
+The traced shadows, AO and haze are unchanged; the haze in front of a
+surface is the air's (the courtyard's moonlit haze still greys the far slab
+a little). View mode 11 (editor: View > Baked shadow) shows the three
+factors as rgb.
+
+Measured (`cutscene_freecam_smoke`, the courtyard's take at f1150 under its
+generated moon and sky, haze off): the slab's dark-baked pixels got +4.3
+levels from the moon and sky, now +0.2 (native 0); the moonlit near floor
+(baked about 0.5) keeps +2.0 of its +2.3. Rue Vermillion (32/0, open to
+the sky): the whole picture 0.8 % darker, most of its surfaces baked above
+the level.
+
 ### Haze, ground fog and sun shafts (`atmosphere.cpp`, `medium.glsl`)
 
 The air of a room is one participating medium, packed per frame by

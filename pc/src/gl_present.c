@@ -200,6 +200,16 @@ static const char* scaled_fragment_source =
     "uniform vec4 light_up[64];\n" /* rect: view-space half extent along its height */
     "uniform vec4 light_dir[64];\n" /* view-space direction, cos(half cone) */
     "uniform float baked;\n" /* scale on the game's baked lighting */
+    /* The baked shadow (lights.cpp pc_baked_shadow_params; scaled.frag's baked_shadow): level,
+     * curve, sun and sky, indirect; the dynamic lights' strength. */
+    "uniform vec4 baked_shadow;\n"
+    "uniform float baked_shadow_lights;\n"
+    "vec3 baked_shadow_at(vec3 vertex_light, float shade_a, float surface) {\n"
+    "    if (surface < 0.9 || shade_a < 0.75 || baked_shadow.x <= 0.0) return vec3(1.0);\n"
+    "    float b = max(vertex_light.r, max(vertex_light.g, vertex_light.b));\n"
+    "    float v = pow(clamp(b / baked_shadow.x, 0.0, 1.0), max(baked_shadow.y, 0.05));\n"
+    "    return mix(vec3(1.0), vec3(v), clamp(vec3(baked_shadow.zw, baked_shadow_lights), 0.0, 1.0));\n"
+    "}\n"
     "uniform sampler2D gi_tex;\n" /* indirect irradiance over the display area (ptgi.c) */
     "uniform int gi_on;\n" /* 1 add it, 2 show it alone, 4 its alpha is shadow visibility */
     "uniform sampler2D gi_position;\n" /* the GI pixels' world positions (w = surface) */
@@ -596,6 +606,9 @@ static const char* scaled_fragment_source =
     "            vec3 normal = smooth_normal(q, normalize(n.xyz * 2.0 - 1.0), z);\n"
     "            vec3 albedo = texelFetch(albedo_tex, q, 0).rgb;\n"
     "            vec3 sum = vec3(0.0);\n"
+    "            vec4 shade = texelFetch(shade_tex, q, 0);\n"
+    "            vec3 vertex_light = shade.a > 0.75 ? shade.rgb * (255.0 / 128.0) : shade.rgb;\n"
+    "            vec3 bsh = baked_shadow_at(vertex_light, shade.a, n.a);\n" /* (sun and sky, indirect, lights) */
     /* World position for shadows, nudged off the surface along its normal. */
     "            vec3 world = inverse_rotation * (p - camera_translation);\n"
     "            vec3 world_normal = normalize(normal_to_world * normal);\n"
@@ -625,22 +638,21 @@ static const char* scaled_fragment_source =
     "                    a *= visibility(light_shadow[i], world + world_normal * max(2.0, light_world[i].w * 0.01), light_world[i],\n"
     "                        light_col[i].w < 1.5 && light_right[i].w > 0.0 ? light_right[i].w : quality2.x, min(sqrt(1.0 - cosine * cosine) / cosine, 4.0));\n"
     "                }\n"
-    "                sum += light_col[i].rgb * a;\n"
+    "                sum += light_col[i].rgb * a * bsh.z;\n"
     "            }\n"
     /* The sun (traced visibility, else unshadowed with the screen-space AO) and the sky's ambient. */
     "            if (env_sun_on())\n"
-    "                sum += env_sun_unshadowed(world_normal) * (env_mode.x == -2 ? clamp(gi.a, 0.0, 1.0)\n"
+    "                sum += env_sun_unshadowed(world_normal) * bsh.x * (env_mode.x == -2 ? clamp(gi.a, 0.0, 1.0)\n"
     "                    : env_mode.x == 0 ? env_sun_map_visibility(world, world_normal, ign(gl_FragCoord.xy) * 6.2831853) : ao);\n"
     "            if (env_mode.y != 0)\n"
-    "                sum += env_ambient(world_normal) * ao;\n"
+    "                sum += env_ambient(world_normal) * ao * bsh.x;\n"
     "            if ((gi_on & 2) != 0) { color = vec4(min(gi.rgb * gi_strength, vec3(1.0)), 1.0); return; }\n"
     "            if ((gi_on & 8) != 0) { color = vec4(vec3(gi.a), 1.0); return; }\n"
     "            if ((gi_on & 32) != 0) { color = vec4(vec3(baked_vis * ao), 1.0); return; }\n"
-    "            if ((gi_on & 1) != 0) sum += gi.rgb * gi_strength * ao;\n"
-    "            else if ((gi_on & 64) != 0) sum += gi.rgb * gi_strength * ao;\n" /* probes alone (no traced result) */
+    "            if ((gi_on & 1) != 0) sum += gi.rgb * gi_strength * ao * bsh.y;\n"
+    "            else if ((gi_on & 64) != 0) sum += gi.rgb * gi_strength * ao * bsh.y;\n" /* probes alone (no traced result) */
+    "            if (view_mode == 11) { color = vec4(bsh, 1.0); return; }\n"
     /* View modes: the texture as white (the lighting alone), or one input. */
-    "            vec4 shade = texelFetch(shade_tex, q, 0);\n"
-    "            vec3 vertex_light = shade.a > 0.75 ? shade.rgb * (255.0 / 128.0) : shade.rgb;\n"
     "            if (view_mode == 3) { color = vec4(shade.a > 0.75 ? albedo : shade.rgb, 1.0); return; }\n"
     "            if (view_mode == 4) { color = vec4(min(shade.a > 0.75 ? vertex_light * 0.5 : shade.rgb, vec3(1.0)), 1.0); return; }\n"
     "            if (view_mode == 5) { color = vec4(world_normal * 0.5 + 0.5, 1.0); return; }\n"
@@ -738,7 +750,8 @@ extern void pc_shadows_sun_bind(int unit);
 static GLint u_shade_tex, u_view_mode;
 int pc_gl_view_mode; /* editor view mode (see the present shader's view_mode) */
 static GLint u_normal_tex, u_albedo_tex, u_light_count, u_light_pos, u_light_col, u_light_dir,
-    u_baked, u_projection, u_screen_offset;
+    u_baked, u_baked_shadow, u_baked_shadow_lights, u_projection, u_screen_offset;
+void pc_baked_shadow_params(float out[5]); /* lights.cpp */
 extern void pc_hw_gbuffer(GLuint*, GLuint*);
 extern GLuint pc_hw_shade_texture(void);
 #define GL_LIGHTS 64 /* the present shader's light arrays */
@@ -1106,6 +1119,8 @@ SDL_Window* pc_gl_create_window(const char* title, int width, int height)
     u_light_col = gl_GetUniformLocation(scaled_program, "light_col");
     u_light_dir = gl_GetUniformLocation(scaled_program, "light_dir");
     u_baked = gl_GetUniformLocation(scaled_program, "baked");
+    u_baked_shadow = gl_GetUniformLocation(scaled_program, "baked_shadow");
+    u_baked_shadow_lights = gl_GetUniformLocation(scaled_program, "baked_shadow_lights");
     u_gi_tex = gl_GetUniformLocation(scaled_program, "gi_tex");
     u_gi_on = gl_GetUniformLocation(scaled_program, "gi_on");
     u_gi_strength = gl_GetUniformLocation(scaled_program, "gi_strength");
@@ -1943,6 +1958,12 @@ void pc_gl_present(const uint16_t* vram, int x, int y, int w, int h)
                 for (int i = 0; i < 4; i++)
                     gl_Uniform1i(u_shadow[i], 4 + i);
                 gl_Uniform1f(u_baked, pc_lighting_baked_scale(pc_lights_baked, count));
+                {
+                    float b[5];
+                    pc_baked_shadow_params(b);
+                    gl_Uniform4f(u_baked_shadow, b[0], b[1], b[2], b[3]);
+                    gl_Uniform1f(u_baked_shadow_lights, b[4]);
+                }
                 /* Lighting quality: haze Low (or High without a traced haze this
                  * frame), screen-space AO, the shadow map filter. */
                 /* The room's medium (atmosphere.h): the traced haze's (ptgi.c

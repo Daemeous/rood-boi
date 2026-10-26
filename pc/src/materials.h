@@ -33,7 +33,10 @@ struct Surface {
 };
 /* Catalog presets and layered entries: absent or unmatched means Surface{}
  * and must never alter the old shading path. A map overrides roughness only.
- * clut is optional but required for keys that are not unique by themselves. */
+ * clut is optional but required for keys that are not unique by themselves.
+ * A palette entry has no key (and w, h 0 unless it names a size): it matches
+ * every texture drawn with palette `clut`, where no entry names the texture
+ * itself (pc/docs/Materials.md, Palette entries). */
 struct Entry {
     std::string id, name, where, review, preset, key, clut;
     int w = 0, h = 0, zone = -1, room = -1;
@@ -51,6 +54,8 @@ const Entry* find_match(const std::string& key, int w, int h, const std::string&
 /* Whether any entry names a texture of this size (and so its key is worth
  * hashing), and whether any entry needs the palette's key. */
 bool catalog_has_size(int w, int h);
+/* Whether any entry matches by palette alone (no key): then every size counts. */
+bool catalog_has_palette_entries();
 /* Changes whenever either catalog file changed on disk (checks their stamps:
  * two stat calls). */
 uint32_t catalog_generation();

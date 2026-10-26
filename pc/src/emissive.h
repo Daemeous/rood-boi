@@ -66,6 +66,9 @@ extern float pc_bump_strength;
 extern int pc_auto_height;
 extern float pc_auto_height_strength;
 extern float pc_bump_occlusion;
+/* Where the relief fades to flat (material.glsl relief_keep): the texture' stretch (long side over short side of a
+ * pixel's footprint in the texture) and its texels per pixel at which the fade starts (gone at twice); 0: no limit. */
+extern float pc_relief_aniso, pc_relief_footprint;
 extern float pc_env_specular;
 extern float pc_baked_energy;
 /* The editor's preview of the height estimate on every entry in view

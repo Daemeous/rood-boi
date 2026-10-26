@@ -206,6 +206,14 @@ bool rood_env::sun_icon_shown() { return gizmo; }
 
 /* ---- renderers ---- */
 
+/* The room is open to the sky: its environment defines a sun (or moon) or a sky, on or off for the
+ * weather (the baked shadow, lights.cpp, applies only there). */
+extern "C" int pc_env_open_sky(void)
+{
+    rood_lights::track_room();
+    return (sun.defined && sun.enabled) || (sky.defined && sky.enabled);
+}
+
 extern "C" int pc_env_gpu_get(pc_env_gpu* out)
 {
     memset(out, 0, sizeof *out);

@@ -32,7 +32,7 @@ extern int pc_gl_compute;
 /* Material response (emissive.h): the specular switch and its tunables. */
 extern int pc_specular, pc_reflection_bounces, pc_auto_height;
 extern float pc_specular_strength, pc_roughness_bias, pc_bump_strength, pc_auto_height_strength, pc_bump_occlusion,
-    pc_env_specular, pc_baked_energy;
+    pc_env_specular, pc_baked_energy, pc_relief_aniso, pc_relief_footprint;
 int pc_material_active(void);
 /* Weak: absent in some builds. */
 extern int pc_vk_active __attribute__((weak));
@@ -144,6 +144,8 @@ Key keys[] = {
     { "auto_height", BOOL, &pc_auto_height, nullptr, 0, false },
     { "auto_height_strength", FLOAT_KEY, &pc_auto_height_strength, nullptr, 0, false },
     { "bump_occlusion", FLOAT_KEY, &pc_bump_occlusion, nullptr, 0, false },
+    { "relief_aniso", FLOAT_KEY, &pc_relief_aniso, nullptr, 0, false },
+    { "relief_footprint", FLOAT_KEY, &pc_relief_footprint, nullptr, 0, false },
     { "env_specular", FLOAT_KEY, &pc_env_specular, nullptr, 0, false },
     { "baked_energy", FLOAT_KEY, &pc_baked_energy, nullptr, 0, false },
 };
@@ -1005,6 +1007,14 @@ extern "C" void pc_lighting_panel(void)
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
                 ImGui::SetTooltip("bump_occlusion: texels below their neighbours lose this share of the ambient\n"
                                   "(baked, indirect, sky) light.");
+            ImGui::SliderFloat("Relief stretch limit", &pc_relief_aniso, 0, 16, pc_relief_aniso > 0 ? "%.1f x" : "No limit");
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+                ImGui::SetTooltip("relief_aniso: the relief fades to flat where the texture is stretched this much\n"
+                                  "along one direction of a pixel (edge-on faces, which would speckle); gone at twice.");
+            ImGui::SliderFloat("Relief texel limit", &pc_relief_footprint, 0, 8, pc_relief_footprint > 0 ? "%.1f texels" : "No limit");
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+                ImGui::SetTooltip("relief_footprint: the relief fades to flat where a pixel spans this many texels\n"
+                                  "(minified, which would speckle); gone at twice.");
             dim(pc_material_active() ? "Materials on surfaces in view." : "No material in view.");
         }
     }

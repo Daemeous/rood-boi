@@ -6,12 +6,14 @@
 // the height estimate and look at the debug views (relief normals,
 // cavities), save the entry into the user layer (materials.json) or copy it
 // as JSON for the curated catalog.
+#include <ctype.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <algorithm>
 #include <map>
+#include <unordered_map>
 #include <string>
 #include <vector>
 
@@ -19,6 +21,7 @@
 #include "emissive.h"
 #include "emissive_internal.h"
 #include "materials.h"
+#include "material_survey.h"
 
 using prefab::Json;
 using emissive::TexturePick;
@@ -284,6 +287,8 @@ Json list_json()
     j.set("auto_height", Json::boolean_(pc_auto_height != 0));
     j.set("auto_height_strength", Json::num(pc_auto_height_strength));
     j.set("bump_occlusion", Json::num(pc_bump_occlusion));
+    j.set("relief_aniso", Json::num(pc_relief_aniso));
+    j.set("relief_footprint", Json::num(pc_relief_footprint));
     j.set("env_specular", Json::num(pc_env_specular));
     j.set("baked_energy", Json::num(pc_baked_energy));
     j.set("preview", Json::boolean_(pc_auto_height_preview != 0));
@@ -543,8 +548,12 @@ void entry_editor(const materials::Entry& original)
     bool changed = false;
     ImGui::PushID(e.id.c_str());
     ImGui::SeparatorText(e.id.c_str());
-    ImGui::TextDisabled("%s, texture %s %d x %d%s%s", e.user ? "your entry" : "curated", e.key.c_str(), e.w, e.h,
-        e.clut.empty() ? "" : ", this palette", e.zone >= 0 ? ", one room" : ", every room");
+    if (e.key.empty())
+        ImGui::TextDisabled("%s, every texture with palette %s%s", e.user ? "your entry" : "curated", e.clut.c_str(),
+            e.zone >= 0 ? ", one room" : ", every room");
+    else
+        ImGui::TextDisabled("%s, texture %s %d x %d%s%s", e.user ? "your entry" : "curated", e.key.c_str(), e.w, e.h,
+            e.clut.empty() ? "" : ", this palette", e.zone >= 0 ? ", one room" : ", every room");
     char name[128], where[256];
     snprintf(name, sizeof name, "%s", e.name.c_str());
     snprintf(where, sizeof where, "%s", e.where.c_str());
@@ -608,9 +617,10 @@ void entry_editor(const materials::Entry& original)
             e.zone = e.room = -1;
         changed = true;
     }
-    ImGui::SameLine();
     bool palette = !e.clut.empty();
-    if (ImGui::Checkbox("This palette only", &palette)) {
+    if (!e.key.empty())
+        ImGui::SameLine();
+    if (!e.key.empty() && ImGui::Checkbox("This palette only", &palette)) {
         TexturePick t;
         if (!palette)
             e.clut.clear(), changed = true;
@@ -652,6 +662,295 @@ void entry_editor(const materials::Entry& original)
     ImGui::PopID();
 }
 
+
+/* ---------------------------------------------------------------- the survey */
+
+/* A texture drawn now, by its key and (optionally) its palette key. */
+bool texture_in_view(const std::string& key, const std::string& clut_key, TexturePick& out)
+{
+    for (const emissive::UseInfo& u : emissive::use_list(true)) {
+        if (u.key != key)
+            continue;
+        std::string ck = emissive::clut_key(u.page, u.clut);
+        if (!clut_key.empty() && ck != clut_key)
+            continue;
+        out = TexturePick();
+        out.valid = true, out.key = key, out.clut_key = ck, out.tpage = u.page, out.clut = u.clut;
+        memcpy(out.box, u.box, 4);
+        emissive::current_room(&out.zone, &out.room);
+        return true;
+    }
+    return false;
+}
+/* A new user entry for a texture with a preset (the survey's one click):
+ * this room and this palette (a texture reused elsewhere keeps its look
+ * there), review "new", where the survey found it. */
+materials::Entry entry_with_preset(const TexturePick& t, const std::string& preset, float share,
+    const std::vector<materials::Entry>& all, bool whole_palette = false)
+{
+    materials::Entry e = entry_for(t, all);
+    apply_preset(e, preset);
+    if (whole_palette && !t.clut_key.empty())
+        e.key.clear(), e.w = e.h = 0; /* a palette entry: every texture drawn with it here */
+    std::string name = preset;
+    if (!name.empty())
+        name[0] = (char)toupper((unsigned char)name[0]);
+    e.name = name;
+    char where[160];
+    if (share > 0)
+        snprintf(where, sizeof where, "zone %d room %d; %s%.1f%% of the view when added (survey)", t.zone, t.room,
+            e.key.empty() ? "every texture with this palette, " : "", share * 100);
+    else
+        snprintf(where, sizeof where, "zone %d room %d", t.zone, t.room);
+    e.where = where;
+    return e;
+}
+bool preset_exists(const std::string& name)
+{
+    for (const auto& p : materials::catalog_presets())
+        if (p.first == name)
+            return true;
+    return false;
+}
+Json survey_json(const material_survey::Result& r, bool with_map)
+{
+    Json j = Json::object();
+    j.set("valid", Json::boolean_(r.valid));
+    if (!r.valid)
+        return j;
+    auto pair = [](double a, double b) {
+        Json x = Json::array();
+        x.items.push_back(Json::num(a));
+        x.items.push_back(Json::num(b));
+        return x;
+    };
+    auto triple = [](const float* v) {
+        Json x = Json::array();
+        for (int k = 0; k < 3; k++)
+            x.items.push_back(Json::num(round(v[k] * 100) / 100));
+        return x;
+    };
+    j.set("grid", pair(r.grid_w, r.grid_h));
+    j.set("room", pair(r.zone, r.room));
+    j.set("eye", triple(r.eye));
+    j.set("forward", triple(r.forward));
+    double cells = (double)r.grid_w * r.grid_h;
+    j.set("textured", Json::num(r.textured / cells));
+    j.set("untextured", Json::num(r.untextured / cells));
+    Json list = Json::array();
+    for (const material_survey::Texture& t : r.textures) {
+        Json x = Json::object();
+        x.set("key", Json::str(t.key));
+        x.set("size", pair(t.w, t.h));
+        x.set("clut", Json::str(t.clut_key));
+        x.set("tpage", Json::num(t.tpage));
+        x.set("palette", Json::num(t.clut));
+        Json boxes = Json::array();
+        for (const auto& b : t.boxes) {
+            Json bx = Json::array();
+            for (uint8_t v : b)
+                bx.items.push_back(Json::num(v));
+            boxes.items.push_back(bx);
+        }
+        x.set("boxes", boxes);
+        x.set("cells", Json::num(t.cells));
+        x.set("share", Json::num(round(t.cells / cells * 1e5) / 1e5));
+        x.set("entry", Json::str(t.entry));
+        list.items.push_back(x);
+    }
+    j.set("textures", list);
+    if (with_map) {
+        Json m = Json::array();
+        for (int v : r.map)
+            m.items.push_back(Json::num(v));
+        j.set("map", m);
+    }
+    return j;
+}
+std::string base64(const uint8_t* data, size_t n)
+{
+    static const char* abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::string s;
+    s.reserve((n + 2) / 3 * 4);
+    for (size_t i = 0; i < n; i += 3) {
+        uint32_t v = (uint32_t)data[i] << 16 | (i + 1 < n ? (uint32_t)data[i + 1] << 8 : 0) | (i + 2 < n ? data[i + 2] : 0);
+        s += abc[v >> 18 & 63];
+        s += abc[v >> 12 & 63];
+        s += i + 1 < n ? abc[v >> 6 & 63] : '=';
+        s += i + 2 < n ? abc[v & 63] : '=';
+    }
+    return s;
+}
+
+/* The panel's "Textures in this room": the survey of the view, refreshed
+ * about once a second while shown, with each texture's thumbnail (from
+ * VRAM), its share of the view and its entry, or a preset to give it one. */
+material_survey::Result room_survey;
+double room_survey_time = -1e9;
+bool room_survey_auto = true;
+std::unordered_map<uint64_t, std::vector<uint8_t>> thumbnails; /* page, clut, box -> RGBA */
+bool survey_whole_palette = true; /* presets make palette entries (else the texture's own) */
+
+void thumbnail(const material_survey::Texture& t, float px)
+{
+    uint64_t k = (uint64_t)t.tpage << 48 | (uint64_t)t.clut << 32 | (uint64_t)t.box[0] << 24 | (uint64_t)t.box[1] << 16
+        | (uint64_t)t.box[2] << 8 | t.box[3];
+    auto it = thumbnails.find(k);
+    if (it == thumbnails.end()) {
+        if (thumbnails.size() > 512)
+            thumbnails.clear();
+        it = thumbnails.emplace(k, emissive::texture_rgba_box(t.tpage, t.clut, t.box)).first;
+    }
+    const std::vector<uint8_t>& rgba = it->second;
+    int w = t.w, h = t.h;
+    int step = std::max(1, (std::max(w, h) + 15) / 16); /* at most 16 x 16 cells */
+    int cw = (w + step - 1) / step, ch = (h + step - 1) / step;
+    float cell = px / std::max(cw, ch);
+    ImVec2 o = ImGui::GetCursorScreenPos();
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    dl->AddRectFilled(o, ImVec2(o.x + px, o.y + px), IM_COL32(40, 0, 40, 255));
+    for (int y = 0; y < ch; y++)
+        for (int x = 0; x < cw; x++) {
+            const uint8_t* p = &rgba[((size_t)(y * step) * w + (size_t)(x * step)) * 4];
+            if (!p[3])
+                continue;
+            ImVec2 a(o.x + x * cell, o.y + y * cell);
+            dl->AddRectFilled(a, ImVec2(a.x + cell, a.y + cell), IM_COL32(p[0], p[1], p[2], 255));
+        }
+    ImGui::Dummy(ImVec2(px, px));
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip)) {
+        ImGui::BeginTooltip();
+        float z = std::max(1.0f, floorf(192.0f / std::max(w, h)));
+        ImVec2 b = ImGui::GetCursorScreenPos();
+        ImDrawList* tl = ImGui::GetWindowDrawList();
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++) {
+                const uint8_t* p = &rgba[((size_t)y * w + x) * 4];
+                ImVec2 a(b.x + x * z, b.y + y * z);
+                tl->AddRectFilled(a, ImVec2(a.x + z, a.y + z), p[3] ? IM_COL32(p[0], p[1], p[2], 255) : IM_COL32(40, 0, 40, 255));
+            }
+        ImGui::Dummy(ImVec2(w * z, h * z));
+        ImGui::Text("%s  %d x %d  palette %s  page %u", t.key.c_str(), w, h, t.clut_key.empty() ? "-" : t.clut_key.c_str(),
+            t.tpage);
+        ImGui::EndTooltip();
+    }
+}
+
+void survey_section()
+{
+    if (!ImGui::CollapsingHeader("Textures in this room", ImGuiTreeNodeFlags_DefaultOpen))
+        return;
+    double now = ImGui::GetTime();
+    if (ImGui::SmallButton("Refresh") || (room_survey_auto && now - room_survey_time > 1.0)) {
+        material_survey::survey(room_survey);
+        room_survey_time = now;
+    }
+    ImGui::SameLine();
+    ImGui::Checkbox("Live", &room_survey_auto);
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+        ImGui::SetTooltip("Survey the view again about once a second (move the free camera around the room to see\n"
+                          "the rest of it).");
+    if (!room_survey.valid) {
+        ImGui::TextDisabled("No view to survey.");
+        return;
+    }
+    int with = 0;
+    float with_share = 0, all_share = 0;
+    double cells = (double)room_survey.grid_w * room_survey.grid_h;
+    for (const material_survey::Texture& t : room_survey.textures) {
+        all_share += (float)(t.cells / cells);
+        if (!t.entry.empty())
+            with++, with_share += (float)(t.cells / cells);
+    }
+    ImGui::Text("%d textures in view; %d with a material, %.0f%% of the textured view.",
+        (int)room_survey.textures.size(), with, all_share > 0 ? with_share / all_share * 100 : 0.0f);
+    ImGui::TextDisabled("Hover a thumbnail for the texture; pick a preset to give it an entry (yours, this room and\n"
+                        "palette, needs review; Save to keep it).");
+    ImGui::TextUnformatted("A preset applies to");
+    ImGui::SameLine();
+    if (ImGui::RadioButton("its whole palette", survey_whole_palette))
+        survey_whole_palette = true;
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+        ImGui::SetTooltip("A palette entry: every texture drawn with that palette in this room (a room's pieces of\n"
+                          "one painted surface share a palette: the floor's flagstones, the walls' blocks).\n"
+                          "A texture's own entry still wins over it.");
+    ImGui::SameLine();
+    if (ImGui::RadioButton("the texture", !survey_whole_palette))
+        survey_whole_palette = false;
+    /* The palettes' shares (what a palette entry would cover). */
+    std::map<std::string, float> palette_share;
+    for (const material_survey::Texture& t : room_survey.textures)
+        palette_share[t.clut_key] += (float)(t.cells / cells);
+    std::vector<materials::Entry> all = materials::catalog_entries();
+    float thumb = ImGui::GetTextLineHeightWithSpacing() * 1.6f;
+    if (!ImGui::BeginTable("##survey", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY | ImGuiTableFlags_BordersInnerH,
+            ImVec2(-1, thumb * 9)))
+        return;
+    ImGui::TableSetupScrollFreeze(0, 1);
+    ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, thumb);
+    ImGui::TableSetupColumn("View", ImGuiTableColumnFlags_WidthFixed, ImGui::CalcTextSize("100.0%").x);
+    ImGui::TableSetupColumn("Texture", ImGuiTableColumnFlags_WidthStretch);
+    ImGui::TableSetupColumn("Material", ImGuiTableColumnFlags_WidthStretch);
+    ImGui::TableHeadersRow();
+    ImGuiListClipper clip;
+    clip.Begin((int)room_survey.textures.size(), thumb + ImGui::GetStyle().CellPadding.y * 2);
+    while (clip.Step())
+        for (int i = clip.DisplayStart; i < clip.DisplayEnd; i++) {
+            const material_survey::Texture& t = room_survey.textures[(size_t)i];
+            ImGui::PushID(i);
+            ImGui::TableNextRow(0, thumb);
+            ImGui::TableNextColumn();
+            thumbnail(t, thumb);
+            ImGui::TableNextColumn();
+            ImGui::Text("%.1f%%", t.cells / cells * 100);
+            ImGui::TableNextColumn();
+            ImGui::Text("%s %dx%d", t.key.c_str(), t.w, t.h);
+            if (!t.clut_key.empty())
+                ImGui::TextDisabled("pal %s (%.0f%%)%s", t.clut_key.c_str(), palette_share[t.clut_key] * 100,
+                    t.boxes.size() > 1 ? ", several boxes" : "");
+            ImGui::TableNextColumn();
+            if (!t.entry.empty()) {
+                std::vector<materials::Entry> scratch;
+                const materials::Entry* e = find_entry(t.entry, scratch);
+                char label[160];
+                snprintf(label, sizeof label, "%s %s", t.entry.c_str(), e ? e->name.c_str() : "");
+                if (ImGui::Selectable(label, selected == t.entry))
+                    selected = t.entry;
+                if (e && !e->preset.empty())
+                    ImGui::TextDisabled("%s", e->preset.c_str());
+            } else {
+                ImGui::SetNextItemWidth(-1);
+                if (ImGui::BeginCombo("##preset", "+ preset...")) {
+                    for (const auto& p : materials::catalog_presets()) {
+                        char label[160];
+                        snprintf(label, sizeof label, "%s  (rough %.2f, spec %.2f, metal %.2f%s)", p.first.c_str(),
+                            p.second.roughness, p.second.specular, p.second.metal, p.second.auto_height ? ", relief" : "");
+                        if (ImGui::Selectable(label)) {
+                            TexturePick where;
+                            where.valid = true, where.key = t.key, where.clut_key = t.clut_key;
+                            where.tpage = t.tpage, where.clut = t.clut;
+                            memcpy(where.box, t.box, 4);
+                            where.zone = room_survey.zone, where.room = room_survey.room;
+                            bool pal = survey_whole_palette && !t.clut_key.empty();
+                            materials::Entry e = entry_with_preset(where, p.first,
+                                pal ? palette_share[t.clut_key] : (float)(t.cells / cells), all, pal);
+                            materials::set_pending(e);
+                            selected = e.id;
+                            all = materials::catalog_entries();
+                            room_survey_time = -1e9; /* show it at once */
+                            snprintf(status_line, sizeof status_line, "%s: %s for %s %s (unsaved: Save keeps it)",
+                                e.id.c_str(), p.first.c_str(), pal ? "palette" : "texture",
+                                pal ? t.clut_key.c_str() : t.key.c_str());
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
+            }
+            ImGui::PopID();
+        }
+    ImGui::EndTable();
+}
+
 } // namespace
 
 /* The view was clicked (lights.cpp): picks a texture when the panel asked. */
@@ -681,6 +980,13 @@ extern "C" void pc_material_panel(void)
         pc_specular ? "on" : "off", pc_specular_strength, pc_roughness_bias, pc_reflection_bounces);
     ImGui::Text("Relief %.2f texels, estimate %s (x %.2f), cavities %.2f.", pc_bump_strength,
         pc_auto_height ? "on" : "off", pc_auto_height_strength, pc_bump_occlusion);
+    ImGui::SliderFloat("Relief stretch limit", &pc_relief_aniso, 0, 16, pc_relief_aniso > 0 ? "%.1f x" : "No limit");
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+        ImGui::SetTooltip("relief_aniso: the relief fades to flat where a pixel's footprint in the texture is this many\n"
+                          "times longer than wide (edge-on faces speckle); gone at twice.");
+    ImGui::SliderFloat("Relief texel limit", &pc_relief_footprint, 0, 8, pc_relief_footprint > 0 ? "%.1f texels" : "No limit");
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+        ImGui::SetTooltip("relief_footprint: the relief fades to flat where a pixel spans this many texels; gone at twice.");
     ImGui::Text("%d textures with a material here, %d texels%s.", (int)emissive::material_use_list().size(),
         emissive::material_cell_count(), pc_material_active() ? "" : " (none lit)");
     if (ImGui::Button(pick_armed ? "Click a surface in the view..." : "Pick texture"))
@@ -704,6 +1010,7 @@ extern "C" void pc_material_panel(void)
     }
     if (status_line[0])
         ImGui::TextWrapped("%s", status_line);
+    survey_section();
     if (ImGui::BeginListBox("##materials", ImVec2(-1, ImGui::GetTextLineHeightWithSpacing() * 6))) {
         std::vector<emissive::MaterialUse> uses = emissive::material_use_list();
         for (const materials::Entry& e : all) {
@@ -777,10 +1084,53 @@ extern "C" int pc_material_rpc(const char* params_text, char* out, int size)
         }
         return reply(pick_json(ok ? p : TexturePick()), out, size);
     }
+    if (action == "survey") {
+        float grid = 160, cull = 1;
+        number(params, "grid", &grid), number(params, "cull", &cull);
+        const Json* m = params.get("map");
+        material_survey::Result r;
+        material_survey::survey(r, (int)grid, (int)cull);
+        return reply(survey_json(r, m && m->type == Json::Bool && m->boolean), out, size);
+    }
+    if (action == "texture") { /* a texture in view as RGBA (base64): the survey's contact sheet */
+        const Json* k = params.get("key");
+        const Json* c = params.get("palette");
+        TexturePick t;
+        if (!k || k->type != Json::String
+            || !texture_in_view(k->string, c && c->type == Json::String ? c->string : "", t))
+            return fail("material texture: no such texture in view", out, size);
+        std::vector<uint8_t> rgba = emissive::texture_rgba_box(t.tpage, t.clut, t.box);
+        Json j = Json::object();
+        j.set("key", Json::str(t.key));
+        j.set("clut", Json::str(t.clut_key));
+        j.set("w", Json::num(t.w()));
+        j.set("h", Json::num(t.h()));
+        j.set("rgba", Json::str(base64(rgba.data(), rgba.size())));
+        return reply(j, out, size);
+    }
     if (action == "new") {
-        if (!picked.valid)
+        /* For a texture in view by key (and palette key), else the last pick. */
+        TexturePick from = picked;
+        if (const Json* k = params.get("key"); k && k->type == Json::String) {
+            const Json* c = params.get("palette");
+            if (!texture_in_view(k->string, c && c->type == Json::String ? c->string : "", from))
+                return fail("material new: texture " + k->string + " is not in view", out, size);
+        } else if (!picked.valid)
             return fail("material new: pick a texture first", out, size);
-        materials::Entry e = entry_for(picked, all);
+        if (const Json* p = params.get("preset"); p && p->type == Json::String && !p->string.empty()) {
+            if (!preset_exists(p->string))
+                return fail("material new: no preset " + p->string, out, size);
+            float share = 0;
+            number(params, "share", &share);
+            const Json* pal = params.get("whole_palette");
+            materials::Entry e = entry_with_preset(from, p->string, share, all, pal && pal->type == Json::Bool && pal->boolean);
+            if (!apply_fields(e, params, &error))
+                return fail("material new: " + error, out, size);
+            materials::set_pending(e);
+            selected = e.id;
+            return reply(entry_info(e), out, size);
+        }
+        materials::Entry e = entry_for(from, all);
         if (!apply_fields(e, params, &error))
             return fail("material new: " + error, out, size);
         materials::set_pending(e);

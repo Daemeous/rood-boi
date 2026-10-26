@@ -224,8 +224,13 @@ void main() {
     normal_out = vec4(normalize(v_normal) * 0.5 + 0.5, ghost ? 0.55 : u.surface);
     albedo_out = vec4(albedo, 1.0);
     shade_out = shade;
-    vec3 bent = relief.w > 0.5 ? relief_normal(normalize(v_normal), relief.xy, relief_dp1, relief_dp2, relief_duv1, relief_duv2)
-                               : vec3(0.0);
+    vec3 bent = vec3(0.0);
+    if (relief.w > 0.5) {
+        vec3 n = normalize(v_normal);
+        float keep = relief_keep(relief_duv1, relief_duv2, u.relief_fade);
+        bent = keep > 0.0 ? normalize(mix(n, relief_normal(n, relief.xy, relief_dp1, relief_dp2, relief_duv1, relief_duv2), keep)) : n;
+        relief.z *= keep; // the cavities speckle the same way
+    }
     material_out = ghost ? vec4(0.0) : material_pack(material, relief, bent);
     gl_FragDepth = u.room_order != 0 ? float(v_order) / 16777215.0 : u.layer_slack == 2 ? tested : depth;
 }

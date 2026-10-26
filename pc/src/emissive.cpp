@@ -35,6 +35,8 @@ float pc_bump_strength = 1.0f;
 int pc_auto_height = 1;
 float pc_auto_height_strength = 0.5f;
 float pc_bump_occlusion = 0.5f;
+float pc_relief_aniso = 4.0f;
+float pc_relief_footprint = 3.0f;
 float pc_env_specular = 1.0f;
 float pc_baked_energy = 1.0f;
 int pc_auto_height_preview = 0;
@@ -1143,7 +1145,7 @@ static void match_use(Use& u)
     u.state = 1;
     u.entry = u.item = -1;
     int w1 = u.box[2] - u.box[0], h1 = u.box[3] - u.box[1];
-    if (!sizes.count(w1 << 8 | h1)) {
+    if (!sizes.count(w1 << 8 | h1) && !materials::catalog_has_palette_entries()) {
         if (!u.key.empty())
             materials_changed = true;
         u.key.clear();
@@ -1264,7 +1266,7 @@ static void write_materials()
         const materials::Entry* e = materials::find_match(u.key, w, h, "", material_zone, material_room);
         bool needs_clut = false;
         for (const materials::Entry& x : entries)
-            needs_clut |= x.key == u.key && !x.clut.empty();
+            needs_clut |= (x.key == u.key || x.key.empty()) && !x.clut.empty(); /* palette entries too */
         if (needs_clut)
             e = materials::find_match(u.key, w, h, clut_key(u.page, u.clut), material_zone, material_room);
         if (e)
@@ -1530,7 +1532,8 @@ extern "C" int pc_emissive_sync(int* row0, int* row1)
                 if (m.w > 0 && m.h > 0)
                     sizes.insert((m.w - 1) << 8 | (m.h - 1));
         for (const materials::Entry& e : materials::catalog_entries())
-            sizes.insert((e.w - 1) << 8 | (e.h - 1));
+            if (e.w > 0) /* palette entries: every size (match_use) */
+                sizes.insert((e.w - 1) << 8 | (e.h - 1));
         for (auto& kv : uses)
             kv.second.state = 0;
         marks_changed = params_changed = true;

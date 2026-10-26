@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "about": "Material response by texture content key; values are linear fractions. Entries marked new need visual review.",
+  "about": "Material response by texture content key, or by palette alone (match without key: every texture drawn with the palette; a texture's own entry wins); values are linear fractions. Entries marked new need visual review.",
   "presets": {
     "stone": { "roughness": 0.7, "specular": 1, "metal": 0, "auto_height": true },
     "wet stone": { "roughness": 0.32, "specular": 0.5, "metal": 0, "auto_height": true },
@@ -8,7 +8,11 @@
     "worn iron": { "roughness": 0.55, "specular": 1, "metal": 1, "auto_height": true },
     "polished metal": { "roughness": 0.3, "specular": 1, "metal": 1 },
     "glass": { "roughness": 0.1, "specular": 1, "metal": 0 },
-    "gel": { "roughness": 0.35, "specular": 0.5, "metal": 0 }
+    "gel": { "roughness": 0.35, "specular": 0.5, "metal": 0 },
+    "rough stone": { "roughness": 0.82, "specular": 1, "metal": 0, "auto_height": true },
+    "flagstone": { "roughness": 0.62, "specular": 1, "metal": 0, "auto_height": true, "bump": 0.7 },
+    "plaster": { "roughness": 0.9, "specular": 0.8, "metal": 0, "auto_height": true, "bump": 0.4 },
+    "cloth": { "roughness": 0.95, "specular": 0.5, "metal": 0 }
   },
   "entries": [
     {
@@ -65,6 +69,31 @@
       "id": "M011", "name": "Studded door (lower)", "where": "zone 29 room 3 (the Keep) and wherever the door is drawn; lower planks and hinge: roughness.png and metal.png as M010",
       "match": { "key": "fb5e48b7fc", "size": [31, 31], "clut": "6ec2e0e79a" },
       "preset": "worn wood", "review": "new"
+    },
+    {
+      "id": "M012", "name": "Keep stone walls", "where": "zone 29 room 3 (the Keep, the studded doors); every texture with the walls' palette: the brown stone blocks of the walls, ledges and window recesses (about 54% of the room's textured view, material_survey.py)",
+      "match": { "clut": "97ad08ce0c" },
+      "scope": { "room": [29, 3] }, "preset": "rough stone", "review": "new"
+    },
+    {
+      "id": "M013", "name": "Keep floor flagstones", "where": "zone 29 room 3 (the Keep); every texture with the floor's palette: the pale worn flagstones (about 40% of the room's textured view)",
+      "match": { "clut": "415127aebd" },
+      "scope": { "room": [29, 3] }, "preset": "flagstone", "review": "new"
+    },
+    {
+      "id": "M014", "name": "Studded door (upper, square box)", "where": "zone 29 room 3 (the Keep) and wherever the door is drawn; the door's texels drawn by a 31 x 31 box over M010's: its roughness.png and metal.png are M010's rows 0-30",
+      "match": { "key": "22d0befe13", "size": [31, 31], "clut": "6ec2e0e79a" },
+      "preset": "worn wood", "review": "new"
+    },
+    {
+      "id": "M015", "name": "Studded door (lower, tall box)", "where": "zone 29 room 3 (the Keep) and wherever the door is drawn; the door's texels drawn by a 31 x 33 box from M010's row 30 into M011's: its maps are M010's rows 30-31 over M011's",
+      "match": { "key": "a5251f0ecc", "size": [31, 33], "clut": "6ec2e0e79a" },
+      "preset": "worn wood", "review": "new"
+    },
+    {
+      "id": "M016", "name": "Keep glyph floor tile", "where": "zone 29 room 3 (the Keep); the stone floor tile with the blue glyph by the doors (it glows: emissive E006)",
+      "match": { "key": "dfcfeabea7", "size": [31, 31], "clut": "9987540535" },
+      "scope": { "room": [29, 3] }, "preset": "flagstone", "review": "new"
     }
   ]
 }

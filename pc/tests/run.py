@@ -377,6 +377,12 @@ def suites(args, mode="egl"):
                   note="material response: catalog layers, scopes and live edits, roughness maps painted, written "
                        "on disk, of another size; no entries or specular off is pixel-identical; Vulkan: only "
                        "material pixels change, the highlight moves with the camera; OpenGL: no response"),
+            Suite("material_relief_smoke", [PY, str(TESTS / "material_relief_smoke.py"), "--card", str(args.save)], 300,
+                  note="the relief fades to flat where the texture is stretched: the Keep's arch side smooth, the broad "
+                       "faces unchanged and still bumped; the limits are tunables"),
+            Suite("material_survey_smoke", [PY, str(TESTS / "material_survey_smoke.py"), "--card", str(args.save)], 300,
+                  note="material survey: the textures in view by share, agreeing with the picker; the one-click "
+                       "preset makes a texture or palette entry, live, saved and read back"),
             Suite("save_point_glow_smoke", [PY, str(TESTS / "save_point_glow_smoke.py"), "--card", str(args.save)], 300,
                   note="standing in a save point keeps its light (its glow is the column's side); Ashley still "
                        "shadows the floor behind him (High, Ultra)")]
@@ -459,7 +465,9 @@ def suites(args, mode="egl"):
               note="the opening's story scenes from the free camera: no rain beneath the hall's ceiling or "
                    "through its walls, rain still in the courtyard; the shot dissolve's afterimage (the game "
                    "camera's previous frame) left out of the free view only, stable; a group an event hid stays "
-                   "hidden; play / seek give the camera back"),
+                   "hidden; play / seek give the camera back; the credits card black behind its text (game "
+                   "camera, editor open, editor's and viewer's free cameras); the far slab the PS1 baked dark "
+                   "stays dark under the courtyard's moon and sky (baked shadow)"),
         Suite("cutscene_viewer_smoke", [PY, str(TESTS / "cutscene_viewer_smoke.py")], 900,
               note="the story scene viewer: five story scenes from five chapters started from the list on a fresh "
                    "load (from the title, then each from the one before) run their event (frames, script places, "
