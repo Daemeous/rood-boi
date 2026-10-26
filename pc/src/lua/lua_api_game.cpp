@@ -10,6 +10,8 @@
 //   rood.game.first_person()  boolean
 //   rood.game.paused()        the photo mode's pause holds (or is asked for); pause() and
 //                             resume() with the game.pause grant (lua_api_photo.cpp)
+//   rood.game.inventory(), weapons(), shields(), armour(), accessories(), equipment(),
+//   workshop(), labels(), combine(a, b), craftable()   the player state (lua_api_player.cpp)
 // The game's records are copied (hud/query_bridge.c) at most once per game vsync, on
 // the first query; each plugin gets one read-only table per query per vsync (the
 // same table until the next vsync: compare with ==, no churn in a draw function).
@@ -194,6 +196,7 @@ void open_game(lua_State* L, Plugin* p)
     set_cfunction(L, -1, "room", api_room);
     set_cfunction(L, -1, "first_person", api_first_person);
     open_game_pause(L, p); /* paused; pause and resume with the game.pause grant (lua_api_photo.cpp) */
+    open_game_player(L);   /* the bag, equipment, workshop, combine (lua_api_player.cpp) */
     lock_table(L);
     lua_setfield(L, -2, "game");
 }

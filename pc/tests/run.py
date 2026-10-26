@@ -601,6 +601,11 @@ def suites(args, mode="egl"):
                  note="Items > Workshop: same bag, indices and MENUC cursor memories as the original Setup screen "
                       "(MENUC / MENU8) for repair, gems, disassemble (equipped too), assemble, rename, combine x3")]
           if args.save.exists() else []),
+        *([Suite("player_state_smoke", [PY, str(TESTS / "player_state_smoke.py"), "--card", str(args.save)], 300,
+                 note="rood.game inventory / weapons / armour / equipment / workshop / combine / craftable and RPC "
+                      "game_state / combine_preview: the records, the Items screen's lists, Lua tables once per vsync; "
+                      "the preview leaves the state hash unchanged and equals the original Combine screen's record")]
+          if args.save.exists() else []),
         *([Suite("ui_data_smoke", [PY, str(TESTS / "ui_data_smoke.py"), "--card", str(args.save)], 600,
                  note="Data screen (MENU7 under a native frame): save bytes = the original's by pad and by mouse "
                       "(pinned keystream), one write, overwrite No / Yes, load = the original's blocks, errors "
@@ -761,7 +766,7 @@ CHECKPOINT_SUITES = {
     "fog_sim_smoke", "fog_volume_smoke", "particles_smoke", "save_point_glow_smoke", "emissive_smoke", "ui_ashley_smoke", "ui_ashley_stability_smoke",
     "ui_equip_smoke",
     "ui_system_smoke", "ui_abilities_smoke", "ui_items_smoke", "menu0_levelled_smoke", "fast_travel_smoke", "fast_travel_shell_smoke", "post_smoke", "dof_smoke", "dof_subject_smoke", "occlusion_smoke",
-    "transition_fade_smoke", "title_fade_smoke", "ui_loot_smoke", "ui_workshop_smoke", "window_mode_smoke",
+    "transition_fade_smoke", "title_fade_smoke", "ui_loot_smoke", "ui_workshop_smoke", "player_state_smoke", "window_mode_smoke",
     "options_classic_smoke", "options_confirm_smoke", "quit_smoke",
     "ui_map_smoke", "ui_manual_smoke", "hud_label_solid_smoke", "damage_numbers_smoke", "platform_shadow_smoke",
     "ui_ashley_backdrop_smoke", "ui_data_smoke", "ui_container_smoke", "interp_menu_2d_smoke",
@@ -1035,8 +1040,8 @@ def make_parser():
     parser.add_argument("--cpu-jobs", type=int, default=2,
                         help="suites without a game (CTest, lints, scans, build checks) at once, beside the "
                              "game suites (default 2)")
-    parser.add_argument("--thermal-pause", type=float, default=float(os.environ.get("ROOD_THERMAL_PAUSE", "102")),
-                        help="no new suite starts while the CPU package is this hot (C; default 102, 0 = off: the chip throttles itself at 105)")
+    parser.add_argument("--thermal-pause", type=float, default=float(os.environ.get("ROOD_THERMAL_PAUSE", "0")),
+                        help="no new suite starts while the CPU package is this hot (C; default 0 = off: the chip throttles itself at 105; e.g. 102 to pause)")
     parser.add_argument("--thermal-resume", type=float, default=float(os.environ.get("ROOD_THERMAL_RESUME", "96")),
                         help="... until it has cooled to this (C; default 96)")
     parser.add_argument("--thermal-wait", type=float, default=900,

@@ -936,6 +936,7 @@ if battle:
         ("pc/src/fast_travel.c", "fast_travel"),
         ("pc/src/hud/hud_bridge.c", "hud_bridge"),
         ("pc/src/hud/query_bridge.c", "query_bridge"),
+        ("pc/src/hud/player_bridge.c", "player_bridge"),
         ("pc/src/classic/classic_bridge.c", "classic_bridge"),
         ("pc/src/weapon_slots.c", "weapon_slots"),
         ("pc/src/button_roles.c", "button_roles"),

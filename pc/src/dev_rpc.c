@@ -364,6 +364,15 @@
  *                                mode), budget {...}, test {plugin, filter},
  *                                test_status {run}, log {since}, audit, emit
  *                                {event, payload}, registry {kind}
+ *   game_state {parts}           the player state as the rood.game queries give
+ *                                it (lua_api_player.cpp, player_bridge.c;
+ *                                pc/docs/Extensions.md "Player state"):
+ *                                inventory, weapons, shields, armour,
+ *                                accessories, equipment, workshop, labels,
+ *                                craftable (default: all but craftable)
+ *   combine_preview {kind, a, b} the game's combine of two records on copies
+ *                                (or {a: {kind, record}, b: {...}}): result,
+ *                                allowed, why, raw (the record it would store)
  *   hud {action, ...}            HUD elements plugins claim (pc/src/hud/hud.h,
  *                                lua_api_hud.cpp): list, show {kind, timing,
  *                                variant, age, hold}, clear {kind}, stats
@@ -3234,6 +3243,27 @@ static void handle_method(int fd, const char* request)
             strcpy(args, "{}");
         }
         if (pc_lua_rpc(args, result, sizeof result) < 0) {
+            fail(fd, id, -32000, result);
+            return;
+        }
+        reply(fd, id, result);
+    } else if (!strcmp(method, "game_state") || !strcmp(method, "combine_preview")) {
+        /* The player state (lua_api_player.cpp, the rood.game queries' structures as JSON):
+         * game_state {parts}, combine_preview {kind, a, b} or {a: {kind, record}, b}. */
+        extern int pc_player_rpc(const char*, const char*, char*, int) __attribute__((weak));
+        static char args[LINE_MAX_BYTES];
+        const char* end = params ? value_end(params) : NULL;
+        if (!pc_player_rpc) {
+            fail(fd, id, -32000, "no Lua runtime in this build");
+            return;
+        }
+        if (params && end && (size_t)(end - params) < sizeof args) {
+            memcpy(args, params, (size_t)(end - params));
+            args[end - params] = 0;
+        } else {
+            strcpy(args, "{}");
+        }
+        if (pc_player_rpc(method, args, result, sizeof result) < 0) {
             fail(fd, id, -32000, result);
             return;
         }

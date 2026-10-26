@@ -328,6 +328,88 @@ read-only table per query per vsync (the same table until the next one, so
 | `rood.game.room()` | nil, or `{zone, room, area, name}` (the game's names) |
 | `rood.game.first_person()` | the first-person view |
 | `rood.game.paused()` | the photo mode's pause holds the game (or was asked for); `pause()` / `resume()` with the `game.pause` grant (below) |
+| `rood.game.inventory()`, `weapons()`, `shields()`, `armour()`, `accessories()`, `equipment()`, `workshop()`, `labels()`, `combine(a, b)`, `craftable()` | the player state: below |
+
+### Player state
+
+`rood.game` (`pc/src/lua/lua_api_player.cpp`, `pc/src/hud/player_bridge.c`,
+the records `pc/src/hud/player_query.h`): the bag, the weapons and armour,
+what is equipped, the workshop, and the game's own combine run on copies.
+Read only, with the same once-per-vsync tables as the queries above (`==`
+tells whether the next vsync's answer is a new table; the values are the
+same when nothing changed). RPC `game_state {parts}` and `combine_preview`
+give the same structures as JSON (`pc/README.md`).
+
+Where the values come from. The bag is `vs_main_inventory` in the menus'
+order (`vs_main_inventoryIndices` as `vs_mainMenu_rebuildInventory` leaves
+it: records the list lacks appended, worked out on a copy), each record
+described as the Items screen's card describes it (`pc_ui_items_describe`:
+DP in whole points rounded up, the game's names, materials and words), as
+the menus see it: Ashley's battle record holds the equipped items' current
+values and MAINMENU's `vs_mainMenu_initInventory` copies them into the bag
+as every menu opens, so the query runs that copy and puts the bag and the
+record back afterwards. A weapon or shield not equipped is computed with
+`vs_battle_applyWeapon` / `Shield` as the Items screen computes it; their
+scratch block in the game's heap is put back too. A query leaves the game's
+memory and save state byte for byte as they were (`player_state_smoke`: the
+RPC `snapshot {action "hash"}` before and after). The container's records
+are not in it: they live in MENUD's storage, filled only while the Container
+screen runs.
+
+| | |
+|---|---|
+| `inventory()` | nil (no player), or `{counts, items, keys, sigils, blades, grips, gems}`: `counts` per bag category (`weapons`, `blades`, `grips`, `shields`, `armor`, `gems`, `misc`) `{count, capacity}`; `items` the misc records that are not keys or sigils (Cure Root, grimoires, ...), `keys`, `sigils` (by the game's item ids), each `{kind, record, id, name, count}`; `blades`, `grips`, `gems` every such record (a part, below), in a weapon or shield or not |
+| `weapons()` | nil, or the weapons in the menus' order: a part of kind `weapon` (its totals, as the Items screen shows the assembled weapon) with `blade`, `grip` (parts) and `gems` (a list of parts) |
+| `shields()` | nil, or the shields: a part of kind `shield` (with its gems' effect, as the Items screen shows it) and `gems` |
+| `armour()`, `accessories()` | nil, or the armor records that are body armour (kind `armor`), or accessories (kind `accessory`) |
+| `equipment()` | nil, or what each slot holds: `weapon` (a weapon as `weapons()`), `shield`, `right_arm`, `left_arm`, `head`, `body`, `legs` (armor), `accessory`; an empty slot is absent |
+| `workshop()` | nil (not in a workshop), or `{number, name, materials}`: the game's workshop number (`vs_battle_inWorkshop`, 1..6), the room's name, the materials it works (MENUC `_workshopMaterials`), as names |
+| `labels()` | the game's words for the keys below, in its order: `{classes, affinities, types}` (its sort menu's names: HUMAN .. EVIL, PHYSICAL .. DARK, BLUNT .. PIERCING) |
+| `combine(a, b)` | the result the game would produce, or nil and why: `a`, `b` two blades, two shields or two armor records (tables from these queries, or `{kind = "blade", record = 3}`; a weapon stands for its blade). Gives `{kind, first, second, allowed, why, result}`: `first` / `second` `{record, name}` (the result goes into the first's record, so the order matters), `allowed` whether the current workshop would do it (not in a workshop, or a material it does not work: `why`, the game's own line), `result` a part as the game would store it |
+| `craftable()` | every combination the Combine screen allows here (an empty list outside a workshop): every ordered pair of two blades, two shields, two armor records (not accessories) whose materials the workshop works, each as `combine` gives it |
+
+A part (a record) has the fields its kind has:
+
+| Field | Kinds | |
+|---|---|---|
+| `kind` | all | `weapon`, `blade`, `grip`, `shield`, `armor`, `accessory`, `gem`; misc records: `item`, `key`, `sigil` |
+| `record` | all | its record in the game's array of that kind, from 1 (accessories are armor records); the game's own references use the same numbers (a weapon's blade, a gem's weapon) |
+| `id` | all | the game's item id (a weapon: its blade's record, as MAINMENU's `_getItemId`) |
+| `name` | all | the game's name (a weapon: its own name) |
+| `count` | item, key, sigil | the stack's count |
+| `material` | weapon, blade, shield, armor | the game's material name (Wood, Leather, Bronze, Iron, Hagane, Silver, Damascus) |
+| `category` | weapon, blade, grip, shield, armor | the menus' word: a blade's weapon class (Sword, Axe & Mace, ...), a grip's kind (its line in the Items list), armor's body part |
+| `dp`, `dp_max` | weapon, blade, shield, armor | as the menus show them (whole points, rounded up) |
+| `pp`, `pp_max` | weapon, blade, shield | |
+| `str`, `int`, `agl` | all but misc | |
+| `classes` | all but grip and misc | `{human, beast, undead, phantom, dragon, evil}` |
+| `affinities` | all but grip and misc | `{physical, air, fire, earth, water, light, dark}` |
+| `types` | weapon, grip, shield, armor, accessory | `{blunt, edged, piercing}` (a weapon: its grip's) |
+| `damage_type` | weapon, blade | `blunt`, `edged` or `piercing` |
+| `range`, `risk`, `two_handed` | weapon, blade | the RISK cost; a two-handed weapon class |
+| `gem_slots` | weapon, grip, shield | (a weapon: its grip's) |
+| `weapon` | blade, grip, gem | the weapon record it is part of (absent: none) |
+| `shield` | gem | the shield record it is set in |
+| `equipped`, `where` | all but misc | worn, equipped, or part of the equipped weapon or shield; `where` `equipped` or `bag` |
+| `slot` | weapon, shield, armor, accessory | the slot it is equipped on (`equipment()`'s names) |
+| `quick` | weapon | its quick-swap slot (the port's weapon slots), absent: none |
+
+The combine preview runs the game's code, not a copy of its rules: MENUC's
+own `_combineBlades`, `_combineShields`, `_combineArmor` (`src/MENU/MENUC.PRG/
+168.c`, through its `ROOD_PC` entry `pc_menuC_combine`) on copies of the two
+records as the menus see them, into a buffer prepared as the Combine
+screen's (`_setCombineBladeUi` and its shield and armor twins), with the
+SYD tables read from the disc into host memory. Those functions write only
+the result and the overlay's own table pointers, which the entry puts back;
+the records' table entries are checked to lie in the files before the call
+(a corrupt save cannot make it read past them). `player_state_smoke` does a
+preview, checks the state hash is unchanged, then the same combine on the
+original Combine screen: the record it stores is the preview's `raw`, byte
+for byte (blades and armor).
+
+`pc/plugins/rood.craftbook` (off by default) is the example: at a workshop
+it lists `craftable()` in a panel (`rood.draw.panel`, both looks), as a
+template with a setting, a timer, a module and tests.
 
 ### The gallery
 
@@ -1047,6 +1129,12 @@ rood_repl.py --json -s hud -e 'repl.reload()'                     # or save main
   pages against the catalog; the fixture test.menu: a page with settings
   defined in place shown as toggle / slider / choice rows, its actions), then runaway and
   failing scripts, memory, capabilities, hot reload and settings.
+- `pc/tests/run.py player_state_smoke`: one game from the test card: the
+  player state queries against the bag's records and the Items screen's
+  lists, Lua's tables once per vsync and read-only, the state hash unchanged
+  by queries and previews, `workshop()` and `craftable()` at a workshop, the
+  combine preview against the original Combine screen's stored record
+  (blades, armor), and `rood.craftbook`'s panel and Lua tests.
 - `pc/tests/run.py hud_bench_smoke`: one game in the save room:
   `rood.game` against RPC state; the name window (the game's own call,
   held, its event, closed; a damage number's event); SLOW! summoned and

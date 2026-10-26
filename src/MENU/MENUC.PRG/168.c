@@ -4800,3 +4800,46 @@ static vs_main_inventoryArmor* _combineArmor(vs_main_inventoryArmor* first,
     }
     return result;
 }
+
+#ifdef ROOD_PC
+/* rood-boi host (pc/src/hud/player_bridge.c, the combine preview): the
+ * combine itself on records the caller owns. kind 0 _combineBlades, 1
+ * _combineShields, 2 _combineArmor, on first and second into result, with
+ * the SYD file's contents; the table pointers the combine sets are put back,
+ * so nothing of this screen's state changes. */
+void* pc_menuC_combine(int kind, void* first, void* second, void* result, void* sydData)
+{
+    char* combinationResults = _combinationResults;
+    char* materialResults = _materialResults;
+    void* bladeCombinationInitData = _bladeCombinationInitData;
+    _armorInfo* shieldCombinationInitData = _shieldCombinationInitData;
+    _armorInfo* combinationInitData = _combinationInitData;
+    void* out;
+
+    switch (kind) {
+    case 0:
+        out = _combineBlades(first, second, result, sydData);
+        break;
+    case 1:
+        out = _combineShields(first, second, result, sydData);
+        break;
+    default:
+        out = _combineArmor(first, second, result, sydData);
+        break;
+    }
+    _combinationResults = combinationResults;
+    _materialResults = materialResults;
+    _bladeCombinationInitData = bladeCombinationInitData;
+    _shieldCombinationInitData = shieldCombinationInitData;
+    _combinationInitData = combinationInitData;
+    return out;
+}
+
+/* The materials workshop w works (_workshopMaterials: bit = material), 0
+ * for an id past the table. */
+int pc_menuC_workshop_materials(int w)
+{
+    return w >= 0 && w < (int)sizeof _workshopMaterials ? (u_char)_workshopMaterials[w]
+                                                        : 0;
+}
+#endif

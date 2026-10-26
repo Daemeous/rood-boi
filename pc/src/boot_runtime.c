@@ -186,6 +186,23 @@ void pc_vram_clear(int x, int y, int w, int h, int r, int g, int b)
         }
     }
 }
+/* Flat rectangle (GP0 0x60) at its exact size, clipped to VRAM (libgpu's
+ * ClearImage draws one for areas that aren't 64-pixel aligned). */
+void pc_vram_rect(int x, int y, int w, int h, int r, int g, int b)
+{
+    int x0 = x < 0 ? 0 : x, y0 = y < 0 ? 0 : y;
+    int x1 = x + w > 1024 ? 1024 : x + w, y1 = y + h > 512 ? 512 : y + h;
+    if (x1 <= x0 || y1 <= y0)
+        return;
+    uint16_t color = (r >> 3) | ((g >> 3) << 5) | ((b >> 3) << 10);
+    uint64_t cost = pc_cost_begin();
+    for (int row = y0; row < y1; row++)
+        for (int col = x0; col < x1; col++)
+            vram[row * 1024 + col] = color;
+    pc_cost_end(PC_COST_RASTER, cost);
+    pc_hw_mark(x0, y0, x1 - 1, y1 - 1);
+    pc_hw_fill(x0, y0, x1 - x0, y1 - y0, r, g, b);
+}
 static void copy_file(const char* from, const char* to)
 {
     FILE *src = fopen(from, "rb"), *dst = fopen(to, "wb");

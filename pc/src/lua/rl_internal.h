@@ -377,6 +377,8 @@ void drop_tests(const std::string& plugin); /* its waiting cases fail: the plugi
 /* ---- lua_api_photo.cpp (the photo mode foundation: rood.camera, rood.post, rood.ui, rood.capture,
  * rood.input; rood.game.pause/resume/paused through open_game) ---- */
 void open_game_pause(lua_State* L, Plugin* p); /* adds pause, resume, paused to the rood.game table on top */
+/* ---- lua_api_player.cpp: inventory, weapons, ..., combine, craftable on the rood.game table on top ---- */
+void open_game_player(lua_State* L);
 
 /* ---- lua_api_hud.cpp ---- */
 /* The claims' draws of the live HUD elements into the command buffer (pc_hud_frame, then
