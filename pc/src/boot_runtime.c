@@ -200,6 +200,7 @@ void pc_vram_rect(int x, int y, int w, int h, int r, int g, int b)
     if (x1 <= x0 || y1 <= y0)
         return;
     uint16_t color = (r >> 3) | ((g >> 3) << 5) | ((b >> 3) << 10);
+    pc_hd_clear(x0, y0, x1 - x0, y1 - y0);
     uint64_t cost = pc_cost_begin();
     for (int row = y0; row < y1; row++)
         for (int col = x0; col < x1; col++)
