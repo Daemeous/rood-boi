@@ -9,6 +9,7 @@ extern void pc_present(void);
 extern void pc_vram_transfer(int, int, int, int, void*, int);
 extern void pc_store_image_debug(int, int, int, int, const void*);
 extern void pc_vram_clear(int, int, int, int, int, int, int);
+extern void pc_vram_rect(int, int, int, int, int, int, int);
 extern void pc_unimplemented(const char*);
 extern void pc_tick(void);
 #include "audio.h"
@@ -58,9 +59,19 @@ void SetDispMask(int mask)
     if (mask)
         pc_present();
 }
+/* libgpu's ClearImage (func_80029BE8 in SLUS_010.40) clips the size to
+ * 1023 x 511, then uses the GPU fill only when x and w are both multiples of
+ * 64 and draws a flat rectangle otherwise. Unclipped, the loading screen's
+ * 1024 x 512 clear wraps to an empty fill and old VRAM shows behind
+ * "NOW LOADING". */
 int ClearImage(RECT* r, u_char red, u_char green, u_char blue)
 {
-    pc_vram_clear(r->x, r->y, r->w, r->h, red, green, blue);
+    int w = r->w < 0 ? 0 : r->w > 1023 ? 1023 : r->w;
+    int h = r->h < 0 ? 0 : r->h > 511 ? 511 : r->h;
+    if ((r->x & 0x3f) || (w & 0x3f))
+        pc_vram_rect(r->x, r->y, w, h, red, green, blue);
+    else
+        pc_vram_clear(r->x, r->y, w, h, red, green, blue);
     return 0;
 }
 int ClearImage2(RECT* r, u_char red, u_char green, u_char blue)
