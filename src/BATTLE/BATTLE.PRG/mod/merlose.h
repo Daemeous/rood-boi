@@ -162,13 +162,18 @@ static int _inOptions(void)
 }
 
 /* _itemNavigation's ITEMS > OPTIONS rows, before vs_mainmenu_setMenuRows: add MERLOSE after
- * EQUIP and SETUP (greyed out when she isn't in the room). Returns the new row count. */
+ * EQUIP and SETUP (greyed out, so it can't be chosen, when she isn't in the room or is down: a
+ * defeated actor keeps its slot while its model fades, and EQUIP's preview of it froze the game).
+ * Returns the new row count. */
 int vs_mod_optionsRows(int rowCount, char** strings, int* rowTypes)
 {
+    vs_battle_actor* callo;
+
     if (_inOptions() && (rowCount == 2)) {
         _loadMenuModule(); /* ready for EQUIP / MERLOSE */
         strings[4] = _merloseRow;
-        if (_calloActor() != NULL) {
+        callo = _calloActor();
+        if ((callo != NULL) && (psx_get(callo->unk3C)->currentHP != 0)) {
             strings[5] = _merloseRowDesc;
             rowTypes[2] = rowTypes[0];
         } else {
