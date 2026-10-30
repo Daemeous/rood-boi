@@ -1436,10 +1436,25 @@ int func_800E45B4(void)
 
 /* The game's code pinned for save states (64 bits: pc/tools/snapshot_layout.py). */
 extern char __start_rood_game_text[] __attribute__((weak)), __stop_rood_game_text[] __attribute__((weak));
+#ifdef _WIN32
+/* Windows has no pinned section: any address in the exe's own image (its code passed 16 MB, so
+ * the fixed range below refused game functions such as vs_battle_script_setFlagImm). The PE
+ * header's SizeOfImage: e_lfanew at 0x3C, then 0x50 into the PE32+ headers. */
+extern char __ImageBase[];
+static int in_exe_image(unsigned address)
+{
+    const unsigned char* base = (const unsigned char*)__ImageBase;
+    unsigned size = *(const unsigned*)(base + *(const int*)(base + 0x3C) + 0x50);
+    return address >= (uintptr_t)base && address - (uintptr_t)base < size;
+}
+#endif
 void pc_require_native_callback(unsigned address, const char* context, unsigned opcode)
 {
     int pinned = __start_rood_game_text && address >= (uintptr_t)__start_rood_game_text
               && address < (uintptr_t)__stop_rood_game_text;
+#ifdef _WIN32
+    pinned = pinned || in_exe_image(address);
+#endif
     if (!pinned && (address < 0x00400000 || address >= 0x01000000)) {
         fprintf(stderr, "[callback] %s: opcode 0x%02x, target 0x%08x\n", context, opcode,
             address);
