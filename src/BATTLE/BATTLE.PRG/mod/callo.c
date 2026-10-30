@@ -106,10 +106,13 @@ void vs_mod_spawnCallo(void)
 
     /* An enemy slot (0-1 get player-only handling, creation allows < 10), the first free one
      * in _calloSlots. Slot 9 is unusable: a character's palette goes to VRAM row 0x16 + slot,
-     * and row 0x1F (slot 9) holds room objects' alternate palettes. */
+     * and row 0x1F (slot 9) holds room objects' alternate palettes. Its model slot must be free
+     * too: a two-part enemy (Ghost) in slot n keeps its second model in n + 4 with no actor
+     * there, and she then drove that model (the Ghost on top of her) and had no model of her
+     * own (its sounds read through NULL: freezes). */
     for (i = 0; i < sizeof _calloSlots; ++i) {
         slot = _calloSlots[i];
-        if (vs_battle_actors[slot] == NULL) {
+        if ((vs_battle_actors[slot] == NULL) && (D_800F4538[slot] == NULL)) {
             break;
         }
     }
