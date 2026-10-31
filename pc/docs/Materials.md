@@ -168,6 +168,57 @@ by 30-80 levels): the stone blocks' faces lift towards the light and their
 seams fall into shade, and the flagstones get a soft, rough highlight.
 Nothing reads as plastic: rough stone stays matte.
 
+## Masters and instances
+
+(`pc/docs/plans/2026-10-30-master-materials-plan.md`.) A **master material**
+is a shader exposing named parameters; this version has one, the **standard
+surface** (`pc/assets/materials/masters/standard_surface.json`: the five
+fields above, `roughness`, `specular`, `metal`, `auto_height`, `bump`, with
+their defaults, ranges, labels and tips, and the texture slots: the game
+texel and the channel maps), the planes path described below. A master
+generated from a node graph (part 4) is one more file in that folder
+(`$ROOD_MATERIAL_MASTERS`, else `masters/` beside the shipped catalog) with
+its own `shader` and parameters; an instance of another master writes its
+values under `params`.
+
+A **material instance** is a master, an optional **parent** instance, the
+values it sets itself and an optional assignment. The catalog files are
+read as instances, losslessly and without rewriting: every preset is a root
+instance (id = its name) and every entry an instance whose parent is its
+preset and whose own values are its explicit fields; the entries that shade
+(`Entry` in `materials.h`) are derived from the assigned instances, so a
+converted layer renders exactly as before (`material_instances_smoke`; a
+real layer: `pc/tests/material_migration_check.py --user FILE`, on a copy).
+Values resolve live: an instance's value is its own, else its parent's, up
+to the root, else the master's default, so editing a preset changes every
+instance under it (the one difference from the old reader, which copied a
+preset's values at parse time). An entry naming an unknown preset or parent
+is listed unresolved, makes no entry (as before) and is reported.
+
+Writing (Save) keeps the files' layout and format: a root goes into
+`presets`, the rest into `entries` with `preset` naming the root preset at
+the top of its chain (what older readers see) and `parent` only when the
+parent is not that preset; an unassigned instance (a user-made preset with
+a parent) has no `match`; another master is `master`. A file with none of
+those stays format 1; one with any gets `format: 2`. `material_bake.py` and
+`material_rollout_apply.py` read either.
+
+**Window > Materials** shows the instances as a tree and the selected one's
+parameters as the master lists them: an own value in normal text with
+*Reset* (to the parent's), an inherited one greyed with the ancestor it comes
+from; the assignment (a texture key, a palette, *This room only*, *Assign
+to selection's texture* / *its palette*: the surface or model selected in
+the view, scoped to this room; *Unassign*); *New child*, *Duplicate*,
+*Remove*, *Save*, *Revert*, *Copy JSON for the catalog*, *Open in Details >
+Material*. Details > Material's own entry editor still works (its preset
+combo lists every root). **Window > Material preview** is a sphere shaded
+on the CPU with the same GGX lobe, textured nearest with the instance's
+texture when it is drawn in the room (else a grey swatch), under a key
+light and an ambient whose strength, direction and the swatch's grey are
+settings keys (`material_preview_light`, `_yaw`, `_pitch`, `_ambient`,
+`_swatch`, `_size`; Graphics, RPC `graphics`); it is the same picture on GL
+and Vulkan. RPC `material_instance` and `material_preview`: Extensions.md.
+
 ## Surveying a room
 
 What to give materials first is what covers the screen. Doing a room:

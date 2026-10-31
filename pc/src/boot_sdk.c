@@ -78,8 +78,16 @@ int ClearImage2(RECT* r, u_char red, u_char green, u_char blue)
 {
     return ClearImage(r, red, green, blue);
 }
+/* The classic layer's immediate-draw recorder (classic_parity.c, PC_CLASSIC_IMMEDIATE in classic_hook.h): inside an
+ * open range the game's DrawPrim / LoadImage are recorded and, while a classic claim may draw instead, held back
+ * (1: not done now); a StoreImage is recorded and done. Weak: absent outside the battle builds. */
+extern int pc_classic_immediate_draw(const void* packet) __attribute__((weak));
+extern int pc_classic_immediate_load(int x, int y, int w, int h, const void* pixels) __attribute__((weak));
+extern void pc_classic_immediate_store(int x, int y, int w, int h) __attribute__((weak));
 int LoadImage(RECT* r, u_long* p)
 {
+    if (pc_classic_immediate_load && pc_classic_immediate_load(r->x, r->y, r->w, r->h, p))
+        return 0;
     pc_vram_transfer(r->x, r->y, r->w, r->h, p, 1);
     return 0;
 }
@@ -89,6 +97,8 @@ int LoadImage2(RECT* r, u_long* p) { return LoadImage(r, p); }
 int StoreImage(RECT* r, u_long* p)
 {
     pc_store_image_debug(r->x, r->y, r->w, r->h, __builtin_return_address(0));
+    if (pc_classic_immediate_store)
+        pc_classic_immediate_store(r->x, r->y, r->w, r->h);
     pc_vram_transfer(r->x, r->y, r->w, r->h, p, 0);
     return 0;
 }
@@ -325,7 +335,12 @@ DRAWENV* PutDrawEnv(DRAWENV* e)
         pc_hw_fill(e->clip.x, e->clip.y, e->clip.w, e->clip.h, 255, 0, 255);
     return e;
 }
-void DrawPrim(void* p) { pc_draw_packet(p, 0); }
+void DrawPrim(void* p)
+{
+    if (pc_classic_immediate_draw && pc_classic_immediate_draw(p))
+        return;
+    pc_draw_packet(p, 0);
+}
 /* Each drawn ordering table ends a frame for the GTE's projection log
  * (widescreen 2D/3D classification in the hardware rasterizer). */
 extern void pc_gte_new_generation(void);

@@ -29,7 +29,7 @@ unsigned vsync(); // pc_vsync_count, or the ticks seen (lua_probe)
 bool live(const Element& e);
 const char* kind_name(int kind);  // "status", "chain", "buff", "damage", "travel"; "" for none
 int kind_of(const char* name);    // PC_HUD_*, 0 unknown
-#define HUD_KIND_LIST "status, chain, buff, damage, travel, notice, name_window, gauges, figure, status_icons, battle_mode, ability_icons, actor_word, timer, emote, text_frame, text_band, box_text, image, target_row, target_line, target_marker, menu_background, menu_command, menu_row, menu_cursor, menu_tabs, option_value, items_category, items_status_button, equip_stats, dp_pp_bars, gem_slots, stat_page, ok_mark, storage_buttons, storage_counts, loot_capacities, discard_count"
+#define HUD_KIND_LIST "status, chain, buff, damage, travel, notice, name_window, gauges, figure, status_icons, battle_mode, ability_icons, actor_word, timer, emote, text_frame, text_band, box_text, image, target_row, target_line, target_marker, menu_background, menu_command, menu_row, menu_cursor, menu_tabs, option_value, items_category, items_status_button, equip_stats, dp_pp_bars, gem_slots, stat_page, ok_mark, storage_buttons, storage_counts, loot_capacities, discard_count, rename_grid, rename_box, file_menu, file_element"
 // Status: "too_fast", "fast", "success", "slow", "too_slow" (0..4); -1 unknown.
 int timing_of(const char* name);
 const char* timing_name(int timing);

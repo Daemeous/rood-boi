@@ -15,7 +15,7 @@ extern unsigned pc_ui_text_glyph_at(unsigned tpage, unsigned clut, int u0, int v
 extern int pc_hw_anchor_of(const void* packet) __attribute__((weak));
 
 static const char* const KIND_NAMES[PC_CLASSIC_KINDS] = { "", "status", "chain", "buff", "damage", "", "", "",
-    "gauges", "figure", "status_icons", "battle_mode", "ability_icons", "actor_word", "timer", "emote", "text_frame", "text_band", "box_text", "image", "target_row", "target_line", "target_marker", "menu_background", "menu_command", "menu_row", "menu_cursor", "menu_tabs", "option_value", "items_category", "items_status_button", "equip_stats", "dp_pp_bars", "gem_slots", "stat_page", "ok_mark", "storage_buttons", "storage_counts", "loot_capacities", "discard_count", "status_panel" }; /* (hud.h's travel, notice, name_window: not the classic layer's) */
+    "gauges", "figure", "status_icons", "battle_mode", "ability_icons", "actor_word", "timer", "emote", "text_frame", "text_band", "box_text", "image", "target_row", "target_line", "target_marker", "menu_background", "menu_command", "menu_row", "menu_cursor", "menu_tabs", "option_value", "items_category", "items_status_button", "equip_stats", "dp_pp_bars", "gem_slots", "stat_page", "ok_mark", "storage_buttons", "storage_counts", "loot_capacities", "discard_count", "rename_grid", "rename_box", "file_menu", "file_element", "status_panel" }; /* (hud.h's travel, notice, name_window: not the classic layer's) */
 const char* pc_classic_kind_name(int kind)
 {
     return kind > 0 && kind < PC_CLASSIC_KINDS ? KIND_NAMES[kind] : "";
@@ -643,4 +643,159 @@ int pc_classic_packets_rpc(const char* name, char* out, int size)
         return -1;
     }
     return s.used;
+}
+
+/* ---- immediate draws (classic_hook.h PC_CLASSIC_IMMEDIATE) ---- */
+
+extern void pc_draw_packet(void* data, int chain) __attribute__((weak));                     /* boot_runtime.c */
+extern void pc_vram_transfer(int x, int y, int w, int h, void* p, int to_vram) __attribute__((weak)); /* gpu */
+
+static unsigned pixels_hash(const void* pixels, int w, int h)
+{
+    const unsigned char* b = pixels;
+    unsigned hash = 2166136261u;
+    for (long i = 0, n = pixels && w > 0 && h > 0 ? (long)w * h * 2 : 0; i < n; i++)
+        hash = (hash ^ b[i]) * 16777619u;
+    return hash;
+}
+void pc_classic_immediate_upload_entry(pc_classic_packet* out, int x, int y, int w, int h, const void* pixels)
+{
+    memset(out, 0, sizeof *out);
+    out->words = 4;
+    out->w[0] = 0xA0000000u;
+    out->w[1] = (unsigned)(x & 0xFFFF) | (unsigned)(y & 0xFFFF) << 16;
+    out->w[2] = (unsigned)(w & 0xFFFF) | (unsigned)(h & 0xFFFF) << 16;
+    out->w[3] = pixels_hash(pixels, w, h);
+}
+void pc_classic_immediate_read_entry(pc_classic_packet* out, int x, int y, int w, int h)
+{
+    memset(out, 0, sizeof *out);
+    out->words = 3;
+    out->w[0] = 0xC0000000u;
+    out->w[1] = (unsigned)(x & 0xFFFF) | (unsigned)(y & 0xFFFF) << 16;
+    out->w[2] = (unsigned)(w & 0xFFFF) | (unsigned)(h & 0xFFFF) << 16;
+}
+
+static struct {
+    int rect[4];
+    unsigned short pixels[1024];
+} image_buffer;
+unsigned short* pc_classic_image_buffer(int** rect)
+{
+    *rect = image_buffer.rect;
+    return image_buffer.pixels;
+}
+
+#define HELD_POOL 16384 /* bytes of held uploads (a CLUT row is 512) */
+static struct {
+    int open, hold, held_ok, count, pool_used;
+    pc_classic_packet list[PC_CLASSIC_CAPTURE];
+    struct {
+        int upload, x, y, w, h, at; /* upload: pixels at pool + at; else a packet: raw (its tag, then words) */
+        unsigned raw[PC_CLASSIC_PACKET_WORDS];
+    } held[PC_CLASSIC_CAPTURE];
+    int held_count;
+    unsigned char pool[HELD_POOL];
+} rec;
+
+static void held_do(int i)
+{
+    if (rec.held[i].upload) {
+        if (pc_vram_transfer)
+            pc_vram_transfer(rec.held[i].x, rec.held[i].y, rec.held[i].w, rec.held[i].h, rec.pool + rec.held[i].at, 1);
+    } else if (pc_draw_packet)
+        pc_draw_packet(rec.held[i].raw, 0);
+}
+/* Too much to hold: what is held done now, the rest of the range at once (the claim may not draw it). */
+static void hold_give_up(void)
+{
+    for (int i = 0; i < rec.held_count; i++)
+        held_do(i);
+    rec.held_count = 0;
+    rec.hold = 0;
+    rec.held_ok = 0;
+}
+
+void pc_classic_immediate_open(int hold)
+{
+    rec.open = 1;
+    rec.hold = hold;
+    rec.held_ok = 1;
+    rec.count = rec.held_count = rec.pool_used = 0;
+}
+
+int pc_classic_immediate_draw(const void* packet)
+{
+    if (!rec.open)
+        return 0;
+    const unsigned* p = packet;
+    int n = (int)(p[0] >> 24);
+    if (n > PC_CLASSIC_PACKET_WORDS - 1)
+        n = PC_CLASSIC_PACKET_WORDS - 1;
+    if (n && rec.count < PC_CLASSIC_CAPTURE) {
+        pc_classic_packet* k = &rec.list[rec.count];
+        memset(k, 0, sizeof *k);
+        k->words = (unsigned char)n;
+        k->at = (unsigned short)rec.count;
+        memcpy(k->w, p + 1, sizeof k->w[0] * (size_t)n);
+        rec.count++;
+    }
+    if (!rec.hold)
+        return 0;
+    if (rec.held_count == PC_CLASSIC_CAPTURE) {
+        hold_give_up();
+        return 0;
+    }
+    rec.held[rec.held_count].upload = 0;
+    memset(rec.held[rec.held_count].raw, 0, sizeof rec.held[0].raw);
+    rec.held[rec.held_count].raw[0] = (unsigned)n << 24 | 0x00FFFFFFu;
+    memcpy(rec.held[rec.held_count].raw + 1, p + 1, sizeof p[0] * (size_t)n);
+    rec.held_count++;
+    return 1;
+}
+
+int pc_classic_immediate_load(int x, int y, int w, int h, const void* pixels)
+{
+    if (!rec.open)
+        return 0;
+    if (rec.count < PC_CLASSIC_CAPTURE)
+        pc_classic_immediate_upload_entry(&rec.list[rec.count++], x, y, w, h, pixels);
+    if (!rec.hold)
+        return 0;
+    long bytes = w > 0 && h > 0 ? (long)w * h * 2 : 0;
+    if (rec.held_count == PC_CLASSIC_CAPTURE || rec.pool_used + bytes > HELD_POOL) {
+        hold_give_up();
+        return 0;
+    }
+    rec.held[rec.held_count].upload = 1;
+    rec.held[rec.held_count].x = x, rec.held[rec.held_count].y = y;
+    rec.held[rec.held_count].w = w, rec.held[rec.held_count].h = h;
+    rec.held[rec.held_count].at = rec.pool_used;
+    memcpy(rec.pool + rec.pool_used, pixels, (size_t)bytes);
+    rec.pool_used += (int)((bytes + 3) & ~3L);
+    rec.held_count++;
+    return 1;
+}
+
+void pc_classic_immediate_store(int x, int y, int w, int h)
+{
+    if (rec.open && rec.count < PC_CLASSIC_CAPTURE)
+        pc_classic_immediate_read_entry(&rec.list[rec.count++], x, y, w, h);
+}
+
+int pc_classic_immediate_close(const pc_classic_packet** out)
+{
+    rec.open = 0;
+    *out = rec.list;
+    return rec.count;
+}
+
+int pc_classic_immediate_held(void) { return rec.hold && rec.held_ok; }
+
+void pc_classic_immediate_release(int replay)
+{
+    for (int i = 0; replay && i < rec.held_count; i++)
+        held_do(i);
+    rec.held_count = 0;
+    rec.hold = 0;
 }

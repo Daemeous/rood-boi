@@ -17,6 +17,7 @@
 #ifndef ROOD_MATERIALS_H
 #define ROOD_MATERIALS_H
 #include <stdint.h>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -49,6 +50,10 @@ struct Entry {
     /* Which fields the entry sets itself (1 roughness, 2 specular, 4
      * metal, 8 auto_height, 16 bump); the rest come from its preset. */
     unsigned explicit_fields = 0;
+    /* The instance's parent when it is not the bare preset named by `preset`
+     * (an instance id: pc/docs/plans/2026-10-30-master-materials-plan.md);
+     * empty: the parent is the preset (or none). */
+    std::string parent;
     bool user = false; /* from the user layer (materials.json) */
     bool preview = false; /* a temporary preview (set_preview): never saved */
     /* Whether the entry applies in this room (unscoped: everywhere). */
@@ -65,6 +70,89 @@ struct Entry {
     void set_room(int z, int r) { zone = z, room = z < 0 ? -1 : r, rooms.clear(); }
 };
 std::vector<Entry> catalog_entries();
+
+/* ---- Master materials and instances (plan 2026-10-30-master-materials-plan.md) ----
+ * A master is a shader exposing named parameters (this part: the one
+ * standard surface, the existing planes path; part 4 generates masters from
+ * graphs: one more file under masters_dir()). An instance is a master, an
+ * optional parent instance, the parameter values it sets itself, and an
+ * optional assignment (a texture key or a palette, scoped as entries are).
+ * The catalog files are read as instances: every preset is a root instance
+ * (id = its name), every entry an instance whose parent is its preset and
+ * whose own values are its explicit fields (nothing is rewritten on read).
+ * The Entry list above is derived from the assigned instances (resolved
+ * values, explicit_fields = own values), so everything that shades reads
+ * exactly what it did. */
+struct MasterParam {
+    std::string name, label, tip, group;
+    bool is_bool = false;
+    float def = 0, lo = 0, hi = 1;
+};
+struct MasterSlot {
+    std::string name, label, channel; /* channel: the map file ("" the game texel) */
+};
+struct Master {
+    std::string name, shader, path; /* path: "" for the built-in description */
+    std::vector<MasterParam> params;
+    std::vector<MasterSlot> slots;
+    const MasterParam* param(const std::string& name) const;
+};
+std::string masters_dir(); /* $ROOD_MATERIAL_MASTERS, else masters/ beside the shipped catalog file */
+const Master* master(const std::string& name); /* nullptr: unknown */
+std::vector<std::string> master_names(); /* standard_surface first */
+
+struct Instance {
+    std::string id, name, where, review;
+    std::string master = "standard_surface";
+    std::string parent; /* an instance id, or none */
+    std::map<std::string, float> own; /* the values it sets itself (bools 0 / 1) */
+    /* The assignment (as Entry's match and scope); none: an unassigned
+     * instance (a preset, or a user-made one with a parent). */
+    bool assigned = false;
+    std::string key, clut;
+    int w = 0, h = 0, zone = -1, room = -1;
+    std::vector<std::pair<int, int>> rooms;
+    bool root = false; /* read from a file's `presets` (written back there) */
+    bool user = false, preview = false, pending = false;
+    bool in_scope(int z, int r) const;
+    void set_room(int z, int r) { zone = z, room = z < 0 ? -1 : r, rooms.clear(); }
+};
+/* The instances of both files, the unsaved edits and the previews, in file
+ * order (shipped, then the user's; the later file wins per id). */
+std::vector<Instance> instances();
+const Instance* find_instance(const std::string& id); /* valid until the catalog is next read */
+/* Every parameter of the instance's master resolved (own, else the parent's,
+ * ..., else the master's default); `chain`: the ids walked, the instance
+ * first. False with `error` when the id, the master or a parent is unknown
+ * or the parents loop. */
+bool resolve(const std::string& id, std::map<std::string, float>& out, std::vector<std::string>* chain,
+    std::string* error);
+/* Resolve an instance that is not (yet) in the catalog (its parents are). */
+bool resolve_instance(const Instance& i, std::map<std::string, float>& out, std::vector<std::string>* chain,
+    std::string* error);
+/* Which ancestor sets `name` for the instance ("" the master's default, the id itself for an own value). */
+std::string value_source(const std::string& id, const std::string& name);
+Surface surface_of(const std::map<std::string, float>& values);
+/* The Entry an assigned instance derives (value = resolved; explicit_fields =
+ * its own standard values); false when it does not resolve. */
+bool entry_of(const Instance& i, Entry& out, std::string* error);
+Instance instance_of(const Entry& e); /* the reverse (parent = e.parent, else e.preset) */
+/* The unsaved layer, by instance: as set_pending / remove_pending below. */
+void set_pending_instance(const Instance& i);
+std::vector<Instance> pending_instances();
+/* Writes an instance into the user layer (a root goes into `presets`, the
+ * rest into `entries`; the file keeps its layout and its format unless the
+ * instance needs format 2: a parent that is not a preset, another master, or
+ * no assignment). */
+bool put_user_instance(const Instance& i, std::string* error);
+std::string instance_json(const Instance& i); /* one entry as the catalog writes it */
+/* The user layer rewritten as every instance it holds would be written now
+ * (its migration made explicit), into `path` (never the user layer itself
+ * unless `path` is it); counts of presets and entries written. */
+bool write_migrated(const std::string& path, int* presets, int* entries, std::string* error);
+/* Problems the catalog has (unknown parents, loops, id clashes between a
+ * preset and an entry, invalid entries dropped on read): one line each. */
+std::vector<std::string> catalog_problems();
 Surface match(const std::string& key, int w, int h, const std::string& clut, int zone, int room);
 /* The entry that applies (the last matching one), or nullptr: valid until
  * the catalog is next read. */

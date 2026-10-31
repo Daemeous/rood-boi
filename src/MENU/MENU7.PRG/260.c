@@ -19,6 +19,7 @@
 #include <libetc.h>
 
 #ifdef ROOD_PC
+#include "pc/src/classic/classic_hook.h"
 /* Modern menus, the native Data screen (pc/src/ui/data_menu7.h,
  * data_bridge.c): framed, this screen runs unchanged with its drawing gated. */
 #include "pc/src/ui/data_menu7.h"
@@ -1400,6 +1401,8 @@ static void pc_text_char(
 {
     if (_pcNoDraw)
         return;
+    if (pc_classic_immediate_held && pc_classic_immediate_held())
+        return; /* (held back for a classic claim: its own glyphs report themselves) */
     if (pc_text_glyph)
         pc_text_glyph(
             commands, count, glyph, x << 16, y << 16, (x + advance) << 16, advance);
@@ -1552,6 +1555,11 @@ static enum maskedHandler_e maskedHandler(int portMask)
     return memcardMaskedHandlerPending;
 }
 
+#ifdef ROOD_PC
+static char* _pcArrowState; /* _printString's blink step (the classic records':
+                               PC_CLASSIC_IMMEDIATE) */
+#endif
+
 static void _printString(char* text, int x, int y, int clut)
 {
     static char arrowState = 0;
@@ -1560,6 +1568,9 @@ static void _printString(char* text, int x, int y, int clut)
     u_int c;
     int startX = x;
     int nextX = x;
+#ifdef ROOD_PC
+    _pcArrowState = &arrowState;
+#endif
 
     while (1) {
         c = *text++;
@@ -1817,6 +1828,120 @@ static void _drawFileMenuElement(fileMenuElements_t* element)
     }
 }
 
+#ifdef ROOD_PC
+/* The classic look drawn in Lua (classic_hook.h PC_CLASSIC_IMMEDIATE): the file menu
+ * draws at once, so each piece is a range of its own, recorded (and held back while
+ * rood.classic draws it): an element's panel here, the frame's two parts in _drawFileMenu
+ * below. The records carry what the draw reads, as it reads it (the blend factors, the
+ * hand's colour, the blink step: before the draw steps them; the rest after), and the
+ * game's words as codes. Not while the modern Data screen gates the drawing. */
+static void _pcCodes(unsigned char* out, int size, const char* text, int end)
+{
+    int i;
+    for (i = 0; i < size; ++i) {
+        out[i] = text ? text[i] : end;
+        if (out[i] == end)
+            break;
+    }
+}
+static void _pcFileElement(fileMenuElements_t* element)
+{
+    static pc_classic_file_element record;
+    saveFileInfo_t* info;
+    int slot;
+    if (_pcNoDraw || !pc_classic_immediate_begin) {
+        _drawFileMenuElement(element);
+        return;
+    }
+    memset(&record, 0, sizeof record);
+    record.id = element - _fileMenuElements;
+    record.inner = element->innertextBlendFactor;
+    record.arrow = _pcArrowState ? *_pcArrowState : 0;
+    if (_fileProgressCounter < 0) { /* (as the draw reads it: p[17] from the step) */
+        signed char* p = _cursorFileOpSaturation + _fileProgressCounter;
+        record.progress_colour = -p[17];
+    }
+    slot = element->slotId;
+    if (element->selected != 0 && _fileProgressCounter != 0) {
+        record.progress = _fileProgressCounter < 0 ? 2 : 1;
+        record.progress_x =
+            _fileProgressPosition
+            + _PROGRESS_DIV(((_fileProgressCounter - _filePreviousProgressCounter)
+                                * ((_loadSaveDataErrorOffset * 0x14)
+                                    - (_fileProgressPosition - 0x140))),
+                _fileProgressTarget);
+    }
+    if (slot < 5 && _saveFileInfo != NULL && _textTable != NULL && _mcData != NULL) {
+        info = &_saveFileInfo[slot];
+        record.slot_state = info->unk4.base.slotState;
+        record.map = info->unk4.stats.mapCompletion;
+        record.saves = info->unk4.stats.cumulativeSaveCount;
+        record.clears = info->unk4.stats.clearCount;
+        record.hours = info->unk4.stats.gameTime.t.h;
+        record.minutes = info->unk4.stats.gameTime.t.m;
+        record.seconds = info->unk4.stats.gameTime.t.s;
+        record.hp = info->unk4.stats.currentHP;
+        record.hp_max = info->unk4.stats.maxHP;
+        record.mp = info->unk4.stats.currentMP;
+        record.mp_max = info->unk4.stats.maxMP;
+        _pcCodes(record.in_use, sizeof record.in_use,
+            (char*)(_textTable + VS_MCMAN_BIN_OFFSET_inUse), vs_char_terminator);
+        _pcCodes(record.empty, sizeof record.empty,
+            (char*)(_textTable + VS_MCMAN_BIN_OFFSET_empty), vs_char_terminator);
+        _pcCodes(record.fresh, sizeof record.fresh,
+            (char*)(_textTable + VS_MCMAN_BIN_OFFSET_new), vs_char_terminator);
+        if (record.slot_state >= 3)
+            _pcCodes(record.place, sizeof record.place,
+                (char*)&_textTable[_textTable[element->saveLocation
+                                              + VS_MCMAN_BIN_INDEX_saveLocations]],
+                vs_char_terminator);
+        memcpy(record.cluts, _mcData->locationCluts, sizeof record.cluts);
+    }
+    pc_classic_immediate_begin(PC_CLASSIC_SITE_FILE_ELEMENT);
+    _drawFileMenuElement(element);
+    record.x = element->x;
+    record.y = element->y;
+    record.w = element->w;
+    record.h = element->h;
+    record.selected = element->selected;
+    record.unavailable = element->slotUnavailable;
+    record.outer = element->outertextBlendFactor;
+    record.slot = slot;
+    record.location = element->saveLocation;
+    record.saving = _isSaving;
+    _pcCodes(record.text, sizeof record.text, element->text, 0xFF);
+    if (pc_classic_immediate_site)
+        pc_classic_immediate_site(PC_CLASSIC_SITE_FILE_ELEMENT, &record);
+}
+#define _drawFileMenuElement _pcFileElement
+static pc_classic_file_menu _pcFileMenu;
+static int _pcFileMenuOn;
+static void _pcFileMenuBegin(int part)
+{
+    _pcFileMenuOn = !_pcNoDraw && pc_classic_immediate_begin;
+    if (!_pcFileMenuOn)
+        return;
+    memset(&_pcFileMenu, 0, sizeof _pcFileMenu);
+    _pcFileMenu.part = part;
+    _pcFileMenu.cursor_color = _selectCursorColor;
+    _pcFileMenu.arrow = _pcArrowState ? *_pcArrowState : 0;
+    pc_classic_immediate_begin(PC_CLASSIC_SITE_FILE_MENU);
+}
+static void _pcFileMenuEnd(int framebuf)
+{
+    if (!_pcFileMenuOn)
+        return;
+    _pcFileMenu.x = framebuf != 0 ? 320 : 0;
+    _pcFileMenu.cursor_xy = _selectCursorXy;
+    _pcFileMenu.fade = _fileMenuScreenFade;
+    _pcFileMenu.has_message = _memoryCardMessage != 0;
+    _pcCodes(_pcFileMenu.message, sizeof _pcFileMenu.message, _memoryCardMessage,
+        vs_char_terminator);
+    if (pc_classic_immediate_site)
+        pc_classic_immediate_site(PC_CLASSIC_SITE_FILE_MENU, &_pcFileMenu);
+}
+#endif
+
 static void _drawFileMenu(int framebuf)
 {
     int _[2];
@@ -1832,10 +1957,16 @@ static void _drawFileMenu(int framebuf)
     if (framebuf != 0) {
         x = 320;
     }
+#ifdef ROOD_PC
+    _pcFileMenuBegin(0);
+#endif
     _drawSprt(vs_getXY(256, 176), vs_getUV0Clut(0, 176, 768, 227), vs_getWH(64, 64),
         getTPage(clut8Bit, semiTransparencyHalf, 768, 256));
     _drawSprt(vs_getXY(0, 176), vs_getUV0Clut(0, 176, 768, 227), vs_getWH(256, 64),
         getTPage(clut8Bit, semiTransparencyHalf, 640, 256));
+#ifdef ROOD_PC
+    _pcFileMenuEnd(framebuf);
+#endif
 
     for (i = 0; i < 10; ++i, ++element) {
         state = element->state;
@@ -1899,6 +2030,9 @@ static void _drawFileMenu(int framebuf)
         }
     }
 
+#ifdef ROOD_PC
+    _pcFileMenuBegin(1);
+#endif
     for (i = 1; i < 4; ++i) {
         new_var = 256;
         _drawSprt(vs_getXY(0, 187 - i), (187 - i) << 8, vs_getWH(256, 1),
@@ -1939,6 +2073,9 @@ static void _drawFileMenu(int framebuf)
             vs_getRGB0Raw(primTileSemiTrans, _fileMenuScreenFade * vs_getRGB888(8, 8, 8));
         DrawPrim(&_primBuf);
     }
+#ifdef ROOD_PC
+    _pcFileMenuEnd(framebuf);
+#endif
 }
 
 static void _drawFileMenuBg(void)

@@ -67,8 +67,12 @@ enum {
     PC_CLASSIC_STORAGE_COUNTS = 37, /* Storage's category counts (MENUD func_80106464's callers) */
     PC_CLASSIC_LOOT_CAPACITIES = 38, /* Loot's capacities strip (MENUB _displayInventoryCapacities) */
     PC_CLASSIC_DISCARD_COUNT = 39, /* a misc item's discard amount (items1.h _discardMenu, MENUD's copy) */
-    PC_CLASSIC_STATUS_PANEL = 40, /* the whole status display (func_800CA2DC): captured only */
-    PC_CLASSIC_KINDS = 41
+    PC_CLASSIC_RENAME_GRID = 40, /* the rename grid (MENU8 _renderRenameMenu) */
+    PC_CLASSIC_RENAME_BOX = 41, /* a highlight box on it (MENU8 _highlightSelection) */
+    PC_CLASSIC_FILE_MENU = 42, /* MENU7's file menu's frame (_drawFileMenu: drawn at once, PC_CLASSIC_IMMEDIATE) */
+    PC_CLASSIC_FILE_ELEMENT = 43, /* a card's or a file's panel in it (_drawFileMenuElement: at once) */
+    PC_CLASSIC_STATUS_PANEL = 44, /* the whole status display (func_800CA2DC): captured only */
+    PC_CLASSIC_KINDS = 45
 };
 const char* pc_classic_kind_name(int kind); /* "status", ...; "" for none */
 int pc_classic_kind_of(const char* name);   /* 0 unknown */
@@ -148,7 +152,7 @@ int pc_classic_compare(const pc_classic_packet* game, int game_count, const pc_c
 int pc_classic_packets_json(const pc_classic_packet* p, int count, char* out, int size);
 
 /* ---- capture and parity (game thread) ---- */
-#define PC_CLASSIC_CAPTURE 160 /* packets kept per capture */
+#define PC_CLASSIC_CAPTURE 384 /* packets kept per capture (the rename grid: about 250) */
 /* Sites capture only once asked (RPC packets turns it on) or in parity. */
 int pc_classic_capturing(void);
 void pc_classic_capture_on(void);
@@ -171,6 +175,30 @@ void pc_classic_parity_reset(void);
  * with the error in out. */
 int pc_classic_packets_rpc(const char* kind, char* out, int size);
 int pc_classic_parity_json(char* out, int size);
+
+/* ---- immediate draws (classic_hook.h PC_CLASSIC_IMMEDIATE: DrawPrim / LoadImage at once, no ordering table) ----
+ * A range's capture is every packet it draws (its words after the tag, as an ordering-table packet's) and every
+ * VRAM transfer, in the order made: an upload as {0xA0000000, y << 16 | x, h << 16 | w, a hash of its pixels}, a
+ * read as {0xC0000000, y << 16 | x, h << 16 | w} (GP0's own copy commands), compared as packets are. */
+/* A range opens (one at a time); hold: the game's draws and uploads are kept back (not done) until it closes. */
+void pc_classic_immediate_open(int hold);
+/* boot_sdk.c's DrawPrim, LoadImage, StoreImage: recorded while a range is open; 1 when the call was held back
+ * (not to be done now). A read is always done (the game reads it). */
+int pc_classic_immediate_draw(const void* packet);
+int pc_classic_immediate_load(int x, int y, int w, int h, const void* pixels);
+void pc_classic_immediate_store(int x, int y, int w, int h);
+/* The range closes: its capture (*out, the count). Then pc_classic_immediate_release: the held draws done now
+ * (replay 1: no claim drew it) or dropped (0). */
+int pc_classic_immediate_close(const pc_classic_packet** out);
+void pc_classic_immediate_release(int replay);
+/* Whether the range held everything back (0: it was not asked to, or too much: done at once from there on; a claim
+ * may draw instead only when it did). */
+int pc_classic_immediate_held(void);
+/* The normalised entries (for the Lua side's list): an upload's, a read's. */
+void pc_classic_immediate_upload_entry(pc_classic_packet* out, int x, int y, int w, int h, const void* pixels);
+void pc_classic_immediate_read_entry(pc_classic_packet* out, int x, int y, int w, int h);
+/* The classic draws' own VRAM buffer (d.image_store / d.image_restore): its 1024 pixels and rect (x, y, w, h). */
+unsigned short* pc_classic_image_buffer(int** rect);
 
 #ifdef __cplusplus
 }

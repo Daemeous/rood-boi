@@ -98,7 +98,7 @@ materials::Entry entry_for(const TexturePick& p, const std::vector<materials::En
 /* The entry's fractions from its preset again (explicit fields dropped). */
 void apply_preset(materials::Entry& e, const std::string& name)
 {
-    e.preset = name;
+    e.preset = name, e.parent.clear();
     for (const auto& p : materials::catalog_presets())
         if (p.first == name) {
             e.value = p.second;
@@ -276,7 +276,10 @@ Json pick_json(const TexturePick& p)
     }
     return j;
 }
-Json list_json()
+/* `entries` false: the switches, tunables and uses without the entries (a user
+ * layer of hundreds of palette entries over a hundred rooms each outgrows one
+ * reply; RPC material_instance list pages those). */
+Json list_json(bool with_entries = true)
 {
     Json j = Json::object();
     j.set("active", Json::boolean_(pc_material_active() != 0));
@@ -319,9 +322,11 @@ Json list_json()
     }
     j.set("uses", uses);
     Json entries = Json::array();
-    for (const materials::Entry& e : materials::catalog_entries())
-        entries.items.push_back(entry_info(e));
+    if (with_entries)
+        for (const materials::Entry& e : materials::catalog_entries())
+            entries.items.push_back(entry_info(e));
     j.set("entries", entries);
+    j.set("entry_count", Json::num((double)materials::catalog_entries().size()));
     Json presets = Json::object();
     for (const auto& p : materials::catalog_presets()) {
         Json v = Json::object();
@@ -559,7 +564,7 @@ bool entry_fields(materials::Entry& e)
     std::vector<std::pair<std::string, materials::Surface>> presets = materials::catalog_presets();
     if (ImGui::BeginCombo("Preset", e.preset.empty() ? "(none)" : e.preset.c_str())) {
         if (ImGui::Selectable("(none)", e.preset.empty()))
-            e.preset.clear(), e.explicit_fields |= 7, changed = true;
+            e.preset.clear(), e.parent.clear(), e.explicit_fields |= 7, changed = true;
         for (const auto& p : presets) {
             char label[160];
             snprintf(label, sizeof label, "%s  (rough %.2f, spec %.2f, metal %.2f)", p.first.c_str(),
@@ -1098,8 +1103,10 @@ extern "C" int pc_material_rpc(const char* params_text, char* out, int size)
         const Json* v = params.get("id");
         return v && v->type == Json::String ? v->string : selected;
     };
-    if (action == "list")
-        return reply(list_json(), out, size);
+    if (action == "list") {
+        const Json* v = params.get("entries");
+        return reply(list_json(!(v && v->type == Json::Bool && !v->boolean)), out, size);
+    }
     if (action == "pick") {
         TexturePick p;
         bool ok;
@@ -1229,7 +1236,8 @@ extern "C" int pc_material_rpc(const char* params_text, char* out, int size)
     }
     if (action == "reload") { /* both catalogs and every map read again from disk */
         materials::reload();
-        return reply(list_json(), out, size);
+        const Json* v = params.get("entries");
+        return reply(list_json(!(v && v->type == Json::Bool && !v->boolean)), out, size);
     }
     if (action == "preview") {
         if (const Json* v = params.get("auto_height"); v && v->type == Json::Bool)

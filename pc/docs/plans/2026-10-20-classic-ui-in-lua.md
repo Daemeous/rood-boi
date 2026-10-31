@@ -17,6 +17,107 @@ follows `2026-10-18-lua-visible-layer.md` (F1-F3, done),
 
 ## Progress
 
+2026-10-30, late night (branch `classic-immediate`, from main `45c74602`; no merge or publication):
+
+- **An immediate-draw capture (`PC_CLASSIC_IMMEDIATE`; design: §3.4a, the worker's calls) and MENU7's file menu drawn
+  by rood.classic.** Two kinds, both claimed on currentMenu 7 only (Data's SAVE / LOAD, the save list after Storage;
+  not the game over's): **`file_menu`** (`_drawFileMenu`'s frame, two ranges: the bottom band's sprites before the
+  panels; the band's shaded rows, caution, message tile, hand, message and fade after) and **`file_element`**
+  (`_drawFileMenuElement`, wrapped: a card's or a file's panel, its words, the location picture with its CLUT swapped
+  in and back, No., MAP / SAVE / CLEAR / TIME, the clear badge, the HP / MP gauges, the progress animations). 260.c
+  changes under `ROOD_PC` only (the wrapper, the two ranges, the printer's blink step's address); no Zig port touches
+  MENU7. The records carry the game's words as codes and the two location CLUTs as data (`d.image_load`'s pixels).
+- **Primitives** (Extensions.md): `d.packet` takes 1..15 words (the panel's draw mode + tile + shaded polygon in one
+  tag: 12); `d.image_store` / `d.image_load` / `d.image_restore` (VRAM transfers in their place among the packets);
+  `d.text_glyph` (a packet reported to ui_text as a printer's glyph, as MENU7's printer reports its own). The Lua
+  draw (`look.file_menu`: the printer's widths, the info sprites, the panel and gauge colours, the frame) is made in
+  the game's order. While a claim draws, the game's own glyph reports are left out (`pc_classic_immediate_held`).
+- **Counts** (classic_parity's menus game, GL): `file_menu` 1,844 frames, `file_element` 5,432 (tour_data's SAVE and
+  LOAD: the cards, card 1's files walked past the last page and back; tour_storage's save list), 0 mismatches,
+  0 skips, no waivers, first run. Proofs (default and fallback of both, state parity 120/120): Data's SAVE file list,
+  Data's LOAD file list (new, in the save room: SAVE is not taken in the workshop the Setup proofs warp to), the
+  save list after Storage (now with both kinds). Outside the gate: the presented picture with the claim and without
+  it identical (a card with a save: picture, gauges, words), and a deliberate change (every packet's third word + 1)
+  caught at once (66 of 88 frames mismatched on `xy`; the 22 others were the panels the draw skips).
+- **Bug found on the way (own):** the first state proofs failed at `state_bss+0x5000`: the site's `lua[]` and the
+  draws' VRAM buffer were statics of hud_bridge.c, whose bss a save state holds, written only when Lua draws. The
+  claim's draw now keeps nothing there (the buffer is classic_parity.c's, outside the state sections).
+- **Untoured** (claimed, the same draw): the progress animations of an actual save or load (no test saves), a slot
+  in use by another game and a temporary slot, 100 hours or 100% map; the title's LOAD and the game over's file menu
+  (not claimed: currentMenu 7 and no game over only).
+- **MENUF (not started, surveyed):** `vs_menuF_exec`'s screens (congratulations, time attack start / end, the cube
+  puzzle's start / end / quit; `vs_main_stateFlags.menuFSubmenu`) draw through BATTLE's sprite list (146C.c
+  `func_8007DDB8` .. `func_8007E0A8`: parsed TIMs, `LoadImage` of their pixels) and `vs_battle_renderTextRawColor`;
+  none of the existing kinds (rows, hand, panels) is drawn there, so there is nothing to claim with them. Each screen
+  is a direct entry (a boss room in time attack, a puzzle room), with no tour yet.
+- **Verification:** `--arch 64` and `--battle` builds. Docker `make commit-check` (a copy of the tree; MENU7 touched):
+  **All files match** (the formatter's wraps of the new lines kept). `run.py -j 1 --cpu-jobs 1` (nice 10)
+  `classic_parity hud classic cutscene_player_smoke widescreen_smoke` plus every suite matching `manual ui_ menu prompts
+  button options items equip status workshop container loot memory card save data` (44 suites): **GL 42/43 plus
+  classic_parity alone (pass); classic_hud_smoke's Lua cost check failed once (0.185 ms against 0.1, the Docker build
+  running beside it), passed alone (0.058 ms). Vulkan 43/44; ui_workshop_smoke failed once (an item's value fb vs fc
+  in its modern / classic parity, not MENU7's), passed alone.** classic_parity: no budget faults on either GPU.
+
+2026-10-30, night (branch `classic-lua-tours`, from main `5a4d200d`; no merge or publication):
+
+- **The menu states left as the game's own drawing: toured and claimed, in the order asked.**
+  1. **MENU8's rename grid from Setup (done).** Two new kinds, each a `ROOD_PC` `PC_CLASSIC` emit-only range in
+     21A0.c (MENU8 has no Zig port; not a vsstring region): **`rename_grid`** (`_renderRenameMenu`: the Cross / Square /
+     Triangle buttons and the pad's sprite, the four commands' bars of 12 shaded lines fading by their counters, the
+     commands' words, the name typed, at rest the L1 / R1 arrows and the name's window, the character table, the
+     background's four polygons; about 250 packets in four slots) and **`rename_box`** (`_highlightSelection`: the
+     character under the hand, the name's pen). Their record carries the game's words as charset codes (no game text
+     in the plugin). BATTLE's hand is claimed on 8 too (the rename's Yes / No, `_confirmationScreen`; the Option
+     screen's own menus draw none). Primitives widened (Extensions.md): `d.packet` takes 1..9 words (the grid's
+     packets are one tag each: a draw mode, a shaded line, a draw mode; a draw mode and a shaded polygon);
+     `d.font_text` takes a table of codes and a fixed step. `PC_CLASSIC_CAPTURE` 160 -> 384 (the grid's packets).
+     Tour (`tour_rename`, in `tour_setup`): Rename, the first weapon, Yes; the grid walked past every edge, two
+     characters typed, one taken back, the pen moved (L1, R1); the commands walked round, Insert, Delete and Back taken
+     (the bars' fades), Right back; Start: its Yes / No walked, Cross (the grid slides in again); Start, the third row
+     (no change): out to Setup's commands. The gate was shown to catch a change (the table one pixel right, the box's
+     colour one step: every frame mismatched). Proofs: the grid at rest, its Yes / No at rest.
+  2. **MENU7's save list after Storage (toured; its own drawing stays the game's).** `tour_storage` now walks the
+     first prompt's Yes / No, then at MENUD's top Cross: MENU7's warning (its Yes / No walked), Yes: the save list (the
+     cards, card 1's files walked, out to the warning again), No: left, nothing saved. BATTLE's hand is claimed on 7
+     (`BATTLE_CURSOR_SCREENS`: MENU7's only `vs_battle_drawCursor` is the container's `_promptYesNo`). The save list
+     itself (`_drawFileMenu`, `_drawFileMenuElement`: panels, files, location pictures, play time, HP / MP, the hand,
+     the progress animations) **cannot be claimed by this method**: it draws with `DrawPrim` at once (and swaps CLUTs
+     with `LoadImage`), never through the ordering table, so there is no packet range to capture or suppress. It needs
+     an immediate-draw capture of its own (later work). Proofs: the warning's Yes / No and the save list at rest
+     (shared rows and command title; the hand).
+  3. **Setup's OK in Assemble and Combine, Loot's discard picker (done).** `tour_setup_picks` (in `tour_setup`'s
+     workshop, rewound after): two weapons not equipped taken apart (ui_workshop_smoke's `o_disassemble`), then
+     Assemble with a blade and a grip picked, Combine (Blades) with two blades picked: the OK beside them
+     (`_drawOk`), walked, left. `tour_loot`: Organize inventory's misc row, Discard, the amount picker walked;
+     `discard_count` now claimed on Loot (12). Proofs at both OKs and at Loot's picker.
+  4. **BATTLE's hand on Battle Abilities and Data (done).** Battle Abilities' learned list (MENU2's
+     `vs_battle_drawCursor`) was already walked by `tour_abilities`: claimed on 3, proof at its first type's list at
+     rest. On Data (7) the hand is the container's prompts' (item 2); the Data screen's own file menu draws its hand
+     by `DrawPrim` (as item 2).
+- **Counts** (classic_parity's menus game, GL; 126 scenarios): `rename_grid` 283 frames, `rename_box` 380,
+  `menu_cursor` 14,915 (BATTLE's hand now on 3, 7, 8 too), `ok_mark` 300 (Assemble's and Combine's OK +126),
+  `discard_count` 176 (Loot's picker +54), `menu_row` 204,387; 0 mismatches, 0 skips, no waivers. 41 menus
+  state-parity marks (8 new), all 120/120.
+- **Bugs found and fixed on the way:** `rename_box`'s Lua field was first named `box`: `fill_menu` nils its keys
+  list for every element, so text_frame's own `box` went nil and its draw failed at the opening (now `highlight`; a
+  kind's field must not reuse another kind's top-level name). The grid's record is zeroed first (its words' tails
+  were stack bytes, which state parity saw in the kept element: `pc_hud_fields` statics are in the snapshot's bss).
+  A proof whose screen Triangle does not leave (the rename grid, Setup's two picks, MENU2's list) needs `after=`.
+- **Verification:** `--arch 64` and `--battle` builds. Docker `make commit-check` (a copy of the tree; MENU8 touched):
+  **All files match** (the formatter's rewrites of other files discarded). `run.py -j 1 --cpu-jobs 1` (nice 10)
+  `classic_parity hud classic cutscene_player_smoke widescreen_smoke` plus every suite matching `manual ui_ menu
+  prompts button options items equip status workshop container loot` (40 suites): **GL 39/40, then classic_parity
+  again: pass; Vulkan 39/40, classic_parity again twice: the first stopped (rood.classic disabled), the second
+  passed.** Each classic_parity failure was a draw over its CPU budget (4 ms) in the menus game, not a mismatch:
+  2, 2 and 6 "budget exceeded" faults at the first call of an ordinary draw (menu_row, target_row, the stat pages:
+  0 instructions run, so the time went before the draw's first instruction), after Setup's warp to the workshop;
+  2 skips each time (or 5 faults in 10 s: the plugin disabled, the tour's REPL failing). Of seven classic_parity runs of this
+  branch three had faults, four none (the last GL one too); main's code passed its one Vulkan run here with none.
+  The cause is not found (the machine was shared; main's runs elsewhere were 40/40).
+- **Left:** MENU7's file menu (Data's SAVE / LOAD and the save list after Storage): an immediate-draw capture, not the
+  emit-only range; the rename grid reached from Assemble (a new weapon's name) is the same draw, claimed, untoured on
+  that route; MENUF (not asked for).
+
 2026-10-30, evening (branch `classic-lua-panels2`, from main `d91b54af`; no merge or publication):
 
 - **Phase 3, the screens' own panels after Items piece 2's kinds: Storage's, Setup's and Loot's, done.** Each a
@@ -192,8 +293,9 @@ follows `2026-10-18-lua-visible-layer.md` (F1-F3, done),
   the encyclopaedia's lists and descriptions, `vs_battle_renderTextRaw`), the rank (text box 0), the foe viewer,
   the button strip (`vs_mainmenu_renderButton`). Map: MENU5's 3D map, compass, icons, door and connecting area
   names (`_renderScreen` and friends, raw text), its controls help (`_drawUIControls`, the button strip), the room
-  name (text box 0). Data: MENU7's whole file menu (`_drawFileMenu`: the card and file panels, its own Yes / No
-  elements, `vs_battle_drawCursor`, the play time, HP / MP, the progress animations). Setup: ~~the stat panels~~
+  name (text box 0). Data: ~~MENU7's whole file menu (`_drawFileMenu`: the card and file panels, its own Yes / No
+  elements, `vs_battle_drawCursor`, the play time, HP / MP, the progress animations)~~ (Lua since the 2026-10-30 late-night entry: `file_menu`,
+  `file_element`). Setup: ~~the stat panels~~
   (Lua since the afternoon entry above), ~~MENUC's own cursor
   (`vs_battle_drawCursor`)~~ (Lua, the afternoon entry), the OK mark; the information box is text box 7 (Lua already). Storage: MENUD's item
   action menu, ~~status view and stat panels~~ (Lua since the afternoon entry), `renderTabNavigation`'s counts, the button strips, raw text; MENU7's
@@ -1309,6 +1411,39 @@ the primitive buffers, the OT, and the scratch pointer.
 
 This proves the Lua path changes no game state: animation steps, cursors,
 sounds and card bytes. It runs once per kind or screen, at its flip.
+
+### 3.4a Immediate draws (2026-10-30, the worker's calls)
+
+Some screens draw at once (`DrawPrim`, `LoadImage`, `StoreImage`) instead of through the ordering table: MENU7's
+file menu (`_drawFileMenu`, `_drawFileMenuElement`). An emit-only range cannot claim them: there are no packets
+left in the frame's buffer to walk or suppress, they are already drawn. The design chosen:
+
+- **A range around the call, as `PC_CLASSIC` is** (`PC_CLASSIC_IMMEDIATE`, `classic_hook.h`): `begin(kind)`,
+  the statement, `site(kind, record)`. The statement always runs (emit-only: whatever state it steps is stepped).
+- **The recorder sits in the PC's libgpu** (`boot_sdk.c`'s `DrawPrim`, `LoadImage`, `StoreImage` call weak hooks
+  into `classic_parity.c`): every call inside an open range is recorded in order, a packet as its words (the same
+  normalised form as an ordering-table packet's), an upload as GP0's own copy command `{0xA0000000, xy, wh, a hash
+  of its pixels}`, a read as `{0xC0000000, xy, wh}`. That list is the kind's capture and is compared by the same
+  `pc_classic_compare`; so the CLUT swaps the location pictures depend on are part of parity, not around it.
+- **Held back, not undone.** When the range opens the bridge asks whether a claim on the kind is honoured (the same
+  test `pc_hud_record` makes); if so the recorder keeps the draws and uploads (copies of their words and pixels)
+  instead of doing them. At `site` the claim draws (into the arena past `vs_scratch.unk0`, linked to no table,
+  each packet `pc_draw_packet`ed as it is made, in the order made, the arena given back) and the held ones are
+  dropped; with no claim, or one that fails, they are done after all, in their order. Reads are always done (the
+  game reads the pixels). More than the recorder can hold (384 entries, 16 KB of pixels) gives up holding for the
+  rest of the range and the game draws that frame. In the parity mode nothing is held.
+- **The OT path is untouched**: `classic_packets` and its walks are as they were; the command switch is shared
+  (`emit_command`), the immediate executor (`immediate_packets`) runs the commands first to last (nothing to
+  reverse) and adds three commands: `d.image_store` / `d.image_load` / `d.image_restore` (VRAM transfers done in
+  their place among the packets) and `d.text_glyph` (the next packet reported to ui_text as a printer's glyph:
+  MENU7's printer reports its own with `pc_text_glyph`, so the upgraded font sets Lua's the same).
+- **Records filled by the game side**, before and after the statement as the draw reads them (the blend factors,
+  the hand's saturation step, the printer's blink step before; places after the slide), the words as codes, the
+  two location CLUTs as data (`d.image_load`'s pixels): no game text or art in the plugin.
+- **Not held for**: the modern Data screen (MENU7's own gate, `_pcNoDraw`, runs first), the game over's file menu
+  (not toured), any screen but currentMenu 7.
+- Known limit: a fallback that replays held glyphs (a failing draw, a frame the recorder gave up on) replays them
+  from copies, so ui_text's line layout misses them for that frame (their glyphs placed cell by cell).
 
 ### 3.5 Reporting
 

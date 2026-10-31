@@ -35,6 +35,9 @@ extern int pc_specular, pc_reflection_bounces, pc_auto_height;
 extern float pc_specular_strength, pc_roughness_bias, pc_bump_strength, pc_auto_height_strength, pc_bump_occlusion,
     pc_env_specular, pc_baked_energy, pc_relief_aniso, pc_relief_footprint, pc_relief_baked, pc_relief_indirect,
     pc_relief_reach, pc_relief_overhead;
+/* The material preview's look (material_preview.cpp). */
+extern float pc_material_preview_size, pc_material_preview_light, pc_material_preview_yaw, pc_material_preview_pitch,
+    pc_material_preview_ambient, pc_material_preview_swatch;
 int pc_material_active(void);
 /* Weak: absent in some builds. */
 extern int pc_vk_active __attribute__((weak));
@@ -157,6 +160,13 @@ Key keys[] = {
     { "relief_indirect", FLOAT_KEY, &pc_relief_indirect, nullptr, 0, false },
     { "relief_reach", FLOAT_KEY, &pc_relief_reach, nullptr, 0, false },
     { "relief_overhead", FLOAT_KEY, &pc_relief_overhead, nullptr, 0, false },
+    /* The material preview's sphere (Window > Material preview; material_preview.cpp). */
+    { "material_preview_size", FLOAT_KEY, &pc_material_preview_size, nullptr, 0, false },
+    { "material_preview_light", FLOAT_KEY, &pc_material_preview_light, nullptr, 0, false },
+    { "material_preview_yaw", FLOAT_KEY, &pc_material_preview_yaw, nullptr, 0, false },
+    { "material_preview_pitch", FLOAT_KEY, &pc_material_preview_pitch, nullptr, 0, false },
+    { "material_preview_ambient", FLOAT_KEY, &pc_material_preview_ambient, nullptr, 0, false },
+    { "material_preview_swatch", FLOAT_KEY, &pc_material_preview_swatch, nullptr, 0, false },
 };
 const int key_count = sizeof keys / sizeof keys[0];
 

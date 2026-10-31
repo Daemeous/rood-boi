@@ -1,0 +1,25 @@
+{
+  "format": 1,
+  "name": "standard_surface",
+  "about": "The standard surface master (pc/docs/plans/2026-10-30-master-materials-plan.md): the material planes read by material.glsl and lit by scaled.frag. Its five parameters are the catalog's own fields; every preset and entry is an instance of it. A master generated from a node graph (part 4) is one more file here with its own shader and parameters.",
+  "shader": "builtin:standard_surface",
+  "parameters": [
+    { "name": "roughness", "type": "number", "default": 1, "min": 0, "max": 1, "label": "Roughness", "group": "Surface",
+      "tip": "0 mirror, 1 fully rough (a roughness map overrides it per texel)" },
+    { "name": "specular", "type": "number", "default": 0, "min": 0, "max": 1, "label": "Specular", "group": "Surface",
+      "tip": "Fraction of a dielectric's reflectance (4% at normal incidence); keep it subtle" },
+    { "name": "metal", "type": "number", "default": 0, "min": 0, "max": 1, "label": "Metal", "group": "Surface",
+      "tip": "0 stone, wood, glass; 1 bare metal (tinted reflections, no diffuse light)" },
+    { "name": "auto_height", "type": "bool", "default": false, "label": "Estimate the height from the colours", "group": "Relief",
+      "tip": "auto_height: bumps from the texture's luminance (dark low, bright high) where it has no height.png. Global switch and strength: Graphics > Lighting quality" },
+    { "name": "bump", "type": "number", "default": 1, "min": 0, "max": 4, "label": "Relief", "group": "Relief",
+      "tip": "bump: this surface's multiple of the global relief depth (bump_strength)" }
+  ],
+  "slots": [
+    { "name": "texel", "label": "Game texel" },
+    { "name": "roughness", "label": "Roughness map", "channel": "roughness" },
+    { "name": "height", "label": "Height map", "channel": "height" },
+    { "name": "metal", "label": "Metal map", "channel": "metal" },
+    { "name": "emissive", "label": "Emissive map", "channel": "emissive" }
+  ]
+}

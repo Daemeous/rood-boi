@@ -926,7 +926,7 @@ def main():
     parser.add_argument("--card", default=str(default_save()))
     parser.add_argument("--out", help="logs and reports (default pc/build/tests/classic_parity)")
     parser.add_argument("--renderer", choices=["null", "gl", "vulkan"], default="null")
-    parser.add_argument("--kind", default="status,chain,gauges,figure,status_icons,battle_mode,ability_icons,buff,damage,actor_word,timer,emote,text_frame,text_band,box_text,image,target_row,target_line,target_marker,menu_row,menu_cursor,menu_command,menu_tabs,menu_background,option_value,items_category,items_status_button,equip_stats,dp_pp_bars,gem_slots,stat_page,ok_mark,storage_buttons,storage_counts,loot_capacities,discard_count", help="the kinds to check (comma-separated)")
+    parser.add_argument("--kind", default="status,chain,gauges,figure,status_icons,battle_mode,ability_icons,buff,damage,actor_word,timer,emote,text_frame,text_band,box_text,image,target_row,target_line,target_marker,menu_row,menu_cursor,menu_command,menu_tabs,menu_background,option_value,items_category,items_status_button,equip_stats,dp_pp_bars,gem_slots,stat_page,ok_mark,storage_buttons,storage_counts,loot_capacities,discard_count,rename_grid,rename_box,file_menu,file_element", help="the kinds to check (comma-separated)")
     parser.add_argument("--candidate", action="store_true", help="explicitly opt in ability_icons before its default is gated")
     args = parser.parse_args()
     if not pathlib.Path(args.card).exists():
@@ -1219,7 +1219,9 @@ ITEMS_PANELS = ("items_category", "items_status_button",  # the Items screen's o
                 "stat_page")                                # the class / affinity / type table
 SCREEN_PANELS = ("ok_mark", "storage_buttons",  # the other screens' own: Setup's and Storage's OK mark, Storage's
                  "storage_counts", "loot_capacities",  # button strip and counts, Loot's capacities strip, and a misc
-                 "discard_count")  # item's discard amount (Items, Storage: not at the Items list's rest)
+                 "discard_count",  # item's discard amount (Items, Storage: not at the Items list's rest), the rename
+                 "rename_grid", "rename_box",  # grid and its highlight boxes (MENU8 from Setup's Rename), MENU7's file
+                 "file_menu", "file_element")  # menu (drawn at once: Data's SAVE / LOAD, the save list after Storage)
 PICKER_WALK = ("up",) * 3 + ("left",) + ("up",) * 2 + ("left",) + ("up",) + ("right",) * 2 + ("down",) * 2
 # (a misc item's discard amount picker: the count up by ones, tens, hundreds (to its maximum), back down)
 MENUS = ("menu_row", "menu_cursor", "menu_command", "menu_tabs", "menu_background",  # MAINMENU's shared frame
@@ -1780,13 +1782,15 @@ SKILL_PROOFS = (  # (the top level's command, the screen, where, its kinds at re
     (0, MAGIC_MENU, "the Magic schools at rest", ("menu_row", "menu_cursor", "menu_command")),
     (1, ARTS_MENU, "the Break Arts list at rest", ("menu_row", "menu_cursor", "menu_command")),
     (2, ABILITIES_MENU, "the Battle Abilities types at rest", ("menu_row", "menu_cursor", "menu_command")),
+    (2, ABILITIES_MENU, "the Battle Abilities first type's list at rest (its own hand)",
+     ("menu_row", "menu_cursor", "menu_command"), True),
 )
 
 
 def skills_proofs(g, symbols, check, state_proof):
     """Magic, Break Arts, Battle Abilities (their fixtures from the tours still learned): each opened to its first
     list at rest, the default and the fallback of each kind there, the state proof (§3.4) from that mark."""
-    for command, screen, label, kinds in SKILL_PROOFS:
+    for command, screen, label, kinds, *into in SKILL_PROOFS:
         g.rewind()
         for _ in range(8):  # (out of whatever the last mark had open)
             if g.read(symbols["vs_battle_menuState"], 1)[0] == 0x3F:
@@ -1795,12 +1799,23 @@ def skills_proofs(g, symbols, check, state_proof):
         g.until(lambda: g.read(symbols["vs_battle_menuState"], 1)[0] == 0x3F, guard=600, what="the menu closed")
         g.run(30)
         screen_open(g, symbols, command, screen)
+        if into:  # (Battle Abilities: its first type's list, MENU2's own hand: vs_battle_drawCursor)
+            g.run(40)
+            g.press("circle", vsyncs=3, settle=20)
+            menu_wait(g, f"{label}: the list", lambda: any(i >= 20 and sel for i, _, sel in live_rows(g)))
+            g.run(60)
         g.pause()
         g.mark()
         for kind in kinds:
             g.rewind()
             default_and_fallback(g, kind, check)
         state_proof(label, kinds)
+        if into:  # (the mark again with the menu closed: Triangle does not leave MENU2's list, Cross does)
+            g.rewind()
+            g.press("cross", vsyncs=3, settle=30)
+            menu_close(g, symbols)
+            g.pause()
+            g.mark()
 MANUAL_COMMAND, MANUAL_MENU, MANUAL_TOPICS = 9, 10, 14  # the top level's QUICK MANUAL row (menuFlags bit 9),
 MANUAL_LIST, MANUAL_PAGE = 2, 5                         # its currentMenu (MENUE), topics; MENUE's _showMenuState
 MENUE = {}  # MENUE's statics (ui_manual_smoke.menue_symbols)
@@ -2392,6 +2407,26 @@ def data_open(g, symbols):
     items_ready(g, symbols)
 
 
+def data_files_open(g, symbols, state=DATA_SAVE):
+    """Data's SAVE (or LOAD), card 1's files at rest (MENU7's file menu: its frame and panels, drawn at once)."""
+    data_open(g, symbols)
+    if not any(i == DATA_FIRST_ROW + (state == DATA_LOAD) and sel for i, _, sel in live_rows(g)):
+        g.press("down", vsyncs=3, settle=8)
+    press_until(g, "circle", lambda: data_state(g, symbols) == state)
+    g.run(90)  # (the cards' rows come in, the cards are read)
+    g.press("circle", vsyncs=3, settle=8)  # card 1's files
+    g.run(90)
+    g.press("down", vsyncs=3, settle=8)
+    g.run(30)
+
+
+def data_files_leave(g, symbols):
+    """From a card's files: Cross back to Data's rows, the menu closed (nothing saved or loaded)."""
+    press_until(g, "cross", lambda: data_state(g, symbols) == DATA_ROWS, tries=6, frames=60)
+    items_ready(g, symbols)
+    menu_close(g, symbols)
+
+
 def tour_data(g, symbols, toured, frames):
     """Data (MENU7, currentMenu 7) through the original menus, nothing saved or loaded: opened; its rows walked
     past both ends; SAVE: the memory cards walked, card 1's files walked down past the last page and back (the
@@ -2490,6 +2525,101 @@ def workshop_setup_open(g, symbols):
     setup_open(g, symbols)
 
 
+def workshop_session(g, symbols):
+    """ui_workshop_smoke's Session on this game (its original-menu helpers: o_setup, o_command, o_pick, ...)."""
+    import ui_workshop_smoke
+    bag = ui_workshop_smoke.Session.__new__(ui_workshop_smoke.Session)
+    bag.g, bag.sym, bag.name = g, symbols, "classic_parity"
+    return bag
+
+
+def setup_loose_parts(g, symbols):
+    """Setup in a workshop (workshop_setup_open), closed; two weapons not equipped taken apart (Disassemble, Yes:
+    ui_workshop_smoke's o_disassemble): loose blades and grips for Assemble's and Combine's two picks. Returns the
+    Session."""
+    workshop_setup_open(g, symbols)
+    menu_close(g, symbols)
+    bag = workshop_session(g, symbols)
+    for _ in range(2):
+        b = bag.bag()
+        record = next(i for i in b.listed(0) if not b.weapon(i)["equipped"])
+        bag.o_disassemble(False, record)
+    return bag
+
+
+def setup_two_picks(bag, command):
+    """From the menu closed: Setup, Assemble (command 0: a loose blade and grip) or Combine (5: Blades, its first two
+    blades): both picked, the OK beside them (MENUC _drawOk)."""
+    bag.o_setup()
+    bag.o_command(command)
+    if command == 5:
+        bag.wait_ready(want=22)
+        bag.nav([20, 21, 22], 20, "Blades")
+        bag.press("circle", settle=8)
+        bag.wait_ready(want=12, limit=900)
+        first, second = bag.bag().combine_pick(1, [])[1:3]
+        bag.nav([11, 12], 11, "First")
+        bag.press("circle", settle=8)
+        bag.o_pick(bag.bag().combine_pick(1, []), first)
+        bag.wait_ready(want=12)
+        bag.press("circle", settle=8)  # Second (the cursor moved there)
+        bag.o_pick(bag.bag().combine_pick(1, [first]), second)
+    else:
+        bag.wait_ready(want=12)
+        blades, grips = bag.bag().blade_pick(), bag.bag().grip_pick()
+        bag.nav([11, 12], 11, "Blade")
+        bag.press("circle", settle=8)
+        bag.o_pick(blades, blades[1])
+        bag.wait_ready(want=12)
+        bag.press("circle", settle=8)  # the grip row (the cursor moved there)
+        bag.o_pick(grips, grips[1])
+    bag.wait_ready(want=12)
+    bag.g.run(30)
+
+
+def setup_two_picks_open(g, symbols, command):
+    """Setup in a workshop, two weapons taken apart, Assemble (0: a blade and a grip) or Combine, Blades (5: two
+    blades) picked: the OK at rest. Returns the bag as it was (inventory, indices: loot_restore)."""
+    saved = (g.read(symbols["vs_main_inventory"], INVENTORY_BYTES), g.read(symbols["vs_main_inventoryIndices"],
+                                                                            INDICES_BYTES))
+    setup_two_picks(setup_loose_parts(g, symbols), command)
+    return saved
+
+
+def tour_setup_picks(g, symbols, toured, frames):
+    """Setup's two-pick states (in tour_setup's workshop; the bag rewound after): two weapons taken apart; Assemble:
+    a blade and a grip picked (the OK), the rows walked, Cross back through the picks; Combine, Blades: two blades
+    picked (the OK), walked, Cross back; each left to the commands."""
+    def walk():
+        for button in ("down",) * 6 + ("up",) * 6:
+            g.press(button, vsyncs=3, settle=4)
+        items_ready(g, symbols)
+
+    def out():
+        for _ in range(8):
+            if setup_state(g, symbols) == SETUP_COMMANDS and 15 in items_live(g, symbols):
+                items_ready(g, symbols)
+                return
+            g.press("cross", vsyncs=3, settle=12)
+            items_ready(g, symbols)
+        raise RpcError(f"Setup: never back on the commands (state {setup_state(g, symbols)})")
+
+    menu_close(g, symbols)
+    bag = workshop_session(g, symbols)
+    for _ in range(2):
+        b = bag.bag()
+        bag.o_disassemble(False, next(i for i in b.listed(0) if not b.weapon(i)["equipped"]))
+    for command, name in ((0, "Assemble"), (5, "Combine, Blades")):
+        before = frames()
+        setup_two_picks(bag, command)
+        walk()
+        out()
+        menu_close(g, symbols)
+        print(f"Setup: {name}: two picks toured", flush=True)  # (progress)
+        toured(f"Setup: {name}: two picked (the OK), walked, out", before)
+    setup_open(g, symbols)
+
+
 def setup_select(g, symbols, row_id):
     """Down until MENUC's row `row_id` is the selected one."""
     for _ in range(12):
@@ -2536,6 +2666,122 @@ def setup_repair_open(g, symbols):
     g.run(40)
 
 
+RENAME_MENU = 8  # currentMenu while MENU8's rename grid is up (Setup's Rename, Yes)
+
+
+def rename_state(g):
+    """MENU8's rename grid: (shown, its slide step: 0 at rest, 10 out)."""
+    return ovl(g, "menu8", "_showRenameInterface", 1), ovl(g, "menu8", "_animStep", 1, signed=False)
+
+
+def rename_column(g):
+    """The hand on the grid: (column, row) (_renameMenuInput's statics)."""
+    return ovl(g, "menu8", "_charTableColumn", 1), ovl(g, "menu8", "_charTableRow", 1)
+
+
+def rename_wait(g, symbols, what="the rename grid at rest"):
+    menu_wait(g, what, lambda: current_menu(g, symbols) & 0x3F == RENAME_MENU and rename_state(g) == (1, 0))
+
+
+def setup_rename_open(g, symbols):
+    """Setup in a workshop, Rename (row 13), the first weapon, Yes: MENU8's rename grid at rest (its buttons, bars,
+    words, name, arrows, table and background; the character's and the name's highlight boxes; the hand)."""
+    workshop_setup_open(g, symbols)
+    setup_select(g, symbols, 13)
+    g.press("circle", vsyncs=3, settle=10)
+    items_ready(g, symbols)
+    g.press("circle", vsyncs=3, settle=10)  # (the first weapon: its Yes / No)
+    menu_wait(g, "Rename's Yes / No", lambda: any(i == 29 and sel for i, _, sel in live_rows(g)))
+    press_until(g, "circle", lambda: current_menu(g, symbols) & 0x3F == RENAME_MENU, frames=60)
+    rename_wait(g, symbols)
+    g.run(40)
+
+
+def setup_rename_confirm_open(g, symbols):
+    """The rename grid (setup_rename_open), Start: its Yes / No at rest (rows 20..22, BATTLE's hand as menu_cursor)."""
+    setup_rename_open(g, symbols)
+    press_until(g, "start", lambda: rename_state(g)[0] == 0, frames=10)
+    menu_wait(g, "the rename's Yes / No", lambda: any(i == 22 for i, _, _ in live_rows(g)) and rename_state(g)[1] == 10)
+    g.run(60)
+
+
+def rename_leave(g, symbols):
+    """From the rename grid or its Yes / No: Start, the third row (no change), out to Setup's commands; the menu
+    closed."""
+    if rename_state(g)[0]:
+        press_until(g, "start", lambda: rename_state(g)[0] == 0, frames=10)
+    menu_wait(g, "the rename's Yes / No", lambda: any(i == 22 for i, _, _ in live_rows(g)) and rename_state(g)[1] == 10)
+    g.run(30)
+    for _ in range(4):
+        if any(i == 22 and sel for i, _, sel in live_rows(g)):
+            break
+        g.press("down", vsyncs=3, settle=6)
+    g.press("circle", vsyncs=3, settle=10)
+    menu_wait(g, "Setup's commands after the rename", lambda: current_menu(g, symbols) & 0x3F == SETUP_MENU
+              and setup_state(g, symbols) == SETUP_COMMANDS)
+    items_ready(g, symbols)
+    menu_close(g, symbols)
+
+
+def tour_rename(g, symbols, toured, frames):
+    """MENU8's rename grid from Setup (Rename, the first weapon, Yes; the save room's state rewound to after by
+    tour_setup): the grid walked across past both edges and down past both; two characters typed, one taken back,
+    the pen moved (L1, R1); left off the grid onto the commands, walked past both ends, Insert, Delete and Back
+    each taken (the bars' fades), Right back onto the grid; Start: its Yes / No walked, Cross (back to the grid,
+    sliding in again); Start, the third row (no change), out to Setup's commands."""
+    def press(button, settle=4):
+        g.press(button, vsyncs=3, settle=settle)
+
+    before = frames()
+    setup_select(g, symbols, 13)
+    press("circle", settle=10)
+    items_ready(g, symbols)
+    press("circle", settle=10)
+    menu_wait(g, "Rename's Yes / No", lambda: any(i == 29 and sel for i, _, sel in live_rows(g)))
+    press_until(g, "circle", lambda: current_menu(g, symbols) & 0x3F == RENAME_MENU, frames=60)
+    rename_wait(g, symbols)
+    toured("Setup: Rename, the grid in", before)
+    before = frames()
+    for button in ("right",) * 15 + ("down",) * 10 + ("up", "left", "circle", "circle", "cross", "l1", "r1", "r1"):
+        press(button)
+    if rename_column(g) != (0, 0):
+        raise RpcError(f"the rename grid: the hand at {rename_column(g)}, not (0, 0)")
+    toured("Setup: Rename, the grid walked, typed, taken back, the pen moved", before)
+    before = frames()
+    press("left")  # (off the grid: the commands, the hand on Delete)
+    for button in ("down",) * 5 + ("up",) * 7:  # (round both ways; up to OK at the top)
+        press(button)
+    for row in (3, 2, 1):  # Insert, Delete, Back (from OK at the top)
+        for _ in range(row):
+            press("down")
+        press("circle", settle=8)
+        for _ in range(row):
+            press("up")
+    press("right", settle=8)
+    g.run(20)
+    toured("Setup: Rename, the commands walked, Insert / Delete / Back, back on the grid", before)
+    before = frames()
+    press_until(g, "start", lambda: rename_state(g)[0] == 0, frames=10)
+    menu_wait(g, "the rename's Yes / No", lambda: any(i == 22 for i, _, _ in live_rows(g)) and rename_state(g)[1] == 10)
+    g.run(20)
+    for button in ("down",) * 3 + ("up",) * 3:
+        press(button, settle=6)
+    press("cross", settle=10)
+    rename_wait(g, symbols, "the rename grid again")
+    toured("Setup: Rename, its Yes / No walked, Cross: the grid again", before)
+    before = frames()
+    press_until(g, "start", lambda: rename_state(g)[0] == 0, frames=10)
+    menu_wait(g, "the rename's Yes / No", lambda: any(i == 22 for i, _, _ in live_rows(g)) and rename_state(g)[1] == 10)
+    g.run(20)
+    press("down", settle=6)
+    press("down", settle=6)
+    press("circle", settle=10)
+    menu_wait(g, "Setup's commands after the rename", lambda: current_menu(g, symbols) & 0x3F == SETUP_MENU
+              and setup_state(g, symbols) == SETUP_COMMANDS)
+    items_ready(g, symbols)
+    toured("Setup: Rename, no change, out to the commands", before)
+
+
 def loot_leave_open(g, symbols):
     """The loot menu (loot_open), Cross: leave's Yes / No at rest (MENUB's own hand: vs_battle_drawCursor)."""
     loot_open(g, symbols)
@@ -2549,8 +2795,9 @@ def tour_setup(g, symbols, toured, frames):
     save room's state rewound to after; ui_workshop_smoke's bag: gems, gem slots, damage), nothing changed: opened; its commands walked past both ends; Assemble:
     the blade's and the grip's lists walked; Gems: Weapons, a weapon's gem slots, a slot's gem list, Shields'
     list; Disassemble: a weapon's Yes / No (Cross); Rename: a weapon's Yes / No (Cross); Repair's Yes / No
-    (Cross); Combine: its categories, the blades' first pick list; each left with Cross; closed. Every list walked
-    is paged with Square after (the stats' table, where one is up)."""
+    (Cross); Combine: its categories, the blades' first pick list; each left with Cross; the rename grid
+    (tour_rename: MENU8, Yes on Rename's); closed. Every list walked is paged with Square after (the stats' table,
+    where one is up)."""
     def press(button, settle=6):
         g.press(button, vsyncs=3, settle=settle)
         items_ready(g, symbols)
@@ -2607,6 +2854,9 @@ def tour_setup(g, symbols, toured, frames):
         commands()
         print(f"Setup: {name} toured", flush=True)  # (progress)
         toured(f"Setup: {name}", before, command=row)
+    tour_rename(g, symbols, toured, frames)
+    print("Setup: the rename grid toured", flush=True)  # (progress)
+    tour_setup_picks(g, symbols, toured, frames)
     before = frames()
     menu_close(g, symbols)
     toured("Setup closed", before)
@@ -2709,6 +2959,22 @@ def loot_status_open(g, symbols, category):
     return saved
 
 
+def loot_discard_picker(g, symbols):
+    """In Loot's Organize inventory: the misc category, its first row picked, its actions, Discard: the amount picker
+    (items1.h _discardMenu) at rest."""
+    if not items_to_category(g, symbols, 6):
+        raise RpcError("Loot: Organize inventory never reached the misc category")
+    discard_picker(g, symbols, ("circle", "circle"))  # (picked up, its actions)
+
+
+def loot_discard_open(g, symbols):
+    """Loot's Organize inventory (loot_organize_open), a misc row's Discard: the amount picker at rest. Returns the bag
+    as it was."""
+    saved = loot_organize_open(g, symbols)
+    loot_discard_picker(g, symbols)
+    return saved
+
+
 def loot_leave(g, symbols):
     """From anywhere in the loot menu (Organize inventory, a status view): Cross back to MENUB's list, Cross, leave:
     Yes; the menu closed."""
@@ -2794,11 +3060,23 @@ def tour_loot(g, symbols, toured, frames):
         press("cross", settle=20)
         items_ready(g, symbols)
         views.append(name)
+    print(f"Loot: Organize inventory's status views {views}", flush=True)  # (progress)
+    toured("Loot: a row that does not fit, Organize inventory (its categories round, their status views)",
+           before, views=views)
+    before = frames()  # the misc category, its first row's Discard: the amount picker walked and left
+    loot_discard_picker(g, symbols)
+    for button in PICKER_WALK:
+        press(button, settle=4)
+    press("cross", settle=10)  # (the picker left)
+    g.run(20)
+    items_ready(g, symbols)
+    if any(i >= 32 for i in items_live(g, symbols)):  # (the actions again: Cross to the list)
+        press("cross", settle=10)
+        items_ready(g, symbols)
     press("cross", settle=10)
     loot_input(g, symbols)
-    print(f"Loot: Organize inventory's status views {views}", flush=True)  # (progress)
-    toured("Loot: a row that does not fit, Organize inventory (its categories round, their status views), back",
-           before, views=views)
+    print("Loot: Organize inventory's discard picker toured", flush=True)  # (progress)
+    toured("Loot: Organize inventory, a misc row's Discard: its amount picker walked; back", before)
     before = frames()
     press("circle")
     loot_pick(g, symbols, 30)  # Consolidate
@@ -2826,13 +3104,15 @@ def storage_top(g, symbols, limit=2400):
     g.run(20)
 
 
-def storage_open(g, symbols):
+def storage_open(g, symbols, walk=False):
     """The container opened as the field opens it (RPC container: MENU7's saveContainerMenu), its first prompt
-    answered Yes (rows 0x1E / 0x1F, the shared rows): MENUD's top menu."""
+    answered Yes (rows 0x1E / 0x1F, the shared rows; BATTLE's hand: walked when `walk`): MENUD's top menu."""
     if not g.call("container").get("opened"):
         raise RpcError("Storage: the container did not open")
     menu_wait(g, "MENU7's prompt", lambda: g.read(symbols["vs_battle_submenuStates"] + DATA_MENU, 1)[0] in (1, 5, 12))
     g.run(40)
+    for button in ("down", "up") * 2 if walk else ():
+        g.press(button, vsyncs=3, settle=8)
     if not any(i == 0x1E and sel for i, _, sel in live_rows(g)):
         g.press("up", vsyncs=3, settle=6)
     g.press("circle", vsyncs=3, settle=6)
@@ -2849,6 +3129,51 @@ def storage_store(g, symbols):
         items_ready(g, symbols)
     g.press("circle", vsyncs=3, settle=20)
     items_ready(g, symbols)
+    g.run(30)
+
+
+STORAGE_WARNING, STORAGE_SAVE_LIST = 12, 11  # vs_menu7_saveContainerMenu's states: after MENUD, the warning's Yes /
+# No (_promptYesNo: rows 0x1E / 0x1F, BATTLE's hand), the save list (_showSaveMenu, _drawFileMenu)
+
+
+def storage_warning_wait(g, symbols):
+    """MENU7 after MENUD (Cross at its top): the warning's Yes / No taking input."""
+    menu_wait(g, "MENU7's warning", lambda: current_menu(g, symbols) & 0x3F == DATA_MENU
+              and data_state(g, symbols) == STORAGE_WARNING
+              and any(i in (0x1E, 0x1F) and sel for i, _, sel in live_rows(g)), limit=1200)
+    g.run(30)
+
+
+def storage_save_list_wait(g, symbols):
+    """MENU7's save list after MENUD (the warning's Yes), its cards read."""
+    menu_wait(g, "MENU7's save list", lambda: data_state(g, symbols) == STORAGE_SAVE_LIST, limit=1200)
+    g.run(120)
+
+
+def storage_warning_open(g, symbols):
+    """Storage's top menu (storage_open), Cross: MENU7's warning, its Yes / No at rest (BATTLE's hand)."""
+    storage_open(g, symbols)
+    press_until(g, "cross", lambda: current_menu(g, symbols) & 0x3F == DATA_MENU, frames=60)
+    storage_warning_wait(g, symbols)
+    g.run(30)
+
+
+def storage_save_list_open(g, symbols):
+    """MENU7's warning (storage_warning_open), Yes: the save list at rest (the cards)."""
+    storage_warning_open(g, symbols)
+    g.press("circle", vsyncs=3, settle=10)
+    storage_save_list_wait(g, symbols)
+
+
+def storage_leave(g, symbols):
+    """From MENU7's save list or its warning: Cross to the warning, No: the container left, nothing saved."""
+    if data_state(g, symbols) != STORAGE_WARNING:
+        press_until(g, "cross", lambda: data_state(g, symbols) == STORAGE_WARNING, tries=8, frames=60)
+        storage_warning_wait(g, symbols)
+    if not any(i == 0x1F and sel for i, _, sel in live_rows(g)):
+        g.press("down", vsyncs=3, settle=8)
+    g.press("circle", vsyncs=3, settle=10)
+    g.until(lambda: current_menu(g, symbols) == 0x3F, guard=900, what="the container left")
     g.run(30)
 
 
@@ -2951,8 +3276,8 @@ def tour_storage(g, symbols, toured, frames):
     g.write(symbols["vs_main_settings"] + 1, b"\x00")
     status_view_fixture(g, symbols)  # (rewound after)
     before = frames()
-    storage_open(g, symbols)
-    toured("Storage opened: MENU7's Yes / No, MENUD's top menu", before)
+    storage_open(g, symbols, walk=True)
+    toured("Storage opened: MENU7's Yes / No walked, MENUD's top menu", before)
     before = frames()
     for button in ("down",) * 4 + ("up",) * 4:
         press(button)
@@ -2995,8 +3320,25 @@ def tour_storage(g, symbols, toured, frames):
     toured("Storage: Store, a misc row's Discard: its amount picker walked", before)
     before = frames()
     press_until(g, "cross", lambda: current_menu(g, symbols) & 0x3F == DATA_MENU, frames=60)  # MENUD left: MENU7
-    g.run(60)
-    toured("Storage: Cross at the top: back to MENU7", before)
+    storage_warning_wait(g, symbols)
+    for button in ("down", "up") * 2:  # (BATTLE's hand)
+        press(button, settle=8)
+    toured("Storage: Cross at the top: MENU7's warning, its Yes / No walked", before)
+    before = frames()
+    press("circle", settle=10)  # Yes: MENU7's save list
+    storage_save_list_wait(g, symbols)
+    for button in ("down", "up", "down", "up"):  # the two cards (on card 1 again)
+        press(button, settle=8)
+    press("circle", settle=8)  # card 1's files
+    g.run(90)
+    for button in ("down",) * 17 + ("up",) * 17:
+        press(button, settle=4)
+    press_until(g, "cross", lambda: data_state(g, symbols) == STORAGE_WARNING, tries=8, frames=60)
+    storage_warning_wait(g, symbols)
+    toured("Storage: MENU7's save list after: the cards, card 1's files, out (the warning again)", before)
+    before = frames()
+    storage_leave(g, symbols)
+    toured("Storage: the warning's No: left, nothing saved", before)
     g.rewind()  # (the container never saved: the menu closed, the save room)
 
 
@@ -3012,7 +3354,12 @@ def tour_remaining(g, symbols, toured, frames):
 
 def remaining_proofs(g, symbols, check, frame_kinds, toured_kinds, state_proof):
     """Each remaining screen at rest (screen_proofs): the default and the fallback of every kind it draws there, the
-    state proof from that mark."""
+    state proof from that mark. (Data's file lists first: in the save room, where SAVE is taken.)"""
+    for name, opener in (("Data's SAVE, card 1's files (the file menu)", data_files_open),
+                         ("Data's LOAD, card 1's files (the file menu)",
+                          lambda g, symbols: data_files_open(g, symbols, DATA_LOAD))):
+        screen_proofs(g, symbols, check, frame_kinds, toured_kinds, state_proof, name, opener,
+                      after=lambda g: data_files_leave(g, symbols))
     for name, opener in (("Score's top menu", score_open), ("the Map", map_open), ("the Map's area list", map_list),
                          ("Data's rows", data_open), ("Setup's commands (a workshop)", workshop_setup_open),
                          ("Setup's Assemble, the blades' list (a workshop)", setup_assemble_open),
@@ -3023,11 +3370,26 @@ def remaining_proofs(g, symbols, check, frame_kinds, toured_kinds, state_proof):
                          ("Storage's Store, a misc row's discard amount", storage_discard_open),
                          ("Storage's Store, a grip's status view", lambda g, symbols: storage_status_open(g, symbols, True))):
         screen_proofs(g, symbols, check, frame_kinds, toured_kinds, state_proof, name, opener)
+    parts = []  # (Setup's two picks: two weapons taken apart; the bag put back after, the mark taken again)
+    for name, command in (("Setup's Assemble, two picked and the OK (a workshop)", 0),
+                          ("Setup's Combine, two blades picked and the OK (a workshop)", 5)):
+        screen_proofs(g, symbols, check, frame_kinds, toured_kinds, state_proof, name,
+                      lambda g, symbols, c=command: parts.append(setup_two_picks_open(g, symbols, c)),
+                      after=lambda g: (menu_close(g, symbols), loot_restore(g, parts[-1])))
+    for name, opener in (("Setup's Rename, the rename grid (a workshop)", setup_rename_open),
+                         ("Setup's Rename, the rename grid's Yes / No (a workshop)", setup_rename_confirm_open)):
+        screen_proofs(g, symbols, check, frame_kinds, toured_kinds, state_proof, name, opener,
+                      after=lambda g: rename_leave(g, symbols))
+    for name, opener in (("MENU7's warning after Storage, its Yes / No", storage_warning_open),
+                         ("MENU7's save list after Storage", storage_save_list_open)):
+        screen_proofs(g, symbols, check, frame_kinds, toured_kinds, state_proof, name, opener,
+                      after=lambda g: storage_leave(g, symbols))
     bags = []  # (Organize inventory: MENUB's Items, its category icons; a weapon's and a grip's status views; the
     for name, opener in (  # loot menu left after each, its bag put back: the next proof opens from the field)
             ("Loot's Organize inventory", lambda g, symbols: loot_organize_open(g, symbols)),
             ("Loot's Organize inventory, a weapon's status view", lambda g, symbols: loot_status_open(g, symbols, 0)),
-            ("Loot's Organize inventory, a grip's status view", lambda g, symbols: loot_status_open(g, symbols, 2))):
+            ("Loot's Organize inventory, a grip's status view", lambda g, symbols: loot_status_open(g, symbols, 2)),
+            ("Loot's Organize inventory, a misc row's discard amount", loot_discard_open)):
         screen_proofs(g, symbols, check, frame_kinds, toured_kinds, state_proof, name,
                       lambda g, symbols, o=opener: bags.append(o(g, symbols)),
                       after=lambda g: (loot_leave(g, symbols), loot_restore(g, bags[-1])))

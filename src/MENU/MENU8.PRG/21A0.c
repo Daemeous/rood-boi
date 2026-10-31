@@ -10,6 +10,9 @@
 #include "vs_string.h"
 #include "gpu.h"
 #include <libetc.h>
+#ifdef ROOD_PC
+#include "pc/src/classic/classic_hook.h"
+#endif
 
 static u_char weaponId;
 static char _1 __attribute__((unused));
@@ -154,6 +157,46 @@ static void _renderRenameMenu(int xOffset)
     int counter;
 
     sp18 = (u_int*)psx_get(vs_scratch.unk4) - 1;
+
+#ifdef ROOD_PC
+    /* PC_CLASSIC (classic_hook.h): the grid, from its slide, the command bars' fades
+     * (as the loop below reads them), the arrows' light and step (as the block below
+     * steps them), the name and the game's words. The function runs as it is. */
+    pc_classic_rename_grid pcGrid;
+    void* pcGridFirst = psx_load(void*, (u_int*)0x1F800000);
+    /* (zeroed: the words' tails too; the record is kept) */
+    __builtin_memset(&pcGrid, 0, sizeof pcGrid);
+    {
+        int k;
+        int anim = _nameNavIconAnim;
+        commandString = (char*)(_renderRenameMenuStrings + VS_rename_OFFSET_charTable);
+        pcGrid.x_offset = xOffset;
+        for (k = 1; k < 5; ++k) {
+            pcGrid.fade[k - 1] = k == _selectedControllerAction
+                                   ? 8
+                                   : _controllerActionAnimationCounters[k];
+        }
+        pcGrid.lit = (D_80105DB0 != 0) || (anim != 11);
+        if (pcGrid.lit && ++anim > 11) {
+            anim = 0;
+        }
+        pcGrid.step = anim >> 2;
+        for (k = 0; k < 20; ++k) {
+            pcGrid.name[k] = _stringBuf[k];
+        }
+        for (k = 0; k < 4; ++k) {
+            char* word = (char*)&_renderRenameMenuStrings
+                [_renderRenameMenuStrings[VS_rename_INDEX_insert - k]];
+            for (j = 0; j < 15 && word[j] != vs_char_terminator; ++j) {
+                pcGrid.commands[k][j] = word[j];
+            }
+            pcGrid.commands[k][j] = vs_char_terminator;
+        }
+        for (k = 0; k < 9 * 15; ++k) {
+            pcGrid.table[k / 15][k % 15] = commandString[k];
+        }
+    }
+#endif
 
     vs_mainmenu_renderButton(buttonIdCross, (-xOffset + 16), 50, 0);
     vs_mainmenu_renderButton(buttonIdSquare, (-xOffset + 16), 66, 0);
@@ -310,6 +353,11 @@ static void _renderRenameMenu(int xOffset)
         *sp18 = (psx_to_int(u_long, prim) << 8) >> 8;
         psx_set(vs_scratch.unk0, (u_long*)(prim + 10));
     }
+#ifdef ROOD_PC
+    if (pc_classic_site)
+        pc_classic_site(PC_CLASSIC_SITE_RENAME_GRID, &pcGrid, 0, 0, pcGridFirst,
+            psx_load(void*, (u_int*)0x1F800000));
+#endif
 }
 
 /**
@@ -319,6 +367,11 @@ static void _highlightSelection(int x, int y, int w, int h)
 {
     u_long* temp_t0;
     u_long* temp_t4;
+#ifdef ROOD_PC
+    /* PC_CLASSIC (classic_hook.h): the box, from its place and size. */
+    pc_classic_rename_box pcBox = { x, y, w, h };
+    void* pcBoxFirst = psx_load(void*, (u_int*)0x1F800000);
+#endif
 
     temp_t4 = psx_get(vs_scratch.unk8);
     temp_t0 = psx_get(vs_scratch.unk0);
@@ -336,6 +389,11 @@ static void _highlightSelection(int x, int y, int w, int h)
 
     *temp_t4 = (psx_to_int(u_long, temp_t0) << 8) >> 8;
     psx_set(vs_scratch.unk0, temp_t0 + 10);
+#ifdef ROOD_PC
+    if (pc_classic_site)
+        pc_classic_site(PC_CLASSIC_SITE_RENAME_BOX, &pcBox, 0, 0, pcBoxFirst,
+            psx_load(void*, (u_int*)0x1F800000));
+#endif
 }
 
 /**

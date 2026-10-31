@@ -34,7 +34,7 @@ extern "C" {
  * state slots': "Saved to slot 3", savestate_notice.cpp); name_window, the action's name in
  * text box 7 (5BF94.c vs_battle_displaySceneMessage: an event, not claimed: the game draws it). */
 enum { PC_HUD_NONE = 0, PC_HUD_STATUS = 1, PC_HUD_CHAIN, PC_HUD_BUFF, PC_HUD_DAMAGE, PC_HUD_TRAVEL, PC_HUD_NOTICE,
-    PC_HUD_NAME_WINDOW, PC_HUD_GAUGES, PC_HUD_FIGURE, PC_HUD_STATUS_ICONS, PC_HUD_BATTLE_MODE, PC_HUD_ABILITY_ICONS, PC_HUD_ACTOR_WORD, PC_HUD_TIMER, PC_HUD_EMOTE, PC_HUD_TEXT_FRAME, PC_HUD_TEXT_BAND, PC_HUD_BOX_TEXT, PC_HUD_IMAGE, PC_HUD_TARGET_ROW, PC_HUD_TARGET_LINE, PC_HUD_TARGET_MARKER, PC_HUD_MENU_BACKGROUND, PC_HUD_MENU_COMMAND, PC_HUD_MENU_ROW, PC_HUD_MENU_CURSOR, PC_HUD_MENU_TABS, PC_HUD_OPTION_VALUE, PC_HUD_ITEMS_CATEGORY, PC_HUD_ITEMS_STATUS_BUTTON, PC_HUD_EQUIP_STATS, PC_HUD_DP_PP_BARS, PC_HUD_GEM_SLOTS, PC_HUD_STAT_PAGE, PC_HUD_OK_MARK, PC_HUD_STORAGE_BUTTONS, PC_HUD_STORAGE_COUNTS, PC_HUD_LOOT_CAPACITIES, PC_HUD_DISCARD_COUNT, PC_HUD_KINDS };
+    PC_HUD_NAME_WINDOW, PC_HUD_GAUGES, PC_HUD_FIGURE, PC_HUD_STATUS_ICONS, PC_HUD_BATTLE_MODE, PC_HUD_ABILITY_ICONS, PC_HUD_ACTOR_WORD, PC_HUD_TIMER, PC_HUD_EMOTE, PC_HUD_TEXT_FRAME, PC_HUD_TEXT_BAND, PC_HUD_BOX_TEXT, PC_HUD_IMAGE, PC_HUD_TARGET_ROW, PC_HUD_TARGET_LINE, PC_HUD_TARGET_MARKER, PC_HUD_MENU_BACKGROUND, PC_HUD_MENU_COMMAND, PC_HUD_MENU_ROW, PC_HUD_MENU_CURSOR, PC_HUD_MENU_TABS, PC_HUD_OPTION_VALUE, PC_HUD_ITEMS_CATEGORY, PC_HUD_ITEMS_STATUS_BUTTON, PC_HUD_EQUIP_STATS, PC_HUD_DP_PP_BARS, PC_HUD_GEM_SLOTS, PC_HUD_STAT_PAGE, PC_HUD_OK_MARK, PC_HUD_STORAGE_BUTTONS, PC_HUD_STORAGE_COUNTS, PC_HUD_LOOT_CAPACITIES, PC_HUD_DISCARD_COUNT, PC_HUD_RENAME_GRID, PC_HUD_RENAME_BOX, PC_HUD_FILE_MENU, PC_HUD_FILE_ELEMENT, PC_HUD_KINDS };
 /* gauges: the status display's HP / MP / RISK gauges with their digits and labels, or RISK ZERO (5BF94.c
  * func_800CA2DC's _renderStatBar calls). figure: its five limb sprites, with the game's stance and
  * condition indices. actor_word: a word over an actor (2842C.c's label loop: MISS, func_8009506C; a combat
@@ -68,7 +68,12 @@ enum { PC_HUD_NONE = 0, PC_HUD_STATUS = 1, PC_HUD_CHAIN, PC_HUD_BUFF, PC_HUD_DAM
  * vs_scratch.unk4 - 12). storage_buttons, storage_counts: Storage's (MENUD) button strip (its windows, unk4 - 12; the
  * buttons and words, unk8) and its category counts (the strip's or the top menu's, unk8). loot_capacities: Loot's
  * (MENUB) capacities strip (the bag's counts, its windows, unk4 - 12, buttons and words, unk8). discard_count: a misc
- * item's discard amount (items1.h _discardMenu, MENUD's copy: three digits in the text boxes' font, unk8). The kinds
+ * item's discard amount (items1.h _discardMenu, MENUD's copy: three digits in the text boxes' font, unk8). rename_grid,
+ * rename_box: the rename grid (MENU8 _renderRenameMenu: its buttons, bars, words, name, arrows, table and background;
+ * unk4 - 4, unk4 - 8, unk8, unk8 + 4) and a highlight box on it (_highlightSelection: unk8). file_menu,
+ * file_element: MENU7's file menu (260.c _drawFileMenu: the save list, Data's SAVE / LOAD), drawn at once (no
+ * ordering table: PC_CLASSIC_IMMEDIATE): its frame (part 0 the band's two sprites, part 1 the rest) and each card's or
+ * file's panel (_drawFileMenuElement). The kinds
  * from gauges on
  * are classic-only (no modern drawing: the game's own there); visibility stays the game's. */
 #define PC_HUD_CLASSIC_ONLY(kind) ((kind) >= PC_HUD_GAUGES && (kind) < PC_HUD_KINDS)
@@ -154,6 +159,22 @@ typedef struct {
     struct { int layout, x, container, capacity[2][7], count[2][7]; } storage_counts; /* pc_classic_storage_counts's */
     struct { int x, controls, looking, all, capacity[7], count[7], incoming[7]; } loot; /* loot_capacities' */
     struct { int count, x, y; } discard;              /* discard_count: pc_classic_discard_count's */
+    struct {
+        int x_offset, fade[4], lit, step;
+        unsigned char name[20], commands[4][16], table[9][15];
+    } rename;                                         /* rename_grid: pc_classic_rename_grid's */
+    struct { int x, y, w, h; } rename_box;            /* rename_box: pc_classic_rename_box's */
+    struct {
+        int part, x, cursor_xy, cursor_color, fade, arrow, has_message;
+        unsigned char message[256];
+    } file_menu;                                      /* file_menu: pc_classic_file_menu's */
+    struct {
+        int id, x, y, w, h, selected, unavailable, outer, inner, slot, location, saving, arrow;
+        int slot_state, map, saves, clears, hours, minutes, seconds, hp, hp_max, mp, mp_max;
+        int progress, progress_x, progress_colour;
+        unsigned char text[32], place[48], in_use[32], empty[32], fresh[32];
+        unsigned short cluts[2][256];
+    } file;                                           /* file_element: pc_classic_file_element's */
     int items_slot; /* items_category: the dim icons' slot (bytes from vs_scratch.unk4) */
     int items_step, items_highlight, items_selected, items_on_row; /* items_category: pc_classic_items_category's;
                                                                     * items_status_button: items_step its slide (row),
@@ -194,7 +215,8 @@ extern int pc_hud_classic_status, pc_hud_classic_chain, pc_hud_classic_buff, pc_
     pc_hud_classic_menu_tabs, pc_hud_classic_option_value, pc_hud_classic_items_category,
     pc_hud_classic_items_status_button, pc_hud_classic_equip_stats, pc_hud_classic_dp_pp_bars, pc_hud_classic_gem_slots,
     pc_hud_classic_stat_page, pc_hud_classic_ok_mark, pc_hud_classic_storage_buttons, pc_hud_classic_storage_counts,
-    pc_hud_classic_loot_capacities, pc_hud_classic_discard_count;
+    pc_hud_classic_loot_capacities, pc_hud_classic_discard_count, pc_hud_classic_rename_grid, pc_hud_classic_rename_box,
+    pc_hud_classic_file_menu, pc_hud_classic_file_element;
 /* hud_bridge.c: the glyphs the last box_text element set (6 ints each: code, font table, colour style, x, y,
  * brightness), their count. */
 int pc_hud_box_text_glyphs(const int** out) __attribute__((weak));
@@ -271,13 +293,19 @@ enum {
     PC_HUD_CMD_MENU_INT, /* a number by MAINMENU's printer (vs_mainMenu_renderIntColor: its digits right to left from
                           * x, a '-' before a negative): a the value, color the colour word */
     PC_HUD_CMD_STAT_BAR, /* the game's gauge (vs_battle_renderStatBar): a the colour (0..3), b the fill; x, y */
-    PC_HUD_CMD_PACKET,   /* a primitive of the game's words as given (w of them, 1..4: a, b, c, d; the tag its own),
+    PC_HUD_CMD_PACKET,   /* a primitive of the game's words as given (w of them, 1..15: a, b, c, d, then text's words
+                          * (aligned, in the draw's arena); the tag its own),
                           * linked into the slot as the game's vs_battle_addTile / vs_battle_insertTpage do */
     PC_HUD_CMD_FONT_TEXT, /* the text boxes' font by the game's printer (vs_battle_printVariableWidthFontChar) after
-                           * vs_battle_setFontStyle(a): text its glyph codes (length of them), x, y; linked at the
-                           * slot (the printer's ot + 3) */
+                           * vs_battle_setFontStyle(a): text its glyph codes (length of them), x, y, b a fixed step
+                           * (0: each glyph's width); linked at the slot (the printer's ot + 3) */
     PC_HUD_CMD_BUTTON_BACKGROUND, /* a button's window as MAINMENU's vs_mainmenu_renderButtonBackground builds it (h
                                    * shaded lines, each a draw mode, a POLY_G2 and a draw mode): x, y, w x h */
+    PC_HUD_CMD_IMAGE_STORE,   /* VRAM read (x, y, w x h) into the draw's own buffer (StoreImage: d.image_store) */
+    PC_HUD_CMD_IMAGE_LOAD,    /* VRAM upload (LoadImage: d.image_load): x, y, w x h, text its pixels (w * h * 2 bytes,
+                               * in the draw's arena); with b 1 the draw's buffer (d.image_restore: the last read) */
+    PC_HUD_CMD_TEXT_GLYPH,    /* the next packet is a printer's glyph (d.text_glyph): a its code (-1 a space: reported at
+                               * once), x, y its pen, b the printer's advance (ui_text's pc_text_glyph; immediate draws) */
     PC_HUD_CMD_MENU_ROW  /* a menu row by the game's own emit (58EC.c pc_mainmenu_render_row) on a copy of the row
                           * the menu_row element recorded: x, y its place, w its window's width (a: which of them
                           * are set, bits 1 x, 2 y, 4 w; else the record's) */

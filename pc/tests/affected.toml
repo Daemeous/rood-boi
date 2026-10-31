@@ -424,10 +424,11 @@ paths = ["pc/src/editor_*", "pc/src/library_*", "pc/src/selection*", "pc/src/flo
 suites = ["editor_*", "barn_doors_smoke", "emissive_entries_smoke", "emissive_tools_smoke", "light_actors_smoke", "ctest"]
 
 [[rule]]
-paths = ["pc/src/emissive*", "pc/assets/emissive/*", "pc/assets/materials/*", "pc/shaders/vulkan/emissive.glsl",
+paths = ["pc/src/emissive*", "pc/assets/emissive/*", "pc/assets/materials/*", "pc/assets/materials/masters/*", "pc/shaders/vulkan/emissive.glsl",
          "pc/tools/check_material_maps.py", "pc/src/window_pattern*", "pc/shaders/vulkan/window_pattern*"]
 suites = ["emissive_smoke", "emissive_entries_smoke", "emissive_tools_smoke", "emissive_metadata", "editor_selection_smoke", "editor_undo_smoke",
-          "editor_schema_smoke", "material_smoke", "material_relief_smoke", "material_survey_smoke", "material_catalog"]
+          "editor_schema_smoke", "editor_inspect_smoke", "material_smoke", "material_relief_smoke", "material_survey_smoke",
+          "material_catalog", "material_instances_smoke"]
 
 # Shader hot reload (pc/docs/Vulkan_Renderer.md "Hot reload"): the in-process compiler.
 [[rule]]
@@ -443,7 +444,8 @@ suites = ["shader_reload_smoke", "shader_compiler"]
 [[rule]]
 paths = ["pc/src/material*", "pc/shaders/vulkan/material*", "pc/shaders/vulkan/rt_reflect*",
          "pc/shaders/vulkan/rt_paths.glsl", "pc/tools/material_survey.py"]
-suites = ["material_smoke", "material_relief_smoke", "material_survey_smoke", "material_catalog", "emissive_smoke", "gi_smoke"]
+suites = ["material_smoke", "material_relief_smoke", "material_survey_smoke", "material_catalog", "emissive_smoke", "gi_smoke",
+          "material_instances_smoke", "material_review_smoke", "material_baked_smoke", "editor_inspect_smoke"]
 
 # The catalog's rect_light entries feed the window-light generator as well as
 # runtime emissive masks. The validator declares both inputs in run.py sources

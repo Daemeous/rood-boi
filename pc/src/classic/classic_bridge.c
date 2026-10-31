@@ -37,6 +37,8 @@ typedef char pc_classic_sites_agree[PC_CLASSIC_SITE_GAUGES == PC_CLASSIC_GAUGES
             && PC_CLASSIC_SITE_STORAGE_COUNTS == PC_CLASSIC_STORAGE_COUNTS
             && PC_CLASSIC_SITE_LOOT_CAPACITIES == PC_CLASSIC_LOOT_CAPACITIES
             && PC_CLASSIC_SITE_DISCARD_COUNT == PC_CLASSIC_DISCARD_COUNT
+            && PC_CLASSIC_SITE_RENAME_GRID == PC_CLASSIC_RENAME_GRID && PC_CLASSIC_SITE_RENAME_BOX == PC_CLASSIC_RENAME_BOX
+            && PC_CLASSIC_SITE_FILE_MENU == PC_CLASSIC_FILE_MENU && PC_CLASSIC_SITE_FILE_ELEMENT == PC_CLASSIC_FILE_ELEMENT
         ? 1
         : -1];
 
@@ -116,7 +118,7 @@ void pc_classic_site(int kind, void* record, int x, int y, void* first, void* en
         && (kind != PC_CLASSIC_TIMER || (&pc_photo_hud_timer && pc_photo_hud_timer))
         && kind != PC_CLASSIC_EMOTE && kind != PC_CLASSIC_TEXT_FRAME && kind != PC_CLASSIC_TEXT_BAND
         && kind != PC_CLASSIC_BOX_TEXT && kind != PC_CLASSIC_IMAGE;
-    if (kind >= PC_CLASSIC_MENU_BACKGROUND && kind <= PC_CLASSIC_DISCARD_COUNT) { /* (the menus: never the HUD's to hide) */
+    if (kind >= PC_CLASSIC_MENU_BACKGROUND && kind <= PC_CLASSIC_RENAME_BOX) { /* (the menus: never the HUD's to hide) */
         pc_hud_menu(kind, record, first, end);
         return;
     }

@@ -3235,7 +3235,8 @@ static void handle_method(int fd, const char* request)
         reply(fd, id, result);
     } else if (!strcmp(method, "editor_select") || !strcmp(method, "editor_schema") || !strcmp(method, "editor_transform")
         || !strcmp(method, "editor_handles") || !strcmp(method, "editor_library") || !strcmp(method, "editor_shell")
-        || !strcmp(method, "editor_command")) {
+        || !strcmp(method, "editor_command") || !strcmp(method, "editor_inspect")
+        || !strcmp(method, "material_instance") || !strcmp(method, "material_preview")) {
         /* The editor's selection (editor_scene.cpp), property schema
          * (editor_schema.cpp) and transform tools (lights.cpp); they parse the
          * params object themselves. */
@@ -3246,7 +3247,13 @@ static void handle_method(int fd, const char* request)
         extern int pc_editor_library_rpc(const char*, char*, int) __attribute__((weak));
         extern int pc_editor_shell_rpc(const char*, char*, int) __attribute__((weak));
         extern int pc_editor_command_rpc(const char*, char*, int) __attribute__((weak));
+        extern int pc_editor_inspect_rpc(const char*, char*, int) __attribute__((weak));
+        extern int pc_material_instance_rpc(const char*, char*, int) __attribute__((weak));
+        extern int pc_material_preview_rpc(const char*, char*, int) __attribute__((weak));
         int (*handler)(const char*, char*, int) = !strcmp(method, "editor_select") ? pc_editor_select_rpc
+            : !strcmp(method, "editor_inspect")                                    ? pc_editor_inspect_rpc
+            : !strcmp(method, "material_instance")                                 ? pc_material_instance_rpc
+            : !strcmp(method, "material_preview")                                  ? pc_material_preview_rpc
             : !strcmp(method, "editor_schema")                                     ? pc_editor_schema_rpc
             : !strcmp(method, "editor_transform")                                  ? pc_editor_transform_rpc
             : !strcmp(method, "editor_library")                                    ? pc_editor_library_rpc

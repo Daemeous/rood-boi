@@ -157,7 +157,58 @@ typedef struct { int x, controls, looking, all, capacity[7], count[7], incoming[
  * digits in the text boxes' font (style 5) right to left from x (6 apart), the count (0..999). */
 typedef struct { int count, x, y; } pc_classic_discard_count;
 #define PC_CLASSIC_SITE_DISCARD_COUNT 39
-#define PC_CLASSIC_SITE_STATUS_PANEL 40 /* classic_parity.h PC_CLASSIC_STATUS_PANEL: func_800CA2DC */
+/* The rename grid (MENU8 21A0.c _renderRenameMenu: Setup's Rename, a new weapon's name after Assemble): its slide
+ * (x_offset, 0 at rest), the four command bars' fades (Insert, Delete, Back, OK from the bottom: the counters as its
+ * loop reads them, 8 the one just chosen), the L1 / R1 arrows' light and step (as it steps them; drawn at slide 0
+ * only); the name typed (20 codes) and the game's words: the commands (Insert first) and the character table (9 rows
+ * of 14 and its row end), each in the menu charset, the words ended by 0xE7. */
+typedef struct {
+    int x_offset, fade[4], lit, step;
+    unsigned char name[20], commands[4][16], table[9][15];
+} pc_classic_rename_grid;
+#define PC_CLASSIC_SITE_RENAME_GRID 40
+/* A highlight box on the rename grid (21A0.c _highlightSelection: the character under the hand, the name's pen): its
+ * place and size. */
+typedef struct { int x, y, w, h; } pc_classic_rename_box;
+#define PC_CLASSIC_SITE_RENAME_BOX 41
+/* MENU7's file menu (260.c _drawFileMenu: the save list after Storage, Data's SAVE / LOAD), drawn at once (DrawPrim and
+ * LoadImage, no ordering table: PC_CLASSIC_IMMEDIATE below). Its frame in two parts: part 0 the bottom band's two
+ * sprites (before the elements), part 1 after them: the band's three shaded rows (x the frame buffer's, 0 or 320), the
+ * caution sprite, the message's tile, the hand (cursor_xy packed, 0 none; cursor_color its saturation step before the
+ * draw steps it), the message (has_message; its codes as the game keeps them, to 0xE7; arrow: _printString's blink step
+ * before the draw) and the screen's fade. */
+typedef struct {
+    int part, x, cursor_xy, cursor_color, fade, arrow, has_message;
+    unsigned char message[256];
+} pc_classic_file_menu;
+#define PC_CLASSIC_SITE_FILE_MENU 42
+/* One element of it (_drawFileMenuElement: a card's or a file's panel), after the menu stepped its slide: id (0..9),
+ * place and size, selected, unavailable, the blend factors as the draw uses them (outer after its step, inner before),
+ * slot (its file 0..4; 255 none), its location (saveLocation), saving (_isSaving), arrow (_printString's step before);
+ * the file's (slot under 5): slot_state, map %, saves, clears, the play time, HP / MP; the progress animation the draw
+ * shows (0 none, 1 processing at progress_x, 2 complete in progress_colour); the codes of its words (text: the panel's,
+ * with its 0xFA spacing pairs, to 0xFF; place: the location's name; in_use, empty, fresh: the slot's words), and the
+ * two location CLUTs the draw uploads (_mcData's: the pictures' palettes, data for d.image_load). */
+typedef struct {
+    int id, x, y, w, h, selected, unavailable, outer, inner, slot, location, saving, arrow;
+    int slot_state, map, saves, clears, hours, minutes, seconds, hp, hp_max, mp, mp_max;
+    int progress, progress_x, progress_colour;
+    unsigned char text[32], place[48], in_use[32], empty[32], fresh[32];
+    unsigned short cluts[2][256];
+} pc_classic_file_element;
+#define PC_CLASSIC_SITE_FILE_ELEMENT 43
+#define PC_CLASSIC_SITE_STATUS_PANEL 44 /* classic_parity.h PC_CLASSIC_STATUS_PANEL: func_800CA2DC */
+/* PC_CLASSIC_IMMEDIATE wraps a call that draws at once (DrawPrim, LoadImage; StoreImage read): between begin and site
+ * the recorder (classic_parity.c pc_classic_immediate_*) keeps every draw and upload the statement makes, in order,
+ * as the kind's capture; when a classic claim on the kind is honoured it holds them back, and site (hud_bridge.c
+ * pc_hud_immediate) has the claim draw instead, at once, in the same place in the frame (or does the held ones
+ * after all: no claim, or it failed). The statement always runs: whatever state it steps is stepped as before.
+ * The record is filled by the site's caller (before and after the statement, as the draw uses it). */
+void pc_classic_immediate_begin(int kind) __attribute__((weak));
+void pc_classic_immediate_site(int kind, void* record) __attribute__((weak));
+/* Whether the open range holds the game's draws back (a claim draws instead): the game's own glyph reports to ui_text
+ * are then left out (the claim's packets report theirs, d.text_glyph). classic_parity.c. */
+int pc_classic_immediate_held(void) __attribute__((weak));
 /* MAINMENU's shared frame (58EC.c), read for the menu model (pc/src/classic/menu_model.c, rood.game.menu()): the
  * statics its list and command title keep (the list's cursor row and page, the sub-menu's id, row info and row
  * count, whether its rows take input (_itemsText), the rows' y offset; the command title's current and next). */

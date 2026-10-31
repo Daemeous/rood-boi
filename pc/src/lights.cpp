@@ -45,6 +45,7 @@ bool pc_particles_viewport(const float view[16], const float projection[16], con
 #include "lights_internal.h"
 #include "lighting_quality.h"
 #include "editor_undo.h"
+#include "editor_inspect.h"
 #include "editor_scene.h"
 #include "editor_selection.h"
 #include "editor_math.h"
@@ -1342,6 +1343,7 @@ extern "C" void pc_lights_viewport(void)
     bool snap_drag = (was_using && gizmo_operation == 0 && (modes & geometry_modes)) || (drag.active && (modes & geometry_modes));
     pc_overlay_draw(&ov, draw, snap_drag || (v_held && (modes & geometry_modes)));
     pc_probe_draw(ov.view, ov.projection, ov.rect, draw); /* probe GI visualisation (probe_overlay.cpp) */
+    rood_inspect::draw_highlight(ov); /* the inspected surface or model's outline */
     draw_cutaway_focus(v, draw);
     bool in_view = io.MousePos.x >= v.rect[0] && io.MousePos.y >= v.rect[1] && io.MousePos.x < v.rect[0] + v.rect[2]
         && io.MousePos.y < v.rect[1] + v.rect[3];
@@ -1582,7 +1584,9 @@ extern "C" void pc_lights_viewport(void)
              * selected one out, else Ctrl+click still places on the surface). */
             rood_selection::click(m.volume, m.shift, m.ctrl, rood_selection::FROM_VIEWPORT);
             rood_scene::publish();
-        } else {
+        } else if (m.shift || m.ctrl || !rood_inspect::click(m.x, m.y, rood_selection::FROM_VIEWPORT)) {
+            /* A plain click picks the surface or model there (click-to-inspect); else, or with
+             * a modifier, it was a click on nothing. */
             empty_click(m.x, m.y, m.shift, m.ctrl);
         }
         return;

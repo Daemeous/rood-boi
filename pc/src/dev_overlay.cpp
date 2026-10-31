@@ -30,6 +30,7 @@
 #include "editor_fit_window.h"
 #include "editor_library.h"
 #include "editor_colour.h"
+#include "editor_inspect.h"
 #include "editor_scene.h"
 #include "editor_shell.h"    /* docking, the Game panel, the command palette */
 #include "editor_commands.h" /* the command registry (the palette, RPC editor_command) */
@@ -520,6 +521,9 @@ extern "C" int pc_overlay_event(const SDL_Event* event)
         /* Escape during a drag from the Library cancels the drag only. */
         if (key == SDLK_ESCAPE && visible && down && !typing && pc_lights_place_cancel())
             return 1;
+        /* An inspected surface or model selected: Escape clears it first (click-to-inspect); the next closes the editor. */
+        if (key == SDLK_ESCAPE && visible && down && !typing && !event->key.repeat && rood_inspect::escape_clears())
+            return 1;
         /* Escape or F1: open or close the editor.
          * Closing hands the camera back. */
         if (key == SDLK_F1 || (key == SDLK_ESCAPE && !typing)) {
@@ -991,7 +995,7 @@ void pc_lighting_file_menu(void);
 }
 #include "room_warp.h"
 extern bool pc_room_browser_open;
-#include "material_editor.h" /* the Material review window */
+#include "material_editor.h" /* the Material review window, the Materials panel and the preview */
 extern "C" void pc_lights_viewport(void);
 extern "C" {
 extern int pc_glow_shadows;
@@ -1529,6 +1533,7 @@ static void menu_bar(float* height)
         show_toggle("Room wireframe", &pc_overlay_wire);
         show_toggle("Room points", &pc_overlay_points);
         show_toggle("Character wireframe", &pc_overlay_actor_wire);
+        rood_inspect::view_mode_menu(); /* the design's view modes by name (editor_inspect.h) */
         ImGui::Separator();
         bool free_camera = pc_editor_active();
         if (ImGui::MenuItem("Free camera", "F2 / RMB", free_camera))
@@ -1551,6 +1556,8 @@ static void menu_bar(float* height)
         ImGui::MenuItem("Room Browser", "Ctrl+R", &pc_room_browser_open);
         if (!pc_lua_dev_replaced("material_review")) /* else the Lua window (rood.material_review) */
             ImGui::MenuItem("Material review", nullptr, &pc_material_review_open);
+        ImGui::MenuItem("Materials", nullptr, &pc_material_instances_open);
+        ImGui::MenuItem("Material preview", nullptr, &pc_material_preview_open);
         ImGui::MenuItem("Cutscene", cutscene::replay_key_name().c_str(), &cutscene::window_open);
         pc_lua_console_menu_item();
         pc_lua_dev_menu_items(); /* plugins' tool windows (rood.dev.window) */
@@ -2103,6 +2110,12 @@ static void outliner(float x, float y, float w, float h)
                 rood_particles::outliner(filter);
                 ImGui::TreePop();
             }
+            if (rood_scene::scroll_due(rood_selection::KIND_SURFACE, rood_selection::KIND_MODEL))
+                ImGui::SetNextItemOpen(true);
+            if (ImGui::TreeNodeEx("Surfaces and models (this room)", ImGuiTreeNodeFlags_DefaultOpen)) {
+                rood_inspect::outliner(filter);
+                ImGui::TreePop();
+            }
             if (ImGui::TreeNodeEx("Room groups")) {
                 room_groups_outliner(filter);
                 ImGui::TreePop();
@@ -2478,6 +2491,8 @@ extern "C" void pc_overlay_frame(int width, int height)
         pc_room_browser_window();
         if (!pc_lua_dev_replaced("material_review"))
             pc_material_review_window();
+        pc_material_instances_window(); /* material_instances.cpp: masters and instances */
+        pc_material_preview_window(); /* material_preview.cpp: the shaded sphere */
         pc_cutscene_window();
         help_window();
         memory_cards_window();
@@ -2533,6 +2548,7 @@ static void register_commands()
     };
     auto flag = [](int* v) { return [v] { return *v != 0; }; };
     auto toggle_flag = [](int* v) { return [v] { *v = !*v; }; };
+    rood_inspect::register_commands(); /* view.mode.<name> */
     auto bflag = [](bool* v) { return [v] { return *v; }; };
     auto toggle_bflag = [](bool* v) { return [v] { *v = !*v; }; };
     /* File */
@@ -2612,6 +2628,16 @@ static void register_commands()
         if (pc_material_review_open)
             rood_shell::focus_window("Material review");
     }, [] { return !pc_lua_dev_replaced("material_review"); }, bflag(&pc_material_review_open));
+    add("window.materials", "Materials", "Window", "", [] {
+        pc_material_instances_open = !pc_material_instances_open;
+        if (pc_material_instances_open)
+            rood_shell::focus_window("Materials");
+    }, nullptr, bflag(&pc_material_instances_open));
+    add("window.material_preview", "Material preview", "Window", "", [] {
+        pc_material_preview_open = !pc_material_preview_open;
+        if (pc_material_preview_open)
+            rood_shell::focus_window("Material preview");
+    }, nullptr, bflag(&pc_material_preview_open));
     add("window.cutscene", "Cutscene", "Window", "", [] {
         cutscene::window_open = !cutscene::window_open;
         if (cutscene::window_open)

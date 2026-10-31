@@ -30,7 +30,7 @@ Ref ref_of(const std::string& id)
         const char* prefix;
         Kind kind;
     } prefixes[] = { { "light:", KIND_LIGHT }, { "actor:", KIND_ACTOR }, { "glow:", KIND_GLOW }, { "fog:", KIND_VOLUME },
-        { "emitter:", KIND_EMITTER } };
+        { "emitter:", KIND_EMITTER }, { "surface:", KIND_SURFACE }, { "model:", KIND_MODEL } };
     if (id == "env:sun") /* the room's sun or moon (its sky and fog are no objects) */
         return Ref { KIND_SUN, id };
     for (const auto& p : prefixes) {
@@ -48,6 +48,8 @@ const char* kind_name(Kind k)
         : k == KIND_VOLUME ? "fog"
         : k == KIND_SUN    ? "sun"
         : k == KIND_EMITTER ? "emitter"
+        : k == KIND_SURFACE ? "surface"
+        : k == KIND_MODEL   ? "model"
                            : "none";
 }
 const char* source_name(Source s)

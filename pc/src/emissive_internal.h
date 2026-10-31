@@ -169,6 +169,15 @@ struct TexturePick {
     uint8_t box[4] = { 0, 0, 0, 0 };
     int u = 0, v = 0, zone = -1, room = -1;
     float world[3] = { 0, 0, 0 };
+    /* The surface (click-to-inspect, editor_inspect.cpp): SURFACE_ROOM with
+     * the polygon's byte offset in the room data, SURFACE_MODEL with the
+     * model's hash, or SURFACE_OTHER; the mesh handle and the polygon's
+     * index in it; whether an object list (characters, weapons, props) drew
+     * it; the picked triangle (world space). */
+    int kind = 2;
+    uint32_t polygon = 0, model = 0, mesh = 0;
+    int polygon_index = -1, object_list = 0;
+    float triangle[9] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     int w() const { return box[2] - box[0] + 1; }
     int h() const { return box[3] - box[1] + 1; }
 };
@@ -222,6 +231,9 @@ bool scope_allows(const Entry& e, int zone, int room, int kind, uint32_t polygon
 /* A native mesh's kind (SURFACE_*) and, for room meshes, the byte offset of
  * its polygon `index` in the room data; for models, the model hash. */
 int mesh_surface(uint32_t mesh, int index, uint32_t* polygon, uint32_t* model);
+/* What the scopes know of a native mesh (false: unknown): its kind, a room
+ * mesh's byte offset, triangle count and total polygons, a model's hash. */
+bool mesh_detail(uint32_t mesh, int* kind, unsigned* offset, unsigned* tris, unsigned* total, uint32_t* model);
 /* A model hash as the catalog writes it (8 hex digits). */
 std::string model_key(uint32_t model);
 bool parse_model_key(const std::string& s, uint32_t* model);

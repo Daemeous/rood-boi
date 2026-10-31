@@ -44,6 +44,7 @@ struct Picked {
     int kind = SURFACE_OTHER;
     uint32_t polygon = 0, model = 0;
     int zone_id = -1, room_id = -1;
+    int polygon_index = -1; /* in its mesh */
     float triangle[9] = { 0 }; /* the picked triangle (world space) */
 };
 Picked picked;
@@ -91,7 +92,8 @@ void pick_sink(void* context, const float w[9], const uint8_t* /*rgb*/, const ui
     o.v = (int)floorf(b0 * uv[1] + b1 * uv[3] + b2 * uv[5]);
     uint32_t source;
     render_emit_tag(&source, &o.mesh);
-    o.kind = mesh_surface(o.mesh, render_emit_polygon_index(), &o.polygon, &o.model);
+    o.polygon_index = render_emit_polygon_index();
+    o.kind = mesh_surface(o.mesh, o.polygon_index, &o.polygon, &o.model);
     memcpy(o.triangle, w, sizeof o.triangle);
     const render_polygon* poly = render_emit_polygon();
     o.box[0] = o.box[1] = 255, o.box[2] = o.box[3] = 0;
@@ -1559,6 +1561,9 @@ static TexturePick as_texture_pick(const Picked& p)
     memcpy(t.box, p.box, 4);
     t.u = p.u, t.v = p.v, t.zone = p.zone_id, t.room = p.room_id;
     memcpy(t.world, p.world, sizeof t.world);
+    t.kind = p.kind, t.polygon = p.polygon, t.model = p.model, t.mesh = p.mesh;
+    t.polygon_index = p.polygon_index, t.object_list = !p.room;
+    memcpy(t.triangle, p.triangle, sizeof t.triangle);
     return t;
 }
 bool emissive::pick_texture(float x, float y, TexturePick& out)

@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "imgui.h"
+#include "editor_inspect.h"
 #include "editor_picking.h"
 #include "editor_schema.h"
 #include "editor_math.h"
@@ -84,6 +85,8 @@ std::vector<Ref> all_objects()
     for (int i = 0; i < n; i++)
         if (glows[i].category != PC_GLOW_EFFECT)
             out.push_back(rood_scene::glow_ref_key(glows[i].key, glows[i].position));
+    for (const Ref& r : rood_inspect::refs()) /* surfaces and models inspected (editor_inspect.h) */
+        out.push_back(r);
     return out;
 }
 } // namespace
@@ -154,6 +157,8 @@ bool rood_scene::exists(const Ref& r)
 {
     if (r.kind == rood_selection::KIND_SUN)
         return rood_env::sun_state().defined;
+    if (r.kind == rood_selection::KIND_SURFACE || r.kind == rood_selection::KIND_MODEL)
+        return rood_inspect::exists(r);
     return r.kind == rood_selection::KIND_GLOW || index_of(r) >= 0;
 }
 std::string rood_scene::label(const Ref& r)
@@ -189,6 +194,9 @@ std::string rood_scene::label(const Ref& r)
     }
     case rood_selection::KIND_SUN:
         return "Sun";
+    case rood_selection::KIND_SURFACE:
+    case rood_selection::KIND_MODEL:
+        return rood_inspect::label(r);
     default:
         break;
     }
@@ -228,6 +236,9 @@ bool rood_scene::position(const Ref& r, float out[3], float* radius)
         *radius = 200;
         return true;
     }
+    case rood_selection::KIND_SURFACE:
+    case rood_selection::KIND_MODEL:
+        return rood_inspect::position(r, out, radius);
     default:
         return false;
     }
@@ -284,6 +295,7 @@ void rood_scene::frame()
         }
         seen_zone = zone, seen_room = room;
     }
+    rood_inspect::frame(zone, room); /* inspected surfaces and models go with the room */
     refresh();
     /* A scroll to a row the Outliner never draws (filtered out, its tab
      * hidden) gives up after a few frames: its section may close again. */
@@ -386,6 +398,11 @@ Ref rood_scene::click_at(float x, float y, bool shift, bool ctrl, rood_selection
     pc_overlay_pick pick = nullptr;
     if (!under && pc_lights_tools_view(&v, &pick))
         under = volume_at(v, pick, x, y);
+    if (!under && !shift && !ctrl) { /* click-to-inspect: the surface or model there (editor_inspect.h) */
+        Ref hit = rood_inspect::click(x, y, s);
+        if (hit)
+            return hit;
+    }
     if (ctrl_places(under, ctrl)) { /* the current item at the surface there (it is selected) */
         rood_lights::Placement where;
         if (rood_lights::place_compute(rood_lights::place_item, x, y, 0, where))
@@ -426,9 +443,17 @@ bool rood_scene::glow_hidden(const char* key, const float position[3])
 {
     return hiding() && rood_selection::hidden(glow_ref_key(key, position));
 }
+/* Inspected surfaces and models (editor_inspect.h) are never hidden: they are the game's own geometry. */
+static bool inspected(const Ref& r)
+{
+    return r.kind == rood_selection::KIND_SURFACE || r.kind == rood_selection::KIND_MODEL;
+}
 void rood_scene::hide_selection()
 {
-    std::vector<Ref> refs = rood_selection::items();
+    std::vector<Ref> refs;
+    for (const Ref& r : rood_selection::items())
+        if (!inspected(r))
+            refs.push_back(r);
     if (refs.empty())
         return;
     rood_selection::hide(refs);
@@ -443,7 +468,7 @@ void rood_scene::isolate_selection()
         return;
     std::vector<Ref> others;
     for (const Ref& r : all_objects())
-        if (!rood_selection::contains(r))
+        if (!rood_selection::contains(r) && !inspected(r))
             others.push_back(r);
     rood_selection::hide(others);
     snprintf(status, sizeof status, "Hid %zu other object%s in the editor (Ctrl+H shows everything)", others.size(),

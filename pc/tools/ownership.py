@@ -54,14 +54,17 @@ class Table:
         return [(name, s.zig_name(name), s.index) for s in self.subsystems for _, name in s.functions]
 
     def problems(self, function_addresses, compiled_units):
-        """Inconsistencies with the reference ELFs (name -> address) and the
-        units this build compiles; [] when the table can be used."""
+        """Inconsistencies with the reference ELFs and the units this build
+        compiles; [] when the table can be used. function_addresses is
+        name -> address, or (name, address) pairs: a static name two units
+        define (BATTLE's _nop1 and SLUS's) needs pairs, a dict keeps one."""
         # ENDING loads over BATTLE (0x80068800): two names can share an address
         # (146C's vs_battle_copyInventoryBladeStats and ENDING's _addRenderer, 0x8006AB44).
+        pairs = function_addresses.items() if hasattr(function_addresses, "items") else function_addresses
         by_address = {}
-        for n, a in function_addresses.items():
-            if a is not None:
-                by_address.setdefault(a, []).append(n)
+        for n, a in pairs:
+            if a is not None and n not in by_address.setdefault(a, []):
+                by_address[a].append(n)
         out = []
         for s in self.subsystems:
             if s.unit not in compiled_units:

@@ -119,7 +119,11 @@ def check_pick(s):
         return
     s.click(empty)
     g.run(3)
-    s.check(s.select()["selection"] == [], "a real click on nothing clears the selection")
+    # Click-to-inspect (editor_inspect.cpp): a plain click on a room surface selects that surface in
+    # place of the lights; one on nothing at all clears.
+    sel = s.select()["selection"]
+    s.check(all(x.startswith(("surface:", "model:")) for x in sel) and len(sel) <= 1,
+            f"a real click on no object clears the selection or selects the surface there ({sel})")
 
 
 def check_commands(s):

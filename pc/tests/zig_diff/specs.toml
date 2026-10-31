@@ -38224,6 +38224,74 @@ target = "c"
 from = "arg0->hitParams[arg3]"
 to = "arg0->hitParams[arg4]"
 
+[function._nop1]
+spec = "nop1.zig"
+iterations = 20000
+# Drafted by pc/tools/port_pipeline.py (anthropic/claude-haiku-5.5); review queue: pc/docs/porting/battle/pipeline/REVIEW.md
+
+[[function._nop1.mutation]]
+name = "N1: a stray store to the scratchpad"
+target = "c"
+from = "{ }"
+to = "{ *(volatile unsigned char *)0x1F800000 = 1; }"
+
+[[function._nop1.mutation]]
+name = "N2: a stray store to PS1 address 0"
+target = "c"
+from = "{ }"
+to = "{ *(volatile unsigned char *)0x80000000 = 1; }"
+
+[[function._nop1.mutation]]
+name = "N3: a stray store to a later scratchpad byte"
+target = "c"
+from = "{ }"
+to = "{ *(volatile unsigned short *)0x1F800010 = 0x1234; }"
+
+[function._renderStatBar]
+spec = "renderStatBar.zig"
+iterations = 30000
+# Drafted by pc/tools/port_pipeline.py (anthropic/claude-haiku-5.5); review queue: pc/docs/porting/battle/pipeline/REVIEW.md
+
+[[function._renderStatBar.mutation]]
+name = "R1: the -1 before the division dropped"
+target = "c"
+from = "(((current << 6) + max) - 1) / max"
+to = "(((current << 6) + max)) / max"
+
+[[function._renderStatBar.mutation]]
+name = "R2: unsigned shift of current + 0xFF"
+target = "c"
+from = "current = (current + 0xFF) >> 8;"
+to = "current = (int)((unsigned)(current + 0xFF) >> 8);"
+
+[[function._renderStatBar.mutation]]
+name = "R3: wrong constant in the digit-less offset"
+target = "c"
+from = "xy += 54 | (3 << 0x10);"
+to = "xy += 55 | (3 << 0x10);"
+
+[[function._renderStatBar.mutation]]
+name = "R4: digit call dropped"
+target = "c"
+from = "_renderDigit(2, xy, 0, prim);"
+to = "(void)0;"
+
+[[function._renderStatBar.mutation]]
+name = "R5: bar drawn only for positive max"
+target = "c"
+from = "if (max != 0) {"
+to = "if (max > 0) {"
+
+[[function._renderStatBar.mutation]]
+name = "R6: wrong table for the start x"
+target = "c"
+from = "int xy = D_800EBBDC[colorIndex] - D_800EB9B0;"
+to = "int xy = D_800EBBEC[colorIndex] - D_800EB9B0;"
+
+[[function._renderStatBar.coverage_waiver]]
+id = "colorIndex & 2: sign bit"
+reason = "colorIndex indexes the four-entry tables D_800EBBDC/D_800EBBEC/D_800EBBFC/D_800EBC00 unguarded, so it is only 0-3 and its sign bit is never set; a negative index would read outside the tables."
+
 [function._setArtAndAbilityToUnlock]
 spec = "setArtAndAbilityToUnlock.zig"
 iterations = 20000

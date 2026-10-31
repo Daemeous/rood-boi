@@ -795,6 +795,11 @@ void main() {
             if (view_mode == 3) { color = vec4(shade.a > 0.75 ? albedo : shade.rgb, 1.0); return; }
             if (view_mode == 4) { color = vec4(min(shade.a > 0.75 ? vertex_light * 0.5 : shade.rgb, vec3(1.0)), 1.0); return; }
             if (view_mode == 5) { color = vec4(world_normal * 0.5 + 0.5, 1.0); return; }
+            // Click-to-inspect's view modes (editor_inspect.cpp): 13 roughness, 14 metal, 15 emissive, 16 AO
+            if (view_mode == 13) { color = vec4(vec3(has_mat ? m_rough : 0.0), 1.0); return; }
+            if (view_mode == 14) { color = vec4(vec3(has_mat ? mat.b : 0.0), 1.0); return; }
+            if (view_mode == 15) { color = vec4(em_px ? min(em, vec3(1.0)) : vec3(0.0), 1.0); return; }
+            if (view_mode == 16) { color = vec4(vec3(ao * m_cav), 1.0); return; }
             if (view_mode == 2) { c = vertex_light * 0.5; albedo = vec3(0.5); }
             if (has_mat) {
                 // Energy: what the lobe reflects (Fresnel at the view) is not diffused; metal diffuses nothing.

@@ -970,6 +970,15 @@ int mesh_surface(uint32_t mesh, int index, uint32_t* polygon, uint32_t* model)
     }
     return SURFACE_OTHER;
 }
+bool mesh_detail(uint32_t mesh, int* kind, unsigned* offset, unsigned* tris, unsigned* total, uint32_t* model)
+{
+    auto it = mesh_info.find(mesh);
+    if (it == mesh_info.end())
+        return false;
+    const MeshInfo& m = it->second;
+    *kind = m.kind, *offset = m.offset, *tris = m.tris, *total = m.total, *model = m.model;
+    return true;
+}
 std::string model_key(uint32_t model)
 {
     char text[16];

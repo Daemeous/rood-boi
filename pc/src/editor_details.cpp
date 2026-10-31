@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "imgui.h"
+#include "editor_inspect.h"
 #include "editor_scene.h"
 #include "editor_schema.h"
 #include "editor_selection.h"
@@ -462,6 +463,11 @@ void rood_details::draw()
         rood_selection::lock(!locked);
     if (subject.kind == rood_selection::KIND_GLOW) {
         pc_lights_glow_details();
+        ImGui::PopID();
+        return;
+    }
+    if (subject.kind == rood_selection::KIND_SURFACE || subject.kind == rood_selection::KIND_MODEL) {
+        rood_inspect::details(subject); /* click-to-inspect's page */
         ImGui::PopID();
         return;
     }

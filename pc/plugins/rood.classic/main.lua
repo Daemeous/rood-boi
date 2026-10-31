@@ -443,6 +443,84 @@ local function make_look()
     -- A misc item's discard amount (items1.h _discardMenu's picker, MENUD's copy): its three digits in the text boxes'
     -- font (`style`), right to left from the game's place, `step` apart, in the slot after unk8 (the printer's own).
     discard_count = { place = { anchor = "game", dx = 0, dy = 0 }, style = 5, step = 6 },
+    -- The rename grid (MENU8 _renderRenameMenu), sliding in from the right by x_offset (the left column out to the left):
+    -- the buttons (`buttons`: which, x from the left edge, y) and the pad's sprite (`pad`); each command's bar, `bar.rows`
+    -- shaded lines `bar.length` long from y `bar.top` (`bar.line` a command), fading by its fade (the game's
+    -- gradient stop between `bar.near` and `bar.far`: the menu rows' first colours), between its draw `modes`
+    -- (`bar.code` the shaded line's); the commands' words (the record's, Insert first, from `words.x`, `words.step`
+    -- apart, upward from `words.y` by `words.line`) and the name typed (`name`: its pen from x, `step` a code, the
+    -- game's blank `blank` skipped) in the text boxes' font (`style`); at rest the L1 / R1 arrows (`arrows`: their
+    -- digits and letters by the raw printer, `lit` or `dim`; their sprites stepping out by the record's step, the
+    -- CLUT `clut_lit` or `clut_dim`) and the name's window (`window`: the game's words, a shaded polygon); the
+    -- character table (`table`: from x, `step` across, `line` down); the background's four shaded polygons
+    -- (`background`: their colour words and corners, each slid with the grid).
+    rename_grid = {
+      place = { anchor = "game", dx = 0, dy = 0 },
+      buttons = { { "cross", 16, 50 }, { "square", 16, 66 }, { "triangle", 16, 82 } },
+      pad = { x = 16, y = 34, sprite = { page_x = 768, page_y = 0, bits = 4, u = 176, v = 112, w = 16, h = 16,
+        clut_x = 944, clut_y = 223, bgr = 0x808080 } },
+      bar = { top = 20, line = 16, rows = 12, length = 96, near = { 0x6B4100, 0x6C8219 }, far = { 0x330500, 0x262801 },
+        brightness = 0x80, code = 0x50000000, modes = { 0xE1000200, 0xE1000000 } },
+      words = { x = 40, y = 84, line = 16, step = 6 },
+      name = { x = 162, y = 48, step = 6, blank = 0x8F },
+      style = 4,
+      arrows = { lit = 0x808080, dim = 0x404040, y = 51,
+        left = { { "1", 152 }, { "L", 146 }, x = 136, u = 0 }, right = { { "1", 292 }, { "R", 286 }, x = 296, u = 16 },
+        sprite_y = 48, clut_lit = 896, clut_dim = 912,
+        sprite = { page_x = 768, page_y = 0, bits = 4, u = 0, v = 48, w = 16, h = 16, clut_x = 912, clut_y = 223,
+          bgr = 0x808080 } },
+      window = { 0xE1000200, 0x38000000, 0x001E00D0, 0, 0x002000E8, 0xC0A080, 0x002E00E8, 0, 0x001E0100 },
+      table = { x = 130, y = 78, step = 12, line = 16 },
+      background = { mode = 0xE1000200, top = 0x386B4100, colour = 0x330500,
+        corners = { { 216, 72 }, { 142, 180 }, { 112, 72 }, { 112, 224 }, { 216, 72 }, { 216, 224 }, { 142, 180 },
+          { 112, 224 }, { 216, 72 }, { 290, 180 }, { 216, 224 }, { 320, 224 }, { 216, 72 }, { 320, 72 }, { 290, 180 },
+          { 320, 224 } } },
+    },
+    -- A highlight box on the rename grid (21A0.c _highlightSelection): a semi-transparent shaded polygon, its draw mode
+    -- (`mode`), the top-left's colour word (`code`: with the polygon's code), the bottom-left's (`colour`); the others
+    -- black.
+    rename_box = { place = { anchor = "game", dx = 0, dy = 0 }, mode = 0xE1000220, code = 0x3AC0A080,
+      colour = 0xC0A080 },
+    -- MENU7's file menu (260.c _drawFileMenu: the save list after Storage, Data's SAVE / LOAD), drawn at once. `font`:
+    -- its printer's (_printCharacter: 12 x 12 cells, `columns` a row of the page at page_x, the CLUT row clut_y from
+    -- clut_x, 16 a colour; `widths` its advances by code, as runs of (width, count); `space` the blank code, `arrow`
+    -- the blinking arrow's last code, `line` a newline's step, `mode` / `colour` its sprite's draw mode and colour).
+    -- `info`: the save info's sprites (_drawSaveInfoUI: colon, No., MAP, SAVE, CLEAR, TIME, %, HP, MP, the dot; each
+    -- its texels, CLUT and size), `digits` (_renderInteger: 6 x 10 from u 0, 5 apart) and `hp_digits` (_drawHPMP's
+    -- current value: 7 x 12 from u 64, 8 a digit, 6 apart); the panels' gradient (`panel`: inner colours by the blend
+    -- step, its two highlighted pairs; their draw mode and the shadow tile), the gauges (`gauge`: HP's and MP's
+    -- colours, the full one's, its back tile), the location pictures (`picture`: 64 x 32 by location, the CLUT row
+    -- read, swapped and put back), the frame (`frame`: the band, its shaded rows, the caution, the message tile, the
+    -- hand, the fade) and the progress animations (`progress`). Places are the game's (320 x 240, no anchor: the
+    -- file menu is drawn as the game's own 2D is).
+    file_menu = {
+      font = { page_x = 832, columns = 21, cell = 12, clut_x = 896, clut_y = 222, mode = 0xE100002D,
+        colour = 0x66808080, space = 0x8F, arrow = 0xBC, line = 13,
+        widths = { 6, 62, 12, 1, 6, 22, 12, 1, 6, 88, 12, 15, 8, 1, 5, 1, 7, 1, 8, 1, 7, 3, 6, 3, 7, 3, 9, 1, 7, 4, 6, 1, 7, 2, 6, 1, 8, 1, 7, 1, 8, 2, 9, 1, 8, 2, 4, 1, 7, 1, 5, 1, 7, 2, 6, 1, 8, 1, 7, 3, 6, 1, 8, 1, 6, 1, 8, 2, 7, 1, 6, 1, 7, 1, 6, 1, 8, 2, 7, 2, 8, 1, 7, 1, 5, 1, 6, 1, 7, 1, 6, 1, 7, 3, 8, 1, 12, 1, 7, 9, 6, 4, 7, 9, 12, 1, 7, 5, 8, 4, 7, 12, 12, 27, 6, 1, 12, 6, 8, 1, 12, 1, 6, 1, 5, 1, 4, 1, 12, 4, 4, 1, 6, 2, 12, 2, 6, 2, 3, 3, 4, 1, 6, 1, 12, 1, 6, 3, 12, 1, 5, 1, 6, 1, 12, 19 } },
+      info = {
+        { 248, 8, 832, 3, 8 }, { 242, 0, 832, 13, 8 }, { 224, 120, 848, 17, 8 }, { 128, 56, 848, 22, 8 },
+        { 224, 112, 848, 26, 8 }, { 104, 56, 848, 19, 8 }, { 170, 76, 864, 10, 10 }, { 144, 0, 864, 16, 9 },
+        { 160, 0, 864, 18, 9 }, { 32, 9, 832, 5, 7 }, clut_y = 223, page = 0xC,
+        ids = { colon = 0, number = 1, map = 2, save = 3, clear = 4, time = 5, percent = 6, hp = 7, mp = 8, dot = 9 } },
+      digits = { clut_x = 832, clut_y = 223, w = 6, h = 10, step = 5, page = 0x0C },
+      hp_digits = { u = 64, cell = 8, w = 7, h = 12, step = 6 },
+      panel = { near = { 0x6B4100, 0x6C8219 }, far = { 0x330500, 0x262801 }, lit = { 0x663040, 0x203840 },
+        dark = { 0x200808, 0x081010 }, mode = 0xE1000200, shadow = 0x60000000, code = 0x38000000,
+        text_x = 6, top = 72, rows = 0x51 },
+      gauge = { hp = 0xCFE02D, mp = 0x9F78DC, full = { 255, 240, 158 }, back = 0x60402800, mode = 0xE1000200,
+        code = 0x38000000, w = 66, h = 5 },
+      picture = { clut_x = 768, clut_y = 227, clut_w = 256, w = 64, h = 32, u = 0, v = 0, page = 832, slots = 48,
+        special = 64 },
+      clear_badge = { 240, 16, 912, 223, 16, 16, page = 0x0C },
+      frame = { band = { { 256, 176, 64, 64, 0x9C }, { 0, 176, 256, 64, 0x9A }, v = 176, clut_x = 768, clut_y = 227 },
+        rows = { top = 187, w = { 256, 64 } }, caution = { 10, 181, 64, 145, 848, 33, 7 },
+        message = { tile = 0x60000000, y = 187, h = 52, x = 16, text_y = 192 },
+        hand = { u = 32, v = 48, clut_x = 896, w = 16, h = 16,
+          saturation = { 0, -56, -112, -104, -96, -88, -80, -72, -64, -56, -48, -40, -32, -24, -16, -8 } },
+        fade = { mode = 0xE1000140, code = 0x62000000, step = 0x080808, w = 320, h = 224 } },
+      progress = { mode = 0xE1000220, code = 0x3A000000, tile = 0x62000000, load = 0x00FFE0, save = 0x7F00FF,
+        edge = 48, left = 64, h = 32, step = 16 },
+    },
     -- The buttons' 16 x 16 sprites (vs_mainmenu_renderButton: texels at u by the button, v 128; the CLUT at 944).
     buttons = { u = { triangle = 0, square = 16, circle = 32, cross = 48 },
       sprite = { page_x = 768, page_y = 0, bits = 4, u = 0, v = 128, w = 16, h = 16, clut_x = 944, clut_y = 223,
@@ -1520,12 +1598,363 @@ M.draw.loot_capacities = function(e, d)
   strip_flush(d)
 end
 
+-- rename_grid: _renderRenameMenu's calls in its order (op: kind, slot, arguments), made last to first.
+local grid_ops, grid_n = {}, 0
+local function grid_op(kind, layer, unk8, a, b, c, d)
+  grid_n = grid_n + 1
+  local o = grid_ops[grid_n]
+  if not o then o = {} grid_ops[grid_n] = o end
+  o.kind, o.layer, o.unk8, o.a, o.b, o.c, o.d = kind, layer, unk8, a, b, c, d
+  return o
+end
+local function grid_flush(d)
+  local buttons = look.buttons
+  for i = grid_n, 1, -1 do
+    local o = grid_ops[i]
+    if o.unk8 then d.layer("unk8", o.layer) else d.layer(o.layer) end
+    local k = o.kind
+    if k == "packet" then
+      local w = o.a
+      if o.b == 6 then d.packet(w[1], w[2], w[3], w[4], w[5], w[6])
+      else d.packet(w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9]) end
+    elseif k == "font" then d.font_text(o.a, o.b, o.c, o.d, o.step)
+    elseif k == "text" then d.text_raw(o.a, o.b, o.c, o.d)
+    elseif k == "button" then buttons.sprite.u = buttons.u[o.a] d.sprite(o.b, o.c, buttons.sprite)
+    elseif k == "sprite" then
+      local s = o.a
+      if o.d then s.u, s.clut_x = o.d, o.step end
+      d.sprite(o.b, o.c, s)
+    end
+  end
+  grid_n = 0
+end
+local grid_words = {} -- (the packets' words, reused: one table a packet)
+local grid_codes = {} -- (one-code strings of the name, reused)
+local function words(n) local w = grid_words[n] if not w then w = {} grid_words[n] = w end return w end
+M.draw.rename_grid = function(e, d)
+  local c, r = look.rename_grid, e.rename
+  local xo, dx, dy = r.x_offset, c.place.dx, c.place.dy
+  local nw = 0
+  d.anchor(c.place.anchor)
+  for _, b in ipairs(c.buttons) do grid_op("button", 0, true, b[1], -xo + b[2] + dx, b[3] + dy) end
+  grid_op("sprite", 0, true, c.pad.sprite, -xo + c.pad.x + dx, c.pad.y + dy)
+  local bar = c.bar
+  local near = lerp(bar.near[1], bar.near[2], bar.brightness, 0)
+  local far = lerp(bar.far[1], bar.far[2], bar.brightness, 0)
+  for i = 1, 4 do
+    local fade = r.fade[i]
+    local left = lerp(near, far, 128, 8 - fade) | bar.code
+    local right = lerp(near, far, 128, fade)
+    for j = 0, bar.rows - 1 do
+      local y = (j + bar.top + i * bar.line) << 16
+      nw = nw + 1
+      local w = words(nw)
+      w[1], w[2], w[3], w[4] = bar.modes[1], left, ((-xo + dx) & 0xFFFF) | y, right
+      w[5], w[6] = ((-xo - j + bar.length + dx) & 0xFFFF) | y, bar.modes[2]
+      grid_op("packet", -4, false, w, 6)
+    end
+  end
+  local wd = c.words
+  for i = 0, 3 do
+    grid_op("font", -8, false, r.commands[i + 1], wd.x - xo + dx, wd.y - i * wd.line + dy, c.style).step = wd.step
+  end
+  local nm = c.name
+  for j = 1, 20 do
+    local code = r.name[j]
+    if code ~= nm.blank then
+      local s = grid_codes[j]
+      if not s then s = {} grid_codes[j] = s end
+      s[1] = code
+      grid_op("font", 4, true, s, xo + (j - 1) * nm.step + nm.x + dx, nm.y + dy, c.style).step = nil
+    end
+  end
+  if xo == 0 then
+    local a = c.arrows
+    local colour = r.lit and a.lit or a.dim
+    local clut = r.lit and a.clut_lit or a.clut_dim
+    for _, t in ipairs(a.left) do grid_op("text", 0, true, t[1], t[2] + dx, a.y + dy, colour) end
+    local o = grid_op("sprite", 0, true, a.sprite, a.left.x - r.step + dx, a.sprite_y + dy, a.left.u)
+    o.step = clut
+    for _, t in ipairs(a.right) do grid_op("text", 0, true, t[1], t[2] + dx, a.y + dy, colour) end
+    o = grid_op("sprite", 0, true, a.sprite, a.right.x + r.step + dx, a.sprite_y + dy, a.right.u)
+    o.step = clut
+    grid_op("packet", 0, true, c.window, 9)
+  end
+  local t = c.table
+  for i = 0, 8 do
+    grid_op("font", 4, true, r.table[i + 1], xo + t.x + dx, i * t.line + t.y + dy, c.style).step = t.step
+  end
+  local bg = c.background
+  for j = 1, 16, 4 do
+    nw = nw + 1
+    local w = words(nw)
+    w[1], w[2] = bg.mode, bg.top
+    for k = 0, 3 do
+      local p = bg.corners[j + k]
+      w[3 + 2 * k] = (xo + dx + (p[1] | ((p[2] + dy) << 16))) & 0xFFFFFFFF
+      if k < 3 then w[4 + 2 * k] = bg.colour end
+    end
+    grid_op("packet", -4, false, w, 9)
+  end
+  grid_flush(d)
+end
+
+-- rename_box: the box's polygon (a draw mode, then four corners: the top-left's colour with the code, the bottom-left's).
+M.draw.rename_box = function(e, d)
+  local c, b = look.rename_box, e.highlight
+  local x, y = b.x + c.place.dx, b.y + c.place.dy
+  d.anchor(c.place.anchor)
+  d.layer("unk8")
+  d.packet(c.mode, c.code, x | (y << 16), 0, (x + b.w) | (y << 16), 0, x | ((y + b.h) << 16), c.colour,
+    (x + b.w) | ((y + b.h) << 16))
+end
+
+-- MENU7's file menu (file_menu, file_element): drawn at once in the game's order (DrawPrim's: no ordering table, so not
+-- last to first), its words packed as the game packs them (32 bits, its ORs and carries kept).
+local W = 0xFFFFFFFF
+local file_widths -- (the printer's advances by code + 1, from look.file_menu.font.widths' runs)
+local function file_clut(x, y) return (y << 6) | ((x >> 4) & 0x3F) end
+local function file_uvc(u, v, cx, cy) return (u | (v << 8)) | (file_clut(cx, cy) << 16) end
+-- _drawSprt: its page word (0x9FF of it), the colour 0x80 less the page's high half (signed), a 16-bit sprite.
+local function file_sprite(d, xy, uvclut, wh, page)
+  local rgb = (0x80 - (page // 65536)) * 0x010101
+  d.packet(0xE1000000 | (page & 0x9FF), (0x64000000 | rgb) & W, xy & W, uvclut & W, wh & W)
+end
+-- _printCharacter: a code at x, y in colour `clut`; the pen after it.
+local function file_char(d, f, c, x, y, clut)
+  local adv = file_widths[c + 1] or f.cell
+  if c == f.space then
+    d.text_glyph(-1, x, y, adv)
+  else
+    d.text_glyph(c, x, y, adv)
+    d.packet(f.mode, f.colour, ((x & 0xFFFF) | (y << 16)) & W,
+      file_uvc((c % f.columns) * f.cell, (c // f.columns) * f.cell, clut * 16 + f.clut_x, f.clut_y),
+      f.cell | (f.cell << 16))
+  end
+  return x + adv
+end
+-- _printString: the game's codes (to 0xE7; 0xE6 the blinking arrow, stepped from `arrow`; 0xE8 a new line; 0xFA a
+-- move); the arrow's step after.
+local function file_string(d, f, codes, x, y, clut, arrow)
+  local i, start, pen = 1, x, x
+  while true do
+    local c = codes[i]
+    if not c then break end
+    i = i + 1
+    if c < 0xEC then
+      if c < 0xE5 then pen = file_char(d, f, c, pen, y, clut)
+      elseif c == 0xE6 then
+        arrow = (arrow + 1) % 12
+        pen = file_char(d, f, f.arrow - (arrow >> 2), pen, y, clut)
+      elseif c == 0xE7 then break
+      elseif c == 0xE8 then y, pen = y + f.line, start end
+    else
+      local control = codes[i] or 0
+      i = i + 1
+      if c == 0xFA then pen = control >= 0xF0 and pen - (256 - control) or pen + control end
+    end
+  end
+  return arrow
+end
+local function file_info(d, c, xy, id) -- _drawSaveInfoUI
+  local t = c.info[id + 1]
+  file_sprite(d, xy, file_uvc(t[1], t[2], t[3], c.info.clut_y), t[4] | (t[5] << 16), c.info.page)
+end
+local function file_integer(d, c, xy, value, place) -- _renderInteger
+  local g = c.digits
+  repeat
+    file_sprite(d, xy, file_uvc((value // place) * g.w, 0, g.clut_x, g.clut_y), g.w | (g.h << 16), g.page)
+    value, place, xy = value % place, place // 10, xy + g.step
+  until place == 0
+end
+local function file_count(v) local n = 0 repeat v, n = v // 10, n + 1 until v == 0 return n end
+local function file_gauge(d, c, xy, mp, value, max) -- _drawHPMP
+  local g, h = c.gauge, c.hp_digits
+  local fill = max ~= 0 and ((value * 64 + max - 1) & W) // max or 0
+  local rgb0 = mp and g.mp or g.hp
+  local f = 64 - fill
+  local rgb1 = ((((fill * g.full[1]) + (rgb0 & 0xFF) * f) & W) >> 6)
+    | (((((fill * g.full[2]) + ((rgb0 >> 8) & 0xFF) * f) & W) >> 6) << 8)
+    | (((((fill * g.full[3]) + (rgb0 >> 16) * f) & W) >> 6) << 16)
+  local back = xy + (8 << 16)
+  xy = xy + 1
+  d.packet(g.mode, g.back, back & W, g.w | (g.h << 16), (g.code | rgb1) & W, (xy + (9 << 16)) & W, rgb0,
+    (xy + fill + (9 << 16)) & W, rgb1, (xy + (12 << 16)) & W, rgb0, (xy + (fill + (12 << 16))) & W)
+  local cd, md = file_count(value), file_count(max)
+  file_info(d, c, xy - 1, mp and c.info.ids.mp or c.info.ids.hp)
+  xy = (xy - (cd * 6 - 55)) - md * 5
+  local place = ({ 1, 10, 100 })[cd] or 0
+  repeat
+    file_sprite(d, xy - (1 << 16), (((value // place) << 3) + h.u) | (file_clut(c.digits.clut_x, c.digits.clut_y) << 16),
+      h.w | (h.h << 16), c.digits.page)
+    value, place, xy = value % place, place // 10, xy + h.step
+  until place == 0
+  file_info(d, c, xy + 1, c.info.ids.dot)
+  file_integer(d, c, xy + 6, max, ({ 1, 10, 100 })[md] or 1)
+end
+local function file_mix(a, b, f) -- _interpolateRGB: a to b by f / 8, each byte
+  local out = 0
+  for shift = 16, 0, -8 do
+    out = (out << 8) + ((((a >> shift) & 0xFF) * (8 - f) + ((b >> shift) & 0xFF) * f) >> 3)
+  end
+  return out
+end
+local function file_panel_colour(p, outer, inner) -- _intepolateMenuItemBgColour
+  local c1, c2
+  if inner < 9 then
+    c1, c2 = file_mix(p.near[1], p.near[2], inner), file_mix(p.far[1], p.far[2], inner)
+  else
+    c1, c2 = p.lit[(inner >> 3) - 1], p.dark[(inner >> 3) - 1]
+  end
+  return file_mix(c1, c2, outer)
+end
+
+M.draw.file_element = function(e, d)
+  local c, f = look.file_menu, e.file
+  local font = c.font
+  if not file_widths then
+    file_widths = {}
+    local w = font.widths
+    for i = 1, #w, 2 do for _ = 1, w[i + 1] do file_widths[#file_widths + 1] = w[i] end end
+  end
+  if not (f.slot >= 5 or ((f.y - c.panel.top) & W) < c.panel.rows) then return end
+  local p, outer, arrow = c.panel, f.outer, f.arrow
+  local v1, v2 = file_panel_colour(p, 8 - outer, f.inner), file_panel_colour(p, outer, f.inner)
+  local y = f.y << 16
+  d.packet(p.mode, p.shadow, (((f.x + 2) & 0xFFFF) | ((f.y + 2) << 16)) & W, (f.w | (f.h << 16)) & W,
+    p.code | v1, ((f.x & 0xFFFF) | y) & W, v2, (((f.x + f.w) & 0xFFFF) | y) & W, v1,
+    ((f.x & 0xFFFF) | ((f.y + f.h) << 16)) & W, v2, (((f.x + f.w) & 0xFFFF) | ((f.y + f.h) << 16)) & W)
+  local x, t, i = f.x + p.text_x, f.text, 1
+  while t[i] do
+    local code = t[i]
+    if code == 0xFA then i = i + 1 x = x + (t[i] or 0)
+    elseif code ~= 0xFF then x = file_char(d, font, code, x, f.y, 0)
+    else break end
+    i = i + 1
+  end
+  if f.slot >= 5 then return end
+  local pic = c.picture
+  local location, state = f.location - 1, f.slot_state
+  if state < 3 then
+    location = state == 0 and -2 or state == 2 and -4 or f.saving and -1 or -5
+  elseif location >= pic.slots then
+    location = -3
+  end
+  d.image_store(pic.clut_x, pic.clut_y, pic.clut_w, 1)
+  d.image_load(pic.clut_x, pic.clut_y, pic.clut_w, 1, f.cluts[(location < 0 or location >= 32) and 2 or 1])
+  local fade = (8 - outer) << 19
+  if location < 0 then
+    file_sprite(d, (f.x - 64) | y, (~location << 13) | file_uvc(pic.special, 0, pic.clut_x, pic.clut_y),
+      pic.w | (pic.h << 16), fade | 0x9C)
+  else
+    file_sprite(d, (f.x - 64) | y, ((location & 8) * 8) | ((location & 7) << 13) | file_uvc(0, 0, pic.clut_x, pic.clut_y),
+      pic.w | (pic.h << 16), (((((location & 0x30) * 4) + pic.page) & 0x3FF) >> 6) | fade | 0x90)
+  end
+  d.image_restore()
+  local ids = c.info.ids
+  file_info(d, c, (f.x - 22) | y, ids.number)
+  file_integer(d, c, (f.x - 9) | y, f.slot + 1, 10)
+  if state == 0 then
+    arrow = file_string(d, font, f.in_use, f.x + 6, f.y + 10, 3, arrow)
+  elseif state == 1 then
+    if not f.saving then arrow = file_string(d, font, f.empty, f.x + 6, f.y + 10, 3, arrow)
+    else arrow = file_string(d, font, f.fresh, f.x + 6, f.y + 10, 0, arrow) end
+  else
+    y = y + (4 << 16)
+    arrow = file_string(d, font, f.place, f.x + 6, f.y + 4, 0, arrow)
+    file_info(d, c, y | 172, ids.map)
+    file_info(d, c, y | 189, ids.colon)
+    if f.map == 100 then
+      file_integer(d, c, y | 192, 100, 100)
+      file_info(d, c, (y + 0xFFFF0000) | 207, ids.percent)
+    else
+      file_integer(d, c, y | 192, f.map, 10)
+      file_info(d, c, (y + 0xFFFF0000) | 202, ids.percent)
+    end
+    file_info(d, c, y | 217, ids.save)
+    file_info(d, c, y | 239, ids.colon)
+    file_integer(d, c, y | 242, f.saves, 1000)
+    file_info(d, c, y | 267, ids.clear)
+    file_info(d, c, y | 293, ids.colon)
+    file_integer(d, c, y | 296, f.clears, 10)
+    y = y + (13 << 16)
+    if f.clears ~= 0 then
+      local b = c.clear_badge
+      file_sprite(d, y | 69, file_uvc(b[1], b[2], b[3], b[4]), b[5] | (b[6] << 16), b.page)
+    end
+    file_info(d, c, y | 240, ids.time)
+    if f.hours == 100 then file_integer(d, c, y | 263, f.hours, 100) else file_integer(d, c, y | 268, f.hours, 10) end
+    file_info(d, c, y | 279, ids.colon)
+    file_integer(d, c, y | 282, f.minutes, 10)
+    file_info(d, c, y | 293, ids.colon)
+    file_integer(d, c, y | 296, f.seconds, 10)
+    file_gauge(d, c, y | 88, false, f.hp, f.hp_max)
+    file_gauge(d, c, y | 158, true, f.mp, f.mp_max)
+    y = y - (17 << 16)
+  end
+  local g = c.progress
+  if f.progress == 2 then -- _fileProcessingCompleteAnim
+    local colour = f.progress_colour
+    local c0 = f.saving and colour + (colour << 15) or (colour - (colour >> 3)) + (colour << 8)
+    local c1 = 0
+    d.packet(g.mode, (g.tile | c0) & W, (y | 64) & W, 256 | (32 << 16))
+    for _ = 1, 2 do
+      local yo = y + (-8 << 16)
+      d.packet((g.code | c1) & W, (yo | 64) & W, c1, (yo | 320) & W, c0, (y | 64) & W, c0, (y | 320) & W)
+      y, c1, c0 = y + (40 << 16), c0, 0
+    end
+  elseif f.progress == 1 then -- _fileProcessingAnim
+    local px = f.progress_x
+    local left = px - g.edge
+    if (left & W) < g.left then left = g.left end
+    local g1, g2 = 0, f.saving and g.save or g.load
+    for _ = 1, 2 do
+      d.packet(g.mode, (g.code | g1) & W, (left | y) & W, g2, (px | y) & W, g1, (left | (y + (g.h << 16))) & W, g2,
+        (px | (y + (g.h << 16))) & W)
+      left, px, g1, g2 = px, px + g.step, g2, 0
+    end
+  end
+end
+
+M.draw.file_menu = function(e, d)
+  local c, m = look.file_menu, e.file_menu
+  local fr = c.frame
+  if m.part == 0 then -- the band's two sprites (under the elements)
+    local b = fr.band
+    for _, s in ipairs(b) do
+      file_sprite(d, s[1] | (s[2] << 16), file_uvc(0, b.v, b.clut_x, b.clut_y), s[3] | (s[4] << 16), s[5])
+    end
+    return
+  end
+  local r = fr.rows
+  for i = 1, 3 do
+    local y = r.top - i
+    file_sprite(d, y << 16, y << 8, r.w[1] | (1 << 16), (m.x >> 6) | (((4 - i) << 21) | 256))
+    file_sprite(d, 256 | (y << 16), y << 8, r.w[2] | (1 << 16), ((m.x + 256) >> 6) | (((4 - i) << 21) | 256))
+  end
+  local k = fr.caution
+  file_sprite(d, k[1] | (k[2] << 16), file_uvc(k[3], k[4], k[5], c.info.clut_y), k[6] | (k[7] << 16), c.digits.page)
+  local msg = fr.message
+  d.packet(msg.tile, msg.y << 16, 320 | (msg.h << 16))
+  if m.cursor_xy ~= 0 then
+    local h = fr.hand
+    file_sprite(d, m.cursor_xy, file_uvc(h.u, h.v, h.clut_x, c.info.clut_y), h.w | (h.h << 16),
+      (h.saturation[m.cursor_color + 1] << 16) | c.digits.page)
+  end
+  if m.message then file_string(d, c.font, m.message, msg.x, msg.text_y, 0, m.arrow) end
+  if m.fade ~= 0 then
+    local z = fr.fade
+    d.packet(z.mode, (z.code | (m.fade * z.step)) & W, 0, z.w | (z.h << 16))
+  end
+end
+
 for _, kind in ipairs({ "status", "chain", "gauges", "figure", "status_icons", "battle_mode", "ability_icons", "buff",
                         "damage", "actor_word", "timer", "emote", "text_frame", "text_band", "box_text", "image",
                         "target_row", "target_line", "target_marker", "menu_row", "menu_cursor", "menu_command",
                         "menu_tabs", "menu_background", "option_value", "items_category", "items_status_button", "equip_stats",
                         "dp_pp_bars", "gem_slots", "stat_page", "ok_mark", "storage_buttons",
-                        "storage_counts", "loot_capacities", "discard_count" }) do
+                        "storage_counts", "loot_capacities", "discard_count", "rename_grid", "rename_box", "file_menu",
+                        "file_element" }) do
   rood.hud.claim(kind, function(e, d) return M.draw[kind](e, d) end, { flavour = "classic" })
 end
 

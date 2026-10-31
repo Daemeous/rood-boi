@@ -21,7 +21,10 @@
 
 namespace rood_selection {
 
-enum Kind { KIND_NONE, KIND_LIGHT, KIND_ACTOR, KIND_GLOW, KIND_VOLUME, KIND_SUN, KIND_EMITTER };
+/* KIND_SURFACE: one room polygon ("surface:<zone>-<room>:<offset hex>"); KIND_MODEL: one drawn
+ * model, a character, weapon or prop ("model:<hash>"): click-to-inspect (editor_inspect.h). Both are
+ * inspected, never moved, hidden, copied or deleted. */
+enum Kind { KIND_NONE, KIND_LIGHT, KIND_ACTOR, KIND_GLOW, KIND_VOLUME, KIND_SUN, KIND_EMITTER, KIND_SURFACE, KIND_MODEL };
 struct Ref {
     Kind kind = KIND_NONE;
     std::string id; /* the lighting item id, its prefix included */
@@ -31,7 +34,7 @@ struct Ref {
 };
 /* A reference from an item id, by its prefix ("env:sun": the room's sun or moon; KIND_NONE when unknown). */
 Ref ref_of(const std::string& id);
-const char* kind_name(Kind k); /* "light", "actor", "glow", "fog", "sun", "emitter", "none" */
+const char* kind_name(Kind k); /* "light", "actor", "glow", "fog", "sun", "emitter", "surface", "model", "none" */
 
 /* Where a change came from: the Outliner scrolls to the new primary unless
  * the change came from it; Details switches to it unless the change came

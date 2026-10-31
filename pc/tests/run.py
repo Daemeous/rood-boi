@@ -131,7 +131,7 @@ CTEST_LONG = "^(zig_diff|port_pipeline)"
 
 def zig_diff_changed(functions, scale=1.0):
     """ctest_long in the quick lane: zig_diff on the specs the change affects
-    (affected.py Lane.zig) and ctest_long's other entries, not the ten shards."""
+    (affected.py Lane.zig) and ctest_long's other entries, not the twenty shards."""
     # ~25 s a spec with its mutations and coverage, three at a time; zig_diff_coverage ~1.5 min beside them
     timeout = max(900, 300 + 25 * -(-len(functions) // 3))
     return Suite("zig_diff_changed", [PY, str(TESTS / "zig_diff_changed.py"), *functions], timeout * scale,
@@ -172,7 +172,7 @@ def suites(args, mode="egl"):
                   TESTS / "input_record_test.c", ROOT / "pc/src/input_record.c"]),
         # ten zig_diff shards of ~15-20 min, four at a time, beside the port pipeline's ~15 min
         Suite("ctest_long", ["ctest", "--test-dir", str(ROOT / "pc/build"), "--output-on-failure", "-j", "4",
-                             "-R", CTEST_LONG], 4800, binary=None,
+                             "-R", CTEST_LONG], 7200, binary=None,
               note="the long CMake tests: zig_diff's shards and coverage lane, the port pipeline",
               sources=[ROOT / "pc/tools/zig_diff.py", TESTS / "zig_diff_coverage_test.py",
                        TESTS / "zig_diff_changed.py"]),
@@ -385,6 +385,20 @@ def suites(args, mode="egl"):
                        "commands (rood.dev.window / command), the editor closed gives the picture the window back",
                   sources=[TESTS / "editor_shell_smoke.py", ROOT / "pc/src/editor_shell.cpp",
                            ROOT / "pc/src/editor_commands.cpp", TESTS / "lua/plugins/test.shell/main.lua"]),
+            Suite("editor_inspect_smoke", [PY, str(TESTS / "editor_inspect_smoke.py"), "--card", str(args.save)], 600,
+                  note="click-to-inspect: a click on a room surface or a drawn model selects it (kinds surface / "
+                       "model), Details describes it (mesh, texture, palette, material entry and layer, shader), the "
+                       "Outliner lists it, where-used names its rooms with Go, view modes by name set and restore",
+                  sources=[TESTS / "editor_inspect_smoke.py", ROOT / "pc/src/editor_inspect.cpp",
+                           ROOT / "pc/src/editor_scene.cpp", ROOT / "pc/shaders/vulkan/scaled.frag"]),
+            Suite("material_instances_smoke", [PY, str(TESTS / "material_instances_smoke.py"), "--card", str(args.save)], 600,
+                  note="master materials and instances: a format-1 layer read as instances (presets roots, entries "
+                       "their children) resolving as the old reader, migrated and read back the same, parents and "
+                       "reset to parent, assignment to the selection, the Materials and preview panels, the Keep "
+                       "byte-identical on the migrated layer",
+                  sources=[TESTS / "material_instances_smoke.py", ROOT / "pc/src/materials.cpp",
+                           ROOT / "pc/src/material_instances.cpp", ROOT / "pc/src/material_preview.cpp",
+                           ROOT / "pc/assets/materials/masters/standard_surface.json"]),
             Suite("room_browser_smoke", [PY, str(TESTS / "room_browser_smoke.py"), "--card", str(args.save)], 300,
                   note="Room Browser: rooms from the disc, warps across zones and back; lighting layers in the game"),
             Suite("room_entry_sound_smoke", [PY, str(TESTS / "room_entry_sound_smoke.py"), "--card", str(args.save)],

@@ -76,7 +76,7 @@ static const int kind_slot[PC_HUD_KINDS] = { 0, -16, -16, 8, -20, 0, 0, 0, -12, 
     PC_HUD_LAYER_ELEMENT, 0, 0, 0, PC_HUD_LAYER_ELEMENT, PC_HUD_LAYER_ELEMENT, PC_HUD_LAYER_UNK8, -4,
     PC_HUD_LAYER_ELEMENT, PC_HUD_LAYER_UNK8, PC_HUD_LAYER_UNK8, PC_HUD_LAYER_UNK8, PC_HUD_LAYER_UNK8, PC_HUD_LAYER_UNK8,
     PC_HUD_LAYER_UNK8, PC_HUD_LAYER_UNK8, -24, -12, PC_HUD_LAYER_UNK8, -12, -12, PC_HUD_LAYER_UNK8, PC_HUD_LAYER_UNK8,
-    PC_HUD_LAYER_UNK8, PC_HUD_LAYER_UNK8 };
+    PC_HUD_LAYER_UNK8, PC_HUD_LAYER_UNK8, PC_HUD_LAYER_UNK8, PC_HUD_LAYER_UNK8 };
 static int element_slot; /* PC_HUD_LAYER_ELEMENT: the slot the element just recorded was linked into */
 static const int gauge_slots[2] = { -12, -16 };
 /* (the classic layer's kinds are the HUD layer's, by number) */
@@ -98,6 +98,7 @@ typedef char pc_hud_classic_kinds_agree[PC_CLASSIC_STATUS == PC_HUD_STATUS && PC
             && PC_CLASSIC_STAT_PAGE == PC_HUD_STAT_PAGE && PC_CLASSIC_OK_MARK == PC_HUD_OK_MARK
             && PC_CLASSIC_STORAGE_BUTTONS == PC_HUD_STORAGE_BUTTONS && PC_CLASSIC_STORAGE_COUNTS == PC_HUD_STORAGE_COUNTS
             && PC_CLASSIC_LOOT_CAPACITIES == PC_HUD_LOOT_CAPACITIES && PC_CLASSIC_DISCARD_COUNT == PC_HUD_DISCARD_COUNT
+            && PC_CLASSIC_RENAME_GRID == PC_HUD_RENAME_GRID && PC_CLASSIC_RENAME_BOX == PC_HUD_RENAME_BOX
         ? 1
         : -1];
 
@@ -614,13 +615,16 @@ void pc_hud_target_marker(void* record, void* first, void* end)
  * each where a tour covers it: 4 Items (MENU3) all six; 5 Status (MENU4), 13 Setup (MENUC) and 14 Storage (MENUD) the
  * C48.c panels (stats, DP / PP bars, table); 12 Loot (MENUB's Organize inventory: items0.h's icons, items1.h's status
  * views, its own copy of the STATUS strip, 260.c) all six; MENUD's own copy of the gem slots (234.c _gripNavigation)
- * and of the category icons (234.c func_80103E24); a misc item's discard amount (items1.h, MENUD's copy). The other screens' own: the OK mark on 13 Setup (MENUC _drawOk) and
- * 14 Storage (its top menu), Storage's button strip and counts (14), Loot's capacities strip (12). */
+ * and of the category icons (234.c func_80103E24); a misc item's discard amount (items1.h on Items and Loot's Organize inventory, MENUD's copy). The other screens' own: the OK mark on 13 Setup (MENUC _drawOk) and
+ * 14 Storage (its top menu), Storage's button strip and counts (14), Loot's capacities strip (12); the rename grid and its
+ * highlight boxes on 8 (MENU8's _renderRenameMenu: from Setup's Rename, currentMenu 8). */
 #define PANEL_C48 (1u << 4 | 1u << 5 | 1u << 12 | 1u << 13 | 1u << 14)
 /* The screens BATTLE's hand (5BF94.c vs_battle_drawCursor, drawn as menu_cursor) is claimed on: 12 Loot (MENUB's Yes / No
- * and row menus), 13 Setup (MENUC's Yes / No). Not: Battle Abilities (MENU2), Data (MENU7), the rename grid (MENU8 from
- * Setup), the battle command list (the menu closed): untoured there. */
-#define BATTLE_CURSOR_SCREENS (1u << 12 | 1u << 13)
+ * and row menus), 13 Setup (MENUC's Yes / No), 8 the rename grid's Yes / No (MENU8 _confirmationScreen: the Option
+ * screen's own menus draw no BATTLE hand), 7 MENU7's container prompts (_promptYesNo: before Storage, and its warning
+ * after; the Data screen's file menu draws its own hand, by DrawPrim), 3 Battle Abilities (MENU2's learned list).
+ * Not: the battle command list (the menu closed): no MAINMENU screen. */
+#define BATTLE_CURSOR_SCREENS (1u << 3 | 1u << 7 | 1u << 8 | 1u << 12 | 1u << 13)
 static const unsigned short PANEL_SCREENS[PC_HUD_KINDS - PC_HUD_ITEMS_CATEGORY] = {
     [PC_HUD_ITEMS_CATEGORY - PC_HUD_ITEMS_CATEGORY] = 1u << 4 | 1u << 12 | 1u << 14, /* (14: MENUD's copy, 234.c) */
     [PC_HUD_ITEMS_STATUS_BUTTON - PC_HUD_ITEMS_CATEGORY] = 1u << 4 | 1u << 12,
@@ -632,7 +636,10 @@ static const unsigned short PANEL_SCREENS[PC_HUD_KINDS - PC_HUD_ITEMS_CATEGORY] 
     [PC_HUD_STORAGE_BUTTONS - PC_HUD_ITEMS_CATEGORY] = 1u << 14,
     [PC_HUD_STORAGE_COUNTS - PC_HUD_ITEMS_CATEGORY] = 1u << 14,
     [PC_HUD_LOOT_CAPACITIES - PC_HUD_ITEMS_CATEGORY] = 1u << 12,
-    [PC_HUD_DISCARD_COUNT - PC_HUD_ITEMS_CATEGORY] = 1u << 4 | 1u << 14, /* items1.h on Items, MENUD's copy */
+    [PC_HUD_DISCARD_COUNT - PC_HUD_ITEMS_CATEGORY] = 1u << 4 | 1u << 12 | 1u << 14, /* items1.h on Items and Loot's
+                                                                                    * Organize inventory, MENUD's copy */
+    [PC_HUD_RENAME_GRID - PC_HUD_ITEMS_CATEGORY] = 1u << 8, /* MENU8 _renderRenameMenu */
+    [PC_HUD_RENAME_BOX - PC_HUD_ITEMS_CATEGORY] = 1u << 8,  /* MENU8 _highlightSelection */
 };
 static unsigned char menu_row_item[0x40]; /* the row the element just recorded drew: d.menu_row's copy */
 void pc_hud_menu(int kind, void* record, void* first, void* end)
@@ -746,6 +753,28 @@ void pc_hud_menu(int kind, void* record, void* first, void* end)
             memcpy(&f->loot, l, sizeof f->loot);
             f->x = l->x + 176, f->y = 12, f->w = 136, f->h = 128;
         }
+    } else if (kind == PC_HUD_RENAME_GRID) { /* MENU8's rename grid */
+        static pc_hud_fields grid;
+        const pc_classic_rename_grid* r = record;
+        typedef char pc_hud_rename_agrees[sizeof grid.rename == sizeof *r ? 1 : -1];
+        f = &grid;
+        *f = (pc_hud_fields) { 0 };
+        f->key = f;
+        memcpy(&f->rename, r, sizeof f->rename);
+        f->x = 0, f->y = 30, f->w = 320, f->h = 194;
+        slots[0] = -4, slots[1] = -8, slots[2] = unk8, slots[3] = unk8 + 4;
+        nslots = 4;
+    } else if (kind == PC_HUD_RENAME_BOX) { /* a highlight box on it: the character's (10 wide), the name's pen */
+        static pc_hud_fields boxes[2];
+        const pc_classic_rename_box* b = record;
+        typedef char pc_hud_rename_box_agrees[sizeof boxes[0].rename_box == sizeof *b ? 1 : -1];
+        f = &boxes[b->w == 10 ? 0 : 1];
+        *f = (pc_hud_fields) { 0 };
+        f->key = f;
+        memcpy(&f->rename_box, b, sizeof f->rename_box);
+        f->x = b->x, f->y = b->y, f->w = b->w, f->h = b->h;
+        slots[0] = unk8;
+        nslots = 1;
     } else if (kind == PC_HUD_OPTION_VALUE) { /* our Option pages' value column (classic_options.c) */
         static pc_hud_fields values[16];
         const pc_classic_option_value* v = record;
@@ -1725,19 +1754,34 @@ static void image_packets(u_long* ot, const pc_hud_classic_cmd* c, int shadowed)
 /* The commands as packets in the kind's slot (shadow: into that word instead, for the parity gate:
  * nothing reported to ui_text or widescreen), the range anchored exactly (PC_ANCHOR_EXACT) where
  * `anchor` says (PC_HUD_ANCHOR_*; d.anchor's, else the element's). */
-static void classic_packets(const pc_hud_classic_cmd* cmds, int n, int anchor, int kind, int shadowed)
+extern void pc_vram_transfer(int x, int y, int w, int h, void* data, int write); /* boot_runtime.c */
+/* The draw's own VRAM buffer (d.image_store, d.image_restore): the last rectangle read (classic_parity.c's: kept out
+ * of this unit's statics, which a save state holds, so a claim's draw leaves the state as the game's does). */
+static void image_store(const pc_hud_classic_cmd* c)
 {
-    u_long* ot;
-    void* start = psx_get(vs_scratch.unk0);
-    int i;
-    restyle = !shadowed;
-    if (!shadowed && pc_hud_classic_anchor && pc_hud_classic_anchor() >= 0)
-        anchor = pc_hud_classic_anchor();
-    for (i = n - 1; i >= 0; --i) {
-        const pc_hud_classic_cmd* c = &cmds[i];
-        ot = slot_for(kind, c->layer);
-        if (c->alpha <= 0.01f && c->type != PC_HUD_CMD_WINDOW && c->type != PC_HUD_CMD_BAR && c->type != PC_HUD_CMD_CURSOR)
-            continue;
+    int w = c->w, h = c->h, *rect;
+    unsigned short* pixels = pc_classic_image_buffer(&rect);
+    if (w < 0 || h < 0 || w * h > 1024)
+        w = h = 0;
+    rect[0] = c->x, rect[1] = c->y, rect[2] = w, rect[3] = h;
+    if (w && h)
+        pc_vram_transfer(c->x, c->y, w, h, pixels, 0);
+}
+/* An upload's pixels and rectangle: its own (text) or the buffer's (b 1). */
+static const void* image_source(const pc_hud_classic_cmd* c, int* x, int* y, int* w, int* h)
+{
+    if (c->b == 1) {
+        int* rect;
+        const void* pixels = pc_classic_image_buffer(&rect);
+        *x = rect[0], *y = rect[1], *w = rect[2], *h = rect[3];
+        return pixels;
+    }
+    *x = c->x, *y = c->y, *w = c->w, *h = c->h;
+    return c->text;
+}
+static void emit_command(const pc_hud_classic_cmd* c, u_long* ot, int kind, int shadowed)
+{
+        (void)kind;
         switch (c->type) {
         case PC_HUD_CMD_TEXT:
             text_packets(ot, c);
@@ -1790,8 +1834,10 @@ static void classic_packets(const pc_hud_classic_cmd* cmds, int n, int anchor, i
             break;
         case PC_HUD_CMD_PACKET: {
             u_long* p = psx_get(vs_scratch.unk0);
-            const int words[4] = { c->a, c->b, c->c, c->d };
-            int k, n = c->w < 1 ? 1 : c->w > 4 ? 4 : c->w;
+            int words[15] = { c->a, c->b, c->c, c->d };
+            int k, n = c->w < 1 ? 1 : c->w > 15 ? 15 : c->w;
+            if (n > 4 && c->text)
+                memcpy(words + 4, c->text, (size_t)(n - 4) * sizeof words[0]);
             p[0] = ((u_long)n << 24) | (ot[0] & 0xFFFFFF);
             for (k = 0; k < n; ++k)
                 p[1 + k] = (u_long)(unsigned)words[k];
@@ -1803,8 +1849,9 @@ static void classic_packets(const pc_hud_classic_cmd* cmds, int n, int anchor, i
             char table = _fontTable, style = D_800F4CB8;
             int brightness = _fontBrightness, k, x = c->x;
             vs_battle_setFontStyle(c->a);
-            for (k = 0; k < c->length; ++k)
-                x = vs_battle_printVariableWidthFontChar((u_char)c->text[k], x, c->y, ot - 3);
+            for (k = 0; k < c->length; ++k) /* (b: a fixed step, the pen moved by it whatever the glyph's width) */
+                x = c->b ? (vs_battle_printVariableWidthFontChar((u_char)c->text[k], x, c->y, ot - 3), x + c->b)
+                         : vs_battle_printVariableWidthFontChar((u_char)c->text[k], x, c->y, ot - 3);
             _fontTable = table, D_800F4CB8 = style, _fontBrightness = brightness;
             break;
         }
@@ -1846,7 +1893,33 @@ static void classic_packets(const pc_hud_classic_cmd* cmds, int n, int anchor, i
             vs_battle_renderStatBar(c->c, fill, ot, (int)xy(c->x, c->y));
             break;
         }
+        case PC_HUD_CMD_IMAGE_STORE: /* (in an ordering table's draw: at once, before the table is drawn) */
+            image_store(c);
+            break;
+        case PC_HUD_CMD_IMAGE_LOAD:
+            if (!shadowed) {
+                int x, y, w, h;
+                const void* pixels = image_source(c, &x, &y, &w, &h);
+                if (pixels && w > 0 && h > 0)
+                    pc_vram_transfer(x, y, w, h, (void*)pixels, 1);
+            }
+            break;
+        case PC_HUD_CMD_TEXT_GLYPH: /* (immediate draws only: immediate_packets) */
+            break;
         }
+}
+static void classic_packets(const pc_hud_classic_cmd* cmds, int n, int anchor, int kind, int shadowed)
+{
+    void* start = psx_get(vs_scratch.unk0);
+    int i;
+    restyle = !shadowed;
+    if (!shadowed && pc_hud_classic_anchor && pc_hud_classic_anchor() >= 0)
+        anchor = pc_hud_classic_anchor();
+    for (i = n - 1; i >= 0; --i) {
+        const pc_hud_classic_cmd* c = &cmds[i];
+        if (c->alpha <= 0.01f && c->type != PC_HUD_CMD_WINDOW && c->type != PC_HUD_CMD_BAR && c->type != PC_HUD_CMD_CURSOR)
+            continue;
+        emit_command(c, slot_for(kind, c->layer), kind, shadowed);
     }
     restyle = 1;
     if (!shadowed && pc_hw_anchor_packets && anchor != PC_HUD_ANCHOR_GAME) /* placed by data: exactly, no heuristics */
@@ -1855,6 +1928,151 @@ static void classic_packets(const pc_hud_classic_cmd* cmds, int n, int anchor, i
                     : anchor == PC_HUD_ANCHOR_RIGHT ? PC_ANCHOR_RIGHT_EDGE
                                                     : PC_ANCHOR_CENTRE)
                 | PC_ANCHOR_EXACT);
+}
+
+/* ---- immediate draws (classic_hook.h PC_CLASSIC_IMMEDIATE: MENU7's file menu) ----
+ * A claim's commands made in their order (not last to first: nothing links them into a table), each packet drawn at
+ * once as it is made (DrawPrim's way; draw 0, the parity mode: only normalised), the image commands done (a read
+ * always; an upload only when drawing) and each entry kept as the recorder keeps the game's (classic_parity.h). The
+ * packets go to the draw's arena past the frame's (vs_scratch.unk0), linked to no table, and it is given back after.
+ * A d.text_glyph before a packet reports it to ui_text as a printer's glyph (pc_text_glyph: its line layout and the
+ * button roles' glyph, as MENU7's printer does). */
+extern void pc_text_glyph(void* const* commands, int count, int glyph, int x, int y, int next_x, int advance)
+    __attribute__((weak));
+extern void pc_draw_packet(void* data, int chain); /* boot_runtime.c */
+static int immediate_packets(const pc_hud_classic_cmd* cmds, int n, int kind, int draw, pc_classic_packet* out, int max)
+{
+    u_long head = 0x00FFFFFF;
+    void* start = psx_get(vs_scratch.unk0);
+    const pc_hud_classic_cmd* glyph = NULL;
+    int count = 0, i;
+    restyle = draw;
+    for (i = 0; i < n; ++i) {
+        const pc_hud_classic_cmd* c = &cmds[i];
+        u_long *from, *to, *p;
+        if (c->type == PC_HUD_CMD_TEXT_GLYPH) {
+            if (c->a >= 0)
+                glyph = c;
+            else if (pc_text_glyph && draw) /* (a space: the pen moved, no packet) */
+                pc_text_glyph(NULL, 0, -1, c->x << 16, c->y << 16, (c->x + c->b) << 16, c->b);
+            continue;
+        }
+        if (c->type == PC_HUD_CMD_IMAGE_STORE) {
+            image_store(c);
+            if (count < max)
+                pc_classic_immediate_read_entry(&out[count++], c->x, c->y, c->w, c->h);
+            continue;
+        }
+        if (c->type == PC_HUD_CMD_IMAGE_LOAD) {
+            int x, y, w, h;
+            const void* pixels = image_source(c, &x, &y, &w, &h);
+            if (count < max)
+                pc_classic_immediate_upload_entry(&out[count++], x, y, w, h, pixels);
+            if (draw && pixels && w > 0 && h > 0)
+                pc_vram_transfer(x, y, w, h, (void*)pixels, 1);
+            continue;
+        }
+        if (c->alpha <= 0.01f && c->type != PC_HUD_CMD_WINDOW && c->type != PC_HUD_CMD_BAR && c->type != PC_HUD_CMD_CURSOR)
+            continue;
+        from = psx_get(vs_scratch.unk0);
+        emit_command(c, &head, kind, !draw);
+        to = psx_get(vs_scratch.unk0);
+        for (p = from; p < to; p += 1 + (p[0] >> 24)) {
+            int words = (int)(p[0] >> 24), k;
+            if (!words)
+                continue;
+            if (glyph) { /* (its colour word: the sprite's code) */
+                for (k = 1; k <= words && ((p[k] >> 24) & 0xE0) != 0x60; ++k)
+                    ;
+                if (k <= words && pc_text_glyph)
+                    pc_text_glyph((void* const[]) { &p[k] }, 1, glyph->a, glyph->x << 16, glyph->y << 16,
+                        (glyph->x + glyph->b) << 16, glyph->b);
+                glyph = NULL;
+            }
+            if (count < max) {
+                pc_classic_packet* q = &out[count];
+                memset(q, 0, sizeof *q);
+                q->words = (unsigned char)(words < PC_CLASSIC_PACKET_WORDS ? words : PC_CLASSIC_PACKET_WORDS - 1);
+                q->at = (unsigned short)count;
+                memcpy(q->w, p + 1, sizeof q->w[0] * q->words);
+                ++count;
+            }
+            if (draw)
+                pc_draw_packet(p, 0);
+        }
+    }
+    psx_set(vs_scratch.unk0, start); /* (given back: nothing links to them) */
+    restyle = 1;
+    return count;
+}
+
+/* MENU7's file menu: on the Data screen and the save list after Storage only (currentMenu 7; not the game over's). */
+static int immediate_screen(void)
+{
+    return (vs_battle_menuState.currentMenu & 0x3F) == 7 && !vs_main_stateFlags.gameOver;
+}
+void pc_classic_immediate_begin(int kind)
+{
+    pc_classic_immediate_open(!pc_classic_parity_on() && immediate_screen() && pc_hud_honoured(kind)
+        && pc_hud_classic_draw);
+}
+void pc_classic_immediate_site(int kind, void* record)
+{
+    static pc_hud_fields menu_parts[2], elements[10];
+    static pc_classic_packet lua[PC_CLASSIC_CAPTURE];
+    const pc_classic_packet* game;
+    pc_hud_fields* f;
+    int n = pc_classic_immediate_close(&game), amount;
+    if (!record || !immediate_screen() || (kind != PC_HUD_FILE_MENU && kind != PC_HUD_FILE_ELEMENT)) {
+        pc_classic_immediate_release(1);
+        return;
+    }
+    if (kind == PC_HUD_FILE_MENU) {
+        const pc_classic_file_menu* m = record;
+        typedef char pc_hud_file_menu_agrees[sizeof menu_parts[0].file_menu == sizeof *m ? 1 : -1];
+        f = &menu_parts[m->part & 1];
+        *f = (pc_hud_fields) { 0 };
+        memcpy(&f->file_menu, m, sizeof f->file_menu);
+        f->x = 0, f->y = m->part ? 0 : 176, f->w = 320, f->h = m->part ? 240 : 64;
+    } else {
+        const pc_classic_file_element* e = record;
+        typedef char pc_hud_file_element_agrees[sizeof elements[0].file == sizeof *e ? 1 : -1];
+        f = &elements[(unsigned)e->id % 10];
+        *f = (pc_hud_fields) { 0 };
+        memcpy(&f->file, e, sizeof f->file);
+        f->x = e->x, f->y = e->y, f->w = e->w, f->h = e->h;
+    }
+    f->key = f;
+    f->kind = kind;
+    f->anchor = PC_HUD_ANCHOR_GAME;
+    append(f->text, f->text + sizeof f->text, pc_classic_kind_name(kind));
+    if (pc_classic_capturing()) {
+        pc_classic_capture_game(kind, game, n, pc_vsync_count ? pc_vsync_count() : 0, f->text);
+        pc_classic_capture_allocated(kind, n);
+    }
+    amount = pc_hud_record(f);
+    if (pc_classic_parity_on() && !amount) {
+        const pc_hud_classic_cmd* cmds;
+        const char* why = "no Lua";
+        int count = pc_hud_classic_parity_draw ? pc_hud_classic_parity_draw(&cmds, &why) : -1;
+        pc_classic_immediate_release(1);
+        if (count < 0)
+            pc_classic_parity_skip(kind, why);
+        else
+            pc_classic_parity_compare(kind, lua, immediate_packets(cmds, count, kind, 0, lua, PC_CLASSIC_CAPTURE),
+                pc_vsync_count ? pc_vsync_count() : 0);
+        return;
+    }
+    if (amount == 2 && pc_classic_immediate_held()) {
+        const pc_hud_classic_cmd* cmds;
+        int count = pc_hud_classic_draw ? pc_hud_classic_draw(&cmds) : -1;
+        if (count >= 0) {
+            pc_classic_immediate_release(0); /* (the game's held back: dropped) */
+            immediate_packets(cmds, count, kind, 1, lua, 0); /* (nothing kept: this unit's statics are state) */
+            return;
+        }
+    }
+    pc_classic_immediate_release(1); /* the game's own drawing (held back: done now) */
 }
 
 /* The classic panels (rood.draw.panel with {classic = true}, the classic look): at the game's frame, just

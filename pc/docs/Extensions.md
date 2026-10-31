@@ -235,6 +235,8 @@ decides how it looks. The kinds:
 | `equip_stats`, `dp_pp_bars`, `gem_slots` | the classic look's only, on the screens whose tours cover them (hud_bridge.c `PANEL_SCREENS`): the stats panel and the bars on Items (its status views and Equip menus), Status (MENU4: a piece's detail, a part's stats), Setup (MENUC), Storage (MENUD's status views) and Loot (MENUB's Organize inventory); the gem slots on Items, Loot and Storage (MENUD's own copy, 234.c `_gripNavigation`, hooked the same): MAINMENU's stats panel (C48.c `vs_mainMenu_renderEquipStats` after its slide is stepped: ORG/EQP, RANGE and RISK, STR / INT / AGI or their ATTACK / DEFENSE names, each value and its equipped total, coloured by its threshold; `vs_scratch.unk4 - 24`) and DP / PP bars (`vs_mainMenu_renderDpPpBars` after its step: the words, maximum, slash and current value, the gauges; `unk4 - 12`); a grip's gem slots (items1.h `_gripStatusView`: the gem icon in `unk8 + 4`, `X     n` in `unk8`) | `equip` (`x, y` the panel's place, `known`, `range_risk` (shown), `range, risk, range_delta, subtype`, and per stat (1..3) `stat, threshold, base, total, accessory`: the values as the panel reads them), `bars` (`step, target` (1 DP, 2 PP), `dp, max_dp` (hundreds), `pp, max_pp`), `gems` (`count`) |
 | `stat_page` | the classic look's only, where the stats panel is (above): the class / affinity / type table of a status view, an Equip menu, Status's details, Setup's lists (C48.c `_renderStatPage` as `vs_mainMenu_drawClassAffinityType` calls it, sliding in: each row's name, value (comparing: the difference and `+` / `*`), its gauge of four shaded lines, frame and shading, the draw modes and shaded lines between, in `vs_scratch.unk4 - 12`; the Square button and the header CLASS / AFFINITY / TYPE in the text boxes' font, `unk4 - 16`) | `page` (`x_offset` (its slide, 0 or less), `page` (0 class, 1 affinity, 2 type), `enabled` (the pages' bits), `subtype`, `stats` (a copy of `vs_mainMenu_equipmentStats`, 0..63, as the game indexes it)) |
 | `ok_mark`, `storage_buttons`, `storage_counts`, `loot_capacities`, `discard_count` | the classic look's only, each on its screen (hud_bridge.c `PANEL_SCREENS`): the pulsing OK beside a menu's last choice (MENUC 168.c `_drawOk`: Setup's Assemble, Gems, Combine; MENUD 234.c `func_801089BC`: Storage's top menu; `vs_scratch.unk4 - 12`); Storage's button strip (MENUD `vs_menuD_exec`: two button windows in `unk4 - 12`, Square / Triangle / Cross and STATUS / CANCEL / END in `unk8`) and its counts (`func_80106464`'s `capacity / count` per category, in `unk8`: the strip's, below the bag's or the container's name, the last row the transfer list's; or the top menu's, `func_80106504`: GADGET BAG and CONTAINER side by side); Loot's capacities strip (MENUB 260.c `_displayInventoryCapacities`: GADGET BAG, each category's name, `/`, capacity and count, coloured by the row looked at; the GET / ALL / END windows, buttons and words); a misc item's discard amount (items1.h `_discardMenu`'s picker on Items, MENUD's copy on Storage: three digits in the text boxes' font, style 5, `unk8`) | `ok` (`x, y`, `level`: the pulse's grey, `(rsin(step * 8) >> 5) + 64`); `storage` (buttons: `x` the slide, `state` (bits 0..1 light STATUS, bit 2 dims END); counts: `layout` 0 the strip, 1 the top menu, `x` the strip's slide, `container` (0 the bag, 1 the container), `capacity[col][i]`, `count[col][i]` (col 1, 2: the bag's, the container's; i 1..7)); `loot` (`x` the slide, `controls`, `looking` (0 none, 1 the leave row, 2 an item), `all` (ALL lit), per category (1..7) `capacity`, `count`, `incoming` (what the item looked at adds)); `discard` (`count`, `x, y` the units' place) |
+| `file_menu`, `file_element` | the classic look's only, on MENU7's file menu (260.c `_drawFileMenu`, currentMenu 7: Data's SAVE / LOAD, the save list after Storage; not the game over's), which draws **at once** (`DrawPrim` and `LoadImage`, no ordering table: `PC_CLASSIC_IMMEDIATE`, below): its frame in two parts (`part` 0: the bottom band's two sprites, under the panels; 1: the band's three shaded rows, the caution sprite, the message's tile, the hand, the message, the screen's fade) and each panel (`_drawFileMenuElement`: a card's or a file's: its shaded gradient and shadow tile, its words, and for a file the location picture with its CLUT swapped in and back, No. and the slot, the slot's words or the location's name, MAP %, SAVE, CLEAR, the clear badge, TIME, the HP / MP gauges and digits, the progress animations of a save or load). `d.anchor` and `d.layer` do nothing here: the packets are drawn where the game's would have been, in the game's order | `file_menu` (`part`, `x` (the frame buffer's, 0 or 320: the band's rows read it), `cursor_xy` (packed, 0 none), `cursor_color` (its saturation step, before the game steps it), `fade`, `arrow` (the printer's blink step before), `message` (its codes to 0xE7, nil none)); `file` (`id` 0..9, `x, y, w, h`, `selected`, `unavailable`, `outer`, `inner` (the blend steps as the draw uses them), `slot` (0..4 a file, 255 a card), `location`, `saving`, `arrow`; a file's `slot_state` (0 in use, 1 empty, 2 temporary, 3 saved), `map`, `saves`, `clears`, `hours, minutes, seconds`, `hp, hp_max, mp, mp_max`; `progress` (0 none, 1 processing at `progress_x`, 2 complete in `progress_colour`); the game's words as codes: `text` (the panel's, its 0xFA pairs, to 0xFF), `place`, `in_use`, `empty`, `fresh`; `cluts[1..2]` the two location CLUTs as `d.image_load` takes them) |
+| `rename_grid`, `rename_box` | the classic look's only, on the rename grid (MENU8 21A0.c, currentMenu 8: Setup's Rename after Yes; a new weapon's name after Assemble): the grid (`_renderRenameMenu`, sliding in from the right: the Cross / Square / Triangle buttons and the pad's sprite in `unk8`; each command's bar of 12 shaded lines fading by its counter in `unk4 - 4`; the commands' words in the text boxes' font in `unk4 - 8`; the name typed and the character table in `unk8 + 4`; at rest the L1 / R1 arrows (their digits and letters by the raw printer, their sprites) and the name's window in `unk8`; the four shaded polygons of the background in `unk4 - 4`) and a highlight box on it (`_highlightSelection`: the character under the hand, the name's pen; a semi-transparent shaded polygon in `unk8`) | `rename` (`x_offset` the slide, 0 at rest; `fade[1..4]` the bars' counters, Insert first, 8 the command just chosen; `lit`, `step` the arrows' light and step; `name` its 20 codes, `commands[1..4]` (Insert, Delete, Back, OK) and `table[1..9]` (14 codes a row): the menu charset's codes, for `d.font_text`); `highlight` (`x, y, w, h`) |
 
 Every element: `kind, id, text, x, y, w, h` (the game's drawing's box in its
 screen, 320 x 224 in the field, `x, y` its centre; a damage number: where the
@@ -264,8 +266,10 @@ drawing is the claims'.
 | `d.menu_int(value, x, y, word) -> x, y` | classic only: a number by MAINMENU's printer (`vs_mainMenu_renderIntColor`: its digits right to left from `x`, 8 pixels each, a `-` before a negative; `word` the PS1 colour word `0xBBGGRR`, 0x80 full); returns the pen the game's call returns (left of its last digit) |
 | `d.stat_bar(x, y, fill, colour)` | classic only: the game's gauge (`vs_battle_renderStatBar`, the HP / MP / RISK and DP / PP bars: `colour` 0..3 its table's, `fill` its width in pixels, 0..64 within its frame) at `x, y`, in the layer's slot |
 | `d.button_background(x, y, w, h)` | classic only: a button's window as MAINMENU draws it behind a button and its word (`vs_mainmenu_renderButtonBackground`: `h` shaded lines, the i-th from `x` to `x + w - i`, dark gold to near black, semi-transparent; the STATUS strip's), in the layer's slot (the game's: `vs_scratch.unk4 - 12`) |
-| `d.packet(w1[, w2[, w3[, w4]]])` | classic only: one primitive of the game's own words (1..4 after its tag, which links it into the layer's slot as `vs_battle_addTile` and `vs_battle_insertTpage` link theirs): a line or tile (code and colour, place, place or size), a draw mode word (`0xE1...`), a shaded line (colour, place, colour, place) |
-| `d.font_text(s, x, y, style) -> x`, `d.font_width(s, x) -> x` | classic only: `s` (the menu charset, `vs_encode`) in the text boxes' font by the game's printer (`vs_battle_printVariableWidthFontChar` after `vs_battle_setFontStyle(style)`: the header of the class / affinity / type table), from `x` along `y`; returns the pen after it. `d.font_width`: that pen, nothing drawn |
+| `d.packet(w1[, w2 .. w15])` | classic only: one primitive of the game's own words (1..15 after its tag, which links it into the layer's slot as `vs_battle_addTile` and `vs_battle_insertTpage` link theirs): a line or tile (code and colour, place, place or size), a draw mode word (`0xE1...`), a shaded line (colour, place, colour, place), several in one tag as the game writes them (the rename grid's: a draw mode, a shaded line, a draw mode; a draw mode and a shaded four-point polygon; the file menu's panel: a draw mode, a tile and a shaded polygon, 12). In an immediate draw (`file_menu`, `file_element`) each is drawn at once, in the order made, as `DrawPrim` draws one |
+| `d.image_store(x, y, w, h)`, `d.image_load(x, y, w, h, pixels)`, `d.image_restore()` | classic only: VRAM transfers (a rectangle of 1..1024 pixels): read into the draw's own buffer (`StoreImage`), uploaded from `pixels` (a string of `w * h` 16-bit pixels, little-endian: a record's CLUT, `e.file.cluts[i]`; `LoadImage`), the last read put back. In an immediate draw each is done in its place among the packets (the file menu's CLUT swap for a location picture: read the CLUT row, upload the picture's, the sprite, put it back) and compared as the game's are (an upload by its rectangle and a hash of its pixels, a read by its rectangle); elsewhere done at once, as the draw is made |
+| `d.text_glyph(code, x, y, advance)` | classic only, immediate draws: the next packet is a printer's glyph `code` (the menu charset's) set at `x, y` with the printer's `advance`, reported to ui_text as the game's printer reports its own (`pc_text_glyph`: its line layout with the upgraded font, the button roles' glyph); `code` -1 a space (the pen moved, nothing drawn) |
+| `d.font_text(s, x, y, style[, step]) -> x`, `d.font_width(s, x) -> x` | classic only: `s` (the menu charset, `vs_encode`; or a table of the charset's codes as a record gives them, 0..0xE6, at most 64) in the text boxes' font by the game's printer (`vs_battle_printVariableWidthFontChar` after `vs_battle_setFontStyle(style)`: the header of the class / affinity / type table), from `x` along `y`; `step` (1..64) moves the pen that far a glyph whatever its width (the rename grid's table and words); returns the pen after it. `d.font_width`: that pen, nothing drawn |
 | `d.menu_row([{x, y, w}])` | classic only (menu_row's): the row the element recorded drawn by the game's own emit (58EC.c, through `pc_mainmenu_render_row`) on a copy of its record; `x, y` (its place) and `w` (its window's width, 0..255) replace the record's when given |
 | `d.quad(x, y, w, h, {page_x, page_y, bits, u, v, w, h, clut_x, clut_y, bgr?, raw?, abr?, corners?, uvs?}[, alpha])` | classic only: a textured four-point polygon (POLY_FT4) as the label loop builds its numbers and buffs (2842C.c func_80094B0C, func_8009695C: setPolyFT4, setXY4, setUV4, setTPage, setClut, AddPrim): `x, y` its top-left, `w x h` on the screen; the descriptor's `u, v, w, h` its texels (their own size: a quad may squash them); `bgr` the colour word (`0xBBGGRR`, `0x80` full; default `0x808080`), `raw = true` the texture unmodulated (setShadeTex 1), `abr` the page's blending (0..3), `alpha` below 1 semi-transparent. `corners = {x0, y0, .. x3, y3}` (from `x, y`, in the packet's vertex order) with `uvs = {u0, v0, .. u3, v3}`: each corner and its texel given (a mirrored balloon, a turned arrow); `w, h` and the texel rectangle are then unused |
 | `d.frame(x, y, w, h, {box, shape, flip?, tail?})` | classic only: a text box's frame by the game's own routine (func_800CD3E4) on a copy of box `box` (0..7: it links into that box's entries of the text boxes' ordering table): its place, size, shape, flip and tail as given, the rest the box's. The vector talk bubbles (`ui_bubbles vector`, an option) redraw it as they redraw the game's |
@@ -642,6 +646,20 @@ game's raw printer), and what it may change is a table:
   recorded in the game's order and made last to first;
 - `look.discard_count`: a misc item's discard amount (`style`, the digits `step` apart, right to left from the game's
   place, split as the game splits them), by `d.font_text`;
+- `look.rename_grid`: the rename grid (`buttons`: which, x from the left edge, y; the pad's `sprite`; `bar`: `rows`
+  shaded lines `length` long from `top`, `line` a command, their colours the game's gradient stop between `near`
+  and `far` at the bar's fade, the line `code` and the draw `modes` around each; `words`, `name`, `table`: places and
+  steps in the text boxes' font, `style`, the name's `blank` skipped; `arrows`: the digits' and letters' places,
+  `lit` / `dim`, the sprites' places, texels and CLUTs `clut_lit` / `clut_dim`; `window`: the name window's words;
+  `background`: its draw mode, colour words and `corners`), by `d.sprite`, `d.packet`, `d.font_text` (the record's
+  codes, a fixed step), `d.text_raw`; recorded in the game's order and made last to first. `look.rename_box`: the
+  highlight box (`mode`, `code`, `colour`), by `d.packet`;
+- `look.file_menu`: MENU7's file menu (`font`: its printer's page, CLUT row, cell, colour and draw mode, `widths` its
+  advances as runs, the blank, the blinking arrow, the line step; `info`, `digits`, `hp_digits`: the save info's
+  sprites and figures; `panel`: the gradient's colours by its blend steps; `gauge`; `picture`: the location
+  pictures and the CLUT row they swap; `clear_badge`; `frame`: the band, its rows, the caution, the message tile, the
+  hand and its saturation steps, the fade; `progress`), by `d.packet`, `d.image_store` / `d.image_load` /
+  `d.image_restore` and `d.text_glyph`; made in the game's order (an immediate draw: no table to reverse);
 - `look.menu_row`, `look.menu_cursor`, `look.menu_command` (and `menu_tabs`, `menu_background`):
   MAINMENU's shared frame. A row by `d.menu_row` (the game's emit on a copy); the hand and the
   command title by `d.sprite` from the game's tables (the hand's `pulse`, `cluts`; the title's `sizes`,
@@ -677,7 +695,7 @@ game draws until the plugin reloads), a kind's `hud_classic_<kind>` off,
 or Lua off: the game's own drawing (its typography ui_text's defaults,
 which keep the same fixes). Settings: `hud_classic_status`,
 `hud_classic_chain`, `hud_classic_gauges`, `hud_classic_figure`, `hud_classic_status_icons`, `hud_classic_battle_mode`, `hud_classic_ability_icons`, `hud_classic_buff`,
-`hud_classic_damage`, `hud_classic_actor_word`, `hud_classic_timer`, `hud_classic_emote`, `hud_classic_text_frame`, `hud_classic_text_band`, `hud_classic_box_text`, `hud_classic_image`, `hud_classic_target_row`, `hud_classic_target_line`, `hud_classic_target_marker`, `hud_classic_menu_row`, `hud_classic_menu_cursor`, `hud_classic_menu_command`, `hud_classic_option_value`, `hud_classic_menu_tabs`, `hud_classic_menu_background`, `hud_classic_items_category`, `hud_classic_items_status_button`, `hud_classic_equip_stats`, `hud_classic_dp_pp_bars`, `hud_classic_gem_slots`, `hud_classic_stat_page`, `hud_classic_ok_mark`, `hud_classic_storage_buttons`, `hud_classic_storage_counts`, `hud_classic_loot_capacities`, `hud_classic_discard_count` (all on); the Lua console's Bench toggles those of status, chain, buff, damage and gauges.
+`hud_classic_damage`, `hud_classic_actor_word`, `hud_classic_timer`, `hud_classic_emote`, `hud_classic_text_frame`, `hud_classic_text_band`, `hud_classic_box_text`, `hud_classic_image`, `hud_classic_target_row`, `hud_classic_target_line`, `hud_classic_target_marker`, `hud_classic_menu_row`, `hud_classic_menu_cursor`, `hud_classic_menu_command`, `hud_classic_option_value`, `hud_classic_menu_tabs`, `hud_classic_menu_background`, `hud_classic_items_category`, `hud_classic_items_status_button`, `hud_classic_equip_stats`, `hud_classic_dp_pp_bars`, `hud_classic_gem_slots`, `hud_classic_stat_page`, `hud_classic_ok_mark`, `hud_classic_storage_buttons`, `hud_classic_storage_counts`, `hud_classic_loot_capacities`, `hud_classic_discard_count`, `hud_classic_rename_grid`, `hud_classic_rename_box`, `hud_classic_file_menu`, `hud_classic_file_element` (all on); the Lua console's Bench toggles those of status, chain, buff, damage and gauges.
 
 **The parity gate** (`pc/src/classic/classic_parity.c`; plan §3). The
 hooks (`PC_CLASSIC`, `pc/src/classic/classic_hook.h`; `PC_HUD` is one)
@@ -694,9 +712,19 @@ not compared: a raw-textured primitive's colour and a textured polygon's
 pads after its last two texel pairs (the game's hand-built quads leave
 them as the buffer held them).
 
+**Immediate draws** (`PC_CLASSIC_IMMEDIATE`, classic_hook.h; the recorder in classic_parity.c, the site in
+hud_bridge.c). Some screens draw at once (`DrawPrim`, `LoadImage`) instead of through the ordering table: MENU7's
+file menu. Their range records, in order, every packet the statement draws (its words, as an ordering-table
+packet's) and every VRAM transfer (an upload as GP0's copy command with its rectangle and a hash of its pixels, a
+read with its rectangle); that list is the kind's capture, compared as packets are. While a classic claim on the
+kind is honoured the recorder holds the game's draws and uploads back (reads are done: the game reads them); at the
+range's end the claim draws at once in their place, or, with no claim (or a draw that fails), the held ones are
+done after all, in their order. In the parity mode nothing is held: the game draws, the claim's draw is made into
+the list only.
+
 | RPC | |
 |---|---|
-| `packets {kind}` | a site's last capture (`status`, `chain`, `buff`, `damage`, `gauges`, `figure`, `status_icons`, `battle_mode`, `ability_icons`, `actor_word`, `timer`, `emote`, `text_frame`, `text_band`, `box_text`, `image`, `target_row`, `target_line`, `target_marker`, `menu_background`, `menu_command`, `menu_row`, `menu_cursor`, `menu_tabs`, `option_value`, `items_category`, `items_status_button`, `equip_stats`, `dp_pp_bars`, `gem_slots`, `stat_page`, `ok_mark`, `storage_buttons`, `storage_counts`, `loot_capacities`, `discard_count`, `status_panel`), normalised: each packet's words, kind, vertices, texels, CLUT, page, colour, the glyph it shows; in the parity mode the Lua draw's beside it. Sites capture from the first call |
+| `packets {kind}` | a site's last capture (`status`, `chain`, `buff`, `damage`, `gauges`, `figure`, `status_icons`, `battle_mode`, `ability_icons`, `actor_word`, `timer`, `emote`, `text_frame`, `text_band`, `box_text`, `image`, `target_row`, `target_line`, `target_marker`, `menu_background`, `menu_command`, `menu_row`, `menu_cursor`, `menu_tabs`, `option_value`, `items_category`, `items_status_button`, `equip_stats`, `dp_pp_bars`, `gem_slots`, `stat_page`, `ok_mark`, `storage_buttons`, `storage_counts`, `loot_capacities`, `discard_count`, `rename_grid`, `rename_box`, `file_menu`, `file_element`, `status_panel`), normalised: each packet's words, kind, vertices, texels, CLUT, page, colour, the glyph it shows; in the parity mode the Lua draw's beside it. Sites capture from the first call |
 | `packets {start, end}` | the packets of a guest range in allocation order |
 | `classic {parity, reset}` | per kind: frames compared, matched, mismatched (by field), skipped (why), the first difference with both packets |
 
@@ -1128,6 +1156,67 @@ Game panel's rectangle, the picture's inset and view, the palette), resets
 it, opens the palette with a query, or reports one window's docking by name;
 `editor_command {action "list" | "query" | "run", query, id}` lists the
 registry (`query`: ranked as the palette ranks) and runs a command.
+
+Click-to-inspect (`pc/src/editor_inspect.cpp`, plan
+`pc/docs/plans/2026-10-30-click-to-inspect-plan.md`): a plain click on a room
+surface or a drawn model (a character, weapon or prop) in the Game panel
+selects it (selection ids `surface:<zone>-<room>:<polygon offset>` and
+`model:<hash>`, outlined in the view; Escape clears it, then closes the
+editor as before). Details shows what it is, its mesh, the texture and palette
+under the click (a nearest-sampled preview), the material entry and the layer
+it came from (shipped catalog, user layer, unsaved edit, review preview), the
+shader, and where the texture is used (the rollout survey's rooms,
+`$ROOD_MATERIAL_ROLLOUT` or `pc/build/material_rollout`, with Go); "Open in
+Material editor" is Details > Material on that texture. The Outliner's
+"Surfaces and models" section lists the models drawn now and the surfaces
+inspected. View > View mode and the commands `view.mode.<name>` (lit, unlit,
+lighting, base_colour, vertex_colours, normals, roughness, metal, emissive,
+ao, wireframe; the four material ones are Vulkan only, lit on GL). RPC
+`editor_inspect {action "pick" | "state" | "items" | "outliner" |
+"where_used" | "go" | "open_material" | "view_mode" | "view_modes", x, y |
+u, v | world, select, id, key, clut, zone, room, name}`: `pick` selects (unless
+`select` false) and replies the item as Details shows it (kind, room, polygon
+or model, actor_slot, triangles, polygons, list, key, size, clut_key, tpage,
+clut, box, entry, entry_source, entry_name, entry_preset, maps, shader);
+`state` the primary's (or `id`'s); `where_used` the rooms (zone, room, name,
+share, live) of `key` or a palette `clut` (default: the primary's texture)
+and a `status` when the survey data is missing; `view_mode` sets a mode by
+name and replies `previous` and `current` (a test restores with `previous`).
+
+Master materials and instances (`pc/src/materials.cpp`,
+`material_instances.cpp`, `material_preview.cpp`; plan
+`pc/docs/plans/2026-10-30-master-materials-plan.md`; `pc/docs/Materials.md`
+"Masters and instances"): the catalog's presets are root instances of the
+standard surface master and its entries instances of their preset; an
+instance may parent any instance. **Window > Materials** (command
+`window.materials`) is the tree and the parameter panel (a row per parameter
+of the master, inherited values greyed with the ancestor they come from,
+Reset to the parent's value), the assignment (a texture, a palette, the
+part-2 selection's texture or palette scoped to this room), New child,
+Duplicate, Remove, Save / Revert (the unsaved layer Details > Material
+shares). **Window > Material preview** (`window.material_preview`) is a
+sphere shaded on the CPU with the shared GGX model, textured with the
+instance's texture where it is drawn now; its light is the settings keys
+`material_preview_size`, `_light`, `_yaw`, `_pitch`, `_ambient`, `_swatch`
+(RPC `graphics`). RPC `material_instance {action "list" | "masters" | "get" |
+"set" | "parent" | "new" | "duplicate" | "assign" | "assign_selection" |
+"unassign" | "remove" | "select" | "save" | "revert" | "validate" |
+"migrate", id, params, name, where, review, parent, of, root, key, size,
+clut, scope, palette, out, offset, limit, masters}`: `list` pages the
+instances (`offset`, `limit`; `masters` false leaves the masters out), each
+with its own values (`own`), every parameter resolved (`values`), the ids
+walked (`chain`), which ancestor sets each value (`from`: "" the master's
+default), its match, scope and children, with the catalog's `problems`;
+`set {params: {name: value | null}}` sets or resets to the parent; `new
+{id, parent, params, root}` makes an unassigned child (`root` true: a new
+preset); `assign {key, size, clut, scope}` and `assign_selection {palette}`
+(the primary selection's texture, or its palette, in this room); `validate`
+counts what resolves; `migrate {out}` writes the user layer's instances into
+a file (never the layer itself unless named). RPC `material_preview {action
+"state" | "select" | "open", id, open}` replies the sphere's `digest`,
+`mean`, `centre` and `edge` pixels, the texture used and the settings. RPC
+`material list` and `reload` take `entries: false` (the uses and tunables
+without the entries: a layer of hundreds of entries outgrows one reply).
 
 ## Testing
 

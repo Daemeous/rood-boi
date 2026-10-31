@@ -15,6 +15,10 @@ extern "C" {
 /* The Material review (material_review.cpp): Window > Material review. */
 extern bool pc_material_review_open;
 void pc_material_review_window(void);
+/* The Materials panel (material_instances.cpp) and the preview (material_preview.cpp). */
+extern bool pc_material_instances_open, pc_material_preview_open;
+void pc_material_instances_window(void);
+void pc_material_preview_window(void);
 void pc_material_review_frame(void); /* every overlay frame: the preview and the highlight follow the window */
 int pc_material_review_rpc(const char* params, char* out, int size);
 /* Its window has the keyboard (focused, nothing typed): its keys win over

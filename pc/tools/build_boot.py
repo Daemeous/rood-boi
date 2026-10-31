@@ -1336,6 +1336,8 @@ for source in [
     root / "pc/src/material_editor.cpp",
     root / "pc/src/material_survey.cpp",
     root / "pc/src/material_review.cpp",
+    root / "pc/src/material_instances.cpp",
+    root / "pc/src/material_preview.cpp",
     root / "pc/src/room_settings.cpp",
     root / "pc/src/lighting_layers.cpp",
     root / "pc/src/lighting_editor.cpp",
@@ -1379,6 +1381,7 @@ for source in [
     root / "pc/src/editor_fit_window.cpp",
     root / "pc/src/editor_shell.cpp",
     root / "pc/src/editor_commands.cpp",
+    root / "pc/src/editor_inspect.cpp",
     root / "pc/src/probe_overlay.cpp",
     root / "pc/src/ui_upscale_panel.cpp",
     root / "pc/src/ui/ui_shell.cpp",
@@ -1523,6 +1526,7 @@ for config in ["SLUS_010.40", "TITLE/TITLE.PRG", "BATTLE/BATTLE.PRG"]:
 # Full reference ELF distinguishes data objects from functions, including assets.
 functions = set()
 function_addresses = {}
+function_sites = set()  # (name, address): static names two overlays define keep both
 for elf in [out / "main-symbols.elf", root / "build/data/TITLE/TITLE.PRG.elf"] + (
     [
         out / "battle-symbols.elf",
@@ -1545,6 +1549,7 @@ for elf in [out / "main-symbols.elf", root / "build/data/TITLE/TITLE.PRG.elf"] +
             if parts[3] == "FUNC":
                 functions.add(name)
                 function_addresses[name] = int(parts[1], 16)
+                function_sites.add((name, int(parts[1], 16)))
             else:
                 addresses[name] = int(parts[1], 16)
 ending_elf = root / "build/data/ENDING/ENDING.PRG.elf"
@@ -1557,6 +1562,7 @@ if battle:
             if parts[3] == "FUNC":
                 functions.add(parts[7])
                 function_addresses.setdefault(parts[7], int(parts[1], 16))
+                function_sites.add((parts[7], int(parts[1], 16)))
             else:
                 addresses.setdefault(parts[7], int(parts[1], 16))
 # Overlays are linked side by side, but on the PS1 each was loaded alone, so two
@@ -1751,7 +1757,7 @@ for obj in objects:
             if parts[1] == "T":
                 text_defined.add(defined_name(parts[2], parts[1]))
     calls.update(called_names(obj))
-problems = active.problems(function_addresses, {source for source, _ in sources}) \
+problems = active.problems(function_sites, {source for source, _ in sources}) \
     + ownership_tool.orig_comment_problems(active, root / "game")
 if problems:
     raise SystemExit("game/ownership.toml: " + "; ".join(problems))

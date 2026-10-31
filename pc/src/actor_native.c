@@ -55,6 +55,8 @@ extern int pc_live_camera_active(void) __attribute__((weak));
 /* photo.h (rood.ui.hide{actors}): bit 1 Ashley, bit 2 the other characters not drawn; dev_state.c. */
 extern int pc_photo_hide_actors __attribute__((weak));
 extern int pc_dev_actor_of(const void* p) __attribute__((weak));
+/* editor_inspect.cpp: which actor slot a model mesh was drawn for (-1: none known). */
+extern void pc_inspect_model_actor(uint32_t mesh, int slot) __attribute__((weak));
 #define HW_OBJECT_HIDDEN 0xffffffffu /* pc_hw_object_packets: the packets drawn by nothing */
 
 typedef struct {
@@ -637,6 +639,8 @@ static uint32_t submit(int kind, const void* object, const void* model, unsigned
     model_mesh* c = mesh_for(object, model, kind, serial);
     if (!c || !c->mesh || !c->bones)
         return 0;
+    if (pc_inspect_model_actor)
+        pc_inspect_model_actor(c->mesh, pc_dev_actor_of ? pc_dev_actor_of(object) : -1);
     /* The camera may change between the room and the models (the free
      * camera, cutscenes): read it for every draw. */
     if (!read_camera(serial))

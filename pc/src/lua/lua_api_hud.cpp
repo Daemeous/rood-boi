@@ -363,7 +363,7 @@ bool in_draw; // inside a claim's draw function
 bool classic_pass;
 pc_hud_classic_cmd classic_buffer[PC_HUD_CLASSIC_COMMANDS];
 int classic_used;
-char classic_arena[4096];
+char classic_arena[8192];
 unsigned classic_arena_used;
 int classic_anchor = -1; // d.anchor in the last classic draw (PC_HUD_ANCHOR_*), -1: the element's
 int classic_layer = PC_HUD_LAYER_KIND; // d.layer: the slot of the commands that follow
@@ -1032,27 +1032,106 @@ int api_stat_bar(lua_State* L)
     return 1;
 }
 
-// d.packet(w1[, w2[, w3[, w4]]]): classic only: one primitive of the game's own words (1..4 of them, after its tag,
+// d.packet(w1[, w2 .. w15]): classic only: one primitive of the game's own words (1..15 of them, after its tag,
 // which links it into the layer's slot as vs_battle_addTile and vs_battle_insertTpage link theirs): a tile
-// (code and colour, place, size), a draw mode word, a shaded line (colour, place, colour, place).
+// (code and colour, place, size), a draw mode word, a shaded line (colour, place, colour, place), a shaded
+// four-point polygon with its draw mode (the rename grid's: mode, colour, place, colour, place, ...); in an
+// immediate draw (MENU7's file menu) drawn at once, as DrawPrim draws one (a tile and a polygon in one tag: 12).
 int api_packet(lua_State* L)
 {
     const char* fn = "rood.draw.packet";
     int n = lua_gettop(L);
-    if (n < 1 || n > 4)
-        return luaL_error(L, "%s: 1..4 words", fn);
-    lua_Integer w[4] = { 0, 0, 0, 0 };
+    if (n < 1 || n > 15)
+        return luaL_error(L, "%s: 1..15 words", fn);
+    uint32_t w[15] = { 0 };
     for (int i = 0; i < n; ++i) {
-        w[i] = luaL_checkinteger(L, i + 1);
-        if (w[i] < -0x80000000LL || w[i] > 0xFFFFFFFFLL)
+        lua_Integer v = luaL_checkinteger(L, i + 1);
+        if (v < -0x80000000LL || v > 0xFFFFFFFFLL)
             return luaL_error(L, "%s: word %d is not 32 bits", fn, i + 1);
+        w[i] = (uint32_t)v;
     }
     need_classic(L, fn);
-    pc_hud_classic_cmd* c = next_classic(PC_HUD_CMD_PACKET);
+    // (words 5.. in the arena, aligned)
+    unsigned at = (classic_arena_used + 3u) & ~3u, extra = n > 4 ? (unsigned)(n - 4) * 4u : 0u;
+    pc_hud_classic_cmd* c = !extra || at + extra <= sizeof classic_arena ? next_classic(PC_HUD_CMD_PACKET) : nullptr;
     if (c) {
         c->w = n;
-        c->a = (int)(uint32_t)w[0], c->b = (int)(uint32_t)w[1], c->c = (int)(uint32_t)w[2], c->d = (int)(uint32_t)w[3];
+        c->a = (int)w[0], c->b = (int)w[1], c->c = (int)w[2], c->d = (int)w[3];
+        if (extra) {
+            std::memcpy(classic_arena + at, w + 4, extra);
+            c->text = classic_arena + at;
+            classic_arena_used = at + extra;
+        }
     }
+    lua_pushboolean(L, c != nullptr);
+    return 1;
+}
+
+// d.image_store(x, y, w, h): classic only: the VRAM rectangle (w * h at most 1024 pixels) read into the draw's own
+// buffer (StoreImage), for d.image_restore. d.image_load(x, y, w, h, pixels): the rectangle uploaded (LoadImage):
+// pixels a string of w * h 16-bit pixels (2 bytes each, little-endian: a record's CLUT, e.file.cluts). d.image_restore():
+// the last rectangle read put back. In an immediate draw (MENU7's file menu) each is done in its place among the
+// packets (the game's CLUT swaps: read, upload, the sprite, put back); elsewhere at once, as the draw is made.
+int api_image_store(lua_State* L)
+{
+    const char* fn = "rood.draw.image_store";
+    lua_Integer x = luaL_checkinteger(L, 1), y = luaL_checkinteger(L, 2), w = luaL_checkinteger(L, 3),
+                h = luaL_checkinteger(L, 4);
+    if (x < 0 || y < 0 || x + w > 1024 || y + h > 512 || w < 1 || h < 1 || w * h > 1024)
+        return luaL_error(L, "%s: a rectangle in VRAM (1024 x 512) of 1..1024 pixels", fn);
+    need_classic(L, fn);
+    pc_hud_classic_cmd* c = next_classic(PC_HUD_CMD_IMAGE_STORE);
+    if (c)
+        c->x = (int)x, c->y = (int)y, c->w = (int)w, c->h = (int)h;
+    lua_pushboolean(L, c != nullptr);
+    return 1;
+}
+int api_image_load(lua_State* L)
+{
+    const char* fn = "rood.draw.image_load";
+    lua_Integer x = luaL_checkinteger(L, 1), y = luaL_checkinteger(L, 2), w = luaL_checkinteger(L, 3),
+                h = luaL_checkinteger(L, 4);
+    size_t size = 0;
+    const char* pixels = luaL_checklstring(L, 5, &size);
+    if (x < 0 || y < 0 || x + w > 1024 || y + h > 512 || w < 1 || h < 1 || w * h > 1024)
+        return luaL_error(L, "%s: a rectangle in VRAM (1024 x 512) of 1..1024 pixels", fn);
+    if (size != (size_t)(w * h * 2))
+        return luaL_error(L, "%s: %d bytes of pixels for %d x %d (2 a pixel)", fn, (int)size, (int)w, (int)h);
+    need_classic(L, fn);
+    unsigned at = (classic_arena_used + 3u) & ~3u;
+    pc_hud_classic_cmd* c = at + size <= sizeof classic_arena ? next_classic(PC_HUD_CMD_IMAGE_LOAD) : nullptr;
+    if (c) {
+        std::memcpy(classic_arena + at, pixels, size);
+        c->text = classic_arena + at;
+        classic_arena_used = at + (unsigned)size;
+        c->x = (int)x, c->y = (int)y, c->w = (int)w, c->h = (int)h;
+    }
+    lua_pushboolean(L, c != nullptr);
+    return 1;
+}
+int api_image_restore(lua_State* L)
+{
+    need_classic(L, "rood.draw.image_restore");
+    pc_hud_classic_cmd* c = next_classic(PC_HUD_CMD_IMAGE_LOAD);
+    if (c)
+        c->b = 1;
+    lua_pushboolean(L, c != nullptr);
+    return 1;
+}
+// d.text_glyph(code, x, y, advance): classic only, immediate draws (MENU7's file menu): the next packet is a printer's
+// glyph `code` (the menu charset's) set at x, y with the printer's advance: reported to ui_text (its line layout, the
+// button roles' glyph) as the game's printer reports its own; code -1: a space (the pen moved, no packet).
+int api_text_glyph(lua_State* L)
+{
+    const char* fn = "rood.draw.text_glyph";
+    lua_Integer code = luaL_checkinteger(L, 1), advance = luaL_checkinteger(L, 4);
+    float x = coordinate(L, 2, fn), y = coordinate(L, 3, fn);
+    if (code < -1 || code > 0xFF || advance < 0 || advance > 64)
+        return luaL_error(L, "%s: code -1..255, advance 0..64", fn);
+    need_classic(L, fn);
+    pc_hud_classic_cmd* c = next_classic(PC_HUD_CMD_TEXT_GLYPH);
+    if (c)
+        c->a = (int)code, c->x = pixel(x), c->y = pixel(y), c->b = (int)advance;
     lua_pushboolean(L, c != nullptr);
     return 1;
 }
@@ -1065,19 +1144,36 @@ extern "C" char vs_battle_characterWidths[];
 int api_font_text(lua_State* L)
 {
     const char* fn = "rood.draw.font_text";
-    const char* text = luaL_checkstring(L, 1);
     float x = coordinate(L, 2, fn), y = coordinate(L, 3, fn);
     lua_Integer style = luaL_checkinteger(L, 4);
+    lua_Integer step = luaL_optinteger(L, 5, 0);
     if (style < 0 || style > 15)
         return luaL_error(L, "%s: style 0..15", fn);
+    if (step < 0 || step > 64)
+        return luaL_error(L, "%s: step 0..64", fn);
     need_classic(L, fn);
     unsigned char glyphs[64];
-    int n = vs_encode(text, glyphs, sizeof glyphs, nullptr) - 1; // (without its 0xE7)
-    if (n < 0)
-        n = 0;
+    int n;
+    if (lua_istable(L, 1)) { // the game's codes as given (a record's words: the rename grid's)
+        n = (int)lua_rawlen(L, 1);
+        if (n > (int)sizeof glyphs)
+            return luaL_error(L, "%s: at most %d codes", fn, (int)sizeof glyphs);
+        for (int i = 0; i < n; ++i) {
+            lua_rawgeti(L, 1, i + 1);
+            lua_Integer g = luaL_checkinteger(L, -1);
+            lua_pop(L, 1);
+            if (g < 0 || g > 0xE6)
+                return luaL_error(L, "%s: code %d is not a glyph (0..0xE6)", fn, i + 1);
+            glyphs[i] = (unsigned char)g;
+        }
+    } else {
+        n = vs_encode(luaL_checkstring(L, 1), glyphs, sizeof glyphs, nullptr) - 1; // (without its 0xE7)
+        if (n < 0)
+            n = 0;
+    }
     int pen = pixel(x);
     for (int i = 0; i < n; ++i)
-        pen += glyphs[i] == ' ' ? 6 : vs_battle_characterWidths[glyphs[i]];
+        pen += step ? (int)step : glyphs[i] == ' ' ? 6 : vs_battle_characterWidths[glyphs[i]];
     pc_hud_classic_cmd* c = classic_arena_used + n + 1 <= sizeof classic_arena ? next_classic(PC_HUD_CMD_FONT_TEXT)
                                                                                 : nullptr;
     if (c) {
@@ -1086,7 +1182,7 @@ int api_font_text(lua_State* L)
         c->text = classic_arena + classic_arena_used;
         c->length = n;
         classic_arena_used += (unsigned)n + 1;
-        c->x = pixel(x), c->y = pixel(y), c->a = (int)style;
+        c->x = pixel(x), c->y = pixel(y), c->a = (int)style, c->b = (int)step;
     }
     lua_pushinteger(L, pen);
     return 1;
@@ -1795,14 +1891,17 @@ const char* const ANCHORS_OF[] = { "centre", "left", "right", "picture" };
 // (opaque), ot_slot (bytes from vs_scratch.unk4), buffer (the frame buffer drawn: 0 or 1); menu_command: action (call_y its
 // slide); menu_cursor: step, color (call_x, call_y its place); menu_tabs: mode, step, lit; menu_row: row = the
 // record's fields (a copy, read before the emit steps its gradient), drawn as it is by d.menu_row.
-void fill_menu(lua_State* L, const pc_hud_fields& f)
+// clear: nil the menu kinds' keys first (the table last held another kind; each kind below sets all of its own).
+void fill_menu(lua_State* L, const pc_hud_fields& f, bool clear)
 {
     int k = f.kind;
     // ("fade" is target_row's too: nil for the other kinds by its block, above)
     static const char* const keys[] = { "brightness", "ot_slot", "buffer", "action", "color", "mode", "lit", "row",
-        "option", "items", "equip", "bars", "gems", "page", "ok", "storage", "loot", "discard" };
-    for (const char* key : keys)
-        set_nil(L, key);
+        "option", "items", "equip", "bars", "gems", "page", "ok", "storage", "loot", "discard", "rename", "highlight",
+        "file", "file_menu" };
+    if (clear)
+        for (const char* key : keys)
+            set_nil(L, key);
     if (k == PC_HUD_MENU_BACKGROUND) {
         set_int(L, "fade", f.menu_fade);
         set_int(L, "brightness", f.menu_brightness);
@@ -1952,6 +2051,134 @@ void fill_menu(lua_State* L, const pc_hud_fields& f)
         set_int(L, "y", f.discard.y);
         lock_table(L);
         lua_setfield(L, -2, "discard");
+    } else if (k == PC_HUD_RENAME_GRID) { // the rename grid: its slide, bars, arrows, the name and the game's words
+        auto codes = [L](const unsigned char* s, int n, bool to_end) { // (the menu charset's codes, 1-based)
+            lua_createtable(L, n, 0);
+            for (int i = 0; i < n && !(to_end && s[i] == 0xE7); ++i) {
+                lua_pushinteger(L, s[i]);
+                lua_rawseti(L, -2, i + 1);
+            }
+        };
+        lua_createtable(L, 0, 8);
+        set_int(L, "x_offset", f.rename.x_offset);
+        lua_createtable(L, 4, 0);
+        for (int i = 0; i < 4; ++i) {
+            lua_pushinteger(L, f.rename.fade[i]);
+            lua_rawseti(L, -2, i + 1);
+        }
+        lua_setfield(L, -2, "fade");
+        lua_pushboolean(L, f.rename.lit != 0);
+        lua_setfield(L, -2, "lit");
+        set_int(L, "step", f.rename.step);
+        codes(f.rename.name, 20, false);
+        lua_setfield(L, -2, "name");
+        lua_createtable(L, 4, 0);
+        for (int i = 0; i < 4; ++i) {
+            codes(f.rename.commands[i], 16, true);
+            lua_rawseti(L, -2, i + 1);
+        }
+        lua_setfield(L, -2, "commands");
+        lua_createtable(L, 9, 0);
+        for (int i = 0; i < 9; ++i) {
+            codes(f.rename.table[i], 14, false);
+            lua_rawseti(L, -2, i + 1);
+        }
+        lua_setfield(L, -2, "table");
+        lock_table(L);
+        lua_setfield(L, -2, "rename");
+    } else if (k == PC_HUD_FILE_MENU) { // MENU7's file menu's frame: its part, the band's x, the hand, the message, fade
+        const auto& m = f.file_menu;
+        lua_createtable(L, 0, 8);
+        set_int(L, "part", m.part);
+        set_int(L, "x", m.x);
+        set_int(L, "cursor_xy", m.cursor_xy);
+        set_int(L, "cursor_color", m.cursor_color);
+        set_int(L, "fade", m.fade);
+        set_int(L, "arrow", m.arrow);
+        if (m.has_message) { // (its codes as the game keeps them: to 0xE7, the control pairs with it)
+            int n = 0;
+            while (n < (int)sizeof m.message && m.message[n] != 0xE7)
+                n += m.message[n] >= 0xEC ? 2 : 1;
+            n = n < (int)sizeof m.message ? n + 1 : (int)sizeof m.message;
+            lua_createtable(L, n, 0);
+            for (int i = 0; i < n; ++i) {
+                lua_pushinteger(L, m.message[i]);
+                lua_rawseti(L, -2, i + 1);
+            }
+            lua_setfield(L, -2, "message");
+        }
+        lock_table(L);
+        lua_setfield(L, -2, "file_menu");
+    } else if (k == PC_HUD_FILE_ELEMENT) { // a card's or a file's panel in it
+        const auto& e = f.file;
+        auto codes = [L](const unsigned char* s, int size, int end) { // (to its end code, kept; 1-based)
+            int n = 0;
+            while (n < size && s[n] != end)
+                n += s[n] >= 0xEC && s[n] != 0xFF ? 2 : 1;
+            n = n < size ? n + 1 : size;
+            lua_createtable(L, n, 0);
+            for (int i = 0; i < n; ++i) {
+                lua_pushinteger(L, s[i]);
+                lua_rawseti(L, -2, i + 1);
+            }
+        };
+        lua_createtable(L, 0, 32);
+        set_int(L, "id", e.id);
+        set_int(L, "x", e.x);
+        set_int(L, "y", e.y);
+        set_int(L, "w", e.w);
+        set_int(L, "h", e.h);
+        set_bool(L, "selected", e.selected != 0);
+        set_bool(L, "unavailable", e.unavailable != 0);
+        set_int(L, "outer", e.outer);
+        set_int(L, "inner", e.inner);
+        set_int(L, "slot", e.slot);
+        set_int(L, "location", e.location);
+        set_bool(L, "saving", e.saving != 0);
+        set_int(L, "arrow", e.arrow);
+        set_int(L, "slot_state", e.slot_state);
+        set_int(L, "map", e.map);
+        set_int(L, "saves", e.saves);
+        set_int(L, "clears", e.clears);
+        set_int(L, "hours", e.hours);
+        set_int(L, "minutes", e.minutes);
+        set_int(L, "seconds", e.seconds);
+        set_int(L, "hp", e.hp);
+        set_int(L, "hp_max", e.hp_max);
+        set_int(L, "mp", e.mp);
+        set_int(L, "mp_max", e.mp_max);
+        set_int(L, "progress", e.progress);
+        set_int(L, "progress_x", e.progress_x);
+        set_int(L, "progress_colour", e.progress_colour);
+        codes(e.text, (int)sizeof e.text, 0xFF);
+        lua_setfield(L, -2, "text");
+        codes(e.place, (int)sizeof e.place, 0xE7);
+        lua_setfield(L, -2, "place");
+        codes(e.in_use, (int)sizeof e.in_use, 0xE7);
+        lua_setfield(L, -2, "in_use");
+        codes(e.empty, (int)sizeof e.empty, 0xE7);
+        lua_setfield(L, -2, "empty");
+        codes(e.fresh, (int)sizeof e.fresh, 0xE7);
+        lua_setfield(L, -2, "fresh");
+        lua_createtable(L, 2, 0);
+        for (int i = 0; i < 2; ++i) { // (the CLUTs as d.image_load takes them: 2 bytes a pixel, little-endian)
+            char bytes[512];
+            for (int j = 0; j < 256; ++j)
+                bytes[2 * j] = (char)(e.cluts[i][j] & 0xFF), bytes[2 * j + 1] = (char)(e.cluts[i][j] >> 8);
+            lua_pushlstring(L, bytes, sizeof bytes);
+            lua_rawseti(L, -2, i + 1);
+        }
+        lua_setfield(L, -2, "cluts");
+        lock_table(L);
+        lua_setfield(L, -2, "file");
+    } else if (k == PC_HUD_RENAME_BOX) { // a highlight box on the rename grid: its place and size
+        lua_createtable(L, 0, 4);
+        set_int(L, "x", f.rename_box.x);
+        set_int(L, "y", f.rename_box.y);
+        set_int(L, "w", f.rename_box.w);
+        set_int(L, "h", f.rename_box.h);
+        lock_table(L);
+        lua_setfield(L, -2, "highlight");
     } else if (k == PC_HUD_STORAGE_BUTTONS) { // Storage's button strip: its slide and state
         lua_createtable(L, 0, 2);
         set_int(L, "x", f.storage_buttons.x);
@@ -2007,10 +2234,18 @@ void fill_menu(lua_State* L, const pc_hud_fields& f)
     }
 }
 
+// The kind the pass's shared element table was last filled with, and whose table (a new one holds none).
+int shared_kind = -1;
+lua_State* shared_state;
+
 void fill_element(lua_State* L, const hud::Element& e, bool fresh = false)
 {
     const pc_hud_fields& f = e.f;
     int k = f.kind;
+    // the menu keys need clearing only when the shared table held another kind (the gauges: twenty a frame)
+    bool clear_menu = !fresh && shared_kind != k;
+    if (!fresh)
+        shared_kind = k;
     set_str(L, "kind", hud::kind_name(k));
     set_int(L, "id", e.id);
     set_str(L, "text", f.text);
@@ -2207,7 +2442,7 @@ void fill_element(lua_State* L, const hud::Element& e, bool fresh = false)
         if (k != PC_HUD_BATTLE_MODE)
             set_nil(L, "step");
     }
-    fill_menu(L, f);
+    fill_menu(L, f, clear_menu);
     if (k == PC_HUD_CHAIN || k == PC_HUD_BUFF || k == PC_HUD_DAMAGE)
         set_int(L, "value", f.value);
     else
@@ -2338,7 +2573,10 @@ void draw_element(lua_State* L)
         lua_createtable(L, 0, 16);
         lua_pushvalue(L, -1);
         lua_setfield(L, LUA_REGISTRYINDEX, "rood.hud.element");
+        shared_kind = -1;
     }
+    if (L != shared_state)
+        shared_state = L, shared_kind = -1;
     fill_element(L, *job.element);
     lua_getfield(L, LUA_REGISTRYINDEX, "rood.hud.draw");
     lua_call(L, 2, 0);
@@ -2409,6 +2647,10 @@ void open_hud(lua_State* L, Plugin* p)
     set_cfunction(L, -1, "button_background", api_button_background);
     set_cfunction(L, -1, "menu_int", api_menu_int);
     set_cfunction(L, -1, "packet", api_packet);
+    set_cfunction(L, -1, "image_store", api_image_store);
+    set_cfunction(L, -1, "image_load", api_image_load);
+    set_cfunction(L, -1, "image_restore", api_image_restore);
+    set_cfunction(L, -1, "text_glyph", api_text_glyph);
     set_cfunction(L, -1, "font_text", api_font_text);
     set_cfunction(L, -1, "font_width", api_font_width);
     set_cfunction(L, -1, "stat_bar", api_stat_bar);

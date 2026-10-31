@@ -60,6 +60,11 @@ with tempfile.TemporaryDirectory() as d:
     shared = dict(addresses, overlay_twin=0x80010010)  # a second overlay's name at the same address
     check(table.problems(shared, {"src/A.c", "src/B.c"}) == [],
           "two names at one address (ENDING over BATTLE) still validate the table's name")
+    statics = [*addresses.items(), ("f_one", 0x80030000)]  # another unit's static f_one
+    check(table.problems(statics, {"src/A.c", "src/B.c"}) == [],
+          "a static name another unit also defines validates at its own address (pairs)")
+    check(table.problems(dict(statics), {"src/A.c", "src/B.c"}) != [],
+          "a dict keeps one address per name (why the build passes pairs)")
     check(any("src/B.c" in p for p in table.problems(addresses, {"src/A.c"})),
           "a unit that is not compiled is reported (routing needs its definitions)")
     path.write_text(TOML.replace('default = "owned"', 'default = "mine"'))
