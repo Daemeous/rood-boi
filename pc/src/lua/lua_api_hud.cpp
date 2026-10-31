@@ -32,6 +32,7 @@
 // moments belong to the host (hud_elements.cpp) and survive a reload.
 #include "rl_internal.h"
 #include "hud/hud_internal.h"
+#include "classic/classic_parity.h"
 #include "lua_bench.h"
 #include "light_prefabs.h"
 
@@ -1092,6 +1093,22 @@ int api_image_load(lua_State* L)
     lua_Integer x = luaL_checkinteger(L, 1), y = luaL_checkinteger(L, 2), w = luaL_checkinteger(L, 3),
                 h = luaL_checkinteger(L, 4);
     size_t size = 0;
+    if (lua_type(L, 5) == LUA_TNUMBER) { // a record's upload (menuf_load's `pixels`: the game's, kept by the recorder)
+        int ux = 0, uy = 0, uw = 0, uh = 0;
+        const void* kept = pc_classic_immediate_upload((int)luaL_checkinteger(L, 5) - 1, &ux, &uy, &uw, &uh);
+        if (!kept)
+            return luaL_error(L, "%s: no upload %d kept", fn, (int)lua_tointeger(L, 5));
+        if (x < 0 || y < 0 || x + w > 1024 || y + h > 512 || w != uw || h != uh)
+            return luaL_error(L, "%s: a rectangle in VRAM (1024 x 512) of the upload's size (%d x %d)", fn, uw, uh);
+        need_classic(L, fn);
+        pc_hud_classic_cmd* c = next_classic(PC_HUD_CMD_IMAGE_LOAD);
+        if (c) {
+            c->text = (const char*)kept;
+            c->x = (int)x, c->y = (int)y, c->w = (int)w, c->h = (int)h;
+        }
+        lua_pushboolean(L, c != nullptr);
+        return 1;
+    }
     const char* pixels = luaL_checklstring(L, 5, &size);
     if (x < 0 || y < 0 || x + w > 1024 || y + h > 512 || w < 1 || h < 1 || w * h > 1024)
         return luaL_error(L, "%s: a rectangle in VRAM (1024 x 512) of 1..1024 pixels", fn);
@@ -1898,7 +1915,7 @@ void fill_menu(lua_State* L, const pc_hud_fields& f, bool clear)
     // ("fade" is target_row's too: nil for the other kinds by its block, above)
     static const char* const keys[] = { "brightness", "ot_slot", "buffer", "action", "color", "mode", "lit", "row",
         "option", "items", "equip", "bars", "gems", "page", "ok", "storage", "loot", "discard", "rename", "highlight",
-        "file", "file_menu" };
+        "file", "file_menu", "menuf", "load" };
     if (clear)
         for (const char* key : keys)
             set_nil(L, key);
@@ -2171,6 +2188,67 @@ void fill_menu(lua_State* L, const pc_hud_fields& f, bool clear)
         lua_setfield(L, -2, "cluts");
         lock_table(L);
         lua_setfield(L, -2, "file");
+    } else if (k == PC_HUD_MENUF) { // MENUF's screens: the frame's calls (classic_parity.h pc_classic_menuf), in order
+        const pc_classic_menuf* m = pc_classic_menuf_calls();
+        int n = f.menuf.count < PC_CLASSIC_MENUF_CALLS ? f.menuf.count : PC_CLASSIC_MENUF_CALLS;
+        lua_createtable(L, 0, 3);
+        set_int(L, "screen", f.menuf.screen);
+        lua_createtable(L, 2, 0);
+        for (int i = 0; i < 2; ++i) { // (the prompt's words: the game's codes, to their 0)
+            int len = 0;
+            while (len < 8 && f.menuf.prompt[i][len])
+                ++len;
+            lua_createtable(L, len, 0);
+            for (int j = 0; j < len; ++j) {
+                lua_pushinteger(L, f.menuf.prompt[i][j]);
+                lua_rawseti(L, -2, j + 1);
+            }
+            lua_rawseti(L, -2, i + 1);
+        }
+        lua_setfield(L, -2, "prompt");
+        lua_createtable(L, n, 0);
+        for (int i = 0; i < n; ++i) {
+            const pc_classic_menuf_call& c = m->call[i];
+            lua_createtable(L, 0, 14);
+            set_int(L, "op", c.op);
+            set_int(L, "tex", c.tex);
+            set_int(L, "u", c.u);
+            set_int(L, "v", c.v);
+            set_int(L, "w", c.w);
+            set_int(L, "h", c.h);
+            set_int(L, "tpage", c.tpage);
+            set_int(L, "clut", c.clut);
+            set_int(L, "x", c.x);
+            set_int(L, "y", c.y);
+            set_int(L, "a", c.a);
+            set_int(L, "b", c.b);
+            set_int(L, "colour1", c.colour[0]);
+            set_int(L, "colour2", c.colour[1]);
+            lua_rawseti(L, -2, i + 1);
+        }
+        lua_setfield(L, -2, "calls");
+        lock_table(L);
+        lua_setfield(L, -2, "menuf");
+    } else if (k == PC_HUD_MENUF_LOAD) { // MENUF's uploads: each upload's rectangle and its pixels' handle
+        lua_createtable(L, 0, 3);
+        set_int(L, "screen", f.menuf_load.screen);
+        set_int(L, "phase", f.menuf_load.phase);
+        lua_createtable(L, f.menuf_load.uploads, 0);
+        for (int i = 0; i < f.menuf_load.uploads; ++i) {
+            int x = 0, y = 0, w = 0, h = 0;
+            const void* pixels = pc_classic_immediate_upload(i, &x, &y, &w, &h);
+            lua_createtable(L, 0, 5);
+            set_int(L, "x", x);
+            set_int(L, "y", y);
+            set_int(L, "w", w);
+            set_int(L, "h", h);
+            if (pixels)
+                set_int(L, "pixels", i + 1);
+            lua_rawseti(L, -2, i + 1);
+        }
+        lua_setfield(L, -2, "uploads");
+        lock_table(L);
+        lua_setfield(L, -2, "load");
     } else if (k == PC_HUD_RENAME_BOX) { // a highlight box on the rename grid: its place and size
         lua_createtable(L, 0, 4);
         set_int(L, "x", f.rename_box.x);

@@ -22,6 +22,15 @@ a user preset, an entry with an unknown preset), then:
   than its edge toward the light); the same digest for the same inputs (it is CPU shaded).
 - identity: the Keep (29/3) with the scratch user layer (an override of M013 and a palette entry): the
   frame with the format-1 file and with its migrated rewrite are byte-identical; the planes agree.
+- preview_room: lit like the room (on by default): a light beside Ashley in the Keep becomes the key, the game's
+  room light the ambient, the scales are settings; M013's sphere has the floor's texture, the planes' values and
+  its estimated relief (relief 0 differs); the digests equal the other renderer's run of the same binary.
+- lua_panel: Window > Materials in Lua (pc/plugins/rood.materials) is off by default; on, it replaces the C++
+  window and its tree and rows drive RPC material_instance (select, set, reset) with no file read; off, the C++
+  window is back.
+- drag: twenty `material_instance set` steps, one a presented frame: each is the instance's value at once
+  (Vulkan: every frame changes), no catalog file is read (RPC material_instance status), the structure
+  generation stays; Revert reads the files again, Save writes the value and it reads back.
 """
 import argparse
 import json
@@ -35,6 +44,7 @@ from PIL import Image
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
+import rood_rpc  # noqa: E402
 from rood_rpc import RpcError  # noqa: E402
 import editor_selection_smoke as es  # noqa: E402
 
@@ -249,6 +259,7 @@ def check_panel(s):
 
 def check_preview(s):
     g = s.game
+    g.call("graphics", material_preview_room=False)  # (its own key light: the settings below)
     rpc(s, action="new", id="pv", parent="polished metal")
     a = g.call("material_preview", action="select", id="pv")
     s.check(a["id"] == "pv" and a["size"] > 0 and a["texture"] == "", f"the preview shows the instance as a swatch ({a['size']} px)")
@@ -262,7 +273,67 @@ def check_preview(s):
     g.call("graphics", material_preview_light=1.6)
     d = g.call("material_preview")
     s.check(d["digest"] == b["digest"], "the same inputs give the same digest")
+    s.check(not d["lighting"]["room"] and d["lighting"]["key_from"] == "preview", f"room lighting off: its own light ({d['lighting']})")
+    g.call("graphics", material_preview_room=True)
     rpc(s, action="revert")
+
+
+def check_preview_room(s):
+    """Lit like the room (material_preview_room, on by default): the strongest light at Ashley is the key, the
+    game's room light the ambient; the relief and the planes' values of the texture the instance draws; the same
+    digest on GL and Vulkan (each run writes its own and compares with the other's of the same binary)."""
+    g = s.game
+    if not s.check(es.goto(g, 29, 3), "to the Keep (29/3)"):
+        return
+    g.call("graphics", interpolate=False, specular=1, light_animation=False)
+    write_json(s.user_file, USER_LAYER)
+    settle(g)
+    st = g.call("material_preview", action="select", id="M013")
+    s.check(st["settings"]["material_preview_room"] is True and st["lighting"]["room"],
+            f"room lighting is on by default and the Keep has a room ({st['lighting']})")
+    amb = st["lighting"]["ambient"]
+    s.check(len(amb) == 3 and sum(amb) > 0, f"the ambient is the game's room light at Ashley ({amb})")
+    p = g.state()["player"]
+    g.call("lights", action="add", position=[p["x"] + 60, p["y"] - 60, p["z"]])
+    g.run(4)
+    a = g.call("material_preview")
+    s.check(a["lighting"]["key_from"].startswith("light") and sum(a["lighting"]["key"]) > 0,
+            f"a light beside Ashley is the key ({a['lighting']['key_from']}, {a['lighting']['key']})")
+    s.check(a["digest"] != st["digest"], "...and the sphere follows it")
+    g.call("graphics", material_preview_room_key=0.5)
+    b = g.call("material_preview")
+    s.check(b["mean"] < a["mean"], f"the room key's scale is a setting ({b['mean']:.1f} < {a['mean']:.1f})")
+    g.call("graphics", material_preview_room_key=1.0)
+    g.call("graphics", material_preview_room=False)
+    own = g.call("material_preview")
+    s.check(own["lighting"]["key_from"] == "preview" and own["digest"] != a["digest"], "off: the preview's own light")
+    g.call("graphics", material_preview_room=True)
+    # The relief: M013 draws the Keep's floor with its estimated relief; the sphere shows the planes' values.
+    s.check(a["texture"] != "" and a["planes"] and a["relief"] == 2,
+            f"M013's texture with the planes' values and its estimated relief (texture {a['texture']}, planes {a['planes']}, relief {a['relief']})")
+    relief = a["settings"]["material_preview_relief"]
+    g.call("graphics", material_preview_relief=0)
+    flat = g.call("material_preview")
+    g.call("graphics", material_preview_relief=relief)
+    s.check(flat["digest_hex"] != a["digest_hex"], "the relief bends the sphere's shading (relief 0 differs)")
+    again = g.call("material_preview")
+    s.check(again["digest_hex"] == a["digest_hex"], "the same inputs give the same digest")
+    # The same picture on both renderers (CPU-shaded): compared with the other renderer's run of this binary.
+    renderer = os.environ.get("ROOD_RENDERER", "gl")
+    stamp = os.stat(rood_rpc.BINARY).st_mtime_ns if rood_rpc.BINARY.exists() else 0
+    mine = {"binary": stamp, "digest": a["digest_hex"], "flat": flat["digest_hex"]}
+    keep = ROOT / "pc/build/material_preview_digests"  # (outside the suite's folder, which each run empties)
+    keep.mkdir(parents=True, exist_ok=True)
+    (keep / f"{renderer}.json").write_text(json.dumps(mine))
+    other = keep / f"{'gl' if renderer == 'vulkan' else 'vulkan'}.json"
+    if other.exists() and json.loads(other.read_text())["binary"] == stamp:
+        theirs = json.loads(other.read_text())
+        s.check(theirs["digest"] == mine["digest"] and theirs["flat"] == mine["flat"],
+                f"the same preview digests as the other renderer's run ({mine} vs {theirs})")
+    else:
+        print("note: the other renderer's preview digests are not here yet (run both)")
+    g.call("lights", action="reload")
+    g.call("graphics", light_animation=True)
 
 
 def check_identity(s):
@@ -286,7 +357,147 @@ def check_identity(s):
     g.call("editor_ui", visible=True)
 
 
-SECTIONS = [check_migrate, check_parents, check_assign, check_panel, check_preview, check_identity]
+def next_frame(game, path):
+    """The very next presented frame after an edit (no settling: a value edit must show at once)."""
+    game.call("redraw")
+    game.wait_presents(1)
+    game.present_screenshot(str(path))
+    return np.asarray(Image.open(path).convert("RGB")).astype(np.int32)
+
+
+def check_drag(s):
+    """A slider dragged over RPC (material_instance set, twenty values, one a presented frame): every step is
+    in the entries at once (Vulkan: every frame changes), no catalog file is read and the structure stays;
+    Save writes and Revert reads the files as before."""
+    g = s.game
+    if not s.check(es.goto(g, 29, 3), "to the Keep (29/3)"):
+        return
+    g.call("editor_ui", visible=False)
+    g.call("graphics", interpolate=False, specular=1)
+    p = g.state()["player"]
+    g.call("lights", action="add", position=[p["x"] + 40, p["y"] - 40, p["z"] + 40])  # (a highlight to move)
+    write_json(s.user_file, USER_LAYER)
+    settle(g)
+    vulkan = os.environ.get("ROOD_RENDERER") == "vulkan"
+    st0 = rpc(s, action="status")
+    last = frame(g, s.out / "keep-drag0.png")
+    moved, followed = 0, 0
+    for k in range(20):
+        v = round(0.05 + 0.9 * (k + 1) / 20, 4)
+        rpc(s, action="set", id="M013", params={"roughness": v, "specular": round(0.3 + 0.6 * (k + 1) / 20, 4)})
+        f = next_frame(g, s.out / "keep-drag.png")
+        moved += differ_px(last, f) > 0
+        last = f
+        e = g.call("material_instance", action="get", id="M013")
+        followed += close(e["values"]["roughness"], v)
+    st = rpc(s, action="status")
+    s.check(followed == 20, f"every step of the drag is the instance's value at once ({followed}/20)")
+    m013 = entries_of(g)["M013"]
+    s.check(close(m013["value"]["roughness"], 0.95), f"...and the entry the planes read ({m013['value']})")
+    if vulkan:
+        s.check(moved == 20, f"a dragged parameter: {moved}/20 consecutive presented frames changed")
+    else:
+        print(f"note: GL draws no material response ({moved}/20 frames changed)")
+    s.check(st["file_reads"] == st0["file_reads"], f"no catalog file read during the drag ({st0['file_reads']} -> {st['file_reads']})")
+    s.check(st["structure"] == st0["structure"] and st["generation"] >= st0["generation"] + 20,
+            f"the structure kept, the values moved ({st0['structure']} -> {st['structure']}, generation +{st['generation'] - st0['generation']})")
+    s.check(st["dirty"] and st["pending"] == 1, f"the drag is one unsaved edit ({st})")
+    # Revert: the files are read again, the frame is the first one.
+    rpc(s, action="revert")
+    first = frame(g, s.out / "keep-drag-reverted.png")
+    st = rpc(s, action="status")
+    s.check(st["file_reads"] > st0["file_reads"] and not st["dirty"], f"Revert reads the files again ({st['file_reads']})")
+    s.check(close(rpc(s, action="get", id="M013")["values"]["roughness"], 0.45), "...and M013 is as the file has it")
+    # Save: written once, then read back.
+    rpc(s, action="set", id="M013", params={"roughness": 0.33})
+    rpc(s, action="save")
+    saved = json.loads(s.user_file.read_text())
+    m = [e for e in saved["entries"] if e["id"] == "M013"]
+    s.check(m and close(m[0]["roughness"], 0.33) and not rpc(s, action="status")["dirty"], "Save writes the dragged value")
+    s.check(close(rpc(s, action="get", id="M013")["values"]["roughness"], 0.33), "...and it reads back")
+    write_json(s.user_file, USER_LAYER)
+    settle(g)
+    back = frame(g, s.out / "keep-drag-back.png")
+    s.check(differ_px(first, back) == 0, f"the file restored: the first frame ({differ_px(first, back)} pixels)")
+    g.call("lights", action="reload")  # (the test light was never saved)
+    g.call("editor_ui", visible=True)
+
+
+def check_lua_panel(s):
+    """Window > Materials in Lua (pc/plugins/rood.materials, off by default): on, it replaces the C++ window
+    (neither drawn nor listed); its tree and parameter rows drive the same RPC material_instance (select, a
+    value set and reset from the panel's own path, no file read); off again, the C++ window is back."""
+    g = s.game
+    plugin, window = "rood.materials", "rood.materials/materials"
+    s.check(g.lua_plugins().get(plugin, {}).get("enabled") is False, "the Lua Materials window is off by default")
+    write_json(s.user_file, USER_LAYER)
+    settle(g)
+    g.call("editor_ui", visible=True)
+    g.call("lua", action="enable", plugin=plugin, enabled=True)
+    windows = {w["id"]: w for w in g.call("lua", action="windows")["windows"]}
+    if not s.check(window in windows and windows[window]["replaces"] == "materials",
+                   f"on: its window replaces the C++ one ({sorted(windows)})"):
+        return
+    cmds = {c["id"]: c for c in g.call("editor_command", action="list")["commands"]}
+    s.check("window.materials" not in cmds or not cmds["window.materials"].get("enabled", True),
+            "...and the C++ window's command steps aside")
+    g.call("lua", action="window", id=window, open=True, focus=True)
+    for _ in range(4):
+        g.call("redraw")
+        g.wait_presents(1)
+
+    def lua(code):
+        r = g.lua(code, plugin=plugin)
+        if not r.get("ok"):
+            return {"error": r.get("error")}
+        res = r.get("results") or []
+        return res[0] if res else None
+
+    s.check((lua("return frames") or 0) > 0, "the window drew")
+    count = rpc(s, action="list", brief=True, masters=False)["count"]
+    s.check(lua("return #rows") == count, f"its tree holds every instance ({lua('return #rows')} of {count})")
+    s.check(lua("return select_instance('M013')") is True and rpc(s, action="status")["selected"] == "M013",
+            "a row selected in the Lua tree is the RPC's selection")
+    g.call("redraw")
+    g.wait_presents(2)
+    s.check(lua("return info and info.id") == "M013", "its parameter panel shows the instance")
+    reads = rpc(s, action="status")["file_reads"]
+    s.check(lua("return set_value('roughness', 0.37)") is True, "a slider's path sets a value")
+    s.check(close(rpc(s, action="get", id="M013")["values"]["roughness"], 0.37), "...it reaches the instance")
+    s.check(lua("return set_value('auto_height', false)") is True
+            and rpc(s, action="get", id="M013")["values"]["auto_height"] == 0, "a checkbox's path (a boolean)")
+    reset = lua("return reset_value('roughness')")
+    after = rpc(s, action="get", id="M013")
+    s.check(reset is True and "roughness" not in after["own"] and after["from"].get("roughness") != "M013",
+            f"Reset gives the parent's value back ({after['values']['roughness']} from {after['from'].get('roughness')!r})")
+    s.check(rpc(s, action="status")["file_reads"] == reads, "no catalog file read by the panel's edits")
+    for _ in range(3):
+        g.call("redraw")
+        g.wait_presents(1)
+    g.present_screenshot(str(s.out / "lua-materials.png"))  # (for a look; nothing checked in it)
+    s.check(lua("return draw_errors") == 0, f"no draw errors ({lua('return draw_errors')})")
+    j = rpc(s, action="json", id="M013")
+    s.check('"M013"' in j["json"], "Copy JSON's text (RPC json)")
+    get = rpc(s, action="get", id="M013", slots=True)
+    s.check(len(get.get("slots", [])) == 5, f"the texture slots for the panel ({get.get('slots')})")
+    rpc(s, action="revert")
+    g.call("lua", action="enable", plugin=plugin, enabled=False)
+    g.call("editor_command", action="run", id="window.materials")
+    g.run(4)
+    w = g.call("editor_shell", action="window", name="Materials")
+    if not w.get("exists"):
+        g.call("editor_command", action="run", id="window.materials")
+        g.run(4)
+        w = g.call("editor_shell", action="window", name="Materials")
+    s.check(w.get("exists"), f"off: the C++ window is Window > Materials again ({w})")
+
+
+def differ_px(a, b):
+    return int((np.abs(a - b).max(2) > 0).sum())
+
+
+SECTIONS = [check_migrate, check_parents, check_assign, check_panel, check_preview, check_identity, check_drag,
+            check_preview_room, check_lua_panel]
 
 
 def main():

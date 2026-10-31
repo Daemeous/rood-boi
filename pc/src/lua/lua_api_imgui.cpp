@@ -30,12 +30,12 @@ namespace {
 // What is open: each Begin*/Push* that needs its End*/Pop*.
 enum Scope : unsigned char {
     S_WINDOW, S_CHILD, S_ID, S_COLOR, S_VAR, S_DISABLED, S_TREE, S_COMBO, S_TABLE, S_TABBAR, S_TABITEM,
-    S_TOOLTIP, S_ITEMWIDTH, S_GROUP, S_POPUP, S_MENU, S_MENUBAR, S_LISTBOX, S_CLIPPER
+    S_TOOLTIP, S_ITEMWIDTH, S_GROUP, S_POPUP, S_MENU, S_MENUBAR, S_LISTBOX, S_CLIPPER, S_CLIPRECT
 };
 const char* const BEGIN_NAMES[] = { "Begin", "BeginChild", "PushID", "PushStyleColor", "PushStyleVar",
     "BeginDisabled", "TreeNode", "BeginCombo", "BeginTable", "BeginTabBar", "BeginTabItem", "BeginTooltip",
     "PushItemWidth", "BeginGroup", "BeginPopup", "BeginMenu", "BeginMenuBar", "BeginListBox",
-    "ListClipper_Begin" };
+    "ListClipper_Begin", "PushClipRect" };
 const size_t MAX_SCOPES = 256;
 const size_t MAX_TEXT = 1u << 16; // InputText's longest text
 
@@ -833,6 +833,19 @@ int SetTooltip(lua_State* L)
     ImGui::SetTooltip("%s", luaL_checkstring(L, 1));
     return 0;
 }
+// SetClipboardText(text): the system clipboard (Copy JSON buttons). IsItemToggledOpen() -> the last
+// tree node's arrow toggled it (a click on its label selects instead).
+int SetClipboardText(lua_State* L)
+{
+    ready(L);
+    ImGui::SetClipboardText(luaL_checkstring(L, 1));
+    return 0;
+}
+int IsItemToggledOpen(lua_State* L)
+{
+    ready(L);
+    return boolean(L, ImGui::IsItemToggledOpen());
+}
 int SetItemTooltip(lua_State* L)
 {
     ready(L);
@@ -1181,7 +1194,243 @@ int GetTime(lua_State* L)
     return 1;
 }
 
+// ---- a canvas: the cursor, the mouse, invisible buttons and the window's draw list (the node editor) ----
+int GetCursorScreenPos(lua_State* L)
+{
+    ready(L);
+    ImVec2 p = ImGui::GetCursorScreenPos();
+    lua_pushnumber(L, p.x);
+    lua_pushnumber(L, p.y);
+    return 2;
+}
+int SetCursorScreenPos(lua_State* L)
+{
+    ready(L);
+    ImGui::SetCursorScreenPos(ImVec2(num(L, 1), num(L, 2)));
+    return 0;
+}
+int GetCursorPos(lua_State* L)
+{
+    ready(L);
+    ImVec2 p = ImGui::GetCursorPos();
+    lua_pushnumber(L, p.x);
+    lua_pushnumber(L, p.y);
+    return 2;
+}
+int SetCursorPos(lua_State* L)
+{
+    ready(L);
+    ImGui::SetCursorPos(ImVec2(num(L, 1), num(L, 2)));
+    return 0;
+}
+int GetWindowPos(lua_State* L)
+{
+    ready(L);
+    ImVec2 p = ImGui::GetWindowPos();
+    lua_pushnumber(L, p.x);
+    lua_pushnumber(L, p.y);
+    return 2;
+}
+int GetWindowSize(lua_State* L)
+{
+    ready(L);
+    ImVec2 p = ImGui::GetWindowSize();
+    lua_pushnumber(L, p.x);
+    lua_pushnumber(L, p.y);
+    return 2;
+}
+// InvisibleButton(id, w, h[, flags]) -> pressed
+int InvisibleButton(lua_State* L)
+{
+    ready(L);
+    const char* id = label(L, 1);
+    ImVec2 size(num(L, 2), num(L, 3));
+    if (size.x <= 0) size.x = 1;
+    if (size.y <= 0) size.y = 1;
+    return boolean(L, ImGui::InvisibleButton(id, size, flags(L, 4)));
+}
+int GetItemRectMin(lua_State* L)
+{
+    ready(L);
+    ImVec2 p = ImGui::GetItemRectMin();
+    lua_pushnumber(L, p.x);
+    lua_pushnumber(L, p.y);
+    return 2;
+}
+int GetItemRectMax(lua_State* L)
+{
+    ready(L);
+    ImVec2 p = ImGui::GetItemRectMax();
+    lua_pushnumber(L, p.x);
+    lua_pushnumber(L, p.y);
+    return 2;
+}
+int SetItemAllowOverlap(lua_State* L)
+{
+    ready(L);
+    ImGui::SetNextItemAllowOverlap();
+    return 0;
+}
+int GetMousePos(lua_State* L)
+{
+    ready(L);
+    ImVec2 p = ImGui::GetMousePos();
+    lua_pushnumber(L, p.x);
+    lua_pushnumber(L, p.y);
+    return 2;
+}
+int IsMouseDown(lua_State* L)
+{
+    ready(L);
+    return boolean(L, ImGui::IsMouseDown((int)luaL_optinteger(L, 1, 0)));
+}
+int IsMouseClicked(lua_State* L)
+{
+    ready(L);
+    return boolean(L, ImGui::IsMouseClicked((int)luaL_optinteger(L, 1, 0), lua_toboolean(L, 2)));
+}
+int IsMouseDoubleClicked(lua_State* L)
+{
+    ready(L);
+    return boolean(L, ImGui::IsMouseDoubleClicked((int)luaL_optinteger(L, 1, 0)));
+}
+int IsMouseReleased(lua_State* L)
+{
+    ready(L);
+    return boolean(L, ImGui::IsMouseReleased((int)luaL_optinteger(L, 1, 0)));
+}
+// IsMouseDragging([button[, lock_threshold]]) -> dragging
+int IsMouseDragging(lua_State* L)
+{
+    ready(L);
+    return boolean(L, ImGui::IsMouseDragging((int)luaL_optinteger(L, 1, 0), optnum(L, 2, -1.0f)));
+}
+int GetMouseDragDelta(lua_State* L)
+{
+    ready(L);
+    ImVec2 p = ImGui::GetMouseDragDelta((int)luaL_optinteger(L, 1, 0), optnum(L, 2, -1.0f));
+    lua_pushnumber(L, p.x);
+    lua_pushnumber(L, p.y);
+    return 2;
+}
+int ResetMouseDragDelta(lua_State* L)
+{
+    ready(L);
+    ImGui::ResetMouseDragDelta((int)luaL_optinteger(L, 1, 0));
+    return 0;
+}
+int IsMouseHoveringRect(lua_State* L)
+{
+    ready(L);
+    bool clip = lua_isnoneornil(L, 5) || lua_toboolean(L, 5);
+    return boolean(L, ImGui::IsMouseHoveringRect(ImVec2(num(L, 1), num(L, 2)), ImVec2(num(L, 3), num(L, 4)), clip));
+}
+int GetMouseWheel(lua_State* L)
+{
+    ready(L);
+    lua_pushnumber(L, ImGui::GetIO().MouseWheel);
+    return 1;
+}
+// PushClipRect(x0, y0, x1, y1[, intersect = true]); PopClipRect (the pair is checked as a scope)
+int PushClipRect(lua_State* L)
+{
+    ready(L);
+    bool intersect = lua_isnoneornil(L, 5) || lua_toboolean(L, 5);
+    ImGui::PushClipRect(ImVec2(num(L, 1), num(L, 2)), ImVec2(num(L, 3), num(L, 4)), intersect);
+    push_scope(L, S_CLIPRECT);
+    return 0;
+}
+int PopClipRect(lua_State* L)
+{
+    ready(L);
+    pop_scope(L, S_CLIPRECT, "PopClipRect");
+    ImGui::PopClipRect();
+    return 0;
+}
+ImU32 col32_arg(lua_State* L, int idx)
+{
+    float c[4] = { 1, 1, 1, 1 };
+    color_arg(L, idx, c, 4);
+    return ImGui::ColorConvertFloat4ToU32(ImVec4(c[0], c[1], c[2], c[3]));
+}
+// The window's draw list, screen coordinates, colours as {r, g, b[, a]}:
+// DrawList_AddLine(x0, y0, x1, y1, color[, thickness])
+int DrawList_AddLine(lua_State* L)
+{
+    ready(L);
+    ImGui::GetWindowDrawList()->AddLine(ImVec2(num(L, 1), num(L, 2)), ImVec2(num(L, 3), num(L, 4)), col32_arg(L, 5), optnum(L, 6, 1));
+    return 0;
+}
+// DrawList_AddRect(x0, y0, x1, y1, color[, rounding[, thickness]])
+int DrawList_AddRect(lua_State* L)
+{
+    ready(L);
+    ImGui::GetWindowDrawList()->AddRect(ImVec2(num(L, 1), num(L, 2)), ImVec2(num(L, 3), num(L, 4)), col32_arg(L, 5),
+        optnum(L, 6, 0), 0, optnum(L, 7, 1));
+    return 0;
+}
+int DrawList_AddRectFilled(lua_State* L)
+{
+    ready(L);
+    ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(num(L, 1), num(L, 2)), ImVec2(num(L, 3), num(L, 4)), col32_arg(L, 5),
+        optnum(L, 6, 0));
+    return 0;
+}
+// DrawList_AddCircle(x, y, radius, color[, segments[, thickness]])
+int DrawList_AddCircle(lua_State* L)
+{
+    ready(L);
+    ImGui::GetWindowDrawList()->AddCircle(ImVec2(num(L, 1), num(L, 2)), num(L, 3), col32_arg(L, 4), (int)luaL_optinteger(L, 5, 0),
+        optnum(L, 6, 1));
+    return 0;
+}
+int DrawList_AddCircleFilled(lua_State* L)
+{
+    ready(L);
+    ImGui::GetWindowDrawList()->AddCircleFilled(ImVec2(num(L, 1), num(L, 2)), num(L, 3), col32_arg(L, 4), (int)luaL_optinteger(L, 5, 0));
+    return 0;
+}
+// DrawList_AddTriangleFilled(x0, y0, x1, y1, x2, y2, color)
+int DrawList_AddTriangleFilled(lua_State* L)
+{
+    ready(L);
+    ImGui::GetWindowDrawList()->AddTriangleFilled(ImVec2(num(L, 1), num(L, 2)), ImVec2(num(L, 3), num(L, 4)),
+        ImVec2(num(L, 5), num(L, 6)), col32_arg(L, 7));
+    return 0;
+}
+// DrawList_AddBezierCubic(x0, y0, x1, y1, x2, y2, x3, y3, color[, thickness])
+int DrawList_AddBezierCubic(lua_State* L)
+{
+    ready(L);
+    ImGui::GetWindowDrawList()->AddBezierCubic(ImVec2(num(L, 1), num(L, 2)), ImVec2(num(L, 3), num(L, 4)),
+        ImVec2(num(L, 5), num(L, 6)), ImVec2(num(L, 7), num(L, 8)), col32_arg(L, 9), optnum(L, 10, 1));
+    return 0;
+}
+// DrawList_AddText(x, y, color, text)
+int DrawList_AddText(lua_State* L)
+{
+    ready(L);
+    size_t n = 0;
+    const char* text = luaL_checklstring(L, 4, &n);
+    ImGui::GetWindowDrawList()->AddText(ImVec2(num(L, 1), num(L, 2)), col32_arg(L, 3), text, text + n);
+    return 0;
+}
+
 const luaL_Reg FUNCTIONS[] = {
+    { "GetCursorScreenPos", GetCursorScreenPos }, { "SetCursorScreenPos", SetCursorScreenPos },
+    { "GetCursorPos", GetCursorPos }, { "SetCursorPos", SetCursorPos },
+    { "GetWindowPos", GetWindowPos }, { "GetWindowSize", GetWindowSize },
+    { "InvisibleButton", InvisibleButton }, { "GetItemRectMin", GetItemRectMin }, { "GetItemRectMax", GetItemRectMax },
+    { "SetNextItemAllowOverlap", SetItemAllowOverlap },
+    { "GetMousePos", GetMousePos }, { "IsMouseDown", IsMouseDown }, { "IsMouseClicked", IsMouseClicked },
+    { "IsMouseDoubleClicked", IsMouseDoubleClicked }, { "IsMouseReleased", IsMouseReleased },
+    { "IsMouseDragging", IsMouseDragging }, { "GetMouseDragDelta", GetMouseDragDelta },
+    { "ResetMouseDragDelta", ResetMouseDragDelta }, { "IsMouseHoveringRect", IsMouseHoveringRect },
+    { "GetMouseWheel", GetMouseWheel }, { "PushClipRect", PushClipRect }, { "PopClipRect", PopClipRect },
+    { "DrawList_AddLine", DrawList_AddLine }, { "DrawList_AddRect", DrawList_AddRect },
+    { "DrawList_AddRectFilled", DrawList_AddRectFilled }, { "DrawList_AddCircle", DrawList_AddCircle },
+    { "DrawList_AddCircleFilled", DrawList_AddCircleFilled }, { "DrawList_AddTriangleFilled", DrawList_AddTriangleFilled },
+    { "DrawList_AddBezierCubic", DrawList_AddBezierCubic }, { "DrawList_AddText", DrawList_AddText },
     { "Begin", Begin }, { "End", End }, { "BeginChild", BeginChild }, { "EndChild", EndChild },
     { "SetNextWindowSize", SetNextWindowSize }, { "SetNextWindowPos", SetNextWindowPos },
     { "IsWindowFocused", IsWindowFocused }, { "IsWindowHovered", IsWindowHovered },
@@ -1216,6 +1465,7 @@ const luaL_Reg FUNCTIONS[] = {
     { "EndTabItem", EndTabItem },
     { "BeginTooltip", BeginTooltip }, { "BeginItemTooltip", BeginItemTooltip }, { "EndTooltip", EndTooltip },
     { "SetTooltip", SetTooltip }, { "SetItemTooltip", SetItemTooltip },
+    { "SetClipboardText", SetClipboardText }, { "IsItemToggledOpen", IsItemToggledOpen },
     { "OpenPopup", OpenPopup }, { "BeginPopup", BeginPopup }, { "BeginPopupContextItem", BeginPopupContextItem },
     { "EndPopup", EndPopup }, { "CloseCurrentPopup", CloseCurrentPopup },
     { "BeginMenuBar", BeginMenuBar }, { "EndMenuBar", EndMenuBar }, { "BeginMenu", BeginMenu },

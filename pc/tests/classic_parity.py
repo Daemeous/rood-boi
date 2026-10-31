@@ -926,7 +926,7 @@ def main():
     parser.add_argument("--card", default=str(default_save()))
     parser.add_argument("--out", help="logs and reports (default pc/build/tests/classic_parity)")
     parser.add_argument("--renderer", choices=["null", "gl", "vulkan"], default="null")
-    parser.add_argument("--kind", default="status,chain,gauges,figure,status_icons,battle_mode,ability_icons,buff,damage,actor_word,timer,emote,text_frame,text_band,box_text,image,target_row,target_line,target_marker,menu_row,menu_cursor,menu_command,menu_tabs,menu_background,option_value,items_category,items_status_button,equip_stats,dp_pp_bars,gem_slots,stat_page,ok_mark,storage_buttons,storage_counts,loot_capacities,discard_count,rename_grid,rename_box,file_menu,file_element", help="the kinds to check (comma-separated)")
+    parser.add_argument("--kind", default="status,chain,gauges,figure,status_icons,battle_mode,ability_icons,buff,damage,actor_word,timer,emote,text_frame,text_band,box_text,image,target_row,target_line,target_marker,menu_row,menu_cursor,menu_command,menu_tabs,menu_background,option_value,items_category,items_status_button,equip_stats,dp_pp_bars,gem_slots,stat_page,ok_mark,storage_buttons,storage_counts,loot_capacities,discard_count,rename_grid,rename_box,file_menu,file_element,menuf,menuf_load", help="the kinds to check (comma-separated)")
     parser.add_argument("--candidate", action="store_true", help="explicitly opt in ability_icons before its default is gated")
     args = parser.parse_args()
     if not pathlib.Path(args.card).exists():
@@ -1221,7 +1221,8 @@ SCREEN_PANELS = ("ok_mark", "storage_buttons",  # the other screens' own: Setup'
                  "storage_counts", "loot_capacities",  # button strip and counts, Loot's capacities strip, and a misc
                  "discard_count",  # item's discard amount (Items, Storage: not at the Items list's rest), the rename
                  "rename_grid", "rename_box",  # grid and its highlight boxes (MENU8 from Setup's Rename), MENU7's file
-                 "file_menu", "file_element")  # menu (drawn at once: Data's SAVE / LOAD, the save list after Storage)
+                 "file_menu", "file_element",  # menu (drawn at once: Data's SAVE / LOAD, the save list after Storage),
+                 "menuf", "menuf_load")  # MENUF's screens (RPC menuf: the congratulations, the time attack, the cube puzzle)
 PICKER_WALK = ("up",) * 3 + ("left",) + ("up",) * 2 + ("left",) + ("up",) + ("right",) * 2 + ("down",) * 2
 # (a misc item's discard amount picker: the count up by ones, tens, hundreds (to its maximum), back down)
 MENUS = ("menu_row", "menu_cursor", "menu_command", "menu_tabs", "menu_background",  # MAINMENU's shared frame
@@ -3342,6 +3343,105 @@ def tour_storage(g, symbols, toured, frames):
     g.rewind()  # (the container never saved: the menu closed, the save room)
 
 
+MENUF_MENU = 15  # currentMenu while a MENUF screen is up (RPC menuf: BATTLE's func_800CB23C, after a fight)
+MENUF_SCREENS = {0: "the congratulations", 1: "the time attack's start", 2: "the time attack's end",
+                 4: "the cube puzzle's start", 5: "the cube puzzle's end", 6: "the cube puzzle's quit"}  # (3: none)
+
+
+def menuf_state(g):
+    return ovl(g, "menuf", "_screenState"), ovl(g, "menuf", "_screenTimer")
+
+
+def menuf_open(g, symbols, screen, boss=0):
+    """MENUF's screen `screen` opened from the field (RPC menuf; boss the time attack's course), its init done (the
+    pictures loaded: vs_battle_submenuStates[15] 2)."""
+    saved = g.read(symbols["vs_main_scoredata"], 0x114)  # (the time attack's records, the scores: put back on leaving)
+    if not g.call("menuf", submenu=screen, boss=boss).get("opened"):
+        raise RpcError(f"MENUF: screen {screen} did not open")
+    menu_wait(g, "MENUF's screen", lambda: current_menu(g, symbols) & 0x3F == MENUF_MENU
+              and g.read(symbols["vs_battle_submenuStates"] + MENUF_MENU, 1)[0] == 2, limit=600)
+    return saved
+
+
+def menuf_until(g, what, ready, limit=3000):
+    for _ in range(limit):
+        if ready():
+            return
+        g.run(1)
+    raise RpcError(f"MENUF: {what} never reached (state, timer {menuf_state(g)})")
+
+
+def menuf_leave(g, symbols, saved=None):
+    """Circle until the screen is left (each screen's last state takes it), the menu closed; the score data put back."""
+    for _ in range(12):
+        if current_menu(g, symbols) & 0x3F != MENUF_MENU:
+            break
+        g.press("circle", vsyncs=2, settle=20)
+    menu_wait(g, "MENUF left", lambda: current_menu(g, symbols) == 0x3F, limit=900)
+    if saved is not None:
+        g.write(symbols["vs_main_scoredata"], saved)
+    g.run(30)
+
+
+def menuf_rest(g, symbols, screen):
+    """A MENUF screen opened and played to its rest: the congratulations' bonus chosen (its state 2), the time
+    attack's end's every record shown (state 1), the cube puzzle's prompt in (start, end, quit)."""
+    saved = menuf_open(g, symbols, screen)
+    if screen == 0:
+        menuf_until(g, "the PRESS BUTTON prompt in", lambda: ovl(g, "menuf", "_elementAnimationState") >= 48)
+        g.press("circle", vsyncs=2, settle=2)
+        menuf_until(g, "the bonus chosen", lambda: menuf_state(g)[0] == 2)
+    elif screen == 2:
+        menuf_until(g, "the records shown", lambda: menuf_state(g)[0] == 1)
+    else:
+        rest = {4: 78, 5: 138, 6: 63}[screen]
+        menuf_until(g, "the prompt in", lambda: menuf_state(g)[1] >= rest)
+    g.run(20)
+    return saved
+
+
+def tour_menuf(g, symbols, toured, frames):
+    """MENUF (currentMenu 15) from the field (RPC menuf, as BATTLE opens it after a fight; the room's state rewound to
+    after: the records and the bonus taken back): each screen played through, left with Circle, then again skipped
+    with an early Circle: the congratulations (the score and the map counted in, the rank, the bonus wheel spun
+    and stopped, the fade out), the time attack's start (courses 1 and 7: the boss's name in one picture or two; the
+    countdown), its end (counted in, the records, the fade out; the pulsing CLUT), the cube puzzle's start, end and
+    quit (the prompt; the pulsing CLUT). The pictures' uploads (menuf_load) with each screen's opening."""
+    g.pause()
+    g.mark()  # (the field again after each)
+    for screen, name in MENUF_SCREENS.items():
+        for boss in ((0, 6) if screen == 1 else (0,)):
+            g.rewind()
+            before = frames()
+            saved = menuf_open(g, symbols, screen, boss)
+            if screen == 0:
+                menuf_until(g, "the PRESS BUTTON prompt in", lambda: ovl(g, "menuf", "_elementAnimationState") >= 48)
+                g.run(30)
+                g.press("circle", vsyncs=2, settle=2)
+                menuf_until(g, "the bonus chosen", lambda: menuf_state(g)[0] == 2)
+                g.run(30)
+            elif screen == 1:
+                menuf_until(g, "the countdown", lambda: current_menu(g, symbols) & 0x3F != MENUF_MENU, limit=900)
+            elif screen == 2:
+                menuf_until(g, "the records shown", lambda: menuf_state(g)[0] == 1)
+                g.run(60)
+            else:
+                g.run(180)
+            menuf_leave(g, symbols, saved)
+            toured(f"MENUF: {name} (course {boss + 1}) played through, left" if screen == 1
+                   else f"MENUF: {name} played through, left", before, screen=screen)
+        g.rewind()
+        before = frames()
+        saved = menuf_open(g, symbols, screen)
+        g.run(20)
+        g.press("circle", vsyncs=2, settle=2)  # (skipped: to the screen's last state)
+        g.run(90)
+        menuf_leave(g, symbols, saved)
+        toured(f"MENUF: {name} skipped with Circle, left", before, screen=screen)
+        print(f"MENUF: {name} toured", flush=True)  # (progress)
+    g.rewind()  # (the field, nothing taken)
+
+
 def tour_remaining(g, symbols, toured, frames):
     """The remaining MAINMENU screens' tours, in the menus game after Status."""
     tour_score(g, symbols, toured, frames)
@@ -3350,6 +3450,7 @@ def tour_remaining(g, symbols, toured, frames):
     tour_setup(g, symbols, toured, frames)
     tour_storage(g, symbols, toured, frames)
     tour_loot(g, symbols, toured, frames)
+    tour_menuf(g, symbols, toured, frames)
 
 
 def remaining_proofs(g, symbols, check, frame_kinds, toured_kinds, state_proof):
@@ -3393,6 +3494,12 @@ def remaining_proofs(g, symbols, check, frame_kinds, toured_kinds, state_proof):
         screen_proofs(g, symbols, check, frame_kinds, toured_kinds, state_proof, name,
                       lambda g, symbols, o=opener: bags.append(o(g, symbols)),
                       after=lambda g: (loot_leave(g, symbols), loot_restore(g, bags[-1])))
+    for screen, name in ((0, "the congratulations' bonus chosen (MENUF)"), (2, "the time attack's records (MENUF)"),
+                         (5, "the cube puzzle's end (MENUF)"), (6, "the cube puzzle's quit (MENUF)")):
+        menuf_saved = []  # (left with Circle, the score data put back: the congratulations' bonus stays taken)
+        screen_proofs(g, symbols, check, frame_kinds, toured_kinds, state_proof, name,
+                      lambda g, symbols, s=screen: menuf_saved.append(menuf_rest(g, symbols, s)),
+                      after=lambda g: menuf_leave(g, symbols, menuf_saved[-1]))
     screen_proofs(g, symbols, check, frame_kinds, toured_kinds, state_proof, "the Loot list's leave, its Yes / No",
                   loot_leave_open, after=lambda g: loot_leave(g, symbols))
     screen_proofs(g, symbols, check, frame_kinds, toured_kinds, state_proof, "the Loot list", loot_open)

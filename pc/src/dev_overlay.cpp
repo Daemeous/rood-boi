@@ -1556,7 +1556,8 @@ static void menu_bar(float* height)
         ImGui::MenuItem("Room Browser", "Ctrl+R", &pc_room_browser_open);
         if (!pc_lua_dev_replaced("material_review")) /* else the Lua window (rood.material_review) */
             ImGui::MenuItem("Material review", nullptr, &pc_material_review_open);
-        ImGui::MenuItem("Materials", nullptr, &pc_material_instances_open);
+        if (!pc_lua_dev_replaced("materials")) /* else the Lua window (rood.materials, when on) */
+            ImGui::MenuItem("Materials", nullptr, &pc_material_instances_open);
         ImGui::MenuItem("Material preview", nullptr, &pc_material_preview_open);
         ImGui::MenuItem("Cutscene", cutscene::replay_key_name().c_str(), &cutscene::window_open);
         pc_lua_console_menu_item();
@@ -2491,7 +2492,8 @@ extern "C" void pc_overlay_frame(int width, int height)
         pc_room_browser_window();
         if (!pc_lua_dev_replaced("material_review"))
             pc_material_review_window();
-        pc_material_instances_window(); /* material_instances.cpp: masters and instances */
+        if (!pc_lua_dev_replaced("materials"))
+            pc_material_instances_window(); /* material_instances.cpp: masters and instances */
         pc_material_preview_window(); /* material_preview.cpp: the shaded sphere */
         pc_cutscene_window();
         help_window();
@@ -2632,7 +2634,7 @@ static void register_commands()
         pc_material_instances_open = !pc_material_instances_open;
         if (pc_material_instances_open)
             rood_shell::focus_window("Materials");
-    }, nullptr, bflag(&pc_material_instances_open));
+    }, [] { return !pc_lua_dev_replaced("materials"); }, bflag(&pc_material_instances_open));
     add("window.material_preview", "Material preview", "Window", "", [] {
         pc_material_preview_open = !pc_material_preview_open;
         if (pc_material_preview_open)

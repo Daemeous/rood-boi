@@ -1,0 +1,493 @@
+{
+ "function": "_getMagicAttackDamage",
+ "unit": "src/BATTLE/BATTLE.PRG/146C.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": false,
+ "plan": {
+  "name": "_getMagicAttackDamage",
+  "unit": "src/BATTLE/BATTLE.PRG/146C.c",
+  "stem": "146C",
+  "address": "0x800819fc",
+  "difficulty": "L",
+  "zig_name": "getMagicAttackDamage",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "get_magic_attack_damage",
+  "spec_file": "getMagicAttackDamage.zig",
+  "subsystem": "battle_146C_port",
+  "signature": "pub fn getMagicAttackDamage(action: ?*v.vs_action_t, source: ?*v._hitEntity_t, target: ?*v._hitEntity_t, nHit: c_int, addRandMod: c_int) callconv(.c) c_short",
+  "params": [
+   [
+    "action",
+    "?*v.vs_action_t"
+   ],
+   [
+    "source",
+    "?*v._hitEntity_t"
+   ],
+   [
+    "target",
+    "?*v._hitEntity_t"
+   ],
+   [
+    "nHit",
+    "c_int"
+   ],
+   [
+    "addRandMod",
+    "c_int"
+   ]
+  ],
+  "ret": "c_short",
+  "types": [
+   "_hitIntermediate"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 22554,
+     "completion_tokens": 32549,
+     "reasoning_tokens": 28846,
+     "cost": 0.009264950000000001,
+     "seconds": null,
+     "batch": "batch-1793203265-sQA1DX56rKylfzO4cWKR",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/_getMagicAttackDamage/spec1/build/spec.zig:108:29: error: type '?*views_146C.vs_battle_actor2' does not support field access\n    const drawn = (table[src.unk957].?.weaponDrawn & 1) != 0;\n                         ~~~^~~~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:443:36\n    main: pc/tests/zig_diff/main.zig:392:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\npc/tests/zig_diff/main.zig:181:9: error: zdiff: a spec stub gives c_int where the C prototype has c_short: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 26693,
+     "completion_tokens": 4694,
+     "reasoning_tokens": 989,
+     "cost": 0.00250815,
+     "seconds": null,
+     "batch": "batch-1793206357-jxyW8CeGtJSNWKNpZo35",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "stray-hit-index": "11961",
+   "explicit-affinity": "9232",
+   "auto-unarmed": "5451",
+   "auto-armed": "3356"
+  },
+  "mutations": [
+   {
+    "name": "M1: the hit index tests 1 instead of 0",
+    "caught": true
+   },
+   {
+    "name": "M2: the level-up call dropped",
+    "caught": true
+   },
+   {
+    "name": "M3: intelligence read as totalIntelligence",
+    "caught": true
+   },
+   {
+    "name": "M4: weapon damage divided by 3",
+    "caught": true
+   },
+   {
+    "name": "M5: the attack product divided unsigned",
+    "caught": true
+   },
+   {
+    "name": "M6: the random modifier loses its constant 1",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 44,
+   "branches_hit": 44,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 107,
+   "lines_hit": 107,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 3,
+     "count": 30000,
+     "text": "32-bit: min -1, max 2, unsigned 0..4294967295, seen zero/negative/all ones, 4 value(s): 2, 1, 0, 4294967295"
+    },
+    {
+     "arg": 4,
+     "count": 30000,
+     "text": "32-bit: min -1, max 2, unsigned 0..4294967295, seen zero/negative/all ones, 4 value(s): 0, 4294967295, 1, 2"
+    }
+   ],
+   "compares": [
+    {
+     "line": 20,
+     "text": "if (action->hitParams[nHit].affinity == 0) {",
+     "size": 1,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 10346, < 0, > 19654 (signed); < 0, > 19654 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..7"
+    },
+    {
+     "line": 22,
+     "text": "if (!(vs_battle_actors[sourceActor->unk957]->weaponDrawn & 1)",
+     "size": 4,
+     "count": 10346,
+     "kind": "against a constant",
+     "outcomes": "== 5106, < 0, > 5240 (signed); < 0, > 5240 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 23,
+     "text": "|| sourceActor->weapon.blade.id == 0) {",
+     "size": 2,
+     "count": 5240,
+     "kind": "against a constant",
+     "outcomes": "== 1312, < 1292, > 2636 (signed); < 0, > 3928 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32733..32747"
+    },
+    {
+     "line": 28,
+     "text": "for (i = 0; i < 7; ++i) {",
+     "size": 4,
+     "count": 31424,
+     "kind": "against a constant",
+     "outcomes": "== 3928, < 23568, > 3928 (signed); < 23568, > 3928 (unsigned)",
+     "operand": "constant 6",
+     "a": "0..7"
+    },
+    {
+     "line": 29,
+     "text": "if (maxAffinity",
+     "size": 2,
+     "count": 27496,
+     "kind": "a == b / a < b",
+     "outcomes": "== 1825, < 6907, > 18764 (signed); < 17589, > 8082 (unsigned)",
+     "operand": "b -32768..32767",
+     "a": "0..32767"
+    },
+    {
+     "line": 42,
+     "text": "for (i = 0; i < 7; ++i) {",
+     "size": 4,
+     "count": 82768,
+     "kind": "against a constant",
+     "outcomes": "== 10346, < 62076, > 10346 (signed); < 62076, > 10346 (unsigned)",
+     "operand": "constant 6",
+     "a": "0..7"
+    },
+    {
+     "line": 46,
+     "text": "if (vs_battle_actors[targetActor->unk957]->weaponDrawn & 1) {",
+     "size": 4,
+     "count": 72422,
+     "kind": "against a constant",
+     "outcomes": "== 36036, < 0, > 36386 (signed); < 0, > 36386 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 50,
+     "text": "if (maxAffinity < sp18.tempTargetAffinity) {",
+     "size": 2,
+     "count": 72422,
+     "kind": "a == b / a < b",
+     "outcomes": "== 639, < 19374, > 52409 (signed); < 54621, > 17162 (unsigned)",
+     "operand": "b -32768..32767",
+     "a": "0..32767"
+    },
+    {
+     "line": 64,
+     "text": "if (vs_battle_actors[sourceActor->unk957]->weaponDrawn & 1) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 14936, < 0, > 15064 (signed); < 0, > 15064 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 70,
+     "text": "if (sourceActor->weapon.maxDp != 0) {",
+     "size": 2,
+     "count": 15064,
+     "kind": "against a constant",
+     "outcomes": "== 1910, < 5621, > 7533 (signed); < 0, > 13154 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32759..32765"
+    },
+    {
+     "line": 75,
+     "text": "if (sourceActor->weapon.maxPp != 0) {",
+     "size": 2,
+     "count": 15064,
+     "kind": "against a constant",
+     "outcomes": "== 1834, < 5651, > 7579 (signed); < 0, > 13230 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32754..32746"
+    },
+    {
+     "line": 97,
+     "text": "if (sp18.type != 0) {",
+     "size": 1,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 7453, < 0, > 22547 (signed); < 0, > 22547 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..3"
+    },
+    {
+     "line": 107,
+     "text": "if (targetActor->limbs[limb].armor.maxDp != 0) {",
+     "size": 2,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 3741, < 11365, > 14894 (signed); < 0, > 26259 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32766..32767"
+    },
+    {
+     "line": 115,
+     "text": "if (vs_battle_actors[targetActor->unk957]->weaponDrawn & 1) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 14973, < 0, > 15027 (signed); < 0, > 15027 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 119,
+     "text": "if (sp18.type != 0) {",
+     "size": 1,
+     "count": 15027,
+     "kind": "against a constant",
+     "outcomes": "== 3728, < 0, > 11299 (signed); < 0, > 11299 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..3"
+    },
+    {
+     "line": 127,
+     "text": "if (targetActor->shield.maxDp != 0) {",
+     "size": 2,
+     "count": 15027,
+     "kind": "against a constant",
+     "outcomes": "== 1883, < 5588, > 7556 (signed); < 0, > 13144 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32759..32747"
+    },
+    {
+     "line": 134,
+     "text": "if (targetActor->shield.maxPp != 0) {",
+     "size": 2,
+     "count": 15027,
+     "kind": "against a constant",
+     "outcomes": "== 1901, < 5602, > 7524 (signed); < 0, > 13126 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32766..32766"
+    },
+    {
+     "line": 151,
+     "text": "if (value < 0) {",
+     "size": 2,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 9485, < 12642, > 7873 (signed); < 0, > 20515 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32761..32766"
+    },
+    {
+     "line": 155,
+     "text": "if (addRandMod != 0) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 7551, < 7456, > 14993 (signed); < 0, > 22449 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..2"
+    },
+    {
+     "line": 157,
+     "text": "if (nHit == 0) {",
+     "size": 4,
+     "count": 22449,
+     "kind": "against a constant",
+     "outcomes": "== 8998, < 4419, > 9032 (signed); < 0, > 13451 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..2"
+    },
+    {
+     "line": 158,
+     "text": "if (sp18.sourceAffinity != 0) {",
+     "size": 1,
+     "count": 8998,
+     "kind": "against a constant",
+     "outcomes": "== 3590, < 0, > 5408 (signed); < 0, > 5408 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..6"
+    },
+    {
+     "line": 159,
+     "text": "if (target->unk40 == 0) {",
+     "size": 4,
+     "count": 5408,
+     "kind": "against a constant",
+     "outcomes": "== 1309, < 2000, > 2099 (signed); < 0, > 4099 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2146965364..2146767589"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 45905,
+     "completion_tokens": 29187,
+     "reasoning_tokens": 25330,
+     "cost": 0.009592,
+     "seconds": null,
+     "batch": "batch-1793379902-OYfFRiS0hzKPAZ8kx15j",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/get_magic_attack_damage.zig:142:69: error: expected type 'c_short', found 'c_int'\n    value = psx.conv(c_short, c.func_8007FE5C(@ptrCast(act), attack -% defense, @ptrCast(sourceActor), @ptrCast(targetActor)));\n                                                             ~~~~~~~^~~~~~~~~~\ngame/battle/get_magic_attack_damage.zig:142:69: note: signed 16-bit int cannot represent all possible signed 32-bit values\npc/build/boot64/zig/c_146C.zig:6680:58: note: parameter type declared here\npub extern fn func_8007FE5C(action: ?*vs_action_t, arg1: c_short, arg2: ?*vs_battle_actor2, arg3: ?*vs_battle_actor2) c_short;\n                                                         ^~~~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:469:31\n    main: pc/tests/zig_diff/main.zig:392:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 50236,
+     "completion_tokens": 6822,
+     "reasoning_tokens": 2929,
+     "cost": 0.0042173,
+     "seconds": null,
+     "batch": "batch-1793424920-emS29kRidmSasGd5EFed",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/getMagicAttackDamage.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/get_magic_attack_damage.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 480.90327465699374,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 223454.1894314289,
+ "totals": {
+  "cost": 0.02558,
+  "prompt_tokens": 145388,
+  "completion_tokens": 73252,
+  "model_seconds": 0.0,
+  "check_seconds": 480.9,
+  "calls": 4,
+  "wall_seconds": 223454.2
+ }
+}

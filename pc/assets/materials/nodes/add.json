@@ -1,0 +1,33 @@
+{
+  "format": 1,
+  "name": "add",
+  "label": "Add",
+  "category": "Math",
+  "inputs": [
+    {
+      "name": "a",
+      "type": "float3",
+      "default": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "b",
+      "type": "float3",
+      "default": [
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "outputs": [
+    {
+      "name": "result",
+      "type": "float3"
+    }
+  ],
+  "glsl": "result = a + b;"
+}

@@ -1,0 +1,284 @@
+{
+ "function": "func_800D5E00",
+ "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "spec-failed",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800D5E00",
+  "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+  "stem": "5BF94",
+  "address": "0x800d5e00",
+  "difficulty": "S",
+  "zig_name": "func_800D5E00",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800D5E00",
+  "spec_file": "func_800D5E00.zig",
+  "subsystem": "battle_5BF94_port",
+  "signature": "pub fn func_800D5E00(actor: ?*v.D_800F53B8_t, event: ?*v.func_800D5780_t) callconv(.c) c_int",
+  "params": [
+   [
+    "actor",
+    "?*v.D_800F53B8_t"
+   ],
+   [
+    "event",
+    "?*v.func_800D5780_t"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "soundEventTargets"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14673,
+     "completion_tokens": 36981,
+     "reasoning_tokens": 33351,
+     "cost": 0.0099789,
+     "seconds": null,
+     "batch": "batch-1793379902-OYfFRiS0hzKPAZ8kx15j",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/func_800D5E00/spec1/build/spec.zig:29:30: error: expected unsigned integer type, found 'i32'\n    return @as(u8, @truncate(x)) == 0;\n                             ^\nreferenced by:\n    classify: pc/build/port-pipeline/func_800D5E00/spec1/build/spec.zig:142:67\n    main: pc/tests/zig_diff/main.zig:443:36\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 18573,
+     "completion_tokens": 7182,
+     "reasoning_tokens": 3543,
+     "cost": 0.00272415,
+     "seconds": null,
+     "batch": "batch-1793424920-emS29kRidmSasGd5EFed",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation M5: sound index wrong mask (15 for 31): not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800D5E00: 30000 iterations, seed 1, 0 mismatches; classes: mismatch=3273 case1-play=3363 case1-skip=3258 case2-play=3379 case2-skip=3360 case0=3381 case3-hit=3341 case3-miss=3301 case3-empty=3344",
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800D5E00: branches 22/23 (95.7%), lines 33/33\n  UNCOVERED +9 b4: branch never taken: `switch (packed >> 14) {`\ncoverage func_800D5E00: FAILED (threshold 100%: 1 uncovered, 0 value flag(s) not waived)\nWhat to add:\n- `switch (packed >> 14) {` (+9): one way out of this test (+9 b4) was never taken; add inputs that take it.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800D5E00.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   }
+  ],
+  "classes": {
+   "mismatch": "3273",
+   "case1-play": "3363",
+   "case1-skip": "3258",
+   "case2-play": "3379",
+   "case2-skip": "3360",
+   "case0": "3381",
+   "case3-hit": "3341",
+   "case3-miss": "3301",
+   "case3-empty": "3344"
+  },
+  "mutations": [
+   {
+    "name": "M1: dropped call to func_800D5780",
+    "caught": true
+   },
+   {
+    "name": "M2: case 1 low byte read as u_short",
+    "caught": true
+   },
+   {
+    "name": "M3: case 2 compares unk18.unk0 with 5",
+    "caught": true
+   },
+   {
+    "name": "M4: target list loop skips entry 0",
+    "caught": true
+   },
+   {
+    "name": "M5: sound index wrong mask (15 for 31)",
+    "caught": false
+   },
+   {
+    "name": "M6: sound call volume 254 for 255",
+    "caught": true
+   },
+   {
+    "name": "M7: type read with shift 13",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 23,
+   "branches_hit": 22,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 33,
+   "lines_hit": 33,
+   "uncovered": [
+    {
+     "id": "+9 b4",
+     "line": 9,
+     "text": "switch (packed >> 14) {",
+     "what": "branch never taken"
+    }
+   ],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 7,
+     "text": "if ((packed & 511) != ((__typeof__((actor->unkD1C.unk30).psx_type_[0]))(long unsigned int)(actor->unkD1C.unk30).raw)->unk2)",
+     "size": 4,
+     "count": 30000,
+     "kind": "a == b / a < b",
+     "outcomes": "== 26727, < 1637, > 1636 (signed); < 2045, > 1228 (unsigned)",
+     "operand": "b -32726..32689",
+     "a": "0..511"
+    },
+    {
+     "line": 9,
+     "text": "switch (packed >> 14) {",
+     "size": 4,
+     "count": 26727,
+     "kind": "switch",
+     "outcomes": "== 26727, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..3"
+    },
+    {
+     "line": 11,
+     "text": "if (actor->unkD1C.unk0.unk0 == 4 && (u_char)actor->unkD1C.unk0.unk4.unk0 == 0)",
+     "size": 2,
+     "count": 6621,
+     "kind": "against a constant",
+     "outcomes": "== 4986, < 1253, > 382 (signed); < 845, > 790 (unsigned)",
+     "operand": "constant 4",
+     "a": "-1..5"
+    },
+    {
+     "line": 11,
+     "text": "if (actor->unkD1C.unk0.unk0 == 4 && (u_char)actor->unkD1C.unk0.unk4.unk0 == 0)",
+     "size": 1,
+     "count": 4986,
+     "kind": "against a constant",
+     "outcomes": "== 3363, < 805, > 818 (signed); < 0, > 1623 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 15,
+     "text": "if (actor->unkD1C.unk18.unk0 == 4 && (u_char)actor->unkD1C.unk18.unk4.unk0 == 0)",
+     "size": 2,
+     "count": 6739,
+     "kind": "against a constant",
+     "outcomes": "== 5017, < 1320, > 402 (signed); < 873, > 849 (unsigned)",
+     "operand": "constant 4",
+     "a": "-1..5"
+    },
+    {
+     "line": 15,
+     "text": "if (actor->unkD1C.unk18.unk0 == 4 && (u_char)actor->unkD1C.unk18.unk4.unk0 == 0)",
+     "size": 1,
+     "count": 5017,
+     "kind": "against a constant",
+     "outcomes": "== 3379, < 800, > 838 (signed); < 0, > 1638 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 22,
+     "text": "for (i = 0; i < ((soundEventTargets*)((__typeof__((D_800F569C->unkD0).psx_type_[0]))(long unsigned int)(D_800F569C->unkD0).raw))->count; ++i) {",
+     "size": 4,
+     "count": 449628,
+     "kind": "a == b / a < b",
+     "outcomes": "== 6645, < 442983, > 0 (signed); < 442983, > 0 (unsigned)",
+     "operand": "b 0..255",
+     "a": "0..255"
+    },
+    {
+     "line": 23,
+     "text": "if (((soundEventTargets*)((__typeof__((D_800F569C->unkD0).psx_type_[0]))(long unsigned int)(D_800F569C->unkD0).raw))->target[i].unk0 == 4",
+     "size": 2,
+     "count": 442983,
+     "kind": "against a constant",
+     "outcomes": "== 219618, < 6322, > 217043 (signed); < 3214, > 220151 (unsigned)",
+     "operand": "constant 4",
+     "a": "-1..5"
+    },
+    {
+     "line": 24,
+     "text": "&& (u_char)((soundEventTargets*)((__typeof__((D_800F569C->unkD0).psx_type_[0]))(long unsigned int)(D_800F569C->unkD0).raw))",
+     "size": 1,
+     "count": 219618,
+     "kind": "against a constant",
+     "outcomes": "== 3341, < 108559, > 107718 (signed); < 0, > 216277 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 34,
+     "text": "if (play) {",
+     "size": 4,
+     "count": 26727,
+     "kind": "against a constant",
+     "outcomes": "== 13263, < 0, > 13464 (signed); < 0, > 13464 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    }
+   ],
+   "passed": false
+  }
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 26.51004311599536,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 222353.55340361595,
+ "totals": {
+  "cost": 0.0127,
+  "prompt_tokens": 33246,
+  "completion_tokens": 44163,
+  "model_seconds": 0.0,
+  "check_seconds": 26.5,
+  "calls": 2,
+  "wall_seconds": 222353.6
+ }
+}

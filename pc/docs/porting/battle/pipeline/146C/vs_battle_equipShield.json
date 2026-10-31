@@ -1,0 +1,201 @@
+{
+ "function": "vs_battle_equipShield",
+ "unit": "src/BATTLE/BATTLE.PRG/146C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": false,
+ "plan": {
+  "name": "vs_battle_equipShield",
+  "unit": "src/BATTLE/BATTLE.PRG/146C.c",
+  "stem": "146C",
+  "address": "0x8006b460",
+  "difficulty": "S",
+  "zig_name": "equipShield",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "equip_shield",
+  "spec_file": "equipShield.zig",
+  "subsystem": "battle_146C_port",
+  "signature": "pub fn equipShield(shield: ?*v.vs_main_inventoryShield) callconv(.c) void",
+  "params": [
+   [
+    "shield",
+    "?*v.vs_main_inventoryShield"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13685,
+     "completion_tokens": 9704,
+     "reasoning_tokens": 8555,
+     "cost": 0.0031102499999999997,
+     "seconds": null,
+     "batch": "batch-1793203265-sQA1DX56rKylfzO4cWKR",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the C itself crashed on your inputs (the C runs first, so this is the spec's\nbug). The harness fills every global and the arena with random bytes before\nprepare, so every pointer the C follows must be one prepare set: each\nargument, each pointer field of an object you build, and each ENTRY of a\nglobal pointer table the C indexes (only the entry it reads: e.g.\n`v.g.TABLE()[i] = obj`), pointing at an object from `ctx.alloc`/`ctx.allocBytes`\n(sized for every element the C indexes past a `[0]` array), at a global, or\nnull where the C tests for null. An index into a global table must stay\ninside its length (the views accessor's type gives it). Below: the crash, its\nfault address (named when it is inside an object the harness owns) and the\narguments of that iteration:\nzdiff: CRASH (signal 11) in the C run, iteration 16, fault address 0x1d4 [NULL+0x1d4: a field of a null pointer]: argument 0 of the call of vs_battle_applyShield, which reads through it\nzdiff: crashed on arguments: 0x406a30 [arena] (class stats-null)",
+     "(the mutations and the coverage gate are checked once the C runs crash-free)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 15275,
+     "completion_tokens": 2119,
+     "reasoning_tokens": 1012,
+     "cost": 0.0012935,
+     "seconds": null,
+     "batch": "batch-1793206357-jxyW8CeGtJSNWKNpZo35",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "shield-null": "2502",
+   "shield-set": "17498"
+  },
+  "mutations": [
+   {
+    "name": "E1: func_8006B2D4 dropped",
+    "caught": true
+   },
+   {
+    "name": "E2: applyShield given NULL instead of the shield",
+    "caught": true
+   },
+   {
+    "name": "E3: nop0 dropped",
+    "caught": true
+   },
+   {
+    "name": "E4: applyShield dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 6,
+   "lines_hit": 6,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 20000,
+     "text": "pointer: null seen"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 37165,
+     "completion_tokens": 5546,
+     "reasoning_tokens": 5093,
+     "cost": 0.00324475,
+     "seconds": null,
+     "batch": "batch-1793379902-OYfFRiS0hzKPAZ8kx15j",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/equipShield.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/equip_shield.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 438.05804917299884,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 218722.6999862194,
+ "totals": {
+  "cost": 0.00765,
+  "prompt_tokens": 66125,
+  "completion_tokens": 17369,
+  "model_seconds": 0.0,
+  "check_seconds": 438.1,
+  "calls": 3,
+  "wall_seconds": 218722.7
+ }
+}

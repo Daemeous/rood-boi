@@ -1,0 +1,267 @@
+{
+ "function": "func_800D05F4",
+ "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "port-failed",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800D05F4",
+  "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+  "stem": "5BF94",
+  "address": "0x800d05f4",
+  "difficulty": "M",
+  "zig_name": "func_800D05F4",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800D05F4",
+  "spec_file": "func_800D05F4.zig",
+  "subsystem": "battle_5BF94_port",
+  "signature": "pub fn func_800D05F4(arg0: ?*v.func_800D0548_arg0, arg1: ?*v.func_800D0548_arg1) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.func_800D0548_arg0"
+   ],
+   [
+    "arg1",
+    "?*v.func_800D0548_arg1"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "MATRIX",
+   "func_800D0548_arg0",
+   "func_800D0548_arg1"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13043,
+     "completion_tokens": 23837,
+     "reasoning_tokens": 21550,
+     "cost": 0.0066114,
+     "seconds": null,
+     "batch": "batch-1793203265-sQA1DX56rKylfzO4cWKR",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation F1: control0.vz divides by 8 as a shift (negative products round down): not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800D05F4: 40000 iterations, seed 1, 0 mismatches; classes: mode80-set=20087 radius-rand=17337 angle-rand=1689 plain=887",
+     "FAIL: mutation F2: the second radius rand uses << 4 as its divisor: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800D05F4: 40000 iterations, seed 1, 0 mismatches; classes: mode80-set=20087 radius-rand=17337 angle-rand=1689 plain=887",
+     "FAIL: mutation F5: the mode test uses bit 6 instead of bit 7: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800D05F4: 40000 iterations, seed 1, 0 mismatches; classes: mode80-set=20087 radius-rand=17337 angle-rand=1689 plain=887"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 15765,
+     "completion_tokens": 9675,
+     "reasoning_tokens": 6868,
+     "cost": 0.0032069999999999998,
+     "seconds": null,
+     "batch": "batch-1793206357-jxyW8CeGtJSNWKNpZo35",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "mode80-set": "20087",
+   "radius-rand": "17337",
+   "angle-rand": "1689",
+   "plain": "887"
+  },
+  "mutations": [
+   {
+    "name": "F1: control0.vz divides by 8 as a shift (negative products round down)",
+    "caught": true
+   },
+   {
+    "name": "F2: the second radius rand uses << 4 as its divisor",
+    "caught": true
+   },
+   {
+    "name": "F3: angle1 uses the shape nibble shifted by 9",
+    "caught": true
+   },
+   {
+    "name": "F4: control1.vz store dropped",
+    "caught": true
+   },
+   {
+    "name": "F5: the mode test uses bit 6 instead of bit 7",
+    "caught": true
+   },
+   {
+    "name": "F6: end.vy read from saved in the first branch",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 6,
+   "branches_hit": 6,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 50,
+   "lines_hit": 50,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 8,
+     "text": "if (arg0->mode & 0x80) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 19913, < 0, > 20087 (signed); < 0, > 20087 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..128"
+    },
+    {
+     "line": 32,
+     "text": "if (*(u_short*)&arg0->limit & 0xF000) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 5122, < 0, > 34878 (signed); < 0, > 34878 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..61440"
+    },
+    {
+     "line": 38,
+     "text": "if (arg0->shape12 & 0xF0) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 13814, < 0, > 26186 (signed); < 0, > 26186 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..240"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 36515,
+     "completion_tokens": 13550,
+     "reasoning_tokens": 11642,
+     "cost": 0.00521325,
+     "seconds": null,
+     "batch": "batch-1793379902-OYfFRiS0hzKPAZ8kx15j",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 0: memory at 0x409182 [arena] (zdiff_state+0x102): C 2, Zig 170\nzdiff: MISMATCH iteration 1: memory at 0x409182 [arena] (zdiff_state+0x102): C 2, Zig 170\nzdiff: MISMATCH iteration 2: memory at 0x409182 [arena] (zdiff_state+0x102): C 2, Zig 170\nzdiff: func_800D05F4: 1000 iterations, seed 1, 1000 mismatches; classes: mode80-set=485 radius-rand=449 angle-rand=39 plain=27"
+    ],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 1,
+      "mismatches": 1000,
+      "first": "MISMATCH iteration 0: memory at 0x409182 (zdiff_state+0x102): C 2, Zig 170"
+     }
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 38697,
+     "completion_tokens": 8468,
+     "reasoning_tokens": 6409,
+     "cost": 0.00405185,
+     "seconds": null,
+     "batch": "batch-1793424920-emS29kRidmSasGd5EFed",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 0: memory at 0x409182 [arena] (zdiff_state+0x102): C 2, Zig 0\nzdiff: MISMATCH iteration 1: memory at 0x409182 [arena] (zdiff_state+0x102): C 2, Zig 0\nzdiff: MISMATCH iteration 2: memory at 0x409182 [arena] (zdiff_state+0x102): C 2, Zig 0\nzdiff: func_800D05F4: 1000 iterations, seed 1, 1000 mismatches; classes: mode80-set=485 radius-rand=449 angle-rand=39 plain=27"
+    ],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 1,
+      "mismatches": 1000,
+      "first": "MISMATCH iteration 0: memory at 0x409182 (zdiff_state+0x102): C 2, Zig 0"
+     }
+    ]
+   }
+  ]
+ },
+ "written": [],
+ "check_seconds": 72.25797571200383,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 222269.5623781681,
+ "totals": {
+  "cost": 0.01908,
+  "prompt_tokens": 104020,
+  "completion_tokens": 55530,
+  "model_seconds": 0.0,
+  "check_seconds": 72.3,
+  "calls": 4,
+  "wall_seconds": 222269.6
+ }
+}

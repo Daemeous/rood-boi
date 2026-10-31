@@ -1809,6 +1809,24 @@ static void handle_method(int fd, const char* request)
         snprintf(result, sizeof result, "{\"opened\":%s}",
             pc_ui_container_debug_open((int)number) ? "true" : "false");
         reply(fd, id, result);
+    } else if (!strcmp(method, "menuf")) {
+        /* Tests: MAINMENU's screen 15 (MENUF) opened as BATTLE opens it after a fight (ui/loot_bridge.c
+         * pc_ui_menuf_debug_open): submenu = vs_main_stateFlags.menuFSubmenu (0 congratulations, 1 / 2 the time
+         * attack's start / end, 3 the heal bonus (nothing drawn), 4 / 5 / 6 the cube puzzle's start / end / quit);
+         * boss = timeAttackBoss (the course, 0..6; default kept). Only in the field with Ashley free to act. */
+        extern int pc_ui_menuf_debug_open(int submenu, int boss) __attribute__((weak));
+        long long submenu = -1, boss = -1;
+        if (!pc_ui_menuf_debug_open) {
+            fail(fd, id, -32000, "menuf needs the battle build");
+            return;
+        }
+        if (params) {
+            number_value(member(params, "submenu"), &submenu);
+            number_value(member(params, "boss"), &boss);
+        }
+        snprintf(result, sizeof result, "{\"opened\":%s}",
+            pc_ui_menuf_debug_open((int)submenu, (int)boss) ? "true" : "false");
+        reply(fd, id, result);
     } else if (!strcmp(method, "release")) {
         memset(holds, 0, sizeof holds);
         stick_vsyncs = trigger_vsyncs = 0;
@@ -3236,7 +3254,8 @@ static void handle_method(int fd, const char* request)
     } else if (!strcmp(method, "editor_select") || !strcmp(method, "editor_schema") || !strcmp(method, "editor_transform")
         || !strcmp(method, "editor_handles") || !strcmp(method, "editor_library") || !strcmp(method, "editor_shell")
         || !strcmp(method, "editor_command") || !strcmp(method, "editor_inspect")
-        || !strcmp(method, "material_instance") || !strcmp(method, "material_preview")) {
+        || !strcmp(method, "material_instance") || !strcmp(method, "material_preview")
+        || !strcmp(method, "material_graph")) {
         /* The editor's selection (editor_scene.cpp), property schema
          * (editor_schema.cpp) and transform tools (lights.cpp); they parse the
          * params object themselves. */
@@ -3250,7 +3269,9 @@ static void handle_method(int fd, const char* request)
         extern int pc_editor_inspect_rpc(const char*, char*, int) __attribute__((weak));
         extern int pc_material_instance_rpc(const char*, char*, int) __attribute__((weak));
         extern int pc_material_preview_rpc(const char*, char*, int) __attribute__((weak));
+        extern int pc_material_graph_rpc(const char*, char*, int) __attribute__((weak));
         int (*handler)(const char*, char*, int) = !strcmp(method, "editor_select") ? pc_editor_select_rpc
+            : !strcmp(method, "material_graph")                                    ? pc_material_graph_rpc
             : !strcmp(method, "editor_inspect")                                    ? pc_editor_inspect_rpc
             : !strcmp(method, "material_instance")                                 ? pc_material_instance_rpc
             : !strcmp(method, "material_preview")                                  ? pc_material_preview_rpc

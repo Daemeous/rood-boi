@@ -39,6 +39,7 @@ typedef char pc_classic_sites_agree[PC_CLASSIC_SITE_GAUGES == PC_CLASSIC_GAUGES
             && PC_CLASSIC_SITE_DISCARD_COUNT == PC_CLASSIC_DISCARD_COUNT
             && PC_CLASSIC_SITE_RENAME_GRID == PC_CLASSIC_RENAME_GRID && PC_CLASSIC_SITE_RENAME_BOX == PC_CLASSIC_RENAME_BOX
             && PC_CLASSIC_SITE_FILE_MENU == PC_CLASSIC_FILE_MENU && PC_CLASSIC_SITE_FILE_ELEMENT == PC_CLASSIC_FILE_ELEMENT
+            && PC_CLASSIC_SITE_MENUF == PC_CLASSIC_MENUF && PC_CLASSIC_SITE_MENUF_LOAD == PC_CLASSIC_MENUF_LOAD
         ? 1
         : -1];
 
@@ -62,6 +63,7 @@ void pc_hud_target_line(void* record, void* first, void* end);
 void pc_hud_target_marker(void* record, void* first, void* end);
 void pc_hud_gauges(void* record, void* first, void* end); /* hud_bridge.c */
 void pc_hud_menu(int kind, void* record, void* first, void* end); /* hud_bridge.c: MAINMENU's frame */
+void pc_hud_menuf(void* record, void* first, void* end);           /* hud_bridge.c: MENUF's screens */
 extern unsigned pc_vsync_count(void) __attribute__((weak));
 
 /* A packet's anchor: the range it lies in, else the one its caller gives the site's range after the
@@ -120,6 +122,10 @@ void pc_classic_site(int kind, void* record, int x, int y, void* first, void* en
         && kind != PC_CLASSIC_BOX_TEXT && kind != PC_CLASSIC_IMAGE;
     if (kind >= PC_CLASSIC_MENU_BACKGROUND && kind <= PC_CLASSIC_RENAME_BOX) { /* (the menus: never the HUD's to hide) */
         pc_hud_menu(kind, record, first, end);
+        return;
+    }
+    if (kind == PC_CLASSIC_MENUF) { /* (a menu screen: never the HUD's to hide) */
+        pc_hud_menuf(record, first, end);
         return;
     }
     if (kind >= PC_CLASSIC_STATUS && kind <= PC_CLASSIC_DAMAGE) {

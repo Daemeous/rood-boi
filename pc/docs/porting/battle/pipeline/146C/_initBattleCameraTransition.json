@@ -1,0 +1,231 @@
+{
+ "function": "_initBattleCameraTransition",
+ "unit": "src/BATTLE/BATTLE.PRG/146C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "port-failed",
+ "reviewed": false,
+ "plan": {
+  "name": "_initBattleCameraTransition",
+  "unit": "src/BATTLE/BATTLE.PRG/146C.c",
+  "stem": "146C",
+  "address": "0x800730bc",
+  "difficulty": "S",
+  "zig_name": "initBattleCameraTransition",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "init_battle_camera_transition",
+  "spec_file": "initBattleCameraTransition.zig",
+  "subsystem": "battle_146C_port",
+  "signature": "pub fn initBattleCameraTransition() callconv(.c) void",
+  "params": [],
+  "ret": "void",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14126,
+     "completion_tokens": 14618,
+     "reasoning_tokens": 12987,
+     "cost": 0.0043608,
+     "seconds": null,
+     "batch": "batch-1793203265-sQA1DX56rKylfzO4cWKR",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "alloc-transition": "9943",
+   "state-7": "2547",
+   "state-other": "17510"
+  },
+  "mutations": [
+   {
+    "name": "I1: copy skipped at 6 instead of 7",
+    "caught": true
+   },
+   {
+    "name": "I2: wrong projection distance constant",
+    "caught": true
+   },
+   {
+    "name": "I3: unsigned narrowing of vx before the scale",
+    "caught": true
+   },
+   {
+    "name": "I4: state flag stored before the computation call",
+    "caught": true
+   },
+   {
+    "name": "I5: dropped func_8008D594 call",
+    "caught": true
+   },
+   {
+    "name": "I6: camera-object loop stops at 15",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 6,
+   "branches_hit": 6,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 30,
+   "lines_hit": 30,
+   "uncovered": [],
+   "flags": [],
+   "args": [],
+   "compares": [
+    {
+     "line": 10,
+     "text": "if (D_800F196C != 7) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 3738, < 15091, > 11171 (signed); < 7528, > 18734 (unsigned)",
+     "operand": "constant 7",
+     "a": "-2146516963..2146909960"
+    },
+    {
+     "line": 37,
+     "text": "for (i = 0; i < 16; ++i) {",
+     "size": 4,
+     "count": 510000,
+     "kind": "against a constant",
+     "outcomes": "== 30000, < 450000, > 30000 (signed); < 450000, > 30000 (unsigned)",
+     "operand": "constant 15",
+     "a": "0..16"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 37577,
+     "completion_tokens": 8156,
+     "reasoning_tokens": 6839,
+     "cost": 0.00391785,
+     "seconds": null,
+     "batch": "batch-1793206357-jxyW8CeGtJSNWKNpZo35",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 0: memory at 0x407150 [arena] (zdiff_state+0xd0): C 252, Zig 170\nzdiff: _initBattleCameraTransition: 30000 iterations, seed 1, 1 mismatches; classes: alloc-transition=9943 state-7=2547 state-other=17510"
+    ],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 1,
+      "mismatches": 1,
+      "first": "MISMATCH iteration 0: memory at 0x407150 (zdiff_state+0xd0): C 252, Zig 170"
+     }
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39063,
+     "completion_tokens": 3199,
+     "reasoning_tokens": 1602,
+     "cost": 0.0027529,
+     "seconds": null,
+     "batch": "batch-1793379902-OYfFRiS0hzKPAZ8kx15j",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/init_battle_camera_transition.zig:28:35: error: use of undeclared identifier 'std'\n    var sp20: v.func_8006EBF8_t = std.mem.zeroes(v.func_8006EBF8_t);\n                                  ^~~\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 3,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 40838,
+     "completion_tokens": 2005,
+     "reasoning_tokens": 603,
+     "cost": 0.0025431499999999997,
+     "seconds": null,
+     "batch": "batch-1793424920-emS29kRidmSasGd5EFed",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 0: memory at 0x408150 [arena] (zdiff_state+0xd0): C 197, Zig 0\nzdiff: _initBattleCameraTransition: 30000 iterations, seed 1, 1 mismatches; classes: alloc-transition=9943 state-7=2547 state-other=17510"
+    ],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 1,
+      "mismatches": 1,
+      "first": "MISMATCH iteration 0: memory at 0x408150 (zdiff_state+0xd0): C 197, Zig 0"
+     }
+    ]
+   }
+  ]
+ },
+ "written": [],
+ "check_seconds": 53.994773355996585,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 222239.5436501503,
+ "totals": {
+  "cost": 0.01357,
+  "prompt_tokens": 131604,
+  "completion_tokens": 27978,
+  "model_seconds": 0.0,
+  "check_seconds": 54.0,
+  "calls": 4,
+  "wall_seconds": 222239.5
+ }
+}

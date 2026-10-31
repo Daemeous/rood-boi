@@ -1,0 +1,15 @@
+{
+  "format": 1,
+  "name": "pulse",
+  "label": "Pulse",
+  "category": "Animation",
+  "about": "A smooth pulse between low and high, rate times a second. Its time input, left unlinked, is the game time (paused with the game; a photo's held moment keeps it); link a Time node or anything else to drive it.",
+  "inputs": [
+    { "name": "time", "label": "Time (unlinked: the game's)", "type": "float", "time": true },
+    { "name": "rate", "label": "Rate (a second)", "type": "float", "default": 0.5, "min": 0, "max": 4, "pin": true },
+    { "name": "low", "label": "Low", "type": "float", "default": 0, "min": 0, "max": 1 },
+    { "name": "high", "label": "High", "type": "float", "default": 1, "min": 0, "max": 1, "pin": true }
+  ],
+  "outputs": [ { "name": "result", "type": "float" } ],
+  "glsl": "result = mix(low, high, 0.5 - 0.5 * cos(6.28318531 * rate * time));"
+}

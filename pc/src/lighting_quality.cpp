@@ -37,7 +37,9 @@ extern float pc_specular_strength, pc_roughness_bias, pc_bump_strength, pc_auto_
     pc_relief_reach, pc_relief_overhead;
 /* The material preview's look (material_preview.cpp). */
 extern float pc_material_preview_size, pc_material_preview_light, pc_material_preview_yaw, pc_material_preview_pitch,
-    pc_material_preview_ambient, pc_material_preview_swatch;
+    pc_material_preview_ambient, pc_material_preview_swatch, pc_material_preview_room_key, pc_material_preview_room_ambient,
+    pc_material_preview_room_height, pc_material_preview_relief;
+extern int pc_material_preview_room;
 int pc_material_active(void);
 /* Weak: absent in some builds. */
 extern int pc_vk_active __attribute__((weak));
@@ -167,6 +169,12 @@ Key keys[] = {
     { "material_preview_pitch", FLOAT_KEY, &pc_material_preview_pitch, nullptr, 0, false },
     { "material_preview_ambient", FLOAT_KEY, &pc_material_preview_ambient, nullptr, 0, false },
     { "material_preview_swatch", FLOAT_KEY, &pc_material_preview_swatch, nullptr, 0, false },
+    /* Lit like the room (on: the room's key light and ambient at Ashley, times these) and the relief's share. */
+    { "material_preview_room", BOOL, &pc_material_preview_room, nullptr, 0, false },
+    { "material_preview_room_key", FLOAT_KEY, &pc_material_preview_room_key, nullptr, 0, false },
+    { "material_preview_room_ambient", FLOAT_KEY, &pc_material_preview_room_ambient, nullptr, 0, false },
+    { "material_preview_room_height", FLOAT_KEY, &pc_material_preview_room_height, nullptr, 0, false },
+    { "material_preview_relief", FLOAT_KEY, &pc_material_preview_relief, nullptr, 0, false },
 };
 const int key_count = sizeof keys / sizeof keys[0];
 

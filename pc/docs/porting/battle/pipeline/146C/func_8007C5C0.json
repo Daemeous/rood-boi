@@ -1,0 +1,231 @@
+{
+ "function": "func_8007C5C0",
+ "unit": "src/BATTLE/BATTLE.PRG/146C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "port-failed",
+ "reviewed": false,
+ "plan": {
+  "name": "func_8007C5C0",
+  "unit": "src/BATTLE/BATTLE.PRG/146C.c",
+  "stem": "146C",
+  "address": "0x8007c5c0",
+  "difficulty": "S",
+  "zig_name": "func_8007C5C0",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_8007C5C0",
+  "spec_file": "func_8007C5C0.zig",
+  "subsystem": "battle_146C_port",
+  "signature": "pub fn func_8007C5C0(arg0: ?*v._mpdRoomDoorSection_t, effect: c_int, speed: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "?*v._mpdRoomDoorSection_t"
+   ],
+   [
+    "effect",
+    "c_int"
+   ],
+   [
+    "speed",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [
+   "D_8004FCCC",
+   "vs_main_zndFiles"
+  ],
+  "hooks": [],
+  "statics": [
+   "_loadZnd"
+  ],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12792,
+     "completion_tokens": 16184,
+     "reasoning_tokens": 14564,
+     "cost": 0.0046856,
+     "seconds": null,
+     "batch": "batch-1793203265-sQA1DX56rKylfzO4cWKR",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "arg0-is-D_800F1AB0": "3722",
+   "zone-context-zero": "8704",
+   "music-equal": "8772",
+   "music-differs": "8802"
+  },
+  "mutations": [
+   {
+    "name": "S1: screen transition step 3",
+    "caught": true
+   },
+   {
+    "name": "S2: speed stores effect",
+    "caught": true
+   },
+   {
+    "name": "S3: loads the mpd id instead of the znd id",
+    "caught": true
+   },
+   {
+    "name": "S4: the room copy is dropped",
+    "caught": true
+   },
+   {
+    "name": "S5: returns 0",
+    "caught": true
+   },
+   {
+    "name": "S6: second fade call with the wrong speed argument",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 10,
+   "lines_hit": 10,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 36290,
+     "completion_tokens": 4717,
+     "reasoning_tokens": 3702,
+     "cost": 0.00299375,
+     "seconds": null,
+     "batch": "batch-1793206357-jxyW8CeGtJSNWKNpZo35",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_8007C5C0.zig:16:33: error: incompatible types: '?*views_146C.vs_main_CdQueueSlot' and 'comptime_int'\n    if (psx.get(zone.zndCdFile) != 0) {\n        ~~~~~~~~~~~~~~~~~~~~~~~~^~~~\ngame/battle/func_8007C5C0.zig:16:16: note: type '?*views_146C.vs_main_CdQueueSlot' here\n    if (psx.get(zone.zndCdFile) != 0) {\n        ~~~~~~~^~~~~~~~~~~~~~~~\ngame/battle/func_8007C5C0.zig:16:36: note: type 'comptime_int' here\n    if (psx.get(zone.zndCdFile) != 0) {\n                                   ^\nreferenced by:\n    func_8007C5C0: game/battle/func_8007C5C0.zig:41:12\n    main: pc/tests/zig_diff/main.zig:469:31\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 37760,
+     "completion_tokens": 1750,
+     "reasoning_tokens": 784,
+     "cost": 0.0023255,
+     "seconds": null,
+     "batch": "batch-1793379902-OYfFRiS0hzKPAZ8kx15j",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_8007C5C0.zig:22:55: error: expected type 'c_uint', found 'c_int'\n    psx.put(&zone.zndData, c.vs_main_allocHeapR(cdFile.size));\n                                                ~~~~~~^~~~~\ngame/battle/func_8007C5C0.zig:22:55: note: unsigned 32-bit int cannot represent all possible signed 32-bit values\npc/build/boot64/zig/c_146C.zig:2480:34: note: parameter type declared here\npub extern fn vs_main_allocHeapR(u_int) ?*anyopaque;\n                                 ^~~~~\nreferenced by:\n    func_8007C5C0: game/battle/func_8007C5C0.zig:40:12\n    main: pc/tests/zig_diff/main.zig:469:31\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 3,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39123,
+     "completion_tokens": 1477,
+     "reasoning_tokens": 499,
+     "cost": 0.0023254,
+     "seconds": null,
+     "batch": "batch-1793424920-emS29kRidmSasGd5EFed",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_8007C5C0.zig:23:40: error: expected type '[*c]c_146C.vs_main_CdQueueSlot', found '?*views_146C.vs_main_CdQueueSlot'\n    c.vs_main_cdEnqueuePriority(psx.get(zone.zndCdFile), psx.get(zone.zndData));\n                                ~~~~~~~^~~~~~~~~~~~~~~~\ngame/battle/func_8007C5C0.zig:23:40: note: pointer type child 'views_146C.vs_main_CdQueueSlot' cannot cast into pointer type child 'c_146C.vs_main_CdQueueSlot'\npc/build/port-pipeline/gen/146C/fn-func_8007C5C0/views_146C.zig:2808:40: note: struct declared here\npub const vs_main_CdQueueSlot = extern struct {\n                                ~~~~~~~^~~~~~\npc/build/boot64/zig/c_146C.zig:1580:40: note: struct declared here\npub const vs_main_CdQueueSlot = extern struct {\n                                ~~~~~~~^~~~~~\npc/build/boot64/zig/c_146C.zig:2490:47: note: parameter type declared here\npub extern fn vs_main_cdEnqueuePriority(slot: [*c]vs_main_CdQueueSlot, vram: ?*anyopaque) void;\n                                              ^~~~~~~~~~~~~~~~~~~~~~~\nreferenced by:\n    func_8007C5C0: game/battle/func_8007C5C0.zig:40:12\n    main: pc/tests/zig_diff/main.zig:469:31\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ],
+    "runs": []
+   }
+  ]
+ },
+ "written": [],
+ "check_seconds": 20.639535579997755,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 222244.46508216858,
+ "totals": {
+  "cost": 0.01233,
+  "prompt_tokens": 125965,
+  "completion_tokens": 24128,
+  "model_seconds": 0.0,
+  "check_seconds": 20.6,
+  "calls": 4,
+  "wall_seconds": 222244.5
+ }
+}

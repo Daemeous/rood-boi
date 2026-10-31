@@ -17,6 +17,49 @@ follows `2026-10-18-lua-visible-layer.md` (F1-F3, done),
 
 ## Progress
 
+2026-10-31 (branch `classic-menuf`, from main `f6d70e45`; no merge or publication):
+
+- **MENUF drawn by rood.classic: the last MAINMENU screen (currentMenu 15).** Design: §3.4b (the worker's calls). The
+  previous survey's "BATTLE's TIM sprite list" is not a drawing path: 146C.c `func_8007DFF0` / `func_8007E0A8`
+  reserve and free VRAM slots, `func_8007DD50` .. `func_8007DE5C` set BATTLE's countdown effect; MENUF draws through
+  the ordering table from a few leaves and uploads at once. Two kinds, claimed on 15 only:
+  **`menuf`** (a `PC_CLASSIC` range around `_execMenu`; the record: the frame's leaf calls in order, the `_disMap`
+  entries carried, the prompt's words as codes) and **`menuf_load`** (`PC_CLASSIC_IMMEDIATE` ranges around
+  `_initMenu` and `_execMenu`: the TIMs and CLUT at the opening, the end screens' pulsed CLUT row each frame; the
+  recorder keeps the pixels, `d.image_load` takes the record's handle). 3B8.c and `src/renderTextures.h` change
+  under `ROOD_PC` only (ENDING's copy of the header: the hook's empty default). No Zig port touches either.
+- **1. Reaching the screens:** RPC `menuf {submenu, boss}` (loot_bridge.c, beside RPC `container`): from the save
+  room's field, the submenu set, BATTLE's own opener (`func_800CB23C`, as after a fight). Every screen reached:
+  the congratulations (0), the time attack's start (1; courses 1..7) and end (2), the cube puzzle's start, end and
+  quit (4..6); 3 (the heal bonus) draws nothing. The congratulations' exit raises a stat and the screens write the
+  score data: the tour rewinds after each screen, the proofs put the score data back (the bonus stays taken in that
+  run's memory; no card is written).
+- **Primitives** (Extensions.md): `d.image_load`'s pixels may be a record's upload handle (`e.load.uploads[i].pixels`:
+  the game's own pixels, any size). The parity normaliser leaves out a shaded polygon's colour pads (the top byte
+  of its second to fourth colours: setRGB1..3 leave it). `PC_HUD_CLASSIC_COMMANDS` 256 -> 512 and
+  `PC_CLASSIC_CAPTURE` 384 -> 512 (the congratulations' stat wheel: about 270 packets). `look.menuf` (the leaves'
+  steps, ramps, wipe, wheel bands and CLUTs, the prompt's slide; `place`).
+- **Tours** (`tour_menuf`, after `tour_loot`): each screen played through and left with Circle (the time attack's
+  start on courses 1 and 7: the boss's name in one picture or two), then again skipped with an early Circle.
+  **Proofs** (default and fallback of both kinds, state parity 120/120): the congratulations' bonus chosen, the time
+  attack's records, the cube puzzle's end and its quit, at rest. Outside the gate: the game's frame buffer with the
+  claims and without them identical on every screen (0 pixels; the presented picture differs by a few hundred
+  pixels in the field's background between two runs of the game alone, so it is not the measure); a one-pixel
+  change caught at once (`look.menuf.place.dx = 1`: 190 of 190 frames on `xy`; the uploads one pixel right: 53 of
+  53 on `word`).
+- **Counts** (the tour alone, GL): `menuf` 1,709 frames, `menuf_load` 636, 0 mismatches, 0 skips, no waivers.
+- **Verification:** `--arch 64` and `--battle` builds. Docker `make commit-check` (a copy of the tree; 3B8.c and
+  `src/renderTextures.h` touched): **All files match**, the formatter changing nothing. `run.py -j 1 --cpu-jobs 1`
+  (nice 10) `classic_parity hud classic cutscene_player_smoke widescreen_smoke` plus every suite matching `manual ui_
+  menu prompts button options items equip status workshop container loot memory card save data` (44 suites):
+  **GL 43/44, then classic_parity alone: pass** (its first run's four MENUF proofs found no kind drawn: menuf and
+  menuf_load were missing from its default `--kind` list; added). **Vulkan 44/44**, first run. classic_parity: no
+  budget faults on either GPU; every report green (menuf 1,709 frames, menuf_load 636; 139 menus states).
+  classic_hud_smoke's Lua cost: GL mean 0.043 ms, Vulkan mean 0.054 ms (p99 0.097), under 0.1.
+- **Left:** none of MAINMENU's screens is the game's own drawing now. Untoured (the same leaves, claimed): the
+  congratulations' wheel left to its own stop (2,072 frames), the time attack's end without a new record, courses 2
+  to 6 (the boss's name in one picture, as course 1); the ENDING's copy of the leaves (not claimed).
+
 2026-10-30, late night (branch `classic-immediate`, from main `45c74602`; no merge or publication):
 
 - **An immediate-draw capture (`PC_CLASSIC_IMMEDIATE`; design: §3.4a, the worker's calls) and MENU7's file menu drawn
@@ -1444,6 +1487,30 @@ left in the frame's buffer to walk or suppress, they are already drawn. The desi
   (not toured), any screen but currentMenu 7.
 - Known limit: a fallback that replays held glyphs (a failing draw, a frame the recorder gave up on) replays them
   from copies, so ui_text's line layout misses them for that frame (their glyphs placed cell by cell).
+
+### 3.4b MENUF (2026-10-31, the worker's calls)
+
+MENUF (`vs_menuF_exec`, currentMenu 15) is not drawn through BATTLE's sprite list: 146C.c `func_8007DFF0` /
+`func_8007E0A8` only reserve and free VRAM slots 29..31, and `func_8007DD50` .. `func_8007DE5C` set BATTLE's
+countdown effect (the time attack's start), which BATTLE draws, not MENUF. What MENUF draws, it draws through the
+ordering table from a few leaves (`_renderTextureFadeIn`, `_renderTextureFadeInClut`, `src/renderTextures.h`'s tint,
+pop-in and wipe, `_renderAnimatedStatWheel`, the stat wheel's two `DR_AREA`s, `_renderPressButtonPrompt` with the raw
+printer); and it uploads at once (`LoadImage`: `_initMenu`'s TIMs and CLUT, the end screens' pulsed CLUT row). No
+146C.c function is hooked (none of their ports is touched); no MENUF function has a Zig port.
+
+- **`menuf`: one ordering-table kind, a frame's calls as its record.** A `PC_CLASSIC` emit-only range around
+  `_execMenu` (`_pcExecMenu`); each leaf records its call on entry, before its own tests (`PC_MENUF_CALL`: an op, the
+  `_disMap` entry's texels, page and CLUT as C reads them, the place, the step / CLUT / wipe edge and the two colour
+  words; the prompt's words as the game's codes). The screens' logic (timers, states, counting, layout, which
+  picture) stays the game's; the leaves' drawing (what a step means, the colour ramps, the wipe's strips, the
+  wheel's faded lines, the prompt's slide and bob) is the look's, in Lua. One element a frame (at most 128 calls;
+  more: the game draws that frame).
+- **`menuf_load`: an immediate kind for the uploads.** `PC_CLASSIC_IMMEDIATE` ranges around `_initMenu` and
+  `_execMenu`; the recorder keeps the uploads' pixels for this kind (`pc_classic_immediate_keep`, a 160 KB pool:
+  three TIMs of 32,640 bytes) and `d.image_load` takes the record's handle for them. So the claim makes the uploads
+  (where, in which order: its call) with the game's own pixels (no art in the plugin), and the gate compares each by
+  rectangle and hash as for the file menu's CLUTs; a held TIM is held, not done twice.
+- **Not done**: the ENDING's copy of `src/renderTextures.h` (its hook is the empty default).
 
 ### 3.5 Reporting
 

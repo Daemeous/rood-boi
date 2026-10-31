@@ -1,0 +1,295 @@
+{
+ "function": "vs_battle_setMenuItem",
+ "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "views-conflict",
+ "reviewed": false,
+ "plan": {
+  "name": "vs_battle_setMenuItem",
+  "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+  "stem": "5BF94",
+  "address": "0x800c8e5c",
+  "difficulty": "S",
+  "zig_name": "setMenuItem",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "set_menu_item",
+  "spec_file": "setMenuItem.zig",
+  "subsystem": "battle_5BF94_port",
+  "signature": "pub fn setMenuItem(row: c_int, x: c_int, y: c_int, w: c_int, backgroundWidth: c_int, text: [*c]u8) callconv(.c) ?*v.vs_battle_menuItem_t",
+  "params": [
+   [
+    "row",
+    "c_int"
+   ],
+   [
+    "x",
+    "c_int"
+   ],
+   [
+    "y",
+    "c_int"
+   ],
+   [
+    "w",
+    "c_int"
+   ],
+   [
+    "backgroundWidth",
+    "c_int"
+   ],
+   [
+    "text",
+    "[*c]u8"
+   ]
+  ],
+  "ret": "?*v.vs_battle_menuItem_t",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11946,
+     "completion_tokens": 18579,
+     "reasoning_tokens": 16624,
+     "cost": 0.00524205,
+     "seconds": null,
+     "batch": "batch-1793203265-sQA1DX56rKylfzO4cWKR",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation M5: signed char read as signed int: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: vs_battle_setMenuItem: 30000 iterations, seed 1, 0 mismatches; classes: short=5067 spacing=5101 nonprinting=4970 exact-31=5011 full=4913 spacing-terminator=4938"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14072,
+     "completion_tokens": 4910,
+     "reasoning_tokens": 2920,
+     "cost": 0.0019310999999999998,
+     "seconds": null,
+     "batch": "batch-1793206357-jxyW8CeGtJSNWKNpZo35",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "short": "5067",
+   "spacing": "5101",
+   "nonprinting": "4970",
+   "exact-31": "5011",
+   "full": "4913",
+   "spacing-terminator": "4938"
+  },
+  "mutations": [
+   {
+    "name": "M1: state set to 2",
+    "caught": true
+   },
+   {
+    "name": "M2: w stores backgroundWidth",
+    "caught": true
+   },
+   {
+    "name": "M3: memzero one byte short",
+    "caught": true
+   },
+   {
+    "name": "M4: non-printing test misses 229",
+    "caught": true
+   },
+   {
+    "name": "M5: spacing skips the read of the next byte",
+    "caught": true
+   },
+   {
+    "name": "M6: text loop stops at 30",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 8,
+   "branches_hit": 8,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 21,
+   "lines_hit": 21,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -4, max 11, unsigned 0..4294967295, seen zero/negative/all ones, 6 value(s): 4294967292, 7, 0, 1, 11, 4294967295"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147231248, max 2146998551, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2146776819, max 2147180685, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 3,
+     "count": 30000,
+     "text": "32-bit: min -2147426003, max 2146195421, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 4,
+     "count": 30000,
+     "text": "32-bit: min -2147042889, max 2147389256, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 5,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 19,
+     "text": "for (i = 0; i < 31;) {",
+     "size": 4,
+     "count": 694755,
+     "kind": "against a constant",
+     "outcomes": "== 14561, < 665509, > 14685 (signed); < 665509, > 14685 (unsigned)",
+     "operand": "constant 30",
+     "a": "0..32"
+    },
+    {
+     "line": 22,
+     "text": "if (c == vs_char_spacing) {",
+     "size": 4,
+     "count": 680070,
+     "kind": "against a constant",
+     "outcomes": "== 56072, < 607913, > 16085 (signed); < 607913, > 16085 (unsigned)",
+     "operand": "constant 250",
+     "a": "0..255"
+    },
+    {
+     "line": 25,
+     "text": "} else if (c == vs_char_terminator) {",
+     "size": 4,
+     "count": 623998,
+     "kind": "against a constant",
+     "outcomes": "== 15315, < 568779, > 39904 (signed); < 568779, > 39904 (unsigned)",
+     "operand": "constant 231",
+     "a": "0..255"
+    },
+    {
+     "line": 28,
+     "text": "} else if (c >= vs_char_nonPrinting) {",
+     "size": 4,
+     "count": 608683,
+     "kind": "against a constant",
+     "outcomes": "== 2365, < 550772, > 55546 (signed); < 550772, > 55546 (unsigned)",
+     "operand": "constant 228",
+     "a": "0..255"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35411,
+     "completion_tokens": 5747,
+     "reasoning_tokens": 4958,
+     "cost": 0.0032072999999999997,
+     "seconds": null,
+     "batch": "batch-1793379902-OYfFRiS0hzKPAZ8kx15j",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [],
+ "check_seconds": 210.08740821999345,
+ "mode": "rounds",
+ "transport": "batch",
+ "conflicts": [
+  "vs_battle_drawCursor: MISMATCH iteration 0: C makes 2 external calls, Zig 1 (first unmatched: pc_classic_site)"
+ ],
+ "wall_seconds": 221342.51113009453,
+ "totals": {
+  "cost": 0.01038,
+  "prompt_tokens": 61429,
+  "completion_tokens": 29236,
+  "model_seconds": 0.0,
+  "check_seconds": 210.1,
+  "calls": 3,
+  "wall_seconds": 221342.5
+ }
+}

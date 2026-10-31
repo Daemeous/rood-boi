@@ -1,0 +1,159 @@
+{
+ "function": "func_800D65A8",
+ "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "spec-failed",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800D65A8",
+  "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+  "stem": "5BF94",
+  "address": "0x800d65a8",
+  "difficulty": "S",
+  "zig_name": "func_800D65A8",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800D65A8",
+  "spec_file": "func_800D65A8.zig",
+  "subsystem": "battle_5BF94_port",
+  "signature": "pub fn func_800D65A8(arg0: ?*v.func_800D6508_t, arg1: u8) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.func_800D6508_t"
+   ],
+   [
+    "arg1",
+    "u8"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11325,
+     "completion_tokens": 6152,
+     "reasoning_tokens": 5093,
+     "cost": 0.00210425,
+     "seconds": null,
+     "batch": "batch-1793379902-OYfFRiS0hzKPAZ8kx15j",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation M1: index read as unsigned char (negative indices go up): not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800D65A8: 30000 iterations, seed 1, 0 mismatches; classes: negative-index=13633 zero-index=2930 positive-index=13437"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12536,
+     "completion_tokens": 3979,
+     "reasoning_tokens": 2796,
+     "cost": 0.0016215499999999998,
+     "seconds": null,
+     "batch": "batch-1793424920-emS29kRidmSasGd5EFed",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation M1: index read as unsigned char (negative indices go up): not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800D65A8: 30000 iterations, seed 1, 0 mismatches; classes: negative-index=13633 zero-index=2930 positive-index=13437"
+    ]
+   }
+  ],
+  "classes": {
+   "negative-index": "13633",
+   "zero-index": "2930",
+   "positive-index": "13437"
+  },
+  "mutations": [
+   {
+    "name": "M1: index read as unsigned char (negative indices go up)",
+    "caught": false
+   },
+   {
+    "name": "M2: wrong stride (index counted in half records)",
+    "caught": true
+   },
+   {
+    "name": "M3: wrong constant stored (bit 0 set, not cleared)",
+    "caught": true
+   },
+   {
+    "name": "M4: store moved before the index add (clears the base record)",
+    "caught": true
+   },
+   {
+    "name": "M5: store dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 4,
+   "lines_hit": 4,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "8-bit: min -128, max 127, unsigned 0..255, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  }
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 24.656421158993908,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 222389.00842547417,
+ "totals": {
+  "cost": 0.00373,
+  "prompt_tokens": 23861,
+  "completion_tokens": 10131,
+  "model_seconds": 0.0,
+  "check_seconds": 24.7,
+  "calls": 2,
+  "wall_seconds": 222389.0
+ }
+}

@@ -7,8 +7,8 @@
  "thinking": "default",
  "temperature": 0.0,
  "samples": 1,
- "status": "spec-failed",
- "reviewed": "not ported in this wave (unrouted): spec-failed: FAIL: the coverage gate (zig_diff.py --coverage): coverage func_800C9FE8: branches 17/20 (85.0%), conditions not measured (GCC < 14: branch ",
+ "status": "port-failed",
+ "reviewed": false,
  "plan": {
   "name": "func_800C9FE8",
   "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
@@ -39,8 +39,7 @@
    "D_800EBCE0",
    "D_800EBCE8",
    "vs_battle_animationIndices",
-   "vs_battle_rowAnimationSteps",
-   "vs_scratch"
+   "vs_battle_rowAnimationSteps"
   ],
   "hooks": [
    "pc_classic_ability_icons",
@@ -65,17 +64,16 @@
      "temperature": 0.0,
      "max_tokens": 64000,
      "prompt_tokens": 15992,
-     "completion_tokens": 18197,
-     "reasoning_tokens": 16350,
-     "cost": 0.0106977,
-     "seconds": 77.0,
-     "sample": 1,
-     "conversation": "7bd7388218df05a58476273eb13cf041f380ece9a47efb6c5e56e04b73bbe3ad"
+     "completion_tokens": 21184,
+     "reasoning_tokens": 18720,
+     "cost": 0.0060956,
+     "seconds": null,
+     "batch": "batch-1793203265-sQA1DX56rKylfzO4cWKR",
+     "sample": 1
     },
     "passed": false,
     "errors": [
-     "FAIL: the C itself crashed on your inputs (the C runs first, so this is the spec's\nbug). The harness fills every global and the arena with random bytes before\nprepare, so every pointer the C follows must be one prepare set: each\nargument, each pointer field of an object you build, and each ENTRY of a\nglobal pointer table the C indexes (only the entry it reads: e.g.\n`v.g.TABLE()[i] = obj`), pointing at an object from `ctx.alloc`/`ctx.allocBytes`\n(sized for every element the C indexes past a `[0]` array), at a global, or\nnull where the C tests for null. An index into a global table must stay\ninside its length (the views accessor's type gives it). Below: the crash, its\nfault address (named when it is inside an object the harness owns) and the\narguments of that iteration:\nzdiff: CRASH (signal 11) in the C run, iteration 28544, fault address 0xf5a [NULL+0xf5a: a field of a null pointer]: argument 4 of the call of pc_classic_site, which reads through it\nzdiff: crashed on arguments: (class busy-decrement)",
-     "(the mutations and the coverage gate are checked once the C runs crash-free)"
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800C9FE8: branches 17/20 (85.0%), conditions not measured (GCC < 14: branch coverage only), lines 24/24\n  UNCOVERED +28 b3: branch never taken: `do { void* pc_classic_first = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); { if (temp_v0 != 0) { func_800C9F98( ((temp_s3 + D_800EBC98[i]) & 0xFFFF) | (D_800EBC98[i + 4] << 0x10), temp_v0); temp_v0_2 = vs_battle_setSpriteDefaultTexPage(temp_v0, ((temp_s3 + D_800EBCA0[i]) & 0xFFFF) | (D_800EBCA0[i + 4] << 0x10), D_800EBCA8[i], ((__typeof__((vs_scratch.unk8).psx_type_[0]))(long unsigned int)(vs_scratch.unk8).raw)); temp_v0_2[1] = 0xE1000017; temp_v0_2[4] = (*((i) + D_800EBCB8) | 0x373D0000); } }; if (pc_classic_site) pc_classic_site(12, &icons, 0, 0, pc_classic_first, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000)))); } while (0)`\n  UNCOVERED +36 b1: branch never taken: `do { void* pc_classic_first = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); { vs_battle_setSpriteDefaultTexPage(0x180, ((temp_s3 + 0x48) & 0xFFFF) | 0x660000, 0x1E001E, ((__typeof__((vs_scratch.unk8).psx_type_[0]))(long unsigned int)(vs_scratch.unk8).raw))[4] = 0x37FBA0B8; }; if (pc_classic_site) pc_classic_site(12, &icons, 0, 0, pc_classic_first, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000)))); } while (0)`\n  UNCOVERED +50 b3: branch never taken: `do { void* pc_classic_first = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); { if (temp_v0 != 0) { func_800C9F98( ((temp_s3 + D_800EBCC0[i]) & 0xFFFF) | (D_800EBCC0[i + 4] << 0x10), temp_v0); temp_v0_2 = vs_battle_setSpriteDefaultTexPage(temp_v0, (((temp_s3 + D_800EBCC8[i]) - 2) & 0xFFFF) | (D_800EBCC8[i + 4] << 0x10), D_800EBCD0[i], ((__typeof__((vs_scratch.unk8).psx_type_[0]))(long unsigned int)(vs_scratch.unk8).raw)); temp_v0_2[1] = 0xE1000017; temp_v0_2[4] = D_800EBCE0[i] | 0x373D0000; } vs_battle_setSpriteDefaultTexPage(0x80, temp_s3 + D_800EBC88[3 - i], 0x100010, ((__typeof__((vs_scratch.unk8).psx_type_[0]))(long unsigned int)(vs_scratch.unk8).raw))[4] = (((3 - i) * 0x10) | 0x37FB8000); }; if (pc_classic_site) pc_classic_site(12, &icons, 0, 0, pc_classic_first, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000)))); } while (0)`\n  note: waivers no longer needed: +? b?\ncoverage func_800C9FE8: FAILED (threshold 100%: 3 uncovered, 0 value flag(s) not waived)\nWhat to add:\n- `do { void* pc_classic_first = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); { if (temp_v0 != 0) { func_800C9F98( ((temp_s3 + D_800EBC98[i]) & 0xFFFF) | (D_800EBC98[i + 4] << 0x10), temp_v0); temp_v0_2 = vs_battle_setSpriteDefaultTexPage(temp_v0, ((temp_s3 + D_800EBCA0[i]) & 0xFFFF) | (D_800EBCA0[i"
     ]
    },
    {
@@ -88,50 +86,52 @@
      "thinking": "default",
      "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 18268,
-     "completion_tokens": 4636,
-     "reasoning_tokens": 2498,
-     "cost": 0.0041448,
-     "seconds": 18.6,
-     "sample": 1,
-     "conversation": "418ce21d3e3dd37a63d93d4a481ff20cbac9030e7b4635cdcc27470867eff276"
+     "prompt_tokens": 21455,
+     "completion_tokens": 4854,
+     "reasoning_tokens": 2348,
+     "cost": 0.00228625,
+     "seconds": null,
+     "batch": "batch-1793206357-jxyW8CeGtJSNWKNpZo35",
+     "sample": 1
     },
-    "passed": false,
-    "errors": [
-     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800C9FE8: branches 17/20 (85.0%), conditions not measured (GCC < 14: branch coverage only), lines 24/24\n  UNCOVERED +28 b3: branch never taken: `do { void* pc_classic_first = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); { if (temp_v0 != 0) { func_800C9F98( ((temp_s3 + D_800EBC98[i]) & 0xFFFF) | (D_800EBC98[i + 4] << 0x10), temp_v0); temp_v0_2 = vs_battle_setSpriteDefaultTexPage(temp_v0, ((temp_s3 + D_800EBCA0[i]) & 0xFFFF) | (D_800EBCA0[i + 4] << 0x10), D_800EBCA8[i], ((__typeof__((vs_scratch.unk8).psx_type_[0]))(long unsigned int)(vs_scratch.unk8).raw)); temp_v0_2[1] = 0xE1000017; temp_v0_2[4] = (*((i) + D_800EBCB8) | 0x373D0000); } }; if (pc_classic_site) pc_classic_site(12, &icons, 0, 0, pc_classic_first, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000)))); } while (0)`\n  UNCOVERED +36 b1: branch never taken: `do { void* pc_classic_first = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); { vs_battle_setSpriteDefaultTexPage(0x180, ((temp_s3 + 0x48) & 0xFFFF) | 0x660000, 0x1E001E, ((__typeof__((vs_scratch.unk8).psx_type_[0]))(long unsigned int)(vs_scratch.unk8).raw))[4] = 0x37FBA0B8; }; if (pc_classic_site) pc_classic_site(12, &icons, 0, 0, pc_classic_first, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000)))); } while (0)`\n  UNCOVERED +50 b3: branch never taken: `do { void* pc_classic_first = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); { if (temp_v0 != 0) { func_800C9F98( ((temp_s3 + D_800EBCC0[i]) & 0xFFFF) | (D_800EBCC0[i + 4] << 0x10), temp_v0); temp_v0_2 = vs_battle_setSpriteDefaultTexPage(temp_v0, (((temp_s3 + D_800EBCC8[i]) - 2) & 0xFFFF) | (D_800EBCC8[i + 4] << 0x10), D_800EBCD0[i], ((__typeof__((vs_scratch.unk8).psx_type_[0]))(long unsigned int)(vs_scratch.unk8).raw)); temp_v0_2[1] = 0xE1000017; temp_v0_2[4] = D_800EBCE0[i] | 0x373D0000; } vs_battle_setSpriteDefaultTexPage(0x80, temp_s3 + D_800EBC88[3 - i], 0x100010, ((__typeof__((vs_scratch.unk8).psx_type_[0]))(long unsigned int)(vs_scratch.unk8).raw))[4] = (((3 - i) * 0x10) | 0x37FB8000); }; if (pc_classic_site) pc_classic_site(12, &icons, 0, 0, pc_classic_first, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000)))); } while (0)`\ncoverage func_800C9FE8: FAILED (threshold 100%: 3 uncovered, 0 value flag(s) not waived)\nWhat to add:\n- `do { void* pc_classic_first = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); { if (temp_v0 != 0) { func_800C9F98( ((temp_s3 + D_800EBC98[i]) & 0xFFFF) | (D_800EBC98[i + 4] << 0x10), temp_v0); temp_v0_2 = vs_battle_setSpriteDefaultTexPage(temp_v0, ((temp_s3 + D_800EBCA0[i]) & 0xFFFF) | (D_800EBCA0[i + 4] << 0x10), D_800EBCA8[i], ((__typeo"
-    ]
+    "passed": true,
+    "errors": []
    }
   ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
   "classes": {
-   "lookup-skip": "5640",
-   "lookup-draw": "9477",
-   "busy-decrement": "9920",
-   "busy-at-zero": "2456",
-   "busy-decrement-to-10": "2507"
+   "anim-skip": "3460",
+   "decremented-skip": "1471",
+   "anim-draw": "8510",
+   "decrement-draw": "15081",
+   "hold-draw": "1478"
   },
   "mutations": [
    {
-    "name": "F1: the row offset constant 0xA0 becomes 0xA1",
+    "name": "A1: decrement only above 1 (index 1 not stepped)",
     "caught": true
    },
    {
-    "name": "F2: the decrement guard tests > 1 instead of != 0",
+    "name": "A2: skip test at 11 instead of 10",
     "caught": true
    },
    {
-    "name": "F3: the first loop's x offset keeps 20 bits, not 16",
+    "name": "A3: second row placed at +0xA0 instead of 0xA0 - step",
     "caught": true
    },
    {
-    "name": "F4: the first loop's sprite call is dropped",
+    "name": "A4: wrong constant in the second-row sprite word",
     "caught": true
    },
    {
-    "name": "F5: the row step is not negated",
+    "name": "A5: flag left set at exit",
     "caught": true
    },
    {
-    "name": "F6: the busy flag is left set at the end",
+    "name": "A6: row step read signed",
     "caught": true
    }
   ],
@@ -171,17 +171,17 @@
      "size": 1,
      "count": 30000,
      "kind": "against a constant",
-     "outcomes": "== 15117, < 7478, > 7405 (signed); < 0, > 14883 (unsigned)",
+     "outcomes": "== 11970, < 12046, > 5984 (signed); < 0, > 18030 (unsigned)",
      "operand": "constant 0",
-     "a": "-128..127"
+     "a": "-128..1"
     },
     {
      "line": 8,
      "text": "if (D_800EBCE8 != 0) {",
      "size": 1,
-     "count": 14883,
+     "count": 18030,
      "kind": "against a constant",
-     "outcomes": "== 2456, < 0, > 12427 (signed); < 0, > 12427 (unsigned)",
+     "outcomes": "== 1478, < 0, > 16552 (signed); < 0, > 16552 (unsigned)",
      "operand": "constant 0",
      "a": "0..11"
     },
@@ -191,7 +191,7 @@
      "size": 1,
      "count": 30000,
      "kind": "against a constant",
-     "outcomes": "== 8147, < 17288, > 4565 (signed); < 17288, > 4565 (unsigned)",
+     "outcomes": "== 4931, < 21672, > 3397 (signed); < 21672, > 3397 (unsigned)",
      "operand": "constant 10",
      "a": "0..19"
     },
@@ -199,9 +199,9 @@
      "line": 22,
      "text": "for (i = 0; i < 4; ++i) {",
      "size": 4,
-     "count": 109265,
+     "count": 125345,
      "kind": "against a constant",
-     "outcomes": "== 21853, < 65559, > 21853 (signed); < 65559, > 21853 (unsigned)",
+     "outcomes": "== 25069, < 75207, > 25069 (signed); < 75207, > 25069 (unsigned)",
      "operand": "constant 3",
      "a": "0..4"
     },
@@ -209,19 +209,19 @@
      "line": 28,
      "text": "do { void* pc_classic_first = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); { if (temp_v0 != 0) { func_800C9F98( ((temp_s3 + D_800EBC98[i]) & 0xFFFF) | (D_800EBC98[i + 4] << 0x10), temp_v0); temp_v0_2 = vs_battle_setSpriteDefaultTexPage(temp_v0, ((temp_s3 + D_800EBCA0[i]) & 0xFFFF) | (D_800EBCA0[i + 4] << 0x10), D_800EBCA8[i], ((__typeof__((vs_scratch.unk8).psx_type_[0]))(long unsigned int)(vs_scratch.unk8).raw)); temp_v0_2[1] = 0xE1000017; temp_v0_2[4] = (*((i) + D_800EBCB8) | 0x373D0000); } }; if (pc_classic_site) pc_classic_site(12, &icons, 0, 0, pc_classic_first, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000)))); } while (0)",
      "size": 4,
-     "count": 87412,
+     "count": 100276,
      "kind": "against a constant",
-     "outcomes": "== 32770, < 27253, > 27389 (signed); < 0, > 54642 (unsigned)",
+     "outcomes": "== 25039, < 37645, > 37592 (signed); < 0, > 75237 (unsigned)",
      "operand": "constant 0",
-     "a": "-2147481379..2147422197"
+     "a": "-2147476592..2147335395"
     },
     {
      "line": 45,
      "text": "for (i = 0; i < 4; ++i) {",
      "size": 4,
-     "count": 109265,
+     "count": 125345,
      "kind": "against a constant",
-     "outcomes": "== 21853, < 65559, > 21853 (signed); < 65559, > 21853 (unsigned)",
+     "outcomes": "== 25069, < 75207, > 25069 (signed); < 75207, > 25069 (unsigned)",
      "operand": "constant 3",
      "a": "0..4"
     },
@@ -229,33 +229,132 @@
      "line": 50,
      "text": "do { void* pc_classic_first = ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000))); { if (temp_v0 != 0) { func_800C9F98( ((temp_s3 + D_800EBCC0[i]) & 0xFFFF) | (D_800EBCC0[i + 4] << 0x10), temp_v0); temp_v0_2 = vs_battle_setSpriteDefaultTexPage(temp_v0, (((temp_s3 + D_800EBCC8[i]) - 2) & 0xFFFF) | (D_800EBCC8[i + 4] << 0x10), D_800EBCD0[i], ((__typeof__((vs_scratch.unk8).psx_type_[0]))(long unsigned int)(vs_scratch.unk8).raw)); temp_v0_2[1] = 0xE1000017; temp_v0_2[4] = D_800EBCE0[i] | 0x373D0000; } vs_battle_setSpriteDefaultTexPage(0x80, temp_s3 + D_800EBC88[3 - i], 0x100010, ((__typeof__((vs_scratch.unk8).psx_type_[0]))(long unsigned int)(vs_scratch.unk8).raw))[4] = (((3 - i) * 0x10) | 0x37FB8000); }; if (pc_classic_site) pc_classic_site(12, &icons, 0, 0, pc_classic_first, ((void*)(long unsigned int)(unsigned int)(*(const unsigned int*)(const void*)((u_int*)0x1F800000)))); } while (0)",
      "size": 4,
-     "count": 87412,
+     "count": 100276,
      "kind": "against a constant",
-     "outcomes": "== 32678, < 27171, > 27563 (signed); < 0, > 54734 (unsigned)",
+     "outcomes": "== 25071, < 37714, > 37491 (signed); < 0, > 75205 (unsigned)",
      "operand": "constant 0",
-     "a": "-2147390243..2147454258"
+     "a": "-2147462290..2147427612"
     }
    ],
-   "passed": false
-  }
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+28 b3",
+    "reason": "pc_classic_site is a always-linked host hook (a function symbol, never null), so the null test of the first PC_CLASSIC site is never false"
+   },
+   {
+    "id": "+36 b1",
+    "reason": "pc_classic_site is a always-linked host hook (a function symbol, never null), so the null test of the second PC_CLASSIC site is never false"
+   },
+   {
+    "id": "+50 b3",
+    "reason": "pc_classic_site is a always-linked host hook (a function symbol, never null), so the null test of the third PC_CLASSIC site is never false"
+   }
+  ]
  },
  "port": {
-  "attempts": []
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 38951,
+     "completion_tokens": 16751,
+     "reasoning_tokens": 14614,
+     "cost": 0.0061353,
+     "seconds": null,
+     "batch": "batch-1793379902-OYfFRiS0hzKPAZ8kx15j",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: seed 3: the port differs from the C (exit 4):\nzdiff: CRASH (signal 11) in the C run, iteration 19030, fault address 0x423 [NULL+0x423: a field of a null pointer]: argument 4 of the call of pc_classic_site, which reads through it\nzdiff: crashed on arguments: (class decrement-draw)"
+    ],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 4,
+      "mismatches": null,
+      "first": "CRASH (signal 11) in the C run, iteration 19030, fault address 0x423: argument 4 of the call of pc_classic_site, which reads through it"
+     }
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 41239,
+     "completion_tokens": 6129,
+     "reasoning_tokens": 3936,
+     "cost": 0.0035941999999999997,
+     "seconds": null,
+     "batch": "batch-1793424920-emS29kRidmSasGd5EFed",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: seed 3: the port differs from the C (exit 4):\nzdiff: CRASH (signal 11) in the C run, iteration 19030, fault address 0x423 [NULL+0x423: a field of a null pointer]: argument 4 of the call of pc_classic_site, which reads through it\nzdiff: crashed on arguments: (class decrement-draw)"
+    ],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 4,
+      "mismatches": null,
+      "first": "CRASH (signal 11) in the C run, iteration 19030, fault address 0x423: argument 4 of the call of pc_classic_site, which reads through it"
+     }
+    ]
+   }
+  ]
  },
  "written": [],
- "check_seconds": 45.201469540006656,
- "wall_seconds": 141.1871323939995,
+ "check_seconds": 156.5090264449973,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 222305.81084895134,
  "totals": {
-  "cost": 0.01484,
-  "prompt_tokens": 34260,
-  "completion_tokens": 22833,
-  "model_seconds": 95.6,
-  "check_seconds": 45.2,
-  "calls": 2,
-  "wall_seconds": 141.2
- },
- "review": {
-  "by": "Claude Sonnet 5.5 (reviewer)",
-  "date": "2026-10-25"
+  "cost": 0.01811,
+  "prompt_tokens": 117637,
+  "completion_tokens": 48918,
+  "model_seconds": 0.0,
+  "check_seconds": 156.5,
+  "calls": 4,
+  "wall_seconds": 222305.8
  }
 }

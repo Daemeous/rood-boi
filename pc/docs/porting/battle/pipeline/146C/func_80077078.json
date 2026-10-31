@@ -63,11 +63,38 @@
      "temperature": 0.0,
      "max_tokens": 64000,
      "prompt_tokens": 14501,
-     "completion_tokens": 11170,
-     "reasoning_tokens": 9457,
-     "cost": 0.00351755,
+     "completion_tokens": 8138,
+     "reasoning_tokens": 6804,
+     "cost": 0.00275955,
      "seconds": null,
-     "batch": "batch-1793062477-BHA9fMWuhJ4ecHWOaBKo",
+     "batch": "batch-1793203265-sQA1DX56rKylfzO4cWKR",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation F1: actorId takes bits 8-10 only: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_80077078: 30000 iterations, seed 1, 0 mismatches; classes: bit7-clear=13595 bit7-set=16405",
+     "FAIL: mutation F2: unk11 shifted one bit too far: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_80077078: 30000 iterations, seed 1, 0 mismatches; classes: bit7-clear=13595 bit7-set=16405",
+     "FAIL: mutation F3: material constant 3: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_80077078: 30000 iterations, seed 1, 0 mismatches; classes: bit7-clear=13595 bit7-set=16405",
+     "FAIL: mutation F4: the flag test on bit 6: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_80077078: 30000 iterations, seed 1, 0 mismatches; classes: bit7-clear=13595 bit7-set=16405",
+     "FAIL: mutation F5: modelId takes index, not wepId: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_80077078: 30000 iterations, seed 1, 0 mismatches; classes: bit7-clear=13595 bit7-set=16405"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16423,
+     "completion_tokens": 4630,
+     "reasoning_tokens": 2878,
+     "cost": 0.0019786499999999998,
+     "seconds": null,
+     "batch": "batch-1793206357-jxyW8CeGtJSNWKNpZo35",
      "sample": 1
     },
     "passed": true,
@@ -75,36 +102,32 @@
    }
   ],
   "kept": {
-   "round": 1,
+   "round": 2,
    "sample": 1
   },
   "classes": {
-   "flag-set": "11995",
-   "flag-clear": "18005"
+   "bit7-clear": "15082",
+   "bit7-set": "14918"
   },
   "mutations": [
    {
-    "name": "F1: actorId mask drops bit 8",
+    "name": "F1: actorId takes bits 8-10 only",
     "caught": true
    },
    {
-    "name": "F2: unk11 shifted by 11, not 12",
+    "name": "F2: unk11 shifted one bit too far",
     "caught": true
    },
    {
-    "name": "F3: flag tested on bit 6",
+    "name": "F3: material constant 3",
     "caught": true
    },
    {
-    "name": "F4: modelId takes index",
+    "name": "F4: the flag test on bit 6",
     "caught": true
    },
    {
-    "name": "F5: populate call dropped",
-    "caught": true
-   },
-   {
-    "name": "F6: wrong material constant",
+    "name": "F5: modelId takes index, not wepId",
     "caught": true
    }
   ],
@@ -126,12 +149,12 @@
     {
      "arg": 1,
      "count": 30000,
-     "text": "32-bit: min -2147198407, max 2146946168, unsigned 0..4294967295, seen zero/negative/all ones"
+     "text": "32-bit: min -2146920967, max 2147441499, unsigned 0..4294967295, seen zero/negative/all ones"
     },
     {
      "arg": 2,
      "count": 30000,
-     "text": "32-bit: min -2147296870, max 2147480407, unsigned 0..4294967295, seen zero/negative/all ones"
+     "text": "32-bit: min -2147151129, max 2147371165, unsigned 0..4294967295, seen zero/negative/all ones"
     },
     {
      "arg": 3,
@@ -141,7 +164,7 @@
     {
      "arg": 4,
      "count": 30000,
-     "text": "32-bit: min -2147483648, max 2147212139, unsigned 0..4294967295, seen zero/negative/all ones"
+     "text": "32-bit: min -2147323181, max 2147384871, unsigned 0..4294967295, seen zero/negative/all ones"
     }
    ],
    "compares": [
@@ -151,7 +174,7 @@
      "size": 4,
      "count": 30000,
      "kind": "against a constant",
-     "outcomes": "== 18005, < 0, > 11995 (signed); < 0, > 11995 (unsigned)",
+     "outcomes": "== 15082, < 0, > 14918 (signed); < 0, > 14918 (unsigned)",
      "operand": "constant 0",
      "a": "0..128"
     }
@@ -173,23 +196,23 @@
      "temperature": 0.0,
      "max_tokens": 64000,
      "prompt_tokens": 37989,
-     "completion_tokens": 4162,
-     "reasoning_tokens": 3526,
-     "cost": 0.00293995,
+     "completion_tokens": 4884,
+     "reasoning_tokens": 4256,
+     "cost": 0.00312045,
      "seconds": null,
-     "batch": "batch-1793117716-mddO5G0BwsTARahIdCSl",
+     "batch": "batch-1793379902-OYfFRiS0hzKPAZ8kx15j",
      "sample": 1
     },
     "passed": false,
     "errors": [
-     "FAIL: seed 1: the port differs from the C (exit 3):\nzdiff: PANIC in the Zig run, iteration 0: incorrect alignment (return address 0x403769)"
+     "FAIL: seed 1: the port differs from the C (exit 3):\nzdiff: MISMATCH iteration 0: return value\nzdiff: PANIC in the Zig run, iteration 1: incorrect alignment (return address 0x4037a9)"
     ],
     "runs": [
      {
       "seed": 1,
       "exit": 3,
       "mismatches": null,
-      "first": "PANIC in the Zig run, iteration 0: incorrect alignment (return address 0x403769)"
+      "first": "MISMATCH iteration 0: return value"
      }
     ]
    },
@@ -203,41 +226,41 @@
      "thinking": "default",
      "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 38715,
-     "completion_tokens": 1979,
-     "reasoning_tokens": 1251,
-     "cost": 0.0024305,
+     "prompt_tokens": 38729,
+     "completion_tokens": 3015,
+     "reasoning_tokens": 2333,
+     "cost": 0.0026902,
      "seconds": null,
-     "batch": "batch-1793158386-lck2GpSEjimcoYO1fHi8",
+     "batch": "batch-1793424920-emS29kRidmSasGd5EFed",
      "sample": 1
     },
     "passed": false,
     "errors": [
-     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 0: memory at 0x4060e4 [arena] (zdiff_state+0x64): C 32, Zig 0\nzdiff: MISMATCH iteration 1: memory at 0x4060e4 [arena] (zdiff_state+0x64): C 32, Zig 0\nzdiff: MISMATCH iteration 2: memory at 0x4060e4 [arena] (zdiff_state+0x64): C 32, Zig 0\nzdiff: func_80077078: 1000 iterations, seed 1, 1000 mismatches; classes: flag-set=395 flag-clear=605"
+     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 0: return value\nzdiff: MISMATCH iteration 1: return value\nzdiff: MISMATCH iteration 2: return value\nzdiff: func_80077078: 1000 iterations, seed 1, 1000 mismatches; classes: bit7-clear=506 bit7-set=494"
     ],
     "runs": [
      {
       "seed": 1,
       "exit": 1,
       "mismatches": 1000,
-      "first": "MISMATCH iteration 0: memory at 0x4060e4 (zdiff_state+0x64): C 32, Zig 0"
+      "first": "MISMATCH iteration 0: return value"
      }
     ]
    }
   ]
  },
  "written": [],
- "check_seconds": 13.100192789002904,
+ "check_seconds": 34.9403428670048,
  "mode": "rounds",
  "transport": "batch",
- "wall_seconds": 97149.64350795746,
+ "wall_seconds": 222243.21556544304,
  "totals": {
-  "cost": 0.00889,
-  "prompt_tokens": 91205,
-  "completion_tokens": 17311,
+  "cost": 0.01055,
+  "prompt_tokens": 107642,
+  "completion_tokens": 20667,
   "model_seconds": 0.0,
-  "check_seconds": 13.1,
-  "calls": 3,
-  "wall_seconds": 97149.6
+  "check_seconds": 34.9,
+  "calls": 4,
+  "wall_seconds": 222243.2
  }
 }

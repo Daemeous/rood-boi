@@ -76,7 +76,7 @@ static const int kind_slot[PC_HUD_KINDS] = { 0, -16, -16, 8, -20, 0, 0, 0, -12, 
     PC_HUD_LAYER_ELEMENT, 0, 0, 0, PC_HUD_LAYER_ELEMENT, PC_HUD_LAYER_ELEMENT, PC_HUD_LAYER_UNK8, -4,
     PC_HUD_LAYER_ELEMENT, PC_HUD_LAYER_UNK8, PC_HUD_LAYER_UNK8, PC_HUD_LAYER_UNK8, PC_HUD_LAYER_UNK8, PC_HUD_LAYER_UNK8,
     PC_HUD_LAYER_UNK8, PC_HUD_LAYER_UNK8, -24, -12, PC_HUD_LAYER_UNK8, -12, -12, PC_HUD_LAYER_UNK8, PC_HUD_LAYER_UNK8,
-    PC_HUD_LAYER_UNK8, PC_HUD_LAYER_UNK8, PC_HUD_LAYER_UNK8, PC_HUD_LAYER_UNK8 };
+    PC_HUD_LAYER_UNK8, PC_HUD_LAYER_UNK8, PC_HUD_LAYER_UNK8, PC_HUD_LAYER_UNK8, 0, 0, -28, 0 };
 static int element_slot; /* PC_HUD_LAYER_ELEMENT: the slot the element just recorded was linked into */
 static const int gauge_slots[2] = { -12, -16 };
 /* (the classic layer's kinds are the HUD layer's, by number) */
@@ -99,6 +99,7 @@ typedef char pc_hud_classic_kinds_agree[PC_CLASSIC_STATUS == PC_HUD_STATUS && PC
             && PC_CLASSIC_STORAGE_BUTTONS == PC_HUD_STORAGE_BUTTONS && PC_CLASSIC_STORAGE_COUNTS == PC_HUD_STORAGE_COUNTS
             && PC_CLASSIC_LOOT_CAPACITIES == PC_HUD_LOOT_CAPACITIES && PC_CLASSIC_DISCARD_COUNT == PC_HUD_DISCARD_COUNT
             && PC_CLASSIC_RENAME_GRID == PC_HUD_RENAME_GRID && PC_CLASSIC_RENAME_BOX == PC_HUD_RENAME_BOX
+            && PC_CLASSIC_MENUF == PC_HUD_MENUF && PC_CLASSIC_MENUF_LOAD == PC_HUD_MENUF_LOAD
         ? 1
         : -1];
 
@@ -609,7 +610,8 @@ void pc_hud_target_marker(void* record, void* first, void* end)
 /* The screens toured (vs_battle_menuState.currentMenu & 0x3F, a bit each; menu_model.c SCREENS): 1 Magic (MENU0),
  * 2 Break Arts (MENU1), 3 Battle Abilities (MENU2), 4 Items (MENU3), 5 Status (MENU4), 6 the Map (MENU5), 7 Data
  * (MENU7), 8 the Option screen (MENU8), 9 Score (MENU9), 10 the Quick Manual (MENUE), 12 Loot (MENUB), 13 Setup
- * (MENUC), 14 Storage (MENUD). Not claimed: 15 (MENUF: the time attack and congratulations screens; 11 unused). */
+ * (MENUC), 14 Storage (MENUD). Not here: 15 (MENUF: its own kinds,
+ * menuf and menuf_load, pc_hud_menuf and the immediate site; it draws none of these; 11 unused). */
 #define MENU_TOURED_SCREENS 0x77FEu /* bits 1..10, 12..14 */
 /* The screens each of the Items screen's own panels is claimed on (bits as above, by kind from PC_HUD_ITEMS_CATEGORY),
  * each where a tour covers it: 4 Items (MENU3) all six; 5 Status (MENU4), 13 Setup (MENUC) and 14 Storage (MENUD) the
@@ -834,6 +836,31 @@ void pc_hud_menu(int kind, void* record, void* first, void* end)
     f->anchor = PC_HUD_ANCHOR_GAME;
     append(f->text, f->text + sizeof f->text, pc_classic_kind_name(kind));
     classic_finish(kind, f, first, end, slots, nslots, 0);
+}
+
+/* MENUF's screens (3B8.c's PC_CLASSIC around _execMenu, currentMenu 15 only): one element a frame, its record the
+ * leaves' calls (pc_classic_menuf: copied out of the save state's sections for the Lua side, classic_parity.c). The
+ * sprites, draw areas and the prompt's sprite link into vs_scratch.unk4 - 28, the prompt's words into unk8. A frame
+ * with more calls than the record holds is the game's. */
+void pc_hud_menuf(void* record, void* first, void* end)
+{
+    static pc_hud_fields f;
+    const pc_classic_menuf* m = record;
+    int slots[2], unk8 = (int)((char*)psx_get(vs_scratch.unk8) - (char*)psx_get(vs_scratch.unk4));
+    if (!m || first == end || (vs_battle_menuState.currentMenu & 0x3F) != 15 || m->count < 0
+        || m->count > PC_CLASSIC_MENUF_CALLS)
+        return;
+    memcpy(pc_classic_menuf_calls(), m, sizeof *m);
+    f = (pc_hud_fields) { 0 };
+    f.kind = PC_HUD_MENUF;
+    f.key = &f;
+    f.menuf.screen = m->screen, f.menuf.count = m->count;
+    memcpy(f.menuf.prompt, m->prompt, sizeof f.menuf.prompt);
+    f.x = 0, f.y = 0, f.w = 320, f.h = 240;
+    f.anchor = PC_HUD_ANCHOR_GAME;
+    append(f.text, f.text + sizeof f.text, "menuf");
+    slots[0] = -28, slots[1] = unk8;
+    classic_finish(PC_HUD_MENUF, &f, first, end, slots, 2, 0);
 }
 
 /* A menu row by the game's own emit on a copy of the row just recorded (x, y, w as the command sets them). */
@@ -2006,28 +2033,45 @@ static int immediate_packets(const pc_hud_classic_cmd* cmds, int n, int kind, in
     return count;
 }
 
-/* MENU7's file menu: on the Data screen and the save list after Storage only (currentMenu 7; not the game over's). */
-static int immediate_screen(void)
+/* MENU7's file menu: on the Data screen and the save list after Storage only (currentMenu 7; not the game over's).
+ * MENUF's uploads: on its screens (currentMenu 15). */
+static int immediate_screen_of(int kind)
 {
+    if (kind == PC_HUD_MENUF_LOAD)
+        return (vs_battle_menuState.currentMenu & 0x3F) == 15;
     return (vs_battle_menuState.currentMenu & 0x3F) == 7 && !vs_main_stateFlags.gameOver;
 }
 void pc_classic_immediate_begin(int kind)
 {
-    pc_classic_immediate_open(!pc_classic_parity_on() && immediate_screen() && pc_hud_honoured(kind)
+    pc_classic_immediate_open(!pc_classic_parity_on() && immediate_screen_of(kind) && pc_hud_honoured(kind)
         && pc_hud_classic_draw);
+    if (kind == PC_HUD_MENUF_LOAD) /* (its pixels: the claim's d.image_load handles, in the parity mode too) */
+        pc_classic_immediate_keep();
 }
 void pc_classic_immediate_site(int kind, void* record)
 {
-    static pc_hud_fields menu_parts[2], elements[10];
+    static pc_hud_fields menu_parts[2], elements[10], menuf_load;
     static pc_classic_packet lua[PC_CLASSIC_CAPTURE];
     const pc_classic_packet* game;
     pc_hud_fields* f;
     int n = pc_classic_immediate_close(&game), amount;
-    if (!record || !immediate_screen() || (kind != PC_HUD_FILE_MENU && kind != PC_HUD_FILE_ELEMENT)) {
+    if (!record || !immediate_screen_of(kind)
+        || (kind != PC_HUD_FILE_MENU && kind != PC_HUD_FILE_ELEMENT && kind != PC_HUD_MENUF_LOAD)) {
         pc_classic_immediate_release(1);
         return;
     }
-    if (kind == PC_HUD_FILE_MENU) {
+    if (kind == PC_HUD_MENUF_LOAD) { /* MENUF's uploads: none this frame, no element */
+        const pc_classic_menuf_load* l = record;
+        int uploads = pc_classic_immediate_uploads();
+        if (!uploads) {
+            pc_classic_immediate_release(1);
+            return;
+        }
+        f = &menuf_load;
+        *f = (pc_hud_fields) { 0 };
+        f->menuf_load.screen = l->screen, f->menuf_load.phase = l->phase, f->menuf_load.uploads = uploads;
+        f->x = 0, f->y = 0, f->w = 320, f->h = 240;
+    } else if (kind == PC_HUD_FILE_MENU) {
         const pc_classic_file_menu* m = record;
         typedef char pc_hud_file_menu_agrees[sizeof menu_parts[0].file_menu == sizeof *m ? 1 : -1];
         f = &menu_parts[m->part & 1];

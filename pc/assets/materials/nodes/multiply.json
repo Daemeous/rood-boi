@@ -1,0 +1,35 @@
+{
+  "format": 1,
+  "name": "multiply",
+  "label": "Multiply",
+  "category": "Math",
+  "inputs": [
+    {
+      "name": "a",
+      "type": "float3",
+      "default": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "b",
+      "type": "float3",
+      "default": [
+        1,
+        1,
+        1
+      ],
+      "pin": true,
+      "color": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "result",
+      "type": "float3"
+    }
+  ],
+  "glsl": "result = a * b;"
+}

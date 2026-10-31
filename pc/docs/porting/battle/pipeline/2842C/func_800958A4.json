@@ -8,7 +8,7 @@
  "temperature": 0.0,
  "samples": 1,
  "status": "spec-failed",
- "reviewed": "not ported in this wave (unrouted): a PC_TEXT_STATUS hook function, and its harness did not build: 2842C.c calls vs_battle_renderTextRawColor without a prototype (5BF94.h is not included), so the c module has no declaration and zig_diff took it for data",
+ "reviewed": false,
  "plan": {
   "name": "func_800958A4",
   "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
@@ -36,9 +36,7 @@
    ]
   ],
   "ret": "void",
-  "types": [
-   "D_800F1BAC_t"
-  ],
+  "types": [],
   "globals": [],
   "hooks": [
    "pc_first",
@@ -52,7 +50,21 @@
    {
     "round": 1,
     "sample": 1,
-    "call": null,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13008,
+     "completion_tokens": 17648,
+     "reasoning_tokens": 15871,
+     "cost": 0.0050624,
+     "seconds": null,
+     "batch": "batch-1793470606-6GNq3Qqjp7ZP5YLH6ms0",
+     "sample": 1
+    },
     "passed": false,
     "errors": [
      "FAIL: the harness does not build:\nno size for vs_battle_renderTextRawColor (neither DWARF, imports.ld, native_imports.c nor the defining object)"
@@ -61,7 +73,21 @@
    {
     "round": 2,
     "sample": 1,
-    "call": null,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14871,
+     "completion_tokens": 2759,
+     "reasoning_tokens": 979,
+     "cost": 0.0014332999999999998,
+     "seconds": null,
+     "batch": "batch-1793471198-1avhbv74VvcT9i19MPUV",
+     "sample": 1
+    },
     "passed": false,
     "errors": [
      "FAIL: the harness does not build:\nno size for vs_battle_renderTextRawColor (neither DWARF, imports.ld, native_imports.c nor the defining object)"
@@ -70,7 +96,21 @@
    {
     "round": 3,
     "sample": 1,
-    "call": null,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16737,
+     "completion_tokens": 2401,
+     "reasoning_tokens": 941,
+     "cost": 0.0014371,
+     "seconds": null,
+     "batch": "batch-1793471944-WquVU2TmtuQKuNeCQDx9",
+     "sample": 1
+    },
     "passed": false,
     "errors": [
      "FAIL: the harness does not build:\nno size for vs_battle_renderTextRawColor (neither DWARF, imports.ld, native_imports.c nor the defining object)"
@@ -85,19 +125,17 @@
   "attempts": []
  },
  "written": [],
- "check_seconds": 0.6189737530039565,
- "wall_seconds": 0.8371817529987311,
+ "check_seconds": 1.388135200000761,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 1727.681262254715,
  "totals": {
-  "cost": 0.0,
-  "prompt_tokens": 0,
-  "completion_tokens": 0,
+  "cost": 0.00793,
+  "prompt_tokens": 44616,
+  "completion_tokens": 22808,
   "model_seconds": 0.0,
-  "check_seconds": 0.6,
-  "calls": 0,
-  "wall_seconds": 0.8
- },
- "review": {
-  "by": "Claude Opus 5.5 (reviewer)",
-  "date": "2026-10-22"
+  "check_seconds": 1.4,
+  "calls": 3,
+  "wall_seconds": 1727.7
  }
 }

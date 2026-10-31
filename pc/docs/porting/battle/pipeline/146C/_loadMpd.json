@@ -47,11 +47,34 @@
      "temperature": 0.0,
      "max_tokens": 64000,
      "prompt_tokens": 12952,
-     "completion_tokens": 19049,
-     "reasoning_tokens": 17075,
-     "cost": 0.00540985,
+     "completion_tokens": 19329,
+     "reasoning_tokens": 17223,
+     "cost": 0.00547985,
      "seconds": null,
-     "batch": "batch-1793062477-BHA9fMWuhJ4ecHWOaBKo",
+     "batch": "batch-1793203265-sQA1DX56rKylfzO4cWKR",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation L3: index off by one: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: _loadMpd: 30000 iterations, seed 1, 0 mismatches; classes: cd-free data-free=7468 cd-free data-busy=7427 cd-busy data-free=7582 cd-busy data-busy=7523"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 15222,
+     "completion_tokens": 5146,
+     "reasoning_tokens": 2836,
+     "cost": 0.0020476,
+     "seconds": null,
+     "batch": "batch-1793206357-jxyW8CeGtJSNWKNpZo35",
      "sample": 1
     },
     "passed": true,
@@ -59,38 +82,38 @@
    }
   ],
   "kept": {
-   "round": 1,
+   "round": 2,
    "sample": 1
   },
   "classes": {
-   "cd-null-data-null": "308",
-   "cd-null-data-set": "2725",
-   "cd-set-data-null": "2751",
-   "cd-set-data-set": "24216"
+   "cd-free data-free": "7468",
+   "cd-free data-busy": "7427",
+   "cd-busy data-free": "7582",
+   "cd-busy data-busy": "7523"
   },
   "mutations": [
    {
-    "name": "L1: the first nop9 call takes the second tag",
+    "name": "L1: nop9 code 0x89 becomes 0x8A",
     "caught": true
    },
    {
-    "name": "L2: the heap block is sized from lba",
+    "name": "L2: size read from lba",
     "caught": true
    },
    {
-    "name": "L3: the first check is inverted",
+    "name": "L3: index off by one",
     "caught": true
    },
    {
-    "name": "L4: the enqueue call is dropped",
+    "name": "L4: heap size truncated to u16",
     "caught": true
    },
    {
-    "name": "L5: the data check reads the slot pointer",
+    "name": "L5: mpdData null test flipped",
     "caught": true
    },
    {
-    "name": "L6: lba read where size is meant",
+    "name": "L6: CD slot never stored or allocated",
     "caught": true
    }
   ],
@@ -107,7 +130,7 @@
     {
      "arg": 0,
      "count": 30000,
-     "text": "32-bit: min -8, max 23, unsigned 0..4294967295, seen zero/negative/all ones"
+     "text": "32-bit: min -8, max 55, unsigned 0..4294967295, seen zero/negative/all ones"
     }
    ],
    "compares": [
@@ -117,9 +140,9 @@
      "size": 4,
      "count": 30000,
      "kind": "against a constant",
-     "outcomes": "== 3033, < 13399, > 13568 (signed); < 0, > 26967 (unsigned)",
+     "outcomes": "== 14895, < 3744, > 11361 (signed); < 0, > 15105 (unsigned)",
      "operand": "constant 0",
-     "a": "-2147483648..2147483647"
+     "a": "-2147334972..2147385684"
     },
     {
      "line": 11,
@@ -127,9 +150,9 @@
      "size": 4,
      "count": 30000,
      "kind": "against a constant",
-     "outcomes": "== 847, < 14616, > 14537 (signed); < 0, > 29153 (unsigned)",
+     "outcomes": "== 11817, < 6143, > 12040 (signed); < 0, > 18183 (unsigned)",
      "operand": "constant 0",
-     "a": "-2147483648..2147483647"
+     "a": "-2147132653..2145981032"
     }
    ],
    "passed": true
@@ -149,23 +172,23 @@
      "temperature": 0.0,
      "max_tokens": 64000,
      "prompt_tokens": 36443,
-     "completion_tokens": 5065,
-     "reasoning_tokens": 4442,
-     "cost": 0.0030884,
+     "completion_tokens": 5831,
+     "reasoning_tokens": 5218,
+     "cost": 0.0032798999999999997,
      "seconds": null,
-     "batch": "batch-1793117716-mddO5G0BwsTARahIdCSl",
+     "batch": "batch-1793379902-OYfFRiS0hzKPAZ8kx15j",
      "sample": 1
     },
     "passed": false,
     "errors": [
-     "FAIL: seed 1: the port differs from the C (exit 3):\nzdiff: PANIC in the Zig run, iteration 0: incorrect alignment (return address 0x403afb)"
+     "FAIL: seed 1: the port differs from the C (exit 3):\nzdiff: PANIC in the Zig run, iteration 0: incorrect alignment (return address 0x403e4d)"
     ],
     "runs": [
      {
       "seed": 1,
       "exit": 3,
       "mismatches": null,
-      "first": "PANIC in the Zig run, iteration 0: incorrect alignment (return address 0x403afb)"
+      "first": "PANIC in the Zig run, iteration 0: incorrect alignment (return address 0x403e4d)"
      }
     ]
    },
@@ -179,41 +202,41 @@
      "thinking": "default",
      "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 37157,
-     "completion_tokens": 4833,
-     "reasoning_tokens": 4124,
-     "cost": 0.0030660999999999996,
+     "prompt_tokens": 37148,
+     "completion_tokens": 5801,
+     "reasoning_tokens": 4904,
+     "cost": 0.0033076499999999997,
      "seconds": null,
-     "batch": "batch-1793158386-lck2GpSEjimcoYO1fHi8",
+     "batch": "batch-1793424920-emS29kRidmSasGd5EFed",
      "sample": 1
     },
     "passed": false,
     "errors": [
-     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 0: call 3 (vs_main_cdEnqueuePriority): argument 0: C 0xd9a7220f, Zig 0x406180\nzdiff: MISMATCH iteration 1: call 4 (vs_main_cdEnqueuePriority): argument 0: C 0xd792d170, Zig 0x406180\nzdiff: MISMATCH iteration 4: call 4 (vs_main_cdEnqueuePriority): argument 0: C 0x5227c5c0, Zig 0\nzdiff: _loadMpd: 2037 iterations, seed 1, 1000 mismatches; classes: cd-null-data-null=16 cd-null-data-set=185 cd-set-data-null=177 cd-set-data-set=1659"
+     "FAIL: seed 1: the port differs from the C (exit 3):\nzdiff: PANIC in the Zig run, iteration 5: incorrect alignment (return address 0x403e50)"
     ],
     "runs": [
      {
       "seed": 1,
-      "exit": 1,
-      "mismatches": 1000,
-      "first": "MISMATCH iteration 0: call 3 (vs_main_cdEnqueuePriority): argument 0: C 0xd9a7220f, Zig 0x406180"
+      "exit": 3,
+      "mismatches": null,
+      "first": "PANIC in the Zig run, iteration 5: incorrect alignment (return address 0x403e50)"
      }
     ]
    }
   ]
  },
  "written": [],
- "check_seconds": 16.747343972005183,
+ "check_seconds": 35.70931202599604,
  "mode": "rounds",
  "transport": "batch",
- "wall_seconds": 97090.45676660538,
+ "wall_seconds": 222225.29411125183,
  "totals": {
-  "cost": 0.01156,
-  "prompt_tokens": 86552,
-  "completion_tokens": 28947,
+  "cost": 0.01411,
+  "prompt_tokens": 101765,
+  "completion_tokens": 36107,
   "model_seconds": 0.0,
-  "check_seconds": 16.7,
-  "calls": 3,
-  "wall_seconds": 97090.5
+  "check_seconds": 35.7,
+  "calls": 4,
+  "wall_seconds": 222225.3
  }
 }

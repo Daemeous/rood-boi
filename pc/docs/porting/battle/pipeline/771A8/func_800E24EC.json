@@ -5,10 +5,10 @@
  "model": "anthropic/claude-haiku-5.5",
  "endpoint": "remote",
  "thinking": "default",
- "temperature": 0.4,
- "samples": 2,
- "status": "spec-failed",
- "reviewed": "not ported in this wave (unrouted): Haiku's specs (two runs) do not compile or name mutation text the C does not have",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": false,
  "plan": {
   "name": "func_800E24EC",
   "unit": "src/BATTLE/BATTLE.PRG/771A8.c",
@@ -52,43 +52,21 @@
      "model": "anthropic/claude-haiku-5.5",
      "endpoint": "remote",
      "thinking": "default",
-     "temperature": 0.4,
+     "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 20314,
-     "completion_tokens": 50440,
-     "reasoning_tokens": 46147,
-     "cost": 0.0272514,
-     "seconds": 210.5,
-     "sample": 1,
-     "conversation": "14ed894a24be321bce4e99fca7cccac4c7a4e22b47e2edebfebf24ff0682b27d"
+     "prompt_tokens": 20444,
+     "completion_tokens": 43131,
+     "reasoning_tokens": 38793,
+     "cost": 0.011804949999999998,
+     "seconds": null,
+     "batch": "batch-1793472845-QkAmzxxBw2lq6TSSxmz5",
+     "sample": 1
     },
     "passed": false,
     "errors": [
-     "FAIL: your spec's own code (prepare or classify) failed before the C ran: a Zig safety check (an index past an array's length, an integer that does not fit, a null unwrap) or a fault in it:\nzdiff: PANIC in the prepare run, iteration 9: integer does not fit in destination type (return address 0x405560)",
-     "(the mutations and the coverage gate are checked once the spec runs)"
-    ]
-   },
-   {
-    "round": 1,
-    "sample": 2,
-    "call": {
-     "finish_reason": "stop",
-     "model": "anthropic/claude-haiku-5.5",
-     "endpoint": "remote",
-     "thinking": "default",
-     "temperature": 0.4,
-     "max_tokens": 64000,
-     "prompt_tokens": 20314,
-     "completion_tokens": 43382,
-     "reasoning_tokens": 39069,
-     "cost": 0.0237224,
-     "seconds": 179.7,
-     "sample": 2,
-     "conversation": "59ea622b19e05edf2fa38a5fd9e6f019006ee6ffa51d3d6a0412d0871f0fa264"
-    },
-    "passed": false,
-    "errors": [
-     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/func_800E24EC/spec1s2/build/spec.zig:73:61: error: expected unsigned integer type, found 'c_int'\n    s.previousOption = if (ctx.chance(2)) @as(u8, @truncate(option)) else ctx.pick(u8, &.{ 0, 1, 2 });\n                                                            ^~~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:420:40\n    main: pc/tests/zig_diff/main.zig:377:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+     "FAIL: mutation S2: bE7 guard tests rangeMode 1 instead of 0: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800E24EC: 40000 iterations, seed 1, 0 mismatches; classes: self=6834 no-f0=16568 f0-no-f2=8273 mode-0=1390 mode-1=1399 mode-2=1401 mode-other=4135",
+     "FAIL: mutation S3: actor id test is > 9 instead of >= 9: mutation S3: actor id test is > 9 instead of >= 9: its `from` text occurs 0 times in the C body of func_800E24EC (copy it exactly from the C)",
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800E24EC: branches 93/94 (98.9%), lines 136/136\n  UNCOVERED +60 b6: branch never taken: `if ((s->rangeMode != 2 && s->bE8) || (s->rangeMode != 0 && s->bE7))`\n  FLAG +60 sign: every value above 0 had the sign bit set (a port testing the sign, `< 0`, for this test would pass): `if ((s->rangeMode != 2 && s->bE8) || (s->rangeMode != 0 && s->bE7))`\ncoverage func_800E24EC: FAILED (threshold 100%: 1 uncovered, 1 value flag(s) not waived)\nWhat to add:\n- `if ((s->rangeMode != 2 && s->bE8) || (s->rangeMode != 0 && s->bE7))` (+60): one way out of this test (+60 b6) was never taken; add inputs that take it.\n- `if ((s->rangeMode != 2 && s->bE8) || (s->rangeMode != 0 && s->bE7))` (+60): this compares a value with 0. Every input where the value was above 0 also had its sign bit set (negative as a signed 8-bit number), so a port that tests the sign instead (`< 0`, or a signed read where the C reads unsigned) would pass your spec. Add inputs where the value is above 0 AND positive (e.g. 1, 256, 127).\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800E24EC.coverage_waiver]] with its `id` and a `reason`."
     ]
    },
    {
@@ -99,73 +77,67 @@
      "model": "anthropic/claude-haiku-5.5",
      "endpoint": "remote",
      "thinking": "default",
-     "temperature": 0.4,
+     "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 24767,
-     "completion_tokens": 7508,
-     "reasoning_tokens": 3138,
-     "cost": 0.0062307,
-     "seconds": 25.6,
-     "sample": 1,
-     "conversation": "ac664ed113f7d5dde44c8b220b6d57003241155da919fde3c5f6a2914e6fd252"
+     "prompt_tokens": 25611,
+     "completion_tokens": 9913,
+     "reasoning_tokens": 5315,
+     "cost": 0.0037587999999999996,
+     "seconds": null,
+     "batch": "batch-1793473259-u2ePCAiI4wY1Y4v0EU1i",
+     "sample": 1
     },
-    "passed": false,
-    "errors": [
-     "FAIL: mutation M6: the range passed to func_800E4FB0 is the previous range: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800E24EC: 40000 iterations, seed 1, 0 mismatches; classes: self=3384 not-f0=10943 f0-not-f2=6345 mode0=1899 mode1=1985 mode2=2021 mode-other=13423",
-     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800E24EC: branches 93/94 (98.9%), conditions not measured (GCC < 14: branch coverage only), lines 136/136\n  UNCOVERED +16 b7: branch never taken: `|| s->range != s->previousRange || target != s->previousTargetId`\ncoverage func_800E24EC: FAILED (threshold 100%: 1 uncovered, 0 value flag(s) not waived)\nWhat to add:\n- `|| s->range != s->previousRange || target != s->previousTargetId` (+16): one way out of this test (+16 b7) was never taken; add inputs that take it.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800E24EC.coverage_waiver]] with its `id` and a `reason`."
-    ]
+    "passed": true,
+    "errors": []
    }
   ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
   "classes": {
-   "self": "3384",
-   "not-f0": "10943",
-   "f0-not-f2": "6345",
-   "mode0": "1899",
-   "mode1": "1985",
-   "mode2": "2021",
-   "mode-other": "13423"
+   "self": "6561",
+   "no-f0": "16696",
+   "f0-no-f2": "8421",
+   "mode-0": "1381",
+   "mode-1": "1378",
+   "mode-2": "1378",
+   "mode-other": "4185"
   },
   "mutations": [
    {
-    "name": "M1: the timer reset one step late (> 180 becomes >= 180)",
+    "name": "S1: option test uses 0 for one (b0 set on the wrong option)",
     "caught": true
    },
    {
-    "name": "M2: signed compare of distances in the case 1 range test",
+    "name": "S2: bE7 guard tests rangeMode 1 instead of 0",
     "caught": true
    },
    {
-    "name": "M3: the actor id bound off by one (>= 9 becomes >= 10)",
+    "name": "S3: actor id test is > 9 instead of >= 9",
     "caught": true
    },
    {
-    "name": "M4: dropped store of previousTargetId",
+    "name": "S4: dropped previousDestination store",
     "caught": true
    },
    {
-    "name": "M5: wrong field (targetX read from model->z)",
+    "name": "S5: scratchpad flag written as 1",
     "caught": true
    },
    {
-    "name": "M6: the range passed to func_800E4FB0 is the previous range",
-    "caught": false
+    "name": "S6: destinationX taken from targetZ",
+    "caught": true
    }
   ],
   "coverage": {
    "branches": 94,
-   "branches_hit": 93,
+   "branches_hit": 94,
    "conditions": null,
    "conditions_hit": null,
    "lines": 136,
    "lines_hit": 136,
-   "uncovered": [
-    {
-     "id": "+16 b7",
-     "line": 16,
-     "text": "|| s->range != s->previousRange || target != s->previousTargetId",
-     "what": "branch never taken"
-    }
-   ],
+   "uncovered": [],
    "flags": [],
    "args": [
     {
@@ -176,7 +148,7 @@
     {
      "arg": 1,
      "count": 40000,
-     "text": "32-bit: min -2147251688, max 2147359804, unsigned 0..4294967295, seen zero/negative/all ones"
+     "text": "32-bit: min -2146901500, max 2147238226, unsigned 0..4294967295, seen zero/negative/all ones"
     }
    ],
    "compares": [
@@ -186,7 +158,7 @@
      "size": 4,
      "count": 40000,
      "kind": "a == b / a < b",
-     "outcomes": "== 3384, < 35492, > 1124 (signed); < 35492, > 1124 (unsigned)",
+     "outcomes": "== 6561, < 32439, > 1000 (signed); < 32439, > 1000 (unsigned)",
      "operand": "b 0..255",
      "a": "0..16"
     },
@@ -194,9 +166,9 @@
      "line": 10,
      "text": "if (((__typeof__((s->model).psx_type_[0]))(long unsigned int)(s->model).raw)->flags & 0x200000)",
      "size": 4,
-     "count": 36616,
+     "count": 33439,
      "kind": "against a constant",
-     "outcomes": "== 18420, < 0, > 18196 (signed); < 0, > 18196 (unsigned)",
+     "outcomes": "== 16818, < 0, > 16621 (signed); < 0, > 16621 (unsigned)",
      "operand": "constant 0",
      "a": "0..2097152"
     },
@@ -204,9 +176,9 @@
      "line": 12,
      "text": "if ((!(model->flags & 0x1F0000)",
      "size": 4,
-     "count": 36616,
+     "count": 33439,
      "kind": "against a constant",
-     "outcomes": "== 18480, < 0, > 18136 (signed); < 0, > 18136 (unsigned)",
+     "outcomes": "== 4135, < 0, > 29304 (signed); < 0, > 29304 (unsigned)",
      "operand": "constant 0",
      "a": "0..2031616"
     },
@@ -214,9 +186,9 @@
      "line": 12,
      "text": "if ((!(model->flags & 0x1F0000)",
      "size": 1,
-     "count": 18480,
+     "count": 4135,
      "kind": "against a constant",
-     "outcomes": "== 12320, < 0, > 6160 (signed); < 0, > 6160 (unsigned)",
+     "outcomes": "== 1044, < 0, > 3091 (signed); < 0, > 3091 (unsigned)",
      "operand": "constant 0",
      "a": "0..1"
     },
@@ -224,29 +196,29 @@
      "line": 13,
      "text": "? ((model->x >> 6) != s->targetTileX || (model->z >> 6) != s->targetTileZ)",
      "size": 4,
-     "count": 18480,
+     "count": 4135,
      "kind": "a == b / a < b",
-     "outcomes": "== 12326, < 3824, > 2330 (signed); < 763, > 5391 (unsigned)",
+     "outcomes": "== 2072, < 1293, > 770 (signed); < 260, > 1803 (unsigned)",
      "operand": "b 0..255",
-     "a": "-512..511"
+     "a": "-511..511"
     },
     {
      "line": 13,
      "text": "? ((model->x >> 6) != s->targetTileX || (model->z >> 6) != s->targetTileZ)",
      "size": 4,
-     "count": 12326,
+     "count": 2072,
      "kind": "a == b / a < b",
-     "outcomes": "== 12320, < 3, > 3 (signed); < 0, > 6 (unsigned)",
+     "outcomes": "== 1044, < 656, > 372 (signed); < 127, > 901 (unsigned)",
      "operand": "b 0..255",
-     "a": "-271..425"
+     "a": "-512..509"
     },
     {
      "line": 15,
      "text": "|| s->destination.b[2] != (s->targetTileZ >> 1)))",
      "size": 1,
-     "count": 18136,
+     "count": 29304,
      "kind": "a == b / a < b",
-     "outcomes": "== 12130, < 4496, > 1510 (signed); < 1487, > 4519 (unsigned)",
+     "outcomes": "== 27241, < 1564, > 499 (signed); < 507, > 1556 (unsigned)",
      "operand": "b 0..127",
      "a": "-128..127"
     },
@@ -254,19 +226,19 @@
      "line": 15,
      "text": "|| s->destination.b[2] != (s->targetTileZ >> 1)))",
      "size": 1,
-     "count": 12130,
+     "count": 27241,
      "kind": "a == b / a < b",
-     "outcomes": "== 12109, < 17, > 4 (signed); < 7, > 14 (unsigned)",
+     "outcomes": "== 26202, < 763, > 276 (signed); < 256, > 783 (unsigned)",
      "operand": "b 0..127",
-     "a": "-106..127"
+     "a": "-128..127"
     },
     {
      "line": 16,
      "text": "|| s->range != s->previousRange || target != s->previousTargetId",
      "size": 1,
-     "count": 18136,
+     "count": 29304,
      "kind": "against a constant",
-     "outcomes": "== 12109, < 0, > 6027 (signed); < 0, > 6027 (unsigned)",
+     "outcomes": "== 26202, < 0, > 3102 (signed); < 0, > 3102 (unsigned)",
      "operand": "constant 0",
      "a": "0..1"
     },
@@ -274,49 +246,49 @@
      "line": 16,
      "text": "|| s->range != s->previousRange || target != s->previousTargetId",
      "size": 4,
-     "count": 24429,
+     "count": 27246,
      "kind": "a == b / a < b",
-     "outcomes": "== 18255, < 3052, > 3122 (signed); < 3359, > 2815 (unsigned)",
-     "operand": "b -2147155818..2147410342",
-     "a": "-2147155818..2147410342"
+     "outcomes": "== 25691, < 765, > 790 (signed); < 1395, > 160 (unsigned)",
+     "operand": "b -2144175082..2144228196",
+     "a": "-300..46341"
     },
     {
      "line": 16,
      "text": "|| s->range != s->previousRange || target != s->previousTargetId",
      "size": 4,
-     "count": 18255,
+     "count": 25691,
      "kind": "a == b / a < b",
-     "outcomes": "== 18255, < 0, > 0 (signed); < 0, > 0 (unsigned)",
-     "operand": "b 0..16",
+     "outcomes": "== 25324, < 351, > 16 (signed); < 351, > 16 (unsigned)",
+     "operand": "b 0..255",
      "a": "0..16"
     },
     {
      "line": 17,
      "text": "|| option != s->previousOption || s->timer++ > 180) {",
      "size": 4,
-     "count": 18255,
+     "count": 25324,
      "kind": "a == b / a < b",
-     "outcomes": "== 4541, < 10235, > 3479 (signed); < 6786, > 6928 (unsigned)",
+     "outcomes": "== 17223, < 5001, > 3100 (signed); < 74, > 8027 (unsigned)",
      "operand": "b 0..255",
-     "a": "-2146691459..2145523120"
+     "a": "-2145048570..2147238226"
     },
     {
      "line": 17,
      "text": "|| option != s->previousOption || s->timer++ > 180) {",
      "size": 2,
-     "count": 4541,
+     "count": 17223,
      "kind": "against a constant",
-     "outcomes": "== 453, < 2468, > 1620 (signed); < 921, > 3167 (unsigned)",
+     "outcomes": "== 4268, < 12951, > 4 (signed); < 12942, > 13 (unsigned)",
      "operand": "constant 180",
-     "a": "-32739..32767"
+     "a": "-27402..27830"
     },
     {
      "line": 25,
      "text": "if (s->targets[target].f0) {",
      "size": 1,
-     "count": 36616,
+     "count": 33439,
      "kind": "against a constant",
-     "outcomes": "== 9780, < 0, > 26836 (signed); < 0, > 26836 (unsigned)",
+     "outcomes": "== 16696, < 0, > 16743 (signed); < 0, > 16743 (unsigned)",
      "operand": "constant 0",
      "a": "0..1"
     },
@@ -324,9 +296,9 @@
      "line": 27,
      "text": "if (s->targets[target].f2) {",
      "size": 1,
-     "count": 26836,
+     "count": 16743,
      "kind": "against a constant",
-     "outcomes": "== 6939, < 0, > 19897 (signed); < 0, > 19897 (unsigned)",
+     "outcomes": "== 8421, < 0, > 8322 (signed); < 0, > 8322 (unsigned)",
      "operand": "constant 0",
      "a": "0..1"
     },
@@ -334,9 +306,9 @@
      "line": 29,
      "text": "switch (mode) {",
      "size": 4,
-     "count": 19897,
+     "count": 8322,
      "kind": "switch",
-     "outcomes": "== 6068, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "outcomes": "== 4137, < 0, > 0 (signed); < 0, > 0 (unsigned)",
      "operand": "cases",
      "a": "0..255"
     },
@@ -344,49 +316,49 @@
      "line": 31,
      "text": "if ((unsigned int)((s->range - 96) * (s->range - 96))",
      "size": 4,
-     "count": 1950,
+     "count": 1381,
      "kind": "a == b / a < b",
-     "outcomes": "== 226, < 663, > 1061 (signed); < 1071, > 653 (unsigned)",
-     "operand": "b -2147483648..2138415129",
-     "a": "-2141091727..2099179584"
+     "outcomes": "== 123, < 543, > 715 (signed); < 873, > 385 (unsigned)",
+     "operand": "b -2147479015..2147483647",
+     "a": "0..2138600025"
     },
     {
      "line": 39,
      "text": "if ((unsigned int)(value * value) < s->distances[target]) {",
      "size": 4,
-     "count": 2043,
+     "count": 1378,
      "kind": "a == b / a < b",
-     "outcomes": "== 242, < 717, > 1084 (signed); < 1158, > 643 (unsigned)",
-     "operand": "b -2147483648..2125711120",
-     "a": "-2146442815..2137210500"
+     "outcomes": "== 131, < 491, > 756 (signed); < 677, > 570 (unsigned)",
+     "operand": "b -2147479015..2147483647",
+     "a": "-2147479015..2147395600"
     },
     {
      "line": 43,
      "text": "if ((unsigned int)((value - 128) * (value - 128))",
      "size": 4,
-     "count": 885,
+     "count": 701,
      "kind": "a == b / a < b",
-     "outcomes": "== 113, < 317, > 455 (signed); < 278, > 494 (unsigned)",
-     "operand": "b -2147483648..2125711120",
-     "a": "-2124479807..2109354692"
+     "outcomes": "== 91, < 270, > 340 (signed); < 285, > 325 (unsigned)",
+     "operand": "b -2147479015..2147483647",
+     "a": "0..2135641369"
     },
     {
      "line": 51,
      "text": "if ((unsigned int)((s->range - 32) * (s->range - 32))",
      "size": 4,
-     "count": 2075,
+     "count": 1378,
      "kind": "a == b / a < b",
-     "outcomes": "== 240, < 733, > 1102 (signed); < 1177, > 658 (unsigned)",
-     "operand": "b -2147483648..2145600432",
-     "a": "-2123301919..2120467993"
+     "outcomes": "== 109, < 491, > 778 (signed); < 819, > 450 (unsigned)",
+     "operand": "b -2147479015..2147483647",
+     "a": "0..2144523481"
     },
     {
      "line": 60,
      "text": "if ((s->rangeMode != 2 && s->bE8) || (s->rangeMode != 0 && s->bE7))",
      "size": 1,
-     "count": 26836,
+     "count": 16743,
      "kind": "against a constant",
-     "outcomes": "== 1505, < 18462, > 6869 (signed); < 11502, > 13829 (unsigned)",
+     "outcomes": "== 975, < 13645, > 2123 (signed); < 11583, > 4185 (unsigned)",
      "operand": "constant 2",
      "a": "-128..127"
     },
@@ -394,9 +366,9 @@
      "line": 60,
      "text": "if ((s->rangeMode != 2 && s->bE8) || (s->rangeMode != 0 && s->bE7))",
      "size": 1,
-     "count": 25331,
+     "count": 15768,
      "kind": "against a constant",
-     "outcomes": "== 24521, < 391, > 419 (signed); < 0, > 810 (unsigned)",
+     "outcomes": "== 8999, < 2668, > 4101 (signed); < 0, > 6769 (unsigned)",
      "operand": "constant 0",
      "a": "-128..127"
     },
@@ -404,9 +376,9 @@
      "line": 60,
      "text": "if ((s->rangeMode != 2 && s->bE8) || (s->rangeMode != 0 && s->bE7))",
      "size": 1,
-     "count": 26026,
+     "count": 9974,
      "kind": "against a constant",
-     "outcomes": "== 8855, < 6751, > 10420 (signed); < 0, > 17171 (unsigned)",
+     "outcomes": "== 5722, < 1175, > 3077 (signed); < 0, > 4252 (unsigned)",
      "operand": "constant 0",
      "a": "-128..127"
     },
@@ -414,39 +386,39 @@
      "line": 60,
      "text": "if ((s->rangeMode != 2 && s->bE8) || (s->rangeMode != 0 && s->bE7))",
      "size": 1,
-     "count": 17171,
+     "count": 4252,
      "kind": "against a constant",
-     "outcomes": "== 17045, < 69, > 57 (signed); < 0, > 126 (unsigned)",
+     "outcomes": "== 3401, < 337, > 514 (signed); < 0, > 851 (unsigned)",
      "operand": "constant 0",
-     "a": "-128..122"
+     "a": "-128..127"
     },
     {
      "line": 62,
      "text": "if (option == 0 && s->rangeMode == 2)",
      "size": 4,
-     "count": 25900,
+     "count": 9123,
      "kind": "against a constant",
-     "outcomes": "== 1463, < 5090, > 19347 (signed); < 0, > 24437 (unsigned)",
+     "outcomes": "== 334, < 3205, > 5584 (signed); < 0, > 8789 (unsigned)",
      "operand": "constant 0",
-     "a": "-2146991002..2145932861"
+     "a": "-2146901500..2147051572"
     },
     {
      "line": 62,
      "text": "if (option == 0 && s->rangeMode == 2)",
      "size": 1,
-     "count": 1463,
+     "count": 334,
      "kind": "against a constant",
-     "outcomes": "== 85, < 1027, > 351 (signed); < 655, > 723 (unsigned)",
+     "outcomes": "== 32, < 269, > 33 (signed); < 244, > 58 (unsigned)",
      "operand": "constant 2",
-     "a": "-128..127"
+     "a": "-116..125"
     },
     {
      "line": 65,
      "text": "switch (s->rangeMode) {",
      "size": 4,
-     "count": 25900,
+     "count": 9123,
      "kind": "switch",
-     "outcomes": "== 12562, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "outcomes": "== 7052, < 0, > 0 (signed); < 0, > 0 (unsigned)",
      "operand": "cases",
      "a": "0..255"
     },
@@ -454,19 +426,19 @@
      "line": 67,
      "text": "if (option == one)",
      "size": 4,
-     "count": 8855,
+     "count": 5722,
      "kind": "a == b / a < b",
-     "outcomes": "== 4895, < 2318, > 1642 (signed); < 523, > 3437 (unsigned)",
+     "outcomes": "== 2110, < 2097, > 1515 (signed); < 214, > 3398 (unsigned)",
      "operand": "b 1..1",
-     "a": "-2146383525..2145932861"
+     "a": "-2146901500..2145069773"
     },
     {
      "line": 71,
      "text": "if (s->flags15E & 8) {",
      "size": 4,
-     "count": 8855,
+     "count": 5722,
      "kind": "against a constant",
-     "outcomes": "== 4464, < 0, > 4391 (signed); < 0, > 4391 (unsigned)",
+     "outcomes": "== 2829, < 0, > 2893 (signed); < 0, > 2893 (unsigned)",
      "operand": "constant 0",
      "a": "0..8"
     },
@@ -474,19 +446,19 @@
      "line": 83,
      "text": "if ((s->destination.raw & 0xFF00FF) == (s->tile.raw & 0xFF00FF)) {",
      "size": 4,
-     "count": 4391,
+     "count": 2893,
      "kind": "against a constant",
-     "outcomes": "== 447, < 0, > 3944 (signed); < 0, > 3944 (unsigned)",
+     "outcomes": "== 705, < 0, > 2188 (signed); < 0, > 2188 (unsigned)",
      "operand": "constant 0",
-     "a": "0..16711935"
+     "a": "0..16711905"
     },
     {
      "line": 102,
      "text": "if (s->b33) {",
      "size": 1,
-     "count": 1367,
+     "count": 524,
      "kind": "against a constant",
-     "outcomes": "== 219, < 565, > 583 (signed); < 0, > 1148 (unsigned)",
+     "outcomes": "== 88, < 176, > 260 (signed); < 0, > 436 (unsigned)",
      "operand": "constant 0",
      "a": "-128..127"
     },
@@ -494,19 +466,19 @@
      "line": 111,
      "text": "if (((__typeof__((s->actor).psx_type_[0]))(long unsigned int)(s->actor).raw)->id >= 9)",
      "size": 1,
-     "count": 1367,
+     "count": 524,
      "kind": "against a constant",
-     "outcomes": "== 130, < 598, > 639 (signed); < 154, > 1083 (unsigned)",
+     "outcomes": "== 59, < 243, > 222 (signed); < 65, > 400 (unsigned)",
      "operand": "constant 8",
-     "a": "-128..127"
+     "a": "-127..127"
     },
     {
      "line": 116,
      "text": "if (!s->bE4 && s->targets[target].f1) {",
      "size": 1,
-     "count": 9780,
+     "count": 16696,
      "kind": "against a constant",
-     "outcomes": "== 2516, < 2471, > 4793 (signed); < 0, > 7264 (unsigned)",
+     "outcomes": "== 2692, < 5556, > 8448 (signed); < 0, > 14004 (unsigned)",
      "operand": "constant 0",
      "a": "-128..127"
     },
@@ -514,9 +486,9 @@
      "line": 116,
      "text": "if (!s->bE4 && s->targets[target].f1) {",
      "size": 1,
-     "count": 2516,
+     "count": 2692,
      "kind": "against a constant",
-     "outcomes": "== 1256, < 0, > 1260 (signed); < 0, > 1260 (unsigned)",
+     "outcomes": "== 1348, < 0, > 1344 (signed); < 0, > 1344 (unsigned)",
      "operand": "constant 0",
      "a": "0..1"
     },
@@ -524,9 +496,9 @@
      "line": 117,
      "text": "if (s->b24) {",
      "size": 1,
-     "count": 1260,
+     "count": 1344,
      "kind": "against a constant",
-     "outcomes": "== 206, < 515, > 539 (signed); < 0, > 1054 (unsigned)",
+     "outcomes": "== 217, < 448, > 679 (signed); < 0, > 1127 (unsigned)",
      "operand": "constant 0",
      "a": "-128..127"
     },
@@ -534,9 +506,9 @@
      "line": 123,
      "text": "if (s->targets[target].f5) {",
      "size": 1,
-     "count": 206,
+     "count": 217,
      "kind": "against a constant",
-     "outcomes": "== 138, < 0, > 68 (signed); < 0, > 68 (unsigned)",
+     "outcomes": "== 116, < 0, > 101 (signed); < 0, > 101 (unsigned)",
      "operand": "constant 0",
      "a": "0..1"
     },
@@ -544,19 +516,19 @@
      "line": 128,
      "text": "if (!func_800E4180(s, 128, 1, 1))",
      "size": 4,
-     "count": 138,
+     "count": 116,
      "kind": "against a constant",
-     "outcomes": "== 36, < 58, > 44 (signed); < 0, > 102 (unsigned)",
+     "outcomes": "== 51, < 29, > 36 (signed); < 0, > 65 (unsigned)",
      "operand": "constant 0",
-     "a": "-2114456241..2122554625"
+     "a": "-2091183087..2093470471"
     },
     {
      "line": 133,
      "text": "if (s->bE8)",
      "size": 1,
-     "count": 9574,
+     "count": 16479,
      "kind": "against a constant",
-     "outcomes": "== 9291, < 129, > 154 (signed); < 0, > 283 (unsigned)",
+     "outcomes": "== 9426, < 2826, > 4227 (signed); < 0, > 7053 (unsigned)",
      "operand": "constant 0",
      "a": "-128..127"
     },
@@ -564,9 +536,9 @@
      "line": 135,
      "text": "if (s->bE4) {",
      "size": 1,
-     "count": 9291,
+     "count": 9426,
      "kind": "against a constant",
-     "outcomes": "== 1214, < 2402, > 5675 (signed); < 0, > 8077 (unsigned)",
+     "outcomes": "== 750, < 3236, > 5440 (signed); < 0, > 8676 (unsigned)",
      "operand": "constant 0",
      "a": "-128..127"
     },
@@ -574,9 +546,9 @@
      "line": 137,
      "text": "if (s->timeout)",
      "size": 1,
-     "count": 8077,
+     "count": 8676,
      "kind": "against a constant",
-     "outcomes": "== 1184, < 3958, > 2935 (signed); < 0, > 6893 (unsigned)",
+     "outcomes": "== 4036, < 2586, > 2054 (signed); < 0, > 4640 (unsigned)",
      "operand": "constant 0",
      "a": "-128..127"
     },
@@ -584,19 +556,19 @@
      "line": 139,
      "text": "if ((s->destination.raw & 0xFF00FF) == (s->tile.raw & 0xFF00FF)) {",
      "size": 4,
-     "count": 8077,
+     "count": 8676,
      "kind": "against a constant",
-     "outcomes": "== 1827, < 0, > 6250 (signed); < 0, > 6250 (unsigned)",
+     "outcomes": "== 4208, < 0, > 4468 (signed); < 0, > 4468 (unsigned)",
      "operand": "constant 0",
-     "a": "0..16711898"
+     "a": "0..16711908"
     },
     {
      "line": 140,
      "text": "if (s->targets[target].f5) {",
      "size": 1,
-     "count": 1827,
+     "count": 4208,
      "kind": "against a constant",
-     "outcomes": "== 1191, < 0, > 636 (signed); < 0, > 636 (unsigned)",
+     "outcomes": "== 2109, < 0, > 2099 (signed); < 0, > 2099 (unsigned)",
      "operand": "constant 0",
      "a": "0..1"
     },
@@ -604,19 +576,19 @@
      "line": 145,
      "text": "if (!func_800E4180(s, 128, 1, 1)) {",
      "size": 4,
-     "count": 1191,
+     "count": 2109,
      "kind": "against a constant",
-     "outcomes": "== 280, < 460, > 451 (signed); < 0, > 911 (unsigned)",
+     "outcomes": "== 884, < 616, > 609 (signed); < 0, > 1225 (unsigned)",
      "operand": "constant 0",
-     "a": "-2147348985..2146231611"
+     "a": "-2144962970..2144028841"
     },
     {
      "line": 150,
      "text": "} else if (s->timeout) {",
      "size": 1,
-     "count": 6250,
+     "count": 4468,
      "kind": "against a constant",
-     "outcomes": "== 1747, < 3165, > 1338 (signed); < 0, > 4503 (unsigned)",
+     "outcomes": "== 1979, < 1475, > 1014 (signed); < 0, > 2489 (unsigned)",
      "operand": "constant 0",
      "a": "-128..127"
     },
@@ -624,37 +596,84 @@
      "line": 156,
      "text": "} else if (!func_800E4180(s, 0, 3, 1))",
      "size": 4,
-     "count": 1214,
+     "count": 750,
      "kind": "against a constant",
-     "outcomes": "== 277, < 460, > 477 (signed); < 0, > 937 (unsigned)",
+     "outcomes": "== 295, < 217, > 238 (signed); < 0, > 455 (unsigned)",
      "operand": "constant 0",
-     "a": "-2146549597..2143595391"
+     "a": "-2143782639..2147073385"
     }
    ],
-   "passed": false
-  }
+   "passed": true
+  },
+  "waivers": []
  },
  "port": {
-  "attempts": []
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 43917,
+     "completion_tokens": 28423,
+     "reasoning_tokens": 25291,
+     "cost": 0.0093016,
+     "seconds": null,
+     "batch": "batch-1793473724-k55LkjHH6w2tNRmUV3Lu",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
  },
- "written": [],
- "check_seconds": 34.80347568700017,
- "wall_seconds": 450.8402794000003,
+ "written": [
+  "pc/tests/zig_diff/func_800E24EC.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800E24EC.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 84.48025862400118,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 1413.336315870285,
  "totals": {
-  "cost": 0.0572,
-  "prompt_tokens": 65395,
-  "completion_tokens": 101330,
-  "model_seconds": 415.8,
-  "check_seconds": 34.8,
+  "cost": 0.02487,
+  "prompt_tokens": 89972,
+  "completion_tokens": 81467,
+  "model_seconds": 0.0,
+  "check_seconds": 84.5,
   "calls": 3,
-  "wall_seconds": 450.8
- },
- "review": {
-  "by": "Claude Opus 5.5 (reviewer)",
-  "date": "2026-10-21",
-  "spec_fixes": [],
-  "mutations_added": [],
-  "port_fixes": [],
-  "corpus": ""
+  "wall_seconds": 1413.3
  }
 }

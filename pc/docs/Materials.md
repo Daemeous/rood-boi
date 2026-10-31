@@ -122,7 +122,8 @@ walls are 218 boxes of one palette, its floor 49 of another), so one
 palette entry does what dozens of texture entries would; scope it to the
 room (`scope`), since a palette can be reused elsewhere for other art.
 While any palette entry exists every drawn box is hashed (cheap: once per
-VRAM change). Unmatched textures have roughness 1, specular 0, metal 0, no relief. A
+VRAM change). A palette the game animates is still one palette (below,
+Animated palettes). Unmatched textures have roughness 1, specular 0, metal 0, no relief. A
 roughness map overrides the uniform roughness, a metal map the uniform metal
 (per texel); specular stays the entry's. Presets are suggestions, not an
 inference of material from a disc image.
@@ -168,6 +169,61 @@ by 30-80 levels): the stone blocks' faces lift towards the light and their
 seams fall into shade, and the flagstones get a soft, rough highlight.
 Nothing reads as plastic: rough stone stays matte.
 
+### Animated palettes
+
+The game animates some palettes: it uploads new colours into a CLUT while the
+texels stay (enemies' flashes and colour cycles; the Catacombs' first room,
+9/0, with its enemies). A palette key is the md5 of the colours, so an entry
+keyed by one frame's colours matched only on the frames that showed them, and
+the material switched on and off (the bulk-accepted review entries were keyed
+by whatever frame the survey saw).
+
+Decision (mine, the palette-flicker worker, 2026-10-31): **a CLUT slot (colour depth and
+CLUT position) is one palette while the player stays in a room, whatever its
+colours do.** Every frame the drawn palettes' colours are read (cheap: a
+comparison per slot; hashed only when they change); each key a slot shows is
+recorded as one of its **variants** (at most 64; a room change forgets them).
+A palette entry, or a texture entry with a palette, matches a slot when it
+names any of its variants (the colours now first, then the others in the
+order seen; a texture's own entry still wins over a palette entry). When a
+slot shows a new variant its uses are resolved again at once, so an entry
+applies from the first frame its colours appear and then stays. Its
+**identity** is the variant drawn in the most frames this room (a palette
+that flashes or cycles now and then: its resting colours); the survey, the
+Material review's proposals, the picker (Accept, Details > Material, the
+Inspector), the review's highlight and Focus name and find a palette by it.
+Entries written before (by any variant) keep working without being accepted
+again: they apply as soon as that variant is drawn. A palette that never
+animates has one variant, its key: matching is exactly as before (the frames
+and uses in the Keep 29/3 and the Catacombs 13/3 are byte-identical with
+the user's 399 entries, GL and Vulkan). Not covered: a palette whose slot the
+game refills with unrelated art in the same room (its variants then include
+both).
+`material_palette_anim_smoke` checks it.
+
+Emissive entries' `clut` follow the same rule (the emissive-palettes
+worker, 2026-10-31): a match's palette is met when it names the colours now
+or any variant of the use's slot, a slot's new variant has its textures
+matched again at once (the last matching entry winning as ever), and the
+emissive picker (Details > Emissive, RPC `emissive pick`'s `clut_key`, what
+*Only with the picked texture's palette* writes) names the slot by its
+identity; the checkbox shows ticked for any variant. A window light pattern
+qualified by a palette (`key@palette` in `pattern_faces`) finds the slot by
+any variant too. A glow on an animated palette therefore stays on through
+the animation: in 9/0 with its enemies an entry on a slot's identity, read
+while another variant showed, was late 4 times of 4 and missing on 42 of 240
+frames before, 0 after (`emissive_palette_anim_smoke`). A slot's growth is a
+flag on the slot (taken by the frame's palette pass), so a look at a slot
+earlier in the frame (matching, an RPC between frames) no longer hides a new
+variant from the material planes. Rooms without animated palettes are
+unchanged: the Keep 29/3, the Catacombs 13/3, the town houses 34/0 and 35/0,
+the forge 43/0 and the magic crates 53/21 (with enemies) give the same frame
+buffer, presented image, matched emissive uses and material uses as the
+previous binary, GL and Vulkan. (Every room shows a few 4-bit slots with two
+variants: the colours left in the slot from before the room's own upload;
+an entry naming such a leftover could match in the new room's first frames.
+Not seen with the shipped entries.)
+
 ## Masters and instances
 
 (`pc/docs/plans/2026-10-30-master-materials-plan.md`.) A **master material**
@@ -195,6 +251,15 @@ instance under it (the one difference from the old reader, which copied a
 preset's values at parse time). An entry naming an unknown preset or parent
 is listed unresolved, makes no entry (as before) and is reported.
 
+Edits are in memory: the two files are read on load, on Revert, on
+`material reload` and when one changes on disk, and written on Save only.
+A value edit (the panel's sliders, RPC `material_instance set`) changes the
+instance and derives again only the entries of it and of the instances
+below it, so a dragged slider shows on the very next frame with no file
+read; a graph instance's value only refills the values table (the include
+is regenerated for structure only). RPC `material_instance status` counts
+the reads.
+
 Writing (Save) keeps the files' layout and format: a root goes into
 `presets`, the rest into `entries` with `preset` naming the root preset at
 the top of its chain (what older readers see) and `parent` only when the
@@ -211,13 +276,128 @@ to selection's texture* / *its palette*: the surface or model selected in
 the view, scoped to this room; *Unassign*); *New child*, *Duplicate*,
 *Remove*, *Save*, *Revert*, *Copy JSON for the catalog*, *Open in Details >
 Material*. Details > Material's own entry editor still works (its preset
-combo lists every root). **Window > Material preview** is a sphere shaded
+combo lists every root). The panel also exists in Lua: the shipped plugin
+`rood.materials` (`pc/plugins/rood.materials/main.lua`, **off** by default:
+the C++ panel stays Window > Materials; turn it on in the Lua console's
+Plugins list). On, it replaces the C++ window (`rood.dev.window{replaces =
+"materials"}`) and draws the same tree, rows and tools with `rood.imgui` on
+RPC `material_instance` alone (a value edit is the same `set` the C++
+sliders make); the Name and Where fields apply when left (Enter or a
+click elsewhere). **Window > Material preview** is a sphere shaded
 on the CPU with the same GGX lobe, textured nearest with the instance's
-texture when it is drawn in the room (else a grey swatch), under a key
-light and an ambient whose strength, direction and the swatch's grey are
-settings keys (`material_preview_light`, `_yaw`, `_pitch`, `_ambient`,
-`_swatch`, `_size`; Graphics, RPC `graphics`); it is the same picture on GL
-and Vulkan. RPC `material_instance` and `material_preview`: Extensions.md.
+texture when it is drawn in the room (a palette instance: the first texture
+it draws here; else a grey swatch). Where the instance draws the texture
+here, each texel takes the material planes' values (painted roughness and
+metal, specular) and their relief (the height map's or the estimate's
+slopes bend the sphere's normal as scaled.frag bends its shading normal,
+times `bump_strength` and `material_preview_relief`; the cavity darkens the
+ambient by `bump_occlusion`); a texture drawn by another entry uses the
+instance's own painted maps. **Lit like the room** (`material_preview_room`,
+on by default): the key light is the room's light that delivers most at
+Ashley (`material_preview_room_height` units above her feet; its colour
+times the renderers' window (1 - x^2)^2; the environment's sun competes by
+its colour), turned into the game camera's view, times
+`material_preview_room_key`; the ambient is the game's own room light
+colour at Ashley (BATTLE's actor lighting, 128 = 1) times
+`material_preview_room_ambient`. No light reaching Ashley keeps the
+preview's own key light (with the room's ambient); off, or with no room,
+the preview's own key light and ambient (`material_preview_light`, `_yaw`,
+`_pitch`, `_ambient`). The swatch's grey and the size are
+`material_preview_swatch` and `_size` (Graphics, RPC `graphics`). Lantern,
+candle and emissive intensities are read, never changed. It is the same
+picture on GL and Vulkan (`material_instances_smoke` compares the two runs'
+digests). RPC `material_instance` and `material_preview`: Extensions.md.
+
+## Node graphs
+
+(`pc/docs/plans/2026-10-30-node-materials-plan.md`; `pc/src/material_graph.cpp`.)
+A **graph master** is a master file with a `graph`: nodes (an instance of a
+node definition each, with the values of its unlinked knobs, which knobs are
+pinned on its body, and its position), links (an output to an input) and
+the promoted knobs (knob -> parameter name). The shipped
+`standard_surface_graph` is the surface planes straight into the output,
+and renders exactly as `standard_surface` (`material_graph_smoke` proves
+the Keep byte for byte); a new graph starts as that. The user's graphs are
+saved under `<user maps layer>/masters` (`$ROOD_MATERIAL_GRAPHS`), read
+beside the shipped masters; every graph master has the five standard
+parameters (they feed the planes the *Surface planes* node reads) and then
+its promoted knobs, so Window > Materials shows them on its instances like
+any other.
+
+A **node definition** is a small GLSL function in a JSON file
+(`pc/assets/materials/nodes/<name>.json`, the user's under `<user maps
+layer>/nodes`; `$ROOD_MATERIAL_NODES`): `inputs` (name, `type` float,
+float2, float3 or float4, `default`, `min`, `max`, `pin` to show it on the
+node body by default, `color` for a swatch, `time` for an input that reads
+the game time when nothing is linked to it), `outputs`, and `glsl`, the
+body over those names (`result = mix(a, b, t);`). A developer adds a node by
+adding a file; the user sees a node with knobs and never the code. Built in:
+the sources *Game texel*, *Surface planes* (roughness, specular, metal, the
+packed surface and the relief as the planes hold them), *UV* (texels; its
+*Snap to texel* knob, on by default, reads the texel's centre so results
+stay pixel art; off is the raw per-pixel coordinate), *Normal*, *Vertex
+colour*, *Time* (the game time: *Seconds* within its *Loop* knob, 60 by
+default, and *Phase*, 0..1 through the loop), and *Surface output* (base colour, roughness, specular, metal, glow,
+surface, relief; an unlinked input leaves the game's value). A float output
+feeding a wider input broadcasts; any other mismatch, a cycle, two links
+into one input or an unknown node is refused naming the node.
+
+**The game time** is vsyncs at 60 a second: it moves only as the game does,
+so it stops while the game is held (pause, the photo mode) and a photo
+render, which runs the game from the held moment and rewinds it, draws the
+same time every time (the held picture never flickers). It loops each hour
+to keep float precision: a *Time* loop or a *Pulse* rate that divides an
+hour stays seamless across it. The shipped example is the *Pulse* node
+(`nodes/pulse.json`, Animation): a smooth pulse between *Low* and *High*,
+*Rate* times a second, its time input the game's unless something is linked
+to it (link a *Time* node to set a loop); it is not assigned to any shipped
+material. Time-varying results do not show in the traced reflections (they
+read the planes).
+
+**Parameters**: a promoted number knob is a number parameter (a slider), a
+promoted colour knob (a `float3` input marked `color`) a colour parameter
+(type `color`, default the knob's colour; a swatch with Reset in Window >
+Materials; written `[r, g, b]` in the catalog's `params`, held as
+`<name>.r`, `.g`, `.b` in the resolved values). Other `float2`, `float3` and
+`float4` knobs stay knobs.
+
+**How it reaches the draws**: the seventh material plane holds a **graph
+slot** per texel cell (0 none; else one per assigned instance of a graph
+master, by id, up to 255). The game writes `material_graph.glsl` into
+`pc/build/shaders/generated` (`$ROOD_SHADERS_GENERATED`): one GLSL function
+per node definition in use, one per graph master (its promoted parameters
+as arguments) and `material_graph(slot, ...)`, a switch calling each
+instance's master. Values are not in the shader: every unlinked knob and
+every instance's parameter is an entry of a **values table** the native
+draws upload with each frame (`graph_values[]`, binding 7; entry 0 the game
+time), read at offsets the include names. A value edit (dragging a knob,
+an instance's slider or swatch) is a table write and shows on the next
+frame; only a structural edit (a node, a link, a promotion, an assignment)
+rewrites the include. An offset belongs to its knob or parameter for as long
+as the table lives, so the shader still running the previous include during
+a reload reads correct values. The
+shipped `pc/shaders/vulkan/material_graph.glsl` is the stub the generated
+file shadows (the shader compiler's includer reads the generated folder
+first; the hot reload watches it): with no graph instance the file is
+removed and nothing changes, the embedded shaders included.
+`native_frag.glsl` calls it after reading the planes where the slot is not
+0: the graph decides the surface inputs (the base colour replaces the texel's
+before the game's own modulation; the glow is `max`ed into the colour and
+marked in the shade as an emissive texel is: glow only, never a light);
+the lighting is the one GGX model as ever. A structural graph edit: the
+include is rewritten and swapped in within about a second; a graph that does not generate keeps the last good file
+(and the editor outlines the node); a node file whose GLSL does not compile
+is reported by RPC `shaders` like any shader error and the last good
+pipeline stays. OpenGL draws no material response, so no graph either.
+
+**Window > Material graph** (`pc/plugins/rood.material_graph`, Lua on
+`rood.imgui`): the node palette left, the canvas in the middle, the
+parameter panel right (Extensions.md "Developer tool windows"). The live
+preview is the game view and Window > Material preview (the sphere shows
+the resolved standard values). Not in this version: the packet and
+character draws (the native room draws only), reflections of a graph's
+per-pixel or time-varying result (the traced reflections use the planes),
+`float2`/`float4` parameters.
 
 ## Surveying a room
 
@@ -758,7 +938,10 @@ entry and the texel's planes), `new` (for the last pick, or `{key,
 palette, preset}`: Surveying a room), `survey`, `texture`, `set {id,
 fields}` or `{entry}`, `select`, `remove`, `save`, `revert`, `copy {id}`,
 `paint {key, channel, value, rects, tool, at}` (channel roughness, height
-or metal), `map {key, channel}`, `undo`, `preview {auto_height}`, `reload`.
+or metal), `map {key, channel}`, `undo`, `preview {auto_height}`, `reload`,
+`palettes` (the palettes drawn now, by CLUT slot: `depth`, `clut`, `key` of
+the colours now, `identity`, `variants` this room, `uses`, `entry`: Animated
+palettes).
 `list` gives the relief tunables and, per use, `painted_metal` and `relief`
 (`painted`, `estimated` or empty); `pick`'s `material` has the six planes.
 

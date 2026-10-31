@@ -32,6 +32,7 @@ layout(location = 3) out vec4 shade_out;
 layout(location = 4) out vec4 material_out; // material_pack.glsl (all 0: no material)
 #include "vram.glsl"
 #include "emissive.glsl"
+#include "material_graph.glsl"
 #include "material.glsl"
 // An animated material between game frames: texels past the effect's
 // window wrap back by its period (the game's scroll wraps there).
@@ -201,7 +202,28 @@ void main() {
         if (u.emissive != 0)
             emissive_apply(at.x & 255u, at.y & 255u, tpage, u.window, t, v_state.w >> 16, c, albedo, shade);
         // Material response: the texel's own cell (nearest, like the colour).
-        if (u.materials != 0) material = material_texel(at.x & 255u, at.y & 255u, tpage, u.window, relief);
+        if (u.materials != 0) {
+            material = material_texel(at.x & 255u, at.y & 255u, tpage, u.window, relief);
+            // A node material graph on this texel (material_graph.glsl: the generated include, the
+            // slot from the seventh plane): it decides the surface inputs, the lighting stays.
+            uint slot = material_graph_slot(at.x & 255u, at.y & 255u, tpage, u.window);
+            if (slot != 0u) {
+                GraphIn gi;
+                gi.texel = texel / 31.0, gi.vcolor = v_color, gi.uv = v_uv, gi.normal = normalize(v_normal);
+                gi.planes = material, gi.relief = relief;
+                vec3 base = gi.texel, glow = vec3(0.0);
+                int set = 0;
+                material_graph(slot, gi, material, relief, base, glow, set);
+                if ((set & 1) != 0) {
+                    albedo = base;
+                    c = (code & 1u) != 0u ? base : min(base * v_color * (255.0 / 128.0), 1.0);
+                }
+                if ((set & 2) != 0 && any(greaterThan(glow, vec3(0.0)))) {
+                    c = max(c, min(glow, vec3(1.0)));
+                    shade = vec4(min(glow * 0.5, vec3(1.0)), 0.25);
+                }
+            }
+        }
     }
     if ((u.semi_pass == 1 && semi) || (u.semi_pass == 2 && !semi)) discard;
     // Additive light (B + F, B + F/4: a save point's glow) hides nothing:

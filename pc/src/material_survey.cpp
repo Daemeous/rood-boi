@@ -285,7 +285,7 @@ bool survey(Result& out, int grid_w, int cull)
         if (!per_use[i])
             continue; /* hidden everywhere: not in view */
         std::string key = emissive::content_key(u.page, u.clut, u.box[0], u.box[1], u.box[2], u.box[3]);
-        std::string ck = emissive::clut_key(u.page, u.clut);
+        std::string ck = emissive::palette_identity(u.page, u.clut); /* (an animated palette: its identity) */
         int w = u.box[2] - u.box[0] + 1, h = u.box[3] - u.box[1] + 1;
         char id[96];
         snprintf(id, sizeof id, "%s %dx%d %s", key.c_str(), w, h, ck.c_str());
@@ -296,7 +296,7 @@ bool survey(Result& out, int grid_w, int cull)
             t.key = key, t.clut_key = ck, t.w = w, t.h = h;
             t.tpage = u.page, t.clut = u.clut;
             memcpy(t.box, u.box, 4);
-            const materials::Entry* e = materials::find_match(key, w, h, ck, out.zone, out.room);
+            const materials::Entry* e = materials::find_match(key, w, h, emissive::pick_palettes(ck, u.page, u.clut), out.zone, out.room);
             t.entry = e ? e->id : "";
             out.textures.push_back(t);
             best_box.push_back(0);

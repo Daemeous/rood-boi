@@ -114,6 +114,12 @@ def run(out):
         check(abs(seen["value"] - 0.75) < 1e-6 and seen["text"] == "set from Lua" and seen["checked"] is True
               and seen["choice"] == 3 and [round(c, 3) for c in seen["tint"]] == [0.1, 0.2, 0.3],
               f"widget values round-trip through Lua ({seen})")
+        c = lua("return canvas")
+        check(c and "error" not in c and c["dx"] == 10 and c["dy"] == 5 and c["w"] == 60 and c["h"] == 12
+              and c["pressed"] is False and isinstance(c["mouse"][0], (int, float)) and c["down"] is False
+              and c["dragging"] is False and c["drag"] == [0, 0] and c["over"] is False and c["wheel"] == 0,
+              f"a canvas: the cursor round-trips, the draw list draws, an invisible button is an item, the mouse "
+              f"reads ({c})")
         r = g.lua('return pcall(rood.imgui.Text, "x")', plugin=PLUGIN)["results"]
         check(r[0] is False and "only inside" in r[1], f"rood.imgui outside a draw raises ({r})")
         r = lua("return call_rpc()")

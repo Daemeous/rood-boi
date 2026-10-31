@@ -53,7 +53,11 @@ drew it.
   the entry's texture space (another polygon that samples part of the same
   image). `clut` (optional) also requires the palette's colours (md5 of the
   16 or 256 CLUT entries): needed for keys too common on their own (a 1 x 1
-  box). A texture animated in VRAM (a VRAM copy cycling frames: the floating
+  box). An animated palette (the game uploading new colours into the CLUT
+  while the texels stay: enemies' flashes) is one palette while the player
+  stays in the room: `clut` matches any of its variants, and the picker names
+  it by its identity ([Materials.md](Materials.md) "Animated palettes"). A
+  texture animated in VRAM (a VRAM copy cycling frames: the floating
   blocks' circle, the forge's bed) lists one key per frame.
 - **mask**: which texels glow, in texture space (texels, from the first
   box's origin; x right, y down). All parametric, no images:
@@ -277,7 +281,7 @@ additive glows are left alone.
     box, key, entry; `stats`: mean colour and share of bright texels);
   - `pick {x, y}` (window pixel) or `{world: [x, y, z]}`: the textured
     native triangle there: key, size, page, CLUT, box, texel, CLUT index,
-    colour, clut key, entry, emission, `glows` (the texel, as a texture),
+    colour, clut key (an animated palette: its identity), entry, emission, `glows` (the texel, as a texture),
     `surface` (`kind` room / model / other, `room`, `polygon` or `model`)
     and `glows_here` (the entry's scope lets it glow on that surface);
   - `new` (an entry for the last pick), `set {entry}` (a whole entry; no id:

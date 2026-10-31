@@ -265,7 +265,8 @@ Json pick_json(const TexturePick& p)
     room.items.push_back(Json::num(p.zone));
     room.items.push_back(Json::num(p.room));
     j.set("room", room);
-    const materials::Entry* e = materials::find_match(p.key, p.w(), p.h(), p.clut_key, p.zone, p.room);
+    const materials::Entry* e = materials::find_match(p.key, p.w(), p.h(),
+        emissive::pick_palettes(p.clut_key, p.tpage, p.clut), p.zone, p.room);
     j.set("entry", Json::str(e ? e->id : ""));
     int m[PC_MATERIAL_PLANES];
     if (emissive::material_at((unsigned)p.u, (unsigned)p.v, p.tpage, m)) {
@@ -697,8 +698,8 @@ bool texture_in_view(const std::string& key, const std::string& clut_key, Textur
     for (const emissive::UseInfo& u : emissive::use_list(true)) {
         if (u.key != key)
             continue;
-        std::string ck = emissive::clut_key(u.page, u.clut);
-        if (!clut_key.empty() && ck != clut_key)
+        std::string ck = emissive::palette_identity(u.page, u.clut);
+        if (!clut_key.empty() && !emissive::palette_is(u.page, u.clut, clut_key))
             continue;
         out = TexturePick();
         out.valid = true, out.key = key, out.clut_key = ck, out.tpage = u.page, out.clut = u.clut;
@@ -996,7 +997,8 @@ extern "C" int pc_material_viewport_click(float x, float y)
     TexturePick p;
     if (emissive::pick_texture(x, y, p)) {
         picked = p;
-        const materials::Entry* e = materials::find_match(p.key, p.w(), p.h(), p.clut_key, p.zone, p.room);
+        const materials::Entry* e = materials::find_match(p.key, p.w(), p.h(),
+            emissive::pick_palettes(p.clut_key, p.tpage, p.clut), p.zone, p.room);
         selected = e ? e->id : "";
         snprintf(status_line, sizeof status_line, "Picked texture %s (%d x %d)%s%s", p.key.c_str(), p.w(), p.h(),
             e ? ", entry " : ", no entry", e ? e->id.c_str() : "");
@@ -1036,7 +1038,8 @@ extern "C" void pc_material_panel(void)
     if (picked.valid) {
         ImGui::Text("Picked: %s %d x %d, palette %s, room %d/%d", picked.key.c_str(), picked.w(), picked.h(),
             picked.clut_key.empty() ? "-" : picked.clut_key.c_str(), picked.zone, picked.room);
-        const materials::Entry* e = materials::find_match(picked.key, picked.w(), picked.h(), picked.clut_key,
+        const materials::Entry* e = materials::find_match(picked.key, picked.w(), picked.h(),
+            emissive::pick_palettes(picked.clut_key, picked.tpage, picked.clut),
             picked.zone, picked.room);
         if (!e && ImGui::SmallButton("New entry for the picked texture")) {
             materials::Entry n = entry_for(picked, all);
@@ -1107,6 +1110,23 @@ extern "C" int pc_material_rpc(const char* params_text, char* out, int size)
         const Json* v = params.get("entries");
         return reply(list_json(!(v && v->type == Json::Bool && !v->boolean)), out, size);
     }
+    if (action == "palettes") { /* the palettes drawn now, by CLUT slot */
+        Json list = Json::array();
+        for (const emissive::PaletteInfo& p : emissive::palette_list()) {
+            Json x = Json::object();
+            x.set("depth", Json::num(p.depth));
+            x.set("clut", Json::num(p.clut));
+            x.set("key", Json::str(p.key));
+            x.set("identity", Json::str(p.identity));
+            x.set("variants", Json::num(p.variants));
+            x.set("entry", Json::str(p.entry));
+            x.set("uses", Json::num(p.uses));
+            list.items.push_back(x);
+        }
+        Json j = Json::object();
+        j.set("palettes", list);
+        return reply(j, out, size);
+    }
     if (action == "pick") {
         TexturePick p;
         bool ok;
@@ -1120,7 +1140,8 @@ extern "C" int pc_material_rpc(const char* params_text, char* out, int size)
         }
         if (ok) {
             picked = p;
-            const materials::Entry* e = materials::find_match(p.key, p.w(), p.h(), p.clut_key, p.zone, p.room);
+            const materials::Entry* e = materials::find_match(p.key, p.w(), p.h(),
+                emissive::pick_palettes(p.clut_key, p.tpage, p.clut), p.zone, p.room);
             selected = e ? e->id : "";
         }
         return reply(pick_json(ok ? p : TexturePick()), out, size);
@@ -1255,7 +1276,8 @@ extern "C" int pc_material_rpc(const char* params_text, char* out, int size)
             t.valid = emissive::texture_where(k->string, t);
         if (!t.valid)
             return fail("material " + action + ": the texture is not in view", out, size);
-        const materials::Entry* e = materials::find_match(t.key, t.w(), t.h(), t.clut_key, t.zone, t.room);
+        const materials::Entry* e = materials::find_match(t.key, t.w(), t.h(),
+            emissive::pick_palettes(t.clut_key, t.tpage, t.clut), t.zone, t.room);
         int saved_channel = channel, ch = ROUGHNESS;
         if (const Json* c = params.get("channel"); c && c->type == Json::String) {
             ch = -1;

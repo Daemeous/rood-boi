@@ -200,6 +200,29 @@ struct MaterialUse {
     int relief = 0; /* 0 none, 1 its height.png, 2 estimated from its colours */
 };
 std::vector<MaterialUse> material_use_list();
+/* Animated palettes (pc/docs/Materials.md "Animated palettes"): a CLUT slot
+ * (tpage's colour depth, clut) is one palette while the player stays in a
+ * room, whatever its colours do. Its variants: the keys (clut_key) it has
+ * shown this room, the colours now first; its identity: the variant drawn
+ * in the most frames (what surveys and new entries name); palette_is:
+ * whether `key` is one of its variants (what matching tests). "" / none at
+ * 16 bits. */
+std::string palette_identity(unsigned tpage, unsigned clut);
+std::vector<std::string> palette_variants(unsigned tpage, unsigned clut);
+bool palette_is(unsigned tpage, unsigned clut, const std::string& key);
+/* The palette keys a pick (or a texture's key and palette) matches by: its
+ * palette key, then its slot's variants (none without a palette). */
+std::vector<std::string> pick_palettes(const std::string& clut_key, unsigned tpage, unsigned clut);
+/* The palettes the hashed uses draw with now, by CLUT slot (colour depth and
+ * CLUT): its colours' key, its identity and variants, the uses, the entry
+ * one of them has (RPC material palettes). */
+struct PaletteInfo {
+    int depth = 0;
+    unsigned clut = 0;
+    std::string key, identity, entry;
+    int variants = 0, uses = 0;
+};
+std::vector<PaletteInfo> palette_list();
 int material_cell_count();
 /* The planes at a texel (emissive.h PC_MATERIAL_*: roughness, specular, metal, slopes u and v, cavity). */
 bool material_at(unsigned u, unsigned v, unsigned tpage, int out[PC_MATERIAL_PLANES]);

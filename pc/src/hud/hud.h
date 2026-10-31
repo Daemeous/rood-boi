@@ -34,7 +34,7 @@ extern "C" {
  * state slots': "Saved to slot 3", savestate_notice.cpp); name_window, the action's name in
  * text box 7 (5BF94.c vs_battle_displaySceneMessage: an event, not claimed: the game draws it). */
 enum { PC_HUD_NONE = 0, PC_HUD_STATUS = 1, PC_HUD_CHAIN, PC_HUD_BUFF, PC_HUD_DAMAGE, PC_HUD_TRAVEL, PC_HUD_NOTICE,
-    PC_HUD_NAME_WINDOW, PC_HUD_GAUGES, PC_HUD_FIGURE, PC_HUD_STATUS_ICONS, PC_HUD_BATTLE_MODE, PC_HUD_ABILITY_ICONS, PC_HUD_ACTOR_WORD, PC_HUD_TIMER, PC_HUD_EMOTE, PC_HUD_TEXT_FRAME, PC_HUD_TEXT_BAND, PC_HUD_BOX_TEXT, PC_HUD_IMAGE, PC_HUD_TARGET_ROW, PC_HUD_TARGET_LINE, PC_HUD_TARGET_MARKER, PC_HUD_MENU_BACKGROUND, PC_HUD_MENU_COMMAND, PC_HUD_MENU_ROW, PC_HUD_MENU_CURSOR, PC_HUD_MENU_TABS, PC_HUD_OPTION_VALUE, PC_HUD_ITEMS_CATEGORY, PC_HUD_ITEMS_STATUS_BUTTON, PC_HUD_EQUIP_STATS, PC_HUD_DP_PP_BARS, PC_HUD_GEM_SLOTS, PC_HUD_STAT_PAGE, PC_HUD_OK_MARK, PC_HUD_STORAGE_BUTTONS, PC_HUD_STORAGE_COUNTS, PC_HUD_LOOT_CAPACITIES, PC_HUD_DISCARD_COUNT, PC_HUD_RENAME_GRID, PC_HUD_RENAME_BOX, PC_HUD_FILE_MENU, PC_HUD_FILE_ELEMENT, PC_HUD_KINDS };
+    PC_HUD_NAME_WINDOW, PC_HUD_GAUGES, PC_HUD_FIGURE, PC_HUD_STATUS_ICONS, PC_HUD_BATTLE_MODE, PC_HUD_ABILITY_ICONS, PC_HUD_ACTOR_WORD, PC_HUD_TIMER, PC_HUD_EMOTE, PC_HUD_TEXT_FRAME, PC_HUD_TEXT_BAND, PC_HUD_BOX_TEXT, PC_HUD_IMAGE, PC_HUD_TARGET_ROW, PC_HUD_TARGET_LINE, PC_HUD_TARGET_MARKER, PC_HUD_MENU_BACKGROUND, PC_HUD_MENU_COMMAND, PC_HUD_MENU_ROW, PC_HUD_MENU_CURSOR, PC_HUD_MENU_TABS, PC_HUD_OPTION_VALUE, PC_HUD_ITEMS_CATEGORY, PC_HUD_ITEMS_STATUS_BUTTON, PC_HUD_EQUIP_STATS, PC_HUD_DP_PP_BARS, PC_HUD_GEM_SLOTS, PC_HUD_STAT_PAGE, PC_HUD_OK_MARK, PC_HUD_STORAGE_BUTTONS, PC_HUD_STORAGE_COUNTS, PC_HUD_LOOT_CAPACITIES, PC_HUD_DISCARD_COUNT, PC_HUD_RENAME_GRID, PC_HUD_RENAME_BOX, PC_HUD_FILE_MENU, PC_HUD_FILE_ELEMENT, PC_HUD_MENUF, PC_HUD_MENUF_LOAD, PC_HUD_KINDS };
 /* gauges: the status display's HP / MP / RISK gauges with their digits and labels, or RISK ZERO (5BF94.c
  * func_800CA2DC's _renderStatBar calls). figure: its five limb sprites, with the game's stance and
  * condition indices. actor_word: a word over an actor (2842C.c's label loop: MISS, func_8009506C; a combat
@@ -73,7 +73,10 @@ enum { PC_HUD_NONE = 0, PC_HUD_STATUS = 1, PC_HUD_CHAIN, PC_HUD_BUFF, PC_HUD_DAM
  * unk4 - 4, unk4 - 8, unk8, unk8 + 4) and a highlight box on it (_highlightSelection: unk8). file_menu,
  * file_element: MENU7's file menu (260.c _drawFileMenu: the save list, Data's SAVE / LOAD), drawn at once (no
  * ordering table: PC_CLASSIC_IMMEDIATE): its frame (part 0 the band's two sprites, part 1 the rest) and each card's or
- * file's panel (_drawFileMenuElement). The kinds
+ * file's panel (_drawFileMenuElement). menuf, menuf_load: MENUF's screens (3B8.c, currentMenu 15: the congratulations,
+ * the time attack's start and end, the cube puzzle's start, end and quit): a frame's sprite leaves, draw areas and
+ * PRESS BUTTON prompt (unk4 - 28; the prompt's words unk8), and its VRAM uploads (the TIMs _initMenu loads, the CLUT row
+ * the end screens pulse: at once, PC_CLASSIC_IMMEDIATE). The kinds
  * from gauges on
  * are classic-only (no modern drawing: the game's own there); visibility stays the game's. */
 #define PC_HUD_CLASSIC_ONLY(kind) ((kind) >= PC_HUD_GAUGES && (kind) < PC_HUD_KINDS)
@@ -175,6 +178,9 @@ typedef struct {
         unsigned char text[32], place[48], in_use[32], empty[32], fresh[32];
         unsigned short cluts[2][256];
     } file;                                           /* file_element: pc_classic_file_element's */
+    struct { int screen, count; unsigned char prompt[2][8]; } menuf; /* menuf: pc_classic_menuf's (its calls:
+                                                                       * pc_classic_menuf_calls, classic_parity.c) */
+    struct { int screen, phase, uploads; } menuf_load; /* menuf_load: pc_classic_menuf_load's, the uploads recorded */
     int items_slot; /* items_category: the dim icons' slot (bytes from vs_scratch.unk4) */
     int items_step, items_highlight, items_selected, items_on_row; /* items_category: pc_classic_items_category's;
                                                                     * items_status_button: items_step its slide (row),
@@ -216,7 +222,7 @@ extern int pc_hud_classic_status, pc_hud_classic_chain, pc_hud_classic_buff, pc_
     pc_hud_classic_items_status_button, pc_hud_classic_equip_stats, pc_hud_classic_dp_pp_bars, pc_hud_classic_gem_slots,
     pc_hud_classic_stat_page, pc_hud_classic_ok_mark, pc_hud_classic_storage_buttons, pc_hud_classic_storage_counts,
     pc_hud_classic_loot_capacities, pc_hud_classic_discard_count, pc_hud_classic_rename_grid, pc_hud_classic_rename_box,
-    pc_hud_classic_file_menu, pc_hud_classic_file_element;
+    pc_hud_classic_file_menu, pc_hud_classic_file_element, pc_hud_classic_menuf, pc_hud_classic_menuf_load;
 /* hud_bridge.c: the glyphs the last box_text element set (6 ints each: code, font table, colour style, x, y,
  * brightness), their count. */
 int pc_hud_box_text_glyphs(const int** out) __attribute__((weak));
@@ -331,7 +337,7 @@ typedef struct {
 #define PC_HUD_LAYER_ELEMENT (-0x7FFD) /* the element's own slot, as the game linked it (an emote's depth) */
 #define PC_HUD_LAYER_UNK8_AT(bytes) (-0x7F00 + (bytes)) /* vs_scratch.unk8 + bytes (-64..64), resolved each draw */
 #define PC_HUD_LAYER_IS_UNK8_AT(layer) ((layer) >= -0x7F40 && (layer) <= -0x7EC0)
-#define PC_HUD_CLASSIC_COMMANDS 256
+#define PC_HUD_CLASSIC_COMMANDS 512 /* (MENUF's congratulations: about 270, the stat wheel's lines) */
 /* lua_api_hud.cpp: the claim on the element just recorded draws in the classic flavour;
  * its commands (in drawing order) in *out, their count, or -1 when it failed (the game
  * draws it: its packets stay). */

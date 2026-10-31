@@ -2,18 +2,17 @@
  "unit": "30DB0",
  "totals": {
   "functions": 100,
-  "ported": 95,
-  "cost": 1.795,
-  "prompt_tokens": 6337267,
-  "completion_tokens": 2322559,
-  "model_seconds": 9844.1,
-  "check_seconds": 5352.0,
+  "ported": 96,
+  "cost": 1.7447,
+  "prompt_tokens": 6362709,
+  "completion_tokens": 2440577,
+  "model_seconds": 8634.9,
+  "check_seconds": 5443.8,
   "calls": 236,
   "statuses": {
-   "ported": 95,
-   "spec-failed": 5
-  },
-  "last_run_wall_seconds": 32.7
+   "ported": 96,
+   "spec-failed": 4
+  }
  },
  "functions": [
   {
@@ -75,12 +74,12 @@
    "function": "_parseShp",
    "status": "spec-failed",
    "model": "anthropic/claude-haiku-5.5",
-   "spec_attempts": 2,
+   "spec_attempts": 3,
    "port_attempts": 0,
    "spec": "failed",
    "port": "failed",
-   "cost": 0.05763,
-   "wall_seconds": 470.9
+   "cost": 0.05261,
+   "wall_seconds": 1728.2
   },
   {
    "function": "_parseWep",
@@ -90,8 +89,8 @@
    "port_attempts": 0,
    "spec": "failed",
    "port": "failed",
-   "cost": 0.03755,
-   "wall_seconds": 289.8
+   "cost": 0.03203,
+   "wall_seconds": 1060.2
   },
   {
    "function": "func_80099854",
@@ -172,14 +171,14 @@
   },
   {
    "function": "func_8009A028",
-   "status": "spec-failed",
+   "status": "ported",
    "model": "anthropic/claude-haiku-5.5",
-   "spec_attempts": 2,
-   "port_attempts": 0,
-   "spec": "failed",
-   "port": "failed",
-   "cost": 0.00364,
-   "wall_seconds": 32.5
+   "spec_attempts": 1,
+   "port_attempts": 1,
+   "spec": "first",
+   "port": "first",
+   "cost": 0.00683,
+   "wall_seconds": 1357.5
   },
   {
    "function": "func_8009AA84",
@@ -570,12 +569,12 @@
    "function": "func_8009EA14",
    "status": "spec-failed",
    "model": "anthropic/claude-haiku-5.5",
-   "spec_attempts": 3,
+   "spec_attempts": 2,
    "port_attempts": 0,
    "spec": "failed",
    "port": "failed",
-   "cost": 0.03413,
-   "wall_seconds": 265.3
+   "cost": 0.01152,
+   "wall_seconds": 1082.4
   },
   {
    "function": "func_8009EC9C",
@@ -823,12 +822,12 @@
    "function": "func_800A0024",
    "status": "spec-failed",
    "model": "anthropic/claude-haiku-5.5",
-   "spec_attempts": 4,
+   "spec_attempts": 3,
    "port_attempts": 0,
    "spec": "failed",
    "port": "failed",
-   "cost": 0.02916,
-   "wall_seconds": 190.8
+   "cost": 0.00884,
+   "wall_seconds": 1748.4
   },
   {
    "function": "func_800A0104",

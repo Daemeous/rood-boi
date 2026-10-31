@@ -190,6 +190,8 @@ _Static_assert(offsetof(native_ubo, projection) == 48 && offsetof(native_ubo, ru
         && offsetof(native_ubo, occl_instance) == 448 && offsetof(native_ubo, occl_tint) == 464
         && offsetof(native_ubo, occl_up) == 480 && offsetof(native_ubo, occl_feet) == 496,
     "native_ubo must match native_common.glsl's std140 layout");
+/* material_graph.cpp: the node material graphs' values table (absent: none). */
+extern const float* pc_material_graph_values(int* count) __attribute__((weak));
 static VkDescriptorSetLayout vk_native_set;
 static VkPipelineLayout vk_native_layout;
 /* The list pipelines: [0] single-sampled, [1] multisampled at
@@ -248,11 +250,12 @@ static int vk_native_init(void)
     if (vk_native_ready >= 0)
         return vk_native_ready;
     vk_native_ready = 0;
-    VkDescriptorType types[7] = { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+    /* 7: the node material graphs' values table (material_graph.cpp; read only by a generated include). */
+    VkDescriptorType types[8] = { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
         VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
         VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER };
-    vk_native_set = vk_push_layout(types, 7);
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER };
+    vk_native_set = vk_push_layout(types, 8);
     VkPipelineLayoutCreateInfo layout = { .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
         .setLayoutCount = 1,
         .pSetLayouts = &vk_native_set };
@@ -288,6 +291,8 @@ typedef struct {
     VkImageView surface_depth, surface_before;
     VkDeviceSize ubo_alignment, ssbo_alignment;
     vk_slice uv_effects; /* the list's animated materials (uv_effect_table) */
+    vk_slice graph_values; /* the node material graphs' values (pc_material_graph_values) */
+    int graph_count;
 } vk_draw_state;
 
 /* Model -> view for each palette entry (camera * world) into a storage
@@ -377,6 +382,8 @@ static mesh_slot* vk_use_instance(vk_draw_state* s, const draw_list* list, const
     vk_descriptors_buffer(&d, 5, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, s->uv_effects.buffer, s->uv_effects.offset,
         (VkDeviceSize)(s->ubo.uv_count > 0 ? s->ubo.uv_count : 1) * sizeof(uv_effect_gpu));
     vk_descriptors_image(&d, 6, vk_hw.emissive.view, vk.nearest);
+    vk_descriptors_buffer(&d, 7, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, s->graph_values.buffer, s->graph_values.offset,
+        (VkDeviceSize)s->graph_count * 16);
     vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_native_layout);
     return mesh;
 }
@@ -421,6 +428,17 @@ static const render_camera* vk_begin_draw(vk_draw_state* s, const draw_list* lis
     if (s->uv_effects.data)
         memcpy(s->uv_effects.data, table, (size_t)entries * sizeof *table);
     u->uv_count = s->uv_effects.data ? entries : 0;
+    /* The node material graphs' values: knobs and parameters edited live, the game time (binding 7). */
+    int graph_count = 1;
+    const float* graph_values = pc_material_graph_values ? pc_material_graph_values(&graph_count) : NULL;
+    static const float graph_none[4];
+    if (!graph_values || graph_count < 1)
+        graph_values = graph_none, graph_count = 1;
+    s->graph_values = vk_arena((VkDeviceSize)graph_count * 16, s->ssbo_alignment);
+    if (s->graph_values.data)
+        memcpy(s->graph_values.data, graph_values, (size_t)graph_count * 16), s->graph_count = graph_count;
+    else
+        s->graph_values = s->uv_effects, s->graph_count = 1; /* (the arena out of room: as binding 5) */
     u->room_slack[0] = pc_native_room_slack[0], u->room_slack[1] = pc_native_room_slack[1];
     u->layer_slack = layer_slack(list);
     s->surface_depth = vk_hw.dummy_depth.view;

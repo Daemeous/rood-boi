@@ -1534,6 +1534,10 @@ bool called(const std::string& c) { return std::find(calls.begin(), calls.end(),
 extern "C" {
 /* The game's glyph advances (BATTLE.PRG; rood.classic's d.font_width in lua_api_hud.cpp): none in this probe. */
 char vs_battle_characterWidths[512];
+/* classic_parity.c's immediate-draw uploads and MENUF record (lua_api_hud.cpp's d.image_load, the menuf kinds):
+ * none in this probe (by name only: the probe sees neither header). */
+const void* pc_classic_immediate_upload(int, int*, int*, int*, int*) { return nullptr; }
+void* pc_classic_menuf_calls(void) { return nullptr; }
 int pc_photo_pause(const char* owner, char* why, int size)
 {
     if (!fake_photo::refuse.empty()) {

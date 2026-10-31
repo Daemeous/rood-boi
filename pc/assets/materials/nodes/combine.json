@@ -1,0 +1,36 @@
+{
+  "format": 1,
+  "name": "combine",
+  "label": "Combine",
+  "category": "Colour",
+  "inputs": [
+    {
+      "name": "r",
+      "type": "float",
+      "default": 0,
+      "min": 0,
+      "max": 1
+    },
+    {
+      "name": "g",
+      "type": "float",
+      "default": 0,
+      "min": 0,
+      "max": 1
+    },
+    {
+      "name": "b",
+      "type": "float",
+      "default": 0,
+      "min": 0,
+      "max": 1
+    }
+  ],
+  "outputs": [
+    {
+      "name": "result",
+      "type": "float3"
+    }
+  ],
+  "glsl": "result = vec3(r, g, b);"
+}

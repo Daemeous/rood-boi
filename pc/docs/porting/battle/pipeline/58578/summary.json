@@ -2,18 +2,17 @@
  "unit": "58578",
  "totals": {
   "functions": 20,
-  "ported": 18,
-  "cost": 0.4729,
-  "prompt_tokens": 1423338,
-  "completion_tokens": 661203,
-  "model_seconds": 2782.0,
-  "check_seconds": 1705.4,
-  "calls": 55,
+  "ported": 19,
+  "cost": 0.4237,
+  "prompt_tokens": 1380807,
+  "completion_tokens": 656040,
+  "model_seconds": 2254.9,
+  "check_seconds": 1756.5,
+  "calls": 54,
   "statuses": {
-   "port-failed": 2,
-   "ported": 18
-  },
-  "last_run_wall_seconds": 956.3
+   "port-failed": 1,
+   "ported": 19
+  }
  },
  "functions": [
   {
@@ -150,14 +149,14 @@
   },
   {
    "function": "func_800C1DC4",
-   "status": "port-failed",
+   "status": "ported",
    "model": "anthropic/claude-haiku-5.5",
-   "spec_attempts": 1,
-   "port_attempts": 3,
-   "spec": "first",
-   "port": "failed",
-   "cost": 0.04457,
-   "wall_seconds": 277.4
+   "spec_attempts": 2,
+   "port_attempts": 2,
+   "spec": "retry",
+   "port": "retry",
+   "cost": 0.02347,
+   "wall_seconds": 1940.5
   },
   {
    "function": "func_800C20B4",
@@ -219,11 +218,11 @@
    "status": "port-failed",
    "model": "anthropic/claude-haiku-5.5",
    "spec_attempts": 2,
-   "port_attempts": 3,
-   "spec": "best-of-N",
+   "port_attempts": 2,
+   "spec": "retry",
    "port": "failed",
-   "cost": 0.04701,
-   "wall_seconds": 300.7
+   "cost": 0.01891,
+   "wall_seconds": 1902.7
   },
   {
    "function": "func_800C2B0C",

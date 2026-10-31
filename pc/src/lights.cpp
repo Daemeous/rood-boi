@@ -1871,7 +1871,7 @@ extern "C" int pc_lights_list(pc_light_gpu* out, int max)
     });
     const auto texture_uses = has_patterns ? emissive::use_list(false) : std::vector<emissive::UseInfo>();
     std::unordered_map<std::string, const emissive::UseInfo*> by_key;
-    std::unordered_map<unsigned, std::string> palette_keys;
+    std::unordered_map<unsigned, std::vector<std::string>> palette_keys; /* its key now, then its variants */
     for (const auto& use : texture_uses) {
         if (use.refs <= 0 || use.entry.empty()) continue;
         std::string identity = use.entry + ":" + use.key;
@@ -1880,9 +1880,15 @@ extern "C" int pc_lights_list(pc_light_gpu* out, int max)
             inserted.first->second = nullptr; // unqualified references must not choose an arbitrary palette
         unsigned palette_id = ((use.page >> 7) << 16) | use.clut;
         auto palette = palette_keys.find(palette_id);
-        if (palette == palette_keys.end())
-            palette = palette_keys.emplace(palette_id, emissive::clut_key(use.page, use.clut)).first;
-        if (!palette->second.empty()) by_key.emplace(identity + "@" + palette->second, &use);
+        if (palette == palette_keys.end()) {
+            // an animated palette is one palette (pc/docs/Materials.md "Animated palettes"): any variant names it
+            std::vector<std::string> keys{emissive::clut_key(use.page, use.clut)};
+            for (const std::string& v : emissive::palette_variants(use.page, use.clut))
+                if (v != keys[0]) keys.push_back(v);
+            palette = palette_keys.emplace(palette_id, std::move(keys)).first;
+        }
+        for (const std::string& k : palette->second)
+            if (!k.empty()) by_key.emplace(identity + "@" + k, &use);
     }
     struct PatternCache { std::string pixels; float cdf[256] = {}, mean = 0; };
     static std::unordered_map<std::string, PatternCache> pattern_cache;

@@ -7,8 +7,8 @@
  "thinking": "default",
  "temperature": 0.0,
  "samples": 1,
- "status": "stopped",
- "reviewed": "not ported in this wave: its run was stopped at the wave's budget",
+ "status": "ported",
+ "reviewed": false,
  "plan": {
   "name": "func_8009722C",
   "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
@@ -24,9 +24,7 @@
   "params": [],
   "ret": "void",
   "types": [],
-  "globals": [
-   "D_800F227A"
-  ],
+  "globals": [],
   "hooks": [],
   "statics": [],
   "skip": ""
@@ -44,64 +42,39 @@
      "temperature": 0.0,
      "max_tokens": 64000,
      "prompt_tokens": 11033,
-     "completion_tokens": 2384,
-     "reasoning_tokens": 1793,
-     "cost": 0.0022953,
-     "seconds": 11.2,
-     "sample": 1,
-     "conversation": "2f59b42e21ef1cde881187eccf8c5289921266326b5971c87f4ed71b544ec857"
-    },
-    "passed": false,
-    "errors": [
-     "FAIL: no input classes declared (`classes` and `classify`)"
-    ]
-   },
-   {
-    "round": 2,
-    "sample": 1,
-    "call": {
-     "finish_reason": "stop",
-     "model": "anthropic/claude-haiku-5.5",
-     "endpoint": "remote",
-     "thinking": "default",
-     "temperature": 0.0,
-     "max_tokens": 64000,
-     "prompt_tokens": 11675,
-     "completion_tokens": 1589,
-     "reasoning_tokens": 754,
-     "cost": 0.001962,
-     "seconds": 6.9,
-     "sample": 1,
-     "conversation": "6aec4f8f9b4b9a013e0a0f857b65fedf04ab2048d714f0a0ce8b549be2f61060"
+     "completion_tokens": 1867,
+     "reasoning_tokens": 1156,
+     "cost": 0.0010184,
+     "seconds": null,
+     "batch": "batch-1793470606-6GNq3Qqjp7ZP5YLH6ms0",
+     "sample": 1
     },
     "passed": true,
     "errors": []
    }
   ],
   "kept": {
-   "round": 2,
+   "round": 1,
    "sample": 1
   },
   "classes": {
-   "already-one": "4913",
-   "low-byte-one": "3817",
-   "other": "11270"
+   "always": "20000"
   },
   "mutations": [
    {
-    "name": "F1: stores 2, not 1",
+    "name": "F1: the store is dropped",
     "caught": true
    },
    {
-    "name": "F2: stores 0, not 1",
+    "name": "F2: the flag is cleared, not set",
     "caught": true
    },
    {
-    "name": "F3: the store is dropped",
+    "name": "F3: wrong constant (2)",
     "caught": true
    },
    {
-    "name": "F4: one byte written, the high byte left alone",
+    "name": "F4: wrong constant, low byte right (0x101)",
     "caught": true
    }
   ],
@@ -121,23 +94,72 @@
   "waivers": []
  },
  "port": {
-  "attempts": []
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34514,
+     "completion_tokens": 458,
+     "reasoning_tokens": 299,
+     "cost": 0.0018402,
+     "seconds": null,
+     "batch": "batch-1793471198-1avhbv74VvcT9i19MPUV",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
  },
- "written": [],
- "check_seconds": 0.0,
- "stopped": "budget: $0.0000 spent of $0.00",
- "wall_seconds": 10.387510055999883,
+ "written": [
+  "pc/tests/zig_diff/func_8009722C.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_8009722C.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 66.18891918000008,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 1297.7865900993347,
  "totals": {
-  "cost": 0.00426,
-  "prompt_tokens": 22708,
-  "completion_tokens": 3973,
-  "model_seconds": 18.1,
-  "check_seconds": 0.0,
+  "cost": 0.00286,
+  "prompt_tokens": 45547,
+  "completion_tokens": 2325,
+  "model_seconds": 0.0,
+  "check_seconds": 66.2,
   "calls": 2,
-  "wall_seconds": 10.4
- },
- "review": {
-  "by": "Claude Opus 5.5 (reviewer)",
-  "date": "2026-10-22"
+  "wall_seconds": 1297.8
  }
 }

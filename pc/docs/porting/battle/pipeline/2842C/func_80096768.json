@@ -7,8 +7,8 @@
  "thinking": "default",
  "temperature": 0.0,
  "samples": 1,
- "status": "spec-failed",
- "reviewed": "not ported in this wave (unrouted): the harness did not build (sprintf, variadic with fixed parameters, and an unprototyped strlen as stubs); zig_diff now runs both as libc's and the saved specs build, but they fail their gates (coverage / a C crash) and the wave's budget was spent",
+ "status": "ported",
+ "reviewed": false,
  "plan": {
   "name": "func_80096768",
   "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
@@ -50,45 +50,250 @@
    {
     "round": 1,
     "sample": 1,
-    "call": null,
-    "passed": false,
-    "errors": [
-     "FAIL: the C itself crashed on your inputs (the C runs first, so this is the spec's\nbug). The harness fills every global and the arena with random bytes before\nprepare, so every pointer the C follows must be one prepare set: each\nargument, each pointer field of an object you build, and each ENTRY of a\nglobal pointer table the C indexes (only the entry it reads: e.g.\n`v.g.TABLE()[i] = obj`), pointing at an object from `ctx.alloc`/`ctx.allocBytes`\n(sized for every element the C indexes past a `[0]` array), at a global, or\nnull where the C tests for null. An index into a global table must stay\ninside its length (the views accessor's type gives it). Below: the crash, its\nfault address (named when it is inside an object the harness owns) and the\narguments of that iteration:\nzdiff: CRASH (signal 11) in the C run, iteration 39, fault address 0x3e7 [NULL+0x3e7: a field of a null pointer]\nzdiff: crashed on arguments: 0x57f8cf0e 0xb08f13b2 0x26d80702 (class armor-default)",
-     "(the mutations and the coverage gate are checked once the C runs crash-free)"
-    ]
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12636,
+     "completion_tokens": 17326,
+     "reasoning_tokens": 15336,
+     "cost": 0.0049632999999999995,
+     "seconds": null,
+     "batch": "batch-1793470606-6GNq3Qqjp7ZP5YLH6ms0",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "neither": "9416",
+   "weapon-240": "3791",
+   "armor-not-240": "11317",
+   "weapon-only-not-240": "5476"
+  },
+  "mutations": [
+   {
+    "name": "M1: status threshold strict (> 1000)",
+    "caught": true
    },
    {
-    "round": 2,
+    "name": "M2: only type 6 counted, not 7",
+    "caught": true
+   },
+   {
+    "name": "M3: entry counter store dropped",
+    "caught": true
+   },
+   {
+    "name": "M4: sign bit dropped from the non-clamped time",
+    "caught": true
+   },
+   {
+    "name": "M5: case 241 maps to 0, not 1",
+    "caught": true
+   },
+   {
+    "name": "M6: armor branch tests the weapon flag",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 24,
+   "branches_hit": 24,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 45,
+   "lines_hit": 45,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -2147065562, max 2147181685, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 7,
+     "text": "if ((vs_main_settings.weaponStatChange && (arg0 == 240))",
+     "size": 1,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 14924, < 0, > 15076 (signed); < 0, > 15076 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..64"
+    },
+    {
+     "line": 7,
+     "text": "if ((vs_main_settings.weaponStatChange && (arg0 == 240))",
+     "size": 4,
+     "count": 15076,
+     "kind": "against a constant",
+     "outcomes": "== 3791, < 7570, > 3715 (signed); < 4249, > 7036 (unsigned)",
+     "operand": "constant 240",
+     "a": "-2147065562..2147181685"
+    },
+    {
+     "line": 8,
+     "text": "|| (vs_main_settings.armorStatChange && (arg0 != 240))) {",
+     "size": 1,
+     "count": 26209,
+     "kind": "against a constant",
+     "outcomes": "== 13051, < 13158, > 0 (signed); < 0, > 13158 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..0"
+    },
+    {
+     "line": 8,
+     "text": "|| (vs_main_settings.armorStatChange && (arg0 != 240))) {",
+     "size": 4,
+     "count": 13158,
+     "kind": "against a constant",
+     "outcomes": "== 1841, < 7588, > 3729 (signed); < 4243, > 7074 (unsigned)",
+     "operand": "constant 240",
+     "a": "-2146982430..2147181685"
+    },
+    {
+     "line": 9,
+     "text": "switch (arg0) {",
+     "size": 4,
+     "count": 15108,
+     "kind": "switch",
+     "outcomes": "== 6621, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "-2146982430..2147181685"
+    },
+    {
+     "line": 42,
+     "text": "for (i = 0; i < D_800F227E; ++i, ++p) {",
+     "size": 4,
+     "count": 75759,
+     "kind": "a == b / a < b",
+     "outcomes": "== 12605, < 60651, > 2503 (signed); < 63154, > 0 (unsigned)",
+     "operand": "b -1..16",
+     "a": "0..16"
+    },
+    {
+     "line": 43,
+     "text": "if ((p->unk8.u8[0] == 6) || (p->unk8.u8[0] == 7)) {",
+     "size": 1,
+     "count": 60651,
+     "kind": "against a constant",
+     "outcomes": "== 9986, < 30452, > 20213 (signed); < 20369, > 30296 (unsigned)",
+     "operand": "constant 6",
+     "a": "-1..8"
+    },
+    {
+     "line": 43,
+     "text": "if ((p->unk8.u8[0] == 6) || (p->unk8.u8[0] == 7)) {",
+     "size": 1,
+     "count": 50665,
+     "kind": "against a constant",
+     "outcomes": "== 10036, < 30452, > 10177 (signed); < 20369, > 20260 (unsigned)",
+     "operand": "constant 7",
+     "a": "-1..8"
+    },
+    {
+     "line": 57,
+     "text": "if ((arg2 & 0x7FFF) >= 1000) {",
+     "size": 4,
+     "count": 15108,
+     "kind": "against a constant",
+     "outcomes": "== 598, < 2116, > 12394 (signed); < 2116, > 12394 (unsigned)",
+     "operand": "constant 999",
+     "a": "0..32767"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
     "sample": 1,
-    "call": null,
-    "passed": false,
-    "errors": [
-     "FAIL: the C itself crashed on your inputs (the C runs first, so this is the spec's\nbug). The harness fills every global and the arena with random bytes before\nprepare, so every pointer the C follows must be one prepare set: each\nargument, each pointer field of an object you build, and each ENTRY of a\nglobal pointer table the C indexes (only the entry it reads: e.g.\n`v.g.TABLE()[i] = obj`), pointing at an object from `ctx.alloc`/`ctx.allocBytes`\n(sized for every element the C indexes past a `[0]` array), at a global, or\nnull where the C tests for null. An index into a global table must stay\ninside its length (the views accessor's type gives it). Below: the crash, its\nfault address (named when it is inside an object the harness owns) and the\narguments of that iteration:\nzdiff: CRASH (signal 11) in the C run, iteration 39, fault address 0x3e7 [NULL+0x3e7: a field of a null pointer]\nzdiff: crashed on arguments: 0x57f8cf0e 0xb08f13b2 0x26d80702 (class armor-default)",
-     "(the mutations and the coverage gate are checked once the C runs crash-free)"
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 36017,
+     "completion_tokens": 7690,
+     "reasoning_tokens": 6630,
+     "cost": 0.00372335,
+     "seconds": null,
+     "batch": "batch-1793471198-1avhbv74VvcT9i19MPUV",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
     ]
    }
   ],
-  "classes": {},
-  "mutations": [],
-  "coverage": null
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
  },
- "port": {
-  "attempts": []
- },
- "written": [],
- "check_seconds": 0.9141242129990133,
- "wall_seconds": 1.1207484530023066,
+ "written": [
+  "pc/tests/zig_diff/func_80096768.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_80096768.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 80.7210004059998,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 1242.6999254226685,
  "totals": {
-  "cost": 0.0,
-  "prompt_tokens": 0,
-  "completion_tokens": 0,
+  "cost": 0.00869,
+  "prompt_tokens": 48653,
+  "completion_tokens": 25016,
   "model_seconds": 0.0,
-  "check_seconds": 0.9,
-  "calls": 0,
-  "wall_seconds": 1.1
- },
- "review": {
-  "by": "Claude Opus 5.5 (reviewer)",
-  "date": "2026-10-22"
+  "check_seconds": 80.7,
+  "calls": 2,
+  "wall_seconds": 1242.7
  }
 }

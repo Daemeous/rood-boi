@@ -7,8 +7,8 @@
  "thinking": "default",
  "temperature": 0.0,
  "samples": 1,
- "status": "spec-failed",
- "reviewed": "not ported in this wave (unrouted): Haiku's specs (two runs) never produce the input that tells > 0 from >= 0",
+ "status": "ported",
+ "reviewed": false,
  "plan": {
   "name": "func_800B13CC",
   "unit": "src/BATTLE/BATTLE.PRG/44F14.c",
@@ -36,12 +36,8 @@
    ]
   ],
   "ret": "c_int",
-  "types": [
-   "D_800F45E0_t"
-  ],
-  "globals": [
-   "D_800F45E0"
-  ],
+  "types": [],
+  "globals": [],
   "hooks": [],
   "statics": [],
   "skip": ""
@@ -58,17 +54,18 @@
      "thinking": "default",
      "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 15265,
-     "completion_tokens": 12661,
-     "reasoning_tokens": 10835,
-     "cost": 0.007857,
-     "seconds": 54.9,
-     "sample": 1,
-     "conversation": "13fbc9084df53114b43d65fc20a23fd4a97ccbd55aad728fb1245ee8e9ecf108"
+     "prompt_tokens": 15395,
+     "completion_tokens": 14634,
+     "reasoning_tokens": 12704,
+     "cost": 0.00442825,
+     "seconds": null,
+     "batch": "batch-1793472845-QkAmzxxBw2lq6TSSxmz5",
+     "sample": 1
     },
     "passed": false,
     "errors": [
-     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/func_800B13CC/spec1/build/spec.zig:32:58: error: expected unsigned integer type, found 'c_int'\n        obj.unk5C = if (ctx.chance(2)) @as(u8, @truncate(arg0)) else ctx.int(u8);\n                                                         ^~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:420:40\n    main: pc/tests/zig_diff/main.zig:377:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+     "FAIL: your spec's own code (prepare or classify) failed before the C ran: a Zig safety check (an index past an array's length, an integer that does not fit, a null unwrap) or a fault in it:\nzdiff: PANIC in the prepare run, iteration 0: integer does not fit in destination type (return address 0x40284a)",
+     "(the mutations and the coverage gate are checked once the spec runs)"
     ]
    },
    {
@@ -81,49 +78,50 @@
      "thinking": "default",
      "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 17378,
-     "completion_tokens": 3074,
-     "reasoning_tokens": 1114,
-     "cost": 0.0032748,
-     "seconds": 11.2,
-     "sample": 1,
-     "conversation": "dcb3e7f76a031e425d7c37bee7fce25b3edc35ad9e52f87b70bb08327f54447e"
+     "prompt_tokens": 17486,
+     "completion_tokens": 3703,
+     "reasoning_tokens": 1688,
+     "cost": 0.0018000499999999999,
+     "seconds": null,
+     "batch": "batch-1793473259-u2ePCAiI4wY1Y4v0EU1i",
+     "sample": 1
     },
-    "passed": false,
-    "errors": [
-     "FAIL: mutation F3: clamp at >= 0 instead of > 0: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800B13CC: 30000 iterations, seed 1, 0 mismatches; classes: no-candidate=29127 candidate-below-128=613 candidate-128=78 candidate-above-128=182"
-    ]
+    "passed": true,
+    "errors": []
    }
   ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
   "classes": {
-   "no-candidate": "29127",
-   "candidate-below-128": "613",
-   "candidate-128": "78",
-   "candidate-above-128": "182"
+   "no-candidate": "29394",
+   "candidate-above-128": "88",
+   "candidate-at-or-below-128": "518"
   },
   "mutations": [
    {
-    "name": "F1: arg2 <= temp (candidate equal to arg2 taken)",
+    "name": "M1: loop misses slot 15",
     "caught": true
    },
    {
-    "name": "F2: final subtraction 127 instead of 128",
+    "name": "M2: arg2 compared unsigned",
     "caught": true
    },
    {
-    "name": "F3: clamp at >= 0 instead of > 0",
-    "caught": false
-   },
-   {
-    "name": "F4: unk5E compared with arg0",
+    "name": "M3: window offset 127 not 128",
     "caught": true
    },
    {
-    "name": "F5: flag read from unk6C[7]",
+    "name": "M4: unk6C[8].unk0_3 test dropped",
     "caught": true
    },
    {
-    "name": "F6: loop skips the last slot",
+    "name": "M5: arg0 compared with arg1 for unk5C",
+    "caught": true
+   },
+   {
+    "name": "M6: arg2 <= entry (wrong bound)",
     "caught": true
    }
   ],
@@ -140,17 +138,17 @@
     {
      "arg": 0,
      "count": 30000,
-     "text": "32-bit: min -2147396368, max 2146944796, unsigned 0..4294967295, seen zero/negative/all ones"
+     "text": "32-bit: min -2147140323, max 2146894246, unsigned 0..4294967295, seen zero/negative/all ones"
     },
     {
      "arg": 1,
      "count": 30000,
-     "text": "32-bit: min -2147210017, max 2146886125, unsigned 0..4294967295, seen zero/negative/all ones"
+     "text": "32-bit: min -2147142885, max 2147024640, unsigned 0..4294967295, seen zero/negative/all ones"
     },
     {
      "arg": 2,
      "count": 30000,
-     "text": "32-bit: min -2146007960, max 2147449366, unsigned 0..4294967295, seen zero/negative/all ones"
+     "text": "32-bit: min -2147382318, max 2146916168, unsigned 0..4294967295, seen zero/negative/all ones"
     }
    ],
    "compares": [
@@ -168,9 +166,9 @@
      "line": 9,
      "text": "if ((temp_v1 != 0) && !(temp_v1->unk8_0) && !(temp_v1->unk6C[8].unk0_3)",
      "size": 1,
-     "count": 383729,
+     "count": 400097,
      "kind": "against a constant",
-     "outcomes": "== 287489, < 0, > 96240 (signed); < 0, > 96240 (unsigned)",
+     "outcomes": "== 300074, < 0, > 100023 (signed); < 0, > 100023 (unsigned)",
      "operand": "constant 0",
      "a": "0..1"
     },
@@ -178,9 +176,9 @@
      "line": 9,
      "text": "if ((temp_v1 != 0) && !(temp_v1->unk8_0) && !(temp_v1->unk6C[8].unk0_3)",
      "size": 1,
-     "count": 287489,
+     "count": 300074,
      "kind": "against a constant",
-     "outcomes": "== 216218, < 0, > 71271 (signed); < 0, > 71271 (unsigned)",
+     "outcomes": "== 224930, < 0, > 75144 (signed); < 0, > 75144 (unsigned)",
      "operand": "constant 0",
      "a": "0..8"
     },
@@ -188,39 +186,39 @@
      "line": 10,
      "text": "&& (temp_v1->unk5C == arg0) && (temp_v1->unk5E == arg1)) {",
      "size": 4,
-     "count": 216218,
+     "count": 224930,
      "kind": "a == b / a < b",
-     "outcomes": "== 36047, < 97790, > 82381 (signed); < 26763, > 153408 (unsigned)",
+     "outcomes": "== 34165, < 100542, > 90223 (signed); < 22449, > 168316 (unsigned)",
      "operand": "b 0..255",
-     "a": "-2147396368..2146944796"
+     "a": "-2147140323..2146894246"
     },
     {
      "line": 10,
      "text": "&& (temp_v1->unk5C == arg0) && (temp_v1->unk5E == arg1)) {",
      "size": 4,
-     "count": 36047,
+     "count": 34165,
      "kind": "a == b / a < b",
-     "outcomes": "== 5950, < 16421, > 13676 (signed); < 4411, > 25686 (unsigned)",
+     "outcomes": "== 5220, < 15593, > 13352 (signed); < 3426, > 25519 (unsigned)",
      "operand": "b 0..255",
-     "a": "-2147098969..2146886125"
+     "a": "-2142723605..2145190304"
     },
     {
      "line": 14,
      "text": "if ((arg2 < temp_v1_2) && (temp_v1_2 < var_a3)) {",
      "size": 4,
-     "count": 5950,
+     "count": 5220,
      "kind": "a == b / a < b",
-     "outcomes": "== 256, < 2809, > 2885 (signed); < 2904, > 2790 (unsigned)",
+     "outcomes": "== 1372, < 1860, > 1988 (signed); < 1855, > 1993 (unsigned)",
      "operand": "b -32768..32767",
-     "a": "-2145157097..2140243959"
+     "a": "-2147382318..2145474271"
     },
     {
      "line": 14,
      "text": "if ((arg2 < temp_v1_2) && (temp_v1_2 < var_a3)) {",
      "size": 4,
-     "count": 2809,
+     "count": 1860,
      "kind": "a == b / a < b",
-     "outcomes": "== 136, < 1080, > 1593 (signed); < 861, > 1812 (unsigned)",
+     "outcomes": "== 190, < 704, > 966 (signed); < 507, > 1163 (unsigned)",
      "operand": "b -32768..3000",
      "a": "-32768..32767"
     },
@@ -230,35 +228,82 @@
      "size": 4,
      "count": 30000,
      "kind": "against a constant",
-     "outcomes": "== 78, < 613, > 29309 (signed); < 0, > 29922 (unsigned)",
+     "outcomes": "== 50, < 468, > 29482 (signed); < 0, > 29950 (unsigned)",
      "operand": "constant 0",
      "a": "-32896..2872"
     }
    ],
    "passed": true
-  }
+  },
+  "waivers": []
  },
  "port": {
-  "attempts": []
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 38868,
+     "completion_tokens": 2934,
+     "reasoning_tokens": 2350,
+     "cost": 0.0026769,
+     "seconds": null,
+     "batch": "batch-1793473724-k55LkjHH6w2tNRmUV3Lu",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
  },
- "written": [],
- "check_seconds": 23.364519860999735,
- "wall_seconds": 89.68934617700006,
+ "written": [
+  "pc/tests/zig_diff/func_800B13CC.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800B13CC.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 45.263415198000985,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 1387.7599728107452,
  "totals": {
-  "cost": 0.01113,
-  "prompt_tokens": 32643,
-  "completion_tokens": 15735,
-  "model_seconds": 66.1,
-  "check_seconds": 23.4,
-  "calls": 2,
-  "wall_seconds": 89.7
- },
- "review": {
-  "by": "Claude Opus 5.5 (reviewer)",
-  "date": "2026-10-21",
-  "spec_fixes": [],
-  "mutations_added": [],
-  "port_fixes": [],
-  "corpus": ""
+  "cost": 0.00891,
+  "prompt_tokens": 71749,
+  "completion_tokens": 21271,
+  "model_seconds": 0.0,
+  "check_seconds": 45.3,
+  "calls": 3,
+  "wall_seconds": 1387.8
  }
 }

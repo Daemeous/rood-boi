@@ -1,9 +1,15 @@
 #include "texture_t.h"
 
+#ifndef PC_MENUF_CALL /* (MENUF's classic hook, 3B8.c; nothing elsewhere) */
+#define PC_MENUF_CALL(op, x, y, tex, a, b, colours)
+#endif
+
 void _renderTextureFadeInTint(int x, int y, int texId, P_CODE colors[])
 {
     POLY_GT4* poly;
     void** p;
+
+    PC_MENUF_CALL(TINT, x, y, texId, 0, 0, colors);
 
     if (colors[0].code == 0) {
         return;
@@ -61,6 +67,8 @@ void _renderTexturePopIn(int x, int y, int texId, P_CODE colors[])
 {
     POLY_GT4* poly;
     void** p;
+
+    PC_MENUF_CALL(POP, x, y, texId, 0, 0, colors);
 
     if (colors[0].code != 0) {
         poly = psx_slot_get(void*, 0x1F800000, 0);
@@ -135,6 +143,8 @@ void _renderTextureWipe(int x, int y, int texId, P_CODE arg3[], int arg4)
     char var_s6;
     POLY_GT4* poly;
     void** scratch;
+
+    PC_MENUF_CALL(WIPE, x, y, texId, arg4, 0, arg3);
 
     if ((x + _disMap[texId].w) < (arg4 - 64)) {
 

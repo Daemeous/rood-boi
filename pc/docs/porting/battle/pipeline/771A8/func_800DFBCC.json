@@ -5,10 +5,10 @@
  "model": "anthropic/claude-haiku-5.5",
  "endpoint": "remote",
  "thinking": "default",
- "temperature": 0.4,
- "samples": 2,
+ "temperature": 0.0,
+ "samples": 1,
  "status": "spec-failed",
- "reviewed": "not ported in this wave (unrouted): Haiku's specs (four rounds over two runs) miss a 16-bit equality edge or do not compile; needs a reviewer-finished spec",
+ "reviewed": false,
  "plan": {
   "name": "func_800DFBCC",
   "unit": "src/BATTLE/BATTLE.PRG/771A8.c",
@@ -38,8 +38,7 @@
   "ret": "c_int",
   "types": [
    "routeEdgeActor",
-   "routeEdgeGlobals",
-   "routeEdgeState"
+   "routeEdgeGlobals"
   ],
   "globals": [
    "D_800F175C"
@@ -59,48 +58,24 @@
     "round": 1,
     "sample": 1,
     "call": {
-     "finish_reason": "length",
+     "finish_reason": "stop",
      "model": "anthropic/claude-haiku-5.5",
      "endpoint": "remote",
      "thinking": "default",
-     "temperature": 0.4,
+     "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 19604,
-     "completion_tokens": 64000,
-     "reasoning_tokens": 64000,
-     "cost": 0.0339604,
-     "seconds": 286.9,
-     "sample": 1,
-     "conversation": "57de186813ee3f502278893fdb0534e30675b975bc74c264c68be1b18a60c2b4"
+     "prompt_tokens": 19734,
+     "completion_tokens": 52544,
+     "reasoning_tokens": 48577,
+     "cost": 0.0141227,
+     "seconds": null,
+     "batch": "batch-1793472845-QkAmzxxBw2lq6TSSxmz5",
+     "sample": 1
     },
     "passed": false,
     "errors": [
-     "FAIL: no ```zig block in the reply",
-     "FAIL: no ```toml block in the reply"
-    ]
-   },
-   {
-    "round": 1,
-    "sample": 2,
-    "call": {
-     "finish_reason": "length",
-     "model": "anthropic/claude-haiku-5.5",
-     "endpoint": "remote",
-     "thinking": "default",
-     "temperature": 0.4,
-     "max_tokens": 64000,
-     "prompt_tokens": 19604,
-     "completion_tokens": 64000,
-     "reasoning_tokens": 64000,
-     "cost": 0.0339604,
-     "seconds": 278.6,
-     "sample": 2,
-     "conversation": "d7402bec80a38062350a8e343e09ef0c4247c5cd07ebf948f255c1bff6a5d368"
-    },
-    "passed": false,
-    "errors": [
-     "FAIL: no ```zig block in the reply",
-     "FAIL: no ```toml block in the reply"
+     "FAIL: your spec's own code (prepare or classify) failed before the C ran: a Zig safety check (an index past an array's length, an integer that does not fit, a null unwrap) or a fault in it:\nzdiff: CRASH (signal 11) in the classify run, iteration 0, fault address 0xcc [NULL+0xcc: a field of a null pointer]\nzdiff: crashed on arguments: 0x408480 [arena] 0x3 0x3",
+     "(the mutations and the coverage gate are checked once the spec runs)"
     ]
    },
    {
@@ -111,19 +86,19 @@
      "model": "anthropic/claude-haiku-5.5",
      "endpoint": "remote",
      "thinking": "default",
-     "temperature": 0.4,
+     "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 19663,
-     "completion_tokens": 56107,
-     "reasoning_tokens": 52252,
-     "cost": 0.0300198,
-     "seconds": 236.8,
-     "sample": 1,
-     "conversation": "e80ccd8377453c4ed28216c8050ae8b7079173ee40069b69f1ded364a8ef0a7c"
+     "prompt_tokens": 23906,
+     "completion_tokens": 8227,
+     "reasoning_tokens": 4386,
+     "cost": 0.0032520500000000003,
+     "seconds": null,
+     "batch": "batch-1793473259-u2ePCAiI4wY1Y4v0EU1i",
+     "sample": 1
     },
     "passed": false,
     "errors": [
-     "FAIL: the C itself crashed on your inputs (the C runs first, so this is the spec's\nbug). The harness fills every global and the arena with random bytes before\nprepare, so every pointer the C follows must be one prepare set: each\nargument, each pointer field of an object you build, and each ENTRY of a\nglobal pointer table the C indexes (only the entry it reads: e.g.\n`v.g.TABLE()[i] = obj`), pointing at an object from `ctx.alloc`/`ctx.allocBytes`\n(sized for every element the C indexes past a `[0]` array), at a global, or\nnull where the C tests for null. An index into a global table must stay\ninside its length (the views accessor's type gives it). Below: the crash, its\nfault address (named when it is inside an object the harness owns) and the\narguments of that iteration:\nzdiff: CRASH (signal 11) in the C run, iteration 213, fault address 0x4ab66f2c [memory the harness does not own: a pointer from random bytes?]\nzdiff: crashed on arguments: 0x408080 [arena] 0xd 0x3 (class gate)",
+     "FAIL: the C itself crashed on your inputs (the C runs first, so this is the spec's\nbug). The harness fills every global and the arena with random bytes before\nprepare, so every pointer the C follows must be one prepare set: each\nargument, each pointer field of an object you build, and each ENTRY of a\nglobal pointer table the C indexes (only the entry it reads: e.g.\n`v.g.TABLE()[i] = obj`), pointing at an object from `ctx.alloc`/`ctx.allocBytes`\n(sized for every element the C indexes past a `[0]` array), at a global, or\nnull where the C tests for null. An index into a global table must stay\ninside its length (the views accessor's type gives it). Below: the crash, its\nfault address (named when it is inside an object the harness owns) and the\narguments of that iteration:\nzdiff: CRASH (signal 11) in the C run, iteration 0, fault address 0xcc [NULL+0xcc: a field of a null pointer]\nzdiff: crashed on arguments: 0x408480 [arena] 0x3 0x3 (class no-match-two)",
      "(the mutations and the coverage gate are checked once the C runs crash-free)"
     ]
    }
@@ -136,23 +111,17 @@
   "attempts": []
  },
  "written": [],
- "check_seconds": 0.6872335640000529,
- "wall_seconds": 803.3576940989997,
+ "check_seconds": 1.2245816190006735,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 816.2197308540344,
  "totals": {
-  "cost": 0.09794,
-  "prompt_tokens": 58871,
-  "completion_tokens": 184107,
-  "model_seconds": 802.3,
-  "check_seconds": 0.7,
-  "calls": 3,
-  "wall_seconds": 803.4
- },
- "review": {
-  "by": "Claude Opus 5.5 (reviewer)",
-  "date": "2026-10-21",
-  "spec_fixes": [],
-  "mutations_added": [],
-  "port_fixes": [],
-  "corpus": ""
+  "cost": 0.01737,
+  "prompt_tokens": 43640,
+  "completion_tokens": 60771,
+  "model_seconds": 0.0,
+  "check_seconds": 1.2,
+  "calls": 2,
+  "wall_seconds": 816.2
  }
 }

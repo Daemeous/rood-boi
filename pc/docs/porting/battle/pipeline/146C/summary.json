@@ -1,18 +1,18 @@
 {
  "unit": "146C",
  "totals": {
-  "functions": 622,
-  "ported": 505,
-  "cost": 5.6974,
-  "prompt_tokens": 32377589,
-  "completion_tokens": 9516808,
-  "model_seconds": 17173.8,
-  "check_seconds": 127325.2,
-  "calls": 1408,
+  "functions": 631,
+  "ported": 513,
+  "cost": 5.7662,
+  "prompt_tokens": 33526349,
+  "completion_tokens": 9794304,
+  "model_seconds": 16423.5,
+  "check_seconds": 131234.4,
+  "calls": 1448,
   "statuses": {
-   "port-failed": 10,
-   "ported": 505,
-   "spec-failed": 107
+   "port-failed": 14,
+   "ported": 513,
+   "spec-failed": 104
   }
  },
  "functions": [
@@ -442,8 +442,8 @@
    "port_attempts": 3,
    "spec": "first",
    "port": "failed",
-   "cost": 0.03891,
-   "wall_seconds": 226.5
+   "cost": 0.01826,
+   "wall_seconds": 222225.3
   },
   {
    "function": "_getActionCost",
@@ -598,6 +598,17 @@
    "port": "first",
    "cost": 0.00971,
    "wall_seconds": 364.8
+  },
+  {
+   "function": "_getMagicAttackDamage",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 2,
+   "port_attempts": 2,
+   "spec": "retry",
+   "port": "retry",
+   "cost": 0.02558,
+   "wall_seconds": 223454.2
   },
   {
    "function": "_getMapBounds",
@@ -1227,6 +1238,17 @@
    "wall_seconds": 4516.3
   },
   {
+   "function": "_initBattleCameraTransition",
+   "status": "port-failed",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 1,
+   "port_attempts": 3,
+   "spec": "first",
+   "port": "failed",
+   "cost": 0.01357,
+   "wall_seconds": 222239.5
+  },
+  {
    "function": "_insertActor",
    "status": "ported",
    "model": "anthropic/claude-haiku-5.5",
@@ -1285,12 +1307,12 @@
    "function": "_loadMpd",
    "status": "port-failed",
    "model": "anthropic/claude-haiku-5.5",
-   "spec_attempts": 1,
+   "spec_attempts": 2,
    "port_attempts": 2,
-   "spec": "first",
+   "spec": "retry",
    "port": "failed",
-   "cost": 0.01156,
-   "wall_seconds": 97090.5
+   "cost": 0.01411,
+   "wall_seconds": 222225.3
   },
   {
    "function": "_loadMpdEnemySection",
@@ -1723,14 +1745,14 @@
   },
   {
    "function": "func_8006C2A0",
-   "status": "spec-failed",
+   "status": "ported",
    "model": "anthropic/claude-haiku-5.5",
    "spec_attempts": 2,
-   "port_attempts": 0,
-   "spec": "failed",
-   "port": "failed",
-   "cost": 0.00512,
-   "wall_seconds": 41.5
+   "port_attempts": 2,
+   "spec": "retry",
+   "port": "retry",
+   "cost": 0.00674,
+   "wall_seconds": 224339.4
   },
   {
    "function": "func_8006C2FC",
@@ -2482,14 +2504,14 @@
   },
   {
    "function": "func_80074120",
-   "status": "spec-failed",
+   "status": "ported",
    "model": "anthropic/claude-haiku-5.5",
    "spec_attempts": 2,
-   "port_attempts": 0,
-   "spec": "failed",
-   "port": "failed",
-   "cost": 0.00379,
-   "wall_seconds": 56380.3
+   "port_attempts": 2,
+   "spec": "retry",
+   "port": "retry",
+   "cost": 0.00895,
+   "wall_seconds": 224782.2
   },
   {
    "function": "func_8007418C",
@@ -2589,6 +2611,17 @@
    "port": "first",
    "cost": 0.00692,
    "wall_seconds": 11126.5
+  },
+  {
+   "function": "func_80074580",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 1,
+   "port_attempts": 3,
+   "spec": "first",
+   "port": "retry",
+   "cost": 0.00802,
+   "wall_seconds": 225207.8
   },
   {
    "function": "func_80074744",
@@ -2724,14 +2757,14 @@
   },
   {
    "function": "func_80076784",
-   "status": "spec-failed",
+   "status": "port-failed",
    "model": "anthropic/claude-haiku-5.5",
    "spec_attempts": 2,
-   "port_attempts": 0,
-   "spec": "failed",
+   "port_attempts": 2,
+   "spec": "retry",
    "port": "failed",
-   "cost": 0.01604,
-   "wall_seconds": 149.9
+   "cost": 0.02105,
+   "wall_seconds": 222242.1
   },
   {
    "function": "func_80076D50",
@@ -2759,12 +2792,12 @@
    "function": "func_80077078",
    "status": "port-failed",
    "model": "anthropic/claude-haiku-5.5",
-   "spec_attempts": 1,
+   "spec_attempts": 2,
    "port_attempts": 2,
-   "spec": "first",
+   "spec": "retry",
    "port": "failed",
-   "cost": 0.00889,
-   "wall_seconds": 97149.6
+   "cost": 0.01055,
+   "wall_seconds": 222243.2
   },
   {
    "function": "func_800770FC",
@@ -3658,6 +3691,17 @@
    "wall_seconds": 81172.4
   },
   {
+   "function": "func_8007C5C0",
+   "status": "port-failed",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 1,
+   "port_attempts": 3,
+   "spec": "first",
+   "port": "failed",
+   "cost": 0.01233,
+   "wall_seconds": 222244.5
+  },
+  {
    "function": "func_8007C654",
    "status": "ported",
    "model": "anthropic/claude-haiku-5.5",
@@ -3667,6 +3711,17 @@
    "port": "first",
    "cost": 0.00443,
    "wall_seconds": 81443.2
+  },
+  {
+   "function": "func_8007C694",
+   "status": "port-failed",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 1,
+   "port_attempts": 3,
+   "spec": "first",
+   "port": "failed",
+   "cost": 0.01809,
+   "wall_seconds": 222245.6
   },
   {
    "function": "func_8007C8A4",
@@ -5850,12 +5905,12 @@
    "function": "func_8008C8A8",
    "status": "port-failed",
    "model": "anthropic/claude-haiku-5.5",
-   "spec_attempts": 1,
-   "port_attempts": 3,
-   "spec": "first",
+   "spec_attempts": 2,
+   "port_attempts": 2,
+   "spec": "retry",
    "port": "failed",
-   "cost": 0.05588,
-   "wall_seconds": 446.7
+   "cost": 0.02333,
+   "wall_seconds": 222247.9
   },
   {
    "function": "func_8008D2C0",
@@ -6606,6 +6661,17 @@
    "wall_seconds": 7251.0
   },
   {
+   "function": "vs_battle_equipShield",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 2,
+   "port_attempts": 1,
+   "spec": "retry",
+   "port": "first",
+   "cost": 0.00765,
+   "wall_seconds": 218722.7
+  },
+  {
    "function": "vs_battle_equipWeapon",
    "status": "ported",
    "model": "anthropic/claude-haiku-5.5",
@@ -6615,6 +6681,17 @@
    "port": "first",
    "cost": 0.00808,
    "wall_seconds": 6937.3
+  },
+  {
+   "function": "vs_battle_getActionFlags",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 2,
+   "port_attempts": 1,
+   "spec": "retry",
+   "port": "first",
+   "cost": 0.01046,
+   "wall_seconds": 219118.7
   },
   {
    "function": "vs_battle_getCameraLookAt",
@@ -6705,6 +6782,17 @@
    "wall_seconds": 599.9
   },
   {
+   "function": "vs_battle_isActionUnlocked",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 2,
+   "port_attempts": 1,
+   "spec": "retry",
+   "port": "first",
+   "cost": 0.00515,
+   "wall_seconds": 219673.0
+  },
+  {
    "function": "vs_battle_itemIdIsInInventory",
    "status": "ported",
    "model": "anthropic/claude-haiku-5.5",
@@ -6747,6 +6835,17 @@
    "port": "first",
    "cost": 0.00658,
    "wall_seconds": 24419.9
+  },
+  {
+   "function": "vs_battle_setActionUnlocked",
+   "status": "ported",
+   "model": "anthropic/claude-haiku-5.5",
+   "spec_attempts": 2,
+   "port_attempts": 1,
+   "spec": "retry",
+   "port": "first",
+   "cost": 0.00516,
+   "wall_seconds": 221167.5
   },
   {
    "function": "vs_battle_setCameraLookAt",

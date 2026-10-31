@@ -20,6 +20,15 @@ typedef struct {
 static int _initMenu(void);
 static int _execMenu(void);
 
+#ifdef ROOD_PC
+#include "pc/src/classic/classic_hook.h"
+/* The classic look drawn in Lua (classic_hook.h): MENUF's two calls wrapped (_pcInitMenu, _pcExecMenu, below). */
+static int _pcInitMenu(void);
+static int _pcExecMenu(void);
+#define _initMenu _pcInitMenu
+#define _execMenu _pcExecMenu
+#endif
+
 int vs_menuF_exec(u_char* state)
 {
     switch (*state) {
@@ -38,6 +47,11 @@ int vs_menuF_exec(u_char* state)
     }
     return 0;
 }
+
+#ifdef ROOD_PC
+#undef _initMenu
+#undef _execMenu
+#endif
 
 #include "../unused_vertices.h"
 
@@ -756,6 +770,50 @@ static void _raiseMaxMP(int amount);
 
 static int _incrementingScore;
 static int _incrementingMapCompletion;
+
+#ifdef ROOD_PC
+/* PC_CLASSIC (classic_hook.h): the frame's calls to the drawing leaves, in the order made, each as it was called
+ * (before its own tests), with the _disMap entry it names (pc_classic_menuf; read by rood.classic's menuf). */
+static pc_classic_menuf _pcMenuF;
+static int _pcMenuFOn;
+static void _pcMenuFCall(int op, int x, int y, int tex, int a, int b, P_CODE* colours)
+{
+    pc_classic_menuf_call* c;
+    if (!_pcMenuFOn || _pcMenuF.count < 0)
+        return;
+    if (_pcMenuF.count >= PC_CLASSIC_MENUF_CALLS) {
+        _pcMenuF.count = -1; /* (more than the record holds: the game draws the frame) */
+        return;
+    }
+    c = &_pcMenuF.call[_pcMenuF.count++];
+    memset(c, 0, sizeof *c);
+    c->op = op;
+    c->tex = tex < 0 ? 0xFF : tex;
+    if (tex >= 0) {
+        c->u = _disMap[tex].x;
+        c->v = _disMap[tex].y;
+        c->w = _disMap[tex].w;
+        c->h = _disMap[tex].h;
+        c->tpage = _disMap[tex].tpage;
+        c->clut = _disMap[tex].clut;
+    }
+    c->x = x;
+    c->y = y;
+    c->a = a;
+    c->b = b;
+    if (colours != NULL) {
+        memcpy(&c->colour[0], &colours[0], 4);
+        memcpy(&c->colour[1], &colours[1], 4);
+    }
+}
+#define PC_MENUF_CALL(op, x, y, tex, a, b, colours) \
+    _pcMenuFCall(PC_CLASSIC_MENUF_##op, x, y, tex, a, b, colours)
+#define PC_MENUF_PROMPT(first, second) \
+    (strncpy((char*)_pcMenuF.prompt[0], first, 7), strncpy((char*)_pcMenuF.prompt[1], second, 7))
+#else
+#define PC_MENUF_CALL(op, x, y, tex, a, b, colours)
+#define PC_MENUF_PROMPT(first, second)
+#endif
 
 int _renderCongratulationsScreen(void)
 {
@@ -1885,6 +1943,8 @@ void _renderTextureFadeIn(int x, int y, int texIndex, int brightness)
     POLY_FT4* poly;
     void** scratch;
 
+    PC_MENUF_CALL(FADE, x, y, texIndex, brightness, 0, NULL);
+
     if (brightness <= 0) {
         return;
     }
@@ -1921,6 +1981,8 @@ void _renderTextureFadeInClut(int x, int y, int texIndex, int brightness, int cl
     _texture_t* texture;
     POLY_FT4* poly;
     void** scratch;
+
+    PC_MENUF_CALL(FADE_CLUT, x, y, texIndex, brightness, clut, NULL);
 
     if (brightness <= 0) {
         return;
@@ -2038,6 +2100,10 @@ void _renderStatWheel(int x, int y, int timer, int arg3)
         area = psx_slot_get(void*, p, 0);
 
         SetDrawArea(area, &vs_main_drawEnv[(vs_main_frameBuf + 1) & 1].clip);
+        PC_MENUF_CALL(AREA, vs_main_drawEnv[(vs_main_frameBuf + 1) & 1].clip.x,
+            vs_main_drawEnv[(vs_main_frameBuf + 1) & 1].clip.y, -1,
+            vs_main_drawEnv[(vs_main_frameBuf + 1) & 1].clip.w,
+            vs_main_drawEnv[(vs_main_frameBuf + 1) & 1].clip.h, NULL);
         AddPrim(psx_slot_get(void*, p, 1) - 0x1C, area++);
 
         psx_slot_set(void*, p, 0, area);
@@ -2113,6 +2179,7 @@ void _renderStatWheel(int x, int y, int timer, int arg3)
         area = psx_slot_get(void*, q, 0);
 
         SetDrawArea(area, &sp18);
+        PC_MENUF_CALL(AREA, sp18.x, sp18.y, -1, sp18.w, sp18.h, NULL);
         AddPrim(psx_slot_get(void*, q, 1) - 0x1C, area++);
 
         psx_slot_set(void*, q, 0, area);
@@ -2124,6 +2191,9 @@ void _renderPressButtonPrompt(int x, int y, int arg2, int arg3)
     POLY_FT4* poly;
     void** p;
     int v1;
+
+    PC_MENUF_CALL(PROMPT, x, y, -1, arg2, arg3, NULL);
+    PC_MENUF_PROMPT("PRESS", "BUTTON");
 
     if (arg2 < 0) {
         return;
@@ -2177,6 +2247,8 @@ void _renderAnimatedStatWheel(int x, int y, int texId)
     void** p = (void**)0x1F800000;
     POLY_FT4* poly = psx_slot_get(void*, p, 0);
     int texY = _disMap[texId].y;
+
+    PC_MENUF_CALL(WHEEL, x, y, texId, 0, 0, NULL);
 
     for (i = 0; i < _disMap[texId].h; ++i, ++y, ++texY) {
 
@@ -2971,3 +3043,39 @@ void _raiseMaxMP(int amount)
         psx_get(vs_battle_characterState->unk3C)->currentMP = 999;
     }
 }
+
+#ifdef ROOD_PC
+/* PC_CLASSIC (classic_hook.h): a frame of MENUF's screen, its calls recorded (the sprites, draw areas and the prompt:
+ * pc_hud_menuf); and around both calls the uploads (PC_CLASSIC_IMMEDIATE: _initMenu's TIMs and CLUTs, the end
+ * screens' pulsed CLUT row), recorded and, while rood.classic draws them, held back for its uploads. */
+int _pcInitMenu(void)
+{
+    pc_classic_menuf_load load;
+    int ret;
+    load.screen = vs_main_stateFlags.menuFSubmenu;
+    load.phase = 0;
+    if (pc_classic_immediate_begin)
+        pc_classic_immediate_begin(PC_CLASSIC_SITE_MENUF_LOAD);
+    ret = _initMenu();
+    if (pc_classic_immediate_site)
+        pc_classic_immediate_site(PC_CLASSIC_SITE_MENUF_LOAD, &load);
+    return ret;
+}
+int _pcExecMenu(void)
+{
+    pc_classic_menuf_load load;
+    int ret;
+    load.screen = vs_main_stateFlags.menuFSubmenu;
+    load.phase = 1;
+    memset(&_pcMenuF, 0, sizeof _pcMenuF);
+    _pcMenuF.screen = vs_main_stateFlags.menuFSubmenu;
+    _pcMenuFOn = 1;
+    if (pc_classic_immediate_begin)
+        pc_classic_immediate_begin(PC_CLASSIC_SITE_MENUF_LOAD);
+    PC_CLASSIC(PC_CLASSIC_SITE_MENUF, &_pcMenuF, 0, 0, ret = _execMenu());
+    _pcMenuFOn = 0;
+    if (pc_classic_immediate_site)
+        pc_classic_immediate_site(PC_CLASSIC_SITE_MENUF_LOAD, &load);
+    return ret;
+}
+#endif

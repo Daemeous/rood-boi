@@ -1391,6 +1391,25 @@ int pc_ui_loot_debug_open(const unsigned char* data, int nodes, int chest)
     return 1;
 }
 
+/* RPC menuf (tests: classic_parity's MENUF tours): MAINMENU's screen 15 (MENUF: the congratulations, the time
+ * attack's start and end, the cube puzzle's start, end and quit) opened as BATTLE opens it after a fight
+ * (func_8007B7DC's func_800CB23C: func_800CACD0(0xF, 2), D_800F4FDB = 1) with vs_main_stateFlags.menuFSubmenu set
+ * to `submenu` (0..6; what the room's script sets) and, when boss >= 0, timeAttackBoss (the course: 0..6), then
+ * the field's menu mode as for RPC container. Only in the field with Ashley free to act. */
+int pc_ui_menuf_debug_open(int submenu, int boss)
+{
+    if (submenu < 0 || submenu > 6 || !field_free())
+        return 0;
+    vs_main_stateFlags.menuFSubmenu = (char)submenu;
+    if (boss >= 0)
+        vs_main_stateFlags.timeAttackBoss = (u_char)boss;
+    func_800CB23C();
+    if ((vs_battle_menuState.currentMenu & 0x3F) != 15)
+        return 0;
+    func_8007357C(0, 0);
+    return 1;
+}
+
 /* RPC chest (tests): the current room's chests (MPD section 13: position,
  * the opened flag's index unk10, its state flag 0x3C0 + unk10, the loot) as
  * JSON members, and a chest opened through the field's own flow: what the

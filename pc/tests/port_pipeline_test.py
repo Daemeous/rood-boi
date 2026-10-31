@@ -411,7 +411,7 @@ def record(work, function, unit="146C"):
 
 
 PILOT = ["func_800A1AF8", "func_800A17BC"]
-UNROUTED = PILOT + ["func_800A208C", "func_8006B214", "_removeActor"]  # planned by the tests, ported since
+UNROUTED = PILOT + ["func_800A208C", "func_8006B214", "_removeActor", "vs_battle_equipShield"]  # planned by the tests, ported since
 
 
 def unrouted_table(path, names=UNROUTED):
@@ -589,6 +589,7 @@ def main():
         game = tmp / "game"
         shutil.copytree(ROOT / "game/battle", game / "battle")
         (game / "battle/remove_actor.zig").unlink(missing_ok=True)
+        (game / "battle/equip_shield.zig").unlink(missing_ok=True)  # (wave 8 ported it: the writers write it anew)
         real_game, pp.GAME = pp.GAME, game
         plan, _ = pp.plan_function("_removeActor", rows["_removeActor"], table, names, units, BUILD, tmp / "plan")
         pp.GAME = real_game
@@ -652,9 +653,10 @@ def main():
 
         # The writers, on copies of the table, root.zig and specs.toml.
         shutil.copy(table_path, game / "ownership.toml")
-        (game / "battle/root.zig").write_text("".join(  # _removeActor's import gone with its route
+        (game / "battle/root.zig").write_text("".join(  # _removeActor's and equipShield's imports gone with their routes
             l for l in (game / "battle/root.zig").read_text().splitlines(keepends=True)
-            if l != 'pub const remove_actor = @import("remove_actor.zig");\n'))
+            if l not in ('pub const remove_actor = @import("remove_actor.zig");\n',
+                         'pub const equip_shield = @import("equip_shield.zig");\n')))
         pp.GAME, pp.OWNERSHIP, pp.ROOT_ZIG = game, game / "ownership.toml", game / "battle/root.zig"
         plan.types, plan.globals = ["vs_battle_actor"], ["vs_battle_actors"]
         pp.write_ownership(plan)

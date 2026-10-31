@@ -5,10 +5,10 @@
  "model": "anthropic/claude-haiku-5.5",
  "endpoint": "remote",
  "thinking": "default",
- "temperature": 0.4,
- "samples": 2,
+ "temperature": 0.0,
+ "samples": 1,
  "status": "port-failed",
- "reviewed": "not ported in this wave (unrouted): spec passed; Haiku's ports on two runs differ from the C (the ordering-table pointer, 4 entries back, and a global byte); a reviewer's port is the next step",
+ "reviewed": false,
  "plan": {
   "name": "func_800C28AC",
   "unit": "src/BATTLE/BATTLE.PRG/58578.c",
@@ -32,7 +32,9 @@
    ]
   ],
   "ret": "void",
-  "types": [],
+  "types": [
+   "pc_classic_target_marker"
+  ],
   "globals": [
    "D_800EA670",
    "D_800EA684",
@@ -42,6 +44,8 @@
    "vs_battle_cursorBrightnessAnimation"
   ],
   "hooks": [
+   "pc_classic_site",
+   "pc_classic_target_marker",
    "pc_gte_anchored",
    "ROOD_PC block in the source"
   ],
@@ -58,86 +62,94 @@
      "model": "anthropic/claude-haiku-5.5",
      "endpoint": "remote",
      "thinking": "default",
-     "temperature": 0.4,
+     "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 13761,
-     "completion_tokens": 12498,
-     "reasoning_tokens": 10679,
-     "cost": 0.0076251,
-     "seconds": 52.9,
-     "sample": 1,
-     "conversation": "9a387f32ce94e49e3e49c67c860ed2991e69eef8d91fedccc170328bc438d6af"
+     "prompt_tokens": 14644,
+     "completion_tokens": 19748,
+     "reasoning_tokens": 17389,
+     "cost": 0.005669199999999999,
+     "seconds": null,
+     "batch": "batch-1793472845-QkAmzxxBw2lq6TSSxmz5",
+     "sample": 1
     },
     "passed": false,
     "errors": [
-     "FAIL: mutation M3: scratch unk0 not advanced (dropped store): mutation M3: scratch unk0 not advanced (dropped store): its `from` text occurs 0 times in the C body of func_800C28AC (copy it exactly from the C)"
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800C28AC: branches 7/8 (87.5%), lines 46/46\n  UNCOVERED +67 b1: branch never taken: `if (pc_classic_site)`\n  note: waivers no longer needed: +1 b0\ncoverage func_800C28AC: FAILED (threshold 100%: 1 uncovered, 0 value flag(s) not waived)\nWhat to add:\n- `if (pc_classic_site)` (+67): one way out of this test (+67 b1) was never taken; add inputs that take it.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800C28AC.coverage_waiver]] with its `id` and a `reason`."
     ]
    },
    {
-    "round": 1,
-    "sample": 2,
+    "round": 2,
+    "sample": 1,
     "call": {
      "finish_reason": "stop",
      "model": "anthropic/claude-haiku-5.5",
      "endpoint": "remote",
      "thinking": "default",
-     "temperature": 0.4,
+     "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 13761,
-     "completion_tokens": 14230,
-     "reasoning_tokens": 12378,
-     "cost": 0.0084911,
-     "seconds": 60.4,
-     "sample": 2,
-     "conversation": "e9a7c852deee7c0988ab2b7fa385f46d7243a89ea96e625a893b7c2b1a52dc8a"
+     "prompt_tokens": 17287,
+     "completion_tokens": 3993,
+     "reasoning_tokens": 1637,
+     "cost": 0.0018625999999999998,
+     "seconds": null,
+     "batch": "batch-1793473259-u2ePCAiI4wY1Y4v0EU1i",
+     "sample": 1
     },
     "passed": true,
     "errors": []
    }
   ],
   "kept": {
-   "round": 1,
-   "sample": 2
+   "round": 2,
+   "sample": 1
   },
   "classes": {
-   "arg1-zero": "9889",
-   "arg1-one": "10034",
-   "arg1-sign-bit": "10077"
+   "lock0-wrap": "3535",
+   "lock0": "11518",
+   "lock1-wrap": "3418",
+   "lock1": "11529"
   },
   "mutations": [
    {
-    "name": "F1: brightness table read when index == 1 (wrong branch constant)",
+    "name": "M1: prim[2] wrong constant",
     "caught": true
    },
    {
-    "name": "F2: brightness counter wraps at 8 instead of 16",
+    "name": "M2: frame counter masked to 3 bits",
     "caught": true
    },
    {
-    "name": "F3: wrong constant in the second quad's word 5",
+    "name": "M3: marker x zero-extended instead of sign-extended",
     "caught": true
    },
    {
-    "name": "F4: loop runs twice, one sprite dropped",
+    "name": "M4: second prim's colour read from the loop counter",
     "caught": true
    },
    {
-    "name": "F5: the two offset tables swapped",
+    "name": "M5: brightness selector off by one",
     "caught": true
    },
    {
-    "name": "F6: sprite word 4 masked to 16 bits (signed slip on a 32-bit table)",
+    "name": "M6: lock passed to the hook as 0",
     "caught": true
    }
   ],
   "coverage": {
-   "branches": 6,
-   "branches_hit": 6,
+   "branches": 8,
+   "branches_hit": 7,
    "conditions": null,
    "conditions_hit": null,
-   "lines": 40,
-   "lines_hit": 40,
-   "uncovered": [],
+   "lines": 46,
+   "lines_hit": 46,
+   "uncovered": [
+    {
+     "id": "+67 b1",
+     "line": 67,
+     "text": "if (pc_classic_site)",
+     "what": "branch never taken"
+    }
+   ],
    "flags": [],
    "args": [
     {
@@ -148,22 +160,22 @@
     {
      "arg": 1,
      "count": 30000,
-     "text": "32-bit: min -2147483648, max 1, unsigned 0..2147483648, seen zero/negative, 3 value(s): 0, 1, 2147483648"
+     "text": "32-bit: min 0, max 1, seen zero, never negative, 2 value(s): 0, 1"
     }
    ],
    "compares": [
     {
-     "line": 20,
+     "line": 30,
      "text": "if (arg1 == 0) {",
      "size": 4,
      "count": 30000,
      "kind": "against a constant",
-     "outcomes": "== 9889, < 10077, > 10034 (signed); < 0, > 20111 (unsigned)",
+     "outcomes": "== 15053, < 0, > 14947 (signed); < 0, > 14947 (unsigned)",
      "operand": "constant 0",
-     "a": "-2147483648..1"
+     "a": "0..1"
     },
     {
-     "line": 49,
+     "line": 59,
      "text": "for (i = 0; i < 3; ++i) {",
      "size": 4,
      "count": 120000,
@@ -173,19 +185,24 @@
      "a": "0..3"
     },
     {
-     "line": 51,
+     "line": 61,
      "text": "prim = vs_battle_setSpriteDefaultTexPage(",
      "size": 4,
      "count": 90000,
      "kind": "against a constant",
-     "outcomes": "== 30000, < 39932, > 20068 (signed); < 39932, > 20068 (unsigned)",
+     "outcomes": "== 30000, < 30106, > 29894 (signed); < 30106, > 29894 (unsigned)",
      "operand": "constant 2",
      "a": "0..4"
     }
    ],
    "passed": true
   },
-  "waivers": []
+  "waivers": [
+   {
+    "id": "+67 b1",
+    "reason": "the `if (pc_classic_site)` false arm: pc_classic_site is a weak symbol the harness always links, so its address is never null and no input can take the null side"
+   }
+  ]
  },
  "port": {
   "attempts": [
@@ -197,52 +214,28 @@
      "model": "anthropic/claude-haiku-5.5",
      "endpoint": "remote",
      "thinking": "default",
-     "temperature": 0.4,
+     "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 36936,
-     "completion_tokens": 17913,
-     "reasoning_tokens": 16527,
-     "cost": 0.0126501,
-     "seconds": 75.4,
-     "sample": 1,
-     "conversation": "34a642a1fc3056e971b16c017df738e460968850c291ae83d0b880567963fd41"
+     "prompt_tokens": 37889,
+     "completion_tokens": 18152,
+     "reasoning_tokens": 16348,
+     "cost": 0.006432449999999999,
+     "seconds": null,
+     "batch": "batch-1793473724-k55LkjHH6w2tNRmUV3Lu",
+     "sample": 1
     },
     "passed": false,
     "errors": [
-     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 0: memory at 0x407080 [arena] (zdiff_state+0x10): C 74, Zig 214\nzdiff: MISMATCH iteration 1: call 4 (vs_battle_setSpriteDefaultTexPage): argument 3: C 0x407100, Zig 0x4270f4\nzdiff: MISMATCH iteration 2: memory at 0x407100 [arena] (zdiff_state+0x90): C 141, Zig 222\nzdiff: func_800C28AC: 1000 iterations, seed 1, 1000 mismatches; classes: arg1-zero=313 arg1-one=365 arg1-sign-bit=322"
+     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 0: memory at 0x408084 [arena] (zdiff_state+0x4): C 255, Zig 224\nzdiff: MISMATCH iteration 1: memory at 0x408084 [arena] (zdiff_state+0x4): C 18, Zig 102\nzdiff: MISMATCH iteration 2: memory at 0x408084 [arena] (zdiff_state+0x4): C 255, Zig 241\nzdiff: func_800C28AC: 1000 iterations, seed 1, 1000 mismatches; classes: lock0-wrap=126 lock0=385 lock1-wrap=107 lock1=382"
     ],
     "runs": [
      {
       "seed": 1,
       "exit": 1,
       "mismatches": 1000,
-      "first": "MISMATCH iteration 0: memory at 0x407080 (zdiff_state+0x10): C 74, Zig 214"
+      "first": "MISMATCH iteration 0: memory at 0x408084 (zdiff_state+0x4): C 255, Zig 224"
      }
     ]
-   },
-   {
-    "round": 1,
-    "sample": 2,
-    "call": {
-     "finish_reason": "stop",
-     "model": "anthropic/claude-haiku-5.5",
-     "endpoint": "remote",
-     "thinking": "default",
-     "temperature": 0.4,
-     "max_tokens": 64000,
-     "prompt_tokens": 36936,
-     "completion_tokens": 16690,
-     "reasoning_tokens": 15259,
-     "cost": 0.0120386,
-     "seconds": 66.8,
-     "sample": 2,
-     "conversation": "b2d3ece98ad80f5a256bd59811b25fb74b2100cc5e1346caeee74f0714ceab8d"
-    },
-    "passed": false,
-    "errors": [
-     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800C28AC.zig:13:33: error: expected type '[*]c_uint', found '*c_uint'\n    const ot: [*]c_uint = psx.at(base, -4);\n                          ~~~~~~^~~~~~~~~~\ngame/battle/func_800C28AC.zig:13:33: note: a single pointer cannot cast into a many pointer\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:454:31\n    main: pc/tests/zig_diff/main.zig:377:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
-    ],
-    "runs": []
    },
    {
     "round": 2,
@@ -252,49 +245,43 @@
      "model": "anthropic/claude-haiku-5.5",
      "endpoint": "remote",
      "thinking": "default",
-     "temperature": 0.4,
+     "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 38609,
-     "completion_tokens": 4688,
-     "reasoning_tokens": 3225,
-     "cost": 0.0062049,
-     "seconds": 19.3,
-     "sample": 1,
-     "conversation": "881a899b326e655f7137a15aed44ffdc93eee9589a50158437f1a74e03f28ac4"
+     "prompt_tokens": 39970,
+     "completion_tokens": 11775,
+     "reasoning_tokens": 9702,
+     "cost": 0.00494225,
+     "seconds": null,
+     "batch": "batch-1793474243-socrVtFgxfTJESGOShbB",
+     "sample": 1
     },
     "passed": false,
     "errors": [
-     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 0: memory at 0x407080 [arena] (zdiff_state+0x10): C 74, Zig 217\nzdiff: MISMATCH iteration 1: call 4 (vs_battle_setSpriteDefaultTexPage): argument 3: C 0x407100, Zig 0x4070f4\nzdiff: MISMATCH iteration 2: memory at 0x4070f4 [arena] (zdiff_state+0x84): C 106, Zig 141\nzdiff: func_800C28AC: 1000 iterations, seed 1, 1000 mismatches; classes: arg1-zero=313 arg1-one=365 arg1-sign-bit=322"
+     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 0: memory at 0x408084 [arena] (zdiff_state+0x4): C 255, Zig 224\nzdiff: MISMATCH iteration 1: memory at 0x408084 [arena] (zdiff_state+0x4): C 18, Zig 102\nzdiff: MISMATCH iteration 2: memory at 0x408084 [arena] (zdiff_state+0x4): C 255, Zig 241\nzdiff: func_800C28AC: 1000 iterations, seed 1, 1000 mismatches; classes: lock0-wrap=126 lock0=385 lock1-wrap=107 lock1=382"
     ],
     "runs": [
      {
       "seed": 1,
       "exit": 1,
       "mismatches": 1000,
-      "first": "MISMATCH iteration 0: memory at 0x407080 (zdiff_state+0x10): C 74, Zig 217"
+      "first": "MISMATCH iteration 0: memory at 0x408084 (zdiff_state+0x4): C 255, Zig 224"
      }
     ]
    }
   ]
  },
  "written": [],
- "check_seconds": 25.493399615998896,
- "wall_seconds": 300.7420198059999,
+ "check_seconds": 29.13533602299958,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 1902.6826124191284,
  "totals": {
-  "cost": 0.04701,
-  "prompt_tokens": 140003,
-  "completion_tokens": 66019,
-  "model_seconds": 274.8,
-  "check_seconds": 25.5,
-  "calls": 5,
-  "wall_seconds": 300.7
- },
- "review": {
-  "by": "Claude Opus 5.5 (reviewer)",
-  "date": "2026-10-21",
-  "spec_fixes": [],
-  "mutations_added": [],
-  "port_fixes": [],
-  "corpus": ""
+  "cost": 0.01891,
+  "prompt_tokens": 109790,
+  "completion_tokens": 53668,
+  "model_seconds": 0.0,
+  "check_seconds": 29.1,
+  "calls": 4,
+  "wall_seconds": 1902.7
  }
 }

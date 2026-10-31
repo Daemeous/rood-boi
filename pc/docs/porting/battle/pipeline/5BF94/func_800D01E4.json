@@ -1,0 +1,258 @@
+{
+ "function": "func_800D01E4",
+ "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "port-failed",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800D01E4",
+  "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+  "stem": "5BF94",
+  "address": "0x800d01e4",
+  "difficulty": "S",
+  "zig_name": "func_800D01E4",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800D01E4",
+  "spec_file": "func_800D01E4.zig",
+  "subsystem": "battle_5BF94_port",
+  "signature": "pub fn func_800D01E4(arg0: ?*v.func_800D0548_arg0, arg1: ?*v.func_800D0548_arg1) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.func_800D0548_arg0"
+   ],
+   [
+    "arg1",
+    "?*v.func_800D0548_arg1"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "func_800D0548_arg0",
+   "func_800D0548_arg1"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12097,
+     "completion_tokens": 12239,
+     "reasoning_tokens": 10061,
+     "cost": 0.0036646,
+     "seconds": null,
+     "batch": "batch-1793203265-sQA1DX56rKylfzO4cWKR",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation M1: the sign test reads mask 0x40: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800D01E4: 30000 iterations, seed 1, 0 mismatches; classes: sign0-case0=5633 sign0-case1=3701 sign0-case2=3738 sign0-case3=3760 sign1-case0=3671 sign1-case1=3792 sign1-case2=1864 sign1-case3=3841"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14480,
+     "completion_tokens": 4199,
+     "reasoning_tokens": 1857,
+     "cost": 0.0017737499999999997,
+     "seconds": null,
+     "batch": "batch-1793206357-jxyW8CeGtJSNWKNpZo35",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "sign0-case0": "6373",
+   "sign0-case1": "3341",
+   "sign0-case2": "3289",
+   "sign0-case3": "3405",
+   "sign1-case0": "3280",
+   "sign1-case1": "3436",
+   "sign1-case2": "3378",
+   "sign1-case3": "3498"
+  },
+  "mutations": [
+   {
+    "name": "M1: the sign test reads mask 0x40",
+    "caught": true
+   },
+   {
+    "name": "M2: case 0 drops the limit + 1",
+    "caught": true
+   },
+   {
+    "name": "M3: case 2 segment count 128 becomes 127",
+    "caught": true
+   },
+   {
+    "name": "M4: position.vy zero-extends the result (unsigned slip)",
+    "caught": true
+   },
+   {
+    "name": "M5: position.vz store dropped",
+    "caught": true
+   },
+   {
+    "name": "M6: sampleCurve gets curve, not curve + 1",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 6,
+   "branches_hit": 6,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 25,
+   "lines_hit": 25,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 3,
+     "text": "if (arg0->mode & 0x80) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 16408, < 0, > 13592 (signed); < 0, > 13592 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..128"
+    },
+    {
+     "line": 14,
+     "text": "switch ((arg0->mode >> 5) & 3) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "switch",
+     "outcomes": "== 23097, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..3"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35569,
+     "completion_tokens": 4480,
+     "reasoning_tokens": 3357,
+     "cost": 0.00289845,
+     "seconds": null,
+     "batch": "batch-1793379902-OYfFRiS0hzKPAZ8kx15j",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 1: memory at 0x4080bc [arena] (zdiff_state+0x3c): C 127, Zig 0\nzdiff: MISMATCH iteration 4: memory at 0x4080bc [arena] (zdiff_state+0x3c): C 110, Zig 0\nzdiff: MISMATCH iteration 5: memory at 0x4080bc [arena] (zdiff_state+0x3c): C 255, Zig 0\nzdiff: func_800D01E4: 4196 iterations, seed 1, 1000 mismatches; classes: sign0-case0=895 sign0-case1=470 sign0-case2=441 sign0-case3=501 sign1-case0=456 sign1-case1=483 sign1-case2=448 sign1-case3=502"
+    ],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 1,
+      "mismatches": 1000,
+      "first": "MISMATCH iteration 1: memory at 0x4080bc (zdiff_state+0x3c): C 127, Zig 0"
+     }
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 37015,
+     "completion_tokens": 3696,
+     "reasoning_tokens": 2235,
+     "cost": 0.00277475,
+     "seconds": null,
+     "batch": "batch-1793424920-emS29kRidmSasGd5EFed",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 1: memory at 0x4080bc [arena] (zdiff_state+0x3c): C 127, Zig 0\nzdiff: MISMATCH iteration 4: memory at 0x4080bc [arena] (zdiff_state+0x3c): C 110, Zig 0\nzdiff: MISMATCH iteration 5: memory at 0x4080bc [arena] (zdiff_state+0x3c): C 255, Zig 0\nzdiff: func_800D01E4: 4196 iterations, seed 1, 1000 mismatches; classes: sign0-case0=895 sign0-case1=470 sign0-case2=441 sign0-case3=501 sign1-case0=456 sign1-case1=483 sign1-case2=448 sign1-case3=502"
+    ],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 1,
+      "mismatches": 1000,
+      "first": "MISMATCH iteration 1: memory at 0x4080bc (zdiff_state+0x3c): C 127, Zig 0"
+     }
+    ]
+   }
+  ]
+ },
+ "written": [],
+ "check_seconds": 27.108919024001807,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 222269.43786382675,
+ "totals": {
+  "cost": 0.01111,
+  "prompt_tokens": 99161,
+  "completion_tokens": 24614,
+  "model_seconds": 0.0,
+  "check_seconds": 27.1,
+  "calls": 4,
+  "wall_seconds": 222269.4
+ }
+}

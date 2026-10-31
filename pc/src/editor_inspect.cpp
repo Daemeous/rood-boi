@@ -77,7 +77,8 @@ Ref ref_for(const emissive::TexturePick& p)
 void resolve_entry(rood_inspect::Item& it)
 {
     const emissive::TexturePick& p = it.pick;
-    const materials::Entry* e = materials::find_match(p.key, p.w(), p.h(), p.clut_key, p.zone, p.room);
+    const materials::Entry* e = materials::find_match(p.key, p.w(), p.h(),
+        emissive::pick_palettes(p.clut_key, p.tpage, p.clut), p.zone, p.room);
     it.entry.clear(), it.entry_source = "none", it.entry_name.clear(), it.entry_preset.clear();
     if (!e)
         return;
@@ -712,7 +713,7 @@ std::vector<rood_inspect::Use> rood_inspect::where_used(const std::string& key, 
     bool live = false;
     emissive::current_room(&z, &r);
     for (const emissive::UseInfo& u : emissive::use_list(true))
-        if (key.empty() ? emissive::clut_key(u.page, u.clut) == clut : u.key == key)
+        if (key.empty() ? emissive::palette_is(u.page, u.clut, clut) : u.key == key)
             live = true;
     if (live) {
         bool listed = false;

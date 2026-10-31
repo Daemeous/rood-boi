@@ -5,10 +5,10 @@
  "model": "anthropic/claude-haiku-5.5",
  "endpoint": "remote",
  "thinking": "default",
- "temperature": 0.4,
- "samples": 2,
- "status": "port-failed",
- "reviewed": "not ported in this wave (unrouted): the retry's spec passed; Haiku's ports differ from the C in the score passed to func_800DC284 (the four static score helpers); a reviewer's port is the next step",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": false,
  "plan": {
   "name": "func_800DCC94",
   "unit": "src/BATTLE/BATTLE.PRG/74088.c",
@@ -63,15 +63,15 @@
      "model": "anthropic/claude-haiku-5.5",
      "endpoint": "remote",
      "thinking": "default",
-     "temperature": 0.4,
+     "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 16475,
-     "completion_tokens": 23495,
-     "reasoning_tokens": 20770,
-     "cost": 0.013395,
-     "seconds": 97.9,
-     "sample": 1,
-     "conversation": "66c3476a5a76ad158cb5a02d3c9936073c8a86699bf4e2185166302aa2a0f63a"
+     "prompt_tokens": 16605,
+     "completion_tokens": 26404,
+     "reasoning_tokens": 23647,
+     "cost": 0.00743125,
+     "seconds": null,
+     "batch": "batch-1793472845-QkAmzxxBw2lq6TSSxmz5",
+     "sample": 1
     },
     "passed": true,
     "errors": []
@@ -82,34 +82,35 @@
    "sample": 1
   },
   "classes": {
-   "no-action": "5144",
-   "special": "10907",
-   "mode-call": "12564",
-   "idle": "1385"
+   "no-action": "5028",
+   "flag32": "17478",
+   "special": "5859",
+   "mode": "10441",
+   "plain": "1194"
   },
   "mutations": [
    {
-    "name": "M1: kind 2 negated like kind 3",
+    "name": "M1: special weight 41, not 40",
     "caught": true
    },
    {
-    "name": "M2: special weight 41, not 40",
+    "name": "M2: kind 3 tested instead of 2",
     "caught": true
    },
    {
-    "name": "M3: early-out test inclusive at 115",
+    "name": "M3: the weight-path callee call dropped",
     "caught": true
    },
    {
-    "name": "M4: special flag tested as bit 8",
+    "name": "M4: negative mode skips the callees",
     "caught": true
    },
    {
-    "name": "M5: dropped func_800DCBD8 call",
+    "name": "M5: special bonus of 2, not 1",
     "caught": true
    },
    {
-    "name": "M6: mode not passed to func_800DCAA0",
+    "name": "M6: early return at rand == 115 too",
     "caught": true
    }
   ],
@@ -125,22 +126,22 @@
    "args": [
     {
      "arg": 0,
-     "count": 30000,
+     "count": 40000,
      "text": "pointer: never null"
     },
     {
      "arg": 1,
-     "count": 30000,
+     "count": 40000,
      "text": "pointer: never null"
     },
     {
      "arg": 2,
-     "count": 30000,
-     "text": "32-bit: min -2147182324, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+     "count": 40000,
+     "text": "32-bit: min -2147483648, max 2147060595, unsigned 0..4294967295, seen zero/negative/all ones"
     },
     {
      "arg": 3,
-     "count": 30000,
+     "count": 40000,
      "text": "pointer: null seen"
     }
    ],
@@ -149,9 +150,9 @@
      "line": 10,
      "text": "if ((flags & 32) && (rand() & 127) < 115) {",
      "size": 4,
-     "count": 30000,
+     "count": 40000,
      "kind": "against a constant",
-     "outcomes": "== 17594, < 0, > 12406 (signed); < 0, > 12406 (unsigned)",
+     "outcomes": "== 22522, < 0, > 17478 (signed); < 0, > 17478 (unsigned)",
      "operand": "constant 0",
      "a": "0..32"
     },
@@ -159,9 +160,9 @@
      "line": 10,
      "text": "if ((flags & 32) && (rand() & 127) < 115) {",
      "size": 4,
-     "count": 12406,
+     "count": 17478,
      "kind": "against a constant",
-     "outcomes": "== 74, < 8369, > 3963 (signed); < 8369, > 3963 (unsigned)",
+     "outcomes": "== 78, < 11753, > 5647 (signed); < 11753, > 5647 (unsigned)",
      "operand": "constant 114",
      "a": "0..127"
     },
@@ -169,9 +170,9 @@
      "line": 18,
      "text": "if (state->special && (flags & 16)) {",
      "size": 1,
-     "count": 21557,
+     "count": 28169,
      "kind": "against a constant",
-     "outcomes": "== 2738, < 10790, > 8029 (signed); < 0, > 18819 (unsigned)",
+     "outcomes": "== 9468, < 9383, > 9318 (signed); < 0, > 18701 (unsigned)",
      "operand": "constant 0",
      "a": "-128..127"
     },
@@ -179,9 +180,9 @@
      "line": 18,
      "text": "if (state->special && (flags & 16)) {",
      "size": 4,
-     "count": 18819,
+     "count": 18701,
      "kind": "against a constant",
-     "outcomes": "== 12185, < 0, > 6634 (signed); < 0, > 6634 (unsigned)",
+     "outcomes": "== 10964, < 0, > 7737 (signed); < 0, > 7737 (unsigned)",
      "operand": "constant 0",
      "a": "0..16"
     },
@@ -189,19 +190,19 @@
      "line": 21,
      "text": "} else if (mode) {",
      "size": 4,
-     "count": 14923,
+     "count": 20432,
      "kind": "against a constant",
-     "outcomes": "== 1504, < 5258, > 8161 (signed); < 0, > 13419 (unsigned)",
+     "outcomes": "== 2132, < 9180, > 9120 (signed); < 0, > 18300 (unsigned)",
      "operand": "constant 0",
-     "a": "-2146991034..2147483647"
+     "a": "-2147483648..2147060595"
     },
     {
      "line": 29,
      "text": "if (kind == 1)",
      "size": 4,
-     "count": 32236,
+     "count": 42471,
      "kind": "against a constant",
-     "outcomes": "== 8009, < 8043, > 16184 (signed); < 8043, > 16184 (unsigned)",
+     "outcomes": "== 10647, < 10527, > 21297 (signed); < 10527, > 21297 (unsigned)",
      "operand": "constant 1",
      "a": "0..3"
     },
@@ -209,9 +210,9 @@
      "line": 33,
      "text": "if (kind != 2)",
      "size": 4,
-     "count": 24227,
+     "count": 31824,
      "kind": "against a constant",
-     "outcomes": "== 8216, < 8043, > 7968 (signed); < 8043, > 7968 (unsigned)",
+     "outcomes": "== 10686, < 10527, > 10611 (signed); < 10527, > 10611 (unsigned)",
      "operand": "constant 2",
      "a": "0..3"
     },
@@ -219,9 +220,9 @@
      "line": 37,
      "text": "if (special)",
      "size": 4,
-     "count": 21557,
+     "count": 28169,
      "kind": "against a constant",
-     "outcomes": "== 14923, < 0, > 6634 (signed); < 0, > 6634 (unsigned)",
+     "outcomes": "== 20432, < 0, > 7737 (signed); < 0, > 7737 (unsigned)",
      "operand": "constant 0",
      "a": "0..1"
     }
@@ -240,57 +241,26 @@
      "model": "anthropic/claude-haiku-5.5",
      "endpoint": "remote",
      "thinking": "default",
-     "temperature": 0.4,
+     "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 39811,
-     "completion_tokens": 21520,
-     "reasoning_tokens": 19534,
-     "cost": 0.0147411,
-     "seconds": 87.7,
-     "sample": 1,
-     "conversation": "02171ae6349f6fce6b240b7ce9c520c77a95b1b916791690689edb8cf1d1a748"
+     "prompt_tokens": 40011,
+     "completion_tokens": 19890,
+     "reasoning_tokens": 17935,
+     "cost": 0.00697305,
+     "seconds": null,
+     "batch": "batch-1793473259-u2ePCAiI4wY1Y4v0EU1i",
+     "sample": 1
     },
     "passed": false,
     "errors": [
-     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 0: call 3 (func_800DC284): argument 0: C 0xffffffbd, Zig 0x1426d6ba\nzdiff: MISMATCH iteration 2: call 1 (func_800DC284): argument 0: C 0xffffff1a, Zig 0xcc0be3dd\nzdiff: MISMATCH iteration 3: call 3 (func_800DC284): argument 0: C 0xffffff79, Zig 0xf33186eb\nzdiff: func_800DCC94: 2010 iterations, seed 1, 1000 mismatches; classes: no-action=324 special=744 mode-call=862 idle=80"
+     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 0: call 3 (func_800DC284): argument 0: C 0xffffffc7, Zig 0xc1ef0b1\nzdiff: MISMATCH iteration 3: call 3 (func_800DC284): argument 0: C 0xffffffd0, Zig 0xb2fd958f\nzdiff: MISMATCH iteration 5: call 3 (func_800DC284): argument 0: C 0xffffffe1, Zig 0x18161ea0\nzdiff: func_800DCC94: 2194 iterations, seed 1, 1000 mismatches; classes: no-action=295 flag32=961 special=314 mode=566 plain=58"
     ],
     "runs": [
      {
       "seed": 1,
       "exit": 1,
       "mismatches": 1000,
-      "first": "MISMATCH iteration 0: call 3 (func_800DC284): argument 0: C 0xffffffbd, Zig 0x1426d6ba"
-     }
-    ]
-   },
-   {
-    "round": 1,
-    "sample": 2,
-    "call": {
-     "finish_reason": "stop",
-     "model": "anthropic/claude-haiku-5.5",
-     "endpoint": "remote",
-     "thinking": "default",
-     "temperature": 0.4,
-     "max_tokens": 64000,
-     "prompt_tokens": 39811,
-     "completion_tokens": 14969,
-     "reasoning_tokens": 13162,
-     "cost": 0.0114656,
-     "seconds": 62.9,
-     "sample": 2,
-     "conversation": "a92f2ffd95e355c8639ff1bddb302f489774294b972aa78eebecf2fc654544af"
-    },
-    "passed": false,
-    "errors": [
-     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 0: call 3 (func_800DC284): argument 0: C 0xffffffbd, Zig 0xfffffb8c\nzdiff: MISMATCH iteration 2: call 1 (func_800DC284): argument 0: C 0xffffff1a, Zig 0xffff5797\nzdiff: MISMATCH iteration 3: call 3 (func_800DC284): argument 0: C 0xffffff79, Zig 0xffff7e6e\nzdiff: func_800DCC94: 2010 iterations, seed 1, 1000 mismatches; classes: no-action=324 special=744 mode-call=862 idle=80"
-    ],
-    "runs": [
-     {
-      "seed": 1,
-      "exit": 1,
-      "mismatches": 1000,
-      "first": "MISMATCH iteration 0: call 3 (func_800DC284): argument 0: C 0xffffffbd, Zig 0xfffffb8c"
+      "first": "MISMATCH iteration 0: call 3 (func_800DC284): argument 0: C 0xffffffc7, Zig 0xc1ef0b1"
      }
     ]
    },
@@ -302,49 +272,63 @@
      "model": "anthropic/claude-haiku-5.5",
      "endpoint": "remote",
      "thinking": "default",
-     "temperature": 0.4,
+     "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 42078,
-     "completion_tokens": 6751,
-     "reasoning_tokens": 4750,
-     "cost": 0.0075833,
-     "seconds": 28.1,
-     "sample": 1,
-     "conversation": "28767c9bc3d7b0ce3761f454e128d8fe5491f37f23c9880798e44d9224bf7400"
+     "prompt_tokens": 42252,
+     "completion_tokens": 3947,
+     "reasoning_tokens": 2004,
+     "cost": 0.00309935,
+     "seconds": null,
+     "batch": "batch-1793473724-k55LkjHH6w2tNRmUV3Lu",
+     "sample": 1
     },
-    "passed": false,
-    "errors": [
-     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 0: call 3 (func_800DC284): argument 0: C 0xffffffbd, Zig 0xfffffb8c\nzdiff: MISMATCH iteration 2: call 1 (func_800DC284): argument 0: C 0xffffff1a, Zig 0xffff5797\nzdiff: MISMATCH iteration 3: call 3 (func_800DC284): argument 0: C 0xffffff79, Zig 0xffff7e6e\nzdiff: func_800DCC94: 2010 iterations, seed 1, 1000 mismatches; classes: no-action=324 special=744 mode-call=862 idle=80"
-    ],
+    "passed": true,
+    "errors": [],
     "runs": [
      {
       "seed": 1,
-      "exit": 1,
-      "mismatches": 1000,
-      "first": "MISMATCH iteration 0: call 3 (func_800DC284): argument 0: C 0xffffffbd, Zig 0xfffffb8c"
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
      }
     ]
    }
-  ]
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
  },
- "written": [],
- "check_seconds": 15.947585488000186,
- "wall_seconds": 292.85235379200003,
+ "written": [
+  "pc/tests/zig_diff/func_800DCC94.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800DCC94.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 44.283249465000154,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 1398.9493343830109,
  "totals": {
-  "cost": 0.04718,
-  "prompt_tokens": 138175,
-  "completion_tokens": 66735,
-  "model_seconds": 276.6,
-  "check_seconds": 15.9,
-  "calls": 4,
-  "wall_seconds": 292.9
- },
- "review": {
-  "by": "Claude Opus 5.5 (reviewer)",
-  "date": "2026-10-21",
-  "spec_fixes": [],
-  "mutations_added": [],
-  "port_fixes": [],
-  "corpus": ""
+  "cost": 0.0175,
+  "prompt_tokens": 98868,
+  "completion_tokens": 50241,
+  "model_seconds": 0.0,
+  "check_seconds": 44.3,
+  "calls": 3,
+  "wall_seconds": 1398.9
  }
 }

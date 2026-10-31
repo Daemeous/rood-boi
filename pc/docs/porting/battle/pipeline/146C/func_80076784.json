@@ -7,8 +7,8 @@
  "thinking": "default",
  "temperature": 0.0,
  "samples": 1,
- "status": "spec-failed",
- "reviewed": "not ported in this wave (unrouted): spec-failed: FAIL: the coverage gate (zig_diff.py --coverage): coverage func_80076784: branches 54/54 (100.0%), conditions not measured (GCC < 14: branch",
+ "status": "port-failed",
+ "reviewed": false,
  "plan": {
   "name": "func_80076784",
   "unit": "src/BATTLE/BATTLE.PRG/146C.c",
@@ -59,16 +59,16 @@
      "temperature": 0.0,
      "max_tokens": 64000,
      "prompt_tokens": 17460,
-     "completion_tokens": 19691,
-     "reasoning_tokens": 17621,
-     "cost": 0.0115915,
-     "seconds": 80.9,
-     "sample": 1,
-     "conversation": "9f19ff81dc054fb377fb42fd6c849cb7fb066376ba5223ae9e3b0ab58aa35a71"
+     "completion_tokens": 18029,
+     "reasoning_tokens": 15648,
+     "cost": 0.00538025,
+     "seconds": null,
+     "batch": "batch-1793203265-sQA1DX56rKylfzO4cWKR",
+     "sample": 1
     },
     "passed": false,
     "errors": [
-     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_80076784: branches 54/54 (100.0%), conditions not measured (GCC < 14: branch coverage only), lines 105/105\n  FLAG +32 eq: boundary equality never occurred (16-bit compare, constant 0: both sides seen; a port's `<` for `<=` could pass): `if (var_s0 < 0) {`\n  FLAG +48 eq: boundary equality occurred only 6 time(s) in 29972 (16-bit compare, constant 999: both sides seen; a port's `<` for `<=` could pass): `} else if (var_s0 > 999) {`\ncoverage func_80076784: FAILED (threshold 100%: 0 uncovered, 2 value flag(s) not waived)\nWhat to add:\n- `if (var_s0 < 0) {` (+32): the two sides of this ordered compare were equal 0 time(s) in 27500. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\n- `} else if (var_s0 > 999) {` (+48): the two sides of this ordered compare were equal 6 time(s) in 29972. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_80076784.coverage_waiver]] with its `id` and a `reason`."
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_80076784: branches 54/54 (100.0%), conditions not measured (GCC < 14: branch coverage only), lines 105/105\n  FLAG +48 eq: boundary equality never occurred (16-bit compare, constant 999: both sides seen; a port's `<` for `<=` could pass): `} else if (var_s0 > 999) {`\n  FLAG +61 eq: boundary equality never occurred (16-bit compare, constant 999: both sides seen; a port's `<` for `<=` could pass): `} else if (var_s0 > 999) {`\n  FLAG +74 eq: boundary equality never occurred (16-bit compare, constant 999: both sides seen; a port's `<` for `<=` could pass): `} else if (var_s0 > 999) {`\ncoverage func_80076784: FAILED (threshold 100%: 0 uncovered, 3 value flag(s) not waived)\nWhat to add:\n- `} else if (var_s0 > 999) {` (+48): the two sides of this ordered compare were equal 0 time(s) in 26337. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\n- `} else if (var_s0 > 999) {` (+61): the two sides of this ordered compare were equal 0 time(s) in 26468. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\n- `} else if (var_s0 > 999) {` (+74): the two sides of this ordered compare were equal 0 time(s) in 26431. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_80076784.coverage_waiver]] with its `id` and a `reason`."
     ]
    },
    {
@@ -81,44 +81,51 @@
      "thinking": "default",
      "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 20070,
-     "completion_tokens": 4885,
-     "reasoning_tokens": 2558,
-     "cost": 0.0044495,
-     "seconds": 20.7,
-     "sample": 1,
-     "conversation": "2c7f96e3c0e71e5c7dc58fb8e73a18d4531d32d72e22b12b6fab11c55021aaba"
+     "prompt_tokens": 20537,
+     "completion_tokens": 7692,
+     "reasoning_tokens": 5100,
+     "cost": 0.00294985,
+     "seconds": null,
+     "batch": "batch-1793206357-jxyW8CeGtJSNWKNpZo35",
+     "sample": 1
     },
-    "passed": false,
-    "errors": [
-     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_80076784: branches 54/54 (100.0%), conditions not measured (GCC < 14: branch coverage only), lines 105/105\n  FLAG +32 eq: boundary equality occurred only 3 time(s) in 27235 (16-bit compare, constant 0: both sides seen; a port's `<` for `<=` could pass): `if (var_s0 < 0) {`\n  FLAG +48 eq: boundary equality occurred only 5 time(s) in 29977 (16-bit compare, constant 999: both sides seen; a port's `<` for `<=` could pass): `} else if (var_s0 > 999) {`\n  FLAG +61 eq: boundary equality occurred only 6 time(s) in 29980 (16-bit compare, constant 999: both sides seen; a port's `<` for `<=` could pass): `} else if (var_s0 > 999) {`\n  FLAG +74 eq: boundary equality occurred only 6 time(s) in 29976 (16-bit compare, constant 999: both sides seen; a port's `<` for `<=` could pass): `} else if (var_s0 > 999) {`\ncoverage func_80076784: FAILED (threshold 100%: 0 uncovered, 4 value flag(s) not waived)\nWhat to add:\n- `if (var_s0 < 0) {` (+32): the two sides of this ordered compare were equal 3 time(s) in 27235. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\n- `} else if (var_s0 > 999) {` (+48): the two sides of this ordered compare were equal 5 time(s) in 29977. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\n- `} else if (var_s0 > 999) {` (+61): the two sides of this ordered compare were equal 6 time(s) in 29980. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\n- `} else if (var_s0 > 999) {` (+74): the two sides of this ordered compare were equal 6 time(s) in 29976. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_80076784.coverage_waiver]] with its `id` and a `reason`."
-    ]
+    "passed": true,
+    "errors": []
    }
   ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
   "classes": {
-   "arg3-zero": "15103",
-   "arg3-negative": "7569",
-   "arg3-positive": "7328"
+   "arg3-zero": "10165",
+   "roll-mp-zero": "1035",
+   "roll-hp-high": "2315",
+   "roll-other": "16485"
   },
   "mutations": [
    {
-    "name": "M1: unk944 zero counts as negative",
+    "name": "F1: statuses set for unk944 == 0",
     "caught": true
    },
    {
-    "name": "M2: walkSpeed divided by 16 instead of 10",
+    "name": "F2: limb maxHp not stored",
     "caught": true
    },
    {
-    "name": "M3: wrong constant to the limb lookup",
+    "name": "F3: currentRange reads weapon unk1 (wrong field of the callee's output)",
     "caught": true
    },
    {
-    "name": "M4: limb with index 0 treated as no entry",
+    "name": "F4: nop0 call dropped",
     "caught": true
    },
    {
-    "name": "M5: dropped nop0 call",
+    "name": "F5: unsigned compare on the limb index result",
+    "caught": true
+   },
+   {
+    "name": "F6: affinities copied for 6 entries, not 7",
     "caught": true
    }
   ],
@@ -130,53 +137,12 @@
    "lines": 105,
    "lines_hit": 105,
    "uncovered": [],
-   "flags": [
-    {
-     "id": "+32 eq",
-     "line": 32,
-     "text": "if (var_s0 < 0) {",
-     "kind": "eq",
-     "bits": 16,
-     "equal": 3,
-     "count": 27235,
-     "what": "boundary equality occurred only 3 time(s) in 27235 (16-bit compare, constant 0: both sides seen; a port's `<` for `<=` could pass)"
-    },
-    {
-     "id": "+48 eq",
-     "line": 48,
-     "text": "} else if (var_s0 > 999) {",
-     "kind": "eq",
-     "bits": 16,
-     "equal": 5,
-     "count": 29977,
-     "what": "boundary equality occurred only 5 time(s) in 29977 (16-bit compare, constant 999: both sides seen; a port's `<` for `<=` could pass)"
-    },
-    {
-     "id": "+61 eq",
-     "line": 61,
-     "text": "} else if (var_s0 > 999) {",
-     "kind": "eq",
-     "bits": 16,
-     "equal": 6,
-     "count": 29980,
-     "what": "boundary equality occurred only 6 time(s) in 29980 (16-bit compare, constant 999: both sides seen; a port's `<` for `<=` could pass)"
-    },
-    {
-     "id": "+74 eq",
-     "line": 74,
-     "text": "} else if (var_s0 > 999) {",
-     "kind": "eq",
-     "bits": 16,
-     "equal": 6,
-     "count": 29976,
-     "what": "boundary equality occurred only 6 time(s) in 29976 (16-bit compare, constant 999: both sides seen; a port's `<` for `<=` could pass)"
-    }
-   ],
+   "flags": [],
    "args": [
     {
      "arg": 0,
      "count": 30000,
-     "text": "32-bit: min -2146986717, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+     "text": "32-bit: min -2147256900, max 2147249060, unsigned 73687..4294551532, seen negative, never zero"
     },
     {
      "arg": 1,
@@ -191,7 +157,7 @@
     {
      "arg": 3,
      "count": 30000,
-     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+     "text": "32-bit: min -1, max 1, unsigned 0..4294967295, seen zero/negative/all ones, 3 value(s): 4294967295, 0, 1"
     }
    ],
    "compares": [
@@ -211,9 +177,9 @@
      "size": 4,
      "count": 30000,
      "kind": "against a constant",
-     "outcomes": "== 15103, < 7569, > 7328 (signed); < 0, > 14897 (unsigned)",
+     "outcomes": "== 10165, < 10136, > 9699 (signed); < 0, > 19835 (unsigned)",
      "operand": "constant 0",
-     "a": "-2147483648..2147483647"
+     "a": "-1..1"
     },
     {
      "line": 17,
@@ -221,7 +187,7 @@
      "size": 2,
      "count": 30000,
      "kind": "against a constant",
-     "outcomes": "== 1422, < 9302, > 19276 (signed); < 0, > 28578 (unsigned)",
+     "outcomes": "== 5674, < 8387, > 15939 (signed); < 0, > 24326 (unsigned)",
      "operand": "constant 0",
      "a": "-32768..32767"
     },
@@ -229,9 +195,9 @@
      "line": 19,
      "text": "} else if (var_s0 > 999) {",
      "size": 2,
-     "count": 20698,
+     "count": 21613,
      "kind": "against a constant",
-     "outcomes": "== 1464, < 6474, > 12760 (signed); < 6474, > 12760 (unsigned)",
+     "outcomes": "== 1608, < 13620, > 6385 (signed); < 13620, > 6385 (unsigned)",
      "operand": "constant 999",
      "a": "0..32767"
     },
@@ -241,27 +207,27 @@
      "size": 2,
      "count": 30000,
      "kind": "against a constant",
-     "outcomes": "== 2765, < 9394, > 17841 (signed); < 0, > 27235 (unsigned)",
+     "outcomes": "== 1537, < 6771, > 21692 (signed); < 0, > 28463 (unsigned)",
      "operand": "constant 0",
-     "a": "-32768..32767"
+     "a": "-32768..32761"
     },
     {
      "line": 29,
      "text": "if (arg3 != 0) {",
      "size": 4,
-     "count": 27235,
+     "count": 28463,
      "kind": "against a constant",
-     "outcomes": "== 13672, < 6909, > 6654 (signed); < 0, > 13563 (unsigned)",
+     "outcomes": "== 9663, < 9573, > 9227 (signed); < 0, > 18800 (unsigned)",
      "operand": "constant 0",
-     "a": "-2147483648..2147483647"
+     "a": "-1..1"
     },
     {
      "line": 32,
      "text": "if (var_s0 < 0) {",
      "size": 2,
-     "count": 27235,
+     "count": 28463,
      "kind": "against a constant",
-     "outcomes": "== 3, < 9241, > 17991 (signed); < 0, > 27232 (unsigned)",
+     "outcomes": "== 264, < 9394, > 18805 (signed); < 0, > 28199 (unsigned)",
      "operand": "constant 0",
      "a": "-32768..32767"
     },
@@ -269,9 +235,9 @@
      "line": 34,
      "text": "} else if (var_s0 > 999) {",
      "size": 2,
-     "count": 17994,
+     "count": 19069,
      "kind": "against a constant",
-     "outcomes": "== 1368, < 4383, > 12243 (signed); < 4383, > 12243 (unsigned)",
+     "outcomes": "== 1741, < 9079, > 8249 (signed); < 9079, > 8249 (unsigned)",
      "operand": "constant 999",
      "a": "0..32767"
     },
@@ -281,9 +247,9 @@
      "size": 4,
      "count": 30000,
      "kind": "against a constant",
-     "outcomes": "== 15103, < 7569, > 7328 (signed); < 0, > 14897 (unsigned)",
+     "outcomes": "== 10165, < 10136, > 9699 (signed); < 0, > 19835 (unsigned)",
      "operand": "constant 0",
-     "a": "-2147483648..2147483647"
+     "a": "-1..1"
     },
     {
      "line": 46,
@@ -291,19 +257,19 @@
      "size": 2,
      "count": 30000,
      "kind": "against a constant",
-     "outcomes": "== 2329, < 23, > 27648 (signed); < 0, > 27671 (unsigned)",
+     "outcomes": "== 6152, < 5216, > 18632 (signed); < 0, > 23848 (unsigned)",
      "operand": "constant 0",
-     "a": "-10..2292"
+     "a": "-32757..32735"
     },
     {
      "line": 48,
      "text": "} else if (var_s0 > 999) {",
      "size": 2,
-     "count": 29977,
+     "count": 24784,
      "kind": "against a constant",
-     "outcomes": "== 5, < 21766, > 8206 (signed); < 21766, > 8206 (unsigned)",
+     "outcomes": "== 1349, < 18863, > 4572 (signed); < 18863, > 4572 (unsigned)",
      "operand": "constant 999",
-     "a": "0..2292"
+     "a": "0..32735"
     },
     {
      "line": 56,
@@ -311,9 +277,9 @@
      "size": 4,
      "count": 30000,
      "kind": "against a constant",
-     "outcomes": "== 15103, < 7569, > 7328 (signed); < 0, > 14897 (unsigned)",
+     "outcomes": "== 10165, < 10136, > 9699 (signed); < 0, > 19835 (unsigned)",
      "operand": "constant 0",
-     "a": "-2147483648..2147483647"
+     "a": "-1..1"
     },
     {
      "line": 59,
@@ -321,19 +287,19 @@
      "size": 2,
      "count": 30000,
      "kind": "against a constant",
-     "outcomes": "== 2274, < 20, > 27706 (signed); < 0, > 27726 (unsigned)",
+     "outcomes": "== 6137, < 5260, > 18603 (signed); < 0, > 23863 (unsigned)",
      "operand": "constant 0",
-     "a": "-10..2291"
+     "a": "-32758..32761"
     },
     {
      "line": 61,
      "text": "} else if (var_s0 > 999) {",
      "size": 2,
-     "count": 29980,
+     "count": 24740,
      "kind": "against a constant",
-     "outcomes": "== 6, < 21832, > 8142 (signed); < 21832, > 8142 (unsigned)",
+     "outcomes": "== 1374, < 18840, > 4526 (signed); < 18840, > 4526 (unsigned)",
      "operand": "constant 999",
-     "a": "0..2291"
+     "a": "0..32761"
     },
     {
      "line": 69,
@@ -341,9 +307,9 @@
      "size": 4,
      "count": 30000,
      "kind": "against a constant",
-     "outcomes": "== 15103, < 7569, > 7328 (signed); < 0, > 14897 (unsigned)",
+     "outcomes": "== 10165, < 10136, > 9699 (signed); < 0, > 19835 (unsigned)",
      "operand": "constant 0",
-     "a": "-2147483648..2147483647"
+     "a": "-1..1"
     },
     {
      "line": 72,
@@ -351,19 +317,19 @@
      "size": 2,
      "count": 30000,
      "kind": "against a constant",
-     "outcomes": "== 2328, < 24, > 27648 (signed); < 0, > 27672 (unsigned)",
+     "outcomes": "== 6207, < 5263, > 18530 (signed); < 0, > 23793 (unsigned)",
      "operand": "constant 0",
-     "a": "-10..2292"
+     "a": "-32744..32757"
     },
     {
      "line": 74,
      "text": "} else if (var_s0 > 999) {",
      "size": 2,
-     "count": 29976,
+     "count": 24737,
      "kind": "against a constant",
-     "outcomes": "== 6, < 21964, > 8006 (signed); < 21964, > 8006 (unsigned)",
+     "outcomes": "== 1335, < 18757, > 4645 (signed); < 18757, > 4645 (unsigned)",
      "operand": "constant 999",
-     "a": "0..2292"
+     "a": "0..32757"
     },
     {
      "line": 101,
@@ -381,9 +347,9 @@
      "size": 4,
      "count": 180000,
      "kind": "against a constant",
-     "outcomes": "== 22416, < 45199, > 112385 (signed); < 0, > 157584 (unsigned)",
+     "outcomes": "== 550, < 44694, > 134756 (signed); < 0, > 179450 (unsigned)",
      "operand": "constant 0",
-     "a": "-64..255"
+     "a": "-1..255"
     },
     {
      "line": 117,
@@ -451,9 +417,9 @@
      "size": 4,
      "count": 30000,
      "kind": "against a constant",
-     "outcomes": "== 2952, < 13618, > 13430 (signed); < 0, > 27048 (unsigned)",
+     "outcomes": "== 3693, < 15116, > 11191 (signed); < 0, > 26307 (unsigned)",
      "operand": "constant 0",
-     "a": "-2147483648..2147483647"
+     "a": "-2147483648..2146639668"
     },
     {
      "line": 157,
@@ -466,26 +432,88 @@
      "a": "0..5"
     }
    ],
-   "passed": false
-  }
+   "passed": true
+  },
+  "waivers": []
  },
  "port": {
-  "attempts": []
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 40948,
+     "completion_tokens": 16558,
+     "reasoning_tokens": 13696,
+     "cost": 0.0061869,
+     "seconds": null,
+     "batch": "batch-1793379902-OYfFRiS0hzKPAZ8kx15j",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 0: memory at 0x409426 [arena] (zdiff_state+0x3b6): C 198, Zig 126\nzdiff: MISMATCH iteration 1: memory at 0x409426 [arena] (zdiff_state+0x3b6): C 246, Zig 169\nzdiff: MISMATCH iteration 2: memory at 0x409426 [arena] (zdiff_state+0x3b6): C 2, Zig 109\nzdiff: func_80076784: 1000 iterations, seed 1, 1000 mismatches; classes: arg3-zero=345 roll-mp-zero=38 roll-hp-high=77 roll-other=540"
+    ],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 1,
+      "mismatches": 1000,
+      "first": "MISMATCH iteration 0: memory at 0x409426 (zdiff_state+0x3b6): C 198, Zig 126"
+     }
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 44096,
+     "completion_tokens": 17308,
+     "reasoning_tokens": 14103,
+     "cost": 0.0065318,
+     "seconds": null,
+     "batch": "batch-1793424920-emS29kRidmSasGd5EFed",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 0: memory at 0x409426 [arena] (zdiff_state+0x3b6): C 198, Zig 126\nzdiff: MISMATCH iteration 1: memory at 0x409426 [arena] (zdiff_state+0x3b6): C 246, Zig 169\nzdiff: MISMATCH iteration 2: memory at 0x409426 [arena] (zdiff_state+0x3b6): C 2, Zig 109\nzdiff: func_80076784: 1000 iterations, seed 1, 1000 mismatches; classes: arg3-zero=345 roll-mp-zero=38 roll-hp-high=77 roll-other=540"
+    ],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 1,
+      "mismatches": 1000,
+      "first": "MISMATCH iteration 0: memory at 0x409426 (zdiff_state+0x3b6): C 198, Zig 126"
+     }
+    ]
+   }
+  ]
  },
  "written": [],
- "check_seconds": 47.90841573099897,
- "wall_seconds": 149.90758534899942,
+ "check_seconds": 58.06506994699885,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 222242.08165884018,
  "totals": {
-  "cost": 0.01604,
-  "prompt_tokens": 37530,
-  "completion_tokens": 24576,
-  "model_seconds": 101.6,
-  "check_seconds": 47.9,
-  "calls": 2,
-  "wall_seconds": 149.9
- },
- "review": {
-  "by": "Claude Sonnet 5.5 (reviewer)",
-  "date": "2026-10-25"
+  "cost": 0.02105,
+  "prompt_tokens": 123041,
+  "completion_tokens": 59587,
+  "model_seconds": 0.0,
+  "check_seconds": 58.1,
+  "calls": 4,
+  "wall_seconds": 222242.1
  }
 }

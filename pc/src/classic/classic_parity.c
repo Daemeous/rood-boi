@@ -15,7 +15,7 @@ extern unsigned pc_ui_text_glyph_at(unsigned tpage, unsigned clut, int u0, int v
 extern int pc_hw_anchor_of(const void* packet) __attribute__((weak));
 
 static const char* const KIND_NAMES[PC_CLASSIC_KINDS] = { "", "status", "chain", "buff", "damage", "", "", "",
-    "gauges", "figure", "status_icons", "battle_mode", "ability_icons", "actor_word", "timer", "emote", "text_frame", "text_band", "box_text", "image", "target_row", "target_line", "target_marker", "menu_background", "menu_command", "menu_row", "menu_cursor", "menu_tabs", "option_value", "items_category", "items_status_button", "equip_stats", "dp_pp_bars", "gem_slots", "stat_page", "ok_mark", "storage_buttons", "storage_counts", "loot_capacities", "discard_count", "rename_grid", "rename_box", "file_menu", "file_element", "status_panel" }; /* (hud.h's travel, notice, name_window: not the classic layer's) */
+    "gauges", "figure", "status_icons", "battle_mode", "ability_icons", "actor_word", "timer", "emote", "text_frame", "text_band", "box_text", "image", "target_row", "target_line", "target_marker", "menu_background", "menu_command", "menu_row", "menu_cursor", "menu_tabs", "option_value", "items_category", "items_status_button", "equip_stats", "dp_pp_bars", "gem_slots", "stat_page", "ok_mark", "storage_buttons", "storage_counts", "loot_capacities", "discard_count", "rename_grid", "rename_box", "file_menu", "file_element", "menuf", "menuf_load", "status_panel" }; /* (hud.h's travel, notice, name_window: not the classic layer's) */
 const char* pc_classic_kind_name(int kind)
 {
     return kind > 0 && kind < PC_CLASSIC_KINDS ? KIND_NAMES[kind] : "";
@@ -46,7 +46,8 @@ pc_classic_walker pc_classic_guest(void)
 }
 
 /* What the GPU never reads is not compared: a raw-textured primitive's colour (setShadeTex 1: the texture
- * unmodulated) and the upper halves of a textured polygon's third and fourth texel words (its pads). The
+ * unmodulated), the upper halves of a textured polygon's third and fourth texel words and the top byte of a shaded
+ * polygon's second to fourth colours (their pads). The
  * game's hand-built quads (func_80094B0C's stat icon, func_80094E18) leave them as the buffer held them. */
 static void normalise(pc_classic_packet* p)
 {
@@ -60,7 +61,10 @@ static void normalise(pc_classic_packet* p)
                 p->w[i] &= 0xFF000000u;
             ++i;
             for (int v = 0; v < verts && i < p->words; v++) {
-                i += shade && v ? 1 : 0; /* (its colour) */
+                if (shade && v) { /* (its colour: the byte above it is a pad, MENUF's setRGB1..3 leave it) */
+                    p->w[i] &= 0x00FFFFFFu;
+                    ++i;
+                }
                 ++i;                     /* (its place) */
                 if (tex && i < p->words) {
                     if (v >= 2)
@@ -686,10 +690,16 @@ unsigned short* pc_classic_image_buffer(int** rect)
     return image_buffer.pixels;
 }
 
-#define HELD_POOL 16384 /* bytes of held uploads (a CLUT row is 512) */
+/* MENUF's calls this frame (classic_hook.h pc_classic_menuf; hud_bridge.c pc_hud_menuf copies them here, out of the
+ * save state's sections: the Lua side reads them as the element's). */
+static pc_classic_menuf menuf_calls;
+pc_classic_menuf* pc_classic_menuf_calls(void) { return &menuf_calls; }
+
+#define HELD_POOL (160 * 1024) /* bytes of held or kept uploads (a CLUT row is 512; MENUF's three TIMs 32,640 each) */
 static struct {
-    int open, hold, held_ok, count, pool_used;
+    int open, hold, held_ok, keep, count, pool_used;
     pc_classic_packet list[PC_CLASSIC_CAPTURE];
+    int pixels_at[PC_CLASSIC_CAPTURE]; /* an upload's pixels in the pool (kept or held), -1 none */
     struct {
         int upload, x, y, w, h, at; /* upload: pixels at pool + at; else a packet: raw (its tag, then words) */
         unsigned raw[PC_CLASSIC_PACKET_WORDS];
@@ -721,7 +731,31 @@ void pc_classic_immediate_open(int hold)
     rec.open = 1;
     rec.hold = hold;
     rec.held_ok = 1;
+    rec.keep = 0;
     rec.count = rec.held_count = rec.pool_used = 0;
+}
+void pc_classic_immediate_keep(void) { rec.keep = 1; }
+int pc_classic_immediate_uploads(void)
+{
+    int k, n = 0;
+    for (k = 0; k < rec.count; ++k)
+        n += rec.list[k].words == 4 && rec.list[k].w[0] == 0xA0000000u;
+    return n;
+}
+const void* pc_classic_immediate_upload(int i, int* x, int* y, int* w, int* h)
+{
+    int k, n = 0;
+    for (k = 0; k < rec.count; ++k) {
+        const pc_classic_packet* p = &rec.list[k];
+        if (p->words != 4 || p->w[0] != 0xA0000000u)
+            continue;
+        if (n++ != i)
+            continue;
+        *x = (int)(p->w[1] & 0xFFFF), *y = (int)(p->w[1] >> 16);
+        *w = (int)(p->w[2] & 0xFFFF), *h = (int)(p->w[2] >> 16);
+        return rec.pixels_at[k] >= 0 ? rec.pool + rec.pixels_at[k] : NULL;
+    }
+    return NULL;
 }
 
 int pc_classic_immediate_draw(const void* packet)
@@ -734,6 +768,7 @@ int pc_classic_immediate_draw(const void* packet)
         n = PC_CLASSIC_PACKET_WORDS - 1;
     if (n && rec.count < PC_CLASSIC_CAPTURE) {
         pc_classic_packet* k = &rec.list[rec.count];
+        rec.pixels_at[rec.count] = -1;
         memset(k, 0, sizeof *k);
         k->words = (unsigned char)n;
         k->at = (unsigned short)rec.count;
@@ -758,29 +793,37 @@ int pc_classic_immediate_load(int x, int y, int w, int h, const void* pixels)
 {
     if (!rec.open)
         return 0;
-    if (rec.count < PC_CLASSIC_CAPTURE)
+    long bytes = w > 0 && h > 0 ? (long)w * h * 2 : 0;
+    int at = -1;
+    if ((rec.hold || rec.keep) && pixels && rec.pool_used + bytes <= HELD_POOL) { /* (kept: a claim's d.image_load) */
+        at = rec.pool_used;
+        memcpy(rec.pool + at, pixels, (size_t)bytes);
+        rec.pool_used += (int)((bytes + 3) & ~3L);
+    }
+    if (rec.count < PC_CLASSIC_CAPTURE) {
+        rec.pixels_at[rec.count] = at;
         pc_classic_immediate_upload_entry(&rec.list[rec.count++], x, y, w, h, pixels);
+    }
     if (!rec.hold)
         return 0;
-    long bytes = w > 0 && h > 0 ? (long)w * h * 2 : 0;
-    if (rec.held_count == PC_CLASSIC_CAPTURE || rec.pool_used + bytes > HELD_POOL) {
+    if (rec.held_count == PC_CLASSIC_CAPTURE || at < 0) {
         hold_give_up();
         return 0;
     }
     rec.held[rec.held_count].upload = 1;
     rec.held[rec.held_count].x = x, rec.held[rec.held_count].y = y;
     rec.held[rec.held_count].w = w, rec.held[rec.held_count].h = h;
-    rec.held[rec.held_count].at = rec.pool_used;
-    memcpy(rec.pool + rec.pool_used, pixels, (size_t)bytes);
-    rec.pool_used += (int)((bytes + 3) & ~3L);
+    rec.held[rec.held_count].at = at;
     rec.held_count++;
     return 1;
 }
 
 void pc_classic_immediate_store(int x, int y, int w, int h)
 {
-    if (rec.open && rec.count < PC_CLASSIC_CAPTURE)
+    if (rec.open && rec.count < PC_CLASSIC_CAPTURE) {
+        rec.pixels_at[rec.count] = -1;
         pc_classic_immediate_read_entry(&rec.list[rec.count++], x, y, w, h);
+    }
 }
 
 int pc_classic_immediate_close(const pc_classic_packet** out)

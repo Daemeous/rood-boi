@@ -170,8 +170,9 @@ def main():
               f"the shipped entry marks the floor ({len(uses)} uses, {listing['cells']} texels, active "
               f"{listing['active']})")
         at = game.call("material", action="pick", world=floor).get("material")
-        check(at == [51, 255, 0, 0, 0, 0], f"the picked texel's roughness, specular, metal x 255, no relief: {at} "
-              "(expected [51, 255, 0, 0, 0, 0])")
+        # (the seventh value is the node graph's slot: 0, no graph; pc/docs/Materials.md "Node graphs")
+        check(at == [51, 255, 0, 0, 0, 0, 0], f"the picked texel's roughness, specular, metal x 255, no relief, no graph: {at} "
+              "(expected [51, 255, 0, 0, 0, 0, 0])")
         write_json(user, dict(EMPTY, entries=[dict(entry, specular=0.5, roughness=0.6)]))
         settle(game)
         at = game.call("material", action="pick", world=floor).get("material")
@@ -257,7 +258,7 @@ def main():
         img = Image.open(metal_png) if metal_png.exists() else None
         at = pick()
         check(painted.get("channel") == "metal" and img is not None and img.mode == "L" and list(img.size) == size
-              and len(at) == 6 and at[2] == 255,
+              and len(at) == 7 and at[2] == 255,
               f"a metal rect writes {metal_png.name} (8-bit grayscale) and the texel reads metal 255: {at}")
         values = np.asarray(img) if img is not None else np.zeros((1, 1))
         check(int((values == 255).sum()) == (box[2] - box[0] + 1) * (box[3] - box[1] + 1) and int(values.max()) == 255
@@ -280,7 +281,7 @@ def main():
         settle(game)
         at = pick()
         inner = 1 <= tx < size[0] - 1 and tx * 7 + 7 <= 255
-        check(len(at) == 6 and (not inner or at[3] > 128) and at[4] == 128 and relief_of() == ["painted"],
+        check(len(at) == 7 and (not inner or at[3] > 128) and at[4] == 128 and relief_of() == ["painted"],
               f"a shipped height.png ramp along u: slopes along u only {at[3:5]} (relief {relief_of()})")
         Image.fromarray(np.full((size[1], size[0]), 128, np.uint8), "L").save(maps / "height.png")
         settle(game)

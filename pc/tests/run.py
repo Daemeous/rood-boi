@@ -395,10 +395,23 @@ def suites(args, mode="egl"):
                   note="master materials and instances: a format-1 layer read as instances (presets roots, entries "
                        "their children) resolving as the old reader, migrated and read back the same, parents and "
                        "reset to parent, assignment to the selection, the Materials and preview panels, the Keep "
-                       "byte-identical on the migrated layer",
+                       "byte-identical on the migrated layer, a 20-step drag (every frame, no file read), the preview "
+                       "lit like the room with the relief (the same digests on GL and Vulkan)",
                   sources=[TESTS / "material_instances_smoke.py", ROOT / "pc/src/materials.cpp",
                            ROOT / "pc/src/material_instances.cpp", ROOT / "pc/src/material_preview.cpp",
                            ROOT / "pc/assets/materials/masters/standard_surface.json"]),
+            Suite("material_graph_smoke", [PY, str(TESTS / "material_graph_smoke.py"), "--card", str(args.save)], 600,
+                  note="node material graphs: the node library and generation (RPC material_graph), the standard "
+                       "surface as a graph byte-identical in the Keep (Vulkan), a tint graph live through the hot "
+                       "reload, a broken graph kept out, a promoted knob set per instance, slider-speed values "
+                       "(knobs and parameters from the values table: the next frame, no reload), colour "
+                       "parameters, the game time (Pulse; held while paused, the same in every photo render), "
+                       "the Lua editor",
+                  sources=[TESTS / "material_graph_smoke.py", ROOT / "pc/src/material_graph.cpp",
+                           ROOT / "pc/src/vk_render.inc", ROOT / "pc/src/materials.cpp",
+                           ROOT / "pc/src/material_instances.cpp", ROOT / "pc/assets/materials/nodes/pulse.json",
+                           ROOT / "pc/shaders/vulkan/material_graph.glsl", ROOT / "pc/shaders/vulkan/native_frag.glsl",
+                           ROOT / "pc/plugins/rood.material_graph/main.lua"]),
             Suite("room_browser_smoke", [PY, str(TESTS / "room_browser_smoke.py"), "--card", str(args.save)], 300,
                   note="Room Browser: rooms from the disc, warps across zones and back; lighting layers in the game"),
             Suite("room_entry_sound_smoke", [PY, str(TESTS / "room_entry_sound_smoke.py"), "--card", str(args.save)],
@@ -457,6 +470,12 @@ def suites(args, mode="egl"):
                   note="material response: catalog layers, scopes and live edits, roughness maps painted, written "
                        "on disk, of another size; no entries or specular off is pixel-identical; Vulkan: only "
                        "material pixels change, the highlight moves with the camera; OpenGL: no response"),
+            Suite("material_palette_anim_smoke", [PY, str(TESTS / "material_palette_anim_smoke.py"), "--card", str(args.save)], 300,
+                  note="an animated palette (9/0's enemies) keeps its palette entry on every frame, whatever its colours; "
+                       "the survey names it by its identity"),
+            Suite("emissive_palette_anim_smoke", [PY, str(TESTS / "emissive_palette_anim_smoke.py"), "--card", str(args.save)], 300,
+                  note="an emissive entry's palette (clut) applies through its palette's animation (9/0's enemies): the glow "
+                       "stays every frame; the emissive picker names the palette by its identity"),
             Suite("material_relief_smoke", [PY, str(TESTS / "material_relief_smoke.py"), "--card", str(args.save)], 300,
                   note="the relief fades to flat where the texture is stretched: the Keep's arch side smooth, the broad "
                        "faces unchanged and still bumped; the limits are tunables"),

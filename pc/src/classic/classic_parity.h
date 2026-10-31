@@ -71,8 +71,10 @@ enum {
     PC_CLASSIC_RENAME_BOX = 41, /* a highlight box on it (MENU8 _highlightSelection) */
     PC_CLASSIC_FILE_MENU = 42, /* MENU7's file menu's frame (_drawFileMenu: drawn at once, PC_CLASSIC_IMMEDIATE) */
     PC_CLASSIC_FILE_ELEMENT = 43, /* a card's or a file's panel in it (_drawFileMenuElement: at once) */
-    PC_CLASSIC_STATUS_PANEL = 44, /* the whole status display (func_800CA2DC): captured only */
-    PC_CLASSIC_KINDS = 45
+    PC_CLASSIC_MENUF = 44, /* MENUF's screens (3B8.c: their sprite leaves, draw areas and prompt; currentMenu 15) */
+    PC_CLASSIC_MENUF_LOAD = 45, /* MENUF's VRAM uploads (its TIMs, the pulsed CLUT row: at once) */
+    PC_CLASSIC_STATUS_PANEL = 46, /* the whole status display (func_800CA2DC): captured only */
+    PC_CLASSIC_KINDS = 47
 };
 const char* pc_classic_kind_name(int kind); /* "status", ...; "" for none */
 int pc_classic_kind_of(const char* name);   /* 0 unknown */
@@ -152,7 +154,7 @@ int pc_classic_compare(const pc_classic_packet* game, int game_count, const pc_c
 int pc_classic_packets_json(const pc_classic_packet* p, int count, char* out, int size);
 
 /* ---- capture and parity (game thread) ---- */
-#define PC_CLASSIC_CAPTURE 384 /* packets kept per capture (the rename grid: about 250) */
+#define PC_CLASSIC_CAPTURE 512 /* packets kept per capture (the rename grid: about 250; MENUF's congratulations about 270) */
 /* Sites capture only once asked (RPC packets turns it on) or in parity. */
 int pc_classic_capturing(void);
 void pc_classic_capture_on(void);
@@ -197,6 +199,46 @@ int pc_classic_immediate_held(void);
 /* The normalised entries (for the Lua side's list): an upload's, a read's. */
 void pc_classic_immediate_upload_entry(pc_classic_packet* out, int x, int y, int w, int h, const void* pixels);
 void pc_classic_immediate_read_entry(pc_classic_packet* out, int x, int y, int w, int h);
+/* The open range keeps its uploads' pixels (MENUF's: a claim uploads them with d.image_load's handle), and the
+ * range's upload i (0..: in order; its rectangle, its pixels kept, else NULL), after it closed, until the next opens. */
+void pc_classic_immediate_keep(void);
+int pc_classic_immediate_uploads(void); /* the uploads the range recorded */
+const void* pc_classic_immediate_upload(int i, int* x, int* y, int* w, int* h);
+/* MENUF's screens (3B8.c: the congratulations, the time attack's start and end, the cube puzzle's start, end and quit;
+ * currentMenu 15), drawn through the ordering table by a few leaves (_renderTextureFadeIn and its kin, the stat
+ * wheel's lines and draw areas, the PRESS BUTTON prompt). A frame's calls in the order made, each as the leaf was
+ * called (before its own tests): op (PC_CLASSIC_MENUF_*), the _disMap entry it names (tex, and its texels u, v, w, h,
+ * tpage, clut as C reads them), the place, and a / b and the two colour words (P_CODE: r, g, b, code) by op:
+ *   FADE (_renderTextureFadeIn) a the brightness; FADE_CLUT (_renderTextureFadeInClut) a the brightness, b the CLUT;
+ *   TINT (_renderTextureFadeInTint), POP (_renderTexturePopIn) the colours; WIPE (_renderTextureWipe) the colours,
+ *   a the wipe's edge; WHEEL (_renderAnimatedStatWheel) the entry's lines; AREA (the stat wheel's DR_AREA) x, y, a w,
+ *   b h; PROMPT (_renderPressButtonPrompt) a its slide step, b the blink timer, its words (the game's) in prompt. */
+enum {
+    PC_CLASSIC_MENUF_FADE = 1,
+    PC_CLASSIC_MENUF_FADE_CLUT,
+    PC_CLASSIC_MENUF_TINT,
+    PC_CLASSIC_MENUF_POP,
+    PC_CLASSIC_MENUF_WIPE,
+    PC_CLASSIC_MENUF_WHEEL,
+    PC_CLASSIC_MENUF_AREA,
+    PC_CLASSIC_MENUF_PROMPT
+};
+typedef struct {
+    unsigned char op, tex;
+    short u, v, w, h;
+    unsigned short tpage, clut;
+    short x, y;
+    int a, b;
+    unsigned colour[2];
+} pc_classic_menuf_call;
+#define PC_CLASSIC_MENUF_CALLS 128
+typedef struct {
+    int screen, count; /* the submenu (menuFSubmenu); count -1: more calls than the record holds */
+    unsigned char prompt[2][8];
+    pc_classic_menuf_call call[PC_CLASSIC_MENUF_CALLS];
+} pc_classic_menuf;
+/* MENUF's calls this frame (hud_bridge.c's copy of the game's record), kept out of the save state's sections. */
+pc_classic_menuf* pc_classic_menuf_calls(void);
 /* The classic draws' own VRAM buffer (d.image_store / d.image_restore): its 1024 pixels and rect (x, y, w, h). */
 unsigned short* pc_classic_image_buffer(int** rect);
 

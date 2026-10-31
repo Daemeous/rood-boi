@@ -445,6 +445,7 @@ void pc_window_frame(const uint16_t* vram, int x, int y, int w, int h)
 #ifdef ROOD_VULKAN
     if (pc_vk_on()) {
         pc_vk_present(vram, x, y, w, h);
+        pc_material_graph_poll(); /* the node graphs' generated include, when they changed */
         pc_shader_reload_poll(); /* between frames: shader hot reload */
         return;
     }

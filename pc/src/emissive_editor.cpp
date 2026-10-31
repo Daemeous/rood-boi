@@ -122,7 +122,7 @@ bool pick_world(const float p[3], Picked& out)
         return false;
     s.out.tpage &= 0x19f;
     s.out.key = content_key(s.out.tpage, s.out.clut, s.out.box[0], s.out.box[1], s.out.box[2], s.out.box[3]);
-    s.out.clut_key = clut_key(s.out.tpage, s.out.clut);
+    s.out.clut_key = palette_identity(s.out.tpage, s.out.clut); /* (an animated palette: its identity) */
     current_room(&s.out.zone_id, &s.out.room_id);
     out = s.out;
     return true;
@@ -1420,7 +1420,7 @@ void entry_editor(const Entry& original)
     if (picked.valid) {
         for (Match& m : e.match)
             if (m.key == picked.key && !picked.clut_key.empty()) {
-                bool only = m.clut == picked.clut_key;
+                bool only = m.clut == picked.clut_key || palette_is(picked.tpage, picked.clut, m.clut);
                 if (ImGui::Checkbox("Only with the picked texture's palette (CLUT)", &only))
                     m.clut = only ? picked.clut_key : "", changed = true;
             }
@@ -1556,7 +1556,7 @@ static TexturePick as_texture_pick(const Picked& p)
 {
     TexturePick t;
     t.valid = p.valid;
-    t.key = p.key, t.clut_key = p.clut_key;
+    t.key = p.key, t.clut_key = palette_identity(p.tpage, p.clut); /* (an animated palette: its identity) */
     t.tpage = p.tpage, t.clut = p.clut;
     memcpy(t.box, p.box, 4);
     t.u = p.u, t.v = p.v, t.zone = p.zone_id, t.room = p.room_id;
@@ -1596,7 +1596,7 @@ bool emissive::texture_where(const std::string& key, TexturePick& out)
             out = TexturePick();
             out.valid = true, out.key = key, out.tpage = u.page, out.clut = u.clut;
             memcpy(out.box, u.box, 4);
-            out.clut_key = clut_key(u.page, u.clut);
+            out.clut_key = palette_identity(u.page, u.clut);
             current_room(&out.zone, &out.room);
             return true;
         }

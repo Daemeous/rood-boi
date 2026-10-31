@@ -303,8 +303,8 @@ suites = ["lua_smoke", "ctest", "hud_bench_smoke", "repl_smoke", "options_classi
 [[rule]]
 paths = ["pc/src/lua/lua_api_imgui.cpp", "pc/src/lua/lua_dev_tools.cpp", "pc/src/lua/lua_imgui.h",
          "pc/tests/lua/plugins/test.imgui/*", "pc/plugins/rood.dev_example/*", "pc/src/dev_overlay.cpp",
-         "pc/src/dev_rpc.c", "pc/third_party/imgui/*", "pc/plugins/rood.material_review/*"]
-suites = ["lua_imgui_smoke", "material_review_smoke"]
+         "pc/src/dev_rpc.c", "pc/third_party/imgui/*", "pc/plugins/rood.material_review/*", "pc/plugins/rood.materials/*"]
+suites = ["lua_imgui_smoke", "material_review_smoke", "material_instances_smoke"]
 
 # ---- the photo mode foundation (rood.game.pause, rood.camera, rood.post, rood.ui, rood.capture, rood.input) ----
 [[rule]]
@@ -428,7 +428,8 @@ paths = ["pc/src/emissive*", "pc/assets/emissive/*", "pc/assets/materials/*", "p
          "pc/tools/check_material_maps.py", "pc/src/window_pattern*", "pc/shaders/vulkan/window_pattern*"]
 suites = ["emissive_smoke", "emissive_entries_smoke", "emissive_tools_smoke", "emissive_metadata", "editor_selection_smoke", "editor_undo_smoke",
           "editor_schema_smoke", "editor_inspect_smoke", "material_smoke", "material_relief_smoke", "material_survey_smoke",
-          "material_catalog", "material_instances_smoke"]
+          "material_catalog", "material_instances_smoke", "material_palette_anim_smoke",
+          "emissive_palette_anim_smoke"]
 
 # Shader hot reload (pc/docs/Vulkan_Renderer.md "Hot reload"): the in-process compiler.
 [[rule]]
@@ -445,7 +446,8 @@ suites = ["shader_reload_smoke", "shader_compiler"]
 paths = ["pc/src/material*", "pc/shaders/vulkan/material*", "pc/shaders/vulkan/rt_reflect*",
          "pc/shaders/vulkan/rt_paths.glsl", "pc/tools/material_survey.py"]
 suites = ["material_smoke", "material_relief_smoke", "material_survey_smoke", "material_catalog", "emissive_smoke", "gi_smoke",
-          "material_instances_smoke", "material_review_smoke", "material_baked_smoke", "editor_inspect_smoke"]
+          "material_instances_smoke", "material_review_smoke", "material_baked_smoke", "editor_inspect_smoke",
+          "material_palette_anim_smoke"]
 
 # The catalog's rect_light entries feed the window-light generator as well as
 # runtime emissive masks. The validator declares both inputs in run.py sources
@@ -592,3 +594,8 @@ paths = ["pc/tools/aa_bench.py", "pc/tools/anim_trace.py", "pc/tools/font_match.
          "pc/tools/manual_dump.py", "pc/tools/lighting_gallery.py", "pc/tools/windows_dist.py",
          "pc/tools/event_callbacks.py"]
 suites = ["ctest"]
+
+[[rule]]
+paths = ["pc/src/material_graph.*", "pc/assets/materials/nodes/**", "pc/assets/materials/masters/**",
+         "pc/shaders/vulkan/material_graph.glsl", "pc/plugins/rood.material_graph/**"]
+suites = ["material_graph_smoke", "material_instances_smoke", "shader_reload_smoke"]

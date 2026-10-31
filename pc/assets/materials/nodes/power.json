@@ -1,0 +1,28 @@
+{
+  "format": 1,
+  "name": "power",
+  "label": "Power",
+  "category": "Math",
+  "inputs": [
+    {
+      "name": "x",
+      "type": "float",
+      "default": 0.5
+    },
+    {
+      "name": "e",
+      "type": "float",
+      "default": 1,
+      "min": 0.01,
+      "max": 8,
+      "pin": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "result",
+      "type": "float"
+    }
+  ],
+  "glsl": "result = pow(max(x, 0.0), e);"
+}

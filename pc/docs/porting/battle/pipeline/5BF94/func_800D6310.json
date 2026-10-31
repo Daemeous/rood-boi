@@ -1,0 +1,176 @@
+{
+ "function": "func_800D6310",
+ "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "spec-failed",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800D6310",
+  "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+  "stem": "5BF94",
+  "address": "0x800d6310",
+  "difficulty": "S",
+  "zig_name": "func_800D6310",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800D6310",
+  "spec_file": "func_800D6310.zig",
+  "subsystem": "battle_5BF94_port",
+  "signature": "pub fn func_800D6310(arg0: ?*v.D_800F53B8_t, arg1: ?*v.func_800D5780_t) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "?*v.D_800F53B8_t"
+   ],
+   [
+    "arg1",
+    "?*v.func_800D5780_t"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "func_800D6310_t"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12884,
+     "completion_tokens": 14805,
+     "reasoning_tokens": 13301,
+     "cost": 0.00434545,
+     "seconds": null,
+     "batch": "batch-1793379902-OYfFRiS0hzKPAZ8kx15j",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation M6: the entry index scaled by 4, not 2: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800D6310: 30000 iterations, seed 1, 0 mismatches; classes: unequal=15099 equal=9979 equal-negative-index=4922"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14538,
+     "completion_tokens": 3730,
+     "reasoning_tokens": 2034,
+     "cost": 0.0016594,
+     "seconds": null,
+     "batch": "batch-1793424920-emS29kRidmSasGd5EFed",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation M6: the entry index scaled by 4, not 2: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800D6310: 30000 iterations, seed 1, 0 mismatches; classes: unequal=15099 equal=9979 equal-negative-index=4922"
+    ]
+   }
+  ],
+  "classes": {
+   "unequal": "15099",
+   "equal": "9979",
+   "equal-negative-index": "4922"
+  },
+  "mutations": [
+   {
+    "name": "M1: the non-matching path returns 0",
+    "caught": true
+   },
+   {
+    "name": "M2: the call's first offset is off by one (0x81)",
+    "caught": true
+   },
+   {
+    "name": "M3: the comparison reads the target's unk0, not unk2",
+    "caught": true
+   },
+   {
+    "name": "M4: the first call argument is unk6, not unk7",
+    "caught": true
+   },
+   {
+    "name": "M5: the callee's result is dropped and 0 returned",
+    "caught": true
+   },
+   {
+    "name": "M6: the entry index scaled by 4, not 2",
+    "caught": false
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 7,
+   "lines_hit": 7,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 4,
+     "text": "if (temp_a3->unk0 == ((__typeof__((arg0->unkD1C.unk30).psx_type_[0]))(long unsigned int)(arg0->unkD1C.unk30).raw)->unk2) {",
+     "size": 2,
+     "count": 30000,
+     "kind": "a == b / a < b",
+     "outcomes": "== 1286, < 15080, > 13634 (signed); < 14146, > 14568 (unsigned)",
+     "operand": "b -32768..32767",
+     "a": "-32768..32767"
+    }
+   ],
+   "passed": true
+  }
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 41.12718661099643,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 222374.6507627964,
+ "totals": {
+  "cost": 0.006,
+  "prompt_tokens": 27422,
+  "completion_tokens": 18535,
+  "model_seconds": 0.0,
+  "check_seconds": 41.1,
+  "calls": 2,
+  "wall_seconds": 222374.7
+ }
+}

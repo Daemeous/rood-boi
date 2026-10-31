@@ -1,0 +1,20 @@
+{
+  "format": 1,
+  "name": "one_minus",
+  "label": "One minus",
+  "category": "Math",
+  "inputs": [
+    {
+      "name": "x",
+      "type": "float",
+      "default": 0
+    }
+  ],
+  "outputs": [
+    {
+      "name": "result",
+      "type": "float"
+    }
+  ],
+  "glsl": "result = 1.0 - x;"
+}

@@ -132,3 +132,72 @@ may omit `match` (unassigned). `presets` unchanged.
   and ambient (settings), not the room's lights; the relief does not show on the sphere; the Materials
   panel is C++ (no Lua port); masters beyond the standard one are read but nothing generates them yet.
 
+- 2026-10-31 12:20: polish (worktree materials-polish, from node-materials-2 aaa1aa8c9), each green before the next:
+  1. **Smooth edits** (d010eb2f8): the two catalog files are read into a file layer only on load, Revert, `material
+     reload` or a change on disk (stamps); the unsaved layer and the review's previews are laid over that copy in
+     memory. A value edit (`set_pending_instance` with the same parent, master, assignment and curation) patches the
+     instance in place and derives again only its own and its descendants' entries (find_match's pointers stay
+     valid); anything else rebuilds from the copy, still without a read. `catalog_structure_generation()` moves only
+     for structure, so the node graphs refill the values table on a value edit and keep the include. RPC
+     `material_instance status` (generation, structure, file_reads, dirty, pending, selected).
+     `resolve_instance` no longer copies the catalog per call. Test: `material_instances_smoke` drag (Vulkan: 20 of
+     20 consecutive presented frames change; both: every step is the value at once, 0 file reads, structure kept;
+     Revert reads, Save writes and reads back; the file restored gives the first frame).
+  2. **The preview lit like the room** (f877b7e56): `material_preview_room` (on by default): the key is the room
+     light delivering most at Ashley (`_room_height` above her feet; colour x (1 - x^2)^2; the sun competes), turned
+     into the game camera's view, x `_room_key`; the ambient the game's room light colour there (BATTLE's actor
+     lighting, 128 = 1) x `_room_ambient`; no light reaching her keeps the preview's own key. The sphere takes the
+     planes' per-texel values and relief where the instance draws the texture (a palette instance: its first
+     texture), else its painted maps; the relief bends the normal by the slopes x `bump_strength` x
+     `material_preview_relief` (default 2: at 1 it barely reads on a 96-pixel sphere), the cavity darkens the
+     ambient. RPC `material_preview save {path}` (a PNG), `digest_hex`, `lighting`, `relief`, `planes`. Test:
+     `preview_room` (a light beside Ashley becomes the key, scales and off work, M013's floor texture with its
+     estimated relief, relief 0 differs) and the digests compared across the GL and Vulkan runs of one binary
+     (identical). Calls: the reference point is Ashley (not where the texture is drawn); lights are read, never
+     changed (lantern, candle, emissive intensities untouched).
+  3. **Window > Materials in Lua**: `pc/plugins/rood.materials` (off by default; the C++ panel stays Window >
+     Materials), on `rood.imgui` and RPC `material_instance` alone, replacing the C++ window while on
+     (`pc_lua_dev_replaceable("materials")`; the overlay's menu, draw and command step aside). The tree is read
+     again only when `status` says the structure, the unsaved layer or a file changed; the selected instance is
+     `get` each frame; Name and Where apply when left. RPC additions: `list {brief}`, `get {slots}`, `json {id}`,
+     `set {reset: [names]}`, `status.selected`; `rood.imgui` gained `SetClipboardText` and `IsItemToggledOpen`.
+     Test: `material_instances_smoke` lua_panel (off by default; on: replaces, tree complete, select, slider and
+     checkbox paths, Reset, no file read, no draw errors; off: the C++ window back). Not attempted: the C++ panel's
+     picture pixel for pixel (the Material review's port is; this one has the same controls, not the same pixels).
+  Gates (one suite at a time, nice 10), GL and Vulkan: material_instances, material_graph, material_catalog,
+  material_rollout, material_bake, material_baked, material_smoke, material_relief, material_survey, material_review,
+  editor_cutaway, editor_undo, editor_selection, editor_schema, editor_transform, editor_handles, editor_library,
+  editor_snap, editor_roomload, editor_shell, editor_inspect, photo_engine_reload, photo_foundation, photo_mode,
+  photo_full_room, shader_compiler, shader_reload (skips on GL), widescreen, widescreen_scene, widescreen_undrawn,
+  lua_imgui, fixture_lighting, light_actors: all pass on steps 1-2's binary; after step 3, material_instances,
+  lua_imgui, material_review, editor_shell and material_graph again on both (pass); editor_tools_probe (CMake) passes.
+- 2026-10-31 (palette-flicker): bulk-accepted palette entries flickered on animated palettes. Cause: a palette
+  key is the md5 of the CLUT's colours now, so an entry matched only on frames showing the colours the survey
+  saw; uses were resolved again whenever any use changed (meshes coming and going), so the material switched
+  on and off with the palette's phase. Fix (Materials.md "Animated palettes"): a CLUT slot is one palette while
+  the player stays in a room; every frame the drawn slots' colours are read and each new key recorded as a
+  variant (at most 64, forgotten on a room change); entries match any variant (the colours now first), a slot's
+  new variant resolves its uses again at once; its identity (the variant drawn in the most frames) is what the
+  survey, the review, the picker, Accept, the highlight and Focus name. RPC `material palettes`. Reproduced in
+  9/0 with its enemies (their palettes flash and cycle; no room palette animated in the 275 rooms probed with
+  scripts, without enemies): an entry on the slot's identity was missing on 83 of 240 consecutive frames before,
+  0 after (`material_palette_anim_smoke`, fails with variant matching taken out). With the user's 399 entries the
+  Keep 29/3 and Catacombs 13/3 frames and material uses are byte-identical to the previous binary (GL, Vulkan).
+- 2026-10-31 (emissive-palettes): emissive entries' `clut` matched the colours now only, so a glow on an animated
+  palette went out whenever its texture was matched again in another variant (a catalog read, a mesh coming
+  back). Fix (Materials.md "Animated palettes", last paragraph): a match's `clut` is met by any variant of the
+  slot; a slot's new variant matches its textures again; the emissive picker's `clut_key` is the identity; window
+  patterns qualified by a palette find any variant. A latent bug of the previous step fixed with it: a slot's
+  growth was measured by track_palettes against its own last look, so a look earlier in the frame (matching, an
+  RPC between frames) hid a new variant from the material planes; now a flag on the slot. Reproduced in 9/0 with
+  its enemies: read while another variant showed, the entry late 4 of 4 times and missing on 42 of 240 frames
+  before, 0 after (`emissive_palette_anim_smoke`, which also checks the picker names the identity). Rooms without
+  animated palettes byte-identical to the previous binary (29/3, 13/3, 34/0, 35/0, 43/0, 53/21 with enemies:
+  frame buffer, presented image, matched emissive and material uses; GL, Vulkan; the first fix without the flag
+  changed 29/3's presented image, which is how the latent bug showed). No shipped entry, intensity or light
+  changed.
+  Gates: emissive_palette_anim, material_palette_anim, emissive_metadata, emissive_catalog, emissive_tools,
+  emissive_entries, emissive, material_catalog, material_rollout, material_bake, material_instances,
+  material_graph, material, material_relief, material_baked, material_survey, material_review, editor_inspect,
+  fixture_lighting, light_actors, photo_engine_reload, photo_foundation, photo_mode, photo_full_room,
+  widescreen, lua_imgui: 26/26 on GL and 26/26 on Vulkan; editor_tools_probe and fixture_catalog (CMake) pass.

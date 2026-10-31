@@ -7,8 +7,8 @@
  "thinking": "default",
  "temperature": 0.0,
  "samples": 1,
- "status": "spec-failed",
- "reviewed": "not ported in this wave (unrouted): the C differs from a copy of itself under every draft of the spec (state differs at the first external call); the model's stub allocated inside the stub (moved to prepare in a reviewer's reply, same result); not diagnosed (the C is a 12-line memcpy and relocate)",
+ "status": "ported",
+ "reviewed": false,
  "plan": {
   "name": "func_8009A028",
   "unit": "src/BATTLE/BATTLE.PRG/30DB0.c",
@@ -47,15 +47,6 @@
    {
     "round": 1,
     "sample": 1,
-    "call": null,
-    "passed": false,
-    "errors": [
-     "FAIL: the C differs from a copy of itself under this spec (exit 1: the spec is not deterministic: everything prepare does must come from `ctx`):\nzdiff: MISMATCH iteration 0: call 0 (memcpy): the state differs when it is called\nzdiff: MISMATCH iteration 1: call 0 (vs_main_allocHeap): the state differs when it is called\nzdiff: MISMATCH iteration 2: call 0 (vs_main_allocHeap): the state differs when it is called\nzdiff: func_8009A028: 1000 iterations, seed 1, 1000 mismatches; classes: alloc=342 in-place=658"
-    ]
-   },
-   {
-    "round": 2,
-    "sample": 1,
     "call": {
      "finish_reason": "stop",
      "model": "anthropic/claude-haiku-5.5",
@@ -63,43 +54,50 @@
      "thinking": "default",
      "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 13166,
-     "completion_tokens": 4650,
-     "reasoning_tokens": 3381,
-     "cost": 0.0036416,
-     "seconds": 20.5,
-     "sample": 1,
-     "conversation": "508043b8e35262f10d502d77288d99d2925c1b3c4417ade4a5f2b9a78e64413a"
+     "prompt_tokens": 11581,
+     "completion_tokens": 14676,
+     "reasoning_tokens": 12860,
+     "cost": 0.00424805,
+     "seconds": null,
+     "batch": "batch-1793470606-6GNq3Qqjp7ZP5YLH6ms0",
+     "sample": 1
     },
-    "passed": false,
-    "errors": [
-     "FAIL: the C differs from a copy of itself under this spec (exit 1: the spec is not deterministic: everything prepare does must come from `ctx`):\nzdiff: MISMATCH iteration 0: call 0 (memcpy): the state differs when it is called\nzdiff: MISMATCH iteration 1: call 0 (vs_main_allocHeap): the state differs when it is called\nzdiff: MISMATCH iteration 2: call 0 (vs_main_allocHeap): the state differs when it is called\nzdiff: func_8009A028: 1000 iterations, seed 1, 1000 mismatches; classes: alloc=342 in-place=658"
-    ]
+    "passed": true,
+    "errors": []
    }
   ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
   "classes": {
-   "alloc": "342",
-   "in-place": "658"
+   "alloc": "7425",
+   "given-short": "13550",
+   "given-long": "9025"
   },
   "mutations": [
    {
-    "name": "F1: word 12 overwritten instead of accumulated",
+    "name": "F1: first word stored instead of added to",
     "caught": true
    },
    {
-    "name": "F2: copy drops the tail bytes past a multiple of 4",
+    "name": "F2: word 15 relocated, word 14 relocated twice",
     "caught": true
    },
    {
-    "name": "F3: allocation size off by 4",
+    "name": "F3: word 13 relocated by the source's address",
     "caught": true
    },
    {
-    "name": "F4: returns the source instead of the destination",
+    "name": "F4: copy one byte short",
     "caught": true
    },
    {
-    "name": "F5: wrong constant on word 15",
+    "name": "F5: returns the source instead of the destination",
+    "caught": true
+   },
+   {
+    "name": "F6: heap block requested with 4 extra bytes",
     "caught": true
    }
   ],
@@ -126,30 +124,81 @@
     {
      "arg": 2,
      "count": 30000,
-     "text": "32-bit: min 0, max 200, seen zero, never negative"
+     "text": "32-bit: min 0, max 256, seen zero, never negative"
     }
    ],
    "compares": [],
    "passed": true
-  }
+  },
+  "waivers": []
  },
  "port": {
-  "attempts": []
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35061,
+     "completion_tokens": 3320,
+     "reasoning_tokens": 2777,
+     "cost": 0.00258305,
+     "seconds": null,
+     "batch": "batch-1793471198-1avhbv74VvcT9i19MPUV",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
  },
- "written": [],
- "check_seconds": 11.78786740400028,
- "wall_seconds": 32.45883864700227,
+ "written": [
+  "pc/tests/zig_diff/func_8009A028.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_8009A028.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 76.48176859199975,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 1357.5029888153076,
  "totals": {
-  "cost": 0.00364,
-  "prompt_tokens": 13166,
-  "completion_tokens": 4650,
-  "model_seconds": 20.5,
-  "check_seconds": 11.8,
-  "calls": 1,
-  "wall_seconds": 32.5
- },
- "review": {
-  "by": "Claude Sonnet 5.5 (reviewer)",
-  "date": "2026-10-24"
+  "cost": 0.00683,
+  "prompt_tokens": 46642,
+  "completion_tokens": 17996,
+  "model_seconds": 0.0,
+  "check_seconds": 76.5,
+  "calls": 2,
+  "wall_seconds": 1357.5
  }
 }

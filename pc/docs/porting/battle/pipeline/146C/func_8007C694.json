@@ -1,0 +1,286 @@
+{
+ "function": "func_8007C694",
+ "unit": "src/BATTLE/BATTLE.PRG/146C.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "port-failed",
+ "reviewed": false,
+ "plan": {
+  "name": "func_8007C694",
+  "unit": "src/BATTLE/BATTLE.PRG/146C.c",
+  "stem": "146C",
+  "address": "0x8007c694",
+  "difficulty": "S",
+  "zig_name": "func_8007C694",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_8007C694",
+  "spec_file": "func_8007C694.zig",
+  "subsystem": "battle_146C_port",
+  "signature": "pub fn func_8007C694(arg0: c_int, arg1: c_int, arg2: c_int, effect: c_int, speed: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ],
+   [
+    "effect",
+    "c_int"
+   ],
+   [
+    "speed",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [
+   "D_8004FCCC",
+   "vs_main_zndFiles"
+  ],
+  "hooks": [],
+  "statics": [
+   "_loadZnd"
+  ],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 15130,
+     "completion_tokens": 26772,
+     "reasoning_tokens": 24145,
+     "cost": 0.0074494999999999995,
+     "seconds": null,
+     "batch": "batch-1793203265-sQA1DX56rKylfzO4cWKR",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "znd-load": "9991",
+   "mpd-load": "9929",
+   "no-load": "10080"
+  },
+  "mutations": [
+   {
+    "name": "F1: signed slip in the remainder (>> 12 for / 4096)",
+    "caught": true
+   },
+   {
+    "name": "F2: unk4_13 takes var_a0 >> 9",
+    "caught": true
+   },
+   {
+    "name": "F3: wrong step on the ZND load",
+    "caught": true
+   },
+   {
+    "name": "F4: MPD load dropped",
+    "caught": true
+   },
+   {
+    "name": "F5: func_800A0A1C arguments swapped",
+    "caught": true
+   },
+   {
+    "name": "F6: speed stored from effect",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 6,
+   "branches_hit": 6,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 28,
+   "lines_hit": 28,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 511, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 3,
+     "count": 30000,
+     "text": "32-bit: min -2147418454, max 2147463099, unsigned 144155..4294959169, seen negative, never zero"
+    },
+    {
+     "arg": 4,
+     "count": 30000,
+     "text": "32-bit: min -2147137315, max 2147420826, unsigned 27278..4294956270, seen negative, never zero"
+    }
+   ],
+   "compares": [
+    {
+     "line": 19,
+     "text": "if (var_a0 < 0) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 5771, < 9158, > 15071 (signed); < 0, > 24229 (unsigned)",
+     "operand": "constant 0",
+     "a": "-4095..4095"
+    },
+    {
+     "line": 29,
+     "text": "if (zndId != D_800F1AB0.zndId) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "a == b / a < b",
+     "outcomes": "== 20009, < 9689, > 302 (signed); < 9689, > 302 (unsigned)",
+     "operand": "b 0..255",
+     "a": "0..255"
+    },
+    {
+     "line": 32,
+     "text": "} else if (mpdId != D_800F1AB0.mpdId) {",
+     "size": 4,
+     "count": 20009,
+     "kind": "a == b / a < b",
+     "outcomes": "== 10080, < 4955, > 4974 (signed); < 4955, > 4974 (unsigned)",
+     "operand": "b 0..255",
+     "a": "0..255"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 38529,
+     "completion_tokens": 12764,
+     "reasoning_tokens": 11251,
+     "cost": 0.00511745,
+     "seconds": null,
+     "batch": "batch-1793206357-jxyW8CeGtJSNWKNpZo35",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_8007C694.zig:24:53: error: expected type 'c_uint', found 'c_int'\n    psx.put(&zc.zndData, c.vs_main_allocHeapR(cdFile.size));\n                                              ~~~~~~^~~~~\ngame/battle/func_8007C694.zig:24:53: note: unsigned 32-bit int cannot represent all possible signed 32-bit values\npc/build/boot64/zig/c_146C.zig:2467:34: note: parameter type declared here\npub extern fn vs_main_allocHeapR(u_int) ?*anyopaque;\n                                 ^~~~~\nreferenced by:\n    func_8007C694: game/battle/func_8007C694.zig:63:16\n    main: pc/tests/zig_diff/main.zig:469:31\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 40431,
+     "completion_tokens": 3382,
+     "reasoning_tokens": 1857,
+     "cost": 0.00286705,
+     "seconds": null,
+     "batch": "batch-1793379902-OYfFRiS0hzKPAZ8kx15j",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_8007C694.zig:25:40: error: expected type '[*c]c_146C.vs_main_CdQueueSlot', found '?*views_146C.vs_main_CdQueueSlot'\n    c.vs_main_cdEnqueuePriority(psx.get(zc.zndCdFile), psx.get(zc.zndData));\n                                ~~~~~~~^~~~~~~~~~~~~~\ngame/battle/func_8007C694.zig:25:40: note: pointer type child 'views_146C.vs_main_CdQueueSlot' cannot cast into pointer type child 'c_146C.vs_main_CdQueueSlot'\npc/build/port-pipeline/gen/146C/fn-func_8007C694/views_146C.zig:2808:40: note: struct declared here\npub const vs_main_CdQueueSlot = extern struct {\n                                ~~~~~~~^~~~~~\npc/build/boot64/zig/c_146C.zig:1579:40: note: struct declared here\npub const vs_main_CdQueueSlot = extern struct {\n                                ~~~~~~~^~~~~~\npc/build/boot64/zig/c_146C.zig:2485:47: note: parameter type declared here\npub extern fn vs_main_cdEnqueuePriority(slot: [*c]vs_main_CdQueueSlot, vram: ?*anyopaque) void;\n                                              ^~~~~~~~~~~~~~~~~~~~~~~\nreferenced by:\n    func_8007C694: game/battle/func_8007C694.zig:63:16\n    main: pc/tests/zig_diff/main.zig:469:31\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 3,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 42636,
+     "completion_tokens": 2112,
+     "reasoning_tokens": 579,
+     "cost": 0.0026598,
+     "seconds": null,
+     "batch": "batch-1793424920-emS29kRidmSasGd5EFed",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: seed 1: the port differs from the C (exit 3):\nzdiff: PANIC in the Zig run, iteration 2: incorrect alignment (return address 0x4042de)"
+    ],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 3,
+      "mismatches": null,
+      "first": "PANIC in the Zig run, iteration 2: incorrect alignment (return address 0x4042de)"
+     }
+    ]
+   }
+  ]
+ },
+ "written": [],
+ "check_seconds": 20.318835379999655,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 222245.56634831429,
+ "totals": {
+  "cost": 0.01809,
+  "prompt_tokens": 136726,
+  "completion_tokens": 45030,
+  "model_seconds": 0.0,
+  "check_seconds": 20.3,
+  "calls": 4,
+  "wall_seconds": 222245.6
+ }
+}

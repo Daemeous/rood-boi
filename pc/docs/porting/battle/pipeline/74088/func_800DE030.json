@@ -5,10 +5,10 @@
  "model": "anthropic/claude-haiku-5.5",
  "endpoint": "remote",
  "thinking": "default",
- "temperature": 0.4,
- "samples": 2,
+ "temperature": 0.0,
+ "samples": 1,
  "status": "spec-failed",
- "reviewed": "not ported in this wave (unrouted): Haiku's specs (two runs) crash in their own classify or the C",
+ "reviewed": false,
  "plan": {
   "name": "func_800DE030",
   "unit": "src/BATTLE/BATTLE.PRG/74088.c",
@@ -50,43 +50,19 @@
      "model": "anthropic/claude-haiku-5.5",
      "endpoint": "remote",
      "thinking": "default",
-     "temperature": 0.4,
+     "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 16860,
-     "completion_tokens": 32909,
-     "reasoning_tokens": 29759,
-     "cost": 0.0181405,
-     "seconds": 143.2,
-     "sample": 1,
-     "conversation": "7f6bd2dc57913eb00acf6dd39bc04ee9c79f51579b101a57473ad4b702816ca3"
+     "prompt_tokens": 16990,
+     "completion_tokens": 27943,
+     "reasoning_tokens": 24713,
+     "cost": 0.00783525,
+     "seconds": null,
+     "batch": "batch-1793472845-QkAmzxxBw2lq6TSSxmz5",
+     "sample": 1
     },
     "passed": false,
     "errors": [
-     "FAIL: your spec's own code (prepare or classify) failed before the C ran: a Zig safety check (an index past an array's length, an integer that does not fit, a null unwrap) or a fault in it:\nzdiff: CRASH (signal 11) in the classify run, iteration 0, a wild pointer (a non-canonical address: random bytes used as a pointer?)\nzdiff: crashed on arguments: 0xf1 (class chained)",
-     "(the mutations and the coverage gate are checked once the spec runs)"
-    ]
-   },
-   {
-    "round": 1,
-    "sample": 2,
-    "call": {
-     "finish_reason": "stop",
-     "model": "anthropic/claude-haiku-5.5",
-     "endpoint": "remote",
-     "thinking": "default",
-     "temperature": 0.4,
-     "max_tokens": 64000,
-     "prompt_tokens": 16860,
-     "completion_tokens": 43797,
-     "reasoning_tokens": 40115,
-     "cost": 0.0235845,
-     "seconds": 186.7,
-     "sample": 2,
-     "conversation": "325381a0cdf9ccf834b59189cbe02f03ea67e3fc44615796c85f2b5f52d1587e"
-    },
-    "passed": false,
-    "errors": [
-     "FAIL: your spec's own code (prepare or classify) failed before the C ran: a Zig safety check (an index past an array's length, an integer that does not fit, a null unwrap) or a fault in it:\nzdiff: CRASH (signal 11) in the classify run, iteration 0, a wild pointer (a non-canonical address: random bytes used as a pointer?)\nzdiff: crashed on arguments: 0xef (class plain)",
+     "FAIL: your spec's own code (prepare or classify) failed before the C ran: a Zig safety check (an index past an array's length, an integer that does not fit, a null unwrap) or a fault in it:\nzdiff: CRASH (signal 11) in the classify run, iteration 0, a wild pointer (a non-canonical address: random bytes used as a pointer?)\nzdiff: crashed on arguments: 0x1df (class regen)",
      "(the mutations and the coverage gate are checked once the spec runs)"
     ]
    },
@@ -98,48 +74,291 @@
      "model": "anthropic/claude-haiku-5.5",
      "endpoint": "remote",
      "thinking": "default",
-     "temperature": 0.4,
+     "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 20208,
-     "completion_tokens": 5261,
-     "reasoning_tokens": 2082,
-     "cost": 0.0046513,
-     "seconds": 18.6,
-     "sample": 1,
-     "conversation": "0f2f02781df4823d82661443034f9e4f5666e6792ed31c5e388d99b5c6fb76e9"
+     "prompt_tokens": 20417,
+     "completion_tokens": 10692,
+     "reasoning_tokens": 7343,
+     "cost": 0.0036938500000000003,
+     "seconds": null,
+     "batch": "batch-1793473259-u2ePCAiI4wY1Y4v0EU1i",
+     "sample": 1
     },
     "passed": false,
     "errors": [
-     "FAIL: your spec's own code (prepare or classify) failed before the C ran: a Zig safety check (an index past an array's length, an integer that does not fit, a null unwrap) or a fault in it:\nzdiff: CRASH (signal 11) in the classify run, iteration 0, a wild pointer (a non-canonical address: random bytes used as a pointer?)\nzdiff: crashed on arguments: 0xf1 (class chained)",
-     "(the mutations and the coverage gate are checked once the spec runs)"
+     "FAIL: input classes never generated: dot, regen",
+     "FAIL: mutation F4: DOT reads the wrong status-effect entry: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800DE030: 30000 iterations, seed 1, 0 mismatches; classes: no-actors=1870 heal-tick=15318 dot=0 regen=0 plain=12812",
+     "FAIL: mutation F5: regen tests the wrong status bit: not caught as mismatch (exit 4) (the mutated copy crashes where the C does not: if that is what this mistake does on your inputs, say `expect = \"crash\"`; otherwise choose a mutation your inputs show as a difference): zdiff: CRASH (signal 8) in the Zig run, iteration 0\nzdiff: crashed on arguments: 0x1df (class plain)",
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800DE030: branches 32/38 (84.2%), lines 39/53\n  UNCOVERED +53 b0: branch never taken: `if (statuses & 0x4000) {`\n  UNCOVERED +60 b0: branch never taken (not executed): `if (stats->currentHP < 0) {`\n  UNCOVERED +60 b1: branch never taken (not executed): `if (stats->currentHP < 0) {`\n  UNCOVERED +65 b0: branch never taken: `if (statuses & 0x20000) {`\n  UNCOVERED +72 b0: branch never taken (not executed): `if (stats->currentHP < 0) {`\n  UNCOVERED +72 b1: branch never taken (not executed): `if (stats->currentHP < 0) {`\ncoverage func_800DE030: FAILED (threshold 100%: 6 uncovered, 0 value flag(s) not waived)\nWhat to add:\n- `if (statuses & 0x4000) {` (+53): one way out of this test (+53 b0) was never taken; add inputs that take it.\n- `if (stats->currentHP < 0) {` (+60) never ran: no input reaches this line; add inputs that get there (the tests before it must come out the other way).\n- `if (stats->currentHP < 0) {` (+60) never ran: no input reaches this line; add inputs that get there (the tests before it must come out the other way).\n- `if (statuses & 0x20000) {` (+65): one way out of this test (+65 b0) was never taken; add inputs that take it.\n- `if (stats->currentHP < 0) {` (+72) never ran: no input reaches this line; add inputs that get there (the tests before it must come out the other way).\n- `if (stats->currentHP < 0) {` (+72) never ran: no input reaches this line; add inputs that get there (the tests before it must come out the other way).\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800DE030.coverage_waiver]] with its `id` and a `reason`."
     ]
    }
   ],
-  "classes": {},
-  "mutations": [],
-  "coverage": null
+  "classes": {
+   "no-actors": "1870",
+   "heal-tick": "15318",
+   "dot": "0",
+   "regen": "0",
+   "plain": "12812"
+  },
+  "mutations": [
+   {
+    "name": "F1: heal threshold includes equality wrongly (>= for >)",
+    "caught": true
+   },
+   {
+    "name": "F2: limb heal adds 3, not 2",
+    "caught": true
+   },
+   {
+    "name": "F3: MP clamp dropped",
+    "caught": true
+   },
+   {
+    "name": "F4: DOT reads the wrong status-effect entry",
+    "caught": false
+   },
+   {
+    "name": "F5: regen tests the wrong status bit",
+    "caught": false
+   },
+   {
+    "name": "F6: status expiry strict (> for >=) misses the exact duration",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 38,
+   "branches_hit": 32,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 53,
+   "lines_hit": 39,
+   "uncovered": [
+    {
+     "id": "+53 b0",
+     "line": 53,
+     "text": "if (statuses & 0x4000) {",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+60 b0",
+     "line": 60,
+     "text": "if (stats->currentHP < 0) {",
+     "what": "branch never taken (not executed)"
+    },
+    {
+     "id": "+60 b1",
+     "line": 60,
+     "text": "if (stats->currentHP < 0) {",
+     "what": "branch never taken (not executed)"
+    },
+    {
+     "id": "+65 b0",
+     "line": 65,
+     "text": "if (statuses & 0x20000) {",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+72 b0",
+     "line": 72,
+     "text": "if (stats->currentHP < 0) {",
+     "what": "branch never taken (not executed)"
+    },
+    {
+     "id": "+72 b1",
+     "line": 72,
+     "text": "if (stats->currentHP < 0) {",
+     "what": "branch never taken (not executed)"
+    }
+   ],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -300000, max 300000, unsigned 0..4294967295, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 23,
+     "text": "if (D_800F58BC->unk18 > 2880) {",
+     "size": 2,
+     "count": 56265,
+     "kind": "against a constant",
+     "outcomes": "== 1509, < 31485, > 23271 (signed); < 12546, > 42210 (unsigned)",
+     "operand": "constant 2880",
+     "a": "-32767..32766"
+    },
+    {
+     "line": 24,
+     "text": "for (limb = 0; limb < 6; ++limb) {",
+     "size": 4,
+     "count": 295470,
+     "kind": "against a constant",
+     "outcomes": "== 42210, < 211050, > 42210 (signed); < 211050, > 42210 (unsigned)",
+     "operand": "constant 5",
+     "a": "0..6"
+    },
+    {
+     "line": 27,
+     "text": "if (limbs->hp > limbs->maxHp) {",
+     "size": 2,
+     "count": 253260,
+     "kind": "a == b / a < b",
+     "outcomes": "== 10415, < 84442, > 158403 (signed); < 70361, > 172484 (unsigned)",
+     "operand": "b -32768..32767",
+     "a": "-32767..102"
+    },
+    {
+     "line": 33,
+     "text": "if (stats->limbs[stats->unk34].hp >= 2 || stats->limbs[stats->unk35].hp >= 2) {",
+     "size": 2,
+     "count": 56265,
+     "kind": "against a constant",
+     "outcomes": "== 4279, < 27255, > 24731 (signed); < 3449, > 48537 (unsigned)",
+     "operand": "constant 1",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 33,
+     "text": "if (stats->limbs[stats->unk34].hp >= 2 || stats->limbs[stats->unk35].hp >= 2) {",
+     "size": 2,
+     "count": 31534,
+     "kind": "against a constant",
+     "outcomes": "== 3205, < 17222, > 11107 (signed); < 2567, > 25762 (unsigned)",
+     "operand": "constant 1",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 38,
+     "text": "if (amount > 0) {",
+     "size": 4,
+     "count": 56265,
+     "kind": "against a constant",
+     "outcomes": "== 16589, < 13396, > 26280 (signed); < 0, > 39676 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1250..1250"
+    },
+    {
+     "line": 41,
+     "text": "if (stats->currentHP > stats->maxHP) {",
+     "size": 2,
+     "count": 56265,
+     "kind": "a == b / a < b",
+     "outcomes": "== 12021, < 20604, > 23640 (signed); < 20612, > 23632 (unsigned)",
+     "operand": "b -32768..32767",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 46,
+     "text": "if (amount > 0) {",
+     "size": 4,
+     "count": 56265,
+     "kind": "against a constant",
+     "outcomes": "== 12958, < 13398, > 29909 (signed); < 0, > 43307 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1666..1666"
+    },
+    {
+     "line": 49,
+     "text": "if (stats->currentMP > stats->maxMP) {",
+     "size": 2,
+     "count": 56265,
+     "kind": "a == b / a < b",
+     "outcomes": "== 10578, < 24778, > 20909 (signed); < 20618, > 25069 (unsigned)",
+     "operand": "b -1..32767",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 53,
+     "text": "if (statuses & 0x4000) {",
+     "size": 4,
+     "count": 56265,
+     "kind": "against a constant",
+     "outcomes": "== 56265, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..0"
+    },
+    {
+     "line": 65,
+     "text": "if (statuses & 0x20000) {",
+     "size": 4,
+     "count": 56265,
+     "kind": "against a constant",
+     "outcomes": "== 56265, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..0"
+    },
+    {
+     "line": 77,
+     "text": "for (i = 0; i < 5; ++i) {",
+     "size": 4,
+     "count": 337590,
+     "kind": "against a constant",
+     "outcomes": "== 56265, < 225060, > 56265 (signed); < 225060, > 56265 (unsigned)",
+     "operand": "constant 4",
+     "a": "0..5"
+    },
+    {
+     "line": 78,
+     "text": "if (statuses & D_80069BBC[i]) {",
+     "size": 4,
+     "count": 281325,
+     "kind": "against a constant",
+     "outcomes": "== 179265, < 19546, > 82514 (signed); < 0, > 102060 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147330977"
+    },
+    {
+     "line": 81,
+     "text": "if (D_800F58BC->unk18 >= duration) {",
+     "size": 4,
+     "count": 102060,
+     "kind": "a == b / a < b",
+     "outcomes": "== 6768, < 76155, > 19137 (signed); < 76155, > 19137 (unsigned)",
+     "operand": "b 0..65535",
+     "a": "0..7650"
+    },
+    {
+     "line": 90,
+     "text": "for (row = 0; row < 6; ++row) {",
+     "size": 4,
+     "count": 393855,
+     "kind": "against a constant",
+     "outcomes": "== 56265, < 281325, > 56265 (signed); < 281325, > 56265 (unsigned)",
+     "operand": "constant 5",
+     "a": "0..6"
+    },
+    {
+     "line": 91,
+     "text": "for (column = 0; column < 4; ++column) {",
+     "size": 4,
+     "count": 1687950,
+     "kind": "against a constant",
+     "outcomes": "== 337590, < 1012770, > 337590 (signed); < 1012770, > 337590 (unsigned)",
+     "operand": "constant 3",
+     "a": "0..4"
+    }
+   ],
+   "passed": false
+  }
  },
  "port": {
   "attempts": []
  },
  "written": [],
- "check_seconds": 1.649946294000074,
- "wall_seconds": 350.3437940169997,
+ "check_seconds": 69.17933156500021,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 882.8606119155884,
  "totals": {
-  "cost": 0.04638,
-  "prompt_tokens": 53928,
-  "completion_tokens": 81967,
-  "model_seconds": 348.5,
-  "check_seconds": 1.6,
-  "calls": 3,
-  "wall_seconds": 350.3
- },
- "review": {
-  "by": "Claude Opus 5.5 (reviewer)",
-  "date": "2026-10-21",
-  "spec_fixes": [],
-  "mutations_added": [],
-  "port_fixes": [],
-  "corpus": ""
+  "cost": 0.01153,
+  "prompt_tokens": 37407,
+  "completion_tokens": 38635,
+  "model_seconds": 0.0,
+  "check_seconds": 69.2,
+  "calls": 2,
+  "wall_seconds": 882.9
  }
 }

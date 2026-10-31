@@ -2,19 +2,17 @@
  "unit": "771A8",
  "totals": {
   "functions": 24,
-  "ported": 19,
-  "cost": 0.732,
-  "prompt_tokens": 1398429,
-  "completion_tokens": 1184301,
-  "model_seconds": 4982.9,
-  "check_seconds": 806.5,
-  "calls": 57,
+  "ported": 20,
+  "cost": 0.5303,
+  "prompt_tokens": 1411229,
+  "completion_tokens": 985875,
+  "model_seconds": 2614.5,
+  "check_seconds": 831.2,
+  "calls": 56,
   "statuses": {
-   "ported": 19,
-   "spec-failed": 4,
-   "stopped": 1
-  },
-  "last_run_wall_seconds": 71.9
+   "ported": 20,
+   "spec-failed": 4
+  }
  },
  "functions": [
   {
@@ -54,12 +52,12 @@
    "function": "func_800DFBCC",
    "status": "spec-failed",
    "model": "anthropic/claude-haiku-5.5",
-   "spec_attempts": 3,
+   "spec_attempts": 2,
    "port_attempts": 0,
    "spec": "failed",
    "port": "failed",
-   "cost": 0.09794,
-   "wall_seconds": 803.4
+   "cost": 0.01737,
+   "wall_seconds": 816.2
   },
   {
    "function": "func_800E02B4",
@@ -113,8 +111,8 @@
    "port_attempts": 0,
    "spec": "failed",
    "port": "failed",
-   "cost": 0.06111,
-   "wall_seconds": 453.0
+   "cost": 0.02926,
+   "wall_seconds": 1342.4
   },
   {
    "function": "func_800E1238",
@@ -206,14 +204,14 @@
   },
   {
    "function": "func_800E1EAC",
-   "status": "stopped",
+   "status": "spec-failed",
    "model": "anthropic/claude-haiku-5.5",
    "spec_attempts": 2,
    "port_attempts": 0,
    "spec": "failed",
    "port": "failed",
-   "cost": 0.05115,
-   "wall_seconds": 439.8
+   "cost": 0.01471,
+   "wall_seconds": 817.4
   },
   {
    "function": "func_800E23AC",
@@ -228,14 +226,14 @@
   },
   {
    "function": "func_800E24EC",
-   "status": "spec-failed",
+   "status": "ported",
    "model": "anthropic/claude-haiku-5.5",
-   "spec_attempts": 3,
-   "port_attempts": 0,
-   "spec": "failed",
-   "port": "failed",
-   "cost": 0.0572,
-   "wall_seconds": 450.8
+   "spec_attempts": 2,
+   "port_attempts": 1,
+   "spec": "retry",
+   "port": "first",
+   "cost": 0.02487,
+   "wall_seconds": 1413.3
   },
   {
    "function": "func_800E2B2C",
@@ -267,8 +265,8 @@
    "port_attempts": 0,
    "spec": "failed",
    "port": "failed",
-   "cost": 0.03797,
-   "wall_seconds": 320.9
+   "cost": 0.01751,
+   "wall_seconds": 819.5
   },
   {
    "function": "func_800E3600",

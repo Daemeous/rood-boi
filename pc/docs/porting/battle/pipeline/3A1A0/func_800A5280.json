@@ -8,7 +8,7 @@
  "temperature": 0.0,
  "samples": 1,
  "status": "spec-failed",
- "reviewed": "not ported in this wave (unrouted): Haiku's specs either did not build or made the C differ from its own copy (return value: an uninitialised local on some path) and left 20 branches uncovered (a 400-line function: a reviewer-written spec is the next step)",
+ "reviewed": false,
  "plan": {
   "name": "func_800A5280",
   "unit": "src/BATTLE/BATTLE.PRG/3A1A0.c",
@@ -40,31 +40,14 @@
    ]
   ],
   "ret": "c_int",
-  "types": [
-   "D_800F4538_t",
-   "D_800F45E0_t",
-   "SVECTOR",
-   "func_800A3054_t",
-   "func_800A6660_t",
-   "probePosition",
-   "vs_battleMovementModeFlags"
-  ],
+  "types": [],
   "globals": [
    "D_800E90BC",
    "D_800E90C3",
    "D_800E90C4",
    "D_800E90C6",
    "D_800E91AC",
-   "D_800F1D6E",
-   "D_800F4538",
-   "D_800F45E0",
-   "D_800F49F0",
-   "D_800F49F4",
-   "D_800F49F8",
-   "D_800F49F9",
-   "D_800F4B08",
-   "D_800F4B0A",
-   "vs_gametime_tickspeed"
+   "D_800F1D6E"
   ],
   "hooks": [],
   "statics": [],
@@ -82,17 +65,18 @@
      "thinking": "default",
      "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 37335,
-     "completion_tokens": 62299,
-     "reasoning_tokens": 56841,
-     "cost": 0.034883,
-     "seconds": 259.8,
-     "sample": 1,
-     "conversation": "8a083a39d6fa06fc1cd4982887dbaa87041f10e80d962d529fdaa8eb7f3bebdc"
+     "prompt_tokens": 37741,
+     "completion_tokens": 44415,
+     "reasoning_tokens": 40113,
+     "cost": 0.012990799999999999,
+     "seconds": null,
+     "batch": "batch-1793472845-QkAmzxxBw2lq6TSSxmz5",
+     "sample": 1
     },
     "passed": false,
     "errors": [
-     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/func_800A5280/spec1/build/spec.zig:41:31: error: pointer capture of non pointer type '[16]?*views_3A1A0.D_800F45E0_t'\n    for (v.g.D_800F45E0().*) |*e| e.* = obj;\n                              ^~~\npc/build/port-pipeline/func_800A5280/spec1/build/spec.zig:41:26: note: consider using '&' here\n    for (v.g.D_800F45E0().*) |*e| e.* = obj;\n         ~~~~~~~~~~~~~~~~^~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:430:40\n    main: pc/tests/zig_diff/main.zig:387:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\npc/tests/zig_diff/main.zig:181:9: error: zdiff: a spec stub gives void where the C prototype has c_int: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\n"
+     "FAIL: the C itself crashed on your inputs (the C runs first, so this is the spec's\nbug). The harness fills every global and the arena with random bytes before\nprepare, so every pointer the C follows must be one prepare set: each\nargument, each pointer field of an object you build, and each ENTRY of a\nglobal pointer table the C indexes (only the entry it reads: e.g.\n`v.g.TABLE()[i] = obj`), pointing at an object from `ctx.alloc`/`ctx.allocBytes`\n(sized for every element the C indexes past a `[0]` array), at a global, or\nnull where the C tests for null. An index into a global table must stay\ninside its length (the views accessor's type gives it). Below: the crash, its\nfault address (named when it is inside an object the harness owns) and the\narguments of that iteration:\nzdiff: MISMATCH iteration 23: return value\nzdiff: MISMATCH iteration 47: return value\nzdiff: MISMATCH iteration 51: return value\nzdiff: CRASH (signal 11) in the C run, iteration 1708, a wild pointer (a non-canonical address: random bytes used as a pointer?)\nzdiff: crashed on arguments: 0x5 0xfffff328 0x5755 0x40e1e0 [arena] (class grounded)",
+     "(the mutations and the coverage gate are checked once the C runs crash-free)"
     ]
    },
    {
@@ -105,63 +89,87 @@
      "thinking": "default",
      "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 43317,
-     "completion_tokens": 6891,
-     "reasoning_tokens": 1413,
-     "cost": 0.0077772,
-     "seconds": 24.1,
-     "sample": 1,
-     "conversation": "932c2bf6f19b66deec8b684ee809157eb1e4fedd86e824658c17c1fc07b79bd7"
+     "prompt_tokens": 42533,
+     "completion_tokens": 48216,
+     "reasoning_tokens": 43381,
+     "cost": 0.01418065,
+     "seconds": null,
+     "batch": "batch-1793473259-u2ePCAiI4wY1Y4v0EU1i",
+     "sample": 1
     },
     "passed": false,
     "errors": [
-     "FAIL: the C differs from a copy of itself under this spec (exit 1: the spec is not deterministic: everything prepare does must come from `ctx`):\nzdiff: MISMATCH iteration 43: return value\nzdiff: MISMATCH iteration 60: return value\nzdiff: MISMATCH iteration 113: return value\nzdiff: func_800A5280: 37933 iterations, seed 1, 1000 mismatches; classes: bad-index=3853 no-actor=2913 busy=12940 fall=4503 turning=9162 ground=4562",
-     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800A5280: branches 273/293 (93.2%), conditions not measured (GCC < 14: branch coverage only), lines 404/417\n  UNCOVERED +107 b1: branch never taken: `if (moveType != 0) {`\n  UNCOVERED +164 b0: branch never taken: `} else if (!(*(u_int*)((char*)actor + 0x5AC) & 0x1000)) {`\n  UNCOVERED +166 b0: branch never taken: `if (animation >= 100) {`\n  UNCOVERED +169 b0: branch never taken: `if (animation != 0x54) {`\n  UNCOVERED +170 b0: branch never taken: `if (animation == 1) {`\n  UNCOVERED +213 b0: branch never taken: `if (distance != 0 && !(*(u_int*)((char*)actor + 8) & 0x180000)) {`\n  UNCOVERED +317 b0: branch never taken: `if (*(u_short*)((char*)actor + 0x18D6) == actor->unk0.position.vx + motion.vx`\n  UNCOVERED +319 b0: branch never taken (not executed): `== actor->unk0.position.vz + motion.vz) {`\n  UNCOVERED +319 b1: branch never taken (not executed): `== actor->unk0.position.vz + motion.vz) {`\n  UNCOVERED +437 b0: branch never taken: `!= (*(int*)((char*)actor + 0x5C) & 0xFF00FF)`\n  UNCOVERED +438 b0: branch never taken (not executed): `|| actor->unk0.unk61 != actor->unk0.unkC_0) {`\n  UNCOVERED +438 b1: branch never taken (not executed): `|| actor->unk0.unk61 != actor->unk0.unkC_0) {`\n  UNCOVERED +453 b1: branch never taken: `if ((u_short)(motion.vy + 0xFF) >= 0x100) {`\n  UNCOVERED +456 b0: branch never taken (not executed): `if (distance == 0) {`\n  UNCOVERED +456 b1: branch never taken (not executed): `if (distance == 0) {`\n  UNCOVERED +476 b3: branch never taken: `if ((u_int)(animation - 13) >= 2 && animation != 0x13 && animation != 0x14`\n  UNCOVERED +521 b1: branch never taken: `if (motion.vy >= 0x40) {`\n  UNCOVERED +524 b1: branch never taken: `if ((*(u_int*)((char*)actor + 8) & 0x180000) != 0x100000`\n  UNCOVERED +550 b0: branch never taken (not executed): `if (!((*D_800F49F0 >> 5) & 1)) {`\n  UNCOVERED +550 b1: branch never taken (not executed): `if (!((*D_800F49F0 >> 5) & 1)) {`\n  FLAG +80 eq: boundary equality occurred only 1 time(s) in 4540 (32-bit compare, constant 3071: both sides seen; a port's `<` for `<=` could pass): `if (i >= 0xC00) {`\n  FLAG +121 eq: boundary equality never occurred (32-bit compare, constant 99: both sides seen; a port's `<` for `<=` could pass): `if (animation >= 100) {`\n  FLAG +151 eq: boundary equality occurred only 2 time(s) in 278 (8-bit compare, constant 19: both sides seen; a port's `<` for `<=` could pass): `if (actor->unk1846 >= 20 && actor->unk1847 < 9) {`\n  FLAG +195 eq: boundary equality occurred only 6 time(s) in 2560 (32-bit compare, constant 255: both sides seen; a port's `<` for `<=` could pass): `if (i >= 0x100) {`\n  FLAG +221 eq: boundary equality never occurred (32-bit compare, constant 126975: both sides seen; a port's `<` for `<=` could pass): `if (input->pad == 0 && speed > 0x1EFFF) {`\n  FLAG +293 eq: boundary equality never occurred (16-bit compare, constant -32: both sides seen; a port's `<` for `<=` could pass): `if (motion.vy < -0x"
+     "FAIL: the harness does not build:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/func_800A5280/spec2/build/spec.zig:45:31: error: pointer capture of non pointer type '[16]?*views_3A1A0.D_800F45E0_t'\n    for (v.g.D_800F45E0().*) |*e| e.* = object;\n                              ^~~\npc/build/port-pipeline/func_800A5280/spec2/build/spec.zig:45:26: note: consider using '&' here\n    for (v.g.D_800F45E0().*) |*e| e.* = object;\n         ~~~~~~~~~~~~~~~~^~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:435:40\n    main: pc/tests/zig_diff/main.zig:392:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ]
+   },
+   {
+    "round": 3,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 47743,
+     "completion_tokens": 8213,
+     "reasoning_tokens": 3379,
+     "cost": 0.0044404,
+     "seconds": null,
+     "batch": "batch-1793473724-k55LkjHH6w2tNRmUV3Lu",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the C differs from a copy of itself under this spec (exit 1: the spec is not deterministic: everything prepare does must come from `ctx`):\nzdiff: MISMATCH iteration 8: return value\nzdiff: MISMATCH iteration 9: return value\nzdiff: MISMATCH iteration 30: return value\nzdiff: func_800A5280: 20761 iterations, seed 1, 1000 mismatches; classes: index-out=2589 no-actor=2318 airborne=5334 turning=5239 grounded=5281",
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800A5280: branches 268/293 (91.5%), lines 404/417\n  UNCOVERED +32 b0: branch never taken: `if (*(u_int*)((char*)actor + 8) & 0x0F000000) {`\n  UNCOVERED +107 b1: branch never taken: `if (moveType != 0) {`\n  UNCOVERED +164 b0: branch never taken: `} else if (!(*(u_int*)((char*)actor + 0x5AC) & 0x1000)) {`\n  UNCOVERED +169 b0: branch never taken: `if (animation != 0x54) {`\n  UNCOVERED +173 b0: branch never taken: `if ((u_int)(animation - 13) >= 14) {`\n  UNCOVERED +213 b0: branch never taken: `if (distance != 0 && !(*(u_int*)((char*)actor + 8) & 0x180000)) {`\n  UNCOVERED +247 b4: branch never taken: `switch (status) {`\n  UNCOVERED +311 b3: branch never taken: `if (status == 3 && result >= 0) {`\n  UNCOVERED +317 b0: branch never taken: `if (*(u_short*)((char*)actor + 0x18D6) == actor->unk0.position.vx + motion.vx`\n  UNCOVERED +319 b0: branch never taken (not executed): `== actor->unk0.position.vz + motion.vz) {`\n  UNCOVERED +319 b1: branch never taken (not executed): `== actor->unk0.position.vz + motion.vz) {`\n  UNCOVERED +356 b0: branch never taken: `if (result != 2) {`\n  UNCOVERED +357 b0: branch never taken (not executed): `if (result != 3) {`\n  UNCOVERED +357 b1: branch never taken (not executed): `if (result != 3) {`\n  UNCOVERED +358 b0: branch never taken (not executed): `if (result != 4) {`\n  UNCOVERED +358 b1: branch never taken (not executed): `if (result != 4) {`\n  UNCOVERED +419 b1: branch never taken: `if (*(u_int*)((char*)actor + 0x5AC) & 0xF0000000) {`\n  UNCOVERED +437 b0: branch never taken: `!= (*(int*)((char*)actor + 0x5C) & 0xFF00FF)`\n  UNCOVERED +438 b0: branch never taken (not executed): `|| actor->unk0.unk61 != actor->unk0.unkC_0) {`\n  UNCOVERED +438 b1: branch never taken (not executed): `|| actor->unk0.unk61 != actor->unk0.unkC_0) {`\n  UNCOVERED +456 b1: branch never taken: `if (distance == 0) {`\n  UNCOVERED +461 b0: branch never taken: `if ((*(u_int*)((char*)actor + 8) & 0x70000)`\n  UNCOVERED +462 b0: branch never taken (not executed): `&& (*(u_int*)((char*)actor + 0x5AC) & 0x1000)) {`\n  UNCOVERED +462 b1: branch never taken (not executed): `&& (*(u_int*)((char*)actor + 0x5AC) & 0x1000)) {`\n  UNCOVERED +524 b1: branch never taken: `if ((*(u_int*)((char*)actor + 8) & 0x180000) != 0x100000`\n  FLAG +121 eq: boundary equality never occurred (32-bit compare, constant 99: both sides seen; a port's `<` for `<=` could pass): `if (animation >= 100) {`\n  FLAG +166 eq: boundary equality never occurred (32-bit compare, constant 99: both sides seen; a port's `<` for `<=` could pass): `if (animation >= 100) {`\n  FLAG +173 sign: every value above 13 had the sign bit set (a port testing the sign, `< 0`, for this test would pass): `if ((u_int)(animation - 13) >= 14) {`\n  FLAG +221 eq: boundary equality never occurred (32-bit compare, constant 126975: both sides seen; a port's `<` for `<=` could pass): `if (input->pad == 0 && speed > 0x1EFFF) {`\n  FLAG +234 eq: boundary equality occ"
     ]
    }
   ],
   "classes": {
-   "bad-index": "3853",
-   "no-actor": "2913",
-   "busy": "12940",
-   "fall": "4503",
-   "turning": "9162",
-   "ground": "4562"
+   "index-out": "2589",
+   "no-actor": "2318",
+   "airborne": "5334",
+   "turning": "5239",
+   "grounded": "5281"
   },
   "mutations": [
    {
-    "name": "K1: the unk1846 reset is skipped at the tie unk1840 == unk5B9",
+    "name": "A1: turning window bound is < 0x400, not <= 0x400",
     "caught": true
    },
    {
-    "name": "K2: unk11 compared unsigned (a negative value passes)",
+    "name": "A2: the heading of the motion vector is added, not subtracted",
     "caught": true
    },
    {
-    "name": "K3: wrong constant for the -1 (stop) distance",
+    "name": "A3: the speed clamp uses the wrong constant",
     "caught": true
    },
    {
-    "name": "K4: direction not stored to unk1842",
+    "name": "A4: the land step's call is dropped",
     "caught": true
    },
    {
-    "name": "K5: wrong divisor for the motion x (0x800000 for 0x1000000)",
-    "caught": true
-   },
-   {
-    "name": "K6: the done-path call to func_800A6AA0 is dropped",
+    "name": "A5: signed division by 4 becomes an arithmetic shift",
     "caught": true
    }
   ],
   "coverage": {
    "branches": 293,
-   "branches_hit": 273,
+   "branches_hit": 268,
    "conditions": null,
    "conditions_hit": null,
    "lines": 417,
    "lines_hit": 404,
    "uncovered": [
+    {
+     "id": "+32 b0",
+     "line": 32,
+     "text": "if (*(u_int*)((char*)actor + 8) & 0x0F000000) {",
+     "what": "branch never taken"
+    },
     {
      "id": "+107 b1",
      "line": 107,
@@ -175,27 +183,33 @@
      "what": "branch never taken"
     },
     {
-     "id": "+166 b0",
-     "line": 166,
-     "text": "if (animation >= 100) {",
-     "what": "branch never taken"
-    },
-    {
      "id": "+169 b0",
      "line": 169,
      "text": "if (animation != 0x54) {",
      "what": "branch never taken"
     },
     {
-     "id": "+170 b0",
-     "line": 170,
-     "text": "if (animation == 1) {",
+     "id": "+173 b0",
+     "line": 173,
+     "text": "if ((u_int)(animation - 13) >= 14) {",
      "what": "branch never taken"
     },
     {
      "id": "+213 b0",
      "line": 213,
      "text": "if (distance != 0 && !(*(u_int*)((char*)actor + 8) & 0x180000)) {",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+247 b4",
+     "line": 247,
+     "text": "switch (status) {",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+311 b3",
+     "line": 311,
+     "text": "if (status == 3 && result >= 0) {",
      "what": "branch never taken"
     },
     {
@@ -217,6 +231,42 @@
      "what": "branch never taken (not executed)"
     },
     {
+     "id": "+356 b0",
+     "line": 356,
+     "text": "if (result != 2) {",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+357 b0",
+     "line": 357,
+     "text": "if (result != 3) {",
+     "what": "branch never taken (not executed)"
+    },
+    {
+     "id": "+357 b1",
+     "line": 357,
+     "text": "if (result != 3) {",
+     "what": "branch never taken (not executed)"
+    },
+    {
+     "id": "+358 b0",
+     "line": 358,
+     "text": "if (result != 4) {",
+     "what": "branch never taken (not executed)"
+    },
+    {
+     "id": "+358 b1",
+     "line": 358,
+     "text": "if (result != 4) {",
+     "what": "branch never taken (not executed)"
+    },
+    {
+     "id": "+419 b1",
+     "line": 419,
+     "text": "if (*(u_int*)((char*)actor + 0x5AC) & 0xF0000000) {",
+     "what": "branch never taken"
+    },
+    {
      "id": "+437 b0",
      "line": 437,
      "text": "!= (*(int*)((char*)actor + 0x5C) & 0xFF00FF)",
@@ -235,65 +285,37 @@
      "what": "branch never taken (not executed)"
     },
     {
-     "id": "+453 b1",
-     "line": 453,
-     "text": "if ((u_short)(motion.vy + 0xFF) >= 0x100) {",
-     "what": "branch never taken"
-    },
-    {
-     "id": "+456 b0",
-     "line": 456,
-     "text": "if (distance == 0) {",
-     "what": "branch never taken (not executed)"
-    },
-    {
      "id": "+456 b1",
      "line": 456,
      "text": "if (distance == 0) {",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+461 b0",
+     "line": 461,
+     "text": "if ((*(u_int*)((char*)actor + 8) & 0x70000)",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+462 b0",
+     "line": 462,
+     "text": "&& (*(u_int*)((char*)actor + 0x5AC) & 0x1000)) {",
      "what": "branch never taken (not executed)"
     },
     {
-     "id": "+476 b3",
-     "line": 476,
-     "text": "if ((u_int)(animation - 13) >= 2 && animation != 0x13 && animation != 0x14",
-     "what": "branch never taken"
-    },
-    {
-     "id": "+521 b1",
-     "line": 521,
-     "text": "if (motion.vy >= 0x40) {",
-     "what": "branch never taken"
+     "id": "+462 b1",
+     "line": 462,
+     "text": "&& (*(u_int*)((char*)actor + 0x5AC) & 0x1000)) {",
+     "what": "branch never taken (not executed)"
     },
     {
      "id": "+524 b1",
      "line": 524,
      "text": "if ((*(u_int*)((char*)actor + 8) & 0x180000) != 0x100000",
      "what": "branch never taken"
-    },
-    {
-     "id": "+550 b0",
-     "line": 550,
-     "text": "if (!((*D_800F49F0 >> 5) & 1)) {",
-     "what": "branch never taken (not executed)"
-    },
-    {
-     "id": "+550 b1",
-     "line": 550,
-     "text": "if (!((*D_800F49F0 >> 5) & 1)) {",
-     "what": "branch never taken (not executed)"
     }
    ],
    "flags": [
-    {
-     "id": "+80 eq",
-     "line": 80,
-     "text": "if (i >= 0xC00) {",
-     "kind": "eq",
-     "bits": 32,
-     "equal": 1,
-     "count": 4540,
-     "what": "boundary equality occurred only 1 time(s) in 4540 (32-bit compare, constant 3071: both sides seen; a port's `<` for `<=` could pass)"
-    },
     {
      "id": "+121 eq",
      "line": 121,
@@ -301,28 +323,27 @@
      "kind": "eq",
      "bits": 32,
      "equal": 0,
-     "count": 91,
+     "count": 21,
      "what": "boundary equality never occurred (32-bit compare, constant 99: both sides seen; a port's `<` for `<=` could pass)"
     },
     {
-     "id": "+151 eq",
-     "line": 151,
-     "text": "if (actor->unk1846 >= 20 && actor->unk1847 < 9) {",
-     "kind": "eq",
-     "bits": 8,
-     "equal": 2,
-     "count": 278,
-     "what": "boundary equality occurred only 2 time(s) in 278 (8-bit compare, constant 19: both sides seen; a port's `<` for `<=` could pass)"
-    },
-    {
-     "id": "+195 eq",
-     "line": 195,
-     "text": "if (i >= 0x100) {",
+     "id": "+166 eq",
+     "line": 166,
+     "text": "if (animation >= 100) {",
      "kind": "eq",
      "bits": 32,
-     "equal": 6,
-     "count": 2560,
-     "what": "boundary equality occurred only 6 time(s) in 2560 (32-bit compare, constant 255: both sides seen; a port's `<` for `<=` could pass)"
+     "equal": 0,
+     "count": 3,
+     "what": "boundary equality never occurred (32-bit compare, constant 99: both sides seen; a port's `<` for `<=` could pass)"
+    },
+    {
+     "id": "+173 sign",
+     "line": 173,
+     "text": "if ((u_int)(animation - 13) >= 14) {",
+     "kind": "sign",
+     "bits": 32,
+     "constant": 13,
+     "what": "every value above 13 had the sign bit set (a port testing the sign, `< 0`, for this test would pass)"
     },
     {
      "id": "+221 eq",
@@ -331,8 +352,18 @@
      "kind": "eq",
      "bits": 32,
      "equal": 0,
-     "count": 1328,
+     "count": 1722,
      "what": "boundary equality never occurred (32-bit compare, constant 126975: both sides seen; a port's `<` for `<=` could pass)"
+    },
+    {
+     "id": "+234 eq",
+     "line": 234,
+     "text": "if (actor->unk0.position.vy > 0) {",
+     "kind": "eq",
+     "bits": 16,
+     "equal": 2,
+     "count": 555,
+     "what": "boundary equality occurred only 2 time(s) in 555 (16-bit compare, constant 0: both sides seen; a port's `<` for `<=` could pass)"
     },
     {
      "id": "+293 eq",
@@ -340,19 +371,39 @@
      "text": "if (motion.vy < -0x20 || status == 3) {",
      "kind": "eq",
      "bits": 16,
-     "equal": 0,
-     "count": 1469,
-     "what": "boundary equality never occurred (16-bit compare, constant -32: both sides seen; a port's `<` for `<=` could pass)"
+     "equal": 9,
+     "count": 1904,
+     "what": "boundary equality occurred only 9 time(s) in 1904 (16-bit compare, constant -32: both sides seen; a port's `<` for `<=` could pass)"
     },
     {
-     "id": "+419 eq",
-     "line": 419,
-     "text": "if (*(u_int*)((char*)actor + 0x5AC) & 0xF0000000) {",
+     "id": "+304 eq",
+     "line": 304,
+     "text": "if (motion.vy >= -0xEC) {",
+     "kind": "eq",
+     "bits": 16,
+     "equal": 0,
+     "count": 85,
+     "what": "boundary equality never occurred (16-bit compare, constant -236: both sides seen; a port's `<` for `<=` could pass)"
+    },
+    {
+     "id": "+307 eq",
+     "line": 307,
+     "text": "} else if (D_800F4B0A - actor->unk0.position.vy < -0x5F",
      "kind": "eq",
      "bits": 32,
      "equal": 0,
-     "count": 82,
-     "what": "boundary equality never occurred (32-bit compare, constant 268435455: both sides seen; a port's `<` for `<=` could pass)"
+     "count": 991,
+     "what": "boundary equality never occurred (32-bit compare, constant -95: both sides seen; a port's `<` for `<=` could pass)"
+    },
+    {
+     "id": "+453 eq",
+     "line": 453,
+     "text": "if ((u_short)(motion.vy + 0xFF) >= 0x100) {",
+     "kind": "eq",
+     "bits": 16,
+     "equal": 0,
+     "count": 100,
+     "what": "boundary equality never occurred (16-bit compare, constant 255: both sides seen; a port's `<` for `<=` could pass)"
     },
     {
      "id": "+473 eq",
@@ -360,9 +411,39 @@
      "text": "if (animation >= 100) {",
      "kind": "eq",
      "bits": 32,
-     "equal": 2,
-     "count": 215,
-     "what": "boundary equality occurred only 2 time(s) in 215 (32-bit compare, constant 99: both sides seen; a port's `<` for `<=` could pass)"
+     "equal": 0,
+     "count": 245,
+     "what": "boundary equality never occurred (32-bit compare, constant 99: both sides seen; a port's `<` for `<=` could pass)"
+    },
+    {
+     "id": "+476 eq",
+     "line": 476,
+     "text": "if ((u_int)(animation - 13) >= 2 && animation != 0x13 && animation != 0x14",
+     "kind": "eq",
+     "bits": 32,
+     "equal": 0,
+     "count": 245,
+     "what": "boundary equality never occurred (32-bit compare, constant 1: both sides seen; a port's `<` for `<=` could pass)"
+    },
+    {
+     "id": "+510 eq",
+     "line": 510,
+     "text": "if (motion.vy > 0) {",
+     "kind": "eq",
+     "bits": 16,
+     "equal": 1,
+     "count": 562,
+     "what": "boundary equality occurred only 1 time(s) in 562 (16-bit compare, constant 0: both sides seen; a port's `<` for `<=` could pass)"
+    },
+    {
+     "id": "+521 eq",
+     "line": 521,
+     "text": "if (motion.vy >= 0x40) {",
+     "kind": "eq",
+     "bits": 16,
+     "equal": 0,
+     "count": 260,
+     "what": "boundary equality never occurred (16-bit compare, constant 63: both sides seen; a port's `<` for `<=` could pass)"
     },
     {
      "id": "+523 eq",
@@ -371,8 +452,18 @@
      "kind": "eq",
      "bits": 16,
      "equal": 0,
-     "count": 82,
+     "count": 61,
      "what": "boundary equality never occurred (16-bit compare, constant 255: both sides seen; a port's `<` for `<=` could pass)"
+    },
+    {
+     "id": "+525 eq",
+     "line": 525,
+     "text": "&& actor->unk17FF < 8) {",
+     "kind": "eq",
+     "bits": 8,
+     "equal": 0,
+     "count": 5,
+     "what": "boundary equality never occurred (8-bit compare, constant 7: both sides seen; a port's `<` for `<=` could pass)"
     },
     {
      "id": "+558 eq",
@@ -380,26 +471,26 @@
      "text": "if (motion.vy < -2) {",
      "kind": "eq",
      "bits": 16,
-     "equal": 0,
-     "count": 426,
-     "what": "boundary equality never occurred (16-bit compare, constant -2: both sides seen; a port's `<` for `<=` could pass)"
+     "equal": 2,
+     "count": 253,
+     "what": "boundary equality occurred only 2 time(s) in 253 (16-bit compare, constant -2: both sides seen; a port's `<` for `<=` could pass)"
     }
    ],
    "args": [
     {
      "arg": 0,
      "count": 40000,
-     "text": "32-bit: min 0, max 57, seen zero, never negative"
+     "text": "32-bit: min 0, max 17, seen zero, never negative, 6 value(s): 1, 17, 2, 0, 5, 16"
     },
     {
      "arg": 1,
      "count": 40000,
-     "text": "32-bit: min 19, max 69414, never zero/negative"
+     "text": "32-bit: min -4096, max 68608, unsigned 0..4294967295, seen zero/negative/all ones"
     },
     {
      "arg": 2,
      "count": 40000,
-     "text": "32-bit: min -2, max 262111, unsigned 0..4294967295, seen zero/negative/all ones"
+     "text": "32-bit: min -4096, max 393216, unsigned 0..4294967295, seen zero/negative/all ones"
     },
     {
      "arg": 3,
@@ -414,17 +505,17 @@
      "size": 4,
      "count": 40000,
      "kind": "against a constant",
-     "outcomes": "== 1071, < 34875, > 4054 (signed); < 34875, > 4054 (unsigned)",
+     "outcomes": "== 5116, < 29903, > 4981 (signed); < 29903, > 4981 (unsigned)",
      "operand": "constant 16",
-     "a": "0..57"
+     "a": "0..17"
     },
     {
      "line": 29,
      "text": "if (actor->unk5AC_0 != 0) {",
      "size": 1,
-     "count": 32869,
+     "count": 30626,
      "kind": "against a constant",
-     "outcomes": "== 28787, < 0, > 4082 (signed); < 0, > 4082 (unsigned)",
+     "outcomes": "== 27606, < 0, > 3020 (signed); < 0, > 3020 (unsigned)",
      "operand": "constant 0",
      "a": "0..1"
     },
@@ -432,19 +523,19 @@
      "line": 32,
      "text": "if (*(u_int*)((char*)actor + 8) & 0x0F000000) {",
      "size": 4,
-     "count": 28787,
+     "count": 27606,
      "kind": "against a constant",
-     "outcomes": "== 25094, < 0, > 3693 (signed); < 0, > 3693 (unsigned)",
+     "outcomes": "== 27606, < 0, > 0 (signed); < 0, > 0 (unsigned)",
      "operand": "constant 0",
-     "a": "0..16777216"
+     "a": "0..0"
     },
     {
      "line": 35,
      "text": "if (*(u_int*)((char*)actor + 0x5AC) & 0x100000) {",
      "size": 4,
-     "count": 25094,
+     "count": 27606,
      "kind": "against a constant",
-     "outcomes": "== 21933, < 0, > 3161 (signed); < 0, > 3161 (unsigned)",
+     "outcomes": "== 24910, < 0, > 2696 (signed); < 0, > 2696 (unsigned)",
      "operand": "constant 0",
      "a": "0..1048576"
     },
@@ -452,19 +543,19 @@
      "line": 38,
      "text": "if ((signed char)actor->unk0.unk11 > 0) {",
      "size": 1,
-     "count": 21933,
+     "count": 24910,
      "kind": "against a constant",
-     "outcomes": "== 16472, < 2760, > 2701 (signed); < 0, > 5461 (unsigned)",
+     "outcomes": "== 15497, < 6281, > 3132 (signed); < 0, > 9413 (unsigned)",
      "operand": "constant 0",
-     "a": "-128..127"
+     "a": "-128..1"
     },
     {
      "line": 41,
      "text": "if ((*(u_int*)((char*)actor + 8) & 0x180000) == 0x100000) {",
      "size": 4,
-     "count": 19232,
+     "count": 21778,
      "kind": "against a constant",
-     "outcomes": "== 4761, < 9718, > 4753 (signed); < 9718, > 4753 (unsigned)",
+     "outcomes": "== 7282, < 10804, > 3692 (signed); < 10804, > 3692 (unsigned)",
      "operand": "constant 1048576",
      "a": "0..1572864"
     },
@@ -472,9 +563,9 @@
      "line": 42,
      "text": "if ((*(u_int*)((char*)actor + 0xC) & 0xF)) {",
      "size": 4,
-     "count": 4761,
+     "count": 7282,
      "kind": "against a constant",
-     "outcomes": "== 1552, < 0, > 3209 (signed); < 0, > 3209 (unsigned)",
+     "outcomes": "== 2423, < 0, > 4859 (signed); < 0, > 4859 (unsigned)",
      "operand": "constant 0",
      "a": "0..15"
     },
@@ -482,9 +573,9 @@
      "line": 44,
      "text": "if (D_800F1D6E[actor->unk0.unkC_0] == 7",
      "size": 1,
-     "count": 3209,
+     "count": 4859,
      "kind": "against a constant",
-     "outcomes": "== 11, < 1662, > 1536 (signed); < 94, > 3104 (unsigned)",
+     "outcomes": "== 142, < 2502, > 2215 (signed); < 201, > 4516 (unsigned)",
      "operand": "constant 7",
      "a": "-128..127"
     },
@@ -492,59 +583,59 @@
      "line": 45,
      "text": "&& func_800A6EE8(&actor->unk0.position, 0, 0, 1)",
      "size": 4,
-     "count": 11,
+     "count": 142,
      "kind": "a == b / a < b",
-     "outcomes": "== 5, < 3, > 3 (signed); < 1, > 5 (unsigned)",
-     "operand": "b -23674..28429",
-     "a": "-23674..24158"
+     "outcomes": "== 2, < 76, > 64 (signed); < 73, > 67 (unsigned)",
+     "operand": "b -128..125",
+     "a": "-252..255"
     },
     {
      "line": 58,
      "text": "if (distance == 0) {",
      "size": 4,
-     "count": 4753,
+     "count": 7204,
      "kind": "against a constant",
-     "outcomes": "== 601, < 1130, > 3022 (signed); < 0, > 4152 (unsigned)",
+     "outcomes": "== 383, < 995, > 5826 (signed); < 0, > 6821 (unsigned)",
      "operand": "constant 0",
-     "a": "-2..261347"
+     "a": "-4096..393216"
     },
     {
      "line": 62,
      "text": "if ((u_int)(i - 0x400) <= 0x800) {",
      "size": 4,
-     "count": 4152,
+     "count": 6821,
      "kind": "against a constant",
-     "outcomes": "== 846, < 3087, > 219 (signed); < 2089, > 1217 (unsigned)",
+     "outcomes": "== 367, < 5217, > 1237 (signed); < 3226, > 3228 (unsigned)",
      "operand": "constant 2048",
-     "a": "-1024..3070"
+     "a": "-1024..3071"
     },
     {
      "line": 65,
      "text": "if (actor->unk0.unk1A != 0) {",
      "size": 2,
-     "count": 1217,
+     "count": 3228,
      "kind": "against a constant",
-     "outcomes": "== 809, < 210, > 198 (signed); < 0, > 408 (unsigned)",
+     "outcomes": "== 2577, < 0, > 651 (signed); < 0, > 651 (unsigned)",
      "operand": "constant 0",
-     "a": "-32606..32528"
+     "a": "0..1"
     },
     {
      "line": 69,
      "text": "if (distance >= actor->unk5B9 << 12) {",
      "size": 4,
-     "count": 809,
+     "count": 2577,
      "kind": "a == b / a < b",
-     "outcomes": "== 114, < 397, > 298 (signed); < 188, > 507 (unsigned)",
-     "operand": "b 0..81920",
-     "a": "-2..260074"
+     "outcomes": "== 31, < 1218, > 1328 (signed); < 850, > 1696 (unsigned)",
+     "operand": "b 0..20480",
+     "a": "-4096..393216"
     },
     {
      "line": 72,
      "text": "} else if (*(u_int*)((char*)actor + 8) & 0x180000) {",
      "size": 4,
-     "count": 14471,
+     "count": 14496,
      "kind": "against a constant",
-     "outcomes": "== 4824, < 0, > 9647 (signed); < 0, > 9647 (unsigned)",
+     "outcomes": "== 7194, < 0, > 7302 (signed); < 0, > 7302 (unsigned)",
      "operand": "constant 0",
      "a": "0..1572864"
     },
@@ -552,19 +643,19 @@
      "line": 74,
      "text": "if (distance == 0) {",
      "size": 4,
-     "count": 9647,
+     "count": 7302,
      "kind": "against a constant",
-     "outcomes": "== 1303, < 2344, > 6000 (signed); < 0, > 8344 (unsigned)",
+     "outcomes": "== 212, < 1151, > 5939 (signed); < 0, > 7090 (unsigned)",
      "operand": "constant 0",
-     "a": "-2..262111"
+     "a": "-4096..393216"
     },
     {
      "line": 77,
      "text": "if (i <= 0x400) {",
      "size": 4,
-     "count": 8344,
+     "count": 7090,
      "kind": "against a constant",
-     "outcomes": "== 1685, < 2119, > 4540 (signed); < 2119, > 4540 (unsigned)",
+     "outcomes": "== 392, < 2056, > 4642 (signed); < 2056, > 4642 (unsigned)",
      "operand": "constant 1024",
      "a": "0..4095"
     },
@@ -572,29 +663,29 @@
      "line": 80,
      "text": "if (i >= 0xC00) {",
      "size": 4,
-     "count": 4540,
+     "count": 4642,
      "kind": "against a constant",
-     "outcomes": "== 1, < 2458, > 2081 (signed); < 2458, > 2081 (unsigned)",
+     "outcomes": "== 381, < 2538, > 1723 (signed); < 2538, > 1723 (unsigned)",
      "operand": "constant 3071",
-     "a": "1029..4095"
+     "a": "1025..4095"
     },
     {
      "line": 94,
      "text": "if (*(u_int*)((char*)actor + 8) & 0x70000) {",
      "size": 4,
-     "count": 8092,
+     "count": 12690,
      "kind": "against a constant",
-     "outcomes": "== 4462, < 0, > 3630 (signed); < 0, > 3630 (unsigned)",
+     "outcomes": "== 4761, < 0, > 7929 (signed); < 0, > 7929 (unsigned)",
      "operand": "constant 0",
-     "a": "0..458752"
+     "a": "0..327680"
     },
     {
      "line": 95,
      "text": "if (index != 0) {",
      "size": 4,
-     "count": 3630,
+     "count": 7929,
      "kind": "against a constant",
-     "outcomes": "== 1977, < 0, > 1653 (signed); < 0, > 1653 (unsigned)",
+     "outcomes": "== 3435, < 0, > 4494 (signed); < 0, > 4494 (unsigned)",
      "operand": "constant 0",
      "a": "0..16"
     },
@@ -602,19 +693,19 @@
      "line": 99,
      "text": "if (distance / 4096 >= actor->unk5B9) {",
      "size": 4,
-     "count": 1977,
+     "count": 3435,
      "kind": "a == b / a < b",
-     "outcomes": "== 563, < 1034, > 380 (signed); < 1034, > 380 (unsigned)",
-     "operand": "b 0..20",
-     "a": "0..63"
+     "outcomes": "== 524, < 1650, > 1261 (signed); < 1555, > 1356 (unsigned)",
+     "operand": "b 0..5",
+     "a": "-1..96"
     },
     {
      "line": 100,
      "text": "if (!(*(u_int*)flags & 4)) {",
      "size": 4,
-     "count": 943,
+     "count": 1785,
      "kind": "against a constant",
-     "outcomes": "== 505, < 0, > 438 (signed); < 0, > 438 (unsigned)",
+     "outcomes": "== 876, < 0, > 909 (signed); < 0, > 909 (unsigned)",
      "operand": "constant 0",
      "a": "0..4"
     },
@@ -622,119 +713,119 @@
      "line": 107,
      "text": "if (moveType != 0) {",
      "size": 4,
-     "count": 1977,
+     "count": 3435,
      "kind": "against a constant",
-     "outcomes": "== 0, < 0, > 1977 (signed); < 0, > 1977 (unsigned)",
+     "outcomes": "== 0, < 0, > 3435 (signed); < 0, > 3435 (unsigned)",
      "operand": "constant 0",
-     "a": "1..7"
+     "a": "1..5"
     },
     {
      "line": 108,
      "text": "if (moveType < 4) {",
      "size": 4,
-     "count": 1977,
+     "count": 3435,
      "kind": "against a constant",
-     "outcomes": "== 297, < 546, > 1134 (signed); < 546, > 1134 (unsigned)",
+     "outcomes": "== 717, < 1348, > 1370 (signed); < 1348, > 1370 (unsigned)",
      "operand": "constant 3",
-     "a": "1..7"
+     "a": "1..5"
     },
     {
      "line": 109,
      "text": "if (distance == 0) {",
      "size": 4,
-     "count": 843,
+     "count": 2065,
      "kind": "against a constant",
-     "outcomes": "== 75, < 205, > 563 (signed); < 0, > 768 (unsigned)",
+     "outcomes": "== 25, < 290, > 1750 (signed); < 0, > 2040 (unsigned)",
      "operand": "constant 0",
-     "a": "-2..249994"
+     "a": "-4096..393216"
     },
     {
      "line": 112,
      "text": "} else if (moveType == 4) {",
      "size": 4,
-     "count": 1134,
+     "count": 1370,
      "kind": "against a constant",
-     "outcomes": "== 306, < 0, > 828 (signed); < 0, > 828 (unsigned)",
+     "outcomes": "== 679, < 0, > 691 (signed); < 0, > 691 (unsigned)",
      "operand": "constant 4",
-     "a": "4..7"
+     "a": "4..5"
     },
     {
      "line": 118,
      "text": "if (distance == -1) {",
      "size": 4,
-     "count": 6058,
+     "count": 7492,
      "kind": "against a constant",
-     "outcomes": "== 758, < 779, > 4521 (signed); < 5300, > 0 (unsigned)",
+     "outcomes": "== 168, < 968, > 6356 (signed); < 7324, > 0 (unsigned)",
      "operand": "constant -1",
-     "a": "-2..261532"
+     "a": "-4096..393216"
     },
     {
      "line": 119,
      "text": "if (input->vx == 0 && input->vz == 0) {",
      "size": 2,
-     "count": 758,
+     "count": 168,
      "kind": "against a constant",
-     "outcomes": "== 262, < 238, > 258 (signed); < 0, > 496 (unsigned)",
+     "outcomes": "== 48, < 28, > 92 (signed); < 0, > 120 (unsigned)",
      "operand": "constant 0",
-     "a": "-32759..32485"
+     "a": "-1..2048"
     },
     {
      "line": 119,
      "text": "if (input->vx == 0 && input->vz == 0) {",
      "size": 2,
-     "count": 262,
+     "count": 48,
      "kind": "against a constant",
-     "outcomes": "== 91, < 85, > 86 (signed); < 0, > 171 (unsigned)",
+     "outcomes": "== 21, < 14, > 13 (signed); < 0, > 27 (unsigned)",
      "operand": "constant 0",
-     "a": "-32742..32663"
+     "a": "-1..1"
     },
     {
      "line": 121,
      "text": "if (animation >= 100) {",
      "size": 4,
-     "count": 91,
+     "count": 21,
      "kind": "against a constant",
-     "outcomes": "== 0, < 51, > 40 (signed); < 51, > 40 (unsigned)",
+     "outcomes": "== 0, < 15, > 6 (signed); < 15, > 6 (unsigned)",
      "operand": "constant 99",
-     "a": "1..255"
+     "a": "0..113"
     },
     {
      "line": 124,
      "text": "if (animation == 1) {",
      "size": 4,
-     "count": 91,
+     "count": 21,
      "kind": "against a constant",
-     "outcomes": "== 18, < 7, > 66 (signed); < 7, > 66 (unsigned)",
+     "outcomes": "== 3, < 5, > 13 (signed); < 5, > 13 (unsigned)",
      "operand": "constant 1",
-     "a": "0..155"
+     "a": "0..84"
     },
     {
      "line": 127,
      "text": "if ((u_int)(animation - 13) >= 14) {",
      "size": 4,
-     "count": 73,
+     "count": 18,
      "kind": "against a constant",
-     "outcomes": "== 3, < 21, > 49 (signed); < 10, > 60 (unsigned)",
+     "outcomes": "== 1, < 15, > 2 (signed); < 10, > 7 (unsigned)",
      "operand": "constant 13",
-     "a": "-13..142"
+     "a": "-13..71"
     },
     {
      "line": 136,
      "text": "if (distance == 0) {",
      "size": 4,
-     "count": 5300,
+     "count": 7324,
      "kind": "against a constant",
-     "outcomes": "== 435, < 779, > 4086 (signed); < 0, > 4865 (unsigned)",
+     "outcomes": "== 79, < 968, > 6277 (signed); < 0, > 7245 (unsigned)",
      "operand": "constant 0",
-     "a": "-2..261532"
+     "a": "-4096..393216"
     },
     {
      "line": 137,
      "text": "if ((*(u_int*)((char*)actor + 0x5AC) & 0x8000) && input->pad == 0) {",
      "size": 4,
-     "count": 435,
+     "count": 79,
      "kind": "against a constant",
-     "outcomes": "== 222, < 0, > 213 (signed); < 0, > 213 (unsigned)",
+     "outcomes": "== 37, < 0, > 42 (signed); < 0, > 42 (unsigned)",
      "operand": "constant 0",
      "a": "0..32768"
     },
@@ -742,99 +833,99 @@
      "line": 137,
      "text": "if ((*(u_int*)((char*)actor + 0x5AC) & 0x8000) && input->pad == 0) {",
      "size": 2,
-     "count": 213,
+     "count": 42,
      "kind": "against a constant",
-     "outcomes": "== 71, < 49, > 93 (signed); < 0, > 142 (unsigned)",
+     "outcomes": "== 20, < 0, > 22 (signed); < 0, > 22 (unsigned)",
      "operand": "constant 0",
-     "a": "-30840..31458"
+     "a": "0..2048"
     },
     {
      "line": 143,
      "text": "if (distance <= 0) {",
      "size": 4,
-     "count": 82,
+     "count": 23,
      "kind": "against a constant",
-     "outcomes": "== 2, < 17, > 63 (signed); < 0, > 80 (unsigned)",
+     "outcomes": "== 4, < 9, > 10 (signed); < 0, > 19 (unsigned)",
      "operand": "constant 0",
-     "a": "-8..29"
+     "a": "-4..4"
     },
     {
      "line": 150,
      "text": "if (actor->unk1840 >= actor->unk5B9) {",
      "size": 4,
-     "count": 364,
+     "count": 59,
      "kind": "a == b / a < b",
-     "outcomes": "== 142, < 86, > 136 (signed); < 73, > 149 (unsigned)",
-     "operand": "b 0..20",
-     "a": "-3..30"
+     "outcomes": "== 7, < 36, > 16 (signed); < 23, > 29 (unsigned)",
+     "operand": "b 0..5",
+     "a": "-1..4"
     },
     {
      "line": 151,
      "text": "if (actor->unk1846 >= 20 && actor->unk1847 < 9) {",
      "size": 1,
-     "count": 278,
+     "count": 23,
      "kind": "against a constant",
-     "outcomes": "== 2, < 96, > 180 (signed); < 10, > 266 (unsigned)",
+     "outcomes": "== 1, < 11, > 11 (signed); < 5, > 17 (unsigned)",
      "operand": "constant 19",
-     "a": "-128..127"
+     "a": "-1..21"
     },
     {
      "line": 151,
      "text": "if (actor->unk1846 >= 20 && actor->unk1847 < 9) {",
      "size": 1,
-     "count": 266,
+     "count": 17,
      "kind": "against a constant",
-     "outcomes": "== 29, < 132, > 105 (signed); < 41, > 196 (unsigned)",
+     "outcomes": "== 4, < 10, > 3 (signed); < 8, > 5 (unsigned)",
      "operand": "constant 8",
-     "a": "-128..126"
+     "a": "-1..9"
     },
     {
      "line": 154,
      "text": "if (input->pad == 0) {",
      "size": 2,
-     "count": 70,
+     "count": 12,
      "kind": "against a constant",
-     "outcomes": "== 11, < 21, > 38 (signed); < 0, > 59 (unsigned)",
+     "outcomes": "== 3, < 0, > 9 (signed); < 0, > 9 (unsigned)",
      "operand": "constant 0",
-     "a": "-29733..31979"
+     "a": "0..2048"
     },
     {
      "line": 161,
      "text": "if (actor->unk6E4 == 0) {",
      "size": 1,
-     "count": 294,
+     "count": 47,
      "kind": "against a constant",
-     "outcomes": "== 155, < 73, > 66 (signed); < 0, > 139 (unsigned)",
+     "outcomes": "== 29, < 0, > 18 (signed); < 0, > 18 (unsigned)",
      "operand": "constant 0",
-     "a": "-126..120"
+     "a": "0..1"
     },
     {
      "line": 162,
      "text": "if (actor->unk1840 != 0 || (*(u_int*)((char*)actor + 0xC) & 0xF)) {",
      "size": 2,
-     "count": 155,
+     "count": 29,
      "kind": "against a constant",
-     "outcomes": "== 7, < 8, > 140 (signed); < 0, > 148 (unsigned)",
+     "outcomes": "== 8, < 6, > 15 (signed); < 0, > 21 (unsigned)",
      "operand": "constant 0",
-     "a": "-3..30"
+     "a": "-1..4"
     },
     {
      "line": 162,
      "text": "if (actor->unk1840 != 0 || (*(u_int*)((char*)actor + 0xC) & 0xF)) {",
      "size": 4,
-     "count": 7,
+     "count": 8,
      "kind": "against a constant",
-     "outcomes": "== 2, < 0, > 5 (signed); < 0, > 5 (unsigned)",
+     "outcomes": "== 3, < 0, > 5 (signed); < 0, > 5 (unsigned)",
      "operand": "constant 0",
-     "a": "0..14"
+     "a": "0..7"
     },
     {
      "line": 164,
      "text": "} else if (!(*(u_int*)((char*)actor + 0x5AC) & 0x1000)) {",
      "size": 4,
-     "count": 2,
+     "count": 3,
      "kind": "against a constant",
-     "outcomes": "== 2, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "outcomes": "== 3, < 0, > 0 (signed); < 0, > 0 (unsigned)",
      "operand": "constant 0",
      "a": "0..0"
     },
@@ -842,99 +933,99 @@
      "line": 166,
      "text": "if (animation >= 100) {",
      "size": 4,
-     "count": 2,
+     "count": 3,
      "kind": "against a constant",
-     "outcomes": "== 0, < 2, > 0 (signed); < 2, > 0 (unsigned)",
+     "outcomes": "== 0, < 2, > 1 (signed); < 2, > 1 (unsigned)",
      "operand": "constant 99",
-     "a": "26..58"
+     "a": "0..101"
     },
     {
      "line": 169,
      "text": "if (animation != 0x54) {",
      "size": 4,
-     "count": 2,
+     "count": 3,
      "kind": "against a constant",
-     "outcomes": "== 0, < 2, > 0 (signed); < 2, > 0 (unsigned)",
+     "outcomes": "== 0, < 3, > 0 (signed); < 3, > 0 (unsigned)",
      "operand": "constant 84",
-     "a": "26..58"
+     "a": "0..1"
     },
     {
      "line": 170,
      "text": "if (animation == 1) {",
      "size": 4,
-     "count": 2,
+     "count": 3,
      "kind": "against a constant",
-     "outcomes": "== 0, < 0, > 2 (signed); < 0, > 2 (unsigned)",
+     "outcomes": "== 2, < 1, > 0 (signed); < 1, > 0 (unsigned)",
      "operand": "constant 1",
-     "a": "26..58"
+     "a": "0..1"
     },
     {
      "line": 173,
      "text": "if ((u_int)(animation - 13) >= 14) {",
      "size": 4,
-     "count": 2,
+     "count": 1,
      "kind": "against a constant",
-     "outcomes": "== 1, < 0, > 1 (signed); < 0, > 1 (unsigned)",
+     "outcomes": "== 0, < 1, > 0 (signed); < 0, > 1 (unsigned)",
      "operand": "constant 13",
-     "a": "13..45"
+     "a": "-13..-13"
     },
     {
      "line": 191,
      "text": "if (distance >= actor->unk5B9 << 12) {",
      "size": 4,
-     "count": 4865,
+     "count": 7245,
      "kind": "a == b / a < b",
-     "outcomes": "== 711, < 2305, > 1849 (signed); < 1526, > 2628 (unsigned)",
-     "operand": "b 0..81920",
-     "a": "-2..261532"
+     "outcomes": "== 280, < 3555, > 3410 (signed); < 2587, > 4378 (unsigned)",
+     "operand": "b 0..20480",
+     "a": "-4096..393216"
     },
     {
      "line": 195,
      "text": "if (i >= 0x100) {",
      "size": 4,
-     "count": 2560,
+     "count": 3690,
      "kind": "against a constant",
-     "outcomes": "== 6, < 2542, > 12 (signed); < 2542, > 12 (unsigned)",
+     "outcomes": "== 276, < 2975, > 439 (signed); < 2975, > 439 (unsigned)",
      "operand": "constant 255",
-     "a": "0..259"
+     "a": "0..257"
     },
     {
      "line": 203,
      "text": "if (i >= 0x100) {",
      "size": 4,
-     "count": 2305,
+     "count": 3555,
      "kind": "against a constant",
-     "outcomes": "== 60, < 2008, > 237 (signed); < 2008, > 237 (unsigned)",
+     "outcomes": "== 344, < 2696, > 515 (signed); < 2696, > 515 (unsigned)",
      "operand": "constant 255",
-     "a": "0..259"
+     "a": "0..257"
     },
     {
      "line": 209,
      "text": "if (input->pad == 1) {",
      "size": 2,
-     "count": 4865,
+     "count": 7245,
      "kind": "against a constant",
-     "outcomes": "== 816, < 2847, > 1202 (signed); < 1647, > 2402 (unsigned)",
+     "outcomes": "== 1459, < 2978, > 2808 (signed); < 2978, > 2808 (unsigned)",
      "operand": "constant 1",
-     "a": "-32707..32765"
+     "a": "0..2048"
     },
     {
      "line": 213,
      "text": "if (distance != 0 && !(*(u_int*)((char*)actor + 8) & 0x180000)) {",
      "size": 4,
-     "count": 4865,
+     "count": 7245,
      "kind": "against a constant",
-     "outcomes": "== 0, < 779, > 4086 (signed); < 0, > 4865 (unsigned)",
+     "outcomes": "== 0, < 968, > 6277 (signed); < 0, > 7245 (unsigned)",
      "operand": "constant 0",
-     "a": "-2..261532"
+     "a": "-4096..393216"
     },
     {
      "line": 213,
      "text": "if (distance != 0 && !(*(u_int*)((char*)actor + 8) & 0x180000)) {",
      "size": 4,
-     "count": 4865,
+     "count": 7245,
      "kind": "against a constant",
-     "outcomes": "== 4320, < 0, > 545 (signed); < 0, > 545 (unsigned)",
+     "outcomes": "== 5732, < 0, > 1513 (signed); < 0, > 1513 (unsigned)",
      "operand": "constant 0",
      "a": "0..1048576"
     },
@@ -942,69 +1033,69 @@
      "line": 219,
      "text": "if (actor->unk5BE != 4) {",
      "size": 2,
-     "count": 4947,
+     "count": 7268,
      "kind": "against a constant",
-     "outcomes": "== 1145, < 987, > 2815 (signed); < 987, > 2815 (unsigned)",
+     "outcomes": "== 3113, < 3088, > 1067 (signed); < 3088, > 1067 (unsigned)",
      "operand": "constant 4",
-     "a": "0..15"
+     "a": "0..5"
     },
     {
      "line": 221,
      "text": "if (input->pad == 0 && speed > 0x1EFFF) {",
      "size": 2,
-     "count": 3802,
+     "count": 4155,
      "kind": "against a constant",
-     "outcomes": "== 1328, < 939, > 1535 (signed); < 0, > 2474 (unsigned)",
+     "outcomes": "== 1722, < 0, > 2433 (signed); < 0, > 2433 (unsigned)",
      "operand": "constant 0",
-     "a": "-32707..32765"
+     "a": "0..2048"
     },
     {
      "line": 221,
      "text": "if (input->pad == 0 && speed > 0x1EFFF) {",
      "size": 4,
-     "count": 1328,
+     "count": 1722,
      "kind": "against a constant",
-     "outcomes": "== 0, < 1066, > 262 (signed); < 877, > 451 (unsigned)",
+     "outcomes": "== 0, < 1681, > 41 (signed); < 1508, > 214 (unsigned)",
      "operand": "constant 126975",
-     "a": "-7..935310"
+     "a": "-5120..491520"
     },
     {
      "line": 225,
      "text": "if (speed <= 0) {",
      "size": 4,
-     "count": 4947,
+     "count": 7268,
      "kind": "against a constant",
-     "outcomes": "== 295, < 695, > 3957 (signed); < 0, > 4652 (unsigned)",
+     "outcomes": "== 1086, < 831, > 5351 (signed); < 0, > 6182 (unsigned)",
      "operand": "constant 0",
-     "a": "-7..958027"
+     "a": "-5120..491520"
     },
     {
      "line": 233,
      "text": "if ((*(u_int*)((char*)actor + 8) & 0x70000) == 0x30000) {",
      "size": 4,
-     "count": 5023,
+     "count": 5581,
      "kind": "against a constant",
-     "outcomes": "== 250, < 4078, > 695 (signed); < 4078, > 695 (unsigned)",
+     "outcomes": "== 555, < 4524, > 502 (signed); < 4524, > 502 (unsigned)",
      "operand": "constant 196608",
-     "a": "0..458752"
+     "a": "0..327680"
     },
     {
      "line": 234,
      "text": "if (actor->unk0.position.vy > 0) {",
      "size": 2,
-     "count": 250,
+     "count": 555,
      "kind": "against a constant",
-     "outcomes": "== 34, < 125, > 91 (signed); < 0, > 216 (unsigned)",
+     "outcomes": "== 2, < 279, > 274 (signed); < 0, > 553 (unsigned)",
      "operand": "constant 0",
-     "a": "-32453..32715"
+     "a": "-128..127"
     },
     {
      "line": 241,
      "text": "if (*(u_int*)((char*)actor + 0x5AC) & 0x1000) {",
      "size": 4,
-     "count": 5023,
+     "count": 5581,
      "kind": "against a constant",
-     "outcomes": "== 3366, < 0, > 1657 (signed); < 0, > 1657 (unsigned)",
+     "outcomes": "== 3612, < 0, > 1969 (signed); < 0, > 1969 (unsigned)",
      "operand": "constant 0",
      "a": "0..4096"
     },
@@ -1012,39 +1103,39 @@
      "line": 247,
      "text": "switch (status) {",
      "size": 4,
-     "count": 5023,
+     "count": 5581,
      "kind": "switch",
-     "outcomes": "== 4002, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "outcomes": "== 5581, < 0, > 0 (signed); < 0, > 0 (unsigned)",
      "operand": "cases",
-     "a": "0..4"
+     "a": "0..3"
     },
     {
      "line": 253,
      "text": "if (distance < 0) {",
      "size": 4,
-     "count": 1010,
+     "count": 1737,
      "kind": "against a constant",
-     "outcomes": "== 666, < 185, > 159 (signed); < 0, > 344 (unsigned)",
+     "outcomes": "== 629, < 539, > 569 (signed); < 0, > 1108 (unsigned)",
      "operand": "constant 0",
-     "a": "-32687..31742"
+     "a": "-254..2048"
     },
     {
      "line": 259,
      "text": "if (distance < 0) {",
      "size": 4,
-     "count": 978,
+     "count": 1465,
      "kind": "against a constant",
-     "outcomes": "== 504, < 237, > 237 (signed); < 0, > 474 (unsigned)",
+     "outcomes": "== 582, < 431, > 452 (signed); < 0, > 883 (unsigned)",
      "operand": "constant 0",
-     "a": "-32701..32518"
+     "a": "-255..255"
     },
     {
      "line": 265,
      "text": "if ((*(u_int*)((char*)actor + 8) & 0x180000) == 0x100000) {",
      "size": 4,
-     "count": 1024,
+     "count": 1364,
      "kind": "against a constant",
-     "outcomes": "== 100, < 924, > 0 (signed); < 924, > 0 (unsigned)",
+     "outcomes": "== 296, < 1068, > 0 (signed); < 1068, > 0 (unsigned)",
      "operand": "constant 1048576",
      "a": "0..1048576"
     },
@@ -1052,9 +1143,9 @@
      "line": 268,
      "text": "if (turning) {",
      "size": 4,
-     "count": 924,
+     "count": 1068,
      "kind": "against a constant",
-     "outcomes": "== 599, < 0, > 325 (signed); < 0, > 325 (unsigned)",
+     "outcomes": "== 757, < 0, > 311 (signed); < 0, > 311 (unsigned)",
      "operand": "constant 0",
      "a": "0..1"
     },
@@ -1062,69 +1153,69 @@
      "line": 271,
      "text": "if (*(u_int*)((char*)actor + 8) & 0x70000) {",
      "size": 4,
-     "count": 924,
+     "count": 1068,
      "kind": "against a constant",
-     "outcomes": "== 433, < 0, > 491 (signed); < 0, > 491 (unsigned)",
+     "outcomes": "== 478, < 0, > 590 (signed); < 0, > 590 (unsigned)",
      "operand": "constant 0",
-     "a": "0..458752"
+     "a": "0..327680"
     },
     {
      "line": 274,
      "text": "if ((*(u_int*)((char*)actor + 8) & 0x70000) == 0x10000) {",
      "size": 4,
-     "count": 491,
+     "count": 590,
      "kind": "against a constant",
-     "outcomes": "== 30, < 0, > 461 (signed); < 0, > 461 (unsigned)",
+     "outcomes": "== 66, < 0, > 524 (signed); < 0, > 524 (unsigned)",
      "operand": "constant 65536",
-     "a": "65536..458752"
+     "a": "65536..327680"
     },
     {
      "line": 287,
      "text": "if (!(*(u_int*)((char*)actor + 8) & 0x1F0000)) {",
      "size": 4,
-     "count": 4432,
+     "count": 4695,
      "kind": "against a constant",
-     "outcomes": "== 3002, < 0, > 1430 (signed); < 0, > 1430 (unsigned)",
+     "outcomes": "== 2605, < 0, > 2090 (signed); < 0, > 2090 (unsigned)",
      "operand": "constant 0",
-     "a": "0..1507328"
+     "a": "0..1376256"
     },
     {
      "line": 292,
      "text": "if (input->pad == 0) {",
      "size": 2,
-     "count": 4432,
+     "count": 4695,
      "kind": "against a constant",
-     "outcomes": "== 1469, < 1117, > 1846 (signed); < 0, > 2963 (unsigned)",
+     "outcomes": "== 1904, < 0, > 2791 (signed); < 0, > 2791 (unsigned)",
      "operand": "constant 0",
-     "a": "-32707..32765"
+     "a": "0..2048"
     },
     {
      "line": 293,
      "text": "if (motion.vy < -0x20 || status == 3) {",
      "size": 2,
-     "count": 1469,
+     "count": 1904,
      "kind": "against a constant",
-     "outcomes": "== 0, < 523, > 946 (signed); < 1467, > 2 (unsigned)",
+     "outcomes": "== 9, < 714, > 1181 (signed); < 1676, > 219 (unsigned)",
      "operand": "constant -32",
-     "a": "-32755..32730"
+     "a": "-369..376"
     },
     {
      "line": 293,
      "text": "if (motion.vy < -0x20 || status == 3) {",
      "size": 4,
-     "count": 946,
+     "count": 1190,
      "kind": "against a constant",
-     "outcomes": "== 104, < 634, > 208 (signed); < 634, > 208 (unsigned)",
+     "outcomes": "== 114, < 1076, > 0 (signed); < 1076, > 0 (unsigned)",
      "operand": "constant 3",
-     "a": "0..4"
+     "a": "0..3"
     },
     {
      "line": 295,
      "text": "if (motion.vy & 0x3F) {",
      "size": 4,
-     "count": 627,
+     "count": 828,
      "kind": "against a constant",
-     "outcomes": "== 55, < 0, > 572 (signed); < 0, > 572 (unsigned)",
+     "outcomes": "== 16, < 0, > 812 (signed); < 0, > 812 (unsigned)",
      "operand": "constant 0",
      "a": "0..63"
     },
@@ -1132,79 +1223,79 @@
      "line": 298,
      "text": "if (result < i) {",
      "size": 4,
-     "count": 627,
+     "count": 828,
      "kind": "a == b / a < b",
-     "outcomes": "== 7, < 95, > 525 (signed); < 86, > 534 (unsigned)",
-     "operand": "b -1..4",
-     "a": "-506..512"
+     "outcomes": "== 173, < 240, > 415 (signed); < 194, > 461 (unsigned)",
+     "operand": "b 0..5",
+     "a": "-4..6"
     },
     {
      "line": 301,
      "text": "} else if (result == 4) {",
      "size": 4,
-     "count": 842,
+     "count": 1076,
      "kind": "against a constant",
-     "outcomes": "== 147, < 695, > 0 (signed); < 644, > 51 (unsigned)",
+     "outcomes": "== 85, < 930, > 61 (signed); < 930, > 61 (unsigned)",
      "operand": "constant 4",
-     "a": "-1..4"
+     "a": "0..5"
     },
     {
      "line": 304,
      "text": "if (motion.vy >= -0xEC) {",
      "size": 2,
-     "count": 147,
+     "count": 85,
      "kind": "against a constant",
-     "outcomes": "== 2, < 59, > 86 (signed); < 141, > 4 (unsigned)",
+     "outcomes": "== 0, < 41, > 44 (signed); < 84, > 1 (unsigned)",
      "operand": "constant -236",
-     "a": "-31720..32594"
+     "a": "-32256..31124"
     },
     {
      "line": 307,
      "text": "} else if (D_800F4B0A - actor->unk0.position.vy < -0x5F",
      "size": 4,
-     "count": 695,
+     "count": 991,
      "kind": "against a constant",
-     "outcomes": "== 11, < 275, > 409 (signed); < 666, > 18 (unsigned)",
+     "outcomes": "== 0, < 483, > 508 (signed); < 988, > 3 (unsigned)",
      "operand": "constant -95",
-     "a": "-61268..61403"
+     "a": "-32749..32419"
     },
     {
      "line": 308,
      "text": "&& actor->unk0.position.vy < 0) {",
      "size": 2,
-     "count": 275,
+     "count": 483,
      "kind": "against a constant",
-     "outcomes": "== 19, < 77, > 179 (signed); < 0, > 256 (unsigned)",
+     "outcomes": "== 5, < 272, > 206 (signed); < 0, > 478 (unsigned)",
      "operand": "constant 0",
-     "a": "-27624..32724"
+     "a": "-128..126"
     },
     {
      "line": 311,
      "text": "if (status == 3 && result >= 0) {",
      "size": 4,
-     "count": 1469,
+     "count": 1904,
      "kind": "against a constant",
-     "outcomes": "== 142, < 1003, > 324 (signed); < 1003, > 324 (unsigned)",
+     "outcomes": "== 187, < 1717, > 0 (signed); < 1717, > 0 (unsigned)",
      "operand": "constant 3",
-     "a": "0..4"
+     "a": "0..3"
     },
     {
      "line": 311,
      "text": "if (status == 3 && result >= 0) {",
      "size": 4,
-     "count": 142,
+     "count": 187,
      "kind": "against a constant",
-     "outcomes": "== 18, < 7, > 117 (signed); < 0, > 124 (unsigned)",
+     "outcomes": "== 21, < 0, > 166 (signed); < 0, > 166 (unsigned)",
      "operand": "constant 0",
-     "a": "-1..462"
+     "a": "0..6"
     },
     {
      "line": 316,
      "text": "if ((*(u_int*)((char*)actor + 0x5AC) & 0x1000) && speed == 0) {",
      "size": 4,
-     "count": 4432,
+     "count": 4695,
      "kind": "against a constant",
-     "outcomes": "== 2979, < 0, > 1453 (signed); < 0, > 1453 (unsigned)",
+     "outcomes": "== 2968, < 0, > 1727 (signed); < 0, > 1727 (unsigned)",
      "operand": "constant 0",
      "a": "0..4096"
     },
@@ -1212,109 +1303,89 @@
      "line": 316,
      "text": "if ((*(u_int*)((char*)actor + 0x5AC) & 0x1000) && speed == 0) {",
      "size": 4,
-     "count": 1453,
+     "count": 1727,
      "kind": "against a constant",
-     "outcomes": "== 117, < 1, > 1335 (signed); < 0, > 1336 (unsigned)",
+     "outcomes": "== 27, < 0, > 1700 (signed); < 0, > 1700 (unsigned)",
      "operand": "constant 0",
-     "a": "-7..756206"
+     "a": "0..491520"
     },
     {
      "line": 317,
      "text": "if (*(u_short*)((char*)actor + 0x18D6) == actor->unk0.position.vx + motion.vx",
      "size": 4,
-     "count": 117,
+     "count": 27,
      "kind": "a == b / a < b",
-     "outcomes": "== 0, < 19, > 98 (signed); < 72, > 45 (unsigned)",
-     "operand": "b -31964..32086",
-     "a": "868..65023"
+     "outcomes": "== 0, < 1, > 26 (signed); < 12, > 15 (unsigned)",
+     "operand": "b -1910..1551",
+     "a": "546..63104"
     },
     {
      "line": 338,
      "text": "if (state != 0) {",
      "size": 4,
-     "count": 4432,
+     "count": 4695,
      "kind": "against a constant",
-     "outcomes": "== 3324, < 0, > 1108 (signed); < 0, > 1108 (unsigned)",
+     "outcomes": "== 3123, < 0, > 1572 (signed); < 0, > 1572 (unsigned)",
      "operand": "constant 0",
-     "a": "0..458752"
+     "a": "0..327680"
     },
     {
      "line": 339,
      "text": "if (state == 0x10000) {",
      "size": 4,
-     "count": 1108,
+     "count": 1572,
      "kind": "against a constant",
-     "outcomes": "== 179, < 0, > 929 (signed); < 0, > 929 (unsigned)",
+     "outcomes": "== 359, < 0, > 1213 (signed); < 0, > 1213 (unsigned)",
      "operand": "constant 65536",
-     "a": "65536..458752"
+     "a": "65536..327680"
     },
     {
      "line": 346,
      "text": "if (result < 2) {",
      "size": 4,
-     "count": 929,
+     "count": 1213,
      "kind": "against a constant",
-     "outcomes": "== 141, < 199, > 589 (signed); < 162, > 626 (unsigned)",
+     "outcomes": "== 611, < 505, > 97 (signed); < 505, > 97 (unsigned)",
      "operand": "constant 1",
-     "a": "-1..509"
+     "a": "0..2"
     },
     {
      "line": 347,
      "text": "if (motion.vy > 0) {",
      "size": 2,
-     "count": 340,
+     "count": 1116,
      "kind": "against a constant",
-     "outcomes": "== 98, < 97, > 145 (signed); < 0, > 242 (unsigned)",
+     "outcomes": "== 12, < 580, > 524 (signed); < 0, > 1104 (unsigned)",
      "operand": "constant 0",
-     "a": "-32399..32475"
+     "a": "-64..63"
     },
     {
      "line": 356,
      "text": "if (result != 2) {",
      "size": 4,
-     "count": 589,
+     "count": 97,
      "kind": "against a constant",
-     "outcomes": "== 178, < 0, > 411 (signed); < 0, > 411 (unsigned)",
+     "outcomes": "== 97, < 0, > 0 (signed); < 0, > 0 (unsigned)",
      "operand": "constant 2",
-     "a": "2..509"
-    },
-    {
-     "line": 357,
-     "text": "if (result != 3) {",
-     "size": 4,
-     "count": 411,
-     "kind": "against a constant",
-     "outcomes": "== 167, < 0, > 244 (signed); < 0, > 244 (unsigned)",
-     "operand": "constant 3",
-     "a": "3..509"
-    },
-    {
-     "line": 358,
-     "text": "if (result != 4) {",
-     "size": 4,
-     "count": 244,
-     "kind": "against a constant",
-     "outcomes": "== 132, < 0, > 112 (signed); < 0, > 112 (unsigned)",
-     "operand": "constant 4",
-     "a": "4..509"
+     "a": "2..2"
     },
     {
      "line": 367,
      "text": "if (result > 0) {",
      "size": 4,
-     "count": 3801,
+     "count": 3220,
      "kind": "against a constant",
-     "outcomes": "== 536, < 188, > 3077 (signed); < 0, > 3265 (unsigned)",
+     "outcomes": "== 562, < 0, > 2658 (signed); < 0, > 2658 (unsigned)",
      "operand": "constant 0",
-     "a": "-1..512"
+     "a": "0..6"
     },
     {
      "line": 368,
      "text": "if (((*D_800F49F0 >> 5) & 1) && result == 1) {",
      "size": 4,
-     "count": 3077,
+     "count": 2658,
      "kind": "against a constant",
-     "outcomes": "== 1516, < 0, > 1561 (signed); < 0, > 1561 (unsigned)",
+     "outcomes": "== 1312, < 0, > 1346 (signed); < 0, > 1346 (unsigned)",
      "operand": "constant 0",
      "a": "0..32"
     },
@@ -1322,29 +1393,29 @@
      "line": 368,
      "text": "if (((*D_800F49F0 >> 5) & 1) && result == 1) {",
      "size": 4,
-     "count": 1561,
+     "count": 1346,
      "kind": "against a constant",
-     "outcomes": "== 272, < 0, > 1289 (signed); < 0, > 1289 (unsigned)",
+     "outcomes": "== 312, < 0, > 1034 (signed); < 0, > 1034 (unsigned)",
      "operand": "constant 1",
-     "a": "1..512"
+     "a": "1..6"
     },
     {
      "line": 373,
      "text": "if (result >= 5) {",
      "size": 4,
-     "count": 2805,
+     "count": 2346,
      "kind": "against a constant",
-     "outcomes": "== 559, < 1766, > 480 (signed); < 1766, > 480 (unsigned)",
+     "outcomes": "== 376, < 1357, > 613 (signed); < 1357, > 613 (unsigned)",
      "operand": "constant 4",
-     "a": "1..512"
+     "a": "1..6"
     },
     {
      "line": 376,
      "text": "if (*(u_int*)((char*)actor + 8) & 0x180000) {",
      "size": 4,
-     "count": 2087,
+     "count": 1877,
      "kind": "against a constant",
-     "outcomes": "== 1901, < 0, > 186 (signed); < 0, > 186 (unsigned)",
+     "outcomes": "== 1616, < 0, > 261 (signed); < 0, > 261 (unsigned)",
      "operand": "constant 0",
      "a": "0..1048576"
     },
@@ -1352,9 +1423,9 @@
      "line": 382,
      "text": "if (turning) {",
      "size": 4,
-     "count": 2174,
+     "count": 1718,
      "kind": "against a constant",
-     "outcomes": "== 1565, < 0, > 609 (signed); < 0, > 609 (unsigned)",
+     "outcomes": "== 1308, < 0, > 410 (signed); < 0, > 410 (unsigned)",
      "operand": "constant 0",
      "a": "0..1"
     },
@@ -1362,9 +1433,9 @@
      "line": 393,
      "text": "if (result >= 2",
      "size": 4,
-     "count": 2325,
+     "count": 1733,
      "kind": "against a constant",
-     "outcomes": "== 267, < 0, > 2058 (signed); < 0, > 2058 (unsigned)",
+     "outcomes": "== 298, < 0, > 1435 (signed); < 0, > 1435 (unsigned)",
      "operand": "constant 1",
      "a": "1..4"
     },
@@ -1372,9 +1443,9 @@
      "line": 394,
      "text": "&& ((*(u_int*)((char*)actor + 8) & 0x800000) || (actor->unk5AC_3))) {",
      "size": 4,
-     "count": 2058,
+     "count": 1435,
      "kind": "against a constant",
-     "outcomes": "== 1037, < 0, > 1021 (signed); < 0, > 1021 (unsigned)",
+     "outcomes": "== 720, < 0, > 715 (signed); < 0, > 715 (unsigned)",
      "operand": "constant 0",
      "a": "0..8388608"
     },
@@ -1382,9 +1453,9 @@
      "line": 394,
      "text": "&& ((*(u_int*)((char*)actor + 8) & 0x800000) || (actor->unk5AC_3))) {",
      "size": 1,
-     "count": 1037,
+     "count": 720,
      "kind": "against a constant",
-     "outcomes": "== 674, < 0, > 363 (signed); < 0, > 363 (unsigned)",
+     "outcomes": "== 391, < 0, > 329 (signed); < 0, > 329 (unsigned)",
      "operand": "constant 0",
      "a": "0..8"
     },
@@ -1392,29 +1463,29 @@
      "line": 397,
      "text": "if (!(*(u_int*)((char*)actor + 8) & 0x70000) && input->pad == 0 && result != 1",
      "size": 4,
-     "count": 941,
+     "count": 689,
      "kind": "against a constant",
-     "outcomes": "== 780, < 0, > 161 (signed); < 0, > 161 (unsigned)",
+     "outcomes": "== 660, < 0, > 29 (signed); < 0, > 29 (unsigned)",
      "operand": "constant 0",
-     "a": "0..458752"
+     "a": "0..327680"
     },
     {
      "line": 397,
      "text": "if (!(*(u_int*)((char*)actor + 8) & 0x70000) && input->pad == 0 && result != 1",
      "size": 2,
-     "count": 780,
+     "count": 660,
      "kind": "against a constant",
-     "outcomes": "== 190, < 221, > 369 (signed); < 0, > 590 (unsigned)",
+     "outcomes": "== 239, < 0, > 421 (signed); < 0, > 421 (unsigned)",
      "operand": "constant 0",
-     "a": "-32464..32765"
+     "a": "0..2048"
     },
     {
      "line": 397,
      "text": "if (!(*(u_int*)((char*)actor + 8) & 0x70000) && input->pad == 0 && result != 1",
      "size": 4,
-     "count": 190,
+     "count": 239,
      "kind": "against a constant",
-     "outcomes": "== 62, < 0, > 128 (signed); < 0, > 128 (unsigned)",
+     "outcomes": "== 64, < 0, > 175 (signed); < 0, > 175 (unsigned)",
      "operand": "constant 1",
      "a": "1..4"
     },
@@ -1422,19 +1493,19 @@
      "line": 398,
      "text": "&& actor->unk17FF < 8) {",
      "size": 1,
-     "count": 128,
+     "count": 175,
      "kind": "against a constant",
-     "outcomes": "== 19, < 53, > 56 (signed); < 14, > 95 (unsigned)",
+     "outcomes": "== 44, < 91, > 40 (signed); < 91, > 40 (unsigned)",
      "operand": "constant 7",
-     "a": "-126..119"
+     "a": "0..8"
     },
     {
      "line": 400,
      "text": "if ((*(u_int*)((char*)actor + 8) & 0x180000) != 0x100000) {",
      "size": 4,
-     "count": 33,
+     "count": 135,
      "kind": "against a constant",
-     "outcomes": "== 5, < 28, > 0 (signed); < 28, > 0 (unsigned)",
+     "outcomes": "== 19, < 116, > 0 (signed); < 116, > 0 (unsigned)",
      "operand": "constant 1048576",
      "a": "0..1048576"
     },
@@ -1442,9 +1513,9 @@
      "line": 410,
      "text": "if (result == 4) {",
      "size": 4,
-     "count": 908,
+     "count": 554,
      "kind": "against a constant",
-     "outcomes": "== 179, < 729, > 0 (signed); < 729, > 0 (unsigned)",
+     "outcomes": "== 62, < 492, > 0 (signed); < 492, > 0 (unsigned)",
      "operand": "constant 4",
      "a": "1..4"
     },
@@ -1452,9 +1523,9 @@
      "line": 411,
      "text": "if ((*(u_int*)((char*)actor + 8) & 0x180000) == 0x100000) {",
      "size": 4,
-     "count": 179,
+     "count": 62,
      "kind": "against a constant",
-     "outcomes": "== 19, < 160, > 0 (signed); < 160, > 0 (unsigned)",
+     "outcomes": "== 12, < 50, > 0 (signed); < 50, > 0 (unsigned)",
      "operand": "constant 1048576",
      "a": "0..1048576"
     },
@@ -1462,9 +1533,9 @@
      "line": 414,
      "text": "if (func_800A6798(actor, &motion, &saved) == 0) {",
      "size": 4,
-     "count": 160,
+     "count": 50,
      "kind": "against a constant",
-     "outcomes": "== 78, < 0, > 82 (signed); < 0, > 82 (unsigned)",
+     "outcomes": "== 29, < 0, > 21 (signed); < 0, > 21 (unsigned)",
      "operand": "constant 0",
      "a": "0..1"
     },
@@ -1472,39 +1543,39 @@
      "line": 419,
      "text": "if (*(u_int*)((char*)actor + 0x5AC) & 0xF0000000) {",
      "size": 4,
-     "count": 82,
+     "count": 21,
      "kind": "against a constant",
-     "outcomes": "== 0, < 48, > 34 (signed); < 5, > 77 (unsigned)",
+     "outcomes": "== 0, < 12, > 9 (signed); < 0, > 21 (unsigned)",
      "operand": "constant 268435455",
-     "a": "-2100597248..2116184688"
+     "a": "-1952441708..1693410608"
     },
     {
      "line": 421,
      "text": "if (object->unk1A == 0xFD) {",
      "size": 2,
-     "count": 77,
+     "count": 21,
      "kind": "against a constant",
-     "outcomes": "== 34, < 24, > 19 (signed); < 0, > 43 (unsigned)",
+     "outcomes": "== 8, < 13, > 0 (signed); < 13, > 0 (unsigned)",
      "operand": "constant 253",
-     "a": "-31170..31606"
+     "a": "0..253"
     },
     {
      "line": 422,
      "text": "for (i = object->unk6C[8].unk4; i < 15; i++) {",
      "size": 4,
-     "count": 125,
+     "count": 33,
      "kind": "against a constant",
-     "outcomes": "== 9, < 82, > 34 (signed); < 82, > 34 (unsigned)",
+     "outcomes": "== 3, < 22, > 8 (signed); < 22, > 8 (unsigned)",
      "operand": "constant 14",
-     "a": "0..227"
+     "a": "3..16"
     },
     {
      "line": 428,
      "text": "if (func_800A9530(actor, &motion) == 0) {",
      "size": 4,
-     "count": 82,
+     "count": 21,
      "kind": "against a constant",
-     "outcomes": "== 43, < 0, > 39 (signed); < 0, > 39 (unsigned)",
+     "outcomes": "== 10, < 0, > 11 (signed); < 0, > 11 (unsigned)",
      "operand": "constant 0",
      "a": "0..1"
     },
@@ -1512,19 +1583,19 @@
      "line": 436,
      "text": "if ((*(int*)((char*)actor + 0x60) & 0xFF00FF)",
      "size": 4,
-     "count": 39,
+     "count": 11,
      "kind": "against a constant",
-     "outcomes": "== 0, < 0, > 39 (signed); < 0, > 39 (unsigned)",
+     "outcomes": "== 0, < 0, > 11 (signed); < 0, > 11 (unsigned)",
      "operand": "constant 0",
-     "a": "153..16646314"
+     "a": "655465..12648677"
     },
     {
      "line": 443,
      "text": "} else if ((*(u_int*)((char*)actor + 8) & 0x180000) == 0x100000) {",
      "size": 4,
-     "count": 729,
+     "count": 492,
      "kind": "against a constant",
-     "outcomes": "== 75, < 654, > 0 (signed); < 654, > 0 (unsigned)",
+     "outcomes": "== 90, < 402, > 0 (signed); < 402, > 0 (unsigned)",
      "operand": "constant 1048576",
      "a": "0..1048576"
     },
@@ -1532,9 +1603,9 @@
      "line": 445,
      "text": "if (*(u_int*)((char*)actor + 0x5AC) & 0x1000) {",
      "size": 4,
-     "count": 94,
+     "count": 102,
      "kind": "against a constant",
-     "outcomes": "== 67, < 0, > 27 (signed); < 0, > 27 (unsigned)",
+     "outcomes": "== 53, < 0, > 49 (signed); < 0, > 49 (unsigned)",
      "operand": "constant 0",
      "a": "0..4096"
     },
@@ -1542,29 +1613,39 @@
      "line": 452,
      "text": "if (input->pad == 0) {",
      "size": 2,
-     "count": 654,
+     "count": 402,
      "kind": "against a constant",
-     "outcomes": "== 167, < 178, > 309 (signed); < 0, > 487 (unsigned)",
+     "outcomes": "== 100, < 0, > 302 (signed); < 0, > 302 (unsigned)",
      "operand": "constant 0",
-     "a": "-32464..32765"
+     "a": "0..2048"
     },
     {
      "line": 453,
      "text": "if ((u_short)(motion.vy + 0xFF) >= 0x100) {",
      "size": 2,
-     "count": 167,
+     "count": 100,
      "kind": "against a constant",
-     "outcomes": "== 0, < 89, > 78 (signed); < 0, > 167 (unsigned)",
+     "outcomes": "== 0, < 58, > 42 (signed); < 1, > 99 (unsigned)",
      "operand": "constant 255",
-     "a": "-32727..32080"
+     "a": "-32288..32322"
+    },
+    {
+     "line": 456,
+     "text": "if (distance == 0) {",
+     "size": 4,
+     "count": 1,
+     "kind": "against a constant",
+     "outcomes": "== 1, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..0"
     },
     {
      "line": 460,
      "text": "if (result >= 2) {",
      "size": 4,
-     "count": 487,
+     "count": 302,
      "kind": "against a constant",
-     "outcomes": "== 188, < 0, > 299 (signed); < 0, > 299 (unsigned)",
+     "outcomes": "== 193, < 0, > 109 (signed); < 0, > 109 (unsigned)",
      "operand": "constant 1",
      "a": "1..3"
     },
@@ -1572,29 +1653,19 @@
      "line": 461,
      "text": "if ((*(u_int*)((char*)actor + 8) & 0x70000)",
      "size": 4,
-     "count": 299,
+     "count": 109,
      "kind": "against a constant",
-     "outcomes": "== 228, < 0, > 71 (signed); < 0, > 71 (unsigned)",
+     "outcomes": "== 109, < 0, > 0 (signed); < 0, > 0 (unsigned)",
      "operand": "constant 0",
-     "a": "0..458752"
-    },
-    {
-     "line": 462,
-     "text": "&& (*(u_int*)((char*)actor + 0x5AC) & 0x1000)) {",
-     "size": 4,
-     "count": 71,
-     "kind": "against a constant",
-     "outcomes": "== 49, < 0, > 22 (signed); < 0, > 22 (unsigned)",
-     "operand": "constant 0",
-     "a": "0..4096"
+     "a": "0..0"
     },
     {
      "line": 465,
      "text": "if (func_800A69B4(actor) == 0) {",
      "size": 4,
-     "count": 277,
+     "count": 109,
      "kind": "against a constant",
-     "outcomes": "== 130, < 0, > 147 (signed); < 0, > 147 (unsigned)",
+     "outcomes": "== 63, < 0, > 46 (signed); < 0, > 46 (unsigned)",
      "operand": "constant 0",
      "a": "0..1"
     },
@@ -1602,9 +1673,9 @@
      "line": 471,
      "text": "if (result == 1) {",
      "size": 4,
-     "count": 468,
+     "count": 352,
      "kind": "against a constant",
-     "outcomes": "== 215, < 0, > 253 (signed); < 0, > 253 (unsigned)",
+     "outcomes": "== 245, < 0, > 107 (signed); < 0, > 107 (unsigned)",
      "operand": "constant 1",
      "a": "1..4"
     },
@@ -1612,21 +1683,21 @@
      "line": 473,
      "text": "if (animation >= 100) {",
      "size": 4,
-     "count": 215,
+     "count": 245,
      "kind": "against a constant",
-     "outcomes": "== 2, < 115, > 98 (signed); < 115, > 98 (unsigned)",
+     "outcomes": "== 0, < 159, > 86 (signed); < 159, > 86 (unsigned)",
      "operand": "constant 99",
-     "a": "0..249"
+     "a": "0..113"
     },
     {
      "line": 476,
      "text": "if ((u_int)(animation - 13) >= 2 && animation != 0x13 && animation != 0x14",
      "size": 4,
-     "count": 215,
+     "count": 245,
      "kind": "against a constant",
-     "outcomes": "== 0, < 71, > 144 (signed); < 16, > 199 (unsigned)",
+     "outcomes": "== 0, < 138, > 107 (signed); < 46, > 199 (unsigned)",
      "operand": "constant 1",
-     "a": "-13..136"
+     "a": "-13..71"
     },
     {
      "line": 476,
@@ -1634,37 +1705,37 @@
      "size": 4,
      "count": 199,
      "kind": "against a constant",
-     "outcomes": "== 0, < 57, > 142 (signed); < 57, > 142 (unsigned)",
+     "outcomes": "== 16, < 92, > 91 (signed); < 92, > 91 (unsigned)",
      "operand": "constant 19",
-     "a": "0..149"
+     "a": "0..84"
     },
     {
      "line": 476,
      "text": "if ((u_int)(animation - 13) >= 2 && animation != 0x13 && animation != 0x14",
      "size": 4,
-     "count": 199,
+     "count": 183,
      "kind": "against a constant",
-     "outcomes": "== 1, < 57, > 141 (signed); < 57, > 141 (unsigned)",
+     "outcomes": "== 21, < 92, > 70 (signed); < 92, > 70 (unsigned)",
      "operand": "constant 20",
-     "a": "0..149"
+     "a": "0..84"
     },
     {
      "line": 477,
      "text": "&& animation != 0x54) {",
      "size": 4,
-     "count": 198,
+     "count": 162,
      "kind": "against a constant",
-     "outcomes": "== 11, < 149, > 38 (signed); < 149, > 38 (unsigned)",
+     "outcomes": "== 15, < 147, > 0 (signed); < 147, > 0 (unsigned)",
      "operand": "constant 84",
-     "a": "0..149"
+     "a": "0..84"
     },
     {
      "line": 483,
      "text": "} else if ((*(u_int*)((char*)actor + 8) & 0x180000) == 0x100000) {",
      "size": 4,
-     "count": 253,
+     "count": 107,
      "kind": "against a constant",
-     "outcomes": "== 67, < 186, > 0 (signed); < 186, > 0 (unsigned)",
+     "outcomes": "== 50, < 57, > 0 (signed); < 57, > 0 (unsigned)",
      "operand": "constant 1048576",
      "a": "0..1048576"
     },
@@ -1672,9 +1743,9 @@
      "line": 485,
      "text": "if (index == 0) {",
      "size": 4,
-     "count": 67,
+     "count": 50,
      "kind": "against a constant",
-     "outcomes": "== 47, < 0, > 20 (signed); < 0, > 20 (unsigned)",
+     "outcomes": "== 29, < 0, > 21 (signed); < 0, > 21 (unsigned)",
      "operand": "constant 0",
      "a": "0..16"
     },
@@ -1682,9 +1753,9 @@
      "line": 492,
      "text": "if (result == 4) {",
      "size": 4,
-     "count": 186,
+     "count": 57,
      "kind": "against a constant",
-     "outcomes": "== 39, < 147, > 0 (signed); < 147, > 0 (unsigned)",
+     "outcomes": "== 11, < 46, > 0 (signed); < 46, > 0 (unsigned)",
      "operand": "constant 4",
      "a": "2..4"
     },
@@ -1692,9 +1763,9 @@
      "line": 497,
      "text": "if (index == 0) {",
      "size": 4,
-     "count": 186,
+     "count": 57,
      "kind": "against a constant",
-     "outcomes": "== 118, < 0, > 68 (signed); < 0, > 68 (unsigned)",
+     "outcomes": "== 25, < 0, > 32 (signed); < 0, > 32 (unsigned)",
      "operand": "constant 0",
      "a": "0..16"
     },
@@ -1702,19 +1773,19 @@
      "line": 510,
      "text": "if (motion.vy > 0) {",
      "size": 2,
-     "count": 724,
+     "count": 562,
      "kind": "against a constant",
-     "outcomes": "== 195, < 231, > 298 (signed); < 0, > 529 (unsigned)",
+     "outcomes": "== 1, < 252, > 309 (signed); < 0, > 561 (unsigned)",
      "operand": "constant 0",
-     "a": "-32707..32702"
+     "a": "-367..366"
     },
     {
      "line": 511,
      "text": "if ((*(u_int*)((char*)actor + 8) & 0x180000) == 0x100000) {",
      "size": 4,
-     "count": 298,
+     "count": 309,
      "kind": "against a constant",
-     "outcomes": "== 39, < 259, > 0 (signed); < 259, > 0 (unsigned)",
+     "outcomes": "== 49, < 260, > 0 (signed); < 260, > 0 (unsigned)",
      "operand": "constant 1048576",
      "a": "0..1048576"
     },
@@ -1722,9 +1793,9 @@
      "line": 516,
      "text": "if (*(u_int*)((char*)actor + 0xC) & 0xF) {",
      "size": 4,
-     "count": 259,
+     "count": 260,
      "kind": "against a constant",
-     "outcomes": "== 19, < 0, > 240 (signed); < 0, > 240 (unsigned)",
+     "outcomes": "== 16, < 0, > 244 (signed); < 0, > 244 (unsigned)",
      "operand": "constant 0",
      "a": "0..15"
     },
@@ -1732,39 +1803,39 @@
      "line": 521,
      "text": "if (motion.vy >= 0x40) {",
      "size": 2,
-     "count": 259,
+     "count": 260,
      "kind": "against a constant",
-     "outcomes": "== 0, < 0, > 259 (signed); < 0, > 259 (unsigned)",
+     "outcomes": "== 0, < 49, > 211 (signed); < 49, > 211 (unsigned)",
      "operand": "constant 63",
-     "a": "230..32702"
+     "a": "4..366"
     },
     {
      "line": 522,
      "text": "if (input->pad == 0) {",
      "size": 2,
-     "count": 259,
+     "count": 211,
      "kind": "against a constant",
-     "outcomes": "== 82, < 70, > 107 (signed); < 0, > 177 (unsigned)",
+     "outcomes": "== 61, < 0, > 150 (signed); < 0, > 150 (unsigned)",
      "operand": "constant 0",
-     "a": "-32002..32657"
+     "a": "0..2048"
     },
     {
      "line": 523,
      "text": "if (motion.vy >= 0x100) {",
      "size": 2,
-     "count": 82,
+     "count": 61,
      "kind": "against a constant",
-     "outcomes": "== 0, < 1, > 81 (signed); < 1, > 81 (unsigned)",
+     "outcomes": "== 0, < 56, > 5 (signed); < 56, > 5 (unsigned)",
      "operand": "constant 255",
-     "a": "230..32681"
+     "a": "65..329"
     },
     {
      "line": 524,
      "text": "if ((*(u_int*)((char*)actor + 8) & 0x180000) != 0x100000",
      "size": 4,
-     "count": 81,
+     "count": 5,
      "kind": "against a constant",
-     "outcomes": "== 0, < 81, > 0 (signed); < 81, > 0 (unsigned)",
+     "outcomes": "== 0, < 5, > 0 (signed); < 5, > 0 (unsigned)",
      "operand": "constant 1048576",
      "a": "0..0"
     },
@@ -1772,41 +1843,51 @@
      "line": 525,
      "text": "&& actor->unk17FF < 8) {",
      "size": 1,
-     "count": 81,
+     "count": 5,
      "kind": "against a constant",
-     "outcomes": "== 13, < 35, > 33 (signed); < 15, > 53 (unsigned)",
+     "outcomes": "== 0, < 4, > 1 (signed); < 4, > 1 (unsigned)",
      "operand": "constant 7",
-     "a": "-127..123"
+     "a": "0..8"
     },
     {
      "line": 542,
      "text": "if (distance >= actor->unk5B9) {",
      "size": 4,
-     "count": 231,
+     "count": 207,
      "kind": "a == b / a < b",
-     "outcomes": "== 11, < 125, > 95 (signed); < 112, > 108 (unsigned)",
-     "operand": "b 0..20",
-     "a": "-1..239550"
+     "outcomes": "== 23, < 104, > 80 (signed); < 104, > 80 (unsigned)",
+     "operand": "b 0..5",
+     "a": "0..253"
+    },
+    {
+     "line": 550,
+     "text": "if (!((*D_800F49F0 >> 5) & 1)) {",
+     "size": 4,
+     "count": 49,
+     "kind": "against a constant",
+     "outcomes": "== 23, < 0, > 26 (signed); < 0, > 26 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..32"
     },
     {
      "line": 558,
      "text": "if (motion.vy < -2) {",
      "size": 2,
-     "count": 426,
+     "count": 253,
      "kind": "against a constant",
-     "outcomes": "== 0, < 231, > 195 (signed); < 426, > 0 (unsigned)",
+     "outcomes": "== 2, < 248, > 3 (signed); < 249, > 2 (unsigned)",
      "operand": "constant -2",
-     "a": "-32707..0"
+     "a": "-367..0"
     },
     {
      "line": 566,
      "text": "if (!(*(u_int*)((char*)actor + 8) & 0x70000)) {",
      "size": 4,
-     "count": 3312,
+     "count": 3848,
      "kind": "against a constant",
-     "outcomes": "== 2794, < 0, > 518 (signed); < 0, > 518 (unsigned)",
+     "outcomes": "== 3115, < 0, > 733 (signed); < 0, > 733 (unsigned)",
      "operand": "constant 0",
-     "a": "0..458752"
+     "a": "0..327680"
     }
    ],
    "passed": false
@@ -1816,19 +1897,17 @@
   "attempts": []
  },
  "written": [],
- "check_seconds": 24.686125747000006,
- "wall_seconds": 25.021014113999627,
+ "check_seconds": 23.836768686999676,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 1344.1137850284576,
  "totals": {
-  "cost": 0.04266,
-  "prompt_tokens": 80652,
-  "completion_tokens": 69190,
-  "model_seconds": 283.9,
-  "check_seconds": 24.7,
-  "calls": 2,
-  "wall_seconds": 25.0
- },
- "review": {
-  "by": "Claude Opus 5.5 (reviewer)",
-  "date": "2026-10-22"
+  "cost": 0.03161,
+  "prompt_tokens": 128017,
+  "completion_tokens": 100844,
+  "model_seconds": 0.0,
+  "check_seconds": 23.8,
+  "calls": 3,
+  "wall_seconds": 1344.1
  }
 }

@@ -44,7 +44,8 @@ extern float pc_emissive;
  * them into the G-buffer's material target where pc_material_active(); the
  * present pass lights them (scaled.frag). OpenGL draws no material response. */
 #define PC_MATERIAL_ROW PC_EMISSIVE_MAP_H
-#define PC_MATERIAL_PLANES 6
+/* Plane 6 (part 4): the node material graph's slot (0 none; material_graph.h). */
+#define PC_MATERIAL_PLANES 7
 #define PC_MATERIAL_MAP_H (512 * PC_MATERIAL_PLANES)
 /* The switch (lighting quality key `specular`, 0: the specular lobe off
  * entirely, the picture exactly the one without materials) and the

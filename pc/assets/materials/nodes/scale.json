@@ -1,0 +1,32 @@
+{
+  "format": 1,
+  "name": "scale",
+  "label": "Scale",
+  "category": "Math",
+  "inputs": [
+    {
+      "name": "a",
+      "type": "float3",
+      "default": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "k",
+      "type": "float",
+      "default": 1,
+      "min": 0,
+      "max": 4,
+      "pin": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "result",
+      "type": "float3"
+    }
+  ],
+  "glsl": "result = a * k;"
+}

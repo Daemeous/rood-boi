@@ -2,32 +2,29 @@
  "unit": "44F14",
  "totals": {
   "functions": 23,
-  "ported": 16,
-  "cost": 0.5612,
-  "prompt_tokens": 1661231,
-  "completion_tokens": 790077,
-  "model_seconds": 3335.4,
-  "check_seconds": 564.5,
-  "calls": 61,
+  "ported": 19,
+  "cost": 0.4873,
+  "prompt_tokens": 1791185,
+  "completion_tokens": 812450,
+  "model_seconds": 2032.7,
+  "check_seconds": 716.2,
+  "calls": 64,
   "statuses": {
-   "port-failed": 1,
-   "ported": 16,
-   "spec-failed": 3,
-   "stopped": 3
-  },
-  "last_run_wall_seconds": 956.3
+   "ported": 19,
+   "spec-failed": 4
+  }
  },
  "functions": [
   {
    "function": "func_800AD714",
-   "status": "stopped",
+   "status": "spec-failed",
    "model": "anthropic/claude-haiku-5.5",
-   "spec_attempts": 2,
+   "spec_attempts": 3,
    "port_attempts": 0,
    "spec": "failed",
    "port": "failed",
-   "cost": 0.06998,
-   "wall_seconds": 592.9
+   "cost": 0.03716,
+   "wall_seconds": 1355.9
   },
   {
    "function": "func_800AE46C",
@@ -141,14 +138,14 @@
   },
   {
    "function": "func_800AECA0",
-   "status": "port-failed",
+   "status": "ported",
    "model": "anthropic/claude-haiku-5.5",
    "spec_attempts": 1,
-   "port_attempts": 2,
+   "port_attempts": 1,
    "spec": "first",
-   "port": "failed",
-   "cost": 0.02535,
-   "wall_seconds": 154.4
+   "port": "first",
+   "cost": 0.00863,
+   "wall_seconds": 894.3
   },
   {
    "function": "func_800AEEC4",
@@ -229,25 +226,25 @@
   },
   {
    "function": "func_800B002C",
-   "status": "stopped",
+   "status": "spec-failed",
    "model": "anthropic/claude-haiku-5.5",
    "spec_attempts": 2,
    "port_attempts": 0,
    "spec": "failed",
    "port": "failed",
-   "cost": 0.043,
-   "wall_seconds": 326.0
+   "cost": 0.01731,
+   "wall_seconds": 814.1
   },
   {
    "function": "func_800B0908",
-   "status": "stopped",
+   "status": "ported",
    "model": "anthropic/claude-haiku-5.5",
    "spec_attempts": 1,
-   "port_attempts": 0,
-   "spec": "failed",
-   "port": "failed",
-   "cost": 0.02254,
-   "wall_seconds": 177.4
+   "port_attempts": 2,
+   "spec": "first",
+   "port": "retry",
+   "cost": 0.02609,
+   "wall_seconds": 1373.8
   },
   {
    "function": "func_800B101C",
@@ -262,14 +259,14 @@
   },
   {
    "function": "func_800B13CC",
-   "status": "spec-failed",
+   "status": "ported",
    "model": "anthropic/claude-haiku-5.5",
    "spec_attempts": 2,
-   "port_attempts": 0,
-   "spec": "failed",
-   "port": "failed",
-   "cost": 0.01113,
-   "wall_seconds": 89.7
+   "port_attempts": 1,
+   "spec": "retry",
+   "port": "first",
+   "cost": 0.00891,
+   "wall_seconds": 1387.8
   }
  ]
 }

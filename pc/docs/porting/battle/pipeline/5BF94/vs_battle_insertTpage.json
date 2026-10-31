@@ -1,0 +1,216 @@
+{
+ "function": "vs_battle_insertTpage",
+ "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "views-conflict",
+ "reviewed": false,
+ "plan": {
+  "name": "vs_battle_insertTpage",
+  "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+  "stem": "5BF94",
+  "address": "0x800ccd00",
+  "difficulty": "S",
+  "zig_name": "insertTpage",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "insert_tpage",
+  "spec_file": "insertTpage.zig",
+  "subsystem": "battle_5BF94_port",
+  "signature": "pub fn insertTpage(tpage: c_int, before: [*c]c_uint) callconv(.c) void",
+  "params": [
+   [
+    "tpage",
+    "c_int"
+   ],
+   [
+    "before",
+    "[*c]c_uint"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11715,
+     "completion_tokens": 11059,
+     "reasoning_tokens": 9625,
+     "cost": 0.0033504999999999997,
+     "seconds": null,
+     "batch": "batch-1793203265-sQA1DX56rKylfzO4cWKR",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: input classes never generated: scratch-prim, before-aliases-prim",
+     "FAIL: mutation I6: tpage narrowed to 16 bits: gcc -m64 -fpie ...: zdiff_standin.c: In function \u2018vs_battle_insertTpage__standin\u2019:\nzdiff_standin.c:5:16: error: \u2018c_uint\u2019 undeclared (first use in this function); did you mean \u2018uint\u2019?\nzdiff_standin.c:5:16: note: each undeclared identifier is reported only once for each function it appears in\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13361,
+     "completion_tokens": 4405,
+     "reasoning_tokens": 3004,
+     "cost": 0.0017693000000000001,
+     "seconds": null,
+     "batch": "batch-1793206357-jxyW8CeGtJSNWKNpZo35",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "scratch-prim": "10013",
+   "arena-prim": "10044",
+   "before-aliases-prim": "9943"
+  },
+  "mutations": [
+   {
+    "name": "I1: tag keeps only 16 bits of *before",
+    "caught": true
+   },
+   {
+    "name": "I2: tag length shifted to bit 16",
+    "caught": true
+   },
+   {
+    "name": "I3: the tpage store is dropped",
+    "caught": true
+   },
+   {
+    "name": "I4: the address is not truncated to 24 bits",
+    "caught": true
+   },
+   {
+    "name": "I5: the scratch pointer advances one word, not two",
+    "caught": true
+   },
+   {
+    "name": "I6: tpage narrowed to 16 bits",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 7,
+   "lines_hit": 7,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35187,
+     "completion_tokens": 4528,
+     "reasoning_tokens": 4077,
+     "cost": 0.00289135,
+     "seconds": null,
+     "batch": "batch-1793379902-OYfFRiS0hzKPAZ8kx15j",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [],
+ "check_seconds": 177.60600452199378,
+ "mode": "rounds",
+ "transport": "batch",
+ "conflicts": [
+  "vs_battle_drawCursor: MISMATCH iteration 0: C makes 2 external calls, Zig 1 (first unmatched: pc_classic_site)"
+ ],
+ "wall_seconds": 219269.82289719582,
+ "totals": {
+  "cost": 0.00801,
+  "prompt_tokens": 60263,
+  "completion_tokens": 19992,
+  "model_seconds": 0.0,
+  "check_seconds": 177.6,
+  "calls": 3,
+  "wall_seconds": 219269.8
+ }
+}

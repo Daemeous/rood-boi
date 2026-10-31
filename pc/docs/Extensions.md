@@ -15,7 +15,8 @@ builds identically without it; the shipped `rood.photo` (on) is the photo
 mode, opened by its own button (F12), doing nothing until then; the shipped
 `rood.dev_example` (off) is a developer tool window in Lua ("Developer tool
 windows"), and the shipped `rood.material_review` (off) the Material review
-window in Lua, replacing the C++ one while on.
+window in Lua, replacing the C++ one while on; the shipped `rood.materials`
+(off) is Window > Materials in Lua, replacing the C++ one while on.
 
 ## Where Lua runs
 
@@ -236,6 +237,7 @@ decides how it looks. The kinds:
 | `stat_page` | the classic look's only, where the stats panel is (above): the class / affinity / type table of a status view, an Equip menu, Status's details, Setup's lists (C48.c `_renderStatPage` as `vs_mainMenu_drawClassAffinityType` calls it, sliding in: each row's name, value (comparing: the difference and `+` / `*`), its gauge of four shaded lines, frame and shading, the draw modes and shaded lines between, in `vs_scratch.unk4 - 12`; the Square button and the header CLASS / AFFINITY / TYPE in the text boxes' font, `unk4 - 16`) | `page` (`x_offset` (its slide, 0 or less), `page` (0 class, 1 affinity, 2 type), `enabled` (the pages' bits), `subtype`, `stats` (a copy of `vs_mainMenu_equipmentStats`, 0..63, as the game indexes it)) |
 | `ok_mark`, `storage_buttons`, `storage_counts`, `loot_capacities`, `discard_count` | the classic look's only, each on its screen (hud_bridge.c `PANEL_SCREENS`): the pulsing OK beside a menu's last choice (MENUC 168.c `_drawOk`: Setup's Assemble, Gems, Combine; MENUD 234.c `func_801089BC`: Storage's top menu; `vs_scratch.unk4 - 12`); Storage's button strip (MENUD `vs_menuD_exec`: two button windows in `unk4 - 12`, Square / Triangle / Cross and STATUS / CANCEL / END in `unk8`) and its counts (`func_80106464`'s `capacity / count` per category, in `unk8`: the strip's, below the bag's or the container's name, the last row the transfer list's; or the top menu's, `func_80106504`: GADGET BAG and CONTAINER side by side); Loot's capacities strip (MENUB 260.c `_displayInventoryCapacities`: GADGET BAG, each category's name, `/`, capacity and count, coloured by the row looked at; the GET / ALL / END windows, buttons and words); a misc item's discard amount (items1.h `_discardMenu`'s picker on Items, MENUD's copy on Storage: three digits in the text boxes' font, style 5, `unk8`) | `ok` (`x, y`, `level`: the pulse's grey, `(rsin(step * 8) >> 5) + 64`); `storage` (buttons: `x` the slide, `state` (bits 0..1 light STATUS, bit 2 dims END); counts: `layout` 0 the strip, 1 the top menu, `x` the strip's slide, `container` (0 the bag, 1 the container), `capacity[col][i]`, `count[col][i]` (col 1, 2: the bag's, the container's; i 1..7)); `loot` (`x` the slide, `controls`, `looking` (0 none, 1 the leave row, 2 an item), `all` (ALL lit), per category (1..7) `capacity`, `count`, `incoming` (what the item looked at adds)); `discard` (`count`, `x, y` the units' place) |
 | `file_menu`, `file_element` | the classic look's only, on MENU7's file menu (260.c `_drawFileMenu`, currentMenu 7: Data's SAVE / LOAD, the save list after Storage; not the game over's), which draws **at once** (`DrawPrim` and `LoadImage`, no ordering table: `PC_CLASSIC_IMMEDIATE`, below): its frame in two parts (`part` 0: the bottom band's two sprites, under the panels; 1: the band's three shaded rows, the caution sprite, the message's tile, the hand, the message, the screen's fade) and each panel (`_drawFileMenuElement`: a card's or a file's: its shaded gradient and shadow tile, its words, and for a file the location picture with its CLUT swapped in and back, No. and the slot, the slot's words or the location's name, MAP %, SAVE, CLEAR, the clear badge, TIME, the HP / MP gauges and digits, the progress animations of a save or load). `d.anchor` and `d.layer` do nothing here: the packets are drawn where the game's would have been, in the game's order | `file_menu` (`part`, `x` (the frame buffer's, 0 or 320: the band's rows read it), `cursor_xy` (packed, 0 none), `cursor_color` (its saturation step, before the game steps it), `fade`, `arrow` (the printer's blink step before), `message` (its codes to 0xE7, nil none)); `file` (`id` 0..9, `x, y, w, h`, `selected`, `unavailable`, `outer`, `inner` (the blend steps as the draw uses them), `slot` (0..4 a file, 255 a card), `location`, `saving`, `arrow`; a file's `slot_state` (0 in use, 1 empty, 2 temporary, 3 saved), `map`, `saves`, `clears`, `hours, minutes, seconds`, `hp, hp_max, mp, mp_max`; `progress` (0 none, 1 processing at `progress_x`, 2 complete in `progress_colour`); the game's words as codes: `text` (the panel's, its 0xFA pairs, to 0xFF), `place`, `in_use`, `empty`, `fresh`; `cluts[1..2]` the two location CLUTs as `d.image_load` takes them) |
+| `menuf`, `menuf_load` | the classic look's only, on MENUF's screens (3B8.c, currentMenu 15: the congratulations, the time attack's start and end, the cube puzzle's start, end and quit; reached after a fight, or by RPC `menuf`): `menuf` a frame's sprites as the screen's drawing leaves make them (`_renderTextureFadeIn` and its CLUT, tint, pop-in and wipe kin from `src/renderTextures.h`, the stat wheel's lines and its two draw areas, the PRESS BUTTON prompt: its words by the raw printer in `unk8`, the rest in `vs_scratch.unk4 - 28`); `menuf_load` the screen's VRAM uploads, done **at once** (`PC_CLASSIC_IMMEDIATE`, below: the TIMs and CLUTs `_initMenu` loads, once, and the CLUT row the time attack's end and the cube puzzle's end and quit pulse every frame) | `menuf` (`screen` (the submenu: 0 congratulations, 1 / 2 the time attack's start / end, 4 / 5 / 6 the cube puzzle's start / end / quit), `prompt[1..2]` (the prompt's words: the game's codes), `calls[i]`: the frame's calls in order, each `op` (1 fade, 2 fade with its CLUT, 3 tint, 4 pop-in, 5 wipe, 6 a stat wheel's lines, 7 a draw area, 8 the prompt), `tex` (the picture's index, 255 none) and its `u, v, w, h`, `tpage`, `clut` as the game reads them, `x, y`, `a, b` (fade: the step, the CLUT; wipe: the wipe's edge; a draw area: its `w, h`; the prompt: its slide step, the blink timer), `colour1`, `colour2` (tint, pop-in, wipe: the two colour words, `r \| g << 8 \| b << 16 \| step << 24`)); `load` (`screen`, `phase` (0 `_initMenu`, 1 a frame), `uploads[i]`: `x, y, w, h` and `pixels`, the game's own pixels' handle for `d.image_load`) |
 | `rename_grid`, `rename_box` | the classic look's only, on the rename grid (MENU8 21A0.c, currentMenu 8: Setup's Rename after Yes; a new weapon's name after Assemble): the grid (`_renderRenameMenu`, sliding in from the right: the Cross / Square / Triangle buttons and the pad's sprite in `unk8`; each command's bar of 12 shaded lines fading by its counter in `unk4 - 4`; the commands' words in the text boxes' font in `unk4 - 8`; the name typed and the character table in `unk8 + 4`; at rest the L1 / R1 arrows (their digits and letters by the raw printer, their sprites) and the name's window in `unk8`; the four shaded polygons of the background in `unk4 - 4`) and a highlight box on it (`_highlightSelection`: the character under the hand, the name's pen; a semi-transparent shaded polygon in `unk8`) | `rename` (`x_offset` the slide, 0 at rest; `fade[1..4]` the bars' counters, Insert first, 8 the command just chosen; `lit`, `step` the arrows' light and step; `name` its 20 codes, `commands[1..4]` (Insert, Delete, Back, OK) and `table[1..9]` (14 codes a row): the menu charset's codes, for `d.font_text`); `highlight` (`x, y, w, h`) |
 
 Every element: `kind, id, text, x, y, w, h` (the game's drawing's box in its
@@ -267,7 +269,7 @@ drawing is the claims'.
 | `d.stat_bar(x, y, fill, colour)` | classic only: the game's gauge (`vs_battle_renderStatBar`, the HP / MP / RISK and DP / PP bars: `colour` 0..3 its table's, `fill` its width in pixels, 0..64 within its frame) at `x, y`, in the layer's slot |
 | `d.button_background(x, y, w, h)` | classic only: a button's window as MAINMENU draws it behind a button and its word (`vs_mainmenu_renderButtonBackground`: `h` shaded lines, the i-th from `x` to `x + w - i`, dark gold to near black, semi-transparent; the STATUS strip's), in the layer's slot (the game's: `vs_scratch.unk4 - 12`) |
 | `d.packet(w1[, w2 .. w15])` | classic only: one primitive of the game's own words (1..15 after its tag, which links it into the layer's slot as `vs_battle_addTile` and `vs_battle_insertTpage` link theirs): a line or tile (code and colour, place, place or size), a draw mode word (`0xE1...`), a shaded line (colour, place, colour, place), several in one tag as the game writes them (the rename grid's: a draw mode, a shaded line, a draw mode; a draw mode and a shaded four-point polygon; the file menu's panel: a draw mode, a tile and a shaded polygon, 12). In an immediate draw (`file_menu`, `file_element`) each is drawn at once, in the order made, as `DrawPrim` draws one |
-| `d.image_store(x, y, w, h)`, `d.image_load(x, y, w, h, pixels)`, `d.image_restore()` | classic only: VRAM transfers (a rectangle of 1..1024 pixels): read into the draw's own buffer (`StoreImage`), uploaded from `pixels` (a string of `w * h` 16-bit pixels, little-endian: a record's CLUT, `e.file.cluts[i]`; `LoadImage`), the last read put back. In an immediate draw each is done in its place among the packets (the file menu's CLUT swap for a location picture: read the CLUT row, upload the picture's, the sprite, put it back) and compared as the game's are (an upload by its rectangle and a hash of its pixels, a read by its rectangle); elsewhere done at once, as the draw is made |
+| `d.image_store(x, y, w, h)`, `d.image_load(x, y, w, h, pixels)`, `d.image_restore()` | classic only: VRAM transfers (a rectangle of 1..1024 pixels): read into the draw's own buffer (`StoreImage`), uploaded from `pixels` (a string of `w * h` 16-bit pixels, little-endian: a record's CLUT, `e.file.cluts[i]`; or a record's upload handle, `e.load.uploads[i].pixels`: the game's own pixels as its range recorded them, any size, `w, h` the upload's; `LoadImage`), the last read put back. In an immediate draw each is done in its place among the packets (the file menu's CLUT swap for a location picture: read the CLUT row, upload the picture's, the sprite, put it back) and compared as the game's are (an upload by its rectangle and a hash of its pixels, a read by its rectangle); elsewhere done at once, as the draw is made |
 | `d.text_glyph(code, x, y, advance)` | classic only, immediate draws: the next packet is a printer's glyph `code` (the menu charset's) set at `x, y` with the printer's `advance`, reported to ui_text as the game's printer reports its own (`pc_text_glyph`: its line layout with the upgraded font, the button roles' glyph); `code` -1 a space (the pen moved, nothing drawn) |
 | `d.font_text(s, x, y, style[, step]) -> x`, `d.font_width(s, x) -> x` | classic only: `s` (the menu charset, `vs_encode`; or a table of the charset's codes as a record gives them, 0..0xE6, at most 64) in the text boxes' font by the game's printer (`vs_battle_printVariableWidthFontChar` after `vs_battle_setFontStyle(style)`: the header of the class / affinity / type table), from `x` along `y`; `step` (1..64) moves the pen that far a glyph whatever its width (the rename grid's table and words); returns the pen after it. `d.font_width`: that pen, nothing drawn |
 | `d.menu_row([{x, y, w}])` | classic only (menu_row's): the row the element recorded drawn by the game's own emit (58EC.c, through `pc_mainmenu_render_row`) on a copy of its record; `x, y` (its place) and `w` (its window's width, 0..255) replace the record's when given |
@@ -660,6 +662,14 @@ game's raw printer), and what it may change is a table:
   pictures and the CLUT row they swap; `clear_badge`; `frame`: the band, its rows, the caution, the message tile, the
   hand and its saturation steps, the fade; `progress`), by `d.packet`, `d.image_store` / `d.image_load` /
   `d.image_restore` and `d.text_glyph`; made in the game's order (an immediate draw: no table to reverse);
+- `look.menuf`: MENUF's screens' leaves (`layer` the sprites' slot; `semi`, `subtract` the pages' blending bits;
+  `fade`: its steps, their grey unit, the grey after; `pop`: the flash greys by step, the settling steps toward
+  `toward`, the dim CLUT below `dim`; `wipe`: the strips' width, the lit `edge`; `wheel`: the lines faded outside
+  `top` .. `bottom` by `step` a line, drawn twice there (added, subtracted) by `faded_clut`, else by `clut`;
+  `prompt`: its slide (`dx`, `steps` of `step`), its words' place and `colour`, the bobbing button (`look.buttons`'
+  sprite); `place`: the pictures and the prompt moved from the game's places), by `d.packet` (four-point textured
+  polygons, flat and shaded, the draw areas' two words) and `d.text_raw`, made last to first; `menuf_load` by
+  `d.image_load` with the record's handles, in the game's order;
 - `look.menu_row`, `look.menu_cursor`, `look.menu_command` (and `menu_tabs`, `menu_background`):
   MAINMENU's shared frame. A row by `d.menu_row` (the game's emit on a copy); the hand and the
   command title by `d.sprite` from the game's tables (the hand's `pulse`, `cluts`; the title's `sizes`,
@@ -714,19 +724,21 @@ them as the buffer held them).
 
 **Immediate draws** (`PC_CLASSIC_IMMEDIATE`, classic_hook.h; the recorder in classic_parity.c, the site in
 hud_bridge.c). Some screens draw at once (`DrawPrim`, `LoadImage`) instead of through the ordering table: MENU7's
-file menu. Their range records, in order, every packet the statement draws (its words, as an ordering-table
+file menu, MENUF's uploads. Their range records, in order, every packet the statement draws (its words, as an ordering-table
 packet's) and every VRAM transfer (an upload as GP0's copy command with its rectangle and a hash of its pixels, a
 read with its rectangle); that list is the kind's capture, compared as packets are. While a classic claim on the
 kind is honoured the recorder holds the game's draws and uploads back (reads are done: the game reads them); at the
 range's end the claim draws at once in their place, or, with no claim (or a draw that fails), the held ones are
 done after all, in their order. In the parity mode nothing is held: the game draws, the claim's draw is made into
-the list only.
+the list only. A kind may keep its uploads' pixels (`menuf_load`: up to 160 KB a range, MENUF's three TIMs): its
+record then gives each upload a handle that `d.image_load` takes in place of a string, in the parity mode too.
 
 | RPC | |
 |---|---|
-| `packets {kind}` | a site's last capture (`status`, `chain`, `buff`, `damage`, `gauges`, `figure`, `status_icons`, `battle_mode`, `ability_icons`, `actor_word`, `timer`, `emote`, `text_frame`, `text_band`, `box_text`, `image`, `target_row`, `target_line`, `target_marker`, `menu_background`, `menu_command`, `menu_row`, `menu_cursor`, `menu_tabs`, `option_value`, `items_category`, `items_status_button`, `equip_stats`, `dp_pp_bars`, `gem_slots`, `stat_page`, `ok_mark`, `storage_buttons`, `storage_counts`, `loot_capacities`, `discard_count`, `rename_grid`, `rename_box`, `file_menu`, `file_element`, `status_panel`), normalised: each packet's words, kind, vertices, texels, CLUT, page, colour, the glyph it shows; in the parity mode the Lua draw's beside it. Sites capture from the first call |
+| `packets {kind}` | a site's last capture (`status`, `chain`, `buff`, `damage`, `gauges`, `figure`, `status_icons`, `battle_mode`, `ability_icons`, `actor_word`, `timer`, `emote`, `text_frame`, `text_band`, `box_text`, `image`, `target_row`, `target_line`, `target_marker`, `menu_background`, `menu_command`, `menu_row`, `menu_cursor`, `menu_tabs`, `option_value`, `items_category`, `items_status_button`, `equip_stats`, `dp_pp_bars`, `gem_slots`, `stat_page`, `ok_mark`, `storage_buttons`, `storage_counts`, `loot_capacities`, `discard_count`, `rename_grid`, `rename_box`, `file_menu`, `file_element`, `menuf`, `menuf_load`, `status_panel`), normalised: each packet's words, kind, vertices, texels, CLUT, page, colour, the glyph it shows; in the parity mode the Lua draw's beside it. Sites capture from the first call |
 | `packets {start, end}` | the packets of a guest range in allocation order |
 | `classic {parity, reset}` | per kind: frames compared, matched, mismatched (by field), skipped (why), the first difference with both packets |
+| `menuf {submenu, boss}` | tests: MAINMENU's screen 15 (MENUF) opened as BATTLE opens it after a fight, `vs_main_stateFlags.menuFSubmenu` set to `submenu` (0 the congratulations, 1 / 2 the time attack's start / end, 3 the heal bonus: nothing drawn, 4 / 5 / 6 the cube puzzle's start / end / quit) and, given, `timeAttackBoss` to `boss` (the course, 0..6); only in the field with Ashley free to act; `{opened}` |
 
 `pc/tests/classic_parity.py` (run.py `classic_parity`, the null renderer;
 also in verify.sh's CPU lane) plays every element of each kind with
@@ -1085,6 +1097,27 @@ rood.dev.window {
 `changed, i = imgui.Combo(label, i, items)` (1-based); `visible, open =
 imgui.Begin(name, open, flags)`, `selected, open = imgui.BeginTabItem(...)`;
 `clicked, selected = imgui.MenuItem(label, shortcut, selected, enabled)`.
+A canvas (the node editor's needs, `pc/plugins/rood.material_graph`):
+`x, y = imgui.GetCursorScreenPos()`, `imgui.SetCursorScreenPos(x, y)`,
+`GetCursorPos` / `SetCursorPos`, `GetWindowPos`, `GetWindowSize`,
+`pressed = imgui.InvisibleButton(id, w, h[, flags])` (an item: `IsItemHovered`,
+`IsItemActive`, `IsItemClicked` apply), `GetItemRectMin` / `GetItemRectMax`,
+`SetNextItemAllowOverlap`, `x, y = imgui.GetMousePos()`,
+`IsMouseDown/Clicked/DoubleClicked/Released([button])`,
+`IsMouseDragging([button[, threshold]])`, `dx, dy =
+imgui.GetMouseDragDelta([button[, threshold]])`, `ResetMouseDragDelta`,
+`IsMouseHoveringRect(x0, y0, x1, y1[, clip])`, `GetMouseWheel()`,
+`PushClipRect(x0, y0, x1, y1[, intersect])` / `PopClipRect()` (a scope, like
+every Push), and the window's draw list in screen coordinates with colours
+as `{r, g, b[, a]}`: `DrawList_AddLine(x0, y0, x1, y1, color[, thickness])`,
+`DrawList_AddRect(x0, y0, x1, y1, color[, rounding[, thickness]])`,
+`DrawList_AddRectFilled(x0, y0, x1, y1, color[, rounding])`,
+`DrawList_AddCircle(x, y, r, color[, segments[, thickness]])`,
+`DrawList_AddCircleFilled(x, y, r, color[, segments])`,
+`DrawList_AddTriangleFilled(x0, y0, x1, y1, x2, y2, color)`,
+`DrawList_AddBezierCubic(x0, y0, x1, y1, x2, y2, x3, y3, color[, thickness])`,
+`DrawList_AddText(x, y, color, text)`. Positions come back as two numbers,
+like `GetContentRegionAvail` and `CalcTextSize`.
 Text is never a format string (`imgui.Text(string.format(...))`). Dear
 ImGui's own indexes stay (`TableSetColumnIndex` is 0-based). There are:
 Begin/End, BeginChild/EndChild, SetNextWindowSize/Pos, IsWindowFocused/Hovered;
@@ -1106,10 +1139,12 @@ TreeNode (TreeNodeEx: flags), TreePop, CollapsingHeader, SetNextItemOpen;
 BeginTable/EndTable, TableSetupColumn, TableSetupScrollFreeze,
 TableHeadersRow, TableNextRow, TableNextColumn, TableSetColumnIndex;
 BeginTabBar/EndTabBar, BeginTabItem/EndTabItem; BeginTooltip,
-BeginItemTooltip, EndTooltip, SetTooltip, SetItemTooltip; OpenPopup,
+BeginItemTooltip, EndTooltip, SetTooltip, SetItemTooltip, SetClipboardText;
+OpenPopup,
 BeginPopup, BeginPopupContextItem, EndPopup, CloseCurrentPopup;
 BeginMenuBar/EndMenuBar, BeginMenu/EndMenu, MenuItem; IsItemHovered,
-IsItemClicked, IsItemActive, IsItemEdited, IsItemDeactivatedAfterEdit,
+IsItemClicked, IsItemToggledOpen (a tree node's arrow), IsItemActive,
+IsItemEdited, IsItemDeactivatedAfterEdit,
 IsAnyItemActive, SetItemDefaultFocus, SetKeyboardFocusHere; PushID/PopID,
 BeginDisabled/EndDisabled, PushStyleColor/PopStyleColor,
 PushStyleVar/PopStyleVar; PlotLines, PlotHistogram; IsKeyPressed,
@@ -1137,7 +1172,13 @@ Pause / Resume, an RPC explorer, a few widgets. Edit
 from the saved file and stays open. The shipped `rood.material_review`
 (off) is Window > Material review in Lua (pc/docs/Materials.md, "Reviewing
 in the game"): the C++ window's picture pixel for pixel and its keys, on RPC
-`material_review` alone. RPC `lua {action "windows"}` lists the
+`material_review` alone. The shipped `rood.materials` (off by default) is
+Window > Materials in Lua (pc/docs/Materials.md, "Masters and instances"):
+the instance tree, the master's parameter rows, the assignment and the
+instance tools, on RPC `material_instance` alone (`status` each frame, the
+tree read again only when the catalog's structure or its unsaved layer
+changed, `get` for the selected instance); off, the C++ window is Window >
+Materials. RPC `lua {action "windows"}` lists the
 windows (`id, title, plugin, menu, open, keys, focused, replaces, failed, error,
 frames, failures`); `lua {action "window", id, open, focus, retry}` opens,
 focuses or retries one.
@@ -1196,9 +1237,14 @@ part-2 selection's texture or palette scoped to this room), New child,
 Duplicate, Remove, Save / Revert (the unsaved layer Details > Material
 shares). **Window > Material preview** (`window.material_preview`) is a
 sphere shaded on the CPU with the shared GGX model, textured with the
-instance's texture where it is drawn now; its light is the settings keys
-`material_preview_size`, `_light`, `_yaw`, `_pitch`, `_ambient`, `_swatch`
-(RPC `graphics`). RPC `material_instance {action "list" | "masters" | "get" |
+instance's texture where it is drawn now, with the planes' per-texel values
+and relief; lit like the room by default (`material_preview_room`: the
+strongest light at Ashley as the key, the game's room light as the ambient,
+times `material_preview_room_key` and `_room_ambient`, taken
+`_room_height` above her feet), else by its own light; the settings keys
+`material_preview_size`, `_light`, `_yaw`, `_pitch`, `_ambient`, `_swatch`,
+`_room`, `_room_key`, `_room_ambient`, `_room_height`, `_relief` (RPC
+`graphics`). RPC `material_instance {action "list" | "masters" | "get" |
 "set" | "parent" | "new" | "duplicate" | "assign" | "assign_selection" |
 "unassign" | "remove" | "select" | "save" | "revert" | "validate" |
 "migrate", id, params, name, where, review, parent, of, root, key, size,
@@ -1207,16 +1253,89 @@ instances (`offset`, `limit`; `masters` false leaves the masters out), each
 with its own values (`own`), every parameter resolved (`values`), the ids
 walked (`chain`), which ancestor sets each value (`from`: "" the master's
 default), its match, scope and children, with the catalog's `problems`;
-`set {params: {name: value | null}}` sets or resets to the parent; `new
-{id, parent, params, root}` makes an unassigned child (`root` true: a new
-preset); `assign {key, size, clut, scope}` and `assign_selection {palette}`
+`set {params: {name: value | null}, reset: [names], master}` sets or resets to the parent
+(`master`: another master, e.g. a node graph; the Materials panel's Master
+combo; a colour parameter, `type` "color" with a `[r, g, b]` default, takes
+`[r, g, b]` each 0..1 or null for all three, and shows in `own`, `values`
+and `from` as its parts `<name>.r`, `.g`, `.b`; the files write it as one
+`[r, g, b]`); `new {id, parent, params, root, master}` makes an unassigned child
+(`root` true: a new preset); `assign {key, size, clut, scope}` and `assign_selection {palette}`
 (the primary selection's texture, or its palette, in this room); `validate`
-counts what resolves; `migrate {out}` writes the user layer's instances into
-a file (never the layer itself unless named). RPC `material_preview {action
-"state" | "select" | "open", id, open}` replies the sphere's `digest`,
-`mean`, `centre` and `edge` pixels, the texture used and the settings. RPC
+counts what resolves; `list {brief: true}` lists each instance as a tree row
+only (id, name, parent, master, root, user, pending, preview, assigned: no
+resolution); `get {slots: true}` adds the master's texture slots with the
+layer each channel map comes from; `json {id}` replies the entry as the
+catalog writes it (Copy JSON for the catalog); `migrate {out}` writes the user layer's instances into
+a file (never the layer itself unless named); `status` replies the catalog's
+`generation` (any change), `structure` (more than values: an instance added,
+removed, re-parented, re-assigned or given another master), `file_reads`
+(catalog files read so far), `dirty`, `pending` and `selected`. A value edit (`set`
+with the same structure, as a dragged slider sends) is laid over the
+catalog in memory: no file is read, `structure` stays, and a graph
+instance's edit only refills the values table; the files are read on load,
+Revert and `material reload` (and when one changes on disk) and written on
+Save. RPC `material {action "palettes"}` lists the palettes drawn now by
+CLUT slot (`depth`, `clut`, `key` of the colours now, `identity`, `variants`
+seen this room, `uses`, `entry`): an animated palette is one palette, matched
+by any of its variants and named by its identity (Materials.md, "Animated
+palettes"); emissive entries' `match.clut` and RPC `emissive pick`'s
+`clut_key` the same. RPC `material_preview {action
+"state" | "select" | "open" | "save", id, open, path}` replies the sphere's
+`digest` (and `digest_hex`, every bit), `mean`, `centre` and `edge` pixels,
+the texture used, `relief` (0 none, 1 a height map, 2 estimated), `planes`
+(the values from the material planes), `lighting` (`room`, `key_from`:
+"light <n>", "sun" or "preview", `key`, `dir` in the preview's frame,
+`ambient`) and the settings; `save {path}` writes the sphere as a PNG. RPC
 `material list` and `reload` take `entries: false` (the uses and tunables
 without the entries: a layer of hundreds of entries outgrows one reply).
+
+Node material graphs (`pc/src/material_graph.cpp`, the Lua editor
+`pc/plugins/rood.material_graph`; plan
+`pc/docs/plans/2026-10-30-node-materials-plan.md`; `pc/docs/Materials.md`
+"Node graphs"): a graph master is a master file with a `graph` (nodes,
+links, promoted knobs); a node definition is a small GLSL function with
+declared inputs and outputs in `pc/assets/materials/nodes/<name>.json` (the
+user's under `<user maps layer>/nodes`). **Window > Material graph** (the
+Lua plugin, on; `rood.material_graph/graph`) is the node palette, the canvas
+(drag a node by its header, drag a link from an output pin to an input pin,
+click a linked input to cut its link, right-click for a node, Delete removes
+the selected node; pinned knobs on the node bodies) and the parameter panel
+(every knob of the selected node with *Pin* and, for a number or a colour
+knob, *Promote* to a master parameter instances then set in Window >
+Materials: a slider, or a colour swatch). A value edit (a knob, an
+instance's parameter) is live on the next frame: the generated include reads
+every unlinked knob and every instance's parameters from a values table
+(`graph_values[]`, the native draws' binding 7), so dragging a slider
+rewrites the table, not the shader. A structural edit (a node, a link, a
+promotion, an assignment) regenerates `material_graph.glsl` into
+`pc/build/shaders/generated` (`$ROOD_SHADERS_GENERATED`) and the shader hot
+reload swaps it in within about a second; an invalid graph outlines its node
+and keeps the last good shader. RPC `material_graph {action "list" |
+"nodes" | "status" | "values" | "get" | "new" | "set" | "save" | "remove" |
+"generate" | "node_add" | "node_remove" | "node_move" | "link" | "unlink" |
+"knob" | "pin" | "promote" | "reload", name, graph, id, type, x, y, from,
+to, input, value, on, param}`: `list` the graphs (`user`, `dirty`, `ok`,
+`error`) and the `status` (the generated file's `path`, `written`,
+`generation` (its writes: a value edit leaves it), the `slots` in use, the
+values table's size `values` and the game `time` it carries, the first
+`error`, `node_problems`); `values` the table as the next frame uploads it
+(`{key, value [x, y, z, w]}`: `time`, `k:<graph>:<node>.<input>` a knob,
+`p:<instance>:<param>` a parameter); `nodes` the node library (each with
+`inputs`: name, label, type `float|float2|float3|float4`, `default`, `min`,
+`max`, `pin`, `color`, `knob`, `optional`, `time` (unlinked, it reads the
+game time); `outputs`; `builtin`, `user`); `get` / every edit reply the graph (`graph.nodes` with
+`pos`, `knobs`, `pinned`; `graph.links` `{from "node.port", to
+"node.input"}`; `graph.promoted`), whether it generates (`ok`, `error`,
+`error_node`), its promoted `params` and the `instances` using it with
+their slots; `generate` replies the graph's own GLSL (`glsl`), the node
+functions it calls (`functions`) and the whole include (`include`); `set
+{graph}` replaces the whole graph; `save` writes the master file into the
+user's graph folder (`$ROOD_MATERIAL_GRAPHS`, else `<user maps
+layer>/masters`; a shipped graph saved becomes the user's copy of the name);
+`promote {param}` saves as well (`param` null unpromotes; a number knob, or a
+`float3` knob marked `color`); `knob {value:
+number | [..] | null}` (null: back to the definition's default); `reload`
+re-reads the node and graph files.
 
 ## Testing
 

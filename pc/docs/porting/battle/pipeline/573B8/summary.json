@@ -3,17 +3,16 @@
  "totals": {
   "functions": 25,
   "ported": 24,
-  "cost": 0.2842,
-  "prompt_tokens": 1278394,
-  "completion_tokens": 312637,
-  "model_seconds": 1358.4,
-  "check_seconds": 688.9,
+  "cost": 0.2681,
+  "prompt_tokens": 1278388,
+  "completion_tokens": 300118,
+  "model_seconds": 1155.4,
+  "check_seconds": 687.4,
   "calls": 61,
   "statuses": {
    "ported": 24,
    "spec-failed": 1
-  },
-  "last_run_wall_seconds": 205.8
+  }
  },
  "functions": [
   {
@@ -24,8 +23,8 @@
    "port_attempts": 0,
    "spec": "failed",
    "port": "failed",
-   "cost": 0.02579,
-   "wall_seconds": 205.5
+   "cost": 0.00977,
+   "wall_seconds": 808.8
   },
   {
    "function": "func_800BFD9C",

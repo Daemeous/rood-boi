@@ -1,0 +1,28 @@
+{
+  "format": 1,
+  "name": "color",
+  "label": "Colour",
+  "category": "Constant",
+  "inputs": [
+    {
+      "name": "value",
+      "type": "float3",
+      "default": [
+        1,
+        1,
+        1
+      ],
+      "min": 0,
+      "max": 1,
+      "pin": true,
+      "color": true
+    }
+  ],
+  "outputs": [
+    {
+      "name": "result",
+      "type": "float3"
+    }
+  ],
+  "glsl": "result = value;"
+}

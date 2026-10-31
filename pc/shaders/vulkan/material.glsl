@@ -39,6 +39,12 @@ vec4 material_texel(uint u, uint v, uint tpage, uint win, out vec4 relief)
     }
     return vec4(float(texelFetch(emissive_map, cell, 0).r) / 255.0, float(s) / 255.0, float(m) / 255.0, 1.0);
 }
+// The seventh plane: the node material graph's slot for the texel (0 none;
+// material_graph.glsl, pc/src/material_graph.cpp).
+uint material_graph_slot(uint u, uint v, uint tpage, uint win)
+{
+    return texelFetch(emissive_map, material_cell(u, v, tpage, win) + ivec2(0, 3072), 0).r;
+}
 // The relief's normal for a unit bump_strength: the surface displaced along
 // its normal n by the height (in texels of depth), per texel (the slopes are
 // constant over a texel: the bumps stay pixel art). dp1, dp2: the position's

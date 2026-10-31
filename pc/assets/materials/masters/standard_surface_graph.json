@@ -1,0 +1,101 @@
+{
+  "format": 1,
+  "name": "standard_surface_graph",
+  "about": "The standard surface as a node graph (pc/docs/plans/2026-10-30-node-materials-plan.md): the surface planes straight into the output, so an instance of it renders exactly as one of standard_surface (material_graph_smoke proves it byte for byte). The starting point for a new graph.",
+  "shader": "graph:standard_surface_graph",
+  "parameters": [
+    {
+      "name": "roughness",
+      "type": "number",
+      "default": 1,
+      "min": 0,
+      "max": 1,
+      "label": "Roughness",
+      "group": "Surface",
+      "tip": "0 mirror, 1 fully rough (a roughness map overrides it per texel)"
+    },
+    {
+      "name": "specular",
+      "type": "number",
+      "default": 0,
+      "min": 0,
+      "max": 1,
+      "label": "Specular",
+      "group": "Surface",
+      "tip": "Fraction of a dielectric's reflectance (4% at normal incidence); keep it subtle"
+    },
+    {
+      "name": "metal",
+      "type": "number",
+      "default": 0,
+      "min": 0,
+      "max": 1,
+      "label": "Metal",
+      "group": "Surface",
+      "tip": "0 stone, wood, glass; 1 bare metal (tinted reflections, no diffuse light)"
+    },
+    {
+      "name": "auto_height",
+      "type": "bool",
+      "default": false,
+      "label": "Estimate the height from the colours",
+      "group": "Relief",
+      "tip": "auto_height: bumps from the texture's luminance (dark low, bright high) where it has no height.png. Global switch and strength: Graphics > Lighting quality"
+    },
+    {
+      "name": "bump",
+      "type": "number",
+      "default": 1,
+      "min": 0,
+      "max": 4,
+      "label": "Relief",
+      "group": "Relief",
+      "tip": "bump: this surface's multiple of the global relief depth (bump_strength)"
+    }
+  ],
+  "slots": [
+    {
+      "name": "texel",
+      "label": "Game texel"
+    }
+  ],
+  "graph": {
+    "nodes": [
+      {
+        "id": "texel",
+        "type": "texel",
+        "pos": [
+          40,
+          60
+        ]
+      },
+      {
+        "id": "planes",
+        "type": "planes",
+        "pos": [
+          40,
+          180
+        ]
+      },
+      {
+        "id": "output",
+        "type": "output",
+        "pos": [
+          420,
+          100
+        ]
+      }
+    ],
+    "links": [
+      {
+        "from": "planes.surface",
+        "to": "output.surface"
+      },
+      {
+        "from": "planes.relief",
+        "to": "output.relief"
+      }
+    ],
+    "promoted": {}
+  }
+}

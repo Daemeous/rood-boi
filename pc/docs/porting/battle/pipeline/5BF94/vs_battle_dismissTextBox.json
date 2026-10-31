@@ -1,0 +1,254 @@
+{
+ "function": "vs_battle_dismissTextBox",
+ "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": false,
+ "plan": {
+  "name": "vs_battle_dismissTextBox",
+  "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+  "stem": "5BF94",
+  "address": "0x800cd064",
+  "difficulty": "S",
+  "zig_name": "dismissTextBox",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "dismiss_text_box",
+  "spec_file": "dismissTextBox.zig",
+  "subsystem": "battle_5BF94_port",
+  "signature": "pub fn dismissTextBox(id: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "id",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12223,
+     "completion_tokens": 7772,
+     "reasoning_tokens": 6451,
+     "cost": 0.00255415,
+     "seconds": null,
+     "batch": "batch-1793203265-sQA1DX56rKylfzO4cWKR",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation M3: state test '>' becomes '>=' (state 0 takes the positive branch): not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: vs_battle_dismissTextBox: 30000 iterations, seed 1, 0 mismatches; classes: flag-0x20-set=15067 idle=1476 positive-state=6666 negative-state=6791",
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage vs_battle_dismissTextBox: branches 6/6 (100.0%), conditions not measured (GCC < 14: branch coverage only), lines 11/11\n  FLAG +9 eq: boundary equality never occurred (16-bit compare, constant 0: both sides seen; a port's `<` for `<=` could pass): `if (box->state > 0) {`\ncoverage vs_battle_dismissTextBox: FAILED (threshold 100%: 0 uncovered, 1 value flag(s) not waived)\nWhat to add:\n- `if (box->state > 0) {` (+9): the two sides of this ordered compare were equal 0 time(s) in 27144. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.vs_battle_dismissTextBox.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14077,
+     "completion_tokens": 2639,
+     "reasoning_tokens": 1208,
+     "cost": 0.0013636,
+     "seconds": null,
+     "batch": "batch-1793206357-jxyW8CeGtJSNWKNpZo35",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "flag-0x20-set": "15067",
+   "idle": "1476",
+   "positive-state": "6666",
+   "negative-state": "6791"
+  },
+  "mutations": [
+   {
+    "name": "M1: wrong mask for the skip test (0x10 for 0x20)",
+    "caught": true
+   },
+   {
+    "name": "M2: wrong constant argument to func_800AAD4C",
+    "caught": true
+   },
+   {
+    "name": "M3: positive test off by one (state 1 takes the negative branch)",
+    "caught": true
+   },
+   {
+    "name": "M4: state set to 0 instead of -1",
+    "caught": true
+   },
+   {
+    "name": "M5: wrong return value for an active box",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 6,
+   "branches_hit": 6,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 11,
+   "lines_hit": 11,
+   "uncovered": [],
+   "flags": [
+    {
+     "id": "+9 eq",
+     "line": 9,
+     "text": "if (box->state > 0) {",
+     "kind": "eq",
+     "bits": 16,
+     "equal": 0,
+     "count": 27144,
+     "what": "boundary equality never occurred (16-bit compare, constant 0: both sides seen; a port's `<` for `<=` could pass)"
+    }
+   ],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 7, seen zero, never negative, 8 value(s): 6, 1, 4, 5, 7, 0, 3, 2"
+    }
+   ],
+   "compares": [
+    {
+     "line": 4,
+     "text": "if (!(box->unk0.unk0_24 & 0x20)) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 14933, < 0, > 15067 (signed); < 0, > 15067 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..32"
+    },
+    {
+     "line": 8,
+     "text": "if (box->state != 0) {",
+     "size": 2,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 2856, < 13608, > 13536 (signed); < 0, > 27144 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 9,
+     "text": "if (box->state > 0) {",
+     "size": 2,
+     "count": 27144,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 13608, > 13536 (signed); < 0, > 27144 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32767"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+9 eq",
+    "reason": "The compare sits inside `if (box->state != 0)`, which reads the same 16-bit field with no store in between, so state is never 0 when `box->state > 0` runs: the equal case cannot occur, and no input can reach it."
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35569,
+     "completion_tokens": 2603,
+     "reasoning_tokens": 2177,
+     "cost": 0.0024292,
+     "seconds": null,
+     "batch": "batch-1793379902-OYfFRiS0hzKPAZ8kx15j",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/dismissTextBox.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/dismiss_text_box.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 188.72202437600117,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 218147.81675219536,
+ "totals": {
+  "cost": 0.00635,
+  "prompt_tokens": 61869,
+  "completion_tokens": 13014,
+  "model_seconds": 0.0,
+  "check_seconds": 188.7,
+  "calls": 3,
+  "wall_seconds": 218147.8
+ }
+}

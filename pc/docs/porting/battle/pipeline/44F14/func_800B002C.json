@@ -5,10 +5,10 @@
  "model": "anthropic/claude-haiku-5.5",
  "endpoint": "remote",
  "thinking": "default",
- "temperature": 0.4,
- "samples": 2,
- "status": "stopped",
- "reviewed": "not ported in this wave (unrouted): Haiku's specs name a field the struct does not have and miss the 2047 equality edge; the retry stopped at the wave's budget",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "spec-failed",
+ "reviewed": false,
  "plan": {
   "name": "func_800B002C",
   "unit": "src/BATTLE/BATTLE.PRG/44F14.c",
@@ -52,68 +52,610 @@
      "model": "anthropic/claude-haiku-5.5",
      "endpoint": "remote",
      "thinking": "default",
-     "temperature": 0.4,
+     "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 19583,
-     "completion_tokens": 31835,
-     "reasoning_tokens": 28960,
-     "cost": 0.0178758,
-     "seconds": 131.7,
-     "sample": 1,
-     "conversation": "6336dc04b54d53593c21a7e5a6fa11dd583ce55086f22313bf2e691c1f6f2a22"
+     "prompt_tokens": 19713,
+     "completion_tokens": 54978,
+     "reasoning_tokens": 51213,
+     "cost": 0.01473015,
+     "seconds": null,
+     "batch": "batch-1793472845-QkAmzxxBw2lq6TSSxmz5",
+     "sample": 1
     },
     "passed": false,
     "errors": [
-     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:172:9: error: zdiff: a spec stub gives c_int where the C prototype has c_short: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:225:29\n    f: pc/build/port-pipeline/func_800B002C/spec1/build/game/common/route.zig:19:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+     "FAIL: the harness does not build:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:181:9: error: zdiff: a spec stub gives c_int where the C prototype has c_short: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:235:29\n    f: pc/build/port-pipeline/func_800B002C/spec1/build/game/common/route.zig:19:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
     ]
    },
    {
-    "round": 1,
-    "sample": 2,
+    "round": 2,
+    "sample": 1,
     "call": {
      "finish_reason": "stop",
      "model": "anthropic/claude-haiku-5.5",
      "endpoint": "remote",
      "thinking": "default",
-     "temperature": 0.4,
+     "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 19583,
-     "completion_tokens": 46336,
-     "reasoning_tokens": 42970,
-     "cost": 0.0251263,
-     "seconds": 193.6,
-     "sample": 2,
-     "conversation": "e2306ec022e33d8d495a2cd4e77550a6ba232a690c4c480be892c3f6af578403"
+     "prompt_tokens": 23817,
+     "completion_tokens": 5556,
+     "reasoning_tokens": 1791,
+     "cost": 0.00257985,
+     "seconds": null,
+     "batch": "batch-1793473259-u2ePCAiI4wY1Y4v0EU1i",
+     "sample": 1
     },
     "passed": false,
     "errors": [
-     "FAIL: the harness does not build:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/func_800B002C/spec1s2/build/game/common/psx.zig:83:32: error: no field named 'unkA_3' in struct 'views_44F14.D_800F4538_t.bitfields__struct_64'\n    return @field(S.bitfields, name);\n                               ^~~~\npc/build/port-pipeline/gen/44F14/fn-func_800B002C/views_44F14.zig:457:28: note: struct declared here\n    pub const bitfields = .{\n                          ~^\npc/build/port-pipeline/func_800B002C/spec1s2/build/game/common/psx.zig:98:76: note: called at comptime here\npub fn setBits(p: anytype, comptime name: []const u8, value: BitInt(bitSpec(@TypeOf(p), name))) void {\n                                                                    ~~~~~~~^~~~~~~~~~~~~~~~~~\npc/build/port-pipeline/func_800B002C/spec1s2/build/spec.zig:53:20: note: generic function instantiated here\n        psx.setBits(actor, \"unkA_3\", ctx.range(u2, 0, 3));\n        ~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:420:40\n    main: pc/tests/zig_diff/main.zig:377:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\npc/tests/zig_diff/main.zig:172:9: error: zdiff: a spec stub gives c_int where the C prototype has c_short: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\n"
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800B002C: branches 94/94 (100.0%), lines 155/155\n  FLAG +157 eq: boundary equality occurred only 5 time(s) in 14510 (32-bit compare, constant 2047: both sides seen; a port's `<` for `<=` could pass): `if (yaw >= 0x800) {`\n  FLAG +169 eq: boundary equality occurred only 2 time(s) in 14510 (32-bit compare, constant 2047: both sides seen; a port's `<` for `<=` could pass): `if (pitch >= 0x800) {`\ncoverage func_800B002C: FAILED (threshold 100%: 0 uncovered, 2 value flag(s) not waived)\nWhat to add:\n- `if (yaw >= 0x800) {` (+157): the two sides of this ordered compare were equal 5 time(s) in 14510. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\n- `if (pitch >= 0x800) {` (+169): the two sides of this ordered compare were equal 2 time(s) in 14510. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800B002C.coverage_waiver]] with its `id` and a `reason`."
     ]
    }
-  ]
+  ],
+  "classes": {
+   "idle": "4951",
+   "fixed": "4983",
+   "behind": "4968",
+   "actor-target": "4883",
+   "table-target": "20215"
+  },
+  "mutations": [
+   {
+    "name": "U1: the fixed-table offset divided by 8192 is shifted instead",
+    "caught": true
+   },
+   {
+    "name": "U2: the animation range test is signed (dx - 31 below 0 passes)",
+    "caught": true
+   },
+   {
+    "name": "U3: the transform call is dropped",
+    "caught": true
+   },
+   {
+    "name": "U4: the tile flag takes 0 instead of the global",
+    "caught": true
+   },
+   {
+    "name": "U5: the first offset read unsigned (the (short) cast dropped)",
+    "caught": true
+   },
+   {
+    "name": "U6: the rotation read unsigned (the (short) cast dropped)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 94,
+   "branches_hit": 94,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 155,
+   "lines_hit": 155,
+   "uncovered": [],
+   "flags": [
+    {
+     "id": "+157 eq",
+     "line": 157,
+     "text": "if (yaw >= 0x800) {",
+     "kind": "eq",
+     "bits": 32,
+     "equal": 5,
+     "count": 14510,
+     "what": "boundary equality occurred only 5 time(s) in 14510 (32-bit compare, constant 2047: both sides seen; a port's `<` for `<=` could pass)"
+    },
+    {
+     "id": "+169 eq",
+     "line": 169,
+     "text": "if (pitch >= 0x800) {",
+     "kind": "eq",
+     "bits": 32,
+     "equal": 2,
+     "count": 14510,
+     "what": "boundary equality occurred only 2 time(s) in 14510 (32-bit compare, constant 2047: both sides seen; a port's `<` for `<=` could pass)"
+    }
+   ],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "32-bit: min -2147043873, max 2147240000, unsigned 0..4294967295, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 11,
+     "text": "if (*(int*)&actor->unk0.unk2C == 0x10001000 && actor->unk0.unk30 == 4096) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 13243, < 15162, > 11595 (signed); < 1668, > 25089 (unsigned)",
+     "operand": "constant 268439552",
+     "a": "-2147416271..2147434226"
+    },
+    {
+     "line": 11,
+     "text": "if (*(int*)&actor->unk0.unk2C == 0x10001000 && actor->unk0.unk30 == 4096) {",
+     "size": 2,
+     "count": 13243,
+     "kind": "against a constant",
+     "outcomes": "== 6618, < 5113, > 1512 (signed); < 2394, > 4231 (unsigned)",
+     "operand": "constant 4096",
+     "a": "-32737..32749"
+    },
+    {
+     "line": 24,
+     "text": "if (arg1 == 0) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 19885, < 8431, > 11684 (signed); < 0, > 20115 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147043873..2147240000"
+    },
+    {
+     "line": 25,
+     "text": "if (actor->unk5C8 != 0) {",
+     "size": 2,
+     "count": 19885,
+     "kind": "against a constant",
+     "outcomes": "== 2456, < 7360, > 10069 (signed); < 0, > 17429 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32764..32766"
+    },
+    {
+     "line": 37,
+     "text": "if (actor->unk0.unk18 != 0) {",
+     "size": 2,
+     "count": 19885,
+     "kind": "against a constant",
+     "outcomes": "== 1991, < 7050, > 10844 (signed); < 0, > 17894 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32767..32757"
+    },
+    {
+     "line": 49,
+     "text": "if (actor->unk5B0_4) {",
+     "size": 1,
+     "count": 19885,
+     "kind": "against a constant",
+     "outcomes": "== 9826, < 0, > 10059 (signed); < 0, > 10059 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..16"
+    },
+    {
+     "line": 53,
+     "text": "if (actor->unk0.unk1A != 0) {",
+     "size": 2,
+     "count": 19885,
+     "kind": "against a constant",
+     "outcomes": "== 2469, < 7517, > 9899 (signed); < 0, > 17416 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32763..32760"
+    },
+    {
+     "line": 63,
+     "text": "if (--actor->unk0.unk1A == 0) {",
+     "size": 2,
+     "count": 17416,
+     "kind": "against a constant",
+     "outcomes": "== 2424, < 7517, > 7475 (signed); < 0, > 14992 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32764..32759"
+    },
+    {
+     "line": 64,
+     "text": "if (actor->unk0.unkA_3 == 1) {",
+     "size": 1,
+     "count": 2424,
+     "kind": "against a constant",
+     "outcomes": "== 454, < 1061, > 909 (signed); < 1061, > 909 (unsigned)",
+     "operand": "constant 8",
+     "a": "0..24"
+    },
+    {
+     "line": 69,
+     "text": "if (actor->unk0.unkA_3 != 2) {",
+     "size": 1,
+     "count": 2424,
+     "kind": "against a constant",
+     "outcomes": "== 454, < 1515, > 455 (signed); < 1515, > 455 (unsigned)",
+     "operand": "constant 16",
+     "a": "0..24"
+    },
+    {
+     "line": 79,
+     "text": "if (!(*(int*)((char*)actor + 8) & 0x3F0000)) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 10510, < 0, > 29490 (signed); < 0, > 29490 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..4128768"
+    },
+    {
+     "line": 82,
+     "text": "if (actor->unk0.unkC_0 == 0) {",
+     "size": 1,
+     "count": 10510,
+     "kind": "against a constant",
+     "outcomes": "== 10153, < 0, > 357 (signed); < 0, > 357 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..15"
+    },
+    {
+     "line": 88,
+     "text": "if (actor->unk17FC != -2) {",
+     "size": 1,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 4951, < 9951, > 25098 (signed); < 30166, > 4883 (unsigned)",
+     "operand": "constant -2",
+     "a": "-4..16"
+    },
+    {
+     "line": 90,
+     "text": "if (func_800BEB00() != 4) {",
+     "size": 2,
+     "count": 35049,
+     "kind": "against a constant",
+     "outcomes": "== 8746, < 13211, > 13092 (signed); < 1, > 26302 (unsigned)",
+     "operand": "constant 4",
+     "a": "-32767..32765"
+    },
+    {
+     "line": 91,
+     "text": "if (*(int*)((char*)actor + 8) < 0) {",
+     "size": 4,
+     "count": 26303,
+     "kind": "against a constant",
+     "outcomes": "== 6587, < 4964, > 14752 (signed); < 0, > 19716 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2145527941..2147468124"
+    },
+    {
+     "line": 95,
+     "text": "if (dx >= 100) {",
+     "size": 4,
+     "count": 21339,
+     "kind": "against a constant",
+     "outcomes": "== 832, < 13824, > 6683 (signed); < 13824, > 6683 (unsigned)",
+     "operand": "constant 99",
+     "a": "0..255"
+    },
+    {
+     "line": 98,
+     "text": "if (*(int*)((char*)actor + 8) & 0x400000) {",
+     "size": 4,
+     "count": 21339,
+     "kind": "against a constant",
+     "outcomes": "== 11370, < 0, > 9969 (signed); < 0, > 9969 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..4194304"
+    },
+    {
+     "line": 99,
+     "text": "if ((u_int)(dx - 31) < 8) {",
+     "size": 4,
+     "count": 9969,
+     "kind": "against a constant",
+     "outcomes": "== 406, < 6105, > 3458 (signed); < 1256, > 8307 (unsigned)",
+     "operand": "constant 7",
+     "a": "-31..124"
+    },
+    {
+     "line": 102,
+     "text": "} else if (*(int*)((char*)actor + 8) & 0x200000) {",
+     "size": 4,
+     "count": 11370,
+     "kind": "against a constant",
+     "outcomes": "== 8994, < 0, > 2376 (signed); < 0, > 2376 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..2097152"
+    },
+    {
+     "line": 103,
+     "text": "if ((u_int)(dx - 8) < 27) {",
+     "size": 4,
+     "count": 2376,
+     "kind": "against a constant",
+     "outcomes": "== 87, < 1297, > 992 (signed); < 793, > 1496 (unsigned)",
+     "operand": "constant 26",
+     "a": "-8..147"
+    },
+    {
+     "line": 106,
+     "text": "} else if (dx == 0) {",
+     "size": 4,
+     "count": 8994,
+     "kind": "against a constant",
+     "outcomes": "== 696, < 0, > 8298 (signed); < 0, > 8298 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..155"
+    },
+    {
+     "line": 108,
+     "text": "} else if (dx == 1 || dx == 6 || dx == 13 || dx == 14 || dx == 17",
+     "size": 4,
+     "count": 8298,
+     "kind": "against a constant",
+     "outcomes": "== 709, < 0, > 7589 (signed); < 0, > 7589 (unsigned)",
+     "operand": "constant 1",
+     "a": "1..155"
+    },
+    {
+     "line": 108,
+     "text": "} else if (dx == 1 || dx == 6 || dx == 13 || dx == 14 || dx == 17",
+     "size": 4,
+     "count": 7589,
+     "kind": "against a constant",
+     "outcomes": "== 331, < 85, > 7173 (signed); < 85, > 7173 (unsigned)",
+     "operand": "constant 6",
+     "a": "2..155"
+    },
+    {
+     "line": 108,
+     "text": "} else if (dx == 1 || dx == 6 || dx == 13 || dx == 14 || dx == 17",
+     "size": 4,
+     "count": 7258,
+     "kind": "against a constant",
+     "outcomes": "== 356, < 559, > 6343 (signed); < 559, > 6343 (unsigned)",
+     "operand": "constant 13",
+     "a": "2..155"
+    },
+    {
+     "line": 108,
+     "text": "} else if (dx == 1 || dx == 6 || dx == 13 || dx == 14 || dx == 17",
+     "size": 4,
+     "count": 6902,
+     "kind": "against a constant",
+     "outcomes": "== 387, < 559, > 5956 (signed); < 559, > 5956 (unsigned)",
+     "operand": "constant 14",
+     "a": "2..155"
+    },
+    {
+     "line": 108,
+     "text": "} else if (dx == 1 || dx == 6 || dx == 13 || dx == 14 || dx == 17",
+     "size": 4,
+     "count": 6515,
+     "kind": "against a constant",
+     "outcomes": "== 380, < 607, > 5528 (signed); < 607, > 5528 (unsigned)",
+     "operand": "constant 17",
+     "a": "2..155"
+    },
+    {
+     "line": 109,
+     "text": "|| dx == 18) {",
+     "size": 4,
+     "count": 6135,
+     "kind": "against a constant",
+     "outcomes": "== 363, < 607, > 5165 (signed); < 607, > 5165 (unsigned)",
+     "operand": "constant 18",
+     "a": "2..155"
+    },
+    {
+     "line": 112,
+     "text": "if (trackAnim == 0) {",
+     "size": 4,
+     "count": 18117,
+     "kind": "against a constant",
+     "outcomes": "== 15575, < 0, > 2542 (signed); < 0, > 2542 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 120,
+     "text": "if (actor->unk17FC == -4) {",
+     "size": 1,
+     "count": 14510,
+     "kind": "against a constant",
+     "outcomes": "== 2048, < 0, > 12462 (signed); < 8480, > 3982 (unsigned)",
+     "operand": "constant -4",
+     "a": "-4..16"
+    },
+    {
+     "line": 123,
+     "text": "} else if (actor->unk17FC == -3) {",
+     "size": 1,
+     "count": 12462,
+     "kind": "against a constant",
+     "outcomes": "== 2041, < 0, > 10421 (signed); < 8480, > 1941 (unsigned)",
+     "operand": "constant -3",
+     "a": "-3..16"
+    },
+    {
+     "line": 127,
+     "text": "if (actor->unk17FC == -1) {",
+     "size": 1,
+     "count": 10421,
+     "kind": "against a constant",
+     "outcomes": "== 1941, < 0, > 8480 (signed); < 8480, > 0 (unsigned)",
+     "operand": "constant -1",
+     "a": "-1..16"
+    },
+    {
+     "line": 139,
+     "text": "if (dx < 0) {",
+     "size": 4,
+     "count": 10421,
+     "kind": "against a constant",
+     "outcomes": "== 6717, < 231, > 3473 (signed); < 0, > 3704 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2139965212..2145449761"
+    },
+    {
+     "line": 143,
+     "text": "if (dz < 0) {",
+     "size": 4,
+     "count": 10421,
+     "kind": "against a constant",
+     "outcomes": "== 6921, < 266, > 3234 (signed); < 0, > 3500 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2130949935..2142949264"
+    },
+    {
+     "line": 147,
+     "text": "if (actor->unk17FC == -1) {",
+     "size": 1,
+     "count": 10421,
+     "kind": "against a constant",
+     "outcomes": "== 1941, < 0, > 8480 (signed); < 8480, > 0 (unsigned)",
+     "operand": "constant -1",
+     "a": "-1..16"
+    },
+    {
+     "line": 157,
+     "text": "if (yaw >= 0x800) {",
+     "size": 4,
+     "count": 14510,
+     "kind": "against a constant",
+     "outcomes": "== 5, < 10196, > 4309 (signed); < 4925, > 9580 (unsigned)",
+     "operand": "constant 2047",
+     "a": "-57459..63488"
+    },
+    {
+     "line": 160,
+     "text": "if (yaw < -0x800) {",
+     "size": 4,
+     "count": 14510,
+     "kind": "against a constant",
+     "outcomes": "== 846, < 1821, > 11843 (signed); < 8322, > 5342 (unsigned)",
+     "operand": "constant -2048",
+     "a": "-57459..59392"
+    },
+    {
+     "line": 163,
+     "text": "if (yaw > 800) {",
+     "size": 4,
+     "count": 14510,
+     "kind": "against a constant",
+     "outcomes": "== 437, < 10085, > 3988 (signed); < 2867, > 11206 (unsigned)",
+     "operand": "constant 800",
+     "a": "-53363..59392"
+    },
+    {
+     "line": 166,
+     "text": "if (yaw < -800) {",
+     "size": 4,
+     "count": 14510,
+     "kind": "against a constant",
+     "outcomes": "== 442, < 4815, > 9253 (signed); < 12107, > 1961 (unsigned)",
+     "operand": "constant -800",
+     "a": "-53363..800"
+    },
+    {
+     "line": 169,
+     "text": "if (pitch >= 0x800) {",
+     "size": 4,
+     "count": 14510,
+     "kind": "against a constant",
+     "outcomes": "== 2, < 8529, > 5979 (signed); < 6689, > 7819 (unsigned)",
+     "operand": "constant 2047",
+     "a": "-64736..63488"
+    },
+    {
+     "line": 172,
+     "text": "if (pitch < -0x800) {",
+     "size": 4,
+     "count": 14510,
+     "kind": "against a constant",
+     "outcomes": "== 833, < 749, > 12928 (signed); < 7811, > 5866 (unsigned)",
+     "operand": "constant -2048",
+     "a": "-64736..59392"
+    },
+    {
+     "line": 175,
+     "text": "if (pitch > 800) {",
+     "size": 4,
+     "count": 14510,
+     "kind": "against a constant",
+     "outcomes": "== 440, < 10230, > 3840 (signed); < 3103, > 10967 (unsigned)",
+     "operand": "constant 800",
+     "a": "-60640..59392"
+    },
+    {
+     "line": 178,
+     "text": "if (pitch < -800) {",
+     "size": 4,
+     "count": 14510,
+     "kind": "against a constant",
+     "outcomes": "== 420, < 4547, > 9543 (signed); < 11930, > 2160 (unsigned)",
+     "operand": "constant -800",
+     "a": "-60640..800"
+    },
+    {
+     "line": 184,
+     "text": "if (yaw > limit) {",
+     "size": 4,
+     "count": 33790,
+     "kind": "a == b / a < b",
+     "outcomes": "== 4845, < 15579, > 13366 (signed); < 10270, > 18675 (unsigned)",
+     "operand": "b -32768..32767",
+     "a": "-33567..33568"
+    },
+    {
+     "line": 187,
+     "text": "if (yaw < -limit) {",
+     "size": 4,
+     "count": 33790,
+     "kind": "a == b / a < b",
+     "outcomes": "== 7143, < 16763, > 9884 (signed); < 10005, > 16642 (unsigned)",
+     "operand": "b -32767..32768",
+     "a": "-33567..32767"
+    },
+    {
+     "line": 191,
+     "text": "if (pitch > limit) {",
+     "size": 4,
+     "count": 33790,
+     "kind": "a == b / a < b",
+     "outcomes": "== 4822, < 15458, > 13510 (signed); < 10209, > 18759 (unsigned)",
+     "operand": "b -32768..32767",
+     "a": "-33567..33568"
+    },
+    {
+     "line": 194,
+     "text": "if (pitch < -limit) {",
+     "size": 4,
+     "count": 33790,
+     "kind": "a == b / a < b",
+     "outcomes": "== 7171, < 16743, > 9876 (signed); < 9933, > 16686 (unsigned)",
+     "operand": "b -32767..32768",
+     "a": "-33567..32767"
+    },
+    {
+     "line": 201,
+     "text": "} else if (*(int*)&actor->unk0.unk14 != 0) {",
+     "size": 4,
+     "count": 4951,
+     "kind": "against a constant",
+     "outcomes": "== 1246, < 1490, > 2215 (signed); < 0, > 3705 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147483647"
+    }
+   ],
+   "passed": false
+  }
  },
  "port": {
   "attempts": []
  },
  "written": [],
- "check_seconds": 0.0,
- "stopped": "budget: $0.3872 spent of $0.45",
- "wall_seconds": 325.9956713339998,
+ "check_seconds": 18.050992436000342,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 814.1187162399292,
  "totals": {
-  "cost": 0.043,
-  "prompt_tokens": 39166,
-  "completion_tokens": 78171,
-  "model_seconds": 325.3,
-  "check_seconds": 0.0,
+  "cost": 0.01731,
+  "prompt_tokens": 43530,
+  "completion_tokens": 60534,
+  "model_seconds": 0.0,
+  "check_seconds": 18.1,
   "calls": 2,
-  "wall_seconds": 326.0
- },
- "review": {
-  "by": "Claude Opus 5.5 (reviewer)",
-  "date": "2026-10-21",
-  "spec_fixes": [],
-  "mutations_added": [],
-  "port_fixes": [],
-  "corpus": ""
+  "wall_seconds": 814.1
  }
 }

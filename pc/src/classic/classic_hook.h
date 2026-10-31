@@ -16,6 +16,7 @@
 #ifndef ROOD_CLASSIC_HOOK_H
 #define ROOD_CLASSIC_HOOK_H
 #ifdef ROOD_PC
+#include "classic_parity.h"
 #define PC_CLASSIC_SITE_GAUGES 8       /* classic_parity.h PC_CLASSIC_GAUGES: func_800CA2DC's gauges */
 #define PC_CLASSIC_SITE_FIGURE 9       /* Ashley's five limb sprites */
 /* Snapshot at the status carousel's emit boundary; no game pointers escape. */
@@ -197,7 +198,15 @@ typedef struct {
     unsigned short cluts[2][256];
 } pc_classic_file_element;
 #define PC_CLASSIC_SITE_FILE_ELEMENT 43
-#define PC_CLASSIC_SITE_STATUS_PANEL 44 /* classic_parity.h PC_CLASSIC_STATUS_PANEL: func_800CA2DC */
+/* MENUF's screens: pc_classic_menuf (classic_parity.h, with its calls' ops). */
+#define PC_CLASSIC_SITE_MENUF 44
+/* MENUF's VRAM uploads, at once (PC_CLASSIC_IMMEDIATE below): the TIMs and CLUTs _initMenu loads (its pictures,
+ * LoadImage) and the CLUT row the end screens pulse each frame (_pulseTimeAttackEnd, _pulseCubePuzzleEnd). The record:
+ * the submenu and which call (0 _initMenu, 1 _execMenu); the uploads themselves are the recorder's (the rectangles
+ * and pixels, kept for the claim: classic_parity.c). */
+typedef struct { int screen, phase; } pc_classic_menuf_load;
+#define PC_CLASSIC_SITE_MENUF_LOAD 45
+#define PC_CLASSIC_SITE_STATUS_PANEL 46 /* classic_parity.h PC_CLASSIC_STATUS_PANEL: func_800CA2DC */
 /* PC_CLASSIC_IMMEDIATE wraps a call that draws at once (DrawPrim, LoadImage; StoreImage read): between begin and site
  * the recorder (classic_parity.c pc_classic_immediate_*) keeps every draw and upload the statement makes, in order,
  * as the kind's capture; when a classic claim on the kind is honoured it holds them back, and site (hud_bridge.c

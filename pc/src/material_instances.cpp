@@ -25,6 +25,15 @@
 using prefab::Json;
 
 bool pc_material_instances_open = false;
+/* The Lua window may take its place (pc/plugins/rood.materials, off by default: rood.dev.window{replaces}). */
+extern "C" void pc_lua_dev_replaceable(const char* name, bool* open) __attribute__((weak));
+static struct ReplaceableMaterials {
+    ReplaceableMaterials()
+    {
+        if (pc_lua_dev_replaceable)
+            pc_lua_dev_replaceable("materials", &pc_material_instances_open);
+    }
+} replaceable_materials;
 extern "C" void pc_material_preview_select(const char* id) __attribute__((weak)); /* material_preview.cpp */
 extern "C" int pc_overlay_set_details_tab(const char* name) __attribute__((weak)); /* dev_overlay.cpp */
 
@@ -134,8 +143,14 @@ Json master_json(const materials::Master& m)
     for (const materials::MasterParam& p : m.params) {
         Json q = Json::object();
         q.set("name", Json::str(p.name)), q.set("label", Json::str(p.label)), q.set("tip", Json::str(p.tip));
-        q.set("group", Json::str(p.group)), q.set("type", Json::str(p.is_bool ? "bool" : "number"));
-        q.set("default", Json::num(p.def)), q.set("min", Json::num(p.lo)), q.set("max", Json::num(p.hi));
+        q.set("group", Json::str(p.group)), q.set("type", Json::str(p.is_bool ? "bool" : p.is_color ? "color" : "number"));
+        if (p.is_color) {
+            Json rgb = Json::array();
+            for (float c : p.color) rgb.items.push_back(Json::num(c));
+            q.set("default", rgb);
+        } else
+            q.set("default", Json::num(p.def));
+        q.set("min", Json::num(p.lo)), q.set("max", Json::num(p.hi));
         params.items.push_back(q);
     }
     j.set("parameters", params);
@@ -148,9 +163,39 @@ Json master_json(const materials::Master& m)
     j.set("slots", slots);
     return j;
 }
+/* The master's texture slots for an instance: where each channel map comes from (its texture key's
+ * layers: "user", "shipped", "baked", "-" none; "" the texture as drawn). Reads the maps' folders. */
+Json slots_json(const materials::Instance& i)
+{
+    Json slots = Json::array();
+    const materials::Master* m = materials::master(i.master);
+    if (!m) return slots;
+    std::vector<materials::Present> present;
+    if (!i.key.empty()) present = materials::channels(i.key);
+    for (const materials::MasterSlot& s : m->slots) {
+        std::string layer = s.channel.empty() ? "" : "-";
+        for (const materials::Present& c : present)
+            if (!s.channel.empty() && c.name == s.channel) layer = c.user ? "user" : c.baked ? "baked" : "shipped";
+        Json q = Json::object();
+        q.set("name", Json::str(s.name)), q.set("label", Json::str(s.label)), q.set("layer", Json::str(layer));
+        slots.items.push_back(q);
+    }
+    return slots;
+}
+/* One instance in brief (the tree's row: what the list's `brief` replies). */
+Json brief_info(const materials::Instance& i)
+{
+    Json j = Json::object();
+    j.set("id", Json::str(i.id)), j.set("name", Json::str(i.name)), j.set("parent", Json::str(i.parent));
+    j.set("master", Json::str(i.master));
+    j.set("root", Json::boolean_(i.root)), j.set("user", Json::boolean_(i.user)), j.set("pending", Json::boolean_(i.pending));
+    j.set("preview", Json::boolean_(i.preview)), j.set("assigned", Json::boolean_(i.assigned));
+    return j;
+}
 /* The list: `offset` and `limit` page it (a layer of hundreds of entries with
- * long room lists does not fit one reply); `masters` false leaves them out. */
-Json list_json(int offset = 0, int limit = 0, bool with_masters = true)
+ * long room lists does not fit one reply); `masters` false leaves them out;
+ * `brief`: each instance as the tree needs it (no resolution, no match). */
+Json list_json(int offset = 0, int limit = 0, bool with_masters = true, bool brief = false)
 {
     Json j = Json::object();
     if (with_masters) {
@@ -163,7 +208,7 @@ Json list_json(int offset = 0, int limit = 0, bool with_masters = true)
     int roots = 0, assigned = 0, user = 0, n = 0;
     std::vector<materials::Instance> all = materials::instances();
     for (const materials::Instance& i : all) {
-        if (n >= offset && (limit <= 0 || n < offset + limit)) list.items.push_back(instance_info(i));
+        if (n >= offset && (limit <= 0 || n < offset + limit)) list.items.push_back(brief ? brief_info(i) : instance_info(i));
         n++;
         roots += i.root, assigned += i.assigned, user += i.user;
     }
@@ -190,6 +235,26 @@ bool set_params(materials::Instance& i, const Json& params, std::string* error)
     for (const auto& pair : params.members) {
         const materials::MasterParam* p = m->param(pair.first);
         if (!p) { *error = "no parameter " + pair.first + " on " + i.master; return false; }
+        if (p->is_color) {
+            /* A colour: [r, g, b] (each 0..1) or null (reset to the parent: the three together). */
+            if (pair.second.type == Json::Null) {
+                for (const char* c : materials::COLOR_PARTS) i.own.erase(pair.first + c);
+                continue;
+            }
+            if (pair.second.type != Json::Array || pair.second.items.size() != 3) {
+                *error = pair.first + " is a colour: [r, g, b]";
+                return false;
+            }
+            for (int c = 0; c < 3; c++) {
+                const Json& v = pair.second.items[c];
+                if (v.type != Json::Number || !std::isfinite(v.number) || v.number < 0 || v.number > 1) {
+                    *error = pair.first + ": each of r, g, b within 0..1";
+                    return false;
+                }
+            }
+            for (int c = 0; c < 3; c++) i.own[pair.first + materials::COLOR_PARTS[c]] = (float)pair.second.items[c].number;
+            continue;
+        }
         if (pair.second.type == Json::Null) i.own.erase(pair.first); /* reset to parent */
         else if (pair.second.type == Json::Bool) i.own[pair.first] = pair.second.boolean ? 1.0f : 0.0f;
         else if (pair.second.type == Json::Number && std::isfinite(pair.second.number)) {
@@ -200,6 +265,13 @@ bool set_params(materials::Instance& i, const Json& params, std::string* error)
             i.own[pair.first] = (float)pair.second.number;
         } else { *error = "bad value for " + pair.first; return false; }
     }
+    return true;
+}
+/* Another master (a node graph, part 4): its own values stay (the standard five every master has). */
+bool set_master(materials::Instance& i, const std::string& master, std::string* error)
+{
+    if (!materials::master(master)) { *error = "unknown master " + master; return false; }
+    i.master = master;
     return true;
 }
 bool commit(const materials::Instance& i, std::string* error)
@@ -305,19 +377,27 @@ void parameter_rows(materials::Instance& i, bool& changed)
             group = p.group;
             if (!group.empty()) ImGui::SeparatorText(group.c_str());
         }
-        bool own = i.own.count(p.name) > 0;
+        /* (a colour is set by its three parts together: its .r says whether it is) */
+        std::string key = p.is_color ? p.name + materials::COLOR_PARTS[0] : p.name;
+        bool own = i.own.count(key) > 0;
         std::string from;
         if (!own)
             for (const std::string& s : chain) {
                 const materials::Instance* a = materials::find_instance(s);
-                if (a && a != nullptr && a->id != i.id && a->own.count(p.name)) { from = s; break; }
+                if (a && a != nullptr && a->id != i.id && a->own.count(key)) { from = s; break; }
             }
         ImGui::PushID(p.name.c_str());
         float v = values[p.name];
         if (!own) ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
         float width = ImGui::GetContentRegionAvail().x - ImGui::GetFrameHeight() * 1.5f;
         ImGui::SetNextItemWidth(width * 0.55f);
-        if (p.is_bool) {
+        if (p.is_color) {
+            /* A swatch (click: the picker), like the graph's colour knobs. */
+            float rgb[3];
+            for (int c = 0; c < 3; c++) rgb[c] = values[p.name + materials::COLOR_PARTS[c]];
+            if (ImGui::ColorEdit3(p.label.c_str(), rgb, ImGuiColorEditFlags_NoInputs))
+                for (int c = 0; c < 3; c++) i.own[p.name + materials::COLOR_PARTS[c]] = rgb[c], changed = true;
+        } else if (p.is_bool) {
             bool b = v >= 0.5f;
             if (ImGui::Checkbox(p.label.c_str(), &b)) i.own[p.name] = b ? 1.0f : 0.0f, changed = true;
         } else if (ImGui::SliderFloat(p.label.c_str(), &v, p.lo, p.hi, "%.2f"))
@@ -328,7 +408,13 @@ void parameter_rows(materials::Instance& i, bool& changed)
                 own || from.empty() ? "" : (from + ")").c_str());
         if (own) {
             ImGui::SameLine();
-            if (ImGui::SmallButton("Reset")) i.own.erase(p.name), changed = true;
+            if (ImGui::SmallButton("Reset")) {
+                if (p.is_color)
+                    for (const char* c : materials::COLOR_PARTS) i.own.erase(p.name + c);
+                else
+                    i.own.erase(p.name);
+                changed = true;
+            }
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Reset to the parent's value");
         } else {
             ImGui::SameLine();
@@ -511,6 +597,17 @@ extern "C" void pc_material_instances_window(void)
         }
         bool review = i.review == "new";
         if (ImGui::Checkbox("Needs review", &review)) i.review = review ? "new" : "", changed = true;
+        /* The master: the standard surface or a node graph (Window > Material graph edits those). */
+        if (ImGui::BeginCombo("Master", i.master.c_str())) {
+            for (const std::string& n : materials::master_names())
+                if (ImGui::Selectable(n.c_str(), n == i.master) && n != i.master) {
+                    std::string error;
+                    if (set_master(i, n, &error)) changed = true;
+                    else snprintf(status_line, sizeof status_line, "%s", error.c_str());
+                }
+            ImGui::EndCombo();
+        }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("The shader this instance uses: the standard surface, or a node graph (Window > Material graph)");
         if (changed) {
             std::string error;
             if (!commit(i, &error)) snprintf(status_line, sizeof status_line, "%s", error.c_str());
@@ -558,10 +655,11 @@ extern "C" void pc_material_instances_window(void)
     ImGui::End();
 }
 
-/* RPC material_instance: {action: list (default) | masters | get {id} | set {id, params {name: value |
- * null}, name, where, review} | parent {id, parent} | new {id, parent} | duplicate {id, of} | assign {id,
+/* RPC material_instance: {action: list {offset, limit, masters, brief} (default) | masters | get {id, slots} |
+ * json {id} | set {id, params {name: value |
+ * null}, reset [names], name, where, review} | parent {id, parent} | new {id, parent} | duplicate {id, of} | assign {id,
  * key, size, clut, scope} | assign_selection {id, palette} | unassign {id} | remove {id} | select {id} |
- * save | revert | validate | migrate {out}}. */
+ * save | revert | validate | migrate {out} | status (the catalog's generations and file reads)}. */
 extern "C" int pc_material_instance_rpc(const char* params_text, char* out, int size)
 {
     Json params;
@@ -575,7 +673,9 @@ extern "C" int pc_material_instance_rpc(const char* params_text, char* out, int 
         if (const Json* v = params.get("offset"); v && v->type == Json::Number) offset = (int)v->number;
         if (const Json* v = params.get("limit"); v && v->type == Json::Number) limit = (int)v->number;
         const Json* m = params.get("masters");
-        return reply(list_json(offset, limit, !(m && m->type == Json::Bool && !m->boolean)), out, size);
+        const Json* b = params.get("brief");
+        return reply(list_json(offset, limit, !(m && m->type == Json::Bool && !m->boolean), b && b->type == Json::Bool && b->boolean),
+            out, size);
     }
     if (action == "masters") {
         Json j = Json::object(), masters = Json::array();
@@ -595,6 +695,17 @@ extern "C" int pc_material_instance_rpc(const char* params_text, char* out, int 
         return reply(list_json(), out, size);
     }
     if (action == "revert") { materials::revert_pending(); return reply(list_json(), out, size); }
+    if (action == "status") {
+        /* The catalog's counters: a value edit moves `generation` only (no file read, the structure kept). */
+        Json j = Json::object();
+        j.set("generation", Json::num(materials::catalog_generation()));
+        j.set("structure", Json::num(materials::catalog_structure_generation()));
+        j.set("file_reads", Json::num(materials::catalog_file_reads()));
+        j.set("dirty", Json::boolean_(materials::pending_dirty()));
+        j.set("pending", Json::num((double)materials::pending_instances().size()));
+        j.set("selected", Json::str(selected));
+        return reply(j, out, size);
+    }
     if (action == "validate") {
         Json j = Json::object(), problems = Json::array(), bad = Json::array();
         int ok = 0;
@@ -624,6 +735,7 @@ extern "C" int pc_material_instance_rpc(const char* params_text, char* out, int 
         materials::Instance n = make_instance(str(params, "id"), parent, action == "duplicate");
         if (action == "new" && parent.empty()) n.root = params.get("root") && params.get("root")->type == Json::Bool
             && params.get("root")->boolean;
+        if (params.get("master") && !set_master(n, str(params, "master"), &error)) return fail(error, out, size);
         if (const Json* p = params.get("params"); p && p->type == Json::Object && !set_params(n, *p, &error))
             return fail(error, out, size);
         if (!commit(n, &error)) return fail(error, out, size);
@@ -632,7 +744,17 @@ extern "C" int pc_material_instance_rpc(const char* params_text, char* out, int 
     }
     const materials::Instance* found = materials::find_instance(id);
     if (!found) return fail(id.empty() ? "no instance selected" : "unknown instance " + id, out, size);
-    if (action == "get") return reply(instance_info(*found), out, size);
+    if (action == "get") {
+        Json j = instance_info(*found);
+        if (const Json* v = params.get("slots"); v && v->type == Json::Bool && v->boolean) j.set("slots", slots_json(*found));
+        return reply(j, out, size);
+    }
+    if (action == "json") {
+        /* The entry as the catalog writes it (Copy JSON for the catalog). */
+        Json j = Json::object();
+        j.set("id", Json::str(found->id)), j.set("json", Json::str(materials::instance_json(*found)));
+        return reply(j, out, size);
+    }
     materials::Instance i = *found;
     if (action == "remove") {
         if (!i.user) return fail(id + " is curated (edit pc/assets/materials/catalog.json)", out, size);
@@ -641,8 +763,21 @@ extern "C" int pc_material_instance_rpc(const char* params_text, char* out, int 
         return reply(list_json(), out, size);
     }
     if (action == "set") {
+        if (params.get("master") && !set_master(i, str(params, "master"), &error)) return fail(error, out, size);
         if (const Json* p = params.get("params"); p && p->type == Json::Object && !set_params(i, *p, &error))
             return fail(error, out, size);
+        if (const Json* r = params.get("reset"); r && r->type == Json::Array) {
+            /* reset: [names] to the parent's values (as params {name: null}; a colour's three parts together) */
+            const materials::Master* m = materials::master(i.master);
+            for (const Json& n : r->items) {
+                const materials::MasterParam* p = m && n.type == Json::String ? m->param(n.string) : nullptr;
+                if (!p) return fail("reset: no parameter " + (n.type == Json::String ? n.string : std::string("?")), out, size);
+                if (p->is_color)
+                    for (const char* c : materials::COLOR_PARTS) i.own.erase(p->name + c);
+                else
+                    i.own.erase(p->name);
+            }
+        }
         if (params.get("name")) i.name = str(params, "name");
         if (params.get("where")) i.where = str(params, "where");
         if (params.get("review")) i.review = str(params, "review");

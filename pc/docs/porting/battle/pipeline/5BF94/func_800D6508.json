@@ -1,0 +1,159 @@
+{
+ "function": "func_800D6508",
+ "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "spec-failed",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800D6508",
+  "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+  "stem": "5BF94",
+  "address": "0x800d6508",
+  "difficulty": "S",
+  "zig_name": "func_800D6508",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800D6508",
+  "spec_file": "func_800D6508.zig",
+  "subsystem": "battle_5BF94_port",
+  "signature": "pub fn func_800D6508(arg0: ?*v.func_800D6508_t, arg1: u8) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.func_800D6508_t"
+   ],
+   [
+    "arg1",
+    "u8"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11311,
+     "completion_tokens": 5984,
+     "reasoning_tokens": 4937,
+     "cost": 0.0020615499999999997,
+     "seconds": null,
+     "batch": "batch-1793379902-OYfFRiS0hzKPAZ8kx15j",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation F1: arg1 read unsigned (a negative char offset goes forward): not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800D6508: 30000 iterations, seed 1, 0 mismatches; classes: zero-offset=2930 positive-offset=13437 negative-offset=13633"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12517,
+     "completion_tokens": 3779,
+     "reasoning_tokens": 2598,
+     "cost": 0.0015706,
+     "seconds": null,
+     "batch": "batch-1793424920-emS29kRidmSasGd5EFed",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation F1: arg1 read unsigned (a negative char offset goes forward): not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800D6508: 30000 iterations, seed 1, 0 mismatches; classes: zero-offset=2930 positive-offset=13437 negative-offset=13633"
+    ]
+   }
+  ],
+  "classes": {
+   "zero-offset": "2930",
+   "positive-offset": "13437",
+   "negative-offset": "13633"
+  },
+  "mutations": [
+   {
+    "name": "F1: arg1 read unsigned (a negative char offset goes forward)",
+    "caught": false
+   },
+   {
+    "name": "F2: the flag cleared instead of set",
+    "caught": true
+   },
+   {
+    "name": "F3: the store dropped",
+    "caught": true
+   },
+   {
+    "name": "F4: the whole byte written, clobbering the other bits",
+    "caught": true
+   },
+   {
+    "name": "F5: offset in bytes, not in records",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 4,
+   "lines_hit": 4,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "8-bit: min -128, max 127, unsigned 0..255, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  }
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 24.91070992200548,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 222376.37605834007,
+ "totals": {
+  "cost": 0.00363,
+  "prompt_tokens": 23828,
+  "completion_tokens": 9763,
+  "model_seconds": 0.0,
+  "check_seconds": 24.9,
+  "calls": 2,
+  "wall_seconds": 222376.4
+ }
+}

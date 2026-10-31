@@ -8,7 +8,7 @@
  "temperature": 0.0,
  "samples": 1,
  "status": "spec-failed",
- "reviewed": "not ported in this wave (unrouted): spec-failed: FAIL: the coverage gate (zig_diff.py --coverage):",
+ "reviewed": false,
  "plan": {
   "name": "func_80096FF0",
   "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
@@ -30,8 +30,6 @@
   "ret": "void",
   "types": [],
   "globals": [
-   "D_800F2272",
-   "D_800F2280",
    "vs_main_settings"
   ],
   "hooks": [],
@@ -43,52 +41,79 @@
    {
     "round": 1,
     "sample": 1,
-    "call": null,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11929,
+     "completion_tokens": 10133,
+     "reasoning_tokens": 8386,
+     "cost": 0.0031297,
+     "seconds": null,
+     "batch": "batch-1793470606-6GNq3Qqjp7ZP5YLH6ms0",
+     "sample": 1
+    },
     "passed": false,
     "errors": [
-     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_80096FF0: branches 8/8 (100.0%), conditions not measured (GCC < 14: branch coverage only), lines 13/13\n  FLAG +15 eq: boundary equality never occurred (32-bit compare, constant 287: both sides seen; a port's `<` for `<=` could pass): `if (D_800F2280.vx + d < 288) {`\ncoverage func_80096FF0: FAILED (threshold 100%: 0 uncovered, 1 value flag(s) not waived)\nWhat to add:\n- `if (D_800F2280.vx + d < 288) {` (+15): the two sides of this ordered compare were equal 0 time(s) in 4627. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_80096FF0.coverage_waiver]] with its `id` and a `reason`."
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_80096FF0: branches 8/8 (100.0%), lines 13/13\n  FLAG +15 eq: boundary equality never occurred (32-bit compare, constant 287: both sides seen; a port's `<` for `<=` could pass): `if (D_800F2280.vx + d < 288) {`\ncoverage func_80096FF0: FAILED (threshold 100%: 0 uncovered, 1 value flag(s) not waived)\nWhat to add:\n- `if (D_800F2280.vx + d < 288) {` (+15): the two sides of this ordered compare were equal 0 time(s) in 2894. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_80096FF0.coverage_waiver]] with its `id` and a `reason`."
     ]
    },
    {
     "round": 2,
     "sample": 1,
-    "call": null,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14037,
+     "completion_tokens": 4097,
+     "reasoning_tokens": 2310,
+     "cost": 0.0017261,
+     "seconds": null,
+     "batch": "batch-1793471198-1avhbv74VvcT9i19MPUV",
+     "sample": 1
+    },
     "passed": false,
     "errors": [
-     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_80096FF0: branches 8/8 (100.0%), conditions not measured (GCC < 14: branch coverage only), lines 13/13\n  FLAG +15 eq: boundary equality never occurred (32-bit compare, constant 287: both sides seen; a port's `<` for `<=` could pass): `if (D_800F2280.vx + d < 288) {`\ncoverage func_80096FF0: FAILED (threshold 100%: 0 uncovered, 1 value flag(s) not waived)\nWhat to add:\n- `if (D_800F2280.vx + d < 288) {` (+15): the two sides of this ordered compare were equal 0 time(s) in 10904. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_80096FF0.coverage_waiver]] with its `id` and a `reason`."
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_80096FF0: branches 8/8 (100.0%), lines 13/13\n  FLAG +15 eq: boundary equality never occurred (32-bit compare, constant 287: both sides seen; a port's `<` for `<=` could pass): `if (D_800F2280.vx + d < 288) {`\ncoverage func_80096FF0: FAILED (threshold 100%: 0 uncovered, 1 value flag(s) not waived)\nWhat to add:\n- `if (D_800F2280.vx + d < 288) {` (+15): the two sides of this ordered compare were equal 0 time(s) in 7985. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_80096FF0.coverage_waiver]] with its `id` and a `reason`."
     ]
    }
   ],
   "classes": {
-   "disabled": "7515",
-   "vy-not-low": "8363",
-   "sum-under-288": "2879",
-   "sum-equal-288": "4789",
-   "sum-over-288": "6454"
+   "display-off": "7587",
+   "vy-not-below-40": "5173",
+   "raise-to-288-or-more": "15212",
+   "raise-below-288": "2028"
   },
   "mutations": [
    {
-    "name": "M1: the vx + d bound is inclusive",
+    "name": "F1: raise threshold 39 instead of 40",
     "caught": true
    },
    {
-    "name": "M2: the clamp distance is 41 - vy",
+    "name": "F2: vx + d <= 288 instead of < 288 (equal sides)",
     "caught": true
    },
    {
-    "name": "M3: the frame counter is decremented",
+    "name": "F3: arg0 subtracted instead of added",
     "caught": true
    },
    {
-    "name": "M4: vy compared unsigned",
+    "name": "F4: else branch adds d to vx",
     "caught": true
    },
    {
-    "name": "M5: the callee result is not tested",
+    "name": "F5: callee result tested with > 0 (negative results pass)",
     "caught": true
    },
    {
-    "name": "M6: wrong constant passed to the callee",
+    "name": "F6: vy not raised by d after the clamp",
     "caught": true
    }
   ],
@@ -108,7 +133,7 @@
      "kind": "eq",
      "bits": 32,
      "equal": 0,
-     "count": 10904,
+     "count": 7985,
      "what": "boundary equality never occurred (32-bit compare, constant 287: both sides seen; a port's `<` for `<=` could pass)"
     }
    ],
@@ -116,7 +141,7 @@
     {
      "arg": 0,
      "count": 30000,
-     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+     "text": "32-bit: min -2147109741, max 2147354427, unsigned 0..4294967295, seen zero/negative/all ones"
     }
    ],
    "compares": [
@@ -126,7 +151,7 @@
      "size": 1,
      "count": 30000,
      "kind": "against a constant",
-     "outcomes": "== 7515, < 0, > 22485 (signed); < 0, > 22485 (unsigned)",
+     "outcomes": "== 7587, < 0, > 22413 (signed); < 0, > 22413 (unsigned)",
      "operand": "constant 0",
      "a": "0..32"
     },
@@ -134,19 +159,19 @@
      "line": 8,
      "text": "if (func_800A1280(0, 0xFB, &D_800F2280, 0) != 0) {",
      "size": 4,
-     "count": 22485,
+     "count": 22413,
      "kind": "against a constant",
-     "outcomes": "== 17555, < 3765, > 1165 (signed); < 0, > 4930 (unsigned)",
+     "outcomes": "== 11229, < 5501, > 5683 (signed); < 0, > 11184 (unsigned)",
      "operand": "constant 0",
-     "a": "-2146129379..2144220521"
+     "a": "-2146839363..2147239117"
     },
     {
      "line": 12,
      "text": "if (D_800F2280.vy < 40) {",
      "size": 2,
-     "count": 17555,
+     "count": 11229,
      "kind": "against a constant",
-     "outcomes": "== 1026, < 9878, > 6651 (signed); < 3145, > 13384 (unsigned)",
+     "outcomes": "== 356, < 7629, > 3244 (signed); < 1258, > 9615 (unsigned)",
      "operand": "constant 39",
      "a": "-32768..32767"
     },
@@ -154,9 +179,9 @@
      "line": 15,
      "text": "if (D_800F2280.vx + d < 288) {",
      "size": 4,
-     "count": 10904,
+     "count": 7985,
      "kind": "against a constant",
-     "outcomes": "== 0, < 2275, > 8629 (signed); < 394, > 10510 (unsigned)",
+     "outcomes": "== 0, < 994, > 6991 (signed); < 285, > 7700 (unsigned)",
      "operand": "constant 287",
      "a": "-32767..65575"
     }
@@ -168,19 +193,17 @@
   "attempts": []
  },
  "written": [],
- "check_seconds": 20.144821801000944,
- "wall_seconds": 20.34529001300325,
+ "check_seconds": 31.921771964999607,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 1066.197741985321,
  "totals": {
-  "cost": 0.0,
-  "prompt_tokens": 0,
-  "completion_tokens": 0,
+  "cost": 0.00486,
+  "prompt_tokens": 25966,
+  "completion_tokens": 14230,
   "model_seconds": 0.0,
-  "check_seconds": 20.1,
-  "calls": 0,
-  "wall_seconds": 20.3
- },
- "review": {
-  "by": "Claude Opus 5.5 (reviewer)",
-  "date": "2026-10-22"
+  "check_seconds": 31.9,
+  "calls": 2,
+  "wall_seconds": 1066.2
  }
 }

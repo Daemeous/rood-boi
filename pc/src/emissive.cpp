@@ -4,6 +4,7 @@
 #include "emissive.h"
 #include "emissive_internal.h"
 
+#include <map>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,6 +23,7 @@
 #include "glow_overrides.h"
 #include "dev_state.h"
 #include "materials.h"
+#include "material_graph.h"
 #include "frame_cost.h" /* ROOD_PERF: texels hashed */
 #include "editor_undo.h"
 
@@ -801,6 +803,7 @@ struct Use {
      * (for material_stamps). listed: it writes anything (info: its line in
      * material_list). */
     std::string mat_key, mat_id;
+    int mat_slot = 0; /* the node graph's slot of the entry's instance (material_graph.h), 0 none */
     std::vector<uint16_t> mat_clut;
     materials::Surface mat_value;
     uint32_t mat_serial = 0, stamped = 0;
@@ -882,18 +885,29 @@ std::vector<uint8_t> material_mask; /* the cells update_materials rewrites */
  * palette keys by CLUT (its colours when hashed). */
 std::unordered_map<std::string, std::shared_ptr<const MaterialStamp>> stamp_cache;
 size_t stamp_cache_bytes;
+/* A CLUT slot's palette through its animation (pc/docs/Materials.md
+ * "Animated palettes"): its colours' key now, and every key it showed
+ * since the room was entered (first seen first, at most
+ * PALETTE_VARIANTS): one palette, whatever its colours do. */
 struct PaletteKey {
     bool set = false;
     std::vector<uint16_t> colours;
     std::string key;
+    std::vector<std::string> variants;
+    std::vector<uint32_t> frames; /* per variant: the frames it was drawn in (track_palettes) */
+    std::string variants_id; /* the variants, joined (the resolve cache's id) */
+    bool grew = false; /* a variant after its first was added since track_palettes last looked */
 };
+enum { PALETTE_VARIANTS = 64 };
 std::unordered_map<uint32_t, PaletteKey> palette_keys;
+int palette_zone = -2, palette_room = -2; /* the room palette_keys' variants were seen in */
 /* find_match's answers by texture key, size and palette key (for
  * material_serial: many uses draw the same texture with the same palette). */
 struct Resolved {
     bool found = false;
     materials::Surface value;
     std::string id;
+    int slot = 0; /* the node graph's slot (material_graph.h) */
 };
 std::unordered_map<std::string, Resolved> resolved;
 uint32_t resolved_serial;
@@ -1193,7 +1207,7 @@ static void write_marks()
         int w = u.box[2] - u.box[0] + 1, h = u.box[3] - u.box[1] + 1;
         int depth = std::min((int)((u.page >> 7) & 3), 2);
         if (!highlight.clut.empty()) {
-            if (depth == 2 || clut_key(u.page, u.clut) != highlight.clut)
+            if (depth == 2 || !palette_is(u.page, u.clut, highlight.clut))
                 continue;
         } else {
             if (w != highlight.w || h != highlight.h)
@@ -1269,7 +1283,7 @@ std::vector<std::array<float, 9>> texture_triangles(const std::string& clut, con
         if (!clut.empty()) {
             auto found = palette.find(id);
             if (found == palette.end())
-                found = palette.emplace(id, clut_key(t->tpage & 0x19f, t->clut) == clut).first;
+                found = palette.emplace(id, palette_is(t->tpage & 0x19f, t->clut, clut)).first;
             if (!found->second)
                 continue;
         } else {
@@ -1401,7 +1415,12 @@ static void match_use(Use& u)
         note_material(u); /* (the material planes: update_materials) */
     remember_vram(u);
     const Catalog& c = catalog();
+    /* A match's palette (`clut`): the colours now, or any variant the use's
+     * CLUT slot has shown this room (pc/docs/Materials.md "Animated
+     * palettes": an animated palette is one palette, its glow stays). */
     std::string ck;
+    std::vector<std::string> variants;
+    bool have_variants = false;
     for (size_t i = 0; i < c.entries.size(); i++) {
         const Entry& e = c.entries[i];
         if (!e.enabled)
@@ -1413,8 +1432,12 @@ static void match_use(Use& u)
             if (!m.clut.empty()) {
                 if (ck.empty())
                     ck = clut_key(u.page, u.clut);
-                if (ck != m.clut)
-                    continue;
+                if (ck != m.clut) {
+                    if (!have_variants)
+                        variants = palette_variants(u.page, u.clut), have_variants = true;
+                    if (std::find(variants.begin(), variants.end(), m.clut) == variants.end())
+                        continue;
+                }
             }
             u.entry = (int)i, u.item = (int)k; /* the last matching entry wins */
         }
@@ -1520,14 +1543,86 @@ static bool clut_unchanged(const Use& u)
     });
     return same && at == u.mat_clut.size();
 }
-/* clut_key of a use's palette (`colours`: its CLUT now), hashed once per
- * CLUT and colours. */
-static const std::string& palette_key(const Use& u, const std::vector<uint16_t>& colours)
+/* The palette in CLUT slot (tpage's depth, clut) with colours `colours`
+ * (its CLUT now): its key hashed once per slot and colours, a new key added
+ * to the slot's variants. A room change forgets every slot's variants
+ * (sync_palette_room). */
+static void sync_palette_room()
 {
-    PaletteKey& k = palette_keys[(uint32_t)((u.page >> 7) & 3) << 16 | u.clut];
-    if (!k.set || k.colours != colours)
-        k.set = true, k.colours = colours, k.key = clut_key(u.page, u.clut);
-    return k.key;
+    int zone, room;
+    current_room(&zone, &room);
+    if (zone != palette_zone || room != palette_room)
+        palette_keys.clear(), palette_zone = zone, palette_room = room;
+}
+static PaletteKey& palette_slot(unsigned tpage, unsigned clut, const std::vector<uint16_t>& colours)
+{
+    PaletteKey& k = palette_keys[(uint32_t)((tpage >> 7) & 3) << 16 | (clut & 0xffff)];
+    if (!k.set || k.colours != colours) {
+        k.set = true, k.colours = colours, k.key = clut_key(tpage, clut);
+        if (!k.key.empty() && k.variants.size() < PALETTE_VARIANTS
+            && std::find(k.variants.begin(), k.variants.end(), k.key) == k.variants.end())
+            k.variants.push_back(k.key), k.frames.push_back(0), k.variants_id += k.key,
+                k.grew = k.grew || k.variants.size() > 1;
+    }
+    return k;
+}
+/* The slot's identity: the variant drawn in the most frames this room (the
+ * first of those: a palette that only flashes or cycles now and then is its
+ * resting colours; one never animated is its only key). */
+static std::string palette_identity_of(const PaletteKey& k)
+{
+    size_t best = 0;
+    for (size_t i = 1; i < k.variants.size(); i++)
+        if (k.frames[i] > k.frames[best])
+            best = i;
+    return k.variants.empty() ? k.key : k.variants[best];
+}
+/* A CLUT's colours now (16 or 256; none at 16 bits). */
+static std::vector<uint16_t> clut_colours(unsigned tpage, unsigned clut)
+{
+    std::vector<uint16_t> out;
+    int depth = (int)((tpage >> 7) & 3);
+    if (depth >= 2 || !pc_native_vram())
+        return out;
+    int cx = (int)(clut & 63) * 16, cy = (int)((clut >> 6) & 511), n = depth == 0 ? 16 : 256;
+    out.resize((size_t)n);
+    for (int i = 0; i < n; i++)
+        out[(size_t)i] = vram_at(cx + i, cy);
+    return out;
+}
+static const PaletteKey& palette_key(const Use& u, const std::vector<uint16_t>& colours)
+{
+    sync_palette_room();
+    return palette_slot(u.page, u.clut, colours);
+}
+/* Every frame: the drawn palettes' colours (palette_slot), each slot's
+ * frame counted for its variant now. A slot showing a new variant after its
+ * first has its uses' cells noted (update_materials resolves them again: an
+ * entry of the new variant applies from this frame on, and stays) and its
+ * hashed uses matched again (match_use: an emissive entry of the new variant
+ * too, the last matching entry winning as ever). */
+static void track_palettes()
+{
+    std::unordered_map<uint32_t, bool> seen; /* slot -> it grew a variant this frame */
+    sync_palette_room();
+    for (auto& kv : uses) {
+        Use& u = kv.second;
+        int depth = (u.page >> 7) & 3;
+        if (depth >= 2)
+            continue;
+        auto in = seen.emplace((uint32_t)depth << 16 | u.clut, false);
+        if (in.second) {
+            /* (grew: whoever looked at the slot first since, match_use or an
+             * RPC between frames, the growth is this frame's) */
+            PaletteKey& k = palette_slot(u.page, u.clut, clut_colours(u.page, u.clut));
+            in.first->second = k.grew, k.grew = false;
+            auto at = std::find(k.variants.begin(), k.variants.end(), k.key);
+            if (at != k.variants.end())
+                k.frames[(size_t)(at - k.variants.begin())]++;
+        }
+        if (in.first->second && !u.key.empty())
+            note_material(u), u.state = 0;
+    }
 }
 /* A use's material entry (by content key, size, palette and room), from its
  * cache while its key, its palette's colours and material_serial (the
@@ -1547,26 +1642,36 @@ static bool resolve_material(Use& u, bool fresh, bool* changed)
     Resolved fresh_one, *r = &fresh_one;
     if (materials::catalog_has_size(w, h)) {
         bool palette = materials::catalog_needs_clut(u.key); /* (palette entries too) */
-        std::string id = u.key + (char)(w - 1) + (char)(h - 1) + (palette ? palette_key(u, clut) : "");
+        const PaletteKey* k = palette ? &palette_key(u, clut) : nullptr;
+        std::string id = u.key + (char)(w - 1) + (char)(h - 1);
+        if (k)
+            id += k->key + '/' + k->variants_id;
         auto it = resolved.find(id);
         if (fresh || it == resolved.end()) {
-            const materials::Entry* e = materials::find_match(u.key, w, h, palette ? palette_key(u, clut) : "",
-                material_zone, material_room);
+            /* (an animated palette: any of its variants, the colours now first) */
+            std::vector<std::string> cluts;
+            if (k) {
+                cluts.push_back(k->key);
+                for (const std::string& v : k->variants)
+                    if (v != k->key)
+                        cluts.push_back(v);
+            }
+            const materials::Entry* e = materials::find_match(u.key, w, h, cluts, material_zone, material_room);
             r = &resolved[id];
             r->found = e != nullptr;
             if (e)
-                r->value = e->value, r->id = e->id;
+                r->value = e->value, r->id = e->id, r->slot = pc_material_graph_slot(e->id.c_str());
         } else
             r = &it->second;
     }
     *changed = u.mat_key != u.key || u.mat_found != r->found
-        || (r->found && (!same_surface(u.mat_value, r->value) || u.mat_id != r->id))
+        || (r->found && (!same_surface(u.mat_value, r->value) || u.mat_id != r->id || u.mat_slot != r->slot))
         || (u.mat_clut != clut && (!u.stamp || u.stamp->colours));
     if (*changed)
         u.stamped = 0;
     u.mat_key = u.key, u.mat_clut.swap(clut), u.mat_serial = material_serial, u.mat_found = r->found;
     if (r->found)
-        u.mat_value = r->value, u.mat_id = r->id;
+        u.mat_value = r->value, u.mat_id = r->id, u.mat_slot = r->slot;
     return r->found;
 }
 
@@ -1594,7 +1699,8 @@ static void make_stamp(const Use& u, MaterialStamp& out)
     uint8_t s = (uint8_t)std::clamp((int)lroundf(v.specular * 255.0f), 0, 255);
     uint8_t m = (uint8_t)std::clamp((int)lroundf(v.metal * 255.0f), 0, 255);
     uint8_t r = (uint8_t)std::clamp((int)lroundf(v.roughness * 255.0f), 0, 255);
-    if (!s && !m && !metal_map && !relief)
+    int slot = u.mat_slot;
+    if (!s && !m && !metal_map && !relief && !slot)
         return;
     out.listed = true;
     out.painted = map != nullptr;
@@ -1610,6 +1716,7 @@ static void make_stamp(const Use& u, MaterialStamp& out)
             uint8_t* c = &out.cells[i * PC_MATERIAL_PLANES]; /* roughness, specular, metal, slopes, cavity */
             c[0] = map ? map->values[i] : r;
             c[1] = s, c[2] = metal_map ? metal_map->values[i] : m;
+            c[6] = (uint8_t)slot;
             if (relief) {
                 float gx = (height(bx + 1, by - 1) + 2 * height(bx + 1, by) + height(bx + 1, by + 1)
                                - height(bx - 1, by - 1) - 2 * height(bx - 1, by) - height(bx - 1, by + 1)) / 8.0f;
@@ -1640,6 +1747,7 @@ static void stamp_use(Use& u, bool fresh)
     const float fields[4] = { v.roughness, v.specular, v.metal, v.bump };
     id.append((const char*)fields, sizeof fields);
     id.push_back(v.auto_height ? 1 : 0);
+    id.push_back((char)u.mat_slot);
     auto found = fresh ? stamp_cache.end() : stamp_cache.find(id);
     if (found != stamp_cache.end())
         u.stamp = found->second;
@@ -1674,7 +1782,7 @@ static void write_use(const Use& u, const uint8_t* mask)
         if (mask && !mask[at])
             return;
         const uint8_t* c = stamp + i * PC_MATERIAL_PLANES;
-        bool bare = p[plane + at] == 0 && p[2 * plane + at] == 0 && p[3 * plane + at] == 0;
+        bool bare = p[plane + at] == 0 && p[2 * plane + at] == 0 && p[3 * plane + at] == 0 && p[6 * plane + at] == 0;
         material_count[at] += bare, material_cells += bare;
         for (int k = 0; k < PC_MATERIAL_PLANES; k++)
             p[k * plane + at] = c[k];
@@ -1847,6 +1955,67 @@ static void check_materials()
 uint32_t map_serial() { return map_generation; }
 const uint8_t* map_data() { return the_map.data(); }
 std::vector<MaterialUse> material_use_list() { return material_list; }
+std::string palette_identity(unsigned tpage, unsigned clut)
+{
+    if (((tpage >> 7) & 3) >= 2)
+        return "";
+    sync_palette_room();
+    return palette_identity_of(palette_slot(tpage, clut, clut_colours(tpage, clut)));
+}
+std::vector<std::string> palette_variants(unsigned tpage, unsigned clut)
+{
+    std::vector<std::string> out;
+    if (((tpage >> 7) & 3) >= 2)
+        return out;
+    sync_palette_room();
+    const PaletteKey& k = palette_slot(tpage, clut, clut_colours(tpage, clut));
+    out.push_back(k.key);
+    for (const std::string& v : k.variants)
+        if (v != k.key)
+            out.push_back(v);
+    return out;
+}
+bool palette_is(unsigned tpage, unsigned clut, const std::string& key)
+{
+    if (key.empty())
+        return false;
+    std::vector<std::string> v = palette_variants(tpage, clut);
+    return std::find(v.begin(), v.end(), key) != v.end();
+}
+std::vector<std::string> pick_palettes(const std::string& clut_key, unsigned tpage, unsigned clut)
+{
+    std::vector<std::string> out;
+    if (clut_key.empty())
+        return out;
+    out.push_back(clut_key);
+    for (const std::string& v : palette_variants(tpage, clut))
+        if (v != clut_key)
+            out.push_back(v);
+    return out;
+}
+std::vector<PaletteInfo> palette_list()
+{
+    std::map<uint32_t, PaletteInfo> by_slot;
+    for (const auto& kv : uses) {
+        const Use& u = kv.second;
+        int depth = (u.page >> 7) & 3;
+        if (u.key.empty() || depth >= 2)
+            continue;
+        uint32_t slot = (uint32_t)depth << 16 | u.clut;
+        PaletteInfo& p = by_slot[slot];
+        if (p.uses++ == 0) {
+            p.depth = depth, p.clut = u.clut, p.key = clut_key(u.page, u.clut);
+            p.identity = palette_identity(u.page, u.clut);
+            p.variants = (int)palette_variants(u.page, u.clut).size();
+        }
+        if (u.mat_found && p.entry.empty())
+            p.entry = u.mat_id;
+    }
+    std::vector<PaletteInfo> out;
+    for (auto& kv : by_slot)
+        out.push_back(kv.second);
+    return out;
+}
 int material_cell_count() { return material_cells; }
 bool material_at(unsigned u, unsigned v, unsigned tpage, int out[PC_MATERIAL_PLANES])
 {
@@ -2090,6 +2259,7 @@ extern "C" int pc_emissive_sync(int* row0, int* row1)
             ++map_generation;
         applied_strength = strength;
     }
+    track_palettes();
     {
         int zone, room;
         current_room(&zone, &room);

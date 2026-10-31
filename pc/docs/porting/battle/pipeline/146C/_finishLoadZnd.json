@@ -8,7 +8,7 @@
  "temperature": 0.0,
  "samples": 1,
  "status": "port-failed",
- "reviewed": "not ported in this wave (unrouted): port-failed: FAIL: seed 1: the port differs from the C (exit 3): zdiff: PANIC in the Zig run, iteration 0: incorrect alignment (return address 0x404ef4)",
+ "reviewed": false,
  "plan": {
   "name": "_finishLoadZnd",
   "unit": "src/BATTLE/BATTLE.PRG/146C.c",
@@ -29,15 +29,10 @@
   ],
   "ret": "void",
   "types": [
-   "_zndHeader",
-   "vs_main_CdFile",
-   "vs_main_CdQueueSlot"
+   "_zndHeader"
   ],
   "globals": [
    "D_8004FCCC",
-   "D_80050468",
-   "D_800F18B0",
-   "vs_main_soundData",
    "vs_main_startState",
    "vs_main_zndFiles"
   ],
@@ -59,13 +54,13 @@
      "thinking": "default",
      "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 14701,
-     "completion_tokens": 28513,
-     "reasoning_tokens": 25596,
-     "cost": 0.0157266,
-     "seconds": 118.9,
-     "sample": 1,
-     "conversation": "0d8c74660f06c3284a1a3ab70f05d2ca0cc8e93fbc27290a770ba658ab12dbfe"
+     "prompt_tokens": 14710,
+     "completion_tokens": 27370,
+     "reasoning_tokens": 24480,
+     "cost": 0.007578,
+     "seconds": null,
+     "batch": "batch-1793203265-sQA1DX56rKylfzO4cWKR",
+     "sample": 1
     },
     "passed": true,
     "errors": []
@@ -76,34 +71,33 @@
    "sample": 1
   },
   "classes": {
-   "load-znd": "9741",
-   "wait-loop": "13585",
-   "music-swap-armed": "5840",
-   "no-music-swap": "834"
+   "load-znd": "9993",
+   "slot-loading": "17491",
+   "slot-loaded": "2516"
   },
   "mutations": [
    {
-    "name": "F1: music slot loaded into slot 2",
+    "name": "F1: the music slot loop stops at 3",
     "caught": true
    },
    {
-    "name": "F2: unk38 store dropped",
+    "name": "F2: startState tested as nonzero (signed/edge slip)",
     "caught": true
    },
    {
-    "name": "F3: music frees stop at slot 3",
+    "name": "F3: music change test inverted",
     "caught": true
    },
    {
-    "name": "F4: startState compared to 0",
+    "name": "F4: a negative music id loads nothing",
     "caught": true
    },
    {
-    "name": "F5: musicId stored one too high",
+    "name": "F5: zndData not cleared after freeing the header",
     "caught": true
    },
    {
-    "name": "F6: signed slip in the music-swap test",
+    "name": "F6: the freshly-set D_80050468.unk2 test uses 0",
     "caught": true
    }
   ],
@@ -120,7 +114,7 @@
     {
      "arg": 0,
      "count": 30000,
-     "text": "32-bit: min 0, max 7, seen zero, never negative, 8 value(s): 6, 2, 7, 4, 3, 0, 1, 5"
+     "text": "32-bit: min 0, max 3, seen zero, never negative, 4 value(s): 3, 1, 0, 2"
     }
    ],
    "compares": [
@@ -130,19 +124,19 @@
      "size": 4,
      "count": 30000,
      "kind": "against a constant",
-     "outcomes": "== 9741, < 0, > 20259 (signed); < 0, > 20259 (unsigned)",
+     "outcomes": "== 9993, < 0, > 20007 (signed); < 0, > 20007 (unsigned)",
      "operand": "constant 0",
-     "a": "0..4244272"
+     "a": "0..4244240"
     },
     {
      "line": 10,
      "text": "while (((__typeof__((_zoneContext.zndCdFile).psx_type_[0]))(long unsigned int)(_zoneContext.zndCdFile).raw)->state != vs_main_CdQueueStateLoaded) {",
      "size": 2,
-     "count": 65449,
+     "count": 80547,
      "kind": "against a constant",
-     "outcomes": "== 30000, < 17778, > 17671 (signed); < 3, > 35446 (unsigned)",
+     "outcomes": "== 30000, < 34054, > 16493 (signed); < 11681, > 38866 (unsigned)",
      "operand": "constant 4",
-     "a": "-32767..32766"
+     "a": "-32767..32767"
     },
     {
      "line": 18,
@@ -150,9 +144,9 @@
      "size": 2,
      "count": 30000,
      "kind": "against a constant",
-     "outcomes": "== 15073, < 7401, > 7526 (signed); < 0, > 14927 (unsigned)",
+     "outcomes": "== 3724, < 15074, > 11202 (signed); < 3915, > 22361 (unsigned)",
      "operand": "constant 1",
-     "a": "-32764..32765"
+     "a": "-32768..32766"
     },
     {
      "line": 34,
@@ -160,9 +154,9 @@
      "size": 4,
      "count": 30000,
      "kind": "against a constant",
-     "outcomes": "== 7502, < 14965, > 7533 (signed); < 7518, > 14980 (unsigned)",
+     "outcomes": "== 4195, < 14787, > 11018 (signed); < 3692, > 22113 (unsigned)",
      "operand": "constant 1",
-     "a": "-1..2"
+     "a": "-2147123654..2146764152"
     },
     {
      "line": 40,
@@ -170,27 +164,27 @@
      "size": 4,
      "count": 30000,
      "kind": "a == b / a < b",
-     "outcomes": "== 15221, < 8606, > 6173 (signed); < 6974, > 7805 (unsigned)",
-     "operand": "b -2147483648..2147068396",
-     "a": "-2147483648..2147055147"
+     "outcomes": "== 5151, < 13000, > 11849 (signed); < 13006, > 11843 (unsigned)",
+     "operand": "b -2147483648..2147420060",
+     "a": "-2147483648..2147364070"
     },
     {
      "line": 41,
      "text": "if (D_800F18B0 != 0) {",
      "size": 4,
-     "count": 14779,
+     "count": 24849,
      "kind": "against a constant",
-     "outcomes": "== 1884, < 7348, > 5547 (signed); < 0, > 12895 (unsigned)",
+     "outcomes": "== 3171, < 12422, > 9256 (signed); < 0, > 21678 (unsigned)",
      "operand": "constant 0",
-     "a": "-2147483648..2147180516"
+     "a": "-2147483648..2147192334"
     },
     {
      "line": 44,
      "text": "for (i = 0; i < 4;) {",
      "size": 4,
-     "count": 64475,
+     "count": 108390,
      "kind": "against a constant",
-     "outcomes": "== 12895, < 38685, > 12895 (signed); < 38685, > 12895 (unsigned)",
+     "outcomes": "== 21678, < 65034, > 21678 (signed); < 65034, > 21678 (unsigned)",
      "operand": "constant 3",
      "a": "0..4"
     },
@@ -198,19 +192,19 @@
      "line": 50,
      "text": "if (musicId != 0) {",
      "size": 4,
-     "count": 12895,
+     "count": 21678,
      "kind": "against a constant",
-     "outcomes": "== 1561, < 6334, > 5000 (signed); < 0, > 11334 (unsigned)",
+     "outcomes": "== 1219, < 10232, > 10227 (signed); < 0, > 20459 (unsigned)",
      "operand": "constant 0",
-     "a": "-2147483648..2146100137"
+     "a": "-2147483648..2147364070"
     }
    ],
    "passed": true
   },
   "waivers": [
    {
-    "id": "+60 b0",
-    "reason": "_loadZnd is called only when zndCdFile is 0, so its nop9(0x87) branch cannot be taken"
+    "id": "+40 b0",
+    "reason": "_loadZnd is called only when psx_get(zndCdFile) == NULL, so its '!= 0' test (nop9 0x87) is never taken"
    }
   ]
  },
@@ -226,17 +220,17 @@
      "thinking": "default",
      "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 38203,
-     "completion_tokens": 17294,
-     "reasoning_tokens": 15561,
-     "cost": 0.0124673,
-     "seconds": 67.5,
-     "sample": 1,
-     "conversation": "6a083e307f84b2e8cfa5b31430620fda66335b9b0b2c07c0d0dc787bbb9b4f78"
+     "prompt_tokens": 38212,
+     "completion_tokens": 12309,
+     "reasoning_tokens": 10575,
+     "cost": 0.004987849999999999,
+     "seconds": null,
+     "batch": "batch-1793206357-jxyW8CeGtJSNWKNpZo35",
+     "sample": 1
     },
     "passed": false,
     "errors": [
-     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/finish_load_znd.zig:23:55: error: expected type 'c_uint', found 'i32'\n    psx.put(&zone.zndData, c.vs_main_allocHeapR(cdFile.size));\n                                                ~~~~~~^~~~~\ngame/battle/finish_load_znd.zig:23:55: note: unsigned 32-bit int cannot represent all possible signed 32-bit values\npc/build/boot64/zig/c_146C.zig:2355:34: note: parameter type declared here\npub extern fn vs_main_allocHeapR(u_int) ?*anyopaque;\n                                 ^~~~~\nreferenced by:\n    finishLoadZnd: game/battle/finish_load_znd.zig:47:16\n    main: pc/tests/zig_diff/main.zig:469:31\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+     "FAIL: does not compile:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/finish_load_znd.zig:28:53: error: expected type 'c_uint', found 'c_int'\n    psx.put(&zc.zndData, c.vs_main_allocHeapR(cdFile.size));\n                                              ~~~~~~^~~~~\ngame/battle/finish_load_znd.zig:28:53: note: unsigned 32-bit int cannot represent all possible signed 32-bit values\npc/build/boot64/zig/c_146C.zig:2467:34: note: parameter type declared here\npub extern fn vs_main_allocHeapR(u_int) ?*anyopaque;\n                                 ^~~~~\nreferenced by:\n    finishLoadZnd: game/battle/finish_load_znd.zig:50:16\n    main: pc/tests/zig_diff/main.zig:469:31\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\ngame/battle/finish_load_znd.zig:68:9: error: @ptrCast increases pointer alignment\n        @ptrCast(psx.byteAt(u8, header, @as(isize, header.enemiesOffset))),\n        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\ngame/battle/finish_load_znd.zig:68:28: note: '*align(1) u8' has alignment '1'\n        @ptrCast(psx.byteAt(u8, header, @as(isize, header.enemiesOffset))),\n                 ~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\ngame/battle/finish_load_znd.zig:68:9: note: '[*c]c_int' has alignment '4'\ngame/battle/finish_load_znd.zig:68:9: note: use @alignCast to assert pointer alignment\n"
     ],
     "runs": []
    },
@@ -250,17 +244,17 @@
      "thinking": "default",
      "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 40329,
-     "completion_tokens": 2556,
-     "reasoning_tokens": 811,
-     "cost": 0.0053109,
-     "seconds": 9.4,
-     "sample": 1,
-     "conversation": "137119e57881bf4d209667604000b89a0c4d9b0861487bdb5525d6b0fe54138e"
+     "prompt_tokens": 40700,
+     "completion_tokens": 3946,
+     "reasoning_tokens": 2125,
+     "cost": 0.0030215,
+     "seconds": null,
+     "batch": "batch-1793379902-OYfFRiS0hzKPAZ8kx15j",
+     "sample": 1
     },
     "passed": false,
     "errors": [
-     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/finish_load_znd.zig:31:28: error: value of type 'c_int' ignored\n            c.func_8004552C(v.g.vs_main_soundData().currentMusicSlot, 0, 0x78);\n            ~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\ngame/battle/finish_load_znd.zig:31:28: note: all non-void values must be used\ngame/battle/finish_load_znd.zig:31:28: note: to discard the value, assign it to '_'\nreferenced by:\n    finishLoadZnd: game/battle/finish_load_znd.zig:47:16\n    main: pc/tests/zig_diff/main.zig:469:31\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+     "FAIL: does not compile:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/finish_load_znd.zig:44:28: error: value of type 'c_int' ignored\n            c.func_8004552C(soundData.currentMusicSlot, 0, 0x78);\n            ~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\ngame/battle/finish_load_znd.zig:44:28: note: all non-void values must be used\ngame/battle/finish_load_znd.zig:44:28: note: to discard the value, assign it to '_'\nreferenced by:\n    finishLoadZnd: game/battle/finish_load_znd.zig:55:16\n    main: pc/tests/zig_diff/main.zig:469:31\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
     ],
     "runs": []
    },
@@ -274,43 +268,41 @@
      "thinking": "default",
      "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 42462,
-     "completion_tokens": 2312,
-     "reasoning_tokens": 528,
-     "cost": 0.0054022,
-     "seconds": 8.0,
-     "sample": 1,
-     "conversation": "99468b4fd5ea10523c14167addacb8185a5f24f2bb3b7140595f704ab468266d"
+     "prompt_tokens": 42886,
+     "completion_tokens": 2130,
+     "reasoning_tokens": 306,
+     "cost": 0.0026768,
+     "seconds": null,
+     "batch": "batch-1793424920-emS29kRidmSasGd5EFed",
+     "sample": 1
     },
     "passed": false,
     "errors": [
-     "FAIL: seed 1: the port differs from the C (exit 3):\nzdiff: PANIC in the Zig run, iteration 0: incorrect alignment (return address 0x404ef4)"
+     "FAIL: seed 1: the port differs from the C (exit 3):\nzdiff: PANIC in the Zig run, iteration 0: incorrect alignment (return address 0x404f59)"
     ],
     "runs": [
      {
       "seed": 1,
       "exit": 3,
       "mismatches": null,
-      "first": "PANIC in the Zig run, iteration 0: incorrect alignment (return address 0x404ef4)"
+      "first": "PANIC in the Zig run, iteration 0: incorrect alignment (return address 0x404f59)"
      }
     ]
    }
   ]
  },
  "written": [],
- "check_seconds": 22.07937484499962,
- "wall_seconds": 226.5026355989994,
+ "check_seconds": 27.68051129399828,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 222225.2545223236,
  "totals": {
-  "cost": 0.03891,
-  "prompt_tokens": 135695,
-  "completion_tokens": 50675,
-  "model_seconds": 203.8,
-  "check_seconds": 22.1,
+  "cost": 0.01826,
+  "prompt_tokens": 136508,
+  "completion_tokens": 45755,
+  "model_seconds": 0.0,
+  "check_seconds": 27.7,
   "calls": 4,
-  "wall_seconds": 226.5
- },
- "review": {
-  "by": "Claude Sonnet 5.5 (reviewer)",
-  "date": "2026-10-25"
+  "wall_seconds": 222225.3
  }
 }

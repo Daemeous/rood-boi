@@ -7,8 +7,8 @@
  "thinking": "default",
  "temperature": 0.0,
  "samples": 1,
- "status": "port-failed",
- "reviewed": "not ported in this wave (unrouted): port-failed: FAIL: seed 1: the port differs from the C (exit 3): zdiff: PANIC in the Zig run, iteration 2: incorrect alignment (return address 0x404787)",
+ "status": "ported",
+ "reviewed": false,
  "plan": {
   "name": "func_800D55A4",
   "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
@@ -37,15 +37,10 @@
   ],
   "ret": "void",
   "types": [
-   "D_800F53B8_t",
-   "D_800F53B8_t4",
-   "D_800F569C_t",
    "func_800D55A4_t",
    "pFileBlock3"
   ],
-  "globals": [
-   "D_800F569C"
-  ],
+  "globals": [],
   "hooks": [],
   "statics": [],
   "skip": ""
@@ -63,12 +58,12 @@
      "temperature": 0.0,
      "max_tokens": 64000,
      "prompt_tokens": 14556,
-     "completion_tokens": 32489,
-     "reasoning_tokens": 30210,
-     "cost": 0.0177001,
-     "seconds": 138.5,
-     "sample": 1,
-     "conversation": "701c10b289acc02e088ba10981ea34b186f1cae708bb9da676ee1287da284bdd"
+     "completion_tokens": 27437,
+     "reasoning_tokens": 25120,
+     "cost": 0.00758705,
+     "seconds": null,
+     "batch": "batch-1793203265-sQA1DX56rKylfzO4cWKR",
+     "sample": 1
     },
     "passed": true,
     "errors": []
@@ -79,33 +74,34 @@
    "sample": 1
   },
   "classes": {
-   "old-null": "10059",
-   "no-entries": "7713",
-   "entries": "12228"
+   "no-old-block": "14888",
+   "empty-loop": "3797",
+   "tag-3-seen": "9655",
+   "no-tag-3": "1660"
   },
   "mutations": [
    {
-    "name": "F1: the old heap block is not freed",
+    "name": "M1: unk1 is 3 for a tagged count",
     "caught": true
    },
    {
-    "name": "F2: flag test against 2, not 3",
+    "name": "M2: the tag test reads 2",
     "caught": true
    },
    {
-    "name": "F3: unk1 is 1 when entries are counted, not 2",
+    "name": "M3: the loop bound reads the entry's full count, not the u8 unk0",
     "caught": true
    },
    {
-    "name": "F4: loop runs one element past the count",
+    "name": "M4: func_800D5780 is not called",
     "caught": true
    },
    {
-    "name": "F5: the per-element callee is not called",
+    "name": "M5: unk6 starts at 0, not -1",
     "caught": true
    },
    {
-    "name": "F6: the header's unk4 starts at 1",
+    "name": "M6: the old block is not freed",
     "caught": true
    }
   ],
@@ -127,12 +123,12 @@
     {
      "arg": 1,
      "count": 30000,
-     "text": "32-bit: min -2147411408, max 2147438590, unsigned 624423..4294964626, seen negative, never zero"
+     "text": "32-bit: min -2147127131, max 2147328354, unsigned 0..4294967295, seen zero/negative/all ones"
     },
     {
      "arg": 2,
      "count": 30000,
-     "text": "32-bit: min -2147374493, max 2147387895, unsigned 115940..4294667733, seen negative, never zero"
+     "text": "32-bit: min -2147331503, max 2147287237, unsigned 287056..4294839208, seen negative, never zero"
     }
    ],
    "compares": [
@@ -142,29 +138,29 @@
      "size": 4,
      "count": 30000,
      "kind": "against a constant",
-     "outcomes": "== 10059, < 4988, > 14953 (signed); < 0, > 19941 (unsigned)",
+     "outcomes": "== 14888, < 0, > 15112 (signed); < 0, > 15112 (unsigned)",
      "operand": "constant 0",
-     "a": "-2146576521..2147120954"
+     "a": "0..4251296"
     },
     {
      "line": 18,
      "text": "for (i = 0; i < p->unk0; ++i) {",
      "size": 4,
-     "count": 75824,
+     "count": 2536226,
      "kind": "a == b / a < b",
-     "outcomes": "== 22088, < 45824, > 7912 (signed); < 45824, > 7912 (unsigned)",
-     "operand": "b 0..8",
-     "a": "0..8"
+     "outcomes": "== 30000, < 2506226, > 0 (signed); < 2506226, > 0 (unsigned)",
+     "operand": "b 0..255",
+     "a": "0..255"
     },
     {
      "line": 22,
      "text": "if (p->unk8[i].unk4.unk0_0 == 3) {",
      "size": 1,
-     "count": 45824,
+     "count": 2506226,
      "kind": "against a constant",
-     "outcomes": "== 15254, < 23115, > 7455 (signed); < 15422, > 15148 (unsigned)",
+     "outcomes": "== 1254775, < 822750, > 428701 (signed); < 382675, > 868776 (unsigned)",
      "operand": "constant 3",
-     "a": "-1..4"
+     "a": "-128..127"
     },
     {
      "line": 33,
@@ -172,9 +168,9 @@
      "size": 4,
      "count": 30000,
      "kind": "against a constant",
-     "outcomes": "== 19115, < 0, > 10885 (signed); < 0, > 10885 (unsigned)",
+     "outcomes": "== 11009, < 0, > 18991 (signed); < 0, > 18991 (unsigned)",
      "operand": "constant 0",
-     "a": "0..6"
+     "a": "0..155"
     }
    ],
    "passed": true
@@ -194,66 +190,60 @@
      "temperature": 0.0,
      "max_tokens": 64000,
      "prompt_tokens": 38028,
-     "completion_tokens": 10325,
-     "reasoning_tokens": 9379,
-     "cost": 0.0089653,
-     "seconds": 42.4,
-     "sample": 1,
-     "conversation": "289822d44891e9980f19c3ae157f797a24c8612e48a6726277411d732a4890ca"
+     "completion_tokens": 12114,
+     "reasoning_tokens": 11124,
+     "cost": 0.0049299,
+     "seconds": null,
+     "batch": "batch-1793379902-OYfFRiS0hzKPAZ8kx15j",
+     "sample": 1
     },
-    "passed": false,
-    "errors": [
-     "FAIL: does not compile:\n<zig-cache>/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800D55A4.zig:41:64: error: expected unsigned integer type, found 'c_int'\n        p.unk4 |= @bitCast(@as(c_uint, 1) << @as(u5, @truncate(i)));\n                                                               ^\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:469:31\n    main: pc/tests/zig_diff/main.zig:392:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
-    ],
-    "runs": []
-   },
-   {
-    "round": 2,
-    "sample": 1,
-    "call": {
-     "finish_reason": "stop",
-     "model": "anthropic/claude-haiku-5.5",
-     "endpoint": "remote",
-     "thinking": "default",
-     "temperature": 0.0,
-     "max_tokens": 64000,
-     "prompt_tokens": 39233,
-     "completion_tokens": 1660,
-     "reasoning_tokens": 694,
-     "cost": 0.0047533,
-     "seconds": 6.6,
-     "sample": 1,
-     "conversation": "d0bc21d23fda53f3eee2f33a048077f1392b54b8d7140398e8d97c4536d07d78"
-    },
-    "passed": false,
-    "errors": [
-     "FAIL: seed 1: the port differs from the C (exit 3):\nzdiff: PANIC in the Zig run, iteration 2: incorrect alignment (return address 0x404787)"
-    ],
+    "passed": true,
+    "errors": [],
     "runs": [
      {
       "seed": 1,
-      "exit": 3,
-      "mismatches": null,
-      "first": "PANIC in the Zig run, iteration 2: incorrect alignment (return address 0x404787)"
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
      }
     ]
    }
-  ]
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
  },
- "written": [],
- "check_seconds": 13.609834025002783,
- "wall_seconds": 201.4441077119991,
+ "written": [
+  "pc/tests/zig_diff/func_800D55A4.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800D55A4.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 523.5839975109966,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 217108.087007761,
  "totals": {
-  "cost": 0.03142,
-  "prompt_tokens": 91817,
-  "completion_tokens": 44474,
-  "model_seconds": 187.5,
-  "check_seconds": 13.6,
-  "calls": 3,
-  "wall_seconds": 201.4
- },
- "review": {
-  "by": "Claude Sonnet 5.5 (reviewer)",
-  "date": "2026-10-25"
+  "cost": 0.01252,
+  "prompt_tokens": 52584,
+  "completion_tokens": 39551,
+  "model_seconds": 0.0,
+  "check_seconds": 523.6,
+  "calls": 2,
+  "wall_seconds": 217108.1
  }
 }

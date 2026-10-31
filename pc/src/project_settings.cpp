@@ -427,6 +427,8 @@ const Entry entries[] = {
     I("hud_classic_rename_box", pc_hud_classic_rename_box),
     I("hud_classic_file_menu", pc_hud_classic_file_menu),
     I("hud_classic_file_element", pc_hud_classic_file_element),
+    I("hud_classic_menuf", pc_hud_classic_menuf),
+    I("hud_classic_menuf_load", pc_hud_classic_menuf_load),
     I("save_states", pc_save_states), /* the save state slots (savestate_slots.c), 0 off */
 #ifdef ROOD_VULKAN
     I("shader_reload", pc_shader_reload), /* shader hot reload (shader_reload.cpp), 0 off */

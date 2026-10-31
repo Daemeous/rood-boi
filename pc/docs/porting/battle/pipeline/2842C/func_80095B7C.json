@@ -7,8 +7,8 @@
  "thinking": "default",
  "temperature": 0.0,
  "samples": 1,
- "status": "spec-failed",
- "reviewed": "not ported in this wave (unrouted): spec-failed: FAIL: mutation F2: memset one byte short: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_8",
+ "status": "ported",
+ "reviewed": false,
  "plan": {
   "name": "func_80095B7C",
   "unit": "src/BATTLE/BATTLE.PRG/2842C.c",
@@ -33,9 +33,7 @@
   ],
   "ret": "void",
   "types": [],
-  "globals": [
-   "D_800F2260"
-  ],
+  "globals": [],
   "hooks": [],
   "statics": [],
   "skip": ""
@@ -45,47 +43,54 @@
    {
     "round": 1,
     "sample": 1,
-    "call": null,
-    "passed": false,
-    "errors": [
-     "FAIL: mutation F2: memset one byte short: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_80095B7C: 30000 iterations, seed 1, 0 mismatches; classes: index-zero=6134 bit7-set=12696 bit6-set=6007 keep-low-bits=5163"
-    ]
-   },
-   {
-    "round": 2,
-    "sample": 1,
-    "call": null,
-    "passed": false,
-    "errors": [
-     "FAIL: mutation F2: memset one byte short: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_80095B7C: 30000 iterations, seed 1, 0 mismatches; classes: index-zero=6134 bit7-set=12696 bit6-set=6007 keep-low-bits=5163"
-    ]
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11345,
+     "completion_tokens": 5368,
+     "reasoning_tokens": 4247,
+     "cost": 0.00190925,
+     "seconds": null,
+     "batch": "batch-1793470606-6GNq3Qqjp7ZP5YLH6ms0",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
    }
   ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
   "classes": {
-   "index-zero": "6134",
-   "bit7-set": "12696",
-   "bit6-set": "6007",
-   "keep-low-bits": "5163"
+   "zero-index-memset": "4879",
+   "bit7-set": "12559",
+   "bit6-set": "6321",
+   "merge-low": "6241"
   },
   "mutations": [
    {
-    "name": "F1: bit6 tested with the wrong mask",
+    "name": "M1: bit-6 clear keeps bit 7 too (wrong mask)",
     "caught": true
    },
    {
-    "name": "F2: memset one byte short",
-    "caught": false
-   },
-   {
-    "name": "F3: bit7 clear keeps the wrong mask",
+    "name": "M2: memset one byte short",
     "caught": true
    },
    {
-    "name": "F4: low bits stored with a wrong mask",
+    "name": "M3: memset value masked to 7 bits (signed/unsigned byte slip)",
     "caught": true
    },
    {
-    "name": "F5: index-zero test off by one",
+    "name": "M4: bit-6 path falls through instead of returning",
+    "caught": true
+   },
+   {
+    "name": "M5: merge keeps bit 6 of the old byte (wrong constant)",
     "caught": true
    }
   ],
@@ -107,7 +112,7 @@
     {
      "arg": 1,
      "count": 30000,
-     "text": "32-bit: min -2147472529, max 2147483647, unsigned 64..4294967295, seen negative/signed max/all ones, never zero"
+     "text": "32-bit: min -2147476829, max 2147261558, unsigned 0..4294967295, seen zero/negative/all ones"
     }
    ],
    "compares": [
@@ -117,7 +122,7 @@
      "size": 4,
      "count": 30000,
      "kind": "against a constant",
-     "outcomes": "== 6134, < 0, > 23866 (signed); < 0, > 23866 (unsigned)",
+     "outcomes": "== 4879, < 0, > 25121 (signed); < 0, > 25121 (unsigned)",
      "operand": "constant 0",
      "a": "0..15"
     },
@@ -125,9 +130,9 @@
      "line": 3,
      "text": "if (arg1 & 0x80) {",
      "size": 4,
-     "count": 23866,
+     "count": 25121,
      "kind": "against a constant",
-     "outcomes": "== 11170, < 0, > 12696 (signed); < 0, > 12696 (unsigned)",
+     "outcomes": "== 12562, < 0, > 12559 (signed); < 0, > 12559 (unsigned)",
      "operand": "constant 0",
      "a": "0..128"
     },
@@ -135,33 +140,84 @@
      "line": 7,
      "text": "if (arg1 & 0x40) {",
      "size": 4,
-     "count": 11170,
+     "count": 12562,
      "kind": "against a constant",
-     "outcomes": "== 5163, < 0, > 6007 (signed); < 0, > 6007 (unsigned)",
+     "outcomes": "== 6241, < 0, > 6321 (signed); < 0, > 6321 (unsigned)",
      "operand": "constant 0",
      "a": "0..64"
     }
    ],
    "passed": true
-  }
+  },
+  "waivers": []
  },
  "port": {
-  "attempts": []
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34713,
+     "completion_tokens": 3623,
+     "reasoning_tokens": 3168,
+     "cost": 0.0026414,
+     "seconds": null,
+     "batch": "batch-1793471198-1avhbv74VvcT9i19MPUV",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
  },
- "written": [],
- "check_seconds": 22.480481392998627,
- "wall_seconds": 22.702469329997257,
+ "written": [
+  "pc/tests/zig_diff/func_80095B7C.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_80095B7C.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 72.0607217529996,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 1187.850388765335,
  "totals": {
-  "cost": 0.0,
-  "prompt_tokens": 0,
-  "completion_tokens": 0,
+  "cost": 0.00455,
+  "prompt_tokens": 46058,
+  "completion_tokens": 8991,
   "model_seconds": 0.0,
-  "check_seconds": 22.5,
-  "calls": 0,
-  "wall_seconds": 22.7
- },
- "review": {
-  "by": "Claude Opus 5.5 (reviewer)",
-  "date": "2026-10-22"
+  "check_seconds": 72.1,
+  "calls": 2,
+  "wall_seconds": 1187.9
  }
 }

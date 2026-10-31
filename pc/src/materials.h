@@ -86,8 +86,15 @@ std::vector<Entry> catalog_entries();
 struct MasterParam {
     std::string name, label, tip, group;
     bool is_bool = false;
+    /* A colour (type "color", part 4's promoted colour knobs): three values 0..1 kept as `<name>.r`,
+     * `<name>.g`, `<name>.b` wherever values are (an instance's own, the resolved map); written as
+     * [r, g, b] in the files. Set and reset as one. */
+    bool is_color = false;
     float def = 0, lo = 0, hi = 1;
+    float color[3] = { 1, 1, 1 }; /* a colour's default */
 };
+/* A colour parameter's component keys (".r", ".g", ".b" after the name). */
+extern const char* const COLOR_PARTS[3];
 struct MasterSlot {
     std::string name, label, channel; /* channel: the map file ("" the game texel) */
 };
@@ -98,6 +105,8 @@ struct Master {
     const MasterParam* param(const std::string& name) const;
 };
 std::string masters_dir(); /* $ROOD_MATERIAL_MASTERS, else masters/ beside the shipped catalog file */
+std::string graphs_dir(); /* the user's graph masters (part 4): $ROOD_MATERIAL_GRAPHS, else <user maps layer>/masters */
+void masters_changed(); /* a master file was written or removed (part 4's editor): read the folders again at once */
 const Master* master(const std::string& name); /* nullptr: unknown */
 std::vector<std::string> master_names(); /* standard_surface first */
 
@@ -157,6 +166,12 @@ Surface match(const std::string& key, int w, int h, const std::string& clut, int
 /* The entry that applies (the last matching one), or nullptr: valid until
  * the catalog is next read. */
 const Entry* find_match(const std::string& key, int w, int h, const std::string& clut, int zone, int room);
+/* The same with the palette's variants (emissive::palette_variants: an
+ * animated palette is one palette through its colours; the colours now
+ * first): a texture's own entry with any of them, else a palette entry of
+ * the first variant that has one. One variant: find_match above. */
+const Entry* find_match(const std::string& key, int w, int h, const std::vector<std::string>& cluts, int zone,
+    int room);
 /* Whether any entry names a texture of this size (and so its key is worth
  * hashing), and whether any entry needs the palette's key. */
 bool catalog_has_size(int w, int h);
@@ -166,9 +181,17 @@ bool catalog_has_palette_entries();
  * names the key with a palette, or a palette entry exists). Like
  * catalog_has_size, as of the catalog's last read (no stat calls). */
 bool catalog_needs_clut(const std::string& key);
-/* Changes whenever either catalog file changed on disk (checks their stamps:
- * two stat calls). */
+/* Changes whenever the catalog does: either file changed on disk (checks
+ * their stamps: two stat calls), an unsaved edit, a preview. */
 uint32_t catalog_generation();
+/* Changes when more than values changed (an instance added, removed,
+ * re-parented, re-assigned or given another master; the files read again): a
+ * value edit (set_pending_instance with the same structure) bumps
+ * catalog_generation only. The node graphs' slots follow this one. */
+uint32_t catalog_structure_generation();
+/* How many times a catalog file was read (both files on a load count two):
+ * a value edit reads none (RPC material_instance status). */
+unsigned catalog_file_reads();
 /* The presets by name (shipped, then the user's), in name order. */
 std::vector<std::pair<std::string, Surface>> catalog_presets();
 /* The user layer (materials.json): its path, its entries as written, and

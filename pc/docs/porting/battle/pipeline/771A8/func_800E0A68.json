@@ -5,10 +5,10 @@
  "model": "anthropic/claude-haiku-5.5",
  "endpoint": "remote",
  "thinking": "default",
- "temperature": 0.4,
- "samples": 2,
+ "temperature": 0.0,
+ "samples": 1,
  "status": "spec-failed",
- "reviewed": "not ported in this wave (unrouted): Haiku's specs (two runs) leave a ground-height branch uncovered and an equality edge unmet (211 lines, thirteen callees)",
+ "reviewed": false,
  "plan": {
   "name": "func_800E0A68",
   "unit": "src/BATTLE/BATTLE.PRG/771A8.c",
@@ -48,48 +48,24 @@
     "round": 1,
     "sample": 1,
     "call": {
-     "finish_reason": "stop",
+     "finish_reason": "length",
      "model": "anthropic/claude-haiku-5.5",
      "endpoint": "remote",
      "thinking": "default",
-     "temperature": 0.4,
+     "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 23032,
-     "completion_tokens": 44984,
-     "reasoning_tokens": 41111,
-     "cost": 0.0247952,
-     "seconds": 190.1,
-     "sample": 1,
-     "conversation": "5472a3d3e868ad688e17a2ea09573fd29c9f966ce102a437bb3c0806c2140728"
+     "prompt_tokens": 23172,
+     "completion_tokens": 64000,
+     "reasoning_tokens": 64000,
+     "cost": 0.0171586,
+     "seconds": null,
+     "batch": "batch-1793472845-QkAmzxxBw2lq6TSSxmz5",
+     "sample": 1
     },
     "passed": false,
     "errors": [
-     "FAIL: the C itself crashed on your inputs (the C runs first, so this is the spec's\nbug). The harness fills every global and the arena with random bytes before\nprepare, so every pointer the C follows must be one prepare set: each\nargument, each pointer field of an object you build, and each ENTRY of a\nglobal pointer table the C indexes (only the entry it reads: e.g.\n`v.g.TABLE()[i] = obj`), pointing at an object from `ctx.alloc`/`ctx.allocBytes`\n(sized for every element the C indexes past a `[0]` array), at a global, or\nnull where the C tests for null. An index into a global table must stay\ninside its length (the views accessor's type gives it). Below: the crash, its\nfault address (named when it is inside an object the harness owns) and the\narguments of that iteration:\nzdiff: CRASH (signal 8) in the C run, iteration 1\nzdiff: crashed on arguments: 0x409890 [arena] 0x4f6b9e3a (class tile-other)",
-     "(the mutations and the coverage gate are checked once the C runs crash-free)"
-    ]
-   },
-   {
-    "round": 1,
-    "sample": 2,
-    "call": {
-     "finish_reason": "stop",
-     "model": "anthropic/claude-haiku-5.5",
-     "endpoint": "remote",
-     "thinking": "default",
-     "temperature": 0.4,
-     "max_tokens": 64000,
-     "prompt_tokens": 23032,
-     "completion_tokens": 50891,
-     "reasoning_tokens": 46766,
-     "cost": 0.0277487,
-     "seconds": 212.4,
-     "sample": 2,
-     "conversation": "7623fdac0271e17e407c5edb5af8aad01c6c6d5618e66d4de7aa504a65c0899f"
-    },
-    "passed": false,
-    "errors": [
-     "FAIL: the C itself crashed on your inputs (the C runs first, so this is the spec's\nbug). The harness fills every global and the arena with random bytes before\nprepare, so every pointer the C follows must be one prepare set: each\nargument, each pointer field of an object you build, and each ENTRY of a\nglobal pointer table the C indexes (only the entry it reads: e.g.\n`v.g.TABLE()[i] = obj`), pointing at an object from `ctx.alloc`/`ctx.allocBytes`\n(sized for every element the C indexes past a `[0]` array), at a global, or\nnull where the C tests for null. An index into a global table must stay\ninside its length (the views accessor's type gives it). Below: the crash, its\nfault address (named when it is inside an object the harness owns) and the\narguments of that iteration:\nzdiff: CRASH (signal 8) in the C run, iteration 11\nzdiff: crashed on arguments: 0x40a080 [arena] 0x7 (class other-tile)",
-     "(the mutations and the coverage gate are checked once the C runs crash-free)"
+     "FAIL: no ```zig block in the reply",
+     "FAIL: no ```toml block in the reply"
     ]
    },
    {
@@ -100,19 +76,42 @@
      "model": "anthropic/claude-haiku-5.5",
      "endpoint": "remote",
      "thinking": "default",
-     "temperature": 0.4,
+     "temperature": 0.0,
      "max_tokens": 64000,
-     "prompt_tokens": 27299,
-     "completion_tokens": 11666,
-     "reasoning_tokens": 7537,
-     "cost": 0.0085629,
-     "seconds": 47.9,
-     "sample": 1,
-     "conversation": "cf06e5a1d0e61457b2e4033a84335cf40b39c81aa0e189d7802bf2bb40edb928"
+     "prompt_tokens": 23231,
+     "completion_tokens": 33592,
+     "reasoning_tokens": 30062,
+     "cost": 0.00955955,
+     "seconds": null,
+     "batch": "batch-1793473259-u2ePCAiI4wY1Y4v0EU1i",
+     "sample": 1
     },
     "passed": false,
     "errors": [
-     "FAIL: the C itself crashed on your inputs (the C runs first, so this is the spec's\nbug). The harness fills every global and the arena with random bytes before\nprepare, so every pointer the C follows must be one prepare set: each\nargument, each pointer field of an object you build, and each ENTRY of a\nglobal pointer table the C indexes (only the entry it reads: e.g.\n`v.g.TABLE()[i] = obj`), pointing at an object from `ctx.alloc`/`ctx.allocBytes`\n(sized for every element the C indexes past a `[0]` array), at a global, or\nnull where the C tests for null. An index into a global table must stay\ninside its length (the views accessor's type gives it). Below: the crash, its\nfault address (named when it is inside an object the harness owns) and the\narguments of that iteration:\nzdiff: CRASH (signal 8) in the C run, iteration 1\nzdiff: crashed on arguments: 0x40a890 [arena] 0x56dcd931 (class tile-other)",
+     "FAIL: the harness does not build:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/func_800E0A68/spec2/build/spec.zig:64:31: error: pointer capture of non pointer type '[17]?*views_771A8.D_800F4538_t'\n    for (v.g.D_800F4538().*) |*e| e.* = actor;\n                              ^~~\npc/build/port-pipeline/func_800E0A68/spec2/build/spec.zig:64:26: note: consider using '&' here\n    for (v.g.D_800F4538().*) |*e| e.* = actor;\n         ~~~~~~~~~~~~~~~~^~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:435:40\n    main: pc/tests/zig_diff/main.zig:392:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\npc/build/port-pipeline/func_800E0A68/spec2/build/spec.zig:75:27: error: type '?*views_771A8.movementCheckObject' does not support field access\n    if ((psx.get(s.object).flags & 0x200000) == 0) return 0;\n         ~~~~~~~~~~~~~~~~~^~~~~~\n"
+    ]
+   },
+   {
+    "round": 3,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 27254,
+     "completion_tokens": 4714,
+     "reasoning_tokens": 1167,
+     "cost": 0.0025411999999999995,
+     "seconds": null,
+     "batch": "batch-1793473724-k55LkjHH6w2tNRmUV3Lu",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the C itself crashed on your inputs (the C runs first, so this is the spec's\nbug). The harness fills every global and the arena with random bytes before\nprepare, so every pointer the C follows must be one prepare set: each\nargument, each pointer field of an object you build, and each ENTRY of a\nglobal pointer table the C indexes (only the entry it reads: e.g.\n`v.g.TABLE()[i] = obj`), pointing at an object from `ctx.alloc`/`ctx.allocBytes`\n(sized for every element the C indexes past a `[0]` array), at a global, or\nnull where the C tests for null. An index into a global table must stay\ninside its length (the views accessor's type gives it). Below: the crash, its\nfault address (named when it is inside an object the harness owns) and the\narguments of that iteration:\nzdiff: CRASH (signal 8) in the C run, iteration 168\nzdiff: crashed on arguments: 0x40a080 [arena] 0x1 (class near)",
      "(the mutations and the coverage gate are checked once the C runs crash-free)"
     ]
    }
@@ -125,23 +124,17 @@
   "attempts": []
  },
  "written": [],
- "check_seconds": 2.1665136190003977,
- "wall_seconds": 452.992949294,
+ "check_seconds": 1.1765985680003723,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 1342.4129168987274,
  "totals": {
-  "cost": 0.06111,
-  "prompt_tokens": 73363,
-  "completion_tokens": 107541,
-  "model_seconds": 450.4,
-  "check_seconds": 2.2,
+  "cost": 0.02926,
+  "prompt_tokens": 73657,
+  "completion_tokens": 102306,
+  "model_seconds": 0.0,
+  "check_seconds": 1.2,
   "calls": 3,
-  "wall_seconds": 453.0
- },
- "review": {
-  "by": "Claude Opus 5.5 (reviewer)",
-  "date": "2026-10-21",
-  "spec_fixes": [],
-  "mutations_added": [],
-  "port_fixes": [],
-  "corpus": ""
+  "wall_seconds": 1342.4
  }
 }

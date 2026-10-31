@@ -1,0 +1,32 @@
+{
+  "format": 1,
+  "name": "split",
+  "label": "Split",
+  "category": "Colour",
+  "inputs": [
+    {
+      "name": "v",
+      "type": "float3",
+      "default": [
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "outputs": [
+    {
+      "name": "r",
+      "type": "float"
+    },
+    {
+      "name": "g",
+      "type": "float"
+    },
+    {
+      "name": "b",
+      "type": "float"
+    }
+  ],
+  "glsl": "r = v.x; g = v.y; b = v.z;"
+}

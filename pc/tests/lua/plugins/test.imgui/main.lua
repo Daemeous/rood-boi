@@ -35,6 +35,35 @@ rood.dev.window {
     if imgui.IsKeyPressed(imgui.Key_Enter, false) and imgui.GetIO().KeyCtrl then
       keys_seen[#keys_seen + 1] = "Ctrl+Enter"
     end
+    -- A canvas (the node editor's needs): the cursor round-trips, the draw list draws, an invisible
+    -- button is an item, the mouse is readable, a clip rect is a scope.
+    canvas = nil
+    local ok, err = pcall(function()
+      local cx, cy = imgui.GetCursorScreenPos()
+      imgui.SetCursorScreenPos(cx + 10, cy + 5)
+      local rx, ry = imgui.GetCursorScreenPos()
+      imgui.PushClipRect(cx, cy, cx + 200, cy + 60, true)
+      imgui.DrawList_AddRectFilled(cx, cy, cx + 40, cy + 20, { 0.2, 0.4, 0.8, 1 }, 3)
+      imgui.DrawList_AddRect(cx, cy, cx + 40, cy + 20, { 1, 1, 1, 1 }, 3, 2)
+      imgui.DrawList_AddLine(cx, cy, cx + 40, cy + 20, { 1, 0, 0 })
+      imgui.DrawList_AddCircle(cx + 50, cy + 10, 6, { 0, 1, 0 })
+      imgui.DrawList_AddCircleFilled(cx + 50, cy + 10, 3, { 0, 1, 0 })
+      imgui.DrawList_AddBezierCubic(cx, cy, cx + 20, cy, cx + 40, cy + 20, cx + 60, cy + 20, { 1, 1, 0 }, 2)
+      imgui.DrawList_AddTriangleFilled(cx, cy + 30, cx + 10, cy + 30, cx + 5, cy + 40, { 1, 0, 1 })
+      imgui.DrawList_AddText(cx + 70, cy, { 1, 1, 1 }, "canvas")
+      imgui.PopClipRect()
+      imgui.SetCursorScreenPos(cx, cy + 45)
+      local pressed = imgui.InvisibleButton("hit", 60, 12)
+      local x0, y0 = imgui.GetItemRectMin()
+      local x1, y1 = imgui.GetItemRectMax()
+      local mx, my = imgui.GetMousePos()
+      local dx, dy = imgui.GetMouseDragDelta(0)
+      canvas = { dx = rx - cx, dy = ry - cy, pressed = pressed, hovered = imgui.IsItemHovered(),
+                 w = x1 - x0, h = y1 - y0, mouse = { mx, my }, down = imgui.IsMouseDown(0),
+                 clicked = imgui.IsMouseClicked(0), dragging = imgui.IsMouseDragging(0), drag = { dx, dy },
+                 over = imgui.IsMouseHoveringRect(x0, y0, x1, y1), wheel = imgui.GetMouseWheel() }
+    end)
+    if not ok then canvas = { error = tostring(err) } end
     if fail then error("deliberate failure") end
     if unbalanced then imgui.PushID("left open"); imgui.BeginGroup() end
   end,

@@ -38,6 +38,10 @@ extern "C" int pc_game_query_room_names(int, int, char*, int, char*, int) { retu
 /* The game's glyph advances (BATTLE.PRG; rood.classic's d.font_width in lua_api_hud.cpp): none in this probe. */
 extern "C" {
 char vs_battle_characterWidths[512];
+/* classic_parity.c's immediate-draw uploads and MENUF record (lua_api_hud.cpp's d.image_load, the menuf kinds):
+ * none in this probe (by name only: the probe sees neither header). */
+const void* pc_classic_immediate_upload(int, int*, int*, int*, int*) { return nullptr; }
+void* pc_classic_menuf_calls(void) { return nullptr; }
 }
 
 static std::string scratch, shipped;

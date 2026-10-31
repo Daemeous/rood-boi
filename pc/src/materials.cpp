@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <time.h>
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
@@ -465,10 +466,13 @@ bool read_master(const std::string& path, Master& m)
         const Json* n = item.get("name");
         if (!n || n->type != Json::String || n->string.empty()) return false;
         p.name = n->string;
-        if (const Json* v = item.get("type"); v && v->type == Json::String) p.is_bool = v->string == "bool";
+        if (const Json* v = item.get("type"); v && v->type == Json::String) p.is_bool = v->string == "bool", p.is_color = v->string == "color";
         if (const Json* v = item.get("default")) {
             if (v->type == Json::Number) p.def = (float)v->number;
             else if (v->type == Json::Bool) p.def = v->boolean ? 1.0f : 0.0f;
+            else if (v->type == Json::Array && p.is_color)
+                for (int c = 0; c < 3 && c < (int)v->items.size(); c++)
+                    if (v->items[c].type == Json::Number) p.color[c] = (float)v->items[c].number;
         }
         if (const Json* v = item.get("min"); v && v->type == Json::Number) p.lo = (float)v->number;
         if (const Json* v = item.get("max"); v && v->type == Json::Number) p.hi = (float)v->number;
@@ -492,22 +496,52 @@ bool read_master(const std::string& path, Master& m)
         }
     return true;
 }
+/* Both master folders' stamps (and their files': a graph saved in place
+ * changes its file, not always its folder). */
+long long masters_stamp_last_at = -1; /* (masters_changed resets it) */
+long long masters_stamp_now()
+{
+    long long& last_at = masters_stamp_last_at;
+    /* Asked every frame (the catalog's generation): the folders' files are stat'ed at most four times a second. */
+    static long long last_st;
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    long long now_ms = (long long)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+    if (last_at >= 0 && now_ms - last_at < 250) return last_st;
+    last_at = now_ms;
+    long long st = stamp(masters_dir()) * 31 + stamp(graphs_dir());
+    for (const std::string& dir : { masters_dir(), graphs_dir() }) {
+        std::error_code ec;
+        for (const auto& ent : fs::directory_iterator(dir, ec))
+            if (ent.path().extension() == ".json") st = st * 1000003 + stamp(ent.path().string());
+    }
+    last_st = st;
+    return st;
+}
 /* The masters: the built-in standard surface, then every file in masters_dir()
  * (a file named standard_surface replaces the built-in one, provided it
  * keeps the five standard parameters: the planes read those by name). */
 const std::map<std::string, Master>& current_masters()
 {
-    long long st = stamp(masters_dir());
+    long long st = masters_stamp_now();
     if (st == masters_stamp) return masters_cache;
     masters_stamp = st;
     masters_cache.clear();
     masters_cache[STANDARD] = standard_master();
-    std::error_code ec;
-    for (const auto& ent : fs::directory_iterator(masters_dir(), ec)) {
-        if (ent.path().extension() != ".json") continue;
+    /* The shipped masters, then the user's graphs (part 4: the same name wins). */
+    std::vector<std::string> files;
+    for (const std::string& dir : { masters_dir(), graphs_dir() }) {
+        std::error_code ec;
+        std::vector<std::string> here;
+        for (const auto& ent : fs::directory_iterator(dir, ec))
+            if (ent.path().extension() == ".json") here.push_back(ent.path().string());
+        std::sort(here.begin(), here.end());
+        files.insert(files.end(), here.begin(), here.end());
+    }
+    for (const std::string& path : files) {
         Master m;
-        if (!read_master(ent.path().string(), m)) {
-            fprintf(stderr, "[materials] %s: not a master\n", ent.path().string().c_str());
+        if (!read_master(path, m)) {
+            fprintf(stderr, "[materials] %s: not a master\n", path.c_str());
             continue;
         }
         if (m.name == STANDARD) {
@@ -536,10 +570,21 @@ struct CatalogState {
     std::unordered_set<std::string> clut_keys; /* keys some entry names with a palette */
     bool palette_clut = false; /* a palette entry with a palette (then every key needs it) */
     std::vector<std::string> problems;
-    long long shipped_stamp = -1, user_stamp = -1, masters_seen = -3;
-    uint32_t generation = 0;
+    std::unordered_map<std::string, size_t> entry_at; /* instance id -> its entry in `entries` */
+    uint32_t generation = 0, structure = 0; /* any change; a change of more than values (structure) */
 };
 CatalogState catalog_cache;
+/* The two files as read (instances and their problems): read again only when
+ * a file's stamp or the masters changed, on Revert and on reload; an edit is
+ * laid over this copy in memory (pending_list), never by reading the files. */
+struct FileLayer {
+    std::vector<Instance> instances;
+    std::vector<std::string> problems;
+    long long shipped_stamp = -1, user_stamp = -1, masters_seen = -3;
+    bool stale = true;
+};
+FileLayer file_layer;
+unsigned catalog_reads = 0; /* catalog files read (RPC material_instance status) */
 std::vector<Instance> pending_list; /* unsaved editor instances (set_pending) */
 std::vector<std::string> pending_removed;
 std::vector<Instance> preview_list; /* set_preview: temporary, never saved */
@@ -591,7 +636,15 @@ bool extra_params(const Json& j, const Master& m, std::map<std::string, float>& 
     for (const auto& pair : params->members) {
         const MasterParam* p = m.param(pair.first);
         if (!p) return false;
-        if (pair.second.type == Json::Bool) own[pair.first] = pair.second.boolean ? 1.0f : 0.0f;
+        if (p->is_color) {
+            /* [r, g, b], each 0..1 */
+            if (pair.second.type != Json::Array || pair.second.items.size() != 3) return false;
+            for (int c = 0; c < 3; c++) {
+                const Json& v = pair.second.items[c];
+                if (v.type != Json::Number || !std::isfinite(v.number) || v.number < 0 || v.number > 1) return false;
+                own[pair.first + COLOR_PARTS[c]] = (float)v.number;
+            }
+        } else if (pair.second.type == Json::Bool) own[pair.first] = pair.second.boolean ? 1.0f : 0.0f;
         else if (pair.second.type == Json::Number && std::isfinite(pair.second.number) && pair.second.number >= p->lo
             && pair.second.number <= p->hi) own[pair.first] = (float)pair.second.number;
         else return false;
@@ -680,6 +733,7 @@ void upsert(std::vector<Instance>& list, const Instance& e)
 }
 void read_catalog(const std::string& path, std::vector<Instance>& out, bool user, std::vector<std::string>& problems)
 {
+    ++catalog_reads;
     std::string text = read_text(path);
     if (text.empty()) return;
     Json j; std::string error;
@@ -751,7 +805,11 @@ bool resolve_in(const std::vector<Instance>& list, const std::unordered_map<std:
         }
         cur = &list[next->second];
     }
-    for (const MasterParam& p : m->second.params) out[p.name] = p.def;
+    for (const MasterParam& p : m->second.params)
+        if (p.is_color)
+            for (int c = 0; c < 3; c++) out[p.name + COLOR_PARTS[c]] = p.color[c];
+        else
+            out[p.name] = p.def;
     for (auto it = walk.rbegin(); it != walk.rend(); ++it)
         for (const auto& pair : (*it)->own) out[pair.first] = pair.second;
     return true;
@@ -781,49 +839,109 @@ bool derive_entry(const std::vector<Instance>& list, const std::unordered_map<st
     if (!i.parent.empty() && i.parent != e.preset) e.parent = i.parent;
     return true;
 }
+/* The catalog from the files' copy and the overlays (no file read). */
+void rebuild_catalog()
+{
+    CatalogState& cc = catalog_cache;
+    cc.instances = file_layer.instances;
+    cc.problems = file_layer.problems;
+    cc.entries.clear(), cc.sizes.clear(), cc.entry_at.clear();
+    for (const std::string& id : pending_removed)
+        cc.instances.erase(std::remove_if(cc.instances.begin(), cc.instances.end(),
+            [&](const Instance& e) { return e.id == id && e.user; }), cc.instances.end());
+    for (const Instance& p : pending_list) upsert(cc.instances, p);
+    for (const Instance& p : preview_list) upsert(cc.instances, p);
+    cc.by_id.clear();
+    for (size_t i = 0; i < cc.instances.size(); i++) cc.by_id[cc.instances[i].id] = i;
+    /* The entries: every assigned instance that resolves (one that does
+     * not is dropped, as an entry naming an unknown preset was). */
+    for (const Instance& i : cc.instances) {
+        if (!i.assigned) continue;
+        Entry e; std::string error;
+        if (!derive_entry(cc.instances, cc.by_id, i, e, &error)) {
+            fprintf(stderr, "[materials] %s\n", error.c_str());
+            cc.problems.push_back(error);
+            continue;
+        }
+        cc.entry_at[i.id] = cc.entries.size();
+        cc.entries.push_back(e);
+    }
+    cc.palette_entries = cc.palette_clut = false;
+    cc.by_key.clear(), cc.by_clut.clear(), cc.clut_keys.clear();
+    for (size_t i = 0; i < cc.entries.size(); i++) {
+        const Entry& e = cc.entries[i];
+        if (e.w > 0) cc.sizes[(e.w - 1) << 8 | (e.h - 1)] = true;
+        cc.palette_entries |= e.key.empty();
+        (e.key.empty() ? cc.by_clut[e.clut] : cc.by_key[e.key]).push_back(i);
+        if (!e.clut.empty() && e.key.empty()) cc.palette_clut = true;
+        else if (!e.clut.empty()) cc.clut_keys.insert(e.key);
+    }
+    ++cc.generation, ++cc.structure;
+}
 const std::vector<Entry>& current_catalog()
 {
-    const long long a = stamp(catalog_path()), b = stamp(catalog_user_path()), c = stamp(masters_dir());
-    if (a != catalog_cache.shipped_stamp || b != catalog_cache.user_stamp || c != catalog_cache.masters_seen
-        || applied_pending != pending_serial) {
+    const long long a = stamp(catalog_path()), b = stamp(catalog_user_path()), c = masters_stamp_now();
+    FileLayer& f = file_layer;
+    bool files = f.stale || a != f.shipped_stamp || b != f.user_stamp || c != f.masters_seen;
+    if (files) {
+        f.stale = false;
+        f.shipped_stamp = a, f.user_stamp = b, f.masters_seen = c;
+        f.instances.clear(), f.problems.clear();
+        read_catalog(catalog_path(), f.instances, false, f.problems);
+        read_catalog(catalog_user_path(), f.instances, true, f.problems);
+    }
+    if (files || applied_pending != pending_serial) {
         applied_pending = pending_serial;
-        catalog_cache.shipped_stamp = a, catalog_cache.user_stamp = b, catalog_cache.masters_seen = c;
-        CatalogState& cc = catalog_cache;
-        cc.instances.clear(), cc.entries.clear(), cc.sizes.clear(), cc.problems.clear();
-        read_catalog(catalog_path(), cc.instances, false, cc.problems);
-        read_catalog(catalog_user_path(), cc.instances, true, cc.problems);
-        for (const std::string& id : pending_removed)
-            cc.instances.erase(std::remove_if(cc.instances.begin(), cc.instances.end(),
-                [&](const Instance& e) { return e.id == id && e.user; }), cc.instances.end());
-        for (const Instance& p : pending_list) upsert(cc.instances, p);
-        for (const Instance& p : preview_list) upsert(cc.instances, p);
-        cc.by_id.clear();
-        for (size_t i = 0; i < cc.instances.size(); i++) cc.by_id[cc.instances[i].id] = i;
-        /* The entries: every assigned instance that resolves (one that does
-         * not is dropped, as an entry naming an unknown preset was). */
-        for (const Instance& i : cc.instances) {
-            if (!i.assigned) continue;
-            Entry e; std::string error;
-            if (!derive_entry(cc.instances, cc.by_id, i, e, &error)) {
-                fprintf(stderr, "[materials] %s\n", error.c_str());
-                cc.problems.push_back(error);
-                continue;
-            }
-            cc.entries.push_back(e);
-        }
-        cc.palette_entries = cc.palette_clut = false;
-        cc.by_key.clear(), cc.by_clut.clear(), cc.clut_keys.clear();
-        for (size_t i = 0; i < cc.entries.size(); i++) {
-            const Entry& e = cc.entries[i];
-            if (e.w > 0) cc.sizes[(e.w - 1) << 8 | (e.h - 1)] = true;
-            cc.palette_entries |= e.key.empty();
-            (e.key.empty() ? cc.by_clut[e.clut] : cc.by_key[e.key]).push_back(i);
-            if (!e.clut.empty() && e.key.empty()) cc.palette_clut = true;
-            else if (!e.clut.empty()) cc.clut_keys.insert(e.key);
-        }
-        ++cc.generation;
+        rebuild_catalog();
     }
     return catalog_cache.entries;
+}
+/* Whether `edited` differs from the catalog's copy in its values only (the
+ * same parent, master, assignment and curation: the entries' order, their
+ * matching and the graph slots stay). */
+bool values_only(const Instance& old, const Instance& edited)
+{
+    return old.parent == edited.parent && old.master == edited.master && old.root == edited.root
+        && old.assigned == edited.assigned && old.key == edited.key && old.clut == edited.clut && old.w == edited.w
+        && old.h == edited.h && old.zone == edited.zone && old.room == edited.room && old.rooms == edited.rooms
+        && old.name == edited.name && old.where == edited.where && old.review == edited.review;
+}
+/* A value edit laid over the catalog in place: the instance's own values, then
+ * the entries of it and of every instance below it derived again. False when
+ * it cannot be (a structural change, a preview over the id, a removal): the
+ * caller rebuilds. */
+bool patch_values(const Instance& edited)
+{
+    CatalogState& cc = catalog_cache;
+    auto at = cc.by_id.find(edited.id);
+    if (at == cc.by_id.end() || !values_only(cc.instances[at->second], edited)) return false;
+    for (const Instance& p : preview_list)
+        if (p.id == edited.id) return false;
+    if (std::find(pending_removed.begin(), pending_removed.end(), edited.id) != pending_removed.end()) return false;
+    cc.instances[at->second] = edited;
+    std::vector<size_t> touched;
+    for (size_t k = 0; k < cc.instances.size(); k++) {
+        const Instance* cur = &cc.instances[k];
+        for (size_t depth = 0; depth <= cc.instances.size(); depth++) {
+            if (cur->id == edited.id) { touched.push_back(k); break; }
+            auto next = cur->parent.empty() ? cc.by_id.end() : cc.by_id.find(cur->parent);
+            if (next == cc.by_id.end()) break;
+            cur = &cc.instances[next->second];
+        }
+    }
+    std::vector<std::pair<size_t, Entry>> fresh;
+    for (size_t k : touched) {
+        const Instance& i = cc.instances[k];
+        auto e = cc.entry_at.find(i.id);
+        if (!i.assigned) continue;
+        if (e == cc.entry_at.end()) return false; /* (did not resolve before: the rebuild says why) */
+        Entry d;
+        if (!derive_entry(cc.instances, cc.by_id, i, d, nullptr)) return false;
+        fresh.push_back({ e->second, d });
+    }
+    for (auto& pair : fresh) cc.entries[pair.first] = pair.second; /* (in place: find_match's pointers stay) */
+    ++cc.generation;
+    return true;
 }
 } // namespace
 
@@ -852,6 +970,17 @@ std::string masters_dir()
     const char* c = getenv("ROOD_MATERIAL_CATALOG");
     if (c && *c) return fs::path(c).parent_path().string() + "/masters";
     return "pc/assets/materials/masters";
+}
+void masters_changed()
+{
+    masters_stamp = -2;
+    masters_stamp_last_at = -1;
+}
+std::string graphs_dir()
+{
+    /* The user's graph masters (part 4): $ROOD_MATERIAL_GRAPHS, else masters/ in the user maps layer. */
+    const char* e = getenv("ROOD_MATERIAL_GRAPHS");
+    return e && *e ? e : user_dir() + "/masters";
 }
 const Master* master(const std::string& name)
 {
@@ -890,15 +1019,13 @@ bool resolve_instance(const Instance& i, std::map<std::string, float>& out, std:
     std::string* error)
 {
     current_catalog();
-    /* A candidate with the catalog's id is itself (its parents are looked
-     * up in the catalog, where its own old copy may sit: skipped). */
-    std::vector<Instance> list = catalog_cache.instances;
-    std::unordered_map<std::string, size_t> by_id = catalog_cache.by_id;
-    upsert(list, i);
-    by_id.clear();
-    for (size_t k = 0; k < list.size(); k++) by_id[list[k].id] = k;
-    return resolve_in(list, by_id, i, out, chain, error);
+    /* A candidate with the catalog's id is itself: its parents are looked up
+     * in the catalog, where its own old copy is reached only through a loop
+     * (which the walk refuses at that copy, the id being seen already), so
+     * the catalog is walked as it is, without a copy with the candidate in. */
+    return resolve_in(catalog_cache.instances, catalog_cache.by_id, i, out, chain, error);
 }
+const char* const COLOR_PARTS[3] = { ".r", ".g", ".b" };
 std::string value_source(const std::string& id, const std::string& name)
 {
     std::map<std::string, float> values;
@@ -906,7 +1033,7 @@ std::string value_source(const std::string& id, const std::string& name)
     if (!resolve(id, values, &chain, nullptr)) return "";
     for (const std::string& c : chain) {
         const Instance* i = find_instance(c);
-        if (i && i->own.count(name)) return c;
+        if (i && (i->own.count(name) || i->own.count(name + COLOR_PARTS[0]))) return c; /* (a colour by its .r) */
     }
     return "";
 }
@@ -968,6 +1095,28 @@ const Entry* find_match(const std::string& key, int w, int h, const std::string&
         }
     return nullptr;
 }
+const Entry* find_match(const std::string& key, int w, int h, const std::vector<std::string>& cluts, int zone,
+    int room)
+{
+    /* As above, a palette being any of `cluts` (an animated palette's
+     * variants, the colours now first): the texture's own entries first
+     * (with any of them), then the palette entries, variant by variant. */
+    if (cluts.size() <= 1) return find_match(key, w, h, cluts.empty() ? std::string() : cluts[0], zone, room);
+    const std::vector<Entry>& entries = current_catalog();
+    if (auto found = catalog_cache.by_key.find(key); found != catalog_cache.by_key.end())
+        for (const std::string& clut : cluts)
+            for (auto i = found->second.rbegin(); i != found->second.rend(); ++i) {
+                const Entry& e = entries[*i];
+                if (e.in_scope(zone, room) && e.w == w && e.h == h && (e.clut.empty() || e.clut == clut)) return &e;
+            }
+    for (const std::string& clut : cluts)
+        if (auto found = catalog_cache.by_clut.find(clut); found != catalog_cache.by_clut.end())
+            for (auto i = found->second.rbegin(); i != found->second.rend(); ++i) {
+                const Entry& e = entries[*i];
+                if (e.in_scope(zone, room) && (e.w == 0 || (e.w == w && e.h == h))) return &e;
+            }
+    return nullptr;
+}
 bool catalog_needs_clut(const std::string& key)
 {
     return catalog_cache.palette_clut || catalog_cache.clut_keys.count(key) > 0;
@@ -992,6 +1141,12 @@ uint32_t catalog_generation()
     current_catalog();
     return catalog_cache.generation;
 }
+uint32_t catalog_structure_generation()
+{
+    current_catalog();
+    return catalog_cache.structure;
+}
+unsigned catalog_file_reads() { return catalog_reads; }
 /* The presets: every root instance (a file's `presets`), resolved, in name order. */
 std::vector<std::pair<std::string, Surface>> catalog_presets()
 {
@@ -1079,6 +1234,19 @@ static Json instance_to_json(const Instance& i, bool* format2)
         else {
             const Master* m = master(i.master);
             const MasterParam* p = m ? m->param(n) : nullptr;
+            /* A colour's component: the three written once, as [r, g, b] under the colour's name. */
+            const MasterParam* c = nullptr;
+            if (!p && n.size() > 2 && n[n.size() - 2] == '.' && m) c = m->param(n.substr(0, n.size() - 2));
+            if (c && c->is_color) {
+                if (n.back() != 'r' && i.own.count(c->name + COLOR_PARTS[0])) continue; /* (written with .r) */
+                Json rgb = Json::array();
+                for (int k = 0; k < 3; k++) {
+                    auto it = i.own.find(c->name + COLOR_PARTS[k]);
+                    rgb.items.push_back(Json::num(tidy(it == i.own.end() ? c->color[k] : it->second)));
+                }
+                params.set(c->name.c_str(), rgb);
+                continue;
+            }
             params.set(n.c_str(), p && p->is_bool ? Json::boolean_(pair.second >= 0.5f) : Json::num(tidy(pair.second)));
         }
     }
@@ -1110,6 +1278,7 @@ std::string entry_json(const Entry& e) { return instance_json(instance_of(e)); }
 static bool user_json(Json& j, std::string* error)
 {
     j = Json::object();
+    ++catalog_reads;
     std::string text = read_text(catalog_user_path());
     if (!text.empty()) {
         if (!prefab::json_parse(text.c_str(), j, error) || j.type != Json::Object) {
@@ -1143,7 +1312,7 @@ static bool write_json_file(const Json& j, const std::string& path, std::string*
 static bool write_user_json(const Json& j, std::string* error)
 {
     if (!write_json_file(j, catalog_user_path(), error)) return false;
-    catalog_cache.user_stamp = -2; /* read again on the next look */
+    file_layer.stale = true; /* read again on the next look, whatever the file's stamp */
     return true;
 }
 /* Put an instance into a catalog JSON (a root into presets, the rest into
@@ -1211,9 +1380,12 @@ void set_pending_instance(const Instance& e)
 {
     Instance copy = e;
     copy.user = true, copy.pending = true, copy.preview = false;
+    current_catalog(); /* (up to date first: the patch is over the current state) */
+    bool patched = patch_values(copy);
     upsert(pending_list, copy);
     pending_removed.erase(std::remove(pending_removed.begin(), pending_removed.end(), e.id), pending_removed.end());
     ++pending_serial;
+    if (patched) applied_pending = pending_serial; /* (the catalog already shows it: no rebuild) */
 }
 void set_pending(const Entry& e) { set_pending_instance(instance_of(e)); }
 void remove_pending(const std::string& id)
@@ -1257,6 +1429,7 @@ void reload()
 {
     forget();
     masters_stamp = -2;
+    file_layer.stale = true;
     ++pending_serial; /* (the catalog is read again on the next look) */
 }
 bool pending_dirty() { return !pending_list.empty() || !pending_removed.empty(); }
@@ -1264,6 +1437,7 @@ void revert_pending()
 {
     pending_list.clear();
     pending_removed.clear();
+    file_layer.stale = true; /* (Revert reads the files again; Save ends here too) */
     ++pending_serial;
 }
 bool save_pending(std::string* error)

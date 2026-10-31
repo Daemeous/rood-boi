@@ -521,6 +521,26 @@ local function make_look()
       progress = { mode = 0xE1000220, code = 0x3A000000, tile = 0x62000000, load = 0x00FFE0, save = 0x7F00FF,
         edge = 48, left = 64, h = 32, step = 16 },
     },
+    -- MENUF's screens (3B8.c: the congratulations, the time attack's start and end, the cube puzzle's start, end and
+    -- quit), drawn from the record's calls to the game's leaves (each with its picture's texels, page and CLUT), in
+    -- `layer` (vs_scratch.unk4 - 28; the prompt's words in unk8): a picture fading in (`fade`: `steps` steps of
+    -- `unit`, `grey` after; the page's blending `semi` and the next CLUT while it fades), tinted (two colours by
+    -- the step), popping in (`pop`: the flash greys at steps 8 and 9, then three steps from `toward` to the
+    -- colours; the dim CLUT below step `settle`), wiped in (`wipe`: `strip` wide strips, lit over `edge` pixels
+    -- behind the wipe), the stat wheel's lines (`wheel`: faded by `step` a line outside `top` .. `bottom`, a
+    -- line drawn twice there, added then subtracted, by the faded CLUT; else the CLUT `clut`) and its two draw
+    -- areas, and the PRESS BUTTON prompt (`prompt`: sliding in `steps` steps of `step` from `dx`, its words
+    -- `text_dx` right of it, `line` apart, in `colour`; the circle button bobbing by the blink timer). `place`
+    -- moves the pictures and the prompt (not the draw areas) from the game's places.
+    menuf = {
+      place = { dx = 0, dy = 0 }, layer = -28, semi = 0x20, subtract = 0x40,
+      fade = { steps = 8, unit = 16, grey = 128 },
+      pop = { flash = { [8] = 192, [9] = 224 }, settle = 14, dim = 10, toward = 192 },
+      wipe = { strip = 12, edge = 64 },
+      wheel = { top = 190, bottom = 206, step = 16, grey = 128, faded_clut = { 816, 511 }, clut = { 800, 511 } },
+      prompt = { dx = 288, step = 6, steps = 48, text_dx = 18, line = 10, colour = 0x8080FF, drop = 22,
+        button = "circle", w = 16, h = 16, top = -2 },
+    },
     -- The buttons' 16 x 16 sprites (vs_mainmenu_renderButton: texels at u by the button, v 128; the CLUT at 944).
     buttons = { u = { triangle = 0, square = 16, circle = 32, cross = 48 },
       sprite = { page_x = 768, page_y = 0, bits = 4, u = 0, v = 128, w = 16, h = 16, clut_x = 944, clut_y = 223,
@@ -1948,13 +1968,201 @@ M.draw.file_menu = function(e, d)
   end
 end
 
+-- MENUF's screens (menuf): each recorded call to the game's leaves made as the leaf makes it (the polygons' words
+-- packed as the game packs them), the calls last to first (the game's prepends to its slots: the reverse of its
+-- calls). menuf_load: the screen's uploads, the game's own pixels (the record's handles), in their order.
+local function clut_word(x, y) return (y << 6) | ((x >> 4) & 0x3F) end
+local function xy16(x, y) return (x & 0xFFFF) | ((y & 0xFFFF) << 16) end
+local function uv(u, v) return (u & 0xFF) | ((v & 0xFF) << 8) end
+local function rgb(r, g, b) return (r & 0xFF) | ((g & 0xFF) << 8) | ((b & 0xFF) << 16) end
+local function grey(v) return rgb(v, v, v) end
+local function channels(c) return c & 0xFF, (c >> 8) & 0xFF, (c >> 16) & 0xFF, (c >> 24) & 0xFF end
+local function scaled(c, k, n) -- each channel * k // n (non-negative, C's division)
+  local r, g, b = channels(c)
+  return rgb(r * k // n, g * k // n, b * k // n)
+end
+local mf_ops, mf_n = {}, 0
+local function mf_op(slot)
+  mf_n = mf_n + 1
+  local o = mf_ops[mf_n]
+  if not o then o = { w = {} } mf_ops[mf_n] = o end
+  o.slot, o.text, o.count = slot, nil, 0
+  return o
+end
+-- A textured four-point polygon: flat (POLY_FT4, 9 words) or shaded (POLY_GT4, 12: the colours by corner).
+local function mf_quad(code, colours, x, y, w, h, u, v, uw, clut, tpage)
+  local o = mf_op(look.menuf.layer)
+  local t = o.w
+  x, y = x + look.menuf.place.dx, y + look.menuf.place.dy
+  local x1, y1 = x + w, y + h
+  if code & 0x10 == 0 then
+    t[1], t[2], t[3], t[4], t[5] = (code << 24) | colours[1], xy16(x, y), uv(u, v) | (clut << 16), xy16(x1, y), uv(u + uw, v) | (tpage << 16)
+    t[6], t[7], t[8], t[9] = xy16(x, y1), uv(u, v + h), xy16(x1, y1), uv(u + uw, v + h)
+    o.count = 9
+  else
+    t[1], t[2], t[3] = (code << 24) | colours[1], xy16(x, y), uv(u, v) | (clut << 16)
+    t[4], t[5], t[6] = colours[2], xy16(x1, y), uv(u + uw, v) | (tpage << 16)
+    t[7], t[8], t[9] = colours[3], xy16(x, y1), uv(u, v + h)
+    t[10], t[11], t[12] = colours[4], xy16(x1, y1), uv(u + uw, v + h)
+    o.count = 12
+  end
+end
+local mf_c = {}
+local function mf_fade(c, brightness, clut)
+  local f, m = look.menuf.fade, look.menuf
+  if brightness <= 0 then return end
+  if brightness < f.steps then
+    mf_c[1] = grey(brightness * f.unit)
+    mf_quad(0x2E, mf_c, c.x, c.y, c.w, c.h, c.u, c.v, c.w, clut + 1, c.tpage | m.semi)
+  else
+    mf_c[1] = grey(f.grey)
+    mf_quad(0x2E, mf_c, c.x, c.y, c.w, c.h, c.u, c.v, c.w, clut, c.tpage)
+  end
+end
+local function mf_shaded(c, left, right, clut, tpage)
+  mf_c[1], mf_c[2], mf_c[3], mf_c[4] = left, right, left, right
+  mf_quad(0x3E, mf_c, c.x, c.y, c.w, c.h, c.u, c.v, c.w, clut, tpage)
+end
+local function mf_tint(c)
+  local m = look.menuf
+  local code = c.colour1 >> 24
+  if code == 0 then return end
+  if code < m.fade.steps then
+    mf_shaded(c, scaled(c.colour1, code, 8), scaled(c.colour2, code, 8), c.clut + 1, c.tpage | m.semi)
+  else
+    mf_shaded(c, c.colour1 & 0xFFFFFF, c.colour2 & 0xFFFFFF, c.clut, c.tpage)
+  end
+end
+local function toward(c, t, to) -- _adjust: each channel (c * t + (4 - t) * to) / 4
+  local r, g, b = channels(c)
+  return rgb((r * t + (4 - t) * to) // 4, (g * t + (4 - t) * to) // 4, (b * t + (4 - t) * to) // 4)
+end
+local function mf_pop(c)
+  local m, p = look.menuf, look.menuf.pop
+  local code = c.colour1 >> 24
+  if code == 0 then return end
+  local left, right
+  if code < m.fade.steps then
+    left, right = scaled(c.colour1, code, 8), scaled(c.colour2, code, 8)
+  elseif p.flash[code] then
+    left = grey(p.flash[code]) right = left
+  elseif code < p.settle then
+    left, right = toward(c.colour1, code - p.dim, p.toward), toward(c.colour2, code - p.dim, p.toward)
+  else
+    left, right = c.colour1 & 0xFFFFFF, c.colour2 & 0xFFFFFF
+  end
+  if code < p.dim then mf_shaded(c, left, right, c.clut + 1, c.tpage | m.semi)
+  else mf_shaded(c, left, right, c.clut, c.tpage) end
+end
+local function clamp(v, lo, hi) return v < lo and lo or (v > hi and hi or v) end
+local function mf_wipe(c)
+  local m, wp = look.menuf, look.menuf.wipe
+  local edge = c.a
+  if c.x + c.w < edge - wp.edge then
+    mf_shaded(c, c.colour1 & 0xFFFFFF, c.colour2 & 0xFFFFFF, c.clut, c.tpage)
+    return
+  end
+  if c.x >= edge then return end
+  local x, u = c.x, c.u
+  local i = 0
+  while i < c.w do
+    local seg = i + wp.strip >= c.w and c.w - i or wp.strip
+    local a = clamp(edge - x, 0, wp.edge)
+    local b = clamp(edge - (x + seg), 0, wp.edge)
+    local left, right = scaled(c.colour1, a, wp.edge), scaled(c.colour2, b, wp.edge)
+    mf_c[1], mf_c[2], mf_c[3], mf_c[4] = left, right, left, right
+    mf_quad(0x3E, mf_c, x, c.y, seg, c.h, u, c.v, seg, c.clut + 1, c.tpage | m.semi)
+    i, x, u = i + wp.strip, x + wp.strip, u + wp.strip
+  end
+end
+local function mf_wheel(c)
+  local m, wh = look.menuf, look.menuf.wheel
+  local faded, plain = clut_word(wh.faded_clut[1], wh.faded_clut[2]), clut_word(wh.clut[1], wh.clut[2])
+  local y, v = c.y, c.v
+  for _ = 1, c.h do
+    local level
+    if y < wh.top then level = wh.grey - (wh.top - 1 - y) * wh.step
+    elseif y >= wh.bottom then level = wh.grey - (y - wh.bottom) * wh.step end
+    if level then
+      if level < 0 then level = 0 end
+      mf_c[1] = grey(level)
+      mf_quad(0x2E, mf_c, c.x, y, c.w, 1, c.u, v, c.w, faded, c.tpage | m.semi)
+      mf_quad(0x2E, mf_c, c.x, y, c.w, 1, c.u, v, c.w, faded, c.tpage | m.subtract)
+    else
+      mf_c[1] = grey(wh.grey)
+      mf_quad(0x2E, mf_c, c.x, y, c.w, 1, c.u, v, c.w, plain, c.tpage)
+    end
+    y, v = y + 1, v + 1
+  end
+end
+local function mf_area(c)
+  local o = mf_op(look.menuf.layer)
+  o.w[1] = 0xE3000000 | ((c.y & 0x3FF) << 10) | (c.x & 0x3FF)
+  o.w[2] = 0xE4000000 | (((c.y + c.b - 1) & 0x3FF) << 10) | ((c.x + c.a - 1) & 0x3FF)
+  o.count = 2
+end
+local mf_words = {}
+local function mf_prompt(c, words)
+  local p, b = look.menuf.prompt, look.buttons
+  local step = c.a
+  if step < 0 then return end
+  if step > p.steps then step = p.steps end
+  local x = c.x + p.dx - step * p.step
+  for i = 1, 2 do
+    local o = mf_op("unk8")
+    o.text, o.x, o.y = words[i], x + p.text_dx + look.menuf.place.dx, c.y + (i - 1) * p.line + look.menuf.place.dy
+  end
+  local y = c.y + p.drop
+  local blink = c.b & 0xF
+  if blink < 9 then y = y - 16 + (blink >> 1) else y = y - 10 - (blink >> 2) end
+  local s = b.sprite
+  local u = b.u[p.button]
+  mf_c[1] = 0
+  mf_quad(0x2D, mf_c, x, y + p.top, p.w, p.h, u, s.v, p.w, clut_word(s.clut_x, s.clut_y),
+    ((s.page_y & 0x100) >> 4) | ((s.page_x & 0x3FF) >> 6))
+end
+local function mf_string(codes)
+  local s = ""
+  for i = 1, #codes do s = s .. string.char(codes[i]) end
+  return s
+end
+local mf_draws = { function(c) mf_fade(c, c.a, c.clut) end, function(c) mf_fade(c, c.a, c.b) end, mf_tint, mf_pop,
+  mf_wipe, mf_wheel, mf_area } -- (by the call's op: classic_parity.h PC_CLASSIC_MENUF_*; 8 the prompt)
+M.draw.menuf = function(e, d)
+  local r = e.menuf
+  local ops = mf_draws
+  mf_words[1], mf_words[2] = mf_string(r.prompt[1]), mf_string(r.prompt[2])
+  mf_n = 0
+  for _, c in ipairs(r.calls) do
+    if c.op == 8 then mf_prompt(c, mf_words) else ops[c.op](c) end
+  end
+  d.anchor("game")
+  for i = mf_n, 1, -1 do
+    local o = mf_ops[i]
+    if o.slot == "unk8" then d.layer("unk8") else d.layer(o.slot) end
+    if o.text then d.text_raw(o.text, o.x, o.y, look.menuf.prompt.colour)
+    else
+      local w = o.w
+      if o.count == 2 then d.packet(w[1], w[2])
+      elseif o.count == 9 then d.packet(w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9])
+      else d.packet(w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12]) end
+    end
+  end
+  mf_n = 0
+end
+M.draw.menuf_load = function(e, d)
+  for _, u in ipairs(e.load.uploads) do
+    if u.pixels then d.image_load(u.x, u.y, u.w, u.h, u.pixels) end
+  end
+end
+
 for _, kind in ipairs({ "status", "chain", "gauges", "figure", "status_icons", "battle_mode", "ability_icons", "buff",
                         "damage", "actor_word", "timer", "emote", "text_frame", "text_band", "box_text", "image",
                         "target_row", "target_line", "target_marker", "menu_row", "menu_cursor", "menu_command",
                         "menu_tabs", "menu_background", "option_value", "items_category", "items_status_button", "equip_stats",
                         "dp_pp_bars", "gem_slots", "stat_page", "ok_mark", "storage_buttons",
                         "storage_counts", "loot_capacities", "discard_count", "rename_grid", "rename_box", "file_menu",
-                        "file_element" }) do
+                        "file_element", "menuf", "menuf_load" }) do
   rood.hud.claim(kind, function(e, d) return M.draw[kind](e, d) end, { flavour = "classic" })
 end
 

@@ -1,0 +1,221 @@
+{
+ "function": "vs_battle_drawCursor",
+ "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": false,
+ "plan": {
+  "name": "vs_battle_drawCursor",
+  "unit": "src/BATTLE/BATTLE.PRG/5BF94.c",
+  "stem": "5BF94",
+  "address": "0x800ccd40",
+  "difficulty": "S",
+  "zig_name": "drawCursor",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "draw_cursor",
+  "spec_file": "drawCursor.zig",
+  "subsystem": "battle_5BF94_port",
+  "signature": "pub fn drawCursor(animStep: c_int, position: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "animStep",
+    "c_int"
+   ],
+   [
+    "position",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [
+   "vs_battle_cursorBrightnessAnimation"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11867,
+     "completion_tokens": 9736,
+     "reasoning_tokens": 8232,
+     "cost": 0.00302735,
+     "seconds": null,
+     "batch": "batch-1793203265-sQA1DX56rKylfzO4cWKR",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "step-15-wraps": "8887",
+   "position-negative": "8898",
+   "position-nonnegative": "12215"
+  },
+  "mutations": [
+   {
+    "name": "D1: wrong brightness constant (low bit)",
+    "caught": true
+   },
+   {
+    "name": "D2: return mask 0x7 instead of 0xF (steps 8-15 differ)",
+    "caught": true
+   },
+   {
+    "name": "D3: transparency word 0xB4 became 0xB5",
+    "caught": true
+   },
+   {
+    "name": "D4: y field offset 0xA became 0xB",
+    "caught": true
+   },
+   {
+    "name": "D5: store to word 3, not word 4",
+    "caught": true
+   },
+   {
+    "name": "D6: brightness table indexed by step ^ 1",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 5,
+   "lines_hit": 5,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min 0, max 15, seen zero, never negative"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -134217728, max 134217727, unsigned 0..4294967295, seen zero/negative/all ones"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35222,
+     "completion_tokens": 3855,
+     "reasoning_tokens": 3315,
+     "cost": 0.00272485,
+     "seconds": null,
+     "batch": "batch-1793206357-jxyW8CeGtJSNWKNpZo35",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/draw_cursor.zig:18:9: error: @ptrCast increases pointer alignment\n        @ptrCast(psx.get(v.g.vs_scratch().unk8)),\n        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\ngame/battle/draw_cursor.zig:18:25: note: '?*anyopaque' has alignment '1'\n        @ptrCast(psx.get(v.g.vs_scratch().unk8)),\n                 ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~\ngame/battle/draw_cursor.zig:18:9: note: '[*c]c_uint' has alignment '4'\ngame/battle/draw_cursor.zig:18:9: note: use @alignCast to assert pointer alignment\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:469:31\n    main: pc/tests/zig_diff/main.zig:392:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 36219,
+     "completion_tokens": 1627,
+     "reasoning_tokens": 1029,
+     "cost": 0.0022177,
+     "seconds": null,
+     "batch": "batch-1793379902-OYfFRiS0hzKPAZ8kx15j",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/drawCursor.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/draw_cursor.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 173.5949751039998,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 218302.14918971062,
+ "totals": {
+  "cost": 0.00797,
+  "prompt_tokens": 83308,
+  "completion_tokens": 15218,
+  "model_seconds": 0.0,
+  "check_seconds": 173.6,
+  "calls": 3,
+  "wall_seconds": 218302.1
+ }
+}

@@ -11,6 +11,7 @@
 #include <fstream>
 #include <functional>
 #include <mutex>
+#include <set>
 #include <sstream>
 
 #include "SPIRV/GlslangToSpv.h"
@@ -301,7 +302,32 @@ Result compile(const std::string& path)
     const EShMessages messages = (EShMessages)(EShMsgSpvRules | EShMsgVulkanRules);
     /* Includes as the standalone's -I: the stage's folder (pc/shaders/vulkan
      * or $ROOD_SHADERS), then the vendored SMAA. */
-    DirStackFileIncluder includer;
+    /* The generated folder first (material_graph.cpp: a generated include
+     * shadows the source file of its name), then as the standalone's -I. */
+    struct Includer : DirStackFileIncluder {
+        std::string generated;
+        std::set<std::string> extra;
+        IncludeResult* includeLocal(const char* header, const char* includer, size_t depth) override
+        {
+            if (!generated.empty()) {
+                std::string p = generated + "/" + header;
+                std::ifstream file(p, std::ios_base::binary | std::ios_base::ate);
+                if (file) {
+                    extra.insert(p);
+                    return newIncludeResult(p, file, (int)file.tellg());
+                }
+            }
+            return DirStackFileIncluder::includeLocal(header, includer, depth);
+        }
+        std::set<std::string> getIncludedFiles() override
+        {
+            std::set<std::string> all = DirStackFileIncluder::getIncludedFiles();
+            all.insert(extra.begin(), extra.end());
+            return all;
+        }
+    } includer;
+    const char* generated = getenv("ROOD_SHADERS_GENERATED");
+    includer.generated = generated && *generated ? generated : "pc/build/shaders/generated";
     includer.pushExternalDirectory(folder_of(path));
     const char* smaa = getenv("ROOD_SHADER_INCLUDE");
     includer.pushExternalDirectory(smaa && *smaa ? smaa : "pc/third_party/smaa");

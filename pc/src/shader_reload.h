@@ -19,6 +19,11 @@ extern "C" {
 extern int pc_shader_reload, pc_shader_reload_poll_ms;
 /* Once per presented frame, between frames: polls, and applies a finished compile. */
 void pc_shader_reload_poll(void);
+/* The node material graphs' generated include (material_graph.cpp): once per
+ * frame before the poll above, regenerates it when the graphs or the
+ * instances changed. A generated file was written: the next poll is at once. */
+void pc_material_graph_poll(void);
+void pc_shader_reload_request(void);
 /* Stage files to reload are there (the source folder has some): pipelines
  * keep their recipes (vk_core.c). */
 int pc_shader_reload_available(void);

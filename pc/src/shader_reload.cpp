@@ -88,6 +88,31 @@ std::string source_dir()
     return env && *env ? env : "pc/shaders/vulkan";
 }
 
+/* Generated includes (material_graph.cpp): a file here shadows the source
+ * file of its name (the compiler's includer reads it first). */
+std::string generated_dir()
+{
+    const char* env = getenv("ROOD_SHADERS_GENERATED");
+    return env && *env ? env : "pc/build/shaders/generated";
+}
+std::vector<std::string> generated_files()
+{
+    std::vector<std::string> out;
+    int count = 0;
+    std::string folder = generated_dir();
+    char** names = SDL_GlobDirectory(folder.c_str(), "*.glsl", 0, &count);
+    for (int i = 0; names && i < count; i++)
+        if (!strchr(names[i], '/'))
+            out.push_back(folder + "/" + names[i]);
+    SDL_free(names);
+    std::sort(out.begin(), out.end());
+    return out;
+}
+std::string base_name(const std::string& path)
+{
+    size_t slash = path.find_last_of('/');
+    return slash == std::string::npos ? path : path.substr(slash + 1);
+}
 bool is_stage(const std::string& name)
 {
     size_t dot = name.rfind('.');
@@ -360,7 +385,7 @@ void include_lines(const std::string& path, std::vector<std::string>& out)
         if (open == std::string::npos || close == std::string::npos || (end != std::string::npos && close > end))
             continue;
         std::string name = text.substr(open + 1, close - open - 1);
-        for (const std::string& base : { folder, std::string(smaa && *smaa ? smaa : "pc/third_party/smaa") }) {
+        for (const std::string& base : { generated_dir(), folder, std::string(smaa && *smaa ? smaa : "pc/third_party/smaa") }) {
             std::string candidate = tidy(base + "/" + name);
             if (sig_of(candidate).time < 0)
                 continue;
@@ -409,10 +434,17 @@ bool start()
 std::vector<std::string> affected(const std::set<std::string>& changed)
 {
     std::vector<std::string> out;
+    /* A generated file affects the stages reading a file of its name (the stub
+     * it shadows, until a compile records the generated one). */
+    std::set<std::string> shadowed;
+    std::string gen = generated_dir() + "/";
+    for (const std::string& c : changed)
+        if (c.rfind(gen, 0) == 0)
+            shadowed.insert(base_name(c));
     for (const std::string& stage : stage_files(dir)) {
         bool hit = changed.count(stage) > 0;
         for (const std::string& f : reads[stage])
-            hit |= changed.count(f) > 0;
+            hit |= changed.count(f) > 0 || shadowed.count(base_name(f)) > 0;
         if (hit)
             out.push_back(stage);
     }
@@ -519,6 +551,9 @@ extern "C" void pc_shader_reload_settle(void)
     state = -1;
 }
 
+/* A generated include was written (material_graph.cpp): poll at once. */
+extern "C" void pc_shader_reload_request(void) { last_poll = 0; }
+
 extern "C" int pc_shader_reload_redraw(void)
 {
     bool was = redraw;
@@ -545,10 +580,13 @@ extern "C" void pc_shader_reload_poll(void)
     if (now - last_poll < (Uint64)every && !reload_wanted)
         return;
     last_poll = now;
-    /* New stage files are watched from their first version on (a change). */
+    /* New stage files, and generated includes, are watched from their first version on (a change). */
     for (const std::string& stage : stage_files(dir))
         if (!watched.count(stage))
             watched[stage] = Watched {};
+    for (const std::string& f : generated_files())
+        if (!watched.count(f))
+            watched[f] = Watched {};
     std::set<std::string> settled;
     for (auto& [path, w] : watched) {
         Sig s = sig_of(path);
