@@ -61,6 +61,10 @@ bool Style::operator==(const Style& o) const
 }
 } // namespace hud
 
+/* At file scope: inside rl's anonymous namespace GCC mangles the name (the build's
+ * import check refuses rl::(anonymous)::vs_battle_characterWidths). */
+extern "C" char vs_battle_characterWidths[];
+
 namespace rl {
 namespace {
 using hud::Command;
@@ -1157,7 +1161,6 @@ int api_text_glyph(lua_State* L)
 // the game's printer (vs_battle_printVariableWidthFontChar, after vs_battle_setFontStyle(style): table 0, its
 // brightness 384), from x along y; returns the pen after it (each glyph's width, the game's table).
 extern "C" int vs_encode(const char* utf8, unsigned char* out, int cap, int* bad);
-extern "C" char vs_battle_characterWidths[];
 int api_font_text(lua_State* L)
 {
     const char* fn = "rood.draw.font_text";
