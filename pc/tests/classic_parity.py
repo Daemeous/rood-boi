@@ -4474,8 +4474,8 @@ def run(out, card, renderer, kinds, candidate=False):
         # (the run's save states are made for its own renderer: boot to the checkpoint instead)
         if os.environ.get("ROOD_RENDERER") != "null":
             os.environ["ROOD_TEST_SNAPSHOTS"] = "0"
-    elif renderer == "vulkan":
-        env["ROOD_RENDERER"] = "vulkan"
+    else:
+        env["ROOD_RENDERER"] = renderer  # named: the game's own default is Vulkan
     waivers = tomllib.loads((ROOT / "pc/tests/classic/waivers.toml").read_text())
     if "image" in kinds:
         run_new_game(out, env, check, waivers, ["image"])

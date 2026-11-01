@@ -2,15 +2,16 @@
 
 Phase 3 of [Modernization_Plan.md](Modernization_Plan.md): the whole frame on
 Vulkan, with hardware ray tracing (`VK_KHR_ray_query`) for shadows, indirect
-light and haze. 64-bit only (`build_boot.py --arch 64`); OpenGL stays the
-default and unchanged until Vulkan has been playtested.
+light and haze. 64-bit only (`build_boot.py --arch 64`), and the 64-bit
+build's default renderer; OpenGL (`ROOD_RENDERER=gl`, `pc/run-game.sh --gl`)
+is frozen: kept working as the fallback, no new features.
 
-    ROOD_RENDERER=vulkan pc/build/boot64/rood_battle_probe --window
-    python3 pc/tests/run.py --arch 64 --renderer vulkan
+    pc/build/boot64/rood_battle_probe --window
+    python3 pc/tests/run.py --arch 64            (--renderer vulkan, the default there)
 
 | Variable | Effect |
 | --- | --- |
-| `ROOD_RENDERER=vulkan` | Vulkan presentation and rendering (falls back to OpenGL when Vulkan is unavailable) |
+| `ROOD_RENDERER=vulkan` | Vulkan presentation and rendering, the default (falls back to OpenGL when Vulkan is unavailable); `gl` asks for OpenGL |
 | `ROOD_VK_DEVICE=N` | GPU by enumeration index (lists them); default: the first discrete 1.3 GPU |
 | `ROOD_VK_RT=0` | no ray tracing (GI/shadow passes unavailable) |
 | `ROOD_VK_VALIDATE=1` | Khronos validation layer (needs `VK_LAYER_PATH`; messages as `[vk] validation:`) |

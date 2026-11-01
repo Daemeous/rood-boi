@@ -61,6 +61,10 @@ if WINDOWS:
     BUILD = ROOT / "pc/build/win64"
 else:
     BUILD = ROOT / ("pc/build/boot64" if os.environ.get("ROOD_ARCH") == "64" else "pc/build/boot")
+    # The 64-bit game's own default renderer is Vulkan: named here too, so a suite started by
+    # hand asks ROOD_RENDERER and gets the renderer it runs on (pc/tests/run.py always names it).
+    if os.environ.get("ROOD_ARCH") == "64":
+        os.environ.setdefault("ROOD_RENDERER", "vulkan")
 BINARY = pathlib.Path(os.environ.get("ROOD_BINARY")  # ROOD_BINARY: e.g. a gdb wrapper
                       or BUILD / ("rood.exe" if WINDOWS else "rood_battle_probe"))
 # A socket path, or tcp:PORT (a loopback TCP port; dev_rpc.c).

@@ -1217,8 +1217,9 @@ def make_parser():
     parser.add_argument("--arch", choices=["32", "64"], default=os.environ.get("ROOD_ARCH", "64"),
                         help="game binary: 64 (pc/build/boot64, default) or 32 (pc/build/boot); sets ROOD_ARCH")
     parser.add_argument("--renderer", choices=["gl", "vulkan", "null"],
-                        default=os.environ.get("ROOD_RENDERER") if os.environ.get("ROOD_RENDERER") in ("vulkan", "null") else "gl",
-                        help="gl, vulkan (64-bit), or null (CPU-only oracle suites)")
+                        default=os.environ.get("ROOD_RENDERER") if os.environ.get("ROOD_RENDERER") in ("gl", "vulkan", "null") else None,
+                        help="vulkan (64-bit; the default there), gl (the 32-bit build's only one, and the default "
+                             "there), or null (CPU-only oracle suites)")
     parser.add_argument("--no-snapshots", action="store_true",
                         default=os.environ.get("ROOD_TEST_SNAPSHOTS", "1") == "0",
                         help="boot every suite from scratch: no save states of the test checkpoints "
@@ -1253,10 +1254,10 @@ def main():
     if args.clean:
         import clean_build
         return clean_build.clean()
-    if args.renderer in ("vulkan", "null"):
-        os.environ["ROOD_RENDERER"] = args.renderer
-    else:
-        os.environ.pop("ROOD_RENDERER", None)
+    if args.renderer is None or (args.renderer == "vulkan" and args.arch == "32"):
+        args.renderer = "vulkan" if args.arch == "64" else "gl"  # (the 32-bit build has no Vulkan)
+    # Always named (the game's own default is Vulkan, and suites ask ROOD_RENDERER which they run on).
+    os.environ["ROOD_RENDERER"] = args.renderer
     os.environ["ROOD_ARCH"] = args.arch  # suites and rood_rpc pick the binary from it
     rood_rpc.BUILD = ROOT / ("pc/build/boot64" if args.arch == "64" else "pc/build/boot")
     rood_rpc.BINARY = rood_rpc.BUILD / "rood_battle_probe"

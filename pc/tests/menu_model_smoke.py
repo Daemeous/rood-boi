@@ -60,8 +60,8 @@ def main():
            "ROOD_PLUGIN_DATA": str(work / "plugin-data")}
     if args.renderer == "null":
         env.update({"ROOD_RENDERER": "null", "SDL_VIDEO_DRIVER": "invalid-null-menu-model"})
-    elif args.renderer == "vulkan":
-        env["ROOD_RENDERER"] = "vulkan"
+    else:
+        env["ROOD_RENDERER"] = args.renderer  # named: the game's own default is Vulkan
     failures = []
 
     def check(ok, message):

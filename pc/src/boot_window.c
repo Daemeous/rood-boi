@@ -170,9 +170,10 @@ void pc_window_init(int enabled, int run_fast)
     static const char title[] = "rood-boi | native title diagnostic | arrows, Enter, Z; F1 overlay, F2 editor";
     const char* renderer = getenv("ROOD_RENDERER");
 #ifdef ROOD_VULKAN
-    /* Vulkan presentation (vk_present.c) when asked for; OpenGL otherwise
-     * or when Vulkan is unavailable. */
-    if (renderer && !strcmp(renderer, "vulkan")) {
+    /* Vulkan presentation (vk_present.c) by default; OpenGL when asked for
+     * (ROOD_RENDERER=gl, or x11 / software below) or when Vulkan is
+     * unavailable. */
+    if (!renderer || !*renderer || !strcmp(renderer, "vulkan")) {
         window = pc_vk_create_window(title, width, height);
         if (!window)
             fprintf(stderr, "[window] Vulkan unavailable; using OpenGL\n");

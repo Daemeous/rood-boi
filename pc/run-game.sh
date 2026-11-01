@@ -3,10 +3,10 @@
 # and input flow (--skip-movies skips the movie).
 # On an NVIDIA hybrid laptop/desktop it renders on the NVIDIA GPU (PRIME
 # offload); ROOD_GPU=integrated keeps the default GPU. Path-traced lighting is
-# on (ROOD_GI=0 turns it off). It plays the 64-bit build with OpenGL by
-# default (--64 says so explicitly); --vulkan plays it with the Vulkan renderer
-# (hardware ray tracing); --32 plays the old 32-bit build (build_boot.py
-# --battle, OpenGL only, no longer tested). --resume (or ROOD_RESUME=1)
+# on (ROOD_GI=0 turns it off). It plays the 64-bit build with the Vulkan
+# renderer (hardware ray tracing) by default (--64 and --vulkan say so
+# explicitly); --gl plays it with OpenGL (frozen: no new features); --32 plays
+# the old 32-bit build (build_boot.py --battle, OpenGL only, no longer tested). --resume (or ROOD_RESUME=1)
 # continues where the last session quit (the auto-snapshot, below) when it
 # still fits the build, else boots normally. --reload plays the 64-bit
 # development split (pc/build/dev64: rood_host and the engine library it
@@ -16,6 +16,7 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 build=1
 arch=64
+renderer= # --vulkan / --gl; else ROOD_RENDERER, else vulkan
 split=0
 args=()
 for arg in "$@"; do
@@ -23,7 +24,8 @@ for arg in "$@"; do
     --no-build) build=0 ;;
     --64) arch=64 ;;
     --32) arch=32 ;;
-    --vulkan) arch=64; export ROOD_RENDERER=vulkan ;;
+    --vulkan) arch=64; renderer=vulkan ;;
+    --gl) arch=64; renderer=gl ;;
     --resume) export ROOD_RESUME=1 ;;
     --reload) arch=64; split=1 ;;
     *) args+=("$arg") ;;
@@ -40,6 +42,8 @@ if ((build)); then
 fi
 binary=pc/build/boot/rood_battle_probe
 ((arch == 64)) && binary=pc/build/boot64/rood_battle_probe
+# The renderer (the game's own default is Vulkan; the 32-bit build has only OpenGL).
+((arch == 64)) && export ROOD_RENDERER="${renderer:-${ROOD_RENDERER:-vulkan}}"
 ((split)) && binary=pc/build/dev64/rood_host
 if [[ "${ROOD_GPU:-}" != integrated && -e /proc/driver/nvidia/version ]]; then
     export __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia

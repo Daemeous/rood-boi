@@ -284,8 +284,8 @@ offload; `ROOD_GPU=integrated` keeps the default GPU).
 
 | Option | Effect |
 | --- | --- |
-| `--vulkan` | 64-bit build, Vulkan renderer (`ROOD_RENDERER=vulkan`). Recommended. Falls back to OpenGL if Vulkan 1.3 is not available. |
-| *(none)* or `--64` | 64-bit build with the OpenGL renderer |
+| *(none)*, `--64` or `--vulkan` | 64-bit build, Vulkan renderer (`ROOD_RENDERER=vulkan`). Falls back to OpenGL if Vulkan 1.3 is not available. |
+| `--gl` | 64-bit build with the OpenGL renderer (frozen: kept working, no new features) |
 | `--32` | 32-bit build (`build_boot.py --battle`) with OpenGL: the original port configuration, no longer tested; needs the multilib/i386 packages above and has no Vulkan or NRD |
 | `--reload` | 64-bit development split: the engine is a library the running game reloads in place (below) |
 | `--no-build` | skip the build step and run the existing binary |
