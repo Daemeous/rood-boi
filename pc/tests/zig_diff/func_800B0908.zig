@@ -32,6 +32,12 @@ pub fn prepare(ctx: *zd.Ctx) Args {
     o.parent = if (ctx.chance(2)) 0xFF else ctx.int(u8);
     o.dx = ctx.pick(i16, &edges16);
     o.dz = ctx.pick(i16, &edges16);
+    // Mode 0xFF falls (and reaches the later `step == 0xFF` test) only with
+    // dx and dz both zero: about 1 in 17,000 from independent picks.
+    if (o.mode == 0xFF and ctx.chance(3)) {
+        o.dx = 0;
+        o.dz = 0;
+    }
     o.dy = if (ctx.chance(2)) ctx.range(i16, -3, 0) else ctx.pick(i16, &edges16);
     o.orientation = ctx.pick(i16, &.{ 0, 1, 2, 3, -1, -2, 4, -3 });
     o.position.vx = ctx.int(i16);

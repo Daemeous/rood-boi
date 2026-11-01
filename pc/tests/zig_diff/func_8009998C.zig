@@ -109,7 +109,9 @@ pub fn prepare(ctx: *zd.Ctx) Args {
         const flags: [4]u8 = std.mem.asBytes(&arg.unkC).*;
         const dst: *[4]u8 = @ptrCast(&o.unk5C);
         dst.* = flags;
-        o.unk1E = @truncate(@as(i32, s1e) + 0x80);
+        // One time in four the flags match and unk1E misses by one (the
+        // unk1E test's false side without func_800E6898's rare rewrite).
+        o.unk1E = @truncate(@as(i32, s1e) + if (ctx.chance(4)) @as(i32, 0x81) else 0x80);
         table[j] = o;
         planted = true;
         plant_same = pid == arg.actorId;

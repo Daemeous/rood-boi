@@ -3,10 +3,11 @@
 //! (every entry carries the same unk0_0 and unk0_5, so arg1's bytes match
 //! for every i) and random in the rest; arg1 whose low byte and byte 2 match
 //! the table or miss it (values 32-255 never equal a 5-bit field); arg2 zero
-//! and nonzero, with edges. func_8008D2C0 fills the four sp10 entries with
-//! values that match the odd table entries for some calls and random i16
-//! values for others, so the second test passes and fails in both of its
-//! operands.
+//! and nonzero, with edges; some random tables match arg1 only in their last
+//! pair, so the last iteration is the one that returns. func_8008D2C0 fills
+//! the four sp10 entries with values that match the odd table entries for
+//! some calls and random i16 values for others, so the second test passes and
+//! fails in both of its operands.
 const std = @import("std");
 const zd = @import("zdiff");
 const psx = @import("common").psx;
@@ -45,8 +46,19 @@ pub fn prepare(ctx: *zd.Ctx) Args {
         psx.setBits(&tab[k], "unk0_0", if (uniform) lo else ctx.int(u5));
         psx.setBits(&tab[k], "unk0_5", if (uniform) hi else ctx.int(u5));
     }
-    const lo8: u8 = if (ctx.chance(3)) ctx.range(u8, 32, 255) else lo;
-    const hi8: u8 = if (ctx.chance(3)) ctx.range(u8, 32, 255) else hi;
+    // Sometimes only the last pair (entries 14 and 15) carries arg1's bytes
+    // and entry 13 differs from 15, so i == 7 is the one that can return
+    // (a loop that stops early is caught without a lucky random table).
+    const last = !uniform and ctx.chance(2);
+    if (last) {
+        psx.setBits(&tab[14], "unk0_0", lo);
+        psx.setBits(&tab[14], "unk0_5", hi);
+        psx.setBits(&tab[15], "unk0_0", lo);
+        psx.setBits(&tab[15], "unk0_5", hi);
+        psx.setBits(&tab[13], "unk0_0", lo +% 1);
+    }
+    const lo8: u8 = if (!last and ctx.chance(3)) ctx.range(u8, 32, 255) else lo;
+    const hi8: u8 = if (!last and ctx.chance(3)) ctx.range(u8, 32, 255) else hi;
     const arg1: c_uint = (ctx.int(c_uint) & 0xFF00_FF00) | @as(c_uint, lo8) | (@as(c_uint, hi8) << 16);
     const arg2: c_int = if (ctx.chance(2)) 0 else ctx.pick(c_int, &.{ 1, -1, 7, 8, std.math.minInt(c_int) });
     return .{ ctx.int(c_int), arg1, arg2 };

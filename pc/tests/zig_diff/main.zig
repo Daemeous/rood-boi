@@ -127,12 +127,44 @@ fn callArity(comptime name: []const u8, comptime count: usize) usize {
 fn record(id: u16, args: anytype, comptime count: usize) void {
     var e = Entry{ .id = id, .n = count, .args = @splat(0), .state = 0 };
     inline for (0..count) |i| {
-        if (i < 8) e.args[i] = word(args[i]);
+        if (i < 8) e.args[i] = (if (textArgument(id, i, args[i])) |h| h else word(args[i])) & argMask(id, i);
     }
     if (!@hasDecl(spec, "hash_at_calls") or spec.hash_at_calls) e.state = hashRegions();
     const n = trace_len[side];
     if (n < trace_capacity) traces[side][n] = e;
     trace_len[side] = n + 1;
+}
+
+/// `pub const arg_masks = .{ .{ "callee", index, mask }, ... };` in a spec:
+/// only the masked bits of that integer argument are logged (the defined
+/// bits of a value the C builds in an uninitialised local; the rest is a
+/// register's leftover). Stronger than `uninitialisedArgument`, which drops
+/// the whole argument.
+fn argMask(id: u16, comptime i: usize) u64 {
+    if (!@hasDecl(spec, "arg_masks")) return ~@as(u64, 0);
+    inline for (spec.arg_masks) |entry| {
+        if (entry[1] == i and std.mem.eql(u8, entry[0], std.mem.span(stubName(id)))) return entry[2];
+    }
+    return ~@as(u64, 0);
+}
+
+/// `pub fn textArgument(call: []const u8, index: usize) bool`: a string
+/// argument compared by its text (a hash of the bytes up to the NUL), not its
+/// address: the C passes its own string literals, the port its own (the same
+/// bytes at another address).
+fn textArgument(id: u16, comptime i: usize, a: anytype) ?u64 {
+    if (!@hasDecl(spec, "textArgument")) return null;
+    const T = @TypeOf(a);
+    const is_pointer = switch (@typeInfo(T)) {
+        .pointer => true,
+        .optional => |o| @typeInfo(o.child) == .pointer,
+        else => false,
+    };
+    if (!is_pointer) return null;
+    if (!spec.textArgument(std.mem.span(stubName(id)), i)) return null;
+    const p: ?[*:0]const u8 = @ptrCast(a);
+    const text = p orelse return 0;
+    return std.hash.Wyhash.hash(0x7E47, std.mem.span(text));
 }
 
 fn defaultReturn(comptime T: type, comptime name: []const u8) T {
@@ -337,6 +369,7 @@ fn compareTraces() void {
             return;
         }
         for (0..x.n) |k| {
+            if (uninitialisedArgument(x.id, k)) continue;
             if (x.args[k] != y.args[k]) {
                 report("zdiff: MISMATCH iteration %llu: call %zu (%s): argument %zu: C %#llx, Zig %#llx\n", .{
                     @as(c_ulonglong, iteration), i, stubName(x.id), k, @as(c_ulonglong, x.args[k]), @as(c_ulonglong, y.args[k]) });
@@ -354,6 +387,15 @@ fn compareTraces() void {
         report("zdiff: MISMATCH iteration %llu: C makes %zu external calls, Zig %zu (first unmatched: %s)\n", .{
             @as(c_ulonglong, iteration), a, b, stubName(more) });
     }
+}
+
+/// `pub fn uninitialisedArgument(call: []const u8, index: usize) bool`: an
+/// argument the C passes uninitialised on this iteration's path (a register
+/// left by its caller, PORTING.md §11.4) is not compared; the port passes 0.
+/// The spec decides it per iteration, from what its prepare chose.
+fn uninitialisedArgument(id: u16, k: usize) bool {
+    if (!@hasDecl(spec, "uninitialisedArgument")) return false;
+    return spec.uninitialisedArgument(std.mem.span(stubName(id)), k);
 }
 
 fn stubName(id: u16) [*:0]const u8 {

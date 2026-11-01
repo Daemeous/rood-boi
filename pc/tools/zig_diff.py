@@ -27,6 +27,13 @@ that is the C itself) and requires the harness to catch every one, and
 requires every input class the spec declares to occur. A spec whose C
 returns no value on some path and whose callers ignore the result declares
 `pub const ignore_return = "<why>";` (the return value is then not compared).
+A call argument the C passes uninitialised on some path (a register its
+caller left: 30DB0's func_8009EA14) is excluded by the spec's
+`pub fn uninitialisedArgument(call: []const u8, index: usize) bool`, decided
+per iteration from what prepare chose; the port passes 0 there. A string
+argument the C passes from its own literals (the port from its own: the same
+bytes at another address) is compared by its text when the spec's
+`pub fn textArgument(call: []const u8, index: usize) bool` says so.
 
 --coverage adds the coverage lane (TRIAL.md's design note): the original
 body again at -O0 with gcov (branches; conditions on GCC 14+), every
@@ -400,6 +407,13 @@ class Build:
         sizes.update(sizes_from_native_imports(self.build / "native_imports.c", missing))
         missing = [n for n in data if sizes.get(n, -1) <= 0]
         sizes.update(sizes_from_objects(self.build, missing))
+        missing = [n for n in data if sizes.get(n, -1) <= 0]
+        # `room = { NAME = BYTES }` in the entry: an unsized table the C indexes
+        # past the next PS1 symbol (the decomp split one guest table in two).
+        for n, size in self.entry.get("room", {}).items():
+            if n not in data:
+                raise Failure(f"room: {n} is not a global the function reaches")
+            sizes[n] = max(sizes.get(n, 0), int(size))
         missing = [n for n in data if sizes.get(n, -1) <= 0]
         if missing:
             raise Failure(f"no size for {', '.join(missing)} (neither DWARF, imports.ld, native_imports.c nor "

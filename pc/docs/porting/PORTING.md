@@ -888,7 +888,7 @@ Keep the C's label names as the block or enum names.
 | `INCLUDE_ASM` with a `ROOD_PC` C replacement | port the replacement (§12) |
 | block-scope `extern` declarations (the `ROOD_PC` hooks declare their host functions inside the body) | nothing: `ownership.strip_bodies` hoists them, so `c` declares them (a weak one is still called through `psx.weak`) |
 | a missing `return` in a non-void function (`func_8008C8A8`) | return what the object returns (read `%eax`); comment it |
-| uninitialised locals read | what GCC's object does when it is deterministic; else initialise to 0, comment "uninitialised in the original" and expect the double oracle to mask it |
+| uninitialised locals read | what GCC's object does when it is deterministic; else initialise to 0, comment "uninitialised in the original" and expect the double oracle to mask it; passed to a call, the zig_diff spec excludes that argument on that path (`uninitialisedArgument`) |
 | `do { } while (0)` from macros | plain statements |
 
 ## 12. `ROOD_PC` code

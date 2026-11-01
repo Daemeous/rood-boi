@@ -13,6 +13,11 @@
 # the spec's inputs; no boundary-equality or sign-only value flag). A gap the spec cannot or
 # should not close is waived with its reason:
 #   [[function.F.coverage_waiver]]  id = "+38 b1" (as the report prints it), reason = "..."
+#
+# An unsized table the harness sizes by the gap to the next PS1 symbol, which the C indexes past
+# (one guest table the decomp split at a symbol), gets more room: room = { NAME = BYTES }.
+# An integer argument with bits from an uninitialised local (a register's leftover in the object)
+# is logged through a mask: pub const arg_masks = .{.{ "callee", i, 0x00FF_FFFF }};
 
 [function._updateEnemyKills]
 spec = "updateEnemyKills.zig"
@@ -43270,3 +43275,1643 @@ reason = "`if (pc_classic_site)` is a weak hook the harness always links as a re
 [[function.func_800C1DC4.coverage_waiver]]
 id = "+124 b1"
 reason = "`if (pc_classic_site)` is the same always-linked recording stub as at +85; no input makes the harness's link null, so the false side is unreachable."
+
+[function.func_800C28AC]
+spec = "func_800C28AC.zig"
+iterations = 30000
+
+[[function.func_800C28AC.coverage_waiver]]
+id = "+67 b1"
+reason = "`if (pc_classic_site)` (the target marker's PC_CLASSIC site): the weak hook is always linked (classic_bridge.c in the game, a recording stub here); its null side never runs"
+
+[[function.func_800C28AC.mutation]]
+name = "M1: prim[2] wrong constant"
+target = "c"
+from = "prim[2] = xy + 0xFFF7FFF3;"
+to = "prim[2] = xy + 0xFFF7FFF4;"
+
+[[function.func_800C28AC.mutation]]
+name = "M2: frame counter masked to 3 bits"
+target = "c"
+from = "D_800EA6AC = (D_800EA6AC + 1) & 0xF;"
+to = "D_800EA6AC = (D_800EA6AC + 1) & 0x7;"
+
+[[function.func_800C28AC.mutation]]
+name = "M3: marker x zero-extended instead of sign-extended"
+target = "c"
+from = "pcMarker.x = (short)xy"
+to = "pcMarker.x = (unsigned short)xy"
+
+[[function.func_800C28AC.mutation]]
+name = "M4: second prim's colour read from the loop counter"
+target = "c"
+from = "prim[4] = D_800EA698[index];"
+to = "prim[4] = D_800EA698[i];"
+
+[[function.func_800C28AC.mutation]]
+name = "M5: brightness selector off by one"
+target = "c"
+from = "index == 2"
+to = "index == 1"
+
+[[function.func_800C28AC.mutation]]
+name = "M6: lock passed to the hook as 0"
+target = "c"
+from = "pcMarker.lock = arg1;"
+to = "pcMarker.lock = 0;"
+
+[[function.func_800C28AC.mutation]]
+name = "P1: ot stepped back four words (u_long*) instead of four bytes (psx_get's void*)"
+from = "psx.get(v.g.vs_scratch().unk4).?, -4)"
+to = "psx.get(v.g.vs_scratch().unk4).?, -16)"
+
+[function.func_800AB4F0]
+spec = "func_800AB4F0.zig"
+iterations = 30000
+
+[[function.func_800AB4F0.coverage_waiver]]
+id = "+20 b1"
+reason = "`bounds[2] &&` repeats the enclosing `if (bounds[2])` with no store to bounds in between: its false side cannot run (the `!= height` half is covered both ways)"
+
+[[function.func_800AB4F0.mutation]]
+name = "M1: vertical bounce reads the velocity unsigned"
+target = "c"
+from = "y -= (signed char)state[3] * 2;"
+to = "y -= state[3] * 2;"
+
+[[function.func_800AB4F0.mutation]]
+name = "M2: right edge test inclusive"
+target = "c"
+from = "if (limitX < x + width || x < sx) {"
+to = "if (limitX <= x + width || x < sx) {"
+
+[[function.func_800AB4F0.mutation]]
+name = "M3: timer test inclusive"
+target = "c"
+from = "if (state[4] < state[5]) {"
+to = "if (state[4] <= state[5]) {"
+
+[[function.func_800AB4F0.mutation]]
+name = "M4: the half-scale x divides by 4"
+target = "c"
+from = "x /= 2;"
+to = "x /= 4;"
+
+[[function.func_800AB4F0.mutation]]
+name = "M5: no skip on a repeated height"
+target = "c"
+from = "if (bounds[2] && bounds[2] != height) {"
+to = "if (bounds[2]) {"
+
+[[function.func_800AB4F0.mutation]]
+name = "M6: signed tick /2 as a shift"
+target = "c"
+from = "state[5] += vs_gametime_tickspeed / 2;"
+to = "state[5] += vs_gametime_tickspeed >> 1;"
+
+[function.func_800AAE9C]
+spec = "func_800AAE9C.zig"
+iterations = 30000
+# The decomp splits one guest table: rows 1-15 (and frames past 28) of each read past the next PS1 symbol.
+room = { D_800E909C = 1536, D_800E916C = 1024 }
+
+[[function.func_800AAE9C.mutation]]
+name = "M1: the case 0 to case 1 fall-through dropped"
+target = "c"
+from = """
+                continue;
+            }
+
+        case 1:"""
+to = """
+                continue;
+            }
+            break;
+
+        case 1:"""
+
+[[function.func_800AAE9C.mutation]]
+name = "M2: frame length test inclusive"
+target = "c"
+from = "if (p->unk1 < slot->unk3) {"
+to = "if (p->unk1 <= slot->unk3) {"
+
+[[function.func_800AAE9C.mutation]]
+name = "M3: slot 1 reads slot 0's table"
+target = "c"
+from = "p = &D_800E916C[slot->unk0_0][slot->unk2];"
+to = "p = (void*)&D_800E909C[slot->unk0_0][slot->unk2];"
+
+[[function.func_800AAE9C.mutation]]
+name = "M4: wrap keeps the frame index"
+target = "c"
+from = "slot->unk2 = 0;"
+to = "slot->unk2 = slot->unk2;"
+
+[[function.func_800AAE9C.mutation]]
+name = "M5: the frame passed without the -1"
+target = "c"
+from = "func_800AB098(actor, i, slot->unk1 - 1);"
+to = "func_800AB098(actor, i, slot->unk1);"
+
+[[function.func_800AAE9C.mutation]]
+name = "M6: a mode-0 slot at frame 1 stays active"
+target = "c"
+from = "slot->unk0_0 = 0;"
+to = "slot->unk0_0 = 1;"
+
+[function.func_800DE030]
+spec = "func_800DE030.zig"
+iterations = 30000
+# statusEffectTable's entries[1] is indexed 14 and 17: past the gap to the next PS1 symbol.
+room = { vs_main_statusEffectParams = 512 }
+
+[[function.func_800DE030.mutation]]
+name = "M1: limb regen at 2880 too"
+target = "c"
+from = "if (D_800F58BC->unk18 > 2880) {"
+to = "if (D_800F58BC->unk18 >= 2880) {"
+
+[[function.func_800DE030.mutation]]
+name = "M2: poison reads the regen interval"
+target = "c"
+from = """
+                                        .entries[14]"""
+to = """
+                                        .entries[17]"""
+
+[[function.func_800DE030.mutation]]
+name = "M3: poison drain rounded per tick (scale divided first)"
+target = "c"
+from = """
+            stats->currentHP -= (ticks
+                                    / (*(statusEffectTable*)vs_main_statusEffectParams)
+                                        .entries[14]
+                                        .interval)
+                              * scale / 100;"""
+to = """
+            stats->currentHP -= (ticks
+                                    / (*(statusEffectTable*)vs_main_statusEffectParams)
+                                        .entries[14]
+                                        .interval)
+                              * (scale / 100);"""
+
+[[function.func_800DE030.mutation]]
+name = "M4: status expiry strict"
+target = "c"
+from = "if (D_800F58BC->unk18 >= duration) {"
+to = "if (D_800F58BC->unk18 > duration) {"
+
+[[function.func_800DE030.mutation]]
+name = "M5: MP clamped to maxHP"
+target = "c"
+from = """
+        if (stats->currentMP > stats->maxMP) {
+            stats->currentMP = stats->maxMP;"""
+to = """
+        if (stats->currentMP > stats->maxMP) {
+            stats->currentMP = stats->maxHP;"""
+
+[[function.func_800DE030.mutation]]
+name = "M6: the key-limb test uses the second limb twice"
+target = "c"
+from = "if (stats->limbs[stats->unk34].hp >= 2 ||"
+to = "if (stats->limbs[stats->unk35].hp >= 2 ||"
+
+[[function.func_800DE030.mutation]]
+name = "M7: candidate refresh skips the last column"
+target = "c"
+from = "for (column = 0; column < 4; ++column) {"
+to = "for (column = 0; column < 3; ++column) {"
+
+[function.func_800BFBB8]
+spec = "func_800BFBB8.zig"
+iterations = 30000
+
+[[function.func_800BFBB8.mutation]]
+name = "M1: the START skip ignores D_800F4C68"
+target = "c"
+from = "|| (D_800F4C68 != 0))) {"
+to = "|| (0))) {"
+
+[[function.func_800BFBB8.mutation]]
+name = "M2: case 4 stops without advancing"
+target = "c"
+from = """
+        case 4:
+            script += func_800BFE34(script);
+            break;"""
+to = """
+        case 4:
+            break;"""
+
+[[function.func_800BFBB8.mutation]]
+name = "M3: the call always goes through the main table"
+target = "c"
+from = "ret = D_800F4C28[*script](script, arg1);"
+to = "ret = _opcodeFunctionTable[*script](script, arg1);"
+
+[[function.func_800BFBB8.mutation]]
+name = "M4: case 3 keeps the script pointer"
+target = "c"
+from = "*arg0 = 0;"
+to = "*arg0 = script;"
+
+[[function.func_800BFBB8.mutation]]
+name = "M5: the skip leaves the scene flag at 1"
+target = "c"
+from = "D_800F4C2C = 2;"
+to = "D_800F4C2C = 1;"
+
+[[function.func_800BFBB8.mutation]]
+name = "M6: the relocation check reports the wrong table"
+target = "c"
+from = ": D_800F4C28[*script]);"
+to = ": _opcodeFunctionTable[*script]);"
+
+[[function.func_800BFBB8.mutation]]
+name = "M7: the text box statuses not cleared"
+target = "c"
+from = "vs_battle_textBoxStatuses[2] = 0;"
+to = "(void)0;"
+
+[[function.func_800BFBB8.mutation]]
+name = "P1: the relocation message text changed (textArgument compares it by its text)"
+from = '"event opcode callback relocation"'
+to = '"event opcode callback"'
+
+[function.func_800DE3E4]
+spec = "func_800DE3E4.zig"
+iterations = 20000
+
+[[function.func_800DE3E4.coverage_waiver]]
+id = "+50 b0"
+reason = "remaining = 16 - selected[0] - 3 with selected[0] = min(count, 10): at least 3, never negative"
+
+[[function.func_800DE3E4.mutation]]
+name = "M1: the middle pass keeps the third quota's room"
+target = "c"
+from = "remaining = 16 - selected[0] - quotas[2];"
+to = "remaining = 16 - selected[0];"
+
+[[function.func_800DE3E4.mutation]]
+name = "M2: the threshold spread one short (inclusive at 80 is the same result)"
+target = "c"
+from = "                   < 80) {"
+to = "                   < 79) {"
+
+[[function.func_800DE3E4.mutation]]
+name = "M3: the kept count one short"
+target = "c"
+from = "state->count = index + 1;"
+to = "state->count = index;"
+
+[[function.func_800DE3E4.mutation]]
+name = "M4: the fallback weight not set"
+target = "c"
+from = "fallback->weight = 128;"
+to = "(void)0;"
+
+[[function.func_800DE3E4.mutation]]
+name = "M5: minDelay ignores the stats"
+target = "c"
+from = "minDelay = ((state->minDelay) <"
+to = "minDelay = state->minDelay; (void)((state->minDelay) <"
+
+[[function.func_800DE3E4.mutation]]
+name = "M6: the boss's count not moved"
+target = "c"
+from = "D_800F5920->unk17 = state->count;"
+to = "D_800F5920->unk17 = 0;"
+
+[function.func_800E1EAC]
+spec = "func_800E1EAC.zig"
+iterations = 30000
+
+[[function.func_800E1EAC.coverage_waiver]]
+id = "+54 b1"
+reason = "the roaming branch's `else if (state->cooldown)`: a zero cooldown takes the re-plan just above (`|| !state->cooldown`), which sets it to 60, so it is never 0 here"
+
+[[function.func_800E1EAC.mutation]]
+name = "M1: the first rest ends at 30"
+target = "c"
+from = "if (state->timer < 31)"
+to = "if (state->timer < 30)"
+
+[[function.func_800E1EAC.mutation]]
+name = "M2: free roaming from 64"
+target = "c"
+from = "if (range >= 63) {"
+to = "if (range > 63) {"
+
+[[function.func_800E1EAC.mutation]]
+name = "M3: the bounds check walks only one heading"
+target = "c"
+from = "for (boundsIndex = 0; boundsIndex < 2;"
+to = "for (boundsIndex = 0; boundsIndex < 1;"
+
+[[function.func_800E1EAC.mutation]]
+name = "M4: the wall bit read as 0x400"
+target = "c"
+from = "[z][x] & 0x800)) {"
+to = "[z][x] & 0x400)) {"
+
+[[function.func_800E1EAC.mutation]]
+name = "M5: the arrival test ignores z"
+target = "c"
+from = "if ((state->dest.raw & 0xFF00FF) == (state->tile.raw & 0xFF00FF)"
+to = "if ((state->dest.raw & 0xFF) == (state->tile.raw & 0xFF)"
+
+[[function.func_800E1EAC.mutation]]
+name = "M6: the tried directions masked to 2 bits"
+target = "c"
+from = "int direction = (heading + i * 2) & 7;"
+to = "int direction = (heading + i * 2) & 3;"
+
+[[function.func_800E1EAC.mutation]]
+name = "M7: the rest wraps to the move period on the wrong draw"
+target = "c"
+from = "state->timer = (unsigned int)func_800E45D4(128) < 44 ? move : 0;"
+to = "state->timer = (unsigned int)func_800E45D4(128) < 44 ? 0 : move;"
+
+[function.func_800E2F5C]
+spec = "func_800E2F5C.zig"
+iterations = 30000
+
+[[function.func_800E2F5C.coverage_waiver]]
+id = "+68 eq"
+reason = "a bound against the destination's centre: the bound is a multiple of 128 (a 5-bit field << 7), the centre a tile's middle (tile << 7, + 64), so they are never equal"
+
+[[function.func_800E2F5C.coverage_waiver]]
+id = "+69 eq"
+reason = "a bound against the destination's centre: the bound is a multiple of 128 (a 5-bit field << 7), the centre a tile's middle (tile << 7, + 64), so they are never equal"
+
+[[function.func_800E2F5C.coverage_waiver]]
+id = "+75 eq"
+reason = "a bound against the destination's centre: the bound is a multiple of 128 (a 5-bit field << 7), the centre a tile's middle (tile << 7, + 64), so they are never equal"
+
+[[function.func_800E2F5C.coverage_waiver]]
+id = "+76 eq"
+reason = "a bound against the destination's centre: the bound is a multiple of 128 (a 5-bit field << 7), the centre a tile's middle (tile << 7, + 64), so they are never equal"
+
+[[function.func_800E2F5C.coverage_waiver]]
+id = "+83 eq"
+reason = "a bound against the destination's centre: the bound is a multiple of 128 (a 5-bit field << 7), the centre a tile's middle (tile << 7, + 64), so they are never equal"
+
+[[function.func_800E2F5C.coverage_waiver]]
+id = "+84 eq"
+reason = "a bound against the destination's centre: the bound is a multiple of 128 (a 5-bit field << 7), the centre a tile's middle (tile << 7, + 64), so they are never equal"
+
+[[function.func_800E2F5C.coverage_waiver]]
+id = "+90 eq"
+reason = "a bound against the destination's centre: the bound is a multiple of 128 (a 5-bit field << 7), the centre a tile's middle (tile << 7, + 64), so they are never equal"
+
+[[function.func_800E2F5C.coverage_waiver]]
+id = "+91 eq"
+reason = "a bound against the destination's centre: the bound is a multiple of 128 (a 5-bit field << 7), the centre a tile's middle (tile << 7, + 64), so they are never equal"
+
+[[function.func_800E2F5C.mutation]]
+name = "M1: the side direction turns the wrong way"
+target = "c"
+from = "direction = (path.bits.clockwise ? heading - 2 : heading + 2) & 7;"
+to = "direction = (path.bits.clockwise ? heading + 2 : heading - 2) & 7;"
+
+[[function.func_800E2F5C.mutation]]
+name = "M2: the wall bit read one above the mask"
+target = "c"
+from = """
+                >> mask)"""
+to = """
+                >> (mask + 1))"""
+
+[[function.func_800E2F5C.mutation]]
+name = "M3: a full visit set at 7"
+target = "c"
+from = "if (path.bits.visited == 15) {"
+to = "if (path.bits.visited == 7) {"
+
+[[function.func_800E2F5C.mutation]]
+name = "M4: the detour does not store the next tile"
+target = "c"
+from = "state->next = point;"
+to = "(void)0;"
+
+[[function.func_800E2F5C.mutation]]
+name = "M5: a blocked neighbour accepted at 0"
+target = "c"
+from = "|| func_800D954C((func_800D8400_t*)state, ahead.raw) <= 0) {"
+to = "|| func_800D954C((func_800D8400_t*)state, ahead.raw) < 0) {"
+
+[[function.func_800E2F5C.mutation]]
+name = "M6: the cell not updated"
+target = "c"
+from = "path.bits.cell = cell;"
+to = "(void)cell;"
+
+[[function.func_800E2F5C.mutation]]
+name = "M7: the stop bit not set"
+target = "c"
+from = "path.bits.stop = 1;"
+to = "(void)0;"
+
+[function.func_800DFBCC]
+spec = "func_800DFBCC.zig"
+iterations = 40000
+
+[[function.func_800DFBCC.coverage_waiver]]
+id = "+39 eq"
+reason = "`route & 0x8000` compiles to a sign test of the 16-bit route (< 0); on this line route has 0x400 set, so it is never 0: the equal case cannot occur"
+
+[[function.func_800DFBCC.mutation]]
+name = "M1: a closed gate passes"
+target = "c"
+from = """
+                if (!((((routeEdgeGlobals*)D_800F58BC)->closedGates >> candidate.p.y)
+                        & 1)) {"""
+to = """
+                if (!((((routeEdgeGlobals*)D_800F58BC)->closedGates >> candidate.p.y)
+                        & 0)) {"""
+
+[[function.func_800DFBCC.mutation]]
+name = "M2: a jump one step short"
+target = "c"
+from = "amount = ((route >> 13) & 3) + 1;"
+to = "amount = ((route >> 13) & 3);"
+
+[[function.func_800DFBCC.mutation]]
+name = "M3: a stop keeps the height"
+target = "c"
+from = """
+        stop:
+            candidate.p.y = 0;"""
+to = """
+        stop:
+            (void)0;"""
+
+[[function.func_800DFBCC.mutation]]
+name = "M4: the passage row uses the x width"
+target = "c"
+from = "[position.p.z * *(u_char*)0x1F8003DC + position.p.x]"
+to = "[position.p.x * *(u_char*)0x1F8003DC + position.p.z]"
+
+[[function.func_800DFBCC.mutation]]
+name = "M5: the closer edge chosen on a tie"
+target = "c"
+from = "if (distances[0] < distances[1]) {"
+to = "if (distances[0] <= distances[1]) {"
+
+[[function.func_800DFBCC.mutation]]
+name = "M6: the target's z read from its y"
+target = "c"
+from = """
+                                           [2];"""
+to = """
+                                           [1];"""
+
+[[function.func_800DFBCC.mutation]]
+name = "M7: the area from the tile's low 3 bits"
+target = "c"
+from = """
+                        % 16;"""
+to = """
+                        % 8;"""
+
+[function.func_800E0A68]
+spec = "func_800E0A68.zig"
+iterations = 40000
+
+[[function.func_800E0A68.coverage_waiver]]
+id = "+190 eq"
+reason = "ground == py makes offset 0, so height = ground (the quotient is 0); with ground <= top (ground = min(top, ...)) `top < height` is then false: this test never runs with its two sides equal"
+
+[[function.func_800E0A68.mutation]]
+name = "M1: the ledge snap inclusive"
+target = "c"
+from = "if ((((rise)>=0)?(rise):(-(rise))) < step) {"
+to = "if ((((rise)>=0)?(rise):(-(rise))) <= step) {"
+
+[[function.func_800E0A68.mutation]]
+name = "M2: the actor's half height dropped"
+target = "c"
+from = "state->moveY = actor->y - (actor->height >> 1) - state->position.p.y;"
+to = "state->moveY = actor->y - state->position.p.y;"
+
+[[function.func_800E0A68.mutation]]
+name = "M3: the wall turn a quarter off"
+target = "c"
+from = """
+            angle = -angle;
+            angle += 4096 * 3 / 4;
+            angle &= 0xFFF;
+            state->moveY = 0;"""
+to = """
+            angle = -angle;
+            angle += 4096 / 4;
+            angle &= 0xFFF;
+            state->moveY = 0;"""
+
+[[function.func_800E0A68.mutation]]
+name = "M4: px sign-extended"
+target = "c"
+from = "px = state->position.raw & 0xFFFF;"
+to = "px = (short)state->position.raw;"
+
+[[function.func_800E0A68.mutation]]
+name = "M5: the arc's x step along the sine"
+target = "c"
+from = "x = (px << 12) + step * rcos(angle);"
+to = "x = (px << 12) + step * rsin(angle);"
+
+[[function.func_800E0A68.mutation]]
+name = "M6: the climb ignores the unk228 reset"
+target = "c"
+from = """
+            func_800DEEFC((void*)state, mode);
+            state->unk228 = 0;
+            return;"""
+to = """
+            func_800DEEFC((void*)state, mode);
+            return;"""
+
+[[function.func_800E0A68.mutation]]
+name = "M7: the ceiling clamp skips the fall"
+target = "c"
+from = """
+            if (ground < py) {
+                goto fall;
+            }"""
+to = """
+            if (ground < py) {
+                height = top;
+            }"""
+
+[function.func_800B002C]
+spec = "func_800B002C.zig"
+iterations = 40000
+
+[[function.func_800B002C.mutation]]
+name = "M1: the identity scale's offset not halved"
+target = "c"
+from = "scratch->offset.vx = (short)*(u_short*)((char*)actor + 0x84C) >> 1;"
+to = "scratch->offset.vx = (short)*(u_short*)((char*)actor + 0x84C);"
+
+[[function.func_800B002C.mutation]]
+name = "M2: the facing ease unmasked"
+target = "c"
+from = "actor->unk0.facing = (actor->unk0.facing + dx) & 0xFFF;"
+to = "actor->unk0.facing = (actor->unk0.facing + dx);"
+
+[[function.func_800B002C.mutation]]
+name = "M3: the yaw clamp at 799"
+target = "c"
+from = """
+        if (yaw > 800) {
+            yaw = 800;
+        }"""
+to = """
+        if (yaw > 799) {
+            yaw = 799;
+        }"""
+
+[[function.func_800B002C.mutation]]
+name = "M4: the pitch wrap strict"
+target = "c"
+from = """
+        if (pitch >= 0x800) {
+            pitch -= 0x1000;
+        }"""
+to = """
+        if (pitch > 0x800) {
+            pitch -= 0x1000;
+        }"""
+
+[[function.func_800B002C.mutation]]
+name = "M5: the tile from z twice"
+target = "c"
+from = "actor->unk0.currentTileX = actor->unk0.position.vx / 128;"
+to = "actor->unk0.currentTileX = actor->unk0.position.vz / 128;"
+
+[[function.func_800B002C.mutation]]
+name = "M6: the walking animations end at 33"
+target = "c"
+from = "if ((u_int)(dx - 8) < 27) {"
+to = "if ((u_int)(dx - 8) < 26) {"
+
+[[function.func_800B002C.mutation]]
+name = "M7: the limit not negated below"
+target = "c"
+from = """
+        if (pitch < -limit) {
+            pitch = -limit;
+        }"""
+to = """
+        if (pitch < -limit) {
+            pitch = limit;
+        }"""
+
+[function.func_800AD714]
+spec = "func_800AD714.zig"
+iterations = 30000
+# Every opcode's length is read (the filtered modes skip any byte), and command 60 indexes its point table and 4 a sound table by a script byte.
+room = { D_800E9298 = 256, D_800E9A28 = 2056, D_800E92DC = 256 }
+
+[[function.func_800AD714.coverage_waiver]]
+id = "+24 b1"
+reason = "mode 1's last test `(u_int)(op - 0x20) < 8`: 0x20-0x27 already pass `(u_int)(op - 0x1D) < 0x12` (0x1D-0x2E) before it, so it is never true"
+
+[[function.func_800AD714.mutation]]
+name = "M1: the frame test inclusive"
+target = "c"
+from = "(short)state->unk540) < arg)) {"
+to = "(short)state->unk540) <= arg)) {"
+
+[[function.func_800AD714.mutation]]
+name = "M2: mode 3 stops at command 3"
+target = "c"
+from = "if (op != 2) {"
+to = "if (op != 3) {"
+
+[[function.func_800AD714.mutation]]
+name = "M3: mode 2 runs 0x28 too"
+target = "c"
+from = "if ((u_int)(op - 0x24) >= 4) {"
+to = "if ((u_int)(op - 0x24) >= 5) {"
+
+[[function.func_800AD714.mutation]]
+name = "M4: the nudge not negated in mode 2"
+target = "c"
+from = "delta = -packed;"
+to = "delta = packed;"
+
+[[function.func_800AD714.mutation]]
+name = "M5: the vertical nudge read unsigned"
+target = "c"
+from = "+ arg * 8))[1] += (signed char)script[3];"
+to = "+ arg * 8))[1] += script[3];"
+
+[[function.func_800AD714.mutation]]
+name = "M6: the trail colour not set"
+target = "c"
+from = "weapon->unk13 = sfx[0];"
+to = "(void)0;"
+
+[[function.func_800AD714.mutation]]
+name = "M7: the heading wrap at 0x7FF"
+target = "c"
+from = """
+        if (motion->unkA > 0x800) {
+            motion->unkA -= 0x1000;
+        }
+        arg = script[3];"""
+to = """
+        if (motion->unkA > 0x7FF) {
+            motion->unkA -= 0x1000;
+        }
+        arg = script[3];"""
+
+[[function.func_800AD714.mutation]]
+name = "M8: command 41 does not skip its 5 bytes"
+target = "c"
+from = "script += 5;"
+to = "script += 0;"
+
+[function.func_800A76BC]
+spec = "func_800A76BC.zig"
+iterations = 40000
+
+[[function.func_800A76BC.coverage_waiver]]
+id = "+423 eq"
+reason = "the z branch's x acceptance (`motion->vx < 0`): it needs xResults[0] != 0xFF, which only the x probe sets, and that runs only with vx nonzero"
+
+[[function.func_800A76BC.coverage_waiver]]
+id = "+153 b4"
+reason = "the five probes step `direction` by -2, +4, -3, +2 from an odd start (1, 3, 5, 7): it is even at the test, so `(direction & 1)` is never true"
+
+[[function.func_800A76BC.coverage_waiver]]
+id = "+160 b1"
+reason = "`if (motion->vx != 0)` after the diagonal: the diagonal runs only with both axes nonzero (the x-only case jumps into the block, the z-only one past it), so it is never false"
+
+[[function.func_800A76BC.coverage_waiver]]
+id = "+96 eq"
+reason = "the diagonal's `motion->vx < 0`: the diagonal runs only with vx nonzero"
+
+[[function.func_800A76BC.coverage_waiver]]
+id = "+104 eq"
+reason = "the diagonal's `motion->vz < 0`: the diagonal runs only with vz nonzero"
+
+[[function.func_800A76BC.coverage_waiver]]
+id = "+163 eq"
+reason = "probeX's `motion->vx < 0`: probeX runs only with vx nonzero (from the diagonal or the x-only jump)"
+
+[[function.func_800A76BC.coverage_waiver]]
+id = "+231 eq"
+reason = "`|x| >= |z|` after `|x| == |z| ||`: the equal case short-circuits before it"
+
+[[function.func_800A76BC.coverage_waiver]]
+id = "+245 eq"
+reason = "the x acceptance's `x < 0`: with x 0 xResults[0] is 0xFF (no x probe), so the acceptance test fails before it"
+
+[[function.func_800A76BC.coverage_waiver]]
+id = "+405 eq"
+reason = "the z branch's `z < 0`: it runs only with |z| > |x|, so z is never 0"
+
+[[function.func_800A76BC.coverage_waiver]]
+id = "+447 eq"
+reason = "slideZ's `motion->vz < 0`: slideZ is reached only from the z branch (|z| > |x|), so vz is never 0"
+
+[[function.func_800A76BC.coverage_waiver]]
+id = "+318 sign"
+reason = "`zResults[0] != 0` / `zResults[1] != 1` inside `if (zResults[0] < 2)` and `if (zResults[1] < 2)`: they are never above 1 here"
+
+[[function.func_800A76BC.coverage_waiver]]
+id = "+319 sign"
+reason = "`zResults[0] == 1 && zResults[1] == 1` inside the `< 2` tests of both: never above 1 here"
+
+[[function.func_800A76BC.coverage_waiver]]
+id = "+483 sign"
+reason = "slideZ's `zResults[0] != 0` / `zResults[1] != 1` inside their `< 2` tests: never above 1 here"
+
+[[function.func_800A76BC.coverage_waiver]]
+id = "+484 sign"
+reason = "slideZ's `zResults[0] == 1 && zResults[1] == 1` inside their `< 2` tests: never above 1 here"
+
+[[function.func_800A76BC.mutation]]
+name = "M1: the diagonal accepts a far tile"
+target = "c"
+from = "&& xResults[4] <= diagonalOffset && (xResults[0] < 4 || (direction & 1))) {"
+to = "&& xResults[4] <= diagonalOffset && (xResults[0] < 5 || (direction & 1))) {"
+
+[[function.func_800A76BC.mutation]]
+name = "M2: the climb rounds the other way"
+target = "c"
+from = """
+    offset = D_800F4B08.vy - actor->unk0.position.vy;
+    diagonalOffset = offset / 64;
+    if (offset & 0x3F) {
+        diagonalOffset--;
+    }"""
+to = """
+    offset = D_800F4B08.vy - actor->unk0.position.vy;
+    diagonalOffset = offset / 64;
+    if (offset & 0x3F) {
+        diagonalOffset++;
+    }"""
+
+[[function.func_800A76BC.mutation]]
+name = "M3: the slide's floor test inclusive"
+target = "c"
+from = """
+            zResults[1] = func_800A8B34(&probe, direction);
+            if (zResults[1] < scratch->unk40) {
+                zResults[1] = 0xFF;
+            }
+            direction += crossDiagonalOffset;
+            probe.vx = actor->unk0.position.vx + crossOffset + diagonalOffset;"""
+to = """
+            zResults[1] = func_800A8B34(&probe, direction);
+            if (zResults[1] <= scratch->unk40) {
+                zResults[1] = 0xFF;
+            }
+            direction += crossDiagonalOffset;
+            probe.vx = actor->unk0.position.vx + crossOffset + diagonalOffset;"""
+
+[[function.func_800A76BC.mutation]]
+name = "M4: an x slide returns 1 for its blocked axis"
+target = "c"
+from = """
+            crossOffset = 0;
+            offset = 2;"""
+to = """
+            crossOffset = 0;
+            offset = 1;"""
+
+[[function.func_800A76BC.mutation]]
+name = "M5: the side heights compared strictly"
+target = "c"
+from = """
+                    if (probe.vy <= opposite.vy) {
+                        goto slideXBack;
+                    }"""
+to = """
+                    if (probe.vy < opposite.vy) {
+                        goto slideXBack;
+                    }"""
+
+[[function.func_800A76BC.mutation]]
+name = "M6: the probe-only result not capped"
+target = "c"
+from = """
+        if (*result >= 2) {
+            *result = 1;
+        }"""
+to = """
+        if (*result >= 3) {
+            *result = 1;
+        }"""
+
+[[function.func_800A76BC.mutation]]
+name = "M7: the z slide's facing not stored"
+target = "c"
+from = "actor->unk17FE = direction & 7;"
+to = "actor->unk17FE = direction & 3;"
+[function.func_80093AB4]
+spec = "func_80093AB4.zig"
+iterations = 2000
+# Hand-ported (hard-ports-a): the pipeline's ports zeroed the wrong bytes.
+
+[[function.func_80093AB4.mutation]]
+name = "R1: D_800F227A not cleared"
+target = "c"
+from = "D_800F227A = 0;"
+to = "(void)0;"
+
+[[function.func_80093AB4.mutation]]
+name = "R2: bzero size one entry (sizeof **D_800F1BAC)"
+target = "c"
+from = "vs_main_bzero(D_800F1BAC, sizeof *D_800F1BAC);"
+to = "vs_main_bzero(D_800F1BAC, sizeof **D_800F1BAC);"
+
+[[function.func_80093AB4.mutation]]
+name = "R3: D_800F2270 not cleared"
+target = "c"
+from = "D_800F2270 = 0;"
+to = "(void)0;"
+
+[[function.func_80093AB4.mutation]]
+name = "R4: D_800F2272 not cleared"
+target = "c"
+from = "D_800F2272 = 0;"
+to = "(void)0;"
+
+[function.func_8009639C]
+spec = "func_8009639C.zig"
+iterations = 20000
+# Hand-ported (hard-ports-a): the pipeline's ports did not compile against the opaque queue pointer.
+
+[[function.func_8009639C.mutation]]
+name = "Q1: the scan takes the first nonzero kind"
+target = "c"
+from = "if ((*D_800F1BAC)[j].unk8.u8[0] == 0) {"
+to = "if ((*D_800F1BAC)[j].unk8.u8[0] != 0) {"
+
+[[function.func_8009639C.mutation]]
+name = "Q2: no break (every empty entry removed per pass)"
+target = "c"
+from = "func_80096444(j);\n                break;"
+to = "func_80096444(j);"
+
+[[function.func_8009639C.mutation]]
+name = "Q3: one pass more than asked"
+target = "c"
+from = "for (i = 0; i < arg0; ++i) {"
+to = "for (i = 0; i <= arg0; ++i) {"
+
+[[function.func_8009639C.mutation]]
+name = "Q4: the scan stops one entry short"
+target = "c"
+from = "for (j = 0; j < D_800F227E; ++j) {"
+to = "for (j = 0; j < D_800F227E - 1; ++j) {"
+
+[[function.func_8009639C.mutation]]
+name = "Q5: the outer index is removed instead"
+target = "c"
+from = "func_80096444(j);"
+to = "func_80096444(i);"
+
+[function.func_80096FF0]
+spec = "func_80096FF0.zig"
+iterations = 20000
+# Hand-ported (hard-ports-a): the pipeline's specs never met vx + d == 288.
+
+[[function.func_80096FF0.mutation]]
+name = "T1: the bound taken as <= 288"
+target = "c"
+from = "if (D_800F2280.vx + d < 288) {"
+to = "if (D_800F2280.vx + d <= 288) {"
+
+[[function.func_80096FF0.mutation]]
+name = "T2: the top bound one short (vy 39 left alone; <= 40 is equivalent: d is 0)"
+target = "c"
+from = "if (D_800F2280.vy < 40) {"
+to = "if (D_800F2280.vy < 39) {"
+
+[[function.func_80096FF0.mutation]]
+name = "T3: vy not raised by d again"
+target = "c"
+from = "D_800F2280.vy += d;"
+to = "(void)d;"
+
+[[function.func_80096FF0.mutation]]
+name = "T4: the timer added with the setting off"
+target = "c"
+from = "if (!vs_main_settings.abilityTimingDisplay) {\n        return;\n    }"
+to = "if (!vs_main_settings.abilityTimingDisplay) {\n        D_800F2272 += arg0;\n        return;\n    }"
+
+[[function.func_80096FF0.mutation]]
+name = "T5: a failed read still moves the timer"
+target = "c"
+from = "if (func_800A1280(0, 0xFB, &D_800F2280, 0) != 0) {\n        return;\n    }"
+to = "if (func_800A1280(0, 0xFB, &D_800F2280, 0) != 0) {\n        D_800F2272 += arg0;\n        return;\n    }"
+
+[[function.func_80096FF0.mutation]]
+name = "T6: shift left subtracts one less"
+target = "c"
+from = "D_800F2280.vx -= d;"
+to = "D_800F2280.vx -= d - 1;"
+
+[function.func_80090C2C]
+spec = "func_80090C2C.zig"
+iterations = 30000
+# Hand-ported (hard-ports-a): the pipeline's specs never reached D_800F1DBC == -1 or the sound kept playing.
+
+[[function.func_80090C2C.mutation]]
+name = "W1: the no-sound marker -1 not tested"
+target = "c"
+from = "if (D_800F1DBC != -1) {"
+to = "if (1) {"
+
+[[function.func_80090C2C.mutation]]
+name = "W2: the same sound stopped anyway"
+target = "c"
+from = "if ((D_800F1DBC >= 0) && (D_800F1DBC != sound)) {"
+to = "if (D_800F1DBC >= 0) {"
+
+[[function.func_80090C2C.mutation]]
+name = "W3: kind 4 divides by 4"
+target = "c"
+from = "* (room->unk48[1].s16[1] / 128) / 2,"
+to = "* (room->unk48[1].s16[1] / 128) / 4,"
+
+[[function.func_80090C2C.mutation]]
+name = "W4: kind 2 plays sound 21"
+target = "c"
+from = "arg0);\n            break;\n        case 3:"
+to = "arg0);\n            sound = 21;\n            break;\n        case 3:"
+
+[[function.func_80090C2C.mutation]]
+name = "W5: no room: stopped sound not marked -2"
+target = "c"
+from = "func_80045D64(0x200, D_800F1DBC);\n        D_800F1DBC = -2;"
+to = "func_80045D64(0x200, D_800F1DBC);"
+
+[[function.func_80090C2C.mutation]]
+name = "W6: the clamp result not narrowed to short"
+target = "c"
+from = "func_8008F30C((short)vs_battle_clamp("
+to = "func_8008F30C((int)vs_battle_clamp("
+
+[[function.func_80090C2C.mutation]]
+name = "W7: unk3C read as unk3E"
+target = "c"
+from = "D_800F1DC4 = room->unk3C;"
+to = "D_800F1DC4 = room->unk3E;"
+
+[[function.func_80090C2C.mutation]]
+name = "W8: no room: -1 (no sound) stopped too"
+target = "c"
+from = "} else if (D_800F1DBC >= 0) {"
+to = "} else if (D_800F1DBC >= -1) {"
+
+[[function.func_80090C2C.coverage_waiver]]
+id = "+51 eq"
+reason = "`if (sound >= 0)`: sound is a local the C sets only to -2 or 21, never 0: no input makes the sides equal"
+
+[function.func_80093B68]
+spec = "func_80093B68.zig"
+iterations = 30000
+# Hand-ported (hard-ports-a): the pipeline's specs did not build or crashed the C.
+
+[[function.func_80093B68.mutation]]
+name = "D1: earlier entries with a negative unk6 counted"
+target = "c"
+from = "&& (p->unk6 >= 0)) {"
+to = ") {"
+
+[[function.func_80093B68.mutation]]
+name = "D2: the stack test compares with count, not count - 1"
+target = "c"
+from = "&& (p->unk6 == count - 1)) {"
+to = "&& (p->unk6 == count)) {"
+
+[[function.func_80093B68.mutation]]
+name = "D3: off-screen x bound 320 taken as > 321"
+target = "c"
+from = "if ((u_short)position.vx >= 321) {"
+to = "if ((u_short)position.vx >= 322) {"
+
+[[function.func_80093B68.mutation]]
+name = "D4: y read signed (negative y stays on screen)"
+target = "c"
+from = "if ((u_short)position.vy >= 241) {"
+to = "if (position.vy >= 241) {"
+
+[[function.func_80093B68.mutation]]
+name = "D5: clamp at > 1000"
+target = "c"
+from = "if (amount > 999) {"
+to = "if (amount > 1000) {"
+
+[[function.func_80093B68.mutation]]
+name = "D6: sign bit dropped from the clamped value"
+target = "c"
+from = "p->unkC = 999 | (((u_int)arg2 >> 16) & 0x8000);"
+to = "p->unkC = 999;"
+
+[[function.func_80093B68.mutation]]
+name = "D7: the flags' bit 7 kept"
+target = "c"
+from = "arg3 &= 127;"
+to = "arg3 &= 255;"
+
+[[function.func_80093B68.mutation]]
+name = "D8: a failed limb lookup returns 0"
+target = "c"
+from = "if (limb < 0) {\n            return -2;"
+to = "if (limb < 0) {\n            return 0;"
+
+[[function.func_80093B68.mutation]]
+name = "D9: the limb anchor read through func_800A190C"
+target = "c"
+from = "result = func_800A1AF8(arg0, limb, (u_short*)p, 2);"
+to = "result = func_800A190C(arg0, limb, (SVECTOR*)p, 2);"
+
+[[function.func_80093B68.mutation]]
+name = "D10: frame taken from unkA"
+target = "c"
+from = "frame = p->unkB;"
+to = "frame = p->unkA;"
+
+[[function.func_80093B68.mutation]]
+name = "D11: the count not stored"
+target = "c"
+from = "++D_800F227E;\n    return 0;"
+to = "return 0;"
+
+[function.func_800A0024]
+spec = "func_800A0024.zig"
+iterations = 2000
+# Hand-ported (hard-ports-a): the object is `return -1` (the uninitialised test), which the pipeline's specs tried to drive past.
+
+[[function.func_800A0024.mutation]]
+name = "U1: the garbage test returns 0"
+target = "c"
+from = "if (temp_s0 == 0) {\n        return -1;"
+to = "if (temp_s0 == 0) {\n        return 0;"
+
+[[function.func_800A0024.coverage_waiver]]
+id = "+6 b0"
+reason = "`if (temp_s0 == 0)` reads the uninitialised local: the game's -O2 objects fold it to true (`return -1`, what the port does); the coverage lane's -O0 copy reads a stack slot no input sets, never zero here"
+
+[function.func_8009EA14]
+spec = "func_8009EA14.zig"
+iterations = 40000
+# Hand-ported (hard-ports-a): the C passes an uninitialised blend on the unkA_3 == 2 path (the spec excludes that argument there).
+
+[[function.func_8009EA14.mutation]]
+name = "H1: the turn compared signed (behind read for negative turns)"
+target = "c"
+from = "if (var_v0 >= 0x801) {"
+to = "if ((int)var_v0 >= 0x801) {"
+
+[[function.func_8009EA14.mutation]]
+name = "H2: the turn bound 0x800"
+target = "c"
+from = "if (var_v0 >= 0x801) {"
+to = "if (var_v0 >= 0x800) {"
+
+[[function.func_8009EA14.mutation]]
+name = "H3: the player's low threshold -0xE3"
+target = "c"
+from = "if (var_v1 >= -0xE4) {"
+to = "if (var_v1 >= -0xE3) {"
+
+[[function.func_8009EA14.mutation]]
+name = "H4: the player's high threshold 0xAD"
+target = "c"
+from = "if (var_v1 < 0xAC) {"
+to = "if (var_v1 < 0xAD) {"
+
+[[function.func_8009EA14.mutation]]
+name = "H5: the turn above 0x800 not wrapped (its bound is equivalent: 0x800 and -0x800 both read behind)"
+target = "c"
+from = "temp_v1_2 = temp_v1_2 - 0x1000;"
+to = "(void)0;"
+
+[[function.func_8009EA14.mutation]]
+name = "H6: the turn below -0x800 not wrapped"
+target = "c"
+from = "temp_v1_2 = temp_v1_2 + 0x1000;"
+to = "(void)0;"
+
+[[function.func_8009EA14.mutation]]
+name = "H7: on the spot the facing is not used"
+target = "c"
+from = "temp_v1_2 = temp_s1->unk0.facing;\n                    } else {"
+to = "temp_v1_2 = 0;\n                    } else {"
+
+[[function.func_8009EA14.mutation]]
+name = "H8: the pending effect not cleared"
+target = "c"
+from = "temp_s1->unk0.unkC_0 = 0;"
+to = "(void)0;"
+
+[[function.func_8009EA14.mutation]]
+name = "H9: the blend 8 for unkF actors becomes 0"
+target = "c"
+from = "var_s4 = 8;"
+to = "var_s4 = 0;"
+
+[[function.func_8009EA14.mutation]]
+name = "H10: unk9_6 kept"
+target = "c"
+from = "temp_s1->unk0.unk9_6 = 0;"
+to = "(void)0;"
+
+[[function.func_8009EA14.mutation]]
+name = "H11: atan arguments swapped"
+target = "c"
+from = "ratan2(temp_a0, temp_a1)"
+to = "ratan2(temp_a1, temp_a0)"
+
+[[function.func_8009EA14.mutation]]
+name = "H12: unk6E3 set after the animation call"
+target = "c"
+from = "temp_s1->unk6E3 = 0xFF;\n        func_800A0204(arg0, var_s0, 0, var_s4);"
+to = "func_800A0204(arg0, var_s0, 0, var_s4);\n        temp_s1->unk6E3 = 0xFF;"
+
+[[function.func_8009EA14.mutation]]
+name = "H13: the flag test on unk5AC_3 inverted"
+target = "c"
+from = "if (!(temp_s1->unk5AC_3 << 3)) {"
+to = "if ((temp_s1->unk5AC_3 << 3)) {"
+
+[function._parseWep]
+spec = "parseWep.zig"
+iterations = 20000
+# Hand-ported (hard-ports-a): the pipeline's specs did not come back or crashed the C.
+
+[[function._parseWep.mutation]]
+name = "P1: the shared model copied from the next slot"
+target = "c"
+from = "vs_battle_wepModels[((u_long)psx_addr(data))], sizeof *model);"
+to = "vs_battle_wepModels[((u_long)psx_addr(data)) + 1], sizeof *model);"
+
+[[function._parseWep.mutation]]
+name = "P2: the search skips the actorId test"
+target = "c"
+from = "&& ((other->actorId) || (objectData->index < 4))"
+to = "&& (objectData->index < 4)"
+
+[[function._parseWep.mutation]]
+name = "P3: the offsets moved by the source, not the difference"
+target = "c"
+from = "buf->texturesOffset += ((u_long)psx_addr(dst));"
+to = "buf->texturesOffset += ((u_long)psx_addr(data));"
+
+[[function._parseWep.mutation]]
+name = "P4: the narrow-texture bound < 64 (texW is even: <= 65 is equivalent)"
+target = "c"
+from = "if ((int)texW < 65) {"
+to = "if ((int)texW < 64) {"
+
+[[function._parseWep.mutation]]
+name = "P5: a wide texture takes one slot"
+target = "c"
+from = "                vs_battle_wepTextures[i + 1].refCount = 1;\n                break;"
+to = "                break;"
+
+[[function._parseWep.mutation]]
+name = "P6: the double CLUT for 95 colours"
+target = "c"
+from = "if (size == 96) {"
+to = "if (size >= 95) {"
+
+[[function._parseWep.mutation]]
+name = "P7: texU without the odd slot's 32"
+target = "c"
+from = "texU = (model->texSlot / 2) * 64 + (model->texSlot & 1) * 32;"
+to = "texU = (model->texSlot / 2) * 64;"
+
+[[function._parseWep.mutation]]
+name = "P8: the epilog left at the texture"
+target = "c"
+from = "data += texW * 32;"
+to = "data += texW * 16;"
+
+[[function._parseWep.mutation]]
+name = "P9: FT3 prims step 12"
+target = "c"
+from = "pData += 10;\n            vertices = 3;"
+to = "pData += 12;\n            vertices = 3;"
+
+[[function._parseWep.mutation]]
+name = "P10: the second pass shifts v by 0xE0 into u"
+target = "c"
+from = "pData[0] += texU;"
+to = "pData[0] += texV;"
+
+[[function._parseWep.mutation]]
+name = "P11: the bone info copied 4 bytes a bone"
+target = "c"
+from = "memcpy(model->unkBoneInfo, data, model->nBones * 8);"
+to = "memcpy(model->unkBoneInfo, data, model->nBones * 4);"
+
+[[function._parseWep.mutation]]
+name = "P12: a shared wide texture's second slot not counted"
+target = "c"
+from = "++vs_battle_wepTextures[model->texSlot + 1].refCount;"
+to = "(void)0;"
+
+[[function._parseWep.mutation]]
+name = "P13: the common buffer for index 1 not used"
+target = "c"
+from = "    } else if (objectData->index == 1) {\n        buf = vs_battle_commonWepBuffs[1];\n    }"
+to = "    }"
+
+[[function._parseWep.mutation]]
+name = "P14: the pass not reset after the second pass (after a copy it is 0 already)"
+target = "c"
+from = "model->unkD = func_800A152C(objectData->actorId, objectData->unk11, 0);\n    D_800E8F29 = 0;"
+to = "model->unkD = func_800A152C(objectData->actorId, objectData->unk11, 0);"
+
+[[function._parseWep.coverage_waiver]]
+id = "+144 b0"
+reason = "`if (dst == 0)` comes after `dst->texturesOffset += ...`: a null dst crashes there (and in memcpy) first, so the test is never true"
+
+[[function._parseWep.coverage_waiver]]
+id = "+172 eq"
+reason = "`for (i = 0; i < 20; i += 2)`: i is always even, never 19 (the compare's constant as GCC folds it)"
+
+[[function._parseWep.coverage_waiver]]
+id = "+180 eq"
+reason = "`if (i >= 20)` after the even loop: i is always even, never 19"
+
+[function.func_80095C18]
+spec = "func_80095C18.zig"
+iterations = 40000
+# Hand-ported (hard-ports-a): the pipeline's specs never met the clamp and edge equalities. PC_CLASSIC: the record writes (pc_emote_record) are ported; this function has no hook call of its own (func_8009627C makes it).
+
+[[function.func_80095C18.mutation]]
+name = "E1: the near-depth clamp one short (<= 64 is equivalent: z becomes 64 either way)"
+target = "c"
+from = "if (z < 64) {"
+to = "if (z < 63) {"
+
+[[function.func_80095C18.mutation]]
+name = "E2: the far-depth clamp at > 2048"
+target = "c"
+from = "} else if (z >= 2048) {"
+to = "} else if (z > 2048) {"
+
+[[function.func_80095C18.mutation]]
+name = "E3: the player-left test at <="
+target = "c"
+from = "if (other.vx + 32 < position.vx) {"
+to = "if (other.vx + 32 <= position.vx) {"
+
+[[function.func_80095C18.mutation]]
+name = "E4: the player-right test at <="
+target = "c"
+from = "if (position.vx < other.vx - 32) {"
+to = "if (position.vx <= other.vx - 32) {"
+
+[[function.func_80095C18.mutation]]
+name = "E5: the left edge at 15"
+target = "c"
+from = "if (position.vx < 16) {"
+to = "if (position.vx < 15) {"
+
+[[function.func_80095C18.mutation]]
+name = "E6: the right edge at >= 304"
+target = "c"
+from = "if (position.vx > 304) {"
+to = "if (position.vx >= 304) {"
+
+[[function.func_80095C18.mutation]]
+name = "E7: the top edge at <= 40 beside a side edge"
+target = "c"
+from = "if (position.vy < 40) {"
+to = "if (position.vy <= 40) {"
+
+[[function.func_80095C18.mutation]]
+name = "E8: the top edge at <= 8"
+target = "c"
+from = "} else if (position.vy < 8) {"
+to = "} else if (position.vy <= 8) {"
+
+[[function.func_80095C18.mutation]]
+name = "E9: the bottom edge at >= 208"
+target = "c"
+from = "if (position.vy > 208) {"
+to = "if (position.vy >= 208) {"
+
+[[function.func_80095C18.mutation]]
+name = "E10: bit 7 kinds 5..7 kept"
+target = "c"
+from = "if ((u_int)(kind - 1) >= 4) {"
+to = "if ((u_int)(kind - 1) >= 7) {"
+
+[[function.func_80095C18.mutation]]
+name = "E11: the sprite step 5"
+target = "c"
+from = "128, xy + kind * 6 + D_80068F94[side], 0x50005, ot)[4] = 0x373E125A;"
+to = "128, xy + kind * 5 + D_80068F94[side], 0x50005, ot)[4] = 0x373E125A;"
+
+[[function.func_80095C18.mutation]]
+name = "E12: kind 6 uses side + 2"
+target = "c"
+from = "side += 4;"
+to = "side += 2;"
+
+[[function.func_80095C18.mutation]]
+name = "E13: the bubble near bound <= 352"
+target = "c"
+from = "if (side < 352) {"
+to = "if (side <= 352) {"
+
+[[function.func_80095C18.mutation]]
+name = "E14: the bubble far bound >= 416"
+target = "c"
+from = "if (side > 416) {"
+to = "if (side >= 416) {"
+
+[[function.func_80095C18.mutation]]
+name = "E15: the bubble counter wraps at 16"
+target = "c"
+from = "if (!(D_800F2260[actor] & 7)) {"
+to = "if (!(D_800F2260[actor] & 15)) {"
+
+[[function.func_80095C18.mutation]]
+name = "E16: the GTE anchor not raised around RotTransPers"
+target = "c"
+from = "do { ++pc_gte_anchored; RotTransPers(&other, (psx_long*)&position, &depth, &side); --pc_gte_anchored; } while (0);"
+to = "RotTransPers(&other, (psx_long*)&position, &depth, &side);"
+
+[[function.func_80095C18.mutation]]
+name = "E17: the record's side not updated for kind 4"
+target = "c"
+from = "            side += 2;\n\n            pc_emote_record.side = side;"
+to = "            side += 2;"
+
+[[function.func_80095C18.mutation]]
+name = "E18: the polygon's OT link keeps the top byte"
+target = "c"
+from = "*ot = (((u_long)psx_addr(prim)) << 8) >> 8;"
+to = "*ot = ((u_long)psx_addr(prim));"
+
+[[function.func_80095C18.mutation]]
+name = "E19: the hidden bubble's counter not reset"
+target = "c"
+from = "        D_800F2260[actor] = 0;\n    }\n}"
+to = "    }\n}"
+
+[[function.func_80095C18.mutation]]
+name = "E20: the bubble's frame step 8"
+target = "c"
+from = "prim[4] = ((depth << 4) + 96) | 0x37FD2000;"
+to = "prim[4] = ((depth << 3) + 96) | 0x37FD2000;"
+
+[[function.func_80095C18.mutation]]
+name = "E21: the arrow's record keeps draw 1"
+target = "c"
+from = "pc_emote_record.draw = 2, pc_emote_record.direction = flags;"
+to = "pc_emote_record.direction = flags;"
+
+[[function.func_80095C18.mutation]]
+name = "E22: the bubble's record without its frame"
+target = "c"
+from = "pc_emote_record.frame = depth;"
+to = "(void)0;"
+
+[function._parseShp]
+spec = "parseShp.zig"
+iterations = 20000
+# Hand-ported (hard-ports-a): the pipeline's specs did not come back. func_8009D468 is called with one argument (its second register is not compared).
+
+[[function._parseShp.mutation]]
+name = "S1: the shared actor copied short"
+target = "c"
+from = "vs_main_memcpy(actor, D_800F4538[object->dataAddr], 0x1900);"
+to = "vs_main_memcpy(actor, D_800F4538[object->dataAddr], 0x18FC);"
+
+[[function._parseShp.mutation]]
+name = "S2: the shared-texture refcounts one short"
+target = "c"
+from = "for (i = 0; i < actor->unk0.unk8_4 + 1; ++i) {"
+to = "for (i = 0; i < actor->unk0.unk8_4; ++i) {"
+
+[[function._parseShp.mutation]]
+name = "S3: the model's vertices not relocated"
+target = "c"
+from = "(model->vertexOffset).raw = psx_addr((char*)((__typeof__((model->vertexOffset).psx_type_[0]))(long unsigned int)(model->vertexOffset).raw) + ((u_int)psx_addr(model))))"
+to = "(model->vertexOffset).raw = (model->vertexOffset).raw)"
+
+[[function._parseShp.mutation]]
+name = "S4: the SEQ queued at the model, not after it"
+target = "c"
+from = "queued.dataAddr = ((u_long)psx_addr(data));"
+to = "queued.dataAddr = ((u_long)psx_addr(data)) - 4;"
+
+[[function._parseShp.mutation]]
+name = "S5: a 256-wide texture is not 8 slots"
+target = "c"
+from = "if (D_800F22C0 == 0x100) {"
+to = "if (D_800F22C0 == 0x80) {"
+
+[[function._parseShp.mutation]]
+name = "S6: slots 1 and 16 search the low range"
+target = "c"
+from = "if (object->index == 1 || object->index == 16) {"
+to = "if (object->index == 1) {"
+
+[[function._parseShp.mutation]]
+name = "S7: the 3/4-slot search does not skip to the next group"
+target = "c"
+from = "i += n - 1;"
+to = "(void)0;"
+
+[[function._parseShp.mutation]]
+name = "S8: the fallback taken on a nonzero result"
+target = "c"
+from = "if (func_8007DFF0(31, 1, 4) == 0) {"
+to = "if (func_8007DFF0(31, 1, 4) != 0) {"
+
+[[function._parseShp.mutation]]
+name = "S9: the tpage keeps 0x100 for normal actors"
+target = "c"
+from = "D_800F46A8[actor->unk5BB].tpage &= ~0x180;"
+to = "D_800F46A8[actor->unk5BB].tpage &= ~0x80;"
+
+[[function._parseShp.mutation]]
+name = "S10: the second pass shifts by << 5"
+target = "c"
+from = "texV = D_800E8F90[actor->unk5BB] << 6;"
+to = "texV = D_800E8F90[actor->unk5BB] << 5;"
+
+[[function._parseShp.mutation]]
+name = "S11: the 0x34 prims step 24"
+target = "c"
+from = "pData += 20;\n                vertices = 2;"
+to = "pData += 24;\n                vertices = 2;"
+
+[[function._parseShp.mutation]]
+name = "S12: the palette variant stride 0x100"
+target = "c"
+from = "actor->unk1424, actor->unk11A4 + object->variant * 0x140, D_800F22B8 * 2);"
+to = "actor->unk1424, actor->unk11A4 + object->variant * 0x100, D_800F22B8 * 2);"
+
+[[function._parseShp.mutation]]
+name = "S13: slot 16's CLUT from slot 16"
+target = "c"
+from = "actor->unk6E8 = D_800F46A8[1].clut1;"
+to = "actor->unk6E8 = D_800F46A8[16].clut1;"
+
+[[function._parseShp.mutation]]
+name = "S14: joints for unk8 7 too"
+target = "c"
+from = "if (armature->unk8 >= 3 && armature->unk8 < 7) {"
+to = "if (armature->unk8 >= 3 && armature->unk8 < 8) {"
+
+[[function._parseShp.mutation]]
+name = "S15: the bounds' fifth byte from 6"
+target = "c"
+from = "state[4] = bounds[7];"
+to = "state[4] = bounds[6];"
+
+[[function._parseShp.mutation]]
+name = "S16: the owner's unk6F4.unk3 not set"
+target = "c"
+from = "D_800F4538[actor->unk0.unk12]->unk6F4.unk3 = 8;"
+to = "(void)0;"
+
+[[function._parseShp.mutation]]
+name = "S17: the shared model's search takes the first other model"
+target = "c"
+from = "if (other != 0 && other->unk6E6 == size) {"
+to = "if (other != 0 && other->unk6E6 != size) {"
+
+[[function._parseShp.mutation]]
+name = "S18: the palette reload's CLUTs read 4 bytes early"
+target = "c"
+from = "            data += i + 4;\n            data += 8;"
+to = "            data += i + 4;\n            data += 4;"
+
+[[function._parseShp.mutation]]
+name = "S19: the empty model's skip not cleared"
+target = "c"
+from = "            actor->unk0.skip = 0;\n            func_800A30A0"
+to = "            func_800A30A0"
+
+[[function._parseShp.coverage_waiver]]
+id = "+103 b1"
+reason = "a pass other than 0 and 1 (the loader sets only those) leaves the C's actor and data uninitialised: no defined input reaches it"
+
+[[function._parseShp.coverage_waiver]]
+id = "+129 b0"
+reason = "`if (model == 0)` comes after memcpy into it and the four relocations through it: a null model crashes there first"
+
+[function.func_80095A4C]
+spec = "func_80095A4C.zig"
+iterations = 20000
+# Hand-ported (hard-ports-a): vs_battle_renderTextRawColor is called with no declaration in scope; 2842C's views manifest declares it (`declarations`) so the c module and the harness have its prototype.
+
+[[function.func_80095A4C.mutation]]
+name = "C1: the slide-in for every count"
+target = "c"
+from = "if ((p->unkB < 4) && (p->unkC == 1)) {"
+to = "if (p->unkB < 4) {"
+
+[[function.func_80095A4C.mutation]]
+name = "C2: the slide-out from 86"
+target = "c"
+from = "} else if (p->unkB >= 87) {"
+to = "} else if (p->unkB >= 86 && p->unkB <= 90) {"
+
+[[function.func_80095A4C.mutation]]
+name = "C3: the slide-out reversed"
+target = "c"
+from = "x -= offsets[90 - p->unkB];"
+to = "x -= offsets[p->unkB - 87];"
+
+[[function.func_80095A4C.mutation]]
+name = "C4: one chain written as CHAINS"
+target = "c"
+from = "if (p->unkC == 1) {\n        sprintf(text, \"$1 CHAIN\");"
+to = "if (0) {\n        sprintf(text, \"$1 CHAIN\");"
+
+[[function.func_80095A4C.mutation]]
+name = "C5: y in the low half"
+target = "c"
+from = "(x & 0xFFFF) | (y << 16), 0x1040A0,"
+to = "(x & 0xFFFF) | (y << 15), 0x1040A0,"
+
+[[function.func_80095A4C.mutation]]
+name = "C6: the packets end at the OT itself"
+target = "c"
+from = ".raw) - 16); if (pc_text_status)"
+to = ".raw) - 0); if (pc_text_status)"
+
+[[function.func_80095A4C.mutation]]
+name = "C7: the status hook given the cursor after the text as its first"
+target = "c"
+from = "if (pc_text_status) pc_text_status(pc_first,"
+to = "if (pc_text_status) pc_text_status(((__typeof__((((vs_scratch_t*)0x1F800000)->unk0).psx_type_[0]))(long unsigned int)(((vs_scratch_t*)0x1F800000)->unk0).raw),"
+
+[[function.func_80095A4C.coverage_waiver]]
+id = "+14 b1"
+reason = "`if (pc_text_status)`: the weak hook is always linked (ui_text.c in the game, a recording stub here); its null side never runs"
+
+[function.func_800958A4]
+spec = "func_800958A4.zig"
+iterations = 20000
+# Hand-ported (hard-ports-a): vs_battle_renderTextRawColor is called with no declaration in scope (2842C's views manifest declares it); its text is the C's own string literals, compared by content (textArgument).
+
+[[function.func_800958A4.mutation]]
+name = "T1: the slide-out from 41"
+target = "c"
+from = "} else if (p->unkB >= 42) {"
+to = "} else if (p->unkB >= 41 && p->unkB <= 45) {"
+
+[[function.func_800958A4.mutation]]
+name = "T2: the slide-out not reversed"
+target = "c"
+from = "step = 45 - p->unkB;"
+to = "step = p->unkB - 42;"
+
+[[function.func_800958A4.mutation]]
+name = "T3: FAST! for SLOW!"
+target = "c"
+from = "\"$FAST!\", \"\", \"$SLOW!\""
+to = "\"$FAST!\", \"\", \"$FAST!\""
+
+[[function.func_800958A4.mutation]]
+name = "T4: the on-time word in the timing colour"
+target = "c"
+from = "(x & 0xFFFF) | (y << 16), 0x408040,"
+to = "(x & 0xFFFF) | (y << 16), 0x408041,"
+
+[[function.func_800958A4.mutation]]
+name = "T5: the praise from the result"
+target = "c"
+from = "vs_battle_renderTextRawColor(success[p->displayTextLen],"
+to = "vs_battle_renderTextRawColor(success[p->unkC],"
+
+[[function.func_800958A4.mutation]]
+name = "T6: the third colour changed"
+target = "c"
+from = "0x408040, 0x208060, 0x8080 };"
+to = "0x408040, 0x208061, 0x8080 };"
+
+[[function.func_800958A4.mutation]]
+name = "T7: the packets end at the OT itself"
+target = "c"
+from = "colors[p->unkC], ((__typeof__((((vs_scratch_t*)0x1F800000)->unk4).psx_type_[0]))(long unsigned int)(((vs_scratch_t*)0x1F800000)->unk4).raw) - 16);"
+to = "colors[p->unkC], ((__typeof__((((vs_scratch_t*)0x1F800000)->unk4).psx_type_[0]))(long unsigned int)(((vs_scratch_t*)0x1F800000)->unk4).raw) - 0);"
+
+[[function.func_800958A4.coverage_waiver]]
+id = "+23 b1"
+reason = "`if (pc_text_status)`: the weak hook is always linked (ui_text.c in the game, a recording stub here); its null side never runs"
+
+[[function.func_800958A4.coverage_waiver]]
+id = "+27 b1"
+reason = "`if (pc_text_status)` (the on-time branch's copy): the weak hook is always linked; its null side never runs"

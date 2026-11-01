@@ -1208,6 +1208,7 @@ if ZIG:
             subs = [s for s in active.subsystems if s.unit == unit and s.views]
             types = sorted({t for s in subs for t in s.views.get("types", [])})
             names = sorted({n for s in subs for n in s.views.get("globals", [])})
+            declarations = sorted({d for s in subs for d in s.views.get("declarations", [])})
             stem, unit_name = pathlib.PurePosixPath(unit).stem, unit_names[unit]
             unit_obj = out / f"{unit_name}.o"
             dump = zig_views.dump_with_gdb(twin(unit_obj) if coff else unit_obj, types, names,
@@ -1231,13 +1232,14 @@ if ZIG:
             win_entry = dict(entry)
             if not coff:
                 entry[f"c_{stem}"] = (str(zig_c.translate(ZIG, out / f"{unit_name}.i", zig_dir / f"c_{stem}.zig",
-                                                          ZIG_ELF[0])), [])
+                                                          ZIG_ELF[0], declarations)), [])
             if win:
                 # The twin's .i (MinGW-preprocessed, game longs already long long),
                 # read with GCC's bitfield layout: translate-c for a Windows target
                 # lays bitfields out MSVC's way and fails the units' layout asserts.
                 win_entry[f"c_{stem}"] = (str(zig_c.translate(ZIG, out / f"{unit_name}.win.i",
-                                                              zig_dir / f"c_{stem}.win.zig", "x86_64-linux-none")), [])
+                                                              zig_dir / f"c_{stem}.win.zig", "x86_64-linux-none",
+                                                              declarations)), [])
             generated.setdefault(owned_overlay, {}).update(entry)
             win_generated.setdefault(owned_overlay, {}).update(win_entry)
         # game_lib.py (hot swap) builds the same modules for the development library.

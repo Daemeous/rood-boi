@@ -27,6 +27,8 @@ Post-processing:
   bytes (Zig allows no opaque parameter; the calling conventions pass such
   an all-integer aggregate as that integer), and so does one a struct
   embeds by value when its alignment is its size (Zig embeds no opaque);
+- the views manifest's `declarations` (functions the unit calls with no
+  declaration in scope) are appended to the header translate-c reads;
 - `T f();` (no prototype) before the unit's own declaration or definition
   of f with its parameters: the unprototyped one is dropped from the header
   translate-c reads (it keeps the first, `f(...)`, which no port can
@@ -278,11 +280,22 @@ def _void_symbols(decls):
     return re.sub(rb"^(\s*)extern\s+void\s+(\w+)\s*;", rb"\1extern char \2[];", decls, flags=re.M)
 
 
-def translate(zig, unit_i, out, target):
+def translate(zig, unit_i, out, target, declarations=()):
+    """declarations: prototypes of functions the unit calls with no declaration
+    in scope (GCC's implicit `int f()`, its arguments passed as promoted): the
+    subsystem's views manifest names them (`declarations`), so a port can call
+    them typed and zig_diff can stub them. Each must match how the object
+    passes the arguments (see the callee's own header)."""
     out = pathlib.Path(out)
     decls = out.with_suffix(".decls.h")
     source = pathlib.Path(unit_i).read_bytes()
-    decls.write_bytes(_void_symbols(_drop_unprototyped(ownership.strip_bodies(source))))
+    text = _void_symbols(_drop_unprototyped(ownership.strip_bodies(source)))
+    for declaration in declarations:
+        name = re.search(r"(\w+)\s*\(", declaration).group(1).encode()
+        if re.search(rb"^[^#\n]*\b" + name + rb"\s*\([^;{]*\)\s*;", text, re.M):
+            raise SystemExit(f"zig_c {unit_i}: {name.decode()} is declared by the unit: drop it from `declarations`")
+        text += b"\n/* ownership.toml views.declarations (an implicit declaration in the unit) */\n" + declaration.encode() + b"\n"
+    decls.write_bytes(text)
     result = subprocess.run([str(zig), "translate-c", "-target", target, str(decls)], capture_output=True, text=True)
     if result.returncode:
         raise SystemExit(f"zig translate-c {unit_i}: {result.stderr[-2000:]}")

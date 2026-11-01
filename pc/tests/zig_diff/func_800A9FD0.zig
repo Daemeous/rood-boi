@@ -49,9 +49,9 @@ pub fn prepare(ctx: *zd.Ctx) Args {
     obj.unk5C0 = ctx.int(u16);
 
     const sv = ctx.alloc(v.SVECTOR);
-    sv.vx = @truncate(@as(i32, obj.unk0.pitch) + diffEdge(ctx));
-    sv.vy = @truncate(@as(i32, obj.unk0.facing) + diffEdge(ctx));
-    sv.vz = @truncate(@as(i32, obj.unk0.roll) + diffEdge(ctx));
+    sv.vx = @truncate(@as(i32, obj.unk0.pitch) +% diffEdge(ctx));
+    sv.vy = @truncate(@as(i32, obj.unk0.facing) +% diffEdge(ctx));
+    sv.vz = @truncate(@as(i32, obj.unk0.roll) +% diffEdge(ctx));
 
     const arg2: c_int = if (ctx.chance(2))
         -1
