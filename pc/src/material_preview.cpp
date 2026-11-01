@@ -8,6 +8,7 @@
 // as the ambient; else (or with no light reaching Ashley) its own key light and ambient, settings keys
 // (material_preview_*). Drawn as rectangles, so it is the same picture on GL and Vulkan; reshaded
 // only when something changed. Window > Material preview; RPC material_preview.
+#define _USE_MATH_DEFINES /* M_PI: MinGW's <math.h> hides it under -std=c++17 */
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
