@@ -202,6 +202,9 @@ void pc_classic_immediate_read_entry(pc_classic_packet* out, int x, int y, int w
 /* The open range keeps its uploads' pixels (MENUF's: a claim uploads them with d.image_load's handle), and the
  * range's upload i (0..: in order; its rectangle, its pixels kept, else NULL), after it closed, until the next opens. */
 void pc_classic_immediate_keep(void);
+/* The arena a claim's immediate draw is made in (its packets, at once; 32-bit words): classic_parity.c's own. */
+#define PC_CLASSIC_IMMEDIATE_ARENA_WORDS (PC_CLASSIC_CAPTURE * 64)
+void* pc_classic_immediate_arena(void);
 int pc_classic_immediate_uploads(void); /* the uploads the range recorded */
 const void* pc_classic_immediate_upload(int i, int* x, int* y, int* w, int* h);
 /* MENUF's screens (3B8.c: the congratulations, the time attack's start and end, the cube puzzle's start, end and quit;
@@ -232,8 +235,10 @@ typedef struct {
     unsigned colour[2];
 } pc_classic_menuf_call;
 #define PC_CLASSIC_MENUF_CALLS 128
+#define PC_CLASSIC_MENUF_ENDING 16 /* (a screen: ENDING's, past MENUF's submenus 0..6) */
 typedef struct {
-    int screen, count; /* the submenu (menuFSubmenu); count -1: more calls than the record holds */
+    int screen, count; /* the submenu (menuFSubmenu; PC_CLASSIC_MENUF_ENDING: ENDING's MISSION COMPLETE screen, the
+                        * same leaves: D4.c); count -1: more calls than the record holds */
     unsigned char prompt[2][8];
     pc_classic_menuf_call call[PC_CLASSIC_MENUF_CALLS];
 } pc_classic_menuf;

@@ -934,7 +934,10 @@ def main():
         return 77
     out = pathlib.Path(args.out) if args.out else OUT / "classic_parity"
     out.mkdir(parents=True, exist_ok=True)
+    card2 = card2_fixture(out, args.card)
     with card_guard(out / "cards", source=args.card) as cards:
+        MENUS_CARD2.append(cards.dir / "card2-menus.mcd")  # (the menus game's slot 2 only: the other games
+        shutil.copyfile(card2, MENUS_CARD2[0])                    # run with no card 2, the guard's)
         return run(out, cards.card1, args.renderer, [k for k in args.kind.split(",") if k], args.candidate)
 
 
@@ -2015,6 +2018,10 @@ def status_open(g, symbols):
             break
     status_wait(g, symbols, STATUS_IDLE)
     g.run(20)
+    drawn = g.call("hud", action="stats")["kinds"]["menu_cursor"]["drawn"]  # (the hand comes up a while after the
+    g.until(lambda: g.call("hud", action="stats")["kinds"]["menu_cursor"]["drawn"] > drawn, guard=30,  # rest)
+            what="Status: the hand up at rest")
+    g.run(10)
 
 
 def status_into(g, symbols, button, state, opened=False):
@@ -2475,6 +2482,84 @@ def tour_data(g, symbols, toured, frames):
     toured("Data: Cross to the top level, closed; reopened, Triangle", before)
 
 
+def data_file_to(g, index):
+    """MENU7's file list: the hand on file `index` (0..4): Up past the first, then Down `index` times (the list pages
+    past its third row; slots in use are passed over, so `index` counts the files the hand can reach)."""
+    for _ in range(6):
+        g.press("up", vsyncs=3, settle=8)
+    for _ in range(index):
+        g.press("down", vsyncs=3, settle=8)
+    g.run(10)
+    if not ovl(g, "menu7", "_selectCursorXy", signed=False):
+        raise RpcError("Data: the file list's hand is not up")
+
+
+def data_card2_open(g, symbols, state=DATA_SAVE):
+    """Data's SAVE (or LOAD), card 2's files at rest (card_fixtures.file_states_fixture: a file at 100 hours and 100%
+    map, the container's save, a temporary file, a slot free, a slot in use by another game's file)."""
+    data_open(g, symbols)
+    if not any(i == DATA_FIRST_ROW + (state == DATA_LOAD) and sel for i, _, sel in live_rows(g)):
+        g.press("down", vsyncs=3, settle=8)
+    press_until(g, "circle", lambda: data_state(g, symbols) == state)
+    g.run(90)  # (the cards' rows come in, the cards are read)
+    g.press("down", vsyncs=3, settle=8)  # card 2
+    g.run(20)
+    g.press("circle", vsyncs=3, settle=8)  # its files
+    g.run(90)
+
+
+def tour_data_card2(g, symbols, toured, frames):
+    """Data's file menu on card 2 (card_fixtures' file_states, a copy: the only card a save here writes; the game's
+    state rewound after each): SAVE: its files walked (100 hours and 100% map, a save, a temporary file, the free
+    slot's New; the slot in use drawn, not reached); a save to the free slot (the progress, its completion); LOAD: file 1
+    (100 hours) loaded (the progress, its completion, the game loaded)."""
+    import card_fixtures
+    card2 = MENUS_CARD2[0] if MENUS_CARD2 else None  # (a copy in the card guard's directory)
+    if not card2 or not pathlib.Path(card2).exists():
+        raise RpcError("Data: no card 2 (main() copies the file_states fixture to MENUS_CARD2)")
+
+    def progress(what, done):
+        seen = set()
+        for _ in range(1800):
+            seen.add(ovl(g, "menu7", "_fileProgressCounter") < 0)
+            if True in seen and done():
+                return
+            g.run(1)
+        raise RpcError(f"Data: {what}: never done (progress {ovl(g, 'menu7', '_fileProgressCounter')})")
+
+    g.pause()
+    g.mark()
+    before = frames()
+    data_card2_open(g, symbols)
+    for button in ("down",) * 4 + ("up",) * 4:
+        g.press(button, vsyncs=3, settle=8)
+    toured("Data: SAVE, card 2's files walked (100 hours, 100% map, a temporary file, New, a slot in use)", before)
+    before = frames()
+    data_file_to(g, 3)
+    writes = g.call("card")["writes"]
+    g.press("circle", vsyncs=3, settle=2)
+    progress("the save", lambda: g.call("card")["writes"] > writes and ovl(g, "menu7", "_fileProgressCounter") == 0)
+    g.run(30)
+    saved = card_fixtures.saves(bytearray(pathlib.Path(card2).read_bytes()))
+    if sorted(saved) != [1, 2, 4]:
+        raise RpcError(f"Data: the save to card 2's slot 4: the card copy's saves {sorted(saved)}")
+    toured("Data: SAVE to card 2's free slot (a copy): the progress, its completion", before)
+    print("Data: card 2's SAVE toured", flush=True)  # (progress)
+    g.rewind()
+    before = frames()
+    data_card2_open(g, symbols, DATA_LOAD)
+    for button in ("down",) * 4 + ("up",) * 4:
+        g.press(button, vsyncs=3, settle=8)
+    data_file_to(g, 0)
+    press_until(g, "circle", lambda: ovl(g, "menu7", "_fileProgressCounter") != 0, frames=10)
+    progress("the load", lambda: current_menu(g, symbols) == 0x3F)
+    g.run(60)
+    toured("Data: LOAD card 2's file 1 (100 hours): the progress, its completion, the game loaded", before)
+    print("Data: card 2's LOAD toured", flush=True)  # (progress)
+    g.rewind()
+    menu_close(g, symbols)
+
+
 SETUP_ROW, SETUP_COMMANDS = 21, 3  # Items' Manage page: Setup's row; MENUC's state: its command list (rows 10..15)
 WORKSHOP = (47, 0)  # a workshop (vs_battle_inWorkshop 6: every material; ui_workshop_smoke's)
 
@@ -2618,6 +2703,83 @@ def tour_setup_picks(g, symbols, toured, frames):
         menu_close(g, symbols)
         print(f"Setup: {name}: two picks toured", flush=True)  # (progress)
         toured(f"Setup: {name}: two picked (the OK), walked, out", before)
+    setup_open(g, symbols)
+
+
+def assemble_rename_open(g, symbols, bag=None):
+    """Setup in a workshop, two weapons taken apart (setup_loose_parts, unless `bag` is given), Assemble: a blade and a
+    grip picked, Start, Yes: MENU8's rename grid for the new weapon at rest (its name the blade's). Returns the bag as
+    it was (inventory, indices: loot_restore)."""
+    saved = (g.read(symbols["vs_main_inventory"], INVENTORY_BYTES), g.read(symbols["vs_main_inventoryIndices"],
+                                                                            INDICES_BYTES))
+    bag = bag or setup_loose_parts(g, symbols)
+    setup_two_picks(bag, 0)
+    bag.press("start", settle=8)
+    bag.wait_ready(want=29 + 2)  # (MENUC's Yes / No / Cancel)
+    press_until(g, "circle", lambda: current_menu(g, symbols) & 0x3F == RENAME_MENU, frames=60)
+    rename_wait(g, symbols, "the new weapon's rename grid at rest")
+    g.run(40)
+    return saved
+
+
+def assemble_rename_leave(g, symbols):
+    """From the new weapon's rename grid or its Yes / No: Start, Yes (the name as it is): the weapon made, back on
+    Setup's commands; the menu closed."""
+    if rename_state(g)[0]:
+        press_until(g, "start", lambda: rename_state(g)[0] == 0, frames=10)
+    menu_wait(g, "the rename's Yes / No", lambda: any(i == 22 for i, _, _ in live_rows(g)) and rename_state(g)[1] == 10)
+    g.run(30)
+    for _ in range(4):
+        if any(i == 20 and sel for i, _, sel in live_rows(g)):
+            break
+        g.press("up", vsyncs=3, settle=6)
+    press_until(g, "circle", lambda: current_menu(g, symbols) & 0x3F == SETUP_MENU, frames=60)
+    menu_wait(g, "Setup's commands after the new weapon's name", lambda: setup_state(g, symbols) == SETUP_COMMANDS
+              and 15 in items_live(g, symbols), limit=1200)
+    items_ready(g, symbols)
+    menu_close(g, symbols)
+
+
+def tour_assemble_rename(g, symbols, toured, frames):
+    """MENU8's rename grid reached from Assemble (a new weapon's name; in tour_setup's workshop, two weapons taken
+    apart, the bag rewound after): a blade and a grip picked, Start, Yes: the grid in; walked past both edges, a
+    character typed and taken back, the pen moved; the commands walked; Start: its Yes / No walked, Cross (the grid
+    again); Start, Yes: the weapon made, back on Setup's commands."""
+    def press(button, settle=4):
+        g.press(button, vsyncs=3, settle=settle)
+
+    menu_close(g, symbols)
+    bag = workshop_session(g, symbols)
+    for _ in range(2):  # (after tour_setup_picks the parts are loose already: nothing left to take apart)
+        b = bag.bag()
+        loose = [i for i in b.listed(0) if not b.weapon(i)["equipped"]]
+        if not loose or len(b.blade_pick()) > 1 and len(b.grip_pick()) > 1:
+            break
+        bag.o_disassemble(False, loose[0])
+    before = frames()
+    assemble_rename_open(g, symbols, bag)
+    toured("Setup: Assemble, a blade and a grip, Yes: the new weapon's rename grid in", before)
+    before = frames()
+    for button in ("right",) * 15 + ("down",) * 10 + ("up", "left", "circle", "cross", "l1", "r1", "r1"):
+        press(button)
+    press("left")  # (off the grid: the commands)
+    for button in ("down",) * 5 + ("up",) * 5:
+        press(button)
+    press("right", settle=8)
+    g.run(20)
+    toured("Setup: Assemble's rename grid walked, typed, taken back, the commands walked", before)
+    before = frames()
+    press_until(g, "start", lambda: rename_state(g)[0] == 0, frames=10)
+    menu_wait(g, "the rename's Yes / No", lambda: any(i == 22 for i, _, _ in live_rows(g)) and rename_state(g)[1] == 10)
+    g.run(20)
+    for button in ("down",) * 3 + ("up",) * 3:
+        press(button, settle=6)
+    press("cross", settle=10)
+    rename_wait(g, symbols, "the new weapon's rename grid again")
+    toured("Setup: Assemble's rename, its Yes / No walked, Cross: the grid again", before)
+    before = frames()
+    assemble_rename_leave(g, symbols)
+    toured("Setup: Assemble's rename, Yes: the weapon made, the commands", before)
     setup_open(g, symbols)
 
 
@@ -2858,6 +3020,8 @@ def tour_setup(g, symbols, toured, frames):
     tour_rename(g, symbols, toured, frames)
     print("Setup: the rename grid toured", flush=True)  # (progress)
     tour_setup_picks(g, symbols, toured, frames)
+    tour_assemble_rename(g, symbols, toured, frames)
+    print("Setup: Assemble's rename grid toured", flush=True)  # (progress)
     before = frames()
     menu_close(g, symbols)
     toured("Setup closed", before)
@@ -3246,6 +3410,107 @@ def storage_status_open(g, symbols, grip=False):
     raise RpcError(f"Storage: no Store list's status view opened (grip {grip})")
 
 
+def storage_card2_current(g, symbols):
+    """RAM's settings pointed at card 2's file 2 (file_states_fixture's container, a generation ahead: the journey's
+    current save there, not card 1's) and containerEmpty cleared, so the container opens with its items. Returns
+    the settings' first 32 bytes as they were (put them back with storage_card2_restore)."""
+    at = symbols["vs_main_settings"]
+    saved = g.read(at, 32)
+    g.write(at, bytes([saved[0] & ~0x10 & 0xFF]))
+    g.write(at + 28, (int.from_bytes(saved[28:32], "little") + 1).to_bytes(4, "little"))
+    return saved
+
+
+def storage_card2_restore(g, symbols, saved):
+    g.write(symbols["vs_main_settings"], saved)
+
+
+def storage_remove_open(g, symbols, view=False):
+    """The container with items (storage_card2_current), Storage's Remove: its first tab with rows at rest (`view`:
+    Square, its first item's status view at rest). Returns the settings as they were."""
+    saved = storage_card2_current(g, symbols)
+    storage_open(g, symbols)
+    g.press("circle", vsyncs=3, settle=20)  # (Remove: the top menu's first row)
+    items_ready(g, symbols)
+    for _ in range(8):
+        if any(20 <= i < 30 for i, _ in items_rows_now(g, symbols)):
+            break
+        g.press("r1", vsyncs=3, settle=10)
+        items_ready(g, symbols)
+    else:
+        raise RpcError("Storage: Remove: no tab with rows (the container's items not read)")
+    if view:
+        rows = items_rows_now(g, symbols)
+        g.press("square", vsyncs=3, settle=20)
+        g.run(40)
+        if items_rows_now(g, symbols) == rows:
+            raise RpcError("Storage: Remove: the status view did not open")
+        items_ready(g, symbols)
+    g.run(30)
+    return saved
+
+
+def storage_remove_leave(g, symbols, saved):
+    """From Storage's Remove (a list, a status view): Cross to the top, Cross: MENU7's warning, No: left, nothing
+    saved; the settings put back."""
+    for _ in range(8):
+        if current_menu(g, symbols) & 0x3F == DATA_MENU:
+            break
+        g.press("cross", vsyncs=3, settle=20)
+        g.run(20)
+    storage_warning_wait(g, symbols)
+    storage_leave(g, symbols)
+    storage_card2_restore(g, symbols, saved)
+
+
+def tour_storage_remove(g, symbols, toured, frames):
+    """Storage's Remove with items (card 2's container: storage_card2_current; the save room's state rewound to after,
+    nothing saved): every tab round with R1 and L1, each list walked and its first row's status view (as Store's);
+    a weapon taken out (Circle on its row, the message); Cross at the top: MENU7's warning, No."""
+    def press(button, settle=8):
+        g.press(button, vsyncs=3, settle=settle)
+        items_ready(g, symbols)
+
+    g.pause()
+    g.mark()
+    g.write(symbols["vs_main_settings"] + 1, b"\x00")
+    saved = storage_card2_current(g, symbols)
+    before = frames()
+    storage_open(g, symbols)
+    press("circle", settle=20)  # Remove
+    g.run(20)
+    views = 0
+    for _ in range(8):
+        press("r1", settle=10)
+        for button in ("down",) * 6 + ("up",) * 6:
+            press(button, settle=4)
+        if storage_status_view(g, symbols, press):
+            views += 1
+    for _ in range(8):
+        press("l1", settle=10)
+    print(f"Storage: Remove with items toured ({views} status views)", flush=True)  # (progress)
+    toured(f"Storage: Remove with items: every tab round, the lists walked, {views} status views", before,
+           views=views)
+    before = frames()
+    for _ in range(8):  # the weapons' tab: its row taken out
+        if g.read(symbols["D_800F4EE8"] + STORAGE_CATEGORY, 1)[0] == 1:
+            break
+        press("r1", settle=10)
+    count = len([i for i, _ in items_rows_now(g, symbols) if 20 <= i < 30])
+    press("circle", settle=20)
+    g.run(60)
+    for _ in range(4):  # (the message: Circle until the list takes input again)
+        if any(20 <= i < 30 for i, _ in items_rows_now(g, symbols)) or count == 1:
+            break
+        press("circle", settle=20)
+    g.run(30)
+    toured("Storage: Remove, a weapon taken out", before)
+    before = frames()
+    storage_remove_leave(g, symbols, saved)
+    toured("Storage: Remove: Cross at the top, the warning's No: left, nothing saved", before)
+    g.rewind()
+
+
 def tour_storage(g, symbols, toured, frames):
     """Storage (MENUD, currentMenu 14: the container; MENU7's prompt before it) through the original menus,
     opened as the field opens it (RPC container: the card's own container; the save room's state rewound to
@@ -3352,14 +3617,32 @@ def menuf_state(g):
     return ovl(g, "menuf", "_screenState"), ovl(g, "menuf", "_screenTimer")
 
 
-def menuf_open(g, symbols, screen, boss=0):
+TIME_ATTACK = 0xC4  # vs_main_stateFlags: timeAttackBoss, timeAttackMins, timeAttackSecs, timeAttackHundredths
+TRIALS = 0x28  # vs_main_scoredata.bossTimeTrialScores[boss][3] (card_fixtures.trial: time:24, round:7, difficulty:1)
+NO_RECORD = {  # the time attack's end without a new record: (the course's three records, the time made) and where
+    "none": ((0x000100, 0x000200, 0x000300), (0, 5, 0)),       # it lands (_newTimeSlot): past the three (3), or
+    "second": ((0x000100, 0x010000, 0x020000), (0, 30, 0))}    # the second (1: NEW RECORD is the first's only)
+
+
+def menuf_open(g, symbols, screen, boss=0, records=None):
     """MENUF's screen `screen` opened from the field (RPC menuf; boss the time attack's course), its init done (the
-    pictures loaded: vs_battle_submenuStates[15] 2)."""
-    saved = g.read(symbols["vs_main_scoredata"], 0x114)  # (the time attack's records, the scores: put back on leaving)
+    pictures loaded: vs_battle_submenuStates[15] 2). records: a NO_RECORD key, the course's records and the time made
+    written first (the end's ranking: _initMenu takes the time's place among them). Returns what to put back."""
+    saved = (g.read(symbols["vs_main_scoredata"], 0x114),  # (the time attack's records, the scores, the time made:
+             g.read(symbols["vs_main_stateFlags"] + TIME_ATTACK, 4))  # put back on leaving)
+    if records:
+        import card_fixtures
+        times, made = NO_RECORD[records]
+        g.write(symbols["vs_main_scoredata"] + TRIALS + boss * 12, b"".join(card_fixtures.trial(t) for t in times))
+        g.write(symbols["vs_main_stateFlags"] + TIME_ATTACK + 1, bytes(made))
     if not g.call("menuf", submenu=screen, boss=boss).get("opened"):
         raise RpcError(f"MENUF: screen {screen} did not open")
     menu_wait(g, "MENUF's screen", lambda: current_menu(g, symbols) & 0x3F == MENUF_MENU
               and g.read(symbols["vs_battle_submenuStates"] + MENUF_MENU, 1)[0] == 2, limit=600)
+    if records:
+        slot = ovl(g, "menuf", "_newTimeSlot")
+        if slot != {"none": 3, "second": 1}[records]:
+            raise RpcError(f"MENUF: the time attack's end ({records}): the time placed {slot}")
     return saved
 
 
@@ -3379,18 +3662,21 @@ def menuf_leave(g, symbols, saved=None):
         g.press("circle", vsyncs=2, settle=20)
     menu_wait(g, "MENUF left", lambda: current_menu(g, symbols) == 0x3F, limit=900)
     if saved is not None:
-        g.write(symbols["vs_main_scoredata"], saved)
+        g.write(symbols["vs_main_scoredata"], saved[0])
+        g.write(symbols["vs_main_stateFlags"] + TIME_ATTACK, saved[1])
     g.run(30)
 
 
-def menuf_rest(g, symbols, screen):
-    """A MENUF screen opened and played to its rest: the congratulations' bonus chosen (its state 2), the time
-    attack's end's every record shown (state 1), the cube puzzle's prompt in (start, end, quit)."""
-    saved = menuf_open(g, symbols, screen)
+def menuf_rest(g, symbols, screen, records=None, wheel=False):
+    """A MENUF screen opened and played to its rest: the congratulations' bonus chosen (its state 2; wheel: the
+    wheel left to stop on its own), the time attack's end's every record shown (state 1; records: menuf_open's), the
+    cube puzzle's prompt in (start, end, quit)."""
+    saved = menuf_open(g, symbols, screen, records=records)
     if screen == 0:
         menuf_until(g, "the PRESS BUTTON prompt in", lambda: ovl(g, "menuf", "_elementAnimationState") >= 48)
-        g.press("circle", vsyncs=2, settle=2)
-        menuf_until(g, "the bonus chosen", lambda: menuf_state(g)[0] == 2)
+        if not wheel:
+            g.press("circle", vsyncs=2, settle=2)
+        menuf_until(g, "the bonus chosen", lambda: menuf_state(g)[0] == 2, limit=6000)
     elif screen == 2:
         menuf_until(g, "the records shown", lambda: menuf_state(g)[0] == 1)
     else:
@@ -3404,21 +3690,26 @@ def tour_menuf(g, symbols, toured, frames):
     """MENUF (currentMenu 15) from the field (RPC menuf, as BATTLE opens it after a fight; the room's state rewound to
     after: the records and the bonus taken back): each screen played through, left with Circle, then again skipped
     with an early Circle: the congratulations (the score and the map counted in, the rank, the bonus wheel spun
-    and stopped, the fade out), the time attack's start (courses 1 and 7: the boss's name in one picture or two; the
-    countdown), its end (counted in, the records, the fade out; the pulsing CLUT), the cube puzzle's start, end and
+    and stopped; again left to stop on its own; the fade out), the time attack's start (courses 1 to 7: the boss's
+    name in one picture or two; the countdown), its end (counted in, the records, the fade out; the pulsing CLUT; again
+    with no new record: the time placed past the three records, on course 1, and second, on course 4), the cube
+    puzzle's start, end and
     quit (the prompt; the pulsing CLUT). The pictures' uploads (menuf_load) with each screen's opening."""
     g.pause()
     g.mark()  # (the field again after each)
     for screen, name in MENUF_SCREENS.items():
-        for boss in ((0, 6) if screen == 1 else (0,)):
+        runs = {0: ((0, None, False), (0, None, True)), 1: tuple((boss, None, False) for boss in range(7)),
+                2: ((0, None, False), (0, "none", False), (3, "second", False))}.get(screen, ((0, None, False),))
+        for boss, records, wheel in runs:
             g.rewind()
             before = frames()
-            saved = menuf_open(g, symbols, screen, boss)
+            saved = menuf_open(g, symbols, screen, boss, records)
             if screen == 0:
                 menuf_until(g, "the PRESS BUTTON prompt in", lambda: ovl(g, "menuf", "_elementAnimationState") >= 48)
                 g.run(30)
-                g.press("circle", vsyncs=2, settle=2)
-                menuf_until(g, "the bonus chosen", lambda: menuf_state(g)[0] == 2)
+                if not wheel:  # (else the wheel spins down to its own stop: past timer 2072, 30 a second)
+                    g.press("circle", vsyncs=2, settle=2)
+                menuf_until(g, "the bonus chosen", lambda: menuf_state(g)[0] == 2, limit=6000)
                 g.run(30)
             elif screen == 1:
                 menuf_until(g, "the countdown", lambda: current_menu(g, symbols) & 0x3F != MENUF_MENU, limit=900)
@@ -3428,8 +3719,9 @@ def tour_menuf(g, symbols, toured, frames):
             else:
                 g.run(180)
             menuf_leave(g, symbols, saved)
-            toured(f"MENUF: {name} (course {boss + 1}) played through, left" if screen == 1
-                   else f"MENUF: {name} played through, left", before, screen=screen)
+            how = (f" (course {boss + 1})" if screen == 1 else " (the wheel left to its own stop)" if wheel
+                   else f" (course {boss + 1}, no new record: the time placed {records})" if records else "")
+            toured(f"MENUF: {name}{how} played through, left", before, screen=screen)
         g.rewind()
         before = frames()
         saved = menuf_open(g, symbols, screen)
@@ -3447,8 +3739,10 @@ def tour_remaining(g, symbols, toured, frames):
     tour_score(g, symbols, toured, frames)
     tour_map(g, symbols, toured, frames)
     tour_data(g, symbols, toured, frames)
+    tour_data_card2(g, symbols, toured, frames)
     tour_setup(g, symbols, toured, frames)
     tour_storage(g, symbols, toured, frames)
+    tour_storage_remove(g, symbols, toured, frames)
     tour_loot(g, symbols, toured, frames)
     tour_menuf(g, symbols, toured, frames)
 
@@ -3458,7 +3752,11 @@ def remaining_proofs(g, symbols, check, frame_kinds, toured_kinds, state_proof):
     state proof from that mark. (Data's file lists first: in the save room, where SAVE is taken.)"""
     for name, opener in (("Data's SAVE, card 1's files (the file menu)", data_files_open),
                          ("Data's LOAD, card 1's files (the file menu)",
-                          lambda g, symbols: data_files_open(g, symbols, DATA_LOAD))):
+                          lambda g, symbols: data_files_open(g, symbols, DATA_LOAD)),
+                         ("Data's SAVE, card 2's files (100 hours, 100% map, a temporary file, slots in use)",
+                          data_card2_open),
+                         ("Data's LOAD, card 2's files (100 hours, 100% map, a temporary file, slots in use)",
+                          lambda g, symbols: data_card2_open(g, symbols, DATA_LOAD))):
         screen_proofs(g, symbols, check, frame_kinds, toured_kinds, state_proof, name, opener,
                       after=lambda g: data_files_leave(g, symbols))
     for name, opener in (("Score's top menu", score_open), ("the Map", map_open), ("the Map's area list", map_list),
@@ -3471,12 +3769,22 @@ def remaining_proofs(g, symbols, check, frame_kinds, toured_kinds, state_proof):
                          ("Storage's Store, a misc row's discard amount", storage_discard_open),
                          ("Storage's Store, a grip's status view", lambda g, symbols: storage_status_open(g, symbols, True))):
         screen_proofs(g, symbols, check, frame_kinds, toured_kinds, state_proof, name, opener)
+    for name, view in (("Storage's Remove, a container with items (card 2)", False),
+                       ("Storage's Remove, a container item's status view (card 2)", True)):
+        settings = []
+        screen_proofs(g, symbols, check, frame_kinds, toured_kinds, state_proof, name,
+                      lambda g, symbols, v=view: settings.append(storage_remove_open(g, symbols, v)),
+                      after=lambda g: storage_remove_leave(g, symbols, settings[-1]))
     parts = []  # (Setup's two picks: two weapons taken apart; the bag put back after, the mark taken again)
     for name, command in (("Setup's Assemble, two picked and the OK (a workshop)", 0),
                           ("Setup's Combine, two blades picked and the OK (a workshop)", 5)):
         screen_proofs(g, symbols, check, frame_kinds, toured_kinds, state_proof, name,
                       lambda g, symbols, c=command: parts.append(setup_two_picks_open(g, symbols, c)),
                       after=lambda g: (menu_close(g, symbols), loot_restore(g, parts[-1])))
+    screen_proofs(g, symbols, check, frame_kinds, toured_kinds, state_proof,
+                  "Setup's Assemble, the new weapon's rename grid (a workshop)",
+                  lambda g, symbols: parts.append(assemble_rename_open(g, symbols)),
+                  after=lambda g: (assemble_rename_leave(g, symbols), loot_restore(g, parts[-1])))
     for name, opener in (("Setup's Rename, the rename grid (a workshop)", setup_rename_open),
                          ("Setup's Rename, the rename grid's Yes / No (a workshop)", setup_rename_confirm_open)):
         screen_proofs(g, symbols, check, frame_kinds, toured_kinds, state_proof, name, opener,
@@ -3494,11 +3802,17 @@ def remaining_proofs(g, symbols, check, frame_kinds, toured_kinds, state_proof):
         screen_proofs(g, symbols, check, frame_kinds, toured_kinds, state_proof, name,
                       lambda g, symbols, o=opener: bags.append(o(g, symbols)),
                       after=lambda g: (loot_leave(g, symbols), loot_restore(g, bags[-1])))
-    for screen, name in ((0, "the congratulations' bonus chosen (MENUF)"), (2, "the time attack's records (MENUF)"),
-                         (5, "the cube puzzle's end (MENUF)"), (6, "the cube puzzle's quit (MENUF)")):
+    for screen, name, records, wheel in (
+            (0, "the congratulations' bonus chosen (MENUF)", None, False),
+            (0, "the congratulations' bonus, the wheel stopped on its own (MENUF)", None, True),
+            (2, "the time attack's records (MENUF)", None, False),
+            (2, "the time attack's records, no new record: none placed (MENUF)", "none", False),
+            (2, "the time attack's records, no new record: second placed (MENUF)", "second", False),
+            (5, "the cube puzzle's end (MENUF)", None, False), (6, "the cube puzzle's quit (MENUF)", None, False)):
         menuf_saved = []  # (left with Circle, the score data put back: the congratulations' bonus stays taken)
         screen_proofs(g, symbols, check, frame_kinds, toured_kinds, state_proof, name,
-                      lambda g, symbols, s=screen: menuf_saved.append(menuf_rest(g, symbols, s)),
+                      lambda g, symbols, s=screen, r=records, w=wheel: menuf_saved.append(
+                          menuf_rest(g, symbols, s, r, w)),
                       after=lambda g: menuf_leave(g, symbols, menuf_saved[-1]))
     screen_proofs(g, symbols, check, frame_kinds, toured_kinds, state_proof, "the Loot list's leave, its Yes / No",
                   loot_leave_open, after=lambda g: loot_leave(g, symbols))
@@ -3541,7 +3855,8 @@ def run_menus(out, card, env, check, waivers, kinds):
     Fullscreen mode's "Keep these settings?" (KEEP / REVERT: the test modes); the menu closed. Then the default and
     the fallback per kind, state parity from a mark as the list opens."""
     from menu_nav import top_command
-    env = dict(env, ROOD_TEST_FULLSCREEN_MODES="1920x1080@60,1280x720@60")
+    env = dict(env, ROOD_TEST_FULLSCREEN_MODES="1920x1080@60,1280x720@60",
+               **({"ROOD_CARD2": str(MENUS_CARD2[0])} if MENUS_CARD2 else {}))
     g = launch_at("save_room", card=card, fast=True, log=out / "game-menus.log", extra_env=env)
     symbols = rood_rpc.symbols()
     covered = []
@@ -3780,6 +4095,234 @@ def run_menus(out, card, env, check, waivers, kinds):
         g.close()
 
 
+FILE_KINDS = ("file_menu", "file_element")  # (the file menu's: the title's LOAD and the game over's, run_file_screens)
+
+
+def file_state_proof(g, check, label, kinds, ticks=120):
+    """§3.4 from the mark (a file menu at rest): rood.classic drawing the kinds, then the game; every vsync's state the
+    same but for the packets."""
+    masks = state_masks(g)
+    g.rewind()
+    stats = lambda: g.call("hud", action="stats")["kinds"]  # noqa: E731
+    drawn = {k: stats()[k]["drawn"] for k in kinds}
+    g.digest("record", ticks=ticks, masks=masks)
+    g.until(lambda: g.digest("result")["recorded"] >= ticks, guard=ticks, what="the digest recorded")
+    drawn = {k: stats()[k]["drawn"] - n for k, n in drawn.items()}
+    g.rewind()
+    g.call("settings", apply=[f"hud_classic_{k} 0" for k in kinds])
+    fallback = {k: stats()[k]["fallback"] for k in kinds}
+    g.digest("compare")
+    g.until(lambda: g.digest("result")["ticks"] >= ticks, guard=ticks, what="the digest compared")
+    result = g.digest("result")
+    fallback = {k: stats()[k]["fallback"] - n for k, n in fallback.items()}
+    g.call("settings", apply=[f"hud_classic_{k} 1" for k in kinds])
+    check(all(drawn[k] > 0 and fallback[k] > 0 for k in kinds) and result.get("error") == 0
+          and result.get("first_tick") == -1 and result.get("ticks") == result.get("recorded"),
+          f"state parity, {label}: {result.get('ticks')} of {result.get('recorded')} vsyncs the same (rood.classic "
+          f"drew {drawn}, the game {fallback}; first difference {result.get('first_tick')} {result.get('first_pages')})")
+
+
+def file_rest_proofs(g, check, label):
+    """A file menu at rest (the parity mode off): the mark; the default and the fallback of both kinds, state
+    parity; back at the mark."""
+    g.pause()
+    g.mark()
+    for kind in FILE_KINDS:
+        g.rewind()
+        default_and_fallback(g, kind, check)
+    file_state_proof(g, check, label, FILE_KINDS)
+    g.rewind()
+
+
+def run_file_screens(out, card, card2, env, check, waivers):
+    """The file menu outside MENU7's Data screen, its own game (card 1 and a copy of card 2's file_states fixture: read
+    only, nothing saved): the title's LOAD (TITLE 22C.c's copy of the drawing: Start, Continue): the memory cards
+    walked; card 1's files walked down past the last page and back; card 2's (100 hours and 100% map, a save a
+    generation ahead, a temporary file, a free slot, another game's file) walked; back to the cards. Proofs at rest
+    (card 1's file list): default, fallback, state parity. Then card 1's first file loaded (the progress, its
+    completion: the save room). The game over's LOAD (MENU7 vs_menu7_gameOver: Ashley's HP to 0, Continue, its
+    cards and files walked; its frame buffers cleared first, the 2026-10-21 fix); proofs at rest of its file list.
+    The background (_drawFileMenuBg: file_menu part 2) is drawn on both."""
+    work = out / "file-screens"
+    shutil.rmtree(work, ignore_errors=True)
+    work.mkdir(parents=True)
+    second = work / "card2-files.mcd"  # (a copy of the fixture: this game's alone)
+    if card2:
+        shutil.copyfile(card2, second)
+    g = launch_at("title", card=str(card), fast=True, log=out / "game-file-screens.log",
+                  extra_env=dict(env, **({"ROOD_CARD2": str(second)} if card2 else {})))
+    covered = []
+    try:
+        def frames():
+            k = g.call("classic")["kinds"]
+            return {kind: k[kind]["frames"] for kind in FILE_KINDS}
+
+        def toured(label, before, need=FILE_KINDS):
+            after = frames()
+            delta = {k: after[k] - before[k] for k in FILE_KINDS}
+            covered.append({"scenario": label, **delta})
+            check(all(delta[k] > 0 for k in need), f"{label}: compared {delta}")
+
+        def press(button, settle=8):
+            g.press(button, vsyncs=3, settle=settle)
+
+        def walk(buttons, settle=8):
+            for b in buttons:
+                press(b, settle)
+
+        g.call("classic", parity=True, reset=True)
+        # the title's LOAD
+        before = frames()
+        g.press("start", vsyncs=4, settle=90)
+        press("circle", 90)  # Continue: the LOAD screen, its cards
+        toured("the title's LOAD: in, the cards", before)
+        before = frames()
+        walk(("down", "up", "down", "up"))
+        toured("the title's LOAD: the two cards walked", before)
+        if card2:
+            before = frames()
+            walk(("down",))
+            press("circle", 90)  # card 2's files
+            walk(("down",) * 6 + ("up",) * 6, 6)
+            press("cross", 60)
+            walk(("up",))
+            toured("the title's LOAD: card 2's files (file_states) walked, back to the cards", before)
+        before = frames()
+        press("circle", 90)  # card 1's files
+        walk(("down",) * 17 + ("up",) * 17, 4)
+        toured("the title's LOAD: card 1's files walked past the last page and back", before)
+        before = frames()
+        press("cross", 60)
+        press("circle", 90)
+        g.run(30)
+        toured("the title's LOAD: Cross to the cards, card 1's files again", before)
+        # proofs at rest: card 1's file list
+        g.call("classic", parity=False)
+        file_rest_proofs(g, check, "the title's LOAD, card 1's files at rest")
+        g.call("classic", parity=True)
+        before = frames()
+        press("circle", 0)  # its first file: loaded
+        g.until(lambda: g.state().get("zone") is not None and frames()["file_element"] > before["file_element"] + 4,
+                step=2, guard=120)
+        g.run(400)
+        st = g.state()
+        toured(f"the title's LOAD: card 1's first file loaded (the progress, its completion; zone {st.get('zone')} "
+               f"room {st.get('room')})", before)
+        # the game over's LOAD
+        symbols = rood_rpc.symbols()
+        before = frames()
+
+        def ashley():  # (vs_battle_actors[0] -> +0x3c: her record, once the room has her)
+            actor = int.from_bytes(g.read(symbols["vs_battle_actors"], PTR), "little")
+            try:
+                return actor and int.from_bytes(g.read(actor + 0x3C, 4), "little")
+            except RpcError:
+                return 0
+        g.until(ashley, step=10, guard=600, what="Ashley in the room")
+        g.run(60)
+        g.write(ashley() + 0x18, (0).to_bytes(2, "little"))  # (her HP: the game's own Game Over follows)
+        g.until(lambda: g.state()["game_over"], step=10, guard=200, what="Game Over")
+        g.run(240)  # (the Game Over screen fades in)
+        for _ in range(6):  # Continue (Circle once the screen takes it)
+            press("circle", 30)
+            if g.until(lambda: frames()["file_menu"] > before["file_menu"], step=2, guard=30):
+                break
+        g.run(90)
+        toured("the game over's LOAD: Continue, the cards", before)
+        before = frames()
+        walk(("down", "up"))
+        if card2:
+            walk(("down",))
+            press("circle", 90)
+            walk(("down",) * 6 + ("up",) * 6, 6)
+            press("cross", 60)
+            walk(("up",))
+        press("circle", 90)  # card 1's files
+        walk(("down",) * 17 + ("up",) * 17, 4)
+        g.run(30)
+        toured("the game over's LOAD: the cards, card 2's files and card 1's walked", before)
+        reports = {kind: opening_report(g, check, waivers, kind, covered, set()) for kind in FILE_KINDS}
+        g.call("classic", parity=False)
+        file_rest_proofs(g, check, "the game over's LOAD, card 1's files at rest")
+        for kind, report in reports.items():
+            path = out / f"{kind}-file-screens.json"
+            path.write_text(json.dumps(report, indent=1))
+            print(f"report: {path}: {report['frames']} frames, {report['states']} states, "
+                  f"{'green' if report['green'] else 'RED'}")
+    finally:
+        g.close()
+
+
+def run_ending(out, card, env, check, waivers):
+    """ENDING's copy of MENUF's leaves (src/renderTextures.h: the MISSION COMPLETE screen's words, score, map completion
+    and rank; D4.c's range around them, menuf's screen 16), its own game from the save room (a card copy; nothing
+    saved): RPC ending, the credits skipped with Start; the screen coming in (every frame compared), at rest (proofs:
+    default, fallback, state parity); left with Cross (its fade-out); then the title's clear-data save screen (TITLE
+    22C.c's file menu: the cards walked, card 1's save list walked, Cross: "Save now?", NO) to the title menu."""
+    from ending_smoke import CREDITS_DONE, RANK_SCREEN_STEP
+    g = launch_at("save_room", card=str(card), fast=True, log=out / "game-ending.log", extra_env=env)
+    covered = []
+    kinds = ("menuf",) + FILE_KINDS
+    try:
+        def frames():
+            k = g.call("classic")["kinds"]
+            return {kind: k[kind]["frames"] for kind in kinds}
+
+        def toured(label, before, need):
+            after = frames()
+            delta = {k: after[k] - before[k] for k in kinds}
+            covered.append({"scenario": label, **delta})
+            check(all(delta[k] > 0 for k in need), f"{label}: compared {delta}")
+
+        def press(button, settle=8):
+            g.press(button, vsyncs=3, settle=settle)
+
+        def step():
+            return int.from_bytes(g.read(RANK_SCREEN_STEP, 4), "little")
+
+        g.call("classic", parity=True, reset=True)
+        check(g.call("ending")["requested"], "the ending: requested from the field")
+        g.run(1200)
+        g.press("start", vsyncs=4, settle=200)
+        check(g.read(CREDITS_DONE, 1) == b"\x01", "the ending: Start skips the credits")
+        before = frames()
+        g.until(lambda: step() > 0x120, step=30, guard=1800, what="the MISSION COMPLETE screen")
+        g.run(60)
+        toured(f"the ending's MISSION COMPLETE: in (step {step():#x})", before, ("menuf",))
+        g.call("classic", parity=False)
+        g.pause()
+        g.mark()
+        default_and_fallback(g, "menuf", check)
+        file_state_proof(g, check, "the ending's MISSION COMPLETE at rest", ("menuf",))
+        g.rewind()
+        g.call("classic", parity=True)
+        before = frames()
+        press("cross", 240)  # leave it (its fade-out): the clear-data save screen, its cards
+        toured("the ending's MISSION COMPLETE: left (the fade-out)", before, ("menuf",))
+        before = frames()
+        for b in ("down", "up"):
+            press(b)
+        press("circle", 90)  # card 1's save list
+        for b in ("down",) * 6 + ("up",) * 6:
+            press(b, 4)
+        press("cross", 60)
+        toured("the title's clear-data save: the cards, card 1's save list walked, back", before, FILE_KINDS)
+        before = frames()
+        press("cross", 60)  # "Game is not saved. Save now?"
+        press("down", 30)   # NO
+        toured("the title's clear-data save: Cross, Save now?, NO", before, FILE_KINDS)
+        reports = {kind: opening_report(g, check, waivers, kind, covered, set()) for kind in kinds}
+        press("circle", 60)
+        g.call("classic", parity=False)
+        for kind, report in reports.items():
+            path = out / f"{kind}-ending.json"
+            path.write_text(json.dumps(report, indent=1))
+            print(f"report: {path}: {report['frames']} frames, {report['states']} states, "
+                  f"{'green' if report['green'] else 'RED'}")
+    finally:
+        g.close()
+
+
 def opening_report(g, check, waivers, kind, covered, extra):
     c = g.call("classic")["kinds"][kind]
     declared = sorted(n for n in str(repl(g, "rood.classic", f"return table.concat(M.look.overrides.{kind} or {{}}, ',')"))
@@ -3880,6 +4423,35 @@ def run_opening(out, env, check, waivers, kinds):
         g.close()
 
 
+MENUS_CARD2 = []  # the menus game's card 2 (a copy in the card guard's directory: the Data tour saves to it)
+
+
+def card2_fixture(out, card):
+    """Card 2 for the menus game (card_fixtures.file_states_fixture, a copy the Data tour saves to): MENU7's file
+    panels' other states, and a save holding a container built from the save room's bag (read from a game of its
+    own: Storage's Remove with items)."""
+    import card_fixtures
+    fixtures = out / "fixtures"
+    fixtures.mkdir(parents=True, exist_ok=True)
+    plugins = fixtures / "plugins"
+    shutil.rmtree(plugins, ignore_errors=True)
+    plugins.mkdir()
+    settings = fixtures / "settings.cfg"
+    settings.write_text("ui_menus 0\n")
+    with card_guard(fixtures / "cards", source=card) as cards:
+        g = launch_at("save_room", card=cards.card1, fast=True, log=out / "game-card2.log",
+                      extra_env={"ROOD_SETTINGS": str(settings), "ROOD_PLUGINS": str(plugins),
+                                 "ROOD_PLUGIN_DATA": str(fixtures / "plugin_data"), "ROOD_DETERMINISTIC": "1"})
+        try:
+            bag = g.read(rood_rpc.symbols()["vs_main_inventory"], INVENTORY_BYTES)
+        finally:
+            g.close()
+    path = fixtures / "file_states.mcd"
+    made = card_fixtures.file_states_fixture(card, path, bag, card_fixtures.container_layout(out=fixtures))
+    print(f"card 2: {path} (the container: {made})", flush=True)
+    return path
+
+
 def run(out, card, renderer, kinds, candidate=False):
     failures = []
 
@@ -3917,6 +4489,10 @@ def run(out, card, renderer, kinds, candidate=False):
         if not kinds:
             print(f"{'PASS' if not failures else 'FAIL'}: classic parity ({len(failures)} failures)")
             return 1 if failures else 0
+    if any(k in FILE_KINDS for k in kinds):
+        run_file_screens(out, card, MENUS_CARD2[0] if MENUS_CARD2 else None, env, check, waivers)
+    if "menuf" in kinds:
+        run_ending(out, card, env, check, waivers)
     if any(k in MENUS for k in kinds):
         run_menus(out, card, env, check, waivers, [k for k in kinds if k in MENUS])
         kinds = [k for k in kinds if k not in MENUS]

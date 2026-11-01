@@ -71,10 +71,12 @@ enum { PC_HUD_NONE = 0, PC_HUD_STATUS = 1, PC_HUD_CHAIN, PC_HUD_BUFF, PC_HUD_DAM
  * item's discard amount (items1.h _discardMenu, MENUD's copy: three digits in the text boxes' font, unk8). rename_grid,
  * rename_box: the rename grid (MENU8 _renderRenameMenu: its buttons, bars, words, name, arrows, table and background;
  * unk4 - 4, unk4 - 8, unk8, unk8 + 4) and a highlight box on it (_highlightSelection: unk8). file_menu,
- * file_element: MENU7's file menu (260.c _drawFileMenu: the save list, Data's SAVE / LOAD), drawn at once (no
- * ordering table: PC_CLASSIC_IMMEDIATE): its frame (part 0 the band's two sprites, part 1 the rest) and each card's or
- * file's panel (_drawFileMenuElement). menuf, menuf_load: MENUF's screens (3B8.c, currentMenu 15: the congratulations,
- * the time attack's start and end, the cube puzzle's start, end and quit): a frame's sprite leaves, draw areas and
+ * file_element: the file menu (MENU7 260.c _drawFileMenu: the save list, Data's SAVE / LOAD, the game over's LOAD;
+ * TITLE 22C.c's copy: the title's LOAD, the clear-data save), drawn at once (no ordering table: PC_CLASSIC_IMMEDIATE):
+ * its frame (part 0 the band's two sprites, part 1 the rest, part 2 the title's and game over's background) and each
+ * card's or file's panel (_drawFileMenuElement). menuf, menuf_load: MENUF's screens (3B8.c, currentMenu 15: the congratulations,
+ * the time attack's start and end, the cube puzzle's start, end and quit; menuf also ENDING's MISSION COMPLETE, D4.c:
+ * the same leaves, screen 16): a frame's sprite leaves, draw areas and
  * PRESS BUTTON prompt (unk4 - 28; the prompt's words unk8), and its VRAM uploads (the TIMs _initMenu loads, the CLUT row
  * the end screens pulse: at once, PC_CLASSIC_IMMEDIATE). The kinds
  * from gauges on

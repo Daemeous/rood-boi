@@ -1890,7 +1890,8 @@ static void _pcFileElement(fileMenuElements_t* element)
             (char*)(_textTable + VS_MCMAN_BIN_OFFSET_empty), vs_char_terminator);
         _pcCodes(record.fresh, sizeof record.fresh,
             (char*)(_textTable + VS_MCMAN_BIN_OFFSET_new), vs_char_terminator);
-        if (record.slot_state >= 3)
+        if (record.slot_state != slotStateUnavailable
+            && record.slot_state != slotStateAvailable) /* (a temporary file's too) */
             _pcCodes(record.place, sizeof record.place,
                 (char*)&_textTable[_textTable[element->saveLocation
                                               + VS_MCMAN_BIN_INDEX_saveLocations]],
@@ -2080,10 +2081,17 @@ static void _drawFileMenu(int framebuf)
 
 static void _drawFileMenuBg(void)
 {
+#ifdef ROOD_PC
+    /* (the background: the title's LOAD and save, the game over's) */
+    _pcFileMenuBegin(2);
+#endif
     _drawSprt(vs_getXY(256, 0), vs_getUV0Clut(0, 0, 768, 227), vs_getWH(64, 176),
         getTPage(clut8Bit, semiTransparencyHalf, 768, 256));
     _drawSprt(vs_getXY(0, 0), vs_getUV0Clut(0, 0, 768, 227), vs_getWH(256, 176),
         getTPage(clut8Bit, semiTransparencyHalf, 640, 256));
+#ifdef ROOD_PC
+    _pcFileMenuEnd(0);
+#endif
 }
 
 static int _promptConfirm(int arg0)

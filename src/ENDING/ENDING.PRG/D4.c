@@ -153,6 +153,62 @@ extern int _illustLbas[];
 extern int _illustSizes[];
 extern _texture_t _disMap[];
 extern u_char D_800DB876;
+#ifdef ROOD_PC
+#include "pc/src/classic/classic_hook.h"
+/* The classic look drawn in Lua (classic_hook.h PC_CLASSIC): the MISSION COMPLETE
+ * screen's leaves (src/renderTextures.h, MENUF's own: 3B8.c) record their calls as
+ * MENUF's do, one element a frame (pc_classic_menuf, its screen PC_CLASSIC_MENUF_ENDING),
+ * the range around them (_renderCongratulationsScreen: not the picture under them,
+ * func_8006C3CC). */
+static pc_classic_menuf _pcMenuF;
+static int _pcMenuFOn;
+static void _pcMenuFCall(int op, int x, int y, int tex, int a, int b, P_CODE* colours)
+{
+    pc_classic_menuf_call* c;
+    if (!_pcMenuFOn || _pcMenuF.count < 0)
+        return;
+    if (_pcMenuF.count >= PC_CLASSIC_MENUF_CALLS) {
+        _pcMenuF.count = -1; /* (more than the record holds: the game draws the frame) */
+        return;
+    }
+    c = &_pcMenuF.call[_pcMenuF.count++];
+    memset(c, 0, sizeof *c);
+    c->op = op;
+    c->tex = tex < 0 ? 0xFF : tex;
+    if (tex >= 0) {
+        c->u = _disMap[tex].x;
+        c->v = _disMap[tex].y;
+        c->w = _disMap[tex].w;
+        c->h = _disMap[tex].h;
+        c->tpage = _disMap[tex].tpage;
+        c->clut = _disMap[tex].clut;
+    }
+    c->x = x;
+    c->y = y;
+    c->a = a;
+    c->b = b;
+    if (colours != NULL) {
+        memcpy(&c->colour[0], &colours[0], 4);
+        memcpy(&c->colour[1], &colours[1], 4);
+    }
+}
+#define PC_MENUF_CALL(op, x, y, tex, a, b, colours) \
+    _pcMenuFCall(PC_CLASSIC_MENUF_##op, x, y, tex, a, b, colours)
+static void* _pcLeavesBegin(void)
+{
+    memset(&_pcMenuF, 0, sizeof _pcMenuF);
+    _pcMenuF.screen = PC_CLASSIC_MENUF_ENDING;
+    _pcMenuFOn = 1;
+    return psx_load(void*, (u_int*)0x1F800000);
+}
+static void _pcLeavesEnd(void* first)
+{
+    _pcMenuFOn = 0;
+    if (pc_classic_site)
+        pc_classic_site(PC_CLASSIC_SITE_MENUF, &_pcMenuF, 0, 0, first,
+            psx_load(void*, (u_int*)0x1F800000));
+}
+#endif
 extern P_CODE D_800DBAA8[];
 extern short titleThresholds[];
 extern u_int rankScores[];
@@ -1879,11 +1935,17 @@ static int _renderCongratulationsScreen(void)
         }
 
         func_8006C3CC(D_800DC20C);
+#ifdef ROOD_PC
+        void* pcFirst = _pcLeavesBegin();
+#endif
         _renderCongratulations(0xA0, 0x28, D_800DC20C);
         _renderIncrementalScore(0xA0, 0x50, D_800DC20C - 0x20, D_800DC210);
         _renderIncrementalMapCompletion(0xA0, 0x66, D_800DC20C - 0x70, D_800DC210);
         _renderRiskbreakerRankHeader(0xA0, 0x8A, D_800DC20C - 0xC0);
         _renderRiskbreakerRank(0xA0, 0x9A, D_800DC20C - 0xD0);
+#ifdef ROOD_PC
+        _pcLeavesEnd(pcFirst);
+#endif
 
         if (D_800DC20C >= 0x1001) {
             D_800DC20C = 0x1000;
@@ -1897,11 +1959,17 @@ static int _renderCongratulationsScreen(void)
     } else {
 
         func_8006C3CC(8 - D_800DC20C);
+#ifdef ROOD_PC
+        void* pcFirst = _pcLeavesBegin();
+#endif
         _renderCongratulations(0xA0, 0x28, 8 - D_800DC20C);
         _renderScore(0xA0, 0x50, 8 - D_800DC20C, 3);
         _renderMapCompletion(0xA0, 0x66, 8 - D_800DC20C, 3);
         _renderRiskbreakerRankHeader(0xA0, 0x8A, 8 - D_800DC20C);
         _renderRiskbreakerRank(0xA0, 0x9A, 8 - D_800DC20C);
+#ifdef ROOD_PC
+        _pcLeavesEnd(pcFirst);
+#endif
 
         if (D_800DC20C >= 8) {
             return 1;

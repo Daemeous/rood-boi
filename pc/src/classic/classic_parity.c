@@ -726,6 +726,13 @@ static void hold_give_up(void)
     rec.held_ok = 0;
 }
 
+/* The arena a claim's immediate draw makes its packets in (hud_bridge.c immediate_packets: vs_scratch.unk0 pointed here
+ * while it draws, then given back): not the game's primitive buffer, which the title does not keep (its file menu
+ * draws from a buffer of its own; vs_scratch.unk0 is whatever the last screen left), and not game state (this unit's
+ * statics are not saved). Below 4 GB (the executable is not PIE): a guest pointer may hold it. */
+static unsigned immediate_arena[PC_CLASSIC_IMMEDIATE_ARENA_WORDS] __attribute__((aligned(16)));
+void* pc_classic_immediate_arena(void) { return immediate_arena; }
+
 void pc_classic_immediate_open(int hold)
 {
     rec.open = 1;

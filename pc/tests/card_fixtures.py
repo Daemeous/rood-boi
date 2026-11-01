@@ -331,6 +331,25 @@ def with_generation(data, gen, hours=None):
     return bytes(encode(plain))
 
 
+def with_header(data, hours=None, map_completion=None):
+    """The save with its header's play time hours (stats.gameTime.h at 0x193) and map completion (0x19E) set, sector
+    1 re-sealed, re-encoded with its key (what MENU7's file panel reads: _readSaveFileInfo)."""
+    plain = decode(data)
+    if hours is not None:
+        plain[0x193] = hours
+    if map_completion is not None:
+        plain[0x19E] = map_completion
+    plain[0x1A4 + 1] = 0
+    x = 0
+    for b in plain[256:512]:
+        x ^= b
+    plain[0x1A4 + 1] = x
+    out = bytes(encode(plain))
+    if not checksums_ok(decode(out)):
+        raise AssertionError("with_header: the checksums do not verify")
+    return out
+
+
 def stats(plain):
     """The header's stats (stats_t at 0x190)."""
     _f, s, m, h, saves, game_saves, hp, hp_max, loc, clear, mapc, _p, mp, mp_max = struct.unpack_from(
@@ -353,8 +372,29 @@ def first_save(source):
     return read_file(image, found[min(found)])
 
 
+def file_states_fixture(source, path, bag=None, layout=None):
+    """MENU7's file panels' other states: file 1 at 100 hours and 100% map (with_header), file 2 a save one
+    generation ahead (the journey's current save only once RAM's vs_main_settings.saveFileGeneration is that one
+    too) holding, with bag and layout, the container built from `bag` (with_container), file 3 a temp without its
+    save (Temporary), another game's file of 1 block: 5 blocks free, one slot for a save (4: New / Empty), 5 in use.
+    Returns what build_container made ({} without a container)."""
+    image = blank()
+    payload = first_save(source)
+    write_file(image, save_name(1), with_header(payload, hours=100, map_completion=100))
+    made = {}
+    data = payload
+    if bag is not None:
+        box, made = build_container(bag, layout)
+        data = with_container(payload, box)
+    write_file(image, save_name(2), with_generation(data, generation(decode(data)) + 1))
+    write_file(image, temp_name(3), payload)
+    write_file(image, "BESLES-00000FILLER", bytes(1 * BLOCK))
+    pathlib.Path(path).write_bytes(bytes(image))
+    return made
+
+
 def fixture(kind, source, path):
-    """Write fixture `kind` to path: multi, full, corrupt, orphan_temp, temp_only, blank, wrong_size."""
+    """Write fixture `kind` to path: multi, full, corrupt, orphan_temp, temp_only, file_states, blank, wrong_size."""
     path = pathlib.Path(path)
     if kind == "wrong_size":
         path.write_bytes(b"\0" * 1000)
@@ -382,6 +422,9 @@ def fixture(kind, source, path):
             write_file(image, temp_name(3), payload)
         else:
             write_file(image, save_name(1), payload)
+    elif kind == "file_states":  # MENU7's file panels' other states (file_states_fixture with no container)
+        file_states_fixture(source, path)
+        return path
     elif kind == "full":  # another game's files: two blocks free, no slot for a save
         write_file(image, "BESLES-00000FILLER", bytes(13 * BLOCK))
     elif kind != "blank":
@@ -394,7 +437,7 @@ if __name__ == "__main__":
     # python3 pc/tests/card_fixtures.py SOURCE OUTDIR: every fixture, and a summary
     src, out = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
     out.mkdir(parents=True, exist_ok=True)
-    for k in ("multi", "full", "corrupt", "orphan_temp", "temp_only", "blank", "wrong_size"):
+    for k in ("multi", "full", "corrupt", "orphan_temp", "temp_only", "file_states", "blank", "wrong_size"):
         p = fixture(k, src, out / f"{k}.mcd")
         if k != "wrong_size":
             img = bytearray(p.read_bytes())

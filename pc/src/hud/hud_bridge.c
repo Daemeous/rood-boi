@@ -838,7 +838,8 @@ void pc_hud_menu(int kind, void* record, void* first, void* end)
     classic_finish(kind, f, first, end, slots, nslots, 0);
 }
 
-/* MENUF's screens (3B8.c's PC_CLASSIC around _execMenu, currentMenu 15 only): one element a frame, its record the
+/* MENUF's screens (3B8.c's PC_CLASSIC around _execMenu, currentMenu 15 only; and ENDING's MISSION COMPLETE screen, D4.c's
+ * range around the same leaves: screen PC_CLASSIC_MENUF_ENDING): one element a frame, its record the
  * leaves' calls (pc_classic_menuf: copied out of the save state's sections for the Lua side, classic_parity.c). The
  * sprites, draw areas and the prompt's sprite link into vs_scratch.unk4 - 28, the prompt's words into unk8. A frame
  * with more calls than the record holds is the game's. */
@@ -847,7 +848,8 @@ void pc_hud_menuf(void* record, void* first, void* end)
     static pc_hud_fields f;
     const pc_classic_menuf* m = record;
     int slots[2], unk8 = (int)((char*)psx_get(vs_scratch.unk8) - (char*)psx_get(vs_scratch.unk4));
-    if (!m || first == end || (vs_battle_menuState.currentMenu & 0x3F) != 15 || m->count < 0
+    if (!m || first == end
+        || ((vs_battle_menuState.currentMenu & 0x3F) != 15 && m->screen != PC_CLASSIC_MENUF_ENDING) || m->count < 0
         || m->count > PC_CLASSIC_MENUF_CALLS)
         return;
     memcpy(pc_classic_menuf_calls(), m, sizeof *m);
@@ -1974,6 +1976,7 @@ static int immediate_packets(const pc_hud_classic_cmd* cmds, int n, int kind, in
     const pc_hud_classic_cmd* glyph = NULL;
     int count = 0, i;
     restyle = draw;
+    psx_set(vs_scratch.unk0, (u_long*)pc_classic_immediate_arena()); /* (classic_parity.c's: not the game's) */
     for (i = 0; i < n; ++i) {
         const pc_hud_classic_cmd* c = &cmds[i];
         u_long *from, *to, *p;
@@ -2033,13 +2036,16 @@ static int immediate_packets(const pc_hud_classic_cmd* cmds, int n, int kind, in
     return count;
 }
 
-/* MENU7's file menu: on the Data screen and the save list after Storage only (currentMenu 7; not the game over's).
- * MENUF's uploads: on its screens (currentMenu 15). */
+/* The file menu: MENU7's on currentMenu 7 (the Data screen, the save list after Storage, the game over's LOAD), the
+ * title's copy (TITLE 22C.c: LOAD, the clear-data save) while its ranges say so (pc_classic_immediate_screen; the
+ * title runs with no menu state of BATTLE's to read). MENUF's uploads: on its screens (currentMenu 15). */
+static int immediate_title;
+void pc_classic_immediate_screen(int title) { immediate_title = title; }
 static int immediate_screen_of(int kind)
 {
     if (kind == PC_HUD_MENUF_LOAD)
-        return (vs_battle_menuState.currentMenu & 0x3F) == 15;
-    return (vs_battle_menuState.currentMenu & 0x3F) == 7 && !vs_main_stateFlags.gameOver;
+        return !immediate_title && (vs_battle_menuState.currentMenu & 0x3F) == 15;
+    return immediate_title || (vs_battle_menuState.currentMenu & 0x3F) == 7;
 }
 void pc_classic_immediate_begin(int kind)
 {
@@ -2050,7 +2056,7 @@ void pc_classic_immediate_begin(int kind)
 }
 void pc_classic_immediate_site(int kind, void* record)
 {
-    static pc_hud_fields menu_parts[2], elements[10], menuf_load;
+    static pc_hud_fields menu_parts[3], elements[10], menuf_load;
     static pc_classic_packet lua[PC_CLASSIC_CAPTURE];
     const pc_classic_packet* game;
     pc_hud_fields* f;
@@ -2074,10 +2080,10 @@ void pc_classic_immediate_site(int kind, void* record)
     } else if (kind == PC_HUD_FILE_MENU) {
         const pc_classic_file_menu* m = record;
         typedef char pc_hud_file_menu_agrees[sizeof menu_parts[0].file_menu == sizeof *m ? 1 : -1];
-        f = &menu_parts[m->part & 1];
+        f = &menu_parts[(unsigned)m->part % 3];
         *f = (pc_hud_fields) { 0 };
         memcpy(&f->file_menu, m, sizeof f->file_menu);
-        f->x = 0, f->y = m->part ? 0 : 176, f->w = 320, f->h = m->part ? 240 : 64;
+        f->x = 0, f->y = m->part == 0 ? 176 : 0, f->w = 320, f->h = m->part == 0 ? 64 : m->part == 2 ? 176 : 240;
     } else {
         const pc_classic_file_element* e = record;
         typedef char pc_hud_file_element_agrees[sizeof elements[0].file == sizeof *e ? 1 : -1];

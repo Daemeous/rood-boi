@@ -17,6 +17,99 @@ follows `2026-10-18-lua-visible-layer.md` (F1-F3, done),
 
 ## Progress
 
+2026-10-31, evening (branch `classic-title-load`, from `classic-coverage` `94c9545cf`; no merge or publication):
+
+- **The last file-menu and MENUF drawings outside the main menu, claimed and toured, in the order asked.** No new kind.
+  1. **The title's LOAD** (TITLE 22C.c `_gameLoadScreen`: title, Start, Continue) draws TITLE's own copy of MENU7's
+     file menu (`_drawFileMenu`, `_drawFileMenuElement`: the same code but for the progress division). It gets the
+     same `PC_CLASSIC_IMMEDIATE` ranges and records (`ROOD_PC` only), its ranges marked as the title's
+     (`pc_classic_immediate_screen(1)` .. `(0)`: the title has no BATTLE menu state to tell it by), and its printer
+     leaves its glyph reports out while held, as MENU7's does. The same copy draws the clear-data save after the
+     ending (`_gameSaveScreen`), claimed with it. The background both the title and the game over draw
+     (`_drawFileMenuBg`: two sprites, before the frame) is `file_menu`'s part 2 (`look.file_menu.frame.background`).
+     A claim's immediate packets are now made in classic_parity.c's arena (`pc_classic_immediate_arena`, not game
+     state), not past `vs_scratch.unk0`: at the title that pointer is whatever the last screen left.
+  2. **The game over's LOAD** (MENU7 `vs_menu7_gameOver`, currentMenu 7 with `gameOver`): the `!gameOver` exclusion
+     dropped; the 2026-10-21 load-flicker fix (both frame buffers cleared at `initFileMenu`) untouched
+     (save_menu_smoke's Game Over > LOAD checks pass with the claims on).
+  3. **The ending's MISSION COMPLETE** (ENDING D4.c `_renderCongratulationsScreen`, reached by RPC `ending` from the
+     field, the credits skipped): ENDING's copy of `src/renderTextures.h` records its calls with its own
+     `_pcMenuFCall` (ENDING's `_disMap`); a `PC_CLASSIC` range around the screen's leaf calls (not
+     `func_8006C3CC`, the picture under them); the record's screen `PC_CLASSIC_MENUF_ENDING` (16), which
+     `pc_hud_menuf` claims as it does currentMenu 15. No new Lua: the leaves are MENUF's.
+- **Tours** (classic_parity, two games of their own before the menus game): `run_file_screens` (the title with card 1
+  and a copy of card 2's file_states fixture: the LOAD's cards walked, card 2's files, card 1's past the last page
+  and back, out and in; proofs at rest of card 1's list; card 1's first file loaded (the progress, its completion);
+  in the save room Ashley's HP to 0: the game over's LOAD, Continue, its cards, card 2's files and card 1's walked;
+  proofs at rest of its list). `run_ending` (the save room: RPC ending, Start, the screen in, every frame; proofs at
+  rest; Cross: its fade-out; the clear-data save's cards and card 1's save list walked, Cross, "Save now?", NO;
+  nothing saved). Proofs: default and fallback of `file_menu` and `file_element` (and `menuf` on the ending), state
+  parity 120 / 120 at each rest. Outside the gate: the game's frame buffer with the claims and without them
+  identical (title's file list, the ending's screen: 0 pixels), a one-pixel change caught at once
+  (`frame.background[1][1] = 257`: 20 of 60 file_menu frames on `xy`, the background part; `panel.text_x = 7`: 60 of
+  160 file_element frames; `look.menuf.place.dx = 1` on the ending: 60 of 60).
+- **Counts** (the two games alone, null renderer): the file screens `file_menu` 3,132 frames, `file_element` 6,738;
+  the ending `menuf` 339, `file_menu` 849, `file_element` 1,216; 0 mismatches, 0 skips, no waivers.
+- **Verification:** `--arch 64` and `--battle` builds. Docker `make commit-check` (a copy of the tree; 260.c, 22C.c,
+  D4.c and `src/renderTextures.h` touched): **All files match** (the formatter's rewrites of my lines kept; of the
+  ten files not touched here, discarded). No Zig port touches TITLE, MENU7's file menu or ENDING. `run.py -j 1
+  --cpu-jobs 1` (nice 10) `classic_parity hud classic cutscene_player_smoke widescreen_smoke opening title
+  skip_intro` plus every suite matching `manual ui_ menu prompts button options items equip status workshop
+  container loot memory card save data load` (52 suites): **Vulkan 52/52**; **GL 51/52, 1 skip** (shader_reload_smoke:
+  Vulkan's), on the final binary. A first GL run (the binary before a formatting-only rebuild) failed classic_parity
+  once in the menus game's existing card-2 SAVE tour (`the save: never done (progress 0)`: the save had reached the
+  card copy, slots 1, 2, 4; the completion step not seen), then passed alone and in the final run: a timing flake
+  of that tour, not of these games. classic_parity takes about 1,040 s now (GL; Vulkan about 1,150): its timeout
+  1200 -> 1800 s. classic_hud_smoke's Lua cost: GL mean 0.053 ms, Vulkan mean 0.057 ms (p99 0.093), under 0.1.
+- **Not reached:** the clear-data save actually written (no test writes its card there), the title's LOAD with no
+  card, an unformatted one or a read error (the game's messages: the same frame, part 1). ENDING's own uploads (its
+  TIMs) are not claimed.
+
+2026-10-31, afternoon (branch `classic-coverage`, from `classic-menuf` `be91acdd6`; no merge or publication):
+
+- **Coverage: the paths already claimed that classic_parity had never walked, toured in the order asked.** No new
+  kind (no tour found the game drawing something no claim covers); two record / draw bugs found and fixed (below).
+  1. **Status's hand at rest.** It comes up a while after the screen settles (about 15 frames): `status_open` now
+     waits for it, so the Status proof counts `menu_cursor` at rest (default, fallback, state parity).
+  2. **The rename grid reached from Assemble** (a new weapon's name): `tour_assemble_rename` (in tour_setup's
+     workshop, after the two picks): a blade and a grip, Start, Yes: the grid in, walked, typed, taken back, the
+     pen moved, the commands walked; Start: its Yes / No walked, Cross; Start, Yes: the weapon made. Proof at rest
+     (`assemble_rename_open`: the grid, its boxes, the hand).
+  3. **MENUF:** the bonus wheel left to its own stop (timer 2072: about 4,100 vsyncs), the time attack's end with no
+     new record (`NO_RECORD`: the course's three records and the time made written first; `_newTimeSlot` checked:
+     3 past the three on course 1, 1 second on course 4), the start on courses 2 to 6 too (1 to 7 now). Proofs at
+     rest: the wheel's own stop, both no-record ends.
+  4. **MENU7's file menu, card 2** (`card_fixtures.file_states_fixture`; `classic_parity.card2_fixture` builds it
+     before the run, its container from the save room's bag read in a game of its own; a copy in the card guard's
+     directory is the menus game's slot 2 only (`MENUS_CARD2`): the opening / marker games keep no card 2, the
+     title's no-card path stays as it was). File 1 at 100 hours and 100% map, file 2 a save a generation ahead
+     (with a container), file 3 a temporary file, another game's 1-block file (slot 4 free, 5 in use).
+     `tour_data_card2`: SAVE's list walked; a save to slot 4 (written to the copy only; checked: files 1, 2, 4), its
+     progress and completion; LOAD of file 1 (100 hours), its progress, completion, the game loaded; rewound after
+     each. Proofs at rest of card 2's SAVE and LOAD lists.
+  5. **Storage's Remove with items:** `storage_card2_current` points RAM's settings at card 2's file 2 (its
+     generation; containerEmpty cleared), so MENU7 finds the journey's save there and reads its container (card 1's
+     no longer matches). `tour_storage_remove`: every tab round, each list walked, six status views, a weapon taken
+     out, Cross at the top, the warning's No. Proofs at rest: Remove's list, a container item's status view.
+- **Bugs found by the tours:** (a) the `file_element` record took the location's words only for a used slot; the
+  game prints them for a temporary file too (its panel the zeroed info's): 36 frames mismatched on code / uv (260.c,
+  `ROOD_PC` only). (b) A load's completion step reads its colour past `_cursorFileOpSaturation`'s end (`p[17]` at
+  the last step: -64 on the PC); the Lua made the game's int arithmetic with Lua's logical `>>` and no 32-bit mask
+  (`word 5 is not 32 bits`: the claim failed, the game drew the rest of the screen): now `// 8` and `& W`.
+- **Not reached:** a location picture past 47 (`location >= 48`, the -3 picture: no save room has one); the title's
+  LOAD and the game over's file menu (not claimed); the ENDING's copy of MENUF's leaves (not claimed).
+- **Counts** (classic_parity's menus game, GL; 157 scenarios, 55 menus state-parity marks, all 120/120):
+  `menu_row` 225,065 frames, `menu_cursor` 16,959, `rename_grid` 517, `rename_box` 728, `file_menu` 3,094,
+  `file_element` 9,636, `menuf` 5,068, `menuf_load` 1,108, `storage_buttons` 3,064, `storage_counts` 3,282; 0
+  mismatches, 0 skips, no waivers, every report green.
+- **Verification:** `--arch 64` and `--battle` builds. Docker `make commit-check` (a copy of the tree; 260.c
+  touched): **All files match** (the formatter's rewrites of ten files not touched here discarded; 260.c unchanged
+  by it). `run.py -j 1 --cpu-jobs 1` (nice 10) `classic_parity hud classic cutscene_player_smoke widescreen_smoke`
+  plus every suite matching `manual ui_ menu prompts button options items equip status workshop container loot
+  memory card save data` (44 suites): **GL 44/44** (classic_parity alone first, then the 43 others), **Vulkan
+  44/44**, first runs; no budget faults. classic_hud_smoke's Lua cost: GL mean 0.043 ms, Vulkan mean 0.064 ms
+  (p99 0.158), under 0.1.
+
 2026-10-31 (branch `classic-menuf`, from main `f6d70e45`; no merge or publication):
 
 - **MENUF drawn by rood.classic: the last MAINMENU screen (currentMenu 15).** Design: §3.4b (the worker's calls). The
@@ -1483,8 +1576,11 @@ left in the frame's buffer to walk or suppress, they are already drawn. The desi
 - **Records filled by the game side**, before and after the statement as the draw reads them (the blend factors,
   the hand's saturation step, the printer's blink step before; places after the slide), the words as codes, the
   two location CLUTs as data (`d.image_load`'s pixels): no game text or art in the plugin.
-- **Not held for**: the modern Data screen (MENU7's own gate, `_pcNoDraw`, runs first), the game over's file menu
-  (not toured), any screen but currentMenu 7.
+- **Not held for**: the modern Data screen (MENU7's own gate, `_pcNoDraw`, runs first), any screen but currentMenu 7
+  and the title's. (2026-10-31: the game over's LOAD is held for too, and the title's copy of the drawing (TITLE
+  22C.c: its LOAD, the clear-data save) marks its ranges as the title's, `pc_classic_immediate_screen`; the
+  background both draw, `_drawFileMenuBg`, is `file_menu`'s part 2. A claim's packets are made in classic_parity.c's
+  arena, not past `vs_scratch.unk0`: the title keeps no primitive buffer there.)
 - Known limit: a fallback that replays held glyphs (a failing draw, a frame the recorder gave up on) replays them
   from copies, so ui_text's line layout misses them for that frame (their glyphs placed cell by cell).
 
@@ -1510,7 +1606,10 @@ printer); and it uploads at once (`LoadImage`: `_initMenu`'s TIMs and CLUT, the 
   three TIMs of 32,640 bytes) and `d.image_load` takes the record's handle for them. So the claim makes the uploads
   (where, in which order: its call) with the game's own pixels (no art in the plugin), and the gate compares each by
   rectangle and hash as for the file menu's CLUTs; a held TIM is held, not done twice.
-- **Not done**: the ENDING's copy of `src/renderTextures.h` (its hook is the empty default).
+- **The ENDING's copy** (2026-10-31): D4.c records its leaves' calls as 3B8.c does (`PC_MENUF_CALL`, its own
+  `_pcMenuFCall` on ENDING's `_disMap`), a `PC_CLASSIC` range around the MISSION COMPLETE screen's leaf calls
+  (`_renderCongratulationsScreen`: not `func_8006C3CC`, the picture under them), the record's screen
+  `PC_CLASSIC_MENUF_ENDING` (16; claimed by that, the ENDING keeping no menu state). Its uploads are not claimed.
 
 ### 3.5 Reporting
 

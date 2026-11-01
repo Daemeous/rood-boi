@@ -491,8 +491,8 @@ local function make_look()
     -- step, its two highlighted pairs; their draw mode and the shadow tile), the gauges (`gauge`: HP's and MP's
     -- colours, the full one's, its back tile), the location pictures (`picture`: 64 x 32 by location, the CLUT row
     -- read, swapped and put back), the frame (`frame`: the band, its shaded rows, the caution, the message tile, the
-    -- hand, the fade) and the progress animations (`progress`). Places are the game's (320 x 240, no anchor: the
-    -- file menu is drawn as the game's own 2D is).
+    -- hand, the fade; `background`: the title's and the game over's) and the progress animations (`progress`).
+    -- Places are the game's (320 x 240, no anchor: the file menu is drawn as the game's own 2D is).
     file_menu = {
       font = { page_x = 832, columns = 21, cell = 12, clut_x = 896, clut_y = 222, mode = 0xE100002D,
         colour = 0x66808080, space = 0x8F, arrow = 0xBC, line = 13,
@@ -513,6 +513,7 @@ local function make_look()
         special = 64 },
       clear_badge = { 240, 16, 912, 223, 16, 16, page = 0x0C },
       frame = { band = { { 256, 176, 64, 64, 0x9C }, { 0, 176, 256, 64, 0x9A }, v = 176, clut_x = 768, clut_y = 227 },
+        background = { { 256, 0, 64, 176, 0x9C }, { 0, 0, 256, 176, 0x9A }, v = 0, clut_x = 768, clut_y = 227 },
         rows = { top = 187, w = { 256, 64 } }, caution = { 10, 181, 64, 145, 848, 33, 7 },
         message = { tile = 0x60000000, y = 187, h = 52, x = 16, text_y = 192 },
         hand = { u = 32, v = 48, clut_x = 896, w = 16, h = 16,
@@ -1915,7 +1916,9 @@ M.draw.file_element = function(e, d)
   local g = c.progress
   if f.progress == 2 then -- _fileProcessingCompleteAnim
     local colour = f.progress_colour
-    local c0 = f.saving and colour + (colour << 15) or (colour - (colour >> 3)) + (colour << 8)
+    -- (the game's int arithmetic, its shift arithmetic: the last step's colour is negative, -p[17] read past the
+    -- table's end)
+    local c0 = (f.saving and colour + (colour << 15) or (colour - (colour // 8)) + (colour << 8)) & W
     local c1 = 0
     d.packet(g.mode, (g.tile | c0) & W, (y | 64) & W, 256 | (32 << 16))
     for _ = 1, 2 do
@@ -1939,8 +1942,8 @@ end
 M.draw.file_menu = function(e, d)
   local c, m = look.file_menu, e.file_menu
   local fr = c.frame
-  if m.part == 0 then -- the band's two sprites (under the elements)
-    local b = fr.band
+  if m.part == 0 or m.part == 2 then -- the band's two sprites (under the elements); 2: the background's (the title's
+    local b = m.part == 0 and fr.band or fr.background -- LOAD and save, the game over's: before the frame)
     for _, s in ipairs(b) do
       file_sprite(d, s[1] | (s[2] << 16), file_uvc(0, b.v, b.clut_x, b.clut_y), s[3] | (s[4] << 16), s[5])
     end

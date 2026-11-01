@@ -1,6 +1,6 @@
 #include "texture_t.h"
 
-#ifndef PC_MENUF_CALL /* (MENUF's classic hook, 3B8.c; nothing elsewhere) */
+#ifndef PC_MENUF_CALL /* (the classic hook: MENUF's 3B8.c, ENDING's D4.c) */
 #define PC_MENUF_CALL(op, x, y, tex, a, b, colours)
 #endif
 

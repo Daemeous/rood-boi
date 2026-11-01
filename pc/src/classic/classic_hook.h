@@ -177,7 +177,8 @@ typedef struct { int x, y, w, h; } pc_classic_rename_box;
  * sprites (before the elements), part 1 after them: the band's three shaded rows (x the frame buffer's, 0 or 320), the
  * caution sprite, the message's tile, the hand (cursor_xy packed, 0 none; cursor_color its saturation step before the
  * draw steps it), the message (has_message; its codes as the game keeps them, to 0xE7; arrow: _printString's blink step
- * before the draw) and the screen's fade. */
+ * before the draw) and the screen's fade. Part 2: the background's two sprites (_drawFileMenuBg: the title's LOAD and
+ * clear-data save, the game over's LOAD; drawn before the frame). */
 typedef struct {
     int part, x, cursor_xy, cursor_color, fade, arrow, has_message;
     unsigned char message[256];
@@ -218,6 +219,9 @@ void pc_classic_immediate_site(int kind, void* record) __attribute__((weak));
 /* Whether the open range holds the game's draws back (a claim draws instead): the game's own glyph reports to ui_text
  * are then left out (the claim's packets report theirs, d.text_glyph). classic_parity.c. */
 int pc_classic_immediate_held(void) __attribute__((weak));
+/* The title's copy of the file menu (TITLE 22C.c: LOAD, the clear-data save) marks its ranges as the title's (1 before
+ * begin, 0 after site): the title keeps no menu state to tell its screen by (hud_bridge.c). */
+void pc_classic_immediate_screen(int title) __attribute__((weak));
 /* MAINMENU's shared frame (58EC.c), read for the menu model (pc/src/classic/menu_model.c, rood.game.menu()): the
  * statics its list and command title keep (the list's cursor row and page, the sub-menu's id, row info and row
  * count, whether its rows take input (_itemsText), the rows' y offset; the command title's current and next). */

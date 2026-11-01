@@ -540,7 +540,7 @@ def suites(args, mode="egl"):
                       "drawn), hot-reloaded while held; the game's own drawing with no claim, a draw error, the "
                       "plugin off, the classic look")]
           if args.save.exists() else []),
-        *([Suite("classic_parity", [PY, str(TESTS / "classic_parity.py"), "--card", str(args.save)], 1200, gpu=False,
+        *([Suite("classic_parity", [PY, str(TESTS / "classic_parity.py"), "--card", str(args.save)], 1800, gpu=False,
                  note="the classic look in Lua: rood.classic's timing words and chain counts packet for packet "
                       "against the game's own in the same frames (the null renderer), waivers = its declared "
                       "overrides, on by default, the game's drawing as the fallback, state parity")]
