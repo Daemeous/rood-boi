@@ -832,17 +832,37 @@ static void window_moved(void)
         pc_ui_settings_touch();
 }
 
+/* `text` as a JSON string's contents: a display's name is the monitor's own
+ * (`27"`, a backslash), and the settings may hold any text. */
+static void json_text(char* out, size_t size, const char* text)
+{
+    size_t n = 0;
+    for (; *text && n + 7 < size; text++) {
+        unsigned char c = (unsigned char)*text;
+        if (c == '"' || c == '\\')
+            out[n++] = '\\', out[n++] = (char)c;
+        else if (c < 0x20)
+            n += (size_t)snprintf(out + n, size - n, "\\u%04x", c);
+        else
+            out[n++] = (char)c;
+    }
+    out[n] = 0;
+}
+
 /* RPC (system): the display back-ends' state. */
 int pc_window_display_json(char* out, int size)
 {
     int i = display_index(), n = 0, r[4] = { 0, 0, 0, 0 };
+    char display[256], mode[sizeof mode_want * 6];
     refresh_modes();
     pc_window_rect_get(r);
+    json_text(display, sizeof display, pc_display_setting());
+    json_text(mode, sizeof mode, mode_want);
     n += snprintf(out + n, (size_t)(size - n),
         "{\"display\":\"%s\",\"display_index\":%d,\"displays\":%d,\"fullscreen_mode\":\"%s\",\"modes\":%d,"
         "\"mode_index\":%d,\"vsync\":%s,\"present_rate\":%d,\"display_rate\":%d,\"remember_window\":%s,"
         "\"window_rect\":[%d,%d,%d,%d]}",
-        pc_display_setting(), i, display_count, mode_want, mode_count, pc_fullscreen_mode_current(),
+        display, i, display_count, mode, mode_count, pc_fullscreen_mode_current(),
         vsync_on ? "true" : "false", pc_window_present_rate(), display_rate(), remember_on ? "true" : "false", r[0],
         r[1], r[2], r[3]);
     return n;

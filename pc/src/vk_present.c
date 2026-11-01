@@ -215,8 +215,21 @@ static int make_swapchain(void)
                 mode = preferred[p];
     VkExtent2D extent = caps.currentExtent;
     if (extent.width == UINT32_MAX) {
-        extent.width = (uint32_t)window_w;
-        extent.height = (uint32_t)window_h;
+        /* The surface leaves the size to us (Wayland): the window's pixels now, from SDL.
+         * Not window_w / window_h: sync_swapchain sets those from the previous swapchain,
+         * so every resize rebuilt it at the size the window was created at, which the
+         * compositor then scaled into the window (letterboxed, never native, the pointer
+         * off by the scale). */
+        int w = 0, h = 0;
+        SDL_GetWindowSizeInPixels(window, &w, &h);
+        if (w <= 0 || h <= 0)
+            w = window_w, h = window_h;
+        extent.width = (uint32_t)w < caps.minImageExtent.width ? caps.minImageExtent.width
+            : (uint32_t)w > caps.maxImageExtent.width          ? caps.maxImageExtent.width
+                                                               : (uint32_t)w;
+        extent.height = (uint32_t)h < caps.minImageExtent.height ? caps.minImageExtent.height
+            : (uint32_t)h > caps.maxImageExtent.height           ? caps.maxImageExtent.height
+                                                                 : (uint32_t)h;
     }
     if (!extent.width || !extent.height)
         return 0;

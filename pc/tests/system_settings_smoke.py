@@ -25,7 +25,9 @@ First run, with ROOD_SETTINGS on a fresh file and audio recorded to a WAV:
   - the file holds every value (and widescreen 1 / perspective_textures 0)
 Second run with the same file (no ROOD_WIDESCREEN / ROOD_PERSPECTIVE): every
 value is back; hand-written ui_menu_tint 1 / ui_menu_tint_custom 40 -3 9 load
-as Classic with the channels clamped to 0..31 (and save as classic, 31 0 9). Third run with ROOD_WIDESCREEN=0 ROOD_PERSPECTIVE=1: they apply,
+as Classic with the channels clamped to 0..31 (and save as classic, 31 0 9); a
+hand-written display named with a quote and a backslash comes back through the
+system RPC (escaped JSON). Third run with ROOD_WIDESCREEN=0 ROOD_PERSPECTIVE=1: they apply,
 a save keeps the file's widescreen / perspective_textures (environment
 overrides are never saved as the user's), until the setting is changed.
 Without the card, the field part is skipped."""
@@ -276,14 +278,18 @@ def main():
 
     # ---- second run: the same file (with a hand-written menu tint: a digit and out-of-range channels) ----
     text = "".join(line + "\n" for line in settings.read_text().splitlines()
-                   if not line.startswith("ui_menu_tint"))
-    settings.write_text(text + "ui_menu_tint 1\nui_menu_tint_custom 40 -3 9\n")
+                   if not line.startswith("ui_menu_tint") and not line.startswith("display "))
+    # A display named as monitors are (a quote, a backslash): the system RPC stays JSON.
+    display = '0 Studio 27" \\ panel'
+    settings.write_text(text + "ui_menu_tint 1\nui_menu_tint_custom 40 -3 9\n" + f"display {display}\n")
     game = Game.launch(fast=True, card=str(card) if have_card else None, log=out / "game2.log", extra_env=env)
     try:
         game.wait_title()
         s = game.call("system")
         check(s["window_mode"] == "borderless" and s["master_volume"] == 40 and s["brightness"] == 70,
               f"relaunch: window_mode, master_volume, brightness back ({s})")
+        check(s["display"]["display"] == display,
+              f"a display name with a quote and a backslash comes back as JSON ({s['display']['display']!r})")
         g = game.call("graphics")
         check(g["widescreen"] and not g["perspective"],
               f"relaunch: widescreen 1, perspective_textures 0 kept ({g['widescreen']}, {g['perspective']})")
