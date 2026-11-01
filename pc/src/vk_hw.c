@@ -116,7 +116,9 @@ static int make_targets(int scale)
         || !vk_image_create(&vk_hw.copy, vk_hw.width, vk_hw.height, VK_TARGET_FORMAT,
             VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT)
         || !vk_image_create(&vk_hw.room_depth, vk_hw.width, vk_hw.height, vk.depth_format, depth)
-        || !vk_image_create(&vk_hw.before, vk_hw.width, vk_hw.height, vk.depth_format, depth))
+        || !vk_image_create(&vk_hw.before, vk_hw.width, vk_hw.height, vk.depth_format, depth)
+        || !vk_image_create(&vk_hw.room_key, vk_hw.width, vk_hw.height, vk.depth_format, depth)
+        || !vk_image_create(&vk_hw.room_only, vk_hw.width, vk_hw.height, vk.depth_format, depth))
         return 0;
     make_attachments(&live_attachments, &vk_hw.live, &vk_hw.live.depth);
     make_attachments(&replay_attachments, &vk_hw.replay, &vk_hw.replay.depth);
@@ -146,7 +148,7 @@ const vk_attachments* vk_hw_attachments(unsigned token)
 int vk_hw_token_samples(unsigned token)
 {
     return token == VK_TOKEN_MS || token == VK_TOKEN_MS_OBJECT || token == VK_TOKEN_MS_ROOM_DEPTH
-            || token == VK_TOKEN_MS_BEFORE
+            || token == VK_TOKEN_MS_BEFORE || token == VK_TOKEN_MS_ROOM_KEY || token == VK_TOKEN_MS_ROOM_ONLY
         ? vk_hw.ms_samples
         : 1;
 }
@@ -167,6 +169,14 @@ const vk_image* vk_hw_depth(unsigned token)
         return vk_hw.ms_samples ? &vk_hw.ms_room : NULL;
     case VK_TOKEN_MS_BEFORE:
         return vk_hw.ms_samples ? &vk_hw.ms_before : NULL;
+    case VK_TOKEN_ROOM_KEY:
+        return &vk_hw.room_key;
+    case VK_TOKEN_ROOM_ONLY:
+        return &vk_hw.room_only;
+    case VK_TOKEN_MS_ROOM_KEY:
+        return vk_hw.ms_samples ? &vk_hw.ms_room_key : NULL;
+    case VK_TOKEN_MS_ROOM_ONLY:
+        return vk_hw.ms_samples ? &vk_hw.ms_room_only : NULL;
     }
     return NULL;
 }
@@ -321,6 +331,8 @@ void pc_vk_hw_resize(int scale)
     vk_image_destroy_later(&vk_hw.copy);
     vk_image_destroy_later(&vk_hw.room_depth);
     vk_image_destroy_later(&vk_hw.before);
+    vk_image_destroy_later(&vk_hw.room_key);
+    vk_image_destroy_later(&vk_hw.room_only);
     vk_end_rendering();
     if (!make_targets(scale))
         fprintf(stderr, "[vk] cannot make %dx targets\n", scale);
@@ -855,6 +867,8 @@ static void ms_destroy(void)
     vk_image_destroy_later(&vk_hw.ms.depth);
     vk_image_destroy_later(&vk_hw.ms_room);
     vk_image_destroy_later(&vk_hw.ms_before);
+    vk_image_destroy_later(&vk_hw.ms_room_key);
+    vk_image_destroy_later(&vk_hw.ms_room_only);
     vk_hw.ms_samples = vk_hw.ms_width = vk_hw.ms_height = 0;
 }
 /* The packet pipelines at `samples`, and load/resolve (made once per count). */
@@ -977,7 +991,9 @@ int pc_vk_hw_ms_make(int samples, int width, int height)
         || !vk_image_create_ms(&t->material, width, height, VK_MATERIAL_FORMAT, color, samples)
         || !vk_image_create_ms(&t->depth, width, height, vk.depth_format, depth, samples)
         || !vk_image_create_ms(&vk_hw.ms_room, width, height, vk.depth_format, depth, samples)
-        || !vk_image_create_ms(&vk_hw.ms_before, width, height, vk.depth_format, depth, samples)) {
+        || !vk_image_create_ms(&vk_hw.ms_before, width, height, vk.depth_format, depth, samples)
+        || !vk_image_create_ms(&vk_hw.ms_room_key, width, height, vk.depth_format, depth, samples)
+        || !vk_image_create_ms(&vk_hw.ms_room_only, width, height, vk.depth_format, depth, samples)) {
         fprintf(stderr, "[vk] no %dx MSAA images (%d x %d)\n", samples, width, height);
         ms_destroy();
         return 0;

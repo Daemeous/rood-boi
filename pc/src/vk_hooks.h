@@ -33,6 +33,14 @@ enum {
     VK_TOKEN_MS_OBJECT = 9, /* multisampled colours + the multisampled native surfaces' depth */
     VK_TOKEN_MS_ROOM_DEPTH = 10, /* the multisampled native surfaces' depth */
     VK_TOKEN_MS_BEFORE = 11, /* its copy from before an object list */
+    /* A room list in PS1 order (vk_render.inc vk_draw_room_ordered): the
+     * winning polygon's order key, and the room's own depth, for object lists
+     * to give the room's ordering-table order near its surfaces
+     * (pc_native_actor_window). */
+    VK_TOKEN_ROOM_KEY = 12,
+    VK_TOKEN_ROOM_ONLY = 13,
+    VK_TOKEN_MS_ROOM_KEY = 14, /* their multisampled twins */
+    VK_TOKEN_MS_ROOM_ONLY = 15,
 };
 
 /* ---- gpu_hw.c -> vk_hw.c ---- */

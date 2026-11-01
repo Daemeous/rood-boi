@@ -1381,6 +1381,12 @@ static void render_panel()
         ImGui::SetTooltip("Room polygons lying on other room polygons (documents on a table, a notice on\n"
                           "a wall, a rug on the floor) paint in the PS1's ordering-table order instead of\n"
                           "z-fighting; occlusion stays per pixel beyond a small slack. Off: plain depth test.");
+    extern float pc_native_actor_window;
+    ImGui::SliderFloat("Characters in PS1 order near walls (GTE units)", &pc_native_actor_window, 0.0f, 256.0f, "%.0f");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("A character just behind a room surface (a leg behind a door's plane as it\n"
+                          "stands in the doorway) shows where the PS1 painted it after that surface,\n"
+                          "up to this far behind it; further, depth decides. 0: depth alone.");
     extern int pc_room_texture_lod;
     bool lod = pc_room_texture_lod != 0;
     if (ImGui::Checkbox("PS1 half-size textures in the distance", &lod))

@@ -21,9 +21,15 @@ layout(binding = 6) uniform usampler2D emissive_map; // emissive texels' slot ma
 #ifdef SURFACE_MS
 layout(binding = 3) uniform sampler2DMS surface_depth;
 layout(binding = 4) uniform sampler2DMS surface_before;
+layout(binding = 8) uniform sampler2DMS room_key;
+layout(binding = 9) uniform sampler2DMS room_only;
 #else
 layout(binding = 3) uniform sampler2D surface_depth;
 layout(binding = 4) uniform sampler2D surface_before; // the native surfaces' depth before this list
+// The room list in PS1 order (vk_render.inc vk_draw_room_ordered): the order
+// key of its polygon on top (bucket << 10 | sequence, as depth) and its own depth.
+layout(binding = 8) uniform sampler2D room_key;
+layout(binding = 9) uniform sampler2D room_only;
 #endif
 layout(location = 0) out vec4 color;
 layout(location = 1) out vec4 normal_out;
@@ -131,8 +137,18 @@ void main() {
     bool silhouette = false;
     float silhouette_depth = 0.0;
     if (u.painter != 0) {
-        float before = texelFetch(surface_before, ivec2(gl_FragCoord.xy), 0).r;
-        if (tested > before) {
+        ivec2 q = ivec2(gl_FragCoord.xy);
+        float before = texelFetch(surface_before, q, 0).r;
+        // The PS1 painted the model's polygons into the room's ordering
+        // table: behind the room surface in front of it by at most
+        // actor_window, a polygon in a nearer bucket than that surface's
+        // (painted after it) wins, as on the PS1 (a leg just behind a door's
+        // plane). Only where that surface is the room's own (no model drawn
+        // there before), and further behind, depth decides.
+        bool ordered = u.actor_window.x > 0.0 && tested > before && before < 1.0
+            && v_z <= before * 65536.0 + u.actor_window.x && before == texelFetch(room_only, q, 0).r
+            && v_order < (uint(texelFetch(room_key, q, 0).r * 16777215.0 + 0.5) >> 10);
+        if (tested > before && !ordered) {
             if (u.occl_instance.y <= 0.0 || u.depth_pass != 0 || v_z < before * 65536.0 + 8.0) discard;
             float rim = smoothstep(0.25, 0.9, 1.0 - abs(dot(normalize(v_normal), normalize(-v_view))));
             float cover = u.occl_instance.y * mix(1.0, rim, u.occl_instance.z);

@@ -25,6 +25,7 @@ extern int pc_drop_shadow_mode __attribute__((weak)); // battle builds (actor_sh
 extern int pc_native_room, pc_native_occlusion, pc_native_actors, pc_native_actor_order, pc_native_blend,
     pc_native_objects, pc_native_shadows, pc_native_effects, pc_reconstruct, pc_native_room_order,
     pc_room_texture_lod;
+extern float pc_native_actor_window; /* render.c: characters in the room's PS1 order near its surfaces */
 extern int pc_editor_hide_masks, pc_editor_game_cutaway, pc_editor_cutaway, pc_editor_cutaway_auto;
 extern int pc_photo_full_room; /* room_native.c: a plugin's free camera sees the whole room */
 extern float pc_editor_cutaway_radius, pc_editor_cutaway_opacity;
@@ -245,6 +246,7 @@ const Entry entries[] = {
     I("cutscene_dialogue_hold", pc_cutscene_dialogue_hold),
     I("native_actors", pc_native_actors),
     I("native_actor_order", pc_native_actor_order),
+    F("native_actor_window", pc_native_actor_window),
     I("native_blend", pc_native_blend),
     I("native_objects", pc_native_objects),
     I("native_shadows", pc_native_shadows),

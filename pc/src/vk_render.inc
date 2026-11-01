@@ -178,6 +178,10 @@ typedef struct {
     float occl_subject[PC_OCCLUSION_SUBJECTS][4], occl_shape[PC_OCCLUSION_SUBJECTS][4]; /* occlusion_params */
     float occl_params[4], occl_instance[4], occl_tint[4]; /* occlusion_params, occlusion_instance */
     float occl_up[4], occl_feet[4]; /* occlusion_params */
+    /* Objects in PS1 order: x, how far behind a room surface (GTE units) a
+     * polygon the PS1 painted after it still wins (pc_native_actor_window;
+     * 0: off, depth decides). */
+    float actor_window[4];
 } native_ubo;
 _Static_assert(offsetof(native_ubo, projection) == 48 && offsetof(native_ubo, rules) == 96
         && offsetof(native_ubo, split) == 144 && offsetof(native_ubo, objects) == 168
@@ -188,7 +192,8 @@ _Static_assert(offsetof(native_ubo, projection) == 48 && offsetof(native_ubo, ru
         && offsetof(native_ubo, emissive) == 288 && offsetof(native_ubo, relief_fade) == 296 && offsetof(native_ubo, occl_subject) == 304
         && offsetof(native_ubo, occl_shape) == 368 && offsetof(native_ubo, occl_params) == 432
         && offsetof(native_ubo, occl_instance) == 448 && offsetof(native_ubo, occl_tint) == 464
-        && offsetof(native_ubo, occl_up) == 480 && offsetof(native_ubo, occl_feet) == 496,
+        && offsetof(native_ubo, occl_up) == 480 && offsetof(native_ubo, occl_feet) == 496
+        && offsetof(native_ubo, actor_window) == 512,
     "native_ubo must match native_common.glsl's std140 layout");
 /* material_graph.cpp: the node material graphs' values table (absent: none). */
 extern const float* pc_material_graph_values(int* count) __attribute__((weak));
@@ -250,12 +255,14 @@ static int vk_native_init(void)
     if (vk_native_ready >= 0)
         return vk_native_ready;
     vk_native_ready = 0;
-    /* 7: the node material graphs' values table (material_graph.cpp; read only by a generated include). */
-    VkDescriptorType types[8] = { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+    /* 7: the node material graphs' values table (material_graph.cpp; read only by a generated include).
+     * 8, 9: the room list's order key and its own depth (pc_native_actor_window). */
+    VkDescriptorType types[10] = { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
         VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
         VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER };
-    vk_native_set = vk_push_layout(types, 8);
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER };
+    vk_native_set = vk_push_layout(types, 10);
     VkPipelineLayoutCreateInfo layout = { .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
         .setLayoutCount = 1,
         .pSetLayouts = &vk_native_set };
@@ -289,6 +296,7 @@ static int vk_native_set_for(int samples)
 typedef struct {
     native_ubo ubo; /* the list's and the pass's state; instances fill the rest */
     VkImageView surface_depth, surface_before;
+    VkImageView room_key, room_only; /* the room list's order key and depth (bindings 8, 9) */
     VkDeviceSize ubo_alignment, ssbo_alignment;
     vk_slice uv_effects; /* the list's animated materials (uv_effect_table) */
     vk_slice graph_values; /* the node material graphs' values (pc_material_graph_values) */
@@ -384,6 +392,8 @@ static mesh_slot* vk_use_instance(vk_draw_state* s, const draw_list* list, const
     vk_descriptors_image(&d, 6, vk_hw.emissive.view, vk.nearest);
     vk_descriptors_buffer(&d, 7, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, s->graph_values.buffer, s->graph_values.offset,
         (VkDeviceSize)s->graph_count * 16);
+    vk_descriptors_image(&d, 8, s->room_key, vk.nearest);
+    vk_descriptors_image(&d, 9, s->room_only, vk.nearest);
     vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_native_layout);
     return mesh;
 }
@@ -443,6 +453,7 @@ static const render_camera* vk_begin_draw(vk_draw_state* s, const draw_list* lis
     u->layer_slack = layer_slack(list);
     s->surface_depth = vk_hw.dummy_depth.view;
     s->surface_before = vk_hw.dummy_depth.view;
+    s->room_key = s->room_only = vk_hw.dummy_depth.view;
     return cam;
 }
 static void vk_depth_state(int test, VkCompareOp op, int write)
@@ -519,11 +530,18 @@ static void vk_draw_instances(vk_draw_state* s, const draw_list* list, const ren
             }
         }
 }
+/* The pipeline set (0 single-sampled, 1 multisampled) whose room key and
+ * room depth (VK_TOKEN_ROOM_KEY / ROOM_ONLY or their twins) the last room
+ * list wrote; -1: none (a room list drawn by depth alone since). */
+static int vk_room_keyed = -1;
 /* A room list in PS1 order (render.c draw_room_ordered): A, the nearest
  * surface into the native surfaces' depth; B, colour and G-buffer with the
- * order key as depth among the fragments on it; C, the real depth. */
+ * order key as depth among the fragments on it (kept: VK_TOKEN_ROOM_KEY);
+ * C, the real depth (kept: VK_TOKEN_ROOM_ONLY). Object lists read both
+ * (pc_native_actor_window). */
 static int vk_draw_room_ordered(draw_list* list, const render_target* target)
 {
+    vk_room_keyed = -1;
     vk_draw_state s;
     const render_camera* cam = vk_begin_draw(&s, list, target);
     uv_trace_record(list, target->t);
@@ -534,7 +552,7 @@ static int vk_draw_room_ordered(draw_list* list, const render_target* target)
     if (set < 0 || !surfaces || !frame || !surface)
         return -1;
     if (set) /* multisampled surfaces: unused bindings take a multisampled image too */
-        s.surface_depth = s.surface_before = vk_hw.ms_room.view;
+        s.surface_depth = s.surface_before = s.room_key = s.room_only = vk_hw.ms_room.view;
     int s_ = target->scale, x0 = target->clip[0] * s_, y0 = target->clip[1] * s_;
     int x1 = (target->clip[0] + target->clip[2]) * s_, y1 = (target->clip[1] + target->clip[3]) * s_;
     x0 = x0 < 0 ? 0 : x0, y0 = y0 < 0 ? 0 : y0;
@@ -564,13 +582,22 @@ static int vk_draw_room_ordered(draw_list* list, const render_target* target)
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_native_opaque[set]);
     vk_depth_state(1, VK_COMPARE_OP_LESS, 1);
     vk_draw_instances(&s, list, target, cam, 1, &interpolated);
+    /* The winning polygons' order keys, for the object lists after it. */
+    pc_vk_hw_copy_depth(target->fbo, set ? VK_TOKEN_MS_ROOM_KEY : VK_TOKEN_ROOM_KEY, x0, y0, x1, y1);
     /* C */
+    vk_begin_rendering(frame);
+    vk_hw_viewport_scissor(target->clip);
+    cmd = vk_cmd();
     s.ubo.surface_test = 0;
     s.ubo.room_order = 0;
     s.ubo.depth_pass = 1;
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_native_depth_only[set]);
     vk_depth_state(1, VK_COMPARE_OP_ALWAYS, 1);
     vk_draw_instances(&s, list, target, cam, 1, &interpolated);
+    /* The room's own depth: where an object list's surfaces before it are
+     * still the room's. */
+    pc_vk_hw_copy_depth(target->fbo, set ? VK_TOKEN_MS_ROOM_ONLY : VK_TOKEN_ROOM_ONLY, x0, y0, x1, y1);
+    vk_room_keyed = set;
     if (target->count_stats)
         counting.lists++;
     else
@@ -598,6 +625,7 @@ static int vk_draw_list(uint32_t id, const render_target* target)
         return list->count;
     VkCommandBuffer cmd = vk_cmd();
     if (!layered) {
+        vk_room_keyed = -1; /* drawn by depth alone: no order keys */
         /* A room list resets depth over its drawing area first. */
         int s_ = target->scale, x0 = target->clip[0] * s_, y0 = target->clip[1] * s_;
         int x1 = (target->clip[0] + target->clip[2]) * s_, y1 = (target->clip[1] + target->clip[3]) * s_;
@@ -618,11 +646,20 @@ static int vk_draw_list(uint32_t id, const render_target* target)
     if (set < 0)
         return -1;
     if (set) /* multisampled surfaces: unused bindings take a multisampled image too */
-        s.surface_depth = s.surface_before = vk_hw.ms_room.view;
+        s.surface_depth = s.surface_before = s.room_key = s.room_only = vk_hw.ms_room.view;
     if (set && list->rules.objects && target->surface_before) {
         const vk_image* before = vk_hw_depth(target->surface_before);
         if (before)
             s.surface_before = before->view;
+    }
+    /* PS1-ordered objects near the room's surfaces: its order keys. */
+    if (list->rules.objects && target->surface_before && vk_room_keyed == set && pc_native_actor_window > 0) {
+        const vk_image* key = vk_hw_depth(set ? VK_TOKEN_MS_ROOM_KEY : VK_TOKEN_ROOM_KEY);
+        const vk_image* room = vk_hw_depth(set ? VK_TOKEN_MS_ROOM_ONLY : VK_TOKEN_ROOM_ONLY);
+        if (key && room) {
+            s.room_key = key->view, s.room_only = room->view;
+            s.ubo.actor_window[0] = pc_native_actor_window;
+        }
     }
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_native_opaque[set]);
     vk_depth_state(1, VK_COMPARE_OP_LESS, 1);
@@ -690,7 +727,7 @@ static int vk_draw_translucent(uint32_t id, int first, int count, const render_t
     if (set < 0)
         return -1;
     if (set)
-        s.surface_before = vk_hw.ms_room.view; /* unused, but of the multisampled kind */
+        s.surface_before = s.room_key = s.room_only = vk_hw.ms_room.view; /* unused, but of the multisampled kind */
     vk_begin_rendering(a);
     if (!vk_hw_viewport_scissor(target->clip))
         return 0;

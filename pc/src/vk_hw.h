@@ -21,6 +21,9 @@ typedef struct {
     vk_target live, replay;
     vk_image copy; /* scratch for VRAM-to-VRAM copies */
     vk_image room_depth, before; /* native surfaces' depth, and before an object list */
+    /* The room list's order key (bucket << 10 | sequence) and its own depth
+     * (VK_TOKEN_ROOM_KEY, VK_TOKEN_ROOM_ONLY: pc_native_actor_window). */
+    vk_image room_key, room_only;
     vk_image vram; /* native VRAM, R16_UINT 1024 x 512 */
     vk_image emissive; /* emissive texels' slot map, R8_UINT 4096 x 516 (emissive.h) */
     vk_image dummy_depth; /* 1 x 1 depth for unused depth bindings */
@@ -29,7 +32,7 @@ typedef struct {
      * target's colours, G-buffer and depth and of the native surfaces' depth,
      * covering the target from (0, 0) over ms_width x ms_height. */
     vk_target ms;
-    vk_image ms_room, ms_before;
+    vk_image ms_room, ms_before, ms_room_key, ms_room_only;
     int ms_samples, ms_width, ms_height;
 } vk_hw_state;
 extern vk_hw_state vk_hw;

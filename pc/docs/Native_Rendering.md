@@ -163,6 +163,33 @@ their translucent polygons compare it, the frame keeps the real depth): a
 model resting on a table or a marker on the floor wins there as on the
 PS1. Effects lists keep their own decal slack.
 
+Characters near the room's surfaces follow the room's ordering table too
+(`pc_native_actor_window`, issue 18). A character standing in a doorway
+(zone 4 room 0, "Now, search!") has its lower leg 30 to 60 GTE units behind
+the door's plane; the PS1 painted the leg after the door (the leg's bucket,
+its polygon's average SZ / 4 plus its bias, is nearer than the large door
+polygon's largest-SZ bucket), so it showed whole; by depth it was cut at the
+door's surface. The ordered room list keeps pass 2's depth (the winning
+polygons' order keys) and pass 3's (the room's own depth) in two more depth
+images (Vulkan `VK_TOKEN_ROOM_KEY` / `VK_TOKEN_ROOM_ONLY` and their
+multisampled twins, copied; OpenGL `room_key` / `room_only`, blitted). A
+PS1-ordered object polygon (`painter`) hidden by the surfaces before its
+list still draws where (a) that surface is the room's own (the surfaces
+before the list equal the room's depth there: no other model in front),
+(b) the polygon is at most the window behind it (`v_z <= before + window`)
+and (c) its bucket (`v_order` for objects) is smaller than the room
+polygon's (`key >> 10`; ties go to the room). Further behind, depth decides,
+so characters never show through walls they are well behind. Settings key
+`native_actor_window` (GTE units, default 96; the leg needs about 48), RPC
+`graphics actor_window_units` (0 to 1024; 0: depth alone), the developer
+panel's "Characters in PS1 order near walls". Only the PS1-ordered path
+(`pc_native_actor_order` 1, the default) has it: with 0 a model is
+depth-tested by the hardware against the surfaces it writes. Regression test
+`actor_room_order_smoke` (the doorway from `first_bubble`: the leg's pixels
+against the packets' order with the default window, depth alone and a
+16-unit window; MSAA; with a card, Ashley behind zone 51's beam stays
+hidden).
+
 Survey (all 364 rooms with doors, arrival view, `room_order` off/on on the
 same redrawn frame): 96 rooms change anywhere, by up to ~1850 pixels at
 960 x 720 (Rue Mal Fallde and Rue Lejour: notices and the black shells

@@ -47,6 +47,10 @@ layout(std140, binding = 0) uniform Draw {
     vec4 occl_tint; // 464: its silhouette's colour
     vec4 occl_up; // 480: the world's up in the same view space (xyz)
     vec4 occl_feet; // 496: each subject's middle above its feet (world units)
+    // 512: objects in PS1 order: how far behind the room surface in front of
+    // it (GTE units, x) a polygon the PS1 painted after that surface still
+    // wins (render.h pc_native_actor_window; 0: off, depth decides)
+    vec4 actor_window;
 } u;
 // Animated materials (render_list_uv_effects), entry 0 none: the UV offset
 // the game's effect writes this frame (offset.xy), its window (base u, v,

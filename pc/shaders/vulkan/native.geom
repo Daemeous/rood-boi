@@ -27,7 +27,7 @@ layout(location = 9) flat out int v_cut; // bit 0: the polygon stands between th
                                          // bits 1-3: the triangle's real edges (opposite corner 0, 1, 2);
                                          // bits 4-7: occlusion subjects the polygon stands in front of
 layout(location = 10) noperspective out vec3 v_bary; // the corner weights (a cutaway ghost's edges)
-layout(location = 11) flat out uint v_order; // room polygons: PS1 draw order key (bucket << 10 | sequence; smaller paints later)
+layout(location = 11) flat out uint v_order; // room polygons: PS1 draw order key (bucket << 10 | sequence; smaller paints later); objects: their bucket
 vec3 p[4];
 vec2 uv[4];
 vec3 col[4];
@@ -116,7 +116,9 @@ int sz(int i) { return int(clamp(p[i].z, 0.0, 65535.0)); }
 // Object rules (BATTLE/4B16C.s func_800B3CF0/func_800B4594).
 void object_triangle(int a, int b, int c, float zmin, int bias) {
     if (facing(a, b, c, zmin) <= 0.0 && facing_exact(a, b, c, zmin) <= 0.0) return;
-    if (((u.zsf3 * (sz(a) + sz(b) + sz(c))) >> 12) + bias >= u.rules.y) return;
+    int bucket = ((u.zsf3 * (sz(a) + sz(b) + sz(c))) >> 12) + bias;
+    if (bucket >= u.rules.y) return;
+    order_key = uint(clamp(bucket, 0, 16383)); // its ordering-table bucket (the fragment stage's room test)
     triangle(a, b, c);
 }
 void objects_main(uint flags, bool quad, bool twosided) {
@@ -149,6 +151,7 @@ void objects_main(uint flags, bool quad, bool twosided) {
     if (!first && !second) return;
     int depth = quad ? (sz(0) + sz(1) + sz(2) + sz(3)) >> 4 : (u.zsf3 * (sz(0) + sz(1) + sz(2))) >> 12;
     if (depth + bias >= u.rules.y) return;
+    order_key = uint(clamp(depth + bias, 0, 16383)); // its ordering-table bucket (the fragment stage's room test)
     if (first) triangle(0, 1, 2);
     if (second) triangle(1, 3, 2);
 }

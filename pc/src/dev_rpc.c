@@ -272,6 +272,10 @@
  *                                follow it),
  *                                actor_order (native characters paint
  *                                themselves in PS1 order, else depth-test),
+ *                                actor_window_units (0-1024: how far
+ *                                behind a room surface, GTE units, a
+ *                                character the PS1 painted after it still
+ *                                shows; 0 depth alone),
  *                                menu_studio (the menu's model view lit by
  *                                its own studio light, 1 default; 0 the
  *                                game's colours and the room's light),
@@ -606,6 +610,7 @@ extern int pc_native_room __attribute__((weak)), pc_native_occlusion __attribute
     pc_reconstruct __attribute__((weak)), pc_native_room_order __attribute__((weak)),
     pc_room_texture_lod __attribute__((weak));
 extern float pc_native_room_slack[2] __attribute__((weak));
+extern float pc_native_actor_window __attribute__((weak));
 extern int pc_gte_log __attribute__((weak));
 extern void render_stats_get(render_stats*) __attribute__((weak));
 
@@ -2119,6 +2124,10 @@ static void handle_method(int fd, const char* request)
                 pc_native_actor_order = flag;
             else if (number_value(member(params, "actor_order"), &n) && &pc_native_actor_order)
                 pc_native_actor_order = n != 0;
+            double window; /* GTE units (render.h pc_native_actor_window; 0: depth alone) */
+            if (&pc_native_actor_window && real_value(member(params, "actor_window_units"), &window) && window >= 0
+                && window <= 1024)
+                pc_native_actor_window = (float)window;
         }
         if (params && &pc_native_blend) {
             if (bool_value(member(params, "native_blend"), &flag))
@@ -2287,7 +2296,7 @@ static void handle_method(int fd, const char* request)
             "{\"hardware\":%s,\"scale\":%d,\"filter\":%d,\"aspect\":%d,\"widescreen\":%s,\"widescreen_scene\":%d,"
             "\"perspective\":%s,\"show_depth\":%s,\"native_room\":%d,\"native_occlusion\":%s,"
             "\"room_order\":%s,\"room_slack\":%g,\"room_slack_units\":%g,"
-            "\"native_actors\":%d,\"actor_order\":%s,\"native_blend\":%d,\"native_objects\":%d,"
+            "\"native_actors\":%d,\"actor_order\":%s,\"actor_window_units\":%g,\"native_blend\":%d,\"native_objects\":%d,"
             "\"native_shadows\":%d,\"native_effects\":%d,\"reconstruct\":%d,\"gte_log\":%d,"
             "\"gi_denoiser\":\"%s\",\"gi_denoiser_active\":\"%s\",\"nrd_built\":%s,\"nrd_available\":%s,"
             "\"nrd_glow\":%s}",
@@ -2300,7 +2309,7 @@ static void handle_method(int fd, const char* request)
             pc_native_room_slack ? (double)pc_native_room_slack[0] : 0.0,
             pc_native_room_slack ? (double)pc_native_room_slack[1] : 0.0, &pc_native_actors ? pc_native_actors : 0,
             &pc_native_actor_order && pc_native_actor_order ? "true" : "false",
-            &pc_native_blend ? pc_native_blend : 0, &pc_native_objects ? pc_native_objects : 0,
+            &pc_native_actor_window ? (double)pc_native_actor_window : 0.0, &pc_native_blend ? pc_native_blend : 0, &pc_native_objects ? pc_native_objects : 0,
             &pc_native_shadows ? pc_native_shadows : 0, &pc_native_effects ? pc_native_effects : 0,
             &pc_reconstruct ? pc_reconstruct : 1, &pc_gte_log ? pc_gte_log : 1,
             denoiser_names[&pc_gi_denoise ? (pc_gi_denoise < 0 ? 0 : pc_gi_denoise > 2 ? 2 : pc_gi_denoise) : 1],

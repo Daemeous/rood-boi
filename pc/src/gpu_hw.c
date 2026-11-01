@@ -834,6 +834,8 @@ static float anchor_x(float x)
  * shader tests 3D fragments against it inside occlusion_rect. */
 static int occlusion_on, occlusion_rect[4], surface_valid;
 static GLuint room_depth_texture, room_depth_fbo, object_fbo, object_replay_fbo, before_texture, before_fbo;
+/* A room list's order keys and its own depth (render_gl.h room_key, room_only). */
+static GLuint room_key_texture, room_key_fbo, room_only_texture, room_only_fbo;
 /* MSAA (antialias.h; "MSAA" below): the scope (target_fbo or replay.fbo while
  * its drawing area lives in the multisampled twins), its area (VRAM pixels
  * x0, y0, x1, y1, exclusive) and its helpers. */
@@ -1318,6 +1320,14 @@ static void make_room_depth(void)
 {
     gl_GenFramebuffers(1, &room_depth_fbo);
     make_depth(room_depth_fbo, &room_depth_texture);
+    gl_DrawBuffer(GL_NONE);
+    gl_ReadBuffer(GL_NONE);
+    gl_GenFramebuffers(1, &room_key_fbo);
+    make_depth(room_key_fbo, &room_key_texture);
+    gl_DrawBuffer(GL_NONE);
+    gl_ReadBuffer(GL_NONE);
+    gl_GenFramebuffers(1, &room_only_fbo);
+    make_depth(room_only_fbo, &room_only_texture);
     gl_DrawBuffer(GL_NONE);
     gl_ReadBuffer(GL_NONE);
 }
@@ -3559,6 +3569,10 @@ static int apply_scale(int scale)
     gl_DeleteTextures(5, replay_textures);
     gl_DeleteFramebuffers(1, &room_depth_fbo);
     gl_DeleteTextures(1, &room_depth_texture);
+    gl_DeleteFramebuffers(1, &room_key_fbo);
+    gl_DeleteTextures(1, &room_key_texture);
+    gl_DeleteFramebuffers(1, &room_only_fbo);
+    gl_DeleteTextures(1, &room_only_texture);
     if (object_fbo)
         gl_DeleteFramebuffers(1, &object_fbo);
     if (object_replay_fbo)
@@ -3977,6 +3991,9 @@ static int draw_native(GLuint fbo, uint32_t list, const int* clip, int ox, int o
     target.object_fbo = ms ? ms_target(1) : fbo == replay.fbo ? object_replay_fbo : object_fbo;
     target.surface_depth = room_depth_texture;
     target.surface_before = 0;
+    /* (OpenGL; under MSAA the multisampled depth resolves into them, as the surfaces are read single-sampled.) */
+    target.room_key_fbo = room_key_fbo, target.room_key = room_key_texture;
+    target.room_only_fbo = room_only_fbo, target.room_only = room_only_texture;
     target.camera = camera;
     target.t = t;
     /* MSAA: an object list's depth copies cover only where it draws. */

@@ -24,6 +24,10 @@ typedef struct {
     /* A copy of surface_depth from before the list (instances drawn in PS1
      * order test against it, not against themselves). */
     GLuint surface_before;
+    /* A room list in PS1 order keeps its winning polygons' order keys and its
+     * own depth here (depth textures and framebuffers with them attached;
+     * 0: none), for object lists after it (render.h pc_native_actor_window). */
+    GLuint room_key_fbo, room_key, room_only_fbo, room_only;
     /* MSAA: called between an object list's passes, so pass 2 reads the
      * depth pass 1 drew into a multisampled surface (NULL: nothing to do). */
     void (*surface_sync)(void);

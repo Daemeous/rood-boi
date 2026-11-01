@@ -40,6 +40,10 @@ extern int pc_hw_active;
 int pc_native_room = 2; /* native without the reference packets (VRAM readers sync from the target) */
 int pc_native_actors = 2;
 int pc_native_actor_order = 1;
+/* PS1-ordered characters near the room's surfaces (render.h): how far
+ * behind the room surface in front of it (GTE units) a character's polygon
+ * the PS1 painted after that surface still wins. 0: depth alone. */
+float pc_native_actor_window = 96.0f;
 /* Room lists resolve near-coplanar surfaces in the PS1's draw order
  * (render_draw_list): a decal on a table, a notice on a wall. 0: plain
  * depth test. The slack: how far behind the nearest room surface (relative,
@@ -1577,7 +1581,7 @@ static const char* geometry_source =
     "smooth centroid out vec3 v_color_persp;\n"
     "smooth centroid out vec2 v_uv_persp;\n"
     "smooth centroid out float v_z;\n"
-    "flat out uint v_order;\n" /* room polygons: PS1 draw order key (bucket << 10 | sequence; smaller paints later) */
+    "flat out uint v_order;\n" /* room polygons: PS1 draw order key (bucket << 10 | sequence; smaller paints later); objects: their bucket */
     "flat out uvec4 v_state;\n" /* flags, tpage, clut, 0 */
     "flat out vec3 v_normal;\n"
     "flat out uvec4 v_bounds;\n"
@@ -1673,7 +1677,9 @@ static const char* geometry_source =
     /* Object rules (BATTLE/4B16C.s func_800B3CF0/func_800B4594). */
     "void object_triangle(int a, int b, int c, float zmin, int bias) {\n"
     "    if (facing(a, b, c, zmin) <= 0.0 && facing_exact(a, b, c, zmin) <= 0.0) return;\n"
-    "    if (((zsf3 * (sz(a) + sz(b) + sz(c))) >> 12) + bias >= rules.y) return;\n"
+    "    int bucket = ((zsf3 * (sz(a) + sz(b) + sz(c))) >> 12) + bias;\n"
+    "    if (bucket >= rules.y) return;\n"
+    "    order_key = uint(clamp(bucket, 0, 16383));\n" /* its ordering-table bucket (the fragment stage's room test) */
     "    triangle(a, b, c);\n"
     "}\n"
     "void objects_main(uint flags, bool quad, bool twosided) {\n"
@@ -1706,6 +1712,7 @@ static const char* geometry_source =
     "    if (!first && !second) return;\n"
     "    int depth = quad ? (sz(0) + sz(1) + sz(2) + sz(3)) >> 4 : (zsf3 * (sz(0) + sz(1) + sz(2))) >> 12;\n"
     "    if (depth + bias >= rules.y) return;\n"
+    "    order_key = uint(clamp(depth + bias, 0, 16383));\n"
     "    if (first) triangle(0, 1, 2);\n"
     "    if (second) triangle(1, 3, 2);\n"
     "}\n"
@@ -1860,6 +1867,12 @@ static const char* fragment_source =
     "uniform sampler2D surface_depth;\n"
     "uniform int painter;\n" /* objects drawn in PS1 order (render_list_order) */
     "uniform sampler2D surface_before;\n" /* the native surfaces' depth before this list */
+    /* The room list in PS1 order: its polygon on top's order key (as depth)
+     * and its own depth; how far behind it a PS1-ordered polygon painted
+     * after it still wins (pc_native_actor_window; 0: off). */
+    "uniform sampler2D room_key;\n"
+    "uniform sampler2D room_only;\n"
+    "uniform float actor_window;\n"
     "uniform int semi_pass;\n" /* translucent draws: 1 opaque texels only, 2 translucent texels only */
     "uniform int surface_test;\n" /* translucent draws: hidden behind surface_depth (1 exact, 2 room tolerance, 3 decal slack);
                                      * 4: a room list's ordered pass (near-coplanar slack, room_slack) */
@@ -1985,8 +1998,13 @@ static const char* fragment_source =
     "    bool silhouette = false;\n"
     "    float silhouette_depth = 0.0;\n"
     "    if (painter != 0) {\n"
-    "        float before = texelFetch(surface_before, ivec2(gl_FragCoord.xy), 0).r;\n"
-    "        if (tested > before) {\n"
+    "        ivec2 q = ivec2(gl_FragCoord.xy);\n"
+    "        float before = texelFetch(surface_before, q, 0).r;\n"
+    /* The room's PS1 order near its own surfaces (vk native_frag.glsl). */
+    "        bool ordered = actor_window > 0.0 && tested > before && before < 1.0\n"
+    "            && v_z <= before * 65536.0 + actor_window && before == texelFetch(room_only, q, 0).r\n"
+    "            && v_order < (uint(texelFetch(room_key, q, 0).r * 16777215.0 + 0.5) >> 10);\n"
+    "        if (tested > before && !ordered) {\n"
     "            if (occl_instance.y <= 0.0 || depth_pass != 0 || v_z < before * 65536.0 + 8.0) discard;\n"
     "            float rim = smoothstep(0.25, 0.9, 1.0 - abs(dot(normalize(v_normal), normalize(-v_view))));\n"
     "            float cover = occl_instance.y * mix(1.0, rim, occl_instance.z);\n"
@@ -2077,7 +2095,8 @@ static const char* fragment_source =
 static GLint u_bone_rotation, u_bone_translation, u_normal_matrix, u_projection, u_offset, u_rules, u_split, u_tint,
     u_clip_z, u_perspective, u_filtering, u_window, u_mask_set, u_vram, u_objects, u_zsf3, u_override_color,
     u_override_texture, u_surface, u_depth_pass, u_surface_depth, u_painter, u_surface_before, u_instance_blend,
-    u_translucent, u_forced, u_semi_pass, u_surface_test, u_order, u_room_slack, u_room_order, u_layer_slack, u_cut_focus, u_cut_scale, u_instance_cut, u_occl_subject, u_occl_shape, u_occl_params, u_occl_instance, u_occl_tint, u_occl_up, u_occl_feet, u_uv_offset, u_uv_count, u_uv_window,
+    u_translucent, u_forced, u_semi_pass, u_surface_test, u_order, u_room_slack, u_room_order, u_layer_slack,
+    u_room_key, u_room_only, u_actor_window, u_cut_focus, u_cut_scale, u_instance_cut, u_occl_subject, u_occl_shape, u_occl_params, u_occl_instance, u_occl_tint, u_occl_up, u_occl_feet, u_uv_offset, u_uv_count, u_uv_window,
     u_uv_shift, u_emissive_map, u_emissive_on;
 static GLuint element_buffer; /* PS1 draw order, streamed per list */
 
@@ -2132,6 +2151,9 @@ static int ensure_program(void)
     U(room_slack);
     U(room_order);
     U(layer_slack);
+    U(room_key);
+    U(room_only);
+    U(actor_window);
     U(cut_focus);
     U(cut_scale);
     U(instance_cut);
@@ -2356,6 +2378,9 @@ static const render_camera* begin_draw(const draw_list* list, const render_targe
     gl_Uniform1i(u_emissive_on, emissive_on);
     gl_Uniform1i(u_surface_depth, 1);
     gl_Uniform1i(u_surface_before, 2);
+    gl_Uniform1i(u_room_key, 3);
+    gl_Uniform1i(u_room_only, 4);
+    gl_Uniform1f(u_actor_window, 0.0f);
     gl_Uniform1i(u_depth_pass, 0);
     gl_Uniform1i(u_painter, 0);
     gl_Uniform1i(u_translucent, 0);
@@ -2414,8 +2439,25 @@ static void end_draw(void)
     gl_BindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
+/* Whether the last room list kept its order keys and depth in the
+ * target's room_key / room_only (draw_room_ordered; pc_native_actor_window). */
+static int room_keyed;
+/* The target's depth over its drawing area into `to` (a room key framebuffer). */
+static void keep_room_depth(const render_target* target, GLuint to)
+{
+    int s = target->scale, x0 = target->clip[0] * s, y0 = target->clip[1] * s;
+    int x1 = x0 + target->clip[2] * s, y1 = y0 + target->clip[3] * s;
+    gl_Disable(GL_SCISSOR_TEST);
+    gl_BindFramebuffer(GL_READ_FRAMEBUFFER, target->fbo);
+    gl_BindFramebuffer(GL_DRAW_FRAMEBUFFER, to);
+    gl_BlitFramebuffer(x0, y0, x1, y1, x0, y0, x1, y1, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+    gl_BindFramebuffer(GL_FRAMEBUFFER, target->fbo);
+    gl_Enable(GL_SCISSOR_TEST);
+}
 static int draw_room_ordered(draw_list* list, const render_target* target)
 {
+    room_keyed = 0;
+    int keep = target->room_key_fbo && target->room_only_fbo;
     static const float far_depth = 1.0f;
     const render_camera* cam = begin_draw(list, target, target->object_fbo);
     uv_trace_record(list, target->t);
@@ -2440,6 +2482,8 @@ static int draw_room_ordered(draw_list* list, const render_target* target)
     draw_instances(list, target, cam, 1, &interpolated);
     gl_Uniform1i(u_surface_test, 0);
     gl_Uniform1i(u_room_order, 0);
+    if (keep) /* the winning polygons' order keys, for the object lists after it */
+        keep_room_depth(target, target->room_key_fbo);
     /* C: the real depth of the surfaces drawn. */
     gl_ColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
     gl_DepthFunc(GL_ALWAYS);
@@ -2451,6 +2495,10 @@ static int draw_room_ordered(draw_list* list, const render_target* target)
     gl_ActiveTexture(GL_TEXTURE1);
     gl_BindTexture(GL_TEXTURE_2D, 0);
     gl_ActiveTexture(GL_TEXTURE0);
+    if (keep) { /* the room's own depth: where an object list's surfaces before it are still the room's */
+        keep_room_depth(target, target->room_only_fbo);
+        room_keyed = 1;
+    }
     end_draw();
     if (target->count_stats)
         counting.lists++;
@@ -2490,11 +2538,23 @@ int render_draw_list(uint32_t id, const render_target* target)
     if (!layered) {
         static const float far_depth = 1.0f;
         gl_ClearBufferfv(GL_DEPTH, 0, &far_depth);
+        room_keyed = 0; /* drawn by depth alone: no order keys */
     }
     if (list->rules.objects) {
         gl_ActiveTexture(GL_TEXTURE2);
         gl_BindTexture(GL_TEXTURE_2D, target->surface_before);
         gl_ActiveTexture(GL_TEXTURE0);
+    }
+    /* PS1-ordered objects near the room's surfaces: its order keys. */
+    int keyed = list->rules.objects && target->surface_before && room_keyed && target->room_key && target->room_only
+        && pc_native_actor_window > 0;
+    if (keyed) {
+        gl_ActiveTexture(GL_TEXTURE3);
+        gl_BindTexture(GL_TEXTURE_2D, target->room_key);
+        gl_ActiveTexture(GL_TEXTURE4);
+        gl_BindTexture(GL_TEXTURE_2D, target->room_only);
+        gl_ActiveTexture(GL_TEXTURE0);
+        gl_Uniform1f(u_actor_window, pc_native_actor_window);
     }
     int interpolated = 0;
     if (layered && layer_slack(list))
@@ -2522,6 +2582,13 @@ int render_draw_list(uint32_t id, const render_target* target)
         gl_ActiveTexture(GL_TEXTURE1);
         gl_BindTexture(GL_TEXTURE_2D, 0);
         gl_ActiveTexture(GL_TEXTURE2);
+        gl_BindTexture(GL_TEXTURE_2D, 0);
+        gl_ActiveTexture(GL_TEXTURE0);
+    }
+    if (keyed) {
+        gl_ActiveTexture(GL_TEXTURE3);
+        gl_BindTexture(GL_TEXTURE_2D, 0);
+        gl_ActiveTexture(GL_TEXTURE4);
         gl_BindTexture(GL_TEXTURE_2D, 0);
         gl_ActiveTexture(GL_TEXTURE0);
     }

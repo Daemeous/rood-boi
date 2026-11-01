@@ -374,8 +374,18 @@ extern int pc_native_actors;
 /* Native characters paint their own polygons in the PS1's order (1,
  * default: as the PS1 shows models built from intersecting shells) or
  * depth-test them against each other (0). Against the room and other
- * models their depth is exact either way. */
+ * models their depth is exact either way (but see pc_native_actor_window). */
 extern int pc_native_actor_order;
+/* Characters in PS1 order (pc_native_actor_order) against the room in PS1
+ * order (pc_native_room_order): where a character's polygon is behind the
+ * room surface in front of it by at most this many GTE units, and the PS1
+ * painted it after that surface (its ordering-table bucket nearer than the
+ * room polygon's), the character wins, as on the PS1 (a leg just behind a
+ * door's plane as the character stands in the doorway). Further behind,
+ * depth decides: characters never show through walls they are behind.
+ * 0: depth alone. Default 96. Settings key native_actor_window, RPC
+ * graphics actor_window_units. */
+extern float pc_native_actor_window;
 /* Packets drawn after a native list are hidden where they are behind it
  * (with a small tolerance, so decals and drop shadows on the floor stay). */
 extern int pc_native_occlusion;
