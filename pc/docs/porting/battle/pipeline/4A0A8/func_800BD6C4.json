@@ -1,0 +1,331 @@
+{
+ "function": "func_800BD6C4",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800BD6C4",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800bd6c4",
+  "difficulty": "L",
+  "zig_name": "func_800BD6C4",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800BD6C4",
+  "spec_file": "func_800BD6C4.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn func_800BD6C4(script: [*c]u8, arg1: c_short) callconv(.c) c_int",
+  "params": [
+   [
+    "script",
+    "[*c]u8"
+   ],
+   [
+    "arg1",
+    "c_short"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "D_800F1A68_t",
+   "D_800F4BA4_t",
+   "P_CODE"
+  ],
+  "globals": [
+   "D_800F4BA4"
+  ],
+  "hooks": [
+   "pc_screff2_set_warp"
+  ],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16024,
+     "completion_tokens": 22112,
+     "reasoning_tokens": 19816,
+     "cost": 0.0063292,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation S1: case 228 immediate reads script[3] for unk4: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800BD6C4: 40000 iterations, seed 1, 0 mismatches; classes: 185=4882 186=5054 228 immediate=1691 228 interpolated=3340 229 immediate=1695 229 interpolated=3335 230 immediate=1695 230 interpolated=3314 231=5000 237 busy=1731 237 warp=1107 237 interpolated=2186 191 mode zero=1240 191 mode nonzero=3730",
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800BD6C4: branches 20/21 (95.2%), lines 94/95\n  UNCOVERED +6 b8: branch never taken: `switch (script[0]) {`\ncoverage func_800BD6C4: FAILED (threshold 100%: 1 uncovered, 0 value flag(s) not waived)\nWhat to add:\n- `switch (script[0]) {` (+6): one way out of this test (+6 b8) was never taken; add inputs that take it.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800BD6C4.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 18811,
+     "completion_tokens": 6507,
+     "reasoning_tokens": 3387,
+     "cost": 0.0025673,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "185": "4882",
+   "186": "5054",
+   "228 immediate": "1691",
+   "228 interpolated": "3340",
+   "229 immediate": "1695",
+   "229 interpolated": "3335",
+   "230 immediate": "1695",
+   "230 interpolated": "3314",
+   "231": "5000",
+   "237 busy": "1731",
+   "237 warp": "1107",
+   "237 interpolated": "2186",
+   "191 mode zero": "1240",
+   "191 mode nonzero": "3730"
+  },
+  "mutations": [
+   {
+    "name": "S1: case 228 immediate reads script[3] for unk4",
+    "caught": true
+   },
+   {
+    "name": "S2: busy test with a wrong bound (>= for >)",
+    "caught": true
+   },
+   {
+    "name": "S3: mode passed to the sound call as 0",
+    "caught": true
+   },
+   {
+    "name": "S4: unsigned slip on script[1] in case 230 interpolation",
+    "caught": true
+   },
+   {
+    "name": "S5: warp call dropped",
+    "caught": true
+   },
+   {
+    "name": "S6: wrong constant in case 237 warp position",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 21,
+   "branches_hit": 20,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 95,
+   "lines_hit": 94,
+   "uncovered": [
+    {
+     "id": "+6 b8",
+     "line": 6,
+     "text": "switch (script[0]) {",
+     "what": "branch never taken"
+    }
+   ],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "16-bit: min -32765, max 32765, unsigned 0..65534, seen zero/negative"
+    }
+   ],
+   "compares": [
+    {
+     "line": 6,
+     "text": "switch (script[0]) {",
+     "size": 4,
+     "count": 40000,
+     "kind": "switch",
+     "outcomes": "== 40000, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "185..237"
+    },
+    {
+     "line": 17,
+     "text": "if (D_800F4BA4->unk1FC.unk1E == 0) {",
+     "size": 2,
+     "count": 5031,
+     "kind": "against a constant",
+     "outcomes": "== 1691, < 0, > 3340 (signed); < 0, > 3340 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..255"
+    },
+    {
+     "line": 34,
+     "text": "if (D_800F4BA4->unk21C.unk1E == 0) {",
+     "size": 2,
+     "count": 5030,
+     "kind": "against a constant",
+     "outcomes": "== 1695, < 0, > 3335 (signed); < 0, > 3335 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..255"
+    },
+    {
+     "line": 51,
+     "text": "if (D_800F4BA4->unk23C.unk1E == 0) {",
+     "size": 2,
+     "count": 5009,
+     "kind": "against a constant",
+     "outcomes": "== 1695, < 0, > 3314 (signed); < 0, > 3314 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..255"
+    },
+    {
+     "line": 71,
+     "text": "if (D_800F4BA4->unk25C.unk1E > 0) {",
+     "size": 2,
+     "count": 5024,
+     "kind": "against a constant",
+     "outcomes": "== 1608, < 1685, > 1731 (signed); < 0, > 3416 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 76,
+     "text": "if (D_800F4BA4->unk25C.unk1E == 0) {",
+     "size": 2,
+     "count": 3293,
+     "kind": "against a constant",
+     "outcomes": "== 1107, < 0, > 2186 (signed); < 0, > 2186 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..255"
+    },
+    {
+     "line": 93,
+     "text": "if (!mode) {",
+     "size": 2,
+     "count": 4970,
+     "kind": "against a constant",
+     "outcomes": "== 1240, < 1871, > 1859 (signed); < 0, > 3730 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 117,
+     "text": "return 0;",
+     "size": 4,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 40000, > 0 (signed); < 40000, > 0 (unsigned)",
+     "operand": "constant 1",
+     "a": "0..0"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": [
+   {
+    "id": "+6 b8",
+    "reason": "The switch has no default: an opcode outside the eight cases falls off the end of a non-void function with no return value (undefined behaviour). There is no defined result or call trace to compare, and running past the end executes whatever code follows, so the harness cannot generate this input."
+   }
+  ]
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39525,
+     "completion_tokens": 20962,
+     "reasoning_tokens": 17812,
+     "cost": 0.007216749999999999,
+     "seconds": null,
+     "batch": "batch-1793642180-WvegN1BEu2e309HyCuyx",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800BD6C4.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800BD6C4.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 369.1303227270055,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 80082.89568781853,
+ "totals": {
+  "cost": 0.01611,
+  "prompt_tokens": 74360,
+  "completion_tokens": 49581,
+  "model_seconds": 0.0,
+  "check_seconds": 369.1,
+  "calls": 3,
+  "wall_seconds": 80082.9
+ }
+}

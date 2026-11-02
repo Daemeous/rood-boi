@@ -1,0 +1,198 @@
+{
+ "function": "func_800B7C90",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "spec-failed",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800B7C90",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800b7c90",
+  "difficulty": "S",
+  "zig_name": "func_800B7C90",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800B7C90",
+  "spec_file": "func_800B7C90.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn func_800B7C90(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "[*c]u8"
+   ],
+   [
+    "arg1",
+    "c_short"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11282,
+     "completion_tokens": 10050,
+     "reasoning_tokens": 8294,
+     "cost": 0.0030766,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:213:9: error: zdiff: a spec stub gives void where the C prototype has c_int: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:267:29\n    f: pc/build/port-pipeline/func_800B7C90/spec1/build/game/common/route.zig:29:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13376,
+     "completion_tokens": 2537,
+     "reasoning_tokens": 743,
+     "cost": 0.00130305,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:213:9: error: zdiff: a spec stub gives c_int where the C prototype has void: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:267:29\n    f: pc/build/port-pipeline/func_800B7C90/spec2/build/game/common/route.zig:39:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ]
+   },
+   {
+    "round": 3,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 15508,
+     "completion_tokens": 2744,
+     "reasoning_tokens": 944,
+     "cost": 0.0014613999999999999,
+     "seconds": null,
+     "batch": "batch-1793642180-WvegN1BEu2e309HyCuyx",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation A2: the 0xFFFF mask dropped from the second read: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800B7C90: 30000 iterations, seed 1, 0 mismatches; classes: below-0x2000=6927 equal-0x2000=3297 above-0x2000=8851 negative-wraps=10925"
+    ]
+   }
+  ],
+  "classes": {
+   "below-0x2000": "6927",
+   "equal-0x2000": "3297",
+   "above-0x2000": "8851",
+   "negative-wraps": "10925"
+  },
+  "mutations": [
+   {
+    "name": "A1: strict > instead of >= at the 0x2000 split",
+    "caught": true
+   },
+   {
+    "name": "A2: the 0xFFFF mask dropped from the second read",
+    "caught": false
+   },
+   {
+    "name": "A3: second read at the wrong byte offset",
+    "caught": true
+   },
+   {
+    "name": "A4: the two flag bytes swapped in the 0x2000-below call",
+    "caught": true
+   },
+   {
+    "name": "A5: the high-path call dropped",
+    "caught": true
+   },
+   {
+    "name": "A6: wrong return value",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 7,
+   "lines_hit": 7,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "16-bit: min -32764, max 32765, unsigned 0..65527, seen zero/negative"
+    }
+   ],
+   "compares": [
+    {
+     "line": 4,
+     "text": "if (temp_a1 >= 0x2000) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 1685, < 5242, > 23073 (signed); < 5242, > 23073 (unsigned)",
+     "operand": "constant 8191",
+     "a": "0..65535"
+    }
+   ],
+   "passed": true
+  }
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 24.451834350000354,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 69986.69349765778,
+ "totals": {
+  "cost": 0.00584,
+  "prompt_tokens": 40166,
+  "completion_tokens": 15331,
+  "model_seconds": 0.0,
+  "check_seconds": 24.5,
+  "calls": 3,
+  "wall_seconds": 69986.7
+ }
+}

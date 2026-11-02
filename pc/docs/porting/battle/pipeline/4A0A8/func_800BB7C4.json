@@ -1,0 +1,188 @@
+{
+ "function": "func_800BB7C4",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "stopped",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800BB7C4",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800bb7c4",
+  "difficulty": "M",
+  "zig_name": "func_800BB7C4",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800BB7C4",
+  "spec_file": "func_800BB7C4.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn func_800BB7C4(arg0: c_int, arg1: ?*v.SVECTOR) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "?*v.SVECTOR"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "MATRIX",
+   "SVECTOR"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11635,
+     "completion_tokens": 9668,
+     "reasoning_tokens": 7937,
+     "cost": 0.0029987499999999997,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: specs.toml entry: Illegal character '\\n' (at line 32, column 22)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13427,
+     "completion_tokens": 2450,
+     "reasoning_tokens": 717,
+     "cost": 0.00128385,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:213:9: error: zdiff: a spec stub gives void where the C prototype has c_int: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:267:29\n    f: pc/build/port-pipeline/func_800BB7C4/spec2/build/game/common/route.zig:39:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ]
+   },
+   {
+    "round": 3,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 15499,
+     "completion_tokens": 2588,
+     "reasoning_tokens": 825,
+     "cost": 0.00142195,
+     "seconds": null,
+     "batch": "batch-1793642180-WvegN1BEu2e309HyCuyx",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 3,
+   "sample": 1
+  },
+  "classes": {
+   "arg0-negative": "15144",
+   "arg0-nonnegative": "14856"
+  },
+  "mutations": [
+   {
+    "name": "M1: wrong constant for vy",
+    "caught": true
+   },
+   {
+    "name": "M2: ratan2 y reads the wrong half of the packed xy",
+    "caught": true
+   },
+   {
+    "name": "M3: unsigned read of the x half",
+    "caught": true
+   },
+   {
+    "name": "M4: dropped func_800A1280 call",
+    "caught": true
+   },
+   {
+    "name": "M5: vz clear moved across the func_800A1178 call",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 11,
+   "lines_hit": 11,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 18.510276573000738,
+ "mode": "rounds",
+ "transport": "batch",
+ "stopped": "handed to a hand port (the run was parked before this retry was sent)",
+ "wall_seconds": 76070.57129359245,
+ "totals": {
+  "cost": 0.0057,
+  "prompt_tokens": 40561,
+  "completion_tokens": 14706,
+  "model_seconds": 0.0,
+  "check_seconds": 18.5,
+  "calls": 3,
+  "wall_seconds": 76070.6
+ }
+}

@@ -1,0 +1,274 @@
+{
+ "function": "func_800B6B98",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "stopped",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800B6B98",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800b6b98",
+  "difficulty": "M",
+  "zig_name": "func_800B6B98",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800B6B98",
+  "spec_file": "func_800B6B98.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn func_800B6B98(origin: ?*v.SVECTOR, script: [*c]u8, result: ?*v.textPlacement, direction: u8) callconv(.c) c_int",
+  "params": [
+   [
+    "origin",
+    "?*v.SVECTOR"
+   ],
+   [
+    "script",
+    "[*c]u8"
+   ],
+   [
+    "result",
+    "?*v.textPlacement"
+   ],
+   [
+    "direction",
+    "u8"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "SVECTOR",
+   "textPlacement"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11850,
+     "completion_tokens": 12450,
+     "reasoning_tokens": 10574,
+     "cost": 0.003705,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:215:12: error: expected type 'u32', found 'views_4A0A8.textOffset'\n    return value;\n           ^~~~~\npc/build/port-pipeline/gen/4A0A8/fn-func_800B6B98/views_4A0A8.zig:17:31: note: struct declared here\npub const textOffset = extern struct {\n                       ~~~~~~~^~~~~~\npc/tests/zig_diff/main.zig:204:45: note: function return type declared here\nfn adapt(comptime To: type, value: anytype) To {\n                                            ^~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:267:29\n    f: pc/build/port-pipeline/func_800B6B98/spec1/build/game/common/route.zig:39:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14123,
+     "completion_tokens": 3068,
+     "reasoning_tokens": 1174,
+     "cost": 0.00147315,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/func_800B6B98/spec2/build/spec.zig:27:25: error: cannot @bitCast from 'views_4A0A8.textOffset'\n        return @bitCast(t);\n                        ^\npc/build/port-pipeline/gen/4A0A8/fn-func_800B6B98/views_4A0A8.zig:17:31: note: struct declared here\npub const textOffset = extern struct {\n                       ~~~~~~~^~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:267:33\n    f: pc/build/port-pipeline/func_800B6B98/spec2/build/game/common/route.zig:39:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ]
+   },
+   {
+    "round": 3,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16373,
+     "completion_tokens": 2613,
+     "reasoning_tokens": 691,
+     "cost": 0.0014719,
+     "seconds": null,
+     "batch": "batch-1793642180-WvegN1BEu2e309HyCuyx",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 3,
+   "sample": 1
+  },
+  "classes": {
+   "near-left": "21293",
+   "near-right": "15309",
+   "near-top": "1814",
+   "near-bottom": "1242",
+   "interior": "342"
+  },
+  "mutations": [
+   {
+    "name": "M1: left test is <= 4, not < 4",
+    "caught": true
+   },
+   {
+    "name": "M2: right wall at 319, not 320",
+    "caught": true
+   },
+   {
+    "name": "M3: right dx is width + x",
+    "caught": true
+   },
+   {
+    "name": "M4: bottom wall at 215, not 216",
+    "caught": true
+   },
+   {
+    "name": "M5: distance uses dy once, not squared",
+    "caught": true
+   },
+   {
+    "name": "M6: left clamp stores 5, not 4",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 12,
+   "branches_hit": 12,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 29,
+   "lines_hit": 29,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 2,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 3,
+     "count": 40000,
+     "text": "8-bit: min -128, max 127, unsigned 0..255, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 20,
+     "text": "if (x < 4) {",
+     "size": 2,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 1556, < 13813, > 24631 (signed); < 4644, > 33800 (unsigned)",
+     "operand": "constant 3",
+     "a": "-2755..319"
+    },
+    {
+     "line": 24,
+     "text": "} else if (x + width > 320) {",
+     "size": 4,
+     "count": 24631,
+     "kind": "against a constant",
+     "outcomes": "== 331, < 6869, > 17431 (signed); < 6869, > 17431 (unsigned)",
+     "operand": "constant 320",
+     "a": "12..3370"
+    },
+    {
+     "line": 30,
+     "text": "if (y < 4) {",
+     "size": 2,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 1507, < 13851, > 24642 (signed); < 4600, > 33893 (unsigned)",
+     "operand": "constant 3",
+     "a": "-3110..219"
+    },
+    {
+     "line": 34,
+     "text": "} else if (height + y > 216) {",
+     "size": 4,
+     "count": 24642,
+     "kind": "against a constant",
+     "outcomes": "== 455, < 6835, > 17352 (signed); < 6835, > 17352 (unsigned)",
+     "operand": "constant 216",
+     "a": "8..3475"
+    },
+    {
+     "line": 40,
+     "text": "if (dx == 0 && dy == 0) {",
+     "size": 2,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 7200, < 17431, > 15369 (signed); < 0, > 32800 (unsigned)",
+     "operand": "constant 0",
+     "a": "-3050..2759"
+    },
+    {
+     "line": 40,
+     "text": "if (dx == 0 && dy == 0) {",
+     "size": 2,
+     "count": 7200,
+     "kind": "against a constant",
+     "outcomes": "== 1355, < 3062, > 2783 (signed); < 0, > 5845 (unsigned)",
+     "operand": "constant 0",
+     "a": "-3256..3114"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 23.438511189000565,
+ "mode": "rounds",
+ "transport": "batch",
+ "stopped": "handed to a hand port (the run was parked before this retry was sent)",
+ "wall_seconds": 76070.3605325222,
+ "totals": {
+  "cost": 0.00665,
+  "prompt_tokens": 42346,
+  "completion_tokens": 18131,
+  "model_seconds": 0.0,
+  "check_seconds": 23.4,
+  "calls": 3,
+  "wall_seconds": 76070.4
+ }
+}

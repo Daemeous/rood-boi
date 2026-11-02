@@ -1,0 +1,210 @@
+{
+ "function": "func_800B849C",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "stopped",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800B849C",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800b849c",
+  "difficulty": "S",
+  "zig_name": "func_800B849C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800B849C",
+  "spec_file": "func_800B849C.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn func_800B849C(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "[*c]u8"
+   ],
+   [
+    "arg1",
+    "c_short"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [
+   "D_800E9B58"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11353,
+     "completion_tokens": 7777,
+     "reasoning_tokens": 6235,
+     "cost": 0.0025119,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "addend-ff": "4847",
+   "sum-wraps": "9058",
+   "sum-fits": "16095"
+  },
+  "mutations": [
+   {
+    "name": "M1: sentinel tested as 0xFE, not 0xFF",
+    "caught": true
+   },
+   {
+    "name": "M2: addend read from the index byte",
+    "caught": true
+   },
+   {
+    "name": "M3: sentinel passed as 255, not -1",
+    "caught": true
+   },
+   {
+    "name": "M4: sum wrapped to a byte",
+    "caught": true
+   },
+   {
+    "name": "M5: no-value case drops its call",
+    "caught": true
+   },
+   {
+    "name": "M6: short read from arg0 + 2",
+    "caught": true
+   },
+   {
+    "name": "M7: returns the lookup's value, not 0",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 6,
+   "lines_hit": 6,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "16-bit: min -32767, max 32767, unsigned 4..65532, seen negative/signed max, never zero"
+    }
+   ],
+   "compares": [
+    {
+     "line": 4,
+     "text": "if (arg0[4] == 0xFF) {",
+     "size": 1,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 4847, < 10154, > 14999 (signed); < 25153, > 0 (unsigned)",
+     "operand": "constant -1",
+     "a": "-128..127"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34765,
+     "completion_tokens": 2471,
+     "reasoning_tokens": 2041,
+     "cost": 0.002356,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800B849C.zig:9:44: error: expected type 'c_ushort', found 'c_int'\n    const temp_a0: c_int = c.func_800BFE50(@as(c_int, c.vs_battle_getShort(arg0 + 1)));\n                                           ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\ngame/battle/func_800B849C.zig:9:44: note: unsigned 16-bit int cannot represent all possible signed 32-bit values\npc/build/port-pipeline/gen/4A0A8/c_4A0A8.zig:3659:29: note: parameter type declared here\npub extern fn func_800BFE50(u_short) c_int;\n                            ^~~~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:511:31\n    main: pc/tests/zig_diff/main.zig:434:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35632,
+     "completion_tokens": 1099,
+     "reasoning_tokens": 648,
+     "cost": 0.0020563499999999998,
+     "seconds": null,
+     "batch": "batch-1793642180-WvegN1BEu2e309HyCuyx",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800B849C.zig:14:24: error: value of type 'c_int' ignored\n        c.func_8009FBD8(temp_a0, -1);\n        ~~~~~~~~~~~~~~~^~~~~~~~~~~~~\ngame/battle/func_800B849C.zig:14:24: note: all non-void values must be used\ngame/battle/func_800B849C.zig:14:24: note: to discard the value, assign it to '_'\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:528:31\n    main: pc/tests/zig_diff/main.zig:451:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   }
+  ]
+ },
+ "written": [],
+ "check_seconds": 23.979125710997323,
+ "mode": "rounds",
+ "transport": "batch",
+ "stopped": "handed to a hand port (the run was parked before this retry was sent)",
+ "wall_seconds": 76070.46625566483,
+ "totals": {
+  "cost": 0.00692,
+  "prompt_tokens": 81750,
+  "completion_tokens": 11347,
+  "model_seconds": 0.0,
+  "check_seconds": 24.0,
+  "calls": 3,
+  "wall_seconds": 76070.5
+ }
+}

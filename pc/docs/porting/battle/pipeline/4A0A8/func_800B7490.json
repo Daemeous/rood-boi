@@ -1,0 +1,241 @@
+{
+ "function": "func_800B7490",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800B7490",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800b7490",
+  "difficulty": "S",
+  "zig_name": "func_800B7490",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800B7490",
+  "spec_file": "func_800B7490.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn func_800B7490(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "[*c]u8"
+   ],
+   [
+    "arg1",
+    "c_short"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11924,
+     "completion_tokens": 16190,
+     "reasoning_tokens": 14120,
+     "cost": 0.0046437,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "bit12-clear": "8895",
+   "bit12-clear-signbit": "5074",
+   "bit12-set": "12126",
+   "bit12-set-id0": "3905"
+  },
+  "mutations": [
+   {
+    "name": "M1: actor id masked with 0x0F, not 0x1F",
+    "caught": true
+   },
+   {
+    "name": "M2: CF18 result tested against 0, not 1",
+    "caught": true
+   },
+   {
+    "name": "M3: NULL test inverted on the bit-12 path",
+    "caught": true
+   },
+   {
+    "name": "M4: flag+1 stores position[2] (wrong byte)",
+    "caught": true
+   },
+   {
+    "name": "M5: NULL-path fill value 0xFE, not 0xFF",
+    "caught": true
+   },
+   {
+    "name": "M6: CF18 result masked to a byte before the test",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 6,
+   "branches_hit": 6,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 17,
+   "lines_hit": 17,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "16-bit: min -32764, max 32765, unsigned 0..65527, seen zero/negative"
+    }
+   ],
+   "compares": [
+    {
+     "line": 6,
+     "text": "if (actor & 0x1000) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 13969, < 0, > 16031 (signed); < 0, > 16031 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..4096"
+    },
+    {
+     "line": 14,
+     "text": "if (actor == 1) {",
+     "size": 2,
+     "count": 13969,
+     "kind": "against a constant",
+     "outcomes": "== 6882, < 2670, > 4417 (signed); < 0, > 7087 (unsigned)",
+     "operand": "constant 1",
+     "a": "-32761..32710"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35441,
+     "completion_tokens": 4033,
+     "reasoning_tokens": 3424,
+     "cost": 0.0027803,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800B7490.zig:15:38: error: expected type 'c_short', found 'u16'\n            c.vs_battle_setStateFlag(flag, 0xFF);\n                                     ^~~~\ngame/battle/func_800B7490.zig:15:38: note: signed 16-bit int cannot represent all possible unsigned 16-bit values\npc/build/port-pipeline/gen/4A0A8/c_4A0A8.zig:3483:42: note: parameter type declared here\npub extern fn vs_battle_setStateFlag(id: c_short, value: u8) void;\n                                         ^~~~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:511:31\n    main: pc/tests/zig_diff/main.zig:434:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 36432,
+     "completion_tokens": 1345,
+     "reasoning_tokens": 636,
+     "cost": 0.00215785,
+     "seconds": null,
+     "batch": "batch-1793642180-WvegN1BEu2e309HyCuyx",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800B7490.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800B7490.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 331.927311499001,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 72291.31010818481,
+ "totals": {
+  "cost": 0.00958,
+  "prompt_tokens": 83797,
+  "completion_tokens": 21568,
+  "model_seconds": 0.0,
+  "check_seconds": 331.9,
+  "calls": 3,
+  "wall_seconds": 72291.3
+ }
+}

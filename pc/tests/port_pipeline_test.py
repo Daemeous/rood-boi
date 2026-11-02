@@ -350,8 +350,9 @@ def wave1(tmp, table):
                                {}, BUILD, tmp / "plan-7BF8")
     if "D_800F568C" not in plan.globals:
         failures.append(f"func_800D7BF8's plan misses its static callee's global: {plan.globals}")
-    got = pp.parse_classes(" row>=9=12 row<9 position[0] negative=3 plain=0")
-    if got != {"row>=9": "12", "row<9 position[0] negative": "3", "plain": "0"}:
+    got = pp.zig_diff.parse_classes("zdiff: f: 1 iterations; classes: row>=9=12 row<9 position[0] negative=3 plain=0 "
+                                    "plain=5")
+    if got != [("row>=9", 12), ("row<9 position[0] negative", 3), ("plain", 0), ("plain", 5)]:
         failures.append(f"parse_classes: {got}")
     return failures
 

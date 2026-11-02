@@ -701,11 +701,6 @@ def run_exe(exe, iterations, seed, timeout=300):
     return r.returncode, r.stdout + r.stderr
 
 
-def parse_classes(text):
-    """zdiff's `classes: NAME=COUNT ...` (a spec's class names may hold spaces and `=`: `row>=9`)."""
-    return {m.group(1): m.group(2) for m in re.finditer(r"\s*(.+?)=(\d+)(?=\s|$)", text)}
-
-
 def spec_gate(plan, entry, spec_path, views_path, unit, table, build, work):
     """zig_diff --self-check --coverage with the C as the port; (ok, errors, details)."""
     errors, details = [], {"classes": {}, "mutations": [], "coverage": None}
@@ -732,8 +727,8 @@ def spec_gate(plan, entry, spec_path, views_path, unit, table, build, work):
         return False, errors, details
     code, text = run_exe(exe, iterations, 1)
     text = zig_diff.name_addresses(exe, text or "")
-    classes = re.search(r"classes:(.*)", text)
-    details["classes"] = parse_classes(classes.group(1)) if classes else {}
+    classes = zig_diff.parse_classes(text)
+    details["classes"] = {name: str(count) for name, count in classes}
     if code == 4 and "CRASH" in text and not re.search(r"CRASH[^\n]* in the (prepare|classify) run", text):
         # Nothing else can be judged on inputs that crash the C itself: the
         # mutations and the coverage run would only crash the same way.
@@ -752,10 +747,12 @@ def spec_gate(plan, entry, spec_path, views_path, unit, table, build, work):
     if code != 0:
         errors.append(f"FAIL: the C differs from a copy of itself under this spec (exit {code}: the spec is not "
                       f"deterministic: everything prepare does must come from `ctx`):\n" + first_lines(text))
-    empty = [c for c, n in details["classes"].items() if n == "0"]
+    empty = [name for name, count in classes if count == 0]
     if empty:
         errors.append("FAIL: input classes never generated: " + ", ".join(empty))
-    if not details["classes"] and code is not None:
+    if len({name for name, _ in classes}) < len(classes):
+        errors.append("FAIL: two input classes share a name: give each its own")
+    if not classes and code is not None:
         errors.append("FAIL: no input classes declared (`classes` and `classify`)")
     for m in mutations:
         record = {"name": m.get("name"), "caught": False}

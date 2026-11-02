@@ -1,0 +1,280 @@
+{
+ "function": "func_800BF5F0",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "stopped",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800BF5F0",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800bf5f0",
+  "difficulty": "S",
+  "zig_name": "func_800BF5F0",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800BF5F0",
+  "spec_file": "func_800BF5F0.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn func_800BF5F0(data: [*c]u8) callconv(.c) void",
+  "params": [
+   [
+    "data",
+    "[*c]u8"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "scriptBytePair"
+  ],
+  "globals": [
+   "D_800EB588",
+   "D_800F4B28",
+   "D_800F4B30",
+   "D_800F4B8B",
+   "D_800F4BB0",
+   "D_800F4BB6",
+   "D_800F4BB9",
+   "D_800F4BBC",
+   "D_800F4BC0",
+   "D_800F4BE2",
+   "D_800F4BE4",
+   "D_800F4BF8",
+   "D_800F4C22",
+   "D_800F4C2C",
+   "D_800F4C38",
+   "D_800F4C4E",
+   "D_800F4C58",
+   "D_800F4C68",
+   "D_800F4C69",
+   "_textBoxSelectionPending",
+   "vs_battle_textBoxStatuses"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13366,
+     "completion_tokens": 14012,
+     "reasoning_tokens": 12068,
+     "cost": 0.0041713,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "no-zero-entries": "2395",
+   "zero-in-first": "4777",
+   "zero-in-second": "6518",
+   "zero-in-both": "16310"
+  },
+  "mutations": [
+   {
+    "name": "U1: first table loop stops one short (D_800EB588[15] missed)",
+    "caught": true
+   },
+   {
+    "name": "U2: D_800F4C38[3] not cleared",
+    "caught": true
+   },
+   {
+    "name": "U3: first table offset read signed (sign-extended pointer)",
+    "caught": true
+   },
+   {
+    "name": "U4: second table offsets based on data, not table",
+    "caught": true
+   },
+   {
+    "name": "U5: the setStateFlag(168) call dropped",
+    "caught": true
+   },
+   {
+    "name": "U6: store moved before the music-slot call",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 14,
+   "branches_hit": 14,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 34,
+   "lines_hit": 34,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 6,
+     "text": "for (i = 9; i < 16; ++i) {",
+     "size": 2,
+     "count": 240000,
+     "kind": "against a constant",
+     "outcomes": "== 30000, < 180000, > 30000 (signed); < 180000, > 30000 (unsigned)",
+     "operand": "constant 15",
+     "a": "9..16"
+    },
+    {
+     "line": 7,
+     "text": "D_800EB588[i] = ((u_short*)table)[i - 8] ? table + ((u_short*)table)[i - 8] : 0;",
+     "size": 2,
+     "count": 210000,
+     "kind": "against a constant",
+     "outcomes": "== 33989, < 87875, > 88136 (signed); < 0, > 176011 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 10,
+     "text": "for (i = 0; i < 8; ++i) {",
+     "size": 2,
+     "count": 270000,
+     "kind": "against a constant",
+     "outcomes": "== 30000, < 210000, > 30000 (signed); < 210000, > 30000 (unsigned)",
+     "operand": "constant 7",
+     "a": "0..8"
+    },
+    {
+     "line": 11,
+     "text": "D_800F4BC0[i] = ((u_short*)table)[i] ? (char*)table + ((u_short*)table)[i] : 0;",
+     "size": 2,
+     "count": 240000,
+     "kind": "against a constant",
+     "outcomes": "== 39447, < 99978, > 100575 (signed); < 0, > 200553 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32767"
+    },
+    {
+     "line": 28,
+     "text": "for (i = 0; i < 8; ++i) {",
+     "size": 2,
+     "count": 270000,
+     "kind": "against a constant",
+     "outcomes": "== 30000, < 210000, > 30000 (signed); < 210000, > 30000 (unsigned)",
+     "operand": "constant 7",
+     "a": "0..8"
+    },
+    {
+     "line": 31,
+     "text": "for (i = 0; i < 4; ++i) {",
+     "size": 2,
+     "count": 150000,
+     "kind": "against a constant",
+     "outcomes": "== 30000, < 90000, > 30000 (signed); < 90000, > 30000 (unsigned)",
+     "operand": "constant 3",
+     "a": "0..4"
+    },
+    {
+     "line": 38,
+     "text": "for (i = 16; i < 32; ++i) {",
+     "size": 2,
+     "count": 510000,
+     "kind": "against a constant",
+     "outcomes": "== 30000, < 450000, > 30000 (signed); < 450000, > 30000 (unsigned)",
+     "operand": "constant 31",
+     "a": "16..32"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 36547,
+     "completion_tokens": 16166,
+     "reasoning_tokens": 14562,
+     "cost": 0.00586885,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800BF5F0.zig:80:38: error: expected type 'c_short', found 'c_int'\n        _ = c.vs_battle_setStateFlag(i, 0);\n                                     ^\ngame/battle/func_800BF5F0.zig:80:38: note: signed 16-bit int cannot represent all possible signed 32-bit values\npc/build/port-pipeline/gen/4A0A8/c_4A0A8.zig:3483:42: note: parameter type declared here\npub extern fn vs_battle_setStateFlag(id: c_short, value: u8) void;\n                                         ^~~~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:511:31\n    main: pc/tests/zig_diff/main.zig:434:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 38532,
+     "completion_tokens": 2413,
+     "reasoning_tokens": 690,
+     "cost": 0.0025298499999999997,
+     "seconds": null,
+     "batch": "batch-1793642180-WvegN1BEu2e309HyCuyx",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: no Zig file in the reply"
+    ],
+    "runs": []
+   }
+  ]
+ },
+ "written": [],
+ "check_seconds": 30.621322417000556,
+ "mode": "rounds",
+ "transport": "batch",
+ "stopped": "handed to a hand port (the run was parked before this retry was sent)",
+ "wall_seconds": 76070.60688638687,
+ "totals": {
+  "cost": 0.01257,
+  "prompt_tokens": 88445,
+  "completion_tokens": 32591,
+  "model_seconds": 0.0,
+  "check_seconds": 30.6,
+  "calls": 3,
+  "wall_seconds": 76070.6
+ }
+}

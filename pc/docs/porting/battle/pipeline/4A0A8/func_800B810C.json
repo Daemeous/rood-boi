@@ -1,0 +1,208 @@
+{
+ "function": "func_800B810C",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "spec-failed",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800B810C",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800b810c",
+  "difficulty": "S",
+  "zig_name": "func_800B810C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800B810C",
+  "spec_file": "func_800B810C.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn func_800B810C(arg0: [*c]u8) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "[*c]u8"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11320,
+     "completion_tokens": 9489,
+     "reasoning_tokens": 7928,
+     "cost": 0.00293825,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:213:9: error: zdiff: a spec stub gives c_int where the C prototype has c_uint: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:267:29\n    f: pc/build/port-pipeline/func_800B810C/spec1/build/game/common/route.zig:24:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13221,
+     "completion_tokens": 2722,
+     "reasoning_tokens": 1162,
+     "cost": 0.00134155,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:213:9: error: zdiff: a spec stub gives c_uint where the C prototype has c_int: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:267:29\n    f: pc/build/port-pipeline/func_800B810C/spec2/build/game/common/route.zig:24:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ]
+   },
+   {
+    "round": 3,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 15121,
+     "completion_tokens": 2986,
+     "reasoning_tokens": 1524,
+     "cost": 0.00150255,
+     "seconds": null,
+     "batch": "batch-1793642180-WvegN1BEu2e309HyCuyx",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation F2: the set bit is 3, not 1: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800B810C: 30000 iterations, seed 1, 0 mismatches; classes: flag-clear=13866 flag-set-sign=8063 flag-set-nosign=8071"
+    ]
+   }
+  ],
+  "classes": {
+   "flag-clear": "13866",
+   "flag-set-sign": "8063",
+   "flag-set-nosign": "8071"
+  },
+  "mutations": [
+   {
+    "name": "F1: flag bit tested with mask 2",
+    "caught": true
+   },
+   {
+    "name": "F2: the set bit is 3, not 1",
+    "caught": false
+   },
+   {
+    "name": "F3: wrong constant in the XOR",
+    "caught": true
+   },
+   {
+    "name": "F4: the helper call dropped (its test made on temp_s2)",
+    "caught": true
+   },
+   {
+    "name": "F5: mask widening dropped (temp_s2 keeps high bits)",
+    "caught": true
+   },
+   {
+    "name": "F6: OR instead of AND in the result",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 4,
+   "branches_hit": 4,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 9,
+   "lines_hit": 9,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 11,
+     "text": "if (temp_v0 & 1) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 13866, < 0, > 16134 (signed); < 0, > 16134 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 12,
+     "text": "if (func_8007D03C(temp_s2) == 0) {",
+     "size": 4,
+     "count": 16134,
+     "kind": "against a constant",
+     "outcomes": "== 8006, < 4092, > 4036 (signed); < 0, > 8128 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2146992103..2146886245"
+    },
+    {
+     "line": 17,
+     "text": "return var_v0 != 0;",
+     "size": 2,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 4053, < 8020, > 17927 (signed); < 0, > 25947 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32757"
+    }
+   ],
+   "passed": true
+  }
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 26.16739059000247,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 70003.01971364021,
+ "totals": {
+  "cost": 0.00578,
+  "prompt_tokens": 39662,
+  "completion_tokens": 15197,
+  "model_seconds": 0.0,
+  "check_seconds": 26.2,
+  "calls": 3,
+  "wall_seconds": 70003.0
+ }
+}

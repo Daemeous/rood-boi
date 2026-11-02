@@ -1,0 +1,206 @@
+{
+ "function": "func_800BB874",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800BB874",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800bb874",
+  "difficulty": "L",
+  "zig_name": "func_800BB874",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800BB874",
+  "spec_file": "func_800BB874.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn func_800BB874() callconv(.c) void",
+  "params": [],
+  "ret": "void",
+  "types": [
+   "DR_TPAGE",
+   "LINE_F2",
+   "P_TAG"
+  ],
+  "globals": [
+   "D_8005DFD6",
+   "D_8005DFDA",
+   "D_800F4B20"
+  ],
+  "hooks": [
+   "ROOD_PC block in the source"
+  ],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13188,
+     "completion_tokens": 14893,
+     "reasoning_tokens": 12907,
+     "cost": 0.00438265,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "no-lines": "3727",
+   "wrap": "6567",
+   "lines": "19706"
+  },
+  "mutations": [
+   {
+    "name": "F1: parity shift uses D >> 2",
+    "caught": true
+   },
+   {
+    "name": "F2: loop bound <= instead of <",
+    "caught": true
+   },
+   {
+    "name": "F3: final scratchpad store uses y0",
+    "caught": true
+   },
+   {
+    "name": "F4: SetLineF2 call dropped",
+    "caught": true
+   },
+   {
+    "name": "F5: AddPrim does not advance the primitive",
+    "caught": true
+   },
+   {
+    "name": "F6: semi-transparency bit wrong constant",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 4,
+   "branches_hit": 4,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 21,
+   "lines_hit": 21,
+   "uncovered": [],
+   "flags": [],
+   "args": [],
+   "compares": [
+    {
+     "line": 16,
+     "text": "for (i = 0; i < D_8005DFDA; ++i) {",
+     "size": 4,
+     "count": 315366,
+     "kind": "a == b / a < b",
+     "outcomes": "== 30000, < 285366, > 0 (signed); < 285366, > 0 (unsigned)",
+     "operand": "b 0..40",
+     "a": "0..40"
+    },
+    {
+     "line": 20,
+     "text": "if (temp_v0_2 != 0) {",
+     "size": 4,
+     "count": 285366,
+     "kind": "against a constant",
+     "outcomes": "== 142645, < 0, > 142721 (signed); < 0, > 142721 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..32"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 36705,
+     "completion_tokens": 11794,
+     "reasoning_tokens": 10912,
+     "cost": 0.00478375,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800BB874.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800BB874.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 246.95428163199995,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 65717.74401330948,
+ "totals": {
+  "cost": 0.00917,
+  "prompt_tokens": 49893,
+  "completion_tokens": 26687,
+  "model_seconds": 0.0,
+  "check_seconds": 247.0,
+  "calls": 2,
+  "wall_seconds": 65717.7
+ }
+}

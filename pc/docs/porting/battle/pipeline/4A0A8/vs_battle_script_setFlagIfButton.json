@@ -1,0 +1,229 @@
+{
+ "function": "vs_battle_script_setFlagIfButton",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": false,
+ "plan": {
+  "name": "vs_battle_script_setFlagIfButton",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800b9254",
+  "difficulty": "S",
+  "zig_name": "script_setFlagIfButton",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "script_set_flag_if_button",
+  "spec_file": "script_setFlagIfButton.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn script_setFlagIfButton(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "[*c]u8"
+   ],
+   [
+    "arg1",
+    "c_short"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [
+   "vs_main_buttonsPressed",
+   "vs_main_buttonsPreviousState"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11530,
+     "completion_tokens": 6501,
+     "reasoning_tokens": 5105,
+     "cost": 0.0022017499999999997,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "sign-clear": "15109",
+   "sign-set-low-zero": "5550",
+   "sign-set": "9341"
+  },
+  "mutations": [
+   {
+    "name": "F1: flag mask drops bit 9",
+    "caught": true
+   },
+   {
+    "name": "F2: sign test on bit 14",
+    "caught": true
+   },
+   {
+    "name": "F3: pressed state read from pad[1]",
+    "caught": true
+   },
+   {
+    "name": "F4: short read at arg0, not arg0 + 1",
+    "caught": true
+   },
+   {
+    "name": "F5: returns 1",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 4,
+   "lines_hit": 4,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "16-bit: min -32768, max 32764, unsigned 0..65534, seen zero/negative"
+    }
+   ],
+   "compares": [
+    {
+     "line": 3,
+     "text": "vs_battle_setStateFlag(temp_v0 & 0x3FF, temp_v0 & 0x8000",
+     "size": 2,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 1848, < 14891, > 13261 (signed); < 0, > 28152 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32767"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35000,
+     "completion_tokens": 2488,
+     "reasoning_tokens": 2054,
+     "cost": 0.002372,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/script_set_flag_if_button.zig:17:42: error: expected type 'c_short', found 'c_int'\n    _ = c.vs_battle_setStateFlag(operand & 0x3FF, value);\n                                 ~~~~~~~~^~~~~~~\ngame/battle/script_set_flag_if_button.zig:17:42: note: signed 16-bit int cannot represent all possible signed 32-bit values\npc/build/port-pipeline/gen/4A0A8/c_4A0A8.zig:3483:42: note: parameter type declared here\npub extern fn vs_battle_setStateFlag(id: c_short, value: u8) void;\n                                         ^~~~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:511:31\n    main: pc/tests/zig_diff/main.zig:434:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35840,
+     "completion_tokens": 807,
+     "reasoning_tokens": 354,
+     "cost": 0.00199375,
+     "seconds": null,
+     "batch": "batch-1793642180-WvegN1BEu2e309HyCuyx",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/script_setFlagIfButton.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/script_set_flag_if_button.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 310.6168919200045,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 82831.81479001045,
+ "totals": {
+  "cost": 0.00657,
+  "prompt_tokens": 82370,
+  "completion_tokens": 9796,
+  "model_seconds": 0.0,
+  "check_seconds": 310.6,
+  "calls": 3,
+  "wall_seconds": 82831.8
+ }
+}

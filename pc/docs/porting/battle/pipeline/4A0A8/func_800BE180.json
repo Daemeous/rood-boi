@@ -1,0 +1,234 @@
+{
+ "function": "func_800BE180",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800BE180",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800be180",
+  "difficulty": "M",
+  "zig_name": "func_800BE180",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800BE180",
+  "spec_file": "func_800BE180.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn func_800BE180() callconv(.c) void",
+  "params": [],
+  "ret": "void",
+  "types": [
+   "D_800F4BA4_t",
+   "SVECTOR",
+   "cameraShakeScratch",
+   "func_800BDF6C_t"
+  ],
+  "globals": [
+   "D_800F4BA4"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13460,
+     "completion_tokens": 13533,
+     "reasoning_tokens": 11787,
+     "cost": 0.00405625,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "flags-0": "10009",
+   "flags-1": "5961",
+   "flags-2": "5939",
+   "flags-3": "8091"
+  },
+  "mutations": [
+   {
+    "name": "M1: second flag tests bit 2 instead of bit 1",
+    "caught": true
+   },
+   {
+    "name": "M2: the b.vz... no: the unk1C8 store is dropped",
+    "caught": true
+   },
+   {
+    "name": "M3: unk1C2 read from a.vz's partner b (wrong vector source)",
+    "caught": true
+   },
+   {
+    "name": "M4: the entry loop runs a third entry",
+    "caught": true
+   },
+   {
+    "name": "M5: b.vz not cleared before the loop",
+    "caught": true
+   },
+   {
+    "name": "M6: amplitude mask 3 becomes 2 for the x axis",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 10,
+   "branches_hit": 10,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 24,
+   "lines_hit": 24,
+   "uncovered": [],
+   "flags": [],
+   "args": [],
+   "compares": [
+    {
+     "line": 10,
+     "text": "for (; i < 2; ++entry, ++i) {",
+     "size": 2,
+     "count": 90000,
+     "kind": "against a constant",
+     "outcomes": "== 30000, < 30000, > 30000 (signed); < 30000, > 30000 (unsigned)",
+     "operand": "constant 1",
+     "a": "0..2"
+    },
+    {
+     "line": 11,
+     "text": "if (func_800BE01C(entry)) {",
+     "size": 4,
+     "count": 60000,
+     "kind": "against a constant",
+     "outcomes": "== 14974, < 22596, > 22430 (signed); < 0, > 45026 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147379225..2147482347"
+    },
+    {
+     "line": 15,
+     "text": "if (entry->unkA & 1) {",
+     "size": 4,
+     "count": 45026,
+     "kind": "against a constant",
+     "outcomes": "== 23366, < 0, > 21660 (signed); < 0, > 21660 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 18,
+     "text": "if (entry->unkA & 2) {",
+     "size": 4,
+     "count": 45026,
+     "kind": "against a constant",
+     "outcomes": "== 23178, < 0, > 21848 (signed); < 0, > 21848 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..2"
+    },
+    {
+     "line": 25,
+     "text": "if (count) {",
+     "size": 2,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 1848, < 0, > 28152 (signed); < 0, > 28152 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..2"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 36977,
+     "completion_tokens": 11804,
+     "reasoning_tokens": 10534,
+     "cost": 0.00479985,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800BE180.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800BE180.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 239.19825376000153,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 68156.79971551895,
+ "totals": {
+  "cost": 0.00886,
+  "prompt_tokens": 50437,
+  "completion_tokens": 25337,
+  "model_seconds": 0.0,
+  "check_seconds": 239.2,
+  "calls": 2,
+  "wall_seconds": 68156.8
+ }
+}

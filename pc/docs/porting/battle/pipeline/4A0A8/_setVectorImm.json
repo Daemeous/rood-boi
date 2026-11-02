@@ -1,0 +1,194 @@
+{
+ "function": "_setVectorImm",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": false,
+ "plan": {
+  "name": "_setVectorImm",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800be7b8",
+  "difficulty": "S",
+  "zig_name": "setVectorImm",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "set_vector_imm",
+  "spec_file": "setVectorImm.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn setVectorImm(arg0: ?*v.VECTOR, arg1: [*c]u8) callconv(.c) ?*v.VECTOR",
+  "params": [
+   [
+    "arg0",
+    "?*v.VECTOR"
+   ],
+   [
+    "arg1",
+    "[*c]u8"
+   ]
+  ],
+  "ret": "?*v.VECTOR",
+  "types": [
+   "VECTOR"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11440,
+     "completion_tokens": 5585,
+     "reasoning_tokens": 4464,
+     "cost": 0.00196825,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "src-aligned": "7529",
+   "src-plus-1": "7448",
+   "src-plus-2": "7591",
+   "src-plus-3": "7432"
+  },
+  "mutations": [
+   {
+    "name": "S1: wrong scale constant (4095 for ONE)",
+    "caught": true
+   },
+   {
+    "name": "S2: vy read from the vz offset",
+    "caught": true
+   },
+   {
+    "name": "S3: vz store dropped (zero instead of the read)",
+    "caught": true
+   },
+   {
+    "name": "S4: vx read as unsigned short (sign lost)",
+    "caught": true
+   },
+   {
+    "name": "S5: returns null instead of arg0",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 3,
+   "lines_hit": 3,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34959,
+     "completion_tokens": 2441,
+     "reasoning_tokens": 2067,
+     "cost": 0.0023582,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/setVectorImm.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/set_vector_imm.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 208.5355404680031,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 64264.57715821266,
+ "totals": {
+  "cost": 0.00433,
+  "prompt_tokens": 46399,
+  "completion_tokens": 8026,
+  "model_seconds": 0.0,
+  "check_seconds": 208.5,
+  "calls": 2,
+  "wall_seconds": 64264.6
+ }
+}

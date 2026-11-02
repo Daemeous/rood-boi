@@ -1,0 +1,204 @@
+{
+ "function": "func_800BAF6C",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "stopped",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800BAF6C",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800baf6c",
+  "difficulty": "S",
+  "zig_name": "func_800BAF6C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800BAF6C",
+  "spec_file": "func_800BAF6C.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn func_800BAF6C(arg0: c_short) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_short"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11543,
+     "completion_tokens": 4815,
+     "reasoning_tokens": 3434,
+     "cost": 0.0017809,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:213:9: error: zdiff: a spec stub gives c_int where the C prototype has c_uint: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:267:29\n    f: pc/build/port-pipeline/func_800BAF6C/spec1/build/game/common/route.zig:24:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13266,
+     "completion_tokens": 2245,
+     "reasoning_tokens": 861,
+     "cost": 0.00122455,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "arg0-zero": "2411",
+   "arg0-positive": "15118",
+   "arg0-negative": "12471"
+  },
+  "mutations": [
+   {
+    "name": "F1: loop runs to 17 (actor 17 is visited)",
+    "caught": true
+   },
+   {
+    "name": "F2: loop starts at actor 0",
+    "caught": true
+   },
+   {
+    "name": "F3: set bit written as 2 instead of 1",
+    "caught": true
+   },
+   {
+    "name": "F4: arg0 tested as signed positive (negative arg0 takes the clear path)",
+    "caught": true
+   },
+   {
+    "name": "F5: the final call passes 0 instead of arg0",
+    "caught": true
+   },
+   {
+    "name": "F6: the actor test inverted",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 6,
+   "branches_hit": 6,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 8,
+   "lines_hit": 8,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 4,
+     "text": "for (actorId = 1; actorId < 17; ++actorId) {",
+     "size": 2,
+     "count": 510000,
+     "kind": "against a constant",
+     "outcomes": "== 30000, < 450000, > 30000 (signed); < 450000, > 30000 (unsigned)",
+     "operand": "constant 16",
+     "a": "1..17"
+    },
+    {
+     "line": 6,
+     "text": "if (arg0 != 0) {",
+     "size": 2,
+     "count": 239849,
+     "kind": "against a constant",
+     "outcomes": "== 19440, < 99599, > 120810 (signed); < 0, > 220409 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32768..32767"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35045,
+     "completion_tokens": 2003,
+     "reasoning_tokens": 1562,
+     "cost": 0.002253,
+     "seconds": null,
+     "batch": "batch-1793642180-WvegN1BEu2e309HyCuyx",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800BAF6C.zig:12:95: error: expected type 'c_int', found 'c_uint'\n                _ = c.func_800A087C(@as(c_int, actorId), c.func_800A0BE0(@as(c_int, actorId)) | 1);\n                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~\ngame/battle/func_800BAF6C.zig:12:95: note: signed 32-bit int cannot represent all possible unsigned 32-bit values\npc/build/boot64/zig/c_4A0A8.zig:3453:45: note: parameter type declared here\npub extern fn func_800A087C(actorId: c_int, c_int) void;\n                                            ^~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:528:31\n    main: pc/tests/zig_diff/main.zig:451:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   }
+  ]
+ },
+ "written": [],
+ "check_seconds": 43.10846788699564,
+ "mode": "rounds",
+ "transport": "batch",
+ "stopped": "handed to a hand port (the run was parked before this retry was sent)",
+ "wall_seconds": 76070.56313323975,
+ "totals": {
+  "cost": 0.00526,
+  "prompt_tokens": 59854,
+  "completion_tokens": 9063,
+  "model_seconds": 0.0,
+  "check_seconds": 43.1,
+  "calls": 3,
+  "wall_seconds": 76070.6
+ }
+}

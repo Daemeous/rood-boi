@@ -1,0 +1,213 @@
+{
+ "function": "func_800B8510",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "stopped",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800B8510",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800b8510",
+  "difficulty": "S",
+  "zig_name": "func_800B8510",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800B8510",
+  "spec_file": "func_800B8510.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn func_800B8510(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "[*c]u8"
+   ],
+   [
+    "arg1",
+    "c_short"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11272,
+     "completion_tokens": 8237,
+     "reasoning_tokens": 6891,
+     "cost": 0.00262285,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:213:9: error: zdiff: a spec stub gives void where the C prototype has c_int: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:267:29\n    f: pc/build/port-pipeline/func_800B8510/spec1/build/game/common/route.zig:39:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12955,
+     "completion_tokens": 1967,
+     "reasoning_tokens": 610,
+     "cost": 0.0011394999999999999,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "a5-zero": "10139",
+   "a5-small": "9865",
+   "a5-sign": "9996"
+  },
+  "mutations": [
+   {
+    "name": "M1: the 0x2000 test inverted",
+    "caught": true
+   },
+   {
+    "name": "M2: default width 0x0800 instead of 0x1000",
+    "caught": true
+   },
+   {
+    "name": "M3: signed slip on arg0[5] (sign bit becomes negative)",
+    "caught": true
+   },
+   {
+    "name": "M4: getShort reads offset 2, not 3",
+    "caught": true
+   },
+   {
+    "name": "M5: the func_8009FC60 call dropped",
+    "caught": true
+   },
+   {
+    "name": "M6: the -2 default becomes -1",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 4,
+   "branches_hit": 4,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 11,
+   "lines_hit": 11,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "16-bit: min -32764, max 32765, unsigned 7..65534, seen negative, never zero"
+    }
+   ],
+   "compares": [
+    {
+     "line": 8,
+     "text": "if (temp_s0 != 0x2000) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 10018, < 10142, > 9840 (signed); < 0, > 19982 (unsigned)",
+     "operand": "constant 8192",
+     "a": "-2147445077..2147409378"
+    },
+    {
+     "line": 13,
+     "text": "if (arg0[5] != 0) {",
+     "size": 1,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 10139, < 9996, > 9865 (signed); < 0, > 19861 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34789,
+     "completion_tokens": 3676,
+     "reasoning_tokens": 3057,
+     "cost": 0.00265845,
+     "seconds": null,
+     "batch": "batch-1793642180-WvegN1BEu2e309HyCuyx",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800B8510.zig:11:80: error: expected type 'c_ushort', found 'c_short'\n    const temp_s0: c_int = psx.conv(c_int, c.func_800BFE50(c.vs_battle_getShort(@ptrFromInt(@intFromPtr(arg0) +% 3))));\n                                                           ~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\ngame/battle/func_800B8510.zig:11:80: note: unsigned 16-bit int cannot represent all possible signed 16-bit values\npc/build/boot64/zig/c_4A0A8.zig:3659:29: note: parameter type declared here\npub extern fn func_800BFE50(u_short) c_int;\n                            ^~~~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:528:31\n    main: pc/tests/zig_diff/main.zig:451:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   }
+  ]
+ },
+ "written": [],
+ "check_seconds": 25.06400756199946,
+ "mode": "rounds",
+ "transport": "batch",
+ "stopped": "handed to a hand port (the run was parked before this retry was sent)",
+ "wall_seconds": 76070.47396969795,
+ "totals": {
+  "cost": 0.00642,
+  "prompt_tokens": 59016,
+  "completion_tokens": 13880,
+  "model_seconds": 0.0,
+  "check_seconds": 25.1,
+  "calls": 3,
+  "wall_seconds": 76070.5
+ }
+}

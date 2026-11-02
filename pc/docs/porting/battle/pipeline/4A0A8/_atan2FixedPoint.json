@@ -1,0 +1,192 @@
+{
+ "function": "_atan2FixedPoint",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": false,
+ "plan": {
+  "name": "_atan2FixedPoint",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800be878",
+  "difficulty": "M",
+  "zig_name": "atan2FixedPoint",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "atan2_fixed_point",
+  "spec_file": "atan2FixedPoint.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn atan2FixedPoint(arg0: c_int, arg1: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11112,
+     "completion_tokens": 3288,
+     "reasoning_tokens": 2289,
+     "cost": 0.0013775999999999999,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "both-negative": "6173",
+   "y-negative": "7247",
+   "x-negative": "7486",
+   "both-nonnegative": "9094"
+  },
+  "mutations": [
+   {
+    "name": "A1: wrong shift constant on y (>> 7)",
+    "caught": true
+   },
+   {
+    "name": "A2: arguments swapped into ratan2",
+    "caught": true
+   },
+   {
+    "name": "A3: logical shift on y (unsigned) instead of arithmetic",
+    "caught": true
+   },
+   {
+    "name": "A4: signed division instead of shift on x",
+    "caught": true
+   },
+   {
+    "name": "A5: x shift dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 1,
+   "lines_hit": 1,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34608,
+     "completion_tokens": 711,
+     "reasoning_tokens": 475,
+     "cost": 0.00190815,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/atan2FixedPoint.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/atan2_fixed_point.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 202.20119664400318,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 64089.643335819244,
+ "totals": {
+  "cost": 0.00329,
+  "prompt_tokens": 45720,
+  "completion_tokens": 3999,
+  "model_seconds": 0.0,
+  "check_seconds": 202.2,
+  "calls": 2,
+  "wall_seconds": 64089.6
+ }
+}

@@ -1,0 +1,195 @@
+{
+ "function": "func_800BEB00",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800BEB00",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800beb00",
+  "difficulty": "S",
+  "zig_name": "func_800BEB00",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800BEB00",
+  "spec_file": "func_800BEB00.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn func_800BEB00() callconv(.c) c_int",
+  "params": [],
+  "ret": "c_int",
+  "types": [],
+  "globals": [
+   "D_800F4C34"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11068,
+     "completion_tokens": 2077,
+     "reasoning_tokens": 1241,
+     "cost": 0.00107265,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: no input classes declared (`classes` and `classify`)",
+     "FAIL: mutation F1: returned byte sign-extended: mutation F1: returned byte sign-extended: its `from` text occurs 0 times in the C body of func_800BEB00 (copy it exactly from the C)",
+     "FAIL: mutation F2: wrong constant (off by one): mutation F2: wrong constant (off by one): its `from` text occurs 0 times in the C body of func_800BEB00 (copy it exactly from the C)",
+     "FAIL: mutation F3: top bit masked off: mutation F3: top bit masked off: its `from` text occurs 0 times in the C body of func_800BEB00 (copy it exactly from the C)",
+     "FAIL: mutation F4: result doubled: mutation F4: result doubled: its `from` text occurs 0 times in the C body of func_800BEB00 (copy it exactly from the C)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12235,
+     "completion_tokens": 1492,
+     "reasoning_tokens": 653,
+     "cost": 0.00098475,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "top-bit-clear": "11017",
+   "top-bit-set": "8983"
+  },
+  "mutations": [
+   {
+    "name": "F1: returned byte sign-extended",
+    "caught": true
+   },
+   {
+    "name": "F2: wrong constant (off by one)",
+    "caught": true
+   },
+   {
+    "name": "F3: top bit masked off",
+    "caught": true
+   },
+   {
+    "name": "F4: result doubled",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 1,
+   "lines_hit": 1,
+   "uncovered": [],
+   "flags": [],
+   "args": [],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34577,
+     "completion_tokens": 704,
+     "reasoning_tokens": 517,
+     "cost": 0.0019048499999999998,
+     "seconds": null,
+     "batch": "batch-1793642180-WvegN1BEu2e309HyCuyx",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800BEB00.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800BEB00.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 298.4651129629965,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 81172.935942173,
+ "totals": {
+  "cost": 0.00396,
+  "prompt_tokens": 57880,
+  "completion_tokens": 4273,
+  "model_seconds": 0.0,
+  "check_seconds": 298.5,
+  "calls": 3,
+  "wall_seconds": 81172.9
+ }
+}

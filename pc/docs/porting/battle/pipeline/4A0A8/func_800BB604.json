@@ -1,0 +1,223 @@
+{
+ "function": "func_800BB604",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800BB604",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800bb604",
+  "difficulty": "S",
+  "zig_name": "func_800BB604",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800BB604",
+  "spec_file": "func_800BB604.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn func_800BB604(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "[*c]u8"
+   ],
+   [
+    "arg1",
+    "c_short"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11216,
+     "completion_tokens": 6687,
+     "reasoning_tokens": 5407,
+     "cost": 0.00223255,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "none-dismissed": "7512",
+   "last-only": "7378",
+   "all-random": "7481",
+   "mixed": "7629"
+  },
+  "mutations": [
+   {
+    "name": "D1: loop stops one short (the eighth text box is never dismissed)",
+    "caught": true
+   },
+   {
+    "name": "D2: signed compare, negative dismiss results do not count",
+    "caught": true
+   },
+   {
+    "name": "D3: the no-dismiss test is a count below 2 (one dismissal wrongly takes the 2 path)",
+    "caught": true
+   },
+   {
+    "name": "D4: wrong constant to the callee",
+    "caught": true
+   },
+   {
+    "name": "D5: wrong return value on the no-dismiss path",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 6,
+   "branches_hit": 6,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 9,
+   "lines_hit": 9,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: null seen"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 7,
+     "text": "for (i = 0; i < 8; ++i) {",
+     "size": 4,
+     "count": 270000,
+     "kind": "against a constant",
+     "outcomes": "== 30000, < 210000, > 30000 (signed); < 210000, > 30000 (unsigned)",
+     "operand": "constant 7",
+     "a": "0..8"
+    },
+    {
+     "line": 8,
+     "text": "if (vs_battle_dismissTextBox(i) != 0) {",
+     "size": 4,
+     "count": 240000,
+     "kind": "against a constant",
+     "outcomes": "== 126937, < 56452, > 56611 (signed); < 0, > 113063 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147386042..2147441692"
+    },
+    {
+     "line": 13,
+     "text": "if (var_s1 == 0) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 7512, < 0, > 22488 (signed); < 0, > 22488 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..8"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34733,
+     "completion_tokens": 1027,
+     "reasoning_tokens": 687,
+     "cost": 0.0019933999999999998,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800BB604.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800BB604.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 232.0207754389994,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 65344.27565956116,
+ "totals": {
+  "cost": 0.00423,
+  "prompt_tokens": 45949,
+  "completion_tokens": 7714,
+  "model_seconds": 0.0,
+  "check_seconds": 232.0,
+  "calls": 2,
+  "wall_seconds": 65344.3
+ }
+}

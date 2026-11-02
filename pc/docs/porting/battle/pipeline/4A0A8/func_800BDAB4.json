@@ -1,0 +1,261 @@
+{
+ "function": "func_800BDAB4",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800BDAB4",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800bdab4",
+  "difficulty": "S",
+  "zig_name": "func_800BDAB4",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800BDAB4",
+  "spec_file": "func_800BDAB4.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn func_800BDAB4() callconv(.c) void",
+  "params": [],
+  "ret": "void",
+  "types": [
+   "D_800F1A68_t",
+   "D_800F4BA4_t",
+   "P_CODE"
+  ],
+  "globals": [
+   "D_800F4BA4"
+  ],
+  "hooks": [
+   "pc_screff2_set_warp"
+  ],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13066,
+     "completion_tokens": 12069,
+     "reasoning_tokens": 10144,
+     "cost": 0.00367055,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation D1: the first block copies unk4 into unk0: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800BDAB4: 30000 iterations, seed 1, 0 mismatches; classes: mask 0=1936 mask 1=1840 mask 2=1830 mask 3=1864 mask 4=1919 mask 5=1879 mask 6=1886 mask 7=1900 mask 8=1917 mask 9=1846 mask 10=1881 mask 11=1870 mask 12=1860 mask 13=1904 mask 14=1812 mask 15=1856",
+     "FAIL: mutation D2: sp20.b0 read from unk4 instead of unk6: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800BDAB4: 30000 iterations, seed 1, 0 mismatches; classes: mask 0=1936 mask 1=1840 mask 2=1830 mask 3=1864 mask 4=1919 mask 5=1879 mask 6=1886 mask 7=1900 mask 8=1917 mask 9=1846 mask 10=1881 mask 11=1870 mask 12=1860 mask 13=1904 mask 14=1812 mask 15=1856"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 15479,
+     "completion_tokens": 4727,
+     "reasoning_tokens": 2214,
+     "cost": 0.0019557,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "mask 0": "1936",
+   "mask 1": "1840",
+   "mask 2": "1830",
+   "mask 3": "1864",
+   "mask 4": "1919",
+   "mask 5": "1879",
+   "mask 6": "1886",
+   "mask 7": "1900",
+   "mask 8": "1917",
+   "mask 9": "1846",
+   "mask 10": "1881",
+   "mask 11": "1870",
+   "mask 12": "1860",
+   "mask 13": "1904",
+   "mask 14": "1812",
+   "mask 15": "1856"
+  },
+  "mutations": [
+   {
+    "name": "D1: the first block copies unk4 into unk0",
+    "caught": true
+   },
+   {
+    "name": "D2: sp20.b0 read from unk4 instead of unk6",
+    "caught": true
+   },
+   {
+    "name": "D3: the last test is > 0 (a -1 return is missed)",
+    "caught": true
+   },
+   {
+    "name": "D4: the 23C call is dropped",
+    "caught": true
+   },
+   {
+    "name": "D5: set_warp arguments swapped",
+    "caught": true
+   },
+   {
+    "name": "D6: the third test reads the 21C block",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 8,
+   "branches_hit": 8,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 17,
+   "lines_hit": 17,
+   "uncovered": [],
+   "flags": [],
+   "args": [],
+   "compares": [
+    {
+     "line": 5,
+     "text": "if (func_800BDBB4(&D_800F4BA4->unk1FC) != 0) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 15041, < 3631, > 11328 (signed); < 0, > 14959 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..65536"
+    },
+    {
+     "line": 10,
+     "text": "if (func_800BDBB4(&D_800F4BA4->unk21C) != 0) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 15101, < 3813, > 11086 (signed); < 0, > 14899 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..65536"
+    },
+    {
+     "line": 16,
+     "text": "if (func_800BDBB4(&D_800F4BA4->unk23C) != 0) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 14984, < 3738, > 11278 (signed); < 0, > 15016 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..65536"
+    },
+    {
+     "line": 21,
+     "text": "if (func_800BDBB4(&D_800F4BA4->unk25C) != 0) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 15054, < 3744, > 11202 (signed); < 0, > 14946 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..65536"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 36567,
+     "completion_tokens": 4930,
+     "reasoning_tokens": 3827,
+     "cost": 0.0030608499999999995,
+     "seconds": null,
+     "batch": "batch-1793642180-WvegN1BEu2e309HyCuyx",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800BDAB4.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800BDAB4.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 351.5547352569956,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 80354.87044215202,
+ "totals": {
+  "cost": 0.00869,
+  "prompt_tokens": 65112,
+  "completion_tokens": 21726,
+  "model_seconds": 0.0,
+  "check_seconds": 351.6,
+  "calls": 3,
+  "wall_seconds": 80354.9
+ }
+}

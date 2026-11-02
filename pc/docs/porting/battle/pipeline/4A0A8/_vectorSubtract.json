@@ -1,0 +1,226 @@
+{
+ "function": "_vectorSubtract",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": false,
+ "plan": {
+  "name": "_vectorSubtract",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800be66c",
+  "difficulty": "S",
+  "zig_name": "vectorSubtract",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "vector_subtract",
+  "spec_file": "vectorSubtract.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn vectorSubtract(arg0: ?*v.VECTOR, arg1: ?*v.VECTOR, arg2: ?*v.VECTOR) callconv(.c) ?*v.VECTOR",
+  "params": [
+   [
+    "arg0",
+    "?*v.VECTOR"
+   ],
+   [
+    "arg1",
+    "?*v.VECTOR"
+   ],
+   [
+    "arg2",
+    "?*v.VECTOR"
+   ]
+  ],
+  "ret": "?*v.VECTOR",
+  "types": [
+   "VECTOR"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11402,
+     "completion_tokens": 4484,
+     "reasoning_tokens": 3249,
+     "cost": 0.0016911,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/build/port-pipeline/_vectorSubtract/spec1/build/spec.zig:32:14: error: cannot assign to constant\n        1 => src1 = dst,\n             ^~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:477:40\n    main: pc/tests/zig_diff/main.zig:434:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12877,
+     "completion_tokens": 2005,
+     "reasoning_tokens": 770,
+     "cost": 0.0011451,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "distinct": "5016",
+   "dst-is-src1": "5097",
+   "dst-is-src2": "4925",
+   "srcs-alias": "4962"
+  },
+  "mutations": [
+   {
+    "name": "V1: vy subtracts the other way",
+    "caught": true
+   },
+   {
+    "name": "V2: vz store dropped",
+    "caught": true
+   },
+   {
+    "name": "V3: returns the first source, not the destination",
+    "caught": true
+   },
+   {
+    "name": "V4: vx reads arg1's vy",
+    "caught": true
+   },
+   {
+    "name": "V5: vz adds instead of subtracting",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 3,
+   "lines_hit": 3,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 20000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 20000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 2,
+     "count": 20000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34915,
+     "completion_tokens": 1402,
+     "reasoning_tokens": 1103,
+     "cost": 0.00209625,
+     "seconds": null,
+     "batch": "batch-1793642180-WvegN1BEu2e309HyCuyx",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/vectorSubtract.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/vector_subtract.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 318.68642500200076,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 70621.6693675518,
+ "totals": {
+  "cost": 0.00493,
+  "prompt_tokens": 59194,
+  "completion_tokens": 7891,
+  "model_seconds": 0.0,
+  "check_seconds": 318.7,
+  "calls": 3,
+  "wall_seconds": 70621.7
+ }
+}

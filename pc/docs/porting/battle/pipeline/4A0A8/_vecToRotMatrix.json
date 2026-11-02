@@ -1,0 +1,197 @@
+{
+ "function": "_vecToRotMatrix",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": false,
+ "plan": {
+  "name": "_vecToRotMatrix",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800be89c",
+  "difficulty": "M",
+  "zig_name": "vecToRotMatrix",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "vec_to_rot_matrix",
+  "spec_file": "vecToRotMatrix.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn vecToRotMatrix(arg0: ?*v.VECTOR, arg1: ?*v.MATRIX) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "?*v.VECTOR"
+   ],
+   [
+    "arg1",
+    "?*v.MATRIX"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "MATRIX",
+   "SVECTOR",
+   "VECTOR"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11626,
+     "completion_tokens": 16050,
+     "reasoning_tokens": 13964,
+     "cost": 0.0045937999999999994,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "zero": "1587",
+   "sum-overflow": "5113",
+   "wide": "19785",
+   "negative": "2883",
+   "positive": "632"
+  },
+  "mutations": [
+   {
+    "name": "V1: shift by 11, not 12",
+    "caught": true
+   },
+   {
+    "name": "V2: ratan2 arguments swapped for the yaw",
+    "caught": true
+   },
+   {
+    "name": "V3: square sum becomes a difference",
+    "caught": true
+   },
+   {
+    "name": "V4: pitch argument not narrowed to i16",
+    "caught": true
+   },
+   {
+    "name": "V5: roll component set to 1, not 0",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 9,
+   "lines_hit": 9,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35120,
+     "completion_tokens": 3907,
+     "reasoning_tokens": 3214,
+     "cost": 0.00273275,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/vecToRotMatrix.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/vec_to_rot_matrix.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 210.58807004299888,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 64440.818630218506,
+ "totals": {
+  "cost": 0.00733,
+  "prompt_tokens": 46746,
+  "completion_tokens": 19957,
+  "model_seconds": 0.0,
+  "check_seconds": 210.6,
+  "calls": 2,
+  "wall_seconds": 64440.8
+ }
+}

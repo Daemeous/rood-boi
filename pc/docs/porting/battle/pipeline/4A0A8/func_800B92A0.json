@@ -1,0 +1,188 @@
+{
+ "function": "func_800B92A0",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "stopped",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800B92A0",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800b92a0",
+  "difficulty": "S",
+  "zig_name": "func_800B92A0",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800B92A0",
+  "spec_file": "func_800B92A0.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn func_800B92A0(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "[*c]u8"
+   ],
+   [
+    "arg1",
+    "c_short"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11142,
+     "completion_tokens": 5382,
+     "reasoning_tokens": 4425,
+     "cost": 0.0019026,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the C itself crashed on your inputs (the C runs first, so this is the spec's\nbug). The harness fills every global and the arena with random bytes before\nprepare, so every pointer the C follows must be one prepare set: each\nargument, each pointer field of an object you build, and each ENTRY of a\nglobal pointer table the C indexes (only the entry it reads: e.g.\n`v.g.TABLE()[i] = obj`), pointing at an object from `ctx.alloc`/`ctx.allocBytes`\n(sized for every element the C indexes past a `[0]` array), at a global, or\nnull where the C tests for null. An index into a global table must stay\ninside its length (the views accessor's type gives it). Below: the crash, its\nfault address (named when it is inside an object the harness owns) and the\narguments of that iteration:\nzdiff: CRASH (signal 11) in the C run, iteration 0, fault address 0x1 [NULL+0x1: a field of a null pointer]: argument 0 of the call of vs_battle_getShort, which reads through it\nzdiff: crashed on arguments: 0 0x9c4a (class null-arg)",
+     "(the mutations and the coverage gate are checked once the C runs crash-free)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12533,
+     "completion_tokens": 2546,
+     "reasoning_tokens": 1455,
+     "cost": 0.00126315,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "low-ram-arg": "10059",
+   "arena-arg": "9941"
+  },
+  "mutations": [
+   {
+    "name": "F1: the func_800BFE50 call is dropped and its result not passed on",
+    "caught": true
+   },
+   {
+    "name": "F2: the getShort offset is 2, not 1",
+    "caught": true
+   },
+   {
+    "name": "F3: returns 1, not 0",
+    "caught": true
+   },
+   {
+    "name": "F4: getShort result truncated to a byte before func_800BFE50",
+    "caught": true
+   },
+   {
+    "name": "F5: func_800BFE50 result narrowed to short before func_8007C28C",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 3,
+   "lines_hit": 3,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 20000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 20000,
+     "text": "16-bit: min -32754, max 32767, unsigned 2..65529, seen negative/signed max, never zero"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34651,
+     "completion_tokens": 2204,
+     "reasoning_tokens": 1915,
+     "cost": 0.00228355,
+     "seconds": null,
+     "batch": "batch-1793642180-WvegN1BEu2e309HyCuyx",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800B92A0.zig:9:57: error: expected type 'c_ushort', found 'c_short'\n    c.func_8007C28C(c.func_800BFE50(c.vs_battle_getShort(psx.at(arg0, 1))));\n                                    ~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~\ngame/battle/func_800B92A0.zig:9:57: note: unsigned 16-bit int cannot represent all possible signed 16-bit values\npc/build/boot64/zig/c_4A0A8.zig:3659:29: note: parameter type declared here\npub extern fn func_800BFE50(u_short) c_int;\n                            ^~~~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:528:31\n    main: pc/tests/zig_diff/main.zig:451:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   }
+  ]
+ },
+ "written": [],
+ "check_seconds": 18.63590214999931,
+ "mode": "rounds",
+ "transport": "batch",
+ "stopped": "handed to a hand port (the run was parked before this retry was sent)",
+ "wall_seconds": 76070.49639463425,
+ "totals": {
+  "cost": 0.00545,
+  "prompt_tokens": 58326,
+  "completion_tokens": 10132,
+  "model_seconds": 0.0,
+  "check_seconds": 18.6,
+  "calls": 3,
+  "wall_seconds": 76070.5
+ }
+}

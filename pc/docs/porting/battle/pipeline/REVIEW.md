@@ -9,7 +9,7 @@ hook, statics, waivers). Mark a function reviewed by setting its record's
 added, port fixes, a rename, corpus reach) in `review`; the queue then
 lists it under Reviewed.
 
-642 to review (297 flagged), 698 reviewed.
+873 to review (402 flagged), 698 reviewed.
 
 ## `_applyBattleAbilityEffect` (src/BATTLE/BATTLE.PRG/146C.c) -> `apply_battle_ability_effect.applyBattleAbilityEffect`: ported
 
@@ -3813,6 +3813,1420 @@ lists it under Reviewed.
   - compare +14 (32-bit, b -32768..32767): == 1372, < 1860, > 1988 (signed); < 1855, > 1993 (unsigned): `if ((arg2 < temp_v1_2) && (temp_v1_2 < var_a3)) {`
   - compare +14 (32-bit, b -32768..3000): == 190, < 704, > 966 (signed); < 507, > 1163 (unsigned): `if ((arg2 < temp_v1_2) && (temp_v1_2 < var_a3)) {`
   - compare +22 (32-bit, constant 0): == 50, < 468, > 29482 (signed); < 0, > 29950 (unsigned): `if (var_a3 > 0) {`
+
+## `_loadMpdClearedScriptDoorSections` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `load_mpd_cleared_script_door_sections.loadMpdClearedScriptDoorSections`: spec-failed
+
+- **Flags:** the spec needed a retry; not ported: spec-failed
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn loadMpdClearedScriptDoorSections(clearedSection: ?*anyopaque, clearedSectionLen: c_ushort, scriptSection: ?*anyopaque, scriptSectionLen: c_ushort, doorSection: ?*anyopaque, doorSectionLen: c_ushort, startState: c_int) callconv(.c) c_int`
+
+## `_vectorAdd` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `vector_add.vectorAdd`: ported
+
+- **Flags:** the spec needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn vectorAdd(arg0: ?*v.VECTOR, arg1: ?*v.VECTOR, arg2: ?*v.VECTOR) callconv(.c) ?*v.VECTOR`
+- Input classes: distinct=20919, dst-is-src1=2973, dst-is-src2=3071, all-same=3037
+- Mutations (of the C): V1: x sum subtracts (caught); V2: y sum reads arg2->vz (caught); V3: z sum gets a stray +1 (caught); V4: y store dropped (caught); V5: returns the first source (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: pointer: never null
+  - arg 2: pointer: never null
+
+## `_vectorFixedPointMult` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `vector_fixed_point_mult.vectorFixedPointMult`: ported
+
+- **Flags:** statics: _fixedPointMult
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn vectorFixedPointMult(arg0: ?*v.VECTOR, arg1: ?*v.VECTOR, arg2: c_int) callconv(.c) ?*v.VECTOR`
+- Input classes: aliased=7330, wrapping=14880, small=7790
+- Mutations (of the C): V1: vy scales vz (caught); V2: vz scaled by scale - 1 (caught); V3: returns the source, not the destination (caught); V4: the vx store is dropped (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: pointer: never null
+  - arg 2: 32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones
+
+## `_vectorSubtract` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `vector_subtract.vectorSubtract`: ported
+
+- **Flags:** the spec needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn vectorSubtract(arg0: ?*v.VECTOR, arg1: ?*v.VECTOR, arg2: ?*v.VECTOR) callconv(.c) ?*v.VECTOR`
+- Input classes: distinct=5016, dst-is-src1=5097, dst-is-src2=4925, srcs-alias=4962
+- Mutations (of the C): V1: vy subtracts the other way (caught); V2: vz store dropped (caught); V3: returns the first source, not the destination (caught); V4: vx reads arg1's vy (caught); V5: vz adds instead of subtracting (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: pointer: never null
+  - arg 2: pointer: never null
+
+## `func_800B66F4` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B66F4.func_800B66F4`: ported
+
+- **Flags:** the spec needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B66F4(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: global-null=4001, value-4=7971, value-not-4=8028
+- Mutations (of the C): F1: returns 2 instead of 1 (caught); F2: returns 1 on the fall-through path (caught); F3: wrong constant (3 for 4) (caught); F4: arg1 leaks into the result (caught); F5: non-null test inverted (dereferences a null global) (caught)
+- Coverage: branches 4/4, lines 4/4
+  - arg 0: pointer: null seen
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones, 5 value(s): 1, 32768, 32767, 0, 65535
+  - compare +2 (16-bit, constant 4): == 7971, < 5362, > 2666 (signed); < 2614, > 5414 (unsigned): `if ((D_800F4BBC != 0) && (*D_800F4BBC != 4)) {`
+
+## `func_800B6778` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B6778.func_800B6778`: spec-failed
+
+- **Flags:** the spec needed a retry; not ported: spec-failed
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B6778(arg0: [*c]u8) callconv(.c) void`
+- Input classes: head-is-terminator=7532, one-node=7381, two-or-more-nodes=15087
+- Mutations (of the C): F1: the init loop runs 4 times, not 3 (caught); F2: wrong constant in the stored byte (caught); F3: memcmp compares 3 bytes, not 4 (MISSED); F4: dropped call to func_800AACDC (caught); F5: the walk steps one byte too far (caught); F6: signed read of the code indexes the step table (caught)
+- Coverage: branches 6/6, lines 13/13
+  - arg 0: pointer: never null
+  - compare +4 (16-bit, constant 2): == 30000, < 60000, > 30000 (signed); < 60000, > 30000 (unsigned): `for (i = 0; i < 3; ++i) {`
+  - compare +12 (32-bit, b 15..15): == 20600, < 8688, > 29379 (signed); < 8688, > 29379 (unsigned): `while (*arg0 != i) {`
+  - compare +13 (32-bit, constant 0): == 9400, < 14229, > 14438 (signed); < 0, > 28667 (unsigned): `if (memcmp(arg0, D_800E9BE8, 4) == 0) {`
+
+## `func_800B6B98` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B6B98.func_800B6B98`: stopped
+
+- **Flags:** the spec needed a retry; not ported: stopped
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B6B98(origin: ?*v.SVECTOR, script: [*c]u8, result: ?*v.textPlacement, direction: u8) callconv(.c) c_int`
+- Input classes: near-left=21293, near-right=15309, near-top=1814, near-bottom=1242, interior=342
+- Mutations (of the C): M1: left test is <= 4, not < 4 (caught); M2: right wall at 319, not 320 (caught); M3: right dx is width + x (caught); M4: bottom wall at 215, not 216 (caught); M5: distance uses dy once, not squared (caught); M6: left clamp stores 5, not 4 (caught)
+- Coverage: branches 12/12, lines 29/29
+  - arg 0: pointer: never null
+  - arg 1: pointer: never null
+  - arg 2: pointer: never null
+  - arg 3: 8-bit: min -128, max 127, unsigned 0..255, seen zero/negative/signed max/all ones
+  - compare +20 (16-bit, constant 3): == 1556, < 13813, > 24631 (signed); < 4644, > 33800 (unsigned): `if (x < 4) {`
+  - compare +24 (32-bit, constant 320): == 331, < 6869, > 17431 (signed); < 6869, > 17431 (unsigned): `} else if (x + width > 320) {`
+  - compare +30 (16-bit, constant 3): == 1507, < 13851, > 24642 (signed); < 4600, > 33893 (unsigned): `if (y < 4) {`
+  - compare +34 (32-bit, constant 216): == 455, < 6835, > 17352 (signed); < 6835, > 17352 (unsigned): `} else if (height + y > 216) {`
+  - compare +40 (16-bit, constant 0): == 7200, < 17431, > 15369 (signed); < 0, > 32800 (unsigned): `if (dx == 0 && dy == 0) {`
+  - compare +40 (16-bit, constant 0): == 1355, < 3062, > 2783 (signed); < 0, > 5845 (unsigned): `if (dx == 0 && dy == 0) {`
+
+## `func_800B6D48` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B6D48.func_800B6D48`: ported
+
+- **Flags:** the spec needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B6D48(script: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: zero-width=6616, max-width=6771, other-width=26613
+- Mutations (of the C): M1: ties go to the later placement (caught); M2: width uses 4 per character (caught); M3: fallback skips the last placement (caught); M4: no break after a fitting placement (caught); M5: flags from the wrong script byte (caught); M6: origin.vz masks bit 10 only (caught)
+- Coverage: branches 10/10, lines 23/23
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32767, max 32761, unsigned 1..65533, seen negative, never zero
+  - compare +14 (16-bit, constant 3): == 5027, < 70028, > 2507 (signed); < 70028, > 2507 (unsigned): `for (i = 0; i < 4; ++i) {`
+  - compare +15 (32-bit, constant 0): == 37562, < 18760, > 18733 (signed); < 0, > 37493 (unsigned): `if (func_800B6B98(&origin, script, &placements[i], D_800E9BEC[i])) {`
+  - compare +23 (16-bit, constant 3): == 2507, < 5014, > 2507 (signed); < 5014, > 2507 (unsigned): `for (i = 1; i < 4; ++i) {`
+  - compare +24 (32-bit, b -4..3): == 973, < 4286, > 2262 (signed); < 2731, > 3817 (unsigned): `if (best->distance > placements[i].distance) {`
+
+## `func_800B70E8` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B70E8.func_800B70E8`: spec-failed
+
+- **Flags:** the spec needed a retry; not ported: spec-failed
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B70E8(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: null-global=3684, busy=17598, write=8718
+- Mutations (of the C): M1: entry index masked to 0..1 (entry 2 maps to 0) (caught); M2: unk1 takes 4 low bits of byte 5, not 3 (caught); M3: unk2 store dropped (caught); M4: byte 3 of the global read unsigned, not signed char (MISSED); M5: unkC copied from unkA (wrong field) (caught); M6: busy flag tested without its sign bit (caught)
+- Coverage: branches 4/4, lines 17/17
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 3..65535, seen negative/signed max/all ones, never zero
+  - compare +12 (8-bit, constant 0): == 8718, < 10333, > 7265 (signed); < 0, > 17598 (unsigned): `if (temp_a1->unk3 != 0) {`
+
+## `func_800B71C4` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B71C4.func_800B71C4`: ported
+
+- **Flags:** the spec needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B71C4(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: not-two=20006, two=9994
+- Mutations (of the C): M1: wrong constant in the comparison (== 1) (caught); M2: wrong result scale (* 2) (caught); M3: bound slip (>= for ==) (caught); M4: dropped callee call (caught); M5: global read before the call (callee's write is missed) (caught)
+- Coverage: branches 2/2, lines 3/3
+  - arg 0: pointer: null seen
+  - arg 1: 16-bit: min -32764, max 32765, unsigned 0..65527, seen zero/negative
+  - compare +3 (8-bit, constant 2): == 6329, < 12038, > 11633 (signed); < 182, > 23489 (unsigned): `return (D_800F4C2C == 2) * 4;`
+
+## `func_800B7358` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B7358.func_800B7358`: ported
+
+- **Flags:** the port needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B7358(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: bank0=3503, bank1=3367, bank2=2416, bank3=1254, bank4=3482, bank5=1214, bank6=1226, bank7=3538
+- Mutations (of the C): S1: bank taken from a shift by 4 (caught); S2: signed shift of the byte (high bit gives a negative bank) (caught); S3: wrong mask, bit 5 kept (caught); S4: returns arg1 instead of 0 (caught); S5: the unk22 store dropped (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32764, max 32757, unsigned 0..65526, seen zero/negative
+
+## `func_800B7428` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B7428.func_800B7428`: spec-failed
+
+- **Flags:** the spec needed a retry; not ported: spec-failed
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B7428(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: byte3-high=13522, byte3-low=16478
+- Mutations (of the C): M1: the report call is dropped (caught); M2: the byte passed is arg0[2], not arg0[3] (caught); M3: the getShort result truncated to a byte before the u_short conversion (caught); M4: the loop exit tests 0 instead of 1 (MISSED); M5: wrong return value (caught); M6: the call result held in a byte (caught)
+- Coverage: branches 2/2, lines 8/8
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32758, max 32764, unsigned 2..65532, seen negative, never zero
+  - compare +7 (32-bit, constant 1): == 30000, < 1, > 68534 (signed); < 1, > 68534 (unsigned): `if (temp_a0 == 1) {`
+
+## `func_800B7490` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B7490.func_800B7490`: ported
+
+- **Flags:** the port needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B7490(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: bit12-clear=8895, bit12-clear-signbit=5074, bit12-set=12126, bit12-set-id0=3905
+- Mutations (of the C): M1: actor id masked with 0x0F, not 0x1F (caught); M2: CF18 result tested against 0, not 1 (caught); M3: NULL test inverted on the bit-12 path (caught); M4: flag+1 stores position[2] (wrong byte) (caught); M5: NULL-path fill value 0xFE, not 0xFF (caught); M6: CF18 result masked to a byte before the test (caught)
+- Coverage: branches 6/6, lines 17/17
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32764, max 32765, unsigned 0..65527, seen zero/negative
+  - compare +6 (32-bit, constant 0): == 13969, < 0, > 16031 (signed); < 0, > 16031 (unsigned): `if (actor & 0x1000) {`
+  - compare +14 (16-bit, constant 1): == 6882, < 2670, > 4417 (signed); < 0, > 7087 (unsigned): `if (actor == 1) {`
+
+## `func_800B7574` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B7574.func_800B7574`: ported
+
+- **Flags:** the port needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B7574(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: both-shorts-positive=7507, second-negative=7304, first-negative=7524, both-negative=7665
+- Mutations (of the C): F1: sp10[2] takes arg0[6] (caught); F2: sp10[3] is a constant 0, not arg0[8] (caught); F3: the second short is read at arg0 + 2 (caught); F4: the second short is zero-extended (unsigned slip) (caught); F5: return 1 instead of 0 (caught)
+- Coverage: branches 0/0, lines 8/8
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800B75F4` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B75F4.func_800B75F4`: stopped
+
+- **Flags:** the spec needed a retry; not ported: stopped
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B75F4(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: pad-path=14902, cff8-path=15098
+- Mutations (of the C): M1: the 0x8000 pad branch taken on != 2 (caught); M2: pad written as -0x7FFF (caught); M3: vz offset 0x41, not 0x40 (caught); M4: marker store moved before the callee call (caught); M5: the func_8009DC8C call dropped (caught); M6: vx read from arg0[4] instead of arg0[3] (caught)
+- Coverage: branches 2/2, lines 12/12
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32764, unsigned 1..65535, seen negative/all ones, never zero
+  - compare +7 (8-bit, constant 2): == 14902, < 7847, > 7251 (signed); < 121, > 14977 (unsigned): `if (D_800F4C2C == 2) {`
+
+## `func_800B76A8` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B76A8.func_800B76A8`: ported
+
+- **Flags:** the port needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B76A8(arg0: [*c]u8) callconv(.c) c_int`
+- Input classes: index-0=7430, index-1=7615, index-2=7441, index-3=7514
+- Mutations (of the C): M1: table index takes 5 bits, not 2 (caught); M2: command mask drops a bit (caught); M3: table offset adds arg0[4] instead of arg0[3] (caught); M4: getShort reads one byte late (caught); M5: func_800A0204 arguments swapped (caught); M6: wrong return constant (caught)
+- Coverage: branches 0/0, lines 4/4
+  - arg 0: pointer: never null
+
+## `func_800B770C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B770C.func_800B770C`: stopped
+
+- **Flags:** the spec needed a retry; not ported: stopped
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B770C(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: bit1-clear-bit3-clear=8821, bit1-set-bit3-clear=3740, bit1-clear-bit3-set=3750, bit1-set-bit3-set=13689
+- Mutations (of the C): F1: wrong shift for the 0x800 bit from a1 bit 0 (caught); F2: bit 3 test on the wrong mask (caught); F3: the flag passed to func_8007D1A8 shifted by 4 (caught); F4: dropped func_8009D88C call (caught); F5: wrong field (arg0[2]) ORed into the flags (caught); F6: getShort read from arg0 + 2 (caught)
+- Coverage: branches 6/6, lines 17/17
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32758, max 32764, unsigned 2..65532, seen negative, never zero
+  - compare +13 (32-bit, constant 1): == 30000, < 3, > 90829 (signed); < 3, > 90829 (unsigned): `if (temp_s0 == 1) {`
+  - compare +20 (32-bit, constant 0): == 38250, < 0, > 52582 (signed); < 0, > 52582 (unsigned): `if (!(a1 & 2)) {`
+  - compare +23 (32-bit, constant 0): == 38489, < 0, > 52343 (signed); < 0, > 52343 (unsigned): `if (!(a1 & 8)) {`
+
+## `func_800B77DC` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B77DC.func_800B77DC`: stopped
+
+- **Flags:** the spec needed a retry; not ported: stopped
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B77DC(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: short-negative=14928, short-nonnegative=15072
+- Mutations (of the C): M1: unk0 read from the wrong byte (caught); M2: the -1 sentinel is 0xFFFF (caught); M3: the call to func_8009F990 dropped (caught); M4: sentinel test on the low 16 bits only (caught); M5: wrong sentinel constant (caught); M6: unk2 copied from the wrong byte (caught)
+- Coverage: branches 2/2, lines 10/10
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32767, max 32763, unsigned 0..65534, seen zero/negative
+  - compare +10 (32-bit, constant 8193): == 5550, < 10415, > 14035 (signed); < 1890, > 22560 (unsigned): `if (var_a0 == 0x2001) {`
+
+## `func_800B784C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B784C.func_800B784C`: stopped
+
+- **Flags:** the spec needed a retry; not ported: stopped
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B784C(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: mode2=4980, other-byte7-ff=3249, other-byte8-ff=2776, other-plain=18995
+- Mutations (of the C): M1: mode test is == 3, not == 2 (caught); M2: byte 7 sentinel tested as 0xFE (caught); M3: byte 8 sentinel maps to 0, not -1 (caught); M4: sp10[3] copied from arg0[5] (caught); M5: func_8009DC8C call dropped (caught); M6: flag stored as 0, not 1 (caught); M7: returns 1, not 0 (caught)
+- Coverage: branches 6/6, lines 13/13
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32766, unsigned 7..65535, seen negative/all ones, never zero
+  - compare +8 (8-bit, constant 2): == 4980, < 15230, > 9790 (signed); < 5219, > 19801 (unsigned): `if (D_800F4C2C == 2) {`
+  - compare +11 (8-bit, constant -1): == 3209, < 12279, > 9532 (signed); < 21811, > 0 (unsigned): `func_800A97EC(temp_v0, (func_8006EBF8_t_fields*)sp10,`
+  - compare +11 (8-bit, constant -1): == 3249, < 12298, > 9473 (signed); < 21771, > 0 (unsigned): `func_800A97EC(temp_v0, (func_8006EBF8_t_fields*)sp10,`
+
+## `func_800B792C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B792C.func_800B792C`: ported
+
+- **Flags:** the port needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B792C(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: add-hook2=8150, add-hook-other=8299, set-hook2=6785, set-hook-other=6766
+- Mutations (of the C): T1: temp_s1 shifted by 2, not 1 (caught); T2: temp_s1 read unsigned (slip) (caught); T3: hook test against 3, not 2 (caught); T4: unset byte 10 passes 0, not -1 (caught); T5: pad is a sum, not a product (caught); T6: func_8009DC8C call dropped (caught)
+- Coverage: branches 10/10, lines 20/20
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32764, max 32767, unsigned 0..65534, seen zero/negative/signed max
+  - compare +9 (32-bit, constant 0): == 13551, < 0, > 16449 (signed); < 0, > 16449 (unsigned): `if (arg0[3] & 1) {`
+  - compare +15 (8-bit, constant -1): == 10213, < 9851, > 9936 (signed); < 19787, > 0 (unsigned): `if (arg0[9] != 0xFF) {`
+  - compare +21 (8-bit, constant 2): == 14935, < 9488, > 5577 (signed); < 3928, > 11137 (unsigned): `if (D_800F4C2C == 2) {`
+  - compare +24 (8-bit, constant -1): == 5019, < 4946, > 5100 (signed); < 10046, > 0 (unsigned): `func_800A9988(temp_s4, &sp10.unk0.unk4, arg0[10] != 0xFF ? arg0[10] : -1,`
+  - compare +24 (8-bit, constant -1): == 5089, < 4979, > 4997 (signed); < 9976, > 0 (unsigned): `func_800A9988(temp_s4, &sp10.unk0.unk4, arg0[10] != 0xFF ? arg0[10] : -1,`
+
+## `func_800B7A98` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B7A98.func_800B7A98`: ported
+
+- **Flags:** the port needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B7A98(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: mode-2=3802, mode-else-ff=8741, mode-else-byte=17457
+- Mutations (of the C): M1: mode test uses 3 (caught); M2: else-branch fallback is 0, not -1 (caught); M3: the table store writes 0 (caught); M4: the store moved before the call to func_8009DC8C (caught); M5: returns 1 (caught)
+- Coverage: branches 4/4, lines 13/13
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65531, seen zero/negative/signed max
+  - compare +8 (8-bit, constant 2): == 3802, < 18836, > 7362 (signed); < 7542, > 18656 (unsigned): `if (D_800F4C2C == 2) {`
+  - compare +11 (8-bit, constant -1): == 8741, < 8583, > 8874 (signed); < 17457, > 0 (unsigned): `func_800A9C54(`
+
+## `func_800B7B58` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B7B58.func_800B7B58`: stopped
+
+- **Flags:** the spec needed a retry; not ported: stopped
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B7B58(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: set-vector=7559, add-sentinel=3038, add-explicit=4428, sel2=14975
+- Mutations (of the C): F1: the getShort >> 1 dropped (caught); F2: vy stored instead of added (caught); F3: sentinel tested as 0xFE (caught); F4: selector tested as 1 (caught); F5: the table store dropped (caught); F6: table store moved before func_8009DC8C (caught)
+- Coverage: branches 6/6, lines 16/16
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32764, unsigned 1..65535, seen negative/all ones, never zero
+  - compare +13 (32-bit, constant 0): == 15101, < 0, > 14899 (signed); < 0, > 14899 (unsigned): `if (arg0[3] & 1) {`
+  - compare +22 (8-bit, constant 2): == 14975, < 11227, > 3798 (signed); < 7460, > 7565 (unsigned): `if (D_800F4C2C == 2) {`
+  - compare +25 (8-bit, constant -1): == 6105, < 3411, > 5509 (signed); < 8920, > 0 (unsigned): `func_800A9D90(temp_s2, &sp10.unk0.unk4, arg0[9] != 0xFF ? arg0[9] : -1);`
+
+## `func_800B7C90` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B7C90.func_800B7C90`: spec-failed
+
+- **Flags:** the spec needed a retry; not ported: spec-failed
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B7C90(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: below-0x2000=6927, equal-0x2000=3297, above-0x2000=8851, negative-wraps=10925
+- Mutations (of the C): A1: strict > instead of >= at the 0x2000 split (caught); A2: the 0xFFFF mask dropped from the second read (MISSED); A3: second read at the wrong byte offset (caught); A4: the two flag bytes swapped in the 0x2000-below call (caught); A5: the high-path call dropped (caught); A6: wrong return value (caught)
+- Coverage: branches 2/2, lines 7/7
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32764, max 32765, unsigned 0..65527, seen zero/negative
+  - compare +4 (32-bit, constant 8191): == 1685, < 5242, > 23073 (signed); < 5242, > 23073 (unsigned): `if (temp_a1 >= 0x2000) {`
+
+## `func_800B7D10` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B7D10.func_800B7D10`: stopped
+
+- **Flags:** the spec needed a retry; not ported: stopped
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B7D10(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: mode-is-2=7448, mode-not-2=22552
+- Mutations (of the C): F1: mode test off by one (caught); F2: wrong pad constant (caught); F3: index masked to a byte (caught); F4: store moved before the call (caught); F5: wrong return value (caught); F6: dropped call (caught)
+- Coverage: branches 2/2, lines 12/12
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32765, max 32767, unsigned 2..65535, seen negative/signed max/all ones, never zero
+  - compare +7 (8-bit, constant 2): == 7448, < 14209, > 8343 (signed); < 5749, > 16803 (unsigned): `if (D_800F4C2C == 2) {`
+
+## `func_800B7DC4` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B7DC4.func_800B7DC4`: stopped
+
+- **Flags:** the spec needed a retry; not ported: stopped
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B7DC4(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: selector-zero=5754, selector-minus-one=5807, selector-one=5640, selector-other=22799
+- Mutations (of the C): M1: first clamp takes the bound one step early (<= for <) (caught); M2: case -1 tests var_a1 >= 0 (caught); M3: selector read unsigned, so 0xFF never matches case -1 (caught); M4: the D_800F4B70 store is dropped (caught); M5: wrong shift in the no-rotation call (caught); M6: the offset read as signed char, so 0x80 to 0xFE turn negative (caught)
+- Coverage: branches 15/15, lines 23/23
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32767, max 32767, unsigned 1..65532, seen negative/signed max, never zero
+  - compare +4 (8-bit, constant -1): == 5690, < 17160, > 17150 (signed); < 34310, > 0 (unsigned): `short var_s2 = arg0[5] != 0xFF ? arg0[5] : -1;`
+  - compare +7 (8-bit, constant 0): == 5754, < 17156, > 17090 (signed); < 0, > 34246 (unsigned): `if (arg0[4] != 0) {`
+  - compare +10 (32-bit, constant -2048): == 2708, < 8749, > 22789 (signed); < 28653, > 2885 (unsigned): `if (var_a1 < -4096 / 2) {`
+  - compare +13 (32-bit, constant 2048): == 2687, < 22549, > 9010 (signed); < 13913, > 17646 (unsigned): `if (var_a1 > 4096 / 2) {`
+  - compare +16 (32-bit, cases): == 11447, < 0, > 0 (signed); < 0, > 0 (unsigned): `switch ((signed char)arg0[4]) {`
+  - compare +18 (32-bit, constant 0): == 1818, < 2008, > 1981 (signed); < 0, > 3989 (unsigned): `if (var_a1 > 0) {`
+  - compare +23 (32-bit, constant 0): == 1883, < 1833, > 1924 (signed); < 0, > 3757 (unsigned): `if (var_a1 < 0) {`
+
+## `func_800B7EF0` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B7EF0.func_800B7EF0`: ported
+
+- **Flags:** the port needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B7EF0(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: ff-byte=2528, other-byte=27472
+- Mutations (of the C): M1: no-override index is 0xFF, not -1 (caught); M2: override test against 0xFE (caught); M3: the D_800F4B70 store dropped (caught); M4: the store moved before the call (caught); M5: wrong return constant (caught); M6: the position is read from arg0 + 2 (caught)
+- Coverage: branches 2/2, lines 10/10
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32764, unsigned 0..65534, seen zero/negative
+  - compare +11 (8-bit, constant -1): == 2528, < 12498, > 14974 (signed); < 27472, > 0 (unsigned): `if (arg0[5] != 0xFF) {`
+
+## `func_800B7F84` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B7F84.func_800B7F84`: ported
+
+- **Flags:** the port needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B7F84(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: byte6-ff=2528, byte6-other=27472
+- Mutations (of the C): M1: wrong constant (0xFE for 0xFF) (caught); M2: signed slip on the selector byte (caught); M3: wrong field (unk0_8 from byte 3) (caught); M4: table store moved before the call (caught); M5: wrong return value (caught)
+- Coverage: branches 2/2, lines 8/8
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32764, unsigned 0..65534, seen zero/negative
+  - compare +9 (8-bit, constant -1): == 2528, < 12555, > 14917 (signed); < 27472, > 0 (unsigned): `func_800A9CDC(temp_s0, &sp10, arg0[6] != 0xFF ? arg0[6] : -1);`
+
+## `func_800B804C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B804C.func_800B804C`: ported
+
+- **Flags:** the port needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B804C(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: call=20000
+- Mutations (of the C): M1: vx read at arg0 + 4 (caught); M2: flag byte read at arg0[8] (caught); M3: func_800AABD0 dropped (the call becomes a comma expression) (caught); M4: returns 1 instead of 0 (caught); M5: vz read from arg0 + 5 (wrong field offset) (caught)
+- Coverage: branches 0/0, lines 4/4
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32767, max 32761, unsigned 0..65532, seen zero/negative
+
+## `func_800B80B4` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B80B4.func_800B80B4`: stopped
+
+- **Flags:** not ported: stopped
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B80B4(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+
+## `func_800B810C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B810C.func_800B810C`: spec-failed
+
+- **Flags:** the spec needed a retry; not ported: spec-failed
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B810C(arg0: [*c]u8) callconv(.c) c_int`
+- Input classes: flag-clear=13866, flag-set-sign=8063, flag-set-nosign=8071
+- Mutations (of the C): F1: flag bit tested with mask 2 (caught); F2: the set bit is 3, not 1 (MISSED); F3: wrong constant in the XOR (caught); F4: the helper call dropped (its test made on temp_s2) (caught); F5: mask widening dropped (temp_s2 keeps high bits) (caught); F6: OR instead of AND in the result (caught)
+- Coverage: branches 4/4, lines 9/9
+  - arg 0: pointer: never null
+  - compare +11 (32-bit, constant 0): == 13866, < 0, > 16134 (signed); < 0, > 16134 (unsigned): `if (temp_v0 & 1) {`
+  - compare +12 (32-bit, constant 0): == 8006, < 4092, > 4036 (signed); < 0, > 8128 (unsigned): `if (func_8007D03C(temp_s2) == 0) {`
+  - compare +17 (16-bit, constant 0): == 4053, < 8020, > 17927 (signed); < 0, > 25947 (unsigned): `return var_v0 != 0;`
+
+## `func_800B81A0` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B81A0.func_800B81A0`: stopped
+
+- **Flags:** the spec needed a retry; not ported: stopped
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B81A0(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: all-zero=5982, unk0-only=5976, unk1-only=6034, unk2-only=5906, several=6102
+- Mutations (of the C): M1: unk1 read from byte 3 (caught); M2: the zero test drops unk2 (caught); M3: the zero branch passes &sp10 instead of 0 (caught); M4: wrong return value (caught); M5: short argument read at arg0 + 2 (caught); M6: unk2 masked to 7 bits (caught)
+- Coverage: branches 2/2, lines 8/8
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32767, max 32766, unsigned 2..65534, seen negative, never zero
+  - compare +8 (8-bit, constant 0): == 5982, < 17841, > 6177 (signed); < 0, > 24018 (unsigned): `if (sp10.unk0 | sp10.unk1 | sp10.unk2) {`
+
+## `func_800B822C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B822C.func_800B822C`: ported
+
+- **Flags:** the port needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B822C(arg0: [*c]u8) callconv(.c) c_int`
+- Input classes: table-0=7532, table-1=7430, table-2=7441, table-3=7597
+- Mutations (of the C): F1: the flag mask drops bit 5 (0x1F) (caught); F2: table offset reads arg0[4] (caught); F3: getShort reads one byte late (caught); F4: the func_800A01C8 call is dropped (caught); F5: signed slip on the table offset byte (caught); F6: wrong return value (caught)
+- Coverage: branches 0/0, lines 4/4
+  - arg 0: pointer: never null
+
+## `func_800B8290` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B8290.func_800B8290`: stopped
+
+- **Flags:** the spec needed a retry; not ported: stopped
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B8290(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: sel-zero-slot-ff=248, sel-zero-slot-other=2783, sel-nonzero-slot-ff=2313, sel-nonzero-slot-other=24656
+- Mutations (of the C): M1: selector test inverted (the two callees swap) (caught); M2: wrong constant in the 0xFF sentinel test (caught); M3: slot byte read as signed char (caught); M4: the table store dropped (caught); M5: vz read from the wrong offset (caught); M6: wrong return value (caught)
+- Coverage: branches 4/4, lines 13/13
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+  - compare +8 (8-bit, constant -1): == 2561, < 12369, > 15070 (signed); < 27439, > 0 (unsigned): `if (arg0[10] != 0xFF) {`
+  - compare +14 (8-bit, constant 0): == 3031, < 13430, > 13539 (signed); < 0, > 26969 (unsigned): `if (arg0[3] != 0) {`
+
+## `func_800B8360` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B8360.func_800B8360`: stopped
+
+- **Flags:** the spec needed a retry; not ported: stopped
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B8360(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: count-zero=3058, count-one=3079, count-other=23863
+- Mutations (of the C): F1: default scratch count 0x800 instead of 0x1000 (caught); F2: count taken only when above 1 (caught); F3: vy read from offset 4, not 5 (caught); F4: default count dropped (passes arg0[7] unconditionally) (caught); F5: vz takes the ignored arg1 instead of 0 (caught)
+- Coverage: branches 2/2, lines 10/10
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+  - compare +11 (8-bit, constant 0): == 3058, < 13618, > 13324 (signed); < 0, > 26942 (unsigned): `if (arg0[7] != 0) {`
+
+## `func_800B83D4` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B83D4.func_800B83D4`: stopped
+
+- **Flags:** the port needed a retry; not ported: stopped
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B83D4(arg0: [*c]u8) callconv(.c) c_int`
+- Input classes: index-0=5416, index-1=5380, index-2=3972, index-3=5232
+- Mutations (of the C): F1: table index from bit 7 (entries 2 and 3 never read) (caught); F2: the low field masked to 5 bits (caught); F3: table entry minus the offset instead of plus (caught); F4: fourth argument read from byte 5 (caught); F5: getter reads from one byte too far (caught)
+- Coverage: branches 0/0, lines 4/4
+  - arg 0: pointer: never null
+
+## `func_800B8438` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B8438.func_800B8438`: stopped
+
+- **Flags:** the port needed a retry; not ported: stopped
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B8438(arg0: [*c]u8) callconv(.c) c_int`
+- Input classes: quarter-0=7586, quarter-1=7576, quarter-2=7414, quarter-3=7424
+- Mutations (of the C): F1: table selector shifted by 5 (bit 6 dropped) (caught); F2: mask 0x1F instead of 0x3F (caught); F3: table offset read from arg0[5] instead of arg0[3] (caught); F4: getShort given the wrong address (arg0 + 2) (caught); F5: fourth argument is arg0[3] instead of arg0[4] (caught); F6: wrong return constant (caught)
+- Coverage: branches 0/0, lines 4/4
+  - arg 0: pointer: never null
+
+## `func_800B849C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B849C.func_800B849C`: stopped
+
+- **Flags:** the port needed a retry; not ported: stopped
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B849C(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: addend-ff=4847, sum-wraps=9058, sum-fits=16095
+- Mutations (of the C): M1: sentinel tested as 0xFE, not 0xFF (caught); M2: addend read from the index byte (caught); M3: sentinel passed as 255, not -1 (caught); M4: sum wrapped to a byte (caught); M5: no-value case drops its call (caught); M6: short read from arg0 + 2 (caught); M7: returns the lookup's value, not 0 (caught)
+- Coverage: branches 2/2, lines 6/6
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32767, max 32767, unsigned 4..65532, seen negative/signed max, never zero
+  - compare +4 (8-bit, constant -1): == 4847, < 10154, > 14999 (signed); < 25153, > 0 (unsigned): `if (arg0[4] == 0xFF) {`
+
+## `func_800B8510` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B8510.func_800B8510`: stopped
+
+- **Flags:** the spec needed a retry; not ported: stopped
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B8510(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: a5-zero=10139, a5-small=9865, a5-sign=9996
+- Mutations (of the C): M1: the 0x2000 test inverted (caught); M2: default width 0x0800 instead of 0x1000 (caught); M3: signed slip on arg0[5] (sign bit becomes negative) (caught); M4: getShort reads offset 2, not 3 (caught); M5: the func_8009FC60 call dropped (caught); M6: the -2 default becomes -1 (caught)
+- Coverage: branches 4/4, lines 11/11
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32764, max 32765, unsigned 7..65534, seen negative, never zero
+  - compare +8 (32-bit, constant 8192): == 10018, < 10142, > 9840 (signed); < 0, > 19982 (unsigned): `if (temp_s0 != 0x2000) {`
+  - compare +13 (8-bit, constant 0): == 10139, < 9996, > 9865 (signed); < 0, > 19861 (unsigned): `if (arg0[5] != 0) {`
+
+## `func_800B8590` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B8590.func_800B8590`: stopped
+
+- **Flags:** the spec needed a retry; not ported: stopped
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B8590(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: count-zero=9903, count-low=9988, count-high-bit=10109
+- Mutations (of the C): F1: default count 0x800, not 0x1000 (caught); F2: vy read from offset 4, not 5 (caught); F3: the header count store is dropped (caught); F4: the count read as signed (sign-extended) (caught); F5: second argument of func_8009FC60 is 0, not -1 (caught)
+- Coverage: branches 2/2, lines 8/8
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32766, unsigned 2..65535, seen negative/all ones, never zero
+  - compare +10 (8-bit, constant 0): == 9903, < 10109, > 9988 (signed); < 0, > 20097 (unsigned): `if (arg0[9] != 0) {`
+
+## `func_800B86E8` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B86E8.func_800B86E8`: ported
+
+- **Flags:** the spec needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B86E8(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: null-arg0=7410, neg-arg1=11202, pos-arg1=11388
+- Mutations (of the C): R1: >= 0 instead of > 0 (a zero result returns 1) (caught); R2: > 1 instead of > 0 (a result of 1 returns 0) (caught); R3: unsigned compare (negative results return 1) (caught); R4: raw result returned, the comparison dropped (caught); R5: call dropped, a constant returned (caught)
+- Coverage: branches 0/0, lines 1/1
+  - arg 0: pointer: null seen
+  - arg 1: 16-bit: min -32764, max 32766, unsigned 3..65531, seen negative, never zero
+  - compare +0 (32-bit, constant 0): == 11224, < 8349, > 10427 (signed); < 0, > 18776 (unsigned): `int func_800B86E8__orig(u_char* arg0, short arg1) { return func_8007CCAC() > 0; }`
+
+## `func_800B8788` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B8788.func_800B8788`: stopped
+
+- **Flags:** the spec needed a retry; not ported: stopped
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B8788(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: tail-zero=7518, only-byte9=7525, byte9-zero-7or8=7426, tail-nonzero=7531
+- Mutations (of the C): U1: the call's flag is 0 instead of 1 when the tail is nonzero (caught); U2: the nonzero test drops the third byte (caught); U3: the vs_battle_getShort argument is off by one byte (nonzero-tail call only) (caught); U4: byte 9 read from byte 8 (caught); U5: wrong return value (caught)
+- Coverage: branches 2/2, lines 12/12
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+  - compare +8 (8-bit, constant 0): == 7518, < 16014, > 6468 (signed); < 0, > 22482 (unsigned): `if (sp10[0].unk0 | sp10[0].unk1 | sp10[0].unk2) {`
+
+## `func_800B91F0` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B91F0.func_800B91F0`: ported
+
+- **Flags:** the spec needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B91F0(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: offset-0=4893, offset-1=5118, offset-2=4999, offset-3=4990
+- Mutations (of the C): F1: getShort reads arg0 + 2 (caught); F2: the index is arg0[2], not arg0[3] (caught); F3: returns 1 (caught); F4: func_8009DBDC call dropped (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800B92A0` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B92A0.func_800B92A0`: stopped
+
+- **Flags:** the spec needed a retry; not ported: stopped
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B92A0(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: low-ram-arg=10059, arena-arg=9941
+- Mutations (of the C): F1: the func_800BFE50 call is dropped and its result not passed on (caught); F2: the getShort offset is 2, not 1 (caught); F3: returns 1, not 0 (caught); F4: getShort result truncated to a byte before func_800BFE50 (caught); F5: func_800BFE50 result narrowed to short before func_8007C28C (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32754, max 32767, unsigned 2..65529, seen negative/signed max, never zero
+
+## `func_800B92F4` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B92F4.func_800B92F4`: stopped
+
+- **Flags:** the spec needed a retry; not ported: stopped
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B92F4(script: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: idle-set=3011, idle-13=1044, idle-14=1034, idle-15=940, idle-default=4006, busy-set=5999, busy-13=2003, busy-14=2028, busy-15=2020, busy-default=7915
+- Mutations (of the C): S1: case 13 sets the state flag to 2, not 1 (caught); S2: default passes 1 as the second argument (caught); S3: case 15 drops its func_8007B9CC call (caught); S4: signed slip, finish test as > 0 (negative results pass as done) (caught); S5: state table indexed one off (script[1] - 9) (caught); S6: default checks unk0 against 3, not 2 (caught)
+- Coverage: branches 23/23, lines 52/52
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32766, max 32766, unsigned 1..65534, seen negative, never zero
+  - compare +2 (32-bit, cases): == 15156, < 0, > 0 (signed); < 0, > 0 (unsigned): `switch (script[1]) {`
+  - compare +6 (8-bit, constant 0): == 3011, < 2996, > 3003 (signed); < 0, > 5999 (unsigned): `if (D_800F4BF8 == 0) {`
+  - compare +14 (8-bit, constant 0): == 1034, < 1010, > 1018 (signed); < 0, > 2028 (unsigned): `if (D_800F4BF8 == 0) {`
+  - compare +15 (8-bit, constant 1): == 278, < 381, > 375 (signed); < 2, > 754 (unsigned): `if (vs_battle_getStateFlag(0xB6) == 1) {`
+  - compare +24 (32-bit, constant 0): == 2002, < 3048, > 2977 (signed); < 0, > 6025 (unsigned): `if (func_8007B9FC() != 0) {`
+  - compare +31 (8-bit, constant 0): == 1044, < 1015, > 988 (signed); < 0, > 2003 (unsigned): `if (D_800F4BF8 == 0) {`
+  - compare +39 (8-bit, constant 0): == 940, < 1041, > 979 (signed); < 0, > 2020 (unsigned): `if (D_800F4BF8 == 0) {`
+  - compare +45 (32-bit, constant 0): == 1029, < 1498, > 1496 (signed); < 0, > 2994 (unsigned): `if (func_8007B9FC() == 0) {`
+  - compare +51 (8-bit, constant 0): == 4006, < 3932, > 3983 (signed); < 0, > 7915 (unsigned): `if (D_800F4BF8 == 0) {`
+  - compare +57 (16-bit, constant 2): == 3985, < 28, > 3902 (signed); < 28, > 3902 (unsigned): `if (func_800CB66C()->unk0 == 2) {`
+
+## `func_800B9608` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B9608.func_800B9608`: stopped
+
+- **Flags:** the spec needed a retry; not ported: stopped
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B9608(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: selector-fe=10080, selector-other=19920
+- Mutations (of the C): F1: wrong selector constant (0xFF for 0xFE) (caught); F2: getShort reads from arg0 + 2 (caught); F3: second argument uses arg0[4] instead of arg0[5] (caught); F4: dropped call to func_8007CAA4 (caught); F5: signed slip, temp_a0 read as short (caught); F6: wrong return value (caught)
+- Coverage: branches 2/2, lines 6/6
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+  - compare +4 (8-bit, constant -2): == 10080, < 8896, > 11024 (signed); < 17894, > 2026 (unsigned): `if (arg0[3] == 0xFE) {`
+
+## `func_800B9670` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B9670.func_800B9670`: stopped
+
+- **Flags:** the spec needed a retry; not ported: stopped
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B9670(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: arg1-zero=1907, arg1-negative=9036, arg1-positive=9057
+- Mutations (of the C): F1: the call into func_8009D7E8 is dropped (caught); F2: getShort reads from arg0 + 2 (caught); F3: the trailing argument reads arg0[2], not arg0[3] (caught); F4: the return value is 1, not 0 (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800B9BF8` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B9BF8.func_800B9BF8`: ported
+
+- **Flags:** the spec needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B9BF8() callconv(.c) c_int`
+- Input classes: zero=3957, one=3992, minus-one=3972, int-min=4080, random=3999
+- Mutations (of the C): M1: signed test only (!= 0 becomes < 0) (caught); M2: positive test only (!= 0 becomes > 0) (caught); M3: inverted result (!= 0 becomes == 0) (caught); M4: wrong constant (!= 0 becomes != 1) (caught); M5: dropped call (the callee is never invoked) (caught); M6: unsigned slip (the sign bit read as a large positive) (caught)
+- Coverage: branches 0/0, lines 1/1
+  - compare +0 (32-bit, constant 0): == 3957, < 10021, > 6022 (signed); < 0, > 16043 (unsigned): `int func_800B9BF8__orig(void) { return func_8007C398() != 0; }`
+
+## `func_800B9C58` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B9C58.func_800B9C58`: ported
+
+- **Flags:** the spec needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B9C58(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: case-0=4976, case-1=4966, case-2=4994, no-case=15064
+- Mutations (of the C): M1: case 1 low nibble masked to 3 bits (caught); M2: the iterator loop stops on 0, not 1 (caught); M3: case 2 call dropped (caught); M4: iterator value narrowed to short (caught); M5: getShort reads arg0 + 1 (caught)
+- Coverage: branches 6/6, lines 19/19
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32762, max 32765, unsigned 0..65534, seen zero/negative
+  - compare +5 (32-bit, cases): == 14936, < 0, > 0 (signed); < 0, > 0 (unsigned): `switch (arg0[1] >> 4) {`
+  - compare +10 (32-bit, constant 1): == 4976, < 0, > 15354 (signed); < 0, > 15354 (unsigned): `if (temp_a2 == 1) {`
+
+## `func_800B9D74` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B9D74.func_800B9D74`: stopped
+
+- **Flags:** the spec needed a retry; not ported: stopped
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B9D74(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: arg1-zero=2034, arg1-negative=8928, arg1-positive=9038
+- Mutations (of the C): F1: the short read at arg0 + 2, not arg0 + 1 (caught); F2: the byte passed is arg0[2], not arg0[3] (caught); F3: returns 1, not 0 (caught); F4: the call to func_800AC37C is dropped (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800B9DB4` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B9DB4.func_800B9DB4`: stopped
+
+- **Flags:** the spec needed a retry; not ported: stopped
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B9DB4(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: idle-no-chain=6071, idle-chain=5831, idle-flags-only=6112, busy-finish=6006, busy-check=5980
+- Mutations (of the C): M1: chain test as arg0[2] > 1 (a chain of 1 skips the call) (caught); M2: wrong constant for the idle-busy call (0x65 -> 0x67 for arg0[1] set) (caught); M3: flags clear mask misses bit 11 (0xE7FF -> 0xEFFF) (caught); M4: dropped func_8009DBDC call (caught); M5: GPU-flag test on the wrong bit (0x80 -> 0x40) (caught); M6: state test against 3 instead of 2 on the busy path (caught)
+- Coverage: branches 16/16, lines 24/24
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32766, unsigned 2..65534, seen negative, never zero
+  - compare +4 (8-bit, constant 0): == 18014, < 7007, > 4979 (signed); < 0, > 11986 (unsigned): `if (D_800F4C4E == 0) {`
+  - compare +5 (8-bit, constant 0): == 6776, < 5680, > 5558 (signed); < 0, > 11238 (unsigned): `if (vs_battle_getStateFlag(0xAC) == 0) {`
+  - compare +9 (8-bit, constant 2): == 2885, < 4957, > 3396 (signed); < 1406, > 6947 (unsigned): `if ((D_800F4C2C != 2) && (arg0[2] != 0)) {`
+  - compare +9 (8-bit, constant 0): == 3753, < 2265, > 2335 (signed); < 0, > 4600 (unsigned): `if ((D_800F4C2C != 2) && (arg0[2] != 0)) {`
+  - compare +15 (8-bit, constant 2): == 6006, < 4497, > 1483 (signed); < 2986, > 2994 (unsigned): `} else if (D_800F4C2C == 2) {`
+  - compare +18 (32-bit, constant 0): == 2983, < 0, > 2997 (signed); < 0, > 2997 (unsigned): `if (!(func_800A0BE0(0) & 0x80)) {`
+  - compare +21 (8-bit, constant 0): == 313, < 1333, > 1351 (signed); < 0, > 2684 (unsigned): `func_800A0204(0, arg0[1] != 0 ? 0x65 : 6, 0, 10);`
+  - compare +27 (8-bit, constant 0): == 2799, < 2684, > 7161 (signed); < 0, > 9845 (unsigned): `if (arg0[1] != 0) {`
+
+## `func_800B9F4C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B9F4C.func_800B9F4C`: ported
+
+- **Flags:** the spec needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B9F4C(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: byte-zero=2584, byte-sign=9911, byte-other=7505
+- Mutations (of the C): F1: reads arg0[0] instead of arg0[1] (caught); F2: returns 1 (caught); F3: call dropped (caught); F4: byte read as signed char (caught); F5: arg1 mixed into the argument (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800BA218` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BA218.func_800BA218`: ported
+
+- **Flags:** the port needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BA218(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: arg1-negative=13561, arg1-zero=2885, arg1-positive=13554
+- Mutations (of the C): F1: second read at arg0 + 2 instead of arg0 + 3 (caught); F2: arguments to func_80091468 swapped (caught); F3: return 1 instead of 0 (caught); F4: second read dropped (constant 0 passed) (caught); F5: second value offset by a wrong constant (caught); F6: unsigned slip on the first value (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800BA35C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BA35C.func_800BA35C`: ported
+
+- **Flags:** the port needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BA35C(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: byte3-high=9020, byte3-low=10980
+- Mutations (of the C): M1: getShort reads one byte further on (caught); M2: status byte read from the wrong offset (caught); M3: return 1 instead of 0 (caught); M4: the call to func_8007C8A4 dropped (caught); M5: getShort result truncated to u8 before func_800BFE50 (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32757, max 32764, unsigned 3..65532, seen negative, never zero
+
+## `func_800BA8BC` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BA8BC.func_800BA8BC`: ported
+
+- **Flags:** the port needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BA8BC(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: arg1-negative=13561, arg1-nonnegative=16439
+- Mutations (of the C): M1: the func_8007BE20 call is dropped (caught); M2: the second getShort reads arg0 + 2 (caught); M3: the first getShort result zero-extended (caught); M4: returns arg1 instead of 0 (caught); M5: the second getShort reads the first offset (caught)
+- Coverage: branches 0/0, lines 4/4
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800BA94C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BA94C.func_800BA94C`: ported
+
+- **Flags:** the spec needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BA94C(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: gate-closed=7651, not-0-or-5=11065, flag-clear=1418, flag-set=9866
+- Mutations (of the C): M1: the 5 test becomes 6 (caught); M2: the gate tests 3, not 2 (caught); M3: the flag is not cleared on a match (caught); M4: the first-entry call is dropped (caught); M5: the armed path returns 2 (caught); M6: signed slip on the byte in the final comparison (caught)
+- Coverage: branches 10/10, lines 10/10
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+  - compare +2 (8-bit, constant 2): == 22349, < 6092, > 1559 (signed); < 3088, > 4563 (unsigned): `if ((D_800F4C2C == 2) && ((arg0[1] == 0) || (arg0[1] == 5))) {`
+  - compare +2 (8-bit, constant 0): == 5704, < 4989, > 11656 (signed); < 0, > 16645 (unsigned): `if ((D_800F4C2C == 2) && ((arg0[1] == 0) || (arg0[1] == 5))) {`
+  - compare +2 (8-bit, constant 5): == 5580, < 7248, > 3817 (signed); < 2259, > 8806 (unsigned): `if ((D_800F4C2C == 2) && ((arg0[1] == 0) || (arg0[1] == 5))) {`
+  - compare +3 (8-bit, constant 0): == 1418, < 5649, > 4217 (signed); < 0, > 9866 (unsigned): `if (D_800F4BB9 != 0) {`
+  - compare +4 (32-bit, b 0..5): == 4959, < 2458, > 2449 (signed); < 0, > 4907 (unsigned): `if (func_8007BEE4() == arg0[1]) {`
+  - compare +14 (32-bit, b 0..255): == 9318, < 4687, > 4711 (signed); < 0, > 9398 (unsigned): `return func_8007BEE4() != arg0[1];`
+
+## `func_800BAB14` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BAB14.func_800BAB14`: ported
+
+- **Flags:** the spec needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BAB14(arg0: [*c]u8) callconv(.c) c_int`
+- Input classes: sel-ff=3859, bit3-entry-null=4503, bit3-entry-set=8535, else-entry-null=4211, else-entry-set=8892
+- Mutations (of the C): M1: memcpy takes the wrong table slot (a0 & 3) (caught); M2: the 0xFF selector tests 0xFE (caught); M3: bit 3 tested as bit 2 (caught); M4: the memcpy call dropped (caught); M5: the null test on the table entry dropped (the call then reads through NULL) (caught); M6: the memset-style call at D_800F4C48 + 4 instead of + 8 (caught)
+- Coverage: branches 6/6, lines 10/10
+  - arg 0: pointer: never null
+  - compare +3 (16-bit, constant 255): == 3859, < 26141, > 0 (signed); < 26141, > 0 (unsigned): `if (a0 == 0xFF) {`
+  - compare +6 (32-bit, constant 0): == 13103, < 0, > 13038 (signed); < 0, > 13038 (unsigned): `if (a0 & 8) {`
+
+## `func_800BAC5C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BAC5C.func_800BAC5C`: stopped
+
+- **Flags:** the spec needed a retry; not ported: stopped
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BAC5C(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: divisor-one=15035, divisor-other=14965
+- Mutations (of the C): M1: the divisor by arg0[5] dropped (caught); M2: < for <= at the 0x100 bound (caught); M3: ratan2 shifted by 3, not 4 (caught); M4: the low flag byte masked with 0x7F (caught); M5: the z difference reads sp10 vy (caught); M6: the second state flag store dropped (caught)
+- Coverage: branches 2/2, lines 10/10
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32763, max 32763, unsigned 0..65534, seen zero/negative
+  - compare +15 (32-bit, constant 255): == 1886, < 18760, > 9354 (signed); < 11352, > 16762 (unsigned): `vs_battle_setStateFlag(temp_s3, temp_lo < 0x100 ? temp_lo & 0xFF : -1);`
+
+## `func_800BAD78` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BAD78.func_800BAD78`: ported
+
+- **Flags:** the spec needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BAD78(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: break-first=10085, short-loop=10063, long-loop=9852
+- Mutations (of the C): F1: getShort reads arg0 + 2 (wrong offset) (caught); F2: loop breaks on 0, not 1 (caught); F3: the step call is dropped (caught); F4: returns 1, not 0 (caught); F5: iterator result narrowed to a signed short (caught)
+- Coverage: branches 2/2, lines 8/8
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+  - compare +7 (32-bit, constant 1): == 30000, < 30000, > 192672 (signed); < 30000, > 192672 (unsigned): `if (temp_a0 == 1) {`
+
+## `func_800BADE0` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BADE0.func_800BADE0`: ported
+
+- **Flags:** the port needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BADE0(arg0: [*c]u8) callconv(.c) c_int`
+- Input classes: gate-clear=9904, gate-set=20096
+- Mutations (of the C): A1: the zero path returns 3, not 4 (caught); A2: the gate is not cleared on the zero path (caught); A3: the gate is set to 2, not 1 (caught); A4: the first byte read at offset 2, not 3 (caught); A5: the last byte read as signed (signed/unsigned slip) (caught); A6: the zero test inverted (caught)
+- Coverage: branches 4/4, lines 10/10
+  - arg 0: pointer: never null
+  - compare +2 (8-bit, constant 0): == 9904, < 13488, > 6608 (signed); < 0, > 20096 (unsigned): `if (D_800F4BF8 == 0) {`
+  - compare +9 (32-bit, constant 0): == 4964, < 7585, > 7547 (signed); < 0, > 15132 (unsigned): `if (func_8007B9FC() == 0) {`
+
+## `func_800BAE74` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BAE74.func_800BAE74`: ported
+
+- **Flags:** the spec needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BAE74(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: arg1-zero=2034, arg1-negative=8928, arg1-positive=9038
+- Mutations (of the C): D1: the decrease call is dropped (caught); D2: the short is read at arg0 + 2 (caught); D3: the short is narrowed to u_char (sign and high bits lost) (caught); D4: returns 1 instead of 0 (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800BAEA0` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BAEA0.func_800BAEA0`: stopped
+
+- **Flags:** the port needed a retry; not ported: stopped
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BAEA0(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: narrow=20010, wide=9990
+- Mutations (of the C): F1: vx read as vz in the first difference (caught); F2: the state flag store is dropped (caught); F3: signed divide instead of arithmetic shift (caught); F4: temp_s1 not narrowed to short (caught); F5: getShort reads the wrong offset (caught); F6: negative correction off by one (caught)
+- Coverage: branches 2/2, lines 11/11
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32764, max 32766, unsigned 3..65531, seen negative, never zero
+  - compare +15 (32-bit, constant 0): == 3417, < 15041, > 11542 (signed); < 0, > 26583 (unsigned): `if (var_v0 < 0) {`
+
+## `func_800BAF6C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BAF6C.func_800BAF6C`: stopped
+
+- **Flags:** the spec needed a retry; not ported: stopped
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BAF6C(arg0: c_short) callconv(.c) void`
+- Input classes: arg0-zero=2411, arg0-positive=15118, arg0-negative=12471
+- Mutations (of the C): F1: loop runs to 17 (actor 17 is visited) (caught); F2: loop starts at actor 0 (caught); F3: set bit written as 2 instead of 1 (caught); F4: arg0 tested as signed positive (negative arg0 takes the clear path) (caught); F5: the final call passes 0 instead of arg0 (caught); F6: the actor test inverted (caught)
+- Coverage: branches 6/6, lines 8/8
+  - arg 0: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+  - compare +4 (16-bit, constant 16): == 30000, < 450000, > 30000 (signed); < 450000, > 30000 (unsigned): `for (actorId = 1; actorId < 17; ++actorId) {`
+  - compare +6 (16-bit, constant 0): == 19440, < 99599, > 120810 (signed); < 0, > 220409 (unsigned): `if (arg0 != 0) {`
+
+## `func_800BB2B8` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BB2B8.func_800BB2B8`: ported
+
+- **Flags:** ROOD_PC hooks: pc_screff2_start
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BB2B8(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: arg1-negative=9934, arg1-nonnegative=10066
+- Mutations (of the C): F1: the read offset is arg0 + 2, not arg0 + 1 (caught); F2: the screen effect call is dropped (caught); F3: returns 1, not 0 (caught); F4: the short is passed unsigned (signed/unsigned slip) (caught); F5: the value passed is off by one (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32764, max 32766, unsigned 7..65531, seen negative, never zero
+
+## `func_800BB33C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BB33C.func_800BB33C`: ported
+
+- **Flags:** the spec needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BB33C(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: non-null-nonneg=5528, non-null-neg=4383, null-nonneg=5544, null-neg=4545
+- Mutations (of the C): D1: the void call is dropped (caught); D2: the call is made twice (caught); R1: returns 1, not 0 (caught); R2: returns the short argument, not 0 (caught); R3: returns -1, not 0 (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: null seen
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800BB35C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BB35C.func_800BB35C`: ported
+
+- **Flags:** coverage waivers: +4 v-sign (new_var is arg0[1] & 2, so it is never negative: its sign bit is unreachable)
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BB35C(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: low-00=7572, low-01=7511, low-10=7268, low-11=7649
+- Mutations (of the C): F1: wrong mask for new_var (bit 2 instead of bit 1) (caught); F2: flag inverted in the call (caught); F3: wrong constant on the first argument (bit 0 widened to 2 bits) (caught); F4: the call is dropped (caught); F5: return value reads the byte instead of 0 (caught)
+- Coverage: branches 0/0, lines 4/4
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32764, max 32765, unsigned 0..65527, seen zero/negative
+  - compare +3 (32-bit, constant 0): == 15083, < 0, > 14917 (signed); < 0, > 14917 (unsigned): `func_800BE36C(arg0[1] & 1, new_var != 0);`
+
+## `func_800BB38C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BB38C.func_800BB38C`: spec-failed
+
+- **Flags:** the spec needed a retry; not ported: spec-failed
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BB38C(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+
+## `func_800BB41C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BB41C.func_800BB41C`: ported
+
+- **Flags:** the spec needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BB41C(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: byte-zero=3058, byte-high-bit=13618, byte-other=13324
+- Mutations (of the C): F1: wrong byte index (arg0[0] for arg0[1]) (caught); F2: comparison inverted (caught); F3: OR for AND (caught); F4: dropped callee call (caught); F5: signed-char read of the byte in the mask (signed/unsigned slip) (caught)
+- Coverage: branches 0/0, lines 2/2
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32764, max 32765, unsigned 0..65527, seen zero/negative
+  - compare +2 (32-bit, b 0..255): == 24517, < 0, > 5483 (signed); < 0, > 5483 (unsigned): `return arg0[1] != (arg0[1] & func_800BD610());`
+
+## `func_800BB4F0` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BB4F0.func_800BB4F0`: ported
+
+- **Flags:** the spec needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BB4F0(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: scratchpad=5003, arena-arg1-negative=7545, arena-arg1-nonnegative=7452
+- Mutations (of the C): F1: reads arg0[0] instead of arg0[1] (caught); F2: returns 1 instead of 0 (caught); F3: the store to D_800F4BE4 is dropped (caught); F4: arg1 leaks into the stored byte (caught); F5: returns arg1 instead of 0 (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32766, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800BB68C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BB68C.func_800BB68C`: spec-failed
+
+- **Flags:** the spec needed a retry; not ported: spec-failed
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BB68C(arg0: c_ushort, arg1: ?*v.func_800BB68C_t) callconv(.c) void`
+- Input classes: plain=12410, scan-any=16354, scan-allegiance-4=1236
+- Mutations (of the C): F1: wrong constant in the 0x2003 filter (caught); F2: unk2 index not advanced (store overwrites slot) (caught); F3: scan loop stops one short (caught); F4: wrong initial filter (0 instead of -1) (caught); F5: allegiance match inverted (caught); F6: fallback call dropped (caught)
+- Coverage: branches 12/12, lines 17/17
+  - arg 0: 16-bit: min -32768, max 32766, unsigned 0..65535, seen zero/negative/all ones
+  - arg 1: pointer: never null
+  - compare +7 (32-bit, constant 0): == 12410, < 0, > 17590 (signed); < 0, > 17590 (unsigned): `if (arg0 & 0x2000) {`
+  - compare +10 (16-bit, constant 8195): == 1236, < 9986, > 6368 (signed); < 3731, > 12623 (unsigned): `if (arg0 == 0x2003) {`
+  - compare +14 (16-bit, constant 16): == 17590, < 281440, > 17590 (signed); < 281440, > 17590 (unsigned): `for (i = 0; i < 17; ++i) {`
+  - compare +17 (16-bit, constant 0): == 0, < 191125, > 14441 (signed); < 0, > 205566 (unsigned): `if ((var_a0 < 0) || (temp_v0->unk1C == var_a0)) {`
+  - compare +17 (32-bit, b 4..4): == 7195, < 0, > 7246 (signed); < 0, > 7246 (unsigned): `if ((var_a0 < 0) || (temp_v0->unk1C == var_a0)) {`
+  - +17 eq: boundary equality never occurred (16-bit compare, constant 0: both sides seen; a port's `<` for `<=` could pass)
+
+## `func_800BB7C4` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BB7C4.func_800BB7C4`: stopped
+
+- **Flags:** the spec needed a retry; not ported: stopped
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BB7C4(arg0: c_int, arg1: ?*v.SVECTOR) callconv(.c) c_int`
+- Input classes: arg0-negative=15144, arg0-nonnegative=14856
+- Mutations (of the C): M1: wrong constant for vy (caught); M2: ratan2 y reads the wrong half of the packed xy (caught); M3: unsigned read of the x half (caught); M4: dropped func_800A1280 call (caught); M5: vz clear moved across the func_800A1178 call (caught)
+- Coverage: branches 0/0, lines 11/11
+  - arg 0: 32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones
+  - arg 1: pointer: never null
+
+## `func_800BB874` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BB874.func_800BB874`: ported
+
+- **Flags:** ROOD_PC hooks: ROOD_PC block in the source
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BB874() callconv(.c) void`
+- Input classes: no-lines=3727, wrap=6567, lines=19706
+- Mutations (of the C): F1: parity shift uses D >> 2 (caught); F2: loop bound <= instead of < (caught); F3: final scratchpad store uses y0 (caught); F4: SetLineF2 call dropped (caught); F5: AddPrim does not advance the primitive (caught); F6: semi-transparency bit wrong constant (caught)
+- Coverage: branches 4/4, lines 21/21
+  - compare +16 (32-bit, b 0..40): == 30000, < 285366, > 0 (signed); < 285366, > 0 (unsigned): `for (i = 0; i < D_8005DFDA; ++i) {`
+  - compare +20 (32-bit, constant 0): == 142645, < 0, > 142721 (signed); < 0, > 142721 (unsigned): `if (temp_v0_2 != 0) {`
+
+## `func_800BBBE8` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BBBE8.func_800BBBE8`: ported
+
+- **Flags:** the port needed a retry; statics: _copyVector
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BBBE8() callconv(.c) void`
+- Input classes: camera=30000
+- Mutations (of the C): S1: far clip constant off by one (caught); S2: eye target copied from the camera position, not the look-at (caught); S3: the P_CODE callee call dropped (caught); S4: wrong argument to func_8007DDAC (caught); S5: unk174.unk0 store moved across the func_8007DDAC call (caught); S6: wrong field for the 0x2000 store (caught)
+- Coverage: branches 0/0, lines 48/48
+
+## `func_800BC1CC` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BC1CC.func_800BC1CC`: stopped
+
+- **Flags:** the spec needed a retry; statics: _copyVector, _vectorMagnitude; not ported: stopped
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BC1CC(arg0: c_short, arg1: c_int) callconv(.c) void`
+- Input classes: early-return=20028, zero-magnitude=3275, nonzero-result=6697
+- Mutations (of the C): M1: early-return test inverted (caught); M2: unsigned division of the magnitude sum (caught); M3: second table entry stored at [5] (caught); M4: second setup call passes 1 (caught); M5: eye.position takes the lookAt vector (caught); M6: nonzero test made a signed > 0 test (caught)
+- Coverage: branches 4/4, lines 17/17
+  - arg 0: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+  - arg 1: 32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones
+  - compare +7 (8-bit, constant 0): == 9972, < 13343, > 6685 (signed); < 0, > 20028 (unsigned): `if (D_800F4BA0 != 0) {`
+  - compare +20 (32-bit, constant 0): == 3276, < 3316, > 3380 (signed); < 0, > 6696 (unsigned): `if ((temp_v0 << 0x10) != 0) {`
+
+## `func_800BC2E8` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BC2E8.func_800BC2E8`: spec-failed
+
+- **Flags:** the spec needed a retry; statics: _copyVector, _sVectorToFixedPointVector, _vectorMagnitude; not ported: spec-failed
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BC2E8(script: [*c]u8, unused: c_short) callconv(.c) c_int`
+- Input classes: set-position=2740, copy-target=2776, linear-ease=2769, magnitude=2732, orbit=2694, height=2698, offset-table=2817, value=2716, mode9=2673, rot-offset=2690, matrix=2695
+- Mutations (of the C): C1: case 4 low bound <= (equal-side -2048 case) (caught); C2: case 4 unsigned compare on the high bound (caught); C3: case 5 height uses 4095 instead of ONE (caught); C4: case 4 dropped store of angleDelta (caught); C5: case 10 writes the wrong unk1CC element (caught)
+- Coverage: branches 32/33, lines 141/142
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32764, unsigned 3..65529, seen negative, never zero
+  - compare +4 (32-bit, constant 0): == 14860, < 0, > 15140 (signed); < 0, > 15140 (unsigned): `if (!(script[0] & 16)) {`
+  - compare +11 (32-bit, cases): == 30000, < 0, > 0 (signed); < 0, > 0 (unsigned): `switch (script[0] & 15) {`
+  - compare +55 (32-bit, constant -2048): == 175, < 387, > 2132 (signed); < 1979, > 540 (unsigned): `if (s->value < -4096 / 2) {`
+  - compare +58 (32-bit, constant 2048): == 172, < 2169, > 353 (signed); < 1454, > 1068 (unsigned): `if (s->value > 4096 / 2) {`
+  - compare +61 (32-bit, cases): == 1332, < 0, > 0 (signed); < 0, > 0 (unsigned): `switch (script[1] & 15) {`
+  - compare +63 (32-bit, constant 0): == 141, < 265, > 262 (signed); < 0, > 527 (unsigned): `if (s->value == 0) {`
+  - compare +65 (32-bit, constant 0): == 0, < 265, > 262 (signed); < 0, > 527 (unsigned): `} else if (s->value > 0) {`
+  - compare +70 (32-bit, constant 0): == 123, < 259, > 282 (signed); < 0, > 541 (unsigned): `if (s->value == 0) {`
+  - compare +72 (32-bit, constant 0): == 0, < 259, > 282 (signed); < 0, > 541 (unsigned): `} else if (s->value < 0) {`
+  - compare +109 (16-bit, constant 8192): == 1381, < 895, > 541 (signed); < 166, > 1270 (unsigned): `if (D_800F4BA4->unk1E8 != 0x2000) {`
+  - compare +142 (16-bit, constant 8192): == 1365, < 806, > 519 (signed); < 165, > 1160 (unsigned): `if (D_800F4BA4->unk1E8 != 0x2000) {`
+  - compare +166 (32-bit, constant 1): == 0, < 30000, > 0 (signed); < 30000, > 0 (unsigned): `return 0;`
+  - +11 b11: branch never taken
+  - +65 eq: boundary equality never occurred (32-bit compare, constant 0: both sides seen; a port's `<` for `<=` could pass)
+  - +72 eq: boundary equality never occurred (32-bit compare, constant 0: both sides seen; a port's `<` for `<=` could pass)
+
+## `func_800BC9E0` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BC9E0.func_800BC9E0`: port-failed
+
+- **Flags:** the port needed a retry; not ported: port-failed
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BC9E0() callconv(.c) void`
+- Input classes: random-state=22475, zeroed-state=7525
+- Mutations (of the C): F1: eye.target.vy copied from lookAt.current.vx (caught); F2: second func_800BCA8C call gets the first call's arguments (caught); F3: dropped func_800BDF6C(nearClip) call (caught); F4: second func_800BD57C call on unk168, not unk174 (caught); F5: lookAt.target.vz store moved after the first callee call (caught); F6: lookAt.target.vx read from eye.target instead of eye.current (caught)
+- Coverage: branches 0/0, lines 16/16
+
+## `func_800BCA8C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BCA8C.func_800BCA8C`: port-failed
+
+- **Flags:** the port needed a retry; statics: _copyVector, _fixedPointMult, _sVectorToFixedPointVector, _toNormalIntegerVector, _vectorMagnitude; not ported: port-failed
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BCA8C(c: ?*v.D_800F4BA4_t2, other: ?*v.D_800F4BA4_t2) callconv(.c) void`
+- Input classes: mode-15-return=2661, mode-11=2584, mode-2=2494, mode-3=2615, mode-4=2598, mode-5=2564, mode-8=2672, mode-9=2646, mode-other=19166
+- Mutations (of the C): M1: time step shifted by 2, not 1 (caught); M2: case 4 reads aux.vx for the y term (caught); M3: case 5 x uses v1.vz instead of v1.vx (caught); M4: time compared as signed char (caught); M5: follow test with && instead of & (caught); M6: end state stores the wrong mode (caught)
+- Coverage: branches 20/20, lines 94/94
+  - arg 0: pointer: never null
+  - arg 1: pointer: null seen
+  - compare +2 (8-bit, constant 15): == 2661, < 28568, > 8771 (signed); < 18754, > 18585 (unsigned): `if (c->mode == 15) {`
+  - compare +5 (8-bit, constant 11): == 2584, < 25768, > 8987 (signed); < 15954, > 18801 (unsigned): `if (c->mode != 11) {`
+  - compare +7 (8-bit, b -128..127): == 6941, < 14222, > 13592 (signed); < 14399, > 13415 (unsigned): `if (c->time > c->duration) {`
+  - compare +11 (32-bit, cases): == 18173, < 0, > 0 (signed); < 0, > 0 (unsigned): `switch (c->mode) {`
+  - compare +90 (8-bit, constant 0): == 15930, < 8438, > 12971 (signed); < 0, > 21409 (unsigned): `if (c->follow & c->following) {`
+  - compare +103 (8-bit, b -128..127): == 21199, < 8673, > 7467 (signed); < 15242, > 898 (unsigned): `if (c->time == c->duration) {`
+  - compare +105 (8-bit, constant 0): == 2667, < 10677, > 7855 (signed); < 0, > 18532 (unsigned): `if (c->follow) {`
+
+## `func_800BCFB4` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BCFB4.func_800BCFB4`: port-failed
+
+- **Flags:** the port needed a retry; statics: _copyVector, _toNormalIntegerVector, _vectorMagnitude; not ported: port-failed
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BCFB4(c: ?*v.D_800F4BA4_t2) callconv(.c) void`
+- Input classes: short=12660, clamped=9329, mid=8011
+- Mutations (of the C): C1: the short test takes 2 too (caught); C2: the clamp is 9, not 10 (caught); C3: the break test is <= (equal heights break) (caught); C4: matrix.t[0] read from candidate.vz (caught); C5: the unk27C store is dropped (caught); C6: the loop stops one step early (caught)
+- Coverage: branches 14/14, lines 40/40
+  - arg 0: pointer: never null
+  - compare +17 (32-bit, constant 1): == 1833, < 10827, > 17340 (signed); < 2827, > 25340 (unsigned): `if (scratch->steps < 2) {`
+  - compare +19 (32-bit, constant 10): == 931, < 7080, > 9329 (signed); < 7080, > 9329 (unsigned): `} else if (scratch->steps > 10) {`
+  - compare +25 (32-bit, b -163840..10): == 3915, < 38264, > 13220 (signed); < 46264, > 5220 (unsigned): `for (i = 1; i <= ((cameraMotionScratch*)0x1F800088)->steps; ++i) {`
+  - compare +34 (32-bit, b -4..3): == 5146, < 16780, > 20253 (signed); < 19283, > 17750 (unsigned): `if (height < scratch->candidate.vy) {`
+  - compare +44 (32-bit, b -2147385789..2146966479): == 14984, < 7437, > 7579 (signed); < 7596, > 7420 (unsigned): `if (finalScratch->candidate.vx == D_800F4BA4->unk27C.vx`
+  - compare +45 (32-bit, b -4..3): == 8431, < 3192, > 3361 (signed); < 3278, > 3275 (unsigned): `&& finalScratch->candidate.vy == D_800F4BA4->unk27C.vy`
+  - compare +46 (32-bit, b -2147465154..2147357126): == 4217, < 2092, > 2122 (signed); < 2118, > 2096 (unsigned): `&& finalScratch->candidate.vz == D_800F4BA4->unk27C.vz) {`
+
+## `func_800BD444` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BD444.func_800BD444`: ported
+
+- **Flags:** the spec needed a retry; coverage waivers: +4 b2 (The switch has no default: for arg0[0] outside 0xE2/0xE3, var_s0 is never assigned and the C then stores through an indeterminate pointer (undefined behaviour in the original). Any input that takes this edge makes the C itself perform a wild store, which the harness reports as a spec bug, so no defined input can take it.)
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BD444(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: E2-start=1911, E2-move=13034, E3-start=1901, E3-move=13154
+- Mutations (of the C): M1: the -2048 bound is inclusive (<= for <) (caught); M2: case 2 tests unk6 <= 0 (zero not handled) (caught); M3: unk1 takes the low 3 bits of arg0[3] (caught); M4: the move store unk8 = 0 is dropped (caught); M5: case 0xE3 writes the unk168 block (caught)
+- Coverage: branches 15/16, lines 30/30
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65531, seen zero/negative/signed max
+  - compare +4 (32-bit, cases): == 30000, < 0, > 0 (signed); < 0, > 0 (unsigned): `switch (arg0[0]) {`
+  - compare +15 (16-bit, constant 0): == 3812, < 0, > 26188 (signed); < 0, > 26188 (unsigned): `if (var_s0->unkA == 0) {`
+  - compare +21 (16-bit, constant -2048): == 1033, < 9126, > 16029 (signed); < 22744, > 2411 (unsigned): `if (var_s0->unk6 < -(4096 / 2)) {`
+  - compare +23 (16-bit, constant 2048): == 1027, < 6866, > 9169 (signed); < 3422, > 12613 (unsigned): `} else if (var_s0->unk6 > (4096 / 2)) {`
+  - compare +27 (32-bit, cases): == 8829, < 0, > 0 (signed); < 0, > 0 (unsigned): `switch (arg0[3] >> 4) {`
+  - compare +29 (16-bit, constant 0): == 503, < 2012, > 1939 (signed); < 0, > 3951 (unsigned): `if (var_s0->unk6 > 0) {`
+  - compare +34 (16-bit, constant 0): == 498, < 1887, > 1990 (signed); < 0, > 3877 (unsigned): `if (var_s0->unk6 < 0) {`
+  - +4 b2: branch never taken
+
+## `func_800BD610` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BD610.func_800BD610`: ported
+
+- **Flags:** the spec needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BD610() callconv(.c) c_int`
+- Input classes: sum-wraps-u8=7918, sum-zero=15466, other=6616
+- Mutations (of the C): M1: wrong flag constant (0x80 becomes 0x40) (caught); M2: the unkB sum wraps in u8 before the zero test (caught); M3: wrong field in the farClip test (unk8 for unk9) (caught); M4: wrong comparison constant in the lookAt test (caught); M5: bit 7 dropped from the result (caught)
+- Coverage: branches 14/14, lines 17/17
+  - compare +2 (8-bit, constant 15): == 5016, < 18358, > 6626 (signed); < 10870, > 14114 (unsigned): `char temp_a2 = D_800F4BA4->lookAt.mode == 0xF;`
+  - compare +4 (8-bit, constant 15): == 5041, < 18433, > 6526 (signed); < 10961, > 13998 (unsigned): `if (D_800F4BA4->eye.mode == 0xF) {`
+  - compare +7 (16-bit, constant 0): == 15121, < 5961, > 8918 (signed); < 0, > 14879 (unsigned): `if (D_800F4BA4->unk168.unkA == 0) {`
+  - compare +10 (8-bit, constant 0): == 14893, < 7548, > 7559 (signed); < 0, > 15107 (unsigned): `if (D_800F4BA4->projectionDistance.unk9 == 0) {`
+  - compare +13 (8-bit, constant 0): == 14964, < 7469, > 7567 (signed); < 0, > 15036 (unsigned): `if (D_800F4BA4->nearClip.unk9 == 0) {`
+  - compare +16 (8-bit, constant 0): == 15125, < 7443, > 7432 (signed); < 0, > 14875 (unsigned): `if (D_800F4BA4->farClip.unk9 == 0) {`
+  - compare +19 (16-bit, constant 0): == 14960, < 6053, > 8987 (signed); < 0, > 15040 (unsigned): `if (D_800F4BA4->unk25C.unk1E == 0) {`
+  - compare +22 (32-bit, constant 0): == 15466, < 0, > 14534 (signed); < 0, > 14534 (unsigned): `if ((D_800F4BA4->unk1A4.unkB + D_800F4BA4->unk1B0.unkB) == 0) {`
+
+## `func_800BD6C4` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BD6C4.func_800BD6C4`: ported
+
+- **Flags:** the spec needed a retry; ROOD_PC hooks: pc_screff2_set_warp; coverage waivers: +6 b8 (The switch has no default: an opcode outside the eight cases falls off the end of a non-void function with no return value (undefined behaviour). There is no defined result or call trace to compare, and running past the end executes whatever code follows, so the harness cannot generate this input.)
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BD6C4(script: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: 185=4882, 186=5054, 228 immediate=1691, 228 interpolated=3340, 229 immediate=1695, 229 interpolated=3335, 230 immediate=1695, 230 interpolated=3314, 231=5000, 237 busy=1731, 237 warp=1107, 237 interpolated=2186, 191 mode zero=1240, 191 mode nonzero=3730
+- Mutations (of the C): S1: case 228 immediate reads script[3] for unk4 (caught); S2: busy test with a wrong bound (>= for >) (caught); S3: mode passed to the sound call as 0 (caught); S4: unsigned slip on script[1] in case 230 interpolation (caught); S5: warp call dropped (caught); S6: wrong constant in case 237 warp position (caught)
+- Coverage: branches 20/21, lines 94/95
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32765, max 32765, unsigned 0..65534, seen zero/negative
+  - compare +6 (32-bit, cases): == 40000, < 0, > 0 (signed); < 0, > 0 (unsigned): `switch (script[0]) {`
+  - compare +17 (16-bit, constant 0): == 1691, < 0, > 3340 (signed); < 0, > 3340 (unsigned): `if (D_800F4BA4->unk1FC.unk1E == 0) {`
+  - compare +34 (16-bit, constant 0): == 1695, < 0, > 3335 (signed); < 0, > 3335 (unsigned): `if (D_800F4BA4->unk21C.unk1E == 0) {`
+  - compare +51 (16-bit, constant 0): == 1695, < 0, > 3314 (signed); < 0, > 3314 (unsigned): `if (D_800F4BA4->unk23C.unk1E == 0) {`
+  - compare +71 (16-bit, constant 0): == 1608, < 1685, > 1731 (signed); < 0, > 3416 (unsigned): `if (D_800F4BA4->unk25C.unk1E > 0) {`
+  - compare +76 (16-bit, constant 0): == 1107, < 0, > 2186 (signed); < 0, > 2186 (unsigned): `if (D_800F4BA4->unk25C.unk1E == 0) {`
+  - compare +93 (16-bit, constant 0): == 1240, < 1871, > 1859 (signed); < 0, > 3730 (unsigned): `if (!mode) {`
+  - compare +117 (32-bit, constant 1): == 0, < 40000, > 0 (signed); < 40000, > 0 (unsigned): `return 0;`
+  - +6 b8: branch never taken
+
+## `func_800BDAB4` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BDAB4.func_800BDAB4`: ported
+
+- **Flags:** the spec needed a retry; ROOD_PC hooks: pc_screff2_set_warp
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BDAB4() callconv(.c) void`
+- Input classes: mask 0=1936, mask 1=1840, mask 2=1830, mask 3=1864, mask 4=1919, mask 5=1879, mask 6=1886, mask 7=1900, mask 8=1917, mask 9=1846, mask 10=1881, mask 11=1870, mask 12=1860, mask 13=1904, mask 14=1812, mask 15=1856
+- Mutations (of the C): D1: the first block copies unk4 into unk0 (caught); D2: sp20.b0 read from unk4 instead of unk6 (caught); D3: the last test is > 0 (a -1 return is missed) (caught); D4: the 23C call is dropped (caught); D5: set_warp arguments swapped (caught); D6: the third test reads the 21C block (caught)
+- Coverage: branches 8/8, lines 17/17
+  - compare +5 (32-bit, constant 0): == 15041, < 3631, > 11328 (signed); < 0, > 14959 (unsigned): `if (func_800BDBB4(&D_800F4BA4->unk1FC) != 0) {`
+  - compare +10 (32-bit, constant 0): == 15101, < 3813, > 11086 (signed); < 0, > 14899 (unsigned): `if (func_800BDBB4(&D_800F4BA4->unk21C) != 0) {`
+  - compare +16 (32-bit, constant 0): == 14984, < 3738, > 11278 (signed); < 0, > 15016 (unsigned): `if (func_800BDBB4(&D_800F4BA4->unk23C) != 0) {`
+  - compare +21 (32-bit, constant 0): == 15054, < 3744, > 11202 (signed); < 0, > 14946 (unsigned): `if (func_800BDBB4(&D_800F4BA4->unk25C) != 0) {`
+
+## `func_800BDC9C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BDC9C.func_800BDC9C`: stopped
+
+- **Flags:** the spec needed a retry; not ported: stopped
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BDC9C(script: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: 234 flag0=4388, 234 flag1=3659, 235 flag0=4374, 235 flag1=3635, 236 flag0=4332, 236 flag1=3657, 239 operand2 zero=1994, 239 slot0 free=2948, 239 slot1 free=1545, 239 no free slot=1518, opcode outside the switch=7950
+- Mutations (of the C): F1: near clip default 65, not 64 (caught); F2: projection distance shifted by 3, not 2 (caught); F3: far clip default 4095, not 4096 (caught); F4: near clip flag-1 path does not clear unk8 (caught); F5: the 239 scan stops at one slot (caught); F6: operand 4 stored in the low byte, not the high (caught)
+- Coverage: branches 29/29, lines 49/49
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32767, max 32765, unsigned 2..65535, seen negative/all ones, never zero
+  - compare +4 (32-bit, cases): == 32050, < 0, > 0 (signed); < 0, > 0 (unsigned): `switch (script[0]) {`
+  - compare +6 (8-bit, constant 0): == 4388, < 1648, > 2011 (signed); < 0, > 3659 (unsigned): `if ((D_800F4BA4->projectionDistance.unk9 = script[3]) == 0) {`
+  - compare +7 (8-bit, constant 0): == 358, < 1852, > 2178 (signed); < 0, > 4030 (unsigned): `D_800F4BA4->projectionDistance.unk2 = script[1] ? (script[1] << 2) : 4096 / 8;`
+  - compare +10 (8-bit, constant 0): == 306, < 1501, > 1852 (signed); < 0, > 3353 (unsigned): `D_800F4BA4->projectionDistance.unk6 =`
+  - compare +20 (8-bit, constant 0): == 4374, < 1687, > 1948 (signed); < 0, > 3635 (unsigned): `if ((D_800F4BA4->nearClip.unk9 = script[3]) == 0) {`
+  - compare +21 (8-bit, constant 0): == 364, < 1814, > 2196 (signed); < 0, > 4010 (unsigned): `D_800F4BA4->nearClip.unk2 = script[1] ? script[1] : 64;`
+  - compare +26 (8-bit, constant 0): == 313, < 1530, > 1792 (signed); < 0, > 3322 (unsigned): `- (D_800F4BA4->nearClip.unk4 = D_800F4BA4->nearClip.unk2);`
+  - compare +32 (8-bit, constant 0): == 4332, < 1671, > 1986 (signed); < 0, > 3657 (unsigned): `if ((D_800F4BA4->farClip.unk9 = script[3]) == 0) {`
+  - compare +33 (8-bit, constant 0): == 376, < 1812, > 2144 (signed); < 0, > 3956 (unsigned): `D_800F4BA4->farClip.unk2 = script[1] ? (script[1] << 7) : 4096;`
+  - compare +36 (8-bit, constant 0): == 348, < 1480, > 1829 (signed); < 0, > 3309 (unsigned): `D_800F4BA4->farClip.unk6 =`
+  - compare +46 (8-bit, constant 0): == 1994, < 2459, > 3552 (signed); < 0, > 6011 (unsigned): `if (script[2] == 0) {`
+  - compare +50 (16-bit, constant 1): == 3063, < 6011, > 1518 (signed); < 6011, > 1518 (unsigned): `for (i = 0; i < 2; ++i, ++entry) {`
+  - compare +51 (8-bit, constant 0): == 4493, < 2308, > 2273 (signed); < 0, > 4581 (unsigned): `if (entry->unk9 == 0) {`
+  - compare +61 (32-bit, constant 1): == 7950, < 32050, > 0 (signed); < 32050, > 0 (unsigned): `return 0;`
+
+## `func_800BE3A0` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BE3A0.func_800BE3A0`: ported
+
+- **Flags:** the spec needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BE3A0() callconv(.c) void`
+- Input classes: camera-block=20000
+- Mutations (of the C): A1: eye mode set to 0xE (caught); A2: lookAt mode store dropped (caught); A3: eye.following set to 1, not 0 (caught); A4: eye.follow cleared through the wrong field (caught); A5: lookAt.follow clear dropped (caught)
+- Coverage: branches 0/0, lines 10/10
+
+## `func_800BE3D0` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BE3D0.func_800BE3D0`: stopped
+
+- **Flags:** the spec needed a retry; statics: _copyVector; not ported: stopped
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BE3D0(arg0: u8) callconv(.c) void`
+- Input classes: arg0-negative=13490, arg0-zero=3128, arg0-positive=13382
+- Mutations (of the C): M1: camera angle masked to 3 instead of 7 (caught); M2: sp10.vy shifted by 11 instead of 12 (caught); M3: lookAt.mode is 7 (caught); M4: eye.current copied from the wrong vector (caught); M5: second camera's time reads temp_s3 (caught); M6: dropped second func_800BC2E8 call (caught)
+- Coverage: branches 0/0, lines 19/19
+  - arg 0: 8-bit: min -128, max 127, unsigned 0..255, seen zero/negative/signed max/all ones
+
+## `func_800BE53C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BE53C.func_800BE53C`: ported
+
+- **Flags:** the port needed a retry; statics: _copyVector, _vectorMagnitude
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BE53C(arg0: ?*v.D_800F4BA4_t2) callconv(.c) void`
+- Input classes: zero-delta=1522, negative-delta=13985, negative-delta-wrapped=128, positive-delta=11936, positive-delta-wrapped=2429
+- Mutations (of the C): D1: magnitude shifted by 11, not 12 (caught); D2: signed division by 1000 turned into a shift (caught); D3: subtraction operands swapped (current and position) (caught); D4: magnitude shift done unsigned (negative magnitudes differ) (caught); D5: result stored in the wrong field (time, not duration) (caught); D6: magnitude taken of the current position, not the delta (caught)
+- Coverage: branches 0/0, lines 4/4
+  - arg 0: pointer: never null
+
+## `func_800BEB00` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BEB00.func_800BEB00`: ported
+
+- **Flags:** the spec needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BEB00() callconv(.c) c_int`
+- Input classes: top-bit-clear=11017, top-bit-set=8983
+- Mutations (of the C): F1: returned byte sign-extended (caught); F2: wrong constant (off by one) (caught); F3: top bit masked off (caught); F4: result doubled (caught)
+- Coverage: branches 0/0, lines 1/1
+
+## `func_800BEB10` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BEB10.func_800BEB10`: ported
+
+- **Flags:** the spec needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BEB10() callconv(.c) c_short`
+- Input classes: low-term-negative=8974, low-term-nonnegative=11026
+- Mutations (of the C): M1: shift by 11, not 12 (caught); M2: xor instead of or (caught); M3: low term dropped (caught); M4: low term masked to 11 bits (caught)
+- Coverage: branches 0/0, lines 1/1
+
+## `func_800BEB9C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BEB9C.func_800BEB9C`: ported
+
+- **Flags:** the port needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BEB9C(arg0: c_int) callconv(.c) void`
+- Input classes: arg0-zero=7405, arg0-nonzero=12595
+- Mutations (of the C): S1: loop starts at 63 (caught); S2: loop bound <= 128 (one extra call) (caught); S3: wrong flag value (1 for 0) (caught); S4: guard tests arg0 == 1 (caught); S5: call dropped (caught); S6: loop steps by 2 (half the flags set) (caught)
+- Coverage: branches 4/4, lines 5/5
+  - arg 0: 32-bit: min -2147483648, max 2147013947, unsigned 0..4294967295, seen zero/negative/all ones
+  - compare +2 (32-bit, constant 0): == 7405, < 5035, > 7560 (signed); < 0, > 12595 (unsigned): `if (arg0 == 0) {`
+  - compare +4 (16-bit, constant 127): == 7405, < 466515, > 7405 (signed); < 466515, > 7405 (unsigned): `for (i = 64; i < 128; ++i) {`
+
+## `func_800BEBEC` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BEBEC.func_800BEBEC`: ported
+
+- **Flags:** the spec needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BEBEC() callconv(.c) void`
+- Input classes: empty=20000
+- Mutations (of the C): M1: a scratchpad byte is written (caught); M2: the last scratchpad byte is flipped (caught); M3: a low RAM word is written (caught); M4: a store through address 0 (faults) (caught)
+- Coverage: branches 0/0, lines 1/1
+
+## `func_800BEC58` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BEC58.func_800BEC58`: spec-failed
+
+- **Flags:** the spec needed a retry; not ported: spec-failed
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BEC58(arg0: c_int, arg1: c_int, arg2: c_int, arg3: c_int) callconv(.c) c_short`
+- Input classes: type-ff=1478, type-1-section=1476, type-40=1488, busy-gate=15870, scan=9688
+- Mutations (of the C): F1: <= becomes < (equal sides must pass) (caught); F2: case 2 lower bound > instead of >= (caught); F3: case 8 checks arg2[1] for the second byte (caught); F4: the 0xFF end keeps the busy flag set (caught); F5: the 0x40 path stores arg2 as the event file (caught); F6: case 4 tests the wrong flag bit (caught)
+- Coverage: branches 129/150, lines 208/224
+  - arg 0: 32-bit: min -2147378832, max 2146931344, unsigned 0..4294967295, seen zero/negative/all ones
+  - arg 1: 32-bit: min -2147187581, max 2147292180, unsigned 0..4294967295, seen zero/negative/all ones
+  - arg 2: 32-bit: min -2145998084, max 2147389912, unsigned 0..4294585158, seen zero/negative
+  - arg 3: 32-bit: min -1, max 2, unsigned 0..4294967295, seen zero/negative/all ones, 4 value(s): 1, 4294967295, 0, 2
+  - compare +21 (16-bit, constant 255): == 1478, < 19552, > 8970 (signed); < 10548, > 17974 (unsigned): `if (type == 0xFF) {`
+  - compare +22 (8-bit, constant 0): == 216, < 371, > 891 (signed); < 0, > 1262 (unsigned): `if (D_800F4C34 == 0) {`
+  - compare +27 (16-bit, constant 1): == 2975, < 10511, > 15036 (signed); < 1507, > 24040 (unsigned): `if (type == 1) {`
+  - compare +29 (32-bit, constant 0): == 1499, < 0, > 1476 (signed); < 0, > 1476 (unsigned): `if (scriptSection & 1) {`
+  - compare +37 (16-bit, constant 64): == 1488, < 13528, > 12030 (signed); < 4524, > 21034 (unsigned): `if (type == 0x40) {`
+  - compare +44 (8-bit, constant 0): == 4348, < 6434, > 14776 (signed); < 0, > 21210 (unsigned): `if (D_800F4C34 != 0 && D_800F4BA8 != 0) {`
+  - compare +44 (8-bit, constant 0): == 5340, < 5372, > 10498 (signed); < 0, > 15870 (unsigned): `if (D_800F4C34 != 0 && D_800F4BA8 != 0) {`
+  - compare +48 (16-bit, constant 15): == 207, < 31505, > 182 (signed); < 31505, > 182 (unsigned): `for (i = 0; i < 16; ++i) {`
+  - compare +48 (32-bit, constant 1): == 182, < 29818, > 0 (signed); < 29818, > 0 (unsigned): `for (i = 0; i < 16; ++i) {`
+  - compare +50 (16-bit, constant -1): == 2692, < 0, > 29020 (signed); < 29020, > 0 (unsigned): `if (offset == 0xFFFF) {`
+  - compare +54 (32-bit, constant 0): == 9886, < 0, > 19134 (signed); < 0, > 19134 (unsigned): `if (!(*p & type)) {`
+  - compare +63 (32-bit, cases): == 27630, < 0, > 0 (signed); < 0, > 0 (unsigned): `switch (*p) {`
+  - compare +65 (16-bit, constant 0): == 2, < 3361, > 3451 (signed); < 0, > 6812 (unsigned): `if (eventId & 0x8000) {`
+  - compare +77 (8-bit, b 0..3): == 313, < 433, > 433 (signed); < 433, > 433 (unsigned): `if (position.unk0.unk0.fields.unk0_0 == p[1]`
+  - compare +78 (8-bit, b 0..3): == 86, < 112, > 115 (signed); < 112, > 115 (unsigned): `&& position.unk0.unk0.fields.unk0_16 == p[2]) {`
+  - compare +85 (8-bit, b 0..3): == 333, < 486, > 442 (signed); < 486, > 442 (unsigned): `if (position.unk0.unk0.fields.unk0_0 >= p[1]`
+  - compare +86 (32-bit, b 0..6): == 175, < 397, > 203 (signed); < 397, > 203 (unsigned): `&& position.unk0.unk0.fields.unk0_0 < p[1] + p[3]`
+  - compare +87 (8-bit, b 0..3): == 101, < 144, > 152 (signed); < 144, > 152 (unsigned): `&& position.unk0.unk0.fields.unk0_16 >= p[2]`
+  - compare +88 (32-bit, b 0..6): == 64, < 121, > 68 (signed); < 121, > 68 (unsigned): `&& position.unk0.unk0.fields.unk0_16 < p[2] + p[4]) {`
+  - compare +101 (32-bit, cases): == 1808, < 0, > 0 (signed); < 0, > 0 (unsigned): `switch (p[1] & 0xF0) {`
+  - compare +103 (32-bit, b 0..254): == 2, < 232, > 79 (signed); < 232, > 79 (unsigned): `if (left <= right) {`
+  - compare +108 (32-bit, b 0..255): == 1, < 204, > 78 (signed); < 204, > 78 (unsigned): `if (left >= right) {`
+  - compare +113 (32-bit, b 1..255): == 1, < 228, > 73 (signed); < 228, > 73 (unsigned): `if (left == right) {`
+  - compare +118 (32-bit, b 1..255): == 1, < 229, > 70 (signed); < 229, > 70 (unsigned): `if (left != right) {`
+  - compare +123 (32-bit, b 0..253): == 2, < 227, > 78 (signed); < 227, > 78 (unsigned): `if (left < right) {`
+  - compare +128 (32-bit, b 1..255): == 3, < 230, > 70 (signed); < 230, > 70 (unsigned): `if (left > right) {`
+  - compare +137 (32-bit, constant 0): == 576, < 0, > 609 (signed); < 0, > 609 (unsigned): `if (left & 0x1000) {`
+  - compare +141 (32-bit, constant 1): == 269, < 151, > 156 (signed); < 0, > 307 (unsigned): `} else if (func_8007CF18(left) != 1) {`
+  - compare +149 (16-bit, constant 0): == 0, < 626, > 615 (signed); < 0, > 1241 (unsigned): `if (flagId != 0) {`
+  - compare +158 (16-bit, constant 0): == 308, < 324, > 639 (signed); < 0, > 963 (unsigned): `if (mode == 0) {`
+  - compare +161 (16-bit, constant 1): == 0, < 161, > 147 (signed); < 0, > 308 (unsigned): `if (actorId != 1 && otherActorId != 1 && arg1 == actorId`
+  - compare +161 (16-bit, constant 1): == 0, < 162, > 146 (signed); < 0, > 308 (unsigned): `if (actorId != 1 && otherActorId != 1 && arg1 == actorId`
+  - compare +161 (32-bit, b -32609..32662): == 0, < 149, > 159 (signed); < 206, > 102 (unsigned): `if (actorId != 1 && otherActorId != 1 && arg1 == actorId`
+  - compare +170 (16-bit, constant 1): == 0, < 616, > 605 (signed); < 0, > 1221 (unsigned): `if (actorId == 1) {`
+  - compare +176 (16-bit, constant 0): == 0, < 619, > 602 (signed); < 0, > 1221 (unsigned): `if (flagId != 0) {`
+  - compare +185 (16-bit, constant 1): == 287, < 629, > 317 (signed); < 310, > 636 (unsigned): `if (mode == 1 && ((u_char*)(long unsigned int)(unsigned int)(arg2))[0] == p[1]`
+  - compare +185 (8-bit, b 0..3): == 66, < 132, > 89 (signed); < 132, > 89 (unsigned): `if (mode == 1 && ((u_char*)(long unsigned int)(unsigned int)(arg2))[0] == p[1]`
+  - compare +186 (8-bit, b 0..3): == 16, < 31, > 19 (signed); < 31, > 19 (unsigned): `&& ((u_char*)(long unsigned int)(unsigned int)(arg2))[2] == p[2]) {`
+  - compare +192 (32-bit, constant 0): == 285, < 0, > 905 (signed); < 0, > 905 (unsigned): `if (!(func_800A0BE0(0) & 0x104000)) {`
+  - compare +201 (16-bit, constant 0): == 0, < 614, > 626 (signed); < 0, > 1240 (unsigned): `if (flagId != 0) {`
+  - compare +210 (16-bit, constant 0): == 310, < 293, > 617 (signed); < 0, > 910 (unsigned): `if ((short)func_800A0024(p[1], &position) >= 0`
+  - compare +211 (8-bit, b 0..3): == 256, < 338, > 333 (signed); < 338, > 333 (unsigned): `&& position.unk0.unk0.fields.unk0_0 == p[2]`
+  - compare +212 (8-bit, b 0..3): == 58, < 99, > 99 (signed); < 99, > 99 (unsigned): `&& position.unk0.unk0.fields.unk0_16 == p[3]`
+  - compare +213 (8-bit, constant 0): == 13, < 0, > 45 (signed); < 0, > 45 (unsigned): `&& (p[4] == 0 || -(position.unk0.unk4.vy / 128) + 1 == p[4])`
+  - compare +213 (32-bit, b 1..3): == 18, < 27, > 0 (signed); < 27, > 0 (unsigned): `&& (p[4] == 0 || -(position.unk0.unk4.vy / 128) + 1 == p[4])`
+  - compare +214 (8-bit, constant 0): == 9, < 0, > 22 (signed); < 0, > 22 (unsigned): `&& (p[5] == 0`
+  - compare +215 (32-bit, b 1..3): == 7, < 3, > 12 (signed); < 3, > 12 (unsigned): `|| (position.unk0.unk0.fields.unk0_24 >> 2) + 1 == p[5])) {`
+  - compare +223 (16-bit, constant 0): == 0, < 599, > 639 (signed); < 0, > 1238 (unsigned): `if (flagId != 0) {`
+  - compare +233 (16-bit, constant 1): == 1, < 636, > 649 (signed); < 0, > 1285 (unsigned): `if (actorId == 1) {`
+  - compare +238 (8-bit, b 0..3): == 358, < 443, > 484 (signed); < 443, > 484 (unsigned): `if (position.unk0.unk0.fields.unk0_0 == p[3]`
+  - compare +239 (8-bit, b 0..3): == 90, < 138, > 130 (signed); < 138, > 130 (unsigned): `&& position.unk0.unk0.fields.unk0_16 == p[4]) {`
+  - compare +246 (16-bit, constant 1): == 0, < 582, > 605 (signed); < 0, > 1187 (unsigned): `if (actorId == 1) {`
+  - compare +251 (8-bit, b 0..3): == 293, < 461, > 433 (signed); < 461, > 433 (unsigned): `if (position.unk0.unk0.fields.unk0_0 >= p[3]`
+  - compare +252 (32-bit, b 0..6): == 176, < 370, > 180 (signed); < 370, > 180 (unsigned): `&& position.unk0.unk0.fields.unk0_0 < p[3] + p[5]`
+  - compare +253 (8-bit, b 0..3): == 93, < 131, > 146 (signed); < 131, > 146 (unsigned): `&& position.unk0.unk0.fields.unk0_16 >= p[4]`
+  - compare +254 (32-bit, b 0..6): == 73, < 112, > 54 (signed); < 112, > 54 (unsigned): `&& position.unk0.unk0.fields.unk0_16 < p[4] + p[6]) {`
+  - compare +261 (16-bit, constant 1): == 0, < 627, > 614 (signed); < 0, > 1241 (unsigned): `if (actorId == 1) {`
+  - compare +265 (32-bit, constant 0): == 0, < 611, > 630 (signed); < 0, > 1241 (unsigned): `if (func_8007CFCC(actorId) != 0) {`
+  - compare +278 (32-bit, b 0..1): == 12320, < 462, > 8065 (signed); < 462, > 8065 (unsigned): `if (result == negate) {`
+  - +149 b1: branch never taken
+  - +152 b0: branch never taken (not executed)
+  - +152 b1: branch never taken (not executed)
+  - +161 b1: branch never taken
+  - +161 b3: branch never taken
+  - +161 b4: branch never taken
+  - +162 b0: branch never taken (not executed)
+  - +162 b1: branch never taken (not executed)
+  - +170 b0: branch never taken
+  - +176 b1: branch never taken
+  - +179 b0: branch never taken (not executed)
+  - +179 b1: branch never taken (not executed)
+  - +201 b1: branch never taken
+  - +204 b0: branch never taken (not executed)
+  - +204 b1: branch never taken (not executed)
+  - +223 b1: branch never taken
+  - +226 b0: branch never taken (not executed)
+  - +226 b1: branch never taken (not executed)
+  - +246 b0: branch never taken
+  - +261 b0: branch never taken
+  - +265 b1: branch never taken
+  - +65 eq: boundary equality occurred only 2 time(s) in 6814 (16-bit compare, constant 0: both sides seen; a port's `<` for `<=` could pass)
+  - +103 eq: boundary equality occurred only 2 time(s) in 313 (32-bit compare, b 0..254: both sides seen; a port's `<` for `<=` could pass)
+  - +108 eq: boundary equality occurred only 1 time(s) in 283 (32-bit compare, b 0..255: both sides seen; a port's `<` for `<=` could pass)
+  - +113 eq: boundary equality occurred only 1 time(s) in 302 (32-bit compare, b 1..255: both sides seen; a port's `<` for `<=` could pass)
+  - +118 eq: boundary equality occurred only 1 time(s) in 300 (32-bit compare, b 1..255: both sides seen; a port's `<` for `<=` could pass)
+  - +123 eq: boundary equality occurred only 2 time(s) in 307 (32-bit compare, b 0..253: both sides seen; a port's `<` for `<=` could pass)
+  - +128 eq: boundary equality occurred only 3 time(s) in 303 (32-bit compare, b 1..255: both sides seen; a port's `<` for `<=` could pass)
+  - +233 eq: boundary equality occurred only 1 time(s) in 1286 (16-bit compare, constant 1: both sides seen; a port's `<` for `<=` could pass)
+
+## `func_800BF5F0` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BF5F0.func_800BF5F0`: stopped
+
+- **Flags:** the port needed a retry; not ported: stopped
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BF5F0(data: [*c]u8) callconv(.c) void`
+- Input classes: no-zero-entries=2395, zero-in-first=4777, zero-in-second=6518, zero-in-both=16310
+- Mutations (of the C): U1: first table loop stops one short (D_800EB588[15] missed) (caught); U2: D_800F4C38[3] not cleared (caught); U3: first table offset read signed (sign-extended pointer) (caught); U4: second table offsets based on data, not table (caught); U5: the setStateFlag(168) call dropped (caught); U6: store moved before the music-slot call (caught)
+- Coverage: branches 14/14, lines 34/34
+  - arg 0: pointer: never null
+  - compare +6 (16-bit, constant 15): == 30000, < 180000, > 30000 (signed); < 180000, > 30000 (unsigned): `for (i = 9; i < 16; ++i) {`
+  - compare +7 (16-bit, constant 0): == 33989, < 87875, > 88136 (signed); < 0, > 176011 (unsigned): `D_800EB588[i] = ((u_short*)table)[i - 8] ? table + ((u_short*)table)[i - 8] : 0;`
+  - compare +10 (16-bit, constant 7): == 30000, < 210000, > 30000 (signed); < 210000, > 30000 (unsigned): `for (i = 0; i < 8; ++i) {`
+  - compare +11 (16-bit, constant 0): == 39447, < 99978, > 100575 (signed); < 0, > 200553 (unsigned): `D_800F4BC0[i] = ((u_short*)table)[i] ? (char*)table + ((u_short*)table)[i] : 0;`
+  - compare +28 (16-bit, constant 7): == 30000, < 210000, > 30000 (signed); < 210000, > 30000 (unsigned): `for (i = 0; i < 8; ++i) {`
+  - compare +31 (16-bit, constant 3): == 30000, < 90000, > 30000 (signed); < 90000, > 30000 (unsigned): `for (i = 0; i < 4; ++i) {`
+  - compare +38 (16-bit, constant 31): == 30000, < 450000, > 30000 (signed); < 450000, > 30000 (unsigned): `for (i = 16; i < 32; ++i) {`
+
+## `func_800BF850` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BF850.func_800BF850`: spec-failed
+
+- **Flags:** the spec needed a retry; not ported: spec-failed
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BF850() callconv(.c) c_int`
+
+## `vs_battle_applyCameraState` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `apply_camera_state.applyCameraState`: port-failed
+
+- **Flags:** the port needed a retry; statics: _copyVector, _sVectorToFixedPointVector; not ported: port-failed
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn applyCameraState() callconv(.c) void`
+- Input classes: init=7579, plain=5731, offset=5472, tracking=11218
+- Mutations (of the C): A1: init-or-offset test uses the wrong constant (caught); A2: near clip call dropped (caught); A3: far clip distance read as signed char (caught); A4: camera position copied from the wrong field (caught); A5: far clip flag not cleared (caught); A6: rotation vector x wrong constant (caught)
+- Coverage: branches 16/16, lines 41/41
+  - compare +6 (8-bit, constant 0): == 22421, < 5064, > 2515 (signed); < 0, > 7579 (unsigned): `if (D_800F4BA0 != 0) {`
+  - compare +13 (16-bit, constant 8192): == 11345, < 7580, > 3496 (signed); < 3451, > 7625 (unsigned): `if (D_800F4BA4->unk1E8 != 0x2000) {`
+  - compare +18 (16-bit, constant 0): == 15038, < 7537, > 7425 (signed); < 0, > 14962 (unsigned): `if (*(short*)&D_800F4BA4->unk1A4.unk0 != 0) {`
+  - compare +34 (8-bit, constant 0): == 2050, < 15047, > 12903 (signed); < 0, > 27950 (unsigned): `if (D_800F4BA4->unk168.unk0 != 0) {`
+  - compare +38 (8-bit, constant 0): == 2126, < 14974, > 12900 (signed); < 0, > 27874 (unsigned): `if (D_800F4BA4->unk174.unk0 != 0) {`
+  - compare +42 (8-bit, constant 0): == 3876, < 15010, > 11114 (signed); < 0, > 26124 (unsigned): `if (D_800F4BA4->projectionDistance.unk0 != 0) {`
+  - compare +46 (8-bit, constant 0): == 2169, < 15096, > 12735 (signed); < 0, > 27831 (unsigned): `if (D_800F4BA4->nearClip.unk0 != 0) {`
+  - compare +50 (8-bit, constant 0): == 2074, < 14880, > 13046 (signed); < 0, > 27926 (unsigned): `if (D_800F4BA4->farClip.unk0 != 0) {`
+
+## `vs_battle_invalidOpcode` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `invalid_opcode.invalidOpcode`: spec-failed
+
+- **Flags:** the spec needed a retry; not ported: spec-failed
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn invalidOpcode(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: arena-positive=4183, arena-negative=2423, low-ram-positive=4211, low-ram-negative=2469, scratchpad-positive=4332, scratchpad-negative=2382
+- Mutations (of the C): I1: format arg1 as unsigned short (MISSED); I2: address off by one (MISSED); I3: byte masked to 7 bits (MISSED); I4: return the argument, not 0 (caught); I5: sprintf call dropped (MISSED)
+- Coverage: branches 0/0, lines 4/4
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `vs_battle_script_buttonPressed` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `script_button_pressed.script_buttonPressed`: ported
+
+- **Flags:** the spec needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn script_buttonPressed(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: no-overlap=10085, overlap=19915
+- Mutations (of the C): M1: tests arg0[0] instead of arg0[1] (caught); M2: hit returns 0, not 4 (caught); M3: OR instead of AND (caught); M4: byte sign-extended before the mask (high buttons bits leak in) (caught); M5: byte 1 masked with 0x7F (bit 7 lost) (caught); M6: miss returns 2, not 1 (caught)
+- Coverage: branches 2/2, lines 4/4
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32764, max 32764, unsigned 1..65535, seen negative/all ones, never zero
+  - compare +2 (32-bit, constant 0): == 10085, < 0, > 19915 (signed); < 0, > 19915 (unsigned): `if (vs_main_buttonsPressed.all & arg0[1]) {`
+
+## `vs_battle_script_initTextBox` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `script_init_text_box.script_initTextBox`: spec-failed
+
+- **Flags:** the spec needed a retry; not ported: spec-failed
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn script_initTextBox(script: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: same-box=14992, other-box=15008
+- Mutations (of the C): S1: charsPerLine scaled by 5, not 6 (caught); S2: wrong constant for the same-box centerX (caught); S3: temp <= 0x2000 instead of < 0x2000 (caught); S4: unsigned compare of the getShort result (caught); S5: dropped unk2E store (caught); S6: else branch fetches the box by the target nibble (caught)
+- Coverage: branches 4/4, lines 17/17
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32763, max 32766, unsigned 0..65531, seen zero/negative
+  - compare +7 (32-bit, b 0..15): == 14992, < 7544, > 7464 (signed); < 7544, > 7464 (unsigned): `if ((script[1] & 0xF) == (script[1] >> 4)) {`
+  - compare +25 (16-bit, constant 8191): == 0, < 9223, > 20777 (signed); < 1848, > 28152 (unsigned): `if (temp_v0_4 < 0x2000) {`
+  - +25 eq: boundary equality never occurred (16-bit compare, constant 8191: both sides seen; a port's `<` for `<=` could pass)
+
+## `vs_battle_script_jumpFwdIfFlag` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `script_jump_fwd_if_flag.script_jumpFwdIfFlag`: spec-failed
+
+- **Flags:** the spec needed a retry; not ported: spec-failed
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn script_jumpFwdIfFlag(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: case-0=1884, case-16=1869, case-32=1847, case-48=1872, case-64=1874, case-80=1916, case-96=1909, no-case=16829
+- Mutations (of the C): J1: case 0 bound off by one (> for >=) (caught); J2: comparand read unsigned (MISSED); J3: flag index shifted by 5 instead of 6 (caught); J4: case 64 equal sides jump (<= for <) (caught); J5: case 96 tests nonzero only when the AND is positive (MISSED); J6: jump short read from arg0 + 3 (caught)
+- Coverage: branches 22/22, lines 33/33
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32766, max 32762, unsigned 0..65532, seen zero/negative
+  - compare +6 (32-bit, cases): == 13171, < 0, > 0 (signed); < 0, > 0 (unsigned): `switch (arg0[1] & 0xF0) {`
+  - compare +8 (8-bit, b -128..127): == 331, < 781, > 772 (signed); < 758, > 795 (unsigned): `if (temp_a1 >= temp_a0) {`
+  - compare +13 (8-bit, b -128..127): == 310, < 774, > 785 (signed); < 806, > 753 (unsigned): `if (temp_a0 >= temp_a1) {`
+  - compare +18 (8-bit, b -128..127): == 294, < 768, > 785 (signed); < 777, > 776 (unsigned): `if (temp_a0 == temp_a1) {`
+  - compare +23 (8-bit, b -128..127): == 303, < 777, > 792 (signed); < 803, > 766 (unsigned): `if (temp_a0 != temp_a1) {`
+  - compare +28 (8-bit, b -128..127): == 323, < 769, > 782 (signed); < 815, > 736 (unsigned): `if (temp_a0 < temp_a1) {`
+  - compare +33 (8-bit, b -128..127): == 311, < 801, > 804 (signed); < 773, > 832 (unsigned): `if (temp_a1 < temp_a0) {`
+  - compare +38 (8-bit, constant 0): == 277, < 557, > 1075 (signed); < 0, > 1632 (unsigned): `if (temp_a0 & temp_a1) {`
+
+## `vs_battle_script_jumpFwdIfFlags` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `script_jump_fwd_if_flags.script_jumpFwdIfFlags`: spec-failed
+
+- **Flags:** the spec needed a retry; not ported: spec-failed
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn script_jumpFwdIfFlags(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: case0=1873, case16=1835, case32=1824, case48=1928, case64=1890, case80=1950, no-case=18700
+- Mutations (of the C): C1: case 0 compares < instead of <= (caught); C2: case 16 compares > instead of >= (caught); C3: first flag read unsigned (signed/unsigned slip) (MISSED); C4: case 64 uses <= instead of < (caught); C5: second flag index masks bit 0 instead of bits 0-1 (caught); C6: jump offset read from arg0 + 2 (caught)
+- Coverage: branches 17/19, lines 27/29
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32758, max 32764, unsigned 2..65532, seen negative, never zero
+  - compare +6 (32-bit, cases): == 11300, < 0, > 0 (signed); < 0, > 0 (unsigned): `switch (arg0[1] & 0xF0) {`
+  - compare +8 (8-bit, b -128..127): == 943, < 0, > 930 (signed); < 930, > 0 (unsigned): `if (temp_s0 <= temp_a0) {`
+  - compare +13 (8-bit, b -128..127): == 897, < 0, > 938 (signed); < 938, > 0 (unsigned): `if (temp_s0 >= temp_a0) {`
+  - compare +18 (8-bit, b -128..127): == 908, < 0, > 916 (signed); < 916, > 0 (unsigned): `if (temp_s0 == temp_a0) {`
+  - compare +23 (8-bit, b -128..127): == 946, < 0, > 982 (signed); < 982, > 0 (unsigned): `if (temp_s0 != temp_a0) {`
+  - compare +28 (8-bit, b -128..127): == 960, < 0, > 930 (signed); < 930, > 0 (unsigned): `if (temp_s0 < temp_a0) {`
+  - compare +33 (8-bit, b -128..127): == 960, < 0, > 990 (signed); < 990, > 0 (unsigned): `if (temp_s0 > temp_a0) {`
+  - +8 b1: branch never taken
+  - +33 b0: branch never taken
+
+## `vs_battle_script_loadSoundFile` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `script_load_sound_file.script_loadSoundFile`: ported
+
+- **Flags:** the spec needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn script_loadSoundFile(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: arg1-negative=8928, arg1-zero=2034, arg1-positive=9038
+- Mutations (of the C): S1: music slot 2 instead of 3 (caught); S2: sound file load dropped (caught); S3: the two loads swapped (caught); S4: id held unsigned (caught); S5: id held at full int width (caught); S6: wrong return value (caught)
+- Coverage: branches 0/0, lines 5/5
+  - arg 0: pointer: null seen
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `vs_battle_script_setFlag` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `script_set_flag.script_setFlag`: spec-failed
+
+- **Flags:** the spec needed a retry; not ported: spec-failed
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn script_setFlag(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: add=1828, sub=1823, mul=1917, div=1891, mod=1877, and=1952, or=1861, copy=1918, abs=1881, swap=1779, no-case=11273
+- Mutations (of the C): S1: flag0's high bits read from a 3-bit mask (caught); S2: subtract op adds (caught); S3: abs test off by one (tmp == 0 negated) (MISSED); S4: swap stores the reloaded flag0 instead of prev (caught); S5: copy op drops its store (caught)
+- Coverage: branches 11/11, lines 45/45
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32763, max 32767, unsigned 0..65534, seen zero/negative/signed max
+  - compare +8 (32-bit, cases): == 18727, < 0, > 0 (signed); < 0, > 0 (unsigned): `switch (arg0[1] & 0xF0) {`
+
+## `vs_battle_script_setFlagIfButton` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `script_set_flag_if_button.script_setFlagIfButton`: ported
+
+- **Flags:** the port needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn script_setFlagIfButton(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: sign-clear=15109, sign-set-low-zero=5550, sign-set=9341
+- Mutations (of the C): F1: flag mask drops bit 9 (caught); F2: sign test on bit 14 (caught); F3: pressed state read from pad[1] (caught); F4: short read at arg0, not arg0 + 1 (caught); F5: returns 1 (caught)
+- Coverage: branches 2/2, lines 4/4
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32764, unsigned 0..65534, seen zero/negative
+  - compare +3 (16-bit, constant 0): == 1848, < 14891, > 13261 (signed); < 0, > 28152 (unsigned): `vs_battle_setStateFlag(temp_v0 & 0x3FF, temp_v0 & 0x8000`
+
+## `vs_battle_script_setFlagIfItemInInventory` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `script_set_flag_if_item_in_inventory.script_setFlagIfItemInInventory`: spec-failed
+
+- **Flags:** the spec needed a retry; not ported: spec-failed
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn script_setFlagIfItemInInventory(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+
+## `vs_battle_script_setFlagImm` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `script_set_flag_imm.script_setFlagImm`: spec-failed
+
+- **Flags:** the spec needed a retry; not ported: spec-failed
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn script_setFlagImm(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: add=1885, sub=1835, mul=1875, div=1895, mod=1888, and=1878, or=1869, set=1863, nop=15012
+- Mutations (of the C): F1: subtraction adds (caught); F2: division multiplies (caught); F3: set drops the value and stores 0 (caught); F4: flag index shifted by 3, not 2 (caught); F5: operand taken from arg1, not arg0[3] (MISSED); F6: operand read signed (bytes 0x80-0xFF go negative) (caught)
+- Coverage: branches 9/9, lines 30/30
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+  - compare +6 (32-bit, cases): == 14988, < 0, > 0 (signed); < 0, > 0 (unsigned): `switch (temp_a1 & 0xF0) {`
+
+## `vs_battle_script_setFlagImmContext` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `script_set_flag_imm_context.script_setFlagImmContext`: ported
+
+- **Flags:** the spec needed a retry
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn script_setFlagImmContext(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: arena-arg0=15043, low-ram-arg0=4957
+- Mutations (of the C): S1: wrong offset to getShort (arg0 + 2) (caught); S2: returns 1 instead of 0 (caught); S3: the store to D_800F4BB4 is dropped (caught); S4: getShort result narrowed to u_char before getStateFlag (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `vs_battle_script_setStringContextInt` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `script_set_string_context_int.script_setStringContextInt`: spec-failed
+
+- **Flags:** the spec needed a retry; not ported: spec-failed
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn script_setStringContextInt(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: mode0=7316, mode1=7662, mode2=7548, mode3=7474
+- Mutations (of the C): S1: flag index masked to 9 bits (caught); S2: mode 1 zero-extends instead of sign-extending (caught); S3: mode 3 zero-extends the 16-bit value (caught); S4: mode 0 reads the next flag index (caught); S5: mode 0 store dropped (caught); S6: returns 1 (caught)
+- Coverage: branches 4/5, lines 21/21
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32767, max 32766, unsigned 3..65534, seen negative, never zero
+  - compare +3 (32-bit, cases): == 30000, < 0, > 0 (signed); < 0, > 0 (unsigned): `switch (arg0[3] >> 6) {`
+  - +3 b4: branch never taken
 
 ## `func_800BFBB8` (src/BATTLE/BATTLE.PRG/573B8.c) -> `func_800BFBB8.func_800BFBB8`: spec-failed
 
@@ -8087,6 +9501,1476 @@ lists it under Reviewed.
   - arg 0: pointer: null seen
   - arg 1: pointer: never null
   - arg 2: 32-bit: min 0, max 256, seen zero, never negative
+
+## `_atan2FixedPoint` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `atan2_fixed_point.atan2FixedPoint`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn atan2FixedPoint(arg0: c_int, arg1: c_int) callconv(.c) c_int`
+- Input classes: both-negative=6173, y-negative=7247, x-negative=7486, both-nonnegative=9094
+- Mutations (of the C): A1: wrong shift constant on y (>> 7) (caught); A2: arguments swapped into ratan2 (caught); A3: logical shift on y (unsigned) instead of arithmetic (caught); A4: signed division instead of shift on x (caught); A5: x shift dropped (caught)
+- Coverage: branches 0/0, lines 1/1
+  - arg 0: 32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones
+  - arg 1: 32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones
+
+## `_setVectorImm` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `set_vector_imm.setVectorImm`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn setVectorImm(arg0: ?*v.VECTOR, arg1: [*c]u8) callconv(.c) ?*v.VECTOR`
+- Input classes: src-aligned=7529, src-plus-1=7448, src-plus-2=7591, src-plus-3=7432
+- Mutations (of the C): S1: wrong scale constant (4095 for ONE) (caught); S2: vy read from the vz offset (caught); S3: vz store dropped (zero instead of the read) (caught); S4: vx read as unsigned short (sign lost) (caught); S5: returns null instead of arg0 (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: pointer: never null
+
+## `_vecToRotMatrix` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `vec_to_rot_matrix.vecToRotMatrix`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn vecToRotMatrix(arg0: ?*v.VECTOR, arg1: ?*v.MATRIX) callconv(.c) void`
+- Input classes: zero=1587, sum-overflow=5113, wide=19785, negative=2883, positive=632
+- Mutations (of the C): V1: shift by 11, not 12 (caught); V2: ratan2 arguments swapped for the yaw (caught); V3: square sum becomes a difference (caught); V4: pitch argument not narrowed to i16 (caught); V5: roll component set to 1, not 0 (caught)
+- Coverage: branches 0/0, lines 9/9
+  - arg 0: pointer: never null
+  - arg 1: pointer: never null
+
+## `func_800B66E4` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B66E4.func_800B66E4`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B66E4(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: null-arg0-zero-arg1=746, null-arg0-nonzero-arg1=9343, block-arg0-zero-arg1=745, block-arg0-nonzero-arg1=9166
+- Mutations (of the C): R1: returns 1 instead of 0 (caught); R2: returns arg1 instead of 0 (caught); R3: returns a null test of arg0 (caught); R4: arg1 truncated to a byte (caught); R5: returns -1 for a negative arg1 (caught)
+- Coverage: branches 0/0, lines 1/1
+  - arg 0: pointer: null seen
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800B66EC` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B66EC.func_800B66EC`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B66EC(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: null-arg0=5095, arena-arg0=14905
+- Mutations (of the C): R1: returns 3 instead of 4 (caught); R2: returns 5 instead of 4 (caught); R3: returns 0 instead of 4 (caught)
+- Coverage: branches 0/0, lines 1/1
+  - arg 0: pointer: null seen
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800B6724` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B6724.func_800B6724`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B6724(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: bit1-set=15076, bit1-clear=14924
+- Mutations (of the C): F1: bit inverted (caught); F2: wrong bit (bit 0 read for bit 1) (caught); F3: wrong field (unk4 bit 1 read) (caught); F4: bitfield width slip (3 bits read) (caught)
+- Coverage: branches 0/0, lines 1/1
+  - arg 0: pointer: null seen
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800B6744` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B6744.func_800B6744`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B6744(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: zero-68-even=3203, zero-68-odd=4466, nonzero-68-even=9307, nonzero-68-odd=13024
+- Mutations (of the C): D1: D_800F4C2C stores 2 instead of 1 (caught); D2: parity read from bit 1 instead of bit 0 (caught); D3: byte 0 read instead of byte 1 (caught); D4: return value 2 instead of 4 (caught); D5: the D_800F4C2C store is dropped (caught); D6: the parity flag is not inverted (caught)
+- Coverage: branches 2/2, lines 4/4
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65531, seen zero/negative/signed max
+  - compare +3 (32-bit, constant 0): == 12510, < 0, > 17490 (signed); < 0, > 17490 (unsigned): `D_800F4C20 = !(arg0[1] & 1);`
+  - compare +4 (8-bit, constant 0): == 7669, < 11346, > 10985 (signed); < 0, > 22331 (unsigned): `return (D_800F4C68 != 0) * 4;`
+
+## `func_800B6868` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B6868.func_800B6868`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B6868(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: flag-two=3899, flag-other=26101
+- Mutations (of the C): M1: the callee's path returns 5 (caught); M2: func_800B6778 call dropped (caught); M3: flag compared with the wrong constant (caught); M4: getShort index read unsigned (caught); M5: getShort reads the wrong offset (caught); M6: flag store moved into the call path only (caught)
+- Coverage: branches 2/2, lines 7/7
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32766, max 32767, unsigned 0..65530, seen zero/negative/signed max
+  - compare +4 (8-bit, constant 2): == 3899, < 14934, > 11167 (signed); < 3786, > 22315 (unsigned): `if (temp_v1 == 2) {`
+
+## `func_800B68C4` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B68C4.func_800B68C4`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B68C4(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: two=11233, other=18767
+- Mutations (of the C): M1: the test compares against -126 (0x82), not 2 (caught); M2: returns 3 instead of 4 (caught); M3: the clearing store is dropped (caught); M4: the callee call is dropped (caught); M5: the test re-reads the global after clearing it (caught)
+- Coverage: branches 2/2, lines 7/7
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32758, max 32764, unsigned 2..65532, seen negative, never zero
+  - compare +4 (8-bit, constant 2): == 11233, < 14954, > 3813 (signed); < 7402, > 11365 (unsigned): `if (temp_v1 == 2) {`
+
+## `func_800B6F8C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B6F8C.func_800B6F8C`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B6F8C(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: byte-zero=3052, byte-high=13433, byte-low=13515
+- Mutations (of the C): M1: arg0[1] read as signed char (caught); M2: wrong byte index (arg0[0]) (caught); M3: signed test (> 0) instead of != 0 (caught); M4: dropped call (no dismissTextBox) (caught); M5: wrong constant (!= 1) (caught)
+- Coverage: branches 0/0, lines 2/2
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32764, unsigned 0..65534, seen zero/negative
+  - compare +2 (32-bit, constant 0): == 7716, < 9211, > 13073 (signed); < 0, > 22284 (unsigned): `return vs_battle_dismissTextBox(arg0[1]) != 0;`
+
+## `func_800B7014` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B7014.func_800B7014`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B7014(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: null-table=9967, sign-bit-set=9971, sign-bit-clear=10062
+- Mutations (of the C): F1: arg0[2] read as unsigned char (caught); F2: arg0[4] shifted by 6, not 7 (caught); F3: the unk3 clear is dropped (caught); F4: unk0_24 store moved after the call (caught); F5: unk0_24 written to the unk0_6 field (caught); F6: NULL guard dropped (caught)
+- Coverage: branches 2/2, lines 14/14
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32766, max 32766, unsigned 1..65530, seen negative, never zero
+
+## `func_800B71F4` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B71F4.func_800B71F4`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B71F4(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: all-zero=3925, only-0=4042, only-1=4030, only-2=3985, several=4018
+- Mutations (of the C): F1: entry 2 read from the wrong field (unk2) (caught); F2: the entry 0 and 1 OR becomes an AND (caught); F3: entry 2 dropped from the test (caught); F4: result not normalised to 0 or 1 (caught); F5: entry 1 read from entry 0 (caught)
+- Coverage: branches 0/0, lines 2/2
+  - arg 0: pointer: null seen
+  - arg 1: 16-bit: min -32758, max 32764, unsigned 4..65535, seen negative/all ones, never zero
+  - compare +2 (8-bit, constant 0): == 3925, < 9652, > 6423 (signed); < 0, > 16075 (unsigned): `return (D_800F4B30[2].unk3 | (D_800F4B30[0].unk3 | D_800F4B30[1].unk3)) != 0;`
+
+## `func_800B860C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B860C.func_800B860C`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B860C(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: case0=4980, case1=4888, case2=5038, default=5094
+- Mutations (of the C): F1: case 0 drops its func_8007CB84 call (caught); F2: case 0 reads the short at arg0 + 2 (caught); F3: case 1 index base 0x1B, not 0x1A (caught); F4: case 1 shifts the index by 3, not 4 (caught); F5: case 2 masks its unit with 1, not 3 (caught); F6: returns arg1 instead of 0 (caught)
+- Coverage: branches 4/4, lines 13/13
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+  - compare +2 (32-bit, cases): == 14906, < 0, > 0 (signed); < 0, > 0 (unsigned): `switch ((arg0[3] >> 2) & 3) {`
+
+## `func_800B8708` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B8708.func_800B8708`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B8708(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: clear-flag-other=7578, clear-flag2=7447, set-flag-other=7459, set-flag2=7516
+- Mutations (of the C): M1: low bits passed to CC4C masked with 2 (caught); M2: flag result scaled by 2, not 4 (caught); M3: sign bit counted as the bit-2 test (caught); M4: clear-branch call dropped (caught); M5: byte passed to CBBC with its top bit cleared (caught)
+- Coverage: branches 4/4, lines 5/5
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32763, max 32767, unsigned 1..65534, seen negative/signed max, never zero
+  - compare +2 (32-bit, constant 0): == 15025, < 0, > 14975 (signed); < 0, > 14975 (unsigned): `if (arg0[1] & 4) {`
+  - compare +7 (8-bit, constant 2): == 7605, < 11472, > 10923 (signed); < 175, > 22220 (unsigned): `return (D_800F4C2C == 2) * 4;`
+
+## `func_800B8764` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B8764.func_800B8764`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B8764(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: sign-byte=9984, plain-byte=10016
+- Mutations (of the C): M1: the callee gets arg0[0], not arg0[1] (caught); M2: the call is dropped (caught); M3: wrong return constant (caught); M4: signed byte slip on the argument (caught); M5: the callee gets arg1 instead of the byte (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32764, max 32766, unsigned 0..65532, seen zero/negative
+
+## `func_800B884C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B884C.func_800B884C`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B884C(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: index0=9980, index1=9892, index2=10128
+- Mutations (of the C): S1: table indexed by arg0[2] (caught); S2: callee gets arg1 instead of the table entry (caught); S3: iterator value read as signed short (caught); S4: wrong return constant (caught); S5: wrong offset to the getShort argument (caught); S6: dropped callee call (caught)
+- Coverage: branches 2/2, lines 7/7
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+  - compare +9 (32-bit, constant 1): == 30000, < 9441, > 37234 (signed); < 9441, > 37234 (unsigned): `if (temp_a0 == 1) {`
+
+## `func_800B8C44` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B8C44.func_800B8C44`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B8C44(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: negative=8712, zero=1248, positive=10040
+- Mutations (of the C): F1: wrong constant, result xor 1 (caught); F2: result narrowed to short (caught); F3: the global read dropped, returns 0 (caught); F4: arg1 xored in (a port reading an unused argument) (caught); F5: arg1 read unsigned (signed/unsigned slip) (caught)
+- Coverage: branches 0/0, lines 1/1
+  - arg 0: pointer: null seen
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800B8C54` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B8C54.func_800B8C54`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B8C54(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: skip-0xFF=9824, store=20176
+- Mutations (of the C): S1: stored value off by one (caught); S2: store dropped (caught); S3: wrong source byte (arg0[0] for arg0[2]) (caught); S4: index read from arg0[2] (masked to stay in the table) (caught); S5: guard never true (store always skipped) (caught); S6: return arg1 instead of 0 (caught)
+- Coverage: branches 2/2, lines 4/4
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32767, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+  - compare +2 (8-bit, constant -1): == 9824, < 0, > 20176 (signed); < 20176, > 0 (unsigned): `if (arg0[1] != 0xFF) {`
+
+## `func_800B91C4` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B91C4.func_800B91C4`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B91C4(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: arena=22572, scratchpad=7428
+- Mutations (of the C): F1: callee arguments swapped (caught); F2: byte sign-extended (signed slip) (caught); F3: call dropped (reads kept) (caught); F4: arg1 used for the second argument (caught); F5: wrong return constant (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32764, max 32767, unsigned 1..65532, seen negative/signed max, never zero
+
+## `func_800B9230` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B9230.func_800B9230`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B9230(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: high-bit=9054, low-bit=10946
+- Mutations (of the C): F1: reads arg0[0] instead of arg0[1] (caught); F2: the byte passed signed (sign-extended) (caught); F3: the call dropped (caught); F4: return value changed (caught); F5: argument off by one (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800B92D0` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B92D0.func_800B92D0`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B92D0(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: byte1-high=13618, byte1-low=16382
+- Mutations (of the C): M1: reads arg0[0] instead of arg0[1] (caught); M2: wrong xor constant (caught); M3: the call is dropped (caught); M4: returns arg1 instead of 0 (caught); M5: signed narrowing of the argument (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800B94D8` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B94D8.func_800B94D8`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B94D8(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: else-branch=1559, call-sign-bit=12744, call-no-sign-bit=15697
+- Mutations (of the C): M1: table arguments swapped (caught); M2: wrong shift for byte 5 (caught); M3: else-branch call dropped (caught); M4: selector bound is > 1, not != 0 (caught); M5: return value is arg1 (caught); M6: byte 6 shifted by 9 (caught)
+- Coverage: branches 2/2, lines 6/6
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32767, max 32767, unsigned 2..65533, seen negative/signed max, never zero
+  - compare +2 (8-bit, constant 0): == 1559, < 14189, > 14252 (signed); < 0, > 28441 (unsigned): `if (arg0[1] != 0) {`
+
+## `func_800B9564` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B9564.func_800B9564`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B9564(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: below=6226, equal=2101, above=10074, negative=11599
+- Mutations (of the C): M1: <= for < on the halfword bound (caught); M2: signed compare of the unsigned halfword (caught); M3: wrong constant for the default value (caught); M4: dropped store of the shift nibble (caught); M5: text box index from the high nibble (caught); M6: callee gets the wrong byte (caught)
+- Coverage: branches 2/2, lines 9/9
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32758, max 32764, unsigned 2..65532, seen negative, never zero
+  - compare +9 (16-bit, constant 8191): == 2150, < 15675, > 12175 (signed); < 4076, > 23774 (unsigned): `if (temp_s0 < 0x2000) {`
+
+## `func_800B96B0` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B96B0.func_800B96B0`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B96B0(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: counter-zero=5059, buttons-pressed=7730, expires=6759, counts-down=10452
+- Mutations (of the C): M1: counter stored from arg0[1], not arg0[2] (caught); M2: button mask read from arg0[0] (caught); M3: expiry test '< 0' instead of '<= 0' (caught); M4: the button clear is dropped (caught); M5: the final return is 0, not 1 (caught)
+- Coverage: branches 6/6, lines 9/9
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min 0, max 3, seen zero, never negative, 4 value(s): 1, 0, 3, 2
+  - compare +2 (16-bit, constant 0): == 5059, < 9792, > 15149 (signed); < 0, > 24941 (unsigned): `if (D_800F4C58[arg1] == 0) {`
+  - compare +6 (32-bit, constant 0): == 17211, < 0, > 7730 (signed); < 0, > 7730 (unsigned): `if ((vs_main_buttonsPressed.all & arg0[1]) || (--D_800F4C58[arg1] <= 0)) {`
+  - compare +6 (16-bit, constant 0): == 3469, < 3290, > 10452 (signed); < 0, > 13742 (unsigned): `if ((vs_main_buttonsPressed.all & arg0[1]) || (--D_800F4C58[arg1] <= 0)) {`
+
+## `func_800B9724` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B9724.func_800B9724`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B9724(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: bit3-set=15897, bit3-clear=14103
+- Mutations (of the C): M1: value nibble masked with 7, not 3 (bit 6 leaks into the stored bits) (caught); M2: sign extension fills 0xF0, not 0xF8 (bit 3 lost in the stored byte) (caught); M3: low field masked with 6, not 7 (bit 0 dropped) (caught); M4: the first store is dropped (caught); M5: sign test on bit 7 instead of bit 3 (signed-byte slip) (caught); M6: returns 1, not 0 (caught)
+- Coverage: branches 2/2, lines 9/9
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32764, max 32765, unsigned 0..65527, seen zero/negative
+  - compare +11 (32-bit, constant 0): == 14103, < 0, > 15897 (signed); < 0, > 15897 (unsigned): `if (arg0[1] & 8) {`
+
+## `func_800B9770` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B9770.func_800B9770`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B9770(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: byte1-high=13501, byte1-low=16499
+- Mutations (of the C): F1: the two bytes passed swapped (caught); F2: first byte read at index 0 (caught); F3: first byte read as signed char (sign-extended) (caught); F4: the call dropped (a load kept) (caught); F5: returns 1, not 0 (caught); F6: wrong index for the second byte (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800B979C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B979C.func_800B979C`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B979C(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: sign-clear=15023, sign-set-low-zero=5598, sign-set-low-bits=9379
+- Mutations (of the C): M1: sign test on an unsigned temp (stores 1, not 0xFF) (caught); M2: mask 0x3FF instead of 0x7FF (caught); M3: the call dropped (caught); M4: wrong variable passed (arg1 for temp) (caught); M5: return arg1 instead of 0 (caught)
+- Coverage: branches 2/2, lines 6/6
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32766, unsigned 0..65535, seen zero/negative/all ones
+  - compare +4 (8-bit, constant 0): == 15023, < 14977, > 0 (signed); < 0, > 14977 (unsigned): `if (D_800F4C6A) {`
+
+## `func_800B97E4` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B97E4.func_800B97E4`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B97E4(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: sign-set=10071, sign-clear=9929
+- Mutations (of the C): M1: byte read at index 0, not 1 (caught); M2: return 1, not 0 (caught); M3: store dropped (caught); M4: byte read as signed char (sign-extends bytes >= 0x80) (caught); M5: arg1 folded into the stored value (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800B97F8` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B97F8.func_800B97F8`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B97F8(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: null-arg0=5095, arena-arg0=14905
+- Mutations (of the C): F1: returns 1, not 0 (caught); F2: returns arg1 instead of 0 (caught); F3: the call is dropped (caught); F4: the call is made twice (caught); F5: returns -1, not 0 (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: null seen
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800B9818` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B9818.func_800B9818`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B9818(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: byte-high=9993, byte-low=10007
+- Mutations (of the C): F1: the byte is read signed (caught); F2: the wrong byte is passed (arg0[0]) (caught); F3: the call is dropped (caught); F4: the return value is 1 (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32764, max 32757, unsigned 0..65526, seen zero/negative
+
+## `func_800B983C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B983C.func_800B983C`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B983C(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: byte-zero=2101, byte-sign-bit=8995, byte-other=8904
+- Mutations (of the C): M1: reads arg0[0] instead of arg0[1] (caught); M2: byte passed as signed char (sign-bit bytes go negative) (caught); M3: the call to func_800919D8 dropped (caught); M4: returns arg1 instead of 0 (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32767, max 32766, unsigned 6..65530, seen negative, never zero
+
+## `func_800B9860` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B9860.func_800B9860`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B9860(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: arg1-negative=9021, arg1-nonnegative=10979
+- Mutations (of the C): M1: the two arguments swapped (caught); M2: arg1 passed where arg0[2] belongs (caught); M3: the call dropped (caught); M4: first byte read as signed (caught); M5: wrong constant returned (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800B988C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B988C.func_800B988C`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B988C(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: sign-bit-in-args=18756, no-sign-bit=1244
+- Mutations (of the C): F1: arguments 2 and 3 swapped (caught); F2: first byte read signed (sign-extended) (caught); F3: fourth argument read from index 0 (caught); F4: the call dropped (caught); F5: wrong return constant (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32767, max 32761, unsigned 0..65532, seen zero/negative
+
+## `func_800B98C0` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B98C0.func_800B98C0`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B98C0(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: done-2=5936, skipped-other=18044, callee-zero=2863, callee-nonzero=3157
+- Mutations (of the C): M1: done test against 3 instead of 2 (caught); M2: wrong flag bit for the new state (caught); M3: second callee call dropped (caught); M4: BE10 gets bit 2 instead of bit 3 (caught); M5: unk6_10 stored from the wrong byte (caught); M6: new state read from the pre-call copy of byte 7 (caught)
+- Coverage: branches 8/8, lines 19/19
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32766, max 32760, unsigned 2..65534, seen negative, never zero
+  - compare +4 (16-bit, constant 0): == 6020, < 9111, > 14869 (signed); < 0, > 23980 (unsigned): `if (D_800F4BE2 == 0) {`
+  - compare +15 (8-bit, constant 0): == 2863, < 1564, > 1593 (signed); < 0, > 3157 (unsigned): `if (arg0[1] == 0) {`
+  - compare +21 (32-bit, constant 0): == 3037, < 0, > 2983 (signed); < 0, > 2983 (unsigned): `D_800F4BE2 = arg0[7] & 4 ? 1 : 3;`
+  - compare +24 (16-bit, constant 2): == 5936, < 15147, > 8917 (signed); < 6036, > 18028 (unsigned): `if (D_800F4BE2 == 2) {`
+
+## `func_800B9A40` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B9A40.func_800B9A40`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B9A40(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: ret-zero=9933, ret-five=10073, ret-other=9994
+- Mutations (of the C): M1: the sprite-size multiplier is 8, not 16 (caught); M2: the first two arguments swapped (caught); M3: the outer test is != 4 (5 takes the inner path) (caught); M4: the call is guarded by == 1, not == 0 (caught); M5: arg0[3] read as signed (signed char slip) (caught); M6: the call to func_8007C46C dropped (caught)
+- Coverage: branches 4/4, lines 7/7
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32764, max 32766, unsigned 3..65531, seen negative, never zero
+  - compare +3 (32-bit, constant 5): == 10073, < 14958, > 4969 (signed); < 9933, > 9994 (unsigned): `if (temp_v0 != 5) {`
+  - compare +4 (32-bit, constant 0): == 9933, < 5025, > 4969 (signed); < 0, > 9994 (unsigned): `if (temp_v0 == 0) {`
+
+## `func_800B9A94` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B9A94.func_800B9A94`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B9A94(arg0: [*c]u8) callconv(.c) c_int`
+- Input classes: sign-bit=8916, no-sign-bit=11084
+- Mutations (of the C): M1: wrong scale constant (0x20 for 0x10) (caught); M2: arguments 1 and 2 swapped (caught); M3: the call dropped (caught); M4: signed slip on byte 3 (sign-extended before the scale) (caught); M5: wrong return value (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+
+## `func_800B9AC4` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B9AC4.func_800B9AC4`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B9AC4(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: byte-zero=1667, byte-low=9904, byte-sign=8429
+- Mutations (of the C): M1: wrong byte index (arg0[0] for arg0[1]) (caught); M2: wrong constant (0x8 for 0x10) (caught); M3: signed slip (signed char read of the byte) (caught); M4: wrong return value (caught); M5: dropped call (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800B9AE8` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B9AE8.func_800B9AE8`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B9AE8(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: byte3-low=10983, byte3-high=9017
+- Mutations (of the C): F1: arg0[1] and arg0[2] swapped in the call (caught); F2: wrong scale on byte 3 (0x11 for 0x10) (caught); F3: the call is dropped (caught); F4: returns 1 instead of 0 (caught); F5: byte 3 read as signed char (sign-extends for 0x80 and up) (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32766, max 32755, unsigned 3..65533, seen negative, never zero
+
+## `func_800B9B18` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B9B18.func_800B9B18`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B9B18(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: s1=2, s2=2, s3=2, (2 = 2 or 3)=3810
+- Mutations (of the C): F1: first selector masked to 1 bit (case 2 and 3 take case 0) (caught); F2: second selector shifted by 3, not 2 (caught); F3: the third switch's callee dropped (caught); F4: second switch case 0 calls the wrong callee (caught); F5: return value 1, not 0 (caught); F6: third selector read from arg0[0] (byte slip) (caught)
+- Coverage: branches 9/9, lines 23/23
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32758, max 32764, unsigned 2..65532, seen negative, never zero
+  - compare +2 (32-bit, cases): == 15025, < 0, > 0 (signed); < 0, > 0 (unsigned): `switch (arg0[1] & 3) {`
+  - compare +11 (32-bit, cases): == 14946, < 0, > 0 (signed); < 0, > 0 (unsigned): `switch ((arg0[1] >> 2) & 3) {`
+  - compare +20 (32-bit, cases): == 14838, < 0, > 0 (signed); < 0, > 0 (unsigned): `switch ((arg0[1] >> 4) & 3) {`
+
+## `func_800B9C18` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B9C18.func_800B9C18`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B9C18(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: byte1-zero=6681, byte1-nonzero-sign=6662, byte1-nonzero-low=6657
+- Mutations (of the C): M1: the nonzero branch calls the zero-byte callee (caught); M2: the zero branch's call dropped (caught); M3: test on byte 0, not byte 1 (caught); M4: signed byte test (high-bit bytes take the zero branch) (caught); M5: wrong constant (byte 1 equal to 1 takes the zero branch) (caught); M6: wrong return value (caught)
+- Coverage: branches 2/2, lines 5/5
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+  - compare +2 (8-bit, constant 0): == 6681, < 6662, > 6657 (signed); < 0, > 13319 (unsigned): `if (arg0[1] != 0) {`
+
+## `func_800B9F28` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B9F28.func_800B9F28`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B9F28(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: byte-sign-clear=10980, byte-sign-set=9020
+- Mutations (of the C): F1: reads arg0[0] instead of arg0[1] (caught); F2: the byte is sign-extended as a signed char (caught); F3: the call is dropped (caught); F4: returns 1 instead of 0 (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32757, max 32764, unsigned 3..65532, seen negative, never zero
+
+## `func_800B9F70` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B9F70.func_800B9F70`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B9F70(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: null-arg0=10060, negative-arg1=7831, other=12109
+- Mutations (of the C): M1: comparison inverted (caught); M2: ordered compare instead of equality (caught); M3: only the low byte of the result is tested (caught); M4: callee dropped, constant result (caught)
+- Coverage: branches 0/0, lines 1/1
+  - arg 0: pointer: null seen
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+  - compare +0 (32-bit, constant 0): == 7559, < 11105, > 11336 (signed); < 0, > 22441 (unsigned): `int func_800B9F70__orig(u_char* arg0, short arg1) { return func_8008F0FC() == 0; }`
+
+## `func_800B9F90` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B9F90.func_800B9F90`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B9F90(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: global-is-two=10142, global-other=9858
+- Mutations (of the C): M1: multiplier 5 instead of 4 (caught); M2: compares against 3 instead of 2 (caught); M3: inverted comparison (caught); M4: callee call dropped (caught); M5: global read before the call (caught)
+- Coverage: branches 2/2, lines 3/3
+  - arg 0: pointer: null seen
+  - arg 1: 16-bit: min -32765, max 32767, unsigned 7..65532, seen negative/signed max, never zero
+  - compare +3 (8-bit, constant 2): == 10147, < 5063, > 4790 (signed); < 70, > 9783 (unsigned): `return (D_800F4C2C == 2) * 4;`
+
+## `func_800B9FC0` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800B9FC0.func_800B9FC0`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800B9FC0(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: flag-zero=10127, delta-equal-low=4007, delta-equal-high=4016, delta-wrap-low=5779, delta-wrap-high=5837, delta-mid=234
+- Mutations (of the C): F1: wrap-low bound is <= instead of < (caught); F2: unkE adds base instead of subtracting it (caught); F3: the func_80091320 call is dropped (caught); F4: unk12 read from unk14 instead of unk10 (caught); F5: wrap constant 4095 instead of 4096 (caught); F6: unk3 stores a boolean, not the flag byte (caught)
+- Coverage: branches 6/6, lines 22/22
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32763, unsigned 0..65532, seen zero/negative
+  - compare +3 (8-bit, constant 0): == 10127, < 9963, > 9910 (signed); < 0, > 19873 (unsigned): `if (arg0[4] == 0) {`
+  - compare +19 (32-bit, constant -2048): == 4007, < 5779, > 10087 (signed); < 15752, > 114 (unsigned): `if (delta < -4096 / 2) {`
+  - compare +21 (32-bit, constant 2048): == 4016, < 4241, > 5837 (signed); < 120, > 9958 (unsigned): `} else if (delta > 4096 / 2) {`
+
+## `func_800BA0E4` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BA0E4.func_800BA0E4`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BA0E4(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: bit0-clear=10031, bit0-set=9969
+- Mutations (of the C): M1: the xor with 1 dropped (caught); M2: wrong byte read (arg0[0]) (caught); M3: returns 1 instead of 0 (caught); M4: the call to func_80091314 dropped (caught); M5: wrong constant (xor 3) (caught); M6: index taken from arg1 (short) instead of 1 (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800BA108` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BA108.func_800BA108`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BA108(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: arg1-flag-set=7453, arg1-flag-clear=7478, global-set-no-arg1=7468, idle=7601
+- Mutations (of the C): M1: early return yields 1 (caught); M2: the early-return guard dropped (caught); M3: start flag stored as a bool (a result with low byte zero reads as set) (caught); M4: the stop call dropped (caught); M5: flag cleared before the stop call (caught); M6: wrong start constant (caught)
+- Coverage: branches 8/8, lines 11/11
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32764, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+  - compare +2 (8-bit, constant 0): == 15079, < 7533, > 7388 (signed); < 0, > 14921 (unsigned): `if (arg0[1] != 0) {`
+  - compare +3 (8-bit, constant 0): == 7453, < 3751, > 3717 (signed); < 0, > 7468 (unsigned): `if (D_800F4C08 != 0) {`
+  - compare +9 (8-bit, constant 0): == 3780, < 1830, > 1843 (signed); < 0, > 3673 (unsigned): `if (D_800F4C08) {`
+  - compare +13 (8-bit, constant 0): == 7601, < 3765, > 3713 (signed); < 0, > 7478 (unsigned): `} else if (D_800F4C08 != 0) {`
+
+## `func_800BA194` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BA194.func_800BA194`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BA194(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: case0-flag-2=1683, case0-flag-above-2=2483, case0-flag-below-2=1735, case1=5980, other=18119
+- Mutations (of the C): F1: gate compares the flag with 1, not 2 (caught); F2: the callee's result tested inverted (caught); F3: func_80093788 dropped (caught); F4: byte 2 read signed (caught); F5: case 1 passes the wrong value (caught)
+- Coverage: branches 7/7, lines 12/12
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 2..65533, seen negative/signed max, never zero
+  - compare +4 (32-bit, cases): == 11881, < 0, > 0 (signed); < 0, > 0 (unsigned): `switch (arg0[1]) {`
+  - compare +6 (8-bit, constant 2): == 1683, < 3385, > 833 (signed); < 1735, > 2483 (unsigned): `if ((D_800F4C2C == 2) && (func_80093764(temp_s0) != 0)) {`
+  - compare +6 (32-bit, constant 0): == 658, < 498, > 527 (signed); < 0, > 1025 (unsigned): `if ((D_800F4C2C == 2) && (func_80093764(temp_s0) != 0)) {`
+
+## `func_800BA264` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BA264.func_800BA264`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BA264(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: byte1-zero=2031, byte1-low=8949, byte1-sign=9020
+- Mutations (of the C): F1: the flag is inverted (caught); F2: the flag reads byte 0 (caught); F3: the raw byte is passed, not the flag (caught); F4: wrong return constant (caught); F5: sign-bit slip (> 0x7F instead of != 0) (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32757, max 32764, unsigned 3..65532, seen negative, never zero
+  - compare +2 (8-bit, constant 0): == 2031, < 9020, > 8949 (signed); < 0, > 17969 (unsigned): `func_8007BDD8(arg0[1] != 0);`
+
+## `func_800BA288` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BA288.func_800BA288`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BA288(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: sign-clear=10015, sign-set=9985
+- Mutations (of the C): F1: the first argument read at index 0 (caught); F2: the second argument unsigned (no sign extension) (caught); F3: the second argument read at index 3 (caught); F4: the callee dropped (caught); F5: returns 1, not 0 (caught); F6: returns arg1, not 0 (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800BA2B4` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BA2B4.func_800BA2B4`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BA2B4(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: both-negative=4035, first-negative=4961, second-negative=4962, both-positive=6042
+- Mutations (of the C): F1: unsigned read of byte 1 (signed/unsigned slip) (caught); F2: wrong shift amount on byte 2 (caught); F3: arguments swapped (caught); F4: the callee is never called (caught); F5: wrong return value (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32766, unsigned 2..65529, seen negative, never zero
+
+## `func_800BA2E0` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BA2E0.func_800BA2E0`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BA2E0(arg0: [*c]u8) callconv(.c) c_int`
+- Input classes: early-return=4444, store-and-play=6832, not-event-2=18724
+- Mutations (of the C): E1: early-return guard uses || instead of && (caught); E2: early return yields 1 (caught); E3: sound table indexed by arg0[2] (caught); E4: store to D_800F4C4C is sign-extended from a byte (caught); E5: store moved after the sound call (caught); E6: fourth sound argument taken from arg0[3] (caught)
+- Coverage: branches 6/6, lines 7/7
+  - arg 0: pointer: never null
+  - compare +2 (8-bit, constant 2): == 11276, < 7486, > 11238 (signed); < 7486, > 11238 (unsigned): `if (arg0[1] == 2 && D_800F4C08 == 0) {`
+  - compare +2 (8-bit, constant 0): == 4444, < 4497, > 2335 (signed); < 0, > 6832 (unsigned): `if (arg0[1] == 2 && D_800F4C08 == 0) {`
+  - compare +5 (8-bit, constant 2): == 6832, < 7486, > 11238 (signed); < 7486, > 11238 (unsigned): `if (arg0[1] == 2) {`
+
+## `func_800BA39C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BA39C.func_800BA39C`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BA39C(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: index-0=3394, index-1-4=13202, index-5=3404
+- Mutations (of the C): M1: table index wraps at 5 (a wrong bound) (caught); M2: arg0[2] and arg0[3] swapped (caught); M3: last argument has bit 0 flipped (caught); M4: returns arg1 instead of 0 (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32766, max 32766, unsigned 13..65533, seen negative, never zero
+
+## `func_800BA3E4` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BA3E4.func_800BA3E4`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BA3E4(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: arg1-negative=9036, arg1-nonnegative=10964
+- Mutations (of the C): M1: the call to func_80045DC0 dropped (caught); M2: returns 1 instead of 0 (caught); M3: returns arg1 instead of 0 (caught); M4: an extra store through arg0 (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800BA404` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BA404.func_800BA404`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BA404(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: in-table=11936, past-table=8064
+- Mutations (of the C): F1: call arguments swapped (caught); F2: table index off by one (caught); F3: dropped call (caught); F4: wrong return value (caught); F5: second byte read signed (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32764, max 32766, unsigned 6..65535, seen negative/all ones, never zero
+
+## `func_800BA52C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BA52C.func_800BA52C`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BA52C(arg0: [*c]u8) callconv(.c) c_int`
+- Input classes: high-byte-args=19626, plain-args=2856, global-equals-arg1=7518
+- Mutations (of the C): M1: first call reads arg0[3] instead of arg0[4] (caught); M2: second call's arg2 and arg3 swapped (caught); M3: signed char slip on arg0[2] (caught); M4: the global store to D_800F4C69 dropped (caught); M5: return value 1 instead of 0 (caught)
+- Coverage: branches 0/0, lines 4/4
+  - arg 0: pointer: never null
+
+## `func_800BA5E8` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BA5E8.func_800BA5E8`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BA5E8(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: sign-bit-set=13239, no-sign-bit=6761
+- Mutations (of the C): F1: the global takes arg0[0] instead of arg0[1] (caught); F2: the second and third arguments swapped (caught); F3: returns 1, not 0 (caught); F4: the store to D_800F4C69 is dropped (caught); F5: third byte read as signed char (sign-extended) (caught); F6: the call to func_80045000 is dropped (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800BA61C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BA61C.func_800BA61C`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BA61C(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: arg0-1-low=9834, arg0-1-high=10166
+- Mutations (of the C): F1: the two byte arguments swapped (caught); F2: wrong byte index (arg0[3] for arg0[2]) (caught); F3: first byte read signed (caught); F4: call dropped (caught); F5: wrong return constant (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32764, max 32759, unsigned 0..65535, seen zero/negative/all ones
+
+## `func_800BA650` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BA650.func_800BA650`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BA650(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: byte1-small=10916, byte1-sign=9084
+- Mutations (of the C): F1: the signed byte read unsigned (caught); F2: the unsigned byte read one past (caught); F3: the call dropped (caught); F4: returns 1 (caught); F5: arg1 passed in place of the global (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800BA684` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BA684.func_800BA684`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BA684(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: byte1-negative=14963, byte1-positive=15037
+- Mutations (of the C): F1: the callee is never called (caught); F2: byte 1 read unsigned (caught); F3: the third byte read at index 3 (caught); F4: returns 1 (caught); F5: the two byte arguments swapped (caught); F6: first argument is arg1, not the global (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800BA6B8` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BA6B8.func_800BA6B8`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BA6B8(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: arg1-negative=13274, arg1-non-negative=16726
+- Mutations (of the C): F1: the callee is never called (caught); F2: the argument is a constant, not the global (caught); F3: the global is sign-extended (signed char slip) (caught); F4: returns arg1 instead of 0 (caught); F5: the callee is called twice (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: null seen
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800BA6E0` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BA6E0.func_800BA6E0`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BA6E0(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: byte-zero=3058, byte-high=13618, byte-low=13324
+- Mutations (of the C): F1: byte read as signed char (caught); F2: wrong buffer byte (caught); F3: first test inverted (caught); F4: second callee gets the wrong argument (caught); F5: wrong return code (caught); F6: dropped call (caught)
+- Coverage: branches 4/4, lines 7/7
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+  - compare +3 (32-bit, constant 0): == 7432, < 11323, > 11245 (signed); < 0, > 22568 (unsigned): `if (func_8004550C(temp_s0) != 0) {`
+  - compare +4 (32-bit, constant 0): == 5687, < 8392, > 8489 (signed); < 0, > 16881 (unsigned): `if (func_800454B8(temp_s0) != 0) {`
+
+## `func_800BA72C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BA72C.func_800BA72C`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BA72C(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: null-arg0=5095, pointer-arg0=14905
+- Mutations (of the C): F1: returns 1 instead of 0 (caught); F2: returns arg1 instead of 0 (caught); F3: the call is dropped (caught); F4: the call is made twice (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: null seen
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800BA7BC` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BA7BC.func_800BA7BC`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BA7BC(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: equal=10023, less=9992, greater=9985
+- Mutations (of the C): M1: shift by 15, not 16 (caught); M2: <= for < (caught); M3: unsigned compare of the signed high half (caught); M4: getShort reads arg0 + 2 (caught); M5: an extra getShort call dropped in (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32767, max 32767, unsigned 1..65535, seen negative/signed max/all ones, never zero
+  - compare +3 (32-bit, b -32768..32767): == 10023, < 9992, > 9985 (signed); < 9995, > 9982 (unsigned): `return temp_s1 < vs_battle_getShort(arg0 + 1);`
+
+## `func_800BA800` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BA800.func_800BA800`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BA800(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: index-low=14983, index-high=15017
+- Mutations (of the C): A1: second argument read from byte 3 (caught); A2: third argument unsigned (no signed char conversion) (caught); A3: table indexed by byte 0 (caught); A4: dropped callee call (caught); A5: wrong return value (caught); A6: fourth argument read from byte 5 (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32762, max 32758, unsigned 1..65534, seen negative, never zero
+
+## `func_800BA848` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BA848.func_800BA848`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BA848(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: index-low=10136, index-high=9864
+- Mutations (of the C): M1: table indexed by byte 2, not byte 1 (caught); M2: bytes 3 and 4 swapped in the call (caught); M3: the call dropped (caught); M4: returns arg1 instead of 0 (caught); M5: byte 2 read signed (sign bit slip) (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32762, max 32765, unsigned 0..65529, seen zero/negative
+
+## `func_800BA890` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BA890.func_800BA890`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BA890(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: sign-clear=15056, sign-set=14944
+- Mutations (of the C): F1: reads arg0[0] instead of arg0[1] (caught); F2: global stored after the call, not before (caught); F3: the call is dropped (caught); F4: returns 1, not 0 (caught); F5: stored value off by one (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800BA90C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BA90C.func_800BA90C`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BA90C(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: flag-not-2=9018, flag-2=10982
+- Mutations (of the C): C1: the flag test is dropped (call never made) (caught); C2: wrong flag constant (3 for 2) (caught); C3: return value changed (caught); C4: signed read of the byte passed to the callee (caught)
+- Coverage: branches 2/2, lines 5/5
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32766, unsigned 2..65529, seen negative, never zero
+  - compare +3 (8-bit, constant 2): == 10505, < 5346, > 4149 (signed); < 1102, > 8393 (unsigned): `if (D_800F4C2C == 2) {`
+
+## `func_800BAA04` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BAA04.func_800BAA04`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BAA04(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: flag-2-before=15050, flag-other-before=14950
+- Mutations (of the C): F1: wrong constant in the return (caught); F2: negated flag test (caught); F3: the call is dropped (caught); F4: flag read before the call (stale after the stub's write) (caught)
+- Coverage: branches 2/2, lines 3/3
+  - arg 0: pointer: null seen
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+  - compare +3 (8-bit, constant 2): == 7530, < 11439, > 11031 (signed); < 184, > 22286 (unsigned): `return (D_800F4C2C == 2) * 4;`
+
+## `func_800BAA34` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BAA34.func_800BAA34`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BAA34(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: arg0-null=5095, arg0-valid=14905
+- Mutations (of the C): F1: compares against 0 instead of 1 (caught); F2: result inverted (caught); F3: wrong constant -1 (caught); F4: ordered compare instead of inequality (caught); F5: callee dropped (caught)
+- Coverage: branches 0/0, lines 1/1
+  - arg 0: pointer: null seen
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+  - compare +0 (32-bit, constant 1): == 2554, < 9960, > 7486 (signed); < 2476, > 14970 (unsigned): `int func_800BAA34__orig(u_char* arg0, short arg1) { return func_8007BF0C() != 1; }`
+
+## `func_800BAA58` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BAA58.func_800BAA58`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BAA58(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: flag-zero=3123, flag-high-bit=13493, flag-low-nonzero=13384
+- Mutations (of the C): F1: the first test compares with 1 (caught); F2: the clear of the flag is dropped (caught); F3: the flag is set before the callee, which rewrites it (caught); F4: the second callee result is compared with 4 (caught); F5: the early return is -1, not 0 (caught); F6: the second callee call is dropped (caught)
+- Coverage: branches 6/6, lines 8/8
+  - arg 0: pointer: null seen
+  - arg 1: 16-bit: min -32766, max 32766, unsigned 0..65533, seen zero/negative
+  - compare +2 (8-bit, constant 0): == 3123, < 13493, > 13384 (signed); < 0, > 26877 (unsigned): `if (D_800F4BB9 == 0) {`
+  - compare +5 (32-bit, constant 0): == 6684, < 6755, > 13438 (signed); < 0, > 20193 (unsigned): `} else if ((func_8007BEE4() == 0) || (func_8007BEE4() == 5)) {`
+  - compare +5 (32-bit, constant 5): == 4975, < 10183, > 5035 (signed); < 5096, > 10122 (unsigned): `} else if ((func_8007BEE4() == 0) || (func_8007BEE4() == 5)) {`
+
+## `func_800BAACC` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BAACC.func_800BAACC`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BAACC(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: low-byte=10980, high-byte=9020
+- Mutations (of the C): F1: reads arg0[2] instead of arg0[1] (caught); F2: byte passed sign-extended (signed char slip) (caught); F3: the call is dropped (caught); F4: returns arg1 instead of 0 (caught); F5: callee gets the byte plus arg1 (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32757, max 32764, unsigned 3..65532, seen negative, never zero
+
+## `func_800BAAF0` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BAAF0.func_800BAAF0`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BAAF0(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: byte-zero=2489, byte-high=10042, byte-low=7469
+- Mutations (of the C): F1: reads byte 0 instead of byte 1 (caught); F2: returns 1, not 0 (caught); F3: byte passed signed (sign-extends high bytes) (caught); F4: the call is dropped (caught); F5: passes arg1 instead of the byte (caught); F6: returns arg1 instead of 0 (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800BABCC` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BABCC.func_800BABCC`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BABCC(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: flag-zero=3057, flag-high-bit=13468, flag-low-bit=13475
+- Mutations (of the C): F1: flag test inverted (caught); F2: getShort reads one byte late (caught); F3: else-branch passes arg0[3] as the selector (caught); F4: temp_v0 unsigned (slip in the short) (caught); F5: the first call dropped (caught); F6: wrong return value (caught)
+- Coverage: branches 2/2, lines 6/6
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 2..65533, seen negative/signed max, never zero
+  - compare +4 (8-bit, constant 0): == 3057, < 13468, > 13475 (signed); < 0, > 26943 (unsigned): `if (arg0[1] != 0) {`
+
+## `func_800BAC38` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BAC38.func_800BAC38`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BAC38(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: byte1-low=10989, byte1-high=9011
+- Mutations (of the C): M1: callee gets arg0[0] instead of arg0[1] (caught); M2: returns 1 instead of 0 (caught); M3: byte read as signed char (sign-extended argument) (caught); M4: dropped call to vs_battle_setDoorEntered2 (caught); M5: returns arg1 instead of 0 (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32764, max 32757, unsigned 0..65526, seen zero/negative
+
+## `func_800BB288` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BB288.func_800BB288`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BB288(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: null-global=7491, unk0-zero=2299, unk0-nonzero=20210
+- Mutations (of the C): F1: returns 2 instead of 1 when the test passes (caught); F2: second test reads unk1 instead of unk0 (caught); F3: the unk0 test inverted (caught); F4: null guard dropped (the C dereferences null) (caught)
+- Coverage: branches 4/4, lines 4/4
+  - arg 0: pointer: null seen
+  - arg 1: 16-bit: min -32766, max 32767, unsigned 1..65530, seen negative/signed max, never zero
+  - compare +2 (8-bit, constant 0): == 2299, < 10022, > 10188 (signed); < 0, > 20210 (unsigned): `if ((D_800EB9B4 != 0) && (D_800EB9B4->unk0 != 0)) {`
+
+## `func_800BB2E4` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BB2E4.func_800BB2E4`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BB2E4(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: arg0-null=5003, arg0-valid=14997
+- Mutations (of the C): F1: the call to func_800CB79C dropped (caught); F2: returns 1, not 0 (caught); F3: returns arg1 (the short) instead of 0 (caught); F4: returns whether arg0 is non-null, not 0 (caught); F5: a store through arg0 added after the call (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: null seen
+  - arg 1: 16-bit: min -32764, max 32766, unsigned 7..65531, seen negative, never zero
+
+## `func_800BB304` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BB304.func_800BB304`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BB304(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: null-arg0=5095, arg0-set=14905
+- Mutations (of the C): F1: wrong constant returned (caught); F2: arg1 returned instead of 0 (caught); F3: arg0 nullness returned as a flag (caught); F4: a store through arg0 that the C never makes (caught)
+- Coverage: branches 0/0, lines 1/1
+  - arg 0: pointer: null seen
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800BB30C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BB30C.func_800BB30C`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BB30C(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: eq-two=2003, not-two=17997
+- Mutations (of the C): F1: the call is dropped (caught); F2: the result is 2 instead of 4 per match (caught); F3: compares against 3, not 2 (caught); F4: the global is read before the call (caught)
+- Coverage: branches 2/2, lines 3/3
+  - arg 0: pointer: null seen
+  - arg 1: 16-bit: min -32766, max 32766, unsigned 13..65533, seen negative, never zero
+  - compare +3 (8-bit, constant 2): == 5058, < 9997, > 4945 (signed); < 5012, > 9930 (unsigned): `return (D_800F4C2C == 2) * 4;`
+
+## `func_800BB3BC` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BB3BC.func_800BB3BC`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BB3BC(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: ff1-nonzero2=1136, ff1-zero2=145, other1-nonzero2=16792, other1-zero2=1927
+- Mutations (of the C): F1: escape compares against 0xFE (caught); F2: index masked with 3, not 7 (caught); F3: zero fallback is 0, not -1 (caught); F4: flag stored as 0 (caught); F5: returns 1 (caught)
+- Coverage: branches 4/4, lines 5/5
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+  - compare +2 (8-bit, constant 0): == 2072, < 9112, > 8816 (signed); < 0, > 17928 (unsigned): `func_800BC1CC(`
+  - compare +2 (8-bit, constant -1): == 1281, < 9964, > 8755 (signed); < 18719, > 0 (unsigned): `func_800BC1CC(`
+
+## `func_800BB450` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BB450.func_800BB450`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BB450(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: byte-low=9949, byte-high=10051
+- Mutations (of the C): F1: the call reads byte 0, not byte 1 (caught); F2: returns 1, not 0 (caught); F3: signed byte read (sign-extended to c_int) (caught); F4: the call is dropped (caught); F5: index taken from arg1 instead of the constant 1 (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min 0, max 15, seen zero, never negative
+
+## `func_800BB474` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BB474.func_800BB474`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BB474(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: zero=2502, one=2463, min=2550, negative=11296, positive=11189
+- Mutations (of the C): M1: the <= 0 test becomes < 0 (a decrement to zero returns 1) (caught); M2: the first store reads arg0[0], not arg0[1] (caught); M3: the decrement subtracts 2 (caught); M4: the clamp stores 1 instead of 0 (caught); M5: the <= 0 test is unsigned (negative entries read as large) (caught)
+- Coverage: branches 4/4, lines 9/9
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min 0, max 3, seen zero, never negative, 4 value(s): 1, 2, 0, 3
+  - compare +2 (16-bit, constant 0): == 2502, < 13846, > 13652 (signed); < 0, > 27498 (unsigned): `if (D_800F4C58[arg1] == 0) {`
+  - compare +9 (32-bit, constant 0): == 2463, < 11296, > 13739 (signed); < 0, > 25035 (unsigned): `if ((D_800F4C58[arg1] << 0x10) <= 0) {`
+
+## `func_800BB4CC` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BB4CC.func_800BB4CC`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BB4CC(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: high-byte=9054, low-byte=10946
+- Mutations (of the C): M1: reads arg0[0] instead of arg0[1] (caught); M2: returns 1 instead of 0 (caught); M3: the call is dropped (caught); M4: arg1 folded into the callee's argument (caught); M5: byte sign-extended as a signed char (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800BB504` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BB504.func_800BB504`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BB504(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: bit7-set-clears-entry=9915, bit7-clear-entry-null=5165, bit7-clear-entry-set=4920
+- Mutations (of the C): M1: index masked with 1, not 3 (caught); M2: flag tests bit 6, not bit 7 (caught); M3: the clearing store is dropped (caught); M4: the cleared path returns 1 (caught); M5: the result test is inverted (caught)
+- Coverage: branches 2/2, lines 6/6
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32767, max 32766, unsigned 13..65532, seen negative, never zero
+  - compare +3 (8-bit, constant 0): == 79, < 9915, > 10006 (signed); < 0, > 19921 (unsigned): `if ((arg0[1] & 0x80)) {`
+
+## `func_800BB554` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BB554.func_800BB554`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BB554(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: offset-negative=13905, offset-zero=2151, offset-positive=13944
+- Mutations (of the C): S1: table stores arg0 + 3, not arg0 + 4 (caught); S2: the table store is dropped (caught); S3: index masked to 2 bits (index 4 lands on 0) (caught); S4: getShort reads the offset at arg0 + 3 (caught); S5: the offset read as unsigned (negative offsets wrap high) (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65531, seen zero/negative/signed max
+
+## `func_800BB5A4` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BB5A4.func_800BB5A4`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BB5A4(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: arg0-null=5095, arg0-set=14905
+- Mutations (of the C): R1: wrong constant (2 for 3) (caught); R2: wrong constant (4 for 3) (caught); R3: signed slip, arg1 sign adds one (caught); R4: null test on arg0 changes the result (caught)
+- Coverage: branches 0/0, lines 1/1
+  - arg 0: pointer: null seen
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `func_800BB5AC` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BB5AC.func_800BB5AC`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BB5AC(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: heap-null=7496, heap-valid=22504
+- Mutations (of the C): M1: getShort reads arg0 + 2 (caught); M2: heap block of 0x1000 instead of 0x1800 (caught); M3: _evtFile store dropped (caught); M4: wrong return value (caught); M5: done flag set to 0 (caught); M6: done flag stored before the consumer call (caught)
+- Coverage: branches 0/0, lines 6/6
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 2..65533, seen negative/signed max, never zero
+
+## `func_800BB604` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BB604.func_800BB604`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BB604(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: none-dismissed=7512, last-only=7378, all-random=7481, mixed=7629
+- Mutations (of the C): D1: loop stops one short (the eighth text box is never dismissed) (caught); D2: signed compare, negative dismiss results do not count (caught); D3: the no-dismiss test is a count below 2 (one dismissal wrongly takes the 2 path) (caught); D4: wrong constant to the callee (caught); D5: wrong return value on the no-dismiss path (caught)
+- Coverage: branches 6/6, lines 9/9
+  - arg 0: pointer: null seen
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+  - compare +7 (32-bit, constant 7): == 30000, < 210000, > 30000 (signed); < 210000, > 30000 (unsigned): `for (i = 0; i < 8; ++i) {`
+  - compare +8 (32-bit, constant 0): == 126937, < 56452, > 56611 (signed); < 0, > 113063 (unsigned): `if (vs_battle_dismissTextBox(i) != 0) {`
+  - compare +13 (32-bit, constant 0): == 7512, < 0, > 22488 (signed); < 0, > 22488 (unsigned): `if (var_s1 == 0) {`
+
+## `func_800BB788` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BB788.func_800BB788`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BB788(arg0: ?*v.func_800BB68C_t) callconv(.c) c_ushort`
+- Input classes: count-zero=9342, index-past-array=15711, in-range=4947
+- Mutations (of the C): F1: exhausted count returns 0, not 1 (caught); F2: the count is not decremented (caught); F3: the read index is not advanced (caught); F4: count test one too loose (<= 1) (caught); F5: index wrapped to 22 entries (caught)
+- Coverage: branches 2/2, lines 5/5
+  - arg 0: pointer: never null
+  - compare +2 (8-bit, constant 0): == 9342, < 9389, > 11269 (signed); < 0, > 20658 (unsigned): `if (arg0->unk0 == 0) {`
+
+## `func_800BB9B0` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BB9B0.func_800BB9B0`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BB9B0() callconv(.c) void`
+- Input classes: no-out=6071, all-idle=24, finishes=19665, running=4240
+- Mutations (of the C): M1: the loop stops before slot 2 (caught); M2: signed division for the half tick step (caught); M3: the unk8 lerp shifts by 11, not 12 (caught); M4: unkC lerp reads unk10 instead of unkE (caught); M5: finish test is strict (equal does not clear) (caught); M6: the finished slot is not cleared (caught)
+- Coverage: branches 8/8, lines 15/15
+  - compare +7 (16-bit, constant 2): == 30000, < 60000, > 30000 (signed); < 60000, > 30000 (unsigned): `for (i = 0; i < 3; ++i, ++var_s0, ++var_s1) {`
+  - compare +8 (8-bit, constant 0): == 9088, < 40548, > 40364 (signed); < 0, > 80912 (unsigned): `if (var_s0->unk3 != 0) {`
+  - compare +17 (8-bit, b -128..127): == 5308, < 38502, > 37102 (signed); < 39190, > 36414 (unsigned): `if (var_s0->unk2 >= var_s0->unk3) {`
+
+## `func_800BBAFC` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BBAFC.func_800BBAFC`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BBAFC() callconv(.c) void`
+- Input classes: skip=3405, reset=9170, step-wrap=2271, step=13663, short-wrap=1491
+- Mutations (of the C): W1: temp_lo product shifted by 11 in unk4 (caught); W2: temp_lo unsigned (wrapped quotient read as positive) (caught); W3: post-increment, the division sees the old unk2 (caught); W4: unk10 uses unkE instead of unk14 (caught); W5: the second callee is dropped (caught); W6: reset test as >= instead of == (caught)
+- Coverage: branches 4/4, lines 12/12
+  - compare +2 (8-bit, constant 0): == 3405, < 10718, > 15877 (signed); < 0, > 26595 (unsigned): `if (D_800F4B88.unk3 != 0) {`
+  - compare +10 (8-bit, b -128..127): == 6008, < 10487, > 10100 (signed); < 10306, > 10281 (unsigned): `if (D_800F4B88.unk2 == D_800F4B88.unk3) {`
+
+## `func_800BBDDC` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BBDDC.func_800BBDDC`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BBDDC() callconv(.c) void`
+- Input classes: null-block=5059, live-block=14941
+- Mutations (of the C): F1: the free call is dropped (caught); F2: null passed instead of the block (caught); F3: the address of the global is passed (caught); F4: the slot is cleared after the free (an extra store) (caught); F5: the block is freed twice (caught)
+- Coverage: branches 0/0, lines 1/1
+
+## `func_800BBE04` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BBE04.func_800BBE04`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BBE04(arg0: c_int) callconv(.c) void`
+- Input classes: negative=7896, zero-low-byte=2973, wide=6282, byte=2849
+- Mutations (of the C): S1: the store is dropped (caught); S2: the high byte is stored, not the low (caught); S3: the stored value is off by one (caught); S4: bit 7 masked off before the store (caught)
+- Coverage: branches 0/0, lines 1/1
+  - arg 0: 32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones
+
+## `func_800BBE10` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BBE10.func_800BBE10`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BBE10(arg0: c_ushort) callconv(.c) void`
+- Input classes: not-0x2000=25802, 0x2000-unk1E8-equal=2146, 0x2000-unk1E8-differs=2052
+- Mutations (of the C): M1: the 0x2000 test becomes >= (ordered, unsigned) (caught); M2: the unk1E8 change test is inverted (caught); M3: the lookAt add takes eye as its source (caught); M4: the unk1E8 store moves after func_800BBE94 (caught); M5: the stored flag keeps only 15 bits (signed/unsigned slip on the u16 value) (caught)
+- Coverage: branches 4/4, lines 10/10
+  - arg 0: 16-bit: min -32768, max 32764, unsigned 0..65535, seen zero/negative/all ones
+  - compare +3 (16-bit, constant 8192): == 4198, < 18008, > 7794 (signed); < 6084, > 19718 (unsigned): `if (arg0 == 0x2000) {`
+  - compare +4 (16-bit, b -32753..32756): == 2146, < 784, > 1268 (signed); < 1796, > 256 (unsigned): `if (D_800F4BA4->unk1E8 != arg0) {`
+
+## `func_800BBE94` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BBE94.func_800BBE94`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BBE94() callconv(.c) void`
+- Input classes: sentinel=10031, call=19969
+- Mutations (of the C): F1: sentinel test inverted (caught); F2: wrong constant in the vz scale (caught); F3: sentinel path drops the vx store (caught); F4: vx read as unsigned short (caught); F5: vy takes the vz component (caught)
+- Coverage: branches 2/2, lines 10/10
+  - compare +4 (16-bit, constant 8192): == 10031, < 13482, > 6487 (signed); < 5535, > 14434 (unsigned): `if (D_800F4BA4->unk1E8 == 0x2000) {`
+
+## `func_800BD2B8` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BD2B8.func_800BD2B8`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BD2B8(arg0: ?*v.MATRIX) callconv(.c) c_int`
+- Input classes: ties=10050, wide=9972, sign-edges=9978
+- Mutations (of the C): F1: second height offset -199 instead of -200 (caught); F2: second compared the wrong way (caught); F3: first keeps 16 bits instead of 15 (sign of bit 15 vs 14) (caught); F4: returns first, not lowest (caught); F5: fourth corner z is 149 (caught); F6: second height reads pos.vx and pos.vz swapped (caught)
+- Coverage: branches 6/6, lines 23/23
+  - arg 0: pointer: never null
+  - compare +22 (32-bit, b -16584..16183): == 8376, < 10872, > 10752 (signed); < 10906, > 10718 (unsigned): `if (second < first) {`
+  - compare +30 (32-bit, b -16584..16183): == 8343, < 6384, > 15273 (signed); < 11454, > 10203 (unsigned): `if (h < lowest) {`
+  - compare +38 (32-bit, b -16584..16183): == 8377, < 4292, > 17331 (signed); < 11664, > 9959 (unsigned): `if (h < lowest) {`
+
+## `func_800BD57C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BD57C.func_800BD57C`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BD57C(arg0: ?*v.func_800BD57C_t) callconv(.c) void`
+- Input classes: inactive=13795, running=8541, reached=7664
+- Mutations (of the C): U1: unkA tested as unsigned (caught); T1: tickspeed shifted by 2, not 1 (caught); T2: reached test strict (> for >=) (caught); F1: unk2 starts from unk6, not unk4 (caught); S1: unkA not cleared when reached (caught); K1: product shifted by 11, not 12 (caught)
+- Coverage: branches 4/4, lines 10/10
+  - arg 0: pointer: never null
+  - compare +2 (16-bit, constant 0): == 2133, < 11662, > 16205 (signed); < 0, > 27867 (unsigned): `if (arg0->unkA > 0) {`
+  - compare +9 (16-bit, b 1..32767): == 4197, < 8541, > 3467 (signed); < 2886, > 9122 (unsigned): `if (arg0->unk8 >= arg0->unkA) {`
+
+## `func_800BDBB4` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BDBB4.func_800BDBB4`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BDBB4(arg0: ?*v.func_800BDBB4_t) callconv(.c) c_int`
+- Input classes: timer-zero=8876, timer-reaches-end=10567, timer-running=10557
+- Mutations (of the C): F1: timer step is a quarter, not a half (caught); F2: speed product shifted by 11, not 12 (caught); F3: the end-time reset store dropped (caught); F4: reset on reaching or passing the end (>= for ==) (caught); F5: unk4 built from unkA, not unkC (caught); F6: returns the lookup value, not 1 (caught)
+- Coverage: branches 4/4, lines 13/13
+  - arg 0: pointer: never null
+  - compare +5 (16-bit, constant 0): == 8876, < 8441, > 12683 (signed); < 0, > 21124 (unsigned): `if (arg0->unk1E == 0) {`
+  - compare +18 (16-bit, b -32768..32767): == 10567, < 5452, > 5105 (signed); < 4495, > 6062 (unsigned): `if (arg0->unk1C == arg0->unk1E) {`
+
+## `func_800BDF6C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BDF6C.func_800BDF6C`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BDF6C(arg0: ?*v.func_800BDF6C_unk180_t) callconv(.c) void`
+- Input classes: idle=5951, clamped=8477, exact=8136, running=7436
+- Mutations (of the C): M1: tick shifted by 2 instead of 1 (caught); M2: unk6 read unsigned (slip) before the product (caught); M3: unk2 base read from unk2, not unk4 (caught); M4: dropped store of unk0 = 1 (caught); M5: callee arguments swapped (unk8 and unk9) (caught)
+- Coverage: branches 6/6, lines 12/12
+  - arg 0: pointer: never null
+  - compare +2 (8-bit, constant 0): == 5951, < 10918, > 13131 (signed); < 0, > 24049 (unsigned): `if (arg0->unk9 != 0) {`
+  - compare +5 (8-bit, b -128..127): == 8136, < 7935, > 7978 (signed); < 8477, > 7436 (unsigned): `if (arg0->unk9 < arg0->unk8) {`
+  - compare +11 (8-bit, b -128..127): == 10921, < 6453, > 6675 (signed); < 9081, > 4047 (unsigned): `if (arg0->unk8 == arg0->unk9) {`
+
+## `func_800BE01C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BE01C.func_800BE01C`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BE01C(arg0: ?*v.func_800BDF6C_t) callconv(.c) c_int`
+- Input classes: idle=3125, clamp=12249, reach=7497, run=7129
+- Mutations (of the C): M1: the tick is not halved (caught); M2: clamp one step late (unk9 + 1 < unk8) (caught); M3: clamp store dropped (caught); M4: mode 2 shift off by one (caught); M5: wrong constant for mode 0 (caught); M6: switch reads the low mode byte, not unk0.u8[1] (caught)
+- Coverage: branches 11/11, lines 26/26
+  - arg 0: pointer: never null
+  - compare +4 (8-bit, constant 0): == 3125, < 13377, > 13498 (signed); < 0, > 26875 (unsigned): `if (arg0->unk9 == 0) {`
+  - compare +10 (8-bit, b -128..127): == 7497, < 12714, > 6664 (signed); < 12249, > 7129 (unsigned): `if (arg0->unk9 < arg0->unk8) {`
+  - compare +14 (32-bit, cases): == 15381, < 0, > 0 (signed); < 0, > 0 (unsigned): `switch (arg0->unk0.u8[1]) {`
+  - compare +31 (8-bit, b -128..127): == 19746, < 2902, > 4227 (signed); < 7129, > 0 (unsigned): `if (arg0->unk8 == arg0->unk9) {`
+
+## `func_800BE180` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BE180.func_800BE180`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BE180() callconv(.c) void`
+- Input classes: flags-0=10009, flags-1=5961, flags-2=5939, flags-3=8091
+- Mutations (of the C): M1: second flag tests bit 2 instead of bit 1 (caught); M2: the b.vz... no: the unk1C8 store is dropped (caught); M3: unk1C2 read from a.vz's partner b (wrong vector source) (caught); M4: the entry loop runs a third entry (caught); M5: b.vz not cleared before the loop (caught); M6: amplitude mask 3 becomes 2 for the x axis (caught)
+- Coverage: branches 10/10, lines 24/24
+  - compare +10 (16-bit, constant 1): == 30000, < 30000, > 30000 (signed); < 30000, > 30000 (unsigned): `for (; i < 2; ++entry, ++i) {`
+  - compare +11 (32-bit, constant 0): == 14974, < 22596, > 22430 (signed); < 0, > 45026 (unsigned): `if (func_800BE01C(entry)) {`
+  - compare +15 (32-bit, constant 0): == 23366, < 0, > 21660 (signed); < 0, > 21660 (unsigned): `if (entry->unkA & 1) {`
+  - compare +18 (32-bit, constant 0): == 23178, < 0, > 21848 (signed); < 0, > 21848 (unsigned): `if (entry->unkA & 2) {`
+  - compare +25 (16-bit, constant 0): == 1848, < 0, > 28152 (signed); < 0, > 28152 (unsigned): `if (count) {`
+
+## `func_800BE36C` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BE36C.func_800BE36C`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BE36C(arg0: c_int, arg1: c_int) callconv(.c) void`
+- Input classes: arg-zero=1882, arg-negative=11506, arg-positive=16612
+- Mutations (of the C): F1: lookAt.follow takes arg1 (caught); F2: eye.follow takes arg0 (caught); F3: eye.following set to 1, not 0 (caught); F4: lookAt.following store dropped (caught)
+- Coverage: branches 0/0, lines 6/6
+  - arg 0: 32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones
+  - arg 1: 32-bit: min -2147483648, max 2147483647, unsigned 0..4294967295, seen zero/negative/signed max/all ones
+
+## `func_800BE5A4` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BE5A4.func_800BE5A4`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BE5A4(arg0: c_short) callconv(.c) void`
+- Input classes: arg-two=5130, arg-zero=1644, arg-other=23226
+- Mutations (of the C): F1: the averaging branch tests arg0 == 3 (caught); F2: the averaged duration shifted by 2, not 1 (caught); F3: a negative arg0 takes the eye (signed test read as > 0) (caught); F4: the eye call dropped from the averaging path (caught); F5: the two calls swapped (the eye is refreshed first) (caught)
+- Coverage: branches 4/4, lines 13/13
+  - arg 0: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+  - compare +9 (16-bit, constant 2): == 5130, < 15846, > 9024 (signed); < 3259, > 21611 (unsigned): `if (arg0 == 2) {`
+  - compare +18 (16-bit, constant 0): == 1644, < 12587, > 10639 (signed); < 0, > 23226 (unsigned): `if (arg0 != 0) {`
+
+## `func_800BEB34` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BEB34.func_800BEB34`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BEB34() callconv(.c) void`
+- Input classes: sel-other-none=3698, sel-other-door=3784, sel-other-cleared=3717, sel-other-both=3682, sel-3-none=3795, sel-3-door=3788, sel-3-cleared=3747, sel-3-both=3789
+- Mutations (of the C): F1: selector test inverted (caught); F2: the callee is dropped (caught); F3: door section freed only when cleared section is set (caught); F4: cleared section freed with the door section's pointer (caught); F5: cleared section test inverted (caught)
+- Coverage: branches 6/6, lines 8/8
+  - compare +2 (16-bit, constant 3): == 15119, < 9137, > 5744 (signed); < 3156, > 11725 (unsigned): `if (D_800F4BE2 == 3) {`
+
+## `func_800BEC30` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `func_800BEC30.func_800BEC30`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: no readable name: the original symbol is kept; signature `pub fn func_800BEC30() callconv(.c) c_int`
+- Input classes: flag-one=10075, flag-other=9925
+- Mutations (of the C): F1: the store to D_800F4BB8 is dropped (caught); F2: wrong constant in the test (caught); F3: the store writes the old value of D_800F4BB8 (caught); F4: test inverted (caught); F5: fall-through return value wrong (caught)
+- Coverage: branches 2/2, lines 5/5
+  - compare +2 (8-bit, constant 1): == 10075, < 6207, > 3718 (signed); < 1299, > 8626 (unsigned): `if (D_800F4C34 == 1) {`
+
+## `vs_battle_getStateFlag` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `get_state_flag.getStateFlag`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn getStateFlag(arg0: c_short) callconv(.c) u8`
+- Input classes: low=11597, mid=9272, negative=6875, last=2256
+- Mutations (of the C): G1: off-by-one index (caught); G2: index masked to 8 bits (caught); G3: base skewed by one byte (caught); G4: wrong mask on the flag byte (caught); G5: unsigned index slip (negative reads 511) (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: 16-bit: min -16, max 1087, unsigned 0..65535, seen zero/negative/all ones
+
+## `vs_battle_script_clearMusicLoadSlot` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `script_clear_music_load_slot.script_clearMusicLoadSlot`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn script_clearMusicLoadSlot(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: byte-positive=10718, byte-negative=9282
+- Mutations (of the C): M1: reads arg0[0] instead of arg0[1] (caught); M2: result tested with >= 1 instead of == 1 (caught); M3: byte read as signed char (caught); M4: call dropped, constant returned (caught)
+- Coverage: branches 0/0, lines 2/2
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32765, max 32767, unsigned 2..65529, seen negative/signed max, never zero
+  - compare +2 (32-bit, constant 1): == 7794, < 7843, > 4363 (signed); < 3904, > 8302 (unsigned): `return vs_main_clearMusicLoadSlot(arg0[1]) == 1;`
+
+## `vs_battle_script_dismissTextBox` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `script_dismiss_text_box.script_dismissTextBox`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn script_dismissTextBox(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: arg1-zero=1369, arg1-nonzero=18631
+- Mutations (of the C): D1: the callee gets arg0[0], not arg0[1] (caught); D2: the dismiss call is dropped (caught); D3: the return is arg1, not 0 (caught); D4: the byte is passed signed (bytes 128-255 go negative) (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `vs_battle_script_freeMusic` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `script_free_music.script_freeMusic`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn script_freeMusic(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: high-byte=22469, global-is-two=3804, other=3727
+- Mutations (of the C): F1: wrong constant in the return test (== 1) (caught); F2: wrong argument byte (arg0[0] instead of arg0[1]) (caught); F3: signed read of the argument byte (caught); F4: call dropped (caught); F5: global read before the call (stale after the callee writes it) (caught); F6: wrong multiplier in the return value (caught)
+- Coverage: branches 2/2, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32766, max 32759, unsigned 1..65534, seen negative, never zero
+  - compare +3 (8-bit, constant 2): == 15080, < 7887, > 7033 (signed); < 1530, > 13390 (unsigned): `return (D_800F4C2C == 2) * 4;`
+
+## `vs_battle_script_freeSfx` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `script_free_sfx.script_freeSfx`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn script_freeSfx(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: global-two=15080, global-other=14920
+- Mutations (of the C): F1: callee gets arg0[0] instead of arg0[1] (caught); F2: signed slip on the byte passed to the callee (caught); F3: wrong constant in the result (caught); F4: inverted comparison (caught); F5: global read before the callee runs (caught)
+- Coverage: branches 2/2, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32763, max 32767, unsigned 2..65531, seen negative/signed max, never zero
+  - compare +3 (8-bit, constant 2): == 7702, < 12409, > 9889 (signed); < 1655, > 20643 (unsigned): `return (D_800F4C2C == 2) * 4;`
+
+## `vs_battle_script_freeSfxSlot` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `script_free_sfx_slot.script_freeSfxSlot`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn script_freeSfxSlot(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: slot-zero=2004, slot-sign-bit=9022, slot-other=8974
+- Mutations (of the C): F1: slot read from arg0[0] (caught); F2: result tested with > 0 (negative results read as false) (caught); F3: result masked to its low byte instead of tested against zero (caught); F4: the free call dropped (caught); F5: slot read as signed char (sign-extended to u_int) (caught)
+- Coverage: branches 0/0, lines 2/2
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+  - compare +2 (32-bit, constant 0): == 4881, < 8925, > 6194 (signed); < 0, > 15119 (unsigned): `return vs_main_freeSfxQueueSlot(arg0[1]) != 0;`
+
+## `vs_battle_script_jumpBackIf` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `script_jump_back_if.script_jumpBackIf`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn script_jumpBackIf(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: opcode-ff=7559, counter-to-zero=5635, counter-nonzero=16806
+- Mutations (of the C): J1: opcode test uses 0xFE (caught); J2: counter tested before the decrement (post-decrement) (caught); J3: the opcode-FF offset loses its negation (caught); J4: the counter is tested but never stored (caught); J5: the fall-through returns 1, not 0 (caught)
+- Coverage: branches 4/4, lines 6/6
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32764, unsigned 0..65535, seen zero/negative/all ones
+  - compare +2 (8-bit, constant -1): == 7559, < 0, > 22441 (signed); < 22441, > 0 (unsigned): `if (arg0[1] == 0xFF) {`
+  - compare +5 (8-bit, constant 0): == 5635, < 8356, > 8450 (signed); < 0, > 16806 (unsigned): `if (--D_800F4C10[arg0[1]] != 0) {`
+
+## `vs_battle_script_jumpFwd` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `script_jump_fwd.script_jumpFwd`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn script_jumpFwd(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: arena=6717, scratchpad=6501, low-ram=6782
+- Mutations (of the C): J1: getShort called on arg0 + 2 (caught); J2: index zero-extended (unsigned short slip) (caught); J3: getShort call dropped (index 0) (caught); J4: result off by one (caught); J5: arg1 added to the index (caught); J6: index doubled (caught)
+- Coverage: branches 0/0, lines 2/2
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32762, unsigned 2..65534, seen negative, never zero
+
+## `vs_battle_script_jumpFwd2` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `script_jump_fwd2.script_jumpFwd2`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn script_jumpFwd2(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: arena=6725, scratchpad=6658, low-ram=6617
+- Mutations (of the C): J1: getShort called with arg0 + 2 (caught); J2: index read as unsigned short (signed slip) (caught); J3: index read as unsigned char (truncated) (caught); J4: dropped getShort call (offset becomes 0) (caught)
+- Coverage: branches 0/0, lines 2/2
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 3..65533, seen negative/signed max, never zero
+
+## `vs_battle_script_jumpFwd3` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `script_jump_fwd3.script_jumpFwd3`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn script_jumpFwd3(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: arena=14997, low-ram=5003
+- Mutations (of the C): J1: getShort called with arg0 + 2 (caught); J2: offset read as unsigned short (caught); J3: result off by one (caught); J4: offset scaled by two (caught); J5: result truncated to 16 bits (caught)
+- Coverage: branches 0/0, lines 2/2
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32764, max 32766, unsigned 7..65531, seen negative, never zero
+
+## `vs_battle_script_jumpFwd4` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `script_jump_fwd4.script_jumpFwd4`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn script_jumpFwd4(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: arg1-zero=1589, arg1-nonzero=18411
+- Mutations (of the C): J1: getShort called with arg0 + 2 (caught); J2: index read unsigned (signed/unsigned slip) (caught); J3: arg1 added to the index (unused in the C) (caught); J4: getShort call dropped, offset 0 (caught); J5: address narrowed to short before widening (caught)
+- Coverage: branches 0/0, lines 2/2
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `vs_battle_script_jumpFwdIfFlagContext` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `script_jump_fwd_if_flag_context.script_jumpFwdIfFlagContext`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn script_jumpFwdIfFlagContext(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: unequal=14819, equal=15181
+- Mutations (of the C): F1: compares arg0[0] instead of arg0[1] (caught); F2: <= for == (caught); F3: offset read at arg0 + 3 (caught); F4: offset unsigned (u_short slip) (caught); F5: getShort call dropped (caught); F6: not-taken returns 1 (caught)
+- Coverage: branches 2/2, lines 4/4
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65533, seen zero/negative/signed max
+  - compare +2 (8-bit, b -128..127): == 15181, < 7438, > 7381 (signed); < 7403, > 7416 (unsigned): `if (D_800F4BB4 == arg0[1]) {`
+
+## `vs_battle_script_loadGim` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `script_load_gim.script_loadGim`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn script_loadGim(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: byte3-high=9054, byte3-low=10946
+- Mutations (of the C): S1: getShort reads arg0 + 2 (caught); S2: byte argument read signed (caught); S3: loadGim call dropped (caught); S4: returns 1 instead of 0 (caught); S5: returns arg1 instead of 0 (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `vs_battle_script_loadMusicSlot` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `script_load_music_slot.script_loadMusicSlot`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn script_loadMusicSlot(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: low-id=10959, high-id=9041
+- Mutations (of the C): L1: music id and slot swapped (caught); L2: first byte read at the wrong offset (caught); L3: load call dropped (caught); L4: wrong return value (caught); L5: signed char slip on the music id (ids 128-255 go negative) (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32766, max 32766, unsigned 13..65533, seen negative, never zero
+
+## `vs_battle_script_loadSfxSlot` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `script_load_sfx_slot.script_loadSfxSlot`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn script_loadSfxSlot(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: arg2-high-bit=8985, arg1-zero=1088, other=9927
+- Mutations (of the C): L1: operands swapped (caught); L2: second operand read from the wrong byte (caught); L3: the call dropped (caught); L4: first operand read as signed (caught); L5: wrong return constant (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `vs_battle_script_loadSoundFile2` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `script_load_sound_file2.script_loadSoundFile2`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn script_loadSoundFile2(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: index-byte-zero=72, index-byte-nonzero=19928
+- Mutations (of the C): L1: the callee gets arg0[0], not arg0[1] (caught); L2: the call is dropped (caught); L3: arg1 (unused by the C) added to the byte (caught); L4: returns 1, not 0 (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32767, max 32761, unsigned 0..65532, seen zero/negative
+
+## `vs_battle_script_playMenuSelectSfx` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `script_play_menu_select_sfx.script_playMenuSelectSfx`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn script_playMenuSelectSfx(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: null-arg0=5095, arg0-arg1-nonneg=8253, arg0-arg1-neg=6652
+- Mutations (of the C): S1: wrong sfx id (0x7F) (caught); S2: wrong sfx constant (4 for VS_SFX_MENUSELECT) (caught); S3: sfx call dropped (caught); S4: returns 1 instead of 0 (caught); S5: returns the argument instead of 0 (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: null seen
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `vs_battle_script_processSoundQueue` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `script_process_sound_queue.script_processSoundQueue`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn script_processSoundQueue(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: arg0-null=4973, arg0-set=15027
+- Mutations (of the C): P1: inverted test (caught); P2: >= 1 instead of == 1 (caught); P3: low bit tested instead of equality (caught); P4: call dropped, constant returned (caught); P5: compared against 0 (caught)
+- Coverage: branches 0/0, lines 2/2
+  - arg 0: pointer: null seen
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+  - compare +2 (32-bit, constant 1): == 5035, < 9340, > 5625 (signed); < 0, > 14965 (unsigned): `return vs_main_processSoundQueue() == 1;`
+
+## `vs_battle_script_selectTextBox` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `script_select_text_box.script_selectTextBox`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn script_selectTextBox(script: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: state-done=7581, pending-set=11264, pending-clear=11155
+- Mutations (of the C): S1: wrong state constant (1 for 2) (caught); S2: setStateFlag gets script[1] instead of the selection (caught); S3: pending set to 2, not 1 (caught); S4: negative selection ignored (signed slip) (caught); S5: selection read from script[0] (caught)
+- Coverage: branches 6/6, lines 12/12
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+  - compare +2 (8-bit, constant 2): == 7581, < 16804, > 5615 (signed); < 11105, > 11314 (unsigned): `if (D_800F4C2C == 2) {`
+  - compare +6 (8-bit, constant 0): == 11155, < 5620, > 5644 (signed); < 0, > 11264 (unsigned): `if (_textBoxSelectionPending != 0) {`
+  - compare +8 (32-bit, constant 0): == 4213, < 3537, > 3514 (signed); < 0, > 7051 (unsigned): `if ((temp_v0 << 0x10) != 0) {`
+
+## `vs_battle_script_setCurrentSfx` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `script_set_current_sfx.script_setCurrentSfx`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn script_setCurrentSfx(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: high-byte=10042, low-byte=9958
+- Mutations (of the C): S1: reads arg0[0] instead of arg0[1] (caught); S2: sound id read as signed char (caught); S3: passes the short arg1 instead of the id (caught); S4: returns arg1 instead of 0 (caught); S5: the sfx call is dropped (caught); S6: returns the call's result (a second call) (caught)
+- Coverage: branches 0/0, lines 3/3
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones
+
+## `vs_battle_script_showTextBox` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `script_show_text_box.script_showTextBox`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn script_showTextBox(script: [*c]u8, arg1: c_short) callconv(.c) c_int`
+- Input classes: free-end=5924, free-continue=9067, busy=15009
+- Mutations (of the C): S1: status test against 1, not 0 (caught); S2: continue test against 1, not 0 (caught); S3: >= 0 becomes > 0 (zero return treated as error) (caught); S4: textBoxSelection store dropped (caught); S5: busy path returns 0 instead of 1 (caught); S6: sign slip on setTextBox result (negative becomes positive) (caught)
+- Coverage: branches 8/8, lines 14/14
+  - arg 0: pointer: never null
+  - arg 1: 16-bit: min -32768, max 32763, unsigned 0..65534, seen zero/negative
+  - compare +4 (8-bit, constant 0): == 14991, < 9932, > 5077 (signed); < 0, > 15009 (unsigned): `if (vs_battle_textBoxStatuses[script[1]] == 0) {`
+  - compare +6 (8-bit, constant 0): == 5924, < 5998, > 3069 (signed); < 0, > 9067 (unsigned): `if (script[3] == 0) {`
+  - compare +15 (32-bit, constant 0): == 2574, < 4854, > 7581 (signed); < 0, > 12435 (unsigned): `if (temp_v0 >= 0) {`
+  - compare +16 (32-bit, constant 0): == 2574, < 0, > 7581 (signed); < 0, > 7581 (unsigned): `if (temp_v0 > 0) {`
+
+## `vs_battle_setStateFlag` (src/BATTLE/BATTLE.PRG/4A0A8.c) -> `set_state_flag.setStateFlag`: ported
+
+- **Flags:** none
+- Drafted by anthropic/claude-haiku-5.5 (remote, thinking default, temperature 0.0, best of 1)
+- Name: the decompilation's name (prefix dropped); signature `pub fn setStateFlag(id: c_short, value: u8) callconv(.c) void`
+- Input classes: index-below-256=7339, index-256-and-up=12661
+- Mutations (of the C): S1: the store is dropped (caught); S2: index truncated to 8 bits (caught); S3: value loses its sign bit (caught); S4: wrong byte (index xor 1) (caught); S5: the stored value is the index (caught)
+- Coverage: branches 0/0, lines 4/4
+  - arg 0: 16-bit: min 0, max 1087, seen zero, never negative
+  - arg 1: 8-bit: min -128, max 127, unsigned 0..255, seen zero/negative/signed max/all ones
 
 ## `_absMax2` (src/BATTLE/BATTLE.PRG/5BF94.c) -> `abs_max2.absMax2`: ported
 

@@ -1,0 +1,290 @@
+{
+ "function": "func_800BCA8C",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "L",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "port-failed",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800BCA8C",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800bca8c",
+  "difficulty": "L",
+  "zig_name": "func_800BCA8C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800BCA8C",
+  "spec_file": "func_800BCA8C.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn func_800BCA8C(c: ?*v.D_800F4BA4_t2, other: ?*v.D_800F4BA4_t2) callconv(.c) void",
+  "params": [
+   [
+    "c",
+    "?*v.D_800F4BA4_t2"
+   ],
+   [
+    "other",
+    "?*v.D_800F4BA4_t2"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "D_800F4BA4_t2",
+   "MATRIX",
+   "SVECTOR",
+   "VECTOR",
+   "cameraScratch"
+  ],
+  "globals": [
+   "vs_gametime_tickspeed"
+  ],
+  "hooks": [],
+  "statics": [
+   "_copyVector",
+   "_fixedPointMult",
+   "_sVectorToFixedPointVector",
+   "_toNormalIntegerVector",
+   "_vectorMagnitude"
+  ],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 15542,
+     "completion_tokens": 21309,
+     "reasoning_tokens": 18668,
+     "cost": 0.00610435,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "mode-15-return": "2661",
+   "mode-11": "2584",
+   "mode-2": "2494",
+   "mode-3": "2615",
+   "mode-4": "2598",
+   "mode-5": "2564",
+   "mode-8": "2672",
+   "mode-9": "2646",
+   "mode-other": "19166"
+  },
+  "mutations": [
+   {
+    "name": "M1: time step shifted by 2, not 1",
+    "caught": true
+   },
+   {
+    "name": "M2: case 4 reads aux.vx for the y term",
+    "caught": true
+   },
+   {
+    "name": "M3: case 5 x uses v1.vz instead of v1.vx",
+    "caught": true
+   },
+   {
+    "name": "M4: time compared as signed char",
+    "caught": true
+   },
+   {
+    "name": "M5: follow test with && instead of &",
+    "caught": true
+   },
+   {
+    "name": "M6: end state stores the wrong mode",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 20,
+   "branches_hit": 20,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 94,
+   "lines_hit": 94,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "pointer: null seen"
+    }
+   ],
+   "compares": [
+    {
+     "line": 2,
+     "text": "if (c->mode == 15) {",
+     "size": 1,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 2661, < 28568, > 8771 (signed); < 18754, > 18585 (unsigned)",
+     "operand": "constant 15",
+     "a": "-128..127"
+    },
+    {
+     "line": 5,
+     "text": "if (c->mode != 11) {",
+     "size": 1,
+     "count": 37339,
+     "kind": "against a constant",
+     "outcomes": "== 2584, < 25768, > 8987 (signed); < 15954, > 18801 (unsigned)",
+     "operand": "constant 11",
+     "a": "-128..127"
+    },
+    {
+     "line": 7,
+     "text": "if (c->time > c->duration) {",
+     "size": 1,
+     "count": 34755,
+     "kind": "a == b / a < b",
+     "outcomes": "== 6941, < 14222, > 13592 (signed); < 14399, > 13415 (unsigned)",
+     "operand": "b -128..127",
+     "a": "-128..127"
+    },
+    {
+     "line": 11,
+     "text": "switch (c->mode) {",
+     "size": 4,
+     "count": 37339,
+     "kind": "switch",
+     "outcomes": "== 18173, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..255"
+    },
+    {
+     "line": 90,
+     "text": "if (c->follow & c->following) {",
+     "size": 1,
+     "count": 37339,
+     "kind": "against a constant",
+     "outcomes": "== 15930, < 8438, > 12971 (signed); < 0, > 21409 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 103,
+     "text": "if (c->time == c->duration) {",
+     "size": 1,
+     "count": 37339,
+     "kind": "a == b / a < b",
+     "outcomes": "== 21199, < 8673, > 7467 (signed); < 15242, > 898 (unsigned)",
+     "operand": "b -128..127",
+     "a": "-128..127"
+    },
+    {
+     "line": 105,
+     "text": "if (c->follow) {",
+     "size": 1,
+     "count": 21199,
+     "kind": "against a constant",
+     "outcomes": "== 2667, < 10677, > 7855 (signed); < 0, > 18532 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39078,
+     "completion_tokens": 26496,
+     "reasoning_tokens": 23218,
+     "cost": 0.0085779,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800BCA8C.zig:133:19: error: value of type 'c_int' ignored\n    c.VectorNormal(psx.cptr(c.VECTOR, &sp10), psx.cptr(c.VECTOR, arg1));\n    ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\ngame/battle/func_800BCA8C.zig:133:19: note: all non-void values must be used\ngame/battle/func_800BCA8C.zig:133:19: note: to discard the value, assign it to '_'\nreferenced by:\n    func_800BCA8C: game/battle/func_800BCA8C.zig:35:34\n    main: pc/tests/zig_diff/main.zig:511:31\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 42758,
+     "completion_tokens": 4816,
+     "reasoning_tokens": 1535,
+     "cost": 0.0033419,
+     "seconds": null,
+     "batch": "batch-1793642180-WvegN1BEu2e309HyCuyx",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 0: memory at 0x41e0f0 [arena] (zdiff_state+0x70): C 187, Zig 74\nzdiff: MISMATCH iteration 1: memory at 0x41e0f0 [arena] (zdiff_state+0x70): C 189, Zig 23\nzdiff: MISMATCH iteration 2: memory at 0x41e0f0 [arena] (zdiff_state+0x70): C 92, Zig 252\nzdiff: func_800BCA8C: 1072 iterations, seed 1, 1000 mismatches; classes: mode-15-return=72 mode-11=69 mode-2=75 mode-3=57 mode-4=73 mode-5=65 mode-8=64 mode-9=62 mode-other=535"
+    ],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 1,
+      "mismatches": 1000,
+      "first": "MISMATCH iteration 0: memory at 0x41e0f0 (zdiff_state+0x70): C 187, Zig 74"
+     }
+    ]
+   }
+  ]
+ },
+ "written": [],
+ "check_seconds": 37.830923542000164,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 70023.6368534565,
+ "totals": {
+  "cost": 0.01802,
+  "prompt_tokens": 97378,
+  "completion_tokens": 52621,
+  "model_seconds": 0.0,
+  "check_seconds": 37.8,
+  "calls": 3,
+  "wall_seconds": 70023.6
+ }
+}

@@ -1,0 +1,268 @@
+{
+ "function": "func_800B7DC4",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "stopped",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800B7DC4",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800b7dc4",
+  "difficulty": "S",
+  "zig_name": "func_800B7DC4",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800B7DC4",
+  "spec_file": "func_800B7DC4.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn func_800B7DC4(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "[*c]u8"
+   ],
+   [
+    "arg1",
+    "c_short"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "func_8006EBF8_t"
+  ],
+  "globals": [
+   "D_800F4B70"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12466,
+     "completion_tokens": 16982,
+     "reasoning_tokens": 15135,
+     "cost": 0.0048688,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:213:9: error: zdiff: a spec stub gives u16 where the C prototype has c_int: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:267:29\n    f: pc/build/port-pipeline/func_800B7DC4/spec1/build/game/common/route.zig:24:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14654,
+     "completion_tokens": 3319,
+     "reasoning_tokens": 1464,
+     "cost": 0.00156245,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "selector-zero": "5754",
+   "selector-minus-one": "5807",
+   "selector-one": "5640",
+   "selector-other": "22799"
+  },
+  "mutations": [
+   {
+    "name": "M1: first clamp takes the bound one step early (<= for <)",
+    "caught": true
+   },
+   {
+    "name": "M2: case -1 tests var_a1 >= 0",
+    "caught": true
+   },
+   {
+    "name": "M3: selector read unsigned, so 0xFF never matches case -1",
+    "caught": true
+   },
+   {
+    "name": "M4: the D_800F4B70 store is dropped",
+    "caught": true
+   },
+   {
+    "name": "M5: wrong shift in the no-rotation call",
+    "caught": true
+   },
+   {
+    "name": "M6: the offset read as signed char, so 0x80 to 0xFE turn negative",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 15,
+   "branches_hit": 15,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 23,
+   "lines_hit": 23,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "16-bit: min -32767, max 32767, unsigned 1..65532, seen negative/signed max, never zero"
+    }
+   ],
+   "compares": [
+    {
+     "line": 4,
+     "text": "short var_s2 = arg0[5] != 0xFF ? arg0[5] : -1;",
+     "size": 1,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 5690, < 17160, > 17150 (signed); < 34310, > 0 (unsigned)",
+     "operand": "constant -1",
+     "a": "-128..127"
+    },
+    {
+     "line": 7,
+     "text": "if (arg0[4] != 0) {",
+     "size": 1,
+     "count": 40000,
+     "kind": "against a constant",
+     "outcomes": "== 5754, < 17156, > 17090 (signed); < 0, > 34246 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 10,
+     "text": "if (var_a1 < -4096 / 2) {",
+     "size": 4,
+     "count": 34246,
+     "kind": "against a constant",
+     "outcomes": "== 2708, < 8749, > 22789 (signed); < 28653, > 2885 (unsigned)",
+     "operand": "constant -2048",
+     "a": "-32747..36828"
+    },
+    {
+     "line": 13,
+     "text": "if (var_a1 > 4096 / 2) {",
+     "size": 4,
+     "count": 34246,
+     "kind": "against a constant",
+     "outcomes": "== 2687, < 22549, > 9010 (signed); < 13913, > 17646 (unsigned)",
+     "operand": "constant 2048",
+     "a": "-28651..36828"
+    },
+    {
+     "line": 16,
+     "text": "switch ((signed char)arg0[4]) {",
+     "size": 4,
+     "count": 34246,
+     "kind": "switch",
+     "outcomes": "== 11447, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "-128..127"
+    },
+    {
+     "line": 18,
+     "text": "if (var_a1 > 0) {",
+     "size": 4,
+     "count": 5807,
+     "kind": "against a constant",
+     "outcomes": "== 1818, < 2008, > 1981 (signed); < 0, > 3989 (unsigned)",
+     "operand": "constant 0",
+     "a": "-28359..31798"
+    },
+    {
+     "line": 23,
+     "text": "if (var_a1 < 0) {",
+     "size": 4,
+     "count": 5640,
+     "kind": "against a constant",
+     "outcomes": "== 1883, < 1833, > 1924 (signed); < 0, > 3757 (unsigned)",
+     "operand": "constant 0",
+     "a": "-28651..32701"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35861,
+     "completion_tokens": 5868,
+     "reasoning_tokens": 5146,
+     "cost": 0.00326005,
+     "seconds": null,
+     "batch": "batch-1793642180-WvegN1BEu2e309HyCuyx",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800B7DC4.zig:11:73: error: expected type 'c_ushort', found 'c_short'\n    const slot: u16 = psx.conv(u16, c.func_800BFE50(c.vs_battle_getShort(args + 1)));\n                                                    ~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~\ngame/battle/func_800B7DC4.zig:11:73: note: unsigned 16-bit int cannot represent all possible signed 16-bit values\npc/build/boot64/zig/c_4A0A8.zig:3659:29: note: parameter type declared here\npub extern fn func_800BFE50(u_short) c_int;\n                            ^~~~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:528:31\n    main: pc/tests/zig_diff/main.zig:451:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   }
+  ]
+ },
+ "written": [],
+ "check_seconds": 36.16918772799727,
+ "mode": "rounds",
+ "transport": "batch",
+ "stopped": "handed to a hand port (the run was parked before this retry was sent)",
+ "wall_seconds": 76070.41922259331,
+ "totals": {
+  "cost": 0.00969,
+  "prompt_tokens": 62981,
+  "completion_tokens": 26169,
+  "model_seconds": 0.0,
+  "check_seconds": 36.2,
+  "calls": 3,
+  "wall_seconds": 76070.4
+ }
+}

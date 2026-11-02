@@ -1,0 +1,265 @@
+{
+ "function": "func_800B6D48",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800B6D48",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800b6d48",
+  "difficulty": "M",
+  "zig_name": "func_800B6D48",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800B6D48",
+  "spec_file": "func_800B6D48.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn func_800B6D48(script: [*c]u8, arg1: c_short) callconv(.c) c_int",
+  "params": [
+   [
+    "script",
+    "[*c]u8"
+   ],
+   [
+    "arg1",
+    "c_short"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "SVECTOR",
+   "textPlacement",
+   "vs_battle_textBox"
+  ],
+  "globals": [
+   "D_800E9BEC"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13678,
+     "completion_tokens": 13099,
+     "reasoning_tokens": 11242,
+     "cost": 0.00395865,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation M6: origin.vz masks bit 10 only: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800B6D48: 40000 iterations, seed 1, 0 mismatches; classes: zero-width=6616 max-width=6771 other-width=26613"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 15683,
+     "completion_tokens": 3142,
+     "reasoning_tokens": 1176,
+     "cost": 0.00156965,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "zero-width": "6616",
+   "max-width": "6771",
+   "other-width": "26613"
+  },
+  "mutations": [
+   {
+    "name": "M1: ties go to the later placement",
+    "caught": true
+   },
+   {
+    "name": "M2: width uses 4 per character",
+    "caught": true
+   },
+   {
+    "name": "M3: fallback skips the last placement",
+    "caught": true
+   },
+   {
+    "name": "M4: no break after a fitting placement",
+    "caught": true
+   },
+   {
+    "name": "M5: flags from the wrong script byte",
+    "caught": true
+   },
+   {
+    "name": "M6: origin.vz masks bit 10 only",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 10,
+   "branches_hit": 10,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 23,
+   "lines_hit": 23,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 40000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 40000,
+     "text": "16-bit: min -32767, max 32761, unsigned 1..65533, seen negative, never zero"
+    }
+   ],
+   "compares": [
+    {
+     "line": 14,
+     "text": "for (i = 0; i < 4; ++i) {",
+     "size": 2,
+     "count": 77562,
+     "kind": "against a constant",
+     "outcomes": "== 5027, < 70028, > 2507 (signed); < 70028, > 2507 (unsigned)",
+     "operand": "constant 3",
+     "a": "0..4"
+    },
+    {
+     "line": 15,
+     "text": "if (func_800B6B98(&origin, script, &placements[i], D_800E9BEC[i])) {",
+     "size": 4,
+     "count": 75055,
+     "kind": "against a constant",
+     "outcomes": "== 37562, < 18760, > 18733 (signed); < 0, > 37493 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147448983..2147433165"
+    },
+    {
+     "line": 23,
+     "text": "for (i = 1; i < 4; ++i) {",
+     "size": 2,
+     "count": 10028,
+     "kind": "against a constant",
+     "outcomes": "== 2507, < 5014, > 2507 (signed); < 5014, > 2507 (unsigned)",
+     "operand": "constant 3",
+     "a": "1..4"
+    },
+    {
+     "line": 24,
+     "text": "if (best->distance > placements[i].distance) {",
+     "size": 4,
+     "count": 7521,
+     "kind": "a == b / a < b",
+     "outcomes": "== 973, < 4286, > 2262 (signed); < 2731, > 3817 (unsigned)",
+     "operand": "b -4..3",
+     "a": "-4..3"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 37080,
+     "completion_tokens": 16887,
+     "reasoning_tokens": 15547,
+     "cost": 0.0060757499999999996,
+     "seconds": null,
+     "batch": "batch-1793642180-WvegN1BEu2e309HyCuyx",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800B6D48.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800B6D48.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 471.88479735700093,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 71309.5079908371,
+ "totals": {
+  "cost": 0.0116,
+  "prompt_tokens": 66441,
+  "completion_tokens": 33128,
+  "model_seconds": 0.0,
+  "check_seconds": 471.9,
+  "calls": 3,
+  "wall_seconds": 71309.5
+ }
+}

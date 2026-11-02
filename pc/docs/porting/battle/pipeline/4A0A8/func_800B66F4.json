@@ -1,0 +1,228 @@
+{
+ "function": "func_800B66F4",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800B66F4",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800b66f4",
+  "difficulty": "S",
+  "zig_name": "func_800B66F4",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800B66F4",
+  "spec_file": "func_800B66F4.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn func_800B66F4(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "[*c]u8"
+   ],
+   [
+    "arg1",
+    "c_short"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [
+   "D_800F4BBC"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11161,
+     "completion_tokens": 5108,
+     "reasoning_tokens": 4077,
+     "cost": 0.00183505,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation F4: arg1 leaks into the result: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800B66F4: 20000 iterations, seed 1, 0 mismatches; classes: global-null=4001 value-4=7971 value-not-4=8028",
+     "FAIL: mutation F5: non-null test inverted: not caught as mismatch (exit 4) (the mutated copy crashes where the C does not: if that is what this mistake does on your inputs, say `expect = \"crash\"`; otherwise choose a mutation your inputs show as a difference): zdiff: MISMATCH iteration 1: return value\nzdiff: CRASH (signal 11) in the Zig run, iteration 2, fault address 0x0 [NULL+0x0: a field of a null pointer]\nzdiff: crashed on arguments: 0 0xa700 (class global-null)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12536,
+     "completion_tokens": 2033,
+     "reasoning_tokens": 878,
+     "cost": 0.0011350499999999999,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "global-null": "4001",
+   "value-4": "7971",
+   "value-not-4": "8028"
+  },
+  "mutations": [
+   {
+    "name": "F1: returns 2 instead of 1",
+    "caught": true
+   },
+   {
+    "name": "F2: returns 1 on the fall-through path",
+    "caught": true
+   },
+   {
+    "name": "F3: wrong constant (3 for 4)",
+    "caught": true
+   },
+   {
+    "name": "F4: arg1 leaks into the result",
+    "caught": true
+   },
+   {
+    "name": "F5: non-null test inverted (dereferences a null global)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 4,
+   "branches_hit": 4,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 4,
+   "lines_hit": 4,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 20000,
+     "text": "pointer: null seen"
+    },
+    {
+     "arg": 1,
+     "count": 20000,
+     "text": "16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones, 5 value(s): 1, 32768, 32767, 0, 65535"
+    }
+   ],
+   "compares": [
+    {
+     "line": 2,
+     "text": "if ((D_800F4BBC != 0) && (*D_800F4BBC != 4)) {",
+     "size": 2,
+     "count": 15999,
+     "kind": "against a constant",
+     "outcomes": "== 7971, < 5362, > 2666 (signed); < 2614, > 5414 (unsigned)",
+     "operand": "constant 4",
+     "a": "-32768..32767"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34670,
+     "completion_tokens": 1224,
+     "reasoning_tokens": 987,
+     "cost": 0.0020395,
+     "seconds": null,
+     "batch": "batch-1793642180-WvegN1BEu2e309HyCuyx",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800B66F4.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800B66F4.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 374.76911351799936,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 70961.90747141838,
+ "totals": {
+  "cost": 0.00501,
+  "prompt_tokens": 58367,
+  "completion_tokens": 8365,
+  "model_seconds": 0.0,
+  "check_seconds": 374.8,
+  "calls": 3,
+  "wall_seconds": 70961.9
+ }
+}

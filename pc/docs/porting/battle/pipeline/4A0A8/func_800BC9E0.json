@@ -1,0 +1,189 @@
+{
+ "function": "func_800BC9E0",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "port-failed",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800BC9E0",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800bc9e0",
+  "difficulty": "S",
+  "zig_name": "func_800BC9E0",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800BC9E0",
+  "spec_file": "func_800BC9E0.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn func_800BC9E0() callconv(.c) void",
+  "params": [],
+  "ret": "void",
+  "types": [
+   "D_800F4BA4_t"
+  ],
+  "globals": [
+   "D_800F4BA4"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12683,
+     "completion_tokens": 10887,
+     "reasoning_tokens": 8951,
+     "cost": 0.0033558999999999998,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "random-state": "22475",
+   "zeroed-state": "7525"
+  },
+  "mutations": [
+   {
+    "name": "F1: eye.target.vy copied from lookAt.current.vx",
+    "caught": true
+   },
+   {
+    "name": "F2: second func_800BCA8C call gets the first call's arguments",
+    "caught": true
+   },
+   {
+    "name": "F3: dropped func_800BDF6C(nearClip) call",
+    "caught": true
+   },
+   {
+    "name": "F4: second func_800BD57C call on unk168, not unk174",
+    "caught": true
+   },
+   {
+    "name": "F5: lookAt.target.vz store moved after the first callee call",
+    "caught": true
+   },
+   {
+    "name": "F6: lookAt.target.vx read from eye.target instead of eye.current",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 16,
+   "lines_hit": 16,
+   "uncovered": [],
+   "flags": [],
+   "args": [],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 36184,
+     "completion_tokens": 2817,
+     "reasoning_tokens": 2052,
+     "cost": 0.00251345,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 0: memory at 0x41c1da [arena] (zdiff_state+0x16a): C 29, Zig 15\nzdiff: MISMATCH iteration 1: memory at 0x41c1d0 [arena] (zdiff_state+0x160): C 0, Zig 128\nzdiff: MISMATCH iteration 8: memory at 0x41c1da [arena] (zdiff_state+0x16a): C 0, Zig 188\nzdiff: func_800BC9E0: 4293 iterations, seed 1, 1000 mismatches; classes: random-state=3179 zeroed-state=1114"
+    ],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 1,
+      "mismatches": 1000,
+      "first": "MISMATCH iteration 0: memory at 0x41c1da (zdiff_state+0x16a): C 29, Zig 15"
+     }
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 37219,
+     "completion_tokens": 4531,
+     "reasoning_tokens": 3747,
+     "cost": 0.0029936999999999997,
+     "seconds": null,
+     "batch": "batch-1793642180-WvegN1BEu2e309HyCuyx",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 0: memory at 0x41c1da [arena] (zdiff_state+0x16a): C 29, Zig 15\nzdiff: MISMATCH iteration 1: memory at 0x41c1d0 [arena] (zdiff_state+0x160): C 0, Zig 128\nzdiff: MISMATCH iteration 8: memory at 0x41c1da [arena] (zdiff_state+0x16a): C 0, Zig 188\nzdiff: func_800BC9E0: 4293 iterations, seed 1, 1000 mismatches; classes: random-state=3179 zeroed-state=1114"
+    ],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 1,
+      "mismatches": 1000,
+      "first": "MISMATCH iteration 0: memory at 0x41c1da (zdiff_state+0x16a): C 29, Zig 15"
+     }
+    ]
+   }
+  ]
+ },
+ "written": [],
+ "check_seconds": 31.453193074999945,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 70023.64872050285,
+ "totals": {
+  "cost": 0.00886,
+  "prompt_tokens": 86086,
+  "completion_tokens": 18235,
+  "model_seconds": 0.0,
+  "check_seconds": 31.5,
+  "calls": 3,
+  "wall_seconds": 70023.6
+ }
+}

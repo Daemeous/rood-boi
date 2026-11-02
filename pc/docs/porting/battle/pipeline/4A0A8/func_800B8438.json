@@ -1,0 +1,187 @@
+{
+ "function": "func_800B8438",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "stopped",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800B8438",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800b8438",
+  "difficulty": "S",
+  "zig_name": "func_800B8438",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800B8438",
+  "spec_file": "func_800B8438.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn func_800B8438(arg0: [*c]u8) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "[*c]u8"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [
+   "D_800E9B58"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11305,
+     "completion_tokens": 5887,
+     "reasoning_tokens": 4612,
+     "cost": 0.0020369999999999997,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "quarter-0": "7586",
+   "quarter-1": "7576",
+   "quarter-2": "7414",
+   "quarter-3": "7424"
+  },
+  "mutations": [
+   {
+    "name": "F1: table selector shifted by 5 (bit 6 dropped)",
+    "caught": true
+   },
+   {
+    "name": "F2: mask 0x1F instead of 0x3F",
+    "caught": true
+   },
+   {
+    "name": "F3: table offset read from arg0[5] instead of arg0[3]",
+    "caught": true
+   },
+   {
+    "name": "F4: getShort given the wrong address (arg0 + 2)",
+    "caught": true
+   },
+   {
+    "name": "F5: fourth argument is arg0[3] instead of arg0[4]",
+    "caught": true
+   },
+   {
+    "name": "F6: wrong return constant",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 4,
+   "lines_hit": 4,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34716,
+     "completion_tokens": 2662,
+     "reasoning_tokens": 2298,
+     "cost": 0.0024013,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800B8438.zig:9:56: error: expected type 'c_ushort', found 'c_short'\n    const target = c.func_800BFE50(c.vs_battle_getShort(arg0 + 1));\n                                   ~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~\ngame/battle/func_800B8438.zig:9:56: note: unsigned 16-bit int cannot represent all possible signed 16-bit values\npc/build/port-pipeline/gen/4A0A8/c_4A0A8.zig:3659:29: note: parameter type declared here\npub extern fn func_800BFE50(u_short) c_int;\n                            ^~~~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:511:31\n    main: pc/tests/zig_diff/main.zig:434:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35489,
+     "completion_tokens": 798,
+     "reasoning_tokens": 405,
+     "cost": 0.00197395,
+     "seconds": null,
+     "batch": "batch-1793642180-WvegN1BEu2e309HyCuyx",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800B8438.zig:13:20: error: value of type 'c_int' ignored\n    c.func_800A01C8(target, base, @as(c_int, arg0[6] & 0x3F), @as(c_int, arg0[4]));\n    ~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\ngame/battle/func_800B8438.zig:13:20: note: all non-void values must be used\ngame/battle/func_800B8438.zig:13:20: note: to discard the value, assign it to '_'\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:528:31\n    main: pc/tests/zig_diff/main.zig:451:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   }
+  ]
+ },
+ "written": [],
+ "check_seconds": 20.8804218999976,
+ "mode": "rounds",
+ "transport": "batch",
+ "stopped": "handed to a hand port (the run was parked before this retry was sent)",
+ "wall_seconds": 76070.45938515663,
+ "totals": {
+  "cost": 0.00641,
+  "prompt_tokens": 81510,
+  "completion_tokens": 9347,
+  "model_seconds": 0.0,
+  "check_seconds": 20.9,
+  "calls": 3,
+  "wall_seconds": 76070.5
+ }
+}

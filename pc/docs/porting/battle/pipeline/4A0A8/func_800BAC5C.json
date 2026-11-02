@@ -1,0 +1,204 @@
+{
+ "function": "func_800BAC5C",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "stopped",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800BAC5C",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800bac5c",
+  "difficulty": "M",
+  "zig_name": "func_800BAC5C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800BAC5C",
+  "spec_file": "func_800BAC5C.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn func_800BAC5C(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "[*c]u8"
+   ],
+   [
+    "arg1",
+    "c_short"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "func_8006EBF8_t"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11824,
+     "completion_tokens": 15287,
+     "reasoning_tokens": 13633,
+     "cost": 0.00441295,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation M4: the -1 flag becomes 0xFF: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800BAC5C: 30000 iterations, seed 1, 0 mismatches; classes: divisor-one=15035 divisor-other=14965"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13624,
+     "completion_tokens": 2925,
+     "reasoning_tokens": 1258,
+     "cost": 0.00141245,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "divisor-one": "15035",
+   "divisor-other": "14965"
+  },
+  "mutations": [
+   {
+    "name": "M1: the divisor by arg0[5] dropped",
+    "caught": true
+   },
+   {
+    "name": "M2: < for <= at the 0x100 bound",
+    "caught": true
+   },
+   {
+    "name": "M3: ratan2 shifted by 3, not 4",
+    "caught": true
+   },
+   {
+    "name": "M4: the low flag byte masked with 0x7F",
+    "caught": true
+   },
+   {
+    "name": "M5: the z difference reads sp10 vy",
+    "caught": true
+   },
+   {
+    "name": "M6: the second state flag store dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 2,
+   "branches_hit": 2,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 10,
+   "lines_hit": 10,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "16-bit: min -32763, max 32763, unsigned 0..65534, seen zero/negative"
+    }
+   ],
+   "compares": [
+    {
+     "line": 15,
+     "text": "vs_battle_setStateFlag(temp_s3, temp_lo < 0x100 ? temp_lo & 0xFF : -1);",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 1886, < 18760, > 9354 (signed); < 11352, > 16762 (unsigned)",
+     "operand": "constant 255",
+     "a": "-2147483648..2147483647"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35326,
+     "completion_tokens": 5997,
+     "reasoning_tokens": 5084,
+     "cost": 0.00326555,
+     "seconds": null,
+     "batch": "batch-1793642180-WvegN1BEu2e309HyCuyx",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: does not compile:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: game/battle/func_800BAC5C.zig:15:61: error: expected type 'c_ushort', found 'c_short'\n    _ = c.func_800A1108(c.func_800BFE50(c.vs_battle_getShort(arg0 + 1)), &sp10);\n                                        ~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~\ngame/battle/func_800BAC5C.zig:15:61: note: unsigned 16-bit int cannot represent all possible signed 16-bit values\npc/build/boot64/zig/c_4A0A8.zig:3659:29: note: parameter type declared here\npub extern fn func_800BFE50(u_short) c_int;\n                            ^~~~~~~\nreferenced by:\n    main: pc/tests/zig_diff/main.zig:528:31\n    main: pc/tests/zig_diff/main.zig:451:1\n    4 reference(s) hidden; use '-freference-trace=6' to see all references\n"
+    ],
+    "runs": []
+   }
+  ]
+ },
+ "written": [],
+ "check_seconds": 79.88901360999989,
+ "mode": "rounds",
+ "transport": "batch",
+ "stopped": "handed to a hand port (the run was parked before this retry was sent)",
+ "wall_seconds": 76070.54757928848,
+ "totals": {
+  "cost": 0.00909,
+  "prompt_tokens": 60774,
+  "completion_tokens": 24209,
+  "model_seconds": 0.0,
+  "check_seconds": 79.9,
+  "calls": 3,
+  "wall_seconds": 76070.5
+ }
+}

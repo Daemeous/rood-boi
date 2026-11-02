@@ -1,0 +1,311 @@
+{
+ "function": "func_800B92F4",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "M",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "stopped",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800B92F4",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800b92f4",
+  "difficulty": "M",
+  "zig_name": "func_800B92F4",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800B92F4",
+  "spec_file": "func_800B92F4.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn func_800B92F4(script: [*c]u8, arg1: c_short) callconv(.c) c_int",
+  "params": [
+   [
+    "script",
+    "[*c]u8"
+   ],
+   [
+    "arg1",
+    "c_short"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [
+   "D_800E9BF0",
+   "D_800F4BF8",
+   "D_800F4C69"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12146,
+     "completion_tokens": 10641,
+     "reasoning_tokens": 8796,
+     "cost": 0.0032675499999999997,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800B92F4: branches 23/23 (100.0%), lines 52/52\n  FLAG +15 eq: boundary equality occurred only 3 time(s) in 1034 (8-bit compare, constant 1: both sides seen; a port's `<` for `<=` could pass): `if (vs_battle_getStateFlag(0xB6) == 1) {`\ncoverage func_800B92F4: FAILED (threshold 100%: 0 uncovered, 1 value flag(s) not waived)\nWhat to add:\n- `if (vs_battle_getStateFlag(0xB6) == 1) {` (+15): the two sides of this ordered compare were equal 3 time(s) in 1034. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800B92F4.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14378,
+     "completion_tokens": 3224,
+     "reasoning_tokens": 1202,
+     "cost": 0.0015249,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 2,
+   "sample": 1
+  },
+  "classes": {
+   "idle-set": "3011",
+   "idle-13": "1044",
+   "idle-14": "1034",
+   "idle-15": "940",
+   "idle-default": "4006",
+   "busy-set": "5999",
+   "busy-13": "2003",
+   "busy-14": "2028",
+   "busy-15": "2020",
+   "busy-default": "7915"
+  },
+  "mutations": [
+   {
+    "name": "S1: case 13 sets the state flag to 2, not 1",
+    "caught": true
+   },
+   {
+    "name": "S2: default passes 1 as the second argument",
+    "caught": true
+   },
+   {
+    "name": "S3: case 15 drops its func_8007B9CC call",
+    "caught": true
+   },
+   {
+    "name": "S4: signed slip, finish test as > 0 (negative results pass as done)",
+    "caught": true
+   },
+   {
+    "name": "S5: state table indexed one off (script[1] - 9)",
+    "caught": true
+   },
+   {
+    "name": "S6: default checks unk0 against 3, not 2",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 23,
+   "branches_hit": 23,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 52,
+   "lines_hit": 52,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "16-bit: min -32766, max 32766, unsigned 1..65534, seen negative, never zero"
+    }
+   ],
+   "compares": [
+    {
+     "line": 2,
+     "text": "switch (script[1]) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "switch",
+     "outcomes": "== 15156, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..255"
+    },
+    {
+     "line": 6,
+     "text": "if (D_800F4BF8 == 0) {",
+     "size": 1,
+     "count": 9010,
+     "kind": "against a constant",
+     "outcomes": "== 3011, < 2996, > 3003 (signed); < 0, > 5999 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 14,
+     "text": "if (D_800F4BF8 == 0) {",
+     "size": 1,
+     "count": 3062,
+     "kind": "against a constant",
+     "outcomes": "== 1034, < 1010, > 1018 (signed); < 0, > 2028 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 15,
+     "text": "if (vs_battle_getStateFlag(0xB6) == 1) {",
+     "size": 1,
+     "count": 1034,
+     "kind": "against a constant",
+     "outcomes": "== 278, < 381, > 375 (signed); < 2, > 754 (unsigned)",
+     "operand": "constant 1",
+     "a": "-128..127"
+    },
+    {
+     "line": 24,
+     "text": "if (func_8007B9FC() != 0) {",
+     "size": 4,
+     "count": 8027,
+     "kind": "against a constant",
+     "outcomes": "== 2002, < 3048, > 2977 (signed); < 0, > 6025 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147358699..2147249858"
+    },
+    {
+     "line": 31,
+     "text": "if (D_800F4BF8 == 0) {",
+     "size": 1,
+     "count": 3047,
+     "kind": "against a constant",
+     "outcomes": "== 1044, < 1015, > 988 (signed); < 0, > 2003 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 39,
+     "text": "if (D_800F4BF8 == 0) {",
+     "size": 1,
+     "count": 2960,
+     "kind": "against a constant",
+     "outcomes": "== 940, < 1041, > 979 (signed); < 0, > 2020 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 45,
+     "text": "if (func_8007B9FC() == 0) {",
+     "size": 4,
+     "count": 4023,
+     "kind": "against a constant",
+     "outcomes": "== 1029, < 1498, > 1496 (signed); < 0, > 2994 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147466694..2146677223"
+    },
+    {
+     "line": 51,
+     "text": "if (D_800F4BF8 == 0) {",
+     "size": 1,
+     "count": 11921,
+     "kind": "against a constant",
+     "outcomes": "== 4006, < 3932, > 3983 (signed); < 0, > 7915 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 57,
+     "text": "if (func_800CB66C()->unk0 == 2) {",
+     "size": 2,
+     "count": 7915,
+     "kind": "against a constant",
+     "outcomes": "== 3985, < 28, > 3902 (signed); < 28, > 3902 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..255"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 35548,
+     "completion_tokens": 7703,
+     "reasoning_tokens": 6634,
+     "cost": 0.0037031499999999997,
+     "seconds": null,
+     "batch": "batch-1793642180-WvegN1BEu2e309HyCuyx",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: seed 1: the port differs from the C (exit 1):\nzdiff: MISMATCH iteration 154: call 1: C calls vs_battle_setStateFlag, Zig calls func_8007B9A0\nzdiff: MISMATCH iteration 238: call 1: C calls vs_battle_setStateFlag, Zig calls func_8007B9A0\nzdiff: MISMATCH iteration 240: call 1: C calls vs_battle_setStateFlag, Zig calls func_8007B9A0\nzdiff: func_800B92F4: 30000 iterations, seed 1, 278 mismatches; classes: idle-set=3011 idle-13=1044 idle-14=1034 idle-15=940 idle-default=4006 busy-set=5999 busy-13=2003 busy-14=2028 busy-15=2020 busy-default=7915"
+    ],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 1,
+      "mismatches": 278,
+      "first": "MISMATCH iteration 154: call 1: C calls vs_battle_setStateFlag, Zig calls func_8007B9A0"
+     }
+    ]
+   }
+  ]
+ },
+ "written": [],
+ "check_seconds": 65.08902765199855,
+ "mode": "rounds",
+ "transport": "batch",
+ "stopped": "handed to a hand port (the run was parked before this retry was sent)",
+ "wall_seconds": 76070.50386118889,
+ "totals": {
+  "cost": 0.0085,
+  "prompt_tokens": 62072,
+  "completion_tokens": 21568,
+  "model_seconds": 0.0,
+  "check_seconds": 65.1,
+  "calls": 3,
+  "wall_seconds": 76070.5
+ }
+}

@@ -637,6 +637,17 @@ def _range_text(r, bits):
     return ", ".join(parts)
 
 
+def parse_classes(text):
+    """[(name, count)] from a harness run's `classes: NAME=COUNT ...`, in the
+    spec's order. Names may hold spaces and `=` (`row>=9`): a pair ends at
+    `=DIGITS` followed by a space or the end, and main.zig rejects a name
+    holding that. A list, not a dict: two classes can share a name."""
+    line = re.search(r"classes:(.*)", text or "")
+    if not line:
+        return []
+    return [(m.group(1), int(m.group(2))) for m in re.finditer(r"\s*(.+?)=(\d+)(?=\s|$)", line.group(1))]
+
+
 def coverage_run(build, exe, iterations, seed):
     """Run the coverage build; per function: branches (and conditions on GCC
     14+) with the uncovered ones and their lines, the arguments' ranges, the
@@ -856,10 +867,9 @@ def check_function(function, entry, args, table, out):
     if code:
         print(f"FAIL: {function}: the {'C copy' if standin else 'port'} differs from the C (exit {code})")
         return False
-    classes = re.search(r"classes:(.*)", text)
+    classes = parse_classes(text)
     if classes and args.self_check:
-        # Class names may hold spaces and `=` (`row>=9`): NAME=COUNT pairs end at a space.
-        empty = [m.group(1) for m in re.finditer(r"\s*(.+?)=(\d+)(?=\s|$)", classes.group(1)) if m.group(2) == "0"]
+        empty = [name for name, count in classes if count == 0]
         if empty:
             print(f"FAIL: {function}: input classes never generated: {', '.join(empty)}")
             ok = False

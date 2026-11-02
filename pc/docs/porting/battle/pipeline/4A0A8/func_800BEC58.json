@@ -1,0 +1,1015 @@
+{
+ "function": "func_800BEC58",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "XL",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "spec-failed",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800BEC58",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800bec58",
+  "difficulty": "XL",
+  "zig_name": "func_800BEC58",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800BEC58",
+  "spec_file": "func_800BEC58.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn func_800BEC58(arg0: c_int, arg1: c_int, arg2: c_int, arg3: c_int) callconv(.c) c_short",
+  "params": [
+   [
+    "arg0",
+    "c_int"
+   ],
+   [
+    "arg1",
+    "c_int"
+   ],
+   [
+    "arg2",
+    "c_int"
+   ],
+   [
+    "arg3",
+    "c_int"
+   ]
+  ],
+  "ret": "c_short",
+  "types": [
+   "func_8006EBF8_t"
+  ],
+  "globals": [
+   "D_800F4BA8",
+   "D_800F4BE0",
+   "D_800F4C34",
+   "_evtFile",
+   "_mpdClearedSection",
+   "_mpdScriptSection"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "length",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 18622,
+     "completion_tokens": 64000,
+     "reasoning_tokens": 64000,
+     "cost": 0.0169311,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: no ```zig block in the reply",
+     "FAIL: no ```toml block in the reply"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 18681,
+     "completion_tokens": 43192,
+     "reasoning_tokens": 39422,
+     "cost": 0.01173205,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:213:9: error: zdiff: a spec stub gives c_int where the C prototype has c_uint: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:267:29\n    f: pc/build/port-pipeline/func_800BEC58/spec2/build/game/common/route.zig:24:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\npc/tests/zig_diff/main.zig:213:9: error: zdiff: a spec stub gives c_int where the C prototype has u8: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\n"
+    ]
+   },
+   {
+    "round": 3,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 22940,
+     "completion_tokens": 6507,
+     "reasoning_tokens": 3205,
+     "cost": 0.00277375,
+     "seconds": null,
+     "batch": "batch-1793642180-WvegN1BEu2e309HyCuyx",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800BEC58: branches 129/150 (86.0%), lines 208/224\n  UNCOVERED +149 b1: branch never taken: `if (flagId != 0) {`\n  UNCOVERED +152 b0: branch never taken (not executed): `} else if (left != 0) {`\n  UNCOVERED +152 b1: branch never taken (not executed): `} else if (left != 0) {`\n  UNCOVERED +161 b1: branch never taken: `if (actorId != 1 && otherActorId != 1 && arg1 == actorId`\n  UNCOVERED +161 b3: branch never taken: `if (actorId != 1 && otherActorId != 1 && arg1 == actorId`\n  UNCOVERED +161 b4: branch never taken: `if (actorId != 1 && otherActorId != 1 && arg1 == actorId`\n  UNCOVERED +162 b0: branch never taken (not executed): `&& arg2 == otherActorId) {`\n  UNCOVERED +162 b1: branch never taken (not executed): `&& arg2 == otherActorId) {`\n  UNCOVERED +170 b0: branch never taken: `if (actorId == 1) {`\n  UNCOVERED +176 b1: branch never taken: `if (flagId != 0) {`\n  UNCOVERED +179 b0: branch never taken (not executed): `} else if (left != 0) {`\n  UNCOVERED +179 b1: branch never taken (not executed): `} else if (left != 0) {`\n  UNCOVERED +201 b1: branch never taken: `if (flagId != 0) {`\n  UNCOVERED +204 b0: branch never taken (not executed): `} else if (left != 0) {`\n  UNCOVERED +204 b1: branch never taken (not executed): `} else if (left != 0) {`\n  UNCOVERED +223 b1: branch never taken: `if (flagId != 0) {`\n  UNCOVERED +226 b0: branch never taken (not executed): `} else if (left != 0) {`\n  UNCOVERED +226 b1: branch never taken (not executed): `} else if (left != 0) {`\n  UNCOVERED +246 b0: branch never taken: `if (actorId == 1) {`\n  UNCOVERED +261 b0: branch never taken: `if (actorId == 1) {`\n  UNCOVERED +265 b1: branch never taken: `if (func_8007CFCC(actorId) != 0) {`\n  FLAG +65 eq: boundary equality occurred only 2 time(s) in 6814 (16-bit compare, constant 0: both sides seen; a port's `<` for `<=` could pass): `if (eventId & 0x8000) {`\n  FLAG +103 eq: boundary equality occurred only 2 time(s) in 313 (32-bit compare, b 0..254: both sides seen; a port's `<` for `<=` could pass): `if (left <= right) {`\n  FLAG +108 eq: boundary equality occurred only 1 time(s) in 283 (32-bit compare, b 0..255: both sides seen; a port's `<` for `<=` could pass): `if (left >= right) {`\n  FLAG +113 eq: boundary equality occurred only 1 time(s) in 302 (32-bit compare, b 1..255: both sides seen; a port's `<` for `<=` could pass): `if (left == right) {`\n  FLAG +118 eq: boundary equality occurred only 1 time(s) in 300 (32-bit compare, b 1..255: both sides seen; a port's `<` for `<=` could pass): `if (left != right) {`\n  FLAG +123 eq: boundary equality occurred only 2 time(s) in 307 (32-bit compare, b 0..253: both sides seen; a port's `<` for `<=` could pass): `if (left < right) {`\n  FLAG +128 eq: boundary equality occurred only 3 time(s) in 303 (32-bit compare, b 1..255: both sides seen; a port's `<` for `<=` could pass): `if (left > right) {`\n  FLAG +233 eq: boundary equality occurred only 1 time(s) in 1286 (16-bit"
+    ]
+   }
+  ],
+  "classes": {
+   "type-ff": "1478",
+   "type-1-section": "1476",
+   "type-40": "1488",
+   "busy-gate": "15870",
+   "scan": "9688"
+  },
+  "mutations": [
+   {
+    "name": "F1: <= becomes < (equal sides must pass)",
+    "caught": true
+   },
+   {
+    "name": "F2: case 2 lower bound > instead of >=",
+    "caught": true
+   },
+   {
+    "name": "F3: case 8 checks arg2[1] for the second byte",
+    "caught": true
+   },
+   {
+    "name": "F4: the 0xFF end keeps the busy flag set",
+    "caught": true
+   },
+   {
+    "name": "F5: the 0x40 path stores arg2 as the event file",
+    "caught": true
+   },
+   {
+    "name": "F6: case 4 tests the wrong flag bit",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 150,
+   "branches_hit": 129,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 224,
+   "lines_hit": 208,
+   "uncovered": [
+    {
+     "id": "+149 b1",
+     "line": 149,
+     "text": "if (flagId != 0) {",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+152 b0",
+     "line": 152,
+     "text": "} else if (left != 0) {",
+     "what": "branch never taken (not executed)"
+    },
+    {
+     "id": "+152 b1",
+     "line": 152,
+     "text": "} else if (left != 0) {",
+     "what": "branch never taken (not executed)"
+    },
+    {
+     "id": "+161 b1",
+     "line": 161,
+     "text": "if (actorId != 1 && otherActorId != 1 && arg1 == actorId",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+161 b3",
+     "line": 161,
+     "text": "if (actorId != 1 && otherActorId != 1 && arg1 == actorId",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+161 b4",
+     "line": 161,
+     "text": "if (actorId != 1 && otherActorId != 1 && arg1 == actorId",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+162 b0",
+     "line": 162,
+     "text": "&& arg2 == otherActorId) {",
+     "what": "branch never taken (not executed)"
+    },
+    {
+     "id": "+162 b1",
+     "line": 162,
+     "text": "&& arg2 == otherActorId) {",
+     "what": "branch never taken (not executed)"
+    },
+    {
+     "id": "+170 b0",
+     "line": 170,
+     "text": "if (actorId == 1) {",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+176 b1",
+     "line": 176,
+     "text": "if (flagId != 0) {",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+179 b0",
+     "line": 179,
+     "text": "} else if (left != 0) {",
+     "what": "branch never taken (not executed)"
+    },
+    {
+     "id": "+179 b1",
+     "line": 179,
+     "text": "} else if (left != 0) {",
+     "what": "branch never taken (not executed)"
+    },
+    {
+     "id": "+201 b1",
+     "line": 201,
+     "text": "if (flagId != 0) {",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+204 b0",
+     "line": 204,
+     "text": "} else if (left != 0) {",
+     "what": "branch never taken (not executed)"
+    },
+    {
+     "id": "+204 b1",
+     "line": 204,
+     "text": "} else if (left != 0) {",
+     "what": "branch never taken (not executed)"
+    },
+    {
+     "id": "+223 b1",
+     "line": 223,
+     "text": "if (flagId != 0) {",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+226 b0",
+     "line": 226,
+     "text": "} else if (left != 0) {",
+     "what": "branch never taken (not executed)"
+    },
+    {
+     "id": "+226 b1",
+     "line": 226,
+     "text": "} else if (left != 0) {",
+     "what": "branch never taken (not executed)"
+    },
+    {
+     "id": "+246 b0",
+     "line": 246,
+     "text": "if (actorId == 1) {",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+261 b0",
+     "line": 261,
+     "text": "if (actorId == 1) {",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+265 b1",
+     "line": 265,
+     "text": "if (func_8007CFCC(actorId) != 0) {",
+     "what": "branch never taken"
+    }
+   ],
+   "flags": [
+    {
+     "id": "+65 eq",
+     "line": 65,
+     "text": "if (eventId & 0x8000) {",
+     "kind": "eq",
+     "bits": 16,
+     "equal": 2,
+     "count": 6814,
+     "what": "boundary equality occurred only 2 time(s) in 6814 (16-bit compare, constant 0: both sides seen; a port's `<` for `<=` could pass)"
+    },
+    {
+     "id": "+103 eq",
+     "line": 103,
+     "text": "if (left <= right) {",
+     "kind": "eq",
+     "bits": 32,
+     "equal": 2,
+     "count": 313,
+     "what": "boundary equality occurred only 2 time(s) in 313 (32-bit compare, b 0..254: both sides seen; a port's `<` for `<=` could pass)"
+    },
+    {
+     "id": "+108 eq",
+     "line": 108,
+     "text": "if (left >= right) {",
+     "kind": "eq",
+     "bits": 32,
+     "equal": 1,
+     "count": 283,
+     "what": "boundary equality occurred only 1 time(s) in 283 (32-bit compare, b 0..255: both sides seen; a port's `<` for `<=` could pass)"
+    },
+    {
+     "id": "+113 eq",
+     "line": 113,
+     "text": "if (left == right) {",
+     "kind": "eq",
+     "bits": 32,
+     "equal": 1,
+     "count": 302,
+     "what": "boundary equality occurred only 1 time(s) in 302 (32-bit compare, b 1..255: both sides seen; a port's `<` for `<=` could pass)"
+    },
+    {
+     "id": "+118 eq",
+     "line": 118,
+     "text": "if (left != right) {",
+     "kind": "eq",
+     "bits": 32,
+     "equal": 1,
+     "count": 300,
+     "what": "boundary equality occurred only 1 time(s) in 300 (32-bit compare, b 1..255: both sides seen; a port's `<` for `<=` could pass)"
+    },
+    {
+     "id": "+123 eq",
+     "line": 123,
+     "text": "if (left < right) {",
+     "kind": "eq",
+     "bits": 32,
+     "equal": 2,
+     "count": 307,
+     "what": "boundary equality occurred only 2 time(s) in 307 (32-bit compare, b 0..253: both sides seen; a port's `<` for `<=` could pass)"
+    },
+    {
+     "id": "+128 eq",
+     "line": 128,
+     "text": "if (left > right) {",
+     "kind": "eq",
+     "bits": 32,
+     "equal": 3,
+     "count": 303,
+     "what": "boundary equality occurred only 3 time(s) in 303 (32-bit compare, b 1..255: both sides seen; a port's `<` for `<=` could pass)"
+    },
+    {
+     "id": "+233 eq",
+     "line": 233,
+     "text": "if (actorId == 1) {",
+     "kind": "eq",
+     "bits": 16,
+     "equal": 1,
+     "count": 1286,
+     "what": "boundary equality occurred only 1 time(s) in 1286 (16-bit compare, constant 1: both sides seen; a port's `<` for `<=` could pass)"
+    }
+   ],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "32-bit: min -2147378832, max 2146931344, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "32-bit: min -2147187581, max 2147292180, unsigned 0..4294967295, seen zero/negative/all ones"
+    },
+    {
+     "arg": 2,
+     "count": 30000,
+     "text": "32-bit: min -2145998084, max 2147389912, unsigned 0..4294585158, seen zero/negative"
+    },
+    {
+     "arg": 3,
+     "count": 30000,
+     "text": "32-bit: min -1, max 2, unsigned 0..4294967295, seen zero/negative/all ones, 4 value(s): 1, 4294967295, 0, 2"
+    }
+   ],
+   "compares": [
+    {
+     "line": 21,
+     "text": "if (type == 0xFF) {",
+     "size": 2,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 1478, < 19552, > 8970 (signed); < 10548, > 17974 (unsigned)",
+     "operand": "constant 255",
+     "a": "-32759..32764"
+    },
+    {
+     "line": 22,
+     "text": "if (D_800F4C34 == 0) {",
+     "size": 1,
+     "count": 1478,
+     "kind": "against a constant",
+     "outcomes": "== 216, < 371, > 891 (signed); < 0, > 1262 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 27,
+     "text": "if (type == 1) {",
+     "size": 2,
+     "count": 28522,
+     "kind": "against a constant",
+     "outcomes": "== 2975, < 10511, > 15036 (signed); < 1507, > 24040 (unsigned)",
+     "operand": "constant 1",
+     "a": "-32759..32764"
+    },
+    {
+     "line": 29,
+     "text": "if (scriptSection & 1) {",
+     "size": 4,
+     "count": 2975,
+     "kind": "against a constant",
+     "outcomes": "== 1499, < 0, > 1476 (signed); < 0, > 1476 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1"
+    },
+    {
+     "line": 37,
+     "text": "if (type == 0x40) {",
+     "size": 2,
+     "count": 27046,
+     "kind": "against a constant",
+     "outcomes": "== 1488, < 13528, > 12030 (signed); < 4524, > 21034 (unsigned)",
+     "operand": "constant 64",
+     "a": "-32759..32764"
+    },
+    {
+     "line": 44,
+     "text": "if (D_800F4C34 != 0 && D_800F4BA8 != 0) {",
+     "size": 1,
+     "count": 25558,
+     "kind": "against a constant",
+     "outcomes": "== 4348, < 6434, > 14776 (signed); < 0, > 21210 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 44,
+     "text": "if (D_800F4C34 != 0 && D_800F4BA8 != 0) {",
+     "size": 1,
+     "count": 21210,
+     "kind": "against a constant",
+     "outcomes": "== 5340, < 5372, > 10498 (signed); < 0, > 15870 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..127"
+    },
+    {
+     "line": 48,
+     "text": "for (i = 0; i < 16; ++i) {",
+     "size": 2,
+     "count": 31894,
+     "kind": "against a constant",
+     "outcomes": "== 207, < 31505, > 182 (signed); < 31505, > 182 (unsigned)",
+     "operand": "constant 15",
+     "a": "0..16"
+    },
+    {
+     "line": 48,
+     "text": "for (i = 0; i < 16; ++i) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 182, < 29818, > 0 (signed); < 29818, > 0 (unsigned)",
+     "operand": "constant 1",
+     "a": "0..1"
+    },
+    {
+     "line": 50,
+     "text": "if (offset == 0xFFFF) {",
+     "size": 2,
+     "count": 31712,
+     "kind": "against a constant",
+     "outcomes": "== 2692, < 0, > 29020 (signed); < 29020, > 0 (unsigned)",
+     "operand": "constant -1",
+     "a": "-1..287"
+    },
+    {
+     "line": 54,
+     "text": "if (!(*p & type)) {",
+     "size": 4,
+     "count": 29020,
+     "kind": "against a constant",
+     "outcomes": "== 9886, < 0, > 19134 (signed); < 0, > 19134 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..255"
+    },
+    {
+     "line": 63,
+     "text": "switch (*p) {",
+     "size": 4,
+     "count": 28901,
+     "kind": "switch",
+     "outcomes": "== 27630, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "1..255"
+    },
+    {
+     "line": 65,
+     "text": "if (eventId & 0x8000) {",
+     "size": 2,
+     "count": 6814,
+     "kind": "against a constant",
+     "outcomes": "== 2, < 3361, > 3451 (signed); < 0, > 6812 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32751..32766"
+    },
+    {
+     "line": 77,
+     "text": "if (position.unk0.unk0.fields.unk0_0 == p[1]",
+     "size": 1,
+     "count": 1179,
+     "kind": "a == b / a < b",
+     "outcomes": "== 313, < 433, > 433 (signed); < 433, > 433 (unsigned)",
+     "operand": "b 0..3",
+     "a": "0..3"
+    },
+    {
+     "line": 78,
+     "text": "&& position.unk0.unk0.fields.unk0_16 == p[2]) {",
+     "size": 1,
+     "count": 313,
+     "kind": "a == b / a < b",
+     "outcomes": "== 86, < 112, > 115 (signed); < 112, > 115 (unsigned)",
+     "operand": "b 0..3",
+     "a": "0..3"
+    },
+    {
+     "line": 85,
+     "text": "if (position.unk0.unk0.fields.unk0_0 >= p[1]",
+     "size": 1,
+     "count": 1261,
+     "kind": "a == b / a < b",
+     "outcomes": "== 333, < 486, > 442 (signed); < 486, > 442 (unsigned)",
+     "operand": "b 0..3",
+     "a": "0..3"
+    },
+    {
+     "line": 86,
+     "text": "&& position.unk0.unk0.fields.unk0_0 < p[1] + p[3]",
+     "size": 4,
+     "count": 775,
+     "kind": "a == b / a < b",
+     "outcomes": "== 175, < 397, > 203 (signed); < 397, > 203 (unsigned)",
+     "operand": "b 0..6",
+     "a": "0..3"
+    },
+    {
+     "line": 87,
+     "text": "&& position.unk0.unk0.fields.unk0_16 >= p[2]",
+     "size": 1,
+     "count": 397,
+     "kind": "a == b / a < b",
+     "outcomes": "== 101, < 144, > 152 (signed); < 144, > 152 (unsigned)",
+     "operand": "b 0..3",
+     "a": "0..3"
+    },
+    {
+     "line": 88,
+     "text": "&& position.unk0.unk0.fields.unk0_16 < p[2] + p[4]) {",
+     "size": 4,
+     "count": 253,
+     "kind": "a == b / a < b",
+     "outcomes": "== 64, < 121, > 68 (signed); < 121, > 68 (unsigned)",
+     "operand": "b 0..6",
+     "a": "0..3"
+    },
+    {
+     "line": 101,
+     "text": "switch (p[1] & 0xF0) {",
+     "size": 4,
+     "count": 2383,
+     "kind": "switch",
+     "outcomes": "== 1808, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..112"
+    },
+    {
+     "line": 103,
+     "text": "if (left <= right) {",
+     "size": 4,
+     "count": 313,
+     "kind": "a == b / a < b",
+     "outcomes": "== 2, < 232, > 79 (signed); < 232, > 79 (unsigned)",
+     "operand": "b 0..254",
+     "a": "0..254"
+    },
+    {
+     "line": 108,
+     "text": "if (left >= right) {",
+     "size": 4,
+     "count": 283,
+     "kind": "a == b / a < b",
+     "outcomes": "== 1, < 204, > 78 (signed); < 204, > 78 (unsigned)",
+     "operand": "b 0..255",
+     "a": "0..252"
+    },
+    {
+     "line": 113,
+     "text": "if (left == right) {",
+     "size": 4,
+     "count": 302,
+     "kind": "a == b / a < b",
+     "outcomes": "== 1, < 228, > 73 (signed); < 228, > 73 (unsigned)",
+     "operand": "b 1..255",
+     "a": "0..252"
+    },
+    {
+     "line": 118,
+     "text": "if (left != right) {",
+     "size": 4,
+     "count": 300,
+     "kind": "a == b / a < b",
+     "outcomes": "== 1, < 229, > 70 (signed); < 229, > 70 (unsigned)",
+     "operand": "b 1..255",
+     "a": "0..252"
+    },
+    {
+     "line": 123,
+     "text": "if (left < right) {",
+     "size": 4,
+     "count": 307,
+     "kind": "a == b / a < b",
+     "outcomes": "== 2, < 227, > 78 (signed); < 227, > 78 (unsigned)",
+     "operand": "b 0..253",
+     "a": "0..254"
+    },
+    {
+     "line": 128,
+     "text": "if (left > right) {",
+     "size": 4,
+     "count": 303,
+     "kind": "a == b / a < b",
+     "outcomes": "== 3, < 230, > 70 (signed); < 230, > 70 (unsigned)",
+     "operand": "b 1..255",
+     "a": "0..253"
+    },
+    {
+     "line": 137,
+     "text": "if (left & 0x1000) {",
+     "size": 4,
+     "count": 1185,
+     "kind": "against a constant",
+     "outcomes": "== 576, < 0, > 609 (signed); < 0, > 609 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..4096"
+    },
+    {
+     "line": 141,
+     "text": "} else if (func_8007CF18(left) != 1) {",
+     "size": 4,
+     "count": 576,
+     "kind": "against a constant",
+     "outcomes": "== 269, < 151, > 156 (signed); < 0, > 307 (unsigned)",
+     "operand": "constant 1",
+     "a": "-2128417005..2143257414"
+    },
+    {
+     "line": 149,
+     "text": "if (flagId != 0) {",
+     "size": 2,
+     "count": 1241,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 626, > 615 (signed); < 0, > 1241 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32628..32715"
+    },
+    {
+     "line": 158,
+     "text": "if (mode == 0) {",
+     "size": 2,
+     "count": 1271,
+     "kind": "against a constant",
+     "outcomes": "== 308, < 324, > 639 (signed); < 0, > 963 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..2"
+    },
+    {
+     "line": 161,
+     "text": "if (actorId != 1 && otherActorId != 1 && arg1 == actorId",
+     "size": 2,
+     "count": 308,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 161, > 147 (signed); < 0, > 308 (unsigned)",
+     "operand": "constant 1",
+     "a": "-32609..32662"
+    },
+    {
+     "line": 161,
+     "text": "if (actorId != 1 && otherActorId != 1 && arg1 == actorId",
+     "size": 2,
+     "count": 308,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 162, > 146 (signed); < 0, > 308 (unsigned)",
+     "operand": "constant 1",
+     "a": "-32548..32400"
+    },
+    {
+     "line": 161,
+     "text": "if (actorId != 1 && otherActorId != 1 && arg1 == actorId",
+     "size": 4,
+     "count": 308,
+     "kind": "a == b / a < b",
+     "outcomes": "== 0, < 149, > 159 (signed); < 206, > 102 (unsigned)",
+     "operand": "b -32609..32662",
+     "a": "-2036902843..2107970807"
+    },
+    {
+     "line": 170,
+     "text": "if (actorId == 1) {",
+     "size": 2,
+     "count": 1221,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 616, > 605 (signed); < 0, > 1221 (unsigned)",
+     "operand": "constant 1",
+     "a": "-32741..32743"
+    },
+    {
+     "line": 176,
+     "text": "if (flagId != 0) {",
+     "size": 2,
+     "count": 1221,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 619, > 602 (signed); < 0, > 1221 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32767..32759"
+    },
+    {
+     "line": 185,
+     "text": "if (mode == 1 && ((u_char*)(long unsigned int)(unsigned int)(arg2))[0] == p[1]",
+     "size": 2,
+     "count": 1233,
+     "kind": "against a constant",
+     "outcomes": "== 287, < 629, > 317 (signed); < 310, > 636 (unsigned)",
+     "operand": "constant 1",
+     "a": "-1..2"
+    },
+    {
+     "line": 185,
+     "text": "if (mode == 1 && ((u_char*)(long unsigned int)(unsigned int)(arg2))[0] == p[1]",
+     "size": 1,
+     "count": 287,
+     "kind": "a == b / a < b",
+     "outcomes": "== 66, < 132, > 89 (signed); < 132, > 89 (unsigned)",
+     "operand": "b 0..3",
+     "a": "0..3"
+    },
+    {
+     "line": 186,
+     "text": "&& ((u_char*)(long unsigned int)(unsigned int)(arg2))[2] == p[2]) {",
+     "size": 1,
+     "count": 66,
+     "kind": "a == b / a < b",
+     "outcomes": "== 16, < 31, > 19 (signed); < 31, > 19 (unsigned)",
+     "operand": "b 0..3",
+     "a": "0..3"
+    },
+    {
+     "line": 192,
+     "text": "if (!(func_800A0BE0(0) & 0x104000)) {",
+     "size": 4,
+     "count": 1190,
+     "kind": "against a constant",
+     "outcomes": "== 285, < 0, > 905 (signed); < 0, > 905 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..1064960"
+    },
+    {
+     "line": 201,
+     "text": "if (flagId != 0) {",
+     "size": 2,
+     "count": 1240,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 614, > 626 (signed); < 0, > 1240 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32706..32765"
+    },
+    {
+     "line": 210,
+     "text": "if ((short)func_800A0024(p[1], &position) >= 0",
+     "size": 2,
+     "count": 1220,
+     "kind": "against a constant",
+     "outcomes": "== 310, < 293, > 617 (signed); < 0, > 910 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..2"
+    },
+    {
+     "line": 211,
+     "text": "&& position.unk0.unk0.fields.unk0_0 == p[2]",
+     "size": 1,
+     "count": 927,
+     "kind": "a == b / a < b",
+     "outcomes": "== 256, < 338, > 333 (signed); < 338, > 333 (unsigned)",
+     "operand": "b 0..3",
+     "a": "0..3"
+    },
+    {
+     "line": 212,
+     "text": "&& position.unk0.unk0.fields.unk0_16 == p[3]",
+     "size": 1,
+     "count": 256,
+     "kind": "a == b / a < b",
+     "outcomes": "== 58, < 99, > 99 (signed); < 99, > 99 (unsigned)",
+     "operand": "b 0..3",
+     "a": "0..3"
+    },
+    {
+     "line": 213,
+     "text": "&& (p[4] == 0 || -(position.unk0.unk4.vy / 128) + 1 == p[4])",
+     "size": 1,
+     "count": 58,
+     "kind": "against a constant",
+     "outcomes": "== 13, < 0, > 45 (signed); < 0, > 45 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..3"
+    },
+    {
+     "line": 213,
+     "text": "&& (p[4] == 0 || -(position.unk0.unk4.vy / 128) + 1 == p[4])",
+     "size": 4,
+     "count": 45,
+     "kind": "a == b / a < b",
+     "outcomes": "== 18, < 27, > 0 (signed); < 27, > 0 (unsigned)",
+     "operand": "b 1..3",
+     "a": "1..1"
+    },
+    {
+     "line": 214,
+     "text": "&& (p[5] == 0",
+     "size": 1,
+     "count": 31,
+     "kind": "against a constant",
+     "outcomes": "== 9, < 0, > 22 (signed); < 0, > 22 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..3"
+    },
+    {
+     "line": 215,
+     "text": "|| (position.unk0.unk0.fields.unk0_24 >> 2) + 1 == p[5])) {",
+     "size": 4,
+     "count": 22,
+     "kind": "a == b / a < b",
+     "outcomes": "== 7, < 3, > 12 (signed); < 3, > 12 (unsigned)",
+     "operand": "b 1..3",
+     "a": "1..4"
+    },
+    {
+     "line": 223,
+     "text": "if (flagId != 0) {",
+     "size": 2,
+     "count": 1238,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 599, > 639 (signed); < 0, > 1238 (unsigned)",
+     "operand": "constant 0",
+     "a": "-32566..32625"
+    },
+    {
+     "line": 233,
+     "text": "if (actorId == 1) {",
+     "size": 2,
+     "count": 1286,
+     "kind": "against a constant",
+     "outcomes": "== 1, < 636, > 649 (signed); < 0, > 1285 (unsigned)",
+     "operand": "constant 1",
+     "a": "-32756..32765"
+    },
+    {
+     "line": 238,
+     "text": "if (position.unk0.unk0.fields.unk0_0 == p[3]",
+     "size": 1,
+     "count": 1285,
+     "kind": "a == b / a < b",
+     "outcomes": "== 358, < 443, > 484 (signed); < 443, > 484 (unsigned)",
+     "operand": "b 0..3",
+     "a": "0..3"
+    },
+    {
+     "line": 239,
+     "text": "&& position.unk0.unk0.fields.unk0_16 == p[4]) {",
+     "size": 1,
+     "count": 358,
+     "kind": "a == b / a < b",
+     "outcomes": "== 90, < 138, > 130 (signed); < 138, > 130 (unsigned)",
+     "operand": "b 0..3",
+     "a": "0..3"
+    },
+    {
+     "line": 246,
+     "text": "if (actorId == 1) {",
+     "size": 2,
+     "count": 1187,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 582, > 605 (signed); < 0, > 1187 (unsigned)",
+     "operand": "constant 1",
+     "a": "-32718..32762"
+    },
+    {
+     "line": 251,
+     "text": "if (position.unk0.unk0.fields.unk0_0 >= p[3]",
+     "size": 1,
+     "count": 1187,
+     "kind": "a == b / a < b",
+     "outcomes": "== 293, < 461, > 433 (signed); < 461, > 433 (unsigned)",
+     "operand": "b 0..3",
+     "a": "0..3"
+    },
+    {
+     "line": 252,
+     "text": "&& position.unk0.unk0.fields.unk0_0 < p[3] + p[5]",
+     "size": 4,
+     "count": 726,
+     "kind": "a == b / a < b",
+     "outcomes": "== 176, < 370, > 180 (signed); < 370, > 180 (unsigned)",
+     "operand": "b 0..6",
+     "a": "0..3"
+    },
+    {
+     "line": 253,
+     "text": "&& position.unk0.unk0.fields.unk0_16 >= p[4]",
+     "size": 1,
+     "count": 370,
+     "kind": "a == b / a < b",
+     "outcomes": "== 93, < 131, > 146 (signed); < 131, > 146 (unsigned)",
+     "operand": "b 0..3",
+     "a": "0..3"
+    },
+    {
+     "line": 254,
+     "text": "&& position.unk0.unk0.fields.unk0_16 < p[4] + p[6]) {",
+     "size": 4,
+     "count": 239,
+     "kind": "a == b / a < b",
+     "outcomes": "== 73, < 112, > 54 (signed); < 112, > 54 (unsigned)",
+     "operand": "b 0..6",
+     "a": "0..3"
+    },
+    {
+     "line": 261,
+     "text": "if (actorId == 1) {",
+     "size": 2,
+     "count": 1241,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 627, > 614 (signed); < 0, > 1241 (unsigned)",
+     "operand": "constant 1",
+     "a": "-32677..32760"
+    },
+    {
+     "line": 265,
+     "text": "if (func_8007CFCC(actorId) != 0) {",
+     "size": 4,
+     "count": 1241,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 611, > 630 (signed); < 0, > 1241 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2145865288..2146107873"
+    },
+    {
+     "line": 278,
+     "text": "if (result == negate) {",
+     "size": 4,
+     "count": 20847,
+     "kind": "a == b / a < b",
+     "outcomes": "== 12320, < 462, > 8065 (signed); < 462, > 8065 (unsigned)",
+     "operand": "b 0..1",
+     "a": "0..1"
+    }
+   ],
+   "passed": false
+  }
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 34.15561059000174,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 70081.22019004822,
+ "totals": {
+  "cost": 0.03144,
+  "prompt_tokens": 60243,
+  "completion_tokens": 113699,
+  "model_seconds": 0.0,
+  "check_seconds": 34.2,
+  "calls": 3,
+  "wall_seconds": 70081.2
+ }
+}

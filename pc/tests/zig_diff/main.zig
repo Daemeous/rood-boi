@@ -424,6 +424,23 @@ fn coverArg(comptime i: usize, a: anytype) void {
 }
 
 const class_count = if (@hasDecl(spec, "classes")) spec.classes.len else 0;
+// The summary prints ` NAME=COUNT` per class, and zig_diff.py's
+// parse_classes ends a pair at `=DIGITS` followed by a space or the end: a
+// name holding that (`s1=0 s2=1`) reads as several classes, some counted 0.
+comptime {
+    @setEvalBranchQuota(100000);
+    for (0..class_count) |c| {
+        const name: []const u8 = spec.classes[c];
+        for (name, 0..) |ch, i| {
+            if (ch != '=') continue;
+            var j = i + 1;
+            while (j < name.len and std.ascii.isDigit(name[j])) j += 1;
+            if (j > i + 1 and (j == name.len or std.ascii.isWhitespace(name[j])))
+                @compileError("zdiff: class \"" ++ name ++ "\" holds `=` then digits then a space or its end, " ++
+                    "which the classes line cannot tell from a count: write `s1:0`, not `s1=0`");
+        }
+    }
+}
 /// A spec whose C returns no value on some path (`return;` or falling off the
 /// end of a non-void function: the result register's leftover, which no port
 /// can reproduce) and whose callers all ignore the result says why in
