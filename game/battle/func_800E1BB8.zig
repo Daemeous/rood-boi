@@ -4,7 +4,8 @@ const psx = @import("common").psx;
 const v = @import("views_771A8");
 const c = @import("c_771A8");
 
-/// Direction table entry `index` bytes past WANDER_DIRECTIONS (scratchpad 0x1F8003EC).
+/// orig: wanderDirection (src/BATTLE/BATTLE.PRG/771A8.c)
+/// Direction table entry `index` bytes past WANDER_DIRECTIONS (scratchpad 0x1F8003EC; a file-scope static inline).
 fn wanderDirection(index: c_int) *const v.D_800F16EC_t {
     return @ptrFromInt(0x1F8003EC + @as(usize, @intCast(index)));
 }

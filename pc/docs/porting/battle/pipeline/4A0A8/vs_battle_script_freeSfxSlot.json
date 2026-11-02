@@ -1,0 +1,202 @@
+{
+ "function": "vs_battle_script_freeSfxSlot",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": false,
+ "plan": {
+  "name": "vs_battle_script_freeSfxSlot",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800ba470",
+  "difficulty": "S",
+  "zig_name": "script_freeSfxSlot",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "script_free_sfx_slot",
+  "spec_file": "script_freeSfxSlot.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn script_freeSfxSlot(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "[*c]u8"
+   ],
+   [
+    "arg1",
+    "c_short"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11205,
+     "completion_tokens": 4552,
+     "reasoning_tokens": 3285,
+     "cost": 0.0016982499999999999,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "slot-zero": "2004",
+   "slot-sign-bit": "9022",
+   "slot-other": "8974"
+  },
+  "mutations": [
+   {
+    "name": "F1: slot read from arg0[0]",
+    "caught": true
+   },
+   {
+    "name": "F2: result tested with > 0 (negative results read as false)",
+    "caught": true
+   },
+   {
+    "name": "F3: result masked to its low byte instead of tested against zero",
+    "caught": true
+   },
+   {
+    "name": "F4: the free call dropped",
+    "caught": true
+   },
+   {
+    "name": "F5: slot read as signed char (sign-extended to u_int)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 2,
+   "lines_hit": 2,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 20000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 20000,
+     "text": "16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 2,
+     "text": "return vs_main_freeSfxQueueSlot(arg0[1]) != 0;",
+     "size": 4,
+     "count": 20000,
+     "kind": "against a constant",
+     "outcomes": "== 4881, < 8925, > 6194 (signed); < 0, > 15119 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..2147267709"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34675,
+     "completion_tokens": 1615,
+     "reasoning_tokens": 1260,
+     "cost": 0.0021374999999999996,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/script_freeSfxSlot.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/script_free_sfx_slot.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 121.1131493339999,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 7788.568702459335,
+ "totals": {
+  "cost": 0.00384,
+  "prompt_tokens": 45880,
+  "completion_tokens": 6167,
+  "model_seconds": 0.0,
+  "check_seconds": 121.1,
+  "calls": 2,
+  "wall_seconds": 7788.6
+ }
+}

@@ -1,0 +1,240 @@
+{
+ "function": "vs_battle_script_showTextBox",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": false,
+ "plan": {
+  "name": "vs_battle_script_showTextBox",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800b6ab0",
+  "difficulty": "S",
+  "zig_name": "script_showTextBox",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "script_show_text_box",
+  "spec_file": "script_showTextBox.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn script_showTextBox(script: [*c]u8, arg1: c_short) callconv(.c) c_int",
+  "params": [
+   [
+    "script",
+    "[*c]u8"
+   ],
+   [
+    "arg1",
+    "c_short"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [
+   "D_800F4BB0",
+   "vs_battle_textBoxStatuses",
+   "vs_main_stateFlags"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13256,
+     "completion_tokens": 12059,
+     "reasoning_tokens": 10330,
+     "cost": 0.00367755,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "free-end": "5924",
+   "free-continue": "9067",
+   "busy": "15009"
+  },
+  "mutations": [
+   {
+    "name": "S1: status test against 1, not 0",
+    "caught": true
+   },
+   {
+    "name": "S2: continue test against 1, not 0",
+    "caught": true
+   },
+   {
+    "name": "S3: >= 0 becomes > 0 (zero return treated as error)",
+    "caught": true
+   },
+   {
+    "name": "S4: textBoxSelection store dropped",
+    "caught": true
+   },
+   {
+    "name": "S5: busy path returns 0 instead of 1",
+    "caught": true
+   },
+   {
+    "name": "S6: sign slip on setTextBox result (negative becomes positive)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 8,
+   "branches_hit": 8,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 14,
+   "lines_hit": 14,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "16-bit: min -32768, max 32763, unsigned 0..65534, seen zero/negative"
+    }
+   ],
+   "compares": [
+    {
+     "line": 4,
+     "text": "if (vs_battle_textBoxStatuses[script[1]] == 0) {",
+     "size": 1,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 14991, < 9932, > 5077 (signed); < 0, > 15009 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..1"
+    },
+    {
+     "line": 6,
+     "text": "if (script[3] == 0) {",
+     "size": 1,
+     "count": 14991,
+     "kind": "against a constant",
+     "outcomes": "== 5924, < 5998, > 3069 (signed); < 0, > 9067 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..1"
+    },
+    {
+     "line": 15,
+     "text": "if (temp_v0 >= 0) {",
+     "size": 4,
+     "count": 15009,
+     "kind": "against a constant",
+     "outcomes": "== 2574, < 4854, > 7581 (signed); < 0, > 12435 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147483648..536815335"
+    },
+    {
+     "line": 16,
+     "text": "if (temp_v0 > 0) {",
+     "size": 4,
+     "count": 10155,
+     "kind": "against a constant",
+     "outcomes": "== 2574, < 0, > 7581 (signed); < 0, > 7581 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..536815335"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 36637,
+     "completion_tokens": 5730,
+     "reasoning_tokens": 5136,
+     "cost": 0.00326435,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/script_showTextBox.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/script_show_text_box.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 43.60291182999572,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 4811.853634119034,
+ "totals": {
+  "cost": 0.00694,
+  "prompt_tokens": 49893,
+  "completion_tokens": 17789,
+  "model_seconds": 0.0,
+  "check_seconds": 43.6,
+  "calls": 2,
+  "wall_seconds": 4811.9
+ }
+}

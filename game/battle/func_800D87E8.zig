@@ -25,7 +25,8 @@ fn relationStates(id: c_int) ?*v.actorRelationState {
     return @ptrFromInt(@as(usize, word));
 }
 
-/// checkExtent (6FC00.c): range test of the pair against the other state's extent.
+/// orig: checkExtent (src/BATTLE/BATTLE.PRG/6FC00.c)
+/// Range test of the pair against the other state's extent (a file-scope static inline).
 fn checkExtent(from: *v.SVECTOR, to: *v.SVECTOR, state: *v.actorRelationState, id: c_int) c_int {
     const other = relationStates(id);
     var extent: c_int = 128;
@@ -33,7 +34,8 @@ fn checkExtent(from: *v.SVECTOR, to: *v.SVECTOR, state: *v.actorRelationState, i
     return c.func_800E44E8(@ptrCast(from), @ptrCast(to), extent, @as(c_int, state.extent));
 }
 
-/// checkHeight (6FC00.c): height test of the pair against the other state's height.
+/// orig: checkHeight (src/BATTLE/BATTLE.PRG/6FC00.c)
+/// Height test of the pair against the other state's height (a file-scope static inline).
 fn checkHeight(from: *v.SVECTOR, to: *v.SVECTOR, state: *v.actorRelationState, id: c_int) c_int {
     const other = relationStates(id);
     var height: c_int = 64;

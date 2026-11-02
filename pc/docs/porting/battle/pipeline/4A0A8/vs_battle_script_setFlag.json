@@ -1,0 +1,178 @@
+{
+ "function": "vs_battle_script_setFlag",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "spec-failed",
+ "reviewed": false,
+ "plan": {
+  "name": "vs_battle_script_setFlag",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800b8edc",
+  "difficulty": "S",
+  "zig_name": "script_setFlag",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "script_set_flag",
+  "spec_file": "script_setFlag.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn script_setFlag(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "[*c]u8"
+   ],
+   [
+    "arg1",
+    "c_short"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12775,
+     "completion_tokens": 15206,
+     "reasoning_tokens": 13252,
+     "cost": 0.00444025,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:213:9: error: zdiff: a spec stub gives i32 where the C prototype has u8: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:267:29\n    f: pc/build/port-pipeline/vs_battle_script_setFlag/spec1/build/game/common/route.zig:24:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 15073,
+     "completion_tokens": 4237,
+     "reasoning_tokens": 2318,
+     "cost": 0.0018128999999999997,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation S3: abs test off by one (tmp == 0 negated): not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: vs_battle_script_setFlag: 30000 iterations, seed 1, 0 mismatches; classes: add=1828 sub=1823 mul=1917 div=1891 mod=1877 and=1952 or=1861 copy=1918 abs=1881 swap=1779 no-case=11273"
+    ]
+   }
+  ],
+  "classes": {
+   "add": "1828",
+   "sub": "1823",
+   "mul": "1917",
+   "div": "1891",
+   "mod": "1877",
+   "and": "1952",
+   "or": "1861",
+   "copy": "1918",
+   "abs": "1881",
+   "swap": "1779",
+   "no-case": "11273"
+  },
+  "mutations": [
+   {
+    "name": "S1: flag0's high bits read from a 3-bit mask",
+    "caught": true
+   },
+   {
+    "name": "S2: subtract op adds",
+    "caught": true
+   },
+   {
+    "name": "S3: abs test off by one (tmp == 0 negated)",
+    "caught": false
+   },
+   {
+    "name": "S4: swap stores the reloaded flag0 instead of prev",
+    "caught": true
+   },
+   {
+    "name": "S5: copy op drops its store",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 11,
+   "branches_hit": 11,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 45,
+   "lines_hit": 45,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "16-bit: min -32763, max 32767, unsigned 0..65534, seen zero/negative/signed max"
+    }
+   ],
+   "compares": [
+    {
+     "line": 8,
+     "text": "switch (arg0[1] & 0xF0) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "switch",
+     "outcomes": "== 18727, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..240"
+    }
+   ],
+   "passed": true
+  }
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 29.377846226998372,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 2535.648307323456,
+ "totals": {
+  "cost": 0.00625,
+  "prompt_tokens": 27848,
+  "completion_tokens": 19443,
+  "model_seconds": 0.0,
+  "check_seconds": 29.4,
+  "calls": 2,
+  "wall_seconds": 2535.6
+ }
+}

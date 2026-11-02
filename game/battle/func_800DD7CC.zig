@@ -4,9 +4,16 @@ const psx = common.psx;
 const v = @import("views_74088");
 const c = @import("c_74088");
 
-/// Reads waypoint slot `index` from the waypoint table, as the C re-reads it each time.
-fn waypointAt(index: c_int) u16 {
-    return v.g.D_800F58C8().*.?[@intCast(index)];
+/// orig: nearestWaypointAddress (src/BATTLE/BATTLE.PRG/74088.c)
+/// `row + index`, unchecked (a file-scope static inline).
+fn nearestWaypointAddress(row: [*]u16, index: c_int) *u16 {
+    return psx.at(row, index);
+}
+
+/// orig: nearestWaypointValue (src/BATTLE/BATTLE.PRG/74088.c)
+/// `row[index]`, unchecked (a file-scope static inline).
+fn nearestWaypointValue(row: [*]u16, index: c_int) c_uint {
+    return psx.at(row, index).*;
 }
 
 /// orig: func_800DD7CC (src/BATTLE/BATTLE.PRG/74088.c)
@@ -19,7 +26,7 @@ pub fn func_800DD7CC(state: ?*v.nearestWaypointState, destination: ?*v.nearestWa
     scratch.* = @as(c_int, @bitCast(psx.addr(v.g.D_800F58D0().*)));
 
     while (index < 8) : (index +%= 1) {
-        const entry: u16 = waypointAt(index);
+        const entry: u16 = nearestWaypointAddress(v.g.D_800F58C8().*.?, index).*;
         const @"packed": c_uint = @as(c_uint, entry) & 0xFFFF;
         if ((@"packed" >> 15) != 0) {
             const x: c_int = ((@as(c_int, entry) & 0x1F) << 7) +% 0x40;
@@ -32,9 +39,9 @@ pub fn func_800DD7CC(state: ?*v.nearestWaypointState, destination: ?*v.nearestWa
             const distance: c_uint = c.func_800E4660(dx, dy, dz);
             if (distance < closest) {
                 const dst = destination.?;
-                dst.x = psx.conv(u8, @as(c_uint, waypointAt(index)) & 0x1F);
+                dst.x = psx.conv(u8, nearestWaypointValue(v.g.D_800F58C8().*.?, index) & 0x1F);
                 closest = distance;
-                dst.z = psx.conv(u8, (@as(c_uint, waypointAt(index)) >> 5) & 0x1F);
+                dst.z = psx.conv(u8, (nearestWaypointValue(v.g.D_800F58C8().*.?, index) >> 5) & 0x1F);
             }
         }
     }

@@ -1,0 +1,225 @@
+{
+ "function": "vs_battle_script_selectTextBox",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": false,
+ "plan": {
+  "name": "vs_battle_script_selectTextBox",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800b7398",
+  "difficulty": "S",
+  "zig_name": "script_selectTextBox",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "script_select_text_box",
+  "spec_file": "script_selectTextBox.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn script_selectTextBox(script: [*c]u8, arg1: c_short) callconv(.c) c_int",
+  "params": [
+   [
+    "script",
+    "[*c]u8"
+   ],
+   [
+    "arg1",
+    "c_short"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [
+   "D_800F4C2C",
+   "_textBoxSelectionPending"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11431,
+     "completion_tokens": 8869,
+     "reasoning_tokens": 7318,
+     "cost": 0.0027888,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "state-done": "7581",
+   "pending-set": "11264",
+   "pending-clear": "11155"
+  },
+  "mutations": [
+   {
+    "name": "S1: wrong state constant (1 for 2)",
+    "caught": true
+   },
+   {
+    "name": "S2: setStateFlag gets script[1] instead of the selection",
+    "caught": true
+   },
+   {
+    "name": "S3: pending set to 2, not 1",
+    "caught": true
+   },
+   {
+    "name": "S4: negative selection ignored (signed slip)",
+    "caught": true
+   },
+   {
+    "name": "S5: selection read from script[0]",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 6,
+   "branches_hit": 6,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 12,
+   "lines_hit": 12,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [
+    {
+     "line": 2,
+     "text": "if (D_800F4C2C == 2) {",
+     "size": 1,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 7581, < 16804, > 5615 (signed); < 11105, > 11314 (unsigned)",
+     "operand": "constant 2",
+     "a": "-1..3"
+    },
+    {
+     "line": 6,
+     "text": "if (_textBoxSelectionPending != 0) {",
+     "size": 1,
+     "count": 22419,
+     "kind": "against a constant",
+     "outcomes": "== 11155, < 5620, > 5644 (signed); < 0, > 11264 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..2"
+    },
+    {
+     "line": 8,
+     "text": "if ((temp_v0 << 0x10) != 0) {",
+     "size": 4,
+     "count": 11264,
+     "kind": "against a constant",
+     "outcomes": "== 4213, < 3537, > 3514 (signed); < 0, > 7051 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147221504..2142830592"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34918,
+     "completion_tokens": 3547,
+     "reasoning_tokens": 3059,
+     "cost": 0.00263265,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/script_selectTextBox.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/script_select_text_box.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 51.06393981200017,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 4897.642711162567,
+ "totals": {
+  "cost": 0.00542,
+  "prompt_tokens": 46349,
+  "completion_tokens": 12416,
+  "model_seconds": 0.0,
+  "check_seconds": 51.1,
+  "calls": 2,
+  "wall_seconds": 4897.6
+ }
+}

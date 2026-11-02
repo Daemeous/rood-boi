@@ -156,7 +156,7 @@ def suites(args, mode="egl"):
         # the Zig port or its tools (affected.toml [[long]]), and then as
         # zig_diff_changed: zig_diff on the specs the change affects only, unless
         # shared infrastructure changed (pc/tools/zig_diff_select.py); ctest is the rest.
-        Suite("ctest", ["ctest", "--test-dir", str(ROOT / "pc/build"), "--output-on-failure", "-j", "4",
+        Suite("ctest", ["ctest", "--test-dir", str(ROOT / "pc/build"), "--no-tests=error", "--output-on-failure", "-j", "4",
                         "-E", CTEST_LONG], 600, binary=None,
               note="CMake probes in pc/build (but ctest_long's)", sources=[ROOT / "pc/tools/ownership.py",
                   ROOT / "game/ownership.toml", TESTS / "ownership_test.py", TESTS / "routing_probe/run.py",
@@ -170,13 +170,14 @@ def suites(args, mode="egl"):
                   TESTS / "diff/corpus_test.py", TESTS / "diff/corpus.py", TESTS / "diff/differ.py", TESTS / "diff/scenarios.py",
                   TESTS / "state_rewind_test.c", ROOT / "pc/src/state_rewind.c",
                   TESTS / "input_record_test.c", ROOT / "pc/src/input_record.c"]),
+        # --no-tests=error: an unconfigured pc/build (a fresh worktree) finds no test and must fail, not pass
         # ten zig_diff shards of ~15-20 min, four at a time, beside the port pipeline's ~15 min
-        Suite("ctest_long", ["ctest", "--test-dir", str(ROOT / "pc/build"), "--output-on-failure", "-j", "4",
+        Suite("ctest_long", ["ctest", "--test-dir", str(ROOT / "pc/build"), "--no-tests=error", "--output-on-failure", "-j", "4",
                              "-R", CTEST_LONG], 7200, binary=None,
               note="the long CMake tests: zig_diff's shards and coverage lane, the port pipeline",
               sources=[ROOT / "pc/tools/zig_diff.py", TESTS / "zig_diff_coverage_test.py",
                        TESTS / "zig_diff_changed.py"]),
-        Suite("ctest_pipeline", ["ctest", "--test-dir", str(ROOT / "pc/build"), "--output-on-failure",
+        Suite("ctest_pipeline", ["ctest", "--test-dir", str(ROOT / "pc/build"), "--no-tests=error", "--output-on-failure",
                                  "-R", "^port_pipeline"], 3000, binary=None,
               note="the port pipeline's CMake test alone (~10-25 min; longer under a full check): what a pipeline or model-client change needs, "
                    "without ctest_long's zig_diff shards",

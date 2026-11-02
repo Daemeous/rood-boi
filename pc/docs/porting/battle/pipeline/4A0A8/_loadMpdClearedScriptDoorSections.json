@@ -1,0 +1,141 @@
+{
+ "function": "_loadMpdClearedScriptDoorSections",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "spec-failed",
+ "reviewed": false,
+ "plan": {
+  "name": "_loadMpdClearedScriptDoorSections",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800be98c",
+  "difficulty": "S",
+  "zig_name": "loadMpdClearedScriptDoorSections",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "load_mpd_cleared_script_door_sections",
+  "spec_file": "loadMpdClearedScriptDoorSections.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn loadMpdClearedScriptDoorSections(clearedSection: ?*anyopaque, clearedSectionLen: c_ushort, scriptSection: ?*anyopaque, scriptSectionLen: c_ushort, doorSection: ?*anyopaque, doorSectionLen: c_ushort, startState: c_int) callconv(.c) c_int",
+  "params": [
+   [
+    "clearedSection",
+    "?*anyopaque"
+   ],
+   [
+    "clearedSectionLen",
+    "c_ushort"
+   ],
+   [
+    "scriptSection",
+    "?*anyopaque"
+   ],
+   [
+    "scriptSectionLen",
+    "c_ushort"
+   ],
+   [
+    "doorSection",
+    "?*anyopaque"
+   ],
+   [
+    "doorSectionLen",
+    "c_ushort"
+   ],
+   [
+    "startState",
+    "c_int"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [
+   "D_800F4BB8",
+   "D_800F4BE2",
+   "D_800F4C30",
+   "D_800F4C34",
+   "_mpdClearedSection",
+   "_mpdRoomDoorSection",
+   "_mpdScriptSection"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12828,
+     "completion_tokens": 14505,
+     "reasoning_tokens": 12698,
+     "cost": 0.00426765,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the C itself crashed on your inputs (the C runs first, so this is the spec's\nbug). The harness fills every global and the arena with random bytes before\nprepare, so every pointer the C follows must be one prepare set: each\nargument, each pointer field of an object you build, and each ENTRY of a\nglobal pointer table the C indexes (only the entry it reads: e.g.\n`v.g.TABLE()[i] = obj`), pointing at an object from `ctx.alloc`/`ctx.allocBytes`\n(sized for every element the C indexes past a `[0]` array), at a global, or\nnull where the C tests for null. An index into a global table must stay\ninside its length (the views accessor's type gives it). Below: the crash, its\nfault address (named when it is inside an object the harness owns) and the\narguments of that iteration:\nzdiff: CRASH (signal 11) in the C run, iteration 1, fault address 0x0 [NULL+0x0: a field of a null pointer]\nzdiff: crashed on arguments: 0 0xffff 0x41c080 [arena] 0xd974 0 0 0xb4e62116 (class other-startNonzero)",
+     "(the mutations and the coverage gate are checked once the C runs crash-free)"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 15074,
+     "completion_tokens": 5691,
+     "reasoning_tokens": 3594,
+     "cost": 0.00217645,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the C itself crashed on your inputs (the C runs first, so this is the spec's\nbug). The harness fills every global and the arena with random bytes before\nprepare, so every pointer the C follows must be one prepare set: each\nargument, each pointer field of an object you build, and each ENTRY of a\nglobal pointer table the C indexes (only the entry it reads: e.g.\n`v.g.TABLE()[i] = obj`), pointing at an object from `ctx.alloc`/`ctx.allocBytes`\n(sized for every element the C indexes past a `[0]` array), at a global, or\nnull where the C tests for null. An index into a global table must stay\ninside its length (the views accessor's type gives it). Below: the crash, its\nfault address (named when it is inside an object the harness owns) and the\narguments of that iteration:\nzdiff: CRASH (signal 11) in the C run, iteration 3, fault address 0x0 [NULL+0x0: a field of a null pointer]\nzdiff: crashed on arguments: 0x42c070 [arena] 0x7fff 0x42c070 [arena] 0xffff 0x42c070 [arena] 0xffff 0 (class other-start0)",
+     "(the mutations and the coverage gate are checked once the C runs crash-free)"
+    ]
+   }
+  ],
+  "classes": {},
+  "mutations": [],
+  "coverage": null
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 3.1954132200007734,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 3008.527693271637,
+ "totals": {
+  "cost": 0.00644,
+  "prompt_tokens": 27902,
+  "completion_tokens": 20196,
+  "model_seconds": 0.0,
+  "check_seconds": 3.2,
+  "calls": 2,
+  "wall_seconds": 3008.5
+ }
+}

@@ -59,7 +59,18 @@ pub fn withSignature(comptime F: type, comptime body: fn (std.meta.ArgsTuple(F))
                 return body(.{ a, b, c, d, e, f_, g, h });
             }
         }.f,
-        else => @compileError("route: more than 8 parameters"),
+        // 9 and 10: zig_diff's recording stubs of libgte's RotAverage3/4 and RotTransPers3/4.
+        9 => struct {
+            fn f(a: P.t(0), b: P.t(1), c: P.t(2), d: P.t(3), e: P.t(4), f_: P.t(5), g: P.t(6), h: P.t(7), i: P.t(8)) callconv(.c) R {
+                return body(.{ a, b, c, d, e, f_, g, h, i });
+            }
+        }.f,
+        10 => struct {
+            fn f(a: P.t(0), b: P.t(1), c: P.t(2), d: P.t(3), e: P.t(4), f_: P.t(5), g: P.t(6), h: P.t(7), i: P.t(8), j: P.t(9)) callconv(.c) R {
+                return body(.{ a, b, c, d, e, f_, g, h, i, j });
+            }
+        }.f,
+        else => @compileError("route: more than 10 parameters"),
     };
 }
 

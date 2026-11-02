@@ -95,7 +95,9 @@ COVERAGE_FLAGS = ["--coverage", "-fsanitize-coverage=trace-cmp", "-fsanitize=thr
 # GCC's block-move libcalls run as themselves too: a large struct copy
 # (`*source = *result`, 0x84C bytes, in 146C's func_80085B10) is a memcpy
 # call under GCC 16 where GCC 13 copied inline, and the game links libc's.
-LIBC = {"__stack_chk_fail", "sprintf", "strlen", "memcpy", "memmove", "memset"}
+# memcmp: 4A0A8's func_800B6778 calls it unprototyped (`int memcmp()`), so a
+# stub would see no arguments; libc's compares the bytes the spec placed.
+LIBC = {"__stack_chk_fail", "sprintf", "strlen", "memcpy", "memmove", "memset", "memcmp"}
 # The libc functions main.zig calls itself (snapshot, restore and report
 # go through memcpy and printf) are never stubs: a recording stub of the
 # same name would take over the harness's own calls (an unrestored state).

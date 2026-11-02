@@ -1,0 +1,13 @@
+//! An action effect: the inflicted statuses 0xD on the target, marked when any apply (src/BATTLE/BATTLE.PRG/146C.c).
+const psx = @import("common").psx;
+const v = @import("views_146C");
+const c = @import("c_146C");
+
+/// orig: func_8008404C (src/BATTLE/BATTLE.PRG/146C.c)
+/// Sets the target's inflicted statuses from set 0xD; when that reports any, its unk1C_16 becomes 2.
+pub fn func_8008404C(_: ?*v.vs_action_t, _: ?*v._hitEntity_t, target: ?*v._hitEntity_t, _: c_int, _: c_int) callconv(.c) c_int {
+    if (c._setInflictedStatuses(0xD, @ptrCast(target)) != 0) {
+        psx.setBits(target.?, "unk1C_16", 2);
+    }
+    return 0; // no return statement in the C (the result register's leftover)
+}

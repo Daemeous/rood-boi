@@ -12,7 +12,7 @@ pub const classes = [_][:0]const u8{ "arena", "scratchpad" };
 
 pub fn prepare(ctx: *zd.Ctx) Args {
     if (ctx.chance(2)) {
-        const off = ctx.range(usize, 0, zd.scratchpad_size - 1);
+        const off = ctx.range(usize, 0, zd.scratchpad_size - 2); // not the last byte: a mutant writing the next one must stay mapped
         const p: [*c]u8 = @ptrFromInt(zd.scratchpad + off);
         return .{p};
     }

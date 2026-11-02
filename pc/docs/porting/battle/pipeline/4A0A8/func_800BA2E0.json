@@ -1,0 +1,221 @@
+{
+ "function": "func_800BA2E0",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800BA2E0",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800ba2e0",
+  "difficulty": "S",
+  "zig_name": "func_800BA2E0",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800BA2E0",
+  "spec_file": "func_800BA2E0.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn func_800BA2E0(arg0: [*c]u8) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "[*c]u8"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [
+   "D_800E9B34",
+   "D_800F4C08",
+   "D_800F4C4C"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16685,
+     "completion_tokens": 8261,
+     "reasoning_tokens": 6706,
+     "cost": 0.0028994999999999997,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "early-return": "4444",
+   "store-and-play": "6832",
+   "not-event-2": "18724"
+  },
+  "mutations": [
+   {
+    "name": "E1: early-return guard uses || instead of &&",
+    "caught": true
+   },
+   {
+    "name": "E2: early return yields 1",
+    "caught": true
+   },
+   {
+    "name": "E3: sound table indexed by arg0[2]",
+    "caught": true
+   },
+   {
+    "name": "E4: store to D_800F4C4C is sign-extended from a byte",
+    "caught": true
+   },
+   {
+    "name": "E5: store moved after the sound call",
+    "caught": true
+   },
+   {
+    "name": "E6: fourth sound argument taken from arg0[3]",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 6,
+   "branches_hit": 6,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 7,
+   "lines_hit": 7,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 2,
+     "text": "if (arg0[1] == 2 && D_800F4C08 == 0) {",
+     "size": 1,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 11276, < 7486, > 11238 (signed); < 7486, > 11238 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..5"
+    },
+    {
+     "line": 2,
+     "text": "if (arg0[1] == 2 && D_800F4C08 == 0) {",
+     "size": 1,
+     "count": 11276,
+     "kind": "against a constant",
+     "outcomes": "== 4444, < 4497, > 2335 (signed); < 0, > 6832 (unsigned)",
+     "operand": "constant 0",
+     "a": "-128..1"
+    },
+    {
+     "line": 5,
+     "text": "if (arg0[1] == 2) {",
+     "size": 1,
+     "count": 25556,
+     "kind": "against a constant",
+     "outcomes": "== 6832, < 7486, > 11238 (signed); < 7486, > 11238 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..5"
+    }
+   ],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 40080,
+     "completion_tokens": 2052,
+     "reasoning_tokens": 1662,
+     "cost": 0.0025169999999999997,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800BA2E0.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800BA2E0.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 128.59016453499862,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 7318.403946399689,
+ "totals": {
+  "cost": 0.00542,
+  "prompt_tokens": 56765,
+  "completion_tokens": 10313,
+  "model_seconds": 0.0,
+  "check_seconds": 128.6,
+  "calls": 2,
+  "wall_seconds": 7318.4
+ }
+}

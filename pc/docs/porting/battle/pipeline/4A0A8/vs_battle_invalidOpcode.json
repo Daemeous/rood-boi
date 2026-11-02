@@ -1,0 +1,168 @@
+{
+ "function": "vs_battle_invalidOpcode",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "spec-failed",
+ "reviewed": false,
+ "plan": {
+  "name": "vs_battle_invalidOpcode",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800b66a8",
+  "difficulty": "S",
+  "zig_name": "invalidOpcode",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "invalid_opcode",
+  "spec_file": "invalidOpcode.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn invalidOpcode(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "[*c]u8"
+   ],
+   [
+    "arg1",
+    "c_short"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11439,
+     "completion_tokens": 8683,
+     "reasoning_tokens": 7435,
+     "cost": 0.0027427,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation I1: format arg1 as unsigned short: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: vs_battle_invalidOpcode: 20000 iterations, seed 1, 0 mismatches; classes: arena-positive=3970 arena-negative=2636 low-ram-positive=3993 low-ram-negative=2687 scratchpad-positive=4124 scratchpad-negative=2590",
+     "FAIL: mutation I2: address off by one: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: vs_battle_invalidOpcode: 20000 iterations, seed 1, 0 mismatches; classes: arena-positive=3970 arena-negative=2636 low-ram-positive=3993 low-ram-negative=2687 scratchpad-positive=4124 scratchpad-negative=2590",
+     "FAIL: mutation I3: byte masked to 7 bits: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: vs_battle_invalidOpcode: 20000 iterations, seed 1, 0 mismatches; classes: arena-positive=3970 arena-negative=2636 low-ram-positive=3993 low-ram-negative=2687 scratchpad-positive=4124 scratchpad-negative=2590",
+     "FAIL: mutation I5: sprintf call dropped: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: vs_battle_invalidOpcode: 20000 iterations, seed 1, 0 mismatches; classes: arena-positive=3970 arena-negative=2636 low-ram-positive=3993 low-ram-negative=2687 scratchpad-positive=4124 scratchpad-negative=2590"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13368,
+     "completion_tokens": 5115,
+     "reasoning_tokens": 3574,
+     "cost": 0.00194715,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation I1: format arg1 as unsigned short: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: vs_battle_invalidOpcode: 20000 iterations, seed 1, 0 mismatches; classes: arena-positive=4183 arena-negative=2423 low-ram-positive=4211 low-ram-negative=2469 scratchpad-positive=4332 scratchpad-negative=2382",
+     "FAIL: mutation I2: address off by one: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: vs_battle_invalidOpcode: 20000 iterations, seed 1, 0 mismatches; classes: arena-positive=4183 arena-negative=2423 low-ram-positive=4211 low-ram-negative=2469 scratchpad-positive=4332 scratchpad-negative=2382",
+     "FAIL: mutation I3: byte masked to 7 bits: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: vs_battle_invalidOpcode: 20000 iterations, seed 1, 0 mismatches; classes: arena-positive=4183 arena-negative=2423 low-ram-positive=4211 low-ram-negative=2469 scratchpad-positive=4332 scratchpad-negative=2382",
+     "FAIL: mutation I5: sprintf call dropped: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: vs_battle_invalidOpcode: 20000 iterations, seed 1, 0 mismatches; classes: arena-positive=4183 arena-negative=2423 low-ram-positive=4211 low-ram-negative=2469 scratchpad-positive=4332 scratchpad-negative=2382"
+    ]
+   }
+  ],
+  "classes": {
+   "arena-positive": "4183",
+   "arena-negative": "2423",
+   "low-ram-positive": "4211",
+   "low-ram-negative": "2469",
+   "scratchpad-positive": "4332",
+   "scratchpad-negative": "2382"
+  },
+  "mutations": [
+   {
+    "name": "I1: format arg1 as unsigned short",
+    "caught": false
+   },
+   {
+    "name": "I2: address off by one",
+    "caught": false
+   },
+   {
+    "name": "I3: byte masked to 7 bits",
+    "caught": false
+   },
+   {
+    "name": "I4: return the argument, not 0",
+    "caught": true
+   },
+   {
+    "name": "I5: sprintf call dropped",
+    "caught": false
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 4,
+   "lines_hit": 4,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 20000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 20000,
+     "text": "16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  }
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 39.55766869999934,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 2263.8228964805603,
+ "totals": {
+  "cost": 0.00469,
+  "prompt_tokens": 24807,
+  "completion_tokens": 13798,
+  "model_seconds": 0.0,
+  "check_seconds": 39.6,
+  "calls": 2,
+  "wall_seconds": 2263.8
+ }
+}

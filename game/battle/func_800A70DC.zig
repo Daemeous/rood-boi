@@ -15,7 +15,8 @@ fn sampleHeight(pos: *v.SVECTOR, x: c_int, z: c_int) i16 {
     return psx.conv(i16, c.func_800A6EE8(psx.cptr(c.SVECTOR, pos), x, z, 0));
 }
 
-/// vs_battleRelativeSampleHeight: sample (sector + offset) & 7 minus y.
+/// orig: vs_battleRelativeSampleHeight (src/BATTLE/BATTLE.PRG/3A1A0.c)
+/// Sample (sector + offset) & 7 minus y (a file-scope static inline).
 fn relativeSampleHeight(samples: *v.ActorCollisionSamples, sector: c_int, offset: c_int, y: c_int) c_int {
     const k: usize = @intCast((sector +% offset) & 7);
     return @as(c_int, samples.heights[k]) -% y;

@@ -1,0 +1,228 @@
+{
+ "function": "func_800BB68C",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "spec-failed",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800BB68C",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800bb68c",
+  "difficulty": "S",
+  "zig_name": "func_800BB68C",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800BB68C",
+  "spec_file": "func_800BB68C.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn func_800BB68C(arg0: c_ushort, arg1: ?*v.func_800BB68C_t) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "c_ushort"
+   ],
+   [
+    "arg1",
+    "?*v.func_800BB68C_t"
+   ]
+  ],
+  "ret": "void",
+  "types": [
+   "func_800BB68C_t",
+   "vs_battle_actor"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12532,
+     "completion_tokens": 14297,
+     "reasoning_tokens": 12616,
+     "cost": 0.00420085,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:213:9: error: zdiff: a spec stub gives u8 where the C prototype has c_int: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:267:29\n    f: pc/build/port-pipeline/func_800BB68C/spec1/build/game/common/route.zig:24:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14553,
+     "completion_tokens": 3120,
+     "reasoning_tokens": 1413,
+     "cost": 0.00150765,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage func_800BB68C: branches 12/12 (100.0%), lines 17/17\n  FLAG +17 eq: boundary equality never occurred (16-bit compare, constant 0: both sides seen; a port's `<` for `<=` could pass): `if ((var_a0 < 0) || (temp_v0->unk1C == var_a0)) {`\n  note: waivers no longer needed: +18 eq\ncoverage func_800BB68C: FAILED (threshold 100%: 0 uncovered, 1 value flag(s) not waived)\nWhat to add:\n- `if ((var_a0 < 0) || (temp_v0->unk1C == var_a0)) {` (+17): the two sides of this ordered compare were equal 0 time(s) in 205566. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.func_800BB68C.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   }
+  ],
+  "classes": {
+   "plain": "12410",
+   "scan-any": "16354",
+   "scan-allegiance-4": "1236"
+  },
+  "mutations": [
+   {
+    "name": "F1: wrong constant in the 0x2003 filter",
+    "caught": true
+   },
+   {
+    "name": "F2: unk2 index not advanced (store overwrites slot)",
+    "caught": true
+   },
+   {
+    "name": "F3: scan loop stops one short",
+    "caught": true
+   },
+   {
+    "name": "F4: wrong initial filter (0 instead of -1)",
+    "caught": true
+   },
+   {
+    "name": "F5: allegiance match inverted",
+    "caught": true
+   },
+   {
+    "name": "F6: fallback call dropped",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 12,
+   "branches_hit": 12,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 17,
+   "lines_hit": 17,
+   "uncovered": [],
+   "flags": [
+    {
+     "id": "+17 eq",
+     "line": 17,
+     "text": "if ((var_a0 < 0) || (temp_v0->unk1C == var_a0)) {",
+     "kind": "eq",
+     "bits": 16,
+     "equal": 0,
+     "count": 205566,
+     "what": "boundary equality never occurred (16-bit compare, constant 0: both sides seen; a port's `<` for `<=` could pass)"
+    }
+   ],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "16-bit: min -32768, max 32766, unsigned 0..65535, seen zero/negative/all ones"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 7,
+     "text": "if (arg0 & 0x2000) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 12410, < 0, > 17590 (signed); < 0, > 17590 (unsigned)",
+     "operand": "constant 0",
+     "a": "0..8192"
+    },
+    {
+     "line": 10,
+     "text": "if (arg0 == 0x2003) {",
+     "size": 2,
+     "count": 17590,
+     "kind": "against a constant",
+     "outcomes": "== 1236, < 9986, > 6368 (signed); < 3731, > 12623 (unsigned)",
+     "operand": "constant 8195",
+     "a": "-24576..32766"
+    },
+    {
+     "line": 14,
+     "text": "for (i = 0; i < 17; ++i) {",
+     "size": 2,
+     "count": 316620,
+     "kind": "against a constant",
+     "outcomes": "== 17590, < 281440, > 17590 (signed); < 281440, > 17590 (unsigned)",
+     "operand": "constant 16",
+     "a": "0..17"
+    },
+    {
+     "line": 17,
+     "text": "if ((var_a0 < 0) || (temp_v0->unk1C == var_a0)) {",
+     "size": 2,
+     "count": 205566,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 191125, > 14441 (signed); < 0, > 205566 (unsigned)",
+     "operand": "constant 0",
+     "a": "-1..4"
+    },
+    {
+     "line": 17,
+     "text": "if ((var_a0 < 0) || (temp_v0->unk1C == var_a0)) {",
+     "size": 4,
+     "count": 14441,
+     "kind": "a == b / a < b",
+     "outcomes": "== 7195, < 0, > 7246 (signed); < 0, > 7246 (unsigned)",
+     "operand": "b 4..4",
+     "a": "4..65533"
+    }
+   ],
+   "passed": false
+  }
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 36.12935225900219,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 2905.1603009700775,
+ "totals": {
+  "cost": 0.00571,
+  "prompt_tokens": 27085,
+  "completion_tokens": 17417,
+  "model_seconds": 0.0,
+  "check_seconds": 36.1,
+  "calls": 2,
+  "wall_seconds": 2905.2
+ }
+}

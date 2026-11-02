@@ -1,0 +1,196 @@
+{
+ "function": "vs_battle_script_initTextBox",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "spec-failed",
+ "reviewed": false,
+ "plan": {
+  "name": "vs_battle_script_initTextBox",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800b6908",
+  "difficulty": "S",
+  "zig_name": "script_initTextBox",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "script_init_text_box",
+  "spec_file": "script_initTextBox.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn script_initTextBox(script: [*c]u8, arg1: c_short) callconv(.c) c_int",
+  "params": [
+   [
+    "script",
+    "[*c]u8"
+   ],
+   [
+    "arg1",
+    "c_short"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [
+   "vs_battle_textBox"
+  ],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12424,
+     "completion_tokens": 11734,
+     "reasoning_tokens": 10024,
+     "cost": 0.0035547,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage vs_battle_script_initTextBox: branches 4/4 (100.0%), lines 17/17\n  FLAG +25 eq: boundary equality never occurred (16-bit compare, constant 8191: both sides seen; a port's `<` for `<=` could pass): `if (temp_v0_4 < 0x2000) {`\ncoverage vs_battle_script_initTextBox: FAILED (threshold 100%: 0 uncovered, 1 value flag(s) not waived)\nWhat to add:\n- `if (temp_v0_4 < 0x2000) {` (+25): the two sides of this ordered compare were equal 0 time(s) in 30000. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.vs_battle_script_initTextBox.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14514,
+     "completion_tokens": 2927,
+     "reasoning_tokens": 1202,
+     "cost": 0.0014574499999999999,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage vs_battle_script_initTextBox: branches 4/4 (100.0%), lines 17/17\n  FLAG +25 eq: boundary equality never occurred (16-bit compare, constant 8191: both sides seen; a port's `<` for `<=` could pass): `if (temp_v0_4 < 0x2000) {`\ncoverage vs_battle_script_initTextBox: FAILED (threshold 100%: 0 uncovered, 1 value flag(s) not waived)\nWhat to add:\n- `if (temp_v0_4 < 0x2000) {` (+25): the two sides of this ordered compare were equal 0 time(s) in 30000. A port's `<` for `<=` would pass; add inputs that make them exactly equal at least 10 times and in at least 1% of the runs.\nOnly a gap no input can reach (say why) may be waived instead: [[function.vs_battle_script_initTextBox.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   }
+  ],
+  "classes": {
+   "same-box": "14992",
+   "other-box": "15008"
+  },
+  "mutations": [
+   {
+    "name": "S1: charsPerLine scaled by 5, not 6",
+    "caught": true
+   },
+   {
+    "name": "S2: wrong constant for the same-box centerX",
+    "caught": true
+   },
+   {
+    "name": "S3: temp <= 0x2000 instead of < 0x2000",
+    "caught": true
+   },
+   {
+    "name": "S4: unsigned compare of the getShort result",
+    "caught": true
+   },
+   {
+    "name": "S5: dropped unk2E store",
+    "caught": true
+   },
+   {
+    "name": "S6: else branch fetches the box by the target nibble",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 4,
+   "branches_hit": 4,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 17,
+   "lines_hit": 17,
+   "uncovered": [],
+   "flags": [
+    {
+     "id": "+25 eq",
+     "line": 25,
+     "text": "if (temp_v0_4 < 0x2000) {",
+     "kind": "eq",
+     "bits": 16,
+     "equal": 0,
+     "count": 30000,
+     "what": "boundary equality never occurred (16-bit compare, constant 8191: both sides seen; a port's `<` for `<=` could pass)"
+    }
+   ],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "16-bit: min -32763, max 32766, unsigned 0..65531, seen zero/negative"
+    }
+   ],
+   "compares": [
+    {
+     "line": 7,
+     "text": "if ((script[1] & 0xF) == (script[1] >> 4)) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "a == b / a < b",
+     "outcomes": "== 14992, < 7544, > 7464 (signed); < 7544, > 7464 (unsigned)",
+     "operand": "b 0..15",
+     "a": "0..15"
+    },
+    {
+     "line": 25,
+     "text": "if (temp_v0_4 < 0x2000) {",
+     "size": 2,
+     "count": 30000,
+     "kind": "against a constant",
+     "outcomes": "== 0, < 9223, > 20777 (signed); < 1848, > 28152 (unsigned)",
+     "operand": "constant 8191",
+     "a": "-32766..32766"
+    }
+   ],
+   "passed": false
+  }
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 50.16436724600135,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 2288.0319788455963,
+ "totals": {
+  "cost": 0.00501,
+  "prompt_tokens": 26938,
+  "completion_tokens": 14661,
+  "model_seconds": 0.0,
+  "check_seconds": 50.2,
+  "calls": 2,
+  "wall_seconds": 2288.0
+ }
+}

@@ -22,3 +22,10 @@ test "C wrappers preserve five through eight parameters and returns" {
     try std.testing.expectEqual(@as(i64, 140), Probe(F7).call(1, 2, 3, 4, 5, 6, 7));
     try std.testing.expectEqual(@as(i64, 204), Probe(F8).call(1, 2, 3, 4, 5, 6, 7, 8));
 }
+
+test "C wrappers preserve nine and ten parameters" {
+    const F9 = fn (i64, i64, i64, i64, i64, i64, i64, i64, i64) callconv(.c) i64;
+    const F10 = fn (i64, i64, i64, i64, i64, i64, i64, i64, i64, i64) callconv(.c) i64;
+    try std.testing.expectEqual(@as(i64, 285), Probe(F9).call(1, 2, 3, 4, 5, 6, 7, 8, 9));
+    try std.testing.expectEqual(@as(i64, 385), Probe(F10).call(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
+}

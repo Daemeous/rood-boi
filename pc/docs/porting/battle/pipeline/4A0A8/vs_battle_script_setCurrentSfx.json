@@ -1,0 +1,194 @@
+{
+ "function": "vs_battle_script_setCurrentSfx",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": false,
+ "plan": {
+  "name": "vs_battle_script_setCurrentSfx",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800ba4c8",
+  "difficulty": "S",
+  "zig_name": "script_setCurrentSfx",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "script_set_current_sfx",
+  "spec_file": "script_setCurrentSfx.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn script_setCurrentSfx(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "[*c]u8"
+   ],
+   [
+    "arg1",
+    "c_short"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11184,
+     "completion_tokens": 3452,
+     "reasoning_tokens": 2254,
+     "cost": 0.0014221999999999998,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "high-byte": "10042",
+   "low-byte": "9958"
+  },
+  "mutations": [
+   {
+    "name": "S1: reads arg0[0] instead of arg0[1]",
+    "caught": true
+   },
+   {
+    "name": "S2: sound id read as signed char",
+    "caught": true
+   },
+   {
+    "name": "S3: passes the short arg1 instead of the id",
+    "caught": true
+   },
+   {
+    "name": "S4: returns arg1 instead of 0",
+    "caught": true
+   },
+   {
+    "name": "S5: the sfx call is dropped",
+    "caught": true
+   },
+   {
+    "name": "S6: returns the call's result (a second call)",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 3,
+   "lines_hit": 3,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 20000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 20000,
+     "text": "16-bit: min -32768, max 32767, unsigned 0..65535, seen zero/negative/signed max/all ones"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34655,
+     "completion_tokens": 911,
+     "reasoning_tokens": 657,
+     "cost": 0.0019605,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/script_setCurrentSfx.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/script_set_current_sfx.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 121.72794848899866,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 7978.194085597992,
+ "totals": {
+  "cost": 0.00338,
+  "prompt_tokens": 45839,
+  "completion_tokens": 4363,
+  "model_seconds": 0.0,
+  "check_seconds": 121.7,
+  "calls": 2,
+  "wall_seconds": 7978.2
+ }
+}

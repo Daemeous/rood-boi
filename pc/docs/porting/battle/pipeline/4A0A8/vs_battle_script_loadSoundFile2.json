@@ -1,0 +1,186 @@
+{
+ "function": "vs_battle_script_loadSoundFile2",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": false,
+ "plan": {
+  "name": "vs_battle_script_loadSoundFile2",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800ba774",
+  "difficulty": "S",
+  "zig_name": "script_loadSoundFile2",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "script_load_sound_file2",
+  "spec_file": "script_loadSoundFile2.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn script_loadSoundFile2(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "[*c]u8"
+   ],
+   [
+    "arg1",
+    "c_short"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11180,
+     "completion_tokens": 2591,
+     "reasoning_tokens": 1677,
+     "cost": 0.00120675,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "index-byte-zero": "72",
+   "index-byte-nonzero": "19928"
+  },
+  "mutations": [
+   {
+    "name": "L1: the callee gets arg0[0], not arg0[1]",
+    "caught": true
+   },
+   {
+    "name": "L2: the call is dropped",
+    "caught": true
+   },
+   {
+    "name": "L3: arg1 (unused by the C) added to the byte",
+    "caught": true
+   },
+   {
+    "name": "L4: returns 1, not 0",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 3,
+   "lines_hit": 3,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 20000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 20000,
+     "text": "16-bit: min -32767, max 32761, unsigned 0..65532, seen zero/negative"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 34650,
+     "completion_tokens": 827,
+     "reasoning_tokens": 593,
+     "cost": 0.0019392499999999998,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/script_loadSoundFile2.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/script_load_sound_file2.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 136.7090277440002,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 9258.301867961884,
+ "totals": {
+  "cost": 0.00315,
+  "prompt_tokens": 45830,
+  "completion_tokens": 3418,
+  "model_seconds": 0.0,
+  "check_seconds": 136.7,
+  "calls": 2,
+  "wall_seconds": 9258.3
+ }
+}

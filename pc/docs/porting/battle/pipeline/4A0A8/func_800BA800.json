@@ -1,0 +1,196 @@
+{
+ "function": "func_800BA800",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "ported",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800BA800",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800ba800",
+  "difficulty": "S",
+  "zig_name": "func_800BA800",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800BA800",
+  "spec_file": "func_800BA800.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn func_800BA800(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "[*c]u8"
+   ],
+   [
+    "arg1",
+    "c_short"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [
+   "D_800E9B34"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 16514,
+     "completion_tokens": 4435,
+     "reasoning_tokens": 3300,
+     "cost": 0.0019344499999999999,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": []
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  },
+  "classes": {
+   "index-low": "14983",
+   "index-high": "15017"
+  },
+  "mutations": [
+   {
+    "name": "A1: second argument read from byte 3",
+    "caught": true
+   },
+   {
+    "name": "A2: third argument unsigned (no signed char conversion)",
+    "caught": true
+   },
+   {
+    "name": "A3: table indexed by byte 0",
+    "caught": true
+   },
+   {
+    "name": "A4: dropped callee call",
+    "caught": true
+   },
+   {
+    "name": "A5: wrong return value",
+    "caught": true
+   },
+   {
+    "name": "A6: fourth argument read from byte 5",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 0,
+   "branches_hit": 0,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 3,
+   "lines_hit": 3,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "16-bit: min -32762, max 32758, unsigned 1..65534, seen negative, never zero"
+    }
+   ],
+   "compares": [],
+   "passed": true
+  },
+  "waivers": []
+ },
+ "port": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 39925,
+     "completion_tokens": 1939,
+     "reasoning_tokens": 1622,
+     "cost": 0.0024809999999999997,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": true,
+    "errors": [],
+    "runs": [
+     {
+      "seed": 1,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 2,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     },
+     {
+      "seed": 3,
+      "exit": 0,
+      "mismatches": 0,
+      "first": null
+     }
+    ]
+   }
+  ],
+  "kept": {
+   "round": 1,
+   "sample": 1
+  }
+ },
+ "written": [
+  "pc/tests/zig_diff/func_800BA800.zig",
+  "pc/tests/zig_diff/specs.toml",
+  "game/battle/func_800BA800.zig",
+  "game/ownership.toml",
+  "game/battle/root.zig"
+ ],
+ "check_seconds": 153.58071313600522,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 9615.146872282028,
+ "totals": {
+  "cost": 0.00442,
+  "prompt_tokens": 56439,
+  "completion_tokens": 6374,
+  "model_seconds": 0.0,
+  "check_seconds": 153.6,
+  "calls": 2,
+  "wall_seconds": 9615.1
+ }
+}

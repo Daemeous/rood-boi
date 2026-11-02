@@ -13,7 +13,8 @@ fn shl16(x: c_int) c_int {
     return @bitCast(@as(c_uint, @bitCast(x)) << 16);
 }
 
-/// pc_text_char: hands a glyph to the text capture hook at 16.16 positions,
+/// orig: pc_text_char (src/BATTLE/BATTLE.PRG/5BF94.c)
+/// Hands a glyph to the text capture hook at 16.16 positions (ROOD_PC, a file-scope static),
 /// unless the classic draw mutes it (its parity shadow's copies are not ui_text's).
 fn pcTextChar(commands: ?*const anyopaque, count: c_int, glyph: c_int, x: c_int, y: c_int, advance: c_int) void {
     if (psx.weak(ClassicMutedHook, "pc_classic_text_muted")) |muted| {

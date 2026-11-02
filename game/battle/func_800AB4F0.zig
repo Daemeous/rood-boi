@@ -6,13 +6,15 @@ const psx = common.psx;
 const v = @import("views_40564");
 const c = @import("c_40564");
 
-/// Reads the packet cursor from scratchpad slot 0 (vs_battlePacketBegin).
+/// orig: vs_battlePacketBegin (src/BATTLE/BATTLE.PRG/40564.c)
+/// Reads the packet cursor from scratchpad slot 0 (a file-scope static inline).
 fn packetBegin() *v.DR_MOVE {
     const p: u32 = @as(*const u32, @ptrFromInt(0x1F800000)).*;
     return @ptrFromInt(@as(usize, p));
 }
 
-/// Stores the packet cursor past `p` into scratchpad slot 0 (vs_battlePacketEnd).
+/// orig: vs_battlePacketEnd (src/BATTLE/BATTLE.PRG/40564.c)
+/// Stores the packet cursor past `p` into scratchpad slot 0 (a file-scope static inline).
 fn packetEnd(p: *v.DR_MOVE) void {
     @as(*u32, @ptrFromInt(0x1F800000)).* = psx.addr(psx.at(p, 1));
 }

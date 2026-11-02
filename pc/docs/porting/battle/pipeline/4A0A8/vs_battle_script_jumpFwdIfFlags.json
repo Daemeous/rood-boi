@@ -1,0 +1,252 @@
+{
+ "function": "vs_battle_script_jumpFwdIfFlags",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "spec-failed",
+ "reviewed": false,
+ "plan": {
+  "name": "vs_battle_script_jumpFwdIfFlags",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800b8a10",
+  "difficulty": "S",
+  "zig_name": "script_jumpFwdIfFlags",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "script_jump_fwd_if_flags",
+  "spec_file": "script_jumpFwdIfFlags.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn script_jumpFwdIfFlags(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "[*c]u8"
+   ],
+   [
+    "arg1",
+    "c_short"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 12078,
+     "completion_tokens": 12387,
+     "reasoning_tokens": 10870,
+     "cost": 0.0037006499999999998,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation C3: first flag read unsigned (signed/unsigned slip): not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: vs_battle_script_jumpFwdIfFlags: 30000 iterations, seed 1, 0 mismatches; classes: case0=1873 case16=1835 case32=1824 case48=1928 case64=1890 case80=1950 no-case=18700"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13781,
+     "completion_tokens": 5281,
+     "reasoning_tokens": 3624,
+     "cost": 0.0020093,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation C3: first flag read unsigned (signed/unsigned slip): not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: vs_battle_script_jumpFwdIfFlags: 30000 iterations, seed 1, 0 mismatches; classes: case0=1873 case16=1835 case32=1824 case48=1928 case64=1890 case80=1950 no-case=18700",
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage vs_battle_script_jumpFwdIfFlags: branches 17/19 (89.5%), lines 27/29\n  UNCOVERED +8 b1: branch never taken: `if (temp_s0 <= temp_a0) {`\n  UNCOVERED +33 b0: branch never taken: `if (temp_s0 > temp_a0) {`\ncoverage vs_battle_script_jumpFwdIfFlags: FAILED (threshold 100%: 2 uncovered, 0 value flag(s) not waived)\nWhat to add:\n- `if (temp_s0 <= temp_a0) {` (+8): one way out of this test (+8 b1) was never taken; add inputs that take it.\n- `if (temp_s0 > temp_a0) {` (+33): one way out of this test (+33 b0) was never taken; add inputs that take it.\nOnly a gap no input can reach (say why) may be waived instead: [[function.vs_battle_script_jumpFwdIfFlags.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   }
+  ],
+  "classes": {
+   "case0": "1873",
+   "case16": "1835",
+   "case32": "1824",
+   "case48": "1928",
+   "case64": "1890",
+   "case80": "1950",
+   "no-case": "18700"
+  },
+  "mutations": [
+   {
+    "name": "C1: case 0 compares < instead of <=",
+    "caught": true
+   },
+   {
+    "name": "C2: case 16 compares > instead of >=",
+    "caught": true
+   },
+   {
+    "name": "C3: first flag read unsigned (signed/unsigned slip)",
+    "caught": false
+   },
+   {
+    "name": "C4: case 64 uses <= instead of <",
+    "caught": true
+   },
+   {
+    "name": "C5: second flag index masks bit 0 instead of bits 0-1",
+    "caught": true
+   },
+   {
+    "name": "C6: jump offset read from arg0 + 2",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 19,
+   "branches_hit": 17,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 29,
+   "lines_hit": 27,
+   "uncovered": [
+    {
+     "id": "+8 b1",
+     "line": 8,
+     "text": "if (temp_s0 <= temp_a0) {",
+     "what": "branch never taken"
+    },
+    {
+     "id": "+33 b0",
+     "line": 33,
+     "text": "if (temp_s0 > temp_a0) {",
+     "what": "branch never taken"
+    }
+   ],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "16-bit: min -32758, max 32764, unsigned 2..65532, seen negative, never zero"
+    }
+   ],
+   "compares": [
+    {
+     "line": 6,
+     "text": "switch (arg0[1] & 0xF0) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "switch",
+     "outcomes": "== 11300, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..240"
+    },
+    {
+     "line": 8,
+     "text": "if (temp_s0 <= temp_a0) {",
+     "size": 1,
+     "count": 1873,
+     "kind": "a == b / a < b",
+     "outcomes": "== 943, < 0, > 930 (signed); < 930, > 0 (unsigned)",
+     "operand": "b -128..127",
+     "a": "-128..127"
+    },
+    {
+     "line": 13,
+     "text": "if (temp_s0 >= temp_a0) {",
+     "size": 1,
+     "count": 1835,
+     "kind": "a == b / a < b",
+     "outcomes": "== 897, < 0, > 938 (signed); < 938, > 0 (unsigned)",
+     "operand": "b -128..127",
+     "a": "-128..127"
+    },
+    {
+     "line": 18,
+     "text": "if (temp_s0 == temp_a0) {",
+     "size": 1,
+     "count": 1824,
+     "kind": "a == b / a < b",
+     "outcomes": "== 908, < 0, > 916 (signed); < 916, > 0 (unsigned)",
+     "operand": "b -128..127",
+     "a": "-128..127"
+    },
+    {
+     "line": 23,
+     "text": "if (temp_s0 != temp_a0) {",
+     "size": 1,
+     "count": 1928,
+     "kind": "a == b / a < b",
+     "outcomes": "== 946, < 0, > 982 (signed); < 982, > 0 (unsigned)",
+     "operand": "b -128..127",
+     "a": "-128..127"
+    },
+    {
+     "line": 28,
+     "text": "if (temp_s0 < temp_a0) {",
+     "size": 1,
+     "count": 1890,
+     "kind": "a == b / a < b",
+     "outcomes": "== 960, < 0, > 930 (signed); < 930, > 0 (unsigned)",
+     "operand": "b -128..127",
+     "a": "-128..127"
+    },
+    {
+     "line": 33,
+     "text": "if (temp_s0 > temp_a0) {",
+     "size": 1,
+     "count": 1950,
+     "kind": "a == b / a < b",
+     "outcomes": "== 960, < 0, > 990 (signed); < 990, > 0 (unsigned)",
+     "operand": "b -128..127",
+     "a": "-128..127"
+    }
+   ],
+   "passed": false
+  }
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 73.15750887100148,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 2494.5962829589844,
+ "totals": {
+  "cost": 0.00571,
+  "prompt_tokens": 25859,
+  "completion_tokens": 17668,
+  "model_seconds": 0.0,
+  "check_seconds": 73.2,
+  "calls": 2,
+  "wall_seconds": 2494.6
+ }
+}

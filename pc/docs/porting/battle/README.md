@@ -38,6 +38,13 @@ battle subsystem, with the rules in `../PORTING.md`.
   host features in `pc/src` (`callees_outside` names them per function).
 
 
+## Progress
+
+`python3 pc/tools/port_progress.py` reports how much of this table is ported
+(`--units` per unit, `--left UNIT` what a unit has left, `--tree WORKTREE...`
+what branches in flight add, `--json` for scripts). It reads this table, the
+`/// orig:` lines in `game/`, `game/ownership.toml` and the pipeline records.
+
 ## Files
 
 | File | What |

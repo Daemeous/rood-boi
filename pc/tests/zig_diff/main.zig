@@ -81,7 +81,7 @@ fn hashRegions() u64 {
 }
 
 // ---------------------------------------------------------------- trace
-const Entry = struct { id: u16, n: u16, args: [8]u64, state: u64 };
+const Entry = struct { id: u16, n: u16, args: [10]u64, state: u64 };
 const trace_capacity = 4096;
 var traces: [2][trace_capacity]Entry = undefined;
 var trace_len: [2]usize = .{ 0, 0 };
@@ -127,7 +127,7 @@ fn callArity(comptime name: []const u8, comptime count: usize) usize {
 fn record(id: u16, args: anytype, comptime count: usize) void {
     var e = Entry{ .id = id, .n = count, .args = @splat(0), .state = 0 };
     inline for (0..count) |i| {
-        if (i < 8) e.args[i] = (if (textArgument(id, i, args[i])) |h| h else word(args[i])) & argMask(id, i);
+        if (i < 10) e.args[i] = (if (textArgument(id, i, args[i])) |h| h else word(args[i])) & argMask(id, i);
     }
     if (!@hasDecl(spec, "hash_at_calls") or spec.hash_at_calls) e.state = hashRegions();
     const n = trace_len[side];
@@ -368,7 +368,7 @@ fn compareTraces() void {
                 @as(c_ulonglong, iteration), i, stubName(x.id), stubName(y.id) });
             return;
         }
-        for (0..x.n) |k| {
+        for (0..@min(x.n, 10)) |k| { // record logs the first 10 arguments
             if (uninitialisedArgument(x.id, k)) continue;
             if (x.args[k] != y.args[k]) {
                 report("zdiff: MISMATCH iteration %llu: call %zu (%s): argument %zu: C %#llx, Zig %#llx\n", .{

@@ -4,7 +4,8 @@ const psx = @import("common").psx;
 const v = @import("views_771A8");
 const c = @import("c_771A8");
 
-/// C's patrolWaypoint (a file-scope static): the entry at `index` in `row`, unchecked.
+/// orig: patrolWaypoint (src/BATTLE/BATTLE.PRG/771A8.c)
+/// The entry at `index` in `row`, unchecked (a file-scope static inline).
 fn patrolWaypoint(row: [*]u16, index: c_int) c_uint {
     return @as(c_uint, psx.at(row, index).*);
 }

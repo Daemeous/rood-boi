@@ -1,0 +1,189 @@
+{
+ "function": "func_800B6778",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "spec-failed",
+ "reviewed": false,
+ "plan": {
+  "name": "func_800B6778",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800b6778",
+  "difficulty": "S",
+  "zig_name": "func_800B6778",
+  "name_source": "no readable name: the original symbol is kept",
+  "module": "func_800B6778",
+  "spec_file": "func_800B6778.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn func_800B6778(arg0: [*c]u8) callconv(.c) void",
+  "params": [
+   [
+    "arg0",
+    "[*c]u8"
+   ]
+  ],
+  "ret": "void",
+  "types": [],
+  "globals": [
+   "D_800E9BE0",
+   "D_800E9BE8",
+   "D_800E9C30"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11637,
+     "completion_tokens": 14550,
+     "reasoning_tokens": 12668,
+     "cost": 0.004219349999999999,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:213:9: error: zdiff: a spec stub gives void where the C prototype has c_int: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:267:29\n    f: pc/build/port-pipeline/func_800B6778/spec1/build/game/common/route.zig:29:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\npc/tests/zig_diff/main.zig:267:46: error: expected 4 argument(s), found 1\n                return adapt(S, @call(.auto, f, .{&ctx} ++ stubArgs(@TypeOf(f), args)));\n                                             ^\npc/build/port-pipeline/func_800B6778/spec1/build/spec.zig:78:9: note: function declared here\n    pub fn memcmp(ctx: *zd.Ctx, a: anytype, b: anytype, n: anytype) c_int {\n    ~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 14105,
+     "completion_tokens": 3401,
+     "reasoning_tokens": 1500,
+     "cost": 0.0015555,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: mutation F3: memcmp compares 3 bytes, not 4: not caught as mismatch (exit 0) (no input made the mutated copy behave differently: add inputs that do): zdiff: func_800B6778: 30000 iterations, seed 1, 0 mismatches; classes: head-is-terminator=7532 one-node=7381 two-or-more-nodes=15087"
+    ]
+   }
+  ],
+  "classes": {
+   "head-is-terminator": "7532",
+   "one-node": "7381",
+   "two-or-more-nodes": "15087"
+  },
+  "mutations": [
+   {
+    "name": "F1: the init loop runs 4 times, not 3",
+    "caught": true
+   },
+   {
+    "name": "F2: wrong constant in the stored byte",
+    "caught": true
+   },
+   {
+    "name": "F3: memcmp compares 3 bytes, not 4",
+    "caught": false
+   },
+   {
+    "name": "F4: dropped call to func_800AACDC",
+    "caught": true
+   },
+   {
+    "name": "F5: the walk steps one byte too far",
+    "caught": true
+   },
+   {
+    "name": "F6: signed read of the code indexes the step table",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 6,
+   "branches_hit": 6,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 13,
+   "lines_hit": 13,
+   "uncovered": [],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    }
+   ],
+   "compares": [
+    {
+     "line": 4,
+     "text": "for (i = 0; i < 3; ++i) {",
+     "size": 2,
+     "count": 120000,
+     "kind": "against a constant",
+     "outcomes": "== 30000, < 60000, > 30000 (signed); < 60000, > 30000 (unsigned)",
+     "operand": "constant 2",
+     "a": "0..3"
+    },
+    {
+     "line": 12,
+     "text": "while (*arg0 != i) {",
+     "size": 4,
+     "count": 58667,
+     "kind": "a == b / a < b",
+     "outcomes": "== 20600, < 8688, > 29379 (signed); < 8688, > 29379 (unsigned)",
+     "operand": "b 15..15",
+     "a": "0..255"
+    },
+    {
+     "line": 13,
+     "text": "if (memcmp(arg0, D_800E9BE8, 4) == 0) {",
+     "size": 4,
+     "count": 38067,
+     "kind": "against a constant",
+     "outcomes": "== 9400, < 14229, > 14438 (signed); < 0, > 28667 (unsigned)",
+     "operand": "constant 0",
+     "a": "-2147439485..2147358806"
+    }
+   ],
+   "passed": true
+  }
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 34.42529607799952,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 2284.0391874313354,
+ "totals": {
+  "cost": 0.00577,
+  "prompt_tokens": 25742,
+  "completion_tokens": 17951,
+  "model_seconds": 0.0,
+  "check_seconds": 34.4,
+  "calls": 2,
+  "wall_seconds": 2284.0
+ }
+}

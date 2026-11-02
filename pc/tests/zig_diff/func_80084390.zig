@@ -1,0 +1,51 @@
+//! zig_diff spec: func_80084390 -> func_80084390.func_80084390 (146C.c).
+//! Inputs: D_800F19CC is an arena block (the current action is a spell or not, at the test's
+//! edges); the stat change (the stub's result) and the target's hp take
+//! edge values so the 16-bit sum wraps; action and source are null or
+//! arena blocks (the C only passes them on).
+const std = @import("std");
+const zd = @import("zdiff");
+const psx = @import("common").psx;
+const v = @import("views_146C");
+pub const Args = std.meta.ArgsTuple(@TypeOf(@import("port").func_80084390));
+
+pub const classes = [_][:0]const u8{ "spell", "other" };
+
+pub const ignore_return = "the C has no return statement: _actionEffectMediators is declared void and its one caller (func_80085390) ignores the result";
+
+var amount: i16 = 0;
+
+pub const stubs = struct {
+    pub fn _calculateStatChange(_: *zd.Ctx, a: anytype, b: anytype, t: anytype, h: anytype, e: anytype) i16 {
+        _ = a;
+        _ = b;
+        _ = t;
+        _ = h;
+        _ = e;
+        return amount;
+    }
+};
+
+fn entities(ctx: *zd.Ctx) struct { ?*v.vs_action_t, ?*v._hitEntity_t, *v._hitEntity_t } {
+    amount = ctx.pick(i16, &.{ 0, 1, -1, 100, 0x7FFF, -0x8000 });
+    const target = ctx.alloc(v._hitEntity_t);
+    target.unk0.hp = ctx.pick(i16, &.{ 0, 1, -1, 0x7FFF, -0x8000, 500 });
+    const action: ?*v.vs_action_t = if (ctx.chance(4)) null else ctx.alloc(v.vs_action_t);
+    const source: ?*v._hitEntity_t = if (ctx.chance(4)) null else ctx.alloc(v._hitEntity_t);
+    return .{ action, source, target };
+}
+
+pub fn prepare(ctx: *zd.Ctx) Args {
+    const block = ctx.alloc(v.D_800F19CC_t);
+    v.g.D_800F19CC().* = block;
+    const index = ctx.range(u16, 0, 255);
+    block.unk8.actionIndex = index;
+    psx.setBits(&v.g.actions()[index], "type", ctx.edge(u3, &.{ 0, 1, 1, 2, 7 }));
+    const e = entities(ctx);
+    return .{ e[0], e[1], e[2], ctx.int(c_int), ctx.int(c_int) };
+}
+
+pub fn classify(_: Args) usize {
+    const block = v.g.D_800F19CC().*.?;
+    return if (psx.getBits(&v.g.actions()[block.unk8.actionIndex], "type") == 1) 0 else 1;
+}

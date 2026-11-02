@@ -1,0 +1,184 @@
+{
+ "function": "vs_battle_script_setStringContextInt",
+ "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+ "difficulty": "S",
+ "model": "anthropic/claude-haiku-5.5",
+ "endpoint": "remote",
+ "thinking": "default",
+ "temperature": 0.0,
+ "samples": 1,
+ "status": "spec-failed",
+ "reviewed": false,
+ "plan": {
+  "name": "vs_battle_script_setStringContextInt",
+  "unit": "src/BATTLE/BATTLE.PRG/4A0A8.c",
+  "stem": "4A0A8",
+  "address": "0x800b7218",
+  "difficulty": "S",
+  "zig_name": "script_setStringContextInt",
+  "name_source": "the decompilation's name (prefix dropped)",
+  "module": "script_set_string_context_int",
+  "spec_file": "script_setStringContextInt.zig",
+  "subsystem": "battle_4A0A8_port",
+  "signature": "pub fn script_setStringContextInt(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int",
+  "params": [
+   [
+    "arg0",
+    "[*c]u8"
+   ],
+   [
+    "arg1",
+    "c_short"
+   ]
+  ],
+  "ret": "c_int",
+  "types": [],
+  "globals": [
+   "vs_battle_stringContext"
+  ],
+  "hooks": [],
+  "statics": [],
+  "skip": ""
+ },
+ "spec": {
+  "attempts": [
+   {
+    "round": 1,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 11638,
+     "completion_tokens": 9267,
+     "reasoning_tokens": 7723,
+     "cost": 0.00289865,
+     "seconds": null,
+     "batch": "batch-1793572634-H2DQ8UWP6zceR1p5KgOu",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the harness does not build:\n<cache>/zig/0.17.0/zig-x86_64-linux-0.17.0/zig build-obj -fno-compiler-rt ...: pc/tests/zig_diff/main.zig:213:9: error: zdiff: a spec stub gives c_int where the C prototype has u8: declare the stub's return and parameter types as the c module's prototype does (or `anytype`)\n        @compileError(\"zdiff: a spec stub gives \" ++ @typeName(From) ++ \" where the C prototype has \" ++ @typeName(To) ++\n        ^~~~~~~~~~~~~\nreferenced by:\n    body: pc/tests/zig_diff/main.zig:267:29\n    f: pc/build/port-pipeline/vs_battle_script_setStringContextInt/spec1/build/game/common/route.zig:24:28\n    5 reference(s) hidden; use '-freference-trace=7' to see all references\n"
+    ]
+   },
+   {
+    "round": 2,
+    "sample": 1,
+    "call": {
+     "finish_reason": "stop",
+     "model": "anthropic/claude-haiku-5.5",
+     "endpoint": "remote",
+     "thinking": "default",
+     "temperature": 0.0,
+     "max_tokens": 64000,
+     "prompt_tokens": 13529,
+     "completion_tokens": 2475,
+     "reasoning_tokens": 932,
+     "cost": 0.0012951999999999998,
+     "seconds": null,
+     "batch": "batch-1793574185-yW0L5c49JE1yW198nm1R",
+     "sample": 1
+    },
+    "passed": false,
+    "errors": [
+     "FAIL: the coverage gate (zig_diff.py --coverage):\ncoverage vs_battle_script_setStringContextInt: branches 4/5 (80.0%), lines 21/21\n  UNCOVERED +3 b4: branch never taken: `switch (arg0[3] >> 6) {`\ncoverage vs_battle_script_setStringContextInt: FAILED (threshold 100%: 1 uncovered, 0 value flag(s) not waived)\nWhat to add:\n- `switch (arg0[3] >> 6) {` (+3): one way out of this test (+3 b4) was never taken; add inputs that take it.\nOnly a gap no input can reach (say why) may be waived instead: [[function.vs_battle_script_setStringContextInt.coverage_waiver]] with its `id` and a `reason`."
+    ]
+   }
+  ],
+  "classes": {
+   "mode0": "7316",
+   "mode1": "7662",
+   "mode2": "7548",
+   "mode3": "7474"
+  },
+  "mutations": [
+   {
+    "name": "S1: flag index masked to 9 bits",
+    "caught": true
+   },
+   {
+    "name": "S2: mode 1 zero-extends instead of sign-extending",
+    "caught": true
+   },
+   {
+    "name": "S3: mode 3 zero-extends the 16-bit value",
+    "caught": true
+   },
+   {
+    "name": "S4: mode 0 reads the next flag index",
+    "caught": true
+   },
+   {
+    "name": "S5: mode 0 store dropped",
+    "caught": true
+   },
+   {
+    "name": "S6: returns 1",
+    "caught": true
+   }
+  ],
+  "coverage": {
+   "branches": 5,
+   "branches_hit": 4,
+   "conditions": null,
+   "conditions_hit": null,
+   "lines": 21,
+   "lines_hit": 21,
+   "uncovered": [
+    {
+     "id": "+3 b4",
+     "line": 3,
+     "text": "switch (arg0[3] >> 6) {",
+     "what": "branch never taken"
+    }
+   ],
+   "flags": [],
+   "args": [
+    {
+     "arg": 0,
+     "count": 30000,
+     "text": "pointer: never null"
+    },
+    {
+     "arg": 1,
+     "count": 30000,
+     "text": "16-bit: min -32767, max 32766, unsigned 3..65534, seen negative, never zero"
+    }
+   ],
+   "compares": [
+    {
+     "line": 3,
+     "text": "switch (arg0[3] >> 6) {",
+     "size": 4,
+     "count": 30000,
+     "kind": "switch",
+     "outcomes": "== 30000, < 0, > 0 (signed); < 0, > 0 (unsigned)",
+     "operand": "cases",
+     "a": "0..3"
+    }
+   ],
+   "passed": false
+  }
+ },
+ "port": {
+  "attempts": []
+ },
+ "written": [],
+ "check_seconds": 30.13975657100309,
+ "mode": "rounds",
+ "transport": "batch",
+ "wall_seconds": 2330.9476249217987,
+ "totals": {
+  "cost": 0.00419,
+  "prompt_tokens": 25167,
+  "completion_tokens": 11742,
+  "model_seconds": 0.0,
+  "check_seconds": 30.1,
+  "calls": 2,
+  "wall_seconds": 2330.9
+ }
+}
