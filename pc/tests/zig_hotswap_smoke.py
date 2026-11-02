@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rebuild a private game/battle/root.zig, reload it in one host, and witness its write.
+"""Rebuild a private copy of an owned battle module, reload it in one host, and witness its write.
 
 64-bit Linux; ROOD_BUILD_LOCK serialises builds. ROOD_ZIG_SMOKE_NO_BUILD=1
 uses an already built dev64 host. Only the private game copy is ever edited.
@@ -24,6 +24,9 @@ from checkpoints import launch_at, _base_env
 from snapshot_diff import Symbols
 
 DEV = ROOT / "pc/build/dev64"
+# The fixture: a fully ported subsystem the enemy-cast room calls every frame
+# (the trial's func_800B07DC, game/battle/actor_transform.zig offsetToWorld).
+FIXTURE = "battle_44F14"
 STATE_KEYS = ("ram", "scratch", "io", "state", "overlays", "vram", "vsync")
 FRAMES = 600
 
@@ -89,7 +92,7 @@ def main():
         shutil.copyfile(card, private_card)
         settings = work / "settings.txt"
         settings.write_text("ui_menus 0\nwidescreen 0\ninterpolate 0\nqol_skip_charging 0\ncamera_stick 0\n")
-        env = dict(_base_env(work), ROOD_ORACLE="1", ROOD_OWNER="battle_action=original",
+        env = dict(_base_env(work), ROOD_ORACLE="1", ROOD_OWNER=f"{FIXTURE}=original",
                    ROOD_SETTINGS=str(settings), ROOD_GI="0", ROOD_GAME_LIBRARY=str(library))
         rood_rpc.BINARY = DEV / "rood_host"
         os.environ["ROOD_SYMBOLS"] = str(rood_rpc.BINARY)
@@ -108,11 +111,13 @@ def main():
                 if game.call("room_goto", action="status")["phase"] in (0, 4):
                     break
             check((game.state()["zone"], game.state()["room"]) == (48, 10), "enemy-cast room loaded")
-            game.shadow("battle_action", True)
-            check(game.owner()["subsystems"][0]["owner"] == "shadow", "RPC subsystem shadow on")
-            game.call("lua", action="console", input="shadow battle_action off")
-            check(game.owner()["subsystems"][0]["owner"] == "original", "console subsystem shadow off")
-            game.call("lua", action="console", input="owner battle_action shadow")
+            def fixture_owner():
+                return next(o for o in game.owner()["subsystems"] if o["name"] == FIXTURE)["owner"]
+            game.shadow(FIXTURE, True)
+            check(fixture_owner() == "shadow", "RPC subsystem shadow on")
+            game.call("lua", action="console", input=f"shadow {FIXTURE} off")
+            check(fixture_owner() == "original", "console subsystem shadow off")
+            game.call("lua", action="console", input=f"owner {FIXTURE} shadow")
             socket = f"/tmp/rood-zig-{os.getpid()}.sock"
             cli = subprocess.run([sys.executable, str(ROOT / "pc/tools/rood_rpc.py"),
                                   "--socket", socket, "reload", "zig"],
@@ -141,11 +146,17 @@ def main():
             function = max(baseline["coverage"], key=lambda row: row["calls"])["function"]
             address = next(address for address, size, name in Symbols(DEV / "rood_host").rows
                            if name == "vs_main_stateFlags")
-            path = source / "battle/root.zig"
+            # The owned implementation: the module and function ownership.toml's
+            # `zig` path names; probes go at the start of its body.
+            import ownership
+            zig = next(s for s in ownership.load(source / "ownership.toml").subsystems
+                       if s.name == FIXTURE).zig_name(function)
+            module, name = zig.split(".")
+            path = source / "battle" / f"{module}.zig"
             clean = path.read_text()
-            pattern = rf'(        orig\("{re.escape(function)}",[^\n]+;\n)'
-            edited, count = re.subn(pattern, r'\1        vs_main_stateFlags[0] ^= 1;\n', clean)
-            check(count == 1, f"located owned implementation of {function} in private source")
+            pattern = rf'(pub fn {re.escape(name)}\(.*\) callconv\(\.c\) .+ \{{\n)'
+            edited, count = re.subn(pattern, r'\1    vs_main_stateFlags[0] ^= 1;\n', clean)
+            check(count == 1, f"located owned implementation of {function} ({zig}) in private source")
             edited = edited.replace('const common = @import("common");',
                                     'const common = @import("common");\nextern var vs_main_stateFlags: [1]u8;', 1)
             # Twice proves restoration and subsequent reloads are not a one-shot path.
@@ -203,7 +214,7 @@ def main():
             # State cannot silently migrate into a reloadable module. A failed
             # build must leave the previously published library byte-for-byte.
             published = library.read_bytes()
-            mutable, count = re.subn(pattern, '        reload_counter +%= 1;\\n' + r'\1', clean)
+            mutable, count = re.subn(pattern, r'\1    reload_counter +%= 1;\n', clean)
             check(count == 1, "mutable-state probe inserted in private source")
             mutable = mutable.replace('const common = @import("common");',
                                       'const common = @import("common");\nvar reload_counter: u32 = 0;', 1)
@@ -241,11 +252,11 @@ def main():
             except rood_rpc.RpcError as error:
                 check("missing" in str(error), f"missing export refused: {error}")
             check(state(game) == before, "incomplete candidate did not publish any slots")
-            signature = f'pub fn {function}() callconv(.c) void {{'
-            check(clean.count(signature) == 1, "selected smoke function has a no-argument ABI")
-            path.write_text(clean.replace(signature,
-                f'pub fn {function}(extra: c_int) callconv(.c) void {{ _ = extra;').replace(
-                    f'@TypeOf({function})', 'fn () callconv(.c) void'))
+            signature = re.search(pattern, clean).group(1)
+            check(signature.count(") callconv(.c) ") == 1 and f"pub fn {name}()" not in signature,
+                  "selected smoke function takes arguments (an extra one changes its ABI)")
+            path.write_text(clean.replace(signature, signature.replace(
+                ") callconv(.c) ", ", extra: c_int) callconv(.c) ").replace("{\n", "{\n    _ = extra;\n")))
             build(command)
             try:
                 game.reload("zig")
@@ -260,7 +271,7 @@ def main():
 
             # Put an owned frame on the real game stack across a nested vsync.
             # The reload must refuse without stepping the paused game.
-            live, count = re.subn(pattern, '        _ = VSync(0);\\n' + r'\1', clean)
+            live, count = re.subn(pattern, r'\1    _ = VSync(0);\n', clean)
             check(count == 1, "live-frame probe inserted in private owned implementation")
             live = live.replace('const common = @import("common");',
                                 'const common = @import("common");\nextern fn VSync(c_int) callconv(.c) c_int;', 1)
@@ -268,7 +279,7 @@ def main():
             build(command)
             reload_paused(game, process, pid)
             game.rewind()
-            game.owner("battle_action", "owned")
+            game.owner(FIXTURE, "owned")
             refused = False
             for _ in range(FRAMES):
                 game.run(1)
@@ -287,12 +298,12 @@ def main():
                     refused = True
                     break
             check(refused, "live owned frame observed and refused at nested vsync")
-            game.owner("battle_action", "original")
+            game.owner(FIXTURE, "original")
             game.run(1)  # return out of the suspended owned frame
             path.write_text(clean)
             build(command)
             reload_paused(game, process, pid)
-            game.owner("battle_action", "owned")
+            game.owner(FIXTURE, "owned")
             game.call("pause", paused=False)
             running_frame = game.status()["vsync"]
             reply = game.call("reload", target="zig")

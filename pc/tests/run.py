@@ -185,7 +185,7 @@ def suites(args, mode="egl"):
         *([Suite("null_backend_smoke", [PY, str(TESTS / "null_backend_smoke.py")], 300,
                  gpu=False, note="CPU null backend: no display or GPU resources")]
           if args.renderer == "null" else []),
-        Suite("battle_corpus_candidate", [PY, str(TESTS / "diff/differ.py"), "battle_action",
+        Suite("battle_corpus_candidate", [PY, str(TESTS / "diff/differ.py"), "battle_44F14",
               "--scenario", "enemy_cast_wait", "--card", str(args.save)], 300,
               note="one witnessed enemy-cast recipe; NOT full task20 coverage",
               sources=[TESTS / "diff/corpus.py", TESTS / "diff/scenarios.py", ROOT / "pc/tools/field_map.py"]),
@@ -202,13 +202,13 @@ def suites(args, mode="egl"):
         Suite("shadow_battle_smoke", [PY, str(TESTS / "shadow_battle_smoke.py"), "--card", str(args.save)], 300,
               note="experimental routed battle shadow; classic oracle profile",
               sources=[ROOT / "pc/src/shadow.c", ROOT / "game/common/route.zig"]),
-        # The 38C1C port shadowed inside battle_action: its routed bone helpers
+        # The 38C1C port shadowed beside the fixture: its routed bone helpers
         # (func_800A152C, func_800A1AF8) run between func_8007138C's caller and
         # its partly written effect request, whose dead-stack bytes diverged
         # until the request was zeroed (pc/docs/Oracle.md, known hazards).
         Suite("shadow_battle_smoke_38C1C", [PY, str(TESTS / "shadow_battle_smoke.py"), "--card", str(args.save),
               "--owner", "battle_38C1C_port=shadow"], 300,
-              note="battle_action shadow with battle_38C1C_port shadowed (the effect-request oracle gap)",
+              note="battle_44F14 shadow with battle_38C1C_port shadowed (the effect-request oracle gap)",
               sources=[ROOT / "pc/src/shadow.c", ROOT / "game/common/route.zig", TESTS / "shadow_battle_smoke.py",
                        ROOT / "src/BATTLE/BATTLE.PRG/146C.c", ROOT / "src/BATTLE/BATTLE.PRG/38C1C.c",
                        *port_modules("battle_38C1C_port")]),

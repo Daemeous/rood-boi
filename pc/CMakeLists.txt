@@ -89,6 +89,9 @@ if(ROOD_ZIG_MISSING EQUAL 0)
     add_test(NAME zig_views COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/zig_views_test.py)
     # The c module (pc/tools/zig_c.py): a unit's statics are compile errors, externs stay usable.
     add_test(NAME zig_c COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/zig_c_test.py)
+    # The battle statics the build globalises (pc/tools/battle_statics.py, PORTING.md §6.5): the C and
+    # the global names share one storage; the views link to them.
+    add_test(NAME battle_statics COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/battle_statics_test.py)
     # Each Zig port against its original C body on random and edge inputs, with the mutation
     # self-checks (pc/tools/zig_diff.py; reads the 64-bit build, skipped without one).
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SIZEOF_VOID_P EQUAL 8)

@@ -152,7 +152,7 @@ int pc_owner_alternate_report(int subsystem, char* out, int size)
     return n < 0 ? -1 : used + n;
 }
 
-/* ROOD_OWNER=battle_action=owned,menus=original, applied over defaults. */
+/* ROOD_OWNER=battle_44F14=owned,menus=original, applied over defaults. */
 __attribute__((constructor)) static void owner_defaults(void)
 {
     if (pc_subsystem_count > sizeof pc_owner)

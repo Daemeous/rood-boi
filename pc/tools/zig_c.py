@@ -170,7 +170,8 @@ def _poison_statics(text, statics, module):
                 break
             j += 1
         out.append(f'pub const {name} = @compileError("{module}.{name} is a file-scope static of the unit: '
-                   f'owned code cannot share it through c (PORTING.md §6.5)");')
+                   f'owned code cannot share it through c; a static STATE.tsv lists is in the views, globalised '
+                   f'(PORTING.md §6.5)");')
         poisoned.append(name)
         i = j + 1
     return "\n".join(out), poisoned

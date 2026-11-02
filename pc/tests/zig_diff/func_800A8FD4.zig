@@ -113,9 +113,14 @@ pub fn prepare(ctx: *zd.Ctx) Args {
     const frame = Frame{ .x = ax, .y = ay, .z = az, .r = radius, .ry = aY, .dy = dy };
 
     var any_inside = false;
+    // No other actor at all (empty slots and the actor itself) a tenth of the
+    // time: the no-candidate class does not hang on 15 random placements.
+    const alone = ctx.chance(10);
     var slot: usize = 2;
     while (slot < 17) : (slot += 1) {
-        if (ctx.chance(6)) {
+        if (alone) {
+            table[slot] = if (ctx.chance(2)) null else actor;
+        } else if (ctx.chance(6)) {
             table[slot] = null;
         } else if (ctx.chance(12)) {
             table[slot] = actor;

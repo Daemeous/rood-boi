@@ -63,6 +63,7 @@ import tomllib
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 import bakeoff_context  # noqa: E402
+import battle_statics  # noqa: E402
 import ownership  # noqa: E402
 import zig_toolchain  # noqa: E402
 
@@ -184,7 +185,11 @@ def cast_call_arities(body):
     out = {}
     for params, name in CAST_CALL.findall(body or ""):
         params = params.strip()
-        count = 0 if params in ("", "void") else params.count(",") + 1
+        if params == "":
+            # `(void (*)())f`: unprototyped, every argument is passed (44F14's
+            # func_800AE47C calling func_800AD714 with one more than its prototype).
+            continue
+        count = 0 if params == "void" else params.count(",") + 1
         out[name] = min(count, out.get(name, count))
     return out
 
@@ -346,13 +351,24 @@ class Build:
             if condition_coverage():
                 flags.append("-fcondition-coverage")
         run(["gcc", *flags, *gcc_permissive(), "-c", ref_c, "-o", ref_o], cwd=ref_c.parent)
+        # The unit's listed statics under the names the build gives them, so the
+        # port reaches the C's own storage (only those the kept bodies use exist).
+        battle_statics.globalise(ref_o, self.unit_i.stem, battle_statics.listed().get(self.unit_i.stem, []),
+                                 lambda args, o: run(["objcopy", *args, o]), required=False,
+                                 work=ref_o.with_suffix(""))
         present = run(["objdump", "-h", ref_o])
         renames = []
         sections = re.findall(r"^\s*\d+\s+(\S+)", present, re.M)
         for section in sections:
             if section in DATA_SECTIONS or (coverage and re.match(r"\.(data|bss)(\.rel(\.local)?)?\.", section)
                                             and not re.search(r"gcov|LPBX|\.rel\.ro", section)):
-                renames += ["--rename-section", f"{section}=zdiff_fixed"]
+                # A .bss (an uninitialised static: -fno-zero-initialized-in-bss
+                # moves only the explicitly zeroed ones) becomes zeroed contents,
+                # or ld places it outside zdiff_fixed (never restored, never
+                # compared: a static the port shares through the views leaked
+                # the C run's value into the port's).
+                flags = ",alloc,load,contents,data" if section.startswith(".bss") else ""
+                renames += ["--rename-section", f"{section}=zdiff_fixed{flags}"]
         if coverage:
             # gcov's counters stay out of zdiff_fixed (restored every iteration).
             renames = [r for r in renames if not re.search(r"gcov|LPBX", r)]
@@ -398,7 +414,9 @@ class Build:
         stubs = sorted(u for u in undefined if u in c_functions)
         traps = sorted(u for u in undefined if u in statics)
         data = {u for u in undefined if u not in c_functions and u not in statics}
-        data |= set(self.sub.views.get("globals", [])) - defined
+        # The unit's statics in the views (`name`, `F::name`) are the reference
+        # object's own, globalised (battle_statics.py), or unused by this body.
+        data |= {g for g in self.sub.views.get("globals", []) if "::" not in g and g not in statics} - defined
         return stubs, traps, sorted(data)
 
     def state_source(self, traps, data):

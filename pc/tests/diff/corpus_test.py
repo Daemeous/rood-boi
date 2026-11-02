@@ -69,7 +69,7 @@ class Tests(unittest.TestCase):
 
     def compare(self, game, modes=differ.MODES, diagnose=lambda *args: {"field": "actor.hp"}):
         mapper = SimpleNamespace(names=lambda addresses: {a: "actor.hp" for a in addresses})
-        return differ.compare(game, "recording", 600, "battle_action", 2, modes,
+        return differ.compare(game, "recording", 600, "battle_44F14", 2, modes,
                               mapper, pathlib.Path("."), ["f", "uncalled"], diagnose)
 
     def test_each_owner_rewinds_same_game_and_control_first(self):
@@ -156,7 +156,7 @@ class Tests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             with patch("snapshot_diff.read", side_effect=states):
                 result = differ.first_difference(game, pathlib.Path(directory), "recording",
-                                                 42, "battle_action", 2, "alternate", mapper)
+                                                 42, "battle_44F14", 2, "alternate", mapper)
         self.assertEqual(result["address"], 101)
         self.assertEqual(result["field"], "actor.hp")
         self.assertEqual([e[1] for e in game.events if e[0] == "run"], [43, 43])
@@ -189,11 +189,11 @@ class Tests(unittest.TestCase):
             def launch(*args, **kwargs):
                 self.assertEqual(os.environ["ROOD_TEST_SNAPSHOTS"], "0")
                 raise RuntimeError("stop before launching fixture")
-            table = SimpleNamespace(subsystems=[SimpleNamespace(name="battle_action")])
+            table = SimpleNamespace(subsystems=[SimpleNamespace(name="battle_44F14")])
             with patch.dict(os.environ, {"ROOD_TEST_SNAPSHOTS": "1"}), \
                  patch("ownership.load", return_value=table), patch("checkpoints.launch_at", side_effect=launch):
                 with self.assertRaisesRegex(RuntimeError, "stop before"):
-                    differ.run_one(None, SimpleNamespace(subsystem="battle_action", card=card), work)
+                    differ.run_one(None, SimpleNamespace(subsystem="battle_44F14", card=card), work)
                 self.assertEqual(os.environ["ROOD_TEST_SNAPSHOTS"], "1")
 
     def test_current_five_field_enemy_cast_witness(self):
@@ -248,18 +248,18 @@ class Tests(unittest.TestCase):
         for key in ("qol_confirm_cross", "qol_field_cross_attack", "ui_menus", "camera_stick"):
             self.assertEqual(values[key], "0")
         with tempfile.TemporaryDirectory() as directory:
-            corpus.environment(pathlib.Path(directory), "battle_action", "features")
+            corpus.environment(pathlib.Path(directory), "battle_44F14", "features")
             self.assertIn("qol_skip_charging 1", (pathlib.Path(directory) / "settings.cfg").read_text())
 
     def test_generator_pins_state_input_profile_and_marks_once(self):
         with tempfile.TemporaryDirectory() as directory:
             work = pathlib.Path(directory)
             game = Game()
-            corpus.environment(work, "battle_action")
+            corpus.environment(work, "battle_44F14")
             scenario = SimpleNamespace(name="fixture", ticks=600, setup=lambda g: None,
                                        play=lambda g: g.run(600), reset_witness=lambda g: None,
                                        witness=lambda g: {"ok": True})
-            recording, ticks = corpus.generate(game, scenario, work, "battle_action")
+            recording, ticks = corpus.generate(game, scenario, work, "battle_44F14")
             self.assertEqual(ticks, 600)
             self.assertTrue(recording.exists())
             self.assertIn(corpus.sha256(recording), (work / "manifest.json").read_text())

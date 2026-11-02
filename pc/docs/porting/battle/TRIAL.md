@@ -60,8 +60,9 @@ trial built what its three functions needed (commit `bba2e08c`), generically:
 - `field_map.py`: `TYPE@ADDRESS` roots for blocks the code addresses by
   number (the scratchpad), with a test.
 
-Not built (not needed by these three): the statics globalisation, the
-post-routing inlining check, the i386 struct-return probe.
+Not built (not needed by these three): the statics globalisation (built
+since, 2026-11-02: PORTING.md §6.5), the post-routing inlining check, the
+i386 struct-return probe.
 
 ## How each function was checked
 

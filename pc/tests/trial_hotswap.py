@@ -66,7 +66,7 @@ def main():
     build(lib_cmd)
     card = work / "card.mcd"
     shutil.copyfile(a.card, card)
-    env = dict(_base_env(work), **corpus.environment(work, "battle_action"), ROOD_GAME_LIBRARY=str(library))
+    env = dict(_base_env(work), **corpus.environment(work, a.subsystem), ROOD_GAME_LIBRARY=str(library))
     rood_rpc.BINARY = DEV / "rood_host"
     os.environ["ROOD_SYMBOLS"] = str(rood_rpc.BINARY)
     os.environ["ROOD_TEST_SNAPSHOTS"] = "0"

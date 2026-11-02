@@ -83,6 +83,7 @@ class Stamp:
         self.path = pathlib.Path(out) / "build-stamp.json"
         self.config = config
         self.deps = set()  # files the compiles read (filled while building)
+        self.started = None  # the inputs' stat lines when the build began (begin())
 
     def _walk(self, trees, suffixes):
         files = []
@@ -128,11 +129,24 @@ class Stamp:
         except FileNotFoundError:
             pass
 
+    def _lines(self, trees, files):
+        return {path: _stat_line(path) for path in set(self._walk(trees, None)) | {str(f) for f in files}}
+
+    def begin(self, trees, files):
+        """Before building: no stamp until this build completes, and note the
+        inputs as the build sees them."""
+        self.invalidate()
+        self.started = self._lines(trees, files)
+
     def write(self, trees, files, outputs):
-        """After a complete build: record its inputs and outputs. The inputs
-        are stat'ed now, so a file edited during the build is seen as
-        changed only if its edit landed after the compile read it, which the
-        next build then redoes (the object cache checks content)."""
+        """After a complete build: record its inputs and outputs. A tree file
+        or listed file edited while the build ran (its stat line differs from
+        begin()'s) may have been read before the edit, so no stamp is
+        written and the next build runs. The compiles' other dependencies are
+        stat'ed now; the object cache checks their content."""
+        if self.started is not None and self._lines(trees, files) != self.started:
+            print("build stamp: inputs changed during the build; not recorded (the next build runs)")
+            return
         deps = sorted(self.deps)
         self.path.write_text(json.dumps({
             "version": VERSION,

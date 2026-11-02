@@ -583,33 +583,68 @@ not by its storage: `STATE.tsv` "lifetime" says which where it is known.
 
 ### 6.5 Statics the Zig object cannot see
 
-A file `static` is a local symbol: `psx.global` cannot link to it. Before a
-function using one is ported, the build must globalise it (an `objcopy
---globalize-symbol` step for the listed names, as `build_boot.py` already does
-for some static functions of `main.o` and MAINMENU), keeping its section so
-the overlay restart still covers it. Function-local statics get a GCC suffix
-(`sp10.0`): same treatment, with the suffixed name, which must be unique in
-the object (`func_800A4A24`'s `sp10` and its inlined copy's `platforms` are
-two). `STATE.tsv` lists the 30 that battle code touches, with the exact object
-symbol: 6 file statics in `146C.c` (one `const` table and the five
-charging-skip variables of `charge_skip.inc`), 13 in the `pc/src` asm ports
-(`room_render.c`, `room_geometry.c`; D2), and 11 function-local ones, of which
-3 were folded away (no symbol) and 2 are `const`. So D's first pass globalises
-at most 5 file statics and 6 function-local ones. The `.N` suffix is GCC's
-choice and changes with the compiler or the source: the build step finds the
-symbol by pattern (`name.[0-9]+` among the unit's local data symbols, exactly
-one match) and fails otherwise. Globalised names must not collide: prefix them
-(`battle_146C__charge_skip_held`).
+A file `static` is a local symbol: `psx.global` cannot link to it. The build
+globalises the battle statics `STATE.tsv` lists (`pc/tools/battle_statics.py`,
+built 2026-11-02): after compiling a battle unit (and after the overlay
+section renames), it renames each listed static to a prefixed global with
+`objcopy --redefine-sym`/`--globalize-symbol`, keeping its section, so the
+overlay restart still covers it and the C and the port use one storage:
+
+| C | object symbol | globalised as | views name (`ownership.toml`) | accessor |
+|---|---|---|---|---|
+| file static `_pcFadeOt` of `5BF94.c` | `_pcFadeOt` | `battle_5BF94___pcFadeOt` | `_pcFadeOt` | `g._pcFadeOt()` |
+| `static int reported;` in `func_800AE47C` | `reported.2` | `battle_44F14__func_800AE47C__reported` | `func_800AE47C::reported` | `g.func_800AE47C__reported()` |
+
+The port lists the static in its unit's `views` globals as `STATE.tsv` names
+it and reaches it through the accessor, like any global; the views link it to
+the globalised name. The list is `STATE.tsv`'s rows whose storage says "file
+static (local symbol)" or "function-local static in F (object symbol
+name.N in OBJECT.o ...)": 30 rows when it was made (6 file statics in
+`146C.c`, the `const` table and the five charging-skip variables of
+`charge_skip.inc`; 13 in the `pc/src` asm ports, D2, not globalised yet; 11
+function-local ones, of which 3 were folded away, with no symbol, and 2 are
+`const`), plus `5BF94.c`'s four `_pcFade*` text-fade statics, added by hand.
+A static that is not listed is not globalised: a views entry for one fails
+the build, naming it; add its row to `STATE.tsv` first.
+
+The `.N` suffix of a block-scope static is GCC's choice and changes with the
+compiler or the source, so the build finds the symbol by pattern: `name` (a
+file static) or `name.[0-9]+` among the object's local data symbols, exactly
+one. Where the object holds several (`func_800AE47C`'s and `func_800AEF94`'s
+`reported` in 44F14), the DWARF scope decides (gdb: the block-scope statics
+of the function, an inlined copy included, at their addresses). A static the
+configuration does not declare is skipped, and that configuration's views
+have no accessor for it (`146C`'s `sp20` is a static only under
+`ROOD_PC_LP64`, a stack buffer on 32-bit: `func_80074860`'s port takes
+`g.func_80074860__sp20()` when `comptime @sizeOf(usize) == 8`, else a local
+array, as the C does); any other mismatch, a listed static gone or not told
+apart, fails the build. Inlined copies of one function in two units are two
+statics (`func_800A4A24`'s `sp10` in 3A1A0 and `platforms` in 40564's
+copy): the unit prefix keeps them apart. zig_diff applies the same step to
+its reference object (only the statics the kept bodies use exist there), so
+the harness's C and port share them too; they sit in `zdiff_fixed`, compared
+and restored every iteration, and a spec sets them in `prepare` through the
+accessor.
+
+**The C was compiled believing the static private.** GCC may keep a static
+in a register across a call, or drop a store nothing in the unit reads, when
+no code outside the unit can see it. That is sound while every function that
+touches the static runs on one side (the C, or the port): port all of a
+static's readers and writers before routing any of them, or check the C's
+code for a cached value across the calls that become routed. A `const`
+static the C never writes may be folded into the code too; port that as a
+Zig `const` (the three folded ones above).
 
 Never reach a static through `c`: translate-c would give the Zig object its
 own copy (a second `charge_skip_held`, a `.rodata` copy of `D_80068BEC` at
 another address, which `psx_addr` rejects on 64-bit). `zig_c.py` therefore
 emits every file-scope static of the unit (variables, tables, static
 functions, header `static inline`s such as `psx_addr`) as a `@compileError`
-that names it: using one fails the build. Reach the globalised symbol through
-`psx.global` instead, or the `psx` helper (`psx.addr`). Owned objects keep no
-`.data`/`.bss` of their own either: the build rejects them in an overlay's
-object, ELF and COFF twin alike (`check_zig_object`).
+that names it: using one fails the build. A static function stays C: the port
+writes its own Zig copy of a small one (reaching its state through the views),
+or the C keeps its callers. Owned objects keep no `.data`/`.bss` of their own
+either: the build rejects them in an overlay's object, ELF and COFF twin alike
+(`check_zig_object`).
 
 ## 7. Structs, unions and bitfields
 
@@ -1202,9 +1237,9 @@ needed them: `pc/tools/zig_views.py` and `zig_c.py` per unit (generated by
 `build_boot.py` from the `views` manifest in `ownership.toml`, also for the
 COFF twin and the hot-swap library), `gte.zig` with the five macros
 `func_800B07DC` uses, and the `psx` additions with the `at` fixes. Item 5's
-per-unit subsystems exist for the three trial units; the statics
-globalisation, the post-routing inlining check and the i386 struct-return
-probe do not.
+per-unit subsystems exist for the three trial units, and the statics
+globalisation since 2026-11-02 (§6.5); the post-routing inlining check and
+the i386 struct-return probe do not.
 
 **Zig side (M0 tasks 9-13, extended):**
 1. `views` and `c` **per unit** for every battle unit (M0's Task 13 supports
@@ -1228,7 +1263,8 @@ probe do not.
    alignment as far as the element offset keeps it (built; the first version
    kept all of it, which trapped on `enemyKills`' odd entries: §5.4).
 5. Build steps: globalise the battle statics `STATE.tsv` lists (§6.5, by
-   pattern); ownership subsystems **one per unit** (`battle_146C`,
+   pattern; built: `battle_statics.py`, in `build_boot.py` and zig_diff);
+   ownership subsystems **one per unit** (`battle_146C`,
    `battle_5BF94`, ...: the owner switch then bisects, and "flip battle" sets
    them all) with `pc_owner[]` sized for them and the menus to come; the
    post-routing check of §13 (no inlined or locally resolved routed

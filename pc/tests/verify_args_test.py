@@ -197,7 +197,7 @@ class CompileFailureTest(unittest.TestCase):
         tree = ast.parse(source.read_text())
         invalidate = next(node for node in tree.body
                           if isinstance(node, ast.Expr)
-                          and ast.unparse(node) == "build_stamp.invalidate()")
+                          and ast.unparse(node) == "build_stamp.begin(stamp_trees, stamp_files)")
         gate = next(node for node in tree.body
                     if isinstance(node, ast.If) and ast.unparse(node.test) == "arch64"
                     and any(isinstance(child, ast.ImportFrom) and child.module == "lp64_report"
@@ -216,6 +216,7 @@ class CompileFailureTest(unittest.TestCase):
             "build_stamp = Stamp(root, out, {})\n"
             "build_stamp.write([], [], [binary])\n"
             "assert build_stamp.up_to_date([], [])\n"
+            "stamp_trees, stamp_files = [], []\n"
             f"arch64 = True\nwin = {windows!r}\n"
             f"arch64_results = [('c++', 'pc/src/lights.cpp', {int(failed)}, "
             "'pc/src/lights.cpp:1:1: error: regression failure' if "

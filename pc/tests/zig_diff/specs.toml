@@ -59549,3 +59549,1519 @@ name = "M5: the result test is inverted"
 target = "c"
 from = "return D_800F4C38[temp_a0] != 0;"
 to = "return D_800F4C38[temp_a0] == 0;"
+
+[function.func_800AE47C]
+spec = "func_800AE47C.zig"
+iterations = 20000
+# Hand-ported (hand-statics). The block-scope latch `reported` is the C's own
+# (globalised, PORTING.md §6.5), so a stand-in copy of the C would have its
+# own: the mutations are of the port.
+
+[[function.func_800AE47C.mutation]]
+name = "H1: logged when already reported"
+from = "if (before == 0) {"
+to = "if (before != 0) {"
+
+[[function.func_800AE47C.mutation]]
+name = "H2: the latch never set"
+from = "reported.* = before +% 1;"
+to = "reported.* = before;"
+
+[[function.func_800AE47C.mutation]]
+name = "H3: the escape's count one short"
+from = "count = @as(c_int, op[1]) + 0xFF;"
+to = "count = @as(c_int, op[1]) + 0xFE;"
+
+[[function.func_800AE47C.mutation]]
+name = "H4: the escape's data at its count byte"
+from = "next = op + 2;"
+to = "next = op + 1;"
+
+[[function.func_800AE47C.mutation]]
+name = "H5: the op at the header's second short"
+from = "const op = sequence + header.?[2];"
+to = "const op = sequence + header.?[1];"
+
+[[function.func_800AE47C.mutation]]
+name = "H6: decoded in mode 3"
+from = "decode()(actor, &actor.unk704, 2, &next[0]);"
+to = "decode()(actor, &actor.unk704, 3, &next[0]);"
+
+[[function.func_800AE47C.mutation]]
+name = "H7: the log names the animation as the slot"
+from = "@as(c_int, actor.unk0.unkF), @as(c_int, actor.animationId));"
+to = "@as(c_int, actor.animationId), @as(c_int, actor.animationId));"
+
+[[function.func_800AE47C.mutation]]
+name = "H8: the count kept from before the escape"
+from = "actor.unk704.unk542 = psx.conv(u16, count);"
+to = "actor.unk704.unk542 = op[0];"
+
+[function.func_800AEF94]
+spec = "func_800AEF94.zig"
+iterations = 20000
+# Hand-ported (hand-statics). The block-scope statics `zero` and `reported`
+# are the C's own (globalised, PORTING.md §6.5): mutations of the port.
+
+[[function.func_800AEF94.mutation]]
+name = "H1: the hidden bit ignored"
+from = "word(actor, 8).* & 1 == 0 and actor.unk0.unk13 != 0xFC"
+to = "actor.unk0.unk13 != 0xFC"
+
+[[function.func_800AEF94.mutation]]
+name = "H2: the fade's step not capped"
+from = "if (@as(c_int, fade.unk3) < step) step = fade.unk3;"
+to = "if (@as(c_int, fade.unk3) < step - 1) step = fade.unk3;"
+
+[[function.func_800AEF94.mutation]]
+name = "H3: the texture search includes the slot itself"
+from = "if (step >= i) break;"
+to = "if (step > i) break;"
+
+[[function.func_800AEF94.mutation]]
+name = "H4: an empty earlier slot read as a match"
+from = "if (previous) |p| {\n                if (p.unk6E6 == texture) return;\n            }"
+to = "if (previous) |p| {\n                if (p.unk6E6 == texture) return;\n            } else return;"
+
+[[function.func_800AEF94.mutation]]
+name = "H5: the frame count not doubled at tick 4"
+from = "actor.unk5B2 *%= 2;"
+to = "actor.unk5B2 *%= 1;"
+
+[[function.func_800AEF94.mutation]]
+name = "H6: the empty parent's log every time"
+from = "reported.* = before +% 1;\n                        if (before == 0) {"
+to = "reported.* = before +% 1;\n                        if (true) {"
+
+[[function.func_800AEF94.mutation]]
+name = "H7: the empty parent on the camera"
+from = "c.func_800B28A8(@ptrCast(actor), @ptrCast(v.g.func_800AEF94__zero()), 0);"
+to = "c.func_800B28A8(@ptrCast(actor), @ptrCast(camera), 0);"
+
+[[function.func_800AEF94.mutation]]
+name = "H8: the linked actor's fade on the attached flag"
+from = "if (word(actor, 8).* & 4 != 0) {\n                                fadeColour(attached);"
+to = "if (word(attached, 8).* & 4 != 0) {\n                                fadeColour(attached);"
+
+[[function.func_800AEF94.mutation]]
+name = "H9: the offset left applied"
+from = "                        shift(actor, -1);"
+to = "                        shift(actor, 0);"
+
+[[function.func_800AEF94.mutation]]
+name = "H10: the draw flag at 0x7F"
+from = "if (actor.unk63C >= 0x80 and actor.unk5CC != 0) {"
+to = "if (actor.unk63C >= 0x7F and actor.unk5CC != 0) {"
+
+[[function.func_800AEF94.mutation]]
+name = "H11: weapons drawn on hidden actors"
+from = "if (flags & 1 == 0 and flags & 2 != 0 and flags & 0x1000 == 0) {"
+to = "if (flags & 2 != 0 and flags & 0x1000 == 0) {"
+
+[[function.func_800AEF94.mutation]]
+name = "H12: the selected object animated when D_800F4B18 is set"
+from = "v.g.D_800F4B18().* == 0) or object.unk1A == 0xF7"
+to = "v.g.D_800F4B18().* != 0) or object.unk1A == 0xF7"
+
+[[function.func_800AEF94.mutation]]
+name = "H13: the model height not halved"
+from = "@divTrunc(@as(c_int, @bitCast(modelHeight)), 2)"
+to = "@as(c_int, @bitCast(modelHeight)) >> 1"
+
+[[function.func_800AEF94.mutation]]
+name = "H14: the frame counter not advanced"
+from = "v.g.D_800E9308().* +%= 1;"
+to = "v.g.D_800E9308().* +%= 0;"
+
+[function.func_800A4A24]
+spec = "func_800A4A24.zig"
+iterations = 20000
+# Hand-ported (hand-statics). The table is the C's block-scope static `sp10`
+# (globalised, PORTING.md §6.5): mutations of the port.
+
+[[function.func_800A4A24.mutation]]
+name = "H1: the id without its bias"
+from = "const id = arg0 -% 2;"
+to = "const id = arg0;"
+
+[[function.func_800A4A24.mutation]]
+name = "H2: no match is NULL"
+from = "return @alignCast(psx.lowRam(v.func_8008D2C0_t));"
+to = "return null;"
+
+[[function.func_800A4A24.mutation]]
+name = "H3: matched on unk4"
+from = "if (@as(c_int, entry.unk6) == id) return entry;"
+to = "if (@as(c_int, entry.unk4) == id) return entry;"
+
+[[function.func_800A4A24.mutation]]
+name = "H4: the last match wins"
+from = "if (@as(c_int, entry.unk6) == id) return entry;"
+to = "if (@as(c_int, entry.unk6) == id and (i + 1 >= count or psx.at(table, i + 1).unk6 != id)) return entry;"
+
+[function.func_800A9530]
+spec = "func_800A9530.zig"
+iterations = 20000
+# Hand-ported (hand-statics), with 40564's inlined func_800A4A24 and its
+# block-scope static `platforms` (globalised, PORTING.md §6.5): mutations of the port.
+
+[[function.func_800A9530.mutation]]
+name = "H1: the platform id without its bias"
+from = "const id = arg0 -% 2;"
+to = "const id = arg0 -% 1;"
+
+[[function.func_800A9530.mutation]]
+name = "H2: the platform edge at 64"
+from = "var edge: c_int = 65;"
+to = "var edge: c_int = 64;"
+
+[[function.func_800A9530.mutation]]
+name = "H3: the platform's x for z"
+from = "edge +%= platform.z;"
+to = "edge +%= platform.x;"
+
+[[function.func_800A9530.mutation]]
+name = "H4: the cell edge at 128"
+from = "            edge = 127;"
+to = "            edge = 128;"
+
+[[function.func_800A9530.mutation]]
+name = "H5: the fold at 33"
+from = "if (offset.vx > 32) offset.vx"
+to = "if (offset.vx > 33) offset.vx"
+
+[[function.func_800A9530.mutation]]
+name = "H6: no climb for the top nibble"
+from = "offset.vy = psx.conv(i16, @as(c_int, offset.vy) + 12);"
+to = "offset.vy = psx.conv(i16, @as(c_int, offset.vy) + 8);"
+
+[[function.func_800A9530.mutation]]
+name = "H7: the probe distance rounded by a shift"
+from = "distance = @divTrunc(distance, 4096);"
+to = "distance = distance >> 12;"
+
+[[function.func_800A9530.mutation]]
+name = "H8: the platform not restored"
+from = "psx.setBits(&actor.unk0, \"unkC_0\", surface);"
+to = "psx.setBits(&actor.unk0, \"unkC_0\", surface & 0);"
+
+[[function.func_800A9530.mutation]]
+name = "H9: the blocked flag kept"
+from = "flagsOf(actor).* = flags & ~@as(c_uint, 0x1000);"
+to = "flagsOf(actor).* = flags;"
+
+[[function.func_800A9530.mutation]]
+name = "H10: the facing's low bit for the quadrant"
+from = "if (@as(c_int, @bitCast(direction)) < 2) {\n            position = -%position;\n        } else {\n            edge = -65;"
+to = "if (@as(c_int, @bitCast(direction)) < 1) {\n            position = -%position;\n        } else {\n            edge = -65;"
+
+[function._renderTextImmediate]
+spec = "renderTextImmediate.zig"
+iterations = 20000
+room = { vs_battle_characterWidths = 512 }
+# Hand-ported (hand-statics), with the file-static _pcFadeBegin/_pcFadeGlyph/
+# _pcFadeEnd and their state (_pcFadeOt, ... globalised, PORTING.md §6.5).
+
+[[function._renderTextImmediate.mutation]]
+name = "H1: a box touching the right edge drawn"
+from = "x + width >= 320"
+to = "x + width > 320"
+
+[[function._renderTextImmediate.mutation]]
+name = "H2: the opacity not capped"
+from = "if ((arg1 >> 0x10) != 0) arg1 = 0x10000;"
+to = "if ((arg1 >> 0x11) != 0) arg1 = 0x10000;"
+
+[[function._renderTextImmediate.mutation]]
+name = "H3: the bounds compared signed"
+from = "if (@as(c_uint, @bitCast(width - 12)) >= printX and"
+to = "if (width - 12 >= @as(c_int, @bitCast(printX)) and"
+
+[[function._renderTextImmediate.mutation]]
+name = "H4: glyph path spaces skipped"
+from = "                } else if (buf == null) {\n                    fadeGlyph(143,"
+to = "                } else if (false) {\n                    fadeGlyph(143,"
+
+[[function._renderTextImmediate.mutation]]
+name = "H5: the width taken before the font offset"
+from = "printX +%= psx.at(v.g.vs_battle_characterWidths(), currentChar).*;"
+to = "printX +%= psx.at(v.g.vs_battle_characterWidths(), currentChar % 189).*;"
+
+[[function._renderTextImmediate.mutation]]
+name = "H6: Circle does not skip"
+from = "box.speed = 0xFFFF;"
+to = "box.speed = 0xFFFE;"
+
+[[function._renderTextImmediate.mutation]]
+name = "H7: a newline of 12"
+from = "printY +%= 13;"
+to = "printY +%= 12;"
+
+[[function._renderTextImmediate.mutation]]
+name = "H8: a move back by 255"
+from = "currentChar = 256;"
+to = "currentChar = 255;"
+
+[[function._renderTextImmediate.mutation]]
+name = "H9: font 0 on 5"
+from = "} else if (opcodeParam == 5) {\n                        v.g._fontTable().* = 1;"
+to = "} else if (opcodeParam == 5) {\n                        v.g._fontTable().* = 0;"
+
+[[function._renderTextImmediate.mutation]]
+name = "H10: justification never off"
+from = "justify ^= 1;"
+to = "justify = 1;"
+
+[[function._renderTextImmediate.mutation]]
+name = "H11: the colour not restored"
+from = "v.g.D_800F4CB8().* = psx.conv(u8, v.g._pcFadeColor().*);"
+to = "v.g.D_800F4CB8().* = 0;"
+
+[[function._renderTextImmediate.mutation]]
+name = "H12: the faded packets from the heap's end"
+from = "v.g._pcFadeStart().* = psx.get(v.g.vs_scratch().unk0);"
+to = "v.g._pcFadeStart().* = psx.get(v.g.vs_scratch().unk4);"
+
+[[function._renderTextImmediate.mutation]]
+name = "H13: the colour from bit 1"
+from = "& 1)) * 4);"
+to = "& 2)) * 4);"
+
+[[function._renderTextImmediate.mutation]]
+name = "H14: the image row stride of the line"
+from = "printX +% printY *% @as(c_uint, @bitCast(width))"
+to = "printX +% printY *% @as(c_uint, @bitCast(width - 1))"
+
+[function.func_800D2ADC]
+spec = "func_800D2ADC.zig"
+iterations = 20000
+room = { D_800F5330 = 64 }
+# Hand-ported (hand-statics).
+
+[[function.func_800D2ADC.mutation]]
+name = "H1: one emit too few when the pool caps"
+target = "c"
+from = "count = D_800F55F0 - D_800F55F8;"
+to = "count = D_800F55F0 - D_800F55F8 - 1;"
+
+[[function.func_800D2ADC.mutation]]
+name = "H2: the node takes the pivot bone for the curve bone"
+target = "c"
+from = "node->unk6A = scratch->unk168;"
+to = "node->unk6A = scratch->unk16C;"
+
+[[function.func_800D2ADC.mutation]]
+name = "H3: the parent's origin ignored"
+target = "c"
+from = "scratch->unk98.vy += parent->unkC.vy >> 12;"
+to = "scratch->unk98.vy += parent->unkC.vy >> 13;"
+
+[[function.func_800D2ADC.mutation]]
+name = "H4: the box's y scaled by the first angle's sine"
+target = "c"
+from = "(((scratch->unk2C.vy * scratch->unk178) >> 12) * scratch->unk174)"
+to = "(((scratch->unk2C.vy * scratch->unk178) >> 12) * scratch->unk170)"
+
+[[function.func_800D2ADC.mutation]]
+name = "H5: the octants' z sign from bit 2"
+target = "c"
+from = "if (angle & 4) {"
+to = "if (angle & 2) {"
+
+[[function.func_800D2ADC.mutation]]
+name = "H6: the corner counter wraps at 4"
+target = "c"
+from = "D_800EC328 = (D_800EC328 + 1) & 7;"
+to = "D_800EC328 = (D_800EC328 + 1) & 3;"
+
+[[function.func_800D2ADC.mutation]]
+name = "H7: the ring's clamp one short"
+target = "c"
+from = "                        value = 0x1000;"
+to = "                        value = 0xFFF;"
+
+[[function.func_800D2ADC.mutation]]
+name = "H8: the ring's offset angle"
+target = "c"
+from = "angle = D_800EC328 * step + 0x200;\n            x ="
+to = "angle = D_800EC328 * step + 0x100;\n            x ="
+
+[[function.func_800D2ADC.mutation]]
+name = "H9: the speed range not scaled"
+target = "c"
+from = "scratch->unk118[1] <<= 5;"
+to = "scratch->unk118[1] <<= 4;"
+
+[[function.func_800D2ADC.mutation]]
+name = "H10: the second rotation always applied"
+target = "c"
+from = "if (scratch->flags & 0x40000) {"
+to = "if (1) {"
+
+[[function.func_800D2ADC.mutation]]
+name = "H11: a node at the origin flies along x"
+target = "c"
+from = "node->unk18[1] = scratch->unk120;\n                node->unk18[2] = 0;\n                node->unk18[0] = 0;"
+to = "node->unk18[0] = scratch->unk120;\n                node->unk18[2] = 0;\n                node->unk18[1] = 0;"
+
+[[function.func_800D2ADC.mutation]]
+name = "H12: the pivot's x spread fixed to [vx, -vx]"
+target = "c"
+from = "+ vs_battle_randUniformInt(scratch->unk144.vx, -scratch->unk144.vy);"
+to = "+ vs_battle_randUniformInt(scratch->unk144.vx, -scratch->unk144.vx);"
+
+[[function.func_800D2ADC.mutation]]
+name = "H13: the blend mode not truncated"
+target = "c"
+from = "node->unk60_8 = arg3;"
+to = "node->unk60_8 = arg3 >> 1;"
+
+[[function.func_800D2ADC.mutation]]
+name = "H14: the transparency defaults to 3"
+target = "c"
+from = "scratch->unk180 = 4;"
+to = "scratch->unk180 = 3;"
+
+[[function.func_800D2ADC.mutation]]
+name = "H15: the cylinder's inner height from z"
+target = "c"
+from = "scratch->unkD8.vy = scratch->unkA8.vy;"
+to = "scratch->unkD8.vy = scratch->unkA8.vz;"
+
+[[function.func_800D2ADC.mutation]]
+name = "H16: the disc's y spread from x"
+target = "c"
+from = "scratch->unk2C.vy = vs_battle_randUniformInt(scratch->unkA8.vy, 0);"
+to = "scratch->unk2C.vy = vs_battle_randUniformInt(scratch->unkA8.vx, 0);"
+
+[[function.func_800D2ADC.coverage_waiver]]
+id = "+245 b0"
+reason = "RAND_UNIFORM_WIDE(vy * vy, 0) with vy 0: the cylinder then divides by unkA8.vy (SIGFPE in the original), so the spec never makes it 0"
+
+[[function.func_800D2ADC.coverage_waiver]]
+id = "+244 eq"
+reason = "RAND_UNIFORM_WIDE(vy * vy, 0)'s `0 < a` runs only when a != 0 (the ternary's equality case comes first); a is never 0 here (the division by vy)"
+
+[[function.func_800D2ADC.coverage_waiver]]
+id = "+269 eq"
+reason = "RAND_UNIFORM_WIDE's `b < a` runs only when a != b (its equality case comes first): never equal by construction"
+
+[[function.func_800D2ADC.coverage_waiver]]
+id = "+272 eq"
+reason = "RAND_UNIFORM_WIDE's `b < a` runs only when a != b (its equality case comes first): never equal by construction"
+
+[[function.func_800D2ADC.coverage_waiver]]
+id = "+300 eq"
+reason = "RAND_UNIFORM_WIDE's `b < a` runs only when a != b (its equality case comes first): never equal by construction"
+
+[[function.func_800D2ADC.coverage_waiver]]
+id = "+303 eq"
+reason = "RAND_UNIFORM_WIDE's `b < a` runs only when a != b (its equality case comes first): never equal by construction"
+
+[function.func_800AC690]
+spec = "func_800AC690.zig"
+iterations = 20000
+room = { D_800E9278 = 32, D_800E92E8 = 8, D_800E92F0 = 8, D_800E92F8 = 8, D_800E9300 = 8 }
+# Hand-ported (hand-statics), with its helper func_800AC690_getProfile.
+
+[[function.func_800AC690.mutation]]
+name = "H1: the profile of 0x200000 before 0x400000"
+from = "if (flags & 0x400000 != 0) return 4;"
+to = "if (flags & 0x200000 != 0) return 4;"
+
+[[function.func_800AC690.mutation]]
+name = "H2: the wind-up ends at 1"
+target = "c"
+from = "if (timer < 2) {"
+to = "if (timer < 1) {"
+
+[[function.func_800AC690.mutation]]
+name = "H3: the take-off at -31"
+target = "c"
+from = "actor->unk0.unk34.vy = -30;"
+to = "actor->unk0.unk34.vy = -31;"
+
+[[function.func_800AC690.mutation]]
+name = "H4: the hover's step not halved"
+target = "c"
+from = "y = ((func_800AC690_timer_t*)&actor->unk5B4)->timer >> 1;"
+to = "y = ((func_800AC690_timer_t*)&actor->unk5B4)->timer >> 2;"
+
+[[function.func_800AC690.mutation]]
+name = "H5: the floor's sign bit kept"
+target = "c"
+from = "floor <<= 17;"
+to = "floor <<= 16;"
+
+[[function.func_800AC690.mutation]]
+name = "H6: the head clearance 0xBF"
+target = "c"
+from = "- 0xC0;"
+to = "- 0xBF;"
+
+[[function.func_800AC690.mutation]]
+name = "H7: the wind sound's lower bound open"
+target = "c"
+from = "if (y >= -limit) {"
+to = "if (y > -limit) {"
+
+[[function.func_800AC690.mutation]]
+name = "H8: the slide limit inclusive"
+target = "c"
+from = "hit = actor->unk1814 < nextX;"
+to = "hit = actor->unk1814 <= nextX;"
+
+[[function.func_800AC690.mutation]]
+name = "H9: a contact equal to the tile changes it"
+target = "c"
+from = "if (D_800F49F4 != 0 && D_800F49F4 != ((u_char*)&actor->unk5EC)[1]) {"
+to = "if (D_800F49F4 != 0) {"
+
+[[function.func_800AC690.mutation]]
+name = "H10: the step-down limit -0x7F"
+target = "c"
+from = "if (y - top < -0x80) {"
+to = "if (y - top < -0x7F) {"
+
+[[function.func_800AC690.mutation]]
+name = "H11: the platform top 0x7F below"
+target = "c"
+from = "actor->unk0.position.vy = platform->unk1E - 0x80;"
+to = "actor->unk0.position.vy = platform->unk1E - 0x7F;"
+
+[[function.func_800AC690.mutation]]
+name = "H12: a heavy landing from 3 steps"
+target = "c"
+from = "if (floor >= 4) {"
+to = "if (floor >= 3) {"
+
+[[function.func_800AC690.mutation]]
+name = "H13: the stun for every slot"
+target = "c"
+from = "if (floor >= 6 && arg0 == 0) {"
+to = "if (floor >= 6) {"
+
+[[function.func_800AC690.mutation]]
+name = "H14: the recovery waits for 0x400000"
+target = "c"
+from = "if (!(*(u_int*)((char*)actor + 8) & 0x400000) && actor->unk5CC != 0) {"
+to = "if ((*(u_int*)((char*)actor + 8) & 0x400000) && actor->unk5CC != 0) {"
+
+[[function.func_800AC690.mutation]]
+name = "H15: the recovery's timer -1 kept"
+target = "c"
+from = "if ((signed char)actor->unk0.unk11 < 0) {"
+to = "if ((signed char)actor->unk0.unk11 < -1) {"
+
+[[function.func_800AC690.coverage_waiver]]
+id = "+113 eq"
+reason = "`speed > 0` runs only after `speed != 0`: never equal by construction"
+
+[[function.func_800AC690.coverage_waiver]]
+id = "+125 eq"
+reason = "`speed > 0` runs only after `speed != 0`: never equal by construction"
+
+[function.func_800704B0]
+spec = "func_800704B0.zig"
+iterations = 2000
+# Hand-ported (hand-146c-2).
+
+[[function.func_800704B0.mutation]]
+name = "H1: phase 5"
+target = "c"
+from = "_cameraMode = 6;"
+to = "_cameraMode = 5;"
+
+[[function.func_800704B0.mutation]]
+name = "H2: the flash flag kept"
+target = "c"
+from = "    func_800CF920();\n}"
+to = "}"
+
+[[function.func_800704B0.mutation]]
+name = "H3: the flag cleared before the phase"
+target = "c"
+from = "    _cameraMode = 6;\n    func_800CF920();"
+to = "    func_800CF920();\n    _cameraMode = 6;"
+
+[function.func_80078748]
+spec = "func_80078748.zig"
+iterations = 5000
+# Hand-ported (hand-146c-2).
+
+[[function.func_80078748.mutation]]
+name = "H1: the busy test inverted"
+target = "c"
+from = "(func_800CB45C() == 0)"
+to = "(func_800CB45C() != 0)"
+
+[[function.func_80078748.mutation]]
+name = "H2: either flag enough"
+target = "c"
+from = "& 0x08000100) == 0x08000100)"
+to = "& 0x08000100) != 0)"
+
+[[function.func_80078748.mutation]]
+name = "H3: the slot test dropped"
+target = "c"
+from = "&& (vs_battle_getEmptyObjectDataSlot() == 0) "
+to = ""
+
+[[function.func_80078748.mutation]]
+name = "H4: the ready test inverted"
+target = "c"
+from = "(func_800CEEBC() != 0)"
+to = "(func_800CEEBC() == 0)"
+
+[[function.func_80078748.mutation]]
+name = "H5: the first slot's target"
+target = "c"
+from = "unk854[D_800F19CC->unk0 & 3]"
+to = "unk854[0]"
+
+[[function.func_80078748.mutation]]
+name = "H6: the slot tested before the target"
+target = "c"
+from = "    if ((func_800CB45C() == 0)\n        && ((func_800A0BE0(temp_s0->unk4.unk0.targetActor) & 0x08000100) == 0x08000100)\n        && (vs_battle_getEmptyObjectDataSlot() == 0)"
+to = "    if ((func_800CB45C() == 0)\n        && (vs_battle_getEmptyObjectDataSlot() == 0)\n        && ((func_800A0BE0(temp_s0->unk4.unk0.targetActor) & 0x08000100) == 0x08000100)"
+
+[function.func_800787F0]
+spec = "func_800787F0.zig"
+iterations = 2000
+# Hand-ported (hand-146c-2).
+
+[[function.func_800787F0.mutation]]
+name = "H1: bit 0 tested"
+target = "c"
+from = "D_800F1868 & 2"
+to = "D_800F1868 & 1"
+
+[[function.func_800787F0.mutation]]
+name = "H2: the release skipped"
+target = "c"
+from = "        func_80070278();\n"
+to = ""
+
+[[function.func_800787F0.mutation]]
+name = "H3: func_800CEF74(1)"
+target = "c"
+from = "func_800CEF74(0);"
+to = "func_800CEF74(1);"
+
+[[function.func_800787F0.mutation]]
+name = "H4: the two calls swapped"
+target = "c"
+from = "        func_80070278();\n        func_800CEF74(0);"
+to = "        func_800CEF74(0);\n        func_80070278();"
+
+[function.func_80079030]
+spec = "func_80079030.zig"
+iterations = 200
+# Hand-ported (hand-146c-2).
+
+[[function.func_80079030.mutation]]
+name = "H1: the re-cast skipped"
+target = "c"
+from = "{ func_8007138C(); }"
+to = "{ }"
+
+[[function.func_80079030.mutation]]
+name = "H2: cast twice"
+target = "c"
+from = "{ func_8007138C(); }"
+to = "{ func_8007138C(); func_8007138C(); }"
+
+[function._invalidHitFunction]
+spec = "invalidHitFunction.zig"
+iterations = 500
+# Hand-ported (hand-146c-2).
+
+[[function._invalidHitFunction.mutation]]
+name = "H1: writes a target field"
+target = "c"
+from = "{\n}"
+to = "{\n    if (arg2) arg2->risk = 1;\n}"
+
+[function._hitPrerequisiteUnused0]
+spec = "hitPrerequisiteUnused0.zig"
+iterations = 500
+# Hand-ported (hand-146c-2).
+
+[[function._hitPrerequisiteUnused0.mutation]]
+name = "H1: writes its argument"
+target = "c"
+from = "{ }"
+to = "{ if (arg1) arg1[0] = 1; }"
+
+[function._hitPrerequisiteUnused1]
+spec = "hitPrerequisiteUnused1.zig"
+iterations = 500
+# Hand-ported (hand-146c-2).
+
+[[function._hitPrerequisiteUnused1.mutation]]
+name = "H1: writes its argument"
+target = "c"
+from = "{ }"
+to = "{ if (arg1) arg1[0] = 1; return 0; }"
+
+[function._hitPrerequisiteUnused2]
+spec = "hitPrerequisiteUnused2.zig"
+iterations = 500
+# Hand-ported (hand-146c-2).
+
+[[function._hitPrerequisiteUnused2.mutation]]
+name = "H1: writes its argument"
+target = "c"
+from = "{ }"
+to = "{ if (arg1) arg1[0] = 1; return 0; }"
+
+[function.func_80070278]
+spec = "func_80070278.zig"
+iterations = 20000
+# Hand-ported (hand-146c-2).
+
+[[function.func_80070278.mutation]]
+name = "H1: flag 0xB8 for 0x36 too"
+target = "c"
+from = "- 0x16u) < 0x20)"
+to = "- 0x16u) < 0x21)"
+
+[[function.func_80070278.mutation]]
+name = "H2: the flag's unk40 test inverted"
+target = "c"
+from = "(temp_s0->unk4.unk40 == 0)"
+to = "(temp_s0->unk4.unk40 != 0)"
+
+[[function.func_80070278.mutation]]
+name = "H3: the flag's index compared signed"
+target = "c"
+from = "((temp_s0->actionIndex - 0x16u) < 0x20)"
+to = "(((int)temp_s0->actionIndex - 0x16) < 0x20)"
+
+[[function.func_80070278.mutation]]
+name = "H4: the plain test inverted"
+target = "c"
+from = "if (!(vs_main_actions[temp_s0->actionIndex].unk2_0)) {"
+to = "if ((vs_main_actions[temp_s0->actionIndex].unk2_0)) {"
+
+[[function.func_80070278.mutation]]
+name = "H5: Break Arts from 0x8E"
+target = "c"
+from = "if (temp_s0->actionIndex >= 0x8D) {"
+to = "if (temp_s0->actionIndex > 0x8D) {"
+
+[[function.func_80070278.mutation]]
+name = "H6: abilities from 0xB9"
+target = "c"
+from = "if (temp_s0->actionIndex < 0xB8) {"
+to = "if (temp_s0->actionIndex <= 0xB8) {"
+
+[[function.func_80070278.mutation]]
+name = "H7: the third range to 0xDE"
+target = "c"
+from = "} else if (temp_s0->actionIndex < 0xE0) {"
+to = "} else if (temp_s0->actionIndex < 0xDF) {"
+
+[[function.func_80070278.mutation]]
+name = "H8: tick speed 3"
+target = "c"
+from = "vs_gametime_tickspeed = 4;"
+to = "vs_gametime_tickspeed = 3;"
+
+[[function.func_80070278.mutation]]
+name = "H9: the chain ability unbiased"
+target = "c"
+from = "mappedChainAbilities[D_800F19CC->unk2C03 - 1] - 0x16"
+to = "mappedChainAbilities[D_800F19CC->unk2C03] - 0x16"
+
+[[function.func_80070278.mutation]]
+name = "H10: the plain window tripled"
+target = "c"
+from = "temp_s0->unk48);\n            D_800F19CC->battleAbilityTargetWindow =\n                func_8009F8DC(temp_s0->unk4.unk0.targetActor) * 2;"
+to = "temp_s0->unk48);\n            D_800F19CC->battleAbilityTargetWindow =\n                func_8009F8DC(temp_s0->unk4.unk0.targetActor) * 3;"
+
+[[function.func_80070278.mutation]]
+name = "H11: the chain window unset"
+target = "c"
+from = "        }\n        D_800F19CC->battleAbilityTargetWindow =\n            func_8009F8DC(temp_s0->unk4.unk0.targetActor) * 2;\n    }"
+to = "        }\n    }"
+
+[[function.func_80070278.mutation]]
+name = "H12: the name window closed while held"
+target = "c"
+from = "if (!pc_charge_skip_hold())"
+to = "if (pc_charge_skip_hold())"
+
+[[function.func_80070278.mutation]]
+name = "H13: phase 6"
+target = "c"
+from = "_cameraMode = 7;"
+to = "_cameraMode = 6;"
+
+[[function.func_80070278.mutation]]
+name = "H14: the chain index kept"
+target = "c"
+from = "    D_800F19CC->unk2C03 = 0;\n"
+to = ""
+
+[[function.func_80070278.mutation]]
+name = "H15: the second sound 0x37"
+target = "c"
+from = "func_80045D64(0x7E, 0x35);"
+to = "func_80045D64(0x7E, 0x37);"
+
+[[function.func_80070278.mutation]]
+name = "H16: unk4A for unk48"
+target = "c"
+from = "temp_s0->unk48);"
+to = "temp_s0->unk4A);"
+
+[[function.func_80070278.mutation]]
+name = "H17: the timer kept"
+target = "c"
+from = "    D_800F19CC->battleAbilityTimer = 0;\n"
+to = ""
+
+[[function.func_80070278.mutation]]
+name = "H18: the first slot always"
+target = "c"
+from = "temp_s0 = &D_800F19CC->unk854[D_800F19CC->unk0 & 3];"
+to = "temp_s0 = &D_800F19CC->unk854[0];"
+
+[[function.func_80070278.mutation]]
+name = "H19: the chain's link argument 0"
+target = "c"
+from = "                temp_a3);"
+to = "                0);"
+
+[[function.func_80070278.mutation]]
+name = "H20: chain abilities to 0x28"
+target = "c"
+from = "if (temp_s0->actionIndex < 0x28) {"
+to = "if (temp_s0->actionIndex <= 0x28) {"
+
+[function._handleCombatCameraZoom]
+spec = "handleCombatCameraZoom.zig"
+iterations = 20000
+# Hand-ported (hand-146c-2).
+
+[[function._handleCombatCameraZoom.mutation]]
+name = "H1: mode 2 aims"
+target = "c"
+from = "    if ((vs_battle_cameraCurrentSpherical.delta.mode == 1)\n        || (vs_battle_cameraCurrentSpherical.delta.mode == 3)) {\n        if"
+to = "    if ((vs_battle_cameraCurrentSpherical.delta.mode == 1)\n        || (vs_battle_cameraCurrentSpherical.delta.mode == 2)) {\n        if"
+
+[[function._handleCombatCameraZoom.mutation]]
+name = "H2: the projection widened by 0x20"
+target = "c"
+from = "vs_main_projectionDistance += 0x40;"
+to = "vs_main_projectionDistance += 0x20;"
+
+[[function._handleCombatCameraZoom.mutation]]
+name = "H4: the screen set before the clamp"
+target = "c"
+from = "            if (vs_main_projectionDistance >= 0x300) {\n                vs_main_projectionDistance = 0x300;\n            }\n            SetGeomScreen(vs_main_projectionDistance);"
+to = "            SetGeomScreen(vs_main_projectionDistance);\n            if (vs_main_projectionDistance >= 0x300) {\n                vs_main_projectionDistance = 0x300;\n            }"
+
+[[function._handleCombatCameraZoom.mutation]]
+name = "H6: the pull's floor unclamped"
+target = "c"
+from = "                    vs_battle_cameraCurrentSpherical.values.distance = 0x600;\n"
+to = ""
+
+[[function._handleCombatCameraZoom.mutation]]
+name = "H7: the push to 0x8FF"
+target = "c"
+from = "if (vs_battle_cameraCurrentSpherical.values.distance < 0x900) {"
+to = "if (vs_battle_cameraCurrentSpherical.values.distance < 0x8FF) {"
+
+[[function._handleCombatCameraZoom.mutation]]
+name = "H8: the push by 0x80"
+target = "c"
+from = "vs_battle_cameraCurrentSpherical.values.distance += 0xC0;"
+to = "vs_battle_cameraCurrentSpherical.values.distance += 0x80;"
+
+[[function._handleCombatCameraZoom.mutation]]
+name = "H9: the push's ceiling unclamped"
+target = "c"
+from = "                    vs_battle_cameraCurrentSpherical.values.distance = 0x900;\n"
+to = ""
+
+[[function._handleCombatCameraZoom.mutation]]
+name = "H10: the widen settles before 0x300"
+target = "c"
+from = "if (vs_main_projectionDistance == 0x300) {"
+to = "if (vs_main_projectionDistance != 0) {"
+
+[[function._handleCombatCameraZoom.mutation]]
+name = "H11: zoom 0 without its step"
+target = "c"
+from = "        if (D_800F19CC->unk2C0E == 0) {\n            func_8007820C(1);\n"
+to = "        if (D_800F19CC->unk2C0E == 0) {\n"
+
+[[function._handleCombatCameraZoom.mutation]]
+name = "H12: the other kinds ignore the yaw"
+target = "c"
+from = "        } else if ((vs_battle_cameraCurrentSpherical.delta.yaw == 0)\n                   && "
+to = "        } else if ("
+
+[[function._handleCombatCameraZoom.mutation]]
+name = "H13: zoom 2 at speed 0x20"
+target = "c"
+from = "            if (vs_battle_cameraCurrentSpherical.values.distance == 0x900) {\n                func_800780A8(&sp18);\n                _computeStepAndDisplacement(&sp18, &sp30, &sp20, 1, 0x28);"
+to = "            if (vs_battle_cameraCurrentSpherical.values.distance == 0x900) {\n                func_800780A8(&sp18);\n                _computeStepAndDisplacement(&sp18, &sp30, &sp20, 1, 0x20);"
+
+[[function._handleCombatCameraZoom.mutation]]
+name = "H14: zoom 0 ignores vz"
+target = "c"
+from = "            _computeStepAndDisplacement(&sp18, &sp30, &sp20, 1, 0x28);\n            if ((((sp20.vx | sp20.vy | sp20.vz) == 0)"
+to = "            _computeStepAndDisplacement(&sp18, &sp30, &sp20, 1, 0x28);\n            if ((((sp20.vx | sp20.vy) == 0)"
+
+[[function._handleCombatCameraZoom.mutation]]
+name = "H15: the step and displacement swapped"
+target = "c"
+from = "            func_800780A8(&sp18);\n            _computeStepAndDisplacement(&sp18, &sp30, &sp20, 1, 0x28);\n            if"
+to = "            func_800780A8(&sp18);\n            _computeStepAndDisplacement(&sp18, &sp20, &sp30, 1, 0x28);\n            if"
+
+[[function._handleCombatCameraZoom.mutation]]
+name = "H16: zoom 1's settle ignores the mode"
+target = "c"
+from = "                        && (vs_battle_cameraCurrentSpherical.delta.yaw == 0))\n                    && ((vs_battle_cameraCurrentSpherical.delta.mode == 1)\n                        || (vs_battle_cameraCurrentSpherical.delta.mode == 3))) {\n                    func_8007138C();\n                }\n            }\n        } else if (D_800F19CC->unk2C0E == 2) {"
+to = "                        && (vs_battle_cameraCurrentSpherical.delta.yaw == 0))) {\n                    func_8007138C();\n                }\n            }\n        } else if (D_800F19CC->unk2C0E == 2) {"
+
+[[function._handleCombatCameraZoom.coverage_waiver]]
+id = "+61 b1"
+reason = "the last kind's mode test: the function returned unless the mode is 1 or 3 and nothing between changes it, so mode == 3 is never false there"
+
+[[function._handleCombatCameraZoom.coverage_waiver]]
+id = "+31 sign"
+reason = "the projection was just clamped to at most 0x300, so == 0x300 sees no positive value above it (only the negatives the spec starts from)"
+
+[function.func_80070F28]
+spec = "commitAction.zig"
+iterations = 20000
+# Hand-ported (hand-146c-2).
+
+[[function.func_80070F28.mutation]]
+name = "H1: the pending choice read before func_8006EF10"
+target = "c"
+from = "    func_8006EF10();\n    temp_s0 = D_800F19CC->unk298C;"
+to = "    temp_s0 = D_800F19CC->unk298C;\n    func_8006EF10();"
+
+[[function.func_80070F28.mutation]]
+name = "H2: kind 0 drops too"
+target = "c"
+from = "    if (arg0 != 0) {\n        if (temp_s0 == 0xFF) {"
+to = "    if (1) {\n        if (temp_s0 == 0xFF) {"
+
+[[function.func_80070F28.mutation]]
+name = "H3: the dropped plain action ends the turn as targeted"
+target = "c"
+from = "            if (!(vs_main_actions[D_800F19CC->unk8.actionIndex].unk2_0)) {"
+to = "            if ((vs_main_actions[D_800F19CC->unk8.actionIndex].unk2_0)) {"
+
+[[function.func_80070F28.mutation]]
+name = "H4: link 1"
+target = "c"
+from = "    D_800F19CC->unk0 = 0;\n"
+to = "    D_800F19CC->unk0 = 1;\n"
+
+[[function.func_80070F28.mutation]]
+name = "H5: kind 7 counts down too"
+target = "c"
+from = "            if (ability->unk2 == 8) {"
+to = "            if (ability->unk2 >= 7) {"
+
+[[function.func_80070F28.mutation]]
+name = "H6: the ability state kept"
+target = "c"
+from = "        ability->unk2 = 0;\n"
+to = ""
+
+[[function.func_80070F28.mutation]]
+name = "H7: the item's low half counted"
+target = "c"
+from = "executeAbility.u16[1]"
+to = "executeAbility.u16[0]"
+
+[[function.func_80070F28.mutation]]
+name = "H8: kind 2's setup for kind 1"
+target = "c"
+from = "    } else if (arg0 == 2) {"
+to = "    } else if (arg0 == 1) {"
+
+[[function.func_80070F28.mutation]]
+name = "H9: abilities from 0xB9"
+target = "c"
+from = "((temp_v1_2 - 0xB8) < 0x28U)"
+to = "((temp_v1_2 - 0xB9) < 0x27U)"
+
+[[function.func_80070F28.mutation]]
+name = "H10: the attack range compared signed"
+target = "c"
+from = "((temp_v1_2 - 0xB8) < 0x28U)"
+to = "((temp_v1_2 - 0xB8) < 0x28)"
+
+[[function.func_80070F28.mutation]]
+name = "H11: a dead target's attacks counted"
+target = "c"
+from = "            != 0x80)) {"
+to = "            != 0x81)) {"
+
+[[function.func_80070F28.mutation]]
+name = "H12: category 10 at its own count"
+target = "c"
+from = "        if (vs_battle_characterState->equippedWeaponCategory == 0xA) {"
+to = "        if (vs_battle_characterState->equippedWeaponCategory == 0xB) {"
+
+[[function.func_80070F28.mutation]]
+name = "H13: the attack count to 0xFFFF only below 0xFFFE"
+target = "c"
+from = "            if (vs_main_scoredata.weaponAttacks[0] <= 0xFFFEU) {"
+to = "            if (vs_main_scoredata.weaponAttacks[0] < 0xFFFEU) {"
+
+[[function.func_80070F28.mutation]]
+name = "H14: the zoom kind without the 0x1C1 test"
+target = "c"
+from = "    if ((func_80077F70() >= 0x1C1)\n        && "
+to = "    if ((func_80077F70() >= 0x1C2)\n        && "
+
+[[function.func_80070F28.mutation]]
+name = "H15: the chain input kept"
+target = "c"
+from = "D_800F19CC->unk2C03 = D_800F19CC->previousChainInput = 0;"
+to = "D_800F19CC->unk2C03 = 0;"
+
+[[function.func_80070F28.mutation]]
+name = "H16: from action 56"
+target = "c"
+from = "    if (D_800F19CC->unk8.actionIndex >= 55) {"
+to = "    if (D_800F19CC->unk8.actionIndex > 55) {"
+
+[[function.func_80070F28.mutation]]
+name = "H17: 0xEB not a heal"
+target = "c"
+from = "        case 0xEB:\n"
+to = ""
+
+[[function.func_80070F28.mutation]]
+name = "H18: the heal count to 0x3E9"
+target = "c"
+from = "if (vs_main_scoredata.healCount < 0x3E8U) {"
+to = "if (vs_main_scoredata.healCount <= 0x3E8U) {"
+
+[[function.func_80070F28.mutation]]
+name = "H19: phase 5"
+target = "c"
+from = "    _cameraMode = 4;"
+to = "    _cameraMode = 5;"
+
+[[function.func_80070F28.mutation]]
+name = "H20: the target told too"
+target = "c"
+from = "        if (i != D_800F19CC->unk8.unk4.unk0.targetActor) {"
+to = "        if (i != 16) {"
+
+[[function.func_80070F28.mutation]]
+name = "H21: the hits not from the first link"
+target = "c"
+from = "func_80085B10(D_800F19CC->unk8.actionIndex, D_800F19CC->unk854, &D_800F19CC->unk8, 1);"
+to = "func_80085B10(D_800F19CC->unk8.actionIndex, D_800F19CC->unk854, &D_800F19CC->unk8, 0);"
+
+[[function.func_80070F28.mutation]]
+name = "H22: the dropped other action keeps its index"
+target = "c"
+from = "            D_800F19CC->unk8.actionIndex = 0;\n            func_800704D8();"
+to = "            func_800704D8();"
+
+[[function.func_80070F28.mutation]]
+name = "H23: the attack only for action 1"
+target = "c"
+from = "((temp_v1_2 = D_800F19CC->unk8.actionIndex, (temp_v1_2 == 1))\n            || ((temp_v1_2 - 0xB8) < 0x28U))"
+to = "((temp_v1_2 = D_800F19CC->unk8.actionIndex, (temp_v1_2 == 1)))"
+
+[function.func_8007138C]
+spec = "startCast.zig"
+iterations = 20000
+# Hand-ported (hand-146c-2).
+
+[[function.func_8007138C.mutation]]
+name = "H1: the input attempted on another status"
+target = "c"
+from = "->statuses & 0x8000) {"
+to = "->statuses & 0x4000) {"
+
+[[function.func_8007138C.mutation]]
+name = "H2: a plain action cast"
+target = "c"
+from = "if (!vs_main_actions[action->actionIndex].unk2_0) {"
+to = "if (0) {"
+
+[[function.func_8007138C.mutation]]
+name = "H3: the sound at vy for vz"
+target = "c"
+from = "soundPosition.vz = actorPosition.unk0.unk4.vz;"
+to = "soundPosition.vz = actorPosition.unk0.unk4.vy;"
+
+[[function.func_8007138C.mutation]]
+name = "H4: Break Arts from 0x8C"
+target = "c"
+from = "if (action->actionIndex < 0x8D) {"
+to = "if (action->actionIndex < 0x8C) {"
+
+[[function.func_8007138C.mutation]]
+name = "H5: the art's sound 0x34"
+target = "c"
+from = "vs_main_panSfx(0x7E, 0x36, &soundPosition);"
+to = "vs_main_panSfx(0x7E, 0x34, &soundPosition);"
+
+[[function.func_8007138C.mutation]]
+name = "H6: flag 0xB9 for any caster"
+target = "c"
+from = "        if (!action->unk4.unk0.targetActor) {\n            vs_battle_setStateFlag(0xB9, 1);"
+to = "        if (1) {\n            vs_battle_setStateFlag(0xB9, 1);"
+
+[[function.func_8007138C.mutation]]
+name = "H7: the other kind's mode 2"
+target = "c"
+from = "        mode = 1;"
+to = "        mode = 2;"
+
+[[function.func_8007138C.mutation]]
+name = "H8: the caster's part from limb 0"
+target = "c"
+from = "func_800A152C(action->unk4.unk0.targetActor, 255, 2);"
+to = "func_800A152C(action->unk4.unk0.targetActor, 0, 2);"
+
+[[function.func_8007138C.mutation]]
+name = "H9: duplicates not merged"
+target = "c"
+from = "            if (duplicate) {\n                continue;\n            }"
+to = ""
+
+[[function.func_8007138C.mutation]]
+name = "H10: the duplicate keeps its part"
+target = "c"
+from = "                    request.targets[j].value.actor.part = 0;"
+to = "                    request.targets[j].value.actor.part = 1;"
+
+[[function.func_8007138C.mutation]]
+name = "H11: the limb tested of hit i (the bug fixed)"
+target = "c"
+from = "if (action->unk4C[count].unk0.targetLimb == -1) {"
+to = "if (action->unk4C[i].unk0.targetLimb == -1) {"
+
+[[function.func_8007138C.mutation]]
+name = "H12: the position from the first hit"
+target = "c"
+from = "request.targets[count].value.position = *(SVECTOR*)&action->unk4C[i].unk0;"
+to = "request.targets[count].value.position = *(SVECTOR*)&action->unk4C[0].unk0;"
+
+[[function.func_8007138C.mutation]]
+name = "H13: bystanders of kind 3 too"
+target = "c"
+from = "(vs_battle_actors[i]->unk40 == 1 || vs_battle_actors[i]->unk40 == 2)"
+to = "(vs_battle_actors[i]->unk40 == 1 || vs_battle_actors[i]->unk40 >= 2)"
+
+[[function.func_8007138C.mutation]]
+name = "H14: the bystander test of hit j (the bug fixed)"
+target = "c"
+from = "i == action->unk4C[i].unk0.targetActor"
+to = "i == action->unk4C[j].unk0.targetActor"
+
+[[function.func_8007138C.mutation]]
+name = "H15: the caster a bystander"
+target = "c"
+from = "            if (i == action->unk4.unk0.targetActor) {\n                duplicate = 1;\n            }"
+to = ""
+
+[[function.func_8007138C.mutation]]
+name = "H16: effect 0x27 kept"
+target = "c"
+from = "request.effect = 0x24;"
+to = "request.effect = 0x27;"
+
+[[function.func_8007138C.mutation]]
+name = "H17: the request's mode 0"
+target = "c"
+from = "func_800CF0E8((func_800CF0E8_t*)&request, mode, action->unk2);"
+to = "func_800CF0E8((func_800CF0E8_t*)&request, 0, action->unk2);"
+
+[[function.func_8007138C.mutation]]
+name = "H18: the ability's player model from the armour"
+target = "c"
+from = "        } else if (object.index) {"
+to = "        } else if (1) {"
+
+[[function.func_8007138C.mutation]]
+name = "H19: the weapon model unmasked"
+target = "c"
+from = "object.modelId = (action->actionIndex - 0xB8) % 4;"
+to = "object.modelId = (action->actionIndex - 0xB8) % 8;"
+
+[[function.func_8007138C.mutation]]
+name = "H20: the armour indices swapped"
+target = "c"
+from = "            object.actorId = 5;\n            object.modelId =\n                ((__typeof__((actor->unk3C).psx_type_[0]))(long unsigned int)(actor->unk3C).raw)\n                    ->armor[((u_short*)&actor->unkC)[0]][((u_short*)&actor->unkC)[1]]\n                    .unk2_4;\n        } else if"
+to = "            object.actorId = 5;\n            object.modelId =\n                ((__typeof__((actor->unk3C).psx_type_[0]))(long unsigned int)(actor->unk3C).raw)\n                    ->armor[((u_short*)&actor->unkC)[1]][((u_short*)&actor->unkC)[0]]\n                    .unk2_4;\n        } else if"
+
+[[function.func_8007138C.mutation]]
+name = "H21: the name always shown"
+target = "c"
+from = "    if (vs_main_settings.information) {"
+to = "    if (1) {"
+
+[[function.func_8007138C.mutation]]
+name = "H22: phase 6"
+target = "c"
+from = "    _cameraMode = 5;"
+to = "    _cameraMode = 6;"
+
+[[function.func_8007138C.mutation]]
+name = "H23: no model for abilities"
+target = "c"
+from = "if (action->actionIndex >= 0x8D && action->actionIndex < 0xE0) {"
+to = "if (action->actionIndex >= 0x8D && action->actionIndex < 0xB8) {"
+
+[[function.func_8007138C.mutation]]
+name = "H24: the position target's type 4"
+target = "c"
+from = "request.targets[count].type = 5;"
+to = "request.targets[count].type = 4;"
+
+[function.func_80078AB4]
+spec = "timingWindow.zig"
+iterations = 30000
+# Hand-ported (hand-146c-2).
+
+[[function.func_80078AB4.mutation]]
+name = "H1: the enemy's wider margin from 55"
+target = "c"
+from = "if (temp_s3->actionIndex >= 54) {"
+to = "if (temp_s3->actionIndex > 54) {"
+
+[[function.func_80078AB4.mutation]]
+name = "H2: the margin narrowed by half the link"
+target = "c"
+from = "margin -= D_800F19CC->unk0 / 3;"
+to = "margin -= D_800F19CC->unk0 / 2;"
+
+[[function.func_80078AB4.mutation]]
+name = "H3: the margin's floor 1"
+target = "c"
+from = "    if (margin < 2) {\n        margin = 2;"
+to = "    if (margin < 1) {\n        margin = 1;"
+
+[[function.func_80078AB4.mutation]]
+name = "H4: the cue a tick early"
+target = "c"
+from = "(D_800F19CC->battleAbilityTargetWindow - (vs_gametime_tickspeed * 2))"
+to = "(D_800F19CC->battleAbilityTargetWindow - (vs_gametime_tickspeed * 3))"
+
+[[function.func_80078AB4.mutation]]
+name = "H5: the cue's length unscaled"
+target = "c"
+from = "func_80096FF0((margin * 2) / vs_gametime_tickspeed);"
+to = "func_80096FF0(margin * 2);"
+
+[[function.func_80078AB4.mutation]]
+name = "H6: the timer not advanced"
+target = "c"
+from = "    D_800F19CC->battleAbilityTimer += vs_gametime_tickspeed;\n"
+to = ""
+
+[[function.func_80078AB4.mutation]]
+name = "H7: square before circle"
+target = "c"
+from = "        if (*new_var & (1<< 7)) {\n            button = 3;\n        } else if (*new_var & (1<< 4)) {\n            button = 2;"
+to = "        if (*new_var & (1<< 4)) {\n            button = 2;\n        } else if (*new_var & (1<< 7)) {\n            button = 3;"
+
+[[function.func_80078AB4.mutation]]
+name = "H8: the player's defense abilities"
+target = "c"
+from = "                isMapped = vs_main_settings.mappedChainAbilities[button - 1] != 0;"
+to = "                isMapped = vs_main_settings.mappedDefenseAbilities[button - 1] != 0;"
+
+[[function.func_80078AB4.mutation]]
+name = "H9: an aimed action mapped"
+target = "c"
+from = "        if (temp_s3->unk4.unk40 == 0) {\n            if (temp_s3->unk4.unk0.targetActor == 0) {"
+to = "        if (1) {\n            if (temp_s3->unk4.unk0.targetActor == 0) {"
+
+[[function.func_80078AB4.mutation]]
+name = "H10: early is late"
+target = "c"
+from = "                    if ((D_800F19CC->battleAbilityTargetWindow - margin)\n                        >= abilityTimer) {"
+to = "                    if ((D_800F19CC->battleAbilityTargetWindow - margin)\n                        > abilityTimer) {"
+
+[[function.func_80078AB4.mutation]]
+name = "H11: the window's end exclusive"
+target = "c"
+from = "} else if (D_800F19CC->battleAbilityTargetWindow >= abilityTimer) {"
+to = "} else if (D_800F19CC->battleAbilityTargetWindow > abilityTimer) {"
+
+[[function.func_80078AB4.mutation]]
+name = "H12: in time to the margin exclusive"
+target = "c"
+from = "} else if ((D_800F19CC->battleAbilityTargetWindow + margin)\n                               >= abilityTimer) {"
+to = "} else if ((D_800F19CC->battleAbilityTargetWindow + margin)\n                               > abilityTimer) {"
+
+[[function.func_80078AB4.mutation]]
+name = "H13: a second attempt counts"
+target = "c"
+from = "                        if (D_800F19CC->battleAbilityInputAttempted == 0) {\n\n                            int v ="
+to = "                        if (1) {\n\n                            int v ="
+
+[[function.func_80078AB4.mutation]]
+name = "H14: the held buttons not masked"
+target = "c"
+from = "(~D_800F19CC->unk2C02 & ((1<< 4) | (1<< 5) | (1<< 7)))"
+to = "(((1<< 4) | (1<< 5) | (1<< 7)))"
+
+[[function.func_80078AB4.mutation]]
+name = "H15: the same chain button twice"
+target = "c"
+from = "                                    if ((D_800F19CC->previousChainInput != button)\n                                        && (vs_main_settings\n                                                .mappedChainAbilities[button - 1]"
+to = "                                    if ((1)\n                                        && (vs_main_settings\n                                                .mappedChainAbilities[button - 1]"
+
+[[function.func_80078AB4.mutation]]
+name = "H16: the defense for an aimed first hit"
+target = "c"
+from = "                                        if ((temp_s3->unk4C[0].unk0.targetActor == 0)\n                                            && (temp_s3->unk4C[0].unk40 == 0)) {"
+to = "                                        if ((temp_s3->unk4C[0].unk0.targetActor == 0)) {"
+
+[[function.func_80078AB4.mutation]]
+name = "H17: a defense success 1"
+target = "c"
+from = "                                                D_800F19CC->battleAbilityInputSuccessful =\n                                                    2;"
+to = "                                                D_800F19CC->battleAbilityInputSuccessful =\n                                                    1;"
+
+[[function.func_80078AB4.mutation]]
+name = "H18: the streak to 0x10000"
+target = "c"
+from = "if (vs_main_scoredata.chainStreak\n                                                    <= 0xFFFEU) {"
+to = "if (vs_main_scoredata.chainStreak\n                                                    <= 0xFFFFU) {"
+
+[[function.func_80078AB4.mutation]]
+name = "H19: too late graded 3 to the margin only"
+target = "c"
+from = "if ((D_800F19CC->battleAbilityTargetWindow + (margin * 2))"
+to = "if ((D_800F19CC->battleAbilityTargetWindow + (margin * 3))"
+
+[[function.func_80078AB4.mutation]]
+name = "H20: D_8005FFB0 kept on a miss"
+target = "c"
+from = "                        D_8005FFB0 = 0;\n"
+to = ""
+
+[[function.func_80078AB4.mutation]]
+name = "H21: no window, no attempt"
+target = "c"
+from = "                    vs_battle_renderBattleAbilityTimingResult(1);\n                    D_800F19CC->battleAbilityInputAttempted = 1;\n                } else if"
+to = "                    vs_battle_renderBattleAbilityTimingResult(1);\n                } else if"
+
+[[function.func_80078AB4.mutation]]
+name = "H22: an aimed enemy action's judgment steps on during the flash"
+target = "c"
+from = "                    if (!(D_800F1868 & 3)) {\n                        func_8006FD1C();\n                    }\n\n                    return;"
+to = "                    func_8006FD1C();\n\n                    return;"
+
+[[function.func_80078AB4.mutation]]
+name = "H23: a rejected input not counted"
+target = "c"
+from = "            } else if (D_800F19CC->battleAbilityInputAttempted == 0) {\n                D_800F19CC->battleAbilityInputSuccessful = 0;\n                D_800F19CC->battleAbilityInputAttempted = 1;\n            }"
+to = "            }"
+
+[[function.func_80078AB4.mutation]]
+name = "H24: the busy actor told anyway"
+target = "c"
+from = "        if (func_8009E4B0(temp_s3->unk4.unk0.targetActor) != 0) {\n            return;\n        }"
+to = "        func_8009E4B0(temp_s3->unk4.unk0.targetActor);"
+
+[[function.func_80078AB4.mutation]]
+name = "H25: the actor told only after an attempt"
+target = "c"
+from = "            || (D_800F19CC->unk2C03 == 0)) {"
+to = "            ) {"
+
+[[function.func_80078AB4.mutation]]
+name = "H26: a living target's actor told"
+target = "c"
+from = "                    ->currentHP\n                == 0)) {"
+to = "                    ->currentHP\n                != 0)) {"
+
+[[function.func_80078AB4.mutation]]
+name = "H27: the next step during the flash"
+target = "c"
+from = "    }\n\n    if (!(D_800F1868 & 3)) {\n        func_8006FD1C();\n    }\n}"
+to = "    }\n\n    if (!(D_800F1868 & 1)) {\n        func_8006FD1C();\n    }\n}"
+
+[[function.func_80078AB4.coverage_waiver]]
+id = "+50 b1"
+reason = "the button chain's last test: the enclosing test passed only with one of bits 7, 4, 5 set, so bit 5 is set when 7 and 4 are not"
+
+[function._hpHealed]
+spec = "hpHealed.zig"
+iterations = 30000
+# Hand-ported (hand-146c-2).
+
+[[function._hpHealed.mutation]]
+name = "H1: the source affinity unbiased"
+target = "c"
+from = "sp18.sourceAffinity = action->hitParams[nHit].affinity - 1;"
+to = "sp18.sourceAffinity = action->hitParams[nHit].affinity;"
+
+[[function._hpHealed.mutation]]
+name = "H2: the weapon's intelligence dropped"
+target = "c"
+from = "        sp18.value += sourceActor->weapon.currentInt;\n"
+to = ""
+
+[[function._hpHealed.mutation]]
+name = "H3: the weapon's wear unscaled"
+target = "c"
+from = "- (((sourceActor->weapon.maxDp - sourceActor->weapon.currentDp) * 100)"
+to = "- (((sourceActor->weapon.maxDp - sourceActor->weapon.currentDp) * 10)"
+
+[[function._hpHealed.mutation]]
+name = "H4: the weapon's PP ignored"
+target = "c"
+from = "                (sourceActor->weapon.currentPp * 100) / sourceActor->weapon.maxPp;"
+to = "                0;"
+
+[[function._hpHealed.mutation]]
+name = "H5: the damage quartered after the bias"
+target = "c"
+from = "sp18.weaponDamage = (sp18.weaponDamage / 4) + 100;"
+to = "sp18.weaponDamage = (sp18.weaponDamage + 100) / 4;"
+
+[[function._hpHealed.mutation]]
+name = "H6: the stat factor without its type"
+target = "c"
+from = "        sp18.statFactor = targetActor->limbs[limb].types[sp18.type] + 100;"
+to = "        sp18.statFactor = 100;"
+
+[[function._hpHealed.mutation]]
+name = "H7: the armour's affinity from the limb"
+target = "c"
+from = "                .armor.classAffinityCurrent.affinity[0][sp18.sourceAffinity];"
+to = "                .armor.classAffinityCurrent.affinity[1][sp18.sourceAffinity];"
+
+[[function._hpHealed.mutation]]
+name = "H8: the armour's wear not quartered"
+target = "c"
+from = "                                    / targetActor->limbs[limb].armor.maxDp)\n                              / 4;"
+to = "                                    / targetActor->limbs[limb].armor.maxDp)\n                              / 2;"
+
+[[function._hpHealed.mutation]]
+name = "H9: the shield always up"
+target = "c"
+from = "    if (vs_battle_actors[targetActor->unk957]->weaponDrawn & 1) {\n\n        sp18.shieldStat"
+to = "    if (1) {\n\n        sp18.shieldStat"
+
+[[function._hpHealed.mutation]]
+name = "H10: the shield's PP doubled"
+target = "c"
+from = "((targetActor->shield.currentPp * 100) / targetActor->shield.maxPp) / 4;"
+to = "((targetActor->shield.currentPp * 100) / targetActor->shield.maxPp) / 2;"
+
+[[function._hpHealed.mutation]]
+name = "H11: the intelligence floor 10"
+target = "c"
+from = "defense = (sp18.mediatingStat - 20) * sp18.statFactor;"
+to = "defense = (sp18.mediatingStat - 10) * sp18.statFactor;"
+
+[[function._hpHealed.mutation]]
+name = "H12: risk not halved"
+target = "c"
+from = "defense /= (targetActor->risk / 2) + 100;"
+to = "defense /= targetActor->risk + 100;"
+
+[[function._hpHealed.mutation]]
+name = "H13: the stat factor unscaled"
+target = "c"
+from = "((action->hitParams[nHit].statFactor * 10) + 100)"
+to = "((action->hitParams[nHit].statFactor * 5) + 100)"
+
+[[function._hpHealed.mutation]]
+name = "H14: the spread -4..6"
+target = "c"
+from = "randMod = vs_main_getRandSmoothed(11) - 5;"
+to = "randMod = vs_main_getRandSmoothed(11) - 4;"
+
+[[function._hpHealed.mutation]]
+name = "H15: the floor after the spread dropped"
+target = "c"
+from = "    value += randMod;\n\n    if (value < 0) {\n        value = 0;\n    }"
+to = "    value += randMod;"
+
+[[function._hpHealed.mutation]]
+name = "H16: the reaction on every hit"
+target = "c"
+from = "    if ((withRandMod != 0) && (nHit == 0)) {"
+to = "    if ((withRandMod != 0)) {"
+
+[[function._hpHealed.mutation]]
+name = "H17: the reaction's affinity unbiased"
+target = "c"
+from = "func_80080C9C(action, targetActor, 0, sp18.sourceAffinity + 1, limb);"
+to = "func_80080C9C(action, targetActor, 0, sp18.sourceAffinity, limb);"
+
+[[function._hpHealed.mutation]]
+name = "H18: the defense without armour"
+target = "c"
+from = "    defense += sp18.armorStat * sp18.armorStatFactor;\n"
+to = ""
+
+[[function._hpHealed.mutation]]
+name = "H19: the target's accessory ignored"
+target = "c"
+from = "    sp18.mediatingStat += targetActor->accessory.currentInt;\n"
+to = ""
+
+[[function._hpHealed.coverage_waiver]]
+id = "+24 b1"
+reason = "sourceAffinity 0 with the weapon drawn: the C then reads weaponAffinity uninitialised (the object keeps a caller's register; the port uses 0, PORTING.md §11.4), so the spec never builds it"
+
+[function.func_80074860]
+spec = "func_80074860.zig"
+iterations = 20000
+# Hand-ported (hand-74860). On 64-bit the cell buffer is the C's block-scope
+# static `sp20` (globalised, PORTING.md §6.5), so a stand-in copy of the C
+# would have its own: the mutations are of the port.
+
+[[function.func_80074860.mutation]]
+name = "H1: the answer tested for anything but 1"
+from = "1) == 1);"
+to = "1) != 1);"
+
+[[function.func_80074860.mutation]]
+name = "H2: the script asked in mode 0"
+from = "@bitCast(psx.addr(sp20)), 1)"
+to = "@bitCast(psx.addr(sp20)), 0)"
+
+[[function.func_80074860.mutation]]
+name = "H3: event type 3"
+from = "c.func_800BEC58(4, 0,"
+to = "c.func_800BEC58(3, 0,"
+
+[[function.func_80074860.mutation]]
+name = "H4: arg1 1"
+from = "c.func_800BEC58(4, 0,"
+to = "c.func_800BEC58(4, 1,"
+
+[[function.func_80074860.mutation]]
+name = "H5: the cell computed from a fresh position"
+from = "_ = c.func_80074798(@ptrCast(&sp10), &sp20[0]);"
+to = "var other: v.func_8006EBF8_t = undefined;\n    _ = c.func_80074798(@ptrCast(&other), &sp20[0]);"
+
+[[function.func_80074860.mutation]]
+name = "H6: the next actor's position"
+from = "_ = c.func_800A1108(arg0, @ptrCast(&sp10));"
+to = "_ = c.func_800A1108(arg0 +% 1, @ptrCast(&sp10));"
+
+[[function.func_80074860.mutation]]
+name = "H7: the cell left on the stack on 64-bit (psx.addr: above 4 GB)"
+expect = "panic"
+from = "if (comptime @sizeOf(usize) == 8)"
+to = "if (comptime false)"

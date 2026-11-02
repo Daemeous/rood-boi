@@ -34,6 +34,9 @@ except ImportError:
     IN_GDB = False
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "pc/tools"))
+import battle_statics  # noqa: E402
+
 MEANINGS = ROOT / "pc/docs/porting/battle/MEANINGS.tsv"
 
 
@@ -118,20 +121,42 @@ def _dump(type_names, global_names, lenient=False):
 
     for name in type_names:
         ref(gdb.lookup_type(name), name)
-    globals_ = {}
+    globals_, statics, scoped = {}, [], None
     for name in global_names:
         # (gdb.lookup_symbol needs a selected frame, which an object has not;
         # a global the C declares only as a block-scope `extern` has no global
         # or static symbol, so it is absent here: lenient callers, the
         # pipeline's plan, see that as "no views accessor" and skip.)
-        symbol = gdb.lookup_global_symbol(name) or gdb.lookup_static_symbol(name)
+        if "::" in name:
+            # A block-scope static, `F::name` (battle_statics.py: the build
+            # globalises it): its declaration in F's blocks.
+            if scoped is None:
+                import battle_statics
+                scoped = battle_statics.block_statics()
+            scope, var = name.split("::", 1)
+            found = {a: s for f, n, a, s in scoped if f == scope and n == var}
+            symbol = next(iter(found.values())) if len(found) == 1 else None
+            static_type = symbol.type if symbol is not None else \
+                battle_statics.dwarf_static_type(scope, var) if not found else None
+            if static_type is None and lenient:
+                continue
+            if static_type is None:
+                raise RuntimeError(f"{name}: {len(found)} block-scope statics {var} of {scope} in this unit's DWARF")
+            globals_[name] = ref(static_type, name)
+            statics.append(name)
+            continue
+        symbol = gdb.lookup_global_symbol(name)
+        is_static = symbol is None
+        symbol = symbol or gdb.lookup_static_symbol(name)
         if symbol is None and lenient:
             continue
         if symbol is None:
             raise RuntimeError(f"{name}: no such global in this unit's DWARF")
         globals_[name] = ref(symbol.type, name)
+        if is_static:
+            statics.append(name)
     pointer_size = gdb.lookup_type("void").pointer().sizeof
-    return {"pointer_size": pointer_size, "order": order, "types": types, "globals": globals_}
+    return {"pointer_size": pointer_size, "order": order, "types": types, "globals": globals_, "statics": statics}
 
 
 def dump_with_gdb(obj, type_names, global_names, out, lenient=False):
@@ -345,16 +370,28 @@ class Emitter:
         out += ["    comptime {"] + [f"        {a}" for a in asserts] + ["    }", "};"]
         return "\n".join(out)
 
+    def link(self, name):
+        """The symbol a global's accessor links to: a static of the unit
+        (file or block scope) by the name the build globalised it under
+        (battle_statics.py, PORTING.md §6.5)."""
+        if name not in self.d.get("statics", []) or not self.unit_object:
+            return name
+        scope, var = battle_statics.split_view(name)
+        return battle_statics.link_name(self.unit_object, scope, var)
+
     def globals_(self):
         out = ["/// Globals by readable name (MEANINGS.tsv zig_name) or their own; each links to the original symbol.",
                "pub const g = struct {"]
         for name, r in sorted(self.d["globals"].items()):
-            zig = self.names["globals"].get(name, name)
+            zig = self.names["globals"].get(name, battle_statics.accessor_name(name))
+            symbol = self.link(name)
             if zig != name:
                 out.append(f"    /// orig: {name}")
+            if symbol != name:
+                out.append(f"    /// a static of the unit, globalised by the build as {symbol}")
             if r["kind"] == "array" and r["count"] == 0:
                 out.append(f"    pub inline fn {zid(zig)}() [*]{self.ztype(r['elem'])} "
-                           f'{{ return psx.globalMany({self.ztype(r["elem"])}, "{name}"); }}')
+                           f'{{ return psx.globalMany({self.ztype(r["elem"])}, "{symbol}"); }}')
             else:
                 # A global pointer to integers (`u_short* D_800F58C8`) is indexed
                 # by the C (`D_800F58C8[i]`): many-item, so a reader sees a table.
@@ -367,14 +404,17 @@ class Emitter:
                     zt = re.sub(rf"(?<![\w.]){re.escape(zid(zig))}\b", f"views.{zid(zig)}", zt)
                     self.self_alias = True
                 out.append(f"    pub inline fn {zid(zig)}() *{zt} "
-                           f'{{ return psx.global({zt}, "{name}"); }}')
+                           f'{{ return psx.global({zt}, "{symbol}"); }}')
         out.append("};")
         return "\n".join(out)
 
 
-def emit(dump, names=None, psx_import="common"):
+def emit(dump, names=None, psx_import="common", unit_object=None):
+    """unit_object: the unit's object stem (battle_44F14): the unit's statics
+    link to the names the build globalised them under (battle_statics.py)."""
     names = names if names is not None else {"globals": {}, "fields": {}}
     e = Emitter(dump, names)
+    e.unit_object = unit_object
     head = ["//! Generated by build_boot.py (pc/tools/zig_views.py) from the original object's DWARF: do not edit.",
             "const std = @import(\"std\");",
             f"const psx = @import(\"{psx_import}\")" + (".psx;" if psx_import == "common" else ";")]

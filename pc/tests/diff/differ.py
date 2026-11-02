@@ -208,7 +208,7 @@ def run_one(scenario, args, work):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("subsystem", nargs="?", default="battle_action")
+    parser.add_argument("subsystem", nargs="?", default="battle_44F14")
     parser.add_argument("--scenario", action="append", choices=scenarios.SCENARIOS)
     parser.add_argument("--mode", nargs="+", choices=MODES, default=list(MODES))
     parser.add_argument("--card", type=pathlib.Path, default=ROOT / "pc/build/test-card1.mcd")

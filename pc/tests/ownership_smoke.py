@@ -10,6 +10,10 @@ from rood_rpc import Game, OUT, BINARY, RpcError
 from checkpoints import title
 from snapshot_diff import Symbols
 
+# The owner switch's fixture: a fully ported subsystem (the trial's
+# func_800B07DC, actor_transform.offsetToWorld) whose routes do not change.
+FIXTURE = "battle_44F14"
+
 
 def check(condition, message):
     if not condition:
@@ -23,23 +27,24 @@ def main():
         out = pathlib.Path(directory)
         g = Game.launch(fast=True, log=out / "game.log", extra_env={
                 "ROOD_DETERMINISTIC": "1", "ROOD_INTERPOLATE": "0",
-                "ROOD_OWNER": "battle_action=owned",
+                "ROOD_OWNER": f"{FIXTURE}=owned",
                 "ROOD_CARD1": str(out / "absent-card.mcd"),
                 "ROOD_CARD2": str(out / "absent-card2.mcd")})
         try:
             title(g)
             owners = g.owner()["subsystems"]
-            # battle_action first, then the trial port's one-route subsystems, original by default.
-            check(owners[0]["name"] == "battle_action"
-                  and owners[0]["routes"] == 9 and owners[0]["owner"] == "owned"
-                  and all(o["owner"] == "original" for o in owners[1:]),
-                  f"ROOD_OWNER and nine routed battle actions, the rest original: {owners}")
+            fixture = next(o for o in owners if o["name"] == FIXTURE)
+            # the fixture owned from ROOD_OWNER, every other subsystem original by default.
+            check(fixture["routes"] == 1 and fixture["owner"] == "owned"
+                  and all(o["owner"] == "original" for o in owners if o["name"] != FIXTURE),
+                  f"ROOD_OWNER and the fixture's one route owned, the rest original: {owners}")
             for owner in ("original", "owned", "original"):
-                check(g.owner("battle_action", owner)["subsystems"][0]["owner"] == owner,
+                reply = g.owner(FIXTURE, owner)["subsystems"]
+                check(next(o for o in reply if o["name"] == FIXTURE)["owner"] == owner,
                       f"owner round-trip: {owner}")
             for params in ({"subsystem": "missing", "owner": "owned"},
-                           {"subsystem": "battle_action", "owner": "bad"},
-                           {"subsystem": "battle_action"}, {"owner": "owned"},
+                           {"subsystem": FIXTURE, "owner": "bad"},
+                           {"subsystem": FIXTURE}, {"owner": "owned"},
                            {"subsystem": 1, "owner": "owned"},
                            {"action": "unknown"}, {"action": "report", "reset": "yes"},
                            {"action": "report", "owner": "owned"}):

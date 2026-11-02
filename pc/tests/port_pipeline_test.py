@@ -60,6 +60,17 @@ CANNED = ROOT / "pc/tests/port_pipeline"
 HOME = str(pathlib.Path.home())
 
 
+
+def unrouted(table, name):
+    """A copy of the ownership table without `name`'s route: the plan's own checks
+    run as they would before the function was ported (hand ports took these)."""
+    import copy
+    table = copy.deepcopy(table)
+    for s in table.subsystems:
+        s.functions = [f for f in s.functions if f[1] != name]
+        s.zig.pop(name, None)
+    return table
+
 def pipeline(args, work, replies=None, edit=None, table=None):
     work.mkdir(parents=True, exist_ok=True)
     if replies:
@@ -303,7 +314,8 @@ def wave1(tmp, table):
         failures.append(f"static helpers of func_800D8EF4: {helpers}")
     # A block-scope static (44F14's func_800AE47C, a ROOD_PC log-once counter): skipped at the plan.
     rows, names = pp.functions_tsv(), pp.meanings()
-    plan, _ = pp.plan_function("func_800AE47C", rows["func_800AE47C"], table, names, {}, BUILD, tmp / "plan-AE47C")
+    plan, _ = pp.plan_function("func_800AE47C", rows["func_800AE47C"], unrouted(table, "func_800AE47C"), names, {},
+                               BUILD, tmp / "plan-AE47C")
     if "block-scope static" not in plan.skip:
         failures.append(f"func_800AE47C not skipped for its block-scope static: {plan.skip!r}")
     # The stand-in copy sits right after the original's body (44F14's func_800AD714 calls
@@ -391,7 +403,8 @@ def wave2(tmp, table):
     # ROOD_PC `static platforms[4]` no port can reach): skipped at the plan, before any call.
     import port_pipeline as pp
     rows, names = pp.functions_tsv(), pp.meanings()
-    plan, _ = pp.plan_function("func_800A9530", rows["func_800A9530"], table, names, {}, BUILD, tmp / "plan-A9530")
+    plan, _ = pp.plan_function("func_800A9530", rows["func_800A9530"], unrouted(table, "func_800A9530"), names, {},
+                               BUILD, tmp / "plan-A9530")
     if "func_800A4A24" not in (plan.skip or "") or "block-scope static" not in (plan.skip or ""):
         failures.append(f"func_800A9530 not skipped for its helper's block-scope static: {plan.skip!r}")
     # sprintf (variadic with fixed parameters: no recording stub can take it) runs as libc's (2842C).

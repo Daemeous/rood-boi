@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Actual battle-action shadow calls while enemies cast; no corpus coverage claim."""
+"""Actual battle shadow calls while enemies cast; no corpus coverage claim."""
 import argparse
 import os
 import pathlib
@@ -13,6 +13,10 @@ from rood_rpc import OUT, BINARY
 from snapshot_diff import Symbols
 from checkpoints import launch_at
 import ownership
+
+# The fixture: a fully ported subsystem the enemy-cast room calls every frame
+# (the trial's func_800B07DC, actor_transform.offsetToWorld).
+FIXTURE = "battle_44F14"
 
 
 def main():
@@ -34,7 +38,7 @@ def main():
         shutil.copyfile(card, private_card)
         settings = work / "settings.txt"
         settings.write_text("ui_menus 0\nwidescreen 0\ninterpolate 0\nqol_skip_charging 0\ncamera_stick 0\n")
-        env = {"ROOD_ORACLE": "1", "ROOD_OWNER": "battle_action=original",
+        env = {"ROOD_ORACLE": "1", "ROOD_OWNER": f"{FIXTURE}=original",
                "ROOD_SETTINGS": str(settings), "ROOD_GI": "0", "ROOD_DETERMINISTIC": "1"}
         game = launch_at("save_room", card=str(private_card), fast=True, log=work / "game.log", extra_env=env)
         try:
@@ -44,7 +48,7 @@ def main():
                 if game.call("room_goto", action="status")["phase"] in (0, 4):
                     break
             assert (game.state()["zone"], game.state()["room"]) == (48, 10)
-            game.owner("battle_action", "shadow")
+            game.owner(FIXTURE, "shadow")
             for subsystem, mode in others:
                 game.owner(subsystem, mode)
             game.call("owner", action="report", reset=True)
@@ -53,11 +57,11 @@ def main():
             print(result, flush=True)
             assert result["calls"] > 0, "no routed battle calls exercised"
             assert result["count"] == 0 and result["errors"] == 0, result
-            # The fault goes into battle_action's most-called function: another
+            # The fault goes into the fixture's most-called function: another
             # subsystem's busiest one may not run again in the next 120 vsyncs
             # (vs_battle_lerpSvector's effect calls all come early).
             action = {name for _, name in next(s for s in ownership.load().subsystems
-                                               if s.name == "battle_action").functions}
+                                               if s.name == FIXTURE).functions}
             function = max((row for row in result["coverage"] if row["function"] in action),
                            key=lambda row: row["calls"])["function"]
             address = next(address for address, size, name in Symbols(BINARY).rows
@@ -74,7 +78,7 @@ def main():
             assert first["function"] == function and first["first"] == address and first["frame"] > 0, first
             assert game.read(address, 1) == baseline, "injected owned write escaped rollback"
             print(f"caught {function}: vs_main_stateFlags[0], frame {first['frame']}", flush=True)
-            game.owner("battle_action", "original")
+            game.owner(FIXTURE, "original")
             for subsystem, _ in others:
                 game.owner(subsystem, "original")
         finally:

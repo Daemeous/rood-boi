@@ -85,6 +85,22 @@ def main():
         os.environ.pop("ROOD_OBJECT_CACHE", None)
         os.environ.pop("ROOD_OBJECT_CACHE_MAX", None)
 
+        stamp_root = checkout(scratch, "stamp")
+        trees = [("src", None), ("inc", None)]
+        stamp = build_cache.Stamp(stamp_root, stamp_root / "out", {})
+        stamp.begin(trees, [])
+        stamp.write(trees, [], [])
+        check(stamp.up_to_date(trees, []), "a build with unchanged inputs is stamped up to date")
+        stamp.begin(trees, [])
+        check(not stamp.up_to_date(trees, []), "a build in progress has no stamp")
+        time.sleep(0.01)
+        (stamp_root / "src/b.c").write_text("int b(void) { return 8; }\n")  # edited mid-build
+        stamp.write(trees, [], [])
+        check(not stamp.up_to_date(trees, []), "an input edited during the build leaves no stamp: the next build runs")
+        stamp.begin(trees, [])
+        stamp.write(trees, [], [])
+        check(stamp.up_to_date(trees, []), "the build after it is stamped")
+
         a = checkout(scratch, "main")
         b = checkout(scratch, "worktrees/agent")
         check(build(a) == (0, 2), "first checkout: both objects compiled")

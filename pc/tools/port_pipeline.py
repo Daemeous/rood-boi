@@ -367,7 +367,7 @@ class Unit:
         out.mkdir(parents=True, exist_ok=True)
         dump = zig_views.dump_with_gdb(self.unit_o, types, globals_, out / f"views_{self.stem}.json", lenient=lenient)
         path = out / f"views_{self.stem}.zig"
-        text = zig_views.emit(dump, zig_views.load_names())
+        text = zig_views.emit(dump, zig_views.load_names(), unit_object=self.unit_o.stem)
         if not path.exists() or path.read_text() != text:
             path.write_text(text)
         return path, dump

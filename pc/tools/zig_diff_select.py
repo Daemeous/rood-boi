@@ -44,6 +44,8 @@ INFRA = {
     "pc/tools/zig_toolchain.py": "the Zig compiler zig_diff runs",
     "pc/tools/zig_views.py": "every unit's generated views",
     "pc/tools/zig_c.py": "every unit's generated c module",
+    "pc/tools/battle_statics.py": "the statics zig_diff's reference objects globalise",
+    "pc/docs/porting/battle/STATE.tsv": "the statics zig_diff's reference objects globalise (its list)",
     "pc/docs/porting/battle/MEANINGS.tsv": "the views' readable names",
     f"{SPECS_DIR}/main.zig": "the zig_diff harness",
     f"{SPECS_DIR}/zdiff.zig": "the spec API",

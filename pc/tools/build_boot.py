@@ -733,9 +733,10 @@ stamp_trees = [("src", None), ("include", None), ("config", None), ("build", Non
     + [(f"pc/tools/{tool}.py", None) for tool in ["build_boot", "build_cache", "event_callbacks", "lp64_report",
                                                    "import_types", "nrd", "gl_shaders", "vk_shaders", "zig_toolchain", "ownership",
                                                    "snapshot_layout", "shared_cache", "engine_boundary", "game_lib",
-                                                   "zig_views", "zig_c"]]
+                                                   "zig_views", "zig_c", "battle_statics"]]
 stamp_files = [root / "data/SLUS_010.40", root / "data/BATTLE/BATTLE.PRG", root / "data/ENDING/ENDING.PRG",
                root / "pc/docs/porting/battle/MEANINGS.tsv",  # the views' readable names (zig_views.py)
+               root / "pc/docs/porting/battle/STATE.tsv",  # the statics the build globalises (battle_statics.py)
                sdl_library, *(nrd["libraries"] if nrd else []), *glslang_libraries,
                *([win_sdl_library, *(win_nrd["libraries"] if win_nrd else []), *win_glslang_libraries] if win else []),
                # the host libraries whose symbols the import classification reads
@@ -750,7 +751,7 @@ if parsed.check:
 if up_to_date and not parsed.verbose:
     print(f"{out.relative_to(root)}: up to date (nothing changed since its last build)")
     raise SystemExit(0)
-build_stamp.invalidate()  # until this build completes
+build_stamp.begin(stamp_trees, stamp_files)  # no stamp until this build completes
 object_cache = ObjectCache(root, out, build_stamp, toolchain)
 result_cache = ResultCache(out, toolchain)
 
@@ -1056,10 +1057,12 @@ for layout_pass in [[], ["-DPSX_SDK_LAYOUT_LIBDS"]]:
 overlay_statics = {}  # overlay file on the disc -> {"data", "bss"} sections present
 win_overlay_statics = {}  # the same for the COFF twins
 import ownership as ownership_tool
+import battle_statics  # noqa: E402
 import zig_c  # noqa: E402
 import zig_views  # noqa: E402
 
 ownership_table = ownership_tool.load(root / "game/ownership.toml")
+battle_static_list = battle_statics.listed()
 active = ownership_tool.Table([s for s in ownership_table.subsystems
                                if ZIG and s.unit in {source for source, _ in sources}])
 
@@ -1161,6 +1164,16 @@ for source, name in sources:
                     win_overlay_statics.setdefault(overlay_file, set()).add(kind)
             if renames:
                 run([MINGW + "objcopy", *renames, str(twin(obj))])
+        # The battle statics STATE.tsv lists become globals the owned Zig code
+        # links to, in their own section still (battle_statics.py, PORTING.md §6.5).
+        statics = battle_static_list.get(name) if overlay_file == "BATTLE/BATTLE.PRG" else None
+        if statics and not coff:
+            battle_statics.globalise(obj, name, statics, lambda args, o: run(["objcopy", *args, str(o)]),
+                                     work=out / name, source=pre.read_bytes())
+        if statics and win:
+            battle_statics.globalise(twin(obj), name, statics,
+                                     lambda args, o: run([MINGW + "objcopy", *args, str(o)]),
+                                     nm=(MINGW + "nm",), work=out / (name + ".win"), source=win_pre.read_bytes())
     else:
         state_sections(obj)
     objects.append(obj)
@@ -1211,10 +1224,18 @@ if ZIG:
             declarations = sorted({d for s in subs for d in s.views.get("declarations", [])})
             stem, unit_name = pathlib.PurePosixPath(unit).stem, unit_names[unit]
             unit_obj = out / f"{unit_name}.o"
+            # A static of the other configuration only has no accessor here (battle_statics.py).
+            names = battle_statics.configured(names, battle_static_list.get(unit_name, []),
+                                              (out / f"{unit_name}{'.win' if coff else ''}.i").read_bytes())
             dump = zig_views.dump_with_gdb(twin(unit_obj) if coff else unit_obj, types, names,
                                            zig_dir / f"views_{stem}.json")
             views_path = zig_dir / f"views_{stem}.zig"
-            text = zig_views.emit(dump, zig_views.load_names())
+            unlisted = sorted(set(dump.get("statics", [])) - {battle_statics.view_name(*e) for e in
+                                                               battle_static_list.get(unit_name, [])})
+            if unlisted:
+                raise SystemExit(f"views_{stem}: {', '.join(unlisted)}: a static of the unit that STATE.tsv does not "
+                                 f"list, so the build does not globalise it (PORTING.md §6.5)")
+            text = zig_views.emit(dump, zig_views.load_names(), unit_object=unit_name)
             if not views_path.exists() or views_path.read_text() != text:
                 views_path.write_text(text)
             if win and not coff:
@@ -1223,7 +1244,8 @@ if ZIG:
                 # are respelled long long, -mno-ms-bitfields, the same
                 # -funsigned-char): check it against the twin's own DWARF.
                 win_text = zig_views.emit(zig_views.dump_with_gdb(
-                    twin(unit_obj), types, names, zig_dir / f"views_{stem}.win.json"), zig_views.load_names())
+                    twin(unit_obj), types, names, zig_dir / f"views_{stem}.win.json"), zig_views.load_names(),
+                    unit_object=unit_name)
                 if win_text != text:
                     diff = next(f"ELF: {a!r}\n  COFF: {b!r}" for a, b in
                                 zip(text.splitlines() + [""], win_text.splitlines() + [""]) if a != b)

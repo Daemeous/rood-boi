@@ -1,39 +1,9 @@
-//! The battle overlay's owned code: the pass-through battle action module (the
-//! original remains the implementation) and the ported functions.
+//! The battle overlay's owned code: the ported functions, each routed by its
+//! original name through ownership.toml's `zig` paths from here.
 const common = @import("common");
 const ownership = @import("ownership");
 pub const panic = common.Panic;
-const orig = common.route.original;
 
-const BattleAction = struct {
-    pub fn func_80070F28(arg0: c_int) callconv(.c) void {
-        orig("func_80070F28", @TypeOf(func_80070F28))(arg0);
-    }
-    pub fn func_8007138C() callconv(.c) void {
-        orig("func_8007138C", @TypeOf(func_8007138C))();
-    }
-    pub fn _handleCombatCameraZoom() callconv(.c) void {
-        orig("_handleCombatCameraZoom", @TypeOf(_handleCombatCameraZoom))();
-    }
-    pub fn func_80078748() callconv(.c) void {
-        orig("func_80078748", @TypeOf(func_80078748))();
-    }
-    pub fn func_800704B0() callconv(.c) void {
-        orig("func_800704B0", @TypeOf(func_800704B0))();
-    }
-    pub fn func_800787F0() callconv(.c) void {
-        orig("func_800787F0", @TypeOf(func_800787F0))();
-    }
-    pub fn func_80070278() callconv(.c) void {
-        orig("func_80070278", @TypeOf(func_80070278))();
-    }
-    pub fn func_80079030() callconv(.c) void {
-        orig("func_80079030", @TypeOf(func_80079030))();
-    }
-    pub fn func_80078AB4() callconv(.c) void {
-        orig("func_80078AB4", @TypeOf(func_80078AB4))();
-    }
-};
 pub const lerp = @import("lerp.zig");
 pub const lerp_ratio = @import("lerp_ratio.zig");
 pub const func_800D1904 = @import("func_800D1904.zig");
@@ -132,10 +102,6 @@ pub const func_800CA2DC = @import("func_800CA2DC.zig");
 pub const func_800C4794 = @import("func_800C4794.zig");
 pub const func_800CD3E4 = @import("func_800CD3E4.zig");
 pub const func_800C9FE8 = @import("func_800C9FE8.zig");
-
-comptime {
-    common.route.exportAll(@backingInt(ownership.Subsystem.battle_action), ownership.routesOf(.battle_action), BattleAction);
-}
 
 // Ported battle functions (PORTING.md): modules named by meaning, routed by
 // their original names through ownership.toml's `zig` paths from here.
@@ -247,6 +213,13 @@ pub const func_800C16DC = @import("func_800C16DC.zig");
 pub const func_800C0D78 = @import("func_800C0D78.zig");
 pub const func_800AE474 = @import("func_800AE474.zig");
 pub const func_800AE46C = @import("func_800AE46C.zig");
+pub const func_800AE47C = @import("func_800AE47C.zig");
+pub const func_800AEF94 = @import("func_800AEF94.zig");
+pub const func_800A4A24 = @import("func_800A4A24.zig");
+pub const func_800A9530 = @import("func_800A9530.zig");
+pub const render_text_immediate = @import("render_text_immediate.zig");
+pub const func_800D2ADC = @import("func_800D2ADC.zig");
+pub const func_800AC690 = @import("func_800AC690.zig");
 pub const func_800AE68C = @import("func_800AE68C.zig");
 pub const func_800AE7D8 = @import("func_800AE7D8.zig");
 pub const func_800AE4FC = @import("func_800AE4FC.zig");
@@ -1201,6 +1174,7 @@ pub const func_80074050 = @import("func_80074050.zig");
 pub const func_8007418C = @import("func_8007418C.zig");
 pub const func_80074744 = @import("func_80074744.zig");
 pub const func_80074798 = @import("func_80074798.zig");
+pub const func_80074860 = @import("func_80074860.zig");
 pub const func_8007629C = @import("func_8007629C.zig");
 pub const func_800770FC = @import("func_800770FC.zig");
 pub const func_8007B0FC = @import("func_8007B0FC.zig");
@@ -1555,6 +1529,20 @@ pub const func_800BB450 = @import("func_800BB450.zig");
 pub const func_800BB474 = @import("func_800BB474.zig");
 pub const func_800BB4CC = @import("func_800BB4CC.zig");
 pub const func_800BB504 = @import("func_800BB504.zig");
+pub const func_800704B0 = @import("func_800704B0.zig");
+pub const func_80078748 = @import("func_80078748.zig");
+pub const func_800787F0 = @import("func_800787F0.zig");
+pub const func_80079030 = @import("func_80079030.zig");
+pub const invalid_hit_function = @import("invalid_hit_function.zig");
+pub const hit_prerequisite_unused0 = @import("hit_prerequisite_unused0.zig");
+pub const hit_prerequisite_unused1 = @import("hit_prerequisite_unused1.zig");
+pub const hit_prerequisite_unused2 = @import("hit_prerequisite_unused2.zig");
+pub const func_80070278 = @import("func_80070278.zig");
+pub const handle_combat_camera_zoom = @import("handle_combat_camera_zoom.zig");
+pub const commit_action = @import("commit_action.zig");
+pub const start_cast = @import("start_cast.zig");
+pub const timing_window = @import("timing_window.zig");
+pub const hp_healed = @import("hp_healed.zig");
 
 comptime {
     common.route.exportAll(@backingInt(ownership.Subsystem.battle_146C), ownership.routesOf(.battle_146C), @This());

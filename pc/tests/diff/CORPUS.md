@@ -20,7 +20,7 @@ and an outer timeout for game tests; do not run while the user is playing.
 python3 pc/tests/diff/differ.py --list
 flock -w 60 "$ROOD_HEAVY_LOCK" timeout 60s python3 pc/tests/diff/corpus_test.py
 ROOD_ARCH=64 flock -w 60 "$ROOD_HEAVY_LOCK" timeout 600s \
-  python3 pc/tests/diff/differ.py battle_action --scenario enemy_cast_wait
+  python3 pc/tests/diff/differ.py battle_44F14 --scenario enemy_cast_wait
 ```
 
 `--mode call tick alternate` is the default. `--card` defaults to the pinned

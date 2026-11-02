@@ -118,7 +118,7 @@ gl_paths = ["pc/src/gl_*", "pc/src/render_gl.h", "pc/src/post_gl.inc", "pc/src/g
 # zig_diff's ten shards, the coverage lane and the port pipeline: ~35 min of CPU
 suites = ["ctest_long"]
 paths = ["game/*", "pc/tools/zig_diff.py", "pc/tools/zig_views.py", "pc/tools/zig_c.py", "pc/tools/ownership.py",
-         "pc/tests/zig_diff/*", "pc/tests/zig_diff_coverage_test.py"]
+         "pc/tools/battle_statics.py", "pc/tests/zig_diff/*", "pc/tests/zig_diff_coverage_test.py"]
 
 [[long]]
 # 431 s and 128 s: the charge skip played out
@@ -272,7 +272,8 @@ suites = ["trial_corpus_*"]
 # ---- owned-code generators and the differential harness (ctest zig_c, zig_views; ctest_long zig_diff) ----
 [[rule]]
 paths = ["game/*", "pc/tools/ownership.py", "pc/tools/zig_views.py", "pc/tools/zig_c.py", "pc/tools/zig_diff.py",
-         "pc/tests/zig_diff/*", "pc/tests/zig_c_test.py", "pc/tests/zig_views_test.py"]
+         "pc/tests/zig_diff/*", "pc/tests/zig_c_test.py", "pc/tests/zig_views_test.py",
+         "pc/tools/battle_statics.py", "pc/tests/battle_statics_test.py", "pc/docs/porting/battle/STATE.tsv"]
 suites = ["ctest", "ctest_long"]
 
 # ---- the port pipeline and the model bake-off (ctest port_pipeline, bakeoff_tools, prompt_tools) ----
