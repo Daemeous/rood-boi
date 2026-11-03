@@ -63,7 +63,7 @@ extern const unsigned char pc_subsystem_defaults[];
 extern int pc_shadow_available(void) __attribute__((weak));
 #endif
 
-unsigned char pc_owner[64];
+unsigned char pc_owner[128];  /* ownership.py MAX_SUBSYSTEMS */
 /* alternate: every routed call flips between owned and original, per route
  * (the oracle's alternate mode, state_diff.c; not a default). */
 static const char* const owner_labels[] = { "original", "owned", "shadow", "alternate" };

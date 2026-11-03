@@ -60838,8 +60838,8 @@ room = { vs_battle_characterWidths = 512 }
 
 [[function._renderTextImmediate.mutation]]
 name = "H1: a box touching the right edge drawn"
-from = "x + width >= 320"
-to = "x + width > 320"
+from = "x +% width >= 320"
+to = "x +% width > 320"
 
 [[function._renderTextImmediate.mutation]]
 name = "H2: the opacity not capped"
@@ -60848,8 +60848,8 @@ to = "if ((arg1 >> 0x11) != 0) arg1 = 0x10000;"
 
 [[function._renderTextImmediate.mutation]]
 name = "H3: the bounds compared signed"
-from = "if (@as(c_uint, @bitCast(width - 12)) >= printX and"
-to = "if (width - 12 >= @as(c_int, @bitCast(printX)) and"
+from = "if (@as(c_uint, @bitCast(width -% 12)) >= printX and"
+to = "if (width -% 12 >= @as(c_int, @bitCast(printX)) and"
 
 [[function._renderTextImmediate.mutation]]
 name = "H4: glyph path spaces skipped"
@@ -60898,8 +60898,8 @@ to = "v.g._pcFadeStart().* = psx.get(v.g.vs_scratch().unk4);"
 
 [[function._renderTextImmediate.mutation]]
 name = "H13: the colour from bit 1"
-from = "& 1)) * 4);"
-to = "& 2)) * 4);"
+from = "& 1)) *% 4);"
+to = "& 2)) *% 4);"
 
 [[function._renderTextImmediate.mutation]]
 name = "H14: the image row stride of the line"
@@ -62244,6 +62244,10 @@ to = "func_800A087C(actorId, func_800A0BE0(actorId) | 2);"
 
 [[function.func_800BAF6C.mutation]]
 name = "F4: arg0 tested as signed positive (negative arg0 takes the clear path)"
+target = "c"
+from = "if (arg0 != 0) {"
+to = "if (arg0 > 0) {"
+
 [function._atan2FixedPoint]
 spec = "atan2FixedPoint.zig"
 iterations = 30000
@@ -64194,6 +64198,18 @@ target = "c"
 from = "& 0xC00) >> 10;"
 to = "& 0x800) >> 10;"
 
+[[function.func_800B6D48.mutation]]
+name = "M7: texture stored as 1 (the original stores the object's 0)"
+target = "c"
+from = "box->unk0.unk0_24 = texture;"
+to = "box->unk0.unk0_24 = 1;"
+
+[[function.func_800B6D48.mutation]]
+name = "M8: texture store dropped (the field keeps its old bits)"
+target = "c"
+from = "box->unk0.unk0_24 = texture;"
+to = "(void)texture;"
+
 [function.func_800B71C4]
 spec = "func_800B71C4.zig"
 iterations = 30000
@@ -65739,3 +65755,318 @@ name = "S4: getShort result narrowed to u_char before getStateFlag"
 target = "c"
 from = "vs_battle_getStateFlag(vs_battle_getShort(arg0 + 1))"
 to = "vs_battle_getStateFlag((u_char)vs_battle_getShort(arg0 + 1))"
+
+# ---- D2 (PORTING.md §20): one section per oracle file (the pc/src C that is the
+# original), a port's entry in address order under its file's header, so
+# parallel branches add to different places.
+
+# ---- pc/src/actor_blend.c
+
+# ---- pc/src/actor_cleanup.c
+
+# ---- pc/src/actor_packets.c
+
+# ---- pc/src/actor_shadow.c
+
+# ---- pc/src/actor_update.c
+
+# ---- pc/src/actor_vertices.c
+
+# ---- pc/src/battle_gte.c
+
+# ---- pc/src/battle_helpers.c
+
+[function.func_800D820C]
+spec = "sendActorValue.zig"
+iterations = 4000
+
+[[function.func_800D820C.mutation]]
+name = "S1: id 0 forwards too"
+target = "c"
+from = """if (!id)
+        return 1;"""
+to = """if (0)
+        return 1;"""
+
+[[function.func_800D820C.mutation]]
+name = "S2: the arguments swapped"
+target = "c"
+from = "func_80095B7C(id, value);"
+to = "func_80095B7C(value, id);"
+
+[[function.func_800D820C.mutation]]
+name = "S3: a forward returns 1"
+target = "c"
+from = "return 0;"
+to = "return 1;"
+
+[[function.func_800D820C.mutation]]
+name = "S4: the port drops the value"
+from = "c.func_80095B7C(id, value);"
+to = "c.func_80095B7C(id, value & 0);"
+
+[function.func_800D826C]
+spec = "unk8eAtLeast20.zig"
+iterations = 4000
+
+[[function.func_800D826C.mutation]]
+name = "D1: strictly above 0x20"
+target = "c"
+from = "return !(*(unsigned short*)((unsigned char*)state + 0x8e) < 0x20);"
+to = "return *(unsigned short*)((unsigned char*)state + 0x8e) > 0x20;"
+
+[[function.func_800D826C.mutation]]
+name = "D2: the halfword read signed"
+target = "c"
+from = "*(unsigned short*)((unsigned char*)state + 0x8e) < 0x20"
+to = "*(short*)((unsigned char*)state + 0x8e) < 0x20"
+
+[[function.func_800D826C.mutation]]
+name = "D3: the byte at 0x8E only"
+target = "c"
+from = "*(unsigned short*)((unsigned char*)state + 0x8e) < 0x20"
+to = "*((unsigned char*)state + 0x8e) < 0x20"
+
+[[function.func_800D826C.mutation]]
+name = "D4: the port compares strictly"
+from = "value >= 0x20"
+to = "value > 0x20"
+
+[function.func_800D8280]
+spec = "tickActionTimer.zig"
+iterations = 4000
+
+[[function.func_800D8280.mutation]]
+name = "A1: an idle timer still ticks"
+target = "c"
+from = """if (!base[0x12a])
+        return;"""
+to = """(void)0;"""
+
+[[function.func_800D8280.mutation]]
+name = "A2: the final tick sends the halfword too"
+target = "c"
+from = "func_800D820C(base[0x88], 0);"
+to = "func_800D820C(base[0x88], *(unsigned short*)(base + 0x138));"
+
+[[function.func_800D8280.mutation]]
+name = "A3: the counting tick sends the byte at 0x138"
+target = "c"
+from = "*(unsigned short*)(base + 0x138)"
+to = "*(unsigned char*)(base + 0x138)"
+
+[[function.func_800D8280.mutation]]
+name = "A4: the actor is the byte at 0x89"
+target = "c"
+from = "func_800D820C(base[0x88], 0);"
+to = "func_800D820C(base[0x89], 0);"
+
+[[function.func_800D8280.mutation]]
+name = "A5: the port sends a signed halfword"
+from = "@as(*align(1) const u16, @ptrCast(state + 0x138)).*"
+to = "@as(u16, @bitCast(@as(i16, @bitCast(@as(*align(1) const u16, @ptrCast(state + 0x138)).*)) >> 1))"
+
+[function.func_800E4358]
+spec = "tickStateTimers.zig"
+iterations = 4000
+
+[[function.func_800E4358.mutation]]
+name = "T1: the first timer wraps below zero"
+target = "c"
+from = "if (base[0x155])"
+to = "if (1)"
+
+[[function.func_800E4358.mutation]]
+name = "T2: the second timer is not ticked"
+target = "c"
+from = """if (base[0x13f])
+        --base[0x13f];"""
+to = """(void)0;"""
+
+[[function.func_800E4358.mutation]]
+name = "T3: the second timer ticks the first byte"
+target = "c"
+from = "--base[0x13f]"
+to = "--base[0x155]"
+
+[[function.func_800E4358.mutation]]
+name = "T4: the port ticks the first timer twice"
+from = "if (state[0x155] != 0) state[0x155] -= 1;"
+to = "if (state[0x155] != 0) state[0x155] -= 1;\n    if (state[0x155] != 0) state[0x155] -= 1;"
+
+[function.func_800E4624]
+spec = "squaredDistance.zig"
+iterations = 4000
+
+[[function.func_800E4624.mutation]]
+name = "Q1: the first height offsets the second Y"
+target = "c"
+from = "(a[1] + a_height) - (b[1] + b_height)"
+to = "(a[1] + b_height) - (b[1] + a_height)"
+
+[[function.func_800E4624.mutation]]
+name = "Q2: no height on the second"
+target = "c"
+from = "(a[1] + a_height) - (b[1] + b_height)"
+to = "(a[1] + a_height) - b[1]"
+
+[[function.func_800E4624.mutation]]
+name = "Q3: z from x"
+target = "c"
+from = "a[2] - b[2]"
+to = "a[0] - b[0]"
+
+[[function.func_800E4624.mutation]]
+name = "Q4: the port subtracts b first on z"
+from = "@as(c_int, a[2]) - b[2]"
+to = "@as(c_int, b[2]) - a[2]"
+
+[function.func_800E6828]
+spec = "mergeActorFlags.zig"
+iterations = 4000
+
+[[function.func_800E6828.mutation]]
+name = "F1: the high byte is not merged"
+target = "c"
+from = "flags |= flags >> 8;"
+to = "(void)0;"
+
+[[function.func_800E6828.mutation]]
+name = "F2: bits 4-5 and 3 swapped in priority"
+target = "c"
+from = "(flags & 0x30) ? 1 : ((flags & 8) ? 2 : 0)"
+to = "(flags & 8) ? 2 : ((flags & 0x30) ? 1 : 0)"
+
+[[function.func_800E6828.mutation]]
+name = "F3: only bit 5 tested"
+target = "c"
+from = "(flags & 0x30)"
+to = "(flags & 0x20)"
+
+[[function.func_800E6828.mutation]]
+name = "F4: the merged high byte is stored low"
+target = "c"
+from = "state[0x15f] = flags >> 8;"
+to = "state[0x15f] = flags;"
+
+[[function.func_800E6828.mutation]]
+name = "F5: the port stores 3 for bit 3"
+from = "else if (flags & 8 != 0) 2 else 0"
+to = "else if (flags & 8 != 0) 3 else 0"
+
+[function.func_800E685C]
+spec = "setActorStatPair.zig"
+iterations = 4000
+
+[[function.func_800E685C.mutation]]
+name = "P1: the smaller is stored"
+target = "c"
+from = "actor[0xb3] = first < second ? second : first;"
+to = "actor[0xb3] = first < second ? first : second;"
+
+[[function.func_800E685C.mutation]]
+name = "P2: an empty slot is written"
+target = "c"
+expect = "crash"
+from = """if (!actor)
+        return;"""
+to = """(void)0;"""
+
+[[function.func_800E685C.mutation]]
+name = "P3: first and second swapped in the halfword"
+target = "c"
+from = "unsigned packed = ((unsigned)second << 8) | (unsigned)first;"
+to = "unsigned packed = ((unsigned)first << 8) | (unsigned)second;"
+
+[[function.func_800E685C.mutation]]
+name = "P4: the high byte is the low"
+target = "c"
+from = "actor[0x227] = packed >> 8;"
+to = "actor[0x227] = packed;"
+
+[[function.func_800E685C.mutation]]
+name = "P5: the port compares unsigned"
+from = "if (first < second) second else first"
+to = "if (@as(c_uint, @bitCast(first)) < @as(c_uint, @bitCast(second))) second else first"
+
+# ---- pc/src/battle_motion.c
+
+[function.func_800B65E8]
+spec = "lookAtPosition.zig"
+iterations = 4000
+
+[[function.func_800B65E8.mutation]]
+name = "L1: the wrong kind"
+target = "c"
+from = "look_request(id, position, b, 0x10)"
+to = "look_request(id, position, b, 0x20)"
+
+[[function.func_800B65E8.mutation]]
+name = "L2: the halfword at 0x5F2 stored before the second word (port)"
+from = """    @as(*c_int, @ptrCast(@alignCast(model + 0x5f0))).* = position[1];
+    @as(*u16, @ptrCast(@alignCast(model + 0x5f2))).* = @truncate(@as(c_uint, @bitCast(b)));"""
+to = """    @as(*u16, @ptrCast(@alignCast(model + 0x5f2))).* = @truncate(@as(c_uint, @bitCast(b)));
+    @as(*c_int, @ptrCast(@alignCast(model + 0x5f0))).* = position[1];"""
+
+[[function.func_800B65E8.mutation]]
+name = "L3: bits 4-6 kept instead of replaced (port)"
+from = "(model[0xb] & 0x8f)"
+to = "(model[0xb] & 0xff)"
+
+[[function.func_800B65E8.mutation]]
+name = "L4: the first word read from position[1] (port)"
+from = "@as(*c_int, @ptrCast(@alignCast(model + 0x5ec))).* = position[0];"
+to = "@as(*c_int, @ptrCast(@alignCast(model + 0x5ec))).* = position[1];"
+
+[[function.func_800B65E8.mutation]]
+name = "L5: the halfword is the whole b (port)"
+from = "@as(*u16, @ptrCast(@alignCast(model + 0x5f2))).* = @truncate(@as(c_uint, @bitCast(b)));"
+to = "@as(*u16, @ptrCast(@alignCast(model + 0x5f2))).* = @truncate(@as(c_uint, @bitCast(b)) >> 1);"
+
+[function.func_800B65F4]
+spec = "lookAtPositionFast.zig"
+iterations = 4000
+
+[[function.func_800B65F4.mutation]]
+name = "L1: the wrong kind"
+target = "c"
+from = "look_request(id, position, b, 0x40)"
+to = "look_request(id, position, b, 0x10)"
+
+[[function.func_800B65F4.mutation]]
+name = "L2: the halfword at 0x5F2 stored before the second word (port)"
+from = """    @as(*c_int, @ptrCast(@alignCast(model + 0x5f0))).* = position[1];
+    @as(*u16, @ptrCast(@alignCast(model + 0x5f2))).* = @truncate(@as(c_uint, @bitCast(b)));"""
+to = """    @as(*u16, @ptrCast(@alignCast(model + 0x5f2))).* = @truncate(@as(c_uint, @bitCast(b)));
+    @as(*c_int, @ptrCast(@alignCast(model + 0x5f0))).* = position[1];"""
+
+[[function.func_800B65F4.mutation]]
+name = "L3: bits 4-6 kept instead of replaced (port)"
+from = "(model[0xb] & 0x8f)"
+to = "(model[0xb] & 0xff)"
+
+[[function.func_800B65F4.mutation]]
+name = "L4: the first word read from position[1] (port)"
+from = "@as(*c_int, @ptrCast(@alignCast(model + 0x5ec))).* = position[0];"
+to = "@as(*c_int, @ptrCast(@alignCast(model + 0x5ec))).* = position[1];"
+
+[[function.func_800B65F4.mutation]]
+name = "L5: the halfword is the whole b (port)"
+from = "@as(*u16, @ptrCast(@alignCast(model + 0x5f2))).* = @truncate(@as(c_uint, @bitCast(b)));"
+to = "@as(*u16, @ptrCast(@alignCast(model + 0x5f2))).* = @truncate(@as(c_uint, @bitCast(b)) >> 1);"
+
+# ---- pc/src/battle_movement.c
+
+# ---- pc/src/effect_particles.c
+
+# ---- pc/src/map_view.c
+
+# ---- pc/src/navigation.c
+
+# ---- pc/src/room_geometry.c
+
+# ---- pc/src/room_lighting.c
+
+# ---- pc/src/room_render.c
+
+# ---- pc/src/weapon_packets.c

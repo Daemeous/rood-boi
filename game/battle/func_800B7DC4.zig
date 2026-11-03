@@ -14,15 +14,15 @@ pub fn func_800B7DC4(script: [*c]u8, _: c_short) callconv(.c) c_int {
     const third: i16 = if (script[5] != 0xFF) script[5] else -1;
     if (script[4] != 0) {
         _ = c.func_800A1108(actor, @ptrCast(&state));
-        var turn: c_int = (@as(c_int, script[3]) << 4) - state.unk0.unk4.pad;
-        if (turn < -0x1000 / 2) turn += 0x1000;
-        if (turn > 0x1000 / 2) turn -= 0x1000;
+        var turn: c_int = (@as(c_int, script[3]) << 4) -% state.unk0.unk4.pad;
+        if (turn < -0x1000 / 2) turn +%= 0x1000;
+        if (turn > 0x1000 / 2) turn -%= 0x1000;
         switch (@as(i8, @bitCast(script[4]))) {
             -1 => {
-                if (turn > 0) turn -= 0x1000;
+                if (turn > 0) turn -%= 0x1000;
             },
             1 => {
-                if (turn < 0) turn += 0x1000;
+                if (turn < 0) turn +%= 0x1000;
             },
             else => {},
         }

@@ -65,7 +65,7 @@ pub fn func_800AC690(arg0: c_int, arg1: ?*Actor) callconv(.c) void {
                 actor.unk5B7 = 0;
                 word(actor, 8).* = (word(actor, 8).* & 0xFFF8FFFF) | 0x30000;
                 if (word(actor, 0xC).* & 0xF != 0) {
-                    c.func_8008C49C(@as(c_int, psx.getBits(&actor.unk0, "unkC_0")) - 2, -1);
+                    c.func_8008C49C(@as(c_int, psx.getBits(&actor.unk0, "unkC_0")) -% 2, -1);
                     word(actor, 0xC).* &= ~@as(c_uint, 0xF);
                 }
             }
@@ -114,7 +114,7 @@ fn airborne(arg0: c_int, actor: *Actor, profile: c_int, state: c_int) void {
         actor.unk5B7 = psx.conv(u8, @as(c_int, actor.unk5B7) +% y);
         limit = 7;
         y = actor.unk5B7 >> 1;
-        actor.unk5B7 = psx.conv(u8, @as(c_int, actor.unk5B7) -% y * 2);
+        actor.unk5B7 = psx.conv(u8, @as(c_int, actor.unk5B7) -% y *% 2);
     } else {
         limit = 9;
         y = halfTick() *% state;
@@ -127,11 +127,11 @@ fn airborne(arg0: c_int, actor: *Actor, profile: c_int, state: c_int) void {
         floor = @as(c_int, @bitCast(@as(c_uint, @bitCast(floor)) << 17)) >> 17;
         if (arg0 != 0) {
             y = 3;
-            v.g.D_800F4B00().* = psx.conv(i16, @as(c_int, actor.menuCameraHeightOffset) + 0x40);
+            v.g.D_800F4B00().* = psx.conv(i16, @as(c_int, actor.menuCameraHeightOffset) +% 0x40);
         }
         const ground = c.func_800A9378(pos.vx, pos.vy, pos.vz, y);
         if (ground != 0 and floor < ground) floor = ground;
-        const top = @as(c_int, pos.vy) + vel.vy - 0xC0;
+        const top = @as(c_int, pos.vy) +% vel.vy -% 0xC0;
         if (top < floor) {
             vel.vy = psx.conv(i16, -@as(c_int, vel.vy));
             if (arg0 != 0) {
@@ -162,7 +162,7 @@ fn airborne(arg0: c_int, actor: *Actor, profile: c_int, state: c_int) void {
             if (vy < 0) {
                 next = .fall;
             } else {
-                y = c.func_800A9378(@as(c_int, pos.vx) + vel.vx, @as(c_int, pos.vy) + vy, @as(c_int, pos.vz) + vel.vz, 2);
+                y = c.func_800A9378(@as(c_int, pos.vx) +% vel.vx, @as(c_int, pos.vy) +% vy, @as(c_int, pos.vz) +% vel.vz, 2);
                 const contact = v.g.D_800F49F4();
                 const tile: *const [8]u8 = @ptrCast(&actor.unk5EC);
                 if (contact.* != 0 and contact.* != tile[1]) {
@@ -188,13 +188,13 @@ fn airborne(arg0: c_int, actor: *Actor, profile: c_int, state: c_int) void {
     if (next == .proceed) {
         y = c.func_800A6EE8(@ptrCast(pos), vel.vx, vel.vz, 1);
         if (y == 3000 and psx.at(v.g.D_800E9278(), v.g.D_800F49F0().*.?[0] & 0x1F).* == 20) {
-            if (pos.vy <= 0 and @as(c_int, pos.vy) + vel.vy >= 0) c.func_8006F450(@ptrCast(pos));
+            if (pos.vy <= 0 and @as(c_int, pos.vy) +% vel.vy >= 0) c.func_8006F450(@ptrCast(pos));
         }
-        const top = @as(c_int, pos.vy) + vel.vy;
+        const top = @as(c_int, pos.vy) +% vel.vy;
         next = .land;
         if (top < y) {
             next = .fall;
-        } else if (v.g.D_800F49F4().* != 0 and y - top < -0x80) {
+        } else if (v.g.D_800F49F4().* != 0 and y -% top < -0x80) {
             vel.vx = 0;
             vel.vz = 0;
             next = .fall;
@@ -210,7 +210,7 @@ fn airborne(arg0: c_int, actor: *Actor, profile: c_int, state: c_int) void {
     if (v.g.D_800F49F8().* != 0) {
         const platform = psx.at(v.g.D_800F45E0(), v.g.D_800F49F8().*).*.?;
         if (platform.unk1A != 0) {
-            pos.vy = psx.conv(i16, @as(c_int, platform.unk1E) - 0x80);
+            pos.vy = psx.conv(i16, @as(c_int, platform.unk1E) -% 0x80);
             return;
         }
     }
@@ -221,7 +221,7 @@ fn airborne(arg0: c_int, actor: *Actor, profile: c_int, state: c_int) void {
     vel.vy = psx.conv(i16, y -% pos.vy);
     word(actor, 8).* = (word(actor, 8).* & ~@as(c_uint, 0x70000)) | 0x40000;
     c.func_800AA698(arg0, @ptrCast(vel), 0);
-    var floor: c_int = @as(c_int, pos.vy) - psx.byteAt(i16, &actor.unk0.unk4C, 2).*;
+    var floor: c_int = @as(c_int, pos.vy) -% psx.byteAt(i16, &actor.unk0.unk4C, 2).*;
     floor = @divTrunc(floor, 64);
     actor.unk0.unk11 = 0;
     if (y < 3000) {
@@ -246,13 +246,13 @@ fn slide(actor: *Actor) void {
     const vel = &actor.unk0.unk34;
     var speed = vel.vx;
     if (speed != 0) {
-        const nextX = @as(c_int, pos.vx) + speed;
+        const nextX = @as(c_int, pos.vx) +% speed;
         const hit = if (speed > 0) actor.unk1814 < nextX else nextX < actor.unk1814;
         if (hit) vel.vx = 0;
     }
     speed = vel.vz;
     if (speed != 0) {
-        const nextZ = @as(c_int, pos.vz) + speed;
+        const nextZ = @as(c_int, pos.vz) +% speed;
         const hit = if (speed > 0) actor.unk1818 < nextZ else nextZ < actor.unk1818;
         if (hit) vel.vz = 0;
     }

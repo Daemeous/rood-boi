@@ -1,6 +1,10 @@
 //! zig_diff spec: func_800BD6C4 -> func_800BD6C4.func_800BD6C4 (4A0A8.c).
 //! Inputs: a script of 8 random bytes whose first byte is one of the eight
-//! opcodes the C handles (185, 186, 228, 229, 230, 231, 237, 191), with
+//! opcodes the C handles (185, 186, 228, 229, 230, 231, 237, 191), or, one
+//! time in eight, one outside the jump table's range 185..237 that it does
+//! not handle (the original falls off the end: its object returns the opcode
+//! + 0x47 there, both targets; inside the range it returns a code address, so
+//! those opcodes are not fed), with
 //! script[4] and script[5] zero a quarter of the time and edge bytes
 //! (0x80, 0xff) otherwise, so the immediate and interpolated paths both run
 //! and the signed-char casts see negative bytes. D_800F4BA4 points at an
@@ -30,6 +34,7 @@ pub const classes = [_][:0]const u8{
     "237 interpolated",
     "191 mode zero",
     "191 mode nonzero",
+    "no case",
 };
 
 /// The value vs_battle_getShort returns this iteration (set by prepare).
@@ -115,6 +120,7 @@ pub fn prepare(ctx: *zd.Ctx) Args {
     for (1..8) |i| s[i] = ctx.int(u8);
     const ops = [_]u8{ 185, 186, 228, 229, 230, 231, 237, 191 };
     s[0] = ctx.edge(u8, &ops);
+    if (ctx.chance(8)) s[0] = ctx.edge(u8, &.{ 0, 1, 100, 184, 238, 239, 255 });
     s[4] = if (ctx.chance(3)) 0 else ctx.pick(u8, &.{ 1, 0x7f, 0x80, 0xff });
     s[5] = if (ctx.chance(3)) 0 else ctx.pick(u8, &.{ 1, 0x7f, 0x80, 0xff });
 
@@ -138,6 +144,6 @@ pub fn classify(args: Args) usize {
         231 => 8,
         237 => if (b.unk25C.unk1E > 0) 9 else if (s[4] == 0) 10 else 11,
         191 => if (mode_value == 0) 12 else 13,
-        else => unreachable,
+        else => 14,
     };
 }

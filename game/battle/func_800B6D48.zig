@@ -13,9 +13,7 @@ pub fn func_800B6D48(script: [*c]u8, _: c_short) callconv(.c) c_int {
     var best: ?*v.textPlacement = null;
     var i: c_short = 0;
 
-    const getFn = @as(*const fn (c_int) callconv(.c) c_int, @ptrCast(&c.func_800BFE50));
-    const actorIndex: c_short = c.vs_battle_getShort(script + 2);
-    _ = c.func_800BB7C4(getFn(@as(c_int, actorIndex)), psx.cptr(c.SVECTOR, &origin));
+    _ = c.func_800BB7C4(c.func_800BFE50(psx.conv(u16, c.vs_battle_getShort(script + 2))), psx.cptr(c.SVECTOR, &origin));
 
     origin.vz = psx.conv(i16, ((@as(c_int, origin.vz) -% 1024) & 0xC00) >> 10);
 
@@ -60,7 +58,7 @@ pub fn func_800B6D48(script: [*c]u8, _: c_short) callconv(.c) c_int {
     const raw = c.vs_battle_getTextBox(@as(c_int, script[1])).?;
     const box: *v.vs_battle_textBox = @alignCast(@as(*align(1) v.vs_battle_textBox, @ptrCast(raw)));
 
-    // BUG in the original: texture is never initialized; its stack value is not reproducible, so 0 here.
+    // BUG in the original: texture is never initialized; both objects (32- and 64-bit) store 0 into unk0_24.
     const texture: c_int = 0;
     psx.setBits(&box.unk0, "unk0_24", psx.conv(u6, texture));
     psx.setBits(&box.unk0, "unk0_6", psx.getBits(&b.offset, "alignment"));

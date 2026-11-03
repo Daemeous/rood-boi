@@ -196,6 +196,14 @@ class ZigDiffSelectTest(unittest.TestCase):
         self.assertEqual(sel.why["func_800B07DC"], ["game/battle/actor_transform.zig"])
         self.assertRegex(sel.summary(), r"^zig_diff: 2 changed specs \(of \d+\)$")
 
+    def test_d2_port_files_and_oracle_units(self):
+        # a D2 port lives in game/battle/pc/ and its unit is the pc/src oracle
+        sel = self.select("game/battle/pc/tick_state_timers.zig")
+        self.assertEqual(sel.functions, ["func_800E4358"])
+        sel = self.select("pc/src/battle_motion.c")
+        self.assertEqual(sel.functions, ["func_800B65E8", "func_800B65F4"])
+        self.assertIsNone(sel.fallback)
+
     def test_files_no_run_reads(self):
         sel = self.select("game/battle/root.zig", "game/core/root.zig", "game/common/route_test.zig",
                           "pc/tests/zig_diff/bakeoff.toml", "pc/tests/zig_diff_coverage_test.py")

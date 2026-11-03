@@ -9,7 +9,7 @@ const c = @import("c_4A0A8");
 /// orig: func_800BDAB4 (src/BATTLE/BATTLE.PRG/4A0A8.c)
 /// Sends each flagged record of the battle camera block to its screen-effect setter.
 pub fn func_800BDAB4() callconv(.c) void {
-    // sp10 and sp20 are uninitialised in the original; zeroed here.
+    // sp10 and sp20 are uninitialised in the original: the callees copy the whole struct, but only the fields written here are read.
     var sp10: v.D_800F1A68_t = std.mem.zeroes(v.D_800F1A68_t);
     var sp20: v.P_CODE = std.mem.zeroes(v.P_CODE);
 

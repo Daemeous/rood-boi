@@ -8,7 +8,7 @@ const c = @import("c_4A0A8");
 /// orig: func_800BD6C4 (src/BATTLE/BATTLE.PRG/4A0A8.c)
 /// Runs the camera, fade, colour or screen-effect opcode at script; returns 1 while a timed effect in progress blocks it.
 pub fn func_800BD6C4(script: [*c]u8, _: c_short) callconv(.c) c_int {
-    // Zero-initialised: the original's locals are only partly written before a callee fills them.
+    // uninitialised in the original: the callees copy the whole struct, but only the fields written here are read.
     var values: v.D_800F1A68_t = .{ .unk0 = 0, .unk4 = 0, .unk8 = 0, .unkC = 0 };
     var color: v.P_CODE = .{ .r0 = 0, .g0 = 0, .b0 = 0, .code = 0 };
 
@@ -140,7 +140,12 @@ pub fn func_800BD6C4(script: [*c]u8, _: c_short) callconv(.c) c_int {
             }
             return 0;
         },
-        // No case matches: the original falls off the end, so the value it returns is unspecified; 0 here.
-        else => return 0,
+        // No case matches: the original falls off the end and returns the object's %eax. Outside the jump
+        // table's range 185..237 that is the opcode + 0x47 (both targets); inside it, the address of the
+        // default code, which is not reproducible: 0 here.
+        else => return if (script[0] >= 185 and script[0] <= 237)
+            0
+        else
+            @as(c_int, script[0]) +% 0x47,
     }
 }

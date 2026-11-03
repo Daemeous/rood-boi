@@ -28,6 +28,7 @@ fn target(k: c_int) isize {
 /// bystander) and sent with its mode; a Break Art or battle ability also loads its caster's armour or weapon model;
 /// the action's name is shown when the information setting is on, and the camera mode (phase) becomes 5.
 pub fn startCast() callconv(.c) void {
+    // uninitialised in the original: fields the paths below do not set stay 0 here.
     var object = std.mem.zeroes(v.vs_battle_objectData);
     var request: v.func_800CF0E8_t = undefined;
     var actor_position: v.func_8006EBF8_t = undefined;

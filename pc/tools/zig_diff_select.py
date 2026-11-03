@@ -12,7 +12,7 @@ and spec file, F's route in game/ownership.toml (its port file and the views
 of its unit), the port file alone (copied with game/common, nothing else of
 game/), F's original C unit, and the shared harness. So:
 
-  game/<overlay>/<file>.zig           the functions routed to that file
+  game/<overlay>/<file>.zig           the functions routed to that file (D2's: game/<overlay>/pc/<file>.zig)
   pc/tests/zig_diff/<spec>.zig        the functions whose entry names that spec
   pc/tests/zig_diff/specs.toml        the entries that differ from BASE (or are new)
   game/ownership.toml                 the functions whose route differs: zig path, overlay,
@@ -29,6 +29,9 @@ import re
 import subprocess
 import sys
 import tomllib
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import ownership  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 SPECS_DIR = "pc/tests/zig_diff"
@@ -102,6 +105,15 @@ def _routes(text):
     return out
 
 
+def _port_file(root, overlay, zig):
+    """The file a route's `zig` path names (game/battle/score.zig; D2's
+    game/battle/pc/tick_timer.zig), as the zig_diff run reads it."""
+    try:
+        return ownership.zig_source(overlay, zig, root / "game")[0].relative_to(root).as_posix()
+    except (ValueError, OSError):
+        return f"game/{overlay}/{zig.split('.')[0]}.zig"
+
+
 def _differing(old, new):
     return sorted(k for k in new if old.get(k) != new[k])
 
@@ -120,7 +132,7 @@ def select(files, old_text=None, root=ROOT):
     port_files = {}
     for function, (overlay, unit, zig, _) in routes.items():
         if zig:
-            port_files.setdefault(f"game/{overlay}/{zig.split('.')[0]}.zig", set()).add(function)
+            port_files.setdefault(_port_file(root, overlay, zig), set()).add(function)
     units = {}
     for function, (_, unit, _, _) in routes.items():
         units.setdefault(unit, set()).add(function)

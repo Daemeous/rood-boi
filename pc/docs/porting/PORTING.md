@@ -56,8 +56,9 @@ Contents:
   PC implementation is port-written C in `pc/src` (`battle_movement.c`,
   `battle_helpers.c`, `battle_motion.c`, `actor_*.c`, ...;
   `FUNCTIONS.tsv` names the file and line). That C is their oracle, and
-  porting it is the D2 pass, after battle flips (§20); until then the first
-  pass calls those functions through `c.*` like any other C.
+  porting it is the D2 pass (§20, "D2 workflow"); it can run before battle
+  flips, and until a function is ported the first pass calls it through `c.*`
+  like any other C.
 - The compiler flags that define the C semantics (`pc/tools/build_boot.py`):
   `-O2 -fwrapv -funsigned-char -fno-strict-aliasing -fno-builtin -std=gnu17
   -fgnu89-inline`, 32-bit `-m32` (i686, x87), 64-bit `-m64 -fpie` with
@@ -100,7 +101,8 @@ Contents:
 
 Owned battle code lives in `game/battle/`, in modules named by meaning
 (§16: `score.zig`, `actor_transform.zig`), each function with its `orig:`
-line; D2's `pc/src` asm ports go to `game/battle/pc/`. Routing subsystems are
+line; D2's `pc/src` asm ports go to `game/battle/pc/` (§20, "D2 workflow":
+their unit, and so their `c` and `views`, is the `pc/src` oracle file). Routing subsystems are
 one per original unit (`battle_146C`, ...: the owner switch bisects by unit),
 whatever module a function lives in. Each file imports:
 
@@ -1225,11 +1227,104 @@ For every ported function, against the `.i` and the object:
 ## 20. Prerequisites this guide assumes (not built yet)
 
 **Scope of D's first pass:** the 23 units of `src/BATTLE/BATTLE.PRG` and the
-host code compiled into them (`battle/README.md`). **D2**, after battle flips:
-INITBTL, and the `pc/src` C that implements BATTLE's PS1 assembly
-(`battle_movement.c`, `battle_helpers.c`, `battle_motion.c`, `battle_gte.c`,
-`actor_*.c`, `room_*.c`, ...), which is the oracle for those functions until
-then. The table rows for them say "D2".
+host code compiled into them (`battle/README.md`). **D2**: INITBTL, and the
+`pc/src` C that implements BATTLE's PS1 assembly (`battle_movement.c`,
+`battle_helpers.c`, `battle_motion.c`, `battle_gte.c`, `actor_*.c`,
+`room_*.c`, ...), which is the oracle for those functions. The table rows
+for them say "D2". It was planned for after battle flips; the pilot
+(`d2-pilot`) did the tooling and nine functions before the flip, and D2
+ports are routed and tested like any other.
+
+### D2 workflow
+
+A D2 function has no C in `src/`; its oracle is the port-written C in
+`pc/src` that the kind column of `FUNCTIONS.tsv` names ("PC oracle is
+`pc/src/battle_helpers.c:473`"). Rows with "calls trap (pc_unimplemented)" or
+no oracle have nothing to compare against: skip them. The only differences
+from a first-pass port:
+
+- **The unit is the oracle file.** `/// orig: func_800D826C
+  (pc/src/battle_helpers.c)`, `unit = "pc/src/battle_helpers.c"` in
+  `ownership.toml`, and `c_battle_helpers`/`views_battle_helpers` are the
+  modules to import (§2: the oracle's own declarations, not those of the
+  battle unit that calls the function). The `.s` file the function came from is
+  only where it was; `port_progress.py` counts a D2 function under its oracle
+  and reports it under "D2". Subsystem names are `d2_<file stem>`.
+- **Where it lives.** `game/battle/pc/<meaning>.zig`, one file per function
+  (a function and the oracle's `static` helper it calls may share one),
+  named by what the function does (§16). The route's `zig` path is
+  `pc.<file>.<function>` (`"pc.tick_state_timers.tickStateTimers"`): `pc` is
+  `game/battle/root.zig`'s `pub const pc = @import("pc/root.zig")`, and
+  `game/battle/pc/root.zig` has the `pub const tick_state_timers =
+  @import("tick_state_timers.zig");`. The tools resolve a path through those
+  imports (`ownership.zig_source`), so a port's file may be anywhere
+  `root.zig` reaches.
+- **The oracle is the C, so it is read as such.** The `.s` is irrelevant;
+  keep the oracle's behaviour, including what it leaves unchecked (a null
+  slot it dereferences, an unbounded index) and the order of its stores
+  (`look_request` writes a word and then a halfword over its upper half).
+  Oracles address guest records by byte offset (`state[0x12a]`); a port does
+  the same, with a comment saying what the field is when that is known. Do not
+  introduce the callers' types: the `c` and `views` modules are the oracle
+  unit's, which declares none of them (a readable-structure pass is a separate
+  change, once the field names are established). Guest pointers *stored in*
+  records are 4 bytes (`psx_load`/`psx_store`, §5); parameters and the global
+  tables the oracle declares (`unsigned char* D_800F4538[]`) are native
+  pointers.
+- **Register the unit once, then fill it in.** `ownership.toml` already has
+  one `[subsystem.d2_<stem>]` (and `.views`) per oracle file, `root.zig` its
+  `exportAll` line, `game/battle/pc/root.zig` and
+  `pc/tests/zig_diff/specs.toml` one header section per file. A session adds
+  only: its `functions` entries (`{ addr = ..., name = ..., zig =
+  "pc.<file>.<fn>" }`, address order) and the `views` globals/types its ports
+  use in its file's subsystem; its `pub const` lines under its file's header
+  in `pc/root.zig`; its spec entries under its file's header in `specs.toml`.
+  Two sessions on different oracle files then touch different hunks; two on
+  the same file touch neighbouring lines of the same list (resolve by keeping
+  both). The `unit` of a subsystem must be a source the build compiles
+  (`sources` in `build_boot.py`); `pc/src/boot_sdk.c` (8 rows) is not one, so
+  those functions wait for a change that compiles it as a unit.
+- **The spec** names the port's Zig function as everywhere
+  (`pub const Args = std.meta.ArgsTuple(@TypeOf(@import("port").tickStateTimers))`)
+  and imports `views_<stem>`/`c_<stem>` of the oracle file. `zig_diff.py F`
+  finds the unit's preprocessed C through `units.json`, which `build_boot.py`
+  writes into the build directory (unit path -> object name), compiles
+  `F__orig` from it, and stubs every other function of that file (and every
+  extern), D2 neighbours included: a call from the port to another D2 function
+  goes through its stub in the test and its trampoline in the game. A `static`
+  function the oracle calls is kept whole in the reference (as a header inline
+  is): port it as a private Zig function with its own `/// orig:` line.
+- **Gate and builds** are the first pass's: `zig_diff.py F --self-check
+  --coverage`, `build_boot.py --arch 64` and `--battle`.
+
+Pitfalls (each found by the pilot):
+- Mutations of `target = "c"` edit the *routed function's own body*; the
+  stand-in is a copy of that body only, so a mutation of an oracle `static`
+  helper's text cannot be a C mutation. Mutate the call in the wrapper (the
+  constant it passes) and mutate the port's copy of the helper (a port
+  mutation, no `target`). A mutation's `from` text is the *preprocessed*
+  source: macros of `psx_types.h` (`psx_load`) are already expanded in it.
+- An oracle that dereferences a null slot crashes in the port too: a spec
+  that gives it null models the crash with `expect = "crash"` on the
+  mutation that removes the guard, and a port that must not crash needs the
+  oracle's guard.
+- A function whose result the assembly leaves undefined declares
+  `pub const ignore_return = "<why>";`; a function the oracle ends by falling
+  into another (`func_800D820C` into `func_800D826C`'s tail) ports the
+  oracle's visible behaviour and says so in its doc comment.
+- Oracle files with file-scope `static` data (`room_render.c`'s clip and
+  depth values, `room_geometry.c`, `map_view.c`: 13 rows' worth, §6.5) have
+  no globalisation yet (`battle_statics.py` takes its list from `STATE.tsv`,
+  whose state pass has not been rerun over the asm-port objects:
+  REVIEW-NOTES "Not changed", B item 12). A D2 function that reads or writes
+  one cannot be ported until that pass has run and `build_boot.py` globalises
+  the `pc/src` unit too. Functions that touch only the game's own globals
+  (`D_800F....` imports, listed in the views manifest) and their parameters
+  do not need it.
+- The first-pass pipeline tools (`port_pipeline.py`, `bakeoff_*`,
+  `spec_bakeoff.py`) look units up by `*_<stem>.i` and port paths as
+  `file.function`; they do not know D2. Hand-port D2.
+- At most 128 subsystems (`pc_owner[]`): D2 uses 17.
 
 Things D needs that did not exist on `zig-ownership-m0`. The trial (plan
 step D.2, `battle/TRIAL.md`) built items 1-4 to the extent its three functions

@@ -10,7 +10,9 @@ carries one), game/ownership.toml's defaults and the pipeline's records.
     python3 pc/tools/port_progress.py --json          the same numbers, for a script
 
 A function counts as ported when some game/**/*.zig names it and its unit in
-an `/// orig:` line. Rows by kind (FUNCTIONS.tsv): "c" is the first pass
+an `/// orig:` line. A D2 function's unit is its oracle, the pc/src file the
+kind column names ("PC oracle is pc/src/battle_helpers.c:473"), as in
+ownership.toml (the PS1 assembly file is only where it came from). Rows by kind (FUNCTIONS.tsv): "c" is the first pass
 (battle C), "D2" the PS1-assembly functions after the flip, "pc-inc" the host
 C compiled into battle units, "generated" the effect/event wrappers;
 "SLUS boundary" rows stay C and are not counted. Builds and runs nothing.
@@ -39,6 +41,16 @@ def kind_of(kind):
     return "c"
 
 
+ORACLE = re.compile(r"PC oracle is (\S+?):\d+")
+
+
+def unit_file(path, kind):
+    """The unit an `/// orig:` line names: the row's file, except a D2 row
+    with a real oracle, whose unit is the pc/src file that is the oracle."""
+    oracle = ORACLE.search(kind)
+    return oracle.group(1) if oracle else path
+
+
 def functions(root):
     """[(name, unit file, unit, kind, difficulty)] from FUNCTIONS.tsv."""
     rows = []
@@ -49,7 +61,8 @@ def functions(root):
             r = line.rstrip("\n").split("\t")
             path = r[col["file"]].split(" ")[0]
             unit = pathlib.Path(path).stem if path.endswith(".c") else path
-            rows.append((r[col["function"]], path, unit, kind_of(r[col["kind"]]), r[col["difficulty"]]))
+            kind = r[col["kind"]]
+            rows.append((r[col["function"]], unit_file(path, kind), unit, kind_of(kind), r[col["difficulty"]]))
     return rows
 
 

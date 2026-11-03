@@ -80,6 +80,8 @@ pub fn prepare(ctx: *zd.Ctx) Args {
     if (ctx.chance(3)) flags &= ~@as(u32, 0x200000);
     psx.byteAt(u32, actor, 8).* = flags;
     psx.byteAt(u32, actor, 0x5AC).* = ctx.int(u32);
+    // The hover timer (top byte of the word at 0x5B4): edge values so `timer + y` wraps past 255 and `y * 2` is odd or even.
+    psx.byteAt(u8, actor, 0x5B7).* = ctx.pick(u8, &.{ 0, 1, 0x7E, 0x7F, 0x80, 0xFE, 0xFF });
     actor.unk0.unk11 = ctx.pick(u8, &.{ 0, 1, 2, 3, 4, 0xFF, 0x80 });
     actor.unk0.unkF = ctx.edge(u8, &.{ 0, 1, 7 });
     actor.unk181A = ctx.edge(i16, &.{ 0, 1, 2, 2, 3 });

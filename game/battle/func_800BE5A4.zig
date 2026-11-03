@@ -13,6 +13,7 @@ pub fn func_800BE5A4(arg0: c_short) callconv(.c) void {
     if (arg0 == 2) {
         c.func_800BE53C(psx.cptr(c.D_800F4BA4_t2, temp_s0));
         c.func_800BE53C(psx.cptr(c.D_800F4BA4_t2, temp_s1));
+        // two u8 durations: the sum is at most 510.
         const averaged: u8 = psx.conv(u8, (@as(c_int, temp_s0.duration) + @as(c_int, temp_s1.duration)) >> 1);
         temp_s0.duration = averaged;
         temp_s1.duration = averaged;

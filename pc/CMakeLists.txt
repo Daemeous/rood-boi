@@ -66,6 +66,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 endif()
 # Ownership table, preprocessed definitions and generated routing.
 add_test(NAME ownership COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/ownership_test.py)
+# What the port-progress report counts (D2 ports under their oracle file).
+add_test(NAME port_progress COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/port_progress_test.py)
 add_test(NAME routing_probe COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/routing_probe/run.py)
 add_executable(owner_switch_probe tests/owner_switch_probe.c src/ownership.c)
 target_compile_options(owner_switch_probe PRIVATE -Wall -Wextra -Werror -UNDEBUG)

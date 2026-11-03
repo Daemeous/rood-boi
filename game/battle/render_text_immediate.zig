@@ -9,6 +9,12 @@ const c = @import("c_5BF94");
 const OpacityOn = *const fn () callconv(.c) c_int;
 const OpacityPackets = *const fn (?*const anyopaque, ?*const anyopaque, c_int) callconv(.c) void;
 
+/// The C's `NULL + slot` on u_long elements.
+fn nullPlus(slot: c_int) ?[*]u32 {
+    const addr: usize = @as(usize, @bitCast(@as(isize, slot))) *% @sizeOf(u32);
+    return if (addr == 0) null else @ptrFromInt(addr);
+}
+
 /// orig: _pcFadeBegin (src/BATTLE/BATTLE.PRG/5BF94.c)
 /// 1 when the box's text is drawn as glyph sprites (then nothing is read
 /// back): saves the ordering table, the packet heap's position, the colour
@@ -18,11 +24,16 @@ const OpacityPackets = *const fn (?*const anyopaque, ?*const anyopaque, c_int) c
 fn fadeBegin(box: *v.vs_battle_textBox) bool {
     const on = psx.weak(OpacityOn, "pc_hw_opacity_on") orelse return false;
     if (on() == 0) return false;
-    v.g._pcFadeOt().* = @ptrCast(psx.at(v.g.D_800F51B8().*.?, @as(c_int, v.g.D_800F4E80().*) * 4));
+    // C: D_800F51B8 + D_800F4E80 * 4 (u_long elements), no dereference: a null base gives plain address arithmetic.
+    const slot: c_int = @as(c_int, v.g.D_800F4E80().*) *% 4;
+    v.g._pcFadeOt().* = if (v.g.D_800F51B8().*) |ot|
+        @ptrCast(psx.at(ot, slot))
+    else
+        nullPlus(slot);
     v.g._pcFadeStart().* = psx.get(v.g.vs_scratch().unk0);
     v.g._pcFadeColor().* = v.g.D_800F4CB8().*;
     v.g._pcFadeBrightness().* = v.g._fontBrightness().*;
-    v.g.D_800F4CB8().* = psx.conv(u8, (1 - (@as(c_int, @as(*const u8, @ptrCast(box)).*) & 1)) * 4);
+    v.g.D_800F4CB8().* = psx.conv(u8, (1 -% (@as(c_int, @as(*const u8, @ptrCast(box)).*) & 1)) *% 4);
     v.g._fontBrightness().* = box.brightness;
     return true;
 }
@@ -61,12 +72,12 @@ pub fn renderTextImmediate(arg0: ?*v.vs_battle_textBox, arg1_in: c_int) callconv
 
     const _y = y;
     var printY: c_uint = @bitCast(@as(c_int, box.yIndent) -% y);
-    const width: c_int = @as(c_int, box.charsPerLine) * 12 + 10;
-    const height: c_int = @as(c_int, box.lineCount) * 13 + 4;
+    const width: c_int = @as(c_int, box.charsPerLine) *% 12 +% 10;
+    const height: c_int = @as(c_int, box.lineCount) *% 13 +% 4;
 
-    if (x < 0 or y < 0 or x + width >= 320 or y + height >= 224) return;
+    if (x < 0 or y < 0 or x +% width >= 320 or y +% height >= 224) return;
 
-    const buf: ?[*]u16 = if (fadeBegin(box)) null else @ptrCast(@alignCast(c.vs_main_allocHeapR(@bitCast(width * height * 2))));
+    const buf: ?[*]u16 = if (fadeBegin(box)) null else @ptrCast(@alignCast(c.vs_main_allocHeapR(@bitCast(width *% height *% 2))));
 
     if ((arg1 >> 0x10) != 0) arg1 = 0x10000;
 
@@ -87,12 +98,12 @@ pub fn renderTextImmediate(arg0: ?*v.vs_battle_textBox, arg1_in: c_int) callconv
         if (currentChar < 0xEC) {
             if (currentChar < 229) {
                 if (currentChar != 143) {
-                    currentChar +%= @as(c_uint, v.g._fontTable().*) * 21 * 9;
-                    if (@as(c_uint, @bitCast(width - 12)) >= printX and @as(c_uint, @bitCast(height - 12)) >= printY) {
+                    currentChar +%= @as(c_uint, v.g._fontTable().*) *% 21 *% 9;
+                    if (@as(c_uint, @bitCast(width -% 12)) >= printX and @as(c_uint, @bitCast(height -% 12)) >= printY) {
                         if (buf) |b| {
                             c.func_800C7EBC(@ptrCast(psx.at(b, printX +% printY *% @as(c_uint, @bitCast(width)))), currentChar, width, @bitCast(arg1));
                         } else {
-                            fadeGlyph(currentChar -% @as(c_uint, v.g._fontTable().*) * 21 * 9,
+                            fadeGlyph(currentChar -% @as(c_uint, v.g._fontTable().*) *% 21 *% 9,
                                 x +% @as(c_int, @bitCast(printX)), y +% @as(c_int, @bitCast(printY)));
                         }
                     }
@@ -111,7 +122,7 @@ pub fn renderTextImmediate(arg0: ?*v.vs_battle_textBox, arg1_in: c_int) callconv
                     3 => {
                         printX = @bitCast(@as(c_int, box.xIndent) -% x);
                         if (justify != 0) {
-                            printX +%= @bitCast((@as(c_int, box.charsPerLine) * 2 -% c.vs_battle_getTextLineLength(str)) *% 3);
+                            printX +%= @bitCast((@as(c_int, box.charsPerLine) *% 2 -% c.vs_battle_getTextLineLength(str)) *% 3);
                         }
                         printY +%= 13;
                     },
@@ -141,7 +152,7 @@ pub fn renderTextImmediate(arg0: ?*v.vs_battle_textBox, arg1_in: c_int) callconv
                     } else if (opcodeParam == 4) {
                         justify ^= 1;
                         if (justify != 0) {
-                            printX = @bitCast(((@as(c_int, box.charsPerLine) * 2 -% c.vs_battle_getTextLineLength(str)) *% 3 +%
+                            printX = @bitCast(((@as(c_int, box.charsPerLine) *% 2 -% c.vs_battle_getTextLineLength(str)) *% 3 +%
                                 @as(c_int, box.xIndent)) -% x);
                         }
                     }

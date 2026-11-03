@@ -261,6 +261,23 @@ def sizes_from_native_imports(native_c, names):
     return out
 
 
+def unit_preprocessed(build_dir, unit):
+    """The unit's routed .i in the build: build_boot.py names a battle unit
+    `battle_<stem>.i` and a pc/src one (D2's oracles) by its own name
+    (battle_helpers.i); `units.json` maps the unit's path to that name."""
+    names = build_dir / "units.json"
+    if names.exists():
+        name = json.loads(names.read_text()).get(unit)
+        if name is None:
+            raise Failure(f"{unit}: not a unit of {build_dir} (units.json)")
+        units = [build_dir / f"{name}.i"] if (build_dir / f"{name}.i").exists() else []
+    else:
+        units = list(build_dir.glob(f"*_{pathlib.PurePosixPath(unit).stem}.i"))
+    if len(units) != 1:
+        raise Failure(f"{build_dir}: expected the preprocessed {unit} (build_boot.py --arch 64), found {len(units)}")
+    return units[0]
+
+
 class Build:
     def __init__(self, function, entry, build_dir, work, table, port_source=None, route=None, views=None, cmod=None):
         """port_source: a candidate file to compile in place of the port
@@ -272,16 +289,14 @@ class Build:
         self.sub, zig_path = route or find_route(table, function)
         if not zig_path:
             raise Failure(f"{function}: no `zig` path in ownership.toml")
-        *mods, self.zig_fn = zig_path.split(".")
-        if len(mods) != 1:
-            raise Failure(f"{function}: zig path {zig_path}: expected file.function")
-        self.port_rel = pathlib.Path("game") / self.sub.overlay / (mods[0] + ".zig")
-        self.port_source = pathlib.Path(port_source) if port_source else ROOT / self.port_rel
+        try:
+            source, self.zig_fn = ownership.zig_source(self.sub.overlay, zig_path, candidate=True)
+        except (ValueError, OSError) as e:
+            raise Failure(f"{function}: {e}")
+        self.port_rel = source.relative_to(ROOT)
+        self.port_source = pathlib.Path(port_source) if port_source else source
         self.stem = pathlib.PurePosixPath(self.sub.unit).stem
-        units = list(build_dir.glob(f"*_{self.stem}.i"))
-        if len(units) != 1:
-            raise Failure(f"{build_dir}: expected one *_{self.stem}.i (build_boot.py --arch 64), found {len(units)}")
-        self.unit_i = units[0]
+        self.unit_i = unit_preprocessed(build_dir, self.sub.unit)
         self.unit_o = self.unit_i.with_suffix(".o")
         self.views = pathlib.Path(views) if views else build_dir / "zig" / f"views_{self.stem}.zig"
         self.c = pathlib.Path(cmod) if cmod else build_dir / "zig" / f"c_{self.stem}.zig"
@@ -296,7 +311,8 @@ class Build:
         if src.exists():
             shutil.rmtree(src)
         shutil.copytree(ROOT / "game/common", src / "common")
-        port = src / self.sub.overlay / self.port_rel.name
+        # Where the checkout has it under game/<overlay>/ (D2's ports are in pc/).
+        port = src / self.port_rel.relative_to("game")
         port.parent.mkdir(parents=True)
         shutil.copy(self.port_source, port)
         if mutation:

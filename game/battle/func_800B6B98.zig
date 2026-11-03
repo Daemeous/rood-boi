@@ -18,25 +18,25 @@ pub fn func_800B6B98(origin: ?*v.SVECTOR, script: [*c]u8, result: ?*v.textPlacem
     r.x = x;
     const y: i16 = psx.conv(i16, @as(c_int, o.vy) +% psx.getBits(&r.offset, "y"));
     r.y = y;
-    var height: i16 = psx.conv(i16, @as(c_int, script[7]) * 13 + 4);
-    var width: i16 = psx.conv(i16, @as(c_int, script[6]) * 12 + 8);
+    var height: i16 = psx.conv(i16, @as(c_int, script[7]) *% 13 +% 4);
+    var width: i16 = psx.conv(i16, @as(c_int, script[6]) *% 12 +% 8);
 
     if (x < 4) {
         r.x = 4;
-        dx = psx.conv(i16, 4 - @as(c_int, x));
-    } else if (@as(c_int, x) + width > 320) {
-        width = psx.conv(i16, 320 - @as(c_int, width));
+        dx = psx.conv(i16, 4 -% @as(c_int, x));
+    } else if (@as(c_int, x) +% width > 320) {
+        width = psx.conv(i16, 320 -% @as(c_int, width));
         r.x = width;
-        dx = psx.conv(i16, @as(c_int, width) - x);
+        dx = psx.conv(i16, @as(c_int, width) -% x);
     }
 
     if (y < 4) {
         r.y = 4;
-        dy = psx.conv(i16, 4 - @as(c_int, y));
-    } else if (@as(c_int, height) + y > 216) {
-        height = psx.conv(i16, 216 - @as(c_int, height));
+        dy = psx.conv(i16, 4 -% @as(c_int, y));
+    } else if (@as(c_int, height) +% y > 216) {
+        height = psx.conv(i16, 216 -% @as(c_int, height));
         r.y = height;
-        dy = psx.conv(i16, @as(c_int, height) - y);
+        dy = psx.conv(i16, @as(c_int, height) -% y);
     }
 
     if (dx == 0 and dy == 0) return 1;

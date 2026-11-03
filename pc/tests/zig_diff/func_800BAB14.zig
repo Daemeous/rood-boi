@@ -3,8 +3,9 @@
 //! widens it to a short, so it is always 0..255: no sign bit is ever set, and
 //! the zero tests see nonzero values only). The selector is 0xFF (one in
 //! eight), a value with bit 3 set (the memcpy path, any low three bits), or 0..7
-//! (the else path). Indices 8..255 with bit 3 clear are left out: the C would
-//! read D_800F4BC0 past its 8 entries. The eight table entries are set by
+//! (the else path), one time in four of those with bit 3 clear and a higher
+//! bit set (16..87: the unsized D_800F4BC0 read past its 8 entries, as the C
+//! does; the table entries 0..95 are set). The table entries are set by
 //! prepare, null one time in three, otherwise pointing at arena blocks; the
 //! D_800F4C48 pointer is an arena block. The callees' return values and their
 //! writes are never read back by the C, so their default recording stubs are
@@ -23,13 +24,15 @@ pub fn prepare(ctx: *zd.Ctx) Args {
         0xFF
     else if (ctx.chance(2))
         ctx.int(u8) | 8
+    else if (ctx.chance(4))
+        ctx.range(u8, 1, 5) << 4 | ctx.range(u8, 0, 7)
     else
         ctx.range(u8, 0, 7);
     arg[1] = sel;
 
     const tbl = v.g.D_800F4BC0();
     var i: usize = 0;
-    while (i < 8) : (i += 1) {
+    while (i < 96) : (i += 1) {
         const blk: ?*u8 = @ptrCast(ctx.allocBytes(16, 16));
         tbl[i] = if (ctx.chance(3)) null else blk;
     }

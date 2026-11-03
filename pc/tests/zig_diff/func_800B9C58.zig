@@ -1,8 +1,9 @@
 //! zig_diff spec: func_800B9C58 -> func_800B9C58.func_800B9C58 (4A0A8.c).
 //! Inputs: a 16-byte arena block as arg0 with a random header. The high
 //! nibble of byte 1 picks the switch case (0, 1, 2, or one of the 13 values
-//! with no case). Byte 4 is a shift count in 0..31 (a larger count is
-//! undefined behaviour in the C), bytes 5-7 are signed-char arguments with
+//! with no case). Byte 4 is a shift count over the whole byte (a count of 32
+//! or more is undefined in the C; both objects shift by the count mod 32,
+//! `shl %cl`, and the port does the same), bytes 5-7 are signed-char arguments with
 //! both sign bits and the edges, and arg1 is any short. The case-0 iterator
 //! stub keeps its own step count in the iterator (unk0, starting at 0). For
 //! the first 40 steps it returns 1 at random (so the loop runs zero, one or
@@ -43,7 +44,7 @@ pub fn prepare(ctx: *zd.Ctx) Args {
     const p: [*c]u8 = ctx.allocBytes(16, 16);
     const hi = ctx.edge(u8, &.{ 0, 1, 2, 3, 7, 15 });
     p[1] = (hi << 4) | (ctx.int(u8) & 0xF);
-    p[4] = ctx.range(u8, 0, 31);
+    p[4] = ctx.edge(u8, &.{ 0, 1, 4, 5, 31, 32, 33, 63, 64, 255 });
     p[5] = ctx.pick(u8, &.{ 0, 1, 0x7F, 0x80, 0xFF });
     p[6] = ctx.pick(u8, &.{ 0, 1, 0x7F, 0x80, 0xFF });
     p[7] = ctx.pick(u8, &.{ 0, 1, 0x7F, 0x80, 0xFF });

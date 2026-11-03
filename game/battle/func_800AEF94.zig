@@ -29,13 +29,13 @@ fn fadeColour(a: *Actor) void {
     if (fade.unk0 == 1 and fade.unk3 != 0) {
         var step: c_int = @divTrunc(v.g.vs_gametime_tickspeed().*, 2);
         if (@as(c_int, fade.unk3) < step) step = fade.unk3;
-        var delta: c_int = @as(c_int, a.unk17E8.unk2) - @as(c_int, fade.unk2);
+        var delta: c_int = @as(c_int, a.unk17E8.unk2) -% @as(c_int, fade.unk2);
         if (delta != 0) {
             delta *%= step;
             delta = @divTrunc(delta, @as(c_int, fade.unk3));
             fade.unk2 = psx.conv(u8, @as(c_int, fade.unk2) +% delta);
         }
-        delta = @as(c_int, a.unk17E8.unk1) - @as(c_int, fade.unk1);
+        delta = @as(c_int, a.unk17E8.unk1) -% @as(c_int, fade.unk1);
         if (delta != 0) {
             delta *%= step;
             delta = @divTrunc(delta, @as(c_int, fade.unk3));
@@ -66,9 +66,9 @@ fn loadTexture(entries: *[17]?*Actor, i: c_int, a: *Actor) void {
 /// The actor's position moved by its unk6F4 offset (`sign` 1) or back (-1).
 fn shift(a: *Actor, sign: c_int) void {
     const o = &a.unk6F4;
-    a.unk0.position.vx = psx.conv(i16, @as(c_int, @as(u16, @bitCast(a.unk0.position.vx))) +% sign * @as(c_int, o.unk0));
-    a.unk0.position.vy = psx.conv(i16, @as(c_int, @as(u16, @bitCast(a.unk0.position.vy))) +% sign * @as(c_int, o.unk1));
-    a.unk0.position.vz = psx.conv(i16, @as(c_int, @as(u16, @bitCast(a.unk0.position.vz))) +% sign * @as(c_int, o.unk2));
+    a.unk0.position.vx = psx.conv(i16, @as(c_int, @as(u16, @bitCast(a.unk0.position.vx))) +% sign *% @as(c_int, o.unk0));
+    a.unk0.position.vy = psx.conv(i16, @as(c_int, @as(u16, @bitCast(a.unk0.position.vy))) +% sign *% @as(c_int, o.unk1));
+    a.unk0.position.vz = psx.conv(i16, @as(c_int, @as(u16, @bitCast(a.unk0.position.vz))) +% sign *% @as(c_int, o.unk2));
 }
 
 /// orig: func_800AEF94 (src/BATTLE/BATTLE.PRG/44F14.c)
@@ -98,7 +98,7 @@ pub fn func_800AEF94(camera: [*c]v.MATRIX) callconv(.c) void {
                     if (v.g.vs_gametime_tickspeed().* == 4) actor.unk5B2 *%= 2;
                     c.func_800AF6E8(@ptrCast(actor));
                     actor.unk5B2 = 1;
-                    actor.unk5B2 = psx.conv(u8, ((word(actor, 0x5B0).* >> 3) & 1) + 1);
+                    actor.unk5B2 = psx.conv(u8, ((word(actor, 0x5B0).* >> 3) & 1) +% 1);
                 } else {
                     c.func_800AEAE8(@ptrCast(actor));
                 }
@@ -132,11 +132,11 @@ pub fn func_800AEF94(camera: [*c]v.MATRIX) callconv(.c) void {
                                 loadTexture(entries, i, attached);
                             }
                         }
-                        depth().* +%= @as(c_int, actor.unk6F4.unk3) * 4;
+                        depth().* +%= @as(c_int, actor.unk6F4.unk3) *% 4;
                         shift(actor, 1);
                         c.func_800B002C(@ptrCast(actor), @as(c_int, actor.unk17FD));
                         c.func_800B28A8(@ptrCast(actor), @ptrCast(camera), actor.unk17FD);
-                        depth().* -%= @as(c_int, actor.unk6F4.unk3) * 4;
+                        depth().* -%= @as(c_int, actor.unk6F4.unk3) *% 4;
                         shift(actor, -1);
                     }
                 }

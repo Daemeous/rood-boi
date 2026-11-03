@@ -1178,6 +1178,9 @@ for source, name in sources:
         state_sections(obj)
     objects.append(obj)
     game_objects.append(obj)
+# Unit path -> the name of its objects here (battle_146C.o, battle_helpers.o): the
+# build's own names, for the tools that look a unit up (zig_diff.py).
+(out / "units.json").write_text(json.dumps(dict(sources), indent=1, sort_keys=True) + "\n")
 for name in ["runtime", "window", "controller", "gamepad"]:
     obj = out / (name + ".o")
     if compile_object(["gcc", *flags, *sdl_flags, "-c", f"pc/src/boot_{name}.c", "-o", str(obj)], f"pc/src/boot_{name}.c") \

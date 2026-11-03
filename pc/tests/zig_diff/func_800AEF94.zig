@@ -88,7 +88,7 @@ pub fn prepare(ctx: *zd.Ctx) Args {
     }
     v.g.D_800F4B19().* = ctx.range(u8, 0, 16);
     v.g.D_800F4B18().* = ctx.edge(u8, &.{ 0, 0, 1 });
-    v.g.vs_gametime_tickspeed().* = ctx.pick(i32, &.{ 2, 4, 4, 1, 8 });
+    v.g.vs_gametime_tickspeed().* = ctx.pick(i32, &.{ 2, 4, 4, 1, 8, 0, -1, -2, -3, 3 });
     v.g.func_800AEF94__reported().* = if (ctx.chance(2)) 0 else ctx.pick(c_int, &.{ 1, -1 });
     return .{@ptrCast(ctx.alloc(v.MATRIX))};
 }

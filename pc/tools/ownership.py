@@ -17,7 +17,7 @@ import tomllib
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 OWNERS = ("original", "owned")
-MAX_SUBSYSTEMS = 64  # pc_owner[] in ownership.c
+MAX_SUBSYSTEMS = 128  # pc_owner[] in ownership.c
 
 
 @dataclasses.dataclass
@@ -96,6 +96,31 @@ def orig_comment_problems(table, game_root=ROOT / "game"):
                 out.append(f"{s.name}: {name} -> {s.zig[name]}: expected one `/// orig: {name} ({s.unit})` "
                            f"doc line on `pub fn {fn}` under game/{s.overlay}/, found {len(hits)}")
     return out
+
+
+_IMPORT = re.compile(r'^pub const (\w+) = @import\("([^"]+\.zig)"\);', re.M)
+
+
+def zig_source(overlay, zig_path, game_root=ROOT / "game", candidate=False):
+    """(file, function) a route's `zig` path names: each module on the path
+    is a `pub const NAME = @import("file.zig");` of the file before it,
+    starting at game/<overlay>/root.zig ("score.updateEnemyKills" ->
+    game/battle/score.zig; D2's "pc.func_800D826C.func_800D826C" ->
+    game/battle/pc/func_800D826C.zig). The import path is relative to the
+    importing file, so a subdirectory's root.zig can nest further. With
+    `candidate` (zig_diff: a port being written and not imported yet, or one a
+    stand-in or reference run never compiles), a
+    last module the file does not import is `<module>.zig` beside it."""
+    *modules, function = zig_path.split(".")
+    file = pathlib.Path(game_root) / overlay / "root.zig"
+    for i, module in enumerate(modules):
+        imports = dict(_IMPORT.findall(file.read_text()))
+        if module not in imports:
+            if candidate and i == len(modules) - 1:
+                return file.parent / f"{module}.zig", function
+            raise ValueError(f"{zig_path}: {file.relative_to(game_root)} has no `pub const {module} = @import(\"...\")`")
+        file = file.parent / imports[module]
+    return file, function
 
 
 def load(path=ROOT / "game/ownership.toml"):

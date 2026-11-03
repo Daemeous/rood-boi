@@ -1658,6 +1658,8 @@ pub const script_load_sound_file = @import("script_load_sound_file.zig");
 pub const script_set_flag_if_button = @import("script_set_flag_if_button.zig");
 pub const script_set_flag_imm_context = @import("script_set_flag_imm_context.zig");
 
+pub const pc = @import("pc/root.zig");
+
 comptime {
     common.route.exportAll(@backingInt(ownership.Subsystem.battle_146C), ownership.routesOf(.battle_146C), @This());
     common.route.exportAll(@backingInt(ownership.Subsystem.battle_44F14), ownership.routesOf(.battle_44F14), @This());
@@ -1690,4 +1692,21 @@ comptime {
     common.route.exportAll(@backingInt(ownership.Subsystem.battle_30DB0_port), ownership.routesOf(.battle_30DB0_port), @This());
     common.route.exportAll(@backingInt(ownership.Subsystem.battle_5BF94_port), ownership.routesOf(.battle_5BF94_port), @This());
     common.route.exportAll(@backingInt(ownership.Subsystem.battle_4A0A8_port), ownership.routesOf(.battle_4A0A8_port), @This());
+    common.route.exportAll(@backingInt(ownership.Subsystem.d2_actor_blend), ownership.routesOf(.d2_actor_blend), @This());
+    common.route.exportAll(@backingInt(ownership.Subsystem.d2_actor_cleanup), ownership.routesOf(.d2_actor_cleanup), @This());
+    common.route.exportAll(@backingInt(ownership.Subsystem.d2_actor_packets), ownership.routesOf(.d2_actor_packets), @This());
+    common.route.exportAll(@backingInt(ownership.Subsystem.d2_actor_shadow), ownership.routesOf(.d2_actor_shadow), @This());
+    common.route.exportAll(@backingInt(ownership.Subsystem.d2_actor_update), ownership.routesOf(.d2_actor_update), @This());
+    common.route.exportAll(@backingInt(ownership.Subsystem.d2_actor_vertices), ownership.routesOf(.d2_actor_vertices), @This());
+    common.route.exportAll(@backingInt(ownership.Subsystem.d2_battle_gte), ownership.routesOf(.d2_battle_gte), @This());
+    common.route.exportAll(@backingInt(ownership.Subsystem.d2_battle_helpers), ownership.routesOf(.d2_battle_helpers), @This());
+    common.route.exportAll(@backingInt(ownership.Subsystem.d2_battle_motion), ownership.routesOf(.d2_battle_motion), @This());
+    common.route.exportAll(@backingInt(ownership.Subsystem.d2_battle_movement), ownership.routesOf(.d2_battle_movement), @This());
+    common.route.exportAll(@backingInt(ownership.Subsystem.d2_effect_particles), ownership.routesOf(.d2_effect_particles), @This());
+    common.route.exportAll(@backingInt(ownership.Subsystem.d2_map_view), ownership.routesOf(.d2_map_view), @This());
+    common.route.exportAll(@backingInt(ownership.Subsystem.d2_navigation), ownership.routesOf(.d2_navigation), @This());
+    common.route.exportAll(@backingInt(ownership.Subsystem.d2_room_geometry), ownership.routesOf(.d2_room_geometry), @This());
+    common.route.exportAll(@backingInt(ownership.Subsystem.d2_room_lighting), ownership.routesOf(.d2_room_lighting), @This());
+    common.route.exportAll(@backingInt(ownership.Subsystem.d2_room_render), ownership.routesOf(.d2_room_render), @This());
+    common.route.exportAll(@backingInt(ownership.Subsystem.d2_weapon_packets), ownership.routesOf(.d2_weapon_packets), @This());
 }

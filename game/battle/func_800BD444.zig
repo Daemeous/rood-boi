@@ -7,7 +7,8 @@ const c = @import("c_4A0A8");
 /// orig: func_800BD444 (src/BATTLE/BATTLE.PRG/4A0A8.c)
 /// Sets an angle track from a script command: an immediate angle, or a turn the short way to a new one.
 pub fn func_800BD444(arg0: [*c]u8, _: c_short) callconv(.c) c_int {
-    // The C has no default arm. GCC's object takes the 0xE3 arm for every other opcode byte.
+    // The C has no default arm and leaves var_s0 uninitialised for any other opcode (the object uses a stale
+    // register); not reachable through the opcode table. The 0xE3 arm here.
     const track: *v.func_800BD57C_t = if (arg0[0] == 0xE2)
         &v.g.D_800F4BA4().*.?.unk168
     else

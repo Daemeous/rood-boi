@@ -4,7 +4,8 @@ const psx = common.psx;
 const v = @import("views_4A0A8");
 const c = @import("c_4A0A8");
 
-/// Length of the vector in 4.12 fixed point, as the C's `_vectorMagnitude` (a static of 4A0A8.c) computes it.
+/// orig: _vectorMagnitude (src/BATTLE/BATTLE.PRG/4A0A8.c)
+/// Length of the vector in 4.12 fixed point.
 fn vectorMagnitude(arg0: *v.VECTOR) c_int {
     // _copyVector: copyVector's three components into a local copy.
     var sp10: v.VECTOR = undefined;

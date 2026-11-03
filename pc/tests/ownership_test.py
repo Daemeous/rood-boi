@@ -239,5 +239,47 @@ with tempfile.TemporaryDirectory() as d:
     source.write_text("pub fn countKill() callconv(.c) void {}\n")
     check(len(ownership.orig_comment_problems(named, d)) == 1, "a Zig function without `orig:` is reported")
 
+# A route's `zig` path resolves through the `pub const NAME = @import("file.zig")` lines from the
+# overlay's root.zig, in subdirectories too (D2's ports are in game/<overlay>/pc/, PORTING.md §20).
+with tempfile.TemporaryDirectory() as d:
+    d = pathlib.Path(d)
+    (d / "battle/pc").mkdir(parents=True)
+    (d / "battle/root.zig").write_text('const x = 1;\npub const score = @import("score.zig");\npub const pc = @import("pc/root.zig");\n')
+    (d / "battle/pc/root.zig").write_text('// pc/src/a.c\npub const tick = @import("tick_timer.zig");\n')
+    check(ownership.zig_source("battle", "score.countKill", d) == (d / "battle/score.zig", "countKill"),
+          "a one-module path names game/<overlay>/<module>.zig")
+    check(ownership.zig_source("battle", "pc.tick.tickTimer", d) == (d / "battle/pc/tick_timer.zig", "tickTimer"),
+          "a nested path follows each root.zig's import, relative to its file")
+    check(raises(lambda: ownership.zig_source("battle", "pc.missing.f", d), "missing"),
+          "a module root.zig does not import is reported")
+    check(raises(lambda: ownership.zig_source("battle", "other.f", d), "other"), "an unknown first module is reported")
+    check(ownership.zig_source("battle", "pc.missing.f", d, candidate=True) == (d / "battle/pc/missing.zig", "f"),
+          "a candidate port not imported yet is <module>.zig beside the file that would import it")
+    check(ownership.zig_source("battle", "fresh.f", d, candidate=True) == (d / "battle/fresh.zig", "f"),
+          "a candidate's one-module path is game/<overlay>/<module>.zig, as before D2")
+
+# The real table: every route's Zig function is where its path says, every subsystem fits pc_owner[].
+table_now = ownership.load()
+check(len(table_now.subsystems) <= ownership.MAX_SUBSYSTEMS, "the real table fits pc_owner[]")
+check("pc_owner[%d]" % ownership.MAX_SUBSYSTEMS in (ROOT / "pc/src/ownership.c").read_text(),
+      "ownership.c's pc_owner[] holds MAX_SUBSYSTEMS subsystems")
+unresolved = []
+for s in table_now.subsystems:
+    for _, name in s.functions:
+        if name in s.zig:
+            try:
+                file, _ = ownership.zig_source(s.overlay, s.zig[name])
+                if not file.exists():
+                    unresolved.append(name)
+            except ValueError:
+                unresolved.append(name)
+check(not unresolved, f"every real route resolves to a Zig file: {unresolved[:5]}")
+check(all((ROOT / s.unit).exists() for s in table_now.subsystems), "every subsystem's unit is a file of the checkout")
+check(ownership.orig_comment_problems(table_now) == [], "every real route has its `orig:` doc line")
+many = "".join(f'[subsystem.s{i}]\noverlay="battle"\nunit="src/A.c"\n' for i in range(ownership.MAX_SUBSYSTEMS + 1))
+with tempfile.TemporaryDirectory() as d:
+    (pathlib.Path(d) / "o.toml").write_text(many)
+    check(raises(lambda: ownership.load(pathlib.Path(d) / "o.toml"), "pc_owner"), "more subsystems than pc_owner[] holds is refused")
+
 print("FAILED" if failures else "all ownership checks passed")
 sys.exit(1 if failures else 0)

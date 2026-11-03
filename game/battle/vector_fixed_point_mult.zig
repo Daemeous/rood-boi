@@ -3,7 +3,8 @@ const common = @import("common");
 const psx = common.psx;
 const v = @import("views_4A0A8");
 
-/// _fixedPointMult (PC branch): a * b >> 12 in 64 bits, truncated to int.
+/// orig: _fixedPointMult (src/BATTLE/BATTLE.PRG/4A0A8.c)
+/// PC branch: a * b >> 12 in 64 bits, truncated to int.
 fn fixedPointMult(a: c_int, b: c_int) c_int {
     // Two i32 operands cannot overflow i64; *% keeps the wrap rule anyway.
     const wide = (@as(i64, a) *% @as(i64, b)) >> 12;

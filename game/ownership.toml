@@ -2048,3 +2048,223 @@ types = ["D_800EB9B4_t", "D_800EB9BC_t", "D_800F4B30_t", "_mpdRoomDoorSection_t"
 globals = ["D_800E9B34", "D_800E9B4C", "D_800E9B58", "D_800E9BF0", "D_800F4B70", "D_800F4C4E", "D_800E9BF4", "D_800E9BF8", "D_800EB9B4", "D_800EB9BC", "D_800F19C8", "D_800F4B28", "D_800F4B30", "D_800F4B88", "D_800F4BB0", "D_800F4BB4", "D_800F4BB6", "D_800F4BB9", "D_800F4BE2", "D_800F4C08", "D_800F4C10", "D_800F4C20", "D_800F4C2C", "D_800F4C38", "D_800F4C4C", "D_800F4C58", "D_800F4C64", "D_800F4C68", "D_800F4C69", "D_800F4C6A", "_textBoxSelectionPending", "vs_battle_textBoxStatuses", "vs_main_buttonsPressed", "vs_main_stateFlags", "D_800E9C1C", "D_800E9C24", "D_800E9C28", "D_800E9C2C", "D_800EB588", "D_800F4B8B", "D_800F4BA0", "D_800F4BA8", "D_800F4BBC", "D_800F4BC0", "D_800F4BE0", "D_800F4BE4", "D_800F4C22", "D_800F4C54", "_evtFile", "vs_gametime_tickspeed", "D_8005DFD6", "D_8005DFDA", "D_800E9BEC", "D_800E9C08", "D_800E9C0C", "D_800F4B20", "D_800F4BA4", "D_800F4BB8", "D_800F4BF8", "D_800F4C24", "D_800F4C34", "D_800F4C48", "_mpdClearedSection", "_mpdRoomDoorSection", "vs_main_buttonsPreviousState"]
 # 4A0A8.c calls it with no declaration in scope (an implicit `int f()`, its result unused); 146C.c's definition, as the object calls it.
 declarations = ["void func_8007CEC0(void);"]
+
+# D2 (PORTING.md §20): the PC C in pc/src that implements BATTLE's PS1
+# assembly is the oracle, so a D2 subsystem's unit is the pc/src file, and its
+# ports are in game/battle/pc/. One subsystem per oracle file, all created
+# here so a session adds only its own function entries (and the views its
+# ports need) in its own unit's section, which keeps parallel branches from
+# touching each other's lines. A unit's `functions` list may stay empty.
+
+[subsystem.d2_actor_blend]
+overlay = "battle"
+unit = "pc/src/actor_blend.c"
+default = "original"
+roots = []
+functions = [
+]
+
+[subsystem.d2_actor_blend.views]
+types = []
+globals = []
+
+[subsystem.d2_actor_cleanup]
+overlay = "battle"
+unit = "pc/src/actor_cleanup.c"
+default = "original"
+roots = []
+functions = [
+]
+
+[subsystem.d2_actor_cleanup.views]
+types = []
+globals = []
+
+[subsystem.d2_actor_packets]
+overlay = "battle"
+unit = "pc/src/actor_packets.c"
+default = "original"
+roots = []
+functions = [
+]
+
+[subsystem.d2_actor_packets.views]
+types = []
+globals = []
+
+[subsystem.d2_actor_shadow]
+overlay = "battle"
+unit = "pc/src/actor_shadow.c"
+default = "original"
+roots = []
+functions = [
+]
+
+[subsystem.d2_actor_shadow.views]
+types = []
+globals = []
+
+[subsystem.d2_actor_update]
+overlay = "battle"
+unit = "pc/src/actor_update.c"
+default = "original"
+roots = []
+functions = [
+]
+
+[subsystem.d2_actor_update.views]
+types = []
+globals = []
+
+[subsystem.d2_actor_vertices]
+overlay = "battle"
+unit = "pc/src/actor_vertices.c"
+default = "original"
+roots = []
+functions = [
+]
+
+[subsystem.d2_actor_vertices.views]
+types = []
+globals = []
+
+[subsystem.d2_battle_gte]
+overlay = "battle"
+unit = "pc/src/battle_gte.c"
+default = "original"
+roots = []
+functions = [
+]
+
+[subsystem.d2_battle_gte.views]
+types = []
+globals = []
+
+[subsystem.d2_battle_helpers]
+overlay = "battle"
+unit = "pc/src/battle_helpers.c"
+default = "original"
+roots = []
+functions = [
+    { addr = 0x800D820C, name = "func_800D820C", zig = "pc.send_actor_value.sendActorValue" },
+    { addr = 0x800D826C, name = "func_800D826C", zig = "pc.unk8e_at_least_20.unk8eAtLeast20" },
+    { addr = 0x800D8280, name = "func_800D8280", zig = "pc.tick_action_timer.tickActionTimer" },
+    { addr = 0x800E4358, name = "func_800E4358", zig = "pc.tick_state_timers.tickStateTimers" },
+    { addr = 0x800E4624, name = "func_800E4624", zig = "pc.squared_distance.squaredDistance" },
+    { addr = 0x800E6828, name = "func_800E6828", zig = "pc.merge_actor_flags.mergeActorFlags" },
+    { addr = 0x800E685C, name = "func_800E685C", zig = "pc.set_actor_stat_pair.setActorStatPair" },
+]
+
+[subsystem.d2_battle_helpers.views]
+types = []
+globals = ["D_800F5878"]
+
+[subsystem.d2_battle_motion]
+overlay = "battle"
+unit = "pc/src/battle_motion.c"
+default = "original"
+roots = []
+functions = [
+    { addr = 0x800B65E8, name = "func_800B65E8", zig = "pc.look_request.lookAtPosition" },
+    { addr = 0x800B65F4, name = "func_800B65F4", zig = "pc.look_request.lookAtPositionFast" },
+]
+
+[subsystem.d2_battle_motion.views]
+types = []
+globals = ["D_800F4538"]
+
+[subsystem.d2_battle_movement]
+overlay = "battle"
+unit = "pc/src/battle_movement.c"
+default = "original"
+roots = []
+functions = [
+]
+
+[subsystem.d2_battle_movement.views]
+types = []
+globals = []
+
+[subsystem.d2_effect_particles]
+overlay = "battle"
+unit = "pc/src/effect_particles.c"
+default = "original"
+roots = []
+functions = [
+]
+
+[subsystem.d2_effect_particles.views]
+types = []
+globals = []
+
+[subsystem.d2_map_view]
+overlay = "battle"
+unit = "pc/src/map_view.c"
+default = "original"
+roots = []
+functions = [
+]
+
+[subsystem.d2_map_view.views]
+types = []
+globals = []
+
+[subsystem.d2_navigation]
+overlay = "battle"
+unit = "pc/src/navigation.c"
+default = "original"
+roots = []
+functions = [
+]
+
+[subsystem.d2_navigation.views]
+types = []
+globals = []
+
+[subsystem.d2_room_geometry]
+overlay = "battle"
+unit = "pc/src/room_geometry.c"
+default = "original"
+roots = []
+functions = [
+]
+
+[subsystem.d2_room_geometry.views]
+types = []
+globals = []
+
+[subsystem.d2_room_lighting]
+overlay = "battle"
+unit = "pc/src/room_lighting.c"
+default = "original"
+roots = []
+functions = [
+]
+
+[subsystem.d2_room_lighting.views]
+types = []
+globals = []
+
+[subsystem.d2_room_render]
+overlay = "battle"
+unit = "pc/src/room_render.c"
+default = "original"
+roots = []
+functions = [
+]
+
+[subsystem.d2_room_render.views]
+types = []
+globals = []
+
+[subsystem.d2_weapon_packets]
+overlay = "battle"
+unit = "pc/src/weapon_packets.c"
+default = "original"
+roots = []
+functions = [
+]
+
+[subsystem.d2_weapon_packets.views]
+types = []
+globals = []
