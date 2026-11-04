@@ -2074,11 +2074,17 @@ unit = "pc/src/actor_cleanup.c"
 default = "original"
 roots = []
 functions = [
+    { addr = 0x800D821C, name = "func_800D821C", zig = "pc.reset_actor_values.resetActorValues" },
+    { addr = 0x800E4C28, name = "func_800E4C28", zig = "pc.clear_grid_cell_flag.clearGridCellFlag" },
+    { addr = 0x800E678C, name = "func_800E678C", zig = "pc.release_actor_tile.releaseActorTile" },
+    { addr = 0x800E6F1C, name = "func_800E6F1C", zig = "pc.unload_all_actors.unloadAllActors" },
+    { addr = 0x800E7454, name = "func_800E7454", zig = "pc.unload_actor.unloadActor" },
+    { addr = 0x800E75EC, name = "func_800E75EC", zig = "pc.room_height_limit.roomHeightLimit" },
 ]
 
 [subsystem.d2_actor_cleanup.views]
 types = []
-globals = []
+globals = ["D_800F5878", "D_800F58B8", "D_800F58BC", "D_800F58C0", "D_800F58D0", "D_800F590C", "D_800F5920", "vs_battle_actors"]
 
 [subsystem.d2_actor_packets]
 overlay = "battle"
@@ -2086,6 +2092,8 @@ unit = "pc/src/actor_packets.c"
 default = "original"
 roots = []
 functions = [
+    { addr = 0x800B4594, name = "func_800B4594", zig = "pc.build_actor_packets.buildActorPackets" },
+    { addr = 0x800B5C30, name = "func_800B5C30", zig = "pc.build_blended_actor_packets.buildBlendedActorPackets" },
 ]
 
 [subsystem.d2_actor_packets.views]
@@ -2098,6 +2106,7 @@ unit = "pc/src/actor_shadow.c"
 default = "original"
 roots = []
 functions = [
+    { addr = 0x800B4B14, name = "func_800B4B14", zig = "pc.shadow_actor.shadowActor" },
 ]
 
 [subsystem.d2_actor_shadow.views]
@@ -2110,11 +2119,16 @@ unit = "pc/src/actor_update.c"
 default = "original"
 roots = []
 functions = [
+    { addr = 0x800E5154, name = "func_800E5154", zig = "pc.route_target_state.routeTargetState" },
+    { addr = 0x800E5240, name = "func_800E5240", zig = "pc.free_actor_route.freeActorRoute" },
+    { addr = 0x800E527C, name = "func_800E527C", zig = "pc.start_actor_route.startActorRoute" },
+    # func_800E5308 (pc.update_actor_navigation.updateActorNavigation) is not routed yet: its zig_diff spec crashes the C run (pc/tests/zig_diff/pending/func_800E5308.toml)
+    { addr = 0x800E65DC, name = "func_800E65DC", zig = "pc.fill_actor_scratch.fillActorScratch" },
 ]
 
 [subsystem.d2_actor_update.views]
 types = []
-globals = []
+globals = ["D_800F4538", "D_800F5878", "D_800F58B8", "vs_battle_actors"]
 
 [subsystem.d2_actor_vertices]
 overlay = "battle"
@@ -2122,11 +2136,12 @@ unit = "pc/src/actor_vertices.c"
 default = "original"
 roots = []
 functions = [
+    { addr = 0x800B3A68, name = "func_800B3A68", zig = "pc.project_object_vertices.projectObjectVertices" },
 ]
 
 [subsystem.d2_actor_vertices.views]
 types = []
-globals = []
+globals = ["D_800F2458"]
 
 [subsystem.d2_battle_gte]
 overlay = "battle"
@@ -2134,11 +2149,12 @@ unit = "pc/src/battle_gte.c"
 default = "original"
 roots = []
 functions = [
+    { addr = 0x800E437C, name = "func_800E437C", zig = "pc.facing_cosine.facingCosine" },
 ]
 
 [subsystem.d2_battle_gte.views]
 types = []
-globals = []
+globals = ["_trig_table"]
 
 [subsystem.d2_battle_helpers]
 overlay = "battle"
@@ -2146,18 +2162,43 @@ unit = "pc/src/battle_helpers.c"
 default = "original"
 roots = []
 functions = [
+    { addr = 0x80099514, name = "func_80099514", zig = "pc.room_height_tile.heightTileValue" },
+    { addr = 0x800C0214, name = "vs_battle_setSpriteDefault", zig = "pc.sprite_packet.setSpriteDefault" },
+    { addr = 0x800C0230, name = "vs_battle_setSprite", zig = "pc.sprite_packet.setSprite" },
     { addr = 0x800D820C, name = "func_800D820C", zig = "pc.send_actor_value.sendActorValue" },
     { addr = 0x800D826C, name = "func_800D826C", zig = "pc.unk8e_at_least_20.unk8eAtLeast20" },
     { addr = 0x800D8280, name = "func_800D8280", zig = "pc.tick_action_timer.tickActionTimer" },
+    { addr = 0x800D9DD8, name = "func_800D9DD8", zig = "pc.choose_movement_mode.chooseMovementMode" },
+    { addr = 0x800DC2E0, name = "func_800DC2E0", zig = "pc.copy_candidate.copyCandidate" },
+    { addr = 0x800DC344, name = "func_800DC344", zig = "pc.candidate_record.addScoredCandidate" },
+    { addr = 0x800DC3CC, name = "func_800DC3CC", zig = "pc.candidate_sort.sortActorCandidates" },
+    { addr = 0x800DC3E8, name = "func_800DC3E8", zig = "pc.copy_actor_stats.copyActorStats" },
+    { addr = 0x800DC424, name = "func_800DC424", zig = "pc.actor_list.snapshotActorStats" },
+    { addr = 0x800DC484, name = "func_800DC484", zig = "pc.actor_target_flags.actionTargetBit15" },
+    { addr = 0x800DC48C, name = "func_800DC48C", zig = "pc.actor_target_flags.actionTargetBit14" },
+    { addr = 0x800DC4F0, name = "func_800DC4F0", zig = "pc.candidate_record.recordCandidate" },
+    { addr = 0x800DC574, name = "func_800DC574", zig = "pc.candidate_sort.shuffleActorCandidates" },
+    { addr = 0x800DC784, name = "func_800DC784", zig = "pc.mark_target_hostile.markTargetHostile" },
+    { addr = 0x800DC810, name = "func_800DC810", zig = "pc.actor_list.evaluateActors" },
+    { addr = 0x800E4288, name = "func_800E4288", zig = "pc.zero_fill.zeroFill" },
     { addr = 0x800E4358, name = "func_800E4358", zig = "pc.tick_state_timers.tickStateTimers" },
+    { addr = 0x800E4478, name = "func_800E4478", zig = "pc.navigation_floor.belowFloor" },
+    { addr = 0x800E44E8, name = "func_800E44E8", zig = "pc.navigation_floor.pathClear" },
     { addr = 0x800E4624, name = "func_800E4624", zig = "pc.squared_distance.squaredDistance" },
+    { addr = 0x800E4CF4, name = "func_800E4CF4", zig = "pc.candidate_record.canTargetActor" },
+    { addr = 0x800E4DF8, name = "func_800E4DF8", zig = "pc.actor_conditions.slotUsable" },
+    { addr = 0x800E4F14, name = "func_800E4F14", zig = "pc.actor_conditions.setConditionBytes" },
+    { addr = 0x800E511C, name = "func_800E511C", zig = "pc.ai_driver.runAiDriver" },
+    { addr = 0x800E6694, name = "func_800E6694", zig = "pc.actor_disposition.dispositionWord" },
     { addr = 0x800E6828, name = "func_800E6828", zig = "pc.merge_actor_flags.mergeActorFlags" },
     { addr = 0x800E685C, name = "func_800E685C", zig = "pc.set_actor_stat_pair.setActorStatPair" },
+    { addr = 0x800E72D0, name = "func_800E72D0", zig = "pc.actor_list.applyActorOptions" },
+    { addr = 0x800E7370, name = "func_800E7370", zig = "pc.actor_list.propagateRelations" },
 ]
 
 [subsystem.d2_battle_helpers.views]
 types = []
-globals = ["D_800F5878"]
+globals = ["D_80069C0C", "D_800F5878", "D_800F58B8", "D_800F58D4", "D_800F58F0", "D_800F58F4", "D_800F58F8", "D_800F5904", "D_800F590C", "vs_battle_actors", "vs_battle_roomData", "vs_main_actions"]
 
 [subsystem.d2_battle_motion]
 overlay = "battle"
@@ -2165,8 +2206,16 @@ unit = "pc/src/battle_motion.c"
 default = "original"
 roots = []
 functions = [
+    { addr = 0x800B63AC, name = "func_800B63AC", zig = "pc.motion_start.startMove" },
+    { addr = 0x800B6404, name = "func_800B6404", zig = "pc.motion_start.restartMove" },
+    { addr = 0x800B64A8, name = "func_800B64A8", zig = "pc.motion_request.setMotionRequestParams" },
+    { addr = 0x800B6500, name = "func_800B6500", zig = "pc.motion_request.setMotionRequestPosition" },
+    { addr = 0x800B6530, name = "func_800B6530", zig = "pc.motion_request.setMotionRequestAnimatedTurn" },
+    { addr = 0x800B653C, name = "func_800B653C", zig = "pc.motion_request.setMotionRequestAnimated" },
+    { addr = 0x800B6580, name = "func_800B6580", zig = "pc.turn_request.requestTurn" },
     { addr = 0x800B65E8, name = "func_800B65E8", zig = "pc.look_request.lookAtPosition" },
     { addr = 0x800B65F4, name = "func_800B65F4", zig = "pc.look_request.lookAtPositionFast" },
+    { addr = 0x800B668C, name = "func_800B668C", zig = "pc.turn_request.advanceMotion" },
 ]
 
 [subsystem.d2_battle_motion.views]
@@ -2179,11 +2228,81 @@ unit = "pc/src/battle_movement.c"
 default = "original"
 roots = []
 functions = [
+    { addr = 0x800D82A8, name = "func_800D82A8", zig = "pc.leave_encounter_by_id.leaveEncounterById" },
+    { addr = 0x800D82CC, name = "func_800D82CC", zig = "pc.leave_encounter.leaveEncounter" },
+    { addr = 0x800D836C, name = "func_800D836C", zig = "pc.join_encounter.joinEncounter" },
+    { addr = 0x800D954C, name = "func_800D954C", zig = "pc.tile_enterable.tileEnterable" },
+    { addr = 0x800D96C8, name = "func_800D96C8", zig = "pc.step_allowed.stepAllowed" },
+    { addr = 0x800D98E8, name = "func_800D98E8", zig = "pc.blocking_actor.blockingActor" },
+    { addr = 0x800DB370, name = "func_800DB370", zig = "pc.approach_actor.approachActor" },
+    { addr = 0x800DB4AC, name = "func_800DB4AC", zig = "pc.enter_movement_mode.enterMovementMode" },
+    { addr = 0x800DB5B0, name = "func_800DB5B0", zig = "pc.wander_own_range.wanderOwnRange" },
+    { addr = 0x800DB5B8, name = "func_800DB5B8", zig = "pc.wander_around.wanderAround" },
+    { addr = 0x800DB5DC, name = "func_800DB5DC", zig = "pc.start_walk_to_tile.startWalkToTile" },
+    { addr = 0x800DB5FC, name = "func_800DB5FC", zig = "pc.start_patrol.startPatrol" },
+    { addr = 0x800DB61C, name = "func_800DB61C", zig = "pc.flee_from_hostiles.fleeFromHostiles" },
+    { addr = 0x800DB74C, name = "func_800DB74C", zig = "pc.aim_at_actor.aimAtActor" },
+    { addr = 0x800DB7B4, name = "func_800DB7B4", zig = "pc.finish_stop_request.finishStopRequest" },
+    { addr = 0x800DB820, name = "func_800DB820", zig = "pc.decide_movement.decideMovement" },
+    { addr = 0x800DB8AC, name = "func_800DB8AC", zig = "pc.can_engage_target.canEngageTarget" },
+    { addr = 0x800DB93C, name = "func_800DB93C", zig = "pc.resolve_flagged_cell.resolveFlaggedCell" },
+    { addr = 0x800DBB2C, name = "func_800DBB2C", zig = "pc.find_actor_by_relation.findActorByRelation" },
+    { addr = 0x800DBC60, name = "func_800DBC60", zig = "pc.target_needs_engagement.targetNeedsEngagement" },
+    { addr = 0x800DBCB4, name = "func_800DBCB4", zig = "pc.candidate_allowed.candidateAllowed" },
+    { addr = 0x800DBCEC, name = "func_800DBCEC", zig = "pc.no_hostile_near_target.noHostileNearTarget" },
+    { addr = 0x800DBD80, name = "func_800DBD80", zig = "pc.candidate_startable.candidateStartable" },
+    { addr = 0x800DC19C, name = "func_800DC19C", zig = "pc.leave_engaged.leaveEngaged" },
+    { addr = 0x800DC30C, name = "func_800DC30C", zig = "pc.step_clamped.stepClamped" },
+    { addr = 0x800DEEFC, name = "func_800DEEFC", zig = "pc.issue_command.issueCommand" },
+    { addr = 0x800E3BC8, name = "func_800E3BC8", zig = "pc.record_step_tile.recordStepTile" },
+    { addr = 0x800E3CDC, name = "func_800E3CDC", zig = "pc.reset_step_plan.resetStepPlan" },
+    { addr = 0x800E3D5C, name = "func_800E3D5C", zig = "pc.axis_passability.axisPassability" },
+    { addr = 0x800E3DDC, name = "func_800E3DDC", zig = "pc.start_step_plan.startStepPlan" },
+    { addr = 0x800E4180, name = "func_800E4180", zig = "pc.cry_request.requestCry" },
+    { addr = 0x800E42D4, name = "func_800E42D4", zig = "pc.ground_height_at_position.groundHeightAtPosition" },
+    { addr = 0x800E42E0, name = "func_800E42E0", zig = "pc.ground_height_of_tile.groundHeightOfTile" },
+    { addr = 0x800E42EC, name = "func_800E42EC", zig = "pc.ground_height.groundHeight" },
+    { addr = 0x800E4308, name = "func_800E4308", zig = "pc.floor_height_of_tile.floorHeightOfTile" },
+    { addr = 0x800E4318, name = "func_800E4318", zig = "pc.floor_height_at_position.floorHeightAtPosition" },
+    { addr = 0x800E4320, name = "func_800E4320", zig = "pc.floor_height.floorHeight" },
+    { addr = 0x800E45D4, name = "func_800E45D4", zig = "pc.scratch_random.scratchRandom" },
+    { addr = 0x800E45F4, name = "func_800E45F4", zig = "pc.tile_distance_squared.tileDistanceSquared" },
+    { addr = 0x800E4690, name = "func_800E4690", zig = "pc.step_blocked.stepBlocked" },
+    { addr = 0x800E4764, name = "func_800E4764", zig = "pc.reaction_pick.pickReaction" },
+    { addr = 0x800E47E4, name = "func_800E47E4", zig = "pc.behind_facing.isBehindFacing" },
+    { addr = 0x800E48A8, name = "func_800E48A8", zig = "pc.command_byte_request.requestCommandByte" },
+    { addr = 0x800E48F8, name = "func_800E48F8", zig = "pc.approach_point_if_approaching.refreshApproachPointIfApproaching" },
+    { addr = 0x800E4904, name = "func_800E4904", zig = "pc.approach_point.refreshApproachPoint" },
+    { addr = 0x800E49D8, name = "func_800E49D8", zig = "pc.climb_target.climbTarget" },
+    { addr = 0x800E4B10, name = "func_800E4B10", zig = "pc.reaction_command_11.reactionCommand11" },
+    { addr = 0x800E4B18, name = "func_800E4B18", zig = "pc.reaction_command_12.reactionCommand12" },
+    { addr = 0x800E4B2C, name = "func_800E4B2C", zig = "pc.steer_to_tile.steerToTile" },
+    { addr = 0x800E4B70, name = "func_800E4B70", zig = "pc.free_movement.freeMovement" },
+    { addr = 0x800E4BB8, name = "func_800E4BB8", zig = "pc.movement_flags.rebuildMovementFlags" },
+    { addr = 0x800E4BD8, name = "func_800E4BD8", zig = "pc.room_flag.clearRoomFlag" },
+    { addr = 0x800E4BE0, name = "func_800E4BE0", zig = "pc.room_flag.setRoomFlag" },
+    { addr = 0x800E4C1C, name = "func_800E4C1C", zig = "pc.mark_cell_occupied.markCellOccupied" },
+    { addr = 0x800E4C64, name = "func_800E4C64", zig = "pc.alert_actor.alertActor" },
+    { addr = 0x800E4C8C, name = "func_800E4C8C", zig = "pc.remember_target.rememberTarget" },
+    { addr = 0x800E4FB0, name = "func_800E4FB0", zig = "pc.beyond_reach.beyondReach" },
+    { addr = 0x800E4FE0, name = "func_800E4FE0", zig = "pc.aim_at_point.aimAtPoint" },
+    { addr = 0x800E50A0, name = "func_800E50A0", zig = "pc.movement_dispatch.dispatchMovement" },
+    { addr = 0x800E6700, name = "func_800E6700", zig = "pc.release_if_idle.releaseReservationIfIdle" },
+    { addr = 0x800E6764, name = "func_800E6764", zig = "pc.hold_actor.holdActor" },
+    { addr = 0x800E6898, name = "func_800E6898", zig = "pc.tile_occupancy.addTileOccupancy" },
+    { addr = 0x800E68A0, name = "func_800E68A0", zig = "pc.tile_occupancy.removeTileOccupancy" },
+    { addr = 0x800E68EC, name = "func_800E68EC", zig = "pc.mark_cell_blocked.markCellBlocked" },
+    { addr = 0x800E6A6C, name = "func_800E6A6C", zig = "pc.lowest_floor.lowestFloorAlong" },
+    { addr = 0x800E6B24, name = "func_800E6B24", zig = "pc.clear_actor_hold.clearActorHold" },
+    { addr = 0x800E6C34, name = "func_800E6C34", zig = "pc.trace_attack.traceAttack" },
+    { addr = 0x800E6EB0, name = "func_800E6EB0", zig = "pc.release_room_flag.releaseActorRoomFlag" },
+    { addr = 0x800E7608, name = "func_800E7608", zig = "pc.clear_actor_targets.clearActorTargets" },
+    { addr = 0x800E7660, name = "func_800E7660", zig = "pc.alloc_detour_record.allocDetourRecord" },
 ]
 
 [subsystem.d2_battle_movement.views]
 types = []
-globals = []
+globals = ["D_800F1758", "D_800F4538", "D_800F45E0", "D_800F5878", "D_800F58B8", "D_800F58BC", "D_800F58D0", "D_800F58D8", "D_800F58E0", "D_800F5920", "vs_battle_actors"]
 
 [subsystem.d2_effect_particles]
 overlay = "battle"
@@ -2215,11 +2334,15 @@ unit = "pc/src/navigation.c"
 default = "original"
 roots = []
 functions = [
+    { addr = 0x800DC638, name = "func_800DC638", zig = "pc.exit_links.enableExitLinks" },
+    { addr = 0x800E6B4C, name = "func_800E6B4C", zig = "pc.temporary_heap_pass.runWithTemporaryHeap" },
+    { addr = 0x800E6F9C, name = "func_800E6F9C", zig = "pc.navigation_grid.buildNavigationGrid" },
+    { addr = 0x800E71DC, name = "func_800E71DC", zig = "pc.tile_height.tileHeight" },
 ]
 
 [subsystem.d2_navigation.views]
 types = []
-globals = []
+globals = ["D_800F58B8", "D_800F58BC", "D_800F58C0", "D_800F58C8", "D_800F58CC", "D_800F58D0", "D_800F58D8", "D_800F5908", "D_800F5910"]
 
 [subsystem.d2_room_geometry]
 overlay = "battle"
@@ -2239,11 +2362,13 @@ unit = "pc/src/room_lighting.c"
 default = "original"
 roots = []
 functions = [
+    { addr = 0x80098B38, name = "func_80098B38", zig = "pc.room_light_at.roomLightAt" },
+    { addr = 0x80098C3C, name = "func_80098C3C", zig = "pc.room_light_triangle.roomLightTriangle" },
 ]
 
 [subsystem.d2_room_lighting.views]
 types = []
-globals = []
+globals = ["vs_battle_roomData"]
 
 [subsystem.d2_room_render]
 overlay = "battle"
@@ -2263,6 +2388,7 @@ unit = "pc/src/weapon_packets.c"
 default = "original"
 roots = []
 functions = [
+    { addr = 0x800B3CF0, name = "func_800B3CF0", zig = "pc.build_weapon_packets.buildWeaponPackets" },
 ]
 
 [subsystem.d2_weapon_packets.views]

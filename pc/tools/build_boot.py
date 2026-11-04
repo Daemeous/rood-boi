@@ -2515,6 +2515,19 @@ if arch64:
     raise SystemExit(0)  # the probes below are 32-bit host programs
 # Exercise the same geometry objects linked into the boot executable.
 probe = out / "gte_probe.i"
+probe_objects = [
+    str(out / (n + ".o"))
+    for n in ["sdk", "gte", "libgte", "inline"]
+    + (["room_geometry", "room_render", "actor_vertices", "battle_gte"] if battle else [])
+]
+
+
+def orig_aliases(objects):
+    """A routed function's C body is F__orig (ownership.py): a probe tests the C, so F names it."""
+    names = run(["nm", "--defined-only", *objects], capture_output=True, text=True).stdout.split()
+    return [f"-Wl,--defsym={n[: -len('__orig')]}={n}" for n in sorted({n for n in names if n.endswith("__orig")})]
+
+
 probe.write_bytes(
     run(
         [
@@ -2542,11 +2555,8 @@ run(
         "-no-pie",
         "-Wl,--gc-sections",
         str(probe),
-        *[
-            str(out / (n + ".o"))
-            for n in ["sdk", "gte", "libgte", "inline"]
-            + (["room_geometry", "room_render", "actor_vertices", "battle_gte"] if battle else [])
-        ],
+        *probe_objects,
+        *orig_aliases(probe_objects),
         "-o",
         str(out / "gte_probe"),
     ]
@@ -2629,6 +2639,7 @@ if battle:
                 str(out / (n + ".o"))
                 for n in ["effect_particles", "gte", "libgte", "inline"]
             ],
+            *orig_aliases([str(out / "effect_particles.o")]),
             "-o",
             str(out / "effect_particles_probe"),
         ]
@@ -2662,6 +2673,7 @@ if battle:
                     str(out / (n + ".o"))
                     for n in [name, "sdk", "gte", "libgte", "inline"]
                 ],
+                *orig_aliases([str(out / (name + ".o"))]),
                 "-o",
                 str(out / (name + "_probe")),
             ]
