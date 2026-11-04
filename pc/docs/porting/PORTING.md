@@ -596,6 +596,10 @@ overlay restart still covers it and the C and the port use one storage:
 |---|---|---|---|---|
 | file static `_pcFadeOt` of `5BF94.c` | `_pcFadeOt` | `battle_5BF94___pcFadeOt` | `_pcFadeOt` | `g._pcFadeOt()` |
 | `static int reported;` in `func_800AE47C` | `reported.2` | `battle_44F14__func_800AE47C__reported` | `func_800AE47C::reported` | `g.func_800AE47C__reported()` |
+| file static `clip_left` of `pc/src/room_render.c` | `clip_left` | `room_render__clip_left` | `clip_left` | `g.clip_left()` |
+
+The pc/src units of the D2 subsystems are not taken from `STATE.tsv` alone:
+their objects are globalised whole (all file-scope static data), see §20.
 
 The port lists the static in its unit's `views` globals as `STATE.tsv` names
 it and reaches it through the accessor, like any global; the views link it to
@@ -998,6 +1002,10 @@ profile. A feature hook that touches game state (the charging skip's
 only after its own tick-mode check: owned code with the feature on equals the
 original with its hook (the M0 plan's Task 28 pattern).
 
+`battle/FLIP.md` has the inventory of every hook with its class and fate, the
+settings that make each feature inert (the differential runner's `inert`
+profile, `pc/tests/diff/corpus.py`) and the ordered checklist for the flip.
+
 ## 13. Calling still-C code; the owner switch
 
 - Call any C function through `c.<name>`. If that function is routed, the
@@ -1011,11 +1019,22 @@ original with its hook (the M0 plan's Task 28 pattern).
   Zig function in the same file. It is then checked only through its owned
   callers (shadow mode cannot call it alone).
 - Functions in a `pc/src/*.inc` compiled into a unit (charge skip, scene
-  submit, actor commands, room shadows, room callbacks) are routable only once
-  `ownership.py` renames definitions in the included text too (it works on the
-  `.i`, so it can; check it). The generated `event_callbacks.inc` /
-  `effect_callbacks.inc` wrappers are `static`: not routable, ported with
-  their callers.
+  submit, actor commands, room shadows, room callbacks) and the generated
+  `event_callbacks.inc` / `effect_callbacks.inc` wrappers are routable.
+  `ownership.py` renames on the unit's `.i`, where the `.inc` text already
+  is, and it finds a definition's file from the `.i`'s linemarkers: a
+  `static` definition that comes from an `.inc` is made global (`static`
+  dropped from the definition, from its prelude declaration and from earlier
+  prototypes, so the trampoline's `F` is the external symbol and the unit's
+  calls and `&F` uses reach it); a `static` in a `.c` is still refused, and
+  so is a `static inline`. These host functions have no address in the
+  reference ELFs: route one with `{ name = "pc_cb_80092540", host = true,
+  zig = "..." }` (no `addr`; `Table.problems` skips the address check, the
+  build still requires the four symbols `F`, `F__orig`, `F__owned`,
+  `F__shadow`). Their unit is the including `.c` (`2842C.c` for
+  `room_callbacks.inc`, `146C.c` for the other four, `4A0A8.c` /
+  `5BF94.c` for the generated ones). A wrapper is a thin cast-and-call:
+  port it with its callee's signature, or leave it and route the callee.
 - Routing relies on every call to `F` inside its unit staying a call: the
   rename makes them external. The build must check, after routing, that the
   routed unit's object has no call to `F__orig` from inside it and that no
@@ -1282,8 +1301,12 @@ from a first-pass port:
   Two sessions on different oracle files then touch different hunks; two on
   the same file touch neighbouring lines of the same list (resolve by keeping
   both). The `unit` of a subsystem must be a source the build compiles
-  (`sources` in `build_boot.py`); `pc/src/boot_sdk.c` (8 rows) is not one, so
-  those functions wait for a change that compiles it as a unit.
+  (`sources` in `build_boot.py`). `pc/src/boot_sdk.c` (8 rows, `d2_boot_sdk`) is
+  one: it is in `sources` as `sdk` (and so in `units.json`) in every build. Its
+  subsystem is `overlay = "battle"` like the others, so the build routes it only
+  when it has BATTLE.PRG (`Table.for_build`: unit compiled *and* overlay built):
+  the plain boot build compiles `boot_sdk.c` without a battle Zig object and
+  without battle function addresses, and ignores the subsystem.
 - **The spec** names the port's Zig function as everywhere
   (`pub const Args = std.meta.ArgsTuple(@TypeOf(@import("port").tickStateTimers))`)
   and imports `views_<stem>`/`c_<stem>` of the oracle file. `zig_diff.py F`
@@ -1313,18 +1336,27 @@ Pitfalls (each found by the pilot):
   into another (`func_800D820C` into `func_800D826C`'s tail) ports the
   oracle's visible behaviour and says so in its doc comment.
 - Oracle files with file-scope `static` data (`room_render.c`'s clip and
-  depth values, `room_geometry.c`, `map_view.c`: 13 rows' worth, §6.5) have
-  no globalisation yet (`battle_statics.py` takes its list from `STATE.tsv`,
-  whose state pass has not been rerun over the asm-port objects:
-  REVIEW-NOTES "Not changed", B item 12). A D2 function that reads or writes
-  one cannot be ported until that pass has run and `build_boot.py` globalises
-  the `pc/src` unit too. Functions that touch only the game's own globals
-  (`D_800F....` imports, listed in the views manifest) and their parameters
-  do not need it.
+  depth values, `room_geometry.c`, `map_view.c`: §6.5) are globalised from
+  their objects: for a pc/src unit with a subsystem, `build_boot.py` runs
+  `battle_statics.globalise_unit` on `<unit>.o` (and the COFF twin), which
+  makes every file-scope static data symbol global as `<unit>__<name>`
+  (`room_render__clip_left`), the ones STATE.tsv lists and the ones it does
+  not (STATE.tsv comes from what BATTLE's C references, so it never saw
+  `map_view.c`'s own span table). Function-local statics (`name.N`), string
+  literals and static functions are not touched; a function-local static of a
+  pc/src unit still needs a STATE.tsv row (none exists). The views name them
+  as the listed ones (`globals = ["clip_left"]`, accessor `clip_left()`), and
+  `zig_diff.py` gives the reference object the same names. A D2 function that
+  reads or writes one lists it in its subsystem's `views.globals`; the build
+  refuses a view name the unit's object has no static for. After a unit's
+  statics change, `python3 pc/tools/battle_statics.py --unit build/<unit>.o`
+  prints what the build will globalise and what STATE.tsv lacks. Functions that
+  touch only the game's own globals (`D_800F....` imports, listed in the views
+  manifest) and their parameters never needed this.
 - The first-pass pipeline tools (`port_pipeline.py`, `bakeoff_*`,
   `spec_bakeoff.py`) look units up by `*_<stem>.i` and port paths as
   `file.function`; they do not know D2. Hand-port D2.
-- At most 128 subsystems (`pc_owner[]`): D2 uses 17.
+- At most 128 subsystems (`pc_owner[]`): D2 uses 18.
 
 Things D needs that did not exist on `zig-ownership-m0`. The trial (plan
 step D.2, `battle/TRIAL.md`) built items 1-4 to the extent its three functions

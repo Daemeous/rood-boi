@@ -369,7 +369,13 @@ class Build:
         run(["gcc", *flags, *gcc_permissive(), "-c", ref_c, "-o", ref_o], cwd=ref_c.parent)
         # The unit's listed statics under the names the build gives them, so the
         # port reaches the C's own storage (only those the kept bodies use exist).
-        battle_statics.globalise(ref_o, self.unit_i.stem, battle_statics.listed().get(self.unit_i.stem, []),
+        entries = battle_statics.listed().get(self.unit_i.stem, [])
+        if self.sub.unit.startswith("pc/src/"):
+            # A pc/src unit's build globalises every file-scope static of its
+            # object (battle_statics.globalise_unit): the built unit_o names them.
+            entries = entries + [(None, n) for n in battle_statics.file_statics(self.unit_o, self.unit_i.stem)
+                                 if (None, n) not in entries]
+        battle_statics.globalise(ref_o, self.unit_i.stem, entries,
                                  lambda args, o: run(["objcopy", *args, o]), required=False,
                                  work=ref_o.with_suffix(""))
         present = run(["objdump", "-h", ref_o])

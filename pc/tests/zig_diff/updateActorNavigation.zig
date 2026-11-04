@@ -13,12 +13,23 @@
 //! one planned distance (0, 1023, 1024, 5000 or negative) for the whole run;
 //! the other callees' stubs record their arguments. Beyond that: a list of 18
 //! or 19 nodes (the cycle guard's pc_unimplemented, whose stub returns), a node
-//! with an id of 17 to 19 (the table guard; the scratchpad's state words, the
+//! with an id of 19 (the table guard; the scratchpad's state words, the
 //! model table (room in specs.toml) and the models are filled for 20 ids), a
 //! tile outside the 32 x 32 grid (the grid block is then 8416 halfwords), and,
 //! on the last node when it reaches its clear, link bits 0 and 1 of byte 3 set
 //! (the `actor[3] &= 0xfc` strips them; kept, they point outside the host's
 //! memory: a crash, which the mask mutations expect).
+//!
+//! The scratchpad refresh: the harness stubs `func_800E65DC` (a recording
+//! no-op), but if the C reference ever runs the real `pc_actor_scratch` the
+//! scratchpad's state table (words 0x37C..0x3BC) is rebuilt from
+//! D_800F5878[0..16], words 0x3BC (id 16), 0x3C0 (id 17) and 0x3C4 (id 18)
+//! are overwritten from D_800F58D0, D_800F58B8 and D_800F58CC, and word 0x3DC
+//! is read through D_800F58BC + 4 (a random D_800F58BC: a wild read). So this
+//! spec makes both worlds agree: D_800F5878 holds the same entries as the
+//! scratchpad table, D_800F58BC is 0 (the C then reads PS1 address 4), and the
+//! nodes only use ids whose scratchpad word `pc_actor_scratch` leaves alone or
+//! rebuilds from the table: 0 to 15 and, for the table guard, 19 (word 0x3C8).
 const std = @import("std");
 const zd = @import("zdiff");
 const v = @import("views_actor_update");
@@ -71,12 +82,16 @@ pub fn prepare(ctx: *zd.Ctx) Args {
 
     // Per id: the model, and (mostly) a base block holding the state pointer.
     const models = v.g.D_800F4538();
+    const table = v.g.D_800F5878();
+    v.g.D_800F58BC().* = 0;
     const wide = ctx.chance(8);
     const limit: u32 = if (wide) 255 else 31;
     for (0..20) |id| {
         const model = ctx.allocBytes(0x80, 16);
         for (model[0..0x80]) |*byte| byte.* = ctx.int(u8);
-        put(model, 0x5c, (ctx.range(u32, 0, limit) << 16) | (ctx.int(u32) & 0xFF00FF00) | ctx.range(u32, 0, limit));
+        // The tile: row and column random, or the grid's last cell (1023) and the first past it (1024).
+        const cell_bits = if (ctx.chance(6)) ctx.edge(u32, &.{ (31 << 16) | 31, 32 << 16 }) else (ctx.range(u32, 0, limit) << 16) | ctx.range(u32, 0, limit);
+        put(model, 0x5c, cell_bits | (ctx.int(u32) & 0xFF00FF00));
         models[id] = @ptrCast(model);
         const roll = ctx.range(u8, 0, 5);
         if (roll == 0) {
@@ -90,7 +105,7 @@ pub fn prepare(ctx: *zd.Ctx) Args {
                 const state = ctx.allocBytes(0x300, 16);
                 for (state[0..0x300]) |*byte| byte.* = ctx.int(u8);
                 // The AI-state id: the C hands it to func_800E5240, whose table (D_800F5878,
-                // 17 slots, unset here) it indexes; an id of 17 or more reads past the table.
+                // 17 slots, set above) it indexes; an id of 17 or more reads past the table.
                 state[0x88] = ctx.range(u8, 0, 16);
                 state[0x125] = ctx.edge(u8, &.{ 0, 0, 1, 0xFF });
                 state[0x19b] = ctx.edge(u8, &.{ 0, 0, 1, 0xFF });
@@ -103,23 +118,47 @@ pub fn prepare(ctx: *zd.Ctx) Args {
             }
             scratch[0x37c / 4 + id] = guest(base);
         }
+        if (id < 17) table[id] = if (scratch[0x37c / 4 + id] == 0) null else @ptrFromInt(scratch[0x37c / 4 + id]);
     }
 
     // The actor list.
     var next: u32 = 0;
+    var last: [*]u8 = undefined;
     const count = if (ctx.chance(25)) ctx.range(usize, 18, 19) else ctx.range(usize, 0, 3);
     for (0..count) |index| {
         const node = ctx.allocBytes(0x40, 16);
         for (node[0..0x40]) |*byte| byte.* = ctx.int(u8);
-        const id = if (ctx.chance(12)) ctx.range(u32, 17, 19) else ctx.range(u32, 0, 16);
+        const id: u32 = if (ctx.chance(12)) ctx.range(u32, 17, 19) else ctx.range(u32, 0, 16);
         put(node, 4, id);
         node[8] = if (ctx.chance(4)) ctx.edge(u8, &.{ 0x40, 0x80, 0xC0 }) else ctx.edge(u8, &.{ 0, 0x3F, 0x01 });
-        // The last node's link: zero, or (when the node reaches `actor[3] &= 0xfc`)
-        // the bits that statement clears.
-        var link = next;
-        if (index == 0 and node[8] & 0xC0 == 0 and reachesClear(id)) link = ctx.pick(u32, &.{ 0, 0x01000000, 0x02000000, 0x03000000 });
-        put(node, 0, link);
+        put(node, 0, next);
+        if (index == 0) last = node;
         next = guest(node);
+    }
+    // The last node's link: zero, or (when the node reaches `actor[3] &= 0xfc`)
+    // the bits that statement clears. Only when no earlier node can have
+    // taken its state away first: a node of the same id shares the state
+    // block, and should func_800E5240 run for real (it is a stub in the
+    // harness) a node whose AI-state id (byte 0x88) is the last node's id
+    // would zero the base block's state word.
+    if (count != 0 and last[8] & 0xC0 == 0) {
+        const id = std.mem.readInt(u32, last[4..8], .little);
+        var clear = reachesClear(id);
+        var link = next;
+        while (clear and link != guest(last)) {
+            const node: [*]const u8 = @ptrFromInt(link);
+            if (node[8] & 0xC0 == 0) {
+                const other = std.mem.readInt(u32, node[4..8], .little);
+                if (other == id) clear = false;
+                if (reachesClear(other)) {
+                    const base: [*]const u8 = @ptrFromInt(scratch[0x37c / 4 + other]);
+                    const state: [*]const u8 = @ptrFromInt(std.mem.readInt(u32, base[0x18c..][0..4], .little));
+                    if (state[0x88] == id) clear = false;
+                }
+            }
+            link = std.mem.readInt(u32, node[0..4], .little);
+        }
+        if (clear) put(last, 0, ctx.edge(u32, &.{ 0, 0x01000000, 0x02000000, 0x03000000 }));
     }
     v.g.vs_battle_actors()[0] = if (next == 0) null else @ptrFromInt(next);
     return .{};

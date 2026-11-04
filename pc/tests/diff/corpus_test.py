@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """CPU-only protocol fixtures. These tests do not establish game coverage."""
+import contextlib
+import io
 import pathlib
 import os
+import re
 import tempfile
 import unittest
 from types import SimpleNamespace
@@ -276,6 +279,85 @@ class Tests(unittest.TestCase):
         with self.assertRaises(TimeoutError):
             scenarios.SCENARIOS["enemy_cast_wait"].setup(game)
         self.assertEqual(len(game.events), 80)
+
+
+SRC = pathlib.Path(__file__).resolve().parents[2] / "src"
+
+
+def settings_keys():
+    """Every key the settings reader knows: the entries table, the strcmp keys of
+    project_settings.cpp and the readers it hands a key to (read as text, no build)."""
+    keys = set()
+    text = (SRC / "project_settings.cpp").read_text()
+    keys.update(re.findall(r'\b(?:I|F|FN|IN|B)\("([a-z0-9_]+)"', text))
+    keys.update(re.findall(r'strcmp\(key, "([a-z0-9_]+)"\)', text))
+    for name in ("ui_text.c", "button_prompts.c"):
+        keys.update(re.findall(r'strcmp\(key, "([a-z0-9_]+)"\)', (SRC / name).read_text()))
+    return keys
+
+
+def parse_profile(text):
+    values = {}
+    for line in text.splitlines():
+        key, value = line.split(None, 1)
+        assert key not in values, f"{key} pinned twice"
+        values[key] = value.strip()
+    return values
+
+
+class InertProfile(unittest.TestCase):
+    """The post-flip profile (FLIP.md section 3): CPU-only, no game files. It checks the
+    profile's data and the runner switch; whether the game honours each line is the
+    corpus run's."""
+
+    def test_pins_every_classic_key_and_adds_its_own(self):
+        classic, inert = parse_profile(corpus.PROFILE), parse_profile(corpus.PROFILES["inert"])
+        self.assertEqual({k: v for k, v in inert.items() if k in classic}, classic)
+        self.assertEqual({k: v for k, v in inert.items() if k not in classic},
+                         {k: str(v) for k, v in corpus.INERT_PINS.items()})
+        self.assertTrue(set(corpus.OFF) <= set(inert))
+        for key in corpus.OFF:
+            self.assertEqual(inert[key], "0", key)
+
+    def test_every_key_exists_in_the_settings_reader(self):
+        known = settings_keys()
+        for profile in corpus.PROFILES:
+            for key in parse_profile(corpus.PROFILES[profile]):
+                self.assertIn(key, known, f"{key} ({profile}) is not a settings key")
+
+    def test_every_hud_classic_key_is_pinned(self):
+        text = (SRC / "project_settings.cpp").read_text()
+        declared = set(re.findall(r'\bI\("(hud_classic_[a-z0-9_]+)"', text))
+        pinned = {k for k in parse_profile(corpus.PROFILES["inert"]) if k.startswith("hud_classic_")}
+        self.assertEqual(pinned, declared)
+        self.assertEqual({v for k, v in parse_profile(corpus.PROFILES["inert"]).items() if k in pinned}, {"0"})
+
+    def test_words_are_the_readers_own(self):
+        inert = parse_profile(corpus.PROFILES["inert"])
+        prompts = (SRC / "button_prompts.c").read_text()
+        self.assertRegex(prompts, r'pc_button_prompts_names\[PC_PROMPTS_MODES\] = \{[^}]*"original"')
+        self.assertEqual(inert["button_prompts"], "original")
+        self.assertEqual(inert["ui_text"], "original")
+        self.assertEqual(inert["ui_bubbles"], "original")
+        self.assertEqual(inert["camera_stick_menus"], "none")
+        self.assertIn('"none"', (SRC / "camera_stick.c").read_text())
+
+    def test_runner_switch_writes_the_profile_and_its_environment(self):
+        with tempfile.TemporaryDirectory() as directory:
+            work = pathlib.Path(directory)
+            env = corpus.environment(work, "battle_44F14", "inert")
+            self.assertEqual(env["ROOD_SETTINGS"], str(work / "settings.cfg"))
+            self.assertEqual((work / "settings.cfg").read_text(), corpus.PROFILES["inert"])
+            self.assertEqual(env["ROOD_OPACITY_2D"], "0")
+            self.assertEqual(env["ROOD_OWNER"], "battle_44F14=original")
+            self.assertEqual(env["ROOD_ORACLE"], "1")
+            self.assertNotIn("ROOD_OPACITY_2D", corpus.environment(work, "battle_44F14", "classic"))
+
+    def test_differ_offers_the_profile(self):
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(differ.main(["--list", "--profile", "inert"]), 0)
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            differ.main(["--list", "--profile", "no-such-profile"])
 
 
 if __name__ == "__main__":

@@ -2122,13 +2122,13 @@ functions = [
     { addr = 0x800E5154, name = "func_800E5154", zig = "pc.route_target_state.routeTargetState" },
     { addr = 0x800E5240, name = "func_800E5240", zig = "pc.free_actor_route.freeActorRoute" },
     { addr = 0x800E527C, name = "func_800E527C", zig = "pc.start_actor_route.startActorRoute" },
-    # func_800E5308 (pc.update_actor_navigation.updateActorNavigation) is not routed yet: its zig_diff spec crashes the C run (pc/tests/zig_diff/pending/func_800E5308.toml)
+    { addr = 0x800E5308, name = "func_800E5308", zig = "pc.update_actor_navigation.updateActorNavigation" },
     { addr = 0x800E65DC, name = "func_800E65DC", zig = "pc.fill_actor_scratch.fillActorScratch" },
 ]
 
 [subsystem.d2_actor_update.views]
 types = []
-globals = ["D_800F4538", "D_800F5878", "D_800F58B8", "vs_battle_actors"]
+globals = ["D_800F4538", "D_800F5878", "D_800F58B8", "D_800F58BC", "vs_battle_actors"]
 
 [subsystem.d2_actor_vertices]
 overlay = "battle"
@@ -2303,6 +2303,18 @@ functions = [
 [subsystem.d2_battle_movement.views]
 types = []
 globals = ["D_800F1758", "D_800F4538", "D_800F45E0", "D_800F5878", "D_800F58B8", "D_800F58BC", "D_800F58D0", "D_800F58D8", "D_800F58E0", "D_800F5920", "vs_battle_actors"]
+
+[subsystem.d2_boot_sdk]
+overlay = "battle"
+unit = "pc/src/boot_sdk.c"
+default = "original"
+roots = []
+functions = [
+]
+
+[subsystem.d2_boot_sdk.views]
+types = []
+globals = []
 
 [subsystem.d2_effect_particles]
 overlay = "battle"

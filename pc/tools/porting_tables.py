@@ -666,9 +666,9 @@ def main():
             cout.add("address taken by " + short(fnaddr_by[name] - {name}, 3))
         cin, cout_ = callees(f, name)
         pcb = rood_pc(f)
-        kind = "pc-inc (host C compiled into the unit; routable only once ownership.py also renames in the .inc)" \
+        kind = "pc-inc (host C compiled into the unit; routable: ownership.py renames definitions in the .inc, statics included)" \
             if f["src"].endswith(".inc") else \
-            "generated C compiled into the unit (static wrappers: not routable)" if f["src"].startswith("generated") else "c"
+            "generated C compiled into the unit (static wrappers: routable, ownership.py makes a routed one global)" if f["src"].startswith("generated") else "c"
         for first, last, directive, body in pcblocks.get(f["src"].split("/")[-1], []):
             if directive.startswith("#ifndef ROOD_PC") and f["line"] and first <= f["line"] <= last \
                     and ("INCLUDE_ASM" in body or "__asm__" in body):

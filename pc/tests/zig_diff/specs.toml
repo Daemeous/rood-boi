@@ -66863,6 +66863,330 @@ name = "Q29: byte 0x23 set to 0 (port)"
 from = "route[0x23] = 1;"
 to = "route[0x23] = 0;"
 
+[function.func_800E5308]
+spec = "updateActorNavigation.zig"
+iterations = 12000
+room = { D_800F4538 = 256 }
+
+[[function.func_800E5308.coverage_waiver]]
+id = "+40 b0"
+reason = "`if (!model)` (pc_unimplemented): the stub returns and the C goes on to read model + 0x5c through the null pointer, a fault (address 0x5c is not mapped, unlike PS1 address 0 at 0x80000000); the game aborts in pc_unimplemented. No defined run takes this edge, so it is waived rather than driven"
+
+[[function.func_800E5308.mutation]]
+name = "N1: only the 0x40 bit skips an actor"
+target = "c"
+from = "if (actor[8] & 0xc0)"
+to = "if (actor[8] & 0x40)"
+
+[[function.func_800E5308.mutation]]
+name = "N2: byte 0x19A kept"
+target = "c"
+from = "state[0x19a] = 0;"
+to = ""
+
+[[function.func_800E5308.mutation]]
+name = "N3: the countdown kept"
+target = "c"
+from = "--*countdown;"
+to = "(void)0;"
+
+[[function.func_800E5308.mutation]]
+name = "N4: the step count mask 6 bits"
+target = "c"
+from = "steps = (flags >> 5) & 127"
+to = "steps = (flags >> 5) & 63"
+
+[[function.func_800E5308.mutation]]
+name = "N5: the steps not counted down"
+target = "c"
+from = "--steps;"
+to = "(void)0;"
+
+[[function.func_800E5308.mutation]]
+name = "N6: byte 6 set to 0"
+target = "c"
+from = "state[6] = 1;"
+to = "state[6] = 0;"
+
+[[function.func_800E5308.mutation]]
+name = "N7: byte 1 set to 1"
+target = "c"
+from = "state[1] = 0;"
+to = "state[1] = 1;"
+
+[[function.func_800E5308.mutation]]
+name = "N8: byte 0x15C set to 17"
+target = "c"
+from = "state[0x15c] = 16;"
+to = "state[0x15c] = 17;"
+
+[[function.func_800E5308.mutation]]
+name = "N9: byte 2 set to 1"
+target = "c"
+from = "state[2] = 0;"
+to = "state[2] = 1;"
+
+[[function.func_800E5308.mutation]]
+name = "N10: byte 3 set to 1"
+target = "c"
+from = "state[3] = 0;"
+to = "state[3] = 1;"
+
+[[function.func_800E5308.mutation]]
+name = "N11: the actor's link bit 24 kept (it then points outside the host's memory)"
+target = "c"
+expect = "crash"
+from = "actor[3] &= 0xfc;"
+to = "actor[3] &= 0xfd;"
+
+[[function.func_800E5308.mutation]]
+name = "N12: the packed word keeps its step bit"
+target = "c"
+from = "(flags & ~0xfe0u)"
+to = "(flags & ~0xfc0u)"
+
+[[function.func_800E5308.mutation]]
+name = "N13: the cell row stride 31"
+target = "c"
+from = "((tile >> 16) & 255) * 32"
+to = "((tile >> 16) & 255) * 31"
+
+[[function.func_800E5308.mutation]]
+name = "N14: the ground from 3 bits"
+target = "c"
+from = "[cell] & 15;"
+to = "[cell] & 7;"
+
+[[function.func_800E5308.mutation]]
+name = "N15: the tile position scaled by 32"
+target = "c"
+from = "(x >> 6) | ((z >> 6) << 16)"
+to = "(x >> 5) | ((z >> 6) << 16)"
+
+[[function.func_800E5308.mutation]]
+name = "N16: only byte 0x132 gets the ground"
+target = "c"
+from = "state[0x132] = state[0x154] = ground;"
+to = "state[0x132] = ground;"
+
+[[function.func_800E5308.mutation]]
+name = "N17: the scratch word 0x3D0 kept"
+target = "c"
+from = "scratch[0x3d0 / 4] = 0;"
+to = ""
+
+[[function.func_800E5308.mutation]]
+name = "N18: the scratch word 0x3FC gets 0"
+target = "c"
+from = "scratch[0x3fc / 4] = func_800E45B4();"
+to = "scratch[0x3fc / 4] = 0; func_800E45B4();"
+
+[[function.func_800E5308.mutation]]
+name = "N19: 1024 is near"
+target = "c"
+from = "(target >> 16) - z) >= 1024"
+to = "(target >> 16) - z) > 1024"
+
+[[function.func_800E5308.mutation]]
+name = "N20: the moving flag inverted"
+target = "c"
+from = "if (!state[0x125]) {"
+to = "if (state[0x125]) {"
+
+[[function.func_800E5308.mutation]]
+name = "N21: the tile compared on the low bytes only"
+target = "c"
+from = "!= (tile & 0xff00ff)"
+to = "!= (tile & 0xff)"
+
+[[function.func_800E5308.mutation]]
+name = "N22: the retarget tile shifted by 22"
+target = "c"
+from = "((target >> 23) << 16)"
+to = "((target >> 22) << 16)"
+
+[[function.func_800E5308.mutation]]
+name = "N23: the retarget call with 1"
+target = "c"
+from = "func_800E50A0(state, 0, 0);"
+to = "func_800E50A0(state, 0, 1);"
+
+[[function.func_800E5308.mutation]]
+name = "N24: the update call with 1"
+target = "c"
+from = "func_800DEEFC(state, 0);"
+to = "func_800DEEFC(state, 1);"
+
+[[function.func_800E5308.mutation]]
+name = "N25: the route released for byte 0x89"
+target = "c"
+from = "func_800E5240(state[0x88]);"
+to = "func_800E5240(state[0x89]);"
+
+[[function.func_800E5308.mutation]]
+name = "N26: the final call dropped"
+target = "c"
+from = "func_800D9538();"
+to = ""
+
+[[function.func_800E5308.mutation]]
+name = "N27: the frame refresh dropped"
+target = "c"
+from = "func_800E65DC();"
+to = ""
+
+[[function.func_800E5308.mutation]]
+name = "N28: only the 0x40 bit skips an actor (port)"
+from = "if (a[8] & 0xc0 != 0) continue;"
+to = "if (a[8] & 0x40 != 0) continue;"
+
+[[function.func_800E5308.mutation]]
+name = "N29: byte 0x19A kept (port)"
+from = "state[0x19a] = 0;"
+to = ""
+
+[[function.func_800E5308.mutation]]
+name = "N30: the countdown kept (port)"
+from = "if (countdown.* != 0) countdown.* -%= 1;"
+to = "_ = countdown;"
+
+[[function.func_800E5308.mutation]]
+name = "N31: the step count mask 6 bits (port)"
+from = "var steps = (flags >> 5) & 127;"
+to = "var steps = (flags >> 5) & 63;"
+
+[[function.func_800E5308.mutation]]
+name = "N32: the steps not counted down (port)"
+from = "if (steps != 0) steps -%= 1;"
+to = "if (steps != 0) steps -%= 0;"
+
+[[function.func_800E5308.mutation]]
+name = "N33: byte 6 set to 0 (port)"
+from = "state[6] = 1;"
+to = "state[6] = 0;"
+
+[[function.func_800E5308.mutation]]
+name = "N34: byte 0x15C set to 17 (port)"
+from = "state[0x15c] = 16;"
+to = "state[0x15c] = 17;"
+
+[[function.func_800E5308.mutation]]
+name = "N35: the actor's link bit 24 kept (port)"
+expect = "crash"
+from = "a[3] &= 0xfc;"
+to = "a[3] &= 0xfd;"
+
+[[function.func_800E5308.mutation]]
+name = "N36: the packed word keeps its step bit (port)"
+from = "~@as(c_uint, 0xfe0)"
+to = "~@as(c_uint, 0xfc0)"
+
+[[function.func_800E5308.mutation]]
+name = "N37: the cell row stride 31 (port)"
+from = "((tile >> 16) & 255) *% 32"
+to = "((tile >> 16) & 255) *% 31"
+
+[[function.func_800E5308.mutation]]
+name = "N38: the ground from 3 bits (port)"
+from = "*% 2)).* & 15;"
+to = "*% 2)).* & 7;"
+
+[[function.func_800E5308.mutation]]
+name = "N39: the tile position scaled by 32 (port)"
+from = "(x >> 6) | ((z >> 6) << 16);"
+to = "(x >> 5) | ((z >> 6) << 16);"
+
+[[function.func_800E5308.mutation]]
+name = "N40: only byte 0x132 gets the ground (port)"
+from = "state[0x154] = @truncate(ground);"
+to = ""
+
+[[function.func_800E5308.mutation]]
+name = "N41: the scratch word 0x3D0 kept (port)"
+from = "scratch[0x3d0 / 4] = 0;"
+to = ""
+
+[[function.func_800E5308.mutation]]
+name = "N42: the scratch word 0x3FC gets 0 (port)"
+from = "scratch[0x3fc / 4] = @bitCast(c.func_800E45B4());"
+to = "scratch[0x3fc / 4] = 0; _ = c.func_800E45B4();"
+
+[[function.func_800E5308.mutation]]
+name = "N43: 1024 is near (port)"
+from = "(target >> 16) -% z)) >= 1024"
+to = "(target >> 16) -% z)) > 1024"
+
+[[function.func_800E5308.mutation]]
+name = "N44: the moving flag inverted (port)"
+from = "if (state[0x125] == 0) {"
+to = "if (state[0x125] != 0) {"
+
+[[function.func_800E5308.mutation]]
+name = "N45: the tile compared on the low bytes only (port)"
+from = "!= (tile & 0xff00ff)) {"
+to = "!= (tile & 0xff)) {"
+
+[[function.func_800E5308.mutation]]
+name = "N46: the retarget tile shifted by 22 (port)"
+from = "((target >> 23) << 16)"
+to = "((target >> 22) << 16)"
+
+[[function.func_800E5308.mutation]]
+name = "N47: the retarget call with 1 (port)"
+from = "c.func_800E50A0(state, 0, 0);"
+to = "c.func_800E50A0(state, 0, 1);"
+
+[[function.func_800E5308.mutation]]
+name = "N48: the update call with 1 (port)"
+from = "c.func_800DEEFC(state, 0);"
+to = "c.func_800DEEFC(state, 1);"
+
+[[function.func_800E5308.mutation]]
+name = "N49: the route released for byte 0x89 (port)"
+from = "c.func_800E5240(state[0x88]);"
+to = "c.func_800E5240(state[0x89]);"
+
+[[function.func_800E5308.mutation]]
+name = "N50: the final call dropped (port)"
+from = "c.func_800D9538();"
+to = ""
+
+[[function.func_800E5308.mutation]]
+name = "N51: the frame refresh dropped (port)"
+from = "c.func_800E65DC();"
+to = ""
+
+[[function.func_800E5308.mutation]]
+name = "N52: a state-less actor reads the real zero page (port)"
+expect = "crash"
+from = "if (entry != 0) entry else 0x8000_0000"
+to = "if (entry != 0) entry else 0x8000_0100"
+
+[[function.func_800E5308.mutation]]
+name = "N53: an idle far actor with the continuation flag is aimed anyway (port)"
+from = "if (state[0x19b] != 0) {"
+to = "if (state[0x19b] == 0xFE) {"
+
+[[function.func_800E5308.mutation]]
+name = "N54: the continuation gets the wrong address (port)"
+from = "c.pc_route_continuation(state, psx.addr(state));"
+to = "c.pc_route_continuation(state, 0);"
+
+[[function.func_800E5308.mutation]]
+name = "N55: the target x and z swapped (port)"
+from = "psx.byteAt(c_uint, state, 0x17c).* = x;"
+to = "psx.byteAt(c_uint, state, 0x17c).* = z;"
+
+[[function.func_800E5308.mutation]]
+name = "N56: the angle from the wrong axes (port)"
+from = "const angle = c.ratan2(@as(c_int, @bitCast(x)) -% psx.byteAt(i16, state, 0x4c).*, @as(c_int, @bitCast(z)) -% psx.byteAt(i16, state, 0x50).*);"
+to = "const angle = c.ratan2(@as(c_int, @bitCast(z)) -% psx.byteAt(i16, state, 0x50).*, @as(c_int, @bitCast(x)) -% psx.byteAt(i16, state, 0x4c).*);"
+
+[[function.func_800E5308.mutation]]
+name = "N57: the aimed tile word kept (port)"
+from = "psx.byteAt(c_uint, state, 0x168).* = (x >> 7) | ((z >> 7) << 16);"
+to = ""
+
 [function.func_800E65DC]
 spec = "fillActorScratch.zig"
 iterations = 200
@@ -73311,6 +73635,8 @@ to = "psx.byteAt(u16, record.?, 0xe)"
 name = "X10: D_800F5920 off by 4 (port)"
 from = "v.g.D_800F5920().* = psx.addr(record);"
 to = "v.g.D_800F5920().* = psx.addr(record) +% 4;"
+
+# ---- pc/src/boot_sdk.c
 
 # ---- pc/src/effect_particles.c
 

@@ -52,6 +52,7 @@ what branches in flight add, `--json` for scripts). It reads this table, the
 | `FUNCTIONS.tsv` | one row per function in scope (2043 rows: 1961 battle, 82 SLUS boundary) |
 | `STATE.tsv` | one row per global or static any in-scope function (or a battle-only SLUS function) reads, writes or takes the address of (705 rows: 701 from the tables of 2026-10-18, and `5BF94.c`'s four `_pcFade*` statics added by hand for the statics globalisation, PORTING.md §6.5) |
 | `MEANINGS.tsv` | the hand-written meanings and value lifetimes `STATE.tsv` takes (symbol, meaning, value_lifetime), and the readable Zig names (`zig_name`, PORTING.md §16) the views give globals and, in `Type.field` rows, fields: edit here, then regenerate |
+| `FLIP.md` | the groundwork for the flip: every `ROOD_PC` block in `src/BATTLE` and `src/SLUS_010.40` by class and fate, the PC features with their inert settings, the `inert` differential profile, the ordered checklist for the human-side machine |
 
 ## How they were made
 

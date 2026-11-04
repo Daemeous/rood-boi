@@ -132,6 +132,8 @@ pub const release_room_flag = @import("release_room_flag.zig");
 pub const clear_actor_targets = @import("clear_actor_targets.zig");
 pub const alloc_detour_record = @import("alloc_detour_record.zig");
 
+// pc/src/boot_sdk.c
+
 // pc/src/effect_particles.c
 
 // pc/src/map_view.c

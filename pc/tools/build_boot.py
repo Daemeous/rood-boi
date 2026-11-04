@@ -1063,8 +1063,10 @@ import zig_views  # noqa: E402
 
 ownership_table = ownership_tool.load(root / "game/ownership.toml")
 battle_static_list = battle_statics.listed()
-active = ownership_tool.Table([s for s in ownership_table.subsystems
-                               if ZIG and s.unit in {source for source, _ in sources}])
+# Subsystems of an overlay this build does not have (battle's, without --battle)
+# are not active even if their unit is compiled here (pc/src/boot_sdk.c is).
+active = ownership_tool.Table([]) if not ZIG else ownership_table.for_build(
+    {source for source, _ in sources}, {"battle"} if battle else set())
 
 
 def route_definitions(text, source):
@@ -1075,6 +1077,28 @@ def route_definitions(text, source):
     if any(count != 1 for count in counts.values()):
         raise SystemExit(f"{source}: expected one routed definition each: {counts}")
     return text
+
+
+# The pc/src units that have a subsystem in this build (the D2 asm ports and the
+# SDK layer) get every file-scope static of their object globalised, so a port
+# reaches the C's own storage through the views (battle_statics.py, PORTING.md
+# §6.5). Unit name -> the statics STATE.tsv does not list that were globalised.
+pc_static_units = {s.unit for s in active.subsystems if s.unit.startswith("pc/src/")}
+unlisted_statics = {}
+
+
+def pc_unit_statics(source, name, obj, pre, win_pre):
+    """battle_statics.globalise_unit on a pc/src unit's object (and its COFF twin)."""
+    listed_entries = battle_static_list.get(name, [])
+    if not coff:
+        unlisted_statics[name] = battle_statics.globalise_unit(
+            obj, name, listed_entries, lambda args, o: run(["objcopy", *args, str(o)]),
+            work=out / name, source=pre.read_bytes())
+    if win:
+        extra = battle_statics.globalise_unit(
+            twin(obj), name, listed_entries, lambda args, o: run([MINGW + "objcopy", *args, str(o)]),
+            nm=(MINGW + "nm",), work=out / (name + ".win"), source=win_pre.read_bytes())
+        unlisted_statics.setdefault(name, extra)
 
 
 game_objects = []  # objects of the game's (-nostdinc) units
@@ -1176,6 +1200,8 @@ for source, name in sources:
                                      nm=(MINGW + "nm",), work=out / (name + ".win"), source=win_pre.read_bytes())
     else:
         state_sections(obj)
+        if source in pc_static_units:
+            pc_unit_statics(source, name, obj, pre, win_pre)
     objects.append(obj)
     game_objects.append(obj)
 # Unit path -> the name of its objects here (battle_146C.o, battle_helpers.o): the
@@ -1234,7 +1260,8 @@ if ZIG:
                                            zig_dir / f"views_{stem}.json")
             views_path = zig_dir / f"views_{stem}.zig"
             unlisted = sorted(set(dump.get("statics", [])) - {battle_statics.view_name(*e) for e in
-                                                               battle_static_list.get(unit_name, [])})
+                                                               battle_static_list.get(unit_name, [])
+                                                               + unlisted_statics.get(unit_name, [])})
             if unlisted:
                 raise SystemExit(f"views_{stem}: {', '.join(unlisted)}: a static of the unit that STATE.tsv does not "
                                  f"list, so the build does not globalise it (PORTING.md §6.5)")

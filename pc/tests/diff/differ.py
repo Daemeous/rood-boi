@@ -216,7 +216,9 @@ def main(argv=None):
     parser.add_argument("--list", action="store_true")
     parser.add_argument("--profile", choices=sorted(corpus.PROFILES), default="classic",
                         help="classic: every PC feature off (the default oracle profile); features: the "
-                             "features whose ROOD_PC hooks change game state on (corpus.py FEATURES)")
+                             "features whose ROOD_PC hooks change game state on (corpus.py FEATURES); inert: "
+                             "classic plus every pin of the post-flip inventory (corpus.py INERT, "
+                             "pc/docs/porting/battle/FLIP.md)")
     args = parser.parse_args(argv)
     selected = scenarios.select(args.scenario)
     if args.list:

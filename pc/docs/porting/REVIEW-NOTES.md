@@ -64,7 +64,9 @@ Not changed:
 - B: `D_80069998` ("00:00:00", `5BF94.c:3778`) is missing from `STATE.tsv`:
   it is defined and referenced by nothing, so no function reads or writes it.
 - B item 12 (undefined data of the asm-port objects not fully enumerated):
-  those objects are D2; rerun the tool's state pass over them before D2.
+  those objects are D2. STATE.tsv is still not rerun over them; instead the
+  build globalises every file-scope static of a D2 pc/src object from the
+  object itself (`battle_statics.globalise_unit`, PORTING.md §20 pitfalls).
 - A item 21 (the `sprintf` example text): checked, it is not inside a
   `#pragma vsstring` block (those are only in `5BF94.c`).
 

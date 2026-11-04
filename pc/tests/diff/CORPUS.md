@@ -115,6 +115,10 @@ Do not use this partial corpus as a subsystem-flip gate.
   charging skip, for every caster); the classic profile alone never runs a
   feature-gated hook. run.py registers each trial recipe in both
   (`trial_corpus_*` and `trial_corpus_*_features`).
+* `--profile inert` is the profile for after the battle flip: `classic` plus the pins the hook
+  inventory found missing (`corpus.py` `INERT_PINS`, `INERT_ENVIRONMENT`; the list and the reasons
+  are in `pc/docs/porting/battle/FLIP.md` section 3). `corpus_test.py` checks its keys against the
+  settings reader without game files; `run.py` does not register it yet.
 * Witnesses are exact: `enemy_kill` checks the expected score changes of its
   two kills (the kill counts per class, the streak, the streak score, the
   kill flags), `action_name_window` the exact text of its three name windows.

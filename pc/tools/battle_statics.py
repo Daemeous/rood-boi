@@ -28,6 +28,10 @@ zig_diff.py on the reference object it compiles from the unit's .i (where
 only the statics the kept bodies use exist: `required=False`).
 
     python3 pc/tools/battle_statics.py OBJECT...   print what would be renamed
+    python3 pc/tools/battle_statics.py --unit OBJECT...   a pc/src unit's file statics
+
+The pc/src units (the asm ports, PORTING.md §20 "D2") are globalised from their
+objects, not only from STATE.tsv (see file_statics / globalise_unit).
 """
 import json
 import pathlib
@@ -292,7 +296,53 @@ def globalise(obj, object_stem, entries, objcopy, nm=("nm",), required=True, wor
     return renames
 
 
+# ---- pc/src asm-port units (PORTING.md §6.5, §20 "D2")
+# STATE.tsv is built from what BATTLE's C functions reference, so it never lists
+# the file-scope statics only a pc/src unit's own functions use (map_view.c's
+# emitted-span table) and lists the others only when a BATTLE function
+# touches them. For these units the object is the authority: every file-scope
+# static data symbol it holds is globalised under `<unit object>__<name>`,
+# STATE.tsv's rows or not. Function-local statics (`name.N`), string literals
+# and other compiler symbols have a dot in the name and are left alone.
+def file_statics(obj, object_stem, nm=("nm",)):
+    """The names of obj's file-scope static data: its local data symbols
+    without a dot (not yet globalised), and the globals this tool already made
+    from them (`<object_stem>__name`, so zig_diff finds them in the built
+    unit)."""
+    local, defined = _local_data(obj, nm)
+    names = {n for n, t in local.items() if t in "bdr" and re.fullmatch(r"\w+", n)}
+    prefix = object_stem + "__"
+    names |= {n[len(prefix):] for n in defined if n.startswith(prefix) and re.fullmatch(r"\w+", n[len(prefix):])}
+    return sorted(names)
+
+
+def globalise_unit(obj, object_stem, entries, objcopy, nm=("nm",), work=None, source=None):
+    """globalise() for a pc/src unit: the STATE.tsv `entries` as before (the
+    ones the preprocessed `source` does not declare skipped), then every other
+    file-scope static the object holds. Returns the others, [(None, name)]:
+    the statics STATE.tsv does not list, which the unit's views may still name."""
+    globalise(obj, object_stem, entries, objcopy, nm=nm, work=work, source=source)
+    listed_links = {(scope + "__" if scope else "") + name for scope, name in entries}
+    local, _ = _local_data(obj, nm)
+    rest = [name for name in file_statics(obj, object_stem, nm) if name not in listed_links]
+    renames = {n: link_name(object_stem, None, n) for n in rest if n in local}
+    if renames:
+        objcopy([f"--redefine-sym={old}={new}" for old, new in sorted(renames.items())], obj)
+        objcopy([f"--globalize-symbol={new}" for new in sorted(renames.values())], obj)
+    return [(None, name) for name in rest]
+
+
 def main(argv):
+    if argv[:1] == ["--unit"]:
+        # What a pc/src unit's object holds, against STATE.tsv: the check to run
+        # on a build's objects (build/<name>.o) after a unit changes.
+        table = listed()
+        for path in map(pathlib.Path, argv[1:]):
+            known = {name for scope, name in table.get(path.stem, []) if scope is None}
+            for name in file_statics(path, path.stem):
+                print(f"{path.name}: {name} -> {link_name(path.stem, None, name)}"
+                      + ("" if name in known else "  (not in STATE.tsv)"))
+        return 0
     table = listed()
     for path in map(pathlib.Path, argv):
         entries = table.get(path.stem, [])

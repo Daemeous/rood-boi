@@ -67,6 +67,13 @@ with tempfile.TemporaryDirectory() as d:
           "a dict keeps one address per name (why the build passes pairs)")
     check(any("src/B.c" in p for p in table.problems(addresses, {"src/A.c"})),
           "a unit that is not compiled is reported (routing needs its definitions)")
+    host = TOML.replace('{ addr = 0x80020000, name = "g_one" }', '{ name = "pc_cb_1", host = true }')
+    path.write_text(host)
+    ht = ownership.load(path)
+    check(ht.problems(addresses, {"src/A.c", "src/B.c"}) == [] and ht.routes()[-1] == ("pc_cb_1", 1),
+          "a host function (host = true, no addr) is routed and not checked against the ELFs")
+    path.write_text(TOML.replace('{ addr = 0x80020000, name = "g_one" }', '{ name = "g_one" }'))
+    check(raises(lambda: ownership.load(path), "host"), "a function without addr must say host = true")
     path.write_text(TOML.replace('default = "owned"', 'default = "mine"'))
     check(raises(lambda: ownership.load(path), "default"), "an unknown default is refused")
     path.write_text(TOML + '\n[subsystem.gamma]\noverlay="battle"\nunit="src/A.c"\ndefault="original"\n'
@@ -124,6 +131,59 @@ check(raises(lambda: ownership.rename_definitions(UNIT, {"helper"}), "static"),
       "a static definition cannot be routed")
 _, missing = ownership.rename_definitions(UNIT, {"absent"})
 check(missing == {"absent": 0}, "an absent definition counts 0 (build_boot stops on it)")
+
+# Static host code in an .inc the unit includes (room_callbacks.inc, charge_skip.inc, the generated
+# effect_callbacks.inc / event_callbacks.inc wrappers): routable, found by the linemarkers.
+INC_UNIT = b'''# 1 "unit.c"
+int target(int);
+static int wrap(int);
+static int helper(int x) { return x; }
+# 1 "gen/wrappers.inc" 1
+static int wrap(int x) { return target(x) + 1; }
+static inline int quick(int x) { return x; }
+# 4 "unit.c" 2
+int (*table[])(int) = { wrap, helper };
+int use(int v) { return wrap(v) + helper(v); }
+'''
+renamed, counts = ownership.rename_definitions(INC_UNIT, {"wrap"})
+check(counts == {"wrap": 1}, "a static definition in an .inc is routable")
+check(b"int wrap__orig(int x) { return target(x) + 1; }" in renamed and b"static int wrap" not in renamed,
+      f"its definition, prelude and earlier prototype lose static: {renamed!r}")
+check(b"int wrap(int x);\nint wrap__orig" in renamed, "a prelude declaration of the global name precedes it")
+check(b"{ wrap, helper }" in renamed and b"return wrap(v) + helper(v)" in renamed
+      and b"static int helper(int x)" in renamed, "calls and address-of uses keep the name; other statics stay")
+check(raises(lambda: ownership.rename_definitions(INC_UNIT, {"helper"}), "static"),
+      "a static outside the .inc stays unroutable")
+check(raises(lambda: ownership.rename_definitions(INC_UNIT, {"quick"}), "inline"),
+      "a static inline in an .inc is refused")
+# Same result when the markers come from `#line`, and idempotent names for the same input.
+check(ownership.rename_definitions(INC_UNIT, {"wrap"})[0] == renamed, "the rename is deterministic")
+with tempfile.TemporaryDirectory() as d:
+    d = pathlib.Path(d)
+    (d / "wrappers.inc").write_text("static int wrap(int x) { return target(x) + 1; }\n"
+                                    "static int plain(int x) { return x * 3; }\n")
+    (d / "unit.c").write_text('int target(int);\nstatic int wrap(int);\n#include "wrappers.inc"\n'
+                              'int (*table)(int) = wrap;\nint use(int v) { return wrap(v) + plain(v); }\n')
+    pre = subprocess.run(["gcc", "-E", "-I", str(d), str(d / "unit.c")], capture_output=True, check=True).stdout
+    routed, counts = ownership.rename_definitions(pre, {"wrap"})
+    check(counts == {"wrap": 1}, "a real gcc -E of a unit with an .inc: the .inc definition is found")
+    (d / "r.i").write_bytes(routed)
+    subprocess.run(["gcc", "-O2", "-c", str(d / "r.i"), "-o", str(d / "r.o")], check=True)
+    syms = subprocess.run(["nm", str(d / "r.o")], capture_output=True, text=True, check=True).stdout
+    check(" T wrap__orig" in syms and " U wrap" in syms and " U target" in syms and " T use" in syms,
+          f"object: wrap__orig defined, wrap external (the trampoline's), unit calls it: {syms!r}")
+    subprocess.run(["gcc", "-O0", "-c", "-x", "c", "-", "-o", str(d / "b.o")], input=pre, check=True)
+    base = subprocess.run(["nm", str(d / "b.o")], capture_output=True, text=True, check=True).stdout
+    check(" t wrap" in base and "__orig" not in base, f"unrouted: the static stays local: {base!r}")
+
+# The generated wrapper shape (event_callbacks.py): routable as it is, one-line definition.
+GEN = (b'# 1 "5BF94.c"\nint func_800D4720(void* n);\n# 1 "pc/build/boot/effect_callbacks.inc" 1\n'
+       b'static int pc_effect_func_800D4720(void* node) { return func_800D4720(node); }\n'
+       b'static int (*const pc_effect_table[])(void*) = { pc_effect_func_800D4720 };\n# 9 "5BF94.c" 2\n')
+gen, counts = ownership.rename_definitions(GEN, {"pc_effect_func_800D4720"})
+check(counts == {"pc_effect_func_800D4720": 1} and b"int pc_effect_func_800D4720__orig(void* node)" in gen
+      and b"{ pc_effect_func_800D4720 }" in gen and b"static int pc_effect_func_800D4720" not in gen,
+      f"a generated static effect wrapper routes; its table entry keeps the name: {gen!r}")
 
 decls = ownership.strip_bodies(UNIT)
 check(b"return" not in decls and b"int F(int x);" in decls and b"int G(void);" in decls,
@@ -280,6 +340,52 @@ many = "".join(f'[subsystem.s{i}]\noverlay="battle"\nunit="src/A.c"\n' for i in 
 with tempfile.TemporaryDirectory() as d:
     (pathlib.Path(d) / "o.toml").write_text(many)
     check(raises(lambda: ownership.load(pathlib.Path(d) / "o.toml"), "pc_owner"), "more subsystems than pc_owner[] holds is refused")
+
+# for_build: a unit every configuration compiles (boot_sdk.c) must not pull a
+# battle subsystem into a build without BATTLE.PRG.
+SDK_TOML = """
+[subsystem.d2_boot_sdk]
+overlay = "battle"
+unit = "pc/src/boot_sdk.c"
+default = "original"
+roots = []
+functions = [ { addr = 0x8009820C, name = "func_8009820C" } ]
+
+[subsystem.d2_room_render]
+overlay = "battle"
+unit = "pc/src/room_render.c"
+default = "original"
+roots = []
+functions = [ ]
+"""
+with tempfile.TemporaryDirectory() as d:
+    (pathlib.Path(d) / "o.toml").write_text(SDK_TOML)
+    sdk_table = ownership.load(pathlib.Path(d) / "o.toml")
+boot_units = {"pc/src/boot_sdk.c", "src/SLUS_010.40/main.c"}
+check(sdk_table.for_build(boot_units, set()).subsystems == [], "the plain boot build has no battle subsystem, boot_sdk.c compiled or not")
+check([s.name for s in sdk_table.for_build(boot_units | {"pc/src/room_render.c"}, {"battle"}).subsystems]
+      == ["d2_boot_sdk", "d2_room_render"], "the battle build routes both units")
+check([s.name for s in sdk_table.for_build(boot_units, {"battle"}).subsystems] == ["d2_boot_sdk"],
+      "a subsystem whose unit is not compiled is left out")
+check(sdk_table.for_build(boot_units, {"battle"}).problems({"func_8009820C": 0x8009820C}, boot_units) == []
+      and sdk_table.for_build(boot_units, {"battle"}).routed_names("pc/src/boot_sdk.c") == {"func_8009820C"},
+      "boot_sdk.c is a unit: routed names and the table check work on it")
+real = ownership.load()
+sdk = [s for s in real.subsystems if s.unit == "pc/src/boot_sdk.c"]
+check(len(sdk) == 1 and sdk[0].name == "d2_boot_sdk" and sdk[0].views is not None, "the real table has the d2_boot_sdk skeleton")
+check(real.for_build({"pc/src/boot_sdk.c"}, set()).subsystems == [] and
+      [s.name for s in real.for_build({"pc/src/boot_sdk.c"}, {"battle"}).subsystems] == ["d2_boot_sdk"],
+      "the real table: d2_boot_sdk is active in the battle build only")
+root_zig = (ROOT / "game/battle/pc/root.zig").read_text()
+specs = (ROOT / "pc/tests/zig_diff/specs.toml").read_text()
+check("// pc/src/boot_sdk.c\n" in root_zig and "# ---- pc/src/boot_sdk.c\n" in specs,
+      "boot_sdk.c has its header in game/battle/pc/root.zig and in specs.toml")
+check(all(f"// {s.unit}\n" in root_zig and f"# ---- {s.unit}\n" in specs
+          for s in real.subsystems if s.name.startswith("d2_")), "every d2_ subsystem has both headers")
+# Every pc/src unit the build compiles for battle and the D2 tables name is a source of build_boot.py.
+build_text = (ROOT / "pc/tools/build_boot.py").read_text()
+check(all(f'("{s.unit}", ' in build_text for s in real.subsystems if s.name.startswith("d2_")),
+      "every d2_ subsystem's unit is in build_boot.py's sources")
 
 print("FAILED" if failures else "all ownership checks passed")
 sys.exit(1 if failures else 0)

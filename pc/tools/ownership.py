@@ -5,7 +5,8 @@ owned code (game/):
 
   - rename_definitions: in a unit's preprocessed text, the routed functions'
     definitions become name__orig; calls, prototypes and address-of uses keep
-    the name, which the trampoline defines;
+    the name, which the trampoline defines (a static function of a host
+    .inc the unit includes is made global the same way);
   - strip_bodies: the unit's declarations only (the input of zig translate-c);
   - routing_source: the trampolines (asm per ABI) and the subsystem tables;
   - ownership_zig: the table as a comptime Zig module.
@@ -45,6 +46,16 @@ class Table:
     def routed_names(self, unit):
         return {name for s in self.subsystems if s.unit == unit for _, name in s.functions}
 
+    def for_build(self, compiled_units, overlays):
+        """The subsystems this build can route: the unit is compiled here AND
+        the subsystem's overlay (its game/<overlay> Zig object and the
+        overlay's function addresses) is part of the build. A unit that every
+        configuration compiles (pc/src/boot_sdk.c is in the plain boot build
+        as well) must not drag a battle subsystem into a build that has no
+        BATTLE.PRG: the table check would find no function at the battle
+        addresses and the empty battle Zig object would be a new link input."""
+        return Table([s for s in self.subsystems if s.unit in compiled_units and s.overlay in overlays])
+
     def routes(self):
         """[(name, subsystem index)] in table order."""
         return [(name, s.index) for s in self.subsystems for _, name in s.functions]
@@ -70,6 +81,8 @@ class Table:
             if s.unit not in compiled_units:
                 out.append(f"{s.name}: its unit {s.unit} is not compiled in this build")
             for address, name in s.functions:
+                if address is None:  # host function: nothing in the reference ELFs to check
+                    continue
                 names = by_address.get(address, [])
                 if name not in names:
                     actual = " / ".join(sorted(names))
@@ -130,7 +143,12 @@ def load(path=ROOT / "game/ownership.toml"):
         default = entry.get("default", "original")
         if default not in OWNERS:
             raise ValueError(f"{name}: default {default!r} is not one of {', '.join(OWNERS)}")
-        functions = [(int(f["addr"]), f["name"]) for f in entry.get("functions", [])]
+        # A host function (pc/src/*.inc, generated wrappers) has no reference-ELF
+        # address: `{ name = "pc_cb_80092540", host = true }`; problems() skips it.
+        functions = [(int(f["addr"]) if "addr" in f else None, f["name"]) for f in entry.get("functions", [])]
+        for f in entry.get("functions", []):
+            if ("addr" in f) == bool(f.get("host")):
+                raise ValueError(f"{name}: {f['name']}: give either addr or host = true (a host function has no address)")
         zig = {f["name"]: f["zig"] for f in entry.get("functions", []) if "zig" in f}
         for original, path in zig.items():
             if not re.fullmatch(r"[A-Za-z_]\w*(\.[A-Za-z_]\w*)*", path):
@@ -227,34 +245,106 @@ def _file_scope_functions(text):
     return tokens, found
 
 
-def rename_definitions(text, names):
+# Files whose `static` functions may be routed (see rename_definitions): the host
+# C that a game unit #includes (pc/src/*.inc, the generated *_callbacks.inc).
+HOST_INCLUDE_SUFFIXES = (".inc",)
+
+_LINEMARKER = re.compile(rb'^#(?:line)?[ \t]+\d+[ \t]+"((?:\\.|[^"\\\n])*)"', re.M)
+
+
+def _after_blanks(text, i):
+    while text[i:i + 1] in (b" ", b"\t"):
+        i += 1
+    return i
+
+
+def _file_at(markers, offset):
+    """The source file the preprocessor says `offset` is in (linemarkers:
+    `# 12 "pc/src/x.inc" 1`), b"" before the first one."""
+    import bisect
+    i = bisect.bisect_right(markers, (offset, b"\xff")) - 1
+    return markers[i][1] if i >= 0 else b""
+
+
+def rename_definitions(text, names, host_suffixes=HOST_INCLUDE_SUFFIXES):
     """Rename file-scope definitions only; return bytes and per-name counts.
     Each renamed definition is preceded by a declaration of the original
     name with the definition's own header (`T* f(int);`), so the unit's later
     calls still see the prototype when the definition was the unit's only
     one: without it they would be implicit `int f()` calls, which truncate a
     returned pointer on LP64 (2842C's func_8009195C, called by
-    func_800919D8 after it). A K&R definition gets `T f();`."""
+    func_800919D8 after it). A K&R definition gets `T f();`.
+
+    A `static` definition is refused, except one that the linemarkers place in
+    a host include (`host_suffixes`: the .inc files game units #include, such
+    as pc/src/room_callbacks.inc or the generated effect_callbacks.inc): there
+    `static` is dropped from the definition (it becomes the global F__orig),
+    from the prelude declaration and from every earlier file-scope
+    declaration of F, so F is the external symbol the trampoline defines and
+    the unit's calls and address-of uses reach it. Host names are unique
+    (pc_cb_<addr>, charge_skip_*), so the global names cannot collide; a
+    `static inline` is refused. Unrouted statics keep their linkage."""
     tokens, found = _file_scope_functions(text)
+    markers = sorted((m.start(), m.group(1)) for m in _LINEMARKER.finditer(text))
     wanted = {n.encode(): n for n in names}
     counts = {n: 0 for n in names}
-    edits = []
+    edits, unstatic = [], set()
     for name_index, params, body, start in found:
         token = tokens[name_index][2]
         if token not in wanted:
             continue
-        if b"static" in [t[2] for t in tokens[start:name_index]]:
-            raise ValueError(f"{wanted[token]}: a static function cannot be routed")
+        statics = [i for i in range(start, name_index) if tokens[i][2] == b"static"]
+        if statics:
+            where = _file_at(markers, tokens[name_index][0]).decode(errors="replace")
+            if not where.endswith(tuple(host_suffixes)):
+                raise ValueError(f"{wanted[token]}: a static function cannot be routed "
+                                 f"(only static host code in {'/'.join(host_suffixes)} files can)")
+            if any(tokens[i][2] == b"inline" for i in range(start, name_index)):
+                raise ValueError(f"{wanted[token]}: a static inline function cannot be routed")
+            unstatic.add(token)
+            edits += [(tokens[i][0], _after_blanks(text, tokens[i][1]), b"") for i in statics]
         counts[wanted[token]] += 1
         close = _matching(tokens, params)
-        head = text[tokens[start][0]:tokens[close][1]]
         if _skip_attributes(tokens, close + 1) != body:  # K&R parameter declarations follow
-            head = text[tokens[start][0]:tokens[params][0]] + b"()"
+            end, tail = tokens[params][0], b"()"
+        else:
+            end, tail = tokens[close][1], b""
+        head, at = b"", tokens[start][0]
+        for i in range(start, name_index):  # the header without its `static`
+            if i in statics:
+                head += text[at:tokens[i][0]]
+                at = _after_blanks(text, tokens[i][1])
+        head += text[at:end] + tail
         edits.append((tokens[start][0], tokens[start][0], head + b";\n"))
         edits.append((tokens[name_index][0], tokens[name_index][1], token + b"__orig"))
+    if unstatic:
+        edits += _static_declarations(text, tokens, unstatic)
     for begin, end, new in sorted(edits, key=lambda e: (e[0], e[1]), reverse=True):
         text = text[:begin] + new + text[end:]
     return text, counts
+
+
+def _static_declarations(text, tokens, names):
+    """Edits removing `static` from the file-scope prototypes of `names` (the
+    ones whose static definition was made global): a later non-static
+    declaration would otherwise keep the earlier static linkage."""
+    edits, depth, start = [], 0, 0
+    for i, (_, _, t) in enumerate(tokens):
+        if t.startswith(b"#"):
+            start = i + 1 if depth == 0 and start == i else start
+        elif t == b"{":
+            depth += 1
+        elif t == b"}":
+            depth -= 1
+            if depth == 0:
+                start = i + 1
+        elif t == b";" and depth == 0:
+            start = i + 1
+        elif depth == 0 and t in names and i + 1 < len(tokens) and tokens[i + 1][2] == b"(" \
+                and _body_start(tokens, _skip_attributes(tokens, _matching(tokens, i + 1) + 1)) is None:
+            edits += [(tokens[j][0], _after_blanks(text, tokens[j][1]), b"")
+                      for j in range(start, i) if tokens[j][2] == b"static"]
+    return edits
 
 
 def _block_externs(text, tokens, body, end):

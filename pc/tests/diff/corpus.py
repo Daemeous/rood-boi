@@ -28,7 +28,32 @@ FEATURES_ON = ["qol_skip_charging"]
 FEATURES_SETTINGS = {"qol_skip_charging_who": 1}
 FEATURES = "".join(f"{key} {1 if key in FEATURES_ON else 0}\n" for key in OFF) + \
     "".join(f"{key} {value}\n" for key, value in FEATURES_SETTINGS.items())
-PROFILES = {"classic": PROFILE, "features": FEATURES}
+# The profile after the battle flip (pc/docs/porting/battle/FLIP.md, section 3):
+# "classic" plus the pins the hook inventory found missing. Every key here
+# gates a PC hook in owned battle code; the value is the one that makes the
+# hook inert. Values that are already the defaults are pinned all the same, so
+# a user's settings file or a changed default never reaches an oracle run.
+# Words are the settings file's own (project_settings.cpp apply_line).
+HUD_CLASSIC_KINDS = """override status chain buff damage gauges figure status_icons battle_mode
+ability_icons actor_word timer emote text_frame text_band box_text image target_row target_line
+target_marker menu_background menu_command menu_row menu_cursor menu_tabs option_value
+items_category items_status_button equip_stats dp_pp_bars gem_slots stat_page ok_mark
+storage_buttons storage_counts loot_capacities discard_count rename_grid rename_box file_menu
+file_element menuf menuf_load""".split()
+INERT_PINS = {
+    "ui_text": "original",          # pc_text_glyph / pc_text_status typesetting (F15)
+    "ui_bubbles": "original",       # pc_bubble_rect / pc_bubble_frame (F16)
+    "button_prompts": "original",   # the game's own button glyphs (F15)
+    "camera_stick_menus": "none",   # pc_camera_stick_menu (F2)
+    "qol_skip_charging_who": 0,     # with qol_skip_charging 0, the caster set stays the original's (F1)
+}
+INERT_PINS.update({f"hud_classic_{kind}": 0 for kind in HUD_CLASSIC_KINDS})  # no plugin claim honoured (F14)
+INERT = PROFILE + "".join(f"{key} {value}\n" for key, value in INERT_PINS.items())
+# Environment the runner sets besides the file. ROOD_OPACITY_2D=0 keeps the
+# hardware renderer's text fade out of _renderTextImmediate (F22).
+INERT_ENVIRONMENT = {"ROOD_OPACITY_2D": "0"}
+PROFILES = {"classic": PROFILE, "features": FEATURES, "inert": INERT}
+PROFILE_ENVIRONMENT = {"inert": INERT_ENVIRONMENT}
 
 
 def cache_path(path):
@@ -58,7 +83,8 @@ def environment(work, subsystem, profile="classic"):
         (work / name).mkdir(exist_ok=True)
     return {"ROOD_ORACLE": "1", "ROOD_DETERMINISTIC": "1", "ROOD_GI": "0",
             "ROOD_OWNER": f"{subsystem}=original", "ROOD_SETTINGS": str(settings),
-            "ROOD_LIGHTS": str(work / "lights"), "ROOD_PREFABS": str(work / "prefabs")}
+            "ROOD_LIGHTS": str(work / "lights"), "ROOD_PREFABS": str(work / "prefabs"),
+            **PROFILE_ENVIRONMENT.get(profile, {})}
 
 
 def clock_mask(binary):
