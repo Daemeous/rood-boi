@@ -46,6 +46,9 @@ const SA_SIGINFO = 4;
 extern fn sigaction(sig: c_int, act: *const SigAction, old: ?*SigAction) c_int;
 extern fn _exit(code: c_int) noreturn;
 extern fn strtoull(s: [*:0]const u8, end: ?*?[*:0]u8, base: c_int) c_ulonglong;
+extern fn pthread_create(thread: *usize, attr: ?*const anyopaque, start: *const fn (?*anyopaque) callconv(.c) ?*anyopaque, arg: ?*anyopaque) c_int;
+extern fn pthread_join(thread: usize, ret: ?*?*anyopaque) c_int;
+extern fn pthread_exit(ret: ?*anyopaque) noreturn;
 
 // ---------------------------------------------------------------- regions
 const Region = struct { base: [*]u8, size: usize, name: [*:0]const u8, random: bool };
@@ -262,11 +265,15 @@ fn Stub(comptime id: u16, comptime name: []const u8) type {
                 ctx.calls += 1;
                 ctx.draws = 0;
             }
-            if (@hasDecl(spec, "stubs") and @hasDecl(spec.stubs, name)) {
+            const result: S = if (@hasDecl(spec, "stubs") and @hasDecl(spec.stubs, name)) blk: {
                 const f = @field(spec.stubs, name);
-                return adapt(S, @call(.auto, f, .{&ctx} ++ stubArgs(@TypeOf(f), args)));
+                break :blk adapt(S, @call(.auto, f, .{&ctx} ++ stubArgs(@TypeOf(f), args)));
+            } else defaultReturn(S, name);
+            // `pub fn stopAfter(call: []const u8, calls: u32) bool`: the run ends in this stub (see runSide).
+            if (comptime @hasDecl(spec, "stopAfter")) {
+                if (spec.stopAfter(name, ctx.calls + 1)) pthread_exit(null);
             }
-            return defaultReturn(S, name);
+            return result;
         }
         const call = common.route.withSignature(G, body);
     };
@@ -448,6 +455,41 @@ comptime {
 const compare_return = !@hasDecl(spec, "ignore_return");
 var classes: [class_count]u64 = @splat(0);
 
+/// A spec with `stopAfter` tests a function that never returns (battle's main
+/// loop): each side runs on a thread, and the stub for which `stopAfter` says
+/// true ends the thread (pthread_exit) after recording its call. The state and
+/// the call trace up to there are compared as usual; the function returns
+/// void.
+const stoppable = @hasDecl(spec, "stopAfter");
+comptime {
+    if (stoppable and R != void) @compileError("zdiff: a spec with stopAfter tests a function that returns void");
+}
+
+fn Runner(comptime func: *const F) type {
+    return struct {
+        var call_args: Args = undefined;
+        var result: R = undefined;
+        fn entry(_: ?*anyopaque) callconv(.c) ?*anyopaque {
+            stack_top = @frameAddress();
+            result = @call(.never_inline, func, call_args);
+            return null;
+        }
+    };
+}
+
+fn runSide(comptime func: *const F, args: Args) R {
+    if (!stoppable) return @call(.never_inline, func, args);
+    const run = Runner(func);
+    run.call_args = args;
+    var thread: usize = 0;
+    if (pthread_create(&thread, null, &run.entry, null) != 0) {
+        _ = printf("zdiff: cannot start the run's thread\n");
+        _exit(2);
+    }
+    _ = pthread_join(thread, null);
+    return run.result;
+}
+
 export fn main(argc: c_int, argv: [*][*:0]u8) c_int {
     stack_top = @frameAddress();
     if (argc < 3) {
@@ -514,7 +556,7 @@ export fn main(argc: c_int, argv: [*][*:0]u8) c_int {
             inline for (0..args.len) |i| coverArg(i, args[i]);
             zdiff_cov_enable(1, stack_top);
         }
-        const expected: R = @call(.never_inline, orig, args);
+        const expected: R = runSide(orig, args);
         if (coverage) zdiff_cov_enable(0, stack_top);
         if (!coverage) {
             snapshot(after_c);
@@ -525,7 +567,7 @@ export fn main(argc: c_int, argv: [*][*:0]u8) c_int {
             phase = "Zig";
             side = 1;
             trace_len[1] = 0;
-            const actual: R = @call(.never_inline, gen.port_fn, args);
+            const actual: R = runSide(&gen.port_fn, args);
             phase = "compare";
 
             const before_count = mismatches;

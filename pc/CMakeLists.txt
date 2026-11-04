@@ -98,12 +98,13 @@ if(ROOD_ZIG_MISSING EQUAL 0)
     # self-checks (pc/tools/zig_diff.py; reads the 64-bit build, skipped without one).
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SIZEOF_VOID_P EQUAL 8)
         # Twenty shards (the specs grew past one test's timeout with the battle port's waves;
-        # wave 2's 353 specs took up to 1400 s a shard in six; wave 7's 1097 up to 1800 in ten).
+        # wave 2's 353 specs took up to 1400 s a shard in six; wave 7's 1097 up to 1800 in ten;
+        # 1784 took 18-27 min a shard in twenty, over 30 beside other suites).
         foreach(shard RANGE 19)
             add_test(NAME zig_diff_${shard} COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/zig_diff.py
                 --self-check --coverage --shard ${shard}/20 --build ${CMAKE_CURRENT_BINARY_DIR}/boot64
                 --work ${CMAKE_CURRENT_BINARY_DIR}/zig-diff-${shard})
-            set_tests_properties(zig_diff_${shard} PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 1800)
+            set_tests_properties(zig_diff_${shard} PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 2700)
         endforeach()
         # The coverage lane flags what weakened specs miss (uncovered branches, boundary equality, sign-only tests).
         add_test(NAME zig_diff_coverage COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/zig_diff_coverage_test.py

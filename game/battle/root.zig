@@ -108,6 +108,7 @@ pub const func_800C9FE8 = @import("func_800C9FE8.zig");
 pub const score = @import("score.zig");
 pub const actor_transform = @import("actor_transform.zig");
 pub const scene_message = @import("scene_message.zig");
+pub const battle_exec = @import("battle_exec.zig");
 // The model bake-off (pc/docs/porting/battle/BAKEOFF.md): one module per function.
 pub const room_timer = @import("room_timer.zig");
 pub const actor_weapon = @import("actor_weapon.zig");

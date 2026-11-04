@@ -171,9 +171,10 @@ def suites(args, mode="egl"):
                   TESTS / "state_rewind_test.c", ROOT / "pc/src/state_rewind.c",
                   TESTS / "input_record_test.c", ROOT / "pc/src/input_record.c"]),
         # --no-tests=error: an unconfigured pc/build (a fresh worktree) finds no test and must fail, not pass
-        # ten zig_diff shards of ~15-20 min, four at a time, beside the port pipeline's ~15 min
+        # twenty zig_diff shards of ~18-27 min, four at a time, beside the port pipeline's ~37 min:
+        # ~2.5 h on a loaded machine (2 h cut the last shard and the pipeline off twice in Nov 2026)
         Suite("ctest_long", ["ctest", "--test-dir", str(ROOT / "pc/build"), "--no-tests=error", "--output-on-failure", "-j", "4",
-                             "-R", CTEST_LONG], 7200, binary=None,
+                             "-R", CTEST_LONG], 4 * 3600, binary=None,
               note="the long CMake tests: zig_diff's shards and coverage lane, the port pipeline",
               sources=[ROOT / "pc/tools/zig_diff.py", TESTS / "zig_diff_coverage_test.py",
                        TESTS / "zig_diff_changed.py"]),

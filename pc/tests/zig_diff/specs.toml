@@ -50,6 +50,328 @@ from = 'attrs.@"align" = if (element_align == @alignOf(E)) null else element_ali
 to = 'attrs.@"align" = info.attrs.@"align"; _ = element_align;'
 expect = "panic"
 
+[function.vs_battle_exec]
+spec = "battleExec.zig"
+iterations = 6000
+
+[[function.vs_battle_exec.coverage_waiver]]
+id = "+409 b1"
+reason = "`if (pc_camera_stick_menu`: the weak hook is always linked (a recording stub here); its null side never runs"
+
+[[function.vs_battle_exec.coverage_waiver]]
+id = "+427 b1"
+reason = "the camera-update step test re-runs only for modes 0 and 1, where a screen transition (step 1, 2 or 4) reads skipCameraUpdate unassigned (undefined behaviour, see the spec header), so the step 1/2/4 side cannot be driven"
+
+[[function.vs_battle_exec.coverage_waiver]]
+id = "+428 b1"
+reason = "same test as +427: the step 1/2/4 side is reachable only through the unassigned skipCameraUpdate read in modes 0 and 1"
+
+[[function.vs_battle_exec.coverage_waiver]]
+id = "+429 b1"
+reason = "same test as +427: the step 1/2/4 side is reachable only through the unassigned skipCameraUpdate read in modes 0 and 1"
+
+[[function.vs_battle_exec.coverage_waiver]]
+id = "+509 b1"
+reason = "`if (D_800F190C)` re-tests the global the enclosing `if (D_800F190C)` just tested, and no callee in the harness (all recording stubs) writes it, so its false side cannot run"
+
+[[function.vs_battle_exec.coverage_waiver]]
+id = "+547 b1"
+reason = "PC_CLASSIC_SITE_STATUS_PANEL: the weak hooks pc_classic_site and pc_hw_anchor_packets are never linked in the harness (no stub), so only their null side runs"
+
+[[function.vs_battle_exec.coverage_waiver]]
+id = "+547 b3"
+reason = "PC_CLASSIC_SITE_STATUS_PANEL: the weak hooks pc_classic_site and pc_hw_anchor_packets are never linked in the harness (no stub), so only their null side runs"
+
+[[function.vs_battle_exec.mutation]]
+name = 'P1: the pad break tests 0, not -1'
+from = 'c.pc_weapon_slots_process_pad() == -1'
+to = 'c.pc_weapon_slots_process_pad() == 0'
+
+[[function.vs_battle_exec.mutation]]
+name = 'P2: ClearOTagR count 0x821'
+from = 'c.ClearOTagR(ot, 0x822)'
+to = 'c.ClearOTagR(ot, 0x821)'
+
+[[function.vs_battle_exec.mutation]]
+name = 'P3: scratch unk4 at ot + 17'
+from = '&v.g.vs_scratch().unk4, ot + 18'
+to = '&v.g.vs_scratch().unk4, ot + 17'
+
+[[function.vs_battle_exec.mutation]]
+name = 'P4: scratch unk8 at ot + 3'
+from = '&v.g.vs_scratch().unk8, ot + 2'
+to = '&v.g.vs_scratch().unk8, ot + 3'
+
+[[function.vs_battle_exec.mutation]]
+name = 'P5: reset mask 0x1FF'
+from = '(buttonsPressed() & 0x9FF) != 0'
+to = '(buttonsPressed() & 0x1FF) != 0'
+
+[[function.vs_battle_exec.mutation]]
+name = 'P6: the held name window hook now(1)'
+from = 'c.pc_charge_skip_name(0)'
+to = 'c.pc_charge_skip_name(1)'
+
+[[function.vs_battle_exec.mutation]]
+name = 'P7: pc_story_frame dropped'
+from = 'c.pc_story_frame();'
+to = ''
+
+[[function.vs_battle_exec.mutation]]
+name = 'P8: D_800F1870 not set'
+from = 'psx.put(v.g.D_800F1870(), ot);'
+to = ''
+
+[[function.vs_battle_exec.mutation]]
+name = 'P9: the OT of the other frame buffer'
+from = 'v.g.D_80055C80()[psx.conv(usize, v.g.vs_main_frameBuf().*)]'
+to = 'v.g.D_8005E0C0()[psx.conv(usize, v.g.vs_main_frameBuf().*)]'
+
+[[function.vs_battle_exec.mutation]]
+name = 'P10: AddPrim of the other packet'
+from = 'c.AddPrim(ot, psx.at(v.g.D_800F1970(), v.g.vs_main_frameBuf().*))'
+to = 'c.AddPrim(ot, psx.at(v.g.D_800F1988(), v.g.vs_main_frameBuf().*))'
+
+[[function.vs_battle_exec.mutation]]
+name = 'T1: step 4 is not a transition'
+from = 'if (step != 1 and step != 2 and step != 4) {'
+to = 'if (step != 1 and step != 2) {'
+
+[[function.vs_battle_exec.mutation]]
+name = 'F1: mode 1 returns on status 0x2000 only when clear'
+from = 'if ((status & 0x2000) != 0) {'
+to = 'if ((status & 0x2000) == 0) {'
+
+[[function.vs_battle_exec.mutation]]
+name = 'F2: the warp poll skipped'
+from = 'if (c.pc_room_warp_poll() != 0) {'
+to = 'if (@as(c_int, 0) != 0) {'
+
+[[function.vs_battle_exec.mutation]]
+name = 'F3: the hold flag set to 0'
+from = 'v.g.D_800F1858().* = 1;'
+to = 'v.g.D_800F1858().* = 0;'
+
+[[function.vs_battle_exec.mutation]]
+name = 'F4: the button 0x10 needs the previous state set'
+from = ' and (v.g.vs_main_buttonsPreviousState().* & 1) == 0)'
+to = ' and (v.g.vs_main_buttonsPreviousState().* & 1) != 0)'
+
+[[function.vs_battle_exec.mutation]]
+name = 'F5: func_800A3760 arguments swapped'
+from = 'c.func_800A3760(0, 0xA0, 0x80)'
+to = 'c.func_800A3760(0, 0x80, 0xA0)'
+
+[[function.vs_battle_exec.mutation]]
+name = 'F6: actor state 5, not 4'
+from = '.unk24 == 4 and'
+to = '.unk24 == 5 and'
+
+[[function.vs_battle_exec.mutation]]
+name = 'F7: func_800BEC58 asks for the wrong actor'
+from = 'c.func_800BEC58(4, 0, i, 0) == 1'
+to = 'c.func_800BEC58(4, 0, 0, 0) == 1'
+
+[[function.vs_battle_exec.mutation]]
+name = 'F8: status mask 0x3F0000'
+from = '(status & 0x3F4000) == 0'
+to = '(status & 0x3F0000) == 0'
+
+[[function.vs_battle_exec.mutation]]
+name = 'F9: camera button 0x400 only'
+from = '(status & 0x180000) == 0 and (buttonsPressed() & 0xC00) != 0'
+to = '(status & 0x180000) == 0 and (buttonsPressed() & 0x400) != 0'
+
+[[function.vs_battle_exec.mutation]]
+name = 'F10: sfx 0xC when drawing'
+from = 'c.vs_main_playSfxDefault(0x7E, 9)'
+to = 'c.vs_main_playSfxDefault(0x7E, 0xC)'
+
+[[function.vs_battle_exec.mutation]]
+name = 'F11: the camera update is not skipped'
+from = 'skipCameraUpdate = 1;'
+to = 'skipCameraUpdate = 0;'
+
+[[function.vs_battle_exec.mutation]]
+name = 'M3a: the ready loop stops at 15'
+from = 'while (i < 16) : (i +%= 1)'
+to = 'while (i < 15) : (i +%= 1)'
+
+[[function.vs_battle_exec.mutation]]
+name = 'M3b: actor status mask 0x20000000'
+from = '(c.func_800A0BE0(i) & 0x20004000) != 0'
+to = '(c.func_800A0BE0(i) & 0x20000000) != 0'
+
+[[function.vs_battle_exec.mutation]]
+name = 'M3c: delta mode 2, not 3'
+from = 'v.g.vs_battle_cameraCurrentSpherical().delta.mode == 3'
+to = 'v.g.vs_battle_cameraCurrentSpherical().delta.mode == 2'
+
+[[function.vs_battle_exec.mutation]]
+name = 'M4: func_80073484 on bit 1'
+from = '(v.g.D_800F1868().* & 3) == 0'
+to = '(v.g.D_800F1868().* & 1) == 0'
+
+[[function.vs_battle_exec.mutation]]
+name = 'M5: menu unk0 3, not 2'
+from = 'if (view.unk0 == 2) {'
+to = 'if (view.unk0 == 3) {'
+
+[[function.vs_battle_exec.mutation]]
+name = 'M6a: shortcut 6 is 7'
+from = 'shortcut = 6;'
+to = 'shortcut = 7;'
+
+[[function.vs_battle_exec.mutation]]
+name = 'M6b: shortcut 3 is 4'
+from = 'shortcut = 3;'
+to = 'shortcut = 4;'
+
+[[function.vs_battle_exec.mutation]]
+name = 'M7: the first-person exit dropped'
+from = 'c._checkFirstPersonViewExit();'
+to = ''
+
+[[function.vs_battle_exec.mutation]]
+name = 'M8a: look-at of the other limb'
+from = '&v.g.D_800F19CC().*.?.unk854[0]'
+to = '&v.g.D_800F19CC().*.?.unk854[1]'
+
+[[function.vs_battle_exec.mutation]]
+name = 'M9a: func_800CB50C dropped'
+from = 'c.func_800CB50C();'
+to = ''
+
+[[function.vs_battle_exec.mutation]]
+name = 'M9b: ready or look-at'
+from = 'and ready != 0'
+to = 'or ready != 0'
+
+[[function.vs_battle_exec.mutation]]
+name = 'S1: camera stick menu mode argument dropped'
+from = 'psx.conv(c_int, v.g.vs_battle_menuState().currentMenu)'
+to = '0'
+
+[[function.vs_battle_exec.mutation]]
+name = 'S2: camera modes 7..9 only'
+from = '7...10 => {}'
+to = '7...9 => {}'
+
+[[function.vs_battle_exec.mutation]]
+name = 'S3: mode 12 draws no actors'
+from = '1, 10, 12 => _ = c.func_8006EBF8()'
+to = '1, 10 => _ = c.func_8006EBF8()'
+
+[[function.vs_battle_exec.mutation]]
+name = 'C1: charge skip phase 5 asked as 4'
+from = 'c.pc_charge_skip(5)'
+to = 'c.pc_charge_skip(4)'
+
+[[function.vs_battle_exec.mutation]]
+name = 'C2: charge skip phase 4 asked as 5'
+from = 'c.pc_charge_skip(4)'
+to = 'c.pc_charge_skip(5)'
+
+[[function.vs_battle_exec.mutation]]
+name = 'C3: camera 3 runs camera 2'
+from = '3 => c.func_80078364(),'
+to = '3 => c.func_800782E4(),'
+
+[[function.vs_battle_exec.mutation]]
+name = 'C4: zoom reset up to camera 4'
+from = 'if (v.g._cameraMode().* < 4) {'
+to = 'if (v.g._cameraMode().* <= 4) {'
+
+[[function.vs_battle_exec.mutation]]
+name = 'R1: geometry offset 120'
+from = 'c.SetGeomOffset(160, 112)'
+to = 'c.SetGeomOffset(160, 120)'
+
+[[function.vs_battle_exec.mutation]]
+name = 'R2: object data not drawn'
+from = 'c.func_800941FC();'
+to = ''
+
+[[function.vs_battle_exec.mutation]]
+name = 'R3: the checkpoint draws the wrong draw env'
+from = 'psx.at(v.g.vs_main_drawEnv(), @intFromBool(v.g.vs_main_frameBuf().* == 0))'
+to = 'psx.at(v.g.vs_main_drawEnv(), v.g.vs_main_frameBuf().*)'
+
+[[function.vs_battle_exec.mutation]]
+name = 'R4: the checkpoint draws one packet short'
+from = 'c.DrawOTag(ot + 0x821)'
+to = 'c.DrawOTag(ot + 0x820)'
+
+[[function.vs_battle_exec.mutation]]
+name = 'R5: the status panel classic kind 45'
+from = 'site(46, null'
+to = 'site(45, null'
+
+[[function.vs_battle_exec.mutation]]
+name = 'R6: anchor mode 2'
+from = 'anchor(hud, psx.get(v.g.vs_scratch().unk0), 1)'
+to = 'anchor(hud, psx.get(v.g.vs_scratch().unk0), 2)'
+
+[[function.vs_battle_exec.mutation]]
+name = 'R7: ticks / 4'
+from = '@divTrunc(v.g.vs_gametime_tickspeed().*, 2)'
+to = '@divTrunc(v.g.vs_gametime_tickspeed().*, 4)'
+
+[[function.vs_battle_exec.mutation]]
+name = 'R8: D_800F1868 not stored'
+from = 'v.g.D_800F1868().* = c.func_800CF060();'
+to = '_ = c.func_800CF060();'
+
+[[function.vs_battle_exec.mutation]]
+name = 'R9: transition drawn from ot + 1'
+from = 'c._drawScreenTransition(ot)'
+to = 'c._drawScreenTransition(ot + 1)'
+
+[[function.vs_battle_exec.mutation]]
+name = 'R10: stp mode 3 not 2'
+from = 'v.g.D_800F1B98().* == 1 or v.g.D_800F1B98().* == 2'
+to = 'v.g.D_800F1B98().* == 1 or v.g.D_800F1B98().* == 3'
+
+[[function.vs_battle_exec.mutation]]
+name = 'R11: stp 0 in the on branch'
+from = 'c.SetDrawStp(psx.cptr(c.DR_STP, stp), 1)'
+to = 'c.SetDrawStp(psx.cptr(c.DR_STP, stp), 0)'
+
+[[function.vs_battle_exec.mutation]]
+name = 'R12: last packets from ot + 0x820'
+from = 'c.func_8007629C(ot + 0x821)'
+to = 'c.func_8007629C(ot + 0x820)'
+
+[[function.vs_battle_exec.mutation]]
+name = 'L1: the transition ends on step 1'
+from = 'return (step == 1 or step == 2) and'
+to = 'return (step == 1) and'
+
+[[function.vs_battle_exec.mutation]]
+name = 'L2: the transition ends at alpha 254'
+from = 'v.g.vs_battle_screenTransitionAlpha().* == 255'
+to = 'v.g.vs_battle_screenTransitionAlpha().* == 254'
+
+[[function.vs_battle_exec.mutation]]
+name = 'L3: the zone reload waits for step 1'
+from = 'if (v.g.vs_battle_screenTransitionStep().* == 2) break;'
+to = 'if (v.g.vs_battle_screenTransitionStep().* == 1) break;'
+
+[[function.vs_battle_exec.mutation]]
+name = 'L4: _finishLoadZnd of the mpd id'
+from = 'c._finishLoadZnd(v.g.D_800F1AB0().zndId)'
+to = 'c._finishLoadZnd(v.g.D_800F1AB0().mpdId)'
+
+[[function.vs_battle_exec.mutation]]
+name = 'L5: the start state is 0'
+from = 'c.func_800FA35C(v.g.vs_main_startState().*)'
+to = 'c.func_800FA35C(0)'
+
+[[function.vs_battle_exec.mutation]]
+name = 'L6: func_80089DC0 of the zone id'
+from = 'c.func_80089DC0(v.g.D_800F1AB0().mpdId)'
+to = 'c.func_80089DC0(v.g.D_800F1AB0().zndId)'
+
 [function.func_800B07DC]
 spec = "offsetToWorld.zig"
 iterations = 40000

@@ -20,11 +20,20 @@ default = "original"
 roots = ["vs_battle_actors", "vs_main_scoredata"]
 functions = [
     { addr = 0x8006C004, name = "_updateEnemyKills", zig = "score.updateEnemyKills" },  # a defeated enemy's kills, streak, flags
+    { addr = 0x800798A4, name = "vs_battle_exec", zig = "battle_exec.battleExec" },  # battle's main loop
 ]
 
 [subsystem.battle_146C.views]
-types = ["vs_battle_actor", "vs_battle_actor2", "vs_main_scoredata_t"]
-globals = ["vs_main_scoredata"]
+types = ["vs_battle_actor", "vs_battle_actor2", "vs_main_scoredata_t", "D_800F18EC_t", "DR_STP", "MATRIX",
+         "_sphericalValues", "_sphericalCamera", "_mpdRoomDoorSection_t", "_mpdRoomSection", "func_8006EBF8_t",
+         "D_800F19CC_t", "vs_battle_menuState_t", "vs_main_CdQueueSlot", "DRAWENV"]
+globals = ["vs_main_scoredata", "D_800F1858", "D_80055C80", "D_8005E0C0", "D_800F1870", "D_800F1970", "D_800F1988",
+           "D_800F18EC", "D_800F18FC", "D_800F190C", "D_800F196C", "D_800F1868", "D_800F19CC", "D_800F1AB0",
+           "D_800F1B98", "_cameraMode", "vs_battle_actors", "vs_battle_cameraCurrentSpherical",
+           "vs_battle_characterState", "vs_battle_menuState", "vs_battle_roomData",
+           "vs_battle_screenTransitionAlpha", "vs_battle_screenTransitionStep", "vs_gametime_tickspeed",
+           "vs_main_buttonsPressed", "vs_main_buttonsPreviousState", "vs_main_drawEnv", "vs_main_frameBuf",
+           "vs_main_startState", "vs_scratch"]
 
 [subsystem.battle_44F14]
 overlay = "battle"
