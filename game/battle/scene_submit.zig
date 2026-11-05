@@ -259,3 +259,99 @@ pub fn battleCameraTarget(position: *[3]c_int) callconv(.c) c_int {
     position[2] = block.unk29C0[block.unk298D].unk0.vz;
     return 1;
 }
+
+/// The script pointer of event thread `i` (D_800F4C38 holds guest-range byte pointers).
+fn eventThread(i: usize) ?[*]u8 {
+    return @ptrCast(v.g.D_800F4C38()[i]);
+}
+
+/// orig: pc_battle_camera_focus (src/BATTLE/BATTLE.PRG/146C.c)
+/// Host query for the depth of field's camera subject. out: [0] the battle state D_800F196C (-1 without the action block), [1] the camera mode,
+/// [2] a target candidate is chosen, [3..5] its point, [6] an area point, [7..9] it, [10..12] the camera's look-at in world units, [13] the candidate's actor slot.
+pub fn battleCameraFocus(out: *[14]c_int) callconv(.c) void {
+    @memset(out, 0);
+    const block = v.g.D_800F19CC().*;
+    out[0] = if (block != null) psx.conv(c_int, v.g.D_800F196C().*) else -1;
+    out[1] = psx.conv(c_int, v.g._cameraMode().*);
+    if (block != null and v.g.D_800F196C().* == 2) {
+        const b = block.?;
+        const mode = v.g._cameraMode().*;
+        if ((mode == 1 or mode == 3) and b.unk298D != 0xFF and b.unk2C00 != 0 and b.unk298D < 23) {
+            out[2] = 1;
+            out[3] = b.unk29C0[b.unk298D].unk0.vx;
+            out[4] = b.unk29C0[b.unk298D].unk0.vy;
+            out[5] = b.unk29C0[b.unk298D].unk0.vz;
+            out[13] = b.unk29C0[b.unk298D].unk9;
+        } else if (mode == 2) {
+            out[6] = 1;
+            out[7] = b.unk2998.vx;
+            out[8] = b.unk2998.vy;
+            out[9] = b.unk2998.vz;
+        }
+    }
+    out[10] = v.g.vs_scratch().camera.lookAt.vx >> 12;
+    out[11] = v.g.vs_scratch().camera.lookAt.vy >> 12;
+    out[12] = v.g.vs_scratch().camera.lookAt.vz >> 12;
+}
+
+/// orig: pc_battle_event_threads (src/BATTLE/BATTLE.PRG/146C.c)
+/// Host query for the cutscene player: the event runner's state and skip state, and per script thread its offset in the script buffer (-1 when not running), the opcode there and that opcode's handler; returns whether an event loads or runs.
+pub fn battleEventThreads(state: *[2]c_int, offset: *[4]c_int, opcode: *[4]c_int, handler: *[4]?*anyopaque) callconv(.c) c_int {
+    const running = v.g.D_800F4C34().*;
+    state[0] = running;
+    state[1] = v.g.D_800F4C2C().*;
+    for (0..4) |i| {
+        const pc = if (running == 4) eventThread(i) else null;
+        const base = v.g.D_800F4C30().*;
+        offset[i] = if (pc != null and base != null) psx.conv(c_int, @intFromPtr(pc.?) -% @intFromPtr(base.?)) else -1;
+        opcode[i] = if (pc != null) pc.?[0] else -1;
+        handler[i] = if (pc != null) @ptrCast(@constCast(v.g._opcodeFunctionTable()[pc.?[0]])) else null;
+    }
+    return @intFromBool(running != 0);
+}
+
+/// orig: pc_battle_event_arguments (src/BATTLE/BATTLE.PRG/146C.c)
+/// Host query for the cutscene sequencer: the raw operand bytes of the opcode thread `thread` is at (the count is the interpreter's operand size less the opcode), the text box line of opcode 0x11 and, for the object handlers, the actor its first operand names; 0 when the thread is not running.
+pub fn battleEventArguments(thread: c_int, args: [*]c_int, line: *c_int, actor: *c_int) callconv(.c) c_int {
+    line.* = -1;
+    actor.* = -1;
+    if (v.g.D_800F4C34().* != 4 or thread < 0 or thread >= 4) return 0;
+    const pc = eventThread(@intCast(thread)) orelse return 0;
+    const n: c_int = @as(c_int, v.g.D_800E9C30()[pc[0]]) - 1;
+    if (n < 0 or n > 16) return 0;
+    if (pc[0] == 0x11 and n >= 3) line.* = pc[2];
+    switch (pc[0]) {
+        // object placement, move, face, transform and animation: the first short is an actor reference
+        0x20, 0x21, 0x22, 0x2b, 0x2c, 0x33, 0x34, 0x35, 0x36 => {
+            if (n >= 2) {
+                const ref: c_uint = @as(c_uint, pc[1]) | (@as(c_uint, pc[2]) << 8);
+                if ((ref >> 12) < 2) {
+                    const resolved = c.func_800BFE50(psx.conv(u16, ref));
+                    if (resolved >= 0 and resolved <= 16) actor.* = resolved;
+                }
+            }
+        },
+        else => {},
+    }
+    var i: usize = 0;
+    while (i < n) : (i += 1) args[i] = pc[i + 1];
+    return n;
+}
+
+/// orig: pc_battle_event_waiting (src/BATTLE/BATTLE.PRG/146C.c)
+/// Host query for the cutscene viewer's auto-advance: the pad bits the running event's threads wait on (opcode 0x15's mask; Circle for a shown text box or a screen of its own), 0 when nothing.
+pub fn battleEventWaiting() callconv(.c) c_int {
+    if (v.g.D_800F4C34().* != 4) return 0;
+    var mask: c_int = 0;
+    for (0..4) |i| {
+        const pc = eventThread(i) orelse continue;
+        if (pc[0] == 0x15) {
+            mask |= pc[1];
+        } else if (pc[0] == 0x11 and pc[1] < 8 and v.g.vs_battle_textBoxStatuses()[pc[1]] != 0) {
+            mask |= 0x20;
+        } else if (pc[0] == 0x59 and v.g.D_800F4BF8().* != 0) {
+            mask |= 0x20;
+        }
+    }
+    return mask;
+}

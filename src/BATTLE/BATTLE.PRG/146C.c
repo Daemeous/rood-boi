@@ -7640,6 +7640,12 @@ void vs_battle_exec(void)
     int result;
     int shortcut;
 
+#ifdef ROOD_PC
+    /* Read unassigned on the first frame when a screen transition (step 1, 2 or 4,
+     * as INITBTL leaves it) is running: on the PS1 a stack slot's leftover. The
+     * camera mode is then 0, where the test changes nothing; 0 is battle_exec.zig's. */
+    skipCameraUpdate = 0;
+#endif
     D_800F1858 = 0;
     func_800FA35C(vs_main_startState);
     while (1) {

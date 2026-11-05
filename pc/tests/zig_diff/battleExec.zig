@@ -17,10 +17,10 @@
 //! every test run. The character, the 16 actor slots, the room data and the
 //! ordering tables are arena objects.
 //!
-//! Not reachable (the C reads an uninitialised local there): a screen
-//! transition (step 1, 2 or 4) with mode 0, 1 or 2 reads `skipCameraUpdate`
-//! unassigned; the transition scenarios use modes 3 and up, where the read
-//! changes nothing.
+//! A screen transition (step 1, 2 or 4) on the first frame reads
+//! `skipCameraUpdate` before any assignment: the C starts it at 0 under
+//! ROOD_PC (on the PS1 a stack slot's leftover), as the port does, so the
+//! transition scenarios cover modes 0 to 2 too.
 const std = @import("std");
 const zd = @import("zdiff");
 const common = @import("common");
@@ -188,7 +188,8 @@ pub fn prepare(ctx: *zd.Ctx) Args {
             alpha = ctx.edge(i32, &.{ 0, 254, 256, -1, 128 });
         },
         .transition_other => {
-            mode = ctx.range(u32, 4, 13);
+            const m = ctx.range(u32, 0, 12); // 0 to 13 but 3 (transition_mode3's)
+            mode = if (m < 3) m else m + 1;
             step = ctx.edge(u32, &.{ 1, 2, 4 });
             alpha = ctx.edge(i32, &.{ 0, 254, 256, -1, 128, 255 });
         },

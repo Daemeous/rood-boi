@@ -24,14 +24,12 @@ that mention `ROOD_PC`), and the 38 in `src/SLUS_010.40/` (`main.c` 30,
 `PC_ANCHOR_PACKETS`, `PC_GTE_UNNARROWED` and the other hook macros only exist inside
 `ROOD_PC` blocks (checked: no `pc_*`/`PC_*` name occurs in `src/BATTLE` outside
 them, except the `PC_TEXT_STATUS` wrapper calls in `2842C.c`, which sit beside
-the `#define` they depend on and are covered by that row). Not covered line by line: the
-C text of the `pc/src/*.inc` files compiled into the units (`charge_skip.inc`,
-`scene_submit.inc`, `actor_commands.inc`, `room_shadows.inc`,
+the `#define` they depend on and are covered by that row). The C text of the `pc/src/*.inc` files compiled into the units
+(`charge_skip.inc`, `scene_submit.inc`, `actor_commands.inc`, `room_shadows.inc`,
 `room_callbacks.inc`, 41 functions) and the generated `event_callbacks.inc` /
-`effect_callbacks.inc`: each `#include` is one row; what the `.inc` files do
-is host code that moves or stays with its feature (section 2, F1, F11) or is
-asm replacement (section 4). `INITBTL.PRG` and the other overlays are out of
-scope as in `battle/README.md`.
+`effect_callbacks.inc` is listed in the sweep rows 257 to 283 of the appendix; in the main
+rows each `#include` is one row. `INITBTL.PRG` and `MAINMENU.PRG` are swept in rows 284 to 314
+(the other overlays stay out of scope as in `battle/README.md`).
 
 **Classes.** `F` PC feature (a call into `pc/src` or a changed behaviour that a
 setting, a request or a renderer switch turns off); `S` safety guard (reads of PS1
@@ -73,6 +71,11 @@ replacement of `func_8008AC78`) and `charge_skip.inc` together.) Of the 22
 diagnostic builds (`build_boot.py --no-audio`; the normal build defines
 neither); they are not hooks and stay.
 
+**Sweep of 2026-11-05** (appendix rows 257 to 314, 58 rows; lines of `386f31f2b`, not of
+`9a402e6`): `.inc` files 27 rows (F 18, A 9), `MAINMENU.PRG` 28 blocks (F 27, O 1),
+`INITBTL.PRG` 0 blocks (3 rows for its unguarded `psx_get`/`psx_set`, class L). Two new features,
+F24 and F25. The 256-block table above is unchanged.
+
 The 119 + 1 + 4 feature blocks belong to 22 features (F21, the SPU
 register sync, ended up as `O`). Battle-called SLUS functions and the sound driver are listed because
 battle reaches them (`vs_main_playSfx`, `vs_main_processPadState`,
@@ -89,32 +92,34 @@ feature on must equal the original with its hook, before the hook is deleted.
 
 | id | Feature | Blocks | Setting → inert value | State | Tick check | Zig repeats it | Fate |
 |---|---|---:|---|---|---|---|---|
-| F1 | Charging skip (`charge_skip.inc`, `pc_charge_skip*`, `pc_cd_queue_load`) | 7 | `qol_skip_charging` 0; `qol_skip_charging_who` 0 (new pin); `_name`/`_hold_*` only matter when on | yes: RNG pin (`pc_charge_skip_reseed`), CD queue, loop `break`s in `vs_battle_exec`, name-window holds, the five file statics (compared, §14) | **yes** (PORTING.md names it) | `_hold` in `func_80070278`, `_name`/`pc_hud_name_window` in `scene_message.zig`; **not** `pc_charge_skip(4/5)`, `_name(0)` in `vs_battle_exec` (not ported); `charge_skip.inc` itself is C | becomes native owned code behind the same settings (PORTING.md §12); statics move to a C definition reached by `psx.global`; delete the hooks after the check |
+| F1 | Charging skip (`charge_skip.inc`, `pc_charge_skip*`, `pc_cd_queue_load`) | 7 + 4 (.inc) | `qol_skip_charging` 0; `qol_skip_charging_who` 0 (new pin); `_name`/`_hold_*` only matter when on | yes: RNG pin (`pc_charge_skip_reseed`), CD queue, loop `break`s in `vs_battle_exec`, name-window holds, the five file statics (compared, §14) | **yes** (PORTING.md names it) | `_hold` in `func_80070278`, `_name`/`pc_hud_name_window` in `scene_message.zig`; **not** `pc_charge_skip(4/5)`, `_name(0)` in `vs_battle_exec` (not ported); the 15 functions of `charge_skip.inc` are already in `charge_skip.zig` (routed `host = true`) | becomes native owned code behind the same settings (PORTING.md §12); statics move to a C definition reached by `psx.global`; delete the hooks after the check |
 | F2 | Right-stick camera: `tick`, `turn`, `place`, `first_person` (+ F2b `pc_camera_stick_menu` in `vs_battle_exec`) | 4 + 1 | `camera_stick` 0 (the default is **1**), `camera_stick_zoom` 0, `camera_stick_keys` 0, `camera_stick_menus` none (new pin) | yes: the follow camera's yaw/zoom, a copy placed before `_setCameraPositionFromAngles`, first-person look steps | **yes** | all four in `func_8006E158`, `set_camera_position_from_angles`, `func_8006EC7C`; `_menu` not (in `vs_battle_exec`) | delete the C blocks after the check |
 | F3 | First-person Y invert (`FP_INVERT_Y`) | 1 | `qol_fp_invert_y` 0; the `#else` already defines it as the constant 0 | yes (input to the camera) | yes (the constant 0 is the original) | `func_8006EC7C` reads it | delete: the Zig keeps `pc_qol_fp_invert_y`; at the flip the constant 0 |
-| F4 | Fast travel (`pc_fast_travel_begin`, `_menu_bits`, `MAGIC_COMMAND_MASK`) | 3 | `qol_fast_travel` 0 (the default is **1**), `qol_fast_travel_prompt` 0 | yes: state flag `0xB7`, MP/magicUsed, menu bits | **yes** | `func_800735F8`, `func_800C930C`; the `MAGIC_COMMAND_MASK` macro in `vs_battle_renderMenuItem` has its call site in the same ports | delete after the check |
+| F4 | Fast travel (`pc_fast_travel_begin`, `_menu_bits`, `MAGIC_COMMAND_MASK`) | 3 + 1 (MAINMENU) | `qol_fast_travel` 0 (the default is **1**), `qol_fast_travel_prompt` 0 | yes: state flag `0xB7`, MP/magicUsed, menu bits | **yes** | `func_800735F8`, `func_800C930C`; the `MAGIC_COMMAND_MASK` macro in `vs_battle_renderMenuItem` has its call site in the same ports | delete after the check |
 | F5 | Weapon slots (`pc_weapon_slots_process_pad`, `_label`) | 4 | `qol_weapon_slots` 0 | yes: swaps equipment, rewrites the pad word | **yes** | `_label` in `func_800C9FE8`; `process_pad` is in `vs_battle_exec` (not ported) | port with `vs_battle_exec`, check, delete |
-| F6 | Modern menus (`pc_ui_menu_*`) | 4 | `ui_menus` 0 | yes: menu state (`D_800F4CC0`), the cast-cancel path | **yes** | `func_800C930C`, `func_800C97BC`, `func_800CAB40` | delete after the check. `menu_bridge.c` also suppresses itself under `ROOD_ORACLE` (`pc_oracle_classic`), a second line of defence |
+| F6 | Modern menus (`pc_ui_menu_*`) | 4 + 4 (MAINMENU) | `ui_menus` 0 | yes: menu state (`D_800F4CC0`), the cast-cancel path | **yes** | `func_800C930C`, `func_800C97BC`, `func_800CAB40` | delete after the check. `menu_bridge.c` also suppresses itself under `ROOD_ORACLE` (`pc_oracle_classic`), a second line of defence |
 | F7 | Room warp (editor Room Browser: `pc_room_warp_*`) | 3 | no setting: inert while no warp is requested (`pc_room_warp_poll` returns 0); the runner never requests | yes (starts a room load; enemies/scripts optional) | yes, with a warp requested | `func_80089DC0` has two; `poll` is in `vs_battle_exec` | **open (Q3)**: editor feature, no inert setting |
 | F8 | Story boot / cutscene viewer (`pc_story_frame`, `pc_story_title_exit`) | 2 | no setting: inert unless a story scene is requested | yes | yes, when requested | not ported (`vs_battle_exec`, `vs_main_execTitle`) | **open (Q3)** |
 | F9 | Quit to title (`pc_quit_title_poll`, in `vs_main_processPadState`) | 1 | no setting: inert unless the option is used | yes (`vs_main_resetGame`) | yes, when used | SLUS boundary: stays C | **open (Q3)** |
 | F10 | Editor live camera (`pc_live_camera`) | 1 | no setting: inert without the editor's free camera | no (works on a copy) | no | `func_8007ACB0` | delete C block |
-| F11 | Lighting scene capture (`pc_scene_room`, `pc_scene_camera`; also inside `scene_submit.inc`) | 1 | `environment` 0 / lighting off in `classic`; the capture is render-side | no, but host state outside the compared ranges: PORTING.md §20 oracle item 7 | no | `func_8008B1FC` | delete C block |
+| F11 | Lighting scene capture (`pc_scene_room`, `pc_scene_camera`; `scene_submit.inc` only calls `func_8008B1FC`, no capture text in it) | 1 | `environment` 0 / lighting off in `classic`; the capture is render-side | no, but host state outside the compared ranges: PORTING.md §20 oracle item 7 | no | `func_8008B1FC` | delete C block |
 | F12 | Frame completion mark for the renderer (`pc_battle_frame_complete`) | 1 | none needed | no | no | `func_8007629C` | delete C block |
 | F13 | Weather render hooks (`pc_weather_drop_packet`, `pc_weather_raining`, `WEATHER_LEFT/RIGHT`) | 4 | `environment` 0, `widescreen` 0 | no | no | `func_8008F440` (`pc_weather_raining` is a host function defined inside a game unit: it moves to `pc/src`) | delete C blocks; move `pc_weather_raining` |
-| F14 | Classic / HUD layer (`PC_CLASSIC`, `PC_HUD`, `PC_ACTOR_WORD`, `pc_hud_name_window`, `pc_hud_panels_classic`, `pc_emote_record`) | 49 | no plugin claim honoured: `ui_menus` 0, `hud_classic_override` 0 and all 43 `hud_classic_*` (new pins) | capture only; emit-only suppression turns packets into no-ops; **`pc_emote_record` is a global in the game unit** written inside `func_80095C18` (compared) | yes if a claim is honoured, otherwise the packets are the game's | every block in an owned function (`pc_classic_site` and the rest, 45 of 49; 3 are declarations); `vs_battle_exec`'s status-panel block not yet | **open (Q1)**: the Zig keeps the call, the C text goes; `pc_emote_record` needs a home |
-| F15 | Text typesetting (`pc_text_glyph`, `pc_text_status`, `pc_text_char`, `pc_classic_text_*`) | 3 | `ui_text` original (new pin), `button_prompts` original (new pin), `qol_confirm_cross` 0 (in `classic`: the glyph swap edits the OT packets) | packets, when the roles swap Cross and Circle | yes if `qol_confirm_cross` on | `print_variable_width_font_char.zig`, `func_800958A4`, `func_80095A4C` | delete C blocks |
+| F14 | Classic / HUD layer (`PC_CLASSIC`, `PC_HUD`, `PC_ACTOR_WORD`, `pc_hud_name_window`, `pc_hud_panels_classic`, `pc_emote_record`) | 49 + 17 (MAINMENU) | no plugin claim honoured: `ui_menus` 0, `hud_classic_override` 0 and all 43 `hud_classic_*` (new pins) | capture only; emit-only suppression turns packets into no-ops; **`pc_emote_record` is a global in the game unit** written inside `func_80095C18` (compared) | yes if a claim is honoured, otherwise the packets are the game's | every block in an owned function (`pc_classic_site` and the rest, 45 of 49; 3 are declarations); `vs_battle_exec`'s status-panel block not yet | **open (Q1)**: the Zig keeps the call, the C text goes; `pc_emote_record` needs a home |
+| F15 | Text typesetting (`pc_text_glyph`, `pc_text_status`, `pc_text_char`, `pc_classic_text_*`) | 3 + 5 (MAINMENU) | `ui_text` original (new pin), `button_prompts` original (new pin), `qol_confirm_cross` 0 (in `classic`: the glyph swap edits the OT packets) | packets, when the roles swap Cross and Circle | yes if `qol_confirm_cross` on | `print_variable_width_font_char.zig`, `func_800958A4`, `func_80095A4C` | delete C blocks |
 | F16 | Vector talk bubbles (`pc_bubble_rect`, `pc_bubble_frame`) | 3 | `ui_bubbles` original (new pin) | no | no | `func_800CB83C`, `func_800CD3E4` | delete C blocks |
-| F17 | Widescreen (`PC_ANCHOR_PACKETS`, `pc_hw_anchor_*`, `PC_GTE_UNNARROWED`, `PC_WIDESCREEN_MARGIN`) | 22 | `widescreen` 0 (in `classic`) | GTE output when on; the `pc_gte_anchored` counter is host state, balanced | with the feature off the code equals the original (the corpus itself); on, there is no equivalence claim | the ports repeat it (the counter and the anchors) | delete C macros; Zig keeps the calls (`psx.weak`) |
+| F17 | Widescreen (`PC_ANCHOR_PACKETS`, `pc_hw_anchor_*`, `PC_GTE_UNNARROWED`, `PC_WIDESCREEN_MARGIN`) | 22 + 4 (.inc) | `widescreen` 0 (in `classic`) | GTE output when on; the `pc_gte_anchored` counter is host state, balanced | with the feature off the code equals the original (the corpus itself); on, there is no equivalence claim | the ports repeat it (the counter and the anchors) | delete C macros; Zig keeps the calls (`psx.weak`) |
 | F18 | `pc_opening_image_ready` (test notification) | 1 | none | no | no | `func_800CCA90` | delete C block |
 | F19 | Room checkpoint diagnostic (`pc_room_checkpoint_requested`) | 1 | none: inert unless requested | no (renders loaded geometry) | no | not ported (`vs_battle_exec`) | delete with `vs_battle_exec`'s port |
 | F20 | RPC sfx counter (`pc_sfx_played`) | 1 | none | no | no | SLUS boundary | delete the hook |
 | F22 | Hardware text fade (`_pcFadeBegin/Glyph/End`, `pc_hw_opacity_*`) | 6 | no setting: inert when `pc_hw_active` is 0 or `ROOD_OPACITY_2D=0` (the inert profile sets that variable) | VRAM: the text is not composited into the frame-buffer mirror; the four `_pcFade*` statics | yes if the hardware renderer runs the oracle | the ports repeat it | delete the C blocks and the statics after the check; **open (Q4)** |
 | F23 | Opaque HP/MP/RISK label (`_renderStatBar`: sprite flag `0x80`, not `0x180`) | 1 | **no setting**: unconditional PC change | packets | yes | `render_stat_bar.zig` already has `0x80` | **open (Q2)** |
+| F24 | Host state queries (`pc_battle_action`, `pc_battle_camera_focus`, `pc_battle_event_*`, `pc_battle_camera_target`: functions defined in `scene_submit.inc`, read by `dev_state.c`, `cutscene*.cpp`, `gameplay_walls.c`, `post_profile.cpp`) | 8 (.inc) | none: read-only, called by host code | no (reads game state, writes only the caller's buffers) | no | 8 of 8 in `scene_submit.zig` (`host = true`; the last four, `battleCameraFocus`, `battleEventThreads`, `battleEventArguments`, `battleEventWaiting`, ported 2026-11-05) | Zig carries them; delete the C copies |
+| F25 | Native platform shadows (`pc_platform_shadow_native`, `pc_platform_shadows_end`, in `room_shadows.inc`) | 2 (.inc) | `native_shadows` 0 (already in the `classic` OFF list); the native path also needs `pc_hw_active` | no (the packets are built as the PS1 builds them; the native square is render-side) | no | `room_shadows.zig` (`psx.weak`) | delete the C calls when the `.inc` function is owned; Zig keeps them |
 
 State-touching features that need the tick-mode check before their hook goes:
 **F1, F2, F2b, F3, F4, F5, F6, F7, F8, F9, F15, F22, F23** (and F14 if a plugin
-claim is honoured). F10 to F13, F16, F18, F19, F20 are render-side or tests.
+claim is honoured). F10 to F13, F16, F18, F19, F20, F24, F25 are render-side, read-only or tests.
 
 ## 3. The inert profile
 
@@ -338,8 +343,8 @@ then on each owned change is checked against the oracle with the settings at the
 - **Q6 (`boot_sdk.c`).** The task lists it among the things that must land first. Read here as: the 8
   D2 rows in it wait for a unit-compiled build and do not block the battle flip. If it is meant to block it,
   step 1.3 moves to the front.
-- **Q7 (the inventory's reach).** Hooks inside the `.inc` files and the INITBTL/MAINMENU overlays
-  are not listed line by line (section 1). F1 and F11 live partly there.
+- **Q7 (the inventory's reach).** Done 2026-11-05: the `.inc` files, `MAINMENU.PRG` and `INITBTL.PRG` are
+  swept in appendix rows 257 to 314 (F24 and F25 are new), with the findings after them.
 - **Q8 (what the tests prove).** The `Zig` column is a text search; the `S`/`L` columns are blank;
   `state` is read from the code, not measured. The table is a work list for steps 4 to 6, not a result.
 
@@ -362,6 +367,14 @@ then on each owned change is checked against the oracle with the settings at the
 - **Also before the flip:** the two uninitialised reads (`skipCameraUpdate` in `vs_battle_exec`,
   `previousArea` in `func_800A5280`) take the value the compiled PS1 code leaves there (read from its
   assembly), and the Zig matches it.
+
+**Done 2026-11-05:** Q1's `pc_emote_record` lives in `pc/src/hud/hud_bridge.c`; Q2's `hud_label_opaque`
+and Q4's `opacity_2d` are settings (settings file, dev-tools panel, the `settings` RPC; `ROOD_OPACITY_2D`
+still wins when set) pinned 0 in `INERT_PINS`, and `INERT_ENVIRONMENT` is empty; Q7's sweep is in the
+appendix. The uninitialised reads are defined under `ROOD_PC` with the ports' values (`skipCameraUpdate`
+0; `previousArea` the unchanged area, and func_800A5280's other locals 0), so their waivers are gone.
+The four host functions the sweep found without Zig (`pc_battle_camera_focus`, `pc_battle_event_threads`,
+`_arguments`, `_waiting`) now have host routes in `scene_submit.zig`.
 
 ## Appendix: every block
 
@@ -627,3 +640,88 @@ Line numbers are those of `9a402e6`. Files are in `src/BATTLE/BATTLE.PRG/` excep
 | 254 | main.c:11866-11868 | _asmNop | A |  | `__asm__(".nop;");` |  |  | keep |
 | 255 | main.c:11879-11913 | vs_main_memcpy | A |  | vs_main_memcpy in C (asm on the PS1) |  |  | keep |
 | 256 | main.c:11918-11934 | vs_main_bzero | A |  | vs_main_bzero in C (asm on the PS1) |  |  | keep |
+
+### Sweep of 2026-11-05: the `.inc` files and the overlays
+
+Rows 257 to 314. Lines are those of `386f31f2b`; `pc/build/boot/*.inc` are generated (`build_boot.py`, not
+committed). `INITBTL.PRG` has no `ROOD_PC` block (the three `L` rows are its unguarded `psx_get`/`psx_set`
+uses, listed for completeness; the main table counts only guarded blocks). `MAINMENU.PRG` has 28 (`C48.c` 11,
+`58EC.c` 16, `58EC.h` 1). Neither overlay has a route in `game/ownership.toml` (it has the `battle` overlay
+only), so no Zig repeats their hooks and the battle flip does not touch them: they stay as they are.
+
+| # | file:lines | function | class | F | what | state | Zig | fate |
+|---:|---|---|---|---|---|---|---|---|
+| 257 | actor_commands.inc:13-365 | func_80075554 | A |  | C body of the asm function (11 `psx_get` uses inside) |  | yes (routed, `actor_commands.zig`) | keep; routable with pc-inc routing (§5 step 1.1) |
+| 258 | scene_submit.inc:28-168 | func_8008AC78 | A |  | C body of the asm function (the area map and room submission; `psx_get`/`psx_set` throughout) |  | yes (routed, `scene_submit.func_8008AC78`) | keep; routable with pc-inc routing |
+| 259 | scene_submit.inc:15-26 | anchor_map | F | F17 | `pc_hw_anchor_packets` (weak) right-anchors the area map's packets; externs and the helper | GTE output when on (pc_gte_anchored counter balanced when off) | yes (`scene_submit.anchorMap`, host route) | delete the C block; Zig keeps the call |
+| 260 | scene_submit.inc:115-117 | func_8008AC78 | F | F17 | `pc_gte_anchored = 1` / `0` around `func_80098F8C` (map rooms without the GTE's Hor+ narrowing) | GTE output when on (pc_gte_anchored counter balanced when off) | yes | delete the C lines; Zig keeps them |
+| 261 | scene_submit.inc:127 | func_8008AC78 | F | F17 | `anchor_map(mapPackets)` | GTE output when on (pc_gte_anchored counter balanced when off) | yes | delete the C line; Zig keeps the call |
+| 262 | scene_submit.inc:147 | func_8008AC78 | F | F17 | `anchor_map(mapPackets)` | GTE output when on (pc_gte_anchored counter balanced when off) | yes | delete the C line; Zig keeps the call |
+| 263 | scene_submit.inc:170-196 | pc_battle_action | F | F24 | Host query for the interactive fog (`dev_state.c`): the running action, phase, chain, aim and target |  | yes (`scene_submit.battleAction`, `host = true`) | Zig carries it; delete the C copy |
+| 264 | scene_submit.inc:198-233 | pc_battle_camera_focus | F | F24 | Host query for the depth of field's camera subject (`dev_state.c`, `post_profile.cpp`) |  | yes (`scene_submit.battleCameraFocus`, `host = true`) | Zig carries it; delete the C copy |
+| 265 | scene_submit.inc:237 | pc_battle_event_running | F | F24 | `D_800F4C34 != 0` for the host (`post_profile.cpp`, `gameplay_walls.c`, `occlusion.c`, `hud/query_bridge.c`) |  | yes (`battleEventRunning`) | Zig carries it; delete the C copy |
+| 266 | scene_submit.inc:242 | pc_battle_event_id | F | F24 | The running event's id (`cutscene.cpp`, `post_profile.cpp`) |  | yes (`battleEventId`) | Zig carries it; delete the C copy |
+| 267 | scene_submit.inc:249-261 | pc_battle_event_threads | F | F24 | The event threads' state, offsets, opcodes, handlers (`cutscene.cpp`, weak caller) |  | yes (`scene_submit.battleEventThreads`, `host = true`) | Zig carries it; delete the C copy |
+| 268 | scene_submit.inc:266-293 | pc_battle_event_arguments | F | F24 | One event thread's arguments, line and actor (`cutscene_sequencer.cpp`, weak caller) |  | yes (`scene_submit.battleEventArguments`, `host = true`) | Zig carries it; delete the C copy |
+| 269 | scene_submit.inc:301-318 | pc_battle_event_waiting | F | F24 | The input mask the running event waits for (`cutscene.cpp`, weak caller) |  | yes (`scene_submit.battleEventWaiting`, `host = true`) | Zig carries it; delete the C copy |
+| 270 | scene_submit.inc:321-330 | pc_battle_camera_target | F | F24 | The camera's target point (`gameplay_walls.c`, weak caller) |  | yes (`battleCameraTarget`) | Zig carries it; delete the C copy |
+| 271 | room_shadows.inc:15-102 | func_8008CEB0 | A |  | C body of the asm function (moving platforms' shadows; `psx_get`/`psx_set` throughout) |  | yes (routed, `room_shadows.func_8008CEB0`) | keep; routable with pc-inc routing |
+| 272 | room_shadows.inc:91-97 | func_8008CEB0 | F | F25 | `pc_platform_shadow_native` (weak) draws each square natively and returns the new packet end (the externs are at 12-14) |  | yes | delete the C block; Zig keeps the call |
+| 273 | room_shadows.inc:100-101 | func_8008CEB0 | F | F25 | `pc_platform_shadows_end(start, end)` (weak) hands the finished packet range over |  | yes | delete the C block; Zig keeps the call |
+| 274 | room_callbacks.inc:4-63 | (18 wrappers `pc_cb_*`) | A |  | Native versions of the room-effect callbacks, typed to the unit's structs |  | yes (routed, `room_callbacks.zig`, 18 entries) | keep; routed at the flip |
+| 275 | room_callbacks.inc:65-87 | D_800E85CC, D_800E85E8 | A |  | The two callback tables, with the wrappers for the PS1's guest function words |  | n/a (data) | keep (data stays C) |
+| 276 | event_callbacks.inc:2-12 (generated) | (11 wrappers `pc_event_*`) | A |  | Static wrappers of the event opcode handlers |  | yes (routed, `event_callbacks.zig`) | keep; ported with `func_800BF850`'s unit (§5 step 1.2) |
+| 277 | event_callbacks.inc:13-270 (generated) | _opcodeFunctionTable[256] | A |  | The opcode table, built from the wrappers and `vs_battle_invalidOpcode` |  | n/a (data) | keep (data stays C) |
+| 278 | effect_callbacks.inc:2-33 (generated) | (32 wrappers `pc_effect_*`) | A |  | Static wrappers of the effect node handlers |  | yes (routed, `effect_callbacks.zig`) | keep; ported with `func_800D6D24`'s unit (§5 step 1.2) |
+| 279 | effect_callbacks.inc:34-85 (generated) | D_800EC3F4[49], D_800EC324[1] | A |  | The effect callback tables |  | n/a (data) | keep (data stays C) |
+| 280 | charge_skip.inc:49-114 | charge_skip_hold_vsyncs, _kind, pc_charge_skip_state, charge_skip_now | F | F1 | The skip's decision: hold in vsyncs, the action's kind, whether this vsync is a wind-up and Skip applies; statics `charge_skip_from_set`, `charge_skip_from` | yes (the file statics) | yes (routed, `charge_skip.zig`) | Zig is the owned copy; drop the include when `vs_battle_exec` is ported (its `pc_charge_skip(4/5)` calls need it until then) |
+| 281 | charge_skip.inc:115-182 | charge_skip_load, pc_charge_skip, pc_charge_skip_pump, _pumped | F | F1 | Runs the effect loader's steps back to back with the CD reads (`pc_cd_queue_load`), then the skip itself | yes (CD queue slot `D_800F568C`, loader state) | yes | as above |
+| 282 | charge_skip.inc:183-238 | pc_charge_skip_hold, pc_charge_skip_name | F | F1 | Keeps the name window up past a skipped release; statics `charge_skip_held`, `_held_at`, `_held_vsyncs` | yes (name window, text box 7) | yes | as above |
+| 283 | charge_skip.inc:239-328 | pc_charge_skip_name_window, _view, _battle_state, _reseed, _trace, _window, _ability | F | F1 | Host/RPC queries and the RNG pin (`_reseed` re-seeds `randArr`/`randIndex`) | yes (`_reseed`: RNG); the rest read only | yes | as above |
+| 284 | src/MENU/MAINMENU.PRG/C48.c:36-48 | (file scope) | F | F4 | `classic_hook.h`, externs of `pc_ui_direct_tick`, `pc_ui_data_armed`, `pc_fast_travel_mask`; `MAGIC_TITLE_MASK` is `pc_fast_travel_mask(0xB7)` (else the constant `0xB7`) | yes (menu bits) | n/p (overlay stays C) | keep (overlay not part of the battle flip) |
+| 285 | src/MENU/MAINMENU.PRG/C48.c:379-384 | vs_mainMenu_exec | F | F6 | A direct entry the modern menus take over (the loot) speaks the submenu's protocol: `pc_ui_direct_tick` | yes (`submenuReturn`, submenu state) | n/p | keep |
+| 286 | src/MENU/MAINMENU.PRG/C48.c:432-439 | vs_mainMenu_exec | F | F6 | The native Data screen has its own header: no `MENU` command title (`pc_ui_data_armed`) | yes (menu command) | n/p | keep |
+| 287 | src/MENU/MAINMENU.PRG/C48.c:446-450 | vs_mainMenu_exec | F | F6 | `targetPosition0 = 320` for the Data screen (the row slides off) | yes (menu item slide) | n/p | keep |
+| 288 | src/MENU/MAINMENU.PRG/C48.c:496-503 | vs_mainMenu_exec | F | F6 | The modern menus handed a break art to the game and ended the menu: return when `currentMenu == 0x7F` | yes | n/p | keep |
+| 289 | src/MENU/MAINMENU.PRG/C48.c:1009-1016 | vs_mainMenu_drawClassAffinityType | F | F14 | `PC_CLASSIC_SITE_STAT_PAGE` opens: the page's slide, page, subtype and a copy of the stats | capture only | n/p | keep |
+| 290 | src/MENU/MAINMENU.PRG/C48.c:1018-1020 | vs_mainMenu_drawClassAffinityType | F | F14 | closes the stat-page `PC_CLASSIC` range | capture only | n/p | keep |
+| 291 | src/MENU/MAINMENU.PRG/C48.c:1121-1136 | vs_mainMenu_renderEquipStats | F | F14 | `PC_CLASSIC_SITE_EQUIP_STATS` opens: the panel's place and the values it knows | capture only | n/p | keep |
+| 292 | src/MENU/MAINMENU.PRG/C48.c:1187-1190 | vs_mainMenu_renderEquipStats | F | F14 | closes the equipment-stats range | capture only | n/p | keep |
+| 293 | src/MENU/MAINMENU.PRG/C48.c:1245-1251 | vs_mainMenu_renderDpPpBars | F | F14 | `PC_CLASSIC_SITE_DP_PP_BARS` opens: the step, the target, DP and PP | capture only | n/p | keep |
+| 294 | src/MENU/MAINMENU.PRG/C48.c:1293-1295 | vs_mainMenu_renderDpPpBars | F | F14 | closes the DP/PP bars range | capture only | n/p | keep |
+| 295 | src/MENU/MAINMENU.PRG/58EC.c:10-12 | (file scope) | F | F14 | `#include "pc/src/classic/classic_hook.h"` | capture only | decl | keep |
+| 296 | src/MENU/MAINMENU.PRG/58EC.c:441-447 | _renderMenuCommand | F | F14 | `PC_CLASSIC_SITE_MENU_COMMAND` opens: the title's sprite, from the action and its slide | capture only | n/p | keep |
+| 297 | src/MENU/MAINMENU.PRG/58EC.c:456-459 | _renderMenuCommand | F | F14 | closes the menu-command range | capture only | n/p | keep |
+| 298 | src/MENU/MAINMENU.PRG/58EC.c:517-521 | vs_mainMenu_renderCursor | F | F14 | The hand's record (step, place, colour) | capture only | n/p | keep |
+| 299 | src/MENU/MAINMENU.PRG/58EC.c:535-539 | vs_mainMenu_renderCursor | F | F14 | `pc_classic_site(PC_CLASSIC_SITE_MENU_CURSOR, ...)` | capture only | n/p | keep |
+| 300 | src/MENU/MAINMENU.PRG/58EC.c:929-942 | (after vs_mainMenu_getConfirmedRow) | F | F14 | `pc_classic_mainmenu_read`: a host function defined in the overlay that copies its file statics (row, page, sub menu, command) for `classic/menu_model.c` | reads file statics | n/p | keep; moves to a C definition outside the overlay if MAINMENU is ever ported |
+| 301 | src/MENU/MAINMENU.PRG/58EC.c:1253-1264 | (file scope) | F | F15 | `pc_text_char` wrapper over `pc_text_glyph` (weak): each character the row printer sets | packets only | n/p | keep |
+| 302 | src/MENU/MAINMENU.PRG/58EC.c:1276-1278 | vs_mainMenu_renderRowLabel | F | F15 | `void* strips[12]` collects the glyph's packets |  | n/p | keep |
+| 303 | src/MENU/MAINMENU.PRG/58EC.c:1283-1285 | vs_mainMenu_renderRowLabel | F | F15 | `pc_text_char(NULL, 0, -1, ...)`: the space |  | n/p | keep |
+| 304 | src/MENU/MAINMENU.PRG/58EC.c:1309-1311 | vs_mainMenu_renderRowLabel | F | F15 | `strips[i] = prim + 2` |  | n/p | keep |
+| 305 | src/MENU/MAINMENU.PRG/58EC.c:1314-1317 | vs_mainMenu_renderRowLabel | F | F15 | `pc_text_char(strips, 12, glyph, ...)` | packets only | n/p | keep |
+| 306 | src/MENU/MAINMENU.PRG/58EC.c:1350-1357 | vs_mainMenu_renderTabNavigation | F | F14 | `PC_CLASSIC_SITE_MENU_TABS` opens: the arrows (and L1 / R1), from the mode and the step | capture only | n/p | keep |
+| 307 | src/MENU/MAINMENU.PRG/58EC.c:1377-1380 | vs_mainMenu_renderTabNavigation | F | F14 | closes the tabs range | capture only | n/p | keep |
+| 308 | src/MENU/MAINMENU.PRG/58EC.c:1531-1536 | (before _renderMenuItem) | F | F14 | `pc_mainmenu_render_row`: the classic look's copy of a row, the row's emit on a copy of its record (called from `hud/hud_bridge.c`) | no (a copy) | n/p | keep |
+| 309 | src/MENU/MAINMENU.PRG/58EC.c:1717-1738 | _renderMenuItems | F | F14 | `PC_CLASSIC_SITE_MENU_ROW`: the row's emit, from a copy of its record taken before the emit steps its gradient | capture only | n/p | keep |
+| 310 | src/MENU/MAINMENU.PRG/58EC.c:1841-1850 | vs_mainMenu_renderScreen | F | F14 | `PC_CLASSIC_SITE_MENU_BACKGROUND`: the background, from its fade step and slot | capture only | n/p | keep |
+| 311 | src/MENU/MAINMENU.PRG/58EC.h:382-384 | (file scope) | O |  | `extern _textHeaders[]` is left out on the PC (the `.c` defines it with its type) |  |  | keep |
+| 312 | src/BATTLE/INITBTL.PRG/18.c:314 | func_800F9AD8 | L |  | `psx_get(...unk3C)`: unguarded LP64 macro use (the codemod; INITBTL has no `ROOD_PC` block) |  | n/p (overlay stays C) | keep |
+| 313 | src/BATTLE/INITBTL.PRG/18.c:408-456 | func_800F9CCC | L |  | `psx_get` of the character's actor pointer, 21 uses (unguarded LP64 macro) |  | n/p | keep |
+| 314 | src/BATTLE/INITBTL.PRG/18.c:543-547 | func_800FA35C | L |  | `psx_set` of the zone context's five guest pointers (unguarded LP64 macro) |  | n/p | keep |
+
+**What the sweep changes in the flip plan**
+
+- `pc_battle_camera_focus`, `pc_battle_event_threads`, `_arguments` and `_waiting` (`scene_submit.inc`,
+  F24) had no Zig: ported 2026-11-05 (`scene_submit.zig`, `host = true`), so the `.inc` text can go.
+- `scene_submit.inc` stays included at the flip (§5 step 9): `func_8008AC78` is its asm replacement. Its F17
+  lines (rows 259 to 262) are hooks inside that replacement; delete them with F17 or leave them, the
+  Zig repeats them either way.
+- All 15 functions of `charge_skip.inc` already have Zig (`charge_skip.zig`, routed `host = true`); only
+  the C calls in `vs_battle_exec` and `pc_cd_queue_load` (main.c) remain for F1.
+- F25 needs no pin beyond `native_shadows` 0 (already in `OFF`); with `pc_hw_active` 0 the hook returns
+  the packet unchanged.
+- `MAINMENU.PRG` hooks (F4, F6, F14, F15) are not battle state: the battle corpora do not run the menu, so no
+  tick-mode check applies. The modern-menu ones suppress themselves under `ROOD_ORACLE`
+  (`pc_oracle_classic`, `menu_bridge.c`); `pc_ui_data_armed`, `pc_ui_direct_tick` and `pc_fast_travel_mask`
+  were not checked for an oracle suppression of their own (uncertain).

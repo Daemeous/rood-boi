@@ -994,6 +994,9 @@ void pc_hud_text_frame(void* record, int id, void* first, void* end)
     classic_finish(PC_HUD_TEXT_FRAME, &f, first, end, NULL, 0, 0);
 }
 
+/* What func_80095C18 (2842C.c) decided, as it decides it, for the classic layer; func_8009627C's port reads it
+ * too. A host definition: the game's units only declare it. */
+pc_classic_emote pc_emote_record;
 /* An emote over an actor: what func_80095C18 decided (pc_classic_emote, set as it decided it), the slot it
  * linked into (the balloon and its marks: its depth, unk4 + z words; the off-screen arrow -16; a far actor's
  * sprite 0). One element per actor. */

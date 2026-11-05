@@ -1424,6 +1424,16 @@ int func_800A5280(int index, int direction, int distance, SVECTOR* input)
     if (actor == NULL) {
         return 3;
     }
+#ifdef ROOD_PC
+    /* Read unassigned on some paths in the original (stack slots whose PS1 value
+     * is whatever an earlier call left there): the values func_800A5280.zig
+     * uses, so the C and the port agree. The unchanged area makes reject's
+     * store a no-op. */
+    motion.vx = motion.vy = motion.vz = motion.pad = 0;
+    saved.vx = saved.vy = saved.vz = saved.pad = 0;
+    result = speed = facing = status = 0;
+    previousArea = actor->unk5AC_28;
+#endif
     if (actor->unk5AC_0 != 0) {
         return 3;
     }

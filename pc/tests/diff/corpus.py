@@ -46,12 +46,14 @@ INERT_PINS = {
     "button_prompts": "original",   # the game's own button glyphs (F15)
     "camera_stick_menus": "none",   # pc_camera_stick_menu (F2)
     "qol_skip_charging_who": 0,     # with qol_skip_charging 0, the caster set stays the original's (F1)
+    "hud_label_opaque": 0,          # the stat bars' label drawn with the original's flag 0x180 (F23)
+    "opacity_2d": 0,                # the game's own read-back for _renderTextImmediate's fade (F22)
 }
 INERT_PINS.update({f"hud_classic_{kind}": 0 for kind in HUD_CLASSIC_KINDS})  # no plugin claim honoured (F14)
 INERT = PROFILE + "".join(f"{key} {value}\n" for key, value in INERT_PINS.items())
-# Environment the runner sets besides the file. ROOD_OPACITY_2D=0 keeps the
-# hardware renderer's text fade out of _renderTextImmediate (F22).
-INERT_ENVIRONMENT = {"ROOD_OPACITY_2D": "0"}
+# Environment the runner sets besides the file: none now (the setting opacity_2d 0 replaced
+# ROOD_OPACITY_2D=0, which still overrides the setting when set).
+INERT_ENVIRONMENT = {}
 PROFILES = {"classic": PROFILE, "features": FEATURES, "inert": INERT}
 PROFILE_ENVIRONMENT = {"inert": INERT_ENVIRONMENT}
 

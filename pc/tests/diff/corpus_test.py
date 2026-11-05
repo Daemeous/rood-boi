@@ -340,6 +340,8 @@ class InertProfile(unittest.TestCase):
         self.assertEqual(inert["ui_text"], "original")
         self.assertEqual(inert["ui_bubbles"], "original")
         self.assertEqual(inert["camera_stick_menus"], "none")
+        self.assertEqual(inert["hud_label_opaque"], "0")
+        self.assertEqual(inert["opacity_2d"], "0")
         self.assertIn('"none"', (SRC / "camera_stick.c").read_text())
 
     def test_runner_switch_writes_the_profile_and_its_environment(self):
@@ -348,7 +350,7 @@ class InertProfile(unittest.TestCase):
             env = corpus.environment(work, "battle_44F14", "inert")
             self.assertEqual(env["ROOD_SETTINGS"], str(work / "settings.cfg"))
             self.assertEqual((work / "settings.cfg").read_text(), corpus.PROFILES["inert"])
-            self.assertEqual(env["ROOD_OPACITY_2D"], "0")
+            self.assertNotIn("ROOD_OPACITY_2D", env)
             self.assertEqual(env["ROOD_OWNER"], "battle_44F14=original")
             self.assertEqual(env["ROOD_ORACLE"], "1")
             self.assertNotIn("ROOD_OPACITY_2D", corpus.environment(work, "battle_44F14", "classic"))

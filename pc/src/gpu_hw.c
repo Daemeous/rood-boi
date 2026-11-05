@@ -725,13 +725,14 @@ typedef struct {
 static opacity_range pending_opacities[MAX_OPACITY_RANGES], active_opacities[MAX_OPACITY_RANGES];
 static int pending_opacity_count, active_opacity_count;
 /* Whether 2D at an opacity is drawn as primitives (the hardware renderer;
- * ROOD_OPACITY_2D=0: the game's own read-back and upload, for comparisons). */
+ * setting opacity_2d 0: the game's own read-back and upload, for comparisons;
+ * ROOD_OPACITY_2D, when set, wins: 0 off, anything else on). */
+extern int pc_opacity_2d; /* project_settings.cpp */
 int pc_hw_opacity_on(void)
 {
-    static int off = -1;
-    if (off < 0)
-        off = getenv("ROOD_OPACITY_2D") && *getenv("ROOD_OPACITY_2D") == '0';
-    return pc_hw_active && !off;
+    const char* env = getenv("ROOD_OPACITY_2D");
+    int on = env && *env ? *env != '0' : pc_opacity_2d != 0;
+    return pc_hw_active && on;
 }
 /* The packets [start, end) drawn at `opacity` (16.16: 0x10000 opaque). */
 void pc_hw_opacity_packets(const void* start, const void* end, int opacity)

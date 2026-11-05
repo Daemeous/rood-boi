@@ -75,15 +75,6 @@ fn record(ctx: *zd.Ctx, p: anytype, with_y: bool) void {
     if (with_y) seen.vy = sv.vy;
 }
 
-/// The C's `reject` stores `previousArea`, which only the statuses without bits 16-20 define: otherwise it is
-/// stack garbage the harness cannot reproduce (0x18(%rsp) of the object). Those states never reach `reject`
-/// here: the 0x70000-with-0x1000 shortcut is excluded in prepare and the callees below that can send the
-/// step to `reject` always accept it.
-fn areaUndefined(p: anytype) bool {
-    const act: *v.D_800F4538_t = @ptrCast(@alignCast(p));
-    return (status(act).* & 0x1F0000) != 0;
-}
-
 pub const stubs = struct {
     pub fn func_800A0204(ctx: *zd.Ctx, a: anytype, b: anytype, c: anytype, d: anytype) c_int {
         _ = a;
@@ -120,12 +111,14 @@ pub const stubs = struct {
         record(ctx, offset, true);
         record(ctx, saved, true);
         const r = @as(c_int, ctx.value(u2));
-        return if (areaUndefined(a) and r == 0) 1 else r;
+        _ = a;
+        return r;
     }
 
     pub fn func_800A69B4(ctx: *zd.Ctx, a: anytype) c_int {
         const r = @as(c_int, ctx.value(u2));
-        return if (areaUndefined(a) and r == 0) 1 else r;
+        _ = a;
+        return r;
     }
 
     pub fn func_800A6AA0(ctx: *zd.Ctx, a: anytype, distance: anytype, direction: anytype) c_int {
@@ -190,7 +183,8 @@ pub const stubs = struct {
         if (ctx.value(u2) == 0) mv.vy = small(ctx);
         record(ctx, m, true);
         const r = @as(c_int, ctx.value(u2));
-        return if (areaUndefined(a) and r == 0) 1 else r;
+        _ = a;
+        return r;
     }
 
     pub fn func_800AA600(ctx: *zd.Ctx, index: anytype, m: anytype, n: anytype) void {
@@ -313,14 +307,8 @@ pub fn prepare(ctx: *zd.Ctx) Args {
         6 => st |= ctx.edge(u32, &.{ 0x80000, 0x180000 }) | (if (ctx.chance(4)) @as(u32, ctx.range(u3, 0, 7)) << 16 else 0),
         else => st |= @as(u32, ctx.edge(u3, &.{ 1, 2, 3, 3, 4, 5, 6, 7 })) << 16,
     }
-    // `reject` would store the C's uninitialised previousArea (see areaUndefined). In a 0x70000 state without
-    // bits 19-20 it is reached through the 0x1000 shortcut, bit 23, unk5AC_3 and the pad == 0 checks: none of
-    // them is set there.
-    const walking = (st & 0x70000) != 0 and (st & 0x180000) == 0;
-    if (walking) {
-        fl &= ~@as(u32, 0x1000 | 0x8);
-        st &= ~@as(u32, 0x800000);
-    }
+    // `reject` in a 0x70000 state stores previousArea: the C defines it under ROOD_PC (the unchanged area),
+    // as the port does, so those states run unsteered.
     status(a).* = st;
     flags(a).* = fl;
     psx.setBits(a, "unk5AC_0", if (guard and ctx.chance(3)) ctx.range(u2, 1, 3) else 0);
@@ -382,7 +370,7 @@ pub fn prepare(ctx: *zd.Ctx) Args {
     const input = ctx.alloc(v.SVECTOR);
     input.vx = ctx.pick(i16, &.{ 0, 0, 1, -1, 0x7FFF, -0x8000, 100 });
     input.vz = ctx.pick(i16, &.{ 0, 0, 1, -1, 0x7FFF, -0x8000, 100 });
-    input.pad = if (walking) ctx.pick(i16, &.{ 1, 1, 2, -1, 0x100 }) else ctx.pick(i16, &.{ 0, 0, 1, 1, 2, -1, 0x100 });
+    input.pad = ctx.pick(i16, &.{ 0, 0, 1, 1, 2, -1, 0x100 });
 
     // A falling actor (no 0x70000 bits) stepping straight on with the stick off: the `unk17FF` shortcut's return.
     if ((st & 0x1F0000) == 0x100000 and ctx.chance(2)) {

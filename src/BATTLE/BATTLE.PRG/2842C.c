@@ -2383,9 +2383,8 @@ void func_80095B7C(int arg0, int arg1)
 
 #ifdef ROOD_PC
 /* PC_CLASSIC: what func_80095C18 decided, as it decides it, for the classic layer
- * (classic_hook.h). Not static: func_8009627C's Zig port hands it to the site too
- * (a file static is out of a port's reach, PORTING.md 6.5). */
-pc_classic_emote pc_emote_record;
+ * (classic_hook.h). Defined in hud_bridge.c: func_8009627C's Zig port hands it to the site too. */
+extern pc_classic_emote pc_emote_record;
 #endif
 
 void func_80095C18(int actor, int kind)

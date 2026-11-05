@@ -1590,7 +1590,7 @@ they did while it was open) at the fading opacity: 5BF94.c marks the packet
 range (`pc_hw_opacity_packets`) and those primitives are drawn "over" at
 that opacity (`FLAG_FADE`, in the text passes; the window-resolution overlay
 too). The software renderer keeps the game's own path, and
-`ROOD_OPACITY_2D=0` brings it back on the hardware ones (for comparisons).
+The setting `opacity_2d 0` (or `ROOD_OPACITY_2D=0`, which wins when set) brings it back on the hardware ones (for comparisons).
 Test: `pc/tests/text_fade_smoke.py`.
 
 **Lines (`ui_text_layout line`, the default).** The game sets its text a

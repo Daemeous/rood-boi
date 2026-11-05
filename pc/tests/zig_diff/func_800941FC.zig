@@ -64,6 +64,9 @@ pub fn prepare(ctx: *zd.Ctx) Args {
         l.unk10 = ctx.int(i16);
         l.unk12 = ctx.int(i16);
     }
+    // The packet cursor the classic-site and anchor hooks take from the PS1 scratchpad's
+    // first word: random, but never a first-page address (the harness's null field).
+    @as(*volatile u32, @ptrFromInt(zd.scratchpad)).* |= 0x10000;
     return .{};
 }
 

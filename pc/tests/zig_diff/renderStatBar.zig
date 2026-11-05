@@ -6,7 +6,9 @@
 //! `<< 6` and the `+ 0xFF`. The scratchpad-side prim buffer lives in the arena:
 //! unk4 points into it so the -0xC step and the [4] store land in valid memory.
 //! The setSprite stub returns either its prim argument or a fresh arena block,
-//! so a store through the wrong pointer shows. colorIndex's sign bit (the
+//! so a store through the wrong pointer shows. The stub writes the sprite flag it
+//! was given into the packet's word 5, and pc_hud_label_opaque (0x80 or the
+//! original's 0x180) is either value. colorIndex's sign bit (the
 //! `& 2` test) is unreachable with four-entry tables: waived in specs.toml.
 const std = @import("std");
 const zd = @import("zdiff");
@@ -24,13 +26,14 @@ pub const stubs = struct {
         wh: anytype,
         nextPrim: anytype,
     ) @TypeOf(nextPrim) {
-        _ = brightnessTransparency;
         _ = xy;
         _ = wh;
         // The C stores through the returned pointer: return the prim argument
         // half the time, a different arena block the other half.
-        if (ctx.value(u1) == 1) return nextPrim;
-        return @ptrCast(@alignCast(ctx.allocBytes(32, 16)));
+        const sprite: @TypeOf(nextPrim) = if (ctx.value(u1) == 1) nextPrim else @ptrCast(@alignCast(ctx.allocBytes(32, 16)));
+        // The flag the label was drawn with, where the trace sees it.
+        sprite[5] = @bitCast(@as(c_int, brightnessTransparency));
+        return sprite;
     }
 };
 
@@ -40,6 +43,7 @@ pub fn prepare(ctx: *zd.Ctx) Args {
     const block: [*]u8 = ctx.allocBytes(256, 16);
     psx.put(&scratch.unk4, @as(*anyopaque, @ptrCast(block + 128)));
 
+    psx.global(c_int, "pc_hud_label_opaque").* = @intFromBool(ctx.chance(2));
     const colorIndex = ctx.range(c_int, 0, 3);
     const current = ctx.pick(c_int, &.{
         0,                       1,                   -1,                  255,

@@ -834,6 +834,13 @@ static void graphics_panel()
         bool filtering = pc_hw_texture_filter != 0;
         if (ImGui::Checkbox("Smooth textures (bilinear, 3D only)", &filtering))
             pc_hw_texture_filter = filtering;
+        extern int pc_opacity_2d; /* project_settings.cpp */
+        bool opacity = pc_opacity_2d != 0;
+        if (ImGui::Checkbox("2D at an opacity as primitives", &opacity))
+            pc_opacity_2d = opacity;
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("A text box's text fading out is drawn as sprites at that opacity. Off: the game's own\n"
+                              "frame-buffer read-back and upload (for comparisons; ROOD_OPACITY_2D overrides).");
         bool perspective = pc_hw_perspective != 0;
         if (ImGui::Checkbox("Perspective-correct textures", &perspective))
             pc_hw_perspective = perspective;
@@ -1086,7 +1093,7 @@ static void camera_stick_panel()
     ImGui::Unindent();
 }
 
-extern "C" int pc_qol_map_invert, pc_qol_fp_invert_y; /* project_settings.cpp */
+extern "C" int pc_qol_map_invert, pc_qol_fp_invert_y, pc_hud_label_opaque; /* project_settings.cpp */
 /* Graphics > Controls: the map screen's panning and the first-person view's
  * up/down (the game reads them; off by default). */
 static void look_panel()
@@ -1103,6 +1110,12 @@ static void look_panel()
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("In the first-person view (Start) up looks down and down looks up, on the D-pad and the\n"
                           "right stick. The right stick always looks around there; left/right are not inverted.");
+    bool label = pc_hud_label_opaque != 0;
+    if (ImGui::Checkbox("Opaque stat bar labels (HP, MP, RISK)", &label))
+        pc_hud_label_opaque = label;
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("The battle stat bars' label is drawn solid, like its digits. Off: the original's\n"
+                          "semi-transparent sprite, whose outline blends with the field.");
 }
 
 extern "C" int pc_qol_confirm_cross, pc_qol_field_cross_attack; /* project_settings.cpp */

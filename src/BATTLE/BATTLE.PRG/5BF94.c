@@ -3040,6 +3040,9 @@ void vs_battle_renderStatBar(int colorIndex, int w, u_long* before, int xy)
     psx_set(vs_scratch.unk0, primBuf + 14);
 }
 
+#ifdef ROOD_PC
+extern int pc_hud_label_opaque; /* project_settings.cpp: the label opaque (1) or the original's (0) */
+#endif
 void _renderStatBar(int colorIndex, int current, int max)
 {
     u_long* prim = psx_get(vs_scratch.unk4) - 0xC;
@@ -3062,8 +3065,9 @@ void _renderStatBar(int colorIndex, int current, int max)
         /* The label (HP, MP, RISK) as an opaque sprite, like its digits: the
          * original's semi-transparent one (0x180: GP0 0x66) blends its
          * outline (CLUT entry 1, black with STP) half with the field, so the
-         * lettering's outline looks see-through beside the digits' solid one. */
-        vs_battle_setSpriteDefaultTexPage(0x80, D_800EBBEC[colorIndex] - D_800EB9B0,
+         * lettering's outline looks see-through beside the digits' solid one.
+         * The setting hud_label_opaque 0 draws the original's. */
+        vs_battle_setSpriteDefaultTexPage(pc_hud_label_opaque ? 0x80 : 0x180, D_800EBBEC[colorIndex] - D_800EB9B0,
             D_800EBBFC[colorIndex] | 0x90000, prim)[4] =
             D_800EBC00[colorIndex] | 0x37F60000;
 #else

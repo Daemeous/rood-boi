@@ -71,6 +71,15 @@ int pc_skip_intro;
  * (BATTLE func_8006EC7C), the D-pad and the right stick alike. Off by
  * default. */
 int pc_qol_map_invert, pc_qol_fp_invert_y;
+/* hud_label_opaque: the battle stat bars' label (HP, MP, RISK) is drawn as an
+ * opaque sprite (1, default), like its digits; 0 draws the original's
+ * semi-transparent one (BATTLE _renderStatBar, sprite flag 0x180). */
+int pc_hud_label_opaque = 1;
+/* opacity_2d: 2D drawn at an opacity (a text box's text fading out) is drawn
+ * as primitives on the hardware renderer (1, default); 0 keeps the game's own
+ * read-back and upload (gpu_hw.c pc_hw_opacity_on; ROOD_OPACITY_2D, when set,
+ * wins). */
+int pc_opacity_2d = 1;
 /* qol_map_controls: the map screen's right stick and triggers (map_pad.h):
  * 0 Modern (default: the right stick turns and tilts, L2 / R2 zoom), 1
  * Original (the PlayStation's: L2 / R2 + right stick, the stick pans). */
@@ -343,6 +352,8 @@ const Entry entries[] = {
     I("qol_map_invert", pc_qol_map_invert),
     I("qol_map_controls", pc_qol_map_controls),
     I("qol_fp_invert_y", pc_qol_fp_invert_y),
+    I("hud_label_opaque", pc_hud_label_opaque), /* the stat bars' label opaque (1) or the original's 0x180 (0) */
+    I("opacity_2d", pc_opacity_2d), /* 2D at an opacity as primitives (1) or the game's read-back (0; ROOD_OPACITY_2D wins) */
     I("qol_confirm_cross", pc_qol_confirm_cross),
     I("qol_field_cross_attack", pc_qol_field_cross_attack),
     /* Gameplay. */

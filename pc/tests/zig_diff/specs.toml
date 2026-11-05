@@ -55,31 +55,22 @@ spec = "battleExec.zig"
 iterations = 6000
 
 [[function.vs_battle_exec.coverage_waiver]]
-id = "+409 b1"
+id = "+415 b1"
 reason = "`if (pc_camera_stick_menu`: the weak hook is always linked (a recording stub here); its null side never runs"
 
-[[function.vs_battle_exec.coverage_waiver]]
-id = "+427 b1"
-reason = "the camera-update step test re-runs only for modes 0 and 1, where a screen transition (step 1, 2 or 4) reads skipCameraUpdate unassigned (undefined behaviour, see the spec header), so the step 1/2/4 side cannot be driven"
+
+
 
 [[function.vs_battle_exec.coverage_waiver]]
-id = "+428 b1"
-reason = "same test as +427: the step 1/2/4 side is reachable only through the unassigned skipCameraUpdate read in modes 0 and 1"
-
-[[function.vs_battle_exec.coverage_waiver]]
-id = "+429 b1"
-reason = "same test as +427: the step 1/2/4 side is reachable only through the unassigned skipCameraUpdate read in modes 0 and 1"
-
-[[function.vs_battle_exec.coverage_waiver]]
-id = "+509 b1"
+id = "+515 b1"
 reason = "`if (D_800F190C)` re-tests the global the enclosing `if (D_800F190C)` just tested, and no callee in the harness (all recording stubs) writes it, so its false side cannot run"
 
 [[function.vs_battle_exec.coverage_waiver]]
-id = "+547 b1"
+id = "+553 b1"
 reason = "PC_CLASSIC_SITE_STATUS_PANEL: the weak hooks pc_classic_site and pc_hw_anchor_packets are never linked in the harness (no stub), so only their null side runs"
 
 [[function.vs_battle_exec.coverage_waiver]]
-id = "+547 b3"
+id = "+553 b3"
 reason = "PC_CLASSIC_SITE_STATUS_PANEL: the weak hooks pc_classic_site and pc_hw_anchor_packets are never linked in the harness (no stub), so only their null side runs"
 
 [[function.vs_battle_exec.mutation]]
@@ -9044,23 +9035,20 @@ spec = "func_800A5280.zig"
 iterations = 40000
 
 [[function.func_800A5280.coverage_waiver]]
-id = "+107 b1"
+id = "+117 b1"
 reason = "`if (moveType != 0)` inside the 0x70000 block: moveType is the same three bits (the u16 at byte 0xA, bits 0-2) as that block's own test, so it is never 0 there"
 
 [[function.func_800A5280.coverage_waiver]]
-id = "+213 b0"
+id = "+223 b0"
 reason = "`distance != 0 &&` before func_800A6660: every distance 0 went to `goto halt`/`stop` above, so it is never 0 here"
 
 [[function.func_800A5280.coverage_waiver]]
-id = "+419 eq"
+id = "+429 eq"
 reason = "`flags & 0xF0000000` compiles to `flags > 0x0FFFFFFF`: the word 0x0FFFFFFF has bit 20 set, which the prologue returns on, so the equality cannot occur"
 
-[[function.func_800A5280.coverage_waiver]]
-id = "+462 b0"
-reason = "`(status & 0x70000) && (flags & 0x1000)` before `goto reject` in a 0x70000 state: `reject` then stores `previousArea`, the C's uninitialised stack local (a slot the harness cannot reproduce), so the spec keeps the 0x1000 flag off in those states"
 
 [[function.func_800A5280.coverage_waiver]]
-id = "+524 b1"
+id = "+534 b1"
 reason = "`(status & 0x180000) != 0x100000` after the `== 0x100000` test above went to `fall`: the equal side cannot occur here"
 
 [[function.func_800A5280.mutation]]
@@ -39051,6 +39039,18 @@ name = "R6: wrong table for the start x"
 target = "c"
 from = "int xy = D_800EBBDC[colorIndex] - D_800EB9B0;"
 to = "int xy = D_800EBBEC[colorIndex] - D_800EB9B0;"
+
+[[function._renderStatBar.mutation]]
+name = "R7: the label always opaque"
+target = "c"
+from = "pc_hud_label_opaque ? 0x80 : 0x180"
+to = "0x80"
+
+[[function._renderStatBar.mutation]]
+name = "R8: the setting inverted"
+target = "c"
+from = "pc_hud_label_opaque ? 0x80 : 0x180"
+to = "pc_hud_label_opaque ? 0x180 : 0x80"
 
 [[function._renderStatBar.coverage_waiver]]
 id = "colorIndex & 2: sign bit"
@@ -79958,3 +79958,338 @@ to = "_ = c.doCOP2(0x0198003E); // gte_gpf12"
 name = "S6: an entry is zero-extended"
 from = "c.MTC2(@bitCast(@as(c_int, matrix.*.m[0][column])), 9);"
 to = "c.MTC2(@as(c_uint, @as(u16, @bitCast(matrix.*.m[0][column]))), 9);"
+
+[function.pc_battle_camera_focus]
+spec = "sceneBattleCameraFocus.zig"
+iterations = 20000
+
+[[function.pc_battle_camera_focus.mutation]]
+name = "F1: no block gives 0"
+from = "if (block != null) psx.conv(c_int, v.g.D_800F196C().*) else -1;"
+to = "if (block != null) psx.conv(c_int, v.g.D_800F196C().*) else 0;"
+
+[[function.pc_battle_camera_focus.mutation]]
+name = "F2: the state truncated to 8 bits"
+from = "out[0] = if (block != null) psx.conv(c_int, v.g.D_800F196C().*)"
+to = "out[0] = if (block != null) psx.conv(c_int, v.g.D_800F196C().* & 0xFF)"
+
+[[function.pc_battle_camera_focus.mutation]]
+name = "F3: the camera mode truncated to 8 bits"
+from = "out[1] = psx.conv(c_int, v.g._cameraMode().*);"
+to = "out[1] = psx.conv(c_int, v.g._cameraMode().* & 0xFF);"
+
+[[function.pc_battle_camera_focus.mutation]]
+name = "F4: any nonzero state reads the block"
+from = "if (block != null and v.g.D_800F196C().* == 2) {"
+to = "if (block != null and v.g.D_800F196C().* != 0) {"
+
+[[function.pc_battle_camera_focus.mutation]]
+name = "F5: mode 3 is not a candidate mode"
+from = "if ((mode == 1 or mode == 3) and"
+to = "if ((mode == 1) and"
+
+[[function.pc_battle_camera_focus.mutation]]
+name = "F6: mode 4 is a candidate mode"
+from = "if ((mode == 1 or mode == 3) and"
+to = "if ((mode == 1 or mode == 3 or mode == 4) and"
+
+[[function.pc_battle_camera_focus.mutation]]
+name = "F7: the target count truncated to 8 bits"
+from = "b.unk2C00 != 0"
+to = "@as(u8, @truncate(b.unk2C00)) != 0"
+
+[[function.pc_battle_camera_focus.mutation]]
+name = "F8: no target count test"
+from = "b.unk2C00 != 0 and "
+to = ""
+
+[[function.pc_battle_camera_focus.mutation]]
+name = "F9: candidate 23 read"
+expect = "panic"
+from = "b.unk298D < 23)"
+to = "b.unk298D <= 23)"
+
+[[function.pc_battle_camera_focus.mutation]]
+name = "F10: candidate point y from z"
+from = "out[4] = b.unk29C0[b.unk298D].unk0.vy;"
+to = "out[4] = b.unk29C0[b.unk298D].unk0.vz;"
+
+[[function.pc_battle_camera_focus.mutation]]
+name = "F11: the actor slot signed"
+from = "out[13] = b.unk29C0[b.unk298D].unk9;"
+to = "out[13] = @as(i8, @bitCast(b.unk29C0[b.unk298D].unk9));"
+
+[[function.pc_battle_camera_focus.mutation]]
+name = "F12: the candidate flag is not set"
+from = "out[2] = 1;"
+to = "out[2] = 0;"
+
+[[function.pc_battle_camera_focus.mutation]]
+name = "F13: mode 2 or above is an area mode"
+from = "} else if (mode == 2) {"
+to = "} else if (mode >= 2) {"
+
+[[function.pc_battle_camera_focus.mutation]]
+name = "F14: the area point x from y"
+from = "out[7] = b.unk2998.vx;"
+to = "out[7] = b.unk2998.vy;"
+
+[[function.pc_battle_camera_focus.mutation]]
+name = "F15: the area flag is not set"
+from = "out[6] = 1;"
+to = "out[6] = 0;"
+
+[[function.pc_battle_camera_focus.mutation]]
+name = "F16: the output not cleared"
+from = "@memset(out, 0);"
+to = ""
+
+[[function.pc_battle_camera_focus.mutation]]
+name = "F17: the look-at x shifted by 11"
+from = "out[10] = v.g.vs_scratch().camera.lookAt.vx >> 12;"
+to = "out[10] = v.g.vs_scratch().camera.lookAt.vx >> 11;"
+
+[[function.pc_battle_camera_focus.mutation]]
+name = "F18: the look-at y divided, not shifted"
+from = "out[11] = v.g.vs_scratch().camera.lookAt.vy >> 12;"
+to = "out[11] = @divTrunc(v.g.vs_scratch().camera.lookAt.vy, 4096);"
+
+[[function.pc_battle_camera_focus.mutation]]
+name = "F19: the look-at z not shifted"
+from = "out[12] = v.g.vs_scratch().camera.lookAt.vz >> 12;"
+to = "out[12] = v.g.vs_scratch().camera.lookAt.vz;"
+
+[function.pc_battle_event_threads]
+spec = "sceneBattleEventThreads.zig"
+iterations = 20000
+
+[[function.pc_battle_event_threads.mutation]]
+name = "T1: the skip state is the runner's state"
+from = "state[1] = v.g.D_800F4C2C().*;"
+to = "state[1] = running;"
+
+[[function.pc_battle_event_threads.mutation]]
+name = "T2: threads read in any nonzero state"
+from = "const pc = if (running == 4) eventThread(i) else null;"
+to = "const pc = if (running != 0) eventThread(i) else null;"
+
+[[function.pc_battle_event_threads.mutation]]
+name = "T3: no base needed"
+expect = "panic"
+from = "if (pc != null and base != null)"
+to = "if (pc != null)"
+
+[[function.pc_battle_event_threads.mutation]]
+name = "T4: the offset reversed"
+from = "@intFromPtr(pc.?) -% @intFromPtr(base.?)"
+to = "@intFromPtr(base.?) -% @intFromPtr(pc.?)"
+
+[[function.pc_battle_event_threads.mutation]]
+name = "T5: the offset truncated to 8 bits"
+from = "psx.conv(c_int, @intFromPtr(pc.?) -% @intFromPtr(base.?))"
+to = "psx.conv(c_int, (@intFromPtr(pc.?) -% @intFromPtr(base.?)) & 0xFF)"
+
+[[function.pc_battle_event_threads.mutation]]
+name = "T6: not running is offset 0"
+from = "base.?)) else -1;"
+to = "base.?)) else 0;"
+
+[[function.pc_battle_event_threads.mutation]]
+name = "T7: no thread is opcode 0"
+from = "opcode[i] = if (pc != null) pc.?[0] else -1;"
+to = "opcode[i] = if (pc != null) pc.?[0] else 0;"
+
+[[function.pc_battle_event_threads.mutation]]
+name = "T8: the opcode signed"
+from = "opcode[i] = if (pc != null) pc.?[0] else -1;"
+to = "opcode[i] = if (pc != null) @as(i8, @bitCast(pc.?[0])) else -1;"
+
+[[function.pc_battle_event_threads.mutation]]
+name = "T9: the next opcode's handler"
+from = "v.g._opcodeFunctionTable()[pc.?[0]]"
+to = "v.g._opcodeFunctionTable()[pc.?[0] +% 1]"
+
+[[function.pc_battle_event_threads.mutation]]
+name = "T10: no thread has a handler"
+from = "else null;\n    }\n    return"
+to = "else @ptrFromInt(8);\n    }\n    return"
+
+[[function.pc_battle_event_threads.mutation]]
+name = "T11: the result is the running test"
+from = "return @intFromBool(running != 0);"
+to = "return @intFromBool(running == 4);"
+
+
+[function.pc_battle_event_arguments]
+spec = "sceneBattleEventArguments.zig"
+iterations = 30000
+
+[[function.pc_battle_event_arguments.mutation]]
+name = "A1: the line and actor not preset"
+from = "    line.* = -1;\n    actor.* = -1;\n"
+to = ""
+
+[[function.pc_battle_event_arguments.mutation]]
+name = "A2: any nonzero state"
+from = "if (v.g.D_800F4C34().* != 4 or thread < 0"
+to = "if (v.g.D_800F4C34().* == 0 or thread < 0"
+
+[[function.pc_battle_event_arguments.mutation]]
+name = "A3: thread 4 accepted"
+expect = "crash"
+from = "thread >= 4) return 0;"
+to = "thread > 4) return 0;"
+
+[[function.pc_battle_event_arguments.mutation]]
+name = "A4: thread 0 refused"
+from = "thread < 0 or"
+to = "thread <= 0 or"
+
+[[function.pc_battle_event_arguments.mutation]]
+name = "A5: the count off by one"
+from = "@as(c_int, v.g.D_800E9C30()[pc[0]]) - 1;"
+to = "@as(c_int, v.g.D_800E9C30()[pc[0]]);"
+
+[[function.pc_battle_event_arguments.mutation]]
+name = "A6: a count of 17 accepted"
+from = "if (n < 0 or n > 16) return 0;"
+to = "if (n < 0 or n > 17) return 0;"
+
+[[function.pc_battle_event_arguments.mutation]]
+name = "A8: the line needs two operands"
+from = "if (pc[0] == 0x11 and n >= 3) line.* = pc[2];"
+to = "if (pc[0] == 0x11 and n >= 2) line.* = pc[2];"
+
+[[function.pc_battle_event_arguments.mutation]]
+name = "A9: the line is the first operand"
+from = "line.* = pc[2];"
+to = "line.* = pc[1];"
+
+[[function.pc_battle_event_arguments.mutation]]
+name = "A10: 0x2b not an actor handler"
+from = "0x20, 0x21, 0x22, 0x2b, 0x2c,"
+to = "0x20, 0x21, 0x22, 0x2c,"
+
+[[function.pc_battle_event_arguments.mutation]]
+name = "A11: 0x36 not an actor handler"
+from = "0x34, 0x35, 0x36 =>"
+to = "0x34, 0x35 =>"
+
+[[function.pc_battle_event_arguments.mutation]]
+name = "A12: 0x37 an actor handler"
+from = "0x34, 0x35, 0x36 =>"
+to = "0x34, 0x35, 0x36, 0x37 =>"
+
+[[function.pc_battle_event_arguments.mutation]]
+name = "A13: the reference needs three operands"
+from = "if (n >= 2) {\n                const ref"
+to = "if (n >= 3) {\n                const ref"
+
+[[function.pc_battle_event_arguments.mutation]]
+name = "A14: the reference's high byte first"
+from = "@as(c_uint, pc[1]) | (@as(c_uint, pc[2]) << 8)"
+to = "@as(c_uint, pc[2]) | (@as(c_uint, pc[1]) << 8)"
+
+[[function.pc_battle_event_arguments.mutation]]
+name = "A15: the reference's nibble below 3"
+from = "if ((ref >> 12) < 2) {"
+to = "if ((ref >> 12) < 3) {"
+
+[[function.pc_battle_event_arguments.mutation]]
+name = "A16: the reference's nibble 1 refused"
+from = "if ((ref >> 12) < 2) {"
+to = "if ((ref >> 12) < 1) {"
+
+[[function.pc_battle_event_arguments.mutation]]
+name = "A17: the reference truncated to a byte"
+from = "c.func_800BFE50(psx.conv(u16, ref))"
+to = "c.func_800BFE50(psx.conv(u8, ref))"
+
+[[function.pc_battle_event_arguments.mutation]]
+name = "A18: actor 17 accepted"
+from = "resolved <= 16)"
+to = "resolved <= 17)"
+
+[[function.pc_battle_event_arguments.mutation]]
+name = "A19: actor 0 refused"
+from = "resolved >= 0 and"
+to = "resolved > 0 and"
+
+[[function.pc_battle_event_arguments.mutation]]
+name = "A20: the last operand dropped"
+from = "while (i < n) : (i += 1) args[i] = pc[i + 1];"
+to = "while (i + 1 < n) : (i += 1) args[i] = pc[i + 1];"
+
+[[function.pc_battle_event_arguments.mutation]]
+name = "A21: operands from the opcode"
+from = "args[i] = pc[i + 1];"
+to = "args[i] = pc[i];"
+
+[[function.pc_battle_event_arguments.mutation]]
+name = "A22: the count is the table byte"
+from = "    return n;\n}"
+to = "    return n + 1;\n}"
+
+[function.pc_battle_event_waiting]
+spec = "sceneBattleEventWaiting.zig"
+iterations = 20000
+
+[[function.pc_battle_event_waiting.mutation]]
+name = "W1: any nonzero state"
+from = "if (v.g.D_800F4C34().* != 4) return 0;\n    var mask"
+to = "if (v.g.D_800F4C34().* == 0) return 0;\n    var mask"
+
+[[function.pc_battle_event_waiting.mutation]]
+name = "W2: the buttons replace the mask"
+from = "mask |= pc[1];"
+to = "mask = pc[1];"
+
+[[function.pc_battle_event_waiting.mutation]]
+name = "W3: the buttons add 1"
+from = "mask |= pc[1];"
+to = "mask |= pc[1] +% 1;"
+
+[[function.pc_battle_event_waiting.mutation]]
+name = "W4: box 8 read"
+from = "pc[1] < 8 and"
+to = "pc[1] <= 8 and"
+
+[[function.pc_battle_event_waiting.mutation]]
+name = "W5: box 0 refused"
+from = "pc[1] < 8 and"
+to = "pc[1] < 8 and pc[1] != 0 and"
+
+[[function.pc_battle_event_waiting.mutation]]
+name = "W6: a box needs no status"
+from = "and v.g.vs_battle_textBoxStatuses()[pc[1]] != 0) {"
+to = "and true) {"
+
+[[function.pc_battle_event_waiting.mutation]]
+name = "W7: a shown box answers 0x10"
+from = "mask |= 0x20;\n        } else if (pc[0] == 0x59"
+to = "mask |= 0x10;\n        } else if (pc[0] == 0x59"
+
+[[function.pc_battle_event_waiting.mutation]]
+name = "W8: the end card needs no flag"
+from = "pc[0] == 0x59 and v.g.D_800F4BF8().* != 0"
+to = "pc[0] == 0x59"
+
+[[function.pc_battle_event_waiting.mutation]]
+name = "W9: the end card flag tested for 1"
+from = "v.g.D_800F4BF8().* != 0"
+to = "v.g.D_800F4BF8().* == 1"
+
+[[function.pc_battle_event_waiting.mutation]]
+name = "W10: the end card answers 0x10"
+from = "mask |= 0x20;\n        }\n    }"
+to = "mask |= 0x10;\n        }\n    }"
+
+[[function.pc_battle_event_waiting.mutation]]
+name = "W11: a later thread stops the scan"
+from = "const pc = eventThread(i) orelse continue;"
+to = "const pc = eventThread(i) orelse break;"
+
+[[function.pc_battle_event_waiting.mutation]]
+name = "W12: opcode 0x16 waits for buttons"
+from = "if (pc[0] == 0x15) {"
+to = "if (pc[0] == 0x15 or pc[0] == 0x16) {"
