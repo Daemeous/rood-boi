@@ -9039,6 +9039,443 @@ target = "c"
 from = "ret = 1;"
 to = "ret = 2;"
 
+[function.func_800A5280]
+spec = "func_800A5280.zig"
+iterations = 40000
+
+[[function.func_800A5280.coverage_waiver]]
+id = "+107 b1"
+reason = "`if (moveType != 0)` inside the 0x70000 block: moveType is the same three bits (the u16 at byte 0xA, bits 0-2) as that block's own test, so it is never 0 there"
+
+[[function.func_800A5280.coverage_waiver]]
+id = "+213 b0"
+reason = "`distance != 0 &&` before func_800A6660: every distance 0 went to `goto halt`/`stop` above, so it is never 0 here"
+
+[[function.func_800A5280.coverage_waiver]]
+id = "+419 eq"
+reason = "`flags & 0xF0000000` compiles to `flags > 0x0FFFFFFF`: the word 0x0FFFFFFF has bit 20 set, which the prologue returns on, so the equality cannot occur"
+
+[[function.func_800A5280.coverage_waiver]]
+id = "+462 b0"
+reason = "`(status & 0x70000) && (flags & 0x1000)` before `goto reject` in a 0x70000 state: `reject` then stores `previousArea`, the C's uninitialised stack local (a slot the harness cannot reproduce), so the spec keeps the 0x1000 flag off in those states"
+
+[[function.func_800A5280.coverage_waiver]]
+id = "+524 b1"
+reason = "`(status & 0x180000) != 0x100000` after the `== 0x100000` test above went to `fall`: the equal side cannot occur here"
+
+[[function.func_800A5280.mutation]]
+name = "C1: guard unk5AC_0 loosened to > 1"
+expect = "crash"
+target = "c"
+from = 'if (actor->unk5AC_0 != 0) {'
+to = 'if (actor->unk5AC_0 > 1) {'
+
+[[function.func_800A5280.mutation]]
+name = "C2: status guard mask 0x07000000"
+expect = "crash"
+target = "c"
+from = '& 0x0F000000) {'
+to = '& 0x07000000) {'
+
+[[function.func_800A5280.mutation]]
+name = "C3: flags guard bit 21 instead of 20"
+expect = "crash"
+target = "c"
+from = '+ 0x5AC) & 0x100000) {'
+to = '+ 0x5AC) & 0x200000) {'
+
+[[function.func_800A5280.mutation]]
+name = "C4: unk11 guard >= 0"
+target = "c"
+from = 'if ((signed char)actor->unk0.unk11 > 0) {'
+to = 'if ((signed char)actor->unk0.unk11 >= 0) {'
+
+[[function.func_800A5280.mutation]]
+name = "C5: fall probe tests 6 not 7"
+target = "c"
+from = 'D_800F1D6E[actor->unk0.unkC_0] == 7'
+to = 'D_800F1D6E[actor->unk0.unkC_0] == 6'
+
+[[function.func_800A5280.mutation]]
+name = "C6: fall height compare < not <="
+target = "c"
+from = '<= actor->unk0.position.vy) {'
+to = '< actor->unk0.position.vy) {'
+
+[[function.func_800A5280.mutation]]
+name = "C7: fall turn test < 0x800"
+target = "c"
+from = 'if ((u_int)(i - 0x400) <= 0x800) {'
+to = 'if ((u_int)(i - 0x400) < 0x800) {'
+
+[[function.func_800A5280.mutation]]
+name = "C8: unk1A test inverted"
+target = "c"
+from = 'if (actor->unk0.unk1A != 0) {'
+to = 'if (actor->unk0.unk1A == 0) {'
+
+[[function.func_800A5280.mutation]]
+name = "C9: turn lower edge < 0x400"
+target = "c"
+from = 'if (i <= 0x400) {'
+to = 'if (i < 0x400) {'
+
+[[function.func_800A5280.mutation]]
+name = "C10: turn upper edge > 0xC00"
+target = "c"
+from = 'if (i >= 0xC00) {'
+to = 'if (i > 0xC00) {'
+
+[[function.func_800A5280.mutation]]
+name = "C11: run test > not >="
+target = "c"
+from = 'if (distance / 4096 >= actor->unk5B9) {'
+to = 'if (distance / 4096 > actor->unk5B9) {'
+
+[[function.func_800A5280.mutation]]
+name = "C12: moveType < 4 becomes <= 4"
+target = "c"
+from = 'if (moveType < 4) {'
+to = 'if (moveType <= 4) {'
+
+[[function.func_800A5280.mutation]]
+name = "C13: moveType 4 becomes 5"
+target = "c"
+from = '} else if (moveType == 4) {'
+to = '} else if (moveType == 5) {'
+
+[[function.func_800A5280.mutation]]
+name = "C14: stick test < 0"
+target = "c"
+from = 'if (distance == -1) {'
+to = 'if (distance < 0) {'
+
+[[function.func_800A5280.mutation]]
+name = "C15: stick speed from unk5B9"
+target = "c"
+from = 'speed = actor->unk5BA << 12;'
+to = 'speed = actor->unk5B9 << 12;'
+
+[[function.func_800A5280.mutation]]
+name = "C16: coast guard on pad != 1"
+target = "c"
+from = '& 0x8000) && input->pad == 0) {'
+to = '& 0x8000) && input->pad != 1) {'
+
+[[function.func_800A5280.mutation]]
+name = "C17: coast counter > not >="
+target = "c"
+from = 'if (actor->unk1840 >= actor->unk5B9) {'
+to = 'if (actor->unk1840 > actor->unk5B9) {'
+
+[[function.func_800A5280.mutation]]
+name = "C18: idle counter 1846 > 20"
+target = "c"
+from = 'if (actor->unk1846 >= 20 && actor->unk1847 < 9) {'
+to = 'if (actor->unk1846 > 20 && actor->unk1847 < 9) {'
+
+[[function.func_800A5280.mutation]]
+name = "C19: coast decrements half a tick"
+target = "c"
+from = 'distance -= vs_gametime_tickspeed;'
+to = 'distance -= vs_gametime_tickspeed / 2;'
+
+[[function.func_800A5280.mutation]]
+name = "C20: coast ends at < 0"
+target = "c"
+from = 'if (distance <= 0) {'
+to = 'if (distance < 0) {'
+
+[[function.func_800A5280.mutation]]
+name = "C21: coast shift 11"
+target = "c"
+from = 'distance <<= 12;'
+to = 'distance <<= 11;'
+
+[[function.func_800A5280.mutation]]
+name = "C22: counter store uses >> 12"
+target = "c"
+from = 'actor->unk1840 = distance / 4096;'
+to = 'actor->unk1840 = distance >> 12;'
+
+[[function.func_800A5280.mutation]]
+name = "C23: facing from vx for any pad"
+target = "c"
+from = 'if (input->pad == 1) {'
+to = 'if (input->pad != 0) {'
+
+[[function.func_800A5280.mutation]]
+name = "C24: scale divides by 8"
+target = "c"
+from = 'speed = distance * actor->unk5BE / 4;'
+to = 'speed = distance * actor->unk5BE / 8;'
+
+[[function.func_800A5280.mutation]]
+name = "C25: clamp value 0x1EFFF"
+target = "c"
+from = 'speed = 0x1F000;'
+to = 'speed = 0x1EFFF;'
+
+[[function.func_800A5280.mutation]]
+name = "C26: scale exit at < 0"
+target = "c"
+from = 'if (speed <= 0) {'
+to = 'if (speed < 0) {'
+
+[[function.func_800A5280.mutation]]
+name = "C27: angle 0xBFF"
+target = "c"
+from = 'angle = 0xC00 - direction;'
+to = 'angle = 0xBFF - direction;'
+
+[[function.func_800A5280.mutation]]
+name = "C28: rcos product shifted"
+target = "c"
+from = 'motion.vx = rcos(angle) * speed / 0x1000000;'
+to = 'motion.vx = rcos(angle) * speed >> 24;'
+
+[[function.func_800A5280.mutation]]
+name = "C29: rsin replaced by rcos"
+target = "c"
+from = 'motion.vz = rsin(angle) * speed / 0x1000000;'
+to = 'motion.vz = rcos(angle) * speed / 0x1000000;'
+
+[[function.func_800A5280.mutation]]
+name = "C30: wind unsigned"
+target = "c"
+from = 'motion.vx += (signed char)actor->unk6EE;'
+to = 'motion.vx += (unsigned char)actor->unk6EE;'
+
+[[function.func_800A5280.mutation]]
+name = "C31: slow shifts"
+target = "c"
+from = 'motion.vx /= 4;'
+to = 'motion.vx >>= 2;'
+
+[[function.func_800A5280.mutation]]
+name = "C32: probe gets pad 0"
+target = "c"
+from = 'status = func_800A76BC(actor, &motion, &result, input->pad);'
+to = 'status = func_800A76BC(actor, &motion, &result, 0);'
+
+[[function.func_800A5280.mutation]]
+name = "C33: status 0 distance divides by 2048"
+target = "c"
+from = 'distance = speed / 4096;'
+to = 'distance = speed / 2048;'
+
+[[function.func_800A5280.mutation]]
+name = "C34: drop test <= -0x20"
+target = "c"
+from = 'if (motion.vy < -0x20 || status == 3) {'
+to = 'if (motion.vy <= -0x20 || status == 3) {'
+
+[[function.func_800A5280.mutation]]
+name = "C35: drop count shifts"
+target = "c"
+from = 'i = -(motion.vy / 64);'
+to = 'i = -(motion.vy >> 6);'
+
+[[function.func_800A5280.mutation]]
+name = "C36: drop remainder mask 0x1F"
+target = "c"
+from = 'if (motion.vy & 0x3F) {'
+to = 'if (motion.vy & 0x1F) {'
+
+[[function.func_800A5280.mutation]]
+name = "C37: step test > -0xEC"
+target = "c"
+from = 'if (motion.vy >= -0xEC) {'
+to = 'if (motion.vy > -0xEC) {'
+
+[[function.func_800A5280.mutation]]
+name = "C38: reject restores 0"
+target = "c"
+from = 'actor->unk5AC_28 = previousArea;'
+to = 'actor->unk5AC_28 = 0;'
+
+[[function.func_800A5280.mutation]]
+name = "C39: blocked on result > 0 with status 3"
+target = "c"
+from = 'if (status == 3 && result >= 0) {'
+to = 'if (status == 3 && result > 0) {'
+
+[[function.func_800A5280.mutation]]
+name = "C40: result < 2 becomes <= 2"
+target = "c"
+from = 'if (result < 2) {'
+to = 'if (result <= 2) {'
+
+[[function.func_800A5280.mutation]]
+name = "C41: result >= 5 becomes > 5"
+target = "c"
+from = 'if (result >= 5) {'
+to = 'if (result > 5) {'
+
+[[function.func_800A5280.mutation]]
+name = "C42: hold test on !="
+target = "c"
+from = '*(u_short*)((char*)actor + 0x18D6) == actor->unk0.position.vx + motion.vx'
+to = '*(u_short*)((char*)actor + 0x18D6) != actor->unk0.position.vx + motion.vx'
+
+[[function.func_800A5280.mutation]]
+name = "C43: facing angle shifted 8"
+target = "c"
+from = 'func_800AA850(index, D_800F49F9 << 9, 4);'
+to = 'func_800AA850(index, D_800F49F9 << 8, 4);'
+
+[[function.func_800A5280.mutation]]
+name = "C44: tile X shifts"
+target = "c"
+from = 'actor->unk0.currentTileX = actor->unk0.position.vx / 128;'
+to = 'actor->unk0.currentTileX = actor->unk0.position.vx >> 7;'
+
+[[function.func_800A5280.mutation]]
+name = "C45: touched tile X shifts"
+target = "c"
+from = 'actor->unk0.lastTouchedTileX = D_800F4B08.vx / 128;'
+to = 'actor->unk0.lastTouchedTileX = D_800F4B08.vx >> 7;'
+
+[[function.func_800A5280.mutation]]
+name = "C46: blocked height window > 0x100"
+target = "c"
+from = 'if ((u_short)(motion.vy + 0xFF) >= 0x100) {'
+to = 'if ((u_short)(motion.vy + 0xFF) > 0x100) {'
+
+[[function.func_800A5280.mutation]]
+name = "C47: step animation result * 4"
+target = "c"
+from = 'func_800AA600(index, &motion, result * 8);'
+to = 'func_800AA600(index, &motion, result * 4);'
+
+[[function.func_800A5280.mutation]]
+name = "C48: terrain animation index - 1"
+target = "c"
+from = 'func_800A0204(index, D_800E90C3[result], 0, 4);'
+to = 'func_800A0204(index, D_800E90C3[result - 1], 0, 4);'
+
+[[function.func_800A5280.mutation]]
+name = "C49: climb test > 0x40"
+target = "c"
+from = 'if (motion.vy >= 0x40) {'
+to = 'if (motion.vy > 0x40) {'
+
+[[function.func_800A5280.mutation]]
+name = "C50: jump test > 0x100"
+target = "c"
+from = 'if (motion.vy >= 0x100) {'
+to = 'if (motion.vy > 0x100) {'
+
+[[function.func_800A5280.mutation]]
+name = "C51: jump mode 3"
+target = "c"
+from = 'flags->mode = 2;'
+to = 'flags->mode = 3;'
+
+[[function.func_800A5280.mutation]]
+name = "C52: slide test <= -2"
+target = "c"
+from = 'if (motion.vy < -2) {'
+to = 'if (motion.vy <= -2) {'
+
+[[function.func_800A5280.mutation]]
+name = "C53: land speed 4"
+target = "c"
+from = 'actor->unk5BE = 5;'
+to = 'actor->unk5BE = 4;'
+
+[[function.func_800A5280.mutation]]
+name = "C54: fall velocity 2"
+target = "c"
+from = 'actor->unk0.unk34.vy = 3;'
+to = 'actor->unk0.unk34.vy = 2;'
+
+[[function.func_800A5280.mutation]]
+name = "C55: done direction 0"
+target = "c"
+from = 'func_800A6AA0(actor, distance, direction);'
+to = 'func_800A6AA0(actor, distance, 0);'
+
+[[function.func_800A5280.mutation]]
+name = "P1: scale divides before multiplying"
+from = 'speed = @divTrunc(distance *% @as(c_int, actor.unk5BE), 4);'
+to = 'speed = @divTrunc(distance, 4) *% @as(c_int, actor.unk5BE);'
+
+[[function.func_800A5280.mutation]]
+name = "P2: fall test signed"
+from = 'if (psx.conv(c_uint, i -% 0x400) <= 0x800) {'
+to = 'if (@as(c_int, i -% 0x400) <= 0x800) {'
+
+[[function.func_800A5280.mutation]]
+name = "P3: animation test signed"
+from = 'if (psx.conv(c_uint, animation -% 13) >= 2 and'
+to = 'if (@as(c_int, animation -% 13) >= 2 and'
+
+[[function.func_800A5280.mutation]]
+name = "P4: drop count shifts"
+from = 'i = -%@divTrunc(@as(c_int, motion.vy), 64);'
+to = 'i = -%(@as(c_int, motion.vy) >> 6);'
+
+[[function.func_800A5280.mutation]]
+name = "P5: history shifted from the wrong word"
+from = 'psx.byteAt(u16, actor, 0x18D6).* = psx.byteAt(u16, actor, 0x18D2).*;'
+to = 'psx.byteAt(u16, actor, 0x18D6).* = psx.byteAt(u16, actor, 0x18D4).*;'
+
+[[function.func_800A5280.mutation]]
+name = "P6: reject restore off by one"
+from = 'psx.setBits(actor, "unk5AC_28", psx.conv(u4, previousArea));'
+to = 'psx.setBits(actor, "unk5AC_28", psx.conv(u4, previousArea +% 1));'
+
+[[function.func_800A5280.mutation]]
+name = "P7: previous area not saved"
+from = 'previousArea = @as(c_int, psx.getBits(actor, "unk5AC_28"));'
+to = 'previousArea = 0;'
+
+[[function.func_800A5280.mutation]]
+name = "P8: hold compares wrapped"
+from = '@as(c_int, psx.byteAt(u16, actor, 0x18D6).*) == @as(c_int, actor.unk0.position.vx) +% @as(c_int, motion.vx) and'
+to = 'psx.byteAt(u16, actor, 0x18D6).* == psx.conv(u16, @as(c_int, actor.unk0.position.vx) +% @as(c_int, motion.vx)) and'
+
+[[function.func_800A5280.mutation]]
+name = "P9: fall marker 0xFE"
+from = 'actor.unk6E3 = 0xFF;'
+to = 'actor.unk6E3 = 0xFE;'
+
+[[function.func_800A5280.mutation]]
+name = "P10: done inverted"
+from = "if ((statusWord(actor) & 0x70000) == 0) {\n        _ = c.func_800A6AA0"
+to = "if ((statusWord(actor) & 0x70000) != 0) {\n        _ = c.func_800A6AA0"
+
+[[function.func_800A5280.mutation]]
+name = "P11: blocked tests 0x180000 exactly"
+from = "if ((statusWord(actor) & 0x180000) != 0) {\n        return 3;\n    }\n    return reject"
+to = "if ((statusWord(actor) & 0x180000) == 0x180000) {\n        return 3;\n    }\n    return reject"
+
+[[function.func_800A5280.mutation]]
+name = "P12: wind unsigned"
+from = '@as(c_int, @as(i8, @bitCast(actor.unk6EE)))'
+to = '@as(c_int, actor.unk6EE)'
+
+[[function.func_800A5280.mutation]]
+name = "P13: probe pad dropped"
+from = '&result, @as(c_int, input.?.pad));'
+to = '&result, 0);'
+
+[[function.func_800A5280.mutation]]
+name = "P14: rcos product shifted"
+from = 'motion.vx = psx.conv(i16, @divTrunc(c.rcos(angle) *% speed, 0x1000000));'
+to = 'motion.vx = psx.conv(i16, (c.rcos(angle) *% speed) >> 24);'
+
+[[function.func_800A5280.mutation]]
+name = "P15: counter shifted not divided"
+from = 'actor.unk1840 = psx.conv(i16, @divTrunc(distance, 4096));'
+to = 'actor.unk1840 = psx.conv(i16, distance >> 12);'
+
+[[function.func_800A5280.mutation]]
+name = "P16: tile Z from X"
+from = 'actor.unk0.currentTileZ = psx.conv(u8, @divTrunc(@as(c_int, actor.unk0.position.vz), 128));'
+to = 'actor.unk0.currentTileZ = psx.conv(u8, @divTrunc(@as(c_int, actor.unk0.position.vx), 128));'
+
 [function.func_800A6660]
 spec = "func_800A6660.zig"
 iterations = 30000
@@ -39276,6 +39713,56 @@ from = "{"
 to = "{ *(volatile unsigned int *)0x00000004 = 0u;"
 expect = "crash"
 
+[function.func_8007B378]
+spec = "func_8007B378.zig"
+iterations = 30000
+
+[[function.func_8007B378.mutation]]
+name = "W1: the first call is dropped"
+target = "c"
+from = 'vs_main_loadClutTransition(arg0, 0, arg1, arg3);'
+to = '(void)arg3;'
+
+[[function.func_8007B378.mutation]]
+name = "W2: the second call is dropped"
+target = "c"
+from = 'vs_main_loadClutTransition(arg0, 1, arg1 + 0x100);'
+to = ';'
+
+[[function.func_8007B378.mutation]]
+name = "W3: the third call is dropped"
+target = "c"
+from = 'vs_main_loadClutTransition(arg0, 2, arg1 + 0x200);'
+to = ';'
+
+[[function.func_8007B378.mutation]]
+name = "W4: the first call is made twice"
+target = "c"
+from = 'vs_main_loadClutTransition(arg0, 0, arg1, arg3);'
+to = 'vs_main_loadClutTransition(arg0, 0, arg1, arg3); vs_main_loadClutTransition(arg0, 0, arg1, arg3);'
+
+[[function.func_8007B378.mutation]]
+name = "W5: a store of arg3 into the buffer before the calls"
+target = "c"
+from = 'vs_main_loadClutTransition(arg0, 0, arg1, arg3);'
+to = 'if (arg1 != 0) arg1[0] = (u_short)arg3; vs_main_loadClutTransition(arg0, 0, arg1, arg3);'
+
+[[function.func_8007B378.mutation]]
+name = "W6: a fourth call"
+target = "c"
+from = 'vs_main_loadClutTransition(arg0, 2, arg1 + 0x200);'
+to = 'vs_main_loadClutTransition(arg0, 2, arg1 + 0x200); vs_main_loadClutTransition(arg0, 3, arg1 + 0x300);'
+
+[[function.func_8007B378.mutation]]
+name = "W7: the port drops the middle call"
+from = 'c.vs_main_loadClutTransition(arg0, @as(c_int, 1), psx.at(arg1, 0x100));'
+to = '{}'
+
+[[function.func_8007B378.mutation]]
+name = "W8: the port stores into the buffer"
+from = '_ = arg2;'
+to = '_ = arg2; if (arg1 != null) arg1[0] = psx.conv(c_ushort, arg3);'
+
 [function.func_8007B3D0]
 spec = "func_8007B3D0.zig"
 iterations = 30000
@@ -42304,6 +42791,21 @@ name = "F5: return value 0 instead of 1"
 target = "c"
 from = "return 1;"
 to = "return 0;"
+
+[function.func_800CE644]
+spec = "func_800CE644.zig"
+iterations = 20000
+
+[[function.func_800CE644.mutation]]
+name = "Z1: the port stores into the scratchpad"
+from = '_ = arg0;'
+to = '_ = arg0; @as(*volatile c_int, @ptrFromInt(0x1F800000)).* = 1;'
+
+[[function.func_800CE644.mutation]]
+name = "Z2: the C stores into the scratchpad"
+target = "c"
+from = '{ }'
+to = '{ *(volatile int*)0x1F800000 = 1; }'
 
 [function.func_800D5150]
 spec = "func_800D5150.zig"
@@ -46123,7 +46625,7 @@ name = "B3: a signed cursor"
 target = "c"
 from = "raw)[arg0->unkA++]; }"
 to = "raw)[(short)arg0->unkA++]; }"
-expect = "crash"
+expect = ["crash", "mismatch"]  # the read 32 KB before the script lands in mapped memory or not
 
 [[function.func_800D5170.mutation]]
 name = "B4: a trapping increment"
@@ -66084,6 +66586,111 @@ to = "vs_battle_getStateFlag((u_char)vs_battle_getShort(arg0 + 1))"
 
 # ---- pc/src/actor_blend.c
 
+
+[function.func_800B147C]
+spec = "blendAnimationRecords.zig"
+iterations = 20000
+
+[[function.func_800B147C.mutation]]
+name = "B1: the copy at step == duration + 1"
+from = "if (step == duration) {"
+to = "if (step == duration +% 1) {"
+
+[[function.func_800B147C.mutation]]
+name = "B2: the copy is 0x608 bytes"
+from = "c.vs_main_memcpy(destination, source, 0x60c)"
+to = "c.vs_main_memcpy(destination, source, 0x608)"
+
+[[function.func_800B147C.mutation]]
+name = "B3: the half test shifts arithmetically"
+from = "psx.conv(c_int, @as(c_uint, @bitCast(duration)) >> 1)"
+to = "duration >> 1"
+
+[[function.func_800B147C.mutation]]
+name = "B4: a zero count is accepted"
+from = "if (count <= 0 or count > 42)"
+to = "if (count < 0 or count > 42)"
+
+[[function.func_800B147C.mutation]]
+name = "B5: 43 bones are accepted"
+from = "if (count <= 0 or count > 42)"
+to = "if (count <= 0 or count > 43)"
+
+[[function.func_800B147C.mutation]]
+name = "B6: the weight is Q11"
+from = "@bitCast(@as(c_uint, @bitCast(step)) << 12)"
+to = "@bitCast(@as(c_uint, @bitCast(step)) << 11)"
+
+[[function.func_800B147C.mutation]]
+name = "B7: the zero-divide result has the sign swapped"
+from = "else if (dividend < 0) 1 else -1;"
+to = "else if (dividend < 0) -1 else 1;"
+
+[[function.func_800B147C.mutation]]
+name = "B8: the bones are not rotations"
+from = "blendVector(dst + bone * 4, src + bone * 4, true, false);"
+to = "blendVector(dst + bone * 4, src + bone * 4, false, false);"
+
+[[function.func_800B147C.mutation]]
+name = "B9: the second set's X is signed"
+from = "src + 0x150 / 2 + bone * 4, false, true);"
+to = "src + 0x150 / 2 + bone * 4, false, false);"
+
+[[function.func_800B147C.mutation]]
+name = "B10: the root is at 0x14C"
+from = "blendVector(dst + 0x148 / 2, src + 0x148 / 2, false, false);"
+to = "blendVector(dst + 0x14c / 2, src + 0x14c / 2, false, false);"
+
+[[function.func_800B147C.mutation]]
+name = "B11: the wrap is above 4096"
+from = "if (delta[i] >= 4096) {"
+to = "if (delta[i] > 4096) {"
+
+[[function.func_800B147C.mutation]]
+name = "B12: the wrap is below -4097"
+from = "} else if (delta[i] < -4096) {"
+to = "} else if (delta[i] < -4097) {"
+
+[[function.func_800B147C.mutation]]
+name = "B13: the wrap subtracts 8191"
+from = "delta[i] -%= 8192;"
+to = "delta[i] -%= 8191;"
+
+[[function.func_800B147C.mutation]]
+name = "B14: Z is always loaded"
+from = "if (i != 2 or !rotation or delta[i] != 0) c.MTC2"
+to = "if (i != 2 or !rotation) c.MTC2"
+
+[[function.func_800B147C.mutation]]
+name = "B15: X alone decides the XY store"
+from = "if ((dx | dy) != 0) {"
+to = "if (dx != 0) {"
+
+[[function.func_800B147C.mutation]]
+name = "B16: Z is stored as a short"
+from = "@as(*align(1) c_int, @ptrCast(dst + 2)).* = base[2] +% dz;"
+to = "dst[2] = psx.conv(i16, base[2] +% dz);"
+
+[[function.func_800B147C.mutation]]
+name = "B17: the destination X is signed when unsigned_x"
+from = "if (unsigned_x) @as(c_int, psx.conv(u16, dst[0])) else @as(c_int, dst[0]),"
+to = "@as(c_int, dst[0]),"
+
+[[function.func_800B147C.mutation]]
+name = "B18: no early return for a zero delta"
+from = "if ((delta[0] | delta[1] | delta[2]) == 0) return;"
+to = "if (false) return;"
+
+[[function.func_800B147C.mutation]]
+name = "B19: the Z store tests nothing"
+from = "if (dz != 0) @as"
+to = "if (true) @as"
+
+[[function.func_800B147C.mutation]]
+name = "B20: the delta of Z is an unsigned subtraction"
+from = "@as(c_int, src[2]) -% base[2],"
+to = "@as(c_int, src[2]) -% @as(c_int, @as(u16, @bitCast(dst[2]))),"
+
 # ---- pc/src/actor_cleanup.c
 
 
@@ -67678,6 +68285,160 @@ name = "F17: X is read from from[1] (port)"
 from = "@as(c_int, to[0]) - @as(c_int, from[0])"
 to = "@as(c_int, to[0]) - @as(c_int, from[1])"
 
+[function.func_800DC284]
+spec = "weightedSum.zig"
+iterations = 3000
+
+[[function.func_800DC284.mutation]]
+name = "W1: a is times 5"
+from = "a *% 6"
+to = "a *% 5"
+
+[[function.func_800DC284.mutation]]
+name = "W2: c is shifted by 15"
+from = "(@as(c_uint, @bitCast(cc)) << 16)"
+to = "(@as(c_uint, @bitCast(cc)) << 15)"
+
+[[function.func_800DC284.mutation]]
+name = "W3: b loses its low bit"
+from = "(@as(c_uint, @bitCast(b)) & 0xffff)"
+to = "(@as(c_uint, @bitCast(b)) & 0xfffe)"
+
+[[function.func_800DC284.mutation]]
+name = "W4: d is c"
+from = "c.CTC2(@bitCast(d), 1);"
+to = "c.CTC2(@bitCast(cc), 1); _ = d;"
+
+[[function.func_800DC284.mutation]]
+name = "W5: the first IR is register 10"
+from = "c.MTC2(4, 9);"
+to = "c.MTC2(4, 10);"
+
+[[function.func_800DC284.mutation]]
+name = "W6: the MVMVA command is off by one"
+from = "0x041E012"
+to = "0x041E013"
+
+[[function.func_800DC284.mutation]]
+name = "W7: MAC2 is read"
+from = "c.MFC2(25)"
+to = "c.MFC2(26)"
+
+[[function.func_800DC284.mutation]]
+name = "W8: the product traps on overflow"
+expect = "panic"
+from = "a *% 6 +% @as(c_int, @bitCast(c.MFC2(25)))"
+to = "a * 6 + @as(c_int, @bitCast(c.MFC2(25)))"
+
+[[function.func_800DC284.mutation]]
+name = "W9: the third IR is 1"
+from = "c.MTC2(2, 11);"
+to = "c.MTC2(1, 11);"
+
+[function.func_800C0B50]
+spec = "drawMenuTargetShape.zig"
+iterations = 6000
+
+[[function.func_800C0B50.mutation]]
+name = "D1: the points are at +0x4C"
+from = "@intFromPtr(buffer) +% 0x48"
+to = "@intFromPtr(buffer) +% 0x4c"
+
+[[function.func_800C0B50.mutation]]
+name = "D2: the first colour register word is the width"
+from = "c.CTC2(@bitCast(shortAt(shape, 8)), 13);"
+to = "c.CTC2(@bitCast(shortAt(shape, 0xa)), 13);"
+
+[[function.func_800C0B50.mutation]]
+name = "D3: the MVMVA command is off by one"
+from = "0x04A2012"
+to = "0x04A2013"
+
+[[function.func_800C0B50.mutation]]
+name = "D4: the depth is shifted by 3"
+from = "c.MFC2(19))) >> 2);"
+to = "c.MFC2(19))) >> 3);"
+
+[[function.func_800C0B50.mutation]]
+name = "D5: the intensity base is 0x1F"
+from = "0x20 -% depth"
+to = "0x1f -% depth"
+
+[[function.func_800C0B50.mutation]]
+name = "D6: the pad shifts by 24"
+from = "@as(c_uint, @bitCast(pad)) << 25"
+to = "@as(c_uint, @bitCast(pad)) << 24"
+
+[[function.func_800C0B50.mutation]]
+name = "D7: the colour tag is 0x40"
+from = "color_in | 0x44000000"
+to = "color_in | 0x40000000"
+
+[[function.func_800C0B50.mutation]]
+name = "D8: the point history is stored a half-word too far"
+from = "halves[4 + j] = halves[j];"
+to = "halves[5 + j] = halves[j];"
+
+[[function.func_800C0B50.mutation]]
+name = "D9: the divisor is the smaller byte"
+from = "if (shape[6] < shape[4]) shape[4] else shape[6]"
+to = "if (shape[6] > shape[4]) shape[4] else shape[6]"
+
+[[function.func_800C0B50.mutation]]
+name = "D10: the zero-divide result has the sign swapped"
+from = "else if (sum < 0) 1 else -1;"
+to = "else if (sum < 0) -1 else 1;"
+
+[[function.func_800C0B50.mutation]]
+name = "D11: the bias is shifted by 2"
+from = "shortAt(buffer, 0x20) << 1"
+to = "shortAt(buffer, 0x20) << 2"
+
+[[function.func_800C0B50.mutation]]
+name = "D12: the previous depth is half-word 5"
+from = "@as(i16, @bitCast(halves[6]))"
+to = "@as(i16, @bitCast(halves[5]))"
+
+[[function.func_800C0B50.mutation]]
+name = "D13: the packed Y is shifted by 15"
+from = "(y << 16), 0);"
+to = "(y << 15), 0);"
+
+[[function.func_800C0B50.mutation]]
+name = "D14: the pad is read at +4"
+from = "psx.byteAt(i16, @as([*]u8, @ptrFromInt(point)), 6).*"
+to = "psx.byteAt(i16, @as([*]u8, @ptrFromInt(point)), 4).*"
+
+[[function.func_800C0B50.mutation]]
+name = "D15: the point stride is 4"
+from = "point +%= 8;"
+to = "point +%= 4;"
+
+[[function.func_800C0B50.mutation]]
+name = "D16: the rotation angle is at +0x26"
+from = "@intFromPtr(buffer) +% 0x24"
+to = "@intFromPtr(buffer) +% 0x26"
+
+[[function.func_800C0B50.mutation]]
+name = "D17: the scale factor takes the unshifted value"
+from = "shortAt(buffer, 0x2a) << 6"
+to = "shortAt(buffer, 0x2a) << 5"
+
+[[function.func_800C0B50.mutation]]
+name = "D18: the sum has no bias"
+from = "+% @as(c_int, @as(i16, @bitCast(halves[6]))) -% bias;"
+to = "+% @as(c_int, @as(i16, @bitCast(halves[6]))); _ = bias;"
+
+[[function.func_800C0B50.mutation]]
+name = "D19: five matrix words are not loaded"
+from = "while (i < 5) : (i += 1)"
+to = "while (i < 4) : (i += 1)"
+
+[[function.func_800C0B50.mutation]]
+name = "D20: the segment is drawn from the second point"
+from = "c.func_800C0990(@ptrFromInt(0x1F800398), @ptrFromInt(0x1F8003A0),"
+to = "c.func_800C0990(@ptrFromInt(0x1F8003A0), @ptrFromInt(0x1F800398),"
+
 # ---- pc/src/battle_helpers.c
 
 [function.func_800D820C]
@@ -69061,6 +69822,20 @@ from = """        const reciprocal = psx.byteAt(c_uint, peer, 0x1a4 + @as(isize,
         outgoing.* = (outgoing.* & ~@as(c_uint, 0xc0)) | (relation << 6);"""
 to = """        outgoing.* = (outgoing.* & ~@as(c_uint, 0xc0)) | (relation << 6);
         const reciprocal = psx.byteAt(c_uint, peer, 0x1a4 + @as(isize, @intCast(self * 4))).*;"""
+
+[function.func_800E6EAC]
+spec = "idleHook.zig"
+iterations = 200
+
+[[function.func_800E6EAC.mutation]]
+name = "I1: a scratchpad word is bumped"
+from = "pub fn idleHook() callconv(.c) void {}"
+to = "pub fn idleHook() callconv(.c) void { @as(*u32, @ptrFromInt(0x1f800000)).* +%= 1; }"
+
+[[function.func_800E6EAC.mutation]]
+name = "I2: a stub is called"
+from = "pub fn idleHook() callconv(.c) void {}"
+to = "pub fn idleHook() callconv(.c) void { @import(\"c_battle_helpers\").pc_unimplemented(\"x\"); }"
 
 # ---- pc/src/battle_motion.c
 
@@ -71396,6 +72171,50 @@ name = "Q31: the port reads the room halfword as a byte"
 from = "psx.byteAt(u16, room, 0x18).*"
 to = "psx.byteAt(u8, room, 0x18).*"
 
+
+[function.func_800DC210]
+spec = "enterEngaged.zig"
+iterations = 4000
+
+[[function.func_800DC210.mutation]]
+name = "N1: the force test inverted"
+from = "if (force == 0) {"
+to = "if (force != 0) {"
+
+[[function.func_800DC210.mutation]]
+name = "N2: the roll threshold 0x4D"
+from = "& 0x7f) >= 0x4c) return;"
+to = "& 0x7f) >= 0x4d) return;"
+
+[[function.func_800DC210.mutation]]
+name = "N3: the roll counter not kept"
+from = "state[0x126] +%= 1;"
+to = "_ = state[0x126] +% 1;"
+
+[[function.func_800DC210.mutation]]
+name = "N4: engaged on the first roll"
+from = "if (state[0x126] < 2) return;"
+to = "if (state[0x126] < 1) return;"
+
+[[function.func_800DC210.mutation]]
+name = "N5: the engaged flag not set"
+from = "state[0x13] = 1;"
+to = "state[0x13] = 0;"
+
+[[function.func_800DC210.mutation]]
+name = "N6: the old callback not saved"
+from = "@as(*align(1) u32, @ptrCast(state + 0x6c)).* = saved;"
+to = "_ = saved;"
+
+[[function.func_800DC210.mutation]]
+name = "N8: behaviour D_800DBC0C not installed"
+from = "callback.* = psx.addr(&c.behaviour_800DBC0C);"
+to = "callback.* = saved;"
+
+[[function.func_800DC210.mutation]]
+name = "N7: the wrong flag to func_800D820C"
+from = "c.func_800D820C(state[0x88], 0x80);"
+to = "c.func_800D820C(state[0x88], 0x40);"
 
 [function.func_800DC19C]
 spec = "leaveEngaged.zig"
@@ -73960,9 +74779,837 @@ to = "v.g.D_800F5920().* = psx.addr(record) +% 4;"
 
 # ---- pc/src/boot_sdk.c
 
+
+[function.func_800985AC]
+spec = "roomTransform.zig"
+iterations = 2000
+
+[[function.func_800985AC.mutation]]
+name = "R1: position and angles swapped"
+from = "c.pc_room_transform(position, angles, @ptrFromInt(0x1f800014), result);"
+to = "c.pc_room_transform(angles, position, @ptrFromInt(0x1f800014), result);"
+
+[[function.func_800985AC.mutation]]
+name = "R2: the camera is the neighbouring matrix"
+from = "@ptrFromInt(0x1f800014), result);"
+to = "@ptrFromInt(0x1f800010), result);"
+
+[[function.func_800985AC.mutation]]
+name = "R3: the result is the angles"
+from = "@ptrFromInt(0x1f800014), result);"
+to = "@ptrFromInt(0x1f800014), @ptrCast(angles)); _ = result;"
+
+[function.func_80098648]
+spec = "scaledRoomTransform.zig"
+iterations = 2000
+
+[[function.func_80098648.mutation]]
+name = "S1: the far clip is read from the neighbouring word"
+from = "@ptrFromInt(0x1f800064)"
+to = "@ptrFromInt(0x1f800060)"
+
+[[function.func_80098648.mutation]]
+name = "S2: the camera is the neighbouring matrix"
+from = "@ptrFromInt(0x1f800014), far_clip, result);"
+to = "@ptrFromInt(0x1f800010), far_clip, result);"
+
+[[function.func_80098648.mutation]]
+name = "S3: position and angles swapped"
+from = "c.pc_scaled_room_transform(position, angles,"
+to = "c.pc_scaled_room_transform(angles, position,"
+
+[[function.func_80098648.mutation]]
+name = "S4: the far clip is dropped"
+from = "far_clip, result);"
+to = "0, result); _ = far_clip;"
+
+[[function.func_80098648.mutation]]
+name = "S5: the far clip is read as a short"
+from = "@as(*c_int, @ptrFromInt(0x1f800064)).*"
+to = "@as(c_int, @as(*c_short, @ptrFromInt(0x1f800064)).*)"
+
+[function.func_8009820C]
+spec = "drawRoomBackground.zig"
+iterations = 3000
+
+[[function.func_8009820C.mutation]]
+name = "B1: the table is one word short"
+from = "+% 2047 * 4)"
+to = "+% 2046 * 4)"
+
+[[function.func_8009820C.mutation]]
+name = "B2: the vertex buffer is the neighbouring one"
+from = "@ptrFromInt(0x1f800100)"
+to = "@ptrFromInt(0x1f800104)"
+
+[[function.func_8009820C.mutation]]
+name = "B3: the cursor is not moved on"
+from = "cursor.* = psx.addr(end);"
+to = "cursor.* = psx.addr(packet); _ = end;"
+
+[[function.func_8009820C.mutation]]
+name = "B4: the table is read from the neighbouring word"
+expect = "panic"
+from = "@ptrFromInt(0x1f800004)"
+to = "@ptrFromInt(0x1f800008)"
+
+[[function.func_8009820C.mutation]]
+name = "B5: the mesh is the cursor"
+from = "c.pc_background_packets(mesh, packet, table,"
+to = "c.pc_background_packets(packet, mesh, table,"
+
+[function.func_800E4660]
+spec = "squaredComponentSum.zig"
+iterations = 3000
+
+[[function.func_800E4660.mutation]]
+name = "Q1: y and z swapped"
+from = "c.MTC2(@bitCast(y), 10);"
+to = "_ = y; c.MTC2(@bitCast(z), 10);"
+
+[[function.func_800E4660.mutation]]
+name = "Q2: the SQR command is off by one"
+from = "0x0A00428"
+to = "0x0A00429"
+
+[[function.func_800E4660.mutation]]
+name = "Q3: MAC3 is read as MAC2"
+from = "+% c.MFC2(27)"
+to = "+% c.MFC2(26)"
+
+[[function.func_800E4660.mutation]]
+name = "Q4: MAC3 is left out"
+from = "c.MFC2(25) +% c.MFC2(26) +% c.MFC2(27)"
+to = "c.MFC2(25) +% c.MFC2(26)"
+
+[[function.func_800E4660.mutation]]
+name = "Q5: the sum traps on overflow"
+expect = "panic"
+from = "c.MFC2(25) +% c.MFC2(26) +% c.MFC2(27)"
+to = "c.MFC2(25) + c.MFC2(26) + c.MFC2(27)"
+
+[[function.func_800E4660.mutation]]
+name = "Q6: x goes to IR2"
+from = "c.MTC2(@bitCast(x), 9);"
+to = "c.MTC2(@bitCast(x), 10);"
+
+[function.func_800B17F0]
+spec = "actorRotationMatrix.zig"
+iterations = 4000
+
+[[function.func_800B17F0.mutation]]
+name = "A1: m20 is not negated"
+from = "result.*.m[2][0] = psx.conv(i16, -%sy);"
+to = "result.*.m[2][0] = psx.conv(i16, sy);"
+
+[[function.func_800B17F0.mutation]]
+name = "A2: m22 is shifted by 12"
+from = "(cy *% cx2) >> 13"
+to = "(cy *% cx2) >> 12"
+
+[[function.func_800B17F0.mutation]]
+name = "A3: m10 is shifted by 2"
+from = "const m10 = mfc2(11) >> 1;"
+to = "const m10 = mfc2(11) >> 2;"
+
+[[function.func_800B17F0.mutation]]
+name = "A4: m12 adds a2"
+from = "(((sy *% a1) >> 12) -% a2) >> 2"
+to = "(((sy *% a1) >> 12) +% a2) >> 2"
+
+[[function.func_800B17F0.mutation]]
+name = "A5: the second stage takes sin z"
+from = "mtc2(cz2, 8);"
+to = "mtc2(sz2, 8); _ = cz2;"
+
+[[function.func_800B17F0.mutation]]
+name = "A6: sx2 traps on overflow"
+expect = "panic"
+from = "const sx2 = c.rsin(@as(c_int, angles.*.vx)) *% 2;"
+to = "const sx2 = c.rsin(@as(c_int, angles.*.vx)) * 2;"
+
+[[function.func_800B17F0.mutation]]
+name = "A7: m01 adds a1"
+from = "(mfc2(9) -% a1) >> 2"
+to = "(mfc2(9) +% a1) >> 2"
+
+[[function.func_800B17F0.mutation]]
+name = "A8: m02 reads IR2"
+from = "(mfc2(11) +% a0) >> 2"
+to = "(mfc2(10) +% a0) >> 2"
+
+[[function.func_800B17F0.mutation]]
+name = "A9: m21 is shifted by 12"
+from = "(cy *% sx2) >> 13"
+to = "(cy *% sx2) >> 12"
+
+[[function.func_800B17F0.mutation]]
+name = "A10: the cosine of z comes from y"
+from = "const cz2 = c.rcos(@as(c_int, angles.*.vz)) *% 2;"
+to = "const cz2 = c.rcos(@as(c_int, angles.*.vy)) *% 2;"
+
+[function.func_800983F8]
+spec = "roomGroupMatrices.zig"
+iterations = 4000
+
+[[function.func_800983F8.coverage_waiver]]
+id = "+8 b0"
+reason = "`if (count > 4096)` (pc_unimplemented, then the loop runs on): 4097 groups of 0x40 bytes are 256 KB, past the harness arena, so a group count that large cannot be built"
+
+[[function.func_800983F8.mutation]]
+name = "G1: the skip flag is 0x200"
+from = "if (flags & 0x100 != 0) continue;"
+to = "if (flags & 0x200 != 0) continue;"
+
+[[function.func_800983F8.mutation]]
+name = "G2: the facing flag is 0x800"
+from = "if (flags & 0x400 == 0) {"
+to = "if (flags & 0x800 == 0) {"
+
+[[function.func_800983F8.mutation]]
+name = "G3: the result is at +0x24"
+from = "const result: [*c]c.MATRIX = @ptrFromInt(group + 0x20);"
+to = "const result: [*c]c.MATRIX = @ptrFromInt(group + 0x24);"
+
+[[function.func_800983F8.mutation]]
+name = "G4: the stride is 0x44"
+from = "group +%= 0x40;"
+to = "group +%= 0x44;"
+
+[[function.func_800983F8.mutation]]
+name = "G5: m01 is not negated"
+from = "result.*.m[0][1] = psx.conv(i16, -%sine);"
+to = "result.*.m[0][1] = psx.conv(i16, sine);"
+
+[[function.func_800983F8.mutation]]
+name = "G6: m10 is the cosine"
+from = "result.*.m[1][0] = psx.conv(i16, sine);"
+to = "result.*.m[1][0] = psx.conv(i16, cosine);"
+
+[[function.func_800983F8.mutation]]
+name = "G7: m22 is the cosine"
+from = "result.*.m[2][2] = psx.conv(i16, scale);"
+to = "result.*.m[2][2] = psx.conv(i16, cosine);"
+
+[[function.func_800983F8.mutation]]
+name = "G8: ty reads MAC1"
+from = "result.*.t[1] = @bitCast(c.MFC2(26));"
+to = "result.*.t[1] = @bitCast(c.MFC2(25));"
+
+[[function.func_800983F8.mutation]]
+name = "G9: Z is read from +8"
+from = "c.MTC2(word(group + 12).*, 1);"
+to = "c.MTC2(word(group + 8).*, 1);"
+
+[[function.func_800983F8.mutation]]
+name = "G10: the scratchpad camera is restored from the neighbouring matrix"
+from = "c.SetRotMatrix(@ptrFromInt(0x1f800014));"
+to = "c.SetRotMatrix(@ptrFromInt(0x1f800010));"
+
+[[function.func_800983F8.mutation]]
+name = "G11: the sine is the cosine's table lookup"
+from = "c.rsin(angle)"
+to = "c.rcos(angle)"
+
+[[function.func_800983F8.mutation]]
+name = "G12: the angle is read from word 0x58"
+from = "scratch[0x5c / 4]"
+to = "scratch[0x58 / 4]"
+
+[[function.func_800983F8.mutation]]
+name = "G13: the scale is read from word 0x60"
+from = "scratch[0x64 / 4]"
+to = "scratch[0x60 / 4]"
+
+[[function.func_800983F8.mutation]]
+name = "G14: the plain path takes the angles at +0x14"
+from = "c.func_800985AC(@ptrFromInt(group + 4), @ptrFromInt(group + 0x10), result);"
+to = "c.func_800985AC(@ptrFromInt(group + 4), @ptrFromInt(group + 0x14), result);"
+
+[[function.func_800983F8.mutation]]
+name = "G15: the facing path skips SetTransMatrix"
+from = "c.SetTransMatrix(&camera);"
+to = "{}"
+
+[[function.func_800983F8.mutation]]
+name = "G16: the mvmva command is off by one"
+from = "_ = c.doCOP2(0x0480012); // gte_mvmva(1, 0, 0, 0, 0)"
+to = "_ = c.doCOP2(0x0480013); // gte_mvmva(1, 0, 0, 0, 0)"
+
+[[function.func_800983F8.mutation]]
+name = "G17: X and Y are packed with a shift of 8"
+from = "(word(group + 8).* << 16), 0);"
+to = "(word(group + 8).* << 8), 0);"
+
+[[function.func_800983F8.mutation]]
+name = "G18: the sine overflow traps"
+expect = "panic"
+from = "@as(c_uint, @bitCast(c.rsin(angle))) *% @as(c_uint, @bitCast(scale))"
+to = "@as(c_uint, @bitCast(c.rsin(angle))) * @as(c_uint, @bitCast(scale))"
+
 # ---- pc/src/effect_particles.c
 
+[function.func_800D6E44]
+spec = "drawParticles.zig"
+iterations = 6000
+room = { D_80040A14 = 1024 }
+
+[[function.func_800D6E44.coverage_waiver]]
+id = "+14 b1"
+reason = "`if (pc_particles_native_begin)`: the weak hook is always linked (effect_native.c in the game, a recording stub here); its null side never runs"
+
+[[function.func_800D6E44.coverage_waiver]]
+id = "+269 b1"
+reason = "`if (pc_particles_native_node)`: the weak hook is always linked (effect_native.c in the game, a recording stub here); its null side never runs"
+
+[[function.func_800D6E44.coverage_waiver]]
+id = "+280 b1"
+reason = "`if (pc_particles_native_end)`: the weak hook is always linked (effect_native.c in the game, a recording stub here); its null side never runs"
+
+[[function.func_800D6E44.coverage_waiver]]
+id = "+26 b4"
+reason = "the sprite script's unknown-command default: after its pc_unimplemented stub the C loops forever, so the spec never generates one"
+
+[[function.func_800D6E44.mutation]]
+name = "P1: the projection distance shifted by 9"
+from = 'v.g.vs_main_projectionDistance().* << 10'
+to = 'v.g.vs_main_projectionDistance().* << 9'
+
+[[function.func_800D6E44.mutation]]
+name = "P2: the timer counts down by 1"
+from = 'node.sprite.unk6 -%= 2;'
+to = 'node.sprite.unk6 -%= 1;'
+
+[[function.func_800D6E44.mutation]]
+name = "P3: the frame time is 10 bits"
+from = '(cmd >> 16) & 0x3FFF'
+to = '(cmd >> 16) & 0x3FF'
+
+[[function.func_800D6E44.mutation]]
+name = "P4: the x offset"
+from = 'node.sprite.unk8 = psx.conv(i16, (cmd << 18) >> 18);'
+to = 'node.sprite.unk8 = psx.conv(i16, (cmd << 17) >> 17);'
+
+[[function.func_800D6E44.mutation]]
+name = "P5: the y offset"
+from = '(cmd << 4) >> 18'
+to = '(cmd << 4) >> 17'
+
+[[function.func_800D6E44.mutation]]
+name = "P6: a restart goes to word 1"
+from = '0x20000000 => node.sprite.unkE = 0,'
+to = '0x20000000 => node.sprite.unkE = 4,'
+
+[[function.func_800D6E44.mutation]]
+name = "P7: the x position shift"
+from = '(node.x >> 12)'
+to = '(node.x >> 11)'
+
+[[function.func_800D6E44.mutation]]
+name = "P8: the packed y"
+from = '''(y << 16);
+        if (node.flags & 0x20000'''
+to = '''(y << 15);
+        if (node.flags & 0x20000'''
+
+[[function.func_800D6E44.mutation]]
+name = "P9: the attached behind-test uses the second matrix"
+from = 'node.matrixIndex).unk38;'
+to = 'node.matrixIndex).unk58;'
+
+[[function.func_800D6E44.mutation]]
+name = "P10: behind is non-negative depth"
+from = 'if (b > 0) continue;'
+to = 'if (b >= 0) continue;'
+
+[[function.func_800D6E44.mutation]]
+name = "P11: the unattached behind test"
+from = 'and y > 0) continue;'
+to = 'and y >= 0) continue;'
+
+[[function.func_800D6E44.mutation]]
+name = "P12: the depth mode shift"
+from = '(node.unk60.value >> 8) & 0xF'
+to = '(node.unk60.value >> 9) & 0xF'
+
+[[function.func_800D6E44.mutation]]
+name = "P13: mode 3 offset"
+from = '3 => depth -%= 8,'
+to = '3 => depth -%= 9,'
+
+[[function.func_800D6E44.mutation]]
+name = "P14: mode 4 offset"
+from = '4 => depth -%= 16,'
+to = '4 => depth -%= 17,'
+
+[[function.func_800D6E44.mutation]]
+name = "P15: mode 1 offset"
+from = '1 => depth +%= 8,'
+to = '1 => depth +%= 9,'
+
+[[function.func_800D6E44.mutation]]
+name = "P16: mode 2 offset"
+from = '2 => depth +%= 16,'
+to = '2 => depth +%= 17,'
+
+[[function.func_800D6E44.mutation]]
+name = "P17: the near clip is exclusive"
+from = 'depth <= v.g.vs_main_nearClip().*'
+to = 'depth < v.g.vs_main_nearClip().*'
+
+[[function.func_800D6E44.mutation]]
+name = "P18: mode 5 depth"
+from = '5 => depth = 0x7FE,'
+to = '5 => depth = 0x7FD,'
+
+[[function.func_800D6E44.mutation]]
+name = "P19: mode 6 depth"
+from = '6 => depth = -15,'
+to = '6 => depth = -14,'
+
+[[function.func_800D6E44.mutation]]
+name = "P20: mode 8 depth"
+from = '8 => depth = -11,'
+to = '8 => depth = -12,'
+
+[[function.func_800D6E44.mutation]]
+name = "P21: the header draw mode"
+from = 'packet[1] = 0xE1000200;'
+to = 'packet[1] = 0xE1000201;'
+
+[[function.func_800D6E44.mutation]]
+name = "P22: the closing draw mode"
+from = 'packet[1] = 0xE1000000;'
+to = 'packet[1] = 0xE1000001;'
+
+[[function.func_800D6E44.mutation]]
+name = "P23: the tilt x shift"
+from = '(node.dx >> 5)'
+to = '(node.dx >> 4)'
+
+[[function.func_800D6E44.mutation]]
+name = "P24: the tilt z shift"
+from = 'z +%= node.dz >> 5;'
+to = 'z +%= node.dz >> 4;'
+
+[[function.func_800D6E44.mutation]]
+name = "P25: the tilt deltas reversed"
+from = 'y = short(a) -% short(x);'
+to = 'y = short(x) -% short(a);'
+
+[[function.func_800D6E44.mutation]]
+name = "P26: the arctan quadrant constant"
+from = 't = 512;'
+to = 't = 513;'
+
+[[function.func_800D6E44.mutation]]
+name = "P27: the half-turn constant"
+from = 't = 1024;'
+to = 't = 1023;'
+
+[[function.func_800D6E44.mutation]]
+name = "P28: the angle doubling"
+from = 'cc <<= 1;'
+to = 'cc <<= 2;'
+
+[[function.func_800D6E44.mutation]]
+name = "P29: the sign of the angle"
+from = 'if (ay != z) cc = -%cc;'
+to = 'if (ay == z) cc = -%cc;'
+
+[[function.func_800D6E44.mutation]]
+name = "P30: no division guard result"
+from = 'if (projection < 0) 1 else -1'
+to = 'if (projection < 0) -1 else 1'
+
+[[function.func_800D6E44.mutation]]
+name = "P31: the centre x not narrowed"
+from = 'c.CTC2(@bitCast(short(a)), 13);'
+to = 'c.CTC2(@bitCast(a), 13);'
+
+[[function.func_800D6E44.mutation]]
+name = "P32: sin and cos swapped"
+from = 'c.rcos(node.sprite.unk14) *% scale, 4));'
+to = 'c.rsin(node.sprite.unk14) *% scale, 4));'
+
+[[function.func_800D6E44.mutation]]
+name = "P33: the cos mask"
+from = 'b &= 0xFFFF;'
+to = 'b &= 0x7FFF;'
+
+[[function.func_800D6E44.mutation]]
+name = "P34: the sin sign"
+from = 'a = b | (-%sinv << 16);'
+to = 'a = b | (sinv << 16);'
+
+[[function.func_800D6E44.mutation]]
+name = "P35: the red curve"
+from = 'rgb = index *% 2 -% 1;'
+to = 'rgb = index *% 2 +% 1;'
+
+[[function.func_800D6E44.mutation]]
+name = "P36: no red curve"
+from = 'rgb = 0x80;'
+to = 'rgb = 0x81;'
+
+[[function.func_800D6E44.mutation]]
+name = "P37: no green curve"
+from = 'rgb |= 0x8000;'
+to = 'rgb |= 0x8001;'
+
+[[function.func_800D6E44.mutation]]
+name = "P38: no blue curve"
+from = 'rgb |= 0x800000;'
+to = 'rgb |= 0x800001;'
+
+[[function.func_800D6E44.mutation]]
+name = "P39: the green curve"
+from = '(index << 9) -% 0x100'
+to = '(index << 9) -% 0x80'
+
+[[function.func_800D6E44.mutation]]
+name = "P40: the blue curve"
+from = 'rgb |= (index *% 2 -% 1) << 16;'
+to = 'rgb |= (index *% 2 -% 1) << 15;'
+
+[[function.func_800D6E44.mutation]]
+name = "P41: the curve clock"
+from = '@as(c_int, node.curves.fields.age) +% 1'
+to = '@as(c_int, node.curves.fields.age) +% 2'
+
+[[function.func_800D6E44.mutation]]
+name = "P42: an empty curve reads sample 0"
+from = 'if (size != 0) clock % size else clock'
+to = 'if (size != 0) clock % size else 0'
+
+[[function.func_800D6E44.mutation]]
+name = "P43: the second tile corner"
+from = 'packet[5] = @bitCast((z +% (size & 0xFF)) | ((y >> 16) << 16));'
+to = 'packet[5] = @bitCast((z +% (size & 0xFF00)) | ((y >> 16) << 16));'
+
+[[function.func_800D6E44.mutation]]
+name = "P44: the semi-transparent flag"
+from = 'if (y & 0x8000 != 0) {'
+to = 'if (y & 0x4000 != 0) {'
+
+[[function.func_800D6E44.mutation]]
+name = "P45: the semi-transparent code"
+from = '0x2E000000'
+to = '0x2F000000'
+
+[[function.func_800D6E44.mutation]]
+name = "P46: the opaque code"
+from = '0x2C000000'
+to = '0x2D000000'
+
+[[function.func_800D6E44.mutation]]
+name = "P47: the tile packet link"
+from = '| 0x9000000;'
+to = '| 0x8000000;'
+
+[[function.func_800D6E44.mutation]]
+name = "P48: the tile record size"
+from = 'tile += @sizeOf(v.pFileBlock1Data);'
+to = 'tile += 0x14;'
+
+[[function.func_800D6E44.mutation]]
+name = "P49: the packet cursor step"
+from = '.?))) + 10)));'
+to = '.?))) + 9)));'
+
+[[function.func_800D6E44.mutation]]
+name = "P50: the source hash"
+from = '2654435761'
+to = '2654435762'
+
+[[function.func_800D6E44.mutation]]
+name = "P51: layered modes"
+from = '@intFromBool(mode >= 5 and mode <= 8)'
+to = '@intFromBool(mode >= 5 and mode <= 7)'
+
+[[function.func_800D6E44.mutation]]
+name = "P52: the begin hook dropped"
+from = 'if (psx.weak(NativeBegin, "pc_particles_native_begin")) |begin| begin();'
+to = '_ = NativeBegin;'
+
+[[function.func_800D6E44.mutation]]
+name = "P53: the clip constant"
+from = 'c.CTC2(0x1000, 12);'
+to = 'c.CTC2(0x1001, 12);'
+
+[[function.func_800D6E44.mutation]]
+name = "P54: the tilt flag"
+from = 'if (node.flags & 0x10000 != 0) {'
+to = 'if (node.flags & 0x20000 != 0) {'
+
+[[function.func_800D6E44.mutation]]
+name = "P55: the attached behind flag"
+from = '            if (node.flags & 0x80000 != 0) {'
+to = '            if (node.flags & 0x40000 != 0) {'
+
 # ---- pc/src/map_view.c
+
+[function.func_800C2E24]
+spec = "drawAreaMapScreen.zig"
+iterations = 6000
+room = { D_800EA130 = 1024, D_800EA6B0 = 512, D_800EA818 = 256 }
+
+[[function.func_800C2E24.coverage_waiver]]
+id = "+22 b4"
+reason = "the switch's default: the selector is `(x >> 10) & 3`, so no fifth value exists"
+
+[[function.func_800C2E24.coverage_waiver]]
+id = "+328 b0"
+reason = "`if (t1 < -0xdc)` is pc_unimplemented, after which the C writes above the scratchpad: that run cannot be built"
+
+[[function.func_800C2E24.coverage_waiver]]
+id = "+317 eq"
+reason = "`t5 < t1` follows `t1 == t5 || t5 < 0` (which continues), so t5 == t1 never reaches it"
+
+[[function.func_800C2E24.coverage_waiver]]
+id = "+373 eq"
+reason = "`t5 < t1` follows `t1 == t5 || t5 < 0` (which continues), so t5 == t1 never reaches it"
+
+[[function.func_800C2E24.coverage_waiver]]
+id = "+443 b1"
+reason = "`if (pc_hw_anchor_packets)`: the weak hook is always linked (a stub here, the host function in the game); its null side never runs"
+
+[[function.func_800C2E24.mutation]]
+name = "M1: the height clamp is 0x2F"
+from = 'if (h >= 0x31) h = 0x30;'
+to = 'if (h >= 0x31) h = 0x2F;'
+
+[[function.func_800C2E24.mutation]]
+name = "M2: a high floor alone empties the cell"
+from = 'if (high == 0 or high < y) out.* = 0;'
+to = 'if (high == 0) out.* = 0;'
+
+[[function.func_800C2E24.mutation]]
+name = "M3: the visible-floor flag is bit 1"
+from = '} else if (cell & 1 != 0) {'
+to = '} else if (cell & 2 != 0) {'
+
+[[function.func_800C2E24.mutation]]
+name = "M4: the rotation uses 2 bits less"
+from = '((view_turn -% 0x200) >> 10) & 3) {'
+to = '((view_turn -% 0x200) >> 10) & 1) {'
+
+[[function.func_800C2E24.mutation]]
+name = "M5: the outline rows are 0x160 apart"
+from = 'rotation *% 0x168'
+to = 'rotation *% 0x160'
+
+[[function.func_800C2E24.mutation]]
+name = "M6: the base x"
+from = '((origin_x >> 7) -% 4) << 7'
+to = '((origin_x >> 7) -% 3) << 7'
+
+[[function.func_800C2E24.mutation]]
+name = "M7: the edge toggles read their neighbour"
+from = 'e[10] = psx.conv(u8, @as(c_int, 1) -% e[10]);'
+to = 'e[10] = psx.conv(u8, @as(c_int, 1) -% e[9]);'
+
+[[function.func_800C2E24.mutation]]
+name = "M8: cells holding 1 toggle too"
+from = 'if (cell == 0) {'
+to = 'if (cell <= 1) {'
+
+[[function.func_800C2E24.mutation]]
+name = "M9: the left flag"
+from = 'e.* = if (t3 < t2) 0xff else 0x7f;'
+to = 'e.* = if (t3 < t2) 0xff else 0x7e;'
+
+[[function.func_800C2E24.mutation]]
+name = "M10: the flat edge window"
+from = '+% 2)) < 5) {'
+to = '+% 2)) < 4) {'
+
+[[function.func_800C2E24.mutation]]
+name = "M11: an edge ending on row 0 is kept"
+from = 'if (t5 <= 0 or !(t1 < 0xe0)) continue;'
+to = 'if (t5 < 0 or !(t1 < 0xe0)) continue;'
+
+[[function.func_800C2E24.mutation]]
+name = "M12: the row parity flag +2"
+from = '(cnt +% 1) & 1) != 0) e.* = psx.conv(u8, @as(c_int, psx.at(rows, r).*) +% 1);'
+to = '(cnt +% 1) & 1) != 0) e.* = psx.conv(u8, @as(c_int, psx.at(rows, r).*) +% 2);'
+
+[[function.func_800C2E24.mutation]]
+name = "M13: the reversed edge flag"
+from = '+% 0x81);'
+to = '+% 0x80);'
+
+[[function.func_800C2E24.mutation]]
+name = "M14: the walls start at 11"
+from = '''    i = 10;
+    while (i < 0xaa)'''
+to = '''    i = 11;
+    while (i < 0xaa)'''
+
+[[function.func_800C2E24.mutation]]
+name = "M15: walls need one neighbour"
+from = 'if (t9 < 2) continue;'
+to = 'if (t9 < 1) continue;'
+
+[[function.func_800C2E24.mutation]]
+name = "M16: the swapped outline shift"
+from = '((t0 >> 8) | (t0 << 8)) & 0xffff'
+to = '((t0 >> 8) | (t0 << 7)) & 0xffff'
+
+[[function.func_800C2E24.mutation]]
+name = "M17: the full-edge flag is the exact byte"
+from = 'if ((a2 & 0x7f) == 0x7f) {'
+to = 'if (a2 == 0x7f) {'
+
+[[function.func_800C2E24.mutation]]
+name = "M18: the closing walls use mode 1"
+from = 'spanRow(spans, t5), t2, t9, 2);'
+to = 'spanRow(spans, t5), t2, t9, 1);'
+
+[[function.func_800C2E24.mutation]]
+name = "M19: the wall direction bit"
+from = 'if (a2 & 1 != 0) {'
+to = 'if (a2 & 2 != 0) {'
+
+[[function.func_800C2E24.mutation]]
+name = "M20: the marker bits"
+from = '@as(c_int, 0x38847780)'
+to = '@as(c_int, 0x38847781)'
+
+[[function.func_800C2E24.mutation]]
+name = "M21: the marker cell x"
+from = '(origin_x >> 7) +% col -% 4;'
+to = '(origin_x >> 7) +% col -% 3;'
+
+[[function.func_800C2E24.mutation]]
+name = "M22: the marker bottom clamps one short"
+from = 'if (bottom >= 0xe1) bottom = 0xe0;'
+to = 'if (bottom >= 0xe1) bottom = 0xdf;'
+
+[[function.func_800C2E24.mutation]]
+name = "M23: the marker rows offset"
+from = 'mapRow(0x12 +% (t1 -% top) *% 4)[0]'
+to = 'mapRow(0x10 +% (t1 -% top) *% 4)[0]'
+
+[[function.func_800C2E24.mutation]]
+name = "M24: the circle matrix element"
+from = '@as(c_int, m.m[0][0]) *% scale'
+to = '@as(c_int, m.m[0][1]) *% scale'
+
+[[function.func_800C2E24.mutation]]
+name = "M25: the circle rounding"
+from = '(ax *% cc +% az *% ss +% 0x800) >> 12'
+to = '(ax *% cc +% az *% ss +% 0x7ff) >> 12'
+
+[[function.func_800C2E24.mutation]]
+name = "M26: the depth shift"
+from = '@bitCast(c.MFC2(19))) >> 2)'
+to = '@bitCast(c.MFC2(19))) >> 3)'
+
+[[function.func_800C2E24.mutation]]
+name = "M27: the left walk starts two back"
+from = 'index = (top_index -% 1) & 31;'
+to = 'index = (top_index -% 2) & 31;'
+
+[[function.func_800C2E24.mutation]]
+name = "M28: the left clip includes equality"
+from = 'if (@as(c_int, rowAt(line, n -% 2).*) < x) {'
+to = 'if (@as(c_int, rowAt(line, n -% 2).*) <= x) {'
+
+[[function.func_800C2E24.mutation]]
+name = "M29: the left clip moves the end when it is greater"
+from = 'if (x < @as(c_int, rowAt(line, n -% 1).*)) rowAt'
+to = 'if (x > @as(c_int, rowAt(line, n -% 1).*)) rowAt'
+
+[[function.func_800C2E24.mutation]]
+name = "M30: the left clip skips rows by loop"
+from = 'if (t1 < 0) { // the original advances only one row here'
+to = 'while (t1 < 0) { // the original advances only one row here'
+
+[[function.func_800C2E24.mutation]]
+name = "M31: the right walk starts one back"
+from = 'index = (top_index +% 1) & 31;'
+to = 'index = (top_index -% 1) & 31;'
+
+[[function.func_800C2E24.mutation]]
+name = "M32: the depth window"
+from = 'if (@as(c_uint, @bitCast(depth)) < 0x800) {'
+to = 'if (@as(c_uint, @bitCast(depth)) < 0x400) {'
+
+[[function.func_800C2E24.mutation]]
+name = "M33: the line colour"
+from = '0x42000000;'
+to = '0x43000000;'
+
+[[function.func_800C2E24.mutation]]
+name = "M34: the draw mode word"
+from = 'packet[1] = 0xe1000220;'
+to = 'packet[1] = 0xe1000221;'
+
+[[function.func_800C2E24.mutation]]
+name = "M35: the line end"
+from = 'packet[4] = (w >> 16) | row_y;'
+to = 'packet[4] = (w & 0xffff) | row_y;'
+
+[[function.func_800C2E24.mutation]]
+name = "M36: the cut span starts at the span"
+from = '''from = xy0;
+                                last = true;'''
+to = '''from = xy0 +% 1;
+                                last = true;'''
+
+[[function.func_800C2E24.mutation]]
+name = "M37: the anchor range reversed"
+from = 'anchor(first_packet, packet, c.PC_ANCHOR_PROJECTED)'
+to = 'anchor(packet, first_packet, c.PC_ANCHOR_PROJECTED)'
+
+[[function.func_800C2E24.mutation]]
+name = "M38: the span shapes dropped"
+from = '''    mapSpanShapes();
+}'''
+to = '}'
+
+[[function.func_800C2E24.mutation]]
+name = "M39: the partner needs a better overlap"
+from = 'if (hi -% lo +% 1 > most) {'
+to = 'if (hi -% lo +% 1 > most +% 1) {'
+
+[[function.func_800C2E24.mutation]]
+name = "M40: the shape edge is a quarter"
+from = 'edge[side][0] = @as(f32, @floatFromInt(@as(c_int, partner.x0) -% x0)) * 0.5;'
+to = 'edge[side][0] = @as(f32, @floatFromInt(@as(c_int, partner.x0) -% x0)) * 0.25;'
+
+[[function.func_800C2E24.mutation]]
+name = "M41: the reciprocal table is 3 bytes a row"
+from = 'dy *% 2'
+to = 'dy *% 3'
+
+[[function.func_800C2E24.mutation]]
+name = "M42: the step shift"
+from = '(delta >> 15)'
+to = '(delta >> 14)'
+
+[[function.func_800C2E24.mutation]]
+name = "M43: the projection depth register"
+from = 'c.MTC2(@bitCast(z), 1);'
+to = 'c.MTC2(@bitCast(z), 2);'
+
+[[function.func_800C2E24.mutation]]
+name = "M44: cut case 0 copies one word on"
+from = 'j +%= 1) rowAt(row, j).* = rowAt(row, j +% 2).*;'
+to = 'j +%= 1) rowAt(row, j).* = rowAt(row, j +% 1).*;'
+
+[[function.func_800C2E24.mutation]]
+name = "M45: cut case 1 uses the right edge"
+from = '''rowAt(row, i +% 1).* = psx.conv(i16, left);
+                    return;'''
+to = '''rowAt(row, i +% 1).* = psx.conv(i16, right);
+                    return;'''
+
+[[function.func_800C2E24.mutation]]
+name = "M46: the wall cut accepts equality"
+from = 'if (if (mode == 2) p < x0 else !(x0 < p)) return;'
+to = 'if (if (mode == 2) p <= x0 else !(x0 < p)) return;'
 
 # ---- pc/src/navigation.c
 
@@ -74288,6 +75935,584 @@ to = "if (open & square != 0) return highest;"
 
 # ---- pc/src/room_geometry.c
 
+[function.vs_battle_getGeomOffset]
+spec = "getGeomOffset.zig"
+iterations = 2000
+
+[[function.vs_battle_getGeomOffset.mutation]]
+name = "G1: OFY read from register 24"
+from = 'offset[1] = c.CFC2(25) >> 16;'
+to = 'offset[1] = c.CFC2(24) >> 16;'
+
+[[function.vs_battle_getGeomOffset.mutation]]
+name = "G2: OFX not shifted"
+from = 'offset[0] = c.CFC2(24) >> 16;'
+to = 'offset[0] = c.CFC2(24);'
+
+[[function.vs_battle_getGeomOffset.mutation]]
+name = "G3: the words stored swapped"
+from = '''offset[0] = c.CFC2(24) >> 16;
+    offset[1] = c.CFC2(25) >> 16;'''
+to = '''offset[1] = c.CFC2(24) >> 16;
+    offset[0] = c.CFC2(25) >> 16;'''
+
+[[function.vs_battle_getGeomOffset.mutation]]
+name = "G4: OFY read first"
+from = '''offset[0] = c.CFC2(24) >> 16;
+    offset[1] = c.CFC2(25) >> 16;'''
+to = '''offset[1] = c.CFC2(25) >> 16;
+    offset[0] = c.CFC2(24) >> 16;'''
+
+[[function.vs_battle_getGeomOffset.mutation]]
+name = "G5: OFX shifted by 15"
+from = 'offset[0] = c.CFC2(24) >> 16;'
+to = 'offset[0] = c.CFC2(24) >> 15;'
+
+[function.vs_battle_setGeomOffset]
+spec = "setGeomOffset.zig"
+iterations = 2000
+
+[[function.vs_battle_setGeomOffset.mutation]]
+name = "S1: OFX shifted by 15"
+from = 'c.CTC2(offset[0] << 16, 24);'
+to = 'c.CTC2(offset[0] << 15, 24);'
+
+[[function.vs_battle_setGeomOffset.mutation]]
+name = "S2: OFY written to register 24"
+from = 'c.CTC2(offset[1] << 16, 25);'
+to = 'c.CTC2(offset[1] << 16, 24);'
+
+[[function.vs_battle_setGeomOffset.mutation]]
+name = "S3: OFX takes the second word"
+from = 'c.CTC2(offset[0] << 16, 24);'
+to = 'c.CTC2(offset[1] << 16, 24);'
+
+[[function.vs_battle_setGeomOffset.mutation]]
+name = "S4: OFY not shifted"
+from = 'c.CTC2(offset[1] << 16, 25);'
+to = 'c.CTC2(offset[1], 25);'
+
+[[function.vs_battle_setGeomOffset.mutation]]
+name = "S5: OFY written first"
+from = '''c.CTC2(offset[0] << 16, 24);
+    c.CTC2(offset[1] << 16, 25);'''
+to = '''c.CTC2(offset[1] << 16, 25);
+    c.CTC2(offset[0] << 16, 24);'''
+
+[function.vs_battle_initSceneAndGetRoomNames]
+spec = "initSceneAndGetRoomNames.zig"
+iterations = 3000
+
+[[function.vs_battle_initSceneAndGetRoomNames.mutation]]
+name = "R1: entries 8 bytes apart"
+expect = "panic"
+from = '@as(usize, i *% 12)'
+to = '@as(usize, i *% 8)'
+
+[[function.vs_battle_initSceneAndGetRoomNames.mutation]]
+name = "R2: the pointer is one past the name"
+from = 'entry[1] = psx.addr(name);'
+to = 'entry[1] = psx.addr(name) +% 1;'
+
+[[function.vs_battle_initSceneAndGetRoomNames.mutation]]
+name = "R3: the empty table is not reported"
+from = 'if (count == 0) c.pc_unimplemented("room-name table with no entries");'
+to = ''
+
+[[function.vs_battle_initSceneAndGetRoomNames.mutation]]
+name = "R4: the size is one more"
+from = 'const size: c_uint = entry[1];'
+to = 'const size: c_uint = entry[1] +% 1;'
+
+[[function.vs_battle_initSceneAndGetRoomNames.mutation]]
+name = "R5: the names start one entry late"
+from = '@as(usize, count *% 12)'
+to = '@as(usize, (count +% 1) *% 12)'
+
+[[function.vs_battle_initSceneAndGetRoomNames.mutation]]
+name = "R6: the size is read after the pointer is stored"
+from = '''const size: c_uint = entry[1];
+        entry[1] = psx.addr(name);'''
+to = '''entry[1] = psx.addr(name);
+        const size: c_uint = entry[1];'''
+
+[function.func_80098D6C]
+spec = "tintRoomPackets.zig"
+iterations = 6000
+
+[[function.func_80098D6C.coverage_waiver]]
+id = "+4 b1"
+reason = "`if (pc_room_native_tint)`: the weak hook is always linked (a recording stub here, the host function in the game); its null side never runs"
+
+[[function.func_80098D6C.coverage_waiver]]
+id = "+14 b1"
+reason = "`render_translucent_marker && ...`: the weak hook is always linked (a stub here, the host function in the game); its null side never runs"
+
+[[function.func_80098D6C.mutation]]
+name = "T1: red offset times 2"
+from = '@as(c_int, params[0]) *% 4'
+to = '@as(c_int, params[0]) *% 2'
+
+[[function.func_80098D6C.mutation]]
+name = "T2: green offset times 3"
+from = '@as(c_int, params[1]) *% 4'
+to = '@as(c_int, params[1]) *% 3'
+
+[[function.func_80098D6C.mutation]]
+name = "T3: blue offset read from the green byte"
+from = '@as(c_int, params[2]) *% 4'
+to = '@as(c_int, params[1]) *% 4'
+
+[[function.func_80098D6C.mutation]]
+name = "T4: the fade read unsigned"
+from = 'const fade: c_int = @as(*align(1) const i16,'
+to = 'const fade: c_int = @as(*align(1) const u16,'
+
+[[function.func_80098D6C.mutation]]
+name = "T5: the extra bytes follow flag bit 0"
+from = '(flags & 2) * 4'
+to = '(flags & 1) * 4'
+
+[[function.func_80098D6C.mutation]]
+name = "T6: a marker is 24 bytes"
+from = 'packet = @ptrFromInt(@intFromPtr(packet) +% 20);'
+to = 'packet = @ptrFromInt(@intFromPtr(packet) +% 24);'
+
+[[function.func_80098D6C.mutation]]
+name = "T7: a quad is 0x30 bytes"
+from = 'else 0x34)'
+to = 'else 0x30)'
+
+[[function.func_80098D6C.mutation]]
+name = "T8: a triangle is 0x2C bytes"
+from = '@as(usize, 0x28)'
+to = '@as(usize, 0x2C)'
+
+[[function.func_80098D6C.mutation]]
+name = "T9: triangles have length 10"
+from = 'if (length == 9) {'
+to = 'if (length == 10) {'
+
+[[function.func_80098D6C.mutation]]
+name = "T10: the high clamp is 0xFE"
+from = 'r = if (r < 0) 0 else if (r > 0xff) 0xff else r;'
+to = 'r = if (r < 0) 0 else if (r > 0xfe) 0xfe else r;'
+
+[[function.func_80098D6C.mutation]]
+name = "T11: green clamps to 1"
+from = 'g = if (g < 0) 0 else'
+to = 'g = if (g < 0) 1 else'
+
+[[function.func_80098D6C.mutation]]
+name = "T12: only a positive fade fades"
+from = 'if (fade != 0) {'
+to = 'if (fade > 0) {'
+
+[[function.func_80098D6C.mutation]]
+name = "T13: the luminance weights"
+from = 'r * 5 + g * 9 + b * 2'
+to = 'r * 5 + g * 2 + b * 9'
+
+[[function.func_80098D6C.mutation]]
+name = "T14: the top alpha bit is lost"
+from = 'return (color & 0xff000000) |'
+to = 'return (color & 0xfe000000) |'
+
+[[function.func_80098D6C.mutation]]
+name = "T15: the native tint hook dropped"
+from = 'if (psx.weak(NativeTint, "pc_room_native_tint")) |tint| tint(start, dr, dg, db, fade);'
+to = '_ = NativeTint;'
+
+[[function.func_80098D6C.mutation]]
+name = "T16: DPCS op code"
+from = 'c.doCOP2(0x0780010)'
+to = 'c.doCOP2(0x0780011)'
+
+[[function.func_80098D6C.mutation]]
+name = "T17: the faded colour read from register 21"
+from = 'color = c.MFC2(22);'
+to = 'color = c.MFC2(21);'
+
+[[function.func_80098D6C.mutation]]
+name = "T18: a marker of length 9 is not skipped"
+from = 'if (marker(words, &list, &first, &entries) != 0) {'
+to = 'if (marker(words, &list, &first, &entries) != 0 and length != 9) {'
+
+[[function.func_80098D6C.mutation]]
+name = "T19: the colour is written one word on"
+from = 'words[1 + i * 3] = tintColor('
+to = 'words[2 + i * 3] = tintColor('
+
+[function.func_8009723C]
+spec = "drawRoomGroups.zig"
+iterations = 8000
+
+[[function.func_8009723C.coverage_waiver]]
+id = "+10 b1"
+reason = "`pc_room_native_begin` is a weak hook, always linked (a stub here, a host function in the game); its null side never runs"
+
+[[function.func_8009723C.coverage_waiver]]
+id = "+12 b1"
+reason = "`pc_live_camera_active` is a weak hook, always linked (a stub here, a host function in the game); its null side never runs"
+
+[[function.func_8009723C.coverage_waiver]]
+id = "+13 b3"
+reason = "`pc_room_editor_facing` is a weak hook, always linked (a stub here, a host function in the game); its null side never runs"
+
+[[function.func_8009723C.coverage_waiver]]
+id = "+18 b3"
+reason = "`pc_room_photo_whole` is a weak hook, always linked (a stub here, a host function in the game); its null side never runs"
+
+[[function.func_8009723C.coverage_waiver]]
+id = "+19 b1"
+reason = "`pc_scene_room_data` is a weak hook, always linked (a stub here, a host function in the game); its null side never runs"
+
+[[function.func_8009723C.coverage_waiver]]
+id = "+29 b1"
+reason = "`pc_gameplay_walls_frame` is a weak hook, always linked (a stub here, a host function in the game); its null side never runs"
+
+[[function.func_8009723C.coverage_waiver]]
+id = "+43 b3"
+reason = "`pc_room_editor_hidden` is a weak hook, always linked (a stub here, a host function in the game); its null side never runs"
+
+[[function.func_8009723C.coverage_waiver]]
+id = "+62 b1"
+reason = "`pc_room_native_group_cut` is a weak hook, always linked (a stub here, a host function in the game); its null side never runs"
+
+[[function.func_8009723C.coverage_waiver]]
+id = "+71 b3"
+reason = "`pc_occlusion_frame` is a weak hook, always linked (a stub here, a host function in the game); its null side never runs"
+
+[[function.func_8009723C.coverage_waiver]]
+id = "+79 b1"
+reason = "`pc_hw_room_packets` is a weak hook, always linked (a stub here, a host function in the game); its null side never runs"
+
+[[function.func_8009723C.mutation]]
+name = "D1: only 0x100 hides a group"
+from = '0x100 else 0x1100;'
+to = '0x100 else 0x100;'
+
+[[function.func_8009723C.mutation]]
+name = "D2: the mode test reads bit 14"
+from = '((flags >> 15) & mode & 1)'
+to = '((flags >> 14) & mode & 1)'
+
+[[function.func_8009723C.mutation]]
+name = "D3: the facing shortcut is above bit 16"
+from = '(facing >> 16) != 0 or'
+to = '(facing >> 17) != 0 or'
+
+[[function.func_8009723C.mutation]]
+name = "D4: the flag mask is 127"
+from = '((flags ^ 255) & facing & 255) == 0'
+to = '((flags ^ 127) & facing & 255) == 0'
+
+[[function.func_8009723C.mutation]]
+name = "D5: the flags kept in gp"
+from = '(flags & 0xffff6000)'
+to = '(flags & 0xffff4000)'
+
+[[function.func_8009723C.mutation]]
+name = "D6: gp low bits 2"
+from = '@as(c_uint, 0) else 3)'
+to = '@as(c_uint, 0) else 2)'
+
+[[function.func_8009723C.mutation]]
+name = "D7: gp tests flag 0x400"
+from = 'if (flags & 0x800 != 0)'
+to = 'if (flags & 0x400 != 0)'
+
+[[function.func_8009723C.mutation]]
+name = "D8: the matrix at +0x24"
+from = '@alignCast(group + 0x20)'
+to = '@alignCast(group + 0x24)'
+
+[[function.func_8009723C.mutation]]
+name = "D9: the geometry offset at +0x18"
+expect = "panic"
+from = '@ptrCast(group + 0x1c)'
+to = '@ptrCast(group + 0x18)'
+
+[[function.func_8009723C.mutation]]
+name = "D10: groups 0x44 apart"
+expect = "panic"
+from = 'group += 0x40;'
+to = 'group += 0x44;'
+
+[[function.func_8009723C.mutation]]
+name = "D11: the limit is 0x10004 bytes on"
+from = '+% 0x10000);'
+to = '+% 0x10004);'
+
+[[function.func_8009723C.mutation]]
+name = "D12: the limit is exclusive"
+from = 'if (@intFromPtr(packet) >= @intFromPtr(limit)) break;'
+to = 'if (@intFromPtr(packet) > @intFromPtr(limit)) break;'
+
+[[function.func_8009723C.mutation]]
+name = "D13: translucent-only for native 1"
+from = '@intFromBool(native.* == 2)'
+to = '@intFromBool(native.* == 1)'
+
+[[function.func_8009723C.mutation]]
+name = "D14: translucent_only not cleared"
+from = '''    v.g.translucent_only().* = 0;
+'''
+to = ''
+
+[[function.func_8009723C.mutation]]
+name = "D15: native not cleared"
+from = '''    native.* = 0;
+'''
+to = ''
+
+[[function.func_8009723C.mutation]]
+name = "D16: occlusion without a record"
+from = '''    if (record) {
+        if (psx.weak(OcclusionFrame'''
+to = '''    if (true) {
+        if (psx.weak(OcclusionFrame'''
+
+[[function.func_8009723C.mutation]]
+name = "D17: a count over 4096 still records"
+expect = "panic"
+from = '''and count <= 4096
+'''
+to = '''
+'''
+
+[[function.func_8009723C.mutation]]
+name = "D18: photo whole inverted"
+from = 'photo_whole.?() != 0'
+to = 'photo_whole.?() == 0'
+
+[[function.func_8009723C.mutation]]
+name = "D19: the free-camera facing of the record"
+from = 'if (free_camera != 0) free_facing else scratch[4];'
+to = 'if (free_camera != 0) scratch[4] else free_facing;'
+
+[[function.func_8009723C.mutation]]
+name = "D20: the record is not cleared first"
+from = 'v.g.drawn_groups()[i] = 0; // count <= 4096 here'
+to = 'v.g.drawn_groups()[i] = 1; // count <= 4096 here'
+
+[[function.func_8009723C.mutation]]
+name = "D21: the walls frame takes the room in free camera"
+from = 'frame(if (free_camera != 0) null else data, scratch[4], mode)'
+to = 'frame(data, scratch[4], mode)'
+
+[[function.func_8009723C.mutation]]
+name = "D22: the cut needs both values"
+from = 'if (cut > 0 or cut_previous > 0) group_cut('
+to = 'if (cut > 0 and cut_previous > 0) group_cut('
+
+[[function.func_8009723C.mutation]]
+name = "D23: the cut values swapped"
+from = 'group_cut(cut, cut_previous, ghost);'
+to = 'group_cut(cut_previous, cut, ghost);'
+
+[[function.func_8009723C.mutation]]
+name = "D24: the walls verdict inverted"
+from = '&cut, &cut_previous, &ghost) == 0) continue;'
+to = '&cut, &cut_previous, &ghost) != 0) continue;'
+
+[[function.func_8009723C.mutation]]
+name = "D25: the editor hides what it keeps"
+from = 'if (hidden(data, i) != 0) continue;'
+to = 'if (hidden(data, i) == 0) continue;'
+
+[[function.func_8009723C.mutation]]
+name = "D26: the cursor stored is the first"
+from = 'scratch[0] = psx.addr(packet);'
+to = 'scratch[0] = psx.addr(first);'
+
+[[function.func_8009723C.mutation]]
+name = "D27: the hardware hook range reversed"
+from = 'room_packets(first, packet);'
+to = 'room_packets(packet, first);'
+
+[[function.func_8009723C.mutation]]
+name = "D28: the group packets get the first as limit"
+expect = "panic"
+from = 'gp, mode, limit)'
+to = 'gp, mode, first)'
+
+[[function.func_8009723C.mutation]]
+name = "D29: the free camera keeps the game facing"
+from = 'if (free_camera != 0) facing = free_facing;'
+to = 'if (free_camera != 0) facing = scratch[4];'
+
+[[function.func_8009723C.mutation]]
+name = "D30: native group before the matrices"
+from = '''            psx.weak(NativeGroup, "pc_room_native_group").?(group, gp);
+'''
+to = '''            psx.weak(NativeGroup, "pc_room_native_group").?(group, gp +% 1);
+'''
+
+[function.func_80098F8C]
+spec = "drawAreaMap.zig"
+iterations = 6000
+room = { vs_main_stateFlags = 1280 }
+
+[[function.func_80098F8C.mutation]]
+name = "A1: the packet length shifted by 23"
+from = '(words << 24);'
+to = '(words << 23);'
+
+[[function.func_80098F8C.mutation]]
+name = "A2: the OT link keeps 22 bits"
+from = '(psx.addr(packet) & 0xffffff);'
+to = '(psx.addr(packet) & 0x3fffff);'
+
+[[function.func_80098F8C.mutation]]
+name = "A3: the triangle colour"
+from = '0x223f7f00'
+to = '0x223f7f01'
+
+[[function.func_80098F8C.mutation]]
+name = "A4: the quad corners"
+from = 'p[5] = xy[(data[0] >> 16) & 0xff];'
+to = 'p[5] = xy[(data[0] >> 24) & 0xff];'
+
+[[function.func_80098F8C.mutation]]
+name = "A5: the quad colour"
+from = '0x2a3f7f00'
+to = '0x2a3f7f01'
+
+[[function.func_80098F8C.mutation]]
+name = "A6: the line colour"
+from = '0x42ff7f00'
+to = '0x42ff7f01'
+
+[[function.func_80098F8C.mutation]]
+name = "A7: the edge line colour"
+from = '0x422f5f00'
+to = '0x422f5f01'
+
+[[function.func_80098F8C.mutation]]
+name = "A8: the icon colour"
+from = '0x74808080'
+to = '0x74808081'
+
+[[function.func_80098F8C.mutation]]
+name = "A9: the icon size"
+from = 'p[3] = 0x37f898d8;'
+to = 'p[3] = 0x37f898d9;'
+
+[[function.func_80098F8C.mutation]]
+name = "A10: the state flag offset"
+from = '[state + 0x33f] == 0'
+to = '[state + 0x33e] == 0'
+
+[[function.func_80098F8C.mutation]]
+name = "A11: the blink bit"
+from = 'blink & 0x20 == 0'
+to = 'blink & 0x10 == 0'
+
+[[function.func_80098F8C.mutation]]
+name = "A12: the blinking marker flag"
+from = 'if (flags & 0x10 != 0) {'
+to = 'if (flags & 0x08 != 0) {'
+
+[[function.func_80098F8C.mutation]]
+name = "A13: the door colour"
+from = '0x60ff7f00'
+to = '0x60ff7f01'
+
+[[function.func_80098F8C.mutation]]
+name = "A14: the plain marker flags"
+from = 'flags & 0x1f == 0'
+to = 'flags & 0x3f == 0'
+
+[[function.func_80098F8C.mutation]]
+name = "A15: the vertical bar"
+from = 'p[3] = 0x00030001;'
+to = 'p[3] = 0x00030002;'
+
+[[function.func_80098F8C.mutation]]
+name = "A16: the horizontal bar"
+from = 'p[3] = 0x00010003;'
+to = 'p[3] = 0x00020003;'
+
+[[function.func_80098F8C.mutation]]
+name = "A17: the plus sign y"
+from = '(y -% 1) << 16'
+to = '(y -% 2) << 16'
+
+[[function.func_80098F8C.mutation]]
+name = "A18: the end draw mode"
+from = '''0xe100020c;
+    p[2] = 0;
+    packet += 4;
+    p = chain(packet, &markers'''
+to = '''0xe100020d;
+    p[2] = 0;
+    packet += 4;
+    p = chain(packet, &markers'''
+
+[[function.func_80098F8C.mutation]]
+name = "A19: the lists stored swapped"
+from = '''ot[4] = markers;
+    ot[5] = shapes;'''
+to = '''ot[4] = shapes;
+    ot[5] = markers;'''
+
+[[function.func_80098F8C.mutation]]
+name = "A20: only the first room is filled (room > 1)"
+from = 'if (room != 0) continue;'
+to = 'if (room > 1) continue;'
+
+[[function.func_80098F8C.mutation]]
+name = "A21: an empty room is drawn"
+from = 'if (entry[0] == 0 or data[0] == 0) continue;'
+to = 'if (entry[0] == 0) continue;'
+
+[[function.func_80098F8C.mutation]]
+name = "A22: the projection plane"
+from = 'c.CTC2(0x100, 7);'
+to = 'c.CTC2(0x101, 7);'
+
+[[function.func_80098F8C.mutation]]
+name = "A23: vertex 4 into register 5"
+from = 'c.MTC2(data[4], 4);'
+to = 'c.MTC2(data[4], 5);'
+
+[[function.func_80098F8C.mutation]]
+name = "A24: 5 words per vertex group"
+from = 'data += 6;'
+to = 'data += 5;'
+
+[[function.func_80098F8C.mutation]]
+name = "A25: projected points 2 words apart"
+from = 'out += 3;'
+to = 'out += 2;'
+
+[[function.func_80098F8C.mutation]]
+name = "A26: three words per vertex"
+expect = "crash"
+from = '1 +% vertices *% 2)'
+to = '1 +% vertices *% 3)'
+
+[[function.func_80098F8C.mutation]]
+name = "A27: x read signed"
+from = 'const x: c_int = @intCast(at & 0xffff);'
+to = 'const x: c_int = @as(i16, @bitCast(@as(u16, @truncate(at))));'
+
+[[function.func_80098F8C.mutation]]
+name = "A28: x sign-extended"
+from = 'const x: c_int = @intCast(at & 0xffff);'
+to = 'const x: c_int = @as(i16, @bitCast(@as(u16, @truncate(at))));'
+
+[[function.func_80098F8C.mutation]]
+name = "A29: the icon x"
+from = '(x -% 3) & 0xffff'
+to = '(x -% 2) & 0xffff'
+
+[[function.func_80098F8C.mutation]]
+name = "A30: the loop bound is signed unsigned"
+from = 'while (left > 0) : ({'
+to = 'while (left >= 0) : ({'
+
 # ---- pc/src/room_lighting.c
 
 
@@ -74391,6 +76616,26 @@ to = "const ub: c_uint = unsigned_total -% ua;"
 
 # ---- pc/src/room_render.c
 
+
+[function.func_80098160]
+spec = "setRoomNearDepth.zig"
+iterations = 2000
+
+[[function.func_80098160.mutation]]
+name = "D1: far_depth is set instead"
+from = "v.g.near_depth().* = psx.conv(i16, value);"
+to = "v.g.far_depth().* = psx.conv(i16, value);"
+
+[[function.func_80098160.mutation]]
+name = "D2: the value is masked to 15 bits"
+from = "psx.conv(i16, value)"
+to = "psx.conv(i16, value & 0x7fff)"
+
+[[function.func_80098160.mutation]]
+name = "D3: the value is clamped to the short range instead of wrapping"
+from = "psx.conv(i16, value)"
+to = "psx.conv(i16, @min(value, 0x7fff))"
+
 # ---- pc/src/weapon_packets.c
 
 [function.func_800B3CF0]
@@ -74470,3 +76715,3246 @@ to = "draw(2, projected, object, model, color, start)"
 name = "W13: the native hook dropped (port)"
 from = "if (psx.weak(NativeDraw, \"pc_object_native_draw\")) |draw| draw(0, projected, object, model, color, start);"
 to = ""
+
+[function.pc_effect_func_800D4720]
+spec = "pc_effect_func_800D4720.zig"
+iterations = 2000
+
+[[function.pc_effect_func_800D4720.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800D4720(node);"
+to = "return 0;"
+
+[[function.pc_effect_func_800D4720.mutation]]
+name = "W2: the node is not passed"
+target = "c"
+from = "return func_800D4720(node);"
+to = "return func_800D4720(0);"
+
+[function.pc_effect_func_800D474C]
+spec = "pc_effect_func_800D474C.zig"
+iterations = 2000
+
+[[function.pc_effect_func_800D474C.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800D474C(node);"
+to = "return 0;"
+
+[[function.pc_effect_func_800D474C.mutation]]
+name = "W2: the node is not passed"
+target = "c"
+from = "return func_800D474C(node);"
+to = "return func_800D474C(0);"
+
+[function.pc_effect_func_800D4778]
+spec = "pc_effect_func_800D4778.zig"
+iterations = 2000
+
+[[function.pc_effect_func_800D4778.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800D4778(node);"
+to = "return 0;"
+
+[[function.pc_effect_func_800D4778.mutation]]
+name = "W2: the node is not passed"
+target = "c"
+from = "return func_800D4778(node);"
+to = "return func_800D4778(0);"
+
+[function.pc_effect_func_800D47C0]
+spec = "pc_effect_func_800D47C0.zig"
+iterations = 2000
+
+[[function.pc_effect_func_800D47C0.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800D47C0(node);"
+to = "return 0;"
+
+[[function.pc_effect_func_800D47C0.mutation]]
+name = "W2: the node is not passed"
+target = "c"
+from = "return func_800D47C0(node);"
+to = "return func_800D47C0(0);"
+
+[function.pc_effect_func_800D47C8]
+spec = "pc_effect_func_800D47C8.zig"
+iterations = 2000
+
+[[function.pc_effect_func_800D47C8.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800D47C8(node);"
+to = "return 0;"
+
+[[function.pc_effect_func_800D47C8.mutation]]
+name = "W2: the node is not passed"
+target = "c"
+from = "return func_800D47C8(node);"
+to = "return func_800D47C8(0);"
+
+[function.pc_effect_func_800D47F4]
+spec = "pc_effect_func_800D47F4.zig"
+iterations = 2000
+
+[[function.pc_effect_func_800D47F4.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800D47F4(node);"
+to = "return 0;"
+
+[[function.pc_effect_func_800D47F4.mutation]]
+name = "W2: the node is not passed"
+target = "c"
+from = "return func_800D47F4(node);"
+to = "return func_800D47F4(0);"
+
+[function.pc_effect_func_800D487C]
+spec = "pc_effect_func_800D487C.zig"
+iterations = 2000
+
+[[function.pc_effect_func_800D487C.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800D487C(node);"
+to = "return 0;"
+
+[[function.pc_effect_func_800D487C.mutation]]
+name = "W2: the node is not passed"
+target = "c"
+from = "return func_800D487C(node);"
+to = "return func_800D487C(0);"
+
+[function.pc_effect_func_800D48A4]
+spec = "pc_effect_func_800D48A4.zig"
+iterations = 2000
+
+[[function.pc_effect_func_800D48A4.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800D48A4(node);"
+to = "return 0;"
+
+[[function.pc_effect_func_800D48A4.mutation]]
+name = "W2: the node is not passed"
+target = "c"
+from = "return func_800D48A4(node);"
+to = "return func_800D48A4(0);"
+
+[function.pc_effect_func_800D48E4]
+spec = "pc_effect_func_800D48E4.zig"
+iterations = 2000
+
+[[function.pc_effect_func_800D48E4.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800D48E4(node);"
+to = "return 0;"
+
+[[function.pc_effect_func_800D48E4.mutation]]
+name = "W2: the node is not passed"
+target = "c"
+from = "return func_800D48E4(node);"
+to = "return func_800D48E4(0);"
+
+[function.pc_effect_func_800D5150]
+spec = "pc_effect_func_800D5150.zig"
+iterations = 2000
+
+[[function.pc_effect_func_800D5150.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800D5150(node);"
+to = "return 0;"
+
+[[function.pc_effect_func_800D5150.mutation]]
+name = "W2: the node is not passed"
+target = "c"
+from = "return func_800D5150(node);"
+to = "return func_800D5150(0);"
+
+[function.pc_effect_func_800D4910]
+spec = "pc_effect_func_800D4910.zig"
+iterations = 2000
+
+[[function.pc_effect_func_800D4910.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800D4910(node);"
+to = "return 0;"
+
+[[function.pc_effect_func_800D4910.mutation]]
+name = "W2: the node is not passed"
+target = "c"
+from = "return func_800D4910(node);"
+to = "return func_800D4910(0);"
+
+[function.pc_effect_func_800D4984]
+spec = "pc_effect_func_800D4984.zig"
+iterations = 2000
+
+[[function.pc_effect_func_800D4984.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800D4984(node);"
+to = "return 0;"
+
+[[function.pc_effect_func_800D4984.mutation]]
+name = "W2: the node is not passed"
+target = "c"
+from = "return func_800D4984(node);"
+to = "return func_800D4984(0);"
+
+[function.pc_effect_func_800D49A4]
+spec = "pc_effect_func_800D49A4.zig"
+iterations = 2000
+
+[[function.pc_effect_func_800D49A4.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800D49A4(node);"
+to = "return 0;"
+
+[[function.pc_effect_func_800D49A4.mutation]]
+name = "W2: the node is not passed"
+target = "c"
+from = "return func_800D49A4(node);"
+to = "return func_800D49A4(0);"
+
+[function.pc_effect_func_800D4A94]
+spec = "pc_effect_func_800D4A94.zig"
+iterations = 2000
+
+[[function.pc_effect_func_800D4A94.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800D4A94(node);"
+to = "return 0;"
+
+[[function.pc_effect_func_800D4A94.mutation]]
+name = "W2: the node is not passed"
+target = "c"
+from = "return func_800D4A94(node);"
+to = "return func_800D4A94(0);"
+
+[function.pc_effect_func_800D4AB4]
+spec = "pc_effect_func_800D4AB4.zig"
+iterations = 2000
+
+[[function.pc_effect_func_800D4AB4.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800D4AB4(node);"
+to = "return 0;"
+
+[[function.pc_effect_func_800D4AB4.mutation]]
+name = "W2: the node is not passed"
+target = "c"
+from = "return func_800D4AB4(node);"
+to = "return func_800D4AB4(0);"
+
+[function.pc_effect_func_800D4AEC]
+spec = "pc_effect_func_800D4AEC.zig"
+iterations = 2000
+
+[[function.pc_effect_func_800D4AEC.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800D4AEC(node);"
+to = "return 0;"
+
+[[function.pc_effect_func_800D4AEC.mutation]]
+name = "W2: the node is not passed"
+target = "c"
+from = "return func_800D4AEC(node);"
+to = "return func_800D4AEC(0);"
+
+[function.pc_effect_func_800D4B34]
+spec = "pc_effect_func_800D4B34.zig"
+iterations = 2000
+
+[[function.pc_effect_func_800D4B34.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800D4B34(node);"
+to = "return 0;"
+
+[[function.pc_effect_func_800D4B34.mutation]]
+name = "W2: the node is not passed"
+target = "c"
+from = "return func_800D4B34(node);"
+to = "return func_800D4B34(0);"
+
+[function.pc_effect_func_800D4B90]
+spec = "pc_effect_func_800D4B90.zig"
+iterations = 2000
+
+[[function.pc_effect_func_800D4B90.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800D4B90(node);"
+to = "return 0;"
+
+[[function.pc_effect_func_800D4B90.mutation]]
+name = "W2: the node is not passed"
+target = "c"
+from = "return func_800D4B90(node);"
+to = "return func_800D4B90(0);"
+
+[function.pc_effect_func_800D4BD0]
+spec = "pc_effect_func_800D4BD0.zig"
+iterations = 2000
+
+[[function.pc_effect_func_800D4BD0.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800D4BD0(node);"
+to = "return 0;"
+
+[[function.pc_effect_func_800D4BD0.mutation]]
+name = "W2: the node is not passed"
+target = "c"
+from = "return func_800D4BD0(node);"
+to = "return func_800D4BD0(0);"
+
+[function.pc_effect_func_800D4C18]
+spec = "pc_effect_func_800D4C18.zig"
+iterations = 2000
+
+[[function.pc_effect_func_800D4C18.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800D4C18(node);"
+to = "return 0;"
+
+[[function.pc_effect_func_800D4C18.mutation]]
+name = "W2: the node is not passed"
+target = "c"
+from = "return func_800D4C18(node);"
+to = "return func_800D4C18(0);"
+
+[function.pc_effect_func_800D4D44]
+spec = "pc_effect_func_800D4D44.zig"
+iterations = 2000
+
+[[function.pc_effect_func_800D4D44.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800D4D44(node);"
+to = "return 0;"
+
+[[function.pc_effect_func_800D4D44.mutation]]
+name = "W2: the node is not passed"
+target = "c"
+from = "return func_800D4D44(node);"
+to = "return func_800D4D44(0);"
+
+[function.pc_effect_func_800D4D64]
+spec = "pc_effect_func_800D4D64.zig"
+iterations = 2000
+
+[[function.pc_effect_func_800D4D64.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800D4D64(node);"
+to = "return 0;"
+
+[[function.pc_effect_func_800D4D64.mutation]]
+name = "W2: the node is not passed"
+target = "c"
+from = "return func_800D4D64(node);"
+to = "return func_800D4D64(0);"
+
+[function.pc_effect_func_800D4D98]
+spec = "pc_effect_func_800D4D98.zig"
+iterations = 2000
+
+[[function.pc_effect_func_800D4D98.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800D4D98(node);"
+to = "return 0;"
+
+[[function.pc_effect_func_800D4D98.mutation]]
+name = "W2: the node is not passed"
+target = "c"
+from = "return func_800D4D98(node);"
+to = "return func_800D4D98(0);"
+
+[function.pc_effect_func_800D4DA8]
+spec = "pc_effect_func_800D4DA8.zig"
+iterations = 2000
+
+[[function.pc_effect_func_800D4DA8.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800D4DA8(node);"
+to = "return 0;"
+
+[[function.pc_effect_func_800D4DA8.mutation]]
+name = "W2: the node is not passed"
+target = "c"
+from = "return func_800D4DA8(node);"
+to = "return func_800D4DA8(0);"
+
+[function.pc_effect_func_800D4DB0]
+spec = "pc_effect_func_800D4DB0.zig"
+iterations = 2000
+
+[[function.pc_effect_func_800D4DB0.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800D4DB0(node);"
+to = "return 0;"
+
+[[function.pc_effect_func_800D4DB0.mutation]]
+name = "W2: the node is not passed"
+target = "c"
+from = "return func_800D4DB0(node);"
+to = "return func_800D4DB0(0);"
+
+[function.pc_effect_func_800D4E5C]
+spec = "pc_effect_func_800D4E5C.zig"
+iterations = 2000
+
+[[function.pc_effect_func_800D4E5C.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800D4E5C(node);"
+to = "return 0;"
+
+[[function.pc_effect_func_800D4E5C.mutation]]
+name = "W2: the node is not passed"
+target = "c"
+from = "return func_800D4E5C(node);"
+to = "return func_800D4E5C(0);"
+
+[function.pc_effect_func_800D4E90]
+spec = "pc_effect_func_800D4E90.zig"
+iterations = 2000
+
+[[function.pc_effect_func_800D4E90.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800D4E90(node);"
+to = "return 0;"
+
+[[function.pc_effect_func_800D4E90.mutation]]
+name = "W2: the node is not passed"
+target = "c"
+from = "return func_800D4E90(node);"
+to = "return func_800D4E90(0);"
+
+[function.pc_effect_func_800D4EC0]
+spec = "pc_effect_func_800D4EC0.zig"
+iterations = 2000
+
+[[function.pc_effect_func_800D4EC0.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800D4EC0(node);"
+to = "return 0;"
+
+[[function.pc_effect_func_800D4EC0.mutation]]
+name = "W2: the node is not passed"
+target = "c"
+from = "return func_800D4EC0(node);"
+to = "return func_800D4EC0(0);"
+
+[function.pc_effect_func_800D4F00]
+spec = "pc_effect_func_800D4F00.zig"
+iterations = 2000
+
+[[function.pc_effect_func_800D4F00.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800D4F00(node);"
+to = "return 0;"
+
+[[function.pc_effect_func_800D4F00.mutation]]
+name = "W2: the node is not passed"
+target = "c"
+from = "return func_800D4F00(node);"
+to = "return func_800D4F00(0);"
+
+[function.pc_effect_func_800D4FB4]
+spec = "pc_effect_func_800D4FB4.zig"
+iterations = 2000
+
+[[function.pc_effect_func_800D4FB4.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800D4FB4(node);"
+to = "return 0;"
+
+[[function.pc_effect_func_800D4FB4.mutation]]
+name = "W2: the node is not passed"
+target = "c"
+from = "return func_800D4FB4(node);"
+to = "return func_800D4FB4(0);"
+
+[function.pc_effect_func_800D5048]
+spec = "pc_effect_func_800D5048.zig"
+iterations = 2000
+
+[[function.pc_effect_func_800D5048.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800D5048(node);"
+to = "return 0;"
+
+[[function.pc_effect_func_800D5048.mutation]]
+name = "W2: the node is not passed"
+target = "c"
+from = "return func_800D5048(node);"
+to = "return func_800D5048(0);"
+
+[function.pc_effect_func_800D5088]
+spec = "pc_effect_func_800D5088.zig"
+iterations = 2000
+
+[[function.pc_effect_func_800D5088.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800D5088(node);"
+to = "return 0;"
+
+[[function.pc_effect_func_800D5088.mutation]]
+name = "W2: the node is not passed"
+target = "c"
+from = "return func_800D5088(node);"
+to = "return func_800D5088(0);"
+
+[function.pc_event_func_800B76A8]
+spec = "pc_event_func_800B76A8.zig"
+iterations = 2000
+
+[[function.pc_event_func_800B76A8.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800B76A8(script);"
+to = "return 0;"
+
+[[function.pc_event_func_800B76A8.mutation]]
+name = "W2: the script is not passed"
+target = "c"
+from = "return func_800B76A8(script);"
+to = "return func_800B76A8(0);"
+
+[[function.pc_event_func_800B76A8.mutation]]
+name = "W3: the script is advanced by one"
+target = "c"
+from = "return func_800B76A8(script);"
+to = "return func_800B76A8(script ? script + 1 : script);"
+
+[function.pc_event_func_800B810C]
+spec = "pc_event_func_800B810C.zig"
+iterations = 2000
+
+[[function.pc_event_func_800B810C.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800B810C(script);"
+to = "return 0;"
+
+[[function.pc_event_func_800B810C.mutation]]
+name = "W2: the script is not passed"
+target = "c"
+from = "return func_800B810C(script);"
+to = "return func_800B810C(0);"
+
+[[function.pc_event_func_800B810C.mutation]]
+name = "W3: the script is advanced by one"
+target = "c"
+from = "return func_800B810C(script);"
+to = "return func_800B810C(script ? script + 1 : script);"
+
+[function.pc_event_func_800B822C]
+spec = "pc_event_func_800B822C.zig"
+iterations = 2000
+
+[[function.pc_event_func_800B822C.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800B822C(script);"
+to = "return 0;"
+
+[[function.pc_event_func_800B822C.mutation]]
+name = "W2: the script is not passed"
+target = "c"
+from = "return func_800B822C(script);"
+to = "return func_800B822C(0);"
+
+[[function.pc_event_func_800B822C.mutation]]
+name = "W3: the script is advanced by one"
+target = "c"
+from = "return func_800B822C(script);"
+to = "return func_800B822C(script ? script + 1 : script);"
+
+[function.pc_event_func_800B83D4]
+spec = "pc_event_func_800B83D4.zig"
+iterations = 2000
+
+[[function.pc_event_func_800B83D4.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800B83D4(script);"
+to = "return 0;"
+
+[[function.pc_event_func_800B83D4.mutation]]
+name = "W2: the script is not passed"
+target = "c"
+from = "return func_800B83D4(script);"
+to = "return func_800B83D4(0);"
+
+[[function.pc_event_func_800B83D4.mutation]]
+name = "W3: the script is advanced by one"
+target = "c"
+from = "return func_800B83D4(script);"
+to = "return func_800B83D4(script ? script + 1 : script);"
+
+[function.pc_event_func_800B8438]
+spec = "pc_event_func_800B8438.zig"
+iterations = 2000
+
+[[function.pc_event_func_800B8438.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800B8438(script);"
+to = "return 0;"
+
+[[function.pc_event_func_800B8438.mutation]]
+name = "W2: the script is not passed"
+target = "c"
+from = "return func_800B8438(script);"
+to = "return func_800B8438(0);"
+
+[[function.pc_event_func_800B8438.mutation]]
+name = "W3: the script is advanced by one"
+target = "c"
+from = "return func_800B8438(script);"
+to = "return func_800B8438(script ? script + 1 : script);"
+
+[function.pc_event_func_800B9A94]
+spec = "pc_event_func_800B9A94.zig"
+iterations = 2000
+
+[[function.pc_event_func_800B9A94.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800B9A94(script);"
+to = "return 0;"
+
+[[function.pc_event_func_800B9A94.mutation]]
+name = "W2: the script is not passed"
+target = "c"
+from = "return func_800B9A94(script);"
+to = "return func_800B9A94(0);"
+
+[[function.pc_event_func_800B9A94.mutation]]
+name = "W3: the script is advanced by one"
+target = "c"
+from = "return func_800B9A94(script);"
+to = "return func_800B9A94(script ? script + 1 : script);"
+
+[function.pc_event_func_800BA2E0]
+spec = "pc_event_func_800BA2E0.zig"
+iterations = 2000
+
+[[function.pc_event_func_800BA2E0.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800BA2E0(script);"
+to = "return 0;"
+
+[[function.pc_event_func_800BA2E0.mutation]]
+name = "W2: the script is not passed"
+target = "c"
+from = "return func_800BA2E0(script);"
+to = "return func_800BA2E0(0);"
+
+[[function.pc_event_func_800BA2E0.mutation]]
+name = "W3: the script is advanced by one"
+target = "c"
+from = "return func_800BA2E0(script);"
+to = "return func_800BA2E0(script ? script + 1 : script);"
+
+[function.pc_event_func_800BA52C]
+spec = "pc_event_func_800BA52C.zig"
+iterations = 2000
+
+[[function.pc_event_func_800BA52C.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800BA52C(script);"
+to = "return 0;"
+
+[[function.pc_event_func_800BA52C.mutation]]
+name = "W2: the script is not passed"
+target = "c"
+from = "return func_800BA52C(script);"
+to = "return func_800BA52C(0);"
+
+[[function.pc_event_func_800BA52C.mutation]]
+name = "W3: the script is advanced by one"
+target = "c"
+from = "return func_800BA52C(script);"
+to = "return func_800BA52C(script ? script + 1 : script);"
+
+[function.pc_event_func_800BAB14]
+spec = "pc_event_func_800BAB14.zig"
+iterations = 2000
+
+[[function.pc_event_func_800BAB14.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800BAB14(script);"
+to = "return 0;"
+
+[[function.pc_event_func_800BAB14.mutation]]
+name = "W2: the script is not passed"
+target = "c"
+from = "return func_800BAB14(script);"
+to = "return func_800BAB14(0);"
+
+[[function.pc_event_func_800BAB14.mutation]]
+name = "W3: the script is advanced by one"
+target = "c"
+from = "return func_800BAB14(script);"
+to = "return func_800BAB14(script ? script + 1 : script);"
+
+[function.pc_event_func_800BADE0]
+spec = "pc_event_func_800BADE0.zig"
+iterations = 2000
+
+[[function.pc_event_func_800BADE0.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800BADE0(script);"
+to = "return 0;"
+
+[[function.pc_event_func_800BADE0.mutation]]
+name = "W2: the script is not passed"
+target = "c"
+from = "return func_800BADE0(script);"
+to = "return func_800BADE0(0);"
+
+[[function.pc_event_func_800BADE0.mutation]]
+name = "W3: the script is advanced by one"
+target = "c"
+from = "return func_800BADE0(script);"
+to = "return func_800BADE0(script ? script + 1 : script);"
+
+[function.pc_event_func_800B9BF8]
+spec = "pc_event_func_800B9BF8.zig"
+iterations = 2000
+
+[[function.pc_event_func_800B9BF8.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800B9BF8();"
+to = "return 0;"
+
+[[function.pc_event_func_800B9BF8.mutation]]
+name = "W2: the result is negated"
+target = "c"
+from = "return func_800B9BF8();"
+to = "return !func_800B9BF8();"
+
+[function.pc_cb_80091C6C]
+spec = "pc_cb_80091C6C.zig"
+iterations = 2000
+
+[[function.pc_cb_80091C6C.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_80091C6C((func_80091C6C_t*)p);"
+to = "return 0;"
+
+[[function.pc_cb_80091C6C.mutation]]
+name = "W2: the object is not passed"
+target = "c"
+from = "return func_80091C6C((func_80091C6C_t*)p);"
+to = "return func_80091C6C((func_80091C6C_t*)0);"
+
+[function.pc_cb_80091E10]
+spec = "pc_cb_80091E10.zig"
+iterations = 2000
+
+[[function.pc_cb_80091E10.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_80091E10((func_80091E10_t*)p);"
+to = "return 0;"
+
+[[function.pc_cb_80091E10.mutation]]
+name = "W2: the object is not passed"
+target = "c"
+from = "return func_80091E10((func_80091E10_t*)p);"
+to = "return func_80091E10((func_80091E10_t*)0);"
+
+[function.pc_cb_80091FE8]
+spec = "pc_cb_80091FE8.zig"
+iterations = 2000
+
+[[function.pc_cb_80091FE8.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_80091FE8((func_80091FE8_t*)p);"
+to = "return 0;"
+
+[[function.pc_cb_80091FE8.mutation]]
+name = "W2: the object is not passed"
+target = "c"
+from = "return func_80091FE8((func_80091FE8_t*)p);"
+to = "return func_80091FE8((func_80091FE8_t*)0);"
+
+[function.pc_cb_800923F8]
+spec = "pc_cb_800923F8.zig"
+iterations = 2000
+
+[[function.pc_cb_800923F8.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800923F8((D_800F1DD8_t2*)p);"
+to = "return 0;"
+
+[[function.pc_cb_800923F8.mutation]]
+name = "W2: the object is not passed"
+target = "c"
+from = "return func_800923F8((D_800F1DD8_t2*)p);"
+to = "return func_800923F8((D_800F1DD8_t2*)0);"
+
+[function.pc_cb_80092540]
+spec = "pc_cb_80092540.zig"
+iterations = 2000
+
+[[function.pc_cb_80092540.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_80092540();"
+to = "return 0;"
+
+[[function.pc_cb_80092540.mutation]]
+name = "W2: the result is off by one"
+target = "c"
+from = "return func_80092540();"
+to = "return func_80092540() + 1;"
+
+[function.pc_cb_80092C68]
+spec = "pc_cb_80092C68.zig"
+iterations = 2000
+
+[[function.pc_cb_80092C68.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_80092C68((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return 0;"
+
+[[function.pc_cb_80092C68.mutation]]
+name = "W2: the first object is not passed"
+target = "c"
+from = "return func_80092C68((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_80092C68((func_80092F74_t*)0, (func_80092F74_t2*)b);"
+
+[[function.pc_cb_80092C68.mutation]]
+name = "W3: the second object is not passed"
+target = "c"
+from = "return func_80092C68((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_80092C68((func_80092F74_t*)a, (func_80092F74_t2*)0);"
+
+[[function.pc_cb_80092C68.mutation]]
+name = "W4: the objects are swapped"
+target = "c"
+from = "return func_80092C68((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_80092C68((func_80092F74_t*)b, (func_80092F74_t2*)a);"
+
+[function.pc_cb_80092E14]
+spec = "pc_cb_80092E14.zig"
+iterations = 2000
+
+[[function.pc_cb_80092E14.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_80092E14((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return 0;"
+
+[[function.pc_cb_80092E14.mutation]]
+name = "W2: the first object is not passed"
+target = "c"
+from = "return func_80092E14((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_80092E14((func_80092F74_t*)0, (func_80092F74_t2*)b);"
+
+[[function.pc_cb_80092E14.mutation]]
+name = "W3: the second object is not passed"
+target = "c"
+from = "return func_80092E14((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_80092E14((func_80092F74_t*)a, (func_80092F74_t2*)0);"
+
+[[function.pc_cb_80092E14.mutation]]
+name = "W4: the objects are swapped"
+target = "c"
+from = "return func_80092E14((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_80092E14((func_80092F74_t*)b, (func_80092F74_t2*)a);"
+
+[function.pc_cb_80092F6C]
+spec = "pc_cb_80092F6C.zig"
+iterations = 2000
+
+[[function.pc_cb_80092F6C.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_80092F6C((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return 0;"
+
+[[function.pc_cb_80092F6C.mutation]]
+name = "W2: the first object is not passed"
+target = "c"
+from = "return func_80092F6C((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_80092F6C((func_80092F74_t*)0, (func_80092F74_t2*)b);"
+
+[[function.pc_cb_80092F6C.mutation]]
+name = "W3: the second object is not passed"
+target = "c"
+from = "return func_80092F6C((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_80092F6C((func_80092F74_t*)a, (func_80092F74_t2*)0);"
+
+[[function.pc_cb_80092F6C.mutation]]
+name = "W4: the objects are swapped"
+target = "c"
+from = "return func_80092F6C((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_80092F6C((func_80092F74_t*)b, (func_80092F74_t2*)a);"
+
+[function.pc_cb_80092F74]
+spec = "pc_cb_80092F74.zig"
+iterations = 2000
+
+[[function.pc_cb_80092F74.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_80092F74((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return 0;"
+
+[[function.pc_cb_80092F74.mutation]]
+name = "W2: the first object is not passed"
+target = "c"
+from = "return func_80092F74((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_80092F74((func_80092F74_t*)0, (func_80092F74_t2*)b);"
+
+[[function.pc_cb_80092F74.mutation]]
+name = "W3: the second object is not passed"
+target = "c"
+from = "return func_80092F74((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_80092F74((func_80092F74_t*)a, (func_80092F74_t2*)0);"
+
+[[function.pc_cb_80092F74.mutation]]
+name = "W4: the objects are swapped"
+target = "c"
+from = "return func_80092F74((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_80092F74((func_80092F74_t*)b, (func_80092F74_t2*)a);"
+
+[function.pc_cb_80092F98]
+spec = "pc_cb_80092F98.zig"
+iterations = 2000
+
+[[function.pc_cb_80092F98.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_80092F98((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return 0;"
+
+[[function.pc_cb_80092F98.mutation]]
+name = "W2: the first object is not passed"
+target = "c"
+from = "return func_80092F98((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_80092F98((func_80092F74_t*)0, (func_80092F74_t2*)b);"
+
+[[function.pc_cb_80092F98.mutation]]
+name = "W3: the second object is not passed"
+target = "c"
+from = "return func_80092F98((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_80092F98((func_80092F74_t*)a, (func_80092F74_t2*)0);"
+
+[[function.pc_cb_80092F98.mutation]]
+name = "W4: the objects are swapped"
+target = "c"
+from = "return func_80092F98((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_80092F98((func_80092F74_t*)b, (func_80092F74_t2*)a);"
+
+[function.pc_cb_80092FBC]
+spec = "pc_cb_80092FBC.zig"
+iterations = 2000
+
+[[function.pc_cb_80092FBC.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_80092FBC((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return 0;"
+
+[[function.pc_cb_80092FBC.mutation]]
+name = "W2: the first object is not passed"
+target = "c"
+from = "return func_80092FBC((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_80092FBC((func_80092F74_t*)0, (func_80092F74_t2*)b);"
+
+[[function.pc_cb_80092FBC.mutation]]
+name = "W3: the second object is not passed"
+target = "c"
+from = "return func_80092FBC((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_80092FBC((func_80092F74_t*)a, (func_80092F74_t2*)0);"
+
+[[function.pc_cb_80092FBC.mutation]]
+name = "W4: the objects are swapped"
+target = "c"
+from = "return func_80092FBC((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_80092FBC((func_80092F74_t*)b, (func_80092F74_t2*)a);"
+
+[function.pc_cb_8009352C]
+spec = "pc_cb_8009352C.zig"
+iterations = 2000
+
+[[function.pc_cb_8009352C.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_8009352C((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return 0;"
+
+[[function.pc_cb_8009352C.mutation]]
+name = "W2: the first object is not passed"
+target = "c"
+from = "return func_8009352C((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_8009352C((func_80092F74_t*)0, (func_80092F74_t2*)b);"
+
+[[function.pc_cb_8009352C.mutation]]
+name = "W3: the second object is not passed"
+target = "c"
+from = "return func_8009352C((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_8009352C((func_80092F74_t*)a, (func_80092F74_t2*)0);"
+
+[[function.pc_cb_8009352C.mutation]]
+name = "W4: the objects are swapped"
+target = "c"
+from = "return func_8009352C((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_8009352C((func_80092F74_t*)b, (func_80092F74_t2*)a);"
+
+[function.pc_cb_800935B8]
+spec = "pc_cb_800935B8.zig"
+iterations = 2000
+
+[[function.pc_cb_800935B8.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800935B8((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return 0;"
+
+[[function.pc_cb_800935B8.mutation]]
+name = "W2: the first object is not passed"
+target = "c"
+from = "return func_800935B8((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_800935B8((func_80092F74_t*)0, (func_80092F74_t2*)b);"
+
+[[function.pc_cb_800935B8.mutation]]
+name = "W3: the second object is not passed"
+target = "c"
+from = "return func_800935B8((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_800935B8((func_80092F74_t*)a, (func_80092F74_t2*)0);"
+
+[[function.pc_cb_800935B8.mutation]]
+name = "W4: the objects are swapped"
+target = "c"
+from = "return func_800935B8((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_800935B8((func_80092F74_t*)b, (func_80092F74_t2*)a);"
+
+[function.pc_cb_80092E7C]
+spec = "pc_cb_80092E7C.zig"
+iterations = 2000
+
+[[function.pc_cb_80092E7C.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_80092E7C((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return 0;"
+
+[[function.pc_cb_80092E7C.mutation]]
+name = "W2: the first object is not passed"
+target = "c"
+from = "return func_80092E7C((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_80092E7C((func_80092F74_t*)0, (func_80092F74_t2*)b);"
+
+[[function.pc_cb_80092E7C.mutation]]
+name = "W3: the second object is not passed"
+target = "c"
+from = "return func_80092E7C((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_80092E7C((func_80092F74_t*)a, (func_80092F74_t2*)0);"
+
+[[function.pc_cb_80092E7C.mutation]]
+name = "W4: the objects are swapped"
+target = "c"
+from = "return func_80092E7C((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_80092E7C((func_80092F74_t*)b, (func_80092F74_t2*)a);"
+
+[function.pc_cb_800935F8]
+spec = "pc_cb_800935F8.zig"
+iterations = 2000
+
+[[function.pc_cb_800935F8.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800935F8((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return 0;"
+
+[[function.pc_cb_800935F8.mutation]]
+name = "W2: the first object is not passed"
+target = "c"
+from = "return func_800935F8((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_800935F8((func_80092F74_t*)0, (func_80092F74_t2*)b);"
+
+[[function.pc_cb_800935F8.mutation]]
+name = "W3: the second object is not passed"
+target = "c"
+from = "return func_800935F8((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_800935F8((func_80092F74_t*)a, (func_80092F74_t2*)0);"
+
+[[function.pc_cb_800935F8.mutation]]
+name = "W4: the objects are swapped"
+target = "c"
+from = "return func_800935F8((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_800935F8((func_80092F74_t*)b, (func_80092F74_t2*)a);"
+
+[function.pc_cb_8009361C]
+spec = "pc_cb_8009361C.zig"
+iterations = 2000
+
+[[function.pc_cb_8009361C.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_8009361C((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return 0;"
+
+[[function.pc_cb_8009361C.mutation]]
+name = "W2: the first object is not passed"
+target = "c"
+from = "return func_8009361C((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_8009361C((func_80092F74_t*)0, (func_80092F74_t2*)b);"
+
+[[function.pc_cb_8009361C.mutation]]
+name = "W3: the second object is not passed"
+target = "c"
+from = "return func_8009361C((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_8009361C((func_80092F74_t*)a, (func_80092F74_t2*)0);"
+
+[[function.pc_cb_8009361C.mutation]]
+name = "W4: the objects are swapped"
+target = "c"
+from = "return func_8009361C((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_8009361C((func_80092F74_t*)b, (func_80092F74_t2*)a);"
+
+[function.pc_cb_800936F0]
+spec = "pc_cb_800936F0.zig"
+iterations = 2000
+
+[[function.pc_cb_800936F0.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_800936F0((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return 0;"
+
+[[function.pc_cb_800936F0.mutation]]
+name = "W2: the first object is not passed"
+target = "c"
+from = "return func_800936F0((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_800936F0((func_80092F74_t*)0, (func_80092F74_t2*)b);"
+
+[[function.pc_cb_800936F0.mutation]]
+name = "W3: the second object is not passed"
+target = "c"
+from = "return func_800936F0((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_800936F0((func_80092F74_t*)a, (func_80092F74_t2*)0);"
+
+[[function.pc_cb_800936F0.mutation]]
+name = "W4: the objects are swapped"
+target = "c"
+from = "return func_800936F0((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_800936F0((func_80092F74_t*)b, (func_80092F74_t2*)a);"
+
+[function.pc_cb_80093640]
+spec = "pc_cb_80093640.zig"
+iterations = 2000
+
+[[function.pc_cb_80093640.mutation]]
+name = "W1: the result is a constant"
+target = "c"
+from = "return func_80093640((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return 0;"
+
+[[function.pc_cb_80093640.mutation]]
+name = "W2: the first object is not passed"
+target = "c"
+from = "return func_80093640((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_80093640((func_80092F74_t*)0, (func_80092F74_t2*)b);"
+
+[[function.pc_cb_80093640.mutation]]
+name = "W3: the second object is not passed"
+target = "c"
+from = "return func_80093640((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_80093640((func_80092F74_t*)a, (func_80092F74_t2*)0);"
+
+[[function.pc_cb_80093640.mutation]]
+name = "W4: the objects are swapped"
+target = "c"
+from = "return func_80093640((func_80092F74_t*)a, (func_80092F74_t2*)b);"
+to = "return func_80093640((func_80092F74_t*)b, (func_80092F74_t2*)a);"
+
+[function.charge_skip_hold_vsyncs]
+spec = "chargeSkipHoldVsyncs.zig"
+iterations = 3000
+
+[[function.charge_skip_hold_vsyncs.mutation]]
+name = "H1: Ashley uses the enemy hold"
+from = "if (caster == 0) v.g.pc_qol_skip_charging_hold_mine().* else v.g.pc_qol_skip_charging_hold_enemy().*"
+to = "if (caster == 0) v.g.pc_qol_skip_charging_hold_enemy().* else v.g.pc_qol_skip_charging_hold_mine().*"
+
+[[function.charge_skip_hold_vsyncs.mutation]]
+name = "H2: the clamp is 11 s"
+from = "if (seconds > 10.0) seconds = 10.0;"
+to = "if (seconds > 10.0) seconds = 11.0;"
+
+[[function.charge_skip_hold_vsyncs.mutation]]
+name = "H3: no rounding"
+from = "seconds * 60.0 + 0.5"
+to = "seconds * 60.0"
+
+[[function.charge_skip_hold_vsyncs.mutation]]
+name = "H4: a hold under 0.01 s counts as none"
+from = "if (!(seconds > 0.0)) return 0;"
+to = "if (!(seconds > 0.01)) return 0;"
+
+[[function.charge_skip_hold_vsyncs.mutation]]
+name = "H5: the clamp starts at 11 s"
+from = "if (seconds > 10.0) seconds"
+to = "if (seconds > 11.0) seconds"
+
+[function.charge_skip_kind]
+spec = "chargeSkipKind.zig"
+iterations = 2000
+
+[[function.charge_skip_kind.mutation]]
+name = "K1: spells up to 0x8D"
+from = "return if (index < 0x8D) 1"
+to = "return if (index <= 0x8D) 1"
+
+[[function.charge_skip_kind.mutation]]
+name = "K2: enemy arts up to 0xB9"
+from = "else if (index < 0xB8) 2"
+to = "else if (index <= 0xB8) 2"
+
+[[function.charge_skip_kind.mutation]]
+name = "K3: Break Arts up to 0xE1"
+from = "else if (index < 0xE0) 4"
+to = "else if (index <= 0xE0) 4"
+
+[[function.charge_skip_kind.mutation]]
+name = "K4: items are kind 4"
+from = "else 8;"
+to = "else 4;"
+
+[function.pc_charge_skip_state]
+spec = "chargeSkipState.zig"
+iterations = 30000
+
+[[function.pc_charge_skip_state.mutation]]
+name = "S1: the camera test starts at 3"
+from = "v.g._cameraMode().* < 4 or"
+to = "v.g._cameraMode().* < 3 or"
+
+[[function.pc_charge_skip_state.mutation]]
+name = "S2: the camera test ends at 7"
+from = "v.g._cameraMode().* > 6) {"
+to = "v.g._cameraMode().* > 7) {"
+
+[[function.pc_charge_skip_state.mutation]]
+name = "S3: an action index of 255 is out"
+from = "if (a.actionIndex >= 256 or"
+to = "if (a.actionIndex >= 255 or"
+
+[[function.pc_charge_skip_state.mutation]]
+name = "S4: an action without an effect passes"
+from = "or psx.getBits(&v.g.actions()[a.actionIndex], \"unk2_0\") == 0) {"
+to = "or psx.getBits(&v.g.actions()[a.actionIndex], \"unk2_0\") == 2) {"
+
+[[function.pc_charge_skip_state.mutation]]
+name = "S5: the hold's start is taken in phase 5 only"
+from = "if (v.g._cameraMode().* == 4) {"
+to = "if (v.g._cameraMode().* == 5) {"
+
+[[function.pc_charge_skip_state.mutation]]
+name = "S6: the hold's start is 0"
+from = "v.g.charge_skip_from().* = c.pc_vsync_count();"
+to = "v.g.charge_skip_from().* = 0;"
+
+[[function.pc_charge_skip_state.mutation]]
+name = "S7: enemies skip too"
+from = "(caster == 0 or v.g.pc_qol_skip_charging_who().* != 0)"
+to = "(caster == 0 or v.g.pc_qol_skip_charging_who().* == 0)"
+
+[[function.pc_charge_skip_state.mutation]]
+name = "S8: the kinds mask tests equality"
+from = "(v.g.pc_charge_skip_kinds().* & c.charge_skip_kind(a.actionIndex)) != 0"
+to = "(v.g.pc_charge_skip_kinds().* & c.charge_skip_kind(a.actionIndex)) == 0"
+
+[[function.pc_charge_skip_state.mutation]]
+name = "S9: skipping while an event script runs"
+from = "v.g.D_800F4C34().* == 0 and"
+to = "v.g.D_800F4C34().* != 255 and"
+
+[[function.pc_charge_skip_state.mutation]]
+name = "S10: skipping in phase 4"
+from = "v.g._cameraMode().* >= 5 and"
+to = "v.g._cameraMode().* >= 4 and"
+
+[[function.pc_charge_skip_state.mutation]]
+name = "S11: the hold's end is exclusive"
+from = ">= psx.conv(c_uint, c.charge_skip_hold_vsyncs(caster))"
+to = "> psx.conv(c_uint, c.charge_skip_hold_vsyncs(caster))"
+
+[[function.pc_charge_skip_state.mutation]]
+name = "S12: the setting is ignored"
+from = "v.g.pc_qol_skip_charging().* != 0 and (caster"
+to = "(caster"
+
+[[function.pc_charge_skip_state.mutation]]
+name = "S13: the actor reported is the action"
+from = "actor.* = caster;"
+to = "actor.* = a.actionIndex;"
+
+[[function.pc_charge_skip_state.mutation]]
+name = "S14: the phase is one off"
+from = "phase.* = psx.conv(c_int, v.g._cameraMode().*);"
+to = "phase.* = psx.conv(c_int, v.g._cameraMode().*) +% 1;"
+
+[function.charge_skip_now]
+spec = "chargeSkipNow.zig"
+iterations = 2000
+
+[[function.charge_skip_now.mutation]]
+name = "W1: a skipping out-parameter of 1 only"
+from = "return @intFromBool(c.pc_charge_skip_state(&phase, &skipping, &actor, &action) != 0 and skipping != 0);"
+to = "return @intFromBool(c.pc_charge_skip_state(&phase, &skipping, &actor, &action) != 0 and skipping == 1);"
+
+[[function.charge_skip_now.mutation]]
+name = "W2: the wind-up not required"
+from = "return @intFromBool(c.pc_charge_skip_state(&phase, &skipping, &actor, &action) != 0 and skipping != 0);"
+to = "_ = c.pc_charge_skip_state(&phase, &skipping, &actor, &action); return @intFromBool(skipping != 0);"
+
+[[function.charge_skip_now.mutation]]
+name = "W3: skipping alone, without the skip decision"
+from = "c.pc_charge_skip_state(&phase, &skipping, &actor, &action) != 0 and skipping != 0"
+to = "c.pc_charge_skip_state(&phase, &skipping, &actor, &action) != 0"
+
+[function.charge_skip_load]
+spec = "chargeSkipLoad.zig"
+iterations = 5000
+
+[[function.charge_skip_load.mutation]]
+name = "L1: the step limit is 63"
+from = "while (i < 64) : (i += 1) {"
+to = "while (i < 63) : (i += 1) {"
+
+[[function.charge_skip_load.mutation]]
+name = "L2: the purge state does not load"
+from = "if (loader != 6 and loader != 2 and loader != 8 and loader != 3) break;"
+to = "if (loader != 2 and loader != 8 and loader != 3) break;"
+
+[[function.charge_skip_load.mutation]]
+name = "L3: the textures state does not load"
+from = "if (loader != 6 and loader != 2 and loader != 8 and loader != 3) break;"
+to = "if (loader != 6 and loader != 8 and loader != 3) break;"
+
+[[function.charge_skip_load.mutation]]
+name = "L4: the code state does not load"
+from = "if (loader != 6 and loader != 2 and loader != 8 and loader != 3) break;"
+to = "if (loader != 6 and loader != 2 and loader != 3) break;"
+
+[[function.charge_skip_load.mutation]]
+name = "L5: the data state does not load"
+from = "if (loader != 6 and loader != 2 and loader != 8 and loader != 3) break;"
+to = "if (loader != 6 and loader != 2 and loader != 8) break;"
+
+[[function.charge_skip_load.mutation]]
+name = "L6: the effect file record is not put back"
+from = "v.g.D_800F569C().* = context;"
+to = "_ = context;"
+
+[[function.charge_skip_load.mutation]]
+name = "L7: the loader steps swapped"
+from = "c.func_800D7890(1);\n        _ = c.func_800CE9B0();"
+to = "_ = c.func_800CE9B0();\n        c.func_800D7890(1);"
+
+[[function.charge_skip_load.mutation]]
+name = "L8: the step count is one off"
+from = "v.g.pc_charge_skip_pumped().* = i;"
+to = "v.g.pc_charge_skip_pumped().* = i +% 1;"
+
+[[function.charge_skip_load.mutation]]
+name = "L9: the queue slot is not read"
+from = "_ = c.pc_cd_queue_load(@ptrCast(v.g.D_800F568C().*));"
+to = "_ = c.pc_cd_queue_load(null);"
+
+[[function.charge_skip_load.mutation]]
+name = "L10: the helper argument is 0"
+from = "c.func_800D7890(1);"
+to = "c.func_800D7890(0);"
+
+[function.pc_charge_skip]
+spec = "chargeSkipSkip.zig"
+iterations = 20000
+
+[[function.pc_charge_skip.mutation]]
+name = "P1: phase 4 skips"
+from = "if (phase != 5 or c.charge_skip_now() == 0)"
+to = "if (phase != 4 or c.charge_skip_now() == 0)"
+
+[[function.pc_charge_skip.mutation]]
+name = "P2: the skip decision ignored"
+from = "if (phase != 5 or c.charge_skip_now() == 0) return 0;"
+to = "if (phase != 5 or c.charge_skip_now() == 2) return 0;"
+
+[[function.pc_charge_skip.mutation]]
+name = "P3: a sound not stopped"
+from = "c.func_80045D64(0x7E, 0x35);"
+to = "c.func_80045D64(0x7E, 0x34);"
+
+[[function.pc_charge_skip.mutation]]
+name = "P4: the turn applied to an idle actor"
+from = "if (actor != null and actor.?.unk0.unk18 != 0) {"
+to = "if (actor != null) {"
+
+[[function.pc_charge_skip.mutation]]
+name = "P5: the pitch not masked to 12 bits"
+from = "unk0.pitch = psx.conv(i16, (@as(c_int, unk0.pitch) +% unk0.unk3C) & 0xFFF);"
+to = "unk0.pitch = psx.conv(i16, (@as(c_int, unk0.pitch) +% unk0.unk3C) & 0x1FFF);"
+
+[[function.pc_charge_skip.mutation]]
+name = "P6: the facing turned by the pitch step"
+from = "unk0.facing = psx.conv(i16, (@as(c_int, unk0.facing) +% unk0.unk3E) & 0xFFF);"
+to = "unk0.facing = psx.conv(i16, (@as(c_int, unk0.facing) +% unk0.unk3C) & 0xFFF);"
+
+[[function.pc_charge_skip.mutation]]
+name = "P7: the roll step kept"
+from = "unk0.unk40 = 0;"
+to = "_ = unk0.unk40;"
+
+[[function.pc_charge_skip.mutation]]
+name = "P8: the turn left pending"
+from = "unk0.unk18 = 0;"
+to = "_ = unk0.unk18;"
+
+[[function.pc_charge_skip.mutation]]
+name = "P9: the circle not ended"
+from = "    c.func_800CF920();\n"
+to = "\n"
+
+[[function.pc_charge_skip.mutation]]
+name = "P10: the effect not loaded with the pump on"
+from = "if (v.g.pc_charge_skip_pump().* != 0) c.charge_skip_load();"
+to = "if (v.g.pc_charge_skip_pump().* == 0) c.charge_skip_load();"
+
+[[function.pc_charge_skip.mutation]]
+name = "P11: released without a free object slot"
+from = "if (c.vs_battle_getEmptyObjectDataSlot() == 0 and"
+to = "if (c.vs_battle_getEmptyObjectDataSlot() != 0 and"
+
+[[function.pc_charge_skip.mutation]]
+name = "P12: released before the files are in"
+from = "and c.func_800CEEBC() != 0) c.func_800704B0();"
+to = "and c.func_800CEEBC() == 0) c.func_800704B0();"
+
+[[function.pc_charge_skip.mutation]]
+name = "P13: returns 0 after the skip"
+from = "    return 1;\n}\n\n/// orig: pc_charge_skip_hold"
+to = "    return 0;\n}\n\n/// orig: pc_charge_skip_hold"
+
+[[function.pc_charge_skip.mutation]]
+name = "P14: the caster's slot is the first"
+from = "block().unk854[block().unk0 & 3].unk4.unk0.targetActor).*;\n    if (actor != null and"
+to = "block().unk854[0].unk4.unk0.targetActor).*;\n    if (actor != null and"
+
+[function.pc_charge_skip_hold]
+spec = "chargeSkipHold.zig"
+iterations = 20000
+
+[[function.pc_charge_skip_hold.mutation]]
+name = "Q1: the held flag not cleared first"
+from = "    v.g.charge_skip_held().* = 0;\n    if (v.g.nameWindowText().* == null or c.charge_skip_now() == 0) return 0;"
+to = "    if (v.g.nameWindowText().* == null or c.charge_skip_now() == 0) return 0;"
+
+[[function.pc_charge_skip_hold.mutation]]
+name = "Q2: held without the window test"
+from = "if (v.g.nameWindowText().* == null or c.charge_skip_now() == 0) return 0;"
+to = "if (c.charge_skip_now() == 0) return 0;"
+
+[[function.pc_charge_skip_hold.mutation]]
+name = "Q3: the skip decision tested first"
+from = "if (v.g.nameWindowText().* == null or c.charge_skip_now() == 0) return 0;"
+to = "if (c.charge_skip_now() == 0 or v.g.nameWindowText().* == null) return 0;"
+
+[[function.pc_charge_skip_hold.mutation]]
+name = "Q4: seconds rounded down"
+from = "floatToInt(v.g.pc_qol_skip_charging_name().* * 60.0 + 0.5);"
+to = "floatToInt(v.g.pc_qol_skip_charging_name().* * 60.0);"
+
+[[function.pc_charge_skip_hold.mutation]]
+name = "Q5: the shown hold not taken off"
+from = "vsyncs -%= c.charge_skip_hold_vsyncs(block().unk854[block().unk0 & 3].unk4.unk0.targetActor);"
+to = "vsyncs -%= 0;"
+
+[[function.pc_charge_skip_hold.mutation]]
+name = "Q6: the countdown cap dropped"
+from = "if (vsyncs > @as(c_int, v.g.nameWindowTimer().*)) vsyncs = v.g.nameWindowTimer().*;"
+to = "_ = v.g.nameWindowTimer().*;"
+
+[[function.pc_charge_skip_hold.mutation]]
+name = "Q7: the countdown read signed"
+from = "if (vsyncs > @as(c_int, v.g.nameWindowTimer().*)) vsyncs"
+to = "if (vsyncs > @as(c_int, @as(i8, @bitCast(v.g.nameWindowTimer().*)))) vsyncs"
+
+[[function.pc_charge_skip_hold.mutation]]
+name = "Q8: zero vsyncs still held"
+from = "if (vsyncs <= 0) return 0;"
+to = "if (vsyncs < 0) return 0;"
+
+[[function.pc_charge_skip_hold.mutation]]
+name = "Q9: the release's vsync not kept"
+from = "v.g.charge_skip_held_at().* = c.pc_vsync_count();"
+to = "v.g.charge_skip_held_at().* = 0;"
+
+[[function.pc_charge_skip_hold.mutation]]
+name = "Q10: the hold's length not kept"
+from = "v.g.charge_skip_held_vsyncs().* = vsyncs;"
+to = "v.g.charge_skip_held_vsyncs().* = vsyncs +% 1;"
+
+[[function.pc_charge_skip_hold.mutation]]
+name = "Q11: the held flag not set"
+from = "    v.g.charge_skip_held().* = 1;\n"
+to = "\n"
+
+[[function.pc_charge_skip_hold.mutation]]
+name = "Q12: returns 0 when held"
+from = "    return 1;\n}\n\n/// orig: pc_charge_skip_name ("
+to = "    return 0;\n}\n\n/// orig: pc_charge_skip_name ("
+
+[[function.pc_charge_skip_hold.mutation]]
+name = "Q13: the clamp of a huge setting dropped"
+from = "if (!(x > -2147483648.0 and x < 2147483648.0)) return -2147483648;"
+to = "if (!(x > -2147483648.0 and x < 2147483648.0)) return 0;"
+
+[function.pc_charge_skip_name]
+spec = "chargeSkipName.zig"
+iterations = 20000
+
+[[function.pc_charge_skip_name.mutation]]
+name = "R1: not-held does not return"
+from = "    if (v.g.charge_skip_held().* == 0) return;"
+to = "    if (v.g.charge_skip_held().* == 0) v.g.charge_skip_held().* = 0;"
+
+[[function.pc_charge_skip_name.mutation]]
+name = "R2: the gone window does not clear the flag"
+from = "    if (v.g.nameWindowText().* == null) {\n        v.g.charge_skip_held().* = 0;"
+to = "    if (v.g.nameWindowText().* == null) {\n        v.g.charge_skip_held().* = 1;"
+
+[[function.pc_charge_skip_name.mutation]]
+name = "R3: now ignored"
+from = "if (now_ == 0 and v.g.D_800F196C().* == 2"
+to = "_ = now_;\n    if (v.g.D_800F196C().* == 2"
+
+[[function.pc_charge_skip_name.mutation]]
+name = "R4: other modes keep the window up"
+from = "v.g.D_800F196C().* == 2 and v.g.D_800F19CC().* != null and"
+to = "v.g.D_800F196C().* != 2 and v.g.D_800F19CC().* != null and"
+
+[[function.pc_charge_skip_name.mutation]]
+name = "R5: no block still keeps it up"
+from = "v.g.D_800F19CC().* != null and\n"
+to = "true and\n"
+
+[[function.pc_charge_skip_name.mutation]]
+name = "R6: the time compared the other way"
+from = "c.pc_vsync_count() -% v.g.charge_skip_held_at().* < psx.conv(c_uint, v.g.charge_skip_held_vsyncs().*)"
+to = "c.pc_vsync_count() -% v.g.charge_skip_held_at().* <= psx.conv(c_uint, v.g.charge_skip_held_vsyncs().*)"
+
+[[function.pc_charge_skip_name.mutation]]
+name = "R7: the hold's length compared signed"
+from = "c.pc_vsync_count() -% v.g.charge_skip_held_at().* < psx.conv(c_uint, v.g.charge_skip_held_vsyncs().*)"
+to = "@as(c_int, @bitCast(c.pc_vsync_count() -% v.g.charge_skip_held_at().*)) < v.g.charge_skip_held_vsyncs().*"
+
+[[function.pc_charge_skip_name.mutation]]
+name = "R8: text box 7 not waited for"
+from = "psx.getBits(&v.g.textBoxes()[7].unk0, \"done\") == 0))"
+to = "false))"
+
+[[function.pc_charge_skip_name.mutation]]
+name = "R9: the done bit read inverted"
+from = "psx.getBits(&v.g.textBoxes()[7].unk0, \"done\") == 0))"
+to = "psx.getBits(&v.g.textBoxes()[7].unk0, \"done\") != 0))"
+
+[[function.pc_charge_skip_name.mutation]]
+name = "R10: the flag not cleared at the close"
+from = "    v.g.charge_skip_held().* = 0;\n    c.func_800CB50C();"
+to = "    c.func_800CB50C();"
+
+[[function.pc_charge_skip_name.mutation]]
+name = "R11: the window not closed"
+from = "    c.func_800CB50C();\n}\n\n/// orig: pc_charge_skip_name_window"
+to = "\n}\n\n/// orig: pc_charge_skip_name_window"
+
+[function.pc_charge_skip_name_window]
+spec = "chargeSkipNameWindow.zig"
+iterations = 5000
+
+[[function.pc_charge_skip_name_window.mutation]]
+name = "T1: the held flag not reported"
+from = "held.* = v.g.charge_skip_held().*;"
+to = "held.* = 0;"
+
+[[function.pc_charge_skip_name_window.mutation]]
+name = "T2: a window with state 0 counts as up"
+from = "v.g.textBoxes()[7].state <= 0) return -1;"
+to = "v.g.textBoxes()[7].state < 0) return -1;"
+
+[[function.pc_charge_skip_name_window.mutation]]
+name = "T3: a gone window still copied"
+expect = "panic"
+from = "if (v.g.nameWindowText().* == null or v.g.textBoxes()[7].state <= 0) return -1;"
+to = "if (v.g.textBoxes()[7].state <= 0) return -1;"
+
+[[function.pc_charge_skip_name_window.mutation]]
+name = "T4: 113 bytes copied"
+from = "while (n < size and n < 112) : (n += 1) {"
+to = "while (n < size and n < 113) : (n += 1) {"
+
+[[function.pc_charge_skip_name_window.mutation]]
+name = "T5: the last byte not copied"
+from = "while (n < size and n < 112) : (n += 1) {"
+to = "while (n + 1 < size and n < 112) : (n += 1) {"
+
+[function.pc_charge_skip_view]
+spec = "chargeSkipView.zig"
+iterations = 5000
+
+[[function.pc_charge_skip_view.mutation]]
+name = "V1: actor 17 read"
+expect = "panic"
+from = "const a: ?*v.D_800F4538_t = if (actor_ >= 0 and actor_ < 17)"
+to = "const a: ?*v.D_800F4538_t = if (actor_ >= 0 and actor_ <= 17)"
+
+[[function.pc_charge_skip_view.mutation]]
+name = "V2: actor 0 refused"
+from = "const a: ?*v.D_800F4538_t = if (actor_ >= 0 and"
+to = "const a: ?*v.D_800F4538_t = if (actor_ > 0 and"
+
+[[function.pc_charge_skip_view.mutation]]
+name = "V3: the facing unmasked"
+from = "out[8] = if (a != null) @as(c_int, a.?.unk0.facing) & 0xFFF else -1;"
+to = "out[8] = if (a != null) @as(c_int, a.?.unk0.facing) else -1;"
+
+[[function.pc_charge_skip_view.mutation]]
+name = "V4: no actor gives 0"
+from = "else -1;"
+to = "else 0;"
+
+[[function.pc_charge_skip_view.mutation]]
+name = "V5: yaw and distance swapped"
+from = "out[6] = v.g.vs_battle_cameraCurrentSpherical().values.distance;"
+to = "out[6] = v.g.vs_battle_cameraCurrentSpherical().values.yaw;"
+
+[[function.pc_charge_skip_view.mutation]]
+name = "V6: position y and z swapped"
+from = "out[4] = camera.position.vy;"
+to = "out[4] = camera.position.vz;"
+
+[[function.pc_charge_skip_view.mutation]]
+name = "V7: lookAt x from the position"
+from = "out[0] = camera.lookAt.vx;"
+to = "out[0] = camera.position.vx;"
+
+[function.pc_charge_skip_battle_state]
+spec = "chargeSkipBattleState.zig"
+iterations = 5000
+
+[[function.pc_charge_skip_battle_state.mutation]]
+name = "B1: the camera mode not reported"
+from = "camera.* = psx.conv(c_int, v.g._cameraMode().*);"
+to = "camera.* = 0;"
+
+[[function.pc_charge_skip_battle_state.mutation]]
+name = "B2: the actor and action cleared only with a block"
+from = "    actor.* = -1;\n    action.* = -1;\n    if (v.g.D_800F19CC().* == null) return -1;"
+to = "    if (v.g.D_800F19CC().* == null) return -1;\n    actor.* = -1;\n    action.* = -1;"
+
+[[function.pc_charge_skip_battle_state.mutation]]
+name = "B3: mode 2 not required"
+from = "if (v.g.D_800F196C().* == 2) {\n        const a"
+to = "{\n        const a"
+
+[[function.pc_charge_skip_battle_state.mutation]]
+name = "B4: the actor and action swapped"
+from = "actor.* = a.unk4.unk0.targetActor;\n        action.* = a.actionIndex;"
+to = "action.* = a.unk4.unk0.targetActor;\n        actor.* = a.actionIndex;"
+
+[[function.pc_charge_skip_battle_state.mutation]]
+name = "B5: the result is 2"
+from = "return psx.conv(c_int, v.g.D_800F196C().*);"
+to = "return 2;"
+
+[function.pc_charge_skip_reseed]
+spec = "chargeSkipReseed.zig"
+iterations = 2000
+
+[[function.pc_charge_skip_reseed.mutation]]
+name = "E1: the index starts at 95"
+from = "v.g.randIndex().* = 96;"
+to = "v.g.randIndex().* = 95;"
+
+[[function.pc_charge_skip_reseed.mutation]]
+name = "E2: 96 numbers"
+from = "while (i < 97) : (i += 1) {"
+to = "while (i < 96) : (i += 1) {"
+
+[[function.pc_charge_skip_reseed.mutation]]
+name = "E3: seeded after the first draw"
+from = "    c.srand(seed);\n    var i: usize = 0;"
+to = "    _ = seed;\n    var i: usize = 0;"
+
+[[function.pc_charge_skip_reseed.mutation]]
+name = "E4: the seed passed on as 1"
+from = "c.srand(seed);"
+to = "_ = seed; c.srand(1);"
+
+[[function.pc_charge_skip_reseed.mutation]]
+name = "E5: filled backwards"
+from = "v.g.randArr().*[i] = c.rand();"
+to = "v.g.randArr().*[96 - i] = c.rand();"
+
+[function.pc_charge_skip_trace]
+spec = "chargeSkipTrace.zig"
+iterations = 5000
+
+[[function.pc_charge_skip_trace.mutation]]
+name = "Y1: the limit is size - 15"
+from = "n < size -% 16) : (e = psx.get(e.?.next))"
+to = "n < size -% 15) : (e = psx.get(e.?.next))"
+
+[[function.pc_charge_skip_trace.mutation]]
+name = "Y2: the loop starts without the head test"
+expect = "panic"
+from = "while (e != null and n < size -% 16)"
+to = "while (n < size -% 16)"
+
+[[function.pc_charge_skip_trace.mutation]]
+name = "Y3: truncation returns size"
+from = "return if (n < size) n else size -% 1;"
+to = "return if (n < size) n else size;"
+
+[[function.pc_charge_skip_trace.mutation]]
+name = "Y4: the id and kind swapped"
+from = "@as(c_int, e.?.unkD1C.unk38), @as(c_int, psx.getBits(e.?, \"unk14_8\"))"
+to = "@as(c_int, psx.getBits(e.?, \"unk14_8\")), @as(c_int, e.?.unkD1C.unk38)"
+
+[[function.pc_charge_skip_trace.mutation]]
+name = "Y5: the object slot test inverted"
+from = "v.g.vs_battle_objectDataSlots()[0].dataType != 0"
+to = "v.g.vs_battle_objectDataSlots()[0].dataType == 0"
+
+[[function.pc_charge_skip_trace.mutation]]
+name = "Y6: the cast flash not traced"
+from = "v.g.D_800F531C().*, @as(c_int, @intFromBool(v.g.vs_battle_objectDataSlots()[0].dataType != 0)), v.g.D_800F1868().*);"
+to = "v.g.D_800F531C().*, @as(c_int, @intFromBool(v.g.vs_battle_objectDataSlots()[0].dataType != 0)), @as(c_int, 0));"
+
+[[function.pc_charge_skip_trace.mutation]]
+name = "Y7: the second record's separator"
+from = "\",%d/%d\""
+to = "\",%d:%d\""
+
+[function.pc_charge_skip_window]
+spec = "chargeSkipWindow.zig"
+iterations = 5000
+
+[[function.pc_charge_skip_window.mutation]]
+name = "U1: the window without BATTLE's mode"
+from = "return if (v.g.D_800F19CC().* != null and v.g.D_800F196C().* == 2) @as(c_int, block().battleAbilityTargetWindow) else 0;"
+to = "return if (v.g.D_800F19CC().* != null) @as(c_int, block().battleAbilityTargetWindow) else 0;"
+
+[[function.pc_charge_skip_window.mutation]]
+name = "U2: the window of mode 1"
+from = "v.g.D_800F196C().* == 2) @as(c_int, block().battleAbilityTargetWindow)"
+to = "v.g.D_800F196C().* != 0) @as(c_int, block().battleAbilityTargetWindow)"
+
+[[function.pc_charge_skip_window.mutation]]
+name = "U3: the window sign-extended"
+from = "@as(c_int, block().battleAbilityTargetWindow) else 0;"
+to = "@as(c_int, @as(i16, @bitCast(block().battleAbilityTargetWindow))) else 0;"
+
+[function.pc_charge_skip_ability]
+spec = "chargeSkipAbility.zig"
+iterations = 5000
+
+[[function.pc_charge_skip_ability.mutation]]
+name = "Z1: the timer and window swapped"
+from = "out[0] = block().battleAbilityTimer;"
+to = "out[0] = block().battleAbilityTargetWindow;"
+
+[[function.pc_charge_skip_ability.mutation]]
+name = "Z2: the attempt not reported"
+from = "out[2] = block().battleAbilityInputAttempted;"
+to = "out[2] = 0;"
+
+[[function.pc_charge_skip_ability.mutation]]
+name = "Z3: the success not reported"
+from = "out[3] = block().battleAbilityInputSuccessful;"
+to = "out[3] = block().battleAbilityInputAttempted;"
+
+[[function.pc_charge_skip_ability.mutation]]
+name = "Z4: works outside mode 2"
+from = "if (v.g.D_800F19CC().* == null or v.g.D_800F196C().* != 2) return 0;"
+to = "if (v.g.D_800F19CC().* == null) return 0;"
+
+[[function.pc_charge_skip_ability.mutation]]
+name = "Z5: returns 2"
+from = "    out[3] = block().battleAbilityInputSuccessful;\n    return 1;"
+to = "    out[3] = block().battleAbilityInputSuccessful;\n    return 2;"
+
+[function.anchor_map]
+spec = "sceneAnchorMap.zig"
+iterations = 2000
+
+[[function.anchor_map.coverage_waiver]]
+id = "+2 b1"
+reason = "`if (pc_hw_anchor_packets)`: the weak hook is always linked (the native renderer in the game, a recording stub here); its null side never runs"
+
+[[function.anchor_map.mutation]]
+name = "A1: the cursor taken from the OT pointer"
+from = "hook(start, psx.get(scratch().unk0), 2)"
+to = "hook(start, psx.get(scratch().unk4), 2)"
+
+[[function.anchor_map.mutation]]
+name = "A2: anchored to the left"
+from = "hook(start, psx.get(scratch().unk0), 2)"
+to = "hook(start, psx.get(scratch().unk0), 1)"
+
+[[function.anchor_map.mutation]]
+name = "A3: the arguments swapped"
+from = "hook(start, psx.get(scratch().unk0), 2)"
+to = "hook(psx.get(scratch().unk0), start, 2)"
+
+[[function.anchor_map.mutation]]
+name = "A4: the hook not called"
+from = "if (psx.weak(Anchor, \"pc_hw_anchor_packets\")) |hook| hook(start, psx.get(scratch().unk0), 2);"
+to = "_ = Anchor; _ = start;"
+
+[function.pc_battle_event_running]
+spec = "sceneBattleEventRunning.zig"
+iterations = 2000
+
+[[function.pc_battle_event_running.mutation]]
+name = "E1: the state tested for 1"
+from = "return @intFromBool(v.g.D_800F4C34().* != 0);"
+to = "return @intFromBool(v.g.D_800F4C34().* == 1);"
+
+[[function.pc_battle_event_running.mutation]]
+name = "E2: the state tested signed"
+from = "return @intFromBool(v.g.D_800F4C34().* != 0);"
+to = "return @intFromBool(@as(i8, @bitCast(v.g.D_800F4C34().*)) > 0);"
+
+[function.pc_battle_event_id]
+spec = "sceneBattleEventId.zig"
+iterations = 3000
+
+[[function.pc_battle_event_id.mutation]]
+name = "I1: not -1 when idle"
+from = "if (v.g.D_800F4C34().* == 0) return -1;"
+to = "if (v.g.D_800F4C34().* == 0) return 0;"
+
+[[function.pc_battle_event_id.mutation]]
+name = "I2: the source shifted by 8"
+from = "(@as(c_int, v.g.D_800F4BE0().*) << 12)"
+to = "(@as(c_int, v.g.D_800F4BE0().*) << 8)"
+
+[[function.pc_battle_event_id.mutation]]
+name = "I3: the file masked to 12 bits"
+from = "@as(c_int, v.g._evtFile().*);"
+to = "(@as(c_int, v.g._evtFile().*) & 0xFFF);"
+
+[[function.pc_battle_event_id.mutation]]
+name = "I4: not truncated to 16 bits"
+from = "return @as(c_int, psx.conv(u16, id));"
+to = "return id;"
+
+[[function.pc_battle_event_id.mutation]]
+name = "I5: the file added"
+from = "| @as(c_int, v.g._evtFile().*)"
+to = "+% @as(c_int, v.g._evtFile().*)"
+
+[function.pc_battle_camera_target]
+spec = "sceneBattleCameraTarget.zig"
+iterations = 10000
+
+[[function.pc_battle_camera_target.mutation]]
+name = "C1: no character check"
+expect = "panic"
+from = "if (character == null or character.?.weaponDrawn != 1 or v.g.D_800F19CC().* == null) return 0;"
+to = "if (character.?.weaponDrawn != 1 or v.g.D_800F19CC().* == null) return 0;"
+
+[[function.pc_battle_camera_target.mutation]]
+name = "C2: weapon drawn tested for nonzero"
+from = "character.?.weaponDrawn != 1"
+to = "character.?.weaponDrawn == 0"
+
+[[function.pc_battle_camera_target.mutation]]
+name = "C3: the target count truncated to 8 bits"
+from = "block.unk2C00 == 0"
+to = "@as(u8, @truncate(block.unk2C00)) == 0"
+
+[[function.pc_battle_camera_target.mutation]]
+name = "C4: the target count not tested"
+from = "or block.unk2C00 == 0 or"
+to = "or"
+
+[[function.pc_battle_camera_target.mutation]]
+name = "C5: candidate 23 accepted"
+expect = "panic"
+from = "block.unk298D >= 23) return 0;"
+to = "block.unk298D > 23) return 0;"
+
+[[function.pc_battle_camera_target.mutation]]
+name = "C6: y and z swapped"
+from = "position[1] = block.unk29C0[block.unk298D].unk0.vy;"
+to = "position[1] = block.unk29C0[block.unk298D].unk0.vz;"
+
+[[function.pc_battle_camera_target.mutation]]
+name = "C7: returns 0 on success"
+from = "    position[2] = block.unk29C0[block.unk298D].unk0.vz;\n    return 1;"
+to = "    position[2] = block.unk29C0[block.unk298D].unk0.vz;\n    return 0;"
+
+[function.pc_battle_action]
+spec = "sceneBattleAction.zig"
+iterations = 20000
+
+[[function.pc_battle_action.mutation]]
+name = "Q1: any mode"
+from = "if (v.g.D_800F196C().* != 2 or v.g.D_800F19CC().* == null) return 0;"
+to = "if (v.g.D_800F19CC().* == null) return 0;"
+
+[[function.pc_battle_action.mutation]]
+name = "Q2: the actor not a u8"
+from = "actor.* = a.unk4.unk0.targetActor;"
+to = "actor.* = @as(i8, @bitCast(a.unk4.unk0.targetActor));"
+
+[[function.pc_battle_action.mutation]]
+name = "Q3: the phase is the chain"
+from = "phase.* = psx.conv(c_int, v.g._cameraMode().*);"
+to = "phase.* = psx.conv(c_int, block.unk0);"
+
+[[function.pc_battle_action.mutation]]
+name = "Q4: the kind unchecked for indexes below 255"
+from = "kind.* = if (a.actionIndex < 256)"
+to = "kind.* = if (a.actionIndex < 255)"
+
+[[function.pc_battle_action.mutation]]
+name = "Q5: the plain flag inverted"
+from = "plain.* = if (a.actionIndex < 256) @intFromBool(psx.getBits(&v.g.actions()[a.actionIndex], \"unk2_0\") == 0) else 1;"
+to = "plain.* = if (a.actionIndex < 256) @intFromBool(psx.getBits(&v.g.actions()[a.actionIndex], \"unk2_0\") != 0) else 1;"
+
+[[function.pc_battle_action.mutation]]
+name = "Q6: a high index is not plain"
+from = "unk2_0\") == 0) else 1;"
+to = "unk2_0\") == 0) else 0;"
+
+[[function.pc_battle_action.mutation]]
+name = "Q7: aim y from x"
+from = "aim[1] = block.unk8.unk844.vy;"
+to = "aim[1] = block.unk8.unk844.vx;"
+
+[[function.pc_battle_action.mutation]]
+name = "Q8: the target needs no count"
+from = "if (a.unk4A != 0 and a.unk4C[0].unk40 == 0)"
+to = "if (a.unk4C[0].unk40 == 0)"
+
+[[function.pc_battle_action.mutation]]
+name = "Q9: the target's flag inverted"
+from = "a.unk4C[0].unk40 == 0) @as(c_int, a.unk4C[0].unk0.targetActor) else -1;"
+to = "a.unk4C[0].unk40 != 0) @as(c_int, a.unk4C[0].unk0.targetActor) else -1;"
+
+[[function.pc_battle_action.mutation]]
+name = "Q10: no target is 0"
+from = "@as(c_int, a.unk4C[0].unk0.targetActor) else -1;"
+to = "@as(c_int, a.unk4C[0].unk0.targetActor) else 0;"
+
+[[function.pc_battle_action.mutation]]
+name = "Q11: the current slot is the first"
+from = "const a = &block.unk854[block.unk0 & 3];"
+to = "const a = &block.unk854[0];"
+
+[[function.pc_battle_action.mutation]]
+name = "Q12: the chain step is unk4"
+from = "chain.* = psx.conv(c_int, block.unk0);"
+to = "chain.* = psx.conv(c_int, block.unk4);"
+
+[[function.pc_battle_action.mutation]]
+name = "Q13: the return is 2"
+from = "    target.* = if (a.unk4A != 0 and a.unk4C[0].unk40 == 0) @as(c_int, a.unk4C[0].unk0.targetActor) else -1;\n    return 1;"
+to = "    target.* = if (a.unk4A != 0 and a.unk4C[0].unk40 == 0) @as(c_int, a.unk4C[0].unk0.targetActor) else -1;\n    return 2;"
+
+[function.func_8008AC78]
+spec = "func_8008AC78.zig"
+iterations = 30000
+
+[[function.func_8008AC78.mutation]]
+name = "R1: the tick loop runs tickspeed >> 2 times"
+from = "v.g.vs_gametime_tickspeed().* >> 1) : (i +%= 1)"
+to = "v.g.vs_gametime_tickspeed().* >> 2) : (i +%= 1)"
+
+[[function.func_8008AC78.mutation]]
+name = "R2: the tick loop skipped when D_800F1BA4 is set the other way"
+from = "if (v.g.D_800F1BA4().* == 0) {"
+to = "if (v.g.D_800F1BA4().* != 0) {"
+
+[[function.func_8008AC78.mutation]]
+name = "R3: the room state 0x100"
+from = "if (state != 0x101) return;"
+to = "if (state != 0x100) return;"
+
+[[function.func_8008AC78.mutation]]
+name = "R4: the left compass angle"
+from = "const left: c_int = @as(c_int, 1) << @intCast((((0x9C0 -% vy) & 0xFFF) >> 9));"
+to = "const left: c_int = @as(c_int, 1) << @intCast((((0x9C1 -% vy) & 0xFFF) >> 9));"
+
+[[function.func_8008AC78.mutation]]
+name = "R5: the right compass angle"
+from = "(((0x840 -% vy) & 0xFFF) >> 9)"
+to = "(((0x841 -% vy) & 0xFFF) >> 9)"
+
+[[function.func_8008AC78.mutation]]
+name = "R6: the front compass angle is a quarter turn off"
+from = "(((0x900 -% vy) & 0xFFF) >> 9)"
+to = "(((0x700 -% vy) & 0xFFF) >> 9)"
+
+[[function.func_8008AC78.mutation]]
+name = "R7: the compass bits keep the low byte"
+from = "(scratch().firstPersonViewFacing & 0xFFFF_FF00) |"
+to = "(scratch().firstPersonViewFacing & 0xFFFF_FFFF) |"
+
+[[function.func_8008AC78.mutation]]
+name = "R8: the front bit shifted one up"
+from = "psx.conv(c_uint, right) | psx.conv(c_uint, front);"
+to = "psx.conv(c_uint, right) | (psx.conv(c_uint, front) << 1);"
+
+[[function.func_8008AC78.mutation]]
+name = "R9: the state change not noticed"
+from = "if (roomState() != state or"
+to = "if (roomState() == state or"
+
+[[function.func_8008AC78.mutation]]
+name = "R10: the simple map bit"
+from = "(v.g.vs_main_settings().simpleMap & 1) == 0 or"
+to = "(v.g.vs_main_settings().simpleMap & 4) == 0 or"
+
+[[function.func_8008AC78.mutation]]
+name = "R11: no map section still draws"
+expect = "panic"
+from = "psx.get(v.g.vs_battle_roomData().sectionF) == null)"
+to = "false)"
+
+[[function.func_8008AC78.mutation]]
+name = "R12: the fade clamps at 9"
+from = "if (v.g.D_800F1CD4().* > 8) v.g.D_800F1CD4().* = 8;"
+to = "if (v.g.D_800F1CD4().* > 9) v.g.D_800F1CD4().* = 9;"
+
+[[function.func_8008AC78.mutation]]
+name = "R13: the fade falls by 1"
+from = "v.g.D_800F1CD4().* -%= 2;"
+to = "v.g.D_800F1CD4().* -%= 1;"
+
+[[function.func_8008AC78.mutation]]
+name = "R14: the fade floor"
+from = "if (v.g.D_800F1CD4().* < 0) v.g.D_800F1CD4().* = 0;"
+to = "if (v.g.D_800F1CD4().* < 0) v.g.D_800F1CD4().* = 1;"
+
+[[function.func_8008AC78.mutation]]
+name = "R15: a zero fade still draws"
+from = "if (v.g.D_800F1CD4().* <= 0) return;"
+to = "if (v.g.D_800F1CD4().* < 0) return;"
+
+[[function.func_8008AC78.mutation]]
+name = "R16: the map rotated by the wrong angle"
+from = "0x800 -% scratch().camera.angles.vy"
+to = "0x801 -% scratch().camera.angles.vy"
+
+[[function.func_8008AC78.mutation]]
+name = "R17: the clip x of the left buffer"
+from = "clip.x = 216;"
+to = "clip.x = 217;"
+
+[[function.func_8008AC78.mutation]]
+name = "R18: the clip x of the right buffer"
+from = "clip.x = 536;"
+to = "clip.x = 537;"
+
+[[function.func_8008AC78.mutation]]
+name = "R19: the buffer test at 320"
+from = ".clip.x < 320) {"
+to = ".clip.x <= 320) {"
+
+[[function.func_8008AC78.mutation]]
+name = "R20: the clip y"
+from = "clip.y = 156;"
+to = "clip.y = 155;"
+
+[[function.func_8008AC78.mutation]]
+name = "R21: the clip width"
+from = "clip.w = 96;"
+to = "clip.w = 95;"
+
+[[function.func_8008AC78.mutation]]
+name = "R22: the clip height"
+from = "clip.h = 64;"
+to = "clip.h = 63;"
+
+[[function.func_8008AC78.mutation]]
+name = "R23: the map offset y"
+from = "mapOffset.y = 196;"
+to = "mapOffset.y = 195;"
+
+[[function.func_8008AC78.mutation]]
+name = "R24: the map offset x slides by 8"
+from = "(@as(c_int, v.g.D_800F1CD4().*) << 4)"
+to = "(@as(c_int, v.g.D_800F1CD4().*) << 3)"
+
+[[function.func_8008AC78.mutation]]
+name = "R25: the map offset base"
+from = "mapOffset.x = 392 -%"
+to = "mapOffset.x = 391 -%"
+
+[[function.func_8008AC78.mutation]]
+name = "R26: the projection not anchored"
+from = "v.g.pc_gte_anchored().* = 1;"
+to = "v.g.pc_gte_anchored().* = 2;"
+
+[[function.func_8008AC78.mutation]]
+name = "R27: the anchor left set"
+from = "v.g.pc_gte_anchored().* = 0;"
+to = "v.g.pc_gte_anchored().* = 1;"
+
+[[function.func_8008AC78.mutation]]
+name = "R28: the offset not restored"
+from = "c.vs_battle_setGeomOffset(psx.cptr(c.vs_battle_geomOffset, &savedOffset));"
+to = "c.vs_battle_setGeomOffset(psx.cptr(c.vs_battle_geomOffset, &mapOffset));"
+
+[[function.func_8008AC78.mutation]]
+name = "R29: the view matrix not set back"
+from = "    c.SetRotMatrix(psx.cptr(c.MATRIX, &scratch().viewMatrix));\n\n    area = @ptrCast"
+to = "\n    area = @ptrCast"
+
+[[function.func_8008AC78.mutation]]
+name = "R30: the frame bit 2 tested for 1"
+from = "if ((v.g.vs_main_settings().simpleMap & 2) == 0) {"
+to = "if ((v.g.vs_main_settings().simpleMap & 1) == 0) {"
+
+[[function.func_8008AC78.mutation]]
+name = "R31: the frame's length"
+from = "setTag(frame, 9, 0x5C);"
+to = "setTag(frame, 8, 0x5C);"
+
+[[function.func_8008AC78.mutation]]
+name = "R32: the frame's code"
+from = "setTag(frame, 9, 0x5C);"
+to = "setTag(frame, 9, 0x5D);"
+
+[[function.func_8008AC78.mutation]]
+name = "R33: the frame's pad"
+from = "frame.pad = 0x55555555;"
+to = "frame.pad = 0;"
+
+[[function.func_8008AC78.mutation]]
+name = "R34: the frame's right edge"
+from = "frame.x1 = 313;"
+to = "frame.x1 = 312;"
+
+[[function.func_8008AC78.mutation]]
+name = "R35: the frame's bottom edge"
+from = "frame.y2 = 220;"
+to = "frame.y2 = 221;"
+
+[[function.func_8008AC78.mutation]]
+name = "R36: the frame opaque"
+from = "    setSemiTrans(frame);\n"
+to = "\n"
+
+[[function.func_8008AC78.mutation]]
+name = "R37: the edge line's code"
+from = "setTag(line, 4, 0x50);"
+to = "setTag(line, 4, 0x58);"
+
+[[function.func_8008AC78.mutation]]
+name = "R38: the edge line's top"
+from = "line.y1 = 155;"
+to = "line.y1 = 156;"
+
+[[function.func_8008AC78.mutation]]
+name = "R39: the edge line's bottom"
+from = "line.y0 = 220;"
+to = "line.y0 = 219;"
+
+[[function.func_8008AC78.mutation]]
+name = "R40: the texture page"
+from = "c.pc_insert_tpage(5, 96);"
+to = "c.pc_insert_tpage(5, 97);"
+
+[[function.func_8008AC78.mutation]]
+name = "R41: the texture page depth"
+from = "c.pc_insert_tpage(5, 96);"
+to = "c.pc_insert_tpage(4, 96);"
+
+[[function.func_8008AC78.mutation]]
+name = "R42: the weapon test"
+from = "if (psx.get(v.g.vs_battle_characterState().*).?.weaponDrawn == 1) {"
+to = "if (psx.get(v.g.vs_battle_characterState().*).?.weaponDrawn != 0) {"
+
+[[function.func_8008AC78.mutation]]
+name = "R43: the pulse speed"
+from = "const pulse = @divTrunc(c.rsin(v.g.D_800F1BA0().* << 8), 64);"
+to = "const pulse = @divTrunc(c.rsin(v.g.D_800F1BA0().* << 7), 64);"
+
+[[function.func_8008AC78.mutation]]
+name = "R44: the pulse depth"
+from = "const pulse = @divTrunc(c.rsin(v.g.D_800F1BA0().* << 8), 64);"
+to = "const pulse = @divTrunc(c.rsin(v.g.D_800F1BA0().* << 8), 32);"
+
+[[function.func_8008AC78.mutation]]
+name = "R45: the pulse counter step"
+from = "v.g.D_800F1BA0().* +%= @divTrunc(v.g.vs_gametime_tickspeed().*, 2);"
+to = "v.g.D_800F1BA0().* +%= @divTrunc(v.g.vs_gametime_tickspeed().*, 4);"
+
+[[function.func_8008AC78.mutation]]
+name = "R46: the pulse counter step rounds down"
+from = "v.g.D_800F1BA0().* +%= @divTrunc(v.g.vs_gametime_tickspeed().*, 2);"
+to = "v.g.D_800F1BA0().* +%= v.g.vs_gametime_tickspeed().* >> 1;"
+
+[[function.func_8008AC78.mutation]]
+name = "R47: the red level"
+from = "const red: c_int = 128 -% pulse;"
+to = "const red: c_int = 127 -% pulse;"
+
+[[function.func_8008AC78.mutation]]
+name = "R48: the third corner's red"
+from = "setRgb(frame, 2, red +% 63, 0, 0);"
+to = "setRgb(frame, 2, red +% 64, 0, 0);"
+
+[[function.func_8008AC78.mutation]]
+name = "R49: the edge's first red"
+from = "edge.r0 = psx.conv(u8, red +% 32);"
+to = "edge.r0 = psx.conv(u8, red);"
+
+[[function.func_8008AC78.mutation]]
+name = "R50: the idle counter kept"
+from = "        v.g.D_800F1BA0().* = 0;\n        setRgb(frame, 0, 0, 128, 0);"
+to = "        setRgb(frame, 0, 0, 128, 0);"
+
+[[function.func_8008AC78.mutation]]
+name = "R51: the idle green"
+from = "setRgb(frame, 2, 0, 255, 0);"
+to = "setRgb(frame, 2, 0, 254, 0);"
+
+[[function.func_8008AC78.mutation]]
+name = "R52: the idle edge colour"
+from = "edge.g0 = 192;"
+to = "edge.g0 = 191;"
+
+[[function.func_8008AC78.mutation]]
+name = "R53: the idle edge end colour"
+from = "edge.g1 = 128;"
+to = "edge.g1 = 127;"
+
+[[function.func_8008AC78.mutation]]
+name = "R54: the idle first corner"
+from = "setRgb(frame, 0, 0, 128, 0);"
+to = "setRgb(frame, 0, 0, 129, 0);"
+
+[[function.func_8008AC78.mutation]]
+name = "R55: the map packets taken after the area advanced"
+from = "const mapPackets: *v.DR_AREA = area;"
+to = "const mapPackets: *v.DR_AREA = psx.at(area, 1);"
+
+[[function.func_8008AC78.mutation]]
+name = "R56: the draw area of the other buffer"
+from = "c.SetDrawArea(psx.cptr(c.DR_AREA, area), psx.cptr(c.RECT, &v.g.vs_main_drawEnv()[@intCast((v.g.vs_main_frameBuf().* +% 1) & 1)].clip));"
+to = "c.SetDrawArea(psx.cptr(c.DR_AREA, area), psx.cptr(c.RECT, &v.g.vs_main_drawEnv()[@intCast(v.g.vs_main_frameBuf().* & 1)].clip));"
+
+[[function.func_8008AC78.mutation]]
+name = "R57: the OT entry"
+from = "const base: usize = @intFromPtr(psx.get(scratch().unk4));"
+to = "const base: usize = @intFromPtr(psx.get(scratch().unk8));"
+
+[function.func_8008CEB0]
+spec = "func_8008CEB0.zig"
+iterations = 30000
+
+[[function.func_8008CEB0.coverage_waiver]]
+id = "+76 b1"
+reason = "`if (pc_platform_shadow_native)`: the weak hook is always linked (the native renderer in the game, a recording stub here); its null side never runs"
+
+[[function.func_8008CEB0.coverage_waiver]]
+id = "+85 b1"
+reason = "`if (pc_platform_shadows_end)`: the weak hook is always linked (the native renderer in the game, a recording stub here); its null side never runs"
+
+[[function.func_8008CEB0.mutation]]
+name = "W1: no section still draws"
+expect = "panic"
+from = "if (psx.get(v.g.vs_battle_roomData().section12) == null) return;"
+to = "_ = psx.get(v.g.vs_battle_roomData().section12);"
+
+[[function.func_8008CEB0.mutation]]
+name = "W2: platforms flagged unk0_9 drawn"
+from = "if (psx.getBits(object, \"unk0_9\") != 0) continue;"
+to = "if (psx.getBits(object, \"unk0_9\") == 2) continue;"
+
+[[function.func_8008CEB0.mutation]]
+name = "W3: a platform without sprite drawn"
+from = "if (c.func_8009195C(@as(c_int, psx.getBits(object, \"unk0_0\"))) == null) continue;"
+to = "if (c.func_8009195C(@as(c_int, psx.getBits(object, \"unk0_0\"))) != null) continue;"
+
+[[function.func_8008CEB0.mutation]]
+name = "W4: the sprite of the wrong index"
+from = "c.func_8009195C(@as(c_int, psx.getBits(object, \"unk0_0\")))"
+to = "c.func_8009195C(@as(c_int, psx.getBits(object, \"unk0_9\")))"
+
+[[function.func_8008CEB0.mutation]]
+name = "W5: the cell looked up at 0x40000"
+from = "c.func_8008B764(psx.conv(c_uint, @divTrunc(object.unkA8, 0x80000)),"
+to = "c.func_8008B764(psx.conv(c_uint, @divTrunc(object.unkA8, 0x40000)),"
+
+[[function.func_8008CEB0.mutation]]
+name = "W6: the cell z from x"
+from = "psx.conv(c_uint, @divTrunc(object.unkB0, 0x80000)), 0)"
+to = "psx.conv(c_uint, @divTrunc(object.unkA8, 0x80000)), 0)"
+
+[[function.func_8008CEB0.mutation]]
+name = "W7: the cell's unk0_17 ignored"
+from = "if (psx.getBits(cell_view, \"unk0_17\") != 0 and"
+to = "if ("
+
+[[function.func_8008CEB0.mutation]]
+name = "W8: the cell range is signed"
+from = "psx.conv(c_uint, @as(c_int, psx.getBits(cell_view, \"unk0_0\")) -% 15) >= 4) continue;"
+to = "(@as(c_int, psx.getBits(cell_view, \"unk0_0\")) -% 15) >= 4) continue;"
+
+[[function.func_8008CEB0.mutation]]
+name = "W9: the cell range is 3 wide"
+from = "-% 15) >= 4) continue;"
+to = "-% 15) >= 3) continue;"
+
+[[function.func_8008CEB0.mutation]]
+name = "W10: the height not sign-extended"
+from = "        height <<= 17; // sign-extends the 15-bit height\n        height >>= 17;\n"
+to = "        _ = &height;\n"
+
+[[function.func_8008CEB0.mutation]]
+name = "W11: the height sign-extended from 16 bits"
+from = "height <<= 17; // sign-extends the 15-bit height"
+to = "height <<= 16;"
+
+[[function.func_8008CEB0.mutation]]
+name = "W12: the platform at the floor drawn"
+from = "if (altitude >= height) continue;"
+to = "if (altitude > height) continue;"
+
+[[function.func_8008CEB0.mutation]]
+name = "W13: the altitude from the wrong word"
+from = "x = object.unkAC;"
+to = "x = object.unkA8;"
+
+[[function.func_8008CEB0.mutation]]
+name = "W14: the altitude not negated"
+from = "var altitude: c_int = -%@divTrunc(x, 4096);"
+to = "var altitude: c_int = @divTrunc(x, 4096);"
+
+[[function.func_8008CEB0.mutation]]
+name = "W15: the shade halved to a third"
+from = "var shade: c_int = @divTrunc(height -% altitude, 2);"
+to = "var shade: c_int = @divTrunc(height -% altitude, 3);"
+
+[[function.func_8008CEB0.mutation]]
+name = "W16: the shade clamp at 225"
+from = "if (shade >= 224) shade = 223;"
+to = "if (shade >= 225) shade = 223;"
+
+[[function.func_8008CEB0.mutation]]
+name = "W17: the shade clamp value"
+from = "if (shade >= 224) shade = 223;"
+to = "if (shade >= 224) shade = 224;"
+
+[[function.func_8008CEB0.mutation]]
+name = "W18: the shade not inverted"
+from = "shade = 255 -% shade;"
+to = "shade = 254 -% shade;"
+
+[[function.func_8008CEB0.mutation]]
+name = "W19: the half size grows by shade / 4"
+from = "const half: c_int = 32 +% @divTrunc(shade, 8);"
+to = "const half: c_int = 32 +% @divTrunc(shade, 4);"
+
+[[function.func_8008CEB0.mutation]]
+name = "W20: the half size base"
+from = "const half: c_int = 32 +% @divTrunc(shade, 8);"
+to = "const half: c_int = 33 +% @divTrunc(shade, 8);"
+
+[[function.func_8008CEB0.mutation]]
+name = "W21: the first vertex's z"
+from = "vertices[0].vz = psx.conv(i16, @divTrunc(object.unkB0, 4096) -% half);"
+to = "vertices[0].vz = psx.conv(i16, @divTrunc(object.unkB0, 4096) +% half);"
+
+[[function.func_8008CEB0.mutation]]
+name = "W22: the second vertex's x"
+from = "vertices[1].vx = psx.conv(i16, @divTrunc(object.unkA8, 4096) +% half);"
+to = "vertices[1].vx = psx.conv(i16, @divTrunc(object.unkA8, 4096) -% half);"
+
+[[function.func_8008CEB0.mutation]]
+name = "W23: the third vertex's y"
+from = "vertices[2].vy = psx.conv(i16, height);"
+to = "vertices[2].vy = psx.conv(i16, height +% 1);"
+
+[[function.func_8008CEB0.mutation]]
+name = "W24: the fourth vertex's z"
+from = "vertices[3].vz = psx.conv(i16, @divTrunc(object.unkB0, 4096) +% half);"
+to = "vertices[3].vz = psx.conv(i16, @divTrunc(object.unkB0, 4096) -% half);"
+
+[[function.func_8008CEB0.mutation]]
+name = "W25: the vertices swapped"
+from = "            psx.cptr(c.SVECTOR, &vertices[1]),\n            psx.cptr(c.SVECTOR, &vertices[2]),"
+to = "            psx.cptr(c.SVECTOR, &vertices[2]),\n            psx.cptr(c.SVECTOR, &vertices[1]),"
+
+[[function.func_8008CEB0.mutation]]
+name = "W26: the lowest depth drawn is 4"
+from = "if (depth > 4 and depth < 2048) {"
+to = "if (depth >= 4 and depth < 2048) {"
+
+[[function.func_8008CEB0.mutation]]
+name = "W27: the highest depth drawn is 2048"
+from = "if (depth > 4 and depth < 2048) {"
+to = "if (depth > 4 and depth <= 2048) {"
+
+[[function.func_8008CEB0.mutation]]
+name = "W28: the primitive code"
+from = "tag.code = 0x28;"
+to = "tag.code = 0x2C;"
+
+[[function.func_8008CEB0.mutation]]
+name = "W29: opaque"
+from = "tag.code = tag.code | 0x02; // setSemiTrans(prim, 1)"
+to = "_ = tag.code; // setSemiTrans(prim, 1)"
+
+[[function.func_8008CEB0.mutation]]
+name = "W30: the primitive length"
+from = "psx.setBits(tag, \"len\", 5); // setPolyF4"
+to = "psx.setBits(tag, \"len\", 4); // setPolyF4"
+
+[[function.func_8008CEB0.mutation]]
+name = "W31: the colour is the shade"
+from = "prim.r0 = psx.conv(u8, @divTrunc(shade, 2) +% 16);"
+to = "prim.r0 = psx.conv(u8, shade);"
+
+[[function.func_8008CEB0.mutation]]
+name = "W32: the green keeps the base"
+from = "prim.g0 = psx.conv(u8, @divTrunc(shade, 2) +% 16);"
+to = "prim.g0 = psx.conv(u8, @divTrunc(shade, 2) +% 15);"
+
+[[function.func_8008CEB0.mutation]]
+name = "W33: the blue from the shade alone"
+from = "prim.b0 = psx.conv(u8, @divTrunc(shade, 2) +% 16);"
+to = "prim.b0 = psx.conv(u8, @divTrunc(shade, 2));"
+
+[[function.func_8008CEB0.mutation]]
+name = "W34: the primitive linked at the wrong depth"
+from = "c.AddPrim(otEntry(depth), prim);"
+to = "c.AddPrim(otEntry(depth +% 1), prim);"
+
+[[function.func_8008CEB0.mutation]]
+name = "W35: the cursor not advanced"
+from = "psx.put(&scratch().unk0, prim);"
+to = "\n"
+
+[[function.func_8008CEB0.mutation]]
+name = "W36: the texture page"
+from = "c.pc_insert_tpage(depth, 64);"
+to = "c.pc_insert_tpage(depth, 32);"
+
+[[function.func_8008CEB0.mutation]]
+name = "W37: the native hook given the wrong index"
+from = "const end = native(i, &centre,"
+to = "const end = native(i +% 1, &centre,"
+
+[[function.func_8008CEB0.mutation]]
+name = "W38: the native hook's centre y"
+from = "const centre = [3]c_int{ @divTrunc(object.unkA8, 4096), height, @divTrunc(object.unkB0, 4096) };"
+to = "const centre = [3]c_int{ @divTrunc(object.unkA8, 4096), altitude, @divTrunc(object.unkB0, 4096) };"
+
+[[function.func_8008CEB0.mutation]]
+name = "W39: the native hook's cursor not taken"
+from = "psx.put(&scratch().unk0, @as(?*anyopaque, @ptrCast(end)));"
+to = "_ = end;"
+
+[[function.func_8008CEB0.mutation]]
+name = "W40: the end hook given the cursor at the start"
+from = "if (psx.weak(ShadowsEnd, \"pc_platform_shadows_end\")) |end_hook| end_hook(packets_start, psx.get(scratch().unk0));"
+to = "if (psx.weak(ShadowsEnd, \"pc_platform_shadows_end\")) |end_hook| end_hook(packets_start, packets_start);"
+
+[[function.func_8008CEB0.mutation]]
+name = "W41: the OT entry scaled by 8"
+from = "@as(isize, depth) *% 4"
+to = "@as(isize, depth) *% 8"
+
+[[function.func_8008CEB0.mutation]]
+name = "W42: the shadow count rounded up"
+from = "@as(usize, v.g.vs_battle_roomData().header.section12Len) / @sizeOf(v._mpdRoomSection12)"
+to = "(@as(usize, v.g.vs_battle_roomData().header.section12Len) + @sizeOf(v._mpdRoomSection12) - 1) / @sizeOf(v._mpdRoomSection12)"
+
+[[function.func_8008CEB0.mutation]]
+name = "W43: the matrix not set"
+from = "    c.SetTransMatrix(psx.cptr(c.MATRIX, &scratch().viewMatrix));\n"
+to = "\n"
+
+[[function.func_8008CEB0.mutation]]
+name = "W44: x taken after the division by 0x1000"
+from = "@divTrunc(object.unkA8, 4096) -% half);\n        vertices[0].vy"
+to = "@divTrunc(object.unkA8, 2048) -% half);\n        vertices[0].vy"
+
+[function.func_80075554]
+spec = "func_80075554.zig"
+iterations = 60000
+room = { vs_battle_actors = 256 }
+
+[[function.func_80075554.coverage_waiver]]
+id = "+172 b3"
+reason = "the inner `switch (actor->unk9)` of cases 11, 12, 14 and 18: its default edge is unreachable (the outer case lists exactly those four)"
+
+[[function.func_80075554.mutation]]
+name = "M1: status bit 0x2000000 skips"
+from = "if ((c.func_800A0BE0(i) & 0x1000000) != 0) continue;"
+to = "if ((c.func_800A0BE0(i) & 0x2000000) != 0) continue;"
+
+[[function.func_80075554.mutation]]
+name = "M2: allegiance 5 runs"
+from = "actor.allegiance != 4 and"
+to = "actor.allegiance != 5 and"
+
+[[function.func_80075554.mutation]]
+name = "M3: allegiance 1 runs"
+from = "actor.allegiance != 2 and"
+to = "actor.allegiance != 1 and"
+
+[[function.func_80075554.mutation]]
+name = "M4: mode 2 runs the others"
+from = "v.g.D_800F196C().* != 3) continue;"
+to = "v.g.D_800F196C().* != 2) continue;"
+
+[[function.func_80075554.mutation]]
+name = "M5: the loop stops at 15"
+from = "while (i < 16) : (i +%= 1) {"
+to = "while (i < 15) : (i +%= 1) {"
+
+[[function.func_80075554.mutation]]
+name = "M6: a state of 0x41 is in progress"
+from = "if (actor.unk8 == 0x40) {"
+to = "if (actor.unk8 >= 0x40 and actor.unk8 <= 0x41) {"
+
+[[function.func_80075554.mutation]]
+name = "M7: command 18 not in the group"
+from = "            switch (actor.unk9) {\n                9, 10, 11, 12, 14, 15, 18 => {"
+to = "            switch (actor.unk9) {\n                9, 10, 11, 12, 14, 15 => {"
+
+[[function.func_80075554.mutation]]
+name = "M8: the group's status bit"
+from = "                    if ((c.func_800A0BE0(i) & 0x4000) == 0) state = 0;"
+to = "                    if ((c.func_800A0BE0(i) & 0x8000) == 0) state = 0;"
+
+[[function.func_80075554.mutation]]
+name = "M9: command 23's status mask"
+from = "if ((c.func_800A0BE0(i) & 0x12000000) == 0) state = 0;"
+to = "if ((c.func_800A0BE0(i) & 0x10000000) == 0) state = 0;"
+
+[[function.func_80075554.mutation]]
+name = "M10: commands 20..22's status mask"
+from = "if ((c.func_800A0BE0(i) & 0x4000000) == 0) state = 0;"
+to = "if ((c.func_800A0BE0(i) & 0x6000000) == 0) state = 0;"
+
+[[function.func_80075554.mutation]]
+name = "M11: the unknown running command is silent"
+from = "else => c.vs_main_nop9(0xC1, 0),"
+to = "else => {},"
+
+[[function.func_80075554.mutation]]
+name = "M12: the unknown running command's code"
+from = "else => c.vs_main_nop9(0xC1, 0),"
+to = "else => c.vs_main_nop9(0xC2, 0),"
+
+[[function.func_80075554.mutation]]
+name = "M13: the running state not stored"
+from = "            actor.unk8 = psx.conv(u8, state);\n            if (v.g.D_800F196C().* == 3) c.func_800A4E68(i);\n            continue;"
+to = "            if (v.g.D_800F196C().* == 3) c.func_800A4E68(i);\n            continue;"
+
+[[function.func_80075554.mutation]]
+name = "M14: the running pass does not update in mode 3"
+from = "            if (v.g.D_800F196C().* == 3) c.func_800A4E68(i);\n            continue;"
+to = "            if (v.g.D_800F196C().* != 3) c.func_800A4E68(i);\n            continue;"
+
+[[function.func_80075554.mutation]]
+name = "M15: a state of 0x81 starts"
+from = "if (actor.unk8 != 0x80) continue;"
+to = "if (actor.unk8 < 0x80) continue;"
+
+[[function.func_80075554.mutation]]
+name = "M16: the effect bits start with 0x1000000"
+from = "if ((flags & 0x3000000) != 0) {"
+to = "if ((flags & 0x1000000) != 0) {"
+
+[[function.func_80075554.mutation]]
+name = "M17: the effect is the camera bits"
+from = "psx.conv(c_int, (flags >> 24) & 3)"
+to = "psx.conv(c_int, (flags >> 26) & 3)"
+
+[[function.func_80075554.mutation]]
+name = "M18: the effect bits' mask"
+from = "psx.conv(c_int, (flags >> 24) & 3)"
+to = "psx.conv(c_int, (flags >> 24) & 1)"
+
+[[function.func_80075554.mutation]]
+name = "M19: camera 1 and 2 swapped"
+from = "            1 => c.func_8006D028(i),\n            2 => c.func_8006D064(),"
+to = "            1 => c.func_8006D064(),\n            2 => c.func_8006D028(i),"
+
+[[function.func_80075554.mutation]]
+name = "M20: the camera bits at 25"
+from = "switch ((header(actor) >> 26) & 3) {"
+to = "switch ((header(actor) >> 25) & 3) {"
+
+[[function.func_80075554.mutation]]
+name = "M21: the camera mask"
+from = "switch ((header(actor) >> 26) & 3) {"
+to = "switch ((header(actor) >> 26) & 1) {"
+
+[[function.func_80075554.mutation]]
+name = "M22: the camera cleared too far"
+from = "actor.unkB &= 0xF3; // camera = 0"
+to = "actor.unkB &= 0xE3; // camera = 0"
+
+[[function.func_80075554.mutation]]
+name = "M23: the camera not cleared"
+from = "actor.unkB &= 0xF3; // camera = 0"
+to = "actor.unkB &= 0xFF; // camera = 0"
+
+[[function.func_80075554.mutation]]
+name = "M24: the camera read before the status calls"
+from = "        _ = c.func_800A1108(i, &position);\n        const flags = header(actor);"
+to = "        const flags = header(actor);\n        _ = c.func_800A1108(i, &position);"
+
+[[function.func_80075554.mutation]]
+name = "M25: command 2 above 16"
+from = "                if (actor.unkA >= 16) {\n                    c.func_8009E614(i);"
+to = "                if (actor.unkA > 16) {\n                    c.func_8009E614(i);"
+
+[[function.func_80075554.mutation]]
+name = "M26: command 2 swapped"
+from = "c.func_8009E614(i);"
+to = "c.func_8009E5C4(i);"
+
+[[function.func_80075554.mutation]]
+name = "M27: command 3's angle from the other short"
+from = "c.func_800B6634(i, shortsOfC(actor)[0]);"
+to = "c.func_800B6634(i, shortsOfC(actor)[1]);"
+
+[[function.func_80075554.mutation]]
+name = "M28: command 3's mode"
+from = "_ = c.func_8009FC60(i, -4, null, 0);"
+to = "_ = c.func_8009FC60(i, -4, null, 1);"
+
+[[function.func_80075554.mutation]]
+name = "M29: command 4's mode"
+from = "_ = c.func_8009FC60(i, -3, psx.cptr(c.SVECTOR, &vector), -1);"
+to = "_ = c.func_8009FC60(i, -2, psx.cptr(c.SVECTOR, &vector), -1);"
+
+[[function.func_80075554.mutation]]
+name = "M30: command 4's vector"
+from = "vector.vy = shortsOfC(actor)[0];\n                _ = c.func_8009FC60(i, -3"
+to = "vector.vy = shortsOfC(actor)[1];\n                _ = c.func_8009FC60(i, -3"
+
+[[function.func_80075554.mutation]]
+name = "M31: command 4's last call's arguments swapped"
+from = "c.func_800B668C(i, shortsOfC(actor)[0], shortsOfC(actor)[1]);"
+to = "c.func_800B668C(i, shortsOfC(actor)[1], shortsOfC(actor)[0]);"
+
+[[function.func_80075554.mutation]]
+name = "M32: command 4's shorts swapped"
+from = "c.func_800B668C(i, shortsOfC(actor)[0], shortsOfC(actor)[1]);"
+to = "c.func_800B668C(i, shortsOfC(actor)[1], shortsOfC(actor)[0]);"
+
+[[function.func_80075554.mutation]]
+name = "M33: command 15's speed shift"
+from = "@as(c_int, shortsOfC(actor)[1]) << 12, shortsOfC(actor)[0]);"
+to = "@as(c_int, shortsOfC(actor)[1]) << 11, shortsOfC(actor)[0]);"
+
+[[function.func_80075554.mutation]]
+name = "M34: command 15's aim"
+from = "c.func_800B64CC(i, shortsOfC(actor)[0], @as(c_int, shortsOfC(actor)[1]) << 12, angleToTarget(&target, &position));"
+to = "c.func_800B64CC(i, shortsOfC(actor)[0], @as(c_int, shortsOfC(actor)[1]) << 12, angleToTarget(&position, &target));"
+
+[[function.func_80075554.mutation]]
+name = "M35: the half turn"
+from = "@as(c_int, target.unk0.unk4.vz) -% position.unk0.unk4.vz) +% 0x800;"
+to = "@as(c_int, target.unk0.unk4.vz) -% position.unk0.unk4.vz) +% 0x801;"
+
+[[function.func_80075554.mutation]]
+name = "M36: the aim's x and z swapped"
+from = "return c.ratan2(@as(c_int, target.unk0.unk4.vx) -% position.unk0.unk4.vx, @as(c_int, target.unk0.unk4.vz) -% position.unk0.unk4.vz) +% 0x800;"
+to = "return c.ratan2(@as(c_int, target.unk0.unk4.vz) -% position.unk0.unk4.vz, @as(c_int, target.unk0.unk4.vx) -% position.unk0.unk4.vx) +% 0x800;"
+
+[[function.func_80075554.mutation]]
+name = "M37: command 9's first kind"
+from = "if (stats.unk32 == 2) {"
+to = "if (stats.unk32 == 3) {"
+
+[[function.func_80075554.mutation]]
+name = "M38: command 9's second kind"
+from = "} else if (stats.unk32 == 0x40) {"
+to = "} else if (stats.unk32 == 0x41) {"
+
+[[function.func_80075554.mutation]]
+name = "M39: command 10's first kind"
+from = "if (stats.unk32 == 4) {"
+to = "if (stats.unk32 == 5) {"
+
+[[function.func_80075554.mutation]]
+name = "M40: command 10's second kind"
+from = "} else if (stats.unk32 == 0x80) {"
+to = "} else if (stats.unk32 == 0x81) {"
+
+[[function.func_80075554.mutation]]
+name = "M41: command 9's speed"
+from = "                if (stats.unk32 == 2) {\n                    speed = @as(c_int, stats.unk33) << 12;"
+to = "                if (stats.unk32 == 2) {\n                    speed = @as(c_int, stats.unk31) << 12;"
+
+[[function.func_80075554.mutation]]
+name = "M42: command 9 aims below 16"
+from = "if (actor.unkA < 16) {\n                    _ = c.func_800A1108(actor.unkA, &target);\n                    c.func_800B64CC(i, shortsOfC(actor)[0], speed,"
+to = "if (actor.unkA <= 16) {\n                    _ = c.func_800A1108(actor.unkA, &target);\n                    c.func_800B64CC(i, shortsOfC(actor)[0], speed,"
+
+[[function.func_80075554.mutation]]
+name = "M43: command 10 aims at the target"
+from = "                c.func_800B64CC(i, shortsOfC(actor)[0], speed, shortsOfC(actor)[0]);\n                state"
+to = "                c.func_800B64CC(i, shortsOfC(actor)[0], speed, shortsOfC(actor)[1]);\n                state"
+
+[[function.func_80075554.mutation]]
+name = "M44: the camera byte 0 of unkC in the target"
+from = "target.unk0.unk4.vx = psx.conv(i16, (@as(c_int, bytesOfC(actor)[0]) << 7) +% 0x40);"
+to = "target.unk0.unk4.vx = psx.conv(i16, (@as(c_int, bytesOfC(actor)[1]) << 7) +% 0x40);"
+
+[[function.func_80075554.mutation]]
+name = "M45: the target z shift"
+from = "target.unk0.unk4.vz = psx.conv(i16, (@as(c_int, bytesOfC(actor)[2]) << 7) +% 0x40);"
+to = "target.unk0.unk4.vz = psx.conv(i16, (@as(c_int, bytesOfC(actor)[2]) << 6) +% 0x40);"
+
+[[function.func_80075554.mutation]]
+name = "M46: the target offset"
+from = "target.unk0.unk4.vz = psx.conv(i16, (@as(c_int, bytesOfC(actor)[2]) << 7) +% 0x40);"
+to = "target.unk0.unk4.vz = psx.conv(i16, (@as(c_int, bytesOfC(actor)[2]) << 7) +% 0x20);"
+
+[[function.func_80075554.mutation]]
+name = "M47: command 18's mover"
+from = "18 => c.func_800B6438(i, &actor.unkC, actor.unk10.s32, angle),"
+to = "18 => c.func_800B6404(i, &actor.unkC, actor.unk10.s32, angle),"
+
+[[function.func_80075554.mutation]]
+name = "M48: command 14's mover"
+from = "14 => c.func_800B6404(i, &actor.unkC, actor.unk10.s32, angle),"
+to = "14 => c.func_800B6438(i, &actor.unkC, actor.unk10.s32, angle),"
+
+[[function.func_80075554.mutation]]
+name = "M49: command 11's mover"
+from = "11, 12 => c.func_800B63AC(i, &actor.unkC, actor.unk10.s32, angle),"
+to = "11, 12 => c.func_800B63AC(i, &actor.unkC, actor.unk14, angle),"
+
+[[function.func_80075554.mutation]]
+name = "M50: command 23 aims at the pad"
+from = "angle = position.unk0.unk4.pad;"
+to = "angle = position.unk0.unk4.vx;"
+
+[[function.func_80075554.mutation]]
+name = "M51: command 23's x shift"
+from = "(@as(c_int, psx.getBits(&target.unk0.unk0.fields, \"unk0_0\")) -% bytesOfC(actor)[0]) << 12,"
+to = "(@as(c_int, psx.getBits(&target.unk0.unk0.fields, \"unk0_0\")) -% bytesOfC(actor)[0]) << 11,"
+
+[[function.func_80075554.mutation]]
+name = "M52: command 23's z field"
+from = "(@as(c_int, psx.getBits(&target.unk0.unk0.fields, \"unk0_16\")) -% bytesOfC(actor)[2]) << 12,"
+to = "(@as(c_int, psx.getBits(&target.unk0.unk0.fields, \"unk0_8\")) -% bytesOfC(actor)[2]) << 12,"
+
+[[function.func_80075554.mutation]]
+name = "M53: command 16's kind"
+from = "if (psx.get(actor.stats).?.unk32 == 0x10) {"
+to = "if (psx.get(actor.stats).?.unk32 == 0x11) {"
+
+[[function.func_80075554.mutation]]
+name = "M54: command 17's kind"
+from = "if (psx.get(actor.stats).?.unk32 == 0x20) {"
+to = "if (psx.get(actor.stats).?.unk32 == 0x21) {"
+
+[[function.func_80075554.mutation]]
+name = "M55: command 19's x from the second word"
+from = "vector.vx = psx.conv(i16, @divTrunc(actor.unkC, 4096) -% position.unk0.unk4.vx);"
+to = "vector.vx = psx.conv(i16, @divTrunc(actor.unkC, 2048) -% position.unk0.unk4.vx);"
+
+[[function.func_80075554.mutation]]
+name = "M56: command 19's y source"
+from = "vector.vy = psx.conv(i16, @divTrunc(actor.unk14, 4096) -% position.unk0.unk4.vy);"
+to = "vector.vy = psx.conv(i16, @divTrunc(actor.unk10.s32, 4096) -% position.unk0.unk4.vy);"
+
+[[function.func_80075554.mutation]]
+name = "M57: command 19's z source"
+from = "vector.vz = psx.conv(i16, @divTrunc(actor.unk10.s32, 4096) -% position.unk0.unk4.vz);"
+to = "vector.vz = psx.conv(i16, @divTrunc(actor.unk14, 4096) -% position.unk0.unk4.vz);"
+
+[[function.func_80075554.mutation]]
+name = "M58: command 6's last argument"
+from = "psx.cptr(c.SVECTOR, &vector), shortsOfC(actor)[1]);"
+to = "psx.cptr(c.SVECTOR, &vector), shortsOfC(actor)[0]);"
+
+[[function.func_80075554.mutation]]
+name = "M59: command 7's last argument"
+from = "_ = c.func_8009FC60(i, -4, psx.cptr(c.SVECTOR, &vector), 0x1000);"
+to = "_ = c.func_8009FC60(i, -4, psx.cptr(c.SVECTOR, &vector), 0x800);"
+
+[[function.func_80075554.mutation]]
+name = "M60: command 22's z source"
+from = "@divTrunc(@as(c_int, unk10_short.*), 4096) -% position.unk0.unk4.vz"
+to = "@divTrunc(@as(c_int, unk10_short.*), 4096) -% position.unk0.unk4.vy"
+
+[[function.func_80075554.mutation]]
+name = "M61: command 22's x source"
+from = "vector.vx = psx.conv(i16, @divTrunc(@as(c_int, shortsOfC(actor)[0]), 4096) -% position.unk0.unk4.vx);"
+to = "vector.vx = psx.conv(i16, @divTrunc(@as(c_int, shortsOfC(actor)[1]), 4096) -% position.unk0.unk4.vx);"
+
+[[function.func_80075554.mutation]]
+name = "M62: command 22 ends the pass"
+from = "        state = 0x40;\n                c.func_800B65F4(i, &actor.unkC, angle);"
+to = "        state = 0;\n                c.func_800B65F4(i, &actor.unkC, angle);"
+
+[[function.func_80075554.mutation]]
+name = "M63: command 21's z field"
+from = "@divTrunc(@as(c_int, bytesOfC(actor)[2]), 4096) -% psx.getBits(&position.unk0.unk0.fields, \"unk0_16\")"
+to = "@divTrunc(@as(c_int, bytesOfC(actor)[2]), 4096) -% psx.getBits(&position.unk0.unk0.fields, \"unk0_8\")"
+
+[[function.func_80075554.mutation]]
+name = "M64: command 21's z field"
+from = "@divTrunc(@as(c_int, bytesOfC(actor)[2]), 4096) -% psx.getBits(&position.unk0.unk0.fields, \"unk0_16\")"
+to = "@divTrunc(@as(c_int, bytesOfC(actor)[2]), 4096) -% psx.getBits(&position.unk0.unk0.fields, \"unk0_8\")"
+
+[[function.func_80075554.mutation]]
+name = "M65: command 21's mover"
+from = "c.func_800B65E8(i, &actor.unkC, angle);"
+to = "c.func_800B65F4(i, &actor.unkC, angle);"
+
+[[function.func_80075554.mutation]]
+name = "M66: command 20's angle"
+from = "c.func_800A2574(i, position.unk0.unk4.pad);"
+to = "c.func_800A2574(i, position.unk0.unk4.vx);"
+
+[[function.func_80075554.mutation]]
+name = "M67: command 8's status bit"
+from = "if ((c.func_800A0BE0(i) & 0x200000) == 0) {"
+to = "if ((c.func_800A0BE0(i) & 0x400000) == 0) {"
+
+[[function.func_80075554.mutation]]
+name = "M68: command 8 zeroes only x and y"
+from = "                    vector.vz = 0;\n"
+to = "\n"
+
+[[function.func_80075554.mutation]]
+name = "M69: command 24's index order"
+from = "@as(c_uint, shorts[0]) *% 4 +% shorts[1]"
+to = "@as(c_uint, shorts[1]) *% 4 +% shorts[0]"
+
+[[function.func_80075554.mutation]]
+name = "M70: command 24's row length"
+from = "@as(c_uint, shorts[0]) *% 4 +% shorts[1]"
+to = "@as(c_uint, shorts[0]) *% 6 +% shorts[1]"
+
+[[function.func_80075554.mutation]]
+name = "M71: command 24's zero id"
+from = "if (state == 0) state = 1;"
+to = "if (state == 0) state = 2;"
+
+[[function.func_80075554.mutation]]
+name = "M72: command 24's answer"
+from = "v.g.D_800F19CC().*.?.unk298C == 0xFF)) << 3;"
+to = "v.g.D_800F19CC().*.?.unk298C == 0xFF)) << 4;"
+
+[[function.func_80075554.mutation]]
+name = "M73: command 24 reports the state"
+from = "c.func_80072EC4(actor.id, psx.conv(u16, state));"
+to = "c.func_80072EC4(actor.id, 0);"
+
+[[function.func_80075554.mutation]]
+name = "M74: the unlisted commands keep the state"
+from = "else => state = 0, // case 1 and the rest"
+to = "else => {}, // case 1 and the rest"
+
+[[function.func_80075554.mutation]]
+name = "M75: a nonzero result of any sign ends the pass"
+from = "if (result != 0) return result;"
+to = "if (result > 0) return result;"
+
+[[function.func_80075554.mutation]]
+name = "M76: the update in mode 3 inverted"
+from = "        if (v.g.D_800F196C().* == 3) {\n            c.func_800A4E68(i);"
+to = "        if (v.g.D_800F196C().* != 3) {\n            c.func_800A4E68(i);"
+[function.func_800B516C]
+spec = "buildBlendedWeaponPackets.zig"
+iterations = 12000
+
+[[function.func_800B516C.coverage_waiver]]
+id = "+88 b1"
+reason = "`if (pc_object_native_draw)`: the weak hook is always linked (a stub here, the host renderer in the game); its null side never runs"
+
+[[function.func_800B516C.mutation]]
+name = "P1: the blend mode is masked by 7"
+from = "const mode: c_uint = object[9] & 0xf;"
+to = "const mode: c_uint = object[9] & 0x7;"
+
+[[function.func_800B516C.mutation]]
+name = "P2: modes 1-5 are subtractive"
+from = "else if (mode < 7) 0x400000"
+to = "else if (mode < 6) 0x400000"
+
+[[function.func_800B516C.mutation]]
+name = "P3: the colour is 16 bits"
+from = ".color = word(color, 0) & 0xffffff,"
+to = ".color = word(color, 0) & 0xffff,"
+
+[[function.func_800B516C.mutation]]
+name = "P4: the texture is shifted by 8"
+from = ".tpage_hi = texture << 16,"
+to = ".tpage_hi = texture << 8,"
+
+[[function.func_800B516C.mutation]]
+name = "P5: the CLUT is read from the texture's halfword"
+from = "const clut: c_int = @as(*i16, @ptrFromInt(0x1f800392)).*;"
+to = "const clut: c_int = @as(*i16, @ptrFromInt(0x1f800390)).*;"
+
+[[function.func_800B516C.mutation]]
+name = "P6: the masked group's CLUT offset is 0x400"
+from = "@as(c_int, 0x480)"
+to = "@as(c_int, 0x400)"
+
+[[function.func_800B516C.mutation]]
+name = "P7: the mask bit is the counter's"
+from = "const shift: u5 = @intCast(g.counter - 1);"
+to = "const shift: u5 = @intCast(g.counter);"
+
+[[function.func_800B516C.mutation]]
+name = "P8: triangles take the quad code"
+from = "blendTriangle(&s, if (s.blend != 0) 0x26000000 else 0x24000000,"
+to = "blendTriangle(&s, if (s.blend != 0) 0x27000000 else 0x24000000,"
+
+[[function.func_800B516C.mutation]]
+name = "P9: quads take the next code"
+from = "blendQuad(&s, if (s.blend != 0) 0x2e000000 else 0x2c000000,"
+to = "blendQuad(&s, if (s.blend != 0) 0x2f000000 else 0x2c000000,"
+
+[[function.func_800B516C.mutation]]
+name = "P10: quads bucket two below"
+from = "word(record, 12), word(record, 16), depth, -1, s.blend);"
+to = "word(record, 12), word(record, 16), depth, -2, s.blend);"
+
+[[function.func_800B516C.mutation]]
+name = "P11: a quad at depth 0x7C0 is kept"
+from = "tpage_bits: c_uint) void {\n    if (depth >= 0x7c0) return;\n    const p = s.packet;\n    p[1] = code | s.color;\n    p[2] = xy[0];\n    p[3] = (uv01"
+to = "tpage_bits: c_uint) void {\n    if (depth > 0x7c0) return;\n    const p = s.packet;\n    p[1] = code | s.color;\n    p[2] = xy[0];\n    p[3] = (uv01"
+
+[[function.func_800B516C.mutation]]
+name = "P12: a triangle at depth 0x7C0 is kept"
+from = "    if (depth >= 0x7c0) return;\n    p[4] = xy[1];"
+to = "    if (depth > 0x7c0) return;\n    p[4] = xy[1];"
+
+[[function.func_800B516C.mutation]]
+name = "P13: the triangle's tpage drops the high word"
+from = "p[5] = (uv1 & 0xffff) | s.tpage_hi | tpage_bits;"
+to = "p[5] = (uv1 & 0xffff) | tpage_bits;"
+
+[[function.func_800B516C.mutation]]
+name = "P14: the packet's word count is shifted by 25"
+from = "(words << 24);"
+to = "(words << 25);"
+
+[[function.func_800B516C.mutation]]
+name = "P15: the link keeps 22 bits"
+from = "(psx.addr(packet) & 0xffffff);"
+to = "(psx.addr(packet) & 0x3fffff);"
+
+[[function.func_800B516C.mutation]]
+name = "P16: the diagonal sign is inclusive"
+from = "return @as(c_int, @bitCast(0 -% dot)) > 0;"
+to = "return @as(c_int, @bitCast(0 -% dot)) >= 0;"
+
+[[function.func_800B516C.mutation]]
+name = "P17: split records are those without bit 1"
+from = "if (flags & 1 == 0) {"
+to = "if (flags & 2 == 0) {"
+
+[[function.func_800B516C.mutation]]
+name = "P18: a culled record advances by 0x10"
+from = "record += (header >> 8) & 0xff;"
+to = "record += 0x10;"
+
+[[function.func_800B516C.mutation]]
+name = "P19: the quad code is 0x24"
+from = "if (header & 0xff == 0x2c) {"
+to = "if (header & 0xff == 0x24) {"
+
+[[function.func_800B516C.mutation]]
+name = "P20: the bias is -4"
+from = "*% 4 -% 5;"
+to = "*% 4 -% 4;"
+
+[[function.func_800B516C.mutation]]
+name = "P21: the tpage bits are masked by 0x20"
+from = "((header >> 16) & 0x60) << 16;"
+to = "((header >> 16) & 0x20) << 16;"
+
+[[function.func_800B516C.mutation]]
+name = "P22: the blend bit is 0x200000"
+from = "| 0x100000 | s.blend;"
+to = "| 0x200000 | s.blend;"
+
+[[function.func_800B516C.mutation]]
+name = "P23: the reserved slot is 9 words"
+from = "s.packet = p + 8; // reserved without a link, as in the original"
+to = "s.packet = p + 9; // reserved without a link, as in the original"
+
+[[function.func_800B516C.mutation]]
+name = "P24: the cursor goes back"
+from = "scratch.* = psx.addr(s.packet);"
+to = "scratch.* = psx.addr(start);"
+
+[[function.func_800B516C.mutation]]
+name = "P25: the draw hook is told kind 1"
+from = "draw(2, projected, object, model, color, start);"
+to = "draw(1, projected, object, model, color, start);"
+
+[[function.func_800B516C.mutation]]
+name = "P26: an empty section skips 7 counts"
+expect = "crash"
+from = "counts += 8;"
+to = "counts += 7;"
+
+[[function.func_800B516C.mutation]]
+name = "P27: triangles advance as quads"
+from = "record += if (quad) 0x14 else 0x10;"
+to = "record += 0x14;"
+
+[[function.func_800B516C.mutation]]
+name = "P28: the split quad's cull test is strict"
+from = "if (nclip3(tri[0], tri[1], tri[2]) <= 0) {"
+to = "if (nclip3(tri[0], tri[1], tri[2]) < 0) {"
+
+[[function.func_800B516C.mutation]]
+name = "P29: the split's first diagonal takes z1"
+from = "avsz3(z[0], z[2], z[3])"
+to = "avsz3(z[0], z[1], z[3])"
+
+[[function.func_800B516C.mutation]]
+name = "P30: the diagonal's Z vector comes from z3"
+from = "c.CTC2(z[2] -% z[0], 4);"
+to = "c.CTC2(z[3] -% z[0], 4);"
+
+[[function.func_800B516C.mutation]]
+name = "P31: the mixed record's quad depth is shifted by 5"
+from = "word(projected, 0xc00 + o3)) >> 4;\n                blendQuad(&s, 0x2c000000 | code_bit,"
+to = "word(projected, 0xc00 + o3)) >> 5;\n                blendQuad(&s, 0x2c000000 | code_bit,"
+
+[[function.func_800B516C.mutation]]
+name = "P32: a quad's four depths are three"
+from = "const depth = (word(projected, 0xc00 + o0) +% word(projected, 0xc00 + o1) +% word(projected, 0xc00 + o2) +% word(projected, 0xc00 + o3)) >> 4;\n                    blendQuad(&s, if"
+to = "const depth = (word(projected, 0xc00 + o0) +% word(projected, 0xc00 + o1) +% word(projected, 0xc00 + o2)) >> 4;\n                    blendQuad(&s, if"
+
+[[function.func_800B516C.mutation]]
+name = "P33: the triangle's third UV is the offset's"
+from = "word(record, 8) >> 16, avsz3(z0, z1, z2), -1, s.blend);"
+to = "word(record, 8) & 0xffff, avsz3(z0, z1, z2), -1, s.blend);"
+
+[[function.func_800B516C.mutation]]
+name = "P34: the section-1 vertices are not clipped"
+from = "if (nclip3(xy[0], xy[1], xy[2]) <= 0) continue;"
+to = "if (nclip3(xy[0], xy[1], xy[2]) < 0) continue;"
+
+[[function.func_800B516C.mutation]]
+name = "P35: the mixed triangle takes its third UV from o2"
+from = "word(record, 12) >> 16, @truncate(o3),"
+to = "word(record, 12) >> 16, @truncate(o2),"
+
+[function.func_8009817C]
+spec = "setRoomFarDepth.zig"
+iterations = 2000
+
+[[function.func_8009817C.mutation]]
+name = "D1: near_depth is set instead"
+from = "v.g.far_depth().* = psx.conv(i16, value);"
+to = "v.g.near_depth().* = psx.conv(i16, value);"
+
+[[function.func_8009817C.mutation]]
+name = "D2: the value is masked to 15 bits"
+from = "psx.conv(i16, value)"
+to = "psx.conv(i16, value & 0x7fff)"
+
+[[function.func_8009817C.mutation]]
+name = "D3: the value is clamped to the short range instead of wrapping"
+from = "psx.conv(i16, value)"
+to = "psx.conv(i16, @min(value, 0x7fff))"
+
+[function.func_80098194]
+spec = "setRoomDistanceThreshold.zig"
+iterations = 2000
+
+[[function.func_80098194.mutation]]
+name = "D1: near_depth is set instead"
+from = "v.g.distance_threshold().* = psx.conv(i16, value);"
+to = "v.g.near_depth().* = psx.conv(i16, value);"
+
+[[function.func_80098194.mutation]]
+name = "D2: the value is masked to 15 bits"
+from = "psx.conv(i16, value)"
+to = "psx.conv(i16, value & 0x7fff)"
+
+[[function.func_80098194.mutation]]
+name = "D3: the value is clamped to the short range instead of wrapping"
+from = "psx.conv(i16, value)"
+to = "psx.conv(i16, @min(value, 0x7fff))"
+
+[function.func_800981B8]
+spec = "setRoomClipRect.zig"
+iterations = 3000
+
+[[function.func_800981B8.mutation]]
+name = "C1: left takes top"
+from = "v.g.clip_left().* = psx.conv(i16, left);"
+to = "v.g.clip_left().* = psx.conv(i16, top); _ = left;"
+
+[[function.func_800981B8.mutation]]
+name = "C2: top takes bottom"
+from = "v.g.clip_top().* = psx.conv(i16, top);"
+to = "v.g.clip_top().* = psx.conv(i16, bottom); _ = top;"
+
+[[function.func_800981B8.mutation]]
+name = "C3: right takes left"
+from = "v.g.clip_right().* = psx.conv(i16, right);"
+to = "v.g.clip_right().* = psx.conv(i16, left); _ = right;"
+
+[[function.func_800981B8.mutation]]
+name = "C4: bottom takes right"
+from = "v.g.clip_bottom().* = psx.conv(i16, bottom);"
+to = "v.g.clip_bottom().* = psx.conv(i16, right); _ = bottom;"
+
+[[function.func_800981B8.mutation]]
+name = "C5: bottom is clamped, not wrapped"
+from = "psx.conv(i16, bottom)"
+to = "psx.conv(i16, @min(bottom, 0x7fff))"
+
+[[function.func_800981B8.mutation]]
+name = "C6: top is one too high"
+from = "v.g.clip_top().* = psx.conv(i16, top);"
+to = "v.g.clip_top().* = psx.conv(i16, top +% 1);"
+
+# ---- pc/src/weapon_packets.c
+
+[function.func_800B196C]
+spec = "composeRotationInPlace.zig"
+iterations = 4000
+
+[[function.func_800B196C.mutation]]
+name = "M1: the first component of a column comes from row 1"
+from = "psx.conv(u16, right.m[0][column]);"
+to = "psx.conv(u16, right.m[1][column]);"
+
+[[function.func_800B196C.mutation]]
+name = "M2: the second row stores MAC3"
+from = "result.*.m[1][column] = psx.conv(i16, c.MFC2(10));"
+to = "result.*.m[1][column] = psx.conv(i16, c.MFC2(11));"
+
+[[function.func_800B196C.mutation]]
+name = "M3: the RTV0 command is off by one"
+from = "_ = c.doCOP2(0x0486012); // gte_rtv0"
+to = "_ = c.doCOP2(0x0486013); // gte_rtv0"
+
+[[function.func_800B196C.mutation]]
+name = "M4: the copy is taken from a"
+from = "const right: c.MATRIX = b.*;"
+to = "const right: c.MATRIX = a.*; _ = b;"
+
+[[function.func_800B196C.mutation]]
+name = "M5: the rotation set is b's"
+from = "c.SetRotMatrix(a);"
+to = "c.SetRotMatrix(b); _ = a;"
+
+[[function.func_800B196C.mutation]]
+name = "M6: the result is a"
+from = "return composeRotation(a, b, b);"
+to = "return composeRotation(a, b, a);"
+
+[[function.func_800B196C.mutation]]
+name = "M7: Z goes to VXY0"
+from = "c.MTC2(vz, 1);"
+to = "c.MTC2(vz, 0);"
+
+[[function.func_800B196C.mutation]]
+name = "M8: column 2 is skipped"
+from = "var column: usize = 3;"
+to = "var column: usize = 2;"
+
+[[function.func_800B196C.mutation]]
+name = "M9: the packed X and Y are shifted by 8"
+from = "c.MTC2(vx | (vy << 16), 0);"
+to = "c.MTC2(vx | (vy << 8), 0);"
+
+[function.func_800B396C]
+spec = "scaleMatrixColumns.zig"
+iterations = 3000
+
+[[function.func_800B396C.mutation]]
+name = "S1: the factors' Y and Z swapped"
+from = "scale.*.vx, scale.*.vy, scale.*.vz };"
+to = "scale.*.vx, scale.*.vz, scale.*.vy };"
+
+[[function.func_800B396C.mutation]]
+name = "S2: the last column is left"
+from = "while (column < 3) : (column += 1) {"
+to = "while (column < 2) : (column += 1) {"
+
+[[function.func_800B396C.mutation]]
+name = "S3: row 1 is loaded from row 2"
+from = "c.MTC2(@bitCast(@as(c_int, matrix.*.m[1][column])), 10);"
+to = "c.MTC2(@bitCast(@as(c_int, matrix.*.m[2][column])), 10);"
+
+[[function.func_800B396C.mutation]]
+name = "S4: row 2 stores MAC2"
+from = "matrix.*.m[2][column] = psx.conv(i16, c.MFC2(11));"
+to = "matrix.*.m[2][column] = psx.conv(i16, c.MFC2(10));"
+
+[[function.func_800B396C.mutation]]
+name = "S5: the GPF command is off by one"
+from = "_ = c.doCOP2(0x0198003D); // gte_gpf12"
+to = "_ = c.doCOP2(0x0198003E); // gte_gpf12"
+
+[[function.func_800B396C.mutation]]
+name = "S6: an entry is zero-extended"
+from = "c.MTC2(@bitCast(@as(c_int, matrix.*.m[0][column])), 9);"
+to = "c.MTC2(@as(c_uint, @as(u16, @bitCast(matrix.*.m[0][column]))), 9);"

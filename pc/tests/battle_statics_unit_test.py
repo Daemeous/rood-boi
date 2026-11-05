@@ -109,5 +109,10 @@ with tempfile.TemporaryDirectory() as d:
         else:
             print(f"skip: {bits}-bit link (no {bits}-bit libc here)")
 
+# room_render.c declares several statics in one declaration with initializers.
+listed = b"static short near_depth = 8, far_depth = 0x7ff, clip_top;\nstatic int f(void) { int far2 = 1; return far2; }\n"
+check([battle_statics.declared(listed, n) for n in ("near_depth", "far_depth", "clip_top", "far2")] == [True, True, True, False],
+      "declared: every declarator of a static list with initializers, not a function's local")
+
 print("FAILED" if failures else "battle statics (pc/src unit) checks passed")
 sys.exit(1 if failures else 0)

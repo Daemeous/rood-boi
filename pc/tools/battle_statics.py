@@ -240,8 +240,9 @@ def _scoped(obj, work):
 def declared(source, name):
     """Whether the preprocessed unit declares a static `name` (a static of one
     configuration only, 146C's `sp20` under ROOD_PC_LP64, is absent from the
-    other's object)."""
-    return re.search(rb"\bstatic\b[^;{}()=]*[\s*]" + re.escape(name.encode()) + rb"\s*[\[;=,]", source) is not None
+    other's object). A later declarator of a list with initializers counts:
+    `static short near_depth = 8, far_depth = 0x7ff;` declares `far_depth`."""
+    return re.search(rb"\bstatic\b[^;{}()]*[\s*,]" + re.escape(name.encode()) + rb"\s*[\[;=,]", source) is not None
 
 
 def configured(views, entries, source):

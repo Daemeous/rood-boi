@@ -45,8 +45,8 @@ its own files 19), skipped 112 of 165 (full lane)`.
 then every suite: null (the CPU-safe ones), Vulkan and OpenGL, long suites
 included. The suites that run no game (CTest with `ctest_long`, lints, unit
 tests) run once, on Vulkan; OpenGL gets `run.py --game-only`. `ctest_long`
-(ten zig_diff shards of 15-20 minutes, four at a time, and the port pipeline)
-takes about an hour: its timeout is 4800 s.
+(28 zig_diff shards, four at a time, and the port pipeline)
+takes about 2.5 hours: its timeout is 4 h.
 
 Each step prints one line (result, seconds, the suite's pass count, the log
 under `pc/build/verify/`). With `ROOD_HEAVY_LOCK` set, every step holds that

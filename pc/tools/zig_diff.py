@@ -96,9 +96,10 @@ COVERAGE_FLAGS = ["--coverage", "-fsanitize-coverage=trace-cmp", "-fsanitize=thr
 # GCC's block-move libcalls run as themselves too: a large struct copy
 # (`*source = *result`, 0x84C bytes, in 146C's func_80085B10) is a memcpy
 # call under GCC 16 where GCC 13 copied inline, and the game links libc's.
+# snprintf: charge_skip.inc's trace (variadic: a recording stub cannot take it).
 # memcmp: 4A0A8's func_800B6778 calls it unprototyped (`int memcmp()`), so a
 # stub would see no arguments; libc's compares the bytes the spec placed.
-LIBC = {"__stack_chk_fail", "sprintf", "strlen", "memcpy", "memmove", "memset", "memcmp"}
+LIBC = {"__stack_chk_fail", "sprintf", "snprintf", "strlen", "memcpy", "memmove", "memset", "memcmp"}
 # The libc functions main.zig calls itself (snapshot, restore and report
 # go through memcpy and printf) are never stubs: a recording stub of the
 # same name would take over the harness's own calls (an unrestored state).
@@ -359,6 +360,13 @@ class Build:
             else:
                 text_ += copy
             source = text_.encode()
+        # GCC drops or folds a file static the kept bodies only write or only read
+        # (room_render.c's setters, charge_skip.inc's hold state in 146C): take
+        # each one's address, so its globalised name exists and holds real storage.
+        keep_statics = [n for n in battle_statics.file_statics(self.unit_o, self.unit_i.stem)
+                        if battle_statics.declared(source, n)]
+        source += "".join(f"\n__attribute__((used)) static const void* const zdiff_keep_{n} = &{n};"
+                          for n in keep_statics).encode() + b"\n"
         ref_c.write_bytes(source)
         ref_o = ref_c.with_suffix(".o")
         flags = C_FLAGS
@@ -869,8 +877,9 @@ def coverage_verdict(report, threshold, waivers, values_gate=True):
     return ok, lines
 
 
-def run_harness(exe, iterations, seed, build):
-    result = subprocess.run([str(exe), str(iterations), str(seed)], capture_output=True, text=True, timeout=600)
+def run_harness(exe, iterations, seed, build, max_mismatches=None):
+    extra = [str(max_mismatches)] if max_mismatches else []
+    result = subprocess.run([str(exe), str(iterations), str(seed), *extra], capture_output=True, text=True, timeout=600)
     return result.returncode, build.name_address(exe, result.stdout + result.stderr)
 
 
@@ -916,10 +925,16 @@ def check_function(function, entry, args, table, out):
             print(f"FAIL: {function}: mutation {mutation['name']}: {error}")
             ok = False
             continue
-        code, text = run_harness(exe, iterations, args.seed, build)
+        # A mutation expected only as a mismatch stops at its first; one expected to crash or
+        # panic runs on (some mismatch first and crash later).
+        only_mismatch = (expect if isinstance(expect, list) else [expect]) == ["mismatch"]
+        code, text = run_harness(exe, iterations, args.seed, build, max_mismatches=1 if only_mismatch else None)
         first = next((l for l in text.splitlines() if "MISMATCH" in l or "PANIC" in l or "CRASH" in l), "")
-        caught = {"mismatch": code == 1 and "MISMATCH" in text, "panic": code == 3 and "PANIC" in text,
-                  "crash": code == 4 and "CRASH" in text}[expect]
+        outcomes = {"mismatch": code == 1 and "MISMATCH" in text, "panic": code == 3 and "PANIC" in text,
+                    "crash": code == 4 and "CRASH" in text}
+        # A list accepts any of its outcomes: a wild read crashes or reads mapped memory
+        # depending on the harness's layout.
+        caught = any(outcomes[e] for e in (expect if isinstance(expect, list) else [expect]))
         print(("ok:   " if caught else "FAIL: ") + f"{function}: mutation {mutation['name']}: "
               + (f"caught: {first.removeprefix('zdiff: ')}" if caught else f"not caught as {expect} (exit {code}): {text[-400:]}"))
         ok = ok and caught

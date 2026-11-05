@@ -217,8 +217,9 @@ def first_line(text):
 
 
 def caught(code, text, expect):
-    return {"mismatch": code == 1 and "MISMATCH" in text, "panic": code == 3 and "PANIC" in text,
-            "crash": code == 4 and ("CRASH" in text or "UNEXPECTED" in text)}.get(expect, False)
+    outcomes = {"mismatch": code == 1 and "MISMATCH" in text, "panic": code == 3 and "PANIC" in text,
+                "crash": code == 4 and ("CRASH" in text or "UNEXPECTED" in text)}
+    return any(outcomes.get(e, False) for e in (expect if isinstance(expect, list) else [expect]))  # a list: any of them
 
 
 def detected(code, text):

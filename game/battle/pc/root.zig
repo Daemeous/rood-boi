@@ -3,6 +3,7 @@
 //! a port adds its `pub const` line under its file's header, in address order.
 
 // pc/src/actor_blend.c
+pub const blend_animation_records = @import("blend_animation_records.zig");
 
 // pc/src/actor_cleanup.c
 pub const reset_actor_values = @import("reset_actor_values.zig");
@@ -31,6 +32,8 @@ pub const project_object_vertices = @import("project_object_vertices.zig");
 
 // pc/src/battle_gte.c
 pub const facing_cosine = @import("facing_cosine.zig");
+pub const weighted_sum = @import("weighted_sum.zig");
+pub const draw_menu_target_shape = @import("draw_menu_target_shape.zig");
 
 // pc/src/battle_helpers.c
 pub const send_actor_value = @import("send_actor_value.zig");
@@ -55,6 +58,7 @@ pub const navigation_floor = @import("navigation_floor.zig");
 pub const actor_conditions = @import("actor_conditions.zig");
 pub const ai_driver = @import("ai_driver.zig");
 pub const actor_disposition = @import("actor_disposition.zig");
+pub const idle_hook = @import("idle_hook.zig");
 
 // pc/src/battle_motion.c
 pub const look_request = @import("look_request.zig");
@@ -101,6 +105,7 @@ pub const ground_height_at_position = @import("ground_height_at_position.zig");
 pub const ground_height_of_tile = @import("ground_height_of_tile.zig");
 pub const issue_command = @import("issue_command.zig");
 pub const leave_engaged = @import("leave_engaged.zig");
+pub const enter_engaged = @import("enter_engaged.zig");
 pub const reaction_pick = @import("reaction_pick.zig");
 pub const record_step_tile = @import("record_step_tile.zig");
 pub const reset_step_plan = @import("reset_step_plan.zig");
@@ -133,10 +138,17 @@ pub const clear_actor_targets = @import("clear_actor_targets.zig");
 pub const alloc_detour_record = @import("alloc_detour_record.zig");
 
 // pc/src/boot_sdk.c
+pub const room_transform = @import("room_transform.zig");
+pub const draw_room_background = @import("draw_room_background.zig");
+pub const room_group_matrices = @import("room_group_matrices.zig");
+pub const actor_rotation_matrix = @import("actor_rotation_matrix.zig");
+pub const squared_component_sum = @import("squared_component_sum.zig");
 
 // pc/src/effect_particles.c
+pub const draw_particles = @import("draw_particles.zig");
 
 // pc/src/map_view.c
+pub const draw_area_map_screen = @import("draw_area_map_screen.zig");
 
 // pc/src/navigation.c
 pub const exit_links = @import("exit_links.zig");
@@ -145,12 +157,24 @@ pub const navigation_grid = @import("navigation_grid.zig");
 pub const tile_height = @import("tile_height.zig");
 
 // pc/src/room_geometry.c
+pub const draw_room_groups = @import("draw_room_groups.zig");
+pub const tint_room_packets = @import("tint_room_packets.zig");
+pub const room_name_table = @import("room_name_table.zig");
+pub const draw_area_map = @import("draw_area_map.zig");
+pub const geometry_offset = @import("geometry_offset.zig");
 
 // pc/src/room_lighting.c
 pub const room_light_at = @import("room_light_at.zig");
 pub const room_light_triangle = @import("room_light_triangle.zig");
 
 // pc/src/room_render.c
+pub const set_room_near_depth = @import("set_room_near_depth.zig");
 
 // pc/src/weapon_packets.c
 pub const build_weapon_packets = @import("build_weapon_packets.zig");
+pub const build_blended_weapon_packets = @import("build_blended_weapon_packets.zig");
+pub const set_room_far_depth = @import("set_room_far_depth.zig");
+pub const set_room_distance_threshold = @import("set_room_distance_threshold.zig");
+pub const set_room_clip_rect = @import("set_room_clip_rect.zig");
+pub const compose_rotation = @import("compose_rotation.zig");
+pub const scale_matrix_columns = @import("scale_matrix_columns.zig");

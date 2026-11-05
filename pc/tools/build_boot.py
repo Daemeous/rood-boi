@@ -2700,7 +2700,8 @@ if battle:
                     str(out / (n + ".o"))
                     for n in [name, "sdk", "gte", "libgte", "inline"]
                 ],
-                *orig_aliases([str(out / (name + ".o"))]),
+                # sdk.o too: a routed boot_sdk.c function is its F__orig there (the probe tests the C).
+                *orig_aliases([str(out / (n + ".o")) for n in [name, "sdk"]]),
                 "-o",
                 str(out / (name + "_probe")),
             ]

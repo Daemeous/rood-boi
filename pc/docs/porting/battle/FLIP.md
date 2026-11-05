@@ -343,6 +343,26 @@ then on each owned change is checked against the oracle with the settings at the
 - **Q8 (what the tests prove).** The `Zig` column is a text search; the `S`/`L` columns are blank;
   `state` is read from the code, not measured. The table is a work list for steps 4 to 6, not a result.
 
+### Answers (2026-11-04)
+
+- **Q1:** yes, the end state. The Zig ports keep the `pc_classic_site` / `pc_hud_*` calls through
+  `psx.weak`; only the C text goes. `pc_emote_record` moves to `pc/src/hud_bridge.c`.
+- **Q2:** a setting, `hud_label_opaque` (default on: the PC's opaque label; off draws the original
+  `0x180`). `INERT_PINS` pins it off.
+- **Q3:** keep them. Room warp, the story viewer and the room checkpoint stay as calls in the Zig ports
+  (`func_80089DC0`, `vs_battle_exec`); only the C copies go. Quit to title stays in the SLUS C.
+- **Q4:** a setting, `opacity_2d` (dev-tools panel and RPC); `ROOD_OPACITY_2D` stays as an override.
+  `INERT_PINS` pins the setting.
+- **Q5:** recipes only for features that change compared state: F1 (its `features` profile), room
+  warp, and the HUD with a claim honoured. The rest are accepted on the shadow runs.
+- **Q6:** `boot_sdk.c` does not block the flip.
+- **Q7:** one sweep of the `.inc` files and the INITBTL/MAINMENU overlays before the flip, listing
+  their hooks here.
+- **Q8:** steps 4 to 6 fill the `S`/`L` columns from the shadow runs, so the table records results.
+- **Also before the flip:** the two uninitialised reads (`skipCameraUpdate` in `vs_battle_exec`,
+  `previousArea` in `func_800A5280`) take the value the compiled PS1 code leaves there (read from its
+  assembly), and the Zig matches it.
+
 ## Appendix: every block
 
 Line numbers are those of `9a402e6`. Files are in `src/BATTLE/BATTLE.PRG/` except `main.c` and `25AC.c`

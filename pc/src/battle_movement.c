@@ -554,8 +554,9 @@ static int behaviour_800DBB98(void* state)
     return 1;
 }
 /* 72B70.s behaviour D_800DBC0C: when func_800D826C holds let func_800DA1D4
- * claim the frame; otherwise approach actor 0 within 0x100. */
-static int behaviour_800DBC0C(void* state)
+ * claim the frame; otherwise approach actor 0 within 0x100. Not static:
+ * func_800DC210's Zig port stores its address. */
+int behaviour_800DBC0C(void* state)
 {
     if (func_800D826C(state)) {
         int result = func_800DA1D4(state);

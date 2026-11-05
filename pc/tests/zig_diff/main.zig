@@ -11,7 +11,8 @@
 //! an address) and a hash of all state regions at that moment, so a write
 //! moved across a call, a dropped hook or a changed argument all show.
 //!
-//! argv: ITERATIONS SEED. Exit 0: no mismatch; 1: mismatches; 3: the port
+//! argv: ITERATIONS SEED [MAX_MISMATCHES, default 1000: a mutation run stops at
+//! its first]. Exit 0: no mismatch; 1: mismatches; 3: the port
 //! panicked; 4: a crash (a spec bug or a port fault).
 //!
 //! The coverage lane (`gen.coverage`, zig_diff.py --coverage) runs only the
@@ -84,7 +85,9 @@ fn hashRegions() u64 {
 }
 
 // ---------------------------------------------------------------- trace
-const Entry = struct { id: u16, n: u16, args: [10]u64, state: u64 };
+// As many arguments as route.withSignature takes (pc_particles_native_node has 11).
+const max_args = 11;
+const Entry = struct { id: u16, n: u16, args: [max_args]u64, state: u64 };
 const trace_capacity = 4096;
 var traces: [2][trace_capacity]Entry = undefined;
 var trace_len: [2]usize = .{ 0, 0 };
@@ -130,7 +133,7 @@ fn callArity(comptime name: []const u8, comptime count: usize) usize {
 fn record(id: u16, args: anytype, comptime count: usize) void {
     var e = Entry{ .id = id, .n = count, .args = @splat(0), .state = 0 };
     inline for (0..count) |i| {
-        if (i < 10) e.args[i] = (if (textArgument(id, i, args[i])) |h| h else word(args[i])) & argMask(id, i);
+        if (i < max_args) e.args[i] = (if (textArgument(id, i, args[i])) |h| h else word(args[i])) & argMask(id, i);
     }
     if (!@hasDecl(spec, "hash_at_calls") or spec.hash_at_calls) e.state = hashRegions();
     const n = trace_len[side];
@@ -375,7 +378,7 @@ fn compareTraces() void {
                 @as(c_ulonglong, iteration), i, stubName(x.id), stubName(y.id) });
             return;
         }
-        for (0..@min(x.n, 10)) |k| { // record logs the first 10 arguments
+        for (0..@min(x.n, max_args)) |k| { // record logs the first max_args arguments
             if (uninitialisedArgument(x.id, k)) continue;
             if (x.args[k] != y.args[k]) {
                 report("zdiff: MISMATCH iteration %llu: call %zu (%s): argument %zu: C %#llx, Zig %#llx\n", .{
@@ -498,6 +501,7 @@ export fn main(argc: c_int, argv: [*][*:0]u8) c_int {
     }
     const iterations = strtoull(argv[1], null, 0);
     const seed = strtoull(argv[2], null, 0);
+    const max_mismatches: u64 = if (argc > 3) strtoull(argv[3], null, 0) else 1000;
     const action = SigAction{ .handler = onSignal, .flags = SA_SIGINFO };
     for ([_]c_int{ 4, 7, 8, 11 }) |sig| _ = sigaction(sig, &action, null); // SIGILL, SIGBUS, SIGFPE, SIGSEGV
     // The PS1 scratchpad, which the decompilation addresses by number, and
@@ -576,7 +580,7 @@ export fn main(argc: c_int, argv: [*][*:0]u8) c_int {
             if (mismatches == before_count and R != void and compare_return and
                 !std.mem.eql(u8, std.mem.asBytes(&expected), std.mem.asBytes(&actual)))
                 report("zdiff: MISMATCH iteration %llu: return value\n", .{@as(c_ulonglong, iteration)});
-            if (mismatches >= 1000) break;
+            if (mismatches >= max_mismatches) break;
         }
     }
     if (coverage) zdiff_cov_dump();

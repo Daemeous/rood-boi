@@ -930,8 +930,11 @@ def toml_entry(plan, entry, model):
 
 
 def render_subsystem(name, sub):
-    funcs = "\n".join(f'    {{ addr = {f["addr"]:#010X}, name = "{f["name"]}", zig = "{f["zig"]}" }},'.replace("0X", "0x")
-                      for f in sub["functions"])
+    def row(f):  # host rows (a C-only name with no PS1 address) keep their own form
+        if f.get("host"):
+            return f'    {{ name = "{f["name"]}", host = true, zig = "{f["zig"]}" }},'
+        return f'    {{ addr = {f["addr"]:#010X}, name = "{f["name"]}", zig = "{f["zig"]}" }},'.replace("0X", "0x")
+    funcs = "\n".join(row(f) for f in sub["functions"])
 
     def lst(items):
         return "[" + ", ".join(f'"{i}"' for i in items) + "]"
@@ -956,7 +959,7 @@ def write_ownership(plan):
     sub["views"].setdefault("globals", [])
     sub["functions"] = [f for f in sub["functions"] if f["name"] != plan.name] + [
         {"addr": plan.address, "name": plan.name, "zig": f"{plan.module}.{plan.zig_name}"}]
-    sub["functions"].sort(key=lambda f: f["addr"])
+    sub["functions"].sort(key=lambda f: (1, 0, f["name"]) if f.get("host") else (0, f["addr"], ""))
     sub["views"]["types"] = sorted(set(sub["views"]["types"]) | set(plan.types))
     sub["views"]["globals"] = sorted(set(sub["views"]["globals"]) | set(plan.globals))
     block = render_subsystem(name, sub)

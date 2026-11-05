@@ -131,7 +131,7 @@ CTEST_LONG = "^(zig_diff|port_pipeline)"
 
 def zig_diff_changed(functions, scale=1.0):
     """ctest_long in the quick lane: zig_diff on the specs the change affects
-    (affected.py Lane.zig) and ctest_long's other entries, not the twenty shards."""
+    (affected.py Lane.zig) and ctest_long's other entries, not the 28 shards."""
     # ~25 s a spec with its mutations and coverage, three at a time; zig_diff_coverage ~1.5 min beside them
     timeout = max(900, 300 + 25 * -(-len(functions) // 3))
     return Suite("zig_diff_changed", [PY, str(TESTS / "zig_diff_changed.py"), *functions], timeout * scale,
@@ -171,7 +171,7 @@ def suites(args, mode="egl"):
                   TESTS / "state_rewind_test.c", ROOT / "pc/src/state_rewind.c",
                   TESTS / "input_record_test.c", ROOT / "pc/src/input_record.c"]),
         # --no-tests=error: an unconfigured pc/build (a fresh worktree) finds no test and must fail, not pass
-        # twenty zig_diff shards of ~18-27 min, four at a time, beside the port pipeline's ~37 min:
+        # 28 zig_diff shards (~13-20 min each since 1897 specs), four at a time, beside the port pipeline's ~37 min:
         # ~2.5 h on a loaded machine (2 h cut the last shard and the pipeline off twice in Nov 2026)
         Suite("ctest_long", ["ctest", "--test-dir", str(ROOT / "pc/build"), "--no-tests=error", "--output-on-failure", "-j", "4",
                              "-R", CTEST_LONG], 4 * 3600, binary=None,
