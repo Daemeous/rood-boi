@@ -1227,6 +1227,10 @@ def make_parser():
                         default=os.environ.get("ROOD_RENDERER") if os.environ.get("ROOD_RENDERER") in ("gl", "vulkan", "null") else None,
                         help="vulkan (64-bit; the default there), gl (the 32-bit build's only one, and the default "
                              "there), or null (CPU-only oracle suites)")
+    parser.add_argument("--play", action="store_true", default=os.environ.get("ROOD_PLAY", "0") == "1",
+                        help="play mode (also ROOD_PLAY=1; pc/tools/play_mode.py): the efficiency cores only, idle "
+                             "scheduling, one game suite and one other at a time, timeouts doubled: the game "
+                             "played meanwhile keeps the machine")
     parser.add_argument("--no-snapshots", action="store_true",
                         default=os.environ.get("ROOD_TEST_SNAPSHOTS", "1") == "0",
                         help="boot every suite from scratch: no save states of the test checkpoints "
@@ -1255,6 +1259,12 @@ def default_args():
 
 def main():
     args = make_parser().parse_args()
+    if args.play and not args.list:
+        import play_mode
+        print(play_mode.apply(), flush=True)
+        os.environ["ROOD_PLAY"] = "1"
+        args.jobs = args.gpu_jobs = args.heavy_jobs = args.cpu_jobs = 1
+        args.timeout_scale *= 2
     if args.wait_cool:
         ThermalGate(args).wait("the next step")
         return 0

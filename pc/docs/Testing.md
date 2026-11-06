@@ -177,6 +177,20 @@ C), at most `--thermal-wait` (900 s) at a time; the running suites go on.
 The summary line says how long it waited. `run.py --wait-cool` only waits
 (`verify.sh` runs it before every step); `--thermal-pause 0` turns it off.
 
+### Play mode
+
+`run.py --play` (or `ROOD_PLAY=1`) is for running tests while someone plays:
+the runner and everything it starts are confined to the efficiency cores
+(`/sys/devices/cpu_atom/cpus`; 8-19 on a Core Ultra 7 265K) and put in the
+idle scheduling class (SCHED_IDLE: they get only CPU time nothing else
+wants), one game suite and one other run at a time, and every timeout is
+doubled. Anything else runs the same way under
+`python3 pc/tools/play_mode.py -- COMMAND...` (builds, `zig_diff.py`,
+`differ.py`, `verify.sh`); a `run.py` inside keeps the play-mode limits.
+`ROOD_PLAY_CPUS=8-15` picks the CPUs, `ROOD_PLAY_IDLE=0` keeps the normal
+scheduling class. The GPU is shared still: game suites ask for a low GPU
+priority (`ROOD_GPU_PRIORITY=low`), and only one runs at a time.
+
 ## Waiting in a suite
 
 A suite waits for something the game reports, never for a guessed number of
