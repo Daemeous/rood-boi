@@ -821,6 +821,9 @@ def suites(args, mode="egl"):
               note="depth of field on the camera subject (the default): Ashley in the field (as On Ashley), an "
                    "enemy's caster from its wind-up (eased, sharper than on Ashley), Ashley after; a rule as data; "
                    "the targeted actor"),
+        Suite("dof_loading_smoke", [PY, str(TESTS / "dof_loading_smoke.py"), "--card", str(args.save)], 300,
+              note="depth of field on, a save loaded from the title: the loading screen (no 3D) keeps the lens "
+                   "blur off (no_3d), the room after it has it again"),
         Suite("occlusion_smoke", [PY, str(TESTS / "occlusion_smoke.py"), "--card", str(args.save)], 300,
               note="occlusion in play: a beam hiding Ashley fades around her (eased, a stable dither, the rest "
                    "solid), silhouettes tint her hidden pixels; in battle a wall hiding an enemy near her fades"),

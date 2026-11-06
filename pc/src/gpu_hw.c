@@ -4806,6 +4806,12 @@ static float present_fade, present_fade_rect[4]; /* the shown picture's (hw_targ
  * presenters put the held picture of the world behind the model (gl_present.c
  * / vk_present.c backdrop) on exactly the presents that show such a frame. */
 static int present_menu_model;
+/* The shown frame drew 3D (recorded triangles with a world position). The
+ * loading screen, the title's and other 2D-only screens draw none: the post
+ * stack keeps the lens blur off them (post_profile.cpp lens_blur_gate), as
+ * an uploaded backdrop at far depth would otherwise be blurred whole. */
+static int present_world;
+int pc_hw_present_world(void) { return pc_hw_active && present_world; }
 void pc_hw_frame_menu_model(int on)
 {
     if (pc_hw_active)
@@ -5864,6 +5870,7 @@ static GLuint hw_target(void)
     present_fade = recordings[newest].fade; /* the newest frame's screen fade (interpolated below) */
     memcpy(present_fade_rect, recordings[newest].fade_rect, sizeof present_fade_rect);
     present_menu_model = recordings[newest].menu_model;
+    present_world = recordings[newest].triangle_count > 0;
     if (redraw_shown) { /* pc_hw_redraw_present */
         shown_rect[0] = redraw_origin[0], shown_rect[1] = redraw_origin[1];
         presenting_replay = 1;

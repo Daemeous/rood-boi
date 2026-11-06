@@ -336,7 +336,7 @@ class QuickLaneTest(unittest.TestCase):
         merges = log.stdout.split()
         if log.returncode or len(merges) < 5:
             self.skipTest("no merge history here")
-        runner = {"pc/tests/run.py", "pc/tests/affected.py", "pc/tests/affected.toml"}
+        runner = {"pc/tests/run.py", "pc/tests/affected.py", "pc/tests/affected.toml", "pc/tests/affected_test.py"}
         total = len(self.lanes["vulkan"])
         counts = []
         for merge in merges:

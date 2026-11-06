@@ -44,6 +44,7 @@ extern int pc_ui_menu_active(void) __attribute__((weak)); /* ui/menu_bridge.c: t
 extern int pc_option_peek_active(void) __attribute__((weak)); /* ui/option_peek.h: the Option pages' preview */
 extern float pc_hw_present_fade(float rect[4]) __attribute__((weak)); /* gpu_hw.c: the shown picture's screen fade */
 extern int pc_hw_present_menu_model(void) __attribute__((weak)); /* gpu_hw.c: the shown picture is the menu's model view */
+extern int pc_hw_present_world(void) __attribute__((weak)); /* gpu_hw.c: the shown frame drew 3D */
 extern int pc_hw_active;
 extern int pc_photo_holding(void) __attribute__((weak)); /* photo.cpp: the photo mode holds the game */
 void pc_lights_mark_dirty(void);
@@ -756,6 +757,9 @@ const char* lens_blur_gate(int context)
     if (((pc_battle_field_menu_open && pc_battle_field_menu_open()) || (pc_ui_menu_active && pc_ui_menu_active()))
         && !(pc_option_peek_active && pc_option_peek_active())) /* (the Option pages' preview shows the field) */
         return "menu";
+    /* nothing 3D to focus on (the loading screen: an upload at far depth, blurred whole otherwise) */
+    if (pc_hw_present_world && pc_hw_active && !pc_hw_present_world())
+        return "no_3d";
     if (context == PC_POST_CUTSCENE)
         return "";
     struct pc_dev_state s;

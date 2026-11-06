@@ -132,8 +132,10 @@ Depth of field and tilt-shift run only in field play with Ashley present.
 They are off, whatever any profile says, on the title (`pc_game_phase`: from
 boot and on every return to the title), in an attract demo (the title's idle
 cutscenes), while a field menu is open (`vs_battle_menuState`, and the modern
-menus' shell), and when Ashley is not there (nothing to focus on). RPC `post`
-reports why (`lens_blur_off`: `title`, `attract`, `menu`, `no_player`). In a
+menus' shell), on a frame that drew no 3D (the loading screen: its picture is
+an upload at far depth, which the blur would take whole), and when Ashley is
+not there (nothing to focus on). RPC `post`
+reports why (`lens_blur_off`: `title`, `attract`, `menu`, `no_3d`, `no_player`). In a
 cutscene the built-in cutscene layer turns them off; a cutscene layer may
 turn them on (the hook for authored cutscene depth of field, below).
 
