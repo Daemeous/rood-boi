@@ -1138,7 +1138,18 @@ bool catalog_has_size(int w, int h)
 }
 uint32_t catalog_generation()
 {
-    current_catalog();
+    /* Asked for every draw batch (pc_emissive_pending): the catalog's files are
+     * stat'ed at most four times a second, as the masters are. stat is cheap on
+     * Linux but not on Windows, where this took a large part of the game thread's
+     * frame in the targeting sphere's many batches. An editor's edit still shows at once. */
+    static long long last_at = -1;
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    long long now_ms = (long long)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+    if (last_at < 0 || now_ms - last_at >= 250 || file_layer.stale || applied_pending != pending_serial) {
+        last_at = now_ms;
+        current_catalog();
+    }
     return catalog_cache.generation;
 }
 uint32_t catalog_structure_generation()
