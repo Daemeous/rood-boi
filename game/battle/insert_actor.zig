@@ -16,7 +16,7 @@ pub fn insertActor(actor: ?*v.vs_battle_actor) callconv(.c) c_int {
         const slots = v.g.vs_battle_actors();
         var i: usize = 0;
         while (i < 16) : (i += 1) {
-            if (slots[i] != null and psx.get(slots[i].?.next) == actor) {
+            if (slots[i] != null and psx.rawOf(slots[i].?.next) == psx.addr(actor)) { // compared as guest addresses: a stale `next` need not be aligned
                 return 0;
             }
         }

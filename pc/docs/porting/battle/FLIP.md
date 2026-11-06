@@ -112,7 +112,7 @@ feature on must equal the original with its hook, before the hook is deleted.
 | F18 | `pc_opening_image_ready` (test notification) | 1 | none | no | no | `func_800CCA90` | delete C block |
 | F19 | Room checkpoint diagnostic (`pc_room_checkpoint_requested`) | 1 | none: inert unless requested | no (renders loaded geometry) | no | not ported (`vs_battle_exec`) | delete with `vs_battle_exec`'s port |
 | F20 | RPC sfx counter (`pc_sfx_played`) | 1 | none | no | no | SLUS boundary | delete the hook |
-| F22 | Hardware text fade (`_pcFadeBegin/Glyph/End`, `pc_hw_opacity_*`) | 6 | no setting: inert when `pc_hw_active` is 0 or `ROOD_OPACITY_2D=0` (the inert profile sets that variable) | VRAM: the text is not composited into the frame-buffer mirror; the four `_pcFade*` statics | yes if the hardware renderer runs the oracle | the ports repeat it | delete the C blocks and the statics after the check; **open (Q4)** |
+| F22 | Hardware text fade (`_pcFadeBegin/Glyph/End`, `pc_hw_opacity_*`) | 6 | setting `opacity_2d` (`ROOD_OPACITY_2D` overrides): inert when `pc_hw_active` is 0 or `opacity_2d 0` (pinned by the inert profile) | VRAM: the text is not composited into the frame-buffer mirror; the four `_pcFade*` statics | yes if the hardware renderer runs the oracle | the ports repeat it | delete the C blocks and the statics after the check; **Q4 answered** |
 | F23 | Opaque HP/MP/RISK label (`_renderStatBar`: sprite flag `0x80`, not `0x180`) | 1 | **no setting**: unconditional PC change | packets | yes | `render_stat_bar.zig` already has `0x80` | **open (Q2)** |
 | F24 | Host state queries (`pc_battle_action`, `pc_battle_camera_focus`, `pc_battle_event_*`, `pc_battle_camera_target`: functions defined in `scene_submit.inc`, read by `dev_state.c`, `cutscene*.cpp`, `gameplay_walls.c`, `post_profile.cpp`) | 8 (.inc) | none: read-only, called by host code | no (reads game state, writes only the caller's buffers) | no | 8 of 8 in `scene_submit.zig` (`host = true`; the last four, `battleCameraFocus`, `battleEventThreads`, `battleEventArguments`, `battleEventWaiting`, ported 2026-11-05) | Zig carries them; delete the C copies |
 | F25 | Native platform shadows (`pc_platform_shadow_native`, `pc_platform_shadows_end`, in `room_shadows.inc`) | 2 (.inc) | `native_shadows` 0 (already in the `classic` OFF list); the native path also needs `pc_hw_active` | no (the packets are built as the PS1 builds them; the native square is render-side) | no | `room_shadows.zig` (`psx.weak`) | delete the C calls when the `.inc` function is owned; Zig keeps them |
@@ -146,7 +146,8 @@ corpus run non-inert:
 | `camera_stick_menus` | `none` | F2b right stick in the menus |
 | `qol_skip_charging_who` | `0` | F1 caster set |
 | `hud_classic_override` and the 42 `hud_classic_<kind>` | `0` | F14 no classic claim honoured, even with a HUD plugin loaded (they default to **1**) |
-| `ROOD_OPACITY_2D` (environment) | `0` | F22 hardware text fade (`pc_hw_opacity_on`) |
+| `hud_label_opaque` | `0` | F23 stat-bar label drawn with the original's flag `0x180` |
+| `opacity_2d` | `0` | F22 hardware text fade (`pc_hw_opacity_on`); a setting now, `ROOD_OPACITY_2D` only overrides it, so the environment pins nothing (`INERT_ENVIRONMENT` is empty) |
 
 Defaults that are **on** in a game with no settings file, which is why the pins
 matter (all but `hud_classic_*` already in `classic`'s `OFF`): `camera_stick`, `camera_stick_zoom`,
@@ -168,8 +169,8 @@ into the game's. `differ.py --profile inert` is the runner switch (its
   `project_settings.cpp`, `ui_text.c`, `button_prompts.c`): a typo or a renamed key fails;
 - the 43 `hud_classic_*` keys of `project_settings.cpp` are all pinned, all 0: a new kind fails the test until pinned;
 - the words (`original`, `none`) are the readers' own;
-- `corpus.environment(..., "inert")` writes the file, points `ROOD_SETTINGS` at it, adds `ROOD_OPACITY_2D=0`
-  and leaves `classic` without it; `differ.main` accepts `--profile inert` and rejects an unknown one.
+- `corpus.environment(..., "inert")` writes the file, points `ROOD_SETTINGS` at it, adds nothing to the environment
+  (`INERT_ENVIRONMENT` is empty); `differ.main` accepts `--profile inert` and rejects an unknown one.
 
 Not done by the tests: that the built game applies each line (it needs the
 build; checklist step 3 reads the effective values back).
@@ -234,20 +235,23 @@ Run on the human-side machine (the game files and the build are there). Steps
 later step needs the one before. Commands are from the repository root.
 
 **0. Baseline.** On the flip branch, `python3 pc/tools/port_progress.py --units` and
-`--json` (the ported count: today 1687 of 1693 per `git log`, 48 battle subsystems in
-`game/ownership.toml`, all `default = "original"`); `python3 pc/tools/build_boot.py --arch 64`
+`--json` (today 1691 of 1693 pass-1 C functions ported, the 2 left are `get_D_800E84AC` and `func_800D7FB4`
+(S); D2 161 of 184; 1901 functions routed in the 49 subsystems of `game/ownership.toml`, all
+`default = "original"`; the tool's `host C` and `generated wrappers` lines (0 of 41, 0 of 43) count
+Zig ports in `FUNCTIONS.tsv`, not routing: the `.inc` functions and the wrappers are routed); `python3 pc/tools/build_boot.py --arch 64`
 and `--battle` build; `python3 pc/tests/run.py trial_corpus` is green in `classic` and
 `features`. Keep the output: the flip is judged against it.
 
 **1. Tooling that must land first** (each has its own test; none is a flip step):
 
-1. *pc-inc routing.* `pc/tools/ownership.py` renames definitions in the preprocessed text but the 41
+1. *pc-inc routing.* **Done** (the `.inc` text is covered by the rename; every portable battle function is
+   routed today). It was: `pc/tools/ownership.py` renamed definitions in the preprocessed text but the 41
    `pc-inc` functions (FUNCTIONS.tsv kind `pc-inc`: `actor_commands.inc` `func_80075554`,
    `room_shadows.inc` `func_8008CEB0`, `room_callbacks.inc`, `charge_skip.inc`) are routable only
    once the rename also covers the `.inc` text (PORTING.md §13; `ownership.py` has no `.inc`
    handling today). Needed by F1 (charge skip as owned code) and by the A rows of section 4 that
    are owned at the flip.
-2. *Generated wrappers.* `event_callbacks.inc` / `effect_callbacks.inc` (43 static wrappers) cannot be
+2. *Generated wrappers.* **Done** (routed today). It was: `event_callbacks.inc` / `effect_callbacks.inc` (43 static wrappers) could not be
    routed: the ports of their callers (`func_800BF850`, `func_800D6D24` units) must carry
    them (and `pc_require_native_callback` / `pc_unimplemented`, S rows). Check with
    `python3 pc/tools/port_progress.py --left 4A0A8` and `--left 5BF94`.
@@ -259,7 +263,8 @@ and `--battle` build; `python3 pc/tests/run.py trial_corpus` is green in `classi
    F1 at the flip moves the skip's state to a C definition reached by `psx.global`; F22's statics go with
    its hook (step 8). Also `pc_emote_record` (F14, a plain global in `2842C.c` under `ROOD_PC`): it
    needs a definition outside the game unit before its `#ifdef` goes (Q1).
-5. *`vs_battle_exec`* (`146C.c`, 569 lines, **not ported**, "waits for the flip"). It holds the hooks the
+5. *`vs_battle_exec`* (`146C.c`, 569 lines). **Ported** (a root of `battle_146C_port`; the kill recipe does
+   not call it at the root, see the step 0 result). It holds the hooks the
    Zig does not repeat yet: F1 `pc_charge_skip(4/5)`, `_name(0)`; F5 `process_pad`; F7 `poll`; F8
    `pc_story_frame`; F2b `camera_stick_menu`; F19 checkpoint; F14 the status-panel block. Port it with the
    settings available as owned code (`psx.weak` for each call, §12), shadow it, and only then flip.
@@ -334,9 +339,8 @@ then on each owned change is checked against the oracle with the settings at the
   requests them. Delete them from `src/` at the flip, as written here, or keep them (they live in
   `vs_battle_exec`/`func_80089DC0`/`main.c`, and the editor would lose them if deleted without an owned
   replacement)?
-- **Q4 (F22).** The hardware text fade is switched by the renderer (`pc_hw_active`) and the
-  `ROOD_OPACITY_2D` environment variable, not a setting. The inert profile pins the variable. If the oracle
-  runs on the hardware renderer, a real setting would be cleaner.
+- **Q4 (F22).** The hardware text fade is switched by the renderer (`pc_hw_active`) and `opacity_2d`
+  (answered below: a setting, pinned 0 by the inert profile; `ROOD_OPACITY_2D` still overrides it).
 - **Q5 (per-feature profiles).** Proposal 2 of section 3 needs recipes that press the feature's
   input; today's recipes use classic input only. Which features get a recipe (F1 has the `features`
   profile) and which are accepted on the shadow runs alone?
@@ -375,6 +379,33 @@ appendix. The uninitialised reads are defined under `ROOD_PC` with the ports' va
 0; `previousArea` the unchanged area, and func_800A5280's other locals 0), so their waivers are gone.
 The four host functions the sweep found without Zig (`pc_battle_camera_focus`, `pc_battle_event_threads`,
 `_arguments`, `_waiting`) now have host routes in `scene_submit.zig`.
+
+**Flipped 2026-11-05 (lean flip: the three existing recipes, no new ones).** Every `battle_*`/`d2_*`
+subsystem (49) is `default = "owned"`; `ROOD_OWNER=<name>=original` bisects one back. Before it, all 49
+were recorded in `inert` on `enemy_cast_wait`, `action_name_window` and `enemy_kill`, and what they found
+was fixed: the shadow report works while a routed call spans the RPC's vsync and lists up to 1024
+functions (`coverage_dropped` past that); `func_800CF3F8`'s 0xE8-byte copy out of the 0xE4-byte
+`func_8006C4C4_t` (a 4-byte over-read, both sides); the uninitialised SVECTOR pads
+`_computeStepAndDisplacement` and `func_8007138C` hand the GTE; and `func_800863A4`'s `sp870[2]`, which
+`func_800A1B9C` fills with three halfwords: on the host the third lands on the area's shape and `unk1`
+(the PS1 frame has room for it). Both sides pin that overlap in an explicit struct; the PS1-faithful
+layout changes enemy casts and is a gameplay change left for later. State compares are about 1.6x
+faster (`state_diff.c` pools its buffers and skips equal pages).
+The full suite then found three more, fixed before the merge: `removeActor`, `removeActorAtIndex` and
+`insertActor` dereferenced a stale (misaligned) `next` to compare it (raw guest addresses now); the
+development host exported only the owned library's strong imports, so weak hooks (`pc_live_camera`,
+the photo camera) bound to null in owned code; and `vs_battle_exec` and `func_8007629C`, which hold the
+frame across the vsync, made every snapshot, rewind and reload refuse while owned in the reloadable
+library. Those two are the subsystem `battle_frame`, which stays `default = "original"`
+(`ROOD_OWNER=battle_frame=owned` runs them as Zig) until the host can cut a stack through the library.
+Still open, none a semantic mismatch:
+- *Reach.* The three recipes call only part of most subsystems (146C_port 54 of 673 at the root), so
+  their root-call gates stay red; ten subsystems are not reached at all. The rest of the 23 recipes of
+  step 4 are the cover still owed.
+- *Call-mode witness.* In call mode every recipe reports 0 mismatches but its witness fails (no
+  ended cast, kill flags unset), as it did before the flip: a shadow-runner interaction to look at.
+- *Steps 5 (32-bit) and 6 (per-feature tick checks)* were not run; step 6 must precede step 9, which
+  deletes the hooks it compares against.
 
 ## Appendix: every block
 

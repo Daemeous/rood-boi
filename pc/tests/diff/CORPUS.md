@@ -118,7 +118,12 @@ Do not use this partial corpus as a subsystem-flip gate.
 * `--profile inert` is the profile for after the battle flip: `classic` plus the pins the hook
   inventory found missing (`corpus.py` `INERT_PINS`, `INERT_ENVIRONMENT`; the list and the reasons
   are in `pc/docs/porting/battle/FLIP.md` section 3). `corpus_test.py` checks its keys against the
-  settings reader without game files; `run.py` does not register it yet.
+  settings reader without game files; `run.py` registers each trial recipe in it too (`trial_corpus_*_inert`).
+* The shadow report (RPC `owner {action: "report"}`, `pc_shadow_report`) is available while a shadowed call is in
+  flight (the battle frame function `func_8007629C`, routed, spans the vsync the runner pauses at; the call is not
+  counted yet) and lists up to 1024 routed functions: past that `coverage_dropped` is non-zero and the call mode fails.
+* `waivers.toml` `[battle_146C]` waives `vs_battle_exec` in the root-calls gate: battle's main loop never returns, so
+  it has no ended root call to compare; it is covered by the tick and alternate runs.
 * Witnesses are exact: `enemy_kill` checks the expected score changes of its
   two kills (the kill counts per class, the streak, the streak score, the
   kill flags), `action_name_window` the exact text of its three name windows.

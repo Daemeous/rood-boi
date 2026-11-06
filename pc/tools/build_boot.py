@@ -2447,9 +2447,11 @@ if engine_library:
         import game_lib
         game_library = game_lib.build(root / "game", out / "librood_game.so")
         # A versioned import (memcpy@GLIBC_2.14: Debug Zig's memset/memcpy of
-        # aggregates) comes from libc, not the host.
+        # aggregates) comes from libc, not the host. Weak ones (w) are the
+        # host hooks psx.weak tests for null: unexported, they bind to null
+        # in the library and the owned code silently skips the hook.
         imports = {line.split()[-1] for line in query(["nm", "-D", "--undefined-only", str(game_library)]).splitlines()
-                   if line.strip() and line.split()[0] == "U" and "@" not in line.split()[-1]}
+                   if line.strip() and line.split()[0] in ("U", "w") and "@" not in line.split()[-1]}
         # Owned edits may access any public game function/global without a
         # host restart. Keep that game ABI exported, not the engine's private
         # internals. New host-service dependencies still require a rebuild.

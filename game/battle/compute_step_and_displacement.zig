@@ -9,7 +9,9 @@ const c = @import("c_146C");
 /// screen box (x 61..259, y 61..179) and was not clamped: then the speed falls by 8 to 0; otherwise it rises by 8
 /// to maxSpeed when more than 40 direction units away, else falls by 8 to 8. Returns 1 when not centred.
 pub fn computeStepAndDisplacement(targetPos: ?*v.SVECTOR, outStep: ?*v.VECTOR, outDisplacement: ?*v.VECTOR, clampToZone: c_int, maxSpeed: c_int) callconv(.c) c_int {
-    var scaled: v.SVECTOR = undefined;
+    // pad is uninitialised in the original; RotTransPers loads it into the upper half of GTE register 1 (VZ0, which
+    // MFC2 sign-extends from the low half, so nothing reads it). Zig's undefined would leave 0xAA there.
+    var scaled: v.SVECTOR = .{ .vx = undefined, .vy = undefined, .vz = undefined, .pad = 0 };
     var fixed: v.VECTOR = undefined;
     var direction: v.VECTOR = undefined;
     var sxy: c_int = undefined;

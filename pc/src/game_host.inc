@@ -41,12 +41,12 @@ static int game_range_cb(struct dl_phdr_info* info, size_t size, void* data)
     }
     return 1;
 }
-struct game_frames { int live, complete, count; };
+struct game_frames { int live, complete, count; uintptr_t first; };
 static _Unwind_Reason_Code game_frame(struct _Unwind_Context* ctx, void* raw)
 {
     struct game_frames* f = raw;
     uintptr_t ip = _Unwind_GetIP(ctx);
-    if (ip >= game_lo && ip < game_hi) f->live = 1;
+    if (ip >= game_lo && ip < game_hi && !f->live++) f->first = ip;
     if (_Unwind_GetRegionStart(ctx) == (uintptr_t)vs_main_exec) {
         f->complete = 1;
         return _URC_END_OF_STACK;
@@ -58,8 +58,17 @@ static _Unwind_Reason_Code game_frame(struct _Unwind_Context* ctx, void* raw)
 int pc_game_snapshot_safe(void)
 {
     if (!game_handle) return 1;
-    struct game_frames frames = { 0, 0, 0 };
+    struct game_frames frames = { 0, 0, 0, 0 };
     _Unwind_Backtrace(game_frame, &frames);
+    if (frames.live) { /* name the outermost reloadable frame the refusal is about, once per function */
+        static uintptr_t told;
+        Dl_info info;
+        if (frames.first != told && dladdr((void*)frames.first, &info)) {
+            told = frames.first;
+            fprintf(stderr, "[snapshot] %d game-library frame(s) live, innermost in %s\n", frames.live,
+                info.dli_sname ? info.dli_sname : "?");
+        }
+    }
     return frames.complete && !frames.live;
 }
 static void game_remove_live(void)

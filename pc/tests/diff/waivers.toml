@@ -9,7 +9,14 @@
 # side only (alternate_check): it alternates per call, so a function a recipe
 # calls once runs owned only; tick mode covers it.
 
+[battle_frame]
+vs_battle_exec = "battle's main loop: it never returns, so it has no root call that ends (a shadow run cannot compare it); routed default original, covered by the tick and alternate runs"
+
+[d2_boot_sdk]
+func_80098648 = "the room-transform variant func_8008EC48 picks only when the camera's farClip is not 4096; no recipe sets a non-default far clip: never called in any recipe; the zig_diff spec covers it"
+
 [alternate_one_side.battle_30DB0_port]
+func_8009EA14 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
 vs_battle_getEmptyObjectDataSlot = "enemy_cast_wait calls it once: runs owned only; call and tick cover it"
 func_800A01C8 = "called once per recipe (one actor's reaction bytes set): runs owned only; call and tick cover it"
 
@@ -29,6 +36,8 @@ func_800AA850 = "enemy_cast_wait turns one actor once: runs owned only; call and
 func_800ACF54 = "enemy_cast_wait and action_name_window copy one actor's tile once: runs owned only; call and tick cover it"
 
 [alternate_one_side.battle_2842C_port]
+func_8009639C = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_80096444 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
 func_800918E8 = "enemy_cast_wait sets the sound pan once: runs owned only; call and tick cover it"
 func_800938AC = "enemy_cast_wait calls it once: runs owned only; call and tick cover it"
 func_80093FEC = "called once per recipe (a label added): runs owned only; call and tick cover it"
@@ -37,6 +46,36 @@ func_800962E4 = "called once per recipe (nested under the label adds): runs owne
 func_800971D4 = "enemy_cast_wait calls it once: runs owned only; call and tick cover it"
 
 [alternate_one_side.battle_146C_port]
+_adjustDpPp = "called once in action_name_window (one actor, one call): runs owned only; call and tick cover it"
+_applyBattleAbilityEffect = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+_calculateWeaponClassAffinity = "called once in action_name_window (one actor, one call): runs owned only; call and tick cover it"
+_getEnemyClass = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+_getLastValue = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+_hitPrerequisiteCanApplyDrain = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+_hitPrerequisiteCanApplySilence = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+_triggerArmorAffinityChange = "called once in action_name_window (one actor, one call): runs owned only; call and tick cover it"
+func_80069C6C = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_8006C2A0 = "called once in enemy_kill (one actor, one call): runs owned only; call and tick cover it"
+func_8006C4C4 = "called once in action_name_window (one actor, one call): runs owned only; call and tick cover it"
+func_8006C5AC = "called once in action_name_window (one actor, one call): runs owned only; call and tick cover it"
+func_8006C84C = "called once in action_name_window (one actor, one call): runs owned only; call and tick cover it"
+func_8006FD1C = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_80070278 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800704B0 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_80070F28 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_8007138C = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_80071F68 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_8007E97C = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800803A4 = "called once in action_name_window (one actor, one call): runs owned only; call and tick cover it"
+func_80080F78 = "called once in action_name_window (one actor, one call): runs owned only; call and tick cover it"
+func_80083CB8 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_80084CAC = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_80084EA0 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_80086FA8 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_80087578 = "called once in action_name_window (one actor, one call): runs owned only; call and tick cover it"
+func_8008E480 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+pc_charge_skip_hold = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+pc_charge_skip_view = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
 _calculateArmorClassAffinity = "called once in a recipe (a single actor, cast or kill): runs owned only; call and tick cover it"
 _setRoomSeen = "called once in a recipe (a single actor, cast or kill): runs owned only; call and tick cover it"
 _triggerWeaponAffinityChange = "called once in a recipe (a single actor, cast or kill): runs owned only; call and tick cover it"
@@ -79,8 +118,107 @@ vs_battle_copyUiBladeStats = "called once in a recipe (a single actor, cast or k
 vs_battle_copyUiGripStats = "called once in a recipe (a single actor, cast or kill): runs owned only; call and tick cover it"
 vs_battle_copyUiShieldStats = "called once in a recipe (a single actor, cast or kill): runs owned only; call and tick cover it"
 vs_battle_copyUiWeaponStats = "called once in a recipe (a single actor, cast or kill): runs owned only; call and tick cover it"
+_getMagicAttackDamage = "called once in a recipe (enemy_cast_wait, one spell): runs owned only; call and tick cover it"
+func_8006CA20 = "called once in a recipe (action_name_window, one actor): runs owned only; call and tick cover it"
+vs_battle_lookAt = "called once in a recipe (action_name_window, one camera aim): runs owned only; call and tick cover it"
 
 [alternate_one_side.battle_5BF94_port]
+func_800C930C = "called once in enemy_kill (one actor, one call): runs owned only; call and tick cover it"
+func_800CB114 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800CB158 = "called once in enemy_kill (one actor, one call): runs owned only; call and tick cover it"
+func_800CE83C = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800CE8F4 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800CEF74 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800CF0E8 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800CF218 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800CF3F8 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800CF55C = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800CF614 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800CF830 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800CF8BC = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800CF920 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800CFE98 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800D05F4 = "called once in action_name_window (one actor, one call): runs owned only; call and tick cover it"
+func_800D1930 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800D47C8 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800D49A4 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800D4AB4 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800D4AEC = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800D4DB0 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800D4EC0 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800D5048 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800D55A4 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800D6388 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800D63D0 = "called once in action_name_window (one actor, one call): runs owned only; call and tick cover it"
+func_800D6508 = "called once in action_name_window (one actor, one call): runs owned only; call and tick cover it"
+func_800D6860 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+pc_effect_func_800D47C8 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+pc_effect_func_800D49A4 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+pc_effect_func_800D4AB4 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+pc_effect_func_800D4AEC = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+pc_effect_func_800D4DB0 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+pc_effect_func_800D4EC0 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+pc_effect_func_800D5048 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+vs_battle_dismissTextBox = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+vs_battle_renderImage = "called once in enemy_kill (one actor, one call): runs owned only; call and tick cover it"
 func_800CACD0 = "called once in a recipe: runs owned only; call and tick cover it"
 func_800CB50C = "called once in a recipe: runs owned only; call and tick cover it"
 vs_battle_initTextBox = "called once in a recipe: runs owned only; call and tick cover it"
+
+[alternate_one_side.battle_146C_bakeoff]
+func_80078828 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+
+[alternate_one_side.battle_44F14_port]
+func_800AE828 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+
+[alternate_one_side.battle_573B8_port]
+func_800C05B4 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+vs_battle_playSfx10 = "called once in enemy_kill (one actor, one call): runs owned only; call and tick cover it"
+
+[alternate_one_side.battle_58578_port]
+func_800C0FA8 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800C1034 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+
+[alternate_one_side.battle_5BF94]
+vs_battle_displaySceneMessage = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+
+[alternate_one_side.battle_6F014_port]
+_parsePfileBlock1 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+_parsePfileBlock10 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+_parsePfileBlock11 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+_parsePfileBlock12 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+_parsePfileBlock13 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+_parsePfileBlock2 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+_parsePfileBlock3 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+_parsePfileBlock5 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+_parsePfileBlock8 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+_parsePfileBlock9 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+_parsePfileCurveBlock = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800D7C5C = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800D7EF4 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800D7FFC = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800D8060 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+vs_battle_configurePlg = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+vs_battle_getMainMenuLba = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+vs_battle_setPlgLoadState = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+
+[alternate_one_side.battle_74088_port]
+func_800DEB10 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800DEC88 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+
+[alternate_one_side.d2_actor_cleanup]
+func_800E4C28 = "called once in action_name_window and enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+
+[alternate_one_side.d2_battle_helpers]
+func_800D826C = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800D9DD8 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800DC574 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800DC810 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+
+[alternate_one_side.d2_battle_motion]
+func_800B6580 = "called once in action_name_window and enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+
+[alternate_one_side.d2_battle_movement]
+func_800D82A8 = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800D82CC = "called once in enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"
+func_800E4C1C = "called once in action_name_window and enemy_cast_wait (one actor, one call): runs owned only; call and tick cover it"

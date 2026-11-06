@@ -6,7 +6,8 @@
 //! picks the direction from the displacement already written, so the
 //! distance lands on 39, 40 and 41 and each axis may be 0; the camera
 //! speed and maxSpeed around their bounds. The stubs record the vectors
-//! they are given (stack locals the trace only tags).
+//! they are given (stack locals the trace only tags), RotTransPers' point
+//! padding included.
 const std = @import("std");
 const zd = @import("zdiff");
 const psx = @import("common").psx;
@@ -39,6 +40,8 @@ pub const stubs = struct {
         seen.vx = point[0].vx;
         seen.vy = point[0].vy;
         seen.vz = point[0].vz;
+        // pad reaches the GTE's VZ0 upper half: it must be defined (0xAA from Zig's undefined diverges from the C stack).
+        seen.pad = point[0].pad;
         sxy[0] = screen;
         p[0] = ctx.value(c_int);
         flag[0] = ctx.value(c_int);

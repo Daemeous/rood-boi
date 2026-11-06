@@ -1673,6 +1673,7 @@ pub const event_callbacks = @import("event_callbacks.zig");
 
 comptime {
     common.route.exportAll(@backingInt(ownership.Subsystem.battle_146C), ownership.routesOf(.battle_146C), @This());
+    common.route.exportAll(@backingInt(ownership.Subsystem.battle_frame), ownership.routesOf(.battle_frame), @This());
     common.route.exportAll(@backingInt(ownership.Subsystem.battle_44F14), ownership.routesOf(.battle_44F14), @This());
     common.route.exportAll(@backingInt(ownership.Subsystem.battle_5BF94), ownership.routesOf(.battle_5BF94), @This());
     common.route.exportAll(@backingInt(ownership.Subsystem.battle_146C_bakeoff), ownership.routesOf(.battle_146C_bakeoff), @This());

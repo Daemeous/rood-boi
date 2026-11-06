@@ -7,7 +7,7 @@
 //! -1 or 0..5; actors 0..15 present or not with unk40 0..3, sharing two stats
 //! blocks whose armour indices (unkC) stay in range; the information setting.
 //! Stubs copy what the C hands over on its stack: the request (all 0xE8 bytes:
-//! memset first), the sound position's vx/vy/vz (its pad is never set), the
+//! memset first), the sound position (its pad reaches the GTE: zeroed in both), the
 //! object data's set fields (the rest is uninitialised in the C, 0 in the
 //! port); func_800A1108 fills the caster's position.
 const std = @import("std");
@@ -35,6 +35,8 @@ pub const stubs = struct {
         seen.vx = p.vx;
         seen.vy = p.vy;
         seen.vz = p.vz;
+        // vs_main_panSfx loads the whole word into the GTE: the pad must be defined (0 in the C under ROOD_PC).
+        seen.pad = p.pad;
     }
     pub fn func_800CF0E8(ctx: *zd.Ctx, request: anytype, mode: anytype, unk2: anytype) c_int {
         _ = mode;

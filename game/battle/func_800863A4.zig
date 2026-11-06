@@ -12,8 +12,13 @@ const c = @import("c_146C");
 pub fn func_800863A4(action: c_int, user: c_int, target: c_int, limb: c_int, from: ?*v.SVECTOR, to: ?*v.SVECTOR, result: ?*v.D_800F19CC_t2) callconv(.c) c_int {
     // ROOD_PC: the request is cleared first (its unwritten parts were stack residue, pc/docs/Oracle.md).
     var request = std.mem.zeroes(v.D_800F19CC_t2);
-    var area: v.func_800C1564_t = undefined;
-    var point: [2]u16 = undefined;
+    // The C declares `u_short sp870[2]` directly below `func_800C1564_t sp860` (the host compiler's layout, 0x2C and
+    // 0x30 from the stack pointer), but func_800A1B9C writes three halfwords: the third overwrites the area's first two
+    // bytes (shape and unk1) before func_800C1564 reads both. The PS1 frame has 8 bytes there, so it does not; this keeps
+    // the host C's behaviour (the enemies' casts the corpus recipes witness depend on it).
+    var frame: extern struct { point: [2]u16, area: v.func_800C1564_t } = undefined;
+    const area = &frame.area;
+    const point = &frame.point;
     request.actionIndex = psx.conv(u16, action);
     request.unk4.unk40 = 0;
     request.unk4.unk0.targetActor = psx.conv(u8, user);
@@ -52,7 +57,7 @@ pub fn func_800863A4(action: c_int, user: c_int, target: c_int, limb: c_int, fro
             var count: c_int = 0;
             var i: c_int = 0;
             while (i < 6) : (i += 1) { // i < 6
-                if (c.func_800A1B9C(target, i, &point, 2) >= 0 and c.func_800C1564(@ptrCast(&area), &point) != 0) {
+                if (c.func_800A1B9C(target, i, point, 2) >= 0 and c.func_800C1564(@ptrCast(area), point) != 0) {
                     // unk4C has 30 entries: at most 6 here
                     request.unk4C[@intCast(count)].unk40 = 0;
                     request.unk4C[@intCast(count)].unk0.targetActor = psx.conv(u8, target);

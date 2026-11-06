@@ -14,6 +14,8 @@ pub fn func_8006C4C4(arg0: c_int, arg1: ?*v._hitEntity_t, targetLimb: c_int) cal
 
     // Zeroed first: the fields the request does not set reach func_800CF3F8 as zero.
     var sp10 = std.mem.zeroes(v.func_8006C4C4_t);
+    // func_800CF3F8 copies a whole func_800CF0E8_t from it: the C's ROOD_PC `unkE4` makes the request that big.
+    comptime std.debug.assert(@sizeOf(v.func_8006C4C4_t) >= @sizeOf(v.func_800CF0E8_t));
 
     sp10.unk0 = psx.conv(i16, arg0);
     sp10.unk2 = 1;

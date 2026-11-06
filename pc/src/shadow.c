@@ -6,6 +6,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* Routed functions the report lists (one row each, ~90 bytes of JSON: 1024 of them fit the RPC's 256 KiB
+ * line with the mismatch log); past it a function is counted in coverage_dropped and the runner fails. */
+#define COVERAGE_MAX 1024
 static int active, speculative, owned_side;
 static int compare_impl(const char*, unsigned, pc_shadow_call, pc_shadow_call,
     pc_shadow_call, int (*)(void*), void*, const pc_state_range*, int, pc_shadow_result*);
@@ -36,16 +39,19 @@ int pc_shadow_set_fault(const char* function, uintptr_t address)
     fault_address = address;
     return 0;
 }
-static unsigned calls, mismatches, errors, logged, dropped;
+static unsigned calls, mismatches, errors, logged, dropped, coverage_dropped;
 static pc_shadow_result log_entries[32];
-static struct { const char* name; unsigned roots, nested; } coverage[128];
+static struct { const char* name; unsigned roots, nested; } coverage[COVERAGE_MAX];
 static unsigned covered;
 static void cover(const char* name)
 {
     unsigned i;
     for (i = 0; i < covered; i++)
         if (!strcmp(coverage[i].name, name)) break;
-    if (i == 128) return;
+    if (i == covered && covered == COVERAGE_MAX) {
+        ++coverage_dropped;
+        return;
+    }
     if (i == covered) {
         coverage[i].name = name;
         coverage[i].roots = coverage[i].nested = 0;
@@ -123,10 +129,12 @@ static int quoted(char* out, int size, const char* text)
 }
 int pc_shadow_report(char* out, int size, int reset)
 {
-    if (!out || size < 128 || active) return -1;
+    /* Also while a shadowed call is in flight: the RPC pauses at a vsync, which func_8007629C (the battle
+     * frame function, routed) spans. The in-flight call is not in the counts yet. */
+    if (!out || size < 128) return -1;
     int n = snprintf(out, (size_t)size,
-        "{\"calls\":%u,\"count\":%u,\"errors\":%u,\"truncated\":%s,\"mismatches\":[",
-        calls, mismatches, errors, dropped ? "true" : "false");
+        "{\"calls\":%u,\"count\":%u,\"errors\":%u,\"truncated\":%s,\"coverage_dropped\":%u,\"mismatches\":[",
+        calls, mismatches, errors, dropped ? "true" : "false", coverage_dropped);
     for (unsigned i = 0; i < logged; i++) {
         pc_shadow_result* r = &log_entries[i];
         char function[1024], range[600], message[1600];
@@ -156,7 +164,7 @@ int pc_shadow_report(char* out, int size, int reset)
     }
     if (size - n < 3) return -1;
     memcpy(out + n, "]}", 3);
-    if (reset) calls = mismatches = errors = logged = dropped = covered = 0;
+    if (reset) calls = mismatches = errors = logged = dropped = covered = coverage_dropped = 0;
     return n + 2;
 }
 

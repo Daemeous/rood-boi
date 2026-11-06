@@ -32,7 +32,8 @@ pub fn startCast() callconv(.c) void {
     var object = std.mem.zeroes(v.vs_battle_objectData);
     var request: v.func_800CF0E8_t = undefined;
     var actor_position: v.func_8006EBF8_t = undefined;
-    var sound_position: v.SVECTOR = undefined;
+    // pad is never written in the C and vs_main_panSfx loads the whole word into the GTE: zeroed here and in the C under ROOD_PC.
+    var sound_position: v.SVECTOR = .{ .vx = undefined, .vy = undefined, .vz = undefined, .pad = 0 };
 
     _ = c.memset(&request, @as(c_int, 0), @as(usize, @sizeOf(v.func_800CF0E8_t)));
     state().battleAbilityInputSuccessful = 0;

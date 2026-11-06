@@ -52,7 +52,9 @@ expect = "panic"
 
 [function.vs_battle_exec]
 spec = "battleExec.zig"
-iterations = 6000
+# 6000 left the 0x8000 (Start) press and a sign flag unsampled once the
+# battle_frame move shifted the harness inputs; 8000 covers both.
+iterations = 8000
 
 [[function.vs_battle_exec.coverage_waiver]]
 id = "+415 b1"
@@ -54391,6 +54393,12 @@ target = "c"
 from = "    outStep->vy = direction.vy * vs_battle_cameraCurrentSpherical.speed;\n    }\n    return"
 to = "    }\n    return"
 
+[[function._computeStepAndDisplacement.mutation]]
+name = "H15: the projected point's padding left undefined"
+target = "zig"
+from = ".pad = 0 };"
+to = ".pad = undefined };"
+
 [function._hpHealedFromHealPanel]
 spec = "hpHealedFromHealPanel.zig"
 iterations = 30000
@@ -55337,8 +55345,8 @@ to = "sp10.unk4.unk0.targetActor = targetActor;"
 [[function.func_800863A4.mutation]]
 name = "H2: the aim one turn flat"
 target = "c"
-from = "sp860.unk2 = ratan2(temp_s1, temp_s0);"
-to = "sp860.unk2 = ratan2(temp_s0, temp_s1);"
+from = "frame.area.unk2 = ratan2(temp_s1, temp_s0);"
+to = "frame.area.unk2 = ratan2(temp_s0, temp_s1);"
 
 [[function.func_800863A4.mutation]]
 name = "H3: the pitch unbiased"
@@ -55349,25 +55357,22 @@ to = "/ 16)\n            + 0;"
 [[function.func_800863A4.mutation]]
 name = "H4: the aim from the target"
 target = "c"
-from = "sp860.unk8 = *arg4;"
-to = "sp860.unk8 = *arg5;"
+from = "frame.area.unk8 = *arg4;"
+to = "frame.area.unk8 = *arg5;"
 
-[[function.func_800863A4.mutation]]
-name = "H5: the area low bits 0xF"
-target = "c"
-from = "sp860.unk0 = vs_main_actions[arg0].aoe_24 & 7;"
-to = "sp860.unk0 = vs_main_actions[arg0].aoe_24 & 0xF;"
+# H5 (the area's low bits 0xF for 7) removed: equivalent. func_800A1B9C's third halfword overwrites the area's first two bytes
+# (shape, unk1) before func_800C1564 reads them (the host C's frame layout, kept by the port), so the shape written first never reaches it.
 
 [[function.func_800863A4.mutation]]
 name = "H6: the area unpositioned"
 target = "c"
-from = "sp860.unk8 = *arg5;"
-to = "sp860.unk8 = *arg4;"
+from = "frame.area.unk8 = *arg5;"
+to = "frame.area.unk8 = *arg4;"
 
 [[function.func_800863A4.mutation]]
 name = "H7: a limb outside the area kept"
 target = "c"
-from = "&& (func_800C1564(&sp860, sp870) != 0)) {"
+from = "&& (func_800C1564(&frame.area, frame.point) != 0)) {"
 to = ") {"
 
 [[function.func_800863A4.mutation]]
@@ -62482,6 +62487,12 @@ to = "((temp_v1_2 = D_800F19CC->unk8.actionIndex, (temp_v1_2 == 1)))"
 spec = "startCast.zig"
 iterations = 20000
 # Hand-ported (hand-146c-2).
+
+[[function.func_8007138C.mutation]]
+name = "H0: the sound position's padding left undefined"
+target = "zig"
+from = ".vz = undefined, .pad = 0 };"
+to = ".vz = undefined, .pad = undefined };"
 
 [[function.func_8007138C.mutation]]
 name = "H1: the input attempted on another status"

@@ -266,6 +266,12 @@ typedef struct {
     short unk12;
     func_8008631C_t2 unk14;
     int unk18[50];
+#ifdef ROOD_PC
+    /* func_800CF3F8 copies 0xE8 bytes (func_800CF0E8_t) from this request; the PS1 local is 0xE4 and the last four
+     * bytes (unkE0.vz and pad) are whatever its stack held. Here they were dead host stack, which differs
+     * between owned and original routes (pc/docs/Oracle.md, known hazards): make the local the size it is read. */
+    int unkE4;
+#endif
 } func_8006C4C4_t;
 
 typedef struct {
@@ -2642,6 +2648,10 @@ int _computeStepAndDisplacement(SVECTOR* targetPos, VECTOR* outStep,
     psx_long p;
     psx_long notCentered;
 
+#ifdef ROOD_PC
+    /* Uninitialised on the PS1: RotTransPers loads it into the unobservable upper half of GTE register 1. */
+    targetPosScaled.pad = 0;
+#endif
     targetPosFixed.vx = targetPos->vx * ONE;
     targetPosFixed.vz = targetPos->vz * ONE;
     targetPosFixed.vy = targetPos->vy * ONE;
@@ -4233,6 +4243,9 @@ void func_8007138C(void)
         return;
     }
 
+#ifdef ROOD_PC
+    soundPosition.pad = 0; /* vs_main_panSfx loads the whole word into the GTE */
+#endif
     func_800A1108(action->unk4.unk0.targetActor, &actorPosition);
     soundPosition.vx = actorPosition.unk0.unk4.vx;
     soundPosition.vz = actorPosition.unk0.unk4.vz;
@@ -13707,8 +13720,21 @@ int func_800863A4(int arg0, int arg1, int targetActor, int arg3, SVECTOR* arg4,
     SVECTOR* arg5, D_800F19CC_t2* arg6)
 {
     D_800F19CC_t2 sp10;
+#ifdef ROOD_PC
+    /* func_800A1B9C writes three halfwords into sp870[2]. The PS1 frame has 8 bytes there; the host build placed it
+     * directly below sp860, so the third overwrote the area's shape and unk1 before func_800C1564 reads them, and the
+     * enemies' casts depend on that. Pinned here (and in game/battle/func_800863A4.zig) so it no longer rests on the
+     * compiler's stack layout; the PS1-faithful sp870[4] is a gameplay change for later. */
+    struct {
+        u_short point[2];
+        func_800C1564_t area;
+    } frame;
+#define sp860 frame.area
+#define sp870 frame.point
+#else
     func_800C1564_t sp860;
     u_short sp870[2];
+#endif
     int var_s2;
     int temp_s0;
     int temp_s0_2;
@@ -13805,6 +13831,10 @@ int func_800863A4(int arg0, int arg1, int targetActor, int arg3, SVECTOR* arg4,
     func_80085B10(arg0, arg6, &sp10, 0);
     return _getActionCost(arg0, psx_get(vs_battle_actors[arg1]->unk3C), 0) & 0xFF000000;
 }
+#ifdef ROOD_PC
+#undef sp860
+#undef sp870
+#endif
 
 void func_80086754(int arg0, vs_battle_actor2* arg1)
 {

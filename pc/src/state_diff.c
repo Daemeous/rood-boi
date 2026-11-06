@@ -64,12 +64,39 @@ static int same_layout(const pc_state_image* a, const pc_state_image* b)
             return 0;
     return 1;
 }
+/* The shadow runner captures four ~13 MB images per routed call. Fresh malloc/free of that size is an mmap and
+ * ~3000 page faults each time, so freed data buffers are kept and reused when the size matches. The allocation
+ * failure tests build with DATA_POOL 0 so every capture reaches malloc. */
+#ifndef DATA_POOL
+#define DATA_POOL 8
+#endif
+static struct { unsigned char* data; size_t bytes; } data_pool[DATA_POOL ? DATA_POOL : 1];
+static unsigned char* data_take(size_t bytes)
+{
+    for (int i = 0; i < DATA_POOL; i++)
+        if (data_pool[i].data && data_pool[i].bytes == bytes) {
+            unsigned char* d = data_pool[i].data;
+            data_pool[i].data = NULL;
+            return d;
+        }
+    return malloc(bytes ? bytes : 1);
+}
+static void data_give(unsigned char* data, size_t bytes)
+{
+    for (int i = 0; i < DATA_POOL; i++)
+        if (!data_pool[i].data) {
+            data_pool[i].data = data;
+            data_pool[i].bytes = bytes;
+            return;
+        }
+    free(data);
+}
 pc_state_image* pc_state_capture(void)
 {
     pc_state_image* m = calloc(1, sizeof *m);
     if (!m)
         return NULL;
-    if (describe(m) || !(m->data = malloc(m->bytes ? m->bytes : 1))) {
+    if (describe(m) || !(m->data = data_take(m->bytes))) {
         pc_state_image_free(m);
         return NULL;
     }
@@ -86,7 +113,8 @@ pc_state_image* pc_state_capture(void)
 void pc_state_image_free(pc_state_image* m)
 {
     if (m) {
-        free(m->data);
+        if (m->data)
+            data_give(m->data, m->bytes);
         free(m);
     }
 }
@@ -126,7 +154,14 @@ int pc_state_image_stable_difference(const pc_state_image* a, const pc_state_ima
         size_t size = spu ? (size_t)a->spu_size : a->ranges[i].size;
         uintptr_t base = spu ? 0 : (uintptr_t)a->ranges[i].start;
         for (size_t j = 0; j < size; j++) {
-            if ((!spu && masked(base + j)) || a->data[at + j] == b->data[at + j] ||
+            if (!(j & (PAGE - 1))) { /* equal pages (nearly all of them) are skipped whole */
+                size_t n = size - j < PAGE ? size - j : PAGE;
+                if (!memcmp(a->data + at + j, b->data + at + j, n)) {
+                    j += n - 1;
+                    continue;
+                }
+            }
+            if (a->data[at + j] == b->data[at + j] || (!spu && masked(base + j)) ||
                 (repeat && a->data[at + j] != repeat->data[at + j]))
                 continue;
             if (difference) {

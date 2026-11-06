@@ -229,6 +229,14 @@ owned `func_8006C84C`), `func_8006F450`, `func_8006F848`, `func_800733F8`,
 `func_80073D30`, `func_8007BE20`; 5BF94.c `func_800CF7A8`, `func_800CF8BC`.
 None of them is ported; a port of one zeroes its request too.
 
+Fixed (flip baseline, enemy_kill tick and alternate modes with `battle_44F14_port` and
+`d2_room_geometry` owned, from tick 511 and 97): not an uninitialised local but a
+short one. `func_8006C4C4_t` (146C.c) is 0xE4 bytes and `func_800CF3F8` copies a
+whole 0xE8-byte `func_800CF0E8_t` from it, so `D_800F53C0.unkE0.vz` and `pad`
+came from the dead host stack past the local (0x06610cd5 in the original, 2
+owned). Under ROOD_PC the struct gains a trailing `unkE4` (zeroed with the rest
+of the request; the port asserts its view is at least 0xE8 bytes).
+
 Found by watching the bytes: `ROOD_BINARY` can be a wrapper that runs the
 game under `gdb -batch` with a Python script setting access watchpoints on
 the guest addresses (they are host addresses in the 64-bit build) whose

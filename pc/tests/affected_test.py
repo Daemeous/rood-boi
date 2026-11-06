@@ -201,7 +201,9 @@ class ZigDiffSelectTest(unittest.TestCase):
         sel = self.select("game/battle/pc/tick_state_timers.zig")
         self.assertEqual(sel.functions, ["func_800E4358"])
         sel = self.select("pc/src/battle_motion.c")
-        self.assertEqual(sel.functions, ["func_800B65E8", "func_800B65F4"])
+        routes = zig_diff_select._routes(self.own_text)
+        self.assertIn("func_800B65E8", sel.functions)
+        self.assertEqual(sel.functions, sorted(f for f, r in routes.items() if r[1] == "pc/src/battle_motion.c"))
         self.assertIsNone(sel.fallback)
 
     def test_files_no_run_reads(self):
@@ -237,7 +239,7 @@ class ZigDiffSelectTest(unittest.TestCase):
         self.assertNotEqual(moved, self.own_text)
         self.assertEqual(self.select(own, old={own: moved}.get).functions, ["_updateEnemyKills"])
         # a unit's views are every function of the unit's
-        views = self.own_text.replace('globals = ["vs_main_scoredata"]', 'globals = []', 1)
+        views = self.own_text.replace('globals = ["vs_main_scoredata", ', 'globals = [', 1)
         self.assertNotEqual(views, self.own_text)
         sel = self.select(own, old={own: views}.get)
         routes = zig_diff_select._routes(self.own_text)

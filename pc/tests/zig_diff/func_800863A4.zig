@@ -21,15 +21,17 @@ pub const stubs = struct {
         _ = mode;
         out[0] = ctx.value(u16);
         out[1] = ctx.value(u16);
+        out[2] = ctx.value(u16); // the third halfword lands past the C's u_short[2]
         return ctx.edge(c_int, &.{ -1, 0, 1 });
     }
     pub fn func_800C1564(ctx: *zd.Ctx, area: anytype, point: anytype) c_int {
         const a: *const v.func_800C1564_t = @ptrCast(@alignCast(area.?));
         const seen = ctx.alloc(v.func_800C1564_t);
         seen.* = a.*;
-        const p = ctx.alloc([2]u16);
+        const p = ctx.alloc([3]u16);
         p[0] = point[0];
         p[1] = point[1];
+        p[2] = point[2];
         return if (ctx.value(u1) == 0) 0 else 1;
     }
     pub fn func_80085B10(ctx: *zd.Ctx, action: anytype, result: anytype, request: anytype, flag: anytype) void {

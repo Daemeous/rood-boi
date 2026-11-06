@@ -143,7 +143,7 @@ def zig_diff_changed(functions, scale=1.0):
 # null lane runs them, so the quick lane does not repeat them on Vulkan.
 NULL_SAFE = {"null_backend_smoke", "shadow_battle_smoke", "shadow_battle_smoke_38C1C", "ownership_smoke",
              "battle_corpus_candidate", "zig_hotswap_smoke", "engine_rewind_smoke", "classic_parity", "menu_model_smoke",
-             *(f"trial_corpus_{t[0]}{suffix}" for t in TRIAL_CORPUS for suffix in ("", "_features"))}
+             *(f"trial_corpus_{t[0]}{suffix}" for t in TRIAL_CORPUS for suffix in ("", "_features", "_inert"))}
 
 
 def suites(args, mode="egl"):
@@ -192,14 +192,15 @@ def suites(args, mode="egl"):
               sources=[TESTS / "diff/corpus.py", TESTS / "diff/scenarios.py", ROOT / "pc/tools/field_map.py"]),
         # The Zig trial port (pc/docs/porting/battle/TRIAL.md): each ported function's
         # subsystem in control, shadow, owned and alternating runs of a recipe that calls it,
-        # in the classic profile and again with the state-changing PC features on.
+        # in the classic profile, again with the state-changing PC features on, and in the inert
+        # profile (classic plus the post-flip pins, FLIP.md section 3).
         *[Suite(f"trial_corpus_{label}{suffix}", [PY, str(TESTS / "diff/differ.py"), subsystem,
                 "--scenario", scenario, "--card", str(args.save), "--profile", profile], 300,
                 note=f"trial port: {subsystem} on the {scenario} recipe, {profile} profile",
                 sources=[TESTS / "diff/corpus.py", TESTS / "diff/scenarios.py", ROOT / "pc/tools/field_map.py",
                          TESTS / "diff/waivers.toml", *[ROOT / "game/battle" / module for module in modules]])
           for label, subsystem, scenario, modules in TRIAL_CORPUS
-          for suffix, profile in (("", "classic"), ("_features", "features"))],
+          for suffix, profile in (("", "classic"), ("_features", "features"), ("_inert", "inert"))],
         Suite("shadow_battle_smoke", [PY, str(TESTS / "shadow_battle_smoke.py"), "--card", str(args.save)], 300,
               note="experimental routed battle shadow; classic oracle profile",
               sources=[ROOT / "pc/src/shadow.c", ROOT / "game/common/route.zig"]),

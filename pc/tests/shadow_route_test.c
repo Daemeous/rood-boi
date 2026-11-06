@@ -20,7 +20,15 @@ int pc_state_ranges(pc_state_range* out, int max)
 extern int probe_eight__shadow(int, int, int, int, int, int, int, int*);
 extern int probe_inner__shadow(int);
 int probe_inner(int value) { return probe_inner__shadow(value); }
-int probe_inner__orig(int value) { return value + 7; }
+static int report_inside, inside_status;
+int probe_inner__orig(int value)
+{
+    if (report_inside) { /* a vsync inside a routed function: the RPC reports while the call is in flight */
+        static char inside[8192];
+        inside_status = pc_shadow_report(inside, sizeof inside, 0);
+    }
+    return value + 7;
+}
 int probe_eight__orig(int a, int b, int c, int d, int e, int f, int g, int* output)
 {
     shadow_state += 3;
@@ -76,6 +84,14 @@ int main(void)
     assert(strstr(report, "\"function\":\"probe_inner\",\"calls\":0,\"nested\":20"));
     puts(report);
     assert(pc_shadow_calls() == 0);
+    report_inside = 1;
+    shadow_fault = 0;
+    {
+        int output = -1;
+        probe_eight__shadow(1, 2, 3, 4, 5, 6, 7, &output);
+    }
+    report_inside = 0;
+    assert(inside_status > 0); /* a report inside a shadowed call is not refused */
     assert(pc_shadow_report(report, sizeof report, 0) > 0);
     assert(strstr(report, "\"mismatches\":[]"));
     puts("routed shadow: eight parameters, nested calls, return, caller stack and Zig panic passed");

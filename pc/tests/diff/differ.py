@@ -137,7 +137,8 @@ def compare(game, recording, ticks, subsystem, index, modes, mapper, work,
             report = annotate(game.call("owner", action="report"), mapper)
             report["coverage_summary"] = coverage(report, functions)
             ok = (report.get("calls", 0) > 0 and report.get("count") == 0
-                  and report.get("errors") == 0 and not report.get("truncated", False))
+                  and report.get("errors") == 0 and not report.get("truncated", False)
+                  and not report.get("coverage_dropped", 0))
         else:
             report = game.digest("result")
             ok = (report.get("error") == 0 and report.get("ticks") == ticks

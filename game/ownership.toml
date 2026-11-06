@@ -16,11 +16,10 @@
 [subsystem.battle_146C]
 overlay = "battle"
 unit = "src/BATTLE/BATTLE.PRG/146C.c"
-default = "original"
+default = "owned"
 roots = ["vs_battle_actors", "vs_main_scoredata"]
 functions = [
     { addr = 0x8006C004, name = "_updateEnemyKills", zig = "score.updateEnemyKills" },  # a defeated enemy's kills, streak, flags
-    { addr = 0x800798A4, name = "vs_battle_exec", zig = "battle_exec.battleExec" },  # battle's main loop
 ]
 
 [subsystem.battle_146C.views]
@@ -38,7 +37,7 @@ globals = ["vs_main_scoredata", "D_800F1858", "D_80055C80", "D_8005E0C0", "D_800
 [subsystem.battle_44F14]
 overlay = "battle"
 unit = "src/BATTLE/BATTLE.PRG/44F14.c"
-default = "original"
+default = "owned"
 roots = ["D_800F4538", "actorTransformScratch@0x1F80035C"]  # the scratchpad block func_800B07DC works in
 functions = [
     { addr = 0x800B07DC, name = "func_800B07DC", zig = "actor_transform.offsetToWorld" },  # scratch offset -> world
@@ -51,7 +50,7 @@ globals = []
 [subsystem.battle_5BF94]
 overlay = "battle"
 unit = "src/BATTLE/BATTLE.PRG/5BF94.c"
-default = "original"
+default = "owned"
 roots = ["D_800EB9D8", "vs_battle_textBoxes", "vs_battle_stringContext"]
 functions = [
     { addr = 0x800CB2B8, name = "vs_battle_displaySceneMessage", zig = "scene_message.displaySceneMessage" },  # the name window
@@ -62,6 +61,23 @@ types = ["vs_battle_textBox", "vs_battle_stringContext_t", "vs_action_t"]
 globals = ["D_800EB9D8", "D_800F4E68", "D_800F4E69", "vs_battle_stringContext", "vs_main_actions",
            "vs_battle_menuStrings", "vs_battle_textBoxes", "D_800EBF58", "D_800EBDDC"]
 
+# Battle's main loop and its per-frame function: the two owned frames live at
+# the vsync, where snapshots, rewind and the hot-reload host cut the stack. The
+# development host's owned code is a reloadable library: a saved or rewound
+# stack must not hold return addresses into it (game_host.inc), so these two run
+# the original by default and call the owned code below them, which returns
+# before the vsync. ROOD_OWNER=battle_frame=owned (and the static builds) still
+# run them owned.
+[subsystem.battle_frame]
+overlay = "battle"
+unit = "src/BATTLE/BATTLE.PRG/146C.c"
+default = "original"
+roots = ["vs_battle_actors"]
+functions = [
+    { addr = 0x800798A4, name = "vs_battle_exec", zig = "battle_exec.battleExec" },  # battle's main loop
+    { addr = 0x8007629C, name = "func_8007629C", zig = "func_8007629C.func_8007629C" },
+]
+
 # The model bake-off (pc/docs/porting/battle/BAKEOFF.md): eleven functions,
 # one Zig module each. One subsystem per unit; 146C.c and 5BF94.c get their
 # own (`_bakeoff`) beside the trial's, so the trial's corpus suites and their
@@ -69,7 +85,7 @@ globals = ["D_800EB9D8", "D_800F4E68", "D_800F4E69", "vs_battle_stringContext", 
 [subsystem.battle_146C_bakeoff]
 overlay = "battle"
 unit = "src/BATTLE/BATTLE.PRG/146C.c"
-default = "original"
+default = "owned"
 roots = ["D_800F19CC", "vs_battle_actors", "vs_battle_characterState"]
 functions = [
     { addr = 0x8006CE50, name = "func_8006CE50", zig = "room_timer.startSection12Timer" },             # the section-12 timer at 180
@@ -90,7 +106,7 @@ globals = ["vs_battle_actors", "D_800F19CC", "D_800F196C", "_cameraMode", "vs_ba
 [subsystem.battle_5BF94_bakeoff]
 overlay = "battle"
 unit = "src/BATTLE/BATTLE.PRG/5BF94.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800CFD60, name = "vs_battle_lerpSvector", zig = "vector_lerp.lerpSvector" },  # three 7-bit lerps into an SVECTOR
@@ -103,7 +119,7 @@ globals = []
 [subsystem.battle_30DB0]
 overlay = "battle"
 unit = "src/BATTLE/BATTLE.PRG/30DB0.c"
-default = "original"
+default = "owned"
 roots = ["D_800F4538"]
 functions = [
     { addr = 0x800A0204, name = "func_800A0204", zig = "actor_animation.startAnimation" },  # an actor's animation (re)started
@@ -116,7 +132,7 @@ globals = ["D_800F4538", "D_800F49DC"]
 [subsystem.battle_40564]
 overlay = "battle"
 unit = "src/BATTLE/BATTLE.PRG/40564.c"
-default = "original"
+default = "owned"
 roots = ["D_800F4538", "D_800F4768"]
 functions = [
     { addr = 0x800AD494, name = "func_800AD494", zig = "animation_lookup.findAnimation" },  # an animation's table and frames
@@ -130,7 +146,7 @@ globals = ["D_800E8F2C", "D_800F4768", "D_800F49DC", "D_800F49E4"]
 [subsystem.battle_4A0A8_hand]
 overlay = "battle"
 unit = "src/BATTLE/BATTLE.PRG/4A0A8.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800B66A8, name = "vs_battle_invalidOpcode", zig = "script_invalid_opcode.invalidOpcode" },
@@ -159,12 +175,12 @@ globals = ["D_800E9BE0", "D_800E9BE8", "D_800E9C00", "D_800E9C30", "D_800EB9BC",
            "_mpdScriptSection", "vs_battle_stringContext"]
 
 # The port pipeline (pc/tools/port_pipeline.py): one subsystem per unit,
-# battle_<unit>_port, written by the pipeline (default original).
+# battle_<unit>_port, written by the pipeline (a new one starts original; flipped to owned 2026-11-05).
 
 [subsystem.battle_146C_port]
 overlay = "battle"
 unit = "src/BATTLE/BATTLE.PRG/146C.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x80069C6C, name = "func_80069C6C", zig = "func_80069C6C.func_80069C6C" },
@@ -325,7 +341,6 @@ functions = [
     { addr = 0x800753F8, name = "func_800753F8", zig = "func_800753F8.func_800753F8" },
     { addr = 0x80075554, name = "func_80075554", zig = "actor_commands.func_80075554" },
     { addr = 0x800760CC, name = "func_800760CC", zig = "func_800760CC.func_800760CC" },
-    { addr = 0x8007629C, name = "func_8007629C", zig = "func_8007629C.func_8007629C" },
     { addr = 0x8007647C, name = "func_8007647C", zig = "func_8007647C.func_8007647C" },
     { addr = 0x800765B0, name = "func_800765B0", zig = "func_800765B0.func_800765B0" },
     { addr = 0x80076784, name = "func_80076784", zig = "func_80076784.func_80076784" },
@@ -851,7 +866,7 @@ declarations = ["int snprintf(char* out, unsigned long size, const char* fmt, ..
 [subsystem.battle_38C1C_port]
 overlay = "battle"
 unit = "src/BATTLE/BATTLE.PRG/38C1C.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800A141C, name = "func_800A141C", zig = "project_bone_point.projectBonePoint" },
@@ -880,7 +895,7 @@ globals = ["D_800E90AC", "D_800E90B4", "D_800F4538", "D_800F45E0", "D_800F49B8",
 [subsystem.battle_7CD68_port]
 overlay = "battle"
 unit = "src/BATTLE/BATTLE.PRG/7CD68.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800E5568, name = "func_800E5568", zig = "func_800E5568.func_800E5568" },
@@ -904,7 +919,7 @@ globals = ["D_80069C08", "D_80069C18", "D_80069C1C", "D_80069C3C", "D_800F16EC",
 [subsystem.battle_71618_port]
 overlay = "battle"
 unit = "src/BATTLE/BATTLE.PRG/71618.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800D9E18, name = "func_800D9E18", zig = "func_800D9E18.func_800D9E18" },
@@ -928,7 +943,7 @@ globals = ["D_800F16F4", "D_800F4538", "D_800F45E0", "D_800F5878", "D_800F58BC",
 [subsystem.battle_573B8_port]
 overlay = "battle"
 unit = "src/BATTLE/BATTLE.PRG/573B8.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800BFD9C, name = "func_800BFD9C", zig = "func_800BFD9C.func_800BFD9C" },
@@ -965,7 +980,7 @@ globals = ["D_80040A14", "D_800E9C30", "D_800EB9AC", "D_800EB9B8", "D_800F4B28",
 [subsystem.battle_6FC00_port]
 overlay = "battle"
 unit = "src/BATTLE/BATTLE.PRG/6FC00.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800D8400, name = "func_800D8400", zig = "func_800D8400.func_800D8400" },
@@ -982,7 +997,7 @@ globals = ["D_800F16F4", "D_800F4538", "D_800F45E0", "D_800F5878", "D_800F58BC",
 [subsystem.battle_58578_port]
 overlay = "battle"
 unit = "src/BATTLE/BATTLE.PRG/58578.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800C0D78, name = "func_800C0D78", zig = "func_800C0D78.func_800C0D78" },
@@ -1014,7 +1029,7 @@ globals = ["D_800EA234", "D_800EA2C4", "D_800EA438", "D_800EA46C", "D_800EA670",
 [subsystem.battle_44F14_port]
 overlay = "battle"
 unit = "src/BATTLE/BATTLE.PRG/44F14.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800AD714, name = "func_800AD714", zig = "func_800AD714.func_800AD714" },
@@ -1049,7 +1064,7 @@ globals = ["D_8005E218", "D_800E91A4", "D_800E91AC", "D_800E91BC", "D_800E91CC",
 [subsystem.battle_74088_port]
 overlay = "battle"
 unit = "src/BATTLE/BATTLE.PRG/74088.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800DC888, name = "func_800DC888", zig = "func_800DC888.func_800DC888" },
@@ -1075,7 +1090,7 @@ globals = ["D_80069BBC", "D_80069BD0", "D_800F4538", "D_800F45E0", "D_800F5878",
 [subsystem.battle_6F014_port]
 overlay = "battle"
 unit = "src/BATTLE/BATTLE.PRG/6F014.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800D7814, name = "func_800D7814", zig = "func_800D7814.func_800D7814" },
@@ -1118,7 +1133,7 @@ globals = ["D_800EC4BC", "D_800F5230", "D_800F5330", "D_800F53C0", "D_800F5630",
 [subsystem.battle_771A8_port]
 overlay = "battle"
 unit = "src/BATTLE/BATTLE.PRG/771A8.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800DF9A8, name = "func_800DF9A8", zig = "func_800DF9A8.func_800DF9A8" },
@@ -1154,7 +1169,7 @@ globals = ["D_800F175C", "D_800F1760", "D_800F4538", "D_800F58BC", "D_800F58D8",
 [subsystem.battle_6FA60_port]
 overlay = "battle"
 unit = "src/BATTLE/BATTLE.PRG/6FA60.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800D8260, name = "func_800D8260", zig = "func_800D8260.func_800D8260" },
@@ -1167,7 +1182,7 @@ globals = []
 [subsystem.battle_7C4E8_port]
 overlay = "battle"
 unit = "src/BATTLE/BATTLE.PRG/7C4E8.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800E4CE8, name = "func_800E4CE8", zig = "func_800E4CE8.func_800E4CE8" },
@@ -1180,7 +1195,7 @@ globals = []
 [subsystem.battle_49268_port]
 overlay = "battle"
 unit = "src/BATTLE/BATTLE.PRG/49268.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800B1A68, name = "func_800B1A68", zig = "func_800B1A68.func_800B1A68" },
@@ -1195,7 +1210,7 @@ globals = ["D_800F2458", "D_800F3C58", "D_800F3C78", "D_800F4538", "vs_battle_we
 [subsystem.battle_5BE50_port]
 overlay = "battle"
 unit = "src/BATTLE/BATTLE.PRG/5BE50.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800C4650, name = "func_800C4650", zig = "func_800C4650.func_800C4650" },
@@ -1210,7 +1225,7 @@ globals = ["D_800EB9B8", "vs_main_buttonsState"]
 [subsystem.battle_73700_port]
 overlay = "battle"
 unit = "src/BATTLE/BATTLE.PRG/73700.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800DBF00, name = "func_800DBF00", zig = "func_800DBF00.func_800DBF00" },
@@ -1225,7 +1240,7 @@ globals = ["D_800F58BC"]
 [subsystem.battle_7EE98_port]
 overlay = "battle"
 unit = "src/BATTLE/BATTLE.PRG/7EE98.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800E7698, name = "func_800E7698", zig = "func_800E7698.func_800E7698" },
@@ -1241,7 +1256,7 @@ globals = ["D_800F17DC", "D_800F4538", "D_800F58BC", "D_800F5918", "D_800F591C",
 [subsystem.battle_3A1A0_port]
 overlay = "battle"
 unit = "src/BATTLE/BATTLE.PRG/3A1A0.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800A29A0, name = "func_800A29A0", zig = "func_800A29A0.func_800A29A0" },
@@ -1293,7 +1308,7 @@ globals = ["D_800E8FD0", "D_800E90A8", "D_800E90BC", "D_800E90C3", "D_800E90C4",
 [subsystem.battle_40564_port]
 overlay = "battle"
 unit = "src/BATTLE/BATTLE.PRG/40564.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800A8D64, name = "func_800A8D64", zig = "func_800A8D64.func_800A8D64" },
@@ -1358,7 +1373,7 @@ globals = ["D_800E8F2C", "D_800E8F30", "D_800E8F90", "D_800E909C", "D_800E916C",
 [subsystem.battle_2842C_port]
 overlay = "battle"
 unit = "src/BATTLE/BATTLE.PRG/2842C.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x80090C2C, name = "func_80090C2C", zig = "func_80090C2C.func_80090C2C" },
@@ -1476,7 +1491,7 @@ declarations = ["void vs_battle_renderTextRawColor(char const* text, int xy, int
 [subsystem.battle_30DB0_port]
 overlay = "battle"
 unit = "src/BATTLE/BATTLE.PRG/30DB0.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800995B0, name = "vs_battle_getEmptyObjectDataSlot", zig = "get_empty_object_data_slot.getEmptyObjectDataSlot" },
@@ -1588,7 +1603,7 @@ globals = ["D_800E8960", "D_800E8A60", "D_800E8B40", "D_800E8D00", "D_800E8E80",
 [subsystem.battle_5BF94_port]
 overlay = "battle"
 unit = "src/BATTLE/BATTLE.PRG/5BF94.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800C4794, name = "func_800C4794", zig = "func_800C4794.func_800C4794" },
@@ -1914,7 +1929,7 @@ globals = ["D_800EA984", "D_800EA9B6", "D_800EAA54", "D_800EABAA", "D_800EB708",
 [subsystem.battle_4A0A8_port]
 overlay = "battle"
 unit = "src/BATTLE/BATTLE.PRG/4A0A8.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800B66E4, name = "func_800B66E4", zig = "func_800B66E4.func_800B66E4" },
@@ -2161,7 +2176,7 @@ declarations = ["void func_8007CEC0(void);"]
 [subsystem.d2_actor_blend]
 overlay = "battle"
 unit = "pc/src/actor_blend.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800B147C, name = "func_800B147C", zig = "pc.blend_animation_records.blendAnimationRecords" },
@@ -2174,7 +2189,7 @@ globals = []
 [subsystem.d2_actor_cleanup]
 overlay = "battle"
 unit = "pc/src/actor_cleanup.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800D821C, name = "func_800D821C", zig = "pc.reset_actor_values.resetActorValues" },
@@ -2192,7 +2207,7 @@ globals = ["D_800F5878", "D_800F58B8", "D_800F58BC", "D_800F58C0", "D_800F58D0",
 [subsystem.d2_actor_packets]
 overlay = "battle"
 unit = "pc/src/actor_packets.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800B4594, name = "func_800B4594", zig = "pc.build_actor_packets.buildActorPackets" },
@@ -2206,7 +2221,7 @@ globals = []
 [subsystem.d2_actor_shadow]
 overlay = "battle"
 unit = "pc/src/actor_shadow.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800B4B14, name = "func_800B4B14", zig = "pc.shadow_actor.shadowActor" },
@@ -2219,7 +2234,7 @@ globals = []
 [subsystem.d2_actor_update]
 overlay = "battle"
 unit = "pc/src/actor_update.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800E5154, name = "func_800E5154", zig = "pc.route_target_state.routeTargetState" },
@@ -2236,7 +2251,7 @@ globals = ["D_800F4538", "D_800F5878", "D_800F58B8", "D_800F58BC", "vs_battle_ac
 [subsystem.d2_actor_vertices]
 overlay = "battle"
 unit = "pc/src/actor_vertices.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800B3A68, name = "func_800B3A68", zig = "pc.project_object_vertices.projectObjectVertices" },
@@ -2249,7 +2264,7 @@ globals = ["D_800F2458"]
 [subsystem.d2_battle_gte]
 overlay = "battle"
 unit = "pc/src/battle_gte.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800C0B50, name = "func_800C0B50", zig = "pc.draw_menu_target_shape.drawMenuTargetShape" },
@@ -2264,7 +2279,7 @@ globals = ["D_800EB9B8", "_trig_table"]
 [subsystem.d2_battle_helpers]
 overlay = "battle"
 unit = "pc/src/battle_helpers.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x80099514, name = "func_80099514", zig = "pc.room_height_tile.heightTileValue" },
@@ -2309,7 +2324,7 @@ globals = ["D_80069C0C", "D_800F5878", "D_800F58B8", "D_800F58D4", "D_800F58F0",
 [subsystem.d2_battle_motion]
 overlay = "battle"
 unit = "pc/src/battle_motion.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800B63AC, name = "func_800B63AC", zig = "pc.motion_start.startMove" },
@@ -2331,7 +2346,7 @@ globals = ["D_800F4538"]
 [subsystem.d2_battle_movement]
 overlay = "battle"
 unit = "pc/src/battle_movement.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800D82A8, name = "func_800D82A8", zig = "pc.leave_encounter_by_id.leaveEncounterById" },
@@ -2414,7 +2429,7 @@ globals = ["D_800F1758", "D_800F4538", "D_800F45E0", "D_800F5878", "D_800F58B8",
 [subsystem.d2_boot_sdk]
 overlay = "battle"
 unit = "pc/src/boot_sdk.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x8009820C, name = "func_8009820C", zig = "pc.draw_room_background.drawRoomBackground" },
@@ -2434,7 +2449,7 @@ globals = []
 [subsystem.d2_effect_particles]
 overlay = "battle"
 unit = "pc/src/effect_particles.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800D6E44, name = "func_800D6E44", zig = "pc.draw_particles.drawParticles" },
@@ -2448,7 +2463,7 @@ globals = ["D_800F53BC", "D_800F569C", "vs_main_nearClip", "vs_main_projectionDi
 [subsystem.d2_map_view]
 overlay = "battle"
 unit = "pc/src/map_view.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800C2E24, name = "func_800C2E24", zig = "pc.draw_area_map_screen.drawAreaMapScreen" },
@@ -2461,7 +2476,7 @@ globals = ["D_800EA130", "D_800EA6B0", "D_800EA818", "D_800EB9B8", "pc_map_emitt
 [subsystem.d2_navigation]
 overlay = "battle"
 unit = "pc/src/navigation.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800DC638, name = "func_800DC638", zig = "pc.exit_links.enableExitLinks" },
@@ -2477,7 +2492,7 @@ globals = ["D_800F58B8", "D_800F58BC", "D_800F58C0", "D_800F58C8", "D_800F58CC",
 [subsystem.d2_room_geometry]
 overlay = "battle"
 unit = "pc/src/room_geometry.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x8009723C, name = "func_8009723C", zig = "pc.draw_room_groups.drawRoomGroups" },
@@ -2496,7 +2511,7 @@ globals = ["D_800F1CDC", "drawn_count", "drawn_data", "drawn_facing", "drawn_gro
 [subsystem.d2_room_lighting]
 overlay = "battle"
 unit = "pc/src/room_lighting.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x80098B38, name = "func_80098B38", zig = "pc.room_light_at.roomLightAt" },
@@ -2510,7 +2525,7 @@ globals = ["vs_battle_roomData"]
 [subsystem.d2_room_render]
 overlay = "battle"
 unit = "pc/src/room_render.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x80098160, name = "func_80098160", zig = "pc.set_room_near_depth.setRoomNearDepth" },
@@ -2526,7 +2541,7 @@ globals = ["clip_bottom", "clip_left", "clip_right", "clip_top", "distance_thres
 [subsystem.d2_weapon_packets]
 overlay = "battle"
 unit = "pc/src/weapon_packets.c"
-default = "original"
+default = "owned"
 roots = []
 functions = [
     { addr = 0x800B3CF0, name = "func_800B3CF0", zig = "pc.build_weapon_packets.buildWeaponPackets" },

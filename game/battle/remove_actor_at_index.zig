@@ -26,12 +26,14 @@ pub fn removeActorAtIndex(index: c_uint, arg1: c_int) callconv(.c) c_int {
 
             c.func_800E7454(@ptrCast(actor));
 
-            // Empty PS1 slots are skipped: the host has no memory at their NULL pointer.
+            // Empty PS1 slots are skipped: the host has no memory at their NULL pointer. The links are
+            // compared and copied as guest addresses, as the C's psx_get/psx_copy do: a stale `next` need
+            // not be aligned, and making it a pointer would panic.
             var i: usize = 0;
             while (i < 16) : (i += 1) {
                 const slot = slots[i] orelse continue;
-                if (psx.get(slot.next) == actor) {
-                    psx.put(&slot.next, psx.get(actor.next));
+                if (psx.rawOf(slot.next) == psx.addr(actor)) {
+                    psx.copy(&slot.next, actor.next);
                     break;
                 }
             }

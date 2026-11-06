@@ -165,6 +165,15 @@ pub fn put(field: anytype, p: anytype) void {
     }
 }
 
+/// psx_copy: one pointer field into another as stored, never made a
+/// pointer on the way (a stale guest link need not be aligned).
+pub fn copy(dst: anytype, src: anytype) void {
+    switch (@typeInfo(@TypeOf(src))) {
+        .optional, .pointer => dst.* = src,
+        else => dst.raw = src.raw,
+    }
+}
+
 /// psx_raw: a psx_ptr field's 4-byte guest address, a native field's address.
 pub fn rawOf(field: anytype) u32 {
     return switch (@typeInfo(@TypeOf(field))) {

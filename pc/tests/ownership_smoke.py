@@ -13,6 +13,8 @@ from snapshot_diff import Symbols
 # The owner switch's fixture: a fully ported subsystem (the trial's
 # func_800B07DC, actor_transform.offsetToWorld) whose routes do not change.
 FIXTURE = "battle_44F14"
+# Subsystems still original by default after the flip (game/ownership.toml).
+ORIGINAL = {"battle_frame"}
 
 
 def check(condition, message):
@@ -27,18 +29,19 @@ def main():
         out = pathlib.Path(directory)
         g = Game.launch(fast=True, log=out / "game.log", extra_env={
                 "ROOD_DETERMINISTIC": "1", "ROOD_INTERPOLATE": "0",
-                "ROOD_OWNER": f"{FIXTURE}=owned",
+                "ROOD_OWNER": f"{FIXTURE}=original",
                 "ROOD_CARD1": str(out / "absent-card.mcd"),
                 "ROOD_CARD2": str(out / "absent-card2.mcd")})
         try:
             title(g)
             owners = g.owner()["subsystems"]
             fixture = next(o for o in owners if o["name"] == FIXTURE)
-            # the fixture owned from ROOD_OWNER, every other subsystem original by default.
-            check(fixture["routes"] == 1 and fixture["owner"] == "owned"
-                  and all(o["owner"] == "original" for o in owners if o["name"] != FIXTURE),
-                  f"ROOD_OWNER and the fixture's one route owned, the rest original: {owners}")
-            for owner in ("original", "owned", "original"):
+            # the fixture original from ROOD_OWNER, every other subsystem at its default (owned since the flip).
+            check(fixture["routes"] == 1 and fixture["owner"] == "original"
+                  and all(o["owner"] == ("original" if o["name"] in ORIGINAL else "owned")
+                          for o in owners if o["name"] != FIXTURE),
+                  f"ROOD_OWNER and the fixture's one route original, the rest at their defaults: {owners}")
+            for owner in ("owned", "original", "owned"):
                 reply = g.owner(FIXTURE, owner)["subsystems"]
                 check(next(o for o in reply if o["name"] == FIXTURE)["owner"] == owner,
                       f"owner round-trip: {owner}")
@@ -54,7 +57,8 @@ def main():
                 except RpcError:
                     pass
             report = g.call("owner", action="report", reset=True)
-            check(report == {"calls": 0, "count": 0, "errors": 0, "truncated": False, "mismatches": [], "coverage": []},
+            check(report == {"calls": 0, "count": 0, "errors": 0, "truncated": False, "coverage_dropped": 0,
+                            "mismatches": [], "coverage": []},
                   f"shadow report is empty before shadow execution: {report}")
             g.call("graphics", interpolate=False)
             try:
