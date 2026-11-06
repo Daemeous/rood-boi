@@ -392,7 +392,11 @@ void pc_window_tick(void)
     charge_update();
     /* The cutscene player (cutscene.cpp): 0 while it goes to a frame (unpaced), 2 or 4 in slow motion. */
     int pace = pc_take_pace ? pc_take_pace() : 1;
-    if (fast_forward_held() || charge_hidden || (&pc_photo_rendering && pc_photo_rendering) || pace <= 0)
+    if (&pc_photo_rendering && pc_photo_rendering) {
+        /* A photo mode render's vsyncs run unpaced, the deadline kept: the render's time counts toward
+         * the paused redraw's period like a frame's own work. Restarting the pacing from after each
+         * render added a whole field to every camera step (about 37 pictures a second). */
+    } else if (fast_forward_held() || charge_hidden || pace <= 0)
         deadline.tv_sec = 0; /* pace again from now when it is released (or presents again) */
     else if (!fast || pace > 1) {
         /* Pace to absolute NTSC field deadlines (59.94 Hz) so the frame's own

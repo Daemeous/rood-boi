@@ -5227,6 +5227,11 @@ static void poll_requests(void)
             }
             now = rpc_now_ms();
             next_redraw = now + paused_redraw_ms();
+            /* A photo render the tick just asked for (the camera moved) starts now, not after
+             * the wait: the next redraw (on re-entry, at once) shows it, and the camera moves
+             * every field (boot_window.c paces the render's time into the period). */
+            if (pc_photo_poll && pc_photo_poll())
+                return;
         }
         wait_for_requests((int)(next_redraw - now));
         if (listener >= 0)

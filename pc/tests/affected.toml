@@ -312,7 +312,7 @@ suites = ["lua_imgui_smoke", "material_review_smoke", "material_instances_smoke"
 paths = ["pc/src/photo*", "pc/src/*_photo.inc", "pc/src/lua/lua_api_photo.cpp", "pc/src/lua/lua_photo*",
          "pc/tests/lua/plugins/test.photo/*", "pc/src/state_rewind.c",
          "pc/src/editor_view.cpp", "pc/src/post_profile.cpp", "pc/src/post.h"]
-suites = ["photo_foundation_smoke", "photo_engine_reload_smoke", "photo_mode_smoke", "photo_full_room_smoke", "ctest"]
+suites = ["photo_foundation_smoke", "photo_engine_reload_smoke", "photo_mode_smoke", "photo_pace_smoke", "photo_full_room_smoke", "ctest"]
 
 # ---- the free camera's view of the room and the sky (photo_full_room; the background sphere) ----
 [[rule]]

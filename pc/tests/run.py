@@ -577,6 +577,10 @@ def suites(args, mode="egl"):
                       "Cross / the pad button / Start leave with everything restored (state digest, post values, "
                       "the picture, settings.cfg)")]
           if args.save.exists() else []),
+        *([Suite("photo_pace_smoke", [PY, str(TESTS / "photo_pace_smoke.py"), "--card", str(args.save)], 300,
+                 note="photo mode in real time: turning the camera keeps play's present rate (a render's time "
+                      "counts toward the field; it once ran about 37 pictures a second against 60)")]
+          if args.save.exists() else []),
         *([Suite("photo_full_room_smoke", [PY, str(TESTS / "photo_full_room_smoke.py"), "--card", str(args.save)],
                  300, note="the photo mode's free camera sees the whole room (every group: no facing cutaway, no "
                            "hide list; the picture not black where the mesh projects) and the sky (Rue Vermillion, "
@@ -911,7 +915,7 @@ CHECKPOINT_SUITES = {
     "ui_ashley_backdrop_smoke", "ui_data_smoke", "ui_container_smoke", "interp_menu_2d_smoke",
     "ui_ashley_detail_smoke", "ui_score_smoke", "snapshot_resume_smoke", "engine_reload_smoke", "frame_cost_smoke",
     "hud_bench_smoke", "classic_hud_smoke",
-    "repl_smoke", "lua_imgui_smoke", "photo_foundation_smoke", "photo_engine_reload_smoke", "photo_mode_smoke", "photo_full_room_smoke",
+    "repl_smoke", "lua_imgui_smoke", "photo_foundation_smoke", "photo_engine_reload_smoke", "photo_mode_smoke", "photo_pace_smoke", "photo_full_room_smoke",
     "cutscene_player_smoke", "cutscene_viewer_smoke", "cutscene_sequencer_smoke", "cutscene_freecam_smoke",
     "text_fade_smoke",
 }
