@@ -736,11 +736,16 @@ import zig_toolchain  # noqa: E402
 # while no game code is owned yet: without it the owned objects are skipped
 # (a warning; ROOD_REQUIRE_ZIG=1 makes it an error, as it will be once a
 # module is owned).
-_zig = None if os.environ.get("ROOD_NO_ZIG") == "1" else zig_toolchain.find()
-if _zig is None and os.environ.get("ROOD_REQUIRE_ZIG") == "1":
+# Merlose hooks the battle code's C (VS_CALLO_*), in functions the Zig port owns by default and
+# whose Zig neighbours call each other directly: a mod build runs all of it from C, Zig installed
+# or not, or her hooks would silently not run.
+_zig = None if parsed.callo or os.environ.get("ROOD_NO_ZIG") == "1" else zig_toolchain.find()
+if _zig is None and not parsed.callo and os.environ.get("ROOD_REQUIRE_ZIG") == "1":
     _zig = zig_toolchain.ensure()  # exits with the install instructions
 ZIG = str(_zig) if _zig else None
-if ZIG is None:
+if parsed.callo:
+    print("Merlose build: the battle code runs from C (its hooks are there), not from game/")
+elif ZIG is None:
     print(f"warning: Zig {zig_toolchain.VERSION} not installed: building without the owned objects (game/); "
           "`python3 pc/tools/zig_toolchain.py --help` installs it")
 
