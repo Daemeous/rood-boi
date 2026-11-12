@@ -13004,7 +13004,7 @@ int _increaseStrengthRand(vs_action_t* arg0 __attribute__((unused)),
     _hitEntity_t* arg1 __attribute__((unused)), _hitEntity_t* arg2,
     int arg3 __attribute__((unused)), int arg4 __attribute__((unused)))
 {
-    int amount = VS_CALLO_HOOK(vs_main_getRand(4), VS_CALLO_STAT_ROLL) + 1;
+    int amount = VS_CALLO_STAT_ROLL + 1;
     arg2->strength += amount;
     arg2->strengthEffect = 2;
 }
@@ -13013,7 +13013,7 @@ int _increaseIntelligenceRand(vs_action_t* arg0 __attribute__((unused)),
     _hitEntity_t* arg1 __attribute__((unused)), _hitEntity_t* arg2,
     int arg3 __attribute__((unused)), int arg4 __attribute__((unused)))
 {
-    int amount = VS_CALLO_HOOK(vs_main_getRand(4), VS_CALLO_STAT_ROLL) + 1;
+    int amount = VS_CALLO_STAT_ROLL + 1;
     arg2->intelligence += amount;
     arg2->intelligenceEffect = 2;
 }
@@ -13022,7 +13022,7 @@ int _increaseAgilityRand(vs_action_t* arg0 __attribute__((unused)),
     _hitEntity_t* arg1 __attribute__((unused)), _hitEntity_t* arg2,
     int arg3 __attribute__((unused)), int arg4 __attribute__((unused)))
 {
-    int amount = VS_CALLO_HOOK(vs_main_getRand(4), VS_CALLO_STAT_ROLL) + 1;
+    int amount = VS_CALLO_STAT_ROLL + 1;
     arg2->agility += amount;
     arg2->agilityEffect = 2;
 }
@@ -13031,7 +13031,7 @@ int _increaseMaxHpRand(vs_action_t* arg0 __attribute__((unused)),
     _hitEntity_t* arg1 __attribute__((unused)), _hitEntity_t* arg2,
     int arg3 __attribute__((unused)), int arg4 __attribute__((unused)))
 {
-    int amount = VS_CALLO_HOOK(vs_main_getRand(4), VS_CALLO_STAT_ROLL) + 1;
+    int amount = VS_CALLO_STAT_ROLL + 1;
     arg2->maxHp += amount;
     arg2->maxHpEffect = 2;
 }
@@ -13040,7 +13040,7 @@ int _increaseMaxMpRand(vs_action_t* arg0 __attribute__((unused)),
     _hitEntity_t* arg1 __attribute__((unused)), _hitEntity_t* arg2,
     int arg3 __attribute__((unused)), int arg4 __attribute__((unused)))
 {
-    int amount = VS_CALLO_HOOK(vs_main_getRand(4), VS_CALLO_STAT_ROLL) + 1;
+    int amount = VS_CALLO_STAT_ROLL + 1;
     arg2->maxMp += amount;
     arg2->maxMpEffect = 2;
 }

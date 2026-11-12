@@ -34,9 +34,9 @@ ask() {  # <question>: y or n
 }
 show_choices() {
     say "  Merlose companion mod:  $(yesno "$merlose")"
+    say "  stat-up items give +4: $(yesno "$maxstats")"
+    say "  choose the bonus wheel reward: $(yesno "$wheel")"
     if yes "$merlose"; then
-        say "  stat-up items give +4: $(yesno "$maxstats")"
-        say "  choose the bonus wheel reward: $(yesno "$wheel")"
         say "  bigger inventory (experimental): $(yesno "$biginv")"
     fi
 }
@@ -44,7 +44,7 @@ merlose=$(opt merlose) maxstats=$(opt max_stat_items) wheel=$(opt choosable_bonu
 biginv=$(opt bigger_inventory)
 repo=$(opt repository https://github.com/Daemeous/rood-boi.git) branch=$(opt branch callo)
 keep=n
-if [ -n "$merlose" ] && { ! yes "$merlose" || { [ -n "$maxstats" ] && [ -n "$wheel" ] && [ -n "$biginv" ]; }; }; then
+if [ -n "$merlose" ] && [ -n "$maxstats" ] && [ -n "$wheel" ] && [ -n "$biginv" ]; then
     say "Last time you chose:"
     show_choices
     keep=$(ask "Keep these choices?")
@@ -54,16 +54,23 @@ if [ "$keep" != y ]; then
     say "Merlose companion mod (\"Two's A Riot\"): Merlose joins Ashley as an AI party member."
     say "You get play-callo.sh for it, next to the normal play.sh."
     answer=$(ask "Build it too?"); merlose=$(yesno "$answer") maxstats=no wheel=no biginv=no
+    say ""
     if yes "$merlose"; then
-        say ""
-        say "Stat-up items: the items that raise STR, INT, AGL, max HP or max MP for good"
-        say "normally give a random +1 to +4. With this, they always give +4."
-        answer=$(ask "Always +4?"); maxstats=$(yesno "$answer")
-        say ""
-        say "Bonus wheel: after a boss, the bonus wheel normally spins and stops on a reward."
-        say "With this, it DOESN'T spin: you choose the reward yourself with Down/Up and Circle."
-        say "(If you're not sure, answer N: the game then plays as you know it.)"
-        answer=$(ask "Choose the reward instead of spinning?"); wheel=$(yesno "$answer")
+        say "The next two extras go into the Merlose build (play-callo.sh)."
+    else
+        say "Without Merlose, you can still have these extras: if you choose any, you also get"
+        say "play-extras.sh, the game with them (and without Merlose), next to the normal play.sh."
+    fi
+    say ""
+    say "Stat-up items: the items that raise STR, INT, AGL, max HP or max MP for good"
+    say "normally give a random +1 to +4. With this, they always give +4."
+    answer=$(ask "Always +4?"); maxstats=$(yesno "$answer")
+    say ""
+    say "Bonus wheel: after a boss, the bonus wheel normally spins and stops on a reward."
+    say "With this, it DOESN'T spin: you choose the reward yourself with Down/Up and Circle."
+    say "(If you're not sure, answer N: the game then plays as you know it.)"
+    answer=$(ask "Choose the reward instead of spinning?"); wheel=$(yesno "$answer")
+    if yes "$merlose"; then
         say ""
         say "Bigger inventory (EXPERIMENTAL, may be unstable): twice as many weapons, shields,"
         say "blades, grips, armour and gems in your bag. When you save, the extra items go in the"

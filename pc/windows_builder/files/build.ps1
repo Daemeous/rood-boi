@@ -48,15 +48,14 @@ function Yes([string]$Name) { return $Options[$Name] -match '^(y|yes|on|true|1)$
 function YesNo([bool]$Value) { if ($Value) { "yes" } else { "no" } }
 function Show-Choices {
     Say ("  Merlose companion mod:  " + (YesNo (Yes "merlose")))
+    Say ("  stat-up items give +4: " + (YesNo (Yes "max_stat_items")))
+    Say ("  choose the bonus wheel reward: " + (YesNo (Yes "choosable_bonus_wheel")))
     if (Yes "merlose") {
-        Say ("  stat-up items give +4: " + (YesNo (Yes "max_stat_items")))
-        Say ("  choose the bonus wheel reward: " + (YesNo (Yes "choosable_bonus_wheel")))
         Say ("  bigger inventory (experimental): " + (YesNo (Yes "bigger_inventory")))
     }
 }
-$known = $Options.ContainsKey("merlose") -and (-not (Yes "merlose") -or
-         ($Options.ContainsKey("max_stat_items") -and $Options.ContainsKey("choosable_bonus_wheel") -and
-          $Options.ContainsKey("bigger_inventory")))
+$known = $Options.ContainsKey("merlose") -and $Options.ContainsKey("max_stat_items") -and
+         $Options.ContainsKey("choosable_bonus_wheel") -and $Options.ContainsKey("bigger_inventory")
 $keep = $false
 if ($known) {
     Say "Last time you chose:"
@@ -68,16 +67,23 @@ if (-not $keep) {
     Say "Merlose companion mod (""Two's A Riot""): Merlose joins Ashley as an AI party member."
     Say "You get play-callo.bat for it, next to the normal play.bat."
     $Options["merlose"] = YesNo (Ask "Build it too?")
+    Say ""
     if (Yes "merlose") {
-        Say ""
-        Say "Stat-up items: the items that raise STR, INT, AGL, max HP or max MP for good"
-        Say "normally give a random +1 to +4. With this, they always give +4."
-        $Options["max_stat_items"] = YesNo (Ask "Always +4?")
-        Say ""
-        Say "Bonus wheel: after a boss, the bonus wheel normally spins and stops on a reward."
-        Say "With this, it DOESN'T spin: you choose the reward yourself with Down/Up and Circle."
-        Say "(If you're not sure, answer N: the game then plays as you know it.)"
-        $Options["choosable_bonus_wheel"] = YesNo (Ask "Choose the reward instead of spinning?")
+        Say "The next two extras go into the Merlose build (play-callo.bat)."
+    } else {
+        Say "Without Merlose, you can still have these extras: if you choose any, you also get"
+        Say "play-extras.bat, the game with them (and without Merlose), next to the normal play.bat."
+    }
+    Say ""
+    Say "Stat-up items: the items that raise STR, INT, AGL, max HP or max MP for good"
+    Say "normally give a random +1 to +4. With this, they always give +4."
+    $Options["max_stat_items"] = YesNo (Ask "Always +4?")
+    Say ""
+    Say "Bonus wheel: after a boss, the bonus wheel normally spins and stops on a reward."
+    Say "With this, it DOESN'T spin: you choose the reward yourself with Down/Up and Circle."
+    Say "(If you're not sure, answer N: the game then plays as you know it.)"
+    $Options["choosable_bonus_wheel"] = YesNo (Ask "Choose the reward instead of spinning?")
+    if (Yes "merlose") {
         Say ""
         Say "Bigger inventory (EXPERIMENTAL, may be unstable): twice as many weapons, shields,"
         Say "blades, grips, armour and gems in your bag. When you save, the extra items go in the"
@@ -86,8 +92,6 @@ if (-not $keep) {
         Say "your Container. (The new-style PC menus aren't available with it yet.)"
         $Options["bigger_inventory"] = YesNo (Ask "Bigger inventory (experimental)?")
     } else {
-        $Options["max_stat_items"] = "no"
-        $Options["choosable_bonus_wheel"] = "no"
         $Options["bigger_inventory"] = "no"
     }
     Say ""
@@ -276,6 +280,7 @@ if ($Native) {
     Say "Done! To play, open the rood-boi folder here and double-click:"
     Say "  play.bat         - the game"
     if ($Merlose) { Say "  play-callo.bat   - the game with Merlose" }
+    elseif ((Yes "max_stat_items") -or (Yes "choosable_bonus_wheel")) { Say "  play-extras.bat  - the game with your extras (no Merlose)" }
     exit 0
 }
 
@@ -349,3 +354,4 @@ Say ""
 Say "Done! To play, open the rood-boi folder here and double-click:"
 Say "  play.bat         - the game"
 if ($Merlose) { Say "  play-callo.bat   - the game with Merlose" }
+elseif ((Yes "max_stat_items") -or (Yes "choosable_bonus_wheel")) { Say "  play-extras.bat  - the game with your extras (no Merlose)" }

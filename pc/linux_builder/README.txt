@@ -46,6 +46,8 @@ HOW TO BUILD
 When it's done, run:
 * rood-boi/play.sh        - the game
 * rood-boi/play-callo.sh  - the game with Merlose (if you chose her)
+* rood-boi/play-extras.sh  - the game with your extras, without Merlose
+                            (if you chose extras but not Merlose)
 
 Escape or F1 in the game opens the editor and settings. Your saves and
 settings are in rood-boi/pc/save and rood-boi/pc/user, and are kept when
@@ -159,10 +161,11 @@ OPTIONS (the builder asks)
 --------------------------
 The builder starts by asking which of these you want:
 * Merlose: also build the game with Callo Merlose as an AI companion,
-  with its own play-callo file next to the normal one.
-* Always +4: (Merlose builds) permanent stat-up items always give +4
+  with its own play-callo file next to the normal one. Without her,
+  the two extras below still work: they get their own play-extras file.
+* Always +4: permanent stat-up items always give +4
   instead of a random +1 to +4.
-* Choose the bonus wheel reward: (Merlose builds) after a boss the bonus
+* Choose the bonus wheel reward: after a boss the bonus
   wheel does NOT spin: you pick the reward yourself with Down/Up and
   Circle. If you're not sure, answer N.
 * Bigger inventory: (Merlose builds, EXPERIMENTAL, may be unstable) twice

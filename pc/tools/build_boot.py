@@ -76,14 +76,22 @@ parser.add_argument(
     "VS_SELECTABLE_ROULETTE, as the decompilation's make CALLO=1); builds into *_callo",
 )
 parser.add_argument(
+    "--extras",
+    action="store_true",
+    help="the Merlose build's extras without Merlose: permanent stat-up items always give +4 "
+    "(VS_MAX_STAT_ITEMS) and the bonus wheel is chosen (VS_SELECTABLE_ROULETTE), each unless "
+    "--random-stat-items / --spin-bonus-wheel; the battle code runs from C as with --callo; "
+    "builds into *_extras",
+)
+parser.add_argument(
     "--random-stat-items",
     action="store_true",
-    help="with --callo: permanent stat-up items keep their random +1 to +4 instead of always +4",
+    help="with --callo or --extras: permanent stat-up items keep their random +1 to +4 instead of always +4",
 )
 parser.add_argument(
     "--spin-bonus-wheel",
     action="store_true",
-    help="with --callo: the bonus wheel after a boss spins as in the original, instead of being chosen",
+    help="with --callo or --extras: the bonus wheel after a boss spins as in the original, instead of being chosen",
 )
 parser.add_argument(
     "--big-inventory",
@@ -110,8 +118,14 @@ no_audio = parsed.no_audio
 root = pathlib.Path(__file__).resolve().parents[2]
 out = root / ("pc/build/win64" if win else "pc/build/dev64" if engine_library
               else "pc/build/boot64" if arch64 else "pc/build/boot")
+if parsed.callo and parsed.extras:
+    parser.error("--extras is the extras without Merlose; --callo already has them")
+if parsed.extras and parsed.random_stat_items and parsed.spin_bonus_wheel:
+    parser.error("--extras with neither extra is the plain build")
 if parsed.callo:
     out = out.with_name(out.name + "_callo")
+if parsed.extras:
+    out = out.with_name(out.name + "_extras")
 if parsed.big_inventory:
     if not parsed.callo:
         parser.error("--big-inventory goes with --callo")
@@ -739,12 +753,12 @@ import zig_toolchain  # noqa: E402
 # Merlose hooks the battle code's C (VS_CALLO_*), in functions the Zig port owns by default and
 # whose Zig neighbours call each other directly: a mod build runs all of it from C, Zig installed
 # or not, or her hooks would silently not run.
-_zig = None if parsed.callo or os.environ.get("ROOD_NO_ZIG") == "1" else zig_toolchain.find()
-if _zig is None and not parsed.callo and os.environ.get("ROOD_REQUIRE_ZIG") == "1":
+_zig = None if parsed.callo or parsed.extras or os.environ.get("ROOD_NO_ZIG") == "1" else zig_toolchain.find()
+if _zig is None and not (parsed.callo or parsed.extras) and os.environ.get("ROOD_REQUIRE_ZIG") == "1":
     _zig = zig_toolchain.ensure()  # exits with the install instructions
 ZIG = str(_zig) if _zig else None
-if parsed.callo:
-    print("Merlose build: the battle code runs from C (its hooks are there), not from game/")
+if parsed.callo or parsed.extras:
+    print("Merlose/extras build: the battle code runs from C (its hooks are there), not from game/")
 elif ZIG is None:
     print(f"warning: Zig {zig_toolchain.VERSION} not installed: building without the owned objects (game/); "
           "`python3 pc/tools/zig_toolchain.py --help` installs it")
@@ -759,7 +773,8 @@ build_stamp = Stamp(root, out, {
     "engine_library": engine_library,
     "debug_compress": debug_compress,
     # the Merlose mod's options change the game units' defines
-    "callo": [parsed.callo, parsed.random_stat_items, parsed.spin_bonus_wheel, parsed.big_inventory],
+    "callo": [parsed.callo, parsed.random_stat_items, parsed.spin_bonus_wheel, parsed.big_inventory,
+              parsed.extras],
     "nrd": [nrd and nrd["libraries"], win_nrd and win_nrd["libraries"]], "toolchain": toolchain,
     "glslang": [glslang_libraries, win_glslang_libraries],
 })
@@ -1084,8 +1099,9 @@ game_cpp_flags = [
     "-DROOD_PC_BOOT_DIAGNOSTIC",
     # The Callo mod's hooks (src/BATTLE/BATTLE.PRG/mod/hooks.h) and the selectable bonus wheel
     *(["-DVS_CALLO"] if parsed.callo else []),
-    *(["-DVS_SELECTABLE_ROULETTE"] if parsed.callo and not parsed.spin_bonus_wheel else []),
+    *(["-DVS_SELECTABLE_ROULETTE"] if (parsed.callo or parsed.extras) and not parsed.spin_bonus_wheel else []),
     *(["-DVS_CALLO_RANDOM_STAT_ITEMS"] if parsed.callo and parsed.random_stat_items else []),
+    *(["-DVS_MAX_STAT_ITEMS"] if parsed.extras and not parsed.random_stat_items else []),
     # The bigger bag (1: VS_BIG_INVENTORY_CONTAINER)
     *(["-DVS_BIG_INVENTORY=1"] if parsed.big_inventory == "container" else []),
     # psx_ptr/psx_get/PSX_SIZE/PSX_ASSERT_* in every game unit; on 32 bits

@@ -17,12 +17,13 @@
  * 0x800F9800 in RAM, where INITBTL.PRG and the effect overlays load. */
 #define VS_CALLO_BATTLE_PRG_SECTORS 7
 
-/* Permanent stat-up items always give their maximum (+4), unless VS_CALLO_RANDOM_STAT_ITEMS
- * keeps the original random +1 to +4 */
-#ifdef VS_CALLO_RANDOM_STAT_ITEMS
-#define VS_CALLO_STAT_ROLL vs_main_getRand(4)
-#else
+/* Permanent stat-up items always give their maximum (+4) in Merlose builds, unless
+ * VS_CALLO_RANDOM_STAT_ITEMS keeps the original random +1 to +4, and with VS_MAX_STAT_ITEMS
+ * (the extras without Merlose, rood-boi's build_boot.py --extras). Otherwise the original roll. */
+#if (defined(VS_CALLO) && !defined(VS_CALLO_RANDOM_STAT_ITEMS)) || defined(VS_MAX_STAT_ITEMS)
 #define VS_CALLO_STAT_ROLL 3
+#else
+#define VS_CALLO_STAT_ROLL vs_main_getRand(4)
 #endif
 
 /* BATTLE.PRG */

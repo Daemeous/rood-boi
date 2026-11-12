@@ -103,6 +103,12 @@ if ! make -j"$(nproc)" > /root/make.log 2>&1; then
 fi
 tail -2 /root/make.log
 
+# Without Merlose, the extras the player chose get their own build (rood-extras)
+extras=()
+[ "$MAXSTATS" = 1 ] || extras+=(--random-stat-items)
+[ "$WHEEL" = 1 ] || extras+=(--spin-bonus-wheel)
+EXTRAS=0
+if [ "$MAXSTATS" = 1 ] || [ "$WHEEL" = 1 ]; then EXTRAS=1; fi
 callo=()
 [ "$MAXSTATS" = 1 ] || callo+=(--random-stat-items)
 [ "$WHEEL" = 1 ] || callo+=(--spin-bonus-wheel)
@@ -120,6 +126,10 @@ if [ "$TARGET" = windows ]; then
         step "4/5 rood-callo.exe, with Merlose"
         python3 pc/tools/build_boot.py --target windows --callo "${callo[@]}"
         dist+=(--callo --callo-build "win64$callo_dir")
+    elif [ "$EXTRAS" = 1 ]; then
+        step "4/5 rood-extras.exe, the extras without Merlose"
+        python3 pc/tools/build_boot.py --target windows --extras "${extras[@]}"
+        dist+=(--extras)
     fi
     step "5/5 The play folder"
     if ! cmp -s disks/SLUS-01040.bin "$PLAY/disks/SLUS-01040.bin"; then
@@ -129,12 +139,18 @@ if [ "$TARGET" = windows ]; then
     if [ "$MERLOSE" != 1 ]; then
         rm -f "$PLAY/rood-callo.exe" "$PLAY/play-callo.bat"
     fi
+    if [ "$MERLOSE" = 1 ] || [ "$EXTRAS" != 1 ]; then
+        rm -f "$PLAY/rood-extras.exe" "$PLAY/play-extras.bat"
+    fi
 else
     step "4/5 rood (this is the long part)"
     python3 pc/tools/build_boot.py --arch 64
     if [ "$MERLOSE" = 1 ]; then
         step "4/5 rood-callo, with Merlose"
         python3 pc/tools/build_boot.py --arch 64 --callo "${callo[@]}"
+    elif [ "$EXTRAS" = 1 ]; then
+        step "4/5 rood-extras, the extras without Merlose"
+        python3 pc/tools/build_boot.py --arch 64 --extras "${extras[@]}"
     fi
     step "5/5 The play folder"
     if ! cmp -s disks/SLUS-01040.bin "$PLAY/disks/SLUS-01040.bin"; then
@@ -172,6 +188,12 @@ EOF
         write_play play-callo.sh rood-callo rood-callo.log
     else
         rm -f "$PLAY/rood-callo" "$PLAY/play-callo.sh"
+    fi
+    if [ "$MERLOSE" != 1 ] && [ "$EXTRAS" = 1 ]; then
+        strip --strip-debug -o "$PLAY/rood-extras" pc/build/boot64_extras/rood_battle_probe
+        write_play play-extras.sh rood-extras rood-extras.log
+    else
+        rm -f "$PLAY/rood-extras" "$PLAY/play-extras.sh"
     fi
     if [ -n "$OWNER" ]; then
         chown -R "$OWNER" "$PLAY" "$OUT/build.log"

@@ -77,6 +77,12 @@ if ! make -j"$(nproc)" PYTHON="$PYTHON" VPYTHON=$VPY XDELTA=tools/xdelta/xdelta3
 fi
 tail -2 "$NATIVE/make.log"
 
+# Without Merlose, the extras the player chose get their own build (rood-extras)
+extras=()
+[ "$MAXSTATS" = 1 ] || extras+=(--random-stat-items)
+[ "$WHEEL" = 1 ] || extras+=(--spin-bonus-wheel)
+EXTRAS=0
+if [ "$MAXSTATS" = 1 ] || [ "$WHEEL" = 1 ]; then EXTRAS=1; fi
 callo=()
 [ "$MAXSTATS" = 1 ] || callo+=(--random-stat-items)
 [ "$WHEEL" = 1 ] || callo+=(--spin-bonus-wheel)
@@ -93,6 +99,10 @@ if [ "$MERLOSE" = 1 ]; then
     step "4/5 rood-callo.exe, with Merlose"
     $VPY pc/tools/build_boot.py --target windows --callo "${callo[@]}"
     dist+=(--callo --callo-build "$callo_build")
+elif [ "$EXTRAS" = 1 ]; then
+    step "4/5 rood-extras.exe, the extras without Merlose"
+    $VPY pc/tools/build_boot.py --target windows --extras "${extras[@]}"
+    dist+=(--extras)
 fi
 step "5/5 The play folder"
 if ! cmp -s disks/SLUS-01040.bin "$PLAY/disks/SLUS-01040.bin"; then
@@ -101,5 +111,8 @@ fi
 $VPY pc/tools/windows_dist.py "$(cygpath -w "$PLAY")" "${dist[@]}"
 if [ "$MERLOSE" != 1 ]; then
     rm -f "$PLAY/rood-callo.exe" "$PLAY/play-callo.bat"
+fi
+if [ "$MERLOSE" = 1 ] || [ "$EXTRAS" != 1 ]; then
+    rm -f "$PLAY/rood-extras.exe" "$PLAY/play-extras.bat"
 fi
 echo "built from $(git log -1 --format=%h)"
