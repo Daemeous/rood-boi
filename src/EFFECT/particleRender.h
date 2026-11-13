@@ -88,7 +88,18 @@ void VS_PARTICLE_RENDER_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* a
         gte_stszotz(&depths[0]);
         curveSamples[0] = 0;
         for (segment = 1; segment < 8; ++segment) {
+#ifdef ROOD_PC
+            /* `width` is also each ribbon's width below, so from the second
+             * particle on it holds the previous one's, which can be 0
+             * (Thunderwave, PLG140). The PS1's div does not trap on 0: the
+             * remainder is the dividend. */
+            int jitter = rand();
+            if (width != 0)
+                jitter %= width;
+            curveSamples[segment] = segment * 0x600 + jitter - width / 2;
+#else
             curveSamples[segment] = segment * 0x600 + rand() % width - width / 2;
+#endif
             vs_battle_splineInterpolate(controlPoints, controlPoints + 1,
                 controlPoints + 2, controlPoints + 3, curveSamples[segment] - 0x1000,
                 &arg1->unk2C);
