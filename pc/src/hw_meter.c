@@ -2,6 +2,7 @@
 #define _POSIX_C_SOURCE 200809L
 #include "hw_meter.h"
 #include "frame_cost.h"
+#include "render_thread.h"
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -58,6 +59,8 @@ static int listed(int id) { return classes[id] == 'A' || classes[id] == 'N' || c
 pc_hw_meter_scope pc_hw_meter_begin(int id)
 {
     pc_hw_meter_scope scope = { id, 0 };
+    if (pc_render_thread)
+        pc_rt_note_hook(id, names[id]); /* (a direct call while the renderer thread is on: ROOD_RT_TRACE) */
     if (!pc_hw_meter_on)
         return scope;
     ++m.total[id];

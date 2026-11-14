@@ -27,6 +27,7 @@ Story*, PlayStation and all other trademarks belong to their respective owners.
 2. [Status](#status)
 3. [Requirements](#requirements)
    - [Packages (Ubuntu 24.04)](#packages-ubuntu-2404)
+   - [Arch Linux (including Omarchy)](#arch-linux-including-omarchy)
 4. [Getting the game data](#getting-the-game-data)
 5. [Build](#build)
 6. [Run](#run)
@@ -216,6 +217,40 @@ plus the 32-bit OpenGL driver (`libgl1-mesa-dri:i386`, or your NVIDIA
 driver's `libnvidia-gl-*:i386`). Multiarch packages must match the versions
 of their 64-bit counterparts; check apt's list before confirming anything it
 wants to remove.
+
+### Arch Linux (including Omarchy)
+
+The same requirements as above, from the official repositories (Arch ships
+headers inside the library packages, so there are no `-dev` packages). This
+includes the MinGW-w64 cross compiler for the [Windows build](#windows),
+which contributors need, and Wine and Xvfb for the tests:
+
+```sh
+sudo pacman -S --needed base-devel git cmake ninja python python-numpy \
+    python-pillow gdb zig mingw-w64-gcc wine xorg-server-xvfb \
+    vulkan-icd-loader vulkan-headers vulkan-tools mesa \
+    libx11 libxext libxi libxcursor libxfixes libxrandr libxrender libxss \
+    libxtst wayland libxkbcommon libdecor pipewire libpulse alsa-lib dbus \
+    clang unzip wget docker
+```
+
+- **Vulkan driver:** add `vulkan-intel` (Intel), `vulkan-radeon` (AMD) or
+  `nvidia-utils` (NVIDIA, proprietary driver). `vulkaninfo --summary` should list your GPU.
+- **CMake** is recent enough (3.30 or newer), so NRD builds.
+- **Zig** is pinned to 0.17.0 (`pc/tools/zig_toolchain.py`). The `zig`
+  package is that version at the time of writing: check `zig version`, and
+  build with `ROOD_ZIG=/usr/bin/zig` (the build accepts an existing install
+  of exactly the pinned version). If the repository has moved on, use
+  `python3 pc/tools/zig_toolchain.py --fetch` instead.
+- **MIPS linker:** `docker` (then `sudo systemctl enable --now docker.service`
+  and add yourself to the `docker` group) is the simplest route (the build runs
+  the linker from the decompilation's image). Alternatively install `mipsel-linux-gnu-binutils` from the
+  **AUR** (built with `makepkg`; Arch has no repository package for it).
+- `wine` is only used by the Windows tests (`replace_file_test`); leave it
+  out if you do not run them.
+- **Hyprland and Wayland:** nothing to set. SDL picks native Wayland when the
+  compositor supports it and X11 (XWayland) otherwise; set
+  `SDL_VIDEO_DRIVER=wayland` or `x11` to force one. Sound goes to PipeWire.
 
 ## Getting the game data
 
@@ -465,7 +500,8 @@ build compiles every unit twice, for Linux (the analysis) and with MinGW-w64
 
 1. In Linux or WSL2 (Ubuntu), follow [Build](#build) steps 1-3 (in WSL, keep
    the checkout in the Linux file system, e.g. `~/rood-boi`, not under
-   `/mnt/c`), and install MinGW-w64: `sudo apt install mingw-w64`.
+   `/mnt/c`), and install MinGW-w64: `sudo apt install mingw-w64` (Arch:
+   `sudo pacman -S --needed mingw-w64-gcc`).
 2. Build: `python3 pc/tools/build_boot.py --target windows` (it also builds
    the Linux 64-bit objects it analyses; NRD's Windows library is compiled
    from the Linux NRD build's sources and shaders).

@@ -46,6 +46,7 @@ enum {
 /* ---- gpu_hw.c -> vk_hw.c ---- */
 int pc_vk_hw_init(int scale, size_t vertex_size);
 void pc_vk_hw_resize(int scale);
+void pc_vk_hw_idle(void); /* the GPU has finished everything submitted (a drain) */
 /* Native VRAM rectangles (x, y, w, h; inside VRAM) into its sampled copy (VK_TOKEN_VRAM). */
 void pc_vk_hw_upload_rects(const uint16_t* vram, const int (*rects)[4], int count);
 /* Emissive texels' slot map (emissive.h): rows [row0, row1) of the CPU copy. */

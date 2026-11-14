@@ -9,7 +9,7 @@
  * what the overlay showed. The GPU (device, context, every resource), Dear
  * ImGui, the gamepads and the Lua plugins are shut down here and started
  * again by the next library, as at a resumed save state: it rebuilds what
- * it derives from the game (pc_hw_resync: the hardware target from native
+ * it derives from the game (pc_hwc_resync: the hardware target from native
  * VRAM). */
 #include <SDL3/SDL.h>
 #include <stdio.h>
@@ -47,7 +47,7 @@ extern int pc_fog_state_size(void);
 extern void pc_fog_state_save(void* out);
 extern int pc_fog_state_load(const void* in, int size);
 extern void pc_lua_init(void);
-extern void pc_hw_resync(void);
+extern void pc_hwc_resync(void);
 extern int pc_photo_engine_unload(char* why, int size);
 
 struct window_carry {
@@ -149,5 +149,5 @@ void rood_engine_resume(void)
     if (w)
         pc_overlay_restore(w->overlay_visible, w->editor);
     free(w);
-    pc_hw_resync(); /* the hardware VRAM target from native VRAM, as after a resumed save state */
+    pc_hwc_resync(); /* the hardware VRAM target from native VRAM, as after a resumed save state */
 }

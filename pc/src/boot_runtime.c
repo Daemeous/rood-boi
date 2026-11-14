@@ -59,9 +59,6 @@ extern int pc_hw_triangle(const int*, const int*, const int*, unsigned, unsigned
 extern void pc_hw_rect(int, int, int, int, int, int, unsigned, unsigned, unsigned, unsigned,
     unsigned, const int*, int, int);
 extern void pc_hw_line(int, int, int, int, unsigned, unsigned, int, unsigned, const int*, int);
-extern void pc_hw_fill(int, int, int, int, int, int, int);
-extern void pc_hw_upload(int, int, int, int);
-extern void pc_hw_copy(int, int, int, int, int, int);
 /* Native VRAM is about to be read here: copy back what only the hardware
  * target has (gpu_hw.c; absent in unit probes). */
 extern void pc_hw_sync(int, int, int, int) __attribute__((weak));
@@ -214,7 +211,7 @@ static void vcheck_vsync(void);
 static void stream_vsync(void)
 {
     pc_hwc_raster_post(); /* the frame's last rasterized rectangles */
-    PC_HWC_SYNC(); /* (the renderer has it before the frame is presented) */
+    pc_hwc_post(); /* (the renderer has the records before the frame is presented: the present request posts them anyway) */
     vcheck_vsync();
     stream.last = stream.frame, stream.last_events = stream.events;
     stream.frame = 0xcbf29ce484222325ull, stream.events = 0, stream.draws = 0, ++stream.frames;
@@ -442,7 +439,7 @@ void pc_vram_transfer(int x, int y, int w, int h, void* data, int write)
     }
     if (write) {
         pc_hwc_raster_post();
-        pc_hw_upload(x, y, w, h);
+        pc_hwc_vram_upload(x, y, w, h);
     }
 }
 /* GPU fill (GP0 0x02) as the hardware does it: x is rounded down to 16
@@ -474,7 +471,7 @@ void pc_vram_clear(int x, int y, int w, int h, int r, int g, int b)
         if (pw > 0 && ph > 0) {
             pc_hwc_mark(px, py, px + pw - 1, py + ph - 1);
             pc_hwc_raster_post();
-            pc_hw_fill(px, py, pw, ph, r, g, b);
+            pc_hwc_vram_fill(px, py, pw, ph, r, g, b);
         }
     }
 }
@@ -496,7 +493,7 @@ void pc_vram_rect(int x, int y, int w, int h, int r, int g, int b)
     pc_cost_end(PC_COST_RASTER, cost);
     pc_hwc_mark(x0, y0, x1 - 1, y1 - 1);
     pc_hwc_raster_post();
-    pc_hw_fill(x0, y0, x1 - x0, y1 - y0, r, g, b);
+    pc_hwc_vram_fill(x0, y0, x1 - x0, y1 - y0, r, g, b);
 }
 static void copy_file(const char* from, const char* to)
 {
@@ -1035,9 +1032,20 @@ static stream_frame stream_ring[stream_ring_size] PC_HOST;
 static unsigned stream_closed PC_HOST;
 static uint64_t stream_acc PC_HOST = 1469598103934665603ull, stream_chain PC_HOST = 1469598103934665603ull;
 static unsigned stream_words PC_HOST, stream_records PC_HOST;
-int pc_stream_on PC_HOST = 1;
+/* The draw stream's digest (RPC stream, build_compare --stream): a test meter, off unless asked (ROOD_STREAM_DIGEST=1, or RPC stream {on: true}). */
+int pc_stream_on PC_HOST = 0; /* the producer's: the walk records digest events while it is on */
+static int stream_on_c PC_HOST = 0; /* the renderer's copy (the C_STREAM_ON record): what the digest's own functions and the renderer's notes go by */
+static int stream_tracing(void);
+__attribute__((constructor)) static void stream_digest_env(void)
+{
+    const char* v = getenv("ROOD_STREAM_DIGEST");
+    if (v && *v && *v != '0')
+        pc_stream_on = stream_on_c = 1;
+}
 static void digest_mix(uint32_t w)
 {
+    if (stream_tracing())
+        fprintf(stderr, "[stream mix] %08x acc %016llx\n", w, (unsigned long long)stream_acc);
     for (int i = 0; i < 4; i++) {
         stream_acc = (stream_acc ^ (w & 0xff)) * 1099511628211ull;
         w >>= 8;
@@ -1057,27 +1065,39 @@ static struct {
     uint32_t tag;
     int v[12];
 } stream_deferred[stream_deferred_kinds] PC_HOST;
+static int stream_tracing(void)
+{
+    if (stream_trace == -2)
+        stream_trace = getenv("ROOD_STREAM_TRACE") ? atoi(getenv("ROOD_STREAM_TRACE")) : -1;
+    static int index = -2;
+    if (index == -2)
+        index = getenv("ROOD_STREAM_TRACE_IDX") ? atoi(getenv("ROOD_STREAM_TRACE_IDX")) : -1;
+    if (index >= 0) /* (ROOD_STREAM_TRACE_IDX=N: the Nth frame the digest closes, wherever its events are applied) */
+        return (unsigned)index == stream_closed;
+    return stream_trace >= 0 && (unsigned)stream_trace == vsyncs + 1;
+}
 static void stream_trace_record(uint32_t tag, const int* v, int n)
 {
     if (stream_trace == -2)
         stream_trace = getenv("ROOD_STREAM_TRACE") ? atoi(getenv("ROOD_STREAM_TRACE")) : -1;
-    if (stream_trace >= 0 && (unsigned)stream_trace == vsyncs + 1) {
+    if (stream_tracing()) {
         fprintf(stderr, "[stream %u] tag %x:", vsyncs + 1, tag);
         for (int i = 0; i < n && i < 12; i++)
             fprintf(stderr, " %x", v[i]);
         fprintf(stderr, "\n");
     }
 }
-/* The digest is in call order: the renderer's own notes (gpu_hw.c pc_stream_note: the packet's attributes, a triangle's result) enter it
- * when it applies the records, so every digest event of the walk first applies what is pending (PC_HWC_SYNC): the order, and the
- * state the notes read, are the original's. While the digest is on this applies the walk's records at each of its events. */
+/* The digest's state is the renderer's side of the stream (T1 R4e): the walk's events (a record, a deferred note, a packet's words, a frame's close,
+ * the digest being switched on or off) are records, applied in order with the renderer's own notes (gpu_hw.c pc_stream_note: the packet's
+ * attributes, a triangle's result), so the digest is what the inline run's was and the walk never waits for the renderer. */
+void pc_hwc_stream(int op, unsigned tag, const int* v, int n);          /* hw_cmd.c: a digest event as a record */
+void pc_hwc_stream_words(const uint32_t* p, unsigned n);               /* a packet's words */
 static void stream_flush_pending(void)
 {
-    PC_HWC_SYNC();
     for (int k = 0; k < 6; k++)
         if (stream_state_mask >> k & 1) {
             digest_mix(stream_state[k]);
-            if (stream_trace >= 0 && (unsigned)stream_trace == vsyncs + 1)
+            if (stream_tracing())
                 fprintf(stderr, "[stream %u] state %08x\n", vsyncs + 1, stream_state[k]);
         }
     stream_state_mask = 0;
@@ -1091,11 +1111,10 @@ static void stream_flush_pending(void)
             stream_deferred[k].set = 0;
         }
 }
-static void stream_record(uint32_t tag, const int* v, int n)
+static void stream_record_now(uint32_t tag, const int* v, int n)
 {
-    if (!pc_stream_on)
+    if (!stream_on_c)
         return;
-    PC_HWC_SYNC();
     stream_flush_pending();
     stream_trace_record(tag, v, n);
     digest_mix(0x5e5e0000u | tag);
@@ -1104,39 +1123,108 @@ static void stream_record(uint32_t tag, const int* v, int n)
     ++stream_records;
 }
 /* A note that waits for the next primitive (kind 0: the packet's anchor, opacity and screen; 1: its bubble's suppression). */
+static void stream_defer_now(int kind, uint32_t tag, const int* v, int n)
+{
+    if (!stream_on_c)
+        return;
+    stream_deferred[kind].set = 1, stream_deferred[kind].tag = tag, stream_deferred[kind].n = n > 12 ? 12 : n;
+    memcpy(stream_deferred[kind].v, v, (size_t)stream_deferred[kind].n * sizeof *v);
+}
+static void stream_commands_now(const uint32_t* p, unsigned n);
+static void stream_close_now(unsigned vsync);
+/* The walk's side: a digest event while the digest is on is a record. */
+/* ROOD_STREAM_SYNC=1: the digest as it was, each event applying what is pending first and running at once (to compare the two). */
+static int stream_direct(void)
+{
+    static int mode = -1;
+    if (mode < 0)
+        mode = getenv("ROOD_STREAM_SYNC") != NULL;
+    return mode;
+}
+static void stream_record(uint32_t tag, const int* v, int n)
+{
+    if (!pc_stream_on)
+        return;
+    if (stream_direct())
+        PC_HWC_SYNC(), stream_record_now(tag, v, n);
+    else
+        pc_hwc_stream(0, tag, v, n);
+}
 static void stream_defer(int kind, uint32_t tag, const int* v, int n)
 {
     if (!pc_stream_on)
         return;
-    PC_HWC_SYNC();
-    stream_deferred[kind].set = 1, stream_deferred[kind].tag = tag, stream_deferred[kind].n = n > 12 ? 12 : n;
-    memcpy(stream_deferred[kind].v, v, (size_t)stream_deferred[kind].n * sizeof *v);
+    if (stream_direct())
+        PC_HWC_SYNC(), stream_defer_now(kind, tag, v, n);
+    else
+        pc_hwc_stream(1 + kind, tag, v, n);
+}
+static void stream_set_on(int on)
+{
+    if (stream_direct())
+        PC_HWC_SYNC(), stream_on_c = on != 0;
+    pc_stream_on = on != 0;
+    if (!stream_direct())
+        pc_hwc_stream(4, 0, &on, 1);
+}
+/* The renderer's side of the records (hw_cmd.c applies them): op 0 a record, 1 and 2 a deferred note of kind 0 and 1, 3 a frame's close, 4 on or off. */
+void pc_stream_apply(int op, unsigned tag, const int* v, int n)
+{
+    switch (op) {
+    case 0: stream_record_now(tag, v, n); break;
+    case 1: stream_defer_now(0, tag, v, n); break;
+    case 2: stream_defer_now(1, tag, v, n); break;
+    case 3: stream_close_now(tag); break;
+    case 4: stream_on_c = v[0] != 0; break;
+    }
+}
+void pc_stream_apply_words(const uint32_t* p, unsigned n)
+{
+    if (!stream_on_c)
+        return;
+    if (stream_tracing()) { /* (ROOD_STREAM_TRACE: the words too) */
+        fprintf(stderr, "[stream %u] words %u:", vsyncs + 1, n);
+        for (unsigned k = 0; k < n; k++)
+            fprintf(stderr, " %08x", p[k]);
+        fprintf(stderr, "\n");
+    }
+    stream_commands_now(p, n);
+    stream_words += n;
 }
 /* The hardware path's decisions about a packet (gpu_hw.c: anchor, opacity, coverage, bubbles, text placement): what the
- * words alone do not say, so the digest sees them too. */
+ * words alone do not say, so the digest sees them too. Called by the renderer, in order with the walk's own events. */
 void pc_stream_note(unsigned tag, const int* v, int n)
 {
     if (tag == 3)
-        stream_defer(0, 0x103, v, n);
+        stream_defer_now(0, 0x103, v, n);
     else
-        stream_record(0x100 | tag, v, n);
+        stream_record_now(0x100 | tag, v, n);
 }
-static void stream_close(unsigned vsync)
+static void stream_close_now(unsigned vsync)
 {
     stream_flush_pending();
     stream_known = 0; /* (a frame's digest stands alone: the state the GPU was left in is not part of it) */
     stream_frame* f = &stream_ring[stream_closed++ % stream_ring_size];
     f->vsync = vsync, f->words = stream_words, f->records = stream_records, f->digest = stream_acc;
+    if (stream_tracing())
+        fprintf(stderr, "[stream %u] close at vsync %u: %u words, %u records, digest %016llx\n", vsyncs, vsync, stream_words, stream_records, (unsigned long long)stream_acc);
     stream_chain = (stream_chain ^ stream_acc) * 1099511628211ull;
     stream_acc = 1469598103934665603ull, stream_words = stream_records = 0;
+}
+static void stream_close(unsigned vsync)
+{
+    if (stream_direct())
+        PC_HWC_SYNC(), stream_close_now(vsync);
+    else
+        pc_hwc_stream(3, vsync, NULL, 0);
 }
 /* The ring, oldest first (at most `max`), the chain over every closed frame, and how many frames closed. */
 int pc_stream_read(int on, int reset, unsigned* closed, uint64_t* chain, unsigned* vs, unsigned* words, unsigned* records,
     uint64_t* digests, int max)
 {
-    PC_HWC_SYNC();
+    pc_hwc_flush(); /* (every event of the walk is applied: the digest's state is the renderer's) */
     if (on >= 0)
-        pc_stream_on = on != 0;
+        pc_stream_on = on != 0, stream_on_c = pc_stream_on;
     if (reset) {
         stream_closed = 0, stream_chain = 1469598103934665603ull, stream_acc = 1469598103934665603ull;
         stream_words = stream_records = 0;
@@ -1290,7 +1378,7 @@ extern int pc_button_roles_texels(const uint16_t* vram, unsigned tpage, unsigned
  * bit (code bit 0) is not modulated, so its colour bytes are never read (in an old packet they were whatever the memory held,
  * an item sets none); a modulated textured primitive keeps its colour. The top halves of a polygon's third and fourth texel
  * words are padding the GPU does not read either. */
-static void stream_commands(const uint32_t* p, unsigned n)
+static void stream_commands_now(const uint32_t* p, unsigned n)
 {
     unsigned i = 0;
     while (i < n) {
@@ -1351,15 +1439,10 @@ static void commands(uint32_t* p, unsigned n)
 {
     unsigned i = 0;
     if (pc_stream_on) {
-        PC_HWC_SYNC();
-        if (stream_trace >= 0 && (unsigned)stream_trace == vsyncs + 1) { /* (ROOD_STREAM_TRACE: the words too) */
-            fprintf(stderr, "[stream %u] words %u:", vsyncs + 1, n);
-            for (unsigned k = 0; k < n && k < 16; k++)
-                fprintf(stderr, " %08x", p[k]);
-            fprintf(stderr, "\n");
-        }
-        stream_commands(p, n);
-        stream_words += n;
+        if (stream_direct())
+            PC_HWC_SYNC(), pc_stream_apply_words(p, n);
+        else
+            pc_hwc_stream_words(p, n);
     }
     while (i < n) {
         unsigned code = p[i] >> 24;
@@ -1408,7 +1491,7 @@ static void commands(uint32_t* p, unsigned n)
                 }
             pc_hwc_mark(dx, dy, dx + w - 1, dy + h - 1);
             pc_hwc_raster_post();
-            pc_hw_copy(sx, sy, dx, dy, w, h);
+            pc_hwc_vram_copy((int)sx, (int)sy, (int)dx, (int)dy, (int)w, (int)h);
             i += 4;
             continue;
         }
@@ -1772,7 +1855,6 @@ void pc_draw_packet(void* data, int chain)
     }
     pc_hw_meter_walk(1);
     draw_packet(data, chain);
-    PC_HWC_SYNC();
     pc_hw_meter_walk(0);
     if (chain)
         ot_scene = NULL, ot_front = 0;
@@ -1895,9 +1977,8 @@ static void draw_packet(void* data, int chain)
         int marker_first, marker_count;
         int item_marker = pc_frame_marker && pc_frame_marker(p, &marker_first, &marker_count);
         int stream_was = pc_stream_on;
-        PC_HWC_SYNC(); /* (the renderer's notes of the packets before are the digest's before the flag changes) */
         if (item_marker)
-            pc_stream_on = 0;
+            stream_set_on(0);
         pc_hwc_set_attr(attr, draw_x, display_w);
         if (pc_ui_bubble_packet) {
             int clip[4] = { clip_x, clip_y, clip_w, clip_h };
@@ -1917,11 +1998,9 @@ static void draw_packet(void* data, int chain)
             int run, run_count;
             if (pc_frame_marker && pc_frame_marker(p, &run, &run_count)) {
                 intptr_t mine = key_delta;
-                PC_HWC_SYNC();
-                pc_stream_on = stream_was;
+                stream_set_on(stream_was);
                 pc_frame_draw_run(run, run_count);
-                PC_HWC_SYNC();
-                pc_stream_on = 0;
+                stream_set_on(0);
                 key_delta = mine;
             }
         }
@@ -1937,8 +2016,7 @@ static void draw_packet(void* data, int chain)
         drawing_tag = chain ? p : NULL; /* (the frame's copy: what follows it is the frame's next entry) */
         walk_precise = en ? attr->precise : -2;
         commands(p + 1, tag >> 24);
-        PC_HWC_SYNC();
-        pc_stream_on = stream_was;
+        stream_set_on(stream_was);
         walk_precise = -2;
         drawing_tag = NULL;
         pc_gpu_immediate = 0;
@@ -2154,11 +2232,11 @@ void pc_opening_image_ready(int image)
 /* ui/ashley_bridge.c (battle builds): whether the ordering table just drawn
  * holds the modern menu's Ashley model; gpu_hw.c tags the frame with it. */
 extern int pc_ui_ashley_ot_model(void) __attribute__((weak));
-extern void pc_hw_frame_menu_model(int on) __attribute__((weak));
+extern void pc_hwc_frame_menu_model(int on) __attribute__((weak));
 void pc_battle_frame_complete(void)
 {
-    if (pc_ui_ashley_ot_model && pc_hw_frame_menu_model)
-        pc_hw_frame_menu_model(pc_ui_ashley_ot_model());
+    if (pc_ui_ashley_ot_model && pc_hwc_frame_menu_model)
+        pc_hwc_frame_menu_model(pc_ui_ashley_ot_model());
     ++battle_frames;
     if (battle_frames % 300 == 0)
         fprintf(

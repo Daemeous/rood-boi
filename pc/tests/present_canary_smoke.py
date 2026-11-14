@@ -4,8 +4,9 @@ interpolated frame's target hashed with each picture (as render_jitter_smoke doe
   - without the canary;
   - ROOD_PRESENT_CANARY=1: while the presenter runs, the game-owned variables it reads hold poison (restored after it): every frame
     must equal the first run's, which holds only if the presenter reads them through the present's frame header;
-  - ROOD_PRESENT_CANARY=2: the widescreen flag the renderer's own replay code still reads live is poisoned too: the frames
-    must differ, which shows the canary bites (and what R4b has left).
+  - ROOD_PRESENT_CANARY=2: the renderer's own scale setting, which the presenter still reads live, is poisoned too: the frames
+    must differ, which shows the canary bites (and what the settings request has left). The widescreen flag is no longer one of
+    them: the renderer's copy follows the hw_cmd stream (C_SET_WIDESCREEN).
 
     python3 pc/tests/present_canary_smoke.py [--route data]
 """
@@ -56,7 +57,7 @@ def main():
     bad1 = sum(a != b for a, b in zip(base, one))
     bad2 = sum(a != b for a, b in zip(base, two))
     check(len(base) == len(one) and bad1 == 0, f"{args.route}: level 1 (the presenter's own variables poisoned): {len(base)} frames equal ({bad1} differ)")
-    check(bad2 > 0, f"{args.route}: level 2 (the scene code's too) differs in {bad2} frames: the canary bites")
+    check(bad2 > 0, f"{args.route}: level 2 (the renderer's scale setting too) differs in {bad2} frames: the canary bites")
     if failures:
         print(f"{len(failures)} check(s) failed")
         return 1

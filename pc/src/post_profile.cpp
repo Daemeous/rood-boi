@@ -9,6 +9,7 @@
 // GPU parameter block and the editor's widgets. A field is added in one
 // place, and every layer, file format and the editor know it.
 #include "post.h"
+#include "present_header.h"
 
 #include <math.h>
 #include <time.h>
@@ -759,7 +760,7 @@ const char* lens_blur_gate(int context)
         && !(pc_option_peek_active && pc_option_peek_active())) /* (the Option pages' preview shows the field) */
         return "menu";
     /* nothing 3D to focus on (the loading screen: an upload at far depth, blurred whole otherwise) */
-    if (pc_hw_present_world && pc_hw_active && !pc_hw_present_world())
+    if (pc_hw_present_world && pc_hw_active && !pc_ph_present_world())
         return "no_3d";
     if (context == PC_POST_CUTSCENE)
         return "";
@@ -1281,7 +1282,7 @@ extern "C" void pc_post_frame_get(pc_post_frame* out)
      * every field neutral (no grade, bloom, vignette, grain, aberration, ...), switched at once both ways.
      * The game's screen fade still applies (below). */
     static bool last_menu_model;
-    bool menu_model = pc_hw_present_menu_model && pc_hw_present_menu_model();
+    bool menu_model = pc_hw_present_menu_model && pc_ph_present_menu_model();
     if (menu_model)
         t = defaults();
     /* Blend toward a changed target: from what shows now, over blend_time; snap on a camera cut
@@ -1488,7 +1489,7 @@ extern "C" void pc_post_frame_get(pc_post_frame* out)
     }
     /* The game's screen fade (a door, a cutscene): the 3D fades after lighting and post-processing in
      * the grade pass, whatever the profile (gpu_hw.c BLEND_FADE). */
-    f.fade = pc_hw_present_fade ? pc_hw_present_fade(f.fade_rect) : 0.0f;
+    f.fade = pc_hw_present_fade ? pc_ph_present_fade(f.fade_rect) : 0.0f;
     if (f.fade > 0)
         f.grade = 1;
     if (!f.grade)

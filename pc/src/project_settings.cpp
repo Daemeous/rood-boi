@@ -14,7 +14,7 @@
 extern "C" {
 extern int pc_gl_filter, pc_gl_aspect, pc_gte_widescreen, pc_hw_perspective, pc_hw_subpixel,
     pc_hw_interpolate, pc_hw_texture_filter, pc_hw_scale, pc_hw_scale_setting, pc_interp_skeleton, pc_interp_holds, pc_interp_uv,
-    pc_present_rate, pc_present_pacing;
+    pc_present_rate, pc_present_pacing, pc_render_thread;
 int pc_hw_set_scale(int scale);
 extern int pc_gi_enabled, pc_rt_shadows, pc_baked_shadows, pc_shadow_samples, pc_gi_bounces, pc_gi_rays,
     pc_fog_steps, pc_gi_denoise, pc_baked_estimate, pc_glow_shadows;
@@ -250,6 +250,7 @@ const Entry entries[] = {
     I("interp_holds", pc_interp_holds),
     I("interp_uv", pc_interp_uv),
     I("present_rate", pc_present_rate),
+    I("render_thread", pc_render_thread), // 0 off, 1 the renderer thread (lockstep: the game thread waits for each call; render_thread.h)
     I("present_pacing", pc_present_pacing), // 0 classic (59.94 Hz deadlines), 1 display (the display's vblank, real-time phase)
     I("smooth_textures", pc_hw_texture_filter),
     I("ui_subpixel", pc_ui_subpixel),

@@ -200,9 +200,9 @@ suites = ["@render"]
 
 # ---- the present frame header, canary, guards, service and jitter harness ----
 [[rule]]
-paths = ["pc/src/present_*", "pc/src/render_jitter.*", "pc/src/hw_cmd.*", "pc/src/boot_window.c",
+paths = ["pc/src/present_*", "pc/src/render_jitter.*", "pc/src/render_thread.*", "pc/src/renderer_rq.*", "pc/src/hw_cmd.*", "pc/src/boot_window.c",
          "pc/src/vk_present.c", "pc/src/stack_selftest.*"]
-suites = ["present_pacing_smoke", "present_canary_smoke", "stack_selftest_smoke", "render_jitter_smoke",
+suites = ["present_pacing_smoke", "present_canary_smoke", "stack_selftest_smoke", "render_thread_tsan", "render_jitter_smoke",
           "interpolation_smoke"]
 
 # ---- scene capture (the room in world space for lighting) ----

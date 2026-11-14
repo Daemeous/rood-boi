@@ -44,7 +44,7 @@ extern void pc_cd_restored(void) __attribute__((weak));
 extern void pc_scene_camera_state_save(void*) __attribute__((weak)); /* scene_capture.c: the camera of the moment */
 extern void pc_scene_camera_state_load(const void*) __attribute__((weak));
 extern void pc_cd_release(void) __attribute__((weak));
-extern void pc_hw_resync(void) __attribute__((weak));
+extern void pc_hwc_resync(void) __attribute__((weak));
 extern void pc_hw_forget_timeline(void) __attribute__((weak)); /* gpu_hw.c: the host held for the frame the game was in */
 extern void pc_photo_state_replaced(void) __attribute__((weak));
 extern void pc_input_rewound(void) __attribute__((weak));
@@ -76,8 +76,11 @@ static int reserve(char** buffer, size_t* capacity, size_t need)
 static int restoring; /* the slot restore() puts back */
 
 extern int pc_game_snapshot_safe(void) __attribute__((weak));
+extern void pc_hwc_drain(void) __attribute__((weak)); /* hw_cmd.c */
 __attribute__((noinline)) int pc_snapshot_mark_slot(int slot, char* error, int size)
 {
+    if (pc_hwc_drain)
+        pc_hwc_drain(); /* (the checkpoint reads the game's state after the renderer's work on it has finished) */
     if (slot < 0 || slot >= SLOTS) {
         snprintf(error, (size_t)size, "no slot %d", slot);
         return -1;
@@ -203,7 +206,7 @@ static __attribute__((noreturn)) void restore(void)
     if (restoring != PHOTO_SLOT) {
         if (pc_photo_state_replaced) pc_photo_state_replaced();
         if (pc_hw_forget_timeline) pc_hw_forget_timeline();
-        if (pc_hw_resync) pc_hw_resync();
+        if (pc_hwc_resync) pc_hwc_resync();
         pc_rpc_rewound();
     }
     /* Same process/thread: the TLS stack canary has not changed. The rest of

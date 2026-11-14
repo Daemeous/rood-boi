@@ -338,7 +338,7 @@ extern void pc_fog_state_save(void* out) __attribute__((weak));
 extern int pc_fog_state_load(const void* in, int size) __attribute__((weak));
 extern void pc_cd_restored(void) __attribute__((weak));   /* cd_drive.c: reopen the disc */
 extern void pc_cd_release(void) __attribute__((weak));    /* cd_drive.c: close it before a load */
-extern void pc_hw_resync(void) __attribute__((weak));     /* gpu_hw.c: the target from native VRAM */
+extern void pc_hwc_resync(void) __attribute__((weak));     /* gpu_hw.c: the target from native VRAM */
 extern void pc_hw_forget_timeline(void) __attribute__((weak)); /* gpu_hw.c: what the host held for the frame the game was in */
 extern void pc_scene_forget_camera(void) __attribute__((weak)); /* scene_capture.c */
 extern void pc_photo_state_replaced(void) __attribute__((weak));
@@ -579,8 +579,11 @@ int pc_snapshot_available(void)
  * inside pc_tick (dev_rpc.c's poll), whose vsync boundary is live: the game
  * stack from the boundary down is saved, the host frames above it are not. */
 extern int pc_game_snapshot_safe(void) __attribute__((weak));
+extern void pc_hwc_drain(void) __attribute__((weak)); /* hw_cmd.c: the renderer has applied everything posted and its GPU work is done */
 __attribute__((noinline)) int pc_snapshot_point(const char* path, char* error, int size)
 {
+    if (pc_hwc_drain)
+        pc_hwc_drain(); /* (a capture reads the game's state after the renderer's work on it has finished) */
     if (pc_game_snapshot_safe && !pc_game_snapshot_safe()) {
         snprintf(error, (size_t)size, "save refused: owned frame live or incomplete unwind");
         return -1;
@@ -893,8 +896,8 @@ static char* apply(prepared* p, const char* path, int replay_log, size_t* stack_
         pc_hw_forget_timeline();
     if (pc_scene_forget_camera)
         pc_scene_forget_camera(); /* (a resumed state keeps no camera: the next frame sets it) */
-    if (pc_hw_resync)
-        pc_hw_resync();
+    if (pc_hwc_resync)
+        pc_hwc_resync();
     return stack_image;
 }
 
@@ -1000,6 +1003,8 @@ __attribute__((noinline)) int pc_snapshot_load_now(const char* path, char* error
  * (guest memory, native game statics, overlays, VRAM), for comparisons. */
 int pc_snapshot_hash(char* out, int size)
 {
+    if (pc_hwc_drain)
+        pc_hwc_drain();
     range r[MAX_RANGES];
     int n = ranges(r);
     uint64_t state = FNV0, overlays = FNV0;

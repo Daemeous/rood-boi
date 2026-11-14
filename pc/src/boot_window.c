@@ -14,6 +14,8 @@
 #include "frame_cost.h"
 #include "present_service.h"
 #include "present_header.h"
+#include "render_thread.h"
+#include "hw_cmd.h"
 #include "render_jitter.h"
 extern void pc_jitter(int) __attribute__((weak)); /* render_jitter.c (the R4 harness) */
 #include "camera_stick.h"
@@ -68,16 +70,14 @@ static unsigned camera_keybit(SDL_Keycode key);
 /* The NTSC field (vsync) the frame loop paces to: its deadline. */
 static struct timespec deadline;
 #define FIELD_NS 16683350LL
-/* Extra presents (pc_present_rate): wait until k/n of the way from this
- * vsync's deadline to the next (no wait in fast mode). */
-void pc_window_wait_fraction(int k, int n)
+/* Extra presents (pc_present_rate): wait until k/n of the way from this vsync's deadline to the next (no wait in fast mode: the request says
+ * whether this vsync is paced). */
+static void wait_fraction(const pc_present_request* r, int k, int n)
 {
-    if (fast || fast_forward_held() || charge_hidden || !deadline.tv_sec || n <= 0)
+    if (!r->pace.paced || !r->pace.deadline_ns || n <= 0)
         return;
-    struct timespec at = deadline;
-    long long ns = at.tv_nsec + FIELD_NS * k / n;
-    at.tv_sec += (time_t)(ns / 1000000000LL);
-    at.tv_nsec = (long)(ns % 1000000000LL);
+    long long at_ns = r->pace.deadline_ns + FIELD_NS * k / n;
+    struct timespec at = { (time_t)(at_ns / 1000000000LL), (long)(at_ns % 1000000000LL) };
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
     if (now.tv_sec > at.tv_sec || (now.tv_sec == at.tv_sec && now.tv_nsec >= at.tv_nsec))
@@ -315,11 +315,26 @@ static long long now_ns(void)
     clock_gettime(CLOCK_MONOTONIC, &t);
     return t.tv_sec * 1000000000LL + t.tv_nsec;
 }
+/* ROOD_TEST_STALL=ms:every (tests, benchmarks): the game thread sleeps ms every that many ticks, as a long stretch of game logic would
+ * (what the renderer thread must absorb: present_stall_bench.py). */
+static void test_stall(void)
+{
+    static int ms = -1, every, ticks;
+    if (ms < 0) {
+        const char* v = getenv("ROOD_TEST_STALL");
+        ms = v && sscanf(v, "%d:%d", &ms, &every) == 2 && ms > 0 && every > 0 ? ms : 0;
+    }
+    if (ms && ++ticks % every == 0) {
+        struct timespec at = { ms / 1000, (long)(ms % 1000) * 1000000L };
+        nanosleep(&at, NULL);
+    }
+}
 void pc_window_tick(void)
 {
     long long paced_start = 0;
     if (!window)
         return;
+    test_stall();
     window_mode_apply(); /* a switch asked for since the last tick (pc_window_mode_set) */
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
@@ -448,9 +463,17 @@ void pc_window_tick(void)
     }
     field_start_ns = paced_start ? paced_start : now_ns(); /* this field began */
 }
+/* The window's size in pixels (the game thread's to ask SDL: the presenter's copy is in the frame header). */
+void pc_window_pixel_size(int* w, int* h)
+{
+    *w = *h = 0;
+    if (window)
+        SDL_GetWindowSizeInPixels(window, w, h);
+}
 extern int pc_display_rgb24;
 extern int pc_display_masked __attribute__((weak)); /* boot_sdk.c SetDispMask */
-void pc_window_frame(const uint16_t* vram, int x, int y, int w, int h)
+/* One image of the frame the header (filled at the request: header_for_frame) describes. */
+static void window_image(const uint16_t* vram, int x, int y, int w, int h)
 {
     if (!window)
         return;
@@ -460,7 +483,6 @@ void pc_window_frame(const uint16_t* vram, int x, int y, int w, int h)
     }
 #ifdef ROOD_VULKAN
     if (pc_vk_on()) {
-        pc_present_header_fill(); /* the game-owned values the presenter reads (present_header.h) */
         pc_present_enter();
         pc_vk_present(vram, x, y, w, h);
         pc_present_leave();
@@ -495,6 +517,33 @@ void pc_window_frame(const uint16_t* vram, int x, int y, int w, int h)
         if (!reported++)
             fprintf(stderr, "[window] cannot draw the software surface: %s\n", SDL_GetError());
     }
+}
+/* The game-owned values the presenter reads (present_header.h), copied once per frame request on the game thread: the images of the
+ * frame (its interpolated fractions, the display-paced fields) all read this copy. */
+static int header_for_frame(void)
+{
+#ifdef ROOD_VULKAN
+    if (window && !pc_gl_active && pc_vk_on())
+        return pc_present_header_fill();
+#endif
+    return -1;
+}
+/* A frame drawn outside a request (the paused developer view's redraw): its own header. */
+struct frame_args {
+    const uint16_t* vram;
+    int x, y, w, h, header;
+};
+static void frame_image(void* arg)
+{
+    struct frame_args* a = arg;
+    pc_present_header_use(a->header);
+    window_image(a->vram, a->x, a->y, a->w, a->h);
+    pc_present_header_release(a->header);
+}
+void pc_window_frame(const uint16_t* vram, int x, int y, int w, int h)
+{
+    struct frame_args args = { vram, x, y, w, h, header_for_frame() };
+    pc_rt_call(frame_image, &args);
 }
 
 /* ---- Window mode (settings window_mode windowed | borderless | fullscreen;
@@ -792,6 +841,7 @@ extern float pc_present_phase __attribute__((weak));
 extern int pc_hw_interpolate __attribute__((weak));
 extern int pc_hw_active __attribute__((weak));
 extern void pc_hw_sync(int, int, int, int) __attribute__((weak));
+extern void pc_hwc_fence_sync(int, int, int, int); /* hw_cmd.c: the read-back of the rectangle into the game's VRAM */
 /* Present statistics (RPC present_stats). An image is noted as (field, phase): it shows the game frame of that field blended to that
  * fraction of the field (0 up to 1), so its time on the game's clock is field + phase fields. Intervals between presents are real
  * time; spacing between images is that game-clock time, which is what motion follows (even spacing is even motion). */
@@ -953,7 +1003,7 @@ static void real_vblank_seen(void)
 static void present_display_images(const pc_present_request* r, int limit, int blend)
 {
     int sim = sim_hz() > 0;
-    long long field = field_counter - 1, start = sim ? field * FIELD_NS : field_start_ns, end = start + FIELD_NS;
+    long long field = field_counter - 1, start = sim ? field * FIELD_NS : r->pace.field_start_ns, end = start + FIELD_NS;
     for (int k = 0; k < (blend ? limit : 1); k++) {
         long long shown = sim ? sim_vblank_after(start) : real_vblank_next(now_ns());
         if (sim && shown >= end && k > 0)
@@ -967,7 +1017,7 @@ static void present_display_images(const pc_present_request* r, int limit, int b
         if (&pc_present_phase)
             pc_present_phase = phase;
         uint64_t cost = pc_cost_begin();
-        pc_window_frame(r->vram, r->x, r->y, r->w, r->h);
+        window_image(r->vram, r->x, r->y, r->w, r->h);
         if (!k)
             pc_cost_end(PC_COST_PRESENT, cost);
         stat_present(field, phase);
@@ -982,42 +1032,62 @@ static void present_display_images(const pc_present_request* r, int limit, int b
     if (&pc_present_phase)
         pc_present_phase = 0;
 }
-/* The present service (present_service.h), inline: what a vsync's tick used to do itself. */
-void pc_present_post(const pc_present_request* r)
+/* The present service (present_service.h): what a vsync's tick used to do itself. The request's images (pacing, the frame, its fractions)
+ * run on the renderer thread when it is on (render_thread.h); the header they read was filled before, on this thread. */
+static void present_images(void* arg)
 {
-    if (r->kind == PC_PRESENT_SYNC) {
-        if (pc_hw_sync)
-            pc_hw_sync(r->x, r->y, r->w, r->h);
-        return;
-    }
+    const pc_present_request* r = arg;
     stat_field_begin();
-    int interp = &pc_present_phase && &pc_hw_interpolate && &pc_hw_active && pc_hw_interpolate && pc_hw_active;
-    if (pc_present_pacing == 1 && (sim_hz() > 0 || (!fast && !fast_forward_held() && !charge_hidden))) {
-        int limit = &pc_present_rate && pc_present_rate > 0 ? (pc_present_rate > 8 ? 8 : pc_present_rate) : 8;
+    pc_present_header_use(r->header);
+    int interp = r->pace.interp;
+    if (r->pace.pacing == 1 && (sim_hz() > 0 || r->pace.paced)) {
+        int limit = r->pace.limit;
         present_display_images(r, limit, interp);
+        pc_present_header_release(r->header);
         return;
     }
     if (pc_jitter)
         pc_jitter(PC_JITTER_PRESENT);
     uint64_t cost = pc_cost_begin();
-    pc_window_frame(r->vram, r->x, r->y, r->w, r->h);
+    window_image(r->vram, r->x, r->y, r->w, r->h);
     pc_cost_end(PC_COST_PRESENT, cost);
     stat_present(field_counter - 1, 0.0f);
     /* More images per vsync (frame interpolation at its fractions): present_rate, its "match display" and the vsync cap. */
-    int rate = pc_window_present_rate();
+    int rate = r->pace.rate;
     if (interp && rate > 1) {
         rate = rate > 8 ? 8 : rate;
         for (int k = 1; k < rate; k++) {
-            pc_window_wait_fraction(k, rate);
+            wait_fraction(r, k, rate);
             if (pc_jitter)
                 pc_jitter(PC_JITTER_FRACTION);
             pc_present_phase = (float)k / (float)rate;
-            pc_window_frame(r->vram, r->x, r->y, r->w, r->h);
+            window_image(r->vram, r->x, r->y, r->w, r->h);
             stat_present(field_counter - 1, pc_present_phase);
             ++stats.extras;
         }
         pc_present_phase = 0;
     }
+    pc_present_header_release(r->header);
+}
+void pc_present_post(const pc_present_request* in)
+{
+    if (in->kind == PC_PRESENT_SYNC) {
+        if (pc_hw_sync)
+            pc_hwc_fence_sync(in->x, in->y, in->w, in->h); /* a request: the renderer reads the rectangle back, this side takes it into its VRAM */
+        return;
+    }
+    pc_present_request r = *in;
+    r.header = header_for_frame();
+    r.pace.pacing = pc_present_pacing;
+    r.pace.paced = !fast && !fast_forward_held() && !charge_hidden;
+    r.pace.rate = pc_window_present_rate();
+    r.pace.limit = &pc_present_rate && pc_present_rate > 0 ? (pc_present_rate > 8 ? 8 : pc_present_rate) : 8;
+    r.pace.interp = &pc_present_phase && &pc_hw_interpolate && &pc_hw_active && pc_hw_interpolate && pc_hw_active;
+    r.pace.deadline_ns = deadline.tv_sec ? deadline.tv_sec * 1000000000LL + deadline.tv_nsec : 0;
+    r.pace.field_start_ns = field_start_ns;
+    sim_hz(); /* (read once here: the environment, for the service that follows) */
+    pc_hwc_post(); /* the walk's records go first (the frame is drawn from what they made) */
+    pc_rt_post(present_images, &r, sizeof r);
 }
 
 int pc_window_remember_get(void) { return remember_on; }

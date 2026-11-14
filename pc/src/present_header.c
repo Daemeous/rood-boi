@@ -6,7 +6,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 #include "present_header.h"
+#include "lighting_quality.h"
+#include "hw_cmd.h"
+#include "renderer_rq.h"
 #include "antialias.h"
 #include "atmosphere.h"
 #include "emissive.h"
@@ -38,6 +42,15 @@ extern int pc_probe_lights_base(float position[][4], float color[][4], float dir
 extern int pc_lights_world(float position[][4], float color[][4], float direction[][4], float extent_right[][4], float extent_up[][4],
     int shadows[], int max);
 extern int pc_lighting_ao_traced(void);
+extern int pc_hw_scale;
+extern int pc_hw_present_world(void) __attribute__((weak));
+extern int pc_hw_present_menu_model(void) __attribute__((weak));
+extern float pc_hw_present_fade(float rect[4]) __attribute__((weak));
+extern const float* pc_hw_emissives(int* count, const void** surfaces) __attribute__((weak));
+extern const uint32_t* pc_hw_emissive_sources(void) __attribute__((weak));
+extern int pc_vsync_get(void);
+extern unsigned pc_vsync_count(void);
+extern void pc_window_pixel_size(int* w, int* h) __attribute__((weak)); /* boot_window.c */
 extern float pc_lighting_traced_haze_density(void);
 extern int pc_scene_serial(void), pc_scene_uv_serial(void);
 extern const int* pc_scene_animated(int* count);
@@ -53,8 +66,28 @@ extern int pc_gl_inset[4];
 extern int pc_baked_shadows, pc_fog_steps, pc_gi_bounces, pc_gi_denoise, pc_gi_rays, pc_gi_trace_debug, pc_glow_shadows, pc_nrd_glow, pc_nrd_max_frames, pc_probe_budget, pc_probe_rays, pc_probe_show, pc_shadow_samples, pc_fog_volume_render, pc_fog_volume_shadows, pc_fog_volume_steps, pc_haze_cell, pc_reflection_bounces, pc_gi_method, pc_haze_quality, pc_lights_enabled, pc_particles_untraced;
 extern float pc_baked_ambient, pc_contact_radius, pc_emitter_light, pc_fog_glow, pc_gi_baked_bounce, pc_gi_resolution, pc_haze_history, pc_probe_hysteresis, pc_probe_normal_bias, pc_probe_spacing, pc_probe_view_bias, pc_shadow_history, pc_shadow_motion_history, pc_fog_volume_history, pc_fog_volume_resolution;
 
-pc_present_header pc_present_header_now __attribute__((section(".data.rood_host")));
-int pc_present_inside, pc_present_guard_on, pc_present_paused;
+pc_present_header pc_present_header_slots[PC_HEADER_SLOTS] __attribute__((section(".data.rood_host")));
+pc_present_header* pc_present_header_cur = &pc_present_header_slots[0];
+pc_present_header* pc_present_header_target = &pc_present_header_slots[0];
+__thread int pc_present_inside;
+int pc_present_guard_on, pc_present_paused;
+static pthread_mutex_t slot_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t slot_free = PTHREAD_COND_INITIALIZER;
+static int slot_busy[PC_HEADER_SLOTS], slot_next;
+void pc_present_header_use(int slot)
+{
+    if (slot >= 0 && slot < PC_HEADER_SLOTS)
+        pc_present_header_cur = &pc_present_header_slots[slot];
+}
+void pc_present_header_release(int slot)
+{
+    if (slot < 0 || slot >= PC_HEADER_SLOTS)
+        return;
+    pthread_mutex_lock(&slot_lock);
+    slot_busy[slot] = 0;
+    pthread_cond_signal(&slot_free);
+    pthread_mutex_unlock(&slot_lock);
+}
 static struct {
     const char* what;
     unsigned long long count;
@@ -98,19 +131,11 @@ static struct {
 } entries[128];
 static int entry_count, paused;
 
-/* Read inside the present by the renderer's own record-time and replay code (gpu_hw.c, lights.cpp's projection), which takes the widescreen
- * flag live: it belongs to the frame header of the adopted frame (T4), not the present's. Level 1 of the canary leaves it alone; level 2
- * (ROOD_PRESENT_CANARY=2) poisons it too and differs until the recordings carry it. */
-static const char* const shared_with_scene_code[] = { "gte_widescreen" };
 /* ROOD_PRESENT_CANARY_SKIP=name,name: variables left alone (finding which live read a run still has). */
 static void add(const char* name, void* live, int size)
 {
     const char* skip = getenv("ROOD_PRESENT_CANARY_SKIP");
     size_t n = strlen(name);
-    if (canary_level < 2)
-        for (size_t k = 0; k < sizeof shared_with_scene_code / sizeof *shared_with_scene_code; k++)
-            if (!strcmp(name, shared_with_scene_code[k]))
-                return;
     for (const char* p = skip; p && *p;) {
         const char* end = strchr(p, ',');
         size_t len = end ? (size_t)(end - p) : strlen(p);
@@ -130,6 +155,9 @@ static void catalogue(void)
     PC_PH_FLOATS(PC_PH_ADD)
 #undef PC_PH_ADD
     add("gl_inset", pc_gl_inset, sizeof pc_gl_inset);
+    /* Level 2: the renderer's own settings the presenter still reads live (the 3D-maths slice's settings requests will carry them). */
+    if (canary_level >= 2)
+        add("hw_scale", &pc_hw_scale, sizeof pc_hw_scale);
 }
 extern void pc_overlay_build(void) __attribute__((weak));
 static void pc_overlay_build_hook(void)
@@ -138,9 +166,40 @@ static void pc_overlay_build_hook(void)
         pc_overlay_build();
 }
 static void scene_triangles_update(void);
-void pc_present_header_fill(void)
+extern int pc_ptgi_emitters_gather(float pos[][4], float col[][4], float shape[][4], float shadow[][4], int max) __attribute__((weak));
+static int filling, emitters_gathered;
+void pc_present_emitters_ensure(void)
 {
-    pc_present_header* h = &pc_present_header_now;
+    pc_present_header* h = pc_present_header_target;
+    if (pc_present_inside || (filling && emitters_gathered))
+        return;
+    emitters_gathered = 1;
+    h->emitter_count = pc_ptgi_emitters_gather ? pc_ptgi_emitters_gather(h->emitter_pos, h->emitter_col, h->emitter_shape, h->emitter_shadow,
+                                                     PC_EMITTERS_MAX)
+                                               : 0;
+}
+int pc_present_header_fill(void)
+{
+    pthread_mutex_lock(&slot_lock);
+    int slot = slot_next;
+    while (slot_busy[slot])
+        pthread_cond_wait(&slot_free, &slot_lock);
+    slot_busy[slot] = 1;
+    slot_next = (slot + 1) % PC_HEADER_SLOTS;
+    pthread_mutex_unlock(&slot_lock);
+    pc_present_header* h = &pc_present_header_slots[slot];
+    pc_present_header_target = h; /* (the fill's own reads of pc_ph() are of this slot) */
+    filling = 1, emitters_gathered = 0;
+    pc_hwc_sync_widescreen(); /* (the renderer's copy of the flag follows the stream) */
+    {
+        pc_rq rq = { .kind = PC_RQ_FRAME_STATE, .out = &h->shown, .out_bytes = sizeof h->shown };
+        pc_renderer_rq(&rq); /* (everything recorded so far applied, then the renderer's say on the picture shown) */
+    }
+    h->vsync = pc_vsync_get();
+    h->vsync_count = pc_vsync_count();
+    h->window_px_w = h->window_px_h = 0;
+    if (pc_window_pixel_size)
+        pc_window_pixel_size(&h->window_px_w, &h->window_px_h);
     pc_lighting_sync(); /* lighting quality: first-run preset, Custom on changes (the game thread's: it writes the settings) */
 #define PC_PH_COPY(f, live) h->f = live;
     PC_PH_INTS(PC_PH_COPY)
@@ -184,6 +243,10 @@ void pc_present_header_fill(void)
         h->world_light_shadows, 16);
     h->env_active = pc_env_gpu_get(&h->env);
     scene_triangles_update();
+    /* after the scene copy (the glows read the room's triangles); when something that follows needs them: the path tracer, the baked shadows,
+     * the AO, the probes (the fog volumes and the particles ask for them themselves) */
+    if (h->lights_enabled && (h->gi_enabled || h->rt_shadows || h->baked_shadows || h->ao_traced || h->gi_method == PC_GI_PROBES))
+        pc_present_emitters_ensure();
     /* the atmosphere */
     h->medium_traced_ok = pc_medium_gpu_get(&h->medium_traced, h->traced_haze, h->room_lo, h->room_hi);
     h->medium_low_ok = pc_medium_gpu_get(&h->medium_low, h->low_haze, h->room_lo, h->room_hi);
@@ -195,6 +258,61 @@ void pc_present_header_fill(void)
         ? pc_probe_lights_base(h->probe_lights[0], h->probe_lights[1], h->probe_lights[2], h->probe_lights[3], h->probe_lights[4],
               h->probe_light_shadows, 16)
         : -1;
+    filling = 0;
+    return slot;
+}
+/* The shown picture's state (renderer_frame_state.h): from the header being filled (the game thread) or presented from; the renderer's own
+ * otherwise (the GL path, RPC dumps). */
+static const pc_renderer_frame_state* shown_state(void)
+{
+    if (pc_present_inside)
+        return &pc_present_header_cur->shown;
+    return filling ? &pc_present_header_target->shown : NULL;
+}
+int pc_ph_present_world(void)
+{
+    const pc_renderer_frame_state* s = shown_state();
+    return s ? s->world : (pc_hw_present_world && pc_hw_present_world());
+}
+int pc_ph_present_menu_model(void)
+{
+    const pc_renderer_frame_state* s = shown_state();
+    return s ? s->menu_model : (pc_hw_present_menu_model && pc_hw_present_menu_model());
+}
+float pc_ph_present_fade(float rect[4])
+{
+    const pc_renderer_frame_state* s = shown_state();
+    if (!s)
+        return pc_hw_present_fade ? pc_hw_present_fade(rect) : 0.0f;
+    if (rect)
+        memcpy(rect, s->fade_rect, sizeof s->fade_rect);
+    return s->fade;
+}
+const float* pc_ph_emissives(int* count, const void** surfaces)
+{
+    const pc_renderer_frame_state* s = shown_state();
+    if (!s) {
+        *count = 0, *surfaces = NULL;
+        return pc_hw_emissives ? pc_hw_emissives(count, surfaces) : NULL;
+    }
+    *count = s->emissive_count, *surfaces = s->surfaces;
+    return s->emissives;
+}
+const uint32_t* pc_ph_emissive_sources(void)
+{
+    const pc_renderer_frame_state* s = shown_state();
+    return s ? s->sources : (pc_hw_emissive_sources ? pc_hw_emissive_sources() : NULL);
+}
+unsigned pc_ph_vsync(void) { return pc_present_inside ? pc_present_header_cur->vsync_count : pc_vsync_count(); }
+void pc_ph_window_pixels(int* w, int* h)
+{
+    if (pc_present_inside) {
+        *w = pc_present_header_now.window_px_w, *h = pc_present_header_now.window_px_h;
+    } else if (pc_window_pixel_size) {
+        pc_window_pixel_size(w, h);
+    } else {
+        *w = *h = 0;
+    }
 }
 int pc_ph_medium_gpu_get(pc_medium_gpu* out, float density, const float room_lo[3], const float room_hi[3])
 {

@@ -42,8 +42,8 @@ static const void* sites[SITES];
 /* boot_runtime.c: one lowered packet drawn as a member of an ordering table. */
 extern void pc_draw_item_packet(void* packet);
 extern void pc_hwc_frame_room(void); /* hw_cmd.c */
-extern void pc_hw_begin_ot(void) __attribute__((weak));
-extern void pc_hw_end_ot(void) __attribute__((weak));
+extern void pc_hwc_begin_ot(void); /* hw_cmd.c */
+extern void pc_hwc_end_ot(void);
 extern void pc_gte_new_generation(void);
 
 void pc_frame_begin(void)
@@ -664,11 +664,9 @@ void pc_frame_draw(void)
 {
     uint64_t cost = pc_cost_begin();
     pc_hwc_frame_room(); /* (the room this frame is drawn in: emissive scopes) */
-    if (pc_hw_begin_ot)
-        pc_hw_begin_ot();
+    pc_hwc_begin_ot();
     draw_run(0, pc_item_frame.count);
-    if (pc_hw_end_ot)
-        pc_hw_end_ot();
+    pc_hwc_end_ot();
     pc_gte_new_generation();
     pc_cost_end(PC_COST_DRAW, cost);
 }

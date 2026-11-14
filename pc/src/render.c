@@ -960,6 +960,11 @@ int render_list_translucent(uint32_t id, const uint32_t* entries, const uint8_t*
     list->translucent_used += count;
     return first;
 }
+int render_list_instances(uint32_t id)
+{
+    draw_list* list = find_list(id);
+    return list ? list->count : -1;
+}
 int render_list_translucent_count(uint32_t id)
 {
     draw_list* list = find_list(id);

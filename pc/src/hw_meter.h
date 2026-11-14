@@ -21,14 +21,8 @@ extern "C" {
     X(set_narrowed, 'A') \
     X(set_flipped_uv, 'A') \
     X(set_bounds, 'A') \
-    X(effect_packets, 'N') \
-    X(anchor_packets, 'N') \
-    X(anchor_recorded, 'N') \
-    X(anchor_of, 'Q') \
-    X(opacity_on, 'Q') \
-    X(opacity_packets, 'N') \
-    X(span_shape, 'N') \
     X(set_attr, 'A') \
+    X(drain, 'S') \
     X(casters, 'N') \
     X(caster_surfaces, 'N') \
     X(emissives, 'N') \

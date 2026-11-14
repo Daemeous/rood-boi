@@ -19,7 +19,7 @@ static struct {
     overlay_triangle overlay[OVERLAY_MAX];
     int overlay_count;
     uint64_t overlay_cells[32];
-    int stale_rects[MAX_STALE][4], stale_kinds[MAX_STALE], stale_count;
+    int stale_rects[PC_MAX_STALE][4], stale_count, placed_rects[PC_MAX_STALE][4], placed_count;
     int occlusion_on, occlusion_rect[4], surface_valid;
     int scale, vulkan;
     render_camera view;
@@ -148,7 +148,7 @@ int pc_hw_photo_mark(void)
     KEEP(fade, present_fade); COPY(fade_rect, present_fade_rect); KEEP(menu_model, present_menu_model);
     KEEP(redraw, redraw_shown); COPY(redraw_origin, redraw_origin);
     COPY(overlay, overlay); COPY(overlay_cells, overlay_cells); KEEP(overlay_count, overlay_count);
-    COPY(stale_rects, stale_rects); COPY(stale_kinds, stale_kinds); KEEP(stale_count, stale_count);
+    COPY(stale_rects, cstale.rects); KEEP(stale_count, cstale.count); COPY(placed_rects, cstale.placed); KEEP(placed_count, cstale.placed_count);
     KEEP(occlusion_on, occlusion_on); COPY(occlusion_rect, occlusion_rect); KEEP(surface_valid, surface_valid);
 #undef COPY
 #undef KEEP
@@ -165,7 +165,7 @@ int pc_hw_photo_restore(void)
 #endif
     /* Guest VRAM has already rewound. Resync only the sampled texture before
      * restoring the full-resolution backing targets and recording history. */
-    pc_hw_resync();
+    pc_hw_resync(native_vram);
 #ifdef ROOD_VULKAN
     if (photo_picture->vulkan) {
         if (!pc_vk_on() || !pc_vk_hw_photo_restore())
@@ -189,7 +189,7 @@ int pc_hw_photo_restore(void)
     RESTORE(present_fade, fade); COPY(present_fade_rect, fade_rect); RESTORE(present_menu_model, menu_model);
     RESTORE(redraw_shown, redraw); COPY(redraw_origin, redraw_origin);
     COPY(overlay, overlay); COPY(overlay_cells, overlay_cells); RESTORE(overlay_count, overlay_count);
-    COPY(stale_rects, stale_rects); COPY(stale_kinds, stale_kinds); RESTORE(stale_count, stale_count);
+    COPY(cstale.rects, stale_rects); RESTORE(cstale.count, stale_count); COPY(cstale.placed, placed_rects); RESTORE(cstale.placed_count, placed_count);
     RESTORE(occlusion_on, occlusion_on); COPY(occlusion_rect, occlusion_rect); RESTORE(surface_valid, surface_valid);
 #undef COPY
 #undef RESTORE

@@ -43,7 +43,7 @@ void pc_snapshot_drop_slot(int slot) __attribute__((weak));
 int pc_snapshot_slot_valid(int slot) __attribute__((weak));
 unsigned pc_vsync_count(void);
 unsigned pc_battle_frame_count(void) __attribute__((weak));
-void pc_hw_resync(void) __attribute__((weak));
+extern "C" void pc_hwc_resync(void) __attribute__((weak)); /* hw_cmd.c: the renderer rebuilt from the game's VRAM (a request) */
 int pc_hw_photo_mark(void) __attribute__((weak));
 int pc_hw_photo_prepare(void) __attribute__((weak));
 int pc_hw_photo_restore(void) __attribute__((weak));
@@ -356,8 +356,8 @@ extern "C" int pc_photo_poll(void)
             if (!pc_hw_photo_restore || !pc_hw_photo_restore()) {
                 last_error = "cannot restore the original presentation: renderer configuration changed";
                 fprintf(stderr, "[photo] %s\n", last_error.c_str());
-                if (pc_hw_resync)
-                    pc_hw_resync();
+                if (pc_hwc_resync)
+                    pc_hwc_resync();
             } else {
                 // Compatibility: renders counts completed presentation updates,
                 // including a restore (zero simulated game vsyncs).
@@ -382,8 +382,8 @@ extern "C" int pc_photo_poll(void)
             pc_audio_pause(0);
         if (pc_audio_output_duck)
             pc_audio_output_duck(1);
-        if (rendered && pc_hw_resync)
-            pc_hw_resync(); /* the hardware target is M's again (the renders' pictures were not) */
+        if (rendered && pc_hwc_resync)
+            pc_hwc_resync(); /* the hardware target is M's again (the renders' pictures were not) */
         rendered = false;
         view_borrowed = view_captured = false;
         if (pc_hw_photo_drop)
@@ -432,8 +432,8 @@ extern "C" int pc_photo_poll(void)
     }
     /* A render: this vsync and the next ones run from M, then back to it. The hardware target starts
      * from M's VRAM (the last render left its own). */
-    if (pc_hw_resync)
-        pc_hw_resync();
+    if (pc_hwc_resync)
+        pc_hwc_resync();
     phase = RENDERING;
     pc_photo_rendering = 1;
     rendered = true;

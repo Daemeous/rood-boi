@@ -855,10 +855,9 @@ int pc_gi_fixture_triangles(const float p[3], float radius, float (*out)[9], int
 extern const uint32_t* pc_hw_emissive_sources(void);
 extern unsigned pc_presents; /* gl_present.c: images presented */
 extern unsigned pc_hw_history_cut; /* gpu_hw.c: unpresented stretches ended (the GI history restarts) */
-static unsigned emitters_present = ~0u; /* the present the emitters were last gathered in */
-static void update_emitters(void)
+/* The game side of the emitters (present_header.c calls it at the fill): the glows as glows.c smooths them and the editor overrides them. */
+int pc_ptgi_emitters_gather(float emitter_pos[][4], float emitter_col[][4], float emitter_shape[][4], float emitter_shadow[][4], int max)
 {
-    emitters_present = pc_presents;
     enum { MAX_GLOWS = 8192 };
     static glow glows[MAX_GLOWS];
     int n = 0, room_count, effect_count;
@@ -906,8 +905,8 @@ static void update_emitters(void)
     if (pc_emissive_light_serial() || pc_emissive_active())
         n += pc_emissive_object_lights(glows + n, MAX_GLOWS - n);
     const caster_surface* surfaces;
-    const float* effects = pc_hw_emissives(&effect_count, (const void**)&surfaces);
-    const uint32_t* sources = pc_hw_emissive_sources();
+    const float* effects = pc_ph_emissives(&effect_count, (const void**)&surfaces);
+    const uint32_t* sources = pc_ph_emissive_sources();
     for (int i = 0; i < effect_count; i++) {
         float p[3][3];
         uint8_t rgb[3][3], uv[3][2];
@@ -942,20 +941,30 @@ static void update_emitters(void)
     }
     /* Sources into glows (stable ids, smoothed), with the editor's
      * overrides, mutes, solo and linked light actors applied. */
-    emitter_count = pc_glows_update(glows, n, (const float (*)[4])bp, (const float (*)[4])bc, unexplained, emitter_pos,
-        emitter_col, emitter_shape, emitter_shadow, MAX_EMITTERS);
+    return pc_glows_update(glows, n, (const float (*)[4])bp, (const float (*)[4])bc, unexplained, emitter_pos, emitter_col,
+        emitter_shape, emitter_shadow, max);
+}
+/* The presenter's: the header's emitters. */
+static void update_emitters(void)
+{
+    pc_present_emitters_ensure();
+    emitter_count = pc_ph()->emitter_count;
+    memcpy(emitter_pos, pc_ph()->emitter_pos, sizeof emitter_pos);
+    memcpy(emitter_col, pc_ph()->emitter_col, sizeof emitter_col);
+    memcpy(emitter_shape, pc_ph()->emitter_shape, sizeof emitter_shape);
+    memcpy(emitter_shadow, pc_ph()->emitter_shadow, sizeof emitter_shadow);
 }
 
 /* The glows for the fog volumes' lights (atmosphere.h): this present's,
  * gathered here when nothing else (the path tracer, the probes) did. */
 int pc_fog_glows(float (*pos)[4], float (*col)[4], float (*shape)[4], int max)
 {
-    if (emitters_present != pc_presents)
-        update_emitters();
-    int n = emitter_count < max ? emitter_count : max;
-    memcpy(pos, emitter_pos, (size_t)n * sizeof emitter_pos[0]);
-    memcpy(col, emitter_col, (size_t)n * sizeof emitter_col[0]);
-    memcpy(shape, emitter_shape, (size_t)n * sizeof emitter_shape[0]);
+    pc_present_emitters_ensure();
+    const pc_present_header* h = pc_ph();
+    int n = h->emitter_count < max ? h->emitter_count : max;
+    memcpy(pos, h->emitter_pos, (size_t)n * sizeof pos[0]);
+    memcpy(col, h->emitter_col, (size_t)n * sizeof col[0]);
+    memcpy(shape, h->emitter_shape, (size_t)n * sizeof shape[0]);
     return n;
 }
 

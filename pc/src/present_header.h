@@ -9,6 +9,7 @@
 #ifndef PC_PRESENT_HEADER_H
 #define PC_PRESENT_HEADER_H
 #include "light_list.h"
+#include "renderer_frame_state.h"
 #include "post.h"
 #include "ui/menu_light.h"
 #include "environment.h"
@@ -93,6 +94,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+#define PC_EMITTERS_MAX 32
 typedef struct {
 #define PC_PH_INT_FIELD(f, live) int f;
 #define PC_PH_FLOAT_FIELD(f, live) float f;
@@ -143,12 +145,43 @@ typedef struct {
     pc_fogvol_info fogvol_info;
     float probe_lights[5][16][4];
     int probe_light_shadows[16];
+    /* the emitters (ptgi.c pc_ptgi_emitters_gather: glows from the room's emissive triangles, the emissive lights and the effects' lists,
+     * through glows.c's stable ids and smoothing and the editor's overrides): game-side state, gathered once at the fill */
+    unsigned vsync_count;         /* pc_vsync_count(): the game's vsync this frame was requested at (the interpolation's clock) */
+    int vsync;                    /* pc_vsync_get(): the swap waits for the display (boot_window.c: the setting, display pacing)  */
+    int window_px_w, window_px_h; /* the window's size in pixels (SDL: the game thread's), what a swapchain made in this present is sized to */
+    pc_renderer_frame_state shown; /* the renderer's say on the picture shown (renderer_frame_state.h), asked at the fill */
+    int emitter_count;
+    float emitter_pos[PC_EMITTERS_MAX][4], emitter_col[PC_EMITTERS_MAX][4], emitter_shape[PC_EMITTERS_MAX][4], emitter_shadow[PC_EMITTERS_MAX][4];
 } pc_present_header;
-extern pc_present_header pc_present_header_now; /* the header of the present in progress */
-#define pc_ph() (&pc_present_header_now)
-void pc_present_header_fill(void); /* the game thread, at a present request */
+/* The headers: a ring of slots (the game thread fills the next free one at a request, the renderer presents from it and gives it back), so a
+ * request is a value that carries its header and the game thread may be filling the next while the renderer presents. pc_ph() is the header of
+ * the present in progress on the renderer thread (pc_present_inside), and the one last filled anywhere else (the fill's own reads, init code). */
+#define PC_HEADER_SLOTS 3
+extern pc_present_header pc_present_header_slots[PC_HEADER_SLOTS];
+extern pc_present_header* pc_present_header_cur;    /* the renderer's: the slot of the present in progress */
+extern pc_present_header* pc_present_header_target; /* the game thread's: the slot last filled */
+extern __thread int pc_present_inside;
+static inline pc_present_header* pc_present_header_ptr(void) { return pc_present_inside ? pc_present_header_cur : pc_present_header_target; }
+#define pc_present_header_now (*pc_present_header_ptr())
+#define pc_ph() pc_present_header_ptr()
+int pc_present_header_fill(void);          /* the game thread, at a present request: a slot (waits for one to be free), filled; its index */
+void pc_present_header_use(int slot);      /* the renderer, as a request begins: the present reads this slot (-1: keep the last) */
+void pc_present_header_release(int slot);  /* ... and as it ends: the slot is free to fill again (-1: none) */
+/* The header's emitters, gathered on first use during a fill (the atmosphere's and the particles' glows ask for them first) and at its end;
+ * inside a present they are the header's. Outside both (nothing today) they are gathered live. */
+void pc_present_emitters_ensure(void);
 /* The scene getters the GI code calls: inside a present the header's, outside (the editors, RPC dumps) the live ones. */
 void pc_ph_scene_bounds(float lo[3], float hi[3]);
+/* The window's pixels: the header's inside a present, SDL's outside it (vk_present.c init); 0 0 when unknown. */
+void pc_ph_window_pixels(int* w, int* h);
+/* The shown picture's state: the header's during the fill and inside a present, the renderer's own otherwise. */
+int pc_ph_present_world(void);
+int pc_ph_present_menu_model(void);
+float pc_ph_present_fade(float rect[4]);
+const float* pc_ph_emissives(int* count, const void** surfaces);
+const uint32_t* pc_ph_emissive_sources(void);
+unsigned pc_ph_vsync(void); /* the vsync the present in progress belongs to (the header's), else the live count */
 int pc_ph_scene_camera_get(float rotation[3][3], float translation[3], float* h, float* ofx, float* ofy);
 int pc_ph_scene_camera_inverse(float inverse[3][3]);
 int pc_ph_scene_projection(float* h, float* ofx, float* ofy);
@@ -175,7 +208,6 @@ float pc_ph_lighting_traced_haze_density(void);
 void pc_present_enter(void);       /* the presenter begins: with the canary on, the live variables hold poison */
 void pc_present_leave(void);       /* ... and ends: they are restored */
 void pc_present_canary_pause(int on); /* 1: the live values back for a stretch of game-thread work inside the present (the overlay's build), 0: poison again */
-extern int pc_present_inside;
 /* A value the present reads from its header, and anything outside a present (the editors, RPC dumps: the game thread's own calls) from the live variable. */
 #define PC_PH_GET(field, live) (pc_present_inside ? pc_present_header_now.field : (live))
 #include "present_guard.h"

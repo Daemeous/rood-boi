@@ -334,7 +334,7 @@ extern int pc_live_camera_active(void) __attribute__((weak));
  * the set): any magenta there is a hole (widescreen_undrawn_smoke.py).
  * Screens that draw over a held picture (menus) show magenta by design. */
 int pc_undrawn_debug = -1;
-extern void pc_hw_fill(int x, int y, int w, int h, int r, int g, int b) __attribute__((weak));
+extern void pc_hwc_vram_fill(int x, int y, int w, int h, int r, int g, int b); /* hw_cmd.c */
 DRAWENV* PutDrawEnv(DRAWENV* e)
 {
     pc_draw_env(
@@ -345,8 +345,8 @@ DRAWENV* PutDrawEnv(DRAWENV* e)
         pc_vram_clear(e->clip.x, e->clip.y, e->clip.w, e->clip.h, e->r0, e->g0, e->b0);
     else if (pc_live_camera_active && pc_live_camera_active())
         pc_vram_clear(e->clip.x, e->clip.y, e->clip.w, e->clip.h, 0, 0, 0);
-    else if (pc_undrawn_debug && pc_hw_fill)
-        pc_hw_fill(e->clip.x, e->clip.y, e->clip.w, e->clip.h, 255, 0, 255);
+    else if (pc_undrawn_debug)
+        pc_hwc_vram_fill(e->clip.x, e->clip.y, e->clip.w, e->clip.h, 255, 0, 255);
     return e;
 }
 void DrawPrim(void* p)
@@ -359,16 +359,14 @@ void DrawPrim(void* p)
  * (widescreen 2D/3D classification in the hardware rasterizer). */
 extern void pc_gte_new_generation(void);
 extern void pc_hwc_frame_room(void); /* hw_cmd.c */
-extern void pc_hw_begin_ot(void) __attribute__((weak));
-extern void pc_hw_end_ot(void) __attribute__((weak));
+extern void pc_hwc_begin_ot(void); /* hw_cmd.c */
+extern void pc_hwc_end_ot(void);
 void DrawOTag(u_long* p)
 {
     pc_hwc_frame_room(); /* (the room this frame is drawn in: emissive scopes) */
-    if (pc_hw_begin_ot)
-        pc_hw_begin_ot();
+    pc_hwc_begin_ot();
     pc_draw_packet(p, 1);
-    if (pc_hw_end_ot)
-        pc_hw_end_ot();
+    pc_hwc_end_ot();
     pc_gte_new_generation();
 }
 /* Diagnostic font output is disabled; no game UI uses this debug font. */

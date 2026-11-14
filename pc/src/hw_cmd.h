@@ -16,6 +16,7 @@
 #define ROOD_HW_CMD_H
 #include <stdint.h>
 #include "gpu_attr.h"
+#include "hw_registry.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -23,6 +24,7 @@ extern "C" {
 /* The primitive state the walk has set (what the setter records will make the renderer's), as the producer side reads it. */
 extern struct pc_hwc_mirror_t {
     int is_2d, cur_effect, poly_effect; /* the current packet's effect range (pc_hwc_set_attr), and its value at the last set_packet */
+    int widescreen, suppress; /* (widescreen: the flag the renderer last got, pc_gte_widescreen as of the last record) */
 } pc_hwc_mirror;
 /* A triangle's treatment, decided on the producer side (gpu_hw.c pc_hw_triangle_decide): ignore it (the renderer is off), drop
  * the pending depth and precise positions (left out, or suppressed), or draw it with this classification. */
@@ -31,9 +33,12 @@ typedef struct {
     int skip;   /* 1: a native draw covers it and the CPU rasterizer may leave it out */
     int action; /* PC_HW_TRI_* */
     int ui, other;
+    int suppress;   /* the suppress flag it was decided with (the digest takes it) */
+    int mark;       /* it marked the drawing area stale (the renderer marks its own set when it applies the decision) */
     unsigned stats; /* bits: the packet counters the renderer adds when it applies the triangle (gpu_hw.c) */
 } pc_hw_tri_decision;
-void pc_hw_triangle_decide(const int* uv, unsigned code, unsigned tpage, const int* clip, int is_2d, int effect, pc_hw_tri_decision* out);
+void pc_hw_triangle_decide(const int* uv, unsigned code, unsigned tpage, const int* clip, int is_2d, int effect, pc_stale_set* stale,
+    int suppress, pc_hw_tri_decision* out);
 void pc_hw_raster_apply(const int (*rects)[4], int count, const uint16_t* pixels);
 void pc_hw_triangle_apply(const int* xy, const int* uv, const int* rgb, unsigned code, unsigned tpage, unsigned clut,
     unsigned window, const int* clip, int mask_set, int mask_check, const pc_hw_tri_decision* decision);
@@ -43,14 +48,21 @@ int pc_hwc_triangle(const int* xy, const int* uv, const int* rgb, unsigned code,
 
 extern int pc_hwc_pending; /* bytes recorded and not yet applied */
 void pc_hwc_flush(void);
+void pc_hwc_post(void); /* hand the recorded batch to the renderer without waiting for it */
 /* A stale_copy record is waiting: pc_hw_raster_skip (the producer's own query, which does not apply the records) reads the table it
  * changes, so it applies them first when this is set. */
 extern int pc_hwc_stale_pending;
 /* The first thing a hook does: apply what the walk recorded before it. */
-#define PC_HWC_SYNC() ((void)(pc_hwc_pending ? (pc_hwc_flush(), 0) : 0))
+extern int pc_gte_widescreen;
+extern int pc_hw_suppress;
+void pc_hwc_sync_widescreen(void);
+void pc_hwc_sync_suppress(void);
+extern int pc_render_thread;
+#define PC_HWC_SYNC() ((void)(pc_gte_widescreen != pc_hwc_mirror.widescreen ? (pc_hwc_sync_widescreen(), 0) : 0), (void)(pc_hw_suppress != pc_hwc_mirror.suppress ? (pc_hwc_sync_suppress(), 0) : 0), (void)(pc_hwc_pending || pc_render_thread >= 2 ? (pc_hwc_flush(), 0) : 0))
 /* The same, only when a stale_copy record is waiting (the producer's own queries). */
-#define PC_HWC_SYNC_STALE() ((void)(pc_hwc_stale_pending ? (pc_hwc_flush(), 0) : 0))
+#define PC_HWC_SYNC_STALE() ((void)(pc_hwc_stale_pending || pc_render_thread >= 2 ? (pc_hwc_flush(), 0) : 0))
 
+void pc_hwc_frame_menu_model(int on);
 void pc_hwc_set_2d(int is_2d);
 void pc_hwc_set_narrowed(void);
 void pc_hwc_set_precise(const float* xy6);
@@ -79,13 +91,26 @@ void pc_hwc_line(int x0, int y0, int x1, int y1, unsigned ca, unsigned cb, int s
 void pc_hwc_mark_raster(int x0, int y0, int x1, int y1);
 void pc_hwc_raster_post(void);
 void pc_hwc_mark(int x0, int y0, int x1, int y1);
+void pc_hwc_begin_ot(void);
+void pc_hwc_end_ot(void);
+void pc_hwc_upload_mode(int mode); /* what the next LoadImage is (widescreen.h PC_UPLOAD_AS) */
 /* The VRAM hooks (T1 R1b): what the game's VRAM commands tell the renderer. before_write (what the write about to happen will replace,
  * for the write log) and stale_copy (a VRAM copy carries staleness) are records. The two read-backs are fences: they apply every
  * record, then run on the renderer and return when the rectangle's pixels are in the game's VRAM array (the game continues with
  * them): sync_store (StoreImage) and sync_texture (a sprite or polygon about to sample what only the GPU target holds). */
+/* The VRAM events (T1 R4e): fill, upload (LoadImage) and copy carry the rectangle they leave in the game's array, so the renderer applies
+ * them without reading the game's memory. Call them where pc_hw_fill, pc_hw_upload and pc_hw_copy were called. */
+void pc_hwc_vram_fill(int x, int y, int w, int h, int r, int g, int b);
+void pc_hwc_vram_upload(int x, int y, int w, int h);
+void pc_hwc_vram_copy(int sx, int sy, int dx, int dy, int w, int h);
 void pc_hwc_before_write(int x, int y, int w, int h);
 void pc_hwc_stale_copy(int sx, int sy, int dx, int dy, int w, int h);
 void pc_hwc_fence_store(int x, int y, int w, int h);
+void pc_hwc_fence_sync(int x, int y, int w, int h); /* a capture: the rectangle of the display read back */
+/* The fences of the snapshot, rewind, photo and reload paths (renderer_rq.h): pc_hwc_drain returns when every record is applied and the
+ * GPU is idle; pc_hwc_resync rebuilds the renderer's state from the game's VRAM after a restore. */
+void pc_hwc_drain(void);
+void pc_hwc_resync(void);
 void pc_hwc_fence_texture(unsigned tpage, unsigned clut, unsigned window, int u0, int v0, int u1, int v1, const int* clip4);
 /* A scaled glyph cell (ui_text layout): 1 when the layout takes it. The producer decides; the piece and its end are records. The
  * caller draws the quad's triangles, then calls pc_hwc_text_piece_done when it got 1. */
@@ -101,6 +126,7 @@ void pc_hwc_emissive_mesh_gone(uint32_t mesh);
 void pc_hwc_emissive_room_mesh(uint32_t mesh, unsigned offset, unsigned tris, unsigned quads);
 void pc_hwc_frame_room(void);
 /* uv4 may be NULL (an untextured rectangle). */
+void pc_hwc_sync_widescreen(void); /* a record when pc_gte_widescreen changed (the header fill calls it) */
 void pc_hwc_set_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tpage, const int* uv4, const int* clip4);
 
 #ifdef __cplusplus

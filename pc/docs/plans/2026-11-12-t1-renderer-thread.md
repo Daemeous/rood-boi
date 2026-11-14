@@ -398,3 +398,30 @@ What R4e still has to settle, in the order I would do it:
 Size, with the emissive snapshot landed: items 2 and 3 are the bulk (about 2 weeks: they touch every renderer entry point the game
 calls), 4 to 6 about a week, 7 and 8 a few days. Risk: the Vulkan context moving threads (queue and device are fine; ImGui's
 backend and the swapchain are the checks) and shutdown ordering.
+
+### R4e status (t1-r4e)
+
+Items 1, 4, 5 and 6a are done inline (0 differ against 455e72ea5: menus lane, fight at 16:9, interpolation at present_rate 4 with replay
+hashes, canary, pacing, ui smokes):
+
+- **1 emitters**: `pc_ptgi_emitters_gather` (glows from the room's emissive triangles, the emissive lights and the effects' lists, through
+  glows.c's ids, smoothing and overrides) runs on the game thread at the header fill (when GI, the shadows, the AO or the probes want them,
+  or the fog volumes and particles ask) and the header carries `emitter_*`; the presenter's `update_emitters` copies them.
+- **4 UI textures**: at the overlay snapshot the game thread turns each pending texture create, update and destroy of ImGui's own list into
+  an operation carrying its pixels (answering the context as the backend would: status OK, the texture id a stable handle) and the cloned
+  draw commands name their texture by handle; the renderer applies the operations on `ImTextureData` shadows of its own (the backend
+  uploads and destroys by its own protocol) and maps handles to descriptor sets as it draws (vk_overlay.cpp).
+- **5 widescreen**: `C_SET_WIDESCREEN` in the stream, emitted ahead of the next record and at each header fill; gpu_hw.c reads its own
+  `hw_wide`. Canary level 1 poisons `pc_gte_widescreen` now; level 2 poisons the renderer's own `pc_hw_scale` (what the settings request
+  still has to carry) and must differ.
+- **6a header per request**: the header is filled once per FRAME request, not per image; the interpolated fractions and the display-paced
+  fields read it. The dev overlay (ImGui) is built once per frame and redrawn on the extra images (it was rebuilt per image). The window's
+  pixel size is in the header (SDL is the game thread's).
+- **6b the thread, lockstep** (`render_thread.[ch]`, setting `render_thread`, `ROOD_RENDER_THREAD=1`): the hw_cmd flush, the present
+  service's images (`present_images`) and the SYNC fence run on a renderer thread (Vulkan only), the game thread waiting for each call.
+  Nothing overlaps, so direct reaches into the renderer are harmless; `ROOD_RT_TRACE=1` prints, at exit, each `pc_hw_*` hook the game
+  thread still called directly. That list is the 3D-maths worker's item 3 (requests on the mailbox) and item 2 (payloads).
+
+Async (the game thread posting without waiting) needs: the header copied into a slot of the request, `PC_HWC_SYNC` a no-op on the
+renderer thread, the pacing inputs (`fast`, `charge_hidden`, `fast_forward_held`, `sim_hz`) in the request, the record buffer posted by
+copy, and the direct-hook list at zero.

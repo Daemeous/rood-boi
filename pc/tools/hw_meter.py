@@ -48,6 +48,8 @@ def main():
     parser.add_argument("--frames", type=int, default=300)
     parser.add_argument("--binary", default=str(ROOT / "pc/build/boot64/rood_battle_probe"))
     parser.add_argument("--card", default=str(ROOT / "pc/build/test-card1.mcd"))
+    parser.add_argument("--aspect", default="4:3", choices=["4:3", "16:9"])
+    parser.add_argument("--digest", help="write the stream digest ring (vsync, digest) as JSON")
     parser.add_argument("--json")
     args = parser.parse_args()
     os.environ.update(ROOD_BINARY=args.binary, ROOD_SYMBOLS=args.binary, ROOD_HEADLESS="egl", ROOD_RENDERER="vulkan",
@@ -55,14 +57,19 @@ def main():
     sys.path[:0] = [str(ROOT / "pc/tools"), str(ROOT / "pc/tests")]
     from checkpoints import launch_at
     out = pathlib.Path(tempfile.mkdtemp(prefix="hw_meter_"))
-    (out / "settings.cfg").write_text("qol_skip_charging 0\nui_menus 0\n")
+    (out / "settings.cfg").write_text("qol_skip_charging 0\nui_menus 0\naspect %s\n" % args.aspect)
     name = "title" if args.scene == "opening" else "save_room"
     g = launch_at(name, card=args.card, fast=True, log=out / "game.log", extra_env={
         "ROOD_GI": "0", "ROOD_INTERPOLATE": "0", "ROOD_SETTINGS": str(out / "settings.cfg"), "ROOD_AUDIO": "none",
-        "ROOD_WINDOW": "960x720", "ROOD_HW_METER": "1", "ROOD_HW_QUEUE_CHECK": "1", "ROOD_PERF": "1"})
+        "ROOD_WINDOW": "1280x720" if args.aspect == "16:9" else "960x720", "ROOD_HW_METER": "1", "ROOD_HW_QUEUE_CHECK": "1", "ROOD_PERF": "1", **({"ROOD_WIDESCREEN": "1"} if args.aspect == "16:9" else {})})
     try:
         g.call("graphics", interpolate=False)
+        if os.environ.get("ROOD_STALE_CHECK"):
+            print("[stale] graphics:", {k: v for k, v in g.call("graphics").items() if "aspect" in k or "wide" in k})
         scene(g, args.scene, args.frames)
+        if args.digest:
+            st = g.call("stream", count=256)
+            pathlib.Path(args.digest).write_text(json.dumps(st))
         meter = g.call("hw_meter")
         try:
             meter["vram_stream"] = g.call("vram_stream")
@@ -70,6 +77,13 @@ def main():
             pass
     finally:
         g.close()
+    if os.environ.get("ROOD_RT_TRACE") or os.environ.get("ROOD_STALE_CHECK") or os.environ.get("ROOD_STREAM_TRACE"):  # the direct hook calls while the renderer thread is on (render_thread.c), from the game's log
+        try:
+            for line in (out / "game.log").read_text(errors="ignore").splitlines():
+                if line.startswith("[render]") or line.startswith("[stale]") or line.startswith("[stream"):
+                    print(line)
+        except OSError:
+            pass
     if args.json:
         pathlib.Path(args.json).write_text(json.dumps(meter, indent=1))
     frames = meter["frames"]

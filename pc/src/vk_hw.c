@@ -324,6 +324,7 @@ int pc_vk_hw_init(int scale, size_t vertex_size)
     return 1;
 }
 
+void pc_vk_hw_idle(void) { vkDeviceWaitIdle(vk.device); }
 void pc_vk_hw_resize(int scale)
 {
     destroy_target(&vk_hw.live);

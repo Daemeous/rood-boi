@@ -268,6 +268,8 @@ enum {
 int render_list_translucent(uint32_t list, const uint32_t* entries, const uint8_t* flags, int count);
 /* Entries in the translucent sequence so far (-1 when the list is gone). */
 int render_list_translucent_count(uint32_t list);
+/* Instances in the list so far (-1 when the list is gone). */
+int render_list_instances(uint32_t list);
 /* Drop the sequence (markers already linked then draw nothing). */
 void render_list_translucent_clear(uint32_t list);
 /* Link a translucent marker (five words) that draws entries

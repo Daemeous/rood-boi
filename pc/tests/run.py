@@ -231,6 +231,8 @@ def suites(args, mode="egl"):
               note="probe GI: converges, energy vs path traced, stable, no wall leak, light/room changes"),
         Suite("interpolation_smoke", [PY, str(TESTS / "interpolation_smoke.py")], 180,
               note="interpolated frames move the camera (opening pan)"),
+        Suite("render_thread_tsan", [PY, str(TESTS / "render_thread_tsan.py")], 300,
+              note="the renderer thread's mailbox under ThreadSanitizer, lockstep and async (order, copies, calls, drains)"),
         Suite("stack_selftest_smoke", [PY, str(TESTS / "stack_selftest_smoke.py")], 180,
               note="the present-thread stack switch (context code) runs and returns"),
         Suite("present_pacing_smoke", [PY, str(TESTS / "present_pacing_smoke.py")], 600,
@@ -1114,7 +1116,7 @@ def run_suite(suite, index, args, mode, results, lock):
            if os.environ.get("ROOD_TEST_DESKTOP") == "1" and os.environ.get("DISPLAY") else {}),
     )
     for key in ("ROOD_EGL_DEVICE", "ROOD_ARCH", "ROOD_RENDERER", "ROOD_VK_DEVICE", "ROOD_VK_VALIDATE",
-                "ROOD_VK_RT", "ROOD_VK_PIPELINE_CACHE"):  # renderer choices to test under, binary
+                "ROOD_VK_RT", "ROOD_VK_PIPELINE_CACHE", "ROOD_RENDER_THREAD", "ROOD_RT_TRACE", "ROOD_STREAM_DIGEST"):  # renderer choices to test under, binary
         if key in os.environ:
             env[key] = os.environ[key]
     if args.nice and IONICE:  # idle I/O class: the player's disk reads first
@@ -1211,6 +1213,7 @@ def make_parser():
                         default=os.environ.get("ROOD_RENDERER") if os.environ.get("ROOD_RENDERER") in ("gl", "vulkan", "null") else None,
                         help="vulkan (64-bit; the default there), gl (the 32-bit build's only one, and the default "
                              "there), or null (CPU-only oracle suites)")
+    parser.add_argument("--render-thread", choices=["0", "1", "2"], help="run the games with the renderer thread off (0), on in lockstep (1) or async (2; render_thread.h): ROOD_RENDER_THREAD")
     parser.add_argument("--play", action="store_true", default=os.environ.get("ROOD_PLAY", "0") == "1",
                         help="play mode (also ROOD_PLAY=1; pc/tools/play_mode.py): the efficiency cores only, idle "
                              "scheduling, one game suite and one other at a time, timeouts doubled: the game "
@@ -1260,6 +1263,8 @@ def main():
     # Always named (the game's own default is Vulkan, and suites ask ROOD_RENDERER which they run on).
     os.environ["ROOD_RENDERER"] = args.renderer
     os.environ["ROOD_ARCH"] = args.arch  # suites and rood_rpc pick the binary from it
+    if args.render_thread:
+        os.environ["ROOD_RENDER_THREAD"] = args.render_thread
     rood_rpc.BUILD = ROOT / ("pc/build/boot64" if args.arch == "64" else "pc/build/boot")
     rood_rpc.BINARY = rood_rpc.BUILD / "rood_battle_probe"
     global OUT

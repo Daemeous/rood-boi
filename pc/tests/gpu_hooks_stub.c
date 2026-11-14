@@ -5,6 +5,11 @@
 int pc_hwc_pending, pc_hwc_stale_pending;
 struct pc_hwc_mirror_t pc_hwc_mirror;
 void pc_hw_meter_walk(int enter) { (void)enter; }
+int pc_gte_widescreen; /* (the flag the stream carries to the renderer: never changes here) */
+int pc_render_thread;
+void pc_hwc_sync_widescreen(void) {}
+void pc_hwc_post(void) {}
+void pc_hwc_frame_menu_model(int on) { (void)on; }
 void pc_hwc_flush(void) {}
 int pc_hwc_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, unsigned tpage, unsigned clut, unsigned window,
     const int* clip, int mask_set, int mask_check)
@@ -13,6 +18,14 @@ int pc_hwc_triangle(const int* xy, const int* uv, const int* rgb, unsigned code,
     return 0;
 }
 void pc_hwc_set_2d(int is_2d) { (void)is_2d; }
+void pc_hwc_upload_mode(int mode) { (void)mode; }
+void pc_hwc_sync_suppress(void) {}
+extern void pc_stream_apply(int op, unsigned tag, const int* v, int n);
+extern void pc_stream_apply_words(const unsigned* p, unsigned n);
+void pc_hwc_stream(int op, unsigned tag, const int* v, int n) { pc_stream_apply(op, tag, v, n); }
+void pc_hwc_stream_words(const unsigned* p, unsigned n) { pc_stream_apply_words(p, n); }
+void pc_hwc_begin_ot(void) {}
+void pc_hwc_end_ot(void) {}
 void pc_hwc_set_narrowed(void) {}
 void pc_hwc_set_precise(const float* xy6) { (void)xy6; }
 void pc_hwc_set_depth(const int* depth3) { (void)depth3; }
@@ -45,6 +58,7 @@ void pc_hwc_mark(int x0, int y0, int x1, int y1) { (void)x0, (void)y0, (void)x1,
 void pc_hwc_before_write(int x, int y, int w, int h) { (void)x, (void)y, (void)w, (void)h; }
 void pc_hwc_stale_copy(int sx, int sy, int dx, int dy, int w, int h) { (void)sx, (void)sy, (void)dx, (void)dy, (void)w, (void)h; }
 void pc_hwc_fence_store(int x, int y, int w, int h) { (void)x, (void)y, (void)w, (void)h; }
+void pc_hwc_fence_sync(int x, int y, int w, int h) { (void)x, (void)y, (void)w, (void)h; }
 void pc_hwc_fence_texture(unsigned tpage, unsigned clut, unsigned window, int u0, int v0, int u1, int v1, const int* clip4)
 {
     (void)tpage, (void)clut, (void)window, (void)u0, (void)v0, (void)u1, (void)v1, (void)clip4;
@@ -77,12 +91,12 @@ void pc_hw_line(int x0, int y0, int x1, int y1, unsigned c0, unsigned c1, int se
     (void)x0, (void)y0, (void)x1, (void)y1, (void)c0, (void)c1, (void)semi, (void)tpage;
     (void)clip, (void)mask_set;
 }
-void pc_hw_fill(int x, int y, int w, int h, int r, int g, int b)
+void pc_hwc_vram_fill(int x, int y, int w, int h, int r, int g, int b)
 {
     (void)x, (void)y, (void)w, (void)h, (void)r, (void)g, (void)b;
 }
-void pc_hw_upload(int x, int y, int w, int h) { (void)x, (void)y, (void)w, (void)h; }
-void pc_hw_copy(int sx, int sy, int dx, int dy, int w, int h)
+void pc_hwc_vram_upload(int x, int y, int w, int h) { (void)x, (void)y, (void)w, (void)h; }
+void pc_hwc_vram_copy(int sx, int sy, int dx, int dy, int w, int h)
 {
     (void)sx, (void)sy, (void)dx, (void)dy, (void)w, (void)h;
 }

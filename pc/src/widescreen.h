@@ -19,12 +19,12 @@ void pc_hw_anchor_packets(const void* start, const void* end, int anchor) __attr
 /* What the next LoadImage is: PC_UPLOAD_SCREEN_IMAGE, 2D loaded into the
  * shown frame buffer (drawn compressed); PC_UPLOAD_SCREEN_PICTURE, a picture
  * loaded into a frame buffer before it is shown (compressed once shown). */
-void pc_hw_upload_mode(int mode) __attribute__((weak));
+void pc_hwc_upload_mode(int mode) __attribute__((weak)); /* hw_cmd.c: a record, applied before the LoadImage that follows */
 enum { PC_UPLOAD_SCREEN_IMAGE = 1, PC_UPLOAD_SCREEN_PICTURE = 2 };
 #define PC_UPLOAD_AS(mode) \
     do { \
-        if (pc_hw_upload_mode) \
-            pc_hw_upload_mode(mode); \
+        if (pc_hwc_upload_mode) \
+            pc_hwc_upload_mode(mode); \
     } while (0)
 /* PC_ANCHOR_FILL: a full-screen picture magnified to fill the 16:9 view.
  * (0x10: part of the layout fixes, off with ROOD_WIDESCREEN_LAYOUT=0.) */

@@ -87,6 +87,7 @@ static int swapchain_stale, window_w, window_h;
 void pc_vk_window_size(int* w, int* h) { *w = window_w, *h = window_h; } /* what the overlay is built for (T1 R4c) */
 static int swapchain_vsync; /* the swapchain waits for the refresh (FIFO): settings vsync when it was made */
 extern int pc_vsync_get(void); /* boot_window.c */
+#define VSYNC_NOW() (pc_present_inside ? pc_ph()->vsync : pc_vsync_get()) /* (the header's inside a present: the loop's own variables are the game thread's) */
 extern unsigned pc_window_presents; /* gl_present.c: images that reached the window (RPC status) */
 static vk_image window_image, present_vram;
 typedef struct {
@@ -206,7 +207,7 @@ static int make_swapchain(void)
      * wait for the display's refresh (FIFO, every Vulkan driver has it). */
     VkPresentModeKHR mode = VK_PRESENT_MODE_FIFO_KHR;
     static const VkPresentModeKHR preferred[2] = { VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_IMMEDIATE_KHR };
-    swapchain_vsync = pc_vsync_get();
+    swapchain_vsync = VSYNC_NOW();
     for (int p = 1; p >= 0 && !swapchain_vsync; p--)
         for (uint32_t i = 0; i < mode_count; i++)
             if (modes[i] == preferred[p])
@@ -219,7 +220,7 @@ static int make_swapchain(void)
          * compositor then scaled into the window (letterboxed, never native, the pointer
          * off by the scale). */
         int w = 0, h = 0;
-        SDL_GetWindowSizeInPixels(window, &w, &h);
+        pc_ph_window_pixels(&w, &h); /* (the window's, SDL's: the header carries it inside a present) */
         if (w <= 0 || h <= 0)
             w = window_w, h = window_h;
         extent.width = (uint32_t)w < caps.minImageExtent.width ? caps.minImageExtent.width
@@ -448,7 +449,7 @@ static void sync_swapchain(void)
 {
     if (!surface || vk.lost)
         return;
-    if (swapchain && swapchain_vsync != pc_vsync_get())
+    if (swapchain && swapchain_vsync != VSYNC_NOW())
         swapchain_stale = 1; /* settings vsync changed: another present mode */
     if (swapchain_stale)
         make_swapchain(); /* fails while the window has no area (minimised): stays stale, tried next frame */
