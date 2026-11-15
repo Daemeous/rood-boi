@@ -11,12 +11,17 @@ import argparse
 import os
 import pathlib
 import sys
+import tempfile
+
+import numpy as np
+from PIL import Image
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT / "pc/tools"), str(ROOT / "pc/tests")]
 from checkpoints import launch_at  # noqa: E402
 
 failures = []
+results = []
 
 
 def check(ok, message):
@@ -32,6 +37,7 @@ def main():
     if not pathlib.Path(args.card).exists():
         print("SKIP: no memory card", args.card)
         return 77
+    out = pathlib.Path(tempfile.mkdtemp(prefix="hw-calls-"))
     gl = os.environ.get("ROOD_RENDERER") == "gl"
     for thread in (0, 1, 2) if not gl else (0,):
         os.environ["ROOD_RENDER_THREAD"] = str(thread)
@@ -46,6 +52,26 @@ def main():
             check(answer["all_lists"] > 0, f"render_thread {thread}: the room's lists are answered ({answer['all_lists']})")
             check((answer["native_texture"] != 0) == gl, f"render_thread {thread}: the native texture handle ({answer['native_texture']}; a texture under OpenGL only)")
             game.run(5)  # (the game goes on: the requests aborted nothing)
+            # The draw settings travel in the stream (hw_cmd.c C_SET_SETTINGS): a change on the game thread reaches the renderer's copy.
+            def picture(name):
+                game.run(6)
+                path = out / f"{name}.png"
+                game.present_screenshot(str(path))
+                return np.asarray(Image.open(path).convert("RGB")).astype(np.int16)
+            game.call("settings", apply=["perspective_textures 1", "smooth_textures 0"])
+            base = picture("base")
+            game.call("settings", apply=["perspective_textures 0"])
+            affine = picture("affine")
+            game.call("settings", apply=["perspective_textures 1", "smooth_textures 1"])
+            smooth = picture("smooth")
+            game.call("settings", apply=["perspective_textures 1", "smooth_textures 0"])
+            again = picture("again")
+            counts = [int((np.abs(base - other).max(2) > 8).sum()) for other in (affine, smooth, again)]
+            print("diff pixels (affine, smooth, back again):", counts)
+            check(counts[0] > 1000, f"render_thread {thread}: turning perspective-correct texturing off changes the picture ({counts[0]} pixels)")
+            check(counts[1] > 1000, f"render_thread {thread}: turning texture smoothing on changes the picture ({counts[1]} pixels)")
+            results.append(counts)
+            check(results[-1] == results[0], f"render_thread {thread}: the same pictures as render_thread 0 ({results[-1]} against {results[0]})")
         finally:
             game.close()
     print("PASS: hw_calls_smoke" if not failures else f"FAIL: {len(failures)} check(s)")

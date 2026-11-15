@@ -14,7 +14,7 @@
 #include <string.h>
 
 vk_hw_state vk_hw;
-extern int pc_hw_perspective, pc_hw_texture_filter;
+extern int pc_hw_draw_perspective, pc_hw_draw_filter; /* the renderer's copies of the settings (gpu_hw.c) */
 
 /* gpu_hw.c's vertex (the layout must match; checked by size at init). */
 typedef struct {
@@ -440,7 +440,7 @@ void pc_vk_hw_draw_batch(unsigned fbo, const void* vertices, int count, int blen
     VkImageView atlas = (VkImageView)pc_ui_upscale_vk_view();
     vk_descriptors_image(&d, 2, atlas ? atlas : vk_hw.vram.view, vk.nearest);
     vk_descriptors_image(&d, 3, vk_hw.emissive.view, vk.nearest);
-    draw_push push = { .perspective = pc_hw_perspective, .filtering = pc_hw_texture_filter, .occlusion = occlusion,
+    draw_push push = { .perspective = pc_hw_draw_perspective, .filtering = pc_hw_draw_filter, .occlusion = occlusion,
         .ui_scale = atlas ? pc_ui_upscale_draw_factor() : 0, .emissive = pc_hw_emissive(NULL),
         .materials = pc_material_active() };
     if (occlusion) {

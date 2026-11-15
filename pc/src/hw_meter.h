@@ -39,7 +39,8 @@ extern "C" {
     X(set_depth, 'A') \
     X(triangle, 'A') \
     X(rect, 'A') \
-    X(shape_triangle, 'A') \
+    X(set_exact, 'A') \
+    X(clear_exact, 'A') \
     X(native_per_output, 'N') \
     X(line, 'A') \
     X(fill, 'V') \

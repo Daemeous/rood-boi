@@ -42,6 +42,7 @@ ROOD_OUT (default pc/build/boot) is where the game and tests write files, so
 parallel runs (pc/tests/run.py) each get their own.
 """
 import argparse
+import atexit
 import json
 import os
 import pathlib
@@ -349,6 +350,18 @@ def listening(path):
         return False
 
 
+_direct_failures = []
+
+
+def _exit_on_direct_hooks():
+    if _direct_failures:
+        sys.stdout.flush()
+        os._exit(1)
+
+
+atexit.register(_exit_on_direct_hooks)
+
+
 class Game:
     def __init__(self, path=DEFAULT_SOCKET, processes=()):
         self.path = path
@@ -434,6 +447,16 @@ class Game:
         return instance
 
     def close(self):
+        # The renderer thread in mode 2 (async): a renderer hook the game thread called directly is a race the mailbox does not cover (the goal
+        # is none), so a run that ends with one fails: the message is printed and the process exits 1 when the test script ends (atexit).
+        try:
+            state = self.call("render_thread")
+            if state.get("mode", 0) >= 2 and state.get("direct") and not os.environ.get("ROOD_RT_DIRECT_ALLOW"):
+                names = ", ".join(f"{d['hook']} x{d['calls']}" for d in state["direct"])
+                print(f"FAIL: the game thread called renderer hooks directly in render_thread {state['mode']}: {names}", flush=True)
+                _direct_failures.append(names)
+        except Exception:
+            pass
         try:
             self.call("quit")
         except Exception:

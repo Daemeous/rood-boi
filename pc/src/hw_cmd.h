@@ -25,6 +25,7 @@ extern "C" {
 extern struct pc_hwc_mirror_t {
     int is_2d, cur_effect, poly_effect; /* the current packet's effect range (pc_hwc_set_attr), and its value at the last set_packet */
     int widescreen, suppress; /* (widescreen: the flag the renderer last got, pc_gte_widescreen as of the last record) */
+    int settings[5];          /* the draw settings the renderer last got (pc_hwc_sync_settings: perspective, texture filter, subpixel, interpolate, menu studio) */
 } pc_hwc_mirror;
 /* A triangle's treatment, decided on the producer side (gpu_hw.c pc_hw_triangle_decide): ignore it (the renderer is off), drop
  * the pending depth and precise positions (left out, or suppressed), or draw it with this classification. */
@@ -57,6 +58,7 @@ extern int pc_gte_widescreen;
 extern int pc_hw_suppress;
 void pc_hwc_sync_widescreen(void);
 void pc_hwc_sync_suppress(void);
+void pc_hwc_sync_settings(void); /* a record when one of the draw settings the renderer reads changed (the header fill calls it) */
 extern int pc_render_thread;
 #define PC_HWC_SYNC() ((void)(pc_gte_widescreen != pc_hwc_mirror.widescreen ? (pc_hwc_sync_widescreen(), 0) : 0), (void)(pc_hw_suppress != pc_hwc_mirror.suppress ? (pc_hwc_sync_suppress(), 0) : 0), (void)(pc_hwc_pending || pc_render_thread >= 2 ? (pc_hwc_flush(), 0) : 0))
 /* The same, only when a stale_copy record is waiting (the producer's own queries). */
@@ -66,6 +68,9 @@ void pc_hwc_frame_menu_model(int on);
 void pc_hwc_set_2d(int is_2d);
 void pc_hwc_set_narrowed(void);
 void pc_hwc_set_precise(const float* xy6);
+void pc_hwc_shape_triangle(const float* xy, const int* uv, const int* rgb, unsigned code, unsigned tpage, unsigned clut, unsigned window, const int* clip,
+    int mask_set, int cover);
+void pc_hwc_skip_present(void);
 void pc_hwc_set_depth(const int* depth3);
 void pc_hwc_set_packet(const void* packet);
 void pc_hwc_set_flipped_uv(const int* xy6, const int* uv6);

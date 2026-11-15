@@ -75,6 +75,7 @@ static int start(void)
 }
 int pc_rt_active(void) { return pc_render_thread && rt.started; }
 int pc_rt_on_thread(void) { return is_renderer; }
+unsigned long long pc_rt_pushed(void) { return rt.pushed; }
 static int usable(void)
 {
     return pc_render_thread && !is_renderer && &pc_vk_active && pc_vk_active && (rt.started || start());
@@ -175,6 +176,18 @@ void pc_rt_note_hook(int hook, const char* name)
         backtrace_symbols_fd(frames, n, 2);
 #endif
     }
+}
+/* The hooks the game thread called directly while the thread was on, as JSON (RPC render_thread: the test harness fails a run in mode 2 that has any). */
+int pc_rt_direct_json(char* out, int size)
+{
+    int n = snprintf(out, (size_t)size, "{\"mode\":%d,\"active\":%s,\"direct\":[", pc_render_thread, pc_rt_active() ? "true" : "false");
+    int first = 1;
+    for (int i = 0; i < MAX_HOOKS && n < size - 80; i++)
+        if (hook_count[i]) {
+            n += snprintf(out + n, (size_t)(size - n), "%s{\"hook\":\"%s\",\"calls\":%llu}", first ? "" : ",", hook_name[i], hook_count[i]);
+            first = 0;
+        }
+    return n + snprintf(out + n, (size_t)(size - n), "]}");
 }
 extern void pc_hwc_flush_report(void) __attribute__((weak));
 extern const unsigned long long* pc_rq_counts_get(void) __attribute__((weak)); /* renderer_rq.c */

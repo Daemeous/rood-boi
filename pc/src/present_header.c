@@ -42,7 +42,7 @@ extern int pc_probe_lights_base(float position[][4], float color[][4], float dir
 extern int pc_lights_world(float position[][4], float color[][4], float direction[][4], float extent_right[][4], float extent_up[][4],
     int shadows[], int max);
 extern int pc_lighting_ao_traced(void);
-extern int pc_hw_scale;
+extern int pc_hw_scale, pc_hw_perspective, pc_hw_texture_filter, pc_hw_subpixel, pc_hw_interpolate, pc_hw_menu_studio;
 extern int pc_hw_present_world(void) __attribute__((weak));
 extern int pc_hw_present_menu_model(void) __attribute__((weak));
 extern float pc_hw_present_fade(float rect[4]) __attribute__((weak));
@@ -156,8 +156,17 @@ static void catalogue(void)
 #undef PC_PH_ADD
     add("gl_inset", pc_gl_inset, sizeof pc_gl_inset);
     /* Level 2: the renderer's own settings the presenter still reads live (the 3D-maths slice's settings requests will carry them). */
-    if (canary_level >= 2)
+    if (canary_level == 2)
         add("hw_scale", &pc_hw_scale, sizeof pc_hw_scale);
+    /* Level 3: the settings the renderer's drawing reads (perspective, texture filter, subpixel, interpolate, menu studio): the renderer holds its
+     * own copies, set by the stream (hw_cmd.c C_SET_SETTINGS), so poisoning the game's variables must change nothing. */
+    if (canary_level == 3) {
+        add("hw_perspective", &pc_hw_perspective, sizeof pc_hw_perspective);
+        add("hw_texture_filter", &pc_hw_texture_filter, sizeof pc_hw_texture_filter);
+        add("hw_subpixel", &pc_hw_subpixel, sizeof pc_hw_subpixel);
+        add("hw_interpolate", &pc_hw_interpolate, sizeof pc_hw_interpolate);
+        add("hw_menu_studio", &pc_hw_menu_studio, sizeof pc_hw_menu_studio);
+    }
 }
 extern void pc_overlay_build(void) __attribute__((weak));
 static void pc_overlay_build_hook(void)
@@ -191,6 +200,7 @@ int pc_present_header_fill(void)
     pc_present_header_target = h; /* (the fill's own reads of pc_ph() are of this slot) */
     filling = 1, emitters_gathered = 0;
     pc_hwc_sync_widescreen(); /* (the renderer's copy of the flag follows the stream) */
+    pc_hwc_sync_settings();
     {
         pc_rq rq = { .kind = PC_RQ_FRAME_STATE, .out = &h->shown, .out_bytes = sizeof h->shown };
         pc_renderer_rq(&rq); /* (everything recorded so far applied, then the renderer's say on the picture shown) */
@@ -548,7 +558,7 @@ void pc_present_enter(void)
 {
     if (canary < 0) {
         const char* v = getenv("ROOD_PRESENT_CANARY");
-        canary = v && (*v == '1' || *v == '2');
+        canary = v && (*v == '1' || *v == '2' || *v == '3');
         canary_level = canary ? *v - '0' : 0;
         pc_present_guard_on = getenv("ROOD_PRESENT_CANARY_CALLS") != NULL;
         abort_on_violation = getenv("ROOD_PRESENT_CANARY_ABORT") != NULL;

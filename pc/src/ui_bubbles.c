@@ -454,7 +454,7 @@ static void cover_triangle(const pen* P, const float* a, const float* b, const f
     int rgb[9];
     for (int i = 0; i < 3; i++)
         memcpy(rgb + i * 3, P->rgb, sizeof P->rgb);
-    pc_hw_shape_triangle(xy, uv, rgb, 0x20, 0, 0, 0, P->clip, 0, 1);
+    pc_hwc_shape_triangle(xy, uv, rgb, 0x20, 0, 0, 0, P->clip, 0, 1);
 }
 static void cover_quad(const pen* P, const float* a, const float* b, const float* c, const float* d, float ca, float cb,
     float cc, float cd)
@@ -580,7 +580,7 @@ static void draw_shadow(const bubble* B, int ox, int oy, const int* clip)
             xy[j * 2] = B->points[B->triangles[t][j]][0] + 2.0f + (float)ox;
             xy[j * 2 + 1] = B->points[B->triangles[t][j]][1] + 2.0f + (float)oy;
         }
-        pc_hw_shape_triangle(xy, uv, rgb, 0x20, 0, 0, 0, clip, 0, 0);
+        pc_hwc_shape_triangle(xy, uv, rgb, 0x20, 0, 0, 0, clip, 0, 0);
     }
     pen P = { (float)ox, (float)oy, clip, { (int)(B->shadow_rgb & 255), (int)((B->shadow_rgb >> 8) & 255),
                                               (int)((B->shadow_rgb >> 16) & 255) } };
@@ -605,7 +605,7 @@ static void draw_main(const bubble* B, int ox, int oy, const int* clip)
             uv[j * 2] = (int)floorf(q[0] - (float)B->align[t][0] + 0.5f);
             uv[j * 2 + 1] = (int)floorf(q[1] - (float)B->align[t][1] + 0.5f);
         }
-        pc_hw_shape_triangle(xy, uv, rgb, 0x24, B->tpage, B->clut, B->window, clip, 0, 0);
+        pc_hwc_shape_triangle(xy, uv, rgb, 0x24, B->tpage, B->clut, B->window, clip, 0, 0);
     }
     pen P = { (float)ox, (float)oy, clip, { (int)(B->line_rgb & 255), (int)((B->line_rgb >> 8) & 255),
                                               (int)((B->line_rgb >> 16) & 255) } };

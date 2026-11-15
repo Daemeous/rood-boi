@@ -472,13 +472,13 @@ typedef struct {
     int32_t window[4]; /* base u, base v, size u, size v */
     float shift[4]; /* fractional offset u, v (texels), period u, v */
 } uv_effect_gpu;
-extern int pc_hw_interpolate;
+extern int pc_hw_draw_interpolate; /* the renderer's copy of the interpolate setting (gpu_hw.c) */
 static int uv_effect_table(const draw_list* list, float t, uv_effect_gpu* out)
 {
     memset(out, 0, sizeof *out);
     int n = list->uv_effect_count;
     float back = pc_interp_uv && t < 1.0f ? 1.0f - (t > 0 ? t : 0) : 0;
-    int smooth = pc_interp_uv == 2 && pc_hw_interpolate;
+    int smooth = pc_interp_uv == 2 && pc_hw_draw_interpolate;
     for (int i = 0; i < n; i++) {
         const render_uv_effect* e = &list->uv_effects[i];
         uv_effect_gpu* g = &out[i + 1];

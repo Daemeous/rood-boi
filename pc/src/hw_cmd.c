@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include <string.h>
 
 /* The renderer's hooks, applied by the consumer (gpu_hw.c). */
@@ -21,6 +22,13 @@ extern void pc_hw_set_flipped_uv(const int*, const int*);
 extern void pc_hw_set_bounds(int, int, int, int, unsigned, unsigned, const int*, const int*);
 extern void pc_hw_set_attr(const pc_hw_attr*, int, int);
 extern void pc_hw_set_widescreen(int);
+extern void pc_hw_set_settings(const int*);
+extern void pc_hw_set_exact(const float*, int);
+extern void pc_hw_clear_exact(void);
+extern void pc_hw_skip_present_now(unsigned);
+extern unsigned pc_ph_vsync(void) __attribute__((weak));
+extern unsigned pc_vsync_count(void);
+extern int pc_hw_perspective, pc_hw_texture_filter, pc_hw_subpixel, pc_hw_interpolate, pc_hw_menu_studio;
 extern void pc_hw_frame_menu_model(int);
 extern void pc_hw_set_suppress(int);
 extern void pc_hw_set_call(unsigned, float);
@@ -57,9 +65,9 @@ extern const uint16_t* pc_native_vram(void);
 extern int pc_gpu_immediate; /* DrawPrim, not an ordering table: ui_text identifies the info signs by it */
 extern const void* pc_gpu_command; /* the packet a rectangle or text quad draws (boot_runtime.c) */
 
-enum { C_SET_2D = 1, C_SET_NARROWED, C_SET_PRECISE, C_SET_DEPTH, C_SET_PACKET, C_SET_FLIPPED_UV, C_SET_BOUNDS, C_SET_ATTR, C_NATIVE_MARKER, C_NATIVE_TRANSLUCENT, C_OT_NATIVE_AREA, C_RECT, C_LINE, C_TRIANGLE, C_MARK_RASTER, C_MARK, C_RASTER_POST, C_BEFORE_WRITE, C_STALE_COPY, C_TEXT_PIECE, C_TEXT_PIECE_DONE, C_EMISSIVE_NOTE, C_EMISSIVE_GONE, C_EMISSIVE_ROOM_MESH, C_FRAME_ROOM, C_VRAM_FILL, C_VRAM_UPLOAD, C_VRAM_COPY, C_SET_WIDESCREEN, C_UPLOAD_MODE, C_BEGIN_OT, C_END_OT, C_SET_SUPPRESS, C_TEXTURE_FENCE, C_STREAM, C_STREAM_WORDS, C_FRAME_MENU_MODEL };
+enum { C_SET_2D = 1, C_SET_NARROWED, C_SET_PRECISE, C_SET_DEPTH, C_SET_PACKET, C_SET_FLIPPED_UV, C_SET_BOUNDS, C_SET_ATTR, C_NATIVE_MARKER, C_NATIVE_TRANSLUCENT, C_OT_NATIVE_AREA, C_RECT, C_LINE, C_TRIANGLE, C_MARK_RASTER, C_MARK, C_RASTER_POST, C_BEFORE_WRITE, C_STALE_COPY, C_TEXT_PIECE, C_TEXT_PIECE_DONE, C_EMISSIVE_NOTE, C_EMISSIVE_GONE, C_EMISSIVE_ROOM_MESH, C_FRAME_ROOM, C_VRAM_FILL, C_VRAM_UPLOAD, C_VRAM_COPY, C_SET_WIDESCREEN, C_UPLOAD_MODE, C_BEGIN_OT, C_END_OT, C_SET_SUPPRESS, C_TEXTURE_FENCE, C_STREAM, C_STREAM_WORDS, C_FRAME_MENU_MODEL, C_SET_SETTINGS, C_SET_EXACT, C_CLEAR_EXACT, C_SKIP_PRESENT };
 
-struct pc_hwc_mirror_t pc_hwc_mirror = { .cur_effect = -1, .poly_effect = -1 };
+struct pc_hwc_mirror_t pc_hwc_mirror = { .cur_effect = -1, .poly_effect = -1, .settings = { 1, 0, 1, 1, 1 } }; /* (the settings: the renderer's defaults, gpu_hw.c) */
 int pc_hwc_pending;
 int pc_hwc_stale_pending;
 /* ROOD_HWC_INLINE=1: every record is applied at once, as the walk called the hooks before the buffer (the proof's reference:
@@ -115,8 +123,20 @@ void pc_hwc_sync_suppress(void)
     pc_hwc_mirror.suppress = pc_hw_suppress;
     memcpy(record_raw(C_SET_SUPPRESS, sizeof(int)), &pc_hwc_mirror.suppress, sizeof(int));
 }
+/* The draw settings the renderer reads (the settings perspective_textures, smooth_textures, subpixel, interpolate and the menu studio) travel in the
+ * stream like the widescreen flag: a record when one changed, ahead of the record that follows (and at each header fill), so the renderer never
+ * reads the game's variables (the settings code and the overlay write them on the game thread). */
+void pc_hwc_sync_settings(void)
+{
+    int now[5] = { pc_hw_perspective, pc_hw_texture_filter, pc_hw_subpixel, pc_hw_interpolate, pc_hw_menu_studio };
+    if (!memcmp(now, pc_hwc_mirror.settings, sizeof now) || pc_present_inside || pc_rt_on_thread())
+        return;
+    memcpy(pc_hwc_mirror.settings, now, sizeof now);
+    memcpy(record_raw(C_SET_SETTINGS, sizeof now), now, sizeof now);
+}
 static unsigned char* record(int type, int size)
 {
+    pc_hwc_sync_settings();
     pc_hwc_sync_suppress();
     pc_hwc_sync_widescreen();
     return record_raw(type, size);
@@ -145,6 +165,34 @@ void pc_hwc_set_narrowed(void)
 void pc_hwc_set_precise(const float* xy6)
 {
     memcpy(record(C_SET_PRECISE, 6 * sizeof(float)), xy6, 6 * sizeof(float));
+    if (inline_now())
+        pc_hwc_flush();
+}
+/* A 2D triangle the port builds at unrounded positions (ui_bubbles): the exact positions and the coverage flag, the triangle, then the positions
+ * cleared, as records (the decision of the triangle is the producer's). */
+void pc_hwc_shape_triangle(const float* xy, const int* uv, const int* rgb, unsigned code, unsigned tpage, unsigned clut, unsigned window,
+    const int* clip, int mask_set, int cover)
+{
+    int ixy[6];
+    for (int i = 0; i < 6; i++)
+        ixy[i] = (int)floorf(xy[i] + 0.5f);
+    pc_hwc_set_packet(NULL);
+    struct {
+        float xy[6];
+        int cover;
+    } e;
+    memcpy(e.xy, xy, sizeof e.xy), e.cover = cover;
+    memcpy(record(C_SET_EXACT, sizeof e), &e, sizeof e);
+    pc_hwc_triangle(ixy, uv, rgb, code, tpage, clut, window, clip, mask_set, 0);
+    record(C_CLEAR_EXACT, 0);
+    if (inline_now())
+        pc_hwc_flush();
+}
+/* A frame ends without being presented (photo rendering, the hidden charge skip): the batch is closed as at a present, at the vsync the game is at. */
+void pc_hwc_skip_present(void)
+{
+    unsigned vsync = pc_ph_vsync ? pc_ph_vsync() : pc_vsync_count();
+    memcpy(record(C_SKIP_PRESENT, sizeof vsync), &vsync, sizeof vsync);
     if (inline_now())
         pc_hwc_flush();
 }
@@ -779,6 +827,34 @@ static void apply_batch(batch* b)
             int v;
             memcpy(&v, r, sizeof v);
             pc_hw_set_suppress(v);
+            at += 1 + (int)sizeof v;
+            break;
+        }
+        case C_SET_EXACT: {
+            struct {
+                float xy[6];
+                int cover;
+            } e;
+            memcpy(&e, r, sizeof e);
+            pc_hw_set_exact(e.xy, e.cover);
+            at += 1 + (int)sizeof e;
+            break;
+        }
+        case C_CLEAR_EXACT:
+            pc_hw_clear_exact();
+            at += 1;
+            break;
+        case C_SKIP_PRESENT: {
+            unsigned v;
+            memcpy(&v, r, sizeof v);
+            pc_hw_skip_present_now(v);
+            at += 1 + (int)sizeof v;
+            break;
+        }
+        case C_SET_SETTINGS: {
+            int v[5];
+            memcpy(v, r, sizeof v);
+            pc_hw_set_settings(v);
             at += 1 + (int)sizeof v;
             break;
         }

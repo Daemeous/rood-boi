@@ -606,9 +606,17 @@ static GLint u_draw_filtering, u_draw_pass, u_draw_vram, u_draw_perspective, u_u
 static GLint u_draw_ui_scale, u_draw_ui_atlas, u_draw_text_factor, u_draw_emissive_map, u_draw_emissive_on;
 /* Perspective-correct texturing: on by default (settings perspective_textures;
  * ROOD_PERSPECTIVE=0 or 0 there restores the PS1's affine mapping). */
-int pc_hw_perspective = 1;
+int pc_hw_perspective = 1; /* the settings' variable: the game side's (the renderer reads its own copy, pc_hw_draw_perspective) */
 /* Bilinear texture filtering on 3D surfaces (off: the PS1 samples nearest). */
-int pc_hw_texture_filter;
+int pc_hw_texture_filter; /* (the game side's; the renderer's copy is pc_hw_draw_filter) */
+/* The renderer's copies of the draw settings, set by the stream (hw_cmd.c C_SET_SETTINGS): perspective, texture filter, subpixel, interpolate, menu studio. */
+int pc_hw_draw_perspective = 1, pc_hw_draw_filter;
+int pc_hw_draw_interpolate = 1; /* (render.c reads it too) */
+static int r_subpixel = 1, r_menu_studio = 1;
+void pc_hw_set_settings(const int* v)
+{
+    pc_hw_draw_perspective = v[0], pc_hw_draw_filter = v[1], r_subpixel = v[2], pc_hw_draw_interpolate = v[3], r_menu_studio = v[4];
+}
 static int pending_depth[3], has_pending_depth;
 static float pending_precise[6];
 static int has_pending_precise;
@@ -664,15 +672,12 @@ static const uint16_t* native_vram;
  * not in it unless a read-back brought them. ROOD_VRAM_RENDERER=native samples the game's array again (the comparison). */
 static uint16_t rvram[1024 * 512];
 static const uint16_t* renderer_vram;
-const uint16_t* pc_hw_renderer_vram(void) { PC_HW_METER(renderer_vram); return renderer_vram; }
+const uint16_t* pc_hw_renderer_vram_now(void) { PC_HW_METER(renderer_vram); return renderer_vram; }
+/* A copy of the renderer's VRAM for the game thread's readers (hw_calls.c pc_hw_renderer_vram: it runs as a request, after the records the caller made). */
+void pc_hw_vram_copy_now(uint16_t* dst) { memcpy(dst, renderer_vram, sizeof rvram); }
 static uint32_t tiles_for(int x0, int y0, int x1, int y1);
 /* emissive.cpp's VRAM (T1 R4d): the renderer's copy, current (the commands pending are applied), not a hook the walk counts. */
-const uint16_t* pc_hw_emissive_vram(int renderer_side)
-{
-    if (!renderer_side)
-        PC_HWC_SYNC(); /* (a reader on the game side: the commands pending first) */
-    return pc_hw_active ? renderer_vram : native_vram;
-}
+const uint16_t* pc_hw_emissive_vram_now(void) { return pc_hw_active ? renderer_vram : native_vram; }
 /* The renderer's VRAM takes the rectangle (x, y, w, h) (wrapping at the edges as the hardware does): from `pixels`, the rectangle's
  * rows in order as the game's array held them when the event happened (the records carry them: nothing here reads the game's
  * memory), or, with NULL, from the game's array now (the read-backs and the renderer's own resyncs, on the game's thread). */
@@ -1019,7 +1024,7 @@ static void make_object_fbos(void)
 
 /* Called once the GL context exists. ROOD_SCALE picks the internal resolution
  * multiple (1-8, default 4); ROOD_SCALE=0 disables the hardware path. */
-void pc_hw_init(const uint16_t* vram)
+void pc_hw_init_now(const uint16_t* vram)
 { PC_HW_METER(init);
     const char* backend = getenv("ROOD_RENDERER");
     if (backend && !strcmp(backend, "null"))
@@ -1500,8 +1505,8 @@ static void draw_batch(GLuint fbo, const hw_vertex* vertices, int count, int ble
     gl_BindVertexArray(vertex_array);
     gl_BindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
     gl_BufferData(GL_ARRAY_BUFFER, (GLsizeiptr)(count * sizeof(hw_vertex)), vertices, GL_STREAM_DRAW);
-    gl_Uniform1i(u_draw_perspective, pc_hw_perspective);
-    gl_Uniform1i(u_draw_filtering, pc_hw_texture_filter);
+    gl_Uniform1i(u_draw_perspective, pc_hw_draw_perspective);
+    gl_Uniform1i(u_draw_filtering, pc_hw_draw_filter);
     {
         GLuint atlas = pc_ui_upscale_gl_texture();
         gl_Uniform1i(u_draw_ui_scale, atlas ? pc_ui_upscale_draw_factor() : 0);
@@ -2174,7 +2179,7 @@ static void triangle_apply_body(const int* xy, const int* uv, const int* rgb, un
         pos[i] = (float)xy[i];
     /* 2D packets carry whole pixels unless the game placed them finer
      * (sub-pixel text, pc_ui_subpixel). */
-    if (has_pending_precise && (!primitive_2d || pc_ui_subpixel) && pc_hw_subpixel)
+    if (has_pending_precise && (!primitive_2d || pc_ui_subpixel) && r_subpixel)
         memcpy(pos, pending_precise, sizeof pos);
     has_pending_precise = 0;
     /* Shapes the port builds itself (joined lines, vector bubbles): their
@@ -2691,11 +2696,16 @@ static void shape_triangle(const float* xy, const int* uv, const int* rgb, unsig
     pc_hw_triangle(ixy, uv, rgb, code, tpage, clut, window, clip, mask_set, 0);
     has_exact = exact_cover = has_line_x = 0;
 }
-void pc_hw_shape_triangle(const float* xy, const int* uv, const int* rgb, unsigned code, unsigned tpage,
-    unsigned clut, unsigned window, const int* clip, int mask_set, int cover)
-{ PC_HW_METER(shape_triangle);
-    pc_hw_set_packet(NULL);
-    shape_triangle(xy, uv, rgb, code, tpage, clut, window, clip, mask_set, cover, NULL);
+/* The unrounded positions the next triangle record is drawn at (pc_hwc_shape_triangle's records bracket it), and the coverage blending. */
+void pc_hw_set_exact(const float* xy, int cover)
+{ PC_HW_METER(set_exact);
+    memcpy(exact_xy, xy, sizeof exact_xy);
+    has_exact = 1;
+    exact_cover = cover;
+}
+void pc_hw_clear_exact(void)
+{ PC_HW_METER(clear_exact);
+    has_exact = exact_cover = has_line_x = 0;
 }
 int pc_ui_lines = 1;         /* PC_UI_LINES_*: joined (default) or legacy */
 const char* const pc_ui_lines_names[2] = { "legacy", "joined" };
@@ -3170,7 +3180,7 @@ int pc_hw_set_scale_now(int scale)
 /* Supersampling at a view `view_h` window pixels tall showing a display
  * area `display_h` VRAM pixels tall: the scale it needs, or the setting
  * again when it is off (the presenters, before drawing a frame). */
-void pc_hw_supersample(int view_h, int display_h)
+void pc_hw_supersample_now(int view_h, int display_h)
 { PC_HW_METER(supersample);
     if (!pc_hw_active)
         return;
@@ -3197,7 +3207,7 @@ void pc_hw_supersample(int view_h, int display_h)
  * setting (and supersampling) come back when it is off. Applied at once,
  * not at the next present: the frame drawn after the call is drawn at the
  * new scale (a change refills the target from native VRAM). */
-void pc_hw_detail_view(int on)
+void pc_hw_detail_view_now(int on)
 { PC_HW_METER(detail_view);
     if (!pc_hw_active || detail_view == !!on)
         return;
@@ -3703,8 +3713,8 @@ static int draw_native(GLuint fbo, uint32_t list, const int* clip, int ox, int o
     target.window = window;
     target.mask_set = mask;
     target.vram = native_texture;
-    target.perspective = pc_hw_perspective;
-    target.filtering = pc_hw_texture_filter;
+    target.perspective = pc_hw_draw_perspective;
+    target.filtering = pc_hw_draw_filter;
     target.fbo = ms ? ms_target(0) : fbo;
     target.object_fbo = ms ? ms_target(1) : fbo == replay.fbo ? object_replay_fbo : object_fbo;
     target.surface_depth = room_depth_texture;
@@ -3882,8 +3892,8 @@ static int draw_translucent(GLuint fbo, uint32_t list, int first, int count, con
     target.window = window;
     target.mask_set = mask;
     target.vram = native_texture;
-    target.perspective = pc_hw_perspective;
-    target.filtering = pc_hw_texture_filter;
+    target.perspective = pc_hw_draw_perspective;
+    target.filtering = pc_hw_draw_filter;
     target.fbo = ms_begin(fbo, clip) ? ms_target(0) : fbo; /* MSAA: into the twins */
     target.surface_depth = room_depth_texture;
 #ifdef ROOD_VULKAN
@@ -4489,7 +4499,7 @@ static int present_menu_model;
  * stack keeps the lens blur off them (post_profile.cpp lens_blur_gate), as
  * an uploaded backdrop at far depth would otherwise be blurred whole. */
 static int present_world;
-int pc_hw_present_world(void) { PC_HW_METER(present_world); return pc_hw_active && present_world; }
+int pc_hw_present_world_now(void) { PC_HW_METER(present_world); return pc_hw_active && present_world; }
 void pc_hw_frame_menu_model(int on)
 { PC_HW_METER(frame_menu_model);
     if (pc_hw_active)
@@ -4507,13 +4517,13 @@ void pc_hw_frame_state(pc_renderer_frame_state* out)
     memcpy(out->surfaces, emissive_surface_ready, (size_t)emissive_ready_count * sizeof *out->surfaces);
     memcpy(out->sources, emissive_source_ready, (size_t)emissive_ready_count * sizeof *out->sources);
 }
-int pc_hw_present_menu_model(void) { PC_HW_METER(present_menu_model); return pc_hw_active && present_menu_model; }
+int pc_hw_present_menu_model_now(void) { PC_HW_METER(present_menu_model); return pc_hw_active && present_menu_model; }
 /* The model view's lighting (menu_studio.glsl): 1 (default) its own studio
  * light in place of the room's and of the game's colours for the model (the
  * vertex colours; ashley_bridge.c leaves out the offset copy the game draws
  * as a rim); 0 the game's, lit by the room (RPC graphics menu_studio). */
 int pc_hw_menu_studio = 1;
-int pc_hw_present_menu_studio(void) { PC_HW_METER(present_menu_studio); return pc_hw_menu_studio && pc_hw_present_menu_model(); }
+int pc_hw_present_menu_studio(void) { PC_HW_METER(present_menu_studio); return r_menu_studio && pc_hw_present_menu_model(); }
 /* The shown picture's screen fade (0: none) and where it lands (u0, v0, u1, v1 of the display area). */
 float pc_hw_present_fade(float rect[4])
 { PC_HW_METER(present_fade);
@@ -4862,7 +4872,7 @@ static const recorded_triangle* find_match(const recording* rec, const recorded_
 }
 /* Camera halfway (t) between two recordings, for the present pass too. */
 static float replay_r[3][3], replay_t[3], replay_h, replay_ofx, replay_ofy;
-int pc_hw_replay_camera(float r[3][3], float t[3])
+int pc_hw_replay_camera_now(float r[3][3], float t[3])
 { PC_HW_METER(replay_camera);
     if (!presenting_replay)
         return 0;
@@ -4870,7 +4880,7 @@ int pc_hw_replay_camera(float r[3][3], float t[3])
     memcpy(t, replay_t, sizeof replay_t);
     return 1;
 }
-int pc_hw_replay_projection(float* h, float* ofx, float* ofy)
+int pc_hw_replay_projection_now(float* h, float* ofx, float* ofy)
 { PC_HW_METER(replay_projection);
     if (!presenting_replay)
         return 0;
@@ -4921,7 +4931,7 @@ static const recording* shown_recording(int* replayed, uint32_t* room)
  * or surfaces move along the view rays and lateral to them while the camera
  * moves. 0 when no native room list (nor, without one, object list) drew
  * the display area. */
-int pc_hw_view_camera(float r[3][3], float t[3], float* h, float* ofx, float* ofy)
+int pc_hw_view_camera_now(float r[3][3], float t[3], float* h, float* ofx, float* ofy)
 { PC_HW_METER(view_camera);
     int replayed;
     uint32_t room;
@@ -5554,13 +5564,13 @@ static void close_frame(unsigned vsync)
 }
 /* A vsync the window does not present (charge_skip.c): its frame ends as at
  * a present, so the next one records on its own. */
-void pc_hw_skip_present(void)
+void pc_hw_skip_present_now(unsigned vsync)
 { PC_HW_METER(skip_present);
     if (!pc_hw_active)
         return;
     flush();
     ms_end(); /* MSAA: the frame complete in the target */
-    close_frame(PH_VSYNC());
+    close_frame(vsync);
 }
 static GLuint hw_target(void)
 {
@@ -5602,7 +5612,7 @@ static GLuint hw_target(void)
     /* At 60 fps there is nothing between vsyncs to show, unless images are
      * presented between them (pc_present_rate). */
     unsigned shortest = pc_present_phase > 0 ? 1 : 2;
-    if (!pc_hw_interpolate || !matching || interval < shortest || interval > 8 || cut)
+    if (!pc_hw_draw_interpolate || !matching || interval < shortest || interval > 8 || cut)
         return target_texture; /* 60 fps, a cut, stale, or after a skip: the newest frame as drawn */
     /* Where B is. The game double-buffers: it draws B into the buffer that
      * is not on screen and shows A meanwhile, flipping to B when it has

@@ -25,6 +25,8 @@ void pc_rt_post(void (*fn)(void*), const void* arg, size_t size);
 /* Wait until everything posted so far has run (async: a fence; the snapshot, rewind and reload paths use it). */
 void pc_rt_drain(void);
 int pc_rt_on_thread(void); /* the caller is the renderer thread */
+unsigned long long pc_rt_pushed(void); /* messages posted so far (the game thread's: an answer the renderer gave stays right until this moves) */
+int pc_rt_direct_json(char* out, int size); /* the direct hook calls so far, as JSON */
 int pc_rt_active(void);    /* the thread is running (calls from other threads are requests) */
 /* A renderer hook was entered (hw_meter.h): counted when the game thread calls it while the thread is active. */
 void pc_rt_note_hook(int hook, const char* name);

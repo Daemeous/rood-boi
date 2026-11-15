@@ -422,6 +422,38 @@ hashes, canary, pacing, ui smokes):
   Nothing overlaps, so direct reaches into the renderer are harmless; `ROOD_RT_TRACE=1` prints, at exit, each `pc_hw_*` hook the game
   thread still called directly. That list is the 3D-maths worker's item 3 (requests on the mailbox) and item 2 (payloads).
 
+**Items 2, 3 and 7 (3D-maths worker, t1-r4e-vram), as they stand:**
+
+- **3 game-thread callers: done, the list is empty.** Every renderer entry the game thread calls is a record, a request with a reply or a header
+  setting (`hw_calls.c`: the request keeps its name, applies every record the caller made, then runs gpu_hw.c's `_now` function on the
+  renderer's thread; on that thread it just runs). Requests: the RPC dumps and redraws (`pc_hw_dump`, `pc_hw_redraw[_present]`), pick,
+  display rect, overlay stats, `pc_hw_present_lists`/`_all_lists`, the casters (a game-side copy refreshed when the serial moves), the native
+  VRAM texture handle, the picture's camera (`pc_hw_view_camera`, `replay_camera`, `replay_projection`: the answer is kept until something more
+  is posted, `pc_rt_pushed`), `pc_hw_present_world`, `_menu_model`, `pc_hw_detail_view`, `pc_hw_supersample`, `pc_hw_init`, the scale setter,
+  the photo hooks (their reply hands the producer's copy the stale set) and `pc_hw_forget_timeline`. Records: `pc_hwc_shape_triangle` (the
+  talk bubbles' exact positions), `pc_hwc_skip_present` (the photo and charge-skip frames), and the draw settings (perspective, texture
+  filter, subpixel, interpolate, menu studio: `C_SET_SETTINGS` ahead of the next record and at each header fill; the renderer draws from its
+  own copies, and `ROOD_PRESENT_CANARY=3` poisons the game's variables during the presenter: `present_canary_smoke`).
+  The gate: the RPC `render_thread` lists the hooks the game thread called directly while the thread was on, and `rood_rpc.py` fails a run
+  that ends in render_thread 2 with any (`ROOD_RT_DIRECT_ALLOW=1` silences it). `ROOD_RENDER_THREAD=2 python3 pc/tests/run.py <suite>`
+  runs a suite under it. Over the photo, editor, emissive, ui, fog, occlusion and shadow smokes in render_thread 2 the list is empty (28 suites).
+  `hw_calls_smoke` makes every request once in render_thread 0, 1 and 2 (and changes two settings at run time); `build_boot.py` refuses any
+  function that is called and defined nowhere but `SystemError` (a renamed hook was a trap for a day: `pc_hw_native_texture`).
+- **2 VRAM payload: done for the readers.** The records already carry the pixels they put into the renderer's array (upload, fill, copy,
+  raster post). What was left was the game thread reading that array by pointer (`pc_renderer_vram`: lighting's environment, the emitters'
+  texels, emissive, the RPC's prompt tools; 2.4 million calls in an emissive run). `pc_hw_renderer_vram` and `pc_hw_emissive_vram` are now
+  requests that copy the array after every record the caller made, kept until something more is posted (`pc_rt_pushed`); on the renderer's
+  own thread, or with the thread off, they are the array. A copy published at the renderer's frame boundary was not chosen: the readers
+  would see the VRAM of whichever frame the thread had reached, which differs with scheduling (the frames are to be equal in every mode);
+  the request's copy is the VRAM as of the caller's own records in every mode. Cost: a 1 MB copy and a wait for the thread, once per
+  frame in which a reader asks. (`rvram_put` with no pixels, the read-backs and the renderer's resyncs, still copies from the game's array at apply
+  time; gpu_hw.c's comment says it runs on the game's thread; not re-examined here.)
+
+- **7 snapshot, rewind, photo, engine reload:** photo prepare, mark, restore and drop and the timeline forget are requests (each applies
+  the caller's records first, so the queue is drained in order); the resync after a restore goes through `pc_renderer_rq`. The photo
+  hooks' stale set comes back in the reply. Proven in render_thread 0, 1 and 2 by `photo_mode_smoke`, `photo_foundation_smoke`,
+  `photo_pace_smoke` and `photo_full_room_smoke` (the photo smokes pass in render_thread 2 with no direct hook). Snapshot, rewind and engine reload were not re-run in mode 2 here.
+
 Async (the game thread posting without waiting) needs: the header copied into a slot of the request, `PC_HWC_SYNC` a no-op on the
 renderer thread, the pacing inputs (`fast`, `charge_hidden`, `fast_forward_held`, `sim_hz`) in the request, the record buffer posted by
 copy, and the direct-hook list at zero.

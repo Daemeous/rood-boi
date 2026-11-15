@@ -33,10 +33,10 @@ extern float pc_ui_bubble_outline; /* vector outline thickness, native pixels (0
 extern const char* const pc_ui_lines_names[2];
 extern const char* const pc_ui_bubbles_names[2];
 
-/* gpu_hw.c: a 2D triangle the port builds, at unrounded VRAM positions
- * (drawing offset applied), through the packet path. cover: coverage
+/* hw_cmd.c: a 2D triangle the port builds, at unrounded VRAM positions
+ * (drawing offset applied), as records of the stream. cover: coverage
  * blended (uv[0], uv[2], uv[4]: each vertex's coverage 0..256; untextured). */
-void pc_hw_shape_triangle(const float* xy, const int* uv, const int* rgb, unsigned code, unsigned tpage,
+void pc_hwc_shape_triangle(const float* xy, const int* uv, const int* rgb, unsigned code, unsigned tpage,
     unsigned clut, unsigned window, const int* clip, int mask_set, int cover);
 /* Native (VRAM) pixels per presented output pixel. */
 float pc_hw_native_per_output(void);

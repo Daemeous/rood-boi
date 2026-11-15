@@ -328,6 +328,7 @@
  *                                list of group indices (free camera view only);
  *                                room: "ready", or "loading" (no groups while
  *                                a room loads)
+ *   render_thread               the mode and the renderer hooks the game thread called directly while the thread was on
  *   hw_calls                    each game-side request into the renderer once (hw_calls.h): native_texture, display, casters, lists
  *   editor_view {focus}         the free camera's cutaway focus: [x, y, z]
  *                                fixes it, null returns to the automatic one;
@@ -3174,6 +3175,16 @@ static void handle_method(int fd, const char* request)
             "{\"native_texture\":%u,\"display\":[%d,%d,%d,%d],\"native_per_output\":%.4f,\"casters\":%d,\"caster_serial\":%d,"
             "\"all_lists\":%d,\"present_lists\":%d,\"overlay_held\":%ld}",
             texture, rect[0], rect[1], rect[2], rect[3], per_output, casters, serial, all, present, held);
+        reply(fd, id, result);
+    } else if (!strcmp(method, "render_thread")) {
+        /* The renderer thread's mode and the renderer hooks the game thread called directly while it was on (render_thread.c): in mode 2 the list
+         * is to be empty; the test harness (rood_rpc.py close) fails a run that ends with one. */
+        extern int pc_rt_direct_json(char*, int) __attribute__((weak));
+        if (!pc_rt_direct_json) {
+            fail(fd, id, -32000, "needs the render thread module");
+            return;
+        }
+        pc_rt_direct_json(result, (int)sizeof result);
         reply(fd, id, result);
     } else if (!strcmp(method, "hw_meter")) {
         /* The renderer hook meter (hw_meter.h, T1 plan R0; ROOD_HW_METER=1): every pc_hw_* hook's calls, those made inside the

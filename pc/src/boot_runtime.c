@@ -2079,7 +2079,6 @@ void pc_window_redraw(void) { pc_window_frame(vram, display_x, display_y, displa
  * and whether it is presented. */
 extern void pc_charge_skip_vsync(void) __attribute__((weak));
 extern int pc_charge_skip_hidden(void) __attribute__((weak));
-extern void pc_hw_skip_present(void) __attribute__((weak)); /* gpu_hw.c */
 extern int pc_photo_rendering __attribute__((weak));       /* photo.cpp: a photo mode render runs */
 extern void pc_state_diff_vsync(void) __attribute__((weak));
 static void tick_frame(void);
@@ -2135,8 +2134,8 @@ static void tick_frame_work(void)
     pc_audio_frame();
     if (photo || (pc_charge_skip_hidden && pc_charge_skip_hidden())) {
         /* Not presented: the window keeps the last picture; the frame ends as at a present. */
-        if (pc_hw_skip_present)
-            pc_hw_skip_present();
+        if (&pc_hw_active && pc_hw_active)
+            pc_hwc_skip_present();
         return;
     }
     /* The images of this vsync, and its fractions when interpolating, are the present service's (present_service.h). */
