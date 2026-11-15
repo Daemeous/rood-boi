@@ -172,6 +172,7 @@ int pc_ui_menu_tint_custom[3] = { 8, 7, 7 }; /* Custom's colour, 0..31 per chann
 #include "lighting_quality.h" /* the lighting quality keys (lighting_preset, gi_method, shadows, ...) */
 #include "probe_gi.h"
 #include "ui_upscale.h" /* 2D / UI: ui_upscale nearest | mmpx, ui_subpixel */
+#include "screen_owner.h" /* screen_owner, screen_owner_fill: the 16:9 view's sides when opaque 2D covers the 4:3 screen */
 #include "ui_text.h"    /* 2D / UI: ui_text original | font, ui_text_<style>_font ... */
 #include "ui_bubbles.h" /* 2D / UI: ui_lines, ui_outline_boost, ui_bubbles, ui_bubble_outline */
 #include "button_prompts.h" /* button_prompts auto | ...; bind_key_* / bind_pad_* */
@@ -367,6 +368,8 @@ const Entry entries[] = {
     I("analog_run", pc_analog_run), /* percent: at or past it Ashley runs */
     I("hud_label_opaque", pc_hud_label_opaque), /* the stat bars' label opaque (1) or the original's 0x180 (0) */
     I("opacity_2d", pc_opacity_2d), /* 2D at an opacity as primitives (1) or the game's read-back (0; ROOD_OPACITY_2D wins) */
+    I("screen_owner", pc_screen_owner), /* 16:9: a screen of opaque 2D clears the scene from the view's sides (1) or leaves them (0) */
+    IN("screen_owner_fill", pc_screen_owner_fill, 3), /* ... to this colour: red green blue, 0..255 */
     I("qol_confirm_cross", pc_qol_confirm_cross),
     I("qol_field_cross_attack", pc_qol_field_cross_attack),
     /* Gameplay. */

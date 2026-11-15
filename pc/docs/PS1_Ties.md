@@ -232,6 +232,11 @@ and screen-sized pictures are scaled or anchored rather than redrawn for the wid
 - `pc/src/boot_sdk.c`: `PutDispEnv`, `SetDispMask`, `ClearImage`.
 - `pc/src/widescreen.h`: the hooks (`pc_gte_anchored`, `PC_ANCHOR_*`, `pc_hw_anchor_packets`).
 - `pc/docs/Modernization_Plan.md`, opening section (the free camera and the never-cleared screen).
+- `pc/src/screen_owner.c`: a screen that owns the display. The original hides the scene under a picture of opaque 2D tiles
+  that covers the 4:3 screen; compressed to 16:9 the picture leaves the view's sides to the scene (Game Over showed a piece
+  of the room). When opaque rectangles (opaque texels checked in the renderer's VRAM, T5) cover the whole drawing area, the
+  sides' rows no opaque 2D reached are cleared (settings `screen_owner`, `screen_owner_fill`). It reads each 2D rectangle's
+  bounds at `pc_hw_set_bounds`, the point packets and draw items both pass, so it survives T4's removal of ordering tables.
 
 **Status.** Partly native.
 

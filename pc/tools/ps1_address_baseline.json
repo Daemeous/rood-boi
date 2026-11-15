@@ -6,6 +6,6 @@
  "guest_pointer_access": 38,
  "address_as_integer": 201,
  "zig_raw_memory": 944,
- "gpu_packet_writes": 27,
+ "gpu_packet_writes": 22,
  "lift_bridge": 3
 }

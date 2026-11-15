@@ -132,7 +132,7 @@ void pc_hwc_emissive_room_mesh(uint32_t mesh, unsigned offset, unsigned tris, un
 void pc_hwc_frame_room(void);
 /* uv4 may be NULL (an untextured rectangle). */
 void pc_hwc_sync_widescreen(void); /* a record when pc_gte_widescreen changed (the header fill calls it) */
-void pc_hwc_set_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tpage, const int* uv4, const int* clip4);
+void pc_hwc_set_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tpage, unsigned clut, const int* uv4, const int* clip4);
 
 #ifdef __cplusplus
 }

@@ -19,7 +19,7 @@ extern void pc_hw_set_precise(const float*);
 extern void pc_hw_set_depth(const int*);
 extern void pc_hw_set_packet(const void*);
 extern void pc_hw_set_flipped_uv(const int*, const int*);
-extern void pc_hw_set_bounds(int, int, int, int, unsigned, unsigned, const int*, const int*);
+extern void pc_hw_set_bounds(int, int, int, int, unsigned, unsigned, unsigned, const int*, const int*);
 extern void pc_hw_set_attr(const pc_hw_attr*, int, int);
 extern void pc_hw_set_widescreen(int);
 extern void pc_hw_set_settings(const int*);
@@ -217,13 +217,13 @@ void pc_hwc_set_flipped_uv(const int* xy6, const int* uv6)
     if (inline_now())
         pc_hwc_flush();
 }
-void pc_hwc_set_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tpage, const int* uv4, const int* clip4)
+void pc_hwc_set_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tpage, unsigned clut, const int* uv4, const int* clip4)
 {
     struct {
         int x0, y0, x1, y1;
-        unsigned code, tpage;
+        unsigned code, tpage, clut;
         int has_uv, uv[4], clip[4];
-    } b = { x0, y0, x1, y1, code, tpage, uv4 != NULL, { 0, 0, 0, 0 }, { 0, 0, 0, 0 } };
+    } b = { x0, y0, x1, y1, code, tpage, clut, uv4 != NULL, { 0, 0, 0, 0 }, { 0, 0, 0, 0 } };
     if (uv4)
         memcpy(b.uv, uv4, sizeof b.uv);
     memcpy(b.clip, clip4, sizeof b.clip);
@@ -785,11 +785,11 @@ static void apply_batch(batch* b)
         case C_SET_BOUNDS: {
             struct {
                 int x0, y0, x1, y1;
-                unsigned code, tpage;
+                unsigned code, tpage, clut;
                 int has_uv, uv[4], clip[4];
             } b;
             memcpy(&b, r, sizeof b);
-            pc_hw_set_bounds(b.x0, b.y0, b.x1, b.y1, b.code, b.tpage, b.has_uv ? b.uv : NULL, b.clip);
+            pc_hw_set_bounds(b.x0, b.y0, b.x1, b.y1, b.code, b.tpage, b.clut, b.has_uv ? b.uv : NULL, b.clip);
             at += 1 + (int)sizeof b;
             break;
         }

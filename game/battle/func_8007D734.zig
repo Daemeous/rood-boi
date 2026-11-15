@@ -62,7 +62,7 @@ pub fn func_8007D734(ot: ?*anyopaque) callconv(.c) void {
                 const page: c_int = c.GetTPage(2, v.g.D_800F1B9C().*, temp_s0 +% (buffer *% 0x140), 0);
                 const x: c_int = @as(c_int, psx.conv(i16, @as(c_int, psx.conv(u16, v.g.D_800F1A68().unk0)) +% temp_s0));
                 const item = sprite_item.sprite(slot, 0x100, (x & 0xFFFF) | (@as(c_int, psx.conv(i16, v.g.D_800F1A68().unk4)) << 16), 64 | (223 << 16), 0, 0);
-                sprite_item.color(item, rgb | 0x02000000);
+                sprite_item.color(item, rgb, true);
                 sprite_item.drawModeWindow(slot, 0x200 | (page & 0x1FF), 0);
             }
         }

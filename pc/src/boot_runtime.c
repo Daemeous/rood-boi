@@ -69,7 +69,7 @@ extern int pc_hw_raster_skip(int, int, int, int) __attribute__((weak));
 /* What a VRAM write replaces, kept for frame interpolation (gpu_hw.c). */
 extern void pc_hw_before_write(int, int, int, int) __attribute__((weak));
 extern void pc_hw_set_2d(int);
-extern void pc_hw_set_bounds(int, int, int, int, unsigned, unsigned, const int*, const int*);
+extern void pc_hw_set_bounds(int, int, int, int, unsigned, unsigned, unsigned, const int*, const int*);
 extern void pc_hw_set_packet(const void*);
 extern int pc_ui_precise_lookup(int, const unsigned*, int, float*) __attribute__((weak)); /* ui_upscale.c */
 extern int pc_ui_precise_find(int, const unsigned*, int, float*) __attribute__((weak)); /* ui_upscale.c */
@@ -1576,7 +1576,7 @@ static void commands(uint32_t* p, unsigned n)
                 int clip[4] = { clip_x, clip_y, clip_w, clip_h };
                 pc_hwc_set_2d(1); /* sprites and tiles are screen-space */
                 int texels[4] = { (int)(uv & 255), (int)((uv >> 8) & 255), (int)(uv & 255) + (int)w - 1, (int)((uv >> 8) & 255) + (int)h - 1 };
-                pc_hwc_set_bounds(x, y, x + (int)w, y + (int)h, code, tpage, tex ? texels : NULL, clip);
+                pc_hwc_set_bounds(x, y, x + (int)w, y + (int)h, code, tpage, uv >> 16, tex ? texels : NULL, clip);
                 pc_gpu_command = GUEST(p + i);
                 pc_hwc_raster_post();
                 pc_hwc_rect(x, y, (int)w, (int)h, uv & 255, (uv >> 8) & 255, p[i] & 0xffffff, code,
@@ -1713,13 +1713,93 @@ static const uint32_t* const* splice_of(const uint32_t* at)
         }
     return NULL;
 }
+static const uint32_t *ot_scene, *ot_top; /* (below: the table's scene base and top) */
+/* The ordering-table census (RPC ot_census, pc/tools/ot_census.py): what each adopted table holds besides the slots' own entries, by the
+ * slot it sits in (words after the table's scene entry) and by kind: item markers (the frame's draw items), native-list markers, raw
+ * packets (a draw mode, a polygon, a line, a rectangle or sprite, anything else) and VRAM copies (DR_MOVE and the loads and stores).
+ * The ordering table can go once every route reads zero raw packets. */
+enum { CENSUS_ITEM_MARKER, CENSUS_NATIVE_MARKER, CENSUS_MODE, CENSUS_MOVE, CENSUS_POLYGON, CENSUS_LINE, CENSUS_RECT, CENSUS_OTHER, CENSUS_NOP, CENSUS_KINDS };
+static const char* const census_names[CENSUS_KINDS] = { "item_marker", "native_marker", "mode", "vram_copy", "polygon", "line", "rect", "other", "nop" };
+#define CENSUS_ROWS 512
+static struct {
+    int on;
+    unsigned long long tables, count[CENSUS_KINDS];
+    int rows;
+    struct {
+        int slot, kind;
+        unsigned long long n;
+        uint32_t words[3]; /* the first one seen: its tag and first two words */
+    } row[CENSUS_ROWS];
+} census PC_HOST;
+static void census_note(const uint32_t* p, int slot)
+{
+    unsigned len = *p >> 24;
+    int kind, first, count, i;
+    uint32_t list;
+    if (!len)
+        return;
+    if (pc_frame_marker && pc_frame_marker(p, &first, &count))
+        kind = CENSUS_ITEM_MARKER;
+    else if ((render_is_marker && render_is_marker(p)) || (render_translucent_marker && render_translucent_marker(p, &list, &first, &count)))
+        kind = CENSUS_NATIVE_MARKER;
+    else {
+        unsigned code = p[1] >> 24, k;
+        for (k = 1; k <= len && !p[k]; k++) /* (GP0 no-ops: a packet of zero words) */
+            ;
+        if (k > len)
+            code = 0x100;
+        else if (code == 0x01 && len > 1 && (p[2] >> 24) >= 0x80 && (p[2] >> 24) < 0xE0) /* (a cache clear, then the copy: DR_MOVE) */
+            code = p[2] >> 24;
+        kind = code == 0x100 ? CENSUS_NOP : code >= 0xE1 && code <= 0xE6 ? CENSUS_MODE
+            : code >= 0x80 && code < 0xE0 ? CENSUS_MOVE
+            : code >= 0x20 && code < 0x40 ? CENSUS_POLYGON
+            : code >= 0x40 && code < 0x60 ? CENSUS_LINE
+            : code >= 0x60 && code < 0x80 ? CENSUS_RECT
+                                          : CENSUS_OTHER;
+    }
+    ++census.count[kind];
+    for (i = 0; i < census.rows; i++)
+        if (census.row[i].slot == slot && census.row[i].kind == kind) {
+            ++census.row[i].n;
+            return;
+        }
+    if (census.rows < CENSUS_ROWS) {
+        census.row[census.rows].slot = slot, census.row[census.rows].kind = kind, census.row[census.rows].n = 1;
+        census.row[census.rows].words[0] = p[0], census.row[census.rows].words[1] = len > 0 ? p[1] : 0;
+        census.row[census.rows].words[2] = len > 1 ? p[2] : 0;
+        ++census.rows;
+    }
+}
+int pc_ot_census_json(char* out, int size, int on, int reset)
+{
+    int n = 0, i;
+    if (on >= 0)
+        census.on = on;
+    n += snprintf(out + n, (size_t)(size - n), "{\"on\":%d,\"tables\":%llu,\"kinds\":{", census.on, census.tables);
+    for (i = 0; i < CENSUS_KINDS; i++)
+        n += snprintf(out + n, (size_t)(size - n), "%s\"%s\":%llu", i ? "," : "", census_names[i], census.count[i]);
+    n += snprintf(out + n, (size_t)(size - n), "},\"rows\":[");
+    for (i = 0; i < census.rows && n < size - 200; i++)
+        n += snprintf(out + n, (size_t)(size - n), "%s{\"slot\":%d,\"kind\":\"%s\",\"n\":%llu,\"words\":[%u,%u,%u]}", i ? "," : "",
+            census.row[i].slot, census_names[census.row[i].kind], census.row[i].n, census.row[i].words[0], census.row[i].words[1],
+            census.row[i].words[2]);
+    n += snprintf(out + n, (size_t)(size - n), "]}");
+    if (reset) {
+        int keep = census.on;
+        memset(&census, 0, sizeof census);
+        census.on = keep;
+    }
+    return n;
+}
 static void adopt(const void* head, int photo)
 {
     const uint32_t* p = head;
     const uint32_t *stop_at = NULL; /* (in a spliced run: its last packet, after which the table goes on where it left it) */
     unsigned resume = 0;
     frame.count = 0, frame.used = 0, frame.end = 2;
-    int front = 0, hidden = 0; /* (the layers are positions in the table: settled here, as the walk reaches each entry) */
+    int front = 0, hidden = 0, census_slot = 0; /* (the layers are positions in the table: settled here, as the walk reaches each entry) */
+    if (census.on)
+        ++census.tables;
     for (unsigned links = 0; links < 100000; links++) {
         uint32_t tag = *p;
         unsigned len = tag >> 24;
@@ -1740,6 +1820,11 @@ static void adopt(const void* head, int photo)
         memcpy(frame.words + frame.used, p, (1 + (size_t)len) * sizeof *p);
         frame.used += 1 + len;
         e->front = (uint8_t)(front = ot_layers_note_of(p, front));
+        if (census.on) {
+            if (len == 0 && ot_scene && p >= ot_scene - 32 && p <= ot_top)
+                census_slot = (int)(p - ot_scene);
+            census_note(p, census_slot);
+        }
         resolve_attr(p, &e->attr);
         if (photo) {
             e->g2d_known = (uint8_t)game2d_entry(p, &hidden);

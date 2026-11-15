@@ -475,6 +475,8 @@ def check_printers(game, work, name, shots):
     compare_lines(game, work, name, shots, "menu", "bright", "left")
 
 
+# (The other lanes compare how text is drawn INTO the target, mask against mask: they run with the overlay off, which a window that
+# is not the target's resolution turns on by default; the overlay lane below tests it.)
 OVERLAY_WINDOW = (1920, 1440)
 OVERLAY_NEARER = 0.6  # the overlay's mean difference on the text from the 6x picture, at most this share of the 4x's
 
@@ -507,6 +509,7 @@ def run_overlay(work, card, shots):
     copy = work / "card.mcd"
     shutil.copyfile(card, copy)
     extra = {"ROOD_WINDOW": f"{OVERLAY_WINDOW[0]}x{OVERLAY_WINDOW[1]}", "ROOD_SCALE": "4"}
+    (work / "settings.cfg").unlink(missing_ok=True)  # (the other lanes turn the overlay off: persisted)
     game = launch(work, copy, "overlay", extra, checkpoint="title")
     try:
         game.call("graphics", interpolate=False, aa="off")
@@ -560,6 +563,14 @@ def run_overlay(work, card, shots):
 
         check(error(a4) <= OVERLAY_NEARER * error(o4),
               f"overlay 4x: nearer the 6x picture on the text ({error(a4):.2f} vs {error(o4):.2f} at 4x)")
+        # A target FINER than the window (8x in a window of 6x): the glyph edges are one internal pixel wide, and the post
+        # chain (FXAA, the downsample) softens them when the text is drawn into it. The overlay draws them at the window's own
+        # resolution after it, as it does for a coarser target (the user's report: the fonts not crisp). Before: nothing held.
+        a8, o8, stats, region8 = drawn(8)
+        check(stats["held"] > 0, f"overlay 8x: text held back for the window though the target is finer ({stats['held']} triangles)")
+        only_text("8x", a8, o8, region8)
+        check(error(a8) < error(o8),
+              f"overlay 8x: nearer the 6x picture on the text ({error(a8):.2f} vs {error(o8):.2f} drawn into the 8x target)")
         a1, o1, stats, region1 = drawn(1)
         check(stats["held"] > 0, f"overlay 1x: font text held back for the window ({stats['held']} triangles)")
         only_text("1x", a1, o1, region1)
@@ -613,7 +624,7 @@ def run_screens(work, card, shots):
     shutil.copyfile(card, copy)
     game = launch(work, copy, "title", checkpoint="title")
     try:
-        game.call("graphics", interpolate=False, aa="off")
+        game.call("graphics", interpolate=False, aa="off", ui_text_overlay="off")
         game.call("ui_text", forget_signs=True)  # (only this screen's)
         game.press("start", vsyncs=4, settle=60)
         game.press("circle", vsyncs=4, settle=120)
@@ -631,7 +642,7 @@ def run_screens(work, card, shots):
                 log_clean(game, "screens")
             shutil.copyfile(card, copy)
             game = launch(work, copy, "screens", checkpoint="save_room")
-            game.call("graphics", interpolate=False, aa="off")
+            game.call("graphics", interpolate=False, aa="off", ui_text_overlay="off")
             game.call("ui_text", forget_signs=True)  # (only this screen's: not the boot's memory card screen)
         for step in steps:
             if step == "warp":
@@ -967,7 +978,7 @@ def run_emotes(work, shots):
     """The emote bubbles, each kind, on the opening's actors."""
     game = launch(work, None, "emotes", checkpoint="first_bubble")
     try:
-        game.call("graphics", interpolate=False, aa="off", ui_text="original", ui_bubbles="original")
+        game.call("graphics", interpolate=False, aa="off", ui_text_overlay="off", ui_text="original", ui_bubbles="original")
         game.run(200)
         kinds = symbols()["D_800F2260"]
         game.write(symbols()["D_800F2270"], bytes(4))  # (the scene keeps them off)
@@ -1018,7 +1029,7 @@ def run_bubble(work, shots):
         check(g.get("ui_text_layout") == "line", f"bubble: default ui_text_layout line ({g.get('ui_text_layout')})")
         check(g.get("ui_text_bubble_align") == "centre",
               f"bubble: default ui_text_bubble_align centre ({g.get('ui_text_bubble_align')})")
-        game.call("graphics", interpolate=False, aa="off")  # SMAA would blend beyond the glyph boxes
+        game.call("graphics", interpolate=False, aa="off", ui_text_overlay="off")  # SMAA would blend beyond the glyph boxes
         game.run(200)  # the duke's first line waits for a button
         s = game.call("ui_upscale")
         t = game.call("ui_text")
@@ -1048,7 +1059,7 @@ def run_save(work, card, shots):
     game = launch(work, copy, "save", checkpoint="save_room")
     settings = work / "settings.cfg"
     try:
-        game.call("graphics", interpolate=False, aa="off")  # SMAA would blend beyond the glyph boxes
+        game.call("graphics", interpolate=False, aa="off", ui_text_overlay="off")  # SMAA would blend beyond the glyph boxes
         if check(bool(game.state().get("player")), "save: in the save room"):
             s = game.call("ui_upscale")
             check(s["lookups"] == 0, f"save: ui_text original leaves 2D alone ({s['lookups']} lookups)")
@@ -1383,7 +1394,7 @@ def run_hud(work, card, shots):
     settings = work / "settings.cfg"
     game = launch(work, copy, "hud", {"ROOD_WINDOW": "960x720"}, checkpoint="save_room")
     try:
-        game.call("graphics", interpolate=False, aa="off", ui_text="font")
+        game.call("graphics", interpolate=False, aa="off", ui_text_overlay="off", ui_text="font")
         game.run(4)
         check_popup_edges(game, work)
         check_status_words(game, work, settings, shots)

@@ -2,7 +2,7 @@
 const psx = @import("psx.zig");
 
 const Item = *const fn (?*anyopaque, c_int, c_int, c_int, c_int, c_int) callconv(.c) c_int;
-const Color = *const fn (c_int, c_int) callconv(.c) c_int;
+const Color = *const fn (c_int, c_int, c_int) callconv(.c) c_int;
 const Command = *const fn (c_int) callconv(.c) ?*const anyopaque;
 
 /// The draw mode of vs_battle_setSpriteDefaultTexPage's packet (the default texture page).
@@ -14,9 +14,9 @@ pub fn sprite(ot: ?*anyopaque, brightness: c_int, xy: c_int, wh: c_int, mode: c_
     return psx.weak(Item, "vs_battle_spriteItem").?(ot, brightness, xy, wh, mode, uv_clut);
 }
 
-/// The item's colour as a packet's colour word (0xBBGGRR, bit 25: semi-transparent).
-pub fn color(item: c_int, word: c_int) void {
-    _ = psx.weak(Color, "vs_battle_spriteColor").?(item, word);
+/// The item's colour (0xBBGGRR) and whether it is semi-transparent.
+pub fn color(item: c_int, rgb: c_int, semi: bool) void {
+    _ = psx.weak(Color, "vs_battle_spriteColor").?(item, rgb, @intFromBool(semi));
 }
 
 /// The item's command word: what ui_text keys a glyph on.

@@ -144,6 +144,25 @@ def stream_start(g):
     return taken
 
 
+def census_start(g):
+    """BUILD_COMPARE_CENSUS=DIR: the ordering-table census (pc/tools/ot_census.py) counts from here."""
+    if os.environ.get("BUILD_COMPARE_CENSUS"):
+        try:
+            g.call("ot_census", on=True, reset=True)
+        except Exception:
+            pass
+
+
+def census_write(g, name):
+    out = os.environ.get("BUILD_COMPARE_CENSUS")
+    if out:
+        try:
+            pathlib.Path(out).mkdir(parents=True, exist_ok=True)
+            (pathlib.Path(out) / f"{os.getpid()}-{name}.json").write_text(json.dumps(g.call("ot_census")))
+        except Exception:
+            pass
+
+
 def play(binary, seconds, card, out, width):
     """In a process of its own (ROOD_BINARY is read at import): the hashes, the casts and the drops, as JSON on stdout."""
     os.environ.update(ROOD_BINARY=binary, ROOD_SYMBOLS=binary, ROOD_HEADLESS="egl", ROOD_RENDERER="vulkan", ROOD_ARCH="64", ROOD_TEST_SNAPSHOTS="0")
@@ -152,6 +171,7 @@ def play(binary, seconds, card, out, width):
     out = pathlib.Path(out)
     (out / "settings.cfg").write_text("qol_skip_charging 0\nui_menus 0\n" + os.environ.get("BUILD_COMPARE_SETTINGS", ""))
     g = start(card, out, "fight")
+    census_start(g)
     sites = []
     try:
         try:
@@ -171,6 +191,7 @@ def play(binary, seconds, card, out, width):
                 states.append(g.call("battle_state"))
             except Exception:
                 states.append(None)
+        census_write(g, "fight")
         ended = g.call("skip_charging").get("ended", "")
         try:
             sites = g.call("effect_sites")["sites"]
@@ -1058,9 +1079,11 @@ def play_menus(binary, card, out, names, sample, claims, aspect="4:3", extra_env
         g = launch_at(CHECKPOINT.get(name, "save_room"), card=str(card_copy), fast=True, log=out / f"{name}.log", extra_env=env)
         hashes = []
         taken = stream_start(g)
+        census_start(g)
         try:
             hashed(g, out, sample, hashes, taken)
             SCENES[name](g, cp, rood_rpc.symbols())
+            census_write(g, name)
             text = g.call("ui_text") if renderer != "null" else {}
             try:
                 if renderer != "null":

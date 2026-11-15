@@ -14,5 +14,5 @@ void vs_battle_modeItem(unsigned* ot, int e1); /* the draw mode (GP0 E1) for wha
 void vs_battle_areaItem(unsigned* ot, int x, int y, int w, int h, int offset, int ox, int oy); /* the drawing area (and its offset) */
 void vs_battle_maskItem(unsigned* ot, int on); /* the mask bit set when drawing (GP0 E6) */
 const void* vs_battle_spriteCommand(int item);
-int vs_battle_spriteColor(int item, int colour); /* its colour as a word: 0xBBGGRR, bit 25 semi-transparent; returns the item */
+int vs_battle_spriteColor(int item, int rgb, int semi); /* its colour 0xBBGGRR and whether it is semi-transparent; returns the item */
 #endif

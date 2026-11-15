@@ -848,6 +848,23 @@ static void graphics_panel()
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("A text box's text fading out is drawn as sprites at that opacity. Off: the game's own\n"
                               "frame-buffer read-back and upload (for comparisons; ROOD_OPACITY_2D overrides).");
+        extern int pc_screen_owner, pc_screen_owner_fill[3]; /* screen_owner.c */
+        if (pc_gte_widescreen) {
+            bool owner = pc_screen_owner != 0;
+            if (ImGui::Checkbox("16:9: a full 2D screen clears the view's sides", &owner))
+                pc_screen_owner = owner;
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("When opaque 2D (a picture in tiles: Game Over, a GIM image) covers the whole 4:3 screen, the\n"
+                                  "scene behind it no longer shows in the 16:9 view's sides. Off: the sides keep what was drawn.");
+            if (pc_screen_owner) {
+                ImGui::SameLine();
+                float fill[3] = { pc_screen_owner_fill[0] / 255.0f, pc_screen_owner_fill[1] / 255.0f, pc_screen_owner_fill[2] / 255.0f };
+                if (ImGui::ColorEdit3("##screen_owner_fill", fill, ImGuiColorEditFlags_NoInputs)) {
+                    for (int c = 0; c < 3; c++)
+                        pc_screen_owner_fill[c] = (int)(fill[c] * 255.0f + 0.5f);
+                }
+            }
+        }
         bool perspective = pc_hw_perspective != 0;
         if (ImGui::Checkbox("Perspective-correct textures", &perspective))
             pc_hw_perspective = perspective;

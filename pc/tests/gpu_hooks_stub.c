@@ -101,9 +101,9 @@ void pc_hwc_vram_copy(int sx, int sy, int dx, int dy, int w, int h)
     (void)sx, (void)sy, (void)dx, (void)dy, (void)w, (void)h;
 }
 void pc_hw_set_2d(int is_2d) { (void)is_2d; }
-void pc_hw_set_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tpage, const int* uv, const int* clip)
+void pc_hw_set_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tpage, unsigned clut, const int* uv, const int* clip)
 {
-    (void)x0, (void)y0, (void)x1, (void)y1, (void)code, (void)tpage, (void)uv, (void)clip;
+    (void)x0, (void)y0, (void)x1, (void)y1, (void)code, (void)tpage, (void)clut, (void)uv, (void)clip;
 }
 void pc_hw_set_depth(const int* depth) { (void)depth; }
 int pc_gte_projected(int sx, int sy) { return (void)sx, (void)sy, 0; }
@@ -114,7 +114,7 @@ void pc_hw_set_flipped_uv(const int* xy, const int* uv) { (void)xy, (void)uv; }
 int pc_scene_projection(float* h, float* ofx, float* ofy) { return (void)h, (void)ofx, (void)ofy, 0; }
 int pc_scene_game_projection(float* h, float* ofx, float* ofy) { return (void)h, (void)ofx, (void)ofy, 0; }
 void* vs_scratch[4]; /* the packet cursor and ordering-table base (146C.c in the game) */
-void pc_hwc_set_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tpage, const int* uv4, const int* clip4)
+void pc_hwc_set_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tpage, unsigned clut, const int* uv4, const int* clip4)
 {
-    (void)x0, (void)y0, (void)x1, (void)y1, (void)code, (void)tpage, (void)uv4, (void)clip4;
+    (void)x0, (void)y0, (void)x1, (void)y1, (void)code, (void)tpage, (void)clut, (void)uv4, (void)clip4;
 }

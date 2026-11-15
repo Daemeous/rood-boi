@@ -1565,7 +1565,7 @@ static int sprite(u_long* ot, int x, int y, int w, int h, u_long page, u_long uv
 {
     int item = vs_battle_spriteItem(ot, semi(alpha) ? 0x180 : 0x80, xy(x, y), xy(w, h), page ? (int)(0xE1000000 | page) : 0,
         (int)uv_clut);
-    return vs_battle_spriteColor(item, (int)(modulate(rgb) | (semi(alpha) ? 0x2000000 : 0)));
+    return vs_battle_spriteColor(item, (int)modulate(rgb), semi(alpha));
 }
 
 static void text_packets(u_long* ot, const pc_hud_classic_cmd* c)
@@ -2040,7 +2040,7 @@ static void emit_command_packets(const pc_hud_classic_cmd* c, u_long* ot, int ki
                 (u_long)(c->c & 255) | ((u_long)(c->d & 255) << 8)
                 | ((u_long)(c->b & 0xFFFF) << 16), c->color, c->alpha);
             if (c->font) /* descriptor.bgr: exact GPU modulation, not RGB UI colour */
-                vs_battle_spriteColor(item, (int)((semi(c->alpha) ? 0x2000000 : 0) | (c->color & 0xFFFFFF)));
+                vs_battle_spriteColor(item, (int)(c->color & 0xFFFFFF), semi(c->alpha));
             break;
         }
         case PC_HUD_CMD_MENU_ROW:
@@ -2098,7 +2098,7 @@ static void emit_command_packets(const pc_hud_classic_cmd* c, u_long* ot, int ki
             int step = c->a >= 0 ? c->a : pc_vsync_count ? (int)(pc_vsync_count() >> 1) & 15 : 0;
             u_long brightness = (u_char)vs_battle_cursorBrightnessAnimation[step];
             vs_battle_spriteColor(
-                sprite(ot, c->x, c->y, 16, 16, 0x0C, 0x37F83020u, 0xFFFFFF, 1), (int)(brightness * 0x010101u));
+                sprite(ot, c->x, c->y, 16, 16, 0x0C, 0x37F83020u, 0xFFFFFF, 1), (int)(brightness * 0x010101u), 0);
             break;
         }
         case PC_HUD_CMD_BAR: {

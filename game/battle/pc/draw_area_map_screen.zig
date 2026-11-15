@@ -584,7 +584,7 @@ pub fn drawAreaMapScreen(origin: *c.SVECTOR, m: *c.MATRIX, scale: c_int) callcon
         while (true) {
             const depth: c_int = z >> 16;
             if (@as(c_uint, @bitCast(depth)) < 0x800) {
-                const color: c_uint = @as(c_uint, @bitCast((t1 >> 1) << 8)) | 0x42000000;
+                const color: c_uint = @as(c_uint, @bitCast((t1 >> 1) << 8));
                 const ot: [*]c_uint = @ptrCast(@alignCast(common.scratch.get().unk4.?));
                 const ot_slot = psx.at(ot, depth);
                 const x = t2 >> 16;

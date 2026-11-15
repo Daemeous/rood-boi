@@ -34,6 +34,7 @@ extern void pc_ui_bubbles_frame(void) __attribute__((weak));
 #include "renderer_rq.h" /* the read-backs reply with their pixels */
 #include "renderer_frame_state.h"
 #include "hw_registry.h" /* the producer-owned registrations of a table */
+#include "screen_owner.h" /* a screen that owns the display: the sides cleared when opaque 2D covers the area */
 #include "hw_calls.h"    /* the game side's calls into the renderer: requests (the renderer's own uses of them just run) */
 #include "gl_shaders.h" /* PC_GLSL_MS_RESOLVE (pc/shaders/vulkan/ms_resolve.glsl) */
 #ifdef ROOD_VULKAN
@@ -300,10 +301,15 @@ static void trace_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned
 static void side_paint_primitive(int x0, int y0, int x1, int y1, unsigned code, const int* clip);
 static int side_paint_count;
 static void side_paint_forget(int x, int y, int w, int h);
-void pc_hw_set_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tpage, const int* uv, const int* clip)
+static unsigned bounds_tpage, bounds_clut; /* the primitive being placed: its texture page and CLUT, its texels (screen_owner_primitive) */
+static int bounds_uv[4], bounds_has_uv;
+void pc_hw_set_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tpage, unsigned clut, const int* uv, const int* clip)
 { PC_HW_METER(set_bounds);
     if (!primitive_2d || clip[2] <= 0 || clip[3] <= 0)
         return;
+    bounds_tpage = tpage, bounds_clut = clut, bounds_has_uv = uv != NULL;
+    if (uv)
+        memcpy(bounds_uv, uv, sizeof bounds_uv);
     if (primitive_narrowed) {
         trace_bounds(x0, y0, x1, y1, code, tpage, uv, clip);
         side_paint_primitive(x0, y0, x1, y1, code, clip);
@@ -558,6 +564,7 @@ void pc_hw_end_ot(void) { PC_HW_METER(end_ot); cstale.in_ot = 0, cstale.ot_count
 void pc_hw_begin_ot(void)
 { PC_HW_METER(begin_ot);
     photo_restored = 0;
+    pc_screen_owner_begin();
     cstale.in_ot = 1, cstale.ot_count = 0;
     if (text_piece_count && !text_emitting)
         text_run_flush(); /* the previous table's last text */
@@ -697,6 +704,7 @@ static void rvram_put(int x, int y, int w, int h, const uint16_t* pixels)
         uint32_t tiles = tiles_for(x < 0 ? 0 : x, y < 0 ? 0 : y, x + w > 1024 ? 1023 : x + w - 1, y + h > 512 ? 511 : y + h - 1);
         pc_ui_upscale_tiles_changed(tiles);
         pc_emissive_vram_dirty(tiles);
+        pc_screen_owner_vram_changed(tiles);
     }
     if (x >= 0 && y >= 0 && x + w <= 1024 && y + h <= 512) {
         for (int row = 0; row < h; row++)
@@ -1668,8 +1676,9 @@ static void flush(void)
  * Text and icons from distance texels (BLEND_TEXT) drawn into the target
  * are anti-aliased at the internal resolution; a window larger than that
  * scales them up again (4x internal in a window six times the PS1's: a
- * pixel and a half each, nearest). With the overlay on and the window finer
- * than the target, such batches are held back instead (overlay[]) and drawn
+ * pixel and a half each, nearest), a smaller one resamples them (and FXAA
+ * has softened their edges first). With the overlay on and the window not
+ * exactly the target's resolution, such batches are held back instead (overlay[]) and drawn
  * by the presenters at the window's own resolution over the finished
  * picture (pc_hw_text_overlay). The order of drawing stays the game's: a
  * held-back triangle is drawn into the target ("baked", recorded with the
@@ -1841,14 +1850,17 @@ static void overlay_hold(void)
     unrecord_triangles(triangles); /* (recorded where they are baked, if they are) */
 }
 /* Whether to hold text back (at each present, for the view presented): the
- * overlay on, text or icons from fonts, and the window finer than the
- * target. Turned off, what is held is drawn. */
+ * overlay on, text or icons from fonts, and the target not exactly the
+ * window's resolution: finer (the post chain's FXAA and downsample would
+ * soften the glyph edges, which the target keeps one internal pixel wide) or
+ * coarser (the window magnifies them). Text drawn over the finished picture
+ * is as sharp as the window can show. Turned off, what is held is drawn. */
 static void overlay_update(void)
 {
     float per_output = pc_hw_native_per_output();
     int on = pc_ui_text_overlay && pc_hw_active && (pc_ui_text || pc_button_prompts_active() || pc_ui_bubbles)
           && per_output > 0
-          && 1.0f / per_output > (float)pc_hw_scale * 1.01f;
+          && fabsf(1.0f / per_output - (float)pc_hw_scale) > (float)pc_hw_scale * 0.01f;
     if (!on && overlay_on)
         overlay_bake_all();
     overlay_on = on;
@@ -3008,6 +3020,61 @@ static void side_paint_clear(int x0, int y0, int x1, int y1)
         i = 0; /* (the list changed) */
     }
 }
+/* ---- a screen that owns the display (screen_owner.h) ----
+ *
+ * Opaque 2D rectangles that cover the whole 4:3 drawing area hide what was drawn before them in the table in the
+ * original (the room beside the Game Over banner's picture: tiles of the GIM image), but compressed to the 4:3 part of
+ * the view they leave its sides to the scene. When the picture completes, the sides' rows no opaque 2D of the table
+ * reached (an extended bar, a full-view tile) are cleared to screen_owner_fill, in the frame's order (recorded, so the
+ * in-between images do it too). */
+static void screen_owner_clear_side(const int* clip, int right, int x0, int x1)
+{
+    int runs[64][2];
+    int n = pc_screen_owner_side_runs(clip, right, runs, 64);
+    for (int i = 0; i < n; i++) {
+        int y0 = runs[i][0], h = runs[i][1] - runs[i][0], w = x1 - x0;
+        if (w <= 0)
+            continue;
+        flush();
+        overlay_bake_rect(x0, y0, x1, y0 + h);
+        side_paint_forget(x0, y0, w, h);
+        record_fill(x0, y0, w, h, pc_screen_owner_fill[0], pc_screen_owner_fill[1], pc_screen_owner_fill[2]);
+        fill_target(target_fbo, x0, y0, w, h, pc_screen_owner_fill[0], pc_screen_owner_fill[1], pc_screen_owner_fill[2]);
+        int stale[4] = { x0, y0, w, h };
+        mark_stale_kind(stale, STALE_PLACED);
+        ++pc_screen_owner_cleared;
+    }
+}
+static void screen_owner_primitive(int x0, int y0, int x1, int y1, unsigned code, const int* clip)
+{
+    if (!pc_screen_owner_on() || primitive_narrowed || primitive_opacity != 256)
+        return;
+    if ((code & 0xe0) != 0x60 || (code & 2))
+        return; /* only opaque rectangles stand for a picture (a polygon's bounds are not its pixels) */
+    if (bounds_has_uv) {
+        /* every texel it samples is drawn (the renderer's VRAM: T5, follows it) */
+        int px = (int)(bounds_tpage & 15) * 64, py = (int)(bounds_tpage >> 4 & 1) * 256, depth = (int)(bounds_tpage >> 7 & 3);
+        int span = depth == 0 ? 4 : depth == 1 ? 2 : 1;
+        uint32_t tiles = tiles_for(px + bounds_uv[0] / span, py + bounds_uv[1], px + bounds_uv[2] / span, py + bounds_uv[3])
+            | tiles_for((int)(bounds_clut & 63) * 16, (int)(bounds_clut >> 6 & 511), (int)(bounds_clut & 63) * 16 + 255,
+                (int)(bounds_clut >> 6 & 511));
+        if (!renderer_vram || !pc_screen_owner_texels_opaque(renderer_vram, bounds_tpage, bounds_clut, bounds_uv, tiles))
+            return;
+    }
+    /* What opaque 2D reaches of the view's sides: a full-view cover, an extension, an edge-anchored one. */
+    if (primitive_cover || primitive_extend > 0 || edge_anchored())
+        pc_screen_owner_side_drawn(clip, 1, y0, y1);
+    if (primitive_cover || primitive_extend < 0 || edge_anchored())
+        pc_screen_owner_side_drawn(clip, 0, y0, y1);
+    if (!pc_screen_owner_cover(clip, x0, y0, x1, y1))
+        return;
+    float centre = clip[0] + clip[2] * 0.5f;
+    int left = clip[0], right = clip[0] + clip[2];
+    int inner_left = (int)ceilf(centre + (left - centre) * 0.75f - 0.001f);
+    int inner_right = (int)floorf(centre + (right - centre) * 0.75f + 0.001f);
+    screen_owner_clear_side(clip, 0, left, inner_left);
+    screen_owner_clear_side(clip, 1, inner_right, right);
+}
 /* A 2D primitive's bounds (pc_hw_set_bounds, its placement decided). */
 static void side_paint_primitive(int x0, int y0, int x1, int y1, unsigned code, const int* clip)
 {
@@ -3017,6 +3084,7 @@ static void side_paint_primitive(int x0, int y0, int x1, int y1, unsigned code, 
         side_paint_count = 0;
         return;
     }
+    screen_owner_primitive(x0, y0, x1, y1, code, clip);
     int left = clip[0], right = clip[0] + clip[2], top = clip[1], bottom = clip[1] + clip[3];
     y0 = y0 > top ? y0 : top, y1 = y1 < bottom ? y1 : bottom;
     if (y1 <= y0)

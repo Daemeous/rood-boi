@@ -94,10 +94,10 @@ fn bits(value: c_int) c_uint {
     return @bitCast(value);
 }
 
-/// getTpage(0, 0, clut4Bit, semiTransparencyHalf, dithering): the macro's x and y terms are zero.
+/// getTpage(0, 0, clut4Bit, semiTransparencyHalf, dithering): the macro's x and y terms are zero (the draw mode's bits; the item
+/// takes those and no GP0 code).
 fn tpage(dithering: c_int) c_uint {
-    return (0xE1 << 24) |
-        (@as(c_uint, @intCast(dithering & 1)) << 9) |
+    return (@as(c_uint, @intCast(dithering & 1)) << 9) |
         ((@as(c_uint, @intCast(c.clut4Bit)) & 3) << 7) |
         ((@as(c_uint, @intCast(c.semiTransparencyHalf)) & 3) << 5);
 }

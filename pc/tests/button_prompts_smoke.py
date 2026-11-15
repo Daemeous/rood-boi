@@ -411,7 +411,7 @@ def run(work, card, shots):
         game.call("button_prompts", button_prompts="original")
         # No anti-aliasing: SMAA blends along whole edges, so an icon would
         # change pixels beyond its box; the boxes are checked exactly.
-        game.call("graphics", interpolate=False, aa="off")
+        game.call("graphics", interpolate=False, aa="off", ui_text_overlay="off")
         if not check(bool(game.state().get("player")), "in the save room"):
             return
         cross_checks(game, work, shots)

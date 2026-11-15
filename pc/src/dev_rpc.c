@@ -2413,6 +2413,18 @@ static void handle_method(int fd, const char* request)
             if (used < (int)sizeof result - 64)
                 used += snprintf(result + used - 1, sizeof result - used + 1, ",\"menu_studio\":%d}", pc_hw_menu_studio) - 1;
         }
+        /* A screen that owns the display (screen_owner.h): the setting, and how many tables completed / sides were cleared. */
+        extern int pc_screen_owner __attribute__((weak)), pc_screen_owner_fill[3] __attribute__((weak));
+        extern long pc_screen_owner_completed __attribute__((weak)), pc_screen_owner_cleared __attribute__((weak));
+        if (&pc_screen_owner) {
+            if (params && bool_value(member(params, "screen_owner"), &flag))
+                pc_screen_owner = flag;
+            if (used < (int)sizeof result - 160)
+                used += snprintf(result + used - 1, sizeof result - used + 1,
+                            ",\"screen_owner\":%d,\"screen_owner_fill\":[%d,%d,%d],\"screen_owner_completed\":%ld,\"screen_owner_cleared\":%ld}",
+                            pc_screen_owner, pc_screen_owner_fill[0], pc_screen_owner_fill[1], pc_screen_owner_fill[2],
+                            pc_screen_owner_completed, pc_screen_owner_cleared) - 1;
+        }
         /* The studio light's rig (ui/menu_light.h): read, set fields, "reset", "save"; only when asked. */
         extern int pc_ui_menu_light_rpc(const char*, char*, int) __attribute__((weak));
         const char* menu_light = params ? member(params, "menu_light") : NULL;
@@ -3186,6 +3198,21 @@ static void handle_method(int fd, const char* request)
         }
         pc_rt_direct_json(result, (int)sizeof result);
         reply(fd, id, result);
+    } else if (!strcmp(method, "ot_census")) {
+        /* What the adopted ordering tables hold (boot_runtime.c census): {on: true|false} counts from now, {reset: true} zeroes the counts. */
+        extern int pc_ot_census_json(char* out, int size, int on, int reset);
+        int on_flag = -1, reset = 0;
+        if (params) {
+            int v = 0;
+            if (member(params, "on")) {
+                bool_value(member(params, "on"), &v);
+                on_flag = v;
+            }
+            bool_value(member(params, "reset"), &reset);
+        }
+        static char census_json[60000];
+        pc_ot_census_json(census_json, (int)sizeof census_json, on_flag, reset);
+        reply(fd, id, census_json);
     } else if (!strcmp(method, "hw_meter")) {
         /* The renderer hook meter (hw_meter.h, T1 plan R0; ROOD_HW_METER=1): every pc_hw_* hook's calls, those made inside the
          * draw walk and from other threads, per-frame rates, time (with ROOD_PERF=1), what the return-value hooks answered and

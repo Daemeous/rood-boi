@@ -84,13 +84,13 @@ void vs_battle_lineFlatItem(unsigned* ot, int semi, int rgb, int xy0, int xy1)
     vs_battle_tileItem(ot, ((unsigned)rgb & 0xffffff) | (semi ? 0x42000000u : 0x40000000u), (unsigned)xy0, (unsigned)xy1);
 }
 const void* vs_battle_spriteCommand(int item) { return pc_frame_command(item); }
-/* The sprite's colour as a full colour word (0xBBGGRR; its top byte, a packet's code, only says semi-transparent: bit 1). */
-int vs_battle_spriteColor(int item, int colour)
+/* The sprite's colour (0xBBGGRR, each channel cut to a byte) and whether it is semi-transparent. */
+int vs_battle_spriteColor(int item, int rgb, int semi)
 {
     pc_item* it = pc_frame_item(item);
     if (it)
-        it->rgb[0][0] = (unsigned char)colour, it->rgb[0][1] = (unsigned char)(colour >> 8), it->rgb[0][2] = (unsigned char)(colour >> 16),
-        it->flags = (unsigned short)((colour >> 24) & 2 ? it->flags | PC_ITEM_SEMI : it->flags & ~PC_ITEM_SEMI);
+        it->rgb[0][0] = (unsigned char)rgb, it->rgb[0][1] = (unsigned char)(rgb >> 8), it->rgb[0][2] = (unsigned char)(rgb >> 16),
+        it->flags = (unsigned short)(semi ? it->flags | PC_ITEM_SEMI : it->flags & ~PC_ITEM_SEMI);
     return item;
 }
 

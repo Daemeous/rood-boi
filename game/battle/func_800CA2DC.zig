@@ -57,7 +57,7 @@ pub fn func_800CA2DC() callconv(.c) void {
         const pulse = c.rsin(v.g.D_800EBD64().* & 0x7FF);
         // The sprite (brightness 0x140: grey 0x40, semi-transparent) in its own draw mode, its colour word raised by the pulse.
         const item = sprite_item.sprite(frontOt(0xC), 0x140, (((@as(c_int, mode_step.*) * 3 - 4) << 16) -% v.g.D_800EB9B0().*) | 0xEC, 0xA0049, @bitCast(@as(c_uint, 0xE1000017)), 0x373D0040);
-        sprite_item.color(item, @as(c_int, 0x66404040) +% (pulse >> 5));
+        sprite_item.color(item, @as(c_int, 0x404040) +% (pulse >> 5), true);
         if (psx.weak(Anchor, "pc_hw_anchor_packets")) |anchor| anchor(start, psx.get(v.g.vs_scratch().unk0), 2);
         notice.pulse = pulse >> 5;
         classic(11, &notice, 0, first); // PC_CLASSIC_SITE_BATTLE_MODE
@@ -81,7 +81,9 @@ pub fn func_800CA2DC() callconv(.c) void {
                 const j = i + side * 5;
                 const limb = &psx.get(v.g.vs_battle_characterState().*.?.stats).?.limbs[i];
                 const item = sprite_item.sprite(ot, 0, k +% v.g.D_800EBCEC()[j], v.g.D_800EBD14()[j], sprite_item.page, @bitCast(v.g.D_800EBD3C()[j]));
-                sprite_item.color(item, @bitCast(@as(c_uint, @bitCast(psx.at(v.g.D_800EBC54(), c.vs_battle_getLimbStatus(@ptrCast(limb))).*)) | 0x64000000));
+                // (the status colour word: its bit 25, when set, makes the sprite semi-transparent)
+                const word: c_uint = @as(c_uint, @bitCast(psx.at(v.g.D_800EBC54(), c.vs_battle_getLimbStatus(@ptrCast(limb))).*));
+                sprite_item.color(item, @bitCast(word & 0xFFFFFF), word & 0x02000000 != 0);
             }
             classic(9, actor, @intCast(side), first); // PC_CLASSIC_SITE_LIMBS
         }

@@ -235,7 +235,7 @@ static unsigned polygon_command(const uint32_t* p, unsigned available)
             texels[2] = vertex[i].u > texels[2] ? vertex[i].u : texels[2];
             texels[3] = vertex[i].v > texels[3] ? vertex[i].v : texels[3];
         }
-        pc_hwc_set_bounds(x0, y0, x1, y1, code, tpage, textured ? texels : NULL, clip);
+        pc_hwc_set_bounds(x0, y0, x1, y1, code, tpage, clut, textured ? texels : NULL, clip);
     }
     pc_hwc_set_packet(GUEST(p));
     /* ui_text_layout line: a scaled glyph cell (a zooming talk bubble's
