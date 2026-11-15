@@ -1,4 +1,5 @@
 #include "common.h"
+#include "pc/src/game/spriteItem.h"
 #include "238.h"
 #include "pc/src/gte_value.h"
 #include "57BC.h"
@@ -158,8 +159,7 @@ void _renderScrollableMenuItem(vs_battle_menuItem_t* menuItem)
     vs_scratch.unk0 = prim;
 
     if (isScrollable == 0) {
-        vs_battle_addTile(before, vs_getRGB0(primTile, 0, 0, 0),
-            ((xy + 2) & 0xFFFF) | ((xy >> 0x10) << 0x10), w | vs_getWH(0, 2));
+        vs_battle_tileFlatItem(before, 0, 0, ((xy + 2) & 0xFFFF) | ((xy >> 0x10) << 0x10), w | vs_getWH(0, 2));
     }
 
     if (animState != 0) {

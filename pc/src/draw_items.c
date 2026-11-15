@@ -276,6 +276,107 @@ fail:
     return 0;
 }
 
+/* ---- runs made without words (draw_items.h): what pc_frame_add_packets makes of the words, item by item ---- */
+
+void pc_frame_run_begin(pc_frame_run* run, int depth)
+{
+    *run = (pc_frame_run) { .start = pc_item_frame.count, .depth = depth, .mode = -1, .window = -1, .last_mode = -1, .last_window = -1 };
+}
+void pc_frame_run_state(pc_frame_run* run, int mode, int window)
+{
+    if (mode >= 0)
+        run->mode = mode & 0x3fff;
+    if (window >= 0)
+        run->window = window & 0xfffff;
+    run->state_after = 1;
+}
+static pc_item* run_item(pc_frame_run* run, int kind, int flags)
+{
+    pc_item* it = pc_frame_add(kind, run->depth);
+    run->state_after = 0;
+    if (!it) {
+        run->bad = 1;
+        return NULL;
+    }
+    it->flags = (uint16_t)flags;
+    return it;
+}
+static pc_item* run_done(pc_frame_run* run, pc_item* it)
+{
+    if (run->window >= 0)
+        it->flags |= PC_ITEM_WINDOW, it->tw = (unsigned)run->window;
+    run->last_mode = run->mode, run->last_window = run->window, run->last = it;
+    ++run->prims;
+    return it;
+}
+pc_item* pc_frame_run_poly(pc_frame_run* run, int verts, int flags, int page, int clut)
+{
+    pc_item* it = run_item(run, PC_ITEM_POLY, flags);
+    if (!it)
+        return NULL;
+    it->verts = (uint8_t)verts;
+    if (flags & PC_ITEM_TEXTURED) {
+        it->mode = (uint16_t)page, it->clut = (uint16_t)clut;
+        if (run->mode >= 0)
+            it->flags |= PC_ITEM_BEFORE, it->before = (uint16_t)run->mode;
+    } else
+        it->mode = run->mode < 0 ? PC_ITEM_INHERIT : (uint16_t)run->mode;
+    return run_done(run, it);
+}
+pc_item* pc_frame_run_tile(pc_frame_run* run, int flags)
+{
+    pc_item* it = run_item(run, PC_ITEM_TILE, flags);
+    if (!it)
+        return NULL;
+    it->mode = run->mode < 0 ? PC_ITEM_INHERIT : (uint16_t)run->mode;
+    return run_done(run, it);
+}
+pc_item* pc_frame_run_line(pc_frame_run* run, int flags)
+{
+    pc_item* it = run_item(run, PC_ITEM_LINE, flags);
+    if (!it)
+        return NULL;
+    it->mode = run->mode < 0 ? PC_ITEM_INHERIT : (uint16_t)run->mode;
+    return run_done(run, it);
+}
+int pc_frame_run_end(pc_frame_run* run, int* first)
+{
+    int start = run->start;
+    *first = start;
+    if (run->bad)
+        goto fail;
+    if (!run->prims) { /* (state alone: one item that sets it) */
+        pc_item* set;
+        if ((run->mode < 0 && run->window < 0) || !(set = pc_frame_add(PC_ITEM_MODE_SET, run->depth)))
+            goto fail;
+        set->mode = run->mode < 0 ? PC_ITEM_INHERIT : (uint16_t)run->mode;
+        if (run->window >= 0)
+            set->flags |= PC_ITEM_WINDOW, set->tw = (unsigned)run->window;
+        set->group = (unsigned short)(start + 1);
+        return 1;
+    }
+    if (run->state_after && run->window != run->last_window) {
+        pc_item* set = pc_frame_add(PC_ITEM_MODE_SET, run->depth);
+        if (!set)
+            goto fail;
+        set->mode = run->mode != run->last_mode ? (uint16_t)run->mode : PC_ITEM_INHERIT;
+        if (run->window >= 0)
+            set->flags |= PC_ITEM_WINDOW, set->tw = (unsigned)run->window;
+    } else if (run->state_after && run->mode != run->last_mode)
+        run->last->flags |= PC_ITEM_AFTER, run->last->after = (uint16_t)run->mode;
+    for (int a = start; a < pc_item_frame.count; a++)
+        pc_item_frame.item[a].group = (unsigned short)(start + 1);
+    for (int a = start, b = pc_item_frame.count - 1; a < b; a++, b--) { /* (items of one depth draw last first) */
+        pc_item t = pc_item_frame.item[a];
+        pc_item_frame.item[a] = pc_item_frame.item[b];
+        pc_item_frame.item[b] = t;
+    }
+    return pc_item_frame.count - start;
+fail:
+    pc_frame_rewind(start);
+    return 0;
+}
+
 pc_item* pc_frame_poly_at(int depth, int kind, int verts, int flags, unsigned* ot, unsigned** cursor)
 {
     int index = pc_item_frame.count;
@@ -643,6 +744,30 @@ void pc_frame_immediate_words(const unsigned* words, int n)
     memcpy(packet + 1, words, (size_t)n * sizeof *words);
     packet[0] = (unsigned)n << 24 | 0x00ffffffu;
     DrawPrim(packet);
+}
+void pc_frame_immediate_run(int first)
+{
+    int count = pc_item_frame.count - first, index[ITEMS], n, last = 0, words_n = 0;
+    uint64_t keys[ITEMS];
+    unsigned words[3][16];
+    int lengths[3];
+    if (count > 0) {
+        n = ordered(first, count, keys);
+        for (int k = 0; k < n; k++) {
+            int i = (int)(0xffffffffu - (uint32_t)keys[k]), packets = pc_frame_lower(i, words, lengths);
+            index[k] = i;
+            for (int p = 0; p < packets && words_n + lengths[p] <= 8 * 48; p++) {
+                memcpy(immediate_packet + 1 + words_n, words[p], (size_t)lengths[p] * sizeof words[p][0]);
+                last = words_n;
+                words_n += lengths[p];
+            }
+        }
+        (void)last;
+        immediate_packet[0] = (unsigned)words_n << 24 | 0x00ffffffu;
+        if (words_n)
+            DrawPrim(immediate_packet);
+    }
+    pc_frame_rewind(first);
 }
 void pc_frame_immediate(int first)
 {

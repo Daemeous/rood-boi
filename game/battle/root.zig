@@ -1273,7 +1273,6 @@ pub const func_800D5294 = @import("func_800D5294.zig");
 pub const func_800D5564 = @import("func_800D5564.zig");
 pub const func_800D55A4 = @import("func_800D55A4.zig");
 pub const func_800D5700 = @import("func_800D5700.zig");
-pub const add_tile = @import("add_tile.zig");
 pub const add_vec_to_svec = @import("add_vec_to_svec.zig");
 pub const add_vector = @import("add_vector.zig");
 pub const dismiss_text_box = @import("dismiss_text_box.zig");

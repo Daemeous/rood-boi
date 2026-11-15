@@ -1623,139 +1623,156 @@ static void text_packets(u_long* ot, const pc_hud_classic_cmd* c)
     }
 }
 
-static void window_packets(u_long* ot, const pc_hud_classic_cmd* c)
+/* ---- the commands that are only primitives (window, rectangle, gradient, textured quad, plate): items made directly ----
+ * Each is a few units, in the order the game's code made its packets (the order DrawPrim draws them in); linked in an
+ * ordering table the last made draws first, so a claim in a frame takes the units reversed. The draw mode and texture
+ * window the words set between them are the run's state (draw_items.h pc_frame_run). */
+static void vertex(pc_item* it, int i, int x, int y)
 {
-    int x0 = c->x, y0 = c->y, x1 = c->x + c->w, y1 = c->y + c->h, ax = x0 & ~63, ay = y0 & ~63, x, y;
-    u_long grey = (u_long)(c->a < 0 ? 0 : c->a > 255 ? 255 : c->a), *p;
-    u_long corners[4] = { xy(x0, y0), xy(x1, y0), xy(x1, y1), xy(x0, y1) };
-    int i;
+    if (it)
+        it->x[i] = (short)x, it->y[i] = (short)y;
+}
+static void colour(pc_item* it, int i, u_long word)
+{
+    if (it)
+        it->rgb[i][0] = (unsigned char)word, it->rgb[i][1] = (unsigned char)(word >> 8), it->rgb[i][2] = (unsigned char)(word >> 16);
+}
+static int window_pieces(const pc_hud_classic_cmd* c)
+{
+    int nx = c->w > 0 ? (c->w + 127) / 128 : 0, ny = c->h > 0 ? (c->h + 127) / 128 : 0;
+    return nx * ny;
+}
+static int window_units(const pc_hud_classic_cmd* c) { return window_pieces(c) + 7; }
+static void window_unit(pc_frame_run* run, const pc_hud_classic_cmd* c, int k)
+{
+    int x0 = c->x, y0 = c->y, x1 = c->x + c->w, y1 = c->y + c->h, ax = x0 & ~63, ay = y0 & ~63, pieces = window_pieces(c);
+    int corners[4][2] = { { x0, y0 }, { x1, y0 }, { x1, y1 }, { x0, y1 } };
+    u_long grey = (u_long)(c->a < 0 ? 0 : c->a > 255 ? 255 : c->a);
+    pc_item* it;
     grey |= grey << 8 | grey << 16;
-    /* (last drawn first) the frame */
-    for (i = 3; i >= 0; --i) {
-        p = packet(ot, 3);
-        p[0] = 0x40303030;
-        p[1] = corners[i];
-        p[2] = corners[(i + 1) & 3];
-    }
-    p = packet(ot, 1);
-    p[0] = 0xE2000000; /* the texture window back */
-    /* the body, in pieces the texels' 8 bits span (the tile repeats every 64) */
-    for (x = x0; x < x1; x += 128)
-        for (y = y0; y < y1; y += 128) {
-            int xe = x + 128 < x1 ? x + 128 : x1, ye = y + 128 < y1 ? y + 128 : y1;
-            int u0 = (x - ax) & 63, u1 = u0 + xe - x, v0 = (y - ay) & 63, v1 = v0 + ye - y;
-            p = packet(ot, 9);
-            p[0] = grey | 0x2C000000;
-            p[1] = xy(x, y);
-            p[2] = (u_long)u0 | ((u_long)v0 << 8) | 0x373E0000;
-            p[3] = xy(xe, y);
-            p[4] = (u_long)u1 | ((u_long)v0 << 8) | 0x170000;
-            p[5] = xy(x, ye);
-            p[6] = (u_long)u0 | ((u_long)v1 << 8);
-            p[7] = xy(xe, ye);
-            p[8] = (u_long)u1 | ((u_long)v1 << 8);
+    if (k < 4) { /* the frame: four lines, the last corner's first */
+        int i = 3 - k;
+        it = pc_frame_run_line(run, 0);
+        vertex(it, 0, corners[i][0], corners[i][1]), vertex(it, 1, corners[(i + 1) & 3][0], corners[(i + 1) & 3][1]);
+        colour(it, 0, 0x303030);
+    } else if (k == 4) {
+        pc_frame_run_state(run, -1, 0); /* the texture window back */
+    } else if (k < 5 + pieces) { /* the body, in pieces the texels' 8 bits span (the tile repeats every 64) */
+        int ny = (c->h + 127) / 128, n = k - 5, x = x0 + n / ny * 128, y = y0 + n % ny * 128;
+        int xe = x + 128 < x1 ? x + 128 : x1, ye = y + 128 < y1 ? y + 128 : y1;
+        int u0 = (x - ax) & 63, u1 = u0 + xe - x, v0 = (y - ay) & 63, v1 = v0 + ye - y;
+        it = pc_frame_run_poly(run, 4, PC_ITEM_TEXTURED, 0x17, 0x373E);
+        vertex(it, 0, x, y), vertex(it, 1, xe, y), vertex(it, 2, x, ye), vertex(it, 3, xe, ye);
+        if (it) {
+            it->u[0] = (unsigned char)u0, it->v[0] = (unsigned char)v0, it->u[1] = (unsigned char)u1, it->v[1] = (unsigned char)v0;
+            it->u[2] = (unsigned char)u0, it->v[2] = (unsigned char)v1, it->u[3] = (unsigned char)u1, it->v[3] = (unsigned char)v1;
         }
-    p = packet(ot, 2);
-    p[0] = 0xE1000017;
-    p[1] = 0xE2000318; /* its 64-texel tile */
-    /* the shadow, 2 pixels down and right: filled, then outlined */
-    p = packet(ot, 12);
-    p[0] = 0x28000000;
-    p[1] = xy(x0 + 2, y0 + 2);
-    p[2] = xy(x1 + 2, y0 + 2);
-    p[3] = xy(x0 + 2, y1 + 2);
-    p[4] = xy(x1 + 2, y1 + 2);
-    p[5] = 0x48000000;
-    p[6] = p[1];
-    p[7] = p[2];
-    p[8] = p[4];
-    p[9] = p[3];
-    p[10] = p[1];
-    p[11] = 0x55555555;
+        colour(it, 0, grey);
+    } else if (k == 5 + pieces) {
+        pc_frame_run_state(run, 0x17, 0x318); /* its 64-texel tile */
+    } else { /* the shadow, 2 pixels down and right: filled, then outlined */
+        int pt[5][2] = { { x0 + 2, y0 + 2 }, { x1 + 2, y0 + 2 }, { x1 + 2, y1 + 2 }, { x0 + 2, y1 + 2 }, { x0 + 2, y0 + 2 } }, i;
+        it = pc_frame_run_poly(run, 4, 0, 0, 0);
+        vertex(it, 0, x0 + 2, y0 + 2), vertex(it, 1, x1 + 2, y0 + 2), vertex(it, 2, x0 + 2, y1 + 2), vertex(it, 3, x1 + 2, y1 + 2);
+        colour(it, 0, 0);
+        for (i = 0; i < 4; ++i) {
+            it = pc_frame_run_line(run, 0);
+            vertex(it, 0, pt[i][0], pt[i][1]), vertex(it, 1, pt[i + 1][0], pt[i + 1][1]);
+            colour(it, 0, 0);
+        }
+    }
 }
 
-static void quad_packets(u_long* ot, const pc_hud_classic_cmd* c)
+/* A rectangle or gradient: a draw mode (half blending) before and after when semi-transparent ("(after it: the draw mode the HUD's
+ * own packets set)"), and the primitive between. */
+static int quad_units(const pc_hud_classic_cmd* c)
 {
-    u_long* p;
+    return c->w <= 0 || c->h <= 0 ? 0 : semi(c->alpha) ? 3 : 1;
+}
+static void quad_unit(pc_frame_run* run, const pc_hud_classic_cmd* c, int k)
+{
     int x1 = c->x + c->w, y1 = c->y + c->h;
-    if (c->w <= 0 || c->h <= 0)
-        return;
-    if (semi(c->alpha)) {
-        p = packet(ot, 1);
-        p[0] = 0xE1000000; /* (after it: the draw mode the HUD's own packets set) */
-    }
-    if (c->type == PC_HUD_CMD_RECT) {
-        p = packet(ot, 3);
-        p[0] = bgr(c->color) | ((u_long)(semi(c->alpha) ? 0x62 : 0x60) << 24);
-        p[1] = xy(c->x, c->y);
-        p[2] = xy(c->w, c->h);
+    pc_item* it;
+    if (semi(c->alpha) && k != 1) {
+        pc_frame_run_state(run, 0, -1);
+    } else if (c->type == PC_HUD_CMD_RECT) {
+        it = pc_frame_run_tile(run, semi(c->alpha) ? PC_ITEM_SEMI : 0);
+        if (it)
+            it->x[0] = (short)c->x, it->y[0] = (short)c->y, it->w = (short)c->w, it->h = (short)c->h;
+        colour(it, 0, bgr(c->color));
     } else {
         u_long a = bgr(c->color), b = bgr(c->color2);
-        p = packet(ot, 8);
-        p[0] = a | ((u_long)(semi(c->alpha) ? 0x3A : 0x38) << 24);
-        p[1] = xy(c->x, c->y);
-        p[2] = c->a ? a : b;
-        p[3] = xy(x1, c->y);
-        p[4] = c->a ? b : a;
-        p[5] = xy(c->x, y1);
-        p[6] = b;
-        p[7] = xy(x1, y1);
-    }
-    if (semi(c->alpha)) {
-        p = packet(ot, 1);
-        p[0] = 0xE1000000; /* half blending (abr 0) for it */
+        it = pc_frame_run_poly(run, 4, PC_ITEM_SHADED | (semi(c->alpha) ? PC_ITEM_SEMI : 0), 0, 0);
+        vertex(it, 0, c->x, c->y), vertex(it, 1, x1, c->y), vertex(it, 2, c->x, y1), vertex(it, 3, x1, y1);
+        colour(it, 0, a), colour(it, 1, c->a ? a : b), colour(it, 2, c->a ? b : a), colour(it, 3, b);
     }
 }
 
-/* A textured quad as func_80094B0C and func_8009695C build theirs (setPolyFT4, setXY4, setUV4, setTPage,
- * setClut, AddPrim): the code 0x2C, raw (setShadeTex 1) and semi-transparent (setSemiTrans) bits, the colour
- * word as given; the texels' u0 + w wrap as the game's bytes do. The pads after the last two texel pairs are
- * left 0 (the game leaves whatever the buffer held: the GPU reads neither, nor a raw quad's colour). */
-static void quad_ft4(u_long* ot, const pc_hud_classic_cmd* c)
+/* A textured quad as func_80094B0C and func_8009695C build theirs (setPolyFT4, setXY4, setUV4, setTPage, setClut, AddPrim): raw
+ * (setShadeTex 1) and semi-transparent (setSemiTrans) as asked, the colour as given; the texels' u0 + w wrap as the game's bytes
+ * do. */
+static void quad_ft4(pc_frame_run* run, const pc_hud_classic_cmd* c)
 {
-    u_long* p = packet(ot, 9);
-    u_long u0 = (u_long)c->c & 255, v0 = (u_long)c->d & 255;
-    u_long u1 = (u0 + (u_long)c->font) & 255, v1 = (v0 + (u_long)c->align) & 255;
-    int x1 = c->x + c->w, y1 = c->y + c->h;
-    p[0] = (c->color & 0xFFFFFF) | (u_long)(0x2C | (c->anchor ? 1 : 0) | (semi(c->alpha) ? 2 : 0)) << 24;
+    int x1 = c->x + c->w, y1 = c->y + c->h, i;
+    unsigned u0 = (unsigned)c->c & 255, v0 = (unsigned)c->d & 255;
+    unsigned u1 = (u0 + (unsigned)c->font) & 255, v1 = (v0 + (unsigned)c->align) & 255;
+    pc_item* it = pc_frame_run_poly(run, 4, PC_ITEM_TEXTURED | (c->anchor ? PC_ITEM_RAW : 0) | (semi(c->alpha) ? PC_ITEM_SEMI : 0),
+        c->a & 0xFFFF, c->b & 0xFFFF);
+    if (!it)
+        return;
+    colour(it, 0, c->color & 0xFFFFFF);
     if (c->fit) { /* its corners and texels one by one (a mirrored balloon, a turned arrow) */
-        int i;
         for (i = 0; i < 4; ++i) {
-            p[1 + 2 * i] = xy(c->x + c->corner[2 * i], c->y + c->corner[2 * i + 1]);
-            p[2 + 2 * i] = (u_long)c->uv[2 * i] | (u_long)c->uv[2 * i + 1] << 8;
+            vertex(it, i, c->x + c->corner[2 * i], c->y + c->corner[2 * i + 1]);
+            it->u[i] = (unsigned char)c->uv[2 * i], it->v[i] = (unsigned char)c->uv[2 * i + 1];
         }
-        p[2] |= ((u_long)c->b & 0xFFFF) << 16;
-        p[4] |= ((u_long)c->a & 0xFFFF) << 16;
         return;
     }
-    p[1] = xy(c->x, c->y);
-    p[2] = u0 | v0 << 8 | ((u_long)c->b & 0xFFFF) << 16;
-    p[3] = xy(x1, c->y);
-    p[4] = u1 | v0 << 8 | ((u_long)c->a & 0xFFFF) << 16;
-    p[5] = xy(c->x, y1);
-    p[6] = u0 | v1 << 8;
-    p[7] = xy(x1, y1);
-    p[8] = u1 | v1 << 8;
+    vertex(it, 0, c->x, c->y), vertex(it, 1, x1, c->y), vertex(it, 2, c->x, y1), vertex(it, 3, x1, y1);
+    it->u[0] = (unsigned char)u0, it->v[0] = (unsigned char)v0, it->u[1] = (unsigned char)u1, it->v[1] = (unsigned char)v0;
+    it->u[2] = (unsigned char)u0, it->v[2] = (unsigned char)v1, it->u[3] = (unsigned char)u1, it->v[3] = (unsigned char)v1;
 }
 
-/* A target row's plate as func_800C1DC4 builds it: one packet of a black tile (its shadow), a draw mode (dithered),
- * the gradient across (POLY_G4: the left colour, the right) and the draw mode back. */
-static void plate_packets(u_long* ot, const pc_hud_classic_cmd* c)
+/* A target row's plate as func_800C1DC4 builds it: a black tile (its shadow), a draw mode (dithered), the gradient across (the left
+ * colour, the right) and the draw mode back. */
+static void plate_unit(pc_frame_run* run, const pc_hud_classic_cmd* c)
 {
-    u_long* p = packet(ot, 13);
-    p[0] = 0x60000000;
-    p[1] = xy(c->a, c->b);
-    p[2] = xy(c->c, c->d);
-    p[3] = 0xE1000200;
-    p[4] = (c->color & 0xFFFFFF) | 0x38000000;
-    p[5] = xy(c->x, c->y);
-    p[6] = c->color2 & 0xFFFFFF;
-    p[7] = xy(c->x + c->w, c->y);
-    p[8] = c->color & 0xFFFFFF;
-    p[9] = xy(c->x, c->y + c->h);
-    p[10] = c->color2 & 0xFFFFFF;
-    p[11] = xy(c->x + c->w, c->y + c->h);
-    p[12] = 0xE1000000;
+    pc_item* it = pc_frame_run_tile(run, 0);
+    if (it)
+        it->x[0] = (short)c->a, it->y[0] = (short)c->b, it->w = (short)c->c, it->h = (short)c->d;
+    colour(it, 0, 0);
+    pc_frame_run_state(run, 0x200, -1);
+    it = pc_frame_run_poly(run, 4, PC_ITEM_SHADED, 0, 0);
+    vertex(it, 0, c->x, c->y), vertex(it, 1, c->x + c->w, c->y), vertex(it, 2, c->x, c->y + c->h), vertex(it, 3, c->x + c->w, c->y + c->h);
+    colour(it, 0, c->color & 0xFFFFFF), colour(it, 1, c->color2 & 0xFFFFFF), colour(it, 2, c->color & 0xFFFFFF),
+        colour(it, 3, c->color2 & 0xFFFFFF);
+    pc_frame_run_state(run, 0, -1);
+}
+
+static int primitive_command(int type)
+{
+    return type == PC_HUD_CMD_RECT || type == PC_HUD_CMD_GRADIENT || type == PC_HUD_CMD_QUAD || type == PC_HUD_CMD_WINDOW
+        || type == PC_HUD_CMD_PLATE;
+}
+/* The command's items at the frame's end: the units in the order they were made (`creation`: the immediate draws, which draw as
+ * they were made) or the last made first (a table's packets). Returns how many (0: none), from *first. */
+static int primitive_items(const pc_hud_classic_cmd* c, int creation, int* first)
+{
+    pc_frame_run run;
+    int units = c->type == PC_HUD_CMD_WINDOW ? window_units(c) : c->type == PC_HUD_CMD_RECT || c->type == PC_HUD_CMD_GRADIENT ? quad_units(c) : 1, j;
+    pc_frame_run_begin(&run, emit_depth);
+    for (j = 0; j < units; ++j) {
+        int k = creation ? j : units - 1 - j;
+        if (c->type == PC_HUD_CMD_WINDOW)
+            window_unit(&run, c, k);
+        else if (c->type == PC_HUD_CMD_QUAD)
+            quad_ft4(&run, c);
+        else if (c->type == PC_HUD_CMD_PLATE)
+            plate_unit(&run, c);
+        else
+            quad_unit(&run, c, k);
+    }
+    return pc_frame_run_end(&run, first);
 }
 
 /* A target row's leader line by the game's own routine (func_800C16FC, the left half's func_800C1A40) as
@@ -1947,9 +1964,16 @@ static void emit_command(const pc_hud_classic_cmd* c, u_long* ot, int kind, int 
             pc_classic_items_note(only_markers(from, packet_cursor()), c->type);
         return;
     }
+    if (primitive_command(c->type)) { /* only primitives: items made directly, the last made drawn first as a table's packets are */
+        u_long* mark = packet_cursor();
+        int first = -1, count = primitive_items(c, 0, &first);
+        pc_classic_items_note(count > 0, c->type);
+        if (count > 0)
+            vs_scratch.unk0 = emit_placed ? (u_long*)pc_frame_place(first, count, (unsigned*)ot, (unsigned*)mark) : mark;
+        return;
+    }
     switch (c->type) {
-    case PC_HUD_CMD_PACKET: case PC_HUD_CMD_RECT: case PC_HUD_CMD_GRADIENT: case PC_HUD_CMD_QUAD: case PC_HUD_CMD_WINDOW:
-    case PC_HUD_CMD_PLATE: {
+    case PC_HUD_CMD_PACKET: {
         /* only words: made as items directly */
         u_long* mark = packet_cursor();
         int first = -1, count = 0, k, n = 0;
@@ -2004,10 +2028,6 @@ static void emit_command_packets(const pc_hud_classic_cmd* c, u_long* ot, int ki
                 pc_text_status_typeset(first, packet_cursor(), &c->typeset);
             break;
         }
-        case PC_HUD_CMD_RECT:
-        case PC_HUD_CMD_GRADIENT:
-            quad_packets(ot, c);
-            break;
         case PC_HUD_CMD_GLYPH:
             if (c->a >= 0 && c->a < 8)
                 sprite(ot, c->x, c->y - 8, 16, 16, 0x0C,
@@ -2023,9 +2043,6 @@ static void emit_command_packets(const pc_hud_classic_cmd* c, u_long* ot, int ki
                 vs_battle_spriteColor(item, (int)((semi(c->alpha) ? 0x2000000 : 0) | (c->color & 0xFFFFFF)));
             break;
         }
-        case PC_HUD_CMD_QUAD:
-            quad_ft4(ot, c);
-            break;
         case PC_HUD_CMD_MENU_ROW:
             menu_row_packets(c, shadowed);
             break;
@@ -2062,9 +2079,6 @@ static void emit_command_packets(const pc_hud_classic_cmd* c, u_long* ot, int ki
         case PC_HUD_CMD_STAT_BAR:
             vs_battle_renderStatBar(c->a, c->b, ot, (int)xy(c->x, c->y));
             break;
-        case PC_HUD_CMD_PLATE:
-            plate_packets(ot, c);
-            break;
         case PC_HUD_CMD_LEADER:
             leader_packets(ot, c);
             break;
@@ -2079,9 +2093,6 @@ static void emit_command_packets(const pc_hud_classic_cmd* c, u_long* ot, int ki
             break;
         case PC_HUD_CMD_IMAGE:
             image_packets(ot, c, shadowed);
-            break;
-        case PC_HUD_CMD_WINDOW:
-            window_packets(ot, c);
             break;
         case PC_HUD_CMD_CURSOR: {
             int step = c->a >= 0 ? c->a : pc_vsync_count ? (int)(pc_vsync_count() >> 1) & 15 : 0;
@@ -2151,16 +2162,13 @@ static void classic_packets(const pc_hud_classic_cmd* cmds, int n, int anchor, i
 extern void pc_text_glyph(void* const* commands, int count, int glyph, int x, int y, int next_x, int advance)
     __attribute__((weak));
 extern void pc_draw_packet(void* data, int chain); /* boot_runtime.c */
-static int words_only(int type)
-{
-    return type == PC_HUD_CMD_PACKET || type == PC_HUD_CMD_RECT || type == PC_HUD_CMD_GRADIENT || type == PC_HUD_CMD_QUAD
-        || type == PC_HUD_CMD_WINDOW || type == PC_HUD_CMD_PLATE;
-}
+static int words_only(int type) { return type == PC_HUD_CMD_PACKET; }
 static int immediate_packets(const pc_hud_classic_cmd* cmds, int n, int kind, int draw, pc_classic_packet* out, int max)
 {
     u_long head = 0x00FFFFFF;
     void* start = packet_cursor();
     const pc_hud_classic_cmd* glyph = NULL;
+    pc_classic_walker walker = pc_classic_guest();
     int count = 0, i;
     restyle = draw;
     vs_scratch.unk0 = (u_long*)pc_classic_immediate_arena(); /* (classic_parity.c's: not the game's) */
@@ -2191,6 +2199,18 @@ static int immediate_packets(const pc_hud_classic_cmd* cmds, int n, int kind, in
         }
         if (c->alpha <= 0.01f && c->type != PC_HUD_CMD_WINDOW && c->type != PC_HUD_CMD_BAR && c->type != PC_HUD_CMD_CURSOR)
             continue;
+        if (primitive_command(c->type)) { /* only primitives: items, drawn at once in the order they were made */
+            int first = -1, made = primitive_items(c, 1, &first);
+            if (made > 0) {
+                if (count < max)
+                    count += pc_classic_walk_items(&walker, first, first + made, out + count, max - count);
+                if (draw)
+                    pc_frame_immediate_run(first);
+                else
+                    pc_frame_rewind(first);
+            }
+            continue;
+        }
         if (words_only(c->type)) { /* only words: not made in memory; the game's DrawPrim draws them as they are */
             int k;
             collected_count = collect_used = collect_overflow = 0;

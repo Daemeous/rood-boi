@@ -715,8 +715,7 @@ static void _renderAbilityCost(void)
             x0 | (160 << 16), vs_getRGB888(64, 48, 102), (x1 + 80) | (160 << 16), vs_getRGB888(8, 8, 32),
             x0 | (171 << 16), vs_getRGB888(64, 48, 102), (x1 + 80) | (171 << 16));
 
-        vs_battle_addTile(
-            scratch, vs_getRGB0(primTile, 0, 0, 0), x0 | (162 << 16), vs_getWH(82, 11));
+        vs_battle_tileFlatItem(scratch, 0, 0, x0 | (162 << 16), vs_getWH(82, 11));
     }
 }
 
@@ -1457,8 +1456,7 @@ static void _renderScrollableRow(vs_battle_menuItem_t* menuItem)
         }
 
         if (scroll == 0) {
-            vs_battle_addTile(before, vs_getRGB0(primTile, 0, 0, 0),
-                vs_getXY_2(xy + 2, xy >> 16), wh | vs_getWH(0, 2));
+            vs_battle_tileFlatItem(before, 0, 0, vs_getXY_2(xy + 2, xy >> 16), wh | vs_getWH(0, 2));
         }
 
         if (gradientState != 0) {

@@ -636,7 +636,6 @@ int vs_battle_toBCD(int value);
 int vs_battle_drawCursor(int animStep, int position);
 u_int vs_battle_keystreamBits(int value);
 int vs_battle_decreaseMiscCount(int);
-void vs_battle_addTile(u_long* before, int rgb0, int xy, int wh);
 vs_battle_textBox* vs_battle_getTextBox(int arg0);
 void vs_battle_initTextBox(
     int id, int flags, int x, int y, int w, int h, int centerX, int centerY);

@@ -821,8 +821,6 @@ int vs_battle_toBCD(int value);
 
 u_int vs_battle_keystreamBits(int value);
 
-void vs_battle_addTile(u_long* before, int rgb0, int xy, int wh);
-
 
 int vs_battle_drawCursor(int animStep, int position);
 

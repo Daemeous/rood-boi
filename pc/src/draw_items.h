@@ -121,6 +121,23 @@ void pc_frame_view_last(int on);
  * The items are added so that they draw in the order of the words. Returns how many items were added (from index *first); 0 when the words are anything else (a state word after the last primitive that a window changes, other commands): nothing is added then.
  * Words that only set the draw mode and the texture window are one mode item. */
 int pc_frame_add_packets(int depth, const unsigned* words, int n, int* first);
+/* The same without words: a run of items made in the order they draw, with the draw mode (GP0 E1) and texture window (GP0 E2) that
+ * apply to what follows set between them, as the words set them. pc_frame_run_end leaves them as pc_frame_add_packets does
+ * (a mode set after the last primitive stays with it, a window set after it is an item of its own). A primitive's `flags` are the
+ * PC_ITEM_ ones of its kind (SEMI, RAW, TEXTURED, SHADED); a textured polygon takes its page word and CLUT. The caller fills the
+ * item's corners, texels and colours. NULL when the frame is full (the run is then dropped by pc_frame_run_end). */
+typedef struct {
+    int start, depth, mode, window, last_mode, last_window, state_after, prims, bad;
+    pc_item* last;
+} pc_frame_run;
+void pc_frame_run_begin(pc_frame_run* run, int depth);
+void pc_frame_run_state(pc_frame_run* run, int mode, int window); /* -1: left as it is */
+pc_item* pc_frame_run_poly(pc_frame_run* run, int verts, int flags, int page, int clut);
+pc_item* pc_frame_run_tile(pc_frame_run* run, int flags);
+pc_item* pc_frame_run_line(pc_frame_run* run, int flags);
+/* Returns how many items the run made (from index *first), 0 when none (nothing is kept then): in the order a frame draws items of
+ * one depth (the last made first), so they draw as the run was made. */
+int pc_frame_run_end(pc_frame_run* run, int* first);
 /* Items [first, first + count) in the order they draw (the larger depth first, then the later submission first),
  * leaving out items that are placed in a table when `unplaced` is set; their indices go to out (at most max). */
 int pc_frame_order(int first, int count, int unplaced, int* out, int max);
@@ -135,6 +152,9 @@ void pc_frame_anchor(int first, int end, int anchor);
 pc_item* pc_frame_item(int index);
 /* The items from `first` on drawn at once, as one packet through DrawPrim, then dropped (a screen that drew with DrawPrim). */
 void pc_frame_immediate(int first);
+/* The items from `first` on, a run (pc_frame_run_end), drawn at once in the order the run made them, as one packet through DrawPrim, then
+ * given back. */
+void pc_frame_immediate_run(int first);
 /* Words the game wrote that are no item (a code the colour overflowed into): drawn as they are, as one packet. */
 void pc_frame_immediate_words(const unsigned* words, int n);
 /* The packet's last primitive's first word (the command word ui_text keys on), the packet built as pc_frame_immediate draws it. */

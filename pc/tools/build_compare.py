@@ -2,6 +2,7 @@
 """Does a change alter the game? The same fight on two builds, frame by frame.
 
     python3 pc/tools/build_compare.py OLD_BINARY [NEW_BINARY] [--card CARD] [--seconds 30]
+    (the fight's extra settings.cfg lines: BUILD_COMPARE_SETTINGS=$'render_thread 2\n')
 
 Every step the named fields of every actor (RPC battle_state: its record, stats, object and AI state) are
 compared too, which shows what an off-screen actor does. Afterwards every enemy is defeated (its HP written to 0) and the loot the game builds
@@ -149,7 +150,7 @@ def play(binary, seconds, card, out, width):
     sys.path[:0] = [str(ROOT / "pc/tools"), str(ROOT / "pc/tests")]
     cover(binary)
     out = pathlib.Path(out)
-    (out / "settings.cfg").write_text("qol_skip_charging 0\nui_menus 0\n")
+    (out / "settings.cfg").write_text("qol_skip_charging 0\nui_menus 0\n" + os.environ.get("BUILD_COMPARE_SETTINGS", ""))
     g = start(card, out, "fight")
     sites = []
     try:

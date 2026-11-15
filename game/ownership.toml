@@ -1621,7 +1621,6 @@ functions = [
     { addr = 0x800CCC34, name = "vs_battle_rMemcpy", zig = "r_memcpy.rMemcpy" },
     { addr = 0x800CCC54, name = "vs_battle_toBCD", zig = "to_bcd.toBCD" },
     { addr = 0x800CCC8C, name = "vs_battle_keystreamBits", zig = "keystream_bits.keystreamBits" },
-    { addr = 0x800CCCB8, name = "vs_battle_addTile", zig = "add_tile.addTile" },
     { addr = 0x800CCD40, name = "vs_battle_drawCursor", zig = "draw_cursor.drawCursor" },
     { addr = 0x800CCDA8, name = "vs_battle_renderImage", zig = "render_image.renderImage" },
     { addr = 0x800CCDF4, name = "vs_battle_getTextBox", zig = "get_text_box.getTextBox" },
