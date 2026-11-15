@@ -248,10 +248,10 @@ suites = ["ui_text_smoke", "button_prompts_smoke", "button_roles_symbols_smoke",
 
 # ---- the engine library and its reload (build_boot.py --engine-library) ----
 [[rule]]
-paths = ["pc/src/engine_host.c", "pc/src/engine_reload.c", "pc/tools/engine_boundary.py", "pc/tools/engine_lib.py",
+paths = ["pc/src/engine_host.c", "pc/src/engine_reload.c", "pc/src/render_thread.c", "pc/tools/engine_boundary.py", "pc/tools/engine_lib.py",
          "pc/src/boot_gamepad.c", "pc/src/atmosphere.cpp", "pc/src/lights.cpp", "pc/src/fixture_editor.cpp",
          "pc/src/fog_sim.cpp"]
-suites = ["engine_reload_smoke", "photo_engine_reload_smoke"]
+suites = ["engine_reload_smoke", "engine_reload_render_smoke", "photo_engine_reload_smoke"]
 
 # ---- reloadable Zig game code and the host dispatch boundary ----
 [[rule]]

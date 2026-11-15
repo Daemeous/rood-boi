@@ -610,7 +610,10 @@ int pc_hw_perspective = 1; /* the settings' variable: the game side's (the rende
 /* Bilinear texture filtering on 3D surfaces (off: the PS1 samples nearest). */
 int pc_hw_texture_filter; /* (the game side's; the renderer's copy is pc_hw_draw_filter) */
 /* The renderer's copies of the draw settings, set by the stream (hw_cmd.c C_SET_SETTINGS): perspective, texture filter, subpixel, interpolate, menu studio. */
-int pc_hw_draw_perspective = 1, pc_hw_draw_filter;
+#ifndef ROOD_DRAW_PERSPECTIVE_DEFAULT
+#define ROOD_DRAW_PERSPECTIVE_DEFAULT 1 /* (engine_reload_render_smoke builds the library with 0: a visible engine edit) */
+#endif
+int pc_hw_draw_perspective = ROOD_DRAW_PERSPECTIVE_DEFAULT, pc_hw_draw_filter;
 int pc_hw_draw_interpolate = 1; /* (render.c reads it too) */
 static int r_subpixel = 1, r_menu_studio = 1;
 void pc_hw_set_settings(const int* v)

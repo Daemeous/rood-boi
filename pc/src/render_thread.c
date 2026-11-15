@@ -25,7 +25,7 @@ static struct {
     pthread_t thread;
     message ring[RING];
     unsigned long long pushed, completed; /* messages pushed, and run to their end */
-    int started;
+    int started, quit;
 } rt = { .lock = PTHREAD_MUTEX_INITIALIZER, .wake = PTHREAD_COND_INITIALIZER, .done = PTHREAD_COND_INITIALIZER,
          .room = PTHREAD_COND_INITIALIZER };
 static __thread int is_renderer;
@@ -43,8 +43,12 @@ static void* thread_main(void* unused)
     is_renderer = 1;
     pthread_mutex_lock(&rt.lock);
     for (;;) {
-        while (rt.completed == rt.pushed)
+        while (rt.completed == rt.pushed && !rt.quit)
             pthread_cond_wait(&rt.wake, &rt.lock);
+        if (rt.completed == rt.pushed) {
+            pthread_mutex_unlock(&rt.lock); /* (quit, and nothing left to run) */
+            return NULL;
+        }
         message* m = &rt.ring[rt.completed % RING];
         pthread_mutex_unlock(&rt.lock);
         m->fn(m->arg);
@@ -74,6 +78,21 @@ static int start(void)
     return 1;
 }
 int pc_rt_active(void) { return pc_render_thread && rt.started; }
+/* The engine reload (engine_reload.c) unloads the library this thread runs in: everything posted runs, the thread ends and is joined; the library
+ * loaded next starts its own at its first use (its statics are fresh). */
+void pc_rt_stop(void)
+{
+    if (!rt.started)
+        return;
+    pc_rt_drain();
+    pthread_mutex_lock(&rt.lock);
+    rt.quit = 1;
+    pthread_cond_broadcast(&rt.wake);
+    pthread_mutex_unlock(&rt.lock);
+    pthread_join(rt.thread, NULL);
+    rt.started = rt.quit = 0;
+    fprintf(stderr, "[render] renderer thread stopped\n");
+}
 int pc_rt_on_thread(void) { return is_renderer; }
 unsigned long long pc_rt_pushed(void) { return rt.pushed; }
 static int usable(void)

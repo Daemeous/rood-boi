@@ -2521,6 +2521,10 @@ for name in sorted(missing):
         )
 # Only the game's own SystemError may be a trap (the PS1 library routine the port never runs): any other function a linked object calls
 # and nothing defines is a renamed or dropped definition that would abort when reached.
+# --engine-library: the PIC objects (thread-locals: pc_present_inside) call the dynamic loader's own __tls_get_addr. It is no trap: a trap
+# defined in the host would take the library's calls (the loader's symbol is found after the executable's) and abort the game at its first one.
+if engine_library:
+    traps = [n for n in traps if n != "__tls_get_addr"]
 extra_traps = [n for n in traps if n != "SystemError" and not n.startswith("_Unwind_")]
 if extra_traps:
     raise RuntimeError("Functions called but defined nowhere (they would be traps): " + ", ".join(extra_traps))

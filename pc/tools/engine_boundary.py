@@ -41,7 +41,8 @@ ENTRY_POINTS = ["rood_engine_unload", "rood_engine_resume", "rood_engine_abi", "
 # Provided by the linker or the C runtime, never by an object. Those of the
 # executable's layout the library means the host's (the RPC reads host data
 # between __data_start and _end): exported.
-LINKER = {"_GLOBAL_OFFSET_TABLE_", "__dso_handle", "_DYNAMIC", "__ehdr_start", "__TMC_END__"}
+LINKER = {"_GLOBAL_OFFSET_TABLE_", "__dso_handle", "_DYNAMIC", "__ehdr_start", "__TMC_END__",
+          "__tls_get_addr"}  # (the dynamic loader's: the library's thread-locals, pc_present_inside, call it; the host must not define one)
 HOST_LAYOUT = {"__executable_start", "etext", "_end", "__data_start", "__bss_start", "_edata"}
 FUNCTION_TYPES = set("TWi")
 DATA_TYPES = set("DBRVGSC")

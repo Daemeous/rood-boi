@@ -346,3 +346,20 @@ touched); the Vulkan teardown was checked by the object count and by running
 on, not by the validation layer (not installed on this machine); heap the
 old library allocated outside its C++ objects is not freed (measured: 1.4 MB
 per reload on GL).
+
+## With the renderer thread on (2026-11-14)
+
+The renderer thread (render_thread.c, settings `render_thread` / `ROOD_RENDER_THREAD`) runs in the engine library, so a reload ends it first:
+`rood_engine_unload` applies what the game posted (`pc_hwc_flush`), then `pc_rt_stop` drains the mailbox, ends the thread and joins it; the library
+loaded next starts its own at its first use (its statics are fresh) and `pc_hwc_resync` rebuilds the renderer from native VRAM as for a resumed
+save state. Without the stop the old thread lived on in unmapped code and the second reload hung (found: since the thread landed, `--engine-library`
+did not even link: the library's thread-local `pc_present_inside` needs the dynamic loader's `__tls_get_addr`, which the host's trap list defined
+and the boundary generator did not know). `engine_reload_render_smoke` (ROOD_RENDER_THREAD=2 by default): a fight and the original menu, a game
+that reloads in the middle against one that never does: the state hash and the picture equal 90 vsyncs later; a library built with
+`-DROOD_DRAW_PERSPECTIVE_DEFAULT=0` (a visible edit) shows after the reload; ten reloads in a row, none lost, the memory bounded and each ending
+one thread and starting the next. The stack part of `engine_reload_smoke`'s state comparison ignores words that hold a host address at the
+same page offset in both games (the two processes' ASLR bases: a saved return address into a shared library on the outermost frames).
+
+The edit loop is unchanged: `pc/run-game.sh --reload` (add `--vulkan`), then `pc/tools/dev_loop.sh --watch` in another terminal (README, "Engine
+edits without a restart"). It works with the renderer thread on.
+

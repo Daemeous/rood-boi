@@ -10,10 +10,13 @@ extern __thread int pc_present_inside; /* this thread is inside a present (the r
  * first in such a function. The header's own fill (before the presenter) is outside it. */
 extern int pc_present_guard_on, pc_present_paused;
 void pc_present_violation(const char* what);
+/* The check is a function, not a read of pc_present_inside here: that variable is thread-local, and a unit of the engine reload's host (the
+ * menu bridge) cannot reference a thread-local of the engine library (engine_boundary.py: the host sees an engine variable as plain data). */
+void pc_present_guard_check(const char* what);
 #define PC_PRESENT_GUARD(what) \
     do { \
-        if (pc_present_guard_on && pc_present_inside && !pc_present_paused) \
-            pc_present_violation(what); \
+        if (pc_present_guard_on) \
+            pc_present_guard_check(what); \
     } while (0)
 #ifdef __cplusplus
 }

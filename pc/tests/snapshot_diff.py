@@ -87,6 +87,20 @@ def stack_range(snapshot):
     return max(snapshot["memory"].items(), key=lambda kv: kv[0] + len(kv[1]) if kv[0] < 0x80000000 else -1)
 
 
+def aslr_words(x, y):
+    """The aligned 8-byte words of a game stack that hold a host address in both snapshots at the same offset into a page: the two processes
+    mapped a shared library (or the heap) at different bases (ASLR), and a frame's saved return address or spilled pointer shows it. Not a
+    difference of the game's state."""
+    words = set()
+    lo, hi = 0x500000000000, 0x800000000000  # (user space of x86-64 Linux: mmap and heap bases)
+    for w in range(len(x) // 8):
+        p = int.from_bytes(x[w * 8:w * 8 + 8], "little")
+        q = int.from_bytes(y[w * 8:w * 8 + 8], "little")
+        if p != q and lo <= p < hi and lo <= q < hi and (p & 0xfff) == (q & 0xfff):
+            words.add(w)
+    return words
+
+
 def diff(a, b, symbols, limit=40, stack=False):
     """Differences as text lines; [] when the compared ranges are identical."""
     lines = []
@@ -103,9 +117,10 @@ def diff(a, b, symbols, limit=40, stack=False):
         if x == y:
             continue
         differing, shown = 0, []
+        aslr = aslr_words(x, y) if address in (a_stack, b_stack) else set()
         i = 0
         while i < len(x):
-            if x[i] != y[i] and not symbols.is_volatile(address + i):
+            if x[i] != y[i] and not symbols.is_volatile(address + i) and i // 8 not in aslr:
                 differing += 1
                 name = symbols.name(address + i)
                 if not shown or shown[-1][0] != name:

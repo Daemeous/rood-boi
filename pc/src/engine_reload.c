@@ -48,6 +48,8 @@ extern void pc_fog_state_save(void* out);
 extern int pc_fog_state_load(const void* in, int size);
 extern void pc_lua_init(void);
 extern void pc_hwc_resync(void);
+extern void pc_hwc_flush(void);
+extern void pc_rt_stop(void);
 extern int pc_photo_engine_unload(char* why, int size);
 
 struct window_carry {
@@ -109,6 +111,9 @@ int rood_engine_unload(char* why, int size)
         pc_engine_carry_put("fog", fog, (size_t)fog_size);
     }
     free(fog);
+    /* The renderer thread runs in this library: what the game posted is applied, then it ends (the library loaded next starts its own). */
+    pc_hwc_flush();
+    pc_rt_stop();
     pc_rpc_unload();
     struct window_carry w = { 0 };
     pc_overlay_shutdown(&w.overlay_visible, &w.editor); /* while the renderer it draws with is up */

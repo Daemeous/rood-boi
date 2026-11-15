@@ -202,6 +202,9 @@ def suites(args, mode="egl"):
               note="64-bit: the engine library (build_boot.py --engine-library) reloads in place at a vsync: "
                    "state, pause and settings survive, a rebuilt unit takes effect, a broken library falls "
                    "back, and 120 vsyncs on the game equals one never reloaded"),
+        Suite("engine_reload_render_smoke", [PY, str(TESTS / "engine_reload_render_smoke.py"), "--card", str(args.save)], 900,
+              note="64-bit: the engine reloads in place with the renderer thread on (ROOD_RENDER_THREAD=2): drained and ended before the unload, "
+                   "restarted after; a fight and the original menu equal a run without the reload in state and picture, an engine edit shows, 10 reloads in a row"),
         *([Suite("photo_engine_reload_smoke", [PY, str(TESTS / "photo_foundation_smoke.py"), "--card", str(args.save),
                        "--engine-reload"], 400,
                  note="64-bit: the photo mode foundation on the split build, then an engine reload while a plugin "
@@ -862,7 +865,7 @@ CHECKPOINT_SUITES = {
     "options_classic_smoke", "options_confirm_smoke", "quit_smoke",
     "ui_map_smoke", "ui_manual_smoke", "hud_label_solid_smoke", "damage_numbers_smoke", "platform_shadow_smoke",
     "ui_ashley_backdrop_smoke", "ui_data_smoke", "ui_container_smoke", "interp_menu_2d_smoke",
-    "ui_ashley_detail_smoke", "ui_score_smoke", "snapshot_resume_smoke", "engine_reload_smoke", "frame_cost_smoke",
+    "ui_ashley_detail_smoke", "ui_score_smoke", "snapshot_resume_smoke", "engine_reload_smoke", "engine_reload_render_smoke", "frame_cost_smoke",
     "hud_bench_smoke", "classic_hud_smoke", "classic_panels_smoke",
     "repl_smoke", "lua_imgui_smoke", "photo_foundation_smoke", "photo_engine_reload_smoke", "photo_mode_smoke", "photo_pace_smoke", "photo_full_room_smoke",
     "cutscene_player_smoke", "cutscene_viewer_smoke", "cutscene_sequencer_smoke", "cutscene_freecam_smoke",

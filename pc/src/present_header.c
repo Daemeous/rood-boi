@@ -554,6 +554,11 @@ static void poison(int on)
         }
     }
 }
+void pc_present_guard_check(const char* what)
+{
+    if (pc_present_inside && !pc_present_paused)
+        pc_present_violation(what);
+}
 void pc_present_enter(void)
 {
     if (canary < 0) {
