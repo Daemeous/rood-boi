@@ -118,21 +118,12 @@ pub fn func_80095C18(actor: c_int, kind_arg: c_int) callconv(.c) void {
             },
             else => {},
         }
-        const prim = slot(&common.scratch.get().unk0);
         const corners = psx.at(v.g.D_80068F04(), side);
         const uv = psx.at(v.g.D_80068F64(), side);
-        prim[0] = (ot[0] & 0xFFFFFF) | 0x9000000;
-        prim[1] = 0x2C808080;
-        prim[2] = @bitCast(c.func_80096254(xy, corners[0]));
-        prim[3] = @as(c_uint, uv[0]) | 0x373E0000;
-        prim[4] = @bitCast(c.func_80096254(xy, corners[1]));
-        prim[5] = @as(c_uint, uv[1]) | 0x170000;
-        prim[6] = @bitCast(c.func_80096254(xy, corners[2]));
-        prim[7] = uv[2];
-        prim[8] = @bitCast(c.func_80096254(xy, corners[3]));
-        prim[9] = uv[3];
-        ot[0] = (psx.addr(prim) << 8) >> 8;
-        psx.put(&common.scratch.get().unk0, @as(?*anyopaque, @ptrCast(prim + 10)));
+        // The bubble's quad (colour 0x808080, page 0x17, CLUT 0x373E), placed at the head of the slot as the packet was.
+        _ = sprite_item.ft4(ot, false, false, 0x17, 0x373E, 0x808080,
+            &[4]c_int{ c.func_80096254(xy, corners[0]), c.func_80096254(xy, corners[1]), c.func_80096254(xy, corners[2]), c.func_80096254(xy, corners[3]) },
+            &[4]c_int{ uv[0], uv[1], uv[2], uv[3] });
     } else {
         const bubbles = v.g.D_800F2260();
         if (c.func_800A190C(actor, 255, psx.cptr(c.SVECTOR, &other), 0) == 0) {

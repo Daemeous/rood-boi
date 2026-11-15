@@ -118,8 +118,8 @@ int pc_frame_is_placed(int index);
 void pc_frame_view_last(int on);
 /* Raw GP0 words in draw order (one packet's payload, or several joined) as items at `depth`: polygons, tiles, sprites,
  * flat lines and drawing areas, each with the draw mode (E1) and texture window (E2) the words had set before it.
- * The items are added so that they draw in the order of the words. Returns how many items were added (from index *first); 0 when the words are anything else (a primitive with no
- * draw mode set before it, a state word after the last primitive, other commands): nothing is added then. */
+ * The items are added so that they draw in the order of the words. Returns how many items were added (from index *first); 0 when the words are anything else (a state word after the last primitive that a window changes, other commands): nothing is added then.
+ * Words that only set the draw mode and the texture window are one mode item. */
 int pc_frame_add_packets(int depth, const unsigned* words, int n, int* first);
 /* Items [first, first + count) in the order they draw (the larger depth first, then the later submission first),
  * leaving out items that are placed in a table when `unplaced` is set; their indices go to out (at most max). */

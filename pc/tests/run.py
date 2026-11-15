@@ -499,6 +499,10 @@ def suites(args, mode="egl"):
                       "screen at 16:9), hot-reloaded (timed), the REPL, place as data (the gate sees dx), the same "
                       "picture as the game's")]
           if args.save.exists() else []),
+        *([Suite("classic_panels_smoke", [PY, str(TESTS / "classic_panels_smoke.py"), "--card", str(args.save)], 300,
+                 note="a classic panel (rood.draw.panel {classic = true}: window, translucent rect, gradient) is on the picture "
+                      "and steady at rest")]
+          if args.save.exists() else []),
         *([Suite("classic_claims_items_smoke", [PY, str(TESTS / "classic_claims_items_smoke.py"), "--card", str(args.save)], 900,
                  note="every claim command rood.classic draws is taken as draw items on the menu and screen routes "
                       "(ROOD_CLASSIC_ITEMS=1 logs each command type once): none left as packets")]
@@ -859,7 +863,7 @@ CHECKPOINT_SUITES = {
     "ui_map_smoke", "ui_manual_smoke", "hud_label_solid_smoke", "damage_numbers_smoke", "platform_shadow_smoke",
     "ui_ashley_backdrop_smoke", "ui_data_smoke", "ui_container_smoke", "interp_menu_2d_smoke",
     "ui_ashley_detail_smoke", "ui_score_smoke", "snapshot_resume_smoke", "engine_reload_smoke", "frame_cost_smoke",
-    "hud_bench_smoke", "classic_hud_smoke",
+    "hud_bench_smoke", "classic_hud_smoke", "classic_panels_smoke",
     "repl_smoke", "lua_imgui_smoke", "photo_foundation_smoke", "photo_engine_reload_smoke", "photo_mode_smoke", "photo_pace_smoke", "photo_full_room_smoke",
     "cutscene_player_smoke", "cutscene_viewer_smoke", "cutscene_sequencer_smoke", "cutscene_freecam_smoke",
     "text_fade_smoke",

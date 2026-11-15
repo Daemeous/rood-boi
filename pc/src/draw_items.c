@@ -121,6 +121,17 @@ void pc_frame_rewind(int count)
 {
     if (count >= 0 && count < pc_item_frame.count)
         pc_item_frame.count = count, pc_item_frame.full = 0;
+    /* (the markers of the dropped items go too: their packets lie in memory the game uses again, and a reader that looks a range
+     * of packets up by address would find them) */
+    int kept = 0;
+    for (int i = 0; i < marker_count; i++) {
+        if (markers[i].first >= pc_item_frame.count)
+            continue;
+        if (markers[i].first + markers[i].count > pc_item_frame.count)
+            markers[i].count = pc_item_frame.count - markers[i].first;
+        markers[kept++] = markers[i];
+    }
+    marker_count = kept;
 }
 
 int pc_frame_is_placed(int index)
@@ -207,16 +218,50 @@ int pc_frame_add_packets(int depth, const unsigned* w, int n, int* first)
                 it->rgb[1][0] = (uint8_t)w[i + 2], it->rgb[1][1] = (uint8_t)(w[i + 2] >> 8), it->rgb[1][2] = (uint8_t)(w[i + 2] >> 16);
             it->x[1] = (int16_t)w[i + need - 1], it->y[1] = (int16_t)(w[i + need - 1] >> 16);
             i += need, prims++;
+        } else if (c == 0x48 || c == 0x4a) { /* a flat polyline (to the 0x5555 word): a line to each next vertex */
+            int j = i + 1, verts;
+            while (j < n && (w[j] & 0xf000f000u) != 0x50005000u)
+                j++;
+            verts = j - i - 1;
+            if (j >= n || verts < 2)
+                goto fail;
+            for (int v = 0; v + 1 < verts; v++) {
+                if (!(it = pc_frame_add(PC_ITEM_LINE, depth)))
+                    goto fail;
+                it->flags = (uint8_t)(c & 2 ? PC_ITEM_SEMI : 0);
+                it->mode = mode < 0 ? PC_ITEM_INHERIT : (uint16_t)mode;
+                it->rgb[0][0] = (uint8_t)w[i], it->rgb[0][1] = (uint8_t)(w[i] >> 8), it->rgb[0][2] = (uint8_t)(w[i] >> 16);
+                it->x[0] = (int16_t)w[i + 1 + v], it->y[0] = (int16_t)(w[i + 1 + v] >> 16);
+                it->x[1] = (int16_t)w[i + 2 + v], it->y[1] = (int16_t)(w[i + 2 + v] >> 16);
+                if (window >= 0 && v + 2 < verts)
+                    it->flags |= PC_ITEM_WINDOW, it->tw = (unsigned)window;
+            }
+            i = j + 1, prims++;
         } else
             goto fail;
         if (window >= 0)
             it->flags |= PC_ITEM_WINDOW, it->tw = (unsigned)window;
         last_mode = mode, last_window = window, last = it;
     }
-    /* (a draw mode set after the last primitive stays with it; a window set after it is not kept) */
-    if (!prims || (state_after && window != last_window))
-        goto fail;
-    if (state_after && mode != last_mode)
+    /* (a draw mode set after the last primitive stays with it; a window set after it is an item of its own) */
+    if (!prims) { /* (state words alone: a draw mode and a texture window set, as the item that sets them) */
+        pc_item* set;
+        if ((mode < 0 && window < 0) || !(set = pc_frame_add(PC_ITEM_MODE_SET, depth)))
+            goto fail;
+        set->mode = mode < 0 ? PC_ITEM_INHERIT : (uint16_t)mode;
+        if (window >= 0)
+            set->flags |= PC_ITEM_WINDOW, set->tw = (unsigned)window;
+        set->group = (unsigned short)(start + 1);
+        return 1;
+    }
+    if (state_after && window != last_window) { /* (a texture window set after the last primitive: an item of its own, with the mode if it changed) */
+        pc_item* set = pc_frame_add(PC_ITEM_MODE_SET, depth);
+        if (!set)
+            goto fail;
+        set->mode = mode != last_mode ? (uint16_t)mode : PC_ITEM_INHERIT;
+        if (window >= 0)
+            set->flags |= PC_ITEM_WINDOW, set->tw = (unsigned)window;
+    } else if (state_after && mode != last_mode)
         last->flags |= PC_ITEM_AFTER, last->after = (uint16_t)mode;
     for (int a = start; a < pc_item_frame.count; a++)
         pc_item_frame.item[a].group = (unsigned short)(start + 1);

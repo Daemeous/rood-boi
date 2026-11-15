@@ -1284,3 +1284,34 @@ renderer stays opt-in until the user playtests it.
 - Intel: the filter and temporal passes read storage images; sampled
   reads or packed guides would roughly halve them.
 - Retire the GL path's cube maps and CPU BVH once Vulkan is the default.
+
+## Open issue: single sub-pixels change with the binary's layout
+
+A build that differs from another only in code that never runs can draw a handful of pixels differently on the Vulkan
+renderer. Found while proving the classic claims' move to draw items (2026-11-14); not caused by it.
+
+Recipe (the no-op pair). Take a build, and a second one with an unreachable change in `hud_bridge.c` (`packet()`
+returning `collect_words` where it linked a packet; never reached in the route). Run
+`python3 pc/tools/build_compare.py OLD NEW --menus items`: 22 of 415 frames differ (the first at frame 32), each in one
+pixel, in the separator "/" glyph of the DP/PP bars (a sheared, upscaled text quad). The same pair with `--renderer null`
+(the CPU reference frame) is 0 differ, and the same binary twice is 0 differ. At the hardware scale (4) the differences are
+a few isolated sub-pixels on glyph edges (14 for that pair, on both pages), not a texel: a coverage flip.
+
+What the pair has in common, byte for byte (instrumented in both, logged, diffed): every `pc_vk_hw_draw_batch` call
+(77,890: all `hw_vertex` bytes, clip, blend, occlusion), every VRAM upload payload (19,156), every text atlas texel
+buffer (423), the separator sprite's record, its texels and CLUT, and every triangle covering the pixel.
+`pc_vk_hw_text_overlay` is not called in the route.
+
+Ruled out: heap garbage (`MALLOC_PERTURB_`), heap address (`MALLOC_MMAP_THRESHOLD_`, `MALLOC_TOP_PAD_`), stack garbage
+(`-ftrivial-auto-var-init=pattern` build: 0 differ against the zero build), Vulkan validation (clean), synchronization
+validation (`VK_LAYER_ENABLES=VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT`: no hazards), uninitialised
+images (`vk_image_create` clears TRANSFER_DST images), padding in `draw_push` and `hw_vertex` (40 bytes, none), CPU/GPU
+timing at frame granularity (a local `vkQueueWaitIdle` after every `vkQueueSubmit`: the pair still differs, 22 frames).
+Several layouts give different counts (0, 5 and 22 frames), so it follows the layout, not one object.
+
+Not tested: the dispatches in `prepare_vulkan` (ui_upscale.c): the entries of one level are dispatched with no barrier
+between them (each writes its own rectangle and the next level waits on a barrier, so a hazard is unlikely but not shown
+absent); intra-frame hazards that a per-frame wait cannot remove; the driver's rasterization of the sheared glyph quads
+(coverage at exact pixel edges); the other draw paths (native lists, post effects, emissive and material uploads), which
+were not hashed. Next step: hash those too, and compare a GPU capture
+(RenderDoc) of the pair at frame 32.

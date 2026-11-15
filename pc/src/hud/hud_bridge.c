@@ -466,10 +466,10 @@ static int classic_finish(int kind, pc_hud_fields* f, void* first, void* end, co
 {
     int amount, items_first, items_end, packets = first != end;
     pc_classic_site_items(&items_first, &items_end);
-    emit_items = items_end > items_first; /* (the game's own drawing: items, so the claim's is) */
-    emit_placed = emit_items && pc_frame_is_placed(items_first);
-    if (!emit_items && packets && pc_classic_force_items()) /* (a test: every claim as items, placed in the table) */
-        emit_items = emit_placed = 1;
+    /* The claim's draws are items, whatever the game's own were: placed in the ordering table by markers when the game's drawing
+     * here was (or was packets, or nothing: the table is there), else a frame of items alone, drawn by their order. */
+    emit_items = 1;
+    emit_placed = items_end > items_first ? pc_frame_is_placed(items_first) : 1;
     if (pc_classic_capturing()) { /* (RPC packets, the parity gate) */
         static pc_classic_packet game[PC_CLASSIC_CAPTURE], scanned[PC_CLASSIC_CAPTURE];
         int count = 0;
@@ -1472,14 +1472,11 @@ extern void pc_text_glyph(void* const* commands, int count, int glyph, int x, in
 
 static int restyle = 1; /* text reported to ui_text (not for the parity gate's shadow packets) */
 
-/* n words after a tag at the packet pointer, linked at the head of ot. */
 /* (the collection is scratch of one command: host-owned, so the parity gate's state proof does not see it)
- * A claim command whose packets are only words (a rectangle, a gradient, a quad, a window, a plate, a raw packet) is made as draw
- * items without a packet in memory: its words are collected here (collecting), in the order they would have been linked, and decoded
- * to items (pc_frame_add_packets). When the decoder will not take them the command is
- * made again as packets. */
+ * A claim command whose packets are only words (a rectangle, a gradient, a quad, a window, a plate, a raw packet): its builders
+ * write the words here (packet), in the order they would have been linked, and they are decoded to draw items
+ * (pc_frame_add_packets) or drawn as they are by DrawPrim (the immediate draws); no packet is written to memory. */
 enum { COLLECT_WORDS = 2048, COLLECT_PACKETS = 64 };
-static int collecting __attribute__((section(".data.rood_host")));
 static u_long collect_words[COLLECT_WORDS] __attribute__((section(".data.rood_host")));
 static struct {
     int offset, n;
@@ -1487,20 +1484,14 @@ static struct {
 static int collected_count __attribute__((section(".data.rood_host"))), collect_used __attribute__((section(".data.rood_host"))), collect_overflow __attribute__((section(".data.rood_host")));
 static u_long* packet(u_long* ot, int n)
 {
-    if (collecting) {
-        if (collected_count >= COLLECT_PACKETS || collect_used + n > COLLECT_WORDS) {
-            collect_overflow = 1;
-            return collect_words; /* (scratch: the command is made again as packets) */
-        }
-        collected[collected_count].offset = collect_used, collected[collected_count++].n = n;
-        collect_used += n;
-        return collect_words + collected[collected_count - 1].offset;
+    (void)ot;
+    if (collected_count >= COLLECT_PACKETS || collect_used + n > COLLECT_WORDS) {
+        collect_overflow = 1;
+        return collect_words; /* (scratch: the command draws nothing) */
     }
-    u_long* p = packet_cursor();
-    p[0] = (*ot & 0xFFFFFF) | ((u_long)n << 24);
-    *ot = (psx_to_int(u_long, p) << 8) >> 8;
-    vs_scratch.unk0 = p + 1 + n;
-    return p + 1;
+    collected[collected_count].offset = collect_used, collected[collected_count++].n = n;
+    collect_used += n;
+    return collect_words + collected[collected_count - 1].offset;
 }
 
 /* 0xRRGGBB as a PS1 colour word (BGR): direct (tiles), or modulating a texture (0xFF -> 0x80). */
@@ -1963,9 +1954,8 @@ static void emit_command(const pc_hud_classic_cmd* c, u_long* ot, int kind, int 
         u_long* mark = packet_cursor();
         int first = -1, count = 0, k, n = 0;
         static unsigned words[COLLECT_WORDS] __attribute__((section(".data.rood_host")));
-        collecting = 1, collected_count = collect_used = collect_overflow = 0;
+        collected_count = collect_used = collect_overflow = 0;
         emit_command_packets(c, ot, kind, shadowed);
-        collecting = 0;
         if (!collect_overflow) {
             for (k = collected_count - 1; k >= 0; --k) { /* (the chain's order: the last made first) */
                 memcpy(words + n, collect_words + collected[k].offset, (size_t)collected[k].n * sizeof *words);
@@ -1978,7 +1968,7 @@ static void emit_command(const pc_hud_classic_cmd* c, u_long* ot, int kind, int 
             }
         }
         pc_classic_items_note(0, c->type);
-        break; /* (the decoder would not: as packets, as before) */
+        return; /* (the decoder would not take it: drawn nothing, as the test's note reports) */
     }
     default:
         break;
@@ -2161,6 +2151,11 @@ static void classic_packets(const pc_hud_classic_cmd* cmds, int n, int anchor, i
 extern void pc_text_glyph(void* const* commands, int count, int glyph, int x, int y, int next_x, int advance)
     __attribute__((weak));
 extern void pc_draw_packet(void* data, int chain); /* boot_runtime.c */
+static int words_only(int type)
+{
+    return type == PC_HUD_CMD_PACKET || type == PC_HUD_CMD_RECT || type == PC_HUD_CMD_GRADIENT || type == PC_HUD_CMD_QUAD
+        || type == PC_HUD_CMD_WINDOW || type == PC_HUD_CMD_PLATE;
+}
 static int immediate_packets(const pc_hud_classic_cmd* cmds, int n, int kind, int draw, pc_classic_packet* out, int max)
 {
     u_long head = 0x00FFFFFF;
@@ -2196,6 +2191,33 @@ static int immediate_packets(const pc_hud_classic_cmd* cmds, int n, int kind, in
         }
         if (c->alpha <= 0.01f && c->type != PC_HUD_CMD_WINDOW && c->type != PC_HUD_CMD_BAR && c->type != PC_HUD_CMD_CURSOR)
             continue;
+        if (words_only(c->type)) { /* only words: not made in memory; the game's DrawPrim draws them as they are */
+            int k;
+            collected_count = collect_used = collect_overflow = 0;
+            emit_command_packets(c, &head, kind, !draw);
+            for (k = 0; k < collected_count && !collect_overflow; ++k) {
+                const u_long* w = collect_words + collected[k].offset;
+                int words = collected[k].n;
+                if (count < max) {
+                    pc_classic_packet* q = &out[count];
+                    int j;
+                    memset(q, 0, sizeof *q);
+                    q->words = (unsigned char)(words < PC_CLASSIC_PACKET_WORDS ? words : PC_CLASSIC_PACKET_WORDS - 1);
+                    q->at = (unsigned short)count;
+                    for (j = 0; j < q->words; ++j)
+                        q->w[j] = (unsigned)w[j];
+                    ++count;
+                }
+                if (draw) {
+                    unsigned raw[16];
+                    int j;
+                    for (j = 0; j < words && j < 16; ++j)
+                        raw[j] = (unsigned)w[j];
+                    pc_frame_immediate_words(raw, words);
+                }
+            }
+            continue;
+        }
         from = packet_cursor();
         emit_command(c, &head, kind, !draw);
         to = packet_cursor();
@@ -2339,8 +2361,11 @@ void pc_hud_panels_classic(void* otag)
     if (!(scene <= top && top - scene < 0x4000u))
         return;
     while ((count = pc_hud_classic_panel(&cursor, &cmds, &anchor)) >= 0)
-        if (count > 0)
+        if (count > 0) {
+            emit_items = emit_placed = 1; /* draw items, placed in the menus' slot by markers (the table is the scene's) */
             classic_packets(cmds, count, anchor, PC_HUD_STATUS, 0);
+            emit_items = emit_placed = 0;
+        }
     panel_first = panel_last = 0;
     if (packet_cursor() != start) {
         panel_first = psx_to_int(unsigned, start);
