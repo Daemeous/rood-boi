@@ -42,7 +42,8 @@ ENTRY_POINTS = ["rood_engine_unload", "rood_engine_resume", "rood_engine_abi", "
 # executable's layout the library means the host's (the RPC reads host data
 # between __data_start and _end): exported.
 LINKER = {"_GLOBAL_OFFSET_TABLE_", "__dso_handle", "_DYNAMIC", "__ehdr_start", "__TMC_END__",
-          "__tls_get_addr"}  # (the dynamic loader's: the library's thread-locals, pc_present_inside, call it; the host must not define one)
+          "__tls_get_addr", "__real_malloc", "__real_calloc", "__real_realloc", "__real_free", "__real_strdup", "__real_strndup",
+          "__real_posix_memalign", "__real_aligned_alloc", "__real_memalign"}  # (__real_*: -Wl,--wrap, engine_alloc.c) # (the dynamic loader's: the library's thread-locals, pc_present_inside, call it; the host must not define one)
 HOST_LAYOUT = {"__executable_start", "etext", "_end", "__data_start", "__bss_start", "_edata"}
 FUNCTION_TYPES = set("TWi")
 DATA_TYPES = set("DBRVGSC")
@@ -131,8 +132,9 @@ def generate(host_objects, engine_objects, nm, archives, imports, shared, out, o
     # A name defined on both sides would be two things after the split (in
     # one executable it was one). C++ inline functions and template
     # instances are weak on both sides and identical: each side keeps its own.
+    # (__wrap_*: the two links' own -Wl,--wrap substitutes for malloc and free, engine_host.c and engine_alloc.c: each binds in its own link.)
     both = sorted(n for n in set(host_def) & set(engine_def)
-                  if not (host_def[n] in "WVu" and engine_def[n] in "WVu"))
+                  if not (host_def[n] in "WVu" and engine_def[n] in "WVu") and not n.startswith("__wrap_"))
     if both:
         raise RuntimeError("defined by the host and by the engine library: " + ", ".join(both[:40]))
 

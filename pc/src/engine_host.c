@@ -27,6 +27,8 @@
 #include <fcntl.h>
 #include <link.h>
 #include <stdint.h>
+#include <malloc.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -504,6 +506,140 @@ static int callback_scan(struct dl_phdr_info* info, size_t size, void* data)
     return 1;
 }
 
+
+/* ---- the engine library's heap ----
+ * engine_alloc.c puts the library's malloc family through these: every block it holds is in this table (outside the library: it outlives it). At
+ * an unload what is left is freed, except a block host data still points to (the same scan as for the library's own addresses). The host's
+ * own frees go through __wrap_free (-Wl,--wrap=free,--wrap=realloc on the host link) so a library block the host frees leaves the table.
+ * ROOD_ENGINE_KEEP_HEAP=1 frees nothing (to compare). */
+extern void __real_free(void*);
+extern void* __real_realloc(void*, size_t);
+static struct alloc_entry {
+    uintptr_t ptr; /* 0: empty, 1: removed */
+    size_t size;
+} * alloc_table;
+static size_t alloc_cap, alloc_used, alloc_live, alloc_bytes;
+static pthread_mutex_t alloc_lock = PTHREAD_MUTEX_INITIALIZER;
+static size_t alloc_slot(uintptr_t p, size_t cap) { return (size_t)(((p >> 4) * 11400714819323198485ull) >> 24) & (cap - 1); }
+static void alloc_rehash(size_t cap)
+{
+    struct alloc_entry* fresh = mmap(NULL, cap * sizeof *fresh, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (fresh == MAP_FAILED)
+        return;
+    for (size_t i = 0; i < alloc_cap; i++)
+        if (alloc_table[i].ptr > 1) {
+            size_t h = alloc_slot(alloc_table[i].ptr, cap);
+            while (fresh[h].ptr)
+                h = (h + 1) & (cap - 1);
+            fresh[h] = alloc_table[i];
+        }
+    if (alloc_table)
+        munmap(alloc_table, alloc_cap * sizeof *alloc_table);
+    alloc_table = fresh, alloc_cap = cap, alloc_used = alloc_live;
+}
+void rood_alloc_note(void* p, size_t n)
+{
+    pthread_mutex_lock(&alloc_lock);
+    if ((alloc_used + 1) * 4 > alloc_cap * 3)
+        alloc_rehash(alloc_cap ? (alloc_live * 2 > alloc_cap ? alloc_cap * 2 : alloc_cap) : 1u << 16);
+    if (alloc_cap) {
+        size_t h = alloc_slot((uintptr_t)p, alloc_cap);
+        while (alloc_table[h].ptr > 1 && alloc_table[h].ptr != (uintptr_t)p)
+            h = (h + 1) & (alloc_cap - 1);
+        if (alloc_table[h].ptr != (uintptr_t)p)
+            alloc_used += alloc_table[h].ptr == 0, ++alloc_live;
+        else
+            alloc_bytes -= alloc_table[h].size;
+        alloc_table[h].ptr = (uintptr_t)p, alloc_table[h].size = n;
+        alloc_bytes += n;
+    }
+    pthread_mutex_unlock(&alloc_lock);
+}
+void rood_alloc_forget(void* p)
+{
+    if (!alloc_live)
+        return;
+    pthread_mutex_lock(&alloc_lock);
+    size_t h = alloc_slot((uintptr_t)p, alloc_cap);
+    for (size_t i = 0; i < alloc_cap && alloc_table[h].ptr; i++, h = (h + 1) & (alloc_cap - 1))
+        if (alloc_table[h].ptr == (uintptr_t)p) {
+            alloc_table[h].ptr = 1, --alloc_live, alloc_bytes -= alloc_table[h].size;
+            break;
+        }
+    pthread_mutex_unlock(&alloc_lock);
+}
+void __wrap_free(void* p)
+{
+    if (p)
+        rood_alloc_forget(p);
+    __real_free(p);
+}
+void* __wrap_realloc(void* p, size_t n)
+{
+    void* q = __real_realloc(p, n);
+    if (p && q != p && (q || !n))
+        rood_alloc_forget(p);
+    return q;
+}
+static int alloc_find(uintptr_t p) /* (the lock held) */
+{
+    size_t h = alloc_slot(p, alloc_cap);
+    for (size_t i = 0; i < alloc_cap && alloc_table[h].ptr; i++, h = (h + 1) & (alloc_cap - 1))
+        if (alloc_table[h].ptr == p)
+            return (int)h + 1;
+    return 0;
+}
+/* A block host data points to stays: its holder would find freed memory. */
+static size_t alloc_pinned;
+static int callback_pinned(struct dl_phdr_info* info, size_t size, void* data)
+{
+    (void)size, (void)data;
+    if (info->dlpi_name && info->dlpi_name[0])
+        return 0;
+    for (int i = 0; i < info->dlpi_phnum; i++) {
+        const ElfW(Phdr)* ph = &info->dlpi_phdr[i];
+        if (ph->p_type != PT_LOAD || !(ph->p_flags & PF_W) || info->dlpi_addr + ph->p_vaddr >= GAME_BASE)
+            continue;
+        const uintptr_t* p = (const uintptr_t*)((info->dlpi_addr + ph->p_vaddr + 7) & ~(uintptr_t)7);
+        const uintptr_t* end = (const uintptr_t*)(info->dlpi_addr + ph->p_vaddr + ph->p_memsz);
+        for (; p + 1 <= end; p++) {
+            if ((const void*)p >= (const void*)alloc_table && (const void*)p < (const void*)(alloc_table + alloc_cap))
+                continue;
+            if (*p > 4096) {
+                int at = alloc_find(*p);
+                if (at && !(alloc_table[at - 1].size & ((size_t)1 << 63)))
+                    alloc_table[at - 1].size |= (size_t)1 << 63, ++alloc_pinned;
+            }
+        }
+    }
+    return 1;
+}
+static void alloc_release(void)
+{
+    const char* keep = getenv("ROOD_ENGINE_KEEP_HEAP");
+    if (!alloc_cap || (keep && *keep && *keep != '0'))
+        return;
+    pthread_mutex_lock(&alloc_lock);
+    alloc_pinned = 0;
+    dl_iterate_phdr(callback_pinned, NULL);
+    size_t freed = 0, bytes = 0, kept = 0;
+    for (size_t i = 0; i < alloc_cap; i++) {
+        if (alloc_table[i].ptr <= 1)
+            continue;
+        if (alloc_table[i].size & ((size_t)1 << 63)) {
+            ++kept;
+            continue;
+        }
+        bytes += alloc_table[i].size;
+        ++freed;
+        __real_free((void*)alloc_table[i].ptr);
+    }
+    munmap(alloc_table, alloc_cap * sizeof *alloc_table);
+    alloc_table = NULL, alloc_cap = alloc_used = alloc_live = alloc_bytes = 0;
+    pthread_mutex_unlock(&alloc_lock);
+    fprintf(stderr, "[engine] the old library's heap: %zu blocks (%.1f MB) freed, %zu kept (host data points to them)\n", freed, bytes / 1048576.0, kept);
+}
+
 static double now_ms(void)
 {
     struct timespec t;
@@ -536,6 +672,38 @@ static void refresh_owned(uintptr_t old_lo, uintptr_t old_hi)
     }
 }
 
+
+/* The system libraries the process has loaded stay loaded (RTLD_NODELETE). Each reload ends the Vulkan instance and makes a new one, and the loader
+ * unloads and loads the driver's ICD (libGLX_nvidia) with it: glibc never gives back the static TLS block such a library takes, so after about 25
+ * cycles the next load fails and the instance sees no NVIDIA device (the game fell back to the iGPU; a bigger GLIBC_TUNABLES
+ * glibc.rtld.optional_static_tls made it go away). A library that stays mapped is not loaded again. */
+static int collect_names(struct dl_phdr_info* info, size_t size, void* data)
+{
+    (void)size;
+    char*** list = data;
+    if (info->dlpi_name && info->dlpi_name[0] == '/' && !strstr(info->dlpi_name, "librood_") && !strstr(info->dlpi_name, "rood_host")
+        && strcmp(info->dlpi_name, live)) {
+        size_t n = 0;
+        while ((*list)[n])
+            ++n;
+        if (n < 255)
+            (*list)[n] = strdup(info->dlpi_name);
+    }
+    return 0;
+}
+static void pin_system_libraries(void)
+{
+    char* names[256] = { 0 };
+    char** list = names;
+    dl_iterate_phdr(collect_names, &list);
+    for (int i = 0; names[i]; i++) {
+        void* h = dlopen(names[i], RTLD_LAZY | RTLD_NOLOAD | RTLD_NODELETE);
+        if (h)
+            dlclose(h);
+        free(names[i]);
+    }
+}
+
 static void reload(void)
 {
     double start = now_ms();
@@ -562,8 +730,9 @@ static void reload(void)
     dl_iterate_phdr(callback_scan, &scan);
     elf_symbols_close(&scan.library);
     elf_symbols_close(&scan.host);
-    dlclose(handle);
+    dlclose(handle); /* (its static destructors free their own: they leave the table) */
     handle = NULL;
+    alloc_release(); /* what the library still held when it went is freed now */
     void* still = dlopen(previous, RTLD_NOW | RTLD_NOLOAD);
     if (still) {
         /* Something keeps it (a unique C++ symbol, a thread-local destructor): a
@@ -598,8 +767,14 @@ static void reload(void)
             ENGINE_BASE);
     double loaded = now_ms();
     rood_engine_resume();
+    pin_system_libraries(); /* (the driver's libraries the new Vulkan instance loaded) */
     carry_clear(); /* what the new library did not take */
     double resumed = now_ms();
+    {
+        struct mallinfo2 mi = mallinfo2(); /* (a reload that leaks shows here: in use grows, not just the arenas) */
+        fprintf(stderr, "[engine] heap after the reload: %.1f MB in use, %.1f MB free in the arenas, %.1f MB mapped\n", mi.uordblks / 1048576.0,
+            mi.fordblks / 1048576.0, mi.hblkhd / 1048576.0);
+    }
     if (fallback)
         snprintf(status, sizeof status, "the new library did not load (%s); the previous one runs again", why);
     else

@@ -1199,7 +1199,7 @@ for name in ["runtime", "window", "controller", "gamepad"]:
         state_sections(obj)
     objects.append(obj)
 for name in ["ownership", "audio_libspu", "audio_output", "input_record", "cd_drive", "xa_audio", "mdec", "memory_card", "dev_rpc", "charge_skip", "camera_stick", "analog_move", "gl_present", "gpu_hw", "render", "render_state", "draw_items", "room_native", "gameplay_walls", "occlusion", "room_effects", "actor_native", "effect_native", "scene_capture", "floor_grid", "shadows", "ptgi", "glows", "overlay_statics", "ui_upscale", "antialias", "ui_text", "button_prompts", "ui_bubbles", "ui_emotes", "room_catalog", "fast_travel_rules", "ui/item_names", "ui/vs_encode", "ui/manual_parse", "ui/manual_cache", "ui/data_plan", "ui/score_format", "ui/score_nav", "ui/mon_parse", "ui/score_mon", "snapshot", "state_diff", "state_rewind", "savestate_slots", "frame_cost", "render_jitter", "render_thread", "present_header", "hw_meter", "hw_cmd", "hw_registry", "hw_calls", "renderer_rq", "display_confirm", "quit_options", "ui/option_actions", "ui/options_nav", "ui/option_style", "ui/option_peek", "host_format", "classic/classic_parity"] + (["vk_core", "vk_shader_lookup", "vk_hw", "vk_present", "vk_shadows"] if arch64 else []) \
-        + (["engine_host", "engine_reload"] if engine_library else []):
+        + (["engine_host", "engine_reload", "engine_alloc"] if engine_library else []):
     obj = out / (name.replace("/", "_") + ".o")
     # ui_text rasterizes fonts with the stb_truetype that Dear ImGui vendors.
     extra = ["-Ipc/third_party/imgui"] if name == "ui_text" else []
@@ -2524,7 +2524,7 @@ for name in sorted(missing):
 # --engine-library: the PIC objects (thread-locals: pc_present_inside) call the dynamic loader's own __tls_get_addr. It is no trap: a trap
 # defined in the host would take the library's calls (the loader's symbol is found after the executable's) and abort the game at its first one.
 if engine_library:
-    traps = [n for n in traps if n != "__tls_get_addr"]
+    traps = [n for n in traps if n != "__tls_get_addr" and not n.startswith("__real_")]  # (__real_*: the library's -Wl,--wrap, engine_alloc.c)
 extra_traps = [n for n in traps if n != "SystemError" and not n.startswith("_Unwind_")]
 if extra_traps:
     raise RuntimeError("Functions called but defined nowhere (they would be traps): " + ", ".join(extra_traps))
@@ -2687,7 +2687,7 @@ if arch64:
     # The loader and the library's reload side (--engine-library) hold no
     # game state: left out, the keys equal the static build's.
     linked = [o for o in [*objects, out / "traps.o", out / "overlay_statics_table.o"]
-              if o.stem not in ("engine_host", "engine_reload")]
+              if o.stem not in ("engine_host", "engine_reload", "engine_alloc")]
     # The owned code (game/) is the game's too: its frames sit below the boundary
     # (battle's main loop holds one across the vsync when owned: battle_frame).
     pinned = [o for o in game_objects if o in objects] + [out / "cd_drive.o", out / "traps.o"] \
@@ -2764,6 +2764,9 @@ if engine_library:
     # in the non-PIE static build.
     library_link = ["g++", "-m64", "-shared", "-Wl,-Ttext-segment=0x64000000",
                     "-Wl,--version-script=" + str(out / "engine.map"), "-Wl,--gc-sections",
+                    # its heap is the host's registry's (engine_alloc.c): freed when the library is unloaded
+                    "-Wl,--wrap=malloc,--wrap=calloc,--wrap=realloc,--wrap=free,--wrap=strdup,--wrap=strndup,--wrap=posix_memalign,"
+                    "--wrap=aligned_alloc,--wrap=memalign",
                     *[str(o) for o in engine_objects], *(nrd["libraries"] if nrd else []), *glslang_libraries,
                     "-l:libstdc++.so.6", "-l:libgcc_s.so.1", "-lm", "-lpthread", "-ldl", "-o", str(library)]
     staged = library.with_name(library.name + ".new")
@@ -2773,7 +2776,7 @@ if engine_library:
     except (RuntimeError, ValueError, OSError) as error:
         raise SystemExit(f"engine library boundary: {error}")
     host_link = ["gcc", "-m64", "-no-pie", "-Wl,--section-start=rood_guest_pages=0x1f800000",  # as the static link
-                 "-Wl,--gc-sections", *link_compress_flags,
+                 "-Wl,--gc-sections", *link_compress_flags, "-Wl,--wrap=free,--wrap=realloc",  # (engine_host.c: a library block the host frees leaves the registry)
                  *[str(o) for o in host_objects], str(out / "engine_boundary.o"), *pin_args, str(out / "imports.ld"),
                  "-Wl,--dynamic-list=" + str(out / "host_exports.list"),
                  *[f"-Wl,--undefined={name}" for name in boundary["from_archives"]],

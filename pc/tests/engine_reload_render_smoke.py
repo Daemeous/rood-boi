@@ -15,6 +15,7 @@ import argparse
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 
@@ -147,6 +148,14 @@ def main():
         check(growth < LEAK_LIMIT, f"resident memory {first:.0f} -> {base.rss_mb(pid):.0f} MB: {growth:.1f} MB per reload")
         text = (work / "loop.log").read_text(errors="replace")
         check("[crash]" not in text, "no crash in the log")
+        # What the old library held is freed at its unload (engine_alloc.c, engine_host.c rood_alloc_release): the heap in use stops growing (it was
+        # 3 MB a reload: lists, meshes, the Lua state of every generation stayed).
+        use = [float(m) for m in re.findall(r"heap after the reload: ([0-9.]+) MB in use", text)]
+        if check(len(use) >= RELOADS, f"the host reports the heap after each reload ({len(use)})"):
+            grow = (use[-1] - use[3]) / (len(use) - 4)
+            check(grow < 0.4, f"the heap in use after a reload: {use[3]:.1f} -> {use[-1]:.1f} MB: {grow:.2f} MB per reload")
+            freed = re.findall(r"the old library's heap: (\d+) blocks \(([0-9.]+) MB\) freed, (\d+) kept", text)
+            check(len(freed) >= RELOADS, f"every unload freed what the library held ({len(freed)}; {freed[-1] if freed else '-'})")
         if mode >= 1:
             starts, stops = text.count("renderer thread started"), text.count("renderer thread stopped")
             check(stops >= RELOADS and starts >= stops, f"every reload ended a renderer thread and the next started one ({starts} started, {stops} stopped)")

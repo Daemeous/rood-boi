@@ -363,3 +363,25 @@ same page offset in both games (the two processes' ASLR bases: a saved return ad
 The edit loop is unchanged: `pc/run-game.sh --reload` (add `--vulkan`), then `pc/tools/dev_loop.sh --watch` in another terminal (README, "Engine
 edits without a restart"). It works with the renderer thread on.
 
+### The library's heap (2026-11-14)
+
+A reload leaked about 3.4 MB: the library's statics (render lists and meshes, the scene capture, the occlusion cache, the Lua state, the glows) die with
+it, but what they pointed to is in the process's heap and stayed (measured with an LD_PRELOAD malloc shim and the host's `mallinfo2` line after each
+reload: the heap in use grew 3.4 MB a reload; the Vulkan objects were all destroyed). Now the library's malloc family is wrapped (`-Wl,--wrap`,
+engine_alloc.c) into a table of live blocks that lives in the host (engine_host.c): its static destructors run in `dlclose` and free their own;
+what is left in the table is freed then, except a block a word of the host's data points to (`kept` in the log line). The host's own `free` and
+`realloc` are wrapped too, so a library block the host frees leaves the table. `ROOD_ENGINE_KEEP_HEAP=1` frees nothing (to compare).
+Before: 3.4 MB a reload; now the heap in use is flat within 0.1 MB a reload (fight, 50 reloads, NVIDIA: resident memory 356 -> 363 MB over the
+first 20). `engine_reload_render_smoke` checks the growth of the heap in use and that every unload freed something. The rule it adds for the
+library's code: do not free a block the library allocated through anything that bypasses `free` (a libc-internal free of the pointer, a `free` in
+a Zig unit of the game library): the table would hold it and the unload free it again ("double free or corruption" at the reload).
+
+**The 26th reload lost the GPU.** Each reload ends the Vulkan instance and makes a new one, and the loader unloads and loads the driver's ICD
+(libGLX_nvidia) with it. glibc never gives back the static TLS block such a library takes, so after 25 cycles the next load failed, the new
+instance listed only the iGPU (`no Vulkan 1.3 device` with `ROOD_VK_DEVICE=1`; without it the game fell back to the Intel one, whose driver then
+grew ~4 MB a reload). A plain create/destroy loop of the same instance does not do it (it is the process's own TLS use that left too little);
+`GLIBC_TUNABLES=glibc.rtld.optional_static_tls=65536` made it go away, which pins the cause. `pin_system_libraries` (engine_host.c, after each
+reload's resume) reopens every system library the process has loaded with RTLD_NODELETE: the ICD stays mapped, is not loaded again. 50 reloads on
+the NVIDIA GPU now: no fallback. The driver keeps what it allocated while it stays loaded: resident memory climbs ~240 MB over the first 15
+reloads and is flat after (596 MB at reload 20, 40: the warm-up of the driver's own caches).
+
