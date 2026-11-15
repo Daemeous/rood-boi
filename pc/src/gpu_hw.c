@@ -34,6 +34,7 @@ extern void pc_ui_bubbles_frame(void) __attribute__((weak));
 #include "renderer_rq.h" /* the read-backs reply with their pixels */
 #include "renderer_frame_state.h"
 #include "hw_registry.h" /* the producer-owned registrations of a table */
+#include "hw_calls.h"    /* the game side's calls into the renderer: requests (the renderer's own uses of them just run) */
 #include "gl_shaders.h" /* PC_GLSL_MS_RESOLVE (pc/shaders/vulkan/ms_resolve.glsl) */
 #ifdef ROOD_VULKAN
 #include "vk_hooks.h" /* ROOD_RENDERER=vulkan: the GL calls below go to vk_hw.c */
@@ -507,13 +508,14 @@ typedef struct {
     uint16_t tpage, clut;
 } pc_hw_surface;
 static pc_hw_surface surface_collect[MAX_CASTER_TRIANGLES], surface_ready[MAX_CASTER_TRIANGLES];
-const float* pc_hw_casters(int* count, int* serial)
+const float* pc_hw_casters_now(int* count, int* serial)
 { PC_HW_METER(casters);
     *count = ready_count;
     *serial = caster_serial;
     return caster_ready;
 }
-const void* pc_hw_caster_surfaces(void) { PC_HW_METER(caster_surfaces); return surface_ready; }
+const void* pc_hw_caster_surfaces_now(void) { PC_HW_METER(caster_surfaces); return surface_ready; }
+size_t pc_hw_caster_surface_size(void) { return sizeof surface_ready[0]; }
 /* Glowing things: additive translucent 3D triangles that are not room
  * geometry (flames, glows, effects), in world space with their surfaces;
  * the path tracer turns them into light sources. */
@@ -2703,7 +2705,7 @@ extern int pc_gl_view[4] __attribute__((weak)); /* the presented view (gl_presen
 static int display_rect[4];                     /* (below) */
 /* Native (VRAM) pixels per output pixel: the display area's height over the
  * presented view's. */
-float pc_hw_native_per_output(void)
+float pc_hw_native_per_output_now(void)
 { PC_HW_METER(native_per_output);
     int view_h = &pc_gl_view ? pc_gl_view[3] : 0, display_h = display_rect[3] > 0 ? display_rect[3] : 240;
     return view_h > 0 ? (float)display_h / (float)view_h : 1.0f / (float)pc_hw_scale;
@@ -3155,7 +3157,7 @@ static int window_scale(int view_h, int display_h)
     int s = view_h > 0 && display_h > 0 ? (int)ceilf((float)view_h / (float)display_h - 0.01f) : pc_hw_scale_setting;
     return s < 1 ? 1 : s > 8 ? 8 : s;
 }
-int pc_hw_set_scale(int scale)
+int pc_hw_set_scale_now(int scale)
 { PC_HW_METER(set_scale);
     if (!pc_hw_active || scale < 0 || scale > 8)
         return pc_hw_scale;
@@ -3223,9 +3225,8 @@ static void forget_pending(void)
 /* A restored game (snapshot.c's resume or load, state_rewind.c's rewind): what the host held for the frame the game was in
  * belongs to the timeline that is gone. The photo mode's own resyncs are not this: it renders again from the moment it holds,
  * and the ranges of that frame (a hidden actor's) are what its renders need. */
-void pc_hw_forget_timeline(void)
+void pc_hw_forget_timeline_now(void)
 {
-    forget_pending();
     text_piece_count = 0; /* (the last table's held-back text: it would draw into the replayed frame) */
 }
 /* After a restore (save state, rewind, engine reload, photo): the renderer's state rebuilt from the game's VRAM `vram` (the
@@ -5276,7 +5277,7 @@ void pc_hw_set_display(int x, int y, int w, int h)
  * compared on the very same frame. `area`: the drawing area it covers. */
 static int force_replay;
 static int redraw_text = 1; /* pc_hw_redraw draws the held-back text into the picture */
-int pc_hw_redraw(int area[4])
+int pc_hw_redraw_now(int area[4])
 { PC_HW_METER(redraw);
     if (!pc_hw_active)
         return -1;
@@ -5302,7 +5303,7 @@ int pc_hw_redraw(int area[4])
  * frame: a paused game shows the same frame under each drawing option
  * (anti-aliasing comparisons, aa_smoke.py). */
 static int redraw_shown, redraw_origin[2];
-int pc_hw_redraw_present(void)
+int pc_hw_redraw_present_now(void)
 { PC_HW_METER(redraw_present);
     int area[4];
     redraw_text = 0; /* (presented: the overlay draws it, at the window's resolution) */
@@ -5488,13 +5489,13 @@ void pc_hw_text_overlay(int view_x, int view_y, int view_w, int view_h, int to_v
     (void)view_x, (void)view_y, (void)to_view;
 }
 int pc_hw_text_overlay_held(void) { PC_HW_METER(text_overlay_held); return overlay_on ? overlay_count : -1; }
-void pc_hw_text_overlay_stats(long* held, long* baked, long* presented)
+void pc_hw_text_overlay_stats_now(long* held, long* baked, long* presented)
 { PC_HW_METER(text_overlay_stats);
     *held = overlay_on ? overlay_count : -1, *baked = overlay_baked, *presented = overlay_presented;
 }
 
 /* The display area (RPC ui_upscale reports it for crops of gpu_dump). */
-void pc_hw_display_rect(int r[4]) { PC_HW_METER(display_rect); memcpy(r, display_rect, sizeof display_rect); }
+void pc_hw_display_rect_now(int r[4]) { PC_HW_METER(display_rect); memcpy(r, display_rect, sizeof display_rect); }
 /* After pc_hw_target: the origin of the area to present from the target it
  * returned (an interpolated frame of a double-buffered game is B's
  * off-screen area, not the displayed one). */
@@ -5512,7 +5513,7 @@ extern unsigned pc_vsync_count(void);
 extern unsigned pc_ph_vsync(void) __attribute__((weak)); /* present_header.c: the present's own vsync inside a present */
 #define PH_VSYNC() (pc_ph_vsync ? pc_ph_vsync() : pc_vsync_count())
 static GLuint hw_target(void);
-int pc_hw_present_lists(uint32_t* lists, int max, float* t);
+int pc_hw_present_lists_now(uint32_t* lists, int max, float* t);
 GLuint pc_hw_target(void)
 { PC_HW_METER(target);
     GLuint target = hw_target();
@@ -5655,7 +5656,7 @@ static GLuint hw_target(void)
 /* The object lists (characters, weapons, props) of the frame being
  * presented and the blend their palettes are drawn at (1: as recorded;
  * replays blend from the frame before): the path tracer's moving geometry. */
-int pc_hw_present_lists(uint32_t* lists, int max, float* t)
+int pc_hw_present_lists_now(uint32_t* lists, int max, float* t)
 { PC_HW_METER(present_lists);
     /* The recording whose picture is shown (its surfaces are in the
      * G-buffer), at the blend it was drawn with. */
@@ -5680,7 +5681,7 @@ int pc_hw_present_lists(uint32_t* lists, int max, float* t)
 }
 /* Every native list of the frame being presented (room, other room blocks,
  * objects; not effects): the editor's texture picking (emissive_editor.cpp). */
-int pc_hw_present_all_lists(uint32_t* lists, int max)
+int pc_hw_present_all_lists_now(uint32_t* lists, int max)
 { PC_HW_METER(present_all_lists);
     int replayed;
     uint32_t room;
@@ -5739,7 +5740,7 @@ static void forget_recordings(void)
 /* Developer RPC: write the whole scaled VRAM target as a PPM (row 0 = VRAM
  * row 0); `replay`: the last interpolated frame's target instead. Returns 0
  * on success. */
-int pc_hw_dump(const char* path, int replay_target)
+int pc_hw_dump_now(const char* path, int replay_target)
 { PC_HW_METER(dump);
     if (!pc_hw_active)
         return -1;
@@ -5795,7 +5796,7 @@ static int pick_pixel(int x, int y, unsigned char n[4], float* depth)
     return 1;
 }
 static int ghost_alpha(unsigned a) { return a >= 128 && a < 166; }
-int pc_hw_pick(float vram_x, float vram_y, float* sz, float normal[3])
+int pc_hw_pick_now(float vram_x, float vram_y, float* sz, float normal[3])
 { PC_HW_METER(pick);
     if (!pc_hw_active)
         return 0;
@@ -5827,7 +5828,7 @@ int pc_hw_pick(float vram_x, float vram_y, float* sz, float normal[3])
 }
 
 /* Native VRAM as an R16UI texture, fully up to date (editor view texturing). */
-GLuint pc_hw_native_texture(void)
+GLuint pc_hw_native_texture_now(void)
 { PC_HW_METER(native_texture);
     if (!pc_hw_active)
         return 0;

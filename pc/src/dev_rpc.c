@@ -328,6 +328,7 @@
  *                                list of group indices (free camera view only);
  *                                room: "ready", or "loading" (no groups while
  *                                a room loads)
+ *   hw_calls                    each game-side request into the renderer once (hw_calls.h): native_texture, display, casters, lists
  *   editor_view {focus}         the free camera's cutaway focus: [x, y, z]
  *                                fixes it, null returns to the automatic one;
  *                                replies whether surfaces hide it (hidden) and
@@ -3142,6 +3143,37 @@ static void handle_method(int fd, const char* request)
             return;
         }
         pc_vram_stream_json(result, (int)sizeof result);
+        reply(fd, id, result);
+    } else if (!strcmp(method, "hw_calls")) {
+        /* Every game-side request into the renderer once (hw_calls.h), from this thread: what each answers (the native VRAM texture's
+         * handle, the display rectangle, the casters, the present lists, the overlay's text counts). A request whose definition is
+         * missing would abort here. */
+        extern unsigned pc_hw_native_texture(void) __attribute__((weak));
+        extern void pc_hw_display_rect(int r[4]) __attribute__((weak));
+        extern float pc_hw_native_per_output(void) __attribute__((weak));
+        extern const float* pc_hw_casters(int*, int*) __attribute__((weak));
+        extern int pc_hw_present_all_lists(uint32_t*, int) __attribute__((weak));
+        extern int pc_hw_present_lists(uint32_t*, int, float*) __attribute__((weak));
+        extern void pc_hw_text_overlay_stats(long*, long*, long*) __attribute__((weak));
+        if (!pc_hw_native_texture || !pc_hw_display_rect || !pc_hw_casters) {
+            fail(fd, id, -32000, "needs the hardware renderer's requests");
+            return;
+        }
+        int rect[4] = { 0 }, casters = 0, serial = 0;
+        uint32_t lists[64];
+        float t = 0;
+        long held = 0, baked = 0, presented = 0;
+        unsigned texture = pc_hw_native_texture();
+        pc_hw_display_rect(rect);
+        float per_output = pc_hw_native_per_output();
+        pc_hw_casters(&casters, &serial);
+        int all = pc_hw_present_all_lists(lists, 64);
+        int present = pc_hw_present_lists(lists, 64, &t);
+        pc_hw_text_overlay_stats(&held, &baked, &presented);
+        snprintf(result, sizeof result,
+            "{\"native_texture\":%u,\"display\":[%d,%d,%d,%d],\"native_per_output\":%.4f,\"casters\":%d,\"caster_serial\":%d,"
+            "\"all_lists\":%d,\"present_lists\":%d,\"overlay_held\":%ld}",
+            texture, rect[0], rect[1], rect[2], rect[3], per_output, casters, serial, all, present, held);
         reply(fd, id, result);
     } else if (!strcmp(method, "hw_meter")) {
         /* The renderer hook meter (hw_meter.h, T1 plan R0; ROOD_HW_METER=1): every pc_hw_* hook's calls, those made inside the

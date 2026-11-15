@@ -1198,7 +1198,7 @@ for name in ["runtime", "window", "controller", "gamepad"]:
             and name in STATE_HOST_UNITS:
         state_sections(obj)
     objects.append(obj)
-for name in ["ownership", "audio_libspu", "audio_output", "input_record", "cd_drive", "xa_audio", "mdec", "memory_card", "dev_rpc", "charge_skip", "camera_stick", "analog_move", "gl_present", "gpu_hw", "render", "render_state", "draw_items", "room_native", "gameplay_walls", "occlusion", "room_effects", "actor_native", "effect_native", "scene_capture", "floor_grid", "shadows", "ptgi", "glows", "overlay_statics", "ui_upscale", "antialias", "ui_text", "button_prompts", "ui_bubbles", "ui_emotes", "room_catalog", "fast_travel_rules", "ui/item_names", "ui/vs_encode", "ui/manual_parse", "ui/manual_cache", "ui/data_plan", "ui/score_format", "ui/score_nav", "ui/mon_parse", "ui/score_mon", "snapshot", "state_diff", "state_rewind", "savestate_slots", "frame_cost", "render_jitter", "render_thread", "present_header", "hw_meter", "hw_cmd", "hw_registry", "renderer_rq", "display_confirm", "quit_options", "ui/option_actions", "ui/options_nav", "ui/option_style", "ui/option_peek", "host_format", "classic/classic_parity"] + (["vk_core", "vk_shader_lookup", "vk_hw", "vk_present", "vk_shadows"] if arch64 else []) \
+for name in ["ownership", "audio_libspu", "audio_output", "input_record", "cd_drive", "xa_audio", "mdec", "memory_card", "dev_rpc", "charge_skip", "camera_stick", "analog_move", "gl_present", "gpu_hw", "render", "render_state", "draw_items", "room_native", "gameplay_walls", "occlusion", "room_effects", "actor_native", "effect_native", "scene_capture", "floor_grid", "shadows", "ptgi", "glows", "overlay_statics", "ui_upscale", "antialias", "ui_text", "button_prompts", "ui_bubbles", "ui_emotes", "room_catalog", "fast_travel_rules", "ui/item_names", "ui/vs_encode", "ui/manual_parse", "ui/manual_cache", "ui/data_plan", "ui/score_format", "ui/score_nav", "ui/mon_parse", "ui/score_mon", "snapshot", "state_diff", "state_rewind", "savestate_slots", "frame_cost", "render_jitter", "render_thread", "present_header", "hw_meter", "hw_cmd", "hw_registry", "hw_calls", "renderer_rq", "display_confirm", "quit_options", "ui/option_actions", "ui/options_nav", "ui/option_style", "ui/option_peek", "host_format", "classic/classic_parity"] + (["vk_core", "vk_shader_lookup", "vk_hw", "vk_present", "vk_shadows"] if arch64 else []) \
         + (["engine_host", "engine_reload"] if engine_library else []):
     obj = out / (name.replace("/", "_") + ".o")
     # ui_text rasterizes fonts with the stb_truetype that Dear ImGui vendors.
@@ -2519,6 +2519,11 @@ for name in sorted(missing):
         raise RuntimeError(
             f"Unclassified import: {name}; refusing to fake data with a function"
         )
+# Only the game's own SystemError may be a trap (the PS1 library routine the port never runs): any other function a linked object calls
+# and nothing defines is a renamed or dropped definition that would abort when reached.
+extra_traps = [n for n in traps if n != "SystemError" and not n.startswith("_Unwind_")]
+if extra_traps:
+    raise RuntimeError("Functions called but defined nowhere (they would be traps): " + ", ".join(extra_traps))
 # A script assignment silently replaces an object's definition: an import
 # must only name what no linked object defines.
 shadowed = sorted({line.split(" = ")[0] for line in assign} & defined)

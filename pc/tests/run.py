@@ -229,6 +229,8 @@ def suites(args, mode="egl"):
               note="NVIDIA NRD denoises the indirect light (Vulkan built with NRD)"),
         Suite("probe_gi_smoke", [PY, str(TESTS / "probe_gi_smoke.py")], 600,
               note="probe GI: converges, energy vs path traced, stable, no wall leak, light/room changes"),
+        Suite("hw_calls_smoke", [PY, str(TESTS / "hw_calls_smoke.py")], 300,
+              note="every game-side request into the renderer (hw_calls.c) has a definition and answers, in render_thread 0, 1 and 2"),
         Suite("interpolation_smoke", [PY, str(TESTS / "interpolation_smoke.py")], 180,
               note="interpolated frames move the camera (opening pan)"),
         Suite("render_thread_tsan", [PY, str(TESTS / "render_thread_tsan.py")], 300,
@@ -843,7 +845,7 @@ def stale_binaries(selected):
 # while snapshot_equivalence makes the save states, so it runs first beside
 # a suite that does not.
 CHECKPOINT_SUITES = {
-    "probe_gi_smoke", "animation_smoke", "editor_cutaway_smoke", "editor_undo_smoke", "editor_selection_smoke", "editor_schema_smoke", "editor_transform_smoke", "barn_doors_smoke", "editor_handles_smoke", "facing_cutaway_smoke",
+    "hw_calls_smoke", "probe_gi_smoke", "animation_smoke", "editor_cutaway_smoke", "editor_undo_smoke", "editor_selection_smoke", "editor_schema_smoke", "editor_transform_smoke", "barn_doors_smoke", "editor_handles_smoke", "facing_cutaway_smoke",
     "camera_stick_smoke", "camera_stick_menus_smoke", "editor_snap_smoke", "editor_roomload_smoke", "room_browser_smoke", "room_entry_sound_smoke", "route_continuation_smoke", "ending_smoke",
     "light_actors_smoke", "fixture_lighting_smoke", "sky_smoke", "game_sky_smoke", "glow_stability_smoke", "lighting_presets_smoke",
     "gi_lag_smoke", "texture_animation_smoke", "save_menu_smoke", "narrowed_2d_smoke", "weapon_slots_smoke", "ui_menus_smoke",
