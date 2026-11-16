@@ -7,7 +7,7 @@
 /* dev_state.c: the room's lighting triangle table, and whether the room's lighting is enabled (its signed first byte) */
 extern const unsigned* pc_room_light_table(int* enabled);
 extern void pc_unimplemented(const char*);
-int func_80098C3C(unsigned position, unsigned char* color, const unsigned* triangle);
+int vs_render_interpolateRoomLightTriangle(unsigned position, unsigned char* color, const unsigned* triangle);
 
 int pc_room_light(
     unsigned position, int layer, unsigned* color, const unsigned* table, int enabled)
@@ -23,18 +23,18 @@ int pc_room_light(
         for (unsigned i = 0; i < count; ++i, triangle += 8) {
             if (x >= (short)triangle[0] && x <= (short)triangle[1]
                 && z >= (short)(triangle[0] >> 16) && z <= (short)(triangle[1] >> 16)
-                && func_80098C3C(position, (void*)color, triangle))
+                && vs_render_interpolateRoomLightTriangle(position, (void*)color, triangle))
                 return 1;
         }
     }
     *color = fallback;
     return 0;
 }
-int func_80098B38(unsigned position, int layer, unsigned* color);
+int vs_render_sampleRoomLighting(unsigned position, int layer, unsigned* color);
 
 void func_8008C458(unsigned position, int unused, void* color, void* actor_position)
 {
     (void)unused;
     (void)actor_position;
-    func_80098B38(position, 0, color);
+    vs_render_sampleRoomLighting(position, 0, color);
 }

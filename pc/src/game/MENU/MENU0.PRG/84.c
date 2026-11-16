@@ -151,7 +151,7 @@ int _getTeleportCost(int targetSavePointId)
 }
 
 static char _availableWarlockSpells[18];
-static u_char D_8010694A;
+static u_char vs_menu_magicWarlockLevelCursorBlink;
 static char _0[5] __attribute__((unused));
 
 /**
@@ -221,7 +221,7 @@ int _warlockMagicMenu(u_int initShortcutInvoked)
             }
         }
 
-        if (D_800F4EA0 & 0xB7) {
+        if (vs_menu_frameworkActionRestrictions & 0xB7) {
             for (i = 0; i < 18; ++i) {
                 rowTypes[i] |= 1;
             }
@@ -267,7 +267,7 @@ int _warlockMagicMenu(u_int initShortcutInvoked)
                         && (vs_main_actions[selectedRow + 1].unlocked)) {
 
                         vs_mainMenu_flyoutMenuRightAndHoistSelection(
-                            D_800F4EE8.cursorMemories[14], 2);
+                            vs_menu_frameworkMenuMemory.cursorMemories[14], 2);
 
                         vs_mainMenu_displayActionCost = 1;
                         state = levelledSpellInit;
@@ -323,13 +323,13 @@ int _warlockMagicMenu(u_int initShortcutInvoked)
             }
         }
 
-        D_800F4EE8.cursorMemories[13] = i;
+        vs_menu_frameworkMenuMemory.cursorMemories[13] = i;
 
-        if (D_800F4EE8.cursorMemories[12] >= i) {
-            D_800F4EE8.cursorMemories[12] = i - 1;
+        if (vs_menu_frameworkMenuMemory.cursorMemories[12] >= i) {
+            vs_menu_frameworkMenuMemory.cursorMemories[12] = i - 1;
         }
 
-        D_8010694A = 0;
+        vs_menu_magicWarlockLevelCursorBlink = 0;
         state = levelledSpell;
         break;
 
@@ -339,8 +339,8 @@ int _warlockMagicMenu(u_int initShortcutInvoked)
         int var_s7_2;
         u_long* prim;
 
-        i = D_800F4EE8.cursorMemories[12];
-        rowCount = D_800F4EE8.cursorMemories[13];
+        i = vs_menu_frameworkMenuMemory.cursorMemories[12];
+        rowCount = vs_menu_frameworkMenuMemory.cursorMemories[13];
 
         if (vs_main_buttonsPressed.all & PADRup) {
 
@@ -401,9 +401,9 @@ int _warlockMagicMenu(u_int initShortcutInvoked)
             }
         }
 
-        if (i != D_800F4EE8.cursorMemories[0xC]) {
+        if (i != vs_menu_frameworkMenuMemory.cursorMemories[0xC]) {
             vs_battle_playMenuChangeSfx();
-            D_800F4EE8.cursorMemories[0xC] = i;
+            vs_menu_frameworkMenuMemory.cursorMemories[0xC] = i;
         }
 
         _setMPCost(selectedRow + i);
@@ -420,17 +420,17 @@ int _warlockMagicMenu(u_int initShortcutInvoked)
                 vs_battle_renderTextRaw(spellLevels[level], (99 + level * 32) | vs_getXY(0, 103), NULL);
                 glyphs = pc_frame_count() - first;
 
-                vs_battle_spriteItem(temp_s6, vs_battle_cursorBrightnessAnimation[D_8010694A],
+                vs_battle_spriteItem(temp_s6, vs_battle_cursorBrightnessAnimation[vs_menu_magicWarlockLevelCursorBlink],
                     (96 + level * 32) | vs_getXY(0, 100), vs_getWH(32, 16), VS_SPRITE_PAGE,
                     vs_getUV0Clut(192, 112, 976, 223));
 
-                v = D_8010694A;
+                v = vs_menu_magicWarlockLevelCursorBlink;
 
                 if (level == i) {
-                    ++D_8010694A;
-                    D_8010694A &= 0xF;
+                    ++vs_menu_magicWarlockLevelCursorBlink;
+                    vs_menu_magicWarlockLevelCursorBlink &= 0xF;
                 } else {
-                    D_8010694A = v & 0xF;
+                    vs_menu_magicWarlockLevelCursorBlink = v & 0xF;
                 }
 
             } else if (level < rowCount) {
@@ -521,7 +521,7 @@ int _shamanMagicMenu(u_int initShortcutInvoked)
             ++rowCount;
         }
 
-        if (D_800F4EA0 & 0xB7) {
+        if (vs_menu_frameworkActionRestrictions & 0xB7) {
             for (i = 0; i < 6; ++i) {
                 rowTypes[i] |= 1;
             }
@@ -622,7 +622,7 @@ int _sorcererMagicMenu(u_int initShortcutInvoked)
             ++rowCount;
         }
 
-        if (D_800F4EA0 & 0xB7) {
+        if (vs_menu_frameworkActionRestrictions & 0xB7) {
             for (i = 0; i < 18; ++i) {
                 rowTypes[i] |= 1;
             }
@@ -720,7 +720,7 @@ int _enchanterMagicMenu(u_int initShortcutInvoked)
             ++rowCount;
         }
 
-        if (D_800F4EA0 & 0xB7) {
+        if (vs_menu_frameworkActionRestrictions & 0xB7) {
             for (i = 0; i < 8; ++i) {
                 rowTypes[i] |= 1;
             }

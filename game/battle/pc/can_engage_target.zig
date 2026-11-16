@@ -4,14 +4,14 @@ const c = @import("c_battle_movement");
 const v = @import("views_battle_movement");
 const psx = @import("common").psx;
 
-/// orig: func_800DB8AC (pc/src/battle_movement.c)
+/// orig: vs_battle_aiCanApproachEngagedTarget (pc/src/battle_movement.c)
 /// Whether a candidate's target counts as engaged in the room's current
-/// encounter (D_800F58BC): forced by 0x8E, blocked by 0x98, otherwise the
+/// encounter (vs_battle_aiRoomAiState): forced by 0x8E, blocked by 0x98, otherwise the
 /// target relation bit 0 plus the room's counters and per-actor mask. The
-/// original calls func_800DBCB4 and discards its result.
+/// original calls vs_battle_aiIsActionCooldownReady and discards its result.
 pub fn canEngageTarget(state: *ai.vs_battle_aiState, candidate: [*]u8) callconv(.c) c_int {
-    const room = v.g.D_800F58BC().*.?;
-    _ = c.func_800DBCB4(state, candidate);
+    const room = v.g.vs_battle_aiRoomAiState().*.?;
+    _ = c.vs_battle_aiIsActionCooldownReady(state, candidate);
     if (state.timer8E != 0) return 1;
     if (state.timer98 != 0) return 0;
     const target: usize = psx.byteAt(u32, candidate, 12).* & 0xf;

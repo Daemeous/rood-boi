@@ -91,26 +91,26 @@ enum easeMode {
 void _renderPhantomPain(_creditsElement* arg0);
 void _renderVagrantStory(_creditsElement* arg0);
 void _renderText(_creditsElement* arg0);
-static void func_8006B9B4(void);
+static void vs_ending_creditsStartMusic(void);
 static void _setDrawEnv(DRAWENV*);
-static void func_8006A888(void);
-static void func_8006A9C0(func_8006A9C0_t2*);
+static void vs_ending_creditsRunFrames(void);
+static void vs_ending_creditsUploadTexture(func_8006A9C0_t2*);
 static void _resetElements(void);
 static int _renderElements(void);
 static _creditsElement* _addRenderer(void (*arg0)(_creditsElement*));
 static void _parseCreditsScript(void);
-static void func_8006AF44(func_8006A9C0_t2* arg0, void* arg1);
-int func_8006AF64(void);
+static void vs_ending_creditsQueueIllustrationDecode(func_8006A9C0_t2* arg0, void* arg1);
+int vs_ending_creditsDecodeIllustrationStep(void);
 static int _drawScreen(void);
-static void func_8006B884(void);
+static void vs_ending_creditsAllocateRenderBuffers(void);
 static int _ease(short mode, short currentStep, short totalSteps);
 static void _updateClearGameStats(void);
 static void _beginFrame(void);
 static void _checkStreamXaEnd(void);
-static void func_8006BD78(void);
-static int func_8006BE04(void);
+static void vs_ending_showClearResults(void);
+static int vs_ending_loadClearResultsStep(void);
 static int _renderCongratulationsScreen(void);
-void func_8006C3CC(int);
+void vs_ending_drawRankBackground(int);
 static void _renderCongratulations(int arg0, int arg1, int arg2);
 static void _renderScore(int, int, int, int);
 static void _renderIncrementalScore(int, int, int, int);
@@ -122,18 +122,18 @@ static void _parseTim(u_int* arg0, TIM_IMAGE* arg1);
 static void _determineRank(void);
 static void _updateScore(void);
 
-extern int D_800DBB18;
-extern int D_800DBB1C;
-extern u_char D_800DBB28[4][16];
+extern int vs_ending_creditsRipplePhaseAngle;
+extern int vs_ending_creditsRippleScaleFrame;
+extern u_char vs_ending_creditsRippleDistanceGrid[4][16];
 #ifdef ROOD_PC
 /* The logo mesh reads column 16 and row 4, past the table into the next row
  * and the data after it, as the PS1 does; flat reads keep GCC from assuming
  * the loops stop early. */
-#define _phantomPainRsqrt(i, j) (((u_char*)D_800DBB28)[(i) * 16 + (j)])
+#define _phantomPainRsqrt(i, j) (((u_char*)vs_ending_creditsRippleDistanceGrid)[(i) * 16 + (j)])
 #else
-#define _phantomPainRsqrt(i, j) D_800DBB28[i][j]
+#define _phantomPainRsqrt(i, j) vs_ending_creditsRippleDistanceGrid[i][j]
 #endif
-extern u_char D_8006E3FC[];
+extern u_char vs_ending_creditsScriptBytes[];
 extern u_char _glyphWidths[];
 extern func_8006A9C0_t2 D_8007005C;
 extern func_8006A9C0_t2 D_8007709C;
@@ -148,20 +148,20 @@ extern func_8006A9C0_t2 D_800D975C;
 extern func_8006A9C0_t2 D_800DB09C;
 extern func_8006A9C0_t2 D_800DB26C;
 extern int _countableRooms[];
-extern u_char D_800DB72C;
-extern func_8006A9C0_t2* D_800DB7B0;
+extern u_char vs_ending_creditsIllustrationDecodePhase;
+extern func_8006A9C0_t2* vs_ending_creditsIllustrationTimWorkspace;
 extern u_short _illustrationTimers[];
 extern int _illustLbas[];
 extern int _illustSizes[];
 extern _texture_t _disMap[];
-extern u_char D_800DB876;
+extern u_char vs_ending_rankHeadingWidth;
 #ifdef ROOD_PC
 #include "pc/src/classic/classic_hook.h"
 /* The classic look drawn in Lua (classic_hook.h PC_CLASSIC): the MISSION COMPLETE
  * screen's leaves (pc/src/game/renderTextures.h, MENUF's own: 3B8.c) record their calls as
  * MENUF's do, one element a frame (pc_classic_menuf, its screen PC_CLASSIC_MENUF_ENDING),
  * the items they add the site's range (_renderCongratulationsScreen: not the picture under them,
- * func_8006C3CC). */
+ * vs_ending_drawRankBackground). */
 static pc_classic_menuf _pcMenuF;
 static int _pcMenuFOn;
 static void _pcMenuFCall(int op, int x, int y, int tex, int a, int b, P_CODE* colours)
@@ -212,12 +212,12 @@ static void _pcLeavesEnd(int first)
     }
 }
 #endif
-extern P_CODE D_800DBAA8[];
+extern P_CODE vs_ending_rankHeadingTint[];
 extern short titleThresholds[];
 extern u_int rankScores[];
-extern short D_800DBB68;
-extern short D_800DBB6A;
-extern u_short D_800DBB6C;
+extern short vs_ending_creditsIllustrationBrightness;
+extern short vs_ending_creditsIllustrationTexturePageX;
+extern u_short vs_ending_creditsIllustrationPaletteY;
 #ifdef ROOD_PC_LP64
 /* Runtime state holding native pointers (renderer, data): defined natively in
  * the native layout; it restarts with the overlay's statics. */
@@ -225,18 +225,18 @@ _creditsElement _creditsElements[32];
 #else
 extern _creditsElement _creditsElements[];
 #endif
-extern u_char D_800DC188;
-extern u_char D_800DC189;
+extern u_char vs_ending_creditsHasFinished;
+extern u_char vs_ending_creditsIsBackgroundFading;
 extern u_char _skipInvoked;
-extern int D_800DC18C;
+extern int vs_ending_creditsElapsedFrames;
 extern int _textStreamDelay;
 extern u_char* _creditsBytestreamHead;
 extern short _scrollSpeed;
-extern short D_800DC19A;
-extern u_short D_800DC19C;
-extern void* D_800DC1A0;
-extern func_8006A9C0_t2* D_800DC1A4;
-extern void* D_800DC1A8[];
+extern short vs_ending_creditsDecodeBudgetStartTick;
+extern u_short vs_ending_creditsBackgroundBrightness;
+extern void* vs_ending_creditsQueuedCompressedImage;
+extern func_8006A9C0_t2* vs_ending_creditsQueuedTimDestination;
+extern void* vs_ending_creditsIllustrationResources[];
 extern u_int _rank;
 extern int _clearCount;
 extern u_int _score;
@@ -244,18 +244,18 @@ extern int _mapCompletion;
 extern u_int _onScreenMapCompletion;
 extern int _onScreenScore;
 extern int _submenuState;
-extern int D_800DC20C;
-extern int D_800DC210;
+extern int vs_ending_resultsAnimationFrame;
+extern int vs_ending_isLeavingResults;
 extern int _incrementingScore;
 extern int _incrementingMapCompletion;
 extern u_char _riskbreakerRanks[][4];
-extern u_char* D_800DBB70;
-extern u_char* D_800DBB74;
-extern u_char* D_800DBB78;
-extern u_char D_800DBB7C;
-extern u_char D_800DBB7D;
-extern u_short D_800DBB7E;
-extern u_short D_800DBB80;
+extern u_char* vs_ending_creditsDecodeBackreferenceCursor;
+extern u_char* vs_ending_creditsDecodeInputCursor;
+extern u_char* vs_ending_creditsDecodeOutputCursor;
+extern u_char vs_ending_creditsDecodeFillByteZero;
+extern u_char vs_ending_creditsDecodeFillByteOne;
+extern u_short vs_ending_creditsDecodeRunLength;
+extern u_short vs_ending_creditsDecodeBackreferenceOffset;
 
 int func_800688D4(int angle)
 {
@@ -310,10 +310,10 @@ void _renderPhantomPain(_creditsElement* element)
 
     switch (element->state) {
     case 1:
-        D_800DBB18 = 0;
+        vs_ending_creditsRipplePhaseAngle = 0;
         element->currentStep = 0;
         element->state = 2;
-        D_800DBB1C = 0;
+        vs_ending_creditsRippleScaleFrame = 0;
 
         for (i = 0; i < 4; ++i) {
             shift = 2;
@@ -322,14 +322,14 @@ void _renderPhantomPain(_creditsElement* element)
             for (j = 0; j < 16; ++j) {
                 dx = 8 - j;
                 dx = ABS(dx) * 18;
-                D_800DBB28[i][j] = vs_gte_rsqrt(dx * dx + dy);
+                vs_ending_creditsRippleDistanceGrid[i][j] = vs_gte_rsqrt(dx * dx + dy);
             }
         }
         /* fallthrough */
 
     case 2:
         brightness = (element->currentStep << 7) / 90;
-        ++D_800DBB1C;
+        ++vs_ending_creditsRippleScaleFrame;
         if (++element->currentStep == 90) {
             element->currentStep = 0;
             element->state = 3;
@@ -352,8 +352,8 @@ void _renderPhantomPain(_creditsElement* element)
         break;
     }
 
-    D_800DBB18 += 200;
-    scale = (_ease(3, 90 - D_800DBB1C, 90) * 65) >> 10;
+    vs_ending_creditsRipplePhaseAngle += 200;
+    scale = (_ease(3, 90 - vs_ending_creditsRippleScaleFrame, 90) * 65) >> 10;
 
     RotMatrix_gte(&rot, &matrix);
     matrix.t[0] = matrix.t[1] = 0;
@@ -367,15 +367,15 @@ void _renderPhantomPain(_creditsElement* element)
             vertices[0].vy = vertices[1].vy = i * 4 - 8;
             vertices[2].vy = vertices[3].vy = (i + 1) * 4 - 8;
             vertices[0].vz =
-                (func_800688D4(D_800DBB18 + _phantomPainRsqrt(i, j) * 400) * scale) >> 12;
+                (func_800688D4(vs_ending_creditsRipplePhaseAngle + _phantomPainRsqrt(i, j) * 400) * scale) >> 12;
             vertices[1].vz =
-                (func_800688D4(D_800DBB18 + _phantomPainRsqrt(i, j + 1) * 400) * scale)
+                (func_800688D4(vs_ending_creditsRipplePhaseAngle + _phantomPainRsqrt(i, j + 1) * 400) * scale)
                 >> 12;
             vertices[2].vz =
-                (func_800688D4(D_800DBB18 + _phantomPainRsqrt(i + 1, j) * 400) * scale)
+                (func_800688D4(vs_ending_creditsRipplePhaseAngle + _phantomPainRsqrt(i + 1, j) * 400) * scale)
                 >> 12;
             vertices[3].vz =
-                (func_800688D4(D_800DBB18 + _phantomPainRsqrt(i + 1, j + 1) * 400)
+                (func_800688D4(vs_ending_creditsRipplePhaseAngle + _phantomPainRsqrt(i + 1, j + 1) * 400)
                     * scale)
                 >> 12;
 
@@ -465,7 +465,7 @@ void _renderVagrantStory(_creditsElement* element)
         /* fallthrough */
 
     case 2:
-        var_fp = (D_800DC19C * ++element->currentStep) / 60;
+        var_fp = (vs_ending_creditsBackgroundBrightness * ++element->currentStep) / 60;
 
         if (element->currentStep == 60) {
             element->state = 3;
@@ -474,7 +474,7 @@ void _renderVagrantStory(_creditsElement* element)
         break;
 
     case 3:
-        var_fp = D_800DC19C;
+        var_fp = vs_ending_creditsBackgroundBrightness;
 
         if (++element->currentStep == 60) {
             element->state = 4;
@@ -482,7 +482,7 @@ void _renderVagrantStory(_creditsElement* element)
         break;
 
     case 4:
-        var_fp = D_800DC19C;
+        var_fp = vs_ending_creditsBackgroundBrightness;
         element->y += _scrollSpeed;
 
         if (element->y < -(60 << 8)) {
@@ -505,9 +505,9 @@ static int _inverseDistanceFromScreencenter(int arg0, int arg1)
     return vs_gte_rsqrt(arg0 * arg0 + arg1 * arg1);
 }
 
-static void func_80069388(func_80069388_t* arg0, short arg1, short arg2)
+static void vs_ending_creditsApplyRadialVertexFade(func_80069388_t* arg0, short arg1, short arg2)
     __attribute__((unused));
-static void func_80069388(func_80069388_t* arg0, short arg1, short arg2)
+static void vs_ending_creditsApplyRadialVertexFade(func_80069388_t* arg0, short arg1, short arg2)
 {
     short temp_s0;
     short v0;
@@ -622,17 +622,17 @@ static void _renderllustration(_creditsElement* element)
     switch (temp_v0) {
     case 0:
         if ((element->illustId >= 4) && (element->illustId != 15)) {
-            func_8006AF44(D_800DB7B0, D_800DC1A8[element->illustId + 1]);
+            vs_ending_creditsQueueIllustrationDecode(vs_ending_creditsIllustrationTimWorkspace, vs_ending_creditsIllustrationResources[element->illustId + 1]);
         }
 
         element->currentStep = 0;
         element->state = 2;
-        D_800DBB6A = (element->illustId % 5) * 192;
-        D_800DBB6C = (element->illustId % 5) + 480;
+        vs_ending_creditsIllustrationTexturePageX = (element->illustId % 5) * 192;
+        vs_ending_creditsIllustrationPaletteY = (element->illustId % 5) + 480;
         /* fallthrough */
 
     case 1:
-        D_800DBB68 = (D_800DC19C * element->currentStep) / 80;
+        vs_ending_creditsIllustrationBrightness = (vs_ending_creditsBackgroundBrightness * element->currentStep) / 80;
 
         if (++element->currentStep == 80) {
             int var_a0 = 3;
@@ -645,7 +645,7 @@ static void _renderllustration(_creditsElement* element)
         break;
 
     case 2:
-        D_800DBB68 = 128;
+        vs_ending_creditsIllustrationBrightness = 128;
 
         if (++element->currentStep == _illustrationTimers[element->illustId]) {
             element->currentStep = 0;
@@ -655,25 +655,25 @@ static void _renderllustration(_creditsElement* element)
         break;
 
     case 3:
-        D_800DBB68 = (D_800DC19C * (80 - element->currentStep)) / 80;
+        vs_ending_creditsIllustrationBrightness = (vs_ending_creditsBackgroundBrightness * (80 - element->currentStep)) / 80;
 
         if (++element->currentStep == 80) {
             if (++element->illustId >= 5) {
-                func_8006A9C0(D_800DB7B0);
+                vs_ending_creditsUploadTexture(vs_ending_creditsIllustrationTimWorkspace);
             }
             element->state = 1;
         }
         break;
 
     case 4:
-        D_800DBB68 = 0x80;
+        vs_ending_creditsIllustrationBrightness = 0x80;
         break;
     }
 
-    pc_frame_sprite(4, 0, 0, 0xA0, 0xE0, 0, 0, PC_GREY(D_800DBB68),
-        getClut(0, D_800DBB6C), PC_ITEM_MODE(getTPage(1, 2, D_800DBB6A, 256)), PC_ITEM_SEMI);
-    pc_frame_sprite(4, 0xA0, 0, 0xA0, 0xE0, 0x20, 0, PC_GREY(D_800DBB68),
-        getClut(0, D_800DBB6C), PC_ITEM_MODE(getTPage(1, 2, D_800DBB6A + 64, 256)), PC_ITEM_SEMI);
+    pc_frame_sprite(4, 0, 0, 0xA0, 0xE0, 0, 0, PC_GREY(vs_ending_creditsIllustrationBrightness),
+        getClut(0, vs_ending_creditsIllustrationPaletteY), PC_ITEM_MODE(getTPage(1, 2, vs_ending_creditsIllustrationTexturePageX, 256)), PC_ITEM_SEMI);
+    pc_frame_sprite(4, 0xA0, 0, 0xA0, 0xE0, 0x20, 0, PC_GREY(vs_ending_creditsIllustrationBrightness),
+        getClut(0, vs_ending_creditsIllustrationPaletteY), PC_ITEM_MODE(getTPage(1, 2, vs_ending_creditsIllustrationTexturePageX + 64, 256)), PC_ITEM_SEMI);
 }
 
 static int _creditsStrWidth(u_char* str)
@@ -776,7 +776,7 @@ void _renderText(_creditsElement* element)
             glyph = charTableOffset + c - 32;
             glyphWidth = _glyphWidths[glyph];
             pc_frame_sprite(3, x, y, glyphWidth, 16, (glyph & 0xF) * 16, (glyph >> 4) * 16,
-                PC_GREY(D_800DC19C), getClut(960, 480), PC_ITEM_MODE(31), 0);
+                PC_GREY(vs_ending_creditsBackgroundBrightness), getClut(960, 480), PC_ITEM_MODE(31), 0);
             x += glyphWidth - 1;
         }
     }
@@ -787,7 +787,7 @@ void _renderText(_creditsElement* element)
         x = 160 - ((element->width + 32) >> 1);
 
         y += underline;
-        pc_frame_sprite(3, x, y, 16, 3, 0, 208, PC_GREY(D_800DC19C),
+        pc_frame_sprite(3, x, y, 16, 3, 0, 208, PC_GREY(vs_ending_creditsBackgroundBrightness),
             getClut(960, 480), PC_ITEM_MODE(31), 0);
 
         poly = pc_frame_add(PC_ITEM_POLY, 3);
@@ -805,11 +805,11 @@ void _renderText(_creditsElement* element)
             poly->v[0] = poly->v[1] = 208;
             poly->mode = 31;
             poly->clut = getClut(960, 480);
-            poly->rgb[0][0] = poly->rgb[0][1] = poly->rgb[0][2] = D_800DC19C;
+            poly->rgb[0][0] = poly->rgb[0][1] = poly->rgb[0][2] = vs_ending_creditsBackgroundBrightness;
         }
         x += element->width;
 
-        pc_frame_sprite(3, x, y, 16, 3, 168, 208, PC_GREY(D_800DC19C),
+        pc_frame_sprite(3, x, y, 16, 3, 168, 208, PC_GREY(vs_ending_creditsBackgroundBrightness),
             getClut(960, 480), PC_ITEM_MODE(31), 0);
     }
 }
@@ -829,7 +829,7 @@ void _renderCopyright(_creditsElement* arg0)
         return;
     }
 
-    pc_frame_sprite(3, arg0->x >> 8, arg0->y >> 8, 0x78, 0x10, 0, 0x30, PC_GREY(D_800DC19C),
+    pc_frame_sprite(3, arg0->x >> 8, arg0->y >> 8, 0x78, 0x10, 0, 0x30, PC_GREY(vs_ending_creditsBackgroundBrightness),
         getClut(960, 64), PC_ITEM_MODE(getTPage(clut4Bit, semiTransparencyFull, 960, 0)), 0);
 }
 
@@ -838,9 +838,9 @@ static void _renderBackground(_creditsElement* arg0 __attribute__((unused)))
     int subtract = PC_ITEM_MODE(getTPage(clut8Bit, semiTransparencySubtract, 0, 0));
     pc_item* poly;
 
-    pc_frame_sprite(0x7FF, 0, 10, 256, 204, 0, 10, PC_GREY(D_800DC19C),
+    pc_frame_sprite(0x7FF, 0, 10, 256, 204, 0, 10, PC_GREY(vs_ending_creditsBackgroundBrightness),
         getClut(780, 255), PC_ITEM_MODE(getTPage(clut4Bit, semiTransparencyFull, 768, 0)), 0);
-    pc_frame_sprite(0x7FF, 256, 10, 64, 204, 0, 10, PC_GREY(D_800DC19C),
+    pc_frame_sprite(0x7FF, 256, 10, 64, 204, 0, 10, PC_GREY(vs_ending_creditsBackgroundBrightness),
         getClut(780, 255), PC_ITEM_MODE(getTPage(clut4Bit, semiTransparencyFull, 832, 0)), 0);
 
     poly = pc_frame_add(PC_ITEM_POLY, 2);
@@ -880,11 +880,11 @@ static void _backgroundFadeIn(_creditsElement* element)
     }
 
     if (++element->currentStep == 128) {
-        D_800DC189 = 0;
+        vs_ending_creditsIsBackgroundFading = 0;
         element->state = -1;
     }
 
-    D_800DC19C = (u_int)_ease(easeModeLinear, element->currentStep, 128) / 32;
+    vs_ending_creditsBackgroundBrightness = (u_int)_ease(easeModeLinear, element->currentStep, 128) / 32;
 }
 
 static void _backgroundFadeOut(_creditsElement* arg0)
@@ -892,20 +892,20 @@ static void _backgroundFadeOut(_creditsElement* arg0)
     if (arg0->state == 1) {
         arg0->state = 2;
         arg0->currentStep = 0;
-        D_800DC189 = 1;
+        vs_ending_creditsIsBackgroundFading = 1;
     }
 
     if (++arg0->currentStep == 128) {
         if (arg0->width != 0) {
-            D_800DC188 = 1;
+            vs_ending_creditsHasFinished = 1;
         }
         arg0->state = -1;
     }
 
-    D_800DC19C = 128 - ((_ease(easeModeLinear, arg0->currentStep, 128) << 7) >> 0xC);
+    vs_ending_creditsBackgroundBrightness = 128 - ((_ease(easeModeLinear, arg0->currentStep, 128) << 7) >> 0xC);
 }
 
-static void func_8006A4D8(_creditsElement* element)
+static void vs_ending_creditsFadeOutForSkip(_creditsElement* element)
 {
     int level;
 
@@ -915,7 +915,7 @@ static void func_8006A4D8(_creditsElement* element)
     }
 
     if (++element->currentStep == 128) {
-        D_800DC188 = 1;
+        vs_ending_creditsHasFinished = 1;
     }
 
     level = (_ease(easeModeEaseOut, element->currentStep, 128) * 255) >> 0xC;
@@ -929,7 +929,7 @@ void vs_ending_exec(void)
     short i;
     vs_main_CdQueueSlot* slot;
 
-    func_8006B884();
+    vs_ending_creditsAllocateRenderBuffers();
     SetGeomOffset(0xA0, 0x70);
     SetGeomScreen(0x200);
     _setDrawEnv(vs_main_drawEnv);
@@ -938,25 +938,25 @@ void vs_ending_exec(void)
     vs_main_dispEnv[1].isinter = 0;
     vs_main_dispEnv[0].isinter = 0;
 
-    func_8006A9C0(&D_8007005C);
-    func_8006A9C0(&D_800CF33C);
-    func_8006A9C0(&D_800D7F7C);
-    func_8006A9C0(&D_800D975C);
-    func_8006A9C0(&D_800D837C);
-    func_8006A9C0(&D_800DB09C);
-    func_8006A9C0(&D_800DB26C);
-    func_8006A9C0(&D_8007709C);
-    func_8006A9C0(&D_80088ABC);
-    func_8006A9C0(&D_8009A4DC);
-    func_8006A9C0(&D_800ABEFC);
-    func_8006A9C0(&D_800BD91C);
+    vs_ending_creditsUploadTexture(&D_8007005C);
+    vs_ending_creditsUploadTexture(&D_800CF33C);
+    vs_ending_creditsUploadTexture(&D_800D7F7C);
+    vs_ending_creditsUploadTexture(&D_800D975C);
+    vs_ending_creditsUploadTexture(&D_800D837C);
+    vs_ending_creditsUploadTexture(&D_800DB09C);
+    vs_ending_creditsUploadTexture(&D_800DB26C);
+    vs_ending_creditsUploadTexture(&D_8007709C);
+    vs_ending_creditsUploadTexture(&D_80088ABC);
+    vs_ending_creditsUploadTexture(&D_8009A4DC);
+    vs_ending_creditsUploadTexture(&D_800ABEFC);
+    vs_ending_creditsUploadTexture(&D_800BD91C);
 
     for (i = 5; i < 16; ++i) {
         file.lba = _illustLbas[i - 5];
         file.size = _illustSizes[i - 5];
-        D_800DC1A8[i] = vs_main_allocHeapR(file.size);
+        vs_ending_creditsIllustrationResources[i] = vs_main_allocHeapR(file.size);
         slot = vs_main_allocateCdQueueSlot(&file);
-        vs_main_cdEnqueuePriority(slot, D_800DC1A8[i]);
+        vs_main_cdEnqueuePriority(slot, vs_ending_creditsIllustrationResources[i]);
 
         do {
             vs_main_gametimeUpdate(0);
@@ -965,7 +965,7 @@ void vs_ending_exec(void)
         vs_main_freeCdQueueSlot(slot);
     }
 
-    D_800DC19C = 0;
+    vs_ending_creditsBackgroundBrightness = 0;
     _skipInvoked = 0;
 
     _resetElements();
@@ -973,25 +973,25 @@ void vs_ending_exec(void)
     DrawSync(0);
     SetDispMask(1);
 
-    _creditsBytestreamHead = D_8006E3FC;
+    _creditsBytestreamHead = vs_ending_creditsScriptBytes;
     _scrollSpeed = -128;
-    D_800DC188 = 0;
+    vs_ending_creditsHasFinished = 0;
     _textStreamDelay = 0;
-    D_800DC18C = 0;
-    D_800DC189 = 1;
+    vs_ending_creditsElapsedFrames = 0;
+    vs_ending_creditsIsBackgroundFading = 1;
 
-    func_8006B9B4();
-    func_8006A888();
+    vs_ending_creditsStartMusic();
+    vs_ending_creditsRunFrames();
     vs_main_checkStreamXaEnd();
     SetDispMask(0);
 
     for (i = 5; i < 16; ++i) {
-        vs_main_freeHeapR(D_800DC1A8[i]);
+        vs_main_freeHeapR(vs_ending_creditsIllustrationResources[i]);
     }
 
     _checkStreamXaEnd();
     _updateClearGameStats();
-    func_8006BD78();
+    vs_ending_showClearResults();
 }
 
 static void _setDrawEnv(DRAWENV* drawenv)
@@ -1005,29 +1005,29 @@ static void _setDrawEnv(DRAWENV* drawenv)
     drawenv->tpage = 0x20;
 }
 
-static void func_8006A888(void)
+static void vs_ending_creditsRunFrames(void)
 {
-    while (D_800DC188 == 0) {
+    while (vs_ending_creditsHasFinished == 0) {
 
-        D_800DC19A = VSync(1);
+        vs_ending_creditsDecodeBudgetStartTick = VSync(1);
 
         _beginFrame();
         _parseCreditsScript();
         _renderElements();
-        func_8006AF64();
+        vs_ending_creditsDecodeIllustrationStep();
 
         if ((vs_main_buttonsPressed.all & PADstart) && (_skipInvoked == 0)) {
-            _addRenderer(func_8006A4D8);
+            _addRenderer(vs_ending_creditsFadeOutForSkip);
             _skipInvoked = 1;
         }
 
         _drawScreen();
 
-        ++D_800DC18C;
+        ++vs_ending_creditsElapsedFrames;
     }
 }
 
-static void func_8006A9C0(func_8006A9C0_t2* arg0)
+static void vs_ending_creditsUploadTexture(func_8006A9C0_t2* arg0)
 {
     RECT rect;
     func_8006A9C0_t* p = &arg0->unk8;
@@ -1196,7 +1196,7 @@ static void _parseCreditsScript(void)
 
         // 0xFF End of stream
         case 255:
-            D_800DC188 = 1;
+            vs_ending_creditsHasFinished = 1;
             return;
 
         default:
@@ -1219,90 +1219,90 @@ static int _ease(short mode, short currentStep, short totalSteps)
     }
 }
 
-static void func_8006AF44(func_8006A9C0_t2* arg0, void* arg1)
+static void vs_ending_creditsQueueIllustrationDecode(func_8006A9C0_t2* arg0, void* arg1)
 {
-    D_800DB72C = 1;
-    D_800DC1A0 = arg1;
-    D_800DC1A4 = arg0;
+    vs_ending_creditsIllustrationDecodePhase = 1;
+    vs_ending_creditsQueuedCompressedImage = arg1;
+    vs_ending_creditsQueuedTimDestination = arg0;
 }
 
-/* Incrementally decompresses the stream queued by func_8006AF44, yielding
-   once the frame budget (200 VSync ticks since D_800DC19A) is used up.
+/* Incrementally decompresses the stream queued by vs_ending_creditsQueueIllustrationDecode, yielding
+   once the frame budget (200 VSync ticks since vs_ending_creditsDecodeBudgetStartTick) is used up.
    Returns 1 when the end-of-stream marker (0x7F) is reached, 0 otherwise. */
-int func_8006AF64(void)
+int vs_ending_creditsDecodeIllustrationStep(void)
 {
     short i;
     u_char op;
 
-    if (D_800DB72C == 0) {
+    if (vs_ending_creditsIllustrationDecodePhase == 0) {
         return 0;
     }
 
-    if (D_800DB72C == 1) {
-        D_800DB72C = 2;
-        D_800DBB74 = D_800DC1A0;
-        D_800DBB78 = (u_char*)D_800DC1A4;
+    if (vs_ending_creditsIllustrationDecodePhase == 1) {
+        vs_ending_creditsIllustrationDecodePhase = 2;
+        vs_ending_creditsDecodeInputCursor = vs_ending_creditsQueuedCompressedImage;
+        vs_ending_creditsDecodeOutputCursor = (u_char*)vs_ending_creditsQueuedTimDestination;
     }
 
     while (1) {
-        if ((VSync(1) - D_800DC19A) > 200) {
+        if ((VSync(1) - vs_ending_creditsDecodeBudgetStartTick) > 200) {
             return 0;
         }
 
-        op = *D_800DBB74;
+        op = *vs_ending_creditsDecodeInputCursor;
 
         if (!(op & 0x80)) {
             if (op == 0x7F) {
-                D_800DB72C = 0;
+                vs_ending_creditsIllustrationDecodePhase = 0;
                 return 1;
             }
             if (op == 0x7D) {
                 // 0x7D: u8 count, u8 value: fill count + 1 bytes
-                ++D_800DBB74;
-                D_800DBB7E = *D_800DBB74++;
-                D_800DBB7C = *D_800DBB74++;
-                for (i = 0; i <= D_800DBB7E; ++i) {
-                    *D_800DBB78++ = D_800DBB7C;
+                ++vs_ending_creditsDecodeInputCursor;
+                vs_ending_creditsDecodeRunLength = *vs_ending_creditsDecodeInputCursor++;
+                vs_ending_creditsDecodeFillByteZero = *vs_ending_creditsDecodeInputCursor++;
+                for (i = 0; i <= vs_ending_creditsDecodeRunLength; ++i) {
+                    *vs_ending_creditsDecodeOutputCursor++ = vs_ending_creditsDecodeFillByteZero;
                 }
             } else if (op == 0x7E) {
                 // 0x7E: u8 count, u8 value0, u8 value1: fill count + 1 byte pairs
-                ++D_800DBB74;
-                D_800DBB7E = *D_800DBB74++;
-                D_800DBB7C = *D_800DBB74++;
-                D_800DBB7D = *D_800DBB74++;
-                for (i = 0; i <= D_800DBB7E; ++i) {
-                    *D_800DBB78++ = D_800DBB7C;
-                    *D_800DBB78++ = D_800DBB7D;
+                ++vs_ending_creditsDecodeInputCursor;
+                vs_ending_creditsDecodeRunLength = *vs_ending_creditsDecodeInputCursor++;
+                vs_ending_creditsDecodeFillByteZero = *vs_ending_creditsDecodeInputCursor++;
+                vs_ending_creditsDecodeFillByteOne = *vs_ending_creditsDecodeInputCursor++;
+                for (i = 0; i <= vs_ending_creditsDecodeRunLength; ++i) {
+                    *vs_ending_creditsDecodeOutputCursor++ = vs_ending_creditsDecodeFillByteZero;
+                    *vs_ending_creditsDecodeOutputCursor++ = vs_ending_creditsDecodeFillByteOne;
                 }
             } else {
                 // 0x00-0x7C: copy op + 1 literal bytes
-                D_800DBB7E = *D_800DBB74++;
-                for (i = 0; i <= D_800DBB7E; ++i) {
-                    *D_800DBB78++ = *D_800DBB74++;
+                vs_ending_creditsDecodeRunLength = *vs_ending_creditsDecodeInputCursor++;
+                for (i = 0; i <= vs_ending_creditsDecodeRunLength; ++i) {
+                    *vs_ending_creditsDecodeOutputCursor++ = *vs_ending_creditsDecodeInputCursor++;
                 }
             }
         } else {
             // 1LLLOOOO OOOOOOOO: copy L + 3 bytes from offset O + 1 back,
             // repeated while followed by 0x7C
-            D_800DBB7E = ((op >> 4) & 7) + 3;
-            D_800DBB80 = ((D_800DBB74[0] & 0xF) << 8) + D_800DBB74[1];
-            D_800DBB74 += 2;
-            D_800DBB70 = D_800DBB78 - D_800DBB80 - 1;
-            for (i = 0; i < D_800DBB7E; ++i) {
-                *D_800DBB78++ = *D_800DBB70++;
+            vs_ending_creditsDecodeRunLength = ((op >> 4) & 7) + 3;
+            vs_ending_creditsDecodeBackreferenceOffset = ((vs_ending_creditsDecodeInputCursor[0] & 0xF) << 8) + vs_ending_creditsDecodeInputCursor[1];
+            vs_ending_creditsDecodeInputCursor += 2;
+            vs_ending_creditsDecodeBackreferenceCursor = vs_ending_creditsDecodeOutputCursor - vs_ending_creditsDecodeBackreferenceOffset - 1;
+            for (i = 0; i < vs_ending_creditsDecodeRunLength; ++i) {
+                *vs_ending_creditsDecodeOutputCursor++ = *vs_ending_creditsDecodeBackreferenceCursor++;
             }
-            while (*D_800DBB74 == 0x7C) {
-                D_800DBB70 = D_800DBB78 - D_800DBB80 - 1;
-                ++D_800DBB74;
-                for (i = 0; i < D_800DBB7E; ++i) {
-                    *D_800DBB78++ = *D_800DBB70++;
+            while (*vs_ending_creditsDecodeInputCursor == 0x7C) {
+                vs_ending_creditsDecodeBackreferenceCursor = vs_ending_creditsDecodeOutputCursor - vs_ending_creditsDecodeBackreferenceOffset - 1;
+                ++vs_ending_creditsDecodeInputCursor;
+                for (i = 0; i < vs_ending_creditsDecodeRunLength; ++i) {
+                    *vs_ending_creditsDecodeOutputCursor++ = *vs_ending_creditsDecodeBackreferenceCursor++;
                 }
             }
         }
     }
 }
 
-static void func_8006B450(int arg0, int arg1, int arg2, int arg3, int arg4, int arg5)
+static void vs_ending_creditsInitializeDisplay(int arg0, int arg1, int arg2, int arg3, int arg4, int arg5)
 {
     RECT rect;
     int temp_s1;
@@ -1325,8 +1325,8 @@ static void func_8006B450(int arg0, int arg1, int arg2, int arg3, int arg4, int 
 
     D_8005DFD4 = 0;
     D_8005DFD8 = 0;
-    D_8005DFD6 = arg0;
-    D_8005DFDA = temp_s1;
+    vs_render_viewportWidth = arg0;
+    vs_render_viewportHeight = temp_s1;
     vs_main_drawEnv[1].dtd = 0;
     vs_main_drawEnv[0].dtd = 0;
     vs_main_drawEnv[1].isbg = 1;
@@ -1400,13 +1400,13 @@ static void _do_updateClearGameStats(void)
         ++vs_main_stateFlags.clearCount;
     }
 
-    D_80061068.zndId = 1;
-    D_80061068.mpdId = 0;
+    vs_state_savedEntryDoor.zndId = 1;
+    vs_state_savedEntryDoor.mpdId = 0;
 }
 
-static void func_8006B884(void)
+static void vs_ending_creditsAllocateRenderBuffers(void)
 {
-    func_8006B450(0x140, 0xF0, 0x200, 0, 0, 0);
+    vs_ending_creditsInitializeDisplay(0x140, 0xF0, 0x200, 0, 0, 0);
     vs_main_initHeap((vs_main_HeapHeader*)VS_MAIN_HEAP_ADDRESS, VS_MAIN_HEAP_SIZE);
 }
 
@@ -1418,7 +1418,7 @@ static void _beginFrame(void)
     pc_frame_begin();
 }
 
-static void func_8006B9B4(void)
+static void vs_ending_creditsStartMusic(void)
 {
     vs_main_streamXa(VS_ENDING_XA_LBA, 0x7FFF); // Partial playback?
 }
@@ -1532,7 +1532,7 @@ static void _updateTitles(void)
     }
 }
 
-static void func_8006BD78(void)
+static void vs_ending_showClearResults(void)
 {
     int temp_s0;
 
@@ -1541,7 +1541,7 @@ static void func_8006BD78(void)
 
     do {
         _beginFrame();
-        temp_s0 = func_8006BE04();
+        temp_s0 = vs_ending_loadClearResultsStep();
         _drawScreen();
     } while (temp_s0 == 0);
 
@@ -1560,7 +1560,7 @@ extern vs_main_CdQueueSlot* cdSlot;
 extern void* timData;
 #endif
 
-static int func_8006BE04(void)
+static int vs_ending_loadClearResultsStep(void)
 {
     static const vs_main_CdFile endScrDisFiles[] = {
         { VS_END_DIS_LBA, VS_END_DIS_SIZE },
@@ -1638,8 +1638,8 @@ static int func_8006BE04(void)
         var_a1 = 0;
         _onScreenMapCompletion = 0;
         _onScreenScore = 0;
-        D_800DC20C = 0;
-        D_800DC210 = 0;
+        vs_ending_resultsAnimationFrame = 0;
+        vs_ending_isLeavingResults = 0;
         _clearCount = vs_main_stateFlags.clearCount;
 
         for (i = 0; i < 16; ++i) {
@@ -1708,60 +1708,60 @@ static int func_8006BE04(void)
 
 static int _renderCongratulationsScreen(void)
 {
-    if (D_800DC210 == 0) {
+    if (vs_ending_isLeavingResults == 0) {
 
-        if (D_800DC20C == 0xD0) {
+        if (vs_ending_resultsAnimationFrame == 0xD0) {
             vs_main_playSfxDefault(0x7E, 0x77);
             vs_main_playSfxDefault(0x7E, 0x78);
         }
 
-        func_8006C3CC(D_800DC20C);
+        vs_ending_drawRankBackground(vs_ending_resultsAnimationFrame);
 #ifdef ROOD_PC
         int pcFirst = _pcLeavesBegin();
 #endif
-        _renderCongratulations(0xA0, 0x28, D_800DC20C);
-        _renderIncrementalScore(0xA0, 0x50, D_800DC20C - 0x20, D_800DC210);
-        _renderIncrementalMapCompletion(0xA0, 0x66, D_800DC20C - 0x70, D_800DC210);
-        _renderRiskbreakerRankHeader(0xA0, 0x8A, D_800DC20C - 0xC0);
-        _renderRiskbreakerRank(0xA0, 0x9A, D_800DC20C - 0xD0);
+        _renderCongratulations(0xA0, 0x28, vs_ending_resultsAnimationFrame);
+        _renderIncrementalScore(0xA0, 0x50, vs_ending_resultsAnimationFrame - 0x20, vs_ending_isLeavingResults);
+        _renderIncrementalMapCompletion(0xA0, 0x66, vs_ending_resultsAnimationFrame - 0x70, vs_ending_isLeavingResults);
+        _renderRiskbreakerRankHeader(0xA0, 0x8A, vs_ending_resultsAnimationFrame - 0xC0);
+        _renderRiskbreakerRank(0xA0, 0x9A, vs_ending_resultsAnimationFrame - 0xD0);
 #ifdef ROOD_PC
         _pcLeavesEnd(pcFirst);
 #endif
 
-        if (D_800DC20C >= 0x1001) {
-            D_800DC20C = 0x1000;
+        if (vs_ending_resultsAnimationFrame >= 0x1001) {
+            vs_ending_resultsAnimationFrame = 0x1000;
         }
 
         if (vs_main_buttonsPressed.all != 0) {
-            D_800DC210 = 1;
-            D_800DC20C = 0;
+            vs_ending_isLeavingResults = 1;
+            vs_ending_resultsAnimationFrame = 0;
         }
 
     } else {
 
-        func_8006C3CC(8 - D_800DC20C);
+        vs_ending_drawRankBackground(8 - vs_ending_resultsAnimationFrame);
 #ifdef ROOD_PC
         int pcFirst = _pcLeavesBegin();
 #endif
-        _renderCongratulations(0xA0, 0x28, 8 - D_800DC20C);
-        _renderScore(0xA0, 0x50, 8 - D_800DC20C, 3);
-        _renderMapCompletion(0xA0, 0x66, 8 - D_800DC20C, 3);
-        _renderRiskbreakerRankHeader(0xA0, 0x8A, 8 - D_800DC20C);
-        _renderRiskbreakerRank(0xA0, 0x9A, 8 - D_800DC20C);
+        _renderCongratulations(0xA0, 0x28, 8 - vs_ending_resultsAnimationFrame);
+        _renderScore(0xA0, 0x50, 8 - vs_ending_resultsAnimationFrame, 3);
+        _renderMapCompletion(0xA0, 0x66, 8 - vs_ending_resultsAnimationFrame, 3);
+        _renderRiskbreakerRankHeader(0xA0, 0x8A, 8 - vs_ending_resultsAnimationFrame);
+        _renderRiskbreakerRank(0xA0, 0x9A, 8 - vs_ending_resultsAnimationFrame);
 #ifdef ROOD_PC
         _pcLeavesEnd(pcFirst);
 #endif
 
-        if (D_800DC20C >= 8) {
+        if (vs_ending_resultsAnimationFrame >= 8) {
             return 1;
         }
     }
 
-    ++D_800DC20C;
+    ++vs_ending_resultsAnimationFrame;
     return 0;
 }
 
-void func_8006C3CC(int arg0)
+void vs_ending_drawRankBackground(int arg0)
 {
     int i;
     int temp_s4;
@@ -1802,7 +1802,7 @@ void func_8006C3CC(int arg0)
 
 static void _renderCongratulations(int arg0, int arg1, int arg2)
 {
-    extern P_CODE D_800DBA7C[2];
+    extern P_CODE vs_ending_congratulationsTint[2];
 
     if (arg2 < 0) {
         arg2 = 0;
@@ -1813,17 +1813,17 @@ static void _renderCongratulations(int arg0, int arg1, int arg2)
     }
 
     if (arg2 > 0) {
-        D_800DBA7C[0].code = arg2;
-        D_800DBA7C[1].code = arg2;
+        vs_ending_congratulationsTint[0].code = arg2;
+        vs_ending_congratulationsTint[1].code = arg2;
         arg0 = arg0 - ((_disMap[22].w + _disMap[23].w) >> 1);
-        _renderTexturePopIn(arg0, arg1, 0x16, D_800DBA7C);
-        _renderTexturePopIn(arg0 + _disMap[22].w, arg1, 0x17, &D_800DBA7C[1]);
+        _renderTexturePopIn(arg0, arg1, 0x16, vs_ending_congratulationsTint);
+        _renderTexturePopIn(arg0 + _disMap[22].w, arg1, 0x17, &vs_ending_congratulationsTint[1]);
     }
 }
 
 static void _renderScore(int arg0, int arg1, int arg2, int arg3 __attribute__((unused)))
 {
-    extern P_CODE D_800DBA88[];
+    extern P_CODE vs_ending_scoreTint[];
 
     char sp10[10];
     int i;
@@ -1840,41 +1840,41 @@ static void _renderScore(int arg0, int arg1, int arg2, int arg3 __attribute__((u
 
     if (arg2 > 0) {
 
-        D_800DBA88[0].code = arg2;
+        vs_ending_scoreTint[0].code = arg2;
 
         sprintf(sp10, "%09d", _score);
 
         v1 = _disMap[18].w + _disMap[26].w + _disMap[20].w;
         arg0 -= (_disMap[10].w * 2 + v1 + 0x74) >> 1;
 
-        _renderTextureFadeInTint(arg0, arg1, 0x12, D_800DBA88);
+        _renderTextureFadeInTint(arg0, arg1, 0x12, vs_ending_scoreTint);
 
         arg0 += _disMap[18].w;
 
-        _renderTextureFadeInTint(arg0, arg1 + 7, 0x1A, D_800DBA88);
+        _renderTextureFadeInTint(arg0, arg1 + 7, 0x1A, vs_ending_scoreTint);
 
         v0 = arg0 + 2;
         arg0 = v0 + _disMap[26].w;
 
         for (i = 0; i < 9; ++i) {
-            _renderTextureFadeInTint(arg0, arg1 + 3, sp10[i] - 0x30, D_800DBA88);
+            _renderTextureFadeInTint(arg0, arg1 + 3, sp10[i] - 0x30, vs_ending_scoreTint);
             arg0 += 12;
             if ((i == 2) || (i == 5)) {
                 int v0;
-                _renderTextureFadeInTint(arg0, arg1 + 0xE, 0xA, D_800DBA88);
+                _renderTextureFadeInTint(arg0, arg1 + 0xE, 0xA, vs_ending_scoreTint);
                 v0 = arg0 + 3;
                 arg0 = v0 + _disMap[10].w;
             }
         }
 
-        _renderTextureFadeInTint(arg0, arg1 + 8, 0x14, D_800DBA88);
+        _renderTextureFadeInTint(arg0, arg1 + 8, 0x14, vs_ending_scoreTint);
     }
 }
 
 static void _renderIncrementalScore(
     int arg0, int arg1, int arg2, int arg3 __attribute__((unused)))
 {
-    extern P_CODE D_800DBA90[];
+    extern P_CODE vs_ending_countingScoreTint[];
 
     char sp18[16];
     int temp_s2;
@@ -1905,7 +1905,7 @@ static void _renderIncrementalScore(
 
             if ((_onScreenScore == _score) && (_incrementingScore != 0)) {
                 _incrementingScore = 0;
-                func_80045D64(0x7E, 0x72);
+                vs_audio_stopSfx(0x7E, 0x72);
                 vs_main_playSfxDefault(0x7E, 0x73);
             }
         }
@@ -1923,32 +1923,32 @@ static void _renderIncrementalScore(
         v1 = _disMap[18].w + _disMap[26].w + _disMap[20].w;
         arg0 -= (_disMap[10].w * 2 + v1 + 0x74) >> 1;
 
-        _renderTextureWipe(arg0, arg1, 0x12, D_800DBA90, temp_s2);
+        _renderTextureWipe(arg0, arg1, 0x12, vs_ending_countingScoreTint, temp_s2);
 
         arg0 += _disMap[18].w;
 
-        _renderTextureWipe(arg0, arg1 + 7, 0x1A, D_800DBA90, temp_s2);
+        _renderTextureWipe(arg0, arg1 + 7, 0x1A, vs_ending_countingScoreTint, temp_s2);
 
         v0 = arg0 + 2;
         arg0 = v0 + _disMap[26].w;
 
         for (i = 0; i < 9; ++i) {
-            _renderTextureWipe(arg0, arg1 + 3, sp18[i] - '0', D_800DBA90, temp_s2);
+            _renderTextureWipe(arg0, arg1 + 3, sp18[i] - '0', vs_ending_countingScoreTint, temp_s2);
             arg0 += 12;
             if ((i == 2) || (i == 5)) {
-                _renderTextureWipe(arg0, arg1 + 0xE, 0xA, D_800DBA90, temp_s2);
+                _renderTextureWipe(arg0, arg1 + 0xE, 0xA, vs_ending_countingScoreTint, temp_s2);
                 arg0 += 3 + _disMap[10].w;
             }
         }
 
-        _renderTextureWipe(arg0, arg1 + 8, 0x14, D_800DBA90, temp_s2);
+        _renderTextureWipe(arg0, arg1 + 8, 0x14, vs_ending_countingScoreTint, temp_s2);
     }
 }
 
 static void _renderMapCompletion(
     int arg0, int arg1, int arg2, int arg3 __attribute__((unused)))
 {
-    extern P_CODE D_800DBA98[];
+    extern P_CODE vs_ending_mapCompletionTint[];
 
 #ifdef ROOD_PC
     /* sprintf writes four bytes; the PS1 overran into unused frame space. */
@@ -1969,34 +1969,34 @@ static void _renderMapCompletion(
 
     if (arg2 > 0) {
 
-        D_800DBA98[0].code = arg2;
+        vs_ending_mapCompletionTint[0].code = arg2;
 
         sprintf(sp10, "%03d", _mapCompletion);
 
         arg0 -= ((_disMap[21].w + _disMap[26].w + _disMap[19].w + 0x26) >> 1);
 
-        _renderTextureFadeInTint(arg0, arg1, 0x15, D_800DBA98);
+        _renderTextureFadeInTint(arg0, arg1, 0x15, vs_ending_mapCompletionTint);
 
         arg0 += _disMap[21].w;
 
-        _renderTextureFadeInTint(arg0, arg1 + 7, 0x1A, D_800DBA98);
+        _renderTextureFadeInTint(arg0, arg1 + 7, 0x1A, vs_ending_mapCompletionTint);
 
         v0 = arg0 + 2;
         arg0 = v0 + _disMap[26].w;
 
         for (i = 0; i < 3; ++i) {
-            _renderTextureFadeInTint(arg0, arg1 + 3, sp10[i] - '0', D_800DBA98);
+            _renderTextureFadeInTint(arg0, arg1 + 3, sp10[i] - '0', vs_ending_mapCompletionTint);
             arg0 += 12;
         }
 
-        _renderTextureFadeInTint(arg0, arg1 + 8, 0x13, D_800DBA98);
+        _renderTextureFadeInTint(arg0, arg1 + 8, 0x13, vs_ending_mapCompletionTint);
     }
 }
 
 static void _renderIncrementalMapCompletion(
     int arg0, int arg1, int arg2, int arg3 __attribute__((unused)))
 {
-    extern P_CODE D_800DBAA0[];
+    extern P_CODE vs_ending_countingMapCompletionTint[];
 
 #ifdef ROOD_PC
     /* sprintf writes four bytes; the PS1 overran into unused frame space. */
@@ -2032,7 +2032,7 @@ static void _renderIncrementalMapCompletion(
         if ((_onScreenMapCompletion == _mapCompletion)
             && (_incrementingMapCompletion != 0)) {
             _incrementingMapCompletion = 0;
-            func_80045D64(0x7E, 0x72);
+            vs_audio_stopSfx(0x7E, 0x72);
             vs_main_playSfxDefault(0x7E, 0x73);
         }
     }
@@ -2049,21 +2049,21 @@ static void _renderIncrementalMapCompletion(
 
     arg0 -= ((int)(_disMap[21].w + _disMap[26].w + _disMap[19].w + 0x26) >> 1);
 
-    _renderTextureWipe(arg0, arg1, 0x15, D_800DBAA0, temp_s4);
+    _renderTextureWipe(arg0, arg1, 0x15, vs_ending_countingMapCompletionTint, temp_s4);
 
     arg0 += _disMap[21].w;
 
-    _renderTextureWipe(arg0, arg1 + 7, 0x1A, D_800DBAA0, temp_s4);
+    _renderTextureWipe(arg0, arg1 + 7, 0x1A, vs_ending_countingMapCompletionTint, temp_s4);
 
     v0 = arg0 + 2;
     arg0 = v0 + _disMap[26].w;
 
     for (i = 0; i < 3; ++i) {
-        _renderTextureWipe(arg0, arg1 + 3, sp18[i] - '0', D_800DBAA0, temp_s4);
+        _renderTextureWipe(arg0, arg1 + 3, sp18[i] - '0', vs_ending_countingMapCompletionTint, temp_s4);
         arg0 += 12;
     }
 
-    _renderTextureWipe(arg0, arg1 + 8, 0x13, D_800DBAA0, temp_s4);
+    _renderTextureWipe(arg0, arg1 + 8, 0x13, vs_ending_countingMapCompletionTint, temp_s4);
 }
 
 static void _renderRiskbreakerRankHeader(int x, int y, int timer)
@@ -2077,14 +2077,14 @@ static void _renderRiskbreakerRankHeader(int x, int y, int timer)
     }
 
     if (timer > 0) {
-        D_800DBAA8[0].code = timer;
-        _renderTextureFadeInTint(x - (D_800DB876 >> 1), y, 12, D_800DBAA8);
+        vs_ending_rankHeadingTint[0].code = timer;
+        _renderTextureFadeInTint(x - (vs_ending_rankHeadingWidth >> 1), y, 12, vs_ending_rankHeadingTint);
     }
 }
 
 void _renderRiskbreakerRank(int x, int y, int timer)
 {
-    extern P_CODE D_800DBAB0[];
+    extern P_CODE vs_ending_rankLabelTint[];
 
     int xInset;
     int i;
@@ -2101,7 +2101,7 @@ void _renderRiskbreakerRank(int x, int y, int timer)
 
     if (timer > 0) {
 
-        D_800DBAB0[0].code = timer;
+        vs_ending_rankLabelTint[0].code = timer;
 
         for (i = 0; i < _riskbreakerRanks[_rank][0]; ++i) {
             xInset += _disMap[_riskbreakerRanks[_rank][i + 1]].w;
@@ -2111,7 +2111,7 @@ void _renderRiskbreakerRank(int x, int y, int timer)
         x -= xInset;
 
         for (i = 0; i < _riskbreakerRanks[_rank][0]; ++i) {
-            _renderTexturePopIn(x, y, _riskbreakerRanks[_rank][i + 1], D_800DBAB0);
+            _renderTexturePopIn(x, y, _riskbreakerRanks[_rank][i + 1], vs_ending_rankLabelTint);
 
             x += _disMap[_riskbreakerRanks[_rank][i + 1]].w;
         }

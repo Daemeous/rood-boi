@@ -3,10 +3,10 @@ const psx = @import("common").psx;
 const v = @import("views_38C1C");
 const c = @import("c_38C1C");
 
-/// orig: func_800A249C (pc/src/game/BATTLE/BATTLE.PRG/38C1C.c)
+/// orig: vs_actors_playActorTurnAnimation (pc/src/game/BATTLE/BATTLE.PRG/38C1C.c)
 /// Starts the turn of actor `actorId` toward `facing` (0x1000 a full turn) unless it is already there or busy.
 pub fn turnToward(actorId: c_int, facing: c_int) callconv(.c) void {
-    const actor: *v.D_800F4538_t = psx.at(psx.GlobalMany(?*v.D_800F4538_t, "D_800F4538").ptr(), actorId).*.?;
+    const actor: *v.D_800F4538_t = psx.at(psx.GlobalMany(?*v.D_800F4538_t, "vs_actors_actorRecords").ptr(), actorId).*.?;
 
     if (psx.getBits(&actor.unk0, "unkA_5") != 0) {
         return;
@@ -44,5 +44,5 @@ pub fn turnToward(actorId: c_int, facing: c_int) callconv(.c) void {
         }
     }
 
-    c.func_800A0204(actorId, animation, 0, 0xA);
+    c.vs_actors_playActorAnimation(actorId, animation, 0, 0xA);
 }

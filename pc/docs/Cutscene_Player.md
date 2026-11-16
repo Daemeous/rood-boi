@@ -14,7 +14,7 @@ repros, RPC), `pc/src/cutscene_panel.cpp` (the window),
 `pc/src/cutscene_sequencer.cpp` (event samples and scene lighting keys),
 `pc/src/story_boot.c` (story scenes, game side), `pc/src/state_rewind.c`
 (the marks), hooks in `input_record.c`, `boot_runtime.c`
-(`func_800E45B4`), `dev_rpc.c` (poll), `boot_window.c` (pacing),
+(`vs_core_elapsedFrameCounterTicks`), `dev_rpc.c` (poll), `boot_window.c` (pacing),
 `scene_submit.inc` (the event interpreter's place, what it waits for),
 `room_warp.c` / `room_catalog.c` (the room's door), and three `ROOD_PC`
 hooks in src (`vs_battle_exec`'s frame, `vs_main_execTitle` after the

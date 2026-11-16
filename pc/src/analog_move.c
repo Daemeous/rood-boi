@@ -1,5 +1,5 @@
 /* Analog movement: Ashley walks and runs by the left stick's angle and
- * travel (BATTLE func_8006E7F0, the player's movement input). The original
+ * travel (BATTLE vs_actors_updateAshleyMovementInput, the player's movement input). The original
  * reads the D-pad (eight directions, or the right-stick-shaped mode 7 pad that
  * the PC never presents); with the setting analog_move on, a left stick past
  * its dead zone gives the heading at any angle instead, and its travel the

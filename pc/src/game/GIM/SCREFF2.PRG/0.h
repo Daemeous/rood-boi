@@ -28,4 +28,4 @@ void func_800F9BD8(void);
 void func_800F9DE8(int);
 void func_800F9FB8(void);
 
-extern D_800EB9B4_t* D_800EB9B4;
+extern D_800EB9B4_t* vs_effects_screenEffectOverlay;

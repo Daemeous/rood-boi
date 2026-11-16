@@ -7,8 +7,8 @@ turns and with frame interpolation on.
 
 Vagrant Story leaves out the walls between its camera and the room: each
 wall group's flags carry one bit per 45 degrees of camera yaw, the frame
-sets the camera's left/front/right bits (BATTLE func_8008AC78, from the yaw
-at scratch 0x1F800058) and func_8009723C draws only the groups that have
+sets the camera's left/front/right bits (BATTLE vs_field_drawRoomScene, from the yaw
+at scratch 0x1F800058) and vs_render_drawRoomGeometry draws only the groups that have
 all three (Native_Rendering.md "Seeing into rooms"). Continues from a copy
 of the card (never the card itself; skipped without one) into its save room
 (zone 9 room 17), then turns the camera through its eight yaws with R1 and
@@ -79,13 +79,13 @@ def default_card():
 
 
 def mask_for(yaw):
-    """func_8008AC78: the camera's left, front and right bits."""
+    """vs_field_drawRoomScene: the camera's left, front and right bits."""
     return ((1 << (((0x9C0 - yaw) & 0xFFF) >> 9)) | (1 << (((0x840 - yaw) & 0xFFF) >> 9))
             | (1 << (((0x900 - yaw) & 0xFFF) >> 9)))
 
 
 def kept(flags, facing):
-    """func_8009723C's group test, the alternate set aside (None: it depends on the call's mode)."""
+    """vs_render_drawRoomGeometry's group test, the alternate set aside (None: it depends on the call's mode)."""
     if flags & 0x1100:
         return False
     if flags & 0x8000:

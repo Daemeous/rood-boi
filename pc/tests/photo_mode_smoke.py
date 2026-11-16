@@ -211,7 +211,7 @@ def run_bubbles(out):
         g.call("graphics", interpolate=False, ui_text="font", ui_bubbles="vector")
         g.run(200)
         sym = rood_rpc.symbols()
-        g.write(sym["D_800F2270"], bytes(4))  # (the scene keeps them off)
+        g.write(sym["vs_battle_actorMarkersHidden"], bytes(4))  # (the scene keeps them off)
         g.write(sym["D_800F2260"], bytes([0] + [1] * 15))  # a balloon with dots over each actor
 
         def emotes():

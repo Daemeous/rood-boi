@@ -19,9 +19,9 @@ pub fn func_800B8788(script: [*c]u8, _: c_short) callconv(.c) c_int {
         entries[2].unk1 = script[4];
         entries[2].unk2 = script[5];
         entries[2].unk3 = script[6];
-        c.func_8009F940(c.func_800BFE50(psx.conv(u16, c.vs_battle_getShort(script + 1))), 1, psx.cptr(c.D_800F4538_unk58_2, &entries[2]), psx.cptr(c.D_800F4538_unk58_2, &entries[0]));
+        c.func_8009F940(c.vs_event_resolveScriptActorReference(psx.conv(u16, c.vs_battle_getShort(script + 1))), 1, psx.cptr(c.D_800F4538_unk58_2, &entries[2]), psx.cptr(c.D_800F4538_unk58_2, &entries[0]));
     } else {
-        c.func_8009F940(c.func_800BFE50(psx.conv(u16, c.vs_battle_getShort(script + 1))), 0, null, null);
+        c.func_8009F940(c.vs_event_resolveScriptActorReference(psx.conv(u16, c.vs_battle_getShort(script + 1))), 0, null, null);
     }
     return 0;
 }

@@ -7,7 +7,7 @@ const c = @import("c_146C");
 /// Scales a spell's damage by the stat factor of its hit parameters, when the current action is a spell with an HP effect.
 pub fn factorMagicDamageReceived(action: ?*v.vs_action_t, _: ?*v._hitEntity_t, _: ?*v._hitEntity_t, arg3: c_int, _: c_int) callconv(.c) c_short {
     var result: i16 = 0;
-    const current = v.g.D_800F19CC().*.?;
+    const current = v.g.vs_battle_actionState().*.?;
     if (@as(c_int, psx.getBits(psx.at(v.g.actions(), current.unk8.actionIndex), "type")) == c.actionTypeSpell) {
         const effect = &current.unk8.unk4;
         if (psx.getBits(effect, "hpEffect") == 1 or psx.getBits(effect, "hpEffect") == 3) {

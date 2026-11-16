@@ -10,7 +10,7 @@ pub fn func_800E7F8C(arg0: ?*v.vs_battle_aiState) callconv(.c) c_int {
     const self = arg0.?;
 
     if (c.func_800E78F4(@ptrCast(self)) != 0) {
-        c.func_800D836C(@ptrCast(self));
+        c.vs_battle_aiTryEngageActor(@ptrCast(self));
     }
 
     var state: u8 = c.vs_battle_getStateFlag(0xA6);
@@ -28,7 +28,7 @@ pub fn func_800E7F8C(arg0: ?*v.vs_battle_aiState) callconv(.c) c_int {
             }
 
             temp.unkA = 0;
-            c.func_800E7960(@ptrCast(self));
+            c.vs_battle_aiUpdateBossOrbitTracking(@ptrCast(self));
 
             if (temp.unkE != 0 and temp.unkC == 0 and psx.get(self.stats.actor2).?.limbs[4].hp >= 2) {
                 temp.unkC = 900;
@@ -41,7 +41,7 @@ pub fn func_800E7F8C(arg0: ?*v.vs_battle_aiState) callconv(.c) c_int {
         },
         4 => {
             temp.unk1C = 0;
-            c.func_800D82CC(@ptrCast(self));
+            c.vs_battle_aiDisengageActor(@ptrCast(self));
 
             if (c.func_800E7698(@ptrCast(self)) != 0) {
                 if (temp.unkA != 0) {
@@ -49,12 +49,12 @@ pub fn func_800E7F8C(arg0: ?*v.vs_battle_aiState) callconv(.c) c_int {
 
                     if (psx.get(temp_a1.stats).?.limbs[4].hp >= 2) {
                         temp_a1.unkC = 4;
-                                        // setVector expanded in the object: x, then y, then z, each read from D_800F4538[0].
-                        const cam = v.g.D_800F4538()[0].?;
+                                        // setVector expanded in the object: x, then y, then z, each read from vs_actors_actorRecords[0].
+                        const cam = v.g.vs_actors_actorRecords()[0].?;
                         const sv: *align(1) v.SVECTOR = @ptrCast(&temp_a1.unk10);
                         sv.vx = cam.unk0.position.vx;
                         sv.vy = psx.conv(i16, @as(c_int, cam.unk0.position.vy) -% (@as(c_int, cam.menuCameraHeightOffset) >> 1));
-                        sv.vz = v.g.D_800F4538()[0].?.unk0.position.vz;
+                        sv.vz = v.g.vs_actors_actorRecords()[0].?.unk0.position.vz;
                         temp_a1.unk9 = 24;
                         temp_a1.unk8 = 0x80;
                     }

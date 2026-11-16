@@ -13,7 +13,7 @@ From a copy of the card (skipped without one), in the save room, ui_menus on,
     (0x10000) set in RAM: both listed with names, STR-up a buff with its
     timer's seconds, curse an ailment without a timer (-1)
   - the model: `model` reaches 2 (shown); the world is frozen meanwhile
-    (D_800F190C 0, D_800EB9AE 1); the JSON's heap_free (the game heap's
+    (vs_field_isFieldRenderingEnabled 0, D_800EB9AE 1); the JSON's heap_free (the game heap's
     largest free block) covers heap_need (what the clone took, plus a
     margin) minus the clone's own bytes; in the presented picture the model
     column shows the model (a torso sample at the column's centre, 45% down,
@@ -36,13 +36,13 @@ From a copy of the card (skipped without one), in the save room, ui_menus on,
     turns it (8 angle units per layout unit: right lowers the yaw, down
     raises the pitch)
   - tabs: R1 to Equipment frees the clone (model 0, actor slot 1 empty) and
-    gives the world back (D_800F190C 1, D_800EB9AE 0); L1 back shows it
+    gives the world back (vs_field_isFieldRenderingEnabled 1, D_800EB9AE 0); L1 back shows it
     again; another weapon equipped on Equipment, then Ashley: the JSON's
     weapon name follows, the model comes back holding the new weapon (the
     clone's weapon model id = actor 0's)
   - Square opens the original Status (currentMenu 0x45, model 0); Cross
     back: model 2, the yaw kept
-  - Triangle closes: D_800F190C 1, D_800EB9AE 0, the HUD flag as before the
+  - Triangle closes: vs_field_isFieldRenderingEnabled 1, D_800EB9AE 0, the HUD flag as before the
     open, vs_main_projectionDistance and the camera (scratchpad 0x1F800014,
     0x54 bytes) equal to their values before the menu opened
   - 16:9 (graphics widescreen, letterboxed in the same window): the model
@@ -66,7 +66,7 @@ from weapon_slots_smoke import default_card  # noqa: E402
 
 CLOSED = 0x3F
 STATUS = 0x45  # the original Status (MENU4: command 4 -> 5 | 0x40)
-PTR = 8 if os.environ.get("ROOD_ARCH") == "64" else 4  # host pointers (characterState, D_800F4538, wepModels)
+PTR = 8 if os.environ.get("ROOD_ARCH") == "64" else 4  # host pointers (characterState, vs_actors_actorRecords, wepModels)
 CAMERA, CAMERA_BYTES = symbols()["vs_view"] + 4, 0x54  # vs_view: the view matrix and the camera
 
 
@@ -227,7 +227,7 @@ class Test:
         return self.g.actor_stats(actor)
 
     def clone(self):
-        return self.ptr(self.sym["D_800F4538"] + PTR)  # D_800F4538[1]: the menu clone's slot
+        return self.ptr(self.sym["vs_actors_actorRecords"] + PTR)  # vs_actors_actorRecords[1]: the menu clone's slot
 
     def model_id(self, i):
         p = self.ptr(self.sym["vs_battle_wepModels"] + i * PTR)
@@ -235,7 +235,7 @@ class Test:
 
     def world(self):
         """What the menu changes and must give back."""
-        return {"190C": self.i32("D_800F190C"), "9AE": self.u8("D_800EB9AE"), "hud": self.u8("D_800EB9AF"),
+        return {"190C": self.i32("vs_field_isFieldRenderingEnabled"), "9AE": self.u8("D_800EB9AE"), "hud": self.u8("vs_battle_hudHidden"),
                 "H": self.i32("vs_main_projectionDistance"), "camera": self.g.read(CAMERA, CAMERA_BYTES)}
 
     def ui(self, **params):
@@ -404,7 +404,7 @@ class Test:
         w = self.world()
         check(True, f"the model shows {n} vsyncs after the Ashley tab")
         check(w["190C"] == 0 and w["9AE"] == 1 and self.clone() != 0,
-              f"meanwhile the world is frozen (D_800F190C {w['190C']}, D_800EB9AE {w['9AE']}), clone built")
+              f"meanwhile the world is frozen (vs_field_isFieldRenderingEnabled {w['190C']}, D_800EB9AE {w['9AE']}), clone built")
         a = self.ash()
         # the clone's allocations: records 0x1900, animation 0x7800, two weapons (0x5E8 + 0x800 each), headers
         check(40000 < a.get("heap_need", 0) < 80000 and a.get("heap_free", 0) > 0 and a.get("model_blocked") == "",
@@ -449,7 +449,7 @@ class Test:
         a = self.ui().get("ashley")
         check(w["190C"] == 1 and w["9AE"] == 0 and self.clone() == 0,
               f"R1 Equipment: the clone is freed (slot 1 {self.clone():#x}), the world runs "
-              f"(D_800F190C {w['190C']}, D_800EB9AE {w['9AE']})")
+              f"(vs_field_isFieldRenderingEnabled {w['190C']}, D_800EB9AE {w['9AE']})")
         g.press("l1", vsyncs=3, settle=2)
         n = self.wait_model(2)
         check(self.world()["190C"] == 0, f"L1 Ashley: the model again ({n} vsyncs)")
@@ -511,7 +511,7 @@ class Test:
         check(n is not None and a.get("model") == 0 and w["190C"] == 1 and self.clone() == 0
               and a.get("heap_need", 0) > a.get("heap_free", 0),
               f"heap too small: no model (model {a.get('model')}, blocked '{a.get('model_blocked')}', need "
-              f"{a.get('heap_need')} > free {a.get('heap_free')}), the world runs (D_800F190C {w['190C']}), "
+              f"{a.get('heap_need')} > free {a.get('heap_free')}), the world runs (vs_field_isFieldRenderingEnabled {w['190C']}), "
               f"slot 1 {self.clone():#x}")
         if self.shots:
             self.picture("ashley-no-heap", False)
@@ -527,7 +527,7 @@ class Test:
         a, w = self.ash(), self.world()
         check(on.get("active") and n is not None and a.get("model") == 0 and w["190C"] == 1 and self.clone() == 0,
               f"free camera on: no model (model {a.get('model')}, blocked '{a.get('model_blocked')}'), the world "
-              f"runs (D_800F190C {w['190C']})")
+              f"runs (vs_field_isFieldRenderingEnabled {w['190C']})")
         g.call("editor_camera", off=1)
         n = self.wait_model(2)
         check(not g.call("editor_camera").get("active"), f"free camera off: the model again ({n} vsyncs)")
@@ -536,7 +536,7 @@ class Test:
         w = self.world()
         diff = [k for k in before if before[k] != w[k]]
         self.check(not diff and w["190C"] == 1 and w["9AE"] == 0 and self.clone() == 0,
-                   f"{name}: closed, the world given back (D_800F190C {w['190C']}, D_800EB9AE {w['9AE']}, "
+                   f"{name}: closed, the world given back (vs_field_isFieldRenderingEnabled {w['190C']}, D_800EB9AE {w['9AE']}, "
                    f"HUD {w['hud']}, H {w['H']}; differ from before the open: {diff})")
 
     def equip_other_weapon(self):
@@ -589,7 +589,7 @@ class Test:
 
     def soft_reset(self):
         g, check = self.g, self.check
-        hud = self.u8("D_800EB9AF")
+        hud = self.u8("vs_battle_hudHidden")
         g.press("triangle", vsyncs=3, settle=2)
         self.wait_tab("ashley")
         self.wait_model(2)
@@ -614,7 +614,7 @@ class Test:
         if self.shots:
             self.picture("reset-ashley", False)
         self.close_menu()
-        check(self.u8("D_800EB9AF") == hud and self.i32("D_800F190C") == 1, "reset: and closes")
+        check(self.u8("vs_battle_hudHidden") == hud and self.i32("vs_field_isFieldRenderingEnabled") == 1, "reset: and closes")
 
 
 if __name__ == "__main__":

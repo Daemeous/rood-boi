@@ -7,7 +7,7 @@ const gte = common.gte;
 const v = @import("views_44F14");
 const c = @import("c_44F14");
 
-/// orig: func_800B07DC (pc/src/game/BATTLE/BATTLE.PRG/44F14.c)
+/// orig: vs_actors_transformRootOffset (pc/src/game/BATTLE/BATTLE.PRG/44F14.c)
 /// The scratchpad offset rotated by the actor's pitch, facing and roll, plus its position.
 pub fn offsetToWorld(actor: ?psx.GuestPtr(v.D_800F4538_t)) callconv(.c) void {
     const scratch: *v.actorTransformScratch = @ptrFromInt(pad.addr(0x35C));

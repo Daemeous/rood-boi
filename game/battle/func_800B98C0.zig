@@ -11,7 +11,7 @@ const c = @import("c_4A0A8");
 pub fn func_800B98C0(arg0: [*c]u8, _: c_short) callconv(.c) c_int {
     // uninitialised in the original (stack); zeroed here.
     var sp10: v._mpdRoomDoorSection_t = std.mem.zeroes(v._mpdRoomDoorSection_t);
-    const state = v.g.D_800F4BE2();
+    const state = v.g.vs_event_roomChangeState();
 
     if (state.* == 0) {
         sp10.zndId = arg0[1];
@@ -24,10 +24,10 @@ pub fn func_800B98C0(arg0: [*c]u8, _: c_short) callconv(.c) c_int {
         psx.setBits(&sp10, "unk6_15", psx.conv(u1, @as(c_int, arg0[7]) >> 1));
 
         if (arg0[1] == 0) {
-            c.func_8007C580(@ptrCast(&sp10), @as(c_int, arg0[8]), @as(c_int, arg0[9]));
+            c.vs_field_beginScriptedRoomTransition(@ptrCast(&sp10), @as(c_int, arg0[8]), @as(c_int, arg0[9]));
         } else {
-            _ = c.func_8007BE10((@as(c_int, arg0[7]) >> 3) & 1);
-            c.func_8007C654(@ptrCast(&sp10), @as(c_int, arg0[8]), @as(c_int, arg0[9]));
+            _ = c.vs_audio_setZoneMusicSwitchEnabled((@as(c_int, arg0[7]) >> 3) & 1);
+            c.vs_field_beginScriptedZoneTransition(@ptrCast(&sp10), @as(c_int, arg0[8]), @as(c_int, arg0[9]));
         }
         state.* = if ((@as(c_int, arg0[7]) & 4) != 0) 1 else 3;
     }

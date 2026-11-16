@@ -6,12 +6,12 @@
 extern char D_800E8F29;
 extern char _loadShpState;
 extern char D_800E8F2B;
-extern char D_800E8F2C;
+extern char vs_actors_sharedSequenceBankIndex;
 extern char _loadEtmState;
-extern short D_800E8F30[][2];
+extern short vs_actors_textureSlotOrigins[][2];
 extern char D_800E8FC0;
 extern char D_800F2450[];
-extern void* D_800F4528[]; /* 30DB0.c: heap buffer pointers (8 bytes each on LP64) */
+extern void* vs_actors_sharedSequenceData[]; /* 30DB0.c: heap buffer pointers (8 bytes each on LP64) */
 extern void* D_800F4768;
 extern char D_800F4B18;
 extern char D_800F4B19;
@@ -30,24 +30,24 @@ void func_800FA7B0(void)
 
     for (i = 0; i < 12; ++i) {
         short (*new_var)[2];
-        D_800F46A8[i].tpage =
-            GetTPage(0, 0, D_800E8F30[i][0] << 6, (new_var = D_800E8F30)[i][1] << 8);
-        D_800F46A8[i].clut0 = GetClut(768, i + 228);
-        D_800F46A8[i].clut1 = GetClut(768, i + 246);
-        D_800F46A8[i].refCount = 0;
+        vs_render_legacyActorTextureSlots[i].tpage =
+            GetTPage(0, 0, vs_actors_textureSlotOrigins[i][0] << 6, (new_var = vs_actors_textureSlotOrigins)[i][1] << 8);
+        vs_render_legacyActorTextureSlots[i].clut0 = GetClut(768, i + 228);
+        vs_render_legacyActorTextureSlots[i].clut1 = GetClut(768, i + 246);
+        vs_render_legacyActorTextureSlots[i].refCount = 0;
     }
 
     for (; i < 24; ++i) {
         short (*new_var)[2];
-        D_800F46A8[i].tpage =
-            GetTPage(0, 0, D_800E8F30[i][0] << 6, (new_var = D_800E8F30)[i][1] << 8);
-        D_800F46A8[i].clut0 = GetClut(768, 229);
-        D_800F46A8[i].clut1 = GetClut(768, 247);
-        D_800F46A8[i].refCount = 0;
+        vs_render_legacyActorTextureSlots[i].tpage =
+            GetTPage(0, 0, vs_actors_textureSlotOrigins[i][0] << 6, (new_var = vs_actors_textureSlotOrigins)[i][1] << 8);
+        vs_render_legacyActorTextureSlots[i].clut0 = GetClut(768, 229);
+        vs_render_legacyActorTextureSlots[i].clut1 = GetClut(768, 247);
+        vs_render_legacyActorTextureSlots[i].refCount = 0;
     }
 
     for (i = 0; i < 17; ++i) {
-        D_800F4538[i] = NULL;
+        vs_actors_actorRecords[i] = NULL;
     }
 
     D_800F4930 = vs_main_allocHeap(0x7800);
@@ -70,27 +70,27 @@ void func_800FA7B0(void)
     }
 
     for (i = 0; i < 16; ++i) {
-        D_800F45E0[i] = NULL;
+        vs_field_gimmickInstances[i] = NULL;
     }
 
-    D_800E8F2C = 0;
+    vs_actors_sharedSequenceBankIndex = 0;
     D_800F2450[0] = 0;
     D_800F2450[1] = 0;
     D_800F2450[2] = 0;
-    D_800F4528[0] = 0;
-    D_800F4528[1] = 0;
-    D_800F4528[2] = 0;
+    vs_actors_sharedSequenceData[0] = 0;
+    vs_actors_sharedSequenceData[1] = 0;
+    vs_actors_sharedSequenceData[2] = 0;
     D_800E8F2B = 0;
     _loadEtmState = 0;
     D_800E8FC0 = 0;
     D_800E8F29 = 0;
     vs_battle_loadObjectDataState = 0;
     _loadShpState = 0;
-    D_800E8F2C = 0;
+    vs_actors_sharedSequenceBankIndex = 0;
     sp10.vx = 0x1000;
     sp10.vy = 0x1000;
     sp10.vz = 0x1000;
-    func_8009FB64(&sp10);
+    vs_actors_setRoomActorScale(&sp10);
     D_800F4B19 = 0;
     D_800F4B18 = 0;
 }

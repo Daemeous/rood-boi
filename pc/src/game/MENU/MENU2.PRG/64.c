@@ -75,8 +75,8 @@ static int _initAbilityMenu(int abilityCount, int abilityType, u_short** menuTex
     _selectedAbilityType = abilityType;
 
     if (vs_main_settings.cursorMemory != 0) {
-        i = D_800F4EE8.cursorMemories[abilityType * 2];
-        j = D_800F4EE8.cursorMemories[abilityType * 2 + 1];
+        i = vs_menu_frameworkMenuMemory.cursorMemories[abilityType * 2];
+        j = vs_menu_frameworkMenuMemory.cursorMemories[abilityType * 2 + 1];
     }
 
     abilitiesOverflowCount = abilityCount - 8;
@@ -368,8 +368,8 @@ static int _abilityMenu(void)
             vs_main_freeHeapR(_abilityText);
 
             _abilityText = NULL;
-            D_800F4EE8.cursorMemories[_selectedAbilityType * 2] = _highlightedAbility;
-            D_800F4EE8.cursorMemories[_selectedAbilityType * 2 + 1] = _firstAbility;
+            vs_menu_frameworkMenuMemory.cursorMemories[_selectedAbilityType * 2] = _highlightedAbility;
+            vs_menu_frameworkMenuMemory.cursorMemories[_selectedAbilityType * 2 + 1] = _firstAbility;
 
             return 1;
         }

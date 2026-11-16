@@ -24,14 +24,14 @@ glabel func_800E4FE0
     addu    $ra, $t9, $zero
     addu    $a2, $v0, $zero
     addu    $a0, $t8, $zero
-    bgez    $zero, func_800E50A0
+    bgez    $zero, vs_battle_aiDispatchAiLocomotionMode
     addiu   $a1, $zero, 0x1
 alabel L800E5030
     lw      $t6, 0x168($a0)
     mult    $a1, $a1
     addu    $t9, $ra, $zero
     addu    $t8, $a0, $zero
-    jal     func_800E42E0
+    jal     vs_field_groundHeightAtPackedTile
     addu    $a0, $t6, $zero
     lh      $t0, 0x4C($t8)
     andi    $a0, $t6, 0xFF
@@ -45,19 +45,19 @@ alabel L800E5030
     lh      $t2, 0x50($t8)
     sub     $a0, $a0, $t0 /* handwritten instruction */
     sub     $a1, $v0, $t1 /* handwritten instruction */
-    jal     func_800E4660
+    jal     vs_core_mathSquaredVectorLength
     sub     $a2, $a2, $t2 /* handwritten instruction */
     mflo    $v1
     addu    $ra, $t9, $zero
     addu    $a0, $t8, $zero
     sltu    $v0, $v0, $v1
-    bnez    $v0, func_800DEEFC
+    bnez    $v0, vs_battle_aiIssueActorCommand
     addiu   $a1, $zero, 0x0
     addiu   $a1, $zero, 0x0
     addu    $a2, $zero, $zero
 endlabel func_800E4FE0
 
-glabel func_800E50A0
+glabel vs_battle_aiDispatchAiLocomotionMode
     lbu     $a3, 0x125($a0)
     lui     $t0, %hi(jtbl_800F1740)
     addiu   $t0, $t0, %lo(jtbl_800F1740)
@@ -90,7 +90,7 @@ glabel func_800E50A0
     lui     $a3, (0x1F800378 >> 16)
     lw      $sp, (0x1F800378 & 0xFFFF)($a3)
     jr      $ra
-endlabel func_800E50A0
+endlabel vs_battle_aiDispatchAiLocomotionMode
 
 glabel func_800E511C
     lui     $a3, %hi(D_800F58B8)
@@ -109,15 +109,15 @@ glabel func_800E511C
     addiu   $s0, $s0, 0x4
 endlabel func_800E511C
 
-glabel func_800E5154
+glabel vs_battle_aiActorNavigationOverrideStatus
     addiu   $a3, $zero, 0x1
-endlabel func_800E5154
+endlabel vs_battle_aiActorNavigationOverrideStatus
 
-glabel func_800E5158
+glabel vs_battle_aiHasActorNavigationState
     lui     $a1, %hi(D_800F58B8)
     lw      $a1, %lo(D_800F58B8)($a1)
-    lui     $a2, %hi(D_800F5878)
-    addiu   $a2, $a2, %lo(D_800F5878)
+    lui     $a2, %hi(vs_battle_aiActorAiStates)
+    addiu   $a2, $a2, %lo(vs_battle_aiActorAiStates)
     sll     $v0, $a0, 2
     addu    $a2, $a2, $v0
     lw      $a2, 0x0($a2)
@@ -144,9 +144,9 @@ glabel func_800E5158
     addiu   $v0, $zero, 0x1
 .L800E51C4:
     jr      $ra
-endlabel func_800E5158
+endlabel vs_battle_aiHasActorNavigationState
 
-glabel func_800E51C8
+glabel vs_battle_aiCopyActorNavigationOverrideState
     lui     $v1, (0x800F5878 >> 16)
     addiu   $sp, $sp, -0x20
     sw      $ra, 0x18($sp)
@@ -178,14 +178,14 @@ glabel func_800E51C8
     lw      $s1, 0x14($sp)
     jr      $ra
     addiu   $sp, $sp, 0x20
-endlabel func_800E51C8
+endlabel vs_battle_aiCopyActorNavigationOverrideState
 
-glabel func_800E5240
+glabel vs_battle_aiFreeActorNavigationOverride
     addiu   $sp, $sp, -0x20
     sw      $ra, 0x18($sp)
     sw      $s0, 0x10($sp)
     sw      $s1, 0x14($sp)
-    jal     func_800E5158
+    jal     vs_battle_aiHasActorNavigationState
     addu    $a3, $zero, $zero
     beqz    $v0, .L800E522C
     lui     $ra, (0x800E522C >> 16)
@@ -196,24 +196,24 @@ glabel func_800E5240
     sw      $zero, 0x18C($s0)
     j       vs_main_freeHeapR
     addiu   $a1, $zero, 0x7
-endlabel func_800E5240
+endlabel vs_battle_aiFreeActorNavigationOverride
 
-glabel func_800E527C
+glabel vs_battle_aiSetActorNavigationOverride
     addiu   $sp, $sp, -0x20
     sw      $ra, 0x18($sp)
     sw      $s1, 0x14($sp)
     sll     $a2, $a2, 16
     or      $s1, $a2, $a1
-    jal     func_800E5158
+    jal     vs_battle_aiHasActorNavigationState
     addu    $a3, $zero, $zero
     beqz    $v0, .L800E522C
     sw      $s0, 0x10($sp)
     addu    $s0, $a2, $zero
-    jal     func_800D82CC
+    jal     vs_battle_aiDisengageActor
     addu    $a0, $s0, $zero
-    jal     func_800D821C
+    jal     vs_battle_aiResetActorAwarenessIndicator
     addu    $a0, $s0, $zero
-    jal     func_800DBF00
+    jal     vs_battle_aiUnlinkEngagedActor
     addu    $a0, $s0, $zero
     lw      $a1, 0x18C($s0)
     lbu     $a0, 0x88($s0)
@@ -225,24 +225,24 @@ glabel func_800E527C
     beqz    $v0, .L800E522C
     addiu   $a1, $zero, 0x484
     sw      $v0, 0x18C($s0)
-    jal     func_800E4288
+    jal     vs_core_memoryClearAlignedWords
     addu    $a0, $v0, $zero
     lbu     $a0, 0x88($s0)
     addu    $s0, $v0, $zero
 .L800E52F4:
-    jal     func_800E51C8
+    jal     vs_battle_aiCopyActorNavigationOverrideState
     addu    $a1, $s0, $zero
     sw      $s1, 0x160($s0)
     bgez    $zero, .L800E522C
     addiu   $v0, $zero, 0x1
-endlabel func_800E527C
+endlabel vs_battle_aiSetActorNavigationOverride
 
-glabel func_800E5308
+glabel vs_battle_aiUpdateActorNavigationOverrides
     addiu   $sp, $sp, -0x30
     sw      $ra, 0x18($sp)
     sw      $s0, 0x10($sp)
     sw      $s1, 0x14($sp)
-    jal     func_800E65DC
+    jal     vs_battle_aiCacheActorAiWorkingState
     sw      $s2, 0x1C($sp)
     lui     $a3, (0x1F800378 >> 16)
     sw      $sp, (0x1F800378 & 0xFFFF)($a3)
@@ -258,7 +258,7 @@ glabel func_800E5308
     sll     $t1, $t1, 2
     addu    $s2, $a3, $t1
     lw      $s2, (0x1F80037C & 0xFFFF)($s2)
-    jal     func_800E45B4
+    jal     vs_core_elapsedFrameCounterTicks
     lw      $s2, 0x18C($s2)
     sw      $v0, 0x3FC($a3)
     beqz    $s2, .L800E54F0
@@ -284,8 +284,8 @@ glabel func_800E5308
     sb      $zero, 0x2($s2)
     sb      $zero, 0x3($s2)
     lw      $t1, 0x4($s0)
-    lui     $t0, %hi(D_800F4538)
-    addiu   $t0, $t0, %lo(D_800F4538)
+    lui     $t0, %hi(vs_actors_actorRecords)
+    addiu   $t0, $t0, %lo(vs_actors_actorRecords)
     sll     $t1, $t1, 2
     addu    $t0, $t0, $t1
     lw      $t0, 0x0($t0)
@@ -330,7 +330,7 @@ glabel func_800E5308
     andi    $a0, $t3, 0xFFFF
     srl     $a2, $t3, 16
     sub     $a0, $a0, $t2 /* handwritten instruction */
-    jal     func_800E4660
+    jal     vs_core_mathSquaredVectorLength
     sub     $a2, $a2, $t4 /* handwritten instruction */
     slti    $v0, $v0, 0x400
     bnez    $v0, .L800E54AC
@@ -349,12 +349,12 @@ glabel func_800E5308
     bne     $a0, $a1, .L800E54C8
 .L800E54AC:
     addiu   $a1, $zero, 0x0
-    jal     func_800DEEFC
+    jal     vs_battle_aiIssueActorCommand
     addu    $a0, $s2, $zero
     lbu     $a0, 0x88($s2)
     lui     $ra, %hi(.L800E54F0)
     addiu   $ra, $ra, %lo(.L800E54F0)
-    bgez    $zero, func_800E5240
+    bgez    $zero, vs_battle_aiFreeActorNavigationOverride
 .L800E54C8:
     srl     $a1, $t3, 23
     andi    $a0, $t3, 0xFFFF
@@ -364,7 +364,7 @@ glabel func_800E5308
     sw      $a0, 0x168($s2)
     addu    $a0, $s2, $zero
     addiu   $a1, $zero, 0x0
-    jal     func_800E50A0
+    jal     vs_battle_aiDispatchAiLocomotionMode
     addu    $a2, $zero, $zero
 .L800E54F0:
     lw      $s0, 0x0($s0)
@@ -372,7 +372,7 @@ glabel func_800E5308
     bnez    $s0, .L800E5338
     lui     $a3, (0x1F800378 >> 16)
     lw      $sp, (0x1F800378 & 0xFFFF)($a3)
-    bgez    $zero, func_800D9538
+    bgez    $zero, vs_battle_aiSaveMovementRandomState
     ori     $ra, $ra, (0x800DB898 & 0xFFFF)
 .L800E550C:
     lbu     $t0, 0x19B($a0)
@@ -396,6 +396,6 @@ glabel func_800E5308
     sub     $a1, $t2, $a1 /* handwritten instruction */
     addu    $ra, $t9, $zero
     addu    $a1, $v0, $zero
-    bgez    $zero, func_800E19FC
+    bgez    $zero, vs_battle_aiUpdateNavigationAreaMovement
     addu    $a0, $t8, $zero
-endlabel func_800E5308
+endlabel vs_battle_aiUpdateActorNavigationOverrides

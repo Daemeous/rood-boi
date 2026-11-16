@@ -5,7 +5,7 @@
 #define VS_PARTICLE_CONTROL_FUNCTION func_800FA3A8
 #define VS_PARTICLE_RENDER_FUNCTION func_800FA858
 #define VS_PARTICLE_DISPATCH_FUNCTION func_800FB418
-#define VS_PARTICLE_CORNER_STATE D_800FCCA0
+#define VS_PARTICLE_CORNER_STATE vs_effects_plg114ParticleEmissionCounter
 #include "pc/src/game/EFFECT/particleSetup.h"
 
 #include "pc/src/game/EFFECT/particleRender.h"
@@ -16,7 +16,7 @@
 #define VS_PARTICLE_TARGET_FUNCTION func_800FBE34
 #define VS_PARTICLE_CONTROL_FUNCTION func_800FC04C
 #define VS_PARTICLE_RENDER_FUNCTION func_800FC4FC
-#define VS_PARTICLE_CORNER_STATE D_800FCCA4
+#define VS_PARTICLE_CORNER_STATE vs_effects_plg114ParticleEmissionCounter2
 #include "pc/src/game/EFFECT/particleSetup.h"
 #undef VS_PARTICLE_ORIGIN_FUNCTION
 #undef VS_PARTICLE_TARGET_FUNCTION

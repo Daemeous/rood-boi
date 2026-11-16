@@ -17,7 +17,7 @@ fn cv(p: *v.VECTOR) [*c]c.VECTOR {
 }
 
 fn camera() *v.D_800F4BA4_t {
-    return v.g.D_800F4BA4().*.?;
+    return v.g.vs_event_camera().*.?;
 }
 
 /// orig: _copyVector (pc/src/game/BATTLE/BATTLE.PRG/4A0A8.c)
@@ -39,7 +39,7 @@ fn sVectorToFixedPointVector(dst: *v.VECTOR, src: *v.SVECTOR) *v.VECTOR {
 }
 
 /// orig: vs_battle_applyCameraState (pc/src/game/BATTLE/BATTLE.PRG/4A0A8.c)
-/// Sets the camera's look-at and position (on the first frame, D_800F4BA0, from the default
+/// Sets the camera's look-at and position (on the first frame, vs_event_skipNextFieldCameraRestore, from the default
 /// spherical view, which the points take; else the points plus the unk1EC offset unless unk1E8 is
 /// 0x2000), with the shake offsets turned to the view's heading, then any pending roll, unk174,
 /// projection distance and clip requests (each cleared).
@@ -47,7 +47,7 @@ pub fn applyCameraState() callconv(.c) void {
     // The C's stack vectors: their pad words are never written (0 here; the setters read vx..vz)
     var lookAt = std.mem.zeroes(v.VECTOR);
     var position = std.mem.zeroes(v.VECTOR);
-    if (v.g.D_800F4BA0().* != 0) {
+    if (v.g.vs_event_skipNextFieldCameraRestore().* != 0) {
         c.vs_battle_initialiseCameraFromSpherical(cv(&position), cv(&lookAt), -1, -1);
         _ = copyVector(&camera().lookAt.current, &lookAt);
         _ = copyVector(&camera().eye.current, &position);
@@ -78,7 +78,7 @@ pub fn applyCameraState() callconv(.c) void {
         camera().unk168.unk0 = 0;
     }
     if (camera().unk174.unk0 != 0) {
-        c.func_8007DDAC(camera().unk174.unk2);
+        c.vs_render_setFramebufferEffectRoll(camera().unk174.unk2);
         camera().unk174.unk0 = 0;
     }
     if (camera().projectionDistance.unk0 != 0) {

@@ -1954,18 +1954,18 @@ void pc_draw_item_packet(void* packet)
     pc_hw_meter_walk(0);
 }
 /* The photo mode's hidden game 2D (photo.cpp, rood.ui.hide{game2d}): in the field's ordering tables
- * (D_80055C80, 0x822 entries each, drawn from the far end), the packets linked at entries below
+ * (vs_render_legacyOrderingTables, 0x822 entries each, drawn from the far end), the packets linked at entries below
  * pc_photo_game2d_slots (the HUD, text and window layer: vs_scratch.unk4 is entry 18, the game's 2D
  * slots lie within 16 entries of it) are not drawn; native lists' markers and mode packets still are. */
 extern int pc_photo_hide_game2d __attribute__((weak));
 extern int pc_photo_game2d_slots __attribute__((weak));
-extern void* D_80055C80[] __attribute__((weak)); /* (absent in the GPU probe) */
+extern void* vs_render_legacyOrderingTables[] __attribute__((weak)); /* (absent in the GPU probe) */
 static int game2d_entry(const uint32_t* p, int* hidden)
 {
-    if (!(uintptr_t)D_80055C80)
+    if (!(uintptr_t)vs_render_legacyOrderingTables)
         return 0;
     for (int b = 0; b < 2; b++) {
-        const uint32_t* ot = D_80055C80[b];
+        const uint32_t* ot = vs_render_legacyOrderingTables[b];
         if (ot && p >= ot && p < ot + 0x822) {
             *hidden = p - ot < pc_photo_game2d_slots;
             return 1;
@@ -2264,7 +2264,7 @@ static int scanlines_now(void)
     lines += 8;
     return lines < 263 ? (int)lines : 262; /* an NTSC field's lines */
 }
-int func_800E45B4(void)
+int vs_core_elapsedFrameCounterTicks(void)
 {
     int value = scanlines_now();
     return pc_take_scanlines ? pc_take_scanlines(value) : value;

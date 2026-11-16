@@ -5,7 +5,7 @@
 
 .section .text, "ax"
 
-glabel func_8009723C
+glabel vs_render_drawRoomGeometry
     lui     $a3, (0x1F8003FC >> 16)
     sw      $fp, (0x1F8003D4 & 0xFFFF)($a3)
     sw      $gp, (0x1F8003D8 & 0xFFFF)($a3)
@@ -74,7 +74,7 @@ glabel func_8009723C
     ctc2    $t6, $6
     ctc2    $t7, $7
     addu    $a0, $a0, $s0
-    jal     func_80097388
+    jal     vs_render_drawRoomGeometryPolygons
 .L80097348:
     addiu   $s2, $s2, -0x1
     bnez    $s2, .L80097288
@@ -93,9 +93,9 @@ glabel func_8009723C
     lw      $s6, (0x1F8003F8 & 0xFFFF)($a3)
     jr      $ra
     lw      $s7, (0x1F8003FC & 0xFFFF)($a3)
-endlabel func_8009723C
+endlabel vs_render_drawRoomGeometry
 
-glabel func_80097388
+glabel vs_render_drawRoomGeometryPolygons
     sw      $ra, 0x3C4($a3)
     sw      $s0, 0x3C8($a3)
     sw      $s1, 0x3CC($a3)
@@ -104,14 +104,14 @@ glabel func_80097388
     lw      $v0, 0x0($a0)
     sll     $at, $at, 16
     or      $v0, $v0, $at
-    jal     func_8009797C
+    jal     vs_render_decodeRoomPolygonVertices
     addiu   $a0, $a0, 0x8
     andi    $at, $v0, 0xFFFF
     beqz    $at, .L800975F0
     addu    $a3, $a0, $zero
 .L800973BC:
     lw      $s7, 0xC($a0)
-    jal     func_80097A10
+    jal     vs_render_projectAndDecodeRoomPolygon
     addiu   $a3, $a3, 0x20
     bgez    $at, .L800973DC
     lui     $t0, (0x1000000 >> 16)
@@ -123,7 +123,7 @@ glabel func_80097388
     mfc2    $t0, $12
     mfc2    $t1, $13
     mfc2    $t2, $14
-    jal     func_80098014
+    jal     vs_render_isRoomPolygonOnScreen
     addu    $t3, $t2, $zero
     beqz    $at, .L800975E0
     andi    $at, $s6, 0x1
@@ -199,7 +199,7 @@ glabel func_80097388
     srl     $t5, $t5, 24
     sll     $t5, $t5, 8
     or      $t4, $t4, $t5
-    jal     func_80097AEC
+    jal     vs_render_subdivideRoomTriangle
     sh      $t4, 0x6($s2)
     addiu   $fp, $fp, 0x4C
     lw      $s0, 0x0($fp)
@@ -211,7 +211,7 @@ glabel func_80097388
     lw      $s5, 0x14($fp)
 .L80097544:
     sw      $t0, 0x8($a1)
-    jal     func_800980F8
+    jal     vs_render_linkRoomPolygonByDepth
     lui     $v1, (0x9000000 >> 16)
     sw      $t1, 0x14($a1)
     beqz    $at, .L800975E0
@@ -261,7 +261,7 @@ alabel D_80097590
     beqz    $v0, .L80097960
 .L800975F8:
     lw      $s7, 0xC($a0)
-    jal     func_80097A10
+    jal     vs_render_projectAndDecodeRoomPolygon
     addiu   $a3, $a3, 0x28
     bltz    $at, .L80097610
     lui     $t0, (0x1000000 >> 16)
@@ -302,7 +302,7 @@ alabel D_80097590
     swc2    $19, (0x1F8003B4 & 0xFFFF)($at)
     rtps
     mfc2    $t3, $14
-    jal     func_80098014
+    jal     vs_render_isRoomPolygonOnScreen
     .nop
     beqz    $at, .L80097954
     lui     $t4, (0x1000000 >> 16)
@@ -413,7 +413,7 @@ alabel D_80097590
     srl     $t5, $t5, 24
     sll     $t5, $t5, 8
     or      $t4, $t4, $t5
-    jal     func_80097CF0
+    jal     vs_render_subdivideRoomQuad
     sh      $t4, 0x6($s2)
     addiu   $fp, $fp, 0x64
     lw      $s0, 0x0($fp)
@@ -431,7 +431,7 @@ alabel D_80097590
     .nop
     or      $t9, $zero, $v1
 .L80097894:
-    jal     func_800980F8
+    jal     vs_render_linkRoomPolygonByDepth
     lui     $v1, (0xC000000 >> 16)
     sw      $t1, 0x14($a1)
     beqz    $at, .L80097954
@@ -493,9 +493,9 @@ alabel D_800978F8
     lw      $s2, (0x1F8003D0 & 0xFFFF)($a3)
     jr      $ra
     .nop
-endlabel func_80097388
+endlabel vs_render_drawRoomGeometryPolygons
 
-glabel func_8009797C
+glabel vs_render_decodeRoomPolygonVertices
     lw      $s0, 0x0($a0)
     lw      $s4, 0x4($a0)
     lw      $s5, 0x8($a0)
@@ -533,9 +533,9 @@ glabel func_8009797C
     sllv    $s5, $s5, $gp
     jr      $ra
     addu    $s5, $s5, $s1
-endlabel func_8009797C
+endlabel vs_render_decodeRoomPolygonVertices
 
-glabel func_80097A10
+glabel vs_render_projectAndDecodeRoomPolygon
     mtc2    $s0, $0
     mtc2    $s1, $1
     mtc2    $s2, $2
@@ -593,9 +593,9 @@ glabel func_80097A10
     mfc2    $at, $24
     jr      $ra
     addu    $s5, $s5, $s1
-endlabel func_80097A10
+endlabel vs_render_projectAndDecodeRoomPolygon
 
-glabel func_80097AEC
+glabel vs_render_subdivideRoomTriangle
     addiu   $fp, $fp, -0x2C
     sw      $ra, 0x0($fp)
     sw      $t0, 0x4($fp)
@@ -618,7 +618,7 @@ glabel func_80097AEC
     lw      $t0, 0xC($s0)
     lw      $t1, 0xC($s1)
     lw      $t2, 0xC($s2)
-    jal     func_80098014
+    jal     vs_render_isRoomPolygonOnScreen
     addu    $t3, $t2, $zero
     beqz    $at, .L80097CC0
     lh      $t9, 0x10($s0)
@@ -635,7 +635,7 @@ glabel func_80097AEC
     sw      $t2, 0x20($a1)
     or      $t9, $zero, $t5
 .L80097B80:
-    jal     func_800980F8
+    jal     vs_render_linkRoomPolygonByDepth
     lui     $v1, (0x9000000 >> 16)
     beqz    $at, .L80097CC0
     lui     $v1, (0x1F8003B8 >> 16)
@@ -669,17 +669,17 @@ glabel func_80097AEC
     addiu   $t4, $fp, 0x10
     addiu   $t5, $fp, 0x24
     addiu   $t6, $fp, 0x38
-    jal     func_80097F70
+    jal     vs_render_interpolateRoomVertexMidpoint
     addu    $s2, $t4, $zero
     lwc2    $0, 0x0($t4)
     lwc2    $1, 0x4($t4)
     addu    $s0, $t2, $zero
-    jal     func_80097F70
+    jal     vs_render_interpolateRoomVertexMidpoint
     addu    $s2, $t5, $zero
     lwc2    $2, 0x0($t5)
     lwc2    $3, 0x4($t5)
     addu    $s1, $t0, $zero
-    jal     func_80097F70
+    jal     vs_render_interpolateRoomVertexMidpoint
     addu    $s2, $t6, $zero
     lwc2    $4, 0x0($t6)
     lwc2    $5, 0x4($t6)
@@ -694,26 +694,26 @@ glabel func_80097AEC
     swc2    $17, 0x10($t4)
     swc2    $18, 0x10($t5)
     swc2    $19, 0x10($t6)
-    jal     func_80097AEC
+    jal     vs_render_subdivideRoomTriangle
     sw      $t6, 0xC($fp)
     sw      $t5, 0x4($fp)
-    jal     func_80097AEC
+    jal     vs_render_subdivideRoomTriangle
     sw      $t1, 0xC($fp)
     sw      $t2, 0x8($fp)
-    jal     func_80097AEC
+    jal     vs_render_subdivideRoomTriangle
     sw      $t6, 0xC($fp)
     sw      $t4, 0x4($fp)
-    jal     func_80097AEC
+    jal     vs_render_subdivideRoomTriangle
     sw      $t5, 0x8($fp)
     sw      $zero, 0x0($fp)
     sw      $t2, 0x4($fp)
-    jal     func_80097AEC
+    jal     vs_render_subdivideRoomTriangle
     sw      $t0, 0x8($fp)
     sw      $t5, 0x8($fp)
-    jal     func_80097AEC
+    jal     vs_render_subdivideRoomTriangle
     sw      $t1, 0xC($fp)
     sw      $t4, 0x4($fp)
-    jal     func_80097AEC
+    jal     vs_render_subdivideRoomTriangle
     sw      $t0, 0x8($fp)
     addiu   $fp, $fp, 0x4C
 .L80097CC0:
@@ -729,9 +729,9 @@ glabel func_80097AEC
     lw      $t9, 0x28($fp)
     jr      $ra
     addiu   $fp, $fp, 0x2C
-endlabel func_80097AEC
+endlabel vs_render_subdivideRoomTriangle
 
-glabel func_80097CF0
+glabel vs_render_subdivideRoomQuad
     addiu   $fp, $fp, -0x2C
     sw      $ra, 0x0($fp)
     sw      $t0, 0x4($fp)
@@ -757,7 +757,7 @@ glabel func_80097CF0
     lw      $t0, 0xC($s0)
     lw      $t1, 0xC($s1)
     lw      $t2, 0xC($s2)
-    jal     func_80098014
+    jal     vs_render_isRoomPolygonOnScreen
     lw      $t3, 0xC($s3)
     beqz    $at, .L80097F3C
     lh      $t9, 0x10($s0)
@@ -780,7 +780,7 @@ glabel func_80097CF0
     sw      $t3, 0x2C($a1)
     or      $t9, $zero, $t6
 .L80097DA4:
-    jal     func_800980F8
+    jal     vs_render_linkRoomPolygonByDepth
     lui     $v1, (0xC000000 >> 16)
     beqz    $at, .L80097F3C
     lui     $v1, (0x1F8003B8 >> 16)
@@ -818,24 +818,24 @@ glabel func_80097CF0
     addiu   $t6, $fp, 0x3C
     addiu   $t7, $fp, 0x50
     addiu   $t8, $fp, 0x64
-    jal     func_80097F70
+    jal     vs_render_interpolateRoomVertexMidpoint
     addu    $s2, $t4, $zero
     lwc2    $0, 0x0($t4)
     lwc2    $1, 0x4($t4)
     addu    $s0, $t2, $zero
-    jal     func_80097F70
+    jal     vs_render_interpolateRoomVertexMidpoint
     addu    $s2, $t8, $zero
     lwc2    $2, 0x0($t8)
     lwc2    $3, 0x4($t8)
     addu    $s0, $t3, $zero
-    jal     func_80097F70
+    jal     vs_render_interpolateRoomVertexMidpoint
     addu    $s2, $t5, $zero
     lwc2    $4, 0x0($t5)
     lwc2    $5, 0x4($t5)
     addiu   $t9, $t9, -0x1
     addu    $s1, $t2, $zero
     rtpt
-    jal     func_80097F70
+    jal     vs_render_interpolateRoomVertexMidpoint
     addu    $s2, $t6, $zero
     lwc2    $0, 0x0($t6)
     lwc2    $1, 0x4($t6)
@@ -846,7 +846,7 @@ glabel func_80097CF0
     swc2    $18, 0x10($t8)
     swc2    $19, 0x10($t5)
     addu    $s0, $t0, $zero
-    jal     func_80097F70
+    jal     vs_render_interpolateRoomVertexMidpoint
     addu    $s2, $t7, $zero
     lwc2    $2, 0x0($t7)
     lwc2    $3, 0x4($t7)
@@ -859,28 +859,28 @@ glabel func_80097CF0
     swc2    $13, 0xC($t7)
     swc2    $17, 0x10($t6)
     swc2    $18, 0x10($t7)
-    jal     func_80097CF0
+    jal     vs_render_subdivideRoomQuad
     sw      $t8, 0x10($fp)
     sw      $t1, 0x4($fp)
-    jal     func_80097CF0
+    jal     vs_render_subdivideRoomQuad
     sw      $t5, 0xC($fp)
     sw      $t3, 0x4($fp)
-    jal     func_80097CF0
+    jal     vs_render_subdivideRoomQuad
     sw      $t6, 0x8($fp)
     sw      $t2, 0x4($fp)
-    jal     func_80097CF0
+    jal     vs_render_subdivideRoomQuad
     sw      $t7, 0xC($fp)
     sw      $zero, 0x0($fp)
-    jal     func_80097AEC
+    jal     vs_render_subdivideRoomTriangle
     sw      $t3, 0xC($fp)
     sw      $t0, 0x8($fp)
-    jal     func_80097AEC
+    jal     vs_render_subdivideRoomTriangle
     sw      $t7, 0xC($fp)
     sw      $t4, 0x4($fp)
-    jal     func_80097AEC
+    jal     vs_render_subdivideRoomTriangle
     sw      $t1, 0xC($fp)
     sw      $t3, 0x4($fp)
-    jal     func_80097AEC
+    jal     vs_render_subdivideRoomTriangle
     sw      $t5, 0x8($fp)
     addiu   $fp, $fp, 0x78
 .L80097F3C:
@@ -897,9 +897,9 @@ glabel func_80097CF0
     lw      $t9, 0x28($fp)
     jr      $ra
     addiu   $fp, $fp, 0x2C
-endlabel func_80097CF0
+endlabel vs_render_subdivideRoomQuad
 
-glabel func_80097F70
+glabel vs_render_interpolateRoomVertexMidpoint
     lbu     $s3, 0x8($s0)
     lbu     $s4, 0x8($s1)
     lbu     $s5, 0x9($s0)
@@ -941,9 +941,9 @@ glabel func_80097F70
     sra     $s4, $s4, 1
     jr      $ra
     sb      $s4, 0x7($s2)
-endlabel func_80097F70
+endlabel vs_render_interpolateRoomVertexMidpoint
 
-glabel func_80098014
+glabel vs_render_isRoomPolygonOnScreen
     sra     $t4, $t0, 16
     sra     $t5, $t1, 16
     sra     $t6, $t2, 16
@@ -1006,9 +1006,9 @@ glabel func_80098014
 .L800980F0:
     jr      $ra
     or      $at, $zero, $zero
-endlabel func_80098014
+endlabel vs_render_isRoomPolygonOnScreen
 
-glabel func_800980F8
+glabel vs_render_linkRoomPolygonByDepth
     srl     $t9, $t9, 2
     slti    $at, $t9, 0x8
     bnez    $at, .L80098158
@@ -1036,28 +1036,28 @@ glabel func_800980F8
 .L80098158:
     jr      $ra
     or      $at, $zero, $zero
-endlabel func_800980F8
+endlabel vs_render_linkRoomPolygonByDepth
 
-glabel func_80098160
-    lui     $v0, %hi(func_800980F8)
-    addiu   $v0, $v0, %lo(func_800980F8)
+glabel vs_render_setRoomPolygonNearClip
+    lui     $v0, %hi(vs_render_linkRoomPolygonByDepth)
+    addiu   $v0, $v0, %lo(vs_render_linkRoomPolygonByDepth)
     .nop
     sh      $a0, 0x4($v0)
     sh      $a0, 0x1C($v0)
     jr      $ra
     .nop
-endlabel func_80098160
+endlabel vs_render_setRoomPolygonNearClip
 
-glabel func_8009817C
-    lui     $v0, %hi(func_800980F8)
-    addiu   $v0, $v0, %lo(func_800980F8)
+glabel vs_render_setRoomPolygonFarClip
+    lui     $v0, %hi(vs_render_linkRoomPolygonByDepth)
+    addiu   $v0, $v0, %lo(vs_render_linkRoomPolygonByDepth)
     .nop
     sh      $a0, 0x14($v0)
     jr      $ra
     .nop
-endlabel func_8009817C
+endlabel vs_render_setRoomPolygonFarClip
 
-glabel func_80098194
+glabel vs_render_setRoomTextureLodDepth
     lui     $v0, %hi(D_80097590)
     addiu   $v0, $v0, %lo(D_80097590)
     lui     $v1, %hi(D_800978F8)
@@ -1067,11 +1067,11 @@ glabel func_80098194
     sh      $a0, 0x0($v1)
     jr      $ra
     .nop
-endlabel func_80098194
+endlabel vs_render_setRoomTextureLodDepth
 
-glabel func_800981B8
-    lui     $v0, %hi(func_80098014)
-    addiu   $v0, $v0, %lo(func_80098014)
+glabel vs_render_setRoomPolygonScreenBounds
+    lui     $v0, %hi(vs_render_isRoomPolygonOnScreen)
+    addiu   $v0, $v0, %lo(vs_render_isRoomPolygonOnScreen)
     .nop
     sh      $a3, 0x10($v0)
     sh      $a3, 0x18($v0)
@@ -1091,9 +1091,9 @@ glabel func_800981B8
     sh      $a2, 0xC0($v0)
     jr      $ra
     .nop
-endlabel func_800981B8
+endlabel vs_render_setRoomPolygonScreenBounds
 
-glabel func_8009820C
+glabel vs_render_drawSkyDome
     lui     $a3, (0x1F800100 >> 16)
     ori     $t1, $a3, (0x1F800100 & 0xFFFF)
     lw      $a1, (0x1F800004 & 0xFFFF)($a3)
@@ -1225,9 +1225,9 @@ glabel func_8009820C
     lui     $a3, (0x1F800000 >> 16)
     jr      $ra
     sw      $a2, (0x1F800000 & 0xFFFF)($a3)
-endlabel func_8009820C
+endlabel vs_render_drawSkyDome
 
-glabel func_800983F8
+glabel vs_render_updateRoomGroupTransforms
     lui     $at, (0x1F800030 >> 16)
     sw      $ra, (0x1F8003E0 & 0xFFFF)($at)
     sw      $s0, (0x1F8003E4 & 0xFFFF)($at)
@@ -1242,7 +1242,7 @@ glabel func_800983F8
     jal     func_80098AB8
     addu    $a0, $s0, $zero
     mult    $v0, $s1
-    jal     func_80098AB4
+    jal     vs_core_mathCosine
     addu    $a0, $s0, $zero
     addu    $a0, $v1, $zero
     mflo    $s3
@@ -1266,14 +1266,14 @@ glabel func_800983F8
     .nop
     addiu   $a0, $s0, 0x4
     addiu   $a1, $s0, 0x10
-    jal     func_800985AC
+    jal     vs_render_buildRoomGeometryViewMatrix
     addiu   $a2, $s0, 0x20
     b       .L80098580
     .nop
 .L8009849C:
     addiu   $a0, $s2, %lo(D_1F8003D0)
     addiu   $a1, $s2, %lo(D_1F8003D0)
-    jal     func_800985AC
+    jal     vs_render_buildRoomGeometryViewMatrix
     addiu   $a2, $s2, %lo(D_1F8003AC)
     .nop
     lw      $t0, (0x1F8003AC & 0xFFFF)($s2)
@@ -1340,9 +1340,9 @@ glabel func_800983F8
     lw      $s4, (0x1F80039C & 0xFFFF)($at)
     jr      $ra
     lw      $s2, (0x1F8003EC & 0xFFFF)($at)
-endlabel func_800983F8
+endlabel vs_render_updateRoomGroupTransforms
 
-glabel func_800985AC
+glabel vs_render_buildRoomGeometryViewMatrix
     lui     $a3, (0x1F8003FC >> 16)
     sw      $ra, (0x1F8003F0 & 0xFFFF)($a3)
     sw      $s0, (0x1F8003F4 & 0xFFFF)($a3)
@@ -1357,11 +1357,11 @@ glabel func_800985AC
     andi    $t0, $t0, 0xFFFF
     sll     $t1, $t1, 16
     or      $v0, $t0, $t1
-    jal     func_8009874C
+    jal     vs_core_mathBuildEulerRotationMatrix
     addu    $a1, $s2, $zero
     lui     $a0, (0x1F800014 >> 16)
     ori     $a0, $a0, (0x1F800014 & 0xFFFF)
-    jal     func_800989B8
+    jal     vs_core_mathMultiplyRotationMatrixInPlace
     addu    $a1, $s2, $zero
     lw      $t0, 0x0($s0)
     lw      $t1, 0x4($s0)
@@ -1382,9 +1382,9 @@ glabel func_800985AC
     swc2    $27, 0x8($t1)
     jr      $ra
     lw      $s2, (0x1F8003FC & 0xFFFF)($a3)
-endlabel func_800985AC
+endlabel vs_render_buildRoomGeometryViewMatrix
 
-glabel func_80098648
+glabel vs_render_buildScaleCompensatedRoomView
     lui     $a3, (0x1F8003C0 >> 16)
     lui     $t0, (0x1000000 >> 16)
     lw      $t1, (0x1F800064 & 0xFFFF)($a3)
@@ -1421,15 +1421,15 @@ glabel func_80098648
     andi    $t0, $t0, 0xFFFF
     sll     $t1, $t1, 16
     or      $v0, $t0, $t1
-    jal     func_8009874C
+    jal     vs_core_mathBuildEulerRotationMatrix
     addu    $a1, $s2, $zero
     lui     $a3, %hi(D_1F8003B0)
     addiu   $a0, $a3, %lo(D_1F8003B0)
-    jal     func_800989B8
+    jal     vs_core_mathMultiplyRotationMatrixInPlace
     addiu   $a1, $a3, %lo(D_1F8003D0)
     lui     $a0, %hi(D_1F8003D0)
     addiu   $a0, $a0, %lo(D_1F8003D0)
-    jal     func_800989B8
+    jal     vs_core_mathMultiplyRotationMatrixInPlace
     addu    $a1, $s2, $zero
     lw      $t0, 0x0($s0)
     lw      $t1, 0x4($s0)
@@ -1450,9 +1450,9 @@ glabel func_80098648
     swc2    $27, 0x8($t1)
     jr      $ra
     lw      $s2, (0x1F8003FC & 0xFFFF)($a3)
-endlabel func_80098648
+endlabel vs_render_buildScaleCompensatedRoomView
 
-glabel func_8009874C
+glabel vs_core_mathBuildEulerRotationMatrix
     lui     $a2, %hi(_trig_table)
     addiu   $a2, $a2, %lo(_trig_table)
     lui     $t7, %hi(func_800988BC)
@@ -1546,7 +1546,7 @@ alabel D_80098760
     or      $t4, $t4, $t5
     jr      $ra
     sw      $t4, 0xC($v0)
-endlabel func_8009874C
+endlabel vs_core_mathBuildEulerRotationMatrix
 
 glabel func_800988BC
     addu    $t1, $a2, $t8
@@ -1614,7 +1614,7 @@ glabel func_800988BC
     negu    $t0, $t0
 endlabel func_800988BC
 
-glabel func_800989B8
+glabel vs_core_mathMultiplyRotationMatrixInPlace
     lw      $t0, 0x0($a0)
     lw      $t1, 0x4($a0)
     lw      $t2, 0x8($a0)
@@ -1678,11 +1678,11 @@ glabel func_800989B8
     or      $t5, $t5, $t2
     jr      $ra
     sw      $t5, 0xC($a1)
-endlabel func_800989B8
+endlabel vs_core_mathMultiplyRotationMatrixInPlace
 
-glabel func_80098AB4
+glabel vs_core_mathCosine
     addiu   $a0, $a0, 0x400
-endlabel func_80098AB4
+endlabel vs_core_mathCosine
 
 glabel func_80098AB8
     lui     $v0, %hi(_trig_table)
@@ -1717,7 +1717,7 @@ glabel func_80098AB8
     .nop
 endlabel func_80098AB8
 
-glabel func_80098B1C
+glabel vs_field_callRoomEntryPoint
     lui     $t0, %hi(vs_battle_roomData)
     addiu   $t0, $t0, %lo(vs_battle_roomData)
     lw      $t1, 0x98($t0)
@@ -1725,9 +1725,9 @@ glabel func_80098B1C
     addiu   $t1, $t1, 0x14
     jr      $t1
     .nop
-endlabel func_80098B1C
+endlabel vs_field_callRoomEntryPoint
 
-glabel func_80098B38
+glabel vs_render_sampleRoomLighting
     lui     $at, (0x1F800218 >> 16)
     sw      $ra, (0x1F800200 & 0xFFFF)($at)
     sw      $s0, (0x1F800204 & 0xFFFF)($at)
@@ -1777,7 +1777,7 @@ glabel func_80098B38
     bgtz    $at, .L80098C00
     .nop
     addu    $a2, $s1, $zero
-    jal     func_80098C3C
+    jal     vs_render_interpolateRoomLightTriangle
     addu    $a1, $s4, $zero
     bnez    $v0, .L80098C14
 .L80098C00:
@@ -1798,9 +1798,9 @@ glabel func_80098B38
     lw      $s5, (0x1F800218 & 0xFFFF)($at)
     jr      $ra
     .nop
-endlabel func_80098B38
+endlabel vs_render_sampleRoomLighting
 
-glabel func_80098C3C
+glabel vs_render_interpolateRoomLightTriangle
     lw      $t4, 0x8($a2)
     lw      $t5, 0x10($a2)
     lw      $t6, 0xC($a2)
@@ -1881,9 +1881,9 @@ glabel func_80098C3C
 .L80098D64:
     jr      $ra
     or      $v0, $zero, $zero
-endlabel func_80098C3C
+endlabel vs_render_interpolateRoomLightTriangle
 
-glabel func_80098D6C
+glabel vs_render_tintRoomGeometryPrimitives
     beq     $a0, $a1, .L80098DC0
     addu    $v0, $ra, $zero
     addu    $v1, $a3, $zero
@@ -1911,13 +1911,13 @@ glabel func_80098D6C
     jr      $ra
     .nop
 .L80098DCC:
-    jal     func_80098E50
+    jal     vs_render_tintRoomPrimitiveColor
     addiu   $t3, $a0, 0x4
     sw      $t6, 0x4($a0)
-    jal     func_80098E50
+    jal     vs_render_tintRoomPrimitiveColor
     addiu   $t3, $a0, 0x10
     sw      $t6, 0x10($a0)
-    jal     func_80098E50
+    jal     vs_render_tintRoomPrimitiveColor
     addiu   $t3, $a0, 0x1C
     sw      $t6, 0x1C($a0)
     addiu   $a0, $a0, 0x28
@@ -1927,16 +1927,16 @@ glabel func_80098D6C
     b       .L80098DC0
     .nop
 .L80098E08:
-    jal     func_80098E50
+    jal     vs_render_tintRoomPrimitiveColor
     addiu   $t3, $a0, 0x4
     sw      $t6, 0x4($a0)
-    jal     func_80098E50
+    jal     vs_render_tintRoomPrimitiveColor
     addiu   $t3, $a0, 0x10
     sw      $t6, 0x10($a0)
-    jal     func_80098E50
+    jal     vs_render_tintRoomPrimitiveColor
     addiu   $t3, $a0, 0x1C
     sw      $t6, 0x1C($a0)
-    jal     func_80098E50
+    jal     vs_render_tintRoomPrimitiveColor
     addiu   $t3, $a0, 0x28
     sw      $t6, 0x28($a0)
     addiu   $a0, $a0, 0x34
@@ -1945,9 +1945,9 @@ glabel func_80098D6C
     .nop
     b       .L80098DC0
     .nop
-endlabel func_80098D6C
+endlabel vs_render_tintRoomGeometryPrimitives
 
-glabel func_80098E50
+glabel vs_render_tintRoomPrimitiveColor
     .nop
     lw      $t6, 0x0($t3)
     .nop
@@ -2018,7 +2018,7 @@ glabel func_80098E50
     or      $t6, $t6, $t4
     jr      $ra
     or      $t6, $t6, $t5
-endlabel func_80098E50
+endlabel vs_render_tintRoomPrimitiveColor
 
 glabel vs_battle_initSceneAndGetRoomNames
     lw      $v0, 0x0($a0)
@@ -2041,7 +2041,7 @@ glabel vs_battle_initSceneAndGetRoomNames
     addu    $v0, $a1, $zero
 endlabel vs_battle_initSceneAndGetRoomNames
 
-glabel func_80098F8C
+glabel vs_field_drawMinimapScene
     lw      $v0, 0x0($a0)
     lui     $a3, (0x1F8003E8 >> 16)
     sw      $s0, (0x1F8003F0 & 0xFFFF)($a3)
@@ -2060,8 +2060,8 @@ glabel func_80098F8C
     or      $a1, $zero, $zero
     lw      $s4, 0x10($t9)
     lw      $v1, 0x14($t9)
-    lui     $t9, %hi(D_800F1CDC)
-    addiu   $t9, $t9, %lo(D_800F1CDC)
+    lui     $t9, %hi(vs_field_roomAnimationTicks)
+    addiu   $t9, $t9, %lo(vs_field_roomAnimationTicks)
     lui     $s5, %hi(vs_main_stateFlags)
     addiu   $s5, $s5, %lo(vs_main_stateFlags)
     ori     $s0, $zero, 0xFFFF
@@ -2399,7 +2399,7 @@ glabel func_80098F8C
     sw      $t8, (0x1F800000 & 0xFFFF)($a3)
     jr      $ra
     .nop
-endlabel func_80098F8C
+endlabel vs_field_drawMinimapScene
 
 glabel vs_battle_getGeomOffset
     cfc2    $t0, $24
@@ -2423,7 +2423,7 @@ glabel vs_battle_setGeomOffset
     .nop
 endlabel vs_battle_setGeomOffset
 
-glabel func_80099514
+glabel vs_field_sampleCollisionHeightCode
     lui     $a3, %hi(vs_battle_roomData)
     addiu   $a3, $a3, %lo(vs_battle_roomData)
     lw      $a3, 0x68($a3)
@@ -2465,4 +2465,4 @@ glabel func_80099514
     andi    $t1, $t1, 0x80
     jr      $ra
     or      $v0, $v0, $t1
-endlabel func_80099514
+endlabel vs_field_sampleCollisionHeightCode

@@ -11,10 +11,10 @@ fn ordering(scratch: *v.vs_scratch_t, depth: c_int) ?*anyopaque {
 }
 
 /// orig: func_8008F440 (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
-/// For each of the D_800F1DC0 drops: a falling drop moves by the wind D_800F1D98 per tick (its fall scaled by its
+/// For each of the vs_field_weatherParticleCount drops: a falling drop moves by the wind D_800F1D98 per tick (its fall scaled by its
 /// unkE) and, when it projects on screen, is drawn as a semi-transparent line back along the wind; off screen (or
 /// too near or far) it is recycled (func_80090A1C). A drop above the floor that was drawn on an odd slot lands
-/// where its cell (func_8008B764) is not a hole, at the floor height (func_8008DC7C). A landed drop is drawn as a
+/// where its cell (vs_field_collisionCellAt) is not a hole, at the floor height (vs_field_floorHeightAt). A landed drop is drawn as a
 /// growing splash quad (frame unkD / 2) and recycled after 8 frames or off screen.
 pub fn func_8008F440() callconv(.c) void {
     var vertices: [10]v.SVECTOR = undefined;
@@ -22,15 +22,15 @@ pub fn func_8008F440() callconv(.c) void {
     const scratch = v.g.vs_scratch();
     const view = gte.viewOf(&v.g.vs_view().viewMatrix, gte.screenCurrent());
     const wind = v.g.D_800F1D98();
-    var particle: [*]v.D_800F1DD4_t = @ptrCast(v.g.D_800F1DD4().*.?);
+    var particle: [*]v.D_800F1DD4_t = @ptrCast(v.g.vs_field_weatherParticles().*.?);
     var i: c_int = 0;
-    while (i < v.g.D_800F1DC0().*) : ({
+    while (i < v.g.vs_field_weatherParticleCount().*) : ({
         i += 1; // i < a short
         particle += 1;
     }) {
         const drop = &particle[0];
         if (drop.unkC == 0) {
-            if (v.g.D_800F1BA4().* == 0) {
+            if (v.g.vs_field_areRoomUpdatesPaused().* == 0) {
                 var j: c_int = 0;
                 while (j < (v.g.vs_gametime_tickspeed().* >> 1)) : (j += 1) { // j < an int
                     // x86 shifts by the amount & 31 (unkE is 0 or 2 here).
@@ -67,10 +67,10 @@ pub fn func_8008F440() callconv(.c) void {
             }
             if (drop.unk2 > 0) {
                 if (drop.unkE == 0 and (i & 1) != 0) {
-                    const cell = c.func_8008B764(psx.conv(c_uint, @divTrunc(@as(c_int, drop.unk0), 128)), psx.conv(c_uint, @divTrunc(@as(c_int, drop.unk4), 128)), 0);
+                    const cell = c.vs_field_collisionCellAt(psx.conv(c_uint, @divTrunc(@as(c_int, drop.unk0), 128)), psx.conv(c_uint, @divTrunc(@as(c_int, drop.unk4), 128)), 0);
                     if (cell != null and (@as(*u32, @ptrCast(@alignCast(cell))).* & 31) != 31) {
                         drop.unkC = 1;
-                        projection = (@as(c_int, c.func_8008DC7C(drop.unk0, drop.unk4)) << 17) >> 17;
+                        projection = (@as(c_int, c.vs_field_floorHeightAt(drop.unk0, drop.unk4)) << 17) >> 17;
                         drop.unk2 = psx.conv(i16, projection);
                     } else {
                         c.func_80090A1C(@ptrCast(drop));
@@ -102,7 +102,7 @@ pub fn func_8008F440() callconv(.c) void {
                     (frame & 0xFF) | (192 << 8), ((frame + 16) & 0xFF) | (192 << 8), (frame & 0xFF) | (208 << 8), ((frame + 16) & 0xFF) | (208 << 8),
                 });
                 if (c.pc_weather_drop_hidden(drop.unk0, drop.unk2, drop.unk4) != 0) sprite_item.hardwareHidden(item);
-                if (v.g.D_800F1BA4().* == 0) {
+                if (v.g.vs_field_areRoomUpdatesPaused().* == 0) {
                     drop.unkD = psx.conv(u8, @as(c_int, drop.unkD) +% (v.g.vs_gametime_tickspeed().* >> 1));
                 }
                 if (drop.unkD >= 8) {

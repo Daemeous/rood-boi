@@ -9,7 +9,7 @@ const c = @import("c_146C");
 /// Finds the room section-11 entry for arg0..arg3 at the camera's facing, calls func_80091AC0 on each of its bytes and returns 1; returns 0 when none matches.
 pub fn func_8008C2C0(arg0: c_int, arg1: c_int, arg2: c_int, arg3: c_int) callconv(.c) c_int {
     if (psx.get(v.g.vs_battle_roomData().section11) != null) {
-        c.func_8008C40C();
+        c.vs_field_clearGeometryOcclusion();
         const facing: c_int = ((v.g.vs_view().camera.angles.vy +% 0x900) & 0xFFF) >> 9;
         var entry: *align(1) v._mpdRoomSection11 = psx.get(v.g.vs_battle_roomData().section11).?;
         const len: c_int = psx.conv(c_int, v.g.vs_battle_roomData().header.section11Len);

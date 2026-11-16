@@ -7,17 +7,17 @@
 #include "pc/src/game/BATTLE/BATTLE.PRG/4A0A8.h"
 #include "pc/src/game/BATTLE/BATTLE.PRG/5BF94.h"
 
-void func_800F9A24(int arg0)
+void vs_menu_frameworkLoadActorPreview(int arg0)
 {
-    func_800F9A78(arg0);
-    func_800F9CB0();
+    vs_menu_frameworkCloneActorPreview(arg0);
+    vs_menu_frameworkResetActorPreviewPose();
 
-    D_800F4538[1]->unk0.weaponDrawn = 1;
+    vs_actors_actorRecords[1]->unk0.weaponDrawn = 1;
 
-    func_800A0204(1, 1, 0, 0);
+    vs_actors_playActorAnimation(1, 1, 0, 0);
 }
 
-void func_800F9A78(int arg0)
+void vs_menu_frameworkCloneActorPreview(int arg0)
 {
     vs_battle_objectData sp10;
     D_800F4538_t* temp_s0;
@@ -26,7 +26,7 @@ void func_800F9A78(int arg0)
     D_800F4538_t* temp_s3;
     void* temp_v0;
 
-    temp_s2 = D_800F4538[arg0];
+    temp_s2 = vs_actors_actorRecords[arg0];
     temp_s3 = vs_main_allocHeap(VS_OBJECT_REGION);
     sp10.dataType = 2;
     sp10.index = 1;
@@ -40,7 +40,7 @@ void func_800F9A78(int arg0)
     vs_battle_populateDataSlot(&sp10);
 
     if (temp_s2->unk17FD >= 2) {
-        temp_s0 = D_800F4538[temp_s2->unk17FD];
+        temp_s0 = vs_actors_actorRecords[temp_s2->unk17FD];
         temp_v0 = vs_main_allocHeap(VS_OBJECT_REGION);
         sp10.dataType = 2;
         sp10.index = 16;
@@ -80,7 +80,7 @@ void func_800F9A78(int arg0)
     if (temp_s2->unk0.unkF == 0) {
         temp_s3->unk5D8 = vs_main_allocHeap(0x7800);
 
-        func_8009C378(temp_s3->unk5D8, temp_s2->unk5D8);
+        vs_content_copyWeaponSequence(temp_s3->unk5D8, temp_s2->unk5D8);
     } else {
         temp_s3->unk5D8 = temp_s2->unk5D8;
     }
@@ -97,7 +97,7 @@ typedef struct {
     u_int unk0_24 : 8;
 } D_800F4538_unk58_3;
 
-void func_800F9CB0(void)
+void vs_menu_frameworkResetActorPreviewPose(void)
 {
     D_800F4538_unk58_2 sp10;
     int new_var;
@@ -105,15 +105,15 @@ void func_800F9CB0(void)
     D_800F4538_t* temp_s0;
     int i;
 
-    temp_s0 = D_800F4538[1];
+    temp_s0 = vs_actors_actorRecords[1];
 
     for (i = 0; i < 2; ++i) {
-        if (D_800F4590[i] != NULL) {
-            D_800F4590[i]->unk8 |= 0x10;
+        if (vs_battle_unusedGlobal1[i] != NULL) {
+            vs_battle_unusedGlobal1[i]->unk8 |= 0x10;
         }
     }
 
-    func_8009D468(1, i);
+    vs_actors_resetActorMotionState(1, i);
 
     temp_s0->unk0.position.vx = 0;
     temp_s0->unk0.position.vy = 0;
@@ -130,38 +130,38 @@ void func_800F9CB0(void)
     sp18.unk0_16 = 2;
     sp18.unk0_24 = 16;
 
-    if (D_800F4538[16] == NULL) {
+    if (vs_actors_actorRecords[16] == NULL) {
         func_8009F940(1, 1, (D_800F4538_unk58_2*)&sp18, &sp10);
     } else {
-        D_800F4538[16]->unk0.skip = 0;
+        vs_actors_actorRecords[16]->unk0.skip = 0;
     }
 
     sp10.unk0 = 0;
     sp10.unk1 = 0;
     sp10.unk2 = 0;
 
-    func_800A0768(1, &sp10);
-    func_800A07FC(1, 0);
+    vs_actors_setActorFadeParameters(1, &sp10);
+    vs_actors_setActorTint(1, 0);
 
     temp_s0->unk648_16 = 0;
 }
 
-void func_800F9E0C(void)
+void vs_menu_frameworkReleaseActorPreview(void)
 {
     void* sp10[2];
     void* temp_s1;
 
-    temp_s1 = D_800F4538[1];
+    temp_s1 = vs_actors_actorRecords[1];
     sp10[0] = vs_battle_wepModels[2];
     sp10[1] = vs_battle_wepModels[3];
 
-    func_8009CFB0(1);
+    vs_content_releaseActorModel(1);
     vs_main_freeHeap(temp_s1);
 
-    temp_s1 = D_800F4538[16];
+    temp_s1 = vs_actors_actorRecords[16];
 
     if (temp_s1 != NULL) {
-        func_8009CFB0(0x10);
+        vs_content_releaseActorModel(0x10);
         vs_main_freeHeap(temp_s1);
     }
 
@@ -174,14 +174,14 @@ void func_800F9E0C(void)
     }
 }
 
-int func_800F9EB8(MATRIX* arg0)
+int vs_menu_frameworkDrawActorPreview(MATRIX* arg0)
 {
     int _[2];
     int i;
     D_800F4538_t* temp_s1;
     int new_var2;
     int new_var3;
-    temp_s1 = D_800F4538[1];
+    temp_s1 = vs_actors_actorRecords[1];
 
     if (temp_s1 == NULL) {
         return -1;
@@ -195,22 +195,22 @@ int func_800F9EB8(MATRIX* arg0)
         return -1;
     }
 
-    func_800AECA0(arg0);
+    vs_render_prepareActorCameraMatrices(arg0);
 
     temp_s1->unk5B2 =
         ((int)(vs_gametime_tickspeed + (((u_int)vs_gametime_tickspeed) >> 0x1F))) >> 1;
 
     if (temp_s1->unk0.freeze) {
-        func_800AB4F0(temp_s1);
-        func_800AF6E8(temp_s1);
+        vs_actors_stepTextureScrolling(temp_s1);
+        vs_actors_updateActorAnimationBlend(temp_s1);
     } else {
-        func_800AEAE8(temp_s1);
+        vs_actors_actorRootOffset(temp_s1);
     }
 
     func_800B28A8(temp_s1, arg0, 0);
 
     if (temp_s1->unk17FD > 1) {
-        func_800AB4F0(D_800F4538[16]);
+        vs_actors_stepTextureScrolling(vs_actors_actorRecords[16]);
     }
 
     if (temp_s1->unk17FD != 0) {
@@ -245,7 +245,7 @@ int func_800F9EB8(MATRIX* arg0)
             bone->t[1] -= temp_s1->unk6F4.unk1;
             bone->t[2] -= temp_s1->unk6F4.unk2;
 
-            func_800B217C(temp_a0, bone);
+            vs_actors_buildWeaponBoneChain(temp_a0, bone);
 
             bone->t[0] += temp_s1->unk6F4.unk0;
             bone->t[1] += temp_s1->unk6F4.unk1;
@@ -256,12 +256,12 @@ int func_800F9EB8(MATRIX* arg0)
     return 0;
 }
 
-static int func_800FA188(int arg0, int arg1, int* arg2)
+static int vs_field_measureTileStack(int arg0, int arg1, int* arg2)
 {
     int i;
     int var_t2 = 0;
     int ret = 0;
-    D_800F45E0_t** var_t0 = D_800F45E0;
+    D_800F45E0_t** var_t0 = vs_field_gimmickInstances;
 
     for (i = 0; i < 16; ++i) {
         D_800F45E0_t* temp_v1 = var_t0[i];
@@ -281,11 +281,11 @@ static int func_800FA188(int arg0, int arg1, int* arg2)
     return ret;
 }
 
-static int func_800FA238(int arg0, int arg1, int arg2) __attribute__((unused));
-static int func_800FA238(int arg0, int arg1, int arg2)
+static int vs_field_isGimmickWithinHeightBand(int arg0, int arg1, int arg2) __attribute__((unused));
+static int vs_field_isGimmickWithinHeightBand(int arg0, int arg1, int arg2)
 {
     int i;
-    D_800F45E0_t** var_t0 = D_800F45E0;
+    D_800F45E0_t** var_t0 = vs_field_gimmickInstances;
     int new_var = arg2 + 0x80;
 
     for (i = 0; i < 16; ++i) {
@@ -301,14 +301,14 @@ static int func_800FA238(int arg0, int arg1, int arg2)
     return 0;
 }
 
-void func_800FA2CC(void)
+void vs_menu_frameworkResetAshleyEquipmentPose(void)
 {
     u_short* sp10;
     int i;
     int i_2;
     D_800F4538_t* temp_s1;
 
-    temp_s1 = D_800F4538[0];
+    temp_s1 = vs_actors_actorRecords[0];
 
     for (i = 0; i < 2; ++i) {
         vs_battle_wepModels_t* var_a0 = vs_battle_wepModels[i];
@@ -323,7 +323,7 @@ void func_800FA2CC(void)
         }
     }
 
-    func_8009E634(temp_s1);
+    vs_field_refreshAshleyInteractionTile(temp_s1);
 
     i_2 = 1;
 
@@ -333,11 +333,11 @@ void func_800FA2CC(void)
 
     temp_s1->animationId = i_2;
     temp_s1->unk5AC_20 = 0;
-    temp_s1->unk187C = func_800AD494(temp_s1, i_2, &sp10);
+    temp_s1->unk187C = vs_actors_findActorAnimationHeader(temp_s1, i_2, &sp10);
     temp_s1->unk6E3 = D_800F49DC;
     temp_s1->unk5BC = *sp10;
 
-    func_800AD008(temp_s1, &temp_s1->unkC54);
+    vs_actors_initializeActorAnimationPose(temp_s1, &temp_s1->unkC54);
     func_800AFA28(temp_s1, &temp_s1->unkC54, 1);
     vs_main_memcpy(&temp_s1->unk704, &temp_s1->unkC54, sizeof temp_s1->unk704);
 
@@ -347,11 +347,11 @@ void func_800FA2CC(void)
     temp_s1->unk5CC = 0;
 }
 
-void func_800FA3FC(int arg0)
+void vs_menu_frameworkQueueAshleyWeaponAnimations(int arg0)
 {
     vs_battle_objectData sp10;
 
-    func_8009CC20(0, 0);
+    vs_content_releaseActorSequence(0, 0);
 
     sp10.dataType = 7;
     sp10.index = 0;

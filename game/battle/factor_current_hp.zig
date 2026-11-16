@@ -12,7 +12,7 @@ pub fn factorCurrentHp(action: ?*v.vs_action_t, _: ?*v._hitEntity_t, target: ?*v
     const hp: c_int = stats.currentHP;
     const statFactor: c_int = psx.getBits(psx.at(&hitAction.hitParams, hitIndex), "statFactor");
     const product: c_int = hp *% statFactor;
-    const bonus: c_uint = v.g.D_800F19CC().*.?.unk0 -% 1;
+    const bonus: c_uint = v.g.vs_battle_actionState().*.?.unk0 -% 1;
     const sum: c_uint = psx.conv(c_uint, @divTrunc(product, 100)) +% bonus;
     return psx.conv(i16, sum);
 }

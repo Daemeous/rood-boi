@@ -6,7 +6,7 @@ const c = @import("c_146C");
 /// Allocates the transition once; unless one is already running (D_800F196C 7) its start is the current camera,
 /// spherical camera, near clip, projection distance and far clip. Its end: near clip 4, projection 224, far clip
 /// 0x2000, actor 0's facing as yaw, pitch 0, the current distance, aimed at actor 0's position (0xB4 up). Then
-/// D_800F196C 7, camera mode 0, and the battle start calls (func_800CB654, func_8009E5C4 for all 16 actors, ...).
+/// D_800F196C 7, camera mode 0, and the battle start calls (vs_battle_setHudHidden, func_8009E5C4 for all 16 actors, ...).
 pub fn initBattleCameraTransition() callconv(.c) void {
     var target: v.VECTOR = undefined;
     var actor: v.func_8006EBF8_t = undefined;
@@ -24,7 +24,7 @@ pub fn initBattleCameraTransition() callconv(.c) void {
     transition.*.?.toNearClip = 4;
     transition.*.?.toProjectionDistance = 224;
     transition.*.?.toFarClip = 0x2000;
-    _ = c.func_800A1108(0, &actor);
+    _ = c.vs_actors_actorPlacement(0, &actor);
     transition.*.?.toSpherical.values.yaw = actor.unk0.unk4.pad;
     transition.*.?.toSpherical.values.pitch = 0;
     transition.*.?.toSpherical.values.distance = v.g.vs_battle_cameraCurrentSpherical().values.distance;
@@ -34,13 +34,13 @@ pub fn initBattleCameraTransition() callconv(.c) void {
     c._computeCameraTransition(@ptrCast(&target));
     v.g.D_800F196C().* = 7;
     v.g._cameraMode().* = 0;
-    c.func_800CB654(1);
+    c.vs_battle_setHudHidden(1);
     var i: c_int = 0;
     while (i < 16) : (i += 1) { // i < 16: no overflow
         c.func_8009E5C4(i);
     }
-    _ = c.func_8008B4C8(0);
-    c.func_8008D594(1);
-    c.func_80095B70(1);
+    _ = c.vs_field_setMinimapVisible(0);
+    c.vs_field_setMovingPlatformsPaused(1);
+    c.vs_battle_setActorMarkersHidden(1);
     c.func_800A0870(1);
 }

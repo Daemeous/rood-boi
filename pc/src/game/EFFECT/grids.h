@@ -49,7 +49,7 @@ int VS_GRID_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
     pc_item* prim;
     alive = 1;
     state = arg0->unk8;
-    battle = D_800F53BC;
+    battle = vs_effects_currentInstance;
     switch (arg1) {
     case 1:
         state = arg0->unk8 = vs_main_allocHeapR(sizeof(*state));
@@ -59,7 +59,7 @@ int VS_GRID_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
         state->xSpacing = state->xSpeed = 0;
         state->zSpacing = state->zSpeed = 0;
         state->xPhase = state->zPhase = 0;
-        effect = &D_800F569C->block5Data->unk4[state->effect];
+        effect = &vs_effects_package->block5Data->unk4[state->effect];
         state->tpage =
             ((effect->unkCA & 7) | ((((u_int*)effect)[1] >> 21) & 0xE0)) + 0x18;
         state->clut = ((effect->unkCB & 7) << 6) | 0x3C30;
@@ -68,7 +68,7 @@ int VS_GRID_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
         state->uScroll = state->vScroll = 0;
         break;
     case 2:
-        effect = &D_800F569C->block5Data->unk4[state->effect];
+        effect = &vs_effects_package->block5Data->unk4[state->effect];
         scratch->flags = effect->flags;
         matrix = &battle->unk1C[effect->unkC8].unk38;
         vs_battle_lerpVector(effect->unk18,
@@ -77,7 +77,7 @@ int VS_GRID_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
         case 0:
             break;
         case 1:
-            vs_battle_addVecToSvec(&scratch->unk98, D_800F5310, &scratch->unk98);
+            vs_battle_addVecToSvec(&scratch->unk98, vs_effects_effectOrigin, &scratch->unk98);
             break;
         case 2:
             scratch->unk98.vx += matrix->t[0];

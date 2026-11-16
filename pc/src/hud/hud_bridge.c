@@ -7,10 +7,10 @@
  * (the record's age pinned each vsync).
  *
  * The game's labels (D_800F1BAC_t, BATTLE.PRG 2842C.c func_800941FC's loop):
- *   status: func_800958A4 from case 4 (TOO FAST!, FAST!, SLOW!, TOO SLOW!, or
+ *   status: vs_battle_drawAbilityTimingResult from case 4 (TOO FAST!, FAST!, SLOW!, TOO SLOW!, or
  *     COOL!, GOOD!, ... for a well-timed chain): unkC the timing,
  *     displayTextLen the success word, unkB the age; gone at 46. Sprites.
- *   chain: func_80095A4C from case 5 ("3 CHAINS"): unkC the count; gone at 91.
+ *   chain: vs_battle_drawChainCount from case 5 ("3 CHAINS"): unkC the count; gone at 91.
  *   buff: func_8009695C from case 6 (kind 7 waits for the equipment menu to
  *     close, func_800971D4): unkE the equipment (D_80069144's words), unkA
  *     the class or affinity (D_8006917C's), unkC the amount (0x8000 a loss),
@@ -18,13 +18,13 @@
  *     gone at 61. Textured quads: the two words, the sign, the digits.
  *   damage: func_80094B0C from case 1: u8[1] the actor, unkE 0 HP, 1 MP, 3..8
  *     a stat change (its icon: HP, MP, STR, INT, AGL, RISK, and a sign first:
- *     func_80094E18; the word named from ui_labels.h), unkC the amount
+ *     vs_battle_drawValueLabelCaption; the word named from ui_labels.h), unkC the amount
  *     (0x8000 damage, else healing), the digits in displayText; gone at 31.
  *     Textured quads.
  *   travel: not the game's (fast_travel_prompt.cpp records it); its show is
  *     fast_travel.c's forced prompt.
  *   name_window: text box 7 with vs_battle_displaySceneMessage's text
- *     (D_800EB9D8, allocated there and freed by func_800CB50C; drawn as a band
+ *     (vs_menu_sceneNotificationBuffer, allocated there and freed by func_800CB50C; drawn as a band
  *     across the bottom of the screen, func_800CD158); the hook at its
  *     end (pc_hud_name_window) gives its message and action and starts its age;
  *     read each vsync (pc_hud_bridge_name_window, an event: never suppressed).
@@ -45,7 +45,7 @@
 #include "hud.h"
 
 
-extern short D_800F227E; /* the labels in D_800F1BAC */
+extern short vs_battle_floatingLabelCount; /* the labels in vs_battle_floatingLabels */
 int vs_battle_renderBattleAbilityTimingResult(int arg0);
 int func_80093F24(int count);                              /* chain */
 int func_80093B68(int actor, int limb, int amount, int kind); /* damage */
@@ -58,8 +58,8 @@ int pc_fast_travel_prompt_is_forced(void);
 void pc_hud_element(int kind, void* record, int x, int y, void* first, void* end);
 void pc_hud_name_window(int message, int action);
 extern unsigned pc_vsync_count(void) __attribute__((weak));
-extern int* D_800EB9D8; /* the name window's text (5BF94.c) */
-extern char D_800F4E68; /* its countdown (func_800CB45C) */
+extern int* vs_menu_sceneNotificationBuffer; /* the name window's text (5BF94.c) */
+extern char vs_menu_sceneNotificationTimer; /* its countdown (func_800CB45C) */
 int pc_ui_text_decode(const unsigned char* text, int max_bytes, char* out, int out_size); /* ui_text.c */
 static void classic_packets(const pc_hud_classic_cmd* cmds, int n, int anchor, int kind, int shadowed);
 int pc_classic_walk_slots(const int* offsets, int count, int with_unk8, int enclosing, const void* first,
@@ -68,7 +68,7 @@ extern int pc_hw_anchor_recorded(int anchor) __attribute__((weak)); /* gpu_hw.c 
 void _renderDigit(int font, int xy, int digit, u_long* before); /* 5BF94.c */
 
 /* The ordering-table slot each kind's game drawing links into (bytes from vs_scratch.unk4): the status
- * words and the chain count -16 (func_800958A4, func_80095A4C), a buff +8 (func_8009695C), a number -20
+ * words and the chain count -16 (vs_battle_drawAbilityTimingResult, vs_battle_drawChainCount), a buff +8 (func_8009695C), a number -20
  * (func_80094B0C) and a word over an actor -20, the timer -4 (_renderTimer), an emote its own (its actor's
  * depth: element_slot) (func_8009506C, func_80095258, its arrow func_800957D0), the
  * gauges -12 (their bars, labels and separators; their digits -16), a target row its own (vs_scratch.unk8 + 8, the
@@ -113,8 +113,8 @@ typedef char pc_hud_classic_kinds_agree[PC_CLASSIC_STATUS == PC_HUD_STATUS && PC
 
 static int status_field(void)
 {
-    return vs_battle_roomData.unk0 == 1 && vs_battle_characterState != NULL && D_800F1BAC != NULL
-        && D_800F227E >= 0 && D_800F227E <= 32;
+    return vs_battle_roomData.unk0 == 1 && vs_battle_characterState != NULL && vs_battle_floatingLabels != NULL
+        && vs_battle_floatingLabelCount >= 0 && vs_battle_floatingLabelCount <= 32;
 }
 
 /* func_80096768's equipment codes by D_80069144's word (its switch, inverted). */
@@ -158,8 +158,8 @@ static D_800F1BAC_t* find(int kind, const pc_hud_spawn* s)
     int i;
     if (!status_field())
         return NULL;
-    p = *D_800F1BAC;
-    for (i = 0; i < D_800F227E; ++i, ++p) {
+    p = *vs_battle_floatingLabels;
+    for (i = 0; i < vs_battle_floatingLabelCount; ++i, ++p) {
         switch (kind) {
         case PC_HUD_STATUS:
             if (p->unk8.u16 == 4)
@@ -294,7 +294,7 @@ static void box(pc_hud_fields* f, const hud_quad* q, int n)
     f->w = (float)(x1 - x0), f->h = (float)(y1 - y0);
 }
 
-/* Each word as func_800958A4 prints it (its strings' $ and wide spaces left out). */
+/* Each word as vs_battle_drawAbilityTimingResult prints it (its strings' $ and wide spaces left out). */
 static const char* const timing_words[] = { "TOO FAST!", "FAST!", "", "SLOW!", "TOO SLOW!" };
 static const char* const success_words[] = { "COOL!", "GOOD!", "EXCELLENT!", "RIGHT ON!", "PERFECT!",
     "WELL TIMED!", "NICE!", "GREAT!" };
@@ -363,11 +363,11 @@ static u_long* slot_for(int kind, int layer)
     shadows[i].head = 0x00FFFFFF;
     return &shadows[i].head;
 }
-/* The text boxes' own ordering table (D_800F51B8: 34 entries, 4 a box, spliced into the frame's by func_800CB83C;
+/* The text boxes' own ordering table (vs_menu_activeTextBoxOrderingTable: 34 entries, 4 a box, spliced into the frame's by func_800CB83C;
  * drawn from its first entry): a box's frame links into its entries 1 (the shadow) and 2 (the body, the outline,
  * the draw modes). A classic frame drawn in the parity mode goes into a table of its own (box_shadow, never
  * spliced). */
-extern u_long* D_800F51B8; /* 5BF94.c */
+extern u_long* vs_menu_activeTextBoxOrderingTable; /* 5BF94.c */
 static u_long box_shadow[34], band_icon_shadow; /* (band_icon_shadow: vs_scratch.unk8's for the band's icon) */
 static int box_shadow_id = -1;
 /* A menu row's emit links at vs_scratch.unk8 - 4, + 0, + 4, + 8 and + 12 (its glyphs, the scroll arrow and the
@@ -477,7 +477,7 @@ static int classic_finish(int kind, pc_hud_fields* f, void* first, void* end, co
             /* (items alone: nothing is linked into a table) */
         } else if (kind == PC_HUD_TEXT_FRAME || kind == PC_HUD_TEXT_BAND || kind == PC_HUD_BOX_TEXT) /* (the text boxes'
                                                                                                 * own table) */
-            count = box_entries(kind, D_800F51B8, f->box_id, kind == PC_HUD_TEXT_BAND ? vs_scratch.unk8 : NULL, first,
+            count = box_entries(kind, vs_menu_activeTextBoxOrderingTable, f->box_id, kind == PC_HUD_TEXT_BAND ? vs_scratch.unk8 : NULL, first,
                 end, game, PC_CLASSIC_CAPTURE);
         else
             count = pc_classic_walk_slots(slots, nslots, kind == PC_HUD_ABILITY_ICONS, enclosing, first, end, game,
@@ -518,9 +518,9 @@ static int classic_finish(int kind, pc_hud_fields* f, void* first, void* end, co
     return amount;
 }
 
-/* The gauges (hud.h PC_HUD_GAUGES): 5BF94.c's PC_CLASSIC around func_800CA2DC's _renderStatBar calls and
+/* The gauges (hud.h PC_HUD_GAUGES): 5BF94.c's PC_CLASSIC around vs_battle_drawBattleHud's _renderStatBar calls and
  * RISK ZERO; record the HUD record (vs_battle_actor2: currentHP .. risk). */
-extern int D_800EB9B0; /* the status display's slide (5BF94.c) */
+extern int vs_battle_hudSlideOffset; /* the status display's slide (5BF94.c) */
 void pc_hud_gauges(void* record, void* first, void* end)
 {
     static pc_hud_fields f;
@@ -533,7 +533,7 @@ void pc_hud_gauges(void* record, void* first, void* end)
     f.hp = actor->currentHP, f.max_hp = actor->maxHP;
     f.mp = actor->currentMP, f.max_mp = actor->maxMP;
     f.risk = actor->risk;
-    f.slide = D_800EB9B0;
+    f.slide = vs_battle_hudSlideOffset;
     append(number(append(number(append(f.text, f.text + sizeof f.text, "HP "), f.text + sizeof f.text, f.hp),
                       f.text + sizeof f.text, " MP "),
                f.text + sizeof f.text, f.mp),
@@ -587,8 +587,8 @@ void pc_hud_actor_word(void* record, int x, int y, void* first, void* end)
     classic_finish(PC_HUD_ACTOR_WORD, &f, first, end, slots, 1, 0);
 }
 
-/* An image (func_800CCA90): which, its drawer, CLUT word and slot, as the game called the drawer; one element per
- * image. Only the tiled drawer (D_800EC25C[0]: the opening's cards) is the classic layer's: the others (the
+/* An image (vs_render_drawGimLayer): which, its drawer, CLUT word and slot, as the game called the drawer; one element per
+ * image. Only the tiled drawer (vs_render_gimLayerDrawRoutines[0]: the opening's cards) is the classic layer's: the others (the
  * credits' wipes, ...) stay the game's until a scene the gate plays shows them. */
 void pc_hud_image(void* record, void* first, void* end)
 {
@@ -1059,7 +1059,7 @@ void pc_hud_text_band(void* record, int id, void* first, void* end)
     classic_finish(PC_HUD_TEXT_BAND, &f, first, end, NULL, 0, 0);
 }
 
-/* A text box's frame (func_800CD3E4): the box as the routine reads it (its place and size this frame, the
+/* A text box's frame (vs_menu_drawTextBoxFrame): the box as the routine reads it (its place and size this frame, the
  * shape, the flip, the tail), copied after the call (the routine changes nothing of it). */
 void pc_hud_text_frame(void* record, int id, void* first, void* end)
 {
@@ -1096,7 +1096,7 @@ void pc_hud_emote(void* record, int actor, void* first, void* end)
     if (!emote || !emote->draw || site_empty(first, end) || actor < 0 || actor >= 16)
         return;
     if (emote->draw == 3)
-        return; /* a far actor's sprite stays the game's: no scene the gate plays shows one (func_8009F858) */
+        return; /* a far actor's sprite stays the game's: no scene the gate plays shows one (vs_field_gimmickSubtype) */
     slot = emote->draw == 1 ? emote->z * 4 : emote->draw == 2 ? -16 : 0;
     f = (pc_hud_fields) { 0 };
     f.kind = PC_HUD_EMOTE;
@@ -1253,7 +1253,7 @@ void pc_hud_element(int kind, void* record, int x, int y, void* first, void* end
         f.stat = i >= 3 ? i - 3 : 0;
         number(f.text, text_end, f.value);
         if (f.pool == 2) {
-            /* its icon's word (func_80094E18's image: STR, INT, AGL, RISK, ...) */
+            /* its icon's word (vs_battle_drawValueLabelCaption's image: STR, INT, AGL, RISK, ...) */
             u_int* w = q[0].packet;
             const pc_item* icon = w ? NULL : pc_frame_item(q[0].item);
             int tpage = w ? (int)(w[5] >> 16) : icon ? icon->mode : 0;
@@ -1298,7 +1298,7 @@ void pc_hud_name_window(int message, int action)
     name.message = message;
     name.action = action;
 }
-static int name_open(void) { return status_field() && D_800EB9D8 != NULL && vs_battle_textBoxes[7].state > 0; }
+static int name_open(void) { return status_field() && vs_menu_sceneNotificationBuffer != NULL && vs_battle_textBoxes[7].state > 0; }
 
 int pc_hud_bridge_name_window(pc_hud_fields* f)
 {
@@ -1311,7 +1311,7 @@ int pc_hud_bridge_name_window(pc_hud_fields* f)
         ((char*)f)[i] = 0;
     f->kind = PC_HUD_NAME_WINDOW;
     f->key = &name;
-    pc_ui_text_decode((const unsigned char*)D_800EB9D8, 112, f->text, sizeof f->text);
+    pc_ui_text_decode((const unsigned char*)vs_menu_sceneNotificationBuffer, 112, f->text, sizeof f->text);
     if (box->unk0.unk0_0 == 4) { /* (the scene message's kind: func_800CD158's band across the screen's bottom,
                                   * or its top when the box is at 0, unk2A rows high) */
         f->w = 320, f->h = (float)box->unk2A;
@@ -1346,13 +1346,13 @@ int pc_hud_bridge_spawn(int kind, const pc_hud_spawn* s)
     if (kind == PC_HUD_NAME_WINDOW) {
         if (!status_field())
             return 0;
-        if (D_800EB9D8 != NULL)
+        if (vs_menu_sceneNotificationBuffer != NULL)
             func_800CB50C(); /* (the one up goes, as the game's next one replaces it) */
         vs_battle_displaySceneMessage(s->variant, s->value & 0xFF, 1);
         name.ours = name.serial;
         return 1;
     }
-    if (!status_field() || D_800F227E >= 30) /* (the game's pool holds 32) */
+    if (!status_field() || vs_battle_floatingLabelCount >= 30) /* (the game's pool holds 32) */
         return 0;
     switch (kind) {
     case PC_HUD_STATUS:
@@ -1402,7 +1402,7 @@ int pc_hud_bridge_hold(int kind, const pc_hud_spawn* s)
     if (kind == PC_HUD_NAME_WINDOW) {
         if (!name_open() || name.serial != name.ours)
             return 0;
-        D_800F4E68 = 0x78; /* (a battle's countdown never runs out) */
+        vs_menu_sceneNotificationTimer = 0x78; /* (a battle's countdown never runs out) */
         return 1;
     }
     p = find(kind, kind == PC_HUD_BUFF || kind == PC_HUD_DAMAGE ? s : NULL);
@@ -1424,7 +1424,7 @@ void pc_hud_bridge_release(int kind, const pc_hud_spawn* s)
         return;
     }
     if (kind == PC_HUD_NAME_WINDOW) {
-        if (status_field() && D_800EB9D8 != NULL && name.serial == name.ours)
+        if (status_field() && vs_menu_sceneNotificationBuffer != NULL && name.serial == name.ours)
             func_800CB50C(); /* closed as the game closes it */
         name.ours = 0;
         return;
@@ -1456,14 +1456,14 @@ void pc_hud_bridge_release(int kind, const pc_hud_spawn* s)
  *            they do the game's
  *   sprite   any VRAM rectangle (its page and CLUT words)
  *   quad     a textured four-point polygon (POLY_FT4) as the label loop builds its numbers and buffs
- *   window   the text boxes' window (func_800CD3E4 for a rectangle): its
+ *   window   the text boxes' window (vs_menu_drawTextBoxFrame for a rectangle): its
  *            shadow 2 pixels down and right, its body (page (448, 256), CLUT
  *            (992, 220), a 64-texel tile: texture window 0x318), its frame
  *            lines 0x303030
  *   cursor   vs_battle_drawCursor's hand at a place (brightness from
  *            vs_battle_cursorBrightnessAnimation)
  *   bar      vs_battle_renderStatBar (HP, MP, RISK) */
-extern u_char D_800EB708[], D_800EB7B4[]; /* the info capitals' kerning and widths (5BF94.c) */
+extern u_char D_800EB708[], vs_render_compactGlyphWidths[]; /* the info capitals' kerning and widths (5BF94.c) */
 extern void pc_text_status(const void* first, const void* end) __attribute__((weak)); /* ui_text.c */
 extern void pc_text_status_typeset(const void* first, const void* end, const pc_text_typeset* typeset)
     __attribute__((weak));
@@ -1511,7 +1511,7 @@ static int info_width(const char* text, int length)
     for (i = 0; i < length; ++i) {
         u_int ch = (u_char)text[i] - 0x20;
         if (ch < 0x3C) {
-            width += (D_800EB7B4[ch >> 1] >> ((ch << 2) & 4)) & 0xF;
+            width += (vs_render_compactGlyphWidths[ch >> 1] >> ((ch << 2) & 4)) & 0xF;
             if (ch - 0x21 < 26 && i + 1 < length && (u_int)((u_char)text[i + 1] - 0x41) < 26) {
                 u_int index = (u_char)text[i + 1] - 0x41 + (ch - 0x21) * 26;
                 width -= (D_800EB708[index >> 2] >> ((index & 3) * 2)) & 3;
@@ -1788,11 +1788,11 @@ static void leader_packets(u_long* ot, const pc_hud_classic_cmd* c)
     vs_scratch.unk8 = slot;
 }
 
-/* A text box's frame by the game's own routine (func_800CD3E4) on a copy of the box: the box's place, size, shape,
+/* A text box's frame by the game's own routine (vs_menu_drawTextBoxFrame) on a copy of the box: the box's place, size, shape,
  * flip and tail set for the call and given back after it (nothing else of the box is read); its packets link into
  * the box's entries of the text boxes' table, or of box_shadow for the parity gate (the vector bubbles,
  * ui_bubbles.c, told nothing of those). */
-void func_800CD3E4(int index); /* 5BF94.c */
+void vs_menu_drawTextBoxFrame(int index); /* 5BF94.c */
 extern int pc_bubble_frame_muted __attribute__((weak));
 static void frame_packets(const pc_hud_classic_cmd* c, int shadowed)
 {
@@ -1800,17 +1800,17 @@ static void frame_packets(const pc_hud_classic_cmd* c, int shadowed)
     vs_battle_textBox* box = &vs_battle_textBoxes[id];
     vs_battle_textBox_fields fields = box->unk0;
     short place[4] = { box->unk24, box->unk26, box->unk28, box->unk2A };
-    u_long* table = D_800F51B8;
+    u_long* table = vs_menu_activeTextBoxOrderingTable;
     box->unk24 = (short)c->x, box->unk26 = (short)c->y, box->unk28 = (short)c->w, box->unk2A = (short)c->h;
     box->unk0.unk0_8 = (u_int)c->b & 15, box->unk0.unk0_6 = (u_int)c->c & 3, box->unk0.unk0_12 = (u_int)c->d & 15;
     if (shadowed) {
-        D_800F51B8 = box_shadow;
+        vs_menu_activeTextBoxOrderingTable = box_shadow;
         box_shadow_id = id;
         if (&pc_bubble_frame_muted)
             pc_bubble_frame_muted = 1;
     }
-    func_800CD3E4(id);
-    D_800F51B8 = table;
+    vs_menu_drawTextBoxFrame(id);
+    vs_menu_activeTextBoxOrderingTable = table;
     if (&pc_bubble_frame_muted)
         pc_bubble_frame_muted = 0;
     box->unk0 = fields;
@@ -1828,19 +1828,19 @@ static void band_packets(const pc_hud_classic_cmd* c, int shadowed)
     vs_battle_textBox_fields fields = box->unk0;
     short y = box->y, edge = box->unk2A, state = box->state;
     char lines = box->lineCount;
-    u_long* table = D_800F51B8;
+    u_long* table = vs_menu_activeTextBoxOrderingTable;
     u_long* icon = vs_scratch.unk8;
     box->y = c->b ? 0 : 1, box->unk2A = (short)c->c, box->lineCount = (char)c->d;
     box->state = c->font ? box->unk22 + 1 : 0;
     box->unk0.unk0_8 = (u_int)c->align & 15;
     if (shadowed) {
-        D_800F51B8 = box_shadow;
+        vs_menu_activeTextBoxOrderingTable = box_shadow;
         box_shadow_id = id;
         band_icon_shadow = 0x00FFFFFF;
         vs_scratch.unk8 = &band_icon_shadow; /* (its icon's slot: setSpriteDefault reads it there) */
     }
     func_800CD158(id);
-    D_800F51B8 = table;
+    vs_menu_activeTextBoxOrderingTable = table;
     vs_scratch.unk8 = icon;
     box->unk0 = fields;
     box->y = y, box->unk2A = edge, box->state = state, box->lineCount = lines;
@@ -1877,13 +1877,13 @@ static void char_packets(const pc_hud_classic_cmd* c, int shadowed)
     if (shadowed)
         box_shadow_id = text_box_id;
     _fontTable = (char)c->b, D_800F4CB8 = (char)c->c, _fontBrightness = c->d;
-    vs_battle_printVariableWidthFontChar((u_int)c->a, c->x, c->y, (shadowed ? box_shadow : D_800F51B8) + text_box_id * 4);
+    vs_battle_printVariableWidthFontChar((u_int)c->a, c->x, c->y, (shadowed ? box_shadow : vs_menu_activeTextBoxOrderingTable) + text_box_id * 4);
     _fontTable = table, D_800F4CB8 = style, _fontBrightness = brightness;
 }
 
-/* An image by the game's own drawer, as func_800CCA90 calls it (D_800F51C8 cleared first: the drawers set it);
+/* An image by the game's own drawer, as vs_render_drawGimLayer calls it (D_800F51C8 cleared first: the drawers set it);
  * into the shadow, the drawers' own widescreen ranges (pc_hw_anchor_packets) are not recorded. */
-extern void (*D_800EC25C[])(void*, int, u_long*); /* 5BF94.c (gim_t* its first) */
+extern void (*vs_render_gimLayerDrawRoutines[])(void*, int, u_long*); /* 5BF94.c (gim_t* its first) */
 extern char D_800F51C8;
 static void image_packets(u_long* ot, const pc_hud_classic_cmd* c, int shadowed)
 {
@@ -1892,7 +1892,7 @@ static void image_packets(u_long* ot, const pc_hud_classic_cmd* c, int shadowed)
     if (shadowed && &pc_hw_anchor_muted)
         pc_hw_anchor_muted = 1;
     D_800F51C8 = 0;
-    D_800EC25C[c->b](image_records[c->a], c->c, ot);
+    vs_render_gimLayerDrawRoutines[c->b](image_records[c->a], c->c, ot);
     if (&pc_hw_anchor_muted)
         pc_hw_anchor_muted = 0;
 }
@@ -2021,7 +2021,7 @@ static void emit_command_packets(const pc_hud_classic_cmd* c, u_long* ot, int ki
         case PC_HUD_CMD_DIGIT:
             _renderDigit(c->a, (int)xy(c->x, c->y), c->b, ot);
             break;
-        case PC_HUD_CMD_TEXT_RAW: { /* as the game calls it (func_800958A4: its string, place, colour word) */
+        case PC_HUD_CMD_TEXT_RAW: { /* as the game calls it (vs_battle_drawAbilityTimingResult: its string, place, colour word) */
             void* first = packet_cursor();
             vs_battle_renderTextRawColor(c->text, (int)xy(c->x, c->y), c->a, ot);
             if (c->font == 4 && restyle && pc_text_status_typeset)

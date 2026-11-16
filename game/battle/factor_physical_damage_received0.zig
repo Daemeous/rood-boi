@@ -8,7 +8,7 @@ const c = @import("c_146C");
 /// Scales the target's HP plus MP by the action's stat factor, but only when the target's HP effect is 1 or 3 and the action is not a spell.
 pub fn factorPhysicalDamageReceived0(action: ?*v.vs_action_t, _: ?*v._hitEntity_t, _: ?*v._hitEntity_t, arg3: c_int, _: c_int) callconv(.c) c_short {
     var factor: i16 = 0;
-    const d = v.g.D_800F19CC().*.?;
+    const d = v.g.vs_battle_actionState().*.?;
 
     // vs_main_actions[actionIndex] is not checked against 256: the C does not check either.
     const actionType = psx.getBits(psx.at(v.g.actions(), d.unk8.actionIndex), "type");

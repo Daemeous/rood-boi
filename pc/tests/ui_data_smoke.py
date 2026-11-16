@@ -11,7 +11,7 @@ Card safety: everything runs inside card_fixtures.card_guard (the player's
 cards hashed before and after; ROOD_CARD1 / ROOD_CARD2 temp copies set
 before any launch); every process gets its own copies under OUT/ui_data.
 Skipped (77) without a card, or when the card's save room is not a save
-point (func_8008A4FC() 0: the frame's at_point).
+point (vs_field_currentSavePointId() 0: the frame's at_point).
 
 Parity: process A runs the original screen (ui_menus off), B the native
 one by pad, C the native one by the mouse (real SDL events through the
@@ -82,8 +82,8 @@ SPAN = (0x8005FEA0, 0x80061AE0)
 # The span's globals in the PS1 layout (offsets from SPAN[0]); read by symbol, as a global that moved out of guest RAM is not at its
 # guest address: the bytes are concatenated in the PS1's order, so an offset in the span is still the PS1 offset.
 SPAN_GLOBALS = (("vs_main_scoredata", 0x8005FEA0), ("vs_main_actionsLearned", 0x8005FFB8), ("vs_main_mapStatus", 0x8005FFD8),
-                ("vs_main_settings", 0x80060020), ("vs_main_artsStatus", 0x80060040), ("D_80060064", 0x80060064),
-                ("D_80060068", 0x80060068), ("vs_main_inventory", 0x80060168), ("D_80061068", 0x80061068),
+                ("vs_main_settings", 0x80060020), ("vs_main_artsStatus", 0x80060040), ("vs_state_currentRoomStateSlot", 0x80060064),
+                ("vs_state_ashleySnapshot", 0x80060068), ("vs_main_inventory", 0x80060168), ("vs_state_savedEntryDoor", 0x80061068),
                 ("vs_main_gametime", 0x80061074), ("D_80061078", 0x80061078), ("vs_main_stateFlags", 0x80061598),
                 ("vs_main_inventoryIndices", 0x800619D8))
 GAMETIME_AT = 0x80061074 - SPAN[0]  # vs_main_gametime's offset in the span
@@ -170,7 +170,7 @@ class Session:
         return self.g.call("card")["writes"]
 
     def hud(self):
-        return self.u8("D_800EB9AF")
+        return self.u8("vs_battle_hudHidden")
 
     def title_x(self):
         items = int.from_bytes(self.g.read(self.sym["vs_battle_menuItems"], PTR), "little")
@@ -183,7 +183,7 @@ class Session:
     def exit_state(self):
         g = self.g
         return {"currentMenu": self.current_menu(), "settings": g.read(self.sym["vs_main_settings"], 32),
-                "cursorMemories": g.read(self.sym["D_800F4EE8"], 0x90), "hud": self.hud(),
+                "cursorMemories": g.read(self.sym["vs_menu_frameworkMenuMemory"], 0x90), "hud": self.hud(),
                 "fade": struct.unpack("<i", g.read(self.sym["vs_mainMenu_backgroundFadeStep"], 4))[0]}
 
     def shot(self, name):
@@ -424,7 +424,7 @@ def run(cards, out, cases, check, shots):
             check(d["phase"] == "ops" and d["save_ok"] == 1 and d["visible"],
                   f"1: System > Data opens the native chooser ({d['phase']}, save_ok {d['save_ok']})")
             check(b.title_x() == 320, f"1: the DATA title stays off screen (item 6 x {b.title_x()})")
-            check(b.hud() == 1, f"1: the HUD held out (D_800EB9AF {b.hud()})")
+            check(b.hud() == 1, f"1: the HUD held out (vs_battle_hudHidden {b.hud()})")
             g0 = d["menu7_gated"]
             b.g.run(60)
             d = b.data()

@@ -5,10 +5,10 @@ const psx = @import("common").psx;
 const v = @import("views_battle_movement");
 
 /// orig: func_800E6764 (pc/src/battle_movement.c)
-/// Releases actor `id`'s tile reservation (func_800E678C) and marks it held
+/// Releases actor `id`'s tile reservation (vs_battle_aiReleaseActorAiReservations) and marks it held
 /// (0x1A = 1); an empty slot does nothing.
 pub fn holdActor(id: c_int) callconv(.c) void {
-    const state: *ai.vs_battle_aiState = @ptrCast(@alignCast(psx.at(v.g.D_800F5878(), id).* orelse return));
-    c.func_800E678C(state);
+    const state: *ai.vs_battle_aiState = @ptrCast(@alignCast(psx.at(v.g.vs_battle_aiActorAiStates(), id).* orelse return));
+    c.vs_battle_aiReleaseActorAiReservations(state);
     state.f1A = 1;
 }

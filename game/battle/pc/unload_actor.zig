@@ -4,7 +4,7 @@ const c = @import("c_actor_cleanup");
 const v = @import("views_actor_cleanup");
 const psx = @import("common").psx;
 
-/// orig: func_800E7454 (pc/src/actor_cleanup.c)
+/// orig: vs_battle_aiFreeActorAiState (pc/src/actor_cleanup.c)
 /// Releases an actor node's hold on the navigation data: its bit in
 /// D_800F590C, other actors' target ids, the grid record's actor slots and
 /// (for nodes flagged 1 or 4) its AI state, its bit in the grid's busy mask
@@ -14,13 +14,13 @@ pub fn unloadActor(node: *ai.vs_battle_actor) callconv(.c) void {
     if (v.g.D_800F58B8().* == 0) return;
     const id: c_uint = @bitCast(node.id);
     if (@as(u8, @truncate(node.allegiance)) & 0x14 != 0) v.g.D_800F590C().* -%= @as(c_uint, 1) << @intCast(id & 31);
-    const states = v.g.D_800F5878();
+    const states = v.g.vs_battle_aiActorAiStates();
     var peer: ?*ai.vs_battle_actor = @ptrCast(@alignCast(v.g.vs_battle_actors()[0]));
     while (peer) |p| : (peer = @ptrCast(p.next)) {
         const other: *ai.vs_battle_aiState = @ptrCast(@alignCast(states[@as(c_uint, @bitCast(p.id))].?));
         if (@as(c_uint, @as(u8, @bitCast(other.target16))) == id) other.target16 = 0x10;
     }
-    const grid = v.g.D_800F58BC().*.?;
+    const grid = v.g.vs_battle_aiRoomAiState().*.?;
     var slot: usize = 4;
     while (slot > 0) {
         slot -= 1;
@@ -28,8 +28,8 @@ pub fn unloadActor(node: *ai.vs_battle_actor) callconv(.c) void {
     }
     if (@as(u8, @truncate(node.allegiance)) & 5 == 0) return;
     const state = states[id];
-    c.func_800E5240(id);
-    c.func_800E678C(state);
+    c.vs_battle_aiFreeActorNavigationOverride(id);
+    c.vs_battle_aiReleaseActorAiReservations(state);
     if (id == 0) return;
     const bit = (@as(c_uint, 1) << @intCast(id & 31)) & grid.unk10;
     if (bit != 0) {
@@ -38,8 +38,8 @@ pub fn unloadActor(node: *ai.vs_battle_actor) callconv(.c) void {
     }
     node.unkB &= 0xfc;
     if (state != null) {
-        c.func_800D821C(state);
-        c.func_800DBF00(state);
+        c.vs_battle_aiResetActorAwarenessIndicator(state);
+        c.vs_battle_aiUnlinkEngagedActor(state);
         c.vs_main_freeHeap(state);
         states[id] = null;
     }

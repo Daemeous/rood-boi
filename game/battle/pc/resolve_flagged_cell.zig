@@ -20,11 +20,11 @@ fn directionDz(packed_direction: c_int) c_int {
     return @as(c_int, @bitCast(@as(c_uint, @bitCast(packed_direction)) << 26)) >> 30;
 }
 
-/// orig: func_800DB93C (pc/src/battle_movement.c)
+/// orig: vs_battle_aiFindGapLandingTile (pc/src/battle_movement.c)
 /// Resolves a step onto a cell flagged 0x20 (e.g. a ledge or gap): keeps
 /// stepping in `dir` while cells stay flagged; at the first clear cell
 /// within min(0xB2, 3) steps, returns it with the step/entry result
-/// (func_800D96C8, then func_800D954C) in bits 24-31. Unflagged targets are
+/// (vs_battle_aiCanTraverseTileEdge, then vs_battle_aiDestinationOccupancy) in bits 24-31. Unflagged targets are
 /// returned unchanged. As in the original, the flagged-cell walk continues
 /// past the step limit while byte 0xB2 is nonzero.
 pub fn resolveFlaggedCell(state: *ai.vs_battle_aiState, tile_in: c_uint, dir: c_int, from: c_uint) callconv(.c) c_uint {
@@ -47,8 +47,8 @@ pub fn resolveFlaggedCell(state: *ai.vs_battle_aiState, tile_in: c_uint, dir: c_
             break;
         }
         if (steps < max_steps) {
-            result = c.func_800D96C8(state, from, tile, dir);
-            if (result == 1) result = c.func_800D954C(state, tile);
+            result = c.vs_battle_aiCanTraverseTileEdge(state, from, tile, dir);
+            if (result == 1) result = c.vs_battle_aiDestinationOccupancy(state, tile);
         }
         break;
     }

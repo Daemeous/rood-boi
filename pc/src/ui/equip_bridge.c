@@ -28,7 +28,7 @@
  * load runs the snapshot says busy and every equip is refused.
  *
  * Only BATTLE routines are called: MAINMENU.PRG is not loaded during the
- * menu's first ticks (BATTLE func_800C97BC runs the top level before it).
+ * menu's first ticks (BATTLE vs_menu_frameworkUpdateMenuOverlay runs the top level before it).
  * Weapon and shield equips still wait for it (pc_ui_equip_begin's resident:
  * the snapshot says busy until then): the model reload's queue would run
  * beside MAINMENU's own load, before its vs_mainMenu_initInventory. */

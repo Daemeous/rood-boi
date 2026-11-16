@@ -9,7 +9,7 @@ const pad = @import("common").pad;
 /// Aims an actor state at its target (word 0x160): the state of an actor
 /// with byte 0x19B set continues in pc_route_continuation; otherwise the
 /// target tile and its 128-unit tile are stored and the actor turns towards
-/// it (func_800E19FC).
+/// it (vs_battle_aiUpdateNavigationAreaMovement).
 fn routeTarget(state: *ai.vs_battle_aiState) void {
     if (state.gate != 0) {
         c.pc_route_continuation(state, psx.addr(state));
@@ -22,10 +22,10 @@ fn routeTarget(state: *ai.vs_battle_aiState) void {
     state.moveZ = @bitCast(z);
     state.destination168.destination = (x >> 7) | ((z >> 7) << 16);
     const angle = c.ratan2(@as(c_int, @bitCast(x)) -% state.position.xyz[0], @as(c_int, @bitCast(z)) -% state.position.xyz[2]);
-    c.func_800E19FC(state, angle);
+    c.vs_battle_aiUpdateNavigationAreaMovement(state, angle);
 }
 
-/// orig: func_800E5308 (pc/src/actor_update.c)
+/// orig: vs_battle_aiUpdateActorNavigationOverrides (pc/src/actor_update.c)
 /// Updates every linked actor that is not flagged 0xC0: refreshes the
 /// scratchpad frame, then for each actor with an AI state (found through the
 /// scratchpad's state table) counts down its timers, copies the actor
@@ -33,7 +33,7 @@ fn routeTarget(state: *ai.vs_battle_aiState) void {
 /// target (idle and far), retargets a moving one that left its tile, or
 /// updates it and releases its route.
 pub fn updateActorNavigation() callconv(.c) void {
-    c.func_800E65DC();
+    c.vs_battle_aiCacheActorAiWorkingState();
     const scratch: [*]c_uint = @ptrFromInt(pad.addr(0x0));
     var actor: ?*ai.vs_battle_actor = @ptrCast(@alignCast(v.g.vs_battle_actors()[0]));
     var visited: c_uint = 0;
@@ -49,7 +49,7 @@ pub fn updateActorNavigation() callconv(.c) void {
         const entry = scratch[0x37c / 4 + id];
         const base: *align(4) ai.vs_battle_aiState = @ptrFromInt(@as(usize, if (entry != 0) entry else 0x8000_0000));
         const route = base.route;
-        scratch[0x3fc / 4] = @bitCast(c.func_800E45B4());
+        scratch[0x3fc / 4] = @bitCast(c.vs_core_elapsedFrameCounterTicks());
         const state = route orelse continue;
         state.waitTimer = 0;
         const countdown = &state.timer156;
@@ -63,7 +63,7 @@ pub fn updateActorNavigation() callconv(.c) void {
         state.flags0.b[2] = 0;
         state.flags0.b[3] = 0;
         state.movementFlags.raw = (flags & ~@as(c_uint, 0xfe0)) | (steps << 5);
-        const model = v.g.D_800F4538()[id];
+        const model = v.g.vs_actors_actorRecords()[id];
         if (model == null) c.pc_unimplemented("actor navigation model missing");
         const tile = psx.byteAt(c_uint, model.?, 0x5c).*;
         var x = psx.byteAt(c_uint, model.?, 0x1c).*;
@@ -82,17 +82,17 @@ pub fn updateActorNavigation() callconv(.c) void {
         scratch[0x3d0 / 4] = 0;
         const target = state.unk160;
         if (state.unk125 == 0) {
-            if (c.func_800E4660(@bitCast((target & 65535) -% x), 0, @bitCast((target >> 16) -% z)) >= 1024) {
+            if (c.vs_core_mathSquaredVectorLength(@bitCast((target & 65535) -% x), 0, @bitCast((target >> 16) -% z)) >= 1024) {
                 routeTarget(state);
                 continue;
             }
         } else if ((state.destination168.destination & 0xff00ff) != (tile & 0xff00ff)) {
             state.destination168.destination = ((target & 65535) >> 7) | ((target >> 23) << 16);
-            c.func_800E50A0(state, 0, 0);
+            c.vs_battle_aiDispatchAiLocomotionMode(state, 0, 0);
             continue;
         }
-        c.func_800DEEFC(state, 0);
-        c.func_800E5240(state.id);
+        c.vs_battle_aiIssueActorCommand(state, 0);
+        c.vs_battle_aiFreeActorNavigationOverride(state.id);
     }
-    c.func_800D9538();
+    c.vs_battle_aiSaveMovementRandomState();
 }

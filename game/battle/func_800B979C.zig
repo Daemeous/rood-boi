@@ -12,7 +12,7 @@ pub fn func_800B979C(arg0: [*c]u8, _: c_short) callconv(.c) c_int {
     const signFlag: c_int = (temp << 16) >> 31;
     v.g.D_800F4C6A().* = psx.conv(u8, signFlag);
     if (v.g.D_800F4C6A().* != 0) {
-        c.func_80098194(temp & 0x7FF);
+        c.vs_render_setRoomTextureLodDepth(temp & 0x7FF);
     }
     return 0;
 }

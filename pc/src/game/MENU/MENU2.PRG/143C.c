@@ -167,7 +167,7 @@ static int _battleAbilityUnlocked(int initialize)
 
         ++vs_main_artsStatus.kills.battleAbilitiesUnlocked;
 
-        memset(D_800F4EE8.unk34, 0, sizeof D_800F4EE8.unk34);
+        memset(vs_menu_frameworkMenuMemory.unk34, 0, sizeof vs_menu_frameworkMenuMemory.unk34);
 
         remainingChainAbilityCount = 0;
 

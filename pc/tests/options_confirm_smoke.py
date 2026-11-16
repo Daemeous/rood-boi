@@ -178,8 +178,8 @@ def main():
               f"Fullscreen mode > 1920 x 1080 applies at once and asks ({fullscreen_mode()}, {o['confirm']})")
         check("Keep these settings?" in o["info"], f"the question in the information box ({o['info']!r})")
         game.call("settings", action="save")
-        check(saved("fullscreen_mode") == "desktop",
-              f"while it asks, a save writes desktop ({saved('fullscreen_mode')})")
+        check(saved("fullscreen_mode") in (None, "desktop"),  # (desktop is the default: a key at its default is not written)
+              f"while it asks, a save holds desktop, not the unconfirmed mode ({saved('fullscreen_mode')})")
         press("circle")  # KEEP (the focus starts there)
         o = wait("page")
         check(fullscreen_mode() == MODES[1] and not o["confirm"]["pending"] and saved("fullscreen_mode") == MODES[1],

@@ -12,38 +12,38 @@
 #include "pc/src/psx_types.h"
 #include "ai_state.h"
 
-void func_800D82CC(vs_battle_aiState*);
-void func_800D836C(vs_battle_aiState*);
-int func_800DBCB4(vs_battle_aiState*, func_800E78F4_t2*);
-void func_800DEEFC(vs_battle_aiState*, int);
-void func_800E2CCC(vs_battle_aiState*);
-void func_800E4CE8(vs_battle_aiState* arg0);
-void func_800E678C(vs_battle_aiState*);
-extern vs_battle_aiState* D_800F5878[];
-extern D_800F58BC_t* D_800F58BC;
+void vs_battle_aiDisengageActor(vs_battle_aiState*);
+void vs_battle_aiTryEngageActor(vs_battle_aiState*);
+int vs_battle_aiIsActionCooldownReady(vs_battle_aiState*, func_800E78F4_t2*);
+void vs_battle_aiIssueActorCommand(vs_battle_aiState*, int);
+void vs_battle_aiRecoverMovement(vs_battle_aiState*);
+void vs_battle_aiForgetAiActionTarget(vs_battle_aiState* arg0);
+void vs_battle_aiReleaseActorAiReservations(vs_battle_aiState*);
+extern vs_battle_aiState* vs_battle_aiActorAiStates[];
+extern D_800F58BC_t* vs_battle_aiRoomAiState;
 extern D_800F5920_t* D_800F5920;
-void func_800D8260(vs_battle_aiState* arg0, int arg1, int arg2);
+void vs_battle_aiSetTemporaryAwarenessIndicator(vs_battle_aiState* arg0, int arg1, int arg2);
 
-int func_800D954C(vs_battle_aiState*, unsigned int);
+int vs_battle_aiDestinationOccupancy(vs_battle_aiState*, unsigned int);
 
-int func_800E4624(short*, short*, int, int);
+int vs_core_mathSquaredDistanceWithHeightOffsets(short*, short*, int, int);
 extern int D_800F58E0;
 extern int D_800F16F4;
 
-int func_800DB8AC(vs_battle_aiState*, actionCandidateEntry*);
-int func_800E42D4(int, int);
-int func_800E4624(short*, short*, int, int);
-unsigned int func_800E4660(int, int, int);
-void func_800DB5B8(vs_battle_aiState*, unsigned int, int);
-void func_800DB5DC(vs_battle_aiState*, unsigned int, int);
-int func_800DB61C(vs_battle_aiState*, int);
-int func_800DB370(vs_battle_aiState*, int, int, int);
-int func_800DB74C(vs_battle_aiState*, int);
-int func_800D9E18(vs_battle_aiState* state, actionCandidateEntry* entry);
+int vs_battle_aiCanApproachEngagedTarget(vs_battle_aiState*, actionCandidateEntry*);
+int vs_field_groundHeightAtWorldPosition(int, int);
+int vs_core_mathSquaredDistanceWithHeightOffsets(short*, short*, int, int);
+unsigned int vs_core_mathSquaredVectorLength(int, int, int);
+void vs_battle_aiWanderAroundTile(vs_battle_aiState*, unsigned int, int);
+void vs_battle_aiMoveToTile(vs_battle_aiState*, unsigned int, int);
+int vs_battle_aiFleeVisibleEnemies(vs_battle_aiState*, int);
+int vs_battle_aiApproachActor(vs_battle_aiState*, int, int, int);
+int vs_battle_aiTrackActorPosition(vs_battle_aiState*, int);
+int vs_battle_aiMoveForActionCandidate(vs_battle_aiState* state, actionCandidateEntry* entry);
 
-int func_800DB370(vs_battle_aiState*, int, int, int);
-int func_800DB74C(vs_battle_aiState*, int);
-int func_800DA1D4(vs_battle_aiState* state);
+int vs_battle_aiApproachActor(vs_battle_aiState*, int, int, int);
+int vs_battle_aiTrackActorPosition(vs_battle_aiState*, int);
+int vs_battle_aiUpdateCombatPursuit(vs_battle_aiState* state);
 
 typedef union {
     unsigned int raw;
@@ -63,24 +63,24 @@ typedef struct {
     unsigned int target : 4, pad : 28;
 } da4bcEntryTarget;
 
-int func_800DBB2C(void*, void*, int);
-void func_800DB5B0(void*);
-void func_800DB5FC(void*);
-void func_800E50A0(void*, int, int);
-int func_800E45D4(int);
-void func_800E1388(vs_battle_aiState*, vs_battle_movementPosition, int, unsigned int);
+int vs_battle_aiFindActorByRelationship(void*, void*, int);
+void vs_battle_aiWanderAroundSavedCenter(void*);
+void vs_battle_aiPatrolWaypoints(void*);
+void vs_battle_aiDispatchAiLocomotionMode(void*, int, int);
+int vs_battle_aiNextActorRandomMasked(int);
+void vs_battle_aiProjectClearRadialDestination(vs_battle_aiState*, vs_battle_movementPosition, int, unsigned int);
 
-int func_800DA4BC(vs_battle_aiState* state, da4bcEntry* entry);
+int vs_battle_aiTryApproachPlannedTarget(vs_battle_aiState* state, da4bcEntry* entry);
 
-int func_800DAA6C(vs_battle_aiState* state);
+int vs_battle_aiUpdatePatrolCombatBehavior(vs_battle_aiState* state);
 
-int func_800DBD80(vs_battle_aiState*, func_800DCAA0_t*);
-int func_800D826C(vs_battle_aiState*);
-int func_800DBC60(vs_battle_aiState*, func_800DCAA0_t*);
-int func_800E45D4(int);
+int vs_battle_aiCanExecuteActionCandidate(vs_battle_aiState*, func_800DCAA0_t*);
+int vs_battle_aiIsEngagementReady(vs_battle_aiState*);
+int vs_battle_aiDoesActionRequireCooldown(vs_battle_aiState*, func_800DCAA0_t*);
+int vs_battle_aiNextActorRandomMasked(int);
 extern int D_800F58E0;
 
-int func_800DAC80(vs_battle_aiState* context, func_800DCAA0_t* action);
+int vs_battle_aiTryExecuteActionCandidate(vs_battle_aiState* context, func_800DCAA0_t* action);
 
 typedef struct actionDispatchModel {
     char pad0[8];
@@ -92,11 +92,11 @@ typedef struct actionDispatchModel {
     short position[3];
 } actionDispatchModel;
 extern int D_800F16F4;
-void func_800DB820(vs_battle_aiState*);
+void vs_battle_aiDispatchMovementBehavior(vs_battle_aiState*);
 void func_800DB7B4(vs_battle_aiState*);
-int func_800DAD9C(vs_battle_aiState* state);
+int vs_battle_aiTryExecutePlannedActions(vs_battle_aiState* state);
 
-void func_800DAED0(void);
+void vs_battle_aiUpdateActorDecisions(void);
 
-int func_800DB0BC(vs_battle_aiState* state);
+int vs_battle_aiTryRecoverBlockedMovement(vs_battle_aiState* state);
 

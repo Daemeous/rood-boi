@@ -47,7 +47,7 @@ extern float pc_qol_skip_charging_name;                     /* project_settings.
 extern float pc_qol_skip_charging_hold_mine, pc_qol_skip_charging_hold_enemy; /* project_settings.cpp; charge_skip.inc */
 extern int pc_skip_intro;        /* project_settings.cpp; boot_runtime.c */
 extern int pc_save_states;       /* project_settings.cpp; savestate_slots.c */
-extern int pc_qol_map_invert, pc_qol_fp_invert_y; /* project_settings.cpp; MENU5, BATTLE func_8006EC7C */
+extern int pc_qol_map_invert, pc_qol_fp_invert_y; /* project_settings.cpp; MENU5, BATTLE vs_field_updateFirstPersonCamera */
 extern int pc_analog_move, pc_analog_dead_zone, pc_analog_run, pc_rumble_strength; /* analog_move.c, boot_gamepad.c */
 extern int pc_qol_map_controls;                   /* project_settings.cpp; map_pad.h */
 extern int pc_qol_confirm_cross, pc_qol_field_cross_attack; /* project_settings.cpp; button_roles.c */

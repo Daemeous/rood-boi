@@ -48,7 +48,7 @@ pub fn loadZndTims(data: ?*anyopaque) callconv(.c) void {
                 while (line < @as(c_int, tim.prect.?.y) + @as(c_int, tim.prect.?.h)) {
                     const clutIndex: c_uint = psx.conv(c_uint, line -% 224);
                     if (clutIndex < 4) {
-                        c.func_8008B2E0(
+                        c.vs_field_copyZonePaletteRow(
                             @as(?*anyopaque, @ptrFromInt(pixels)),
                             psx.conv(c_int, clutIndex),
                             @as(c_int, tim.prect.?.x) -% 768,

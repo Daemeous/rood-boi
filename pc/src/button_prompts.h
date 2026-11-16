@@ -82,7 +82,7 @@ extern float pc_button_prompts_dim_mix;
 /* Call after changing a colour or the mix directly (the editor): the icons are drawn again. */
 void pc_button_prompts_colors_changed(void);
 /* The cross's arm `arm` (0 up, 1 left, 2 right, 3 down: BATTLE.PRG
- * func_800C9FE8's label order, ids 4..7) has a usable action this frame
+ * vs_battle_drawShortcutHud's label order, ids 4..7) has a usable action this frame
  * (weapon_slots.c, as the game asks for each label). */
 void pc_button_prompts_cross_action(int arm, int usable);
 /* Tests (RPC button_prompts cross_actions): those arms (bits up, left, right,

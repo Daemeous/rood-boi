@@ -37,7 +37,7 @@
  *              outside a set); Discard (greyed: equipped, part of a set,
  *              keys and sigils: ITEMHELP cannotDiscardEquipped + rowType -
  *              1); Discard all (misc; greyed for keys and sigils); Sort. With
- *              the menu's disable mask D_800F4EA0 & 7 every row is greyed
+ *              the menu's disable mask vs_menu_frameworkActionRestrictions & 7 every row is greyed
  *              (the original list's rows are unselectable then).
  *   use action vs_mainMenu_miscItemToActionMap[id - 323] (2D10.c:1581,
  *              copied), a levelled grimoire (actions 106..133) moved up one
@@ -76,7 +76,7 @@
  *              stays in the target row; all of it: the target row's record
  *              is initialised), anything else swaps the two rows' entries;
  *              the select sound (the list's confirm)
- * Cursor memories (D_800F4EE8, 58EC.c): each operation leaves the ones the
+ * Cursor memories (vs_menu_frameworkMenuMemory, 58EC.c): each operation leaves the ones the
  * original's menus store for the same choice: the category's list (30 + c,
  * confirmed on the row; for Move on the row, then on the target), the
  * current category (unk3A.currentItemCategory = c + 1), the action menu
@@ -95,16 +95,16 @@
  *   ITEM_USE {misc, row}  populateActions' Use, then vs_menu3_exec: accepted,
  *              pc_ui_items_cast(1) (the shell returned no result on that tick)
  *              writes MENU3's hand-off: vs_battle_miscItemInvoked =
- *              indices[row] - 1, D_800F4E98.executeAbility.u16[0] = the action,
+ *              indices[row] - 1, vs_menu_frameworkActionSelection.executeAbility.u16[0] = the action,
  *              u16[1] = the item id, executeAbilityType 13, unk2 8,
  *              returnState 4 | 0x40 (MENU3's currentMenu, opened from the top
  *              level); the cursor memories its lists leave (the misc list's
  *              row, the action menu on Use, the current category misc) and the
  *              top level's on Items. menu_bridge.c ends the menu as MENU3 does
  *              (close_for_cast: MENU3 returns currentMenu 4, func_800FAA5C makes
- *              it 0x7F) and BATTLE func_800735F8 runs it (unk2 8:
- *              func_80072EC4, targeting); the item is used up when the action
- *              completes (func_80070F28, vs_battle_decreaseMiscCount). A
+ *              it 0x7F) and BATTLE vs_field_dispatchBattleActionMenuResult runs it (unk2 8:
+ *              vs_battle_beginActorActionSelection, targeting); the item is used up when the action
+ *              completes (vs_battle_commitSelectedAction, vs_battle_decreaseMiscCount). A
  *              cancelled target reopens the shell on the item
  *              (pc_ui_menu_cast_cancelled), not MENU3 (returnState).
  * After each change the seven lists are rebuilt (MENU3 goes back to its init
@@ -179,7 +179,7 @@ static const u_char sortStatSizes[] = { sizeof weaponSortStats, sizeof weaponSor
 static const u_char* const sortStats[] = { weaponSortStats, weaponSortStats, bladeSortStats, gripSortStats,
     shieldSortStats, equipmentSortStats, miscSortStats };
 
-#define ITEM_MASK 7          /* D_800F4EA0 bits that grey the whole list (MENU3 _itemNavigation init) */
+#define ITEM_MASK 7          /* vs_menu_frameworkActionRestrictions bits that grey the whole list (MENU3 _itemNavigation init) */
 #define TOP_LEVEL_ITEMS (4 | 0x40) /* MENU3's currentMenu from the top level (returnState of a Use) */
 #define ITEMS_COMMAND 3      /* the top level's row (vs_battle_submenuStates[0]) */
 #define LAST_USABLE 457      /* misc ids above: keys and sigils */
@@ -757,7 +757,7 @@ static void move_item(int itemCategory, int rowCount, int i)
  * rows). */
 static void mask_reason(char* out, int size)
 {
-    u_int mask = (u_int)D_800F4EA0 & ITEM_MASK;
+    u_int mask = (u_int)vs_menu_frameworkActionRestrictions & ITEM_MASK;
     out[0] = 0;
     if (mask & 2)
         copy_text(out, size, "Not while carrying a cube.");
@@ -1056,7 +1056,7 @@ static void fill(void)
         return;
     }
     snap.valid = 1;
-    snap.mask = (u_int)D_800F4EA0 & ITEM_MASK;
+    snap.mask = (u_int)vs_menu_frameworkActionRestrictions & ITEM_MASK;
     snap.locked = snap.mask != 0;
     mask_reason(snap.locked_reason, sizeof snap.locked_reason);
     for (c = 0; c < PC_UI_ITEM_CATEGORIES; ++c) {
@@ -1085,12 +1085,12 @@ static void fill(void)
 
 /* ---- Cursor memories ----
  *
- * MAINMENU keeps each menu's cursor in D_800F4EE8.cursorMemories as {row on
+ * MAINMENU keeps each menu's cursor in vs_menu_frameworkMenuMemory.cursorMemories as {row on
  * screen, page} at 2 * id (58EC.c): a list (vs_mainmenu_setMenuRows) or an
  * action menu (vs_mainMenu_addMenuActions) opens from it, normalised to its
  * row count, and stores its cursor when it is confirmed or left. The Items
  * lists' memories (30 + category) lie past cursorMemories[52], in
- * D_800F4EE8.unk3A.unk2, as the original addresses them. */
+ * vs_menu_frameworkMenuMemory.unk3A.unk2, as the original addresses them. */
 
 /* The open's normalisation (setMenuRows and addMenuActions alike): `rows`
  * rows, `shown` on screen. */
@@ -1169,7 +1169,7 @@ static void cursor_up(int* sel, int* page, int rows, int shown)
 
 static void remember(int id, int sel, int page)
 {
-    char* memories = (char*)&D_800F4EE8;
+    char* memories = (char*)&vs_menu_frameworkMenuMemory;
     memories[id * 2] = sel;
     memories[id * 2 + 1] = page;
 }
@@ -1183,7 +1183,7 @@ static void remember(int id, int sel, int page)
  * every path ends the same. */
 static void cursor_at(int id, int rows, int shown, int target, int from_memory)
 {
-    char* memories = (char*)&D_800F4EE8;
+    char* memories = (char*)&vs_menu_frameworkMenuMemory;
     int sel = 0, page = 0, n;
 
     if (rows <= 0 || target < 0 || target >= rows) {
@@ -1211,7 +1211,7 @@ static void cursor_at(int id, int rows, int shown, int target, int from_memory)
  * one. */
 static void list_cursor(int c, int row, int rows)
 {
-    D_800F4EE8.unk3A.currentItemCategory = (c + 1) & 7;
+    vs_menu_frameworkMenuMemory.unk3A.currentItemCategory = (c + 1) & 7;
     cursor_at(LIST_MEMORY + c, rows, 10 - LIST_INFO, row, 1);
 }
 
@@ -1266,7 +1266,7 @@ void pc_ui_items_session(int fresh)
 static void items_enter(void)
 {
     if (!items_shown && vs_main_settings.cursorMemory == 0) {
-        vs_main_bzero(&D_800F4EE8.unk3A, sizeof D_800F4EE8.unk3A);
+        vs_main_bzero(&vs_menu_frameworkMenuMemory.unk3A, sizeof vs_menu_frameworkMenuMemory.unk3A);
     }
     items_shown = 1;
 }
@@ -1463,11 +1463,11 @@ void pc_ui_items_cast(int go)
     action_cursor(PC_UI_IC_MISC, PC_UI_ITA_USE);
     /* _itemNavigation processAction useItem */
     vs_battle_miscItemInvoked = use.index;
-    D_800F4E98.executeAbility.u16[0] = (short)(u_char)use.action;
-    D_800F4E98.executeAbility.u16[1] = (short)vs_main_inventory.misc[vs_battle_miscItemInvoked].id;
+    vs_menu_frameworkActionSelection.executeAbility.u16[0] = (short)(u_char)use.action;
+    vs_menu_frameworkActionSelection.executeAbility.u16[1] = (short)vs_main_inventory.misc[vs_battle_miscItemInvoked].id;
     /* vs_menu3_exec: row 3, then state 12 */
     vs_battle_menuState.executeAbilityType = 13;
-    D_800F4E98.unk2 = 8;
+    vs_menu_frameworkActionSelection.unk2 = 8;
     vs_battle_menuState.returnState = TOP_LEVEL_ITEMS;
 }
 

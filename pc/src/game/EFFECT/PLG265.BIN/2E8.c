@@ -1,14 +1,14 @@
 #include "common.h"
 
 #define VS_TILED_RING_FUNCTION func_800F9AE8
-#define VS_TILED_RING_COLORS D_800FFD98
+#define VS_TILED_RING_COLORS vs_effects_plg265TiledRingColorFactors
 #include "pc/src/game/EFFECT/tiledRings.h"
 
 #define VS_PARTICLE_ORIGIN_FUNCTION func_800FA9E0
 #define VS_PARTICLE_TARGET_FUNCTION func_800FB168
 #define VS_PARTICLE_CONTROL_FUNCTION func_800FB380
 #define VS_PARTICLE_RENDER_FUNCTION func_800FB830
-#define VS_PARTICLE_CORNER_STATE D_800FFDB8
+#define VS_PARTICLE_CORNER_STATE vs_effects_plg265ParticleEmissionCounter
 #include "pc/src/game/EFFECT/particleSetup.h"
 #undef VS_PARTICLE_ORIGIN_FUNCTION
 #undef VS_PARTICLE_TARGET_FUNCTION
@@ -35,7 +35,7 @@
 #define VS_TRAIL_UPDATE_FUNCTION func_800FCFC4
 #define VS_TRAIL_RENDER_FUNCTION func_800FD150
 #define VS_TRAIL_DISPATCH_FUNCTION func_800FDBAC
-#define VS_TRAIL_CORNER_STATE D_800FFDBC
+#define VS_TRAIL_CORNER_STATE vs_effects_plg265TrailEmissionCounter
 #include "pc/src/game/EFFECT/trails5.h"
 
 #define VS_PARTICLE_ORIGIN_FUNCTION func_800FE0F4
@@ -43,7 +43,7 @@
 #define VS_PARTICLE_CONTROL_FUNCTION func_800FEA94
 #define VS_PARTICLE_RENDER_FUNCTION func_800FEF44
 #define VS_PARTICLE_DISPATCH_FUNCTION func_800FFB04
-#define VS_PARTICLE_CORNER_STATE D_800FFDC0
+#define VS_PARTICLE_CORNER_STATE vs_effects_plg265ParticleEmissionCounter2
 #include "pc/src/game/EFFECT/particleSetup.h"
 
 #include "pc/src/game/EFFECT/particleRender.h"

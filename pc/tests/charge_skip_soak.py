@@ -229,7 +229,7 @@ def main():
                 if m.get("mode") == "actions" and m["actions"][m["action"]]["id"] == "use":
                     break
                 g.press("down", vsyncs=3, settle=4)
-            # (Misc id 357, unnamed, maps to action 0: BATTLE's func_80072BA8 frames actor 1 for it, an
+            # (Misc id 357, unnamed, maps to action 0: BATTLE's vs_battle_initializeActionTargeting frames actor 1 for it, an
             # empty slot here; the PS1 reads that from address 0, the port once segfaulted.)
             record("item", f"{lst[row]['id']} (action {lst[row]['action']})", r.run_action(f"item {lst[row]['id']}"),
                    windup=lst[row]["action"] != 0)

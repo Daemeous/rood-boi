@@ -703,6 +703,7 @@ from build_cache import ObjectCache, ResultCache, Stamp
 
 sys.path.insert(0, str(root / "pc/tools"))
 import zig_toolchain  # noqa: E402
+import symbol_names  # noqa: E402
 
 # The pinned Zig for the owned code in game/ (pc/docs/Ownership.md). Optional
 # while no game code is owned yet: without it the owned objects are skipped
@@ -1575,6 +1576,8 @@ if arch64:
 # SDK/function imports are explicit fail-fast traps. Data imports retain original
 # addresses into the private disc image. Never emit a callable MIPS address.
 addresses = {}
+# The reference (config/, the ELFs) keeps the decomp's names; the code uses ours (pc/names/symbols.tsv).
+rename_symbol = symbol_names.renamer()
 for config in ["SLUS_010.40", "TITLE/TITLE.PRG", "BATTLE/BATTLE.PRG"]:
     for p in [
         root / f"config/{config}/symbol_addrs.txt",
@@ -1584,7 +1587,7 @@ for config in ["SLUS_010.40", "TITLE/TITLE.PRG", "BATTLE/BATTLE.PRG"]:
             for name, value in re.findall(
                 r"^(\w+)\s*=\s*(0x[0-9A-Fa-f]+)", p.read_text(), re.M
             ):
-                addresses.setdefault(name, int(value, 16))
+                addresses.setdefault(rename_symbol(name), int(value, 16))
 # Full reference ELF distinguishes data objects from functions, including assets.
 functions = set()
 function_addresses = {}
@@ -1607,7 +1610,7 @@ for elf in [out / "main-symbols.elf", root / "build/data/TITLE/TITLE.PRG.elf"] +
             and parts[3] in ("OBJECT", "FUNC", "NOTYPE")
             and parts[6] != "UND"
         ):
-            name = parts[7]
+            name = rename_symbol(parts[7])
             if parts[3] == "FUNC":
                 functions.add(name)
                 function_addresses[name] = int(parts[1], 16)
@@ -1621,12 +1624,13 @@ if battle:
     for line in query([*READELF, "-sW", str(ending_elf)]).splitlines():
         parts = line.split()
         if len(parts) >= 8 and parts[3] in ("OBJECT", "FUNC", "NOTYPE") and parts[6] != "UND":
+            name = rename_symbol(parts[7])
             if parts[3] == "FUNC":
-                functions.add(parts[7])
-                function_addresses.setdefault(parts[7], int(parts[1], 16))
-                function_sites.add((parts[7], int(parts[1], 16)))
+                functions.add(name)
+                function_addresses.setdefault(name, int(parts[1], 16))
+                function_sites.add((name, int(parts[1], 16)))
             else:
-                addresses.setdefault(parts[7], int(parts[1], 16))
+                addresses.setdefault(name, int(parts[1], 16))
 # Overlays are linked side by side, but on the PS1 each was loaded alone, so two
 # overlays may import different data under one name (TITLE's _fontTable is not
 # BATTLE's). Give an object its own overlay's address for such a name by
@@ -1651,7 +1655,7 @@ for key, elf in overlay_elfs.items():
     for line in query([*READELF, "-sW", str(elf)]).splitlines():
         parts = line.split()
         if len(parts) >= 8 and parts[3] in ("OBJECT", "NOTYPE") and parts[6] != "UND":
-            overlay_data[key][parts[7]] = int(parts[1], 16)
+            overlay_data[key][rename_symbol(parts[7])] = int(parts[1], 16)
 def object_overlay(obj):
     stem = obj.stem
     for key in sorted(overlay_data, key=len, reverse=True):
@@ -1659,8 +1663,8 @@ def object_overlay(obj):
             return key
     return None
 # Original code calls some static functions by address: overlays call main's
-# (e.g. vs_main_getcurrentMusicSlot, func_80046578) and BATTLE calls the
-# resident MAINMENU overlay's (func_800FA188). Expose exactly those local
+# (e.g. vs_main_getcurrentMusicSlot, vs_audio_playCutsceneStreamSlotCentered) and BATTLE calls the
+# resident MAINMENU overlay's (vs_field_measureTileStack). Expose exactly those local
 # functions of the host main and MAINMENU objects that another object imports
 # and nothing defines, preserving their C, instead of linking fail-fast traps.
 exposing = [out / "main.o"] + sorted(o for o in objects if o.stem.startswith("mainmenu_"))
@@ -1960,7 +1964,7 @@ for data_dir, image, image_base in images:
         for line in data.read_text().splitlines():
             label = re.match(r"\s*dlabel (\w+)", line)
             if label:
-                current = label.group(1)
+                current = rename_symbol(label.group(1))
                 tables[current] = []
                 order.append(current)
                 continue
@@ -1970,7 +1974,7 @@ for data_dir, image, image_base in images:
             if current is None or tables[current] is None or not line.strip():
                 continue
             word = re.search(r"\.word (\w+)", line)
-            tables[current] = tables[current] + [word.group(1)] if word else None
+            tables[current] = tables[current] + [rename_symbol(word.group(1))] if word else None
     def function_words(words):
         return words is not None and all(e == "0x00000000" or e in functions for e in words)
     for name in sorted(missing):
@@ -1980,7 +1984,7 @@ for data_dir, image, image_base in images:
         if not 0 <= addresses[name] - image_base < len(image):
             continue
         # splat splits a table wherever code names an entry's address (e.g.
-        # D_800301E0[0xD0]); rejoin contiguous function-only labels up to the
+        # vs_audio_mixerCommandHandlers[0xD0]); rejoin contiguous function-only labels up to the
         # next label native code references by name.
         if function_words(entries):
             index = order.index(name) + 1
@@ -2163,7 +2167,7 @@ def lp64_native_imports():
         # Other imports inside would keep reading the guest copy (symbols
         # nothing imports do not matter).
         inside = sorted(n for n in data - moved if start <= addresses[n] < end and (groups[n] or "") == owner)
-        # A 4-byte integer alias of a pointer word (MENU3 tests D_800F4594,
+        # A 4-byte integer alias of a pointer word (MENU3 tests vs_battle_unusedGlobal2,
         # which is vs_battle_wepModels[3], for zero) maps to the low half of
         # the 8-byte slot: the same value for addresses below 4 GB.
         words = [n for n in inside if addresses[n] % 4 == 0 and all(
@@ -2209,7 +2213,7 @@ def lp64_native_imports():
     PLAIN_MAX = 0x20000
     def address_taken(obj):
         """Imports an object uses other than by a PC-relative load or store: its address is taken (lea, an
-        absolute or GOT reference, a relocation in data). Declared types lie about size (D_800F4CD0 is a u_long
+        absolute or GOT reference, a relocation in data). Declared types lie about size (vs_menu_textBoxOrderingTables is a u_long
         and the start of the ordering table), and GPU packets and DMA buffers must stay in guest RAM, so an
         import whose address any object takes stays where it is. Owned Zig reaches every import through an
         accessor that returns its address (its object cannot tell a read from a pointer use), so its source
@@ -2293,17 +2297,17 @@ def lp64_native_imports():
         return bool(infos) and any(info.get("size") == 0 for _, info in infos) and not any(
             info.get("pointer") or info.get("pointer_words") or (info.get("element") or {}).get("pointer")
             or not (info.get("ps1_size") or obj.stem.endswith("_zig")) for obj, info in infos)
-    # ENDING's wave table D_800DBB28[4][16] (D4.c, the Phantom Pain wave) is read at [i + 1][j + 1], one row and one column
-    # past its end: the 16 bytes after it are D_800DBB68..6C and the credits' text pointers, and the picture of the
+    # ENDING's wave table vs_ending_creditsRippleDistanceGrid[4][16] (D4.c, the Phantom Pain wave) is read at [i + 1][j + 1], one row and one column
+    # past its end: the 16 bytes after it are vs_ending_creditsIllustrationBrightness..6C and the credits' text pointers, and the picture of the
     # credits shows what those bytes hold. The table and the three variables stay in guest RAM with them.
-    OVERRUN = {"D_800DBB28", "D_800DBB68", "D_800DBB6A", "D_800DBB6C"}
+    OVERRUN = {"vs_ending_creditsRippleDistanceGrid", "vs_ending_creditsIllustrationBrightness", "vs_ending_creditsIllustrationTexturePageX", "vs_ending_creditsIllustrationPaletteY"}
     def packet_storage(name):
         """Taking the address of GPU packet and ordering-table storage hands it to the GPU's links (24 bits of a
         guest RAM address): that, and nothing else about an address being taken, keeps an import in guest RAM."""
         types = " ".join(str(info.get("type")) for _, info in declarations.get(declared_name(name), []))
-        # (named: a block the code reaches by arithmetic from a neighbour's label, func_8008E19C: D_800E85A0 - 0x58, which holds
+        # (named: a block the code reaches by arithmetic from a neighbour's label, vs_field_drawRoomTriggerMarker: vs_field_triggerMarkerRecordTail - 0x58, which holds
         # these two inside it, is a packet built in pieces under four names)
-        return name in ("D_800F4CD0", "D_800E856C", "D_800E8594") or bool(re.search(r"\b(P_CODE|POLY_\w+|TILE\w*|SPRT\w*|LINE_\w+|DR_\w+|DRAWENV|DISPENV|DMA\w*)\b", types))
+        return name in ("vs_menu_textBoxOrderingTables", "vs_field_triggerMarkerMatrix", "vs_field_triggerMarkerVertex") or bool(re.search(r"\b(P_CODE|POLY_\w+|TILE\w*|SPRT\w*|LINE_\w+|DR_\w+|DRAWENV|DISPENV|DMA\w*)\b", types))
     def unrelated(name, other):
         """Two imports of overlays that are never loaded together (TITLE's and BATTLE's data share addresses):
         their extents may cross without being one object."""

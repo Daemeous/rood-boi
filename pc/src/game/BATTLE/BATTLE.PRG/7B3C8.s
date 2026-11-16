@@ -5,7 +5,7 @@
 
 .section .text, "ax"
 
-glabel func_800E3BC8
+glabel vs_battle_aiSetDetourBoundary
     lw      $t0, 0x168($a0)
     lui     $t8, (0x3FFFFF >> 16)
     ori     $t8, $t8, (0x3FFFFF & 0xFFFF)
@@ -73,16 +73,16 @@ alabel func_800E3C30
     jalr    $v1
     mtc2    $a0, $2 /* handwritten instruction */
     mfc2    $a0, $2 /* handwritten instruction */
-    jal     func_800E3BC8
+    jal     vs_battle_aiSetDetourBoundary
     mtc2    $v0, $1 /* handwritten instruction */
     mfc2    $ra, $0 /* handwritten instruction */
     mfc2    $v0, $1 /* handwritten instruction */
 .L800E3CD4:
     jr      $ra
     nop
-endlabel func_800E3BC8
+endlabel vs_battle_aiSetDetourBoundary
 
-glabel func_800E3CDC
+glabel vs_battle_aiRefreshDetourProgress
     lw      $t0, 0x194($a0)
     lui     $a3, (0xFF00FF >> 16)
     lw      $t1, 0x34($a0)
@@ -107,7 +107,7 @@ glabel func_800E3CDC
     addiu   $a2, $zero, 0x7E
     bnez    $a3, .L800E3D48
     addu    $v0, $a2, $zero
-    jal     func_800E45D4
+    jal     vs_battle_aiNextActorRandomMasked
     addiu   $a0, $zero, 0x4
     bnez    $v0, .L800E3D48
     addu    $v0, $a2, $zero
@@ -118,4 +118,4 @@ glabel func_800E3CDC
     and     $a1, $a1, $v1
     jr      $ra
     or      $v0, $a1, $v0
-endlabel func_800E3CDC
+endlabel vs_battle_aiRefreshDetourProgress

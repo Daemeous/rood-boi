@@ -15,7 +15,7 @@ extern float pc_gameplay_walls_radius; /* world units around Ashley's body that 
  * after `clear` frames clear of the wide region (hysteresis). */
 extern int pc_gameplay_walls_fade_out, pc_gameplay_walls_fade_in, pc_gameplay_walls_clear;
 
-/* func_8009723C (room_geometry.c), the current room: once per frame before
+/* vs_render_drawRoomGeometry (room_geometry.c), the current room: once per frame before
  * its group walk (data NULL while the editor's free camera flies; facing:
  * the mask it tests; mode: its mode argument, which picks the alternate
  * set). Returns 1 when smart walls decide this frame's groups (0: the

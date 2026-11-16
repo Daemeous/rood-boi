@@ -5,9 +5,9 @@ const v = @import("views_30DB0");
 /// orig: func_800A11D8 (pc/src/game/BATTLE/BATTLE.PRG/30DB0.c)
 /// Copies bone `bone` of model `index` to `out_matrix` and its armature's first word to `out_armature`.
 pub fn func_800A11D8(index: c_int, bone: c_int, out_matrix: ?*v.MATRIX, out_armature: [*c]c_uint) callconv(.c) void {
-    var model: ?*v.D_800F4538_t = psx.at(v.g.D_800F4538(), index).*;
+    var model: ?*v.D_800F4538_t = psx.at(v.g.vs_actors_actorRecords(), index).*;
     if (model == null) {
-        const alt: ?*v.D_800F45E0_t = psx.at(v.g.D_800F45E0(), index).*;
+        const alt: ?*v.D_800F45E0_t = psx.at(v.g.vs_field_gimmickInstances(), index).*;
         if (alt == null) return;
         model = @ptrCast(alt);
     }

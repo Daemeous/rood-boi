@@ -8,10 +8,10 @@
 #include <sys/types.h>
 #include <libgte.h>
 #include "gte_value.h"
-extern int func_800A6EE8(SVECTOR*, int, int, int);
+extern int vs_field_sampleActorSupportHeight(SVECTOR*, int, int, int);
 extern MATRIX* RotMatrixYXZ_gte(SVECTOR*, MATRIX*);
-extern MATRIX* func_800B196C(MATRIX*, MATRIX*);
-extern MATRIX* func_800B396C(MATRIX*, VECTOR*);
+extern MATRIX* vs_core_mathPremultiplyRotationMatrix(MATRIX*, MATRIX*);
+extern MATRIX* vs_core_mathScaleMatrixColumns(MATRIX*, VECTOR*);
 extern signed char D_800F49F4;
 extern unsigned D_800E9A68[], D_800E9AD4[];
 extern void pc_unimplemented(const char*);
@@ -56,7 +56,7 @@ void pc_actor_shadow(D_800F4538_t* actor, unsigned char* scratch)
             return;
     }
     SVECTOR* position = &actor->unk0.position;
-    int floor = func_800A6EE8(position, 0, 0, 3);
+    int floor = vs_field_sampleActorSupportHeight(position, 0, 0, 3);
     if (position->vy > floor)
         floor = position->vy;
     unsigned radius = actor->shadowRadius;
@@ -70,18 +70,18 @@ void pc_actor_shadow(D_800F4538_t* actor, unsigned char* scratch)
     SVECTOR slope = { 0 };
     if (D_800F49F4 > 0)
         goto flat;
-    int plus = func_800A6EE8(position, radius, 0, 3);
+    int plus = vs_field_sampleActorSupportHeight(position, radius, 0, 3);
     if (D_800F49F4 > 0)
         goto flat;
-    int minus = func_800A6EE8(position, -radius, 0, 3);
+    int minus = vs_field_sampleActorSupportHeight(position, -radius, 0, 3);
     if (D_800F49F4 > 0)
         goto flat;
     if (plus != minus)
         slope.vz = slope_angle(floor - minus, plus - floor, radius);
-    minus = func_800A6EE8(position, 0, -radius, 3);
+    minus = vs_field_sampleActorSupportHeight(position, 0, -radius, 3);
     if (D_800F49F4 > 0)
         goto flat;
-    plus = func_800A6EE8(position, 0, radius, 3);
+    plus = vs_field_sampleActorSupportHeight(position, 0, radius, 3);
     if (D_800F49F4 > 0)
         goto flat;
     if (plus != minus)
@@ -93,17 +93,17 @@ transform:;
     MATRIX terrain = { 0 }, rotation = { 0 };
     MATRIX* camera = &vs_view.viewMatrix;
     RotMatrixYXZ_gte(&slope, &terrain);
-    func_800B196C(camera, &terrain);
+    vs_core_mathPremultiplyRotationMatrix(camera, &terrain);
     SVECTOR angles = *(SVECTOR*)&actor->unk0.unk24; /* unk24, facing, unk28, unk2A */
     angles.vy += (short)actor->unk1864.unk8;
     RotMatrixYXZ_gte(&angles, &rotation);
-    func_800B196C(&terrain, &rotation);
+    vs_core_mathPremultiplyRotationMatrix(&terrain, &rotation);
     unsigned scale_x = (unsigned)(int)(short)actor->unk1864.unkC >> 1;
     unsigned scale_z = (unsigned)(int)(short)actor->unk1864.unkE >> 1;
     VECTOR scale = { (((size * (unsigned short)actor->unk0.unk2E) >> 12) * scale_z) >> 12,
         *(unsigned*)&actor->unk0.unk30, /* unk30 and unk32 */
         (((size * (unsigned short)actor->unk0.unk2C) >> 12) * scale_x) >> 12, 0 };
-    func_800B396C(&rotation, &scale);
+    vs_core_mathScaleMatrixColumns(&rotation, &scale);
     vs_gte_screen screen = vs_gte_screen_current();
     vs_gte_view camera_view = vs_gte_view_of(camera, screen);
     SVECTOR origin = { *(short*)(scratch + 0x3b0), (short)floor, (short)*(unsigned*)(scratch + 0x3b4), 0 };

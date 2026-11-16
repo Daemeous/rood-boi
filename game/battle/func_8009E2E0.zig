@@ -12,7 +12,7 @@ pub fn func_8009E2E0(slot: c_int, target: ?*v.SVECTOR, phase: c_int) callconv(.c
     const sp18 = [2]u8{ 0x57, 0x59 };
     var sp20: [*c]c.u_short = null;
 
-    const actor = psx.at(v.g.D_800F4538(), slot).* orelse return;
+    const actor = psx.at(v.g.vs_actors_actorRecords(), slot).* orelse return;
 
     if (phase == 0) {
         var diff: c_int = undefined;
@@ -52,7 +52,7 @@ pub fn func_8009E2E0(slot: c_int, target: ?*v.SVECTOR, phase: c_int) callconv(.c
         anim +%= 100;
     }
 
-    _ = c.func_800AD494(@ptrCast(actor), anim, &sp20);
+    _ = c.vs_actors_findActorAnimationHeader(@ptrCast(actor), anim, &sp20);
 
     if (sp20 == null) {
         anim = @as(c_int, psx.at(&sp18, phase).*);
@@ -61,6 +61,6 @@ pub fn func_8009E2E0(slot: c_int, target: ?*v.SVECTOR, phase: c_int) callconv(.c
         }
     }
 
-    _ = c.func_800A0204(slot, anim, 0, 6);
-    c.func_8009FD38(@ptrCast(actor));
+    _ = c.vs_actors_playActorAnimation(slot, anim, 0, 6);
+    c.vs_actors_headTrackingSpeed(@ptrCast(actor));
 }

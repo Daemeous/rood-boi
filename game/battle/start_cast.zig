@@ -4,12 +4,12 @@ const psx = @import("common").psx;
 const v = @import("views_146C");
 const c = @import("c_146C");
 
-/// D_800F19CC, read at each use as the C does.
+/// vs_battle_actionState, read at each use as the C does.
 fn state() *v.D_800F19CC_t {
-    return v.g.D_800F19CC().*.?;
+    return v.g.vs_battle_actionState().*.?;
 }
 
-// The C's request is a local `actionEffectRequest` (146C.c), which it hands to func_800CF0E8 as the views'
+// The C's request is a local `actionEffectRequest` (146C.c), which it hands to vs_effects_beginActionEffect as the views'
 // func_800CF0E8_t (both 0xE8 bytes): effect 0, count 2, otherCount 3, source 4, targets[16] 0x10 (12 bytes each:
 // type 0, value 4: actor 4, reserved 5, part 6, or a SVECTOR position), others[16] 0xD0, position 0xE0.
 const source_offset = 4;
@@ -21,9 +21,9 @@ fn target(k: c_int) isize {
     return if (k < 0) source_offset else targets_offset + @as(isize, k) * target_size;
 }
 
-/// orig: func_8007138C (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
+/// orig: vs_battle_startActionPresentation (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// Starts the current link's cast: the ability input reset (attempted when the player is under status 0x8000); a
-/// plain action is released at once (func_80070278). Otherwise the caster turns and sounds by the action's kind,
+/// plain action is released at once (vs_battle_startActionAnimation). Otherwise the caster turns and sounds by the action's kind,
 /// and the effect request is built (the caster's part, each target's part or position, every other enemy as a
 /// bystander) and sent with its mode; a Break Art or battle ability also loads its caster's armour or weapon model;
 /// the action's name is shown when the information setting is on, and the camera mode (phase) becomes 5.
@@ -46,11 +46,11 @@ pub fn startCast() callconv(.c) void {
     const action = &state().unk854[state().unk0 & 3];
     // the action index is not bounded by the C
     if (psx.getBits(psx.at(v.g.actions(), action.actionIndex), "unk2_0") == 0) {
-        c.func_80070278();
+        c.vs_battle_startActionAnimation();
         return;
     }
 
-    _ = c.func_800A1108(@as(c_int, action.unk4.unk0.targetActor), &actor_position);
+    _ = c.vs_actors_actorPlacement(@as(c_int, action.unk4.unk0.targetActor), &actor_position);
     sound_position.vx = actor_position.unk0.unk4.vx;
     sound_position.vz = actor_position.unk0.unk4.vz;
     sound_position.vy = actor_position.unk0.unk4.vy;
@@ -154,7 +154,7 @@ pub fn startCast() callconv(.c) void {
     if (request.effectId == 0x27 and action.unk4C[0].unk40 == 4) {
         request.effectId = 0x24;
     }
-    _ = c.func_800CF0E8(psx.cptr(c.func_800CF0E8_t, &request), mode, @as(c_int, action.unk2));
+    _ = c.vs_effects_beginActionEffect(psx.cptr(c.func_800CF0E8_t, &request), mode, @as(c_int, action.unk2));
 
     if (action.actionIndex >= 0x8D and action.actionIndex < 0xE0) {
         // the caster is not bounded by the C
@@ -176,7 +176,7 @@ pub fn startCast() callconv(.c) void {
         _ = c.vs_battle_populateDataSlot(@ptrCast(&object));
     }
 
-    c.func_800CB654(1);
+    c.vs_battle_setHudHidden(1);
     if (v.g.vs_main_settings().information != 0) {
         c.vs_battle_displaySceneMessage(0xB, @as(c_int, action.actionIndex), 1);
     }

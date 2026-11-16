@@ -50,7 +50,7 @@ static int _itemPaging(int items, int page)
 static void _renderItemCategory(int animationStep, int highlightSelected)
 {
     int i;
-    int selectedCategory = (D_800F4EE8.unk3A.currentItemCategory - 1) & 7;
+    int selectedCategory = (vs_menu_frameworkMenuMemory.unk3A.currentItemCategory - 1) & 7;
 
     if (animationStep == 4) {
         vs_mainMenu_renderTabNavigation(0);

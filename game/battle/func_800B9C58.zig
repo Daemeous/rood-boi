@@ -11,12 +11,12 @@ pub fn func_800B9C58(arg0: [*c]u8, _: c_short) callconv(.c) c_int {
 
     switch (arg0[1] >> 4) {
         0 => {
-            c.func_800BB68C(psx.conv(c_ushort, c.vs_battle_getShort(arg0 + 2)), psx.cptr(c.func_800BB68C_t, &sp18));
+            c.vs_event_buildScriptActorSelection(psx.conv(c_ushort, c.vs_battle_getShort(arg0 + 2)), psx.cptr(c.func_800BB68C_t, &sp18));
             while (true) {
-                const temp_a2: c_int = @as(c_int, c.func_800BB788(psx.cptr(c.func_800BB68C_t, &sp18)));
+                const temp_a2: c_int = @as(c_int, c.vs_event_nextScriptSelectedActor(psx.cptr(c.func_800BB68C_t, &sp18)));
                 if (temp_a2 == 1) break;
                 // (1 << arg0[4]) & 0x1F: the shift count is taken mod 32, as the x86 shift does.
-                c.func_8007B29C(
+                c.vs_render_transformActorColors(
                     @as(c_int, arg0[1] & 0xF),
                     (@as(c_int, 1) << @as(u5, @truncate(arg0[4]))) & 0x1F,
                     temp_a2,
@@ -27,7 +27,7 @@ pub fn func_800B9C58(arg0: [*c]u8, _: c_short) callconv(.c) c_int {
             }
         },
         1 => {
-            c.func_8007B1B8(
+            c.vs_render_transformSceneColors(
                 @as(c_int, arg0[1] & 0xF),
                 (@as(c_int, 1) << @as(u5, @truncate(arg0[4]))) & 0x1F,
                 psx.conv(c_short, @as(i8, @bitCast(arg0[5]))),
@@ -36,7 +36,7 @@ pub fn func_800B9C58(arg0: [*c]u8, _: c_short) callconv(.c) c_int {
             );
         },
         2 => {
-            c.func_8007B344(
+            c.vs_render_transformBackgroundColors(
                 @as(c_int, arg0[1] & 0xF),
                 (@as(c_int, 1) << @as(u5, @truncate(arg0[4]))) & 0x1F,
                 psx.conv(c_short, @as(i8, @bitCast(arg0[5]))),

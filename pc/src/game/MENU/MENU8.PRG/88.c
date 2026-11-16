@@ -479,7 +479,7 @@ static int _vibrationOptionMenu(int init)
                 vs_mainMenu_setMenuCommand(menuActionNone);
             } else {
                 if (selectedRow == currentState) {
-                    func_800438C8(0);
+                    vs_input_playVibrationPreset(0);
                 }
                 vs_mainMenu_clearMenuExcept(7);
             }
@@ -569,7 +569,7 @@ int vs_menu8_exec(u_char* state)
         i = selectedRow + 1;
         if (i != 0) {
             if (i > 0) {
-                vs_mainMenu_flyoutMenuRightAndHoistSelection(D_800F4EE8.unk85[5], 1);
+                vs_mainMenu_flyoutMenuRightAndHoistSelection(vs_menu_frameworkMenuMemory.unk85[5], 1);
                 switch (selectedRow) {
                 case 0:
                     *state = simpleMap;

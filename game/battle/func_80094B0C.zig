@@ -37,7 +37,7 @@ pub fn func_80094B0C(x_in: c_int, y_in: c_int, p: ?*v.D_800F1BAC_t) callconv(.c)
         } else {
             y = y +% (@as(c_int, q.unkB) >> 1);
         }
-        i = c.func_80094E18(x, y, psx.cptr(c.D_800F1BAC_t, q));
+        i = c.vs_battle_drawValueLabelCaption(x, y, psx.cptr(c.D_800F1BAC_t, q));
         color = 0;
         offset = 0;
     } else {

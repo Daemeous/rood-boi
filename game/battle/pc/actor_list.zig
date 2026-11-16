@@ -15,19 +15,19 @@ fn first() ?*ai.vs_battle_actor {
     return @ptrCast(@alignCast(v.g.vs_battle_actors()[0]));
 }
 
-/// orig: func_800DC810 (pc/src/battle_helpers.c)
-/// Runs func_800DD000 (with the context) for every actor, then func_800DD344
+/// orig: vs_battle_aiApplyActionRelationshipChanges (pc/src/battle_helpers.c)
+/// Runs vs_battle_aiApplyActorActionReaction (with the context) for every actor, then vs_battle_aiPropagateActorRelationships
 /// for every actor. An empty list is reported through pc_unimplemented (the
 /// original would fault), which the walks then pass over.
 pub fn evaluateActors(context: [*]u8) callconv(.c) void {
     if (first() == null) c.pc_unimplemented("actor evaluation with empty actor list");
     var node = first();
     while (node) |n| : (node = next(n)) {
-        c.func_800DD000(psx.at(v.g.D_800F5878(), n.id).*, context);
+        c.vs_battle_aiApplyActorActionReaction(psx.at(v.g.vs_battle_aiActorAiStates(), n.id).*, context);
     }
     node = first();
     while (node) |n| : (node = next(n)) {
-        c.func_800DD344(psx.at(v.g.D_800F5878(), n.id).*);
+        c.vs_battle_aiPropagateActorRelationships(psx.at(v.g.vs_battle_aiActorAiStates(), n.id).*);
     }
 }
 
@@ -46,7 +46,7 @@ fn halves(low: anytype, high: anytype) c_uint {
     return @as(c_uint, @as(L, @bitCast(low))) | (@as(c_uint, @as(H, @bitCast(high))) << 16);
 }
 
-/// orig: func_800DC424 (pc/src/battle_helpers.c)
+/// orig: vs_battle_aiCaptureActorConditionTable (pc/src/battle_helpers.c)
 /// Snapshots each listed actor's id and stat words (0x18, 0x1C, 0x948 of its
 /// stats at +0x3C, then 0x150, 0x2B4) into the 0x18-byte record at
 /// snapshots + id * 0x18. An empty list is reported through pc_unimplemented
@@ -67,7 +67,7 @@ pub fn snapshotActorStats(snapshots: [*]u8) callconv(.c) void {
     }
 }
 
-/// orig: func_800E7370 (pc/src/battle_helpers.c)
+/// orig: vs_battle_aiInitializeActorAiRelations (pc/src/battle_helpers.c)
 /// Propagates reciprocal actor relations through the actor list: for every
 /// listed actor `id` the state's relation to it (bits 6-7 of the word at
 /// 0x1A4 + id * 4) is set from the table D_80069C0C, or to 2 for the state's
@@ -77,7 +77,7 @@ pub fn propagateRelations(state: *ai.vs_battle_aiState) callconv(.c) void {
     var node = first();
     while (node) |n| : (node = next(n)) {
         const id = n.id;
-        const peer: *ai.vs_battle_aiState = @ptrCast(@alignCast(psx.at(v.g.D_800F5878(), id).*.?));
+        const peer: *ai.vs_battle_aiState = @ptrCast(@alignCast(psx.at(v.g.vs_battle_aiActorAiStates(), id).*.?));
         const self: c_uint = state.id;
         var relation: c_uint = 2;
         if (self != @as(c_uint, @bitCast(id))) {
@@ -87,24 +87,24 @@ pub fn propagateRelations(state: *ai.vs_battle_aiState) callconv(.c) void {
         const outgoing = psx.fieldAt(c_uint, &state.tbl.t.targets.bits32, @as(isize, id *% 4));
         const reciprocal = psx.fieldAt(c_uint, &peer.tbl.t.targets.bits32, @as(isize, @intCast(self * 4))).*;
         outgoing.* = (outgoing.* & ~@as(c_uint, 0xc0)) | (relation << 6);
-        if (reciprocal & 0xc0 == 0) c.func_800E7370(peer);
+        if (reciprocal & 0xc0 == 0) c.vs_battle_aiInitializeActorAiRelations(peer);
     }
 }
 
 /// orig: func_800E72D0 (pc/src/battle_helpers.c)
 /// Applies each listed actor's packed options (signed halfword at 0x42 of its
 /// AI entity) to its relation word at 0x1A4, unless the options are negative;
-/// option bit 0 also calls func_800DC210.
+/// option bit 0 also calls vs_battle_aiTryBeginAshleyAlliance.
 pub fn applyActorOptions() callconv(.c) void {
     var node = first();
     while (node) |n| : (node = next(n)) {
         const id = n.id;
-        const entity: *ai.vs_battle_aiState = @ptrCast(@alignCast(psx.at(v.g.D_800F5878(), id).*.?));
+        const entity: *ai.vs_battle_aiState = @ptrCast(@alignCast(psx.at(v.g.vs_battle_aiActorAiStates(), id).*.?));
         const options: c_int = entity.options;
         if (options < 0) continue;
         const flags = &entity.tbl.targetFlags[0];
         flags.* = (flags.* & 0xc80fff30) | ((@as(c_uint, @bitCast(options >> 3)) & 3) << 28) |
             ((@as(c_uint, @bitCast(options >> 1)) & 3) << 6) | ((@as(c_uint, @bitCast(options >> 6)) & 127) << 20);
-        if (options & 1 != 0) c.func_800DC210(entity, 1);
+        if (options & 1 != 0) c.vs_battle_aiTryBeginAshleyAlliance(entity, 1);
     }
 }

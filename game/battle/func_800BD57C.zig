@@ -12,7 +12,7 @@ pub fn func_800BD57C(arg0: ?*v.func_800BD57C_t) callconv(.c) void {
         p.unk8 = psx.conv(i16, @as(c_int, p.unk8) +% (v.g.vs_gametime_tickspeed().* >> 1));
 
         // The call comes first; the field loads after it, as GCC orders them.
-        const f = c.func_800BFEBC(@as(c_int, p.unk1), @as(c_int, p.unk8), @as(c_int, p.unkA));
+        const f = c.vs_event_evaluateInterpolationCurve(@as(c_int, p.unk1), @as(c_int, p.unk8), @as(c_int, p.unkA));
         p.unk2 = psx.conv(i16, @as(c_int, p.unk4) +% ((@as(c_int, p.unk6) *% f) >> 12));
 
         if (@as(c_int, p.unk8) >= @as(c_int, p.unkA)) {

@@ -5,7 +5,7 @@
 
 .section .text, "ax"
 
-glabel func_800DC424
+glabel vs_battle_aiCaptureActorConditionTable
     lui     $t0, %hi(vs_battle_actors)
     lw      $t0, %lo(vs_battle_actors)($t0)
     addiu   $a1, $zero, 0x18
@@ -31,4 +31,4 @@ glabel func_800DC424
     addiu   $a1, $zero, 0x18
     jr      $ra
     nop
-endlabel func_800DC424
+endlabel vs_battle_aiCaptureActorConditionTable

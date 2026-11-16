@@ -21,7 +21,7 @@ typedef struct {
     char unkB[0xD];
 } func_800C4650_t;
 
-extern D_800EB9B8_t* D_800EB9B8;
+extern D_800EB9B8_t* vs_battle_targetSphere;
 
 void func_800C4650(func_800C4650_t* arg0, int arg1);
 

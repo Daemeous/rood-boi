@@ -204,14 +204,14 @@ void _setRows(int rowCount, int absoluteRow, char* text[])
     }
 
     if ((rowCount < 9) || (absoluteRow < 8)) {
-        D_800F4EE8.cursorMemories[2] = absoluteRow;
-        D_800F4EE8.cursorMemories[3] = 0;
+        vs_menu_frameworkMenuMemory.cursorMemories[2] = absoluteRow;
+        vs_menu_frameworkMenuMemory.cursorMemories[3] = 0;
     } else if (absoluteRow >= (rowCount - 8)) {
-        D_800F4EE8.cursorMemories[2] = absoluteRow - (rowCount - 9);
-        D_800F4EE8.cursorMemories[3] = rowCount - 9;
+        vs_menu_frameworkMenuMemory.cursorMemories[2] = absoluteRow - (rowCount - 9);
+        vs_menu_frameworkMenuMemory.cursorMemories[3] = rowCount - 9;
     } else {
-        D_800F4EE8.cursorMemories[2] = 4;
-        D_800F4EE8.cursorMemories[3] = absoluteRow - 4;
+        vs_menu_frameworkMenuMemory.cursorMemories[2] = 4;
+        vs_menu_frameworkMenuMemory.cursorMemories[3] = absoluteRow - 4;
     }
 
     cursorBackup = vs_main_settings.cursorMemory;
@@ -232,7 +232,7 @@ int _getSelectedRow(void)
     if (row < -1) {
         vs_mainMenu_clearMenuExcept(5);
     } else if (row >= 0) {
-        vs_mainMenu_flyoutMenuRightAndHoistSelection(D_800F4EE8.cursorMemories[2], 1);
+        vs_mainMenu_flyoutMenuRightAndHoistSelection(vs_menu_frameworkMenuMemory.cursorMemories[2], 1);
     }
 
     return row;
@@ -300,10 +300,10 @@ int vs_menu9_exec(u_char* state)
             break;
         }
 
-        func_8008A4DC(0);
-        func_800CB654(1);
+        vs_field_setFieldRenderingEnabled(0);
+        vs_battle_setHudHidden(1);
 
-        D_800EB9B0 = 0x200000;
+        vs_battle_hudSlideOffset = 0x200000;
         *state = waitMenuReady;
         // Fallthrough
 
@@ -317,11 +317,11 @@ int vs_menu9_exec(u_char* state)
         if (_selectedRow != 0) {
 
             vs_mainMenu_setBackgroundRenderPriority(-4, 128);
-            func_800CB654(0);
+            vs_battle_setHudHidden(0);
 
-            D_800EB9B0 = 0;
+            vs_battle_hudSlideOffset = 0;
 
-            func_8008A4DC(1);
+            vs_field_setFieldRenderingEnabled(1);
             vs_mainMenu_setMenuCommand(menuActionNone);
             vs_mainMenu_clearMenuExcept(vs_mainMenu_menuItemIds_none);
 
@@ -580,12 +580,12 @@ int _menuInput(void)
         break;
 
     case initData:
-        func_800F9A24(0);
+        vs_menu_frameworkLoadActorPreview(0);
         func_801080C8();
 
         _cameraDistance = 0x150;
         _cameraHeightOffset = 0x6B;
-        _initCameraDistance = D_800F4538[1]->menuCameraDistance;
+        _initCameraDistance = vs_actors_actorRecords[1]->menuCameraDistance;
         _cameraAngles.vx = 0xF40;
         _cameraAngles.vy = 0xE47;
         _cameraAngles.vz = 0;
@@ -630,7 +630,7 @@ int _menuInput(void)
         }
 
         vs_battle_menu9CursorMemory.gazetteRow =
-            D_800F4EE8.cursorMemories[2] + D_800F4EE8.cursorMemories[3];
+            vs_menu_frameworkMenuMemory.cursorMemories[2] + vs_menu_frameworkMenuMemory.cursorMemories[3];
 
         vs_battle_dismissTextBox(0);
 
@@ -653,7 +653,7 @@ int _menuInput(void)
             break;
         }
 
-        func_800F9E0C();
+        vs_menu_frameworkReleaseActorPreview();
 
         if (_nextState == 0) {
             _menuState = (vs_battle_menu9CursorMemory.gazetteRow * 3) + 4;
@@ -1083,9 +1083,9 @@ int _menuInput(void)
                     .zudId)
             == 0) {
 
-            int temp_v1_4 = D_800F4538[1]->menuCameraDistance;
+            int temp_v1_4 = vs_actors_actorRecords[1]->menuCameraDistance;
             _initCameraDistance = temp_v1_4;
-            _cameraHeightOffset = D_800F4538[1]->menuCameraHeightOffset;
+            _cameraHeightOffset = vs_actors_actorRecords[1]->menuCameraHeightOffset;
             _cameraDistance = (temp_v1_4 << 0x10) >> 0xE;
 
             if (_cameraDistance < 0x280) {
@@ -1374,9 +1374,9 @@ int _menuInput(void)
                     .zudId)
             == 0) {
 
-            int temp_v1_10 = D_800F4538[1]->menuCameraDistance;
+            int temp_v1_10 = vs_actors_actorRecords[1]->menuCameraDistance;
             _initCameraDistance = temp_v1_10;
-            _cameraHeightOffset = D_800F4538[1]->menuCameraHeightOffset;
+            _cameraHeightOffset = vs_actors_actorRecords[1]->menuCameraHeightOffset;
             _cameraDistance = (temp_v1_10 << 0x10) >> 0xE;
 
             if (_cameraDistance < 0x280) {
@@ -1512,7 +1512,7 @@ void _buildCameraMatrix(MATRIX* cameraMatrix)
 
     _buildYawMatrix(cameraMatrix, _cameraAngles.vy);
     _buildPitchMatrix(&pitchMatrix, _cameraAngles.vx);
-    func_80041C68(&pitchMatrix, cameraMatrix);
+    vs_core_mathMultiplyMatrixIntoRight(&pitchMatrix, cameraMatrix);
 
     applyVector(&negPosition, position.vx, position.vy, position.vz, = -);
 
@@ -1638,7 +1638,7 @@ void _renderTopMenu(int animStep)
 
     vs_battle_setGeomOffset(&sp20);
     _buildCameraMatrix(&spA8);
-    func_800F9EB8(&spA8);
+    vs_menu_frameworkDrawActorPreview(&spA8);
     vs_battle_setGeomOffset(&sp18);
 
     sprintf(sp28, "#%ld", _score);
@@ -2020,7 +2020,7 @@ void _renderEnemyDetailScreen(int animState, int state)
 
         vs_battle_setGeomOffset(&sp58);
         _buildCameraMatrix(&sp30);
-        func_800F9EB8(&sp30);
+        vs_menu_frameworkDrawActorPreview(&sp30);
         vs_battle_setGeomOffset(&sp50);
     }
 

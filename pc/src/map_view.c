@@ -1,5 +1,5 @@
-/* Native equivalent of hand-written BATTLE/BATTLE.PRG/5A624.s func_800C2E24:
- * the area Map screen renderer called by func_800C4794. Not a matching
+/* Native equivalent of hand-written BATTLE/BATTLE.PRG/5A624.s vs_battle_drawSphereTerrainIntersection:
+ * the area Map screen renderer called by vs_battle_updateSphereTargetPosition. Not a matching
  * decompilation claim; it reproduces the original memory effects literally.
  *
  * Scratchpad work space (all left behind as the original leaves it):
@@ -18,7 +18,7 @@
 #include "pc/src/game/BATTLE/BATTLE.PRG/target_block.h"
 
 /* The battle menu's block (target_block.h). */
-extern D_800EB9B8_t* D_800EB9B8;
+extern D_800EB9B8_t* vs_battle_targetSphere;
 
 extern void pc_unimplemented(const char*);
 /* A 32-bit guest word: the battle menu state block's address. */
@@ -53,5 +53,5 @@ static int pc_map_emitted_count __attribute__((used));
  * mode 0 (0x800C389C/0x800C39A4): [x0,x1] -> [x0,lim][p,x1] or [p,x1].
  * mode 1 (0x800C3AA8): [x0,x1] -> [x0,p][lim,x1] or [x0,p], needs x0 < p.
  * mode 2 (0x800C3BAC): as mode 1 but accepts x0 == p. */
-void func_800C2E24(SVECTOR* origin, MATRIX* m, int scale);
+void vs_battle_drawSphereTerrainIntersection(SVECTOR* origin, MATRIX* m, int scale);
 

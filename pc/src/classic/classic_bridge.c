@@ -4,7 +4,7 @@
  * which captures them and runs their classic claims and the parity gate);
  * so do the gauges (pc_hud_gauges: a HUD kind of the classic look only, inside the panel); the
  * sites only the classic layer has are captured here (RPC packets):
- *   status_panel  func_800CA2DC (146C.c's frame): HP / MP / RISK gauges and
+ *   status_panel  vs_battle_drawBattleHud (146C.c's frame): HP / MP / RISK gauges and
  *                 digits, RISK ZERO, the limbs' figure, the status icons, the
  *                 chain abilities' icons, the top-right sprite; its slots:
  *                 vs_scratch.unk8 (the ability icons) and unk4 - 4 .. - 16. */
@@ -67,7 +67,7 @@ void pc_hud_menuf(void* record, void* first, void* end);           /* hud_bridge
 extern unsigned pc_vsync_count(void) __attribute__((weak));
 
 /* A packet's anchor: the range it lies in, else the one its caller gives the site's range after the
- * hook returns (enclosing: the gauges inside the panel, anchored by 146C.c once func_800CA2DC is done). */
+ * hook returns (enclosing: the gauges inside the panel, anchored by 146C.c once vs_battle_drawBattleHud is done). */
 static int enclosed_anchor(const unsigned* tag, void* user)
 {
     int anchor = pc_classic_guest().anchor(tag, NULL);

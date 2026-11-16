@@ -64,7 +64,7 @@ namespace {
 bool active;
 bool flying; /* right mouse held in the view: the overlay holds the mouse in relative mode */
 /* Live: the free camera drives the game's own rendering (its camera is
- * replaced in func_8007ACB0, the game keeps running); otherwise the
+ * replaced in vs_render_buildCameraViewMatrix, the game keeps running); otherwise the
  * captured room is drawn by this file's renderer with the game paused. */
 bool live = true;
 float eye[3], yaw, pitch, fov_y = 25, speed = 600;
@@ -585,7 +585,7 @@ void from_game_camera()
  * game is paused. It borrows the editor's camera (eye, yaw, pitch, the projection) for its time and gives
  * it back as it was; the editor itself (active, its panel) is not turned on. Roll and the field of view
  * are the game's own: the roll the view matrix takes (vs_view.camera.angles.vz) and the projection
- * distance (vs_battle_setProjectionDistance), set in func_8007ACB0's hook each frame (the game's state
+ * distance (vs_battle_setProjectionDistance), set in vs_render_buildCameraViewMatrix's hook each frame (the game's state
  * of a render is rewound after it, photo.cpp). */
 bool photo;
 float photo_roll;          /* degrees */
@@ -659,7 +659,7 @@ extern "C" void pc_editor_photo_set(const float in_eye[3], float in_yaw, float i
 /* The separate renderer draws the view (not the game). */
 extern "C" int pc_editor_separate(void) { return active && !live; }
 
-/* func_8007ACB0: the free camera's position and a target ahead of it, in
+/* vs_render_buildCameraViewMatrix: the free camera's position and a target ahead of it, in
  * the game's units (world units << 12), for the live camera. */
 struct PsxVector {
     int32_t vx, vy, vz, pad;
@@ -882,7 +882,7 @@ extern "C" int pc_live_camera(PsxVector* position, PsxVector* look_at)
     look_at->vy = (int32_t)((eye[1] + f[1] * 1024) * 4096);
     look_at->vz = (int32_t)((eye[2] + f[2] * 1024) * 4096);
     if (photo) {
-        /* The roll func_8007ACB0 turns the view by next (vs_view.camera.angles.vz, 4096 a turn). */
+        /* The roll vs_render_buildCameraViewMatrix turns the view by next (vs_view.camera.angles.vz, 4096 a turn). */
         *(volatile int32_t*)(vs_view + 0x44 + 8) = (int32_t)lroundf(photo_roll * 4096.0f / 360.0f);
         /* Its yaw and pitch as vs_battle_syncCameraAnglesFromPosition derives them (the direction from the
          * target to the eye: yaw ratan2(x, z) in 0..4095, pitch ratan2(y, horizontal), y down), for what the

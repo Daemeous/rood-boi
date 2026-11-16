@@ -1246,7 +1246,7 @@ int vs_menu3_exec(u_char* state)
     };
 
     static char D_80109649 = 0;
-    static char D_80109710;
+    static char vs_menu_inventoryCloseDelay;
 
     int category;
     int row;
@@ -1271,11 +1271,11 @@ int vs_menu3_exec(u_char* state)
             break;
         }
 
-        func_8008A4DC(0);
+        vs_field_setFieldRenderingEnabled(0);
         vs_mainMenu_initInformationBox();
-        func_800CB654(1);
+        vs_battle_setHudHidden(1);
 
-        D_800EB9B0 = 0x200000;
+        vs_battle_hudSlideOffset = 0x200000;
 
         _renderAshley(1);
         _itemNavigation(D_80109649 + 1);
@@ -1324,14 +1324,14 @@ int vs_menu3_exec(u_char* state)
             case 3:
                 _toggleMenuUi(0);
                 vs_mainMenu_clearMenuExcept(vs_mainMenu_menuItemIds_none);
-                func_8008A4DC(1);
+                vs_field_setFieldRenderingEnabled(1);
 
                 vs_battle_menuState.executeAbilityType = 13;
                 *state = 12;
 
-                func_800CB654(0);
+                vs_battle_setHudHidden(0);
 
-                D_800EB9B0 = 0;
+                vs_battle_hudSlideOffset = 0;
 
                 _renderAshley(2);
 
@@ -1345,10 +1345,10 @@ int vs_menu3_exec(u_char* state)
 
                 _toggleMenuUi(0);
                 vs_mainMenu_clearMenuExcept(vs_mainMenu_menuItemIds_none);
-                func_8008A4DC(1);
-                func_800CB654(0);
+                vs_field_setFieldRenderingEnabled(1);
+                vs_battle_setHudHidden(0);
 
-                D_800EB9B0 = 0;
+                vs_battle_hudSlideOffset = 0;
 
                 _renderAshley(2);
             }
@@ -1385,20 +1385,20 @@ int vs_menu3_exec(u_char* state)
             temp_a1 = vs_battle_menuState.currentMenu;
             vs_battle_menuState.currentMenu = 13;
             vs_battle_menuState.returnState = temp_a1;
-            D_800F4EA0 |= 0x200;
+            vs_menu_frameworkActionRestrictions |= 0x200;
         }
         break;
 
     case 8:
         if (vs_battle_menuState.returnState != 0) {
             vs_mainMenu_setBackgroundRenderPriority(-4, 128);
-            func_8008A4DC(1);
+            vs_field_setFieldRenderingEnabled(1);
             _toggleMenuUi(0);
             vs_mainMenu_clearMenuExcept(vs_mainMenu_menuItemIds_none);
-            func_800CB654(0);
+            vs_battle_setHudHidden(0);
 
-            D_800EB9B0 = 0;
-            D_80109710 = 10;
+            vs_battle_hudSlideOffset = 0;
+            vs_menu_inventoryCloseDelay = 10;
 
             *state = 11;
         } else if (vs_mainmenu_ready()) {
@@ -1429,16 +1429,16 @@ int vs_menu3_exec(u_char* state)
         break;
 
     case quitToBattle:
-        func_8008A4DC(1);
+        vs_field_setFieldRenderingEnabled(1);
         _toggleMenuUi(0);
         vs_mainMenu_clearMenuExcept(vs_mainMenu_menuItemIds_none);
-        func_800CB654(0);
+        vs_battle_setHudHidden(0);
 
-        D_800EB9B0 = 0;
+        vs_battle_hudSlideOffset = 0;
 
         _renderAshley(2);
 
-        D_80109710 = 10;
+        vs_menu_inventoryCloseDelay = 10;
         *state = 11;
 
         break;
@@ -1448,8 +1448,8 @@ int vs_menu3_exec(u_char* state)
         vs_mainMenu_dismissInformationBox();
         vs_mainMenu_setMenuCommand(menuActionNone);
 
-        if (D_80109710 != 0) {
-            --D_80109710;
+        if (vs_menu_inventoryCloseDelay != 0) {
+            --vs_menu_inventoryCloseDelay;
             break;
         }
 
@@ -1469,7 +1469,7 @@ int vs_menu3_exec(u_char* state)
         if ((vs_mainMenu_backgroundFadeStep == 0)
             && vs_mainMenu_ensureItemTextUnloaded()) {
 
-            D_800F4E98.unk2 = 8;
+            vs_menu_frameworkActionSelection.unk2 = 8;
             temp_a1_2 = vs_battle_menuState.currentMenu;
             vs_battle_menuState.currentMenu = 4;
             vs_battle_menuState.returnState = temp_a1_2;
@@ -1501,7 +1501,7 @@ int vs_menu3_exec(u_char* state)
 
     if ((_secondaryTitleAnimationStep != 0) && (_selectedItemCategoryIconOnTop == 0)) {
 
-        int category = (D_800F4EE8.unk3A.currentItemCategory - 1) & 7;
+        int category = (vs_menu_frameworkMenuMemory.unk3A.currentItemCategory - 1) & 7;
 
         vs_battle_menuItem_t* menuitem = vs_battle_setMenuItem(
             31, row + 180, 34, 140, 8, (char*)&_menuText[_menuText[category]]);

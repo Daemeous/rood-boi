@@ -3,9 +3,9 @@ const ai = @import("views_71618");
 const psx = @import("common").psx;
 const v = @import("views_battle_movement");
 
-/// orig: func_800E6B24 (pc/src/battle_movement.c)
+/// orig: vs_battle_aiClearActorAiNavigationReset (pc/src/battle_movement.c)
 /// Clears actor `id & 0xFF`'s hold flag (0x1A); an empty slot does nothing.
 pub fn clearActorHold(id: c_int) callconv(.c) void {
-    const state: *ai.vs_battle_aiState = @ptrCast(@alignCast(psx.at(v.g.D_800F5878(), id & 0xff).* orelse return));
+    const state: *ai.vs_battle_aiState = @ptrCast(@alignCast(psx.at(v.g.vs_battle_aiActorAiStates(), id & 0xff).* orelse return));
     state.f1A = 0;
 }

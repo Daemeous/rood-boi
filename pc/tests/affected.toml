@@ -554,7 +554,7 @@ suites = ["input:*", "window_smoke", "system_settings_smoke", "camera_stick_smok
           "analog_move_smoke"]
 
 [[rule]]
-paths = ["pc/src/analog_move.c", "pc/src/boot_sdk.c", "game/battle/func_8006E7F0.zig"]
+paths = ["pc/src/analog_move.c", "pc/src/boot_sdk.c", "game/battle/vs_actors_updateAshleyMovementInput.zig"]
 suites = ["analog_move_smoke", "input:*", "camera_stick_smoke", "camera_options_smoke"]
 
 [[rule]]

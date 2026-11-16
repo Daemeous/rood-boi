@@ -41,9 +41,9 @@ STRUCT_FIELDS = [
 def synthetic():
     struct = declaration("D_800F569C_t", 0xD8, 0xD8, "psx_ptr", STRUCT_FIELDS)
     return {
-        # The 6F014.c bug: D_800F5798 = D_800F56C8.unkD0 declared as a host pointer.
+        # The 6F014.c bug: vs_effects_actionRequestPointer = D_800F56C8.unkD0 declared as a host pointer.
         "D_800F56C8": entry(0x800F56C8, False, [struct]),
-        "D_800F5798": entry(0x800F5798, True, [declaration("func_800CF0E8_t *", 8, 4, "pointer")]),
+        "vs_effects_actionRequestPointer": entry(0x800F5798, True, [declaration("func_800CF0E8_t *", 8, 4, "pointer")]),
         # A 4-byte integer view of the same struct: both stay guest, no hazard.
         "D_800F579C": entry(0x800F579C, False, [declaration("int", 4, 4)]),
         # Two PLG effects loaded at one address never coexist.
@@ -69,8 +69,8 @@ def main():
 
     findings = lp64_alias_scan.scan(synthetic(), review=True)
     hazards = [f for f in findings if f["severity"] == "HAZARD"]
-    check([(f["member"], f["container"], f["offset"]) for f in hazards] == [("D_800F5798", "D_800F56C8", 0xD0)],
-          "synthetic: exactly the moved field alias D_800F5798 = D_800F56C8+0xd0 is a HAZARD", failures)
+    check([(f["member"], f["container"], f["offset"]) for f in hazards] == [("vs_effects_actionRequestPointer", "D_800F56C8", 0xD0)],
+          "synthetic: exactly the moved field alias vs_effects_actionRequestPointer = D_800F56C8+0xd0 is a HAZARD", failures)
     check(bool(hazards) and "unkD0" in hazards[0]["where"], "synthetic: the hazard names the field (unkD0)", failures)
     check(not any(f["member"] == "D_800F579C" and f["severity"] == "HAZARD" for f in findings),
           "synthetic: an integer view that stays guest is not a hazard", failures)
@@ -85,14 +85,14 @@ def main():
     check([f["severity"] for f in view] == ["REVIEW"], "synthetic: a view wider than its field is a REVIEW",
           failures)
     saved = dict(lp64_alias_scan.REVIEWED)
-    lp64_alias_scan.REVIEWED.update({("D_800F56C8_view", "D_800F56C8"): "test", ("D_800F5798", "D_800F56C8"): "test"})
+    lp64_alias_scan.REVIEWED.update({("D_800F56C8_view", "D_800F56C8"): "test", ("vs_effects_actionRequestPointer", "D_800F56C8"): "test"})
     try:
         findings = lp64_alias_scan.scan(imports, review=True)
     finally:
         lp64_alias_scan.REVIEWED.clear()
         lp64_alias_scan.REVIEWED.update(saved)
     severity = {f["member"]: f["severity"] for f in findings}
-    check(severity.get("D_800F56C8_view") == "benign" and severity.get("D_800F5798") == "HAZARD",
+    check(severity.get("D_800F56C8_view") == "benign" and severity.get("vs_effects_actionRequestPointer") == "HAZARD",
           "synthetic: a REVIEWED pair is benign, a REVIEWED HAZARD still reports", failures)
 
     path = ROOT / args.build / "lp64_imports.json"

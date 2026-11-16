@@ -7,7 +7,7 @@ room block, never a freed one.
 With the editor open, the undo snapshot (editor_undo.cpp capture) reads the
 room's groups every overlay frame (pc_room_editor_groups, room_native.c).
 It used to read the block scene_capture.c last captured even after the game
-freed it (func_8008ABF0) and the disc was loading the next room into that
+freed it (vs_field_releaseOwnedRoomSections) and the disc was loading the next room into that
 memory: a half-written block passed the group-count check and a garbage
 geometry offset read outside guest RAM (segfault right after a room load).
 Now the groups are read only from the game's current block

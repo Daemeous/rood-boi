@@ -31,49 +31,49 @@ typedef struct {
  * (battle_statics.py, STATE.tsv). */
 static func_8008D2C0_t func_800A4A24__platforms[4] __attribute__((used));
 
-void func_8007A824(DR_MOVE*);
-int func_8008D2C0(func_8008D2C0_t*);
-void func_800A0204(int, int, int, int);
-void func_800A1280(int, int, SVECTOR*, int);
+void vs_render_appendOverlayPrimitive(DR_MOVE*);
+int vs_field_collectMovingPlatformPositions(func_8008D2C0_t*);
+void vs_actors_playActorAnimation(int, int, int, int);
+void vs_actors_targetPoint(int, int, SVECTOR*, int);
 void func_800A1720(int, int, void*, int*);
-int func_800A6EE8(SVECTOR*, int, int, int);
-void func_800A70DC(void*, int);
-void func_800AA698(int arg0, SVECTOR* arg1, int arg2);
-void func_800AA984(int, short, int);
-void func_800AAA88(int arg0, SVECTOR* arg1, int arg2);
-void func_800AA290(int, func_8006EBF8_t_fields*, int, int);
-void func_800AA490(int, func_8006EBF8_t_fields*, int, int);
-void func_800AB098(D_800F4538_t*, int, int);
+int vs_field_sampleActorSupportHeight(SVECTOR*, int, int, int);
+void vs_field_sampleActorCollisionPerimeter(void*, int);
+void vs_actors_setActorTranslation(int arg0, SVECTOR* arg1, int arg2);
+void vs_actors_setActorYawTurn(int, short, int);
+void vs_actors_setActorRotation(int arg0, SVECTOR* arg1, int arg2);
+void vs_actors_setActorTileTranslation(int, func_8006EBF8_t_fields*, int, int);
+void vs_actors_setActorTileTurn(int, func_8006EBF8_t_fields*, int, int);
+void vs_actors_textureFrameMove(D_800F4538_t*, int, int);
 
-extern u_char D_800E8F2C;
+extern u_char vs_actors_sharedSequenceBankIndex;
 extern func_800AAE9C_t D_800E909C[][28];
 extern func_800AAE9C_t D_800E916C[][8];
 extern u_char D_800F2450[];
 extern void* D_800F4768;
 extern char D_800F49DC;
-extern u_char D_800F49E4;
+extern u_char vs_battle_specialActionPitch;
 extern int D_800F49F4;
-extern u_char D_800F49F8;
-extern u_char D_800F49F9;
-extern short D_800F4B00;
+extern u_char vs_actors_supportingGimmickIndex;
+extern u_char vs_field_collisionProbeDirection;
+extern short vs_field_platformContactSearchDepth;
 
-_mpdRoomSection3* func_800A8D64(SVECTOR* arg0, int arg1);
+_mpdRoomSection3* vs_field_findCollisionCellAtPosition(SVECTOR* arg0, int arg1);
 
-int func_800A8E84(D_800F4538_t* arg0, SVECTOR* arg1);
+int vs_field_isActorPositionUnoccupied(D_800F4538_t* arg0, SVECTOR* arg1);
 typedef struct {
     char prefix[4];
     u_char excluded;
 } actorCollisionExclusion;
 
-int func_800A8E84(D_800F4538_t* actor, SVECTOR* position);
+int vs_field_isActorPositionUnoccupied(D_800F4538_t* actor, SVECTOR* position);
 
-int func_800A8FD4(D_800F4538_t* actor, SVECTOR* motion);
+int vs_field_canActorSeparateFromOverlaps(D_800F4538_t* actor, SVECTOR* motion);
 
-int func_800A91DC(int arg0, int arg1, int arg2);
+int vs_field_findTopGimmickAtTile(int arg0, int arg1, int arg2);
 
-int func_800A92B8(int arg0, int arg1);
+int vs_field_gimmickSupportHeight(int arg0, int arg1);
 
-int func_800A9378(int arg0, int arg1, int arg2, int arg3);
+int vs_field_movingPlatformContactHeight(int arg0, int arg1, int arg2, int arg3);
 
 // Inlined copy of 3A1A0 func_800A4A24.
 // BUG: returns the address of a stack variable
@@ -89,7 +89,7 @@ static inline func_8008D2C0_t* func_800A4A24(int id)
     int i;
     id -= 2;
 
-    count = func_8008D2C0(platforms);
+    count = vs_field_collectMovingPlatformPositions(platforms);
 
     for (i = 0; i < count; ++i) {
         if (platforms[i].id == id) {
@@ -106,9 +106,9 @@ static inline func_8008D2C0_t* func_800A4A24(int id)
 
 int func_800A9530(D_800F4538_t* actor, SVECTOR* offset);
 
-void func_800A97EC(int arg0, func_8006EBF8_t_fields* arg1, int arg2, int arg3);
+void vs_actors_moveActorToTileAtRate(int arg0, func_8006EBF8_t_fields* arg1, int arg2, int arg3);
 
-short func_8008DA24(int, int);
+short vs_field_interpolatedFloorHeight(int, int);
 
 static inline int scanFloor(int arg0, int arg1)
 {
@@ -116,11 +116,11 @@ static inline int scanFloor(int arg0, int arg1)
     int i;
 
     var_t0 = 0xBB8;
-    D_800F49F8 = 0;
+    vs_actors_supportingGimmickIndex = 0;
 
     for (i = 0; i < 16; ++i) {
 
-        D_800F45E0_t* temp_v1 = D_800F45E0[i];
+        D_800F45E0_t* temp_v1 = vs_field_gimmickInstances[i];
 
         if (temp_v1 == NULL) {
             continue;
@@ -131,7 +131,7 @@ static inline int scanFloor(int arg0, int arg1)
             && (temp_v1->unk1E < var_t0)) {
 
             var_t0 = temp_v1->unk1E;
-            D_800F49F8 = i;
+            vs_actors_supportingGimmickIndex = i;
         }
     }
 
@@ -144,54 +144,54 @@ static inline int scanFloor(int arg0, int arg1)
     return var_t0;
 }
 
-void func_800A9988(int arg0, SVECTOR* arg1, int arg2, int arg3);
+void vs_actors_moveActorToPositionAtRate(int arg0, SVECTOR* arg1, int arg2, int arg3);
 
-void func_800A9C54(int arg0, func_8006EBF8_t_fields* arg1, int arg2);
+void vs_actors_translateActorToTileAtRate(int arg0, func_8006EBF8_t_fields* arg1, int arg2);
 
-void func_800A9CDC(int arg0, func_8006EBF8_t_fields* arg1, int arg2);
+void vs_actors_turnActorTowardTileAtRate(int arg0, func_8006EBF8_t_fields* arg1, int arg2);
 
-void func_800A9D24(int arg0, SVECTOR* arg1, int arg2);
+void vs_actors_translateActorByAtRate(int arg0, SVECTOR* arg1, int arg2);
 
-void func_800A9D90(int arg0, SVECTOR* arg1, int arg2);
+void vs_actors_translateActorToAtRate(int arg0, SVECTOR* arg1, int arg2);
 
-void func_800A9E38(int arg0, short arg1, int arg2);
+void vs_actors_turnActorByAtRate(int arg0, short arg1, int arg2);
 
-void func_800A9EB4(int arg0, short arg1, int arg2);
+void vs_actors_turnActorToAtRate(int arg0, short arg1, int arg2);
 
-void func_800A9F64(int arg0, SVECTOR* arg1, int arg2);
+void vs_actors_rotateActorByAtRate(int arg0, SVECTOR* arg1, int arg2);
 
-void func_800A9FD0(int arg0, SVECTOR* arg1, int arg2);
+void vs_actors_rotateActorToAtRate(int arg0, SVECTOR* arg1, int arg2);
 
-void func_800AA290(int arg0, func_8006EBF8_t_fields* arg1, int arg2, int arg3);
+void vs_actors_setActorTileTranslation(int arg0, func_8006EBF8_t_fields* arg1, int arg2, int arg3);
 
-void func_800AA454(int arg0, func_8006EBF8_t_fields* arg1, int arg2);
+void vs_actors_turnActorTowardTileOverTime(int arg0, func_8006EBF8_t_fields* arg1, int arg2);
 
-void func_800AA490(int arg0, func_8006EBF8_t_fields* arg1, int arg2, int arg3);
+void vs_actors_setActorTileTurn(int arg0, func_8006EBF8_t_fields* arg1, int arg2, int arg3);
 
-void func_800AA600(int arg0, SVECTOR* arg1, int arg2);
+void vs_actors_setActorMotion(int arg0, SVECTOR* arg1, int arg2);
 
-void func_800AA620(int arg0, SVECTOR* arg1, int arg2);
+void vs_actors_translateActorToOverTime(int arg0, SVECTOR* arg1, int arg2);
 
-void func_800AA698(int arg0, SVECTOR* arg1, int arg2);
+void vs_actors_setActorTranslation(int arg0, SVECTOR* arg1, int arg2);
 
-void func_800AA850(int arg0, u_short arg1, int arg2);
+void vs_actors_turnActorToOverTime(int arg0, u_short arg1, int arg2);
 
-void func_800AA8D0(int arg0, short arg1, int arg2);
+void vs_actors_turnActorToAtAngularSpeed(int arg0, short arg1, int arg2);
 
-void func_800AA984(int arg0, short arg1, int arg2);
+void vs_actors_setActorYawTurn(int arg0, short arg1, int arg2);
 
-void func_800AAA88(int arg0, SVECTOR* arg1, int arg2);
+void vs_actors_setActorRotation(int arg0, SVECTOR* arg1, int arg2);
 
-void func_800AABD0(int arg0, SVECTOR* arg1, int arg2);
+void vs_actors_scaleActorToOverTime(int arg0, SVECTOR* arg1, int arg2);
 
 void func_800AACDC(void);
 
-int func_800AAD4C(int actorId, int index, int value, int mode);
+int vs_actors_setTextureAnimation(int actorId, int index, int value, int mode);
 
-int func_800AAE9C(D_800F4538_t* actor);
+int vs_actors_stepTextureAnimations(D_800F4538_t* actor);
 
-extern u_char D_800E8F30[];
-extern u_char D_800E8F90[];
+extern u_char vs_actors_textureSlotOrigins[];
+extern u_char vs_actors_textureSlotRowOffsets[];
 
 typedef struct {
     u_char overlay;
@@ -200,46 +200,46 @@ typedef struct {
     u_char columns;
 } func_800AB098_t;
 
-void func_800AB098(D_800F4538_t* actor, int index, int frame);
+void vs_actors_textureFrameMove(D_800F4538_t* actor, int index, int frame);
 
-void func_800AB2AC(int arg0);
+void vs_actors_restartsTextureFrames(int arg0);
 
-void func_800AB358(int index, u_char* arg);
+void vs_actors_textureOverlayMove(int index, u_char* arg);
 
-void func_800AB4F0(void* actor);
+void vs_actors_stepTextureScrolling(void* actor);
 
-void func_800AB788(u_char* actor, u_char* object, int arg2);
+void vs_actors_updatePalettePulse(u_char* actor, u_char* object, int arg2);
 
-void func_800A190C(int, int, SVECTOR*, int);
-void func_800A7524(void*, void*);
-int func_800AC0D4(u_char* arg0, u_char* arg1, int arg2);
-int func_800AC168(u_short* colors, int count, int amount, int mode, u_short* reference);
-void func_800AC690(int arg0, D_800F4538_t* arg1);
+void vs_actors_anchorPoint(int, int, SVECTOR*, int);
+void vs_field_applyActorWallRepulsion(void*, void*);
+int vs_actors_stepRgbTowardTarget(u_char* arg0, u_char* arg1, int arg2);
+int vs_actors_applyPaletteTransition(u_short* colors, int count, int amount, int mode, u_short* reference);
+void vs_actors_updateActorJumpAndFall(int arg0, D_800F4538_t* arg1);
 extern u_char D_800F4B19;
 
-void func_800AB9A4(D_800F45E0_t* arg0);
+void vs_actors_updateActorAppearanceTransition(D_800F45E0_t* arg0);
 
-int func_800AC0D4(u_char* arg0, u_char* arg1, int arg2);
+int vs_actors_stepRgbTowardTarget(u_char* arg0, u_char* arg1, int arg2);
 
-int func_800AC168(u_short* colors, int count, int amount, int mode, u_short* reference);
+int vs_actors_applyPaletteTransition(u_short* colors, int count, int amount, int mode, u_short* reference);
 
-void func_800AC37C(int arg0, int arg1);
+void vs_actors_startActorAppearanceTransition(int arg0, int arg1);
 
-void func_800AC440(D_800F4538_t* arg0, int arg1, int arg2);
+void vs_actors_setActorBonePoseLock(D_800F4538_t* arg0, int arg1, int arg2);
 
-void func_800AC500(D_800F4538_t* arg0);
+void vs_actors_clearActorBonePoseLocks(D_800F4538_t* arg0);
 
-void func_800AC540(int arg0, D_800F4538_t* arg1);
+void vs_actors_updateActorRoute(int arg0, D_800F4538_t* arg1);
 
 void func_8006F450(SVECTOR*);
-void func_8008C49C(int, int);
-short func_8008DD0C(int, int);
-void func_800ACF54(D_800F45E0_t*);
-void func_800AE828(int, D_800F4538_t*, int);
-void func_800E4C28();
+void vs_field_setMovingPlatformActor(int, int);
+short vs_field_ceilingHeightAt(int, int);
+void vs_actors_saveActorGroundedTransform(D_800F45E0_t*);
+void vs_audio_playActorSurfaceContactSound(int, D_800F4538_t*, int);
+void vs_battle_aiReleaseAiDestinationTile();
 void func_800E6764(int);
-void func_800E6EB0(int);
-extern u_int* D_800F49F0;
+void vs_battle_aiReleaseActorAiContactOccupancy(int);
+extern u_int* vs_field_collisionProbeTile;
 extern u_char D_800E9278[];
 extern u_char D_800E92E8[];
 extern u_char D_800E92F0[];
@@ -262,22 +262,22 @@ typedef struct {
     u_int unk4 : 28;
 } func_800AC690_contact_t;
 
-void func_800AC690(int arg0, D_800F4538_t* actor);
+void vs_actors_updateActorJumpAndFall(int arg0, D_800F4538_t* actor);
 
 typedef struct {
     int unk0;
     int unk4;
 } func_800ACF54_t;
 
-void func_800ACF54(D_800F45E0_t* arg0);
+void vs_actors_saveActorGroundedTransform(D_800F45E0_t* arg0);
 
-inline void func_800ACFA0(SVECTOR* arg0, u_char* arg1, int arg2);
+inline void vs_actors_decodeInitialPoseVector(SVECTOR* arg0, u_char* arg1, int arg2);
 
-void func_800AE47C(D_800F4538_t*);
+void vs_actors_restartActorAnimationEvents(D_800F4538_t*);
 
-void func_800AD008(void* arg0, void* arg1);
+void vs_actors_initializeActorAnimationPose(void* arg0, void* arg1);
 
-int func_800AD494(void* arg0, int arg1, u_short** arg2);
+int vs_actors_findActorAnimationHeader(void* arg0, int arg1, u_short** arg2);
 
-void func_800AD62C(int arg0, int* arg1, int* arg2);
+void vs_audio_actorSoundPanAndVolume(int arg0, int* arg1, int* arg2);
 

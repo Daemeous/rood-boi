@@ -7,7 +7,7 @@ const v = @import("views_battle_motion");
 /// 0x5EC/0x5F0, then the halfword `b` at 0x5F2 (over the second word's high
 /// half), and `kind` into bits 4-6 of byte 0xB.
 fn lookRequest(id: c_int, position: [*]const c_int, b: c_int, kind: c_int) void {
-    const a = v.g.D_800F4538()[@intCast(id)].?;
+    const a = v.g.vs_actors_actorRecords()[@intCast(id)].?;
     // unk5EC is the SVECTOR the words land in: vx and vy, then vz and the pad.
     psx.fieldAt(c_int, &a.unk5EC, 0).* = position[0];
     psx.fieldAt(c_int, &a.unk5EC, 4).* = position[1];

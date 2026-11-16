@@ -21,7 +21,7 @@ fn directionDz(packed_direction: c_int) c_int {
     return @as(c_int, @bitCast(@as(c_uint, @bitCast(packed_direction)) << 26)) >> 30;
 }
 
-/// orig: func_800D98E8 (pc/src/battle_movement.c)
+/// orig: vs_battle_aiDirectionalBlockingActor (pc/src/battle_movement.c)
 /// id + 1 of the first other actor whose bounds overlap the point one
 /// radius ahead of `state` in direction `dir`, else 0; cached per direction
 /// in scratchpad 0x3D2 (valid bits) / 0x3D4 + dir.
@@ -47,10 +47,10 @@ pub fn blockingActor(state: *ai.vs_battle_aiState, dir: c_int) callconv(.c) c_in
             const index: c_int = @as(c_int, scratch8(0x3dc).*) *% tile_z +% tile_x;
             open = (@as(c_int, psx.at(bitmap, index).*) >> @truncate(@as(c_uint, @bitCast(lookup)))) & 1;
         } else {
-            open = c.func_800E4690(tile, lookup);
+            open = c.vs_battle_aiIsAdjacentTileStepBlocked(tile, lookup);
         }
     }
-    const height: c_int = if (open != 0) state.position.xyz[1] else c.func_800E42D4(@bitCast(x), @bitCast(z));
+    const height: c_int = if (open != 0) state.position.xyz[1] else c.vs_field_groundHeightAtWorldPosition(@bitCast(x), @bitCast(z));
     const self_size: c_uint = state.collisionRadius;
     const self_height: c_uint = @as(u16, @bitCast(state.extent));
     var result: c_int = 0;
@@ -58,7 +58,7 @@ pub fn blockingActor(state: *ai.vs_battle_aiState, dir: c_int) callconv(.c) c_in
     while (node) |n| : (node = @ptrCast(n.next)) {
         const id = n.id;
         if (id == state.id) continue;
-        const model: [*]u8 = @ptrCast(psx.at(v.g.D_800F4538(), id).*.?);
+        const model: [*]u8 = @ptrCast(psx.at(v.g.vs_actors_actorRecords(), id).*.?);
         const other: *align(4) ai.vs_battle_aiState = @ptrFromInt(psx.byteAt(u32, scratch8(0x37c +% id *% 4), 0).*);
         var position: c_uint = undefined;
         var depth: c_uint = undefined;

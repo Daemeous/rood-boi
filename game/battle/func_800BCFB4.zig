@@ -92,11 +92,11 @@ pub fn func_800BCFB4(arg: ?*v.D_800F4BA4_t2) callconv(.c) void {
         }
     }
     _ = c._vectorAdd(cv(candidate), cv(delta), cv(&cam.computed));
-    const last = &v.g.D_800F4BA4().*.?.unk27C;
+    const last = &v.g.vs_event_camera().*.?.unk27C;
     if (scratch.candidate.vx == last.vx and scratch.candidate.vy == last.vy and scratch.candidate.vz == last.vz) {
         cam.time = cam.duration;
     } else {
-        _ = copyVector(&v.g.D_800F4BA4().*.?.unk27C, &cam.computed);
+        _ = copyVector(&v.g.vs_event_camera().*.?.unk27C, &cam.computed);
         _ = copyVector(&cam.computed, candidate);
     }
 }

@@ -9,13 +9,13 @@ pub fn func_800BA194(arg0: [*c]u8, _: c_short) callconv(.c) c_int {
 
     switch (@as(c_int, arg0[1])) {
         0 => {
-            if (v.g.D_800F4C2C().* == 2 and c.func_80093764(temp_s0) != 0) {
-                c.func_80093788(temp_s0);
+            if (v.g.vs_event_skipState().* == 2 and c.vs_field_isRoomEffectActive(temp_s0) != 0) {
+                c.vs_field_finishRoomDoorRotation(temp_s0);
             }
-            _ = c.func_8009291C(temp_s0);
+            _ = c.vs_field_startRoomEffect(temp_s0);
         },
         1 => {
-            _ = c.func_800936F8(temp_s0);
+            _ = c.vs_field_toggleRoomEffectUpdates(temp_s0);
         },
         else => {},
     }

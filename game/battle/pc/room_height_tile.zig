@@ -2,7 +2,7 @@
 const psx = @import("common").psx;
 const v = @import("views_battle_helpers");
 
-/// orig: func_80099514 (pc/src/battle_helpers.c)
+/// orig: vs_field_sampleCollisionHeightCode (pc/src/battle_helpers.c)
 /// Unpacks a 4x4 collision tile value at (x, z) from the selected height
 /// layer of the room map (roomData.collisionMapSection): a cell index
 /// from the map's row width, the tile's 16-byte pattern, and the cell's

@@ -7,8 +7,8 @@ const c = @import("c_146C");
 /// orig: _hpHealed (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// The HP that hit `nHit` of `action` restores from `source` to `target` (a stat calculator): the source's
 /// intelligence with its weapon (if drawn) and accessory against the target's intelligence, armour and shield
-/// (if drawn) by the hit's type and affinity, through func_8007FE5C, never below 0; with `withRandMod` a smoothed
-/// spread of -5..5 and, on the first hit, the target's affinity reaction (func_80080C9C).
+/// (if drawn) by the hit's type and affinity, through vs_battle_applyDamageGemMultiplier, never below 0; with `withRandMod` a smoothed
+/// spread of -5..5 and, on the first hit, the target's affinity reaction (vs_items_growDefenderEquipmentRatings).
 pub fn hpHealed(action: ?*v.vs_action_t, source: ?*v._hitEntity_t, target: ?*v._hitEntity_t, nHit: c_int, withRandMod: c_int) callconv(.c) c_short {
     const act = action.?;
     const tgt = target.?;
@@ -100,7 +100,7 @@ pub fn hpHealed(action: ?*v.vs_action_t, source: ?*v._hitEntity_t, target: ?*v._
     defense +%= @as(c_int, sp18.armorStat) *% sp18.armorStatFactor;
     defense = @divTrunc(defense, @divTrunc(@as(c_int, targetActor.risk), 2) +% 100);
     // the short parameter truncates attack - defense
-    var value: c_short = c.func_8007FE5C(@ptrCast(act), psx.conv(c_short, attack -% defense), @ptrCast(sourceActor), @ptrCast(targetActor));
+    var value: c_short = c.vs_battle_applyDamageGemMultiplier(@ptrCast(act), psx.conv(c_short, attack -% defense), @ptrCast(sourceActor), @ptrCast(targetActor));
     if (value < 0) {
         value = 0;
     }
@@ -112,7 +112,7 @@ pub fn hpHealed(action: ?*v.vs_action_t, source: ?*v._hitEntity_t, target: ?*v._
     if (withRandMod != 0 and nHit == 0) {
         if (affinity != 0) {
             if (tgt.unk40 == 0) {
-                c.func_80080C9C(@ptrCast(act), @ptrCast(targetActor), 0, @as(c_int, affinity) +% 1, limb);
+                c.vs_items_growDefenderEquipmentRatings(@ptrCast(act), @ptrCast(targetActor), 0, @as(c_int, affinity) +% 1, limb);
             }
         }
     }

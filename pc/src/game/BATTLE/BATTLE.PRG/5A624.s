@@ -5,7 +5,7 @@
 
 .section .text, "ax"
 
-glabel func_800C2E24
+glabel vs_battle_drawSphereTerrainIntersection
     addiu   $sp, $sp, -0x38
     sw      $fp, 0x30($sp)
     addu    $fp, $a0, $zero
@@ -17,8 +17,8 @@ glabel func_800C2E24
     sw      $s2, 0x18($sp)
     addiu   $s2, $zero, 0x14
     lui     $v1, (0x1F8000D8 >> 16)
-    lui     $v0, %hi(D_800EB9B8)
-    lw      $v0, %lo(D_800EB9B8)($v0)
+    lui     $v0, %hi(vs_battle_targetSphere)
+    lw      $v0, %lo(vs_battle_targetSphere)($v0)
     ori     $v1, $v1, (0x1F8000D8 & 0xFFFF)
     sw      $s7, 0x2C($sp)
     sw      $s6, 0x28($sp)
@@ -45,8 +45,8 @@ glabel func_800C2E24
     slti    $v0, $s2, 0x7A
     bnez    $v0, .L800C2EA4
     addiu   $v1, $v1, 0x4
-    lui     $v0, %hi(D_800EB9B8)
-    lw      $v0, %lo(D_800EB9B8)($v0)
+    lui     $v0, %hi(vs_battle_targetSphere)
+    lw      $v0, %lo(vs_battle_targetSphere)($v0)
     nop
     lh      $v0, 0x22($v0)
     lh      $s6, 0x2($fp)
@@ -288,8 +288,8 @@ glabel func_800C2E24
     lui     $v0, %hi(D_800EA130)
     addiu   $s0, $v0, %lo(D_800EA130)
     addu    $a3, $s5, $zero
-    lui     $v0, %hi(D_800EB9B8)
-    lw      $a0, %lo(D_800EB9B8)($v0)
+    lui     $v0, %hi(vs_battle_targetSphere)
+    lw      $a0, %lo(vs_battle_targetSphere)($v0)
     lhu     $v0, 0x0($fp)
     lhu     $v1, 0x4($fp)
     addiu   $s1, $a0, 0xB70
@@ -1041,11 +1041,11 @@ glabel func_800C2E24
     addiu   $s0, $v0, %lo(D_800EA130)
     addu    $t0, $zero, $zero
 .L800C3C9C:
-    lui     $v0, %hi(D_800EB9B8)
+    lui     $v0, %hi(vs_battle_targetSphere)
 .L800C3CA0:
     sll     $v1, $s2, 3
     addu    $v1, $v1, $s2
-    lw      $v0, %lo(D_800EB9B8)($v0)
+    lw      $v0, %lo(vs_battle_targetSphere)($v0)
     addu    $v1, $t0, $v1
     addu    $v0, $v0, $v1
     lbu     $a2, 0x4AB8($v0)
@@ -1352,7 +1352,7 @@ glabel func_800C2E24
     addiu   $t0, $t0, 0x1
     slti    $v0, $t0, 0x9
     bnez    $v0, .L800C3CA0
-    lui     $v0, %hi(D_800EB9B8)
+    lui     $v0, %hi(vs_battle_targetSphere)
     addiu   $s2, $s2, 0x1
     slti    $v0, $s2, 0x9
     bnez    $v0, .L800C3C9C
@@ -1721,4 +1721,4 @@ glabel func_800C2E24
     sw      $t7, (0x1F800000 & 0xFFFF)($v0)
     jr      $ra
     addiu   $sp, $sp, 0x38
-endlabel func_800C2E24
+endlabel vs_battle_drawSphereTerrainIntersection

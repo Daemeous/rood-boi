@@ -4,13 +4,13 @@ const c = @import("c_battle_movement");
 const psx = @import("common").psx;
 const v = @import("views_battle_movement");
 
-/// orig: func_800E7660 (pc/src/battle_movement.c)
-/// Allocates the zeroed 32-byte record D_800F5920 (func_800E4288 clears it)
+/// orig: vs_battle_aiAllocateOrbitingBossState (pc/src/battle_movement.c)
+/// Allocates the zeroed 32-byte record D_800F5920 (vs_core_memoryClearAlignedWords clears it)
 /// and sets its halfword at 0xC to 900; `state` is not used.
 pub fn allocDetourRecord(state: *ai.vs_battle_aiState) callconv(.c) void {
     _ = state;
     const record: ?[*]u8 = @ptrCast(c.vs_main_allocHeap(0x20));
     v.g.D_800F5920().* = psx.addr(record);
-    c.func_800E4288(record, 0x20);
+    c.vs_core_memoryClearAlignedWords(record, 0x20);
     psx.byteAt(u16, record.?, 0xc).* = 0x384;
 }

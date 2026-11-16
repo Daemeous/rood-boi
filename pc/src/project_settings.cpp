@@ -9,7 +9,9 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <map>
+#include <set>
 #include <string>
+#include <vector>
 
 extern "C" {
 extern int pc_gl_filter, pc_gl_aspect, pc_gte_widescreen, pc_hw_perspective, pc_hw_subpixel,
@@ -67,7 +69,7 @@ int pc_qol_weapon_slots_hint[2] = { 160, 142 };
 int pc_skip_intro;
 /* qol_map_invert: the map screen pans the other way on both axes (MENU5);
  * qol_fp_invert_y: up/down look the other way in the first-person view
- * (BATTLE func_8006EC7C), the D-pad and the right stick alike. Off by
+ * (BATTLE vs_field_updateFirstPersonCamera), the D-pad and the right stick alike. Off by
  * default. */
 int pc_qol_map_invert, pc_qol_fp_invert_y;
 /* rumble_strength: the gamepad's motors, percent of what the game's actuator
@@ -749,14 +751,50 @@ std::string current_line(const char* key)
     free(text);
     return found;
 }
+/* The settings as they start, before the file: key -> its lines (take_defaults, at the first load). The file keeps the keys
+ * that differ from these (pc_settings_save): a value the user never changed is not frozen into the file, so a later
+ * default reaches them (a temporary default, ui_text_layout glyph, once stayed in every saved file for good). */
+std::map<std::string, std::vector<std::string>> default_lines;
+bool defaults_taken;
+std::map<std::string, std::vector<std::string>> lines_by_key(const char* text)
+{
+    std::map<std::string, std::vector<std::string>> out;
+    for (const char* p = text; p && *p;) {
+        const char* end = strchr(p, '\n');
+        std::string line(p, end ? (size_t)(end - p) : strlen(p));
+        p = end ? end + 1 : p + line.size();
+        if (!line.empty())
+            out[line_key(line)].push_back(line);
+    }
+    return out;
+}
+void take_defaults()
+{
+    if (defaults_taken)
+        return;
+    defaults_taken = true;
+    size_t size = 0;
+    char* text = pc_capture_file(pc_settings_write, &size);
+    default_lines = lines_by_key(text);
+    free(text);
+}
+/* Keys whose absence from the file is not the default's value: the file's presence of aa starts the anti-aliasing
+ * autodetect, the preset decides how the lighting keys load, the resolution's auto is its own line. */
+std::set<std::string> env_keys; /* the keys an environment variable ever set: their start values are not the defaults */
+bool always_saved(const std::string& key)
+{
+    return key == "aa" || key == "lighting_preset" || key == "internal_resolution" || env_keys.count(key);
+}
 } // namespace
 extern "C" void pc_settings_env_override(const char* key)
 {
+    env_keys.insert(key);
     if (!env_overrides.count(key))
         env_overrides[key].line = current_line(key);
 }
 extern "C" void pc_settings_env_override_flag(const char* key)
 {
+    env_keys.insert(key);
     if (!env_overrides.count(key))
         env_overrides[key].line.clear();
 }
@@ -819,6 +857,7 @@ extern "C" void pc_settings_load(void)
     if (gi && *gi == '0')
         for (const char* key : { "gi_method", "shadows", "characters_shadow_baked" })
             pc_settings_env_override_flag(key);
+    take_defaults();
     FILE* f = fopen(file, "r");
     loaded_mtime = mtime_of(file);
     if (!f) {
@@ -959,6 +998,7 @@ extern "C" void pc_settings_save(void)
     size_t size = 0;
     char* text = pc_capture_file(pc_settings_write, &size);
     std::string body;
+    const auto written = lines_by_key(text);
     for (const char* p = text; p && *p;) {
         const char* end = strchr(p, '\n');
         std::string line(p, end ? (size_t)(end - p) : strlen(p));
@@ -977,6 +1017,11 @@ extern "C" void pc_settings_save(void)
             }
             env_overrides.erase(o); /* changed since: the user's now */
         }
+        /* A one-line key still at its default is left out (default_lines). */
+        auto d = default_lines.find(line_key(line));
+        if (d != default_lines.end() && d->second.size() == 1 && d->second[0] == line && !always_saved(d->first)
+            && written.at(d->first).size() == 1)
+            continue;
         body += line + "\n";
     }
     free(text);

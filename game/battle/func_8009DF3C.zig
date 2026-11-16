@@ -7,7 +7,7 @@ const c = @import("c_30DB0");
 /// Starts the animation for command `command` (0..3) on actor `slot`, and copies its pose when the command is not 3.
 pub fn func_8009DF3C(slot: c_int, command: c_int) callconv(.c) void {
     // The C does not check slot against the 17 entries: psx.at keeps its unchecked index.
-    const temp: *v.D_800F4538_t = psx.at(v.g.D_800F4538(), slot).*.?;
+    const temp: *v.D_800F4538_t = psx.at(v.g.vs_actors_actorRecords(), slot).*.?;
     // Uninitialised in the original; the callee writes sp10[0].
     var sp10: [2][*c]c_ushort = .{ null, null };
 
@@ -35,7 +35,7 @@ pub fn func_8009DF3C(slot: c_int, command: c_int) callconv(.c) void {
             }
             var_s0 +%= 1;
             var_s1 = 8;
-            _ = c.func_800AD494(@ptrCast(temp), var_s0, &sp10);
+            _ = c.vs_actors_findActorAnimationHeader(@ptrCast(temp), var_s0, &sp10);
             if (sp10[0] == null) {
                 var_s0 = 6;
                 var_s1 = 0x10;
@@ -44,7 +44,7 @@ pub fn func_8009DF3C(slot: c_int, command: c_int) callconv(.c) void {
         else => {},
     }
 
-    _ = c.func_800A0204(slot, var_s0, 0, var_s1);
+    _ = c.vs_actors_playActorAnimation(slot, var_s0, 0, var_s1);
     if (command < 3) {
         c.vs_main_memcpy(&temp.unk704, &temp.unkC54, @as(c_uint, @sizeOf(v.D_800F4538_unkC54)));
     }

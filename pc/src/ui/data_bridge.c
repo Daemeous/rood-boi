@@ -94,10 +94,10 @@ static int completion(void)
 /* This journey (read only): what a save now would record. */
 static void fill_journey(pc_ui_data_model* m)
 {
-    m->hp = D_80060068.unk0.currentHP;
-    m->hp_max = D_80060068.unk0.maxHP;
-    m->mp = D_80060068.unk0.currentMP;
-    m->mp_max = D_80060068.unk0.maxMP;
+    m->hp = vs_state_ashleySnapshot.unk0.currentHP;
+    m->hp_max = vs_state_ashleySnapshot.unk0.maxHP;
+    m->mp = vs_state_ashleySnapshot.unk0.currentMP;
+    m->mp_max = vs_state_ashleySnapshot.unk0.maxMP;
     m->map = completion();
     m->saves = vs_main_settings.cumulativeSaveCount;
     m->play_h = vs_main_gametime.t.h;
@@ -546,7 +546,7 @@ static void menu7_publish(int state)
     g.data_not_saved = *m7->data_not_saved;
     g.container_empty = (*(int*)&vs_main_settings >> 4) & 1;
     g.msg_off = -1;
-    g.card_memory = vs_main_settings.cursorMemory != 0 ? D_800F4EE8.unk85[3] + 1 : 1;
+    g.card_memory = vs_main_settings.cursorMemory != 0 ? vs_menu_frameworkMenuMemory.unk85[3] + 1 : 1;
     g.gated = *m7->gated;
     *m7->gated = 0;
     if (loaded) {

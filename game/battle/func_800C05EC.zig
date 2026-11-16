@@ -1,4 +1,4 @@
-//! Stages a battle action request into the D_800EB9B8 block (pc/src/game/BATTLE/BATTLE.PRG/573B8.c).
+//! Stages a battle action request into the vs_battle_targetSphere block (pc/src/game/BATTLE/BATTLE.PRG/573B8.c).
 const common = @import("common");
 const psx = common.psx;
 const v = @import("views_573B8");
@@ -6,7 +6,7 @@ const v = @import("views_573B8");
 /// orig: func_800C05EC (pc/src/game/BATTLE/BATTLE.PRG/573B8.c)
 /// Copies the request `arg0` into the block, then `arg1` (or clears it) with the flags and values given.
 pub fn func_800C05EC(arg0: ?*v.func_800C1564_t, arg1: ?*v.func_800C1564_t, arg2: u8, arg3: ?*anyopaque) callconv(.c) void {
-    const block = v.g.D_800EB9B8().*.?;
+    const block = v.g.vs_battle_targetSphere().*.?;
 
     block.unk0[0] = arg0.?.*;
 

@@ -28,12 +28,12 @@ pub fn func_800C0990(start: ?*v.SVECTOR, end: ?*v.SVECTOR, color: c_uint, intens
         if (ax < ay) {
             angle = ax << 9;
             angle = @divTrunc(angle, ay);
-            angle = @as(c_int, v.g.D_80040A14()[@as(usize, @intCast(angle))]);
+            angle = @as(c_int, v.g.vs_core_mathArcTangentTable()[@as(usize, @intCast(angle))]);
             angle = shift -% angle;
         } else {
             angle = ay << 9;
             angle = @divTrunc(angle, ax);
-            angle = @as(c_int, v.g.D_80040A14()[@as(usize, @intCast(angle))]);
+            angle = @as(c_int, v.g.vs_core_mathArcTangentTable()[@as(usize, @intCast(angle))]);
         }
         shift = 1024;
         if (ax != dx) angle = shift -% angle;

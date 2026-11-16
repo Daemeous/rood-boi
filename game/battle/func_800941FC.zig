@@ -15,9 +15,9 @@ fn scratchPtr() ?*anyopaque {
     return common.scratch.get().unk0;
 }
 
-/// `*D_800F1BAC`: the label array's base.
+/// `*vs_battle_floatingLabels`: the label array's base.
 fn labelBase() [*]v.D_800F1BAC_t {
-    const raw: *align(2) anyopaque = @alignCast(v.g.D_800F1BAC().*.?);
+    const raw: *align(2) anyopaque = @alignCast(v.g.vs_battle_floatingLabels().*.?);
     return @ptrCast(raw);
 }
 
@@ -33,7 +33,7 @@ fn advance(label: *v.D_800F1BAC_t) void {
 /// The `waiting:` tail of the switch.
 fn waiting(label: *v.D_800F1BAC_t) void {
     advance(label);
-    if (label.unkB >= 10) _ = c.func_80094AF8(psx.cptr(c.D_800F1BAC_t, label));
+    if (label.unkB >= 10) _ = c.vs_battle_advanceFloatingLabelQueue(psx.cptr(c.D_800F1BAC_t, label));
 }
 
 /// PC_HUD: the classic-draw site, with the scratchpad word read after the draw.
@@ -74,18 +74,18 @@ fn anchorPackets(start: ?*anyopaque) void {
 /// orig: func_800941FC (pc/src/game/BATTLE/BATTLE.PRG/2842C.c)
 /// Ticks the floating labels, draws each by kind and removes the expired ones.
 pub fn func_800941FC() callconv(.c) void {
-    if (v.g.D_800F2272().* > 0) {
-        v.g.D_800F2272().* -%= 1;
-        _ = c.func_800970BC();
+    if (v.g.vs_battle_abilityTimingCueFrames().* > 0) {
+        v.g.vs_battle_abilityTimingCueFrames().* -%= 1;
+        _ = c.vs_battle_drawAbilityTimingCue();
     }
-    if (v.g.D_800F1BA4().* == 0) {
+    if (v.g.vs_field_areRoomUpdatesPaused().* == 0) {
         v.g.D_800F2278().* = psx.conv(i16, @as(c_int, v.g.D_800F2278().*) +% halfTick());
     }
     if (v.g.D_800F2278().* > 20) {
         const base = labelBase();
         v.g.D_800F2278().* = 0;
         var i: c_int = 0;
-        while (i < @as(c_int, v.g.D_800F227E().*)) : (i +%= 1) {
+        while (i < @as(c_int, v.g.vs_battle_floatingLabelCount().*)) : (i +%= 1) {
             const label = &base[@intCast(i)];
             if (label.unk8.u8[0] == 6) {
                 label.unk6 -%= 1;
@@ -104,9 +104,9 @@ pub fn func_800941FC() callconv(.c) void {
 
     var removed: c_int = 0;
     const base = labelBase();
-    v.g.D_800F227C().* = 0;
+    v.g.vs_battle_placedLabelCount().* = 0;
     var i: c_int = 0;
-    while (i < @as(c_int, v.g.D_800F227E().*)) : (i +%= 1) {
+    while (i < @as(c_int, v.g.vs_battle_floatingLabelCount().*)) : (i +%= 1) {
         const label = &base[@intCast(i)];
         if (label.unk8.u8[0] == 0) continue;
 
@@ -116,7 +116,7 @@ pub fn func_800941FC() callconv(.c) void {
 
         remove: {
             if (label.unk8.u8[0] < 3) {
-                if (c.func_800A190C(@as(c_int, label.unk8.u8[1]), 0xFB, &position, 0) != 0) break :remove;
+                if (c.vs_actors_anchorPoint(@as(c_int, label.unk8.u8[1]), 0xFB, &position, 0) != 0) break :remove;
                 if (position.vy > 0) position.vy = 0;
                 position.vx = psx.conv(i16, @as(c_int, position.vx) +% label.unk0);
                 position.vy = psx.conv(i16, @as(c_int, position.vy) +% label.unk2);
@@ -165,7 +165,7 @@ pub fn func_800941FC() callconv(.c) void {
                     _ = c.func_80094844(&screen, psx.cptr(c.D_800F1BAC_t, label));
                     if ((label.unkE & 0x80) != 0) {
                         label.unkE &= 0x7F;
-                        _ = c.func_80094AF8(psx.cptr(c.D_800F1BAC_t, label));
+                        _ = c.vs_battle_advanceFloatingLabelQueue(psx.cptr(c.D_800F1BAC_t, label));
                         break :sw;
                     }
                     waiting(label);
@@ -201,7 +201,7 @@ pub fn func_800941FC() callconv(.c) void {
                 4 => {
                     const first = scratchPtr();
                     const start = scratchPtr();
-                    _ = c.func_800958A4(44, 48, psx.cptr(c.D_800F1BAC_t, label));
+                    _ = c.vs_battle_drawAbilityTimingResult(44, 48, psx.cptr(c.D_800F1BAC_t, label));
                     anchorPackets(start);
                     hudSite(@as(c_int, c.PC_HUD_STATUS), label, 44, 48, first);
                     advance(label);
@@ -213,7 +213,7 @@ pub fn func_800941FC() callconv(.c) void {
                 5 => {
                     const first = scratchPtr();
                     const start = scratchPtr();
-                    _ = c.func_80095A4C(44, 64, psx.cptr(c.D_800F1BAC_t, label));
+                    _ = c.vs_battle_drawChainCount(44, 64, psx.cptr(c.D_800F1BAC_t, label));
                     anchorPackets(start);
                     hudSite(@as(c_int, c.PC_HUD_CHAIN), label, 44, 64, first);
                     advance(label);
@@ -229,7 +229,7 @@ pub fn func_800941FC() callconv(.c) void {
                     _ = c.func_8009695C(8, 172, psx.cptr(c.D_800F1BAC_t, label));
                     anchorPackets(start);
                     hudSite(@as(c_int, c.PC_HUD_BUFF), label, 8, 172, first);
-                    if (v.g.D_800F1BA4().* != 0) break :sw;
+                    if (v.g.vs_field_areRoomUpdatesPaused().* != 0) break :sw;
                     advance(label);
                     if (label.unkB >= 61) {
                         label.unk8.u8[0] = 0;
@@ -244,5 +244,5 @@ pub fn func_800941FC() callconv(.c) void {
         label.unk8.u8[0] = 0;
         removed +%= 1;
     }
-    if (removed > 0) _ = c.func_8009639C(removed);
+    if (removed > 0) _ = c.vs_battle_compactFloatingLabels(removed);
 }

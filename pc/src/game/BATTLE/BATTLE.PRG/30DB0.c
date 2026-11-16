@@ -44,46 +44,46 @@ typedef struct {
     SVECTOR unk84;
 } D_1F80035C_t;
 
-void func_8008C49C(int, int);
-int func_8009998C(vs_battle_objectData*);
-void func_80099E7C(void*, int, int, int, int);
-void* func_8009A028(int* arg0, void* arg1, int arg2);
+void vs_field_setMovingPlatformActor(int, int);
+int vs_field_createGimmickInstance(vs_battle_objectData*);
+void vs_content_offsetModelTextureCoordinates(void*, int, int, int, int);
+void* vs_content_copyModelGeometry(int* arg0, void* arg1, int arg2);
 int _loadWep(vs_battle_objectData*);
 int _parseWep(vs_battle_objectData*);
 int _loadShp(vs_battle_objectData*);
 int _parseShp(vs_battle_objectData*);
-int func_8009BE5C(vs_battle_objectData*);
+int vs_content_updateActorSequenceLoad(vs_battle_objectData*);
 int _loadSeq(vs_battle_objectData*);
 int _loadEtm(vs_battle_objectData*);
 void _loadMaterialPalette(int index, int material);
-int func_8009E180(D_800F4538_t*, SVECTOR* arg1);
-int func_8009E228(D_800F4538_t* arg0, SVECTOR* arg1);
-void func_8009E700(int, int);
-int func_8009F794(D_800F45E0_t* arg0);
-void func_8009F9F4(int, D_800F4538_unk64*);
-void func_8009FD38(D_800F4538_t* arg0);
-int func_800A0104(int, int);
-void func_800A06B8(D_800F4538_t*, int);
+int vs_actors_actorFacingDeltaToPoint(D_800F4538_t*, SVECTOR* arg1);
+int vs_actors_pitchToPoint(D_800F4538_t* arg0, SVECTOR* arg1);
+void vs_actors_restoreActorBasePose(int, int);
+int vs_field_findGimmickBelow(D_800F45E0_t* arg0);
+void vs_actors_applyActorSoundOverrides(int, D_800F4538_unk64*);
+void vs_actors_headTrackingSpeed(D_800F4538_t* arg0);
+int vs_field_setGimmickOrientation(int, int);
+void vs_actors_beginActorShadowBlend(D_800F4538_t*, int);
 void func_800A11D8(int, int, MATRIX*, u_long*);
 /* 38C1C.c takes the output vector's address as an int. */
 int func_800A141C(int arg0, int arg1, int arg2, int arg3);
 int func_800A152C(int, int, int);
 void func_800A2C48(D_800F4538_t*);
-void func_800A525C(D_800F4538_t*);
-int func_800A6EE8(short*, int, int, int);
-int func_800A91DC(int, int, int);
-int func_800AAD4C(int, int, int, int);
-void func_800AB2AC(int);
-void func_800AC500(D_800F4538_t*);
-void func_800AD008(void*, void*);
-int func_800AD494(D_800F4538_t*, int, u_short**);
-void func_800AD62C(int, int*, int*, int);
-int func_800AD714(D_800F4538_t*, D_800F4538_unkC54*, int);
-void func_800AE47C(D_800F4538_t*);
-void func_800AE6C0(D_800F4538_t*, int, int);
-short func_800BEB00();
-void func_800E6898(void*);
-void func_800E68A0(D_800F45E0_t*);
+void vs_actors_clearActorMovementRequest(D_800F4538_t*);
+int vs_field_sampleActorSupportHeight(short*, int, int, int);
+int vs_field_findTopGimmickAtTile(int, int, int);
+int vs_actors_setTextureAnimation(int, int, int, int);
+void vs_actors_restartsTextureFrames(int);
+void vs_actors_clearActorBonePoseLocks(D_800F4538_t*);
+void vs_actors_initializeActorAnimationPose(void*, void*);
+int vs_actors_findActorAnimationHeader(D_800F4538_t*, int, u_short**);
+void vs_audio_actorSoundPanAndVolume(int, int*, int*, int);
+int vs_actors_runAnimationEvents(D_800F4538_t*, D_800F4538_unkC54*, int);
+void vs_actors_restartActorAnimationEvents(D_800F4538_t*);
+void vs_audio_playActorSoundPair(D_800F4538_t*, int, int);
+short vs_event_eventPlaybackState();
+void vs_battle_aiAddAiTileOccupant(void*);
+void vs_battle_aiRemoveAiTileOccupant(D_800F45E0_t*);
 
 extern u_short _shpLbaOffsets[];
 extern u_char _shpFileSectorSizes[];
@@ -91,21 +91,21 @@ extern u_char D_800E8960[];
 extern u_short _etmLbaOffsets[];
 extern u_char _etmFileSectorSizes[];
 extern u_char _wepFileSectorOffsets[];
-extern u_short D_800E8D00[];
-extern u_char D_800E8E80[];
+extern u_short vs_content_legacyWepDiscOffsets[];
+extern u_char vs_battle_chainAbilityAnimationGroups[];
 extern u_char _loadShpState;
 extern u_char D_800E8F29;
-extern u_char D_800E8F2C;
+extern u_char vs_actors_sharedSequenceBankIndex;
 extern u_char _loadEtmState;
 extern u_char D_800E8FA8[];
-extern void* D_800E8FB4[];
+extern void* vs_field_gimmickModelTemplates[];
 extern char D_800E8FC0;
 extern int D_800E8FC4;
 extern u_char _weaponMaterialPaletteMap[];
-extern u_char D_800E9030[];
+extern u_char vs_field_gimmickOrientationRotations[];
 extern u_char D_800E9090[];
 extern u_char D_800E909C[];
-extern u_char D_800E919C[];
+extern u_char vs_field_gimmickTemplateIndices[];
 extern void* _wepFileData;
 extern int _wepFileLoaded;
 extern vs_main_CdFile _wepFile;
@@ -118,18 +118,18 @@ extern u_short* _etmData;
 extern vs_main_CdFile _etmFile;
 extern vs_main_CdQueueSlot* _etmFileCdSlot;
 extern void* _wepFileEpilog;
-extern u_char D_800F244F[];
+extern u_char vs_actors_sequenceTexturePagesOneBased[];
 extern u_char D_800F2450[];
 extern D_800F2458_t D_800F2458;
 extern VECTOR D_800F4438;
-extern char D_800F4448[];
+extern char vs_field_gimmickPaletteColors[];
 extern int D_800F457C;
 extern int D_800F4580;
 extern int D_800F45D8;
-extern short D_800F4628[4][16];
-extern char* D_800F4810[4][16];
+extern short vs_actors_sharedSequenceAnimationIds[4][16];
+extern char* vs_actors_sharedSequenceAnimationData[4][16];
 extern short D_800F4938[4][16];
-extern int D_800F49D8;
+extern int vs_battle_chainAbilityAnimationSide;
 extern u_int D_800F49E0;
 
 int vs_battle_getEmptyObjectDataSlot(void);
@@ -138,15 +138,15 @@ int vs_battle_populateDataSlot(vs_battle_objectData* objectData);
 
 int vs_battle_processObjectDataQueue(void);
 
-void func_80099960(void* arg0);
+void vs_field_setGimmickPaletteTable(void* arg0);
 
-int func_8009998C(vs_battle_objectData* arg0);
+int vs_field_createGimmickInstance(vs_battle_objectData* arg0);
 
-int func_80099D6C(int arg0);
+int vs_field_releaseGimmickInstance(int arg0);
 
-void func_80099E7C(void* arg0, int arg1, int arg2, int arg3, int arg4);
+void vs_content_offsetModelTextureCoordinates(void* arg0, int arg1, int arg2, int arg3, int arg4);
 
-void* func_8009A028(int* arg0, void* arg1, int arg2);
+void* vs_content_copyModelGeometry(int* arg0, void* arg1, int arg2);
 
 int _loadWep(vs_battle_objectData* arg0);
 
@@ -154,78 +154,78 @@ int _parseWep(vs_battle_objectData* objectData);
 
 void _loadMaterialPalette(int index, int material);
 
-int func_8009AA84(int index);
+int vs_content_releaseWeaponModel(int index);
 
-inline int func_8009AC24(vs_battle_objectData* arg0);
+inline int vs_content_findSharedActorModel(vs_battle_objectData* arg0);
 
 int _loadShp(vs_battle_objectData* arg0);
 
-extern u_char D_800E8F30[];
-extern u_char D_800E8F90[];
+extern u_char vs_actors_textureSlotOrigins[];
+extern u_char vs_actors_textureSlotRowOffsets[];
 extern u_char* D_800F22B4;
 extern u_char D_800F22B8;
 extern int D_800F22BC;
 extern int D_800F22C0;
 extern int D_800F22C4;
-extern void* D_800F4528[];
+extern void* vs_actors_sharedSequenceData[];
 
-void func_8009CAEC(D_800F4538_t* arg0, int arg1);
+void vs_content_bindSharedActorSequence(D_800F4538_t* arg0, int arg1);
 
 int _parseShp(vs_battle_objectData* object);
 
-extern u_short D_800E8A60[], D_800E8E8E[], D_800E8EA8[][4];
-extern u_char D_800E8B40[], D_800E8EA3[], D_800E8EFC[][4];
-extern void* D_800F22C8;
-extern int D_800F22D0;
-extern vs_main_CdFile D_800F22D8;
-extern vs_main_CdQueueSlot* D_800F22E0;
-int func_8009BE5C(vs_battle_objectData* object);
+extern u_short vs_content_legacySequenceDiscOffsets[], vs_content_legacyMaterialSequenceDiscOffsets[], vs_content_legacyMaterialModelSequenceDiscOffsets[][4];
+extern u_char vs_content_legacySequenceSectorCounts[], vs_content_legacyMaterialSequenceSectorCounts[], vs_content_legacyMaterialModelSequenceSectorCounts[][4];
+extern void* vs_content_legacySequenceFileBuffer;
+extern int vs_content_legacySequenceBufferOwned;
+extern vs_main_CdFile vs_content_legacySequenceFileLocation;
+extern vs_main_CdQueueSlot* vs_content_legacySequenceDiscRequest;
+int vs_content_updateActorSequenceLoad(vs_battle_objectData* object);
 
-inline void func_8009C378(func_8009C378_t* arg0, func_8009C378_t* arg1);
+inline void vs_content_copyWeaponSequence(func_8009C378_t* arg0, func_8009C378_t* arg1);
 
 extern u_char D_800E8F2B;
-extern u_char* D_800F22E4;
+extern u_char* vs_content_legacySequenceParseData;
 extern void* D_800F4768;
 
 int _loadSeq(vs_battle_objectData* object);
 
-void func_8009CAEC(D_800F4538_t* arg0, int arg1);
+void vs_content_bindSharedActorSequence(D_800F4538_t* arg0, int arg1);
 
-int func_8009CC20(int arg0, int arg1);
+int vs_content_releaseActorSequence(int arg0, int arg1);
 
-void func_800AB098(D_800F4538_t*, int, int);
+void vs_actors_textureFrameMove(D_800F4538_t*, int, int);
 
-int func_8009CE9C(u_int arg0);
+int vs_actors_selectSharedSequenceBank(u_int arg0);
 
-int func_8009CFA0(void);
+int vs_actors_sharedSequenceBankId(void);
 
-int func_8009CFB0(int arg0);
+int vs_content_releaseActorModel(int arg0);
 
-int func_8009D208(int arg0);
+int vs_content_releaseSequenceEffectTexture(int arg0);
 
 int _loadEtm(vs_battle_objectData* objdata);
 
 void func_8009D458(void);
 
-void func_8009D468(int arg0, int arg1);
+void vs_actors_resetActorMotionState(int arg0, int arg1);
 
-void func_8009D6F4(void);
+void vs_actors_resetAllActorMovement(void);
 
 void func_8009D7E8(int arg0, int arg1);
 
 void func_8009D854(int arg0);
 
-void func_8009D88C(int arg0);
+void vs_actors_resetActorWeaponVisibilityBlend(int arg0);
 
-void func_8009D934(int arg0, int arg1, int arg2);
+void vs_actors_setActorWeaponDrawn(int arg0, int arg1, int arg2);
 
-void func_8009DBDC(int arg0, int arg1);
+void vs_actors_playActorWeaponDrawSound(int arg0, int arg1);
 
-void func_8009DC38(int arg0);
+void vs_actors_stopActorMotion(int arg0);
 
-void func_8009DC8C(int arg0);
+void vs_actors_clearActorMovementModes(int arg0);
 
-void func_8009DD00(int arg0, SVECTOR* arg1, int arg2);
+void vs_battle_playMeleeAttackAnimation(int arg0, SVECTOR* arg1, int arg2);
 
 void func_8009DDF4(int arg0, SVECTOR* arg1);
 
@@ -233,101 +233,101 @@ void func_8009DF3C(int arg0, int arg1);
 
 void func_8009E070(int arg0, SVECTOR* arg1, int arg2);
 
-int func_8009E180(D_800F4538_t* arg0, SVECTOR* arg1);
+int vs_actors_actorFacingDeltaToPoint(D_800F4538_t* arg0, SVECTOR* arg1);
 
-int func_8009E228(D_800F4538_t* arg0, SVECTOR* arg1);
+int vs_actors_pitchToPoint(D_800F4538_t* arg0, SVECTOR* arg1);
 
 void func_8009E2E0(int arg0, SVECTOR* arg1, int arg2);
 
 int func_8009E480(void);
 
-int func_8009E4B0(int arg0);
+int vs_actors_isActorActionAnimationBusy(int arg0);
 
 void func_8009E5C4(int arg0);
 
-void func_8009E614(int arg0);
+void vs_actors_restoreActorNeutralPose(int arg0);
 
-void func_8009E700(int actorId, int animation);
+void vs_actors_restoreActorBasePose(int actorId, int animation);
 
 void func_8009EA14(int arg0, SVECTOR* arg1);
 
-void func_8009EC9C(int arg0, SVECTOR* arg1, int arg2, int arg3);
+void vs_battle_playChainAbilityAnimation(int arg0, SVECTOR* arg1, int arg2, int arg3);
 
-void func_8009EE9C(int arg0, SVECTOR* arg1, int arg2);
+void vs_battle_playDefenseAbilityAnimation(int arg0, SVECTOR* arg1, int arg2);
 
-extern char D_800F49E4;
+extern char vs_battle_specialActionPitch;
 
 void func_8009EFEC(int actorId, SVECTOR* target, int mode);
 
 void func_8009F298(int arg0, SVECTOR* arg1, int arg2);
 
-void func_800AE7D8(void*, int, int);
+void vs_audio_playGimmickSoundPair(void*, int, int);
 
-void func_8009F314(int actorId, void* context, int animate);
+void vs_actors_beginActorDeath(int actorId, void* context, int animate);
 
-void func_8009F530(int arg0);
+void vs_field_dropUnsupportedGimmickStack(int arg0);
 
-int func_8009F794(D_800F45E0_t* arg0);
+int vs_field_findGimmickBelow(D_800F45E0_t* arg0);
 
-int func_8009F858(int arg0);
+int vs_field_gimmickSubtype(int arg0);
 
-void func_8009F898(int arg0, int arg1, int arg2);
+void vs_actors_setWeaponBrightnessOverride(int arg0, int arg1, int arg2);
 
-int func_8009F8DC(int arg0);
+int vs_actors_animationBattleWindowFrame(int arg0);
 
 void func_8009F940(int arg0, int arg1, D_800F4538_unk58_2* arg2, D_800F4538_unk58_2* arg3);
 
-void func_8009F990(int arg0, D_800F4538_unk64* arg1);
+void vs_actors_setActorSoundOverrides(int arg0, D_800F4538_unk64* arg1);
 
-void func_8009F9F4(int arg0, D_800F4538_unk64* arg1);
+void vs_actors_applyActorSoundOverrides(int arg0, D_800F4538_unk64* arg1);
 
-int func_8009FBD8(int arg0, int arg1);
+int vs_actors_setActorTravelAnimation(int arg0, int arg1);
 
-int func_8009FC60(int arg0, int arg1, SVECTOR* arg2, int arg3);
+int vs_actors_startHeadTracking(int arg0, int arg1, SVECTOR* arg2, int arg3);
 
-void func_8009FD38(D_800F4538_t* arg0);
+void vs_actors_headTrackingSpeed(D_800F4538_t* arg0);
 
-int func_8009FD5C(int arg0, int arg1, int arg2);
+int vs_actors_enableModelPalettePulse(int arg0, int arg1, int arg2);
 
-int func_8009FE74(int arg0, int arg1);
+int vs_actors_disableModelPalettePulse(int arg0, int arg1);
 
-void func_8009FF08(int arg0, int arg1, int arg2, int arg3);
+void vs_actors_attachActorToParentBone(int arg0, int arg1, int arg2, int arg3);
 
 int func_8009FFA8(int arg0, int arg1);
 
-int func_800A0024(int arg0, func_800A0024_t* arg1);
+int vs_field_gimmickPlacement(int arg0, func_800A0024_t* arg1);
 
-int func_800A0104(int index, int material);
+int vs_field_setGimmickOrientation(int index, int material);
 
-int func_800A01C8(int arg0, int arg1, int arg2, int arg3);
+int vs_actors_queueActorAnimation(int arg0, int arg1, int arg2, int arg3);
 
-int func_800A0204(int actorId, int animation, int arg2, int blendFrames);
+int vs_actors_playActorAnimation(int actorId, int animation, int arg2, int blendFrames);
 
-int func_800A0618(int arg0, int arg1, int arg2, int arg3);
+int vs_actors_playActorAnimationAtFrame(int arg0, int arg1, int arg2, int arg3);
 
-void func_800A06B8(D_800F4538_t* arg0, int arg1);
+void vs_actors_beginActorShadowBlend(D_800F4538_t* arg0, int arg1);
 
-int func_800A07FC(int arg0, D_800F4538_unk58_2* arg1);
+int vs_actors_setActorTint(int arg0, D_800F4538_unk58_2* arg1);
 
 void func_800A0870(int arg0);
 
-void func_800A087C(int actorId, int arg1);
+void vs_actors_setActorDisplayFlags(int actorId, int arg1);
 
-void func_800A09D8(int arg0, int arg1);
+void vs_actors_setActorAnimationLocked(int arg0, int arg1);
 
-void func_800A0A1C(int arg0, int arg1);
+void vs_field_setActorCollisionBypass(int arg0, int arg1);
 
-void func_800A0ABC(int arg0);
+void vs_actors_resetActorRunMomentum(int arg0);
 
-void func_800A0AFC(int arg0, int arg1, int arg2);
+void vs_actors_setActorWalkRunSpeeds(int arg0, int arg1, int arg2);
 
-u_int func_800A0BE0(int actorId);
+u_int vs_actors_actorStateFlags(int actorId);
 
-int func_800A1108(int arg0, void* arg1);
+int vs_actors_actorPlacement(int arg0, void* arg1);
 
 int func_800A1178(int arg0, int arg1, MATRIX* arg2, u_long* arg3);
 
 void func_800A11D8(int arg0, int arg1, MATRIX* arg2, u_long* arg3);
 
-int func_800A1280(int arg0, int arg1, SVECTOR* arg2, int arg3);
+int vs_actors_targetPoint(int arg0, int arg1, SVECTOR* arg2, int arg3);
 

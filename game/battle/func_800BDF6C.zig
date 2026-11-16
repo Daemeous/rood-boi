@@ -15,7 +15,7 @@ pub fn func_800BDF6C(arg0: ?*v.func_800BDF6C_unk180_t) callconv(.c) void {
             a.unk8 = a.unk9;
         }
         const scratch: *c_int = @ptrFromInt(pad.addr(0x88));
-        scratch.* = c.func_800BFEBC(@as(c_int, a.unk1), @as(c_int, a.unk8), @as(c_int, a.unk9));
+        scratch.* = c.vs_event_evaluateInterpolationCurve(@as(c_int, a.unk1), @as(c_int, a.unk8), @as(c_int, a.unk9));
         a.unk2 = psx.conv(i16, @as(c_int, a.unk4) +% ((@as(c_int, a.unk6) *% scratch.*) >> 12));
         if (a.unk8 == a.unk9) {
             a.unk9 = 0;

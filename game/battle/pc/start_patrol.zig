@@ -2,11 +2,11 @@
 const ai = @import("views_71618");
 const c = @import("c_battle_movement");
 
-/// orig: func_800DB5FC (pc/src/battle_movement.c)
-/// Enters movement mode 5 and patrols its waypoints (func_800E23AC). The
+/// orig: vs_battle_aiPatrolWaypoints (pc/src/battle_movement.c)
+/// Enters movement mode 5 and patrols its waypoints (vs_battle_aiUpdateWaypointPatrol). The
 /// assembly skips both when $a2 is 0; the port always patrols (the oracle's
 /// choice: its only caller passes no such argument).
 pub fn startPatrol(state: *ai.vs_battle_aiState) callconv(.c) void {
-    _ = c.func_800DB4AC(state, 5);
-    c.func_800E23AC(state);
+    _ = c.vs_battle_aiSetMovementBehavior(state, 5);
+    c.vs_battle_aiUpdateWaypointPatrol(state);
 }

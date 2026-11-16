@@ -1,20 +1,20 @@
-/* Modern menus: the game's top-level menu (BATTLE func_800C930C) handed to
+/* Modern menus: the game's top-level menu (BATTLE vs_menu_frameworkUpdateMainMenuSelection) handed to
  * the shell (ui_shell.cpp) when ui_menus is 1. Battle builds.
  *
  * The src hooks (ROOD_PC, BATTLE 5BF94.c):
- *   func_800C930C(mode != 0)  the top level (re)opens: pc_ui_menu_open
- *   func_800C930C(0)          one frame of the top level: pc_ui_menu_top
+ *   vs_menu_frameworkUpdateMainMenuSelection(mode != 0)  the top level (re)opens: pc_ui_menu_open
+ *   vs_menu_frameworkUpdateMainMenuSelection(0)          one frame of the top level: pc_ui_menu_top
  *                             while pc_ui_menu_active (both callers: BATTLE
- *                             func_800C97BC before MAINMENU.PRG is loaded,
+ *                             vs_menu_frameworkUpdateMenuOverlay before MAINMENU.PRG is loaded,
  *                             MAINMENU vs_mainMenu_exec after)
- *   func_800C97BC             hides the original rows (pc_ui_menu_hide_rows)
- *   func_800CAB40             a target cancelled: back to the top level
+ *   vs_menu_frameworkUpdateMenuOverlay             hides the original rows (pc_ui_menu_hide_rows)
+ *   vs_menu_frameworkResumeAfterActionSelection             a target cancelled: back to the top level
  *                             instead of the original screen when the shell
  *                             handed the action over (pc_ui_menu_cast_cancelled)
  *
- * The top level opens with func_800C930C(2) when the menu opens (BATTLE
- * func_800CACD0, cursor memory per the game's option) and with
- * func_800C930C(1) when an original screen returns to it (MAINMENU
+ * The top level opens with vs_menu_frameworkUpdateMainMenuSelection(2) when the menu opens (BATTLE
+ * vs_menu_frameworkOpenGameMenu, cursor memory per the game's option) and with
+ * vs_menu_frameworkUpdateMainMenuSelection(1) when an original screen returns to it (MAINMENU
  * func_800FAA5C, cursor kept). In shell mode the menu rows stay zeroed (the
  * game's memzero runs, the rows are never set up), so nothing of the
  * original top level draws. */
@@ -32,19 +32,19 @@
 #include <libetc.h>
 #include "../present_guard.h" /* PC_PRESENT_GUARD (T1 R4a) */
 
-static int shell_open; /* the shell owns the top level (ticks in func_800C930C(0)) */
+static int shell_open; /* the shell owns the top level (ticks in vs_menu_frameworkUpdateMainMenuSelection(0)) */
 static int closing;    /* the shell closed the menu; set until currentMenu is 0x3F */
 static int session;    /* ui_menus as it was when this menu session opened (mode 2) */
 static int settle;     /* ticks left that ignore the pad after an open (the opening press) */
-static int hud_hidden; /* the field HUD is slid out for the shell (D_800EB9AF) */
-static char hud_saved; /* D_800EB9AF before the shell set it */
+static int hud_hidden; /* the field HUD is slid out for the shell (vs_battle_hudHidden) */
+static char hud_saved; /* vs_battle_hudHidden before the shell set it */
 static int held;       /* a shell result waiting for a model reload (pc_ui_menu_top), 0 none */
 static unsigned frames;    /* battle frames (pc_ui_menu_heartbeat) */
 static unsigned top_frame; /* frames at the last open or top-level tick */
 static int cast_shell; /* the action in the game's hands came from the shell (close_for_cast) */
 
 /* MAINMENU.PRG is resident and drives the top level (vs_battle_loadMenuPrg,
- * 5BF94.c): BATTLE func_800C97BC ticks the top level itself until MAINMENU
+ * 5BF94.c): BATTLE vs_menu_frameworkUpdateMenuOverlay ticks the top level itself until MAINMENU
  * (submenu 0, overlay slot 1) has loaded, the frame after that frees the
  * unpacked menu background and runs vs_mainMenu_initInventory, and only
  * then calls vs_mainMenu_exec (a later submenu in slot 2 keeps MAINMENU). */
@@ -142,21 +142,21 @@ void pc_ui_menu_mainmenu(int* resident, int* waited, int* longest, int* restarts
     *restarts = mainmenu_restarts;
 }
 
-/* The field HUD (HP/MP/RISK, limb silhouette; BATTLE func_800CA2DC) slides
- * out while D_800EB9AF is set, as the game's own screens do for themselves:
+/* The field HUD (HP/MP/RISK, limb silhouette; BATTLE vs_battle_drawBattleHud) slides
+ * out while vs_battle_hudHidden is set, as the game's own screens do for themselves:
  * the shell's backdrop then shows only the dimmed scene. */
 static void hide_hud(void)
 {
     if (!hud_hidden) {
-        hud_saved = D_800EB9AF;
-        D_800EB9AF = 1;
+        hud_saved = vs_battle_hudHidden;
+        vs_battle_hudHidden = 1;
         hud_hidden = 1;
     }
 }
 static void show_hud(void)
 {
     if (hud_hidden) {
-        D_800EB9AF = hud_saved;
+        vs_battle_hudHidden = hud_saved;
         hud_hidden = 0;
     }
 }
@@ -235,8 +235,8 @@ static struct {
  * now), as abandon() does for the top level. */
 static void direct_show_hud(void)
 {
-    if (hud_hidden && D_800EB9AF == 1)
-        D_800EB9AF = hud_saved;
+    if (hud_hidden && vs_battle_hudHidden == 1)
+        vs_battle_hudHidden = hud_saved;
     hud_hidden = 0;
 }
 
@@ -268,19 +268,19 @@ void pc_ui_menu_frame_hud(int hide)
         direct_show_hud();
 }
 
-/* The HUD flag D_800EB9AF as the game has it (the shell's slide-out aside):
+/* The HUD flag vs_battle_hudHidden as the game has it (the shell's slide-out aside):
  * loot_bridge.c's Organize panel decides on it as MENUB does. */
-char pc_ui_menu_hud_game(void) { return hud_hidden ? hud_saved : D_800EB9AF; }
+char pc_ui_menu_hud_game(void) { return hud_hidden ? hud_saved : vs_battle_hudHidden; }
 
 /* After the game's own HUD calls of a direct session (loot_bridge.c, the
- * Organize panel closing: func_800CB654(0), D_800EB9B0 0): what they set is
+ * Organize panel closing: vs_battle_setHudHidden(0), vs_battle_hudSlideOffset 0): what they set is
  * the game's value now, and the HUD stays out while the shell shows. */
 void pc_ui_menu_hud_keep(void)
 {
-    if (hud_hidden && D_800EB9AF != 1) {
-        hud_saved = D_800EB9AF;
-        D_800EB9AF = 1;
-        D_800EB9B0 = 0x200000;
+    if (hud_hidden && vs_battle_hudHidden != 1) {
+        hud_saved = vs_battle_hudHidden;
+        vs_battle_hudHidden = 1;
+        vs_battle_hudSlideOffset = 0x200000;
     }
 }
 
@@ -297,8 +297,8 @@ static void abandon(void)
     pc_ui_shell_close();
     pc_ui_manual_bridge_abandon(); /* the Quick manual's store and its world freeze back */
     pc_ui_score_bridge_abandon();  /* the Score screen's likewise */
-    if (hud_hidden && D_800EB9AF == 1)
-        D_800EB9AF = hud_saved;
+    if (hud_hidden && vs_battle_hudHidden == 1)
+        vs_battle_hudHidden = hud_saved;
     hud_hidden = 0;
     shell_open = closing = held = settle = cast_shell = 0;
 }
@@ -323,7 +323,7 @@ void pc_ui_menu_heartbeat(void)
      * MENUD's 14) or its 0x400 flag: hideMenu and the HUD back (pc_ui_container_end) */
     if (pc_ui_container_on()) {
         int menu = vs_battle_menuState.currentMenu & 0x3F;
-        if ((menu != 7 && menu != 14) || !((u_int)D_800F4EA0 & 0x400))
+        if ((menu != 7 && menu != 14) || !((u_int)vs_menu_frameworkActionRestrictions & 0x400))
             pc_ui_container_end();
         else
             return; /* the top level is not this session's */
@@ -344,7 +344,7 @@ void pc_ui_menu_heartbeat(void)
     if (pc_ui_map_on() && (vs_battle_menuState.currentMenu & 0x3F) != 6)
         pc_ui_map_end();
     /* the shell's action ended (its target confirmed, or no target): the
-     * game frees the menu's rows (func_800CB114) only then, a cancel keeps
+     * game frees the menu's rows (vs_menu_frameworkReleaseMenuRows) only then, a cancel keeps
      * them */
     if (cast_shell && vs_battle_menuItems == 0)
         cast_shell = 0;
@@ -407,7 +407,7 @@ static unsigned map_buttons(unsigned pad)
 static pc_ui_commands commands(void)
 {
     pc_ui_commands c;
-    u_int mask = (u_int)D_800F4EA0; /* the menu's disable mask (func_800CABE0) */
+    u_int mask = (u_int)vs_menu_frameworkActionRestrictions; /* the menu's disable mask (vs_menu_frameworkActionRestrictionFlags) */
     /* fast travel's Magic command on a Circle (shown, never stored; fast_travel.c) */
     c.enabled = (vs_main_settings.menuFlags | pc_fast_travel_menu_bits()) & 0x3FF;
     c.mask = mask;
@@ -416,24 +416,24 @@ static pc_ui_commands commands(void)
     return c;
 }
 
-/* func_800C930C(mode != 0), after the game cleared the rows: mode 2 = the
+/* vs_menu_frameworkUpdateMainMenuSelection(mode != 0), after the game cleared the rows: mode 2 = the
  * menu opens (cursor memory per the game's option), mode 1 = back from an
  * original screen (cursor kept). Returns 1 when the shell takes over.
  *
- * func_800CACD0 calls func_800C930C(2) for every menu session that allocates
+ * vs_menu_frameworkOpenGameMenu calls vs_menu_frameworkUpdateMainMenuSelection(2) for every menu session that allocates
  * the menu rows, not only the top level: L2 shortcuts (currentMenu 1-4, misc
  * items 4 with vs_battle_shortcutInvoked 5), ability learned (3), save
- * container (7), loot (0xC), func_800CB23C (0xF), script menus. Those never
- * tick func_800C930C(0), so the shell takes only the top level: currentMenu 0
- * (func_800CACD0 stores menuState before allocating; MAINMENU func_800FAA5C
- * stores 0 before func_800C930C(1)) and not a direct entry (D_800F4EA0 0x200,
- * func_800CABE0(2)). */
+ * container (7), loot (0xC), vs_menu_frameworkOpenChallengeMenu (0xF), script menus. Those never
+ * tick vs_menu_frameworkUpdateMainMenuSelection(0), so the shell takes only the top level: currentMenu 0
+ * (vs_menu_frameworkOpenGameMenu stores menuState before allocating; MAINMENU func_800FAA5C
+ * stores 0 before vs_menu_frameworkUpdateMainMenuSelection(1)) and not a direct entry (vs_menu_frameworkActionRestrictions 0x200,
+ * vs_menu_frameworkActionRestrictionFlags(2)). */
 int pc_ui_menu_open(int mode)
 {
     if (pc_oracle_classic && pc_oracle_classic())
         return 0;
     pc_ui_commands c;
-    int top = (vs_battle_menuState.currentMenu & 0x3F) == 0 && !((u_int)D_800F4EA0 & 0x200)
+    int top = (vs_battle_menuState.currentMenu & 0x3F) == 0 && !((u_int)vs_menu_frameworkActionRestrictions & 0x200)
         && vs_battle_shortcutInvoked == 0;
     /* back from the map (Cross, or a tab clicked on its frame: that tab) */
     int map_tab = pc_ui_map_end();
@@ -444,7 +444,7 @@ int pc_ui_menu_open(int mode)
     held = 0;
     if (mode == 2)
         session = pc_ui_menus != 0; /* System > Menus applies from the next open */
-    /* only a return (mode 1: a cancelled target's func_800CAB40, an original
+    /* only a return (mode 1: a cancelled target's vs_menu_frameworkResumeAfterActionSelection, an original
      * screen's func_800FAA5C) can follow a shell hand-off; any other open is a
      * new menu session with no action of the last one out */
     if (mode != 1)
@@ -499,7 +499,7 @@ static int deliver(int r)
     }
     if (r > 0) {
         int cmd = r - 1;
-        u_int mask = (u_int)D_800F4EA0;
+        u_int mask = (u_int)vs_menu_frameworkActionRestrictions;
         shell_open = 0;
         vs_battle_submenuStates[0] = cmd; /* the game's cursor (Status etc. read it) */
         vs_battle_playMenuSelectSfx();
@@ -530,12 +530,12 @@ static int deliver(int r)
 /* A break art accepted (pc_ui_abilities_cast wrote MENU1's hand-off): the
  * menu ends as MENU1 ends it for a cast, not through the top level's -1.
  * MENU1 returns to MAINMENU with currentMenu 2, whose func_800FAA5C(2) gives
- * back the menu's resources (func_8007E0A8(26, 3, 6) unless a shortcut
- * opened it) and sets 0x7F: BATTLE func_800C97BC then hands D_800F4E98 to
- * func_800735F8 (the art) on the next frame. The top level's -1 would go
+ * back the menu's resources (vs_render_retireTexturePages(26, 3, 6) unless a shortcut
+ * opened it) and sets 0x7F: BATTLE vs_menu_frameworkUpdateMenuOverlay then hands vs_menu_frameworkActionSelection to
+ * vs_field_dispatchBattleActionMenuResult (the art) on the next frame. The top level's -1 would go
  * through 0x1F and MAINMENU's _quitDelay instead, whose counter the
  * original never advances on a cast: a target cancelled reopens the menu
- * (func_800CAB40) without reloading MAINMENU, so the next close would wait
+ * (vs_menu_frameworkResumeAfterActionSelection) without reloading MAINMENU, so the next close would wait
  * for a count it has passed. The select sound (MENU1's confirmed row), the
  * shell's own cleanup as deliver's, then 0 (no result: currentMenu is set;
  * MAINMENU vs_mainMenu_exec then skips that frame's render as after MENU1's
@@ -558,23 +558,23 @@ static int close_for_cast(int target)
     shell_open = 0;
     closing = 1;
     if (D_800F4FDB == 0)
-        func_8007E0A8(26, 3, 6);
+        vs_render_retireTexturePages(26, 3, 6);
     vs_battle_menuState.currentMenu = 0x7F;
     cast_shell = target;
     return 0;
 }
 
-/* BATTLE func_800CAB40, a target cancelled (not the misc items shortcut's):
+/* BATTLE vs_menu_frameworkResumeAfterActionSelection, a target cancelled (not the misc items shortcut's):
  * 1 when the action came from the shell, which then gets the top level
- * back instead of the hand-off's original screen: func_800CAB40 sets
- * currentMenu 0 and calls func_800C930C(1), as an original screen does when
+ * back instead of the hand-off's original screen: vs_menu_frameworkResumeAfterActionSelection sets
+ * currentMenu 0 and calls vs_menu_frameworkUpdateMainMenuSelection(1), as an original screen does when
  * it returns there (MAINMENU func_800FAA5C), and pc_ui_menu_open(1) shows
  * the shell on the tab, sub-tab and row it closed on (a return keeps them).
  * The rest is the game's own cancel: the menu's resources back
- * (func_8007DFF0, the counterpart of close_for_cast's func_8007E0A8), its
- * rows still allocated (func_800CB114 runs only when an action ends),
+ * (vs_render_reserveTexturePages, the counterpart of close_for_cast's vs_render_retireTexturePages), its
+ * rows still allocated (vs_menu_frameworkReleaseMenuRows runs only when an action ends),
  * MAINMENU resident (nothing loaded while targeting: vs_battle_loadMenuPrg(0)
- * passes at once), the disable mask D_800F4EA0 kept from the menu's open as
+ * passes at once), the disable mask vs_menu_frameworkActionRestrictions kept from the menu's open as
  * for any return to the top level. The flag is spent here either way. */
 int pc_ui_menu_cast_cancelled(void)
 {
@@ -586,7 +586,7 @@ int pc_ui_menu_cast_cancelled(void)
     return from_shell;
 }
 
-/* func_800C930C(0) while the shell owns the top level: the game's protocol
+/* vs_menu_frameworkUpdateMainMenuSelection(0) while the shell owns the top level: the game's protocol
  * (0 stay, -1 close, n > 0 open command n - 1).
  *
  * Per tick: the Ashley snapshot (pc_ui_ashley_fill), the Abilities snapshot
@@ -691,7 +691,7 @@ int pc_ui_menu_active(void)
     return shell_open;
 }
 
-/* func_800C97BC: the original top-level rows stay hidden while the shell
+/* vs_menu_frameworkUpdateMenuOverlay: the original top-level rows stay hidden while the shell
  * owns this menu session, the close frames included. */
 int pc_ui_menu_hide_rows(void)
 {
@@ -700,7 +700,7 @@ int pc_ui_menu_hide_rows(void)
     return shell_open || closing;
 }
 
-/* MAINMENU vs_mainMenu_exec, the direct entries (D_800F4EA0 & 0x200; C48.c,
+/* MAINMENU vs_mainMenu_exec, the direct entries (vs_menu_frameworkActionRestrictions & 0x200; C48.c,
  * ROOD_PC, once the submenu has loaded): the game opened one of its menus
  * straight (no top level): 12 the loot after a battle or at a chest (MENUB).
  * Returns 1 when the shell runs it, with *result the submenu's protocol (0

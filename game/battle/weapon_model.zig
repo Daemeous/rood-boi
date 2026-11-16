@@ -13,12 +13,12 @@ fn matrixAt(base: anytype, off: isize) [*c]c.MATRIX {
     return psx.cptr(c.MATRIX, @as(*align(4) v.MATRIX, @alignCast(p)));
 }
 
-/// orig: func_800B217C (pc/src/game/BATTLE/BATTLE.PRG/49268.c)
+/// orig: vs_actors_buildWeaponBoneChain (pc/src/game/BATTLE/BATTLE.PRG/49268.c)
 /// Steps a weapon's scale, rebuilds its bone matrices from its source matrix, and draws it on its actor's pass.
 pub fn drawWeaponModel(weapon: ?*v.vs_battle_wepModels_t, source: ?*v.MATRIX) callconv(.c) void {
     const w = weapon.?;
     const scratch: *v.weaponTransformScratch = @ptrFromInt(pad.addr(0x35C));
-    const actor = v.g.D_800F4538()[psx.getBits(w, "actorId")];
+    const actor = v.g.vs_actors_actorRecords()[psx.getBits(w, "actorId")];
 
     psx.put(&scratch.model, psx.get(w.offsets));
     @as(*v.MATRIX, @ptrFromInt(pad.addr(0x3C0))).* = source.?.*;
@@ -43,10 +43,10 @@ pub fn drawWeaponModel(weapon: ?*v.vs_battle_wepModels_t, source: ?*v.MATRIX) ca
         scratch.scale.vx = value;
         scratch.scale.vy = value;
         scratch.scale.vz = value;
-        c.func_800B396C(psx.cptr(c.MATRIX, &scratch.matrix), @ptrCast(&scratch.scale));
+        c.vs_core_mathScaleMatrixColumns(psx.cptr(c.MATRIX, &scratch.matrix), @ptrCast(&scratch.scale));
     }
 
-    v.g.D_800F3C58()[0] = scratch.matrix;
+    v.g.vs_actors_skeletonPose()[0] = scratch.matrix;
     psx.byteAt(v.MATRIX, w, 32).* = scratch.matrix;
     scratch.translation.vx = 0;
     scratch.translation.vy = 0;
@@ -74,21 +74,21 @@ pub fn drawWeaponModel(weapon: ?*v.vs_battle_wepModels_t, source: ?*v.MATRIX) ca
         psx.fieldAt(c_int, &scratch.rotation, 0).* &= 0x0FFF0FFF;
         psx.fieldAt(c_int, &scratch.rotation.vz, 0).* &= 0xFFF;
 
-        c.func_800B17F0(@ptrCast(&scratch.rotation), psx.cptr(c.MATRIX, &scratch.matrix));
-        c.func_800B196C(
-            matrixAt(v.g.D_800F3C58(), parentOffset),
+        c.vs_core_mathBuildEulerRotationMatrixQuadrant(@ptrCast(&scratch.rotation), psx.cptr(c.MATRIX, &scratch.matrix));
+        c.vs_core_mathPremultiplyRotationMatrix(
+            matrixAt(v.g.vs_actors_skeletonPose(), parentOffset),
             psx.cptr(c.MATRIX, &scratch.matrix),
         );
-        v.g.D_800F3C58()[@intCast(i)] = scratch.matrix;
+        v.g.vs_actors_skeletonPose()[@intCast(i)] = scratch.matrix;
         psx.byteAt(v.MATRIX, w, @as(isize, (i << 5) + 32)).* = scratch.matrix;
     }
 
     const a = actor.?;
     if ((psx.fieldAt(c_int, &a.unk0._bits_skip, 0).* & 2) != 0) {
         if (a.unk0.position.vy >= 256) {
-            if (a.unk0.unkF == 0 or c.func_800BEB00() != 4) return;
+            if (a.unk0.unkF == 0 or c.vs_event_eventPlaybackState() != 4) return;
         }
-        if (c.func_800B3A68(
+        if (c.vs_render_projectModelVertices(
             w,
             matrixAt(w, 32),
             (-%v.g.vs_main_nearClip().*) << 2,
@@ -119,7 +119,7 @@ pub fn drawWeaponModel(weapon: ?*v.vs_battle_wepModels_t, source: ?*v.MATRIX) ca
                 c.func_800B516C(v.g.D_800F2458(), w, &color, psx.get(scratch.model));
                 return;
             }
-            c.func_800B3CF0(v.g.D_800F2458(), w, &color, psx.get(scratch.model));
+            c.vs_render_drawModelFlatPolygons(v.g.D_800F2458(), w, &color, psx.get(scratch.model));
         }
     }
 }

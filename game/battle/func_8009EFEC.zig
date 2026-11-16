@@ -8,7 +8,7 @@ const c = @import("c_30DB0");
 /// orig: func_8009EFEC (pc/src/game/BATTLE/BATTLE.PRG/30DB0.c)
 /// Mode 0 turns actor `actorId` to face `target`; mode 1 picks its reaction to `target`.
 pub fn func_8009EFEC(actorId: c_int, target: ?*v.SVECTOR, mode: c_int) callconv(.c) void {
-    const actor: ?*v.D_800F4538_t = psx.at(v.g.D_800F4538(), actorId).*;
+    const actor: ?*v.D_800F4538_t = psx.at(v.g.vs_actors_actorRecords(), actorId).*;
 
     if (mode == 0) {
         // The C dereferences actor unconditionally in this mode.
@@ -37,27 +37,27 @@ pub fn func_8009EFEC(actorId: c_int, target: ?*v.SVECTOR, mode: c_int) callconv(
             a.unk0.unk18 = 0x14;
         }
         var animation: [*c]u16 = null;
-        _ = c.func_800AD494(@ptrCast(actor), 0xBF, &animation);
+        _ = c.vs_actors_findActorAnimationHeader(@ptrCast(actor), 0xBF, &animation);
         var value: c_int = 0xBF;
         if (animation == null) {
             value = 0xC1;
         }
-        _ = c.func_800A0204(actorId, value, 0, 8);
-        _ = c.func_8009FD38(@ptrCast(a));
+        _ = c.vs_actors_playActorAnimation(actorId, value, 0, 8);
+        _ = c.vs_actors_headTrackingSpeed(@ptrCast(a));
         return;
     } else if (mode == 1) {
         var animation: [*c]u16 = null;
-        _ = c.func_800AD494(@ptrCast(actor), 0xFF, &animation);
+        _ = c.vs_actors_findActorAnimationHeader(@ptrCast(actor), 0xFF, &animation);
         if (animation == null) {
             // Re-read the slot: the call above may have changed it.
-            const fallback: ?*v.D_800F4538_t = psx.at(v.g.D_800F4538(), actorId).*;
+            const fallback: ?*v.D_800F4538_t = psx.at(v.g.vs_actors_actorRecords(), actorId).*;
             if (fallback) |fb| {
-                fb.unk0.unk3E = psx.conv(i16, c.func_8009E180(@ptrCast(fb), @ptrCast(target)));
+                fb.unk0.unk3E = psx.conv(i16, c.vs_actors_actorFacingDeltaToPoint(@ptrCast(fb), @ptrCast(target)));
                 fb.unk0.unk18 = 0xA;
                 if (fb.unk63C >= 0x81) {
                     fb.unk0.unk18 = 0x14;
                 }
-                const pitch: c_int = c.func_8009E228(@ptrCast(fb), @ptrCast(target));
+                const pitch: c_int = c.vs_actors_pitchToPoint(@ptrCast(fb), @ptrCast(target));
                 var reactionAnimation: c_int = 0x48;
                 if (pitch >= -0xE4) {
                     reactionAnimation = 0x49;
@@ -65,8 +65,8 @@ pub fn func_8009EFEC(actorId: c_int, target: ?*v.SVECTOR, mode: c_int) callconv(
                         reactionAnimation = 0x4A;
                     }
                 }
-                _ = c.func_800A0204(actorId, reactionAnimation, 0, 6);
-                _ = c.func_8009FD38(@ptrCast(fb));
+                _ = c.vs_actors_playActorAnimation(actorId, reactionAnimation, 0, 6);
+                _ = c.vs_actors_headTrackingSpeed(@ptrCast(fb));
                 return;
             }
         } else {
@@ -93,15 +93,15 @@ pub fn func_8009EFEC(actorId: c_int, target: ?*v.SVECTOR, mode: c_int) callconv(
                 );
             }
             if (verticalAngle < -0xE4) {
-                v.g.D_800F49E4().* = 0;
+                v.g.vs_battle_specialActionPitch().* = 0;
             } else {
                 if (verticalAngle >= 0xAC) {
-                    v.g.D_800F49E4().* = 2;
+                    v.g.vs_battle_specialActionPitch().* = 2;
                 } else {
-                    v.g.D_800F49E4().* = 1;
+                    v.g.vs_battle_specialActionPitch().* = 1;
                 }
             }
-            _ = c.func_800A0204(actorId, 0xFF, 0, 8);
+            _ = c.vs_actors_playActorAnimation(actorId, 0xFF, 0, 8);
             return;
         }
     }

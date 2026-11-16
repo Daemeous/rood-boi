@@ -1557,7 +1557,7 @@ static int _attachGemsMenu(int arg0)
     static int selectedRow;
     static char state;
     static char D_8010BC21;
-    static u_char D_8010BC22;
+    static u_char vs_menu_setupSelectedGemSlot;
     static char gemSlots;
     static char isShield;
     static char _0[3] __attribute__((unused));
@@ -1691,7 +1691,7 @@ static int _attachGemsMenu(int arg0)
                 D_8010BC28[itemInfo] = attachedGems[itemInfo];
             }
             D_8010BC21 = 0;
-            D_8010BC22 = 0;
+            vs_menu_setupSelectedGemSlot = 0;
             state = 4;
             *(int*)targetGems = *(int*)D_8010BC28;
         }
@@ -1727,12 +1727,12 @@ static int _attachGemsMenu(int arg0)
                 } else if (vs_main_buttonsPressed.all & PADstart) {
                     int new_var2 = 11;
                     vs_battle_playMenuSelectSfx();
-                    vs_battle_getMenuItem(((1 - isShield) * 2) + (D_8010BC22 + new_var2))
+                    vs_battle_getMenuItem(((1 - isShield) * 2) + (vs_menu_setupSelectedGemSlot + new_var2))
                         ->selected = 0;
                     state = 7;
-                    D_8010BC22 = gemSlots;
+                    vs_menu_setupSelectedGemSlot = gemSlots;
                 } else {
-                    itemInfo = D_8010BC22;
+                    itemInfo = vs_menu_setupSelectedGemSlot;
                     if (vs_main_buttonsPressed.all & PADRright) {
                         vs_battle_playMenuSelectSfx();
                         if (itemInfo == gemSlots) {
@@ -1760,14 +1760,14 @@ static int _attachGemsMenu(int arg0)
                                 ++itemInfo;
                             }
                         }
-                        if (itemInfo != D_8010BC22) {
+                        if (itemInfo != vs_menu_setupSelectedGemSlot) {
                             vs_battle_playMenuChangeSfx();
-                            D_8010BC22 = itemInfo;
+                            vs_menu_setupSelectedGemSlot = itemInfo;
                         }
 
                         for (i = 0; i < gemSlots; ++i) {
                             vs_battle_getMenuItem(11 + ((1 - isShield) * 2) + i)
-                                ->selected = i == D_8010BC22;
+                                ->selected = i == vs_menu_setupSelectedGemSlot;
                             vs_battle_rowTypeBuf[i] = D_8010BC28[i] == 0;
                         }
 
@@ -1811,20 +1811,20 @@ static int _attachGemsMenu(int arg0)
                 shield = &vs_main_inventory.shields[var_s2 - 1];
                 attachedGems = isShield != 0 ? shield->gems : weapon->gems;
                 if (itemInfo > 0) {
-                    i = D_8010BC28[D_8010BC22];
+                    i = D_8010BC28[vs_menu_setupSelectedGemSlot];
                     if (itemInfo == i) {
                         vs_main_inventory.gems[itemInfo - 1].setItemIndex = 0;
-                        attachedGems[D_8010BC22] = 0;
-                        D_8010BC28[D_8010BC22] = 0;
+                        attachedGems[vs_menu_setupSelectedGemSlot] = 0;
+                        D_8010BC28[vs_menu_setupSelectedGemSlot] = 0;
                     } else {
                         if (i != 0) {
                             vs_main_inventory.gems[i - 1].setItemIndex = 0;
                         }
                         vs_main_inventory.gems[itemInfo - 1].setItemIndex =
                             var_s2 + (isShield << 7);
-                        attachedGems[D_8010BC22] = itemInfo;
-                        D_8010BC28[D_8010BC22] = itemInfo;
-                        ++D_8010BC22;
+                        attachedGems[vs_menu_setupSelectedGemSlot] = itemInfo;
+                        D_8010BC28[vs_menu_setupSelectedGemSlot] = itemInfo;
+                        ++vs_menu_setupSelectedGemSlot;
                     }
                     if (isShield != 0) {
                         if (shield->isEquipped != 0) {
@@ -2633,7 +2633,7 @@ static int _selectBlade(int arg0)
 {
     static int selectedRow;
     static char state;
-    static char D_8010BC61;
+    static char vs_menu_setupCombinationBladeSlot;
 
     int count;
     int i;
@@ -2644,13 +2644,13 @@ static int _selectBlade(int arg0)
     vs_main_inventoryBlade* blade = NULL;
 
     if (arg0 != 0) {
-        D_8010BC61 = arg0;
+        vs_menu_setupCombinationBladeSlot = arg0;
         _initMenuHeader(arg0 + 10);
         state = 0;
         return 0;
     }
 
-    itemId = _combiningBladeIds[D_8010BC61 - 1];
+    itemId = _combiningBladeIds[vs_menu_setupCombinationBladeSlot - 1];
     if (itemId != 0) {
         blade = &vs_main_inventory.blades[itemId - 1];
     }
@@ -3226,7 +3226,7 @@ static int _selectShields(int arg0)
 {
     static int D_8010BC68;
     static char state;
-    static char D_8010BC6D;
+    static char vs_menu_setupCombinationShieldSlot;
 
     char** menuText;
     int rowType;
@@ -3239,14 +3239,14 @@ static int _selectShields(int arg0)
 
     if (arg0 != 0) {
 
-        D_8010BC6D = arg0;
+        vs_menu_setupCombinationShieldSlot = arg0;
 
         _initMenuHeader(arg0 + 10);
         state = 0;
         return 0;
     }
 
-    itemId = _itemsToCombine[D_8010BC6D - 1];
+    itemId = _itemsToCombine[vs_menu_setupCombinationShieldSlot - 1];
 
     if (itemId != 0) {
         shield = &vs_main_inventory.shields[itemId - 1];
@@ -3803,7 +3803,7 @@ static int _initUiArmor(int arg0)
 {
     static int D_8010BC74;
     static char D_8010BC78;
-    static char D_8010BC79;
+    static char vs_menu_setupCombinationArmorSlot;
 
     char** sp10;
     int var_s4;
@@ -3815,13 +3815,13 @@ static int _initUiArmor(int arg0)
 
     var_s2 = NULL;
     if (arg0 != 0) {
-        D_8010BC79 = arg0;
+        vs_menu_setupCombinationArmorSlot = arg0;
         _initMenuHeader(arg0 + 0xA);
         D_8010BC78 = 0;
         return 0;
     }
 
-    itemId = _combiningArmorIds[D_8010BC79 - 1];
+    itemId = _combiningArmorIds[vs_menu_setupCombinationArmorSlot - 1];
     if (itemId != 0) {
         var_s2 = &vs_main_inventory.armor[itemId - 1];
     }
@@ -4307,7 +4307,7 @@ static int _combineTopMenu(int arg0)
 
 int vs_menuC_exec(u_char* state)
 {
-    static char D_8010BC7F;
+    static char vs_menu_setupFirstEntry;
 
     char* menuText[12];
     int i;
@@ -4316,7 +4316,7 @@ int vs_menuC_exec(u_char* state)
 
     switch (*state) {
     case 0:
-        D_8010BC7F = 1;
+        vs_menu_setupFirstEntry = 1;
         // fallthrough
     case 1:
 
@@ -4364,10 +4364,10 @@ int vs_menuC_exec(u_char* state)
                 }
             }
             i = vs_main_settings.cursorMemory;
-            if (D_8010BC7F == 0) {
+            if (vs_menu_setupFirstEntry == 0) {
                 vs_main_settings.cursorMemory = 1;
             }
-            D_8010BC7F = 0;
+            vs_menu_setupFirstEntry = 0;
             vs_mainmenu_setMenuRows(6, 0x135, menuText, vs_battle_rowTypeBuf);
             vs_main_settings.cursorMemory = i;
             *state = 3;
@@ -4387,7 +4387,7 @@ int vs_menuC_exec(u_char* state)
                 } else {
                     vs_battle_menuState.currentMenu = vs_battle_menuState.returnState;
                     vs_battle_menuState.returnState = 0;
-                    D_800F4EA0 &= ~0x200;
+                    vs_menu_frameworkActionRestrictions &= ~0x200;
                     *state = 0;
                 }
             } else {
@@ -4498,7 +4498,7 @@ int vs_menuC_exec(u_char* state)
     case 11:
         vs_battle_menuState.currentMenu = vs_battle_menuState.returnState;
         vs_battle_menuState.returnState = 1;
-        D_800F4EA0 &= ~0x200;
+        vs_menu_frameworkActionRestrictions &= ~0x200;
         *state = 0;
         break;
     }

@@ -5,21 +5,21 @@
 #define VS_TRAIL_UPDATE_FUNCTION func_800FA8E4
 #define VS_TRAIL_RENDER_FUNCTION func_800FAA70
 #define VS_TRAIL_DISPATCH_FUNCTION vs_spiritSurge_renderTrails
-#define VS_TRAIL_CORNER_STATE D_800FE3D4
+#define VS_TRAIL_CORNER_STATE vs_effects_plg049TrailEmissionCounter
 #include "pc/src/game/EFFECT/trails9.h"
 
 /**
  * Concentric text circles over caster
  */
 #define VS_RING_FUNCTION func_800FBA00
-#define VS_RING_COLORS D_800FE3D8
+#define VS_RING_COLORS vs_effects_plg049RingColorFactors
 #include "pc/src/game/EFFECT/rings.h"
 
 /**
  * Target impact
  */
 #define VS_TILED_RING_FUNCTION func_800FC624
-#define VS_TILED_RING_COLORS D_800FE3F8
+#define VS_TILED_RING_COLORS vs_effects_plg049TiledRingColorFactors
 #include "pc/src/game/EFFECT/tiledRings.h"
 
 /**

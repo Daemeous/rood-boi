@@ -71,7 +71,7 @@ action (zone 48 room 10, a defence ability on Circle, unpaced): off and with
 the default enemy hold, Circle is pressed PRESS_DELAY vsyncs after each enemy
 release; each press is judged the same (its timer from the release, the
 window then, its result: before the hit's window it is FAST!, the game's
-func_800958A4 label), and every enemy action's window (its tick from the
+vs_battle_drawAbilityTimingResult label), and every enemy action's window (its tick from the
 release, battleAbilityTargetWindow) is off's. --out keeps the logs."""
 import argparse
 import os
@@ -96,7 +96,7 @@ ACTION, ACTION_COST, ACTION_UNLOCKED = 52, 3, 13  # vs_action_t
 HP, MP, STATUSES = 0x18, 0x1C, 0x948  # vs_battle_actor2 currentHP, currentMP, statuses
 MISC = 0xE00  # vs_main_inventory: the misc bag (id u16, count u8, index u8)
 SCORE = 0x114  # sizeof vs_main_scoredata_t
-FLAGS = (0xB7, 0xB9)  # vs_main_stateFlags set by func_8007138C
+FLAGS = (0xB7, 0xB9)  # vs_main_stateFlags set by vs_battle_startActionPresentation
 OBJECT_SLOT = 0x14  # sizeof vs_battle_objectData
 ACTOR_POSITION = 0x1C  # D_800F4538_t unk0.position (facing at 0x26)
 CLOSED = 0x3F
@@ -192,10 +192,10 @@ class Run:
         return [self.stats(i) for i in range(16)]
 
     def positions(self):
-        """Every actor's position (x, y, z) and facing (D_800F4538[i]->unk0), or None."""
+        """Every actor's position (x, y, z) and facing (vs_actors_actorRecords[i]->unk0), or None."""
         out = []
         for i in range(17):
-            actor = self.ptr(self.sym["D_800F4538"] + i * PTR)
+            actor = self.ptr(self.sym["vs_actors_actorRecords"] + i * PTR)
             out.append(struct.unpack("<3h4xh", self.g.read(actor + ACTOR_POSITION, 12)) if actor else None)
         return out
 
@@ -219,8 +219,8 @@ class Run:
         """What a finished action leaves (each should be its idle value)."""
         slots = self.g.read(self.sym["vs_battle_objectDataSlots"], 16 * OBJECT_SLOT)
         return {"state": self.u8("D_800F196C"), "camera": self.camera_mode(),
-                "effects": self.ptr(self.sym["D_800F53B8"]), "background": self.ptr(self.sym["D_800F54B0"]),
-                "name window": self.ptr(self.sym["D_800EB9D8"]), "D_800F522C": self.u32(self.sym["D_800F522C"]),
+                "effects": self.ptr(self.sym["vs_effects_primaryInstances"]), "background": self.ptr(self.sym["vs_effects_secondaryInstances"]),
+                "name window": self.ptr(self.sym["vs_menu_sceneNotificationBuffer"]), "D_800F522C": self.u32(self.sym["D_800F522C"]),
                 "object slots": [slots[i * OBJECT_SLOT] for i in range(16) if slots[i * OBJECT_SLOT]],
                 "tickspeed": self.u32(self.sym["vs_gametime_tickspeed"])}
 
@@ -774,7 +774,7 @@ def main():
         out = []
         for e in x["presses"].split():
             actor, action, timer, window, success = (int(v) for v in e.split(":"))
-            # (func_80078AB4: before the hit's window, FAST! or, earlier than its margin, TOO FAST!)
+            # (vs_battle_updateBattleAbilityTiming: before the hit's window, FAST! or, earlier than its margin, TOO FAST!)
             label = ("early" if window == 0 or timer <= window else "on time" if success else "late")
             out.append((action, timer, window, success, label))
         return sorted(out)

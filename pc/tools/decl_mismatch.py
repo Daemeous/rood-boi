@@ -2,7 +2,7 @@
 """Cross-unit declaration check for the 64-bit build.
 
 Decompiled units often declare a function or data import locally
-(`int func_800AD494(D_800F4538_t*, int, int*);`) instead of including the
+(`int vs_actors_findActorAnimationHeader(D_800F4538_t*, int, int*);`) instead of including the
 header of the unit that defines it. When the local type disagrees with the
 definition, C compiles each unit happily and the 32-bit build usually works
 (pointers and ints are both 4 bytes), but on LP64 the caller passes, returns
@@ -31,7 +31,7 @@ Severity:
           larger struct, a different parameter count.
 
 It also runs pc/tools/lp64_alias_scan.py: a data import that is a field of
-another import (D_800F5798 = D_800F56C8.unkD0) where one of the two moved to
+another import (vs_effects_actionRequestPointer = D_800F56C8.unkD0) where one of the two moved to
 a native LP64 slot and the other stayed at its PS1 address (HAZARD).
 
 Known benign mismatches are listed in BENIGN below with the reason; they are
@@ -88,15 +88,15 @@ BENIGN = {
     # holding guest addresses (zero-extended, < 4 GB), so a 4-byte access
     # reads/writes the low half of the slot, which is the whole value.
     **{name: "port code views a guest pointer word as u32 (low half of the native slot; values are guest addresses)"
-       for name in ["D_800EB9B8", "D_800F51B8", "D_800F58B8", "D_800F58BC", "D_800F58C0", "D_800F58C8",
+       for name in ["vs_battle_targetSphere", "vs_menu_activeTextBoxOrderingTable", "D_800F58B8", "vs_battle_aiRoomAiState", "D_800F58C0", "D_800F58C8",
                     "D_800F58CC", "D_800F58D0", "D_800F58D8", "D_800F58F8", "D_800F5904", "D_800F5908",
                     "D_800F5910", "D_800F5920"]},
     "strlen": "the SDK's unprototyped int strlen() reads the low 32 bits of glibc's size_t (lengths are small)",
     # Extra trailing arguments: the callee never reads them (x86-64 and
     # MIPS pass the first arguments in registers), as on the PS1.
     **{name: "caller passes extra trailing arguments the definition ignores"
-       for name in ["func_800AD62C", "func_800E1908", "func_800E19FC", "func_800E2CCC", "func_800E4C28"]},
-    "func_800E5154": "146C.c's ROOD_PC call casts it to int (*)(int) and passes the actor id; the (void) "
+       for name in ["vs_audio_actorSoundPanAndVolume", "vs_battle_aiMoveWithHeightFilteredDirections", "vs_battle_aiUpdateNavigationAreaMovement", "vs_battle_aiRecoverMovement", "vs_battle_aiReleaseAiDestinationTile"]},
+    "vs_battle_aiActorNavigationOverrideStatus": "146C.c's ROOD_PC call casts it to int (*)(int) and passes the actor id; the (void) "
                      "prototype is the PS1's (it relied on $a0)",
     "CompMatrixLV": "the game's two-argument in-place entry (boot_sdk.c); 49268.c calls it through a "
                     "two-argument cast, the SDK header keeps PsyQ's three",

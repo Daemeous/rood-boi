@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Two-model enemies (a Ghost) and the zone context's enemy tables on LP64.
 
-Enemies whose SHP id is flagged in D_8004FE88 (Ghost 26, Wraith 71,
-Guildenstern 79/175) take two actor slots: func_800775C0 loads a second model
+Enemies whose SHP id is flagged in vs_actors_usesSecondaryBodyModel (Ghost 26, Wraith 71,
+Guildenstern 79/175) take two actor slots: vs_actors_spawnRoomEnemy loads a second model
 into slot id + 4 with model id _zoneContext.zndEnemies[zud].unk2 + 1. The
-decompiled code read that table through D_800F188C, which is
-_zoneContext.zndEnemies (0x800F1880 + 0xC); func_8008A3A0 (leaving a room)
+decompiled code read that table through vs_actors_zoneCharacterInitData, which is
+_zoneContext.zndEnemies (0x800F1880 + 0xC); vs_field_unloadCurrentRoom (leaving a room)
 freed _zoneContext.mpdEnemies through D_800F18E4 (+0x64). On the 64-bit build
 those names were host pointers in native slots of their own that nothing
 wrote (pc/tools/lp64_alias_scan.py): a Ghost dereferenced NULL, and every
@@ -88,7 +88,7 @@ def main():
     try:
         check(game.state().get("player") is not None, "continued into gameplay")
         warp(*GHOST_ROOM)
-        flags = game.read_symbol("D_8004FE88", 256)
+        flags = game.read_symbol("vs_actors_usesSecondaryBodyModel", 256)
         width = 8 if os.environ.get("ROOD_ARCH") == "64" else 4
         zone = game.read_symbol("pc_zone_size", 4)
         zone = game.read_symbol("_zoneContext", int.from_bytes(zone, "little"))
@@ -97,7 +97,7 @@ def main():
         shps = [game.read(znd + game.read(mpd + i * 0x28 + 4, 1)[0] * 0x464 + 2, 1)[0] for i in range(count)]
         check(any(flags[s] for s in shps), f"the room spawns a two-model enemy (SHP ids {shps})")
         # A two-model actor (0x3BB4 bytes, unk40 = 2) reserves data slot
-        # id + 4 for the second model, which func_800775C0 loads with the
+        # id + 4 for the second model, which vs_actors_spawnRoomEnemy loads with the
         # model id read from zndEnemies.
         two = [j for j, a in enumerate(actors()) if 2 <= j < 10 and a and u32(a + game.actor_offset("models")) == 2]
         check(bool(two), f"the enemy is a two-model actor (actors with unk40 = 2: {two})")
@@ -111,7 +111,7 @@ def main():
         game.run(300)
         check(game.state()["zone"] == GHOST_ROOM[0], "the game plays on for 300 vsyncs")
 
-        # Leaving a room frees its spawn table (func_8008A3A0): the heap's
+        # Leaving a room frees its spawn table (vs_field_unloadCurrentRoom): the heap's
         # free total is the same on each return.
         warp(*OTHER_ROOM)  # the first visit came from the save room
         warp(*GHOST_ROOM)

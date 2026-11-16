@@ -5,7 +5,7 @@ const psx = @import("common").psx;
 
 const NativeMatrices = *const fn (?*const anyopaque, ?*const anyopaque, ?*const anyopaque) callconv(.c) void;
 
-/// orig: func_800B3A68 (pc/src/actor_vertices.c)
+/// orig: vs_render_projectModelVertices (pc/src/actor_vertices.c)
 /// Gives the native renderer the object's matrices, then projects the model's
 /// vertex groups (guest pointers at model +0x34 and +0x38, one group count in
 /// object byte 1) into the screen and depth arrays at D_800F2458 and +768

@@ -30,7 +30,7 @@ fn composeRotation(a: [*c]c.MATRIX, b: [*c]c.MATRIX, result: [*c]c.MATRIX) [*c]c
     return result;
 }
 
-/// orig: func_800B196C (pc/src/boot_sdk.c)
+/// orig: vs_core_mathPremultiplyRotationMatrix (pc/src/boot_sdk.c)
 /// Rotates the matrix `b` in place by the rotation of `a` (the translation of `b` stays).
 pub fn composeRotationInPlace(a: [*c]c.MATRIX, b: [*c]c.MATRIX) callconv(.c) [*c]c.MATRIX {
     return composeRotation(a, b, b);

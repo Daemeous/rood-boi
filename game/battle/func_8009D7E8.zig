@@ -7,7 +7,7 @@ const v = @import("views_30DB0");
 /// Clears flag 21 of the actor in slot `arg0`; a nonzero `arg1` instead resets counter 1802 and sets it from `arg1`.
 pub fn func_8009D7E8(arg0: c_int, arg1: c_int) callconv(.c) void {
     // The C indexes the slot table without a bound check: psx.at keeps that.
-    if (psx.at(v.g.D_800F4538(), arg0).*) |temp_a2| {
+    if (psx.at(v.g.vs_actors_actorRecords(), arg0).*) |temp_a2| {
         if (arg1 == 0) {
             psx.setBits(temp_a2, "unk5AC_21", 0);
         } else {

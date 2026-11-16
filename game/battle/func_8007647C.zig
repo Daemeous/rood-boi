@@ -23,7 +23,7 @@ pub fn func_8007647C(arg0: c_int, arg1: c_int) callconv(.c) void {
     switch (@as(c_int, arg1) & 0xFF) {
         1 => {
             psx.setBits(temp_s0, "unk956_0", 1);
-            c.func_80095B7C(arg0, 8);
+            c.vs_battle_setActorMarker(arg0, 8);
         },
         2, 4 => {
             psx.setBits(temp_s0, "unk956_0", 0);

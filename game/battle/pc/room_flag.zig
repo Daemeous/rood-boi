@@ -7,20 +7,20 @@ const v = @import("views_battle_movement");
 /// sign test, as in the original (a clear of bit 31 sets the byte, a set
 /// clears it).
 fn roomFlag(bit: c_int, clear: bool) void {
-    const room = v.g.D_800F58BC().* orelse return;
+    const room = v.g.vs_battle_aiRoomAiState().* orelse return;
     var mask: c_int = @as(c_int, 1) << @intCast(bit & 31);
     if (clear) mask = -1 -% mask;
     const byte: c_int = room.closedGates;
     room.closedGates = psx.conv(u8, if (mask < 0) byte & mask else byte | mask);
 }
 
-/// orig: func_800E4BD8 (pc/src/battle_movement.c)
+/// orig: vs_battle_aiClearAiContactOccupancy (pc/src/battle_movement.c)
 /// Clears room flag `bit`.
 pub fn clearRoomFlag(bit: c_int) callconv(.c) void {
     roomFlag(bit, true);
 }
 
-/// orig: func_800E4BE0 (pc/src/battle_movement.c)
+/// orig: vs_battle_aiSetAiContactOccupancy (pc/src/battle_movement.c)
 /// Sets room flag `bit`.
 pub fn setRoomFlag(bit: c_int) callconv(.c) void {
     roomFlag(bit, false);

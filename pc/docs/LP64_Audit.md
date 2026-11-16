@@ -261,7 +261,7 @@ native table. Imports without a seen declaration are referenced only by
 overlay-local renames or through asm-era code.
 
 Contents in the local image (bytes are read, never stored): zero 580, initialised 340, unknown 21. 18 hold words that look like guest pointers (0x8001xxxx-0x801Fxxxx):
-`D_80040D98` (8/1024 words, `short[]`), `D_80068EB4` (5/20 words, `char[]`), `D_800691E4` (447/630 words, `char[]`), `D_800E82F4` (97/103 words, `u_short[]`), `D_800E85C4` (20/22 words, `RECT`), `D_800E8FB4` (3/3 words, `void *[]`), `D_800E9C30` (256/320 words, `u_char[]`), `D_800EA46C` (1/109 words, `u_short[]`), `D_800EB588` (9/96 words, `u_char *[]`), `D_800EC258` (1/1 words, `char *`), `D_800EC308` (1/8 words, `CVECTOR[]`), `D_800EC368` (49/84 words, `u_char[][5][4]`), `D_800F175C` (21/23 words, `u_char[]`), `_itemCategorySizes` (48/56 words, `u_int[]`), `_spellIds` (4/4 words, `u_char *[]`), `g_Sound_LfoTable` (403/1024 words, `short *[]`), `vs_battle_limbNames` (20/20 words, `char *[]`), `vs_overlay_slots` (5/5 words, `void *const[5]`).
+`D_80040D98` (8/1024 words, `short[]`), `vs_field_weatherVolumeByIntensity` (5/20 words, `char[]`), `D_800691E4` (447/630 words, `char[]`), `vs_battle_bladePpDamageBonuses` (97/103 words, `u_short[]`), `D_800E85C4` (20/22 words, `RECT`), `vs_field_gimmickModelTemplates` (3/3 words, `void *[]`), `vs_event_opcodeSizes` (256/320 words, `u_char[]`), `vs_battle_sphereWireframeCommands` (1/109 words, `u_short[]`), `vs_event_textBoxFrameStyles` (9/96 words, `u_char *[]`), `vs_battle_puzzleTimerTextPointer` (1/1 words, `char *`), `D_800EC308` (1/8 words, `CVECTOR[]`), `D_800EC368` (49/84 words, `u_char[][5][4]`), `D_800F175C` (21/23 words, `u_char[]`), `_itemCategorySizes` (48/56 words, `u_int[]`), `_spellIds` (4/4 words, `u_char *[]`), `g_Sound_LfoTable` (403/1024 words, `short *[]`), `vs_battle_limbNames` (20/20 words, `char *[]`), `vs_overlay_slots` (5/5 words, `void *const[5]`).
 Zero-initialised imports are runtime state that only lives at its PS1 address because
 the port links it there; they can become native globals (native layout) unless
 something else addresses them by number (asm-era code, guest pointers in other data,
@@ -272,68 +272,68 @@ Pointer-typed imports:
 | import | declared type | struct | image content | used by | refs |
 | --- | --- | --- | --- | --- | --- |
 | `D_800377FC` | `FSoundChannel *` | - | zero | main | 1 |
-| `D_80055C80` | `void *[]` | - | zero | BATTLE | 5 |
-| `D_8005E0C0` | `void *[]` | - | zero | BATTLE | 8 |
-| `D_800E8FB4` | `void *[]` | - | initialised | BATTLE | 1 |
-| `D_800EB588` | `u_char *[]` | - | initialised | BATTLE | 2 |
-| `D_800EB9B4` | `D_800EB9B4_t *` | - | zero | BATTLE, pc | 20 |
-| `D_800EB9BC` | `D_800EB9BC_t *` | - | zero | BATTLE | 21 |
-| `D_800EB9C4` | `vs_battle_lootListNode *` | - | zero | BATTLE, MENU | 4 |
-| `D_800EB9C8` | `vs_battle_loot *` | - | zero | BATTLE, MENU | 4 |
-| `D_800EB9D8` | `int *` | - | zero | BATTLE | 11 |
-| `D_800EC258` | `char *` | - | initialised | BATTLE | 3 |
-| `D_800F1870` | `void *` | - | zero | BATTLE | 2 |
-| `D_800F188C` | `vs_battle_charInitData *` | - | zero | BATTLE | 1 |
+| `vs_render_legacyOrderingTables` | `void *[]` | - | zero | BATTLE | 5 |
+| `vs_render_legacyPrimitiveBuffers` | `void *[]` | - | zero | BATTLE | 8 |
+| `vs_field_gimmickModelTemplates` | `void *[]` | - | initialised | BATTLE | 1 |
+| `vs_event_textBoxFrameStyles` | `u_char *[]` | - | initialised | BATTLE | 2 |
+| `vs_effects_screenEffectOverlay` | `D_800EB9B4_t *` | - | zero | BATTLE, pc | 20 |
+| `vs_render_gimLayers` | `D_800EB9BC_t *` | - | zero | BATTLE | 21 |
+| `vs_menu_frameworkLootLists` | `vs_battle_lootListNode *` | - | zero | BATTLE, MENU | 4 |
+| `vs_menu_frameworkLootEntry` | `vs_battle_loot *` | - | zero | BATTLE, MENU | 4 |
+| `vs_menu_sceneNotificationBuffer` | `int *` | - | zero | BATTLE | 11 |
+| `vs_battle_puzzleTimerTextPointer` | `char *` | - | initialised | BATTLE | 3 |
+| `vs_render_legacyCurrentOrderingTable` | `void *` | - | zero | BATTLE | 2 |
+| `vs_actors_zoneCharacterInitData` | `vs_battle_charInitData *` | - | zero | BATTLE | 1 |
 | `D_800F18E4` | `void *` | - | zero | BATTLE | 2 |
 | `D_800F18EC` | `D_800F18EC_t *` | - | zero | BATTLE | 3 |
 | `D_800F192C` | `vs_battle_actor *` | - | zero | BATTLE | 2 |
-| `D_800F19CC` | `D_800F19CC_t *` | - | zero | BATTLE | 610 |
-| `D_800F1BA8` | `u_short *` | - | zero | BATTLE | 7 |
-| `D_800F1BAC` | `D_800F1BAC_t (*)[32]` | - | zero | BATTLE | 28 |
+| `vs_battle_actionState` | `D_800F19CC_t *` | - | zero | BATTLE | 610 |
+| `vs_field_roomPalettes` | `u_short *` | - | zero | BATTLE | 7 |
+| `vs_battle_floatingLabels` | `D_800F1BAC_t (*)[32]` | - | zero | BATTLE | 28 |
 | `D_800F1BB8` | `void *` | - | zero | BATTLE | 2 |
-| `D_800F1CBC` | `void *` | - | zero | BATTLE | 9 |
+| `vs_battle_placedLabelPositions` | `void *` | - | zero | BATTLE | 9 |
 | `D_800F1CC0` | `void *` | - | zero | BATTLE | 2 |
-| `D_800F1DAC` | `vs_main_CdQueueSlot *` | - | zero | BATTLE | 8 |
-| `D_800F1DB0` | `vs_main_CdQueueSlot *` | - | zero | BATTLE | 8 |
-| `D_800F1DCC` | `vs_battle_backgroundLayout *` | - | zero | BATTLE | 11 |
-| `D_800F1DD0` | `u_long *` | - | zero | BATTLE | 8 |
-| `D_800F1DD4` | `D_800F1DD4_t *` | - | zero | BATTLE | 14 |
+| `vs_field_backgroundTextureDiscRequest` | `vs_main_CdQueueSlot *` | - | zero | BATTLE | 8 |
+| `vs_field_backgroundLayoutDiscRequest` | `vs_main_CdQueueSlot *` | - | zero | BATTLE | 8 |
+| `vs_field_loadedBackgroundLayout` | `vs_battle_backgroundLayout *` | - | zero | BATTLE | 11 |
+| `vs_field_legacyBackgroundTimBuffer` | `u_long *` | - | zero | BATTLE | 8 |
+| `vs_field_weatherParticles` | `D_800F1DD4_t *` | - | zero | BATTLE | 14 |
 | `D_800F22B4` | `u_char *` | - | zero | BATTLE | 1 |
-| `D_800F22C8` | `void *` | - | zero | BATTLE | 16 |
-| `D_800F22E0` | `vs_main_CdQueueSlot *` | - | zero | BATTLE | 4 |
-| `D_800F22E4` | `u_char *` | - | zero | BATTLE | 38 |
-| `D_800F4528` | `void *[]` | - | zero | BATTLE | 9 |
-| `D_800F4538` | `D_800F4538_t *[17]` | - | zero | BATTLE, MENU, pc | 262 |
-| `D_800F4590` | `D_800F4590_t *[]` | - | unknown | MENU | 4 |
-| `D_800F45E0` | `D_800F45E0_t *[16]` | - | zero | BATTLE, MENU, pc | 73 |
+| `vs_content_legacySequenceFileBuffer` | `void *` | - | zero | BATTLE | 16 |
+| `vs_content_legacySequenceDiscRequest` | `vs_main_CdQueueSlot *` | - | zero | BATTLE | 4 |
+| `vs_content_legacySequenceParseData` | `u_char *` | - | zero | BATTLE | 38 |
+| `vs_actors_sharedSequenceData` | `void *[]` | - | zero | BATTLE | 9 |
+| `vs_actors_actorRecords` | `D_800F4538_t *[17]` | - | zero | BATTLE, MENU, pc | 262 |
+| `vs_battle_unusedGlobal1` | `D_800F4590_t *[]` | - | unknown | MENU | 4 |
+| `vs_field_gimmickInstances` | `D_800F45E0_t *[16]` | - | zero | BATTLE, MENU, pc | 73 |
 | `D_800F4768` | `void *` | - | zero | BATTLE | 3 |
-| `D_800F4810` | `char *[4][16]` | - | zero | BATTLE | 10 |
+| `vs_actors_sharedSequenceAnimationData` | `char *[4][16]` | - | zero | BATTLE | 10 |
 | `D_800F4930` | `void *` | - | zero | BATTLE | 3 |
-| `D_800F49F0` | `u_int *` | - | zero | BATTLE | 21 |
-| `D_800F4BA4` | `D_800F4BA4_t *` | - | zero | BATTLE | 242 |
-| `D_800F4BB0` | `u_short *` | - | zero | BATTLE | 3 |
-| `D_800F4BBC` | `short *` | - | zero | BATTLE | 7 |
-| `D_800F4BC0` | `char *[]` | - | zero | BATTLE | 4 |
-| `D_800F4C24` | `void *` | - | zero | BATTLE | 5 |
-| `D_800F4C28` | `int (**)(u_char *, short)` | - | zero | BATTLE | 4 |
-| `D_800F4C30` | `void *` | - | zero | BATTLE | 6 |
-| `D_800F4C38` | `u_char *[]` | - | zero | BATTLE | 10 |
-| `D_800F4C48` | `void *` | - | zero | BATTLE | 3 |
+| `vs_field_collisionProbeTile` | `u_int *` | - | zero | BATTLE | 21 |
+| `vs_event_camera` | `D_800F4BA4_t *` | - | zero | BATTLE | 242 |
+| `vs_event_dialogStrings` | `u_short *` | - | zero | BATTLE | 3 |
+| `vs_event_eventFileDiscRequest` | `short *` | - | zero | BATTLE | 7 |
+| `vs_event_vibrationPatterns` | `char *[]` | - | zero | BATTLE | 4 |
+| `vs_event_chainedEventBuffer` | `void *` | - | zero | BATTLE | 5 |
+| `vs_event_legacySkipHandlerCopy` | `int (**)(u_char *, short)` | - | zero | BATTLE | 4 |
+| `vs_event_scriptBuffer` | `void *` | - | zero | BATTLE | 6 |
+| `vs_event_threadCursors` | `u_char *[]` | - | zero | BATTLE | 10 |
+| `vs_event_vibrationPatternBuffer` | `void *` | - | zero | BATTLE | 3 |
 | `D_800F5218` | `vs_main_CdQueueSlot *` | - | zero | BATTLE | 7 |
-| `D_800F53B8` | `D_800F53B8_t *` | - | zero | BATTLE | 8 |
-| `D_800F53BC` | `D_800F53B8_t *` | - | zero | BATTLE, pc | 199 |
-| `D_800F54B0` | `D_800F53B8_t *` | - | zero | BATTLE | 7 |
-| `D_800F55F4` | `func_800D2904_t *` | - | zero | BATTLE | 9 |
-| `D_800F55FC` | `func_800D2904_t *` | - | zero | BATTLE | 20 |
-| `D_800F568C` | `vs_main_CdQueueSlot *` | - | zero | BATTLE | 7 |
-| `D_800F5698` | `D_800F569C_t *` | - | zero | BATTLE | 2 |
-| `D_800F569C` | `D_800F569C_t *` | - | zero | BATTLE, pc | 850 |
-| `D_800F56A0` | `u_long *` | - | zero | BATTLE | 9 |
-| `D_800F5798` | `func_800CF0E8_t *` | - | zero | BATTLE | 1 |
-| `D_800F5878` | `unsigned char *[]` | - | zero | BATTLE, pc | 47 |
-| `D_800F58E8` | `vs_battle_actor2 *` | - | zero | BATTLE | 5 |
+| `vs_effects_primaryInstances` | `D_800F53B8_t *` | - | zero | BATTLE | 8 |
+| `vs_effects_currentInstance` | `D_800F53B8_t *` | - | zero | BATTLE, pc | 199 |
+| `vs_effects_secondaryInstances` | `D_800F53B8_t *` | - | zero | BATTLE | 7 |
+| `vs_effects_freeParticles` | `func_800D2904_t *` | - | zero | BATTLE | 9 |
+| `vs_effects_particlePool` | `func_800D2904_t *` | - | zero | BATTLE | 20 |
+| `vs_effects_resourceReadSlot` | `vs_main_CdQueueSlot *` | - | zero | BATTLE | 7 |
+| `vs_effects_savedPackage` | `D_800F569C_t *` | - | zero | BATTLE | 2 |
+| `vs_effects_package` | `D_800F569C_t *` | - | zero | BATTLE, pc | 850 |
+| `vs_effects_textureLoadBuffer` | `u_long *` | - | zero | BATTLE | 9 |
+| `vs_effects_actionRequestPointer` | `func_800CF0E8_t *` | - | zero | BATTLE | 1 |
+| `vs_battle_aiActorAiStates` | `unsigned char *[]` | - | zero | BATTLE, pc | 47 |
+| `vs_battle_aiPlanningStatsSnapshot` | `vs_battle_actor2 *` | - | zero | BATTLE | 5 |
 | `D_800F58EC` | `actionCandidateEntry (*)[16]` | - | zero | BATTLE | 3 |
-| `D_800F5900` | `func_800DEEA4_t *` | - | zero | BATTLE | 19 |
+| `vs_battle_aiPlanningWorkspace` | `func_800DEEA4_t *` | - | zero | BATTLE | 19 |
 | `_cdReadBuffer` | `vs_main_HeapHeader *` | - | zero | main | 8 |
 | `_etmData` | `u_short *` | - | zero | BATTLE | 8 |
 | `_etmFileCdSlot` | `vs_main_CdQueueSlot *` | - | zero | BATTLE | 4 |
@@ -370,7 +370,7 @@ Pointer-typed imports:
 
 Imports referenced per group: BATTLE 797, main 132, MENU 89, pc 68, TITLE/ending 33.
 
-Generated function tables: 7 (`D_800301E0`[256], `D_800305E0`[96], `D_80030760`[32], `_actionEffectMediators`[70], `_attackPrerequisiteFunctions`[40], `_hitFunctions`[8], `_statCalculators`[27]). These are `void*` arrays in C already and become native 8-byte tables for
+Generated function tables: 7 (`vs_audio_mixerCommandHandlers`[256], `vs_audio_seqOpcodeHandlers`[96], `vs_audio_seqExtendedOpcodeHandlers`[32], `_actionEffectMediators`[70], `_attackPrerequisiteFunctions`[40], `_hitFunctions`[8], `_statCalculators`[27]). These are `void*` arrays in C already and become native 8-byte tables for
 free; their C declarations must agree (no `int`/`u32` element types).
 
 ## Work split for phase 1
@@ -546,7 +546,7 @@ its `vs_scratch` sites were converted too). 32-bit builds, `make commit-check`
   (2, BATTLE `5BF94.c`). The two `FSoundChannel* -> FSoundChannelConfig*`
   alias casts are a 0x2200-byte copy between two PS1-layout arrays: left as is.
 - *Guest addresses in integers:* the sound command parameters
-  (`FSoundCommandParams.Param1/Param2`, `u_int`), `D_800378C0.unk4` and the
+  (`FSoundCommandParams.Param1/Param2`, `u_int`), `vs_audio_driverCommandArguments.unk4` and the
   `(int)ptr + offset` sequence arithmetic hold guest addresses in 32-bit
   integers. New `psx_to_int(T, p)` / `psx_to_ptr(T, v)` in `psx_types.h`
   (PS1: `((T)(p))`; LP64: `(T)psx_addr(p)` and a zero-extending
@@ -673,7 +673,7 @@ actor_blend, actor_vertices). The 4 left are packed OT links
   all to views in this list or to pointer-free views, which need nothing once
   every layout is PS1.
 - *Shared with other groups (coordinate):* `vs_battle_actor` and
-  `vs_battle_actor_dat` (`146C.h`) and the `D_800F4538`/`D_800F45E0` family
+  `vs_battle_actor_dat` (`146C.h`) and the `vs_actors_actorRecords`/`vs_field_gimmickInstances` family
   (`3A1A0.h`) are seen by rooms/UI, effects and MENU, so the codemod also edited
   `146C.c`, `30DB0.c`, `38C1C.c`, `5BF94.c`, `49268.c`, `INITBTL.PRG/18.c`,
   `MAINMENU` (`224.c`, `2D10.c`, `C48.c`), `MENU0/3/4/F`, `items2.h` and
@@ -688,10 +688,10 @@ actor_blend, actor_vertices). The 4 left are packed OT links
   (array-whole): rewriting it as `psx_get(entry->unk430[i])` changed `74088.o`
   by 4 bytes, so it is a `ROOD_PC_LP64` branch. `&arg0->unk5DC[4]` and
   `(u_char*)&pose->unk544` (byte pokes) are left: the address is the same.
-- *Guest addresses in integers (src):* `func_800AD494` returns an `int`,
+- *Guest addresses in integers (src):* `vs_actors_findActorAnimationHeader` returns an `int`,
   `anim->unk0` is an `int` address, `(int)state` arguments and `(int)stats`
   offset arithmetic in 6F014/74088/771A8/7CD68: `psx_to_ptr`/`psx_to_int`.
-  `func_800AFDE8` (44F14) adds the animation base (`(int)*data`) to a pointer
+  `vs_actors_decodeAnimationTrack` (44F14) adds the animation base (`(int)*data`) to a pointer
   built from a 16-bit offset: an LP64 branch does it in u32.
 - *Port code (pc/src) reading PS1 layouts by offset:* new `psx_load(T, address)`
   and `psx_store(address, pointer)` in `psx_types.h` (a 4-byte guest pointer at
@@ -710,13 +710,13 @@ actor_blend, actor_vertices). The 4 left are packed OT links
   into consecutive 4-byte imports (the game even declares `D_800F58C0` `int`);
   as 32-bit words they stay right whether task 7 keeps the imports at their
   PS1 addresses or moves them to native globals (addresses fit in 32 bits).
-  Pointer arrays (`D_800F5878[]`, `D_800F4538[]`, `D_800F45E0[]`,
+  Pointer arrays (`vs_battle_aiActorAiStates[]`, `vs_actors_actorRecords[]`, `vs_field_gimmickInstances[]`,
   `vs_battle_actors[]`) keep the game's pointer types: their stride is task 7's
   decision. The original's walk from `&vs_battle_actors` (first "node" id is
   `vs_battle_actors[1]`) reads 0 there if task 7 makes the array native.
 - *Left for task 7:* the 4 OT links above; the pointer-typed imports
-  `D_800F4538`, `D_800F45E0`, `D_800F5878`, `vs_battle_actors`, `D_800F58E8`,
-  `D_800F58EC`, `D_800F5900` and the game-side declarations of the 0x800F58xx
+  `vs_actors_actorRecords`, `vs_field_gimmickInstances`, `vs_battle_aiActorAiStates`, `vs_battle_actors`, `vs_battle_aiPlanningStatsSnapshot`,
+  `D_800F58EC`, `vs_battle_aiPlanningWorkspace` and the game-side declarations of the 0x800F58xx
   words (pointer types in 6F014/71618/73700/74088/771A8/7CD68/7EE98).
   Not checked: heap high-water (no struct of the family grew).
 
@@ -754,7 +754,7 @@ The group's 64-bit errors fell 141 -> 32 (`src/BATTLE/BATTLE.PRG` 146C 29 -> 0,
 room_geometry 9 -> 3, screff2_warp 2 -> 0, fixed_font 1 -> 1, map_view 1 -> 1;
 INITBTL, gimLbas, menuLbas, 5BE50, room_render and room_lighting had none).
 All 32 left are packed OT links (`(u_long)prim << 8 >> 8`, `& 0xFFFFFF`,
-`addPrim`, the `| 0x80000000` OT walk in `func_800C64D0`, the SCREFF2 border
+`addPrim`, the `| 0x80000000` OT walk in `vs_render_splicePrimitiveList`, the SCREFF2 border
 links): task 7. Totals 575 -> 466 errors (BATTLE 500 -> 399, pc 38 -> 30;
 MENU 32 -> 32 and the effects' 372 unchanged), `-Wincompatible-pointer-types`
 warnings 79 -> 24. Audit: changed structs 81 -> 39 (BATTLE table 45 -> 4, the
@@ -801,7 +801,7 @@ one). 32-bit builds, `make commit-check` ("All files match") and `run.py -j 2`
 - *Guest addresses in integers:* `vs_battle_objectData.dataAddr` (a guest
   address or a slot index in a u_long: `psx_to_ptr`/`psx_to_int` at 17 sites),
   the MPD section offsets (`v0 + (int)mpdHeader`), ZUD model offsets, weapon
-  model relocations (`texturesOffset += (u_long)dst`), `func_800C1664`'s
+  model relocations (`texturesOffset += (u_long)dst`), `vs_battle_setSphereTargets`'s
   `(int)unk29C0` list address, event-script returns (`(int)&arg0[...]` in
   4A0A8, `script = (u_char*)ret` in 573B8), bone matrix offsets in 49268, room
   section words (`textureEffectsSection`, `sectionD`). Relocations that add a
@@ -809,12 +809,12 @@ one). 32-bit builds, `make commit-check` ("All files match") and `run.py -j 2`
 - *Silent 8-byte loads/stores (src):* scratchpad slots `*(void**)0x1F800000`,
   `void** p = 0x1F800000; p[1]` (2842C, 4A0A8, 5BF94, 146C), the weapon model
   pointer at `weapon + 0x1C` (38C1C) and the sequence offset table read from
-  the file (`*(char**)D_800F22E4` -> `psx_load`). `psx_load`/`psx_store` on
+  the file (`*(char**)vs_content_legacySequenceParseData` -> `psx_load`). `psx_load`/`psx_store` on
   `(u_int*)p + n` matched in 2842C/5BF94/146C but changed `4A0A8.o`'s code, so
-  `func_800BB874` uses `ROOD_PC_LP64` branches.
-- *Native stack addresses:* `func_80074860` passes a stack buffer to
-  `func_800BEC58` as an `int` (the original's BUG comment); the LP64 build
-  makes the buffer static so its address fits. `func_800C7EBC`'s
+  `vs_event_drawEventScanlineOverlay` uses `ROOD_PC_LP64` branches.
+- *Native stack addresses:* `vs_field_tryTriggerFacingTileEvent` passes a stack buffer to
+  `vs_event_evaluateRoomEventTriggers` as an `int` (the original's BUG comment); the LP64 build
+  makes the buffer static so its address fits. `vs_render_blendGlyphIntoPixels`'s
   `(u_int)pixels + n` (a stack buffer) is plain byte arithmetic on LP64.
   Any other stack address stored into a `psx_ptr` aborts in `psx_addr`
   (loud, not silent); none is known.
@@ -824,17 +824,17 @@ one). 32-bit builds, `make commit-check` ("All files match") and `run.py -j 2`
   via `psx_to_ptr`/`psx_load`/`psx_store`, the area-map room table words),
   map_view.c, screff2_warp.c, room_lighting.c (`roomData + 0x74` geometry
   pointer), fixed_font.c (scratch cursor), battle_gte.c. The guest words
-  `D_800EB9B8` (map_view, battle_gte) and `D_800F51B8` (fixed_font, and its
+  `vs_battle_targetSphere` (map_view, battle_gte) and `vs_menu_activeTextBoxOrderingTable` (fixed_font, and its
   probe) are declared as 32-bit integers in port code, as task 3 did for the
   0x800F58xx words. No edits to the renderer files (render*, room_native.c,
   gpu_hw.c, gl_present.c, actor_*, weapon_packets.c).
-- *Bug fixed on the way (32-bit too):* 58578.c `func_800C1384` passed register
+- *Bug fixed on the way (32-bit too):* 58578.c `vs_battle_isPointInTargetPrism` passed register
   values to PsyCross's `gte_ldsxy3`, which loads through pointers (the PS1 macro
   takes values): `ROOD_PC` passes the addresses.
 - *Left for task 7:* the 32 OT links above; pointer-typed imports written by
   this group's code (`D_800F1CC0`, `D_800F1BB8` from the scratchpad,
-  `D_800F4810[4][16]` sequence pointers, `vs_battle_wepModels[]`,
-  `D_800F4528`, `D_800F22E4`, `D_800EB9B8` in src).
+  `vs_actors_sharedSequenceAnimationData[4][16]` sequence pointers, `vs_battle_wepModels[]`,
+  `vs_actors_sharedSequenceData`, `vs_content_legacySequenceParseData`, `vs_battle_targetSphere` in src).
   Not checked: heap high-water (no struct of the group grew; the effect node
   grows 0xC -> 0x18 per node on LP64).
 
@@ -883,7 +883,7 @@ changed structs 24 -> 0 (with task 4). 32-bit builds, `make commit-check`
 ("All files match") and `run.py -j 2` (17/17) unchanged after the rebase; the
 codemod idempotence check for `func_800D6CF_t`/`D_800F569C_t`/`func_800D2904_t`
 proposes no edit in an effects or MENU file (3 in `5BF94.c`, `psx_copy` from
-`D_800F569C->block8Data`, task 4's code).
+`vs_effects_package->block8Data`, task 4's code).
 
 - *Effects are runtime state.* Every effect state (`vs_ringState`,
   `vs_closedRingState`, `vs_tiledRingState`, `vs_transposedRingState`,
@@ -901,7 +901,7 @@ proposes no edit in an effects or MENU file (3 in `5BF94.c`, `psx_copy` from
   at `unk3C`, curves at `unk74`, same size; PS1 offsets 0x3C/0x74 still pinned
   on 32 bits). Before the rebase it failed for a real reason: `func_800D6CF_t`
   (two pointers) was 0x28 bytes and 8-aligned under LP64 but is stored in
-  `func_800D2904_t`'s `int unk3C[8]` (`func_800D6CF0((func_800D6CF_t*)node->unk3C, ...)`),
+  `func_800D2904_t`'s `int unk3C[8]` (`vs_effects_restartTextureAnimation((func_800D6CF_t*)node->unk3C, ...)`),
   an overrun in the game code itself. Task 4's PS1 layout for it fixes that.
 - *Scratchpad pointer slots (MENU, silent).* MENU5/9/E/F read and write the
   packet cursor and OT base as `*(void**)getScratchAddr(0)`,
@@ -935,8 +935,8 @@ proposes no edit in an effects or MENU file (3 in `5BF94.c`, `psx_copy` from
   `func_800D2904_t` (`5BF94.h`, PS1 layout since task 4), `func_800FA098_arg0/arg1`
   (`5BF94.h`, scratch view at 0x1F8001D0), `func_800D4910_t` (`6E644.h`),
   `vs_battle_objectData.dataAddr` (`2842C.h`, `u_long`, written by MENU9),
-  the import `D_800F4590[]` (`30DB0.h`, read by MAINMENU/MENU3) and the other
-  pointer-typed BATTLE imports MENU reads (`D_800F4538`, `D_800F45E0`,
+  the import `vs_battle_unusedGlobal1[]` (`30DB0.h`, read by MAINMENU/MENU3) and the other
+  pointer-typed BATTLE imports MENU reads (`vs_actors_actorRecords`, `vs_field_gimmickInstances`,
   `vs_battle_wepModels`, `vs_battle_menuItems`, ...: task 7's stride decision).
   GIM/SCREFF2 (`5E8.c`, `pc/src/screff2_warp.c`) belongs to that task too.
 - *Left for task 7:* 323 effects OT links (`(u_long)prim & 0xFFFFFF` in the
@@ -986,7 +986,7 @@ verification 20).
   "ordering table pointer outside mapped memory". No native packet buffers
   were found in pc/src. Fixed on the way: silent 8-byte guest-pointer loads in
   `weapon_packets.c` (scratch cursor/OT, model+0x3c), `boot_sdk.c`
-  (`pc_insert_tpage`, `func_8009820C` scratch slots), `battle_helpers.c`
+  (`pc_insert_tpage`, `vs_render_drawSkyDome` scratch slots), `battle_helpers.c`
   (actor+0x54), `dev_state.c`; SCREFF2 `void**` OT slots (`psx_slot_get/set`);
   PsyCross `ColorDpq`/`NormalColorDpq` passed `p` by value to `gte_lddp`.
   Edits in the other agent's files: `actor_packets.c` (2 casts),
@@ -1009,14 +1009,14 @@ verification 20).
   name at twice its PS1 offset, so splat's interior aliases such as
   `D_800F192C` = `vs_battle_actors[1]` stay aliases), initialised from the
   image's words zero-extended (`vs_overlay_slots`, `g_Sound_LfoTable`,
-  `vs_battle_limbNames`, `_spellIds`, `D_800E8FB4`, `D_800EB588`,
-  `D_800EC258`) or zero; BATTLE-range regions go in the BATTLE overlay-statics
+  `vs_battle_limbNames`, `_spellIds`, `vs_field_gimmickModelTemplates`, `vs_event_textBoxFrameStyles`,
+  `vs_battle_puzzleTimerTextPointer`) or zero; BATTLE-range regions go in the BATTLE overlay-statics
   section so they restart with BATTLE.PRG like the file would reset them.
   Current stop: region 0x800F4588-0x800F45D8 (`vs_battle_wepModels[20]`,
-  `D_800F4590`) also holds the non-pointer import `D_800F4594`: decide per
+  `vs_battle_unusedGlobal1`) also holds the non-pointer import `vs_battle_unusedGlobal2`: decide per
   case (a 4-byte int alias can map into the region at twice its offset, its
   low half is the pointer; otherwise retype). Port code declaring moved
-  scalars as `unsigned` (0x800F58xx words, `D_800EB9B8`, `D_800F51B8`) reads
+  scalars as `unsigned` (0x800F58xx words, `vs_battle_targetSphere`, `vs_menu_activeTextBoxOrderingTable`) reads
   the low half of the native 8-byte slot: fine for scalars.
 - *Next:* finish the import regions, link, boot (gdb usable when launching
   under it), make `rood_rpc.py`/`run.py` target `pc/build/boot64` (e.g.
@@ -1045,7 +1045,7 @@ commit-check "All files match". The 64-bit suite is faster (148 s vs 201 s).
   `vs_battle_commonWepBuffs[2]` spilled into `vs_battle_wepModels`), complete
   types use their PS1 size, an incomplete array runs past imports that are
   themselves pointer words (`vs_battle_actors[]` spans `D_800F192C`), and a
-  4-byte integer import inside a region (`D_800F4594`, MENU3's test of
+  4-byte integer import inside a region (`vs_battle_unusedGlobal2`, MENU3's test of
   `vs_battle_wepModels[3]`) maps to the low half of the 8-byte slot. Function
   tables stay native `void*` arrays (`function_tables.c`, `plg_entries.c`).
 - *Low stack.* Game code stores addresses of its locals in 4-byte fields (effect
@@ -1056,10 +1056,10 @@ commit-check "All files match". The 64-bit suite is faster (148 s vs 201 s).
 - *Silent 8-byte accesses fixed (src, PS1-identical):* scratchpad pointer slots
   read as `T**` in BATTLE AI (`0x1F80037C` actor table, `0x1F8003BC/3C0/3C4/3F4`
   grids: 6FC00, 71618, 771A8, including `u_short(**)[32]` casts), 40564's
-  DR_MOVE cursor, `renderTextures.h` (MENUF); `func_800AD494`'s record read as
+  DR_MOVE cursor, `renderTextures.h` (MENUF); `vs_actors_findActorAnimationHeader`'s record read as
   `u_char**` (44F14); file data read through game `long*` (`_loadZndEnemies`)
   and `*(long*)&poly.x0` stores (5BF94) -> `psx_long`; the INITBTL opcode table
-  copy (`0x400` -> `PSX_SIZE`); `func_800121F0` returning `(void*)-1` through
+  copy (`0x400` -> `PSX_SIZE`); `vs_audio_playbackPlaySoundEffectBlob` returning `(void*)-1` through
   `psx_to_int`. Port code: host-compiled SDK replacements (`audio_libspu.c`,
   `cd_drive.c`, `mdec.c`, `memory_card.c`, `boot_sdk.c` events) declared
   `long`/`unsigned long` where the game's SDK prototypes say 32 bits
@@ -1098,7 +1098,7 @@ commit-check "All files match". The 64-bit suite is faster (148 s vs 201 s).
   declared functions returning pointers would truncate: the 64-bit pass reports
   7 `-Wimplicit-function-declaration` warnings, all void/int today.
 
-**Cross-unit declarations (2026-10-10).** After the `func_800AD494` stack
+**Cross-unit declarations (2026-10-10).** After the `vs_actors_findActorAnimationHeader` stack
 smash (452d2a33: 30DB0.c's local prototype said `int*` where 40564.c stores a
 `u_short*`), `pc/tools/decl_mismatch.py` checks the whole class. It reads the
 DWARF of every object `build_boot.py --arch 64` links (`pc/build/boot64/objects.txt`,
@@ -1122,7 +1122,7 @@ GCC's `-flto -Wlto-type-mismatch` flags the same mismatches but also every
 `void*`/struct-pointer difference without saying which parameter, and LTO
 would have to run before the build's objcopy renames; clang-AST tools need
 typedef resolution and the 38 GB lesson. Checked against the pre-452d2a33
-30DB0.c: it reports `func_800AD494: parameter 3 pointee: pointer (8 bytes) vs
+30DB0.c: it reports `vs_actors_findActorAnimationHeader: parameter 3 pointee: pointer (8 bytes) vs
 int (4 bytes)`.
 
 First run: 44 HAZARD, 16 REVIEW. Fixed (all PS1-identical, commit-check "All
@@ -1136,11 +1136,11 @@ files match"):
   sign-extends the flag's bit 31 into the neighbouring word. Now
   `psx_gte_long*` (int on LP64). `room_shadows.inc` (146C.c, `ROOD_PC` only)
   passed `long` locals and `(long*)` casts to `RotAverage4`: `psx_long`.
-- *`D_800F4528`* (INITBTL `FB0.c:14` declared `int[]`, 30DB0.c `void*[]`): the
+- *`vs_actors_sharedSequenceData`* (INITBTL `FB0.c:14` declared `int[]`, 30DB0.c `void*[]`): the
   battle-start reset cleared slots 0-2 with a 4-byte stride, i.e. slot 0 and
   half of slot 1 of the native 8-byte array, leaving stale heap pointers that
   30DB0.c later tests and frees. Now `void*[]`.
-- *`func_800AD494` return* (44F14.c:14 said `u_char**`, 40564.c returns the
+- *`vs_actors_findActorAnimationHeader` return* (44F14.c:14 said `u_char**`, 40564.c returns the
   record's guest address as `int`): the caller took a 64-bit register whose
   upper half the callee never sets. Prototype `int`, the two calls
   `psx_to_ptr(u_char**, ...)`.
@@ -1148,9 +1148,9 @@ files match"):
   output address as `int`): the two callers pass `psx_to_int(int, arg2)`
   (checked truncation instead of a silent one).
 - *`func_800C05EC` parameter 4* (146C.c said `void*`, 573B8.c stores it in an
-  `int`): `int`, the caller passes `psx_to_int(int, D_800F19CC->unk29C0)`,
+  `int`): `int`, the caller passes `psx_to_int(int, vs_battle_actionState->unk29C0)`,
   the `NULL` arguments are `0`.
-- *`func_800E6C34` return* (146C.c reads `int`; `battle_movement.c` returned
+- *`vs_field_traceActorAndTerrainCollision` return* (146C.c reads `int`; `battle_movement.c` returned
   `void*`): the port definition returns `psx_to_int(int, out)`.
 - *`func_8008B6FC`* (`navigation.c` read an `unsigned char*` from 146C.c's
   `int` return): declared `unsigned`, converted with `psx_to_ptr`.
@@ -1160,19 +1160,19 @@ files match"):
   of `func_800DEEA4_t2` still had raw `func_800DEB10_t2* unk54` and
   `func_800DCAA0_t* unk430[16]` (task 3 converted the other views), so on
   LP64 the struct was 0x4C0 bytes, not 0x474, and everything after 0x54 moved
-  by 8: `func_800D8260` wrote `unk12A`/`unk138` at the wrong offsets. Now
-  `psx_ptr` with `PSX_ASSERT_SIZE(func_800DEEA4_t2, 0x474)`. (`func_800E4CE8`
+  by 8: `vs_battle_aiSetTemporaryAwarenessIndicator` wrote `unk12A`/`unk138` at the wrong offsets. Now
+  `psx_ptr` with `PSX_ASSERT_SIZE(func_800DEEA4_t2, 0x474)`. (`vs_battle_aiForgetAiActionTarget`
   only writes `unk38`, before the shift.)
 
-Benign (in `BENIGN`): port code viewing the guest pointer words `D_800EB9B8`,
-`D_800F51B8`, `D_800F58B8`-`D_800F5920` as `unsigned` (11 of the 13 "LP64
+Benign (in `BENIGN`): port code viewing the guest pointer words `vs_battle_targetSphere`,
+`vs_menu_activeTextBoxOrderingTable`, `D_800F58B8`-`D_800F5920` as `unsigned` (11 of the 13 "LP64
 import ... declarations disagree" lines of `build_boot.py --arch 64`; the
-other two, `D_800F4538`/`D_800F45E0`, are pointer arrays under both spellings
+other two, `vs_actors_actorRecords`/`vs_field_gimmickInstances`, are pointer arrays under both spellings
 and are not reported): the imports are native 8-byte slots holding zero-extended guest
 addresses, so a 4-byte access is the low half, the whole value. The SDK's
 unprototyped `int strlen()` (low half of glibc's `size_t`). Extra trailing
-arguments the callee ignores (`func_800AD62C`, `func_800E1908`,
-`func_800E19FC`, `func_800E2CCC`, `func_800E4C28`); `func_800E5154`'s `(void)`
+arguments the callee ignores (`vs_audio_actorSoundPanAndVolume`, `vs_battle_aiMoveWithHeightFilteredDirections`,
+`vs_battle_aiUpdateNavigationAreaMovement`, `vs_battle_aiRecoverMovement`, `vs_battle_aiReleaseAiDestinationTile`); `vs_battle_aiActorNavigationOverrideStatus`'s `(void)`
 prototype (the `ROOD_PC` call casts it and passes the actor id);
 `CompMatrixLV` (the game's two-argument entry). The other REVIEW items of the
 first run (`D_800F4538_t`/`D_800F45E0_t`/`objectAnimationState` alias views)
@@ -1189,7 +1189,7 @@ under two import names. `build_boot.py --arch 64` moves an import whose
 declared type holds host pointers to a native 8-byte slot, while a struct
 import whose pointers are `psx_ptr` stays at its PS1 address: if one name is a
 field of the other, they become two storages. The levelled-spell crash was
-one (`D_800F5798` = `D_800F56C8.unkD0`, fixed in 6F014.c). The mover already
+one (`vs_effects_actionRequestPointer` = `D_800F56C8.unkD0`, fixed in 6F014.c). The mover already
 refuses the other direction (a guest import inside a moved region) and merges
 overlapping moved imports.
 
@@ -1204,7 +1204,7 @@ than the field it lands on or reads a `psx_ptr` field as an integer. Imports
 of overlays never loaded together (two PLGs at one address, different
 `name__overlay` renames) are skipped; `EXTENTS` overrides a container whose
 declaration is larger than the data the game reaches through it
-(`SfxSoundChannels[12]` is really 2 channels after `D_80035910[10]`: 25AC.c
+(`SfxSoundChannels[12]` is really 2 channels after `vs_audio_soundEffectsChannels[10]`: 25AC.c
 indexes `SfxSoundChannels[-10..1]`). `decl_mismatch.py` runs it and counts its
 HAZARDs (keep `--review` at HAZARD 0); `run.py` runs
 `pc/tests/lp64_alias_scan_test.py` (synthetic cases always, the 64-bit build's
@@ -1214,12 +1214,12 @@ First run: 2 HAZARD (after the two sound-channel false positives above), both
 fixed under `ROOD_PC` in 146C.c by going through `_zoneContext` and no longer
 referencing the alias (commit-check "All files match"):
 
-- *`D_800F188C` = `_zoneContext.zndEnemies`* (+0xC). `func_800775C0` reads the
-  second model id of a two-model enemy (SHP ids flagged in `D_8004FE88`: Ghost
+- *`vs_actors_zoneCharacterInitData` = `_zoneContext.zndEnemies`* (+0xC). `vs_actors_spawnRoomEnemy` reads the
+  second model id of a two-model enemy (SHP ids flagged in `vs_actors_usesSecondaryBodyModel`: Ghost
   26, Wraith 71, Guildenstern 79/175) through it; on LP64 the native slot was
   never written, so entering any room with a Ghost (Catacombs, Sanctum)
   segfaulted at 146C.c:6584.
-- *`D_800F18E4` = `_zoneContext.mpdEnemies`* (+0x64). `func_8008A3A0` (leaving
+- *`D_800F18E4` = `_zoneContext.mpdEnemies`* (+0x64). `vs_field_unloadCurrentRoom` (leaving
   a room) frees the room's spawn table through it; on LP64 it read NULL, so
   every room with enemies leaked its table from the game heap (13 blocks per
   Catacombs round trip).
@@ -1238,11 +1238,11 @@ reached through a host-pointer declaration. Resolved (`--review` now ends at
 REVIEW 0; `lp64_alias_scan_test.py` fails on any new REVIEW, and on a stale
 `REVIEWED` entry):
 
-- *`D_80035910` = `g_PushedMusicConfig+0x80`, `D_80036770` =
-  `D_800366F0+0x80`, `g_InstrumentInfo` = `D_800366F0+0x98`*: container type
+- *`vs_audio_soundEffectsChannels` = `g_PushedMusicConfig+0x80`, `D_80036770` =
+  `vs_audio_seqPrimaryMusicConfig+0x80`, `g_InstrumentInfo` = `vs_audio_seqPrimaryMusicConfig+0x98`*: container type
   too large. `FSoundChannelConfig` was declared 0xA0 bytes with
   `unk80..unk9C`, which no code touches; the game saves and restores a config
-  with 0x80-byte copies (`Sound_memcpy32(&g_PushedMusicConfig, &D_800366F0,
+  with 0x80-byte copies (`Sound_memcpy32(&g_PushedMusicConfig, &vs_audio_seqPrimaryMusicConfig,
   0x80)`) and the next objects start at +0x80. Fixed in `sound.h` (0x80,
   `PSX_ASSERT_SIZE` updated); commit-check matches.
 - *`D_80037790` = `D_80037788+0x8`*: container type wrong. `D_80037788` was an
@@ -1250,7 +1250,7 @@ REVIEW 0; `lp64_alias_scan_test.py` fails on any new REVIEW, and on a stale
   sequence queued by sound command 0x14, started once the music stops. Now a
   one-word `D_80037788_t` (`PendingSequence`, a guest address held as `u_int`)
   in 25AC.c; `D_80037790` is the real parameter block. Commit-check matches.
-- *`D_8005046C` = `D_80050468+0x4`* (`int` over `frames..hours`): reviewed,
+- *`vs_battle_puzzleTimer` = `vs_state_sceneTimer+0x4`* (`int` over `frames..hours`): reviewed,
   `REVIEWED` in the scanner. 5BF94.c hands the four timer bytes to
   `_renderTimer(int*)` as one word; no pointers.
 - *`_dsControlBuf` = `vs_main_disk.cdLoc`* (`char[11]` over `cdLoc.minute`):
@@ -1264,10 +1264,10 @@ REVIEW 0; `lp64_alias_scan_test.py` fails on any new REVIEW, and on a stale
   NULL psx_ptr on both builds.
 - *`D_800F4438` = `D_800F2458+0x1FE0`* (`VECTOR` over a `u_short`): reviewed.
   `D_800F4438` is the shared scale vector after the 63 bone matrices
-  (`D_800F3C58[63]`); 30DB0.c's `D_800F2458_t.unk1FE0` only spells the offset
+  (`vs_actors_skeletonPose[63]`); 30DB0.c's `D_800F2458_t.unk1FE0` only spells the offset
   of its `vx` low half for a matching `u_short` load.
-- *`D_800F5234` = `D_800F5230+0x4`* (`D_800F53B8_t3` over `unk4`): reviewed.
-  `func_800CEF74` only takes its address and `+0xC`, and `func_800CE714` reads
+- *`vs_battle_legacyUnusedTargetBlock` = `vs_effects_actionRequest+0x4`* (`D_800F53B8_t3` over `unk4`): reviewed.
+  `vs_effects_startEffectTrack` only takes its address and `+0xC`, and `vs_effects_initEffectInstance` reads
   the two 12-byte records there (bytes 0x4..0x1B of the effect parameter
   block): a position inside the block, not an object of its own, and its
   pointer fields are never read through this name.

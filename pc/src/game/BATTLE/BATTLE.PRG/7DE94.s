@@ -5,9 +5,9 @@
 
 .section .text, "ax"
 
-glabel func_800E6694
-    lui     $t0, %hi(D_800F5878)
-    addiu   $t0, $t0, %lo(D_800F5878)
+glabel vs_battle_aiPackActorAiPersistenceFlags
+    lui     $t0, %hi(vs_battle_aiActorAiStates)
+    addiu   $t0, $t0, %lo(vs_battle_aiActorAiStates)
     sll     $a0, $a0, 2
     addu    $t0, $t0, $a0
     lw      $t0, 0x0($t0)
@@ -34,7 +34,7 @@ glabel func_800E6694
 alabel L800E66F8
     jr      $ra
     or      $v0, $v0, $t6
-endlabel func_800E6694
+endlabel vs_battle_aiPackActorAiPersistenceFlags
 
 glabel func_800E6700
     lui     $a1, %hi(vs_battle_actors)
@@ -42,8 +42,8 @@ glabel func_800E6700
     sll     $v0, $a0, 2
     addu    $a1, $a1, $v0
     lw      $a1, 0x0($a1)
-    lui     $a2, %hi(D_800F4538)
-    addiu   $a2, $a2, %lo(D_800F4538)
+    lui     $a2, %hi(vs_actors_actorRecords)
+    addiu   $a2, $a2, %lo(vs_actors_actorRecords)
     beqz    $a1, L800E66F8
     addu    $a2, $a2, $v0
     lbu     $a1, 0x9($a1)
@@ -67,8 +67,8 @@ endlabel func_800E6700
 glabel func_800E6764
     addiu   $t0, $zero, 0x1
 .L800E6768:
-    lui     $a1, %hi(D_800F5878)
-    addiu   $a1, $a1, %lo(D_800F5878)
+    lui     $a1, %hi(vs_battle_aiActorAiStates)
+    addiu   $a1, $a1, %lo(vs_battle_aiActorAiStates)
     sll     $a0, $a0, 2
     addu    $a1, $a1, $a0
     lw      $a0, 0x0($a1)
@@ -78,7 +78,7 @@ glabel func_800E6764
     jr      $ra
 endlabel func_800E6764
 
-glabel func_800E678C
+glabel vs_battle_aiReleaseActorAiReservations
     addu    $t0, $zero, $zero
     addu    $t8, $ra, $zero
     lui     $t7, (0x800F58BC >> 16)
@@ -108,7 +108,7 @@ glabel func_800E678C
     bnez    $t4, .L800E6804
     lbu     $t9, 0x19B($t9)
     addu    $a0, $t0, $zero
-    jal     func_800E4C28
+    jal     vs_battle_aiReleaseAiDestinationTile
     addu    $a1, $t1, $zero
 .L800E6804:
     beqz    $t9, .L800E6820
@@ -121,4 +121,4 @@ glabel func_800E678C
 .L800E6820:
     jr      $t8
     addu    $ra, $t8, $zero
-endlabel func_800E678C
+endlabel vs_battle_aiReleaseActorAiReservations

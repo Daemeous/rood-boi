@@ -5,10 +5,10 @@ const v = @import("views_5BF94");
 const sprite_item = common.sprite_item;
 
 /// orig: vs_battle_renderStatBar (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
-/// A tile and a Gouraud quad `w` (0..64) wide at `xy`, blended from colour D_800EBC04[index] toward the bar's full colour, linked before `before`.
+/// A tile and a Gouraud quad `w` (0..64) wide at `xy`, blended from colour vs_render_statGaugeColors[index] toward the bar's full colour, linked before `before`.
 pub fn renderStatBar(color_index: c_int, w: c_int, before: [*c]c_uint, xy_arg: c_int) callconv(.c) void {
     const xy = xy_arg;
-    const rgb1: c_uint = @bitCast(psx.at(v.g.D_800EBC04(), color_index).*);
+    const rgb1: c_uint = @bitCast(psx.at(v.g.vs_render_statGaugeColors(), color_index).*);
     // Unsigned arithmetic: rgb1 is a u_int, so each term (and its >> 6) is.
     const uw: c_uint = @bitCast(w);
     const rest: c_uint = @bitCast(0x40 -% w);

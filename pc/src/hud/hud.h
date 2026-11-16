@@ -27,7 +27,7 @@ extern "C" {
 #endif
 
 /* The kinds (hud_hook.h repeats the game's): status, the timing word (BATTLE.PRG
- * func_800958A4); chain, "3 CHAINS" (func_80095A4C); buff, an equipment's class or
+ * vs_battle_drawAbilityTimingResult); chain, "3 CHAINS" (vs_battle_drawChainCount); buff, an equipment's class or
  * affinity change (func_8009695C: WEAPON HUMAN +1); damage, a number over an actor
  * (func_80094B0C: damage, healing, a stat's change); travel, the Travel prompt on a
  * Circle of Magic (fast_travel_prompt.cpp); notice, a line of the port's own news (the save
@@ -36,18 +36,18 @@ extern "C" {
 enum { PC_HUD_NONE = 0, PC_HUD_STATUS = 1, PC_HUD_CHAIN, PC_HUD_BUFF, PC_HUD_DAMAGE, PC_HUD_TRAVEL, PC_HUD_NOTICE,
     PC_HUD_NAME_WINDOW, PC_HUD_GAUGES, PC_HUD_FIGURE, PC_HUD_STATUS_ICONS, PC_HUD_BATTLE_MODE, PC_HUD_ABILITY_ICONS, PC_HUD_ACTOR_WORD, PC_HUD_TIMER, PC_HUD_EMOTE, PC_HUD_TEXT_FRAME, PC_HUD_TEXT_BAND, PC_HUD_BOX_TEXT, PC_HUD_IMAGE, PC_HUD_TARGET_ROW, PC_HUD_TARGET_LINE, PC_HUD_TARGET_MARKER, PC_HUD_MENU_BACKGROUND, PC_HUD_MENU_COMMAND, PC_HUD_MENU_ROW, PC_HUD_MENU_CURSOR, PC_HUD_MENU_TABS, PC_HUD_OPTION_VALUE, PC_HUD_ITEMS_CATEGORY, PC_HUD_ITEMS_STATUS_BUTTON, PC_HUD_EQUIP_STATS, PC_HUD_DP_PP_BARS, PC_HUD_GEM_SLOTS, PC_HUD_STAT_PAGE, PC_HUD_OK_MARK, PC_HUD_STORAGE_BUTTONS, PC_HUD_STORAGE_COUNTS, PC_HUD_LOOT_CAPACITIES, PC_HUD_DISCARD_COUNT, PC_HUD_RENAME_GRID, PC_HUD_RENAME_BOX, PC_HUD_FILE_MENU, PC_HUD_FILE_ELEMENT, PC_HUD_MENUF, PC_HUD_MENUF_LOAD, PC_HUD_KINDS };
 /* gauges: the status display's HP / MP / RISK gauges with their digits and labels, or RISK ZERO (5BF94.c
- * func_800CA2DC's _renderStatBar calls). figure: its five limb sprites, with the game's stance and
+ * vs_battle_drawBattleHud's _renderStatBar calls). figure: its five limb sprites, with the game's stance and
  * condition indices. actor_word: a word over an actor (2842C.c's label loop: MISS, func_8009506C; a combat
  * label, func_80095258: the ailments' and buffs' words, a lowered stat's arrow). timer: the time attack's
  * (5BF94.c _renderTimer, while vs_battle_lowerScreenUiState is 1). emote: a balloon over an actor (2842C.c
  * func_80095C18: the dots, '!', '?', the heart; an off-screen actor's arrow; a far actor's sprite), linked
- * into the actor's depth-sorted slot. text_frame: a text box's frame (5BF94.c func_800CD3E4: the talk
+ * into the actor's depth-sorted slot. text_frame: a text box's frame (5BF94.c vs_menu_drawTextBoxFrame: the talk
  * bubbles' and the information box's shapes), in the box's entries of the text boxes' own ordering table
- * (D_800F51B8). text_band: a text box's band across the screen (func_800CD158: the name window's; the picture
+ * (vs_menu_activeTextBoxOrderingTable). text_band: a text box's band across the screen (func_800CD158: the name window's; the picture
  * behind darkened in steps, black past it, the action's icon), likewise. box_text: a text box's text as
  * _printVariableWidthFont sets it this frame (its glyphs: code, font table, colour style, place, brightness; the
  * typewriter, pages, arrow, sounds and buttons stay the game's), in the box's entry 3. image: a portrait or still
- * (func_800CCA90; its tiled drawer, D_800EC25C[0]: the others stay the game's). target_row: a row of the
+ * (vs_render_drawGimLayer; its tiled drawer, vs_render_gimLayerDrawRoutines[0]: the others stay the game's). target_row: a row of the
  * targeting list (58578.c func_800C1DC4: a part's name by the raw printer, its plate; its fade stepped by the
  * game), in the slot the game linked it into. target_line: a selected row's leader lines (func_800C16FC, func_800C1A40:
  * from the part's point to the row, swept in by their age), in vs_scratch.unk8. target_marker: the area target's
@@ -129,7 +129,7 @@ typedef struct {
     float unit;           /* travel, notice: game pixels per menus' layout unit (720 high) */
     int call_x, call_y;   /* status, chain, buff, damage: the place the game's call was given (its hook's x, y:
                            * the timing word at 44, 48 before its slide) */
-    int hp, max_hp, mp, max_mp, risk; /* gauges: Ashley's (the HUD record func_800CA2DC draws) */
+    int hp, max_hp, mp, max_mp, risk; /* gauges: Ashley's (the HUD record vs_battle_drawBattleHud draws) */
     int ability_animation, ability_offset, ability_group, ability_availability;
     int battle_step, battle_pulse; /* BATTLE MODE: draw-time inputs, before phase advance */
     int minutes, seconds, hundredths; /* timer: as the game's string shows them (59:59:99 at most) */
@@ -187,11 +187,11 @@ typedef struct {
     int items_step, items_highlight, items_selected, items_on_row; /* items_category: pc_classic_items_category's;
                                                                     * items_status_button: items_step its slide (row),
                                                                     * items_highlight its state */
-    int word_miss, word_label, word_lowered; /* actor_word: MISS (1) or a combat label (D_800690B4's index; lowered:
+    int word_miss, word_label, word_lowered; /* actor_word: MISS (1) or a combat label (vs_battle_statusLabelLayouts's index; lowered:
                                               * a lowered stat's, with the arrow) */
     int icon_previous, icon_current, icon_next, icon_count, icon_selected, icon_offset;
     int stance, limb_status[5]; /* figure: stance 0/1, game's limb condition indices (read-only) */
-    int slide;            /* gauges: D_800EB9B0, the display's slide up (0x80000 a step; packed into its y) */
+    int slide;            /* gauges: vs_battle_hudSlideOffset, the display's slide up (0x80000 a step; packed into its y) */
     int glyph;            /* travel: the button whose icon it shows (PC_PROMPT_*) */
     int age, life;        /* game frames since it appeared, and when it goes (travel: 0, 0) */
     int anchor;           /* PC_HUD_ANCHOR_* */
@@ -274,7 +274,7 @@ enum {
     PC_HUD_CMD_VALUE,    /* the HUD's digits (vs_battle_renderValue): a the font (0 small, 1 large), b the value,
                           * x, y its rightmost digit */
     PC_HUD_CMD_DIGIT,    /* one digit (_renderDigit): a the font (2: the separator), b the digit */
-    PC_HUD_CMD_FRAME,    /* a text box's frame by the game's routine (func_800CD3E4) on a copy of the box: a its id
+    PC_HUD_CMD_FRAME,    /* a text box's frame by the game's routine (vs_menu_drawTextBoxFrame) on a copy of the box: a its id
                           * (its ordering-table entries), b the shape, c the flip, d the tail; x, y, w, h */
     PC_HUD_CMD_BAND,     /* a text box's band by the game's routine (func_800CD158) on a copy of the box: a its id, b
                           * top (1: from the top), c its edge (rows grown), d its lines; font settled (its icon),
@@ -282,7 +282,7 @@ enum {
     PC_HUD_CMD_CHAR,     /* a glyph of the text boxes' font by the game's printer (vs_battle_printVariableWidthFontChar)
                           * in the element's box: a the code, b the font table, c the colour style, d the brightness;
                           * x, y */
-    PC_HUD_CMD_IMAGE,    /* an image by the game's drawer (D_800EC25C[b]) as func_800CCA90 calls it: a the image
+    PC_HUD_CMD_IMAGE,    /* an image by the game's drawer (vs_render_gimLayerDrawRoutines[b]) as vs_render_drawGimLayer calls it: a the image
                           * (0..2), c its CLUT word; in the kind's slot */
     PC_HUD_CMD_PLATE,    /* a target row's plate as func_800C1DC4 builds it (one packet: a black tile, then a POLY_G4
                           * across): x, y, w x h the gradient's, color its left colour word, color2 its right (PS1 BGR);
@@ -363,7 +363,7 @@ int pc_hud_classic_glyph(int button) __attribute__((weak));
 /* Presented frame (dev_overlay.cpp, the ImGui frame open): claims draw the
  * live elements, then the renderer draws their commands. */
 void pc_hud_frame(void);
-/* hud_bridge.c, the game's frame just before it draws the ordering table `otag` (BATTLE func_8007629C): the
+/* hud_bridge.c, the game's frame just before it draws the ordering table `otag` (BATTLE vs_render_presentFieldFrame): the
  * classic panels' packets, linked into it. */
 void pc_hud_panels_classic(void* otag);
 /* Their packets' guest range in the last frame ([first, last), 0, 0: none): RPC hud stats panel_packets. */

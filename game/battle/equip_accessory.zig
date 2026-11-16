@@ -12,6 +12,6 @@ pub fn equipAccessory(accessory: ?*v.vs_main_inventoryArmor) callconv(.c) void {
         @ptrCast(accessory),
     );
     c.vs_battle_nop0(@ptrCast(psx.get(v.g.vs_battle_characterState().*.?.stats)));
-    c.func_8006B214();
-    c.func_8006B2D4();
+    c.vs_items_removeEquipmentBoostOnEquip();
+    c.vs_items_removeArmorEnchantmentOnEquip();
 }

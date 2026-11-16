@@ -130,7 +130,7 @@ def field(game, out, save):
         check(False, "zone 51 room 1 through room_goto")
         return
     width = pointer_size()
-    actor = int.from_bytes(game.read(symbols()["D_800F4538"], width), "little")
+    actor = int.from_bytes(game.read(symbols()["vs_actors_actorRecords"], width), "little")
     game.write(actor + POSITION, struct.pack("<3h", *SPOT))
     game.run(60)
     check(turn_to(game, 0x400), f"the camera at yaw 0x400 ({yaw(game):#05x})")
@@ -219,7 +219,7 @@ def nothing_in_front(game, out, save, name, zone, room, presses, spot=None, targ
         return
     if spot:
         width = pointer_size()
-        actor = int.from_bytes(game.read(symbols()["D_800F4538"], width), "little")
+        actor = int.from_bytes(game.read(symbols()["vs_actors_actorRecords"], width), "little")
         game.write(actor + POSITION, struct.pack("<3h", *spot))
         game.run(60)
     for _ in range(presses):

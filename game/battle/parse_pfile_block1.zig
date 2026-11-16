@@ -6,7 +6,7 @@ const v = @import("views_6F014");
 /// Records block 1's table count, its data and its tables as guest addresses inside the block.
 pub fn parsePfileBlock1(block: ?*v.pFileBlock1) callconv(.c) void {
     const b = block.?;
-    const d = v.g.D_800F569C().*.?;
+    const d = v.g.vs_effects_package().*.?;
 
     d.block1TableCount = b.tableCount;
 

@@ -1,4 +1,4 @@
-//! Applies a script's 5-byte scroll command to the D_800F4B88 record
+//! Applies a script's 5-byte scroll command to the vs_event_weatherTween record
 //! (pc/src/game/BATTLE/BATTLE.PRG/4A0A8.c).
 const psx = @import("common").psx;
 const v = @import("views_4A0A8");
@@ -7,14 +7,14 @@ const c = @import("c_4A0A8");
 /// orig: func_800B9FC0 (pc/src/game/BATTLE/BATTLE.PRG/4A0A8.c)
 /// Sets the scroll record at once, or stores its previous values and steps it towards the new target.
 pub fn func_800B9FC0(arg0: [*c]u8, _: c_short) callconv(.c) c_int {
-    _ = c.func_80090C2C(@as(c_int, arg0[1] >> 4));
-    const s = v.g.D_800F4B88();
+    _ = c.vs_field_setRoomWeather(@as(c_int, arg0[1] >> 4));
+    const s = v.g.vs_event_weatherTween();
     if (arg0[4] == 0) {
         s.unk10 = psx.conv(i16, @as(c_int, arg0[1] & 0xF));
-        c.func_80091320(@as(c_int, s.unk10));
+        c.vs_field_setWeatherIntensity(@as(c_int, s.unk10));
         s.unk4 = psx.conv(i16, @as(c_int, arg0[2]) *% 16);
         s.unkA = psx.conv(i16, @as(c_int, arg0[3]) *% 4 +% 512);
-        c.func_8009134C(@as(c_int, s.unk4), @as(c_int, s.unkA));
+        c.vs_field_setWeatherWindAngles(@as(c_int, s.unk4), @as(c_int, s.unkA));
     } else {
         const vv: c_int = @as(c_int, arg0[1] & 0xF);
 

@@ -8,7 +8,7 @@ const c = @import("c_58578");
 /// Writes 33 circle vertices from the scratchpad basis at `angle` into the table from `index`; returns the index after them.
 pub fn func_800C2254(angle: c_int, index: c_int) callconv(.c) c_int {
     const basis: *[3][3]i16 = @ptrFromInt(pad.addr(0x398));
-    const base: [*]u8 = @ptrCast(v.g.D_800EB9B8().*.?);
+    const base: [*]u8 = @ptrCast(v.g.vs_battle_targetSphere().*.?);
     var idx = index;
     var point: c_int = 0;
     var phase: c_int = angle;

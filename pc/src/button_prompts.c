@@ -12,7 +12,7 @@
  *            MENUF's PRESS BUTTON prompt, the name entry screen, the L2
  *            shortcut cross's face-button diamond)
  *   dpad     the same page and CLUT, 30 x 30 at (184, 160): the L2 shortcut
- *            cross's D-pad (BATTLE.PRG func_800C9FE8), drawn as the
+ *            cross's D-pad (BATTLE.PRG vs_battle_drawShortcutHud), drawn as the
  *            family's D-pad when the four directions are bound to one, its
  *            arms dimmed or filled by which have a usable action beside
  *            them (button_prompts_dpad; weapon_slots.c reports them)
@@ -383,7 +383,7 @@ static int identify(unsigned tpage, unsigned clut, int u0, int v0, int u1, int v
         *r = (prompt_region){ SPRITE, sprite_buttons[(v0 - 128) / 16 * 4 + u0 / 16], u0 & ~15, v0 & ~15, 16 };
         return 1;
     }
-    /* BATTLE.PRG func_800C9FE8 (the L2 shortcut cross): the D-pad's four
+    /* BATTLE.PRG vs_battle_drawShortcutHud (the L2 shortcut cross): the D-pad's four
      * arms, 30 x 30 at (184, 160) of the same page and CLUT. */
     if (page == 12 && cy == 223 && cx == 944 && u0 >= 184 && v0 >= 160 && u1 < 214 && v1 < 190) {
         *r = (prompt_region){ DPAD, -1, 184, 160, 30 };

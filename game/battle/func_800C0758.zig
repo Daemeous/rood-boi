@@ -9,8 +9,8 @@ pub fn func_800C0758(phase: c_int, segments: c_int, index: c_int) callconv(.c) c
     const trig: [*]i16 = @ptrFromInt(pad.addr(0x3B0));
     const basis: [*][4]i16 = @ptrFromInt(pad.addr(0x398));
     var idx = index;
-    // The C takes (char*)D_800EB9B8 + points + index * 8 with the int product wrapped first.
-    const base = v.g.D_800EB9B8().*;
+    // The C takes (char*)vs_battle_targetSphere + points + index * 8 with the int product wrapped first.
+    const base = v.g.vs_battle_targetSphere().*;
     const scaled: c_int = index *% 8;
     var vaddr: usize = @intFromPtr(base) +% @offsetOf(v.D_800EB9B8_t, "points") +% @as(usize, @bitCast(@as(isize, scaled)));
     var i: c_int = 0;

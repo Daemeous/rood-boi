@@ -121,7 +121,7 @@ pub fn func_800CB83C() callconv(.c) void {
             6 => c._renderTextImmediate(@ptrCast(box), scale),
             2, 7 => {
                 const first = cursor();
-                c.func_800CD3E4(id);
+                c.vs_menu_drawTextBoxFrame(id);
                 classic(16, box, id, 0, first); // PC_CLASSIC_SITE_WINDOW
                 text(box, id, state, duration, scale);
             },
@@ -129,19 +129,19 @@ pub fn func_800CB83C() callconv(.c) void {
             else => text(box, id, state, duration, scale),
         }
     }
-    const ot_base = v.g.D_800F51B8();
+    const ot_base = v.g.vs_menu_activeTextBoxOrderingTable();
     const ot_address: usize = if (ot_base.*) |p| @intFromPtr(p) else 0;
     // The page of the text boxes' table is walked after the frame's slot (unk4 - 6 words) and then that slot's own link: the
     // table's packets are not linked into the frame's (the frame's walk, boot_runtime.c, follows the splice).
     psx.weak(Splice, "pc_frame_splice").?(@ptrFromInt(@as(usize, psx.rawOf(v.g.vs_scratch().unk4)) -% 6 * 4), @ptrFromInt(ot_address), @ptrFromInt(ot_address +% 33 * 4));
-    const page = v.g.D_800EB9CE();
+    const page = v.g.vs_menu_textBoxBufferIndex();
     page.* = if (page.* == 2) 0 else page.* +% 1;
-    ot_base.* = @as([*]u32, @ptrCast(v.g.D_800F4CD0())) + @as(usize, page.*) * 34;
+    ot_base.* = @as([*]u32, @ptrCast(v.g.vs_menu_textBoxOrderingTables())) + @as(usize, page.*) * 34;
     _ = c.ClearOTag(@ptrCast(ot_base.*), 34);
     if (v.g.vs_battle_lowerScreenUiState().* == 1) {
         const first = cursor();
-        c._renderTimer(v.g.D_8005046C());
-        classic(14, @ptrCast(v.g.D_800EC258().*), 128, 200, first); // PC_CLASSIC_SITE_TIMER
+        c._renderTimer(v.g.vs_battle_puzzleTimer());
+        classic(14, @ptrCast(v.g.vs_battle_puzzleTimerTextPointer().*), 128, 200, first); // PC_CLASSIC_SITE_TIMER
     }
     c.func_800CB708();
     _ = c.vs_battle_keystreamBits(0);

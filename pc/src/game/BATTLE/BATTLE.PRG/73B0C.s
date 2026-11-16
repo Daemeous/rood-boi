@@ -5,7 +5,7 @@
 
 .section .text, "ax"
 
-glabel func_800DC30C
+glabel vs_battle_aiApplySimulatedStatDelta
     lh      $t0, 0x0($a0)
     addiu   $v0, $zero, 0x2
     bne     $v0, $a3, .L800DC320
@@ -22,9 +22,9 @@ glabel func_800DC30C
 .L800DC33C:
     jr      $ra
     sh      $a3, 0x0($a0)
-endlabel func_800DC30C
+endlabel vs_battle_aiApplySimulatedStatDelta
 
-glabel func_800DC344
+glabel vs_battle_aiAppendActionCandidate
     lw      $v0, 0x470($a0)
     addiu   $t3, $zero, 0x14
     lui     $t0, %hi(D_800F5904)
@@ -58,11 +58,11 @@ glabel func_800DC344
     sw      $v1, 0x430($t2)
     addiu   $v0, $v0, 0x1
     sw      $v0, 0x470($a0)
-    bgez    $zero, func_800DC2E0
+    bgez    $zero, vs_battle_aiCopyActionCandidate
     addu    $a0, $v1, $zero
-endlabel func_800DC344
+endlabel vs_battle_aiAppendActionCandidate
 
-glabel func_800DC3CC
+glabel vs_battle_aiSortActionCandidates
     lw      $a2, 0x470($a0)
     addu    $a1, $zero, $zero
     addiu   $a0, $a0, 0x430
@@ -70,9 +70,9 @@ glabel func_800DC3CC
     addi    $a2, $a2, -0x1 /* handwritten instruction */
     jr      $ra
     nop
-endlabel func_800DC3CC
+endlabel vs_battle_aiSortActionCandidates
 
-glabel func_800DC3E8
+glabel vs_battle_aiCopyPlanningActorStats
     lw      $t0, 0x18($a0)
     addiu   $a2, $zero, 0x528
     lw      $t1, 0x1C($a0)
@@ -88,4 +88,4 @@ glabel func_800DC3E8
     addiu   $a1, $a0, 0x398
     jr      $t4
     addiu   $a0, $v0, 0x398
-endlabel func_800DC3E8
+endlabel vs_battle_aiCopyPlanningActorStats

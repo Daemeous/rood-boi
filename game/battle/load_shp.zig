@@ -6,7 +6,7 @@ const c = @import("c_30DB0");
 
 /// Looks for another loaded object (not this one) with the same model; on a hit sets dataAddr to its index.
 fn findShared(obj: *v.vs_battle_objectData) bool {
-    const table = v.g.D_800F4538();
+    const table = v.g.vs_actors_actorRecords();
     var i: c_int = 0;
     while (i < 17) : (i +%= 1) {
         if (i != @as(c_int, obj.index)) {

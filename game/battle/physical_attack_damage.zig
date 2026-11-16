@@ -19,9 +19,9 @@ fn wear(lost: c_int, max: u16) c_int {
 /// orig: _getPhysicalAttackDamage (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// The damage of hit `nHit`: the attacker's strength (plus its drawn weapon's, whose damage counts its type, class
 /// and affinity values, DP wear and PP charge) and accessory against the target limb's strength, armor and shield
-/// (each by type, class, affinity and wear), over risk / 2 + 100, through func_8007FE5C; with the variance 1..5;
-/// halved by the attacker's status 2 when asked; doubled on a risk critical (D_800F1A0C) for the basic attacks
-/// (ids 0..5), and the first hit on an actor trains both sides' affinities (func_80080F78, func_80080C9C). Static
+/// (each by type, class, affinity and wear), over risk / 2 + 100, through vs_battle_applyDamageGemMultiplier; with the variance 1..5;
+/// halved by the attacker's status 2 when asked; doubled on a risk critical (vs_battle_criticalHitOccurred) for the basic attacks
+/// (ids 0..5), and the first hit on an actor trains both sides' affinities (vs_items_growAttackerWeaponRatings, vs_items_growDefenderEquipmentRatings). Static
 /// in the C: ported with its callers (PORTING.md §13).
 fn physicalAttackDamage(action: *v.vs_action_t, source: *v._hitEntity_t, target: *v._hitEntity_t, nHit: c_int, withRandMod: c_int, applyStatuses: c_int) i16 {
     // sp18 in the C: every field it reads is set first.
@@ -88,7 +88,7 @@ fn physicalAttackDamage(action: *v.vs_action_t, source: *v._hitEntity_t, target:
             sp18.weaponDamage = psx.conv(i16, @as(c_int, sp18.weaponDamage) -% wear(@as(c_int, attacker.weapon.maxDp) - attacker.weapon.currentDp, attacker.weapon.maxDp));
         }
         if (attacker.weapon.maxPp != 0) {
-            const charge: c_int = psx.at(psx.GlobalMany(u16, "D_800E82F4").ptr(), attacker.weapon.blade.category).*;
+            const charge: c_int = psx.at(psx.GlobalMany(u16, "vs_battle_bladePpDamageBonuses").ptr(), attacker.weapon.blade.category).*;
             sp18.weaponDamage = psx.conv(i16, @as(c_int, sp18.weaponDamage) +% @divTrunc(@as(c_int, attacker.weapon.currentPp) *% charge, @as(c_int, attacker.weapon.maxPp)));
         }
     } else {
@@ -134,7 +134,7 @@ fn physicalAttackDamage(action: *v.vs_action_t, source: *v._hitEntity_t, target:
     defense +%= @as(c_int, sp18.shieldStat) *% sp18.shieldStatFactor;
     defense +%= @as(c_int, sp18.armorStat) *% sp18.armorStatFactor;
     defense = @divTrunc(defense, @divTrunc(@as(c_int, defender.risk), 2) + 100); // risk is a u16: no overflow
-    var value = c.func_8007FE5C(@ptrCast(action), psx.conv(c_short, attack -% defense), @ptrCast(attacker), @ptrCast(defender));
+    var value = c.vs_battle_applyDamageGemMultiplier(@ptrCast(action), psx.conv(c_short, attack -% defense), @ptrCast(attacker), @ptrCast(defender));
     if (value < 0) {
         value = 0;
     }
@@ -147,12 +147,12 @@ fn physicalAttackDamage(action: *v.vs_action_t, source: *v._hitEntity_t, target:
     if (withRandMod != 0) {
         if (action.id < 6 and c.vs_main_getRand(100) < @divTrunc(@as(c_int, attacker.risk), 10) + 10) {
             value = psx.conv(i16, (psx.conv(c_uint, @as(c_int, value) << 0x10)) >> 0xF);
-            psx.Global(c_int, "D_800F1A0C").ptr().* = 1;
+            psx.Global(c_int, "vs_battle_criticalHitOccurred").ptr().* = 1;
         }
         if (nHit == 0) {
             if (target.unk40 == 0) {
-                c.func_80080F78(@ptrCast(action), @ptrCast(attacker), @as(c_int, psx.getBits(defender, "enemyClass")) + 1, @as(c_int, sp18.targetAffinity) + 1);
-                c.func_80080C9C(@ptrCast(action), @ptrCast(defender), @as(c_int, psx.getBits(attacker, "enemyClass")) + 1, @as(c_int, sp18.sourceAffinity) + 1, limb_index);
+                c.vs_items_growAttackerWeaponRatings(@ptrCast(action), @ptrCast(attacker), @as(c_int, psx.getBits(defender, "enemyClass")) + 1, @as(c_int, sp18.targetAffinity) + 1);
+                c.vs_items_growDefenderEquipmentRatings(@ptrCast(action), @ptrCast(defender), @as(c_int, psx.getBits(attacker, "enemyClass")) + 1, @as(c_int, sp18.sourceAffinity) + 1, limb_index);
             }
         }
     }

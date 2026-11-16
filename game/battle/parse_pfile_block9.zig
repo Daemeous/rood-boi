@@ -5,5 +5,5 @@ const v = @import("views_6F014");
 /// orig: _parsePfileBlock9 (pc/src/game/BATTLE/BATTLE.PRG/6F014.c)
 /// Sets the block 9 data pointer of the current pFile to `block`.
 pub fn parsePfileBlock9(block: ?*v.pFileBlock9) callconv(.c) void {
-    psx.put(&v.g.D_800F569C().*.?.block9Data, block);
+    psx.put(&v.g.vs_effects_package().*.?.block9Data, block);
 }

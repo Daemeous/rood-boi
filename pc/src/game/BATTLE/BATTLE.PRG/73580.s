@@ -5,14 +5,14 @@
 
 .section .text, "ax"
 
-glabel func_800DBD80
+glabel vs_battle_aiCanExecuteActionCandidate
     lw      $t4, 0xC($a1)
     addu    $t7, $ra, $zero
     srl     $v0, $t4, 19
     andi    $v0, $v0, 0xFF
     beqz    $v0, .L800DBEF0
-    lui     $v1, %hi(D_800F58BC)
-    lw      $v1, %lo(D_800F58BC)($v1)
+    lui     $v1, %hi(vs_battle_aiRoomAiState)
+    lw      $v1, %lo(vs_battle_aiRoomAiState)($v1)
     lw      $v0, 0x4($a1)
     lhu     $v1, 0x18($v1)
     srl     $v0, $v0, 13
@@ -20,15 +20,15 @@ glabel func_800DBD80
     sltu    $v0, $v1, $v0
     bnez    $v0, .L800DBEF0
     nop
-    jal     func_800DBCB4
+    jal     vs_battle_aiIsActionCooldownReady
     nop
     beqz    $v0, .L800DBEF0
     andi    $v0, $t4, 0xF
     sll     $v0, $v0, 2
     addu    $t0, $v0, $a0
     lw      $t5, 0x1E4($t0)
-    lui     $v1, %hi(D_800F45E0)
-    addiu   $v1, $v1, %lo(D_800F45E0)
+    lui     $v1, %hi(vs_field_gimmickInstances)
+    addiu   $v1, $v1, %lo(vs_field_gimmickInstances)
     addu    $v1, $v1, $v0
     lw      $v1, 0x0($v1)
     nop
@@ -43,7 +43,7 @@ glabel func_800DBD80
     nop
     bnez    $t1, .L800DBEF0
     addu    $t6, $a1, $zero
-    jal     func_800DBCEC
+    jal     vs_battle_aiHasNearbyEnemy
     srl     $a1, $v1, 2
     addu    $a1, $t6, $zero
     bnez    $v0, .L800DBEF0
@@ -75,8 +75,8 @@ glabel func_800DBD80
     nop
 .L800DBE88:
     bgez    $t6, .L800DBEF0
-    lui     $v1, %hi(D_800F4538)
-    addiu   $v1, $v1, %lo(D_800F4538)
+    lui     $v1, %hi(vs_actors_actorRecords)
+    addiu   $v1, $v1, %lo(vs_actors_actorRecords)
     lw      $v1, 0x0($v1)
     sll     $a0, $t9, 29
     srl     $a0, $a0, 31
@@ -106,4 +106,4 @@ glabel func_800DBD80
     addu    $ra, $t7, $zero
     jr      $ra
     nop
-endlabel func_800DBD80
+endlabel vs_battle_aiCanExecuteActionCandidate

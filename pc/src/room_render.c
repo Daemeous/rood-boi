@@ -4,9 +4,9 @@ static short near_depth __attribute__((used)) = 8, far_depth __attribute__((used
     distance_threshold __attribute__((used)) = 0x200;
 static short clip_left __attribute__((used)) = 0, clip_top __attribute__((used)) = 0, clip_right __attribute__((used)) = 320,
     clip_bottom __attribute__((used)) = 224;
-void func_80098160(int value);
+void vs_render_setRoomPolygonNearClip(int value);
 
-void func_80098194(int value);
+void vs_render_setRoomTextureLodDepth(int value);
 
 /* The same rules for the native room (room_native.c, render.h). */
 void pc_room_render_rules(int* near_bucket, int* far_bucket, int* lod_bucket)

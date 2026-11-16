@@ -55,7 +55,7 @@ the Items menu memories as MENUB leaves them (`ui_loot_smoke`, including the
 save room's real chest through the field's own chest flow). Deliberate
 differences: the shell slides the field HUD out while it shows (the flag is
 given back at the end only while it is still the shell's); after Organize
-inventory closes, D_800EB9B0 is left at 0x200000, also after the session
+inventory closes, vs_battle_hudSlideOffset is left at 0x200000, also after the session
 (the panel's own HUD restore writes 0, the shell's slide-out sets it again;
 harmless: it is the HUD's slide offset, which slides back in from there); the Items menu opens
 on the drop's category, not on the Manage page MENUB shows without cursor
@@ -159,7 +159,7 @@ thumbnails, save dates, a read-only card peek, a Damaged badge (MENU7 counts
 unreadable files as free blocks), separate Save and Load rows. Plan:
 `pc/docs/plans/2026-10-15-modern-menus-data.md`.
 Phase 7e: the Container (the save room's container: the field opens it,
-BATTLE `func_800CB1C0`, MENU7 then MENUD). See "Container" below. Plan:
+BATTLE `vs_menu_frameworkOpenChestStorageMenu`, MENU7 then MENUD). See "Container" below. Plan:
 `pc/docs/plans/2026-10-15-modern-menus-container.md`.
 Phase 7f: Score (pass 1). System > Score is native (MENU9.PRG never loads
 for it). See "Score" below. Plan: `pc/docs/plans/2026-10-15-modern-menus-score.md`.
@@ -209,13 +209,13 @@ Intended differences from the original:
   kept until exit like the Quick manual's pages), never the game's heap or
   CD queue; each open parses it with the current kill flags.
 - The world after the close is as it was at the open: OPEN remembers
-  D_800F190C and CLOSE calls `func_8008A4DC(1)` only if it was running.
+  vs_field_isFieldRenderingEnabled and CLOSE calls `vs_field_setFieldRenderingEnabled(1)` only if it was running.
   MENU9's state 6 (and the Quick manual's close) restart it
   unconditionally. The two differ only when something else already holds
   the world frozen at the open, which no known path does (MAINMENU runs
   with it running; the Ashley tab's freeze ends before the System tab
   shows); there the native close leaves it frozen for its owner instead of
-  restarting it under it. `ui_score_smoke` 2 checks D_800F190C after every
+  restarting it under it. `ui_score_smoke` 2 checks vs_field_isFieldRenderingEnabled after every
   close against MENU9's.
 - A click focuses its row through the canonical pair Down presses from
   (0, 0) would reach; the pad keeps MENU9's exact pairs.
@@ -285,7 +285,7 @@ cancel warning; Triangle anywhere: 0, the revert), `*state` 0; the direct
 session clears itself on that tick (menu 7 never routes through it).
 Abandoned (the game left 14 without a hand-back): dropped, nothing written,
 nothing freed (the heap is MENU7's). The frame ends when MENU7 returns, or
-when the game leaves menus 7 / 14 or clears `D_800F4EA0 & 0x400`
+when the game leaves menus 7 / 14 or clears `vs_menu_frameworkActionRestrictions & 0x400`
 (heartbeat); a soft reset forgets both layers.
 
 **What is hidden.** MAINMENU's `vs_mainMenu_hideMenu` is 1 from the latch to
@@ -510,8 +510,8 @@ All new code in `pc/src/ui/`. Game-side changes only under `#ifdef ROOD_PC`;
 `make commit-check` keeps matching.
 
 1. **Bridge** (`ui/bridge`). The game opens its menu exactly as today
-   (Triangle, `func_800CACD0`), so pausing and the "menu not allowed now"
-   rules stay the game's (`D_800F4EA0` disable mask, `menuFlags`). With
+   (Triangle, `vs_menu_frameworkOpenGameMenu`), so pausing and the "menu not allowed now"
+   rules stay the game's (`vs_menu_frameworkActionRestrictions` disable mask, `menuFlags`). With
    `ui_menus modern` the bridge keeps the original top-level list from
    drawing and from reading the pad while the shell runs, and closes
    through the game's own close path (`vs_battle_menuState.currentMenu`).
@@ -520,7 +520,7 @@ All new code in `pc/src/ui/`. Game-side changes only under `#ifdef ROOD_PC`;
    rows open too, as in the original (the game's screen greys what is off),
    and the card gives the reason from the disable mask. The shell takes a
    session only at the top level (`currentMenu` 0, no direct entry
-   `D_800F4EA0 & 0x200`, no shortcut); shortcut entries (L2
+   `vs_menu_frameworkActionRestrictions & 0x200`, no shortcut); shortcut entries (L2
    magic/arts/items, loot, containers, ability learned, script menus) stay
    original until their screen exists. The Menus choice is latched when the
    menu opens, so switching applies from the next open. A session that ends
@@ -590,20 +590,20 @@ The bottleneck is verification (action parity, playtesting feel), not code.
 
 | Context | Game state to read | Prompts |
 | --- | --- | --- |
-| Crate in front / carrying | `func_800A38E0(0) >= 0` (3A1A0.c); status `func_800A0BE0(0)` bit 0x80000 carrying | Cross PUSH / LIFT / DROP; no Square JUMP while carrying |
-| NPC | actor-cone probe `func_800A3760(0, 0xA0, 0x80)` with `actor->unk24 == 4` | Cross TALK |
-| Examine | type-4 event in tile mode (`func_80074860`, `func_800BEC58` 4A0A8.c) — needs a side-effect-free copy of the condition evaluator | Cross EXAMINE |
-| Door | `func_800748B8(0)` section-A door; `lock.state` 0 open, 1/3 needs `keyOrSigil` (`vs_battle_itemIdIsInInventory`, sigil state flags) | Cross OPEN / UNLOCK / LOCKED |
-| Chest | `func_80074950(0)` (facing, not yet opened `unk10+0x3C0`, height match); `keyOrSigil` lock | Cross OPEN |
-| Save point / magic circle | `func_8008A4FC()` save-point id; Save allowed when `stateFlags.unkA7 == 0`; Teleport when `unkB5 != 0` and a `savePointStates` entry | Triangle MENU (Save / Teleport) |
+| Crate in front / carrying | `vs_field_findInteractableGimmickAhead(0) >= 0` (3A1A0.c); status `vs_actors_actorStateFlags(0)` bit 0x80000 carrying | Cross PUSH / LIFT / DROP; no Square JUMP while carrying |
+| NPC | actor-cone probe `vs_actors_findNearestActorAhead(0, 0xA0, 0x80)` with `actor->unk24 == 4` | Cross TALK |
+| Examine | type-4 event in tile mode (`vs_field_tryTriggerFacingTileEvent`, `vs_event_evaluateRoomEventTriggers` 4A0A8.c) — needs a side-effect-free copy of the condition evaluator | Cross EXAMINE |
+| Door | `vs_field_findFacingRoomObject(0)` section-A door; `lock.state` 0 open, 1/3 needs `keyOrSigil` (`vs_battle_itemIdIsInInventory`, sigil state flags) | Cross OPEN / UNLOCK / LOCKED |
+| Chest | `vs_field_findFacingUnlootedChest(0)` (facing, not yet opened `unk10+0x3C0`, height match); `keyOrSigil` lock | Cross OPEN |
+| Save point / magic circle | `vs_field_currentSavePointId()` save-point id; Save allowed when `stateFlags.unkA7 == 0`; Teleport when `unkB5 != 0` and a `savePointStates` entry | Triangle MENU (Save / Teleport) |
 | Workshop | `vs_battle_inWorkshop()` (146C.c) | Triangle MENU (Assemble / Repair / Combine) |
 | Weapon drawn | `vs_battle_characterState->weaponDrawn & 1` | Circle ATTACK, Cross SHEATHE; sheathed: Circle DRAW |
 | Hanging | status 0x100000 | (no draw / first-person) |
 | L2 shortcuts | `vs_battle_isSpellClassUnlocked`, `_breakArtsUnlocked`, `vs_battle_chainAbilitiesUnlocked` (5BF94.c) | slots greyed when empty |
 
-Gaps: `func_80075554` (undecompiled, per-frame field events), `D_800F196C` values unnamed.
+Gaps: `vs_actors_executeQueuedActorCommands` (undecompiled, per-frame field events), `D_800F196C` values unnamed.
 
-**Vector limb-condition figure:** replace the blocky bottom-left limb sprite with an authored vector figure whose regions take the game's live limb-condition colours (`vs_battle_getLimbStatus`, `D_800EBC54`).
+**Vector limb-condition figure:** replace the blocky bottom-left limb sprite with an authored vector figure whose regions take the game's live limb-condition colours (`vs_battle_getLimbStatus`, `vs_battle_limbStatusColors`).
 
 ## Ownership (agreed with the main session, 2026-10-12)
 

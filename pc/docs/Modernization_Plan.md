@@ -136,7 +136,7 @@ Optional check after `build_boot.py --arch 64` (seconds, <1 GB):
 declaration each 64-bit object was compiled with (its DWARF) against the
 definition the linker binds it to, and exits 1 on a wrong-size pointer/integer
 parameter, return, out-parameter pointee or data import (the class of the
-`func_800AD494` stack smash), and any data import that is a field of another
+`vs_actors_findActorAnimationHeader` stack smash), and any data import that is a field of another
 import where one moved to a native slot and the other did not
 (`pc/tools/lp64_alias_scan.py`). See `LP64_Audit.md`, "Cross-unit
 declarations" and "Import aliases across the native move".
@@ -300,7 +300,7 @@ left stale now read as far); the full suite passes in modes 1 (default) and 0, g
   reading the hardware target.
 
 **Phase 2, step 2 (2026-10-10): native characters.** `pc/src/actor_native.c`
-turns every model drawn by `func_800B3CF0`/`func_800B4594` (characters,
+turns every model drawn by `vs_render_drawModelFlatPolygons`/`vs_render_drawModelGouraudPolygons` (characters,
 their weapons and shields, the props of `BATTLE/49268.c`) into a render.h
 mesh with a palette index per vertex, drawn per frame from the bone matrices
 the game computed (world-space palettes plus the previous frame's, blended
@@ -320,20 +320,20 @@ room either way, loaded machine). See `Native_Rendering.md`. Surprises:
   table). The native path computes each polygon's bucket from the game's
   own projected depths and paints in that order, joining both copies into
   one list.
-- Characters and weapons use the same packet builder (`func_800B3CF0`
+- Characters and weapons use the same packet builder (`vs_render_drawModelFlatPolygons`
   lives in `weapon_packets.c`), so weapons came along.
 
 **Phase 2, step 3 (2026-10-10): translucent draws and room blocks.**
 Semi-transparent polygons are native: the room's (stained glass, window
 light, the save point's column), characters' translucent records, and the
-blended builders `func_800B516C`/`func_800B5C30` (material groups with
+blended builders `func_800B516C`/`vs_render_drawModelGouraudPolygonsWithOverrides` (material groups with
 alternate CLUTs, whole models faded with `B-F`/`B+F`). A list keeps a
 translucent sequence; five-word translucent markers in the ordering table
 draw ranges of it exactly where the PS1 draws those polygons (the room: one
 per polygon right after its packet; models: one per bucket), with the PS1
 blend modes, opaque texels as surfaces and STP texels blended into colour
 only, hidden behind the native surfaces before them. Other blocks drawn
-through `func_8009723C` (`func_8008E19C`'s section 9 floor quads) are
+through `vs_render_drawRoomGeometry` (`vs_field_drawRoomTriggerMarker`'s section 9 floor quads) are
 layered room-rules lists. Switches `ROOD_NATIVE_BLEND` / `ROOD_NATIVE_OBJECTS`
 (RPC `graphics native_blend` / `native_objects`, editor checkboxes,
 settings keys), both on by default; `render_stats` counts translucent
@@ -360,7 +360,7 @@ are native regions generated from DWARF types; the game runs on a stack below
 reconstruction. Phase 2 done; gate met in the tested rooms.** Measured what
 was still reconstructed first (`ROOD_OTHER_DEBUG=1` attributes each 3D packet
 triangle to the code that issued its GTE projections): over a 20,000-vsync
-soak 99% drop shadows, then `func_800D6E44` particles, then 19 triangles of
+soak 99% drop shadows, then `vs_effects_drawAnimatedSpriteParticles` particles, then 19 triangles of
 other effects. Both are now native through effects lists (translucent
 entries only, drawn at markers where the packets are linked): drop shadows
 as world-space triangles of a cached disc mesh with the actor's transform,

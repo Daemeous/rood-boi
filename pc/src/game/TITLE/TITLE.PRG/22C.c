@@ -603,18 +603,18 @@ static int _applyLoadedSaveFile(int verifyOnly)
     _rMemcpy(vs_main_actionsLearned, spmcimg[1].unk640, sizeof vs_main_actionsLearned);
     _rMemcpy(&vs_main_mapStatus, spmcimg[1].mapStatus, sizeof vs_main_mapStatus);
     _rMemcpy(&vs_main_settings, &spmcimg[1].unk6A8, sizeof vs_main_settings);
-    _rMemcpy(&D_80060068, &spmcimg[1].unk6C8, sizeof D_80060068);
+    _rMemcpy(&vs_state_ashleySnapshot, &spmcimg[1].unk6C8, sizeof vs_state_ashleySnapshot);
     _rMemcpy(&vs_main_inventory, spmcimg[1].unk7C8, sizeof vs_main_inventory);
     _rMemcpy(
         &vs_main_inventoryIndices, spmcimg[1].unk16C8, sizeof vs_main_inventoryIndices);
-    _rMemcpy(&D_80061068, &spmcimg[1].unk1778, sizeof D_80061068);
+    _rMemcpy(&vs_state_savedEntryDoor, &spmcimg[1].unk1778, sizeof vs_state_savedEntryDoor);
     _rMemcpy(&vs_main_scoredata, &spmcimg[1].unk1784, sizeof vs_main_scoredata);
-    D_80060064 = s4->unk1898;
+    vs_state_currentRoomStateSlot = s4->unk1898;
     _rMemcpy(D_80061078, spmcimg[1].unk189C, sizeof D_80061078);
     spmcimg2 = &vs_main_artsStatus;
     _rMemcpy(&vs_main_artsStatus, &spmcimg[1].artsStatus, sizeof vs_main_artsStatus);
     vs_main_gametime.t = spmcimg[1].unk180.stats.gameTime.t;
-    func_80042CA0();
+    vs_save_markAshleySnapshotValid();
     vs_main_setMonoSound(vs_main_settings.monoSound);
     return 0;
 }
@@ -693,8 +693,8 @@ static void _packageGameSaveData(int targetFile)
     vs_main_settings.currentGameSaveCount = 0;
     s5->unk180.base.unk8 = 0x20000107;
     s5->stats.gameTime.t = vs_main_gametime.t;
-    s5->stats.currentHP = D_80060068.unk0.currentHP;
-    s5->stats.maxHP = D_80060068.unk0.maxHP;
+    s5->stats.currentHP = vs_state_ashleySnapshot.unk0.currentHP;
+    s5->stats.maxHP = vs_state_ashleySnapshot.unk0.maxHP;
     s5->stats.cumulativeSaveCount = vs_main_settings.cumulativeSaveCount;
     s5->stats.currentGameSaveCount = vs_main_settings.currentGameSaveCount;
     s5->stats.saveLocation = 0x30;
@@ -704,20 +704,20 @@ static void _packageGameSaveData(int targetFile)
     memset(&savedata2->containerData.misc, 0,
         sizeof savedata2->containerData.misc / 4); // Why / 4?
     s5->stats.clearCount = vs_main_stateFlags.clearCount;
-    s5->stats.currentMP = D_80060068.unk0.currentMP;
-    s5->stats.maxMP = D_80060068.unk0.maxMP;
+    s5->stats.currentMP = vs_state_ashleySnapshot.unk0.currentMP;
+    s5->stats.maxMP = vs_state_ashleySnapshot.unk0.maxMP;
     _rMemcpy(savedata->unk200, &vs_main_stateFlags, sizeof savedata->unk200);
     _rMemcpy(savedata->unk640, vs_main_actionsLearned, sizeof savedata->unk640);
     _rMemcpy(savedata->mapStatus, &vs_main_mapStatus, sizeof savedata->mapStatus);
     _rMemcpy(&savedata->unk6A8, &vs_main_settings, sizeof savedata->unk6A8);
-    _rMemcpy(&savedata->unk6C8, &D_80060068, sizeof savedata->unk6C8);
+    _rMemcpy(&savedata->unk6C8, &vs_state_ashleySnapshot, sizeof savedata->unk6C8);
     _rMemcpy(savedata->unk7C8, &vs_main_inventory, sizeof savedata->unk7C8);
     _rMemcpy(savedata->unk16C8, &vs_main_inventoryIndices, sizeof savedata->unk16C8);
-    _rMemcpy(&savedata->unk1778, &D_80061068, sizeof savedata->unk1778);
+    _rMemcpy(&savedata->unk1778, &vs_state_savedEntryDoor, sizeof savedata->unk1778);
     _rMemcpy(&savedata->unk1784, &vs_main_scoredata, sizeof savedata->unk1784);
     _rMemcpy(&savedata->containerData, &savedata2->containerData,
         sizeof savedata->containerData);
-    savedata->unk1898 = D_80060064;
+    savedata->unk1898 = vs_state_currentRoomStateSlot;
     _rMemcpy(savedata->unk189C, D_80061078, sizeof savedata->unk189C);
     _rMemcpy(&savedata->artsStatus, &vs_main_artsStatus, sizeof savedata->artsStatus);
 
@@ -4413,7 +4413,7 @@ static void _menuVibrationSettings(void)
             _playMenuSelectSfx();
             vs_main_settings.vibrationOn = vibrationSetting - 5;
             if (vibrationSetting == menuItemVibrationOn) {
-                func_800438C8(0);
+                vs_input_playVibrationPreset(0);
             }
             break;
         } else if (vs_main_buttonsState & PADRdown) {
@@ -4849,7 +4849,7 @@ static void _initGameData(void)
     vs_main_bzero(&vs_main_mapStatus, sizeof vs_main_mapStatus);
     vs_main_bzero(&vs_main_gametime, sizeof vs_main_gametime);
     vs_main_bzero(&vs_main_scoredata, sizeof vs_main_scoredata);
-    D_80060064 = 0;
+    vs_state_currentRoomStateSlot = 0;
     vs_main_bzero(D_80061078, sizeof D_80061078);
     vs_main_bzero(&vs_main_artsStatus, sizeof vs_main_artsStatus);
 
@@ -4862,17 +4862,17 @@ static void _initGameData(void)
     }
 
     for (i = 0; i < 1; ++i) {
-        vs_main_bzero((char*)&D_80060068 + i * sizeof D_80060068, 0x50);
+        vs_main_bzero((char*)&vs_state_ashleySnapshot + i * sizeof vs_state_ashleySnapshot, 0x50);
     }
 
-    vs_main_bzero(&D_80061068, sizeof D_80061068);
-    vs_main_memcpy(&vs_main_inventory, D_80074C24, sizeof vs_main_inventory);
+    vs_main_bzero(&vs_state_savedEntryDoor, sizeof vs_state_savedEntryDoor);
+    vs_main_memcpy(&vs_main_inventory, vs_title_newGameInventoryTemplate, sizeof vs_main_inventory);
 
     vs_gametime_tickspeed = 2;
-    D_80061068.unk4_8 = 4;
-    D_80061068.unk6_10 = 2;
-    D_80061068.unk2.unk0_13 = 0;
-    D_80061068.unk4_13 = 2;
+    vs_state_savedEntryDoor.unk4_8 = 4;
+    vs_state_savedEntryDoor.unk6_10 = 2;
+    vs_state_savedEntryDoor.unk2.unk0_13 = 0;
+    vs_state_savedEntryDoor.unk4_13 = 2;
 }
 
 static void _setTitleExitFlags(int cause)
@@ -4886,22 +4886,22 @@ static void _setTitleExitFlags(int cause)
     case 0: // New Game
         vs_main_stateFlags.unkC = 0;
         vs_main_stateFlags.unkD = 0;
-        D_80061068.zndId = 1;
-        D_80061068.mpdId = 0;
+        vs_state_savedEntryDoor.zndId = 1;
+        vs_state_savedEntryDoor.mpdId = 0;
         return;
     case 3: // Timeout cutscene1
         vs_main_stateFlags.unkC = 0;
         vs_main_stateFlags.unkD = 1;
         vs_main_stateFlags.unkE = 1;
-        D_80061068.zndId = 20;
-        D_80061068.mpdId = 0;
+        vs_state_savedEntryDoor.zndId = 20;
+        vs_state_savedEntryDoor.mpdId = 0;
         return;
     case 4: // Timeout cutscene2
         vs_main_stateFlags.unkC = 0;
         vs_main_stateFlags.unkD = 1;
         vs_main_stateFlags.unkE = 1;
-        D_80061068.zndId = 2;
-        D_80061068.mpdId = 1;
+        vs_state_savedEntryDoor.zndId = 2;
+        vs_state_savedEntryDoor.mpdId = 1;
         return;
     case 1: // Continue
         vs_main_stateFlags.unkC = 0;

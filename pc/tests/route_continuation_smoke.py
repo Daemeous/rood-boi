@@ -2,17 +2,17 @@
 """Route continuation through a room link (766FC.s L800DF8A4) in the game.
 
 The path an enemy takes after it has used one of a room's links (a gate,
-byte 0x19B of its AI state, set by func_800DFBCC; the room records held
-gates in byte 0xE of D_800F58BC). Its next movement command for priority
-state 0 (func_800E4B2C / func_800E4B70, or the route records of
-func_800E5308) continues the route through the link; on ordinary ground it
+byte 0x19B of its AI state, set by vs_battle_aiResolveNavigationAreaRoute; the room records held
+gates in byte 0xE of vs_battle_aiRoomAiState). Its next movement command for priority
+state 0 (vs_battle_aiMoveActorTowardDestinationTile / func_800E4B70, or the route records of
+vs_battle_aiUpdateActorNavigationOverrides) continues the route through the link; on ordinary ground it
 releases the gate. The port used to stop there ("[UNIMPLEMENTED] actor route
 continuation L800DF8A4").
 
 Continues a copy of the card's save, warps with enemies (no scripts) to the
 Wine Guild Hall (zone 9 room 5, one of the few rooms with links), marks
 gate 3 held by every enemy and in the room, and plays: the enemies whose
-movement runs through func_800E4B2C/func_800E4B70 continue the route
+movement runs through vs_battle_aiMoveActorTowardDestinationTile/func_800E4B70 continue the route
 (pc_route_continuations counts it), release the gate (state byte 0x19B 0,
 far end 0x19C -1, room bit 3 clear), and the game goes on.
 
@@ -81,12 +81,12 @@ def main():
         game.run(30)
         st = game.state()
         check((st["zone"], st["room"]) == (9, 5), f"in the Wine Guild Hall (zone {st['zone']} room {st['room']})")
-        raw = game.read_symbol("D_800F5878", 16 * ptr)
+        raw = game.read_symbol("vs_battle_aiActorAiStates", 16 * ptr)
         states = [int.from_bytes(raw[i * ptr:(i + 1) * ptr], "little") for i in range(16)]
         enemies = [a for i, a in enumerate(states) if i and a]
         free = [a for a in enemies if game.read(a + off('priority'), 1)[0] == 0]
-        check(len(free) > 0, f"{len(enemies)} enemies with AI states, {len(free)} moving through func_800E4B2C/4B70")
-        room = int.from_bytes(game.read_symbol("D_800F58BC", 4), "little")
+        check(len(free) > 0, f"{len(enemies)} enemies with AI states, {len(free)} moving through vs_battle_aiMoveActorTowardDestinationTile/4B70")
+        room = int.from_bytes(game.read_symbol("vs_battle_aiRoomAiState", 4), "little")
         check(room != 0, f"the room's navigation record at {room:#x}")
 
         before = continuations()

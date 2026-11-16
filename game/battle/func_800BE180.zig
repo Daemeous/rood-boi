@@ -17,7 +17,7 @@ pub fn func_800BE180() callconv(.c) void {
     shake.a.vy = 0;
     shake.a.vx = 0;
 
-    const base: *v.D_800F4BA4_t = v.g.D_800F4BA4().*.?;
+    const base: *v.D_800F4BA4_t = v.g.vs_event_camera().*.?;
 
     var count: i16 = 0;
     var i: i16 = 0;

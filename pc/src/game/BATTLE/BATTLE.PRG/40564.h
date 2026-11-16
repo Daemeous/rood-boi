@@ -4,18 +4,18 @@
 #include <libgte.h>
 #include <libgpu.h>
 
-void func_800A97EC(int, func_8006EBF8_t_fields*, int, int);
-void func_800A9C54(int, func_8006EBF8_t_fields*, int);
-void func_800A9CDC(int, func_8006EBF8_t_fields*, int);
-void func_800A9D90(int, SVECTOR*, int);
-void func_800A9E38(int, short, int);
-void func_800A9EB4(int, short, int);
-void func_800A9F64(int, SVECTOR*, int);
-void func_800A9FD0(int, SVECTOR*, int);
-void func_800AA850(int, u_short, int);
-void func_800AABD0(int, SVECTOR*, int);
-int func_800AAD4C(int, int, int, int);
-void func_800AB4F0(void*);
-void func_800AC37C(int, int);
-void func_800AD008(void*, void*);
-int func_800AD494(void*, int, u_short**);
+void vs_actors_moveActorToTileAtRate(int, func_8006EBF8_t_fields*, int, int);
+void vs_actors_translateActorToTileAtRate(int, func_8006EBF8_t_fields*, int);
+void vs_actors_turnActorTowardTileAtRate(int, func_8006EBF8_t_fields*, int);
+void vs_actors_translateActorToAtRate(int, SVECTOR*, int);
+void vs_actors_turnActorByAtRate(int, short, int);
+void vs_actors_turnActorToAtRate(int, short, int);
+void vs_actors_rotateActorByAtRate(int, SVECTOR*, int);
+void vs_actors_rotateActorToAtRate(int, SVECTOR*, int);
+void vs_actors_turnActorToOverTime(int, u_short, int);
+void vs_actors_scaleActorToOverTime(int, SVECTOR*, int);
+int vs_actors_setTextureAnimation(int, int, int, int);
+void vs_actors_stepTextureScrolling(void*);
+void vs_actors_startActorAppearanceTransition(int, int);
+void vs_actors_initializeActorAnimationPose(void*, void*);
+int vs_actors_findActorAnimationHeader(void*, int, u_short**);

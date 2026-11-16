@@ -3,7 +3,7 @@ const psx = @import("common").psx;
 const pad = @import("common").pad;
 const c = @import("c_battle_helpers");
 
-/// orig: func_800E4478 (pc/src/battle_helpers.c)
+/// orig: vs_field_isPositionAboveGround (pc/src/battle_helpers.c)
 /// Whether height `y` is above the floor of the navigation cell at
 /// (x >> 7, z >> 7) of the grid (64-byte rows) cached at scratchpad 0x3BC: a
 /// cell with bit 13 set has floor 0, else floor = sign15(sign((cell & 0x3FF)
@@ -19,10 +19,10 @@ pub fn belowFloor(x: c_int, y: c_int, z: c_int) callconv(.c) c_int {
     return @intFromBool(y < floor);
 }
 
-/// orig: func_800E44E8 (pc/src/battle_helpers.c)
+/// orig: vs_field_isTerrainSegmentBlocked (pc/src/battle_helpers.c)
 /// Samples 16 points from `from` toward `to` (each Y lowered by its height
 /// argument, X read as unsigned 16-bit) in steps of delta >> 4, and returns 1
-/// as soon as a sample is not below the floor (func_800E4478 returns 0; Y
+/// as soon as a sample is not below the floor (vs_field_isPositionAboveGround returns 0; Y
 /// grows down), else 0.
 pub fn pathClear(from: [*]const i16, to: [*]const i16, from_height: c_int, to_height: c_int) callconv(.c) c_int {
     var x: c_int = @as(u16, @bitCast(from[0]));
@@ -36,7 +36,7 @@ pub fn pathClear(from: [*]const i16, to: [*]const i16, from_height: c_int, to_he
         x +%= dx;
         y +%= dy;
         z +%= dz;
-        if (c.func_800E4478(x, y, z) == 0) return 1;
+        if (c.vs_field_isPositionAboveGround(x, y, z) == 0) return 1;
     }
     return 0;
 }

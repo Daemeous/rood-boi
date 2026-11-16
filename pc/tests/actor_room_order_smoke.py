@@ -207,7 +207,7 @@ def beam(card, out, env, socket, save):
                 break
         state = game.state()
         check((state["zone"], state["room"]) == (51, 1), f"zone 51 room 1 (at {state['zone']}/{state['room']})")
-        actor = int.from_bytes(game.read(symbols()["D_800F4538"], PTR), "little")
+        actor = int.from_bytes(game.read(symbols()["vs_actors_actorRecords"], PTR), "little")
         game.write(actor + POSITION, struct.pack("<3h", *SPOT))
         game.run(60)
         for _ in range(8):

@@ -7,7 +7,7 @@ int VS_PARTICLE_DISPATCH_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
     short var_v0;
     func_800FA098_arg1* a2 = &pc_effect_scratch;
     func_800FA098_arg3* temp_s1 = arg0->unk8;
-    D_800F53B8_t* temp_s0 = D_800F53BC;
+    D_800F53B8_t* temp_s0 = vs_effects_currentInstance;
     int s3 = 1;
 
     switch (arg1) {
@@ -23,7 +23,7 @@ int VS_PARTICLE_DISPATCH_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
         temp_s1->unk0 = arg2;
         temp_s1->unkC = 0;
         temp_s1->unk8 = 0;
-        temp_s2 = &D_800F569C->block5Data->unk4[temp_s1->unk1];
+        temp_s2 = &vs_effects_package->block5Data->unk4[temp_s1->unk1];
 
         var_v0 = temp_s2->unkC0[1];
         if (temp_s2->unkC0[1] < temp_s2->unkC0[0]) {
@@ -38,13 +38,13 @@ int VS_PARTICLE_DISPATCH_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
 
         temp_s1->unk4 = vs_main_allocHeapR(var_a0 << 5);
 #ifndef VS_PARTICLE_UNTEXTURED
-        func_800D6CCC((int*)(&temp_s1->unk10));
-        func_800D6CF0(&temp_s1->unk10, temp_s2->unk1, temp_s2->unk0);
+        vs_effects_clearTextureAnimation((int*)(&temp_s1->unk10));
+        vs_effects_restartTextureAnimation(&temp_s1->unk10, temp_s2->unk1, temp_s2->unk0);
 #endif
         break;
 
     case 2:
-        temp_s2 = &D_800F569C->block5Data->unk4[temp_s1->unk1];
+        temp_s2 = &vs_effects_package->block5Data->unk4[temp_s1->unk1];
 #ifdef VS_PARTICLE_UNTEXTURED
         a2->flags = temp_s2->flags & 0x3FFFFFF;
 #else

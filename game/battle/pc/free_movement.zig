@@ -4,12 +4,12 @@ const c = @import("c_battle_movement");
 const pad = @import("common").pad;
 
 /// orig: func_800E4B70 (pc/src/battle_movement.c)
-/// Held actors (0x1A) go to func_800E1908; with a gate held (0x19B) the route
+/// Held actors (0x1A) go to vs_battle_aiMoveWithHeightFilteredDirections; with a gate held (0x19B) the route
 /// continues through it; otherwise sets byte 2, clears scratchpad byte 0x3D0
-/// and starts free movement (func_800E3600 mode 1) at `angle & 0xFFF`.
+/// and starts free movement (vs_battle_aiResolveDirectionalMovement mode 1) at `angle & 0xFFF`.
 pub fn freeMovement(state: *ai.vs_battle_aiState, angle: c_int) callconv(.c) void {
     if (state.f1A != 0) {
-        c.func_800E1908(state, angle);
+        c.vs_battle_aiMoveWithHeightFilteredDirections(state, angle);
         return;
     }
     if (state.gate != 0) {
@@ -18,5 +18,5 @@ pub fn freeMovement(state: *ai.vs_battle_aiState, angle: c_int) callconv(.c) voi
     }
     state.flags0.b[2] = 1;
     @as(*u8, @ptrFromInt(pad.addr(0) + 0x3d0)).* = 0;
-    c.func_800E3600(state, angle & 0xfff, 1);
+    c.vs_battle_aiResolveDirectionalMovement(state, angle & 0xfff, 1);
 }

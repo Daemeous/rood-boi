@@ -2,8 +2,8 @@
 """Find data imports that alias a field of another import on the 64-bit build.
 
 splat names words inside structs and arrays separately, so the decompiled
-units often reach one guest word under two names: D_800F5798 is
-D_800F56C8.unkD0 (0x800F56C8 + 0xD0), D_800F188C is _zoneContext.zndEnemies.
+units often reach one guest word under two names: vs_effects_actionRequestPointer is
+D_800F56C8.unkD0 (0x800F56C8 + 0xD0), vs_actors_zoneCharacterInitData is _zoneContext.zndEnemies.
 On the PS1 and the 32-bit build both names are the same 4 bytes. On LP64,
 build_boot.py moves an import whose declared type holds pointers (8 bytes
 each) to a native slot, while a struct import whose pointers are psx_ptr
@@ -52,18 +52,18 @@ BENIGN = {}
 # (wrong declarations are fixed instead; pc/docs/LP64_Audit.md, "Import
 # aliases"). Only REVIEWs are silenced: a HAZARD for the pair still reports.
 REVIEWED = {
-    ("D_8005046C", "D_80050468"):
+    ("vs_battle_puzzleTimer", "vs_state_sceneTimer"):
         "5BF94.c passes the battle timer's frames/seconds/minutes/hours bytes to _renderTimer(int*) "
         "as one word; plain bytes, no pointers",
     ("D_800F4438", "D_800F2458"):
-        "the shared scale VECTOR after the 63 bone matrices (D_800F3C58[63]); 30DB0.c's "
+        "the shared scale VECTOR after the 63 bone matrices (vs_actors_skeletonPose[63]); 30DB0.c's "
         "D_800F2458.unk1FE0 is the low half of its vx (a u_short load that matches); no pointers",
 }
 
 # Containers whose declaration is larger than the data the game addresses
 # through them: (PS1 extent in bytes, reason).
 EXTENTS = {
-    # The 12 sound channels are D_80035910[10] followed by SfxSoundChannels[2]:
+    # The 12 sound channels are vs_audio_soundEffectsChannels[10] followed by SfxSoundChannels[2]:
     # 25AC.c only reaches SfxSoundChannels[-10..1]; _cdlAtv follows at +0x220.
     "SfxSoundChannels": (0x220, "declared [12], the game indexes SfxSoundChannels[-10..1]"),
 }

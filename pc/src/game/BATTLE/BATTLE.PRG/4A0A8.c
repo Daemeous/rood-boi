@@ -233,19 +233,19 @@ typedef struct {
     u_char high;
 } scriptBytePair;
 
-void func_8007DE88(int*);
-void func_8007DEA8(P_CODE*);
-void func_8007DECC(D_800F1A68_t*);
-short func_8008DC7C(int, int);
-int func_80090C2C(int);
-void func_800A190C(int, int, SVECTOR*, int);
+void vs_render_readFramebufferEffectScale(int*);
+void vs_render_readFramebufferEffectTint(P_CODE*);
+void vs_render_readFramebufferEffectOffset(D_800F1A68_t*);
+short vs_field_floorHeightAt(int, int);
+int vs_field_setRoomWeather(int);
+void vs_actors_anchorPoint(int, int, SVECTOR*, int);
 void func_800AACDC(void);
-int func_800B6B98(
+int vs_event_calcDialogAnchorPlacement(
     SVECTOR* origin, u_char* script, textPlacement* result, u_char direction);
 int func_800B9C58(u_char*, short);
-void func_800BB68C(u_short, func_800BB68C_t*);
-u_short func_800BB788(func_800BB68C_t* arg0);
-int func_800BB7C4(int arg0, SVECTOR* arg1);
+void vs_event_buildScriptActorSelection(u_short, func_800BB68C_t*);
+u_short vs_event_nextScriptSelectedActor(func_800BB68C_t* arg0);
+int vs_event_actorDialogAnchor(int arg0, SVECTOR* arg1);
 void func_800BBE10(u_short);
 void func_800BBE04(int arg0);
 void func_800BBE94(void);
@@ -269,13 +269,13 @@ VECTOR* _vectorFixedPointMult(VECTOR*, VECTOR*, int);
 void _vecToRotMatrix(VECTOR*, MATRIX*);
 int _atan2FixedPoint(int arg0, int arg1);
 static int _fixedPointMult(int a, int b);
-void func_800BFD9C();
+void vs_event_releaseScriptActorControl();
 short vs_battle_getShort(u_char*);
-int func_800BFEBC(int, int, int);
+int vs_event_evaluateInterpolationCurve(int, int, int);
 int vs_battle_setTextBox(int, char*);
 void func_800CB79C(void);
 int vs_battle_dismissTextBox(int);
-void func_800CEF38(int);
+void vs_effects_requeueTrack(int);
 void func_800F9BC0(int, int);
 int vs_main_getcurrentMusicSlot(void);
 static int _vectorMagnitude(VECTOR*);
@@ -286,61 +286,61 @@ static void _toNormalIntegerVector(VECTOR*, VECTOR*);
 extern int D_800E9B34[];
 extern int D_800E9B4C[];
 extern char D_800E9B58[];
-extern char D_800E9BE0[];
+extern char vs_event_skipPaletteResetCommand[];
 extern char D_800E9BE8[];
 extern u_char D_800E9BEC[];
-extern u_char D_800E9BF0[];
-extern short D_800E9BF4[];
-extern short D_800E9BF8[];
-extern void D_800E9B5C;
+extern u_char vs_event_menuTransitionModes[];
+extern short vs_event_sceneTimerModes[];
+extern short vs_event_sceneTimerResetScopes[];
+extern void vs_event_specialSubroutineScript;
 extern short D_800E9C00[];
-extern u_char D_800E9C1C[];
-extern short D_800E9C24[];
-extern u_char D_800E9C28;
-extern u_char D_800E9C2C;
-extern u_char D_800E9C30[];
-extern u_char* D_800EB588[];
-extern D_800EB9BC_t* D_800EB9BC;
+extern u_char vs_event_fieldCameraReturnCommands[];
+extern short vs_event_orbitReturnHeightOffsets[];
+extern u_char vs_event_orbitReturnFirstCommand;
+extern u_char vs_event_orbitReturnSecondCommand;
+extern u_char vs_event_opcodeSizes[];
+extern u_char* vs_event_textBoxFrameStyles[];
+extern D_800EB9BC_t* vs_render_gimLayers;
 extern int D_800F19C8;
-extern u_short D_800F4B20;
-extern u_short D_800F4B28[];
-extern D_800F4B30_t D_800F4B30[];
-extern unsigned char D_800F4B70[17];
-extern D_800F4B88_t D_800F4B88;
-extern char D_800F4B8B;
-extern char D_800F4BA0;
-extern D_800F4BA4_t* D_800F4BA4;
+extern u_short vs_event_scanlineOverlayFrame;
+extern u_short vs_event_customEasingCurves[];
+extern D_800F4B30_t vs_event_splashTweens[];
+extern unsigned char vs_event_scriptControlledActors[17];
+extern D_800F4B88_t vs_event_weatherTween;
+extern char vs_event_weatherTweenDuration;
+extern char vs_event_skipNextFieldCameraRestore;
+extern D_800F4BA4_t* vs_event_camera;
 extern void* _mpdClearedSection;
-extern u_short* D_800F4BB0;
-extern char D_800F4BB4;
-extern short D_800F4BB6;
-extern char D_800F4BB8;
-extern u_char D_800F4BB9;
-extern short* D_800F4BBC;
-extern char* D_800F4BC0[];
-extern u_short D_800F4BE0;
-extern char D_800F4BE4;
+extern u_short* vs_event_dialogStrings;
+extern char vs_event_cachedFlagValue;
+extern short vs_event_isFieldCameraRestoreScripted;
+extern char vs_event_isStartConfirmed;
+extern u_char vs_event_isEffectWaitPending;
+extern short* vs_event_eventFileDiscRequest;
+extern char* vs_event_vibrationPatterns[];
+extern u_short vs_event_eventSource;
+extern char vs_event_isScanlineOverlayEnabled;
 extern void* _mpdRoomDoorSection;
-extern char D_800F4BF8;
-extern char D_800F4C10[];
-extern short D_800F4C22;
-extern void* D_800F4C24;
-extern char D_800F4C34;
-extern u_char* D_800F4C38[];
-extern short D_800F4C4C;
-extern char D_800F4C4E;
+extern char vs_event_isMenuTransitionActive;
+extern char vs_event_loopCounters[];
+extern short vs_event_isMainThreadFinished;
+extern void* vs_event_chainedEventBuffer;
+extern char vs_event_playbackPhase;
+extern u_char* vs_event_threadCursors[];
+extern short vs_event_suspendedAmbientSoundId;
+extern char vs_event_weaponTransitionPending;
 extern short _mpdScriptSection;
-extern short D_800F4C54;
+extern short vs_event_isChainedEventLoaded;
 extern char _textBoxSelectionPending;
-extern int D_800F4C64;
-extern char D_800F4C69;
+extern int vs_event_subroutineReturnCursor;
+extern char vs_event_musicSlot;
 extern char D_800F4C6A;
 
 #ifndef ROOD_PC
 __asm__(".set push;"
         ".set noreorder;"
-        "glabel func_800B63AC;"
-        "la         $v0, D_800F4538;"
+        "glabel vs_actors_beginTileJump;"
+        "la         $v0, vs_actors_actorRecords;"
         "sll        $v1, $a0, 2;"
         "addu       $v0, $v1;"
         "lw         $v0, 0x0($v0);"
@@ -357,18 +357,18 @@ __asm__(".set push;"
         ".L800B63E8:"
         "addu       $sp, -0x4;"
         "sw         $ra, 0x0($sp);"
-        "jal        func_800A208C;"
+        "jal        vs_actors_beginActorJumpToTile;"
         "addu       $a0, $v0, $zero;"
         "lw         $ra, 0x0($sp);"
         "addu       $sp, 0x4;"
         "jr         $ra;"
-        "endlabel func_800B63AC;"
+        "endlabel vs_actors_beginTileJump;"
         ".set pop");
 
 __asm__(".set push;"
         ".set reorder;"
-        "glabel func_800B6404;"
-        "la         $v0, D_800F4538;"
+        "glabel vs_actors_beginAirborneTileJump;"
+        "la         $v0, vs_actors_actorRecords;"
         "sll        $v1, $a0, 2;"
         "addu       $v0, $v1;"
         "lw         $v0, 0x0($v0);"
@@ -379,12 +379,12 @@ __asm__(".set push;"
         "sb         $v1, 0xA($v0);"
         ".set nomove;"
         "j          .L800B63E8;"
-        "endlabel func_800B6404;"
+        "endlabel vs_actors_beginAirborneTileJump;"
         ".set pop");
 
-void func_800B6438(int arg0, int* arg1, int arg2, int arg3)
+void vs_actors_beginNavigationJump(int arg0, int* arg1, int arg2, int arg3)
 {
-    __asm__("la         $v0, D_800F4538;"
+    __asm__("la         $v0, vs_actors_actorRecords;"
             "sll        $v1, $a0, 2;"
             "addu       $v0, $v1;"
             "lw         $v0, 0x0($v0);"
@@ -401,12 +401,12 @@ void func_800B6438(int arg0, int* arg1, int arg2, int arg3)
             "sb         $v1, 0xA($v0);"
             "or         $a1, $zero, 0x1F;"
             "addu       $a2, $zero, $zero;"
-            "jal        func_800A0204;"
+            "jal        vs_actors_playActorAnimation;"
             "or         $a3, $zero, 0x8;"
             "lw         $a0, 0x0($sp);"
             "lw         $a1, 0x4($sp);"
             "lw         $a2, 0x8($sp);"
-            "jal        func_800A208C;"
+            "jal        vs_actors_beginActorJumpToTile;"
             "lw         $a3, 0xC($sp);"
             "lw         $ra, 0x10($sp);"
             "addu       $sp, 0x14;");
@@ -414,7 +414,7 @@ void func_800B6438(int arg0, int* arg1, int arg2, int arg3)
 
 __asm__(".set push;"
         ".set noreorder;"
-        "glabel func_800B64A8;"
+        "glabel vs_actors_setDirectMovement;"
         "addu       $sp, -0x4;"
         "sw         $ra, 0x0($sp);"
         "jal        func_800B64CC;"
@@ -424,12 +424,12 @@ __asm__(".set push;"
         "lw         $ra, 0x0($sp);"
         "addu       $sp, 0x4;"
         "j          $ra;"
-        "endlabel func_800B64A8;"
+        "endlabel vs_actors_setDirectMovement;"
         ".set pop");
 
 void func_800B64CC(int arg0, int arg1, int arg2, int arg3)
 {
-    __asm__("la         $v0, D_800F4538;"
+    __asm__("la         $v0, vs_actors_actorRecords;"
             "sll        $v1, %0, 2;"
             "addu       $v0, $v1;"
             "lw         $v0, 0x0($v0);"
@@ -444,8 +444,8 @@ void func_800B64CC(int arg0, int arg1, int arg2, int arg3)
         : "r"(arg0), "r"(arg1), "r"(arg2), "r"(arg3));
 }
 
-__asm__("glabel func_800B6500;"
-        "la         $v0, D_800F4538;"
+__asm__("glabel vs_actors_queueGroundOffset;"
+        "la         $v0, vs_actors_actorRecords;"
         "sll        $v1, $a0, 2;"
         "addu       $v0, $v1;"
         "lw         $v0, 0x0($v0);"
@@ -456,20 +456,20 @@ __asm__("glabel func_800B6500;"
         "lb         $t1, 0xA($v0);"
         "j          .L800B64F4;"
         "or         $v1, $zero, 0x2;"
-        "endlabel func_800B6500;");
+        "endlabel vs_actors_queueGroundOffset;");
 
-__asm__("glabel func_800B6530;"
+__asm__("glabel vs_actors_queueMovementVector;"
         "ori     $t4, $zero, 0x4;"
         "j       .L800B6540;"
         "addu    $a3, $a2, $zero;"
-        "endlabel func_800B6530;");
+        "endlabel vs_actors_queueMovementVector;");
 
 __asm__(".set push;"
         ".set noreorder;"
-        "glabel func_800B653C;"
+        "glabel vs_actors_queueFlightMovement;"
         "ori        $t4, $zero, 0x3;"
         ".L800B6540:"
-        "la         $v0, D_800F4538;"
+        "la         $v0, vs_actors_actorRecords;"
         "sll        $v1, $a0, 2;"
         "addu       $v0, $v1;"
         "lw         $v0, 0x0($v0);"
@@ -484,13 +484,13 @@ __asm__(".set push;"
         "sb         $t1, 0xA($v0);"
         "sw         $t4, 0x1848($v0);"
         "j          $ra;"
-        "endlabel func_800B653C;"
+        "endlabel vs_actors_queueFlightMovement;"
         ".set pop;");
 
 __asm__(".set push;"
         ".set noreorder;"
-        "glabel func_800B6580;"
-        "la         $v0, D_800F4538;"
+        "glabel vs_actors_beginTeleport;"
+        "la         $v0, vs_actors_actorRecords;"
         "sll        $v1, $a0, 2;"
         "addu       $v0, $v1;"
         "lw         $v0, 0x0($v0);"
@@ -510,13 +510,13 @@ __asm__(".set push;"
         ".nop;"
         "addu       $sp, -0x4;"
         "sw         $ra, 0x0($sp);"
-        "jal        func_800B6580;"
+        "jal        vs_actors_beginTeleport;"
         ".nop;"
         "lw         $ra, 0x0($sp);"
         "addu       $sp, 0x4;"
         ".L800B65E4:"
         "jr         $ra;"
-        "endlabel func_800B6580;"
+        "endlabel vs_actors_beginTeleport;"
         ".set pop;");
 
 __asm__(".set push;"
@@ -533,7 +533,7 @@ __asm__(".set push;"
         "glabel func_800B65F4;"
         "ori        $t1, $zero, 0x40;"
         ".L800B65F8:"
-        "la         $v0, D_800F4538;"
+        "la         $v0, vs_actors_actorRecords;"
         "sll        $v1, $a0, 2;"
         "addu       $v0, $v0, $v1;"
         "lw         $v0, 0x0($v0);"
@@ -550,9 +550,9 @@ __asm__(".set push;"
         "endlabel func_800B65F4;"
         ".set pop;");
 
-void func_800B6634(int arg0, int arg1)
+void vs_actors_turnNavigationActor(int arg0, int arg1)
 {
-    __asm__("la         $v0, D_800F4538;"
+    __asm__("la         $v0, vs_actors_actorRecords;"
             "sll        $v1, $a0, 2;"
             "addu       $v0, $v1;"
             "lw         $v0, 0x0($v0);"
@@ -565,11 +565,11 @@ void func_800B6634(int arg0, int arg1)
             "sw         $a0, 0x4($sp);"
             "or         $a2, $zero, 0x20;"
             ".L800B6668:"
-            "jal        func_800A9EB4;"
+            "jal        vs_actors_turnActorToAtRate;"
             "sw         $a1, 0x8($sp);"
             ".L800B6670:"
             "lw         $a0, 0x4($sp);"
-            "jal        func_800A249C;"
+            "jal        vs_actors_playActorTurnAnimation;"
             "lw         $a1, 0x8($sp);"
             "lw         $ra, 0x0($sp);"
             "addu       $sp, 0xC;");
@@ -577,14 +577,14 @@ void func_800B6634(int arg0, int arg1)
 
 __asm__(".set push;"
         ".set reorder;"
-        "glabel func_800B668C;"
+        "glabel vs_actors_turnActorAtSpeed;"
         "addu       $sp, -0xC;"
         "sw         $ra, 0x0($sp);"
         "sw         $a0, 0x4($sp);"
         "sw         $a1, 0x8($sp);"
-        "jal        func_800AA8D0;"
+        "jal        vs_actors_turnActorToAtAngularSpeed;"
         "j          .L800B6670;"
-        "endlabel func_800B668C;"
+        "endlabel vs_actors_turnActorAtSpeed;"
         ".set pop;");
 
 #endif
@@ -593,17 +593,17 @@ int vs_battle_invalidOpcode(u_char* arg0, short arg1);
 
 int func_800B66E4(u_char* arg0, short arg1);
 
-int func_800B66F4(u_char* arg0, short arg1);
+int vs_event_scriptWaitForEventFile(u_char* arg0, short arg1);
 
 int func_800B6724(u_char* arg0, short arg1);
 
-int func_800B6744(u_char* arg0, short arg1);
+int vs_event_scriptBeginSkippableCutscene(u_char* arg0, short arg1);
 
-void func_800B6778(u_char* arg0);
+void vs_event_finishSkippedCutscene(u_char* arg0);
 
-int func_800B6868(u_char* arg0, short arg1);
+int vs_event_scriptEndCutsceneAndJump(u_char* arg0, short arg1);
 
-int func_800B68C4(u_char* arg0, short arg1);
+int vs_event_scriptEndCutscene(u_char* arg0, short arg1);
 
 int vs_battle_script_initTextBox(u_char* script, short arg1 __attribute__((unused)));
 
@@ -613,11 +613,11 @@ int vs_battle_script_dismissTextBox(u_char* arg0, short arg1);
 
 textOffset func_800CCE10(int, int, int, int);
 
-int func_800B6B98( SVECTOR* origin, u_char* script, textPlacement* result, u_char direction);
+int vs_event_calcDialogAnchorPlacement( SVECTOR* origin, u_char* script, textPlacement* result, u_char direction);
 
-int func_800B6D48(u_char* script, short arg1 __attribute__((unused)));
+int vs_event_scriptInitActorDialogBox(u_char* script, short arg1 __attribute__((unused)));
 
-int func_800B6F8C(u_char* arg0, short arg1);
+int vs_event_scriptWaitForDialogDismissal(u_char* arg0, short arg1);
 
 int vs_battle_script_buttonPressed(u_char* arg0, short arg1);
 
@@ -633,79 +633,79 @@ int func_800B71F4(u_char* arg0, short arg1);
 
 int vs_battle_script_setStringContextInt(u_char* arg0, short arg1);
 
-int func_800B7358(u_char* arg0, short arg1);
+int vs_event_scriptSetDialogTransitionDuration(u_char* arg0, short arg1);
 
 int vs_battle_script_selectTextBox(u_char* script, short arg1 __attribute__((unused)));
 
 int func_800B7428(u_char* arg0, short arg1);
 
-int func_800B7490(u_char* arg0, short arg1);
+int vs_event_scriptStoreActorTile(u_char* arg0, short arg1);
 
-int func_800B7574(u_char* arg0, short arg1);
+int vs_event_scriptSpawnActor(u_char* arg0, short arg1);
 
-int func_800B75F4(u_char* arg0, short arg1);
+int vs_event_scriptNavigateActorToTile(u_char* arg0, short arg1);
 
-int func_800B76A8(u_char* arg0);
+int vs_event_scriptPlayActorAnimation(u_char* arg0);
 
-int func_800B770C(u_char* arg0, short arg1);
+int vs_event_scriptSetActorGroupFlags(u_char* arg0, short arg1);
 
-int func_800B77DC(u_char* arg0, short arg1);
+int vs_event_scriptSetActorSoundMix(u_char* arg0, short arg1);
 
-int func_800B784C(u_char* arg0, short arg1);
+int vs_event_scriptWalkActorToTile(u_char* arg0, short arg1);
 
-void func_800A9988(int, SVECTOR*, int, int);
+void vs_actors_moveActorToPositionAtRate(int, SVECTOR*, int, int);
 
-int func_800B792C(u_char* arg0, short arg1);
+int vs_event_scriptWalkActorToWorldPos(u_char* arg0, short arg1);
 
-int func_800B7A98(u_char* arg0, short arg1);
+int vs_event_scriptSlideActorToTile(u_char* arg0, short arg1);
 
-int func_800B7B58(u_char* arg0, short arg1);
+int vs_event_scriptSlideActorToWorldPos(u_char* arg0, short arg1);
 
-int func_800B7C90(u_char* arg0, short arg1);
+int vs_event_scriptSetActorAttachment(u_char* arg0, short arg1);
 
-int func_800B7D10(u_char* arg0, short arg1);
+int vs_event_scriptNavigateActorToWorldPos(u_char* arg0, short arg1);
 
-int func_800B7DC4(u_char* arg0, short arg1);
+int vs_event_scriptTurnActorToFacing(u_char* arg0, short arg1);
 
-int func_800B7EF0(u_char* arg0, short arg1);
+int vs_event_scriptFaceOtherActor(u_char* arg0, short arg1);
 
-int func_800B7F84(u_char* arg0, short arg1);
+int vs_event_scriptFaceTile(u_char* arg0, short arg1);
 
-int func_800B804C(u_char* arg0, short arg1);
+int vs_event_scriptScaleActor(u_char* arg0, short arg1);
 
-int func_800B80B4(u_char* arg0, short arg1);
+int vs_event_scriptRemoveActorGroup(u_char* arg0, short arg1);
 
-int func_800B810C(u_char* arg0);
+int vs_event_scriptWaitForActorFlags(u_char* arg0);
 
 int func_800B81A0(u_char* arg0, short arg1);
 
-int func_800B822C(u_char* arg0);
+int vs_event_scriptQueueActorAnimation(u_char* arg0);
 
-int func_800B8290(u_char* arg0, short arg1);
+int vs_event_scriptRotateActorAxes(u_char* arg0, short arg1);
 
 int func_800B8360(u_char* arg0, short arg1);
 
-int func_800B83D4(u_char* arg0);
+int vs_event_scriptPlayActorAnimationAtFrame(u_char* arg0);
 
-int func_800B8438(u_char* arg0);
+int vs_event_scriptQueueActorAnimationAtFrame(u_char* arg0);
 
-int func_800B849C(u_char* arg0, short arg1);
+int vs_event_scriptSetActorIdleAnimation(u_char* arg0, short arg1);
 
 int func_800B8510(u_char* arg0, short arg1);
 
 int func_800B8590(u_char* arg0, short arg1);
 
-int func_800B860C(u_char* arg0, short arg1);
+int vs_event_scriptLoadObjectModel(u_char* arg0, short arg1);
 
-int func_800B86E8(u_char* arg0, short arg1);
+int vs_event_scriptWaitForObjectLoad(u_char* arg0, short arg1);
 
-int func_800B8708(u_char* arg0, short arg1);
+int vs_event_scriptReleaseObjectModel(u_char* arg0, short arg1);
 
-int func_800B8764(u_char* arg0, short arg1);
+int vs_event_scriptSelectObjectTextureBank(u_char* arg0, short arg1);
 
 int func_800B8788(u_char* arg0, short arg1);
 
-int func_800B884C(u_char* arg0, short arg1);
+int vs_event_scriptSetActorWeaponDrawn(u_char* arg0, short arg1);
 
 int vs_battle_script_jumpFwdIfFlag(u_char* arg0, short arg1);
 
@@ -719,9 +719,9 @@ int vs_battle_script_setFlagImmContext(u_char* arg0, short arg1);
 
 int vs_battle_script_jumpFwdIfFlagContext(u_char* arg0, short arg1);
 
-int func_800B8C44(u_char* arg0, short arg1);
+int vs_event_scriptReturnToSavedAddress(u_char* arg0, short arg1);
 
-int func_800B8C54(u_char* arg0, short arg1);
+int vs_event_scriptSetLoopCounter(u_char* arg0, short arg1);
 
 int vs_battle_script_jumpBackIf(u_char* arg0, short arg1);
 
@@ -739,27 +739,27 @@ int func_800B91C4(u_char* arg0, short arg1);
 
 int func_800B91F0(u_char* arg0, short arg1);
 
-int func_800B9230(u_char* arg0, short arg1);
+int vs_event_scriptSetNpcUpdatesEnabled(u_char* arg0, short arg1);
 
 int vs_battle_script_setFlagIfButton(u_char* arg0, short arg1);
 
-int func_800B92A0(u_char* arg0, short arg1);
+int vs_event_scriptRestoreActorVitals(u_char* arg0, short arg1);
 
 int func_800B92D0(u_char* arg0, short arg1);
 
 int func_800B92F4(u_char* script, short arg1);
 
-int func_800B94D8(u_char* arg0, short arg1);
+int vs_event_scriptConfigureTimer(u_char* arg0, short arg1);
 
-int func_800B9564(u_char* arg0, short arg1);
+int vs_event_scriptSetDialogSpeaker(u_char* arg0, short arg1);
 
-int func_800B9608(u_char* arg0, short arg1);
+int vs_event_scriptSetActorEquipmentModels(u_char* arg0, short arg1);
 
-int func_800B9670(u_char* arg0, short arg1);
+int vs_event_scriptSetActorYawOscillation(u_char* arg0, short arg1);
 
-int func_800B96B0(u_char* arg0, short arg1);
+int vs_event_scriptWaitForButtonOrTimeout(u_char* arg0, short arg1);
 
-int func_800B9724(u_char* arg0, short arg1);
+int vs_event_scriptConfigureEasingCurve(u_char* arg0, short arg1);
 
 int func_800B9770(u_char* arg0, short arg1);
 
@@ -767,7 +767,7 @@ int func_800B979C(u_char* arg0, short arg1);
 
 int func_800B97E4(u_char* arg0, short arg1);
 
-int func_800B97F8(u_char* arg0, short arg1);
+int vs_event_scriptClearAshleyStatusEffects(u_char* arg0, short arg1);
 
 int func_800B9818(u_char* arg0, short arg1);
 
@@ -797,7 +797,7 @@ int func_800B9C58(u_char* arg0, short arg1);
 
 int func_800B9D74(u_char* arg0, short arg1);
 
-int func_800B9DB4(u_char* arg0, short arg1);
+int vs_event_scriptSetAshleyBattleMode(u_char* arg0, short arg1);
 
 int func_800B9F28(u_char* arg0, short arg1);
 
@@ -823,15 +823,15 @@ int func_800BA288(u_char* arg0, short arg1);
 
 int func_800BA2B4(u_char* arg0, short arg1);
 
-int func_800BA2E0(u_char* arg0);
+int vs_event_scriptPlaySoundCommand(u_char* arg0);
 
-int func_800BA35C(u_char* arg0, short arg1);
+int vs_event_commandPlayActorSfx(u_char* arg0, short arg1);
 
-int func_800BA39C(u_char* arg0, short arg1);
+int vs_event_commandSlideSfxVolume(u_char* arg0, short arg1);
 
-int func_800BA3E4(u_char* arg0, short arg1);
+int vs_event_commandStopAllSfx(u_char* arg0, short arg1);
 
-int func_800BA404(u_char* arg0, short arg1);
+int vs_event_commandStopSfx(u_char* arg0, short arg1);
 
 int vs_battle_script_loadSfxSlot(u_char* arg0, short arg1);
 
@@ -843,25 +843,25 @@ int vs_battle_script_setCurrentSfx(u_char* arg0, short arg1);
 
 int vs_battle_script_loadSoundFile(u_char* arg0, short arg1);
 
-int func_800BA52C(u_char* arg0);
+int vs_event_commandCrossfadeMusic(u_char* arg0);
 
 int vs_battle_script_loadMusicSlot(u_char* arg0, short arg1);
 
 int vs_battle_script_freeMusic(u_char* arg0, short arg1);
 
-int func_800BA5E8(u_char* arg0, short arg1);
+int vs_event_commandPlayMusic(u_char* arg0, short arg1);
 
-int func_800BA61C(u_char* arg0, short arg1);
+int vs_event_commandSlideMusicVolume(u_char* arg0, short arg1);
 
-int func_800BA650(u_char* arg0, short arg1);
+int vs_event_commandSlideMusicTempo(u_char* arg0, short arg1);
 
-int func_800BA684(u_char* arg0, short arg1);
+int vs_event_commandSlideMusicPitch(u_char* arg0, short arg1);
 
-int func_800BA6B8(u_char* arg0, short arg1);
+int vs_event_commandStopMusic(u_char* arg0, short arg1);
 
 int func_800BA6E0(u_char* arg0, short arg1);
 
-int func_800BA72C(u_char* arg0, short arg1);
+int vs_event_commandPushMusicState(u_char* arg0, short arg1);
 
 int vs_battle_script_clearMusicLoadSlot(u_char* arg0, short arg1);
 
@@ -869,7 +869,7 @@ int vs_battle_script_loadSoundFile2(u_char* arg0, short arg1);
 
 int vs_battle_script_processSoundQueue(u_char* arg0, short arg1);
 
-int func_800BA7BC(u_char* arg0, short arg1);
+int vs_event_commandWaitMusicTimer(u_char* arg0, short arg1);
 
 int func_800BA800(u_char* arg0, short arg1);
 
@@ -877,51 +877,51 @@ int func_800BA848(u_char* arg0, short arg1);
 
 int func_800BA890(u_char* arg0, short arg1);
 
-int func_800BA8BC(u_char* arg0, short arg1);
+int vs_event_commandPlayActorEffect(u_char* arg0, short arg1);
 
 int func_800BA90C(u_char* arg0, short arg1);
 
-int func_800BA94C(u_char* arg0, short arg1);
+int vs_event_commandWaitEffectState(u_char* arg0, short arg1);
 
-int func_800BAA04(u_char* arg0, short arg1);
+int vs_event_commandYieldEffectRelease(u_char* arg0, short arg1);
 
-int func_800BAA34(u_char* arg0, short arg1);
+int vs_event_commandWaitEffectContinuation(u_char* arg0, short arg1);
 
-int func_800BAA58(u_char* arg0, short arg1);
+int vs_event_commandWaitEffectRelease(u_char* arg0, short arg1);
 
-int func_800BAACC(u_char* arg0, short arg1);
+int vs_event_commandMarkEffectStageReady(u_char* arg0, short arg1);
 
-int func_800BAAF0(u_char* arg0, short arg1);
+int vs_event_commandSetMusicJumpThreshold(u_char* arg0, short arg1);
 
-int func_800BAB14(u_char* arg0);
+int vs_event_commandPlayVibrationPattern(u_char* arg0);
 
-int func_800BABCC(u_char* arg0, short arg1);
+int vs_event_commandSetActorTrail(u_char* arg0, short arg1);
 
-int func_800BAC38(u_char* arg0, short arg1);
+int vs_event_commandSetEnteredDoor(u_char* arg0, short arg1);
 
-int func_800BAC5C(u_char* arg0, short arg1);
+int vs_event_commandStoreActorRangeBearing(u_char* arg0, short arg1);
 
 int func_800BAD78(u_char* arg0, short arg1);
 
-int func_800BADE0(u_char* arg0);
+int vs_event_commandAwardMiscLoot(u_char* arg0);
 
-int func_800BAE74(u_char* arg0, short arg1);
+int vs_event_commandConsumeMiscItem(u_char* arg0, short arg1);
 
-int func_800BAEA0(u_char* arg0, short arg1);
+int vs_event_commandStoreActorDistance(u_char* arg0, short arg1);
 
 void func_800BAF6C(short arg0);
 
 int vs_battle_script_specialOp(u_char* arg0, short arg1);
 
-int func_800BB288(u_char* arg0, short arg1);
+int vs_event_commandWaitScreenEffectLoad(u_char* arg0, short arg1);
 
 int func_800BB2B8(u_char* arg0, short arg1);
 
-int func_800BB2E4(u_char* arg0, short arg1);
+int vs_event_commandLoadScreenEffects(u_char* arg0, short arg1);
 
 int func_800BB304(u_char* arg0, short arg1);
 
-int func_800BB30C(u_char* arg0, short arg1);
+int vs_event_commandFreeScreenEffects(u_char* arg0, short arg1);
 
 int func_800BB33C(u_char* arg0, short arg1);
 
@@ -935,37 +935,37 @@ int func_800BB41C(u_char* arg0, short arg1);
 
 int func_800BB450(u_char* arg0, short arg1);
 
-int func_800BB474(u_char* arg0, short arg1);
+int vs_event_commandWaitFrames(u_char* arg0, short arg1);
 
-int func_800BB4CC(u_char* arg0, short arg1);
+int vs_event_commandSetTickSpeed(u_char* arg0, short arg1);
 
-int func_800BB4F0(u_char* arg0, short arg1);
+int vs_event_commandSetScanlineOverlay(u_char* arg0, short arg1);
 
-int func_800BB504(u_char* arg0, short arg1);
+int vs_event_commandWaitScriptContext(u_char* arg0, short arg1);
 
-int func_800BB554(u_char* arg0, short arg1);
+int vs_event_commandStartScriptContext(u_char* arg0, short arg1);
 
-int func_800BB5A4(u_char* arg0, short arg1);
+int vs_event_commandStopScriptContext(u_char* arg0, short arg1);
 
-int func_800BB5AC(u_char* arg0, short arg1);
+int vs_event_commandLoadNextEvent(u_char* arg0, short arg1);
 
-int func_800BB604(u_char* arg0, short arg1);
+int vs_event_commandFinishEvent(u_char* arg0, short arg1);
 
 int vs_battle_script_playMenuSelectSfx(u_char* arg0, short arg1);
 
-void func_800BB68C(u_short arg0, func_800BB68C_t* arg1);
+void vs_event_buildScriptActorSelection(u_short arg0, func_800BB68C_t* arg1);
 
-u_short func_800BB788(func_800BB68C_t* arg0);
+u_short vs_event_nextScriptSelectedActor(func_800BB68C_t* arg0);
 
-int func_800BB7C4(int arg0, SVECTOR* arg1);
+int vs_event_actorDialogAnchor(int arg0, SVECTOR* arg1);
 
-void func_800BB874(void);
+void vs_event_drawEventScanlineOverlay(void);
 
 void func_800BB9B0(void);
 
 void func_800BBAFC(void);
 
-extern P_CODE D_800E9C08;
+extern P_CODE vs_event_defaultScreenTint;
 extern D_800F1A68_t D_800E9C0C;
 
 void func_800BBBE8(void);
@@ -1093,13 +1093,13 @@ static void _toNormalIntegerVector(VECTOR* arg0, VECTOR* arg1)
 
 int _loadMpdClearedScriptDoorSections(void* clearedSection, u_short clearedSectionLen, void* scriptSection, u_short scriptSectionLen, void* doorSection, u_short doorSectionLen, int startState);
 
-int func_800BEB00(void);
+int vs_event_eventPlaybackState(void);
 
-short func_800BEB10(void);
+short vs_event_pendingEventSelector(void);
 
-void func_800BEB34(void);
+void vs_event_freeRoomEventSections(void);
 
-void func_800BEB9C(int arg0);
+void vs_state_scriptFlagsResetZone(int arg0);
 
 void func_800BEBEC(void);
 
@@ -1107,21 +1107,21 @@ char vs_battle_getStateFlag(short arg0);
 
 void vs_battle_setStateFlag(short id, char value);
 
-int func_800BEC30(void);
+int vs_event_requestEventStart(void);
 
 extern char D_800F4BA8;
-int func_8007C218(int);
-int func_800A0024(int, void*);
-int func_800A92B8(int, int);
-int func_8007CFCC(int);
+int vs_actors_actorHpPercentage(int);
+int vs_field_gimmickPlacement(int, void*);
+int vs_field_gimmickSupportHeight(int, int);
+int vs_actors_isActorRetainedAfterDefeat(int);
 
-short func_800BEC58(int arg0, int arg1, int arg2, int arg3);
+short vs_event_evaluateRoomEventTriggers(int arg0, int arg1, int arg2, int arg3);
 
-void func_800BF5F0(u_char* data);
+void vs_event_initializeEventScriptData(u_char* data);
 
-short func_800BFBB8(u_char** arg0, short arg1);
+short vs_event_executeScriptThread(u_char** arg0, short arg1);
 
-int func_800BF850(void);
+int vs_event_updateEventPlayback(void);
 
 /* The event opcode table: native function pointers in the original's order (guest address 0x800E9D30).
  * pc_event_* take the handlers that the original calls with fewer arguments. */
@@ -1137,16 +1137,16 @@ int pc_event_func_800BA52C(u_char* script, short slot);
 int pc_event_func_800BAB14(u_char* script, short slot);
 int pc_event_func_800BADE0(u_char* script, short slot);
 int vs_battle_invalidOpcode(u_char* script, short slot);
-int func_800B66F4(u_char* script, short slot);
+int vs_event_scriptWaitForEventFile(u_char* script, short slot);
 int func_800B6724(u_char* script, short slot);
-int func_800B6744(u_char* script, short slot);
-int func_800B6868(u_char* script, short slot);
-int func_800B68C4(u_char* script, short slot);
+int vs_event_scriptBeginSkippableCutscene(u_char* script, short slot);
+int vs_event_scriptEndCutsceneAndJump(u_char* script, short slot);
+int vs_event_scriptEndCutscene(u_char* script, short slot);
 int vs_battle_script_initTextBox(u_char* script, short slot);
 int vs_battle_script_showTextBox(u_char* script, short slot);
 int vs_battle_script_dismissTextBox(u_char* script, short slot);
-int func_800B6D48(u_char* script, short slot);
-int func_800B6F8C(u_char* script, short slot);
+int vs_event_scriptInitActorDialogBox(u_char* script, short slot);
+int vs_event_scriptWaitForDialogDismissal(u_char* script, short slot);
 int vs_battle_script_buttonPressed(u_char* script, short slot);
 int vs_battle_script_loadGim(u_char* script, short slot);
 int func_800B7014(u_char* script, short slot);
@@ -1155,36 +1155,36 @@ int func_800B71C4(u_char* script, short slot);
 int func_800B71F4(u_char* script, short slot);
 int vs_battle_script_setStringContextInt(u_char* script, short slot);
 int vs_battle_script_selectTextBox(u_char* script, short slot);
-int func_800B7358(u_char* script, short slot);
+int vs_event_scriptSetDialogTransitionDuration(u_char* script, short slot);
 int func_800B7428(u_char* script, short slot);
-int func_800B7490(u_char* script, short slot);
-int func_800B7574(u_char* script, short slot);
-int func_800B75F4(u_char* script, short slot);
-int func_800B770C(u_char* script, short slot);
-int func_800B77DC(u_char* script, short slot);
-int func_800B784C(u_char* script, short slot);
-int func_800B792C(u_char* script, short slot);
-int func_800B7A98(u_char* script, short slot);
-int func_800B7B58(u_char* script, short slot);
-int func_800B7C90(u_char* script, short slot);
-int func_800B7D10(u_char* script, short slot);
-int func_800B7DC4(u_char* script, short slot);
-int func_800B7EF0(u_char* script, short slot);
-int func_800B7F84(u_char* script, short slot);
-int func_800B804C(u_char* script, short slot);
-int func_800B80B4(u_char* script, short slot);
+int vs_event_scriptStoreActorTile(u_char* script, short slot);
+int vs_event_scriptSpawnActor(u_char* script, short slot);
+int vs_event_scriptNavigateActorToTile(u_char* script, short slot);
+int vs_event_scriptSetActorGroupFlags(u_char* script, short slot);
+int vs_event_scriptSetActorSoundMix(u_char* script, short slot);
+int vs_event_scriptWalkActorToTile(u_char* script, short slot);
+int vs_event_scriptWalkActorToWorldPos(u_char* script, short slot);
+int vs_event_scriptSlideActorToTile(u_char* script, short slot);
+int vs_event_scriptSlideActorToWorldPos(u_char* script, short slot);
+int vs_event_scriptSetActorAttachment(u_char* script, short slot);
+int vs_event_scriptNavigateActorToWorldPos(u_char* script, short slot);
+int vs_event_scriptTurnActorToFacing(u_char* script, short slot);
+int vs_event_scriptFaceOtherActor(u_char* script, short slot);
+int vs_event_scriptFaceTile(u_char* script, short slot);
+int vs_event_scriptScaleActor(u_char* script, short slot);
+int vs_event_scriptRemoveActorGroup(u_char* script, short slot);
 int func_800B81A0(u_char* script, short slot);
-int func_800B8290(u_char* script, short slot);
+int vs_event_scriptRotateActorAxes(u_char* script, short slot);
 int func_800B8360(u_char* script, short slot);
-int func_800B849C(u_char* script, short slot);
+int vs_event_scriptSetActorIdleAnimation(u_char* script, short slot);
 int func_800B8510(u_char* script, short slot);
 int func_800B8590(u_char* script, short slot);
-int func_800B860C(u_char* script, short slot);
-int func_800B86E8(u_char* script, short slot);
-int func_800B8708(u_char* script, short slot);
-int func_800B8764(u_char* script, short slot);
+int vs_event_scriptLoadObjectModel(u_char* script, short slot);
+int vs_event_scriptWaitForObjectLoad(u_char* script, short slot);
+int vs_event_scriptReleaseObjectModel(u_char* script, short slot);
+int vs_event_scriptSelectObjectTextureBank(u_char* script, short slot);
 int func_800B8788(u_char* script, short slot);
-int func_800B884C(u_char* script, short slot);
+int vs_event_scriptSetActorWeaponDrawn(u_char* script, short slot);
 int vs_battle_script_jumpFwdIfFlag(u_char* script, short slot);
 int vs_battle_script_jumpFwdIfFlags(u_char* script, short slot);
 int vs_battle_script_jumpFwd(u_char* script, short slot);
@@ -1192,8 +1192,8 @@ int func_800B66E4(u_char* script, short slot);
 int vs_battle_script_jumpFwd2(u_char* script, short slot);
 int vs_battle_script_setFlagImmContext(u_char* script, short slot);
 int vs_battle_script_jumpFwdIfFlagContext(u_char* script, short slot);
-int func_800B8C44(u_char* script, short slot);
-int func_800B8C54(u_char* script, short slot);
+int vs_event_scriptReturnToSavedAddress(u_char* script, short slot);
+int vs_event_scriptSetLoopCounter(u_char* script, short slot);
 int vs_battle_script_jumpBackIf(u_char* script, short slot);
 int vs_battle_script_jumpFwd4(u_char* script, short slot);
 int vs_battle_script_jumpFwd3(u_char* script, short slot);
@@ -1202,21 +1202,21 @@ int vs_battle_script_setFlag(u_char* script, short slot);
 int vs_battle_script_setFlagIfItemInInventory(u_char* script, short slot);
 int func_800B91C4(u_char* script, short slot);
 int func_800B91F0(u_char* script, short slot);
-int func_800B9230(u_char* script, short slot);
+int vs_event_scriptSetNpcUpdatesEnabled(u_char* script, short slot);
 int vs_battle_script_setFlagIfButton(u_char* script, short slot);
-int func_800B92A0(u_char* script, short slot);
+int vs_event_scriptRestoreActorVitals(u_char* script, short slot);
 int func_800B92D0(u_char* script, short slot);
 int func_800B92F4(u_char* script, short slot);
-int func_800B94D8(u_char* script, short slot);
-int func_800B9564(u_char* script, short slot);
-int func_800B9608(u_char* script, short slot);
-int func_800B9670(u_char* script, short slot);
-int func_800B96B0(u_char* script, short slot);
-int func_800B9724(u_char* script, short slot);
+int vs_event_scriptConfigureTimer(u_char* script, short slot);
+int vs_event_scriptSetDialogSpeaker(u_char* script, short slot);
+int vs_event_scriptSetActorEquipmentModels(u_char* script, short slot);
+int vs_event_scriptSetActorYawOscillation(u_char* script, short slot);
+int vs_event_scriptWaitForButtonOrTimeout(u_char* script, short slot);
+int vs_event_scriptConfigureEasingCurve(u_char* script, short slot);
 int func_800B9770(u_char* script, short slot);
 int func_800B979C(u_char* script, short slot);
 int func_800B97E4(u_char* script, short slot);
-int func_800B97F8(u_char* script, short slot);
+int vs_event_scriptClearAshleyStatusEffects(u_char* script, short slot);
 int func_800B9818(u_char* script, short slot);
 int func_800B983C(u_char* script, short slot);
 int func_800B9860(u_char* script, short slot);
@@ -1229,7 +1229,7 @@ int func_800B9B18(u_char* script, short slot);
 int func_800B9C18(u_char* script, short slot);
 int func_800B9C58(u_char* script, short slot);
 int func_800B9D74(u_char* script, short slot);
-int func_800B9DB4(u_char* script, short slot);
+int vs_event_scriptSetAshleyBattleMode(u_char* script, short slot);
 int func_800B9F28(u_char* script, short slot);
 int func_800B9F4C(u_char* script, short slot);
 int func_800B9F70(u_char* script, short slot);
@@ -1242,10 +1242,10 @@ int func_800BA218(u_char* script, short slot);
 int func_800BA264(u_char* script, short slot);
 int func_800BA288(u_char* script, short slot);
 int func_800BA2B4(u_char* script, short slot);
-int func_800BA35C(u_char* script, short slot);
-int func_800BA39C(u_char* script, short slot);
-int func_800BA3E4(u_char* script, short slot);
-int func_800BA404(u_char* script, short slot);
+int vs_event_commandPlayActorSfx(u_char* script, short slot);
+int vs_event_commandSlideSfxVolume(u_char* script, short slot);
+int vs_event_commandStopAllSfx(u_char* script, short slot);
+int vs_event_commandStopSfx(u_char* script, short slot);
 int vs_battle_script_loadSfxSlot(u_char* script, short slot);
 int vs_battle_script_freeSfxSlot(u_char* script, short slot);
 int vs_battle_script_freeSfx(u_char* script, short slot);
@@ -1253,41 +1253,41 @@ int vs_battle_script_setCurrentSfx(u_char* script, short slot);
 int vs_battle_script_loadSoundFile(u_char* script, short slot);
 int vs_battle_script_loadMusicSlot(u_char* script, short slot);
 int vs_battle_script_freeMusic(u_char* script, short slot);
-int func_800BA5E8(u_char* script, short slot);
-int func_800BA61C(u_char* script, short slot);
-int func_800BA650(u_char* script, short slot);
-int func_800BA684(u_char* script, short slot);
-int func_800BA6B8(u_char* script, short slot);
+int vs_event_commandPlayMusic(u_char* script, short slot);
+int vs_event_commandSlideMusicVolume(u_char* script, short slot);
+int vs_event_commandSlideMusicTempo(u_char* script, short slot);
+int vs_event_commandSlideMusicPitch(u_char* script, short slot);
+int vs_event_commandStopMusic(u_char* script, short slot);
 int func_800BA6E0(u_char* script, short slot);
-int func_800BA72C(u_char* script, short slot);
+int vs_event_commandPushMusicState(u_char* script, short slot);
 int vs_battle_script_clearMusicLoadSlot(u_char* script, short slot);
-int func_800BA7BC(u_char* script, short slot);
+int vs_event_commandWaitMusicTimer(u_char* script, short slot);
 int func_800BA800(u_char* script, short slot);
 int func_800BA848(u_char* script, short slot);
 int vs_battle_script_loadSoundFile2(u_char* script, short slot);
 int vs_battle_script_processSoundQueue(u_char* script, short slot);
 int func_800BA890(u_char* script, short slot);
-int func_800BA8BC(u_char* script, short slot);
+int vs_event_commandPlayActorEffect(u_char* script, short slot);
 int func_800BA90C(u_char* script, short slot);
-int func_800BA94C(u_char* script, short slot);
-int func_800BAA04(u_char* script, short slot);
-int func_800BAA34(u_char* script, short slot);
-int func_800BAA58(u_char* script, short slot);
-int func_800BAACC(u_char* script, short slot);
-int func_800BAAF0(u_char* script, short slot);
-int func_800BABCC(u_char* script, short slot);
-int func_800BAC38(u_char* script, short slot);
-int func_800BAC5C(u_char* script, short slot);
+int vs_event_commandWaitEffectState(u_char* script, short slot);
+int vs_event_commandYieldEffectRelease(u_char* script, short slot);
+int vs_event_commandWaitEffectContinuation(u_char* script, short slot);
+int vs_event_commandWaitEffectRelease(u_char* script, short slot);
+int vs_event_commandMarkEffectStageReady(u_char* script, short slot);
+int vs_event_commandSetMusicJumpThreshold(u_char* script, short slot);
+int vs_event_commandSetActorTrail(u_char* script, short slot);
+int vs_event_commandSetEnteredDoor(u_char* script, short slot);
+int vs_event_commandStoreActorRangeBearing(u_char* script, short slot);
 int func_800BAD78(u_char* script, short slot);
-int func_800BAE74(u_char* script, short slot);
-int func_800BAEA0(u_char* script, short slot);
+int vs_event_commandConsumeMiscItem(u_char* script, short slot);
+int vs_event_commandStoreActorDistance(u_char* script, short slot);
 int vs_battle_script_specialOp(u_char* script, short slot);
-int func_800BB288(u_char* script, short slot);
+int vs_event_commandWaitScreenEffectLoad(u_char* script, short slot);
 int func_800BD6C4(u_char* script, short slot);
 int func_800BB2B8(u_char* script, short slot);
-int func_800BB2E4(u_char* script, short slot);
+int vs_event_commandLoadScreenEffects(u_char* script, short slot);
 int func_800BB304(u_char* script, short slot);
-int func_800BB30C(u_char* script, short slot);
+int vs_event_commandFreeScreenEffects(u_char* script, short slot);
 int func_800BC2E8(u_char* script, short slot);
 int func_800BB33C(u_char* script, short slot);
 int func_800BB35C(u_char* script, short slot);
@@ -1297,15 +1297,15 @@ int func_800BD444(u_char* script, short slot);
 int func_800BB38C(u_char* script, short slot);
 int func_800BB3BC(u_char* script, short slot);
 int func_800BDC9C(u_char* script, short slot);
-int func_800BB474(u_char* script, short slot);
-int func_800BB4CC(u_char* script, short slot);
+int vs_event_commandWaitFrames(u_char* script, short slot);
+int vs_event_commandSetTickSpeed(u_char* script, short slot);
 int vs_battle_script_playMenuSelectSfx(u_char* script, short slot);
-int func_800BB4F0(u_char* script, short slot);
-int func_800BB504(u_char* script, short slot);
-int func_800BB554(u_char* script, short slot);
-int func_800BB5A4(u_char* script, short slot);
-int func_800BB5AC(u_char* script, short slot);
-int func_800BB604(u_char* script, short slot);
+int vs_event_commandSetScanlineOverlay(u_char* script, short slot);
+int vs_event_commandWaitScriptContext(u_char* script, short slot);
+int vs_event_commandStartScriptContext(u_char* script, short slot);
+int vs_event_commandStopScriptContext(u_char* script, short slot);
+int vs_event_commandLoadNextEvent(u_char* script, short slot);
+int vs_event_commandFinishEvent(u_char* script, short slot);
 int (*_opcodeFunctionTable[256])(u_char*, short) = {
     vs_battle_invalidOpcode, /* 0x00 */
     vs_battle_invalidOpcode, /* 0x01 */
@@ -1317,17 +1317,17 @@ int (*_opcodeFunctionTable[256])(u_char*, short) = {
     vs_battle_invalidOpcode, /* 0x07 */
     vs_battle_invalidOpcode, /* 0x08 */
     vs_battle_invalidOpcode, /* 0x09 */
-    func_800B66F4, /* 0x0a */
+    vs_event_scriptWaitForEventFile, /* 0x0a */
     vs_battle_invalidOpcode, /* 0x0b */
     func_800B6724, /* 0x0c */
-    func_800B6744, /* 0x0d */
-    func_800B6868, /* 0x0e */
-    func_800B68C4, /* 0x0f */
+    vs_event_scriptBeginSkippableCutscene, /* 0x0d */
+    vs_event_scriptEndCutsceneAndJump, /* 0x0e */
+    vs_event_scriptEndCutscene, /* 0x0f */
     vs_battle_script_initTextBox, /* 0x10 */
     vs_battle_script_showTextBox, /* 0x11 */
     vs_battle_script_dismissTextBox, /* 0x12 */
-    func_800B6D48, /* 0x13 */
-    func_800B6F8C, /* 0x14 */
+    vs_event_scriptInitActorDialogBox, /* 0x13 */
+    vs_event_scriptWaitForDialogDismissal, /* 0x14 */
     vs_battle_script_buttonPressed, /* 0x15 */
     vs_battle_script_loadGim, /* 0x16 */
     func_800B7014, /* 0x17 */
@@ -1336,41 +1336,41 @@ int (*_opcodeFunctionTable[256])(u_char*, short) = {
     func_800B71F4, /* 0x1a */
     vs_battle_script_setStringContextInt, /* 0x1b */
     vs_battle_script_selectTextBox, /* 0x1c */
-    func_800B7358, /* 0x1d */
+    vs_event_scriptSetDialogTransitionDuration, /* 0x1d */
     func_800B7428, /* 0x1e */
-    func_800B7490, /* 0x1f */
-    func_800B7574, /* 0x20 */
-    func_800B75F4, /* 0x21 */
+    vs_event_scriptStoreActorTile, /* 0x1f */
+    vs_event_scriptSpawnActor, /* 0x20 */
+    vs_event_scriptNavigateActorToTile, /* 0x21 */
     pc_event_func_800B76A8, /* 0x22 */
-    func_800B770C, /* 0x23 */
-    func_800B77DC, /* 0x24 */
-    func_800B784C, /* 0x25 */
-    func_800B792C, /* 0x26 */
-    func_800B7A98, /* 0x27 */
-    func_800B7B58, /* 0x28 */
-    func_800B7C90, /* 0x29 */
-    func_800B7D10, /* 0x2a */
-    func_800B7DC4, /* 0x2b */
-    func_800B7EF0, /* 0x2c */
-    func_800B7F84, /* 0x2d */
-    func_800B804C, /* 0x2e */
-    func_800B80B4, /* 0x2f */
+    vs_event_scriptSetActorGroupFlags, /* 0x23 */
+    vs_event_scriptSetActorSoundMix, /* 0x24 */
+    vs_event_scriptWalkActorToTile, /* 0x25 */
+    vs_event_scriptWalkActorToWorldPos, /* 0x26 */
+    vs_event_scriptSlideActorToTile, /* 0x27 */
+    vs_event_scriptSlideActorToWorldPos, /* 0x28 */
+    vs_event_scriptSetActorAttachment, /* 0x29 */
+    vs_event_scriptNavigateActorToWorldPos, /* 0x2a */
+    vs_event_scriptTurnActorToFacing, /* 0x2b */
+    vs_event_scriptFaceOtherActor, /* 0x2c */
+    vs_event_scriptFaceTile, /* 0x2d */
+    vs_event_scriptScaleActor, /* 0x2e */
+    vs_event_scriptRemoveActorGroup, /* 0x2f */
     pc_event_func_800B810C, /* 0x30 */
     func_800B81A0, /* 0x31 */
     pc_event_func_800B822C, /* 0x32 */
-    func_800B8290, /* 0x33 */
+    vs_event_scriptRotateActorAxes, /* 0x33 */
     func_800B8360, /* 0x34 */
     pc_event_func_800B83D4, /* 0x35 */
     pc_event_func_800B8438, /* 0x36 */
-    func_800B849C, /* 0x37 */
+    vs_event_scriptSetActorIdleAnimation, /* 0x37 */
     func_800B8510, /* 0x38 */
     func_800B8590, /* 0x39 */
-    func_800B860C, /* 0x3a */
-    func_800B86E8, /* 0x3b */
-    func_800B8708, /* 0x3c */
-    func_800B8764, /* 0x3d */
+    vs_event_scriptLoadObjectModel, /* 0x3a */
+    vs_event_scriptWaitForObjectLoad, /* 0x3b */
+    vs_event_scriptReleaseObjectModel, /* 0x3c */
+    vs_event_scriptSelectObjectTextureBank, /* 0x3d */
     func_800B8788, /* 0x3e */
-    func_800B884C, /* 0x3f */
+    vs_event_scriptSetActorWeaponDrawn, /* 0x3f */
     vs_battle_script_jumpFwdIfFlag, /* 0x40 */
     vs_battle_script_jumpFwdIfFlags, /* 0x41 */
     vs_battle_script_jumpFwd, /* 0x42 */
@@ -1379,8 +1379,8 @@ int (*_opcodeFunctionTable[256])(u_char*, short) = {
     vs_battle_script_jumpFwd2, /* 0x45 */
     vs_battle_script_setFlagImmContext, /* 0x46 */
     vs_battle_script_jumpFwdIfFlagContext, /* 0x47 */
-    func_800B8C44, /* 0x48 */
-    func_800B8C54, /* 0x49 */
+    vs_event_scriptReturnToSavedAddress, /* 0x48 */
+    vs_event_scriptSetLoopCounter, /* 0x49 */
     vs_battle_script_jumpBackIf, /* 0x4a */
     vs_battle_script_jumpFwd4, /* 0x4b */
     vs_battle_script_jumpFwd3, /* 0x4c */
@@ -1392,21 +1392,21 @@ int (*_opcodeFunctionTable[256])(u_char*, short) = {
     vs_battle_script_setFlagIfItemInInventory, /* 0x52 */
     func_800B91C4, /* 0x53 */
     func_800B91F0, /* 0x54 */
-    func_800B9230, /* 0x55 */
+    vs_event_scriptSetNpcUpdatesEnabled, /* 0x55 */
     vs_battle_script_setFlagIfButton, /* 0x56 */
-    func_800B92A0, /* 0x57 */
+    vs_event_scriptRestoreActorVitals, /* 0x57 */
     func_800B92D0, /* 0x58 */
     func_800B92F4, /* 0x59 */
-    func_800B94D8, /* 0x5a */
-    func_800B9564, /* 0x5b */
-    func_800B9608, /* 0x5c */
-    func_800B9670, /* 0x5d */
-    func_800B96B0, /* 0x5e */
-    func_800B9724, /* 0x5f */
+    vs_event_scriptConfigureTimer, /* 0x5a */
+    vs_event_scriptSetDialogSpeaker, /* 0x5b */
+    vs_event_scriptSetActorEquipmentModels, /* 0x5c */
+    vs_event_scriptSetActorYawOscillation, /* 0x5d */
+    vs_event_scriptWaitForButtonOrTimeout, /* 0x5e */
+    vs_event_scriptConfigureEasingCurve, /* 0x5f */
     func_800B9770, /* 0x60 */
     func_800B979C, /* 0x61 */
     func_800B97E4, /* 0x62 */
-    func_800B97F8, /* 0x63 */
+    vs_event_scriptClearAshleyStatusEffects, /* 0x63 */
     func_800B9818, /* 0x64 */
     func_800B983C, /* 0x65 */
     func_800B9860, /* 0x66 */
@@ -1421,7 +1421,7 @@ int (*_opcodeFunctionTable[256])(u_char*, short) = {
     func_800B9C18, /* 0x6f */
     func_800B9C58, /* 0x70 */
     func_800B9D74, /* 0x71 */
-    func_800B9DB4, /* 0x72 */
+    vs_event_scriptSetAshleyBattleMode, /* 0x72 */
     func_800B9F28, /* 0x73 */
     func_800B9F4C, /* 0x74 */
     func_800B9F70, /* 0x75 */
@@ -1436,10 +1436,10 @@ int (*_opcodeFunctionTable[256])(u_char*, short) = {
     func_800BA2B4, /* 0x7e */
     vs_battle_invalidOpcode, /* 0x7f */
     pc_event_func_800BA2E0, /* 0x80 */
-    func_800BA35C, /* 0x81 */
-    func_800BA39C, /* 0x82 */
-    func_800BA3E4, /* 0x83 */
-    func_800BA404, /* 0x84 */
+    vs_event_commandPlayActorSfx, /* 0x81 */
+    vs_event_commandSlideSfxVolume, /* 0x82 */
+    vs_event_commandStopAllSfx, /* 0x83 */
+    vs_event_commandStopSfx, /* 0x84 */
     vs_battle_script_loadSfxSlot, /* 0x85 */
     vs_battle_script_freeSfxSlot, /* 0x86 */
     vs_battle_script_freeSfx, /* 0x87 */
@@ -1453,51 +1453,51 @@ int (*_opcodeFunctionTable[256])(u_char*, short) = {
     pc_event_func_800BA52C, /* 0x8f */
     vs_battle_script_loadMusicSlot, /* 0x90 */
     vs_battle_script_freeMusic, /* 0x91 */
-    func_800BA5E8, /* 0x92 */
-    func_800BA61C, /* 0x93 */
-    func_800BA650, /* 0x94 */
-    func_800BA684, /* 0x95 */
-    func_800BA6B8, /* 0x96 */
+    vs_event_commandPlayMusic, /* 0x92 */
+    vs_event_commandSlideMusicVolume, /* 0x93 */
+    vs_event_commandSlideMusicTempo, /* 0x94 */
+    vs_event_commandSlideMusicPitch, /* 0x95 */
+    vs_event_commandStopMusic, /* 0x96 */
     func_800BA6E0, /* 0x97 */
-    func_800BA72C, /* 0x98 */
+    vs_event_commandPushMusicState, /* 0x98 */
     vs_battle_script_clearMusicLoadSlot, /* 0x99 */
-    func_800BA7BC, /* 0x9a */
+    vs_event_commandWaitMusicTimer, /* 0x9a */
     func_800BA800, /* 0x9b */
     func_800BA848, /* 0x9c */
     vs_battle_script_loadSoundFile2, /* 0x9d */
     vs_battle_script_processSoundQueue, /* 0x9e */
     func_800BA890, /* 0x9f */
-    func_800BA8BC, /* 0xa0 */
+    vs_event_commandPlayActorEffect, /* 0xa0 */
     func_800BA90C, /* 0xa1 */
-    func_800BA94C, /* 0xa2 */
-    func_800BAA04, /* 0xa3 */
-    func_800BAA34, /* 0xa4 */
-    func_800BAA58, /* 0xa5 */
-    func_800BAACC, /* 0xa6 */
+    vs_event_commandWaitEffectState, /* 0xa2 */
+    vs_event_commandYieldEffectRelease, /* 0xa3 */
+    vs_event_commandWaitEffectContinuation, /* 0xa4 */
+    vs_event_commandWaitEffectRelease, /* 0xa5 */
+    vs_event_commandMarkEffectStageReady, /* 0xa6 */
     vs_battle_invalidOpcode, /* 0xa7 */
-    func_800BAAF0, /* 0xa8 */
+    vs_event_commandSetMusicJumpThreshold, /* 0xa8 */
     pc_event_func_800BAB14, /* 0xa9 */
-    func_800BABCC, /* 0xaa */
+    vs_event_commandSetActorTrail, /* 0xaa */
     vs_battle_invalidOpcode, /* 0xab */
     vs_battle_invalidOpcode, /* 0xac */
     vs_battle_invalidOpcode, /* 0xad */
     vs_battle_invalidOpcode, /* 0xae */
     vs_battle_invalidOpcode, /* 0xaf */
     vs_battle_invalidOpcode, /* 0xb0 */
-    func_800BAC38, /* 0xb1 */
-    func_800BAC5C, /* 0xb2 */
+    vs_event_commandSetEnteredDoor, /* 0xb1 */
+    vs_event_commandStoreActorRangeBearing, /* 0xb2 */
     func_800BAD78, /* 0xb3 */
     pc_event_func_800BADE0, /* 0xb4 */
-    func_800BAE74, /* 0xb5 */
-    func_800BAEA0, /* 0xb6 */
+    vs_event_commandConsumeMiscItem, /* 0xb5 */
+    vs_event_commandStoreActorDistance, /* 0xb6 */
     vs_battle_script_specialOp, /* 0xb7 */
-    func_800BB288, /* 0xb8 */
+    vs_event_commandWaitScreenEffectLoad, /* 0xb8 */
     func_800BD6C4, /* 0xb9 */
     func_800BD6C4, /* 0xba */
     func_800BB2B8, /* 0xbb */
-    func_800BB2E4, /* 0xbc */
+    vs_event_commandLoadScreenEffects, /* 0xbc */
     func_800BB304, /* 0xbd */
-    func_800BB30C, /* 0xbe */
+    vs_event_commandFreeScreenEffects, /* 0xbe */
     func_800BD6C4, /* 0xbf */
     func_800BC2E8, /* 0xc0 */
     func_800BC2E8, /* 0xc1 */
@@ -1547,20 +1547,20 @@ int (*_opcodeFunctionTable[256])(u_char*, short) = {
     func_800BD6C4, /* 0xed */
     func_800BDC9C, /* 0xee */
     func_800BDC9C, /* 0xef */
-    func_800BB474, /* 0xf0 */
-    func_800BB4CC, /* 0xf1 */
+    vs_event_commandWaitFrames, /* 0xf0 */
+    vs_event_commandSetTickSpeed, /* 0xf1 */
     vs_battle_script_playMenuSelectSfx, /* 0xf2 */
-    func_800BB4F0, /* 0xf3 */
-    func_800BB504, /* 0xf4 */
-    func_800BB554, /* 0xf5 */
-    func_800BB5A4, /* 0xf6 */
-    func_800BB5AC, /* 0xf7 */
+    vs_event_commandSetScanlineOverlay, /* 0xf3 */
+    vs_event_commandWaitScriptContext, /* 0xf4 */
+    vs_event_commandStartScriptContext, /* 0xf5 */
+    vs_event_commandStopScriptContext, /* 0xf6 */
+    vs_event_commandLoadNextEvent, /* 0xf7 */
     vs_battle_invalidOpcode, /* 0xf8 */
     vs_battle_invalidOpcode, /* 0xf9 */
     vs_battle_invalidOpcode, /* 0xfa */
     vs_battle_invalidOpcode, /* 0xfb */
     vs_battle_invalidOpcode, /* 0xfc */
     vs_battle_invalidOpcode, /* 0xfd */
-    func_800BB604, /* 0xfe */
-    func_800BB604, /* 0xff */
+    vs_event_commandFinishEvent, /* 0xfe */
+    vs_event_commandFinishEvent, /* 0xff */
 };

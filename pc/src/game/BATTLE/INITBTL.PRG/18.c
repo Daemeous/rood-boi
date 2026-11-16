@@ -22,10 +22,10 @@ typedef struct {
     size_t unk1C;
 } System_dat_h;
 
-void func_800CA9C0(void*);
+void vs_menu_frameworkInitGameInterface(void*);
 static void func_800FA6B8(void);
 void _initScriptFunctionTable(void);
-static void func_800F9CCC(void);
+static void vs_actors_spawnAshleyWithEquipment(void);
 void func_800FA7B0(void);
 
 #pragma vsstring(start)
@@ -232,10 +232,10 @@ static vs_battle_charInitData D_800FAB18 = {
 
 extern int D_800F1874;
 extern int D_800F18F4;
-extern int D_800F190C;
+extern int vs_field_isFieldRenderingEnabled;
 extern int D_800F1968;
 extern int D_800F196C;
-extern void* D_800F19CC;
+extern void* vs_battle_actionState;
 
 static void func_800F9818(void)
 {
@@ -297,7 +297,7 @@ static void _loadSystemDat(void)
     LoadImage(&rect, (u_long*)p_hdr + 1);
     DrawSync(0);
 
-    func_800CA9C0((void*)buf + buf->unk1C);
+    vs_menu_frameworkInitGameInterface((void*)buf + buf->unk1C);
     vs_main_freeHeapR(buf);
 }
 
@@ -305,14 +305,14 @@ static void func_800F9AB0(void) { }
 
 static int func_800F9AB8(void) { return vs_battle_getEmptyObjectDataSlot(); }
 
-void func_800CB660(int);
+void vs_battle_setHudBattleMode(int);
 
-static void func_800F9AD8(void)
+static void vs_actors_restoreAshleyRuntimeState(void)
 {
     int j;
     int i;
     vs_battle_actor2* temp_s0 = vs_battle_characterState->unk3C;
-    D_80060068_t3* s1 = &D_80060068.unk0;
+    D_80060068_t3* s1 = &vs_state_ashleySnapshot.unk0;
 
     temp_s0->currentHP = s1->currentHP;
     temp_s0->maxHP = s1->maxHP;
@@ -327,7 +327,7 @@ static void func_800F9AD8(void)
     temp_s0->risk = s1->risk;
     temp_s0->unk954 = s1->flags;
 
-    func_80086FA8(s1->statuses, temp_s0);
+    vs_battle_inflictActorStatuses(s1->statuses, temp_s0);
 
     for (i = 0; i < 8; ++i) {
         temp_s0->statusTimers[i] = s1->statusTimers[i];
@@ -349,16 +349,16 @@ static void func_800F9AD8(void)
     vs_battle_characterState->weaponDrawn = s1->weaponDrawn;
 
     if (s1->weaponDrawn & 1) {
-        func_8009D934(0, 1, 2);
-        func_800CB660(1);
+        vs_actors_setActorWeaponDrawn(0, 1, 2);
+        vs_battle_setHudBattleMode(1);
     }
 
-    D_80060068.unk0.unk0 = 0;
+    vs_state_ashleySnapshot.unk0.unk0 = 0;
     vs_battle_cameraCurrentSpherical.delta.pitch = s1->unk80;
     vs_battle_cameraCurrentSpherical.initialDistance = s1->unk84;
 }
 
-static void func_800F9CCC(void)
+static void vs_actors_spawnAshleyWithEquipment(void)
 {
     int i;
     int bladeIndex;
@@ -400,10 +400,10 @@ static void func_800F9CCC(void)
         }
     }
 
-    vs_battle_characterState = func_800774FC(
+    vs_battle_characterState = vs_actors_createActorWithEquipment(
         0, 0, bladeWepId, bladeMaterial, shieldWepId, shieldMaterial, &sp20, 0);
 
-    func_80076F24(0, &D_800FAB18, 0x10, 0, 0x80, 0);
+    vs_actors_initializeActorFromTemplate(0, &D_800FAB18, 0x10, 0, 0x80, 0);
     if (bladeIndex != 0) {
         vs_battle_applyWeapon(&vs_battle_characterState->unk3C->weapon,
             &vs_main_inventory.weapons[bladeIndex - 1]);
@@ -455,8 +455,8 @@ static void func_800F9CCC(void)
 
     vs_battle_nop0(vs_battle_characterState->unk3C);
 
-    if (D_80060068.unk0.unk0 != 0) {
-        func_800F9AD8();
+    if (vs_state_ashleySnapshot.unk0.unk0 != 0) {
+        vs_actors_restoreAshleyRuntimeState();
     }
 
     func_800F9AB0();
@@ -472,7 +472,7 @@ static void _initTransitionState(void)
     vs_battle_screenTransitionAlpha = 255;
 }
 
-void func_800FA35C(int startState __attribute__((unused)))
+void vs_boot_initializeGameplayOverlay(int startState __attribute__((unused)))
 {
     int _0[2];
     RECT rect;
@@ -487,15 +487,15 @@ void func_800FA35C(int startState __attribute__((unused)))
     DrawSync(0);
     vs_main_resetSound();
     vs_main_initHeap((vs_main_HeapHeader*)VS_MAIN_HEAP_ADDRESS, VS_MAIN_HEAP_SIZE);
-    D_8005E0C0[1] = 0;
-    D_8005E0C0[0] = NULL;
-    D_80055C80[0] = vs_main_allocHeap(0x2088);
-    D_80055C80[1] = vs_main_allocHeap(0x2088);
+    vs_render_legacyPrimitiveBuffers[1] = 0;
+    vs_render_legacyPrimitiveBuffers[0] = NULL;
+    vs_render_legacyOrderingTables[0] = vs_main_allocHeap(0x2088);
+    vs_render_legacyOrderingTables[1] = vs_main_allocHeap(0x2088);
     vs_main_clutInit();
     _initTransitionState();
     func_8007D3F8();
     _initScriptFunctionTable();
-    func_800CE64C();
+    vs_effects_initEffectRuntime();
     func_800FA6B8();
     func_800FA7B0();
     func_8007DF48();
@@ -516,7 +516,7 @@ void func_800FA35C(int startState __attribute__((unused)))
     _zoneContext.musicId = 0;
     _zoneContext.unk30 = 1;
     _zoneContext.unk14 = 0;
-    D_800F1AB0 = D_80061068;
+    vs_field_pendingDestinationDoor = vs_state_savedEntryDoor;
     vs_battle_screenTransitionEffect = 0;
     vs_battle_screenTransitionStep = 4;
     vs_battle_screenTransitionSpeed = 8;
@@ -528,14 +528,14 @@ void func_800FA35C(int startState __attribute__((unused)))
     vs_gametime_tickspeed = 2;
     vs_main_projectionDistance = 0x200;
     vs_main_nearClip = 0x40;
-    D_80050468.unk0 = 0;
-    D_80050468.hours = 0;
-    D_80050468.minutes = 0;
-    D_80050468.seconds = 0;
-    D_80050468.frames = 0;
-    _zoneContext.unk68 = D_80061068.unk6_0;
+    vs_state_sceneTimer.unk0 = 0;
+    vs_state_sceneTimer.hours = 0;
+    vs_state_sceneTimer.minutes = 0;
+    vs_state_sceneTimer.seconds = 0;
+    vs_state_sceneTimer.frames = 0;
+    _zoneContext.unk68 = vs_state_savedEntryDoor.unk6_0;
     vs_battle_cameraTransition = NULL;
-    func_80077EC4();
+    vs_field_resetCameraToAshley();
     vs_view.camera.farClip = 0x1000;
     vs_battle_cameraCurrentSpherical.delta.pitch = 0x800;
     vs_battle_cameraCurrentSpherical.values.yaw = 0x800;
@@ -547,38 +547,38 @@ void func_800FA35C(int startState __attribute__((unused)))
     vs_battle_cameraCurrentSpherical.delta.mode = 1;
     vs_battle_cameraCurrentSpherical.unk24 = 0;
 
-    func_8009FB64(&vector);
+    vs_actors_setRoomActorScale(&vector);
 
     for (i = 0; i < 16; ++i) {
         vs_battle_actors[i] = NULL;
     }
 
-    func_800F9CCC();
-    D_800F19CC = vs_main_allocHeapR(0x2C10);
-    vs_main_bzero(D_800F19CC, 0x2C10);
-    D_800F190C = 1;
+    vs_actors_spawnAshleyWithEquipment();
+    vs_battle_actionState = vs_main_allocHeapR(0x2C10);
+    vs_main_bzero(vs_battle_actionState, 0x2C10);
+    vs_field_isFieldRenderingEnabled = 1;
     D_800F18F4 = 0;
-    func_800760CC(0x140, 0xF0, vs_main_projectionDistance, 0, 0, 0);
+    vs_render_configureFieldDisplay(0x140, 0xF0, vs_main_projectionDistance, 0, 0, 0);
 }
 
 static void func_800FA6B8(void)
 {
     vs_main_bzero(D_800F1CE0, 0x20);
     vs_main_bzero(&vs_battle_roomData, sizeof vs_battle_roomData);
-    vs_main_bzero(&D_800F1CC8, sizeof D_800F1CC8);
+    vs_main_bzero(&vs_field_entranceDoorRecord, sizeof vs_field_entranceDoorRecord);
     vs_main_bzero(&vs_battle_menu9CursorMemory, sizeof vs_battle_menu9CursorMemory);
     vs_main_bzero(&vs_battle_manualDisplayState, sizeof vs_battle_manualDisplayState);
-    D_800F1BA8 = vs_main_allocHeap(0x800);
-    D_800F1BAC = vs_main_allocHeap(sizeof *D_800F1BAC);
-    D_800F1CBC = vs_main_allocHeap(0x80);
+    vs_field_roomPalettes = vs_main_allocHeap(0x800);
+    vs_battle_floatingLabels = vs_main_allocHeap(sizeof *vs_battle_floatingLabels);
+    vs_battle_placedLabelPositions = vs_main_allocHeap(0x80);
     vs_battle_doorEntered = -1;
-    D_800F1BA4 = 0;
-    D_800F1BB6 = 0;
+    vs_field_areRoomUpdatesPaused = 0;
+    vs_field_isRoomTintActive = 0;
     vs_battle_submenuState = 0;
     vs_battle_sceneBuffer = NULL;
-    D_800F1CD6 = 1;
-    D_800F1CD4 = 8;
-    func_8008E88C();
-    func_8008B6B4();
-    func_8008EB30(D_800F1CE0);
+    vs_field_isMinimapVisible = 1;
+    vs_field_minimapSlideFrame = 8;
+    vs_field_initializeRoomBackground();
+    vs_field_resetGimmickAnimationQueue();
+    vs_field_setRoomBackgroundColors(D_800F1CE0);
 }

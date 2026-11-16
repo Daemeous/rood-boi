@@ -140,7 +140,7 @@ pub fn getMagicAttackDamage(action: ?*v.vs_action_t, source: ?*v._hitEntity_t, t
     defense = @divTrunc(defense, @as(c_int, targetActor.risk >> 1) +% 100);
 
     // The C passes `attack - defense` to a `short` parameter: the conversion truncates to 16 bits.
-    value = c.func_8007FE5C(@ptrCast(act), psx.conv(c_short, attack -% defense), @ptrCast(sourceActor), @ptrCast(targetActor));
+    value = c.vs_battle_applyDamageGemMultiplier(@ptrCast(act), psx.conv(c_short, attack -% defense), @ptrCast(sourceActor), @ptrCast(targetActor));
 
     if (value < 0) {
         value = 0;
@@ -151,7 +151,7 @@ pub fn getMagicAttackDamage(action: ?*v.vs_action_t, source: ?*v._hitEntity_t, t
         if (nHit == 0) {
             if (sp18.sourceAffinity != 0) {
                 if (tgt.unk40 == 0) {
-                    _ = c.func_80080C9C(@ptrCast(act), @ptrCast(targetActor), 0, @as(c_int, sp18.sourceAffinity) +% 1, limb);
+                    _ = c.vs_items_growDefenderEquipmentRatings(@ptrCast(act), @ptrCast(targetActor), 0, @as(c_int, sp18.sourceAffinity) +% 1, limb);
                 }
             }
         }

@@ -177,7 +177,7 @@ typedef struct {
 typedef struct {
     int valid;
     int mp, mp_max;
-    unsigned mask;          /* the menu's disable mask D_800F4EA0 & 0xB7 (greys every spell) */
+    unsigned mask;          /* the menu's disable mask vs_menu_frameworkActionRestrictions & 0xB7 (greys every spell) */
     int level_memory;       /* MENU0's LV picker level, cursorMemories[12] (seeds the shell's level at an open) */
     pc_ui_school schools[PC_UI_SCHOOLS];
     int teleport;           /* the Teleport row exists (vs_main_stateFlags.unkB5 != 0) */
@@ -241,7 +241,7 @@ typedef struct {
 } pc_ui_item_details;
 typedef struct {
     int valid;
-    unsigned mask;          /* the menu's disable mask D_800F4EA0 & 7 (the original greys every row) */
+    unsigned mask;          /* the menu's disable mask vs_menu_frameworkActionRestrictions & 7 (the original greys every row) */
     int locked;             /* mask set: browse only */
     char locked_reason[96]; /* why */
     int count[PC_UI_ITEM_CATEGORIES];
@@ -284,7 +284,7 @@ typedef struct {
 } pc_ui_loot_row;
 typedef struct {
     int valid;
-    int chest;              /* from a chest (D_800EB9C8), else after a battle */
+    int chest;              /* from a chest (vs_menu_frameworkLootEntry), else after a battle */
     int count;              /* rows (MENUB's list holds at most PC_UI_LOOT_ROWS) */
     int claimed;            /* items taken so far (_lootClaimed) */
     int keys;               /* a key or sigil is in the list: Leave is refused (_discardItems' invalidDiscard) */

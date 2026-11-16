@@ -5,34 +5,31 @@ const common = @import("common");
 const pad = @import("common").pad;
 const psx = common.psx;
 const gte = @import("common").gte;
+const sprite_item = @import("common").sprite_item;
 
 /// `p + n` for a word pointer with a C `unsigned`/`int` count (the address wraps like C's).
 fn advance(p: [*]c_uint, n: usize) [*]c_uint {
     return @ptrFromInt(@intFromPtr(p) +% n *% 4);
 }
 
-/// orig: chain (pc/src/room_geometry.c)
-/// Links `packet` (length `words`) at the head of the OT chain `head`.
-fn chain(packet: [*]c_uint, head: *c_uint, words: c_uint) [*]c_uint {
-    packet[0] = (head.* & 0xffffff) | (words << 24);
-    head.* = (head.* & 0xff000000) | (psx.addr(packet) & 0xffffff);
-    return packet;
+fn bits(value: c_uint) c_int {
+    return @bitCast(value);
 }
 
-/// orig: func_80098F8C (pc/src/room_geometry.c)
+/// orig: vs_field_drawMinimapScene (pc/src/room_geometry.c)
 /// Draws the area map: `rooms` is a count then 12-byte entries (visible flag,
 /// geometry); the current room gets filled shapes, edge lines and markers,
-/// every room its outline lines.
+/// every room its outline lines. The shapes are draw items placed at the table's slot 5 and the markers at slot 4, each linked at
+/// the slot's head as the packets were (the last made draws first).
 pub fn drawAreaMap(rooms: [*]c_uint, camera: *const gte.View) callconv(.c) void {
     const table = rooms;
     const count: c_uint = table[0];
     const scratch = common.scratch.get();
     const ot: [*]c_uint = @ptrCast(@alignCast(scratch.unk4.?));
-    var packet: [*]c_uint = @ptrCast(@alignCast(scratch.unk0.?));
     const xy: [*]c_uint = @ptrFromInt(pad.addr(0x100));
-    var shapes: c_uint = ot[5];
-    var markers: c_uint = ot[4];
-    const blink: c_uint = v.g.D_800F1CDC().*;
+    const shapes: *c_uint = &ot[5];
+    const markers: *c_uint = &ot[4];
+    const blink: c_uint = v.g.vs_field_roomAnimationTicks().*;
     var view = camera.*;
     view.t = .{ 0, 0, 0x100 };
     var room: c_uint = 0;
@@ -65,12 +62,7 @@ pub fn drawAreaMap(rooms: [*]c_uint, camera: *const gte.View) callconv(.c) void 
             n -%= 1;
             data += 1;
         }) {
-            const p = chain(packet, &shapes, 4);
-            p[1] = 0x223f7f00;
-            p[2] = xy[data[0] & 0xff];
-            p[3] = xy[(data[0] >> 8) & 0xff];
-            p[4] = xy[(data[0] >> 16) & 0xff];
-            packet += 5;
+            sprite_item.flat(shapes, 3, true, 0x3f7f00, &[3]c_int{ bits(xy[data[0] & 0xff]), bits(xy[(data[0] >> 8) & 0xff]), bits(xy[(data[0] >> 16) & 0xff]) });
         }
         n = data[0];
         data += 1;
@@ -80,13 +72,7 @@ pub fn drawAreaMap(rooms: [*]c_uint, camera: *const gte.View) callconv(.c) void 
             n -%= 1;
             data += 1;
         }) {
-            const p = chain(packet, &shapes, 5);
-            p[1] = 0x2a3f7f00;
-            p[2] = xy[data[0] & 0xff];
-            p[3] = xy[(data[0] >> 8) & 0xff];
-            p[4] = xy[(data[0] >> 24) & 0xff];
-            p[5] = xy[(data[0] >> 16) & 0xff];
-            packet += 6;
+            sprite_item.flat(shapes, 4, true, 0x3f7f00, &[4]c_int{ bits(xy[data[0] & 0xff]), bits(xy[(data[0] >> 8) & 0xff]), bits(xy[(data[0] >> 24) & 0xff]), bits(xy[(data[0] >> 16) & 0xff]) });
         }
         n = data[0];
         data += 1;
@@ -94,11 +80,7 @@ pub fn drawAreaMap(rooms: [*]c_uint, camera: *const gte.View) callconv(.c) void 
             n -%= 1;
             data += 1;
         }) {
-            const p = chain(packet, &shapes, 3);
-            p[1] = 0x42ff7f00;
-            p[2] = xy[data[0] & 0xff];
-            p[3] = xy[(data[0] >> 8) & 0xff];
-            packet += 4;
+            sprite_item.lineFlat(shapes, true, 0xff7f00, bits(xy[data[0] & 0xff]), bits(xy[(data[0] >> 8) & 0xff]));
         }
         if (room != 0) continue;
         n = data[0];
@@ -107,11 +89,7 @@ pub fn drawAreaMap(rooms: [*]c_uint, camera: *const gte.View) callconv(.c) void 
             n -%= 1;
             data += 1;
         }) {
-            const p = chain(packet, &shapes, 3);
-            p[1] = 0x422f5f00;
-            p[2] = xy[data[0] & 0xff];
-            p[3] = xy[(data[0] >> 8) & 0xff];
-            packet += 4;
+            sprite_item.lineFlat(shapes, true, 0x2f5f00, bits(xy[data[0] & 0xff]), bits(xy[(data[0] >> 8) & 0xff]));
         }
         n = data[0];
         data += 1;
@@ -126,43 +104,24 @@ pub fn drawAreaMap(rooms: [*]c_uint, camera: *const gte.View) callconv(.c) void 
             const x: c_int = @intCast(at & 0xffff);
             const y: c_int = @as(c_int, @bitCast(at)) >> 16;
             if (state != 0 and v.g.vs_main_stateFlags()[state + 0x33f] == 0) { // (signed char) == 0
-                const p = chain(packet, &markers, 3);
-                p[1] = 0x74808080;
-                p[2] = @as(c_uint, @bitCast((y -% 4) << 16)) | @as(c_uint, @bitCast((x -% 3) & 0xffff));
-                p[3] = 0x37f898d8;
-                packet += 4;
+                // (an 8 x 8 textured rectangle, colour 0x808080, in the GPU's draw mode)
+                _ = sprite_item.sprite(markers, 128, @bitCast(@as(c_uint, @bitCast((y -% 4) << 16)) | @as(c_uint, @bitCast((x -% 3) & 0xffff))), 8 | (8 << 16), 0, 0x37f898d8);
                 continue;
             }
-            var colour: c_uint = undefined;
+            var colour: c_int = undefined; // (0xBBGGRR)
             if (flags & 0x10 != 0) {
                 if (blink & 0x20 == 0) continue;
-                colour = 0x607f00ff;
+                colour = 0x7f00ff;
             } else if (flags & 4 != 0) {
-                colour = 0x60ff7f00;
+                colour = 0xff7f00;
             } else if (flags & 0x1f == 0) {
-                colour = 0x607f7f7f;
+                colour = 0x7f7f7f;
             } else continue;
-            var p = chain(packet, &markers, 3);
-            p[1] = colour;
-            p[2] = @as(c_uint, @bitCast((y -% 1) << 16)) | @as(c_uint, @bitCast(x));
-            p[3] = 0x00030001;
-            packet += 4;
-            p = chain(packet, &markers, 3);
-            p[1] = colour;
-            p[2] = @as(c_uint, @bitCast(y << 16)) | @as(c_uint, @bitCast((x -% 1) & 0xffff));
-            p[3] = 0x00010003;
-            packet += 4;
+            // (a plus: a bar one wide and three high, and one three wide and one high)
+            sprite_item.tileFlat(markers, false, colour, @bitCast(@as(c_uint, @bitCast((y -% 1) << 16)) | @as(c_uint, @bitCast(x))), 0x00030001);
+            sprite_item.tileFlat(markers, false, colour, @bitCast(@as(c_uint, @bitCast(y << 16)) | @as(c_uint, @bitCast((x -% 1) & 0xffff))), 0x00010003);
         }
     }
-    var p = chain(packet, &shapes, 2);
-    p[1] = 0xe100020c;
-    p[2] = 0;
-    packet += 4;
-    p = chain(packet, &markers, 2);
-    p[1] = 0xe100020c;
-    p[2] = 0;
-    packet += 4;
-    ot[4] = markers;
-    ot[5] = shapes;
-    scratch.unk0 = packet;
+    sprite_item.drawMode(shapes, 0x20c);
+    sprite_item.drawMode(markers, 0x20c);
 }

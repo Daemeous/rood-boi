@@ -5,7 +5,7 @@ const v = @import("views_6F014");
 /// orig: vs_battle_configureEffectFbLoad (pc/src/game/BATTLE/BATTLE.PRG/6F014.c)
 /// Records load context `index`: its sector, size, frame buffer slot and whether it is a CLUT.
 pub fn configureEffectFbLoad(lba: c_int, size: c_int, slot: c_int, isClut: c_int, index: c_int) callconv(.c) void {
-    const table = v.g.D_800F5638();
+    const table = v.g.vs_effects_textureLoads();
     // index is not checked against the array bounds, as in the original.
     const ctx = psx.at(&table.loadContexts, index);
     ctx.lba = psx.conv(u16, lba);

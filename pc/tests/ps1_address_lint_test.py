@@ -18,7 +18,7 @@ class Ps1AddressLintTest(unittest.TestCase):
 
     def test_rules_match_what_they_name(self):
         for rule, text in [("ps1_address", "p = 0x80010000;"), ("scratchpad", "p = 0x1F800004;"),
-                           ("unnamed_symbol", "D_800F4910 = func_80070CAC();"), ("guest_pointer_field", "psx_ptr(int) p;"),
+                           ("unnamed_symbol", "D_800F4910 = vs_battle_collectEnvironmentActionTargets();"), ("guest_pointer_field", "psx_ptr(int) p;"),
                            ("guest_pointer_access", "psx_get(p->next)"), ("address_as_integer", "psx_to_int(u_int, p)"),
                            ("zig_raw_memory", "psx.byteAt(u32, p, 4)")]:
             self.assertTrue(lint.RULES[rule].search(text), rule)

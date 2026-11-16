@@ -12,19 +12,19 @@ const c = @import("c_44F14");
 const LoadAnimFn = *const fn (*anyopaque, c_int, *anyopaque) callconv(.c) c_int;
 /// (A function, not a module-level pointer constant: that would be a relocated data slot in the engine library.)
 inline fn loadAnimation() LoadAnimFn {
-    return @extern(LoadAnimFn, .{ .name = "func_800AD494" });
+    return @extern(LoadAnimFn, .{ .name = "vs_actors_findActorAnimationHeader" });
 }
 
 const QueueAnimFn = *const fn (c_int, c_int, c_int, c_int) callconv(.c) void;
 /// (A function, not a module-level pointer constant: that would be a relocated data slot in the engine library.)
 inline fn queueAnimation() QueueAnimFn {
-    return @extern(QueueAnimFn, .{ .name = "func_800A0618" });
+    return @extern(QueueAnimFn, .{ .name = "vs_actors_playActorAnimationAtFrame" });
 }
 
 const EventFn = *const fn (*anyopaque, *anyopaque, c_int) callconv(.c) void;
 /// (A function, not a module-level pointer constant: that would be a relocated data slot in the engine library.)
 inline fn frameEvent() EventFn {
-    return @extern(EventFn, .{ .name = "func_800AD714" });
+    return @extern(EventFn, .{ .name = "vs_actors_runAnimationEvents" });
 }
 
 /// A bone pose inside the state block at byte offset `off` (always even), as a C pointer.
@@ -107,7 +107,7 @@ pub fn func_800AFA28(actor: ?*v.D_800F4538_t, state: ?*v.D_800F4538_unkC54, mode
 
                 const rootTrack: u16 = psx.at(header, 4).*;
                 if (rootTrack != 0) {
-                    c.func_800AFDE8(@as(c_int, rootTrack), psx.cptr(c.SVECTOR, &st.unk150[41]), 0);
+                    c.vs_actors_decodeAnimationTrack(@as(c_int, rootTrack), psx.cptr(c.SVECTOR, &st.unk150[41]), 0);
 
                     var x: c_int = @as(c_int, st.unk150[41].vx);
                     if (x < 0) x +%= 3;
@@ -122,7 +122,7 @@ pub fn func_800AFA28(actor: ?*v.D_800F4538_t, state: ?*v.D_800F4538_unkC54, mode
                     a.unk0.position.vz = psx.conv(i16, @as(c_int, psx.conv(u16, a.unk0.position.vz)) +% (z >> 2));
                 }
 
-                c.func_800AFDE8(@as(c_int, psx.at(header, 3).*), psx.cptr(c.SVECTOR, &st.unk0[41]), 0);
+                c.vs_actors_decodeAnimationTrack(@as(c_int, psx.at(header, 3).*), psx.cptr(c.SVECTOR, &st.unk0[41]), 0);
 
                 i = 0;
                 if (a.unk0.nBones != 0) {
@@ -130,13 +130,13 @@ pub fn func_800AFA28(actor: ?*v.D_800F4538_t, state: ?*v.D_800F4538_unkC54, mode
                     // boneState = state + boneOff: each bone's pose is 8 bytes further on.
                     var boneOff: c_int = 0;
                     while (true) {
-                        c.func_800AFDE8(
+                        c.vs_actors_decodeAnimationTrack(
                             @as(c_int, psx.at(header, i +% 5).*),
                             poseAt(st, boneOff),
                             1,
                         );
                         if ((psx.byteAt(u8, header, 3).* & 2) != 0) {
-                            c.func_800AFDE8(
+                            c.vs_actors_decodeAnimationTrack(
                                 @as(c_int, psx.at(header, i +% @as(c_int, a.unk0.nBones) +% 5).*),
                                 poseAt(st, frameOrOffset),
                                 0,

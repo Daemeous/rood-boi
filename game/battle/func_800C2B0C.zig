@@ -12,7 +12,7 @@ pub fn func_800C2B0C(position: [*c]c_ushort, row: c_uint) callconv(.c) void {
     }
     // The original calls libc memset (it is built -fno-builtin): keep the call.
     const memset = @extern(*const fn (?*anyopaque, c_int, usize) callconv(.c) ?*anyopaque, .{ .name = "memset" });
-    _ = memset(@ptrCast(&v.g.D_800EB9B8().*.?.cellKinds[row *% 9]), 0, 9);
+    _ = memset(@ptrCast(&v.g.vs_battle_targetSphere().*.?.cellKinds[row *% 9]), 0, 9);
 
     const dims: c_int = c._getCollisionMapDimensions(0);
     const width: c_int = (dims & 0xFFFF) >> 4;
@@ -31,16 +31,16 @@ pub fn func_800C2B0C(position: [*c]c_ushort, row: c_uint) callconv(.c) void {
 
         var value: c_int = 0x10000;
         if ((psx.conv(c_uint, x) < psx.conv(c_uint, width)) and (psx.conv(c_uint, z) < psx.conv(c_uint, height))) {
-            const room: *v._mpdRoomSection3 = @ptrCast(c.func_8008B764(psx.conv(c_uint, x), psx.conv(c_uint, z), 0).?);
+            const room: *v._mpdRoomSection3 = @ptrCast(c.vs_field_collisionCellAt(psx.conv(c_uint, x), psx.conv(c_uint, z), 0).?);
 
             if (((@as(c_int, psx.getBits(room, "unk0_5")) >> 1) & 1) != 0) {
                 value = @bitCast(@as(c_uint, 0xF0800000));
-                v.g.D_800EB9B8().*.?.cellKinds[cell] = 0;
+                v.g.vs_battle_targetSphere().*.?.cellKinds[cell] = 0;
             } else if (@as(c_int, psx.getBits(room, "unk0_10")) < 5 or ((@as(c_int, psx.getBits(room, "unk0_18")) >> 1) != 0)) {
                 var offset: c_int = 0;
-                _ = c.func_800FA188(x, z, &offset);
+                _ = c.vs_field_measureTileStack(x, z, &offset);
                 if (offset != 0) {
-                    const p = psx.at(v.g.D_800F45E0(), c.func_800A91DC(x, z, 0)).*.?;
+                    const p = psx.at(v.g.vs_field_gimmickInstances(), c.vs_field_findTopGimmickAtTile(x, z, 0)).*.?;
                     if (@as(c_int, psx.getBits(&p.unk6C[8], "actorId")) < 2) {
                         value = 0;
                         offset +%= 0x20;
@@ -58,7 +58,7 @@ pub fn func_800C2B0C(position: [*c]c_ushort, row: c_uint) callconv(.c) void {
                 while (dz < 0x80) : (dz +%= 0x20) {
                     var dx: c_int = 0;
                     while (dx < 0x80) : (dx +%= 0x20) {
-                        const height2: c_int = c.func_8008DDA8(sx +% dx, sz +% dz);
+                        const height2: c_int = c.vs_field_floorAndCeilingHeightsAt(sx +% dx, sz +% dz);
                         var t: c_int = (height2 << 17) >> 17;
                         t +%= offset;
                         if (t < low) {
@@ -79,11 +79,11 @@ pub fn func_800C2B0C(position: [*c]c_ushort, row: c_uint) callconv(.c) void {
                 }
                 if (psx.conv(c_uint, @as(c_int, psx.getBits(room, "unk0_10")) -% 1) < 4) {
                     low = high;
-                    v.g.D_800EB9B8().*.?.cellKinds[cell] = psx.conv(u8, @as(c_int, psx.getBits(room, "unk0_10")) *% 6);
+                    v.g.vs_battle_targetSphere().*.?.cellKinds[cell] = psx.conv(u8, @as(c_int, psx.getBits(room, "unk0_10")) *% 6);
                 }
                 value |= ((top +% 0x30) << 17) | ((low & 0x7FFF) << 2);
             }
         }
-        v.g.D_800EB9B8().*.?.cellValues[cell] = value;
+        v.g.vs_battle_targetSphere().*.?.cellValues[cell] = value;
     }
 }

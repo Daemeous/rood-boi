@@ -92,7 +92,7 @@ def packet():
     for i in range(len(POLYGON)):
         a, b = POLYGON[i], POLYGON[(i + 1) % len(POLYGON)]
         words += [0x20000000 | FILL, xy(*CENTRE), xy(*a), xy(*b)]
-    for i in range(len(POLYGON)):  # outline edge by edge (GP0 0x40), as func_800CD3E4 does
+    for i in range(len(POLYGON)):  # outline edge by edge (GP0 0x40), as vs_menu_drawTextBoxFrame does
         a, b = POLYGON[i], POLYGON[(i + 1) % len(POLYGON)]
         words += [0x40000000 | INK, xy(*a), xy(*b)]
     words += [0x48000000 | WHITE] + [xy(*p) for p in POLYLINE] + [0x55555555]

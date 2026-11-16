@@ -3,7 +3,7 @@ const c = @import("c_battle_gte");
 const gte = @import("common").gte;
 
 
-/// orig: func_800DC284 (pc/src/battle_gte.c)
+/// orig: vs_battle_aiScoreActorCondition (pc/src/battle_gte.c)
 /// a * 6 + 4 * b + c + 2 * d for signed 16-bit b, c, d (the halves of the words
 /// loaded into the rotation matrix), by MVMVA, leaving the matrix, IR and MAC
 /// registers as the PS1 code did.

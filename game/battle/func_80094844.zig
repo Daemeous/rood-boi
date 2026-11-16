@@ -9,11 +9,11 @@ fn abs(x: c_int) c_int {
 }
 
 fn spots() [*]align(1) v.DVECTOR {
-    return @ptrCast(v.g.D_800F1CBC().*.?);
+    return @ptrCast(v.g.vs_battle_placedLabelPositions().*.?);
 }
 
 fn count() c_int {
-    return @as(c_int, v.g.D_800F227C().*);
+    return @as(c_int, v.g.vs_battle_placedLabelCount().*);
 }
 
 /// orig: func_80094844 (pc/src/game/BATTLE/BATTLE.PRG/2842C.c)
@@ -100,5 +100,5 @@ pub fn func_80094844(pos: [*c]c_short, label: ?*v.D_800F1BAC_t) callconv(.c) voi
     if (pos[1] > 200) {
         pos[1] = 200;
     }
-    v.g.D_800F227C().* +%= 1;
+    v.g.vs_battle_placedLabelCount().* +%= 1;
 }

@@ -1,7 +1,7 @@
 /* Vector talk bubbles (ui_bubbles vector; README "2D / UI").
  *
  * The game draws a talk bubble's frame each frame in BATTLE.PRG
- * func_800CD3E4 from a shape table (D_800EB588[shape]): outline vertices
+ * vs_menu_drawTextBoxFrame from a shape table (vs_event_textBoxFrameStyles[shape]): outline vertices
  * placed in the box's rectangle (mirrored by the flip bits), a tail part
  * spliced into the outline, then
  *
@@ -27,7 +27,7 @@
  *   shows outside it), ui_bubble_outline native pixels thick (plus
  *   ui_outline_boost output pixels), round where the outline turns.
  *
- * The geometry is the game's of that frame: func_800CD3E4 reports the box,
+ * The geometry is the game's of that frame: vs_menu_drawTextBoxFrame reports the box,
  * the shape and the packets it built (pc_bubble_frame), and this file
  * places the shape's vertices exactly as the routine does. With
  * ui_subpixel the box's unrounded 16.16 rectangle (func_800CB83C,

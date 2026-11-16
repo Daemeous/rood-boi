@@ -14,13 +14,13 @@ fn tileOccupancy(actor: [*]u8, delta: c_int) void {
     cell.* = psx.conv(u16, @as(c_int, cell.*) +% (delta << 10));
 }
 
-/// orig: func_800E6898 (pc/src/battle_movement.c)
+/// orig: vs_battle_aiAddAiTileOccupant (pc/src/battle_movement.c)
 /// Counts one more actor on the tile under `actor`.
 pub fn addTileOccupancy(actor: [*]u8) callconv(.c) void {
     tileOccupancy(actor, 1);
 }
 
-/// orig: func_800E68A0 (pc/src/battle_movement.c)
+/// orig: vs_battle_aiRemoveAiTileOccupant (pc/src/battle_movement.c)
 /// Counts one less actor on the tile under `actor`.
 pub fn removeTileOccupancy(actor: [*]u8) callconv(.c) void {
     tileOccupancy(actor, -1);

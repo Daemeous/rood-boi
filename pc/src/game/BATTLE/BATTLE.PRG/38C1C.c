@@ -13,7 +13,7 @@ int func_800A152C(int, int, int);
 int func_800A17BC(int, int, void*, int*);
 int func_800A1C10(int arg0, int arg1, u_short* arg2, int arg3);
 MATRIX* func_800A1DE8(int, int, MATRIX*);
-void func_800A9EB4(int, int, int);
+void vs_actors_turnActorToAtRate(int, int, int);
 
 extern MATRIX D_800F49B8;
 
@@ -21,13 +21,13 @@ int func_800A141C(int arg0, int arg1, int arg2, int arg3);
 
 int func_800A152C(int arg0, int arg1, int arg2);
 
-int func_800A1648(int arg0, int arg1, int arg2);
+int vs_actors_boneTagValue(int arg0, int arg1, int arg2);
 
 int func_800A1720(int arg0, int arg1, int* arg2, int* arg3);
 
 int func_800A17BC(int arg0, int arg1, void* arg2, int* arg3);
 
-int func_800A190C(int arg0, int arg1, SVECTOR* arg2, int arg3);
+int vs_actors_anchorPoint(int arg0, int arg1, SVECTOR* arg2, int arg3);
 
 int func_800A1AF8(int arg0, int arg1, u_short* arg2, int arg3);
 
@@ -43,34 +43,34 @@ typedef struct {
     MATRIX matrix;
 } boneMatrixScratch;
 
-void func_800B07DC(D_800F4538_t*);
-void func_80041C68(MATRIX*, MATRIX*);
+void vs_actors_transformRootOffset(D_800F4538_t*);
+void vs_core_mathMultiplyMatrixIntoRight(MATRIX*, MATRIX*);
 
 MATRIX* func_800A1DE8(int actorId, int bone, MATRIX* unused);
 
 SVECTOR* func_800A4A24(int);
-int func_800A3500(int, int);
-void func_800AE4FC(D_800F4538_unk0*, int);
-void func_800A0204(int, int, int, int);
+int vs_field_actorSupportHeight(int, int);
+void vs_audio_playActorModelSound(D_800F4538_unk0*, int);
+void vs_actors_playActorAnimation(int, int, int, int);
 
-extern u_char D_800E90AC[];
-extern u_char D_800E90B4[];
+extern u_char vs_actors_jumpHangFrames[];
+extern u_char vs_actors_jumpHeightAdjustments[];
 
-void func_800A208C(D_800F4538_t* actor, u_char* target, int speed, short facing);
+void vs_actors_beginActorJumpToTile(D_800F4538_t* actor, u_char* target, int speed, short facing);
 
-void func_800A249C(int arg0, int arg1);
+void vs_actors_playActorTurnAnimation(int arg0, int arg1);
 
 void func_800A2574(int arg0, short arg1);
 
-int func_800A6EE8(SVECTOR*, int, int, int);
-void* func_800A8D64(SVECTOR*, int);
-void func_800AC690(int, void*);
+int vs_field_sampleActorSupportHeight(SVECTOR*, int, int, int);
+void* vs_field_findCollisionCellAtPosition(SVECTOR*, int);
+void vs_actors_updateActorJumpAndFall(int, void*);
 
-void func_800A25EC(D_800F4538_t* actor);
+void vs_actors_applyActorGroundOffset(D_800F4538_t* actor);
 
-void func_800AA850(int, int, int);
+void vs_actors_turnActorToOverTime(int, int, int);
 
-void func_800A2790(D_800F4538_t* actor);
+void vs_actors_applyActorFlightMovement(D_800F4538_t* actor);
 
-void func_800A291C(D_800F4538_t* arg0);
+void vs_actors_applyActorMovementVector(D_800F4538_t* arg0);
 

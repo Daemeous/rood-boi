@@ -1516,7 +1516,7 @@ static void handle_method(int fd, const char* request)
         reply(fd, id, result);
     } else if (!strcmp(method, "camera_options")) {
         /* Map panning, the map's stick and triggers (0 Modern, 1 Original; ui/map_pad.h) and
-         * first-person up/down (MENU5, BATTLE func_8006EC7C). */
+         * first-person up/down (MENU5, BATTLE vs_field_updateFirstPersonCamera). */
         int flag;
         if (params && bool_value(member(params, "map_invert"), &flag))
             pc_qol_map_invert = flag;
@@ -1575,14 +1575,14 @@ static void handle_method(int fd, const char* request)
         pc_weapon_slots_json(result, sizeof result);
         reply(fd, id, result);
     } else if (!strcmp(method, "weather")) {
-        /* Starts the room's weather of kind 0..4 as the room's script command does (BATTLE func_80090C2C: the room needs its
+        /* Starts the room's weather of kind 0..4 as the room's script command does (BATTLE vs_field_setRoomWeather: the room needs its
          * weather section); 1 rain, 2 snow, 3 motes, 4 falling particles. */
-        extern void func_80090C2C(int) __attribute__((weak));
-        if (!func_80090C2C || !params || !number_value(member(params, "kind"), &n) || n < 0 || n > 4) {
+        extern void vs_field_setRoomWeather(int) __attribute__((weak));
+        if (!vs_field_setRoomWeather || !params || !number_value(member(params, "kind"), &n) || n < 0 || n > 4) {
             fail(fd, id, -32602, "weather needs the battle build and kind 0..4");
             return;
         }
-        func_80090C2C((int)n);
+        vs_field_setRoomWeather((int)n);
         reply(fd, id, "{\"ok\":true}");
     } else if (!strcmp(method, "action")) {
         /* The player's action driver (action_driver.c): {capture: true} arms the capture of menu-driven actions (one state per
@@ -1609,7 +1609,7 @@ static void handle_method(int fd, const char* request)
         }
         long long who;
         if (params && number_value(member(params, "id"), &n) && number_value(member(params, "actor"), &who)) {
-            /* by the game's own start of an actor's action (func_80072EC4: the base attack's, the actor commands' that run the enemies'
+            /* by the game's own start of an actor's action (vs_battle_beginActorActionSelection: the base attack's, the actor commands' that run the enemies'
              * abilities): no captured state, any actor and action */
             accepted = n >= 0 && n < 256 && who >= 0 && who < 16;
             if (accepted)
@@ -1875,7 +1875,7 @@ static void handle_method(int fd, const char* request)
     } else if (!strcmp(method, "chest")) {
         /* Tests: the room's chests (ui/loot_bridge.c pc_ui_loot_debug_chest);
          * open = index opens that one through the field's own chest flow
-         * (func_80074050, as the field's Cross at a chest). */
+         * (vs_field_beginChestInteraction, as the field's Cross at a chest). */
         extern int pc_ui_loot_debug_chest(int index, int out[12]) __attribute__((weak));
         extern int pc_ui_loot_debug_chest_open(int index) __attribute__((weak));
         int v[12], n, open = -1, len;
@@ -3369,7 +3369,7 @@ static void handle_method(int fd, const char* request)
         int count = pc_room_editor_groups(groups, 4096);
         unsigned facing = 0;
         int drawn_count = pc_room_drawn_groups ? pc_room_drawn_groups(drawn, 4096, &facing) : 0;
-        /* drawn: func_8009723C drew the group in the latest frame (either
+        /* drawn: vs_render_drawRoomGeometry drew the group in the latest frame (either
          * path); facing: the mask it tested (the game's, or the free
          * camera's while it flies; 0x10000: every group). */
         /* room: "ready" when the groups are the loaded room's, "loading"

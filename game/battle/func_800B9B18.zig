@@ -20,8 +20,8 @@ pub fn func_800B9B18(arg0: [*c]u8, arg1: c_short) callconv(.c) c_int {
     }
 
     switch ((flags >> 4) & 3) {
-        0 => c.func_8007C050(),
-        1 => c.func_8007BFC0(),
+        0 => c.vs_actors_disableAllActorModels(),
+        1 => c.vs_actors_enableAllActorModels(),
         else => {},
     }
 

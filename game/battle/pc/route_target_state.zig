@@ -4,13 +4,13 @@ const c = @import("c_actor_update");
 const v = @import("views_actor_update");
 const psx = @import("common").psx;
 
-/// orig: func_800E5154 (pc/src/actor_update.c)
+/// orig: vs_battle_aiActorNavigationOverrideStatus (pc/src/actor_update.c)
 /// 0 when actor `id`'s route record is on its target tile (the tile word the
 /// record points at, masked 0xFF00FF, equals the target at +0x168), 1 while
 /// it is elsewhere, 2 without a grid, a state or a route.
 pub fn routeTargetState(id: c_uint) callconv(.c) c_int {
     if (id >= 17) c.pc_unimplemented("actor navigation index");
-    const state = v.g.D_800F5878()[id];
+    const state = v.g.vs_battle_aiActorAiStates()[id];
     if (v.g.D_800F58B8().* == 0 or state == null) return 2;
     const st: *ai.vs_battle_aiState = @ptrCast(@alignCast(state.?));
     const route = st.route orelse return 2;

@@ -62,7 +62,7 @@ ui_text font, so nothing moves between the two images. Checks:
   the same picture either way (frame-exact); in the save room with frame
   interpolation the HUD's held-back numbers present the same on every image;
 - emote bubbles over actors (BATTLE.PRG func_80095C18, pc/src/ui_emotes.c;
-  every kind forced on the opening's actors: D_800F2260, D_800F2270): with
+  every kind forced on the opening's actors: D_800F2260, vs_battle_actorMarkersHidden): with
   ui_text font and ui_bubbles vector the same recorded frame changes only
   inside the regions the 2D path drew from shapes and fonts, the balloons,
   dots and marks are drawn again (RPC ui_bubbles emotes), and with both
@@ -925,7 +925,7 @@ def check_cross(game, work, shots):
     against the original), and the dot drawn alone as a disc."""
     game.call("input", buttons=["l2"], vsyncs=230)  # released after compare's frames
     game.run(200)
-    step = game.read_symbol("D_800EBCE8", 1)[0]
+    step = game.read_symbol("vs_battle_shortcutHudAnimationStep", 1)[0]
     if not check(step != 10, f"cross: the L2 shortcut cross is open (animation step {step})"):
         return
     compare(game, work, "cross", shots, "cross", "bright")
@@ -981,7 +981,7 @@ def run_emotes(work, shots):
         game.call("graphics", interpolate=False, aa="off", ui_text_overlay="off", ui_text="original", ui_bubbles="original")
         game.run(200)
         kinds = symbols()["D_800F2260"]
-        game.write(symbols()["D_800F2270"], bytes(4))  # (the scene keeps them off)
+        game.write(symbols()["vs_battle_actorMarkersHidden"], bytes(4))  # (the scene keeps them off)
         before = game.call("ui_bubbles")["emotes"]
         for kind in range(1, 8):
             game.write(kinds, bytes([0] + [kind] * 15))
@@ -1121,8 +1121,8 @@ def run_save(work, card, shots):
 PTR = 8 if os.environ.get("ROOD_ARCH") == "64" else 4  # host pointers (the label pool)
 LABEL_SIZE = 24  # D_800F1BAC_t
 # Battle popups' regions as the game draws them (BATTLE.PRG): the status changes' words (func_80095258,
-# D_80068FAC: x, y, w; 12 rows, battle page, CLUT (976, 220)), a stat change's word, sign and digits
-# (func_80094E18, func_80094B0C), the equipment class words and small digits (func_8009695C).
+# vs_battle_labelCaptionRects: x, y, w; 12 rows, battle page, CLUT (976, 220)), a stat change's word, sign and digits
+# (vs_battle_drawValueLabelCaption, func_80094B0C), the equipment class words and small digits (func_8009695C).
 POPUP_WORDS = [(0, 64, 24), (24, 64, 20), (44, 64, 24), (224, 64, 16), (212, 76, 32), (68, 64, 40), (108, 64, 30),
                (138, 64, 50), (188, 64, 36), (0, 76, 52), (52, 76, 30), (144, 88, 58), (120, 76, 60), (180, 76, 30),
                (104, 88, 32), (0, 88, 16), (20, 88, 20), (40, 88, 30), (72, 88, 32), (102, 76, 16), (220, 100, 18),
@@ -1176,21 +1176,21 @@ def label(kind, actor=0, a=0, frame=10, c=0, e=0, text=b"", wait=-1):
 
 
 class Popups:
-    """The battle popups' pool (D_800F1BAC): records written as the game would add them."""
+    """The battle popups' pool (vs_battle_floatingLabels): records written as the game would add them."""
 
     def __init__(self, game):
         self.g = game
         self.sym = symbols()
-        self.pool = int.from_bytes(game.read(self.sym["D_800F1BAC"], PTR), "little")
+        self.pool = int.from_bytes(game.read(self.sym["vs_battle_floatingLabels"], PTR), "little")
 
     def show(self, *records, vsyncs=3):
         for _ in range(vsyncs):  # (each vsync: the records as written, drawn in the next frame)
             self.g.write(self.pool, b"".join(records))
-            self.g.write(self.sym["D_800F227E"], struct.pack("<h", len(records)))
+            self.g.write(self.sym["vs_battle_floatingLabelCount"], struct.pack("<h", len(records)))
             self.g.run(1)
 
     def clear(self):
-        self.g.write(self.sym["D_800F227E"], struct.pack("<h", 0))
+        self.g.write(self.sym["vs_battle_floatingLabelCount"], struct.pack("<h", 0))
         self.g.run(2)
 
 

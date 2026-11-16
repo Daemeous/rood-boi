@@ -6,15 +6,15 @@ const pad = @import("common").pad;
 /// orig: func_800E49D8 (pc/src/battle_movement.c)
 /// Tries climbing toward a higher tile: from `tile` walks up to steps - 1
 /// tiles in `dir` while the floor stays at least as high; on the first lower
-/// tile returns it if func_800D96C8 and func_800D954C accept the step, else 0.
+/// tile returns it if vs_battle_aiCanTraverseTileEdge and vs_battle_aiDestinationOccupancy accept the step, else 0.
 /// Only with the occupancy bitmap active (0x3F4). The original intended
 /// min(steps - 1, 2) but tests its constant, so the bound is steps - 1.
 pub fn climbTarget(state: *ai.vs_battle_aiState, tile_in: c_uint, dir: c_int, steps: c_int) callconv(.c) c_uint {
     var tile = tile_in;
     if (@as(*const u32, @ptrFromInt(pad.addr(0x3F4))).* == 0) return 0;
     const current = state.tile.raw;
-    var floor = c.func_800E42E0(current);
-    const raw = c.func_800E4308(tile);
+    var floor = c.vs_field_groundHeightAtPackedTile(current);
+    const raw = c.vs_field_groundHeightFlagsAtPackedTile(tile);
     if (raw < 0) return 0;
     const target: c_int = @as(c_int, @bitCast(@as(c_uint, @bitCast(raw)) << 17)) >> 17;
     if (!(floor < target) or steps == 0) return 0;
@@ -27,13 +27,13 @@ pub fn climbTarget(state: *ai.vs_battle_aiState, tile_in: c_uint, dir: c_int, st
     while (true) {
         x +%= directionDx(packed_dir);
         z +%= directionDz(packed_dir);
-        const height = c.func_800E42EC(x, z);
+        const height = c.vs_field_groundHeightAtTile(x, z);
         if (height < floor) break;
         taken +%= 1;
         if (!(taken < limit)) return 0;
     }
     tile = (tile & 0xff00ff00) | @as(c_uint, @bitCast(x)) | (@as(c_uint, @bitCast(z)) << 16);
-    if (c.func_800D96C8(state, current, tile, dir) <= 0 or c.func_800D954C(state, tile) <= 0) return 0;
+    if (c.vs_battle_aiCanTraverseTileEdge(state, current, tile, dir) <= 0 or c.vs_battle_aiDestinationOccupancy(state, tile) <= 0) return 0;
     return tile;
 }
 

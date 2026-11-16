@@ -12,7 +12,7 @@ const c = @import("c_74088");
 fn statusScore(stats: *v.actionStatSnapshot, id: c_int) c_int {
     var sum: c_int = 0;
     const row = psx.at(stats, id);
-    const scoreState = psx.GlobalMany(?*v.vs_battle_aiState, "D_800F5878").ptr()[@as(usize, @intCast(row.unknown & 15))].?;
+    const scoreState = psx.GlobalMany(?*v.vs_battle_aiState, "vs_battle_aiActorAiStates").ptr()[@as(usize, @intCast(row.unknown & 15))].?;
     const noCost = scoreState.maxActionCost == 0;
     var i: c_int = 0;
     while (i < 32) : (i += 1) {
@@ -68,7 +68,7 @@ pub fn func_800DCC94(state: ?*v.vs_battle_aiState, candidate: ?*v.actionCandidat
     cand.score = 0;
     psx.setBits(cand, "weight", 128);
     const stats: *v.actionStatSnapshot = @ptrFromInt(pad.addr(0x18C));
-    c.func_800DC424(psx.cptr(c.actionStatSnapshot, stats));
+    c.vs_battle_aiCaptureActorConditionTable(psx.cptr(c.actionStatSnapshot, stats));
     const st = state.?;
     if (st.special != 0 and (flags & 16) != 0) {
         special = 1;
@@ -83,7 +83,7 @@ pub fn func_800DCC94(state: ?*v.vs_battle_aiState, candidate: ?*v.actionCandidat
         const id: c_int = a.id;
         const kind: c_uint = psx.at(&st.tbl.t.targets.score, id).classification >> 6;
         if (kind == 1) continue;
-        var value: c_int = c.func_800DC284(
+        var value: c_int = c.vs_battle_aiScoreActorCondition(
             statusScore(stats, id),
             hpRatio(stats, id),
             mpRatio(stats, id),

@@ -3,9 +3,9 @@ const psx = @import("common").psx;
 const v = @import("views_146C");
 const c = @import("c_146C");
 
-/// D_800F19CC, read at each use as the C does.
+/// vs_battle_actionState, read at each use as the C does.
 fn state() *v.D_800F19CC_t {
-    return v.g.D_800F19CC().*.?;
+    return v.g.vs_battle_actionState().*.?;
 }
 
 /// The chain (triangle, square, circle: 0x10, 0x20, 0x80) buttons.
@@ -17,14 +17,14 @@ fn missed() void {
     state().battleAbilityInputAttempted = 1;
 }
 
-/// orig: func_80078AB4 (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
+/// orig: vs_battle_updateBattleAbilityTiming (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// One tick of the timing window: its margin (8 with state flag 1, else 10; 4 more for an enemy's action from 54;
 /// less by a third of the link, at least 2), the cue when the timer meets the window, the timer advanced. A pressed
 /// ability button that is mapped (the player's chain abilities, or the defense ones for an enemy's action) is
-/// judged by func_80078828 and graded against the window (early, late, in time, too late): in time and not yet
+/// judged by vs_battle_canTriggerBattleAbility and graded against the window (early, late, in time, too late): in time and not yet
 /// attempted, a new chain button queues the chain ability (the player), or a defense ability for an unaimed first
 /// hit (an enemy's action, which counts the streak). Then, for an aimed action, the actor told unless it is busy,
-/// and the next step (func_8006FD1C) once the cast flash is over.
+/// and the next step (vs_battle_advanceBattleAbilitySequence) once the cast flash is over.
 pub fn timingWindow() callconv(.c) void {
     const slot = &state().unk854[state().unk0 & 3];
     var margin: c_int = undefined;
@@ -45,7 +45,7 @@ pub fn timingWindow() callconv(.c) void {
     const timer: c_int = state().battleAbilityTimer;
     if (state().battleAbilityTargetWindow != 0) {
         if (timer == @as(c_int, state().battleAbilityTargetWindow) -% v.g.vs_gametime_tickspeed().* *% 2) {
-            if (c.func_80078828(0) != 0) {
+            if (c.vs_battle_canTriggerBattleAbility(0) != 0) {
                 c.func_80096FF0(@divTrunc(margin *% 2, v.g.vs_gametime_tickspeed().*));
             }
         }
@@ -75,7 +75,7 @@ pub fn timingWindow() callconv(.c) void {
         }
 
         if (mapped) {
-            if (c.func_80078828(button) != 0) {
+            if (c.vs_battle_canTriggerBattleAbility(button) != 0) {
                 if (state().battleAbilityTargetWindow == 0) {
                     _ = c.vs_battle_renderBattleAbilityTimingResult(1);
                     state().battleAbilityInputAttempted = 1;
@@ -137,7 +137,7 @@ pub fn timingWindow() callconv(.c) void {
                     }
                 } else {
                     if (v.g.D_800F1868().* & 3 == 0) {
-                        c.func_8006FD1C();
+                        c.vs_battle_advanceBattleAbilitySequence();
                     }
                     return;
                 }
@@ -148,7 +148,7 @@ pub fn timingWindow() callconv(.c) void {
     }
 
     if (slot.unk4.unk40 == 0) {
-        if (c.func_8009E4B0(@as(c_int, slot.unk4.unk0.targetActor)) != 0) {
+        if (c.vs_actors_isActorActionAnimationBusy(@as(c_int, slot.unk4.unk0.targetActor)) != 0) {
             return;
         }
         if (state().battleAbilityInputAttempted != 0 or state().unk2C03 == 0) {
@@ -162,6 +162,6 @@ pub fn timingWindow() callconv(.c) void {
         }
     }
     if (v.g.D_800F1868().* & 3 == 0) {
-        c.func_8006FD1C();
+        c.vs_battle_advanceBattleAbilitySequence();
     }
 }

@@ -65,13 +65,13 @@ static int _topLevelMenuTransition(int category)
     enum state { init };
 
     static char state;
-    static char D_8010A681;
+    static char vs_menu_lootHudWasHidden;
 
     int stepValue;
     vs_battle_menuItem_t* menuItem;
 
     if (category != 0) {
-        D_800F4EE8.unk3A.currentItemCategory = category;
+        vs_menu_frameworkMenuMemory.unk3A.currentItemCategory = category;
         _showInventory = 0;
         _showLoot = 0;
         state = init;
@@ -108,13 +108,13 @@ static int _topLevelMenuTransition(int category)
             break;
         }
 
-        func_8008A4DC(0);
+        vs_field_setFieldRenderingEnabled(0);
 
-        D_8010A681 = D_800EB9AF;
+        vs_menu_lootHudWasHidden = vs_battle_hudHidden;
 
-        if (!D_8010A681) {
-            func_800CB654(1);
-            D_800EB9B0 = 0x200000;
+        if (!vs_menu_lootHudWasHidden) {
+            vs_battle_setHudHidden(1);
+            vs_battle_hudSlideOffset = 0x200000;
         }
 
         _renderAshley(1);
@@ -130,11 +130,11 @@ static int _topLevelMenuTransition(int category)
 
         _toggleMenuUi(0);
         vs_mainMenu_clearMenuExcept(vs_mainMenu_menuItemIds_none);
-        func_8008A4DC(1);
+        vs_field_setFieldRenderingEnabled(1);
 
-        if (D_8010A681 == 0) {
-            func_800CB654(0);
-            D_800EB9B0 = 0;
+        if (vs_menu_lootHudWasHidden == 0) {
+            vs_battle_setHudHidden(0);
+            vs_battle_hudSlideOffset = 0;
         }
 
         _renderAshley(2);
@@ -174,7 +174,7 @@ static int _topLevelMenuTransition(int category)
 
     if ((_secondaryTitleAnimationStep != 0) && (_selectedItemCategoryIconOnTop == 0)) {
 
-        int itemCategory = (D_800F4EE8.unk3A.currentItemCategory - 1) & 7;
+        int itemCategory = (vs_menu_frameworkMenuMemory.unk3A.currentItemCategory - 1) & 7;
 
         vs_battle_menuItem_t* menuItem =
             vs_battle_setMenuItem(31, stepValue + 180, 34, 140, 8,
@@ -1123,7 +1123,7 @@ static void _applyAllLootLists(vs_battle_lootListNode* node)
             node = node->next;
         }
     } else {
-        _applyLootList(D_800EB9C8);
+        _applyLootList(vs_menu_frameworkLootEntry);
     }
 }
 
@@ -1322,7 +1322,7 @@ static int _discardItems(int init)
             return 0;
         }
 
-        if ((_lootClaimed == 0) && (D_800EB9C8 != NULL)) {
+        if ((_lootClaimed == 0) && (vs_menu_frameworkLootEntry != NULL)) {
             state = 5;
             return 0;
         }
@@ -1884,7 +1884,7 @@ int vs_menuB_exec(u_char* state)
         _0 = 0;
 
         vs_mainMenu_loadItemText(1);
-        _applyAllLootLists(D_800EB9C4);
+        _applyAllLootLists(vs_menu_frameworkLootLists);
 
         _controlsEnabled = 0;
         _showInventory = 1;
@@ -1931,7 +1931,7 @@ int vs_menuB_exec(u_char* state)
     case 3:
         i = _processLootMenu(0);
         if (i != 0) {
-            D_800F4E98.unk2 = i == 1;
+            vs_menu_frameworkActionSelection.unk2 = i == 1;
             *state = 5;
         }
         break;
@@ -1954,8 +1954,8 @@ int vs_menuB_exec(u_char* state)
 
         vs_main_freeHeapR(_inventory);
 
-        if (D_800EB9C4 != 0) {
-            func_8008A6FC();
+        if (vs_menu_frameworkLootLists != 0) {
+            vs_items_clearRoomLootList();
         }
 
         *state = 0;

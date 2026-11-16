@@ -34,7 +34,7 @@ battle charging option off, and runs 12 s more in the field. Checks:
     phrase (normalised autocorrelation of the samples over 50 ms..1 s lags
     below 0.4; the loop measured 0.64 at 7168 samples, the room ~0.1).
 With --no-irq (ROOD_SPU_IRQ=0) the interrupt is not served: the stream is
-fed once and loops until the driver's stop command (func_8001D698), which
+fed once and loops until the driver's stop command (vs_audio_cutsceneStopStream), which
 the game thread sends between two driver ticks; the same checks then test
 that its key off is not lost to the next tick's own key off.
 --out keeps the logs and the recording."""

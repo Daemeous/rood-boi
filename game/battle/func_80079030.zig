@@ -2,7 +2,7 @@
 const c = @import("c_146C");
 
 /// orig: func_80079030 (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
-/// Starts the cast again (func_8007138C).
+/// Starts the cast again (vs_battle_startActionPresentation).
 pub fn func_80079030() callconv(.c) void {
-    c.func_8007138C();
+    c.vs_battle_startActionPresentation();
 }

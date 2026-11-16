@@ -43,7 +43,7 @@ pub fn func_800C1DC4(arg0: ?*v.D_800EB9B8_unk990) callconv(.c) void {
         color0 = color1;
         color1 = y;
     }
-    y = @as(c_int, row.unk6) +% @as(c_int, v.g.D_800F4CB4().*);
+    y = @as(c_int, row.unk6) +% @as(c_int, v.g.vs_battle_targetColumnTopOffset().*);
     x = xy;
     if (isLeft) {
         x +%= 0x42;
@@ -89,7 +89,7 @@ pub fn func_800C1DC4(arg0: ?*v.D_800EB9B8_unk990) callconv(.c) void {
 
     if (row.unk1 != 0) {
         y +%= 4;
-        c.func_800C02A8();
+        c.vs_render_loadFrameViewMatrix();
         const frame = common.gte.frame();
 
         // PC_GTE_UNNARROWED: the projection is anchored while it runs.

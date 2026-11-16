@@ -7,7 +7,7 @@
  *
  * Everything here is the original's Setup screen, MENUC (pc/src/game/MENU/MENUC.PRG/
  * 168.c), which MENU3's Items menu opens (16C.c state 7: returnState =
- * currentMenu, currentMenu 13, D_800F4EA0 |= 0x200), and MENU8's rename
+ * currentMenu, currentMenu 13, vs_menu_frameworkActionRestrictions |= 0x200), and MENU8's rename
  * (pc/src/game/MENU/MENU8.PRG/21A0.c), ported line for line on the resident BATTLE
  * and main data with the originals' types and expressions, so the bag ends
  * byte for byte as the original screens leave it (ui_workshop_smoke checks
@@ -30,7 +30,7 @@
  *               0x80 a shield)); an equipped weapon / shield re-equipped
  *               (vs_battle_equipWeapon / Shield); sfx 0x7E, 0x18. The
  *               re-equip matters beyond the record: it ends the actor's
- *               enchantments (func_8006B214 / B270 / B2D4 clear their
+ *               enchantments (vs_items_removeEquipmentBoostOnEquip / B270 / B2D4 clear their
  *               statuses), so it happens exactly when the original's does:
  *               the original attaches each pick at once and re-equips then
  *               (state 6, 168.c:1820-1860), its Yes changes nothing more
@@ -87,7 +87,7 @@
  * (_validGripFlags), a material the workshop does not work, a combine
  * category with fewer than two items: noItems / oneItem).
  *
- * Cursor memories (D_800F4EE8.cursorMemories, ids 53..61 as MENUC's lists
+ * Cursor memories (vs_menu_frameworkMenuMemory.cursorMemories, ids 53..61 as MENUC's lists
  * set them up: vs_mainmenu_setMenuRows' rowInfo & 0xFF): each request stores
  * what the original's lists store when the same choice is confirmed there
  * and the player leaves from where the original comes back to (its lists
@@ -110,7 +110,7 @@
  * 20-code field as typed, so two requests in a tick cannot mix names up).
  * Refused (the invalid sound, nothing changed; the shell goes back to the
  * step that sent it, pc_ui_workshop_refused): the Items menu's mask
- * (D_800F4EA0 & 7) set, MAINMENU not resident, a model reload under way, a
+ * (vs_menu_frameworkActionRestrictions & 7) set, MAINMENU not resident, a model reload under way, a
  * record that is not what the screen saw or no longer fits the choice (the
  * same checks MENUC's lists make), or, for a change that unequips the
  * weapon / shield, no model load possible now
@@ -167,7 +167,7 @@ static u_short rename_text[] = {
 #define DISASSEMBLE_MEMORY 57  /* _disassembleTopMenu (0x239), its lists 58 + isShield */
 #define RENAME_MEMORY 60       /* _renameWeaponMenu (0x1913C) */
 #define COMBINE_MEMORY 61      /* _combineTopMenu (0x23D) */
-#define ITEM_MASK 7            /* D_800F4EA0 bits that grey the Items menu (and so Setup) */
+#define ITEM_MASK 7            /* vs_menu_frameworkActionRestrictions bits that grey the Items menu (and so Setup) */
 
 static pc_ui_workshop snap;
 static int resident;
@@ -196,7 +196,7 @@ static void copy_text(char* out, int size, const char* text)
 
 static void remember(int id, int sel, int page)
 {
-    char* memories = (char*)&D_800F4EE8;
+    char* memories = (char*)&vs_menu_frameworkMenuMemory;
     memories[id * 2] = sel;
     memories[id * 2 + 1] = page;
 }
@@ -932,7 +932,7 @@ static void name_field(const vs_main_inventoryWeapon* w, unsigned char* out)
 
 static void mask_reason(char* out, int size)
 {
-    u_int mask = (u_int)D_800F4EA0 & ITEM_MASK;
+    u_int mask = (u_int)vs_menu_frameworkActionRestrictions & ITEM_MASK;
     out[0] = 0;
     if (mask & 2)
         copy_text(out, size, "Not while carrying a cube.");
@@ -1471,7 +1471,7 @@ static void fill_snapshot(int with_preview)
         /* Divergence: an id past the table (none in the game's rooms) works nothing */
         snap.materials = _currentWorkshop < sizeof _workshopMaterials ? (u_char)_workshopMaterials[_currentWorkshop] : 0;
     }
-    snap.locked = ((u_int)D_800F4EA0 & ITEM_MASK) != 0;
+    snap.locked = ((u_int)vs_menu_frameworkActionRestrictions & ITEM_MASK) != 0;
     mask_reason(snap.locked_reason, sizeof snap.locked_reason);
     snap.busy = !resident || pc_ui_equip_busy();
     fill_lists();
@@ -1624,7 +1624,7 @@ static int target_gems(const pc_ui_request* r, int* slots)
 
 /* _attachGemsMenu confirmed (state 8, Yes). The original attaches every pick
  * at once (state 6: the record changed and an equipped target re-equipped,
- * vs_battle_equipWeapon / Shield, which ends its enchantments: func_8006B214
+ * vs_battle_equipWeapon / Shield, which ends its enchantments: vs_items_removeEquipmentBoostOnEquip
  * / B270 / B2D4); Yes itself changes nothing more. So: a visit with a pick
  * (PC_UI_WS_EDITED) attaches the final set and re-equips (the same end as
  * the original's last live edit); a visit without one changes nothing, the

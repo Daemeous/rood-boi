@@ -20,15 +20,15 @@ menu is closed, loads settle, and these are compared byte for byte:
   vs_main_inventoryIndices; Ashley's battle record (vs_battle_actor2 behind
   vs_battle_characterState->unk3C); the character state record
   (vs_battle_actor: weaponDrawn, equippedWeaponCategory, ...); actor 0's
-  object (D_800F4538[0], unk5B1 the model category among them); the weapon and
+  object (vs_actors_actorRecords[0], unk5B1 the model category among them); the weapon and
   shield model headers (vs_battle_wepModels[0], [1]).
 Masked (volatile, not equipment): see MASKS below, each with its reason.
 What this comparison found (fixed in the bridge): the Items menu rebuilds
 every inventory index list when it starts (vs_mainMenu_rebuildInventory, so
 a bag record missing from its list, like this card's second shield, is
 listed from then on); and the original finishes actor 0 after a model load
-with func_800FA2CC (idle set up in place), not the field swap's animation
-restart (func_800A0204: its script state differed).
+with vs_menu_frameworkResetAshleyEquipmentPose (idle set up in place), not the field swap's animation
+restart (vs_actors_playActorAnimation: its script state differed).
 
 Shell-only checks (process b, after the parity list):
   - the snapshot: eight slots; the weapon's name is the inventory record's
@@ -65,7 +65,7 @@ from checkpoints import launch_at  # noqa: E402
 from weapon_slots_smoke import default_card, two_handed  # noqa: E402
 
 CLOSED = 0x3F
-PTR = 8 if os.environ.get("ROOD_ARCH") == "64" else 4  # host pointers (vs_battle_menuItems, D_800F4538, ...)
+PTR = 8 if os.environ.get("ROOD_ARCH") == "64" else 4  # host pointers (vs_battle_menuItems, vs_actors_actorRecords, ...)
 
 # vs_main_inventory_t (main.h) and records
 INVENTORY_BYTES = 3840
@@ -159,7 +159,7 @@ class Session:
         self.indices = sym["vs_main_inventoryIndices"]
         self.items_ptr = sym["vs_battle_menuItems"]
         self.char_state = sym["vs_battle_characterState"]
-        self.objects = sym["D_800F4538"]
+        self.objects = sym["vs_actors_actorRecords"]
         self.wep_models = sym["vs_battle_wepModels"]
         self.load_state = sym["vs_battle_loadObjectDataState"]
 
@@ -836,7 +836,7 @@ def soft_reset_checks(b, check, k):
     the shell is drawn or held, the HUD flag is back, the reload's finish is
     dropped; Continue again gives a working field and menu."""
     g = b.game
-    hud = symbols()["D_800EB9AF"]
+    hud = symbols()["vs_battle_hudHidden"]
     hud_before = g.read(hud, 1)[0]
     err = b.shell_open_equipment()
     if not check(err is None and b.shell_focus(0), f"reset: the weapon slot {err or ''}"):

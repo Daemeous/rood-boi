@@ -71,9 +71,9 @@ def pointer_size():
 
 
 def actor_feet(game, slot):
-    """An actor slot's feet (D_800F4538[slot] position), or None when the slot is empty."""
+    """An actor slot's feet (vs_actors_actorRecords[slot] position), or None when the slot is empty."""
     width = pointer_size()
-    actor = int.from_bytes(game.read(symbols()["D_800F4538"] + slot * width, width), "little")
+    actor = int.from_bytes(game.read(symbols()["vs_actors_actorRecords"] + slot * width, width), "little")
     if not actor:
         return None
     return struct.unpack("<3h", game.read(actor + POSITION, 6))

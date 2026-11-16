@@ -1,14 +1,14 @@
 #include "common.h"
 
 #define VS_RING_FUNCTION func_800F98F8
-#define VS_RING_COLORS D_800FBB10
+#define VS_RING_COLORS vs_effects_plg147RingColorFactors
 #include "pc/src/game/EFFECT/rings.h"
 
 #define VS_PARTICLE_ORIGIN_FUNCTION func_800FA51C
 #define VS_PARTICLE_TARGET_FUNCTION func_800FACA4
 #define VS_PARTICLE_CONTROL_FUNCTION func_800FAEBC
 #define VS_PARTICLE_RENDER_FUNCTION func_800FB36C
-#define VS_PARTICLE_CORNER_STATE D_800FBB30
+#define VS_PARTICLE_CORNER_STATE vs_effects_plg147ParticleEmissionCounter
 #include "pc/src/game/EFFECT/particleSetup.h"
 #undef VS_PARTICLE_ORIGIN_FUNCTION
 #undef VS_PARTICLE_TARGET_FUNCTION

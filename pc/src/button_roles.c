@@ -25,7 +25,7 @@
  *                  press, so it follows Cross whenever one option is on.
  *   the game's     buttons stay the game's own:
  *                  - D_800F196C 2 with any other _cameraMode: the action
- *                    runs (func_80078AB4 reads the chain and defense
+ *                    runs (vs_battle_updateBattleAbilityTiming reads the chain and defense
  *                    abilities on Circle, Triangle and Square as the player
  *                    put them there);
  *                  - D_800F196C 6 (the L2 shortcut overlay: Circle and Cross
@@ -108,7 +108,7 @@ static int battle_running(void)
 static int ability_lists(void)
 {
     int state = (u_char)vs_battle_submenuStates[MENU2_COMMAND];
-    return (vs_battle_menuState.currentMenu & 0x3F) == MENU2_COMMAND && !(D_800F4EA0 & 0x200)
+    return (vs_battle_menuState.currentMenu & 0x3F) == MENU2_COMMAND && !(vs_menu_frameworkActionRestrictions & 0x200)
         && (state == MENU2_CHAIN || state == MENU2_DEFENSE);
 }
 
@@ -192,7 +192,7 @@ static int symbols_exceptions = 1; /* RPC button_roles symbol_exceptions (tests:
 void pc_button_roles_symbol_exceptions(int on) { symbols_exceptions = on != 0; }
 static int symbols_swap(int text)
 {
-    int menu = vs_battle_menuState.currentMenu & 0x3F, open = battle_running() && !(D_800F4EA0 & 0x200);
+    int menu = vs_battle_menuState.currentMenu & 0x3F, open = battle_running() && !(vs_menu_frameworkActionRestrictions & 0x200);
     return pc_button_roles_shown(5) != 5
         && !(symbols_exceptions && open && (menu == MENU2_COMMAND || (text && menu == MANUAL_COMMAND)));
 }

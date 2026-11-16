@@ -10,7 +10,7 @@ const c = @import("c_38C1C");
 /// Returns an actor's bone matrix (or its object, weapon or root offset) placed for the camera, in the scratchpad.
 pub fn boneViewMatrix(actorId: c_int, bone: c_int, _: ?*v.MATRIX) callconv(.c) ?*v.MATRIX {
     const scratch: *v.boneMatrixScratch = @ptrFromInt(pad.addr(0x35C));
-    const actor: ?*v.D_800F4538_t = psx.at(v.g.D_800F4538(), actorId).*;
+    const actor: ?*v.D_800F4538_t = psx.at(v.g.vs_actors_actorRecords(), actorId).*;
 
     if (actor) |a| {
         if ((bone & 0xF0) == 0x40) {
@@ -25,7 +25,7 @@ pub fn boneViewMatrix(actorId: c_int, bone: c_int, _: ?*v.MATRIX) callconv(.c) ?
             scratch.offset.vx = psx.conv(i16, @divTrunc(@as(c_int, scratch.offset.vx) *% scale, 4096));
             scratch.offset.vy = psx.conv(i16, @divTrunc(@as(c_int, scratch.offset.vy) *% scale, 4096));
             scratch.offset.vz = psx.conv(i16, @divTrunc(@as(c_int, scratch.offset.vz) *% scale, 4096));
-            c.func_800B07DC(@ptrCast(a));
+            c.vs_actors_transformRootOffset(@ptrCast(a));
             scratch.matrix.t[0] = @as(c_int, scratch.offset.vx);
             scratch.matrix.t[1] = @as(c_int, scratch.offset.vy);
             scratch.matrix.t[2] = @as(c_int, scratch.offset.vz);
@@ -34,13 +34,13 @@ pub fn boneViewMatrix(actorId: c_int, bone: c_int, _: ?*v.MATRIX) callconv(.c) ?
             scratch.matrix = psx.at(&a.bones, bone).*;
         }
     } else {
-        const object = psx.at(v.g.D_800F45E0(), actorId).* orelse return null;
+        const object = psx.at(v.g.vs_field_gimmickInstances(), actorId).* orelse return null;
         scratch.matrix = @as(*const v.MATRIX, @ptrCast(psx.at(&object.unk6C, bone))).*;
     }
 
     const camera = v.g.D_800F49B8();
     const result = &scratch.matrix;
-    c.func_80041C68(psx.cptr(c.MATRIX, camera), psx.cptr(c.MATRIX, result));
+    c.vs_core_mathMultiplyMatrixIntoRight(psx.cptr(c.MATRIX, camera), psx.cptr(c.MATRIX, result));
     // The camera's rotation, translation zero (the translation matrix was uninitialised in the original).
     const view = gte.viewRotation(camera, gte.no_screen);
 

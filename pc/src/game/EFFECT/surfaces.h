@@ -56,7 +56,7 @@ int VS_SURFACE_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
 
     alive = 1;
     state = arg0->unk8;
-    battle = D_800F53BC;
+    battle = vs_effects_currentInstance;
     switch (arg1) {
     case 1:
         state = vs_main_allocHeapR(sizeof *state);
@@ -68,15 +68,15 @@ int VS_SURFACE_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
         state->heightSpeed = 0;
         state->height = 0;
         state->age = 0;
-        effect = &D_800F569C->block5Data->unk4[state->effect];
+        effect = &vs_effects_package->block5Data->unk4[state->effect];
         curveIndex = effect->transparencyCurve;
         if (curveIndex) {
-            sample = D_800F569C->curveBlock->curveSizes[curveIndex];
+            sample = vs_effects_package->curveBlock->curveSizes[curveIndex];
             if (sample >= 2)
                 --sample;
             for (initIndex = 0; initIndex < 5; ++initIndex) {
                 state->factors[initIndex] =
-                    D_800F569C
+                    vs_effects_package
                             ->curves[effect->transparencyCurve][sample * initIndex / 4]
                     * 2;
                 if (state->factors[initIndex] == 256)
@@ -87,11 +87,11 @@ int VS_SURFACE_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
             for (initIndex = 4; initIndex >= 0; --initIndex)
                 state->factors[initIndex] = maxFactor;
         }
-        func_800D6CCC((int*)&state->texture);
-        func_800D6CF0(&state->texture, effect->unkCA, effect->unkCB);
+        vs_effects_clearTextureAnimation((int*)&state->texture);
+        vs_effects_restartTextureAnimation(&state->texture, effect->unkCA, effect->unkCB);
         break;
     case 2: {
-        effect = &D_800F569C->block5Data->unk4[state->effect];
+        effect = &vs_effects_package->block5Data->unk4[state->effect];
         scratch->flags = effect->flags;
         actorMatrix = &battle->unk1C[effect->unkC8].unk38;
         vs_battle_lerpVector(effect->unk18,
@@ -100,7 +100,7 @@ int VS_SURFACE_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
         case 0:
             break;
         case 1:
-            vs_battle_addVecToSvec(&scratch->unk98, D_800F5310, &scratch->unk98);
+            vs_battle_addVecToSvec(&scratch->unk98, vs_effects_effectOrigin, &scratch->unk98);
             break;
         case 2:
             scratch->unk98.vx += actorMatrix->t[0];
@@ -173,9 +173,9 @@ int VS_SURFACE_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
                 depths[row][column] = projected.otz;
             }
         }
-        func_800D6D24(&state->texture);
+        vs_effects_advanceTextureAnimation(&state->texture);
         texture =
-            &D_800F569C->block1Data[state->texture.unk1C->dataIndex];
+            &vs_effects_package->block1Data[state->texture.unk1C->dataIndex];
         for (sample = 0; sample < VS_SURFACE_U_SEGMENTS + 1; ++sample)
             u[sample] = texture->u0 + texture->u1 * sample / VS_SURFACE_U_SEGMENTS;
         for (sample = 0; sample < 5; ++sample)

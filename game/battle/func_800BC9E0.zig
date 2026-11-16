@@ -3,9 +3,9 @@ const psx = @import("common").psx;
 const v = @import("views_4A0A8");
 const c = @import("c_4A0A8");
 
-/// D_800F4BA4, read again for every statement as the C does (its stores and calls may change it).
+/// vs_event_camera, read again for every statement as the C does (its stores and calls may change it).
 fn camera() *v.D_800F4BA4_t {
-    return v.g.D_800F4BA4().*.?;
+    return v.g.vs_event_camera().*.?;
 }
 
 /// orig: func_800BC9E0 (pc/src/game/BATTLE/BATTLE.PRG/4A0A8.c)

@@ -114,8 +114,8 @@ def zig_source(overlay, zig_path, game_root=ROOT / "game"):
     """(file, function) a route's `zig` path names: each module on the path
     is a `pub const NAME = @import("file.zig");` of the file before it,
     starting at game/<overlay>/root.zig ("score.updateEnemyKills" ->
-    game/battle/score.zig; D2's "pc.func_800D826C.func_800D826C" ->
-    game/battle/pc/func_800D826C.zig). The import path is relative to the
+    game/battle/score.zig; D2's "pc.vs_battle_aiIsEngagementReady.vs_battle_aiIsEngagementReady" ->
+    game/battle/pc/vs_battle_aiIsEngagementReady.zig). The import path is relative to the
     importing file, so a subdirectory's root.zig can nest further."""
     *modules, function = zig_path.split(".")
     file = pathlib.Path(game_root) / overlay / "root.zig"

@@ -4,13 +4,13 @@ const c = @import("c_battle_movement");
 const psx = @import("common").psx;
 const v = @import("views_battle_movement");
 
-/// orig: func_800E6EB0 (pc/src/battle_movement.c)
+/// orig: vs_battle_aiReleaseActorAiContactOccupancy (pc/src/battle_movement.c)
 /// When actor `id` is of type 11 or 14, its room-flag word (0x170, bits 8-15)
 /// is set and its model byte 0xC has a zero low nibble, clears that room
 /// flag. A missing record reads PS1 low RAM, as the original does.
 pub fn releaseActorRoomFlag(id: c_int) callconv(.c) void {
     const actor = psx.at(v.g.vs_battle_actors(), id).*;
-    const state_slot = psx.at(v.g.D_800F5878(), id).*;
+    const state_slot = psx.at(v.g.vs_battle_aiActorAiStates(), id).*;
     if (actor == null and state_slot == null) return;
     const low_ram: [*]u8 = @ptrCast(psx.lowRam(u8));
     const state: *ai.vs_battle_aiState = if (state_slot) |s| @ptrCast(@alignCast(s)) else @ptrCast(@alignCast(low_ram));
@@ -19,5 +19,5 @@ pub fn releaseActorRoomFlag(id: c_int) callconv(.c) void {
     const flags: c_uint = state.next.movementPosition.raw & 0xff00;
     const model: [*]u8 = @ptrCast(state.object.actorObject);
     if (flags == 0 or (model[0xc] & 0xf) != 0) return;
-    c.func_800E4BD8(@bitCast(flags >> 8));
+    c.vs_battle_aiClearAiContactOccupancy(@bitCast(flags >> 8));
 }

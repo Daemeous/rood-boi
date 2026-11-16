@@ -1,4 +1,4 @@
-//! Builds a hit request for a hit entity and passes it to func_800CF3F8
+//! Builds a hit request for a hit entity and passes it to vs_effects_beginSecondaryEffects
 //! (pc/src/game/BATTLE/BATTLE.PRG/146C.c).
 const std = @import("std");
 const common = @import("common");
@@ -7,14 +7,14 @@ const v = @import("views_146C");
 const c = @import("c_146C");
 
 /// orig: func_8006C4C4 (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
-/// Fills a request from the current battle actor and hit entity `arg1` against `targetLimb`, then hands it to func_800CF3F8.
+/// Fills a request from the current battle actor and hit entity `arg1` against `targetLimb`, then hands it to vs_effects_beginSecondaryEffects.
 pub fn func_8006C4C4(arg0: c_int, arg1: ?*v._hitEntity_t, targetLimb: c_int) callconv(.c) void {
-    const base = v.g.D_800F19CC().*.?;
+    const base = v.g.vs_battle_actionState().*.?;
     const temp = &base.unk854[base.unk0 & 3];
 
-    // Zeroed first: the fields the request does not set reach func_800CF3F8 as zero.
+    // Zeroed first: the fields the request does not set reach vs_effects_beginSecondaryEffects as zero.
     var sp10 = std.mem.zeroes(v.func_8006C4C4_t);
-    // func_800CF3F8 copies a whole func_800CF0E8_t from it: the C's ROOD_PC `unkE4` makes the request that big.
+    // vs_effects_beginSecondaryEffects copies a whole func_800CF0E8_t from it: the C's ROOD_PC `unkE4` makes the request that big.
     comptime std.debug.assert(@sizeOf(v.func_8006C4C4_t) >= @sizeOf(v.func_800CF0E8_t));
 
     sp10.unk0 = psx.conv(i16, arg0);
@@ -41,5 +41,5 @@ pub fn func_8006C4C4(arg0: c_int, arg1: ?*v._hitEntity_t, targetLimb: c_int) cal
 
     sp10.unk12 = psx.conv(i16, temp.unk2);
 
-    _ = c.func_800CF3F8(@ptrCast(&sp10), 0);
+    _ = c.vs_effects_beginSecondaryEffects(@ptrCast(&sp10), 0);
 }

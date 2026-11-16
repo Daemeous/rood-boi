@@ -50,7 +50,7 @@ _Static_assert(__builtin_offsetof(func_800D6E44_t, sprite) == __builtin_offsetof
                    && sizeof(func_800D6E44_t) == sizeof(func_800D2904_t),
                "particle view != func_800D2904_t");
 
-extern u_char D_80040A14[];
+extern u_char vs_core_mathArcTangentTable[];
 /* Native particles (effect_native.c; absent in unit probes). */
 extern void pc_particles_native_begin(void) __attribute__((weak));
 extern int pc_particles_native_takes(int tiles, int bucket, int layered, int sz) __attribute__((weak));
@@ -59,5 +59,5 @@ extern void pc_particles_native_node(int tiles, const int* page_clut, const int*
 extern void pc_particles_native_items(unsigned* start, unsigned* end) __attribute__((weak));
 extern unsigned* pc_particles_native_end(unsigned* packet, unsigned* ot) __attribute__((weak));
 
-void func_800D6E44(void* head);
+void vs_effects_drawAnimatedSpriteParticles(void* head);
 

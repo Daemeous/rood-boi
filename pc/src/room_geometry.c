@@ -143,11 +143,11 @@ int pc_room_drawn_groups(unsigned char* out, int max, unsigned* facing)
     *facing = drawn_facing;
     return n;
 }
-void func_8009723C(void* data, unsigned mode);
+void vs_render_drawRoomGeometry(void* data, unsigned mode);
 
 
-/* 2EA3C.s func_80098D6C: tint the room (game/battle/pc/tint_room_packets.zig). */
-void func_80098D6C(unsigned* start, unsigned* end, signed char* params, int flags);
+/* 2EA3C.s vs_render_tintRoomGeometryPrimitives: tint the room (game/battle/pc/tint_room_packets.zig). */
+void vs_render_tintRoomGeometryPrimitives(unsigned* start, unsigned* end, signed char* params, int flags);
 
 
 /* 2EA3C.s: the room-name table is `count` 12-byte entries followed by the
@@ -161,22 +161,15 @@ void vs_battle_getGeomOffset(unsigned* offset);
 void vs_battle_setGeomOffset(unsigned* offset);
 
 
-extern unsigned short D_800F1CDC;
+extern unsigned short vs_field_roomAnimationTicks;
 extern unsigned char vs_main_stateFlags[];
-/* Link `packet` (length `words`) at the head of the OT chain `head`. */
-static unsigned* chain(unsigned* packet, unsigned* head, unsigned words)
-{
-    packet[0] = (*head & 0xffffff) | (words << 24);
-    *head = (*head & 0xff000000) | (psx_to_int(unsigned, packet) & 0xffffff);
-    return packet;
-}
-/* 2EA3C.s func_80098F8C: draw the area map. `rooms` is a count then 12-byte
+/* 2EA3C.s vs_field_drawMinimapScene: draw the area map. `rooms` is a count then 12-byte
  * entries (visible flag, geometry). Each room's vertices are projected into
  * scratchpad 0x100 (GTE translation 0,0,0x100); the first room (the current
  * one) also gets translucent filled triangles/quads, its edge lines and its
  * markers; every room gets outline lines. Markers are plus signs (doors and
- * points of interest, the 0x10 kind blinking with D_800F1CDC bit 5) or an
+ * points of interest, the 0x10 kind blinking with vs_field_roomAnimationTicks bit 5) or an
  * 8x8 icon when their state flag is clear. Filled shapes and lines link into
  * OT[5], markers into OT[4]; each list ends with a 0xE100020C draw mode. */
-void func_80098F8C(void* rooms, const vs_gte_view* view); /* view: the map's rotation and projection; its translation is set to (0, 0, 0x100) */
+void vs_field_drawMinimapScene(void* rooms, const vs_gte_view* view); /* view: the map's rotation and projection; its translation is set to (0, 0, 0x100) */
 

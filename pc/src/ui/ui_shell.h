@@ -21,13 +21,13 @@ typedef struct {
     unsigned repeat;  /* pressed plus key repeat (lists) */
 } pc_ui_input;
 
-/* The game's original commands (top-level rows of func_800C930C). */
+/* The game's original commands (top-level rows of vs_menu_frameworkUpdateMainMenuSelection). */
 enum { PC_UI_CMD_COUNT = 10 };
 typedef struct {
     unsigned enabled;      /* bit i: command i exists (menuFlags) */
     unsigned unselectable; /* bit i: shown but not allowed now (it still opens: the
                             * game's own screen shows what is off, as the original does) */
-    unsigned mask;         /* the game's disable mask D_800F4EA0 (func_800CABE0), for the reason */
+    unsigned mask;         /* the game's disable mask vs_menu_frameworkActionRestrictions (vs_menu_frameworkActionRestrictionFlags), for the reason */
 } pc_ui_commands;
 
 /* The game opened its top-level menu (cursor memory: remember=1). */

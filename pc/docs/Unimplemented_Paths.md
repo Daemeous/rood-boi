@@ -24,12 +24,12 @@ The audit started from 87 sites:
 
 ### Route continuation through a room link: L800DF8A4
 
-- **Sites:** `battle_movement.c` `func_800E4B2C`, `battle_movement.c` `func_800E4B70` and `actor_update.c` `route_target`. All three printed "actor route continuation L800DF8A4".
-- **Action:** `pc_route_continuation` (766FC.s L800DF8A4), reached from 7BDD4.s func_800E4B2C / func_800E4B70 and from 7C7E0.s L800E550C.
+- **Sites:** `battle_movement.c` `vs_battle_aiMoveActorTowardDestinationTile`, `battle_movement.c` `func_800E4B70` and `actor_update.c` `route_target`. All three printed "actor route continuation L800DF8A4".
+- **Action:** `pc_route_continuation` (766FC.s L800DF8A4), reached from 7BDD4.s vs_battle_aiMoveActorTowardDestinationTile / func_800E4B70 and from 7C7E0.s L800E550C.
 - **Byte 3 of the new step tile:** this comes from the caller's `$s2`. The original never initialises that register.
   - Along the route-record path, `$s2` is the record itself, so byte 3 is the top byte of its address.
   - On the other two paths the compiled C callers' `$s2` is not known. 0 is passed there.
-  - Byte 3 cannot be observed. `func_800D954C` shifts it out, and the command consumers ignore it: `func_80075554`, `func_800A208C` and `func_800B6580` read only bytes 0-2, and nothing reads 0x5EF.
+  - Byte 3 cannot be observed. `vs_battle_aiDestinationOccupancy` shifts it out, and the command consumers ignore it: `vs_actors_executeQueuedActorCommands`, `vs_actors_beginActorJumpToTile` and `vs_actors_beginTeleport` read only bytes 0-2, and nothing reads 0x5EF.
 
 ### Divisions by zero
 
@@ -37,21 +37,21 @@ All of these are hand-written `div $zero`, which has no zero check. The R3000 th
 
 | Site | Message | Action |
 |---|---|---|
-| `battle_gte.c` func_800C0B50 | target shape intensity divide by zero | R3000 quotient |
+| `battle_gte.c` vs_battle_drawSphereVolumeWireframe | target shape intensity divide by zero | R3000 quotient |
 | `effect_particles.c` | effect particle projection depth zero | R3000 quotient |
 | `effect_particles.c` `pc_curve_value` | invalid particle color curve (size 0 part) | R3000 remainder (HI = clock). The index ≥ 32 part stays a guard |
-| `actor_blend.c` func_800B147C | invalid animation blend extent (duration 0 part) | R3000 quotient. The count ≤ 0 / > 42 part stays a guard |
-| `boot_sdk.c` func_80098648 | zero background far clip | R3000 quotient (-1) |
+| `actor_blend.c` vs_actors_blendActorPose | invalid animation blend extent (duration 0 part) | R3000 quotient. The count ≤ 0 / > 42 part stays a guard |
+| `boot_sdk.c` vs_render_buildScaleCompensatedRoomView | zero background far clip | R3000 quotient (-1) |
 
 ### Reads of PS1 low RAM and other out-of-list reads
 
 | Site | Message | Action |
 |---|---|---|
-| `battle_movement.c` func_800D954C | tile entry test against an actor without state | An actor without an AI state (attributes lack bit 0/2, func_800E6178) has a null `0x1F80037C` entry. The original then reads 0x94/0x174/0x178 from address 0, which is PS1 low RAM. Those bytes are now read through guest RAM |
-| `actor_update.c` func_800E5308 | actor navigation state missing | Same null entry: the original loads the route record from address 0x18C. That is now read through guest RAM. On a PS1 it must be 0, or the game would write into its kernel |
+| `battle_movement.c` vs_battle_aiDestinationOccupancy | tile entry test against an actor without state | An actor without an AI state (attributes lack bit 0/2, vs_battle_aiCreateActorAiState) has a null `0x1F80037C` entry. The original then reads 0x94/0x174/0x178 from address 0, which is PS1 low RAM. Those bytes are now read through guest RAM |
+| `actor_update.c` vs_battle_aiUpdateActorNavigationOverrides | actor navigation state missing | Same null entry: the original loads the route record from address 0x18C. That is now read through guest RAM. On a PS1 it must be 0, or the game would write into its kernel |
 | `25AC.c` Sound_UpdateSlidesAndDelays (`LFO_WAVE`) | none (crashed in the sound driver) | A vibrato/tremolo/auto-pan depth slide (opcodes DD/DE/DF) on a channel whose LFO was never enabled (BC etc.) reads its NULL wave: address 0. Zone 15 room 0's and zone 48 room 3's entry sound effects do this from a fresh launch. The wave is now read through guest RAM 0x80000000. Regression: run.py `room_entry_sound_smoke` |
-| `actor_update.c` `pc_actor_scratch` | actor navigation grid missing | func_800E5308 does not test `D_800F58BC`. Word 4 of address 0 is now read through guest RAM |
-| `battle_movement.c` func_800DBCEC | actor engagement with out-of-list hostile id | The walk starts at `&vs_battle_actors`. The first "node" id is a pointer. Its relation, model (0x800F4538 + id*4) and tile (+0x5C) are now read through guest RAM, including the KUSEG/KSEG1 mirrors |
+| `actor_update.c` `pc_actor_scratch` | actor navigation grid missing | vs_battle_aiUpdateActorNavigationOverrides does not test `vs_battle_aiRoomAiState`. Word 4 of address 0 is now read through guest RAM |
+| `battle_movement.c` vs_battle_aiHasNearbyEnemy | actor engagement with out-of-list hostile id | The walk starts at `&vs_battle_actors`. The first "node" id is a pointer. Its relation, model (0x800F4538 + id*4) and tile (+0x5C) are now read through guest RAM, including the KUSEG/KSEG1 mirrors |
 
 ### The ending: `vs_ending_exec`
 
@@ -71,7 +71,7 @@ All of these are hand-written `div $zero`, which has no zero check. The R3000 th
   - The skip (Start), the score/map/rank screen, and the title's clear-data save screen (declined).
   - `pc/tests/ending_smoke.py` (run.py suite `ending_smoke`) runs the ending twice from the save. The second pass must give the same score and rank, and the card copy must stay unchanged. It passes on 32-bit, 64-bit GL and 64-bit Vulkan.
 
-A caveat for the low-RAM reads: the port does not emulate the PS1 BIOS/kernel area, so the words read there are 0 natively. On a PS1 they are kernel data. For the route record the two must agree, otherwise the PS1 would corrupt its kernel. For func_800D954C the kernel bytes would only change how close an actor without state may be approached.
+A caveat for the low-RAM reads: the port does not emulate the PS1 BIOS/kernel area, so the words read there are 0 natively. On a PS1 they are kernel data. For the route record the two must agree, otherwise the PS1 would corrupt its kernel. For vs_battle_aiDestinationOccupancy the kernel bytes would only change how close an actor without state may be approached.
 
 ## Kept guards: class (a)
 
@@ -141,7 +141,7 @@ Unless the notes say otherwise, a hit on any of these means corrupt data, or a s
 |---|---|---|---|
 | boot_runtime.c:607 | GPU command | c | Unhandled GP0 commands in OT packets: 0x02 (fill), 0x1F, 0xA0-0xBF, 0xC0-0xDF. The game's sources show no OT use. The enemy soak hit none (below) |
 
-The non-battle `rood_boot` build also traps the battle functions (`vs_battle_exec`, `func_80069FC4`, ...). That is by design: that build has no battle overlay.
+The non-battle `rood_boot` build also traps the battle functions (`vs_battle_exec`, `vs_actors_rememberEnemy`, ...). That is by design: that build has no battle overlay.
 
 ## Data scan (MPD files)
 
@@ -176,12 +176,12 @@ When a warp gets stuck (Game Over, menus) it relaunches. `pc/tests/enemy_soak_re
 
 ### Findings
 
-No `[UNIMPLEMENTED]` was hit. Four native crashes were found and fixed. Each one is a NULL access that a PS1 survives, because guest address 0 is RAM. Under `ROOD_PC` the access now goes to guest RAM 0x80000000, as `func_800A30A0` already did; commit-check reports "All files match".
+No `[UNIMPLEMENTED]` was hit. Four native crashes were found and fixed. Each one is a NULL access that a PS1 survives, because guest address 0 is RAM. Under `ROOD_PC` the access now goes to guest RAM 0x80000000, as `vs_actors_placeActorInRoom` already did; commit-check reports "All files match".
 
 | Room | Crash | Fix |
 |---|---|---|
-| zone 24 room 7 (Cracked Pleasures) | `func_800A4A88`: no matching platform (`func_800A4A24` NULL) | both copies of `func_800A4A24` (3A1A0.c, 40564.c) return address 0 |
-| zone 24 room 7 | `func_800A70DC`: off-floor centre tile (`func_800A8D64` NULL) | read address 0 |
+| zone 24 room 7 (Cracked Pleasures) | `vs_actors_updateActorPlatformContact`: no matching platform (`func_800A4A24` NULL) | both copies of `func_800A4A24` (3A1A0.c, 40564.c) return address 0 |
+| zone 24 room 7 | `vs_field_sampleActorCollisionPerimeter`: off-floor centre tile (`vs_field_findCollisionCellAtPosition` NULL) | read address 0 |
 | zone 49 room 4 (A Knight Sells his Sword) | `func_800C0700`: target shape already freed | write to address 0 |
 | zones 53/55 (Bonfire, Burning, Bootikens) | `func_8009DDF4`: a fire effect hits an empty actor slot | the actor is read at address 0 |
 

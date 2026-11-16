@@ -484,8 +484,8 @@ typedef struct {
     u_short TimerTopCurrent;
 } FSoundChannelConfig;
 // 0x80 bytes: the config is saved and restored with 0x80-byte copies, and the
-// next objects start there (g_PushedMusicConfig + 0x80 = D_80035910,
-// D_800366F0 + 0x80 = D_80036770).
+// next objects start there (g_PushedMusicConfig + 0x80 = vs_audio_soundEffectsChannels,
+// vs_audio_seqPrimaryMusicConfig + 0x80 = D_80036770).
 
 typedef struct {
     u_int Param1;

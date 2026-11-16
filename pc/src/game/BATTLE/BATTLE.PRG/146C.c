@@ -272,7 +272,7 @@ typedef struct {
     func_8008631C_t2 unk14;
     int unk18[50];
 #ifdef ROOD_PC
-    /* func_800CF3F8 copies 0xE8 bytes (func_800CF0E8_t) from this request; the PS1 local is 0xE4 and the last four
+    /* vs_effects_beginSecondaryEffects copies 0xE8 bytes (func_800CF0E8_t) from this request; the PS1 local is 0xE4 and the last four
      * bytes (unkE0.vz and pad) are whatever its stack held. Here they were dead host stack, which differs
      * between owned and original routes (pc/docs/Oracle.md, known hazards): make the local the size it is read. */
     int unkE4;
@@ -461,79 +461,79 @@ typedef struct {
     int unk20;
 } func_800A1108_t;
 
-void func_800C64D0(u_long*, int*);
+void vs_render_splicePrimitiveList(u_long*, int*);
 int _loadMpdRoomSection(int, void* data);
 int _dropMisc(vs_battle_loot*, vs_battle_uiMisc*);
 int _dropMiscRand(vs_battle_loot*, vs_battle_uiMiscRand*);
 void _snapLookAtToPosition(VECTOR*);
 void func_8006C350(void);
-void func_8006C39C(void);
-void func_8006C40C(void);
-int func_8006C5AC(int);
+void vs_field_pauseFieldForMenu(void);
+void vs_field_resumeFieldAfterMenu(void);
+int vs_battle_playWeaponHitSounds(int);
 void func_80069DEC(int, int);
 int _removeActorAtIndex(u_int, int);
 void _applyAccessoryStats(vs_battle_uiAccessory*, _accessoryIntermediate*);
 void _applyArmorStats(vs_battle_uiArmor* arg0, _armorIntermediate* arg1);
 void vs_battle_copyUiEquipmentStats(
     vs_main_inventoryArmor*, vs_battle_uiEquipment* equipment);
-void func_8006B214(void);
-void func_8006B2D4(void);
+void vs_items_removeEquipmentBoostOnEquip(void);
+void vs_items_removeArmorEnchantmentOnEquip(void);
 void _updateEnemyKills(vs_battle_actor*);
 void _drawScreenTransition(void*);
 void _updateWeaponKillStreak(int);
 void _clampPositionToZoneBounds(VECTOR*, VECTOR*);
 int _computeStepAndDisplacement(SVECTOR* arg0, VECTOR*, VECTOR*, int, int);
 int _stepTowardTarget(SVECTOR*, int, int);
-void func_8006E158(void);
+void vs_field_updateCameraOrbitInput(void);
 void _computeCameraTransition(VECTOR*);
 int _stepCameraTransition(void);
 void _setRoomSeen(void);
 void func_8006F5CC(void);
-void func_8006F89C(void);
-void func_8006FA20(void);
-void func_8006FD1C(void);
-void func_80070278(void);
-void func_8007053C(void);
-void func_80070CAC(void);
-void func_80070F28(int);
-void func_8007138C(void);
-void func_80072BA8(int);
-void func_80072EC4(int, u_short);
+void vs_battle_beginPendingAbilityReward(void);
+void vs_battle_grantPendingAbilityUnlock(void);
+void vs_battle_advanceBattleAbilitySequence(void);
+void vs_battle_startActionAnimation(void);
+void vs_battle_filterAreaActionTargets(void);
+void vs_battle_collectEnvironmentActionTargets(void);
+void vs_battle_commitSelectedAction(int);
+void vs_battle_startActionPresentation(void);
+void vs_battle_initializeActionTargeting(int);
+void vs_battle_beginActorActionSelection(int, u_short);
 void _endBattleCameraTransition(void);
-void func_80073718(void);
-void func_80073D30(_mpdRoomSectionA*, func_8006EBF8_t*, int);
-void func_80073E30(_mpdRoomSectionA*, int);
-int func_80074798(func_8006EBF8_t*, char*);
-void func_80074B14(int arg0, func_8006EBF8_t_fields* arg1);
-void func_80076D50(u_int, int, int, int, int);
-void func_80077130(vs_battle_actor*, int, int, int, int);
-vs_battle_actor_dat* func_80077240(
+void vs_event_prepareCutsceneActors(void);
+void vs_field_triggerActorTrap(_mpdRoomSectionA*, func_8006EBF8_t*, int);
+void vs_field_tryOpenChest(_mpdRoomSectionA*, int);
+int vs_field_tileInFrontOfActor(func_8006EBF8_t*, char*);
+void vs_field_updateCameraTileConstraint(int arg0, func_8006EBF8_t_fields* arg1);
+void vs_actors_initializeActorDefaults(u_int, int, int, int, int);
+void vs_actors_queueEquipmentModelLoad(vs_battle_actor*, int, int, int, int);
+vs_battle_actor_dat* vs_actors_allocateActorWithEquipment(
     int, int, int, int, int, int, vs_battle_objectData_flags*, int);
-void func_800773BC(vs_battle_actor*, int, int, int, int, int);
-int func_80077F70(void);
-void func_800780A8(SVECTOR*);
-int func_80078828(int);
-int func_800792E4(int arg0, int arg1, int arg2);
+void vs_actors_registerLoadedActor(vs_battle_actor*, int, int, int, int, int);
+int vs_battle_actionTargetDistance(void);
+void vs_battle_actionCameraMidpoint(SVECTOR*);
+int vs_battle_canTriggerBattleAbility(int);
+int vs_battle_resolveActorDefeat(int arg0, int arg1, int arg2);
 void _computeSphericalOffset(VECTOR*, VECTOR*, _sphericalValues*);
 void _setCameraPositionFromAngles(_sphericalValues* arg0);
 void _setCameraLookAtFromAngles(_sphericalValues* arg0);
-void func_8007B10C(int, int, int, short, short);
-void func_8007B1B8(int, int, short, short, short);
-void func_8007B29C(int arg0, int arg1, int arg2, short arg3, short arg4, short arg5);
-void func_8007B410(void);
-void func_8007B63C(void);
-void func_8007B470(void);
+void vs_render_transformRoomPalettes(int, int, int, short, short);
+void vs_render_transformSceneColors(int, int, short, short, short);
+void vs_render_transformActorColors(int arg0, int arg1, int arg2, short arg3, short arg4, short arg5);
+void vs_battle_beginRewardPause(void);
+void vs_battle_showPendingRewardUnlock(void);
+void vs_battle_endRewardPause(void);
 void func_8007B508(void);
-void func_8007B764(void);
+void vs_battle_openPendingLootRewards(void);
 void func_8007B7DC(void);
-void func_8007BCCC(void);
+void vs_state_resetSceneTimer(void);
 int func_8007BD8C(int arg0);
-void func_8007BF6C(int);
-void func_8007BFF8(int);
-void func_8007C0AC(int, int);
-int func_8007C4E0(_mpdRoomDoorSection_t*, int, int);
-int func_8007C5C0(_mpdRoomDoorSection_t*, int, int);
-int func_8007C694(int, int, int, int, int);
+void vs_actors_enableActorModel(int);
+void vs_actors_disableActorModel(int);
+void vs_battle_setActorBattleMode(int, int);
+int vs_field_beginRoomTransition(_mpdRoomDoorSection_t*, int, int);
+int vs_field_beginZoneTransition(_mpdRoomDoorSection_t*, int, int);
+int vs_field_teleportToLocation(int, int, int, int, int);
 void vs_battle_initialiseCameraFromSpherical(
     VECTOR* arg0, VECTOR* arg1, int arg2, int arg3);
 int _getLocationId(int, int);
@@ -543,13 +543,13 @@ int vs_battle_itemIdIsInInventory(int);
 short _getDefenseGemBuff(vs_action_t*, vs_battle_actor2*, int);
 int _doesAttackHit(
     vs_action_t* arg0, _hitEntity_t* arg1, _hitEntity_t* arg2, int arg3, int arg4);
-int func_8007F434(void);
+int vs_field_rollRiskLockBreak(void);
 int _hitPrerequisiteCanApplyEffect(int arg0, u_char* arg1);
 int _getEnemyClass(u_char*);
-void func_80080000(vs_action_t*, _hitEntity_t*, short);
-void func_800801E0(vs_action_t*, _hitEntity_t*, short);
+void vs_battle_distributeHitLimbDamage(vs_action_t*, _hitEntity_t*, short);
+void vs_battle_distributeLimbRecovery(vs_action_t*, _hitEntity_t*, short);
 void _adjustDpPp(vs_action_t*, vs_battle_actor2*, vs_battle_actor2*, int);
-void func_800803A4(vs_action_t*, vs_battle_actor2*, vs_battle_actor2*, int);
+void vs_items_accumulateHitEquipmentPp(vs_action_t*, vs_battle_actor2*, vs_battle_actor2*, int);
 void _triggerArmorAffinityChange(vs_action_t*, vs_battle_uiEquipment*, int, int, int);
 void _triggerClassChange(vs_action_t* arg0, vs_battle_uiEquipment*, int, int, int);
 int _setApplicableStatuses(int, _hitEntity_t*);
@@ -558,175 +558,175 @@ static short _getPhysicalAttackDamage(
     vs_action_t*, _hitEntity_t*, _hitEntity_t*, int, int, int);
 short _calculateStatChange(vs_action_t*, _hitEntity_t*, _hitEntity_t*, int, int);
 int _getActionCost(u_int, vs_battle_actor2*, int);
-void func_80085008(_hitEntity_t*);
-void func_80085390(
+void vs_battle_deriveLimbInjuryStatuses(_hitEntity_t*);
+void vs_battle_applyActionHitEffect(
     vs_action_t* arg0, _hitEntity_t* arg1, _hitEntity_t* arg2, int arg3, int arg4);
-void func_80085B10(int, D_800F19CC_t2*, D_800F19CC_t2*, int);
-void func_80086754(int, vs_battle_actor2*);
+void vs_battle_resolveActionTargets(int, D_800F19CC_t2*, D_800F19CC_t2*, int);
+void vs_battle_removeActorStatuses(int, vs_battle_actor2*);
 void _applyBattleAbilityEffect(_hitEntity_t*);
-void func_80087EF4(vs_battle_actor2*);
-int func_800882F4(void);
-int func_80088554(void);
+void vs_battle_updateActorStatusTimers(vs_battle_actor2*);
+int vs_state_advanceSceneTimer(void);
+int vs_battle_updateActorVitals(void);
 void func_80088CA0(void);
-void func_80089114(void);
+void vs_field_spawnRoomActors(void);
 void func_80089CE4(void);
 void func_80089D04(void);
-void func_8008A6FC(void);
-int func_8008ABF0(int arg0);
-void func_8008B320(void);
-void func_8008B390(int arg0, int* arg1);
-int func_8008B4C8(char arg0);
-void func_8008C40C(void);
+void vs_items_clearRoomLootList(void);
+int vs_field_releaseOwnedRoomSections(int arg0);
+void vs_field_uploadRoomPalettes(void);
+void vs_field_offsetRoomTextureIds(int arg0, int* arg1);
+int vs_field_setMinimapVisible(char arg0);
+void vs_field_clearGeometryOcclusion(void);
 static void _loadZnd(int id);
 void _loadMpd(int arg0);
 void _loadZndTims(void*);
-int func_8008AB80(int);
-int func_8008ABB8(int);
-void func_8008B2E0(void* arg0, int arg1, int arg2, int arg3);
-void func_8008B4BC(int arg0);
+int vs_field_enableOwnedRoomRendering(int);
+int vs_field_disableOwnedRoomRendering(int);
+void vs_field_copyZonePaletteRow(void* arg0, int arg1, int arg2, int arg3);
+void vs_field_setRoomAnimationsPaused(int arg0);
 void _vsBattleNop2(int arg0);
 int _getCollisionMapDimensions(int arg0);
 _zoneContextBounds* _getMapBounds(int arg0);
-void func_8008B8F8(char (*arg0)[12]);
-void func_8008B960(int, int, int);
-_mpdRoomSectionA* func_8008BC04(int, int, int);
-void func_8008BD74(_mpdRoomSectionA*);
-int func_8008BEBC(_mpdRoomSectionA* arg0);
-int func_8008BF48(_mpdRoomSectionA*);
-void func_8008C070(int arg0, _mpdRoomSectionA* arg1);
-int func_8008C1C8(_mpdRoomSectionA* arg0);
+void vs_field_setEntranceDoorRecord(char (*arg0)[12]);
+void vs_field_findEntranceDoorNearTile(int, int, int);
+_mpdRoomSectionA* vs_field_interactiveDoorAtTile(int, int, int);
+void vs_field_toggleDoorCollision(_mpdRoomSectionA*);
+int vs_field_beginDoorToggle(_mpdRoomSectionA* arg0);
+int vs_field_startDoorAnimation(_mpdRoomSectionA*);
+void vs_field_queueGimmickAnimation(int arg0, _mpdRoomSectionA* arg1);
+int vs_field_finishDoorAnimation(_mpdRoomSectionA* arg0);
 int func_8008C2C0(int arg0, int arg1, int arg2, int arg3);
-int func_8008C49C(int, int);
-void func_8008C538(void);
-void func_8008C6B4(int, int);
-_mpdRoomSection9* func_8008D438(int, int, int);
-_mpdRoomSection13* func_8008D508(int arg0, int arg1, int arg2);
-void func_8008D5A0(int);
-void func_8008D594(int arg0);
+int vs_field_setMovingPlatformActor(int, int);
+void vs_field_initializeMovingPlatforms(void);
+void vs_field_resetMovingPlatformWaypoint(int, int);
+_mpdRoomSection9* vs_field_findRoomTriggerAtTile(int, int, int);
+_mpdRoomSection13* vs_items_treasureChestAtTile(int arg0, int arg1, int arg2);
+void vs_field_freezeMovingPlatforms(int);
+void vs_field_setMovingPlatformsPaused(int arg0);
 void func_8008D5FC(_mpdRoomSectionA* arg0);
-void func_8008D658(_mpdRoomSectionA*);
-void func_8008D710(void);
+void vs_field_toggleRoomSwitch(_mpdRoomSectionA*);
+void vs_items_restoreRoomChestStates(void);
 int _getDoorId(int);
-void func_800D82A8(int);
-short func_8008DC7C(int arg0, int arg1);
-void func_8008DEAC(_mpdRoomSection9* arg0, int arg1);
-void func_8008E19C(int arg0, int arg1, short arg2, u_int arg3);
-_mpdRoomSection13* func_8008E370(int* arg0);
+void vs_battle_aiDisengageActorById(int);
+short vs_field_floorHeightAt(int arg0, int arg1);
+void vs_field_setRoomTriggerEnabled(_mpdRoomSection9* arg0, int arg1);
+void vs_field_drawRoomTriggerMarker(int arg0, int arg1, short arg2, u_int arg3);
+_mpdRoomSection13* vs_items_roomTreasureChests(int* arg0);
 _mpdRoomSectionA* func_8008E3B8(int* arg0);
-void func_8008E480(int arg0);
+void vs_audio_setRoomAmbienceDucked(int arg0);
 void func_800E4C64(int);
-void func_8008E4DC(int);
+void vs_field_setPlatformFreezeAppearance(int);
 void _loadMpdLootSection(void* arg0);
-void func_8008E6DC(int);
+void vs_field_markSigilDoorUnlocked(int);
 void func_8008E8F8(void);
-void func_8008E938(void);
+void vs_field_initializeRoomBackgroundColors(void);
 int func_8008EA90(int arg0);
-int func_8008F234(void);
+int vs_field_releaseTiledBackground(void);
 void func_8008FA14(D_800F1DD4_t*);
 void func_80090A1C(D_800F1DD4_t*);
-void func_80091378(void);
-int* func_8009195C(int);
+void vs_field_releaseWeatherParticles(void);
+int* vs_field_findRoomGeometryGroup(int);
 void func_80091AC0(int);
-int func_8009291C(int);
-void func_80092A18(void);
-int func_80093764(int);
-void func_80093824(int);
-void func_80093A14(void);
-void func_80093B04(void*);
+int vs_field_startRoomEffect(int);
+void vs_field_releaseRoomEffects(void);
+int vs_field_isRoomEffectActive(int);
+void vs_field_finishRoomTiltRotation(int);
+void vs_field_restoreRoomEffectSoundVolume(void);
+void vs_battle_queueWorldLockedLabel(void*);
 void func_80093B68(int arg0, int arg1, int arg2, int arg3);
 int vs_battle_renderBattleAbilityTimingResult(int);
 void func_80093FEC(int, int, int, int);
-void func_80093914(int);
-void func_80095B7C(int, int);
+void vs_field_swapRoomGeometryRedGreen(int);
+void vs_battle_setActorMarker(int, int);
 void func_80096768(int, int, int);
 void func_80096FF0(int);
 void func_800971D4(void);
-void func_8009723C(void*, int);
-void func_80098194(int);
-void func_800983F8(void*);
-void func_80098D6C(void*, void*, D_800F1BB0_t*, int);
-void func_80099960(u_short*);
+void vs_render_drawRoomGeometry(void*, int);
+void vs_render_setRoomTextureLodDepth(int);
+void vs_render_updateRoomGroupTransforms(void*);
+void vs_render_tintRoomGeometryPrimitives(void*, void*, D_800F1BB0_t*, int);
+void vs_field_setGimmickPaletteTable(u_short*);
 void func_8009D458(void);
-void func_8009D6F4(void);
+void vs_actors_resetAllActorMovement(void);
 void func_8009D7E8(int, int);
 void func_8009DF3C(int, int);
 void func_8009E070(int, short*, int);
 int func_8009E480(void);
-u_int func_8009E4B0(int);
+u_int vs_actors_isActorActionAnimationBusy(int);
 void func_8009EA14(int, SVECTOR*);
 
-void func_800E685C(int, int, int);
+void vs_battle_aiSetActorVerticalMovementSteps(int, int, int);
 
-extern u_char D_8004EF20;
-extern u_char D_8004EF80;
-extern u_char D_8004EFA0;
-extern u_char D_8004EFB2;
-extern u_char D_8004EFE2;
-extern u_char D_8004F000;
+extern u_char vs_battle_statusParams5Duration;
+extern u_char vs_battle_statusParams11Duration;
+extern u_char vs_battle_statusParams13Duration;
+extern u_char vs_battle_statusParams14TickInterval;
+extern u_char vs_battle_statusParams17TickInterval;
+extern u_char vs_battle_statusParams19Duration;
 extern char D_8005FFAF;
 extern D_800F18EC_t* D_800F18EC;
-extern int D_80068C1C[];
+extern int vs_field_legacyBackgroundGradientPackets[];
 extern char D_800E8184[];
 extern char _wepIdCategories[];
 extern u_char D_800E8200[];
 extern int D_800E8204[];
-extern u_short D_800E82F4[];
+extern u_short vs_battle_bladePpDamageBonuses[];
 extern int (*_hitFunctions[])(vs_action_t*, _hitEntity_t*, _hitEntity_t*, int, int);
 extern int (*_attackPrerequisiteFunctions[])(vs_action_t*, char*);
 extern void (*_actionEffectMediators[])(
     vs_action_t*, _hitEntity_t*, _hitEntity_t*, int, int);
 extern short (*_statCalculators[])(vs_action_t*, _hitEntity_t*, _hitEntity_t*, int, int);
-extern int D_800E8490;
-extern int D_800E8494;
-extern int D_800E8498;
-extern short D_800E849C[];
-extern char D_800E84AC[][4];
-extern MATRIX D_800E856C;
-extern D_800E8594_t D_800E8594;
-extern char D_800E85A0[];
-extern RECT D_800E85BC;
+extern int vs_battle_vitalsTickCounter;
+extern int vs_battle_regeneratingLimb;
+extern int vs_battle_targetingRiskTimer;
+extern short vs_field_lockedDoorIndexRanges[];
+extern char vs_field_lockedDoorRoomPairs[][4];
+extern MATRIX vs_field_triggerMarkerMatrix;
+extern D_800E8594_t vs_field_triggerMarkerVertex;
+extern char vs_field_triggerMarkerRecordTail[];
+extern RECT vs_field_triggerMarkerTextureSource;
 extern RECT D_800E85C4;
-extern int D_800F1858;
-extern int D_800F185C;
+extern int vs_field_isMenuRequestQueued;
+extern int vs_effects_tintedActor;
 extern int D_800F1860;
 extern int D_800F1864;
 extern int D_800F1868;
-extern void* D_800F1870;
+extern void* vs_render_legacyCurrentOrderingTable;
 extern int _firstPersonViewEnabled;
 extern void* D_800F18E4;
 extern u_int _cameraMode;
-extern char D_800F18F8;
+extern char vs_content_overlayWorkspaceOwner;
 extern int D_800F18FC;
 extern int D_800F1908;
-extern int D_800F190C;
-D_800F1910_t D_800F1910;
+extern int vs_field_isFieldRenderingEnabled;
+D_800F1910_t vs_field_interactionFocus;
 extern vs_battle_actor* D_800F192C;
 extern int D_800F1968;
 extern u_int D_800F196C;
-extern int D_800F19A0;
-extern char D_800F19A8[];
+extern int vs_field_isRoomVisitPending;
+extern char vs_render_legacyTexturePageReservations[];
 extern int D_800F19C8;
-extern D_800F19CC_t* D_800F19CC;
+extern D_800F19CC_t* vs_battle_actionState;
 extern u_int D_800F1A00;
 extern u_int D_800F1A04;
 extern u_int _lastValue;
-extern int D_800F1A0C;
+extern int vs_battle_criticalHitOccurred;
 extern short _armorDpAdjustmentAmounts[];
 extern int D_800F1A20;
-extern short D_800F1A28[];
-extern short D_800F1A2C;
-extern int D_800F1A30[];
-extern int D_800F1A40;
-extern u_int D_800F1A44;
+extern short vs_render_framebufferEffectRotation[];
+extern short vs_render_framebufferEffectRoll;
+extern int vs_render_framebufferEffectScale[];
+extern int vs_render_framebufferEffectUsesPreviousFrame;
+extern u_int vs_render_framebufferEffectDepth;
 extern int D_800F1A50[];
-extern D_800F1A68_t D_800F1A68;
-extern P_CODE D_800F1A78;
+extern D_800F1A68_t vs_render_framebufferEffectOffset;
+extern P_CODE vs_render_framebufferEffectTint;
 extern char D_800F1A9C[];
-extern int D_800F1B98;
-extern int D_800F1B9C;
-extern u_short D_800F1BA4;
+extern int vs_render_framebufferEffectState;
+extern int vs_render_framebufferEffectBlendMode;
+extern u_short vs_field_areRoomUpdatesPaused;
 extern D_800F1BB0_t D_800F1BB0;
-extern short D_800F1BB6;
+extern short vs_field_isRoomTintActive;
 extern void* D_800F1BB8;
 extern char D_800F1BBC;
 extern short vs_battle_doorEntered;
@@ -739,58 +739,58 @@ vs_gte_view vs_frame_view;
 vs_scratch_t vs_scratch;
 unsigned char vs_pad[0x400] __attribute__((aligned(16)));
 _zoneContext_t _zoneContext;
-extern u_short D_800F1CCA;
+extern u_short vs_field_entranceDoorPlatformFlags;
 extern void* D_800F1CC0;
-extern char D_800F1CD6;
-extern u_short D_800F1CDC;
-D_800F1D08_t D_800F1D08;
-D_800F1D28_t D_800F1D28[8];
-extern short D_800F1D6A;
-extern u_short D_800F1D6C;
-extern int D_800F1D78[5];
+extern char vs_field_isMinimapVisible;
+extern u_short vs_field_roomAnimationTicks;
+D_800F1D08_t vs_field_matchingDoorRecords;
+D_800F1D28_t vs_field_gimmickAnimationQueue[8];
+extern short vs_field_pendingGimmickAnimationCount;
+extern u_short vs_field_triggerMarkerFrameTicks;
+extern int vs_field_backgroundGradientColors[5];
 extern char D_800F1DC7;
-extern short D_800F1D68;
-extern signed char D_800F1D6E;
-extern char D_800F1D6F;
-extern u_char D_800F1D70[];
+extern short vs_field_platformFreezeFrames;
+extern signed char vs_field_areMovingPlatformsPaused;
+extern char vs_field_isPlatformFreezeTintActive;
+extern u_char vs_field_platformBounceFrames[];
 extern short D_800F1D98[];
-extern vs_main_CdQueueSlot* D_800F1DAC;
-extern vs_main_CdQueueSlot* D_800F1DB0;
-extern short D_800F1DB4;
-extern short D_800F1DB6;
-extern short D_800F1DB8;
-extern short D_800F1DBA;
-extern short D_800F1DBC;
-extern short D_800F1DBE;
-extern short D_800F1DC0;
-extern short D_800F1DC2;
-extern short D_800F1DC4;
-extern char D_800F1DC6;
-extern char D_800F1DC8;
-extern u_char D_800F1DC9;
-extern char D_800F1DCA;
-extern char D_800F1DCB;
-extern vs_battle_backgroundLayout* D_800F1DCC;
-extern u_long* D_800F1DD0;
-extern D_800F1DD4_t* D_800F1DD4;
+extern vs_main_CdQueueSlot* vs_field_backgroundTextureDiscRequest;
+extern vs_main_CdQueueSlot* vs_field_backgroundLayoutDiscRequest;
+extern short vs_field_backgroundOffsetX;
+extern short vs_field_backgroundOffsetY;
+extern short vs_field_backgroundParallaxScaleXFixed12;
+extern short vs_field_backgroundParallaxScaleYFixed12;
+extern short vs_field_weatherAmbientSoundId;
+extern short vs_field_legacyBackgroundTextureReservationId;
+extern short vs_field_weatherParticleCount;
+extern short vs_field_weatherParticleCapacity;
+extern short vs_field_weatherIntensity;
+extern char vs_field_isSolidBackground;
+extern char vs_field_legacyBackgroundTexturePage;
+extern u_char vs_field_isTiledBackgroundEnabled;
+extern char vs_field_roomWeatherKind;
+extern char vs_field_isWeatherVariationEnabled;
+extern vs_battle_backgroundLayout* vs_field_loadedBackgroundLayout;
+extern u_long* vs_field_legacyBackgroundTimBuffer;
+extern D_800F1DD4_t* vs_field_weatherParticles;
 extern short D_800F5160;
 extern short D_8005FFB0;
 
-void func_80069C6C(int arg0);
+void vs_battle_armDefenseAbilityTimingWindow(int arg0);
 
 void func_80069D14(void);
 
-void func_80069D78(void);
+void vs_field_updateCameraFacingState(void);
 
-void func_80069DBC(void);
+void vs_actors_clearRoomEnemyMemory(void);
 
 void func_80069DEC(int mapId, int zndId);
 
-void* func_80069E80(int arg0);
+void* vs_actors_findRememberedEnemy(int arg0);
 
-void* func_80069EF0(int arg0);
+void* vs_actors_acquireRememberedEnemy(int arg0);
 
-void func_80069FC4(int arg0, int arg1);
+void vs_actors_rememberEnemy(int arg0, int arg1);
 
 int _insertActor(vs_battle_actor* actor);
 
@@ -824,11 +824,11 @@ void vs_battle_applyAccessory( vs_battle_uiAccessory* target, vs_main_inventoryA
 
 void vs_battle_nop0(vs_battle_actor2* actor __attribute__((unused)));
 
-void func_8006B214(void);
+void vs_items_removeEquipmentBoostOnEquip(void);
 
-void func_8006B270(void);
+void vs_items_removeWeaponEnchantmentOnEquip(void);
 
-void func_8006B2D4(void);
+void vs_items_removeArmorEnchantmentOnEquip(void);
 
 void vs_battle_copyUiBladeStats( vs_main_inventoryBlade* target, vs_battle_uiEquipment* source);
 
@@ -858,17 +858,17 @@ void _updateWeaponKillStreak(int arg0 __attribute__((unused)));
 
 void _enemyDefeated(int arg0, int actorId, int arg2);
 
-void func_8006C250(void);
+void vs_actors_freezeAllActorAnimations(void);
 
-void func_8006C2A0(void);
+void vs_actors_unfreezeAllActorAnimations(void);
 
 void func_8006C2FC(void);
 
 void func_8006C350(void);
 
-void func_8006C39C(void);
+void vs_field_pauseFieldForMenu(void);
 
-void func_8006C40C(void);
+void vs_field_resumeFieldAfterMenu(void);
 
 void func_8006C480(int arg0, int arg1);
 
@@ -876,27 +876,27 @@ void func_8006C4A4(int arg0, int arg1);
 
 void func_8006C4C4(int arg0, _hitEntity_t* arg1, int targetLimb);
 
-int func_8006C5AC(int arg0);
+int vs_battle_playWeaponHitSounds(int arg0);
 
 int func_8006C84C(int arg0);
 
-void func_8006CA20(int arg0, func_8006CE70_t* arg1);
+void vs_battle_applyActionSourceEffects(int arg0, func_8006CE70_t* arg1);
 
-/* PC only: the decomp's exact-matching C for func_8006CB04 (rood-reverse
+/* PC only: the decomp's exact-matching C for vs_battle_applyActionTargetEffects (rood-reverse
  * .work/ultracode/r12-e/cb9.c, score 0). The decomp rejected it upstream only
  * for its conditional dead store, which is harmless here. */
 extern u_char D_800E8194[];
-void func_8006CB04(int arg0, func_8006CE70_t* arg1);
+void vs_battle_applyActionTargetEffects(int arg0, func_8006CE70_t* arg1);
 
 void func_8006CD60(u_int* arg0, int arg1, int arg2);
 
 void func_8006CDB8(int arg0);
 
-void func_8006CDD8(func_8006CE70_t* arg0);
+void vs_field_disableTrapAtPosition(func_8006CE70_t* arg0);
 
 void func_8006CE50(void);
 
-void func_8006CE70(func_8006CE70_t* arg0);
+void vs_field_applyUnlockEffectToRoomObject(func_8006CE70_t* arg0);
 
 void func_8006D028(int arg0);
 
@@ -919,13 +919,13 @@ void _snapLookAtToPosition(VECTOR* arg0);
 #define CAMERA_INPUT_LOCKED()                                                           \
     ((D_800F196C == 3) || ((D_800F196C == 2) && ((_cameraMode == 4) || (_cameraMode == 11))))
 
-void func_8006E158(void);
+void vs_field_updateCameraOrbitInput(void);
 
-void func_8006E640(int arg0);
+void vs_field_trackActionCameraTarget(int arg0);
 
-int func_8006E7F0(void);
+int vs_actors_updateAshleyMovementInput(void);
 
-int func_8006EBF8(void);
+int vs_field_updateAshleyFollowCamera(void);
 
 /* First-person up/down, inverted by the PC port's setting qol_fp_invert_y
  * (project_settings.cpp); the original's directions in the PS1 build. */
@@ -936,9 +936,9 @@ extern int pc_qol_fp_invert_y;
 #define FP_INVERT_Y 0
 #endif
 
-void func_8006EC7C(void);
+void vs_field_updateFirstPersonCamera(void);
 
-void func_8006EF10(void);
+void vs_field_storePreferredActionCameraDistance(void);
 
 void _computeCameraTransition(VECTOR* targetPosition);
 
@@ -954,34 +954,34 @@ void func_8006F5CC(void);
 
 void func_8006F5FC(void);
 
-void func_8006F630(func_8006F630_t1* arg0, func_8006F630_t2* arg1, func_8006F630_t3* arg2);
+void vs_battle_populateActionTargetPreview(func_8006F630_t1* arg0, func_8006F630_t2* arg1, func_8006F630_t3* arg2);
 
 int _isArtOrAbilityUnlocked(void);
 
 void func_8006F848(void);
 
-void func_8006F89C(void);
+void vs_battle_beginPendingAbilityReward(void);
 
-void func_8006FA20(void);
+void vs_battle_grantPendingAbilityUnlock(void);
 
-void func_8006FB48(void);
+void vs_items_openPendingEnemyLoot(void);
 
-void func_8006FBCC(int arg0);
+void vs_battle_beginPostActionRecovery(int arg0);
 
-void func_8006FCBC(void);
+void vs_battle_beginActionTrailFade(void);
 
-void func_8006FD0C(void);
+void vs_battle_finishBattleAbilitySequence(void);
 
-void func_800DEEA4(D_800F19CC_t2*);
+void vs_battle_aiNotifyActionRelationshipChanges(D_800F19CC_t2*);
 void func_80093F24(u_int);
 
-void func_8006FD1C(void);
+void vs_battle_advanceBattleAbilitySequence(void);
 
-void func_80070278(void);
+void vs_battle_startActionAnimation(void);
 
 void func_800704B0(void);
 
-void func_800704D8(void);
+void vs_battle_returnToBattleActionMenu(void);
 
 typedef struct {
     char reserved[0x29C0];
@@ -992,18 +992,18 @@ typedef struct {
         char reservedB[13];
     } targets[23];
 } actionTargetContextView;
-extern unsigned char D_800E81C4[];
+extern unsigned char vs_battle_categoryTargetsBodyParts[];
 void func_800C0700(void*);
-void func_800C1664(int, void*, int);
-int func_8008631C(int, int, int, int, void*);
+void vs_battle_setSphereTargets(int, void*, int);
+int vs_battle_previewActionAgainstLimb(int, int, int, int, void*);
 
-void func_8007053C(void);
+void vs_battle_filterAreaActionTargets(void);
 
-void func_8007087C(D_800F19CC_t* arg0);
+void vs_battle_aimActionBehindSource(D_800F19CC_t* arg0);
 
-void func_800708EC(void);
+void vs_battle_setSingleActionTarget(void);
 
-void func_80070B04(void);
+void vs_battle_setAllActionTargets(void);
 
 /* Environment targets overlay the actor-effect records with coordinates. */
 typedef struct {
@@ -1018,10 +1018,10 @@ typedef struct {
     environmentTarget targets[30];
 } environmentTargetList;
 _mpdRoomSection9* func_8008E400(int*);
-int func_8008D2C0(func_8008D2C0_t*);
-void func_80070CAC(void);
+int vs_field_collectMovingPlatformPositions(func_8008D2C0_t*);
+void vs_battle_collectEnvironmentActionTargets(void);
 
-void func_80070F28(int arg0);
+void vs_battle_commitSelectedAction(int arg0);
 
 typedef struct {
     u_short type;
@@ -1047,20 +1047,20 @@ typedef struct {
     SVECTOR position;
 } actionEffectRequest;
 
-void func_8007138C(void);
+void vs_battle_startActionPresentation(void);
 
 void func_800719DC(int arg0 __attribute__((unused)));
 
 extern unsigned char D_800E81B4[], D_800E81D4[];
-void func_800A190C(int, int, void*, int);
-void func_800719FC(int arg0 __attribute__((unused)));
+void vs_actors_anchorPoint(int, int, void*, int);
+void vs_battle_collectSourceAreaActionTargets(int arg0 __attribute__((unused)));
 
 /* 573B8.c stores the target list's guest address (arg3) in an int field. */
 void func_800C05EC(void*, void*, int, void*);
 
-void func_80071F68(int arg0);
+void vs_battle_collectDirectActionTargets(int arg0);
 
-void func_80072734(int arg0);
+void vs_battle_collectGroundAreaActionTargets(int arg0);
 
 typedef struct {
     u_char id;
@@ -1070,21 +1070,21 @@ typedef struct {
 
 extern unsigned char D_800E8194[];
 
-void func_80072BA8(int action);
+void vs_battle_initializeActionTargeting(int action);
 
-void func_80072EC4(int arg0, u_short arg1);
+void vs_battle_beginActorActionSelection(int arg0, u_short arg1);
 /* The start of an actor's action (the base attack's, a cast's, the enemies' abilities'), named for the dev RPC action (pc/src/action_driver.c). */
 void pc_action_start_actor(int actor, int action)
 {
     /* An enemy's ability starts after its AI's targeting commands chose who it is for (unk10: the target actor, the limb in the high half):
-     * func_80071F68 then picks the target list entry that choice names, and with none (unk298C stays 0xFF) the AI does not carry the ability
+     * vs_battle_collectDirectActionTargets then picks the target list entry that choice names, and with none (unk298C stays 0xFF) the AI does not carry the ability
      * out. The driver has no such command: Ashley (actor 0) is the choice, as it is for an enemy with no other to choose. */
     if (actor != 0 && vs_battle_actors[actor])
         vs_battle_actors[actor]->unk10.s32 = 0;
-    func_80072EC4(actor, (u_short)action);
+    vs_battle_beginActorActionSelection(actor, (u_short)action);
 }
 /* The player's action committed (what the menus' target confirmation calls), likewise. */
-void pc_action_start_player(int kind) { func_80070F28(kind); }
+void pc_action_start_player(int kind) { vs_battle_commitSelectedAction(kind); }
 
 void _initBattleCameraTransition(void);
 
@@ -1092,47 +1092,47 @@ void _endBattleCameraTransition(void);
 
 void func_80073484(void);
 
-void func_800734C0(void);
+void vs_battle_beginAshleyWeaponToggle(void);
 
 void func_8007350C(void);
 
-void func_8007352C(void);
+void vs_field_beginShortcutMenu(void);
 
-void func_80073554(void);
+void vs_field_endShortcutMenu(void);
 
-void func_8007357C(int arg0 __attribute__((unused)), int arg1 __attribute__((unused)));
+void vs_field_beginBattleActionMenu(int arg0 __attribute__((unused)), int arg1 __attribute__((unused)));
 
-void func_800735CC(D_800F18EC_t* arg0);
+void vs_field_closeBattleActionMenu(D_800F18EC_t* arg0);
 
-void func_800735F8(D_800F18EC_t* arg0);
+void vs_field_dispatchBattleActionMenuResult(D_800F18EC_t* arg0);
 
-void func_80073718(void);
+void vs_event_prepareCutsceneActors(void);
 
-void func_80073870(void);
+void vs_event_startPreparedCutscene(void);
 
 void func_80073898(void);
 
-void func_800738E4(void);
+void vs_event_endFieldCutscene(void);
 
-void func_80073AA4(void);
+void vs_field_beginObjectInteractionWait(void);
 
-void func_80073ACC(void);
+void vs_field_endObjectInteractionWait(void);
 
-int func_80073AFC(_mpdRoomSectionA* arg0);
+int vs_field_interactWithLockedRoomObject(_mpdRoomSectionA* arg0);
 
-void func_80073D30(_mpdRoomSectionA* arg0, func_8006EBF8_t* arg1, int targetActor);
+void vs_field_triggerActorTrap(_mpdRoomSectionA* arg0, func_8006EBF8_t* arg1, int targetActor);
 
-void func_80073E30(_mpdRoomSectionA* arg0, int arg1);
+void vs_field_tryOpenChest(_mpdRoomSectionA* arg0, int arg1);
 
-void func_80073F7C(_mpdRoomSectionA* arg0, func_8006EBF8_t3* arg1, int arg2);
+void vs_field_beginTrapInteraction(_mpdRoomSectionA* arg0, func_8006EBF8_t3* arg1, int arg2);
 
-void func_80074050(_mpdRoomSectionA* arg0, int arg1);
+void vs_field_beginChestInteraction(_mpdRoomSectionA* arg0, int arg1);
 
-int func_80074120(void);
+int vs_field_waitForChestCameraFocus(void);
 
-int func_8007418C(void);
+int vs_field_stepTrapCameraFocus(void);
 
-void func_800741D4(void);
+void vs_field_dispatchTrapOrChestInteraction(void);
 
 int func_8007424C(void);
 
@@ -1140,88 +1140,88 @@ int func_80074294(void);
 
 void func_800742A4(void);
 
-void func_80074314(void);
+void vs_field_finishTrapInteraction(void);
 
-int func_80074374(void);
+int vs_field_trackInteractionCameraToAshley(void);
 
-void func_800743E0();
+void vs_field_openChestContents();
 
-int func_800744B8(void);
+int vs_field_updateChestContentsSelection(void);
 
-void func_80074580(void);
+void vs_field_updateFirstPersonViewEntry(void);
 
 void _checkFirstPersonViewExit(void);
 
-void func_80074744(void);
+void vs_field_updateFirstPersonViewExit(void);
 
-int func_80074798(func_8006EBF8_t* arg0, char* arg1);
+int vs_field_tileInFrontOfActor(func_8006EBF8_t* arg0, char* arg1);
 
-int func_80074860(int arg0);
+int vs_field_tryTriggerFacingTileEvent(int arg0);
 
-_mpdRoomSectionA* func_800748B8(int arg0);
+_mpdRoomSectionA* vs_field_findFacingRoomObject(int arg0);
 
-_mpdRoomSection13* func_80074950(int arg0);
+_mpdRoomSection13* vs_field_findFacingUnlootedChest(int arg0);
 
-int func_80074A20(int arg0);
+int vs_battle_beginActorDefeatAnimation(int arg0);
 
-void func_80074B14(int arg0, func_8006EBF8_t_fields* arg1);
+void vs_field_updateCameraTileConstraint(int arg0, func_8006EBF8_t_fields* arg1);
 
-int func_80074BAC(int, u_char*);
-/* PC only: the decomp's closest non-matching C for func_80074BAC
+int vs_field_checkAshleyTileTriggers(int, u_char*);
+/* PC only: the decomp's closest non-matching C for vs_field_checkAshleyTileTriggers
  * (rood-reverse .work/ultracode/r7-near-b/74bac/p40.full.c, score 40: a
  * register-allocation swap, same behaviour). */
-D_800F1D08_t* func_8008BAC8(int, int, int);
-int func_80074BAC(int actorId, u_char* cell);
+D_800F1D08_t* vs_field_transitionDoorsAtTile(int, int, int);
+int vs_field_checkAshleyTileTriggers(int actorId, u_char* cell);
 
-int func_800751B8(int arg0, func_8006EBF8_t3* arg1);
+int vs_field_checkActorTrapAndFallTriggers(int arg0, func_8006EBF8_t3* arg1);
 
-void func_800753F8(vs_battle_actor* arg0, SVECTOR* arg1);
+void vs_actors_consumeActorMovementOffset(vs_battle_actor* arg0, SVECTOR* arg1);
 
-int func_80075554(void);
+int vs_actors_executeQueuedActorCommands(void);
 #include "pc/src/actor_commands.inc"
 
-void func_800760CC(int arg0, int arg1, int arg2, int arg3, int arg4, int arg5);
+void vs_render_configureFieldDisplay(int arg0, int arg1, int arg2, int arg3, int arg4, int arg5);
 
-int func_8007629C(u_long* otag);
+int vs_render_presentFieldFrame(u_long* otag);
 
 void func_8007647C(int arg0, int arg1);
 
-vs_battle_actor* func_800765B0( int index, int actorId, vs_battle_objectData_flags* arg2, int material, int arg4);
+vs_battle_actor* vs_actors_createAuxiliaryActor( int index, int actorId, vs_battle_objectData_flags* arg2, int material, int arg4);
 
-void func_80076784( int arg0, vs_battle_actor2* actor, vs_battle_charInitData* init, int arg3);
+void vs_actors_applyActorInitialStats( int arg0, vs_battle_actor2* actor, vs_battle_charInitData* init, int arg3);
 
-void func_80076D50(u_int id, int arg1, int arg2, int arg3, int arg4);
+void vs_actors_initializeActorDefaults(u_int id, int arg1, int arg2, int arg3, int arg4);
 
-void func_80076F24( int id, vs_battle_charInitData* arg1, int arg2, int arg3, int arg4, int arg5);
+void vs_actors_initializeActorFromTemplate( int id, vs_battle_charInitData* arg1, int arg2, int arg3, int arg4, int arg5);
 
-int func_80077078(vs_battle_actor* arg0, int index, int wepId, vs_battle_objectData_flags* arg3, int arg4);
+int vs_actors_queueActorModelLoad(vs_battle_actor* arg0, int index, int wepId, vs_battle_objectData_flags* arg3, int arg4);
 
-void func_800770FC(vs_battle_actor* arg0 __attribute__((unused)), int arg1);
+void vs_actors_queueActorBaseSequenceLoad(vs_battle_actor* arg0 __attribute__((unused)), int arg1);
 
-void func_80077130( vs_battle_actor* actor, int actorId, int wepId, int isShield, int material);
+void vs_actors_queueEquipmentModelLoad( vs_battle_actor* actor, int actorId, int wepId, int isShield, int material);
 
-void func_800771E0(char* arg0, int arg1, int arg2, int arg3);
+void vs_actors_queueActorWeaponSequenceLoad(char* arg0, int arg1, int arg2, int arg3);
 
-vs_battle_actor_dat* func_80077240(int arg0, int arg1, int bladeWepId, int bladeMaterial, int shieldWepId, int shieldMaterial, vs_battle_objectData_flags* arg6, int arg7);
+vs_battle_actor_dat* vs_actors_allocateActorWithEquipment(int arg0, int arg1, int bladeWepId, int bladeMaterial, int shieldWepId, int shieldMaterial, vs_battle_objectData_flags* arg6, int arg7);
 
-void func_800773BC( vs_battle_actor* arg0, int arg1, int arg2, int arg3, int arg4, int arg5);
+void vs_actors_registerLoadedActor( vs_battle_actor* arg0, int arg1, int arg2, int arg3, int arg4, int arg5);
 
-vs_battle_actor* func_800774FC(int arg0, int arg1, int bladeWepId, int bladeMaterial, int shieldWepId, int shieldMaterial, vs_battle_objectData_flags* arg6, int arg7);
+vs_battle_actor* vs_actors_createActorWithEquipment(int arg0, int arg1, int bladeWepId, int bladeMaterial, int shieldWepId, int shieldMaterial, vs_battle_objectData_flags* arg6, int arg7);
 
-extern u_char D_8004FE88[];
-extern vs_battle_charInitData* D_800F188C;
+extern u_char vs_actors_usesSecondaryBodyModel[];
+extern vs_battle_charInitData* vs_actors_zoneCharacterInitData;
 
-vs_battle_actor* func_800775C0( int id, mpdEnemySpawn* spawn, vs_battle_charInitData* init, int flags);
+vs_battle_actor* vs_actors_spawnRoomEnemy( int id, mpdEnemySpawn* spawn, vs_battle_charInitData* init, int flags);
 
 int _isLookAtAtDestination(void);
 
-void func_80077F14(int arg0, int arg1, SVECTOR* arg2);
+void vs_battle_actionTargetLimbPosition(int arg0, int arg1, SVECTOR* arg2);
 
-int func_80077F70(void);
+int vs_battle_actionTargetDistance(void);
 
-void func_800780A8(SVECTOR* arg0);
+void vs_battle_actionCameraMidpoint(SVECTOR* arg0);
 
-void func_8007820C(int arg0);
+void vs_battle_stepCameraTowardActionMidpoint(int arg0);
 
 void func_80078248(void);
 
@@ -1233,11 +1233,11 @@ void _handleCombatCameraZoom(void);
 
 void func_80078748(void);
 
-void func_800787F0(void);
+void vs_battle_startReadyActionAnimation(void);
 
-int func_80078828(int arg0);
+int vs_battle_canTriggerBattleAbility(int arg0);
 
-void func_80078AB4(void);
+void vs_battle_updateBattleAbilityTiming(void);
 
 void func_80079030(void);
 
@@ -1245,39 +1245,39 @@ void func_80079050(void);
 
 void func_800790BC(void);
 
-int func_800792E4(int arg0, int arg1, int arg2);
+int vs_battle_resolveActorDefeat(int arg0, int arg1, int arg2);
 
-void func_800793C0(void);
+void vs_battle_finishActionSequence(void);
 extern int D_800F19D8;
 extern int D_800F19EC;
 
-void func_800793C0(void);
+void vs_battle_finishActionSequence(void);
 
-void func_800797BC(void);
+void vs_battle_updateLootResults(void);
 
-void func_8007980C(void);
+void vs_battle_updateAbilityUnlockDelay(void);
 
-void func_8007983C(void);
+void vs_battle_updateAbilityUnlockResults(void);
 
 void _finishLoadZnd(int id);
-void func_80089DC0(int arg0);
-int func_8008C8A8(void);
-int func_80088B6C(void);
+void vs_field_finishRoomLoad(int arg0);
+int vs_field_updateMovingPlatforms(void);
+int vs_battle_updateRoomActorVitals(void);
 void func_80088B8C(void);
-void func_8008EC48(VECTOR* arg0);
-void func_8008AC78(void);
-void func_8008B28C(void);
-void func_8007D734(void*);
-void func_8007DF98(void);
-void func_8008A3A0(void);
-void func_80089098(void);
+void vs_field_drawRoomBackground(VECTOR* arg0);
+void vs_field_drawRoomScene(void);
+void vs_field_advanceRoomAnimationClock(void);
+void vs_render_drawFramebufferEffect(void*);
+void vs_render_advanceTexturePageRetirements(void);
+void vs_field_unloadCurrentRoom(void);
+void vs_field_releaseZoneData(void);
 
 void vs_battle_exec(void);
-void func_800FA35C(int);
+void vs_boot_initializeGameplayOverlay(int);
 
 void vs_battle_exec(void);
 
-void func_8007A824(int* arg0);
+void vs_render_appendOverlayPrimitive(int* arg0);
 
 int vs_battle_syncCameraAnglesFromPosition(_sphericalCamera* arg0);
 
@@ -1299,9 +1299,9 @@ void vs_battle_setCameraRoll(int arg0);
 
 int vs_battle_getCameraRoll(void);
 
-extern MATRIX D_8005E218;
+extern MATRIX vs_render_cameraBasisMatrix;
 
-void func_8007ACB0(void);
+void vs_render_buildCameraViewMatrix(void);
 
 void vs_battle_lookAt(VECTOR* from, VECTOR* to, MATRIX* mat);
 
@@ -1309,63 +1309,63 @@ void func_8007B0FC(void);
 
 void func_8007B104(void);
 
-void func_8007B10C(int arg0, int arg1, int arg2, short arg3, short arg4);
+void vs_render_transformRoomPalettes(int arg0, int arg1, int arg2, short arg3, short arg4);
 
-void func_8007B1B8(int arg0, int arg1, short arg2, short arg3, short arg4);
+void vs_render_transformSceneColors(int arg0, int arg1, short arg2, short arg3, short arg4);
 
-void func_8007B29C(int arg0, int arg1, int arg2, short arg3, short arg4, short arg5);
+void vs_render_transformActorColors(int arg0, int arg1, int arg2, short arg3, short arg4, short arg5);
 
-void func_8007B344(int arg0, int arg1, short arg2, short arg3, short arg4);
+void vs_render_transformBackgroundColors(int arg0, int arg1, short arg2, short arg3, short arg4);
 
-void func_8007B378(int arg0, u_short* arg1, int arg2, int arg3) __attribute__((unused));
-void func_8007B378(int arg0, u_short* arg1, int arg2, int arg3);
+void vs_render_startRoomPaletteTransition(int arg0, u_short* arg1, int arg2, int arg3) __attribute__((unused));
+void vs_render_startRoomPaletteTransition(int arg0, u_short* arg1, int arg2, int arg3);
 
 void func_8007B3D0(int arg0, int arg1, u_short* arg2, int arg3) __attribute__((unused));
 void func_8007B3D0(int arg0, int arg1, u_short* arg2, int arg3);
 
-void func_8007B410(void);
+void vs_battle_beginRewardPause(void);
 
-void func_8007B470(void);
+void vs_battle_endRewardPause(void);
 
-void func_8007B4C4(void);
+void vs_battle_resumeAfterRewards(void);
 
 void func_8007B508(void);
 
-void func_8007B63C(void);
+void vs_battle_showPendingRewardUnlock(void);
 
-void func_8007B764(void);
+void vs_battle_openPendingLootRewards(void);
 
 void func_8007B7DC();
 
-void func_8007B834(void);
+void vs_battle_updateRewardResultsDialog(void);
 
-void func_8007B884(void);
+void vs_battle_updatePendingLootDialog(void);
 
-void func_8007B908(void);
+void vs_battle_waitForRewardUnlockEffects(void);
 
-void func_8007B938(void);
+void vs_battle_updateRewardUnlockDialog(void);
 
-void func_8007B9A0(void);
+void vs_battle_beginEventRewardResults(void);
 
-void func_8007B9CC(void);
+void vs_battle_beginPostActionRewards(void);
 
-int func_8007B9FC(void);
+int vs_battle_updateRewardSequence(void);
 
-void func_8007BA98(int id0, int count0, int id1, int count1);
+void vs_items_presentScriptedLoot(int id0, int count0, int id1, int count1);
 
 void func_8007BBB8(int arg0, int arg1);
 
-void func_8007BBD8(int arg0, int arg1, int arg2);
+void vs_state_startSceneTimer(int arg0, int arg1, int arg2);
 
-void func_8007BCCC(void);
+void vs_state_resetSceneTimer(void);
 
-void func_8007BD3C(int arg0);
+void vs_state_setSceneTimerPaused(int arg0);
 
 int func_8007BD8C(int arg0);
 
-int func_8007BDD8(int arg0);
+int vs_field_setFirstPersonViewDisabled(int arg0);
 
-int func_8007BE10(int arg0);
+int vs_audio_setZoneMusicSwitchEnabled(int arg0);
 
 void func_8007BE20(int arg0, int arg1);
 
@@ -1381,77 +1381,77 @@ void func_8007BF2C(void);
 
 void func_8007BF4C(void);
 
-void func_8007BF6C(int arg0);
+void vs_actors_enableActorModel(int arg0);
 
-void func_8007BFC0(void);
+void vs_actors_enableAllActorModels(void);
 
-void func_8007BFF8(int arg0);
+void vs_actors_disableActorModel(int arg0);
 
-void func_8007C050(void);
+void vs_actors_disableAllActorModels(void);
 
-void func_8007C0AC(int arg0, int arg1);
+void vs_battle_setActorBattleMode(int arg0, int arg1);
 
-int func_8007C218(int arg0);
+int vs_actors_actorHpPercentage(int arg0);
 
-void func_8007C28C(int arg0);
+void vs_actors_restoreActorVitals(int arg0);
 
-void func_8007C31C(void);
+void vs_battle_preserveAshleyStatuses(void);
 
 void func_8007C348(int arg0, int arg1);
 
-int func_8007C36C(int arg0);
+int vs_state_selectTickSpeed(int arg0);
 
-int func_8007C398(void);
+int vs_field_screenTransitionPhase(void);
 
 void func_8007C404(void);
 
 void func_8007C424(void);
 
-void func_8007C444(int arg0, int arg1, int arg2);
+void vs_field_configureScreenTransition(int arg0, int arg1, int arg2);
 
-void func_8007C460(int arg0);
+void vs_field_setTransitionWipeAngle(int arg0);
 
-void func_8007C46C(int effect, int speed, int angle);
+void vs_field_beginScreenFadeOut(int effect, int speed, int angle);
 
-void func_8007C4AC(int effect, int arg1, int arg2);
+void vs_field_beginScreenFadeIn(int effect, int arg1, int arg2);
 
-void func_8007C4D4(void);
+void vs_field_cancelPendingRoomVisit(void);
 
-int func_8007C4E0(_mpdRoomDoorSection_t* arg0, int effect, int speed);
+int vs_field_beginRoomTransition(_mpdRoomDoorSection_t* arg0, int effect, int speed);
 
-void func_8007C580(_mpdRoomDoorSection_t* arg0, int arg1, int arg2);
+void vs_field_beginScriptedRoomTransition(_mpdRoomDoorSection_t* arg0, int arg1, int arg2);
 
-int func_8007C5C0(_mpdRoomDoorSection_t* arg0, int effect, int speed);
+int vs_field_beginZoneTransition(_mpdRoomDoorSection_t* arg0, int effect, int speed);
 
-void func_8007C654(_mpdRoomDoorSection_t* arg0, int arg1, int arg2);
+void vs_field_beginScriptedZoneTransition(_mpdRoomDoorSection_t* arg0, int arg1, int arg2);
 
-int func_8007C694(int arg0, int arg1, int arg2, int effect, int speed);
+int vs_field_teleportToLocation(int arg0, int arg1, int arg2, int effect, int speed);
 
 int _getLocationId(int zoneId, int mapId);
 
 int vs_battle_getCurrentRoomId(void);
 
-void func_8007C8A4(int arg0, int arg1);
+void vs_audio_playActorScriptSound(int arg0, int arg1);
 
 int func_8007C8F8(int arg0);
 
-int func_8007C928(u_int arg0, int arg1, vs_battle_objectData_flags* arg2);
+int vs_actors_queueScriptedActorSpawn(u_int arg0, int arg1, vs_battle_objectData_flags* arg2);
 
-void func_8007CA20(int actorId, int bladeWepId, int shieldWepId);
+void vs_actors_loadActorEquipmentModels(int actorId, int bladeWepId, int shieldWepId);
 
-void func_8007CAA4(int arg0);
+void vs_actors_refreshActorEquipmentModels(int arg0);
 
-void func_8007CB84(int index, int wepId);
+void vs_actors_queueSharedSequenceLoad(int index, int wepId);
 
-void func_8007CBBC(int arg0);
+void vs_actors_unloadSharedSequence(int arg0);
 
-void func_8007CBDC(int index, int wepId, int arg2);
+void vs_actors_queueSharedSequenceWithTextures(int index, int wepId, int arg2);
 
 void vs_battle_loadEtm(int index, int wepId, int arg2);
 
-void func_8007CC4C(int arg0);
+void vs_actors_releaseSequenceEffectTextures(int arg0);
 
-void func_8007CC6C(int arg0);
+void vs_actors_setSharedSequenceBank(int arg0);
 
 int func_8007CCAC(void);
 
@@ -1463,29 +1463,29 @@ void vs_battle_setFarClip(int farClip, int arg1);
 
 void vs_battle_initialiseCameraFromSpherical( VECTOR* outputPos, VECTOR* outputLookAt, int facing, int mode);
 
-void func_8007CE74(int arg0);
+void vs_field_setCameraPitchPreset(int arg0);
 
 void func_8007CEA0(int arg0);
 
-void func_8007CEC0(void);
+void vs_actors_returnAllActorsToIdle(void);
 
-int func_8007CF18(int arg0);
+int vs_actors_findActorByModelId(int arg0);
 
-vs_battle_actor* func_8007CF64(int actorId);
+vs_battle_actor* vs_actors_isBattleActorSlot(int actorId);
 
-int func_8007CF80(int arg0);
+int vs_actors_countActorsByDisposition(int arg0);
 
-char func_8007CFCC(int arg0);
+char vs_actors_isActorRetainedAfterDefeat(int arg0);
 
 void func_8007CFF8(int arg0, SVECTOR* arg1);
 
-int func_8007D03C(int arg0);
+int vs_actors_isScriptedActorPathFinished(int arg0);
 
-int func_8007D08C(int arg0, int arg1);
+int vs_actors_setActorLogicEnabled(int arg0, int arg1);
 
-int func_8007D15C(int arg0);
+int vs_actors_setOtherActorLogicEnabled(int arg0);
 
-void func_8007D1A8(int arg0, int arg1);
+void vs_actors_setActorDetached(int arg0, int arg1);
 
 void func_8007D260(int arg0);
 
@@ -1493,41 +1493,41 @@ int vs_battle_isActionUnlocked(u_int arg0);
 
 void vs_battle_setActionUnlocked(u_int arg0);
 
-void func_8007D340(int arg0);
+void vs_actors_removeActorAtSlot(int arg0);
 
 void func_8007D360(void);
 
-void func_8007D734(void* arg0);
+void vs_render_drawFramebufferEffect(void* arg0);
 
-void func_8007DD50(int arg0);
+void vs_render_setFramebufferEffectEnabled(int arg0);
 
-void func_8007DDAC(int arg0);
+void vs_render_setFramebufferEffectRoll(int arg0);
 
-void func_8007DDB8(D_800F1A68_t* arg0);
+void vs_render_setFramebufferEffectScale(D_800F1A68_t* arg0);
 
-void func_8007DDD4(P_CODE* arg0);
+void vs_render_setFramebufferEffectTint(P_CODE* arg0);
 
-void func_8007DDF8(D_800F1A68_t* arg0);
+void vs_render_setFramebufferEffectOffset(D_800F1A68_t* arg0);
 
-void func_8007DE2C(int arg0);
+void vs_render_setFramebufferEffectBlendMode(int arg0);
 
-void func_8007DE44(u_int arg0);
+void vs_render_setFramebufferEffectDepth(u_int arg0);
 
-void func_8007DE5C(int arg0);
+void vs_render_setFramebufferEffectPreviousFrame(int arg0);
 
-void func_8007DE88(int* arg0);
+void vs_render_readFramebufferEffectScale(int* arg0);
 
-void func_8007DEA8(P_CODE* arg0);
+void vs_render_readFramebufferEffectTint(P_CODE* arg0);
 
-void func_8007DECC(D_800F1A68_t* arg0);
+void vs_render_readFramebufferEffectOffset(D_800F1A68_t* arg0);
 
 void func_8007DF40(void);
 
-void func_8007DF98(void);
+void vs_render_advanceTexturePageRetirements(void);
 
-int func_8007DFF0(u_int arg0, u_int arg1, int arg2);
+int vs_render_reserveTexturePages(u_int arg0, u_int arg1, int arg2);
 
-int func_8007E0A8(u_int arg0, u_int arg1, int arg2);
+int vs_render_retireTexturePages(u_int arg0, u_int arg1, int arg2);
 
 int func_8007E180(int arg0);
 
@@ -1549,7 +1549,7 @@ short _getDefenseGemBuff(vs_action_t* action, vs_battle_actor2* actor, int hitNu
 
 int _doesAttackHit(vs_action_t* action, _hitEntity_t* source, _hitEntity_t* target, int hitNumber, int addVariance);
 
-int func_8007F434(void);
+int vs_field_rollRiskLockBreak(void);
 
 int _hitPrerequisiteCanApplyEffect(int debuff, u_char* arg1);
 
@@ -1557,15 +1557,15 @@ int _getEnemyClass(u_char* arg0);
 
 int _canPerformAttack(vs_action_t* action, char* arg1, int hitNumber);
 
-short func_8007FE5C( vs_action_t* action, short arg1, vs_battle_actor2* arg2, vs_battle_actor2* arg3);
+short vs_battle_applyDamageGemMultiplier( vs_action_t* action, short arg1, vs_battle_actor2* arg2, vs_battle_actor2* arg3);
 
-void func_80080000(vs_action_t* action, _hitEntity_t* entity, short baseValue);
+void vs_battle_distributeHitLimbDamage(vs_action_t* action, _hitEntity_t* entity, short baseValue);
 
-void func_800801E0(vs_action_t* action, _hitEntity_t* entity, short amount);
+void vs_battle_distributeLimbRecovery(vs_action_t* action, _hitEntity_t* entity, short amount);
 
 void _adjustDpPp( vs_action_t* action, vs_battle_actor2* source, vs_battle_actor2* target, int amount);
 
-void func_800803A4( vs_action_t* action, vs_battle_actor2* arg1, vs_battle_actor2* arg2, int arg3);
+void vs_items_accumulateHitEquipmentPp( vs_action_t* action, vs_battle_actor2* arg1, vs_battle_actor2* arg2, int arg3);
 
 void _triggerArmorAffinityChange(vs_action_t* action, vs_battle_uiEquipment* equipment, int affinity, int arg3, int actorId);
 
@@ -1573,9 +1573,9 @@ void _triggerWeaponAffinityChange(vs_action_t* action, vs_battle_uiEquipment* eq
 
 void _triggerClassChange(vs_action_t* action __attribute__((unused)), vs_battle_uiEquipment* equipment, int class, int arg3, int actorId);
 
-void func_80080C9C( vs_action_t* arg0, vs_battle_actor2* arg1, int arg2, int arg3, int arg4);
+void vs_items_growDefenderEquipmentRatings( vs_action_t* arg0, vs_battle_actor2* arg1, int arg2, int arg3, int arg4);
 
-void func_80080F78(vs_action_t* action, vs_battle_actor2* arg1, int arg2, int arg3);
+void vs_items_growAttackerWeaponRatings(vs_action_t* action, vs_battle_actor2* arg1, int arg2, int arg3);
 
 int _setApplicableStatuses(int arg0, _hitEntity_t* entity);
 
@@ -1699,7 +1699,7 @@ static short _getPhysicalAttackDamage(vs_action_t* action, _hitEntity_t* source,
         if (sourceActor->weapon.maxPp != 0) {
             sp18.weaponDamage +=
                 (sourceActor->weapon.currentPp
-                    * *((sourceActor->weapon.blade.category) + D_800E82F4))
+                    * *((sourceActor->weapon.blade.category) + vs_battle_bladePpDamageBonuses))
                 / sourceActor->weapon.maxPp;
         }
 
@@ -1771,7 +1771,7 @@ static short _getPhysicalAttackDamage(vs_action_t* action, _hitEntity_t* source,
     defense += sp18.shieldStat * sp18.shieldStatFactor;
     defense += sp18.armorStat * sp18.armorStatFactor;
     defense /= (targetActor->risk / 2) + 100;
-    value = func_8007FE5C(action, attack - defense, sourceActor, targetActor);
+    value = vs_battle_applyDamageGemMultiplier(action, attack - defense, sourceActor, targetActor);
 
     if (value < 0) {
         value = 0;
@@ -1789,14 +1789,14 @@ static short _getPhysicalAttackDamage(vs_action_t* action, _hitEntity_t* source,
 
         if ((action->id < 6) && (vs_main_getRand(100) < (sourceActor->risk / 10) + 10)) {
             value = (short)((u_int)(value << 0x10) >> 0xF);
-            D_800F1A0C = 1;
+            vs_battle_criticalHitOccurred = 1;
         }
 
         if (nHit == 0) {
             if (target->unk40 == 0) {
-                func_80080F78(action, sourceActor, (targetActor->enemyClass) + 1,
+                vs_items_growAttackerWeaponRatings(action, sourceActor, (targetActor->enemyClass) + 1,
                     sp18.targetAffinity + 1);
-                func_80080C9C(action, targetActor, (sourceActor->enemyClass) + 1,
+                vs_items_growDefenderEquipmentRatings(action, targetActor, (sourceActor->enemyClass) + 1,
                     sp18.sourceAffinity + 1, limb);
             }
         }
@@ -1809,13 +1809,13 @@ static int _getRoomTrapLevel(void);
 
 short _calculateStatChange( vs_action_t* action, _hitEntity_t* arg1, _hitEntity_t* arg2, int hit, int arg4);
 
-void func_80085008(_hitEntity_t* arg0);
+void vs_battle_deriveLimbInjuryStatuses(_hitEntity_t* arg0);
 
-void func_80085390( vs_action_t* action, _hitEntity_t* arg1, _hitEntity_t* arg2, int arg3, int hit);
+void vs_battle_applyActionHitEffect( vs_action_t* action, _hitEntity_t* arg1, _hitEntity_t* arg2, int arg3, int hit);
 
-void func_800856F8(void* arg0);
+void vs_battle_clearActionRequest(void* arg0);
 
-void func_80085718(_hitEntity_t* arg0);
+void vs_battle_initializeActionHit(_hitEntity_t* arg0);
 
 /**
  * Retrieves a compound value of the action type, cost, and whether
@@ -1827,42 +1827,42 @@ void func_80085718(_hitEntity_t* arg0);
  */
 int _getActionCost(u_int actionId, vs_battle_actor2* actor, int updateStat);
 
-void func_800859B4(u_int arg0, vs_battle_actor2* arg1, int arg2);
+void vs_battle_addActionRecoveryDelay(u_int arg0, vs_battle_actor2* arg1, int arg2);
 
-void func_80085A34(func_80085A34_t* arg0);
+void vs_battle_finalizeActionHit(func_80085A34_t* arg0);
 
-int func_800E6C34(SVECTOR*, SVECTOR*, SVECTOR*, int);
+int vs_field_traceActorAndTerrainCollision(SVECTOR*, SVECTOR*, SVECTOR*, int);
 
-void func_80085B10(int action, D_800F19CC_t2* result, D_800F19CC_t2* source, int arg3);
+void vs_battle_resolveActionTargets(int action, D_800F19CC_t2* result, D_800F19CC_t2* source, int arg3);
 
-int func_8008631C(int arg0, int arg1, int targetActor, int targetLimb, void* arg4);
+int vs_battle_previewActionAgainstLimb(int arg0, int arg1, int targetActor, int targetLimb, void* arg4);
 
-int func_800863A4(int arg0, int arg1, int targetActor, int arg3, SVECTOR* arg4, SVECTOR* arg5, D_800F19CC_t2* arg6);
+int vs_battle_previewActionAgainstActor(int arg0, int arg1, int targetActor, int arg3, SVECTOR* arg4, SVECTOR* arg5, D_800F19CC_t2* arg6);
 
 #ifdef ROOD_PC
 #undef sp860
 #undef sp870
 #endif
 
-void func_80086754(int arg0, vs_battle_actor2* arg1);
+void vs_battle_removeActorStatuses(int arg0, vs_battle_actor2* arg1);
 
-void func_80086EA4(vs_battle_actor2* arg0, int arg1, int arg2, int arg3);
+void vs_battle_applyWeaponElementEnchantment(vs_battle_actor2* arg0, int arg1, int arg2, int arg3);
 
-void func_80086EF4(vs_battle_actor2* arg0, int arg1, int arg2, int arg3);
+void vs_battle_applyArmorElementEnchantment(vs_battle_actor2* arg0, int arg1, int arg2, int arg3);
 
-void func_80086FA8(int arg0, vs_battle_actor2* arg1);
+void vs_battle_inflictActorStatuses(int arg0, vs_battle_actor2* arg1);
 
-void func_80087578(int arg0, int arg1, int arg2, int arg3);
+void vs_battle_queueActorStatChangeNumber(int arg0, int arg1, int arg2, int arg3);
 
 void _applyBattleAbilityEffect(_hitEntity_t* arg0);
 
-void func_80087EF4(vs_battle_actor2* actor);
+void vs_battle_updateActorStatusTimers(vs_battle_actor2* actor);
 
-int func_800882F4(void);
+int vs_state_advanceSceneTimer(void);
 
-int func_80088554(void);
+int vs_battle_updateActorVitals(void);
 
-int func_80088B6C(void);
+int vs_battle_updateRoomActorVitals(void);
 
 void func_80088B8C(void);
 
@@ -1891,25 +1891,25 @@ static void _loadZnd(int id)
     vs_main_cdEnqueuePriority(
         _zoneContext.zndCdFile, _zoneContext.zndData);
     if (_zoneContext.unk30 != 0) {
-        int temp_s0 = D_8004FCCC[id];
+        int temp_s0 = vs_field_zoneMusicIds[id];
         if (vs_main_getCurrentMusicId() != temp_s0) {
-            func_8004552C(vs_main_soundData.currentMusicSlot, 0, 0x78);
+            vs_audio_fadeMusicSlotVolume(vs_main_soundData.currentMusicSlot, 0, 0x78);
         }
     }
 }
 
 void _finishLoadZnd(int id);
 
-void func_80089098(void);
+void vs_field_releaseZoneData(void);
 
 int func_80089104(void);
 
 
-void func_80089114(void);
+void vs_field_spawnRoomActors(void);
 
-void func_80089888(void);
+void vs_field_placeAshleyAtRoomEntrance(void);
 
-void func_80089A00(void);
+void vs_field_restoreRoomEnemyCache(void);
 
 void _loadMpdEnemySection(void* data, u_int dataLen);
 
@@ -1919,13 +1919,13 @@ void func_80089D04(void);
 
 void _loadMpd(int id);
 
-void func_80089DC0(int arg0);
+void vs_field_finishRoomLoad(int arg0);
 
-void func_8008A364(void);
+void vs_field_removeRoomActors(void);
 
-void func_8008A3A0(void);
+void vs_field_unloadCurrentRoom(void);
 
-void func_8008A6FC(void);
+void vs_items_clearRoomLootList(void);
 
 void _loadZndTims(void* data);
 
@@ -1933,36 +1933,36 @@ int _loadMpdRoomSection(int arg0, void* data);
 
 void vs_battle_setDoorEntered(void);
 
-int func_8008AB80(int arg0);
+int vs_field_enableOwnedRoomRendering(int arg0);
 
-int func_8008ABB8(int arg0);
+int vs_field_disableOwnedRoomRendering(int arg0);
 
-int func_8008ABF0(int arg0);
+int vs_field_releaseOwnedRoomSections(int arg0);
 
 #include "pc/src/scene_submit.inc"
 #include "pc/src/charge_skip.inc"
 
-void func_8008B1FC(void* arg0);
+void vs_field_drawRoomGeometry(void* arg0);
 
-void func_8008B28C(void);
+void vs_field_advanceRoomAnimationClock(void);
 
-void func_8008B2E0(void* arg0, int arg1, int arg2, int arg3);
+void vs_field_copyZonePaletteRow(void* arg0, int arg1, int arg2, int arg3);
 
-void func_8008B320(void);
+void vs_field_uploadRoomPalettes(void);
 
-void func_8008B390(int arg0, int* arg1);
+void vs_field_offsetRoomTextureIds(int arg0, int* arg1);
 
-void func_8008B4BC(int arg0);
+void vs_field_setRoomAnimationsPaused(int arg0);
 
-int func_8008B4C8(char arg0);
+int vs_field_setMinimapVisible(char arg0);
 
 void vs_battle_setRoomsUnk0(vs_battle_scene* scene);
 
 void _vsBattleNop2(int arg0 __attribute__((unused)));
 
-void func_8008B590(MATRIX* arg0, int arg1);
+void vs_field_buildMinimapRotation(MATRIX* arg0, int arg1);
 
-void func_8008B6B4(void);
+void vs_field_resetGimmickAnimationQueue(void);
 
 void* func_8008B6FC(void);
 
@@ -1970,75 +1970,75 @@ int _getCollisionMapDimensions(int arg0 __attribute__((unused)));
 
 _zoneContextBounds* _getMapBounds(int arg0 __attribute__((unused)));
 
-_mpdRoomSection3* func_8008B764(u_int width, u_int height, int arg2);
+_mpdRoomSection3* vs_field_collisionCellAt(u_int width, u_int height, int arg2);
 
 int func_8008B808(int arg0, int arg1, int arg2, int arg3);
 
-void func_8008B8F8(char (*arg0)[12]);
+void vs_field_setEntranceDoorRecord(char (*arg0)[12]);
 
-void func_8008B960(int arg0, int arg1, int arg2);
+void vs_field_findEntranceDoorNearTile(int arg0, int arg1, int arg2);
 
-D_800F1D08_t* func_8008BAC8(int arg0, int arg1, int arg2);
+D_800F1D08_t* vs_field_transitionDoorsAtTile(int arg0, int arg1, int arg2);
 
-_mpdRoomSectionA* func_8008BC04(int arg0, int arg1, int arg2);
+_mpdRoomSectionA* vs_field_interactiveDoorAtTile(int arg0, int arg1, int arg2);
 
-void func_8008BD74(_mpdRoomSectionA* arg0);
+void vs_field_toggleDoorCollision(_mpdRoomSectionA* arg0);
 
-int func_8008BEBC(_mpdRoomSectionA* arg0);
+int vs_field_beginDoorToggle(_mpdRoomSectionA* arg0);
 
-int func_8008BF48(_mpdRoomSectionA* arg0);
+int vs_field_startDoorAnimation(_mpdRoomSectionA* arg0);
 
-void func_8008C070(int arg0, _mpdRoomSectionA* arg1);
+void vs_field_queueGimmickAnimation(int arg0, _mpdRoomSectionA* arg1);
 
-void func_8008C0C0(void);
+void vs_field_updateGimmickAnimationQueue(void);
 
-int func_8008C1C8(_mpdRoomSectionA* arg0);
+int vs_field_finishDoorAnimation(_mpdRoomSectionA* arg0);
 
 int func_8008C2C0(int arg0, int arg1, int arg2, int arg3);
 
-void func_8008C40C(void);
+void vs_field_clearGeometryOcclusion(void);
 
 #ifndef ROOD_PC
-void func_8008C458(int arg0) { func_80098B38(arg0, 0); }
+void func_8008C458(int arg0) { vs_render_sampleRoomLighting(arg0, 0); }
 #endif
 
-int func_8008C49C(int arg0, int arg1);
+int vs_field_setMovingPlatformActor(int arg0, int arg1);
 
-void func_8008C538(void);
+void vs_field_initializeMovingPlatforms(void);
 
-void func_8008C6B4(int arg0, int arg1);
+void vs_field_resetMovingPlatformWaypoint(int arg0, int arg1);
 
-static short const D_80068BEC[] __attribute__((used)) = { 8, 14, 16, 11, 7, 3, 1 };
+static short const vs_field_platformBounceOffsets[] __attribute__((used)) = { 8, 14, 16, 11, 7, 3, 1 };
 
 typedef struct {
     unsigned int flags[2];
     VECTOR positions[4];
     VECTOR velocities[6];
 } RoomMotionVectors;
-int func_800A4494(int, SVECTOR*);
-int func_8008C8A8(void);
+int vs_field_checkPlatformActorObstruction(int, SVECTOR*);
+int vs_field_updateMovingPlatforms(void);
 
 #include "pc/src/room_shadows.inc"
 
-int func_8008D2C0(func_8008D2C0_t arg0[]);
+int vs_field_collectMovingPlatformPositions(func_8008D2C0_t arg0[]);
 
 int vs_battle_getCurrentSceneId(void);
 
-int func_8008D418(void);
+int vs_field_roomFallDestination(void);
 
-_mpdRoomSection9* func_8008D438(int arg0, int arg1, int arg2);
+_mpdRoomSection9* vs_field_findRoomTriggerAtTile(int arg0, int arg1, int arg2);
 
-_mpdRoomSection13* func_8008D508(int arg0, int arg1, int arg2);
+_mpdRoomSection13* vs_items_treasureChestAtTile(int arg0, int arg1, int arg2);
 
-void func_8008D594(int arg0);
+void vs_field_setMovingPlatformsPaused(int arg0);
 
-void func_8008D5A0(int arg0);
+void vs_field_freezeMovingPlatforms(int arg0);
 
 void func_8008D5FC(_mpdRoomSectionA* arg0);
 
-void func_8008D658(_mpdRoomSectionA* arg0);
+void vs_field_toggleRoomSwitch(_mpdRoomSectionA* arg0);
 
-void func_8008D710(void);
+void vs_items_restoreRoomChestStates(void);
 
 void vs_battle_parseTim(u_long* arg0, TIM_IMAGE* tim);
 
@@ -2046,35 +2046,35 @@ int _getDoorId(int door);
 
 void vs_battle_setDoorEntered2(int arg0);
 
-short func_8008DA24(int arg0, int arg1);
+short vs_field_interpolatedFloorHeight(int arg0, int arg1);
 
-short func_8008DC7C(int arg0, int arg1);
+short vs_field_floorHeightAt(int arg0, int arg1);
 
-short func_8008DD0C(int arg0, int arg1);
+short vs_field_ceilingHeightAt(int arg0, int arg1);
 
-int func_8008DDA8(int arg0, int arg1);
+int vs_field_floorAndCeilingHeightsAt(int arg0, int arg1);
 
-void func_8008DEAC(_mpdRoomSection9* arg0, int arg1);
+void vs_field_setRoomTriggerEnabled(_mpdRoomSection9* arg0, int arg1);
 
-void func_8008DF14(void);
+void vs_field_drawRoomTriggerMarkers(void);
 
-void func_8008E19C(int arg0, int arg1, short arg2, u_int arg3);
+void vs_field_drawRoomTriggerMarker(int arg0, int arg1, short arg2, u_int arg3);
 
-void func_8008E224(int arg0, int arg1);
+void vs_field_setMovingPlatformVisibility(int arg0, int arg1);
 
-void* func_8008E2D4(int arg0);
+void* vs_field_movingPlatformTargetWaypoint(int arg0);
 
-u_int func_8008E320(int arg0);
+u_int vs_field_movingPlatformDwellTicks(int arg0);
 
-_mpdRoomSection13* func_8008E370(int* arg0);
+_mpdRoomSection13* vs_items_roomTreasureChests(int* arg0);
 
 _mpdRoomSectionA* func_8008E3B8(int* arg0);
 
 _mpdRoomSection9* func_8008E400(int* arg0);
 
-int func_8008E470(void);
+int vs_field_isRoomAudioSequenceAbsent(void);
 
-void func_8008E480(int arg0);
+void vs_audio_setRoomAmbienceDucked(int arg0);
 
 short func_8008E4AC(void);
 
@@ -2083,35 +2083,35 @@ static int _getRoomTrapLevel(void)
     return vs_battle_roomData.sectionB->trapLevel;
 }
 
-void func_8008E4DC(int arg0);
+void vs_field_setPlatformFreezeAppearance(int arg0);
 
 void _loadMpdLootSection(void* data);
 
-void func_8008E6DC(int arg0);
+void vs_field_markSigilDoorUnlocked(int arg0);
 
 void func_8008E8F8(void);
 
-void func_8008E938(void);
+void vs_field_initializeRoomBackgroundColors(void);
 
-void func_80090C2C(int);
+void vs_field_setRoomWeather(int);
 
 int func_8008EA90(int arg0);
 
-void func_8008EAE4(int arg0, int arg1);
+void vs_field_setBackgroundParallaxScale(int arg0, int arg1);
 
-void func_8008EAF8(int arg0);
+void vs_field_setTiledBackgroundEnabled(int arg0);
 
 void func_8008EB04(int* arg0, int* arg1);
 
-void func_8008EB30(int* arg0);
+void vs_field_setRoomBackgroundColors(int* arg0);
 
-void func_8008EC48(VECTOR* arg0);
+void vs_field_drawRoomBackground(VECTOR* arg0);
 
-int func_8008EFCC(int arg0);
+int vs_field_queueTiledBackgroundLoad(int arg0);
 
-int func_8008F0FC(void);
+int vs_field_finishTiledBackgroundLoad(void);
 
-int func_8008F234(void);
+int vs_field_releaseTiledBackground(void);
 
 void func_8008F29C(int arg0, int arg1);
 
@@ -2143,7 +2143,7 @@ void func_80090A1C(D_800F1DD4_t* arg0);
 
 void func_80090B28(void);
 
-INCLUDE_RODATA("build/src/BATTLE/BATTLE.PRG/nonmatchings/146C", D_80068C1C);
+INCLUDE_RODATA("build/src/BATTLE/BATTLE.PRG/nonmatchings/146C", vs_field_legacyBackgroundGradientPackets);
 
 /* Declared for the Zig's c module (the C bodies that declared them are gone). */
 extern void pc_story_frame(void);

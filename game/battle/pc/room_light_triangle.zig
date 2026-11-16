@@ -14,7 +14,7 @@ fn lightArea(a: c_uint, b: c_uint, third: c_uint) c_int {
     return @bitCast(ctx.mfc2(24));
 }
 
-/// orig: func_80098C3C (pc/src/room_lighting.c)
+/// orig: vs_render_interpolateRoomLightTriangle (pc/src/room_lighting.c)
 /// Barycentric blend of the triangle's three corner colours (words 5-7) at
 /// `position` into the three bytes of `color`; 0 when the point is outside.
 pub fn roomLightTriangle(position: c_uint, color: [*]u8, triangle: [*]const c_uint) callconv(.c) c_int {

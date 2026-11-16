@@ -23,8 +23,8 @@ Cases (A: ui_menus off, MENU9 by pad; B: native by pad; C: native by pointer):
   2 moves    the same pad script per section (Titles with the wrap, Records,
              Time Attack, the Bestiary), and the Bestiary's Circle on a locked
              foe (sound 7): the cursor memories equal A's after every step;
-             the sounds played equal A's; after Triangle: D_800F190C,
-             D_800EB9B0, currentMenu equal A's (closed). B alone: Circle on an
+             the sounds played equal A's; after Triangle: vs_field_isFieldRenderingEnabled,
+             vs_battle_hudSlideOffset, currentMenu equal A's (closed). B alone: Circle on an
              unlocked foe shows the hint only (no ZUD load, nothing delivered)
   3 sweep    boundaries from the fresh fixture (chain tiers and 29 / 30,
              clear-time tiers, the cap, the rank's point thresholds on both
@@ -260,7 +260,7 @@ class Session:
             "scoredata": g.read(s["vs_main_scoredata"], SCOREDATA_SIZE),
             "roomFlags": g.read(s["vs_main_mapStatus"], 64),
             "menu9": g.read(s["vs_battle_menu9CursorMemory"], 8),
-            "cm23": g.read(s["D_800F4EE8"] + 2, 2),
+            "cm23": g.read(s["vs_menu_frameworkMenuMemory"] + 2, 2),
             "cursorMemory": g.read(s["vs_main_settings"] + 1, 1),
             "played": self.played(),
         }
@@ -268,7 +268,7 @@ class Session:
     def close_dump(self):
         g, s = self.game, self.sym
         d = self.dump()
-        d.update({"world": g.read(s["D_800F190C"], 4), "hud": g.read(s["D_800EB9B0"], 4),
+        d.update({"world": g.read(s["vs_field_isFieldRenderingEnabled"], 4), "hud": g.read(s["vs_battle_hudSlideOffset"], 4),
                   "menu": g.read(s["vs_battle_menuState"], 1)})
         return d
 
@@ -411,7 +411,7 @@ def story(s, check, dumps):
         d["json"] = (sc["score"], sc["rank"])
     d["statics"] = s.statics()
     dumps.append((f"open{n}", d))
-    row = s.game.read(s.sym["D_800F4EE8"] + 2, 1)[0]
+    row = s.game.read(s.sym["vs_menu_frameworkMenuMemory"] + 2, 1)[0]
     for _ in range((3 - row) & 3):
         s.step("down", None)
     s.game.run(6)
@@ -439,7 +439,7 @@ def bestiary_unlocked(b, check):
     g, s = b.game, b.sym
     b.fixture("fresh", 1, [0] * 8, kill_flags=[-1] * 26)
     b.open()
-    row = g.read(s["D_800F4EE8"] + 2, 1)[0]
+    row = g.read(s["vs_menu_frameworkMenuMemory"] + 2, 1)[0]
     for _ in range((3 - row) & 3):
         b.step("down", None)
     g.run(6)
@@ -465,7 +465,7 @@ def bestiary_unlocked(b, check):
 def moves(s, check, dumps, n):
     """From the top: Down, Circle (a section), Down x3, Up, Up x8, Up (the wrap on a press at the top), Cross;
     Down, Circle, Down x9, Cross; Down, Circle, Down x2, Cross (each section's own rules)."""
-    row = s.game.read(s.sym["D_800F4EE8"] + 2, 1)[0]  # _setRows' at the open (the list keeps its own after)
+    row = s.game.read(s.sym["vs_menu_frameworkMenuMemory"] + 2, 1)[0]  # _setRows' at the open (the list keeps its own after)
     for k, downs in enumerate((3, 9, 2)):
         s.step("down", None)
         row = (row + 1) & 3
@@ -636,7 +636,7 @@ def idempotence(b, check):
     ok = b.wait_page("top")
     b.modern = True
     after = b.rd("vs_main_scoredata", SCOREDATA_SIZE)
-    row = b.rd("D_800F4EE8", 4)[2]
+    row = b.rd("vs_menu_frameworkMenuMemory", 4)[2]
     check(ok and before == after and row == home,
           f"idem: Square opens MENU9 on the native row ({row}, native {home}), scoredata unchanged")
     b.step("triangle", None)
@@ -711,7 +711,7 @@ def mon_original(a, check):
     """A: the Encyclopaedia open (state 14): MENU9's _monBinData read whole."""
     a.fixture("midgame", 1)
     a.open()
-    row = a.game.read(a.sym["D_800F4EE8"] + 2, 1)[0]
+    row = a.game.read(a.sym["vs_menu_frameworkMenuMemory"] + 2, 1)[0]
     for _ in range((3 - row) & 3):
         a.step("down", None)
     a.step("circle", "bestiary")
@@ -755,10 +755,10 @@ def mouse(c, check, wide):
     sc = c.score()
     W = 1280 if wide else 960
     check(sc and all(0 <= h["x0"] and h["x1"] <= W for h in sc["hits"]), f"mouse {tag}: every hit inside {W}")
-    mem = c.rd("vs_battle_menu9CursorMemory", 8) + c.rd("D_800F4EE8", 4)
+    mem = c.rd("vs_battle_menu9CursorMemory", 8) + c.rd("vs_menu_frameworkMenuMemory", 4)
     h = c.hit("home", 1)
     c.ptr(3, x=(h["x0"] + h["x1"]) / 2, y=(h["y0"] + h["y1"]) / 2)  # hover only
-    check(c.rd("vs_battle_menu9CursorMemory", 8) + c.rd("D_800F4EE8", 4) == mem and c.score()["home"] == 0,
+    check(c.rd("vs_battle_menu9CursorMemory", 8) + c.rd("vs_menu_frameworkMenuMemory", 4) == mem and c.score()["home"] == 0,
           f"mouse {tag}: hovering writes nothing")
     c.click("home", 1)
     sc = c.score()
@@ -860,10 +860,10 @@ def tunables(b, check, theme):
 def robustness(b, check):
     b.fixture("midgame", 1)
     b.open()
-    frozen = struct.unpack("<i", b.rd("D_800F190C", 4))[0]
+    frozen = struct.unpack("<i", b.rd("vs_field_isFieldRenderingEnabled", 4))[0]
     b.game.write(b.sym["vs_battle_menuState"], bytes([CLOSED]))
     b.game.run(8)
-    world = struct.unpack("<i", b.rd("D_800F190C", 4))[0]
+    world = struct.unpack("<i", b.rd("vs_field_isFieldRenderingEnabled", 4))[0]
     check(frozen == 0 and (b.score() is None) and world == 1,
           f"robust: a forced currentMenu write ends the screen, the world runs ({frozen} -> {world})")
 

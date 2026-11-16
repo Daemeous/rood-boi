@@ -40,8 +40,8 @@ pub fn func_80095C18(actor: c_int, kind_arg: c_int) callconv(.c) void {
             kind &= 7;
             if (psx.conv(c_uint, kind -% 1) >= 4) kind = 5;
         }
-        if (c.func_800A1280(actor, 251, psx.cptr(c.SVECTOR, &position), 0) != 0) return;
-        if (c.func_800A1280(0, 251, psx.cptr(c.SVECTOR, &other), 0) != 0) return;
+        if (c.vs_actors_targetPoint(actor, 251, psx.cptr(c.SVECTOR, &position), 0) != 0) return;
+        if (c.vs_actors_targetPoint(0, 251, psx.cptr(c.SVECTOR, &other), 0) != 0) return;
         var z: c_int = @as(c_int, position.vz) -% 16;
         const xy = packed_xy(&position);
         if (@as(c_int, other.vx) +% 32 < position.vx) flagsWord.* &= ~bit(actor);
@@ -122,12 +122,12 @@ pub fn func_80095C18(actor: c_int, kind_arg: c_int) callconv(.c) void {
         const uv = psx.at(v.g.D_80068F64(), side);
         // The bubble's quad (colour 0x808080, page 0x17, CLUT 0x373E), placed at the head of the slot as the packet was.
         _ = sprite_item.ft4(ot, false, false, 0x17, 0x373E, 0x808080,
-            &[4]c_int{ c.func_80096254(xy, corners[0]), c.func_80096254(xy, corners[1]), c.func_80096254(xy, corners[2]), c.func_80096254(xy, corners[3]) },
+            &[4]c_int{ c.vs_core_mathAddPackedScreenCoordinates(xy, corners[0]), c.vs_core_mathAddPackedScreenCoordinates(xy, corners[1]), c.vs_core_mathAddPackedScreenCoordinates(xy, corners[2]), c.vs_core_mathAddPackedScreenCoordinates(xy, corners[3]) },
             &[4]c_int{ uv[0], uv[1], uv[2], uv[3] });
     } else {
         const bubbles = v.g.D_800F2260();
-        if (c.func_800A190C(actor, 255, psx.cptr(c.SVECTOR, &other), 0) == 0) {
-            if (c.func_800A190C(0, 255, psx.cptr(c.SVECTOR, &position), 0) != 0) return;
+        if (c.vs_actors_anchorPoint(actor, 255, psx.cptr(c.SVECTOR, &other), 0) == 0) {
+            if (c.vs_actors_anchorPoint(0, 255, psx.cptr(c.SVECTOR, &position), 0) != 0) return;
             position.vx = psx.conv(i16, @as(c_int, position.vx) -% other.vx);
             position.vz = psx.conv(i16, @as(c_int, position.vz) -% other.vz);
             side = @as(c_int, @abs(position.vx)) + @as(c_int, @abs(position.vz)); // ABS of two shorts: no overflow
@@ -148,7 +148,7 @@ pub fn func_80095C18(actor: c_int, kind_arg: c_int) callconv(.c) void {
             position.vx = psx.conv(i16, @as(c_int, position.vx) -% 8);
             position.vy = psx.conv(i16, @as(c_int, position.vy) -% 8);
             const xy = packed_xy(&position);
-            depth = c.func_8009F858(actor);
+            depth = c.vs_field_gimmickSubtype(actor);
             if (depth >= 0) {
                 if (depth == 0) {
                     const count = psx.at(bubbles, actor);

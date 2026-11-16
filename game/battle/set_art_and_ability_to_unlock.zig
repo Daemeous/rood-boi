@@ -9,5 +9,5 @@ const c = @import("c_5BF94");
 pub fn setArtAndAbilityToUnlock(art: c_int, battleAbility: c_int) callconv(.c) void {
     v.g.vs_battle_unlockedBreakArt().* = psx.conv(u8, art);
     v.g.vs_battle_unlockedBattleAbility().* = psx.conv(u8, battleAbility);
-    _ = c.func_800CACD0(3, 2);
+    _ = c.vs_menu_frameworkOpenGameMenu(3, 2);
 }

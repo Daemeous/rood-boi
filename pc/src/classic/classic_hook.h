@@ -18,7 +18,7 @@
 #ifdef ROOD_PC
 #include "classic_parity.h"
 #include "pc/src/draw_items.h"
-#define PC_CLASSIC_SITE_GAUGES 8       /* classic_parity.h PC_CLASSIC_GAUGES: func_800CA2DC's gauges */
+#define PC_CLASSIC_SITE_GAUGES 8       /* classic_parity.h PC_CLASSIC_GAUGES: vs_battle_drawBattleHud's gauges */
 #define PC_CLASSIC_SITE_FIGURE 9       /* Ashley's five limb sprites */
 /* Snapshot at the status carousel's emit boundary; no game pointers escape. */
 typedef struct {
@@ -33,16 +33,16 @@ typedef struct { int animation, offset, group, availability; } pc_classic_abilit
  * (MISS, or the combat label), and that draw's inputs, copied before it runs. */
 typedef struct { const void* label; int miss, age, index, lowered; } pc_classic_actor_word;
 #define PC_CLASSIC_SITE_ACTOR_WORD 13
-#define PC_CLASSIC_SITE_TIMER 14 /* _renderTimer: its record the string it composed (D_800EC258) */
+#define PC_CLASSIC_SITE_TIMER 14 /* _renderTimer: its record the string it composed (vs_battle_puzzleTimerTextPointer) */
 /* An emote over an actor (2842C.c func_80095C18), as the game decided it inside the function: draw 1 the
  * balloon and its marks (kind, side, the screen place, z the depth slot), 2 the off-screen arrow
  * (func_8009651C: direction, the clamped place), 3 a far actor's sprite (frame); 0 nothing. */
 typedef struct { int draw, kind, side, x, y, z, direction, frame; } pc_classic_emote;
 #define PC_CLASSIC_SITE_EMOTE 15
-#define PC_CLASSIC_SITE_TEXT_FRAME 16 /* func_800CD3E4: its record the text box (read only), x its id */
+#define PC_CLASSIC_SITE_TEXT_FRAME 16 /* vs_menu_drawTextBoxFrame: its record the text box (read only), x its id */
 #define PC_CLASSIC_SITE_TEXT_BAND 17 /* func_800CD158: likewise */
 #define PC_CLASSIC_SITE_BOX_TEXT 18 /* _printVariableWidthFont: likewise (its glyphs recorded as it sets them) */
-/* An image (func_800CCA90: the portraits and stills): its index (0..2), drawer (D_800EC25C), CLUT word and slot
+/* An image (vs_render_drawGimLayer: the portraits and stills): its index (0..2), drawer (vs_render_gimLayerDrawRoutines), CLUT word and slot
  * (bytes from vs_scratch.unk4: the table's far end, or after unk8). */
 typedef struct {
     int image, mode, clut, slot;
@@ -66,7 +66,7 @@ typedef struct {
 } pc_classic_target_line;
 #define PC_CLASSIC_SITE_TARGET_LINE 21
 /* The area target's marker (58578.c func_800C28AC): its place (the point projected), lock (the call's arg1: the
- * pitch locked, the brackets' quads off and the other sprites) and its brightness step (D_800EA6AC, stepped). */
+ * pitch locked, the brackets' quads off and the other sprites) and its brightness step (vs_battle_positionCursorBlinkFrame, stepped). */
 typedef struct { int x, y, lock, step; } pc_classic_target_marker;
 #define PC_CLASSIC_SITE_TARGET_MARKER 22
 /* MAINMENU's shared frame (58EC.c), every menu screen's: the background (its fade step, the opaque brightness, its
@@ -118,7 +118,7 @@ typedef struct { int row, state; } pc_classic_items_status_button;
  * (vs_mainMenu_strIntAgi[3]); RANGE / RISK shown (_rangeRiskData[3]); the range's equipment delta (the actor's
  * currentRange - weapon range); the stat names' subtype (vs_mainMenu_equipmentSubtype); RANGE, RISK; STR / INT /
  * AGI, their thresholds (strIntAgi[4..6]), the base and total columns (D_80102488[0..2], [4..6]) and the accessory's
- * (D_80102498)) and the DP / PP bars (vs_mainMenu_renderDpPpBars after its step: the step, target (1 DP, 2 PP),
+ * (vs_menu_frameworkComparisonAccessoryStats)) and the DP / PP bars (vs_mainMenu_renderDpPpBars after its step: the step, target (1 DP, 2 PP),
  * current and max DP (hundreds), PP). */
 typedef struct {
     int position, known, range_risk_shown, range_delta, subtype, range_risk[2];
@@ -210,7 +210,7 @@ typedef struct {
  * and pixels, kept for the claim: classic_parity.c). */
 typedef struct { int screen, phase; } pc_classic_menuf_load;
 #define PC_CLASSIC_SITE_MENUF_LOAD 45
-#define PC_CLASSIC_SITE_STATUS_PANEL 46 /* classic_parity.h PC_CLASSIC_STATUS_PANEL: func_800CA2DC */
+#define PC_CLASSIC_SITE_STATUS_PANEL 46 /* classic_parity.h PC_CLASSIC_STATUS_PANEL: vs_battle_drawBattleHud */
 /* PC_CLASSIC_IMMEDIATE wraps a call that draws at once (DrawPrim, LoadImage; StoreImage read): between begin and site
  * the recorder (classic_parity.c pc_classic_immediate_*) keeps every draw and upload the statement makes, in order,
  * as the kind's capture; when a classic claim on the kind is honoured it holds them back, and site (hud_bridge.c

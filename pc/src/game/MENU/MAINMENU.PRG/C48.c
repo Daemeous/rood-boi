@@ -333,13 +333,13 @@ static int func_800FAA5C(int arg0)
     if (arg0 & menuStateOpenedFromMainMenu) {
         vs_battle_menuState.currentMenu = 0;
 
-        func_800C930C(1);
+        vs_menu_frameworkUpdateMainMenuSelection(1);
 
         return 0;
     }
 
     if (D_800F4FDB == 0) {
-        func_8007E0A8(26, 3, 6);
+        vs_render_retireTexturePages(26, 3, 6);
     }
 
     vs_battle_menuState.currentMenu = 0x7F;
@@ -375,7 +375,7 @@ void vs_mainMenu_exec(int arg0)
     if (selectedMenu != 0) {
         if (selectedMenu == 31) {
             submenuReturn = _quitDelay();
-        } else if (D_800F4EA0 & 0x200) {
+        } else if (vs_menu_frameworkActionRestrictions & 0x200) {
             if (menuLoaded) {
 #ifdef ROOD_PC
                 /* a direct entry the modern menus take over speaks the
@@ -395,12 +395,12 @@ void vs_mainMenu_exec(int arg0)
                     submenuReturn = vs_menuC_exec(submenuState);
                 } else if (selectedMenu == 12) {
                     submenuReturn = vs_menuB_exec(submenuState);
-                } else if (selectedMenu == 7 && (D_800F4EA0 & 0x400)) {
+                } else if (selectedMenu == 7 && (vs_menu_frameworkActionRestrictions & 0x400)) {
                     submenuReturn = vs_menu7_saveContainerMenu(submenuState);
                 } else if (selectedMenu == 7 && vs_main_stateFlags.gameOver == 1) {
                     submenuReturn = vs_menu7_gameOver(submenuState);
                 } else {
-                    D_800F4EA0 = 0;
+                    vs_menu_frameworkActionRestrictions = 0;
                 }
             }
         } else {
@@ -412,11 +412,11 @@ void vs_mainMenu_exec(int arg0)
                     state = 0;
 
                     if (selectedMenu == 1) {
-                        state = (D_800F4EA0 & MAGIC_TITLE_MASK) != 0;
+                        state = (vs_menu_frameworkActionRestrictions & MAGIC_TITLE_MASK) != 0;
                     }
 
                     if (selectedMenu == 2) {
-                        state = (D_800F4EA0 & 0x15F) != 0;
+                        state = (vs_menu_frameworkActionRestrictions & 0x15F) != 0;
                     }
 
                     vs_battle_setMenuItem(selectedMenu - 1, 320, 18, 140, 8,
@@ -492,7 +492,7 @@ void vs_mainMenu_exec(int arg0)
     } else {
         vs_mainMenu_setMenuCommand(menuActionCommand);
 
-        state = func_800C930C(0);
+        state = vs_menu_frameworkUpdateMainMenuSelection(0);
 
 #ifdef ROOD_PC
         /* The modern menus handed a break art to the game and ended the menu
@@ -563,7 +563,7 @@ void vs_mainMenu_miscItemsShortcutMenu(int initialize)
         menuItem->state = menuItemStateSlideX;
         menuItem->selected = 1;
         menuItem->targetPosition0 = 180;
-        menuItem->unselectable = (D_800F4EA0 & 7) != 0;
+        menuItem->unselectable = (vs_menu_frameworkActionRestrictions & 7) != 0;
         state = waitTitle;
 
         vs_mainMenu_loadItemText(1);
@@ -619,7 +619,7 @@ void vs_mainMenu_miscItemsShortcutMenu(int initialize)
                 actions[i] = action;
             }
 
-            if ((D_800F4EA0 & 7) || (misc->id >= bronzeKey)
+            if ((vs_menu_frameworkActionRestrictions & 7) || (misc->id >= bronzeKey)
                 || (vs_battle_getActionFlags(0, actions[i]) & 2)) {
                 rowTypes[i] |= rowTypeDisabled;
             }
@@ -679,8 +679,8 @@ void vs_mainMenu_miscItemsShortcutMenu(int initialize)
                 if (selectedRow > 0) {
                     vs_battle_miscItemInvoked =
                         vs_main_inventoryIndices.misc[selectedRow - 1] - 1;
-                    D_800F4E98.executeAbility.u16[0] = actions[selectedRow - 1];
-                    D_800F4E98.executeAbility.u16[1] =
+                    vs_menu_frameworkActionSelection.executeAbility.u16[0] = actions[selectedRow - 1];
+                    vs_menu_frameworkActionSelection.executeAbility.u16[1] =
                         vs_main_inventory.misc[vs_battle_miscItemInvoked].id;
                 }
 
@@ -695,11 +695,11 @@ void vs_mainMenu_miscItemsShortcutMenu(int initialize)
         }
 
         if (selectedRow > 0) {
-            D_800F4E98.unk2 = 8;
+            vs_menu_frameworkActionSelection.unk2 = 8;
         }
 
         vs_battle_menuState.currentMenu = menuStateNoneClosed;
-        D_800F4E98.unk0 = 2;
+        vs_menu_frameworkActionSelection.unk0 = 2;
         return;
     }
 
@@ -949,7 +949,7 @@ void vs_mainMenu_updateStatPage(int enabledPage)
 void vs_mainMenu_drawClassAffinityType(int arg0)
 {
     static int D_801020F4 = 0;
-    static u_char D_801020F8 = 0;
+    static u_char vs_menu_frameworkStatPagePanelSlideStep = 0;
 
     int var_s1;
     int statPage;
@@ -964,7 +964,7 @@ void vs_mainMenu_drawClassAffinityType(int arg0)
         }
 
         D_801020F4 = arg0;
-        D_801020F8 = 10;
+        vs_menu_frameworkStatPagePanelSlideStep = 10;
 
         return;
     }
@@ -973,10 +973,10 @@ void vs_mainMenu_drawClassAffinityType(int arg0)
 
     if (D_801020F4 > 0) {
 
-        var_s1 = -vs_battle_rowAnimationSteps[D_801020F8];
+        var_s1 = -vs_battle_rowAnimationSteps[vs_menu_frameworkStatPagePanelSlideStep];
 
-        if (D_801020F8 != 0) {
-            --D_801020F8;
+        if (vs_menu_frameworkStatPagePanelSlideStep != 0) {
+            --vs_menu_frameworkStatPagePanelSlideStep;
         } else if (vs_main_buttonsPressed.all & PADRleft) {
             statPage = _getNextStatPage(statPage);
             if (statPage != vs_mainMenu_itemStatPage) {
@@ -986,9 +986,9 @@ void vs_mainMenu_drawClassAffinityType(int arg0)
             }
         }
     } else {
-        if (D_801020F8 != 0) {
-            --D_801020F8;
-            var_s1 = (D_801020F8 - 10) * 24;
+        if (vs_menu_frameworkStatPagePanelSlideStep != 0) {
+            --vs_menu_frameworkStatPagePanelSlideStep;
+            var_s1 = (vs_menu_frameworkStatPagePanelSlideStep - 10) * 24;
         }
     }
 
@@ -1033,9 +1033,9 @@ void vs_mainMenu_populateBaseStats(int actorId)
 {
     vs_battle_actor2* temp_t0 = vs_battle_actors[actorId & 0xF]->unk3C;
     D_80102488[3] = actorId & 0xF;
-    D_80102498[0] = temp_t0->accessory.currentStr;
-    D_80102498[1] = temp_t0->accessory.currentInt;
-    D_80102498[2] = temp_t0->accessory.currentAgility;
+    vs_menu_frameworkComparisonAccessoryStats[0] = temp_t0->accessory.currentStr;
+    vs_menu_frameworkComparisonAccessoryStats[1] = temp_t0->accessory.currentInt;
+    vs_menu_frameworkComparisonAccessoryStats[2] = temp_t0->accessory.currentAgility;
     D_80102488[0] = temp_t0->strength;
     D_80102488[1] = temp_t0->intelligence;
     D_80102488[2] = temp_t0->agility;
@@ -1069,7 +1069,7 @@ void vs_mainMenu_renderEquipStats(int animate)
         "#ATTACK/STR", "#ATTACK/INT", "#AGILITY", NULL, "#DEFENSE/STR", "#DEFENSE/INT",
         "#AGILITY" };
     static char statsAnimation = 0;
-    static u_char D_80102131 = 0;
+    static u_char vs_menu_frameworkPrimaryStatPanelSlideStep = 0;
 
     int valuesKnown;
     int stat;
@@ -1087,7 +1087,7 @@ void vs_mainMenu_renderEquipStats(int animate)
     if (animate != 0) {
         if (statsAnimation != animate) {
             statsAnimation = animate;
-            D_80102131 = 15 - (animate * 4);
+            vs_menu_frameworkPrimaryStatPanelSlideStep = 15 - (animate * 4);
         }
         return;
     }
@@ -1095,15 +1095,15 @@ void vs_mainMenu_renderEquipStats(int animate)
     valuesKnown = vs_mainMenu_strIntAgi[3];
 
     if (statsAnimation == 1) {
-        if (D_80102131 != 0) {
-            position += vs_battle_rowAnimationSteps[D_80102131];
-            --D_80102131;
+        if (vs_menu_frameworkPrimaryStatPanelSlideStep != 0) {
+            position += vs_battle_rowAnimationSteps[vs_menu_frameworkPrimaryStatPanelSlideStep];
+            --vs_menu_frameworkPrimaryStatPanelSlideStep;
         }
-    } else if (D_80102131 == 0) {
+    } else if (vs_menu_frameworkPrimaryStatPanelSlideStep == 0) {
         return;
     } else {
-        position += ((8 - D_80102131) << 5);
-        --D_80102131;
+        position += ((8 - vs_menu_frameworkPrimaryStatPanelSlideStep) << 5);
+        --vs_menu_frameworkPrimaryStatPanelSlideStep;
     }
 #ifdef ROOD_PC
     /* PC_CLASSIC (classic_hook.h): the panel, from its place (slid) and the values it
@@ -1117,7 +1117,7 @@ void vs_mainMenu_renderEquipStats(int animate)
             pcStats.threshold[i] = vs_mainMenu_strIntAgi[i + 4];
             pcStats.base[i] = D_80102488[i];
             pcStats.total[i] = D_80102488[i + 4];
-            pcStats.accessory[i] = D_80102498[i];
+            pcStats.accessory[i] = vs_menu_frameworkComparisonAccessoryStats[i];
         }
         PC_CLASSIC(PC_CLASSIC_SITE_EQUIP_STATS, &pcStats, 0, 0, {
 #endif
@@ -1162,7 +1162,7 @@ void vs_mainMenu_renderEquipStats(int animate)
             stat += D_80102488[i];
             var_a3 = valuesKnown & 1;
             if (var_a3 != 0) {
-                var_a3 = D_80102498[i];
+                var_a3 = vs_menu_frameworkComparisonAccessoryStats[i];
             }
             vs_mainMenu_renderIntWithThreshold(
                 stat + var_a3, position + 60, new_var2 + var_a3, temp_s4);

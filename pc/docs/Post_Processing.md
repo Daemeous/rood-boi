@@ -194,7 +194,7 @@ game's state every present and never written (`scene_submit.inc`
 
 - **Battle actions.** BATTLE's action state (`D_800F196C` 2) runs one action
   at a time, any actor's. From the wind-up on (`_cameraMode` 4:
-  `_handleCombatCameraZoom`) the camera steps toward `func_800780A8`'s
+  `_handleCombatCameraZoom`) the camera steps toward `vs_battle_actionCameraMidpoint`'s
   point, halfway between the performer (the action record's
   `unk4.unk0.targetActor`) and its first target (`unk4C[0]`, or its aim
   point), and holds through the cast (5, 6), the release and hits (7), chain
@@ -204,7 +204,7 @@ game's state every present and never written (`scene_submit.inc`
   (its feet 96 units up, as Ashley's). An enemy's plain attack goes through
   mode 4 too, so the attacker is the subject from its wind-up.
 - **Targeting.** In modes 1 and 3 with a target candidate chosen (the
-  targeting sphere; `func_8006E640` steps the camera toward it) the subject
+  targeting sphere; `vs_field_trackActionCameraTarget` steps the camera toward it) the subject
   is the targeted actor, at the body part (or the point) the camera turns to;
   in mode 2 an area spell's point.
 - **Anything else** (field play, the camera following Ashley): Ashley. When
@@ -310,12 +310,12 @@ title, in attract demos, menus and cutscenes.
 ## Contexts: gameplay and cutscenes
 
 A cutscene is an event script running: the event runner's state
-(`D_800F4C34`, the flag the smart walls already use; `pc_battle_event_running`)
+(`vs_event_playbackPhase`, the flag the smart walls already use; `pc_battle_event_running`)
 is nonzero from when an event loads until its script ends, for room entry
 scripts, the zone's event files and door scripts alike; dialogue waiting for
 a button is still the event. The context returns to gameplay after 10
 vsyncs without one (scripts run back to back). The event's id
-(`pc_battle_event_id`: (source << 12) | file, as `func_800BEB10` gives it)
+(`pc_battle_event_id`: (source << 12) | file, as `vs_event_pendingEventSelector` gives it)
 is known for keyed profiles. The camera cuts the game makes inside a
 cutscene are found the way frame interpolation finds them (a jump in camera
 rotation or position): a cutscene that starts on a cut switches profiles at

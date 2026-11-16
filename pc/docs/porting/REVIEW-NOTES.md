@@ -61,7 +61,7 @@ Decisions taken by the coordinator are under "Decisions".
 | 31 | author | gap | `route.zig` stops at 4 parameters | §20 oracle item 0 |
 
 Not changed:
-- B: `D_80069998` ("00:00:00", `5BF94.c:3778`) is missing from `STATE.tsv`:
+- B: `vs_battle_puzzleTimerText` ("00:00:00", `5BF94.c:3778`) is missing from `STATE.tsv`:
   it is defined and referenced by nothing, so no function reads or writes it.
 - B item 12 (undefined data of the asm-port objects not fully enumerated):
   those objects are D2. STATE.tsv is still not rerun over them; instead the
@@ -73,7 +73,7 @@ Not changed:
 ## Not reviewed (open)
 
 - A did not check the 25 STATE and 15 FUNCTIONS rows it was asked to, nor
-  port `func_800B07DC` and `vs_battle_displaySceneMessage` mentally; B did not
+  port `vs_actors_transformRootOffset` and `vs_battle_displaySceneMessage` mentally; B did not
   do the 20-row reader/writer spot check. The trial's reviewers should.
 - About 600 `STATE.tsv` meanings say `unreviewed:`.
 - COFF behaviour of `psx.weak`; i386 struct returns; the views generator's

@@ -11,5 +11,5 @@ extern int outlineUvs[];
 extern int outlineTpages[];
 extern int outlineWhs[];
 extern int outlineXys[];
-extern int D_80074C24[15][64];
+extern int vs_title_newGameInventoryTemplate[15][64];
 extern int actionsLearned[8];

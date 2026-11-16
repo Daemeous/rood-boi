@@ -1,4 +1,4 @@
-//! Writes the camera yaw's cos and sin to the scratchpad as a 2x2 rotation and stores the yaw in D_800EB9B8 (pc/src/game/BATTLE/BATTLE.PRG/58578.c).
+//! Writes the camera yaw's cos and sin to the scratchpad as a 2x2 rotation and stores the yaw in vs_battle_targetSphere (pc/src/game/BATTLE/BATTLE.PRG/58578.c).
 const common = @import("common");
 const pad = @import("common").pad;
 const psx = common.psx;
@@ -6,7 +6,7 @@ const v = @import("views_58578");
 const c = @import("c_58578");
 
 /// orig: func_800C282C (pc/src/game/BATTLE/BATTLE.PRG/58578.c)
-/// Syncs the camera angles, writes the yaw's rotation matrix terms to the scratchpad, stores the yaw in D_800EB9B8 and returns the scratchpad block.
+/// Syncs the camera angles, writes the yaw's rotation matrix terms to the scratchpad, stores the yaw in vs_battle_targetSphere and returns the scratchpad block.
 pub fn func_800C282C() callconv(.c) ?*anyopaque {
     var camera: v._sphericalCamera = undefined;
     const p: [*]i16 = @ptrFromInt(pad.addr(0x350));
@@ -18,6 +18,6 @@ pub fn func_800C282C() callconv(.c) ?*anyopaque {
     p[2] = psx.conv(i16, sinYaw);
     p[8] = psx.conv(i16, -%sinYaw);
     p[10] = psx.conv(i16, cosYaw);
-    v.g.D_800EB9B8().*.?.unk22 = psx.conv(i16, yaw);
+    v.g.vs_battle_targetSphere().*.?.unk22 = psx.conv(i16, yaw);
     return @ptrFromInt(pad.addr(0x350));
 }

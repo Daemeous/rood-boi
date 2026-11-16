@@ -9,7 +9,7 @@ const c = @import("c_4A0A8");
 /// Jumps back by the short offset at arg0[2] when counter arg0[1] is 0xFF, or is nonzero after its decrement; else returns 0.
 pub fn script_jumpBackIf(arg0: [*c]u8, _: c_short) callconv(.c) c_int {
     const take_back = if (arg0[1] == 0xFF) true else blk: {
-        const counter = &v.g.D_800F4C10()[arg0[1]];
+        const counter = &v.g.vs_event_loopCounters()[arg0[1]];
         counter.* -%= 1;
         break :blk counter.* != 0;
     };

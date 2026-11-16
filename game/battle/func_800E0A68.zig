@@ -18,7 +18,7 @@ fn gridTile(z: c_int, x: c_int) u16 {
 }
 
 fn stepActor(id: u8) *v.movementStepActor {
-    return @ptrCast(v.g.D_800F4538()[id].?);
+    return @ptrCast(v.g.vs_actors_actorRecords()[id].?);
 }
 
 /// The C's `fall:` tail.
@@ -26,12 +26,12 @@ fn fall(s: *v.vs_battle_aiState, mode: c_int) void {
     s.moveY = -4096;
     s.moveZ = 0;
     s.moveX = 0;
-    c.func_800DEEFC(@ptrCast(s), mode);
+    c.vs_battle_aiIssueActorCommand(@ptrCast(s), mode);
 }
 
 /// The C's `recover:` tail.
 fn recover(s: *v.vs_battle_aiState) void {
-    c.func_800E2CCC(@ptrCast(s));
+    c.vs_battle_aiRecoverMovement(@ptrCast(s));
 }
 
 /// orig: func_800E0A68 (pc/src/game/BATTLE/BATTLE.PRG/771A8.c)
@@ -56,16 +56,16 @@ pub fn func_800E0A68(state: ?*v.vs_battle_aiState, action: c_int) callconv(.c) v
     var z: c_int = @as(c_int, s.destination168.directionalCachePoint.p.z) * 128 + 64;
     var angle: c_int = c.ratan2(@as(c_int, s.position.step.p.x) -% x, @as(c_int, s.position.v.vz) -% z);
     angle &= 0xFFF;
-    if (s.flags0.b[0] != 0 and c.func_800E45F4(s.tile.cache.raw, s.destination168.directionalCachePoint.raw) < 2 and
+    if (s.flags0.b[0] != 0 and c.vs_core_mathSquaredTileDistance(s.tile.cache.raw, s.destination168.directionalCachePoint.raw) < 2 and
         gridTile(s.destination168.directionalCachePoint.p.z, s.destination168.directionalCachePoint.p.x) & 0x40 != 0)
     {
         const actorY: c_int = stepActor(s.actorId).y;
-        var rise: c_int = c.func_800E42E0(s.tile.cache.raw);
+        var rise: c_int = c.vs_field_groundHeightAtPackedTile(s.tile.cache.raw);
         var selectedHeight: c_int = undefined;
         if (actorY >= rise) {
             selectedHeight = rise +% s.heightBE;
-        } else if (v.g.D_800F58BC().*.?.unk14 != 0 and v.g.D_800F58BC().*.?.unk14 >= actorY) {
-            selectedHeight = v.g.D_800F58BC().*.?.unk14;
+        } else if (v.g.vs_battle_aiRoomAiState().*.?.unk14 != 0 and v.g.vs_battle_aiRoomAiState().*.?.unk14 >= actorY) {
+            selectedHeight = v.g.vs_battle_aiRoomAiState().*.?.unk14;
         } else {
             selectedHeight = psx.conv(i16, actorY);
         }
@@ -84,26 +84,26 @@ pub fn func_800E0A68(state: ?*v.vs_battle_aiState, action: c_int) callconv(.c) v
             }
             const offsetZ: c_int = @as(c_int, s.position.v.vz) -% centerZ;
             s.moveZ = if (abs(offsetZ) < step) centerZ << 12 else (@as(c_int, s.position.v.vz) << 12) +% step *% c.rsin(heading);
-            c.func_800DEEFC(@ptrCast(s), 8);
+            c.vs_battle_aiIssueActorCommand(@ptrCast(s), 8);
             return;
         }
         s.moveY = rise;
         s.moveZ = 0;
         s.moveX = 0;
-        if (s.moveY > 0 and c.func_800E02B4(@ptrCast(s), 0, 0) != 0) {
+        if (s.moveY > 0 and c.vs_battle_aiFlightDirectionObstruction(@ptrCast(s), 0, 0) != 0) {
             s.moveY = 0;
         }
-        c.func_800DEEFC(@ptrCast(s), mode);
+        c.vs_battle_aiIssueActorCommand(@ptrCast(s), mode);
         return;
     }
     if ((s.tile.cache.raw & 0xFF00FF) == (s.destination168.directionalCachePoint.raw & 0xFF00FF)) {
-        if (s.flags0.b[0] == 0 or c.func_800E02B4(@ptrCast(s), 0, 0) != 0) {
+        if (s.flags0.b[0] == 0 or c.vs_battle_aiFlightDirectionObstruction(@ptrCast(s), 0, 0) != 0) {
             return recover(s);
         }
         var floorY: c_int = s.heightBE;
         const actor = stepActor(s.actorId);
         if (gridTile(s.destination168.directionalCachePoint.p.z, s.destination168.directionalCachePoint.p.x) & 0x20 == 0) {
-            floorY +%= c.func_800E42E0(s.destination168.directionalCachePoint.raw);
+            floorY +%= c.vs_field_groundHeightAtPackedTile(s.destination168.directionalCachePoint.raw);
         }
         const tileX: c_int = @as(c_int, s.destination168.directionalCachePoint.p.x) * 128;
         const deltaX: c_int = @as(c_int, s.position.step.p.x) - 64;
@@ -124,14 +124,14 @@ pub fn func_800E0A68(state: ?*v.vs_battle_aiState, action: c_int) callconv(.c) v
         if (abs(s.moveZ) < step) {
             s.moveZ = 0;
         }
-        c.func_800DEEFC(@ptrCast(s), mode);
+        c.vs_battle_aiIssueActorCommand(@ptrCast(s), mode);
         return;
     }
-    c.func_800E3600(@ptrCast(s), angle, 2);
+    c.vs_battle_aiResolveDirectionalMovement(@ptrCast(s), angle, 2);
     switch (@as(*const c_int, @ptrFromInt(pad.addr(0x3C8))).*) {
         5 => {
             angle = @as(c_int, s.heading) *% (4096 / 8);
-            if (c.func_800E0850(@ptrCast(s), @bitCast(angle)) +% s.heightBE < s.position.step.p.y) {
+            if (c.vs_battle_aiLowestReachableGroundHeight(@ptrCast(s), @bitCast(angle)) +% s.heightBE < s.position.step.p.y) {
                 return fall(s, mode);
             }
             angle = -%angle;
@@ -140,21 +140,21 @@ pub fn func_800E0A68(state: ?*v.vs_battle_aiState, action: c_int) callconv(.c) v
             s.moveY = 0;
             s.moveX = c.rcos(angle);
             s.moveZ = c.rsin(angle);
-            c.func_800DEEFC(@ptrCast(s), mode);
+            c.vs_battle_aiIssueActorCommand(@ptrCast(s), mode);
             return;
         },
         7 => {
-            var height: c_int = c.func_800E42E0(s.destination168.directionalCachePoint.raw) +% s.heightBE;
+            var height: c_int = c.vs_field_groundHeightAtPackedTile(s.destination168.directionalCachePoint.raw) +% s.heightBE;
             const px: c_int = @intCast(s.position.step.raw & 0xFFFF);
             const py: c_int = @as(c_int, @bitCast(s.position.step.raw)) >> 16;
             const pz: c_int = s.position.v.vz;
-            var ground: c_int = c.func_800E6A6C(px, pz, x, z) +% s.clearance;
-            if (v.g.D_800F58BC().*.?.unk14 != 0) {
-                ground = if (ground < v.g.D_800F58BC().*.?.unk14) v.g.D_800F58BC().*.?.unk14 else ground;
+            var ground: c_int = c.vs_battle_aiMinimumAiGroundHeightAlongSegment(px, pz, x, z) +% s.clearance;
+            if (v.g.vs_battle_aiRoomAiState().*.?.unk14 != 0) {
+                ground = if (ground < v.g.vs_battle_aiRoomAiState().*.?.unk14) v.g.vs_battle_aiRoomAiState().*.?.unk14 else ground;
             }
-            const top: c_int = c.func_800E0850(@ptrCast(s), @bitCast(angle)) +% s.heightBE;
+            const top: c_int = c.vs_battle_aiLowestReachableGroundHeight(@ptrCast(s), @bitCast(angle)) +% s.heightBE;
             ground = if (top > ground) ground else top;
-            const distance: c_uint = @bitCast(c.vs_gte_rsqrt(@bitCast(c.func_800E4660(x -% px, 0, z -% pz))));
+            const distance: c_uint = @bitCast(c.vs_gte_rsqrt(@bitCast(c.vs_core_mathSquaredVectorLength(x -% px, 0, z -% pz))));
             var value: c_int = height +% ground;
             // value 0 divides by zero in the C too (SIGFPE).
             const denom: c_uint = @as(c_uint, @bitCast(c.vs_gte_rsqrt(@divTrunc(value << 12, value) << 12))) +% 4096;
@@ -174,7 +174,7 @@ pub fn func_800E0A68(state: ?*v.vs_battle_aiState, action: c_int) callconv(.c) v
                 }
                 s.moveX = x -% px;
                 s.moveZ = z -% pz;
-                c.func_800DEEFC(@ptrCast(s), mode);
+                c.vs_battle_aiIssueActorCommand(@ptrCast(s), mode);
                 s.counter = 0;
                 return;
             }
@@ -202,12 +202,12 @@ pub fn func_800E0A68(state: ?*v.vs_battle_aiState, action: c_int) callconv(.c) v
                 s.moveX = (x >> 12) -% px;
                 s.moveZ = (z >> 12) -% pz;
                 s.moveY = dy;
-                c.func_800DEEFC(@ptrCast(s), mode);
+                c.vs_battle_aiIssueActorCommand(@ptrCast(s), mode);
             } else {
                 s.moveX = x;
                 s.moveY = height << 12;
                 s.moveZ = z;
-                c.func_800DEEFC(@ptrCast(s), 8);
+                c.vs_battle_aiIssueActorCommand(@ptrCast(s), 8);
             }
             return;
         },

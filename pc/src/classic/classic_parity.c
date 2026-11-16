@@ -58,7 +58,7 @@ pc_classic_walker pc_classic_guest(void)
 /* What the GPU never reads is not compared: a raw-textured primitive's colour (setShadeTex 1: the texture
  * unmodulated), the upper halves of a textured polygon's third and fourth texel words and the top byte of a shaded
  * polygon's second to fourth colours (their pads). The
- * game's hand-built quads (func_80094B0C's stat icon, func_80094E18) leave them as the buffer held them. */
+ * game's hand-built quads (func_80094B0C's stat icon, vs_battle_drawValueLabelCaption) leave them as the buffer held them. */
 static void normalise(pc_classic_packet* p)
 {
     int i = 0;

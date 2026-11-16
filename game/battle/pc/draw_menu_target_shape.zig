@@ -9,15 +9,15 @@ fn shortAt(base: [*]u8, offset: isize) c_int {
     return psx.byteAt(i16, base, offset).*;
 }
 
-/// orig: func_800C0B50 (pc/src/battle_gte.c)
-/// Draws the shape `shape` of the battle menu state block (D_800EB9B8): its
+/// orig: vs_battle_drawSphereVolumeWireframe (pc/src/battle_gte.c)
+/// Draws the shape `shape` of the battle menu state block (vs_battle_targetSphere): its
 /// 0x32-style point list at +0x48 is turned by the shape's scale and rotation
 /// (composed at scratchpad 0x398) and projected by the GTE; each point with a
 /// nonzero pad draws a segment from the previous point (func_800C0990) with
 /// an intensity from the pair's depth. Scratchpad 0x398.. holds the current
 /// and previous projected point (SXY, depth / 4).
 pub fn drawMenuTargetShape(shape: [*]u8, color_in: c_uint) callconv(.c) void {
-    const block = v.g.D_800EB9B8().*.?;
+    const block = v.g.vs_battle_targetSphere().*.?;
     var point: usize = @intFromPtr(&block.points);
     const scratch: [*]u32 = @ptrFromInt(pad.addr(0x398));
     const halves: [*]u16 = @ptrFromInt(pad.addr(0x398));
@@ -27,8 +27,8 @@ pub fn drawMenuTargetShape(shape: [*]u8, color_in: c_uint) callconv(.c) void {
     const factor = c.rcos(block.unk2A << 6);
     var scaling = c.VECTOR{ .vx = factor, .vy = factor, .vz = factor, .pad = 0 };
     _ = c.ScaleMatrix(matrix, &scaling);
-    _ = c.func_80041C68(scale, matrix);
-    c.func_800C02A8();
+    _ = c.vs_core_mathMultiplyMatrixIntoRight(scale, matrix);
+    c.vs_render_loadFrameViewMatrix();
     const frame = gte.frame();
     // The light matrix (the composed rotation's five words) and the background colour, as the registers took them.
     const light: [5]c_uint = .{ scratch[0], scratch[1], scratch[2], scratch[3], scratch[4] };

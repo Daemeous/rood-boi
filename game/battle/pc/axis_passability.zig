@@ -1,7 +1,7 @@
 //! Passability of the four axis directions (D2: 7B55C.s; oracle pc/src/battle_movement.c).
 const ai = @import("views_71618");
 
-/// orig: func_800E3D5C (pc/src/battle_movement.c)
+/// orig: vs_battle_aiCardinalPassabilityMask (pc/src/battle_movement.c)
 /// Passability bits of the four axis directions (0, 2, 4, 6) as bits 3..0.
 /// The original stashes its state in GTE registers (IR0-IR3, SXY0/1, MAC1);
 /// the oracle does not reproduce that, nor does this.

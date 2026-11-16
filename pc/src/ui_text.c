@@ -537,7 +537,7 @@ static int identify(unsigned tpage, unsigned clut, int u0, int v0, int u1, int v
                 return digits_sign(info_signs[i].code, u0, v0, info_signs[i].w, g);
         if (!small_tables_valid())
             return 0;
-        /* A stat change popping up in battle (BATTLE.PRG func_80094E18:
+        /* A stat change popping up in battle (BATTLE.PRG vs_battle_drawValueLabelCaption:
          * STR -12) draws its sign as an 8 x 10 quad: the '-' (7 wide) with
          * the column after it. */
         int stat_sign = u0 == 154 && v0 == 76 && u1 == u0 + 7;
@@ -1017,7 +1017,7 @@ int pc_ui_text_classify(const uint16_t* vram, unsigned tpage, unsigned clut, int
  *
  *   numbers   (damage, heal, MP: BATTLE.PRG func_80094B0C) one 8 x 12 quad
  *             per digit, 6 pixels apart, left to right; a stat change
- *             (func_80094E18: STR -12) then its sign and its word, left of
+ *             (vs_battle_drawValueLabelCaption: STR -12) then its sign and its word, left of
  *             the digits;
  *   MISS      (func_8009506C) its letters from the info style's page, right
  *             to left, squashed and stretched vertically as it comes and goes.
@@ -1606,6 +1606,7 @@ typedef struct {
     float sx;          /* its horizontal scale as laid out (PS1 pixels per field pixel) */
     int image;
     int seg;           /* its segment in the line (set_pens; 0: placed in its own cell) */
+    int column;        /* it starts a column of a list (mark_columns): a segment starts here */
 } run_glyph;
 static run_glyph run[RUN_GLYPHS];
 static text_image images[RUN_GLYPHS];
@@ -1626,7 +1627,13 @@ typedef struct {
 static report_glyph report[REPORT_GLYPHS];
 static int report_count, report_lines, report_segments, report_stale = 1;
 static int report_unexplained; /* glyphs no printer reported (drawn glyph by glyph) */
-void pc_ui_text_frame(void) { report_stale = 1; }
+static unsigned column_frame = 100; /* (mark_columns; the zeroed records are stale) */
+static int column_active;         /* ... a record was made or kept since */
+void pc_ui_text_frame(void)
+{
+    report_stale = 1;
+    column_frame += column_active, column_active = 0; /* (a presented frame that laid out no text is not an age) */
+}
 
 /* A glyph's ink per field row (field pixels from its origin). */
 static const float* profile(glyph_field* g)
@@ -1670,6 +1677,67 @@ static float apart(const glyph_metrics* p, const glyph_metrics* q, float slant)
         need = fmaxf(need, right - left + MIN_GAP);
     }
     return need > -1e8f ? need : p->x1 - q->x0 + MIN_GAP;
+}
+
+/* Columns of a list: the game pads the names of a list with spaces so that the next field starts at one place in every row
+ * ("WARLOCK   (ATT)", "SHAMAN    (REC)": the class list). A segment starts after a gap of more than three spaces only, so
+ * a row padded by fewer was set after its name in the font's advances and its field drifted off the column. A glyph that
+ * starts after spaces (a gap of one or more) in one string, at the same offset from its row's first glyph (and style and
+ * size) in at least COLUMN_ROWS rows of a list (rows that start at one x), one of them padded (a gap of more than two spaces: words of text that
+ * happen to start at one offset are not a column), starts a column: its row's segment starts at its original x
+ * (run_glyph.column). The rows of a list come in runs of their own (each row is drawn between other things), so the
+ * candidates are kept for the last few frames (pc_ui_text_frame): a row sees the rows drawn after it a frame ago. Offsets, not
+ * x: a list sliding in moves its rows together. */
+#define COLUMN_ROWS 3
+#define COLUMN_PADDING 15.0f /* texels: a gap of more than two spaces is padding (a space between words is one) */
+#define COLUMN_SAME 0.75f /* texels: the same offset */
+#define COLUMN_RECORDS 256
+#define COLUMN_AGE 6 /* presented frames a record lives (a game frame is presented once to a few times) */
+static struct {
+    float offset, start, top, k; /* (start: the row's first glyph's x) */
+    int style, wide;
+    unsigned frame;
+} column_record[COLUMN_RECORDS];
+static void mark_columns(const int* order, int glyphs)
+{
+    for (int j = 1, start = 0; j < glyphs; j++) {
+        run_glyph *prev = &run[order[j - 1]], *r = &run[order[j]];
+        if (r->m.g.style != prev->m.g.style || r->top != prev->top || r->k != prev->k
+            || memcmp(r->clip, prev->clip, sizeof r->clip)) {
+            start = j; /* another row */
+            continue;
+        }
+        if (!prev->ok || !r->ok || !r->string || prev->string != r->string || r->m.g.style == PC_UI_TEXT_DIALOGUE)
+            continue;
+        float gap = (r->x - prev->x) / r->k - prev->advance;
+        if (gap < 2.5f)
+            continue;
+        float offset = (r->x - run[order[start]].x) / r->k;
+        int free_slot = 0, found = 0, rows = 0, wide = gap >= COLUMN_PADDING;
+        column_active = 1;
+        for (int i = 0; i < COLUMN_RECORDS; i++) {
+            if (column_record[i].frame + COLUMN_AGE < column_frame) /* (stale) */
+                free_slot = i;
+            else if (column_record[i].style == r->m.g.style && column_record[i].k == r->k
+                && fabsf(column_record[i].offset - offset) <= COLUMN_SAME
+                && fabsf(column_record[i].start - run[order[start]].x) <= COLUMN_SAME * r->k) {
+                ++rows;
+                wide |= column_record[i].wide;
+                if (column_record[i].top == r->top)
+                    column_record[i].frame = column_frame, column_record[i].wide |= gap >= COLUMN_PADDING, found = 1;
+            }
+        }
+        if (!found) {
+            column_record[free_slot].offset = offset, column_record[free_slot].top = r->top;
+            column_record[free_slot].start = run[order[start]].x;
+            column_record[free_slot].k = r->k, column_record[free_slot].style = r->m.g.style;
+            column_record[free_slot].frame = column_frame;
+            column_record[free_slot].wide = gap >= COLUMN_PADDING;
+            ++rows;
+        }
+        if (rows >= COLUMN_ROWS && wide)
+            run[order[j]].column = 1;
+    }
 }
 
 static int glyph_order(const void* a, const void* b)
@@ -1728,7 +1796,7 @@ static void set_pens(run_glyph* const* line, int n, float slant, int mode, int s
             const glyph_metrics* q = &prev->m;
             /* The printer's own advance: what is left over are its spaces. */
             float gap = (r->x - prev->x) / k - prev->advance;
-            if (prev->string != r->string || gap < -1.5f || gap > 18.5f)
+            if (prev->string != r->string || gap < -1.5f || gap > 18.5f || r->column)
                 prev = NULL; /* another string or a column */
             else {
                 int spaces = gap >= 2.5f ? (int)lrintf(gap / 6.0f) : 0;
@@ -1916,6 +1984,8 @@ void pc_ui_text_layout_run(const uint16_t* vram, const pc_ui_text_piece_info* pi
     for (int k = 0; k < glyphs; k++)
         order[k] = k;
     qsort(order, (size_t)glyphs, sizeof *order, glyph_order);
+    if (mode == PC_UI_TEXT_LAYOUT_LINE)
+        mark_columns(order, glyphs);
     for (int a = 0; a < glyphs;) {
         int b = a + 1;
         const run_glyph* first = &run[order[a]];
@@ -2073,9 +2143,9 @@ int pc_ui_text_image_render(int image, int factor, uint32_t* out)
 
 /* ---- the battle's status words (pc_text_status) ----
  *
- * BATTLE.PRG prints its timing words (func_800958A4: TOO FAST!, FAST!,
+ * BATTLE.PRG prints its timing words (vs_battle_drawAbilityTimingResult: TOO FAST!, FAST!,
  * SLOW!, TOO SLOW!, and COOL!, GOOD!, ... for a well-timed chain) and the
- * chain count (func_80095A4C: 3 CHAINS) with vs_battle_renderTextRawColor:
+ * chain count (vs_battle_drawChainCount: 3 CHAINS) with vs_battle_renderTextRawColor:
  * a sprite per glyph (spaces too, blank) of the info style's capitals, in
  * the game's colour, centred on a point. Its ROOD_PC hooks hand over the
  * packets of each call; with ui_text font the string is set as one word in

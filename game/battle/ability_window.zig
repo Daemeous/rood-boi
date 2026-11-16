@@ -4,10 +4,10 @@ const psx = common.psx;
 const v = @import("views_146C");
 const c = @import("c_146C");
 
-/// orig: func_80078828 (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
+/// orig: vs_battle_canTriggerBattleAbility (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// 1 when the current action allows a battle ability: with `button` 0 whether any is mapped, else that button's (1-3) ability and its cost.
 pub fn canUseBattleAbility(button: c_int) callconv(.c) c_int {
-    const block = v.g.D_800F19CC().*.?;
+    const block = v.g.vs_battle_actionState().*.?;
     const settings = v.g.vs_main_settings();
     // unk0 & 3: below the 4 queued actions.
     const current = &block.unk854[block.unk0 & 3];
@@ -44,7 +44,7 @@ pub fn canUseBattleAbility(button: c_int) callconv(.c) c_int {
         }
 
         if (current.unk4C[0].unk0.targetActor == 0) {
-            _ = c.func_800A0BE0(0);
+            _ = c.vs_actors_actorStateFlags(0);
         } else if (psx.at(v.g.vs_battle_actors(), current.unk4C[0].unk0.targetActor).*.?.unk27 == 0x80) {
             ret = 0;
         }

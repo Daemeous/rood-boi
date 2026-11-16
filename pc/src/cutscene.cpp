@@ -2,7 +2,7 @@
 //
 // A take: frame 0 is the vsync it started at (start_vsync); frames [first, head) are logged: for each,
 // the pad buttons and camera stick the game read and every value the scanline estimate returned
-// (boot_runtime.c func_800E45B4, the one host-clock input of game state). Frames below replay_end are
+// (boot_runtime.c vs_core_elapsedFrameCounterTicks, the one host-clock input of game state). Frames below replay_end are
 // replayed: the input hooks give the logged values back instead of the live ones, so a frame played
 // again is the frame played before, byte for byte. Rewind marks (state_rewind.c's take slots) are
 // taken at the vsync boundary every pc_take_interval frames into a ring bounded by count and memory.

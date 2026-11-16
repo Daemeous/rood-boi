@@ -12,7 +12,7 @@ rain-soaked courtyard (room-002-00-s000), as the viewer plays them:
   frame over the new one): left out of the free camera's view only
   (render_stats afterimages_skipped), so the view is not smeared with the game
   shot and piled-up rain, and two renders of the same pose are the same;
-- a group an event script hides (flag 0x100, func_800919D8) stays out of the
+- a group an event script hides (flag 0x100, vs_field_hideRoomGeometryGroup) stays out of the
   free camera's whole room (render_stats instances);
 - the free camera is given back by play, seek and Stop;
 - the credits card (Art Direction / Character Design, the hall's take at
@@ -288,7 +288,7 @@ def main():
             camera(True, position=[-2500, -5000, -5000], target=[1300, -1000, 0])
             whole = stats()["instances"]
             camera(False)
-            game.write(address, struct.pack("<I", flags | 0x100))  # as func_800919D8 (an event script) does
+            game.write(address, struct.pack("<I", flags | 0x100))  # as vs_field_hideRoomGeometryGroup (an event script) does
             camera(True, position=[-2500, -5000, -5000], target=[1300, -1000, 0])
             hid = stats()["instances"]
             camera(False)

@@ -8,7 +8,7 @@ const c = @import("c_30DB0");
 /// Sets up actor slot `slot` for action kind `kind` at `position`, then starts its animation.
 pub fn func_8009E070(slot: c_int, position: ?*v.SVECTOR, kind: c_int) callconv(.c) void {
     // The slot pointer is loaded before the switch; it is only dereferenced in the cases that use it.
-    const temp: ?*v.D_800F4538_t = psx.at(v.g.D_800F4538(), slot).*;
+    const temp: ?*v.D_800F4538_t = psx.at(v.g.vs_actors_actorRecords(), slot).*;
 
     var var_s1: c_int = undefined;
     switch (kind) {
@@ -29,12 +29,12 @@ pub fn func_8009E070(slot: c_int, position: ?*v.SVECTOR, kind: c_int) callconv(.
     }
 
     // The call happens before the store, as in the C: a null slot faults at the store.
-    const result = c.func_8009E180(@ptrCast(temp), @ptrCast(position));
+    const result = c.vs_actors_actorFacingDeltaToPoint(@ptrCast(temp), @ptrCast(position));
     const t = temp.?;
     t.unk0.unk3E = psx.conv(i16, result);
     t.unk0.unk18 = 0xA;
     t.unk1846 = 0;
     psx.setBits(t, "unk5AC_20", 1);
-    _ = c.func_800A0204(slot, var_s1, 0, 6);
+    _ = c.vs_actors_playActorAnimation(slot, var_s1, 0, 6);
     t.unk6E0 = 0;
 }

@@ -58,9 +58,9 @@ def present(g, path):
 def label_boxes(g):
     """The HP and MP labels' boxes in PS1 pixels (x, y, w, h): _renderStatBar's sprite (RISK's box is
     "RISK  ZERO"'s, drawn as opaque text, at zero risk)."""
-    xy = g.read_symbol("D_800EBBEC", 16)
-    widths = g.read_symbol("D_800EBBFC", 4)
-    slide = g.u32("D_800EB9B0")
+    xy = g.read_symbol("vs_battle_hudGaugeLabelPositions", 16)
+    widths = g.read_symbol("vs_battle_hudGaugeLabelWidths", 4)
+    slide = g.u32("vs_battle_hudSlideOffset")
     boxes = []
     for i in range(2):
         v = int.from_bytes(xy[4 * i:4 * i + 4], "little") - slide

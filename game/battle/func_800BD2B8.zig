@@ -23,14 +23,14 @@ pub fn func_800BD2B8(arg0: ?*v.MATRIX) callconv(.c) c_int {
     offset.vz = 150;
     gte.transformTo(&pos, &view, &offset);
     // Sign-extends the low 15 bits of the depth, then subtracts 200.
-    first = ((@as(c_int, c.func_8008DC7C(pos.vx, pos.vz)) << 0x11) >> 0x11) -% 200;
+    first = ((@as(c_int, c.vs_field_floorHeightAt(pos.vx, pos.vz)) << 0x11) >> 0x11) -% 200;
     lowest = psx.conv(i16, first);
 
     offset.vx = -80;
     offset.vy = 80;
     offset.vz = 150;
     gte.transformTo(&pos, &view, &offset);
-    second = ((@as(c_int, c.func_8008DC7C(pos.vx, pos.vz)) << 0x11) >> 0x11) -% 200;
+    second = ((@as(c_int, c.vs_field_floorHeightAt(pos.vx, pos.vz)) << 0x11) >> 0x11) -% 200;
 
     if (second < first) {
         lowest = psx.conv(i16, second);
@@ -40,7 +40,7 @@ pub fn func_800BD2B8(arg0: ?*v.MATRIX) callconv(.c) c_int {
     offset.vy = -80;
     offset.vz = 150;
     gte.transformTo(&pos, &view, &offset);
-    h = ((@as(c_int, c.func_8008DC7C(pos.vx, pos.vz)) << 0x11) >> 0x11) -% 200;
+    h = ((@as(c_int, c.vs_field_floorHeightAt(pos.vx, pos.vz)) << 0x11) >> 0x11) -% 200;
 
     if (h < lowest) {
         lowest = psx.conv(i16, h);
@@ -50,7 +50,7 @@ pub fn func_800BD2B8(arg0: ?*v.MATRIX) callconv(.c) c_int {
     offset.vy = -80;
     offset.vz = 150;
     gte.transformTo(&pos, &view, &offset);
-    h = ((@as(c_int, c.func_8008DC7C(pos.vx, pos.vz)) << 0x11) >> 0x11) -% 200;
+    h = ((@as(c_int, c.vs_field_floorHeightAt(pos.vx, pos.vz)) << 0x11) >> 0x11) -% 200;
 
     if (h < lowest) {
         lowest = psx.conv(i16, h);

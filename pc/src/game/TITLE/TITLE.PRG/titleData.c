@@ -81,7 +81,7 @@ int outlineXys[] = { vs_getXY(120, 224), vs_getXY(112, 224), vs_getXY(112, 224),
     vs_getXY(128, 224), vs_getXY(136, 224), vs_getXY(144, 224), vs_getXY(144, 224),
     vs_getXY(128, 224), vs_getXY(128, 224), vs_getXY(128, 224) };
 
-int D_80074C24[15][64] = {
+int vs_title_newGameInventoryTemplate[15][64] = {
     { 0x01010101, 0x00000000, 0x2731240F, 0x322A3124, 0x000000E7, 0x00000000, 0x00000000,
         0x00000000, 0x00000002, 0x00000000, 0x2B373231, 0xFA2A312C, 0x0000E706,
         0x00000000, 0x00000000, 0x00000000, 0x00000003, 0x00000000, 0x2B373231,

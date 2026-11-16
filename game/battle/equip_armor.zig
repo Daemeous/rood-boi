@@ -16,6 +16,6 @@ pub fn equipArmor(bodyPart: c_int, armor: ?*v.vs_main_inventoryArmor) callconv(.
     const limbArmor: *align(1) v.vs_battle_uiArmor = @ptrFromInt(addr);
     c.vs_battle_applyArmor(@ptrCast(limbArmor), if (armor) |a| psx.cptr(c.vs_main_inventoryArmor, a) else null);
     c.vs_battle_nop0(@ptrCast(psx.get(character.stats)));
-    c.func_8006B214();
-    c.func_8006B2D4();
+    c.vs_items_removeEquipmentBoostOnEquip();
+    c.vs_items_removeArmorEnchantmentOnEquip();
 }

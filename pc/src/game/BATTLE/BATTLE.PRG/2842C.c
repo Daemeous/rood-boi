@@ -12,8 +12,8 @@
 #include "pc/src/hud/hud_hook.h"
 #endif
 
-/* One entry of a script block's table (func_800927AC builds them on the heap): the effect file's record and
- * the script's cursor. func_80092B04 steps the cursor; the handlers read and write the rest. */
+/* One entry of a script block's table (vs_field_createRoomEffectObjects builds them on the heap): the effect file's record and
+ * the script's cursor. vs_field_executeRoomEffectCommands steps the cursor; the handlers read and write the rest. */
 typedef struct {
     int* unk0;
     void* unk4;
@@ -177,7 +177,7 @@ typedef struct {
     u_char unk3;
 } func_80092548_t;
 
-short func_8008DC7C(int, int);
+short vs_field_floorHeightAt(int, int);
 void func_8008F29C(int, int);
 void func_8008F30C(int, int);
 void func_8008F440(void);
@@ -187,95 +187,95 @@ void func_8008FDC4(void);
 void func_80090434(void);
 void func_80090B28(void);
 int vs_battle_clamp(short, int, int);
-void func_8009121C(void);
-void func_800927AC(D_800F1DD8_t*);
-int func_80092B04(func_80092F74_t*, int, D_800F1DD8_t*);
-int func_8009291C(int);
-void func_80092EDC(func_80092F74_t* arg0);
-int func_8009306C(func_80092F74_t* arg0);
-int func_80093364(func_80092F74_t* arg0);
+void vs_field_applyWeatherIntensity(void);
+void vs_field_createRoomEffectObjects(D_800F1DD8_t*);
+int vs_field_executeRoomEffectCommands(func_80092F74_t*, int, D_800F1DD8_t*);
+int vs_field_startRoomEffect(int);
+void vs_field_writeRoomEffectTransform(func_80092F74_t* arg0);
+int vs_field_stepRoomEffectGravity(func_80092F74_t* arg0);
+int vs_field_stepRoomEffectDampedMotion(func_80092F74_t* arg0);
 int func_8009406C(int, int, int, int);
-int func_80094E18(int, int, D_800F1BAC_t*);
+int vs_battle_drawValueLabelCaption(int, int, D_800F1BAC_t*);
 void func_80095C18(int, int);
-int func_800A1280(int, int, SVECTOR*, int);
+int vs_actors_targetPoint(int, int, SVECTOR*, int);
 int func_800A152C(int, int, int);
-int func_800A190C(int, int, SVECTOR*, int);
+int vs_actors_anchorPoint(int, int, SVECTOR*, int);
 int func_800A1AF8(int, int, u_short*, int);
-void* func_800962E4();
-void func_80096444(int);
+void* vs_battle_reserveFloatingLabel();
+void vs_battle_removeFloatingLabel(int);
 
-extern int (*D_800E85CC[])(D_800F1DD8_t2*);
-extern int (*D_800E85E8[])(func_80092F74_t*, func_80092B04_t2*);
-extern char D_80068EB4[];
+extern int (*vs_field_textureEffectHandlers[])(D_800F1DD8_t2*);
+extern int (*vs_field_roomEffectOpcodeHandlers[])(func_80092F74_t*, func_80092B04_t2*);
+extern char vs_field_weatherVolumeByIntensity[];
 extern int D_80068F04[][4];
 extern u_short D_80068F64[][4];
 extern int D_80068F94[];
 extern int D_800F2274;
-int func_80096254(int, int);
-int func_8009F858(int);
+int vs_core_mathAddPackedScreenCoordinates(int, int);
+int vs_field_gimmickSubtype(int);
 void func_8009651C(SVECTOR*, int);
 extern char D_800691E4[];
-extern RECT D_80068FAC[];
+extern RECT vs_battle_labelCaptionRects[];
 typedef struct {
     u_char count;
     u_char labels[2];
     u_char color;
 } CombatLabel;
-extern CombatLabel D_800690B4[];
-extern const CVECTOR D_80069134[];
+extern CombatLabel vs_battle_statusLabelLayouts[];
+extern const CVECTOR vs_battle_statusLabelColors[];
 extern const RECT D_80069144[];
 extern const RECT D_8006917C[];
 extern int D_800E861C[];
-extern short D_800E8634[];
-extern RECT D_800E8640[];
-extern u_short D_800F1CDC;
-extern short D_800F1D00;
+extern short vs_battle_lockedLabelHalfHeights[];
+extern RECT vs_battle_lockedLabelPieces[];
+extern u_short vs_field_roomAnimationTicks;
+extern short vs_field_isRoomEffectSoundRestored;
 extern short D_800F1D98[];
 extern short D_800F1DA4;
 extern short D_800F1DA8;
-extern short D_800F1DB4;
-extern short D_800F1DB6;
-extern short D_800F1DBC;
-extern short D_800F1DC0;
-extern short D_800F1DC2;
-extern short D_800F1DC4;
-extern char D_800F1DCA;
-extern char D_800F1DCB;
-extern void* D_800F1DD4;
-D_800F1DD8_t D_800F1DD8[96]; /* 0x480 bytes of 12-byte entries on the PS1 */
+extern short vs_field_backgroundOffsetX;
+extern short vs_field_backgroundOffsetY;
+extern short vs_field_weatherAmbientSoundId;
+extern short vs_field_weatherParticleCount;
+extern short vs_field_weatherParticleCapacity;
+extern short vs_field_weatherIntensity;
+extern char vs_field_roomWeatherKind;
+extern char vs_field_isWeatherVariationEnabled;
+extern void* vs_field_weatherParticles;
+D_800F1DD8_t vs_field_roomEffectInstances[96]; /* 0x480 bytes of 12-byte entries on the PS1 */
 
 /* room_effects.c: whether slot is running and its record (the PS1 reads were by byte offset). */
 int pc_effect_slot(int slot, const unsigned char** record)
 {
-    const D_800F1DD8_t* e = &D_800F1DD8[slot];
+    const D_800F1DD8_t* e = &vs_field_roomEffectInstances[slot];
     *record = (const unsigned char*)e->unk4;
     return e->unk0 && e->unk2;
 }
-extern short D_800F2258;
-extern char D_800F225A;
-extern char D_800F225B;
+extern short vs_field_roomEffectSoundId;
+extern char vs_field_textureEffectCount;
+extern char vs_field_roomEffectScriptCount;
 extern char D_800F2260[];
-extern short D_800F2270;
-extern short D_800F2272;
+extern short vs_battle_actorMarkersHidden;
+extern short vs_battle_abilityTimingCueFrames;
 extern short D_800F2278;
 extern short D_800F227A;
-extern short D_800F227C;
-extern short D_800F227E;
-void func_800970BC(void);
+extern short vs_battle_placedLabelCount;
+extern short vs_battle_floatingLabelCount;
+void vs_battle_drawAbilityTimingCue(void);
 void func_80094844(short*, D_800F1BAC_t*);
-void func_80094AF8(D_800F1BAC_t*);
+void vs_battle_advanceFloatingLabelQueue(D_800F1BAC_t*);
 void func_80094B0C(int, int, D_800F1BAC_t*);
 void func_8009506C(int, int, D_800F1BAC_t*);
 void func_80095258(int, int, D_800F1BAC_t*);
-void func_800958A4(int, int, D_800F1BAC_t*);
-void func_80095A4C(int, int, D_800F1BAC_t*);
+void vs_battle_drawAbilityTimingResult(int, int, D_800F1BAC_t*);
+void vs_battle_drawChainCount(int, int, D_800F1BAC_t*);
 void func_8009695C(int, int, D_800F1BAC_t*);
-void func_8009639C(int);
-extern SVECTOR D_800F2280;
+void vs_battle_compactFloatingLabels(int);
+extern SVECTOR vs_battle_abilityTimingCuePosition;
 
-INCLUDE_RODATA("build/src/BATTLE/BATTLE.PRG/nonmatchings/2842C", D_80068EB4);
+INCLUDE_RODATA("build/src/BATTLE/BATTLE.PRG/nonmatchings/2842C", vs_field_weatherVolumeByIntensity);
 
-void func_80090C2C(int arg0);
+void vs_field_setRoomWeather(int arg0);
 
 #ifdef ROOD_PC
 /* The game's room weather, including event-script overrides. A room's
@@ -283,27 +283,27 @@ void func_80090C2C(int arg0);
  * this a render-only query: the original weather update remains unchanged. */
 int pc_weather_raining(void)
 {
-    return vs_battle_roomData.sectionB != NULL && D_800F1DCA == 1;
+    return vs_battle_roomData.sectionB != NULL && vs_field_roomWeatherKind == 1;
 }
 #endif
 
-void func_80090EEC(void);
+void vs_field_updateRoomWeather(void);
 
 int vs_battle_clamp(short arg0, int arg1, int arg2);
 
-void func_8009121C(void);
+void vs_field_applyWeatherIntensity(void);
 
-void func_80091314(int arg0);
+void vs_field_setWeatherVariationEnabled(int arg0);
 
-void func_80091320(int arg0);
+void vs_field_setWeatherIntensity(int arg0);
 
-void func_8009134C(int arg0, int arg1);
+void vs_field_setWeatherWindAngles(int arg0, int arg1);
 
-void func_80091378(void);
+void vs_field_releaseWeatherParticles(void);
 
-int func_800913BC(int arg0);
+int vs_field_setWeatherAmbientSound(int arg0);
 
-void func_80091468(int arg0, int arg1);
+void vs_field_setRoomBackgroundOffset(int arg0, int arg1);
 
 /* The sky panorama's tiles drawn (their top-left corner, 20.12 screen X): in
  * widescreen (port) as far past the sides as the 16:9 view reaches
@@ -316,95 +316,95 @@ void func_80091468(int arg0, int arg1);
 #define SKY_RIGHT 0x180000
 #endif
 
-void func_8009147C(vs_battle_backgroundLayout* arg0, int arg1, int arg2, int arg3);
+void vs_field_drawRoomBackgroundTiles(vs_battle_backgroundLayout* arg0, int arg1, int arg2, int arg3);
 
-void func_800918E8(int arg0);
+void vs_field_duckWeatherAmbientSound(int arg0);
 
-void* func_8009195C(int arg0);
+void* vs_field_findRoomGeometryGroup(int arg0);
 
-int func_80091998(int arg0);
+int vs_field_showRoomGeometryGroup(int arg0);
 
-int func_800919D8(int arg0);
+int vs_field_hideRoomGeometryGroup(int arg0);
 
-int func_80091A1C(int arg0, int arg1);
+int vs_field_swapRoomGeometryGroupFlags(int arg0, int arg1);
 
-int func_80091A78(int arg0, int arg1);
+int vs_field_addRoomGeometryDepthBias(int arg0, int arg1);
 
 int func_80091AC0(int arg0);
 
-void func_80091B04(void);
+void vs_field_updateRoomEffects(void);
 
-int func_80091C6C(func_80091C6C_t* arg0);
+int vs_field_advanceRoomTextureFrames(func_80091C6C_t* arg0);
 
-int func_80091E10(func_80091E10_t* arg0);
+int vs_field_scrollRoomTextureCoordinates(func_80091E10_t* arg0);
 
-int func_80091FE8(func_80091FE8_t* arg0);
+int vs_field_animateRoomTextureImages(func_80091FE8_t* arg0);
 
-int func_800923F8(D_800F1DD8_t2* arg0);
+int vs_field_updateRoomRotationEffect(D_800F1DD8_t2* arg0);
 
 int func_80092540(void);
 
-void func_80092548(void);
+void vs_field_initializeRoomEffects(void);
 
-void func_800927AC(D_800F1DD8_t* arg0);
+void vs_field_createRoomEffectObjects(D_800F1DD8_t* arg0);
 
-int func_8009291C(int arg0);
+int vs_field_startRoomEffect(int arg0);
 
-int func_80092A18(void);
+int vs_field_releaseRoomEffects(void);
 
-int func_80092B04(func_80092F74_t* arg0, int arg1, D_800F1DD8_t* arg2);
+int vs_field_executeRoomEffectCommands(func_80092F74_t* arg0, int arg1, D_800F1DD8_t* arg2);
 
 int func_80092C68(func_80092F74_t* arg0, func_80092F74_t2* arg1);
 
-int func_80092E14(func_80092F74_t* arg0, func_80092F74_t2* arg1);
+int vs_field_setRoomEffectVelocity(func_80092F74_t* arg0, func_80092F74_t2* arg1);
 
-int func_80092E7C(func_80092F74_t* arg0, func_80092F74_t2* arg1);
+int vs_field_setRoomEffectTransform(func_80092F74_t* arg0, func_80092F74_t2* arg1);
 
-void func_80092EDC(func_80092F74_t* arg0);
+void vs_field_writeRoomEffectTransform(func_80092F74_t* arg0);
 
 int func_80092F6C(func_80092F74_t* arg0 __attribute__((unused)), func_80092F74_t2* arg1 __attribute__((unused)));
 
-int func_80092F74(func_80092F74_t* arg0, func_80092F74_t2* arg1 __attribute__((unused)));
+int vs_field_hideRoomEffectObject(func_80092F74_t* arg0, func_80092F74_t2* arg1 __attribute__((unused)));
 
-int func_80092F98(func_80092F74_t* arg0, func_80092F74_t2* arg1);
+int vs_field_executeRoomEffectShowGroup(func_80092F74_t* arg0, func_80092F74_t2* arg1);
 
-int func_80092FBC(func_80092F74_t* arg0, func_80092F74_t2* arg1);
+int vs_field_advanceRoomEffectMotion(func_80092F74_t* arg0, func_80092F74_t2* arg1);
 
-int func_8009306C(func_80092F74_t* arg0);
+int vs_field_stepRoomEffectGravity(func_80092F74_t* arg0);
 
-int func_80093364(func_80092F74_t* arg0);
+int vs_field_stepRoomEffectDampedMotion(func_80092F74_t* arg0);
 
-int func_8009352C(func_80092F74_t* arg0, func_80092F74_t2* arg1);
+int vs_field_executeRoomEffectPlaySound(func_80092F74_t* arg0, func_80092F74_t2* arg1);
 
-int func_800935B8(func_80092F74_t* arg0, func_80092F74_t2* arg1);
+int vs_field_executeRoomEffectStopSound(func_80092F74_t* arg0, func_80092F74_t2* arg1);
 
-int func_800935F8(func_80092F74_t* arg0 __attribute__((unused)), func_80092F74_t2* arg1);
+int vs_field_executeRoomEffectStartEffect(func_80092F74_t* arg0 __attribute__((unused)), func_80092F74_t2* arg1);
 
-int func_8009361C(func_80092F74_t* unk0 __attribute__((unused)), func_80092F74_t2* arg1);
+int vs_field_executeRoomEffectHideGroup(func_80092F74_t* unk0 __attribute__((unused)), func_80092F74_t2* arg1);
 
-int func_80093640(func_80092F74_t* arg0, func_80092F74_t2* arg1);
+int vs_field_executeRoomEffectStopScript(func_80092F74_t* arg0, func_80092F74_t2* arg1);
 
 int func_800936F0(func_80092F74_t* arg0 __attribute__((unused)), func_80092F74_t2* arg1 __attribute__((unused)));
 
-int func_800936F8(int arg0);
+int vs_field_toggleRoomEffectUpdates(int arg0);
 
-int func_80093764(int arg0);
+int vs_field_isRoomEffectActive(int arg0);
 
-void func_80093788(int arg0);
+void vs_field_finishRoomDoorRotation(int arg0);
 
-void func_80093824(int arg0);
+void vs_field_finishRoomTiltRotation(int arg0);
 
-void func_800938AC(int arg0);
+void vs_field_duckRoomEffectSound(int arg0);
 
-void func_80093914(int arg0);
+void vs_field_swapRoomGeometryRedGreen(int arg0);
 
-void func_80093A14(void);
+void vs_field_restoreRoomEffectSoundVolume(void);
 
-void func_80093A70(void);
+void vs_field_restartRoomEffectSound(void);
 
-void func_80093AB4(void);
+void vs_battle_resetFloatingLabels(void);
 
-int func_80093B04(u_short* arg0);
+int vs_battle_queueWorldLockedLabel(u_short* arg0);
 
 int func_80093B68(int arg0, int arg1, int arg2, int arg3);
 
@@ -422,11 +422,11 @@ INCLUDE_RODATA("build/src/BATTLE/BATTLE.PRG/nonmatchings/2842C", D_80068F64);
 
 INCLUDE_RODATA("build/src/BATTLE/BATTLE.PRG/nonmatchings/2842C", D_80068F94);
 
-INCLUDE_RODATA("build/src/BATTLE/BATTLE.PRG/nonmatchings/2842C", D_80068FAC);
+INCLUDE_RODATA("build/src/BATTLE/BATTLE.PRG/nonmatchings/2842C", vs_battle_labelCaptionRects);
 
-INCLUDE_RODATA("build/src/BATTLE/BATTLE.PRG/nonmatchings/2842C", D_800690B4);
+INCLUDE_RODATA("build/src/BATTLE/BATTLE.PRG/nonmatchings/2842C", vs_battle_statusLabelLayouts);
 
-INCLUDE_RODATA("build/src/BATTLE/BATTLE.PRG/nonmatchings/2842C", D_80069134);
+INCLUDE_RODATA("build/src/BATTLE/BATTLE.PRG/nonmatchings/2842C", vs_battle_statusLabelColors);
 
 INCLUDE_RODATA("build/src/BATTLE/BATTLE.PRG/nonmatchings/2842C", D_80069144);
 
@@ -449,11 +449,11 @@ void func_800941FC(void);
 
 void func_80094844(short* pos, D_800F1BAC_t* label);
 
-void func_80094AF8(D_800F1BAC_t* arg0);
+void vs_battle_advanceFloatingLabelQueue(D_800F1BAC_t* arg0);
 
 void func_80094B0C(int x, int y, D_800F1BAC_t* p);
 
-int func_80094E18(int x, int y, D_800F1BAC_t* p);
+int vs_battle_drawValueLabelCaption(int x, int y, D_800F1BAC_t* p);
 
 void func_8009506C(int arg0, int arg1, D_800F1BAC_t* arg2);
 
@@ -475,13 +475,13 @@ extern void pc_text_status(const void* first, const void* end) __attribute__((we
 #define PC_TEXT_STATUS(call) call
 #endif
 
-void func_800958A4(int x, int y, D_800F1BAC_t* p);
+void vs_battle_drawAbilityTimingResult(int x, int y, D_800F1BAC_t* p);
 
-void func_80095A4C(int x, int y, D_800F1BAC_t* p);
+void vs_battle_drawChainCount(int x, int y, D_800F1BAC_t* p);
 
-void func_80095B70(int arg0);
+void vs_battle_setActorMarkersHidden(int arg0);
 
-void func_80095B7C(int arg0, int arg1);
+void vs_battle_setActorMarker(int arg0, int arg1);
 
 #ifdef ROOD_PC
 /* PC_CLASSIC: what func_80095C18 decided, as it decides it, for the classic layer
@@ -491,15 +491,15 @@ extern pc_classic_emote pc_emote_record;
 
 void func_80095C18(int actor, int kind);
 
-int func_80096254(int arg0, int arg1);
+int vs_core_mathAddPackedScreenCoordinates(int arg0, int arg1);
 
 void func_8009627C(void);
 
-void* func_800962E4(void);
+void* vs_battle_reserveFloatingLabel(void);
 
-void func_8009639C(int arg0);
+void vs_battle_compactFloatingLabels(int arg0);
 
-void func_80096444(int arg0);
+void vs_battle_removeFloatingLabel(int arg0);
 
 void func_8009651C(SVECTOR* position, int direction);
 
@@ -509,11 +509,11 @@ void func_8009695C(int x, int y, D_800F1BAC_t* p);
 
 void func_80096FF0(int arg0);
 
-void func_800970BC(void);
+void vs_battle_drawAbilityTimingCue(void);
 
 void func_800971D4(void);
 
-void func_8009722C(void);
+void vs_battle_suppressAshleyStatusLabels(void);
 
 #ifdef ROOD_PC
 #include "pc/src/room_callbacks.inc"

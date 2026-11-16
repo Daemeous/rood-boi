@@ -26,7 +26,7 @@ try:
     assert status["battle_frame"] > 0, status
     state = game.state()
     assert state["zone"] == 1 and state["start_state"] == 0, state
-    address = symbols()["D_80061068"]
+    address = symbols()["vs_state_savedEntryDoor"]
     assert game.read(address, 1)[0] == state["zone"]
     scratch = 0x1F8003F0
     original = game.read(scratch, 4)

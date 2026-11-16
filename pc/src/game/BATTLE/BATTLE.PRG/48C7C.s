@@ -5,7 +5,7 @@
 
 .section .text, "ax"
 
-glabel func_800B147C
+glabel vs_actors_blendActorPose
     lw      $t0, 0x10($sp)
     sll     $v0, $a3, 12
     beq     $a3, $t0, .L800B16D4
@@ -164,7 +164,7 @@ glabel func_800B147C
     nop
 .L800B16B8:
     sw      $ra, 0x0($sp)
-    jal     func_800AE980
+    jal     vs_actors_blendActorPoseHalfway
     nop
     lw      $ra, 0x0($sp)
     nop
@@ -179,7 +179,7 @@ glabel func_800B147C
     nop
     jr      $ra
     nop
-endlabel func_800B147C
+endlabel vs_actors_blendActorPose
 
 glabel func_800B16F4
     addu    $t1, $a2, $t8
@@ -247,7 +247,7 @@ glabel func_800B16F4
     negu    $t0, $t0
 endlabel func_800B16F4
 
-glabel func_800B17F0
+glabel vs_core_mathBuildEulerRotationMatrixQuadrant
     lw      $v0, 0x0($a0)
     lw      $t8, 0x4($a0)
     lui     $a2, %hi(_trig_table)
@@ -344,9 +344,9 @@ alabel D_800B180C
     or      $t7, $t7, $t3
     jr      $ra
     sw      $t7, 0x8($v0)
-endlabel func_800B17F0
+endlabel vs_core_mathBuildEulerRotationMatrixQuadrant
 
-glabel func_800B196C
+glabel vs_core_mathPremultiplyRotationMatrix
     lw      $t0, 0x0($a0)
     lw      $t1, 0x4($a0)
     lw      $t2, 0x8($a0)
@@ -410,4 +410,4 @@ glabel func_800B196C
     or      $t5, $t5, $t2
     jr      $ra
     sw      $t5, 0xC($a1)
-endlabel func_800B196C
+endlabel vs_core_mathPremultiplyRotationMatrix

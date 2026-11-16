@@ -11,7 +11,7 @@ pub fn func_800C253C(type_: c_int) callconv(.c) void {
     var index: c_int = 0;
     var i: c_int = 0;
     var j: c_int = 0;
-    const ps = v.g.D_800EB9B8();
+    const ps = v.g.vs_battle_targetSphere();
 
     var shape: c_int = @as(c_int, ps.*.?.unk2A);
     if (shape != 0) {
@@ -30,12 +30,12 @@ pub fn func_800C253C(type_: c_int) callconv(.c) void {
         shape = type_ +% 0x2D;
     }
 
-    var command: c_int = @as(c_int, psx.at(v.g.D_800EA438(), shape).*);
-    var count: c_int = @as(c_int, psx.at(v.g.D_800EA438(), shape +% 1).*) -% command;
+    var command: c_int = @as(c_int, psx.at(v.g.vs_battle_sphereShapeCommandStarts(), shape).*);
+    var count: c_int = @as(c_int, psx.at(v.g.vs_battle_sphereShapeCommandStarts(), shape +% 1).*) -% command;
     var cmd_pos: c_int = command;
 
     while (count > 0) : (count -%= 1) {
-        command = @as(c_int, psx.at(v.g.D_800EA46C(), cmd_pos).*);
+        command = @as(c_int, psx.at(v.g.vs_battle_sphereWireframeCommands(), cmd_pos).*);
         cmd_pos +%= 1;
         switch ((command >> 14) & 3) {
             0 => {

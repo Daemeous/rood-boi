@@ -147,7 +147,7 @@ static void _renderRenameMenu(int xOffset)
         vs_char_terminator, vs_char_terminator };
     static char _controllerActionAnimationCounters[8] = { 0 };
     // Seemingly no purpose, perhaps an unimplemented animation
-    static char D_80105EF4 = 0;
+    static char vs_menu_renameUnusedFrameCycle = 0;
 
     int x;
     int y;
@@ -287,8 +287,8 @@ static void _renderRenameMenu(int xOffset)
         vs_menu_g4(-16, vs_getTpage(0, 0, 0, 0, 1), 0, vs_getRGB0(primPolyG4, 0, 0, 0), vs_getRGB888(208, 0, 30), 0,
             vs_getRGB888(232, 0, 32), 0xC0A080, vs_getRGB888(232, 0, 46), 0, vs_getRGB888(0, 1, 30));
 
-        if (++D_80105EF4 >= 12) {
-            D_80105EF4 = 0;
+        if (++vs_menu_renameUnusedFrameCycle >= 12) {
+            vs_menu_renameUnusedFrameCycle = 0;
         }
     }
 
@@ -482,7 +482,7 @@ static int _renameMenuInput(int initialize)
     static char _charTableColumn;
     static char _charTableRow;
     static u_char currentPos;
-    static char D_80105F2D __attribute__((unused));
+    static char vs_menu_renameUnusedEditorFlag __attribute__((unused));
     int selectedRow;
     int var_a1;
     int var_s1;
@@ -492,7 +492,7 @@ static int _renameMenuInput(int initialize)
         _charTableColumn = 0;
         _charTableRow = 0;
         currentPos = 0;
-        D_80105F2D = 0;
+        vs_menu_renameUnusedEditorFlag = 0;
         _cursorAnimState = 8;
         state = init;
 

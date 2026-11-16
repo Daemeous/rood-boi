@@ -10,15 +10,15 @@
 extern "C" {
 #endif
 
-#define PC_UV_EFFECTS_MAX 64 /* the game's effect slots (D_800F1DD8[0..63]) */
+#define PC_UV_EFFECTS_MAX 64 /* the game's effect slots (vs_field_roomEffectInstances[0..63]) */
 /* 1 (default): effects are animated materials; 0: none modelled (the meshes
  * re-decode every rewrite, as before; for comparisons). */
 extern int pc_uv_effects_enabled;
 
 /* One effect of the current room that rewrites a polygon's UVs. */
 typedef struct {
-    int type; /* 0 UV atlas frames (func_80091C6C), 2 UV scroll (func_80091E10) */
-    int slot; /* the game's effect slot (D_800F1DD8 index) */
+    int type; /* 0 UV atlas frames (vs_field_advanceRoomTextureFrames), 2 UV scroll (vs_field_scrollRoomTextureCoordinates) */
+    int slot; /* the game's effect slot (vs_field_roomEffectInstances index) */
     unsigned polygon; /* the polygon's byte offset in the room's geometry section */
     int quad;
     /* 1: the polygon's UV bytes are the effect's base UVs plus one offset,
@@ -45,7 +45,7 @@ typedef struct {
     int freeze; /* override: hold the current offset */
 } pc_uv_effect;
 
-/* Called once per game frame with the room data block func_8009723C draws
+/* Called once per game frame with the room data block vs_render_drawRoomGeometry draws
  * (the room's geometry section): reads the room's effect section when the
  * room changed and the game's effect state, so the effects' offsets follow
  * the game exactly (timing, pauses, save/load). Returns the effect count. */

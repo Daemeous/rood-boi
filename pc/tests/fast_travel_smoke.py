@@ -104,7 +104,7 @@ DATA = save_point_data()
 
 
 def packed(point, cost):
-    """MENU0's hand-off (D_800F4E98.executeAbility, unsigned)."""
+    """MENU0's hand-off (vs_menu_frameworkActionSelection.executeAbility, unsigned)."""
     d = DATA[point]
     return (d & 0x1FF) | ((d >> 16) & 0x1F) << 9 | ((d >> 24) & 0x1F) << 14 | (cost & 0xFFF) << 19
 
@@ -182,7 +182,7 @@ class Trip:
         return table[2 * location], table[2 * location + 1]
 
     def handoff(self):
-        e = self.g.read(self.sym["D_800F4E98"], 8)
+        e = self.g.read(self.sym["vs_menu_frameworkActionSelection"], 8)
         unk2 = struct.unpack("<h", e[2:4])[0]
         return unk2, struct.unpack("<I", e[4:8])[0]
 
@@ -763,11 +763,11 @@ def case_refuse(t, check, args):
     t.set_flag(SAVE_POINTS + here, 1)
     # an event script running
     n = t.ft()["ignored"]
-    g.write(t.sym["D_800F4C34"], b"\x01")
+    g.write(t.sym["vs_event_playbackPhase"], b"\x01")
     t.ft(press=True)
     g.run(2)
     s = t.ft()
-    g.write(t.sym["D_800F4C34"], b"\x00")
+    g.write(t.sym["vs_event_playbackPhase"], b"\x00")
     g.run(6)
     check(s["state"]["event"] == 1 and s["why"] == "Not during an event." and t.menu() == CLOSED
           and t.ft()["ignored"] == n + 1, f"refuse: an event script: '{s['why']}'")

@@ -29,12 +29,12 @@ void pc_lights_mark_dirty(void);
 int pc_weather_raining(void);
 /* The game's sky (BATTLE 146C.c; pc/docs/Vulkan_Renderer.md "The game's sky"): the
  * background sphere's five ring colours (0x00BBGGRR: zenith, 26.5 degrees up, the
- * horizon, 26.5 down, the nadir), set from the room's section B by func_8008E938 and
- * animated by the scripts' background fades (main.c func_800474DC); the flag of a
- * room whose five are equal (D_800F1DC6: a flat backdrop, one texel of VRAM tinted by
+ * horizon, 26.5 down, the nadir), set from the room's section B by vs_field_initializeRoomBackgroundColors and
+ * animated by the scripts' background fades (main.c vs_render_transformBackgroundGradient); the flag of a
+ * room whose five are equal (vs_field_isSolidBackground: a flat backdrop, one texel of VRAM tinted by
  * D_800F1BB0, instead of the sphere). Weak: builds without BATTLE have no sky. */
-extern int D_800F1D78[5] __attribute__((weak));
-extern char D_800F1DC6 __attribute__((weak));
+extern int vs_field_backgroundGradientColors[5] __attribute__((weak));
+extern char vs_field_isSolidBackground __attribute__((weak));
 typedef struct {
     signed char unk0;
     signed char unk1;
@@ -44,9 +44,9 @@ typedef struct {
     short unk6;
 } D_800F1BB0_t;
 extern D_800F1BB0_t D_800F1BB0 __attribute__((weak));
-/* The sky panorama (2842C.h; func_8009147C), drawn instead of the sphere while a
- * script has it on (D_800F1DC9) and its layout is loaded (D_800F1DCC): tiles of 32 x
- * 32 screen pixels, each a texture rectangle of tpage D_800F1DC8 | (colors[1].cd << 7)
+/* The sky panorama (2842C.h; vs_field_drawRoomBackgroundTiles), drawn instead of the sphere while a
+ * script has it on (vs_field_isTiledBackgroundEnabled) and its layout is loaded (vs_field_loadedBackgroundLayout): tiles of 32 x
+ * 32 screen pixels, each a texture rectangle of tpage vs_field_legacyBackgroundTexturePage | (colors[1].cd << 7)
  * through CLUT 0x3BB0, its corners' colours modulating it; a black TILE behind. */
 typedef struct {
     short x, y, w, h; /* RECT uv */
@@ -58,9 +58,9 @@ typedef struct {
     int unk8;
     vs_battle_backgroundTile tiles[];
 } vs_battle_backgroundLayout;
-extern char D_800F1DC8 __attribute__((weak));
-extern unsigned char D_800F1DC9 __attribute__((weak));
-extern vs_battle_backgroundLayout* D_800F1DCC __attribute__((weak));
+extern char vs_field_legacyBackgroundTexturePage __attribute__((weak));
+extern unsigned char vs_field_isTiledBackgroundEnabled __attribute__((weak));
+extern vs_battle_backgroundLayout* vs_field_loadedBackgroundLayout __attribute__((weak));
 const uint16_t* pc_renderer_vram(void);
 }
 
@@ -127,13 +127,13 @@ struct GameSky {
 GameSky game_sky()
 {
     GameSky g;
-    if (!&D_800F1D78[0] || !&D_800F1DC6)
+    if (!&vs_field_backgroundGradientColors[0] || !&vs_field_isSolidBackground)
         return g;
-    if (&D_800F1DC9 && &D_800F1DCC && D_800F1DC9 && D_800F1DCC) {
-        /* The panorama (func_8008EC48 draws it instead of the sphere): each tile row's mean
+    if (&vs_field_isTiledBackgroundEnabled && &vs_field_loadedBackgroundLayout && vs_field_isTiledBackgroundEnabled && vs_field_loadedBackgroundLayout) {
+        /* The panorama (vs_field_drawRoomBackground draws it instead of the sphere): each tile row's mean
          * colour as drawn (texels through the CLUT times the corners' colours / 128). The top
          * row is the zenith's, the bottom row the horizon's; below it the black TILE. */
-        const vs_battle_backgroundLayout* layout = D_800F1DCC;
+        const vs_battle_backgroundLayout* layout = vs_field_loadedBackgroundLayout;
         if ((unsigned)(layout->width - 1) >= 31 || (unsigned)(layout->height - 1) >= 31)
             return g;
         const uint16_t* vram = pc_renderer_vram();
@@ -146,7 +146,7 @@ GameSky game_sky()
                 const vs_battle_backgroundTile& t = layout->tiles[r * layout->width + c];
                 if (!t.w && !t.h)
                     continue;
-                unsigned tpage = (unsigned char)D_800F1DC8 | (t.colors[1][3] << 7);
+                unsigned tpage = (unsigned char)vs_field_legacyBackgroundTexturePage | (t.colors[1][3] << 7);
                 int base_x = (tpage & 15) * 64, base_y = ((tpage >> 4) & 1) * 256, depth = (tpage >> 7) & 3;
                 double tex[3] = { 0, 0, 0 };
                 int texels = 0;
@@ -194,8 +194,8 @@ GameSky game_sky()
         memcpy(g.ring[1], rows[mid], sizeof rows[mid]);
         memcpy(g.ring[2], rows[bottom], sizeof rows[bottom]);
         g.kind = 3;
-    } else if (D_800F1DC6) {
-        /* func_8008EC48: a 320 x 240 POLY_FT4 at u,v 248..249 of tpage 0x11 (4-bit, texture
+    } else if (vs_field_isSolidBackground) {
+        /* vs_field_drawRoomBackground: a 320 x 240 POLY_FT4 at u,v 248..249 of tpage 0x11 (4-bit, texture
          * page x 64, y 256) through CLUT 0x38B1 (x 784, y 226), tinted 128 + 4 x D_800F1BB0. */
         const uint16_t* vram = pc_renderer_vram();
         float texel[3] = { 0, 0, 0 };
@@ -227,7 +227,7 @@ GameSky game_sky()
     } else {
         unsigned any = 0;
         for (int r = 0; r < 5; r++) {
-            unsigned c = (unsigned)D_800F1D78[r] & 0xffffff;
+            unsigned c = (unsigned)vs_field_backgroundGradientColors[r] & 0xffffff;
             any |= c;
             g.ring[r][0] = (c & 255) / 255.0f, g.ring[r][1] = ((c >> 8) & 255) / 255.0f, g.ring[r][2] = (c >> 16) / 255.0f;
         }

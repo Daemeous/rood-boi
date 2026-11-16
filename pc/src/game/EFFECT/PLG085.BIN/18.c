@@ -4,5 +4,5 @@
 #include "pc/src/game/EFFECT/grids.h"
 
 #define VS_TILED_RING_FUNCTION func_800FA368
-#define VS_TILED_RING_COLORS D_800FB260
+#define VS_TILED_RING_COLORS vs_effects_plg085TiledRingColorFactors
 #include "pc/src/game/EFFECT/tiledRings.h"

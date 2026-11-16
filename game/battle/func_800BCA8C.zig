@@ -65,9 +65,9 @@ fn toNormalIntegerVector(src: *v.VECTOR, dst: *v.VECTOR) void {
     _ = c.VectorNormal(cv(&whole), cv(dst));
 }
 
-/// The easing curve `ease` at the point's time (func_800BFEBC).
+/// The easing curve `ease` at the point's time (vs_event_evaluateInterpolationCurve).
 fn eased(cam: *v.D_800F4BA4_t2, ease: u8) c_int {
-    return c.func_800BFEBC(ease, cam.time, cam.duration);
+    return c.vs_event_evaluateInterpolationCurve(ease, cam.time, cam.duration);
 }
 
 /// orig: func_800BCA8C (pc/src/game/BATTLE/BATTLE.PRG/4A0A8.c)
@@ -129,7 +129,7 @@ pub fn func_800BCA8C(arg: ?*v.D_800F4BA4_t2, _: ?*v.D_800F4BA4_t2) callconv(.c) 
             }
         },
         8 => {
-            c.func_800A190C(cam.value, cam.delta, psx.cptr(c.SVECTOR, rotation), 2);
+            c.vs_actors_anchorPoint(cam.value, cam.delta, psx.cptr(c.SVECTOR, rotation), 2);
             _ = c._vectorAdd(cv(&cam.computed), cv(sVectorToFixedPointVector(v1, rotation)), cv(&cam.velocity));
         },
         9 => _ = c._vectorAdd(cv(&cam.computed), cv(&cam.velocity), cv(&cam.target)),
@@ -139,7 +139,7 @@ pub fn func_800BCA8C(arg: ?*v.D_800F4BA4_t2, _: ?*v.D_800F4BA4_t2) callconv(.c) 
     _ = copyVector(&cam.previousCamera, &cam.current);
     if ((cam.follow & cam.following) != 0) {
         _ = c._vectorAdd(cv(&cam.followPosition), cv(&cam.followPosition), cv(&cam.followDelta));
-        const fraction = c.func_800BFEBC(1, cam.time, cam.duration);
+        const fraction = c.vs_event_evaluateInterpolationCurve(1, cam.time, cam.duration);
         scratch.value = fraction;
         _ = c._vectorSubtract(cv(v1), cv(&cam.computed), cv(&cam.followPosition));
         _ = c._vectorFixedPointMult(cv(v1), cv(v1), scratch.value);

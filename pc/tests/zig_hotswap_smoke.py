@@ -25,9 +25,9 @@ from snapshot_diff import Symbols
 
 DEV = ROOT / "pc/build/dev64"
 # The fixture: a function the enemy-cast room calls every frame
-# (func_800B07DC, game/battle/actor_transform.zig offsetToWorld).
+# (vs_actors_transformRootOffset, game/battle/actor_transform.zig offsetToWorld).
 FIXTURE = "battle_44F14"
-FUNCTION = "func_800B07DC"
+FUNCTION = "vs_actors_transformRootOffset"
 # Two bytes at the top of guest RAM, which nothing uses: the edited function writes the first; the
 # live-frame probe uses the second to call VSync once.
 MARK, ONCE = 0x801FFFF0, 0x801FFFF1

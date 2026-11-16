@@ -210,7 +210,7 @@ def compare_modes(game, work, name, shots, kind, buttons):
     return shot
 
 
-# The L2 shortcut cross (BATTLE.PRG func_800C9FE8): the face-button diamond
+# The L2 shortcut cross (BATTLE.PRG vs_battle_drawShortcutHud): the face-button diamond
 # (16 x 16 sprites, diagonal neighbours 9 PS1 pixels apart: their cells
 # overlap) and the D-pad (one 30 x 30 sprite), per family in the default
 # style (color_outline) and in solid.
@@ -231,7 +231,7 @@ CELLS = ["triangle", "square", "circle", "cross"]  # the page's cells at (16 k, 
 def cross_geometry(game):
     """Where the cross's sprites are on screen now, from the game's tables:
     {button: (x, y)} for the 16 x 16 face sprites and the D-pad's (x, y)."""
-    step = game.read_symbol("D_800EBCE8", 1)[0]
+    step = game.read_symbol("vs_battle_shortcutHudAnimationStep", 1)[0]
     steps = game.read_symbol("vs_battle_rowAnimationSteps", 16)
     slide = int.from_bytes(steps[step:step + 1], "little", signed=True) if step < 16 else None
     table = game.read_symbol("D_800EBC88", 16)

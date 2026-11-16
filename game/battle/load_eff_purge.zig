@@ -9,20 +9,20 @@ const c = @import("c_6F014");
 /// orig: _loadfile (pc/src/game/BATTLE/BATTLE.PRG/6F014.c)
 /// Queues a CD read of lba/size into buf, or once it has loaded frees its slot and reports done.
 fn loadFile(lba: c_int, size: c_int, buf: ?*anyopaque) c_int {
-    if (v.g.D_800F568C().* == null) {
+    if (v.g.vs_effects_resourceReadSlot().* == null) {
         var cdFile: c.vs_main_CdFile = std.mem.zeroes(c.vs_main_CdFile);
         cdFile.lba = psx.conv(@TypeOf(cdFile.lba), lba);
         cdFile.size = psx.conv(@TypeOf(cdFile.size), size);
         const slot: ?*c.vs_main_CdQueueSlot = @ptrCast(c.vs_main_allocateCdQueueSlot(&cdFile));
-        v.g.D_800F568C().* = @ptrCast(slot);
+        v.g.vs_effects_resourceReadSlot().* = @ptrCast(slot);
         c.vs_main_cdEnqueue(@ptrCast(slot), buf);
         return 1;
     }
 
-    const slot = v.g.D_800F568C().*.?;
+    const slot = v.g.vs_effects_resourceReadSlot().*.?;
     if (@as(c_int, slot.state) == @as(c_int, c.vs_main_CdQueueStateLoaded)) {
         c.vs_main_freeCdQueueSlot(@ptrCast(slot));
-        v.g.D_800F568C().* = null;
+        v.g.vs_effects_resourceReadSlot().* = null;
         return 0;
     }
 

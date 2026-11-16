@@ -2,7 +2,7 @@
 const psx = @import("common").psx;
 const v = @import("views_battle_movement");
 
-/// orig: func_800E68EC (pc/src/battle_movement.c)
+/// orig: vs_battle_aiMarkAiTileDynamicObstacle (pc/src/battle_movement.c)
 /// Marks navigation cell (x, z) of D_800F58B8 blocked (bit 0x400).
 pub fn markCellBlocked(x: c_int, z: c_int) callconv(.c) void {
     const grid = v.g.D_800F58B8().*;

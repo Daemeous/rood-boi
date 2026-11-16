@@ -4,7 +4,7 @@ const psx = @import("common").psx;
 const gte = @import("common").gte;
 
 
-/// orig: func_800B396C (pc/src/boot_sdk.c)
+/// orig: vs_core_mathScaleMatrixColumns (pc/src/boot_sdk.c)
 /// Multiplies each column of the matrix by the matching component of `scale`
 /// through the GTE (GPF); the translation stays. Returns `matrix`.
 pub fn scaleMatrixColumns(matrix: [*c]c.MATRIX, scale: [*c]c.VECTOR) callconv(.c) [*c]c.MATRIX {

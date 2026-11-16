@@ -20,7 +20,7 @@ extern void pc_tick(void);
 /* Weak so the standalone GTE/GPU probes link without the audio objects. */
 #pragma weak pc_audio_set_tick
 #pragma weak pc_audio_enable_tick
-extern int func_800E45B4(void);
+extern int vs_core_elapsedFrameCounterTicks(void);
 extern unsigned pc_window_buttons(void);
 extern int pc_window_enabled;
 static unsigned char* pad0;
@@ -149,7 +149,7 @@ int VSync(int mode)
 {
     if (mode < 0)
         return ticks;
-    int elapsed = func_800E45B4();
+    int elapsed = vs_core_elapsedFrameCounterTicks();
     if (mode == 1)
         return elapsed; /* Original mode 1 queries elapsed scanlines without waiting. */
     int count = mode > 1 ? mode : 1;
@@ -516,7 +516,7 @@ u_long* ClearOTagR(u_long* ot, int n)
     return ot;
 }
 
-/* pc/src/game/SLUS_010.40/32154.s: func_80041AF4, shared by VectorNormal,
+/* pc/src/game/SLUS_010.40/32154.s: vs_core_mathNormalizeVector, shared by VectorNormal,
  * VectorNormalS and VectorNormalSS. Normalizes (x, y, z) in place to 4096
  * and returns the squared length. Keeps the original reciprocal-square-root
  * table and GTE register effects. */
@@ -581,7 +581,7 @@ static MATRIX* compose_rotation(MATRIX* a, MATRIX* b, MATRIX* result)
     }
     return result;
 }
-MATRIX* func_80041C68(MATRIX* a, MATRIX* b) { return compose_rotation(a, b, b); }
+MATRIX* vs_core_mathMultiplyMatrixIntoRight(MATRIX* a, MATRIX* b) { return compose_rotation(a, b, b); }
 MATRIX* pc_comp_matrix(MATRIX*, MATRIX*) __asm__("CompMatrixLV");
 MATRIX* pc_comp_matrix(MATRIX* a, MATRIX* b) { return compose_rotation(a, b, a); }
 
@@ -655,11 +655,11 @@ MATRIX* RotMatrix_gte(SVECTOR* angles, MATRIX* result)
     return result;
 }
 
-MATRIX* func_800B17F0(SVECTOR* angles, MATRIX* result);
+MATRIX* vs_core_mathBuildEulerRotationMatrixQuadrant(SVECTOR* angles, MATRIX* result);
 
-MATRIX* func_800B196C(MATRIX* a, MATRIX* b);
+MATRIX* vs_core_mathPremultiplyRotationMatrix(MATRIX* a, MATRIX* b);
 
-MATRIX* func_800B396C(MATRIX* matrix, VECTOR* scale);
+MATRIX* vs_core_mathScaleMatrixColumns(MATRIX* matrix, VECTOR* scale);
 
 
 extern short D_80040C18[];
@@ -726,7 +726,7 @@ void pc_room_transform(VECTOR* position, VECTOR* angles, MATRIX* camera, MATRIX*
     result->t[1] = r.mac[2];
     result->t[2] = r.mac[3];
 }
-void func_800985AC(VECTOR* position, VECTOR* angles, MATRIX* result); /* with the frame view's translation (room_transform.zig) */
+void vs_render_buildRoomGeometryViewMatrix(VECTOR* position, VECTOR* angles, MATRIX* result); /* with the frame view's translation (room_transform.zig) */
 
 
 /* 2EA3C.s 98648: inverse far-clip scale precedes camera/local rotation.
@@ -742,7 +742,7 @@ void pc_scaled_room_transform(
     compose_rotation(&scale, &scaled_camera, &scaled_camera);
     pc_room_transform(position, angles, &scaled_camera, result, translation);
 }
-void func_80098648(VECTOR* position, VECTOR* angles, MATRIX* result);
+void vs_render_buildScaleCompensatedRoomView(VECTOR* position, VECTOR* angles, MATRIX* result);
 
 
 /* 2EA3C.s background mesh: 34 packed vertices, then 64 indexed G3 triangles.
@@ -764,10 +764,10 @@ unsigned* pc_background_packets(
 {
     vs_gte_view view = *camera;
     int margin = PC_WIDESCREEN_MARGIN;
-    /* The sphere is about the eye: func_8008EC48 places it at the game
+    /* The sphere is about the eye: vs_field_drawRoomBackground places it at the game
      * camera's position through the view matrix, which leaves no
      * translation for the game's camera. The free camera's view matrix is
-     * built from its own eye (func_8007ACB0's hook), so that left the sky
+     * built from its own eye (vs_render_buildCameraViewMatrix's hook), so that left the sky
      * offset by the two eyes' distance, off the screen (black where the sky
      * belongs): about the free camera's eye instead, as the game's is. */
     if (pc_live_camera_active && pc_live_camera_active())
@@ -821,11 +821,11 @@ unsigned* pc_background_packets(
     }
     return packet;
 }
-void func_8009820C(void* mesh, const vs_gte_view* camera);
+void vs_render_drawSkyDome(void* mesh, const vs_gte_view* camera);
 
-void func_800983F8(void* geometry);
+void vs_render_updateRoomGroupTransforms(void* geometry);
 
-int func_800E4660(int x, int y, int z);
+int vs_core_mathSquaredVectorLength(int x, int y, int z);
 
 
 /* Pair with disabled FntLoad/FntOpen above; this is Sony's debug font only. */

@@ -10,7 +10,7 @@
 
 extern int vs_main_startState;
 /* 146C.h: the room the player is in (the last door's destination). INITBTL
- * starts it from D_80061068, which then holds the saved location only: the
+ * starts it from vs_state_savedEntryDoor, which then holds the saved location only: the
  * game copies the current room back into it when saving. */
 /* 146C.h: vs_battle_actors[0] is Ashley; its unk3C points at the HUD record
  * (name[24], then currentHP, maxHP, currentMP, maxMP, risk as shorts). */
@@ -28,7 +28,7 @@ static int guest_pointer(const void* p, unsigned size)
 }
 void pc_dev_state(struct pc_dev_state* out)
 {
-    D_800F4538_t* player = D_800F4538[0];
+    D_800F4538_t* player = vs_actors_actorRecords[0];
     vs_battle_actor* actor = vs_battle_actors[0];
     short* stats = NULL;
     if (!guest_pointer(player, sizeof *player))
@@ -36,7 +36,7 @@ void pc_dev_state(struct pc_dev_state* out)
     if (guest_pointer(actor, sizeof *actor) && guest_pointer(actor->unk3C, 0x24))
         stats = (short*)((unsigned char*)actor->unk3C + 0x18);
     out->valid = 1;
-    const _mpdRoomDoorSection_t* location = D_800F1AB0.zndId ? &D_800F1AB0 : &D_80061068;
+    const _mpdRoomDoorSection_t* location = vs_field_pendingDestinationDoor.zndId ? &vs_field_pendingDestinationDoor : &vs_state_savedEntryDoor;
     out->zone = location->zndId;
     out->room = location->mpdId;
     out->start_state = vs_main_startState;
@@ -57,14 +57,14 @@ void pc_dev_state(struct pc_dev_state* out)
         out->facing = player->unk0.facing;
     }
 }
-/* The room's characters (dev_state.h): the actor slots D_800F4538[0..16]
+/* The room's characters (dev_state.h): the actor slots vs_actors_actorRecords[0..16]
  * that point into guest RAM; the radius is their drop shadow's
  * (shadowRadius, the field actor_shadow.c reads at 0x64c). */
 int pc_dev_actors(struct pc_dev_actor* out, int max)
 {
     int n = 0;
     for (int i = 0; i < 17 && n < max; i++) {
-        D_800F4538_t* actor = D_800F4538[i];
+        D_800F4538_t* actor = vs_actors_actorRecords[i];
         if (!guest_pointer(actor, sizeof *actor))
             continue;
         out[n].slot = i;
@@ -79,13 +79,13 @@ int pc_dev_actors(struct pc_dev_actor* out, int max)
     return n;
 }
 /* The actor slot whose record holds p (its model), or whose held weapon or shield record
- * (vs_battle_wepModels: drawn by func_800B217C from the holder's bone; their own records, outside the
+ * (vs_battle_wepModels: drawn by vs_actors_buildWeaponBoneChain from the holder's bone; their own records, outside the
  * actor's) does while photo_ui.cpp actors_held is on; -1 none (actor_native.c: rood.ui.hide{actors}). */
 extern int pc_photo_actors_held __attribute__((weak));
 int pc_dev_actor_of(const void* p)
 {
     for (int i = 0; i < 17; i++) {
-        D_800F4538_t* actor = D_800F4538[i];
+        D_800F4538_t* actor = vs_actors_actorRecords[i];
         if (guest_pointer(actor, sizeof *actor) && (const char*)p >= (const char*)actor
             && (const char*)p < (const char*)actor + sizeof *actor)
             return i;
@@ -147,7 +147,7 @@ void pc_rpc_state(char* out, unsigned size)
 /* RPC battle_state: the fields that make the battle's behaviour, by name, for every actor slot: the actor record,
  * its stats, its object and its AI state. A struct change moves them with it, so a comparison of two builds
  * (pc/tools/build_compare.py) needs no offsets. Pointers are left out (their values differ with the layout). */
-extern vs_battle_aiState* D_800F5878[];
+extern vs_battle_aiState* vs_battle_aiActorAiStates[];
 extern int randIndex;
 struct json {
     char* p;
@@ -159,7 +159,7 @@ static void put(struct json* j, const char* key, long value)
         j->p += sprintf(j->p, "\"%s\":%ld,", key, value);
 }
 #define F(j, o, field) put(j, #field, (long)(o)->field)
-/* The effect runtime (the script nodes of D_800F53B8 and their particles), by value: a 64-bit FNV-1a of each node's
+/* The effect runtime (the script nodes of vs_effects_primaryInstances and their particles), by value: a 64-bit FNV-1a of each node's
  * records and, per particle, its numbers as text. Pointers are left out, so two builds with different layouts
  * agree when the effects do (build_compare.py compares them step by step). */
 static unsigned long long fnv(const void* data, unsigned size)
@@ -173,7 +173,7 @@ static void effect_nodes(struct json* j)
 {
     j->p += sprintf(j->p, ",\"effects\":[");
     int count = 0;
-    for (D_800F53B8_t* n = D_800F53B8; n && count < 64 && guest_pointer(n, sizeof *n); n = n->next, ++count) {
+    for (D_800F53B8_t* n = vs_effects_primaryInstances; n && count < 64 && guest_pointer(n, sizeof *n); n = n->next, ++count) {
         if (j->p + 8192 > j->end)
             break;
         j->p += sprintf(j->p, "{");
@@ -210,8 +210,8 @@ void pc_rpc_battle_state(char* out, unsigned size)
     j.p += sprintf(j.p, "{\"rand\":%d,\"actors\":[", randIndex);
     for (int i = 0; i < 17; ++i) {
         vs_battle_actor* a = i < 16 ? vs_battle_actors[i] : NULL;
-        D_800F4538_t* o = D_800F4538[i];
-        vs_battle_aiState* s = i < 16 ? D_800F5878[i] : NULL;
+        D_800F4538_t* o = vs_actors_actorRecords[i];
+        vs_battle_aiState* s = i < 16 ? vs_battle_aiActorAiStates[i] : NULL;
         if (!guest_pointer(a, sizeof *a))
             a = NULL;
         if (!guest_pointer(o, sizeof *o))
@@ -245,7 +245,7 @@ void pc_rpc_battle_state(char* out, unsigned size)
             put(&j, "unk6EE", o->unk6EE); put(&j, "unk6EF", o->unk6EF);
             j.p += sprintf(j.p, "\"end\":0},");
         }
-        D_800F45E0_t* q = i < 16 ? D_800F45E0[i] : NULL;
+        D_800F45E0_t* q = i < 16 ? vs_field_gimmickInstances[i] : NULL;
         if (guest_pointer(q, sizeof *q)) {
             j.p += sprintf(j.p, "\"model\":{");
             F(&j, q, unk0); F(&j, q, unk1); F(&j, q, unk12); F(&j, q, unk13); F(&j, q, unk1A); F(&j, q, unk1C);

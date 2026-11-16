@@ -59,7 +59,7 @@ int pc_weapon_slots_get(int weapon_index);                                      
 void* pc_menuC_combine(int kind, void* first, void* second, void* result, void* sydData);
 int pc_menuC_workshop_materials(int w);
 
-extern _mpdRoomDoorSection_t D_800F1AB0; /* the live room (dev_state.c) */
+extern _mpdRoomDoorSection_t vs_field_pendingDestinationDoor; /* the live room (dev_state.c) */
 extern vs_main_HeapHeader heapA;
 
 /* MENUC's text (MENU12.BIN), under our own name */
@@ -518,7 +518,7 @@ int pc_player_workshop(pc_pq_workshop* out)
     if (!out->workshop)
         return 0;
     out->materials = (unsigned)pc_menuC_workshop_materials(out->workshop);
-    location = D_800F1AB0.zndId ? &D_800F1AB0 : &D_80061068;
+    location = vs_field_pendingDestinationDoor.zndId ? &vs_field_pendingDestinationDoor : &vs_state_savedEntryDoor;
     if (pc_game_query_room_names)
         pc_game_query_room_names(location->zndId, location->mpdId, area, sizeof area, out->name, sizeof out->name);
     for (m = 1; m < 8; ++m)

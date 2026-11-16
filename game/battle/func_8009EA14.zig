@@ -8,7 +8,7 @@ const c = @import("c_30DB0");
 /// player 0x44/0x45 by elevation, 0x5B when unk5AC_3 is set, 0x3B in state unkA_3 2; resets its motion state
 /// and starts the animation.
 pub fn func_8009EA14(actorId: c_int, source: ?*v.SVECTOR) callconv(.c) void {
-    const actor = psx.at(v.g.D_800F4538(), actorId).* orelse return;
+    const actor = psx.at(v.g.vs_actors_actorRecords(), actorId).* orelse return;
 
     var animation: c_int = 0x5B;
     if (psx.getBits(actor, "unk5AC_3") == 0) {
@@ -60,7 +60,7 @@ pub fn func_8009EA14(actorId: c_int, source: ?*v.SVECTOR) callconv(.c) void {
     if (psx.getBits(&actor.unk0, "unkA_3") == 2) {
         const pending = psx.getBits(&actor.unk0, "unkC_0");
         if (pending != 0) {
-            c.func_8008C49C(@as(c_int, pending) -% 2, -1);
+            c.vs_field_setMovingPlatformActor(@as(c_int, pending) -% 2, -1);
             psx.setBits(&actor.unk0, "unkC_0", 0);
         }
         animation = 0x3B;
@@ -77,8 +77,8 @@ pub fn func_8009EA14(actorId: c_int, source: ?*v.SVECTOR) callconv(.c) void {
             blend = 8;
         }
     }
-    c.func_800A525C(@ptrCast(actor));
+    c.vs_actors_clearActorMovementRequest(@ptrCast(actor));
     actor.unk6E3 = 0xFF;
-    _ = c.func_800A0204(actorId, animation, 0, blend);
-    c.func_8009FD38(@ptrCast(actor));
+    _ = c.vs_actors_playActorAnimation(actorId, animation, 0, blend);
+    c.vs_actors_headTrackingSpeed(@ptrCast(actor));
 }

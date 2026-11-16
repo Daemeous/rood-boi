@@ -13,62 +13,62 @@ int _loadObjectData(int category, int wepId, int material)
 {
     int _[6] __attribute__((unused));
     int i;
-    D_800F4538_t* temp_s1 = D_800F4538[1];
+    D_800F4538_t* temp_s1 = vs_actors_actorRecords[1];
 
     switch (vs_battle_loadObjectDataState) {
     case 0:
         if (category == 0) {
 
-            func_8009AA84(1);
+            vs_content_releaseWeaponModel(1);
 
             if ((i = wepId) && func_80109320(temp_s1->unk5B1)) {
-                func_8009AA84(0);
-                func_800FA3FC(10);
+                vs_content_releaseWeaponModel(0);
+                vs_menu_frameworkQueueAshleyWeaponAnimations(10);
             }
         } else {
             if (category != temp_s1->unk5B1) {
-                func_800FA3FC(category);
+                vs_menu_frameworkQueueAshleyWeaponAnimations(category);
             }
 
-            func_8009AA84(0);
+            vs_content_releaseWeaponModel(0);
 
-            if (D_800F4594 && func_80109320(category)) {
-                func_8009AA84(1);
+            if (vs_battle_unusedGlobal2 && func_80109320(category)) {
+                vs_content_releaseWeaponModel(1);
             }
         }
 
         _populateDataSlot(wepId, material);
-        func_8009D934(1, 0, 1);
+        vs_actors_setActorWeaponDrawn(1, 0, 1);
 
         ++vs_battle_loadObjectDataState;
         break;
 
     case 1:
         if ((vs_battle_processObjectDataQueue() == 0) && (temp_s1->animationId == 1)) {
-            func_800FA2CC();
+            vs_menu_frameworkResetAshleyEquipmentPose();
 
             ++vs_battle_loadObjectDataState;
         }
         break;
 
     case 2:
-        func_800F9E0C();
-        func_800F9A78(0);
-        func_800F9CB0();
+        vs_menu_frameworkReleaseActorPreview();
+        vs_menu_frameworkCloneActorPreview(0);
+        vs_menu_frameworkResetActorPreviewPose();
 
         temp_s1->unk0.weaponDrawn = 0;
 
-        func_800A0204(1, 1, 0, 0);
+        vs_actors_playActorAnimation(1, 1, 0, 0);
         func_800AFA28(temp_s1, &temp_s1->unkC54, 1);
         vs_main_memcpy(&temp_s1->unk704, &temp_s1->unkC54, sizeof temp_s1->unk704);
 
         for (i = 0; i < 2; ++i) {
-            if (D_800F4590[i] != NULL) {
-                D_800F4590[i]->unk11 = 0;
+            if (vs_battle_unusedGlobal1[i] != NULL) {
+                vs_battle_unusedGlobal1[i]->unk11 = 0;
             }
         }
 
-        func_8009D934(1, 1, 1);
+        vs_actors_setActorWeaponDrawn(1, 1, 1);
 
         ++vs_battle_loadObjectDataState;
         break;

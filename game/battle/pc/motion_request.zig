@@ -6,7 +6,7 @@ const c = @import("c_battle_motion");
 const v = @import("views_battle_motion");
 
 fn objectOf(id: c_int) *v.D_800F4538_t {
-    return v.g.D_800F4538()[@intCast(id)].?;
+    return v.g.vs_actors_actorRecords()[@intCast(id)].?;
 }
 
 /// The u32 at byte 0 or 4 of the request's position pair (unk10: vx and vy, vz and pad).
@@ -19,14 +19,14 @@ fn kind(a: *v.D_800F4538_t) *align(1) c_uint {
     return psx.fieldAt(c_uint, &a.unk1848.unk0, 0);
 }
 
-/// orig: func_800B64A8 (pc/src/battle_motion.c)
+/// orig: vs_actors_setDirectMovement (pc/src/battle_motion.c)
 /// func_800B64CC with c = a, then byte 0x1848 cleared (the kind becomes 0).
 pub fn setMotionRequestParams(id: c_int, a: c_int, b: c_int) callconv(.c) void {
     c.func_800B64CC(id, a, b, a);
     objectOf(id).unk1848.unk0 = 0;
 }
 
-/// orig: func_800B6500 (pc/src/battle_motion.c)
+/// orig: vs_actors_queueGroundOffset (pc/src/battle_motion.c)
 /// Kind 2: the position's two words.
 pub fn setMotionRequestPosition(id: c_int, pos: [*]const c_uint) callconv(.c) void {
     const a = objectOf(id);
@@ -35,7 +35,7 @@ pub fn setMotionRequestPosition(id: c_int, pos: [*]const c_uint) callconv(.c) vo
     kind(a).* = 2;
 }
 
-/// orig: func_800B653C (pc/src/battle_motion.c)
+/// orig: vs_actors_queueFlightMovement (pc/src/battle_motion.c)
 /// Kind 3: `b` in unk8, the low half of `c` in unk6, the position, and
 /// bit 5 of byte 0xA set.
 pub fn setMotionRequestAnimated(id: c_int, pos: [*]const c_uint, b: c_int, cc: c_int) callconv(.c) void {
@@ -48,9 +48,9 @@ pub fn setMotionRequestAnimated(id: c_int, pos: [*]const c_uint, b: c_int, cc: c
     kind(a).* = 3;
 }
 
-/// orig: func_800B6530 (pc/src/battle_motion.c)
-/// func_800B653C with c = b, then the kind word becomes 4.
+/// orig: vs_actors_queueMovementVector (pc/src/battle_motion.c)
+/// vs_actors_queueFlightMovement with c = b, then the kind word becomes 4.
 pub fn setMotionRequestAnimatedTurn(id: c_int, pos: [*]const c_uint, b: c_int) callconv(.c) void {
-    c.func_800B653C(id, @constCast(pos), b, b);
+    c.vs_actors_queueFlightMovement(id, @constCast(pos), b, b);
     kind(objectOf(id)).* = 4;
 }

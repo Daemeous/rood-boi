@@ -90,20 +90,20 @@ static int _teleportMenu(int init)
             ++rowCount;
         }
 
-        if (D_800F4EA0 & TELEPORT_MASK) {
+        if (vs_menu_frameworkActionRestrictions & TELEPORT_MASK) {
             for (i = 0; i < 48; ++i) {
                 rowTypes[i] |= 1;
             }
         }
         if ((rowCount < 9) || (nearestSavePoint < 8)) {
-            D_800F4EE8.cursorMemories[22] = nearestSavePoint;
-            D_800F4EE8.cursorMemories[23] = 0;
+            vs_menu_frameworkMenuMemory.cursorMemories[22] = nearestSavePoint;
+            vs_menu_frameworkMenuMemory.cursorMemories[23] = 0;
         } else if (nearestSavePoint >= (rowCount - 7)) {
-            D_800F4EE8.cursorMemories[22] = nearestSavePoint - (rowCount - 8);
-            D_800F4EE8.cursorMemories[23] = rowCount - 8;
+            vs_menu_frameworkMenuMemory.cursorMemories[22] = nearestSavePoint - (rowCount - 8);
+            vs_menu_frameworkMenuMemory.cursorMemories[23] = rowCount - 8;
         } else {
-            D_800F4EE8.cursorMemories[22] = 3;
-            D_800F4EE8.cursorMemories[23] = nearestSavePoint - 3;
+            vs_menu_frameworkMenuMemory.cursorMemories[22] = 3;
+            vs_menu_frameworkMenuMemory.cursorMemories[23] = nearestSavePoint - 3;
         }
         savePointState = vs_main_settings.cursorMemory;
         vs_main_settings.cursorMemory = 1;
@@ -288,20 +288,20 @@ int vs_menu0_exec(u_char* state)
                 (char*)(_teleportationStrings + VS_teleportation_OFFSET_teleportation);
 
             menuStrings[i * 2 + 1] =
-                (func_8008A4FC() != 0) && (TELEPORT_UNLOCK == 2)
+                (vs_field_currentSavePointId() != 0) && (TELEPORT_UNLOCK == 2)
                     ? (char*)(_teleportationStrings
                               + VS_teleportation_OFFSET_teleportationDisabled)
                     : (char*)(_teleportationStrings
                               + VS_teleportation_OFFSET_teleportationDesc);
 
-            if ((func_8008A4FC() != 0) && (TELEPORT_UNLOCK == 2)) {
+            if ((vs_field_currentSavePointId() != 0) && (TELEPORT_UNLOCK == 2)) {
                 menuStrings[i * 2 + 1] =
                     (char*)(_teleportationStrings
                             + VS_teleportation_OFFSET_teleportationDisabled);
             }
 
             rowTypes[i++] =
-                ((j == 48) || (TELEPORT_UNLOCK == 2) || (func_8008A4FC() == 0)
+                ((j == 48) || (TELEPORT_UNLOCK == 2) || (vs_field_currentSavePointId() == 0)
 #ifdef ROOD_PC
                     || pc_fast_travel_blocked() /* the port's rules (fast_travel.c) */
 #endif
@@ -382,7 +382,7 @@ int vs_menu0_exec(u_char* state)
         }
 
         if (i > 0) {
-            D_800F4E98.executeAbility.s32 = i;
+            vs_menu_frameworkActionSelection.executeAbility.s32 = i;
             vs_battle_menuState.executeAbilityType = 6;
             *state = executeMagic;
         } else {
@@ -413,7 +413,7 @@ int vs_menu0_exec(u_char* state)
         }
 
         if (i > 0) {
-            D_800F4E98.executeAbility.s32 = i;
+            vs_menu_frameworkActionSelection.executeAbility.s32 = i;
             vs_battle_menuState.executeAbilityType = 8;
             *state = executeMagic;
         } else {
@@ -444,7 +444,7 @@ int vs_menu0_exec(u_char* state)
         }
 
         if (i > 0) {
-            D_800F4E98.executeAbility.s32 = i;
+            vs_menu_frameworkActionSelection.executeAbility.s32 = i;
             vs_battle_menuState.executeAbilityType = 10;
             *state = executeMagic;
         } else {
@@ -475,7 +475,7 @@ int vs_menu0_exec(u_char* state)
         }
 
         if (i > 0) {
-            D_800F4E98.executeAbility.s32 = i;
+            vs_menu_frameworkActionSelection.executeAbility.s32 = i;
             vs_battle_menuState.executeAbilityType = 12;
             *state = executeMagic;
         } else {
@@ -496,8 +496,8 @@ int vs_menu0_exec(u_char* state)
         }
 
         if (i > 0) {
-            D_800F4E98.unk2 = 0xA;
-            D_800F4E98.executeAbility.s32 = i - 1;
+            vs_menu_frameworkActionSelection.unk2 = 0xA;
+            vs_menu_frameworkActionSelection.executeAbility.s32 = i - 1;
             *state = exit;
         } else {
             if (i == -2) {
@@ -522,7 +522,7 @@ int vs_menu0_exec(u_char* state)
 
     case executeMagic:
         if (vs_mainmenu_ready() != 0) {
-            D_800F4E98.unk2 = 7;
+            vs_menu_frameworkActionSelection.unk2 = 7;
             vs_battle_menuState.returnState = vs_battle_menuState.currentMenu;
             vs_battle_menuState.currentMenu = 1;
             *state = none;

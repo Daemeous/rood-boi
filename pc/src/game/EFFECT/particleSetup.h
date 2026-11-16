@@ -59,7 +59,7 @@ void VS_PARTICLE_ORIGIN_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* a
     case 0:
         break;
     case 1:
-        vs_battle_addVecToSvec(&arg1->unk98, D_800F5310, &arg1->unk98);
+        vs_battle_addVecToSvec(&arg1->unk98, vs_effects_effectOrigin, &arg1->unk98);
         break;
     case 2:
         arg1->unk98.vx += temp_s0->t[0];
@@ -275,9 +275,9 @@ void VS_PARTICLE_TARGET_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* a
         arg1->unk13C.vz += arg2->unk1C[arg0->unkC9].unk38.t[2];
         break;
     case 0x80:
-        arg1->unk13C.vx += D_800F5230.unkE0.vx;
-        arg1->unk13C.vy += D_800F5230.unkE0.vy;
-        arg1->unk13C.vz += D_800F5230.unkE0.vz;
+        arg1->unk13C.vx += vs_effects_actionRequest.unkE0.vx;
+        arg1->unk13C.vy += vs_effects_actionRequest.unkE0.vy;
+        arg1->unk13C.vz += vs_effects_actionRequest.unkE0.vz;
         break;
     case 0:
         break;

@@ -946,18 +946,18 @@ void pc_ctr_build_actions(const pc_ctr* c, int var_s4, int row, pc_ctr_actions* 
 /* ---- sorts (1279-1606) ---- */
 
 static const char sort_weapons[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
-    23 };                                                             /* D_80109970 */
-static const char sort_grips[] = { 0, 8, 9, 10, 24, 25, 26 };          /* D_80109988 */
+    23 };                                                             /* vs_menu_containerWeaponSortStats */
+static const char sort_grips[] = { 0, 8, 9, 10, 24, 25, 26 };          /* vs_menu_containerGripSortStats */
 static const char sort_shields[] = { 1, 4, 5, 6, 7, 8, 9, 10, 40, 41, 42, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37,
-    38, 39 };                                                         /* D_80109990 */
+    38, 39 };                                                         /* vs_menu_containerShieldSortStats */
 static const char sort_armor[] = { 0, 1, 4, 5, 8, 9, 10, 40, 41, 42, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
-    39 };                                                             /* D_801099A8 */
-static const char sort_gems[] = { 8, 9, 10, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39 }; /* D_801099C0 */
-static const char sort_misc[] = { 0, 56 };                            /* D_801099D0 */
+    39 };                                                             /* vs_menu_containerArmorSortStats */
+static const char sort_gems[] = { 8, 9, 10, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39 }; /* vs_menu_containerGemSortStats */
+static const char sort_misc[] = { 0, 56 };                            /* vs_menu_containerMiscSortStats */
 static const char sort_counts[] = { sizeof sort_weapons, sizeof sort_weapons, sizeof sort_grips, sizeof sort_shields,
-    sizeof sort_armor, sizeof sort_gems, sizeof sort_misc };          /* D_801099D4 */
+    sizeof sort_armor, sizeof sort_gems, sizeof sort_misc };          /* vs_menu_containerSortStatCounts */
 static const char* const sort_lists[] = { sort_weapons, sort_weapons, sort_grips, sort_shields, sort_armor, sort_gems,
-    sort_misc };                                                      /* D_801099DC */
+    sort_misc };                                                      /* vs_menu_containerSortStatLists */
 
 int pc_ctr_sort_stats(int category, const char** stats)
 {

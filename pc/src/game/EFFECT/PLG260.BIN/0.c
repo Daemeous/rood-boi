@@ -4,6 +4,6 @@
 #include <libgte.h>
 
 #define VS_MESH10_FUNCTION func_800F9800
-#define VS_MESH10_VERTICES D_800FA32C
-#define VS_MESH10_FACES D_800FA37C
+#define VS_MESH10_VERTICES vs_effects_plg260Mesh10Vertices
+#define VS_MESH10_FACES vs_effects_plg260Mesh10Faces
 #include "pc/src/game/EFFECT/meshes10.h"

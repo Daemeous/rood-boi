@@ -14,7 +14,7 @@ pub fn setTextBox(boxId: c_int, str: [*c]u8) callconv(.c) c_int {
         box.unk4 = 0;
         box.prevChunksPrinted = 0;
         if ((@as(c_int, psx.getBits(&box.unk0, "unk0_24")) & 0x20) == 0) {
-            _ = c.func_800AAD4C(
+            _ = c.vs_actors_setTextureAnimation(
                 @as(c_int, psx.getBits(&box.unk0, "unk0_24")),
                 0,
                 @as(c_int, box.unk2E) + 1,

@@ -32,44 +32,44 @@ typedef struct {
     short unk18[4];
 } func_800C0FA8_t2;
 
-int func_800C1034(func_800C1564_t* arg0, u_short* arg1);
-int func_800C123C(func_800C1564_t* arg0, u_short* arg1, int arg2);
-int func_800C1384(func_800C1564_t* arg0, u_short* arg1, int arg2);
+int vs_battle_isPointInTargetEllipsoid(func_800C1564_t* arg0, u_short* arg1);
+int vs_battle_isPointInTargetCone(func_800C1564_t* arg0, u_short* arg1, int arg2);
+int vs_battle_isPointInTargetPrism(func_800C1564_t* arg0, u_short* arg1, int arg2);
 void func_800C1DC4(D_800EB9B8_unk990* arg0);
 void func_800C20B4(void);
 void func_800C253C(int type);
-void func_800C02A8(void);
+void vs_render_loadFrameViewMatrix(void);
 MATRIX* func_800C085C(u_char* scale, int angle);
-void func_800C0B50(func_800C1564_t* shape, int color);
+void vs_battle_drawSphereVolumeWireframe(func_800C1564_t* shape, int color);
 int func_800C0758(int phase, int segments, int index);
 int func_800C2368(int step, int radius, int index);
 
 extern short D_800EA234[];
 extern short D_800EA2C4[];
-extern u_char D_800EA438[];
-extern u_short D_800EA46C[];
-extern int D_800EA670[];
-extern int D_800EA684[];
-extern int D_800EA698[];
-extern u_char D_800EA6AC;
+extern u_char vs_battle_sphereShapeCommandStarts[];
+extern u_short vs_battle_sphereWireframeCommands[];
+extern int vs_battle_positionCursorSpriteOffsets[];
+extern int vs_battle_positionCursorSpriteSizes[];
+extern int vs_battle_positionCursorSpriteTexCoords[];
+extern u_char vs_battle_positionCursorBlinkFrame;
 
-extern D_800EB9B8_t* D_800EB9B8;
+extern D_800EB9B8_t* vs_battle_targetSphere;
 
 void func_800C0D78(void);
 
-void func_800C0FA8(func_800C1564_t* arg0, func_800C0FA8_t2* arg1, MATRIX* arg2);
+void vs_battle_buildTargetVolumeTestTransform(func_800C1564_t* arg0, func_800C0FA8_t2* arg1, MATRIX* arg2);
 
-int func_800C1034(func_800C1564_t* arg0, u_short* arg1);
+int vs_battle_isPointInTargetEllipsoid(func_800C1564_t* arg0, u_short* arg1);
 
-int func_800C110C(func_800C1564_t* arg0, u_short* arg1, int arg2);
+int vs_battle_isPointInTargetCylinder(func_800C1564_t* arg0, u_short* arg1, int arg2);
 
-int func_800C123C(func_800C1564_t* arg0, u_short* arg1, int arg2);
+int vs_battle_isPointInTargetCone(func_800C1564_t* arg0, u_short* arg1, int arg2);
 
-int func_800C1384(func_800C1564_t* shape, u_short* position, int angled);
+int vs_battle_isPointInTargetPrism(func_800C1564_t* shape, u_short* position, int angled);
 
-int func_800C1564(func_800C1564_t* arg0, u_short* arg1);
+int vs_battle_isPointInTargetVolume(func_800C1564_t* arg0, u_short* arg1);
 
-void func_800C1664(int arg0, void* arg1, int arg2);
+void vs_battle_setSphereTargets(int arg0, void* arg1, int arg2);
 
 void func_800C16DC(void);
 
@@ -79,7 +79,7 @@ void func_800C1A40(int x0, int x1, int count);
 
 int func_800C1D84(void);
 
-extern u_char D_800F4CB4;
+extern u_char vs_battle_targetColumnTopOffset;
 
 void func_800C1DC4(D_800EB9B8_unk990* arg0);
 
@@ -96,9 +96,9 @@ void* func_800C282C(void);
 void func_800C28AC(SVECTOR* position, int arg1);
 
 int _getCollisionMapDimensions(int arg0);
-int func_800FA188(int x, int z, int* offset);
-int func_800A91DC(int, int, int);
-int func_8008DDA8(int x, int z);
+int vs_field_measureTileStack(int x, int z, int* offset);
+int vs_field_findTopGimmickAtTile(int, int, int);
+int vs_field_floorAndCeilingHeightsAt(int x, int z);
 
 void func_800C2B0C(u_short* position, u_int row);
 

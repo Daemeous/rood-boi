@@ -8,7 +8,7 @@ const c = @import("c_146C");
 /// Returns a spell's damage factor: the hit's HP plus MP, times its stat factor, over 10; 0 unless the action is a spell whose hit effect matches.
 pub fn factorMagicDamageReceivedOfType(action: ?*v.vs_action_t, _: ?*v._hitEntity_t, _: ?*v._hitEntity_t, arg3: c_int, _: c_int) callconv(.c) c_short {
     var a2: c_short = 0;
-    const d = v.g.D_800F19CC().*.?;
+    const d = v.g.vs_battle_actionState().*.?;
 
     // vs_main_actions[actionIndex] is not bounds-checked by the C: psx.at keeps that.
     const actionType: c_int = psx.getBits(psx.at(v.g.actions(), d.unk8.actionIndex), "type");

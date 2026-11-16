@@ -55,8 +55,8 @@ static int _getItemIndex(int itemCategory, int itemId)
 {
     // Actually accesses struct at unk3A, might originally have been raw
     // pointer manipulation.
-    D_800F4EE8.cursorMemories[(itemCategory + 30) * 2] = 0;
-    D_800F4EE8.cursorMemories[(itemCategory + 30) * 2 + 1] = itemId;
+    vs_menu_frameworkMenuMemory.cursorMemories[(itemCategory + 30) * 2] = 0;
+    vs_menu_frameworkMenuMemory.cursorMemories[(itemCategory + 30) * 2 + 1] = itemId;
     return vs_mainMenu_inventoryIndices[itemCategory][itemId];
 }
 

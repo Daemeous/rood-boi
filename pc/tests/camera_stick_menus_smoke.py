@@ -46,7 +46,7 @@ from checkpoints import launch_at  # noqa: E402
 
 # The game's state the stick must not touch (symbol, bytes). The camera's own
 # values (vs_battle_cameraCurrentSpherical, the scratch camera) are left out.
-GAME_STATE = [("D_800F196C", 4), ("_cameraMode", 4), ("vs_battle_menuState", 8), ("D_800F4E98", 0x50),
+GAME_STATE = [("D_800F196C", 4), ("_cameraMode", 4), ("vs_battle_menuState", 8), ("vs_menu_frameworkActionSelection", 0x50),
               ("vs_battle_submenuStates", 16), ("vs_battle_submenuState", 4), ("vs_battle_textBoxes", 0x200),
               ("vs_battle_textBoxStatuses", 0x40), ("textBoxSelector", 4), ("vs_main_gametime", 4),
               ("vs_gametime_tickspeed", 4), ("randArr", 0x184), ("randIndex", 4), ("vs_main_inventory", 0xF00),

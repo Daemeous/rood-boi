@@ -26,11 +26,11 @@ int vs_menu9_loadZud(int zudId)
         break;
 
     case 2:
-        func_800F9CB0();
+        vs_menu_frameworkResetActorPreviewPose();
 
-        D_800F4538[1]->unk0.weaponDrawn = 1;
+        vs_actors_actorRecords[1]->unk0.weaponDrawn = 1;
 
-        func_800A0204(1, 1, 0, 0);
+        vs_actors_playActorAnimation(1, 1, 0, 0);
 
         vs_battle_loadObjectDataState = 0;
         return 0;
@@ -41,19 +41,19 @@ int vs_menu9_loadZud(int zudId)
 
 void vs_menu9_freeZud(void)
 {
-    func_8009CFB0(1);
-    func_8009CFB0(16);
+    vs_content_releaseActorModel(1);
+    vs_content_releaseActorModel(16);
     vs_menu9_freeZudFile();
 }
 
 void func_801080C8(void)
 {
-    D_800F4538_t* p = D_800F4538[1];
+    D_800F4538_t* p = vs_actors_actorRecords[1];
 
     p->animationId = 33;
     p->unk0.weaponDrawn = 0;
 
-    func_800AD008(p, &p->unk704);
-    func_800A087C(1, 3);
+    vs_actors_initializeActorAnimationPose(p, &p->unk704);
+    vs_actors_setActorDisplayFlags(1, 3);
     func_8009F940(1, 0, NULL, NULL);
 }

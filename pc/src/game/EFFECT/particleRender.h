@@ -68,9 +68,9 @@ void VS_PARTICLE_RENDER_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* a
         view = vs_gte_view_of(&vs_view.viewMatrix, vs_gte_screen_current());
     }
 
-    func_800D6D24(&arg3->unk10);
+    vs_effects_advanceTextureAnimation(&arg3->unk10);
 
-    texture = &D_800F569C->block1Data[arg3->unk10.unk1C->dataIndex];
+    texture = &vs_effects_package->block1Data[arg3->unk10.unk1C->dataIndex];
 
     for (particleIndex = 0; particleIndex < arg3->unk2; ++particleIndex) {
 

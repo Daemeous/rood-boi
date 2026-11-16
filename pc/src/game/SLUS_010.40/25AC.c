@@ -65,7 +65,7 @@ typedef struct {
     int unk14;
 } D_800378C0_t;
 
-// Streaming state for func_80012F10 (instrument bank uploaded in chunks)
+// Streaming state for vs_audio_samplesUploadBankChunk (instrument bank uploaded in chunks)
 typedef struct {
     int* pInstrumentDst; // next g_InstrumentInfo word to fill
     int SpuAddr; // next SPU transfer address; 0 = start a new stream
@@ -77,7 +77,7 @@ typedef struct {
 
 // A field-music sequence queued by sound command 0x14 (guest address), started
 // once the active music stops. Only this word is used; D_80037790 (the
-// parameters func_80018C30 queues with a command) starts 8 bytes on.
+// parameters vs_audio_mixerDispatchCommand queues with a command) starts 8 bytes on.
 typedef struct {
     u_int PendingSequence;
 } D_80037788_t;
@@ -85,17 +85,17 @@ typedef struct {
 typedef void (*FSoundCommandHandler)(FSoundCommandParams*);
 
 static int Sound_IsNotAkaoFile(int*);
-int func_80013588(void*, int);
-int func_800135D8(void*, int, int, int);
-void func_8001369C(void);
+int vs_audio_samplesLoadDeclaredBank(void*, int);
+int vs_audio_samplesUploadBank(void*, int, int, int);
+void vs_audio_driverResetPlaybackState(void);
 static void StartSound(void);
 static void SetVoiceKeyOff(u_int);
 void Sound_EvictSfxVoice(int, int);
-void func_8001653C(FSoundChannel*, FSoundCommandParams*, int, char*);
+void vs_audio_soundEffectsStartChannelProgram(FSoundChannel*, FSoundCommandParams*, int, char*);
 void Sound_PlaySfxProgram(FSoundCommandParams*, char*, char*, int);
-int func_80016DA8(int);
-u_int func_80018C30(u_int);
-psx_long func_80019A58(void);
+int vs_audio_samplesSoundEffectBankSlot(int);
+u_int vs_audio_mixerDispatchCommand(u_int);
+psx_long vs_audio_seqTickPlayback(void);
 static void StopSound(void);
 static void _writeSpu(char* data, u_int len);
 static void _waitTransferAvailable(void);
@@ -111,18 +111,18 @@ void Sound_Cutscene_OnBufferBComplete(void);
 void IRQCallbackProc(void);
 void Sound_LoadAkaoSequence(FAkaoSequence* in_Sequence);
 void Sound_SetMusicSequence(FAkaoSequence* in_Sequence, int in_SwapWithSavedState);
-void func_80015BAC(void);
-void func_80015970(int* out_VoiceMask, int in_SavedChannelMask, int in_ActiveChannelMask,
+void vs_audio_seqReleaseSavedVoiceConflicts(void);
+void vs_audio_mixerBuildVoiceModeMask(int* out_VoiceMask, int in_SavedChannelMask, int in_ActiveChannelMask,
     int in_ExtraVoiceMask);
 void Sound_memcpy32(void* in_Src, void* in_Dst, u_int in_Size);
 void UpdateCdVolume(void);
-int func_8001A1F4(int, int);
-int func_8001A22C(int, u_int);
+int vs_audio_seqResolveSoundEffectInstrument(int, int);
+int vs_audio_seqResolveMusicInstrument(int, u_int);
 void Sound_CopyInstrumentInfoToChannel(FSoundChannel*, FSoundInstrumentInfo*, int);
-void func_8001A8D8(FSoundChannel*, int);
+void vs_audio_seqExecuteChannelStep(FSoundChannel*, int);
 void Sound_SetReverbMode(int in_ReverbMode);
 
-void func_80015220();
+void vs_audio_mixerCommitPlaybackVoices();
 
 extern int _soundEvent;
 extern char _soundFlush[64];
@@ -133,35 +133,35 @@ extern u_int* g_Sound_SfxProgramOffsets;
 extern u_short* g_Sound_SfxMetadataTable;
 extern char* g_Sound_SfxProgramData;
 extern int D_800378A0;
-D_800378C0_t D_800378C0;
-extern int D_800378E4;
+D_800378C0_t vs_audio_driverCommandArguments;
+extern int vs_audio_mixerMutedMusicChannels;
 extern char _spuMemInfo;
 extern volatile int _isSpuTransfer;
 /* Defined here (LP64): the channels and configs mix words with pointers, so they cannot be imports. */
-/* The 12 sound channels are one array: the game indexes it as D_80035910[0..11] and
- * as SfxSoundChannels[-10..1] (SfxSoundChannels = D_80035910 + 10). */
-FSoundChannel D_80035910[12];
+/* The 12 sound channels are one array: the game indexes it as vs_audio_soundEffectsChannels[0..11] and
+ * as SfxSoundChannels[-10..1] (SfxSoundChannels = vs_audio_soundEffectsChannels + 10). */
+FSoundChannel vs_audio_soundEffectsChannels[12];
 extern int D_80039AFC;
 extern int g_Sound_CdVolumeFadeStep;
 extern short g_Sound_CdVolumeFadeLength;
 extern int g_CdVolume;
-extern short D_800378E2;
+extern short vs_audio_seqDiscVolumeLevel;
 extern char D_8002F66C[];
 extern int D_800378D4;
 extern char D_80039AF2;
-extern int D_8002F548;
-extern u_short D_8002F54C;
-extern int D_8002F550[];
+extern int vs_audio_driverRecentTickCostTotal;
+extern u_short vs_audio_seqTickCounter;
+extern int vs_audio_driverRecentTickCosts[];
 extern D_80037788_t D_80037788;
 extern int D_80037898;
 extern int D_8003789C;
 extern int D_80039B00;
-extern u_int D_8002F63C[];
-extern int D_80039BCC;
-D_80039BC8_t D_80039BC8;
+extern u_int vs_audio_seqSemitonePitches[];
+extern int vs_audio_samplesBankStreamDestination;
+D_80039BC8_t vs_audio_samplesBankStream;
 extern int D_80037850[16];
 extern FSoundCommandParams D_80037790;
-extern FSoundCommandHandler D_800301E0[];
+extern FSoundCommandHandler vs_audio_mixerCommandHandlers[];
 
 extern FSoundChannelConfig* g_pActiveMusicConfig;
 extern FSoundVoiceSchedulerState g_Sound_VoiceSchedulerState;
@@ -194,23 +194,23 @@ const unsigned pc_sound_stream_offset_voices = __builtin_offsetof(FSoundCutscene
 const unsigned pc_sound_stream_offset_pages = __builtin_offsetof(FSoundCutsceneStreamState, TotalPages);
 extern u_int g_Sound_ProgramCounter;
 extern FSoundChannelConfig* g_Sound_VoiceChannelConfigs[VOICE_COUNT];
-#define SfxSoundChannels (D_80035910 + 10)
+#define SfxSoundChannels (vs_audio_soundEffectsChannels + 10)
 extern volatile int g_bSpuTransferring;
 #define SPU_PAN_TABLE_SIZE (0x100)
 #define PAN_CENTER_INDEX (SPU_PAN_TABLE_SIZE / 2)
 extern short g_Sound_StereoPanGainTableQ15[SPU_PAN_TABLE_SIZE];
-extern short D_8002F89C;
+extern short vs_audio_mixerCenterPanGain;
 FSoundChannelConfig g_PushedMusicConfig;
 extern u_int g_Music_LoopCounter;
-FSoundChannelConfig D_800366F0;
-FSoundChannel D_800378E8[32]; /* 32 channels */
+FSoundChannelConfig vs_audio_seqPrimaryMusicConfig;
+FSoundChannel vs_audio_seqSavedMusicChannels[32]; /* 32 channels */
 extern FSoundInstrumentInfo g_InstrumentInfo[256];
 extern short* g_Sound_LfoTable[];
 extern FSoundCommandParams D_80037800;
-extern int D_80036778;
-extern int D_8003677C;
-extern short D_80036780;
-extern short D_80036782;
+extern int vs_audio_mixerMusicPitchScaleStep;
+extern int vs_audio_mixerTempoScaleStep;
+extern short vs_audio_mixerMusicPitchScaleSlideLength;
+extern short vs_audio_mixerTempoScaleSlideLength;
 extern int g_Sound_MasterPitchScaleQ16_16;
 extern int g_Sound_TempoMultiplier;
 extern int g_Sound_LfoPhase;
@@ -245,7 +245,7 @@ int Sound_BindAkaoSfxBlob(void* in_Blob)
     return notAkao;
 }
 
-int func_80011E40(void)
+int vs_audio_playbackActivePlaybackFlags(void)
 {
     int var_v1 = g_pActiveMusicConfig->ActiveChannelMask != 0;
     if (g_pSavedMousicConfig != NULL) {
@@ -265,7 +265,7 @@ int func_80011E40(void)
     return var_v1;
 }
 
-int func_80011EBC(u_int arg0)
+int vs_audio_playbackMusicVolume(u_int arg0)
 {
     FSoundChannelConfig* var_v1 = g_pActiveMusicConfig;
     int var_a1 = 0;
@@ -278,24 +278,24 @@ int func_80011EBC(u_int arg0)
     return var_a1;
 }
 
-int func_80011F08(void)
+int vs_audio_playbackPackedMusicSampleBankIds(void)
 {
     return (u_short)D_80036770.unk0 | ((u_short)D_80036770.unk4 << 0x10);
 }
 
-int func_80011F24(int arg0)
+int vs_audio_playbackLongestMusicFade(int arg0)
 {
     int var_a1 = 0;
     if (arg0 & 1) {
         var_a1 = g_pActiveMusicConfig->unk68;
     }
     if (arg0 & 2) {
-        if (var_a1 < D_80036782) {
-            var_a1 = D_80036782;
+        if (var_a1 < vs_audio_mixerTempoScaleSlideLength) {
+            var_a1 = vs_audio_mixerTempoScaleSlideLength;
         }
     }
-    if ((arg0 & 4) && (var_a1 < D_80036780)) {
-        var_a1 = D_80036780;
+    if ((arg0 & 4) && (var_a1 < vs_audio_mixerMusicPitchScaleSlideLength)) {
+        var_a1 = vs_audio_mixerMusicPitchScaleSlideLength;
     }
     return var_a1;
 }
@@ -308,96 +308,96 @@ int func_80011F90(void)
     return top;
 }
 
-u_int func_80011FB4(void* arg0)
+u_int vs_audio_playbackStartMusic(void* arg0)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-    return func_80018C30(0x10);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+    return vs_audio_mixerDispatchCommand(0x10);
 }
 
-void func_80011FDC(u_int arg0)
+void vs_audio_playbackStopMusic(u_int arg0)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-    func_80018C30(0x11);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+    vs_audio_mixerDispatchCommand(0x11);
 }
 
-void func_80012004(void) { func_80018C30(0x40); }
+void vs_audio_playbackSaveMusicState(void) { vs_audio_mixerDispatchCommand(0x40); }
 
-int func_80012024(void)
+int vs_audio_playbackInvalidateSavedMusicId(void)
 {
     g_PushedMusicConfig.MusicId = 0;
     return 0;
 }
 
-void func_8001286C(u_long, int);
+void vs_audio_controlSetMusicVolume(u_long, int);
 
-u_int func_80012034(void* arg0, int arg1)
+u_int vs_audio_playbackStartLayeredMusic(void* arg0, int arg1)
 {
     u_int temp_v0;
 
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-    temp_v0 = func_80018C30(0x19);
-    func_8001286C(temp_v0, arg1);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+    temp_v0 = vs_audio_mixerDispatchCommand(0x19);
+    vs_audio_controlSetMusicVolume(temp_v0, arg1);
     return temp_v0;
 }
 
-u_int func_80012080(void* arg0, u_int arg1, int arg2)
+u_int vs_audio_playbackCrossfadeMusic(void* arg0, u_int arg1, int arg2)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-    D_800378C0.unk4 = arg1;
-    D_800378C0.unk8 = arg2 & 0x7F;
-    return func_80018C30(0x1A);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+    vs_audio_driverCommandArguments.unk4 = arg1;
+    vs_audio_driverCommandArguments.unk8 = arg2 & 0x7F;
+    return vs_audio_mixerDispatchCommand(0x1A);
 }
 
-void func_800120B8(void* arg0, int arg1)
+void vs_audio_playbackStartMusicAtLoop(void* arg0, int arg1)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-    D_800378C0.unk4 = arg1;
-    func_80018C30(0x12);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+    vs_audio_driverCommandArguments.unk4 = arg1;
+    vs_audio_mixerDispatchCommand(0x12);
 }
 
-u_int func_800120E8(void* arg0)
+u_int vs_audio_playbackQueueMusicTransition(void* arg0)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-    return func_80018C30(0x14);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+    return vs_audio_mixerDispatchCommand(0x14);
 }
 
-void* func_80012110(void* arg0, int arg1)
+void* vs_audio_playbackStartMusicPair(void* arg0, int arg1)
 {
     u_long v0;
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-    D_800378C0.unk4 = arg1;
-    func_80018C30(0x16);
-    v0 = D_800378C0.unk4 << 0x10;
-    v0 += (u_long)((unsigned long)(D_800378C0.unk0));
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+    vs_audio_driverCommandArguments.unk4 = arg1;
+    vs_audio_mixerDispatchCommand(0x16);
+    v0 = vs_audio_driverCommandArguments.unk4 << 0x10;
+    v0 += (u_long)((unsigned long)(vs_audio_driverCommandArguments.unk0));
     return psx_to_ptr(void*, v0);
 }
 
-void func_8001215C(void) { func_80018C30(0x17); }
+void func_8001215C(void) { vs_audio_mixerDispatchCommand(0x17); }
 
-int func_8001217C(u_long arg0, int arg1, int arg2, int arg3)
+int vs_audio_playbackPlaySoundEffect(u_long arg0, int arg1, int arg2, int arg3)
 {
     int temp_s0 = g_Sound_SfxProgramOffsets[arg0 & 0x3FF];
     if (temp_s0 != -1) {
-        D_800378C0.unk0 = (__UINTPTR_TYPE__)((arg0 & 0x3FF));
-        D_800378C0.unk4 = arg1 & 0xFFFFFF;
-        D_800378C0.unk8 = arg2 & 0xFF;
-        D_800378C0.unkC = arg3 & 0x7F;
-        func_80018C30(0x20);
+        vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)((arg0 & 0x3FF));
+        vs_audio_driverCommandArguments.unk4 = arg1 & 0xFFFFFF;
+        vs_audio_driverCommandArguments.unk8 = arg2 & 0xFF;
+        vs_audio_driverCommandArguments.unkC = arg3 & 0x7F;
+        vs_audio_mixerDispatchCommand(0x20);
     }
     return temp_s0;
 }
 
-int func_800121F0(void* arg0, int arg1, int arg2, int arg3)
+int vs_audio_playbackPlaySoundEffectBlob(void* arg0, int arg1, int arg2, int arg3)
 {
     void* var_v0;
 
     var_v0 = (void*)-1;
     if (Sound_IsNotAkaoFile(arg0) == 0) {
-        D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-        D_800378C0.unk4 = (int)(arg1 & 0xFFFFFF);
-        D_800378C0.unk8 = (int)(arg2 & 0xFF);
-        D_800378C0.unkC = (int)(arg3 & 0x7F);
-        func_80018C30(0x24);
+        vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+        vs_audio_driverCommandArguments.unk4 = (int)(arg1 & 0xFFFFFF);
+        vs_audio_driverCommandArguments.unk8 = (int)(arg2 & 0xFF);
+        vs_audio_driverCommandArguments.unkC = (int)(arg3 & 0x7F);
+        vs_audio_mixerDispatchCommand(0x24);
         var_v0 = arg0;
     }
 #ifdef ROOD_PC_LP64
@@ -407,20 +407,20 @@ int func_800121F0(void* arg0, int arg1, int arg2, int arg3)
 #endif
 }
 
-void func_80012288(u_long arg0, int arg1)
+void vs_audio_playbackStopSoundEffects(u_long arg0, int arg1)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-    D_800378C0.unk4 = arg1 & 0xFFFFFF;
-    func_80018C30(0x21);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+    vs_audio_driverCommandArguments.unk4 = arg1 & 0xFFFFFF;
+    vs_audio_mixerDispatchCommand(0x21);
 }
 
-void func_800122C4(u_long arg0)
+void vs_audio_playbackPlayInterfaceSound(u_long arg0)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)((arg0 & 0x3FF));
-    func_80018C30(0x30);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)((arg0 & 0x3FF));
+    vs_audio_mixerDispatchCommand(0x30);
 }
 
-int func_800122F0(void)
+int vs_audio_playbackActiveSoundEffectTags(void)
 {
     FSoundChannel* var_a1;
     int var_a0;
@@ -432,7 +432,7 @@ int func_800122F0(void)
         return 0;
     }
 
-    var_a1 = D_80035910;
+    var_a1 = vs_audio_soundEffectsChannels;
     var_a0 = 0;
     var_v1 = 0x1000;
 
@@ -447,7 +447,7 @@ int func_800122F0(void)
     return var_a0 & 0xFFFFFF;
 }
 
-int func_80012358(int arg0)
+int vs_audio_playbackSoundEffectIdForTag(int arg0)
 {
     FSoundChannel* var_a1;
     int var_v1;
@@ -479,56 +479,56 @@ int func_800123C8(vs_main_sfxContext* arg0)
 void vs_sound_setMonoSound(int arg0)
 {
     if (arg0 == 1) {
-        func_80018C30(0x81);
+        vs_audio_mixerDispatchCommand(0x81);
     } else {
-        func_80018C30(0x80);
+        vs_audio_mixerDispatchCommand(0x80);
     }
 }
 
-void func_80012440(void* arg0)
+void vs_audio_controlSetMusicMuteMask(void* arg0)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-    func_80018C30(0x90);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+    vs_audio_mixerDispatchCommand(0x90);
 }
 
-void func_80012468(void* arg0)
+void vs_audio_controlSetMusicBranchThreshold(void* arg0)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-    func_80018C30(0x92);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+    vs_audio_mixerDispatchCommand(0x92);
 }
 
-void func_80012490(u_int arg0)
+void vs_audio_controlPausePlaybackGroup(u_int arg0)
 {
     switch (arg0) {
     case 1:
-        func_80018C30(0x9B);
+        vs_audio_mixerDispatchCommand(0x9B);
         break;
     case 2:
-        func_80018C30(0x9D);
+        vs_audio_mixerDispatchCommand(0x9D);
         break;
     case 3:
-        func_80018C30(0x9F);
+        vs_audio_mixerDispatchCommand(0x9F);
         break;
     default:
-        func_80018C30(0x99);
+        vs_audio_mixerDispatchCommand(0x99);
         break;
     }
 }
 
-void func_800124FC(u_int arg0)
+void vs_audio_controlResumePlaybackGroup(u_int arg0)
 {
     switch (arg0) {
     case 1:
-        func_80018C30(0x9A);
+        vs_audio_mixerDispatchCommand(0x9A);
         break;
     case 2:
-        func_80018C30(0x9C);
+        vs_audio_mixerDispatchCommand(0x9C);
         break;
     case 3:
-        func_80018C30(0x9E);
+        vs_audio_mixerDispatchCommand(0x9E);
         break;
     default:
-        func_80018C30(0x98);
+        vs_audio_mixerDispatchCommand(0x98);
         break;
     }
 }
@@ -543,217 +543,217 @@ int func_80012568(int arg0)
     return 0;
 }
 
-void func_800125A8(u_long arg0)
+void vs_audio_controlSetSceneSoundEffectVolume(u_long arg0)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)((arg0 & 0x7F));
-    func_80018C30(0xA8);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)((arg0 & 0x7F));
+    vs_audio_mixerDispatchCommand(0xA8);
 }
 
-void func_800125D4(void* arg0, int arg1)
+void vs_audio_controlFadeSceneSoundEffectVolume(void* arg0, int arg1)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-    D_800378C0.unk4 = arg1 & 0x7F;
-    func_80018C30(0xA9);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+    vs_audio_driverCommandArguments.unk4 = arg1 & 0x7F;
+    vs_audio_mixerDispatchCommand(0xA9);
 }
 
-void func_80012608(void* arg0, int arg1, int arg2)
+void vs_audio_controlSetSoundEffectVolume(void* arg0, int arg1, int arg2)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-    D_800378C0.unk4 = arg1 & 0xFFFFFF;
-    D_800378C0.unk8 = arg2 & 0x7F;
-    func_80018C30(0xA0);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+    vs_audio_driverCommandArguments.unk4 = arg1 & 0xFFFFFF;
+    vs_audio_driverCommandArguments.unk8 = arg2 & 0x7F;
+    vs_audio_mixerDispatchCommand(0xA0);
 }
 
-void func_8001264C(int arg0, int arg1, int arg2, int arg3)
+void vs_audio_controlFadeSoundEffectVolume(int arg0, int arg1, int arg2, int arg3)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-    D_800378C0.unk4 = arg1 & 0xFFFFFF;
-    D_800378C0.unk8 = arg2;
-    D_800378C0.unkC = arg3 & 0x7F;
-    func_80018C30(0xA1);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+    vs_audio_driverCommandArguments.unk4 = arg1 & 0xFFFFFF;
+    vs_audio_driverCommandArguments.unk8 = arg2;
+    vs_audio_driverCommandArguments.unkC = arg3 & 0x7F;
+    vs_audio_mixerDispatchCommand(0xA1);
 }
 
-void func_80012694(int arg0)
+void vs_audio_controlSetSceneSoundEffectPan(int arg0)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)((arg0 & 0xFF));
-    func_80018C30(0xAA);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)((arg0 & 0xFF));
+    vs_audio_mixerDispatchCommand(0xAA);
 }
 
-void func_800126C0(void* arg0, int arg1)
+void vs_audio_controlFadeSceneSoundEffectPan(void* arg0, int arg1)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-    D_800378C0.unk4 = arg1 & 0xFF;
-    func_80018C30(0xAB);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+    vs_audio_driverCommandArguments.unk4 = arg1 & 0xFF;
+    vs_audio_mixerDispatchCommand(0xAB);
 }
 
-void func_800126F4(void* arg0, int arg1, int arg2)
+void vs_audio_controlSetSoundEffectPan(void* arg0, int arg1, int arg2)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-    D_800378C0.unk4 = arg1 & 0xFFFFFF;
-    D_800378C0.unk8 = arg2 & 0xFF;
-    func_80018C30(0xA2);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+    vs_audio_driverCommandArguments.unk4 = arg1 & 0xFFFFFF;
+    vs_audio_driverCommandArguments.unk8 = arg2 & 0xFF;
+    vs_audio_mixerDispatchCommand(0xA2);
 }
 
-void func_80012738(int arg0, int arg1, int arg2, int arg3)
+void vs_audio_controlFadeSoundEffectPan(int arg0, int arg1, int arg2, int arg3)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-    D_800378C0.unk4 = arg1 & 0xFFFFFF;
-    D_800378C0.unk8 = arg2;
-    D_800378C0.unkC = arg3 & 0xFF;
-    func_80018C30(0xA3);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+    vs_audio_driverCommandArguments.unk4 = arg1 & 0xFFFFFF;
+    vs_audio_driverCommandArguments.unk8 = arg2;
+    vs_audio_driverCommandArguments.unkC = arg3 & 0xFF;
+    vs_audio_mixerDispatchCommand(0xA3);
 }
 
-void func_80012780(int arg0)
+void vs_audio_controlSetSceneSoundEffectPitch(int arg0)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)((arg0 & 0xFF));
-    func_80018C30(0xAC);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)((arg0 & 0xFF));
+    vs_audio_mixerDispatchCommand(0xAC);
 }
 
-void func_800127AC(void* arg0, int arg1)
+void vs_audio_controlFadeSceneSoundEffectPitch(void* arg0, int arg1)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-    D_800378C0.unk4 = arg1 & 0xFF;
-    func_80018C30(0xAD);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+    vs_audio_driverCommandArguments.unk4 = arg1 & 0xFF;
+    vs_audio_mixerDispatchCommand(0xAD);
 }
 
-void func_800127E0(void* arg0, int arg1, int arg2)
+void vs_audio_controlSetSoundEffectPitch(void* arg0, int arg1, int arg2)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-    D_800378C0.unk4 = arg1 & 0xFFFFFF;
-    D_800378C0.unk8 = arg2 & 0xFF;
-    func_80018C30(0xA4);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+    vs_audio_driverCommandArguments.unk4 = arg1 & 0xFFFFFF;
+    vs_audio_driverCommandArguments.unk8 = arg2 & 0xFF;
+    vs_audio_mixerDispatchCommand(0xA4);
 }
 
-void func_80012824(int arg0, int arg1, int arg2, int arg3)
+void vs_audio_controlFadeSoundEffectPitch(int arg0, int arg1, int arg2, int arg3)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-    D_800378C0.unk4 = arg1 & 0xFFFFFF;
-    D_800378C0.unk8 = arg2;
-    D_800378C0.unkC = arg3 & 0xFF;
-    func_80018C30(0xA5);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+    vs_audio_driverCommandArguments.unk4 = arg1 & 0xFFFFFF;
+    vs_audio_driverCommandArguments.unk8 = arg2;
+    vs_audio_driverCommandArguments.unkC = arg3 & 0xFF;
+    vs_audio_mixerDispatchCommand(0xA5);
 }
 
-void func_8001286C(u_long arg0, int arg1)
+void vs_audio_controlSetMusicVolume(u_long arg0, int arg1)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-    D_800378C0.unk4 = arg1 & 0x7F;
-    func_80018C30(0xC0);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+    vs_audio_driverCommandArguments.unk4 = arg1 & 0x7F;
+    vs_audio_mixerDispatchCommand(0xC0);
 }
 
-void func_800128A0(u_long arg0, int arg1, int arg2)
+void vs_audio_controlFadeMusicVolume(u_long arg0, int arg1, int arg2)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-    D_800378C0.unk4 = arg1;
-    D_800378C0.unk8 = arg2 & 0x7F;
-    func_80018C30(0xC1);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+    vs_audio_driverCommandArguments.unk4 = arg1;
+    vs_audio_driverCommandArguments.unk8 = arg2 & 0x7F;
+    vs_audio_mixerDispatchCommand(0xC1);
 }
 
-void func_800128D8(void* arg0, int arg1, int arg2, int arg3)
+void vs_audio_controlFadeMusicVolumeFrom(void* arg0, int arg1, int arg2, int arg3)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-    D_800378C0.unk4 = arg1;
-    D_800378C0.unk8 = arg2 & 0x7F;
-    D_800378C0.unkC = arg3 & 0x7F;
-    func_80018C30(0xC2);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+    vs_audio_driverCommandArguments.unk4 = arg1;
+    vs_audio_driverCommandArguments.unk8 = arg2 & 0x7F;
+    vs_audio_driverCommandArguments.unkC = arg3 & 0x7F;
+    vs_audio_mixerDispatchCommand(0xC2);
 }
 
-void func_80012918(int arg0)
+void vs_audio_controlSetDiscVolume(int arg0)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-    func_80018C30(0xC8);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+    vs_audio_mixerDispatchCommand(0xC8);
 }
 
-void func_80012940(int arg0, int arg1)
+void vs_audio_controlFadeDiscVolume(int arg0, int arg1)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-    D_800378C0.unk4 = arg1;
-    func_80018C30(0xC9);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+    vs_audio_driverCommandArguments.unk4 = arg1;
+    vs_audio_mixerDispatchCommand(0xC9);
 }
 
-void func_80012970(void* arg0, int arg1, int arg2)
+void vs_audio_controlFadeDiscVolumeFrom(void* arg0, int arg1, int arg2)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-    D_800378C0.unk4 = arg1;
-    D_800378C0.unk8 = arg2;
-    func_80018C30(0xCA);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+    vs_audio_driverCommandArguments.unk4 = arg1;
+    vs_audio_driverCommandArguments.unk8 = arg2;
+    vs_audio_mixerDispatchCommand(0xCA);
 }
 
-void func_800129A4(int arg0)
+void vs_audio_controlSetMusicTempoScale(int arg0)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)((arg0 & 0xFF));
-    func_80018C30(0xD0);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)((arg0 & 0xFF));
+    vs_audio_mixerDispatchCommand(0xD0);
 }
 
-void func_800129D0(int arg0, int arg1)
+void vs_audio_controlFadeMusicTempoScale(int arg0, int arg1)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-    D_800378C0.unk4 = arg1 & 0xFF;
-    func_80018C30(0xD1);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+    vs_audio_driverCommandArguments.unk4 = arg1 & 0xFF;
+    vs_audio_mixerDispatchCommand(0xD1);
 }
 
-void func_80012A04(void* arg0, int arg1, int arg2)
+void vs_audio_controlFadeMusicTempoScaleFrom(void* arg0, int arg1, int arg2)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-    D_800378C0.unk4 = arg1 & 0xFF;
-    D_800378C0.unk8 = arg2 & 0xFF;
-    func_80018C30(0xD2);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+    vs_audio_driverCommandArguments.unk4 = arg1 & 0xFF;
+    vs_audio_driverCommandArguments.unk8 = arg2 & 0xFF;
+    vs_audio_mixerDispatchCommand(0xD2);
 }
 
-void func_80012A40(int arg0)
+void vs_audio_controlSetMusicPitchScale(int arg0)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)((arg0 & 0xFF));
-    func_80018C30(0xD4);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)((arg0 & 0xFF));
+    vs_audio_mixerDispatchCommand(0xD4);
 }
 
-int func_80012A6C(int arg0, int arg1)
+int vs_audio_controlFadeMusicPitchScale(int arg0, int arg1)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-    D_800378C0.unk4 = arg1 & 0xFF;
-    return func_80018C30(0xD5);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+    vs_audio_driverCommandArguments.unk4 = arg1 & 0xFF;
+    return vs_audio_mixerDispatchCommand(0xD5);
 }
 
-void func_80012AA0(void* arg0, int arg1, int arg2)
+void vs_audio_controlFadeMusicPitchScaleFrom(void* arg0, int arg1, int arg2)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-    D_800378C0.unk4 = arg1 & 0xFF;
-    D_800378C0.unk8 = arg2 & 0xFF;
-    func_80018C30(0xD6);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+    vs_audio_driverCommandArguments.unk4 = arg1 & 0xFF;
+    vs_audio_driverCommandArguments.unk8 = arg2 & 0xFF;
+    vs_audio_mixerDispatchCommand(0xD6);
 }
 
-void func_80012ADC(int arg0)
+void vs_audio_controlSetMusicTempoAndPitch(int arg0)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)((arg0 & 0xFF));
-    func_80018C30(0xD8);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)((arg0 & 0xFF));
+    vs_audio_mixerDispatchCommand(0xD8);
 }
 
-void func_80012B08(void* arg0, int arg1)
+void vs_audio_controlFadeMusicTempoAndPitch(void* arg0, int arg1)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-    D_800378C0.unk4 = arg1 & 0xFF;
-    func_80018C30(0xD9);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+    vs_audio_driverCommandArguments.unk4 = arg1 & 0xFF;
+    vs_audio_mixerDispatchCommand(0xD9);
 }
 
-void func_80012B3C(void* arg0, int arg1, int arg2)
+void vs_audio_controlFadeMusicTempoAndPitchFrom(void* arg0, int arg1, int arg2)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-    D_800378C0.unk4 = arg1 & 0xFF;
-    D_800378C0.unk8 = arg2 & 0xFF;
-    func_80018C30(0xDA);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+    vs_audio_driverCommandArguments.unk4 = arg1 & 0xFF;
+    vs_audio_driverCommandArguments.unk8 = arg2 & 0xFF;
+    vs_audio_mixerDispatchCommand(0xDA);
 }
 
-void func_80012B78(void) { func_80018C30(240); }
+void vs_audio_controlStopAllMusic(void) { vs_audio_mixerDispatchCommand(240); }
 
-void func_80012B98(void) { func_80018C30(241); }
+void vs_audio_controlStopSceneSoundEffects(void) { vs_audio_mixerDispatchCommand(241); }
 
-void func_80012BB8(void* arg0, int arg1)
+void vs_audio_samplesLoadBank(void* arg0, int arg1)
 {
-    while (func_80013588(arg0, arg1) == 1)
+    while (vs_audio_samplesLoadDeclaredBank(arg0, arg1) == 1)
         ;
 }
 
 int vs_sound_spuTransferring(void) { return _isSpuTransfer; }
 
-int func_80012C14(u_int* arg0, int* arg1, int* arg2)
+int vs_audio_samplesChooseMusicBankDestination(u_int* arg0, int* arg1, int* arg2)
 {
     int var_a3;
 
@@ -794,7 +794,7 @@ int func_80012C14(u_int* arg0, int* arg1, int* arg2)
     return var_a3;
 }
 
-static int func_80012D9C(int* arg0, int* arg1, int* arg2, int arg3)
+static int vs_audio_samplesChooseSoundEffectBankDestination(int* arg0, int* arg1, int* arg2, int arg3)
 {
     u_int i;
 
@@ -833,7 +833,7 @@ int func_80012E50(int arg0)
     return D_80039AFC & 0x10000;
 }
 
-int func_80012EBC(void)
+int vs_audio_samplesClearMusicBankIds(void)
 {
     g_Sound_GlobalFlags.MixBehavior &= ~0x10000;
     D_80036770.unk4 = 0;
@@ -841,14 +841,14 @@ int func_80012EBC(void)
     return 0;
 }
 
-int func_80012EF0(void)
+int vs_audio_samplesBeginBankStream(void)
 {
-    D_80039BCC = 0;
+    vs_audio_samplesBankStreamDestination = 0;
     g_Sound_GlobalFlags.ControlLatches |= 1;
     return 0;
 }
 
-int func_80012F10(int* in_Data, u_int in_Size, int in_Slot, int in_Wait)
+int vs_audio_samplesUploadBankChunk(int* in_Data, u_int in_Size, int in_Slot, int in_Wait)
 {
     int instrumentIndex;
     int spuAddr;
@@ -856,12 +856,12 @@ int func_80012F10(int* in_Data, u_int in_Size, int in_Slot, int in_Wait)
     u_int spuChunk;
 
     if (g_Sound_GlobalFlags.ControlLatches & 1) {
-        if (D_80039BC8.SpuAddr == 0) {
+        if (vs_audio_samplesBankStream.SpuAddr == 0) {
             if (Sound_IsNotAkaoFile(in_Data) == 0) {
                 if (in_Data[4] == 0x35100) {
-                    func_80012C14((u_int*)in_Data, &instrumentIndex, &spuAddr);
+                    vs_audio_samplesChooseMusicBankDestination((u_int*)in_Data, &instrumentIndex, &spuAddr);
                 } else if (in_Data[4] == 0xB100) {
-                    func_80012D9C(in_Data, &instrumentIndex, &spuAddr, in_Slot);
+                    vs_audio_samplesChooseSoundEffectBankDestination(in_Data, &instrumentIndex, &spuAddr, in_Slot);
                 } else {
                     spuAddr = in_Data[4];
                     instrumentIndex = in_Data[6];
@@ -870,72 +870,72 @@ int func_80012F10(int* in_Data, u_int in_Size, int in_Slot, int in_Wait)
                 in_Data += 0x10;
                 in_Size -= 0x40;
                 D_80037850[4] = spuAddr;
-                D_80039BC8.SpuAddr = spuAddr;
+                vs_audio_samplesBankStream.SpuAddr = spuAddr;
                 D_80037850[6] = instrumentIndex;
-                D_80039BC8.SpuBytesRemaining = D_80037850[5];
-                D_80039BC8.pInstrumentDst = (int*)&g_InstrumentInfo[instrumentIndex];
-                D_80039BC8.InstrumentBytesRemaining =
+                vs_audio_samplesBankStream.SpuBytesRemaining = D_80037850[5];
+                vs_audio_samplesBankStream.pInstrumentDst = (int*)&g_InstrumentInfo[instrumentIndex];
+                vs_audio_samplesBankStream.InstrumentBytesRemaining =
                     D_80037850[7] * sizeof(FSoundInstrumentInfo);
             } else {
                 in_Size = 0;
-                D_80039BC8.SpuBytesRemaining = 0;
-                D_80039BC8.InstrumentBytesRemaining = 0;
+                vs_audio_samplesBankStream.SpuBytesRemaining = 0;
+                vs_audio_samplesBankStream.InstrumentBytesRemaining = 0;
             }
         }
-        if ((D_80039BC8.InstrumentBytesRemaining != 0) && (in_Size != 0)) {
-            chunk = D_80039BC8.InstrumentBytesRemaining;
+        if ((vs_audio_samplesBankStream.InstrumentBytesRemaining != 0) && (in_Size != 0)) {
+            chunk = vs_audio_samplesBankStream.InstrumentBytesRemaining;
             if (chunk >= in_Size) {
                 chunk = in_Size;
             }
             // The original reuses the spuAddr stack slot for the chunk size.
             spuAddr = chunk;
-            Sound_memcpy32(in_Data, D_80039BC8.pInstrumentDst, spuAddr);
+            Sound_memcpy32(in_Data, vs_audio_samplesBankStream.pInstrumentDst, spuAddr);
             in_Data += (u_int)spuAddr / 4;
             in_Size -= spuAddr;
-            D_80039BC8.pInstrumentDst += (u_int)spuAddr / 4;
-            D_80039BC8.InstrumentBytesRemaining -= spuAddr;
-            if (D_80039BC8.InstrumentBytesRemaining == 0) {
+            vs_audio_samplesBankStream.pInstrumentDst += (u_int)spuAddr / 4;
+            vs_audio_samplesBankStream.InstrumentBytesRemaining -= spuAddr;
+            if (vs_audio_samplesBankStream.InstrumentBytesRemaining == 0) {
                 Sound_CopyAndRelocateInstruments(&g_InstrumentInfo[D_80037850[6]],
                     &g_InstrumentInfo[D_80037850[6]], D_80037850[4], D_80037850[7]);
             }
         }
-        if ((in_Size != 0) && (D_80039BC8.SpuBytesRemaining != 0)) {
-            spuChunk = D_80039BC8.SpuBytesRemaining;
+        if ((in_Size != 0) && (vs_audio_samplesBankStream.SpuBytesRemaining != 0)) {
+            spuChunk = vs_audio_samplesBankStream.SpuBytesRemaining;
             if (spuChunk >= in_Size) {
                 spuChunk = in_Size;
             }
             in_Size = spuChunk;
-            SpuSetTransferStartAddr(D_80039BC8.SpuAddr);
+            SpuSetTransferStartAddr(vs_audio_samplesBankStream.SpuAddr);
             _writeSpu((char*)in_Data, in_Size);
-            D_80039BC8.SpuAddr += in_Size;
-            D_80039BC8.SpuBytesRemaining -= in_Size;
+            vs_audio_samplesBankStream.SpuAddr += in_Size;
+            vs_audio_samplesBankStream.SpuBytesRemaining -= in_Size;
             if (in_Wait != 0) {
                 _waitTransferAvailable();
             }
         }
-        if (D_80039BC8.SpuBytesRemaining == 0) {
+        if (vs_audio_samplesBankStream.SpuBytesRemaining == 0) {
             g_Sound_GlobalFlags.ControlLatches &= ~1;
         }
     }
-    return D_80039BC8.SpuBytesRemaining;
+    return vs_audio_samplesBankStream.SpuBytesRemaining;
 }
 
-int func_80013188(void* arg0, int arg1)
+int vs_audio_samplesLoadMusicBank(void* arg0, int arg1)
 {
     int sp10;
     int sp14;
-    int temp_s0 = func_80012C14(arg0, &sp10, &sp14);
-    func_800135D8(arg0, arg1, sp10, sp14);
+    int temp_s0 = vs_audio_samplesChooseMusicBankDestination(arg0, &sp10, &sp14);
+    vs_audio_samplesUploadBank(arg0, arg1, sp10, sp14);
     return temp_s0;
 }
 
-int func_800131DC(void* arg0, int arg1, int arg2)
+int vs_audio_samplesLoadSoundEffectBank(void* arg0, int arg1, int arg2)
 {
     int sp10;
     int sp14;
 
-    func_80012D9C((int*)arg0, &sp10, &sp14, arg1);
-    func_800135D8(arg0, arg2, sp10, sp14);
+    vs_audio_samplesChooseSoundEffectBankDestination((int*)arg0, &sp10, &sp14, arg1);
+    vs_audio_samplesUploadBank(arg0, arg2, sp10, sp14);
     return 0;
 }
 
@@ -954,41 +954,41 @@ int vs_sound_setCdVol(u_int arg0)
     return 0;
 }
 
-void func_800132C4(void* arg0, int arg1, int arg2)
+void vs_audio_controlStartCutsceneStream(void* arg0, int arg1, int arg2)
 {
     if (Sound_IsNotAkaoFile(arg0) == 0) {
-        D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-        D_800378C0.unk4 = (arg1 & 0xFF) << 8;
-        D_800378C0.unk8 = arg2;
-        func_80018C30(0xE0);
+        vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+        vs_audio_driverCommandArguments.unk4 = (arg1 & 0xFF) << 8;
+        vs_audio_driverCommandArguments.unk8 = arg2;
+        vs_audio_mixerDispatchCommand(0xE0);
     }
 }
 
-void func_80013328(void) { func_80018C30(0xE2); }
+void vs_audio_controlStopCutsceneStream(void) { vs_audio_mixerDispatchCommand(0xE2); }
 
-void func_80013348(int arg0)
+void vs_audio_controlSetCutsceneVolume(int arg0)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(((arg0 & 0x7F) << 8));
-    func_80018C30(0xE4);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(((arg0 & 0x7F) << 8));
+    vs_audio_mixerDispatchCommand(0xE4);
 }
 
-void func_80013378(int arg0, int arg1)
+void vs_audio_controlFadeCutsceneVolume(int arg0, int arg1)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(arg0);
-    D_800378C0.unk4 = (arg1 & 0x7F) << 8;
-    func_80018C30(0xE5);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
+    vs_audio_driverCommandArguments.unk4 = (arg1 & 0x7F) << 8;
+    vs_audio_mixerDispatchCommand(0xE5);
 }
 
-void func_800133B0(int arg0)
+void vs_audio_controlSetCutscenePan(int arg0)
 {
-    D_800378C0.unk0 = (__UINTPTR_TYPE__)(((arg0 & 0xFF) << 8));
-    func_80018C30(0xE6);
+    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(((arg0 & 0xFF) << 8));
+    vs_audio_mixerDispatchCommand(0xE6);
 }
 
-u_int func_800133E0(u_int* arg0)
+u_int vs_audio_controlSoundEffectChannelIds(u_int* arg0)
 {
     int i;
-    FSoundChannel* var_a1 = D_80035910;
+    FSoundChannel* var_a1 = vs_audio_soundEffectsChannels;
 
     for (i = 0; i < 12; ++i) {
         *arg0++ = (var_a1++)->unk3C;
@@ -1049,16 +1049,16 @@ static void _waitTransferAvailable(void)
     }
 }
 
-int func_80013588(void* arg0, int arg1)
+int vs_audio_samplesLoadDeclaredBank(void* arg0, int arg1)
 {
     if (Sound_IsNotAkaoFile(arg0) == 0) {
-        func_800135D8(arg0, arg1, ((int*)arg0)[6], ((int*)arg0)[4]);
+        vs_audio_samplesUploadBank(arg0, arg1, ((int*)arg0)[6], ((int*)arg0)[4]);
         return 0;
     }
     return -1;
 }
 
-int func_800135D8(void* in_Data, int in_Wait, int in_FirstInstrument, int in_SpuAddr)
+int vs_audio_samplesUploadBank(void* in_Data, int in_Wait, int in_FirstInstrument, int in_SpuAddr)
 {
     FAkaoSequence* header;
     FSoundInstrumentInfo* instruments;
@@ -1084,7 +1084,7 @@ int func_800135D8(void* in_Data, int in_Wait, int in_FirstInstrument, int in_Spu
 
 // https://decomp.me/scratch/nDizh
 #ifndef ROOD_PC
-INCLUDE_ASM("build/src/SLUS_010.40/nonmatchings/25AC", func_8001369C);
+INCLUDE_ASM("build/src/SLUS_010.40/nonmatchings/25AC", vs_audio_driverResetPlaybackState);
 #else
 /* PC only: the decomp's closest non-matching C (rood-reverse .work/ultracode/
  * r15-25AC-ENDING/i69_85.c, score 85); it differs only in register allocation/scheduling.
@@ -1093,12 +1093,12 @@ INCLUDE_ASM("build/src/SLUS_010.40/nonmatchings/25AC", func_8001369C);
 #define SPU_MAIN_VOL_R ((u_short*)0x1F801D82)
 #define SPU_CONTROL ((u_short*)0x1F801DAA)
 extern FSoundChannel* D_800377FC;
-void func_8001369C(void)
+void vs_audio_driverResetPlaybackState(void)
 {
     u_short i;
     FSoundChannel* pChannel;
 
-    g_pActiveMusicConfig = &D_800366F0;
+    g_pActiveMusicConfig = &vs_audio_seqPrimaryMusicConfig;
     g_pSavedMousicConfig = NULL;
     D_800377FC = g_ActiveMusicChannels;
     g_pSecondaryMusicChannels = NULL;
@@ -1112,38 +1112,38 @@ void func_8001369C(void)
     D_800377E0[0] = 0;
     g_Sound_GlobalFlags.MixBehavior = 1;
     g_Sound_VoiceSchedulerState.ActiveChannelMask = 0;
-    D_800366F0.ActiveChannelMask = 0;
-    D_800366F0.KeyedMask = 0;
-    D_800366F0.MusicId = 0;
+    vs_audio_seqPrimaryMusicConfig.ActiveChannelMask = 0;
+    vs_audio_seqPrimaryMusicConfig.KeyedMask = 0;
+    vs_audio_seqPrimaryMusicConfig.MusicId = 0;
     g_Sound_VoiceSchedulerState.unk_Flags_0x10 = 0;
-    D_800366F0.unk1C = 0;
+    vs_audio_seqPrimaryMusicConfig.unk1C = 0;
     g_PushedMusicConfig.MusicId = 0;
     g_PushedMusicConfig.ActiveChannelMask = 0;
-    D_800366F0.A_Volume = 0x7F0000;
+    vs_audio_seqPrimaryMusicConfig.A_Volume = 0x7F0000;
     g_CdVolume = 0x7FFF0000;
-    D_80036780 = 0;
+    vs_audio_mixerMusicPitchScaleSlideLength = 0;
     g_Sound_MasterPitchScaleQ16_16 = 0;
-    D_80036782 = 0;
+    vs_audio_mixerTempoScaleSlideLength = 0;
     g_Sound_TempoMultiplier = 0;
-    D_800366F0.unk68 = 0;
+    vs_audio_seqPrimaryMusicConfig.unk68 = 0;
     g_Sound_CdVolumeFadeLength = 0;
     g_Sound_VoiceSchedulerState.NoiseVoiceFlags = 0;
-    D_800366F0.NoiseChannelFlags = 0;
+    vs_audio_seqPrimaryMusicConfig.NoiseChannelFlags = 0;
     g_Sound_VoiceSchedulerState.ReverbVoiceFlags = 0;
-    D_800366F0.ReverbChannelFlags = 0;
+    vs_audio_seqPrimaryMusicConfig.ReverbChannelFlags = 0;
     g_Sound_VoiceSchedulerState.FmVoiceFlags = 0;
-    D_800366F0.FmChannelFlags = 0;
-    D_800366F0.TimerLower = 0;
-    D_800366F0.TimerUpperCurrent = 0;
-    D_800366F0.TimerUpper = 0;
-    D_800366F0.TimerTopCurrent = 0;
+    vs_audio_seqPrimaryMusicConfig.FmChannelFlags = 0;
+    vs_audio_seqPrimaryMusicConfig.TimerLower = 0;
+    vs_audio_seqPrimaryMusicConfig.TimerUpperCurrent = 0;
+    vs_audio_seqPrimaryMusicConfig.TimerUpper = 0;
+    vs_audio_seqPrimaryMusicConfig.TimerTopCurrent = 0;
     *SPU_MAIN_VOL_L = 0x3FFF;
     *SPU_MAIN_VOL_R = 0x3FFF;
     *CD_VOL_L = 0x7FFF;
     *CD_VOL_R = 0x7FFF;
     i = *SPU_CONTROL;
     g_Music_LoopCounter = 0;
-    D_800378E4 = 0;
+    vs_audio_mixerMutedMusicChannels = 0;
     g_Sound_Cutscene_StreamState.ControlFlags = 0;
     g_Sound_Cutscene_StreamState.VolFadeStepsRemaining = 0;
     g_Sound_Cutscene_StreamState.Volume = 0x7F00;
@@ -1160,7 +1160,7 @@ void func_8001369C(void)
         pChannel->unk58 = 0;
     }
 
-    pChannel = D_80035910;
+    pChannel = vs_audio_soundEffectsChannels;
     for (i = 12; i < VOICE_COUNT; i++, pChannel++) {
         pChannel->UpdateFlags = 0;
         pChannel->VoiceParams.AssignedVoiceNumber = i;
@@ -1201,7 +1201,7 @@ static void StartSound(void)
     SpuSetTransferStartAddr(0x1010);
     _writeSpu(_soundFlush, 64);
     _waitTransferAvailable();
-    func_8001369C();
+    vs_audio_driverResetPlaybackState();
     SpuSetIRQ(SPU_OFF);
     SpuSetIRQCallback(NULL);
     while (SetRCnt(RCntCNT2, 0x44E8, RCntMdINTR) == 0)
@@ -1209,7 +1209,7 @@ static void StartSound(void)
     while (StartRCnt(RCntCNT2) == 0)
         ;
     do {
-        event = OpenEvent(RCntCNT2, EvSpINT, EvMdINTR, func_80019A58);
+        event = OpenEvent(RCntCNT2, EvSpINT, EvMdINTR, vs_audio_seqTickPlayback);
         _soundEvent = event;
     } while (event == -1);
     while (EnableEvent(_soundEvent) == 0)
@@ -1707,7 +1707,7 @@ void Sound_UpdateSlidesAndDelays(
     }
 }
 
-void func_8001436C(FSoundChannel* in_pChannel, int in_VoiceFlags __attribute__((unused)))
+void vs_audio_mixerUpdateMusicChannelModulation(FSoundChannel* in_pChannel, int in_VoiceFlags __attribute__((unused)))
 {
     short* Wave;
     int temp;
@@ -1788,7 +1788,7 @@ void func_8001436C(FSoundChannel* in_pChannel, int in_VoiceFlags __attribute__((
         temp = ((in_pChannel->ChannelPan >> 8) + in_pChannel->AutoPanVolume) & 0xFF;
         if (D_80039AFC & 2) {
             in_pChannel->VoiceParams.Volume.left = in_pChannel->VoiceParams.Volume.right =
-                (Volume * D_8002F89C) >> 15;
+                (Volume * vs_audio_mixerCenterPanGain) >> 15;
         } else {
             in_pChannel->VoiceParams.Volume.left =
                 (Volume * g_Sound_StereoPanGainTableQ15[temp]) >> 15;
@@ -1829,7 +1829,7 @@ void func_8001436C(FSoundChannel* in_pChannel, int in_VoiceFlags __attribute__((
     }
 }
 
-void func_800147CC(FSoundChannel* in_pChannel, int in_VoiceFlags __attribute__((unused)))
+void vs_audio_mixerUpdateSoundEffectModulation(FSoundChannel* in_pChannel, int in_VoiceFlags __attribute__((unused)))
 {
     short* Wave;
     int temp;
@@ -1915,7 +1915,7 @@ void func_800147CC(FSoundChannel* in_pChannel, int in_VoiceFlags __attribute__((
         }
         if (D_80039AFC & 2) {
             in_pChannel->VoiceParams.Volume.left = in_pChannel->VoiceParams.Volume.right =
-                (Volume * D_8002F89C) >> 15;
+                (Volume * vs_audio_mixerCenterPanGain) >> 15;
         } else {
             in_pChannel->VoiceParams.Volume.left =
                 (Volume * g_Sound_StereoPanGainTableQ15[temp]) >> 15;
@@ -2024,9 +2024,9 @@ int Sound_FindFreeVoice(int arg0)
     return arg0;
 }
 
-void func_8001436C(FSoundChannel*, int);
+void vs_audio_mixerUpdateMusicChannelModulation(FSoundChannel*, int);
 
-void func_80014D70(
+void vs_audio_mixerApplyMusicChannelVoices(
     FSoundChannel* in_pChannel, u_int in_Flags1, u_int in_Flags2, u_int* out_KeyOnFlags)
 {
     int var_s2 = 1;
@@ -2035,9 +2035,9 @@ void func_80014D70(
 
     do {
         if (in_Flags1 & var_s2) {
-            func_8001436C(in_pChannel, var_s2);
+            vs_audio_mixerUpdateMusicChannelModulation(in_pChannel, var_s2);
             if (in_pChannel->VoiceParams.VoiceParamFlags != 0) {
-                if (D_800378E4 & var_s2) {
+                if (vs_audio_mixerMutedMusicChannels & var_s2) {
                     in_pChannel->VoiceParams.Volume.right = 0;
                     in_pChannel->VoiceParams.Volume.left = 0;
                 }
@@ -2119,7 +2119,7 @@ void UnassignVoicesFromChannels(FSoundChannel* in_pChannel, int arg1)
     }
 }
 
-int func_8001503C(FSoundChannel* channels, int mask, int voiceNumber)
+int vs_audio_mixerIsVoiceAssignedToChannels(FSoundChannel* channels, int mask, int voiceNumber)
 {
     u_int i;
     for (i = 0; i < 32; i++) {
@@ -2134,7 +2134,7 @@ int func_8001503C(FSoundChannel* channels, int mask, int voiceNumber)
 }
 
 // https://decomp.me/scratch/VmgoV
-void func_80015080(u_int in_ReservedVoices)
+void vs_audio_mixerRefreshVoiceAvailability(u_int in_ReservedVoices)
 {
     u_int i;
     u_int reserved;
@@ -2158,12 +2158,12 @@ void func_80015080(u_int in_ReservedVoices)
         if (pVoice->pEnvx == 0) {
             UnassignVoicesFromChannels(g_ActiveMusicChannels, i);
         } else if (g_pActiveMusicConfig->KeyedMask != 0) {
-            if (func_8001503C(
+            if (vs_audio_mixerIsVoiceAssignedToChannels(
                     g_ActiveMusicChannels, g_pActiveMusicConfig->KeyedMask, i)) {
                 pVoice->pEnvx = 0x7FFF;
             }
             if (g_pSavedMousicConfig != NULL
-                && func_8001503C(
+                && vs_audio_mixerIsVoiceAssignedToChannels(
                     g_pSecondaryMusicChannels, SAVED_MUSIC_CONFIG->KeyedMask, i)) {
                 pVoice->pEnvx = 0x7FFF;
             }
@@ -2191,7 +2191,7 @@ void Sound_RestoreChannelVolumeFromMasterFade(
     in_Config->A_Volume = g_Sound_MasterFadeTimer.SavedValue;
 }
 
-void func_80015220(void)
+void vs_audio_mixerCommitPlaybackVoices(void)
 {
     u_int KeyOnFlags;
     u_int ReservedVoices;
@@ -2209,7 +2209,7 @@ void func_80015220(void)
         || ((g_pSavedMousicConfig != NULL)
             && (SAVED_MUSIC_CONFIG->ActiveChannelMask
                 & SAVED_MUSIC_CONFIG->PendingKeyOnMask))) {
-        func_80015080(ReservedVoices);
+        vs_audio_mixerRefreshVoiceAvailability(ReservedVoices);
     }
 
     if (g_pSavedMousicConfig != NULL) {
@@ -2225,14 +2225,14 @@ void func_80015220(void)
         SavedVoices =
             (SavedChannels & g_pActiveMusicConfig->AllocatedVoiceMask) & ~ReservedVoices;
         if (SavedChannels & g_pActiveMusicConfig->KeyedMask) {
-            func_80014D70(g_pSecondaryMusicChannels,
+            vs_audio_mixerApplyMusicChannelVoices(g_pSecondaryMusicChannels,
                 SavedChannels & g_pActiveMusicConfig->KeyedMask, SavedVoices,
                 &KeyOnFlags);
             g_pActiveMusicConfig->PendingKeyOnMask &= ~g_pActiveMusicConfig->KeyedMask;
             SavedChannels &= ~g_pActiveMusicConfig->KeyedMask;
         }
 
-        g_pActiveMusicConfig = &D_800366F0;
+        g_pActiveMusicConfig = &vs_audio_seqPrimaryMusicConfig;
         Flags = (g_pActiveMusicConfig->ActiveChannelMask
                     & g_pActiveMusicConfig->ActiveNoteMask)
               & ~(g_pActiveMusicConfig->AllocatedVoiceMask
@@ -2240,7 +2240,7 @@ void func_80015220(void)
         Voices = SavedVoices | ReservedVoices;
         Voices = (Flags & g_pActiveMusicConfig->AllocatedVoiceMask) & ~Voices;
         if (Flags & g_pActiveMusicConfig->KeyedMask) {
-            func_80014D70(g_ActiveMusicChannels, Flags & g_pActiveMusicConfig->KeyedMask,
+            vs_audio_mixerApplyMusicChannelVoices(g_ActiveMusicChannels, Flags & g_pActiveMusicConfig->KeyedMask,
                 Voices, &KeyOnFlags);
             g_pActiveMusicConfig->PendingKeyOnMask &= ~g_pActiveMusicConfig->KeyedMask;
             Flags &= ~g_pActiveMusicConfig->KeyedMask;
@@ -2249,14 +2249,14 @@ void func_80015220(void)
         if (SavedChannels != 0) {
             g_pActiveMusicConfig = g_pSavedMousicConfig;
             SavedVoices &= ~Voices;
-            func_80014D70(
+            vs_audio_mixerApplyMusicChannelVoices(
                 g_pSecondaryMusicChannels, SavedChannels, SavedVoices, &KeyOnFlags);
             g_pActiveMusicConfig->PendingKeyOnMask = 0;
-            g_pActiveMusicConfig = &D_800366F0;
+            g_pActiveMusicConfig = &vs_audio_seqPrimaryMusicConfig;
         }
 
         if (Flags != 0) {
-            func_80014D70(g_ActiveMusicChannels, Flags, Voices, &KeyOnFlags);
+            vs_audio_mixerApplyMusicChannelVoices(g_ActiveMusicChannels, Flags, Voices, &KeyOnFlags);
             g_pActiveMusicConfig->PendingKeyOnMask = 0;
         }
 
@@ -2270,13 +2270,13 @@ void func_80015220(void)
               & ~(g_pActiveMusicConfig->AllocatedVoiceMask & ReservedVoices);
         Voices = (Flags & g_pActiveMusicConfig->AllocatedVoiceMask) & ~ReservedVoices;
         if (Flags & g_pActiveMusicConfig->KeyedMask) {
-            func_80014D70(g_ActiveMusicChannels, Flags & g_pActiveMusicConfig->KeyedMask,
+            vs_audio_mixerApplyMusicChannelVoices(g_ActiveMusicChannels, Flags & g_pActiveMusicConfig->KeyedMask,
                 Voices, &KeyOnFlags);
             g_pActiveMusicConfig->PendingKeyOnMask &= ~g_pActiveMusicConfig->KeyedMask;
             Flags &= ~g_pActiveMusicConfig->KeyedMask;
         }
         if (Flags != 0) {
-            func_80014D70(g_ActiveMusicChannels, Flags, Voices, &KeyOnFlags);
+            vs_audio_mixerApplyMusicChannelVoices(g_ActiveMusicChannels, Flags, Voices, &KeyOnFlags);
             g_pActiveMusicConfig->PendingKeyOnMask = 0;
         }
     }
@@ -2285,11 +2285,11 @@ void func_80015220(void)
           & g_Sound_VoiceSchedulerState.KeyedFlags;
     if (Flags != 0) {
         Voices = 0x1000;
-        pChannel = D_80035910;
+        pChannel = vs_audio_soundEffectsChannels;
         KeyOnFlags |= g_Sound_VoiceSchedulerState.KeyOnFlags;
         do {
             if (Flags & Voices) {
-                func_800147CC(pChannel, Voices);
+                vs_audio_mixerUpdateSoundEffectModulation(pChannel, Voices);
                 if (pChannel->VoiceParams.VoiceParamFlags != 0) {
                     SetVoiceParamsByFlags(pChannel->VoiceParams.AssignedVoiceNumber,
                         &pChannel->VoiceParams, pChannel->UpdateFlags);
@@ -2317,15 +2317,15 @@ void func_80015220(void)
         g_Sound_GlobalFlags.UpdateFlags &= ~0x10;
     }
     if (Flags & 0x100) {
-        func_80015970(&g_Sound_VoiceModeFlags.Noise,
+        vs_audio_mixerBuildVoiceModeMask(&g_Sound_VoiceModeFlags.Noise,
             SAVED_MUSIC_CONFIG->NoiseChannelFlags,
             g_pActiveMusicConfig->NoiseChannelFlags,
             g_Sound_VoiceSchedulerState.NoiseVoiceFlags);
-        func_80015970(&g_Sound_VoiceModeFlags.Reverb,
+        vs_audio_mixerBuildVoiceModeMask(&g_Sound_VoiceModeFlags.Reverb,
             SAVED_MUSIC_CONFIG->ReverbChannelFlags,
             g_pActiveMusicConfig->ReverbChannelFlags,
             g_Sound_VoiceSchedulerState.ReverbVoiceFlags);
-        func_80015970(&g_Sound_VoiceModeFlags.Fm, SAVED_MUSIC_CONFIG->FmChannelFlags,
+        vs_audio_mixerBuildVoiceModeMask(&g_Sound_VoiceModeFlags.Fm, SAVED_MUSIC_CONFIG->FmChannelFlags,
             g_pActiveMusicConfig->FmChannelFlags,
             g_Sound_VoiceSchedulerState.FmVoiceFlags);
         SetVoiceReverbMode(g_Sound_VoiceModeFlags.Reverb);
@@ -2414,7 +2414,7 @@ void Sound_ProcessKeyOffRequests(void)
     }
 }
 
-void func_80015970(int* out_VoiceMask, int in_SavedChannelMask, int in_ActiveChannelMask,
+void vs_audio_mixerBuildVoiceModeMask(int* out_VoiceMask, int in_SavedChannelMask, int in_ActiveChannelMask,
     int in_ExtraVoiceMask)
 {
     int VoiceMask;
@@ -2474,8 +2474,8 @@ void func_80015970(int* out_VoiceMask, int in_SavedChannelMask, int in_ActiveCha
 // how far to shift SPU sample addresses when remapping
 #define SOUND_BANK_SPU_ADDR_OFFSET 0x20000u
 
-extern int D_80094FAC[];
-extern int D_80094FFC;
+extern int vs_audio_legacyUnreferencedTable[];
+extern int vs_audio_legacyUnreferencedWord;
 
 u_short Sound_MapInstrumentToAltSampleBank(u_int in_Flags, FSoundChannel* in_pChannel)
 {
@@ -2501,11 +2501,11 @@ u_short Sound_MapInstrumentToBaseSampleBank(u_int in_Flags, FSoundChannel* in_Ch
 }
 
 #ifndef ROOD_PC
-INCLUDE_ASM("build/src/SLUS_010.40/nonmatchings/25AC", func_80015BAC);
+INCLUDE_ASM("build/src/SLUS_010.40/nonmatchings/25AC", vs_audio_seqReleaseSavedVoiceConflicts);
 #else
 /* PC only: the decomp's closest non-matching C (rood-reverse .work/ultracode/
  * r16-25AC/f5bac_60.c, score 60); it differs only in register allocation/scheduling. */
-void func_80015BAC(void)
+void vs_audio_seqReleaseSavedVoiceConflicts(void)
 {
     u_int aA;
     u_int aK;
@@ -2550,9 +2550,9 @@ void func_80015BAC(void)
 
 #endif
 
-void func_8001B094(FSoundChannel* arg0, int arg1);
+void vs_audio_seqSelectChannelInstrument(FSoundChannel* arg0, int arg1);
 
-void func_80015C9C(FSoundChannel* arg0, char* arg1)
+void vs_audio_seqResetSoundEffectChannel(FSoundChannel* arg0, char* arg1)
 {
     arg0->VolumeBalance = 0x6E00;
     arg0->Volume = 0x32000000;
@@ -2582,10 +2582,10 @@ void func_80015C9C(FSoundChannel* arg0, char* arg1)
     arg0->VibratoDepthSlideLength = 0;
     arg0->FmTimer = 0;
     arg0->NoiseTimer = 0;
-    func_8001B094(arg0, 0);
+    vs_audio_seqSelectChannelInstrument(arg0, 0);
 }
 
-u_int func_80015D38(FSoundChannel* arg0, u_int arg1)
+u_int vs_audio_seqAssignedVoiceMask(FSoundChannel* arg0, u_int arg1)
 {
     u_int i;
     u_int var_a3;
@@ -2619,7 +2619,7 @@ void Sound_LoadAkaoSequence(FAkaoSequence* in_Sequence)
     g_pActiveMusicConfig->unk38 = psx_to_int(int, in_Sequence);
     channelMask = in_Sequence->ChannelEnableMask;
     if (g_pSavedMousicConfig != NULL) {
-        mask = func_80015D38(
+        mask = vs_audio_seqAssignedVoiceMask(
             g_pSecondaryMusicChannels, SAVED_MUSIC_CONFIG->ActiveChannelMask);
     } else {
         mask = 0;
@@ -2691,7 +2691,7 @@ void Sound_LoadAkaoSequence(FAkaoSequence* in_Sequence)
             pChannel->FmTimer = 0;
             pChannel->NoiseTimer = 0;
             pChannelOffsets++;
-            func_8001B094(pChannel, 0);
+            vs_audio_seqSelectChannelInstrument(pChannel, 0);
         } else {
             pChannel->Length1 = 3;
             pChannel->Length2 = 1;
@@ -2768,7 +2768,7 @@ void Sound_EvictSfxVoice(int in_SfxId, int in_StopFlags)
     FSoundChannel* pChannel;
 
     voiceBit = 0x1000;
-    pChannel = D_80035910;
+    pChannel = vs_audio_soundEffectsChannels;
     activeVoices = g_Sound_VoiceSchedulerState.ActiveChannelMask
                  | g_Sound_VoiceSchedulerState.unk_Flags_0x10;
 
@@ -2802,7 +2802,7 @@ void Sound_EvictSfxVoice(int in_SfxId, int in_StopFlags)
                 activeVoices &= ~voiceBit;
             }
         }
-        pChannel = D_80035910;
+        pChannel = vs_audio_soundEffectsChannels;
         voiceBit = 0x1000;
         maxPriority = 0;
         for (i = 0; i < 12; i++, pChannel++, voiceBit <<= 1) {
@@ -2810,7 +2810,7 @@ void Sound_EvictSfxVoice(int in_SfxId, int in_StopFlags)
                 maxPriority = pChannel->unk58;
             }
         }
-        pChannel = D_80035910;
+        pChannel = vs_audio_soundEffectsChannels;
         voiceBit = 0x1000;
         for (i = 0; i < 12; i++, pChannel++, voiceBit <<= 1) {
             if ((activeVoices & voiceBit) && (maxPriority == pChannel->unk58)) {
@@ -2861,7 +2861,7 @@ void Sound_EvictSfxVoice(int in_SfxId, int in_StopFlags)
     g_Sound_GlobalFlags.UpdateFlags |= 0x110;
 }
 
-void func_8001653C(FSoundChannel* in_Channel, FSoundCommandParams* in_CommandParams,
+void vs_audio_soundEffectsStartChannelProgram(FSoundChannel* in_Channel, FSoundCommandParams* in_CommandParams,
     int in_VoiceBit, char* in_ProgramCounter)
 {
     u_int i;
@@ -2887,7 +2887,7 @@ void func_8001653C(FSoundChannel* in_Channel, FSoundCommandParams* in_CommandPar
     in_Channel->unk58 = -2;
     in_Channel->unk40 = 0;
     in_Channel->unk86 = 0;
-    func_80015C9C(in_Channel, in_ProgramCounter);
+    vs_audio_seqResetSoundEffectChannel(in_Channel, in_ProgramCounter);
     g_Sound_VoiceChannelConfigs[in_Channel->VoiceParams.AssignedVoiceNumber] = NULL;
     SetVoiceAdsrReleaseRateAndMode(in_Channel->VoiceParams.AssignedVoiceNumber, 5, 3);
 
@@ -2902,7 +2902,7 @@ void func_8001653C(FSoundChannel* in_Channel, FSoundCommandParams* in_CommandPar
 
     if (g_Sound_Cutscene_StreamState.ControlFlags & 2) {
         in_VoiceBit = 0x1000;
-        in_Channel = D_80035910;
+        in_Channel = vs_audio_soundEffectsChannels;
         for (i = 12; i != 0; i--, in_Channel++, in_VoiceBit <<= 1) {
             if ((g_Sound_VoiceSchedulerState.ActiveChannelMask & in_VoiceBit)
                 && !(in_Channel->unk28 & 0x02000000)) {
@@ -2978,7 +2978,7 @@ void Sound_PlaySfxProgram(FSoundCommandParams* in_CommandParams, char* in_Progra
     }
 
     if (in_ProgramCounter1 != NULL) {
-        func_8001653C(channel, in_CommandParams, voiceBit, in_ProgramCounter1);
+        vs_audio_soundEffectsStartChannelProgram(channel, in_CommandParams, voiceBit, in_ProgramCounter1);
         FreeVoiceChannels(
             g_ActiveMusicChannels, channel->VoiceParams.AssignedVoiceNumber);
     }
@@ -2989,7 +2989,7 @@ void Sound_PlaySfxProgram(FSoundCommandParams* in_CommandParams, char* in_Progra
             voiceBit *= 2;
         }
 
-        func_8001653C(channel, in_CommandParams, voiceBit, in_ProgramCounter2);
+        vs_audio_soundEffectsStartChannelProgram(channel, in_CommandParams, voiceBit, in_ProgramCounter2);
         FreeVoiceChannels(
             g_ActiveMusicChannels, channel->VoiceParams.AssignedVoiceNumber);
 
@@ -3080,18 +3080,18 @@ void Sound_SetMusicSequence(FAkaoSequence* in_Sequence, int in_SwapWithSavedStat
     FSoundChannelConfig* pConfig;
 
     if (in_SwapWithSavedState == 0) {
-        Sound_memcpy32(&g_PushedMusicConfig, &D_800366F0, sizeof(FSoundChannelConfig));
-        Sound_memcpy32(D_800378E8, g_ActiveMusicChannels, sizeof(g_ActiveMusicChannels));
+        Sound_memcpy32(&g_PushedMusicConfig, &vs_audio_seqPrimaryMusicConfig, sizeof(FSoundChannelConfig));
+        Sound_memcpy32(vs_audio_seqSavedMusicChannels, g_ActiveMusicChannels, sizeof(g_ActiveMusicChannels));
     } else {
-        Sound_memswp32(&g_PushedMusicConfig, &D_800366F0, sizeof(FSoundChannelConfig));
-        Sound_memswp32(D_800378E8, g_ActiveMusicChannels, sizeof(g_ActiveMusicChannels));
+        Sound_memswp32(&g_PushedMusicConfig, &vs_audio_seqPrimaryMusicConfig, sizeof(FSoundChannelConfig));
+        Sound_memswp32(vs_audio_seqSavedMusicChannels, g_ActiveMusicChannels, sizeof(g_ActiveMusicChannels));
     }
 
     g_pActiveMusicConfig->StatusFlags &= ~0x60;
     g_pActiveMusicConfig->StatusFlags |=
         in_Sequence->unk14 == D_80036770.unk4 ? 0x40 : 0x20;
 
-    delta = psx_to_int(int, in_Sequence) - D_800366F0.unk38;
+    delta = psx_to_int(int, in_Sequence) - vs_audio_seqPrimaryMusicConfig.unk38;
     g_pActiveMusicConfig->unk38 = psx_to_int(int, in_Sequence);
     g_pActiveMusicConfig->PendingKeyOnMask = 0;
     g_Sound_GlobalFlags.UpdateFlags |= 0x90;
@@ -3125,7 +3125,7 @@ void Sound_SetMusicSequence(FAkaoSequence* in_Sequence, int in_SwapWithSavedStat
     }
 
     if (g_pSavedMousicConfig != NULL) {
-        mask = func_80015D38(
+        mask = vs_audio_seqAssignedVoiceMask(
             g_pSecondaryMusicChannels, SAVED_MUSIC_CONFIG->ActiveChannelMask);
     } else {
         mask = 0;
@@ -3163,7 +3163,7 @@ void Sound_SetMusicSequence(FAkaoSequence* in_Sequence, int in_SwapWithSavedStat
     }
 }
 
-int func_80016DA8(int flags)
+int vs_audio_samplesSoundEffectBankSlot(int flags)
 {
     int var_v1 = 0;
 
@@ -3197,9 +3197,9 @@ void Sound_Cmd_40_PushMusicState(void)
 
     if (g_pActiveMusicConfig->ActiveChannelMask != 0) {
         FSoundChannel* c;
-        Sound_memcpy32(&D_800366F0, &g_PushedMusicConfig, sizeof(FSoundChannelConfig));
-        Sound_memcpy32(g_ActiveMusicChannels, (FSoundChannelConfig*)D_800378E8, sizeof(g_ActiveMusicChannels));
-        for (i = 0, c = D_800378E8; i < 32; ++i, ++c) {
+        Sound_memcpy32(&vs_audio_seqPrimaryMusicConfig, &g_PushedMusicConfig, sizeof(FSoundChannelConfig));
+        Sound_memcpy32(g_ActiveMusicChannels, (FSoundChannelConfig*)vs_audio_seqSavedMusicChannels, sizeof(g_ActiveMusicChannels));
+        for (i = 0, c = vs_audio_seqSavedMusicChannels; i < 32; ++i, ++c) {
             Sound_MapInstrumentToBaseSampleBank(g_PushedMusicConfig.StatusFlags, c);
         }
     }
@@ -3210,8 +3210,8 @@ void Sound_Cmd_19_Unk(FSoundCommandParams* arg0)
     if ((g_pActiveMusicConfig->ActiveChannelMask != 0)
         && ((g_pSavedMousicConfig == NULL) || (SAVED_MUSIC_CONFIG->MusicId == 0))) {
         g_pSavedMousicConfig = &g_PushedMusicConfig;
-        g_pSecondaryMusicChannels = D_800378E8;
-        Sound_memcpy32(&D_800366F0, &g_PushedMusicConfig, sizeof(FSoundChannelConfig));
+        g_pSecondaryMusicChannels = vs_audio_seqSavedMusicChannels;
+        Sound_memcpy32(&vs_audio_seqPrimaryMusicConfig, &g_PushedMusicConfig, sizeof(FSoundChannelConfig));
         Sound_memcpy32(g_ActiveMusicChannels,
             (FSoundChannelConfig*)g_pSecondaryMusicChannels, sizeof(g_ActiveMusicChannels));
     }
@@ -3219,7 +3219,7 @@ void Sound_Cmd_19_Unk(FSoundCommandParams* arg0)
     g_pActiveMusicConfig->A_Volume = (arg0->ExtParam1 & 0x7F) << 0x10;
     g_pActiveMusicConfig->unk68 = 0;
     g_pActiveMusicConfig->MusicId = arg0->Param3;
-    func_80015BAC();
+    vs_audio_seqReleaseSavedVoiceConflicts();
     g_Sound_GlobalFlags.MixBehavior &= ~0x100;
 }
 
@@ -3228,14 +3228,14 @@ void Sound_Cmd_1A_Unk(FSoundCommandParams* arg0)
     if ((g_PushedMusicConfig.MusicId != 0)
         && (g_PushedMusicConfig.MusicId == arg0->Param3)) {
         g_pSavedMousicConfig = &g_PushedMusicConfig;
-        g_pSecondaryMusicChannels = D_800378E8;
+        g_pSecondaryMusicChannels = vs_audio_seqSavedMusicChannels;
         Sound_SetMusicSequence(psx_to_ptr(FAkaoSequence*, arg0->Param1), 1);
     } else {
         if ((g_pActiveMusicConfig->ActiveChannelMask != 0)
             && ((g_pSavedMousicConfig == NULL) || (SAVED_MUSIC_CONFIG->MusicId == 0))) {
             g_pSavedMousicConfig = &g_PushedMusicConfig;
-            g_pSecondaryMusicChannels = D_800378E8;
-            Sound_memcpy32(&D_800366F0, &g_PushedMusicConfig, sizeof(FSoundChannelConfig));
+            g_pSecondaryMusicChannels = vs_audio_seqSavedMusicChannels;
+            Sound_memcpy32(&vs_audio_seqPrimaryMusicConfig, &g_PushedMusicConfig, sizeof(FSoundChannelConfig));
             Sound_memcpy32(g_ActiveMusicChannels,
                 (FSoundChannelConfig*)g_pSecondaryMusicChannels, sizeof(g_ActiveMusicChannels));
         }
@@ -3253,7 +3253,7 @@ void Sound_Cmd_1A_Unk(FSoundCommandParams* arg0)
     g_pActiveMusicConfig->A_Volume = 0;
     g_pActiveMusicConfig->unk68 = arg0->ExtParam1;
     g_pActiveMusicConfig->unk64 = ((arg0->ExtParam2 & 0x7F) << 0x10) / arg0->ExtParam1;
-    func_80015BAC();
+    vs_audio_seqReleaseSavedVoiceConflicts();
 }
 
 void Sound_Cmd_12_unk(FSoundCommandParams* in_Params)
@@ -3292,7 +3292,7 @@ void Sound_Cmd_30_unk(FSoundCommandParams* arg0)
     arg0->Param2 = 0x02000000;
     arg0->Param3 = 0x80;
     arg0->Param4 = 0x7F;
-    arg0->ExtParam1 = func_80016DA8(g_Sound_SfxMetadataTable[arg0->Param1]);
+    arg0->ExtParam1 = vs_audio_samplesSoundEffectBankSlot(g_Sound_SfxMetadataTable[arg0->Param1]);
     Sound_PlaySfxProgram(arg0, sp10, sp14, 0);
 }
 
@@ -3302,12 +3302,12 @@ void Sound_Cmd_20_unk(FSoundCommandParams* arg0)
     char* akaoData;
 
     Sound_GetProgramCounters(&akaoOffset, &akaoData, arg0->Param1);
-    arg0->ExtParam1 = func_80016DA8(g_Sound_SfxMetadataTable[arg0->Param1]);
+    arg0->ExtParam1 = vs_audio_samplesSoundEffectBankSlot(g_Sound_SfxMetadataTable[arg0->Param1]);
     Sound_PlaySfxProgram(arg0, akaoOffset, akaoData, 0);
 }
 
 // https://decomp.me/scratch/wOmFh
-void func_8001733C(FSoundCommandParams* in_Params)
+void vs_audio_soundEffectsPlayBlobPrograms(FSoundCommandParams* in_Params)
 {
     int* header;
     int* offsets;
@@ -3317,7 +3317,7 @@ void func_8001733C(FSoundCommandParams* in_Params)
     char* programCounter2;
     int count;
 
-    in_Params->ExtParam1 = func_80016DA8(psx_to_ptr(int*, in_Params->Param1)[2]);
+    in_Params->ExtParam1 = vs_audio_samplesSoundEffectBankSlot(psx_to_ptr(int*, in_Params->Param1)[2]);
     header = psx_to_ptr(int*, in_Params->Param1);
     offsets = header + 4;
     count = header[1];
@@ -3481,7 +3481,7 @@ void Sound_Cmd_CA_unk(FSoundCommandParams* arg0)
 void Sound_Cmd_A0_unk(FSoundCommandParams* arg0)
 {
     u_int i;
-    FSoundChannel* var_a1 = D_80035910;
+    FSoundChannel* var_a1 = vs_audio_soundEffectsChannels;
     u_int mask = g_Sound_VoiceSchedulerState.ActiveChannelMask;
     int var_a3 = 0x1000;
 
@@ -3507,7 +3507,7 @@ void Sound_Cmd_A0_unk(FSoundCommandParams* arg0)
 void Sound_Cmd_A1_unk(FSoundCommandParams* arg0)
 {
     u_int i;
-    FSoundChannel* var_a2 = D_80035910;
+    FSoundChannel* var_a2 = vs_audio_soundEffectsChannels;
     int mask = g_Sound_VoiceSchedulerState.ActiveChannelMask;
     int var_t0 = 0x1000;
 
@@ -3537,7 +3537,7 @@ void Sound_Cmd_A8_unk(FSoundCommandParams* arg0)
     u_int i;
     FSoundChannel* var_a1;
 
-    for (i = 0, var_a1 = D_80035910; i < 12; ++i, ++var_a1, var_a3 *= 2) {
+    for (i = 0, var_a1 = vs_audio_soundEffectsChannels; i < 12; ++i, ++var_a1, var_a3 *= 2) {
         if ((mask & var_a3) && !(var_a1->unk28 & 0x02000000)) {
             var_a1->unkDC = (arg0->Param1 & 0x7F) << 8;
             var_a1->unk8C = 0;
@@ -3554,7 +3554,7 @@ void Sound_Cmd_A9_unk(FSoundCommandParams* arg0)
     u_int i;
     FSoundChannel* var_a2;
 
-    for (i = 0, var_a2 = D_80035910; i < 12; ++i, ++var_a2, var_t0 *= 2) {
+    for (i = 0, var_a2 = vs_audio_soundEffectsChannels; i < 12; ++i, ++var_a2, var_t0 *= 2) {
         if ((mask & var_t0) && !(var_a2->unk28 & 0x02000000)) {
             var_a1 = 1;
             if (arg0->Param1 != 0) {
@@ -3570,7 +3570,7 @@ void Sound_Cmd_A9_unk(FSoundCommandParams* arg0)
 void Sound_Cmd_A2_unk(FSoundCommandParams* arg0)
 {
     u_int i;
-    FSoundChannel* var_a1 = D_80035910;
+    FSoundChannel* var_a1 = vs_audio_soundEffectsChannels;
     u_int mask = g_Sound_VoiceSchedulerState.ActiveChannelMask;
     int var_a3 = 0x1000;
 
@@ -3596,7 +3596,7 @@ void Sound_Cmd_A2_unk(FSoundCommandParams* arg0)
 void Sound_Cmd_A3_unk(FSoundCommandParams* arg0)
 {
     u_int i;
-    FSoundChannel* var_a2 = D_80035910;
+    FSoundChannel* var_a2 = vs_audio_soundEffectsChannels;
     int mask = g_Sound_VoiceSchedulerState.ActiveChannelMask;
     int var_t0 = 0x1000;
 
@@ -3626,7 +3626,7 @@ void Sound_Cmd_AA_unk(FSoundCommandParams* arg0)
     u_int i;
     FSoundChannel* var_a1;
 
-    for (i = 0, var_a1 = D_80035910; i < 12; ++i, ++var_a1, var_a3 *= 2) {
+    for (i = 0, var_a1 = vs_audio_soundEffectsChannels; i < 12; ++i, ++var_a1, var_a3 *= 2) {
         if ((mask & var_a3) && !(var_a1->unk28 & 0x02000000)) {
             var_a1->unk6C = ((char)arg0->Param1) << 8;
             var_a1->unk6E = 0;
@@ -3643,7 +3643,7 @@ void Sound_Cmd_AB_unk(FSoundCommandParams* arg0)
     u_int i;
     FSoundChannel* var_a2;
 
-    for (i = 0, var_a2 = D_80035910; i < 12; ++i, ++var_a2, var_t0 *= 2) {
+    for (i = 0, var_a2 = vs_audio_soundEffectsChannels; i < 12; ++i, ++var_a2, var_t0 *= 2) {
         if ((mask & var_t0) && !(var_a2->unk28 & 0x02000000)) {
             var_a1 = 1;
             if (arg0->Param1 != 0) {
@@ -3658,7 +3658,7 @@ void Sound_Cmd_AB_unk(FSoundCommandParams* arg0)
 void Sound_Cmd_A4_unk(FSoundCommandParams* arg0)
 {
     u_int i;
-    FSoundChannel* var_a1 = D_80035910;
+    FSoundChannel* var_a1 = vs_audio_soundEffectsChannels;
     u_int mask = g_Sound_VoiceSchedulerState.ActiveChannelMask;
     int var_a3 = 0x1000;
 
@@ -3684,7 +3684,7 @@ void Sound_Cmd_A4_unk(FSoundCommandParams* arg0)
 void Sound_Cmd_A5_unk(FSoundCommandParams* arg0)
 {
     u_int i;
-    FSoundChannel* var_a2 = D_80035910;
+    FSoundChannel* var_a2 = vs_audio_soundEffectsChannels;
     int mask = g_Sound_VoiceSchedulerState.ActiveChannelMask;
     int var_t0 = 0x1000;
 
@@ -3712,7 +3712,7 @@ void Sound_Cmd_A5_unk(FSoundCommandParams* arg0)
 void Sound_Cmd_AC_unk(FSoundCommandParams* arg0)
 {
     int i;
-    FSoundChannel* var_a1 = D_80035910;
+    FSoundChannel* var_a1 = vs_audio_soundEffectsChannels;
     for (i = 12; i != 0; --i, ++var_a1) {
         if (!(var_a1->unk28 & 0x02000000)) {
             var_a1->unk40 = (char)arg0->Param1 << 8;
@@ -3730,7 +3730,7 @@ void Sound_Cmd_AD_unk(FSoundCommandParams* arg0)
     u_int i;
     FSoundChannel* var_a2;
 
-    for (i = 0, var_a2 = D_80035910; i < 12; ++i, ++var_a2, var_t0 *= 2) {
+    for (i = 0, var_a2 = vs_audio_soundEffectsChannels; i < 12; ++i, ++var_a2, var_t0 *= 2) {
         if ((mask & var_t0) && !(var_a2->unk28 & 0x02000000)) {
             var_a1 = 1;
             if (arg0->Param1 != 0) {
@@ -3746,7 +3746,7 @@ void Sound_Cmd_AD_unk(FSoundCommandParams* arg0)
 void func_8001833C(signed char* arg0)
 {
     g_Sound_TempoMultiplier = *arg0 << 0x10;
-    D_80036782 = 0;
+    vs_audio_mixerTempoScaleSlideLength = 0;
 }
 
 void func_80018358(FSoundCommandParams* arg0)
@@ -3756,8 +3756,8 @@ void func_80018358(FSoundCommandParams* arg0)
     if (temp_v0 != 0) {
         var_a1 = temp_v0;
     }
-    D_8003677C = (((signed char)arg0->Param2 << 0x10) - g_Sound_TempoMultiplier) / var_a1;
-    D_80036782 = var_a1;
+    vs_audio_mixerTempoScaleStep = (((signed char)arg0->Param2 << 0x10) - g_Sound_TempoMultiplier) / var_a1;
+    vs_audio_mixerTempoScaleSlideLength = var_a1;
 }
 
 void func_800183C0(FSoundCommandParams* arg0)
@@ -3769,18 +3769,18 @@ void func_800183C0(FSoundCommandParams* arg0)
         var_a1 = arg0->Param1;
     }
     g_Sound_TempoMultiplier = (signed char)arg0->Param2 << 0x10;
-    D_8003677C =
+    vs_audio_mixerTempoScaleStep =
         (int)(((signed char)arg0->Param3 << 0x10) - g_Sound_TempoMultiplier) / var_a1;
-    D_80036782 = var_a1;
+    vs_audio_mixerTempoScaleSlideLength = var_a1;
 }
 
-void func_80018434(signed char* arg0)
+void vs_audio_mixerSetMusicPitchScale(signed char* arg0)
 {
     g_Sound_MasterPitchScaleQ16_16 = *arg0 << 0x10;
-    D_80036780 = 0;
+    vs_audio_mixerMusicPitchScaleSlideLength = 0;
 }
 
-void func_80018450(FSoundCommandParams* arg0)
+void vs_audio_mixerSlideMusicPitchScale(FSoundCommandParams* arg0)
 {
     int temp_v0;
     int var_a1;
@@ -3790,13 +3790,13 @@ void func_80018450(FSoundCommandParams* arg0)
     if (temp_v0 != 0) {
         var_a1 = temp_v0;
     }
-    D_80036778 =
+    vs_audio_mixerMusicPitchScaleStep =
         (int)(((signed char)arg0->Param2 << 0x10) - g_Sound_MasterPitchScaleQ16_16)
         / var_a1;
-    D_80036780 = (short)var_a1;
+    vs_audio_mixerMusicPitchScaleSlideLength = (short)var_a1;
 }
 
-void func_800184B8(FSoundCommandParams* arg0)
+void vs_audio_mixerSetMusicPitchScaleRamp(FSoundCommandParams* arg0)
 {
     int var_a1;
 
@@ -3805,12 +3805,12 @@ void func_800184B8(FSoundCommandParams* arg0)
         var_a1 = arg0->Param1;
     }
     g_Sound_MasterPitchScaleQ16_16 = (signed char)arg0->Param2 << 0x10;
-    D_80036778 =
+    vs_audio_mixerMusicPitchScaleStep =
         (((signed char)arg0->Param3 << 0x10) - g_Sound_MasterPitchScaleQ16_16) / var_a1;
-    D_80036780 = var_a1;
+    vs_audio_mixerMusicPitchScaleSlideLength = var_a1;
 }
 
-void func_8001852C(void)
+void vs_audio_mixerStopMusicAndCancelReplacement(void)
 {
     Sound_KillMusicConfig(g_pActiveMusicConfig, g_ActiveMusicChannels, 0);
 
@@ -3835,13 +3835,13 @@ void Sound_Cmd_11_StopAllMusic(FSoundCommandParams* in_Params)
 
 void Sound_ClearVoiceFromSchedulerState(FSoundChannel* arg0, int arg1);
 
-void func_80018608(void)
+void vs_audio_mixerStopWorldSoundEffects(void)
 {
     FSoundChannel* var_s2;
     int var_s1;
     u_int i;
 
-    var_s2 = D_80035910;
+    var_s2 = vs_audio_soundEffectsChannels;
     var_s1 = 0x1000;
     for (i = 0; i < 12; ++i, ++var_s2, var_s1 *= 2) {
         if ((g_Sound_VoiceSchedulerState.ActiveChannelMask & var_s1)
@@ -3881,7 +3881,7 @@ void Sound_Cmd_90_unk(FSoundCommandParams* arg0)
     u_int i;
     FSoundChannel* c;
 
-    D_800378E4 = arg0->Param1;
+    vs_audio_mixerMutedMusicChannels = arg0->Param1;
 
     for (i = 0, c = g_ActiveMusicChannels; i < 32; ++i, ++c) {
         c->VoiceParams.VoiceParamFlags |= 3;
@@ -3960,7 +3960,7 @@ void Sound_Cmd_9D_unk(FSoundCommandParams* in_Params __attribute__((unused)))
 
     if (g_Sound_VoiceSchedulerState.ActiveChannelMask != 0) {
         var_s1 = g_Sound_VoiceSchedulerState.ActiveChannelMask;
-        var_a0 = D_80035910;
+        var_a0 = vs_audio_soundEffectsChannels;
         var_s0 = 0x1000;
 
         for (i = 0; i < 12; ++i, ++var_a0, var_s0 *= 2) {
@@ -3993,7 +3993,7 @@ void Sound_Cmd_9C_unk(FSoundCommandParams* in_Params __attribute__((unused)))
 {
     if (D_800378A0 != 0) {
         u_int temp_a2;
-        FSoundChannel* c = D_80035910;
+        FSoundChannel* c = vs_audio_soundEffectsChannels;
         int var_a2 = D_800378A0;
         int var_a1 = 0x1000;
 
@@ -4046,7 +4046,7 @@ void Sound_SetReverbMode(int in_ReverbMode)
     }
 }
 
-u_int func_80018C30(u_int in_Command)
+u_int vs_audio_mixerDispatchCommand(u_int in_Command)
 {
     AkaoSeqHeader* pSequence;
     FSoundCommandParams* pParams;
@@ -4063,7 +4063,7 @@ u_int func_80018C30(u_int in_Command)
     case 0x12:
     case 0x19:
     case 0x1A:
-        pSequence = (AkaoSeqHeader*)D_800378C0.unk0;
+        pSequence = (AkaoSeqHeader*)vs_audio_driverCommandArguments.unk0;
         if (*(int*)pSequence->magic == AKAO_MAGIC) {
             g_Sound_GlobalFlags.ControlLatches &= ~0x7700;
             if ((g_pActiveMusicConfig->MusicId != pSequence->id)
@@ -4074,18 +4074,18 @@ u_int func_80018C30(u_int in_Command)
                 pParams->Param3 = pSequence->id;
                 switch (in_Command) {
                 case 0x12:
-                    pParams->Param4 = D_800378C0.unk4;
+                    pParams->Param4 = vs_audio_driverCommandArguments.unk4;
                     break;
                 case 0x19:
-                    pParams->ExtParam1 = D_800378C0.unk4;
+                    pParams->ExtParam1 = vs_audio_driverCommandArguments.unk4;
                     break;
                 case 0x1A:
-                    fadeLength = D_800378C0.unk4;
+                    fadeLength = vs_audio_driverCommandArguments.unk4;
                     if (fadeLength == 0) {
                         fadeLength = 1;
                     }
                     pParams->ExtParam1 = fadeLength;
-                    pParams->ExtParam2 = D_800378C0.unk8;
+                    pParams->ExtParam2 = vs_audio_driverCommandArguments.unk8;
                     break;
                 }
                 result = pSequence->id;
@@ -4101,32 +4101,32 @@ u_int func_80018C30(u_int in_Command)
     case 0x14: {
         void* pData;
 
-        if (Sound_IsNotAkaoFile(D_800378C0.unk0) != 0) {
+        if (Sound_IsNotAkaoFile(vs_audio_driverCommandArguments.unk0) != 0) {
             result = -1;
             break;
         }
-        pData = D_800378C0.unk0;
+        pData = vs_audio_driverCommandArguments.unk0;
         g_pActiveMusicConfig->StatusFlags |= 0x10000;
         D_80037788.PendingSequence = psx_to_int(u_int, pData);
-        result = ((AkaoSeqHeader*)D_800378C0.unk0)->id;
+        result = ((AkaoSeqHeader*)vs_audio_driverCommandArguments.unk0)->id;
         break;
     }
     case 0x16:
-        if ((*(int*)D_800378C0.unk0 == AKAO_MAGIC)
-            && (*psx_to_ptr(int*, D_800378C0.unk4) == AKAO_MAGIC)) {
-            pSequence = psx_to_ptr(AkaoSeqHeader*, D_800378C0.unk4);
+        if ((*(int*)vs_audio_driverCommandArguments.unk0 == AKAO_MAGIC)
+            && (*psx_to_ptr(int*, vs_audio_driverCommandArguments.unk4) == AKAO_MAGIC)) {
+            pSequence = psx_to_ptr(AkaoSeqHeader*, vs_audio_driverCommandArguments.unk4);
             g_Sound_GlobalFlags.ControlLatches &= ~0x7700;
             Sound_SetReverbMode(pSequence->reverb_type);
-            D_800378C0.unk4 = pSequence->id;
+            vs_audio_driverCommandArguments.unk4 = pSequence->id;
             Sound_LoadAkaoSequence((FAkaoSequence*)pSequence);
             g_pActiveMusicConfig->MusicId = pSequence->id;
-            Sound_memcpy32(g_ActiveMusicChannels, D_800378E8, sizeof(g_ActiveMusicChannels));
-            Sound_memcpy32(&D_800366F0, &g_PushedMusicConfig, sizeof(FSoundChannelConfig));
-            pSequence = (AkaoSeqHeader*)D_800378C0.unk0;
-            D_800378C0.unk0 = (__UINTPTR_TYPE__)((u_int)pSequence->id);
+            Sound_memcpy32(g_ActiveMusicChannels, vs_audio_seqSavedMusicChannels, sizeof(g_ActiveMusicChannels));
+            Sound_memcpy32(&vs_audio_seqPrimaryMusicConfig, &g_PushedMusicConfig, sizeof(FSoundChannelConfig));
+            pSequence = (AkaoSeqHeader*)vs_audio_driverCommandArguments.unk0;
+            vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)((u_int)pSequence->id);
             Sound_LoadAkaoSequence((FAkaoSequence*)pSequence);
             g_pSavedMousicConfig = &g_PushedMusicConfig;
-            g_pSecondaryMusicChannels = D_800378E8;
+            g_pSecondaryMusicChannels = vs_audio_seqSavedMusicChannels;
             g_pActiveMusicConfig->MusicId = pSequence->id;
             g_PushedMusicConfig.ActiveChannelMask &= ~g_PushedMusicConfig.unk30;
             g_Sound_GlobalFlags.ControlLatches |= 0x100;
@@ -4144,50 +4144,50 @@ u_int func_80018C30(u_int in_Command)
         in_Command = 0;
         break;
     case 0xD8:
-        pParams->Param1 = (u_int)((unsigned long)(D_800378C0.unk0));
-        D_800301E0[0xD0](pParams);
+        pParams->Param1 = (u_int)((unsigned long)(vs_audio_driverCommandArguments.unk0));
+        vs_audio_mixerCommandHandlers[0xD0](pParams);
         in_Command = 0xD4;
         break;
     case 0xD9:
-        pParams->Param1 = (u_int)((unsigned long)(D_800378C0.unk0));
-        pParams->Param2 = D_800378C0.unk4;
-        D_800301E0[0xD1](pParams);
+        pParams->Param1 = (u_int)((unsigned long)(vs_audio_driverCommandArguments.unk0));
+        pParams->Param2 = vs_audio_driverCommandArguments.unk4;
+        vs_audio_mixerCommandHandlers[0xD1](pParams);
         in_Command = 0xD5;
         break;
     case 0xDA:
-        pParams->Param1 = (u_int)((unsigned long)(D_800378C0.unk0));
-        pParams->Param2 = D_800378C0.unk4;
-        pParams->Param3 = D_800378C0.unk8;
-        D_800301E0[0xD2](pParams);
+        pParams->Param1 = (u_int)((unsigned long)(vs_audio_driverCommandArguments.unk0));
+        pParams->Param2 = vs_audio_driverCommandArguments.unk4;
+        pParams->Param3 = vs_audio_driverCommandArguments.unk8;
+        vs_audio_mixerCommandHandlers[0xD2](pParams);
         in_Command = 0xD6;
         break;
     case 0x99:
-        D_800301E0[0x9B](pParams);
-        D_800301E0[0x9D](pParams);
+        vs_audio_mixerCommandHandlers[0x9B](pParams);
+        vs_audio_mixerCommandHandlers[0x9D](pParams);
         in_Command = 0x9F;
         break;
     case 0x98:
-        D_800301E0[0x9A](pParams);
-        D_800301E0[0x9C](pParams);
+        vs_audio_mixerCommandHandlers[0x9A](pParams);
+        vs_audio_mixerCommandHandlers[0x9C](pParams);
         in_Command = 0x9E;
         break;
     default:
-        pParams->Param1 = (u_int)((unsigned long)(D_800378C0.unk0));
-        pParams->Param2 = D_800378C0.unk4;
-        pParams->Param3 = D_800378C0.unk8;
-        pParams->Param4 = D_800378C0.unkC;
-        pParams->ExtParam1 = D_800378C0.unk10;
-        pParams->ExtParam2 = D_800378C0.unk14;
+        pParams->Param1 = (u_int)((unsigned long)(vs_audio_driverCommandArguments.unk0));
+        pParams->Param2 = vs_audio_driverCommandArguments.unk4;
+        pParams->Param3 = vs_audio_driverCommandArguments.unk8;
+        pParams->Param4 = vs_audio_driverCommandArguments.unkC;
+        pParams->ExtParam1 = vs_audio_driverCommandArguments.unk10;
+        pParams->ExtParam2 = vs_audio_driverCommandArguments.unk14;
         break;
     }
-    D_800301E0[in_Command](pParams);
+    vs_audio_mixerCommandHandlers[in_Command](pParams);
     EnableEvent(_soundEvent);
     return result;
 }
 
 void UpdateCdVolume(void)
 {
-    int v = D_800378E2;
+    int v = vs_audio_seqDiscVolumeLevel;
     *CD_VOL_L = v;
     *CD_VOL_R = v;
 }
@@ -4251,7 +4251,7 @@ void Sound_memswp32(void* in_A, void* in_B, u_int in_Size)
     }
 }
 
-void func_8001924C(void)
+void vs_audio_seqUpdateGlobalSlides(void)
 {
     int temp_s1;
     int var_a2;
@@ -4272,7 +4272,7 @@ void func_8001924C(void)
                 + g_Sound_Cutscene_StreamState.VolFadeStepSize;
         if ((temp_s1 & 0xFF00) != (g_Sound_Cutscene_StreamState.Volume & 0xFF00)) {
             if (D_80039AFC & 2) {
-                int temp_s0 = (g_Sound_Cutscene_StreamState.Volume * D_8002F89C) >> 0x10;
+                int temp_s0 = (g_Sound_Cutscene_StreamState.Volume * vs_audio_mixerCenterPanGain) >> 0x10;
                 SetVoiceVolume(
                     g_Sound_Cutscene_StreamState.VoiceIndex, temp_s0, temp_s0, 0);
                 SetVoiceVolume(
@@ -4286,13 +4286,13 @@ void func_8001924C(void)
         }
         g_Sound_Cutscene_StreamState.Volume = temp_s1 & 0xFFFF;
     }
-    if (D_80036782 != 0) {
-        --D_80036782;
-        g_Sound_TempoMultiplier += D_8003677C;
+    if (vs_audio_mixerTempoScaleSlideLength != 0) {
+        --vs_audio_mixerTempoScaleSlideLength;
+        g_Sound_TempoMultiplier += vs_audio_mixerTempoScaleStep;
     }
-    if (D_80036780 != 0) {
-        --D_80036780;
-        temp_s1 = g_Sound_MasterPitchScaleQ16_16 + D_80036778;
+    if (vs_audio_mixerMusicPitchScaleSlideLength != 0) {
+        --vs_audio_mixerMusicPitchScaleSlideLength;
+        temp_s1 = g_Sound_MasterPitchScaleQ16_16 + vs_audio_mixerMusicPitchScaleStep;
 
         if ((temp_s1 & 0xFF0000) != (g_Sound_MasterPitchScaleQ16_16 & 0xFF0000)) {
             var_v1 = g_ActiveMusicChannels;
@@ -4325,7 +4325,7 @@ void func_8001924C(void)
     }
     if (g_Sound_VoiceSchedulerState.ActiveChannelMask != 0) {
         var_a3 = g_Sound_VoiceSchedulerState.ActiveChannelMask;
-        var_a1_2 = D_80035910;
+        var_a1_2 = vs_audio_soundEffectsChannels;
         do {
         } while (0);
         for (var_a2 = 0x1000; var_a3 != 0; var_a2 <<= 1, ++var_a1_2) {
@@ -4400,7 +4400,7 @@ void func_80019614(void)
     }
 }
 
-int func_80019704(FSoundChannel* arg0, int arg1)
+int vs_audio_seqUpdateMusicSequence(FSoundChannel* arg0, int arg1)
 {
     FSoundChannel* var_s2;
     int var_s3;
@@ -4432,7 +4432,7 @@ int func_80019704(FSoundChannel* arg0, int arg1)
                     --var_s2->Length1;
                     --var_s2->Length2;
                     if (var_s2->Length1 == 0) {
-                        func_8001A8D8(var_s2, var_s1);
+                        vs_audio_seqExecuteChannelStep(var_s2, var_s1);
                     } else if (var_s2->Length2 == 0) {
                         g_pActiveMusicConfig->PendingKeyOffMask |= var_s1;
                     }
@@ -4480,7 +4480,7 @@ int func_80019704(FSoundChannel* arg0, int arg1)
                 --g_Music_LoopCounter;
             }
 
-            if (g_pActiveMusicConfig == &D_800366F0) {
+            if (g_pActiveMusicConfig == &vs_audio_seqPrimaryMusicConfig) {
                 func_80019614();
             }
         } while (arg1 == 0 && g_Music_LoopCounter != 0);
@@ -4490,7 +4490,7 @@ int func_80019704(FSoundChannel* arg0, int arg1)
     return g_pActiveMusicConfig->ActiveChannelMask;
 }
 
-void func_800199C4(FSoundChannelConfig* arg0, FSoundChannel* arg1)
+void vs_audio_seqUpdateSavedMusicFade(FSoundChannelConfig* arg0, FSoundChannel* arg1)
 {
     int temp_s0;
 
@@ -4513,7 +4513,7 @@ void func_800199C4(FSoundChannelConfig* arg0, FSoundChannel* arg1)
     }
 }
 
-psx_long func_80019A58(void)
+psx_long vs_audio_seqTickPlayback(void)
 {
     FSoundChannel* var_s2_2;
     FSoundChannelConfig* temp_v0;
@@ -4524,7 +4524,7 @@ psx_long func_80019A58(void)
     u_short* p;
 
     var_s5 = GetRCnt(RCntCNT2);
-    ++D_8002F54C;
+    ++vs_audio_seqTickCounter;
     if (g_Sound_GlobalFlags.ControlLatches & 0x1100) {
         if (g_Sound_GlobalFlags.ControlLatches & 0x100) {
             if (g_Sound_GlobalFlags.ControlLatches & 0x6000) {
@@ -4587,20 +4587,20 @@ psx_long func_80019A58(void)
     if (((D_80039B00 | g_pActiveMusicConfig->ActiveNoteMask | D_80037898) != 0)
         || ((g_pSavedMousicConfig != NULL)
             && (SAVED_MUSIC_CONFIG->ActiveNoteMask != 0))) {
-        func_80015220();
+        vs_audio_mixerCommitPlaybackVoices();
     }
     if (g_pActiveMusicConfig->ActiveChannelMask != 0) {
-        func_80019704(g_ActiveMusicChannels, 0);
+        vs_audio_seqUpdateMusicSequence(g_ActiveMusicChannels, 0);
     }
     if (g_pSavedMousicConfig != NULL) {
         if (SAVED_MUSIC_CONFIG->ActiveChannelMask != 0) {
             g_pActiveMusicConfig = g_pSavedMousicConfig;
-            func_80019704(g_pSecondaryMusicChannels, 1);
-            g_pActiveMusicConfig = &D_800366F0;
+            vs_audio_seqUpdateMusicSequence(g_pSecondaryMusicChannels, 1);
+            g_pActiveMusicConfig = &vs_audio_seqPrimaryMusicConfig;
         }
         if (g_Sound_GlobalFlags.MixBehavior & 0x100) {
-            if (!(D_8002F54C & 3)) {
-                func_800199C4(g_pSavedMousicConfig, g_pSecondaryMusicChannels);
+            if (!(vs_audio_seqTickCounter & 3)) {
+                vs_audio_seqUpdateSavedMusicFade(g_pSavedMousicConfig, g_pSecondaryMusicChannels);
                 if (SAVED_MUSIC_CONFIG->ActiveChannelMask == 0) {
                     g_Sound_GlobalFlags.MixBehavior &= ~0x100;
                 }
@@ -4615,7 +4615,7 @@ psx_long func_80019A58(void)
             || (g_Sound_Cutscene_StreamState.ControlFlags & 4)) {
             g_Sound_VoiceSchedulerState.TempoAccumumulator &= 0xFFFF;
             var_s1 = 0x1000;
-            var_s2_2 = D_80035910;
+            var_s2_2 = vs_audio_soundEffectsChannels;
             do {
                 if (i & var_s1) {
                     if (!(g_Sound_Cutscene_StreamState.ControlFlags & 2) || (var_s2_2->unk28 & 0x02000000)) {
@@ -4623,7 +4623,7 @@ psx_long func_80019A58(void)
                         --var_s2_2->Length1;
                         --var_s2_2->Length2;
                         if (var_s2_2->Length1 == 0) {
-                            func_8001A8D8(var_s2_2, var_s1);
+                            vs_audio_seqExecuteChannelStep(var_s2_2, var_s1);
                         } else if (var_s2_2->Length2 == 0) {
                             g_Sound_VoiceSchedulerState.KeyOffFlags |= var_s1;
                             g_Sound_VoiceSchedulerState.KeyedFlags &= ~var_s1;
@@ -4637,28 +4637,28 @@ psx_long func_80019A58(void)
             } while (i != 0);
         }
     }
-    if (!(D_8002F54C & 3)) {
-        func_8001924C();
+    if (!(vs_audio_seqTickCounter & 3)) {
+        vs_audio_seqUpdateGlobalSlides();
     }
     var_s5 = GetRCnt(RCntCNT2) - var_s5;
     if (var_s5 <= 0) {
         var_s5 += 0x44E8;
     }
 
-    D_8002F550[0] = D_8002F550[1];
-    D_8002F550[1] = D_8002F550[2];
-    D_8002F550[2] = D_8002F550[3];
-    D_8002F550[3] = var_s5;
-    D_8002F548 = D_8002F550[0] + D_8002F550[1] + D_8002F550[2] + D_8002F550[3];
+    vs_audio_driverRecentTickCosts[0] = vs_audio_driverRecentTickCosts[1];
+    vs_audio_driverRecentTickCosts[1] = vs_audio_driverRecentTickCosts[2];
+    vs_audio_driverRecentTickCosts[2] = vs_audio_driverRecentTickCosts[3];
+    vs_audio_driverRecentTickCosts[3] = var_s5;
+    vs_audio_driverRecentTickCostTotal = vs_audio_driverRecentTickCosts[0] + vs_audio_driverRecentTickCosts[1] + vs_audio_driverRecentTickCosts[2] + vs_audio_driverRecentTickCosts[3];
     return var_s5;
 }
 
 // https://decomp.me/scratch/qmxvP
-char func_80019FC4(FSoundChannel* channel);
-extern u_char D_8002F5A0[];
-extern u_char D_8002F600[];
+char vs_audio_seqPeekNextNote(FSoundChannel* channel);
+extern u_char vs_audio_seqOpcodeLengths[];
+extern u_char vs_audio_seqExtendedOpcodeLengths[];
 
-char func_80019FC4(FSoundChannel* channel)
+char vs_audio_seqPeekNextNote(FSoundChannel* channel)
 {
     u_char* pc;
     u_int loopTop;
@@ -4680,7 +4680,7 @@ char func_80019FC4(FSoundChannel* channel)
         if (*pc < 0xA0) {
             return 0xA0;
         }
-        length = D_8002F5A0[*pc - 0xA0];
+        length = vs_audio_seqOpcodeLengths[*pc - 0xA0];
         if (length != 0) {
             pc += length;
             continue;
@@ -4705,7 +4705,7 @@ char func_80019FC4(FSoundChannel* channel)
             return 0x8F;
         case 0xFE:
             pc++;
-            length = D_8002F600[*pc];
+            length = vs_audio_seqExtendedOpcodeLengths[*pc];
             if (length != 0) {
                 pc += length;
                 break;
@@ -4782,7 +4782,7 @@ char func_80019FC4(FSoundChannel* channel)
     }
 }
 
-int func_8001A1F4(int arg0, int arg1)
+int vs_audio_seqResolveSoundEffectInstrument(int arg0, int arg1)
 {
     if ((arg1 - 0x80u) < 0x20) {
         if (arg0 & 2) {
@@ -4795,7 +4795,7 @@ int func_8001A1F4(int arg0, int arg1)
     return arg1;
 }
 
-int func_8001A22C(int arg0, u_int arg1)
+int vs_audio_seqResolveMusicInstrument(int arg0, u_int arg1)
 {
     if ((arg0 & 0x40) && (arg1 >= 0x40) && (arg1 < 0x80)) {
         return arg1 + 0x20;
@@ -4803,7 +4803,7 @@ int func_8001A22C(int arg0, u_int arg1)
     return arg1;
 }
 
-void func_8001A258(FSoundChannel* arg0, u_int arg1)
+void vs_audio_seqSelectNotePatch(FSoundChannel* arg0, u_int arg1)
 {
     FSoundInstrumentInfo* temp_a0;
     char* var_s0;
@@ -4827,7 +4827,7 @@ void func_8001A258(FSoundChannel* arg0, u_int arg1)
 
     temp_s2 = arg0->UpdateFlags;
 
-    temp_v0 = func_8001A22C(g_pActiveMusicConfig->StatusFlags, var_s0[0]);
+    temp_v0 = vs_audio_seqResolveMusicInstrument(g_pActiveMusicConfig->StatusFlags, var_s0[0]);
     arg0->InstrumentIndex = temp_v0;
     temp_a0 = &g_InstrumentInfo[temp_v0];
     arg0->VoiceParams.StartAddress = temp_a0->StartAddr;
@@ -4869,7 +4869,7 @@ void func_8001A258(FSoundChannel* arg0, u_int arg1)
     arg0->VoiceParams.VolumeScale = var_s0[7];
 }
 
-int func_8001A4BC(FSoundInstrumentInfo* arg0, int arg1, u_int arg2, int* arg3)
+int vs_audio_seqCalculateNotePitch(FSoundInstrumentInfo* arg0, int arg1, u_int arg2, int* arg3)
 {
     int var_a0;
     int var_t0;
@@ -4883,12 +4883,12 @@ int func_8001A4BC(FSoundInstrumentInfo* arg0, int arg1, u_int arg2, int* arg3)
     var_a0 %= 12;
 
     if (arg0->FineTune == 0) {
-        var_t0 = D_8002F63C[var_a0] << 8;
+        var_t0 = vs_audio_seqSemitonePitches[var_a0] << 8;
     } else if (arg0->FineTune < 0) {
-        var_t0 = (D_8002F63C[var_a0] * (u_short)arg0->FineTune) >> 8;
+        var_t0 = (vs_audio_seqSemitonePitches[var_a0] * (u_short)arg0->FineTune) >> 8;
     } else {
-        var_t0 = (D_8002F63C[var_a0] * arg0->FineTune) >> 7;
-        var_t0 += D_8002F63C[var_a0] << 8;
+        var_t0 = (vs_audio_seqSemitonePitches[var_a0] * arg0->FineTune) >> 7;
+        var_t0 += vs_audio_seqSemitonePitches[var_a0] << 8;
     }
 
     arg2 &= 0xFF;
@@ -4918,7 +4918,7 @@ int func_8001A4BC(FSoundInstrumentInfo* arg0, int arg1, u_int arg2, int* arg3)
     return (u_short)var_t0;
 }
 
-int func_8001A64C(FSoundChannel* arg0, int arg1, int arg2)
+int vs_audio_seqStartDrumNote(FSoundChannel* arg0, int arg1, int arg2)
 {
     FSoundInstrumentInfo* temp_a0;
     int temp_v0;
@@ -4935,7 +4935,7 @@ int func_8001A64C(FSoundChannel* arg0, int arg1, int arg2)
     }
 
     temp_s2 = arg0->UpdateFlags;
-    temp_v0_2 = func_8001A22C(g_pActiveMusicConfig->StatusFlags, (u_int)temp_s1[0]);
+    temp_v0_2 = vs_audio_seqResolveMusicInstrument(g_pActiveMusicConfig->StatusFlags, (u_int)temp_s1[0]);
     arg0->InstrumentIndex = temp_v0_2;
     temp_a0 = &g_InstrumentInfo[temp_v0_2];
     arg0->VoiceParams.StartAddress = temp_a0->StartAddr;
@@ -4974,7 +4974,7 @@ int func_8001A64C(FSoundChannel* arg0, int arg1, int arg2)
     }
 
     arg0->VoiceParams.AdsrUpper |= temp_a0->AdsrUpper & 0x20;
-    temp_v0 = func_8001A4BC(temp_a0, temp_s1[1], arg0->FineTune, &arg0->FinePitchDelta);
+    temp_v0 = vs_audio_seqCalculateNotePitch(temp_a0, temp_s1[1], arg0->FineTune, &arg0->FinePitchDelta);
     arg0->VoiceParams.VolumeScale = temp_s1[6];
     arg0->ChannelPan = ((temp_s1[7] & 0x7F) + 0x40) << 8;
 
@@ -4987,12 +4987,12 @@ int func_8001A64C(FSoundChannel* arg0, int arg1, int arg2)
     return temp_v0;
 }
 
-extern u_short D_8002F620[];
-extern char D_8002F69C[];
-extern void (*D_800305E0[])(FSoundChannel*, int);
-extern void (*D_80030760[])(FSoundChannel*, int);
+extern u_short vs_audio_seqNoteLengths[];
+extern char vs_audio_seqRandomPitchOffsets[];
+extern void (*vs_audio_seqOpcodeHandlers[])(FSoundChannel*, int);
+extern void (*vs_audio_seqExtendedOpcodeHandlers[])(FSoundChannel*, int);
 
-void func_8001A8D8(FSoundChannel* arg0, int arg1)
+void vs_audio_seqExecuteChannelStep(FSoundChannel* arg0, int arg1)
 {
     u_int sp10;
     u_int temp_a2_2;
@@ -5015,7 +5015,7 @@ void func_8001A8D8(FSoundChannel* arg0, int arg1)
             if (var_s0 == 0xFE) {
                 temp_a2_2 = temp_a1[0];
                 arg0->ProgramCounter = temp_a1 + 1;
-                D_80030760[temp_a2_2](arg0, arg1);
+                vs_audio_seqExtendedOpcodeHandlers[temp_a2_2](arg0, arg1);
             } else {
                 if (temp_v1 < 0xE) {
                     var_s0 = temp_v1 * 0xB;
@@ -5028,7 +5028,7 @@ void func_8001A8D8(FSoundChannel* arg0, int arg1)
                         var_s0 = 0xA0;
                         g_Sound_VoiceSchedulerState.KeyOffFlags |= arg1;
                     }
-                    D_800305E0[var_s0 - 0xA0](arg0, arg1);
+                    vs_audio_seqOpcodeHandlers[var_s0 - 0xA0](arg0, arg1);
                 }
             }
         }
@@ -5040,7 +5040,7 @@ void func_8001A8D8(FSoundChannel* arg0, int arg1)
             g_pActiveMusicConfig->PendingKeyOffMask |= arg1;
         }
     } else {
-        temp_a2_2 = func_80019FC4(arg0);
+        temp_a2_2 = vs_audio_seqPeekNextNote(arg0);
         if (arg0->LengthFixed != 0) {
             arg0->Length1 = arg0->Length2 = arg0->LengthFixed;
         }
@@ -5049,7 +5049,7 @@ void func_8001A8D8(FSoundChannel* arg0, int arg1)
                 arg0->Length2 -= 2;
             }
         } else {
-            int tmp = D_8002F620[var_s0 % 11];
+            int tmp = vs_audio_seqNoteLengths[var_s0 % 11];
             arg0->Length1 = tmp;
             var_v1 = tmp;
             if (((temp_a2_2 - 0x84) >= 0xB) && !(arg0->SfxMask & 5)) {
@@ -5083,7 +5083,7 @@ void func_8001A8D8(FSoundChannel* arg0, int arg1)
             temp_s0 = var_s0 / 11;
             temp_s0 += temp_v0;
             if (temp_a1_2 & 8) {
-                temp_a2_2 = func_8001A64C(arg0, arg1, temp_s0);
+                temp_a2_2 = vs_audio_seqStartDrumNote(arg0, arg1, temp_s0);
             } else {
                 if (!(arg0->SfxMask & 2)) {
                     if (arg0->Type == 0) {
@@ -5093,7 +5093,7 @@ void func_8001A8D8(FSoundChannel* arg0, int arg1)
                                     + ((temp_s0) % 12));
                         }
                         if (temp_a1_2 & 0x1000) {
-                            func_8001A258(arg0, temp_s0);
+                            vs_audio_seqSelectNotePatch(arg0, temp_s0);
                         }
                         g_pActiveMusicConfig->PendingKeyOnMask |= arg1;
                         if ((g_pActiveMusicConfig->ActiveNoteMask & arg1)
@@ -5125,12 +5125,12 @@ void func_8001A8D8(FSoundChannel* arg0, int arg1)
                     temp_s0 = temp_s0 + arg0->Transpose;
                 }
 
-                temp_a2_2 = func_8001A4BC(&g_InstrumentInfo[arg0->InstrumentIndex],
+                temp_a2_2 = vs_audio_seqCalculateNotePitch(&g_InstrumentInfo[arg0->InstrumentIndex],
                     temp_s0, arg0->FineTune, &arg0->FinePitchDelta);
                 if (arg0->RandomPitchDepth != 0) {
                     sp10 = (temp_a2_2 * arg0->RandomPitchDepth) >> 8;
-                    sp10 *= D_8002F69C[g_Sound_LfoPhase];
-                    if (D_8002F69C[g_Sound_LfoPhase] & 0x80) {
+                    sp10 *= vs_audio_seqRandomPitchOffsets[g_Sound_LfoPhase];
+                    if (vs_audio_seqRandomPitchOffsets[g_Sound_LfoPhase] & 0x80) {
                         sp10 >>= 9;
                         temp_a2_2 -= sp10;
                     } else {
@@ -5172,7 +5172,7 @@ void func_8001A8D8(FSoundChannel* arg0, int arg1)
         arg0->SfxMask = (arg0->SfxMask & 0xFFFD) | ((arg0->SfxMask & 1) * 2);
         if (arg0->PitchBendSlideTranspose != 0) {
             arg0->Key += arg0->PitchBendSlideTranspose;
-            temp_a2_2 = func_8001A4BC(&g_InstrumentInfo[arg0->InstrumentIndex],
+            temp_a2_2 = vs_audio_seqCalculateNotePitch(&g_InstrumentInfo[arg0->InstrumentIndex],
                 arg0->Key + arg0->Transpose, arg0->FineTune, (int*)&sp10);
             temp_a2_2 <<= 0x10;
             arg0->PitchSlideStepsCurrent = arg0->PitchBendSlideLength;
@@ -5196,7 +5196,7 @@ void Sound_CopyInstrumentInfoToChannel(
     arg0->VoiceParams.VoiceParamFlags |= 0x1FF80;
 }
 
-void func_8001B094(FSoundChannel* arg0, int arg1)
+void vs_audio_seqSelectChannelInstrument(FSoundChannel* arg0, int arg1)
 {
     arg0->InstrumentIndex = arg1;
     Sound_CopyInstrumentInfoToChannel(
@@ -5557,8 +5557,8 @@ void SoundVM_A1_LoadInstrument(
     int pc = *(in_pChannel->ProgramCounter)++;
 
     int var_s0 = in_pChannel->Type == 0
-                   ? func_8001A22C(g_pActiveMusicConfig->StatusFlags, pc)
-                   : func_8001A1F4(in_pChannel->unk38, pc);
+                   ? vs_audio_seqResolveMusicInstrument(g_pActiveMusicConfig->StatusFlags, pc)
+                   : vs_audio_seqResolveSoundEffectInstrument(in_pChannel->unk38, pc);
     Sound_CopyInstrumentInfoToChannel(
         in_pChannel, &g_InstrumentInfo[var_s0], g_InstrumentInfo[var_s0].StartAddr);
     in_pChannel->InstrumentIndex = var_s0;
@@ -6524,7 +6524,7 @@ int Sound_Cutscene_FindFreeVoicePair(void)
     return -1;
 }
 
-void func_8001CE60(void)
+void vs_audio_cutsceneUploadSecondMonoBuffer(void)
 {
     u_char* temp_s0 = g_Sound_Cutscene_StreamState.pCurrentChunk + 0x800;
     SpuSetTransferStartAddr(0x2100);
@@ -6532,7 +6532,7 @@ void func_8001CE60(void)
     SpuWrite(temp_s0, 0x800);
 }
 
-void func_8001D3D4(void);
+void vs_audio_cutsceneBeginStereoPlayback(void);
 
 void Sound_Cutscene_StartStream(u_int* arg0, int arg1, int arg2)
 {
@@ -6571,14 +6571,14 @@ void Sound_Cutscene_StartStream(u_int* arg0, int arg1, int arg2)
                 (g_Sound_Cutscene_StreamState.field2_0x8 & 2)
                     ? g_Sound_Cutscene_StreamState.TotalPages - (s3[5] >> 1)
                     : 0;
-            SpuSetTransferCallback(func_8001D3D4);
+            SpuSetTransferCallback(vs_audio_cutsceneBeginStereoPlayback);
             transferSize = 0x2000;
         } else {
             g_Sound_Cutscene_StreamState.field7_0x1c =
                 (g_Sound_Cutscene_StreamState.field2_0x8 & 2)
                     ? g_Sound_Cutscene_StreamState.TotalPages - s3[5]
                     : 0;
-            SpuSetTransferCallback(func_8001CE60);
+            SpuSetTransferCallback(vs_audio_cutsceneUploadSecondMonoBuffer);
             transferSize = 0x800;
         }
         SpuWrite(
@@ -6674,14 +6674,14 @@ void Sound_Cutscene_OnInitialTransferComplete(void)
     Sound_Cutscene_BeginPlayback(0x1000, 0x2100, Sound_Cutscene_OnBufferAComplete);
 }
 
-void func_8001D5E4(void);
+void vs_audio_cutsceneRefillStereoFirstBuffer(void);
 
-void func_8001D3D4(void)
+void vs_audio_cutsceneBeginStereoPlayback(void)
 {
     Sound_Cutscene_InitVoice(g_Sound_Cutscene_StreamState.VoiceIndex, 1, 0x1100, 0x2100);
     Sound_Cutscene_InitVoice(
         g_Sound_Cutscene_StreamState.VoiceIndex + 1, 2, 0x1900, 0x2900);
-    Sound_Cutscene_BeginPlayback(0x2000, 0x2100, func_8001D5E4);
+    Sound_Cutscene_BeginPlayback(0x2000, 0x2100, vs_audio_cutsceneRefillStereoFirstBuffer);
 }
 
 void Sound_Cutscene_LoadNextBuffer(
@@ -6728,21 +6728,21 @@ void Sound_Cutscene_OnBufferBComplete(void)
         0x2100, 0x2100, 0x800, Sound_Cutscene_OnBufferAComplete);
 }
 
-void func_8001D614();
+void vs_audio_cutsceneRefillStereoSecondBuffer();
 
-void func_8001D5E4(void)
+void vs_audio_cutsceneRefillStereoFirstBuffer(void)
 {
-    Sound_Cutscene_LoadNextBuffer(0x1100, 0x1900, 0x1000, func_8001D614);
+    Sound_Cutscene_LoadNextBuffer(0x1100, 0x1900, 0x1000, vs_audio_cutsceneRefillStereoSecondBuffer);
 }
 
-void func_8001D614(void)
+void vs_audio_cutsceneRefillStereoSecondBuffer(void)
 {
-    Sound_Cutscene_LoadNextBuffer(0x2100, 0x2900, 0x1000, func_8001D5E4);
+    Sound_Cutscene_LoadNextBuffer(0x2100, 0x2900, 0x1000, vs_audio_cutsceneRefillStereoFirstBuffer);
 }
 
 void Sound_Cutscene_StartStream(u_int*, int, int);
 
-void func_8001D644(int* arg0)
+void vs_audio_cutsceneReplaceStream(int* arg0)
 {
     IRQCallbackProc();
     Sound_Cutscene_StartStream(psx_to_ptr(u_int*, arg0[0]), arg0[1], arg0[2]);
@@ -6750,7 +6750,7 @@ void func_8001D644(int* arg0)
         ~g_Sound_Cutscene_StreamState.VoicesInUseFlags;
 }
 
-void func_8001D698(void) { IRQCallbackProc(); }
+void vs_audio_cutsceneStopStream(void) { IRQCallbackProc(); }
 
 void Sound_Cmd_E4_SetCutsceneVolume(FSoundCommandParams* in_Params)
 {
@@ -6776,13 +6776,13 @@ void Sound_Cmd_E5_FadeOutCutscene(FSoundCommandParams* in_Params)
     g_Sound_Cutscene_StreamState.VolFadeStepsRemaining = var_a1;
 }
 
-void func_8001D7A8(int* arg0)
+void vs_audio_cutsceneSetStreamPan(int* arg0)
 {
     g_Sound_Cutscene_StreamState.field19_0x4c.s32 = *arg0;
 
     if (g_Sound_Cutscene_StreamState.VoicesInUseFlags != 0) {
         if (D_80039AFC & 2) {
-            int var_s0 = (g_Sound_Cutscene_StreamState.Volume * D_8002F89C) >> 0x10;
+            int var_s0 = (g_Sound_Cutscene_StreamState.Volume * vs_audio_mixerCenterPanGain) >> 0x10;
             SetVoiceVolume(g_Sound_Cutscene_StreamState.VoiceIndex, var_s0, var_s0, 0);
             SetVoiceVolume(
                 g_Sound_Cutscene_StreamState.VoiceIndex + 1, var_s0, var_s0, 0);

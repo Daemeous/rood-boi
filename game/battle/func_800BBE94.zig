@@ -1,4 +1,4 @@
-//! Sets the view vector at unk1EC from the vector func_800A1108 looks up for the
+//! Sets the view vector at unk1EC from the vector vs_actors_actorPlacement looks up for the
 //! index in unk1E8 (pc/src/game/BATTLE/BATTLE.PRG/4A0A8.c).
 const v = @import("views_4A0A8");
 const c = @import("c_4A0A8");
@@ -8,14 +8,14 @@ const c = @import("c_4A0A8");
 pub fn func_800BBE94() callconv(.c) void {
     var sp10: v.func_8006EBF8_t = undefined;
 
-    if (v.g.D_800F4BA4().*.?.unk1E8 == 0x2000) {
-        v.g.D_800F4BA4().*.?.unk1EC.vz = 0;
-        v.g.D_800F4BA4().*.?.unk1EC.vy = 0;
-        v.g.D_800F4BA4().*.?.unk1EC.vx = 0;
+    if (v.g.vs_event_camera().*.?.unk1E8 == 0x2000) {
+        v.g.vs_event_camera().*.?.unk1EC.vz = 0;
+        v.g.vs_event_camera().*.?.unk1EC.vy = 0;
+        v.g.vs_event_camera().*.?.unk1EC.vx = 0;
         return;
     }
-    _ = c.func_800A1108(@as(c_int, v.g.D_800F4BA4().*.?.unk1E8), &sp10);
-    v.g.D_800F4BA4().*.?.unk1EC.vx = @as(c_int, sp10.unk0.unk4.vx) *% 4096;
-    v.g.D_800F4BA4().*.?.unk1EC.vy = @as(c_int, sp10.unk0.unk4.vy) *% 4096;
-    v.g.D_800F4BA4().*.?.unk1EC.vz = @as(c_int, sp10.unk0.unk4.vz) *% 4096;
+    _ = c.vs_actors_actorPlacement(@as(c_int, v.g.vs_event_camera().*.?.unk1E8), &sp10);
+    v.g.vs_event_camera().*.?.unk1EC.vx = @as(c_int, sp10.unk0.unk4.vx) *% 4096;
+    v.g.vs_event_camera().*.?.unk1EC.vy = @as(c_int, sp10.unk0.unk4.vy) *% 4096;
+    v.g.vs_event_camera().*.?.unk1EC.vz = @as(c_int, sp10.unk0.unk4.vz) *% 4096;
 }

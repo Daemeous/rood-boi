@@ -100,7 +100,7 @@ glabel VectorNormalS
     lw      $t0, 0x0($a0)
     addu    $a3, $ra, $zero
     lw      $t1, 0x4($a0)
-    jal     func_80041AF4
+    jal     vs_core_mathNormalizeVector
     lw      $t2, 0x8($a0)
     bgez    $zero, .L80041ADC
     addu    $ra, $a3, $zero
@@ -110,7 +110,7 @@ glabel VectorNormal
     lw      $t0, 0x0($a0)
     lw      $t1, 0x4($a0)
     addu    $a3, $ra, $zero
-    jal     func_80041AF4
+    jal     vs_core_mathNormalizeVector
     lw      $t2, 0x8($a0)
     sw      $t0, 0x0($a1)
     addu    $ra, $a3, $zero
@@ -125,7 +125,7 @@ glabel VectorNormalSS
     sra     $t1, $t0, 16
     sll     $t0, $t0, 16
     sra     $t0, $t0, 16
-    jal     func_80041AF4
+    jal     vs_core_mathNormalizeVector
     lh      $t2, 0x4($a0)
     addu    $ra, $a3, $zero
 .L80041ADC:
@@ -137,7 +137,7 @@ glabel VectorNormalSS
     sh      $t2, 0x4($a1)
 endlabel VectorNormalSS
 
-glabel func_80041AF4
+glabel vs_core_mathNormalizeVector
     mtc2    $t0, $9
     mtc2    $t1, $10
     mtc2    $t2, $11
@@ -180,7 +180,7 @@ glabel func_80041AF4
     srav    $t1, $t1, $t6
     jr      $ra
     srav    $t2, $t2, $t6
-endlabel func_80041AF4
+endlabel vs_core_mathNormalizeVector
 
 glabel vs_gte_rsqrt
     mtc2    $a0, $30
@@ -250,7 +250,7 @@ glabel CompMatrixLV
     addu    $a2, $zero, $a0
 endlabel CompMatrixLV
 
-glabel func_80041C68
+glabel vs_core_mathMultiplyMatrixIntoRight
     addu    $a2, $zero, $a1
 .L80041C6C:
     lw      $t0, 0x0($a0)
@@ -316,4 +316,4 @@ glabel func_80041C68
     or      $t5, $t5, $t2
     jr      $ra
     sw      $t5, 0xC($v0)
-endlabel func_80041C68
+endlabel vs_core_mathMultiplyMatrixIntoRight

@@ -37,10 +37,10 @@ fn project(view: *const gte.View, drop: *v.D_800F1DD4_t, sxy: *c_int, projection
 }
 
 /// orig: func_8008FDC4 (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
-/// For each of the D_800F1DC0 flakes: a falling flake (scaled by unkE) drops with the wind, an unscaled one
+/// For each of the vs_field_weatherParticleCount flakes: a falling flake (scaled by unkE) drops with the wind, an unscaled one
 /// drifts in a random walk (unkF) and sometimes flutters up (unkD, 32 ticks); on screen it is drawn as a white
 /// tile and a second one offset by its slot's angle (sizes 2 and 1 alternating), off screen recycled
-/// (func_80090A1C). A drawn flake above the floor on an odd slot lands at the floor height (func_8008DC7C). A landed
+/// (func_80090A1C). A drawn flake above the floor on an odd slot lands at the floor height (vs_field_floorHeightAt). A landed
 /// flake fades out over 8 frames as a grey tile.
 pub fn func_8008FDC4() callconv(.c) void {
     var projection: c_int = undefined;
@@ -48,15 +48,15 @@ pub fn func_8008FDC4() callconv(.c) void {
     const scratch = v.g.vs_scratch();
     const view = gte.viewOf(&v.g.vs_view().viewMatrix, gte.screenCurrent());
     const wind = v.g.D_800F1D98();
-    var particle: [*]v.D_800F1DD4_t = @ptrCast(v.g.D_800F1DD4().*.?);
+    var particle: [*]v.D_800F1DD4_t = @ptrCast(v.g.vs_field_weatherParticles().*.?);
     var i: c_int = 0;
-    while (i < v.g.D_800F1DC0().*) : ({
+    while (i < v.g.vs_field_weatherParticleCount().*) : ({
         i += 1; // i < a short
         particle += 1;
     }) {
         const drop = &particle[0];
         if (drop.unkC == 0) {
-            if (v.g.D_800F1BA4().* == 0) {
+            if (v.g.vs_field_areRoomUpdatesPaused().* == 0) {
                 var j: c_int = 0;
                 while (j < (v.g.vs_gametime_tickspeed().* >> 1)) : (j += 1) { // j < an int
                     if (drop.unkE != 0) {
@@ -112,7 +112,7 @@ pub fn func_8008FDC4() callconv(.c) void {
                 if (drop.unkE == 0 and (i & 1) != 0) {
                     drop.unkC = 1;
                     drop.unkD = 0;
-                    projection = (@as(c_int, c.func_8008DC7C(drop.unk0, drop.unk4)) << 17) >> 17;
+                    projection = (@as(c_int, c.vs_field_floorHeightAt(drop.unk0, drop.unk4)) << 17) >> 17;
                     drop.unk2 = psx.conv(i16, projection);
                 } else {
                     c.func_80090A1C(@ptrCast(drop));
@@ -126,7 +126,7 @@ pub fn func_8008FDC4() callconv(.c) void {
             {
                 flake(ordering(scratch, depth), psx.conv(i16, sxy), psx.conv(i16, sxy >> 16), 2, psx.conv(u8, 128 -% (@as(c_int, drop.unkD) << 4)));
                 c.pc_insert_tpage(depth, 96);
-                if (v.g.D_800F1BA4().* == 0) {
+                if (v.g.vs_field_areRoomUpdatesPaused().* == 0) {
                     drop.unkD = psx.conv(u8, @as(c_int, drop.unkD) +% (v.g.vs_gametime_tickspeed().* >> 1));
                 }
                 if (drop.unkD >= 8) {

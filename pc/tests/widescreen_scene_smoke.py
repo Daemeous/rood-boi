@@ -11,7 +11,7 @@ where the sides show black or sky, the modelled set ends there). Some of the
 3D view is 2D, though, and was drawn compressed into the 4:3 middle and
 clipped there:
 
-- the sky panorama (BATTLE 2842C.c func_8009147C: 32x32 tiles of a 1024-wide
+- the sky panorama (BATTLE 2842C.c vs_field_drawRoomBackgroundTiles: 32x32 tiles of a 1024-wide
   picture, scrolled with the camera's yaw and pitch) of outdoor scenes such
   as the opening's view of the manor: its tiles now fill the view's sides
   (PC_ANCHOR_SCENE: compressed like the narrowed 3D, clipped to the whole
@@ -26,7 +26,7 @@ One session each; RPC graphics widescreen_scene off is the control (the old
 placement):
 
 - New Game, through the opening's dialogue to the manor's exterior (zone 2
-  room 0) while the sky panorama is drawn (D_800F1DC9, D_800F1DCC): the top
+  room 0) while the sky panorama is drawn (vs_field_isTiledBackgroundEnabled, vs_field_loadedBackgroundLayout): the top
   half of the side bands (outside the 4:3 middle) is sky with the fix and
   black in the control, alternately on the same shot;
 - with the card: Snowfly Forest (zone 40 room 0, RPC room_goto): pixels that
@@ -114,7 +114,7 @@ def opening(out, check):
             g.run(50)
             steps += 1
             st = g.state()
-            sky = g.read_symbol("D_800F1DC9", 1)[0] and int.from_bytes(g.read_symbol("D_800F1DCC", 4), "little")
+            sky = g.read_symbol("vs_field_isTiledBackgroundEnabled", 1)[0] and int.from_bytes(g.read_symbol("vs_field_loadedBackgroundLayout", 4), "little")
             if (st["zone"], st["room"]) == (2, 0) and sky:
                 found = True
                 break
@@ -159,7 +159,7 @@ def forest(out, card, check):
                 break
         g.run(60)
         st = g.state()
-        weather = g.read_symbol("D_800F1DCA", 1)[0]
+        weather = g.read_symbol("vs_field_roomWeatherKind", 1)[0]
         check((st["zone"], st["room"]) == (40, 0) and weather == 3,
               f"Snowfly Forest (zone {st['zone']} room {st['room']}), its motes on (weather {weather})")
         counts = {}

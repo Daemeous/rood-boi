@@ -4,7 +4,7 @@ const psx = @import("common").psx;
 const c = @import("c_battle_helpers");
 const v = @import("views_battle_helpers");
 
-/// orig: func_800DC4F0 (pc/src/battle_helpers.c)
+/// orig: vs_battle_aiCacheFallbackActionCandidate (pc/src/battle_helpers.c)
 /// Remembers the first candidate for each action slot (word 1: bits 0-2 and
 /// 3-4 pick the slot bit) whose action info (halfword at 0xE) has flag 0x40,
 /// up to 16 entries copied to the list at D_800F58F8. The slot bit is set
@@ -18,11 +18,11 @@ pub fn recordCandidate(candidate: [*]align(1) c_uint, info: [*]u8) callconv(.c) 
     if (count < 16) {
         v.g.D_800F58F0().* = count +% 1;
         const slot = @as(usize, v.g.D_800F58F8().*) +% @as(usize, @bitCast(@as(isize, count *% 0x14)));
-        c.func_800DC2E0(@ptrFromInt(slot), @ptrCast(candidate));
+        c.vs_battle_aiCopyActionCandidate(@ptrFromInt(slot), @ptrCast(candidate));
     }
 }
 
-/// orig: func_800DC344 (pc/src/battle_helpers.c)
+/// orig: vs_battle_aiAppendActionCandidate (pc/src/battle_helpers.c)
 /// Appends a scored candidate (fewer than 16 so far, nonzero weight in bits
 /// 19-26 of word 3) to the state's list at 0x2F0, records its pointer at
 /// 0x430, and marks (target, action) used in the table at D_800F5904.
@@ -34,7 +34,7 @@ pub fn addScoredCandidate(state: *ai.vs_battle_aiState, candidate: [*]align(1) c
     const record = psx.fieldAt(u8, &state.candidates, @as(isize, count *% 0x14));
     psx.at(&state.entries.candidates, count).* = @ptrCast(@alignCast(record));
     state.count470 = count +% 1;
-    c.func_800DC2E0(record, @ptrCast(candidate));
+    c.vs_battle_aiCopyActionCandidate(record, @ptrCast(candidate));
 }
 
 /// orig: func_800E4CF4 (pc/src/battle_helpers.c)
@@ -44,7 +44,7 @@ pub fn addScoredCandidate(state: *ai.vs_battle_aiState, candidate: [*]align(1) c
 /// mask (unless action flag 0x100); bit 4 rejects relation < 3; slot flag
 /// bit 1 rejects targeting oneself.
 pub fn canTargetActor(state: *ai.vs_battle_aiState, candidate: [*]align(1) c_uint, id: c_int) callconv(.c) c_int {
-    const peer: *ai.vs_battle_aiState = @ptrCast(@alignCast(psx.at(v.g.D_800F5878(), id).* orelse return 0));
+    const peer: *ai.vs_battle_aiState = @ptrCast(@alignCast(psx.at(v.g.vs_battle_aiActorAiStates(), id).* orelse return 0));
     const word = candidate[1];
     const options = candidate[4];
     const slot: c_int = @bitCast((word & 7) *% 4 +% ((word >> 3) & 3));

@@ -6,5 +6,5 @@ const v = @import("views_6F014");
 /// orig: _parsePfileBlock10 (pc/src/game/BATTLE/BATTLE.PRG/6F014.c)
 /// Stores the given block 10 data pointer as a guest address in the parsed pfile.
 pub fn parsePfileBlock10(arg0: ?*anyopaque) callconv(.c) void {
-    psx.put(&v.g.D_800F569C().*.?.block10Data, arg0);
+    psx.put(&v.g.vs_effects_package().*.?.block10Data, arg0);
 }

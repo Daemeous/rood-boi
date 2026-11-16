@@ -1964,7 +1964,7 @@ static int screen_fade(const int* xy, const int* rgb, const int* clip)
 /* The game's afterimage: a 2D sprite that draws the other frame buffer (the
  * picture shown last: the game camera's previous frame) over this frame,
  * semi-transparent (the opening's shot dissolves and credit trails, 5BF94.c
- * func_800CC128). From a free camera (the editor's, the photo mode's, the
+ * vs_render_drawGimFramebufferFade). From a free camera (the editor's, the photo mode's, the
  * cutscene player's) that picture is not this view's previous frame: a held
  * moment's render starts from the native game-camera picture (pc_hw_resync)
  * and blends it in again each render frame, so the view showed the game

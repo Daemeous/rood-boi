@@ -11,7 +11,7 @@ fn setCameraMode5() void {
         c.func_8009E070(0, null, 6);
         c.func_8006F848();
     }
-    c.func_8008D594(1);
+    c.vs_field_setMovingPlatformsPaused(1);
 }
 
 /// orig: func_8007B508 (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
@@ -26,7 +26,7 @@ pub fn func_8007B508() callconv(.c) void {
         }
     }
 
-    const d = v.g.D_800F19CC().*.?;
+    const d = v.g.vs_battle_actionState().*.?;
     if (d.unk8.actionIndex != 0 and
         psx.getBits(psx.at(v.g.actions(), d.unk8.actionIndex), "unlocked") == 0 and
         d.unk8.unk4.unk40 == 0 and
@@ -37,5 +37,5 @@ pub fn func_8007B508() callconv(.c) void {
         return;
     }
 
-    c.func_8007B4C4();
+    c.vs_battle_resumeAfterRewards();
 }

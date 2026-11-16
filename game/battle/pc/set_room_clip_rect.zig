@@ -2,7 +2,7 @@
 const v = @import("views_room_render");
 const psx = @import("common").psx;
 
-/// orig: func_800981B8 (pc/src/room_render.c)
+/// orig: vs_render_setRoomPolygonScreenBounds (pc/src/room_render.c)
 /// Sets the room renderer's clip rectangle (four shorts), left, top, right, bottom in that order.
 pub fn setRoomClipRect(left: c_int, top: c_int, right: c_int, bottom: c_int) callconv(.c) void {
     v.g.clip_left().* = psx.conv(i16, left);

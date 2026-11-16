@@ -38,14 +38,14 @@ Shell-only checks (process b, after the parity list):
   - greyed, with a reason: sheathed (Circle on it is refused: the shell
     stays); the dagger art (not the equipped category); drawn with HP = the
     cost (HP too low); drawn with HP enough: usable, no reason
-  - cast: weapon drawn, Circle on the art: the shell closes, D_800F4E98
+  - cast: weapon drawn, Circle on the art: the shell closes, vs_menu_frameworkActionSelection
     executeAbility = the art, unk2 6, executeAbilityType 5, returnState 0x42,
     then targeting (D_800F196C 2) with the menu closed (0x3F); Circle confirms
     (until targeting ends): HP drops by the cost
   - loading: a second art learned, cursor memory on; the shell reopens on it
     while MAINMENU still loads: the art says "Loading…" and a click on it is
-    refused (the shell stays, D_800F4E98 untouched); usable once resident
-  - cancel (BATTLE func_800CAB40, ROOD_PC): that art cast, Cross on the
+    refused (the shell stays, vs_menu_frameworkActionSelection untouched); usable once resident
+  - cancel (BATTLE vs_menu_frameworkResumeAfterActionSelection, ROOD_PC): that art cast, Cross on the
     target: the shell again (currentMenu 0, never the original list 0x42) on
     Abilities > Break Arts, the equipped category, the cast art focused; the
     first art cast and cancelled the same way; cast once more from there and
@@ -597,13 +597,13 @@ def arts_checks(b, check):
                 break
     if check(loading is not None and not x["usable"], f"reopened, MAINMENU loading: art 1 not usable, "
                                                       f"'{x.get('reason')}' (vsync {loading})"):
-        before = g.read(b.sym["D_800F4E98"], 8)
+        before = g.read(b.sym["vs_menu_frameworkActionSelection"], 8)
         b.ui(pointer={"x": ART_X, "y": art_y(1), "click": True})  # the next drawn frame's click: a confirm
         g.run(1)
         still = b.ab()["categories"][cat - 1]["arts"][1]
         g.run(3)
         check(still["reason"] == LOADING and b.ui()["visible"] and b.menu() == 0
-              and g.read(b.sym["D_800F4E98"], 8) == before,
+              and g.read(b.sym["vs_menu_frameworkActionSelection"], 8) == before,
               f"cast while loading: refused (visible {b.ui()['visible']}, currentMenu {b.menu():#x}, "
               f"reason then '{still['reason']}')")
         b.pointer(-1, -1)
@@ -689,8 +689,8 @@ def cancel(b, check, art, row, cat, what):
           f"{what}: on {s.get('tab')} > {ab.get('sub')}, mode {ab.get('mode')}, category {ab.get('category')} "
           f"({cat}), art {ab.get('art')} ({row})")
     g.run(20)
-    hud = g.read(b.sym["D_800EB9AF"], 1)[0]
-    check(hud == 1 and b.ui()["visible"], f"{what}: the field HUD slid out for the shell (D_800EB9AF {hud})")
+    hud = g.read(b.sym["vs_battle_hudHidden"], 1)[0]
+    check(hud == 1 and b.ui()["visible"], f"{what}: the field HUD slid out for the shell (vs_battle_hudHidden {hud})")
     b.shot(f"cancel-shell-{row}")
 
 
@@ -708,7 +708,7 @@ def original_cancel(b, check, art, row, cat):
     F = b.sym["D_800F196C"]
     g.press("circle", vsyncs=3, settle=1)
     n = b.wait(lambda: g.read(F, 1)[0] == TARGETING and b.menu() == CLOSED, 300, "", step=2, quiet=True)
-    e = g.read(b.sym["D_800F4E98"], 8)
+    e = g.read(b.sym["vs_menu_frameworkActionSelection"], 8)
     ms = g.read(b.sym["vs_battle_menuState"], 3)
     unk2, ability = struct.unpack("<hi", e[2:8])
     check(n is not None and ability == art and unk2 == 6 and ms[2] == 5 and ms[1] == BREAK_ARTS,
@@ -760,11 +760,11 @@ def cast(b, check, art, row=0):
     before = g.read(F, 1)[0]
     g.press("circle", vsyncs=3, settle=1)
     b.wait(lambda: not b.ui()["visible"], 30, "the shell closes for the cast")
-    e = b.g.read(b.sym["D_800F4E98"], 8)
+    e = b.g.read(b.sym["vs_menu_frameworkActionSelection"], 8)
     ms = b.g.read(b.sym["vs_battle_menuState"], 3)
     unk2, ability = struct.unpack("<hi", e[2:8])
     check(ability == art and unk2 == 6 and ms[2] == 5 and ms[1] == BREAK_ARTS,
-          f"cast: D_800F4E98 executeAbility {ability} ({art}), unk2 {unk2}, executeAbilityType {ms[2]}, "
+          f"cast: vs_menu_frameworkActionSelection executeAbility {ability} ({art}), unk2 {unk2}, executeAbilityType {ms[2]}, "
           f"returnState {ms[1]:#x}")
     n = b.wait(lambda: g.read(F, 1)[0] == TARGETING and b.menu() == CLOSED, 300, "", step=2, quiet=True)
     check(n is not None, f"targeting (D_800F196C {before} -> {g.read(F, 1)[0]}), the menu closed ({b.menu():#x})")

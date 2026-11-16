@@ -5,7 +5,7 @@ const pad = @import("common").pad;
 const v = @import("views_71618");
 const c = @import("c_71618");
 
-/// orig: func_800DB0BC (pc/src/game/BATTLE/BATTLE.PRG/71618.c)
+/// orig: vs_battle_aiTryRecoverBlockedMovement (pc/src/game/BATTLE/BATTLE.PRG/71618.c)
 /// Detours a stuck movement state one step at a time; returns 1 while the detour continues, else 0.
 pub fn detourWhenStuck(state: ?*v.vs_battle_aiState) callconv(.c) c_int {
     // Scratchpad table of direction deltas (D_800F16EC_t, one byte per entry).
@@ -37,7 +37,7 @@ pub fn detourWhenStuck(state: ?*v.vs_battle_aiState) callconv(.c) c_int {
                     directions[0] = psx.conv(u8, second);
                     directions[1] = psx.conv(u8, first);
                 }
-                if (c.func_800E45D4(2) != 0) {
+                if (c.vs_battle_aiNextActorRandomMasked(2) != 0) {
                     directions[2] = psx.conv(u8, (first +% 4) & 7);
                     directions[3] = psx.conv(u8, (second +% 4) & 7);
                 } else {
@@ -55,7 +55,7 @@ pub fn detourWhenStuck(state: ?*v.vs_battle_aiState) callconv(.c) c_int {
                     const zb = psx.conv(u8, @as(c_int, s.tile.stuck.p.z) +%
                         @as(c_int, psx.getBits(&dirTable[dir], "dz")));
                     const probe: c_uint = @as(c_uint, xb) | (@as(c_uint, zb) << 16);
-                    if (c.func_800D954C(@ptrCast(s), probe) > 0) {
+                    if (c.vs_battle_aiDestinationOccupancy(@ptrCast(s), probe) > 0) {
                         s.detourStep = psx.conv(u8, i);
                         break;
                     }
@@ -63,7 +63,7 @@ pub fn detourWhenStuck(state: ?*v.vs_battle_aiState) callconv(.c) c_int {
                 s.detourStep +%= 1;
             }
             if (s.detourStep >= 5) {
-                c.func_800E4CE8(@ptrCast(s));
+                c.vs_battle_aiForgetAiActionTarget(@ptrCast(s));
                 s.unk1C = 0;
                 s.detourStep = 0;
                 return 0;
@@ -77,8 +77,8 @@ pub fn detourWhenStuck(state: ?*v.vs_battle_aiState) callconv(.c) c_int {
             s.destination168.stuckMovementPosition.p.z = psx.conv(u8, @as(c_int, s.tile.stuck.p.z) +%
                 @as(c_int, psx.getBits(&dirTable[dir], "dz")));
             s.movementTargetId = s.unkFB;
-            if (c.func_800D954C(@ptrCast(s), s.destination168.stuckMovementPosition.raw) > 0) {
-                c.func_800E50A0(s, 0, 0);
+            if (c.vs_battle_aiDestinationOccupancy(@ptrCast(s), s.destination168.stuckMovementPosition.raw) > 0) {
+                c.vs_battle_aiDispatchAiLocomotionMode(s, 0, 0);
             } else {
                 s.detourStep +%= 1;
             }

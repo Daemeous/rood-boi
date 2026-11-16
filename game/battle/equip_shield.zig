@@ -17,6 +17,6 @@ pub fn equipShield(shield: ?*v.vs_main_inventoryShield) callconv(.c) void {
 
     c.vs_battle_applyShield(@ptrCast(shieldSlot), @ptrCast(shield));
     c.vs_battle_nop0(@ptrCast(stats));
-    c.func_8006B214();
-    c.func_8006B2D4();
+    c.vs_items_removeEquipmentBoostOnEquip();
+    c.vs_items_removeArmorEnchantmentOnEquip();
 }

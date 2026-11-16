@@ -4,7 +4,7 @@ const psx = common.psx;
 const v = @import("views_7CD68");
 const c = @import("c_7CD68");
 
-/// orig: func_800E6178 (pc/src/game/BATTLE/BATTLE.PRG/7CD68.c)
+/// orig: vs_battle_aiCreateActorAiState (pc/src/game/BATTLE/BATTLE.PRG/7CD68.c)
 /// Registers an actor for battle and, when it is active, builds its initialization state; returns 1 when the state is a placed one.
 pub fn initActorState(actor: ?*v.vs_battle_actor, options: c_int) callconv(.c) c_int {
     const a = actor.?;
@@ -23,7 +23,7 @@ pub fn initActorState(actor: ?*v.vs_battle_actor, options: c_int) callconv(.c) c
         // The kind word sits 0x100 bytes into the object's bone records.
         const kind = psx.fieldAt(c_uint, &object.bones, 0x100).* & 7;
         if (kind == 2 or kind == 4) {
-            const table = v.g.D_800F58BC().*.?;
+            const table = v.g.vs_battle_aiRoomAiState().*.?;
             for (0..4) |k| {
                 const slot = psx.byteAt(i32, table, 40 + 4 * @as(isize, @intCast(k)));
                 if (slot.* == 0) {
@@ -37,17 +37,17 @@ pub fn initActorState(actor: ?*v.vs_battle_actor, options: c_int) callconv(.c) c
     if ((a.allegiance & 5) == 0) return 0;
 
     const state: *v.vs_battle_aiState = @ptrCast(@alignCast(c.vs_main_allocHeap(@sizeOf(v.vs_battle_aiState)).?));
-    psx.at(v.g.D_800F5878(), id).* = @ptrCast(state);
-    c.func_800E4288(state, @sizeOf(v.vs_battle_aiState));
+    psx.at(v.g.vs_battle_aiActorAiStates(), id).* = @ptrCast(state);
+    c.vs_core_memoryClearAlignedWords(state, @sizeOf(v.vs_battle_aiState));
     state.id = psx.conv(u8, id);
     psx.put(&state.actor, a);
     const model: *v.D_800F4538_t = @ptrCast(@alignCast(psx.get(a.unk44).?));
     psx.put(&state.object.D_800F4538_t, model);
     state.stats.actorInitializationStats = @ptrCast(@alignCast(psx.get(a.stats)));
 
-    // Uninitialised in the C; func_800A190C's selector 250 (0xFA) always writes it.
+    // Uninitialised in the C; vs_actors_anchorPoint's selector 250 (0xFA) always writes it.
     var result: [4]u16 = undefined;
-    c.func_800A190C(state.id, 250, &result, 0);
+    c.vs_actors_anchorPoint(state.id, 250, &result, 0);
     state.height = psx.conv(i16, @as(c_int, result[1]) -% @as(c_int, model.unk0.position.vy));
 
     var radius: c_uint = model.unk63C;
@@ -94,8 +94,8 @@ pub fn initActorState(actor: ?*v.vs_battle_actor, options: c_int) callconv(.c) c
     if ((@as(c_uint, @bitCast(a.unk34)) & 1) != 0) {
         c.func_800E5A74(&packed_, @ptrCast(&a.flags30));
     }
-    _ = c.func_800E5A9C(@ptrCast(state), @ptrCast(&packed_));
-    c.func_800E7370(@ptrCast(state));
+    _ = c.vs_battle_aiApplyActorAiSettings(@ptrCast(state), @ptrCast(&packed_));
+    c.vs_battle_aiInitializeActorAiRelations(@ptrCast(state));
 
     const temp: c_int = state.distance -% 64;
     if (state.rangeSquared < psx.conv(c_uint, temp *% temp)) {
@@ -116,10 +116,10 @@ pub fn initActorState(actor: ?*v.vs_battle_actor, options: c_int) callconv(.c) c
             (common.object.flags8(model).* & 0x200000) == 0)
         {
             state.next.nextView = psx.conv(i32, psx.fieldAt(u32, &model.unk0.currentTileX, 0).*);
-            c.func_800DEEFC(@ptrCast(state), 12);
+            c.vs_battle_aiIssueActorCommand(@ptrCast(state), 12);
         } else if (so < 0 or !((@as(c_int, so) << 26) < 0)) {
             if (a.unk1F != 0) {
-                c.func_800DEEFC(@ptrCast(state), 1);
+                c.vs_battle_aiIssueActorCommand(@ptrCast(state), 1);
                 state.mode12D = 1;
             }
         }
@@ -133,7 +133,7 @@ pub fn initActorState(actor: ?*v.vs_battle_actor, options: c_int) callconv(.c) c
 
     c.func_800E72D0();
     if (state.id != 0) {
-        while (c.func_800DEC88(null) != 0) {}
+        while (c.vs_battle_aiRebuildActorActionPlans(null) != 0) {}
     }
 
     return @intFromBool(so >= 0 and (@as(c_int, so) << 26) < 0);

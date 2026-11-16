@@ -26,7 +26,7 @@
  *            0x7F, pc_ui_menu_heartbeat ends it; a soft reset forgets it.
  *
  * The frame writes no game RAM itself but what MENU5's list writes: the
- * cursor memories (D_800F4EE8.cursorMemories[0..1]) on open (4D8.c
+ * cursor memories (vs_menu_frameworkMenuMemory.cursorMemories[0..1]) on open (4D8.c
  * _pcListOpen, _configureMapMenu's formula) and on exit (58EC.c case 17:
  * row in the window, scroll). The completion figure is
  * vs_battle_getMapCompletion's on a copy of the room flags (its fix-up of
@@ -415,8 +415,8 @@ void pc_ui_map_frame_list_open(const int* scene_ids, int count, int current_row,
 static void list_close(void)
 {
     pc_ui_map_model* m = pc_ui_map_state();
-    D_800F4EE8.cursorMemories[0] = sel;
-    D_800F4EE8.cursorMemories[1] = page;
+    vs_menu_frameworkMenuMemory.cursorMemories[0] = sel;
+    vs_menu_frameworkMenuMemory.cursorMemories[1] = page;
     m->list.open = 0;
 }
 

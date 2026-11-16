@@ -429,7 +429,7 @@ int func_8007225C(void) {
 }
 */
 
-static char const D_800689F8[] = "MDEC_in_sync";
+static char const vs_core_negativeYAxis[] = "MDEC_in_sync";
 
 __asm__(".section .text;"
         ".set push;"
@@ -456,9 +456,9 @@ __asm__(".section .text;"
         "nop;"
         "bne       $v0, $a0, 1f;"
         "nop;"
-        "lui       $a0, %hi(D_800689F8);"
+        "lui       $a0, %hi(vs_core_negativeYAxis);"
         "jal       func_8007239C;"
-        "addiu     $a0, %lo(D_800689F8);"
+        "addiu     $a0, %lo(vs_core_negativeYAxis);"
         "j         2f;"
         "li        $v0, -1;"
         "1:"

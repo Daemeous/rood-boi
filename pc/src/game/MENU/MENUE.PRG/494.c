@@ -87,14 +87,14 @@ static void _setMenuRows(int rowCount, int highlightedRow, char** strings)
     rowTypes[rowCount - 1] |= 4;
 
     if ((rowCount < 9) || (highlightedRow < 8)) {
-        D_800F4EE8.cursorMemories[4] = highlightedRow;
-        D_800F4EE8.cursorMemories[5] = 0;
+        vs_menu_frameworkMenuMemory.cursorMemories[4] = highlightedRow;
+        vs_menu_frameworkMenuMemory.cursorMemories[5] = 0;
     } else if (highlightedRow >= (rowCount - 8)) {
-        D_800F4EE8.cursorMemories[4] = highlightedRow - (rowCount - 9);
-        D_800F4EE8.cursorMemories[5] = rowCount - 9;
+        vs_menu_frameworkMenuMemory.cursorMemories[4] = highlightedRow - (rowCount - 9);
+        vs_menu_frameworkMenuMemory.cursorMemories[5] = rowCount - 9;
     } else {
-        D_800F4EE8.cursorMemories[4] = 4;
-        D_800F4EE8.cursorMemories[5] = highlightedRow - 4;
+        vs_menu_frameworkMenuMemory.cursorMemories[4] = 4;
+        vs_menu_frameworkMenuMemory.cursorMemories[5] = highlightedRow - 4;
     }
     cursor = vs_main_settings.cursorMemory;
     vs_main_settings.cursorMemory = 1;
@@ -112,7 +112,7 @@ static int _getSelectedRow(void)
         return row;
     }
     if (row >= 0) {
-        vs_mainMenu_flyoutMenuRightAndHoistSelection(D_800F4EE8.cursorMemories[4], 1);
+        vs_mainMenu_flyoutMenuRightAndHoistSelection(vs_menu_frameworkMenuMemory.cursorMemories[4], 1);
     }
     return row;
 }
@@ -146,13 +146,13 @@ int vs_menuE_exec(u_char* state)
 
     static int menuResult = 0;
     static char isInit = 0;
-    static char D_8010522D = 0;
+    static char vs_menu_manualOpenDelay = 0;
     static short _2 __attribute__((unused)) = 0x54;
 
     switch (*state) {
     case init:
         vs_mainMenu_toggleBackgroundFade(1);
-        D_8010522D = 8;
+        vs_menu_manualOpenDelay = 8;
         isInit = 0;
         *state = initMenu;
         break;
@@ -160,12 +160,12 @@ int vs_menuE_exec(u_char* state)
         if (isInit == 0) {
             isInit = _initMenuState();
         }
-        if (D_8010522D != 0) {
-            D_8010522D -= 1;
+        if (vs_menu_manualOpenDelay != 0) {
+            vs_menu_manualOpenDelay -= 1;
         } else if (isInit != 0) {
-            func_8008A4DC(0);
-            func_800CB654(1);
-            D_800EB9B0 = 0x200000;
+            vs_field_setFieldRenderingEnabled(0);
+            vs_battle_setHudHidden(1);
+            vs_battle_hudSlideOffset = 0x200000;
             *state = waitReady;
         }
         break;
@@ -178,9 +178,9 @@ int vs_menuE_exec(u_char* state)
             break;
         }
         vs_mainMenu_setBackgroundRenderPriority(-4, 128);
-        func_800CB654(0);
-        D_800EB9B0 = 0;
-        func_8008A4DC(1);
+        vs_battle_setHudHidden(0);
+        vs_battle_hudSlideOffset = 0;
+        vs_field_setFieldRenderingEnabled(1);
         vs_mainMenu_setMenuCommand(menuActionNone);
         vs_mainMenu_clearMenuExcept(vs_mainMenu_menuItemIds_none);
         *state = shutDown;
@@ -222,7 +222,7 @@ static int _initMenuState(void)
     if (vs_main_settings.cursorMemory == 0) {
         vs_main_bzero(&vs_battle_manualDisplayState, sizeof vs_battle_manualDisplayState);
     }
-    func_8007DFF0(0x1D, 3, 5);
+    vs_render_reserveTexturePages(0x1D, 3, 5);
     _showMenuState = 0;
     _scrollPosition = 0;
     _lineCount = 0;
@@ -302,7 +302,7 @@ static int _showMenu(void)
             vs_main_cdEnqueue(_helpTextCdQueue, _helpText);
         }
         vs_battle_manualDisplayState.currentManual =
-            D_800F4EE8.cursorMemories[4] + D_800F4EE8.cursorMemories[5];
+            vs_menu_frameworkMenuMemory.cursorMemories[4] + vs_menu_frameworkMenuMemory.cursorMemories[5];
         vs_mainMenu_dismissInformationBox();
         break;
     case loadSubMenu:
@@ -436,7 +436,7 @@ static int _showMenu(void)
         if (_helpAssets != NULL) {
             vs_main_freeHeapR(_helpAssets);
         }
-        func_8007E0A8(0x1D, 3, 5);
+        vs_render_retireTexturePages(0x1D, 3, 5);
         return 1;
     case exitToBattle:
         if (_helpText != NULL) {
@@ -445,7 +445,7 @@ static int _showMenu(void)
         if (_helpAssets != NULL) {
             vs_main_freeHeapR(_helpAssets);
         }
-        func_8007E0A8(0x1D, 3, 5);
+        vs_render_retireTexturePages(0x1D, 3, 5);
         return 2;
     }
     return 0;

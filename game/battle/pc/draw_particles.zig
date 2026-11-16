@@ -23,7 +23,7 @@ fn cornerAt(tile: [*]u8, offset: usize) [3]i16 {
 /// Sample `clock` of colour curve `index` (an empty curve is read at `clock`, as `div $zero` leaves HI).
 fn curveValue(sizes: [*]const u8, index: c_uint, clock: c_uint) c_uint {
     if (index >= 32) c.pc_unimplemented("invalid particle color curve");
-    const samples: [*]const u8 = @ptrCast(psx.get(psx.at(&v.g.D_800F569C().*.?.curves, index).*).?); // curves[32]: unchecked past 32 (above)
+    const samples: [*]const u8 = @ptrCast(psx.get(psx.at(&v.g.vs_effects_package().*.?.curves, index).*).?); // curves[32]: unchecked past 32 (above)
     const size: c_uint = psx.at(sizes, index).*;
     return psx.at(samples, if (size != 0) clock % size else clock).*;
 }
@@ -37,16 +37,16 @@ fn short(value: anytype) c_int {
     return psx.conv(i16, value);
 }
 
-/// orig: func_800D6E44 (pc/src/effect_particles.c)
+/// orig: vs_effects_drawAnimatedSpriteParticles (pc/src/effect_particles.c)
 /// Draws the particle list `head`: steps each node's sprite script, projects
 /// it and emits its tiles as sprite packets into the ordering table.
 pub fn drawParticles(head: ?*v.func_800D6E44_t) callconv(.c) void {
     var node_ptr = head;
-    const curve_block = psx.get(v.g.D_800F569C().*.?.curveBlock);
+    const curve_block = psx.get(v.g.vs_effects_package().*.?.curveBlock);
     // &block->curveSizes: an address only, the block is not read here.
     const curve_sizes: [*]const u8 = @ptrFromInt(@intFromPtr(curve_block) +% @offsetOf(v.pFileCurveBlock, "curveSizes"));
     const projection: c_int = v.g.vs_main_projectionDistance().* << 10;
-    const parent = v.g.D_800F53BC().*;
+    const parent = v.g.vs_effects_currentInstance().*;
     var a: c_int = undefined;
     var b: c_int = undefined;
 
@@ -64,7 +64,7 @@ pub fn drawParticles(head: ?*v.func_800D6E44_t) callconv(.c) void {
                 const cmd: c_int = @as(*align(1) c_int, @ptrFromInt(@intFromPtr(psx.get(node.sprite.unk18)) +% node.sprite.unkE)).*;
                 switch (@as(c_uint, @bitCast(cmd)) & 0xF0000000) {
                     0 => {
-                        const table = psx.get(psx.at(&v.g.D_800F569C().*.?.block1Tables, node.sprite.unk16).*);
+                        const table = psx.get(psx.at(&v.g.vs_effects_package().*.?.block1Tables, node.sprite.unk16).*);
                         psx.put(&node.sprite.unk1C, @as(*v.pFileBlock1Indices, @ptrFromInt(@intFromPtr(table) +% @as(usize, @intCast(cmd & 0xFFFF)) * @sizeOf(v.pFileBlock1Indices))));
                         @as(*align(1) i16, @ptrCast(&node.sprite.unk6)).* = psx.conv(i16, (cmd >> 16) & 0x3FFF);
                         node.sprite.unkE +%= 4;
@@ -142,12 +142,12 @@ pub fn drawParticles(head: ?*v.func_800D6E44_t) callconv(.c) void {
                 if (ax < ay) {
                     cc = ax << 9;
                     cc = @divTrunc(cc, ay);
-                    cc = psx.at(v.g.D_80040A14(), cc).*;
+                    cc = psx.at(v.g.vs_core_mathArcTangentTable(), cc).*;
                     cc = t -% cc;
                 } else {
                     cc = ay << 9;
                     cc = @divTrunc(cc, ax);
-                    cc = psx.at(v.g.D_80040A14(), cc).*;
+                    cc = psx.at(v.g.vs_core_mathArcTangentTable(), cc).*;
                 }
                 t = 1024;
                 if (ax != y) cc = t -% cc;
@@ -175,7 +175,7 @@ pub fn drawParticles(head: ?*v.func_800D6E44_t) callconv(.c) void {
         var tile_xy: [max_node_tiles * 4]c_int = undefined;
         var tile_uv: [max_node_tiles * 4]c_int = undefined;
         // block1Data + dataIndex: an address only until the tiles are read.
-        var tile: [*]u8 = @ptrFromInt(@intFromPtr(psx.get(v.g.D_800F569C().*.?.block1Data)) +% @as(usize, indices.dataIndex) * @sizeOf(v.pFileBlock1Data));
+        var tile: [*]u8 = @ptrFromInt(@intFromPtr(psx.get(v.g.vs_effects_package().*.?.block1Data)) +% @as(usize, indices.dataIndex) * @sizeOf(v.pFileBlock1Data));
         a = projection_scale;
         const scale: c_int = psx.getBits(&node.unk60.bits, "scale");
         b = a *% (@divTrunc(c.rcos(node.sprite.unk14) *% scale, 4));

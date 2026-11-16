@@ -28,8 +28,8 @@ extern const char* const pc_ui_text_names[2];
 /* Text styles and their font settings: settings ui_text_<style>_<field>
  * (re-read live; RPC
  * ui_text; Graphics > 2D / UI > HUD typography). status: the battle's words
- * the game sets in the info style's capitals (BATTLE.PRG func_800958A4's
- * SLOW! / COOL! ..., func_80095A4C's 3 CHAINS: pc_text_status), set as whole
+ * the game sets in the info style's capitals (BATTLE.PRG vs_battle_drawAbilityTimingResult's
+ * SLOW! / COOL! ..., vs_battle_drawChainCount's 3 CHAINS: pc_text_status), set as whole
  * words. labels: words baked into the UI's images (HP, MP, INFORMATION, ...;
  * ui_labels.h). */
 enum {
@@ -147,8 +147,8 @@ void pc_ui_text_layout_run(const uint16_t* vram, const pc_ui_text_piece_info* pi
 int pc_ui_text_image_key(int image, uint64_t* key, int* w, int* h);
 int pc_ui_text_image_render(int image, int factor, uint32_t* out);
 
-/* The battle's status words (BATTLE.PRG func_800958A4: SLOW!, COOL!, ...;
- * func_80095A4C: 3 CHAINS; ROOD_PC hooks): the packets one call of
+/* The battle's status words (BATTLE.PRG vs_battle_drawAbilityTimingResult: SLOW!, COOL!, ...;
+ * vs_battle_drawChainCount: 3 CHAINS; ROOD_PC hooks): the packets one call of
  * vs_battle_renderTextRawColor built, [first, end) (a texture page packet,
  * then a sprite per glyph). With ui_text font each glyph of the string is
  * drawn from the status style as one word (the font's advances, tracking,

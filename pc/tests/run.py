@@ -144,6 +144,8 @@ def suites(args, mode="egl"):
               note="the PS1 addresses and guest-pointer helpers in the game's code may only go down"),
         Suite("ps1_address_lint_test", [PY, str(TESTS / "ps1_address_lint_test.py")], 60, binary=None,
               note="the lint's rules, comment stripping and ratchet"),
+        Suite("snapshot_names", [PY, str(TESTS / "snapshot_names_test.py")], 60, binary=None,
+              note="a symbol rename (pc/names) leaves the save states' keys as they were"),
         Suite("lighting_lint", [PY, str(ROOT / "pc/tools/lighting_lint.py")], 60, binary=None,
               note="lighting packs in lighting/: syntax, keys, ids, dangling overrides, rooms"),
         Suite("window_lights", [PY, str(TESTS / "window_lights_test.py")], 60, binary=None,
@@ -746,10 +748,17 @@ def suites(args, mode="egl"):
         Suite("ui_upscale_smoke", [PY, str(TESTS / "ui_upscale_smoke.py"),
                                    *(["--card", str(args.save)] if args.save.exists() else [])], 300,
               note="2D/UI MMPX: only 2D changes, atlas = CPU reference, palette kept, cache, VRAM rewrites"),
+        Suite("settings_defaults_smoke", [PY, str(TESTS / "settings_defaults_smoke.py")], 120,
+              note="the settings file keeps the keys that differ from the defaults (a default the user never chose is "
+                   "not frozen into it); a file with every key still loads"),
         Suite("ui_text_smoke", [PY, str(TESTS / "ui_text_smoke.py"),
                                 *(["--card", str(args.save)] if args.save.exists() else [])], 300,
               note="ui_text fonts: off = original path; bubble, HUD, menu change only inside glyph boxes, "
                    "text extents kept, settings"),
+        *([Suite("ui_text_columns_smoke", [PY, str(TESTS / "ui_text_columns_smoke.py"), "--card", str(args.save)], 300,
+                 note="ui_text line layout keeps the columns the game pads a list into (the magic class list's \"(ATT)\" "
+                      "starts every row at one x)")]
+          if args.save.exists() else []),
         *([Suite("damage_numbers_smoke", [PY, str(TESTS / "damage_numbers_smoke.py"), "--card", str(args.save)], 300,
                  note="battle number popups (poison damage, regen heal; a stat change): original = PS1 digits; "
                       "font draws them in place, legible, the game's value; UI text scale 2 about their middle")]
@@ -860,7 +869,7 @@ CHECKPOINT_SUITES = {
     "camera_stick_smoke", "camera_stick_menus_smoke", "editor_snap_smoke", "editor_roomload_smoke", "room_browser_smoke", "room_entry_sound_smoke", "route_continuation_smoke", "ending_smoke",
     "light_actors_smoke", "fixture_lighting_smoke", "sky_smoke", "game_sky_smoke", "glow_stability_smoke", "lighting_presets_smoke",
     "gi_lag_smoke", "texture_animation_smoke", "save_menu_smoke", "screen_owner_smoke", "narrowed_2d_smoke", "weapon_slots_smoke", "ui_menus_smoke",
-    "ui_lines_smoke", "ui_text_smoke", "button_prompts_smoke", "button_roles_symbols_smoke", "coplanar_order_smoke", "actor_room_order_smoke", "atmosphere_smoke",
+    "ui_lines_smoke", "ui_text_smoke", "ui_text_columns_smoke", "button_prompts_smoke", "button_roles_symbols_smoke", "coplanar_order_smoke", "actor_room_order_smoke", "atmosphere_smoke",
     "void_fog_smoke",
     "fog_sim_smoke", "fog_volume_smoke", "particles_smoke", "save_point_glow_smoke", "emissive_smoke", "ui_ashley_smoke", "ui_ashley_stability_smoke",
     "ui_equip_smoke",

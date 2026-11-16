@@ -1,7 +1,7 @@
 //! Lowest floor height along a line (D2: 7E05C.s; oracle pc/src/battle_movement.c).
 const c = @import("c_battle_movement");
 
-/// orig: func_800E6A6C (pc/src/battle_movement.c)
+/// orig: vs_battle_aiMinimumAiGroundHeightAlongSegment (pc/src/battle_movement.c)
 /// Lowest of 16 floor heights sampled from (x0, z0) toward (x1, z1) in steps
 /// of a sixteenth, starting at 0 (heights are 15-bit signed).
 pub fn lowestFloorAlong(x0: c_int, z0: c_int, x1: c_int, z1: c_int) callconv(.c) c_int {
@@ -14,7 +14,7 @@ pub fn lowestFloorAlong(x0: c_int, z0: c_int, x1: c_int, z1: c_int) callconv(.c)
     while (i < 16) : (i += 1) {
         x +%= dx;
         z +%= dz;
-        const raw: c_uint = @bitCast(c.func_800E4318(x, z));
+        const raw: c_uint = @bitCast(c.vs_field_groundHeightFlagsAtWorldPosition(x, z));
         const height = @as(c_int, @bitCast(raw << 17)) >> 17;
         if (height <= lowest) lowest = height;
     }

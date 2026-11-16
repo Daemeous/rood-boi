@@ -7,38 +7,38 @@
 #include "build/src/include/lbas.h"
 #include <libetc.h>
 
-extern u_char D_800E9C30[];
+extern u_char vs_event_opcodeSizes[];
 extern int (*_opcodeFunctionTable[])(u_char*, short);
-extern unsigned char D_800F4B70[17];
-extern vs_main_CdQueueSlot* D_800F4BBC;
-extern vs_main_CdFile D_800F4BF0;
+extern unsigned char vs_event_scriptControlledActors[17];
+extern vs_main_CdQueueSlot* vs_event_eventFileDiscRequest;
+extern vs_main_CdFile vs_event_eventFileDiscLocation;
 
-extern D_800EB9B8_t* D_800EB9B8;
+extern D_800EB9B8_t* vs_battle_targetSphere;
 extern u_char D_800EB9AC;
 
 extern void func_8007D260(int);
-void func_800A0204(int, int, int, int);
+void vs_actors_playActorAnimation(int, int, int, int);
 extern void func_800BBDDC(void);
-int func_800BFE34(u_char*);
-void func_800C0150(void);
+int vs_event_opcodeSize(u_char*);
+void vs_event_resetCutsceneActorsToIdle(void);
 
-short func_800BFBB8(u_char** arg0, short arg1);
+short vs_event_executeScriptThread(u_char** arg0, short arg1);
 
-void func_800BFD9C(void);
+void vs_event_releaseScriptActorControl(void);
 
 short vs_battle_getShort(u_char* arg0);
 
-int func_800BFE34(u_char* arg0);
+int vs_event_opcodeSize(u_char* arg0);
 
-int func_800BFE50(u_short arg0);
+int vs_event_resolveScriptActorReference(u_short arg0);
 
-extern signed char D_800F4B28[][2];
+extern signed char vs_event_customEasingCurves[][2];
 
-int func_800BFEBC(short mode, short frame, short duration);
+int vs_event_evaluateInterpolationCurve(short mode, short frame, short duration);
 
-void func_800C00E8(int arg0, void* arg1);
+void vs_event_queueEventScriptLoad(int arg0, void* arg1);
 
-void func_800C0150(void);
+void vs_event_resetCutsceneActorsToIdle(void);
 
 #ifndef ROOD_PC
 __asm__("glabel vs_battle_copyAligned;"
@@ -130,7 +130,7 @@ __asm__("glabel vs_battle_setSpriteDefault;"
 #endif
 
 #ifndef ROOD_PC
-__asm__("glabel func_800C02A8;"
+__asm__("glabel vs_render_loadFrameViewMatrix;"
         "addu     $sp, -0x8;"
         "sw       $ra, ($sp);"
         "lui      $a0, 0x1F80;"
@@ -143,9 +143,9 @@ __asm__("glabel func_800C02A8;"
         ".nop;"
         "j        $ra;"
         "addu     $sp, 0x8;"
-        "endlabel func_800C02A8;");
+        "endlabel vs_render_loadFrameViewMatrix;");
 #else
-void func_800C02A8(void);
+void vs_render_loadFrameViewMatrix(void);
 
 #endif
 
@@ -214,7 +214,7 @@ int func_800C0758(int phase, int segments, int index);
 
 MATRIX* func_800C085C(u_char* scale, int angle);
 
-extern u_char D_80040A14[];
+extern u_char vs_core_mathArcTangentTable[];
 
 void func_800C0990(SVECTOR* start, SVECTOR* end, u_int color, int intensity);
 

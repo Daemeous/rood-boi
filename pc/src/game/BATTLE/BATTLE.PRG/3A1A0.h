@@ -612,21 +612,21 @@ typedef struct {
     int unk187C;
 } D_800F45E0_t;
 
-int func_800A1108(int, void*);
-void func_800A36E0(int, int, func_8006EBF8_t*);
-void func_800A48CC(int, int, int);
-void func_800A4D8C(void);
-void func_800A30A0(int, func_80089888_t*, int, int);
-void func_800A35A8(void);
+int vs_actors_actorPlacement(int, void*);
+void vs_actors_actorSavedPlacement(int, int, func_8006EBF8_t*);
+void vs_actors_beginActorJumpMovement(int, int, int);
+void vs_actors_updateRoomActorMovement(void);
+void vs_actors_placeActorInRoom(int, func_80089888_t*, int, int);
+void vs_field_snapRoomActorsToSupport(void);
 D_800F4538_t* func_800A3C00(D_800F45E0_t* arg0, u_int arg1);
 void func_800A4828(int, MATRIX*);
-void func_800A9D24(int, SVECTOR*, int);
-int func_800A3760(int, int, int);
-int func_800A38E0(int);
-int func_800A3E6C(int);
-int func_800A47C4(void);
-void func_800A4E68(int);
+void vs_actors_translateActorByAtRate(int, SVECTOR*, int);
+int vs_actors_findNearestActorAhead(int, int, int);
+int vs_field_findInteractableGimmickAhead(int);
+int vs_field_beginGimmickInteraction(int);
+int vs_field_areGimmicksMoving(void);
+void vs_actors_updateActorMovement(int);
 
-extern D_800F4538_t* D_800F4538[17];
+extern D_800F4538_t* vs_actors_actorRecords[17];
 extern vs_battle_wepModels_t* vs_battle_wepModels[20];
-extern D_800F45E0_t* D_800F45E0[16];
+extern D_800F45E0_t* vs_field_gimmickInstances[16];

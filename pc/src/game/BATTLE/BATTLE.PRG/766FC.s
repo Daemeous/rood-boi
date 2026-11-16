@@ -5,7 +5,7 @@
 
 .section .text, "ax"
 
-glabel func_800DEEFC
+glabel vs_battle_aiIssueActorCommand
     sll     $a3, $a1, 2
     lui     $a2, (0x1F8003C8 >> 16)
     sw      $a1, (0x1F8003C8 & 0xFFFF)($a2)
@@ -264,7 +264,7 @@ glabel func_800DEEFC
     lw      $a0, 0x34($s0)
     bltz    $a1, .L800DF2EC
     nop
-    jal     func_800E4690
+    jal     vs_battle_aiIsAdjacentTileStepBlocked
     nop
     bnez    $v0, .L800DF370
 .L800DF2EC:
@@ -276,7 +276,7 @@ glabel func_800DEEFC
     lw      $a0, 0x34($s0)
     bltz    $a1, .L800DF318
     nop
-    jal     func_800E4690
+    jal     vs_battle_aiIsAdjacentTileStepBlocked
     nop
     bnez    $v0, .L800DF370
 .L800DF318:
@@ -288,7 +288,7 @@ glabel func_800DEEFC
     lw      $a0, 0x34($s0)
     bltz    $a1, .L800DF344
     nop
-    jal     func_800E4690
+    jal     vs_battle_aiIsAdjacentTileStepBlocked
     nop
     bnez    $v0, .L800DF370
 .L800DF344:
@@ -300,7 +300,7 @@ glabel func_800DEEFC
     lw      $a0, 0x34($s0)
     bltz    $a1, .L800DF408
     nop
-    jal     func_800E4690
+    jal     vs_battle_aiIsAdjacentTileStepBlocked
     nop
     beqz    $v0, .L800DF408
 .L800DF370:
@@ -377,7 +377,7 @@ alabel func_800DF458
     sb      $a2, 0x9($a1)
     andi    $a0, $a3, 0xFF
     sll     $a1, $a3, 8
-    bgez    $zero, func_800E4C1C
+    bgez    $zero, vs_battle_aiReserveAiDestinationTile
     srl     $a1, $a1, 24
     lw      $a3, 0x170($a0)
     addiu   $a2, $zero, 0x16
@@ -391,7 +391,7 @@ alabel func_800DF458
     srl     $a1, $a1, 17
     addiu   $t6, $a0, 0x40
     addiu   $a1, $a1, 0x40
-    jal     func_800E42D4
+    jal     vs_field_groundHeightAtWorldPosition
     sh      $a1, 0x10($t7)
     addu    $ra, $t9, $zero
     add     $v0, $v0, $t8 /* handwritten instruction */
@@ -425,7 +425,7 @@ alabel func_800DF458
     addu    $t8, $a0, $zero
     addiu   $a1, $a1, 0x40
     addu    $t9, $a1, $zero
-    jal     func_800E42D4
+    jal     vs_field_groundHeightAtWorldPosition
     sh      $a1, 0x178($t6)
     sll     $v0, $v0, 16
     or      $v0, $v0, $t8
@@ -441,7 +441,7 @@ alabel func_800DF458
     sw      $v0, 0x10($t7)
     andi    $a0, $a2, 0xFF
     sll     $a1, $a2, 8
-    bgez    $zero, func_800E4C1C
+    bgez    $zero, vs_battle_aiReserveAiDestinationTile
     srl     $a1, $a1, 24
     lw      $t7, 0x17C($a0)
     lw      $t8, 0x184($a0)
@@ -478,11 +478,11 @@ alabel func_800DF458
     addu    $t5, $ra, $zero
     addu    $t7, $a0, $zero
     addu    $t8, $a1, $zero
-    jal     func_800E42E0
+    jal     vs_field_groundHeightAtPackedTile
     lw      $a0, 0x34($t7)
     addu    $t6, $v0, $zero
     lw      $t9, 0x170($t7)
-    jal     func_800E42E0
+    jal     vs_field_groundHeightAtPackedTile
     addu    $a0, $t9, $zero
     lhu     $a0, 0xB0($t7)
     sub     $v0, $v0, $t6 /* handwritten instruction */
@@ -517,7 +517,7 @@ alabel func_800DF458
     addiu   $a0, $a0, 0x40
     addu    $t6, $a0, $zero
     addiu   $a1, $a1, 0x40
-    jal     func_800E42D4
+    jal     vs_field_groundHeightAtWorldPosition
     sh      $a1, 0x178($t7)
     sll     $v0, $v0, 16
     or      $v0, $v0, $t6
@@ -549,7 +549,7 @@ alabel func_800DF458
     andi    $v1, $t9, 0xFF00
     beqz    $v0, .L800DF70C
     addu    $a0, $t3, $zero
-    beqz    $v1, func_800E4C1C
+    beqz    $v1, vs_battle_aiReserveAiDestinationTile
     addu    $a1, $t4, $zero
 .L800DF70C:
     jr      $ra
@@ -616,8 +616,8 @@ alabel func_800DF458
     jr      $ra
     sw      $a0, 0xC($a1)
     lw      $t0, 0x22C($a0)
-    lui     $v1, %hi(D_800F4538)
-    addiu   $v1, $v1, %lo(D_800F4538)
+    lui     $v1, %hi(vs_actors_actorRecords)
+    addiu   $v1, $v1, %lo(vs_actors_actorRecords)
     lw      $t1, 0x4($t0)
     addiu   $t9, $zero, 0x18
     srl     $a2, $t1, 3
@@ -674,14 +674,14 @@ alabel L800DF8A4
     beqz    $v0, .L800DF8E4
     addiu   $v0, $zero, -0x1
     lbu     $a0, 0x19B($s0)
-    jal     func_800E4BD8
+    jal     vs_battle_aiClearAiContactOccupancy
     sw      $v0, 0x19C($s0)
     j       .L800DF990
     sb      $zero, 0x19B($s0)
 .L800DF8E4:
     addu    $a0, $s0, $zero
     lw      $a1, 0x19C($s0)
-    jal     func_800DFAF8
+    jal     vs_battle_aiFindRouteGateAtTile
     addu    $a2, $zero, $zero
     addu    $s1, $v0, $zero
     bltz    $s1, .L800DF988
@@ -705,23 +705,23 @@ alabel L800DF8A4
     and     $v0, $v0, $a2
     or      $v0, $v0, $v1
     and     $s2, $v0, $a3
-    jal     func_800D954C
+    jal     vs_battle_aiDestinationOccupancy
     addu    $a1, $s2, $zero
     blez    $v0, .L800DF988
     sra     $a0, $s1, 1
     addiu   $a0, $a0, 0x2
     addiu   $v0, $zero, -0x1
     sw      $v0, 0x19C($s0)
-    jal     func_800E4BD8
+    jal     vs_battle_aiClearAiContactOccupancy
     sb      $zero, 0x19B($s0)
     addu    $a0, $s0, $zero
     addiu   $a1, $zero, 0xE
-    jal     func_800DEEFC
+    jal     vs_battle_aiIssueActorCommand
     sw      $s2, 0x170($a0)
     j       .L800DF990
     nop
 .L800DF988:
-    jal     func_800E2CCC
+    jal     vs_battle_aiRecoverMovement
     addu    $a0, $s0, $zero
 .L800DF990:
     lw      $ra, 0x1C($sp)
@@ -730,4 +730,4 @@ alabel L800DF8A4
     lw      $s0, 0x10($sp)
     jr      $ra
     addiu   $sp, $sp, 0x20
-endlabel func_800DEEFC
+endlabel vs_battle_aiIssueActorCommand

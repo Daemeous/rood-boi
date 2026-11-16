@@ -3,7 +3,7 @@
  * The original (MENU9, pc/src/game/MENU/MENU9.PRG/238.c) is never loaded for the native
  * screen; this file does to the game what its open and its cursors do, from the
  * shell's events (ui_score.cpp), drained after every shell tick (pc_ui_menu_top):
- *   OPEN      the world frozen (func_8008A4DC(0), vs_menu9_exec's initData; the
+ *   OPEN      the world frozen (vs_field_setFieldRenderingEnabled(0), vs_menu9_exec's initData; the
  *             value before it remembered and put back at CLOSE); MENU9's own
  *             _calculateProgress once (through 238.c's table, score_menu9.h:
  *             roomFlags[1], the cursor memory's bzero without cursor memory,
@@ -18,7 +18,7 @@
  *             menu's exits)
  *   SFX       vs_main_playSfxDefault(0x7E, n); MENU_SFX the main menu's list
  *   CLOSE     the world back as it was (a deviation: MENU9's state 6 calls
- *             func_8008A4DC(1) unconditionally; here only if it ran at OPEN,
+ *             vs_field_setFieldRenderingEnabled(1) unconditionally; here only if it ran at OPEN,
  *             so a freeze another owner held stays its own; the plan's
  *             Deviations)
  *   ORIGINAL  nothing more: the cursor memory is written, the world back;
@@ -35,7 +35,7 @@
 #include "score_format.h"
 #include "ui_score.h"
 
-extern int D_800F190C; /* BATTLE 146C.c: the world runs (func_8008A4DC) */
+extern int vs_field_isFieldRenderingEnabled; /* BATTLE 146C.c: the world runs (vs_field_setFieldRenderingEnabled) */
 int pc_ui_text_decode(const unsigned char* text, int max_bytes, char* out, int out_size); /* ui_text.c */
 void pc_ui_score_mon_fill(const int kill_flags[PC_MON_FLAG_WORDS], pc_ui_score* s); /* score_mon.c */
 
@@ -47,7 +47,7 @@ void pc_ui_score_bridge_reset(void);
 #define TEXT_MAX 512
 
 static int owned;     /* OPEN applied, CLOSE not yet: the world is frozen by the screen */
-static int world_was; /* D_800F190C before OPEN froze it */
+static int world_was; /* vs_field_isFieldRenderingEnabled before OPEN froze it */
 
 /* String i of a vsString table (u16 offsets in u16 units, then the strings), decoded. */
 static void text(const u_short* table, int i, char* out, int size)
@@ -136,9 +136,9 @@ static void freeze(void)
 {
     if (owned)
         return;
-    world_was = D_800F190C;
+    world_was = vs_field_isFieldRenderingEnabled;
     owned = 1;
-    func_8008A4DC(0);
+    vs_field_setFieldRenderingEnabled(0);
 }
 
 static void thaw(void)
@@ -147,7 +147,7 @@ static void thaw(void)
         return;
     owned = 0;
     if (world_was)
-        func_8008A4DC(1);
+        vs_field_setFieldRenderingEnabled(1);
 }
 
 static void apply(const pc_ui_score_event* e)
@@ -173,11 +173,11 @@ static void apply(const pc_ui_score_event* e)
         break;
     }
     case PC_UI_SEV_HOME:
-        D_800F4EE8.cursorMemories[2] = (char)e->a;
-        D_800F4EE8.cursorMemories[3] = 0;
+        vs_menu_frameworkMenuMemory.cursorMemories[2] = (char)e->a;
+        vs_menu_frameworkMenuMemory.cursorMemories[3] = 0;
         break;
     case PC_UI_SEV_GAZETTE:
-        vs_battle_menu9CursorMemory.gazetteRow = D_800F4EE8.cursorMemories[2] + D_800F4EE8.cursorMemories[3];
+        vs_battle_menu9CursorMemory.gazetteRow = vs_menu_frameworkMenuMemory.cursorMemories[2] + vs_menu_frameworkMenuMemory.cursorMemories[3];
         break;
     case PC_UI_SEV_SFX:
         vs_main_playSfxDefault(0x7E, e->a);

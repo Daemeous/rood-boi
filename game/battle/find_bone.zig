@@ -6,9 +6,9 @@ const v = @import("views_38C1C");
 /// orig: func_800A152C (pc/src/game/BATTLE/BATTLE.PRG/38C1C.c)
 /// Returns the first bone whose armature field `field` selects matches the low byte of `wanted` (0 for 0xFF, -1 for an empty slot, -4 for no match).
 pub fn findBone(actorId: c_int, wanted: c_int, field: c_int) callconv(.c) c_int {
-    var model: ?*v.D_800F4538_t = psx.at(v.g.D_800F4538(), actorId).*;
+    var model: ?*v.D_800F4538_t = psx.at(v.g.vs_actors_actorRecords(), actorId).*;
     if (model == null) {
-        model = @ptrCast(psx.at(v.g.D_800F45E0(), actorId).*);
+        model = @ptrCast(psx.at(v.g.vs_field_gimmickInstances(), actorId).*);
         if (model == null) return -1;
     }
 

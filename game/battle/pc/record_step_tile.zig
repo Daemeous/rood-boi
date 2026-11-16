@@ -2,7 +2,7 @@
 const ai = @import("views_71618");
 const psx = @import("common").psx;
 
-/// orig: func_800E3BC8 (pc/src/battle_movement.c)
+/// orig: vs_battle_aiSetDetourBoundary (pc/src/battle_movement.c)
 /// Records the step tile toward the target (0x168) in the path flags (0x190
 /// bits 22+ = x, 27+ = z; 0 per axis already reached, otherwise the target
 /// coordinate plus one when it lies ahead). The fields overlap, as in the original.

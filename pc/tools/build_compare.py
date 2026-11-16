@@ -355,7 +355,7 @@ def play_casts(binary, card, out, kinds, limit):
         found = {}
         record = lambda i: g.read(sym["vs_main_actions"] + i * smoke.ACTION, smoke.ACTION)
         def drive_actors(tag, attack):
-            """The game's own entry for an actor's action (func_80072EC4: the base attack's, and what the actor commands run for the
+            """The game's own entry for an actor's action (vs_battle_beginActorActionSelection: the base attack's, and what the actor commands run for the
             enemies, which choose from their own list of abilities, stats + 0x8C0: armor[6][4] of 4 bytes, the id first): Ashley's
             attack with her weapon drawn, then each ability of each enemy of the room (its effect data is the room's)."""
             nonlocal count
@@ -707,7 +707,7 @@ def scene_emote_arrow(g, cp, symbols):
     (classic_parity.py's OFFSETS), its position written each vsync; also every balloon emote once (the text-box icons)."""
     import struct
     kinds_at, sides_at = symbols["D_800F2260"], symbols["D_800F2274"]
-    g.write(symbols["D_800F2270"], bytes(2))
+    g.write(symbols["vs_battle_actorMarkersHidden"], bytes(2))
     g.run(200)  # (the bubble's zoom)
     actors = cp.emote_actors(g)
     if not actors:
@@ -739,7 +739,7 @@ def scene_dialogue(g, cp, symbols):
     """The duke's talk bubble (the first_bubble checkpoint, no card): its zoom; every bubble shape the frames' table has,
     each flip and tail, written into the open box's fields (classic_parity.py tour_text_frame); the next lines."""
     import struct
-    boxes, table = symbols["vs_battle_textBoxes"], symbols["D_800EB588"]
+    boxes, table = symbols["vs_battle_textBoxes"], symbols["vs_event_textBoxFrameStyles"]
     ptr = cp.PTR
     g.run(200)
 
@@ -805,7 +805,7 @@ def parity_tour(name, scale=1):
 
 def platforms(rooms=((9, 5), (15, 7), (24, 2), (25, 2), (32, 0))):
     """The rooms whose moving platforms are above the floor, each left to run: the flat subtractive squares under them
-    (146C.c func_8008CEB0, room_shadows.zig; the native renderer gets each too). Found by a scan of all 419 rooms with a
+    (146C.c vs_field_drawMovingPlatformShadows, room_shadows.zig; the native renderer gets each too). Found by a scan of all 419 rooms with a
     breakpoint on the draw: 9-5, 9-6, 15-7..10, 24-2, 24-3, 24-7, 24-8, 24-13, 24-14, 25-2, 25-3, 31-1, 32-0."""
     def scene(g, cp, symbols):
         for zone, room in rooms:
@@ -832,7 +832,7 @@ def weather(zone, room):
 
 
 def scene_opening(g, cp, symbols):
-    """New Game's opening (the title, no card: Start, Circle): its picture cards (func_800CCA90's tiled drawer, the scaled and
+    """New Game's opening (the title, no card: Start, Circle): its picture cards (vs_render_drawGimLayer's tiled drawer, the scaled and
     fading images), the manor's exterior in the rain and the first dialogue, left to play with Circle now and then."""
     g.run(60)
     g.press("start", vsyncs=4, settle=90)
@@ -876,13 +876,13 @@ def weather_kind(kind):
 def scene_opening_events(g, cp, symbols):
     """New Game's opening played through (its event script: the GIM images, the wipe among them, the screen effect's tiles, the
     five-panel screen freeze), Circle every 90 vsyncs to move its talk boxes along; for part of it the film's scanlines
-    (D_800F4BE4, an event opcode's flag) are forced on, as EVT 6 and 15 turn them on (no room starts those)."""
+    (vs_event_isScanlineOverlayEnabled, an event opcode's flag) are forced on, as EVT 6 and 15 turn them on (no room starts those)."""
     g.run(60)
     g.press("start", vsyncs=4, settle=90)
     g.press("circle", vsyncs=3, settle=0)
     for step in range(90):
         if 30 <= step < 40:
-            g.write(symbols["D_800F4BE4"], b"\x01")
+            g.write(symbols["vs_event_isScanlineOverlayEnabled"], b"\x01")
         g.run(30)
         g.press("circle", vsyncs=2, settle=4)
 
@@ -912,8 +912,8 @@ def story_scene(scene_id, warp=False, scaled=0):
     border. Back at the scene's first frame, paused (the scene went on by itself, unpaced, while it was reached: the replay is exact), then run for the scene's frames (the player's count) and a little more.
     With `warp`: the screen effect's radial warp (SCREFF2, set by the event script's op 237, which no scene plays here) set in its state while the
     border is on, so the scene's frames are drawn through it (the warp deforms what the ordering table holds: packets and polygon items).
-    With `scaled`: the scene's GIM images drawn at that scale (D_800EB9BC's records, unkC's low 14 bits; the scripts here leave them at 4096) from
-    the first frame they show to the end: the textured quads of func_800CBBCC's scaled branch."""
+    With `scaled`: the scene's GIM images drawn at that scale (vs_render_gimLayers's records, unkC's low 14 bits; the scripts here leave them at 4096) from
+    the first frame they show to the end: the textured quads of vs_render_drawGimTiles's scaled branch."""
     def scene(g, cp, symbols):
         story = json.loads((ROOT / "pc/assets/cutscenes/story.json").read_text())
         frames = next(s["frames"] for s in story["scenes"] if s["id"] == scene_id)
@@ -939,7 +939,7 @@ def story_scene(scene_id, warp=False, scaled=0):
             if not g.call("cutscene")["busy"]:
                 break
         if scaled:
-            images = symbols["D_800EB9BC"]
+            images = symbols["vs_render_gimLayers"]
             for step in range(frames // 10 + 12):
                 g.run(10)
                 base = int.from_bytes(g.read(images, 8), "little")
@@ -969,15 +969,15 @@ def story_scene(scene_id, warp=False, scaled=0):
 
 
 def scene_areamap(g, cp, symbols):
-    """The area map (146C.c func_8008AC78: the room's map in the corner and its frame): Map Right set to Frame (vs_main_settings.simpleMap
-    3), the map shown (D_800F1CD6), in a room with a map section, the frame drawn with the weapon sheathed (green) and drawn (red, pulsing)."""
+    """The area map (146C.c vs_field_drawRoomScene: the room's map in the corner and its frame): Map Right set to Frame (vs_main_settings.simpleMap
+    3), the map shown (vs_field_isMinimapVisible), in a room with a map section, the frame drawn with the weapon sheathed (green) and drawn (red, pulsing)."""
     g.call("room_goto", zone=9, room=17, enemies=False, scripts=False)
     for _ in range(80):
         g.run(20)
         if g.call("room_goto", action="status")["phase"] in (0, 4):
             break
     g.write(symbols["vs_main_settings"] + 9, b"\x03")
-    g.write(symbols["D_800F1CD6"], b"\x01")
+    g.write(symbols["vs_field_isMinimapVisible"], b"\x01")
     g.run(120)
     g.press("circle", vsyncs=3, settle=90)  # (the weapon drawn)
     g.run(120)

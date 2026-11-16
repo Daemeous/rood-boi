@@ -37,33 +37,33 @@ typedef struct {
 } func_800A6660_t;
 
 void func_800A29A0(D_800F4538_t*);
-void func_800ACF54(D_800F4538_t*);
-void func_800E4C28();
-u_int func_800A9C54(u_char, void*, int);
-void func_800AEAE8(D_800F4538_t*);
-void func_800AECA0(MATRIX*);
+void vs_actors_saveActorGroundedTransform(D_800F4538_t*);
+void vs_battle_aiReleaseAiDestinationTile();
+u_int vs_actors_translateActorToTileAtRate(u_char, void*, int);
+void vs_actors_actorRootOffset(D_800F4538_t*);
+void vs_render_prepareActorCameraMatrices(MATRIX*);
 void func_800B28A8(void*, MATRIX*, int);
-int func_8008D2C0(func_8008D2C0_t*);
-short func_8008DD0C(int arg0, int arg1);
-D_800F4538_t* func_800A3C34(int, int, int, int);
-short func_8008DC7C(int, int);
-short func_8008DA24(int, int);
-u_int* func_800A8D64(SVECTOR*, int);
-int func_800B13CC(int, int, int);
-int func_800A92B8(int, int);
-int func_800A9378(int, int, int, int);
-void func_800AA850(int, short, int);
-int func_800A8E84(D_800F45E0_t*, SVECTOR*);
-void func_800B0908(D_800F45E0_t*, int);
-int func_800A6EE8(SVECTOR*, int, int, int);
-int func_800E75EC(void);
-int func_8009E180(D_800F4538_t*, SVECTOR*);
+int vs_field_collectMovingPlatformPositions(func_8008D2C0_t*);
+short vs_field_ceilingHeightAt(int arg0, int arg1);
+D_800F4538_t* vs_field_findActorOccupyingTile(int, int, int, int);
+short vs_field_floorHeightAt(int, int);
+short vs_field_interpolatedFloorHeight(int, int);
+u_int* vs_field_findCollisionCellAtPosition(SVECTOR*, int);
+int vs_field_gimmickSupportHeightBelow(int, int, int);
+int vs_field_gimmickSupportHeight(int, int);
+int vs_field_movingPlatformContactHeight(int, int, int, int);
+void vs_actors_turnActorToOverTime(int, short, int);
+int vs_field_isActorPositionUnoccupied(D_800F45E0_t*, SVECTOR*);
+void vs_field_updateGimmickMotion(D_800F45E0_t*, int);
+int vs_field_sampleActorSupportHeight(SVECTOR*, int, int, int);
+int vs_battle_aiRoomNavigationCeilingHeight(void);
+int vs_actors_actorFacingDeltaToPoint(D_800F4538_t*, SVECTOR*);
 
-extern u_int* D_800F49F0;
+extern u_int* vs_field_collisionProbeTile;
 extern u_short D_800F49F4;
-extern u_char D_800F49F8;
-extern u_char D_800F49F9;
-extern SVECTOR D_800F4B08;
+extern u_char vs_actors_supportingGimmickIndex;
+extern u_char vs_field_collisionProbeDirection;
+extern SVECTOR vs_field_collisionProbePosition;
 extern char D_800F4B18;
 extern u_char D_800E9278[];
 
@@ -71,119 +71,119 @@ void func_800A29A0(D_800F4538_t* arg0);
 
 void func_800A2C48(D_800F4538_t* arg0);
 
-void func_800A2FBC(D_800F4538_t*);
-void func_800A9EB4(int, short, int);
-void func_800AA620(int, SVECTOR*, int);
+void vs_actors_stepActorTransitionDisplacement(D_800F4538_t*);
+void vs_actors_turnActorToAtRate(int, short, int);
+void vs_actors_translateActorToOverTime(int, SVECTOR*, int);
 
 void func_800A2CD4(D_800F4538_t* arg0);
 
-void func_800A2FBC(D_800F4538_t* arg0);
+void vs_actors_stepActorTransitionDisplacement(D_800F4538_t* arg0);
 
-void func_800A3054(D_800F4538_t* arg0, func_800A3054_t* arg1);
+void vs_actors_setActorFallDestination(D_800F4538_t* arg0, func_800A3054_t* arg1);
 
-inline int func_800A3310(int, SVECTOR*);
-void func_800A3394(int, SVECTOR*);
-int func_800A3500(int, int);
+inline int vs_actors_findActorAtFlightPosition(int, SVECTOR*);
+void vs_actors_separateActorFlightPlacement(int, SVECTOR*);
+int vs_field_actorSupportHeight(int, int);
 func_8008D2C0_t* func_800A4A24(int);
-void func_800ACF54(D_800F4538_t*);
+void vs_actors_saveActorGroundedTransform(D_800F4538_t*);
 
-void func_800A30A0(int actorId, func_80089888_t* placement, int height, int mode);
+void vs_actors_placeActorInRoom(int actorId, func_80089888_t* placement, int height, int mode);
 
-inline int func_800A3310(int arg0, SVECTOR* arg1);
+inline int vs_actors_findActorAtFlightPosition(int arg0, SVECTOR* arg1);
 
-void func_800A3394(int arg0, SVECTOR* arg1);
+void vs_actors_separateActorFlightPlacement(int arg0, SVECTOR* arg1);
 
-int func_800A3500(int arg0, int arg1);
+int vs_field_actorSupportHeight(int arg0, int arg1);
 
-void func_800A35A8(void);
+void vs_field_snapRoomActorsToSupport(void);
 
-void func_800A36E0(int arg0, int arg1, func_8006EBF8_t* arg2);
+void vs_actors_actorSavedPlacement(int arg0, int arg1, func_8006EBF8_t* arg2);
 
-int func_800A3760(int arg0, int arg1, int arg2);
+int vs_actors_findNearestActorAhead(int arg0, int arg1, int arg2);
 
-extern int D_800F49E8;
-int func_800A3BC4(int, int);
-int func_800A3DB4(int, int, int);
-int func_800A91DC(int, int, int);
+extern int vs_field_gimmickInteractionDirection;
+int vs_field_roomCeilingHeight(int, int);
+int vs_field_canPlaceGimmickAtPoint(int, int, int);
+int vs_field_findTopGimmickAtTile(int, int, int);
 
-int func_800A38E0(int actorId);
+int vs_field_findInteractableGimmickAhead(int actorId);
 
-int func_800A3BC4(int arg0, int arg1);
+int vs_field_roomCeilingHeight(int arg0, int arg1);
 D_800F4538_t* func_800A3C00(D_800F45E0_t* arg0, u_int arg1);
-int func_800A3DB4(int x, int z, int minimumHeight);
+int vs_field_canPlaceGimmickAtPoint(int x, int z, int minimumHeight);
 
-int func_800A3BC4(int arg0, int arg1);
+int vs_field_roomCeilingHeight(int arg0, int arg1);
 
 D_800F4538_t* func_800A3C00(D_800F45E0_t* arg0, u_int arg1);
 
-D_800F4538_t* func_800A3C34(int arg0, int arg1, int arg2, int arg3);
+D_800F4538_t* vs_field_findActorOccupyingTile(int arg0, int arg1, int arg2, int arg3);
 
-int func_800A3DB4(int x, int z, int minimumHeight);
+int vs_field_canPlaceGimmickAtPoint(int x, int z, int minimumHeight);
 
-extern int D_800E90A8;
+extern int vs_field_interactingGimmickId;
 extern u_char D_800E8FD0[];
-void func_800AE6C0(D_800F4538_t*, int, int);
-void func_800E4C1C(int, int);
-void func_800AA454(int, func_8006EBF8_t_fields*, int);
+void vs_audio_playActorSoundPair(D_800F4538_t*, int, int);
+void vs_battle_aiReserveAiDestinationTile(int, int);
+void vs_actors_turnActorTowardTileOverTime(int, func_8006EBF8_t_fields*, int);
 
-int func_800A3E6C(int actorId);
+int vs_field_beginGimmickInteraction(int actorId);
 
-int func_800A190C(int, int, SVECTOR*, int);
-void func_800E68A0(D_800F45E0_t*);
+int vs_actors_anchorPoint(int, int, SVECTOR*, int);
+void vs_battle_aiRemoveAiTileOccupant(D_800F45E0_t*);
 
-void func_800A41D0(D_800F4538_t* actor, int mode);
+void vs_field_applyGimmickInteractionCommand(D_800F4538_t* actor, int mode);
 
-void func_800A4A88(D_800F4538_t*, int);
-int func_800A46A4(D_800F4538_t*);
-int func_800A4494(int contact, SVECTOR* point);
+void vs_actors_updateActorPlatformContact(D_800F4538_t*, int);
+int vs_field_isHangingActorObstructed(D_800F4538_t*);
+int vs_field_checkPlatformActorObstruction(int contact, SVECTOR* point);
 
-void func_800A70DC(D_800F4538_t*, int);
+void vs_field_sampleActorCollisionPerimeter(D_800F4538_t*, int);
 typedef struct {
     char prefix[0x2C];
     u_char contact, nextContact;
 } collisionScratchView;
 
-int func_800A46A4(D_800F4538_t* actor);
+int vs_field_isHangingActorObstructed(D_800F4538_t* actor);
 
-int func_800A47C4(void);
+int vs_field_areGimmicksMoving(void);
 
 void func_800A4828(int arg0, MATRIX* arg1);
 
-void func_800B64A8(int, int, int);
+void vs_actors_setDirectMovement(int, int, int);
 typedef struct {
     unsigned mode : 2;
     unsigned fast : 1;
     unsigned reserved : 29;
 } vs_battleMovementModeFlags;
-void func_800A48CC(int index, int direction, int distance);
+void vs_actors_beginActorJumpMovement(int index, int direction, int distance);
 
 inline func_8008D2C0_t* func_800A4A24(int arg0);
 
-void func_8008C49C(int, int);
-void func_800E4BD8(int);
-void func_800E4BE0(int);
+void vs_field_setMovingPlatformActor(int, int);
+void vs_battle_aiClearAiContactOccupancy(int);
+void vs_battle_aiSetAiContactOccupancy(int);
 
-void func_800A4A88(D_800F4538_t* actor, int mode);
+void vs_actors_updateActorPlatformContact(D_800F4538_t* actor, int mode);
 
-void func_800A4D8C(void);
+void vs_actors_updateRoomActorMovement(void);
 
-void func_800A25EC(D_800F4538_t*); /* extern */
-void func_800A2790(D_800F4538_t*); /* extern */
-void func_800A291C(D_800F4538_t*); /* extern */
+void vs_actors_applyActorGroundOffset(D_800F4538_t*); /* extern */
+void vs_actors_applyActorFlightMovement(D_800F4538_t*); /* extern */
+void vs_actors_applyActorMovementVector(D_800F4538_t*); /* extern */
 void func_800A2CD4(D_800F4538_t*); /* extern */
-int func_800A51A0(int, SVECTOR*); /* extern */
-void func_800A525C(D_800F4538_t*); /* extern */
-int func_800A5280(int, int, int, SVECTOR*); /* extern */
-void func_800AC690(int, D_800F4538_t*); /* extern */
-void func_800E6B24(u_char); /* extern */
+int vs_field_isPointOnMovingPlatform(int, SVECTOR*); /* extern */
+void vs_actors_clearActorMovementRequest(D_800F4538_t*); /* extern */
+int vs_actors_moveActorWithCollision(int, int, int, SVECTOR*); /* extern */
+void vs_actors_updateActorJumpAndFall(int, D_800F4538_t*); /* extern */
+void vs_battle_aiClearActorAiNavigationReset(u_char); /* extern */
 
-void func_800A4E68(int arg0);
+void vs_actors_updateActorMovement(int arg0);
 
-int func_800A51A0(int arg0, SVECTOR* arg1);
+int vs_field_isPointOnMovingPlatform(int arg0, SVECTOR* arg1);
 
-void func_800A525C(D_800F4538_t* arg0);
+void vs_actors_clearActorMovementRequest(D_800F4538_t* arg0);
 
-extern short D_800F4B0A;
+extern short vs_field_collisionProbeHeight;
 typedef struct {
     int words[2];
 } probePosition;
@@ -192,32 +192,32 @@ extern u_char D_800E90C3[];
 extern u_char D_800E90C4;
 extern u_char D_800E90C6;
 extern u_char D_800E91AC[];
-extern u_char D_800F1D6E[];
-int func_800A6798(D_800F4538_t*, SVECTOR*, SVECTOR*);
-int func_800A69B4(D_800F4538_t*);
-int func_800A6AA0(D_800F4538_t*, int, int);
-int func_800A76BC(D_800F4538_t*, SVECTOR*, int*, int);
+extern u_char vs_field_areMovingPlatformsPaused[];
+int vs_field_canActorHangFromLedge(D_800F4538_t*, SVECTOR*, SVECTOR*);
+int vs_field_hasActorLedgeSideSupport(D_800F4538_t*);
+int vs_actors_updateActorLocomotionAnimation(D_800F4538_t*, int, int);
+int vs_field_resolveActorTerrainMotion(D_800F4538_t*, SVECTOR*, int*, int);
 int func_800A9530(D_800F4538_t*, SVECTOR*);
-void func_800AA600(int, SVECTOR*, int);
-void func_800AA698(int, SVECTOR*, int);
-void func_800AE4FC(D_800F4538_unk0*, int);
-void func_800A6660(D_800F4538_t*, int, func_800A6660_t*);
+void vs_actors_setActorMotion(int, SVECTOR*, int);
+void vs_actors_setActorTranslation(int, SVECTOR*, int);
+void vs_audio_playActorModelSound(D_800F4538_unk0*, int);
+void vs_actors_updateActorSteering(D_800F4538_t*, int, func_800A6660_t*);
 
-int func_800A5280(int index, int direction, int distance, SVECTOR* input);
+int vs_actors_moveActorWithCollision(int index, int direction, int distance, SVECTOR* input);
 
-void func_800A6660(D_800F4538_t* arg0, int arg1, func_800A6660_t* arg2);
+void vs_actors_updateActorSteering(D_800F4538_t* arg0, int arg1, func_800A6660_t* arg2);
 
-int func_800A6798(D_800F4538_t* actor, SVECTOR* offset, SVECTOR* motion);
+int vs_field_canActorHangFromLedge(D_800F4538_t* actor, SVECTOR* offset, SVECTOR* motion);
 
-int func_800A69B4(D_800F4538_t* arg0);
+int vs_field_hasActorLedgeSideSupport(D_800F4538_t* arg0);
 
 extern u_char D_800E90CC[];
 extern u_char D_800E90D0[];
-int func_800AD494(void*, int, u_short**);
+int vs_actors_findActorAnimationHeader(void*, int, u_short**);
 
-int func_800A6AA0(D_800F4538_t* actor, int speed, int direction);
+int vs_actors_updateActorLocomotionAnimation(D_800F4538_t* actor, int speed, int direction);
 
-int func_800A6EE8(SVECTOR* arg0, int arg1, int arg2, int arg3);
+int vs_field_sampleActorSupportHeight(SVECTOR* arg0, int arg1, int arg2, int arg3);
 
 typedef struct {
     char prefix[0x1C];
@@ -226,19 +226,19 @@ typedef struct {
     u_char attributes[8];
     u_char centerAttribute;
 } ActorCollisionSamples;
-void func_800A70DC(D_800F4538_t* actor, int diagonal);
+void vs_field_sampleActorCollisionPerimeter(D_800F4538_t* actor, int diagonal);
 
 typedef struct {
     char prefix[0x2C];
     u_char contacts[8];
 } collisionResponseScratch;
 
-void func_800A7524(D_800F4538_t* actor, SVECTOR* motion);
+void vs_field_applyActorWallRepulsion(D_800F4538_t* actor, SVECTOR* motion);
 
-int func_800A8B34(SVECTOR* arg0, int arg1);
-int func_800A8FD4(D_800F4538_t* actor, SVECTOR* motion);
+int vs_field_classifyActorTerrainProbe(SVECTOR* arg0, int arg1);
+int vs_field_canActorSeparateFromOverlaps(D_800F4538_t* actor, SVECTOR* motion);
 
-int func_800A76BC(D_800F4538_t* actor, SVECTOR* motion, int* result, int probeOnly);
+int vs_field_resolveActorTerrainMotion(D_800F4538_t* actor, SVECTOR* motion, int* result, int probeOnly);
 
-int func_800A8B34(SVECTOR* arg0, int arg1);
+int vs_field_classifyActorTerrainProbe(SVECTOR* arg0, int arg1);
 

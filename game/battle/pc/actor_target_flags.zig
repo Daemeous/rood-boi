@@ -16,13 +16,13 @@ fn actionTargetBit(action: c_int, id: c_int, comptime bit: u4) c_int {
     return flags & 1;
 }
 
-/// orig: func_800DC484 (pc/src/battle_helpers.c)
+/// orig: vs_battle_aiIsActionHarmfulToActor (pc/src/battle_helpers.c)
 /// Bit 15 of the action's target flags (see actionTargetBit).
 pub fn actionTargetBit15(action: c_int, id: c_int) callconv(.c) c_int {
     return actionTargetBit(action, id, 15);
 }
 
-/// orig: func_800DC48C (pc/src/battle_helpers.c)
+/// orig: vs_battle_aiIsActionBeneficialToActor (pc/src/battle_helpers.c)
 /// Bit 14 of the action's target flags (see actionTargetBit).
 pub fn actionTargetBit14(action: c_int, id: c_int) callconv(.c) c_int {
     return actionTargetBit(action, id, 14);

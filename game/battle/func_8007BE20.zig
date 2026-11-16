@@ -36,5 +36,5 @@ pub fn func_8007BE20(arg0: c_int, arg1: c_int) callconv(.c) void {
     }
 
     sp10.unk3 = psx.conv(u8, var_a2);
-    _ = c.func_800CF0E8(psx.cptr(c.func_800CF0E8_t, &sp10), 0, 0);
+    _ = c.vs_effects_beginActionEffect(psx.cptr(c.func_800CF0E8_t, &sp10), 0, 0);
 }

@@ -6,20 +6,20 @@ touch the flags fast travel depends on.
 
 Every room script (MAP/MAPnnn.MPD: the MPD header's script section, offset at
 0x10, length at 0x14) and event script (EVENT/nnnn.EVT) is walked op by op
-from byte 16 to its text (the u16 at +2; BATTLE 4A0A8.c func_800BF5F0) with
-the interpreter's own op lengths (BATTLE.PRG D_800E9C30, 256 bytes; 4A0A8.c
-advances by D_800E9C30[op]). Flag ops (INITBTL 12AC.c's table, 4A0A8.c):
+from byte 16 to its text (the u16 at +2; BATTLE 4A0A8.c vs_event_initializeEventScriptData) with
+the interpreter's own op lengths (BATTLE.PRG vs_event_opcodeSizes, 256 bytes; 4A0A8.c
+advances by vs_event_opcodeSizes[op]). Flag ops (INITBTL 12AC.c's table, 4A0A8.c):
   0x40 jumpFwdIfFlag   [op, mode | flag >> 6, (flag & 63) << 2, value, jump16]
   0x41 jumpFwdIfFlags  [op, mode | f0 >> 6, (f0 & 63) << 2 | f1 >> 8, f1 & 255, jump16]
   0x46 setFlagImmContext [op, flag16]: the flag into the switch context
   0x50 setFlagImm      [op, mode | flag >> 6, (flag & 63) << 2, value] (mode 0x70: set)
   0x51 setFlag         [op, mode | f0 >> 6, (f0 & 63) << 2 | f1 >> 8, f1 & 255] (f0 from f1;
                        mode 0x90 swaps: f1 written too)
-  0x1F func_800B7490   [op, actor16, flag16]: an actor's position into flag .. flag + 2
+  0x1F vs_event_scriptStoreActorTile   [op, actor16, flag16]: an actor's position into flag .. flag + 2
   0x52 setFlagIfItemInInventory [op, item16, flag16]
   0x56 setFlagIfButton [op, flag16 (& 0x3FF; bit 15: pressed, else held)]
-  0xB2 func_800BAC5C   [op, actor16, actor16, divisor, flag16]: distance, angle into flag, flag + 1
-  0xB6 func_800BAEA0   [op, actor16, actor16, flag16]: an angle into flag
+  0xB2 vs_event_commandStoreActorRangeBearing   [op, actor16, actor16, divisor, flag16]: distance, angle into flag, flag + 1
+  0xB6 vs_event_commandStoreActorDistance   [op, actor16, actor16, flag16]: an angle into flag
 The flags: unkB5 (0xB5, Teleportation learned / the spirit paling), unkA7
 (0xA7, saving refused), savePointStates (0x156 + i, Circle i found / paled).
 
@@ -48,7 +48,7 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 VRAM = 0x80068800       # BATTLE.PRG's load address (config/BATTLE/BATTLE.PRG/splat.yaml)
-OP_LENGTHS = 0x800E9C30  # D_800E9C30 (573B8.c, 4A0A8.c)
+OP_LENGTHS = 0x800E9C30  # vs_event_opcodeSizes (573B8.c, 4A0A8.c)
 UNK_B5, UNK_A7, POINTS = 0xB5, 0xA7, 0x156
 
 

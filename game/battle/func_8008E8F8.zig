@@ -1,11 +1,11 @@
-//! Replaces the 0x800-byte heap block held in D_800F1DD4 (pc/src/game/BATTLE/BATTLE.PRG/146C.c).
+//! Replaces the 0x800-byte heap block held in vs_field_weatherParticles (pc/src/game/BATTLE/BATTLE.PRG/146C.c).
 const v = @import("views_146C");
 const c = @import("c_146C");
 
 /// orig: func_8008E8F8 (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
-/// Frees the block at D_800F1DD4 if there is one, then allocates a new 0x800-byte block into it.
+/// Frees the block at vs_field_weatherParticles if there is one, then allocates a new 0x800-byte block into it.
 pub fn func_8008E8F8() callconv(.c) void {
-    const block = v.g.D_800F1DD4();
+    const block = v.g.vs_field_weatherParticles();
     if (block.* != null) {
         c.vs_main_freeHeap(block.*);
     }

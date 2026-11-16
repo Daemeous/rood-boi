@@ -167,7 +167,7 @@ void pc_audio_set_tick(psx_long (*fn)(void))
 /* The driver's own EnableEvent/DisableEvent of its timer event (boot_sdk.c): disabling masks the
  * tick as the PS1's interrupt mask did, which here also waits out a tick in progress on the audio
  * thread and keeps the next one off until the enable (the sound commands' bracket, 25AC.c
- * func_80018C30). */
+ * vs_audio_mixerDispatchCommand). */
 void pc_audio_enable_tick(int enabled)
 {
     if (!enabled)

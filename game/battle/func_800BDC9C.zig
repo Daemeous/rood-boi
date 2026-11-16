@@ -6,7 +6,7 @@ const v = @import("views_4A0A8");
 /// Opcodes 234..236 set the projection distance, near clip or far clip at once (script[3] 0) or start
 /// a ramp to it over script[2]; 239 stops both unk1A4 slots (script[2] 0) or fills the first free one.
 pub fn func_800BDC9C(script: [*c]u8, _: c_short) callconv(.c) c_int {
-    const cam = v.g.D_800F4BA4().*.?;
+    const cam = v.g.vs_event_camera().*.?;
     switch (script[0]) {
         234 => {
             const r = &cam.projectionDistance;

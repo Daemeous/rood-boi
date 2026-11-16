@@ -3,7 +3,7 @@ const ai = @import("views_71618");
 const v = @import("views_battle_movement");
 const psx = @import("common").psx;
 
-/// orig: func_800D836C (pc/src/battle_movement.c)
+/// orig: vs_battle_aiTryEngageActor (pc/src/battle_movement.c)
 /// Joins the room's encounter. Already engaged (0x8E) succeeds; a full
 /// encounter (count 0x0D below members 0x12) or a block (0x98 or D_800F58E0)
 /// fails. Otherwise sets the engagement timer (1, or 0x20 after a recent
@@ -11,7 +11,7 @@ const psx = @import("common").psx;
 /// members and pushes the actor on the room's engaged list (head 0x1C, tail
 /// 0x20, link 0x1A0).
 pub fn joinEncounter(state: *ai.vs_battle_aiState) callconv(.c) c_int {
-    const room = v.g.D_800F58BC().*.?;
+    const room = v.g.vs_battle_aiRoomAiState().*.?;
     if (state.timer8E != 0) return 1;
     const members: c_uint = room.unk12;
     if (room.unkD < members) return 0;

@@ -5,11 +5,11 @@ const c = @import("c_146C");
 /// Calls the two toggles with 1 and 0 for a nonzero argument, 0 and 1 otherwise, and returns the argument.
 pub fn func_8007BD8C(arg0: c_int) callconv(.c) c_int {
     if (arg0 != 0) {
-        c.func_800CB654(1);
-        _ = c.func_8008B4C8(0);
+        c.vs_battle_setHudHidden(1);
+        _ = c.vs_field_setMinimapVisible(0);
     } else {
-        c.func_800CB654(0);
-        _ = c.func_8008B4C8(1);
+        c.vs_battle_setHudHidden(0);
+        _ = c.vs_field_setMinimapVisible(1);
     }
     return arg0;
 }

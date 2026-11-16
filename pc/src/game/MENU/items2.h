@@ -189,7 +189,7 @@ static void _restoreItemMenu(int itemCategory)
         }
 
         menuItem->selected =
-            (i ^ (D_800F4EE8.cursorMemories[(itemCategory + 30) * 2] + 20)) == 0;
+            (i ^ (vs_menu_frameworkMenuMemory.cursorMemories[(itemCategory + 30) * 2] + 20)) == 0;
     }
 }
 
@@ -263,7 +263,7 @@ loop_1:
 
         if (_ignoreCursorMemory) {
             if (vs_main_settings.cursorMemory == 0) {
-                memset(&D_800F4EE8.unk3A, 0, sizeof D_800F4EE8.unk3A);
+                memset(&vs_menu_frameworkMenuMemory.unk3A, 0, sizeof vs_menu_frameworkMenuMemory.unk3A);
             }
         }
 
@@ -271,7 +271,7 @@ loop_1:
         return 0;
     }
 
-    itemCategory = (D_800F4EE8.unk3A.currentItemCategory - 1) & 7;
+    itemCategory = (vs_menu_frameworkMenuMemory.unk3A.currentItemCategory - 1) & 7;
     indices = vs_mainMenu_inventoryIndices[itemCategory];
 
     switch (state) {
@@ -317,7 +317,7 @@ loop_1:
         }
 
 #ifdef _ITEMMENU
-        if (D_800F4EA0 & 7) {
+        if (vs_menu_frameworkActionRestrictions & 7) {
             for (i = 0; i < 64; ++i) {
                 rowTypes[i] |= 1;
             }
@@ -382,7 +382,7 @@ loop_1:
         } else {
 
 #ifdef _ITEMMENU
-            if (!(D_800F4EA0 & 7)) {
+            if (!(vs_menu_frameworkActionRestrictions & 7)) {
                 u_int rowCount = itemCategory;
                 rowCount = rowCount < itemCategoryMisc;
                 _statusCommandState = rowCount + 1;
@@ -503,11 +503,11 @@ loop_1:
                 itemCategory = (itemCategory + 1) & 7;
             }
 
-            if (itemCategory != ((D_800F4EE8.unk3A.currentItemCategory - 1) & 7)) {
+            if (itemCategory != ((vs_menu_frameworkMenuMemory.unk3A.currentItemCategory - 1) & 7)) {
 
                 vs_battle_playMenuChangeSfx();
 
-                D_800F4EE8.unk3A.currentItemCategory = (itemCategory + 1) & 7;
+                vs_menu_frameworkMenuMemory.unk3A.currentItemCategory = (itemCategory + 1) & 7;
 
                 if (state == 2) {
                     if (noItems == 0) {
@@ -837,9 +837,9 @@ loop_1:
                     vs_mainMenu_clearMenuExcept(vs_mainMenu_menuItemIds_none);
 
                     vs_battle_miscItemInvoked = indices[selectedRow - 1] - 1;
-                    D_800F4E98.executeAbility.u16[0] =
+                    vs_menu_frameworkActionSelection.executeAbility.u16[0] =
                         (short)_miscActions[selectedRow - 1];
-                    D_800F4E98.executeAbility.u16[1] =
+                    vs_menu_frameworkActionSelection.executeAbility.u16[1] =
                         (short)vs_main_inventory.misc[vs_battle_miscItemInvoked].id;
 
                     return 3;
@@ -918,8 +918,8 @@ loop_1:
             itemCategory = 0;
         }
 
-        D_800F4EE8.unk3A.currentItemCategory = (itemCategory + 1) & 7;
-        (&D_800F4EE8.unk3A)->unk2[itemCategory].value =
+        vs_menu_frameworkMenuMemory.unk3A.currentItemCategory = (itemCategory + 1) & 7;
+        (&vs_menu_frameworkMenuMemory.unk3A)->unk2[itemCategory].value =
             vs_mainMenu_findItem(itemCategory, i - 1) - 1;
 
         state = init;

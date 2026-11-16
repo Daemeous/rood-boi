@@ -2,11 +2,11 @@
  * "Smart walls").
  *
  * The game hides every wall group whose facing mask lacks one of the game
- * camera's three bits (func_8009723C), whether or not the group stands
+ * camera's three bits (vs_render_drawRoomGeometry), whether or not the group stands
  * between the camera and Ashley. Rooms that are not a simple box then lose
  * walls that block nothing: a wall behind crates leaves black void, a wall
  * beside Ashley is not drawn while she walks into it. With gameplay_walls 1
- * ("smart") func_8009723C asks here about each group the mask leaves out
+ * ("smart") vs_render_drawRoomGeometry asks here about each group the mask leaves out
  * and draws it unless it gets in the way:
  *
  * - once per frame, the room's triangles (scene_capture.c, world space; the

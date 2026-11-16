@@ -4,7 +4,7 @@ const v = @import("views_5BE50");
 /// orig: func_800C4734 (pc/src/game/BATTLE/BATTLE.PRG/5BE50.c)
 /// Reports whether the battle record is open and whether its input is idle or held.
 pub fn func_800C4734() callconv(.c) c_int {
-    const rec = v.g.D_800EB9B8().* orelse return 0;
+    const rec = v.g.vs_battle_targetSphere().* orelse return 0;
     if (rec.unk2A != 0) return 0;
     if (rec.unk38.vec.pad == 0 or (v.g.vs_main_buttonsState().* & 0x80) != 0) return 1;
     return 2;

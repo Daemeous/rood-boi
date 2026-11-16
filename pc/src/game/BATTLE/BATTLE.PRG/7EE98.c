@@ -12,26 +12,26 @@
 #include "pc/src/psx_types.h"
 #include "ai_state.h"
 
-void func_800D82CC(vs_battle_aiState*);
-void func_800D836C(vs_battle_aiState*);
-int func_800DBCB4(vs_battle_aiState*, func_800E78F4_t2*);
-void func_800DEEFC(vs_battle_aiState*, int);
-void func_800E2CCC(vs_battle_aiState*);
+void vs_battle_aiDisengageActor(vs_battle_aiState*);
+void vs_battle_aiTryEngageActor(vs_battle_aiState*);
+int vs_battle_aiIsActionCooldownReady(vs_battle_aiState*, func_800E78F4_t2*);
+void vs_battle_aiIssueActorCommand(vs_battle_aiState*, int);
+void vs_battle_aiRecoverMovement(vs_battle_aiState*);
 int func_800E7698(vs_battle_aiState*);
-void func_800E7960(vs_battle_aiState*);
-extern D_800F58BC_t* D_800F58BC;
+void vs_battle_aiUpdateBossOrbitTracking(vs_battle_aiState*);
+extern D_800F58BC_t* vs_battle_aiRoomAiState;
 extern int D_800F5918;
 extern int D_800F591C;
 extern D_800F5920_t* D_800F5920;
 
-unsigned int func_800E4660(int, int, int);
+unsigned int vs_core_mathSquaredVectorLength(int, int, int);
 
-int func_800D826C(vs_battle_aiState*);
-unsigned int func_800E4660(int, int, int);
+int vs_battle_aiIsEngagementReady(vs_battle_aiState*);
+unsigned int vs_core_mathSquaredVectorLength(int, int, int);
 
-extern unsigned int D_80069C1C[];
+extern unsigned int vs_battle_aiPerceptionRangesSquared[];
 extern unsigned char D_800F17D8[], D_80069C18[];
-extern actorSettingsEntry D_80069C3C[];
+extern actorSettingsEntry vs_battle_aiWanderTimingPresets[];
 int func_800E7F8C(vs_battle_aiState*);
 
 typedef struct {
@@ -49,7 +49,7 @@ typedef struct {
     unsigned int flags;
 } radialMotionActor;
 extern short D_800F17DC[][2];
-unsigned int func_800E4660(int, int, int);
+unsigned int vs_core_mathSquaredVectorLength(int, int, int);
 int func_800E7698(vs_battle_aiState* state);
 
 int func_800E78F4(vs_battle_aiState* arg0);
@@ -70,13 +70,13 @@ typedef struct {
 } trackingMotionActor;
 int rand(void);
 int vs_gte_rsqrt(int);
-unsigned int func_800E4660(int, int, int);
-void func_800E7960(vs_battle_aiState* state);
+unsigned int vs_core_mathSquaredVectorLength(int, int, int);
+void vs_battle_aiUpdateBossOrbitTracking(vs_battle_aiState* state);
 
 int func_800E7F8C(vs_battle_aiState* arg0);
 
 INCLUDE_RODATA("build/src/BATTLE/BATTLE.PRG/nonmatchings/7EE98", D_80069C18);
 
-INCLUDE_RODATA("build/src/BATTLE/BATTLE.PRG/nonmatchings/7EE98", D_80069C1C);
+INCLUDE_RODATA("build/src/BATTLE/BATTLE.PRG/nonmatchings/7EE98", vs_battle_aiPerceptionRangesSquared);
 
-INCLUDE_RODATA("build/src/BATTLE/BATTLE.PRG/nonmatchings/7EE98", D_80069C3C);
+INCLUDE_RODATA("build/src/BATTLE/BATTLE.PRG/nonmatchings/7EE98", vs_battle_aiWanderTimingPresets);

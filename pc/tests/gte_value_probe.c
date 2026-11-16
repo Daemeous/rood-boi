@@ -211,7 +211,7 @@ static void average4_round(int mode)
     (void)flag1;
 }
 
-/* func_800BD2B8's sequence (SetRot, SetTrans of a matrix, four RotTrans of constant corners) and func_800B26B8's (the
+/* func_800BD2B8's sequence (SetRot, SetTrans of a matrix, four RotTrans of constant corners) and vs_actors_applyLockedBoneTransform's (the
  * parent matrix by eight CTC2 words, the vector by two MTC2 words, RTV0TR, MAC1-3 by MFC2): the same transform on values. */
 static void sequences_round(int mode)
 {

@@ -7,7 +7,7 @@ const c = @import("c_146C");
 /// orig: _setRoomSeen (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// Sets the area and room seen flags for the current scene and room, once per pending request.
 pub fn setRoomSeen() callconv(.c) void {
-    if (v.g.D_800F19A0().* == 0) {
+    if (v.g.vs_field_isRoomVisitPending().* == 0) {
         return;
     }
 
@@ -18,7 +18,7 @@ pub fn setRoomSeen() callconv(.c) void {
     area.* |= @bitCast(@as(c_uint, 1) << @intCast(scene & 0x1F));
 
     const room: c_uint = psx.conv(c_uint, c.vs_battle_getCurrentRoomId());
-    v.g.D_800F19A0().* = 0;
+    v.g.vs_field_isRoomVisitPending().* = 0;
     const rooms = psx.at(&status.roomFlags, room >> 5);
     rooms.* |= @bitCast(@as(c_uint, 1) << @intCast(room & 0x1F));
 }

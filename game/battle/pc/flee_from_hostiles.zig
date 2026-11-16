@@ -4,7 +4,7 @@ const c = @import("c_battle_movement");
 const v = @import("views_battle_movement");
 const psx = @import("common").psx;
 
-/// orig: func_800DB61C (pc/src/battle_movement.c)
+/// orig: vs_battle_aiFleeVisibleEnemies (pc/src/battle_movement.c)
 /// Flees toward the (logically halved, running) average tile of the hostile
 /// actors (relation bits 5-7 == 7), remembering it for 90 frames at
 /// 0x110/0x114; while in mode 4 keeps going there until the timer runs out.
@@ -16,7 +16,7 @@ pub fn fleeFromHostiles(state: *ai.vs_battle_aiState, kind: c_int) callconv(.c) 
     while (node) |n| : (node = @ptrCast(n.next)) {
         const id = n.id;
         if (((psx.fieldAt(u32, &state.tbl.t.targets.bits32, @as(isize, id *% 4)).* >> 5) & 7) < 7) continue;
-        const model: [*]u8 = @ptrCast(psx.at(v.g.D_800F4538(), id).*.?);
+        const model: [*]u8 = @ptrCast(psx.at(v.g.vs_actors_actorRecords(), id).*.?);
         count += 1; // one per actor in the list
         sum_x +%= psx.conv(c_uint, @as(c_int, psx.byteAt(i16, model, 0x1c).*));
         sum_z +%= psx.conv(c_uint, @as(c_int, psx.byteAt(i16, model, 0x20).*));
@@ -40,5 +40,5 @@ pub fn fleeFromHostiles(state: *ai.vs_battle_aiState, kind: c_int) callconv(.c) 
     state.moveZ = ((tile >> 16) & 0xff) *% 128 +% 64;
     state.destination168.destination = @bitCast(tile);
     c.func_800E4FE0(state, kind);
-    return c.func_800DB4AC(state, 4);
+    return c.vs_battle_aiSetMovementBehavior(state, 4);
 }

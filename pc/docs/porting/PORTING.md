@@ -420,7 +420,7 @@ and do not drop one (the oracle survives that path). `psx.lowRam(T)` is
 | `p++` on a `psx_ptr` field | `psx.put(&f, psx.at(psx.get(f).?, 1))` |
 
 Arrays in views are Zig arrays: `a[i]` is bounds-checked. The C is not. When
-the C indexes past an array's end on purpose (`D_800F19CC->unk854[unk0 & 3]`
+the C indexes past an array's end on purpose (`vs_battle_actionState->unk854[unk0 & 3]`
 is fine; `mappedChainAbilities[x - 1]` with `x == 0` is not), use `psx.at`
 and keep the comment that says the original does it. The same when the index
 type can exceed the array even if the data never does: `enemyKills[6]`
@@ -501,7 +501,7 @@ a view with an 8-byte member is 8-aligned on 64-bit only); otherwise
 slots), its
 fields' addresses then go to `c` functions through `psx.cptr` (which cannot
 raise an `align(1)` pointer's alignment) and to `gte` as they are
-(`func_800B07DC`). The field mapper names such a block's fields from an
+(`vs_actors_transformRootOffset`). The field mapper names such a block's fields from an
 ownership root `TYPE@ADDRESS` (`actorTransformScratch@0x1F80035C`), so a
 shadow mismatch in it reads `actorTransformScratch@0x1F80035C.offset.vy`.
 
@@ -527,17 +527,17 @@ by the build, or a definition in `pc/src`) and the port uses it through
 Every global, guest or host, is reached through the views accessor
 `v.g.<name>()` (a `*T`) or `psx.global(T, "name")` / `psx.globalMany(T,
 "name")` for unsized arrays. A global pointer to integers (`u_short*
-D_800F58C8`, `int* D_800EB9D8`) is many-item (`*?[*]u16`): the C indexes it,
+D_800F58C8`, `int* vs_menu_sceneNotificationBuffer`) is many-item (`*?[*]u16`): the C indexes it,
 so `v.g.D_800F58C8().*.?[i]`, and `[0]` for `*p`. No `extern var`: on Windows it goes through a
 `.refptr` stub the overlay renames cannot follow, and the build rejects it.
 
 ```c
 extern u_int _cameraMode;          _cameraMode = 5;
-extern D_800F4538_t* D_800F4538[17];   D_800F4538[i]->unk0.position
+extern D_800F4538_t* vs_actors_actorRecords[17];   vs_actors_actorRecords[i]->unk0.position
 ```
 ```zig
 v.g._cameraMode().* = 5;
-v.g.D_800F4538()[@intCast(i)].?.unk0.position
+v.g.vs_actors_actorRecords()[@intCast(i)].?.unk0.position
 ```
 
 Overlay-local names (`_fontTable` is TITLE's and BATTLE's, different data):
@@ -547,7 +547,7 @@ write the plain name. The build renames the battle Zig object's reference to
 ### 6.2 Names that alias
 
 splat names any address code takes, so one byte range can have two names:
-`D_800F5798` is `D_800F56C8.unkD0`, `D_800F192C` is `vs_battle_actors[1]`.
+`vs_effects_actionRequestPointer` is `D_800F56C8.unkD0`, `D_800F192C` is `vs_battle_actors[1]`.
 The C uses whichever name its author used; so does the port. `STATE.tsv`
 marks aliases ("inside X+0xNN" in `ps1_specific`, and in `zig_plan` the other
 names in the same 64-bit `rood_lp64_*` region). On 64-bit an alias of a moved
@@ -571,7 +571,7 @@ the owner switch and hot swap see one state. Consequences:
 - A `const` static the C keeps in `.rodata` is not restarted per load and is
   not compared state: it may stay C (globalised) or become a Zig `const` with
   the same value. Three `static const` locals have no storage at all (GCC
-  folded them: `D_800689E8`, `D_800689F8`, `initialUp`): port them as Zig
+  folded them: `vs_render_worldUp`, `vs_core_negativeYAxis`, `initialUp`): port them as Zig
   `const` values.
 
 ### 6.4 Lifetimes (overlay loads)
@@ -601,7 +601,7 @@ overlay restart still covers it and the C and the port use one storage:
 | C | object symbol | globalised as | views name (`ownership.toml`) | accessor |
 |---|---|---|---|---|
 | file static `_pcFadeOt` of `5BF94.c` | `_pcFadeOt` | `battle_5BF94___pcFadeOt` | `_pcFadeOt` | `g._pcFadeOt()` |
-| `static int reported;` in `func_800AE47C` | `reported.2` | `battle_44F14__func_800AE47C__reported` | `func_800AE47C::reported` | `g.func_800AE47C__reported()` |
+| `static int reported;` in `vs_actors_restartActorAnimationEvents` | `reported.2` | `battle_44F14__func_800AE47C__reported` | `vs_actors_restartActorAnimationEvents::reported` | `g.func_800AE47C__reported()` |
 | file static `clip_left` of `pc/src/room_render.c` | `clip_left` | `room_render__clip_left` | `clip_left` | `g.clip_left()` |
 
 The pc/src units of the D2 subsystems are not taken from `STATE.tsv` alone:
@@ -622,12 +622,12 @@ the build, naming it; add its row to `STATE.tsv` first.
 The `.N` suffix of a block-scope static is GCC's choice and changes with the
 compiler or the source, so the build finds the symbol by pattern: `name` (a
 file static) or `name.[0-9]+` among the object's local data symbols, exactly
-one. Where the object holds several (`func_800AE47C`'s and `func_800AEF94`'s
+one. Where the object holds several (`vs_actors_restartActorAnimationEvents`'s and `vs_actors_updateAndDrawRoomModels`'s
 `reported` in 44F14), the DWARF scope decides (gdb: the block-scope statics
 of the function, an inlined copy included, at their addresses). A static the
 configuration does not declare is skipped, and that configuration's views
 have no accessor for it (`146C`'s `sp20` is a static only under
-`ROOD_PC_LP64`, a stack buffer on 32-bit: `func_80074860`'s port takes
+`ROOD_PC_LP64`, a stack buffer on 32-bit: `vs_field_tryTriggerFacingTileEvent`'s port takes
 `g.func_80074860__sp20()` when `comptime @sizeOf(usize) == 8`, else a local
 array, as the C does); any other mismatch, a listed static gone or not told
 apart, fails the build. Inlined copies of one function in two units are two
@@ -648,7 +648,7 @@ static the C never writes may be folded into the code too; port that as a
 Zig `const` (the three folded ones above).
 
 Never reach a static through `c`: translate-c would give the Zig object its
-own copy (a second `charge_skip_held`, a `.rodata` copy of `D_80068BEC` at
+own copy (a second `charge_skip_held`, a `.rodata` copy of `vs_field_platformBounceOffsets` at
 another address, which `psx_addr` rejects on 64-bit). `zig_c.py` therefore
 emits every file-scope static of the unit (variables, tables, static
 functions, header `static inline`s such as `psx_addr`) as a `@compileError`
@@ -831,15 +831,15 @@ checks (`pc_require_native_callback`) where it has them.
 
 ### 10.2 Unprototyped and mis-typed calls
 
-The decompilation calls some functions without a prototype (`func_8008D418()`
+The decompilation calls some functions without a prototype (`vs_field_roomFallDestination()`
 in `146C.c`) or through a cast that adds arguments
-(`((void (*)())func_800D6E24)(arg0->unk18, ...)`). Port the call the object
+(`((void (*)())vs_effects_drawEffectParticleList)(arg0->unk18, ...)`). Port the call the object
 makes: the argument count and types the caller passes. Cast the `c` function
 to the pointer type the C cast to:
 
 ```zig
 const F = *const fn (?*anyopaque, ?*anyopaque) callconv(.c) void;
-@as(F, @ptrCast(&c.func_800D6E24))(psx.get(arg0.unk18), @ptrFromInt(0x1F80015C));
+@as(F, @ptrCast(&c.vs_effects_drawEffectParticleList))(psx.get(arg0.unk18), @ptrFromInt(0x1F80015C));
 ```
 
 ### 10.3 Never store an owned function's address
@@ -934,7 +934,7 @@ Keep the C's label names as the block or enum names.
 | gnu89 `inline` without `static` (`3A1A0.c`) | a normal function (it has an external definition) |
 | `INCLUDE_ASM` with a `ROOD_PC` C replacement | port the replacement (§12) |
 | block-scope `extern` declarations (the `ROOD_PC` hooks declare their host functions inside the body) | nothing: `ownership.strip_bodies` hoists them, so `c` declares them (a weak one is still called through `psx.weak`) |
-| a missing `return` in a non-void function (`func_8008C8A8`) | return what the object returns (read `%eax`); comment it |
+| a missing `return` in a non-void function (`vs_field_updateMovingPlatforms`) | return what the object returns (read `%eax`); comment it |
 | uninitialised locals read | what GCC's object does when it is deterministic; else initialise to 0, comment "uninitialised in the original" and expect the double oracle to mask it; passed to a call, the zig_diff spec excludes that argument on that path (`uninitialisedArgument`) |
 | `do { } while (0)` from macros | plain statements |
 
@@ -945,7 +945,7 @@ column `rood_pc` names the blocks per function.
 
 | Kind | Examples | In D |
 |---|---|---|
-| **Replacement of PS1 assembly** (`INCLUDE_ASM` or `__asm__` under `#ifndef ROOD_PC`, `.inc` replacements) | `func_8006CB04`, `vs_battle_memcpy`, `_fixedPointMult`, `func_800E3600`, `actor_commands.inc`, `scene_submit.inc` (`func_8008AC78`), `room_shadows.inc` (`func_8008CEB0`); in D2 also `pc/src/battle_*.c`, `actor_*.c`, `room_*.c` | port the PC C: it is the original on the PC |
+| **Replacement of PS1 assembly** (`INCLUDE_ASM` or `__asm__` under `#ifndef ROOD_PC`, `.inc` replacements) | `vs_battle_applyActionTargetEffects`, `vs_battle_memcpy`, `_fixedPointMult`, `vs_battle_aiResolveDirectionalMovement`, `actor_commands.inc`, `scene_submit.inc` (`vs_field_drawRoomScene`), `room_shadows.inc` (`vs_field_drawMovingPlatformShadows`); in D2 also `pc/src/battle_*.c`, `actor_*.c`, `room_*.c` | port the PC C: it is the original on the PC |
 | **Safety guards** (reads of PS1 address 0, empty actor slots, stack arrays made `static`, uninitialised registers) | `146C.c:1002`, `30DB0.c:2422`, `38C1C.c:206..379`, `3A1A0.c:347..2350`, `40564.c:351..697`, `44F14.c:499..1027`, `5BF94.c:6939..8536` | port exactly; they define where the oracle survives |
 | **LP64 adaptations** (`psx_get`/`psx_set`, `psx_load`, `#ifdef ROOD_PC_LP64`, pointer globals that were aliases) | `6F014.c:321`, `146C.c:6632`, `30DB0.c:1650`, `44F14.c:1370`, `4A0A8.c:2989`, `74088.c:1219` | they come out naturally from §5 and the views; port the arithmetic they do (on guest addresses, 32-bit) |
 | **PC features**: calls into `pc/src` (charging skip, right-stick camera, widescreen, modern menus, weapon slots, fast travel, room warp, scene capture, text glyph capture, talk bubbles, diagnostics) | `pc_charge_skip*`, `pc_camera_stick_*`, `PC_GTE_UNNARROWED`, `PC_ANCHOR_PACKETS`, `pc_ui_menu_*`, `pc_weapon_slots_*`, `pc_fast_travel_*`, `pc_room_warp_*`, `pc_scene_*`, `pc_text_*`, `pc_bubble_*` | port the call as it is, with the same guard |
@@ -1069,7 +1069,7 @@ Must be identical:
 
 Also identical, because they live in `rood_ovl_battle_*` and are compared:
 the charging skip's file statics and the log-once latches (`reported` in
-`func_800AE47C`/`func_800AEF94`): the owned code must set them exactly when
+`vs_actors_restartActorAnimationEvents`/`vs_actors_updateAndDrawRoomModels`): the owned code must set them exactly when
 the C does.
 
 May differ:
@@ -1090,7 +1090,7 @@ before assuming item 7 of §20 applies.
 Hazards the comparison does not see (so the port must get them right by
 construction):
 - writes through a pointer into the **caller's stack** (out-parameters:
-  `func_800A1108(index, &sp10)`): if the caller is C and the callee owned,
+  `vs_actors_actorPlacement(index, &sp10)`): if the caller is C and the callee owned,
   shadow mode does not compare the caller's frame (§20, oracle item 4);
 - host state read by the C that is not in the compared ranges (settings,
   input state the replay supplies);
@@ -1128,16 +1128,16 @@ construction):
   (`_updateEnemyKills` → `updateEnemyKills`, `vs_battle_displaySceneMessage`
   → `displaySceneMessage`: drop the `vs_battle_`/`vs_main_` prefix and a
   leading `_`), else from `battle/MEANINGS.tsv`, else from what the port
-  reveals (`func_800B07DC` rotates the scratchpad offset by the actor's
+  reveals (`vs_actors_transformRootOffset` rotates the scratchpad offset by the actor's
   rotation and adds its position: `offsetToWorld`). Name what the function
   does, not how; no address in the name.
 - **Every ported function carries the line** `/// orig: <original symbol>
   (<unit>)` as the first line of its doc comment, with the unit as
-  `ownership.toml` spells it (`/// orig: func_800B07DC
+  `ownership.toml` spells it (`/// orig: vs_actors_transformRootOffset
   (src/BATTLE/BATTLE.PRG/44F14.c)`). A `static` C function ported as a
   private Zig function carries it too.
 - **The ownership table maps the original symbol to the Zig function**:
-  `{ addr = 0x800B07DC, name = "func_800B07DC", zig =
+  `{ addr = 0x800B07DC, name = "vs_actors_transformRootOffset", zig =
   "actor_transform.offsetToWorld" }`. `zig` is the declaration's path from
   the overlay's `root.zig` (which `pub const`-imports the module). Without
   `zig` the Zig function has the original name (the M0 pass-through module).
@@ -1149,8 +1149,8 @@ construction):
   line (`ownership.orig_comment_problems`).
 - **Globals** are reached through the views by a readable accessor when
   `battle/MEANINGS.tsv` gives one (its `zig_name` column):
-  `v.g.nameWindowText()` for `D_800EB9D8`. The accessor's doc comment is
-  `/// orig: D_800EB9D8`; the symbol it links to is the original. Without a
+  `v.g.nameWindowText()` for `vs_menu_sceneNotificationBuffer`. The accessor's doc comment is
+  `/// orig: vs_menu_sceneNotificationBuffer`; the symbol it links to is the original. Without a
   `zig_name` the accessor has the original name. Add the name to MEANINGS.tsv
   when the port reveals what a global is, not in the Zig.
 - **Fields** likewise: a MEANINGS.tsv row `Type.field` (`vs_battle_actor.unk3C`)
@@ -1268,7 +1268,7 @@ A D2 function has no C in `src/`; its oracle is the port-written C in
 no oracle have nothing to compare against: skip them. The only differences
 from a first-pass port:
 
-- **The unit is the oracle file.** `/// orig: func_800D826C
+- **The unit is the oracle file.** `/// orig: vs_battle_aiIsEngagementReady
   (pc/src/battle_helpers.c)`, `unit = "pc/src/battle_helpers.c"` in
   `ownership.toml`, and `c_battle_helpers`/`views_battle_helpers` are the
   modules to import (§2: the oracle's own declarations, not those of the
@@ -1294,7 +1294,7 @@ from a first-pass port:
   unit's, which declares none of them (a readable-structure pass is a separate
   change, once the field names are established). Guest pointers *stored in*
   records are 4 bytes (`psx_load`/`psx_store`, §5); parameters and the global
-  tables the oracle declares (`unsigned char* D_800F4538[]`) are native
+  tables the oracle declares (`unsigned char* vs_actors_actorRecords[]`) are native
   pointers.
 - **Register the unit once, then fill it in.** `ownership.toml` already has
   one `[subsystem.d2_<stem>]` (and `.views`) per oracle file, `root.zig` its
@@ -1339,7 +1339,7 @@ Pitfalls (each found by the pilot):
   oracle's guard.
 - A function whose result the assembly leaves undefined declares
   `pub const ignore_return = "<why>";`; a function the oracle ends by falling
-  into another (`func_800D820C` into `func_800D826C`'s tail) ports the
+  into another (`vs_battle_aiSetActorAwarenessIndicator` into `vs_battle_aiIsEngagementReady`'s tail) ports the
   oracle's visible behaviour and says so in its doc comment.
 - Oracle files with file-scope `static` data (`room_render.c`'s clip and
   depth values, `room_geometry.c`, `map_view.c`: §6.5) are globalised from
@@ -1369,7 +1369,7 @@ step D.2, `battle/TRIAL.md`) built items 1-4 to the extent its three functions
 needed them: `pc/tools/zig_views.py` and `zig_c.py` per unit (generated by
 `build_boot.py` from the `views` manifest in `ownership.toml`, also for the
 COFF twin and the hot-swap library), `gte.zig` with the five macros
-`func_800B07DC` uses, and the `psx` additions with the `at` fixes. Item 5's
+`vs_actors_transformRootOffset` uses, and the `psx` additions with the `at` fixes. Item 5's
 per-unit subsystems exist for the three trial units, and the statics
 globalisation since 2026-11-02 (§6.5); the post-routing inlining check and
 the i386 struct-return probe do not.
@@ -1431,7 +1431,7 @@ the i386 struct-return probe do not.
 7. Feature hooks with host state outside the compared ranges either moved
    inside them or suppressed during the extra shadow runs (§14).
 8. For the trial: corpus paths that reach each trial function (an enemy kill
-   for `_updateEnemyKills`, an actor whose transform calls `func_800B07DC`,
+   for `_updateEnemyKills`, an actor whose transform calls `vs_actors_transformRootOffset`,
    an action name window for `vs_battle_displaySceneMessage`).
 
 **Hot swap (phase C) must provide** (all four are prerequisites: without

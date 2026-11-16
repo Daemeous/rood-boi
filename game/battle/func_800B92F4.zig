@@ -4,17 +4,17 @@ const v = @import("views_4A0A8");
 const c = @import("c_4A0A8");
 
 /// orig: func_800B92F4 (pc/src/game/BATTLE/BATTLE.PRG/4A0A8.c)
-/// By script[1]: 10..14 start a transition (state flag 0xB6 from D_800E9BF0, or 1 to 2 for 14,
-/// which also sets D_800F4C69 to 2) and wait for it, clearing flag 0xB6; 13 and 15 start one
-/// (flag 0xB6 to 1, or func_8007B9CC) and wait; any other opens menu script[1] and waits for it
-/// to close. D_800F4BF8 marks a started step; returns 1 while waiting, 4 when done.
+/// By script[1]: 10..14 start a transition (state flag 0xB6 from vs_event_menuTransitionModes, or 1 to 2 for 14,
+/// which also sets vs_event_musicSlot to 2) and wait for it, clearing flag 0xB6; 13 and 15 start one
+/// (flag 0xB6 to 1, or vs_battle_beginPostActionRewards) and wait; any other opens menu script[1] and waits for it
+/// to close. vs_event_isMenuTransitionActive marks a started step; returns 1 while waiting, 4 when done.
 pub fn func_800B92F4(script: [*c]u8, _: c_short) callconv(.c) c_int {
-    const busy = v.g.D_800F4BF8();
+    const busy = v.g.vs_event_isMenuTransitionActive();
     switch (script[1]) {
         10, 11, 12 => {
             if (busy.* == 0) {
-                c.vs_battle_setStateFlag(0xB6, v.g.D_800E9BF0()[script[1] - 10]);
-                c.func_8007B9A0();
+                c.vs_battle_setStateFlag(0xB6, v.g.vs_event_menuTransitionModes()[script[1] - 10]);
+                c.vs_battle_beginEventRewardResults();
                 busy.* = 1;
                 return 1;
             }
@@ -23,8 +23,8 @@ pub fn func_800B92F4(script: [*c]u8, _: c_short) callconv(.c) c_int {
         14 => {
             if (busy.* == 0) {
                 if (c.vs_battle_getStateFlag(0xB6) == 1) c.vs_battle_setStateFlag(0xB6, 2);
-                c.func_8007B9A0();
-                v.g.D_800F4C69().* = 2;
+                c.vs_battle_beginEventRewardResults();
+                v.g.vs_event_musicSlot().* = 2;
                 busy.* = 1;
                 return 1;
             }
@@ -33,7 +33,7 @@ pub fn func_800B92F4(script: [*c]u8, _: c_short) callconv(.c) c_int {
         13 => {
             if (busy.* == 0) {
                 c.vs_battle_setStateFlag(0xB6, 1);
-                c.func_8007B9A0();
+                c.vs_battle_beginEventRewardResults();
                 busy.* = 1;
                 return 1;
             }
@@ -41,7 +41,7 @@ pub fn func_800B92F4(script: [*c]u8, _: c_short) callconv(.c) c_int {
         },
         15 => {
             if (busy.* == 0) {
-                c.func_8007B9CC();
+                c.vs_battle_beginPostActionRewards();
                 busy.* = 1;
                 return 1;
             }
@@ -49,14 +49,14 @@ pub fn func_800B92F4(script: [*c]u8, _: c_short) callconv(.c) c_int {
         },
         else => {
             if (busy.* == 0) {
-                _ = c.func_800CACD0(script[1], 2);
+                _ = c.vs_menu_frameworkOpenGameMenu(script[1], 2);
                 busy.* = 1;
                 return 1;
             }
-            c.func_800C97BC();
-            const menu: *v.D_800F18EC_t = @ptrCast(@alignCast(c.func_800CB66C().?));
+            c.vs_menu_frameworkUpdateMenuOverlay();
+            const menu: *v.D_800F18EC_t = @ptrCast(@alignCast(c.vs_menu_frameworkActionSelectionState().?));
             if (menu.unk0 == 2) {
-                c.func_800CB114();
+                c.vs_menu_frameworkReleaseMenuRows();
                 busy.* = 0;
                 return 4;
             }
@@ -67,7 +67,7 @@ pub fn func_800B92F4(script: [*c]u8, _: c_short) callconv(.c) c_int {
 
 /// The C's `finishState` label: wait for the transition, then clear state flag 0xB6.
 fn finishState(busy: *u8) c_int {
-    if (c.func_8007B9FC() != 0) return 1;
+    if (c.vs_battle_updateRewardSequence() != 0) return 1;
     c.vs_battle_setStateFlag(0xB6, 0);
     busy.* = 0;
     return 4;
@@ -75,7 +75,7 @@ fn finishState(busy: *u8) c_int {
 
 /// The C's `finishTransition` label: wait for the transition.
 fn finishTransition(busy: *u8) c_int {
-    if (c.func_8007B9FC() == 0) {
+    if (c.vs_battle_updateRewardSequence() == 0) {
         busy.* = 0;
         return 4;
     }

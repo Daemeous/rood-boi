@@ -23,7 +23,7 @@ const OcclusionFrame = *const fn (c_int) callconv(.c) void;
 const PhotoWhole = *const fn () callconv(.c) c_int;
 const SceneRoomData = *const fn () callconv(.c) ?*const anyopaque;
 
-/// orig: func_8009723C (pc/src/room_geometry.c)
+/// orig: vs_render_drawRoomGeometry (pc/src/room_geometry.c)
 /// Submits the room's groups (a count, then 0x40-byte groups) into the
 /// packet buffer at the cursor, honouring the facing mask, the
 /// hidden flags and the native-room, free-camera and occlusion hooks.

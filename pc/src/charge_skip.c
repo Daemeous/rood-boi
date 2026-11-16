@@ -6,7 +6,7 @@
  * (the camera zooms in), 5 (the casting: its name window, the cast
  * animation and sound, the effect's file loading) and 6 (the cast flash
  * fades), then 7 releases it. The action is committed before all of that
- * (146C.c func_80070F28: costs, item used, hits, damage and statuses rolled),
+ * (146C.c vs_battle_commitSelectedAction: costs, item used, hits, damage and statuses rolled),
  * so the wind-up decides nothing. Skip takes out its hold (charge_skip.inc,
  * the game side): the camera's move to the caster and the name window are
  * the game's own, then the cast sound is stopped, the cast turn applied at

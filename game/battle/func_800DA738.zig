@@ -9,7 +9,7 @@ const c = @import("c_71618");
 /// Steers the da4bc state toward its target, falling back to the candidate search when that fails.
 pub fn func_800DA738(state: ?*v.vs_battle_aiState) callconv(.c) c_int {
     var point: v.da4bcPoint = undefined;
-    const candidate: c_int = c.func_800DBB2C(@ptrCast(state), @ptrCast(&point), 3);
+    const candidate: c_int = c.vs_battle_aiFindActorByRelationship(@ptrCast(state), @ptrCast(&point), 3);
     const s = state.?;
     const target: c_int = @as(c_int, s.target16);
     const valid = (psx.conv(c_uint, ~candidate) >> 31) != 0;
@@ -27,13 +27,13 @@ pub fn func_800DA738(state: ?*v.vs_battle_aiState) callconv(.c) c_int {
         if (valid) {
             if (active != 0) {
                 if (((psx.at(&s.tbl.t.targets.bits32, target).* >> 5) & 1) != 0) {
-                    const first: *align(1) v.da4bcModel = @ptrCast(psx.at(v.g.D_800F4538(), target).*.?);
+                    const first: *align(1) v.da4bcModel = @ptrCast(psx.at(v.g.vs_actors_actorRecords(), target).*.?);
                     const tile = first.tile;
                     const angleA: c_int = c.ratan2(
                         (@as(c_int, point.b[0]) << 7) -% (@as(c_int, first.x) -% 64),
                         (@as(c_int, point.b[2]) << 7) -% (@as(c_int, first.z) -% 64),
                     );
-                    const second: *align(1) v.da4bcModel = @ptrCast(psx.at(v.g.D_800F4538(), target).*.?);
+                    const second: *align(1) v.da4bcModel = @ptrCast(psx.at(v.g.vs_actors_actorRecords(), target).*.?);
                     const angleB: c_int = c.ratan2(
                         @as(c_int, s.position.v.vx) -% @as(c_int, second.x),
                         @as(c_int, s.position.v.vz) -% @as(c_int, second.z),
@@ -47,12 +47,12 @@ pub fn func_800DA738(state: ?*v.vs_battle_aiState) callconv(.c) c_int {
                     if (dot >= -1200 or s.timer44 != 0) {
                         // The tile word is passed by value: its bits are the C union's bits.
                         const tileBits: c.vs_battle_movementPosition = @bitCast(tile.raw);
-                        c.func_800E1388(@ptrCast(s), tileBits, c.ratan2(
+                        c.vs_battle_aiProjectClearRadialDestination(@ptrCast(s), tileBits, c.ratan2(
                             @as(c_int, point.b[0]) -% psx.conv(c_int, tile.raw & 255),
                             @as(c_int, point.b[2]) -% psx.conv(c_int, (tile.raw >> 16) & 255),
                         ), 320);
                         psx.byteAt(u8, s, 1).* = 1;
-                        c.func_800E50A0(@ptrCast(s), 0, 0);
+                        c.vs_battle_aiDispatchAiLocomotionMode(@ptrCast(s), 0, 0);
                         if (s.timer44 == 0) s.timer44 = 10;
                         return 1;
                     }
@@ -65,21 +65,21 @@ pub fn func_800DA738(state: ?*v.vs_battle_aiState) callconv(.c) c_int {
                 const slotB: *align(1) v.vs_battle_aiState = @ptrFromInt(@as(usize, slotB_raw));
                 if (psx.at(&slotB.tbl.t.distances, candidate).* <= 0x23FFF) {
                     s.movementTargetId = psx.conv(u8, target);
-                    c.func_800E2CCC(@ptrCast(s));
+                    c.vs_battle_aiRecoverMovement(@ptrCast(s));
                     return 1;
                 }
             }
-            if (c.func_800DB370(@ptrCast(s), target, 320, 1) != 0) return 1;
-            if (c.func_800DB74C(@ptrCast(s), target) != 0) return 1;
+            if (c.vs_battle_aiApproachActor(@ptrCast(s), target, 320, 1) != 0) return 1;
+            if (c.vs_battle_aiTrackActorPosition(@ptrCast(s), target) != 0) return 1;
         }
     }
     // fallback:
     if (valid) {
         if (oldFlag != 0) {
-            if (psx.conv(c_uint, c.func_800E45D4(128)) < 128) s.unk18 = 1;
-            c.func_800D8260(@ptrCast(s), 6, 0);
+            if (psx.conv(c_uint, c.vs_battle_aiNextActorRandomMasked(128)) < 128) s.unk18 = 1;
+            c.vs_battle_aiSetTemporaryAwarenessIndicator(@ptrCast(s), 6, 0);
         }
-        if (c.func_800DB61C(@ptrCast(s), 1) != 0) return 1;
+        if (c.vs_battle_aiFleeVisibleEnemies(@ptrCast(s), 1) != 0) return 1;
     }
-    return c.func_800DB61C(@ptrCast(s), 1);
+    return c.vs_battle_aiFleeVisibleEnemies(@ptrCast(s), 1);
 }

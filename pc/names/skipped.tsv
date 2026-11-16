@@ -1,0 +1,938 @@
+# kind	original	reason	detail (pc/tools/import_names.py; rewritten each run)
+data	D_8002F66C	confidence med (deferred)	vs_audio_seqNoteRemapTables
+data	D_800358FE	not in our code	vs_audio_seqSavedMusicId
+data	D_80036770	confidence med (deferred)	vs_audio_samplesMusicSampleBankIds
+data	D_80037788	confidence med (deferred)	vs_audio_seqPendingMusicData
+data	D_80037790	confidence med (deferred)	vs_audio_mixerCommandParams
+data	D_800377E0	confidence med (deferred)	vs_audio_samplesSoundEffectBankIds
+data	D_80037800	confidence med (deferred)	vs_audio_seqEmbeddedSoundEffectParams
+data	D_80037850	confidence med (deferred)	vs_audio_samplesBankChunkHeader
+data	D_80037894	confidence med (deferred)	vs_audio_mixerPendingKeyOnVoices
+data	D_80037898	confidence med (deferred)	vs_audio_mixerKeyedVoices
+data	D_8003789C	confidence med (deferred)	vs_audio_mixerPendingKeyOffVoices
+data	D_800378A0	confidence med (deferred)	vs_audio_mixerPausedSoundEffectVoices
+data	D_800378D4	confidence med (deferred)	vs_audio_seqMusicTransitionTimer
+data	D_80039AF2	confidence med (deferred)	vs_audio_mixerTempoScaleLevel
+data	D_80039AFC	confidence med (deferred)	vs_audio_driverMixBehavior
+data	D_80039B00	confidence med (deferred)	vs_audio_driverPendingUpdates
+data	D_80039B14	not in our code	vs_audio_cutsceneStreamVoices
+data	D_80039B48	not in our code	vs_audio_cutsceneStreamVolume
+data	D_80039B64	not in our code	vs_audio_cutsceneStreamControlFlags
+data	D_8004FDD0	confidence low (deferred)	vs_actors_placeholderActorName
+data	D_800501CC	confidence low (deferred)	vs_content_legacyXaReadyBcdField
+data	D_800501D0	confidence low (deferred)	vs_content_legacyXaReadyByteThree
+data	D_800501D4	confidence low (deferred)	vs_content_legacyXaReadyByteFour
+data	D_8005DBF4	confidence low (deferred)	vs_core_legacyUnreferencedBlock
+data	D_8005DFD4	confidence med (deferred)	vs_render_legacyViewportLeft
+data	D_8005DFD8	confidence med (deferred)	vs_render_legacyViewportTop
+data	D_8005E040	confidence low (deferred)	vs_core_legacyUnreferencedWord
+data	D_8005E1C4	confidence low (deferred)	vs_state_roomLoadResetWordOne
+data	D_8005E1D4	confidence low (deferred)	vs_state_roomLoadResetWordTwo
+data	D_8005E244	confidence low (deferred)	vs_state_roomLoadResetWordThree
+data	D_8005FFAF	confidence low (deferred)	vs_battle_spellCommitFlag
+data	D_8005FFB0	confidence low (deferred)	vs_battle_abilityInputResult
+data	D_80061078	confidence med (deferred)	vs_state_recentRoomEnemyStates
+data	D_8006886C	duplicate: 2 originals share the name	vs_save_memoryCardSaveTitleTemplate
+data	D_80068F04	confidence med (deferred)	vs_battle_markerFrameCorners
+data	D_80068F64	confidence med (deferred)	vs_battle_markerFrameTexCoords
+data	D_80068F94	confidence med (deferred)	vs_battle_markerIconOffsets
+data	D_80069144	confidence med (deferred)	vs_battle_statChangeFirstWordRects
+data	D_8006917C	confidence med (deferred)	vs_battle_statChangeSecondWordRects
+data	D_80069BBC	confidence med (deferred)	vs_battle_aiTimedStatusFlags
+data	D_80069C08	confidence low (deferred)	vs_battle_aiFlags34Bit14Values
+data	D_80069C18	confidence low (deferred)	vs_battle_aiSettingsBits30Values
+data	D_8007005C	confidence med (deferred)	vs_ending_creditsEmbeddedTextureOne
+data	D_8007709C	confidence med (deferred)	vs_ending_creditsEmbeddedTextureEight
+data	D_80088ABC	confidence med (deferred)	vs_ending_creditsEmbeddedTextureNine
+data	D_8009A4DC	confidence med (deferred)	vs_ending_creditsEmbeddedTextureTen
+data	D_800ABEFC	confidence med (deferred)	vs_ending_creditsEmbeddedTextureEleven
+data	D_800BD91C	confidence med (deferred)	vs_ending_creditsEmbeddedTextureTwelve
+data	D_800CF33C	confidence med (deferred)	vs_ending_creditsEmbeddedTextureTwo
+data	D_800D7F7C	confidence med (deferred)	vs_ending_creditsEmbeddedTextureThree
+data	D_800D837C	confidence med (deferred)	vs_ending_creditsEmbeddedTextureFive
+data	D_800D975C	confidence med (deferred)	vs_ending_creditsEmbeddedTextureFour
+data	D_800DB09C	confidence med (deferred)	vs_ending_creditsEmbeddedTextureSix
+data	D_800DB26C	confidence med (deferred)	vs_ending_creditsEmbeddedTextureSeven
+data	D_800E8184	confidence med (deferred)	vs_battle_categoryNeedsTargetSelection
+data	D_800E8194	confidence med (deferred)	vs_battle_categoryIsAreaTarget
+data	D_800E81B4	confidence med (deferred)	vs_battle_categoryIncludesActingActor
+data	D_800E81D4	confidence med (deferred)	vs_battle_categoryTargetActorMasks
+data	D_800E8200	confidence med (deferred)	vs_battle_limbInjuryStatusIds
+data	D_800E8204	confidence low (deferred)	vs_battle_limbStatusFlags
+data	D_800E85C4	confidence med (deferred)	vs_field_triggerMarkerPaletteSource
+data	D_800E861C	confidence med (deferred)	vs_battle_valueCaptionRects
+data	D_800E8960	confidence med (deferred)	vs_actors_sharedSequenceIdsByKind
+data	D_800E8F29	confidence low (deferred)	vs_content_modelParseResetFlag
+data	D_800E8F2B	confidence med (deferred)	vs_content_legacySequenceParsePhase
+data	D_800E8FA8	confidence med (deferred)	vs_field_gimmickPaletteParameters
+data	D_800E8FC0	confidence low (deferred)	vs_actors_reservedControlByte
+data	D_800E8FC4	confidence med (deferred)	vs_content_assetQueuePeakUsage
+data	D_800E8FD0	confidence med (deferred)	vs_field_gimmickRollOrientations
+data	D_800E9090	confidence med (deferred)	vs_actors_drawnWeaponAnimationBases
+data	D_800E909C	confidence low (deferred)	vs_actors_sheathedWeaponAnimationBases
+data	D_800E90BC	confidence low (deferred)	vs_actors_motionResultResetWord
+data	D_800E90C3	confidence med (deferred)	vs_actors_motionResultAnimations
+data	D_800E90C4	confidence low (deferred)	vs_actors_motionResultOneAnimationId
+data	D_800E90C6	confidence med (deferred)	vs_actors_hangMotionAnimationId
+data	D_800E90CC	confidence med (deferred)	vs_actors_slowQuadrantMoveAnimations
+data	D_800E90D0	confidence med (deferred)	vs_actors_fastQuadrantMoveAnimations
+data	D_800E916C	confidence med (deferred)	vs_actors_secondarySlotSequences
+data	D_800E91A4	confidence med (deferred)	vs_audio_objectSurfaceSoundIds
+data	D_800E91AC	confidence med (deferred)	vs_field_gimmickSpinHeightSteps
+data	D_800E91BC	confidence med (deferred)	vs_field_gimmickSpinPitchSteps
+data	D_800E91CC	confidence med (deferred)	vs_field_gimmickSpinYawSteps
+data	D_800E91DC	confidence med (deferred)	vs_field_gimmickSpinRollSteps
+data	D_800E91EC	confidence med (deferred)	vs_field_gimmickBounceHeightSteps
+data	D_800E91F0	confidence med (deferred)	vs_field_gimmickTiltDepthSteps
+data	D_800E91FC	confidence med (deferred)	vs_field_gimmickTiltAngleSteps
+data	D_800E9208	confidence med (deferred)	vs_field_gimmickRollHeightSteps
+data	D_800E9218	confidence med (deferred)	vs_field_gimmickRollDisplacementSteps
+data	D_800E9228	confidence med (deferred)	vs_field_gimmickRollAngleSteps
+data	D_800E9238	confidence med (deferred)	vs_field_gimmickSquashHeightSteps
+data	D_800E9248	confidence med (deferred)	vs_field_gimmickSquashScaleX
+data	D_800E9258	confidence med (deferred)	vs_field_gimmickSquashScaleY
+data	D_800E9268	confidence med (deferred)	vs_field_gimmickSquashScaleZ
+data	D_800E9278	confidence med (deferred)	vs_field_tileSurfaceIds
+data	D_800E92DC	confidence low (deferred)	vs_actors_drawnWeaponSoundIds
+data	D_800E92E8	confidence med (deferred)	vs_actors_airTimerEndAnimations
+data	D_800E92F0	confidence med (deferred)	vs_actors_softLandingAnimations
+data	D_800E92F8	confidence med (deferred)	vs_actors_hardLandingAnimations
+data	D_800E9300	confidence med (deferred)	vs_actors_landingRecoveryAnimations
+data	D_800E9308	confidence low (deferred)	vs_actors_renderPassCounter
+data	D_800E9A28	confidence med (deferred)	vs_actors_animationEventPoints
+data	D_800E9B34	confidence med (deferred)	vs_event_sfxSourceIds
+data	D_800E9B4C	confidence med (deferred)	vs_event_weaponDrawStates
+data	D_800E9B58	confidence med (deferred)	vs_event_animationBankBases
+data	D_800E9BE8	confidence med (deferred)	vs_event_skipSoundRestoreMarker
+data	D_800E9BEC	confidence med (deferred)	vs_event_dialogPlacementOrder
+data	D_800E9C00	confidence low (deferred)	vs_event_specialOperationTenArguments
+data	D_800E9C0C	confidence med (deferred)	vs_event_defaultScreenTransform
+data	D_800EA234	confidence med (deferred)	vs_battle_sphereArcBases
+data	D_800EA2C4	confidence med (deferred)	vs_battle_sphereMirroredVertices
+data	D_800EA9B6	confidence med (deferred)	vs_battle_targetStatusLineTemplate
+data	D_800EB708	confidence med (deferred)	vs_render_compactGlyphLeftTrim
+data	D_800EB7D4	confidence med (deferred)	vs_render_compactGlyphIndices
+data	D_800EB98C	confidence med (deferred)	vs_render_glyphPixelExpansion
+data	D_800EB9AC	confidence med (deferred)	vs_battle_reuseSphereVolumes
+data	D_800EB9AE	confidence med (deferred)	vs_battle_hudStatusIconsHidden
+data	D_800EB9D0	confidence med (deferred)	vs_battle_statusIconCarousel
+data	D_800EBA78	confidence low (deferred)	vs_menu_frameworkMainMenuHelpText
+data	D_800EBBB8	confidence med (deferred)	vs_menu_frameworkGradientTopColors
+data	D_800EBBC0	confidence med (deferred)	vs_menu_frameworkGradientBottomColors
+data	D_800EBC00	confidence med (deferred)	vs_battle_hudGaugeLabelTexU
+data	D_800EBC68	confidence med (deferred)	vs_battle_upperStatusIconFlags
+data	D_800EBC88	confidence med (deferred)	vs_battle_firstShortcutDigitOffsets
+data	D_800EBC98	confidence med (deferred)	vs_battle_secondShortcutMarkerPositions
+data	D_800EBCA0	confidence med (deferred)	vs_battle_secondShortcutIconPositions
+data	D_800EBCA8	confidence med (deferred)	vs_battle_secondShortcutIconSizes
+data	D_800EBCB8	confidence med (deferred)	vs_battle_secondShortcutIconTexCoords
+data	D_800EBCC0	confidence med (deferred)	vs_battle_firstShortcutMarkerPositions
+data	D_800EBCC8	confidence med (deferred)	vs_battle_firstShortcutIconPositions
+data	D_800EBCD0	confidence med (deferred)	vs_battle_firstShortcutIconSizes
+data	D_800EBCE0	confidence med (deferred)	vs_battle_firstShortcutIconTexCoords
+data	D_800EBCEC	confidence med (deferred)	vs_battle_limbDisplaySpriteOffsets
+data	D_800EBD14	confidence med (deferred)	vs_battle_limbDisplaySpriteSizes
+data	D_800EBD3C	confidence med (deferred)	vs_battle_limbDisplaySpriteTexCoords
+data	D_800EBD68	confidence med (deferred)	vs_menu_frameworkAbilityGroupActionRanges
+data	D_800EBF58	confidence low (deferred)	vs_menu_notificationItemNames
+data	D_800EC284	confidence med (deferred)	vs_menu_textBoxAnchors
+data	D_800EC2CC	confidence med (deferred)	vs_menu_informationHeaderPositions
+data	D_800EC2D8	confidence med (deferred)	vs_menu_informationHeaderSpriteWords
+data	D_800EC2E4	confidence med (deferred)	vs_effects_effectBufferIndex
+data	D_800EC2E8	confidence med (deferred)	vs_effects_trailAdditiveColors
+data	D_800EC308	confidence med (deferred)	vs_effects_trailColors
+data	D_800EC324	confidence med (deferred)	vs_effects_scriptRenderers
+data	D_800EC32C	confidence med (deferred)	vs_effects_actionVariantValues
+data	D_800EC330	confidence med (deferred)	vs_effects_pairedParticleColorPresets
+data	D_800EC368	confidence med (deferred)	vs_effects_particleColorPresetTable
+data	D_800F16EC	confidence med (deferred)	vs_battle_aiDirectionDeltas
+data	D_800F16F4	confidence med (deferred)	vs_battle_aiFrameTickBudget
+data	D_800F175C	confidence med (deferred)	vs_battle_aiRouteStepDirections
+data	D_800F17C8	confidence low (deferred)	vs_battle_aiSettingsBits8Values
+data	D_800F17D8	confidence med (deferred)	vs_battle_aiFacingDelayScales
+data	D_800F17DC	confidence med (deferred)	vs_battle_aiRadialRetreatPath
+data	D_800F1860	confidence med (deferred)	vs_battle_lootMenuOpened
+data	D_800F1864	confidence med (deferred)	vs_battle_rewardsFollowAction
+data	D_800F1868	confidence med (deferred)	vs_effects_effectBusyFlags
+data	D_800F1874	confidence low (deferred)	vs_boot_gameplayResetWordOne
+data	D_800F18A8	duplicate: 2 originals share the name	vs_field_zoneSoundFileId
+data	D_800F18C8	confidence low (deferred)	vs_field_roomLoadResetBlock
+data	D_800F18E0	confidence med (deferred)	vs_field_isRoomActorSpawnEnabled
+data	D_800F18E4	confidence low (deferred)	vs_field_roomCleanupBuffer
+data	D_800F18E8	not in our code	vs_field_snapshotDoorFlagSource
+data	D_800F18EC	confidence med (deferred)	vs_battle_actionSelection
+data	D_800F18F4	confidence low (deferred)	vs_boot_gameplayResetWordTwo
+data	D_800F18FC	confidence med (deferred)	vs_battle_recoveryRewardMode
+data	D_800F1908	confidence low (deferred)	vs_field_roomResetWord
+data	D_800F192C	confidence low (deferred)	vs_field_auxiliaryActor
+data	D_800F1968	confidence med (deferred)	vs_field_isInteractionPaused
+data	D_800F196C	confidence med (deferred)	vs_field_controlMode
+data	D_800F19C8	confidence med (deferred)	vs_field_roomGeometryDrawMode
+data	D_800F19D8	confidence low (deferred)	vs_battle_settledCameraDistance
+data	D_800F19EC	confidence low (deferred)	vs_battle_cameraEaseMode
+data	D_800F1A00	confidence med (deferred)	vs_battle_hitPrerequisiteResult
+data	D_800F1A04	confidence med (deferred)	vs_battle_previousHitResult
+data	D_800F1A20	confidence med (deferred)	vs_render_framebufferEffectParameter
+data	D_800F1A50	confidence med (deferred)	vs_actors_ashleyMoveInput
+data	D_800F1A9C	confidence low (deferred)	vs_render_framebufferEffectResetBytes
+data	D_800F1BB0	confidence med (deferred)	vs_field_roomTint
+data	D_800F1BB8	confidence med (deferred)	vs_field_roomPrimitiveRangeEnd
+data	D_800F1BBC	confidence low (deferred)	vs_field_reservedResetByte
+data	D_800F1CC0	confidence med (deferred)	vs_field_roomPrimitiveRangeStart
+data	D_800F1CE0	confidence med (deferred)	vs_field_backgroundReferenceVectors
+data	D_800F1D98	confidence med (deferred)	vs_field_weatherParameters
+data	D_800F1DA4	confidence med (deferred)	vs_field_weatherIntensityScale
+data	D_800F1DC7	confidence med (deferred)	vs_field_screenWeatherFade
+data	D_800F2260	confidence med (deferred)	vs_battle_actorMarkers
+data	D_800F2274	confidence med (deferred)	vs_battle_actorMarkerSides
+data	D_800F2278	confidence med (deferred)	vs_battle_statusLabelStepTimer
+data	D_800F227A	confidence med (deferred)	vs_battle_ashleyStatusLabelsSuppressed
+data	D_800F22B4	confidence med (deferred)	vs_content_legacyShpParseCursor
+data	D_800F22B8	confidence low (deferred)	vs_content_legacyShpCopiedWordCount
+data	D_800F22BC	confidence low (deferred)	vs_content_legacyShpHeaderWord
+data	D_800F22C0	confidence med (deferred)	vs_content_legacyShpTextureWidth
+data	D_800F22C4	confidence med (deferred)	vs_content_legacyShpTextureHeight
+data	D_800F2450	confidence med (deferred)	vs_actors_sharedSequenceBankTexturePages
+data	D_800F2458	confidence med (deferred)	vs_actors_modelRenderContext
+data	D_800F3C78	confidence med (deferred)	vs_actors_skeletonRootMatrix
+data	D_800F4438	confidence med (deferred)	vs_actors_roomActorScale
+data	D_800F457C	confidence low (deferred)	vs_content_lastLoadPhaseSnapshot
+data	D_800F4580	confidence med (deferred)	vs_content_assetQueueFrameTicks
+data	D_800F45D8	confidence med (deferred)	vs_content_lastAssetRequestType
+data	D_800F4768	confidence med (deferred)	vs_actors_sequenceWorkBuffer
+data	D_800F4910	confidence med (deferred)	vs_render_actorCameraMatrix
+data	D_800F4930	confidence med (deferred)	vs_actors_primarySequenceBuffer
+data	D_800F4938	confidence low (deferred)	vs_actors_sharedSequenceEntryParams
+data	D_800F49B8	confidence med (deferred)	vs_actors_boneMatrixScratch
+data	D_800F49DC	confidence med (deferred)	vs_actors_lastResolvedSequenceIndex
+data	D_800F49E0	confidence med (deferred)	vs_actors_stateFlagsScratch
+data	D_800F49F4	confidence med (deferred)	vs_actors_supportingPlatformLayer
+data	D_800F4B18	confidence med (deferred)	vs_actors_isActorUpdateComplete
+data	D_800F4B19	confidence med (deferred)	vs_actors_pushedGimmickIndex
+data	D_800F4BA8	confidence med (deferred)	vs_event_isDirectEventRequest
+data	D_800F4C08	confidence med (deferred)	vs_event_isAmbientSoundSuspended
+data	D_800F4C6A	confidence med (deferred)	vs_event_isScriptBackdropEnabled
+data	D_800F4CB8	confidence med (deferred)	vs_render_fontPaletteOffset
+data	D_800F4CC0	confidence med (deferred)	vs_menu_frameworkMainMenuCursorAnimation
+data	D_800F4E69	confidence med (deferred)	vs_menu_sceneNotificationTimed
+data	D_800F4E6B	confidence med (deferred)	vs_menu_saveLocationId
+data	D_800F4E80	confidence med (deferred)	vs_render_activeTextBoxIndex
+data	D_800F4ED8	confidence med (deferred)	vs_effects_screenEffectDefaults
+data	D_800F4FDB	confidence med (deferred)	vs_menu_frameworkOpenedWithoutMainMenu
+data	D_800F5160	confidence low (deferred)	vs_battle_recoveryResetWord
+data	D_800F51C8	confidence med (deferred)	vs_render_gimBlendSelect
+data	D_800F5218	confidence med (deferred)	vs_effects_menuReloadSlot
+data	D_800F522C	confidence med (deferred)	vs_effects_actionVariant
+data	D_800F53B4	confidence low (deferred)	vs_effects_unusedPrimaryWord
+data	D_800F54A9	confidence low (deferred)	vs_effects_actionVariantArgument
+data	D_800F54D0	confidence med (deferred)	vs_effects_cameraMotionFrame
+data	D_800F55A0	confidence med (deferred)	vs_effects_cameraMotionDuration
+data	D_800F55E8	confidence med (deferred)	vs_effects_cameraTransitionMode
+data	D_800F5610	confidence low (deferred)	vs_effects_scriptSelector
+data	D_800F5680	confidence med (deferred)	vs_effects_textureLoadState
+data	D_800F5684	confidence med (deferred)	vs_effects_purgeOverlayLoaded
+data	D_800F56C8	confidence med (deferred)	vs_effects_actionPackage
+data	D_800F57A0	confidence med (deferred)	vs_effects_secondaryPackage
+data	D_800F5874	confidence med (deferred)	vs_effects_loadedTextureSlots
+data	D_800F58B8	confidence med (deferred)	vs_battle_aiTileFlagMap
+data	D_800F58C0	confidence low (deferred)	vs_battle_aiRoomHasWaypoints
+data	D_800F58C8	confidence med (deferred)	vs_battle_aiRoomWaypoints
+data	D_800F58D0	confidence med (deferred)	vs_battle_aiSpecialTerrainHeights
+data	D_800F58D4	confidence low (deferred)	vs_battle_aiSecondPerceptionTarget
+data	D_800F58D8	confidence med (deferred)	vs_battle_aiPatrolRoutes
+data	D_800F58E0	confidence low (deferred)	vs_battle_aiCandidateEngagedThisUpdate
+data	D_800F58EC	confidence med (deferred)	vs_battle_aiPlanningPassCandidates
+data	D_800F58F0	confidence med (deferred)	vs_battle_aiFallbackCandidateCount
+data	D_800F58F4	confidence low (deferred)	vs_battle_aiUnusedPlanCounter
+data	D_800F58F8	confidence med (deferred)	vs_battle_aiFallbackCandidates
+data	D_800F5904	confidence med (deferred)	vs_battle_aiCandidateExclusions
+data	D_800F590C	confidence low (deferred)	vs_battle_aiAttributeActorMask
+data	D_800F5910	confidence med (deferred)	vs_battle_aiRouteGates
+data	D_800F5918	confidence med (deferred)	vs_battle_aiOrbitAngularVelocity
+data	D_800F591C	confidence med (deferred)	vs_battle_aiOrbitHeightOffset
+data	D_800F5920	confidence med (deferred)	vs_battle_aiArenaOrbit
+data	D_800FA6F8	ambiguous: several rows (shared address range)	Effects::Plg044::tiledRingColorFactors | Effects::Plg044::tiledRingColorFactorsExtern
+data	D_800FA76C	ambiguous: several rows (shared address range)	Effects::Plg047::closedRingColorFactors | Effects::Plg047::closedRingColorFactorsExtern
+data	D_800FA770	ambiguous: several rows (shared address range)	Effects::Plg051::closedRingColorFactors | Effects::Plg051::closedRingColorFactorsExtern
+data	D_800FAB18	confidence med (deferred)	vs_actors_ashleyInitialLoadout
+data	D_800FAE4C	confidence med (deferred)	vs_effects_effectUsesTextures
+data	D_800FBA00	ambiguous: several rows (shared address range)	Effects::Plg141::trailEmissionCounter | Effects::Plg232::trailEmissionCounter
+data	D_800FC96C	ambiguous: several rows (shared address range)	Effects::Plg134::trailEmissionCounter | Effects::Plg135::closedRingColorFactors
+data	D_800FD4D8	ambiguous: several rows (shared address range)	Effects::Plg069::tiledRingColorFactors | Effects::Plg291::trailEmissionCounter
+data	D_800FDC58	ambiguous: several rows (shared address range)	Effects::Plg077::ringColorFactors2 | Effects::Plg168::particleEmissionCounter
+data	D_801020F4	confidence med (deferred)	vs_menu_frameworkStatPagePanelDirection
+data	D_80102488	confidence med (deferred)	vs_menu_frameworkComparisonStatDeltas
+data	D_80102490	confidence med (deferred)	vs_menu_frameworkComparisonStatTotals
+data	D_8010286C	duplicate: 2 originals share the name	vs_save_memoryCardSaveTitleTemplate
+data	D_80105DB0	confidence med (deferred)	vs_menu_renameNavIconPulseRequest
+data	D_801080FC	confidence med (deferred)	vs_menu_statusLimbNavigation
+data	D_80108D04	confidence med (deferred)	vs_menu_mapDoorMarkerUpperRects
+data	D_80108D14	confidence med (deferred)	vs_menu_mapDoorMarkerLowerRects
+data	D_80108D38	confidence med (deferred)	vs_menu_mapMenuResult
+data	D_80109620	confidence med (deferred)	vs_menu_inventoryEquipmentChoicesCursorAnimation
+data	D_80109649	confidence med (deferred)	vs_menu_inventoryRestoreItemCursor
+data	D_801096F0	confidence med (deferred)	vs_menu_resultsFramebufferEffectParams
+data	D_80109954	confidence med (deferred)	vs_menu_containerGemSlotCountText
+data	D_80109A07	confidence med (deferred)	vs_menu_containerDiscardMenuCursorAnimation
+data	D_80109A2D	confidence med (deferred)	vs_menu_containerTransferDirectionCursorAnimation
+data	D_80109A2E	confidence med (deferred)	vs_menu_containerDirectionCursorResetPending
+data	D_80109A30	confidence med (deferred)	vs_menu_containerWeaponDetailsStep
+data	D_80109A31	confidence med (deferred)	vs_menu_containerWeaponDetailsSlideStep
+data	D_80109A32	confidence med (deferred)	vs_menu_containerWeaponDetailsItemSource
+data	D_80109A35	confidence med (deferred)	vs_menu_containerBladeDetailsStep
+data	D_80109A37	confidence med (deferred)	vs_menu_containerBladeDetailsItemSource
+data	D_80109A38	confidence med (deferred)	vs_menu_containerBladeDetailsItemIndex
+data	D_80109A39	confidence med (deferred)	vs_menu_containerGripDetailsStep
+data	D_80109A3A	confidence med (deferred)	vs_menu_containerGripDetailsSlideStep
+data	D_80109A3B	confidence med (deferred)	vs_menu_containerGripDetailsItemSource
+data	D_80109A3C	confidence med (deferred)	vs_menu_containerGripDetailsItemIndex
+data	D_80109A3E	confidence med (deferred)	vs_menu_containerShieldDetailsStep
+data	D_80109A3F	confidence med (deferred)	vs_menu_containerShieldDetailsSlideStep
+data	D_80109A40	confidence med (deferred)	vs_menu_containerShieldDetailsItemSource
+data	D_80109A41	confidence med (deferred)	vs_menu_containerShieldDetailsItemIndex
+data	D_80109A43	confidence med (deferred)	vs_menu_containerArmorDetailsStep
+data	D_80109A45	confidence med (deferred)	vs_menu_containerArmorDetailsItemSource
+data	D_80109A46	confidence med (deferred)	vs_menu_containerArmorDetailsItemIndex
+data	D_80109A47	confidence med (deferred)	vs_menu_containerGemDetailsStep
+data	D_80109A49	confidence med (deferred)	vs_menu_containerGemDetailsItemSource
+data	D_80109A4A	confidence med (deferred)	vs_menu_containerGemDetailsItemIndex
+data	D_80109A4C	confidence med (deferred)	vs_menu_containerSortMenuStep
+data	D_80109A58	confidence med (deferred)	vs_menu_containerTransferConfirmationSelectedAction
+data	D_80109A68	confidence med (deferred)	vs_menu_containerItemListStep
+data	D_80109A6C	confidence med (deferred)	vs_menu_containerItemListSelectedRow
+data	D_80109A70	confidence med (deferred)	vs_menu_containerTransferDirectionStep
+data	D_80109A74	confidence med (deferred)	vs_menu_containerScreenResult
+data	D_80109A7A	confidence med (deferred)	vs_menu_containerBrowsingGadgetBag
+data	D_80109A7D	confidence med (deferred)	vs_menu_containerControlsPanelMode
+data	D_80109A81	confidence med (deferred)	vs_menu_containerDetailsViewPhase
+data	D_80109A82	confidence med (deferred)	vs_menu_containerTransferredMiscCount
+data	D_80109A84	confidence med (deferred)	vs_menu_containerDetailsClosedWithTriangle
+data	D_8010A683	confidence med (deferred)	vs_menu_lootDisassemblyYesNoChoice
+data	D_8010A68F	confidence med (deferred)	vs_menu_lootStackConsolidationYesNoChoice
+data	D_8010A692	confidence med (deferred)	vs_menu_lootLeaveConfirmationYesNoChoice
+data	D_8010A6B7	confidence med (deferred)	vs_menu_lootPreviewedLoot
+data	D_8010BB54	confidence med (deferred)	vs_menu_setupAssemblyCursorAnimation
+data	D_8010BB55	confidence med (deferred)	vs_menu_setupAssemblyOkBlinkPhase
+data	D_8010BB56	confidence med (deferred)	vs_menu_setupGemAttachmentCursorAnimation
+data	D_8010BB57	confidence med (deferred)	vs_menu_setupGemAttachmentOkBlinkPhase
+data	D_8010BB74	confidence med (deferred)	vs_menu_setupBladeCombinationCursorAnimation
+data	D_8010BB75	confidence med (deferred)	vs_menu_setupShieldCombinationCursorAnimation
+data	D_8010BB76	confidence med (deferred)	vs_menu_setupArmorCombinationCursorAnimation
+data	D_8010BC04	confidence med (deferred)	vs_menu_setupAssemblyGripSelectedRow
+data	D_8010BC0C	confidence med (deferred)	vs_menu_setupGemSelectedRow
+data	D_8010BC21	confidence med (deferred)	vs_menu_setupGemAttachmentAppearStep
+data	D_8010BC28	confidence med (deferred)	vs_menu_setupStagedGems
+data	D_8010BC3D	confidence med (deferred)	vs_menu_setupDisassemblyAppearStep
+data	D_8010BC49	confidence med (deferred)	vs_menu_setupWeaponRenameAppearStep
+data	D_8010BC63	confidence med (deferred)	vs_menu_setupBladeCombinationRow
+data	D_8010BC64	confidence med (deferred)	vs_menu_setupBladeCombinationOkBlinkPhase
+data	D_8010BC68	confidence med (deferred)	vs_menu_setupCombinationShieldSelectedRow
+data	D_8010BC6F	confidence med (deferred)	vs_menu_setupShieldCombinationRow
+data	D_8010BC70	confidence med (deferred)	vs_menu_setupShieldCombinationOkBlinkPhase
+data	D_8010BC74	confidence med (deferred)	vs_menu_setupCombinationArmorSelectedRow
+data	D_8010BC78	confidence med (deferred)	vs_menu_setupCombinationArmorStep
+data	D_8010BC7B	confidence med (deferred)	vs_menu_setupArmorCombinationRow
+data	D_8010BC7C	confidence med (deferred)	vs_menu_setupArmorCombinationOkBlinkPhase
+function	func_80011F90	confidence med (deferred)	vs_audio_playbackMusicPosition
+function	func_8001215C	confidence med (deferred)	vs_audio_playbackRequestMusicLayerSwap
+function	func_800123C8	confidence med (deferred)	vs_audio_playbackUsesSoundEffectTags
+function	func_80012568	confidence low (deferred)	vs_audio_controlSetMixOptionLatch
+function	func_80012E50	confidence med (deferred)	vs_audio_samplesSelectMusicBank
+function	func_8001833C	confidence med (deferred)	vs_audio_mixerSetTempoScale
+function	func_80018358	confidence med (deferred)	vs_audio_mixerSlideTempoScale
+function	func_800183C0	confidence med (deferred)	vs_audio_mixerSetTempoScaleRamp
+function	func_80019614	confidence med (deferred)	vs_audio_seqAdvanceMusicTransition
+function	func_80041104	duplicate: 3 originals share the name	vs_core_mathLookupRotationSineCosine
+function	func_80044EC8	confidence med (deferred)	vs_audio_resumeMusicSlot
+function	func_80047910	confidence med (deferred)	vs_render_setModelTint
+function	func_80047AB4	confidence med (deferred)	vs_render_setModelTintBase
+function	func_80047B30	confidence med (deferred)	vs_render_transformModelTint
+function	func_80047FC0	confidence med (deferred)	vs_render_requestModelTintTransform
+function	func_800688D4	duplicate: 2 originals share the name	vs_core_mathSine
+function	func_80069D14	confidence med (deferred)	vs_battle_releaseQueuedActorAttacks
+function	func_80069DEC	merged by the Zig objects (identical code)	Actors::ForgetRoomEnemies
+function	func_8006B324	not in our code	vs_ending_creditsDrawSmallText
+function	func_8006B930	not in our code	vs_ending_creditsBeginFrame
+function	func_8006C2FC	confidence med (deferred)	vs_field_pauseFieldForInteractionDialog
+function	func_8006C350	confidence med (deferred)	vs_field_pauseFieldForObjectInteraction
+function	func_8006C480	confidence med (deferred)	vs_effects_startWeaponTrail
+function	func_8006C4A4	merged by the Zig objects (identical code)	Effects::FadeWeaponTrails
+function	func_8006C4C4	confidence med (deferred)	vs_effects_queueActionHitEffect
+function	func_8006C84C	confidence med (deferred)	vs_effects_queueActionImpactEffects
+function	func_8006CD60	confidence med (deferred)	vs_audio_playRandomActorImpactSound
+function	func_8006CDB8	merged by the Zig objects (identical code)	Effects::SignalActorEffectAnimation
+function	func_8006CE50	merged by the Zig objects (identical code)	Field::FreezeRoomGimmicksTemporarily
+function	func_8006D028	confidence med (deferred)	vs_effects_tintActionActorRed
+function	func_8006D064	confidence med (deferred)	vs_effects_restoreActionActorTint
+function	func_8006F450	confidence med (deferred)	vs_effects_spawnGroundPlaneImpactEffect
+function	func_8006F4B0	confidence med (deferred)	vs_effects_spawnTrapTileEffect
+function	func_8006F5CC	merged by the Zig objects (identical code)	Field::EnterFieldExplorationMode
+function	func_8006F5FC	confidence med (deferred)	vs_battle_waitForPostActionMovement
+function	func_8006F848	confidence med (deferred)	vs_effects_spawnAbilityLearnedEffect
+function	func_800704B0	confidence med (deferred)	vs_battle_advanceActionEffectPhase
+function	func_800719DC	confidence med (deferred)	vs_vs_battleCommitLiveSelectedAction
+function	func_800733F8	confidence med (deferred)	vs_effects_beginAshleyStandaloneEffect
+function	func_80073484	confidence med (deferred)	vs_effects_endAshleyStandaloneEffect
+function	func_8007350C	merged by the Zig objects (identical code)	VS::Field::LiveEnterFieldExplorationMode
+function	func_80073898	confidence med (deferred)	vs_event_beginQueuedCutscene
+function	func_8007424C	confidence med (deferred)	vs_field_isChestAnimationReady
+function	func_80074294	confidence med (deferred)	vs_effects_actionEffectBusyFlags
+function	func_800742A4	confidence med (deferred)	vs_field_finishChestInteraction
+function	func_8007647C	confidence med (deferred)	vs_actors_buildPlaceholderActorStats
+function	func_80078248	confidence med (deferred)	vs_battle_updateInitialTargetSelection
+function	func_800782E4	confidence med (deferred)	vs_battle_updateActionAreaSelection
+function	func_80078364	confidence med (deferred)	vs_battle_updateFinalTargetSelection
+function	func_80078748	confidence med (deferred)	vs_battle_waitForActionEffectReady
+function	func_80079030	confidence med (deferred)	vs_vs_battleStartLiveActionPresentation
+function	func_80079050	confidence med (deferred)	vs_battle_waitForActionResolution
+function	func_800790BC	confidence med (deferred)	vs_battle_waitForTargetRecovery
+function	func_8007B0FC	merged by the Zig objects (identical code)	Core::NoOperation
+function	func_8007B104	merged by the Zig objects (identical code)	Core::NoOperation
+function	func_8007B3D0	confidence med (deferred)	vs_render_startSharedPaletteTransition
+function	func_8007B508	confidence med (deferred)	vs_battle_checkRewardUnlocks
+function	func_8007B7DC	confidence med (deferred)	vs_battle_openRewardResults
+function	func_8007BBB8	merged by the Zig objects (identical code)	Actors::ForgetRoomEnemies
+function	func_8007BD8C	confidence med (deferred)	vs_battle_setGameplayHudHidden
+function	func_8007BE20	confidence med (deferred)	vs_effects_startScriptedActorEffect
+function	func_8007BEC4	confidence med (deferred)	vs_effects_releaseScriptedEffectTrigger
+function	func_8007BEE4	merged by the Zig objects (identical code)	Effects::ScriptedEffectPlaybackState
+function	func_8007BF04	merged by the Zig objects (identical code)	Core::NoOperation
+function	func_8007BF0C	merged by the Zig objects (identical code)	Effects::IsScriptedEffectTriggerReady
+function	func_8007BF2C	confidence med (deferred)	vs_field_showPrimaryRoomGeometry
+function	func_8007BF4C	confidence med (deferred)	vs_field_hidePrimaryRoomGeometry
+function	func_8007C1D8	confidence med (deferred)	vs_actors_setActorHostile
+function	func_8007C348	confidence med (deferred)	vs_actors_interruptActorAction
+function	func_8007C404	merged by the Zig objects (identical code)	Render::EnableDisplay
+function	func_8007C424	merged by the Zig objects (identical code)	Render::DisableDisplay
+function	func_8007C8F0	merged by the Zig objects (identical code)	Core::ReturnZero
+function	func_8007C8F8	confidence med (deferred)	vs_actors_queueAshleyModelLoad
+function	func_8007CC8C	merged by the Zig objects (identical code)	Actors::SharedSequenceBank
+function	func_8007CCAC	merged by the Zig objects (identical code)	Content::FindFreeActorAssetRequest
+function	func_8007CEA0	merged by the Zig objects (identical code)	Actors::ReturnActorToIdle
+function	func_8007CFF8	confidence med (deferred)	vs_actors_beginScriptedActorPath
+function	func_8007D260	confidence med (deferred)	vs_actors_resetActorMovement
+function	func_8007D360	merged by the Zig objects (identical code)	Render::ResetFramebufferEffect
+function	func_8007D3F8	merged by the Zig objects (identical code)	Render::InitializeFramebufferEffect
+function	func_8007DE38	confidence low (deferred)	vs_render_setFramebufferEffectParameter
+function	func_8007DF10	confidence low (deferred)	vs_render_readFramebufferEffectParameter
+function	func_8007DF40	merged by the Zig objects (identical code)	Core::NoOperation
+function	func_8007DF48	confidence med (deferred)	vs_render_initializeTexturePages
+function	func_8007E180	confidence med (deferred)	vs_content_acquireOverlayWorkspace
+function	func_8007E1C0	confidence med (deferred)	vs_content_releaseOverlayWorkspace
+function	func_8007FF8C	confidence med (deferred)	vs_items_applyPpGemMultiplier
+function	func_80083990	merged by the Zig objects (identical code)	VS::Battle::RejectLiveEffectSelector
+function	func_80084228	merged by the Zig objects (identical code)	Battle::MarkSourceActionSuccess
+function	func_800842F0	merged by the Zig objects (identical code)	Battle::MarkSourceActionSuccess
+function	func_80084310	confidence low (deferred)	vs_battle_setActionFlag64
+function	func_80084340	confidence low (deferred)	vs_battle_setActionFlag32
+function	func_80084370	merged by the Zig objects (identical code)	Battle::MarkSourceActionSuccess
+function	func_80084FF0	merged by the Zig objects (identical code)	VS::Battle::RejectLiveEffectSelector
+function	func_80084FF8	merged by the Zig objects (identical code)	VS::Battle::RejectLiveEffectSelector
+function	func_80085000	merged by the Zig objects (identical code)	VS::Battle::RejectLiveEffectSelector
+function	func_80088B8C	confidence med (deferred)	vs_battle_updateTargetingRiskPenalty
+function	func_80088CA0	confidence med (deferred)	vs_battle_resetTargetingRiskPenaltyTimer
+function	func_80088CAC	confidence med (deferred)	vs_field_beginSceneActorTransition
+function	func_80089104	duplicate: 2 originals share the name	vs_field_zoneSoundFileId
+function	func_80089CE4	merged by the Zig objects (identical code)	Render::ShowDisplay
+function	func_80089D04	merged by the Zig objects (identical code)	Render::HideDisplay
+function	func_8008B6FC	confidence low (deferred)	vs_field_roomAuxiliaryData
+function	func_8008B808	confidence med (deferred)	vs_field_setCollisionCellBlocked
+function	func_8008C2C0	confidence med (deferred)	vs_field_applyCameraGeometryOcclusion
+function	func_8008C458	confidence med (deferred)	vs_field_sampleRoomGroundColor
+function	func_8008C478	not in our code	vs_field_roomSupplementalRecord
+function	func_8008C518	confidence none (deferred)	vs_field_clearMovingPlatformActor
+function	func_8008D3E8	confidence low (deferred)	vs_field_roomEnvironmentFlags
+function	func_8008D5FC	confidence med (deferred)	vs_field_beginSwitchToggle
+function	func_8008E3B8	confidence none (deferred)	vs_field_roomInteractiveDoors
+function	func_8008E400	confidence none (deferred)	vs_field_activeRoomTriggers
+function	func_8008E4AC	confidence low (deferred)	vs_field_roomEnvironmentParameter
+function	func_8008E8F8	confidence med (deferred)	vs_effects_allocateWeatherParticles
+function	func_8008EA90	confidence med (deferred)	vs_effects_initializeRoomWeather
+function	func_8008EB04	confidence med (deferred)	vs_effects_roomWeatherState
+function	func_8008F29C	confidence med (deferred)	vs_effects_initializeFallingWeatherParticles
+function	func_8008F30C	confidence med (deferred)	vs_effects_initializeScreenWeatherParticles
+function	func_8008F440	confidence med (deferred)	vs_effects_drawRainParticles
+function	func_8008F9A4	confidence med (deferred)	vs_effects_initializeRisingEmberParticles
+function	func_8008FA14	confidence med (deferred)	vs_effects_resetRisingEmberParticle
+function	func_8008FAC8	confidence med (deferred)	vs_effects_drawRisingEmberParticles
+function	func_8008FDC4	confidence med (deferred)	vs_effects_drawSnowParticles
+function	func_80090434	confidence med (deferred)	vs_effects_drawScreenWeatherParticles
+function	func_80090A1C	confidence med (deferred)	vs_effects_resetFallingWeatherParticle
+function	func_80090B28	confidence med (deferred)	vs_effects_recalculateWeatherVelocity
+function	func_80091AC0	confidence med (deferred)	vs_field_disableRoomGeometryGroup
+function	func_80092540	merged by the Zig objects (identical code)	Field::SkipRoomEffectCommand
+function	func_80092914	merged by the Zig objects (identical code)	Field::FinishRoomEffectSetup
+function	func_80092C68	confidence med (deferred)	vs_field_setRoomEffectRadialVelocity
+function	func_80092F6C	merged by the Zig objects (identical code)	Field::SkipRoomEffectCommand
+function	func_800936F0	merged by the Zig objects (identical code)	Field::SkipRoomEffectCommand
+function	func_80093B68	confidence med (deferred)	vs_battle_queueActorValueLabel
+function	func_80093F24	confidence med (deferred)	vs_battle_queueChainCount
+function	func_80093FEC	confidence med (deferred)	vs_battle_queueActorStatusLabels
+function	func_8009406C	confidence med (deferred)	vs_battle_queueActorStatusLabel
+function	func_800941FC	confidence med (deferred)	vs_battle_updateAndDrawFloatingLabels
+function	func_80094844	confidence med (deferred)	vs_battle_placeActorValueLabel
+function	func_80094B0C	confidence med (deferred)	vs_battle_drawActorValueLabel
+function	func_8009506C	confidence med (deferred)	vs_battle_drawLockedFloatingLabel
+function	func_80095258	confidence med (deferred)	vs_battle_drawActorStatusLabel
+function	func_800957D0	confidence med (deferred)	vs_battle_drawStatusRemovalMarker
+function	func_80095C18	confidence med (deferred)	vs_battle_drawActorMarker
+function	func_8009627C	confidence med (deferred)	vs_battle_drawActorMarkers
+function	func_8009651C	confidence med (deferred)	vs_battle_drawOffscreenActorArrow
+function	func_80096768	confidence med (deferred)	vs_battle_queueEquipmentStatChange
+function	func_8009695C	confidence med (deferred)	vs_battle_drawEquipmentStatChange
+function	func_80096FF0	confidence med (deferred)	vs_battle_showAbilityTimingCue
+function	func_800971D4	confidence med (deferred)	vs_battle_commitEquipmentStatChanges
+function	func_800988BC	duplicate: 3 originals share the name	vs_core_mathLookupRotationSineCosine
+function	func_80098AB8	duplicate: 2 originals share the name	vs_core_mathSine
+function	func_8009D458	merged by the Zig objects (identical code)	Core::NoOperation
+function	func_8009D460	merged by the Zig objects (identical code)	Core::NoOperation
+function	func_8009D7E8	confidence med (deferred)	vs_actors_setActorPaletteFade
+function	func_8009D854	merged by the Zig objects (identical code)	Actors::RequestActorAnimationAdvance
+function	func_8009DDF4	confidence med (deferred)	vs_battle_playDefenseAnimation
+function	func_8009DF3C	confidence med (deferred)	vs_battle_setEnemyCombatPose
+function	func_8009E070	confidence med (deferred)	vs_actors_playActorActionPose
+function	func_8009E2E0	confidence med (deferred)	vs_battle_playSpellCastAnimation
+function	func_8009E480	confidence med (deferred)	vs_actors_isAshleyTransitionPose
+function	func_8009E5C4	merged by the Zig objects (identical code)	Actors::RestoreActorIdlePose
+function	func_8009EA14	confidence med (deferred)	vs_battle_playActorDamageReaction
+function	func_8009EFEC	confidence med (deferred)	vs_battle_playSpecialActionAnimation
+function	func_8009F298	confidence med (deferred)	vs_battle_playBreakArtAnimation
+function	func_8009F940	confidence med (deferred)	vs_actors_setActorCompanion
+function	func_8009FFA8	confidence med (deferred)	vs_actors_releaseActorAttachmentLock
+function	func_800A0870	confidence low (deferred)	vs_actors_setActorTransitionMode
+function	func_800A1178	duplicate: 5 originals share the name	vs_actors_findBoneTag
+function	func_800A11D8	duplicate: 5 originals share the name	vs_actors_findBoneTag
+function	func_800A13EC	duplicate: 2 originals share the name	vs_actors_projectActorBoneEndpoint
+function	func_800A141C	duplicate: 2 originals share the name	vs_actors_projectActorBoneEndpoint
+function	func_800A152C	duplicate: 5 originals share the name	vs_actors_findBoneTag
+function	func_800A1720	duplicate: 3 originals share the name	vs_actors_boneViewTransform
+function	func_800A17BC	duplicate: 3 originals share the name	vs_actors_boneViewTransform
+function	func_800A1AF8	duplicate: 2 originals share the name	vs_actors_boneEndpointPoint
+function	func_800A1B28	duplicate: 5 originals share the name	vs_actors_findBoneTag
+function	func_800A1B9C	duplicate: 5 originals share the name	vs_actors_findBoneTag
+function	func_800A1C10	duplicate: 2 originals share the name	vs_actors_boneEndpointPoint
+function	func_800A1DE8	duplicate: 3 originals share the name	vs_actors_boneViewTransform
+function	func_800A2574	confidence med (deferred)	vs_battle_finishEnemyCombatPose
+function	func_800A29A0	confidence med (deferred)	vs_actors_updateActorTeleportTransition
+function	func_800A2C48	confidence med (deferred)	vs_actors_cancelActorTeleportTransition
+function	func_800A2CD4	confidence med (deferred)	vs_actors_updateActorTravelTransition
+function	func_800A3C00	confidence none (deferred)	vs_field_findActorAboveGimmick
+function	func_800A4828	duplicate: 2 originals share the name	vs_actors_drawActorModel
+function	func_800A4A24	ambiguous: several rows (shared address range)	Field::FindMovingPlatformById
+function	func_800A9530	confidence med (deferred)	vs_field_calcActorLedgeOffset
+function	func_800AA108	confidence med (deferred)	vs_actors_moveActorToTileOverTime
+function	func_800AACDC	confidence low (deferred)	vs_event_restoreScriptTextureRectangle
+function	func_800AE46C	merged by the Zig objects (identical code)	Actors::IgnoreAnimationEvent
+function	func_800AE474	merged by the Zig objects (identical code)	Actors::IgnoreAnimationEvent
+function	func_800AEEC4	ambiguous: several rows (shared address range)	Actors::StepSoundTransition
+function	func_800AF960	confidence med (deferred)	vs_actors_advanceShadowBlend
+function	func_800AFA28	confidence med (deferred)	vs_actors_advanceSkeletalAnimation
+function	func_800B002C	confidence med (deferred)	vs_actors_updateMotionAndLookAt
+function	func_800B16F4	duplicate: 3 originals share the name	vs_core_mathLookupRotationSineCosine
+function	func_800B28A8	duplicate: 2 originals share the name	vs_actors_drawActorModel
+function	func_800B4B14	confidence med (deferred)	vs_render_drawActorGroundShadow
+function	func_800B516C	confidence med (deferred)	vs_render_drawModelFlatPolygonsWithOverrides
+function	func_800B64CC	confidence med (deferred)	vs_actors_queueNavigationTileTarget
+function	func_800B65E8	confidence med (deferred)	vs_actors_beginTileTravel
+function	func_800B65F4	confidence med (deferred)	vs_actors_beginTimedTravel
+function	func_800B66E4	merged by the Zig objects (identical code)	Event::ScriptNoOperation
+function	func_800B6724	confidence med (deferred)	vs_event_scriptWaitForSplashFile
+function	func_800B7014	confidence med (deferred)	vs_event_scriptConfigureSplashLayer
+function	func_800B70E8	confidence med (deferred)	vs_event_scriptTweenSplashLayer
+function	func_800B71C4	confidence med (deferred)	vs_event_scriptFreeSplashImage
+function	func_800B71F4	confidence med (deferred)	vs_event_scriptWaitForSplashTween
+function	func_800B7428	confidence med (deferred)	vs_event_scriptResetActorGroupState
+function	func_800B81A0	confidence med (deferred)	vs_event_scriptSetActorColorOverride
+function	func_800B8360	confidence med (deferred)	vs_event_scriptSetActorHeadAngles
+function	func_800B8510	confidence med (deferred)	vs_event_scriptLookAtActor
+function	func_800B8590	confidence med (deferred)	vs_event_scriptLookAtWorldPos
+function	func_800B8788	confidence med (deferred)	vs_event_scriptSetActorOverlayPass
+function	func_800B91C4	confidence med (deferred)	vs_event_scriptClearRoomActorCache
+function	func_800B91F0	confidence med (deferred)	vs_event_scriptPlayActorAnimationSound
+function	func_800B92D0	confidence med (deferred)	vs_event_scriptSetHudVisible
+function	func_800B92F4	confidence med (deferred)	vs_event_scriptRunMenuTransition
+function	func_800B9770	confidence med (deferred)	vs_event_scriptSetGimmickVisibility
+function	func_800B979C	confidence med (deferred)	vs_event_scriptOverrideDepthCueDistance
+function	func_800B97E4	confidence med (deferred)	vs_event_scriptSetRoomLightingMode
+function	func_800B9818	confidence med (deferred)	vs_event_scriptShowGeometryGroup
+function	func_800B983C	confidence med (deferred)	vs_event_scriptHideGeometryGroup
+function	func_800B9860	confidence med (deferred)	vs_event_scriptSwapGeometryGroupFlags
+function	func_800B988C	confidence med (deferred)	vs_event_scriptSetCollisionTileMode
+function	func_800B98C0	confidence med (deferred)	vs_event_scriptChangeRoom
+function	func_800B9A40	confidence med (deferred)	vs_event_scriptFadeOutAndWait
+function	func_800B9A94	confidence med (deferred)	vs_event_scriptFadeIn
+function	func_800B9AC4	confidence med (deferred)	vs_event_scriptSetWipeAngle
+function	func_800B9AE8	confidence med (deferred)	vs_event_scriptConfigureScreenTransition
+function	func_800B9B18	confidence med (deferred)	vs_event_scriptSetRoomDisplayFlags
+function	func_800B9BF8	confidence med (deferred)	vs_event_scriptWaitForScreenTransition
+function	func_800B9C18	confidence low (deferred)	vs_event_scriptTogglePaletteHook
+function	func_800B9C58	confidence med (deferred)	vs_event_scriptTransformPalettes
+function	func_800B9D74	confidence med (deferred)	vs_event_scriptSetActorRenderMode
+function	func_800B9F28	confidence med (deferred)	vs_event_scriptSetRoomBackgroundVisible
+function	func_800B9F4C	confidence med (deferred)	vs_event_scriptLoadRoomBackground
+function	func_800B9F70	confidence med (deferred)	vs_event_scriptWaitForRoomBackground
+function	func_800B9F90	confidence med (deferred)	vs_event_scriptFreeRoomBackground
+function	func_800B9FC0	confidence med (deferred)	vs_event_scriptSetEnvironmentParticles
+function	func_800BA0E4	confidence med (deferred)	vs_event_scriptSetParticleVariationEnabled
+function	func_800BA108	confidence med (deferred)	vs_event_scriptMuteEnvironmentSound
+function	func_800BA194	confidence med (deferred)	vs_event_scriptControlRoomAnimation
+function	func_800BA218	confidence med (deferred)	vs_event_scriptSetBackgroundOffset
+function	func_800BA264	confidence med (deferred)	vs_event_scriptSetFirstPersonView
+function	func_800BA288	confidence med (deferred)	vs_event_scriptAdjustGeometryDepthBias
+function	func_800BA2B4	confidence med (deferred)	vs_event_scriptSetBackgroundParallax
+function	func_800BA6E0	confidence med (deferred)	vs_event_commandWaitMusicSlot
+function	func_800BA800	confidence med (deferred)	vs_event_commandSlideSfxPitch
+function	func_800BA848	confidence med (deferred)	vs_event_commandSlideSfxPan
+function	func_800BA890	confidence med (deferred)	vs_event_commandResumeMusicSlot
+function	func_800BA90C	confidence med (deferred)	vs_event_commandAdvanceEffectStage
+function	func_800BAD78	confidence med (deferred)	vs_event_commandSetActorActivity
+function	func_800BAF6C	confidence med (deferred)	vs_event_setEventActorActivity
+function	func_800BB2B8	confidence med (deferred)	vs_event_commandSetScreenDistortion
+function	func_800BB304	merged by the Zig objects (identical code)	Event::CommandReservedScreenEffect
+function	func_800BB33C	confidence med (deferred)	vs_event_commandStopCameraMotion
+function	func_800BB35C	confidence med (deferred)	vs_event_commandSetCameraFollowing
+function	func_800BB38C	confidence med (deferred)	vs_event_commandSetCameraOriginActor
+function	func_800BB3BC	confidence med (deferred)	vs_event_commandRestoreFieldCamera
+function	func_800BB41C	confidence med (deferred)	vs_event_commandWaitCameraTracks
+function	func_800BB450	confidence med (deferred)	vs_event_commandSetScreenCapture
+function	func_800BB9B0	confidence med (deferred)	vs_event_updateEventImageTweens
+function	func_800BBAFC	confidence med (deferred)	vs_event_updateEventWeatherTween
+function	func_800BBBE8	confidence med (deferred)	vs_event_initializeEventCamera
+function	func_800BBDDC	confidence med (deferred)	vs_event_freeEventCamera
+function	func_800BBE04	confidence med (deferred)	vs_event_setEventFieldCameraOverride
+function	func_800BBE10	confidence med (deferred)	vs_event_setEventCameraOriginActor
+function	func_800BBE94	confidence med (deferred)	vs_event_updateEventCameraOrigin
+function	func_800BC1CC	confidence med (deferred)	vs_event_restoreEventFieldCamera
+function	func_800BC2E8	confidence med (deferred)	vs_event_commandCameraMotion
+function	func_800BC9E0	confidence med (deferred)	vs_event_updateEventCameraTracks
+function	func_800BCA8C	confidence med (deferred)	vs_event_updateEventCameraTrack
+function	func_800BCFB4	confidence med (deferred)	vs_event_advanceTerrainCameraTrack
+function	func_800BD2B8	confidence med (deferred)	vs_event_eventCameraGroundClearance
+function	func_800BD444	confidence med (deferred)	vs_event_commandTweenCameraRoll
+function	func_800BD57C	confidence med (deferred)	vs_event_updateEventAngleTween
+function	func_800BD610	confidence med (deferred)	vs_event_eventCameraCompletionMask
+function	func_800BD6C4	confidence med (deferred)	vs_event_commandScreenTransform
+function	func_800BDAB4	confidence med (deferred)	vs_event_updateEventScreenTransforms
+function	func_800BDBB4	confidence med (deferred)	vs_event_updateEventTripleTween
+function	func_800BDC9C	confidence med (deferred)	vs_event_commandCameraLensOrShake
+function	func_800BDF6C	confidence med (deferred)	vs_event_updateEventLensTween
+function	func_800BE01C	confidence med (deferred)	vs_event_updateEventShakeOscillator
+function	func_800BE180	confidence med (deferred)	vs_event_updateEventCameraShake
+function	func_800BE36C	confidence med (deferred)	vs_event_setEventCameraFollowing
+function	func_800BE3A0	confidence med (deferred)	vs_event_stopEventCameraMotion
+function	func_800BE3D0	confidence med (deferred)	vs_event_startEventCameraOrbitReturn
+function	func_800BE53C	confidence med (deferred)	vs_event_scaleEventCameraTrackDuration
+function	func_800BE5A4	confidence med (deferred)	vs_event_scaleEventCameraDuration
+function	func_800BEBEC	merged by the Zig objects (identical code)	Event::ReleaseZoneEventResources
+function	func_800C031C	confidence med (deferred)	vs_battle_initSphere
+function	func_800C05B4	confidence med (deferred)	vs_battle_freeSphere
+function	func_800C05EC	confidence med (deferred)	vs_battle_setSphereVolumes
+function	func_800C06E0	confidence med (deferred)	vs_battle_clearPrimarySphereVolume
+function	func_800C0700	confidence med (deferred)	vs_battle_setSecondarySphereVolume
+function	func_800C0738	confidence med (deferred)	vs_battle_clearSecondarySphereVolume
+function	func_800C0758	confidence med (deferred)	vs_battle_appendSphereArcVertices
+function	func_800C085C	confidence med (deferred)	vs_battle_buildSphereVolumeTransform
+function	func_800C0990	confidence med (deferred)	vs_battle_drawSphereWireLine
+function	func_800C0D78	confidence med (deferred)	vs_battle_drawSphere
+function	func_800C16DC	confidence med (deferred)	vs_battle_clearSphereTargets
+function	func_800C16FC	confidence med (deferred)	vs_battle_drawRightTargetLabelLink
+function	func_800C1A40	confidence med (deferred)	vs_battle_drawLeftTargetLabelLink
+function	func_800C1D84	confidence med (deferred)	vs_battle_areTargetLabelsSettled
+function	func_800C1DC4	confidence med (deferred)	vs_battle_drawSphereTargetLabel
+function	func_800C20B4	confidence med (deferred)	vs_battle_updateSphereTargetLabels
+function	func_800C2254	confidence med (deferred)	vs_battle_appendSphereCircleVertices
+function	func_800C2368	confidence med (deferred)	vs_battle_appendSphereConeVertices
+function	func_800C253C	confidence med (deferred)	vs_battle_buildSphereWireframe
+function	func_800C282C	confidence med (deferred)	vs_battle_buildSphereCameraBasis
+function	func_800C28AC	confidence med (deferred)	vs_battle_drawSpherePositionCursor
+function	func_800C2B0C	confidence med (deferred)	vs_battle_cacheSphereTerrainRow
+function	func_800C4650	confidence med (deferred)	vs_battle_updateSphereTargetHighlights
+function	func_800C4734	confidence med (deferred)	vs_battle_sphereInteractionMode
+function	func_800C513C	confidence med (deferred)	vs_battle_clearTargetActorHighlight
+function	func_800C5164	confidence med (deferred)	vs_battle_setTargetActorHighlight
+function	func_800C9F98	confidence med (deferred)	vs_battle_drawShortcutButtonMarker
+function	func_800CA97C	confidence med (deferred)	vs_effects_resetScreenEffectState
+function	func_800CB45C	confidence med (deferred)	vs_menu_isSceneNotificationPending
+function	func_800CB50C	confidence med (deferred)	vs_menu_releaseSceneNotification
+function	func_800CB708	confidence med (deferred)	vs_effects_drawScreenEffectOverlay
+function	func_800CB79C	confidence med (deferred)	vs_effects_acquireScreenEffectOverlay
+function	func_800CB7DC	confidence med (deferred)	vs_effects_releaseScreenEffectOverlay
+function	func_800CB83C	confidence med (deferred)	vs_menu_updateTextBoxes
+function	func_800CCE10	confidence med (deferred)	vs_menu_textBoxAnchor
+function	func_800CD0FC	confidence med (deferred)	vs_menu_drawInformationBoxHeader
+function	func_800CD158	confidence med (deferred)	vs_menu_drawInformationBoxBackdrop
+function	func_800CD3A0	confidence med (deferred)	vs_menu_flipTextBoxShapePoint
+function	func_800CDCBC	confidence med (deferred)	vs_effects_drawTrailSegment
+function	func_800CE174	confidence med (deferred)	vs_effects_updateBoneTrail
+function	func_800CE644	confidence med (deferred)	vs_effects_describeEffectDiagnostic
+function	func_800CEEBC	merged by the Zig objects (identical code)	Effects::CanStartTrack
+function	func_800CF218	duplicate: 2 originals share the name	vs_effects_spawnSecondaryEffects
+function	func_800CF458	duplicate: 2 originals share the name	vs_effects_spawnSecondaryEffects
+function	func_800CF48C	merged by the Zig objects (identical code)	Effects::PrimaryEffectPhaseOf
+function	func_800CF7A8	confidence med (deferred)	vs_effects_spawnBoneTrail
+function	func_800CF830	merged by the Zig objects (identical code)	Effects::FadeBoneTrails
+function	func_800CF8BC	confidence med (deferred)	vs_effects_makeSourceActorEffect
+function	func_800CF920	confidence med (deferred)	vs_effects_clearActionEffectMode
+function	func_800CF92C	confidence med (deferred)	vs_effects_clampTrailTexturePoint
+function	func_800CF988	confidence med (deferred)	vs_effects_mapTrailFramebufferTexture
+function	func_800CFAAC	not in our code	vs_effects_stepScreenPointToward
+function	func_800CFB68	duplicate: 2 originals share the name	vs_core_mathInterpolateSevenBitScalar
+function	func_800CFC8C	merged by the Zig objects (identical code)	Core::Math::InterpolateCosineScalar
+function	func_800CFE1C	duplicate: 2 originals share the name	vs_core_mathInterpolateSevenBitScalar
+function	func_800D169C	duplicate: 2 originals share the name	vs_core_mathInterpolateThirteenBitVector
+function	func_800D1718	duplicate: 2 originals share the name	vs_core_mathInterpolateCosineVector
+function	func_800D1778	duplicate: 2 originals share the name	vs_core_mathInterpolateTimedVector
+function	func_800D17A8	duplicate: 2 originals share the name	vs_core_mathInterpolateThirteenBitVector
+function	func_800D1824	duplicate: 2 originals share the name	vs_core_mathInterpolateCosineVector
+function	func_800D1884	duplicate: 2 originals share the name	vs_core_mathInterpolateTimedVector
+function	func_800D18B4	merged by the Zig objects (identical code)	Core::Math::InterpolateCosineScalar
+function	func_800D2ADC	confidence med (deferred)	vs_effects_emitParticleEvent
+function	func_800D4778	confidence med (deferred)	vs_effects_spawnChildScript
+function	func_800D47C8	confidence med (deferred)	vs_effects_setScriptSelector
+function	func_800D48E4	confidence med (deferred)	vs_effects_branchIfActionVariantCleared
+function	func_800D4AB4	confidence med (deferred)	vs_effects_loadActionVariantRegister
+function	func_800D4D64	confidence med (deferred)	vs_effects_sourceActorToSignal
+function	func_800D4D98	confidence med (deferred)	vs_effects_clearActionVariant
+function	func_800D4FB4	confidence med (deferred)	vs_effects_applyPairedColorPreset
+function	func_800D5088	confidence med (deferred)	vs_effects_applyColorPresetTable
+function	func_800D5150	confidence med (deferred)	vs_effects_reportInvalidInstruction
+function	func_800D6388	confidence med (deferred)	vs_effects_targetActionImpact
+function	func_800D63D0	confidence med (deferred)	vs_effects_sourceActionImpact
+function	func_800D6554	merged by the Zig objects (identical code)	Effects::PauseMovingRoomObjects
+function	func_800D6574	confidence med (deferred)	vs_effects_timelineSourceActorToSignal
+function	func_800D66CC	confidence med (deferred)	vs_effects_targetGimmick
+function	func_800D6860	confidence med (deferred)	vs_effects_defenseTimingTarget
+function	func_800DA5CC	confidence med (deferred)	vs_battle_aiUpdateCloseFollowBehavior
+function	func_800DA6A4	confidence med (deferred)	vs_battle_aiUpdateEnemyPursuitBehavior
+function	func_800DA738	confidence med (deferred)	vs_battle_aiUpdateGuardMovementBehavior
+function	func_800DAAD8	confidence med (deferred)	vs_battle_aiUpdateEscortCombatBehavior
+function	func_800DB7B4	confidence med (deferred)	vs_battle_aiUpdateActorLocomotionMode
+function	func_800DBA4C	not in our code	vs_battle_aiUpdateFleeOrWanderBehavior
+function	func_800DBA88	not in our code	vs_battle_aiUpdateAdaptivePursuitBehavior
+function	func_800DBB98	not in our code	vs_battle_aiUpdateSupportFollowBehavior
+function	func_800DCAA0	confidence none (deferred)	vs_battle_aiSimulateActionCandidate
+function	func_800DCBD8	confidence none (deferred)	vs_battle_aiUpdateCandidateHitWeight
+function	func_800DCC94	confidence none (deferred)	vs_battle_aiEvaluateActionCandidate
+function	func_800E0918	confidence med (deferred)	vs_battle_aiUpdateFlightGroundTransition
+function	func_800E0A68	confidence med (deferred)	vs_battle_aiUpdateFlightMovement
+function	func_800E1238	confidence med (deferred)	vs_battle_aiUpdateFlightDirectionalMovement
+function	func_800E153C	confidence med (deferred)	vs_battle_aiMoveToRadialDestination
+function	func_800E4180	confidence med (deferred)	vs_battle_aiUpdateHesitationTurn
+function	func_800E4604	confidence med (deferred)	vs_core_mathSquaredTileDistanceFromComponents
+function	func_800E4764	confidence med (deferred)	vs_battle_aiSelectActorVerticalMovementStep
+function	func_800E47E4	confidence med (deferred)	vs_battle_aiIsTileBehindActorTarget
+function	func_800E48A8	confidence med (deferred)	vs_battle_aiSetActorAiReactionWithDelay
+function	func_800E48F8	confidence med (deferred)	vs_battle_aiRefreshAiTargetTileWhenTracking
+function	func_800E49D8	confidence med (deferred)	vs_battle_aiFindAiDescentTile
+function	func_800E4B10	confidence med (deferred)	vs_battle_aiBeginAiTerrainMovement
+function	func_800E4B18	confidence med (deferred)	vs_battle_aiBeginAiAlternateTerrainMovement
+function	func_800E4B70	confidence med (deferred)	vs_battle_aiBeginAiGroundMovement
+function	func_800E4BB8	confidence med (deferred)	vs_battle_aiRefreshAiMovementCooldown
+function	func_800E4C64	confidence med (deferred)	vs_battle_aiResetActorAiReactionDelay
+function	func_800E4CF4	confidence med (deferred)	vs_battle_aiCanAiActionAffectActor
+function	func_800E4FB0	confidence med (deferred)	vs_battle_aiIsAiTargetBeyondNearRadius
+function	func_800E4FE0	confidence med (deferred)	vs_battle_aiBeginAiMovementTowardPoint
+function	func_800E511C	confidence med (deferred)	vs_battle_aiRunActorAiUpdateStages
+function	func_800E5600	confidence med (deferred)	vs_battle_calculateActionAreaReach
+function	func_800E5998	confidence med (deferred)	vs_battle_aiResolveAiLinkedActors
+function	func_800E5A74	confidence med (deferred)	vs_battle_aiApplySavedAiSettingsFlags
+function	func_800E6700	confidence med (deferred)	vs_battle_aiRefreshActorAiReservations
+function	func_800E6764	confidence med (deferred)	vs_battle_aiForceReleaseActorAiReservations
+function	func_800E6828	confidence med (deferred)	vs_battle_aiInitializeActorLocomotionMode
+function	func_800E6BA0	confidence med (deferred)	vs_field_isPointOutsideSolidVolumes
+function	func_800E6EAC	merged by the Zig objects (identical code)	Battle::Ai::InitializeActorAiExtensionHook
+function	func_800E72D0	confidence med (deferred)	vs_battle_aiApplySavedActorAiRelations
+function	func_800E7698	confidence med (deferred)	vs_battle_aiUpdateBossRadialRetreat
+function	func_800E78F4	confidence med (deferred)	vs_battle_aiIsBossActionReady
+function	func_800E7F8C	confidence med (deferred)	vs_battle_aiUpdateOrbitingBossBehavior
+function	func_800F9800	ambiguous: several rows (shared address range)	Effects::InvokeAllPluginUpdates | Effects::Plg005::UpdateAnalyzeGrid | Effects::Plg052::UpdateRepeatingRing | Effects::P
+function	func_800F9818	ambiguous: several rows (shared address range)	Battle::ApplyLearnedActionUnlocks | Effects::Plg005::UpdateAnalyzeGrid | Effects::Plg053::Grid | Effects::Plg061::Surfac
+function	func_800F986C	confidence med (deferred)	vs_effects_screenDistortionDrawFeedbackTiles
+function	func_800F98E0	ambiguous: several rows (shared address range)	Effects::GenerateTrailOrigins | Effects::Plg050::Ring | Effects::Plg069::Mesh10 | Effects::Plg135::ClosedRing | Effects:
+function	func_800F98F8	ambiguous: several rows (shared address range)	Effects::GenerateTrailOrigins | Effects::Plg065::RotatingSurface | Effects::Plg073::TiledRing | Effects::Plg086::ClosedR
+function	func_800F9910	ambiguous: several rows (shared address range)	Effects::Plg045::ParticleOrigin | Effects::Plg153::Mesh10 | Effects::Plg263::Surface | Effects::Plg300::MirrorSurface | 
+function	func_800F9928	ambiguous: several rows (shared address range)	Effects::Plg082::ParticleOrigin | Effects::Plg152::Grid | Effects::Plg156::ParticleOrigin
+function	func_800F99D8	ambiguous: several rows (shared address range)	Effects::GenerateTrailOrigins | Effects::Plg146::TiledRing
+function	func_800F99F0	ambiguous: several rows (shared address range)	Effects::GenerateTrailOrigins | Effects::Plg087::Surface
+function	func_800F9AE8	ambiguous: several rows (shared address range)	Effects::Plg265::TiledRing | Effects::Plg266::ParticleOrigin
+function	func_800F9BC0	confidence med (deferred)	vs_effects_screenDistortionSetRadialWarp
+function	func_800F9DE8	confidence med (deferred)	vs_effects_screenDistortionSetVignetteEnabled
+function	func_800F9DF8	confidence med (deferred)	vs_effects_screenDistortionEllipsePoint
+function	func_800F9EBC	confidence med (deferred)	vs_effects_screenDistortionAppendVignetteCorner
+function	func_800F9FB8	confidence med (deferred)	vs_effects_screenDistortionDrawVignette
+function	func_800FA07C	ambiguous: several rows (shared address range)	Effects::Plg134::TrailTarget | Effects::Plg141::TrailTarget | Effects::Plg148::TrailTarget | Effects::Templates::TrailNi
+function	func_800FA080	ambiguous: several rows (shared address range)	Effects::Plg224::ParticleTarget
+function	func_800FA094	ambiguous: several rows (shared address range)	Effects::Plg291::TrailTarget | Effects::Templates::TrailNineTarget
+function	func_800FA098	ambiguous: several rows (shared address range)	Effects::Plg045::ParticleTarget | Effects::Plg301::ParticleTarget
+function	func_800FA0B0	ambiguous: several rows (shared address range)	Effects::Plg082::ParticleTarget | Effects::Plg156::ParticleTarget
+function	func_800FA18C	duplicate: 7 originals share the name	vs_effects_templatesTrailNineTarget
+function	func_800FA294	ambiguous: several rows (shared address range)	Effects::Plg134::TrailControl | Effects::Plg141::TrailControl | Effects::Plg148::TrailControl | Effects::Templates::Trai
+function	func_800FA298	ambiguous: several rows (shared address range)	Effects::Plg224::ParticleControl
+function	func_800FA2AC	ambiguous: several rows (shared address range)	Effects::Plg291::TrailControl | Effects::Templates::TrailNineControl
+function	func_800FA2B0	ambiguous: several rows (shared address range)	Effects::Plg045::ParticleControl | Effects::Plg301::ParticleControl
+function	func_800FA2C8	ambiguous: several rows (shared address range)	Effects::Plg082::ParticleControl | Effects::Plg156::ParticleControl
+function	func_800FA324	duplicate: 2 originals share the name	vs_effects_plg052UpdateRepeatingRing
+function	func_800FA368	ambiguous: several rows (shared address range)	Effects::Plg053::ClosedRing | Effects::Plg053::UpdateClosedRing | Effects::Plg085::TiledRing | Effects::Plg142::ClosedRi
+function	func_800FA3A4	duplicate: 7 originals share the name	vs_effects_templatesTrailNineControl
+function	func_800FA3EC	duplicate: 13 originals share the name	vs_effects_generateTrailOrigins
+function	func_800FA404	duplicate: 13 originals share the name	vs_effects_generateTrailOrigins
+function	func_800FA48C	ambiguous: several rows (shared address range)	Effects::Plg170::RotatingSurface | Effects::Plg297::ClosedRing
+function	func_800FA504	duplicate: 13 originals share the name	vs_effects_generateTrailOrigins
+function	func_800FA51C	ambiguous: several rows (shared address range)	Effects::Plg147::ParticleOrigin
+function	func_800FA6B8	ambiguous: several rows (shared address range)	Effects::Plg081::Ring | Effects::Plg166::MirrorSurface | Field::InitializeRoomRuntimeState
+function	func_800FA6F8	ambiguous: several rows (shared address range)	Effects::Plg143::ClosedRing | Effects::Plg160::Ring
+function	func_800FA710	ambiguous: several rows (shared address range)	Effects::Plg139::Grid | Effects::Plg150::Grid
+function	func_800FA748	ambiguous: several rows (shared address range)	Effects::Plg224::ParticleLineRender
+function	func_800FA758	ambiguous: several rows (shared address range)	Effects::Plg134::TrailInit | Effects::Plg141::TrailInit | Effects::Plg148::TrailInit
+function	func_800FA760	ambiguous: several rows (shared address range)	Effects::Plg045::ParticleRender | Effects::Plg301::ParticleRender
+function	func_800FA76C	ambiguous: several rows (shared address range)	Effects::Templates::TrailNineInit
+function	func_800FA770	ambiguous: several rows (shared address range)	Effects::Plg236::RotatingSurface | Effects::Plg291::TrailInit
+function	func_800FA778	ambiguous: several rows (shared address range)	Effects::Plg082::ParticleRender | Effects::Plg156::ParticleRender
+function	func_800FA784	duplicate: 7 originals share the name	vs_effects_templatesTrailNineInit
+function	func_800FA7B0	ambiguous: several rows (shared address range)	Actors::ActorTextureSlotIds | Effects::Plg065::ClosedRing | Effects::Plg161::Ring
+function	func_800FA7F0	ambiguous: several rows (shared address range)	Effects::Plg073::Ring | Effects::Plg242::Grid
+function	func_800FA84C	ambiguous: several rows (shared address range)	Effects::GenerateTrailOrigins | Effects::Plg167::RotatingSurface
+function	func_800FA87C	duplicate: 7 originals share the name	vs_effects_templatesTrailNineInit
+function	func_800FA8D0	ambiguous: several rows (shared address range)	Effects::Plg134::TrailUpdate | Effects::Plg141::TrailUpdate | Effects::Plg146::MirrorSurface | Effects::Plg148::TrailUpd
+function	func_800FA8E4	ambiguous: several rows (shared address range)	Effects::Templates::TrailNineUpdate
+function	func_800FA8FC	duplicate: 8 originals share the name	vs_effects_templatesTrailNineUpdate
+function	func_800FA9E0	ambiguous: several rows (shared address range)	Effects::Plg265::ParticleOrigin
+function	func_800FA9F4	duplicate: 8 originals share the name	vs_effects_templatesTrailNineUpdate
+function	func_800FAA5C	ambiguous: several rows (shared address range)	Effects::Plg134::TrailRender | Effects::Plg141::TrailRender | Effects::Plg148::TrailRender | Menu::Framework::ReturnFrom
+function	func_800FAA70	ambiguous: several rows (shared address range)	Effects::Templates::TrailNineRender
+function	func_800FAA88	duplicate: 8 originals share the name	vs_effects_templatesTrailNineRender
+function	func_800FAB80	duplicate: 8 originals share the name	vs_effects_templatesTrailNineRender
+function	func_800FAB88	duplicate: 7 originals share the name	vs_effects_templatesTrailNineTarget
+function	func_800FACA0	duplicate: 7 originals share the name	vs_effects_templatesTrailNineTarget
+function	func_800FACA4	ambiguous: several rows (shared address range)	Effects::Plg147::ParticleTarget
+function	func_800FADA0	duplicate: 7 originals share the name	vs_effects_templatesTrailNineControl
+function	func_800FAEB8	duplicate: 7 originals share the name	vs_effects_templatesTrailNineControl
+function	func_800FAEBC	ambiguous: several rows (shared address range)	Effects::Plg147::ParticleControl
+function	func_800FAFE8	duplicate: 7 originals share the name	vs_effects_templatesTrailNineTarget
+function	func_800FB0CC	duplicate: 2 originals share the name	vs_effects_plg162UpdateTransposedRing
+function	func_800FB168	ambiguous: several rows (shared address range)	Effects::Plg265::ParticleTarget
+function	func_800FB200	duplicate: 7 originals share the name	vs_effects_templatesTrailNineControl
+function	func_800FB278	duplicate: 7 originals share the name	vs_effects_templatesTrailNineInit
+function	func_800FB2D4	confidence low (deferred)	vs_effects_plg053RingColorProfiles
+function	func_800FB2D8	ambiguous: several rows (shared address range)	Effects::Plg142::Ring | Effects::Plg272::Surface
+function	func_800FB320	ambiguous: several rows (shared address range)	Effects::Plg045::ParticleDispatch | Effects::Plg301::ParticleDispatch
+function	func_800FB338	ambiguous: several rows (shared address range)	Effects::Plg082::ParticleDispatch | Effects::Plg156::ParticleDispatch
+function	func_800FB340	duplicate: 13 originals share the name	vs_effects_generateTrailOrigins
+function	func_800FB36C	ambiguous: several rows (shared address range)	Effects::Plg147::ParticleLineRender
+function	func_800FB380	ambiguous: several rows (shared address range)	Effects::Plg265::ParticleControl
+function	func_800FB390	duplicate: 7 originals share the name	vs_effects_templatesTrailNineInit
+function	func_800FB3D4	ambiguous: several rows (shared address range)	Effects::GenerateTrailOrigins | Effects::Plg300::ParticleRender
+function	func_800FB3F0	duplicate: 8 originals share the name	vs_effects_templatesTrailNineUpdate
+function	func_800FB414	ambiguous: several rows (shared address range)	Effects::GenerateTrailOrigins
+function	func_800FB4B8	ambiguous: several rows (shared address range)	Effects::UpdateTrailEmitter
+function	func_800FB4C0	ambiguous: several rows (shared address range)	Effects::UpdateTrailEmitter
+function	func_800FB4D0	duplicate: 19 originals share the name	vs_effects_updateTrailEmitter
+function	func_800FB4D8	duplicate: 19 originals share the name	vs_effects_updateTrailEmitter
+function	func_800FB4F8	ambiguous: several rows (shared address range)	Effects::Plg087::Grid | Effects::Plg266::ParticleDispatch
+function	func_800FB508	duplicate: 8 originals share the name	vs_effects_templatesTrailNineUpdate
+function	func_800FB544	ambiguous: several rows (shared address range)	Effects::Plg146::ParticleOrigin
+function	func_800FB57C	duplicate: 8 originals share the name	vs_effects_templatesTrailNineRender
+function	func_800FB5B0	duplicate: 19 originals share the name	vs_effects_updateTrailEmitter
+function	func_800FB5CC	ambiguous: several rows (shared address range)	Effects::Plg082::Grid | Effects::Plg156::Grid
+function	func_800FB5D0	duplicate: 19 originals share the name	vs_effects_updateTrailEmitter
+function	func_800FB62C	duplicate: 2 originals share the name	vs_effects_plg162UpdateTransposedRing
+function	func_800FB694	duplicate: 8 originals share the name	vs_effects_templatesTrailNineRender
+function	func_800FB6AC	ambiguous: several rows (shared address range)	Effects::Plg114::ParticleOrigin2
+function	func_800FB6D8	duplicate: 7 originals share the name	vs_effects_templatesTrailNineInit
+function	func_800FB704	duplicate: 13 originals share the name	vs_effects_generateTrailOrigins
+function	func_800FB774	duplicate: 13 originals share the name	vs_effects_generateTrailOrigins
+function	func_800FB78C	ambiguous: several rows (shared address range)	Effects::Plg266::ParticleOrigin2
+function	func_800FB830	ambiguous: several rows (shared address range)	Effects::Plg265::ParticleLineRender
+function	func_800FB850	duplicate: 8 originals share the name	vs_effects_templatesTrailNineUpdate
+function	func_800FB9DC	duplicate: 8 originals share the name	vs_effects_templatesTrailNineRender
+function	func_800FBA00	ambiguous: several rows (shared address range)	Effects::Plg049::Ring | Effects::Plg134::ClosedRing | Effects::Plg148::TiledRing | Effects::Plg169::Ring
+function	func_800FBA18	ambiguous: several rows (shared address range)	Effects::Plg165::RotatingSurface | Effects::Plg291::Grid
+function	func_800FBAF8	ambiguous: several rows (shared address range)	Effects::Plg255::ParticleOrigin
+function	func_800FBB10	ambiguous: several rows (shared address range)	Effects::Plg168::ParticleOrigin
+function	func_800FBB70	duplicate: 7 originals share the name	vs_effects_templatesTrailNineTarget
+function	func_800FBBB0	ambiguous: several rows (shared address range)	Effects::Plg073::TrailTarget
+function	func_800FBCCC	ambiguous: several rows (shared address range)	Effects::Plg146::ParticleTarget
+function	func_800FBD88	duplicate: 7 originals share the name	vs_effects_templatesTrailNineControl
+function	func_800FBDC8	ambiguous: several rows (shared address range)	Effects::Plg073::TrailControl
+function	func_800FBE34	ambiguous: several rows (shared address range)	Effects::Plg114::ParticleTarget2
+function	func_800FBEA0	duplicate: 7 originals share the name	vs_effects_templatesTrailNineTarget
+function	func_800FBEE4	ambiguous: several rows (shared address range)	Effects::Plg146::ParticleControl
+function	func_800FBF10	duplicate: 7 originals share the name	vs_effects_templatesTrailNineTarget
+function	func_800FBF14	ambiguous: several rows (shared address range)	Effects::Plg266::ParticleTarget2
+function	func_800FBFCC	duplicate: 19 originals share the name	vs_effects_updateTrailEmitter
+function	func_800FBFD4	duplicate: 13 originals share the name	vs_effects_generateTrailOrigins
+function	func_800FBFDC	duplicate: 19 originals share the name	vs_effects_updateTrailEmitter
+function	func_800FC048	duplicate: 13 originals share the name	vs_effects_generateTrailOrigins
+function	func_800FC04C	ambiguous: several rows (shared address range)	Effects::Plg114::ParticleControl2
+function	func_800FC0B8	duplicate: 7 originals share the name	vs_effects_templatesTrailNineControl
+function	func_800FC0E4	duplicate: 19 originals share the name	vs_effects_updateTrailEmitter
+function	func_800FC11C	ambiguous: several rows (shared address range)	Effects::Plg082::ClosedRing | Effects::Plg152::ClosedRing
+function	func_800FC128	duplicate: 7 originals share the name	vs_effects_templatesTrailNineControl
+function	func_800FC12C	ambiguous: several rows (shared address range)	Effects::Plg266::ParticleControl2
+function	func_800FC228	duplicate: 2 originals share the name	vs_effects_plg052UpdateRepeatingRing
+function	func_800FC260	duplicate: 7 originals share the name	vs_effects_templatesTrailNineInit
+function	func_800FC270	duplicate: 13 originals share the name	vs_effects_generateTrailOrigins
+function	func_800FC280	ambiguous: several rows (shared address range)	Effects::Plg255::ParticleTarget
+function	func_800FC28C	ambiguous: several rows (shared address range)	Effects::Plg073::TrailInit
+function	func_800FC298	ambiguous: several rows (shared address range)	Effects::Plg168::ParticleTarget
+function	func_800FC340	ambiguous: several rows (shared address range)	Effects::Plg065::ParticleOrigin
+function	func_800FC394	ambiguous: several rows (shared address range)	Effects::Plg146::ParticleLineRender
+function	func_800FC3D8	duplicate: 8 originals share the name	vs_effects_templatesTrailNineUpdate
+function	func_800FC404	ambiguous: several rows (shared address range)	Effects::Plg073::TrailUpdate
+function	func_800FC42C	duplicate: 19 originals share the name	vs_effects_updateTrailEmitter
+function	func_800FC498	ambiguous: several rows (shared address range)	Effects::Plg255::ParticleControl
+function	func_800FC4B0	ambiguous: several rows (shared address range)	Effects::Plg168::ParticleControl
+function	func_800FC4FC	ambiguous: several rows (shared address range)	Effects::Plg114::ParticleLineRender
+function	func_800FC564	duplicate: 8 originals share the name	vs_effects_templatesTrailNineRender
+function	func_800FC590	ambiguous: several rows (shared address range)	Effects::Plg073::TrailRender | Effects::Templates::TrailNineInit
+function	func_800FC5DC	ambiguous: several rows (shared address range)	Effects::Plg266::ParticleLineRender
+function	func_800FC600	duplicate: 7 originals share the name	vs_effects_templatesTrailNineInit
+function	func_800FC624	ambiguous: several rows (shared address range)	Effects::Plg049::TiledRing | Effects::Plg169::ClosedRing
+function	func_800FC708	duplicate: 8 originals share the name	vs_effects_templatesTrailNineUpdate
+function	func_800FC778	duplicate: 8 originals share the name	vs_effects_templatesTrailNineUpdate
+function	func_800FC894	duplicate: 8 originals share the name	vs_effects_templatesTrailNineRender
+function	func_800FC904	duplicate: 8 originals share the name	vs_effects_templatesTrailNineRender
+function	func_800FC948	ambiguous: several rows (shared address range)	Effects::Plg255::ParticleLineRender
+function	func_800FC960	ambiguous: several rows (shared address range)	Effects::Plg168::ParticleLineRender
+function	func_800FCAC8	ambiguous: several rows (shared address range)	Effects::Plg065::ParticleTarget
+function	func_800FCCE0	ambiguous: several rows (shared address range)	Effects::Plg065::ParticleControl
+function	func_800FCD80	duplicate: 13 originals share the name	vs_effects_generateTrailOrigins
+function	func_800FCF18	duplicate: 19 originals share the name	vs_effects_updateTrailEmitter
+function	func_800FCFB4	duplicate: 19 originals share the name	vs_effects_updateTrailEmitter
+function	func_800FCFEC	ambiguous: several rows (shared address range)	Effects::UpdateTrailEmitter
+function	func_800FD190	ambiguous: several rows (shared address range)	Effects::Plg065::ParticleLineRender
+function	func_800FD198	confidence med (deferred)	vs_effects_plg300UpdateForegroundRepeatingRing
+function	func_800FD2E4	duplicate: 19 originals share the name	vs_effects_updateTrailEmitter
+function	func_800FD354	duplicate: 19 originals share the name	vs_effects_updateTrailEmitter
+function	func_800FD51C	ambiguous: several rows (shared address range)	Effects::Plg049::RotatingSurface | Effects::Plg266::TrailTarget
+function	func_800FD534	ambiguous: several rows (shared address range)	Effects::Plg073::RotatingSurface
+function	func_800FD75C	duplicate: 13 originals share the name	vs_effects_generateTrailOrigins
+function	func_800FD894	duplicate: 13 originals share the name	vs_effects_generateTrailOrigins
+function	func_800FD9A4	confidence med (deferred)	vs_effects_plg128BuildCameraOffsetTransform
+function	func_800FDA04	confidence med (deferred)	vs_effects_plg128ResolveCameraEndpoints
+function	func_800FDBAC	duplicate: 19 originals share the name	vs_effects_updateTrailEmitter
+function	func_800FDC20	duplicate: 19 originals share the name	vs_effects_updateTrailEmitter
+function	func_800FDC80	confidence med (deferred)	vs_effects_plg128ResolveActorFacingCamera
+function	func_800FDE48	duplicate: 19 originals share the name	vs_effects_updateTrailEmitter
+function	func_800FDE78	confidence med (deferred)	vs_effects_plg128StoreCameraEndpoints
+function	func_800FDEC4	confidence med (deferred)	vs_effects_plg128UpdateEffectCamera
+function	func_800FE168	ambiguous: several rows (shared address range)	Effects::Plg087::ParticleOrigin
+function	func_800FE3D0	duplicate: 13 originals share the name	vs_effects_generateTrailOrigins
+function	func_800FE3EC	ambiguous: several rows (shared address range)	Effects::Plg005::UpdateAnalyzeGrid | Effects::Plg073::Grid
+function	func_800FE8F0	ambiguous: several rows (shared address range)	Effects::Plg087::ParticleTarget
+function	func_800FE958	duplicate: 19 originals share the name	vs_effects_updateTrailEmitter
+function	func_800FEB08	ambiguous: several rows (shared address range)	Effects::Plg087::ParticleControl
+function	func_800FEFB8	ambiguous: several rows (shared address range)	Effects::Plg087::ParticleLineRender
+function	func_800FF334	duplicate: 19 originals share the name	vs_effects_updateTrailEmitter
+function	func_800FF46C	duplicate: 19 originals share the name	vs_effects_updateTrailEmitter
+function	func_800FFFA8	duplicate: 19 originals share the name	vs_effects_updateTrailEmitter
+function	func_80102E9C	confidence med (deferred)	vs_menu_manualClearMenuExceptRow8
+function	func_80103748	confidence med (deferred)	vs_menu_resultsQueueResultsMusic
+function	func_80103D50	confidence med (deferred)	vs_menu_containerSetPanelVisibility
+function	func_8010467C	confidence med (deferred)	vs_menu_mapMarkAllRoomsVisited
+function	func_80107490	confidence med (deferred)	vs_menu_containerUpdateItemList
+function	func_80107630	confidence med (deferred)	vs_menu_mapDrawDoorStateMarker
+function	func_801080C8	confidence med (deferred)	vs_menu_scoreInitializeAshleyPreviewPose
+function	func_8010839C	confidence med (deferred)	vs_menu_mapShouldDrawDoorStateMarker
+function	func_801089BC	confidence med (deferred)	vs_menu_containerUpdateTransferDirection
+function	func_80109320	confidence med (deferred)	vs_menu_inventoryIsTwoHandedWeapon

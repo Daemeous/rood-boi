@@ -31,12 +31,12 @@ a model reload settled) vs_main_inventory (0xF00 bytes),
 vs_main_inventoryIndices (176 bytes) and Ashley's battle record
 (vs_battle_actor2 behind vs_battle_characterState->unk3C: weapon, shield,
 limbs, statuses) are compared byte for byte (masked: MASKS, with the
-reason), and so are MENUC's cursor memories (D_800F4EE8 cursorMemories ids
+reason), and so are MENUC's cursor memories (vs_menu_frameworkMenuMemory cursorMemories ids
 53..61, bytes 106..123; workshop_bridge.c's header lists how they are
 kept). The operations:
   repair; gems: two into an unequipped weapon, one taken out again, one into
   the unequipped shield, one into the equipped weapon (re-equipped); the
-  equipped weapon enchanted (a status bit of func_8006B270's 0x01E00000
+  equipped weapon enchanted (a status bit of vs_items_removeWeaponEnchantmentOnEquip's 0x01E00000
   written into the battle record), then Gems on it with no change, Attach
   (the original does not re-equip: the enchantment stays), then Gems on it
   backed out with Cross (the original's _attachGems(targetGems) re-equips:
@@ -88,12 +88,12 @@ WEAPONS, SHIELDS, BLADES, GRIPS, ARMOR, GEMS = 0, 0x100, 0x280, 0x540, 0x640, 0x
 WEAPON, SHIELD, BLADE, GRIP, ARMOR_REC, GEM = 32, 48, 44, 16, 40, 28
 IDX = {0: (0, 8), 1: (8, 16), 2: (24, 16), 3: (40, 8), 4: (48, 16), 5: (64, 48), 6: (112, 64)}
 SETTINGS_CURSOR_MEMORY = 1
-MEMORIES = (106, 124)  # D_800F4EE8 cursorMemories ids 53..61 (MENUC's lists)
+MEMORIES = (106, 124)  # vs_menu_frameworkMenuMemory cursorMemories ids 53..61 (MENUC's lists)
 SHIELD_SLOTS = 0x2F    # shields[i].gems[3]: weapon_slots.c's quick-swap bits (a port mod byte)
 WEAPON_SLOT = 7        # weapons[i].gems[3]: its quick-swap slot
 ACTOR2_BYTES = 0x964   # vs_battle_actor2 (BATTLE 146C.h)
 STATUSES = 0x948       # vs_battle_actor2.statuses
-ENCHANT = 0x00400000   # a weapon enchantment's status (func_8006B270 clears 0x01E00000 on vs_battle_equipWeapon)
+ENCHANT = 0x00400000   # a weapon enchantment's status (vs_items_removeWeaponEnchantmentOnEquip clears 0x01E00000 on vs_battle_equipWeapon)
 
 FRAMES = "the two paths take different numbers of frames"
 MASKS = [
@@ -204,7 +204,7 @@ class Session:
 
     def memories(self):
         a, b = MEMORIES
-        return self.g.read(self.sym["D_800F4EE8"] + a, b - a)
+        return self.g.read(self.sym["vs_menu_frameworkMenuMemory"] + a, b - a)
 
     def actor2(self):
         """Ashley's vs_battle_actor2 (psx_get(vs_battle_characterState->unk3C))."""

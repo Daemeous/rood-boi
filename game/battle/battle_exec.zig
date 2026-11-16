@@ -46,13 +46,13 @@ pub fn battleExec() callconv(.c) void {
     var skipCameraUpdate: c_int = 0;
     var i: c_int = undefined;
 
-    v.g.D_800F1858().* = 0;
-    c.func_800FA35C(v.g.vs_main_startState().*);
+    v.g.vs_field_isMenuRequestQueued().* = 0;
+    c.vs_boot_initializeGameplayOverlay(v.g.vs_main_startState().*);
     while (true) {
-        c._finishLoadZnd(v.g.D_800F1AB0().zndId);
+        c._finishLoadZnd(v.g.vs_field_pendingDestinationDoor().zndId);
         while (true) {
-            c.func_80089DC0(v.g.D_800F1AB0().mpdId);
-            v.g.D_800F1858().* = 0;
+            c.vs_field_finishRoomLoad(v.g.vs_field_pendingDestinationDoor().mpdId);
+            v.g.vs_field_isMenuRequestQueued().* = 0;
             while (true) {
                 frame: while (true) {
                     // ROOD_PC: the cutscene viewer's story scenes (pc/src/story_boot.c).
@@ -61,23 +61,23 @@ pub fn battleExec() callconv(.c) void {
                     if (c.pc_weapon_slots_process_pad() == -1) {
                         break :frame;
                     }
-                    const ot: [*c]c.u_long = @ptrCast(@alignCast(v.g.D_80055C80()[psx.conv(usize, v.g.vs_main_frameBuf().*)]));
-                    psx.put(v.g.D_800F1870(), ot);
+                    const ot: [*c]c.u_long = @ptrCast(@alignCast(v.g.vs_render_legacyOrderingTables()[psx.conv(usize, v.g.vs_main_frameBuf().*)]));
+                    psx.put(v.g.vs_render_legacyCurrentOrderingTable(), ot);
                     psx.put(&v.g.vs_scratch().unk8, ot + 2);
                     psx.put(&v.g.vs_scratch().unk4, ot + 18);
                     _ = c.ClearOTagR(ot, 0x822);
                     // ROOD_PC: the frame's typed draw items (the effects') start empty with its table.
                     c.pc_frame_begin();
-                    psx.put(&v.g.vs_scratch().unk0, v.g.D_8005E0C0()[psx.conv(usize, v.g.vs_main_frameBuf().*)]);
+                    psx.put(&v.g.vs_scratch().unk0, v.g.vs_render_legacyPrimitiveBuffers()[psx.conv(usize, v.g.vs_main_frameBuf().*)]);
                     sprite_item.mask(ot, false);
                     if ((v.g.vs_main_startState().* == 3 or v.g.vs_main_startState().* == 4) and
                         (buttonsPressed() & 0x9FF) != 0)
                     {
                         c.vs_main_resetGame();
                     }
-                    _ = c.func_8008C8A8();
-                    const status: c_uint = c.func_800A0BE0(0);
-                    _ = c.func_800A1108(0, &position);
+                    _ = c.vs_field_updateMovingPlatforms();
+                    const status: c_uint = c.vs_actors_actorStateFlags(0);
+                    _ = c.vs_actors_actorPlacement(0, &position);
                     // ROOD_PC: a held name window closed in time.
                     c.pc_charge_skip_name(0);
 
@@ -91,7 +91,7 @@ pub fn battleExec() callconv(.c) void {
                                 if ((status & 0x2000) != 0) {
                                     break :mode;
                                 }
-                                if (c.func_800BEC58(0x20, 0, 0, 0) == 1) {
+                                if (c.vs_event_evaluateRoomEventTriggers(0x20, 0, 0, 0) == 1) {
                                     c.func_80073898();
                                     break :mode;
                                 }
@@ -103,61 +103,61 @@ pub fn battleExec() callconv(.c) void {
                                 if (c.pc_action_poll() != 0) {
                                     break :mode;
                                 }
-                                if (c.func_80074BAC(0, @ptrCast(&position)) != 0) {
+                                if (c.vs_field_checkAshleyTileTriggers(0, @ptrCast(&position)) != 0) {
                                     break :mode;
                                 }
                                 if (characterStats().unk954 == 0 and (status & 0x4000) == 0 and
-                                    v.g.D_800F1858().* == 0 and (v.g.vs_main_buttonsPreviousState().* & 1) != 0)
+                                    v.g.vs_field_isMenuRequestQueued().* == 0 and (v.g.vs_main_buttonsPreviousState().* & 1) != 0)
                                 {
-                                    c.func_8007352C();
+                                    c.vs_field_beginShortcutMenu();
                                     break :mode;
                                 }
-                                if (v.g.D_800F1858().* != 0) {
+                                if (v.g.vs_field_isMenuRequestQueued().* != 0) {
                                     if (characterStats().unk954 == 0 and (status & 0x4000) == 0 and
-                                        c.func_800CACD0(0, 0) != 0)
+                                        c.vs_menu_frameworkOpenGameMenu(0, 0) != 0)
                                     {
-                                        c.func_8007357C(0, 0);
-                                        v.g.D_800F1858().* = 0;
+                                        c.vs_field_beginBattleActionMenu(0, 0);
+                                        v.g.vs_field_isMenuRequestQueued().* = 0;
                                         break :mode;
                                     }
                                 } else if ((buttonsPressed() & 0x10) != 0 and (v.g.vs_main_buttonsPreviousState().* & 1) == 0) {
                                     if (characterStats().unk954 == 0 and (status & 0x4000) == 0) {
-                                        if (c.func_800CACD0(0, 0) != 0) {
-                                            c.func_8007357C(0, 0);
+                                        if (c.vs_menu_frameworkOpenGameMenu(0, 0) != 0) {
+                                            c.vs_field_beginBattleActionMenu(0, 0);
                                             break :mode;
                                         }
                                     } else {
-                                        v.g.D_800F1858().* = 1;
+                                        v.g.vs_field_isMenuRequestQueued().* = 1;
                                     }
                                 }
                                 if ((buttonsPressed() & 0x40) != 0) {
-                                    if (c.func_800A38E0(0) >= 0) {
+                                    if (c.vs_field_findInteractableGimmickAhead(0) >= 0) {
                                         if (characterWeaponDrawn() == 0) {
-                                            _ = c.func_800A3E6C(0);
+                                            _ = c.vs_field_beginGimmickInteraction(0);
                                             break :mode;
                                         }
                                     } else if ((status & 0x3F4000) == 0) {
-                                        i = c.func_800A3760(0, 0xA0, 0x80);
+                                        i = c.vs_actors_findNearestActorAhead(0, 0xA0, 0x80);
                                         if (i >= 0 and psx.at(v.g.vs_battle_actors(), i).*.?.unk24 == 4 and
-                                            c.func_800BEC58(4, 0, i, 0) == 1)
+                                            c.vs_event_evaluateRoomEventTriggers(4, 0, i, 0) == 1)
                                         {
                                             c.func_80073898();
                                             break :mode;
                                         }
-                                        if (c.func_80074860(0) != 0) {
+                                        if (c.vs_field_tryTriggerFacingTileEvent(0) != 0) {
                                             c.func_80073898();
                                             break :mode;
                                         }
-                                        var result: c_int = psx.conv(c_int, psx.addr(c.func_800748B8(0)));
+                                        var result: c_int = psx.conv(c_int, psx.addr(c.vs_field_findFacingRoomObject(0)));
                                         if (result != 0) {
-                                            if (c.func_80073AFC(@ptrFromInt(@as(usize, psx.conv(u32, result)))) == 0) {
-                                                c.func_80073AA4();
+                                            if (c.vs_field_interactWithLockedRoomObject(@ptrFromInt(@as(usize, psx.conv(u32, result)))) == 0) {
+                                                c.vs_field_beginObjectInteractionWait();
                                                 break :mode;
                                             }
                                         } else {
-                                            result = psx.conv(c_int, psx.addr(c.func_80074950(0)));
+                                            result = psx.conv(c_int, psx.addr(c.vs_field_findFacingUnlootedChest(0)));
                                             if (result != 0) {
-                                                c.func_80074050(@ptrFromInt(@as(usize, psx.conv(u32, result))), 0);
+                                                c.vs_field_beginChestInteraction(@ptrFromInt(@as(usize, psx.conv(u32, result))), 0);
                                                 break :mode;
                                             }
                                         }
@@ -172,40 +172,40 @@ pub fn battleExec() callconv(.c) void {
                                         if (characterWeaponDrawn() != 0) {
                                             if (characterStats().unk954 == 0 and (characterStats().statuses & 0x2000) == 0) {
                                                 c.vs_main_playSfxDefault(0x7E, 9);
-                                                c.func_80072EC4(0, 1);
+                                                c.vs_battle_beginActorActionSelection(0, 1);
                                                 skipCameraUpdate = 1;
                                                 break :mode;
                                             }
                                             c.vs_main_playSfxDefault(0x7E, 0xC);
                                         } else if ((status & 0x180000) == 0) {
-                                            c.func_800734C0();
+                                            c.vs_battle_beginAshleyWeaponToggle();
                                             break :mode;
                                         }
                                     }
                                     if ((buttonsPressed() & 0x40) != 0 and characterWeaponDrawn() != 0) {
-                                        c.func_800734C0();
+                                        c.vs_battle_beginAshleyWeaponToggle();
                                         break :mode;
                                     }
                                 }
-                                if (c.func_8006E7F0() != 0) {
+                                if (c.vs_actors_updateAshleyMovementInput() != 0) {
                                     break :mode;
                                 }
-                                switch (c.func_80075554()) {
+                                switch (c.vs_actors_executeQueuedActorCommands()) {
                                     1 => c.func_80073898(),
                                     2 => {
                                         v.g.D_800F18FC().* = 0;
-                                        c.func_8006FB48();
+                                        c.vs_items_openPendingEnemyLoot();
                                     },
                                     else => {},
                                 }
                             },
 
-                            2 => c.func_8006E640(0),
+                            2 => c.vs_field_trackActionCameraTarget(0),
 
                             3 => {
                                 if (v.g._cameraMode().* == 1) {
-                                    c.func_8006E158();
-                                    c.func_800A4D8C();
+                                    c.vs_field_updateCameraOrbitInput();
+                                    c.vs_actors_updateRoomActorMovement();
                                     setCameraPosition();
                                     if (v.g.vs_battle_cameraCurrentSpherical().delta.yaw != 0) {
                                         break :mode;
@@ -217,24 +217,24 @@ pub fn battleExec() callconv(.c) void {
                                         i = 0;
                                         while (i < 16) : (i +%= 1) {
                                             if (v.g.vs_battle_actors()[@intCast(i)] != null and
-                                                (c.func_800A0BE0(i) & 0x20004000) != 0)
+                                                (c.vs_actors_actorStateFlags(i) & 0x20004000) != 0)
                                             {
                                                 ready = 0;
                                                 break;
                                             }
                                         }
                                         if (ready != 0) {
-                                            c.func_80073870();
+                                            c.vs_event_startPreparedCutscene();
                                         }
                                     }
                                 } else {
-                                    c.func_800C8778();
-                                    _ = c.func_80075554();
-                                    if (c.func_800BEC58(0xFF, 0, 0, 0) == 0) {
+                                    c.vs_render_updateGimImageSet();
+                                    _ = c.vs_actors_executeQueuedActorCommands();
+                                    if (c.vs_event_evaluateRoomEventTriggers(0xFF, 0, 0, 0) == 0) {
                                         if (v.g.vs_main_startState().* == 3 or v.g.vs_main_startState().* == 4) {
                                             c.vs_main_resetGame();
                                         } else {
-                                            c.func_800738E4();
+                                            c.vs_event_endFieldCutscene();
                                         }
                                     }
                                 }
@@ -242,7 +242,7 @@ pub fn battleExec() callconv(.c) void {
 
                             4 => {
                                 if (c.func_800CEEBC() != 0) {
-                                    _ = c.func_800CEF74(0);
+                                    _ = c.vs_effects_startEffectTrack(0);
                                 }
                                 if ((v.g.D_800F1868().* & 3) == 0) {
                                     c.func_80073484();
@@ -251,19 +251,19 @@ pub fn battleExec() callconv(.c) void {
 
                             5 => {
                                 if (v.g._cameraMode().* == 1) {
-                                    c.func_800C97BC();
-                                    const menu = c.func_800CB66C();
+                                    c.vs_menu_frameworkUpdateMenuOverlay();
+                                    const menu = c.vs_menu_frameworkActionSelectionState();
                                     psx.put(v.g.D_800F18EC(), menu);
                                     const view: *v.D_800F18EC_t = @ptrCast(@alignCast(menu.?));
                                     if (view.unk0 == 2) {
-                                        c.func_800735F8(menu);
+                                        c.vs_field_dispatchBattleActionMenuResult(menu);
                                     }
                                 }
                             },
 
                             6 => {
                                 if ((v.g.vs_main_buttonsPreviousState().* & 1) != 0) {
-                                    c.func_800C9F88();
+                                    c.vs_battle_showShortcutHud();
                                     var shortcut: c_int = undefined;
                                     if ((buttonsPressed() & 0x20) != 0) {
                                         shortcut = 1;
@@ -285,21 +285,21 @@ pub fn battleExec() callconv(.c) void {
                                         break :mode;
                                     }
                                     if (c.vs_battle_validateShortcutSelection(shortcut) != 0) {
-                                        c.func_8007357C(0, 0);
+                                        c.vs_field_beginBattleActionMenu(0, 0);
                                     }
                                 } else {
-                                    c.func_80073554();
+                                    c.vs_field_endShortcutMenu();
                                 }
                             },
 
                             7 => switch (v.g._cameraMode().*) {
-                                0 => c.func_80074580(),
+                                0 => c.vs_field_updateFirstPersonViewEntry(),
                                 1 => {
                                     c._checkFirstPersonViewExit();
-                                    c.func_8006EC7C();
+                                    c.vs_field_updateFirstPersonCamera();
                                 },
                                 2 => {
-                                    c.func_80074744();
+                                    c.vs_field_updateFirstPersonViewExit();
                                     if ((buttonsPressed() & 0xC00) != 0) {
                                         c._initBattleCameraTransition();
                                     }
@@ -310,20 +310,20 @@ pub fn battleExec() callconv(.c) void {
                             8 => {
                                 switch (v.g._cameraMode().*) {
                                     1 => {
-                                        if (c.func_8007418C() == 0) {
-                                            c.func_800741D4();
+                                        if (c.vs_field_stepTrapCameraFocus() == 0) {
+                                            c.vs_field_dispatchTrapOrChestInteraction();
                                         }
                                     },
                                     2 => {
                                         if (c.func_80074294() == 0) {
-                                            c.func_80074314();
+                                            c.vs_field_finishTrapInteraction();
                                         }
                                     },
                                     4 => {
-                                        _ = c.func_80074374();
+                                        _ = c.vs_field_trackInteractionCameraToAshley();
                                         if (c._isLookAtAtDestination() != 0) {
-                                            _ = c.func_800DEC88(&v.g.D_800F19CC().*.?.unk854[0]);
-                                            c.func_8006FBCC(0);
+                                            _ = c.vs_battle_aiRebuildActorActionPlans(&v.g.vs_battle_actionState().*.?.unk854[0]);
+                                            c.vs_battle_beginPostActionRecovery(0);
                                             v.g.D_800F196C().* = 2;
                                         }
                                     },
@@ -335,25 +335,25 @@ pub fn battleExec() callconv(.c) void {
                             9 => {
                                 switch (v.g._cameraMode().*) {
                                     1 => {
-                                        if (c.func_80074120() == 0) {
-                                            c.func_800741D4();
+                                        if (c.vs_field_waitForChestCameraFocus() == 0) {
+                                            c.vs_field_dispatchTrapOrChestInteraction();
                                         }
                                     },
                                     2 => {
                                         if (c.func_8007424C() != 0) {
-                                            c.func_800743E0();
+                                            c.vs_field_openChestContents();
                                         }
                                     },
                                     3 => {
-                                        if (c.func_800744B8() == 0) {
+                                        if (c.vs_field_updateChestContentsSelection() == 0) {
                                             c.func_800742A4();
                                         }
                                     },
                                     4 => {
-                                        const ready = c.func_80074374();
+                                        const ready = c.vs_field_trackInteractionCameraToAshley();
                                         if (c._isLookAtAtDestination() != 0 and ready != 0) {
                                             c.func_800CB50C();
-                                            c.func_8006FBCC(0);
+                                            c.vs_battle_beginPostActionRecovery(0);
                                             v.g.D_800F196C().* = 2;
                                         }
                                     },
@@ -363,20 +363,20 @@ pub fn battleExec() callconv(.c) void {
                             },
 
                             10 => {
-                                c.func_800B64A8(0, 0, 0);
-                                if (c.func_8009E4B0(0) == 0) {
+                                c.vs_actors_setDirectMovement(0, 0, 0);
+                                if (c.vs_actors_isActorActionAnimationBusy(0) == 0) {
                                     c.func_8007350C();
                                 }
                             },
 
                             11 => {
                                 if (c.func_800CB45C() == 0) {
-                                    c.func_80073ACC();
+                                    c.vs_field_endObjectInteractionWait();
                                 }
                             },
 
                             12 => {
-                                if (c.func_800A47C4() == 0) {
+                                if (c.vs_field_areGimmicksMoving() == 0) {
                                     c.func_8006F5CC();
                                 }
                             },
@@ -385,15 +385,15 @@ pub fn battleExec() callconv(.c) void {
                         }
                     } else {
                         if (v.g.D_800F196C().* == 3) {
-                            c.func_800C8778();
+                            c.vs_render_updateGimImageSet();
                         } else if ((status & 0x2000) == 0) {
-                            _ = c.func_8006E7F0();
+                            _ = c.vs_actors_updateAshleyMovementInput();
                         }
                     }
 
-                    _ = c.func_800BF850();
+                    _ = c.vs_event_updateEventPlayback();
                     switch (v.g.D_800F196C().*) {
-                        1, 10, 12 => _ = c.func_8006EBF8(),
+                        1, 10, 12 => _ = c.vs_field_updateAshleyFollowCamera(),
                         2 => switch (v.g._cameraMode().*) {
                             7...10 => {},
                             else => setCameraPosition(),
@@ -410,19 +410,19 @@ pub fn battleExec() callconv(.c) void {
                         }
                     }
 
-                    c.func_80069D78();
-                    c.func_8007ACB0();
+                    c.vs_field_updateCameraFacingState();
+                    c.vs_render_buildCameraViewMatrix();
                     common.gte.setFrame(&v.g.vs_view().viewMatrix);
                     if (skipCameraUpdate == 0) {
                         switch (v.g.D_800F196C().*) {
                             0, 1 => {
                                 const transition = v.g.vs_battle_screenTransitionStep().*;
                                 if (transition != 1 and transition != 2 and transition != 4) {
-                                    switch (c.func_80088B6C()) {
+                                    switch (c.vs_battle_updateRoomActorVitals()) {
                                         1 => c.func_80073898(),
                                         2 => {
                                             v.g.D_800F18FC().* = 0;
-                                            c.func_8006FB48();
+                                            c.vs_items_openPendingEnemyLoot();
                                         },
                                         else => {},
                                     }
@@ -443,15 +443,15 @@ pub fn battleExec() callconv(.c) void {
                                         if (c.pc_charge_skip(5) != 0) break :camera;
                                         c.func_80078748();
                                     },
-                                    6 => c.func_800787F0(),
-                                    7 => c.func_80078AB4(),
+                                    6 => c.vs_battle_startReadyActionAnimation(),
+                                    7 => c.vs_battle_updateBattleAbilityTiming(),
                                     8 => c.func_80079030(),
                                     9 => c.func_80079050(),
                                     10 => c.func_800790BC(),
-                                    11 => c.func_800793C0(),
-                                    12 => c.func_800797BC(),
-                                    13 => c.func_8007980C(),
-                                    14 => c.func_8007983C(),
+                                    11 => c.vs_battle_finishActionSequence(),
+                                    12 => c.vs_battle_updateLootResults(),
+                                    13 => c.vs_battle_updateAbilityUnlockDelay(),
+                                    14 => c.vs_battle_updateAbilityUnlockResults(),
                                     else => {},
                                 }
                                 if (v.g._cameraMode().* < 4) {
@@ -464,26 +464,26 @@ pub fn battleExec() callconv(.c) void {
                         }
                     }
 
-                    if (v.g.D_800F190C().* != 0) {
-                        c.func_8008EC48(null);
-                        c.func_8008AC78();
-                        c.func_8008B28C();
+                    if (v.g.vs_field_isFieldRenderingEnabled().* != 0) {
+                        c.vs_field_drawRoomBackground(null);
+                        c.vs_field_drawRoomScene();
+                        c.vs_field_advanceRoomAnimationClock();
                         c.SetGeomOffset(160, 112);
-                        if (v.g.D_800F190C().* != 0) {
-                            c.func_800AEF94(psx.cptr(c.MATRIX, &v.g.vs_view().viewMatrix));
+                        if (v.g.vs_field_isFieldRenderingEnabled().* != 0) {
+                            c.vs_actors_updateAndDrawRoomModels(psx.cptr(c.MATRIX, &v.g.vs_view().viewMatrix));
                             _ = c.vs_battle_processObjectDataQueue();
                             common.gte.setFrame(&v.g.vs_view().viewMatrix);
                             c.func_800941FC();
                         }
                     }
                     i = 0;
-                    v.g.D_800F1868().* = c.func_800CF060();
+                    v.g.D_800F1868().* = c.vs_effects_updateEffectRuntime();
                     // ROOD_PC: PC_CLASSIC (classic_hook.h) around the status display, which widescreen anchors to the
                     // left edge (pc/src/gpu_hw.c).
                     {
                         const first = cursor();
                         const hud = psx.get(v.g.vs_scratch().unk0);
-                        c.func_800CA2DC();
+                        c.vs_battle_drawBattleHud();
                         if (psx.weak(Anchor, "pc_hw_anchor_packets")) |anchor| {
                             anchor(hud, psx.get(v.g.vs_scratch().unk0), 1);
                         }
@@ -492,28 +492,28 @@ pub fn battleExec() callconv(.c) void {
                     c.func_800CB83C();
                     while (i < @divTrunc(v.g.vs_gametime_tickspeed().*, 2)) : (i +%= 1) {
                         c.vs_main_setVibrateParams();
-                        c.func_80047FFC();
-                        c.func_800481C0();
-                        c.func_800483FC();
+                        c.vs_render_updateBackgroundGradientTransition();
+                        c.vs_render_updateModelTintTransitions();
+                        c.vs_render_updateClutTransitions();
                     }
                     c._drawScreenTransition(ot);
-                    c.func_8007D734(ot);
+                    c.vs_render_drawFramebufferEffect(ot);
                     if (v.g.D_800F196C().* == 1) {
                         c.func_800E511C();
                     } else if (v.g.D_800F196C().* == 3) {
-                        c.func_800E5308();
+                        c.vs_battle_aiUpdateActorNavigationOverrides();
                     }
-                    sprite_item.mask(ot + 0x820, v.g.D_800F1B98().* == 1 or v.g.D_800F1B98().* == 2);
-                    _ = c.func_800E45B4();
-                    _ = c.func_8007629C(ot + 0x821);
-                    c.func_8007DF98();
+                    sprite_item.mask(ot + 0x820, v.g.vs_render_framebufferEffectState().* == 1 or v.g.vs_render_framebufferEffectState().* == 2);
+                    _ = c.vs_core_elapsedFrameCounterTicks();
+                    _ = c.vs_render_presentFieldFrame(ot + 0x821);
+                    c.vs_render_advanceTexturePageRetirements();
                     if (transitionFinished()) break :frame;
                 }
                 if (transitionFinished()) break;
             }
-            c.func_8008A3A0();
+            c.vs_field_unloadCurrentRoom();
             if (v.g.vs_battle_screenTransitionStep().* == 2) break;
         }
-        c.func_80089098();
+        c.vs_field_releaseZoneData();
     }
 }

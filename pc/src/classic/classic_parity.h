@@ -31,8 +31,8 @@ extern "C" {
  * sites only the classic layer has. */
 enum {
     PC_CLASSIC_NONE = 0,
-    PC_CLASSIC_STATUS = 1, /* the timing word (BATTLE.PRG func_800958A4) */
-    PC_CLASSIC_CHAIN = 2,  /* 3 CHAINS (func_80095A4C) */
+    PC_CLASSIC_STATUS = 1, /* the timing word (BATTLE.PRG vs_battle_drawAbilityTimingResult) */
+    PC_CLASSIC_CHAIN = 2,  /* 3 CHAINS (vs_battle_drawChainCount) */
     PC_CLASSIC_BUFF = 3,   /* WEAPON HUMAN +1 (func_8009695C) */
     PC_CLASSIC_DAMAGE = 4, /* a number over an actor (func_80094B0C) */
     PC_CLASSIC_GAUGES = 8, /* the HP / MP / RISK gauges, digits, labels or RISK ZERO inside the panel (hud.h PC_HUD_GAUGES) */
@@ -43,10 +43,10 @@ enum {
     PC_CLASSIC_ACTOR_WORD = 13, /* MISS and the combat labels over the actors (func_8009506C, func_80095258) */
     PC_CLASSIC_TIMER = 14, /* the time attack's timer (5BF94.c _renderTimer) */
     PC_CLASSIC_EMOTE = 15, /* the emote balloons over the actors (2842C.c func_80095C18, func_8009651C) */
-    PC_CLASSIC_TEXT_FRAME = 16, /* a text box's frame: the talk bubbles' and the info box's (func_800CD3E4) */
+    PC_CLASSIC_TEXT_FRAME = 16, /* a text box's frame: the talk bubbles' and the info box's (vs_menu_drawTextBoxFrame) */
     PC_CLASSIC_TEXT_BAND = 17, /* a text box's band: the name window's (func_800CD158) */
     PC_CLASSIC_BOX_TEXT = 18, /* a text box's text as _printVariableWidthFont sets it (its glyphs) */
-    PC_CLASSIC_IMAGE = 19, /* a portrait or still (func_800CCA90) */
+    PC_CLASSIC_IMAGE = 19, /* a portrait or still (vs_render_drawGimLayer) */
     PC_CLASSIC_TARGET_ROW = 20, /* a target row: a part's name and its plate (58578.c func_800C1DC4) */
     PC_CLASSIC_TARGET_LINE = 21, /* a selected row's leader lines (func_800C16FC, func_800C1A40) */
     PC_CLASSIC_TARGET_MARKER = 22, /* the area target's marker (func_800C28AC) */
@@ -73,7 +73,7 @@ enum {
     PC_CLASSIC_FILE_ELEMENT = 43, /* a card's or a file's panel in it (_drawFileMenuElement: at once) */
     PC_CLASSIC_MENUF = 44, /* MENUF's screens (3B8.c: their sprite leaves, draw areas and prompt; currentMenu 15) */
     PC_CLASSIC_MENUF_LOAD = 45, /* MENUF's VRAM uploads (its TIMs, the pulsed CLUT row: at once) */
-    PC_CLASSIC_STATUS_PANEL = 46, /* the whole status display (func_800CA2DC): captured only */
+    PC_CLASSIC_STATUS_PANEL = 46, /* the whole status display (vs_battle_drawBattleHud): captured only */
     PC_CLASSIC_KINDS = 47
 };
 const char* pc_classic_kind_name(int kind); /* "status", ...; "" for none */

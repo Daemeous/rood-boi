@@ -6,7 +6,7 @@ const v = @import("views_5BF94");
 /// orig: vs_battle_sampleCurve (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// Curve `curve_id` (1-based) at `distance` modulo its length, or 0 for curve 0 or past the block's count.
 pub fn sampleCurve(curve_id: c_int, distance: c_int) callconv(.c) c_int {
-    const pfile = v.g.D_800F569C().*.?;
+    const pfile = v.g.vs_effects_package().*.?;
     const block = psx.get(pfile.curveBlock);
     if (curve_id != 0 and @as(c_int, block.?.count) >= curve_id) {
         const k = curve_id -% 1;

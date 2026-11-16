@@ -5,14 +5,14 @@
 
 .section .text, "ax"
 
-glabel func_800DB370
+glabel vs_battle_aiApproachActor
     addiu   $sp, $sp, -0x20
     sw      $ra, 0x18($sp)
     sw      $s0, 0x10($sp)
     sw      $s1, 0x14($sp)
     sw      $s2, 0xC($sp)
-    lui     $t0, %hi(D_800F4538)
-    addiu   $t0, $t0, %lo(D_800F4538)
+    lui     $t0, %hi(vs_actors_actorRecords)
+    addiu   $t0, $t0, %lo(vs_actors_actorRecords)
     sll     $v0, $a1, 2
     addu    $t0, $t0, $v0
     lw      $t0, 0x0($t0)
@@ -44,12 +44,12 @@ glabel func_800DB370
     srl     $t0, $t0, 8
     addi    $a0, $t0, -0x2 /* handwritten instruction */
 .L800DB400:
-    jal     func_8008E2D4
+    jal     vs_field_movingPlatformTargetWaypoint
     addu    $s2, $a0, $zero
     lw      $a1, 0x0($v0)
     lw      $a2, 0x8($v0)
     addiu   $a3, $s0, 0x168
-    jal     func_800DFA54
+    jal     vs_battle_aiFindNearestRouteGateEntry
     addu    $a0, $s2, $zero
     lw      $a0, 0x168($s0)
     nop
@@ -78,7 +78,7 @@ glabel func_800DB370
     sw      $v0, 0x168($s0)
 .L800DB478:
     addu    $a0, $s0, $zero
-    jal     func_800E24EC
+    jal     vs_battle_aiUpdateTargetApproachMovement
     addu    $a1, $s1, $zero
 .L800DB484:
     lw      $ra, 0x18($sp)
@@ -87,13 +87,13 @@ glabel func_800DB370
     lw      $s1, 0x14($sp)
     lw      $s2, 0xC($sp)
     addiu   $sp, $sp, 0x20
-    bnez    $v0, func_800DB4AC
+    bnez    $v0, vs_battle_aiSetMovementBehavior
     addiu   $a1, $zero, 0x1
     jr      $ra
     addiu   $a1, $zero, 0x0
-endlabel func_800DB370
+endlabel vs_battle_aiApproachActor
 
-glabel func_800DB4AC
+glabel vs_battle_aiSetMovementBehavior
     lbu     $v0, 0x8A($a0)
     addi    $v1, $zero, -0x1 /* handwritten instruction */
     bne     $v0, $a1, .L800DB4C0
@@ -170,48 +170,48 @@ glabel func_800DB4AC
     addu    $a2, $a0, $a2
     bgez    $zero, func_800E4BB8
     sb      $zero, 0x474($a2)
-endlabel func_800DB4AC
+endlabel vs_battle_aiSetMovementBehavior
 
-glabel func_800DB5B0
+glabel vs_battle_aiWanderAroundSavedCenter
     lw      $a1, 0xCC($a0)
     lw      $a2, 0xC8($a0)
-endlabel func_800DB5B0
+endlabel vs_battle_aiWanderAroundSavedCenter
 
-glabel func_800DB5B8
+glabel vs_battle_aiWanderAroundTile
     addu    $t9, $ra, $zero
     addu    $t8, $a1, $zero
     addu    $t7, $a2, $zero
-    jal     func_800DB4AC
+    jal     vs_battle_aiSetMovementBehavior
     addiu   $a1, $zero, 0x3
     addu    $ra, $t9, $zero
     addu    $a1, $t8, $zero
-    bgez    $zero, func_800E1EAC
+    bgez    $zero, vs_battle_aiUpdateWanderMovement
     addu    $a2, $t7, $zero
-endlabel func_800DB5B8
+endlabel vs_battle_aiWanderAroundTile
 
-glabel func_800DB5DC
+glabel vs_battle_aiMoveToTile
     sw      $a1, 0x168($a0)
     addu    $t9, $ra, $zero
     addu    $t8, $a2, $zero
-    jal     func_800DB4AC
+    jal     vs_battle_aiSetMovementBehavior
     addiu   $a1, $zero, 0x2
     addu    $ra, $t9, $zero
     bgez    $zero, L800E5030
     addu    $a1, $t8, $zero
-endlabel func_800DB5DC
+endlabel vs_battle_aiMoveToTile
 
-glabel func_800DB5FC
+glabel vs_battle_aiPatrolWaypoints
     lui     $a3, (0x1F8003F4 >> 16)
     lw      $a3, (0x1F8003F4 & 0xFFFF)($a3)
     beqz    $a2, .L800DB4BC
     addu    $t9, $ra, $zero
-    jal     func_800DB4AC
+    jal     vs_battle_aiSetMovementBehavior
     addiu   $a1, $zero, 0x5
-    bgez    $zero, func_800E23AC
+    bgez    $zero, vs_battle_aiUpdateWaypointPatrol
     addu    $ra, $t9, $zero
-endlabel func_800DB5FC
+endlabel vs_battle_aiPatrolWaypoints
 
-glabel func_800DB61C
+glabel vs_battle_aiFleeVisibleEnemies
     addiu   $sp, $sp, -0x20
     sw      $s0, 0x10($sp)
     sw      $ra, 0x18($sp)
@@ -223,8 +223,8 @@ glabel func_800DB61C
     addu    $t8, $zero, $zero
 .L800DB640:
     lw      $t1, 0x4($t0)
-    lui     $t2, %hi(D_800F4538)
-    addiu   $t2, $t2, %lo(D_800F4538)
+    lui     $t2, %hi(vs_actors_actorRecords)
+    addiu   $t2, $t2, %lo(vs_actors_actorRecords)
     sll     $t1, $t1, 2
     addu    $v0, $t1, $s0
     lw      $v0, 0x1A4($v0)
@@ -290,19 +290,19 @@ glabel func_800DB61C
     addu    $a0, $s0, $zero
     lw      $s0, 0x10($sp)
     addiu   $sp, $sp, 0x20
-    bnez    $v0, func_800DB4AC
+    bnez    $v0, vs_battle_aiSetMovementBehavior
     addiu   $a1, $zero, 0x4
     jr      $ra
     nop
-endlabel func_800DB61C
+endlabel vs_battle_aiFleeVisibleEnemies
 
-glabel func_800DB74C
+glabel vs_battle_aiTrackActorPosition
     addiu   $sp, $sp, -0x20
     sw      $s0, 0x10($sp)
     sw      $s1, 0x14($sp)
     sw      $ra, 0x18($sp)
-    lui     $v0, %hi(D_800F4538)
-    addiu   $v0, $v0, %lo(D_800F4538)
+    lui     $v0, %hi(vs_actors_actorRecords)
+    addiu   $v0, $v0, %lo(vs_actors_actorRecords)
     sll     $v1, $a1, 2
     addu    $v0, $v0, $v1
     lw      $v0, 0x0($v0)
@@ -313,18 +313,18 @@ glabel func_800DB74C
     lw      $t2, 0x5C($v0)
     sw      $t0, 0x17C($a0)
     sw      $t1, 0x180($a0)
-    jal     func_800E2B2C
+    jal     vs_battle_aiUpdateTargetFacing
     sw      $t2, 0x168($a0)
     addu    $a0, $s0, $zero
     lw      $s0, 0x10($sp)
     lw      $s1, 0x14($sp)
     lw      $ra, 0x18($sp)
     addiu   $a1, $zero, 0x6
-    bnez    $v0, func_800DB4AC
+    bnez    $v0, vs_battle_aiSetMovementBehavior
     addiu   $sp, $sp, 0x20
 .L800DB7B0:
     jr      $ra
-endlabel func_800DB74C
+endlabel vs_battle_aiTrackActorPosition
 
 glabel func_800DB7B4
     addiu   $t2, $zero, 0x1
@@ -340,32 +340,32 @@ glabel func_800DB7B4
     slti    $v0, $v0, 0x9
     beqz    $v0, .L800DB7F0
     nop
-    bgez    $zero, func_800DEEFC
+    bgez    $zero, vs_battle_aiIssueActorCommand
     addiu   $a1, $zero, 0x1
 .L800DB7F0:
     addiu   $sp, $sp, -0x20
     sw      $ra, 0x18($sp)
     sw      $s0, 0x10($sp)
-    jal     func_800E678C
+    jal     vs_battle_aiReleaseActorAiReservations
     addu    $s0, $a0, $zero
     sb      $zero, 0x12D($s0)
     addu    $a0, $s0, $zero
     lw      $s0, 0x10($sp)
     lw      $ra, 0x18($sp)
     addiu   $a1, $zero, 0x2
-    bgez    $zero, func_800DEEFC
+    bgez    $zero, vs_battle_aiIssueActorCommand
     addiu   $sp, $sp, 0x20
 endlabel func_800DB7B4
 
-glabel func_800DB820
+glabel vs_battle_aiDispatchMovementBehavior
     addiu   $sp, $sp, -0x20
     sw      $s0, 0x10($sp)
     sw      $ra, 0x18($sp)
-    jal     func_800DAD9C
+    jal     vs_battle_aiTryExecutePlannedActions
     addu    $s0, $a0, $zero
     bnez    $v0, .L800DB878
     addu    $a0, $s0, $zero
-    jal     func_800DB0BC
+    jal     vs_battle_aiTryRecoverBlockedMovement
     nop
     bnez    $v0, .L800DB878
     lw      $v1, 0x68($s0)
@@ -379,7 +379,7 @@ glabel func_800DB820
 .L800DB868:
     lw      $ra, 0x18($sp)
     lw      $s0, 0x10($sp)
-    bgez    $zero, func_800DB5B0
+    bgez    $zero, vs_battle_aiWanderAroundSavedCenter
     addiu   $sp, $sp, 0x20
 .L800DB878:
     lw      $ra, 0x18($sp)
@@ -400,20 +400,20 @@ alabel L800DB89C
     lw      $s0, 0x10($sp)
     jr      $ra
     addiu   $sp, $sp, 0x30
-endlabel func_800DB820
+endlabel vs_battle_aiDispatchMovementBehavior
 
-glabel func_800DB8AC
+glabel vs_battle_aiCanApproachEngagedTarget
     addu    $t6, $ra, $zero
     lhu     $t7, 0x8E($a0)
-    jal     func_800DBCB4
+    jal     vs_battle_aiIsActionCooldownReady
     lhu     $t5, 0x98($a0)
     bnez    $t7, .L800DB934
     addiu   $v0, $zero, 0x1
     bnez    $t5, .L800DB934
     addu    $v0, $zero, $zero
     lw      $t0, 0xC($a1)
-    lui     $t1, %hi(D_800F58BC)
-    lw      $t1, %lo(D_800F58BC)($t1)
+    lui     $t1, %hi(vs_battle_aiRoomAiState)
+    lw      $t1, %lo(vs_battle_aiRoomAiState)($t1)
     andi    $t0, $t0, 0xF
     sll     $t0, $t0, 2
     addu    $t0, $t0, $a0
@@ -440,9 +440,9 @@ glabel func_800DB8AC
 .L800DB934:
     addu    $ra, $t6, $zero
     jr      $ra
-endlabel func_800DB8AC
+endlabel vs_battle_aiCanApproachEngagedTarget
 
-glabel func_800DB93C
+glabel vs_battle_aiFindGapLandingTile
     lui     $t0, (0x1F8003C0 >> 16)
     addiu   $sp, $sp, -0x30
     sw      $s2, 0x1C($sp)
@@ -499,14 +499,14 @@ glabel func_800DB93C
     addu    $a0, $s0, $zero
     addu    $a1, $a3, $zero
     addu    $a3, $a2, $zero
-    jal     func_800D96C8
+    jal     vs_battle_aiCanTraverseTileEdge
     addu    $a2, $s2, $zero
     addiu   $v1, $zero, 0x1
     bne     $v0, $v1, .L800DBA40
     addu    $a0, $s0, $zero
     lui     $ra, %hi(.L800DBA40)
     addiu   $ra, $ra, %lo(.L800DBA40)
-    bgez    $zero, func_800D954C
+    bgez    $zero, vs_battle_aiDestinationOccupancy
     addu    $a1, $s2, $zero
 .L800DBA38:
     bnez    $v1, .L800DB9C8
@@ -517,26 +517,26 @@ glabel func_800DB93C
     or      $v0, $s2, $v0
     lbu     $v0, 0xE($a0)
     addiu   $a1, $sp, -0x30
-    beqz    $v0, func_800DA1D4
+    beqz    $v0, vs_battle_aiUpdateCombatPursuit
     sw      $s0, 0x10($a1)
     addu    $s0, $a0, $zero
     sw      $ra, 0x18($a1)
     addu    $sp, $a1, $zero
-    jal     func_800DB61C
+    jal     vs_battle_aiFleeVisibleEnemies
     addiu   $a1, $zero, 0x1
     bnez    $v0, L800DB89C
     addiu   $v0, $zero, 0x1
-    jal     func_800DB5B0
+    jal     vs_battle_aiWanderAroundSavedCenter
     addu    $a0, $s0, $zero
     bgez    $zero, L800DB89C
     addiu   $v0, $zero, 0x1
     lbu     $v0, 0xE($a0)
     lbu     $v1, 0x131($a0)
-    bnez    $v0, func_800DB61C
+    bnez    $v0, vs_battle_aiFleeVisibleEnemies
     addiu   $a1, $zero, 0x1
     sllv    $a1, $a1, $v1
     andi    $a1, $a1, 0x3
-    beqz    $a1, func_800DA1D4
+    beqz    $a1, vs_battle_aiUpdateCombatPursuit
     andi    $a1, $a1, 0x1
     lw      $a2, 0x58($a0)
     addiu   $sp, $sp, -0x30
@@ -565,17 +565,17 @@ glabel func_800DB93C
     addu    $a2, $s2, $zero
     andi    $a1, $s1, 0xF
     addu    $a0, $s0, $zero
-    jal     func_800DB370
+    jal     vs_battle_aiApproachActor
     addiu   $a3, $zero, 0x0
     bnez    $v0, L800DB894
     addu    $a0, $s0, $zero
     lui     $ra, %hi(L800DB894)
     addiu   $ra, $ra, %lo(L800DB894)
-    bgez    $zero, func_800DB74C
+    bgez    $zero, vs_battle_aiTrackActorPosition
     andi    $a1, $s1, 0xF
-endlabel func_800DB93C
+endlabel vs_battle_aiFindGapLandingTile
 
-glabel func_800DBB2C
+glabel vs_battle_aiFindActorByRelationship
     lui     $v0, %hi(vs_battle_actors)
     lw      $v0, %lo(vs_battle_actors)($v0)
     lbu     $t0, 0x88($a0)
@@ -609,12 +609,12 @@ glabel func_800DBB2C
     addiu   $sp, $sp, -0x30
     sw      $ra, 0x18($sp)
     sw      $s0, 0x10($sp)
-    jal     func_800DA1D4
+    jal     vs_battle_aiUpdateCombatPursuit
     addu    $s0, $a0, $zero
     bnez    $v0, L800DB89C
     addu    $a0, $s0, $zero
     addiu   $a1, $sp, 0x28
-    jal     func_800DBB2C
+    jal     vs_battle_aiFindActorByRelationship
     addiu   $a2, $zero, 0x2
     addu    $v1, $v0, $zero
     bltz    $v1, L800DB89C
@@ -629,34 +629,34 @@ glabel func_800DBB2C
     addu    $a2, $zero, $zero
     lui     $ra, %hi(D_800DBC04)
     addiu   $ra, $ra, %lo(D_800DBC04)
-    bnez    $v0, func_800DB5DC
+    bnez    $v0, vs_battle_aiMoveToTile
     addu    $a0, $s0, $zero
-    bgez    $zero, func_800DB5B8
+    bgez    $zero, vs_battle_aiWanderAroundTile
     addiu   $a2, $zero, 0x5
 alabel D_800DBC04
     bgez    $zero, L800DB89C
     addiu   $v0, $zero, 0x1
-alabel D_800DBC0C
+alabel vs_battle_aiUpdateEngagementApproachBehavior
     addiu   $sp, $sp, -0x30
     sw      $ra, 0x18($sp)
     sw      $s0, 0x10($sp)
-    jal     func_800D826C
+    jal     vs_battle_aiIsEngagementReady
     addu    $s0, $a0, $zero
     beqz    $v0, .L800DBC38
     addu    $a1, $zero, $zero
-    jal     func_800DA1D4
+    jal     vs_battle_aiUpdateCombatPursuit
     addu    $a0, $s0, $zero
     bnez    $v0, L800DB89C
     addu    $a1, $zero, $zero
 .L800DBC38:
     addiu   $a2, $zero, 0x100
     addiu   $a3, $zero, 0x0
-    jal     func_800DB370
+    jal     vs_battle_aiApproachActor
     addu    $a0, $s0, $zero
     bnez    $v0, L800DB89C
     addu    $a0, $s0, $zero
     lui     $ra, %hi(L800DB89C)
     addiu   $ra, $ra, %lo(L800DB89C)
-    bgez    $zero, func_800DB74C
+    bgez    $zero, vs_battle_aiTrackActorPosition
     addu    $a1, $zero, $zero
-endlabel func_800DBB2C
+endlabel vs_battle_aiFindActorByRelationship

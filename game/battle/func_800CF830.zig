@@ -5,12 +5,12 @@ const v = @import("views_5BF94");
 const c = @import("c_5BF94");
 
 /// orig: func_800CF830 (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
-/// For every script on D_800F54B0's list, every effect whose renderer is func_800CE174 (the trail) is called with 3.
+/// For every script on vs_effects_secondaryInstances's list, every effect whose renderer is func_800CE174 (the trail) is called with 3.
 pub fn func_800CF830(arg0: c_int, arg1: c_int) callconv(.c) void {
     const Renderer = *const fn (*align(4) v.func_800D4910_t, c_uint, c_int) callconv(.c) c_int; // effectExec
     _ = arg0;
     _ = arg1;
-    var script = v.g.D_800F54B0().*;
+    var script = v.g.vs_effects_secondaryInstances().*;
     while (script) |s| {
         var node = psx.get(s.unkD1C.unk34);
         while (node) |n| {

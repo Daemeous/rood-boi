@@ -12,7 +12,7 @@ from one recorded frame (RPC redraw): its colours and its depth view
 (graphics show_depth: 2D pixels magenta, 3D grey).
 
   - the model view's own light: graphics menu_studio 1 and the clone's rim
-    copy left out (D_800F4538[1]->unk17FD 0; MAINMENU func_800F9CB0 sets 1:
+    copy left out (vs_actors_actorRecords[1]->unk17FD 0; MAINMENU vs_menu_frameworkResetActorPreviewPose sets 1:
     a second copy 2 units off and 64 ordering-table entries behind, in its
     own colour, drawn after the clone).
   - the light is data (theme.json "menu_model_light", ui/menu_light.h; here
@@ -203,7 +203,7 @@ def main():
             raise TimeoutError(f"{what}: {ui()}")
 
         def clone():
-            return int.from_bytes(g.read(sym["D_800F4538"] + PTR, PTR), "little")
+            return int.from_bytes(g.read(sym["vs_actors_actorRecords"] + PTR, PTR), "little")
 
         g.call("ui_menu", modern=True)
         g.run(10)

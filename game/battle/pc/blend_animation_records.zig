@@ -43,11 +43,11 @@ fn blendVector(ctx: *gte.Ctx, dst: [*]align(1) i16, src: [*]align(1) const i16, 
     if (dz != 0) @as(*align(1) c_int, @ptrCast(dst + 2)).* = base[2] +% dz;
 }
 
-/// orig: func_800B147C (pc/src/actor_blend.c)
+/// orig: vs_actors_blendActorPose (pc/src/actor_blend.c)
 /// Blends the pose record `source` into `destination` (`count` bones of 8
 /// bytes at +0, +0x150, and the root at +0x148) by `step` of `duration`:
 /// a copy of the whole 0x60C-byte record at the end, the halfway blend
-/// (func_800AE980) at half; otherwise the weight step / duration (Q12) goes to
+/// (vs_actors_blendActorPoseHalfway) at half; otherwise the weight step / duration (Q12) goes to
 /// IR0 and every vector is blended. A zero duration divides as the R3000 does.
 pub fn blendAnimationRecords(destination: [*]u8, source: [*]u8, count: c_int, step: c_int, duration: c_int) callconv(.c) void {
     var ctx = gte.Ctx.init(); // this call's own registers
@@ -56,7 +56,7 @@ pub fn blendAnimationRecords(destination: [*]u8, source: [*]u8, count: c_int, st
         return;
     }
     if (step == psx.conv(c_int, @as(c_uint, @bitCast(duration)) >> 1)) {
-        c.func_800AE980(destination, source, count);
+        c.vs_actors_blendActorPoseHalfway(destination, source, count);
         return;
     }
     if (count <= 0 or count > 42) c.pc_unimplemented("invalid animation blend extent");

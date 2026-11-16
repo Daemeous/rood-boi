@@ -19,25 +19,25 @@
  *                       game's text, generated from the disc at build time);
  *                       buff = MENU4's icon palette mask 0x0F0F906A; time
  *                       left from statusTimers (below)
- *   location            the live room (D_800F1AB0) named through
+ *   location            the live room (vs_field_pendingDestinationDoor) named through
  *                       room_warp.h pc_rooms_* (looked up at open: the first
  *                       call reads the disc)
  *   play time           vs_main_gametime
  *   model               Ashley's menu clone (below, pc_ui_ashley_model_tick)
  *
  * The model. MENU4's Status screen shows Ashley through MAINMENU's menu clone
- * (224.c: func_800F9A24 builds it in actor slot 1, func_800F9EB8 animates and
- * draws it with a view matrix, func_800F9E0C frees it) and freezes the world
- * meanwhile (func_8008A4DC(0): vs_battle_exec then skips the sky, the actors'
+ * (224.c: vs_menu_frameworkLoadActorPreview builds it in actor slot 1, vs_menu_frameworkDrawActorPreview animates and
+ * draws it with a view matrix, vs_menu_frameworkReleaseActorPreview frees it) and freezes the world
+ * meanwhile (vs_field_setFieldRenderingEnabled(0): vs_battle_exec then skips the sky, the actors'
  * animation and drawing, the load queue and its SetGeomOffset(160, 112);
  * D_800EB9AE = 1 keeps the field HUD's status line off). The Ashley tab does
  * the same while it shows:
  *   build   the tab shows, MAINMENU is resident (its code), the load queue is
- *           empty (func_800F9A78 spins on vs_battle_processObjectDataQueue
+ *           empty (vs_menu_frameworkCloneActorPreview spins on vs_battle_processObjectDataQueue
  *           until it drains: only its own entries may be in it), no shell
- *           result is held, the editor's free camera is off (func_8007ACB0
+ *           result is held, the editor's free camera is off (vs_render_buildCameraViewMatrix
  *           would build our view from it) and the game heap has one free
- *           block for the whole clone (heap_need: func_800F9A78 uses its
+ *           block for the whole clone (heap_need: vs_menu_frameworkCloneActorPreview uses its
  *           allocations unchecked, so a full heap would crash it): freeze,
  *           build, stand the clone at Ashley's place (place_clone), drop
  *           the game's rim copy (no_rim_copy: the studio light has its own)
@@ -47,11 +47,11 @@
  *           tick does not draw (as MENU4's skipped frame).
  *   draw    every later tick: pump the load queue (frozen, the world does
  *           not), back up the world's camera, view matrix (and its copy
- *           D_8005E218), projection distance, then MENU4's orbit camera
+ *           vs_render_cameraBasisMatrix), projection distance, then MENU4's orbit camera
  *           (_drawScreen, its xOffset 0, about the clone's place) with
  *           our yaw and pitch, our projection distance and a geometry offset
  *           that centres the model in the layout's model column
- *           (pc_ui_draw_model_column), func_8007ACB0 + func_800F9EB8, and the
+ *           (pc_ui_draw_model_column), vs_render_buildCameraViewMatrix + vs_menu_frameworkDrawActorPreview, and the
  *           world's camera, view matrix, projection distance and
  *           SetGeomOffset(160, 112) back right after. The menu tick runs
  *           before vs_battle_exec's (gated) world draw and DrawOTag, as
@@ -91,8 +91,8 @@ void pc_ui_ashley_model_forget(void);
 
 int pc_weapon_slots_menu_can_load(void); /* weapon_slots.c: the load queue is free */
 extern int pc_gte_widescreen;            /* PsyX_GTE.cpp: 16:9 (layout 1280 wide) */
-extern int D_800F190C; /* BATTLE 146C.c: the world runs (func_8008A4DC) */
-extern MATRIX D_8005E218; /* func_8007ACB0 writes the view's rotation here too */
+extern int vs_field_isFieldRenderingEnabled; /* BATTLE 146C.c: the world runs (vs_field_setFieldRenderingEnabled) */
+extern MATRIX vs_render_cameraBasisMatrix; /* vs_render_buildCameraViewMatrix writes the view's rotation here too */
 extern vs_main_HeapHeader heapA; /* main.c: the game heap's free list (vs_main_allocHeap) */
 extern int pc_live_camera_active(void) __attribute__((weak)); /* editor_view.cpp: the free camera drives the view */
 extern unsigned pc_vsync_count(void) __attribute__((weak));
@@ -106,7 +106,7 @@ static u_short status_text[] = {
 #include "build/assets/MENU/MENU4.PRG/status.vsString"
 };
 
-extern _mpdRoomDoorSection_t D_800F1AB0; /* the live room (dev_state.c) */
+extern _mpdRoomDoorSection_t vs_field_pendingDestinationDoor; /* the live room (dev_state.c) */
 
 #define EFFECT_COUNT 32
 #define BUFF_MASK 0x0F0F906Au /* MENU4 _renderStatusIcons: set bit = the buff palette */
@@ -126,7 +126,7 @@ static struct {
     MATRIX view, view_copy;
     vs_camera_t camera;
     int projection;
-    char frozen, status_line; /* D_800F190C and D_800EB9AE before the build */
+    char frozen, status_line; /* vs_field_isFieldRenderingEnabled and D_800EB9AE before the build */
     SVECTOR spot;      /* where the clone stands: Ashley's place in the room (place_clone) */
     int blocked;       /* PC_UI_MODEL_*: why there is no model */
     u_int need, largest; /* heap units (16 bytes): the clone's, the largest free block */
@@ -195,7 +195,7 @@ static void decode_effects(void)
 
 /* statusTimers index of display bit i (vs_battle_getStatusFlags: display bits
  * 0..15 are the status word's bits 5..20, 16..31 its bits 21..28 spread by
- * element; the timers as func_80086FA8 sets them): 0 STR/INT/AGL up and down
+ * element; the timers as vs_battle_inflictActorStatuses sets them): 0 STR/INT/AGL up and down
  * (word 0x7E0), 1 quicken (0x810), 2 equip and elemental (0x1FF80000), 3
  * paralysis (0x2000), 4 numbness (0x8000); silence, poison (timer 5 is its
  * damage interval), curse, regeneration (likewise) and magic ward have none. */
@@ -218,7 +218,7 @@ static vs_battle_actor2* ashley(void)
 
 static void room_now(int* zone, int* room)
 {
-    const _mpdRoomDoorSection_t* location = D_800F1AB0.zndId ? &D_800F1AB0 : &D_80061068;
+    const _mpdRoomDoorSection_t* location = vs_field_pendingDestinationDoor.zndId ? &vs_field_pendingDestinationDoor : &vs_state_savedEntryDoor;
     *zone = location->zndId;
     *room = location->mpdId;
 }
@@ -341,7 +341,7 @@ void pc_ui_ashley_fill(void)
 static void backup_world_view(void)
 {
     model.view = vs_view.viewMatrix;
-    model.view_copy = D_8005E218;
+    model.view_copy = vs_render_cameraBasisMatrix;
     model.camera = vs_view.camera;
     model.projection = vs_main_projectionDistance;
 }
@@ -350,7 +350,7 @@ static void restore_world_view(void)
 {
     vs_view.camera = model.camera;
     vs_view.viewMatrix = model.view;
-    D_8005E218 = model.view_copy;
+    vs_render_cameraBasisMatrix = model.view_copy;
     vs_battle_setProjectionDistance(model.projection);
     SetGeomOffset(160, 112);
 }
@@ -360,7 +360,7 @@ static void restore_world_view(void)
  * clone's place (place_clone), where MENU4 looks at the origin. */
 static void place_camera(void)
 {
-    D_800F4538_t* clone = D_800F4538[1];
+    D_800F4538_t* clone = vs_actors_actorRecords[1];
     vs_camera_t* camera = &vs_view.camera;
     int z = clone->menuCameraDistance;
     int x = clone->menuCameraHeightOffset;
@@ -377,7 +377,7 @@ static void place_camera(void)
     camera->farClip = ONE;
 }
 
-/* The clone where Ashley stands (func_800F9CB0 puts it at the world's
+/* The clone where Ashley stands (vs_menu_frameworkResetActorPreviewPose puts it at the world's
  * origin, and MENU4's camera looks there). The renderer lights the model
  * with its studio light (pc_hw_present_menu_studio); with that off
  * (RPC graphics menu_studio 0) in world space, as the field: the room's
@@ -387,8 +387,8 @@ static void place_camera(void)
  * place. */
 static void place_clone(void)
 {
-    D_800F4538_t* clone = D_800F4538[1];
-    D_800F4538_t* actor = D_800F4538[0];
+    D_800F4538_t* clone = vs_actors_actorRecords[1];
+    D_800F4538_t* actor = vs_actors_actorRecords[0];
     model.spot.vx = model.spot.vy = model.spot.vz = 0;
     if (!clone || !actor)
         return;
@@ -400,9 +400,9 @@ static void place_clone(void)
     clone->unk0.position.vz = model.spot.vz;
 }
 
-/* The game's rim: func_800F9CB0 gives the clone a second copy of itself
+/* The game's rim: vs_menu_frameworkResetActorPreviewPose gives the clone a second copy of itself
  * (func_8009F940: unk17FD 1, unk6F4 = 2, -2, 2 world units off and 16 + 48
- * ordering-table entries behind; func_800F9EB8 draws it after the clone in
+ * ordering-table entries behind; vs_menu_frameworkDrawActorPreview draws it after the clone in
  * its own colour), a lit edge where it peeks out. At the window's
  * resolution it reads as bright slivers, and the renderer lights the model
  * with a studio rig of its own (gpu_hw.c pc_hw_present_menu_studio,
@@ -411,7 +411,7 @@ static void place_clone(void)
 extern int pc_hw_menu_studio __attribute__((weak)); /* gpu_hw.c */
 static void no_rim_copy(void)
 {
-    D_800F4538_t* clone = D_800F4538[1];
+    D_800F4538_t* clone = vs_actors_actorRecords[1];
     if (clone && clone->unk17FD == 1 && &pc_hw_menu_studio && pc_hw_menu_studio)
         clone->unk17FD = 0;
 }
@@ -523,7 +523,7 @@ static u_int heap_largest(void)
     return best;
 }
 
-/* What func_800F9A24(0) allocates (func_800F9A78: the clone record; a second
+/* What vs_menu_frameworkLoadActorPreview(0) allocates (vs_menu_frameworkCloneActorPreview: the clone record; a second
  * record when actor 0 has a linked one (unk17FD >= 2); per held weapon its
  * record and, from _parseWep's copy for slots 2 and 3, its offsets buffer;
  * the animation buffer when actor 0 is slot 0's own), plus a margin, in heap
@@ -531,7 +531,7 @@ static u_int heap_largest(void)
  * allocator is first fit, so smaller blocks earlier in the list only help. */
 static u_int clone_units(void)
 {
-    D_800F4538_t* a = D_800F4538[0];
+    D_800F4538_t* a = vs_actors_actorRecords[0];
     u_int n;
     int i;
     if (!a)
@@ -557,12 +557,12 @@ void pc_ui_ashley_model_close(void)
     backdrop_reset(); /* every session (and a return from an original screen) waits its full time */
     if (!model.state)
         return;
-    if (D_800F4538[1])
-        func_800F9E0C();
+    if (vs_actors_actorRecords[1])
+        vs_menu_frameworkReleaseActorPreview();
     if (pc_hw_detail_view)
         pc_hw_detail_view(0);
     restore_world_view();
-    func_8008A4DC(model.frozen);
+    vs_field_setFieldRenderingEnabled(model.frozen);
     D_800EB9AE = model.status_line;
     model.state = 0;
     publish();
@@ -638,7 +638,7 @@ static int backdrop_ready(void)
     backdrop_seen = kept;
     if (!&pc_hw_active || !pc_hw_active || ++backdrop_ticks > BACKDROP_WAIT)
         return 1; /* (no presenter: nothing to keep) */
-    if (D_800EB9B0 != 0x200000)
+    if (vs_battle_hudSlideOffset != 0x200000)
         backdrop_need = kept + 2;
     return kept && kept >= backdrop_need;
 }
@@ -668,7 +668,7 @@ void pc_ui_ashley_model_tick(int resident, int held)
     }
     pc_ui_draw_model_column(model.rect);
     if (!model.state) {
-        if (!resident || !pc_weapon_slots_menu_can_load() || D_800F4538[1] || !D_800F4538[0]
+        if (!resident || !pc_weapon_slots_menu_can_load() || vs_actors_actorRecords[1] || !vs_actors_actorRecords[0]
             || !backdrop_ready()) {
             publish();
             return;
@@ -684,11 +684,11 @@ void pc_ui_ashley_model_tick(int resident, int held)
         }
         model.blocked = PC_UI_MODEL_OK;
         backup_world_view();
-        model.frozen = D_800F190C != 0;
+        model.frozen = vs_field_isFieldRenderingEnabled != 0;
         model.status_line = D_800EB9AE;
-        func_8008A4DC(0);
+        vs_field_setFieldRenderingEnabled(0);
         D_800EB9AE = 1;
-        func_800F9A24(0);
+        vs_menu_frameworkLoadActorPreview(0);
         place_clone();
         no_rim_copy();
         /* Drawn from the next tick at the window's resolution: this frame
@@ -701,7 +701,7 @@ void pc_ui_ashley_model_tick(int resident, int held)
         publish();
         return;
     }
-    if (!D_800F4538[1]) { /* something else freed it */
+    if (!vs_actors_actorRecords[1]) { /* something else freed it */
         pc_ui_ashley_model_close();
         return;
     }
@@ -721,14 +721,14 @@ void pc_ui_ashley_model_tick(int resident, int held)
     /* The world's view as it is now (frozen, nothing should change it, but
      * whatever did between two ticks is what teardown gives back). Order per
      * frame: this menu tick, then vs_battle_exec's (frozen) world, which uses
-     * the restored view; func_8007ACB0 writes the view matrix and its copy
-     * D_8005E218, both restored right after the draw. */
+     * the restored view; vs_render_buildCameraViewMatrix writes the view matrix and its copy
+     * vs_render_cameraBasisMatrix, both restored right after the draw. */
     backup_world_view();
     vs_battle_setProjectionDistance((int)(h + 0.5f));
     place_camera();
     SetGeomOffset((int)(ofx + 0.5f), (int)(ofy + 0.5f));
-    func_8007ACB0();
-    func_800F9EB8(&vs_view.viewMatrix);
+    vs_render_buildCameraViewMatrix();
+    vs_menu_frameworkDrawActorPreview(&vs_view.viewMatrix);
     restore_world_view();
     model.state = 2;
     publish();

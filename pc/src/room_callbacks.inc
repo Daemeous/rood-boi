@@ -19,7 +19,7 @@ int pc_cb_800935F8(func_80092F74_t* a, func_80092B04_t2* b);
 int pc_cb_8009361C(func_80092F74_t* a, func_80092B04_t2* b);
 int pc_cb_800936F0(func_80092F74_t* a, func_80092B04_t2* b);
 int pc_cb_80093640(func_80092F74_t* a, func_80092B04_t2* b);
-int (*D_800E85CC[])(D_800F1DD8_t2*) = {
+int (*vs_field_textureEffectHandlers[])(D_800F1DD8_t2*) = {
     pc_cb_80091C6C,
     pc_cb_80091FE8,
     pc_cb_80091E10,
@@ -28,7 +28,7 @@ int (*D_800E85CC[])(D_800F1DD8_t2*) = {
     pc_cb_80092540,
     pc_cb_800923F8,
 };
-int (*D_800E85E8[])(func_80092F74_t*, func_80092B04_t2*) = {
+int (*vs_field_roomEffectOpcodeHandlers[])(func_80092F74_t*, func_80092B04_t2*) = {
     pc_cb_80092C68,
     pc_cb_80092E14,
     pc_cb_80092F6C,

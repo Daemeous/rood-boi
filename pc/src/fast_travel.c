@@ -3,8 +3,8 @@
  * The src hooks (ROOD_PC) call:
  *   MENU0 15AC.c     pc_fast_travel_unlock (for unkB5), _cost, _mask,
  *                    _blocked; vs_battle_shortcutInvoked PC_SHORTCUT_TRAVEL
- *   BATTLE 5BF94.c   func_800C930C: pc_fast_travel_menu_bits, _mask
- *   BATTLE 146C.c    func_800735F8 case 10: pc_fast_travel_begin
+ *   BATTLE 5BF94.c   vs_menu_frameworkUpdateMainMenuSelection: pc_fast_travel_menu_bits, _mask
+ *   BATTLE 146C.c    vs_field_dispatchBattleActionMenuResult case 10: pc_fast_travel_begin
  * and room_warp.c calls pc_fast_travel_poll from its field poll (vs_battle_exec
  * case 1, after the event trigger, before doors and Triangle) and
  * pc_fast_travel_room_loaded from its room hook. Nothing here writes unkB5,
@@ -17,12 +17,12 @@
 #include "fast_travel.h"
 #include "room_warp.h"
 
-extern char D_800F4C34; /* an event script is running */
+extern char vs_event_playbackPhase; /* an event script is running */
 extern u_int D_800F196C; /* the field loop's mode (1: Ashley walks, 5: a menu) */
-extern short D_800F4BE2; /* a script room change is pending */
+extern short vs_event_roomChangeState; /* a script room change is pending */
 extern char vs_main_locationZoneMapIds[]; /* 512 x (zone, room) */
-void func_8007357C(int arg0, int arg1);
-u_int func_800A0BE0(int actorId); /* (as room_warp.c declares it) */
+void vs_field_beginBattleActionMenu(int arg0, int arg1);
+u_int vs_actors_actorStateFlags(int actorId); /* (as room_warp.c declares it) */
 int VSync(int mode);
 int pc_window_travel_held(void);        /* boot_window.c: the Travel binding is held (focused) */
 unsigned pc_window_travel_shared(void); /* boot_window.c: PS1 buttons on the same key or pad element */
@@ -65,9 +65,9 @@ static pc_ft_settings settings(void)
 
 /* Ashley in a loaded room, else NULL (and nothing below reads the room). The
  * RPC report can come at any vsync, inside a room load's wait loop too
- * (func_80089DC0): the room's sections are not there then (a room change
- * frees and clears vs_battle_roomData, func_8008ABF0; _loadMpdRoomSection
- * sets them all and unk0 = 1 once the room is copied), and func_8008A4FC
+ * (vs_field_finishRoomLoad): the room's sections are not there then (a room change
+ * frees and clears vs_battle_roomData, vs_field_releaseOwnedRoomSections; _loadMpdRoomSection
+ * sets them all and unk0 = 1 once the room is copied), and vs_field_currentSavePointId
  * reads the collision map under Ashley. The src hooks call from the menus and
  * the field, where a room is always loaded. */
 /* 0 from a jump to the title or into BATTLE (boot_sdk.c: the old game's room
@@ -88,17 +88,17 @@ static void fill(pc_ft_state* s)
 {
     vs_battle_actor2* a = ashley();
     int i, phase = pc_room_warp_phase ? pc_room_warp_phase() : 0;
-    u_int status = a ? func_800A0BE0(0) : 0;
+    u_int status = a ? vs_actors_actorStateFlags(0) : 0;
     s->game = vs_main_stateFlags.unkB5;
     s->intro = vs_main_stateFlags.introState;
     s->warped = (pc_room_warp_warped && pc_room_warp_warped(NULL, NULL)) || (phase >= 1 && phase <= 3);
     s->no_save = vs_main_stateFlags.unkA7 != 0;
-    s->circle = a ? func_8008A4FC() : 0;
+    s->circle = a ? vs_field_currentSavePointId() : 0;
     s->here = a ? pc_ft_here(vs_battle_getCurrentRoomId()) : PC_FT_POINTS;
-    s->event = D_800F4C34 != 0 || D_800F4BE2 != 0 || vs_battle_screenTransitionStep != 0
+    s->event = vs_event_playbackPhase != 0 || vs_event_roomChangeState != 0 || vs_battle_screenTransitionStep != 0
         || vs_main_stateFlags.gameOver != 0;
     s->busy = !a || a->unk954 != 0 || (status & 0x4000) || (vs_main_buttonsState & 3); /* L2, R2 */
-    s->mask = a ? (unsigned)func_800CABE0(0) : ~0u;
+    s->mask = a ? (unsigned)vs_menu_frameworkActionRestrictionFlags(0) : ~0u;
     s->mp = a ? a->currentMP : 0;
     for (i = 0; i < PC_FT_POINTS; ++i)
         s->states[i] = (unsigned char)vs_main_stateFlags.savePointStates[i];
@@ -148,7 +148,7 @@ const char* pc_fast_travel_why(void)
 
 int pc_fast_travel_blocked(void) { return pc_fast_travel_why() != NULL; }
 
-/* func_800735F8 case 10, before func_8007C694 and the MP charge: the trip to
+/* vs_field_dispatchBattleActionMenuResult case 10, before vs_field_teleportToLocation and the MP charge: the trip to
  * check on arrival; whether it counts as magic (the game's unlock only). */
 int pc_fast_travel_begin(int packed)
 {
@@ -182,10 +182,10 @@ void pc_fast_travel_room_loaded(void)
 static void arrival(void)
 {
     vs_battle_actor2* a = ashley();
-    if (!trip.pending || !trip.loaded || D_800F4C34 != 0 || vs_battle_screenTransitionStep != 0)
+    if (!trip.pending || !trip.loaded || vs_event_playbackPhase != 0 || vs_battle_screenTransitionStep != 0)
         return;
     trip.pending = 0;
-    trip.t.circle = a ? func_8008A4FC() : 0;
+    trip.t.circle = a ? vs_field_currentSavePointId() : 0;
     trip.t.room_ok = vs_battle_getCurrentRoomId() == trip.t.location;
     trip.t.arrived = trip.t.room_ok && trip.t.circle == trip.t.to + 1;
     trip.t.mp_after = a ? a->currentMP : 0;
@@ -216,17 +216,17 @@ int pc_fast_travel_poll(void)
     if (!pressed)
         return 0;
     ++presses;
-    /* (func_800CACD0 plays the invalid-press sound when a menu is already
+    /* (vs_menu_frameworkOpenGameMenu plays the invalid-press sound when a menu is already
      * up: checked first, so a refused press stays silent) */
-    if (why || vs_battle_menuState.currentMenu != 0x3F || !func_800CACD0(1, 0)) {
+    if (why || vs_battle_menuState.currentMenu != 0x3F || !vs_menu_frameworkOpenGameMenu(1, 0)) {
         ++ignored; /* nothing happens: no sound, Select (if shared) does what it always does */
         return 0;
     }
     /* as an L2 shortcut opens a school's list (vs_battle_validateShortcutSelection,
-     * then func_8007357C): MENU0 straight into _teleportMenu (15AC.c handleShortcut) */
+     * then vs_field_beginBattleActionMenu): MENU0 straight into _teleportMenu (15AC.c handleShortcut) */
     vs_battle_shortcutInvoked = PC_SHORTCUT_TRAVEL;
     D_800F4FDB = 1;
-    func_8007357C(0, 0);
+    vs_field_beginBattleActionMenu(0, 0);
     vs_main_buttonsPressed.all &= ~pc_window_travel_shared(); /* Select's zoom does not toggle too */
     ++opened;
     return 1;

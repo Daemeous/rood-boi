@@ -9,5 +9,5 @@ const psx = @import("common").psx;
 pub fn reactionCommand11(state: *ai.vs_battle_aiState) callconv(.c) void {
     state.counter = 0;
     state.next.movementPosition.raw = state.tile.raw;
-    c.func_800DEEFC(state, 11);
+    c.vs_battle_aiIssueActorCommand(state, 11);
 }

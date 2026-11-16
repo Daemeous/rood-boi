@@ -6,7 +6,7 @@ const c = @import("c_5BF94");
 /// orig: func_800CB708 (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// Runs the pending screen-effect steps of the screff2 state: the load, the warp, the tiles and the border.
 pub fn func_800CB708() callconv(.c) void {
-    if (v.g.D_800EB9B4().*) |state| {
+    if (v.g.vs_effects_screenEffectOverlay().*) |state| {
         if (state.unk0 != 0) {
             _ = c._loadScreff2(0);
             return;

@@ -47,7 +47,7 @@ typedef struct {
     int rays_blocked; /* diagnostics: of 5 */
 } pc_occlusion_subject;
 
-/* room_geometry.c func_8009723C, once per game frame for the current room
+/* room_geometry.c vs_render_drawRoomGeometry, once per game frame for the current room
  * (after its group walk; free_camera: the editor's camera flies). */
 void pc_occlusion_frame(int free_camera);
 /* The subjects of the current game frame (render.c, RPC); returns how many

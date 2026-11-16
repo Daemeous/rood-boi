@@ -5,7 +5,7 @@
 
 .section .text, "ax"
 
-glabel func_800E3DDC
+glabel vs_battle_aiInitializeObstacleDetour
     lbu     $a3, 0x1($a0)
     addiu   $sp, $sp, -0x10
     sw      $s0, 0x0($sp)
@@ -27,7 +27,7 @@ glabel func_800E3DDC
     lui     $v0, (0xFFFEFFFF >> 16)
     ori     $v0, $v0, (0xFFFEFFFF & 0xFFFF)
     and     $s1, $s1, $v0
-    jal     func_800E45D4
+    jal     vs_battle_aiNextActorRandomMasked
     addiu   $a0, $zero, 0x2
     lbu     $a3, 0x89($s0)
     addi    $v1, $zero, -0x11 /* handwritten instruction */
@@ -48,7 +48,7 @@ glabel func_800E3DDC
 .L800E3E74:
     addu    $a1, $s2, $zero
     lw      $s2, 0x8($sp)
-    jal     func_800E3D5C
+    jal     vs_battle_aiCardinalPassabilityMask
     addu    $a0, $s0, $zero
     lw      $s0, 0x0($sp)
     lui     $v1, (0xFFC30FFF >> 16)
@@ -74,7 +74,7 @@ alabel func_800E3EAC
     lw      $a1, 0x190($s0)
     sw      $ra, 0x14($sp)
     sw      $s5, 0x18($sp)
-    jal     func_800E3DDC
+    jal     vs_battle_aiInitializeObstacleDetour
     addu    $a2, $a3, $zero
     addu    $s4, $v0, $zero
     sll     $t1, $s4, 27
@@ -109,7 +109,7 @@ alabel func_800E3EAC
     and     $s4, $s4, $v1
     sll     $t0, $s5, 1
     or      $a1, $s4, $t0
-    jal     func_800E3CDC
+    jal     vs_battle_aiRefreshDetourProgress
     addu    $a0, $s0, $zero
     lw      $t0, 0x34($s0)
     addu    $s4, $v0, $zero
@@ -164,7 +164,7 @@ alabel func_800E3FF4
     addu    $s3, $a3, $zero
     sw      $ra, 0x14($sp)
     sw      $s5, 0x18($sp)
-    jal     func_800E3DDC
+    jal     vs_battle_aiInitializeObstacleDetour
     addu    $a2, $a3, $zero
     addu    $s4, $v0, $zero
     sll     $t1, $s4, 27
@@ -194,7 +194,7 @@ alabel func_800E3FF4
     and     $s4, $s4, $v1
     addu    $a0, $s0, $zero
     sll     $a3, $s5, 1
-    jal     func_800E3CDC
+    jal     vs_battle_aiRefreshDetourProgress
     or      $a1, $s4, $a3
     lw      $t0, 0x34($s0)
     addu    $s4, $v0, $zero
@@ -230,7 +230,7 @@ alabel func_800E3FF4
     addu    $s1, $a1, $zero
     lw      $a1, 0x190($a0)
     addu    $s3, $a2, $zero
-    jal     func_800E3DDC
+    jal     vs_battle_aiInitializeObstacleDetour
     addu    $s0, $a0, $zero
     addu    $s4, $v0, $zero
     sll     $t1, $s4, 27
@@ -256,7 +256,7 @@ alabel func_800E3FF4
     addu    $s5, $a1, $zero
     bgez    $zero, .L800E4074
     addu    $a0, $s0, $zero
-endlabel func_800E3DDC
+endlabel vs_battle_aiInitializeObstacleDetour
 
 glabel func_800E4180
     addiu   $sp, $sp, -0x20
@@ -274,7 +274,7 @@ glabel func_800E4180
     addiu   $v0, $zero, 0x3
     beq     $v0, $t5, .L800E4268
     addiu   $v0, $zero, 0x1
-    jal     func_800E45D4
+    jal     vs_battle_aiNextActorRandomMasked
     addiu   $a0, $zero, 0x80
     slt     $t4, $t4, $v0
     bnez    $t4, .L800E4268
@@ -304,7 +304,7 @@ glabel func_800E4180
     addu    $a0, $t3, $zero
     lui     $ra, %hi(D_800E425C)
     addiu   $ra, $ra, %lo(D_800E425C)
-    bgez    $zero, func_800DEEFC
+    bgez    $zero, vs_battle_aiIssueActorCommand
     addiu   $a1, $zero, 0x10
 .L800E4234:
     bne     $t5, $v0, .L800E4268
@@ -332,7 +332,7 @@ alabel D_800E425C
     sh      $zero, 0x474($a1)
 endlabel func_800E4180
 
-glabel func_800E4288
+glabel vs_core_memoryClearAlignedWords
     addu    $t0, $zero, $zero
     srl     $a2, $a1, 4
     beqz    $a2, .L800E42BC
@@ -355,43 +355,43 @@ glabel func_800E4288
 .L800E42CC:
     jr      $ra
     nop
-endlabel func_800E4288
+endlabel vs_core_memoryClearAlignedWords
 
-glabel func_800E42D4
+glabel vs_field_groundHeightAtWorldPosition
     sra     $a0, $a0, 7
-    bgez    $zero, func_800E42EC
+    bgez    $zero, vs_field_groundHeightAtTile
     sra     $a1, $a1, 7
-endlabel func_800E42D4
+endlabel vs_field_groundHeightAtWorldPosition
 
-glabel func_800E42E0
+glabel vs_field_groundHeightAtPackedTile
     sll     $a1, $a0, 8
     srl     $a1, $a1, 24
     andi    $a0, $a0, 0xFF
-endlabel func_800E42E0
+endlabel vs_field_groundHeightAtPackedTile
 
-glabel func_800E42EC
+glabel vs_field_groundHeightAtTile
     addu    $at, $ra, $zero
-    jal     func_800E4320
+    jal     vs_field_groundHeightFlagsAtTile
     nop
     addu    $ra, $at, $zero
     sll     $v0, $v0, 17
     jr      $ra
     sra     $v0, $v0, 17
-endlabel func_800E42EC
+endlabel vs_field_groundHeightAtTile
 
-glabel func_800E4308
+glabel vs_field_groundHeightFlagsAtPackedTile
     sll     $a1, $a0, 8
     srl     $a1, $a1, 24
-    bgez    $zero, func_800E4320
+    bgez    $zero, vs_field_groundHeightFlagsAtTile
     andi    $a0, $a0, 0xFF
-endlabel func_800E4308
+endlabel vs_field_groundHeightFlagsAtPackedTile
 
-glabel func_800E4318
+glabel vs_field_groundHeightFlagsAtWorldPosition
     sra     $a0, $a0, 7
     sra     $a1, $a1, 7
-endlabel func_800E4318
+endlabel vs_field_groundHeightFlagsAtWorldPosition
 
-glabel func_800E4320
+glabel vs_field_groundHeightFlagsAtTile
     sll     $v1, $a0, 1
     lui     $a2, (0x1F8003BC >> 16)
     lw      $a2, (0x1F8003BC & 0xFFFF)($a2)
@@ -406,9 +406,9 @@ glabel func_800E4320
     sra     $v0, $v0, 3
     jr      $ra
     sub     $v0, $a2, $v0 /* handwritten instruction */
-endlabel func_800E4320
+endlabel vs_field_groundHeightFlagsAtTile
 
-glabel func_800E4358
+glabel vs_battle_aiTickActorDecisionTimers
     lbu     $t0, 0x155($a0)
     lbu     $t3, 0x13F($a0)
     beqz    $t0, .L800E436C
@@ -419,9 +419,9 @@ glabel func_800E4358
     addi    $t3, $t3, -0x1 /* handwritten instruction */
     jr      $ra
     sb      $t3, 0x13F($a0)
-endlabel func_800E4358
+endlabel vs_battle_aiTickActorDecisionTimers
 
-glabel func_800E437C
+glabel vs_battle_aiTargetFacingCosine
     beqz    $a3, .L800E4474
     addi    $v0, $zero, 0x1000 /* handwritten instruction */
     addu    $a3, $ra, $zero
@@ -475,7 +475,7 @@ glabel func_800E437C
     sub     $t0, $t3, $t0 /* handwritten instruction */
     sub     $t2, $t4, $t2 /* handwritten instruction */
     addu    $t1, $zero, $zero
-    jal     func_80041AF4
+    jal     vs_core_mathNormalizeVector
     nop
     mult    $t0, $t8
     mflo    $a0
@@ -494,9 +494,9 @@ glabel func_800E437C
     addu    $v0, $t0, $zero
 .L800E4474:
     jr      $ra
-endlabel func_800E437C
+endlabel vs_battle_aiTargetFacingCosine
 
-glabel func_800E4478
+glabel vs_field_isPositionAboveGround
     addu    $t8, $a1, $zero
     addu    $a1, $a2, $zero
     sra     $a0, $a0, 7
@@ -527,9 +527,9 @@ glabel func_800E4478
 .L800E44E0:
     jr      $ra
     nop
-endlabel func_800E4478
+endlabel vs_field_isPositionAboveGround
 
-glabel func_800E44E8
+glabel vs_field_isTerrainSegmentBlocked
     addiu   $sp, $sp, -0x38
     sw      $ra, 0x30($sp)
     sw      $s0, 0x10($sp)
@@ -562,7 +562,7 @@ glabel func_800E44E8
     add     $a2, $s2, $s5 /* handwritten instruction */
     addu    $s0, $a0, $zero
     addu    $s1, $a1, $zero
-    jal     func_800E4478
+    jal     vs_field_isPositionAboveGround
     addu    $s2, $a2, $zero
     beqz    $v0, .L800E4588
     addi    $s6, $s6, 0x1 /* handwritten instruction */
@@ -584,4 +584,4 @@ glabel func_800E44E8
     lw      $s1, 0x14($sp)
     jr      $ra
     addiu   $sp, $sp, 0x38
-endlabel func_800E44E8
+endlabel vs_field_isTerrainSegmentBlocked

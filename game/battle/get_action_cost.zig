@@ -58,7 +58,7 @@ pub fn getActionCost(actionId: c_uint, actor: ?*v.vs_battle_actor2, updateStat: 
     }
 
     if (actionType == c.actionTypeAbility) {
-        const d = v.g.D_800F19CC().*.?;
+        const d = v.g.vs_battle_actionState().*.?;
         if (d.unk4 >= 10) {
             if ((actionId -% 22) < 18) {
                 cost = psx.conv(c_int, psx.conv(c_uint, cost) +% ((d.unk4 *% d.unk4) / 10));

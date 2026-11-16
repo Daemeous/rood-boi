@@ -22,7 +22,7 @@ comptime {
     std.debug.assert(@offsetOf(ai.vs_battle_actor2, "weapon") + @offsetOf(ai.vs_battle_uiWeapon, "currentPp") == 0x14c);
 }
 
-/// orig: func_800E4DF8 (pc/src/battle_helpers.c)
+/// orig: vs_battle_aiRefreshAiActionUsability (pc/src/battle_helpers.c)
 /// Decides whether action slot (row, column) is usable and records it in bit 7
 /// of the slot's flags (word at 0x230 + slot * 8). Type 1 checks a signed
 /// 16-bit resource and a blocking flag; type 3 compares cost plus half the
@@ -58,7 +58,7 @@ pub fn slotUsable(state: *ai.vs_battle_aiState, row: c_int, column: c_int) callc
     return usable;
 }
 
-/// orig: func_800E4F14 (pc/src/battle_helpers.c)
+/// orig: vs_battle_aiRefreshAiResourceRestrictions (pc/src/battle_helpers.c)
 /// Derives three condition bytes from the actor's paired 16-bit stats (low =
 /// current, high = maximum) and the state threshold at 0x17: 0x12 = low1 * 2
 /// < high1; 0x11 = threshold and (low2 < threshold or low2 * 2 < high2);

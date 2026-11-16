@@ -23,13 +23,13 @@
  *                  in a row (2, 3 with base + 2, 4 with base + 3 too)
  *   usable         the row: vs_battle_getActionFlags(0, id) == 0 (1 busy, 2 MP
  *                  too low, 4 not learned / silenced) and the menu's disable
- *                  mask D_800F4EA0 & 0xB7 clear; a level after LV1 also its
+ *                  mask vs_menu_frameworkActionRestrictions & 0xB7 clear; a level after LV1 also its
  *                  own getActionFlags == 0 (the picker's Circle)
  *   teleport       the row exists while MENU0 offers Teleportation
  *                  (pc_fast_travel_unlock: the game's unkB5, or fast
  *                  travel's), greyed by fast travel's refusals too; it is
  *                  selectable when a savePointStates[0..47] entry is set,
- *                  unkB5 != 2 (the spirit paling) and func_8008A4FC() != 0
+ *                  unkB5 != 2 (the spirit paling) and vs_field_currentSavePointId() != 0
  *                  (standing on a Circle of Magic); destinations = the save
  *                  points with a state, names and descriptions MENU0's
  *                  teleportation locations[i * 2] / [i * 2 + 1] (state 2: the
@@ -49,7 +49,7 @@
  * resident, as for a break art: the snapshot says "Loading..." meanwhile):
  *   SPELL_CAST {item = action id}  Accepted, pc_ui_magick_cast(1) writes
  *              MENU0's hand-off (vs_menu0_exec <school>Menu + executeMagic):
- *              D_800F4E98.executeAbility.s32 = id, executeAbilityType 6 / 8
+ *              vs_menu_frameworkActionSelection.executeAbility.s32 = id, executeAbilityType 6 / 8
  *              / 10 / 12 (Warlock .. Enchanter: MENU0's init<School>Menu
  *              state, where a cancelled target would return), unk2 = 7,
  *              returnState = MENU0's currentMenu from the top level (1 |
@@ -57,17 +57,17 @@
  *              row, the spell row, the LV picker's level and count) and the
  *              top level's cursor on Magick. menu_bridge.c ends the menu as
  *              MENU0 does (close_for_cast: its exit sets currentMenu 1,
- *              func_800FAA5C makes it 0x7F) and BATTLE func_800735F8 runs the
- *              spell (unk2 7: func_80072EC4, targeting). A cancelled target
+ *              func_800FAA5C makes it 0x7F) and BATTLE vs_field_dispatchBattleActionMenuResult runs the
+ *              spell (unk2 7: vs_battle_beginActorActionSelection, targeting). A cancelled target
  *              reopens the shell on the same spell (pc_ui_menu_cast_cancelled).
- *   TELEPORT {slot = save point}  Accepted: D_800F4E98.unk2 = 0xA and
+ *   TELEPORT {slot = save point}  Accepted: vs_menu_frameworkActionSelection.unk2 = 0xA and
  *              executeAbility.s32 = MENU0's packing (room = save point data &
  *              0x1FF, bits 16-20 at 9, bits 24-28 at 14, the cost at 19;
  *              _teleportMenu returns it + 1, vs_menu0_exec stores it - 1),
  *              the school list's cursor memory (row 4; the destinations
  *              list's _teleportMenu rewrites at every open); the menu ends
  *              the same way and
- *              func_800735F8 teleports (unk2 10). No target: nothing to
+ *              vs_field_dispatchBattleActionMenuResult teleports (unk2 10). No target: nothing to
  *              cancel back to.
  * vs_battle_submenuStates[1] (MENU0's own state) is left alone: MENU0 does
  * not run. Only BATTLE and main routines and data are used; the text tables
@@ -102,7 +102,7 @@ static u_short teleport_text[] = {
 #include "build/assets/MENU/MENU0.PRG/teleportation.vsString"
 };
 
-#define MAGIC_MASK 0xB7      /* D_800F4EA0 bits that grey every spell and destination (MENU0) */
+#define MAGIC_MASK 0xB7      /* vs_menu_frameworkActionRestrictions bits that grey every spell and destination (MENU0) */
 #define TOP_LEVEL_MAGIC (1 | 0x40) /* currentMenu while MENU0 runs from the top level */
 #define MAGIC_COMMAND 0      /* the top level's row (vs_battle_submenuStates[0]) */
 #define TELEPORT_ROW 4       /* MENU0's school list: the four schools, then Teleport */
@@ -231,7 +231,7 @@ static int mask_reason_in(u_int bits, char* out, int size)
         0,
         "Silenced: spells cannot be cast.",
     };
-    u_int mask = (u_int)D_800F4EA0 & bits;
+    u_int mask = (u_int)vs_menu_frameworkActionRestrictions & bits;
     int b;
     out[0] = 0;
     if (!mask)
@@ -321,7 +321,7 @@ static void fill_teleport(void)
     for (i = 0; i < PC_UI_SAVE_POINTS; ++i)
         if (vs_main_stateFlags.savePointStates[i])
             any = 1;
-    circle = func_8008A4FC() != 0;
+    circle = vs_field_currentSavePointId() != 0;
     snap.teleport_enabled = any && unlock != 2 && circle && !blocked;
     copy_text(snap.teleport_help, sizeof snap.teleport_help, circle && unlock == 2 ? paling : teleport_desc);
     row_reason[0] = 0;
@@ -369,8 +369,8 @@ static void fill(void)
         snap.valid = 1;
         snap.mp = a->currentMP;
         snap.mp_max = a->maxMP;
-        snap.mask = (u_int)D_800F4EA0 & MAGIC_MASK;
-        snap.level_memory = D_800F4EE8.cursorMemories[LEVEL_MEMORY];
+        snap.mask = (u_int)vs_menu_frameworkActionRestrictions & MAGIC_MASK;
+        snap.level_memory = vs_menu_frameworkMenuMemory.cursorMemories[LEVEL_MEMORY];
         for (s = 0; s < PC_UI_SCHOOLS; ++s)
             fill_school(s);
         fill_teleport();
@@ -408,7 +408,7 @@ void pc_ui_magick_refresh(void)
     pc_ui_shell_magick_view(&v);
     if (v.kind >= 0 && v.kind < PC_UI_SCHOOLS && v.cursor < snap.schools[v.kind].count
         && snap.schools[v.kind].spells[v.cursor].levels > 1)
-        D_800F4EE8.cursorMemories[LEVEL_MEMORY] = v.level;
+        vs_menu_frameworkMenuMemory.cursorMemories[LEVEL_MEMORY] = v.level;
 }
 
 /* Row `row` of `rows` in one of MENU0's lists (vs_mainmenu_setMenuRows,
@@ -425,8 +425,8 @@ static void list_memory(int id, int row, int rows, int info)
         if (page > rows - shown)
             page = rows - shown;
     }
-    D_800F4EE8.cursorMemories[id * 2] = row - page;
-    D_800F4EE8.cursorMemories[id * 2 + 1] = page;
+    vs_menu_frameworkMenuMemory.cursorMemories[id * 2] = row - page;
+    vs_menu_frameworkMenuMemory.cursorMemories[id * 2 + 1] = page;
 }
 
 /* Returns 1 when the request was one of ours. */
@@ -501,19 +501,19 @@ void pc_ui_magick_cast(int go)
         /* the destinations list's memory ([22]/[23]) is not written:
          * _teleportMenu overwrites it on every open (the cursor starts on
          * the nearest circle), so nothing ever reads what a confirm leaves */
-        D_800F4E98.unk2 = 0xA;
-        D_800F4E98.executeAbility.s32 = cast.id;
+        vs_menu_frameworkActionSelection.unk2 = 0xA;
+        vs_menu_frameworkActionSelection.executeAbility.s32 = cast.id;
         return;
     }
     list_memory(SCHOOL_LIST, cast.school, TELEPORT_ROW + (pc_fast_travel_unlock() != 0), 1);
     list_memory(SPELL_LIST + cast.school, cast.row, cast.rows, 2);
     if (cast.level >= 0) { /* _warlockMagicMenu levelledSpellInit / levelledSpell */
-        D_800F4EE8.cursorMemories[LEVEL_MEMORY] = cast.level;
-        D_800F4EE8.cursorMemories[LEVEL_MEMORY + 1] = cast.levels;
+        vs_menu_frameworkMenuMemory.cursorMemories[LEVEL_MEMORY] = cast.level;
+        vs_menu_frameworkMenuMemory.cursorMemories[LEVEL_MEMORY + 1] = cast.levels;
     }
     /* <school>Menu, then executeMagic */
-    D_800F4E98.executeAbility.s32 = cast.id;
+    vs_menu_frameworkActionSelection.executeAbility.s32 = cast.id;
     vs_battle_menuState.executeAbilityType = 6 + cast.school * 2;
-    D_800F4E98.unk2 = 7;
+    vs_menu_frameworkActionSelection.unk2 = 7;
     vs_battle_menuState.returnState = TOP_LEVEL_MAGIC;
 }

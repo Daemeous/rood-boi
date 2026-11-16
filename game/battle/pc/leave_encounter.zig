@@ -4,14 +4,14 @@ const c = @import("c_battle_movement");
 const v = @import("views_battle_movement");
 const psx = @import("common").psx;
 
-/// orig: func_800D82CC (pc/src/battle_movement.c)
+/// orig: vs_battle_aiDisengageActor (pc/src/battle_movement.c)
 /// Leaves the encounter: clears the actor's bit in the room's mask at 0x10
 /// and its timer at 0x8E, blocks re-joining (0x98 = 0x30 unless exactly two
-/// actors remain; 0x9A = 90), unlinks the actor (func_800DBF00), drops a
-/// member and notifies actor `id` (func_800D820C). Does nothing when the
+/// actors remain; 0x9A = 90), unlinks the actor (vs_battle_aiUnlinkEngagedActor), drops a
+/// member and notifies actor `id` (vs_battle_aiSetActorAwarenessIndicator). Does nothing when the
 /// actor's bit is not set.
 pub fn leaveEncounter(state: *ai.vs_battle_aiState) callconv(.c) void {
-    const room = v.g.D_800F58BC().*.?;
+    const room = v.g.vs_battle_aiRoomAiState().*.?;
     const id: c_int = state.id;
     const mask: c_uint = room.unk10;
     // id >= 32 is undefined in C; the x86 shift takes the count modulo 32.
@@ -23,7 +23,7 @@ pub fn leaveEncounter(state: *ai.vs_battle_aiState) callconv(.c) void {
     const second = first.next;
     state.timer98 = if (second != null and second.?.next == null) 0 else 0x30;
     state.timer = 90;
-    c.func_800DBF00(state);
+    c.vs_battle_aiUnlinkEngagedActor(state);
     room.unk12 -%= 1;
-    c.func_800D820C(id, 0);
+    c.vs_battle_aiSetActorAwarenessIndicator(id, 0);
 }

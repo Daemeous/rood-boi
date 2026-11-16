@@ -13,9 +13,9 @@ pub fn func_800A17BC(actorSlot: c_int, armatureIndex: c_int, outMatrix: ?*anyopa
     const dst: *align(1) v.MATRIX = @ptrCast(outMatrix.?);
     dst.* = m;
 
-    const actor = psx.at(v.g.D_800F4538(), actorSlot).*;
+    const actor = psx.at(v.g.vs_actors_actorRecords(), actorSlot).*;
     if (actor == null) {
-        const objSlot = psx.at(v.g.D_800F45E0(), actorSlot).*;
+        const objSlot = psx.at(v.g.vs_field_gimmickInstances(), actorSlot).*;
         if (objSlot == null) return 0;
         const obj: *v.D_800F4538_t = @ptrCast(objSlot.?);
         outArmature.* = psx.at(&psx.get(obj.unk0.unk68).?.armatures, armatureIndex).unk0;

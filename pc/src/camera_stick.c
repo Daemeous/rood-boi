@@ -5,18 +5,18 @@
  * How the game's camera works (BATTLE 146C.c): the follow camera is a
  * spherical camera around a look-at point above Ashley,
  * vs_battle_cameraCurrentSpherical (yaw 0..4095 = 360 degrees, pitch -384,
- * distance 0x600 or 0x900 by the Select toggle). func_8006E158 is its input:
+ * distance 0x600 or 0x900 by the Select toggle). vs_field_updateCameraOrbitInput is its input:
  * L1/R1 start a turn to the next multiple of 0x200 (45 degrees) that the
  * following frames animate (delta.yaw the direction, delta.pitch the target,
  * delta.distance the step, up to 40 units a frame); Select eases the
  * distance between the two. _setCameraPositionFromAngles places the camera
- * from those values, func_80069D78 derives scratch camera.angles.vy (yaw,
+ * from those values, vs_field_updateCameraFacingState derives scratch camera.angles.vy (yaw,
  * 0x1F800058) back from the placed camera, and scene_submit.inc picks the
  * cutaway walls (facing mask) from that yaw. Ashley's movement is relative
  * to the same spherical yaw.
  *
  * So the stick's yaw goes into the spherical yaw itself, in
- * func_8006E158 (pc_camera_stick_tick), only where the game would start an
+ * vs_field_updateCameraOrbitInput (pc_camera_stick_tick), only where the game would start an
  * L1/R1 turn (not CAMERA_INPUT_LOCKED: events, combat camera modes 4 and
  * 11) and never during one: the facing mask, movement directions, the
  * targeting sphere and room entries (which take delta.pitch as the yaw) all
@@ -30,20 +30,20 @@
  * back to 1. With the stick untouched and the zoom at 1 nothing changes:
  * the game runs exactly as the original.
  *
- * The first-person view (BATTLE func_8006EC7C, field mode 7) has no follow
- * camera (func_8006E158 does not run there) and ignores the right stick of
+ * The first-person view (BATTLE vs_field_updateFirstPersonCamera, field mode 7) has no follow
+ * camera (vs_field_updateCameraOrbitInput does not run there) and ignores the right stick of
  * a digital pad: pc_camera_stick_first_person turns the stick into yaw and
  * pitch steps on top of the D-pad's, always (not behind the camera_stick
  * switch, which is about the follow camera), with this camera's dead zone,
  * curve and speed. While that view runs, R3 is the game's again (it leaves
  * the view).
  *
- * Menus: func_8006E158 runs only while the field (or a fight's targeting)
+ * Menus: vs_field_updateCameraOrbitInput runs only while the field (or a fight's targeting)
  * takes camera input, and the menus' field modes (vs_battle_exec: 5 the
  * Triangle menu and its screens, 6 the L2 shortcut cross, 11 a message, 9
  * a chest's loot, 2 with camera mode 12 the loot after a fight) never call
  * it, nor (5, 6, 11) place the camera at all. A ROOD_PC hook just before
- * the frame's camera is derived (func_80069D78) calls pc_camera_stick_menu
+ * the frame's camera is derived (vs_field_updateCameraFacingState) calls pc_camera_stick_menu
  * with the field mode, the camera mode and vs_battle_menuState.currentMenu:
  * in a menu context listed in camera_stick_menus (the menus that leave the
  * scene in view; by default not the full-screen ones: items, status, map,
@@ -361,13 +361,13 @@ const char* pc_camera_stick_context(int field_mode, int camera_mode, int current
     case 5: /* the Triangle menu (and a loot list the RPC opens) */
         return m < 16 ? menu_names[m] : NULL; /* (0x1F closing, 0x3F closed) */
     case 2:
-        return camera_mode == 12 ? "loot" : NULL; /* the drops after a fight (func_8006FB48) */
+        return camera_mode == 12 ? "loot" : NULL; /* the drops after a fight (vs_items_openPendingEnemyLoot) */
     case 9:
         return camera_mode == 3 ? "chest" : NULL; /* framed on a chest, its loot or its key's message */
     case 6:
         return "shortcut"; /* the L2 shortcut cross */
     case 11:
-        return "message"; /* a message at something examined (func_80073AA4) */
+        return "message"; /* a message at something examined (vs_field_beginObjectInteractionWait) */
     }
     return NULL;
 }

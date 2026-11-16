@@ -13,7 +13,7 @@ pub fn func_800E7698(state: ?*v.vs_battle_aiState) callconv(.c) c_int {
     const motion: *v.radialMotion = @ptrCast(v.g.D_800F5920().*.?);
     st.count470 = 0;
     psx.setBits(context, "unk5B0_4", @intFromBool(motion.frame < 14)); // the active flag
-    _ = c.func_800E4660(@as(c_int, 0x7C0) -% @as(c_int, st.position.v.vx), 0, @as(c_int, 0x7C0) -% @as(c_int, st.position.v.vz));
+    _ = c.vs_core_mathSquaredVectorLength(@as(c_int, 0x7C0) -% @as(c_int, st.position.v.vx), 0, @as(c_int, 0x7C0) -% @as(c_int, st.position.v.vz));
     switch (motion.state) {
         0 => {
             motion.flagA = 1;
@@ -28,9 +28,9 @@ pub fn func_800E7698(state: ?*v.vs_battle_aiState) callconv(.c) c_int {
         },
         1 => {
             if (v.g.D_800F17DC()[motion.frame][0] == 0 and v.g.D_800F17DC()[motion.frame][1] == 0) {
-                const actor: *v.radialMotionActor = @ptrCast(v.g.D_800F4538()[0].?);
+                const actor: *v.radialMotionActor = @ptrCast(v.g.vs_actors_actorRecords()[0].?);
                 if ((actor.flags & 0x70000) != 0) {
-                    c.func_800E2CCC(@ptrCast(st));
+                    c.vs_battle_aiRecoverMovement(@ptrCast(st));
                     return 0;
                 }
                 motion.state = 0;
@@ -49,7 +49,7 @@ pub fn func_800E7698(state: ?*v.vs_battle_aiState) callconv(.c) c_int {
     angle = c.rsin(@as(c_int, motion.angle));
     st.moveZ = (@as(c_int, st.position.v.vz) << 12) +% (@as(c_int, v.g.D_800F17DC()[motion.frame][0]) *% angle);
     st.moveY = (@as(c_int, st.position.v.vy) +% @as(c_int, v.g.D_800F17DC()[motion.frame][1])) << 12;
-    c.func_800DEEFC(@ptrCast(st), 8);
+    c.vs_battle_aiIssueActorCommand(@ptrCast(st), 8);
     motion.flag3 = 0;
     motion.frame +%= 1;
     return 0;

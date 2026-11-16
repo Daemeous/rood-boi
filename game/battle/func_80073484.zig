@@ -7,6 +7,6 @@ const c = @import("c_146C");
 pub fn func_80073484() callconv(.c) void {
     c.func_8006F5CC();
     v.g.vs_gametime_tickspeed().* = 2;
-    c.func_800CB654(0);
-    _ = c.func_8008B4C8(1);
+    c.vs_battle_setHudHidden(0);
+    _ = c.vs_field_setMinimapVisible(1);
 }

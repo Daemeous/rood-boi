@@ -37,24 +37,24 @@ fn vectorMagnitude(p: *v.VECTOR) c_int {
 }
 
 /// orig: func_800BC1CC (pc/src/game/BATTLE/BATTLE.PRG/4A0A8.c)
-/// Unless D_800F4BA0 asks to skip once (cleared), aims the eye and look-at at the spherical position
-/// (arg0, arg1) and, when the move is long enough, starts both with D_800E9C1C's camera commands,
+/// Unless vs_event_skipNextFieldCameraRestore asks to skip once (cleared), aims the eye and look-at at the spherical position
+/// (arg0, arg1) and, when the move is long enough, starts both with vs_event_fieldCameraReturnCommands's camera commands,
 /// their duration the two distances' sum / 0x28000.
 pub fn func_800BC1CC(arg0: c_short, arg1: c_int) callconv(.c) void {
-    if (v.g.D_800F4BA0().* != 0) {
-        v.g.D_800F4BA0().* = 0;
+    if (v.g.vs_event_skipNextFieldCameraRestore().* != 0) {
+        v.g.vs_event_skipNextFieldCameraRestore().* = 0;
         return;
     }
     var eye = std.mem.zeroes(v.VECTOR); // the C's stack locals, written by the callee
     var lookAt = std.mem.zeroes(v.VECTOR);
     c.vs_battle_initialiseCameraFromSpherical(cv(&eye), cv(&lookAt), arg0, psx.conv(i16, arg1));
-    const cam = v.g.D_800F4BA4().*.?;
+    const cam = v.g.vs_event_camera().*.?;
     _ = copyVector(&cam.eye.position, &eye);
     _ = copyVector(&cam.lookAt.position, &lookAt);
     const eyeDistance = vectorMagnitude(vv(c._vectorSubtract(cv(v1), cv(&cam.eye.current), cv(&cam.eye.position))));
     const duration = psx.conv(i16, @divTrunc(eyeDistance +% vectorMagnitude(vv(c._vectorSubtract(cv(v1), cv(&cam.lookAt.current), cv(&cam.lookAt.position)))), 0x28000));
     if ((@as(c_int, duration) << 16) != 0) {
-        const commands = v.g.D_800E9C1C();
+        const commands = v.g.vs_event_fieldCameraReturnCommands();
         commands[6] = psx.conv(u8, duration);
         commands[2] = commands[6];
         _ = c.func_800BC2E8(commands, 0);

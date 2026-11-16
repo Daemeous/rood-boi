@@ -1,17 +1,17 @@
 /* Native characters, weapons and props (phase 2 steps 2 and 3; design
  * notes in pc/docs/Native_Rendering.md).
  *
- * Every skinned model the battle code draws goes through func_800B3A68
+ * Every skinned model the battle code draws goes through vs_render_projectModelVertices
  * (actor_vertices.c: bone vertex groups through the per-bone GTE matrices
  * the game computed) and then one packet builder:
  *
- *   func_800B3CF0 (weapon_packets.c)  flat-lit textured records, the model's
+ *   vs_render_drawModelFlatPolygons (weapon_packets.c)  flat-lit textured records, the model's
  *                                     colour from the room lighting
- *   func_800B4594 (actor_packets.c)   per-vertex coloured records
+ *   vs_render_drawModelGouraudPolygons (actor_packets.c)   per-vertex coloured records
  *   func_800B516C (weapon_packets.c)  the flat records in material groups
  *                                     (alternate CLUT per group), optionally
  *                                     the whole model semi-transparent
- *   func_800B5C30 (actor_packets.c)   the same for the coloured records
+ *   vs_render_drawModelGouraudPolygonsWithOverrides (actor_packets.c)   the same for the coloured records
  *
  * All four call in here once their packets are written:
  *
@@ -65,16 +65,16 @@ typedef struct {
 
 /* The packet builders (pc_object_native_draw's `kind`). */
 enum {
-    KIND_FLAT, /* func_800B3CF0 */
-    KIND_COLORED, /* func_800B4594 */
+    KIND_FLAT, /* vs_render_drawModelFlatPolygons */
+    KIND_COLORED, /* vs_render_drawModelGouraudPolygons */
     KIND_FLAT_GROUPS, /* func_800B516C */
-    KIND_COLORED_GROUPS, /* func_800B5C30 */
+    KIND_COLORED_GROUPS, /* vs_render_drawModelGouraudPolygonsWithOverrides */
 };
 #define COLORED(kind) ((kind) == KIND_COLORED || (kind) == KIND_COLORED_GROUPS)
 #define GROUPS(kind) ((kind) >= KIND_FLAT_GROUPS)
 static const char* const kind_names[4] = { "flat", "coloured", "flat grouped", "coloured grouped" };
 
-/* ---- the model being drawn (func_800B3A68) ---- */
+/* ---- the model being drawn (vs_render_projectModelVertices) ---- */
 
 static const void *last_object, *last_model;
 static const gte_matrix* last_matrices;
@@ -154,10 +154,10 @@ static unsigned record_words(const model_view* m, int kind)
     return (unsigned)(r - m->records);
 }
 /* The grouped builders' material groups (func_800B516C next_group,
- * func_800B5C30 actor_blend_group): per section up to eight counts read
+ * vs_render_drawModelGouraudPolygonsWithOverrides actor_blend_group): per section up to eight counts read
  * from the model (alternate CLUT when the mask bit for the group is set),
  * then the remainder of the section with the model's CLUT. func_800B516C
- * skips an empty section's eight counts, func_800B5C30 does not. Writes 1
+ * skips an empty section's eight counts, vs_render_drawModelGouraudPolygonsWithOverrides does not. Writes 1
  * per record that takes the alternate CLUT; returns 0 when the counts
  * disagree with the sections. */
 static int group_cluts(const model_view* m, int kind, uint8_t* alternate)
@@ -260,7 +260,7 @@ static render_mesh build_mesh(const model_view* m, int kind, const unsigned char
                 r += quad ? 8 : 6;
             }
             /* Record flag 16: semi-transparent with the record's blend bits
-             * (func_800B5C30 keeps neither: only the code's own bit). */
+             * (vs_render_drawModelGouraudPolygonsWithOverrides keeps neither: only the code's own bit). */
             unsigned page_bits = flags & 0x60;
             if (kind == KIND_COLORED_GROUPS)
                 page_bits = 0;
@@ -724,7 +724,7 @@ static uint32_t submit(int kind, const void* object, const void* model, unsigned
     render_list_add(list, &instance);
     int index = group.instances++;
 
-    /* Every polygon's ordering-table index from the depths func_800B3A68
+    /* Every polygon's ordering-table index from the depths vs_render_projectModelVertices
      * just computed: the PS1's paint order (opaque polygons, PS1 order
      * within the list: plus the table pointer's shift since the group's
      * first draw) and the buckets of the translucent ones. */
@@ -772,8 +772,8 @@ static uint32_t submit(int kind, const void* object, const void* model, unsigned
     submitted_index = index;
     return list;
 }
-/* The model builders (func_800B3CF0, func_800B4594, func_800B516C, func_800B5C30) draw one model through here: no packets are
- * built. `projected` is func_800B3A68's output (screen positions, then the depths at + 0xc00). `kind`: the builder (KIND_*).
+/* The model builders (vs_render_drawModelFlatPolygons, vs_render_drawModelGouraudPolygons, func_800B516C, vs_render_drawModelGouraudPolygonsWithOverrides) draw one model through here: no packets are
+ * built. `projected` is vs_render_projectModelVertices's output (screen positions, then the depths at + 0xc00). `kind`: the builder (KIND_*).
  * Returns 1 when the model is drawn (or hidden by the photo mode's actor hiding), 0 when nothing could (no hardware path, no
  * matrices for this object, no mesh): it is then not drawn. */
 int pc_object_native_take(int kind, const void* projected, const void* object, const void* model, const void* color)
@@ -794,7 +794,7 @@ int pc_object_native_take(int kind, const void* projected, const void* object, c
         const unsigned* xy = projected;
         const unsigned* depths = (const unsigned*)((const char*)projected + 0xc00);
         unsigned* ot = PC_OT_BASE;
-        /* func_800B4594 takes no colour (per-vertex records). */
+        /* vs_render_drawModelGouraudPolygons takes no colour (per-vertex records). */
         unsigned rgb = color && kind != KIND_COLORED ? *(const unsigned*)color & 0xffffff : 0x808080;
         list = submit(kind, object, model, rgb, texture, xy, depths, ot);
         if (list) {

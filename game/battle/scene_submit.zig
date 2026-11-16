@@ -28,26 +28,26 @@ fn otPlus5() ?*anyopaque {
     return @ptrFromInt(base +% 20);
 }
 
-/// orig: func_8008AC78 (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
+/// orig: vs_field_drawRoomScene (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// Submits the room: the effects and actors, the room's geometry with the facing bits of the compass, and the area map with its frame.
-pub fn func_8008AC78() callconv(.c) void {
+pub fn vs_field_drawRoomScene() callconv(.c) void {
     var savedOffset: v.vs_battle_geomOffset = undefined;
     var mapOffset: v.vs_battle_geomOffset = undefined;
     var clip: v.RECT = undefined;
     var rotation: v.MATRIX = undefined;
 
     @import("common").gte.setFrame(&view().viewMatrix);
-    c.func_8008DF14();
+    c.vs_field_drawRoomTriggerMarkers();
     c.func_8009627C();
-    c.func_8008C0C0();
-    if (v.g.D_800F1BA4().* == 0) {
+    c.vs_field_updateGimmickAnimationQueue();
+    if (v.g.vs_field_areRoomUpdatesPaused().* == 0) {
         var i: c_int = 0;
         while (i < v.g.vs_gametime_tickspeed().* >> 1) : (i +%= 1) {
-            c.func_80091B04();
+            c.vs_field_updateRoomEffects();
         }
     }
-    c.func_8008CEB0();
-    c.func_80090EEC();
+    c.vs_field_drawMovingPlatformShadows();
+    c.vs_field_updateRoomWeather();
 
     const state: u16 = roomState();
     if (state != 0x101) return;
@@ -59,7 +59,7 @@ pub fn func_8008AC78() callconv(.c) void {
         const front: c_int = @as(c_int, 1) << @intCast((((0x900 -% vy) & 0xFFF) >> 9));
         view().firstPersonViewFacing = (view().firstPersonViewFacing & 0xFFFF_FF00) |
             psx.conv(c_uint, left) | psx.conv(c_uint, right) | psx.conv(c_uint, front);
-        c.func_8008B1FC(psx.get(v.g.vs_battle_roomData().geometrySection));
+        c.vs_field_drawRoomGeometry(psx.get(v.g.vs_battle_roomData().geometrySection));
     }
     if (roomState() != state or (v.g.vs_main_settings().simpleMap & 1) == 0 or
         psx.get(v.g.vs_battle_roomData().sectionF) == null)
@@ -67,16 +67,16 @@ pub fn func_8008AC78() callconv(.c) void {
         return;
     }
 
-    if (v.g.D_800F1CD6().* != 0) {
-        v.g.D_800F1CD4().* +%= 1;
-        if (v.g.D_800F1CD4().* > 8) v.g.D_800F1CD4().* = 8;
+    if (v.g.vs_field_isMinimapVisible().* != 0) {
+        v.g.vs_field_minimapSlideFrame().* +%= 1;
+        if (v.g.vs_field_minimapSlideFrame().* > 8) v.g.vs_field_minimapSlideFrame().* = 8;
     } else {
-        v.g.D_800F1CD4().* -%= 2;
-        if (v.g.D_800F1CD4().* < 0) v.g.D_800F1CD4().* = 0;
+        v.g.vs_field_minimapSlideFrame().* -%= 2;
+        if (v.g.vs_field_minimapSlideFrame().* < 0) v.g.vs_field_minimapSlideFrame().* = 0;
     }
-    if (v.g.D_800F1CD4().* <= 0) return;
+    if (v.g.vs_field_minimapSlideFrame().* <= 0) return;
 
-    c.func_8008B590(psx.cptr(c.MATRIX, &rotation), 0x800 -% view().camera.angles.vy);
+    c.vs_field_buildMinimapRotation(psx.cptr(c.MATRIX, &rotation), 0x800 -% view().camera.angles.vy);
     // The map's drawing areas and frame are draw items placed at the table's slot 5 (the packets AddPrim linked there): the
     // first area is the other buffer's whole one, the second the map's window.
     const mapPackets: ?*anyopaque = psx.get(scratch().unk0);
@@ -92,12 +92,12 @@ pub fn func_8008AC78() callconv(.c) void {
     clip.w = 96;
     clip.h = 64;
     mapOffset.y = 196;
-    mapOffset.x = 392 -% (@as(c_int, v.g.D_800F1CD4().*) << 4);
+    mapOffset.x = 392 -% (@as(c_int, v.g.vs_field_minimapSlideFrame().*) << 4);
     c.vs_battle_getGeomOffset(psx.cptr(c.vs_battle_geomOffset, &savedOffset));
     c.vs_battle_setGeomOffset(psx.cptr(c.vs_battle_geomOffset, &mapOffset));
     v.g.pc_gte_anchored().* = 1;
     const mapView = @import("common").gte.viewOf(&rotation, @import("common").gte.screenCurrent());
-    c.func_80098F8C(psx.cptr(c.vs_battle_scene, psx.get(v.g.vs_battle_roomData().sectionF).?), @ptrCast(&mapView));
+    c.vs_field_drawMinimapScene(psx.cptr(c.vs_battle_scene, psx.get(v.g.vs_battle_roomData().sectionF).?), @ptrCast(&mapView));
     v.g.pc_gte_anchored().* = 0;
     c.vs_battle_setGeomOffset(psx.cptr(c.vs_battle_geomOffset, &savedOffset));
 
@@ -112,13 +112,13 @@ pub fn func_8008AC78() callconv(.c) void {
     var frame_rgb: [4]c_int = undefined;
     var edge_rgb: [2]c_int = undefined;
     if (psx.get(v.g.vs_battle_characterState().*).?.weaponDrawn == 1) {
-        const pulse = @divTrunc(c.rsin(v.g.D_800F1BA0().* << 8), 64);
-        v.g.D_800F1BA0().* +%= @divTrunc(v.g.vs_gametime_tickspeed().*, 2);
+        const pulse = @divTrunc(c.rsin(v.g.vs_field_minimapBorderPulsePhase().* << 8), 64);
+        v.g.vs_field_minimapBorderPulsePhase().* +%= @divTrunc(v.g.vs_gametime_tickspeed().*, 2);
         const red: c_int = 128 -% pulse;
         frame_rgb = .{ rgb(red, 0, 0), rgb(red +% 32, 0, 0), rgb(red +% 63, 0, 0), rgb(red +% 32, 0, 0) };
         edge_rgb = .{ rgb(red +% 32, 0, 0), rgb(red, 0, 0) };
     } else {
-        v.g.D_800F1BA0().* = 0;
+        v.g.vs_field_minimapBorderPulsePhase().* = 0;
         frame_rgb = .{ rgb(0, 128, 0), rgb(0, 192, 0), rgb(0, 255, 0), rgb(0, 192, 0) };
         edge_rgb = .{ rgb(0, 192, 0), rgb(0, 128, 0) };
     }
@@ -153,8 +153,8 @@ fn roomState() u16 {
 /// orig: pc_battle_action (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// Host query for the interactive fog: the battle action running now (performer, action, phase, chain step, kind, aim point and first target actor); 0 when none runs.
 pub fn battleAction(actor: *c_int, action: *c_int, phase: *c_int, chain: *c_int, kind: *c_int, plain: *c_int, aim: *[3]c_int, target: *c_int) callconv(.c) c_int {
-    if (v.g.D_800F196C().* != 2 or v.g.D_800F19CC().* == null) return 0;
-    const block = v.g.D_800F19CC().*.?;
+    if (v.g.D_800F196C().* != 2 or v.g.vs_battle_actionState().* == null) return 0;
+    const block = v.g.vs_battle_actionState().*.?;
     const a = &block.unk854[block.unk0 & 3];
     actor.* = a.unk4.unk0.targetActor;
     action.* = a.actionIndex;
@@ -173,14 +173,14 @@ pub fn battleAction(actor: *c_int, action: *c_int, phase: *c_int, chain: *c_int,
 /// orig: pc_battle_event_running (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// Whether an event loads or runs.
 pub fn battleEventRunning() callconv(.c) c_int {
-    return @intFromBool(v.g.D_800F4C34().* != 0);
+    return @intFromBool(v.g.vs_event_playbackPhase().* != 0);
 }
 
 /// orig: pc_battle_event_id (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// The running event's id ((source << 12) | event file), or -1 when none runs.
 pub fn battleEventId() callconv(.c) c_int {
-    if (v.g.D_800F4C34().* == 0) return -1;
-    const id: c_int = (@as(c_int, v.g.D_800F4BE0().*) << 12) | @as(c_int, v.g._evtFile().*);
+    if (v.g.vs_event_playbackPhase().* == 0) return -1;
+    const id: c_int = (@as(c_int, v.g.vs_event_eventSource().*) << 12) | @as(c_int, v.g._evtFile().*);
     return @as(c_int, psx.conv(u16, id));
 }
 
@@ -188,8 +188,8 @@ pub fn battleEventId() callconv(.c) c_int {
 /// The point the battle camera follows in its modes 1 and 3 (weapon drawn, a target chosen); 0 when there is none.
 pub fn battleCameraTarget(position: *[3]c_int) callconv(.c) c_int {
     const character = psx.get(v.g.vs_battle_characterState().*);
-    if (character == null or character.?.weaponDrawn != 1 or v.g.D_800F19CC().* == null) return 0;
-    const block = v.g.D_800F19CC().*.?;
+    if (character == null or character.?.weaponDrawn != 1 or v.g.vs_battle_actionState().* == null) return 0;
+    const block = v.g.vs_battle_actionState().*.?;
     if (block.unk298D == 0xFF or block.unk2C00 == 0 or block.unk298D >= 23) return 0;
     position[0] = block.unk29C0[block.unk298D].unk0.vx;
     position[1] = block.unk29C0[block.unk298D].unk0.vy;
@@ -197,9 +197,9 @@ pub fn battleCameraTarget(position: *[3]c_int) callconv(.c) c_int {
     return 1;
 }
 
-/// The script pointer of event thread `i` (D_800F4C38 holds guest-range byte pointers).
+/// The script pointer of event thread `i` (vs_event_threadCursors holds guest-range byte pointers).
 fn eventThread(i: usize) ?[*]u8 {
-    return @ptrCast(v.g.D_800F4C38()[i]);
+    return @ptrCast(v.g.vs_event_threadCursors()[i]);
 }
 
 /// orig: pc_battle_camera_focus (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
@@ -207,7 +207,7 @@ fn eventThread(i: usize) ?[*]u8 {
 /// [2] a target candidate is chosen, [3..5] its point, [6] an area point, [7..9] it, [10..12] the camera's look-at in world units, [13] the candidate's actor slot.
 pub fn battleCameraFocus(out: *[14]c_int) callconv(.c) void {
     @memset(out, 0);
-    const block = v.g.D_800F19CC().*;
+    const block = v.g.vs_battle_actionState().*;
     out[0] = if (block != null) psx.conv(c_int, v.g.D_800F196C().*) else -1;
     out[1] = psx.conv(c_int, v.g._cameraMode().*);
     if (block != null and v.g.D_800F196C().* == 2) {
@@ -234,12 +234,12 @@ pub fn battleCameraFocus(out: *[14]c_int) callconv(.c) void {
 /// orig: pc_battle_event_threads (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// Host query for the cutscene player: the event runner's state and skip state, and per script thread its offset in the script buffer (-1 when not running), the opcode there and that opcode's handler; returns whether an event loads or runs.
 pub fn battleEventThreads(state: *[2]c_int, offset: *[4]c_int, opcode: *[4]c_int, handler: *[4]?*anyopaque) callconv(.c) c_int {
-    const running = v.g.D_800F4C34().*;
+    const running = v.g.vs_event_playbackPhase().*;
     state[0] = running;
-    state[1] = v.g.D_800F4C2C().*;
+    state[1] = v.g.vs_event_skipState().*;
     for (0..4) |i| {
         const pc = if (running == 4) eventThread(i) else null;
-        const base = v.g.D_800F4C30().*;
+        const base = v.g.vs_event_scriptBuffer().*;
         offset[i] = if (pc != null and base != null) psx.conv(c_int, @intFromPtr(pc.?) -% @intFromPtr(base.?)) else -1;
         opcode[i] = if (pc != null) pc.?[0] else -1;
         handler[i] = if (pc != null) @ptrCast(@constCast(v.g._opcodeFunctionTable()[pc.?[0]])) else null;
@@ -252,9 +252,9 @@ pub fn battleEventThreads(state: *[2]c_int, offset: *[4]c_int, opcode: *[4]c_int
 pub fn battleEventArguments(thread: c_int, args: [*]c_int, line: *c_int, actor: *c_int) callconv(.c) c_int {
     line.* = -1;
     actor.* = -1;
-    if (v.g.D_800F4C34().* != 4 or thread < 0 or thread >= 4) return 0;
+    if (v.g.vs_event_playbackPhase().* != 4 or thread < 0 or thread >= 4) return 0;
     const pc = eventThread(@intCast(thread)) orelse return 0;
-    const n: c_int = @as(c_int, v.g.D_800E9C30()[pc[0]]) - 1;
+    const n: c_int = @as(c_int, v.g.vs_event_opcodeSizes()[pc[0]]) - 1;
     if (n < 0 or n > 16) return 0;
     if (pc[0] == 0x11 and n >= 3) line.* = pc[2];
     switch (pc[0]) {
@@ -263,7 +263,7 @@ pub fn battleEventArguments(thread: c_int, args: [*]c_int, line: *c_int, actor: 
             if (n >= 2) {
                 const ref: c_uint = @as(c_uint, pc[1]) | (@as(c_uint, pc[2]) << 8);
                 if ((ref >> 12) < 2) {
-                    const resolved = c.func_800BFE50(psx.conv(u16, ref));
+                    const resolved = c.vs_event_resolveScriptActorReference(psx.conv(u16, ref));
                     if (resolved >= 0 and resolved <= 16) actor.* = resolved;
                 }
             }
@@ -278,7 +278,7 @@ pub fn battleEventArguments(thread: c_int, args: [*]c_int, line: *c_int, actor: 
 /// orig: pc_battle_event_waiting (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// Host query for the cutscene viewer's auto-advance: the pad bits the running event's threads wait on (opcode 0x15's mask; Circle for a shown text box or a screen of its own), 0 when nothing.
 pub fn battleEventWaiting() callconv(.c) c_int {
-    if (v.g.D_800F4C34().* != 4) return 0;
+    if (v.g.vs_event_playbackPhase().* != 4) return 0;
     var mask: c_int = 0;
     for (0..4) |i| {
         const pc = eventThread(i) orelse continue;
@@ -286,7 +286,7 @@ pub fn battleEventWaiting() callconv(.c) c_int {
             mask |= pc[1];
         } else if (pc[0] == 0x11 and pc[1] < 8 and v.g.vs_battle_textBoxStatuses()[pc[1]] != 0) {
             mask |= 0x20;
-        } else if (pc[0] == 0x59 and v.g.D_800F4BF8().* != 0) {
+        } else if (pc[0] == 0x59 and v.g.vs_event_isMenuTransitionActive().* != 0) {
             mask |= 0x20;
         }
     }

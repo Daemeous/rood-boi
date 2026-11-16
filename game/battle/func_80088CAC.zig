@@ -1,12 +1,12 @@
-//! Battle frame step: runs func_8007BCCC when the phase byte is 2, then func_80069DBC (pc/src/game/BATTLE/BATTLE.PRG/146C.c).
+//! Battle frame step: runs vs_state_resetSceneTimer when the phase byte is 2, then vs_actors_clearRoomEnemyMemory (pc/src/game/BATTLE/BATTLE.PRG/146C.c).
 const v = @import("views_146C");
 const c = @import("c_146C");
 
 /// orig: func_80088CAC (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
-/// Runs the phase-2 step when D_80050468's phase is 2, then the common step.
+/// Runs the phase-2 step when vs_state_sceneTimer's phase is 2, then the common step.
 pub fn func_80088CAC() callconv(.c) void {
-    if (v.g.D_80050468().unk2 == 2) {
-        c.func_8007BCCC();
+    if (v.g.vs_state_sceneTimer().unk2 == 2) {
+        c.vs_state_resetSceneTimer();
     }
-    c.func_80069DBC();
+    c.vs_actors_clearRoomEnemyMemory();
 }

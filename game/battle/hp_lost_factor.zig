@@ -16,6 +16,6 @@ pub fn hpLostFactor(arg0: ?*v.vs_action_t, arg1: ?*v._hitEntity_t, arg2: ?*v._hi
     const statFactor: c_int = psx.getBits(hit, "statFactor");
     const value: c_int = (@as(c_int, actor.maxHP) -% @as(c_int, actor.currentHP)) *% statFactor;
     const quotient: c_int = @divTrunc(value, 10);
-    const base: c_uint = v.g.D_800F19CC().*.?.unk0 -% 1;
+    const base: c_uint = v.g.vs_battle_actionState().*.?.unk0 -% 1;
     return psx.conv(c_short, @as(c_uint, @bitCast(quotient)) +% base);
 }

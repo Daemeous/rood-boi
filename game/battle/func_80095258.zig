@@ -21,7 +21,7 @@ pub fn func_80095258(x_arg: c_int, y: c_int, p: ?*v.D_800F1BAC_t) callconv(.c) v
     const fade = [4]i16{ 5, 9, 13, 15 };
 
     const q = p.?;
-    const labelDef = psx.at(v.g.D_800690B4(), q.unkC);
+    const labelDef = psx.at(v.g.vs_battle_statusLabelLayouts(), q.unkC);
     if (labelDef.count == 0) return;
 
     var x = x_arg;
@@ -56,7 +56,7 @@ pub fn func_80095258(x_arg: c_int, y: c_int, p: ?*v.D_800F1BAC_t) callconv(.c) v
     var i: c_int = 0;
     while (i < @as(c_int, labelDef.count)) : (i += 1) {
         const idx: usize = @intCast(i);
-        const r = psx.at(v.g.D_80068FAC(), labelDef.labels[idx]);
+        const r = psx.at(v.g.vs_battle_labelCaptionRects(), labelDef.labels[idx]);
         rects[idx] = r;
         width +%= @as(c_int, r.w);
     }
@@ -76,7 +76,7 @@ pub fn func_80095258(x_arg: c_int, y: c_int, p: ?*v.D_800F1BAC_t) callconv(.c) v
         const rect = rects[idx];
         const w: c_int = rect.w;
         if (x < 320 and x +% w >= 0) {
-            const col = psx.at(v.g.D_80069134(), width);
+            const col = psx.at(v.g.vs_battle_statusLabelColors(), width);
             var r: c_int = undefined;
             var g: c_int = undefined;
             var b: c_int = undefined;

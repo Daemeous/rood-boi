@@ -39,10 +39,10 @@ extern int pc_camera_stick_keys; /* keyboard J/L turn, I/K zoom, O resets */
 extern char pc_camera_stick_menus[256];
 extern const char* const pc_camera_stick_menus_default;
 
-/* BATTLE func_8006E158 (the L1/R1 handler), once per game frame wherever the
+/* BATTLE vs_field_updateCameraOrbitInput (the L1/R1 handler), once per game frame wherever the
  * game turns its follow camera; locked: CAMERA_INPUT_LOCKED(). */
 void pc_camera_stick_tick(void* spherical, int locked);
-/* An L1/R1 turn just started (func_8006E158): from a yaw the stick left
+/* An L1/R1 turn just started (vs_field_updateCameraOrbitInput): from a yaw the stick left
  * between the 45-degree lines, R1 aims at the nearest line below. */
 void pc_camera_stick_turn(void* spherical);
 /* Before the follow camera is placed from its spherical values: the zoom,
@@ -52,7 +52,7 @@ void pc_camera_stick_place(void* values, const int* look_at);
 /* The PS1 pad bits of this vsync (boot_window.c): R3 goes to the camera
  * when it resets with R3 (not in the first-person view: R3 leaves it). */
 unsigned pc_camera_stick_buttons(unsigned buttons);
-/* BATTLE func_8006EC7C (the first-person view), once per game frame: the
+/* BATTLE vs_field_updateFirstPersonCamera (the first-person view), once per game frame: the
  * right stick's yaw and pitch steps for this frame, signed as the D-pad's
  * (Right: yaw up; Down: pitch up; the game applies qol_fp_invert_y). Not
  * behind the camera_stick switch: the stick has nothing else to do there. */

@@ -12,25 +12,25 @@
 #include "pc/src/psx_types.h"
 #include "ai_state.h"
 
-void func_800D82CC(vs_battle_aiState*);
-void func_800E2CCC(vs_battle_aiState*);
-void func_800E4CE8(vs_battle_aiState* arg0);
-extern vs_battle_aiState* D_800F5878[];
-extern D_800F58BC_t* D_800F58BC;
+void vs_battle_aiDisengageActor(vs_battle_aiState*);
+void vs_battle_aiRecoverMovement(vs_battle_aiState*);
+void vs_battle_aiForgetAiActionTarget(vs_battle_aiState* arg0);
+extern vs_battle_aiState* vs_battle_aiActorAiStates[];
+extern D_800F58BC_t* vs_battle_aiRoomAiState;
 
-int func_800D96C8(vs_battle_aiState*, unsigned int, unsigned int, int);
-int func_800D954C(vs_battle_aiState*, unsigned int);
-unsigned int func_800DB93C(vs_battle_aiState*, unsigned int, int, unsigned int);
-unsigned int func_800D8400( vs_battle_aiState* state, int first, int second, unsigned int direction);
+int vs_battle_aiCanTraverseTileEdge(vs_battle_aiState*, unsigned int, unsigned int, int);
+int vs_battle_aiDestinationOccupancy(vs_battle_aiState*, unsigned int);
+unsigned int vs_battle_aiFindGapLandingTile(vs_battle_aiState*, unsigned int, int, unsigned int);
+unsigned int vs_battle_aiFindAdjacentMovementDestination( vs_battle_aiState* state, int first, int second, unsigned int direction);
 
 int func_800E4CF4(vs_battle_aiState*, actionCandidateEntry*, int);
-int func_800E4DF8(vs_battle_aiState*, int, int);
-void func_800D9DD8(vs_battle_aiState*);
-int func_800D85D8(vs_battle_aiState* state);
+int vs_battle_aiRefreshAiActionUsability(vs_battle_aiState*, int, int);
+void vs_battle_aiSelectActionMovementMode(vs_battle_aiState*);
+int vs_battle_aiRefreshActionCandidateReadiness(vs_battle_aiState* state);
 
-int func_800E4624(short*, short*, int, int);
-int func_800E44E8(SVECTOR*, SVECTOR*, int, int);
-int func_800E437C(SVECTOR*, SVECTOR*, int, u_int);
+int vs_core_mathSquaredDistanceWithHeightOffsets(short*, short*, int, int);
+int vs_field_isTerrainSegmentBlocked(SVECTOR*, SVECTOR*, int, int);
+int vs_battle_aiTargetFacingCosine(SVECTOR*, SVECTOR*, int, u_int);
 
 #define RELATION_STATES(id) psx_slot_get(vs_battle_aiState*, PC_PAD(0x37C), id)
 
@@ -45,7 +45,7 @@ static inline int checkExtent(
     } else {
         extent = 128;
     }
-    return func_800E44E8(from, to, extent, state->extent);
+    return vs_field_isTerrainSegmentBlocked(from, to, extent, state->extent);
 }
 
 static inline int checkHeight(
@@ -64,10 +64,10 @@ static inline int checkHeight(
     if (own < 0) {
         own = -own;
     }
-    return func_800E44E8(from, to, height, own);
+    return vs_field_isTerrainSegmentBlocked(from, to, height, own);
 }
 
-void func_800D87E8(vs_battle_aiState* state, int id);
+void vs_battle_aiUpdateTargetPerception(vs_battle_aiState* state, int id);
 
 typedef struct {
     u_int current : 16;
@@ -97,18 +97,18 @@ extern int D_800F58E0;
 extern int D_800F16F4;
 struct vs_battle_aiState;
 struct vs_battle_aiState;
-void func_800D821C(struct vs_battle_aiState*);
-void func_800DBF00(vs_battle_aiState*);
-void func_800DBFE4(struct vs_battle_aiState*);
-void func_800E4F14(void*);
-void func_800D8280(vs_battle_aiState*);
-void func_800E4358(vs_battle_aiState*);
+void vs_battle_aiResetActorAwarenessIndicator(struct vs_battle_aiState*);
+void vs_battle_aiUnlinkEngagedActor(vs_battle_aiState*);
+void vs_battle_aiUpdateEngagementBuildup(struct vs_battle_aiState*);
+void vs_battle_aiRefreshAiResourceRestrictions(void*);
+void vs_battle_aiUpdateTemporaryAwarenessIndicator(vs_battle_aiState*);
+void vs_battle_aiTickActorDecisionTimers(vs_battle_aiState*);
 void func_800E48F8(vs_battle_aiState*);
 void func_800E48A8(vs_battle_aiState*, int, int);
 
-void func_800D8EF4(void);
+void vs_battle_aiUpdatePerceivingActor(void);
 
-extern int D_800F58C4;
+extern int vs_battle_aiSavedMovementRandomState;
 
-void func_800D9538(void);
+void vs_battle_aiSaveMovementRandomState(void);
 

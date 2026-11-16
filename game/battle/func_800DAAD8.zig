@@ -11,20 +11,20 @@ pub fn func_800DAAD8(state: ?*v.vs_battle_aiState) callconv(.c) c_int {
     const s = state.?;
     const entry = psx.get(s.entries.da4bc[0]);
 
-    if (s.status == 0 and c.func_800DA4BC(@ptrCast(s), @ptrCast(entry)) != 0)
+    if (s.status == 0 and c.vs_battle_aiTryApproachPlannedTarget(@ptrCast(s), @ptrCast(entry)) != 0)
         return 1;
     const target: c_int = s.target16;
     if (target < 16) {
-        if (c.func_800DB370(@ptrCast(s), target, 384, 0) != 0) {
+        if (c.vs_battle_aiApproachActor(@ptrCast(s), target, 384, 0) != 0) {
             if (s.rangeMode == 1 and s.mode12E != 7) {
                 const et: *v.da4bcEntryTarget = @ptrCast(&entry.?.flagsC);
                 s.movementTargetId = psx.getBits(et, "target");
-                c.func_800E678C(@ptrCast(s));
-                c.func_800E2CCC(@ptrCast(s));
+                c.vs_battle_aiReleaseActorAiReservations(@ptrCast(s));
+                c.vs_battle_aiRecoverMovement(@ptrCast(s));
             }
             return 1;
         }
-        if (c.func_800DB74C(@ptrCast(s), target) != 0)
+        if (c.vs_battle_aiTrackActorPosition(@ptrCast(s), target) != 0)
             return 1;
     }
 
@@ -35,7 +35,7 @@ pub fn func_800DAAD8(state: ?*v.vs_battle_aiState) callconv(.c) c_int {
             psx.getBits(psx.at(&ts.tbl.t.targets.da4bc, a.id), "category") != 0)
         {
             psx.setBits(psx.at(&ts.tbl.t.targets.da4bc, a.id), "mode", 3);
-            if (c.func_800DB61C(@ptrCast(s), 0) != 0) {
+            if (c.vs_battle_aiFleeVisibleEnemies(@ptrCast(s), 0) != 0) {
                 psx.setBits(psx.at(&ts.tbl.t.targets.da4bc, a.id), "mode", psx.getBits(psx.at(&ts.tbl.t.targets.da4bc, a.id), "oldMode"));
                 return 1;
             }

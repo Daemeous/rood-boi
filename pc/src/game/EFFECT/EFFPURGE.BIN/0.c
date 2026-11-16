@@ -913,12 +913,12 @@ static void _configurePlg(void);
 
 void vs_effpurge_exec(void)
 {
-    func_800D8038(0);
+    vs_effects_setEffectTextureLoadState(0);
     _configureFb();
     _configurePlg();
-    vs_battle_pFileLoadContext = _pFiles[D_800F5230.effectId];
-    func_800D2698(255);
-    D_800F569C->block9Data = NULL;
+    vs_battle_pFileLoadContext = _pFiles[vs_effects_actionRequest.effectId];
+    vs_effects_acquireParticlePool(255);
+    vs_effects_package->block9Data = NULL;
     D_800F56C8.curveBlock = NULL;
     D_800F56C8.block11Data = NULL;
     D_800F56C8.block12Data = NULL;
@@ -931,21 +931,21 @@ static void _configureFb(void)
     int texCount;
     u_char* a2;
 
-    int new_var = D_800FAE4C[D_800F5230.effectId];
+    int new_var = D_800FAE4C[vs_effects_actionRequest.effectId];
     int var_s2 = 0;
 
-    for (i = 0; i < D_800F5230.effectId; ++i) {
+    for (i = 0; i < vs_effects_actionRequest.effectId; ++i) {
         var_s2 += _fbtCounts[i];
     }
 
-    texCount = _fbtCounts[D_800F5230.effectId];
+    texCount = _fbtCounts[vs_effects_actionRequest.effectId];
 
-    func_800D7FFC(texCount + (new_var != 0));
+    vs_effects_setEffectTextureAssetCount(texCount + (new_var != 0));
 
-    a2 = &_fbcSlots[D_800F5230.effectId];
+    a2 = &_fbcSlots[vs_effects_actionRequest.effectId];
 
-    vs_battle_configureEffectFbLoad(_fbcFiles[D_800F5230.effectId].lba,
-        _fbcFiles[D_800F5230.effectId].size, *a2, 1, 0);
+    vs_battle_configureEffectFbLoad(_fbcFiles[vs_effects_actionRequest.effectId].lba,
+        _fbcFiles[vs_effects_actionRequest.effectId].size, *a2, 1, 0);
 
     for (i = 0; i < texCount; ++i) {
         vs_battle_configureEffectFbLoad(_fbtFiles[var_s2 + i].lba,
@@ -956,11 +956,11 @@ static void _configureFb(void)
 static void _configurePlg(void)
 {
     int i;
-    int firstindex = _effectEntryPointIndices[D_800F5230.effectId];
-    int count = _effectEntryPointIndices[D_800F5230.effectId + 1] - firstindex;
+    int firstindex = _effectEntryPointIndices[vs_effects_actionRequest.effectId];
+    int count = _effectEntryPointIndices[vs_effects_actionRequest.effectId + 1] - firstindex;
 
     vs_battle_configurePlg(
-        _plgFiles[D_800F5230.effectId].lba, _plgFiles[D_800F5230.effectId].size, count);
+        _plgFiles[vs_effects_actionRequest.effectId].lba, _plgFiles[vs_effects_actionRequest.effectId].size, count);
 
 #ifdef ROOD_PC
     /* PLG addresses are overlay-relative: a shared address is not a shared
@@ -970,7 +970,7 @@ static void _configurePlg(void)
         extern void pc_effect_plugin_unimplemented(unsigned);
         void* entry = pc_plg_entry_points[firstindex + i];
         if (entry == NULL) {
-            pc_effect_plugin_unimplemented(D_800F5230.effectId);
+            pc_effect_plugin_unimplemented(vs_effects_actionRequest.effectId);
         }
         vs_battle_setEffectExec((effectExec)entry, i);
     }

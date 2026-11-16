@@ -30,6 +30,6 @@ pub fn equipWeapon(weapon: ?*v.vs_main_inventoryWeapon) callconv(.c) void {
     psx.setBits(actor, "currentAttackShapeAngle", psx.getBits(&actor.weapon.range, "attackShapeAngle"));
     psx.setBits(actor, "unk3B_0", 1);
 
-    c.func_8006B214();
-    c.func_8006B270();
+    c.vs_items_removeEquipmentBoostOnEquip();
+    c.vs_items_removeWeaponEnchantmentOnEquip();
 }

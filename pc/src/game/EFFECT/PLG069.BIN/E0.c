@@ -1,8 +1,8 @@
 #include "common.h"
 
 #define VS_MESH10_FUNCTION func_800F98E0
-#define VS_MESH10_VERTICES D_800FD424
-#define VS_MESH10_FACES D_800FD474
+#define VS_MESH10_VERTICES vs_effects_plg069Mesh10Vertices
+#define VS_MESH10_FACES vs_effects_plg069Mesh10Faces
 #include "pc/src/game/EFFECT/meshes10.h"
 
 #define VS_TRAIL_ORIGIN_FUNCTION func_800FA3EC
@@ -12,7 +12,7 @@
 #define VS_TRAIL_UPDATE_FUNCTION func_800FB3F0
 #define VS_TRAIL_RENDER_FUNCTION func_800FB57C
 #define VS_TRAIL_DISPATCH_FUNCTION func_800FBFCC
-#define VS_TRAIL_CORNER_STATE D_800FD4D4
+#define VS_TRAIL_CORNER_STATE vs_effects_plg069TrailEmissionCounter
 #include "pc/src/game/EFFECT/trails9.h"
 
 #define VS_TILED_RING_FUNCTION func_800FC50C

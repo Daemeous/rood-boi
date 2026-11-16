@@ -23,13 +23,13 @@ pub fn func_800C28AC(position: ?*v.SVECTOR, arg1: c_int) callconv(.c) void {
     const xy: c_int = projected.sxy;
     const xyu: c_uint = @bitCast(xy);
 
-    const step = (@as(c_int, v.g.D_800EA6AC().*) +% 1) & 0xF;
-    v.g.D_800EA6AC().* = psx.conv(u8, step);
+    const step = (@as(c_int, v.g.vs_battle_positionCursorBlinkFrame().*) +% 1) & 0xF;
+    v.g.vs_battle_positionCursorBlinkFrame().* = psx.conv(u8, step);
 
     pcMarker.x = @as(c_int, psx.conv(i16, xy));
     pcMarker.y = xy >> 16;
     pcMarker.lock = arg1;
-    pcMarker.step = @as(c_int, v.g.D_800EA6AC().*);
+    pcMarker.step = @as(c_int, v.g.vs_battle_positionCursorBlinkFrame().*);
     const pcMarkerFirst = v.g.vs_scratch().unk0;
 
     if (arg1 == 0) {
@@ -65,11 +65,11 @@ pub fn func_800C28AC(position: ?*v.SVECTOR, arg1: c_int) callconv(.c) void {
     while (i < 3) : (i +%= 1) {
         const index: c_int = i +% arg1 *% 2;
         const brightness: c_int = if (index == 2)
-            @as(c_int, v.g.vs_battle_cursorBrightnessAnimation()[v.g.D_800EA6AC().*])
+            @as(c_int, v.g.vs_battle_cursorBrightnessAnimation()[v.g.vs_battle_positionCursorBlinkFrame().*])
         else
             0x80;
         const otPtr: [*c]c_uint = @ptrFromInt(@as(usize, psx.addr(ot)));
-        _ = sprite_item.sprite(otPtr, brightness, xy +% psx.at(v.g.D_800EA670(), index).*, psx.at(v.g.D_800EA684(), index).*, sprite_item.page, @bitCast(psx.conv(c_uint, psx.at(v.g.D_800EA698(), index).*)));
+        _ = sprite_item.sprite(otPtr, brightness, xy +% psx.at(v.g.vs_battle_positionCursorSpriteOffsets(), index).*, psx.at(v.g.vs_battle_positionCursorSpriteSizes(), index).*, sprite_item.page, @bitCast(psx.conv(c_uint, psx.at(v.g.vs_battle_positionCursorSpriteTexCoords(), index).*)));
     }
 
     // ROOD_PC: PC_CLASSIC target marker site (classic_hook.h); weak, tested for presence.

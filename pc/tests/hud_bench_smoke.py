@@ -446,10 +446,10 @@ def name_window(g, check):
 def queries(g, check):
     """rood.game (task 7): Ashley, the room, the mode as the game has them (RPC state)."""
     # save_room loads the supplied card; it does not promise a sheathed weapon.
-    # Independent oracle: D_800F4538[0]->unk0.weaponDrawn (3A1A0.h, byte 0x0A bit 7),
+    # Independent oracle: vs_actors_actorRecords[0]->unk0.weaponDrawn (3A1A0.h, byte 0x0A bit 7),
     # not rood.game itself. The array is native pointers even in the LP64 build.
     pointer = 8 if pathlib.Path(BINARY).read_bytes()[4] == 2 else 4
-    actor_slot = symbols()["D_800F4538"]
+    actor_slot = symbols()["vs_actors_actorRecords"]
 
     def weapon_drawn():
         actor = int.from_bytes(g.read(actor_slot, pointer), "little")

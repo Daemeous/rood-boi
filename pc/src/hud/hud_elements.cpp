@@ -135,7 +135,7 @@ const char* const KINDS[PC_HUD_KINDS] = { "", "status", "chain", "buff", "damage
     "name_window", "gauges", "figure", "status_icons", "battle_mode", "ability_icons", "actor_word", "timer", "emote", "text_frame", "text_band", "box_text", "image", "target_row", "target_line", "target_marker",
     "menu_background", "menu_command", "menu_row", "menu_cursor", "menu_tabs", "option_value", "items_category", "items_status_button", "equip_stats", "dp_pp_bars", "gem_slots", "stat_page", "ok_mark", "storage_buttons", "storage_counts", "loot_capacities", "discard_count", "rename_grid", "rename_box", "file_menu", "file_element", "menuf", "menuf_load" };
 const char* const TIMINGS[] = { "too_fast", "fast", "success", "slow", "too_slow" };
-// BATTLE.PRG func_800958A4's words and colours (PS1 BGR, 0x80 full).
+// BATTLE.PRG vs_battle_drawAbilityTimingResult's words and colours (PS1 BGR, 0x80 full).
 const char* const TIMING_WORDS[] = { "TOO FAST!", "FAST!", "", "SLOW!", "TOO SLOW!" };
 const char* const SUCCESS_WORDS[] = { "COOL!", "GOOD!", "EXCELLENT!", "RIGHT ON!", "PERFECT!", "WELL TIMED!", "NICE!",
     "GREAT!" };
@@ -225,7 +225,7 @@ void synthetic_fields(int kind, const ShowArgs& a, pc_hud_fields& f)
     char digits[8];
     std::snprintf(digits, sizeof digits, "%d", a.value);
     switch (kind) {
-    case PC_HUD_STATUS: // func_800958A4 at (44, 48), centred about its glyphs' box
+    case PC_HUD_STATUS: // vs_battle_drawAbilityTimingResult at (44, 48), centred about its glyphs' box
         status_text(a.timing, a.variant, f.text, sizeof f.text);
         f.timing = a.timing;
         f.variant = a.variant;
@@ -233,7 +233,7 @@ void synthetic_fields(int kind, const ShowArgs& a, pc_hud_fields& f)
         f.x = 44, f.y = 53;
         f.rgb = full(TIMING_COLOURS[a.timing]);
         break;
-    case PC_HUD_CHAIN: // func_80095A4C at (44, 64)
+    case PC_HUD_CHAIN: // vs_battle_drawChainCount at (44, 64)
         f.value = a.value;
         std::snprintf(f.text, sizeof f.text, a.value == 1 ? "%d CHAIN" : "%d CHAINS", a.value);
         f.w = 8.0f * (float)std::strlen(f.text), f.h = 10;
@@ -393,7 +393,7 @@ bool show(int kind, const ShowArgs& args, std::string* error)
         a.sign = kind == PC_HUD_DAMAGE ? -1 : 1;
     a.sign = a.sign < 0 ? -1 : 1;
     a.pool = a.pool < 0 ? 0 : a.pool > 2 ? 2 : a.pool;
-    int stats = kind == PC_HUD_BUFF ? 12 : 5; // (damage: func_80094E18's icons, unkE 3..8)
+    int stats = kind == PC_HUD_BUFF ? 12 : 5; // (damage: vs_battle_drawValueLabelCaption's icons, unkE 3..8)
     a.stat = a.stat < 0 ? 0 : a.stat > stats ? stats : a.stat;
     a.slot = a.slot < 0 ? 0 : a.slot > 6 ? 6 : a.slot;
     if (kind == PC_HUD_TRAVEL)

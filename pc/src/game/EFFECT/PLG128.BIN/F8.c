@@ -23,11 +23,11 @@ typedef struct {
     int padCC;
 } func_800FD9A4_t;
 
-void func_800D1B18(D_800F54D8_t*);
-void func_800D1E20(int);
+void vs_effects_captureEffectCamera(D_800F54D8_t*);
+void vs_effects_setEffectCameraTransitionMode(int);
 extern short D_800F54D0;
 extern short D_800F55A0;
-extern D_800F54D8_t D_800F5520[2];
+extern D_800F54D8_t vs_effects_cameraMotionEnds[2];
 
 void func_800FE3D0(
     func_800FA098_arg0*, func_800FA098_arg1*, D_800F53B8_t*, func_800FA76C_arg3*);
@@ -43,7 +43,7 @@ void func_800FF54C(
     func_800FA098_arg0*, func_800FA098_arg1*, D_800F53B8_t*, func_800FA76C_arg3*);
 
 #define VS_SURFACE_FUNCTION func_800F98F8
-#define VS_SURFACE_VERTICES D_801004F0
+#define VS_SURFACE_VERTICES vs_effects_plg128SurfaceVertices
 #define VS_SURFACE_REPEAT
 #include "pc/src/game/EFFECT/surfaces.h"
 
@@ -63,7 +63,7 @@ typedef struct {
     u_char u;
     u_char v;
 } vs_closedRingUV;
-extern u_char D_80100770[][4];
+extern u_char vs_effects_plg128ClosedRingColorFactors[][4];
 
 int func_800FA490(func_800D4910_t* arg0, u_int arg1, int arg2)
 {
@@ -104,7 +104,7 @@ int func_800FA490(func_800D4910_t* arg0, u_int arg1, int arg2)
     pFileBlock1Data* texture;
     alive = 1;
     state = arg0->unk8;
-    battle = D_800F53BC;
+    battle = vs_effects_currentInstance;
     switch (arg1) {
     case 1:
         state = vs_main_allocHeapR(sizeof(*state));
@@ -117,20 +117,20 @@ int func_800FA490(func_800D4910_t* arg0, u_int arg1, int arg2)
         state->height = 0;
         state->angle = 0;
         state->age = 0;
-        effect = &D_800F569C->block5Data->unk4[state->effect];
-        func_800D6CCC((int*)(&state->texture));
-        func_800D6CF0(&state->texture, effect->unkCA, effect->unkCB);
+        effect = &vs_effects_package->block5Data->unk4[state->effect];
+        vs_effects_clearTextureAnimation((int*)(&state->texture));
+        vs_effects_restartTextureAnimation(&state->texture, effect->unkCA, effect->unkCB);
         break;
 
     case 2: {
-        effect = &D_800F569C->block5Data->unk4[state->effect];
+        effect = &vs_effects_package->block5Data->unk4[state->effect];
         scratch->flags = effect->flags;
         actorMatrix = &battle->unk1C[effect->unkC8].unk38;
-        effect = &D_800F569C->block5Data->unk4[state->effect];
+        effect = &vs_effects_package->block5Data->unk4[state->effect];
         column = vs_battle_sampleCurve(effect->unk17, state->age);
         fraction = func_800CFE1C(effect->unk30, column);
         column = ((u_char*)effect)[7];
-        factorBytes = ((u_char*)D_80100770) + (column & 0x1C);
+        factorBytes = ((u_char*)vs_effects_plg128ClosedRingColorFactors) + (column & 0x1C);
         factors[0] = factorBytes[0];
         factors[1] = factorBytes[1];
         factors[2] = factorBytes[2];
@@ -141,7 +141,7 @@ int func_800FA490(func_800D4910_t* arg0, u_int arg1, int arg2)
             break;
 
         case 1:
-            vs_battle_addVecToSvec(&scratch->unk98, D_800F5310, &scratch->unk98);
+            vs_battle_addVecToSvec(&scratch->unk98, vs_effects_effectOrigin, &scratch->unk98);
             break;
 
         case 2:
@@ -253,9 +253,9 @@ int func_800FA490(func_800D4910_t* arg0, u_int arg1, int arg2)
             }
         }
 
-        func_800D6D24(&state->texture);
+        vs_effects_advanceTextureAnimation(&state->texture);
         texture =
-            &D_800F569C->block1Data[state->texture.unk1C->dataIndex];
+            &vs_effects_package->block1Data[state->texture.unk1C->dataIndex];
         for (column = 0; column < 5; ++column)
             u[column] = texture->u0 + ((texture->u1 * column) / 4);
 
@@ -358,7 +358,7 @@ int func_800FA490(func_800D4910_t* arg0, u_int arg1, int arg2)
 #include "pc/src/game/EFFECT/grids.h"
 
 #define VS_SURFACE_FUNCTION func_800FCE0C
-#define VS_SURFACE_VERTICES D_80100790
+#define VS_SURFACE_VERTICES vs_effects_plg128SurfaceVertices2
 #include "pc/src/game/EFFECT/surfaces.h"
 
 void func_800FD9A4(func_800FD9A4_t* arg0, VECTOR* arg1)
@@ -376,7 +376,7 @@ void func_800FDA04(func_800FD9A4_t* arg0, func_800FA098_arg1* arg1, D_800F53B8_t
     case 0:
         break;
     case 1:
-        vs_battle_addVecToSvec(&arg1->unk98, D_800F5310, &arg1->unk98);
+        vs_battle_addVecToSvec(&arg1->unk98, vs_effects_effectOrigin, &arg1->unk98);
         break;
     case 2:
         arg1->unk98.vx += arg2->unk1C[arg3->unkC8].unk38.t[0];
@@ -396,9 +396,9 @@ void func_800FDA04(func_800FD9A4_t* arg0, func_800FA098_arg1* arg1, D_800F53B8_t
         arg1->unk13C.vz += arg2->unk1C[arg3->unkC9].unk38.t[2];
         break;
     case 0x80:
-        arg1->unk13C.vx += D_800F5230.unkE0.vx;
-        arg1->unk13C.vy += D_800F5230.unkE0.vy;
-        arg1->unk13C.vz += D_800F5230.unkE0.vz;
+        arg1->unk13C.vx += vs_effects_actionRequest.unkE0.vx;
+        arg1->unk13C.vy += vs_effects_actionRequest.unkE0.vy;
+        arg1->unk13C.vz += vs_effects_actionRequest.unkE0.vz;
         break;
     }
     arg0->unk98.vx = arg1->unk13C.vx;
@@ -413,7 +413,7 @@ void func_800FDC80(func_800FD9A4_t* arg0, func_800FA098_arg1* arg1, D_800F53B8_t
     case 0:
         break;
     case 1:
-        vs_battle_addVecToSvec(&arg1->unk98, D_800F5310, &arg1->unk98);
+        vs_battle_addVecToSvec(&arg1->unk98, vs_effects_effectOrigin, &arg1->unk98);
         break;
     case 2:
         arg1->unk98.vx += arg2->unk1C[arg3->unkC8].unk38.t[0];
@@ -445,7 +445,7 @@ int func_800FDEC4(func_800D4910_t* arg0, u_int arg1, int arg2)
 {
     vs_gte_view view;
     func_800FD9A4_t* state = arg0->unk8;
-    D_800F53B8_t* battle = D_800F53BC;
+    D_800F53B8_t* battle = vs_effects_currentInstance;
     func_800FA098_arg1* scratch = &pc_effect_scratch;
     func_800FA098_arg0* effect;
     int alive = 1;
@@ -457,19 +457,19 @@ int func_800FDEC4(func_800D4910_t* arg0, u_int arg1, int arg2)
         state->lifetime = arg2;
         state->mode = arg2 >> 16;
         state->age = 0;
-        func_800D1B18(&state->startCamera);
-        func_800D1B18(&state->endCamera);
+        vs_effects_captureEffectCamera(&state->startCamera);
+        vs_effects_captureEffectCamera(&state->endCamera);
         D_800F54D0 = 0;
         D_800F55A0 = arg2 & 0xFF;
         switch (state->mode) {
         case 0:
         case 1:
-            func_800D1E20(2);
+            vs_effects_setEffectCameraTransitionMode(2);
             break;
         }
         break;
     case 2:
-        effect = &D_800F569C->block5Data->unk4[state->effect];
+        effect = &vs_effects_package->block5Data->unk4[state->effect];
         scratch->flags = effect->flags;
         curve = effect->unk8;
         vs_battle_lerpVector(
@@ -528,8 +528,8 @@ int func_800FDEC4(func_800D4910_t* arg0, u_int arg1, int arg2)
         }
         state->endCamera.nearClip = state->nearClip;
         state->endCamera.farClip = scratch->unk118[0];
-        D_800F5520[0] = state->startCamera;
-        D_800F5520[1] = state->endCamera;
+        vs_effects_cameraMotionEnds[0] = state->startCamera;
+        vs_effects_cameraMotionEnds[1] = state->endCamera;
         ++state->age;
         if (!--state->lifetime)
             alive = 0;
@@ -551,5 +551,5 @@ int func_800FDEC4(func_800D4910_t* arg0, u_int arg1, int arg2)
 #define VS_TRAIL_UPDATE_FUNCTION func_800FF3C0
 #define VS_TRAIL_RENDER_FUNCTION func_800FF54C
 #define VS_TRAIL_DISPATCH_FUNCTION func_800FFFA8
-#define VS_TRAIL_CORNER_STATE D_80100A10
+#define VS_TRAIL_CORNER_STATE vs_effects_plg128TrailEmissionCounter
 #include "pc/src/game/EFFECT/trails5.h"

@@ -5,13 +5,13 @@ const v = @import("views_battle_movement");
 const psx = @import("common").psx;
 const pad = @import("common").pad;
 
-/// orig: func_800DB370 (pc/src/battle_movement.c)
+/// orig: vs_battle_aiApproachActor (pc/src/battle_movement.c)
 /// Approaches actor `id`. Uses the model's waypoint group when allowed,
-/// otherwise its tile; then plans with func_800E24EC and on success enters
+/// otherwise its tile; then plans with vs_battle_aiUpdateTargetApproachMovement and on success enters
 /// mode 1. A missing cached actor still enters mode 1 for nonzero ids, as
 /// the original's leftover $v0 (id * 4) does.
 pub fn approachActor(state: *ai.vs_battle_aiState, id: c_int, distance: c_int, option: c_int) callconv(.c) c_int {
-    const model_slot = psx.at(v.g.D_800F4538(), id).*;
+    const model_slot = psx.at(v.g.vs_actors_actorRecords(), id).*;
     const cached = psx.at(@as([*]align(1) u32, @ptrFromInt(pad.addr(0) + 0x37c)), id).*;
     var result: c_int = undefined;
     if (cached == 0) {
@@ -41,13 +41,13 @@ pub fn approachActor(state: *ai.vs_battle_aiState, id: c_int, distance: c_int, o
             state.destination168.destination = psx.byteAt(u32, model, 0x5c).*;
         }
         if (grouped) {
-            const waypoint = c.func_8008E2D4(group);
-            c.func_800DFA54(group, waypoint[0], waypoint[2], &state.destination168.targetMovementPoint.b[0]);
+            const waypoint = c.vs_field_movingPlatformTargetWaypoint(group);
+            c.vs_battle_aiFindNearestRouteGateEntry(group, waypoint[0], waypoint[2], &state.destination168.targetMovementPoint.b[0]);
             const tile = state.destination168.destination;
             state.cachedDestination.raw = tile;
             @as(*align(1) u32, @ptrCast(&state.targetTileX)).* = ((tile & 0xff) << 1) | (((tile >> 16) & 0xff) << 1);
         }
-        result = c.func_800E24EC(state, option);
+        result = c.vs_battle_aiUpdateTargetApproachMovement(state, option);
     }
-    return if (result != 0) c.func_800DB4AC(state, 1) else 0;
+    return if (result != 0) c.vs_battle_aiSetMovementBehavior(state, 1) else 0;
 }

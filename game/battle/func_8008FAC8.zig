@@ -14,12 +14,12 @@ fn xy(x: c_int, y: c_int) c_int {
 pub fn func_8008FAC8() callconv(.c) void {
     const scratch = v.g.vs_scratch();
     const view = gte.viewOf(&v.g.vs_view().viewMatrix, gte.screenCurrent());
-    const base: ?*v.D_800F1DD4_t = v.g.D_800F1DD4().*;
+    const base: ?*v.D_800F1DD4_t = v.g.vs_field_weatherParticles().*;
     var i: c_int = 0;
-    while (i < @as(c_int, v.g.D_800F1DC0().*)) : (i +%= 1) {
+    while (i < @as(c_int, v.g.vs_field_weatherParticleCount().*)) : (i +%= 1) {
         const particle: *v.D_800F1DD4_t = psx.at(base.?, i);
         if (particle.unkC != 0) continue;
-        if (v.g.D_800F1BA4().* == 0) {
+        if (v.g.vs_field_areRoomUpdatesPaused().* == 0) {
             particle.unk2 = psx.conv(i16, @as(c_int, particle.unk2) -% (@as(c_int, particle.unkF) *% v.g.vs_gametime_tickspeed().*));
             if (@as(c_int, particle.unk2) < -1024) c.func_8008FA14(psx.cptr(c.D_800F1DD4_t, particle));
         }

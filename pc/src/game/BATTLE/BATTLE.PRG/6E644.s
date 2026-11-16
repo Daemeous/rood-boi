@@ -15,12 +15,12 @@ enddlabel jtbl_80069B54
 
 .section .text, "ax"
 
-glabel func_800D6E44
+glabel vs_effects_drawAnimatedSpriteParticles
     addiu   $sp, $sp, -0x48
     sw      $s1, 0x24($sp)
     addu    $s1, $a0, $zero
-    lui     $v0, %hi(D_800F569C)
-    lw      $v0, %lo(D_800F569C)($v0)
+    lui     $v0, %hi(vs_effects_package)
+    lw      $v0, %lo(vs_effects_package)($v0)
     lui     $v1, %hi(vs_main_projectionDistance)
     sw      $ra, 0x44($sp)
     sw      $fp, 0x40($sp)
@@ -35,8 +35,8 @@ glabel func_800D6E44
     lw      $v1, %lo(vs_main_projectionDistance)($v1)
     addiu   $v0, $v0, 0x4
     sw      $v0, 0x10($sp)
-    lui     $v0, %hi(D_800F53BC)
-    lw      $v0, %lo(D_800F53BC)($v0)
+    lui     $v0, %hi(vs_effects_currentInstance)
+    lw      $v0, %lo(vs_effects_currentInstance)($v0)
     sll     $v1, $v1, 10
     sw      $v1, 0x14($sp)
     sw      $v0, 0x18($sp)
@@ -72,7 +72,7 @@ glabel func_800D6E44
     bnez    $v0, .L800D6F24
     nop
     beqz    $v1, .L800D6F3C
-    lui     $v1, %hi(D_800F569C)
+    lui     $v1, %hi(vs_effects_package)
     j       .L800D6EEC
     nop
 .L800D6F24:
@@ -84,7 +84,7 @@ glabel func_800D6E44
     nop
 .L800D6F3C:
     lbu     $v0, 0x52($s1)
-    lw      $v1, %lo(D_800F569C)($v1)
+    lw      $v1, %lo(vs_effects_package)($v1)
     sll     $v0, $v0, 2
     addu    $v1, $v1, $v0
     sra     $v0, $a1, 16
@@ -379,8 +379,8 @@ glabel func_800D6E44
     sll     $v1, $a1, 9
     div     $zero, $v1, $a2
     mflo    $v1
-    lui     $v0, %hi(D_80040A14)
-    addiu   $v0, $v0, %lo(D_80040A14)
+    lui     $v0, %hi(vs_core_mathArcTangentTable)
+    addiu   $v0, $v0, %lo(vs_core_mathArcTangentTable)
     addu    $v0, $v1, $v0
     lbu     $v1, 0x0($v0)
     j       .L800D73B4
@@ -389,8 +389,8 @@ glabel func_800D6E44
     sll     $v1, $a2, 9
     div     $zero, $v1, $a1
     mflo    $v1
-    lui     $v0, %hi(D_80040A14)
-    addiu   $v0, $v0, %lo(D_80040A14)
+    lui     $v0, %hi(vs_core_mathArcTangentTable)
+    addiu   $v0, $v0, %lo(vs_core_mathArcTangentTable)
     addu    $v0, $v1, $v0
     lbu     $v1, 0x0($v0)
 .L800D73B4:
@@ -413,9 +413,9 @@ glabel func_800D6E44
     sra     $s2, $s2, 16
     ctc2    $s2, $14
     ctc2    $zero, $15
-    lui     $s6, %hi(D_800F569C)
+    lui     $s6, %hi(vs_effects_package)
     lw      $s5, 0x58($s1)
-    lw      $v1, %lo(D_800F569C)($s6)
+    lw      $v1, %lo(vs_effects_package)($s6)
     lhu     $a0, 0x2($s5)
     lw      $v1, 0xA8($v1)
     sll     $v0, $a0, 1
@@ -475,7 +475,7 @@ glabel func_800D6E44
     nop
     div     $zero, $a3, $v0
     mfhi    $a0
-    lw      $v0, %lo(D_800F569C)($s6)
+    lw      $v0, %lo(vs_effects_package)($s6)
     sll     $v1, $a1, 2
     addu    $v0, $v0, $v1
     lw      $v0, 0xC($v0)
@@ -501,8 +501,8 @@ glabel func_800D6E44
     nop
     div     $zero, $a3, $v0
     mfhi    $a0
-    lui     $v0, %hi(D_800F569C)
-    lw      $v0, %lo(D_800F569C)($v0)
+    lui     $v0, %hi(vs_effects_package)
+    lw      $v0, %lo(vs_effects_package)($v0)
     sll     $v1, $a1, 2
     addu    $v0, $v0, $v1
     lw      $v0, 0xC($v0)
@@ -529,8 +529,8 @@ glabel func_800D6E44
     nop
     div     $zero, $a3, $v0
     mfhi    $a0
-    lui     $v0, %hi(D_800F569C)
-    lw      $v0, %lo(D_800F569C)($v0)
+    lui     $v0, %hi(vs_effects_package)
+    lw      $v0, %lo(vs_effects_package)($v0)
     sll     $v1, $a1, 2
     addu    $v0, $v0, $v1
     lw      $v0, 0xC($v0)
@@ -692,4 +692,4 @@ glabel func_800D6E44
     lw      $s0, 0x20($sp)
     jr      $ra
     addiu   $sp, $sp, 0x48
-endlabel func_800D6E44
+endlabel vs_effects_drawAnimatedSpriteParticles

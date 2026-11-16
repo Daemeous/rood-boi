@@ -10,7 +10,7 @@ pub fn dismissTextBox(id: c_int) callconv(.c) c_int {
 
     const flags: c_int = @as(c_int, psx.getBits(&box.unk0, "unk0_24"));
     if ((flags & 0x20) == 0) {
-        _ = c.func_800AAD4C(flags, 0, 0, 0);
+        _ = c.vs_actors_setTextureAnimation(flags, 0, 0, 0);
     }
 
     if (box.state != 0) {

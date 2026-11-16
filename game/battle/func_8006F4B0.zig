@@ -22,6 +22,6 @@ pub fn func_8006F4B0(source: ?*v.func_8006EBF8_t3) callconv(.c) void {
     sp10.unk18 = psx.conv(i16, (@as(c_int, psx.getBits(&src.unk0.fields, "unk0_16")) << 7) +% 0x40);
     sp10.unk16.u16 = psx.conv(u16, src.unk4.vy);
     if ((v.g.D_800F1868().* & 2) == 0) {
-        _ = c.func_800CF3F8(psx.cptr(c.func_800CF0E8_t, &sp10), 0);
+        _ = c.vs_effects_beginSecondaryEffects(psx.cptr(c.func_800CF0E8_t, &sp10), 0);
     }
 }

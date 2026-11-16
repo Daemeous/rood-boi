@@ -95,7 +95,7 @@ typedef struct {
  * instance's subdivision range). */
 typedef struct {
     int near_bucket, far_bucket, lod_bucket;
-    int subdivision; /* the room's subdivision switch (func_8009723C mode bit 0) */
+    int subdivision; /* the room's subdivision switch (vs_render_drawRoomGeometry mode bit 0) */
     /* Object rules (characters, weapons, props: BATTLE/4B16C.s): 0 for the
      * room. A polygon is culled when its first triangle's NCLIP is <= 0 (no
      * quad fallback), sorted by its average depth (quads (SZ0..3) >> 4,
@@ -107,7 +107,7 @@ typedef struct {
     int objects;
     int zsf3; /* GTE ZSF3 (AVSZ3 scale, 4.12) */
     /* Room rules drawn over the native surfaces so far (another room block,
-     * func_8008E19C's): no depth reset; depth-tested against the room and the
+     * vs_field_drawRoomTriggerMarker's): no depth reset; depth-tested against the room and the
      * objects before it and added to them, as object lists are. */
     int layered;
     /* An effects list (RENDER_EFFECTS_*): translucent entries only (every
@@ -178,7 +178,7 @@ uint32_t render_list_begin(const render_camera* camera, const render_rules* rule
  * 0 when the list is gone. */
 int render_list_camera(uint32_t list, render_camera* out);
 void render_list_add(uint32_t list, const render_instance* instance);
-/* Vertex colour adjustment for the whole list (func_80098D6C on the room
+/* Vertex colour adjustment for the whole list (vs_render_tintRoomGeometryPrimitives on the room
  * packets): fade toward each colour's luminance by fade/4096, then add the
  * signed offsets, clamped to 0..255. */
 void render_list_tint(uint32_t list, int dr, int dg, int db, int fade);
@@ -326,7 +326,7 @@ typedef struct {
     int interpolated_instances; /* instances drawn with a blended palette (replays) */
     /* Translucent polygons (render_list_translucent): */
     int translucent_markers, translucent_polygons; /* drawn natively (room and objects) */
-    /* Other room blocks (render_rules.layered: func_8008E19C's): */
+    /* Other room blocks (render_rules.layered: vs_field_drawRoomTriggerMarker's): */
     int layered_lists, layered_instances;
     /* 3D triangles of packets that are neither room nor object packets
      * (effects, drop shadows, particles: what is still reconstructed). */

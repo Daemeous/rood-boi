@@ -5,12 +5,12 @@
 
 .section .text, "ax"
 
-glabel func_800DC484
+glabel vs_battle_aiIsActionHarmfulToActor
     bgez    $zero, .L800DC490
     addiu   $v0, $zero, 0xF
-endlabel func_800DC484
+endlabel vs_battle_aiIsActionHarmfulToActor
 
-glabel func_800DC48C
+glabel vs_battle_aiIsActionBeneficialToActor
     addiu   $v0, $zero, 0xE
 .L800DC490:
     addiu   $v1, $zero, 0x34
@@ -38,9 +38,9 @@ glabel func_800DC48C
     xori    $v0, $t1, 0x1
 .L800DC4EC:
     jr      $ra
-endlabel func_800DC48C
+endlabel vs_battle_aiIsActionBeneficialToActor
 
-glabel func_800DC4F0
+glabel vs_battle_aiCacheFallbackActionCandidate
     addiu   $a2, $zero, 0x1
     lw      $t0, 0x4($a0)
     lui     $t3, %hi(D_800F58F0)
@@ -72,11 +72,11 @@ glabel func_800DC4F0
     slti    $v0, $a3, 0x10
     beqz    $v0, .L800DC4EC
     addiu   $a3, $a3, 0x1
-    bgez    $zero, func_800DC2E0
+    bgez    $zero, vs_battle_aiCopyActionCandidate
     sw      $a3, 0x0($t3)
-endlabel func_800DC4F0
+endlabel vs_battle_aiCacheFallbackActionCandidate
 
-glabel func_800DC574
+glabel vs_battle_aiPromoteRandomizedActionCandidate
     addiu   $sp, $sp, -0x30
     sw      $ra, 0x18($sp)
     sw      $s0, 0x10($sp)
@@ -130,12 +130,12 @@ glabel func_800DC574
     nop
     bgez    $zero, L800DB890
     nop
-endlabel func_800DC574
+endlabel vs_battle_aiPromoteRandomizedActionCandidate
 
-glabel func_800DC638
+glabel vs_battle_aiUpdateRouteGateAvailability
     addiu   $sp, $sp, -0x80
     sw      $ra, 0x78($sp)
-    jal     func_8008D2C0
+    jal     vs_field_collectMovingPlatformPositions
     addiu   $a0, $sp, 0x10
     addiu   $v1, $sp, 0x10
     addu    $a3, $zero, $zero
@@ -224,9 +224,9 @@ glabel func_800DC638
     lw      $ra, 0x78($sp)
     addiu   $sp, $sp, 0x80
     jr      $ra
-endlabel func_800DC638
+endlabel vs_battle_aiUpdateRouteGateAvailability
 
-glabel func_800DC784
+glabel vs_battle_aiMakeTargetHostile
     sll     $a1, $a1, 2
     addiu   $sp, $sp, -0x30
     sw      $ra, 0x18($sp)
@@ -252,7 +252,7 @@ glabel func_800DC784
 .L800DC7DC:
     addiu   $a1, $zero, 0x6
     addiu   $a2, $zero, 0x28
-    jal     func_800D8260
+    jal     vs_battle_aiSetTemporaryAwarenessIndicator
     addu    $a0, $s0, $zero
     addiu   $a1, $zero, 0x2
     addiu   $a2, $zero, 0x80
@@ -264,9 +264,9 @@ glabel func_800DC784
     ori     $s2, $s2, 0xC0
     bgez    $zero, L800DB894
     sw      $s2, 0x1A4($s1)
-endlabel func_800DC784
+endlabel vs_battle_aiMakeTargetHostile
 
-glabel func_800DC810
+glabel vs_battle_aiApplyActionRelationshipChanges
     addiu   $sp, $sp, -0x30
     sw      $ra, 0x18($sp)
     sw      $s1, 0x14($sp)
@@ -274,8 +274,8 @@ glabel func_800DC810
     sw      $s2, 0x1C($sp)
     addu    $s1, $a0, $zero
     sw      $s0, 0x10($sp)
-    lui     $s5, %hi(func_800DD000)
-    addiu   $s5, $s5, %lo(func_800DD000)
+    lui     $s5, %hi(vs_battle_aiApplyActorActionReaction)
+    addiu   $s5, $s5, %lo(vs_battle_aiApplyActorActionReaction)
     addiu   $s2, $zero, 0x2
 .L800DC838:
     lui     $s0, %hi(vs_battle_actors)
@@ -299,4 +299,4 @@ glabel func_800DC810
     ori     $s5, $s5, (0x800DD344 & 0xFFFF)
     bgez    $zero, L800DB890
     nop
-endlabel func_800DC810
+endlabel vs_battle_aiApplyActionRelationshipChanges

@@ -8,7 +8,7 @@ const psx = @import("common").psx;
 /// Copies actor `id`'s navigation state (a whole state) into `route` and
 /// resets its route fields.
 fn routeInit(id: c_uint, route: *ai.vs_battle_aiState) void {
-    _ = c.vs_main_memcpy(route, v.g.D_800F5878()[id], @sizeOf(ai.vs_battle_aiState));
+    _ = c.vs_main_memcpy(route, v.g.vs_battle_aiActorAiStates()[id], @sizeOf(ai.vs_battle_aiState));
     route.id = @truncate(id);
     route.fB0 = 0x140;
     route.radiusB2 = 3;
@@ -18,7 +18,7 @@ fn routeInit(id: c_uint, route: *ai.vs_battle_aiState) void {
     route.f23 = 1;
 }
 
-/// orig: func_800E527C (pc/src/actor_update.c)
+/// orig: vs_battle_aiSetActorNavigationOverride (pc/src/actor_update.c)
 /// Sends actor `id` towards (x, z): releases its reservations, allocates its
 /// route record on first use (a whole state) and initialises it with the
 /// target. 0 without a grid, a state or memory. As in the assembly, an
@@ -27,16 +27,16 @@ fn routeInit(id: c_uint, route: *ai.vs_battle_aiState) void {
 pub fn startActorRoute(id: c_uint, x: c_int, z: c_int) callconv(.c) c_int {
     const target: c_uint = (@as(c_uint, @bitCast(z)) << 16) | @as(c_uint, @bitCast(x));
     if (id >= 17) c.pc_unimplemented("actor navigation index");
-    const state: ?*ai.vs_battle_aiState = @ptrCast(@alignCast(v.g.D_800F5878()[id]));
+    const state: ?*ai.vs_battle_aiState = @ptrCast(@alignCast(v.g.vs_battle_aiActorAiStates()[id]));
     if (v.g.D_800F58B8().* == 0 or state == null) return 0;
-    c.func_800D82CC(@ptrCast(state));
-    c.func_800D821C(@ptrCast(state));
-    c.func_800DBF00(@ptrCast(state));
+    c.vs_battle_aiDisengageActor(@ptrCast(state));
+    c.vs_battle_aiResetActorAwarenessIndicator(@ptrCast(state));
+    c.vs_battle_aiUnlinkEngagedActor(@ptrCast(state));
     var record = state.?;
     if (record.route == null) {
         record = @ptrCast(@alignCast(c.vs_main_allocHeapR(@sizeOf(ai.vs_battle_aiState)) orelse return 0));
         state.?.route = record;
-        c.func_800E4288(record, @sizeOf(ai.vs_battle_aiState));
+        c.vs_core_memoryClearAlignedWords(record, @sizeOf(ai.vs_battle_aiState));
     }
     routeInit(state.?.id, record);
     record.unk160 = target;

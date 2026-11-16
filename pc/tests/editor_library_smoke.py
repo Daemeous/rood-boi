@@ -327,7 +327,8 @@ def check_panel(s):
             f"Pop out: its own window ({r['window']}), not a tab")
     g.call("settings", action="save")
     text = pathlib.Path(s.settings).read_text()
-    s.check("editor_library_docked 0" in text and "editor_library_view grid" in text, "docked and the view are user settings")
+    s.check("editor_library_docked 0" in text and "editor_library_view" not in text,
+            "the pop-out is a user setting (docked 0 differs from the default); the grid view, the default, is not written")
     lib(s, action="view", docked=True)
     lib(s, action="filter", kind="")
 

@@ -6,7 +6,7 @@ const c = @import("c_4A0A8");
 
 /// The camera block allocated by func_800BBBE8, re-read at each store as the C does.
 fn cam() *v.D_800F4BA4_t {
-    return v.g.D_800F4BA4().*.?;
+    return v.g.vs_event_camera().*.?;
 }
 
 /// orig: _copyVector (pc/src/game/BATTLE/BATTLE.PRG/4A0A8.c)
@@ -23,8 +23,8 @@ pub fn func_800BBBE8() callconv(.c) void {
     var sp20: v.VECTOR = undefined;
     var sp30: v.VECTOR = undefined;
 
-    psx.put(v.g.D_800F4BA4(), c.vs_main_allocHeapR(@as(c_uint, @sizeOf(v.D_800F4BA4_t))));
-    v.g.D_800F4BA0().* = 0;
+    psx.put(v.g.vs_event_camera(), c.vs_main_allocHeapR(@as(c_uint, @sizeOf(v.D_800F4BA4_t))));
+    v.g.vs_event_skipNextFieldCameraRestore().* = 0;
 
     c.vs_battle_getCameraPosition(psx.cptr(c.VECTOR, &sp20));
     c.vs_battle_getCameraLookAt(psx.cptr(c.VECTOR, &sp30));
@@ -43,35 +43,35 @@ pub fn func_800BBBE8() callconv(.c) void {
     cam().unk168.unk2 = 0;
     cam().unk168.unk0 = 1;
 
-    c.func_8007DD50(0);
+    c.vs_render_setFramebufferEffectEnabled(0);
 
     cam().unk174.unkA = 0;
     cam().unk174.unk2 = 0;
 
-    c.func_8007DDAC(0);
+    c.vs_render_setFramebufferEffectRoll(0);
 
     cam().unk174.unk0 = 1;
     cam().unk1FC.unk4 = 4096;
     cam().unk1FC.unk2 = 4096;
 
-    c.func_8007DDB8(psx.cptr(c.D_800F1A68_t, v.g.D_800E9C0C()));
+    c.vs_render_setFramebufferEffectScale(psx.cptr(c.D_800F1A68_t, v.g.D_800E9C0C()));
 
     cam().unk21C.unk2 = 0;
     cam().unk21C.unk4 = 0;
     cam().unk21C.unk6 = 0;
     cam().unk1FC.unk1E = 0;
 
-    c.func_8007DDD4(psx.cptr(c.P_CODE, v.g.D_800E9C08()));
+    c.vs_render_setFramebufferEffectTint(psx.cptr(c.P_CODE, v.g.vs_event_defaultScreenTint()));
 
     cam().unk21C.unk1E = 0;
     cam().unk23C.unk4 = 4096;
     cam().unk23C.unk2 = 4096;
 
-    c.func_8007DDF8(psx.cptr(c.D_800F1A68_t, v.g.D_800E9C0C()));
+    c.vs_render_setFramebufferEffectOffset(psx.cptr(c.D_800F1A68_t, v.g.D_800E9C0C()));
 
     cam().unk23C.unk1E = 0;
 
-    c.func_8007DE2C(1);
+    c.vs_render_setFramebufferEffectBlendMode(1);
 
     cam().unk25C.unk2 = 4096;
     cam().unk25C.unk1E = 0;

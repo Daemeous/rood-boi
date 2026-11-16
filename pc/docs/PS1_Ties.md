@@ -128,7 +128,7 @@ object versus a packet that cannot be interpolated).
 
 ## T3. Wall-clock time read as PS1 scanlines
 
-**Done 2026-11-08.** The game's elapsed-scanline read (`VSync(1)`, `func_800E45B4`) is a fixed step per read from
+**Done 2026-11-08.** The game's elapsed-scanline read (`VSync(1)`, `vs_core_elapsedFrameCounterTicks`) is a fixed step per read from
 each vblank (`scanlines_now` in `pc/src/boot_runtime.c`), never the host's clock, so how much the AI does in a frame
 no longer depends on how fast the machine is that frame.
 
@@ -164,8 +164,8 @@ MENU 0/4/5/7/8/9/D/E, MAINMENU, about 33 effect plug-ins, SCREFF2, battle text, 
 items (`pc/src/draw_items.c`, `pc/docs/plans/2026-11-08-frames-as-data.md`); the room, characters and shadows are native
 lists with reference packets. What remains as packets: the 3D packet builders (actor, room, particle), the 2D tail
 (HUD claim emitters, text-box rows, sky, shadows, lines) and `DR_MOVE`. 12 packet and ordering-table imports stay pinned
-in guest RAM (`D_800F4CD0`, `D_800E856C`, `D_800E8594`, `D_800E85BC`, `D_800E9C00`, `D_800E9C08`, `D_800E9C0C`,
-`D_800F1A68`, `D_800F1A78`, `vs_battle_mapCompletionFlags`, `vs_main_drawEnv`, `vs_main_dispEnv`).
+in guest RAM (`vs_menu_textBoxOrderingTables`, `vs_field_triggerMarkerMatrix`, `vs_field_triggerMarkerVertex`, `vs_field_triggerMarkerTextureSource`, `D_800E9C00`, `vs_event_defaultScreenTint`, `D_800E9C0C`,
+`vs_render_framebufferEffectOffset`, `vs_render_framebufferEffectTint`, `vs_battle_mapCompletionFlags`, `vs_main_drawEnv`, `vs_main_dispEnv`).
 
 **To replace.** Very large. The code that writes packets is spread through every overlay
 (`pc/src/game/BATTLE`, `EFFECT`, `MENU`, `TITLE`, `ENDING`, the packet macros in the shared headers).
@@ -481,7 +481,7 @@ the biggest and the one tied to behaviour.
 **What it is.** A large part of the game's data is defined by address: the build gives each global the
 address it had on the PS1 (`imports.ld`), so tables and structs the original data refers to line up.
 About a dozen hard-coded PS1 addresses remain in code (`ps1_address` counts them). Most functions and globals still carry their address as
-their name (`func_800B3CF0`, `D_800F45E0`), a naming fact, not a runtime tie, but it makes the map from
+their name (`vs_render_drawModelFlatPolygons`, `vs_field_gimmickInstances`), a naming fact, not a runtime tie, but it makes the map from
 code to behaviour hard to read. Battle's logic is in Zig (1811 `.zig` files under `game/`, 51 subsystems
 in `game/ownership.toml`, each function keyed by its PS1 address) and reaches game memory through raw
 accessors.
@@ -497,7 +497,7 @@ accessors.
 **Status.** Fully PS1-shaped in addressing; native in logic. Since 2026-11-10 `ps1_address` is 7 (from
 60): what is left is the RAM base (`ROOD_GUEST_RAM_BASE`, `psx.guest_ram_base`), the heap
 (`VS_MAIN_HEAP_ADDRESS`), the ordering-table link walk in Zig
-(`func_800C64D0`), and the actor-engagement reads through guest RAM (`no_hostile_near_target.zig`).
+(`vs_render_splicePrimitiveList`), and the actor-engagement reads through guest RAM (`no_hostile_near_target.zig`).
 
 **To replace.** Very large, mostly mechanical per unit: rename by meaning, replace the address with a
 typed global, and remove the raw access.
@@ -524,8 +524,8 @@ Why the 301 are pinned (each counted once, in this order; `lp64_imports.json` sa
   that are not moved natively): T13 has to widen them first. (Before 2026-11-11 this count held every
   unsized array, 206 of them: a table declared `u_char x[]` is plain data whose extent is the only unknown.)
 - 13 are GPU packet or ordering-table storage whose address is taken, or touch it (the GPU links 24 bits of a
-  RAM address, `next_packet` in `boot_runtime.c`; D_800F4CD0 starts the ordering-table pages; the two P_CODE
-  words and their bodies; D_800E856C and D_800E8594, inside a block func_8008E19C reaches as D_800E85A0 - 0x58).
+  RAM address, `next_packet` in `boot_runtime.c`; vs_menu_textBoxOrderingTables starts the ordering-table pages; the two P_CODE
+  words and their bodies; vs_field_triggerMarkerMatrix and vs_field_triggerMarkerVertex, inside a block vs_field_drawRoomTriggerMarker reaches as vs_field_triggerMarkerRecordTail - 0x58).
   Any other import whose address is taken may move: a native copy is a pointer like the guest one (the
   address is below 4 GB), the region keeps the guest layout, and a taken import extends to the next import
   because its declared size cannot be trusted (ENDING's image blobs are declared as their 20-byte header).
@@ -634,7 +634,7 @@ With an audio device, an audio thread runs the driver's 240 Hz tick, the registe
 (`pc_audio_slice`), whenever the device's queue holds less than `audio_latency_ms`. The game thread and it
 share the driver's state and the SPU through one recursive lock (`pc_sound_lock`): the audio thread holds it for a
 slice, the game thread for each SDK sound call, each sound command (the game's own `DisableEvent` of its timer
-event, `func_80018C30`, masks the tick as the PS1's interrupt mask did) and a save state or rewind. Without a device
+event, `vs_audio_mixerDispatchCommand`, masks the tick as the PS1's interrupt mask did) and a save state or rewind. Without a device
 (`ROOD_AUDIO=none` or `wav:`, tests, the compare tools) the sound is clocked by the game's fields
 (four slices per field on the game thread), because game logic reads the driver's state and a headless run must
 depend on the frame count only.
@@ -697,7 +697,7 @@ game's frame, so input can land up to a game frame late (**unconfirmed**; not me
 `pc/src/boot_window.c` (`pc_window_buttons`), `pc/src/boot_gamepad.c`, `pc/src/input_record.c`.
 
 **Status.** Partly native (host input, camera and photo controls are native; rumble and analog movement
-are native, T20a). Analog movement is Ashley's movement input only (`func_8006E7F0`: the stick's angle as the
+are native, T20a). Analog movement is Ashley's movement input only (`vs_actors_updateAshleyMovementInput`: the stick's angle as the
 heading, its travel choosing the game's two paces, the D-pad's run and R2's walk); menus and targeting still
 read the digital pad (the stick also sets the D-pad bits, as before). Not recorded by the input recorder (the
 left stick is not in its event log), so a replay of a recording made with the setting on plays the D-pad's.

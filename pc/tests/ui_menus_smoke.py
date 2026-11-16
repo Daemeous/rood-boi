@@ -60,7 +60,7 @@ def main():
     sym = symbols()
     menu_state = sym["vs_battle_menuState"]
     shortcut_invoked = sym["vs_battle_shortcutInvoked"]
-    hud_hide = sym["D_800EB9AF"]  # the field HUD slides out while set
+    hud_hide = sym["vs_battle_hudHidden"]  # the field HUD slides out while set
     actions, action_ranges = sym["vs_main_actions"], sym["D_800EBD68"]
     failures = []
 
@@ -189,7 +189,7 @@ def main():
         check(current_menu() == CLOSED, "and Triangle closes it")
 
         # Break Arts: unlock the break arts in RAM (vs_main_actions records of 52 bytes, unlocked =
-        # byte 13 bit 7; D_800EBD68[2..3] = the break arts range func_800CACD0 checks for the
+        # byte 13 bit 7; D_800EBD68[2..3] = the break arts range vs_menu_frameworkOpenGameMenu checks for the
         # Break Arts command)
         lo, hi = game.read(action_ranges + 2, 2)
         for a in range(lo, hi):

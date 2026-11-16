@@ -18,10 +18,10 @@ pub fn endBattleCameraTransition() callconv(.c) void {
         v.g.vs_battle_cameraTransition().* = null;
     }
 
-    c.func_800CB654(0);
-    _ = c.func_8008B4C8(1);
-    c.func_8008D594(0);
-    c.func_80095B70(0);
+    c.vs_battle_setHudHidden(0);
+    _ = c.vs_field_setMinimapVisible(1);
+    c.vs_field_setMovingPlatformsPaused(0);
+    c.vs_battle_setActorMarkersHidden(0);
     _ = c.func_800A0870(0);
     c.func_8006F5CC();
 }

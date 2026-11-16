@@ -5,7 +5,7 @@ const v = @import("views_5BF94");
 const c = @import("c_5BF94");
 
 /// orig: _renderTimer (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
-/// The timer's minutes, seconds and hundredths (the hundredths from the state flags; 59:59:99 once the top byte is set) as BCD digits into D_800EC258, drawn at (128, 200).
+/// The timer's minutes, seconds and hundredths (the hundredths from the state flags; 59:59:99 once the top byte is set) as BCD digits into vs_battle_puzzleTimerTextPointer, drawn at (128, 200).
 pub fn renderTimer(value: [*c]c_int) callconv(.c) void {
     var digits: [4]u8 = @bitCast(value.*);
     digits[0] = v.g.vs_main_stateFlags().puzzleTimerHundredths;
@@ -14,7 +14,7 @@ pub fn renderTimer(value: [*c]c_int) callconv(.c) void {
         digits[1] = 59;
         digits[0] = 99;
     }
-    const text = v.g.D_800EC258().*.?;
+    const text = v.g.vs_battle_puzzleTimerTextPointer().*.?;
     var i: c_int = 0;
     while (i < 3) : (i += 1) { // i < 3
         const bcd = c.vs_battle_toBCD(digits[@intCast(i)]);

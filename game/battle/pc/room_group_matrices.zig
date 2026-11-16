@@ -7,7 +7,7 @@ fn word(address: usize) *align(1) c_uint {
     return @ptrFromInt(address);
 }
 
-/// orig: func_800983F8 (pc/src/boot_sdk.c)
+/// orig: vs_render_updateRoomGroupTransforms (pc/src/boot_sdk.c)
 /// Fills each group's view matrix (the group records of 0x40 bytes after the
 /// count word, matrix at +0x20) unless the group's flag 0x100 is set: from the
 /// group's position and angles, or for a camera-facing plane (flag 0x400) from
@@ -31,11 +31,11 @@ pub fn roomGroupMatrices(geometry: ?*anyopaque) callconv(.c) void {
         if (flags & 0x100 != 0) continue;
         const result: [*c]c.MATRIX = @ptrFromInt(group + 0x20);
         if (flags & 0x400 == 0) {
-            c.func_800985AC(@ptrFromInt(group + 4), @ptrFromInt(group + 0x10), result);
+            c.vs_render_buildRoomGeometryViewMatrix(@ptrFromInt(group + 4), @ptrFromInt(group + 0x10), result);
         } else {
             var zero = c.VECTOR{ .vx = 0, .vy = 0, .vz = 0, .pad = 0 };
-            var camera: c.MATRIX = undefined; // filled whole by func_800985AC
-            c.func_800985AC(&zero, &zero, &camera);
+            var camera: c.MATRIX = undefined; // filled whole by vs_render_buildRoomGeometryViewMatrix
+            c.vs_render_buildRoomGeometryViewMatrix(&zero, &zero, &camera);
             const view = common.gte.viewOf(&camera, common.gte.no_screen);
             const vector = [3]i16{ psx.conv(i16, word(group + 4).*), psx.conv(i16, word(group + 8).*), psx.conv(i16, word(group + 12).*) };
             const moved = common.gte.transform(&view, &vector); // gte_mvmva(1, 0, 0, 0, 0)

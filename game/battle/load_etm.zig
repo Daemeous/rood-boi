@@ -50,18 +50,18 @@ pub fn loadEtm(objdata: ?*v.vs_battle_objectData) callconv(.c) c_int {
 
     c.vs_main_freeCdQueueSlot(psx.cptr(c.vs_main_CdQueueSlot, slot));
 
-    if (psx.at(v.g.D_800F244F(), od.index).* != 0) {
-        if (c.func_8007E0A8(psx.conv(c_uint, psx.at(v.g.D_800F244F(), od.index).*), 1, 4) == 0) {
+    if (psx.at(v.g.vs_actors_sequenceTexturePagesOneBased(), od.index).* != 0) {
+        if (c.vs_render_retireTexturePages(psx.conv(c_uint, psx.at(v.g.vs_actors_sequenceTexturePagesOneBased(), od.index).*), 1, 4) == 0) {
             return -3;
         }
-        psx.at(v.g.D_800F244F(), od.index).* = 0;
+        psx.at(v.g.vs_actors_sequenceTexturePagesOneBased(), od.index).* = 0;
     }
 
-    if (c.func_8007DFF0(psx.conv(c_uint, od.unk11), 1, 4) == 0) {
+    if (c.vs_render_reserveTexturePages(psx.conv(c_uint, od.unk11), 1, 4) == 0) {
         return -2;
     }
 
-    psx.at(v.g.D_800F244F(), od.index).* = od.unk11;
+    psx.at(v.g.vs_actors_sequenceTexturePagesOneBased(), od.index).* = od.unk11;
 
     // ++_etmData; h = *_etmData; ++_etmData;
     v.g._etmData().* = v.g._etmData().*.? + 1;

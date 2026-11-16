@@ -12,7 +12,7 @@
  *                  as the game set them (the codes up to the 0xFF end, 0xFA
  *                  spacings with their operand); sub the raw printer's text
  *   cursor         58EC.c's list statics (pc_classic_mainmenu) and the
- *                  sub-menu's cursor memory (D_800F4EE8.cursorMemories)
+ *                  sub-menu's cursor memory (vs_menu_frameworkMenuMemory.cursorMemories)
  *   info           text box 7 (vs_mainmenu_setInformationMessage), decoded,
  *                  while it is up
  *   command        the title sprite's current and next (_renderMenuCommand)

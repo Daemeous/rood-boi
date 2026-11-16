@@ -12,29 +12,29 @@
 #include "pc/src/psx_types.h"
 #include "ai_state.h"
 
-int func_8008631C(int, int, int, int, void*);
-int func_800863A4(int, int, int, int, SVECTOR*, SVECTOR*, void*);
-void func_800DC810(func_800DEEA4_t*);
+int vs_battle_previewActionAgainstLimb(int, int, int, int, void*);
+int vs_battle_previewActionAgainstActor(int, int, int, int, SVECTOR*, SVECTOR*, void*);
+void vs_battle_aiApplyActionRelationshipChanges(func_800DEEA4_t*);
 struct actionStatSnapshot;
-void func_800DC888(struct actionStatSnapshot*);
-void func_800E4C8C(vs_battle_aiState*);
-void func_800E4CE8(vs_battle_aiState* arg0);
-extern vs_battle_aiState* D_800F5878[];
-extern D_800F58BC_t* D_800F58BC;
+void vs_battle_aiApplySimulatedActionResults(struct actionStatSnapshot*);
+void vs_battle_aiRememberAiActionTarget(vs_battle_aiState*);
+void vs_battle_aiForgetAiActionTarget(vs_battle_aiState* arg0);
+extern vs_battle_aiState* vs_battle_aiActorAiStates[];
+extern D_800F58BC_t* vs_battle_aiRoomAiState;
 extern u_short (*D_800F58D0)[32];
-extern func_800DEEA4_t* D_800F5900;
+extern func_800DEEA4_t* vs_battle_aiPlanningWorkspace;
 extern D_800F5920_t* D_800F5920;
 
 int func_800E4CF4(vs_battle_aiState*, actionCandidateEntry*, int);
-int func_800E4DF8(vs_battle_aiState*, int, int);
-void func_800D9DD8(vs_battle_aiState*);
-int func_800D85D8(vs_battle_aiState* state);
+int vs_battle_aiRefreshAiActionUsability(vs_battle_aiState*, int, int);
+void vs_battle_aiSelectActionMovementMode(vs_battle_aiState*);
+int vs_battle_aiRefreshActionCandidateReadiness(vs_battle_aiState* state);
 struct vs_battle_aiState;
-void func_800D821C(struct vs_battle_aiState*);
-void func_800E4F14(void*);
-int func_800E42D4(int, int);
-unsigned int func_800E4660(int, int, int);
-void func_800D820C(int, int);
+void vs_battle_aiResetActorAwarenessIndicator(struct vs_battle_aiState*);
+void vs_battle_aiRefreshAiResourceRestrictions(void*);
+int vs_field_groundHeightAtWorldPosition(int, int);
+unsigned int vs_core_mathSquaredVectorLength(int, int, int);
+void vs_battle_aiSetActorAwarenessIndicator(int, int);
 
 typedef struct actionStatSnapshot {
     int unknown;
@@ -70,8 +70,8 @@ typedef struct {
     char pad4[48];
 } actionCostView;
 
-void func_800DC30C(short*, short*, int, int);
-void func_800DC888(actionStatSnapshot* stats);
+void vs_battle_aiApplySimulatedStatDelta(short*, short*, int, int);
+void vs_battle_aiApplySimulatedActionResults(actionStatSnapshot* stats);
 
 void func_800DCAA0(vs_battle_aiState* arg0, int arg1, func_800DCAA0_t* arg2, int arg3);
 
@@ -85,8 +85,8 @@ typedef struct {
     char pad[14];
     unsigned short flags;
 } actionScoreMetadata;
-void func_800DC424(actionStatSnapshot*);
-int func_800DC284(int, int, int, int);
+void vs_battle_aiCaptureActorConditionTable(actionStatSnapshot*);
+int vs_battle_aiScoreActorCondition(int, int, int, int);
 const signed char D_80069BD0[] = { -51, -39, -39, -39, -26, -51, 50, -13, 12, -13, 12, 25,
     -51, -26, -45, -26, -39, 76, 19, -13, 12, 12, 12, 12, 12, 12, 12, 12, 12, 0, 0, 0 };
 void func_800DCC94(vs_battle_aiState* state, actionCandidateEntry* candidate, int mode, actionScoreMetadata* action);
@@ -100,14 +100,14 @@ typedef struct {
     char pad0[10];
     unsigned char flag;
 } actionReactionMotion;
-int func_800DC48C(int, int);
-int func_800DC484(int, int);
-void func_800DC210(vs_battle_aiState*, int);
-void func_800DC19C(vs_battle_aiState*);
-void func_800DC784(vs_battle_aiState*, int);
-void func_800DD000(vs_battle_aiState* state, actionStatApplication* app);
+int vs_battle_aiIsActionBeneficialToActor(int, int);
+int vs_battle_aiIsActionHarmfulToActor(int, int);
+void vs_battle_aiTryBeginAshleyAlliance(vs_battle_aiState*, int);
+void vs_battle_aiEndAshleyAlliance(vs_battle_aiState*);
+void vs_battle_aiMakeTargetHostile(vs_battle_aiState*, int);
+void vs_battle_aiApplyActorActionReaction(vs_battle_aiState* state, actionStatApplication* app);
 
-void func_800DD344(vs_battle_aiState* state);
+void vs_battle_aiPropagateActorRelationships(vs_battle_aiState* state);
 
 /* Local view of the vs_main_actions flag word at 0xC */
 typedef struct {
@@ -136,13 +136,13 @@ static inline unsigned short* nearestWaypointAddress(unsigned short* row, int in
     row += index;
     return row;
 }
-void func_800DD7CC(vs_battle_aiState* state, nearestWaypointDestination* destination);
+void vs_battle_aiFindNearestActiveWaypoint(vs_battle_aiState* state, nearestWaypointDestination* destination);
 
 extern u_char (*D_800F5904)[256];
-void func_800E4288(void*, int);
-void func_800DC2E0(actionCandidateEntry*, actionCandidateEntry*);
-void func_800DC344(vs_battle_aiState*, actionCandidateEntry*);
-void func_800DC4F0(actionCandidateEntry*, actionChoiceInfo*);
+void vs_core_memoryClearAlignedWords(void*, int);
+void vs_battle_aiCopyActionCandidate(actionCandidateEntry*, actionCandidateEntry*);
+void vs_battle_aiAppendActionCandidate(vs_battle_aiState*, actionCandidateEntry*);
+void vs_battle_aiCacheFallbackActionCandidate(actionCandidateEntry*, actionChoiceInfo*);
 
 static inline vs_battle_uiEquipment_limb* actorLimb(vs_battle_actor2* stats, int limb)
 {
@@ -163,32 +163,32 @@ typedef struct {
 } statusEffectTable;
 
 extern u_int D_80069BBC[];
-void func_800E4F14(void*);
+void vs_battle_aiRefreshAiResourceRestrictions(void*);
 
-void func_800DE030(int elapsed);
+void vs_battle_aiAdvancePlanningSimulation(int elapsed);
 
 #define MIN(a, b) ((a) > (b) ? (b) : (a))
 #define MAX(a, b) ((a) < (b) ? (b) : (a))
 
 extern int D_800F58F0;
 extern int D_800F58F4;
-extern vs_battle_actor2* D_800F58E8;
+extern vs_battle_actor2* vs_battle_aiPlanningStatsSnapshot;
 extern actionCandidateEntry (*D_800F58EC)[16];
 extern actionCandidateEntry* D_800F58F8;
-void func_800DC3E8(vs_battle_actor2* src, vs_battle_actor2* dst);
-void func_800DC3CC(vs_battle_aiState*);
-void func_800DC574(vs_battle_aiState*, int);
+void vs_battle_aiCopyPlanningActorStats(vs_battle_actor2* src, vs_battle_actor2* dst);
+void vs_battle_aiSortActionCandidates(vs_battle_aiState*);
+void vs_battle_aiPromoteRandomizedActionCandidate(vs_battle_aiState*, int);
 
 static inline int snapshotActorStats(void)
 {
     vs_battle_actor* actor;
 
-    D_800F58E8 = vs_main_allocHeapR(sizeof(vs_battle_actor2) * 16);
-    if (D_800F58E8 == NULL) {
+    vs_battle_aiPlanningStatsSnapshot = vs_main_allocHeapR(sizeof(vs_battle_actor2) * 16);
+    if (vs_battle_aiPlanningStatsSnapshot == NULL) {
         return 0;
     }
     for (actor = vs_battle_actors[0]; actor != NULL; actor = actor->next) {
-        func_800DC3E8(actor->unk3C, &D_800F58E8[actor->id]);
+        vs_battle_aiCopyPlanningActorStats(actor->unk3C, &vs_battle_aiPlanningStatsSnapshot[actor->id]);
     }
     return 1;
 }
@@ -198,15 +198,15 @@ static inline void restoreActorStats(void)
     vs_battle_actor* actor;
 
     for (actor = vs_battle_actors[0]; actor != NULL; actor = actor->next) {
-        func_800DC3E8(&D_800F58E8[actor->id], actor->unk3C);
+        vs_battle_aiCopyPlanningActorStats(&vs_battle_aiPlanningStatsSnapshot[actor->id], actor->unk3C);
     }
-    vs_main_freeHeapR(D_800F58E8);
+    vs_main_freeHeapR(vs_battle_aiPlanningStatsSnapshot);
 }
 
 #undef MIN
 #undef MAX
 
-void func_800DEB10(func_800DEEA4_t* arg0);
+void vs_battle_aiReconcileCompletedActionPlan(func_800DEEA4_t* arg0);
 
 typedef struct actorEvaluationStats {
     char pad0[24];
@@ -223,9 +223,9 @@ typedef struct actorEvaluationContext {
     int f44;
 } actorEvaluationContext;
 extern u_char (*D_800F5904)[256];
-void func_800E685C(int, int, int);
-void func_800D821C(vs_battle_aiState*);
-int func_800DEC88(void* arg0);
+void vs_battle_aiSetActorVerticalMovementSteps(int, int, int);
+void vs_battle_aiResetActorAwarenessIndicator(vs_battle_aiState*);
+int vs_battle_aiRebuildActorActionPlans(void* arg0);
 
-void func_800DEEA4(func_800DEEA4_t* arg0);
+void vs_battle_aiNotifyActionRelationshipChanges(func_800DEEA4_t* arg0);
 

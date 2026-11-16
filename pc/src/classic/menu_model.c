@@ -82,9 +82,9 @@ int pc_menu_model_fill(pc_menu_model* m)
     m->cursor.row = mm.row, m->cursor.page = mm.page, m->cursor.sub_menu = mm.sub_menu;
     m->cursor.row_info = mm.row_info, m->cursor.rows = mm.row_count, m->cursor.list_open = mm.list_open;
     m->cursor.list_row = vs_mainMenu_itemsListRow, m->cursor.row_offset = mm.row_offset;
-    if (mm.sub_menu * 2 + 1 < (int)sizeof D_800F4EE8.cursorMemories) {
-        m->cursor.memory_row = D_800F4EE8.cursorMemories[mm.sub_menu * 2];
-        m->cursor.memory_page = D_800F4EE8.cursorMemories[mm.sub_menu * 2 + 1];
+    if (mm.sub_menu * 2 + 1 < (int)sizeof vs_menu_frameworkMenuMemory.cursorMemories) {
+        m->cursor.memory_row = vs_menu_frameworkMenuMemory.cursorMemories[mm.sub_menu * 2];
+        m->cursor.memory_page = vs_menu_frameworkMenuMemory.cursorMemories[mm.sub_menu * 2 + 1];
     }
     m->command = mm.command, m->command_next = mm.command_next;
     m->fade = vs_mainMenu_backgroundFadeStep, m->fade_in = _backgroundFadeState != 0;

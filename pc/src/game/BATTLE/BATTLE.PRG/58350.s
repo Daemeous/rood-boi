@@ -5,15 +5,15 @@
 
 .section .text, "ax"
 
-glabel func_800C0B50
+glabel vs_battle_drawSphereVolumeWireframe
     addiu   $sp, $sp, -0x48
     sw      $s7, 0x3C($sp)
     addu    $s7, $a0, $zero
     sw      $fp, 0x40($sp)
     addu    $fp, $a1, $zero
     sw      $s0, 0x20($sp)
-    lui     $s0, %hi(D_800EB9B8)
-    lw      $v0, %lo(D_800EB9B8)($s0)
+    lui     $s0, %hi(vs_battle_targetSphere)
+    lw      $v0, %lo(vs_battle_targetSphere)($s0)
     addiu   $a0, $s7, 0x4
     sw      $ra, 0x44($sp)
     sw      $s6, 0x38($sp)
@@ -27,11 +27,11 @@ glabel func_800C0B50
     addiu   $s6, $v0, 0x48
     lui     $a1, (0x1F800398 >> 16)
     ori     $a1, $a1, (0x1F800398 & 0xFFFF)
-    lw      $a0, %lo(D_800EB9B8)($s0)
+    lw      $a0, %lo(vs_battle_targetSphere)($s0)
     addu    $s1, $v0, $zero
     jal     RotMatrixYXZ_gte
     addiu   $a0, $a0, 0x24
-    lw      $v0, %lo(D_800EB9B8)($s0)
+    lw      $v0, %lo(vs_battle_targetSphere)($s0)
     lui     $s3, (0x1F800398 >> 16)
     lh      $a0, 0x2A($v0)
     ori     $s3, $s3, (0x1F800398 & 0xFFFF)
@@ -47,9 +47,9 @@ glabel func_800C0B50
     sw      $s2, 0x18($sp)
     addu    $a0, $s1, $zero
     lui     $a1, (0x1F800398 >> 16)
-    jal     func_80041C68
+    jal     vs_core_mathMultiplyMatrixIntoRight
     ori     $a1, $a1, (0x1F800398 & 0xFFFF)
-    jal     func_800C02A8
+    jal     vs_render_loadFrameViewMatrix
     nop
     lw      $a2, 0x4($s3)
     lw      $s5, 0x8($s3)
@@ -72,15 +72,15 @@ glabel func_800C0B50
     or      $fp, $fp, $v0
     lbu     $a0, 0x4($s7)
     lbu     $v0, 0x6($s7)
-    lw      $v1, %lo(D_800EB9B8)($s0)
+    lw      $v1, %lo(vs_battle_targetSphere)($s0)
     sltu    $v0, $v0, $a0
     lhu     $s1, 0x32($v1)
     bnez    $v0, .L800C0C70
     addu    $s4, $a0, $zero
     lbu     $s4, 0x6($s7)
 .L800C0C70:
-    lui     $v0, %hi(D_800EB9B8)
-    lw      $v0, %lo(D_800EB9B8)($v0)
+    lui     $v0, %hi(vs_battle_targetSphere)
+    lw      $v0, %lo(vs_battle_targetSphere)($v0)
     nop
     lh      $v0, 0x20($v0)
     nop
@@ -149,4 +149,4 @@ glabel func_800C0B50
     lw      $s0, 0x20($sp)
     jr      $ra
     addiu   $sp, $sp, 0x48
-endlabel func_800C0B50
+endlabel vs_battle_drawSphereVolumeWireframe

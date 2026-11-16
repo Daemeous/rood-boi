@@ -1,6 +1,6 @@
 /* Occlusion in play (occlusion.h; Native_Rendering.md "Occlusion").
  *
- * Once per game frame (func_8009723C, the current room) this decides who
+ * Once per game frame (vs_render_drawRoomGeometry, the current room) this decides who
  * matters and whether each of them is hidden:
  *
  * - subjects: Ashley; in battle (BATTLE's action state, as the depth of

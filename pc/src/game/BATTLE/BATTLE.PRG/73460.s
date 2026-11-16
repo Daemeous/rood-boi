@@ -5,13 +5,13 @@
 
 .section .text, "ax"
 
-glabel func_800DBC60
+glabel vs_battle_aiDoesActionRequireCooldown
     lbu     $v0, 0x13($a0)
     lw      $v1, 0xC($a1)
     bnez    $v0, .L800DBCA4
     lw      $v0, 0x4($a1)
-    lui     $t1, %hi(D_800F45E0)
-    addiu   $t1, $t1, %lo(D_800F45E0)
+    lui     $t1, %hi(vs_field_gimmickInstances)
+    addiu   $t1, $t1, %lo(vs_field_gimmickInstances)
     lw      $t0, 0x10($a1)
     andi    $v1, $v1, 0xF
     srl     $t0, $t0, 4
@@ -29,14 +29,14 @@ glabel func_800DBC60
 .L800DBCAC:
     jr      $ra
     addu    $v0, $zero, $zero
-endlabel func_800DBC60
+endlabel vs_battle_aiDoesActionRequireCooldown
 
-glabel func_800DBCB4
+glabel vs_battle_aiIsActionCooldownReady
     lhu     $t0, 0x90($a0)
     addu    $t9, $ra, $zero
     bnez    $t0, .L800DBCAC
     nop
-    jal     func_800DBC60
+    jal     vs_battle_aiDoesActionRequireCooldown
     nop
     addu    $ra, $t9, $zero
     beqz    $v0, .L800DBCA4
@@ -46,9 +46,9 @@ glabel func_800DBCB4
     bnez    $t0, .L800DBCAC
     nop
     bgez    $zero, .L800DBCA4
-endlabel func_800DBCB4
+endlabel vs_battle_aiIsActionCooldownReady
 
-glabel func_800DBCEC
+glabel vs_battle_aiHasNearbyEnemy
     lui     $t8, %hi(vs_battle_actors)
     addiu   $t8, $t8, %lo(vs_battle_actors)
     mtc2    $a0, $2
@@ -68,17 +68,17 @@ glabel func_800DBCEC
     andi    $v0, $v0, 0x3
     slti    $v0, $v0, 0x3
     bnez    $v0, .L800DBD74
-    lui     $v0, %hi(D_800F4538)
-    addiu   $v0, $v0, %lo(D_800F4538)
+    lui     $v0, %hi(vs_actors_actorRecords)
+    addiu   $v0, $v0, %lo(vs_actors_actorRecords)
     addu    $v0, $v0, $t1
     lw      $v0, 0x0($v0)
-    lui     $v1, %hi(D_800F45E0)
-    addiu   $v1, $v1, %lo(D_800F45E0)
+    lui     $v1, %hi(vs_field_gimmickInstances)
+    addiu   $v1, $v1, %lo(vs_field_gimmickInstances)
     sll     $a1, $a1, 2
     addu    $v1, $v1, $a1
     lw      $v1, 0x0($v1)
     lw      $a0, 0x5C($v0)
-    jal     func_800E45F4
+    jal     vs_core_mathSquaredTileDistance
     lw      $a1, 0x5C($v1)
     addu    $ra, $t9, $zero
     slti    $v0, $v0, 0x3
@@ -88,4 +88,4 @@ glabel func_800DBCEC
     lw      $t8, 0x0($t8)
     bgez    $zero, .L800DBCFC
     nop
-endlabel func_800DBCEC
+endlabel vs_battle_aiHasNearbyEnemy

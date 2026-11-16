@@ -625,18 +625,18 @@ static int _applyLoadedSaveFile(int write)
         vs_main_actionsLearned, spmcimg[1].actionsLearned, sizeof vs_main_actionsLearned);
     _rMemcpy(&vs_main_mapStatus, spmcimg[1].mapStatus, sizeof vs_main_mapStatus);
     _rMemcpy(&vs_main_settings, &spmcimg[1].settings, sizeof vs_main_settings);
-    _rMemcpy(&D_80060068, &spmcimg[1].unk6C8, sizeof D_80060068);
+    _rMemcpy(&vs_state_ashleySnapshot, &spmcimg[1].unk6C8, sizeof vs_state_ashleySnapshot);
     _rMemcpy(&vs_main_inventory, &spmcimg[1].inventory, sizeof vs_main_inventory);
     _rMemcpy(
         &vs_main_inventoryIndices, &spmcimg[1].unk16C8, sizeof vs_main_inventoryIndices);
-    _rMemcpy(&D_80061068, &spmcimg[1].unk1778, sizeof D_80061068);
+    _rMemcpy(&vs_state_savedEntryDoor, &spmcimg[1].unk1778, sizeof vs_state_savedEntryDoor);
     _rMemcpy(&vs_main_scoredata, &spmcimg[1].scoreData, sizeof vs_main_scoredata);
-    D_80060064 = s4->unk1898;
+    vs_state_currentRoomStateSlot = s4->unk1898;
     _rMemcpy(D_80061078, spmcimg[1].unk189C, sizeof D_80061078);
     spmcimg2 = &vs_main_artsStatus;
     _rMemcpy(&vs_main_artsStatus, &spmcimg[1].artsStatus, sizeof vs_main_artsStatus);
     vs_main_gametime.t = spmcimg[1].unk180.stats.gameTime.t;
-    func_80042CA0();
+    vs_save_markAshleySnapshotValid();
     vs_main_setMonoSound(vs_main_settings.monoSound);
     return 0;
 }
@@ -657,7 +657,7 @@ static void _packageGameSaveData(int targetFile)
     savedata_t* savedata3 = savedata;
     savedata_unk180_t* s5 = &savedata->unk180;
 
-    func_80042CB0();
+    vs_save_captureAshleySnapshot();
     memset(savedata, 0, sizeof *savedata);
     ((char*)&savedata->fileInfo.key)[0] = 0x53;
     ((char*)&savedata->fileInfo.key)[1] = 0x43;
@@ -686,7 +686,7 @@ static void _packageGameSaveData(int targetFile)
         if (vs_main_settings.slotState < 3) {
             vs_main_settings.slotState = 0x17385CA9;
         }
-        if (!(D_800F4EA0 & 0x400)) {
+        if (!(vs_menu_frameworkActionRestrictions & 0x400)) {
             memset(&savedata2->containerData, 0, sizeof savedata2->containerData);
         }
     }
@@ -717,28 +717,28 @@ static void _packageGameSaveData(int targetFile)
 
     s5->unk180.base.unk8 = 0x20000107;
     s5->stats.gameTime.t = vs_main_gametime.t;
-    s5->stats.currentHP = D_80060068.unk0.currentHP;
-    s5->stats.maxHP = D_80060068.unk0.maxHP;
+    s5->stats.currentHP = vs_state_ashleySnapshot.unk0.currentHP;
+    s5->stats.maxHP = vs_state_ashleySnapshot.unk0.maxHP;
     s5->stats.cumulativeSaveCount = vs_main_settings.cumulativeSaveCount;
     s5->stats.currentGameSaveCount = vs_main_settings.currentGameSaveCount;
     s5->stats.saveLocation = D_800F4E6B;
     s5->stats.mapCompletion = vs_battle_getMapCompletion();
     s5->stats.clearCount = vs_main_stateFlags.clearCount;
-    s5->stats.currentMP = D_80060068.unk0.currentMP;
-    s5->stats.maxMP = D_80060068.unk0.maxMP;
+    s5->stats.currentMP = vs_state_ashleySnapshot.unk0.currentMP;
+    s5->stats.maxMP = vs_state_ashleySnapshot.unk0.maxMP;
     _rMemcpy(savedata->stateFlags, &vs_main_stateFlags, sizeof savedata->stateFlags);
     _rMemcpy(savedata->actionsLearned, vs_main_actionsLearned,
         sizeof savedata->actionsLearned);
     _rMemcpy(savedata->mapStatus, &vs_main_mapStatus, sizeof savedata->mapStatus);
     _rMemcpy(&savedata->settings, &vs_main_settings, sizeof savedata->settings);
-    _rMemcpy(&savedata->unk6C8, &D_80060068, sizeof savedata->unk6C8);
+    _rMemcpy(&savedata->unk6C8, &vs_state_ashleySnapshot, sizeof savedata->unk6C8);
     _rMemcpy(&savedata->inventory, &vs_main_inventory, sizeof savedata->inventory);
     _rMemcpy(&savedata->unk16C8, &vs_main_inventoryIndices, sizeof savedata->unk16C8);
-    _rMemcpy(&savedata->unk1778, &D_80061068, sizeof savedata->unk1778);
+    _rMemcpy(&savedata->unk1778, &vs_state_savedEntryDoor, sizeof savedata->unk1778);
     _rMemcpy(&savedata->scoreData, &vs_main_scoredata, sizeof savedata->scoreData);
     _rMemcpy(&savedata->containerData, &savedata2->containerData,
         sizeof savedata->containerData);
-    savedata->unk1898 = D_80060064;
+    savedata->unk1898 = vs_state_currentRoomStateSlot;
     _rMemcpy(savedata->unk189C, D_80061078, sizeof savedata->unk189C);
     _rMemcpy(&savedata->artsStatus, &vs_main_artsStatus, sizeof savedata->artsStatus);
 
@@ -992,7 +992,7 @@ static int _initMemcard(int init)
     u_int event;
 
     if (init != 0) {
-        func_8007DFF0(0x1D, 3, 6);
+        vs_render_reserveTexturePages(0x1D, 3, 6);
         _spmcimg = vs_main_allocHeap(VS_SPMCIMG_BIN_SIZE);
         _mcData = (mcdata_t*)(_spmcimg + sizeof(savedata_t) * 3);
         _textTable = _mcData->textTable;
@@ -1069,7 +1069,7 @@ static void _shutdownMemcard(void)
     ExitCriticalSection();
     vs_main_enableReset(1);
     vs_main_freeHeap(_spmcimg);
-    func_8007E0A8(0x1D, 3, 6);
+    vs_render_retireTexturePages(0x1D, 3, 6);
 }
 
 static fileMenuElements_t _fileMenuElements[10];
@@ -2628,7 +2628,7 @@ static int _showSaveMenu(int initState)
         selectedFile = 1;
         _containerDataEmpty = 0;
         if (vs_main_settings.cursorMemory != 0) {
-            selectedFile = D_800F4EE8.unk85[3] + 1;
+            selectedFile = vs_menu_frameworkMenuMemory.unk85[3] + 1;
         }
         _dataNotSaved = 0;
         _isSaving = 1;
@@ -2740,7 +2740,7 @@ static int _showSaveMenu(int initState)
             if (vs_main_buttonRepeat & (PADLup | PADLdown)) {
                 vs_main_playSfxDefault(0x7E, VS_SFX_MENUCHANGE);
                 selectedFile = 3 - selectedFile;
-                D_800F4EE8.unk85[3] = selectedFile - 1;
+                vs_menu_frameworkMenuMemory.unk85[3] = selectedFile - 1;
             }
             _selectCursorXy = vs_getXY(180, (selectedFile + 1) * 16 + 10);
         }
@@ -3120,7 +3120,7 @@ static int _loadFileMenu(int initFadeout)
         selectedFile = 1;
 
         if (vs_main_settings.cursorMemory != 0) {
-            selectedFile = D_800F4EE8.unk85[3] + 1;
+            selectedFile = vs_menu_frameworkMenuMemory.unk85[3] + 1;
         }
         _isSaving = 0;
         state = init;
@@ -3178,7 +3178,7 @@ static int _loadFileMenu(int initFadeout)
             if (vs_main_buttonRepeat & (PADLup | PADLdown)) {
                 vs_main_playSfxDefault(0x7E, VS_SFX_MENUCHANGE);
                 selectedFile = 3 - selectedFile;
-                D_800F4EE8.unk85[3] = selectedFile - 1;
+                vs_menu_frameworkMenuMemory.unk85[3] = selectedFile - 1;
             }
             _selectCursorXy = ((((selectedFile + 1) * 16) + 10) << 16) | 180;
         }
@@ -3398,7 +3398,7 @@ static int _displayGameOverScreen(int init)
     } else {
         if (vs_main_buttonsPressed.all & (PADstart | PADRright)) {
             vs_battle_playMenuSelectSfx();
-            func_8004552C(1, 0, 60);
+            vs_audio_fadeMusicSlotVolume(1, 0, 60);
             color1 = -128;
             return 0;
         }
@@ -3495,8 +3495,8 @@ int vs_menu7_gameOver(u_char* state)
 
     switch (*state) {
     case init:
-        func_8007E0A8(0x1F, 1, 6);
-        func_8008A4DC(0);
+        vs_render_retireTexturePages(0x1F, 1, 6);
+        vs_field_setFieldRenderingEnabled(0);
         settingsBackup = vs_main_settings;
         _difficulty = vs_main_stateFlags.difficulty;
         _initGameOver(1);
@@ -3868,9 +3868,9 @@ int vs_menu7_saveContainerMenu(u_char* state)
         break;
     case 2:
         if ((vs_mainmenu_ready() != 0) && (_initMemcard(0) != 0)) {
-            func_8008A4DC(0);
-            func_800CB654(1);
-            D_800EB9B0 = 0x200000;
+            vs_field_setFieldRenderingEnabled(0);
+            vs_battle_setHudHidden(1);
+            vs_battle_hudSlideOffset = 0x200000;
             vs_mainMenu_setBackgroundRenderPriority(2046, 128);
             _initFileMenu();
             if ((*(u_int*)&vs_main_settings) & 0x10) {
@@ -4007,9 +4007,9 @@ int vs_menu7_saveContainerMenu(u_char* state)
             sizeof vs_menu_inventoryStorage->unkF00);
         /* fallthrough */
     case 14:
-        func_8008A4DC(1);
-        func_800CB654(0);
-        D_800EB9B0 = 0;
+        vs_field_setFieldRenderingEnabled(1);
+        vs_battle_setHudHidden(0);
+        vs_battle_hudSlideOffset = 0;
         vs_mainMenu_clearMenuExcept(vs_mainMenu_menuItemIds_none);
         vs_mainMenu_setBackgroundRenderPriority(-4, 0x80);
         *state = 15;
@@ -4131,7 +4131,7 @@ int vs_menu7_dataMenu(u_char* state)
             rowTypes[row] = 0;
         }
 
-        D_800F4E6B = func_8008A4FC();
+        D_800F4E6B = vs_field_currentSavePointId();
         if (!D_800F4E6B || (vs_main_stateFlags.unkA7 != 0)) {
             rowTypes[0] |= 1;
         }
@@ -4141,7 +4141,7 @@ int vs_menu7_dataMenu(u_char* state)
         if (_pcFramed) {
             pc_ui_data_frame_ops(
                 !(rowTypes[0] & 1), D_800F4E6B != 0, vs_main_stateFlags.unkA7 != 0);
-            func_8008A4DC(0);
+            vs_field_setFieldRenderingEnabled(0);
             *state = 6;
             break;
         }
@@ -4153,7 +4153,7 @@ int vs_menu7_dataMenu(u_char* state)
 
         vs_mainmenu_setMenuRows(2, 0x143, menuStrings, rowTypes);
         vs_main_settings.cursorMemory = row;
-        func_8008A4DC(0);
+        vs_field_setFieldRenderingEnabled(0);
         *state = 6;
         break;
 
@@ -4179,7 +4179,7 @@ int vs_menu7_dataMenu(u_char* state)
                 }
 
             } else {
-                func_8008A4DC(1);
+                vs_field_setFieldRenderingEnabled(1);
                 vs_mainMenu_clearMenuExcept(vs_mainMenu_menuItemIds_none);
                 if (row == -2) {
                     *state = 12;

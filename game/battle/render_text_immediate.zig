@@ -26,9 +26,9 @@ fn nullPlus(slot: c_int) ?[*]u32 {
 fn fadeBegin(box: *v.vs_battle_textBox) bool {
     const on = psx.weak(OpacityOn, "pc_hw_opacity_on") orelse return false;
     if (on() == 0) return false;
-    // C: D_800F51B8 + D_800F4E80 * 4 (u_long elements), no dereference: a null base gives plain address arithmetic.
+    // C: vs_menu_activeTextBoxOrderingTable + D_800F4E80 * 4 (u_long elements), no dereference: a null base gives plain address arithmetic.
     const slot: c_int = @as(c_int, v.g.D_800F4E80().*) *% 4;
-    v.g._pcFadeOt().* = if (v.g.D_800F51B8().*) |ot|
+    v.g._pcFadeOt().* = if (v.g.vs_menu_activeTextBoxOrderingTable().*) |ot|
         @ptrCast(psx.at(ot, slot))
     else
         nullPlus(slot);
@@ -108,7 +108,7 @@ pub fn renderTextImmediate(arg0: ?*v.vs_battle_textBox, arg1_in: c_int) callconv
                     currentChar +%= @as(c_uint, v.g._fontTable().*) *% 21 *% 9;
                     if (@as(c_uint, @bitCast(width -% 12)) >= printX and @as(c_uint, @bitCast(height -% 12)) >= printY) {
                         if (buf) |b| {
-                            c.func_800C7EBC(@ptrCast(psx.at(b, printX +% printY *% @as(c_uint, @bitCast(width)))), currentChar, width, @bitCast(arg1));
+                            c.vs_render_blendGlyphIntoPixels(@ptrCast(psx.at(b, printX +% printY *% @as(c_uint, @bitCast(width)))), currentChar, width, @bitCast(arg1));
                         } else {
                             fadeGlyph(currentChar -% @as(c_uint, v.g._fontTable().*) *% 21 *% 9,
                                 x +% @as(c_int, @bitCast(printX)), y +% @as(c_int, @bitCast(printY)));

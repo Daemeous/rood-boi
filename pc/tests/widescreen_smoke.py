@@ -140,14 +140,14 @@ def add_labels(game):
     """Queue the battle labels the timing of a chain ability shows, as
     vs_battle_renderBattleAbilityTimingResult (BATTLE 2842C.c) and the chain
     counter do: "GOOD!" (type 4, success, text 1) and "3 CHAINS" (type 5),
-    beside the status display at the left (24-byte records, D_800F1BAC)."""
-    table = int.from_bytes(game.read_symbol("D_800F1BAC", 4), "little")
-    count = int.from_bytes(game.read_symbol("D_800F227E", 2), "little")
+    beside the status display at the left (24-byte records, vs_battle_floatingLabels)."""
+    table = int.from_bytes(game.read_symbol("vs_battle_floatingLabels", 4), "little")
+    count = int.from_bytes(game.read_symbol("vs_battle_floatingLabelCount", 2), "little")
     good, chains = bytearray(24), bytearray(24)
     good[8], good[12], good[15] = 4, 2, 1
     chains[8], chains[12] = 5, 3
     game.write(table + count * 24, bytes(good) + bytes(chains))
-    game.write(symbols()["D_800F227E"], (count + 2).to_bytes(2, "little"))
+    game.write(symbols()["vs_battle_floatingLabelCount"], (count + 2).to_bytes(2, "little"))
 
 
 def green_left(image, rows):

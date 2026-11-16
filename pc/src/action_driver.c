@@ -1,7 +1,7 @@
 /* The action driver (dev RPC `action`): starts action N through the game's own entries, so the effect runs as in play.
  *
  * A player's action (a spell, a break art, an item) goes in by the entry the menus' target confirmation calls
- * (pc_action_start_player). What the menus leave in the battle state D_800F19CC when they call it is the action index (+8), the
+ * (pc_action_start_player). What the menus leave in the battle state vs_battle_actionState when they call it is the action index (+8), the
  * targets they built and a few menu words; nothing else differs between two actions of the same kind. So the state is captured as
  * menu-driven actions call the entry (`capture`) and replayed with another action index: one state per kind, the action's type and
  * its shape of target (pc_action_kind); only a choice the entry takes (not a pending one it drops) is captured, and a break art is
@@ -13,11 +13,11 @@
  * (type 2) are resolved as hits from the chain input, traps (type 7) by the room's panels, type 0 has no effect. */
 #define STATE_BYTES 0x2C10
 #define ACTION_BYTES 52
-extern unsigned char* D_800F19CC;
+extern unsigned char* vs_battle_actionState;
 extern unsigned char vs_main_actions[];
 extern unsigned D_800F196C; /* the battle's mode: 1 free, 2 while an action runs */
 extern unsigned char vs_battle_menuState;
-extern void pc_action_start_player(int kind); /* 146C.c: func_80070F28, the entry the menus' target confirmation calls */
+extern void pc_action_start_player(int kind); /* 146C.c: vs_battle_commitSelectedAction, the entry the menus' target confirmation calls */
 extern void pc_action_start_actor(int actor, int action); /* 146C.c: the start of an actor's action: the base attack's, an enemy's ability's */
 extern void* vs_battle_actors[16];
 
@@ -53,7 +53,7 @@ void pc_action_capture(const void* state, int kind, int mode, int menu)
 int pc_action_poll(void)
 {
     int actor, pending = pc_action_host_take(&actor), kind, mode, menu;
-    if (pending < 0 || !D_800F19CC)
+    if (pending < 0 || !vs_battle_actionState)
         return 0;
     if (actor >= 0) { /* an actor's action by the game's own entry (pc_action_start_actor), the targets chosen as it chooses them */
         if (!vs_battle_actors[actor])
@@ -66,8 +66,8 @@ int pc_action_poll(void)
     if (!state)
         return 0;
     for (int i = 0; i < STATE_BYTES; i++)
-        D_800F19CC[i] = state[i];
-    D_800F19CC[8] = (unsigned char)(pending & 255), D_800F19CC[9] = (unsigned char)(pending >> 8);
+        vs_battle_actionState[i] = state[i];
+    vs_battle_actionState[8] = (unsigned char)(pending & 255), vs_battle_actionState[9] = (unsigned char)(pending >> 8);
     D_800F196C = (unsigned)mode, vs_battle_menuState = (unsigned char)menu; /* as the menus left them */
     pc_action_host_started();
     pc_action_start_player(kind);

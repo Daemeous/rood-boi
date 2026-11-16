@@ -21,8 +21,8 @@ pub fn func_8009506C(left: c_int, centerY: c_int, arg2: ?*v.D_800F1BAC_t) callco
     const step: c_int = if (unkB < 4) unkB else if (unkB >= 27) 30 -% unkB else 4;
 
     const scratch = common.scratch.get();
-    const heights = v.g.D_800E8634();
-    const rects = v.g.D_800E8640();
+    const heights = v.g.vs_battle_lockedLabelHalfHeights();
+    const rects = v.g.vs_battle_lockedLabelPieces();
 
     var x: c_int = left -% 16;
     const half: c_int = @as(c_int, psx.at(heights, step).*);

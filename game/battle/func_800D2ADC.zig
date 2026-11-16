@@ -29,9 +29,9 @@ fn s16(x: c_int) i16 {
     return psx.conv(i16, x);
 }
 
-/// D_800F5330[i]: the effect's current curve samples.
+/// vs_effects_curveSamples[i]: the effect's current curve samples.
 fn curveAt(i: u8) c_int {
-    return psx.at(v.g.D_800F5330(), i).*;
+    return psx.at(v.g.vs_effects_curveSamples(), i).*;
 }
 
 fn rand() c_int {
@@ -83,7 +83,7 @@ pub fn func_800D2ADC(arg0: ?*v.D_800F53B8_t, event: c_int, arg2: c_int, arg3_in:
     var prevX: c_int = 0; // set before it is read (the ring's interpolated modes)
     var prevZ: c_int = 0;
     const scratch: *Scratch = v.g.pc_effect_scratch();
-    const def = psx.at(&psx.get(v.g.D_800F569C().*.?.block5Data).?.unk4, event);
+    const def = psx.at(&psx.get(v.g.vs_effects_package().*.?.block5Data).?.unk4, event);
 
     scratch.flags = psx.getBits(def, "flags");
     scratch.unk28 = psx.conv(u16, scratch.flags);
@@ -110,24 +110,24 @@ pub fn func_800D2ADC(arg0: ?*v.D_800F53B8_t, event: c_int, arg2: c_int, arg3_in:
 
     var matrix: *v.MATRIX = &psx.at(&effect.unk1C, scratch.unk168).unk38;
     var count = c.func_800CFE1C(&def.unkBC, curveAt(def.unk15));
-    if (count +% v.g.D_800F55F8().* >= v.g.D_800F55F0().*) {
-        count = v.g.D_800F55F0().* -% v.g.D_800F55F8().*;
+    if (count +% v.g.vs_effects_usedParticleCount().* >= v.g.vs_effects_particleCapacity().*) {
+        count = v.g.vs_effects_particleCapacity().* -% v.g.vs_effects_usedParticleCount().*;
     }
 
     var i: c_int = 0;
     while (i < count) : (i += 1) {
-        const n: *Node = @ptrCast(@alignCast(c.func_800D27F0(@ptrCast(effect)).?));
+        const n: *Node = @ptrCast(@alignCast(c.vs_effects_allocateEffectParticle(@ptrCast(effect)).?));
         node = n;
         n.unk6A = psx.conv(u8, scratch.unk168);
         n.unk6B = psx.conv(u8, scratch.unk16C);
-        c.func_800D6CF0(@ptrCast(&n.sprite), def.unk1, def.unk0);
+        c.vs_effects_restartTextureAnimation(@ptrCast(&n.sprite), def.unk1, def.unk0);
     }
 
     c.vs_battle_lerpVector(&def.unk18, curveAt(def.unk8), vp(&scratch.unk98));
     const first = node;
 
     switch (scratch.flags & 7) {
-        1 => c.vs_battle_addVecToSvec(vp(&scratch.unk98), @ptrCast(v.g.D_800F5310()), vp(&scratch.unk98)),
+        1 => c.vs_battle_addVecToSvec(vp(&scratch.unk98), @ptrCast(v.g.vs_effects_effectOrigin()), vp(&scratch.unk98)),
         2 => {
             scratch.unk98.vx +%= matrix.t[0];
             scratch.unk98.vy +%= matrix.t[1];
@@ -149,7 +149,7 @@ pub fn func_800D2ADC(arg0: ?*v.D_800F53B8_t, event: c_int, arg2: c_int, arg3_in:
     node = first;
     sample = c.func_800CFE1C(&def.unk30, curveAt(def.unk17));
 
-    // The rotation the emitter's nodes are placed by (func_800D2A38): the first matrix, translation zero (gte_zrtr).
+    // The rotation the emitter's nodes are placed by (vs_effects_placeParticleSpawn): the first matrix, translation zero (gte_zrtr).
     const emitterView = gte.viewRotation(matrix, gte.no_screen);
     const a = &scratch.unkA8;
     const d = &scratch.unkD8;
@@ -180,7 +180,7 @@ pub fn func_800D2ADC(arg0: ?*v.D_800F53B8_t, event: c_int, arg2: c_int, arg3_in:
                     s.vy = s16((((@as(c_int, s.vy) *% scratch.unk178) >> 12) *% scratch.unk174) >> 12);
                     s.vz = s16((@as(c_int, s.vz) *% scratch.unk170) >> 12);
                 }
-                c.func_800D2A38(@ptrCast(scratch), @ptrCast(node), @ptrCast(&emitterView));
+                c.vs_effects_placeParticleSpawn(@ptrCast(scratch), @ptrCast(node), @ptrCast(&emitterView));
                 node = next(node.?);
             }
         },
@@ -216,7 +216,7 @@ pub fn func_800D2ADC(arg0: ?*v.D_800F53B8_t, event: c_int, arg2: c_int, arg3_in:
                         else => {},
                     },
                     0x1000 => {
-                        const corner = v.g.D_800EC328();
+                        const corner = v.g.vs_effects_emissionCounter();
                         corner.* = (corner.* +% 1) & 7;
                         s.vx = s16(if (corner.* & 1 != 0) a.vx else -%a.vx);
                         s.vy = s16(if (corner.* & 2 != 0) a.vy else -%a.vy);
@@ -224,7 +224,7 @@ pub fn func_800D2ADC(arg0: ?*v.D_800F53B8_t, event: c_int, arg2: c_int, arg3_in:
                     },
                     else => {},
                 }
-                c.func_800D2A38(@ptrCast(scratch), @ptrCast(node), @ptrCast(&emitterView));
+                c.vs_effects_placeParticleSpawn(@ptrCast(scratch), @ptrCast(node), @ptrCast(&emitterView));
                 node = next(node.?);
             }
         },
@@ -250,7 +250,7 @@ pub fn func_800D2ADC(arg0: ?*v.D_800F53B8_t, event: c_int, arg2: c_int, arg3_in:
                     s.vx = s16(@divTrunc(((@as(c_int, s.vx) *% scratch.unk178) >> 12) *% s.vy, a.vy));
                     s.vz = s16(@divTrunc(((@as(c_int, s.vz) *% scratch.unk170) >> 12) *% s.vy, a.vy));
                 }
-                c.func_800D2A38(@ptrCast(scratch), @ptrCast(node), @ptrCast(&emitterView));
+                c.vs_effects_placeParticleSpawn(@ptrCast(scratch), @ptrCast(node), @ptrCast(&emitterView));
                 node = next(node.?);
             }
         },
@@ -281,7 +281,7 @@ pub fn func_800D2ADC(arg0: ?*v.D_800F53B8_t, event: c_int, arg2: c_int, arg3_in:
                         s.vz = s16((@as(c_int, s.vz) *% scratch.unk170) >> 12);
                     }
                 }
-                c.func_800D2A38(@ptrCast(scratch), @ptrCast(node), @ptrCast(&emitterView));
+                c.vs_effects_placeParticleSpawn(@ptrCast(scratch), @ptrCast(node), @ptrCast(&emitterView));
                 node = next(node.?);
             }
         },
@@ -296,7 +296,7 @@ pub fn func_800D2ADC(arg0: ?*v.D_800F53B8_t, event: c_int, arg2: c_int, arg3_in:
                 if (scratch.unk188 == 0) scratch.unk188 = scratch.unk184;
             }
             const step = @divTrunc(@as(c_int, 0x1000), scratch.unk184);
-            const point = v.g.D_800EC328();
+            const point = v.g.vs_effects_emissionCounter();
             const mode = scratch.flags & 0x1800;
             if (mode != 0x1000) {
                 point.* = @rem(point.*, scratch.unk188);
@@ -328,7 +328,7 @@ pub fn func_800D2ADC(arg0: ?*v.D_800F53B8_t, event: c_int, arg2: c_int, arg3_in:
                     }
                 }
                 s.vy = 0;
-                c.func_800D2A38(@ptrCast(scratch), @ptrCast(node), @ptrCast(&emitterView));
+                c.vs_effects_placeParticleSpawn(@ptrCast(scratch), @ptrCast(node), @ptrCast(&emitterView));
                 node = next(node.?);
             }
         },

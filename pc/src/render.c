@@ -559,7 +559,7 @@ static void blend_transform(const render_transform* a, const render_transform* b
  * (its offset in the parent's frame lerped), so limbs swing on arcs at full
  * length. The game builds bone i at parent * (-length, 0, 0) with
  * Rz*Ry*Rx angles keyed linearly per 30 Hz tick (func_800B28A8,
- * func_800AFDE8); the hierarchy is not passed in but found in the data:
+ * vs_actors_decodeAnimationTrack); the hierarchy is not passed in but found in the data:
  * each bone's parent is the earlier bone in whose frame its offset stays
  * the same in both palettes. Both palettes are reproduced exactly at t = 0
  * and 1 whatever the parents found, since offsets and relative rotations
@@ -768,7 +768,7 @@ static void blend_skeleton(const render_transform* was, const render_transform* 
 /* An attachment: the bone of an instance drawn earlier this frame (an
  * object list) in whose frame `in`'s root keeps its offset in both
  * palettes while that bone turns (a weapon or shield in a hand: the
- * game places them from the holder's bone matrix, func_800B217C). Blending
+ * game places them from the holder's bone matrix, vs_actors_buildWeaponBoneChain). Blending
  * the root through it keeps the weapon in the hand mid-swing. */
 static void find_carrier(const draw_list* self, list_instance* in, const render_transform* now,
     const render_transform* was)
@@ -1559,7 +1559,7 @@ static const char* geometry_source =
     "uniform vec2 offset;\n" /* OFX, OFY (screen space, for the PS1 area test) */
     "uniform ivec4 rules;\n" /* near bucket, far bucket, LOD bucket, instance bias */
     "uniform ivec2 split;\n" /* subdivision switch, instance subdivision level */
-    "uniform vec4 tint;\n" /* dr, dg, db, fade (func_80098D6C) */
+    "uniform vec4 tint;\n" /* dr, dg, db, fade (vs_render_tintRoomGeometryPrimitives) */
     "uniform vec2 clip_z;\n" /* near, far planes (view z) */
     "uniform int objects;\n" /* object rules (characters) */
     "uniform int zsf3;\n"
@@ -1667,7 +1667,7 @@ static const char* geometry_source =
     "    }\n"
     "}\n"
     "int sz(int i) { return int(clamp(p[i].z, 0.0, 65535.0)); }\n"
-    /* Object rules (BATTLE/4B16C.s func_800B3CF0/func_800B4594). */
+    /* Object rules (BATTLE/4B16C.s vs_render_drawModelFlatPolygons/vs_render_drawModelGouraudPolygons). */
     "void object_triangle(int a, int b, int c, float zmin, int bias) {\n"
     "    if (facing(a, b, c, zmin) <= 0.0 && facing_exact(a, b, c, zmin) <= 0.0) return;\n"
     "    int bucket = ((zsf3 * (sz(a) + sz(b) + sz(c))) >> 12) + bias;\n"

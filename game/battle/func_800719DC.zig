@@ -1,8 +1,8 @@
-//! Battle unit 146C: forwards to func_80070F28 with 0 (pc/src/game/BATTLE/BATTLE.PRG/146C.c).
+//! Battle unit 146C: forwards to vs_battle_commitSelectedAction with 0 (pc/src/game/BATTLE/BATTLE.PRG/146C.c).
 const c = @import("c_146C");
 
 /// orig: func_800719DC (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
-/// Calls func_80070F28 with 0; its argument is unused.
+/// Calls vs_battle_commitSelectedAction with 0; its argument is unused.
 pub fn func_800719DC(_: c_int) callconv(.c) void {
-    c.func_80070F28(0);
+    c.vs_battle_commitSelectedAction(0);
 }

@@ -4,7 +4,7 @@ const psx = common.psx;
 const v = @import("views_38C1C");
 const c = @import("c_38C1C");
 
-/// orig: func_800A208C (pc/src/game/BATTLE/BATTLE.PRG/38C1C.c)
+/// orig: vs_actors_beginActorJumpToTile (pc/src/game/BATTLE/BATTLE.PRG/38C1C.c)
 /// Starts an actor's jump to a scripted anchor or a tile, setting its velocity and hang frames.
 pub fn startJump(actor: ?*v.D_800F4538_t, target: [*c]u8, speed_in: c_int, facing: c_short) callconv(.c) void {
     const a: *v.D_800F4538_t = actor.?;
@@ -34,7 +34,7 @@ pub fn startJump(actor: ?*v.D_800F4538_t, target: [*c]u8, speed_in: c_int, facin
     } else {
         x = @as(c_int, target[0]) *% 128 +% 64;
         z = @as(c_int, target[2]) *% 128 +% 64;
-        y = c.func_800A3500(x, z);
+        y = c.vs_field_actorSupportHeight(x, z);
     }
 
     psx.fieldAt(c_int, &a.unk5EC.vx, 0).* = psx.byteAt(c_int, target, 0).*;
@@ -61,12 +61,12 @@ pub fn startJump(actor: ?*v.D_800F4538_t, target: [*c]u8, speed_in: c_int, facin
 
     if (y <= 0) {
         if (a.unk0.unkF != 0) {
-            c.func_800AE4FC(@ptrCast(&a.unk0), 12);
+            c.vs_audio_playActorModelSound(@ptrCast(&a.unk0), 12);
         }
         i = @intFromBool(y >= -64);
         if ((flags.* & 0x400000) != 0) i +%= 3;
-        hangFrames = @as(c_int, psx.at(v.g.D_800E90AC(), i).*);
-        y -%= @as(c_int, psx.at(v.g.D_800E90B4(), i).*);
+        hangFrames = @as(c_int, psx.at(v.g.vs_actors_jumpHangFrames(), i).*);
+        y -%= @as(c_int, psx.at(v.g.vs_actors_jumpHeightAdjustments(), i).*);
         while (true) {
             frames = 0;
             fall = 0;
@@ -90,8 +90,8 @@ pub fn startJump(actor: ?*v.D_800F4538_t, target: [*c]u8, speed_in: c_int, facin
     } else {
         i = 2;
         if ((flags.* & 0x400000) != 0) i = 5;
-        hangFrames = @as(c_int, psx.at(v.g.D_800E90AC(), i).*);
-        y +%= @as(c_int, psx.at(v.g.D_800E90B4(), i).*);
+        hangFrames = @as(c_int, psx.at(v.g.vs_actors_jumpHangFrames(), i).*);
+        y +%= @as(c_int, psx.at(v.g.vs_actors_jumpHeightAdjustments(), i).*);
         if ((flags.* & 0x400000) != 0 and y > 128) y = 128;
         frames = 0;
         fall = 0;
@@ -113,7 +113,7 @@ pub fn startJump(actor: ?*v.D_800F4538_t, target: [*c]u8, speed_in: c_int, facin
 
     a.unk1816 = psx.conv(i16, frames);
     a.unk181A = 2;
-    c.func_800A0204(@as(c_int, a.unk0.unkF), animation, 0, 4);
+    c.vs_actors_playActorAnimation(@as(c_int, a.unk0.unkF), animation, 0, 4);
     flags.* = (flags.* & ~@as(c_uint, 0x70000)) | 0x20000;
-    c.func_800A9EB4(@as(c_int, a.unk0.unkF), @as(c_int, facing), 8);
+    c.vs_actors_turnActorToAtRate(@as(c_int, a.unk0.unkF), @as(c_int, facing), 8);
 }

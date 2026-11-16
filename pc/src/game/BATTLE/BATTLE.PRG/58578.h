@@ -21,7 +21,7 @@ typedef struct {
 } func_800C1564_t;
 
 int vs_battle_mapStickDeadZone(int);
-int func_800C1564(func_800C1564_t* arg0, u_short* arg1);
+int vs_battle_isPointInTargetVolume(func_800C1564_t* arg0, u_short* arg1);
 void func_800C16DC();
 int func_800C4734(void);
 void func_800C0D78(void);

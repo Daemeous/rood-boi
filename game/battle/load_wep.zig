@@ -51,7 +51,7 @@ pub fn loadWep(arg0: ?*v.vs_battle_objectData) callconv(.c) c_int {
             }
 
             v.g._loadShpState().* = 1;
-            v.g._wepFile().lba = @as(c_int, psx.at(v.g.D_800E8D00(), obj.modelId).*) +% 104024;
+            v.g._wepFile().lba = @as(c_int, psx.at(v.g.vs_content_legacyWepDiscOffsets(), obj.modelId).*) +% 104024;
             v.g._wepFile().size = wepFileSize;
             v.g._wepCdSlot().* = @ptrCast(c.vs_main_allocateCdQueueSlot(psx.cptr(c.vs_main_CdFile, v.g._wepFile())));
             c.vs_main_cdEnqueue(@ptrCast(v.g._wepCdSlot().*), @as(?*anyopaque, @ptrFromInt(@as(usize, obj.dataAddr))));

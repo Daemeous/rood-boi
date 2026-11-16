@@ -7,7 +7,7 @@ README "2D / UI").
 The numbers that pop up over Ashley and enemies (BATTLE.PRG
 func_80094B0C) draw the HUD's large digits as 8 x 12 quads, one per digit.
 From the card's save room (a copy), the game's own status ticks
-(func_80087EF4) make them: poison takes HP (a white damage number, then the
+(vs_battle_updateActorStatusTimers) make them: poison takes HP (a white damage number, then the
 poison is cleared), regen gives it back (a green heal number). Each is held
 once it has stopped bouncing (the label's frame counter at 16 or more) and:
 
@@ -23,7 +23,7 @@ once it has stopped bouncing (the label's frame counter at 16 or more) and:
   digit; each digit on the picture reads as itself: the font's digit (RPC
   ui_text render, in the popup's colour) matches the picture there better
   than any other digit does (legible);
-- a stat change (STR -12: func_80094E18; the damage label's copy as kind 3)
+- a stat change (STR -12: vs_battle_drawValueLabelCaption; the damage label's copy as kind 3)
   draws its '-' from the font too;
 - UI text scale (RPC ui_text scale; no setting yet): at 2 the digits are
   drawn twice as large about the number's middle, at 1 where the game puts
@@ -76,13 +76,13 @@ class Session:
         self.sym = symbols()
         actor = self.ptr(self.sym["vs_battle_characterState"])
         self.actor2 = self.g.actor_stats(actor)
-        self.pool = self.ptr(self.sym["D_800F1BAC"])
+        self.pool = self.ptr(self.sym["vs_battle_floatingLabels"])
 
     def ptr(self, address):
         return int.from_bytes(self.g.read(address, PTR), "little")
 
     def count(self):
-        return struct.unpack("<h", self.g.read(self.sym["D_800F227E"], 2))[0]
+        return struct.unpack("<h", self.g.read(self.sym["vs_battle_floatingLabelCount"], 2))[0]
 
     def label(self, i=0):
         raw = self.g.read(self.pool + LABEL * i, LABEL)
@@ -284,7 +284,7 @@ def stat_sign(s, work, lab):
     g.call("graphics", ui_text="font")
     g.call("ui_text", forget_signs=True)
     g.write(s.pool, bytes(raw))
-    g.write(s.sym["D_800F227E"], struct.pack("<h", 1))
+    g.write(s.sym["vs_battle_floatingLabelCount"], struct.pack("<h", 1))
     g.run(6)  # (drawn in the next frame's ordering table)
     t = g.call("ui_text")
     check("-" in t["popups_drawn"] and "1" in t["popups_drawn"] and "2" in t["popups_drawn"],

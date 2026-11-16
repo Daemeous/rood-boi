@@ -67,7 +67,7 @@ def default_card():
 
 
 def mask_for(yaw):
-    """func_8008AC78 (scene_submit.inc): the camera's left, front and right bits."""
+    """vs_field_drawRoomScene (scene_submit.inc): the camera's left, front and right bits."""
     return ((1 << (((0x9C0 - yaw) & 0xFFF) >> 9)) | (1 << (((0x840 - yaw) & 0xFFF) >> 9))
             | (1 << (((0x900 - yaw) & 0xFFF) >> 9)))
 

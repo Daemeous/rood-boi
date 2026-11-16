@@ -1,4 +1,4 @@
-//! Runs the pending entries (indices 1..15) of the table D_800F2260 through func_80095C18 while D_800F2270 is clear (pc/src/game/BATTLE/BATTLE.PRG/2842C.c).
+//! Runs the pending entries (indices 1..15) of the table D_800F2260 through func_80095C18 while vs_battle_actorMarkersHidden is clear (pc/src/game/BATTLE/BATTLE.PRG/2842C.c).
 const common = @import("common");
 const psx = common.psx;
 const v = @import("views_2842C");
@@ -15,9 +15,9 @@ fn scratchPtr() ?*anyopaque {
 }
 
 /// orig: func_8009627C (pc/src/game/BATTLE/BATTLE.PRG/2842C.c)
-/// Calls func_80095C18 for each nonzero entry 1..15 of D_800F2260, unless D_800F2270 is set.
+/// Calls func_80095C18 for each nonzero entry 1..15 of D_800F2260, unless vs_battle_actorMarkersHidden is set.
 pub fn func_8009627C() callconv(.c) void {
-    if (v.g.D_800F2270().* == 0) {
+    if (v.g.vs_battle_actorMarkersHidden().* == 0) {
         var i: c_int = 1;
         while (i < 16) : (i +%= 1) {
             const table = v.g.D_800F2260();

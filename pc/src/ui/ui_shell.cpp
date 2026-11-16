@@ -188,8 +188,8 @@ bool row_enabled(const RowDef& r)
     return r.kind != ROW_COMMAND || !((s.commands.unselectable >> r.command) & 1);
 }
 // Why a greyed row is off now, in our own words. The game picks its message
-// the same way (func_800C930C): the lowest bit of the disable mask
-// (func_800CABE0) that the command cares about, one message per bit (BATTLE
+// the same way (vs_menu_frameworkUpdateMainMenuSelection): the lowest bit of the disable mask
+// (vs_menu_frameworkActionRestrictionFlags) that the command cares about, one message per bit (BATTLE
 // menuStrings 12 + bit: cube, hanging, battle mode, MP, HP, silence, paralysis).
 const char* row_reason(const RowDef& r)
 {

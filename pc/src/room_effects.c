@@ -1,13 +1,13 @@
 /* Room texture effects as animated materials.
  *
- * A room's texture effects (MPD room section 0xC, set up by func_80092548
- * and run every game frame through D_800E85CC, BATTLE 2842C.c) include two
+ * A room's texture effects (MPD room section 0xC, set up by vs_field_initializeRoomEffects
+ * and run every game frame through vs_field_textureEffectHandlers, BATTLE 2842C.c) include two
  * kinds that rewrite one polygon's UV bytes in the room data:
  *
- * - type 0, func_80091C6C: UV atlas frames. Every delay + 1 ticks the next
+ * - type 0, vs_field_advanceRoomTextureFrames: UV atlas frames. Every delay + 1 ticks the next
  *   frame; the polygon's UVs become base UVs + (baseU + frameWidth * (frame %
  *   columns), baseV + frameHeight * (frame / columns)).
- * - type 2, func_80091E10: UV scroll. Every delay + 1 ticks the window
+ * - type 2, vs_field_scrollRoomTextureCoordinates: UV scroll. Every delay + 1 ticks the window
  *   position (currentU, currentV) moves by (stepU, stepV), wrapping inside
  *   the region baseU..baseU + width (the window, windowWidth wide, stays in
  *   it); the polygon's UVs become base UVs + the position. On the disc: the
@@ -52,9 +52,9 @@
 extern const unsigned char* pc_room_geometry(unsigned* length) __attribute__((weak));
 extern const unsigned char* pc_room_effects(unsigned* length) __attribute__((weak));
 /* The game's effect slots: 12 bytes each (active, type, enabled, -, entry,
- * -); D_800F225A: slots in use. */
+ * -); vs_field_textureEffectCount: slots in use. */
 extern int pc_effect_slot(int slot, const unsigned char** record) __attribute__((weak));
-extern char D_800F225A __attribute__((weak));
+extern char vs_field_textureEffectCount __attribute__((weak));
 void pc_scene_uv_refresh(void);
 
 
@@ -224,7 +224,7 @@ static float motion(const pc_uv_effect* x, int a, int was, int now)
 }
 static void update(const unsigned char* data)
 {
-    int slots = &D_800F225A ? D_800F225A : -1;
+    int slots = &vs_field_textureEffectCount ? vs_field_textureEffectCount : -1;
     for (int i = 0; i < effect_count; i++) {
         pc_uv_effect* x = &effects[i];
         const unsigned char* e = NULL;
@@ -333,7 +333,7 @@ int pc_uv_effects_frame(const void* data)
     unsigned geometry_length;
     const unsigned char* geometry = pc_room_geometry(&geometry_length);
     if (geometry != data)
-        return effect_count; /* another block (func_8008E19C's) */
+        return effect_count; /* another block (vs_field_drawRoomTriggerMarker's) */
     unsigned length;
     const unsigned char* section = effect_section(&length);
     unsigned signature = section_signature(section, length) ^ (unsigned)(uintptr_t)section

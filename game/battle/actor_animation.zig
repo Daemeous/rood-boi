@@ -4,7 +4,7 @@ const psx = common.psx;
 const v = @import("views_30DB0");
 const c = @import("c_30DB0"); // its D_800F4538_t is opaque: view pointers go to it through @ptrCast
 
-/// orig: func_800A0204 (pc/src/game/BATTLE/BATTLE.PRG/30DB0.c)
+/// orig: vs_actors_playActorAnimation (pc/src/game/BATTLE/BATTLE.PRG/30DB0.c)
 /// Starts animation `animation` (mapped by the actor's stance and weapon) on actor `actorId`, blending over `blendFrames`; -1 for an empty slot.
 pub fn startAnimation(actorId: c_int, animation: c_int, _: c_int, blendFrames_: c_int) callconv(.c) c_int {
     var blendFrames = blendFrames_;
@@ -13,14 +13,14 @@ pub fn startAnimation(actorId: c_int, animation: c_int, _: c_int, blendFrames_: 
     if (animation == 0) {
         return 0;
     }
-    // D_800F4538[actorId]: the C does not check the id.
-    const actor = psx.at(v.g.D_800F4538(), actorId).* orelse return -1;
+    // vs_actors_actorRecords[actorId]: the C does not check the id.
+    const actor = psx.at(v.g.vs_actors_actorRecords(), actorId).* orelse return -1;
     if (psx.fieldAt(c_int, &actor._bits_unk5AC_0, 0).* & 0x1000000 != 0) {
         return 0;
     }
     psx.setBits(actor, "unk5AC_16", 0);
     if (psx.fieldAt(c_int, &actor._bits_unk5AC_0, 0).* & 0x800000 != 0) {
-        c.func_800AE47C(@ptrCast(actor));
+        c.vs_actors_restartActorAnimationEvents(@ptrCast(actor));
     }
     psx.setBits(actor, "unk5AC_23", 0);
     var keepFlag15: c_int = 0;
@@ -32,8 +32,8 @@ pub fn startAnimation(actorId: c_int, animation: c_int, _: c_int, blendFrames_: 
     }
     actor.unk1802[2] = 0;
     actor.unk1802[6] = 0;
-    _ = c.func_800AAD4C(actorId, 1, 1, 1);
-    c.func_800AC500(@ptrCast(actor));
+    _ = c.vs_actors_setTextureAnimation(actorId, 1, 1, 1);
+    c.vs_actors_clearActorBonePoseLocks(@ptrCast(actor));
     if (psx.fieldAt(c_int, &actor._bits_unk5AC_0, 0).* & 0x8000 != 0 and keepFlag15 == 0) {
         psx.setBits(actor, "unk5AC_15", 0);
     }
@@ -95,11 +95,11 @@ pub fn startAnimation(actorId: c_int, animation: c_int, _: c_int, blendFrames_: 
 
     var found: c_int = undefined;
     retry: while (true) {
-        found = c.func_800AD494(@ptrCast(actor), anim, &frames);
+        found = c.vs_actors_findActorAnimationHeader(@ptrCast(actor), anim, &frames);
         if (found == 0 or frames == null) {
             psx.setBits(actor, "unk5AC_15", 0);
             if (anim == 0) {
-                // `return;` in an int function: the object returns func_800AD494's result (%eax).
+                // `return;` in an int function: the object returns vs_actors_findActorAnimationHeader's result (%eax).
                 return found;
             }
             anim = 0;
@@ -109,13 +109,13 @@ pub fn startAnimation(actorId: c_int, animation: c_int, _: c_int, blendFrames_: 
     }
 
     actor.animationId = psx.conv(u8, anim);
-    if (c.func_800BEB00() == 4 or actor.unk187C != found or @as(c_int, v.g.D_800F49DC().*) != actor.unk6E3) {
+    if (c.vs_event_eventPlaybackState() == 4 or actor.unk187C != found or @as(c_int, v.g.D_800F49DC().*) != actor.unk6E3) {
         actor.unk6E3 = v.g.D_800F49DC().*;
         actor.unk187C = found;
         actor.unk5BC = psx.conv(i16, frames[0]);
-        c.func_800AD008(@ptrCast(actor), &actor.unkC54);
+        c.vs_actors_initializeActorAnimationPose(@ptrCast(actor), &actor.unkC54);
         actor.unk6E0 = 0;
-        c.func_800A06B8(@ptrCast(actor), blendFrames);
+        c.vs_actors_beginActorShadowBlend(@ptrCast(actor), blendFrames);
         if (actor.unk63C >= 0x80) {
             blendFrames *%= 2;
         }

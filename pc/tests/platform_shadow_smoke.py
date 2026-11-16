@@ -6,7 +6,7 @@ PS1: translucent (subtractive), not a black square.
 
 Rooms with moving platforms (MPD section 12: lifts, the floating blocks
 with a magic circle on top in Rue Vermillion) draw a flat square under each
-(func_8008CEB0, pc/src/room_shadows.inc): POLY_F4, semi-transparent, after
+(vs_field_drawMovingPlatformShadows, pc/src/room_shadows.inc): POLY_F4, semi-transparent, after
 a B-F draw mode packet, so it subtracts its grey from what is under it.
 With the reconstruction of 3D from packets retired (every native switch
 on, the default) that packet reached the hardware path as 2D: subtractive
@@ -17,9 +17,9 @@ pc_platform_shadow_native: an effects list, as drop shadows are).
 Continues from a copy of the card into zone 32 room 3 (Rue Vermillion, the
 user's report: Room Browser warp, no scripts), shows the first platform
 (its section 12 entry hidden until a script shows it), stops the
-platforms' motion (D_800F1D6E) and looks down at its shadow on the water
+platforms' motion (vs_field_areMovingPlatformsPaused) and looks down at its shadow on the water
 with the free camera. Two frames, with the shadow and without it (the
-platform's altitude put above the floor's reach, so func_8008CEB0 skips it;
+platform's altitude put above the floor's reach, so vs_field_drawMovingPlatformShadows skips it;
 the platform's room group stays where it is). The square is found from where
 the native draw put it (pc_platform_shadow_records), projected with the game
 camera and fitted to the frame. Its darkening is the square's light against
@@ -142,7 +142,7 @@ def main():
         word = struct.unpack("<I", game.read(table, 4))[0]
         game.write(table, struct.pack("<I", word & ~(1 << 9)))  # shown (unk0_9: hidden)
         game.run(2)
-        game.write(symbols()["D_800F1D6E"], b"\x01")  # the platforms stop (func_8008C8A8 returns)
+        game.write(symbols()["vs_field_areMovingPlatformsPaused"], b"\x01")  # the platforms stop (vs_field_updateMovingPlatforms returns)
         x, altitude, z = (v / 4096 for v in struct.unpack("<iii", game.read(table + 0xA8, 12)))
         print(f"platform at x {x:.0f} z {z:.0f}, {altitude:.0f} above y 0")
         game.call("editor_camera", x=x, y=-1300, z=z - 700, yaw=0, pitch=-60)

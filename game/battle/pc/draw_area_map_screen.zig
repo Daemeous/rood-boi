@@ -186,13 +186,13 @@ fn spanRow(spans: [*]i16, row: c_int) [*]i16 {
     return @ptrCast(psx.at(spans, row *% 32));
 }
 
-/// orig: func_800C2E24 (pc/src/map_view.c)
+/// orig: vs_battle_drawSphereTerrainIntersection (pc/src/map_view.c)
 /// Draws the area Map screen: the 9x9 cell outlines projected into per-scanline
 /// spans, cut by walls and marker triangles, clipped to a 32-point circle and
 /// emitted as LINE_F2 packets along its right edge.
 pub fn drawAreaMapScreen(origin: *c.SVECTOR, m: *c.MATRIX, scale: c_int) callconv(.c) void {
-    const state = v.g.D_800EB9B8().*.?;
-    const view = gte.frame(); // the camera's view func_800C02A8 set for this frame
+    const state = v.g.vs_battle_targetSphere().*.?;
+    const view = gte.frame(); // the camera's view vs_render_loadFrameViewMatrix set for this frame
     const grid: [*]u8 = @ptrFromInt(pad.addr(0) + 0x88);
     const rows: [*]u8 = @ptrFromInt(pad.addr(0) + 0xdc);
     const edges: [*]u8 = @ptrFromInt(pad.addr(0) + 0x1bc);

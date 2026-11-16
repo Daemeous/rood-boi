@@ -46,7 +46,7 @@ float pc_material_preview_room_key = 1.0f, pc_material_preview_room_ambient = 0.
 int pc_lights_world(float position[][4], float color[][4], float direction[][4], float extent_right[][4],
     float extent_up[][4], int shadows[], int max) __attribute__((weak));
 int pc_scene_camera_get(float rotation[3][3], float translation[3], float* h, float* ofx, float* ofy) __attribute__((weak));
-int func_80098B38(unsigned position, int layer, unsigned* color) __attribute__((weak));
+int vs_render_sampleRoomLighting(unsigned position, int layer, unsigned* color) __attribute__((weak));
 int pc_env_gpu_get(pc_env_gpu* out) __attribute__((weak));
 }
 bool pc_material_preview_open = false;
@@ -96,7 +96,7 @@ Lighting lighting()
     l.room = true;
     float at[3] = { (float)st.x, (float)st.y - pc_material_preview_room_height, (float)st.z };
     unsigned colour = 0x808080;
-    if (func_80098B38) func_80098B38((unsigned)(uint16_t)(int16_t)st.x | (unsigned)(uint16_t)(int16_t)st.z << 16, 0, &colour);
+    if (vs_render_sampleRoomLighting) vs_render_sampleRoomLighting((unsigned)(uint16_t)(int16_t)st.x | (unsigned)(uint16_t)(int16_t)st.z << 16, 0, &colour);
     for (int c = 0; c < 3; c++)
         l.ambient[c] = (float)((colour >> (8 * c)) & 255) / 128.0f * pc_material_preview_room_ambient;
     float best = 0, world_dir[3] = { 0, 0, 0 }, key[3] = { 0, 0, 0 };

@@ -10,8 +10,8 @@ pub fn func_8006C2FC() callconv(.c) void {
         c.func_8009E5C4(i);
     }
 
-    _ = c.func_8008B4C8(0);
-    c.func_80095B70(1);
+    _ = c.vs_field_setMinimapVisible(0);
+    c.vs_battle_setActorMarkersHidden(1);
 
     v.g.D_800F1968().* = 1;
 }

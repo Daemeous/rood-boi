@@ -8,15 +8,15 @@
 
 void func_800F9800(int arg0)
 {
-    D_800EB9B4->unk2 = arg0;
-    if (D_800EB9B4->unk1 == 0) {
+    vs_effects_screenEffectOverlay->unk2 = arg0;
+    if (vs_effects_screenEffectOverlay->unk1 == 0) {
         if (arg0 != 0) {
-            D_800EB9B4->unk1 = 1U;
-            func_8007DFF0(0x1B, 5, 6);
+            vs_effects_screenEffectOverlay->unk1 = 1U;
+            vs_render_reserveTexturePages(0x1B, 5, 6);
         }
     } else if (arg0 == 0) {
-        D_800EB9B4->unk1 = 0U;
-        func_8007E0A8(0x1B, 5, 6);
+        vs_effects_screenEffectOverlay->unk1 = 0U;
+        vs_render_retireTexturePages(0x1B, 5, 6);
     }
 }
 
@@ -81,7 +81,7 @@ void func_800F986C(void)
 
     /* The picture's own screen area (the sprites above draw in it) and, drawn last, the display's again: items drawn in
      * the reverse of the order they are made in, so the last is made first. */
-    var_s0 = D_800EB9B4->unk2 - 3;
+    var_s0 = vs_effects_screenEffectOverlay->unk2 - 3;
     vs_battle_maskItem(temp_s4 + var_s0, 1);
     vs_battle_tileFlatItem(temp_s4 + var_s0, 0, 0, 0, 0x140 | (0xE0 << 16));
     vs_battle_areaItem(temp_s4 + var_s0, 704, 256, 320, 224, 1, 704, 256);
@@ -94,6 +94,6 @@ void func_800F986C(void)
 
 void func_800F9BC0(short arg0, short arg1)
 {
-    D_800EB9B4->unk4 = arg0;
-    D_800EB9B4->unk6 = arg1;
+    vs_effects_screenEffectOverlay->unk4 = arg0;
+    vs_effects_screenEffectOverlay->unk6 = arg1;
 }

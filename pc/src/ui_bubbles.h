@@ -12,7 +12,7 @@
  *
  * ui_bubbles: original (default) draws the talk bubbles as the game's
  * packets; vector draws each bubble the game builds this frame (its own
- * corners, edges, tail, size and zoom, BATTLE.PRG func_800CD3E4) as one
+ * corners, edges, tail, size and zoom, BATTLE.PRG vs_menu_drawTextBoxFrame) as one
  * shape: the fill from the game's textured polygons and its paper texture
  * sampled nearest, the drop shadow, and an anti-aliased outline
  * ui_bubble_outline native pixels thick (ui_bubbles.c). */
@@ -47,7 +47,7 @@ extern int pc_hw_suppress;
 
 /* The game (BATTLE.PRG, under ROOD_PC): text box `id`'s rectangle this
  * frame in 16.16 (func_800CB83C), and its frame's packets [start, end)
- * built from `shape` (func_800CD3E4). */
+ * built from `shape` (vs_menu_drawTextBoxFrame). */
 void pc_bubble_rect(int id, int x, int y, int w, int h);
 /* `flags` points at the text box's flag word, `rect` its x, y, w, h (four shorts in a row: vs_battle_textBox unk24..unk2A). */
 void pc_bubble_frame(int id, const unsigned* flags, const short* rect, const void* shape, const void* start, const void* end);

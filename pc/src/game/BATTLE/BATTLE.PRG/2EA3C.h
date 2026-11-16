@@ -11,6 +11,6 @@ vs_battle_roomName* vs_battle_initSceneAndGetRoomNames(void*);
 void vs_battle_getGeomOffset(vs_battle_geomOffset*);
 void vs_battle_setGeomOffset(vs_battle_geomOffset*);
 
-void func_8009820C(void*, const vs_gte_view*);
-void func_800985AC(VECTOR*, VECTOR*, MATRIX*);
-void func_80098648(VECTOR*, VECTOR*, MATRIX*);
+void vs_render_drawSkyDome(void*, const vs_gte_view*);
+void vs_render_buildRoomGeometryViewMatrix(VECTOR*, VECTOR*, MATRIX*);
+void vs_render_buildScaleCompensatedRoomView(VECTOR*, VECTOR*, MATRIX*);

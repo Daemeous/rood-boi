@@ -5,7 +5,7 @@
 
 .section .text, "ax"
 
-glabel func_800E45B4
+glabel vs_core_elapsedFrameCounterTicks
     lui     $t0, (0x1F801110 >> 16)
     lw      $t1, (0x1F801110 & 0xFFFF)($t0)
     lui     $t2, %hi(D_80030FE4)
@@ -14,4 +14,4 @@ glabel func_800E45B4
     subu    $v0, $t1, $t2
     jr      $ra
     andi    $v0, $v0, 0xFFFF
-endlabel func_800E45B4
+endlabel vs_core_elapsedFrameCounterTicks

@@ -6,16 +6,16 @@
 
 How the game starts a scene (BATTLE.PRG 4A0A8.c, 146C.c):
   - entering a room runs the room's own script (the MPD's script section,
-    event source 1) when it has one (func_800BEC58(1)); otherwise its
+    event source 1) when it has one (vs_event_evaluateRoomEventTriggers(1)); otherwise its
     trigger table's entry triggers;
   - the trigger table (the MPD's "cleared" section, up to 16 entries:
     type mask, event id, conditions) starts an event when Ashley steps on a
     cell or region (type 2), examines something (4), after a kill (8), after
     a battle (16), each field frame (32); conditions test her cell, story
-    flags, items, actors (func_800BEC58); the event id is an EVT file
+    flags, items, actors (vs_event_evaluateRoomEventTriggers); the event id is an EVT file
     (EVENT/nnnn.EVT, source 0) or, bit 15 set, a script of the room's door
     section (source 2);
-  - a script may chain to an EVT file when it ends (op 0xF7, func_800BB5AC)
+  - a script may chain to an EVT file when it ends (op 0xF7, vs_event_commandLoadNextEvent)
     and move to another room (op 0x68, func_800B98C0).
   - story progress is state flag 130 (vs_main_stateFlags byte 0x82): room
     scripts test it (op 0x40) and each story scene sets it to the next step
@@ -25,7 +25,7 @@ How the game starts a scene (BATTLE.PRG 4A0A8.c, 146C.c):
 This walks the scripts concretely: from a new game's flags (all 0), for
 story step v = 0, 1, ...: every room script and every trigger whose flag
 conditions hold is walked with the flags as they are (op lengths: BATTLE.PRG
-D_800E9C30; flag ops as the interpreter does them; loops and threads
+vs_event_opcodeSizes; flag ops as the interpreter does them; loops and threads
 bounded). The scripts that move flag 130 on from v are the scene(s) of
 step v; their persistent writes (flags >= 128) make the flags of the next
 step. Each scene gets: the room it plays in (where its script is), how it
@@ -47,11 +47,11 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 
 VRAM = 0x80068800       # BATTLE.PRG's load address (config/BATTLE/BATTLE.PRG/splat.yaml)
-OP_LENGTHS = 0x800E9C30  # D_800E9C30 (573B8.c func_800BFE34)
+OP_LENGTHS = 0x800E9C30  # vs_event_opcodeSizes (573B8.c vs_event_opcodeSize)
 STORY = 130             # the story step flag
 PERSIST = 128           # flags from here on are kept (saved); below are per event / room / zone
 COND_LEN = {1: 3, 2: 5, 3: 4, 15: 4, 4: 3, 5: 4, 6: 5, 7: 5, 8: 3, 9: 1, 10: 5, 11: 6, 12: 5, 13: 5, 14: 7,
-            16: 3, 0xFE: 1}  # func_800BEC58's trigger conditions
+            16: 3, 0xFE: 1}  # vs_event_evaluateRoomEventTriggers's trigger conditions
 DEBUG_ZONES = 250       # zones 250 and up: the developers' test rooms (their events jump the story about)
 DEBUG_EVENTS = 504      # EVT 504 and up: those rooms' story jumps
 STORY_JSON = ROOT / "pc/assets/cutscenes/story.json"
@@ -256,7 +256,7 @@ def trigger_holds(conds, flags):
             left = flags.get(((c[1] & 0xF) << 6) | (c[2] >> 2), 0)
             right = s8(c[3]) if c[0] == 3 else flags.get(((c[2] & 3) << 8) | c[3], 0)
             op = c[1] & 0xF0
-            # the trigger compare (func_800BEC58): 0 <=, 0x10 >=, 0x20 ==, 0x30 !=, 0x40 <, 0x50 >
+            # the trigger compare (vs_event_evaluateRoomEventTriggers): 0 <=, 0x10 >=, 0x20 ==, 0x30 !=, 0x40 <, 0x50 >
             result = compare(op, left, right) if op != 0x60 else False
             if result == bool(negate):
                 return False

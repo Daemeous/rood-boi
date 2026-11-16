@@ -533,7 +533,7 @@ static void _initEquipmentScreen(int actor)
         _renderBasicStatsState = 1;
         _basicStatsAnimDelay = 4;
     } else if (_initializedActor == 0) {
-        func_800CB654(1);
+        vs_battle_setHudHidden(1);
         _renderBasicStatsState = 4;
         _basicStatsAnimDelay = 4;
     } else {
@@ -554,7 +554,7 @@ static int _getNextValidActor(int currentActor, int targetActor)
     while (1) {
 
         currentActor = (currentActor + targetActor) % 15;
-        temp_a0 = func_800A0BE0(currentActor);
+        temp_a0 = vs_actors_actorStateFlags(currentActor);
 
         if ((vs_battle_actors[currentActor] != NULL)
             && (vs_battle_actors[currentActor]->unk1C < 5)
@@ -621,14 +621,14 @@ static int _switchCurrentActor(int init)
             break;
         } else {
             _drawBackgroundFirst = 0;
-            func_800F9E0C();
+            vs_menu_frameworkReleaseActorPreview();
         }
         // Fallthrough
 
     case menuLoading:
         _fadeScreen = 1;
 
-        func_800F9A24(_selectedActor - 1);
+        vs_menu_frameworkLoadActorPreview(_selectedActor - 1);
 
         _delayScreenUpdate = 1;
         _animationStep = -160;
@@ -654,13 +654,13 @@ static int _switchCurrentActor(int init)
             break;
         }
 
-        func_800F9E0C();
+        vs_menu_frameworkReleaseActorPreview();
         // Fallthrough
 
     case menuLoadingReverse:
         _fadeScreen = 0;
 
-        func_800F9A24(_selectedActor - 1);
+        vs_menu_frameworkLoadActorPreview(_selectedActor - 1);
 
         _delayScreenUpdate = 1;
         _animationStep = 160;
@@ -751,7 +751,7 @@ static void _renderBasicStats(void)
     case 1:
         if (_basicStatsAnimState == 0) {
             if (_basicStatsAnimDelay == 0) {
-                func_800CB654(0);
+                vs_battle_setHudHidden(0);
                 _renderBasicStatsState = 0;
             } else {
                 --_basicStatsAnimDelay;
@@ -782,7 +782,7 @@ static void _renderBasicStats(void)
         break;
 
     case 4:
-        if (D_800EB9B0 == 0x200000) {
+        if (vs_battle_hudSlideOffset == 0x200000) {
             if (_basicStatsAnimDelay == 0) {
                 _renderBasicStatsState = 3;
             } else {
@@ -823,8 +823,8 @@ static void _renderBasicStats(void)
     }
 
     for (i = 0; i < 3; ++i) {
-        vs_battle_spriteItem(insertBefore, 384, D_800EBBEC[i] + ((_basicStatsAnimState - 4) << 0x13),
-            D_800EBBFC[i] | 0x90000, VS_SPRITE_PAGE, D_800EBC00[i] | 0x37F60000);
+        vs_battle_spriteItem(insertBefore, 384, vs_battle_hudGaugeLabelPositions[i] + ((_basicStatsAnimState - 4) << 0x13),
+            vs_battle_hudGaugeLabelWidths[i] | 0x90000, VS_SPRITE_PAGE, D_800EBC00[i] | 0x37F60000);
     }
 
     y += -8 << 16;
@@ -845,7 +845,7 @@ static void _renderBasicStats(void)
  */
 void _drawStatusIndicator(int colorIndex, int xy, int subdued)
 {
-    u_int color = D_800EBC54[colorIndex] >> subdued;
+    u_int color = vs_battle_limbStatusColors[colorIndex] >> subdued;
 
     /* (the inner square draws after the outer: submitted first) */
     vs_menu_tile(-16, 0, 0, color * 2, xy + vs_getXY(1, 1), vs_getWH(5, 5));
@@ -1135,7 +1135,7 @@ static int _renderLimbUi(int init)
 
     if (init != 0) {
         if (init > 0) {
-            D_800F4EE8.unk51[49] = init - 1;
+            vs_menu_frameworkMenuMemory.unk51[49] = init - 1;
             return 0;
         }
 
@@ -1202,7 +1202,7 @@ static int _renderLimbUi(int init)
     case 2:
         _renderStatusIcons(actor, 0);
 
-        step = D_800F4EE8.unk51[49];
+        step = vs_menu_frameworkMenuMemory.unk51[49];
 
         for (i = 0; i < limbCount; ++i) {
 
@@ -1479,7 +1479,7 @@ static int _equipmentDetailScreen(int row)
         _selectedEquipmentRow = row - 1;
         _renderBasicStatsState = 0;
 
-        func_800CB654(1);
+        vs_battle_setHudHidden(1);
         _setActiveRow(_selectedEquipmentRow);
         vs_mainMenu_setMenuCommand(menuActionNone);
 
@@ -1545,7 +1545,7 @@ static int _equipmentDetailScreen(int row)
 
                 _renderBasicStatsState = 0;
 
-                func_800CB654(1);
+                vs_battle_setHudHidden(1);
 
                 if (_selectedEquipmentRow != 0 && _selectedEquipmentRow != state) {
                     return 0;
@@ -1876,7 +1876,7 @@ static int _equipmentScreen(int element)
     rowCount = _getEquipmentListRowCount();
 
     if (element != 0) {
-        D_800F4EE8.selectedEquipment = element + 1;
+        vs_menu_frameworkMenuMemory.selectedEquipment = element + 1;
         _equipmentScreenState = init;
         return 0;
     }
@@ -1962,7 +1962,7 @@ static int _equipmentScreen(int element)
             vs_mainMenu_clearMenuExcept(4);
 
             if (i < 0) {
-                temp_s5 = D_800F4EE8.selectedEquipment - 2;
+                temp_s5 = vs_menu_frameworkMenuMemory.selectedEquipment - 2;
                 if (temp_s5 < 0) {
                     temp_s5 = 0;
                 }
@@ -2035,7 +2035,7 @@ static int _equipmentScreen(int element)
             if (i < 0) {
                 return -2;
             }
-            D_800F4EE8.selectedEquipment = i - 1;
+            vs_menu_frameworkMenuMemory.selectedEquipment = i - 1;
             _equipmentScreenState = waitActorInit;
         }
 
@@ -2044,44 +2044,32 @@ static int _equipmentScreen(int element)
     return 0;
 }
 
+/* A textured Gouraud quad (the screen's whole height) as a draw item at the table's `slot`: the corners' x (the first two; y 0 then 240),
+ * the texels' u, the page word and CLUT, the colours (0xBBGGRR) of the top and the bottom corners at its left and right. */
+static int _screenQuad(unsigned* slot, int semi, int x0, int x1, int u0, int u1, int tpage, int clut, int left, int right)
+{
+    int rgb[4] = { left, right, left, right };
+    int xy[4] = { vs_getXY(x0, 0), vs_getXY(x1, 0), vs_getXY(x0, 240), vs_getXY(x1, 240) };
+    int uv[4] = { u0, u1, u0 | (240 << 8), u1 | (240 << 8) };
+    return vs_battle_gt4PlainItem(slot, semi, tpage, clut, rgb, xy, uv);
+}
+
 /**
  * Fade effect for the model when sliding in from the left.
  */
 static void _fadeScreenLeft(void)
 {
-    int uv1Tpage;
-    u_long* prim = vs_scratch.unk0;
-    u_long* temp_t1 = vs_scratch.unk4;
+    unsigned* slot = (unsigned*)vs_scratch.unk4 - 1;
+    int tpage = vs_getUV1Tpage(96, 0, vs_main_frameBuf == 0 ? 320 : 0, 0, direct16Bit, semiTransparencyHalf) >> 16;
+    int item;
 
     if (_fadeScreen == 0) {
         return;
     }
 
-    prim[0] = (temp_t1[-1] & 0xFFFFFF) | (13 << 24);
-    prim[1] = vs_getTpage(0, 0, clut4Bit, semiTransparencyHalf, ditheringOff);
-    prim[2] = vs_getRGB0(primPolyGT4, 0, 0, 0);
-    prim[3] = vs_getXY(0, 0);
-    prim[4] = vs_getUV0Clut(0, 0, 0, 0);
-    prim[5] = vs_getRGB888(128, 128, 128);
-    prim[6] = vs_getXY(96, 0);
-
-    uv1Tpage = vs_getUV1Tpage(96, 0, 0, 0, direct16Bit, semiTransparencyHalf);
-
-    if (vs_main_frameBuf == 0) {
-        uv1Tpage = vs_getUV1Tpage(96, 0, 320, 0, direct16Bit, semiTransparencyHalf);
-    }
-
-    prim[7] = uv1Tpage;
-    prim[8] = vs_getRGB888(0, 0, 0);
-    prim[9] = vs_getXY(0, 240);
-    prim[10] = vs_getUV(0, 240);
-    prim[11] = vs_getRGB888(128, 128, 128);
-    prim[12] = vs_getXY(96, 240);
-    prim[13] = vs_getUV(96, 240);
-
-    temp_t1[-1] = ((psx_to_int(u_long, prim) << 8) >> 8);
-
-    vs_scratch.unk0 = prim + 14;
+    /* (drawn after the draw mode set before it: its dither and display bits) */
+    item = _screenQuad(slot, 0, 0, 96, 0, 96, tpage, vs_getUV0Clut(0, 0, 0, 0) >> 16, vs_getRGB888(0, 0, 0), vs_getRGB888(128, 128, 128));
+    vs_battle_itemBefore(item, vs_getTpage(0, 0, clut4Bit, semiTransparencyHalf, ditheringOff));
 }
 
 /**
@@ -2089,68 +2077,25 @@ static void _fadeScreenLeft(void)
  */
 static void _drawMenuBackground(void)
 {
-    int uv1Tpage;
-
-    u_long* prim = vs_scratch.unk0;
-    void* temp_a0 = vs_scratch.unk4;
-    u_int* var_t9 = temp_a0 + 0x1FF4;
+    unsigned* slot = (unsigned*)((char*)vs_scratch.unk4 + 0x1FF4);
+    int tpage = vs_getUV1Tpage(160, 0, vs_main_frameBuf == 0 ? 320 : 0, 0, direct16Bit, semiTransparencyHalf) >> 16;
+    int item;
 
     if (_drawBackgroundFirst != 0) {
-        var_t9 = temp_a0 - 4;
+        slot = (unsigned*)vs_scratch.unk4 - 1;
     }
 
-    prim[0] = (*var_t9 & 0xFFFFFF) | (13 << 24);
-    prim[1] = vs_getRGB0(primPolyGT4SemiTrans, 16, 16, 16);
-    prim[2] = vs_getXY(64, 0);
-    prim[3] = vs_getUV0Clut(64, 0, 768, 227);
-    prim[4] = vs_getRGB888(144, 144, 144);
-    prim[5] = vs_getXY(160, 0);
-    prim[6] = vs_getUV1Tpage(160, 0, 640, 256, clut8Bit, semiTransparencyFull);
-    prim[7] = vs_getRGB888(16, 16, 16);
-    prim[8] = vs_getXY(64, 240);
-    prim[9] = vs_getUV(64, 240);
-    prim[10] = vs_getRGB888(144, 144, 144);
-    prim[11] = vs_getXY(160, 240);
-    prim[12] = vs_getUV(160, 240);
-    prim[13] = vs_getTpage(0, 0, 0, 0, ditheringOn);
-    *var_t9 = (psx_to_int(u_long, prim) << 8) >> 8;
+    /* The items link at the slot's head as the packets did (the last made draws first): the dark picture over everything (the draw
+     * mode dithering on left after it), then the ship's silhouette (a sprite and a black tile at its right), then the model view. */
+    item = _screenQuad(slot, 1, 64, 160, 64, 160, vs_getUV1Tpage(160, 0, 640, 256, clut8Bit, semiTransparencyFull) >> 16,
+        vs_getUV0Clut(64, 0, 768, 227) >> 16, vs_getRGB888(16, 16, 16), vs_getRGB888(144, 144, 144));
+    vs_battle_itemAfter(item, vs_getTpage(0, 0, 0, 0, ditheringOn));
 
-    prim += 14;
-    prim[0] = (int)((*var_t9 & 0xFFFFFF) | (8 << 24));
-    prim[1] = vs_getTpage(704, 256, 1, 1, 0);
-    prim[2] = vs_getRGB0(primSprt, 128, 128, 128);
-    prim[3] = vs_getXY(160, 0);
-    prim[4] = vs_getUV0Clut(32, 0, 768, 227);
-    prim[5] = vs_getWH(96, 240);
-    prim[6] = vs_getRGB0(primTile, 0, 0, 0);
-    prim[7] = vs_getXY(256, 0);
-    prim[8] = vs_getWH(64, 240);
-    *var_t9 = (psx_to_int(u_long, prim) << 8) >> 8;
+    vs_battle_tileFlatItem(slot, 0, 0, vs_getXY(256, 0), vs_getWH(64, 240));
+    vs_battle_spriteItem(slot, 128, vs_getXY(160, 0), vs_getWH(96, 240), vs_getTpage(704, 256, 1, 1, 0), vs_getUV0Clut(32, 0, 768, 227));
 
-    prim += 9;
-    prim[0] = (int)((*var_t9 & 0xFFFFFF) | (13 << 24));
-    prim[1] = vs_getTpage(0, 0, clut4Bit, semiTransparencyHalf, ditheringOff);
-    prim[2] = vs_getRGB0(primPolyGT4, 128, 128, 128);
-    prim[3] = vs_getXY(64, 0);
-    prim[4] = vs_getUV0Clut(64, 0, 0, 0);
-    prim[5] = vs_getRGB888(0, 0, 0);
-    prim[6] = vs_getXY(160, 0);
-    uv1Tpage = vs_getUV1Tpage(160, 0, 0, 0, direct16Bit, semiTransparencyHalf);
-
-    if (vs_main_frameBuf == 0) {
-        uv1Tpage = vs_getUV1Tpage(160, 0, 320, 0, direct16Bit, semiTransparencyHalf);
-    }
-
-    prim[7] = uv1Tpage;
-    prim[8] = vs_getRGB888(128, 128, 128);
-    prim[9] = vs_getXY(64, 240);
-    prim[10] = vs_getUV(64, 240);
-    prim[11] = vs_getRGB888(0, 0, 0);
-    prim[12] = vs_getXY(160, 240);
-    prim[13] = vs_getUV(160, 240);
-    *var_t9 = (psx_to_int(u_long, prim) << 8) >> 8;
-
-    vs_scratch.unk0 = prim + 14;
+    item = _screenQuad(slot, 0, 64, 160, 64, 160, tpage, vs_getUV0Clut(0, 0, 0, 0) >> 16, vs_getRGB888(128, 128, 128), vs_getRGB888(0, 0, 0));
+    vs_battle_itemBefore(item, vs_getTpage(0, 0, clut4Bit, semiTransparencyHalf, ditheringOff));
 }
 
 /**
@@ -2163,12 +2108,12 @@ static void _drawScreen(void)
 #ifdef ROOD_PC
     /* Until the preview model loads, the original reads through the empty
      * slot (PS1 physical address 0; rood_null_page here). */
-    D_800F4538_t* preview = D_800F4538[1] ? D_800F4538[1] : (D_800F4538_t*)rood_null_page;
+    D_800F4538_t* preview = vs_actors_actorRecords[1] ? vs_actors_actorRecords[1] : (D_800F4538_t*)rood_null_page;
     int z = preview->menuCameraDistance;
     int x = preview->menuCameraHeightOffset;
 #else
-    int z = D_800F4538[1]->menuCameraDistance;
-    int x = D_800F4538[1]->menuCameraHeightOffset;
+    int z = vs_actors_actorRecords[1]->menuCameraDistance;
+    int x = vs_actors_actorRecords[1]->menuCameraHeightOffset;
 #endif
     vs_camera_t* camera = &vs_view.camera;
 
@@ -2185,12 +2130,12 @@ static void _drawScreen(void)
     camera->farClip = ONE;
     camera->position.vz = camera->lookAt.vz + temp_lo_5;
 
-    func_8007ACB0();
+    vs_render_buildCameraViewMatrix();
 
     if (_delayScreenUpdate) {
         --_delayScreenUpdate;
     } else {
-        func_800F9EB8(&vs_view.viewMatrix);
+        vs_menu_frameworkDrawActorPreview(&vs_view.viewMatrix);
     }
 
     _drawMenuBackground();
@@ -2255,7 +2200,7 @@ int vs_menu4_exec(u_char* state)
         quitToBattle
     };
 
-    static int D_801080C8[] = { 0x001400A0, 0x002400A0, 0x003400A0, 0x004400A0,
+    static int vs_menu_statusLimbCursorPositions[] = { 0x001400A0, 0x002400A0, 0x003400A0, 0x004400A0,
         0x005400A0, 0x006400A0, 0x00920098, 0x009C0098, 0x00A60098, 0x0004FFFC,
         0x00040042, 0x000CFFFC, 0x000C0042 };
 
@@ -2265,11 +2210,11 @@ int vs_menu4_exec(u_char* state)
 
     static int animWait = 0;
     static int screenEnabled = 0;
-    static int D_80108134 = 0;
-    static int D_80108188;
+    static int vs_menu_statusLimbCursorAnimation = 0;
+    static int vs_menu_statusSavedProjectionDistance;
     static char _[12] __attribute__((unused));
-    static MATRIX D_80108198;
-    static vs_camera_t D_801081B8;
+    static MATRIX vs_menu_statusSavedViewMatrix;
+    static vs_camera_t vs_menu_statusSavedCamera;
     static u_char _animationIndex;
 
     int limbs;
@@ -2295,7 +2240,7 @@ int vs_menu4_exec(u_char* state)
 
         D_800EB9AE = 1;
 
-        func_8008A4DC(0);
+        vs_field_setFieldRenderingEnabled(0);
         vs_mainMenu_setBackgroundRenderPriority(2046, 128);
 
         _drawBackgroundFirst = 0;
@@ -2310,14 +2255,14 @@ int vs_menu4_exec(u_char* state)
 
         screenEnabled = 1;
         animWait = 1;
-        D_80108188 = vs_main_projectionDistance;
+        vs_menu_statusSavedProjectionDistance = vs_main_projectionDistance;
 
         vs_battle_setProjectionDistance(0x200);
 
         {
 
-            D_80108198 = vs_view.viewMatrix;
-            D_801081B8 = vs_view.camera;
+            vs_menu_statusSavedViewMatrix = vs_view.viewMatrix;
+            vs_menu_statusSavedCamera = vs_view.camera;
             vs_view.camera.farClip = ONE;
             vs_view.camera.angles.vx = 0;
             vs_view.camera.angles.vy = 0;
@@ -2516,8 +2461,8 @@ int vs_menu4_exec(u_char* state)
 
                     vs_mainMenu_cursorColor =
                         (userInput < _getLimbCount(_selectedActor - 1)) ^ 1;
-                    D_80108134 =
-                        vs_mainMenu_renderCursor(D_80108134, D_801080C8[userInput]);
+                    vs_menu_statusLimbCursorAnimation =
+                        vs_mainMenu_renderCursor(vs_menu_statusLimbCursorAnimation, vs_menu_statusLimbCursorPositions[userInput]);
 
                     if (userInput != _selectedElement) {
 
@@ -2733,8 +2678,8 @@ int vs_menu4_exec(u_char* state)
                                     + (limbs != 3 ? VS_status_INDEX_physicalDefense
                                                   : VS_status_INDEX_bluntDefense)]]);
 
-            D_80108134 =
-                vs_mainMenu_renderCursor(D_80108134, ((userInput * 16) + 50) << 16);
+            vs_menu_statusLimbCursorAnimation =
+                vs_mainMenu_renderCursor(vs_menu_statusLimbCursorAnimation, ((userInput * 16) + 50) << 16);
         }
         break;
 
@@ -2756,15 +2701,15 @@ int vs_menu4_exec(u_char* state)
         _renderLimbUi(0);
         _initEquipmentScreen(0);
         _renderBasicStats();
-        vs_battle_setProjectionDistance(D_80108188);
+        vs_battle_setProjectionDistance(vs_menu_statusSavedProjectionDistance);
 
-        vs_view.viewMatrix = D_80108198;
-        vs_view.camera = D_801081B8;
+        vs_view.viewMatrix = vs_menu_statusSavedViewMatrix;
+        vs_view.camera = vs_menu_statusSavedCamera;
 
-        func_8008A4DC(1);
+        vs_field_setFieldRenderingEnabled(1);
         vs_mainMenu_setMenuCommand(menuActionNone);
         vs_mainMenu_clearMenuExcept(vs_mainMenu_menuItemIds_none);
-        func_800F9E0C();
+        vs_menu_frameworkReleaseActorPreview();
         vs_mainMenu_setBackgroundRenderPriority(-2, 128);
 
         D_800EB9AE = 0;

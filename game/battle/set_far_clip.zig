@@ -18,6 +18,6 @@ pub fn setFarClip(farClip: c_int, arg1: c_int) callconv(.c) void {
         } else if (clip < 0) {
             clip = 0;
         }
-        c.func_80098194(clip);
+        c.vs_render_setRoomTextureLodDepth(clip);
     }
 }

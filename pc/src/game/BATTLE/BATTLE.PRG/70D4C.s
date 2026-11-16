@@ -5,7 +5,7 @@
 
 .section .text, "ax"
 
-glabel func_800D954C
+glabel vs_battle_aiDestinationOccupancy
     lw      $t0, 0x38($a0)
     addu    $t9, $ra, $zero
     addu    $t8, $a0, $zero
@@ -22,7 +22,7 @@ glabel func_800D954C
     sll     $t1, $a1, 8
     srl     $t1, $t1, 24
     addu    $a0, $t0, $zero
-    jal     func_800E42EC
+    jal     vs_field_groundHeightAtTile
     addu    $a1, $t1, $zero
     sll     $a0, $t0, 7
     sll     $a1, $t1, 7
@@ -48,8 +48,8 @@ glabel func_800D954C
     lw      $t0, %lo(vs_battle_actors)($t0)
     lbu     $t1, 0x88($t8)
     lhu     $t2, 0x94($t8)
-    lui     $t7, %hi(D_800F4538)
-    addiu   $t7, $t7, %lo(D_800F4538)
+    lui     $t7, %hi(vs_actors_actorRecords)
+    addiu   $t7, $t7, %lo(vs_actors_actorRecords)
     sll     $t1, $t1, 2
 .L800D9600:
     lw      $v1, 0x4($t0)
@@ -111,9 +111,9 @@ glabel func_800D954C
     addu    $ra, $t9, $zero
     jr      $ra
     nop
-endlabel func_800D954C
+endlabel vs_battle_aiDestinationOccupancy
 
-glabel func_800D96C8
+glabel vs_battle_aiCanTraverseTileEdge
     addiu   $sp, $sp, -0x20
     sw      $s0, 0x0($sp)
     sw      $s1, 0x4($sp)
@@ -160,11 +160,11 @@ glabel func_800D96C8
     sll     $a1, $a1, 8
     srl     $a1, $a1, 24
     sub     $s3, $s1, $a0 /* handwritten instruction */
-    jal     func_800E42EC
+    jal     vs_field_groundHeightAtTile
     sub     $s5, $s2, $a1 /* handwritten instruction */
     addu    $t6, $v0, $zero
     addu    $a0, $s1, $zero
-    jal     func_800E42EC
+    jal     vs_field_groundHeightAtTile
     addu    $a1, $s2, $zero
     addu    $s6, $v0, $zero
     bgez    $s3, .L800D97A0
@@ -180,7 +180,7 @@ glabel func_800D96C8
     lbu     $t3, 0x3($s0)
     beqz    $t0, .L800D97D8
     addu    $a0, $s0, $zero
-    jal     func_800D98E8
+    jal     vs_battle_aiDirectionalBlockingActor
     addu    $a1, $a3, $zero
     bnez    $v0, .L800D98B4
     slti    $t1, $s4, 0x1
@@ -213,8 +213,8 @@ glabel func_800D96C8
     addiu   $v0, $zero, 0x1
     bne     $v0, $t2, .L800D987C
     lw      $s3, 0xDC($s0)
-    lui     $v0, %hi(D_800F4538)
-    addiu   $v0, $v0, %lo(D_800F4538)
+    lui     $v0, %hi(vs_actors_actorRecords)
+    addiu   $v0, $v0, %lo(vs_actors_actorRecords)
     addu    $v0, $v0, $t0
     lhu     $t0, 0x1C($v0)
     sll     $a0, $s1, 7
@@ -225,7 +225,7 @@ glabel func_800D96C8
     sll     $a1, $s2, 7
     addi    $a1, $a1, 0x40 /* handwritten instruction */
     sub     $a0, $a0, $t0 /* handwritten instruction */
-    jal     func_800E4660
+    jal     vs_core_mathSquaredVectorLength
     sub     $a1, $a1, $t1 /* handwritten instruction */
     mflo    $v1
     slt     $v0, $v0, $v1
@@ -233,7 +233,7 @@ glabel func_800D96C8
 .L800D987C:
     lw      $s4, 0x168($s0)
     lw      $a0, 0x34($s0)
-    jal     func_800E45F4
+    jal     vs_core_mathSquaredTileDistance
     addu    $a1, $s4, $zero
     addu    $a1, $s4, $zero
     addu    $s5, $v0, $zero
@@ -262,9 +262,9 @@ glabel func_800D96C8
     lw      $s6, 0x1C($sp)
     jr      $ra
     addiu   $sp, $sp, 0x20
-endlabel func_800D96C8
+endlabel vs_battle_aiCanTraverseTileEdge
 
-glabel func_800D98E8
+glabel vs_battle_aiDirectionalBlockingActor
     lui     $a3, (0x1F8003D4 >> 16)
     lbu     $v1, (0x1F8003D2 & 0xFFFF)($a3)
     addu    $t7, $ra, $zero
@@ -322,13 +322,13 @@ glabel func_800D98E8
     andi    $v0, $v0, 0x1
 .L800D99C0:
     addu    $a1, $t0, $zero
-    jal     func_800E4690
+    jal     vs_battle_aiIsAdjacentTileStepBlocked
     lw      $a0, 0x34($a0)
     addu    $a0, $t8, $zero
 .L800D99D0:
     bnez    $v0, .L800D99E8
     addu    $a1, $t4, $zero
-    jal     func_800E42D4
+    jal     vs_field_groundHeightAtWorldPosition
     addu    $a0, $t3, $zero
     bgez    $zero, .L800D99EC
     addu    $a0, $t8, $zero
@@ -340,8 +340,8 @@ glabel func_800D98E8
     addiu   $t0, $t0, %lo(vs_battle_actors)
     lw      $t0, 0x0($t0)
     lbu     $a1, 0x88($a0)
-    lui     $a2, %hi(D_800F4538)
-    addiu   $a2, $a2, %lo(D_800F4538)
+    lui     $a2, %hi(vs_actors_actorRecords)
+    addiu   $a2, $a2, %lo(vs_actors_actorRecords)
     addu    $t5, $a3, $t9
     lbu     $t5, (0x1F8003EC & 0xFFFF)($t5)
     addu    $ra, $t7, $zero
@@ -443,7 +443,7 @@ glabel func_800D98E8
     sb      $a1, (0x1F8003D2 & 0xFFFF)($a0)
     jr      $ra
     addu    $v0, $v1, $zero
-alabel D_800D9B6C
+alabel vs_battle_aiCanWalkInDirection
     lui     $a2, (0x1F8003D1 >> 16)
     lbu     $t0, (0x1F8003D0 & 0xFFFF)($a2)
     mtc2    $a1, $4 /* handwritten instruction */
@@ -460,7 +460,7 @@ alabel D_800D9B6C
     sw      $s0, 0x14($sp)
     sw      $s1, 0x18($sp)
     addu    $s0, $a0, $zero
-    jal     func_800D98E8
+    jal     vs_battle_aiDirectionalBlockingActor
     addu    $s1, $a1, $zero
     bnez    $v0, .L800D9D80
     andi    $a3, $s1, 0x1
@@ -508,7 +508,7 @@ alabel D_800D9B6C
     sll     $t0, $t0, 1
     addu    $t6, $t0, $t5
     addu    $t6, $t6, $t1
-    jal     func_800E4690
+    jal     vs_battle_aiIsAdjacentTileStepBlocked
     addu    $a1, $s1, $zero
     addu    $a0, $t8, $zero
     addu    $a1, $t9, $zero
@@ -608,12 +608,12 @@ alabel D_800D9B6C
     lw      $s1, 0x18($sp)
     jr      $ra
     addiu   $sp, $sp, 0x20
-endlabel func_800D98E8
+endlabel vs_battle_aiDirectionalBlockingActor
 
-glabel func_800D9DD8
+glabel vs_battle_aiSelectActionMovementMode
     lw      $a1, 0x68($a0)
-    lui     $v0, %hi(func_800DAA6C)
-    addiu   $v0, $v0, %lo(func_800DAA6C)
+    lui     $v0, %hi(vs_battle_aiUpdatePatrolCombatBehavior)
+    addiu   $v0, $v0, %lo(vs_battle_aiUpdatePatrolCombatBehavior)
     beq     $a1, $v0, .L800D9E00
     lw      $v0, 0x430($a0)
     lbu     $v1, 0x2D($a0)
@@ -627,6 +627,6 @@ glabel func_800D9DD8
     sb      $a2, 0x12E($a0)
 .L800D9E0C:
     sb      $a1, 0x12E($a0)
-    bgez    $zero, func_800DD7CC
+    bgez    $zero, vs_battle_aiFindNearestActiveWaypoint
     addiu   $a1, $a0, 0x134
-endlabel func_800D9DD8
+endlabel vs_battle_aiSelectActionMovementMode

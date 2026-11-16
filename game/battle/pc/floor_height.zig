@@ -2,7 +2,7 @@
 const psx = @import("common").psx;
 const pad = @import("common").pad;
 
-/// orig: func_800E4320 (pc/src/battle_movement.c)
+/// orig: vs_field_groundHeightFlagsAtTile (pc/src/battle_movement.c)
 /// Raw floor height of tile (x, z) from the grid cached at scratchpad 0x3BC
 /// (64-byte rows of 16-bit cells): sign((cell & 0x3FF) << 6) minus
 /// (cell & 0x1C00) >> 3.

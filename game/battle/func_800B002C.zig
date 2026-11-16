@@ -107,13 +107,13 @@ pub fn func_800B002C(actor: ?*v.D_800F4538_t, arg1: c_int) callconv(.c) void {
                 if (psx.getBits(body, "unkA_3") != 2) {
                     body.currentTileX = psx.conv(u8, @divTrunc(@as(c_int, body.position.vx), 128));
                     body.currentTileZ = psx.conv(u8, @divTrunc(@as(c_int, body.position.vz), 128));
-                    _ = c.func_800A92B8(body.currentTileX, body.currentTileZ);
-                    psx.setBits(a, "unk5AC_28", psx.conv(u4, psx.Global(u8, "D_800F49F8").ptr().*));
+                    _ = c.vs_field_gimmickSupportHeight(body.currentTileX, body.currentTileZ);
+                    psx.setBits(a, "unk5AC_28", psx.conv(u4, psx.Global(u8, "vs_actors_supportingGimmickIndex").ptr().*));
                 }
             }
         }
     }
-    c.func_800B07DC(@ptrCast(a));
+    c.vs_actors_transformRootOffset(@ptrCast(a));
     if (word8(a) & 0x3F0000 == 0) {
         psx.fieldAt(c_int, &body.lastTouchedTileX, 0).* = psx.fieldAt(c_int, &body.currentTileX, 0).*;
         psx.fieldAt([2]c_int, &body.unk4C, 0).* = psx.fieldAt([2]c_int, &body.position, 0).*;
@@ -125,7 +125,7 @@ pub fn func_800B002C(actor: ?*v.D_800F4538_t, arg1: c_int) callconv(.c) void {
 
     if (a.unk17FC != -2) {
         track: {
-            if (c.func_800BEB00() != 4) {
+            if (c.vs_event_eventPlaybackState() != 4) {
                 var trackAnim = false;
                 if (word8(a) < 0) {
                     return;
@@ -163,7 +163,7 @@ pub fn func_800B002C(actor: ?*v.D_800F4538_t, arg1: c_int) callconv(.c) void {
                 dx = @as(c_int, a.unk17F4.vx) - body.position.vx;
                 dz = @as(c_int, a.unk17F4.vz) - body.position.vz;
             } else {
-                const other = psx.at(v.g.D_800F4538(), a.unk17FC).*.?;
+                const other = psx.at(v.g.vs_actors_actorRecords(), a.unk17FC).*.?;
                 dx = @as(c_int, other.unk0.position.vx) - body.position.vx;
                 dz = @as(c_int, other.unk0.position.vz) - body.position.vz;
             }
@@ -178,7 +178,7 @@ pub fn func_800B002C(actor: ?*v.D_800F4538_t, arg1: c_int) callconv(.c) void {
             if (a.unk17FC == -1) {
                 dz = @as(c_int, a.unk17F4.vy) - body.position.vy;
             } else {
-                dz = @as(c_int, psx.at(v.g.D_800F4538(), a.unk17FC).*.?.unk0.position.vy) - body.position.vy;
+                dz = @as(c_int, psx.at(v.g.vs_actors_actorRecords(), a.unk17FC).*.?.unk0.position.vy) - body.position.vy;
             }
             pitch = c.ratan2(dx, dz);
             pitch -%= 0x400;

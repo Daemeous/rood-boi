@@ -4,7 +4,7 @@ const c = @import("c_battle_movement");
 const v = @import("views_battle_movement");
 const psx = @import("common").psx;
 
-/// orig: func_800DB4AC (pc/src/battle_movement.c)
+/// orig: vs_battle_aiSetMovementBehavior (pc/src/battle_movement.c)
 /// Enters movement mode `mode` (byte 0x89 always records the request).
 /// Re-entering the current mode (0x8A) does nothing. Modes reset their own
 /// fields; mode 5 picks the nearest flagged waypoint of the actor's set

@@ -121,7 +121,7 @@ def show_platforms(game):
         word = struct.unpack("<I", game.read(table + i * 184, 4))[0]
         game.write(table + i * 184, struct.pack("<I", word & ~(1 << 9)))
     game.run(2)
-    game.write(symbols()["D_800F1D6E"], b"\x01")
+    game.write(symbols()["vs_field_areMovingPlatformsPaused"], b"\x01")
 
 
 def entry_of(game, eid):
@@ -515,7 +515,7 @@ def object_light_tests(game, out, check):
     table = game.room_pointer("section12", 0xA8)
     x, altitude, z = (v / 4096 for v in struct.unpack("<iii", game.read(table + 0xA8, 12)))
     game.call("editor_camera", x=x, y=-altitude - 500, z=z - 600, yaw=0, pitch=-35)
-    actor = struct.unpack("<I", game.read_symbol("D_800F4538", 4))[0]  # Ashley's record: position at 0x1C
+    actor = struct.unpack("<I", game.read_symbol("vs_actors_actorRecords", 4))[0]  # Ashley's record: position at 0x1C
     game.write(actor + 0x1C, struct.pack("<hhh", int(x), int(-altitude - 10), int(z)))
     game.run(30)
     on = game.state()["player"]

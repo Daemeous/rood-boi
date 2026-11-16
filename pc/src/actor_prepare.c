@@ -48,7 +48,7 @@ extern struct {
     MATRIX boneMatrices[42];
     VECTOR boneScales[42];
 } D_800F2458;
-extern MATRIX D_800F3C58[];
+extern MATRIX vs_actors_skeletonPose[];
 
 typedef struct {
     int unk0;
@@ -66,16 +66,16 @@ typedef struct {
 } boneSpin;
 
 extern char D_800E8FC0;
-void func_800B17F0(SVECTOR*, MATRIX*);
-void func_800B196C(MATRIX*, MATRIX*);
-void func_800B396C(MATRIX*, VECTOR*);
-int func_800B3A68(void*, MATRIX*, int, void*);
-short func_800BEB00(void);
+void vs_core_mathBuildEulerRotationMatrixQuadrant(SVECTOR*, MATRIX*);
+void vs_core_mathPremultiplyRotationMatrix(MATRIX*, MATRIX*);
+void vs_core_mathScaleMatrixColumns(MATRIX*, VECTOR*);
+int vs_render_projectModelVertices(void*, MATRIX*, int, void*);
+short vs_event_eventPlaybackState(void);
 void func_800B516C(void*, void*, void*, void*);
-void func_800B3CF0(void*, void*, void*, void*);
-void func_800B4594(void*, void*, void*, void*);
+void vs_render_drawModelFlatPolygons(void*, void*, void*, void*);
+void vs_render_drawModelGouraudPolygons(void*, void*, void*, void*);
 void func_800B4B14(void*);
-void func_800B5C30(void*, void*, void*, void*);
+void vs_render_drawModelGouraudPolygonsWithOverrides(void*, void*, void*, void*);
 void func_8008C458(int, int, void*, void*);
 int vs_gte_rsqrt(int);
 
@@ -83,7 +83,7 @@ typedef struct {
     char prefix[0x4C];
     SVECTOR translation;
 } boneTransformScratch;
-static inline void func_800B26B8(void* actorData, MATRIX* parent, int bone, int saved)
+static inline void vs_actors_applyLockedBoneTransform(void* actorData, MATRIX* parent, int bone, int saved)
 {
     D_800F4538_t* actor = actorData;
     boneTransformScratch* scratch = (void*)PC_PAD(0x35C);
@@ -92,7 +92,7 @@ static inline void func_800B26B8(void* actorData, MATRIX* parent, int bone, int 
     vs_gte_view view;
     vs_gte_result transformed;
     *matrix = *savedMatrix;
-    func_800B196C(parent, matrix);
+    vs_core_mathPremultiplyRotationMatrix(parent, matrix);
     view = vs_gte_view_of(parent, VS_GTE_NO_SCREEN);
     scratch->translation.vx = (u_short)savedMatrix->t[0];
     scratch->translation.vy = (u_short)savedMatrix->t[1];
@@ -141,7 +141,7 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
     scratch->rotation.vz += actor->unk0.unk28;
 
     if (VS_OBJECT_FLAGS5AC(actor) & 0x200000) {
-        if ((short)func_800BEB00() == 4 || (((actorFlags*)actor)->flags & 4)) {
+        if ((short)vs_event_eventPlaybackState() == 4 || (((actorFlags*)actor)->flags & 4)) {
             if (arg2 == 0) {
                 flags = VS_OBJECT_FLAGS5AC(actor);
                 if (!(flags & 0x400000)) {
@@ -165,22 +165,22 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
 
     *(int*)&scratch->rotation &= 0x0FFF0FFF;
     *(int*)&scratch->rotation.vz &= 0xFFF;
-    func_800B17F0(&scratch->rotation, &scratch->matrix);
-    func_800B196C(parent, &scratch->matrix);
+    vs_core_mathBuildEulerRotationMatrixQuadrant(&scratch->rotation, &scratch->matrix);
+    vs_core_mathPremultiplyRotationMatrix(parent, &scratch->matrix);
 
     if (!(((actorFlags*)actor)->flags & 0x2000)) {
         scratch->scale.vx = actor->unk183C;
         scratch->scale.vy = actor->unk183C;
         scratch->scale.vz = actor->unk183C;
-        func_800B396C(&scratch->matrix, &scratch->scale);
+        vs_core_mathScaleMatrixColumns(&scratch->matrix, &scratch->scale);
     }
     if (*(int*)&actor->unk0.unk2C != 0x10001000 || actor->unk0.unk30 != 0x1000) {
         scratch->scale.vx = actor->unk0.unk2E;
         scratch->scale.vy = actor->unk0.unk30;
         scratch->scale.vz = actor->unk0.unk2C;
-        func_800B396C(&scratch->matrix, &scratch->scale);
+        vs_core_mathScaleMatrixColumns(&scratch->matrix, &scratch->scale);
     }
-    *D_800F3C58 = scratch->matrix;
+    *vs_actors_skeletonPose = scratch->matrix;
 
     D_800F2458.boneScales[0].vx = scratch->scale.vx = actor->unk704.unk150[0].vx;
     D_800F2458.boneScales[0].vy = scratch->scale.vy = actor->unk704.unk150[0].vy;
@@ -189,7 +189,7 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
         scratch->scale.vx <<= 6;
         scratch->scale.vy <<= 6;
         scratch->scale.vz <<= 6;
-        func_800B396C(&scratch->matrix, &scratch->scale);
+        vs_core_mathScaleMatrixColumns(&scratch->matrix, &scratch->scale);
     }
     actor->bones[0] = scratch->matrix;
     scratch->translation.vx = scratch->translation.vy = 0;
@@ -197,7 +197,7 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
     for (i = 1; i < actor->unk0.nBones; ++i) {
         value = psx_get(scratch->model)->armatures[i].unkC;
         if (value != 0) {
-            func_800B26B8(actor, parent, i, value);
+            vs_actors_applyLockedBoneTransform(actor, parent, i, value);
         } else {
             parentBone = psx_get(scratch->model)->armatures[i].unk4;
             psx_set(scratch->parent, &actor->bones[parentBone]);
@@ -283,18 +283,18 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
             *(int*)&scratch->rotation.vz &= 0xFFF;
             if (value >= 7) {
                 RotMatrixYXZ_gte(&scratch->rotation, &scratch->matrix);
-                func_800B196C(parent, &scratch->matrix);
+                vs_core_mathPremultiplyRotationMatrix(parent, &scratch->matrix);
                 scratch->scale.vx = actor->unk183C;
                 scratch->scale.vy = actor->unk183C;
                 scratch->scale.vz = actor->unk183C;
-                func_800B396C(&scratch->matrix, &scratch->scale);
+                vs_core_mathScaleMatrixColumns(&scratch->matrix, &scratch->scale);
                 scratch->scale.vx = actor->unk0.unk2E;
                 scratch->scale.vy = actor->unk0.unk30;
                 scratch->scale.vz = actor->unk0.unk2C;
-                func_800B396C(&scratch->matrix, &scratch->scale);
+                vs_core_mathScaleMatrixColumns(&scratch->matrix, &scratch->scale);
             } else {
-                func_800B17F0(&scratch->rotation, &scratch->matrix);
-                func_800B196C(&D_800F2458.boneMatrices[parentBone], &scratch->matrix);
+                vs_core_mathBuildEulerRotationMatrixQuadrant(&scratch->rotation, &scratch->matrix);
+                vs_core_mathPremultiplyRotationMatrix(&D_800F2458.boneMatrices[parentBone], &scratch->matrix);
             }
 
             if (*(int*)&actor->unk704.unk150[i] == 0x400040
@@ -325,7 +325,7 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
                 scratch->scale.vx <<= 6;
                 scratch->scale.vy <<= 6;
                 scratch->scale.vz <<= 6;
-                func_800B396C(&scratch->matrix, &scratch->scale);
+                vs_core_mathScaleMatrixColumns(&scratch->matrix, &scratch->scale);
             }
             actor->bones[i] = scratch->matrix;
         }
@@ -335,7 +335,7 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
         return;
     }
     if (actor->unk0.position.vy >= 256) {
-        if (actor->unk0.unkF == 0 || (short)func_800BEB00() != 4) {
+        if (actor->unk0.unkF == 0 || (short)vs_event_eventPlaybackState() != 4) {
             return;
         }
     }
@@ -346,17 +346,17 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
         psx_set(scratch->model, actor->unk0.unk68);
         scratch->unk36 = actor->unk6E8;
         scratch->unk38 = actor->unk6EA;
-        scratch->tpage = D_800F46A8[actor->unk5BB].tpage;
+        scratch->tpage = vs_render_legacyActorTextureSlots[actor->unk5BB].tpage;
     } else {
-        *(actorIdentity*)actor = *(actorIdentity*)D_800F4538[arg2];
-        psx_set(scratch->model, D_800F4538[arg2]->unk0.unk68);
-        scratch->unk36 = D_800F4538[arg2]->unk6E8;
-        scratch->unk38 = D_800F4538[arg2]->unk6EA;
-        scratch->tpage = D_800F46A8[D_800F4538[arg2]->unk5BB].tpage;
-        source = D_800F4538[arg2];
+        *(actorIdentity*)actor = *(actorIdentity*)vs_actors_actorRecords[arg2];
+        psx_set(scratch->model, vs_actors_actorRecords[arg2]->unk0.unk68);
+        scratch->unk36 = vs_actors_actorRecords[arg2]->unk6E8;
+        scratch->unk38 = vs_actors_actorRecords[arg2]->unk6EA;
+        scratch->tpage = vs_render_legacyActorTextureSlots[vs_actors_actorRecords[arg2]->unk5BB].tpage;
+        source = vs_actors_actorRecords[arg2];
     }
 
-    if (func_800B3A68(actor, actor->bones, -vs_main_nearClip << 2, psx_get(scratch->model)) == 0) {
+    if (vs_render_projectModelVertices(actor, actor->bones, -vs_main_nearClip << 2, psx_get(scratch->model)) == 0) {
         ((actorFlags*)actor)->flags |= 0x1000;
     } else {
         blend = 0;
@@ -373,7 +373,7 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
         }
         if (!(((actorFlags*)actor)->flags & 8)) {
             if (arg2 == 1) {
-                func_800B3CF0(&D_800F2458, actor, &actor->unk6F8, psx_get(scratch->model));
+                vs_render_drawModelFlatPolygons(&D_800F2458, actor, &actor->unk6F8, psx_get(scratch->model));
             } else {
                 if (!(VS_OBJECT_FLAGS5AC(actor) & 0x100)) {
                     if (VS_OBJECT_FLAGS648(actor) & 0x10000) {
@@ -420,7 +420,7 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
                     func_800B516C(
                         &D_800F2458, actor, &source->unk0.unk54, psx_get(scratch->model));
                 } else {
-                    func_800B3CF0(
+                    vs_render_drawModelFlatPolygons(
                         &D_800F2458, actor, &source->unk0.unk54, psx_get(scratch->model));
                 }
             }
@@ -441,9 +441,9 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
                 ((u_char*)&actor->unk1864)[2] = value;
             }
             if (blend) {
-                func_800B5C30(&D_800F2458, actor, &actor->unk0.unk54, psx_get(scratch->model));
+                vs_render_drawModelGouraudPolygonsWithOverrides(&D_800F2458, actor, &actor->unk0.unk54, psx_get(scratch->model));
             } else {
-                func_800B4594(&D_800F2458, actor, &actor->unk0.unk54, psx_get(scratch->model));
+                vs_render_drawModelGouraudPolygons(&D_800F2458, actor, &actor->unk0.unk54, psx_get(scratch->model));
             }
         }
     }

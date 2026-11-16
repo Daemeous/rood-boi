@@ -13,7 +13,7 @@
  * the menus' model reload runs from this hook). The src hooks (ROOD_PC):
  *   vs_battle_exec (BATTLE 146C.c)  reads the pad through
  *                                   pc_weapon_slots_process_pad
- *   func_800C9FE8 (BATTLE 5BF94.c)  the L2 shortcut overlay asks
+ *   vs_battle_drawShortcutHud (BATTLE 5BF94.c)  the L2 shortcut overlay asks
  *                                   pc_weapon_slots_label for each label
  *   _copyContainer (MENU7 260.c)    remaps 3 gem bytes, not 4 (see below)
  *
@@ -33,7 +33,7 @@
  *                         of its slot
  *
  * A swap with the weapon drawn plays the game's sheathe animation
- * (func_800734C0), waits until the actor is idle (func_8009E4B0), swaps while
+ * (vs_battle_beginAshleyWeaponToggle), waits until the actor is idle (vs_actors_isActorActionAnimationBusy), swaps while
  * the world is held (field mode 0) and draws again. The swap is the equip
  * menu's sequence (MENU3 _equipWeaponMenu, shield flags, model loads) as a
  * per-frame state machine; the new weapon's name shows in the information box
@@ -69,12 +69,12 @@
 extern int sprintf(char*, const char*, ...);
 
 extern u_int D_800F196C; /* field mode: 0 held, 1 field, 6 L2 shortcuts, 10 (un)sheathing */
-extern u_char D_800EBCE8; /* L2 overlay slide: 10 hidden, 0 fully in */
-int func_8009E4B0(int); /* the actor is busy (an animation runs) */
-void func_800734C0(void); /* draw/sheathe toggle (the field's button) */
-void func_80073554(void); /* leave the L2 shortcut mode (6) for the field (1) */
-void func_800FA2CC(void); /* MAINMENU 224.c: actor 0 after the equip menu's model load (BATTLE data only) */
-int func_800C9EB8(int); /* L2 overlay: the label's sprite (0 = not drawn) */
+extern u_char vs_battle_shortcutHudAnimationStep; /* L2 overlay slide: 10 hidden, 0 fully in */
+int vs_actors_isActorActionAnimationBusy(int); /* the actor is busy (an animation runs) */
+void vs_battle_beginAshleyWeaponToggle(void); /* draw/sheathe toggle (the field's button) */
+void vs_field_endShortcutMenu(void); /* leave the L2 shortcut mode (6) for the field (1) */
+void vs_menu_frameworkResetAshleyEquipmentPose(void); /* MAINMENU 224.c: actor 0 after the equip menu's model load (BATTLE data only) */
+int vs_battle_shortcutIconBrightness(int); /* L2 overlay: the label's sprite (0 = not drawn) */
 void func_800C9F98(int xy, int sprite); /* L2 overlay: a label's bullet */
 
 int pc_weapon_slots_process_pad(void);
@@ -245,7 +245,7 @@ static vs_main_inventoryShield* shield_swap(vs_main_inventoryWeapon* w, int two)
     if (want)
         want->isEquipped = 1;
     vs_battle_equipShield(want);
-    func_8009AA84(1);
+    vs_content_releaseWeaponModel(1);
     return want;
 }
 
@@ -284,12 +284,12 @@ static void queue_models(int category, int wep, int material, vs_main_inventoryS
     vs_battle_objectData* q = vs_battle_objectDataSlots;
     int i;
 
-    if (D_800F4538[0]->unk5B1 != category) {
-        func_8009CC20(0, 0);
+    if (vs_actors_actorRecords[0]->unk5B1 != category) {
+        vs_content_releaseActorSequence(0, 0);
         queue_entry(&q, direct, 7, 0, category, 0);
     }
 
-    func_8009AA84(0);
+    vs_content_releaseWeaponModel(0);
 
     for (;;) { /* the weapon's model, then the shield's */
         if (wep) {
@@ -337,8 +337,8 @@ static void begin_swap(vs_main_inventoryWeapon* w)
 static int swap_allowed(void)
 {
     return ((vs_battle_screenTransitionStep - 1) >= 2U) && (vs_battle_screenTransitionStep != 4)
-        && !(func_800A0BE0(0) & 0x6000) && (vs_battle_characterState->unk3C->unk954 == 0)
-        && (func_8009E4B0(0) == 0) && (vs_battle_objectDataSlots[0].dataType == 0);
+        && !(vs_actors_actorStateFlags(0) & 0x6000) && (vs_battle_characterState->unk3C->unk954 == 0)
+        && (vs_actors_isActorActionAnimationBusy(0) == 0) && (vs_battle_objectDataSlots[0].dataType == 0);
 }
 
 /* The sound, then sheathe first when the weapon is drawn, else swap at once. */
@@ -347,7 +347,7 @@ static void start_swap(vs_main_inventoryWeapon* w)
     vs_battle_playMenuChangeSfx();
     s.redraw = vs_battle_characterState->weaponDrawn & 1;
     if (s.redraw) {
-        func_800734C0();
+        vs_battle_beginAshleyWeaponToggle();
         D_800F196C = 0;
         s.target = w;
         s.wait = SHEATHE_TIMEOUT;
@@ -435,7 +435,7 @@ static void draw_small(const u_char* text, int xy, int max, int flags)
 /* button_prompts.c: the D-pad's arms with a usable action (its mode actions). */
 void pc_button_prompts_cross_action(int arm, int usable);
 
-/* func_800C9FE8 (the L2 overlay) asks for each label, ids 4..7 then 0..3. Not
+/* vs_battle_drawShortcutHud (the L2 overlay) asks for each label, ids 4..7 then 0..3. Not
  * in weapon mode: the game's answer. In weapon mode the label sprite is not
  * drawn (0): the bullet and the weapon's name are drawn here instead. Ids
  * 4..7 sit by the D-pad's up, left, right and down arms: an arm has a usable
@@ -449,7 +449,7 @@ int pc_weapon_slots_label(int id)
     int step;
 
     if (!s.wmode) {
-        int sprite = func_800C9EB8(id);
+        int sprite = vs_battle_shortcutIconBrightness(id);
         if (id >= 4)
             pc_button_prompts_cross_action(id - 4, sprite == 0x180);
         return sprite;
@@ -459,7 +459,7 @@ int pc_weapon_slots_label(int id)
     w = in_slot(t[1]);
     if (id >= 4)
         pc_button_prompts_cross_action(id - 4, w != NULL);
-    step = (u_char)vs_battle_rowAnimationSteps[D_800EBCE8];
+    step = (u_char)vs_battle_rowAnimationSteps[vs_battle_shortcutHudAnimationStep];
     if (id >= 4)
         step = -step;
     func_800C9F98(((xy[2] + step) & 0xFFFF) | (xy[3] << 16), w ? 0x180 : 0x140);
@@ -467,7 +467,7 @@ int pc_weapon_slots_label(int id)
         draw_small((const u_char*)w->name, ((xy[0] + step) & 0xFFFF) | (xy[1] << 16), t[0],
             ((id & 1) * 6) | (palettes[s.assign * 2 + (w->isEquipped & 1)] << 3));
     }
-    if (id == 4 && D_800EBCE8 == 0) /* the line under the overlay: what Select does */
+    if (id == 4 && vs_battle_shortcutHudAnimationStep == 0) /* the line under the overlay: what Select does */
         draw_small(hints[s.assign], (pc_qol_weapon_slots_hint[0] & 0xFFFF) | (pc_qol_weapon_slots_hint[1] << 16), 30,
             3 | (palettes[4 + s.assign] << 3));
     return 0;
@@ -515,7 +515,7 @@ static void slot_mode(int new_dpad)
         vs_battle_playInvalidSfx();
         return;
     }
-    func_80073554(); /* the game's own way out of the shortcut mode */
+    vs_field_endShortcutMenu(); /* the game's own way out of the shortcut mode */
     start_swap(w);
 }
 
@@ -524,27 +524,27 @@ static void slot_mode(int new_dpad)
 static void finish_models(D_800F4538_t* a, int animation)
 {
     a->unk187C = 0;
-    func_800A0204(0, animation, 0, 0);
+    vs_actors_playActorAnimation(0, animation, 0, 0);
     func_800AFA28(a, &a->unkC54, 1);
     vs_main_memcpy(&a->unk704, &a->unkC54, sizeof a->unk704);
     a->unkC54.unk540 = 0;
-    func_8009D934(0, a->unk0.weaponDrawn, 2);
+    vs_actors_setActorWeaponDrawn(0, a->unk0.weaponDrawn, 2);
 }
 
 /* The swap state machine, one step per frame; 1 while it holds the frame. */
 static int swap_step(void)
 {
-    D_800F4538_t* a = D_800F4538[0];
+    D_800F4538_t* a = vs_actors_actorRecords[0];
     vs_battle_textBox* box;
 
     if (D_800F196C == 0) {
-        func_800B64A8(0, 0, 0); /* stand still, as the game does while (un)sheathing */
+        vs_actors_setDirectMovement(0, 0, 0); /* stand still, as the game does while (un)sheathing */
     } else if (s.loading == 2) {
         s.loading = 0; /* something else took over the world: give up */
         return 1;
     }
     if (s.loading == 2) {
-        if (func_8009E4B0(0) == 0 || --s.wait <= 0)
+        if (vs_actors_isActorActionAnimationBusy(0) == 0 || --s.wait <= 0)
             begin_swap(s.target);
         return 1;
     }
@@ -552,11 +552,11 @@ static int swap_step(void)
         return 1;
     /* The queue drained: restart the idle animation on the (maybe new)
      * category's table and refresh the pose and the model flags, as
-     * func_800FA2CC does after the menu changed the weapon. */
+     * vs_menu_frameworkResetAshleyEquipmentPose does after the menu changed the weapon. */
     finish_models(a, 1);
     if (D_800F196C == 0) {
         if (s.redraw)
-            func_800734C0(); /* draw the new weapon (mode 10) */
+            vs_battle_beginAshleyWeaponToggle(); /* draw the new weapon (mode 10) */
         else
             D_800F196C = 1;
         box = &vs_battle_textBoxes[7];
@@ -631,7 +631,7 @@ int pc_weapon_slots_process_pad(void)
             s.wmode = 1;
     } else {
         s.assign = 0;
-        if ((vs_main_buttonsState & PADL2) || D_800EBCE8 == 10)
+        if ((vs_main_buttonsState & PADL2) || vs_battle_shortcutHudAnimationStep == 10)
             s.wmode = 0;
     }
 
@@ -689,10 +689,10 @@ void pc_weapon_slots_json(char* out, unsigned size)
     /* What Ashley's battle record has on (the equip routines' result): the
      * inventory index of the weapon and the shield (0 none), the model's
      * category. Only in battle: over the title they are a past battle's. */
-    if (s.in_battle && vs_battle_characterState && vs_battle_characterState->unk3C && D_800F4538[0]) {
+    if (s.in_battle && vs_battle_characterState && vs_battle_characterState->unk3C && vs_actors_actorRecords[0]) {
         vs_battle_actor2* actor = vs_battle_characterState->unk3C;
         p += sprintf(p, ",\"actor_weapon\":%d,\"actor_shield\":%d,\"actor_category\":%d,\"weapon_drawn\":%d",
-            actor->weapon.index, actor->shield.index, D_800F4538[0]->unk5B1,
+            actor->weapon.index, actor->shield.index, vs_actors_actorRecords[0]->unk5B1,
             vs_battle_characterState->weaponDrawn & 1);
     }
     sprintf(p, "}");
@@ -704,7 +704,7 @@ void pc_weapon_slots_json(char* out, unsigned size)
  * way): the bridge asks before it changes any equipment. */
 int pc_weapon_slots_menu_can_load(void)
 {
-    return !(s.loading || s.menu || vs_battle_objectDataSlots[0].dataType != 0 || !D_800F4538[0]);
+    return !(s.loading || s.menu || vs_battle_objectDataSlots[0].dataType != 0 || !vs_actors_actorRecords[0]);
 }
 
 /* Reload actor 0's weapon and shield models after the caller equipped them
@@ -725,7 +725,7 @@ int pc_weapon_slots_menu_models(vs_main_inventoryWeapon* w, vs_main_inventoryShi
         return -1;
     if (shield && !shield->base.id)
         shield = NULL;
-    func_8009AA84(1); /* the shield's model slot (queue_models frees the weapon's) */
+    vs_content_releaseWeaponModel(1); /* the shield's model slot (queue_models frees the weapon's) */
     queue_models(blade ? (u_char)blade->category : 10, blade ? (u_char)blade->wepId : 0,
         blade ? blade->material : 0, shield, 0);
     s.menu = 1;
@@ -734,9 +734,9 @@ int pc_weapon_slots_menu_models(vs_main_inventoryWeapon* w, vs_main_inventoryShi
 
 /* A menu model reload's progress: on the frame the queue drains it runs the
  * finish. The finish is the equip menu's own for actor 0 (MENU3
- * _loadObjectData, queue drained: func_800FA2CC: the models' drawn flags, the
+ * _loadObjectData, queue drained: vs_menu_frameworkResetAshleyEquipmentPose: the models' drawn flags, the
  * idle (drawn: 101) set up in place), not the field swap's restart through
- * func_800A0204: Ashley's animation state after the menu is then the
+ * vs_actors_playActorAnimation: Ashley's animation state after the menu is then the
  * original's (pc/tests/ui_equip_smoke.py compares it). Runs from
  * process_pad every frame and from pc_weapon_slots_menu_busy (whichever
  * comes first after the drain). */
@@ -745,8 +745,8 @@ static void menu_step(void)
     if (!s.menu || vs_battle_objectDataSlots[0].dataType != 0)
         return;
     s.menu = 0;
-    if (D_800F4538[0])
-        func_800FA2CC();
+    if (vs_actors_actorRecords[0])
+        vs_menu_frameworkResetAshleyEquipmentPose();
 }
 
 /* The game left the battle loop (soft reset, title, ending: menu_bridge.c

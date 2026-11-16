@@ -38,7 +38,7 @@ enum { PC_CTR_CATEGORIES = 7, PC_CTR_TRANSFER = 64, PC_CTR_STACK = 100 };
 typedef struct pc_ctr {
     vs_menu_inventoryStorage_t* st; /* vs_menu_inventoryStorage */
     vs_menu_container* src;         /* vs_menuD_containerData (the list's side) */
-    vs_menu_container* dst;         /* D_80109A88 (the other side) */
+    vs_menu_container* dst;         /* vs_menu_containerOtherStorage (the other side) */
     int mode;                       /* D_80109A7A: 0 Remove (container to bag), 1 Store */
     const u_char* bag_caps;         /* vs_mainMenu_inventoryItemCapacities {8,16,16,8,16,48,64} */
     u_char* const* bag_indices;     /* vs_mainMenu_inventoryIndices[7] (vs_main_inventoryIndices) */

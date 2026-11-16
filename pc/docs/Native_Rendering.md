@@ -21,7 +21,7 @@ describes the API (`pc/src/render.h`, `render.c`), the first user (the room,
   (rows keep the GTE's scales, X carries the pixel aspect), H, OFX/OFY and
   the widescreen flag. An instance is a mesh with a model-to-world
   transform plus the PS1 per-polygon rule inputs (ordering-table bias,
-  subdivision level). `render_list_tint` applies `func_80098D6C`'s colour
+  subdivision level). `render_list_tint` applies `vs_render_tintRoomGeometryPrimitives`'s colour
   fade/offset to a whole list.
 - **Placement** (`render_list_link(list, ot_entry, packet)`): a list is
   drawn where a three-word marker packet sits in the frame's ordering table
@@ -343,7 +343,7 @@ returns 0 and callers keep their packet paths.
 
 ## The room (`room_native.c`)
 
-`func_8009723C` (`room_geometry.c`) still walks the room's groups each frame
+`vs_render_drawRoomGeometry` (`room_geometry.c`) still walks the room's groups each frame
 and still decides visibility exactly as before: the hide flags
 (`flags & 0x1100`), the alternate set (`flags >> 15 & mode`) and the cutaway
 facing masks (for the editor's free camera: "Seeing into rooms" below). For the
@@ -359,7 +359,7 @@ current room (the block `pc_scene_room` captured) it calls into
   camera times the group's camera-composed matrix (group + 0x20), so the
   live frame matches the GTE exactly and a replay can re-project it;
 - the list's marker goes into the room's ordering table at the farthest
-  room bucket, and `func_80098D6C`'s tint, when the game applies one to the
+  room bucket, and `vs_render_tintRoomGeometryPrimitives`'s tint, when the game applies one to the
   room packets, applies to the list too (its packet walk steps over
   translucent markers);
 - each semi-transparent polygon the game keeps (its own back-face, screen
@@ -393,8 +393,8 @@ key `native_blend`; default 1): the list's packet range is then skipped by
 the hardware path for its semi-transparent packets too, once the list drew.
 With 0 they draw from packets as before.
 
-Other blocks drawn through `func_8009723C`: `func_8008DF14` draws one quad
-per room section 9 entry (a fading floor marker: `func_8008E19C` writes the
+Other blocks drawn through `vs_render_drawRoomGeometry`: `vs_field_drawRoomTriggerMarkers` draws one quad
+per room section 9 entry (a fading floor marker: `vs_field_drawRoomTriggerMarker` writes the
 quad's position and brightness into a one-group block, `D_800E8548`, and
 draws it with the camera matrix as the group's). With `pc_native_objects`
 (`ROOD_NATIVE_OBJECTS`, RPC `graphics native_objects`, editor "Native room
@@ -406,15 +406,15 @@ are keyed by a hash of all of its geometry and kept for 8 frames (replays).
 
 ### Room texture animations: animated materials (2026-10-11)
 
-A room's texture effects (MPD room section 0xC, set up by `func_80092548`,
-run every game frame through the table `D_800E85CC`, BATTLE `2842C.c`):
+A room's texture effects (MPD room section 0xC, set up by `vs_field_initializeRoomEffects`,
+run every game frame through the table `vs_field_textureEffectHandlers`, BATTLE `2842C.c`):
 
 | Type | Size | Function | What it changes | On the disc |
 | --- | --- | --- | --- | --- |
-| 0 | 24 | `func_80091C6C` | one polygon's UVs: atlas frames | none |
-| 1 | 20 | `func_80091FE8` | VRAM: `MoveImage` of an atlas frame or a vertical scroll, full and half-size copies | 544 in 325 rooms (two in the save room) |
-| 2 | 32 | `func_80091E10` | one polygon's UVs: a scrolling window | 1590 in 372 rooms (the save point's sigil and light column) |
-| 6 | 36 | `func_800923F8` | a group's rotation (doors) | 720 in 330 rooms |
+| 0 | 24 | `vs_field_advanceRoomTextureFrames` | one polygon's UVs: atlas frames | none |
+| 1 | 20 | `vs_field_animateRoomTextureImages` | VRAM: `MoveImage` of an atlas frame or a vertical scroll, full and half-size copies | 544 in 325 rooms (two in the save room) |
+| 2 | 32 | `vs_field_scrollRoomTextureCoordinates` | one polygon's UVs: a scrolling window | 1590 in 372 rooms (the save point's sigil and light column) |
+| 6 | 36 | `vs_field_updateRoomRotationEffect` | a group's rotation (doors) | 720 in 330 rooms |
 
 VRAM copies reach native draws by themselves (the copy marks native VRAM
 tiles dirty; they are uploaded before the next native list draws) and group
@@ -422,12 +422,12 @@ rotations come with the group's matrix each frame.
 
 Types 0 and 2 rewrite one polygon's UV bytes: `uv = (base uv + offset) &
 255` per vertex, the offset an atlas frame's corner or the scroll window's
-position (`func_80091E10` steps it by `(stepU, stepV)` every `delay + 1`
+position (`vs_field_scrollRoomTextureCoordinates` steps it by `(stepU, stepV)` every `delay + 1`
 ticks and wraps it inside the region `base .. base + size` so the visible
 window stays inside). They are **animated materials** (`room_effects.c`):
 
 - At room load the effect section is parsed (the same walk as
-  `func_80092548`, so effect `slot` = the game's slot) and each type 0/2
+  `vs_field_initializeRoomEffects`, so effect `slot` = the game's slot) and each type 0/2
   polygon is located in the room's geometry blocks. Its native mesh keeps
   the effect's base UVs and a per-polygon effect index
   (`render_polygon.uv_effect`, a vertex attribute).
@@ -492,18 +492,18 @@ untested.
 
 ## Characters, weapons and props (`actor_native.c`)
 
-Every skinned model the battle code draws goes through `func_800B3A68`
+Every skinned model the battle code draws goes through `vs_render_projectModelVertices`
 (`actor_vertices.c`: vertex groups through the per-bone GTE matrices) and
 then one of four packet builders, all of which call into `actor_native.c`
 after writing their packets:
 
-- `func_800B3CF0` (`weapon_packets.c`): flat-lit textured records, one
+- `vs_render_drawModelFlatPolygons` (`weapon_packets.c`): flat-lit textured records, one
   colour per model (the room light at the actor). Characters, their
   weapons and shields, and the second copy some actors get (below).
-- `func_800B4594` (`actor_packets.c`): per-vertex coloured records
+- `vs_render_drawModelGouraudPolygons` (`actor_packets.c`): per-vertex coloured records
   (object flag 8 actors, the props of `BATTLE/49268.c`: chests, crates and
   other placed objects).
-- `func_800B516C` (`weapon_packets.c`) and `func_800B5C30`
+- `func_800B516C` (`weapon_packets.c`) and `vs_render_drawModelGouraudPolygonsWithOverrides`
   (`actor_packets.c`): the same records walked in material groups (up to
   eight counts at the model per section, then the remainder; a group whose
   bit is set in object byte 0x64 takes the alternate CLUT, +0x480), and,
@@ -514,13 +514,13 @@ after writing their packets:
   and for props in states 4-8 (except 6) and 12 and up. The mesh records a
   CLUT offset per polygon (0 or 0x480; the group walk is reproduced,
   including `func_800B516C` skipping an empty section's eight counts and
-  `func_800B5C30` not), and is keyed by the mask and the group counts too;
+  `vs_render_drawModelGouraudPolygonsWithOverrides` not), and is keyed by the mask and the group counts too;
   a selected mode becomes the instance's blend.
 
 Semi-transparent polygons (record flag 16 with its blend bits, a coloured
 record's own code bit, every polygon of a blended model) are native with
 `pc_native_blend`: each draw computes their buckets from the depths
-`func_800B3A68` produced (the builders' rules: AVSZ3 or the quad average,
+`vs_render_projectModelVertices` produced (the builders' rules: AVSZ3 or the quad average,
 the bias, the 0x7c0 limit, the builders' NCLIP culling of the projected
 positions), and links one translucent marker per bucket at that bucket
 after the model's packets (within a bucket the later record first, as the
@@ -552,7 +552,7 @@ blended model is not submitted at all.
   between the copies showed the light copy instead (mean difference 0.4,
   a lighter wedge on the head and panels on the coat). So each draw
   computes every polygon's ordering-table index from the depths
-  `func_800B3A68` just produced (with the bucket rules and the table
+  `vs_render_projectModelVertices` just produced (with the bucket rules and the table
   pointer shift), a repeated draw of the same object joins the previous
   draw's list, and the list paints in the joint order (`render_list_order`;
   ties: the later packet first, as linking at a bucket's head does). Depth
@@ -591,7 +591,7 @@ Known differences and leftovers:
   markers do not merge (one draw per bucket and copy: about +1 ms per frame
   with every actor of the first room forced blended).
 
-- The culled-record quirk of `func_800B4594` (after a culled mixed record
+- The culled-record quirk of `vs_render_drawModelGouraudPolygons` (after a culled mixed record
   the next record's flags come from the wrong word) is not reproduced: the
   native mesh uses each record's own flags.
 - Two-copy models cast two nearly coincident shadows (both copies are
@@ -611,11 +611,11 @@ projections with `ROOD_OTHER_DEBUG=1`, which logs per 300 frames the caller
 of each such triangle's first vertex, its GPU code and blend mode) was, in
 the first room 72 per frame, and over a 20,000-vsync soak from the save
 card (four rooms) 99% drop shadows (`pc_actor_shadow`: 327,423 triangles),
-then particles (`func_800D6E44`: 3,166), then 19 triangles of other effects
+then particles (`vs_effects_drawAnimatedSpriteParticles`: 3,166), then 19 triangles of other effects
 (an untextured quad through `RotTransPers`, a Gouraud quad). Particles are
 mostly not counted there at all: their corners are placed in screen space,
 so the projection log rarely makes them 3D and they were drawn as 2D. So
-drop shadows and `func_800D6E44` particles are native; the other effect
+drop shadows and `vs_effects_drawAnimatedSpriteParticles` particles are native; the other effect
 renderers stay packets (below).
 
 Both use an **effects list** (`render_rules.effects`, `RENDER_EFFECTS_*`):
@@ -646,7 +646,7 @@ the interpolated camera (and the shadows' blended transforms).
   (`pc_drop_shadow_mode`: Auto turns them off while traced shadows cover
   characters, contact-only makes them small and faint), since the native
   draw is built from what the game computed.
-- **Moving platforms' shadows** (`func_8008CEB0`, `room_shadows.inc` calls
+- **Moving platforms' shadows** (`vs_field_drawMovingPlatformShadows`, `room_shadows.inc` calls
   `pc_platform_shadow_native` after writing each square's packets): a room
   with moving platforms (MPD section 12: lifts, the floating blocks with a
   magic circle in Rue Vermillion) draws a flat square on the floor under
@@ -660,7 +660,7 @@ the interpolated camera (and the shadows' blended transforms).
   that replaced the surface under it, a hard black square on water. It is
   still the PS1's hard-edged square, now subtracting from the lit picture
   like the packet path with the reconstruction (`platform_shadow_smoke`).
-- **Particles** (`func_800D6E44`, `effect_particles.c` reports each node):
+- **Particles** (`vs_effects_drawAnimatedSpriteParticles`, `effect_particles.c` reports each node):
   a node's centre goes through the view (or a parent's) matrix and its
   textured quads (POLY_FT4) are placed around the projected centre in
   screen space, sized by projection / depth. Native: `RENDER_POLY_SPRITE`
@@ -800,7 +800,7 @@ room's groups (RPC `room_groups`, `scene_dump`) shows what they are:
   front-facing, opaque and nearest, the black occluders of the report.
 - **Facing-masked walls**: wall groups whose flags' low byte has one bit per
   45 degrees of camera yaw; `scene_submit.inc` sets the game camera's
-  left/front/right bits and `func_8009723C` draws only the groups that have
+  left/front/right bits and `vs_render_drawRoomGeometry` draws only the groups that have
   all three, so the walls between the camera and the room are left out
   (the game's "cutaway walls"). The free camera kept every group.
 
@@ -809,8 +809,8 @@ room's groups (RPC `room_groups`, `scene_dump`) shows what they are:
   then walks into a wall that is not drawn (zone 9 room 13 at yaw 0xE00:
   groups 6, 7, 9, 12-21, 50, 51, 56-59 cut, the wall right of the arched
   door among them). The original does the same: the mask in
-  `scene_submit.inc` agrees with `func_8008AC78`'s assembly (the yaw word at
-  0x1F800058), the group test in `room_geometry.c` with `func_8009723C` in
+  `scene_submit.inc` agrees with `vs_field_drawRoomScene`'s assembly (the yaw word at
+  0x1F800058), the group test in `room_geometry.c` with `vs_render_drawRoomGeometry` in
   `2EA3C.s`, and both `pc_native_room` paths draw the groups that one test
   keeps. RPC `room_groups` reports the mask the latest
   frame tested (`facing`) and which groups it drew (`drawn`);
@@ -825,7 +825,7 @@ RPC `graphics`:
 
 | Switch | Effect |
 | --- | --- |
-| `editor_game_cutaway` ("Cutaway walls") | `func_8009723C` tests the facing masks with the bits the game would set for the free camera's own yaw (`pc_room_editor_facing`, from the view matrix; straight down: every group) |
+| `editor_game_cutaway` ("Cutaway walls") | `vs_render_drawRoomGeometry` tests the facing masks with the bits the game would set for the free camera's own yaw (`pc_room_editor_facing`, from the view matrix; straight down: every group) |
 | `editor_hide_masks` ("Hide black shells") | groups whose polygons all have vertex colour 0 (and no raw texture) are left out (`pc_room_editor_hidden`) |
 | `editor_cutaway` ("Cut to focus", key C; `editor_cutaway_radius`, default 320) | while room surfaces hide a focus point (the selected light or glow, else the middle of Ashley; RPC `editor_view {focus}` fixes one) from the eye, room polygons whose plane separates the two are drawn as **ghosts** inside the cone from the eye to the focus (its radius at the focus: a circle of constant size on screen): `editor_cutaway_opacity` (default 0.3) of their pixels and their polygon edges stay, out to 3/4 of the radius, blending to solid at the radius (4x4 ordered dither); opacity 0 cuts a hole as before |
 | `editor_cutaway_auto` ("Only when the focus is hidden", default on) | off: always cut what stands between the eye and the focus, hidden or not |
@@ -863,15 +863,15 @@ cutscene player's borrow the live free camera (`editor_view.cpp` `photo`),
 but they are not the editor: a photo is taken from anywhere, so the rules
 above, made for seeing into a room from outside, left whole walls and floors
 out (the facing masks mark a wall only for the directions the game camera
-looks from in that room). While such a camera flies, `func_8009723C`
+looks from in that room). While such a camera flies, `vs_render_drawRoomGeometry`
 (`room_geometry.c`, asking `pc_room_photo_whole` in `room_native.c`) draws
 every group the room has:
 
 | Layer (game camera) | With a plugin's free camera |
 | --- | --- |
 | facing cutaway (flags low byte vs the camera's three yaw bits) | none: `pc_room_editor_facing` gives 0x10000 |
-| the hide list (group flag 0x1000: room section 11 by Ashley's place, the camera's direction and zoom, `func_8008C2C0`; cleared by `func_8008C40C`) | ignored |
-| the room's own hides (flag 0x100: event scripts, `func_800919D8` / `func_80091998`) | kept (the room's state) |
+| the hide list (group flag 0x1000: room section 11 by Ashley's place, the camera's direction and zoom, `func_8008C2C0`; cleared by `vs_field_clearGeometryOcclusion`) | ignored |
+| the room's own hides (flag 0x100: event scripts, `vs_field_hideRoomGeometryGroup` / `vs_field_showRoomGeometryGroup`) | kept (the room's state) |
 | the alternate set (flag 0x8000 with the mode's bit 0) | kept as the game draws it |
 | black shells | left out (they mask the void around the room; from outside they would cover it) |
 | Outliner hides, cut to focus | not applied |
@@ -889,13 +889,13 @@ lighting is as it was.
 **The sky.** The field's only clear is the background sphere
 (`pc_background_packets`, `boot_sdk.c`): a gradient about the eye (Rue
 Vermillion: light blue at the zenith, black below the horizon), placed by
-`func_8008EC48` at the game camera's position through the view matrix. With
+`vs_field_drawRoomBackground` at the game camera's position through the view matrix. With
 the free camera's view matrix that left it offset by the distance between the
 two eyes, off the screen: black where the sky belongs. While a free camera
 flies the sphere is about its own eye (no translation, as the game's
 camera has). The photo camera also writes its yaw and pitch to the scratch
-camera angles in `func_8007ACB0`'s hook (as its roll), so what is placed
-from them that frame follows it (the sky panorama of `func_8009147C`,
+camera angles in `vs_render_buildCameraViewMatrix`'s hook (as its roll), so what is placed
+from them that frame follows it (the sky panorama of `vs_field_drawRoomBackgroundTiles`,
 sprites turned to the camera); renders are rewound, so the game never keeps
 them. (`env sky` is light only, never drawn as pixels; its colours come from this
 sphere, the flat backdrop or the panorama by default: Vulkan_Renderer.md
@@ -930,7 +930,7 @@ The editor reads the groups (the Outliner, `room_groups`, and its undo
 snapshot every overlay frame) only from the game's loaded room block
 (`pc_scene_room_block`, scene_capture.c): `vs_battle_roomData` reports a
 room loaded and its geometry section is the block last captured. A room
-change frees the block (func_8008ABF0) and the disc reads the next room,
+change frees the block (vs_field_releaseOwnedRoomSections) and the disc reads the next room,
 possibly into the same memory; reading the freed block then found a group
 count that passed and garbage geometry offsets, and crashed outside guest
 RAM. While a room loads the editor has no groups (`room_groups` reports
@@ -971,7 +971,7 @@ removes walls that block nothing (black void behind a crate stack, a wall
 Ashley runs into). `gameplay_walls smart` (settings key, RPC `graphics`,
 Graphics > Cutaway walls; default `original`) keeps the game's mask for the
 groups it keeps and decides again for the groups it cuts
-(`gameplay_walls.c`, called from `func_8009723C` for the current room under
+(`gameplay_walls.c`, called from `vs_render_drawRoomGeometry` for the current room under
 the game camera):
 
 - Each frame the room's triangles (the captured scene, world space) are
@@ -1001,7 +1001,7 @@ the game camera):
 - In the way: left out, or with `gameplay_walls_ghost` drawn as ghosts
   (`gameplay_walls_opacity` of their pixels and their polygon edges, the
   editor's ghost; G-buffer alpha 0.55).
-- Black shells always stay hidden. While an event script runs (`D_800F4C34`,
+- Black shells always stay hidden. While an event script runs (`vs_event_playbackPhase`,
   cutscenes) and while the editor's free camera flies the mask decides
   alone, and the next smart frame starts without fades.
 - The packet path (`native_room 0`) draws the same groups, without the
@@ -1026,7 +1026,7 @@ a pillar, a wall's edge) and, in battle, the enemies near her, fades in a
 soft ellipse around each of them while it hides them, the rest of the wall
 solid: Baldur's Gate 3's idea, in the PS1's own terms.
 
-- **Who** (`occlusion.c`, once per game frame from `func_8009723C` for the
+- **Who** (`occlusion.c`, once per game frame from `vs_render_drawRoomGeometry` for the
   current room): Ashley; in battle (her weapon drawn, or BATTLE's action
   state, the same state the depth of field's camera subject reads:
   `pc_dev_battle_camera`/`_action`, `post_profile.cpp pick_subject`) the
@@ -1156,7 +1156,7 @@ See-through walls, amount, size and softness.
   interpolated frames 0.00-0.10; 381 translucent polygons in 76 markers per
   frame in that scene.
 - Room blocks: in the save room (zone 9 room 17), forcing its section 9
-  entry on draws `func_8008E19C`'s quad as a layered list; native_objects 0
+  entry on draws `vs_field_drawRoomTriggerMarker`'s quad as a layered list; native_objects 0
   and 1 give identical frames. The save room's 21 translucent polygons (the
   save point's column) are native, 0.00 difference in the high view
   (`native_room_tour.py`; the other views differ by the column's animation
@@ -1217,23 +1217,23 @@ See-through walls, amount, size and softness.
 ## Animation in-betweens (2026-10-10)
 
 How the game animates, from the decompilation (BATTLE.PRG): every actor
-with the animating flag is advanced once per game frame by `func_800AEF94`
-→ `func_800AF6E8`/`func_800AFA28`, which runs `unk5B2` animation ticks
+with the animating flag is advanced once per game frame by `vs_actors_updateAndDrawRoomModels`
+→ `vs_actors_updateActorAnimationBlend`/`func_800AFA28`, which runs `unk5B2` animation ticks
 (1, or 2 with the SEQ "double speed" flag, doubled again when the game runs
 at 4 vsyncs per frame, `vs_gametime_tickspeed` 4) and then decodes the SEQ
-tracks for those ticks (`func_800AFDE8`). A SEQ track is a stream of
+tracks for those ticks (`vs_actors_decodeAnimationTrack`). A SEQ track is a stream of
 segments, each a constant per-tick velocity for 1-287 ticks, of 13-bit
 Euler angles per bone (Rz·Ry·Rx), plus root offset and per-bone scale
 tracks; the pose is piecewise linear in Euler space and changes once per
 tick. There is no fractional time anywhere: at 30 fps one tick per frame,
 at 15 fps two ticks per frame with the middle one never drawn. Changing
 animation crossfades `unk704` toward the new pose by k/n of the remaining
-distance per frame (`func_800B147C`). `func_800B28A8` then composes the bone
+distance per frame (`vs_actors_blendActorPose`). `func_800B28A8` then composes the bone
 matrices: bone i at parent × (-length of the parent, 0, 0), rotation
 parent (unscaled) × Euler, column scales accumulated separately, plus
 special bones (head look, spinning, camera-facing billboards). Weapons and
-shields are drawn from the holder's bone matrix (`func_800B217C`); props
-(`D_800F45E0`) have one matrix tweened per frame; event scenes use the same
+shields are drawn from the holder's bone matrix (`vs_actors_buildWeaponBoneChain`); props
+(`vs_field_gimmickInstances`) have one matrix tweened per frame; event scenes use the same
 actors and player. So every character animates at the game's frame rate
 and frame interpolation between consecutive game frames is the right model,
 with the exceptions found by tracing (below).
@@ -1303,7 +1303,7 @@ other frame. Particles stepped at 30 Hz (below).
   too). A change that comes sooner starts from the pose shown at that
   moment, so nothing snaps; anything that changes every frame is unaffected
   (no lag); held slow motions lag by up to one game frame.
-- *Particles* (`effect_native.c`): each `func_800D6E44` node's centre is a
+- *Particles* (`effect_native.c`): each `vs_effects_drawAnimatedSpriteParticles` node's centre is a
   palette entry (chunks of 64 nodes, one transient mesh and instance each),
   with where the same node was the frame before (keyed by the node's
   address; not when it is younger, i.e. reused, or moved 256 units or more).
@@ -1336,7 +1336,7 @@ at fractional ticks natively: keep each actor's previous and current
 ±4096 wrap the game's own blend uses, and compose the bones with a
 side-effect-free copy of `func_800B28A8`'s maths (the game's copy mutates
 spin bones, sway counters and the bone tables, so it cannot be called
-twice), snapping across `func_800AF844`'s Euler flip at a crossfade's
+twice), snapping across `vs_actors_alignPoseRotationBranches`'s Euler flip at a crossfade's
 start, loop resets and animation changes without a blend. The skeleton
 slerp differs from that exact evaluation only by Euler-lerp vs slerp paths
 within one tick.

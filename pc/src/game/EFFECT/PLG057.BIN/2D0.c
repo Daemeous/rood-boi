@@ -5,7 +5,7 @@
 #define VS_PARTICLE_CONTROL_FUNCTION func_800FA470
 #define VS_PARTICLE_RENDER_FUNCTION func_800FA920
 #define VS_PARTICLE_DISPATCH_FUNCTION func_800FB4E0
-#define VS_PARTICLE_CORNER_STATE D_800FF9B4
+#define VS_PARTICLE_CORNER_STATE vs_effects_plg057ParticleEmissionCounter
 #include "pc/src/game/EFFECT/particleSetup.h"
 
 #include "pc/src/game/EFFECT/particleRender.h"
@@ -19,7 +19,7 @@
 #define VS_TRAIL_UPDATE_FUNCTION func_800FC778
 #define VS_TRAIL_RENDER_FUNCTION func_800FC904
 #define VS_TRAIL_DISPATCH_FUNCTION func_800FD354
-#define VS_TRAIL_CORNER_STATE D_800FF9B8
+#define VS_TRAIL_CORNER_STATE vs_effects_plg057TrailEmissionCounter
 #include "pc/src/game/EFFECT/trails9.h"
 
 #define VS_TRAIL_ORIGIN_FUNCTION func_800FD894
@@ -29,5 +29,5 @@
 #define VS_TRAIL_UPDATE_FUNCTION func_800FE884
 #define VS_TRAIL_RENDER_FUNCTION func_800FEA10
 #define VS_TRAIL_DISPATCH_FUNCTION func_800FF46C
-#define VS_TRAIL_CORNER_STATE D_800FF9BC
+#define VS_TRAIL_CORNER_STATE vs_effects_plg057TrailEmissionCounter2
 #include "pc/src/game/EFFECT/trails5.h"

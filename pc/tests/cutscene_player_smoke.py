@@ -22,7 +22,7 @@ From the title menu (no card: the cursor on New Game), RPC cutscene start
   - the free camera (the photo mode's) on and off: the game's state as it was.
 Then the opening in 16:9 (a session of its own: ROOD_WIDESCREEN=1, a 1024x576
 window), Circle every 120 frames from frame 0, seeks in steps of 60: the
-credits' jagged tear wipes (the event's screen image, func_800CC204) cross
+credits' jagged tear wipes (the event's screen image, vs_render_drawGimScanlineWipe) cross
 the whole 16:9 view as they cross the 4:3 screen. Captured at 6530 and 10250
 the credits card's black still reaches the view's right edge (it stopped at
 the 4:3 edge, x = 896 of 1024, the next shot showing past it); at 6560 and

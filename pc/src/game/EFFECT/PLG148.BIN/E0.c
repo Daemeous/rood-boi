@@ -7,9 +7,9 @@
 #define VS_TRAIL_UPDATE_FUNCTION func_800FA8D0
 #define VS_TRAIL_RENDER_FUNCTION func_800FAA5C
 #define VS_TRAIL_DISPATCH_FUNCTION func_800FB4B8
-#define VS_TRAIL_CORNER_STATE D_800FC8F8
+#define VS_TRAIL_CORNER_STATE vs_effects_plg148TrailEmissionCounter
 #include "pc/src/game/EFFECT/trails5.h"
 
 #define VS_TILED_RING_FUNCTION func_800FBA00
-#define VS_TILED_RING_COLORS D_800FC8FC
+#define VS_TILED_RING_COLORS vs_effects_plg148TiledRingColorFactors
 #include "pc/src/game/EFFECT/tiledRings.h"

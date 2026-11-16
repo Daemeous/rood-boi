@@ -37,7 +37,7 @@
  *                       weapon's (vs_battle_characterState->
  *                       equippedWeaponCategory), vs_battle_getActionFlags(0,
  *                       id) == 0 (1 busy, 2 HP too low, 4 sheathed / status)
- *                       and the menu's disable mask D_800F4EA0 & 0x15F clear
+ *                       and the menu's disable mask vs_menu_frameworkActionRestrictions & 0x15F clear
  *
  * Requests:
  *   ABIL_MAP   MENU2 _mapAbility: the button already holds the ability ->
@@ -48,15 +48,15 @@
  *              says "Loading..." meanwhile; refused: the invalid sound).
  *              Accepted, pc_ui_abilities_cast(1) (the shell returned no
  *              result on that tick) writes MENU1's hand-off (vs_menu1_exec
- *              artsMenu + executeArt): D_800F4E98.executeAbility.s32 = id,
- *              executeAbilityType 5, D_800F4E98.unk2 = 6, returnState = the
+ *              artsMenu + executeArt): vs_menu_frameworkActionSelection.executeAbility.s32 = id,
+ *              executeAbilityType 5, vs_menu_frameworkActionSelection.unk2 = 6, returnState = the
  *              top level as MENU1's own currentMenu (2 | 0x40, command 1
  *              opened from the menu), the list's cursor memory on the art's
  *              row and the top level's cursor on Break Arts.
  *              menu_bridge.c closes the shell and ends the menu as MENU1
  *              does (close_for_cast: 0x7F at once, no _quitDelay) and BATTLE
- *              func_800735F8 runs the art (unk2 6: func_80072EC4,
- *              targeting). Cancelling the target (func_800CAB40) returns
+ *              vs_field_dispatchBattleActionMenuResult runs the art (unk2 6: vs_battle_beginActorActionSelection,
+ *              targeting). Cancelling the target (vs_menu_frameworkResumeAfterActionSelection) returns
  *              to the top level, not to returnState (MENU1's list): the
  *              shell again on Abilities > Break Arts with the art focused
  *              (menu_bridge.c pc_ui_menu_cast_cancelled). A cast from the
@@ -97,7 +97,7 @@ static u_short arts_text[] = {
 
 #define ABILITY_TYPES 2
 #define FIRST_ART vs_main_actions_daggerArt1 /* 184 */
-#define ART_MASK 0x15F /* D_800F4EA0 bits that grey Break Arts (func_800C930C, MENU1) */
+#define ART_MASK 0x15F /* vs_menu_frameworkActionRestrictions bits that grey Break Arts (vs_menu_frameworkUpdateMainMenuSelection, MENU1) */
 #define ALL_ABILITIES 22 /* kills.battleAbilitiesUnlocked when none is left (MENU2) */
 #define SETTINGS_CHAIN 0
 #define TOP_LEVEL_BREAK_ARTS (2 | 0x40) /* currentMenu while MENU1 runs from the top level */
@@ -248,7 +248,7 @@ static void art_reason(int category, int id, char* out, int size)
         0,
         "Paralysed: break arts cannot be used.",
     };
-    u_int mask = (u_int)D_800F4EA0 & ART_MASK;
+    u_int mask = (u_int)vs_menu_frameworkActionRestrictions & ART_MASK;
     int b, flags;
     out[0] = 0;
     for (b = 0; b < 9; ++b)
@@ -390,7 +390,7 @@ static int art_castable(int id)
         return 0;
     category = (id - FIRST_ART) / PC_UI_ARTS + 1;
     return vs_main_actions[id].unlocked && category == vs_battle_characterState->equippedWeaponCategory
-        && vs_battle_getActionFlags(0, id) == 0 && !((u_int)D_800F4EA0 & ART_MASK);
+        && vs_battle_getActionFlags(0, id) == 0 && !((u_int)vs_menu_frameworkActionRestrictions & ART_MASK);
 }
 
 /* The row of a learned art in MENU1's list of its category (the learned arts
@@ -456,11 +456,11 @@ void pc_ui_abilities_cast(int go)
     if (!go || !id)
         return;
     category = (id - FIRST_ART) / PC_UI_ARTS + 1;
-    D_800F4E98.executeAbility.s32 = id;
+    vs_menu_frameworkActionSelection.executeAbility.s32 = id;
     vs_battle_menuState.executeAbilityType = 5;
-    D_800F4E98.unk2 = 6;
+    vs_menu_frameworkActionSelection.unk2 = 6;
     vs_battle_menuState.returnState = TOP_LEVEL_BREAK_ARTS;
-    D_800F4EE8.cursorMemories[(category + 11) * 2] = art_row(id);
-    D_800F4EE8.cursorMemories[(category + 11) * 2 + 1] = 0;
+    vs_menu_frameworkMenuMemory.cursorMemories[(category + 11) * 2] = art_row(id);
+    vs_menu_frameworkMenuMemory.cursorMemories[(category + 11) * 2 + 1] = 0;
     vs_battle_submenuStates[0] = BREAK_ARTS_COMMAND;
 }

@@ -302,7 +302,7 @@ extern short D_80102488[4];
  */
 extern char D_80102490[8];
 
-extern short D_80102498[4];
+extern short vs_menu_frameworkComparisonAccessoryStats[4];
 extern char _menuActionsPageOffset;
 
 /**

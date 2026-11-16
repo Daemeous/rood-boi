@@ -1,4 +1,4 @@
-//! Queues a display entry for an actor in the list at D_800F1BAC, rejecting off-screen positions when arg3 bit 7 is set (pc/src/game/BATTLE/BATTLE.PRG/2842C.c).
+//! Queues a display entry for an actor in the list at vs_battle_floatingLabels, rejecting off-screen positions when arg3 bit 7 is set (pc/src/game/BATTLE/BATTLE.PRG/2842C.c).
 const std = @import("std");
 const common = @import("common");
 const psx = common.psx;
@@ -13,9 +13,9 @@ pub fn func_8009406C(arg0: c_int, arg1: c_int, arg2: c_int, arg3: c_int) callcon
     var found: c_int = 0;
     var frame: c_int = 0;
     var kind: c_int = 0;
-    const list: ?[*]v.D_800F1BAC_t = @ptrCast(@alignCast(v.g.D_800F1BAC().*));
+    const list: ?[*]v.D_800F1BAC_t = @ptrCast(@alignCast(v.g.vs_battle_floatingLabels().*));
 
-    while (i < v.g.D_800F227E().*) : (i +%= 1) {
+    while (i < v.g.vs_battle_floatingLabelCount().*) : (i +%= 1) {
         const e = psx.at(list.?, i);
         if (e.unk8.u8[0] == 2 and @as(c_int, e.unk8.u8[1]) == arg0) {
             frame = @as(c_int, e.displayTextLen) + 0xC;
@@ -26,9 +26,9 @@ pub fn func_8009406C(arg0: c_int, arg1: c_int, arg2: c_int, arg3: c_int) callcon
         }
     }
 
-    const slot: *v.D_800F1BAC_t = @ptrCast(@alignCast(c.func_800962E4()));
+    const slot: *v.D_800F1BAC_t = @ptrCast(@alignCast(c.vs_battle_reserveFloatingLabel()));
     if ((arg3 & 0x80) != 0) {
-        if (c.func_800A1280(arg0, 0xFB, psx.cptr(c.SVECTOR, &sp10), 0) != 0) return 0;
+        if (c.vs_actors_targetPoint(arg0, 0xFB, psx.cptr(c.SVECTOR, &sp10), 0) != 0) return 0;
         if (psx.conv(u16, sp10.vx) >= 0x141) return 0;
         if (psx.conv(u16, sp10.vy) >= 0xF1) return 0;
     }
@@ -46,7 +46,7 @@ pub fn func_8009406C(arg0: c_int, arg1: c_int, arg2: c_int, arg3: c_int) callcon
     slot.unkE = psx.conv(u8, arg3_masked);
     slot.unkC = psx.conv(u16, arg2);
 
-    const count = v.g.D_800F227E();
+    const count = v.g.vs_battle_floatingLabelCount();
     count.* = psx.conv(i16, @as(c_int, count.*) +% 1);
     return 0;
 }

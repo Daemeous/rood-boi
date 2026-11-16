@@ -12,7 +12,7 @@ fn mfc2(ctx: *gte.Ctx, reg: c_int) c_int {
     return @bitCast(ctx.mfc2(reg));
 }
 
-/// orig: func_800B17F0 (pc/src/boot_sdk.c)
+/// orig: vs_core_mathBuildEulerRotationMatrixQuadrant (pc/src/boot_sdk.c)
 /// The rotation matrix of the SVECTOR `angles` (the actors' order, which is not
 /// RotMatrixYXZ_gte's), in three GPF stages that keep the original rounding; returns `result`.
 pub fn actorRotationMatrix(angles: [*c]c.SVECTOR, result: [*c]c.MATRIX) callconv(.c) [*c]c.MATRIX {

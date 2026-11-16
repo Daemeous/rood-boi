@@ -6,7 +6,7 @@
 
 typedef struct vs_battle_aiState vs_battle_aiState;
 
-/* The AI's record of one actor (0x484 bytes, one per battle actor, D_800F5878). The game's functions each
+/* The AI's record of one actor (0x484 bytes, one per battle actor, vs_battle_aiActorAiStates). The game's functions each
  * read it as their own phase; the unions are those phases, the fields named for what that phase calls them. */
 
 typedef struct {
@@ -345,7 +345,7 @@ typedef struct {
     signed char unk0_6 : 2;
 } D_800F16EC_t;
 
-/* The room's navigation record (D_800F58BC, one heap block built by buildNavigationGrid): the room's bounds and
+/* The room's navigation record (vs_battle_aiRoomAiState, one heap block built by buildNavigationGrid): the room's bounds and
  * encounter state, then the 32 x 32 cell flags and, 0x800 bytes on, their heights. */
 typedef struct D_800F58BC_t {
     u_char maxX, maxZ, minX, minZ;
@@ -356,7 +356,7 @@ typedef struct D_800F58BC_t {
     u_char unkB;
     u_char unkC;
     u_char unkD; /* the most that can engage at once */
-    u_char closedGates; /* the room flags (func_800E4BD8 / func_800E4BE0) */
+    u_char closedGates; /* the room flags (vs_battle_aiClearAiContactOccupancy / vs_battle_aiSetAiContactOccupancy) */
     u_char unkF;
     u_short unk10; /* the actors engaged, one bit each */
     u_char unk12; /* how many */

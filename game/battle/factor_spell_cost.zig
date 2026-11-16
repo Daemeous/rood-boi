@@ -8,7 +8,7 @@ const v = @import("views_146C");
 /// The spell cost of the current action times the stat factor of hit parameter `arg3`, over 10; 0 for non-spells.
 pub fn factorSpellCost(action: ?*v.vs_action_t, _: ?*v._hitEntity_t, _: ?*v._hitEntity_t, arg3: c_int, _: c_int) callconv(.c) c_short {
     // The action index is a u16 and the table has 256 entries: the C does not check it.
-    const index: u16 = v.g.D_800F19CC().*.?.unk8.actionIndex;
+    const index: u16 = v.g.vs_battle_actionState().*.?.unk8.actionIndex;
     const spell = psx.at(v.g.actions(), index);
 
     var result: c_short = 0;

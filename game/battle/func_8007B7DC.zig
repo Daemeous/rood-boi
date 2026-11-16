@@ -6,10 +6,10 @@ const v = @import("views_146C");
 /// Sets camera mode 3 when state flag 0xAB is at least 3, else takes the default path.
 pub fn func_8007B7DC() callconv(.c) void {
     if (c.vs_battle_getStateFlag(0xAB) >= 3) {
-        c.func_800CB23C();
+        c.vs_menu_frameworkOpenChallengeMenu();
         v.g._cameraMode().* = 3;
-        c.func_8007B410();
+        c.vs_battle_beginRewardPause();
         return;
     }
-    c.func_8007B764();
+    c.vs_battle_openPendingLootRewards();
 }

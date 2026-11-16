@@ -8,7 +8,7 @@ const c = @import("c_58578");
 /// orig: func_800C20B4 (pc/src/game/BATTLE/BATTLE.PRG/58578.c)
 /// Steps every active row of the battle layout one animation frame, then culls rows that left the band.
 pub fn func_800C20B4() callconv(.c) void {
-    const base = v.g.D_800EB9B8().*.?;
+    const base = v.g.vs_battle_targetSphere().*.?;
     const steps = v.g.vs_battle_rowAnimationSteps();
 
     var i: c_int = 0;

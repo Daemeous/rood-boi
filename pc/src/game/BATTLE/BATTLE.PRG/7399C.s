@@ -5,7 +5,7 @@
 
 .section .text, "ax"
 
-glabel func_800DC19C
+glabel vs_battle_aiEndAshleyAlliance
     lbu     $v0, 0x13($a0)
     addiu   $sp, $sp, -0x20
     sw      $s0, 0x10($sp)
@@ -15,9 +15,9 @@ glabel func_800DC19C
     beqz    $v0, .L800DC274
     lbu     $a0, 0x88($s0)
     addiu   $a1, $zero, 0x40
-    jal     func_800D820C
+    jal     vs_battle_aiSetActorAwarenessIndicator
     sb      $zero, 0x13($s0)
-    jal     func_800E7370
+    jal     vs_battle_aiInitializeActorAiRelations
     addu    $a0, $s0, $zero
     lw      $a0, 0x6C($s0)
     lbu     $v0, 0x30($s0)
@@ -28,7 +28,7 @@ glabel func_800DC19C
     bnez    $v0, .L800DC274
     addiu   $a1, $zero, 0x6
     addiu   $a2, $zero, 0x28
-    jal     func_800D8260
+    jal     vs_battle_aiSetTemporaryAwarenessIndicator
     addu    $a0, $s0, $zero
     addiu   $a1, $zero, 0x2
     addiu   $a2, $zero, 0x80
@@ -36,9 +36,9 @@ glabel func_800DC19C
     addiu   $ra, $ra, %lo(.L800DC274)
     bgez    $zero, func_800E48A8
     addu    $a0, $s0, $zero
-endlabel func_800DC19C
+endlabel vs_battle_aiEndAshleyAlliance
 
-glabel func_800DC210
+glabel vs_battle_aiTryBeginAshleyAlliance
     addiu   $sp, $sp, -0x20
     sw      $s0, 0x10($sp)
     sw      $ra, 0x14($sp)
@@ -58,21 +58,21 @@ glabel func_800DC210
     addiu   $v0, $zero, 0x1
     sb      $v0, 0x13($s0)
     lw      $v1, 0x68($s0)
-    lui     $v0, %hi(D_800DBC0C)
-    addiu   $v0, $v0, %lo(D_800DBC0C)
+    lui     $v0, %hi(vs_battle_aiUpdateEngagementApproachBehavior)
+    addiu   $v0, $v0, %lo(vs_battle_aiUpdateEngagementApproachBehavior)
     lbu     $a0, 0x88($s0)
     sw      $v0, 0x68($s0)
     sw      $v1, 0x6C($s0)
-    jal     func_800D820C
+    jal     vs_battle_aiSetActorAwarenessIndicator
     addiu   $a1, $zero, 0x80
 .L800DC274:
     lw      $ra, 0x14($sp)
     lw      $s0, 0x10($sp)
     jr      $ra
     addiu   $sp, $sp, 0x20
-endlabel func_800DC210
+endlabel vs_battle_aiTryBeginAshleyAlliance
 
-glabel func_800DC284
+glabel vs_battle_aiScoreActorCondition
     addiu   $v0, $zero, 0x6
     mult    $v0, $a0
     sll     $a2, $a2, 16
@@ -96,4 +96,4 @@ glabel func_800DC284
     mfc2    $a0, $25 /* handwritten instruction */
     jr      $ra
     add     $v0, $a0, $a1 /* handwritten instruction */
-endlabel func_800DC284
+endlabel vs_battle_aiScoreActorCondition

@@ -11,7 +11,7 @@ const c = @import("c_5BF94");
 pub fn printVariableWidthFont(box_arg: ?*v.vs_battle_textBox) callconv(.c) void {
     const box = box_arg.?;
     var int_buf: [16]u8 = undefined;
-    const ot: [*c]c_uint = @ptrCast(psx.at(v.g.D_800F51B8().*.?, @as(c_int, v.g.D_800F4E80().*) * 4));
+    const ot: [*c]c_uint = @ptrCast(psx.at(v.g.vs_menu_activeTextBoxOrderingTable().*.?, @as(c_int, v.g.D_800F4E80().*) * 4));
     var done: c_int = 0;
     var sfx: c_int = 0;
     var chunks_printed: c_int = 0;
@@ -230,7 +230,7 @@ pub fn printVariableWidthFont(box_arg: ?*v.vs_battle_textBox) callconv(.c) void 
         if (box.unk2C != 0) {
             box.unk2C +%= 1;
         } else {
-            _ = c.func_800AAD4C(psx.getBits(&box.unk0, "unk0_24"), 0, 0, 0);
+            _ = c.vs_actors_setTextureAnimation(psx.getBits(&box.unk0, "unk0_24"), 0, 0, 0);
         }
     }
     box.prevChunksPrinted = psx.conv(u16, chunks_printed);

@@ -7,11 +7,11 @@ const c = @import("c_146C");
 /// orig: func_8008F30C (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// Clears the flag byte, stores the two counts and randomises each of the `arg0` table entries.
 pub fn func_8008F30C(arg0: c_int, arg1: c_int) callconv(.c) void {
-    var s1: ?*v.D_800F1DD4_t = v.g.D_800F1DD4().*;
+    var s1: ?*v.D_800F1DD4_t = v.g.vs_field_weatherParticles().*;
     v.g.D_800F1DC7().* = 0;
-    v.g.D_800F1DCA().* = psx.conv(u8, arg1);
-    v.g.D_800F1DC2().* = psx.conv(i16, arg0);
-    v.g.D_800F1DC0().* = psx.conv(i16, arg0);
+    v.g.vs_field_roomWeatherKind().* = psx.conv(u8, arg1);
+    v.g.vs_field_weatherParticleCapacity().* = psx.conv(i16, arg0);
+    v.g.vs_field_weatherParticleCount().* = psx.conv(i16, arg0);
 
     var i: c_int = 0;
     while (i < arg0) : (i +%= 1) {

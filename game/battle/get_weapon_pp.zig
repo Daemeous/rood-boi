@@ -9,7 +9,7 @@ const v = @import("views_146C");
 pub fn getWeaponPp(_: ?*v.vs_action_t, hit: ?*v._hitEntity_t, _: ?*v._hitEntity_t, _: c_int, _: c_int) callconv(.c) c_short {
     const actor = v.g.vs_battle_actors()[hit.?.unk0.targetActor].?;
     const stats = psx.get(actor.stats).?;
-    // (u_short)D_800F19CC->unk0: truncated to 16 bits, then promoted to int.
-    const counter: c_int = psx.conv(u16, v.g.D_800F19CC().*.?.unk0);
+    // (u_short)vs_battle_actionState->unk0: truncated to 16 bits, then promoted to int.
+    const counter: c_int = psx.conv(u16, v.g.vs_battle_actionState().*.?.unk0);
     return psx.conv(c_short, @as(c_int, stats.weapon.currentPp) +% (counter -% 1));
 }

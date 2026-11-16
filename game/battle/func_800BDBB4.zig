@@ -16,7 +16,7 @@ pub fn func_800BDBB4(arg0: ?*v.func_800BDBB4_t) callconv(.c) c_int {
 
     p.unk1C = psx.conv(i16, @as(c_int, p.unk1C) +% (v.g.vs_gametime_tickspeed().* >> 1));
 
-    const v0: c_int = c.func_800BFEBC(@as(c_int, p.unk1), @as(c_int, p.unk1C), @as(c_int, p.unk1E));
+    const v0: c_int = c.vs_event_evaluateInterpolationCurve(@as(c_int, p.unk1), @as(c_int, p.unk1C), @as(c_int, p.unk1E));
     // Scratchpad 0x1F800088: the factor is re-read from memory after each store, as the C does.
     const a0: *v.func_800BDBB4_t2 = @ptrFromInt(pad.addr(0x88));
     a0.unk0 = v0;

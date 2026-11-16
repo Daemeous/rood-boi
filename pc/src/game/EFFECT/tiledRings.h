@@ -66,7 +66,7 @@ int VS_TILED_RING_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
     pFileBlock1Data* texture;
     alive = 1;
     state = arg0->unk8;
-    battle = D_800F53BC;
+    battle = vs_effects_currentInstance;
     switch (arg1) {
     case 1:
         state = vs_main_allocHeapR(sizeof(*state));
@@ -79,16 +79,16 @@ int VS_TILED_RING_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
         state->height = 0;
         state->angle = 0;
         state->age = 0;
-        effect = &D_800F569C->block5Data->unk4[state->effect];
-        func_800D6CCC((int*)(&state->texture));
-        func_800D6CF0(&state->texture, effect->unkCA, effect->unkCB);
+        effect = &vs_effects_package->block5Data->unk4[state->effect];
+        vs_effects_clearTextureAnimation((int*)(&state->texture));
+        vs_effects_restartTextureAnimation(&state->texture, effect->unkCA, effect->unkCB);
         break;
 
     case 2: {
-        effect = &D_800F569C->block5Data->unk4[state->effect];
+        effect = &vs_effects_package->block5Data->unk4[state->effect];
         scratch->flags = effect->flags;
         actorMatrix = &battle->unk1C[effect->unkC8].unk38;
-        effect = &D_800F569C->block5Data->unk4[state->effect];
+        effect = &vs_effects_package->block5Data->unk4[state->effect];
         column = vs_battle_sampleCurve(effect->unk17, state->age);
         fraction = func_800CFE1C(effect->unk30, column);
         column = ((u_char*)effect)[7];
@@ -103,7 +103,7 @@ int VS_TILED_RING_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
             break;
 
         case 1:
-            vs_battle_addVecToSvec(&scratch->unk98, D_800F5310, &scratch->unk98);
+            vs_battle_addVecToSvec(&scratch->unk98, vs_effects_effectOrigin, &scratch->unk98);
             break;
 
         case 2:
@@ -215,9 +215,9 @@ int VS_TILED_RING_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
             }
         }
 
-        func_800D6D24(&state->texture);
+        vs_effects_advanceTextureAnimation(&state->texture);
         texture =
-            &D_800F569C->block1Data[state->texture.unk1C->dataIndex];
+            &vs_effects_package->block1Data[state->texture.unk1C->dataIndex];
         uv[0][0].u = (uv[0][2].u = (uv[1][0].u = (uv[1][2].u = texture->u0)));
         uv[0][1].u =
             (uv[0][3].u = (uv[1][1].u = (uv[1][3].u = uv[0][0].u + texture->u1)));

@@ -5,11 +5,11 @@ const psx = @import("common").psx;
 const v = @import("views_battle_movement");
 
 /// orig: func_800E4C64 (pc/src/battle_movement.c)
-/// Sets actor `id`'s 0x13F countdown to 30 and continues into func_800E4C8C
+/// Sets actor `id`'s 0x13F countdown to 30 and continues into vs_battle_aiRememberAiActionTarget
 /// with that actor; id 0 and empty slots do nothing.
 pub fn alertActor(id: c_int) callconv(.c) void {
     if (id == 0) return;
-    const state: *ai.vs_battle_aiState = @ptrCast(@alignCast(psx.at(v.g.D_800F5878(), id).* orelse return));
+    const state: *ai.vs_battle_aiState = @ptrCast(@alignCast(psx.at(v.g.vs_battle_aiActorAiStates(), id).* orelse return));
     state.minDelay = 30;
-    c.func_800E4C8C(state);
+    c.vs_battle_aiRememberAiActionTarget(state);
 }

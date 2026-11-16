@@ -3,7 +3,7 @@ const ai = @import("views_71618");
 const v = @import("views_battle_movement");
 const psx = @import("common").psx;
 
-/// orig: func_800DBB2C (pc/src/battle_movement.c)
+/// orig: vs_battle_aiFindActorByRelationship (pc/src/battle_movement.c)
 /// First other actor whose relation bits 6-7 equal `relation`; stores its
 /// object's tile in *tile when given. Returns its id or -1.
 pub fn findActorByRelation(state: *ai.vs_battle_aiState, tile: ?*u32, relation: c_int) callconv(.c) c_int {

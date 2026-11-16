@@ -208,53 +208,53 @@ typedef struct {
 } func_800CCE10_t;
 
 void _renderDigit(int, int, int, u_long*);
-void func_800C51B4(int);
+void vs_battle_updateTargetSelectionHighlight(int);
 void func_800CA97C(void);
-void func_800CCA90(int arg0);
-void func_800CBBCC(gim_t* arg0, int arg1, u_long* arg2);
+void vs_render_drawGimLayer(int arg0);
+void vs_render_drawGimTiles(gim_t* arg0, int arg1, u_long* arg2);
 int _breakArtsUnlocked(void);
 extern int func_800CE174(func_800D4910_t*, u_int, int);
-void func_800CE67C(void);
-D_800F53B8_t* func_800CE83C(D_800F53B8_t2*);
-D_800F53B8_t* func_800CF55C(D_800F53B8_t2* arg0);
-int func_800CE9B0(void);
+void vs_effects_resetEffectInstances(void);
+D_800F53B8_t* vs_effects_createPrimaryEffectInstance(D_800F53B8_t2*);
+D_800F53B8_t* vs_effects_createSecondaryEffectInstance(D_800F53B8_t2* arg0);
+int vs_effects_updatePrimaryEffects(void);
 char func_800CF218(func_800CF0E8_t* arg0, int arg1, int arg2);
-void func_800CF478(int arg0);
-void func_800CF484(int arg0, D_800F53B8_t* arg1);
-int func_800CF49C();
-void func_800CF514(int arg0);
-void func_800CF614(D_800F53B8_t*);
-func_800D4910_t* func_800CF694(D_800F53B8_t*, effectExec, int);
-void func_800CF70C(D_800F53B8_t*, func_800D4910_t*);
-void func_800CFEF0(D_800F53B8_t*);
-void func_800CFE98(SVECTOR* arg0, func_800CFE98_t* arg1);
-void func_800D0984(int, func_800D0C60_t*, int);
-void func_800D0D08(D_800F53B8_t*);
-void func_800D1104(int);
-int func_800D12D8(int);
+void vs_effects_setPrimaryEffectPhase(int arg0);
+void vs_effects_setSecondaryEffectPhase(int arg0, D_800F53B8_t* arg1);
+int vs_effects_allocateEffectToken();
+void vs_effects_releaseEffectToken(int arg0);
+void vs_effects_destroySecondaryEffectInstance(D_800F53B8_t*);
+func_800D4910_t* vs_effects_attachEffectRenderer(D_800F53B8_t*, effectExec, int);
+void vs_effects_detachEffectRenderer(D_800F53B8_t*, func_800D4910_t*);
+void vs_effects_initializeTransformStates(D_800F53B8_t*);
+void vs_core_mathTranslationTransform(SVECTOR* arg0, func_800CFE98_t* arg1);
+void vs_effects_buildCameraAttachment(int, func_800D0C60_t*, int);
+void vs_effects_updateEffectTransforms(D_800F53B8_t*);
+void vs_effects_sampleAllEffectCurves(int);
+int vs_effects_segmentedEffectCurveDuration(int);
 void func_800D169C(SVECTOR*, SVECTOR*, int, SVECTOR*);
 void func_800D17A8(VECTOR*, VECTOR*, int, VECTOR*);
-void func_800D1930(void);
-void func_800D1B18(D_800F54D8_t*);
-void func_800D1B80(D_800F54D8_t*);
-void func_800D206C(void);
-void func_800D21C0(void);
-void func_800D236C(void);
-void func_800D2560(void);
-void func_800D268C(void);
-void func_800D2698(int);
-void func_800D278C(void);
-void func_800D2904(D_800F53B8_t*);
-void func_800D46DC(int, D_800F53B8_t*);
-u_char func_800D5170(D_800F53B8_t*);
-u_short func_800D5198(D_800F53B8_t*);
-int func_800D51D8(D_800F53B8_t* arg0);
-void func_800D55A4(D_800F53B8_t*, int, int);
-void func_800D5700(func_800D5780_t*);
-void func_800D5738(func_800D5780_t*);
-int func_800D5780(func_800D5780_t*);
-int func_800D57FC(D_800F53B8_t*, func_800D5780_t*);
-int func_800D5904(D_800F53B8_t*, func_800D5780_t*);
+void vs_effects_resetEffectCameraMotion(void);
+void vs_effects_captureEffectCamera(D_800F54D8_t*);
+void vs_effects_applyEffectCamera(D_800F54D8_t*);
+void vs_effects_updateCameraShakeChannels(void);
+void vs_effects_interpolateEffectCameraLinear(void);
+void vs_effects_interpolateEffectCameraCosine(void);
+void vs_effects_updateEffectCameraMotion(void);
+void vs_effects_resetParticlePoolReferences(void);
+void vs_effects_acquireParticlePool(int);
+void vs_effects_releaseParticlePool(void);
+void vs_effects_releaseAllEffectParticles(D_800F53B8_t*);
+void vs_effects_branchScriptIf(int, D_800F53B8_t*);
+u_char vs_effects_readScriptByte(D_800F53B8_t*);
+u_short vs_effects_readScriptHalfword(D_800F53B8_t*);
+int vs_effects_runScript(D_800F53B8_t* arg0);
+void vs_effects_loadEffectTimeline(D_800F53B8_t*, int, int);
+void vs_effects_particleKeyTimingOf(func_800D5780_t*);
+void vs_effects_shakeKeyTimer(func_800D5780_t*);
+int vs_effects_advanceTimelineKey(func_800D5780_t*);
+int vs_effects_tickParticleEmissionTrack(D_800F53B8_t*, func_800D5780_t*);
+int vs_effects_tickSoundTrack(D_800F53B8_t*, func_800D5780_t*);
 typedef struct {
     u_char* data;
     char prefix[8];
@@ -262,69 +262,69 @@ typedef struct {
     short index;
 } timedSpawnState;
 
-int func_800D5A98(D_800F53B8_t*, timedSpawnState*, int);
-int func_800D5D74(D_800F53B8_t*, func_800D5780_t*);
-int func_800D5E00(D_800F53B8_t*, func_800D5780_t*);
-int func_800D5F8C(D_800F53B8_t*, func_800D5780_t*);
-int func_800D6048(D_800F53B8_t*, func_800D5780_t*, int);
-int func_800D61AC(D_800F53B8_t*, func_800D5780_t*);
-int func_800D6298(D_800F53B8_t*, func_800D5780_t*);
-void func_800D6448(D_800F53B8_t*, u_char, u_char);
-void func_800D65D8(D_800F53B8_t*, u_char);
-void func_800D6628(D_800F53B8_t*, u_char);
-void func_800D66FC(D_800F53B8_t*, u_char, u_char);
-void func_800D67C4(D_800F53B8_t*, u_char);
-int func_800D6A18(D_800F53B8_t*, func_800D5780_t*);
-void func_800D1EF0(int, int, int, int, int, int, int);
-void func_800D6AEC(D_800F53B8_t*, int);
-void func_800D7890(int);
-void func_800D78B8(void);
-void func_800D78CC(void);
-int func_800D7BF8(void);
-void func_800D7C5C(void);
-int func_800D7CFC(void);
-int func_800D7EF4(void);
-void func_800D8060(void*);
+int vs_effects_tickChildEffectTrack(D_800F53B8_t*, timedSpawnState*, int);
+int vs_effects_tickRendererTrack(D_800F53B8_t*, func_800D5780_t*);
+int vs_effects_tickVibrationTrack(D_800F53B8_t*, func_800D5780_t*);
+int vs_effects_tickSourceActorColourTrack(D_800F53B8_t*, func_800D5780_t*);
+int vs_effects_tickTargetActorColourTrack(D_800F53B8_t*, func_800D5780_t*, int);
+int vs_effects_tickOtherActorColourTrack(D_800F53B8_t*, func_800D5780_t*);
+int vs_effects_tickSceneColourTrack(D_800F53B8_t*, func_800D5780_t*);
+void vs_effects_spawnTransformWeaponTrail(D_800F53B8_t*, u_char, u_char);
+void vs_effects_sourceWeaponBrightness(D_800F53B8_t*, u_char);
+void vs_effects_sourceReactionSound(D_800F53B8_t*, u_char);
+void vs_effects_focusCameraOnEffectTransform(D_800F53B8_t*, u_char, u_char);
+void vs_effects_restoreActionEffectCamera(D_800F53B8_t*, u_char);
+int vs_effects_tickCameraShakeTrack(D_800F53B8_t*, func_800D5780_t*);
+void vs_effects_startCameraShakeChannels(int, int, int, int, int, int, int);
+void vs_effects_tickEffectTimeline(D_800F53B8_t*, int);
+void vs_effects_selectEffectResourceContext(int);
+void vs_effects_saveEffectResourceContext(void);
+void vs_effects_restoreEffectResourceContext(void);
+int vs_effects_loadEffectPackage(void);
+void vs_effects_releaseEffectPackageResources(void);
+int vs_effects_updateEffectTextureLoading(void);
+int vs_effects_updateEffectPluginLoading(void);
+void vs_effects_bindEffectPackageBlocks(void*);
 void vs_effpurge_exec(void);
-void func_800AE68C(int, int);
+void vs_audio_playActorModelSoundVariant(int, int);
 void func_800C4650(func_800C5798_t* arg0, int arg1);
 MATRIX* func_800C085C(func_800C1564_flags* arg0, int arg1);
-void func_800C02A8(void);
+void vs_render_loadFrameViewMatrix(void);
 void func_800C28AC(SVECTOR* arg0, int arg1);
 void func_800C2B0C(SVECTOR* arg0, int arg1);
-void func_800C2E24(SVECTOR* arg0, MATRIX* arg1, int arg2);
+void vs_battle_drawSphereTerrainIntersection(SVECTOR* arg0, MATRIX* arg1, int arg2);
 void* func_800C282C(void);
 int _getCollisionMapDimensions(int arg0);
 int func_800C1D84(void);
 
 extern u_int _gimLbas[];
 extern int _menuLbas[];
-extern u_char D_800EABAA;
-extern char D_800EA984[];
+extern u_char vs_battle_targetSelectionStep;
+extern char vs_battle_targetInfoTemplate[];
 extern char D_800EA9B6[];
-extern char D_800EAA54[];
+extern char vs_battle_emptyStatusString[];
 extern char D_800EB9AC;
 extern signed char _loadedSubMenu;
-extern D_800EB9B8_t* D_800EB9B8;
-extern gim_t* D_800EB9BC;
-extern char D_800EB9CC;
-extern char D_800EB9CD;
-extern char D_800EB9CE;
+extern D_800EB9B8_t* vs_battle_targetSphere;
+extern gim_t* vs_render_gimLayers;
+extern char vs_battle_hudBattleMode;
+extern char vs_battle_battleModeIndicatorStep;
+extern char vs_menu_textBoxBufferIndex;
 extern union {
     int s32;
     u_char u8[4];
 } D_800EB9D0;
 extern u_int* _menuBgUnpackedBuf;
 extern u_char D_800EB708[];
-extern u_char D_800EB7B4[];
+extern u_char vs_render_compactGlyphWidths[];
 extern u_char D_800EB7D4[];
-extern int* D_800EB9D8;
+extern int* vs_menu_sceneNotificationBuffer;
 extern u_int D_800EBBB8[];
 extern u_int D_800EBBC0[];
-extern int D_800EBBDC[];
-extern int D_800EBC04[];
+extern int vs_battle_hudGaugePositions[];
+extern int vs_render_statGaugeColors[];
 extern u_short D_800EBC68[];
-extern char D_800EBC78;
+extern char vs_battle_shortcutHudRequested;
 extern int D_800EBC88[];
 extern u_char D_800EBC98[];
 extern u_char D_800EBCA0[];
@@ -334,113 +334,113 @@ extern u_char D_800EBCC0[];
 extern u_char D_800EBCC8[];
 extern int D_800EBCD0[];
 extern u_short D_800EBCE0[];
-extern u_char D_800EBCE8;
+extern u_char vs_battle_shortcutHudAnimationStep;
 extern int D_800EBCEC[];
 extern int D_800EBD14[];
 extern u_int D_800EBD3C[];
-extern u_short D_800EBD64;
+extern u_short vs_battle_battleModeIndicatorWobble;
 extern u_char _spellClassCounts[];
 extern u_char* _spellIds[];
 extern char D_800EBD68[];
-extern u_short D_800EBDDC[];
+extern u_short vs_battle_doorStrings[];
 extern u_int _keystreamState;
 extern char D_800EBF58[][12];
-extern char* D_800EC258;
-extern void (*D_800EC25C[])(gim_t*, int, u_long*);
+extern char* vs_battle_puzzleTimerTextPointer;
+extern void (*vs_render_gimLayerDrawRoutines[])(gim_t*, int, u_long*);
 extern func_800CCE10_t D_800EC284[][2];
 extern int D_800EC2CC[];
 extern int D_800EC2D8[];
 extern u_char D_800EC2E4;
 extern effectExec D_800EC324[];
-extern int D_800EC328;
+extern int vs_effects_emissionCounter;
 extern char D_800EC32C[];
 extern u_char D_800EC330[][2][4];
 extern u_char D_800EC368[][5][4];
-extern int (*D_800EC3F4[])(void*);
-extern u_char D_800EC4B8;
+extern int (*vs_effects_scriptOpcodeHandlers[])(void*);
+extern u_char vs_effects_lastReactionSoundVariant;
 extern u_char D_800F522C;
-extern u_char D_800F4C70[2][16];
-extern u_char D_800F4CB0;
-extern u_char D_800F4CB1;
+extern u_char vs_battle_targetColumnEntries[2][16];
+extern u_char vs_battle_secondColumnEntryCount;
+extern u_char vs_battle_firstColumnEntryCount;
 extern char D_800F4CB8;
 extern char _fontTable;
 extern int _fontBrightness;
-extern u_long D_800F4CD0;
+extern u_long vs_menu_textBoxOrderingTables;
 extern char vs_battle_shortcutInvoked;
-extern char D_800F4E68;
+extern char vs_menu_sceneNotificationTimer;
 extern char D_800F4E69;
 extern char vs_battle_lowerScreenUiState;
 extern _textBoxSelector_t textBoxSelector;
-extern int D_800F4ED4;
+extern int vs_menu_frameworkUnusedInterfaceFlag;
 extern short D_800F4ED8[8];
-extern u_long* D_800F51B8;
+extern u_long* vs_menu_activeTextBoxOrderingTable;
 extern char D_800F51C8;
 extern vs_main_CdQueueSlot* D_800F5218;
-extern u_int D_800F521C;
-extern int D_800F5224;
-extern int D_800F5228;
-extern func_800CF0E8_t D_800F5230;
-extern func_800CF0E8_t D_800F53C0;
-extern u_char D_800F5238;
-extern char D_800F5318;
-extern u_int D_800F531C;
-extern int D_800F5320[];
-extern int D_800F5330[];
+extern u_int vs_effects_pendingTracks;
+extern int vs_effects_trackCount;
+extern int vs_effects_startedTrackCount;
+extern func_800CF0E8_t vs_effects_actionRequest;
+extern func_800CF0E8_t vs_effects_secondaryRequest;
+extern u_char vs_battle_legacyUnreferencedByte;
+extern char vs_effects_primaryToken;
+extern u_int vs_effects_primaryPhase;
+extern int vs_effects_tokenBitmaps[];
+extern int vs_effects_curveSamples[];
 extern int D_800F53B4;
-extern char D_800F54A8;
+extern char vs_effects_primaryLoaded;
 extern char D_800F54A9;
-extern D_800F53B8_t* D_800F54B0;
-extern D_800F54B8_t D_800F54B8[];
+extern D_800F53B8_t* vs_effects_secondaryInstances;
+extern D_800F54B8_t vs_effects_cameraShakeChannels[];
 extern short D_800F54D0;
-extern D_800F54D8_t D_800F54D8;
+extern D_800F54D8_t vs_effects_effectCamera;
 /* Defined here: these hold pointers among their words, so they cannot be imports (LP64). */
 vs_battle_menuState_t vs_battle_menuState;
 vs_battle_stringContext_t vs_battle_stringContext;
 vs_battle_textBox vs_battle_textBoxes[8];
 func_800FA098_arg1 pc_effect_scratch;
 extern u_char D_800F4E80;
-extern char D_800F5518;
-extern D_800F54D8_t D_800F5520[2];
+extern char vs_effects_enabledShakeChannels;
+extern D_800F54D8_t vs_effects_cameraMotionEnds[2];
 extern short D_800F55A0;
-extern D_800F54D8_t D_800F55A8;
+extern D_800F54D8_t vs_effects_savedActionCamera;
 extern u_int D_800F55E8;
-extern int D_800F55F0;
-extern func_800D2904_t* D_800F55F4;
-extern int D_800F55F8;
-extern int D_800F5600;
+extern int vs_effects_particleCapacity;
+extern func_800D2904_t* vs_effects_freeParticles;
+extern int vs_effects_usedParticleCount;
+extern int vs_effects_particlePoolReferences;
 extern int D_800F5610;
-extern int D_800F5618;
-extern D_800F5620_t D_800F5620;
-extern func_800D2904_t* D_800F55FC;
+extern int vs_effects_particleDrag;
+extern D_800F5620_t vs_effects_particleGravity;
+extern func_800D2904_t* vs_effects_particlePool;
 
-int func_800C4794(SVECTOR* arg0);
+int vs_battle_updateSphereTargetPosition(SVECTOR* arg0);
 
 void func_800C513C(int arg0, int arg1);
 
 void func_800C5164(int arg0, int arg1, int arg2);
 
-void func_800C518C(int arg0, void* arg1);
+void vs_battle_setTargetActorColorOverride(int arg0, void* arg1);
 
-void func_800C51B4(int mode);
+void vs_battle_updateTargetSelectionHighlight(int mode);
 
-extern u_char D_800F4C90[8], D_800F4C98[8], D_800F4CA0[8], D_800F4CA8[8];
-extern u_char D_800F4CB2, D_800F4CB3;
+extern u_char vs_battle_secondColumnGroups[8], vs_battle_firstColumnGroups[8], vs_battle_secondColumnGroupFirstTargets[8], vs_battle_firstColumnGroupFirstTargets[8];
+extern u_char vs_battle_secondColumnGroupCount, vs_battle_firstColumnGroupCount;
 
-void func_800C5360(int group);
+void vs_battle_appendTargetGroupToColumn(int group);
 
-extern u_char D_800F4CB4;
+extern u_char vs_battle_targetColumnTopOffset;
 
-void func_800C553C(void);
+void vs_battle_buildTargetSelectionColumns(void);
 
-void func_800C56C0(void);
+void vs_battle_dismissTargetSelectionRows(void);
 
-D_800EB9B8_unk990* func_800C5798(int arg0, int arg1, int arg2);
+D_800EB9B8_unk990* vs_battle_initTargetSelectionRow(int arg0, int arg1, int arg2);
 
 char* _getStatusString(uint arg0);
 
-int func_800C58F8(u_char* target);
+int vs_battle_updateTargetSelectionMenu(u_char* target);
 
-void func_800C64D0(u_long* arg0, int* arg1);
+void vs_render_splicePrimitiveList(u_long* arg0, int* arg1);
 
 void vs_battle_renderTextRawColor(char const* text, int x, int color, void* nextPrim);
 
@@ -513,7 +513,7 @@ __asm__("glabel _printFixedWidthFontChar;"
         "lui        $a1, 0xFF;"
         "lui        $v0, %hi(_fontTable);"
         "or         $a1, 0xFFFF;"
-        "lui        $t2, %hi(D_800F51B8);"
+        "lui        $t2, %hi(vs_menu_activeTextBoxOrderingTable);"
         "lui        $a0, %hi(D_800F4CB8);"
         "lbu        $v0, %lo(_fontTable)($v0);"
         "lbu        $a2, %lo(D_800F4CB8)($a0);"
@@ -535,7 +535,7 @@ __asm__("glabel _printFixedWidthFontChar;"
         "mult       $v0, $t8;"
         "sll        $a2, 16;"
         "sll        $a3, 4;"
-        "lw         $v0, %lo(D_800F51B8)($t2);"
+        "lw         $v0, %lo(vs_menu_activeTextBoxOrderingTable)($t2);"
         "or         $a3, 0xC;"
         "addu       $v0, $a3, $v0;"
         "lw         $v1, 0x0($v0);"
@@ -590,7 +590,7 @@ __asm__("glabel _printFixedWidthFontChar;"
         "sw         $v1, 0x24($t4);"
         "sll        $v1, $t4, 8;"
         "sw         $a0, 0x14($t4);"
-        "lw         $a0, %lo(D_800F51B8)($t2);"
+        "lw         $a0, %lo(vs_menu_activeTextBoxOrderingTable)($t2);"
         "srl        $v1, 8;"
         "addu       $a3, $a0;"
         "sw         $v1, 0x0($a3);"
@@ -614,10 +614,10 @@ void _printFixedWidthFont(vs_battle_textBox* ctx, int scale);
 
 #pragma vsstring(end)
 
-void func_800C7EBC(u_short*, u_int, int, u_int);
+void vs_render_blendGlyphIntoPixels(u_short*, u_int, int, u_int);
 extern u_short D_800EB98C[16];
 
-void func_800C7EBC(u_short* destination, u_int glyph, int stride, u_int alpha);
+void vs_render_blendGlyphIntoPixels(u_short* destination, u_int glyph, int stride, u_int alpha);
 
 #ifdef ROOD_PC
 /* _renderTextImmediate with the hardware renderer: the frame buffer read back
@@ -646,11 +646,11 @@ void _renderTextImmediate(vs_battle_textBox* arg0, int arg1);
 
 void vs_battle_loadGim(int id, int arg1);
 
-void func_800C8550(u_int arg0, void* arg1, u_char* arg2);
+void vs_render_activateGimLayer(u_int arg0, void* arg1, u_char* arg2);
 
-void func_800C86AC(void);
+void vs_render_releaseGimImageSet(void);
 
-void func_800C8778(void);
+void vs_render_updateGimImageSet(void);
 
 int vs_battle_loadMenuPrg(int arg0);
 
@@ -690,9 +690,9 @@ extern unsigned pc_fast_travel_mask(unsigned bits);
 #define MAGIC_COMMAND_MASK 0xB7
 #endif
 
-int func_800C930C(int mode);
+int vs_menu_frameworkUpdateMainMenuSelection(int mode);
 
-void func_800C97BC(void);
+void vs_menu_frameworkUpdateMenuOverlay(void);
 
 void _renderDigit(int font, int xy, int digit, u_long* before);
 
@@ -705,25 +705,25 @@ extern int pc_hud_label_opaque; /* project_settings.cpp: the label opaque (1) or
 #endif
 void _renderStatBar(int colorIndex, int current, int max);
 
-void func_800C9CB4(int arg0, int arg1, int arg2);
+void vs_battle_drawSlidingStatusIcon(int arg0, int arg1, int arg2);
 
 int vs_battle_getStatusFlags(vs_battle_actor2* arg0);
 
 int vs_battle_getLimbStatus(vs_battle_uiEquipment_limb* limb);
 
-void func_800C9F88(void);
+void vs_battle_showShortcutHud(void);
 
 void func_800C9F98(int arg0, int arg1);
 
 #ifdef ROOD_PC
 /* QoL weapon slots (pc/src/weapon_slots.c): in their mode the labels show the
- * slots' weapons; otherwise func_800C9EB8's answer. */
+ * slots' weapons; otherwise vs_battle_shortcutIconBrightness's answer. */
 int pc_weapon_slots_label(int id);
 #endif
 
-void func_800C9FE8(void);
+void vs_battle_drawShortcutHud(void);
 
-void func_800CA2DC(void);
+void vs_battle_drawBattleHud(void);
 
 void func_800CA97C(void);
 
@@ -733,11 +733,11 @@ void func_800CA97C(void);
 extern int pc_ui_menu_cast_cancelled(void) __attribute__((weak));
 #endif
 
-void func_800CAB40(void);
+void vs_menu_frameworkResumeAfterActionSelection(void);
 
-int func_800CABE0(int arg0);
+int vs_menu_frameworkActionRestrictionFlags(int arg0);
 
-int func_800CACD0(int menuState, int arg1);
+int vs_menu_frameworkOpenGameMenu(int menuState, int arg1);
 
 int vs_battle_isSpellClassUnlocked(int spellClass);
 
@@ -747,17 +747,17 @@ int vs_battle_chainAbilitiesUnlocked(int defense);
 
 int vs_battle_validateShortcutSelection(int shortcut);
 
-void func_800CB114(void);
+void vs_menu_frameworkReleaseMenuRows(void);
 
-void func_800CB158(vs_battle_lootListNode* arg0);
+void vs_menu_frameworkOpenLootListMenu(vs_battle_lootListNode* arg0);
 
-void func_800CB18C(vs_battle_loot* arg0);
+void vs_menu_frameworkOpenLootEntryMenu(vs_battle_loot* arg0);
 
-void func_800CB1C0(int arg0);
+void vs_menu_frameworkOpenChestStorageMenu(int arg0);
 
 void _setArtAndAbilityToUnlock(int art, int battleAbility);
 
-void func_800CB23C(void);
+void vs_menu_frameworkOpenChallengeMenu(void);
 
 void vs_battle_displaySceneMessage(int arg0, int arg1, int arg2);
 
@@ -765,19 +765,19 @@ int func_800CB45C(void);
 
 void func_800CB50C(void);
 
-void func_800CB550(void);
+void vs_battle_showPuzzleTimer(void);
 
-void func_800CB560(void);
+void vs_battle_hidePuzzleTimer(void);
 
-char const D_80069998[] = "00:00:00";
+char const vs_battle_puzzleTimerText[] = "00:00:00";
 
 void _renderTimer(int* value);
 
-void func_800CB654(int arg0);
+void vs_battle_setHudHidden(int arg0);
 
-void func_800CB660(int arg0);
+void vs_battle_setHudBattleMode(int arg0);
 
-D_800F18EC_t* func_800CB66C(void);
+D_800F18EC_t* vs_menu_frameworkActionSelectionState(void);
 
 void _loadScreff2(int arg0);
 
@@ -788,14 +788,14 @@ void func_800CB79C(void);
 void func_800CB7DC(void);
 
 void func_800CD158(int);
-void func_800CD3E4(int);
-extern int D_8005046C;
+void vs_menu_drawTextBoxFrame(int);
+extern int vs_battle_puzzleTimer;
 
 void func_800CB83C(void);
 
-void func_800CBBCC(gim_t* image, int clut, u_long* ot);
+void vs_render_drawGimTiles(gim_t* image, int clut, u_long* ot);
 
-void func_800CC128(gim_t* arg0, int arg1, u_long* arg2);
+void vs_render_drawGimFramebufferFade(gim_t* arg0, int arg1, u_long* arg2);
 
 /* Draws a tiled image wiped in horizontally: per scanline the visible span is
    [left[y], right[y]) from the per-line widths at unk18 scaled by unkC (below ONE
@@ -803,15 +803,15 @@ void func_800CC128(gim_t* arg0, int arg1, u_long* arg2);
    tile cell is drawn as one sprite per scanline, odd start columns first as a
    1-pixel sprite. The original reuses x/end for the scale/side and column for the
    scaled width. */
-void func_800CC204(gim_t* image, int clut, u_long* ot);
+void vs_render_drawGimScanlineWipe(gim_t* image, int clut, u_long* ot);
 
-void func_800CC580(u_long* arg0, int arg1);
+void vs_render_setGimWorkspaceDrawArea(u_long* arg0, int arg1);
 
-void func_800CC5C0(u_long* arg0, int arg1);
+void vs_render_setGimFramebufferDrawArea(u_long* arg0, int arg1);
 
-void func_800CC600(gim_t* image, int clut, u_long* ot);
+void vs_render_drawGimCrossfade(gim_t* image, int clut, u_long* ot);
 
-void func_800CCA90(int arg0);
+void vs_render_drawGimLayer(int arg0);
 
 int vs_battle_decreaseMiscCount(int miscId);
 
@@ -840,18 +840,18 @@ void func_800CD158(int id);
 
 int func_800CD3A0(int arg0, int arg1);
 
-extern u_char* D_800EB588[];
+extern u_char* vs_event_textBoxFrameStyles[];
 
 #define POINT_X(p) (((short*)&points[p])[0])
 #define POINT_Y(p) (((short*)&points[p])[1])
 
-/* Draws the frame of text box `index` from shape D_800EB588[unk0_8]: header word
+/* Draws the frame of text box `index` from shape vs_event_textBoxFrameStyles[unk0_8]: header word
    (b0 vertex count, b1 part count, b2 outline vertex count) followed by one word per
    part (b0/b1 outline join indices, b2 outline length, b3 polygon count), the packed
    x/y vertices (flipped by func_800CD3A0) and 4-byte polygons (0xFF = triangle).
    The original reuses its locals heavily: w/h/flip become polygon vertex 2/3 and the
    colour, i/n/k/v change roles between the passes. */
-void func_800CD3E4(int index);
+void vs_menu_drawTextBoxFrame(int index);
 
 #undef POINT_X
 #undef POINT_Y
@@ -877,51 +877,51 @@ int func_800CE174(func_800D4910_t* node, u_int mode, int config);
 
 int func_800CE644(int arg0 __attribute__((unused)));
 
-void func_800CE67C(void);
+void vs_effects_resetEffectInstances(void);
 
-void func_800CE714(D_800F53B8_t2* arg0, D_800F53B8_t* arg1);
+void vs_effects_initEffectInstance(D_800F53B8_t2* arg0, D_800F53B8_t* arg1);
 
-D_800F53B8_t* func_800CE83C(D_800F53B8_t2* arg0);
+D_800F53B8_t* vs_effects_createPrimaryEffectInstance(D_800F53B8_t2* arg0);
 
-void func_800CE8F4(D_800F53B8_t* arg0);
+void vs_effects_destroyPrimaryEffectInstance(D_800F53B8_t* arg0);
 
-int func_800CE9B0(void);
+int vs_effects_updatePrimaryEffects(void);
 
-int func_800CED60(void);
+int vs_effects_updateSecondaryEffects(void);
 
 int func_800CEEBC(void);
 
-void func_800CEF38(int arg0);
+void vs_effects_requeueTrack(int arg0);
 
-int func_800CEF74(int arg0);
+int vs_effects_startEffectTrack(int arg0);
 
-int func_800CF060(void);
+int vs_effects_updateEffectRuntime(void);
 
-int func_800CF0E8(func_800CF0E8_t* arg0, int arg1, int arg2);
+int vs_effects_beginActionEffect(func_800CF0E8_t* arg0, int arg1, int arg2);
 
-void func_800CF1A8(void);
+void vs_effects_clearPrimaryEffects(void);
 
 char func_800CF218(func_800CF0E8_t* arg0, int arg1, int arg2);
 
-int func_800CF3F8(func_800CF0E8_t* arg0, int arg1);
+int vs_effects_beginSecondaryEffects(func_800CF0E8_t* arg0, int arg1);
 
-void func_800CF478(int arg0);
+void vs_effects_setPrimaryEffectPhase(int arg0);
 
-void func_800CF484(int arg0, D_800F53B8_t* arg1);
+void vs_effects_setSecondaryEffectPhase(int arg0, D_800F53B8_t* arg1);
 
 int func_800CF48C(void);
 
-int func_800CF49C(void);
+int vs_effects_allocateEffectToken(void);
 
-void func_800CF514(int arg0);
+void vs_effects_releaseEffectToken(int arg0);
 
-D_800F53B8_t* func_800CF55C(D_800F53B8_t2* arg0);
+D_800F53B8_t* vs_effects_createSecondaryEffectInstance(D_800F53B8_t2* arg0);
 
-void func_800CF614(D_800F53B8_t* arg0);
+void vs_effects_destroySecondaryEffectInstance(D_800F53B8_t* arg0);
 
-func_800D4910_t* func_800CF694(D_800F53B8_t* arg0, effectExec renderer, int arg2);
+func_800D4910_t* vs_effects_attachEffectRenderer(D_800F53B8_t* arg0, effectExec renderer, int arg2);
 
-void func_800CF70C(D_800F53B8_t* arg0, func_800D4910_t* arg1);
+void vs_effects_detachEffectRenderer(D_800F53B8_t* arg0, func_800D4910_t* arg1);
 
 void func_800CF7A8(int arg0, int arg1, int arg2, int arg3);
 
@@ -954,9 +954,9 @@ int func_800CFE1C(short* arg0, int arg1);
 void _addSVectorToVector(SVECTOR* svec, VECTOR* vec, VECTOR* out) __attribute__((unused));
 void _addSVectorToVector(SVECTOR* svec, VECTOR* vec, VECTOR* out);
 
-void func_800CFE7C(func_800CFE98_t* arg0);
+void vs_core_mathIdentityRotation(func_800CFE98_t* arg0);
 
-void func_800CFE98(SVECTOR* arg0, func_800CFE98_t* arg1);
+void vs_core_mathTranslationTransform(SVECTOR* arg0, func_800CFE98_t* arg1);
 
 typedef struct {
     short rotation[3];
@@ -971,7 +971,7 @@ typedef struct {
     SVECTOR saved, control0, control1;
 } effectTransformState;
 
-void func_800CFEF0(D_800F53B8_t* arg0);
+void vs_effects_initializeTransformStates(D_800F53B8_t* arg0);
 
 typedef struct {
     u_short flags;
@@ -1004,31 +1004,31 @@ typedef struct {
 void func_800D1718(SVECTOR*, SVECTOR*, int, int, SVECTOR*);
 void func_800D1778(SVECTOR*, SVECTOR*, int, int, SVECTOR*);
 
-void func_800D01E4(func_800D0548_arg0* arg0, func_800D0548_arg1* arg1);
+void vs_effects_interpolateTransformPosition(func_800D0548_arg0* arg0, func_800D0548_arg1* arg1);
 
-void func_800D037C(func_800D0548_arg0* arg0, func_800D0548_arg1* arg1);
+void vs_effects_interpolateTransformSpline(func_800D0548_arg0* arg0, func_800D0548_arg1* arg1);
 
-void func_800D0548(func_800D0548_arg0* arg0, func_800D0548_arg1* arg1);
+void vs_effects_advanceTransformMotion(func_800D0548_arg0* arg0, func_800D0548_arg1* arg1);
 
-void func_800D05F4(func_800D0548_arg0* arg0, func_800D0548_arg1* arg1);
+void vs_effects_buildTransformSplineControls(func_800D0548_arg0* arg0, func_800D0548_arg1* arg1);
 
-void func_800D0984(int arg0, func_800D0C60_t* arg1, int arg2);
+void vs_effects_buildCameraAttachment(int arg0, func_800D0C60_t* arg1, int arg2);
 
-void func_800D0B08(func_800CFE98_t* arg0);
+void vs_effects_buildEffectOriginAttachment(func_800CFE98_t* arg0);
 
-void func_800D0B30(func_800D0B30_t* arg0, SVECTOR* arg1, func_800D0B30_t2* arg2);
+void vs_effects_buildAnimatedLocalTransform(func_800D0B30_t* arg0, SVECTOR* arg1, func_800D0B30_t2* arg2);
 
-void func_800D0C60(int arg0, func_800D0C60_t* arg1);
+void vs_effects_resolveTransformAttachment(int arg0, func_800D0C60_t* arg1);
 
-void func_800D0D08(D_800F53B8_t* arg0);
+void vs_effects_updateEffectTransforms(D_800F53B8_t* arg0);
 
-void func_800D1104(int arg0);
+void vs_effects_sampleAllEffectCurves(int arg0);
 
 int vs_battle_sampleCurve(int curveId, int distance);
 
-int func_800D11F4(int arg0, int arg1);
+int vs_effects_sampleSegmentedEffectCurve(int arg0, int arg1);
 
-int func_800D12D8(int arg0);
+int vs_effects_segmentedEffectCurveDuration(int arg0);
 
 void vs_battle_splineInterpolate( SVECTOR* p0, SVECTOR* p1, SVECTOR* p2, SVECTOR* p3, int t, SVECTOR* out);
 
@@ -1048,49 +1048,49 @@ void func_800D1884(VECTOR* arg0, VECTOR* arg1, int arg2, int arg3, VECTOR* arg4)
 
 int func_800D18B4(int arg0, int arg1, int arg2, int arg3);
 
-int func_800D1904(int arg0, int arg1, int arg2, int arg3);
+int vs_core_mathInterpolateTimedScalar(int arg0, int arg1, int arg2, int arg3);
 
-void func_800D1930(void);
+void vs_effects_resetEffectCameraMotion(void);
 
-void func_800D1B18(D_800F54D8_t* arg0);
+void vs_effects_captureEffectCamera(D_800F54D8_t* arg0);
 
-void func_800D1B80(D_800F54D8_t* camera);
+void vs_effects_applyEffectCamera(D_800F54D8_t* camera);
 
-void func_800D1DE4(int arg0);
+void vs_effects_enableCameraShakeChannels(int arg0);
 
-void func_800D1DFC(int arg0);
+void vs_effects_disableCameraShakeChannels(int arg0);
 
-void func_800D1E20(int arg0);
+void vs_effects_setEffectCameraTransitionMode(int arg0);
 
-u_char func_800D1E2C(D_800F54B8_t* arg0);
+u_char vs_effects_cameraShakePhaseStep(D_800F54B8_t* arg0);
 
-u_char func_800D1E78(D_800F54B8_t* arg0);
+u_char vs_effects_randomCameraShakePhaseStep(D_800F54B8_t* arg0);
 
-void func_800D1EF0(int arg0, int arg1, int arg2, int arg3, int arg4, int arg5, int arg6);
+void vs_effects_startCameraShakeChannels(int arg0, int arg1, int arg2, int arg3, int arg4, int arg5, int arg6);
 
-void func_800D1FEC(int arg0);
+void vs_effects_stopCameraShakeChannels(int arg0);
 
-void func_800D206C(void);
+void vs_effects_updateCameraShakeChannels(void);
 
-void func_800D21C0(void);
+void vs_effects_interpolateEffectCameraLinear(void);
 
-void func_800D236C(void);
+void vs_effects_interpolateEffectCameraCosine(void);
 
-void func_800D2518(void);
+void vs_effects_holdEffectCameraStartPose(void);
 
-void func_800D2560(void);
+void vs_effects_updateEffectCameraMotion(void);
 
-void func_800D268C(void);
+void vs_effects_resetParticlePoolReferences(void);
 
-void func_800D2698(int count);
+void vs_effects_acquireParticlePool(int count);
 
-void func_800D278C(void);
+void vs_effects_releaseParticlePool(void);
 
-func_800D2904_t* func_800D27F0(D_800F53B8_t* arg0);
+func_800D2904_t* vs_effects_allocateEffectParticle(D_800F53B8_t* arg0);
 
-void func_800D2888(func_800D2904_t* arg0, D_800F53B8_t* arg1);
+void vs_effects_releaseEffectParticle(func_800D2904_t* arg0, D_800F53B8_t* arg1);
 
-void func_800D2904(D_800F53B8_t* arg0);
+void vs_effects_releaseAllEffectParticles(D_800F53B8_t* arg0);
 
 void vs_battle_addVecToSvec(VECTOR* arg0, SVECTOR* arg1, VECTOR* arg2);
 
@@ -1098,7 +1098,7 @@ void vs_battle_svecToVec(SVECTOR* arg0, VECTOR* arg1);
 
 void vs_battle_vecToSvec(VECTOR* arg0, SVECTOR* arg1);
 
-void func_800D2A38(func_800FA098_arg1* arg0, func_800D2904_t* arg1, const vs_gte_view* rotation);
+void vs_effects_placeParticleSpawn(func_800FA098_arg1* arg0, func_800D2904_t* arg1, const vs_gte_view* rotation);
 
 /* Uniform integer between a and b (inclusive) using 30 random bits. */
 #define RAND_UNIFORM_WIDE(a, b)                                                    \
@@ -1108,85 +1108,85 @@ void func_800D2A38(func_800FA098_arg1* arg0, func_800D2904_t* arg1, const vs_gte
 
 void func_800D2ADC( D_800F53B8_t* arg0, int event, int arg2, int arg3, func_800FB4C0_t* parent);
 
-void func_800D46DC(int arg0, D_800F53B8_t* arg1);
+void vs_effects_branchScriptIf(int arg0, D_800F53B8_t* arg1);
 
-int func_800D4720(D_800F53B8_t* arg0);
+int vs_effects_yieldScriptAt(D_800F53B8_t* arg0);
 
-int func_800D474C(D_800F53B8_t* arg0);
+int vs_effects_jumpScript(D_800F53B8_t* arg0);
 
 int func_800D4778(D_800F53B8_t* arg0);
 
-int func_800D47C0(D_800F53B8_t* arg0 __attribute__((unused)));
+int vs_effects_endScript(D_800F53B8_t* arg0 __attribute__((unused)));
 
 int func_800D47C8(D_800F53B8_t* arg0);
 
-int func_800D47F4(D_800F53B8_t* arg0);
+int vs_effects_attachScriptRenderer(D_800F53B8_t* arg0);
 
-int func_800D487C(D_800F53B8_t* arg0);
+int vs_effects_branchIfRenderersFinished(D_800F53B8_t* arg0);
 
-int func_800D48A4(D_800F53B8_t* arg0);
+int vs_effects_loadTimelineImmediate(D_800F53B8_t* arg0);
 
 int func_800D48E4(D_800F53B8_t* arg0);
 
-int func_800D4910(D_800F53B8_t* arg0);
+int vs_effects_tickScriptRenderers(D_800F53B8_t* arg0);
 
-int func_800D4984(D_800F53B8_t* arg0);
+int vs_effects_tickScriptTransforms(D_800F53B8_t* arg0);
 
-int func_800D49A4(D_800F53B8_t* arg0);
+int vs_effects_setActionEffectVerticalOffset(D_800F53B8_t* arg0);
 
-int func_800D4A94(D_800F53B8_t* arg0);
+int vs_effects_initializeScriptTransforms(D_800F53B8_t* arg0);
 
 int func_800D4AB4(D_800F53B8_t* arg0);
 
-int func_800D4AEC(D_800F53B8_t* arg0);
+int vs_effects_setScriptRegister(D_800F53B8_t* arg0);
 
-int func_800D4B34(D_800F53B8_t* arg0);
+int vs_effects_branchIfScriptRegisterEqual(D_800F53B8_t* arg0);
 
-int func_800D4B90(D_800F53B8_t* arg0);
+int vs_effects_branchIfParticleCountEqual(D_800F53B8_t* arg0);
 
-int func_800D4BD0(D_800F53B8_t* arg0);
+int vs_effects_emitRegisterParticles(D_800F53B8_t* arg0);
 
-void func_800D52A4(func_800D2904_t*);
-void func_800D6E24(void);
+void vs_effects_integrateParticleMotion(func_800D2904_t*);
+void vs_effects_drawEffectParticleList(void);
 
-int func_800D4C18(D_800F53B8_t* arg0);
+int vs_effects_tickEffectParticles(D_800F53B8_t* arg0);
 
-int func_800D4D44(D_800F53B8_t* arg0 __attribute__((unused)));
+int vs_effects_refreshParticleEnvironment(D_800F53B8_t* arg0 __attribute__((unused)));
 
 int func_800D4D64(D_800F53B8_t* arg0);
 
 int func_800D4D98(D_800F53B8_t* arg0 __attribute__((unused)));
 
-int func_800D4DA8(D_800F53B8_t* arg0 __attribute__((unused)));
+int vs_effects_continueScript(D_800F53B8_t* arg0 __attribute__((unused)));
 
-int func_800D4DB0(D_800F53B8_t* arg0);
+int vs_effects_loadRegisterTimeline(D_800F53B8_t* arg0);
 
-int func_800D4E5C(D_800F53B8_t* arg0);
+int vs_effects_tickTimelineFromScript(D_800F53B8_t* arg0);
 
-int func_800D4E90(D_800F53B8_t* arg0);
+int vs_effects_branchIfTimelineFinished(D_800F53B8_t* arg0);
 
-int func_800D4EC0(D_800F53B8_t* arg0);
+int vs_effects_freeScriptTimeline(D_800F53B8_t* arg0);
 
-int func_800D4F00(D_800F53B8_t* arg0);
+int vs_effects_setParticleColorCurves(D_800F53B8_t* arg0);
 
 int func_800D4FB4(D_800F53B8_t* arg0);
 
-int func_800D5048(D_800F53B8_t* arg0);
+int vs_effects_completeChildScript(D_800F53B8_t* arg0);
 
 int func_800D5088(D_800F53B8_t* arg0);
 int func_800D5088(D_800F53B8_t* arg0);
 
 int func_800D5150(D_800F53B8_t* arg0 __attribute__((unused)));
 
-u_char func_800D5170(D_800F53B8_t* arg0);
+u_char vs_effects_readScriptByte(D_800F53B8_t* arg0);
 
-u_short func_800D5198(D_800F53B8_t* arg0);
+u_short vs_effects_readScriptHalfword(D_800F53B8_t* arg0);
 
-int func_800D51D8(D_800F53B8_t* arg0);
+int vs_effects_runScript(D_800F53B8_t* arg0);
 
-void func_800D5260(D_800F5620_t* arg0);
+void vs_effects_setParticleGravity(D_800F5620_t* arg0);
 
-void func_800D5294(int* arg0);
+void vs_effects_setParticleDrag(int* arg0);
 
 typedef struct {
     short mass;
@@ -1197,29 +1197,29 @@ typedef struct {
     int ax, ay, az;
 } effectMotionState;
 
-void func_800D52A4(func_800D2904_t* node);
+void vs_effects_integrateParticleMotion(func_800D2904_t* node);
 
 void* _getPFileBlock3section(pFileBlock3* arg0, int arg1);
 
-void* func_800D5564(pFileBlock3* arg0, int arg1, int arg2);
+void* vs_content_pFileTimelineTrackData(pFileBlock3* arg0, int arg1, int arg2);
 
-void func_800D55A4(D_800F53B8_t* arg0, int arg1, int arg2);
+void vs_effects_loadEffectTimeline(D_800F53B8_t* arg0, int arg1, int arg2);
 
-void func_800D5700(func_800D5780_t* arg0);
+void vs_effects_particleKeyTimingOf(func_800D5780_t* arg0);
 
-void func_800D5738(func_800D5780_t* arg0);
+void vs_effects_shakeKeyTimer(func_800D5780_t* arg0);
 
-int func_800D5780(func_800D5780_t* arg0);
+int vs_effects_advanceTimelineKey(func_800D5780_t* arg0);
 
-int func_800D57FC(D_800F53B8_t* arg0, func_800D5780_t* arg1);
+int vs_effects_tickParticleEmissionTrack(D_800F53B8_t* arg0, func_800D5780_t* arg1);
 
-void func_80046578(int);
+void vs_audio_playCutsceneStreamSlotCentered(int);
 
-int func_800D5904(D_800F53B8_t* arg0, func_800D5780_t* arg1);
+int vs_effects_tickSoundTrack(D_800F53B8_t* arg0, func_800D5780_t* arg1);
 
-int func_800D5A98(D_800F53B8_t* arg0, timedSpawnState* arg1, int arg2);
+int vs_effects_tickChildEffectTrack(D_800F53B8_t* arg0, timedSpawnState* arg1, int arg2);
 
-int func_800D5D74(D_800F53B8_t* arg0, func_800D5780_t* arg1);
+int vs_effects_tickRendererTrack(D_800F53B8_t* arg0, func_800D5780_t* arg1);
 
 typedef struct {
     u_short unk0;
@@ -1227,62 +1227,62 @@ typedef struct {
     char prefix[12];
     D_800F53B8_t3_2 target[0];
 } soundEventTargets;
-int func_800D5E00(D_800F53B8_t* actor, func_800D5780_t* event);
+int vs_effects_tickVibrationTrack(D_800F53B8_t* actor, func_800D5780_t* event);
 
-int func_800D5F8C(D_800F53B8_t* arg0, func_800D5780_t* arg1);
+int vs_effects_tickSourceActorColourTrack(D_800F53B8_t* arg0, func_800D5780_t* arg1);
 
-int func_800D6048(D_800F53B8_t* arg0, func_800D5780_t* arg1, int arg2);
+int vs_effects_tickTargetActorColourTrack(D_800F53B8_t* arg0, func_800D5780_t* arg1, int arg2);
 
-int func_800D61AC(D_800F53B8_t* arg0, func_800D5780_t* arg1);
+int vs_effects_tickOtherActorColourTrack(D_800F53B8_t* arg0, func_800D5780_t* arg1);
 
-int func_800D6298(D_800F53B8_t* arg0, func_800D5780_t* arg1);
+int vs_effects_tickSceneColourTrack(D_800F53B8_t* arg0, func_800D5780_t* arg1);
 
-int func_800D6310(D_800F53B8_t* arg0, func_800D5780_t* arg1);
+int vs_effects_tickBackgroundColourTrack(D_800F53B8_t* arg0, func_800D5780_t* arg1);
 
 void func_800D6388(D_800F53B8_t* arg0);
 
 void func_800D63D0(D_800F53B8_t* arg0);
 
-void func_800D6418(D_800F53B8_t* arg0);
+void vs_effects_targetRoomTile(D_800F53B8_t* arg0);
 
-void func_800D6448(D_800F53B8_t* arg0, u_char arg1, u_char arg2);
+void vs_effects_spawnTransformWeaponTrail(D_800F53B8_t* arg0, u_char arg1, u_char arg2);
 
-void func_800D64E4(void);
+void vs_effects_fadeActionWeaponTrails(void);
 
-void func_800D6508(D_800F53B8_t* arg0, char arg1);
+void vs_effects_resumeTransformMotion(D_800F53B8_t* arg0, char arg1);
 
-void func_800D6538(D_800F53B8_t* arg0);
+void vs_effects_holdTimelineFrame(D_800F53B8_t* arg0);
 
 void func_800D6554(void);
 
 void func_800D6574(D_800F53B8_t* arg0);
 
-void func_800D65A8(D_800F53B8_t* arg0, char arg1);
+void vs_effects_invalidateTransformAttachments(D_800F53B8_t* arg0, char arg1);
 
-void func_800D65D8(D_800F53B8_t* arg0, u_char arg1);
+void vs_effects_sourceWeaponBrightness(D_800F53B8_t* arg0, u_char arg1);
 
-void func_800D6628(D_800F53B8_t* arg0, u_char arg1);
+void vs_effects_sourceReactionSound(D_800F53B8_t* arg0, u_char arg1);
 
 void func_800D66CC(D_800F53B8_t* arg0);
 
-void func_800D66FC(D_800F53B8_t* arg0, u_char arg1, u_char arg2);
+void vs_effects_focusCameraOnEffectTransform(D_800F53B8_t* arg0, u_char arg1, u_char arg2);
 
-void func_800D67C4(D_800F53B8_t* arg0, u_char arg1);
+void vs_effects_restoreActionEffectCamera(D_800F53B8_t* arg0, u_char arg1);
 
 void func_800D6860(D_800F53B8_t* arg0);
 
-int func_800D6894(D_800F53B8_t* arg0, func_800D5780_t* arg1);
+int vs_effects_tickActionControlTrack(D_800F53B8_t* arg0, func_800D5780_t* arg1);
 
-int func_800D6A18(D_800F53B8_t* arg0, func_800D5780_t* arg1);
+int vs_effects_tickCameraShakeTrack(D_800F53B8_t* arg0, func_800D5780_t* arg1);
 
-void func_800D6AEC(D_800F53B8_t* arg0, int arg1);
+void vs_effects_tickEffectTimeline(D_800F53B8_t* arg0, int arg1);
 
-void func_800D6CCC(void* sprite);/* a func_800D6CF_t, cleared whole */
+void vs_effects_clearTextureAnimation(void* sprite);/* a func_800D6CF_t, cleared whole */
 
-void func_800D6CF0(func_800D6CF_t* arg0, int arg1, int arg2);
+void vs_effects_restartTextureAnimation(func_800D6CF_t* arg0, int arg1, int arg2);
 
 #ifndef ROOD_PC
-void func_800D6E24(void) { func_800D6E44(); }
+void vs_effects_drawEffectParticleList(void) { vs_effects_drawAnimatedSpriteParticles(); }
 #endif
 
 /* The shared effect command table (guest address 0x800EC3F4) and the built-in trail renderer: native function
@@ -1319,7 +1319,7 @@ int pc_effect_func_800D4F00(void* node);
 int pc_effect_func_800D4FB4(void* node);
 int pc_effect_func_800D5048(void* node);
 int pc_effect_func_800D5088(void* node);
-int (*D_800EC3F4[49])(void*) = {
+int (*vs_effects_scriptOpcodeHandlers[49])(void*) = {
     pc_effect_func_800D4720,
     pc_effect_func_800D474C,
     pc_effect_func_800D4778,
@@ -1372,8 +1372,8 @@ int (*D_800EC3F4[49])(void*) = {
 };
 effectExec D_800EC324[1] = { func_800CE174 };
 #ifdef ROOD_PC
-void (*D_800EC25C[4])(gim_t*, int, u_long*) = { func_800CBBCC, func_800CC128,
-    func_800CC204, func_800CC600 };
+void (*vs_render_gimLayerDrawRoutines[4])(gim_t*, int, u_long*) = { vs_render_drawGimTiles, vs_render_drawGimFramebufferFade,
+    vs_render_drawGimScanlineWipe, vs_render_drawGimCrossfade };
 #endif
 
 /* Declared for the Zig's c module (the C bodies that declared them are gone). */

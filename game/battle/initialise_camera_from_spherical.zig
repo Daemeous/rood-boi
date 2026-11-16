@@ -29,7 +29,7 @@ pub fn initialiseCameraFromSpherical(outputPos: ?*v.VECTOR, outputLookAt: ?*v.VE
     }
 
     var sp10: v.func_8006EBF8_t = undefined;
-    _ = c.func_800A1108(0, &sp10);
+    _ = c.vs_actors_actorPlacement(0, &sp10);
 
     const lookAt = outputLookAt.?;
     lookAt.vx = @as(c_int, sp10.unk0.unk4.vx) << 12;

@@ -14,7 +14,7 @@
  *    itemsToTransfer, unk4BB0), vs_main_inventory and its index lists,
  *    vs_main_settings.containerEmpty, vs_battle_menuState, vs_menuD_containerData
  *    and the six vs_mainMenu_* pointers (234.c:3149), the cursor memories
- *    (D_800F4EE8: unk9E, unkA0, cursorMemories by the MAINMENU row and
+ *    (vs_menu_frameworkMenuMemory: unk9E, unkA0, cursorMemories by the MAINMENU row and
  *    action lists' own arithmetic, below) and vs_battle_rowTypeBuf. The
  *    original's presentation (menu items, the information box, the item
  *    texts vs_mainMenu_loadItemText loads, as Loot leaves MENUB's out) is
@@ -114,7 +114,7 @@ static void menud_at(char* out, int size, int offset) { decode(&menuD_text[offse
 static void menud(char* out, int size, int index) { menud_at(out, size, menuD_text[index]); }
 
 /* the cursor memories as the original indexes them (cursorMemories[id * 2], past its 52 declared bytes) */
-static char* cm(void) { return (char*)&D_800F4EE8; }
+static char* cm(void) { return (char*)&vs_menu_frameworkMenuMemory; }
 
 #define SEL_SFX() vs_battle_playMenuSelectSfx()
 #define LEAVE_SFX() vs_battle_playMenuLeaveSfx()
@@ -143,22 +143,22 @@ static struct {
     int first_top;     /* D_80109A2E: the top menu's first entry this MENUD load */
     int mode;          /* PC_UI_CTR_* */
     int dir;           /* D_80109A7A */
-    int built;         /* D_80109A6A: the list's first build (its cursor memory per the option) */
-    int empty;         /* D_80109A69 */
+    int built;         /* vs_menu_containerItemListFirstEntry: the list's first build (its cursor memory per the option) */
+    int empty;         /* vs_menu_containerCategoryEmpty */
     int picked;        /* D_80109A6C: the row picked (1-based) */
     int switching;     /* func_80107490 state 3: a tab changed, the rebuild waits for the buttons */
     int misc_after;    /* D_80109A82 */
     row_list list;
     action_list act;
-    int act_kind[8];   /* D_80109A60 */
-    int sort_cat;      /* _displaySortMenu's D_80109A4D */
+    int act_kind[8];   /* vs_menu_containerItemActionIds */
+    int sort_cat;      /* _displaySortMenu's vs_menu_containerSortCategory */
     int disc_type, disc_cat, disc_slot, disc_step, disc_count, disc_max, disc_multi;
     int detail_cat, detail_sel;
     int dirty;
     int focus_seen;    /* the card's focus (cursor, tab, mode) when last filled */
 } S;
 
-static int tab_now(void) { return (D_800F4EE8.unkA0[0] - 1) & 7; }
+static int tab_now(void) { return (vs_menu_frameworkMenuMemory.unkA0[0] - 1) & 7; }
 
 /* the sorts' stats (234.c _getWeaponStat 1279, _getShieldStatValue 1361, _getEquipmentStat 1489) */
 static int weapon_stat(void* u, vs_menu_containerData* c, int slot, int type)
@@ -255,7 +255,7 @@ static pc_ctr ctx(void)
     zero(&c, sizeof c);
     c.st = st;
     c.src = vs_menuD_containerData;
-    c.dst = S.dir ? &st->unkC430 : &st->unk105B0; /* D_80109A88 (func_80107490's init) */
+    c.dst = S.dir ? &st->unkC430 : &st->unk105B0; /* vs_menu_containerOtherStorage (func_80107490's init) */
     c.mode = S.dir;
     c.bag_caps = vs_mainMenu_inventoryItemCapacities;
     c.bag_indices = vs_mainMenu_inventoryIndices;
@@ -532,7 +532,7 @@ static void top_enter(void) /* func_801089BC(1) */
     if (S.first_top != 0) {
         S.first_top = 0;
         if (vs_main_settings.cursorMemory == 0)
-            D_800F4EE8.unk9E = 0;
+            vs_menu_frameworkMenuMemory.unk9E = 0;
     }
     S.mode = PC_UI_CTR_TOP;
     S.dirty = 1;
@@ -589,7 +589,7 @@ static void mode_init(int arg0) /* func_80107490(arg0 != 0) (2429) */
     pc_ctr c;
     S.built = 1;
     if (vs_main_settings.cursorMemory == 0)
-        vs_main_bzero(D_800F4EE8.unkA0, sizeof D_800F4EE8.unkA0);
+        vs_main_bzero(vs_menu_frameworkMenuMemory.unkA0, sizeof vs_menu_frameworkMenuMemory.unkA0);
     vs_battle_rMemzero(&st->unk87B0, sizeof st->unk87B0);
     vs_battle_rMemzero(st->itemsToTransfer, sizeof st->itemsToTransfer);
     S.dir = arg0 - 1;
@@ -597,7 +597,7 @@ static void mode_init(int arg0) /* func_80107490(arg0 != 0) (2429) */
         vs_menuD_containerData = &st->unk105B0;
     else
         vs_menuD_containerData = &st->unkC430;
-    /* the right panel slides in (D_80109A7D 1, D_80109A80 0): func_80103270 */
+    /* the right panel slides in (D_80109A7D 1, vs_menu_containerControlsPanelSlideStep 0): func_80103270 */
     c = ctx();
     S.misc_after = pc_ctr_misc_count(&c);
     rebuild();
@@ -616,7 +616,7 @@ static void commit_open(void)
 static void commit_from_tab(void)
 {
     int rows;
-    D_800F4EE8.unkA0[0] = 0;
+    vs_menu_frameworkMenuMemory.unkA0[0] = 0;
     fill_rows();
     rows = pc_ui_ctr_state()->rows;
     S.empty = rows == 0;
@@ -690,7 +690,7 @@ static void search(void) /* state 10 (2894) */
             temp_s3 = 1;
         }
     }
-    D_800F4EE8.unkA0[0] = (var_s4 + 1) & 7;
+    vs_menu_frameworkMenuMemory.unkA0[0] = (var_s4 + 1) & 7;
     cm()[(var_s4 + 0x51) * 2] = temp_s3;
     cm()[(var_s4 + 0x51) * 2 + 1] = temp_s2;
     rebuild();
@@ -756,7 +756,7 @@ static void tabs(const pad* in, int in_list)
             tab = (tab + 1) & 7;
         if (tab != tab_now()) {
             CHANGE_SFX();
-            D_800F4EE8.unkA0[0] = (tab + 1) & 7;
+            vs_menu_frameworkMenuMemory.unkA0[0] = (tab + 1) & 7;
             if (in_list) {
                 if (!S.empty)
                     list_store();
@@ -1066,7 +1066,7 @@ static void step(const pad* in)
         return;
     switch (S.mode) {
     case PC_UI_CTR_TOP: {
-        int var_s1 = D_800F4EE8.unk9E;
+        int var_s1 = vs_menu_frameworkMenuMemory.unk9E;
         if (in->pressed & PADRup) {
             LEAVE_SFX();
             hand_back(-2);
@@ -1091,9 +1091,9 @@ static void step(const pad* in)
             ++var_s1;
         if (var_s1 >= 3)
             var_s1 -= 3;
-        if (var_s1 != D_800F4EE8.unk9E) {
+        if (var_s1 != vs_menu_frameworkMenuMemory.unk9E) {
             CHANGE_SFX();
-            D_800F4EE8.unk9E = var_s1;
+            vs_menu_frameworkMenuMemory.unk9E = var_s1;
             S.dirty = 1;
         }
         return;
@@ -1397,7 +1397,7 @@ static void fill(void)
     m->stamp = now();
     m->mode = S.mode;
     m->dir = S.mode == PC_UI_CTR_TOP && !S.list.id ? -1 : S.dir;
-    m->top = D_800F4EE8.unk9E;
+    m->top = vs_menu_frameworkMenuMemory.unk9E;
     if (!m->top_label[0][0]) { /* the top menu's texts (func_801089BC's) */
         for (i = 0; i < 2; ++i) {
             menud(m->top_label[i], sizeof m->top_label[i], i * 2 + 12);
@@ -1525,9 +1525,9 @@ static void press(unsigned padbits)
 static void focus(int what, int index)
 {
     if (what == PC_UI_CTR_F_TOP && S.mode == PC_UI_CTR_TOP && index >= 0 && index < 3) {
-        if (index != D_800F4EE8.unk9E) {
+        if (index != vs_menu_frameworkMenuMemory.unk9E) {
             CHANGE_SFX();
-            D_800F4EE8.unk9E = index;
+            vs_menu_frameworkMenuMemory.unk9E = index;
         }
     } else if (what == PC_UI_CTR_F_ROW && S.list.active && index >= 0 && index < S.list.count) {
         int abs0 = S.list.sel + S.list.page;

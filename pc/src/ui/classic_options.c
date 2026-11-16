@@ -707,7 +707,7 @@ static void hoist(void)
 /* A list's cursor memory byte (setMenuRows indexes past cursorMemories[] by its list id, as here). */
 static char* cursor_memory(int i)
 {
-    char* volatile base = (char*)&D_800F4EE8 + (D_800F4EE8.cursorMemories - (char*)&D_800F4EE8);
+    char* volatile base = (char*)&vs_menu_frameworkMenuMemory + (vs_menu_frameworkMenuMemory.cursorMemories - (char*)&vs_menu_frameworkMenuMemory);
     return base + i;
 }
 

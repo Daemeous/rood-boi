@@ -1,7 +1,7 @@
 #pragma once
 #include "58578.h"
 
-/* The battle menu's block (D_800EB9B8, one heap block): the target shapes and the cursor, the grid of the map
+/* The battle menu's block (vs_battle_targetSphere, one heap block): the target shapes and the cursor, the grid of the map
  * screen, the rows of the item and target lists. Every file that reaches into it shares this one definition. */
 
 typedef struct {
@@ -60,7 +60,7 @@ typedef struct {
     short unk32;
     int unk34;
     func_800C4794_t unk38;
-    func_800C5798_t* unk40; /* the rows (func_800C1664's argument, func_800C5798) */
+    func_800C5798_t* unk40; /* the rows (vs_battle_setSphereTargets's argument, vs_battle_initTargetSelectionRow) */
     func_800C5798_t* unk44; /* the triggers (func_800C05EC's argument) */
     menuCircleVertex points[297]; /* the target shapes' points (8 bytes each); the PS1's 0x48..0x990 */
     D_800EB9B8_unk990 unk990[24];

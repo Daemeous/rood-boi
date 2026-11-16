@@ -117,7 +117,7 @@ typedef struct {
     int newest;             /* _getNewestSaveFile(): 0..4 */
     int location;           /* D_800F4E6B: this room's save point */
     const unsigned char* location_name;
-    int card_memory;        /* D_800F4EE8.unk85[3] + 1 where MENU7 starts its card rows */
+    int card_memory;        /* vs_menu_frameworkMenuMemory.unk85[3] + 1 where MENU7 starts its card rows */
     int gated;              /* drawing calls MENU7 made and the gate skipped this call */
 } pc_ui_data_game;
 

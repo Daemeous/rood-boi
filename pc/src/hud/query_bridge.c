@@ -4,9 +4,9 @@
  *             HUD bridge's field check)
  *   Ashley    her HUD record (vs_battle_characterState->unk3C, as MENU4's
  *             _renderBasicStats and the Ashley tab read it) and her actor
- *             (D_800F4538[0]: position, facing, weaponDrawn); statuses as the
+ *             (vs_actors_actorRecords[0]: position, facing, weaponDrawn); statuses as the
  *             Status screen lists them (ashley_bridge.c)
- *   room      the live room (D_800F1AB0, else the saved one, as dev_state.c)
+ *   room      the live room (vs_field_pendingDestinationDoor, else the saved one, as dev_state.c)
  *   flags     first person (_firstPersonViewEnabled), the field menu
  *             (weapon_slots.c), an event script (scene_submit.inc)
  * Pointers are followed only into guest RAM: during room changes and the
@@ -19,7 +19,7 @@
 #define PC_GAME_QUERY_DEFINES /* (its functions are strong here: game_query.h) */
 #include "game_query.h"
 
-extern _mpdRoomDoorSection_t D_800F1AB0; /* the live room (dev_state.c) */
+extern _mpdRoomDoorSection_t vs_field_pendingDestinationDoor; /* the live room (dev_state.c) */
 extern int _firstPersonViewEnabled;
 int pc_battle_field_menu_open(void);                       /* weapon_slots.c */
 int pc_battle_event_running(void) __attribute__((weak));   /* scene_submit.inc */
@@ -43,7 +43,7 @@ void pc_game_query_fill(pc_game_query* out)
     out->field = vs_battle_roomData.unk0 == 1 && vs_battle_characterState != NULL;
     if (!out->field)
         return;
-    location = D_800F1AB0.zndId ? &D_800F1AB0 : &D_80061068;
+    location = vs_field_pendingDestinationDoor.zndId ? &vs_field_pendingDestinationDoor : &vs_state_savedEntryDoor;
     out->zone = location->zndId;
     out->room = location->mpdId;
     out->first_person = _firstPersonViewEnabled != 0;
@@ -51,7 +51,7 @@ void pc_game_query_fill(pc_game_query* out)
     out->event = pc_battle_event_running && pc_battle_event_running();
     if (guest(vs_battle_characterState, sizeof *vs_battle_characterState))
         a = vs_battle_characterState->unk3C;
-    actor = D_800F4538[0];
+    actor = vs_actors_actorRecords[0];
     if (!a || !guest(a, sizeof *a) || !guest(actor, sizeof *actor))
         return;
     out->ashley = 1;

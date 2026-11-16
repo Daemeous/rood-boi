@@ -7,7 +7,7 @@ const c = @import("c_30DB0");
 /// The C calls memcpy and memset without a prototype: an int size goes as its 32 bits, zero-extended.
 const Memcpy = *const fn (?*anyopaque, ?*const anyopaque, usize) callconv(.c) ?*anyopaque;
 const Memset = *const fn (?*anyopaque, c_int, usize) callconv(.c) ?*anyopaque;
-/// func_8009D468 as the C calls it (2842C.h's `void func_8009D468();`): one argument.
+/// vs_actors_resetActorMotionState as the C calls it (2842C.h's `void vs_actors_resetActorMotionState();`): one argument.
 const Reset = *const fn (c_int) callconv(.c) void;
 /// LoadImage's u_long* as the C passes it: a byte pointer, any alignment.
 const LoadImage = *const fn ([*c]c.RECT, ?*const anyopaque) callconv(.c) c_int;
@@ -30,13 +30,13 @@ inline fn flagWord(actor: *v.D_800F4538_t) c_uint {
     return psx.fieldAt(c_uint, &actor._bits_unk5AC_0, 0).*;
 }
 
-/// A texture slot's VRAM origin from D_800E8F30 (x, y in 4-byte entries) and D_800E8F90 (the y step).
+/// A texture slot's VRAM origin from vs_actors_textureSlotOrigins (x, y in 4-byte entries) and vs_actors_textureSlotRowOffsets (the y step).
 fn slotRect(slot: u8, rect: *v.RECT) void {
-    const table = v.g.D_800E8F30();
+    const table = v.g.vs_actors_textureSlotOrigins();
     const x: c_int = @as(c_int, psx.byteAt(i16, table, @as(isize, slot) * 4).*) << 6;
     rect.x = psx.conv(i16, x);
     const y: c_int = (@as(c_int, psx.byteAt(i16, table, @as(isize, slot) * 4 + 2).*) << 8) +
-        (@as(c_int, v.g.D_800E8F90()[slot]) << 6);
+        (@as(c_int, v.g.vs_actors_textureSlotRowOffsets()[slot]) << 6);
     rect.y = psx.conv(i16, y);
     rect.w = psx.conv(i16, @divTrunc(v.g.D_800F22C0().*, 2));
     rect.h = psx.conv(i16, v.g.D_800F22C4().*);
@@ -50,10 +50,10 @@ fn slotRect(slot: u8, rect: *v.RECT) void {
 pub fn parseShp(object: *v.vs_battle_objectData) callconv(.c) c_int {
     const memcpy = @extern(Memcpy, .{ .name = "memcpy" });
     const memset = @extern(Memset, .{ .name = "memset" });
-    const reset: Reset = @ptrCast(&c.func_8009D468);
+    const reset: Reset = @ptrCast(&c.vs_actors_resetActorMotionState);
     const loadImage: LoadImage = @ptrCast(&c.LoadImage);
-    const actors = v.g.D_800F4538();
-    const textures = v.g.D_800F46A8();
+    const actors = v.g.vs_actors_actorRecords();
+    const textures = v.g.vs_render_legacyActorTextureSlots();
     const pass = v.g.D_800E8F29();
     const clutCount = v.g.D_800F22B8();
     var rect: v.RECT = undefined;
@@ -103,11 +103,11 @@ pub fn parseShp(object: *v.vs_battle_objectData) callconv(.c) c_int {
                 psx.fieldAt(u16, &a.unk640, 2).* = 10000;
                 reset(a.unk0.unkF);
                 psx.setBits(&a.unk0, "skip", 0);
-                c.func_800A30A0(a.unk0.unkF, @ptrCast(&object.unkC), 0, 1);
+                c.vs_actors_placeActorInRoom(a.unk0.unkF, @ptrCast(&object.unkC), 0, 1);
                 pass.* = 0;
                 return 0;
             }
-            if (object.dataAddr < 17 or c.func_8009AC24(@ptrCast(object)) != 0) {
+            if (object.dataAddr < 17 or c.vs_content_findSharedActorModel(@ptrCast(object)) != 0) {
                 stage = .copy_shared;
             } else {
                 a.unk6E6 = psx.conv(u16, object.modelId);
@@ -247,7 +247,7 @@ pub fn parseShp(object: *v.vs_battle_objectData) callconv(.c) c_int {
                 else => {},
             }
             if (target == .fallback) {
-                if (c.func_8007DFF0(31, 1, 4) == 0) {
+                if (c.vs_render_reserveTexturePages(31, 1, 4) == 0) {
                     actor.unk5BB = 0;
                     psx.setBits(&actor.unk0, "unk8_4", 0);
                     textures[0].refCount +%= 1;
@@ -287,7 +287,7 @@ pub fn parseShp(object: *v.vs_battle_objectData) callconv(.c) c_int {
         const count: c_int = @as(c_int, actor.unk0.nOther) + actor.unk0.nTriangles + actor.unk0.nQuads;
         const header = psx.get(actor.unk0.unk68).?;
         var prim: usize = @intFromPtr(header) +% header.polyOffset;
-        const texV: c_int = @as(c_int, v.g.D_800E8F90()[actor.unk5BB]) << 6;
+        const texV: c_int = @as(c_int, v.g.vs_actors_textureSlotRowOffsets()[actor.unk5BB]) << 6;
         if (psx.getBits(&actor.unk0, "unk8_3") == 0) {
             var k: c_int = 0;
             while (k < count) : (k += 1) {
@@ -408,10 +408,10 @@ pub fn parseShp(object: *v.vs_battle_objectData) callconv(.c) c_int {
     }
     psx.put(&actor.unk5DC[0], null);
     psx.put(&actor.unk5DC[1], null);
-    const effects = v.g.D_800F4528();
+    const effects = v.g.vs_actors_sharedSequenceData();
     i = 0;
     while (i < 3) : (i += 1) {
-        if (effects[@intCast(i)] != null) c.func_8009CAEC(@ptrCast(actor), i);
+        if (effects[@intCast(i)] != null) c.vs_content_bindSharedActorSequence(@ptrCast(actor), i);
     }
     c.func_8009D7E8(object.index, 0);
     reset(actor.unk0.unkF);
@@ -419,7 +419,7 @@ pub fn parseShp(object: *v.vs_battle_objectData) callconv(.c) c_int {
     psx.setBits(&actor.unk0, "unk9_5", 0);
 
     if (object.actorId == 0xFF) {
-        c.func_800A30A0(object.index, @ptrCast(&object.unkC), 0, object.material);
+        c.vs_actors_placeActorInRoom(object.index, @ptrCast(&object.unkC), 0, object.material);
         actor.unk0.unk12 = 0xFF;
     } else if (object.unk11 == 0xFC) {
         actor.unk0.unk12 = object.actorId;
@@ -431,7 +431,7 @@ pub fn parseShp(object: *v.vs_battle_objectData) callconv(.c) c_int {
         psx.at(actors, actor.unk0.unk12).*.?.unk6F4.unk3 = 8;
     } else {
         actor.unk0.unk12 = 0xFF;
-        c.func_8009FF08(object.index, object.actorId, object.unk11, 0);
+        c.vs_actors_attachActorToParentBone(object.index, object.actorId, object.unk11, 0);
     }
     pass.* = 0;
     return 0;

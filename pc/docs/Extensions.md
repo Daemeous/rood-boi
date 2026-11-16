@@ -216,14 +216,14 @@ decides how it looks. The kinds:
 | `travel` | the Travel prompt on a Circle of Magic (the modern look) | `glyph` (the button: `travel`), `corner` (0..8: which of its corners goes on `x, y`, top left .. bottom right), `unit` (game pixels per layout unit of the menus, 720 high) |
 | `notice` | a line of the port's own news: the save state slots' ("Saved to slot 3", `pc/src/savestate_notice.cpp`; never the classic flavour) | `slot` (the save state slot, 0 none), `corner` (which of its corners goes on `x, y`: 1, its top middle), `unit` (game pixels per layout unit of the menus, 720 high) |
 | `name_window` | the action's name in text box 7 (vs_battle_displaySceneMessage: a band across the bottom); an event, never claimed: the game draws it | `index` (the action, `vs_main_actions`), `message` (the scene message: 11 a technique's name, 12 a spell mastered, ...) |
-| `gauges` | the classic look's only (claimed with `{flavour = "classic"}`; the modern look hides the status display): the status display's HP / MP / RISK gauges, their digits and labels, or RISK ZERO (5BF94.c func_800CA2DC's `_renderStatBar` calls); up whenever the field is (no show) | `hp`, `max_hp`, `mp`, `max_mp`, `risk` (Ashley's HUD record), `slide` (D_800EB9B0: the display sliding up, 0x80000 a step of 8 pixels in its high half) |
-| `actor_word` | the classic look's only (the modern look: the game's own): a word over an actor in the label loop (2842C.c): MISS (func_8009506C) or a combat label, the ailments' and buffs' words (func_80095258, with a lowered stat's arrow); the game decides which and when (no show) | `word` (`miss`, `label`), `label` (the combat label: D_800690B4's index), `lowered` (a lowered stat's word: no slide, the arrow), `age`, `call_x`, `call_y` (where the loop placed it) |
+| `gauges` | the classic look's only (claimed with `{flavour = "classic"}`; the modern look hides the status display): the status display's HP / MP / RISK gauges, their digits and labels, or RISK ZERO (5BF94.c vs_battle_drawBattleHud's `_renderStatBar` calls); up whenever the field is (no show) | `hp`, `max_hp`, `mp`, `max_mp`, `risk` (Ashley's HUD record), `slide` (vs_battle_hudSlideOffset: the display sliding up, 0x80000 a step of 8 pixels in its high half) |
+| `actor_word` | the classic look's only (the modern look: the game's own): a word over an actor in the label loop (2842C.c): MISS (func_8009506C) or a combat label, the ailments' and buffs' words (func_80095258, with a lowered stat's arrow); the game decides which and when (no show) | `word` (`miss`, `label`), `label` (the combat label: vs_battle_statusLabelLayouts's index), `lowered` (a lowered stat's word: no slide, the arrow), `age`, `call_x`, `call_y` (where the loop placed it) |
 | `timer` | the classic look's only: the time attack's timer (5BF94.c `_renderTimer`, while `vs_battle_lowerScreenUiState` is 1: the game decides; no show) | `text` (the game's string, mm:ss:hh: 59:59:99 at most), `minutes`, `seconds`, `hundredths` (as it shows them), `call_x`, `call_y` (128, 200) |
 | `emote` | the classic look's only: an emote over an actor (2842C.c func_80095C18: the balloon with one to three dots, the shout's '!', the heart, the surprise strokes, '?' alone; an off-screen actor's arrow, func_8009651C); the game decides which, where and when (no show; a far actor's sprite stays the game's) | `draw` (`balloon`, `arrow`), `emote` (the kind, 1..7), `side` (0..5: the balloon and the way it faces), `z` (its depth: the slot `unk4 + z` words, the kind's own layer), `direction` (the arrow: 1 left, 2 right, 4 up, 8 down and pairs), `actor`, `call_x`, `call_y` (the actor's place on the screen; the arrow's clamped) |
-| `text_frame` | the classic look's only: a text box's frame, the talk bubbles' and the information box's shapes (5BF94.c func_800CD3E4, in func_800CB83C), the box's entries of the text boxes' own ordering table; the game opens, sizes and closes it (no show) | `box` (0..7), `box_x`, `box_y`, `box_w`, `box_h` (its place and size this frame, the zoom included), `shape` (the frames' table), `flip`, `tail` (the speaker's part) |
+| `text_frame` | the classic look's only: a text box's frame, the talk bubbles' and the information box's shapes (5BF94.c vs_menu_drawTextBoxFrame, in func_800CB83C), the box's entries of the text boxes' own ordering table; the game opens, sizes and closes it (no show) | `box` (0..7), `box_x`, `box_y`, `box_w`, `box_h` (its place and size this frame, the zoom included), `shape` (the frames' table), `flip`, `tail` (the speaker's part) |
 | `text_band` | the classic look's only: a text box's band across the screen, the name window's (5BF94.c func_800CD158: the picture behind darkened row by row, black past it, the action's icon once settled); the game opens and closes it (`rood.dev.show("name_window")` shows one) | `box`, `top` (grown from the top), `edge` (the rows grown), `lines`, `settled`, `icon` (the box's icon field) |
 | `box_text` | the classic look's only: a text box's text as the game's printer sets it this frame (5BF94.c `_printVariableWidthFont`: its glyphs, recorded as it sets them; the typewriter, pages, the continuation arrow, sounds and button reads stay the game's) | `box`, `glyphs` (6 integers a glyph, in the order set: code, font table, colour style, x, y, brightness; one table, reused), `value` (the glyphs' count) |
-| `image` | the classic look's only: a portrait or still (5BF94.c func_800CCA90: New Game's opening cards; its tiled drawer, D_800EC25C[0]: the other drawers, the credits' wipes and such, stay the game's until a scene the gate plays shows them); the game decides (no show) | `image` (0..2), `drawer`, `clut` (its CLUT word) |
+| `image` | the classic look's only: a portrait or still (5BF94.c vs_render_drawGimLayer: New Game's opening cards; its tiled drawer, vs_render_gimLayerDrawRoutines[0]: the other drawers, the credits' wipes and such, stay the game's until a scene the gate plays shows them); the game decides (no show) | `image` (0..2), `drawer`, `clut` (its CLUT word) |
 | `target_row` | the classic look's only: a row of the targeting list (58578.c func_800C1DC4: a part's name by the raw printer on its plate, a gradient with a black shadow), in the slot the game linked it into (`vs_scratch.unk8 + 8`, the selected `+ 4`); the targeting decides which rows, their slide and the plate's fade (no show) | `text` (the name as the game's string: `#` right-aligns), `call_x`, `call_y` (the row's place, the list's offset in y), `selected`, `fade` (the plate's step 0..8, before the game steps it), `bank` (its colours: 0, 1) |
 | `target_line` | the classic look's only: the selected row's leader lines (58578.c func_800C1DC4's func_800C16FC, on the left half func_800C1A40: from the part's point to the row, swept in by their age; from age 18 a second behind), in `vs_scratch.unk8`; the targeting decides (no show) | `call_x`, `call_y` (the line's start: the part's point projected), `row_x`, `row_y` (the row's place), `age` (the sweep: the row's unk3) |
 | `target_marker` | the classic look's only: the area target's marker (58578.c func_800C28AC: three sprites of the field UI page, one pulsing; with the pitch free, the brackets' two quads), slot -4; the targeting decides (no show) | `call_x`, `call_y` (the point projected), `lock` (the call's arg1: the pitch locked, no brackets, the other sprites), `step` (the pulse's brightness step, 0..15) |
@@ -274,12 +274,12 @@ drawing is the claims'.
 | `d.font_text(s, x, y, style[, step]) -> x`, `d.font_width(s, x) -> x` | classic only: `s` (the menu charset, `vs_encode`; or a table of the charset's codes as a record gives them, 0..0xE6, at most 64) in the text boxes' font by the game's printer (`vs_battle_printVariableWidthFontChar` after `vs_battle_setFontStyle(style)`: the header of the class / affinity / type table), from `x` along `y`; `step` (1..64) moves the pen that far a glyph whatever its width (the rename grid's table and words); returns the pen after it. `d.font_width`: that pen, nothing drawn |
 | `d.menu_row([{x, y, w}])` | classic only (menu_row's): the row the element recorded drawn by the game's own emit (58EC.c, through `pc_mainmenu_render_row`) on a copy of its record; `x, y` (its place) and `w` (its window's width, 0..255) replace the record's when given |
 | `d.quad(x, y, w, h, {page_x, page_y, bits, u, v, w, h, clut_x, clut_y, bgr?, raw?, abr?, corners?, uvs?}[, alpha])` | classic only: a textured four-point polygon (POLY_FT4) as the label loop builds its numbers and buffs (2842C.c func_80094B0C, func_8009695C: setPolyFT4, setXY4, setUV4, setTPage, setClut, AddPrim): `x, y` its top-left, `w x h` on the screen; the descriptor's `u, v, w, h` its texels (their own size: a quad may squash them); `bgr` the colour word (`0xBBGGRR`, `0x80` full; default `0x808080`), `raw = true` the texture unmodulated (setShadeTex 1), `abr` the page's blending (0..3), `alpha` below 1 semi-transparent. `corners = {x0, y0, .. x3, y3}` (from `x, y`, in the packet's vertex order) with `uvs = {u0, v0, .. u3, v3}`: each corner and its texel given (a mirrored balloon, a turned arrow); `w, h` and the texel rectangle are then unused |
-| `d.frame(x, y, w, h, {box, shape, flip?, tail?})` | classic only: a text box's frame by the game's own routine (func_800CD3E4) on a copy of box `box` (0..7: it links into that box's entries of the text boxes' ordering table): its place, size, shape, flip and tail as given, the rest the box's. The vector talk bubbles (`ui_bubbles vector`, an option) redraw it as they redraw the game's |
+| `d.frame(x, y, w, h, {box, shape, flip?, tail?})` | classic only: a text box's frame by the game's own routine (vs_menu_drawTextBoxFrame) on a copy of box `box` (0..7: it links into that box's entries of the text boxes' ordering table): its place, size, shape, flip and tail as given, the rest the box's. The vector talk bubbles (`ui_bubbles vector`, an option) redraw it as they redraw the game's |
 | `d.band(box, {top, edge, lines, settled?, icon?})` | classic only: a text box's band across the screen by the game's own routine (func_800CD158, the name window's) on a copy of box `box`: from the top or the bottom, `edge` rows grown, its lines, its icon when settled |
 | `d.char(code, x, y, font, style, brightness)` | classic only (box_text's): one glyph of the text boxes' font by the game's printer (vs_battle_printVariableWidthFontChar) in the element's box, its font table, colour style and brightness set for it; ui_text sets it as the game's (the dialogue and menu styles, `ui_text_layout`, `ui_text_bubble_align`: the settings stay the source) |
 | `d.plate(x, y, w, h, left, right, shadow_x, shadow_y, shadow_w, shadow_h)` | classic only (target_row's): a target row's plate as func_800C1DC4 builds it, one packet: a black tile (the shadow), then a dithered gradient across `x, y, w x h` from the colour word `left` to `right` (`0xBBGGRR`, `0x80` full) |
 | `d.leader(x0, y0, x1, y1, count, left)` | classic only (target_line's): a leader line by the game's own routine (func_800C16FC; `left` true: func_800C1A40) as func_800C1DC4 calls it: from `x0, y0` to `x1, y1`, `count` its sweep; in the kind's slot |
-| `d.image(image, drawer, clut)` | classic only (image's): a portrait or still by the game's own drawer (D_800EC25C[drawer], as func_800CCA90 calls it), in the kind's slot; the drawer's own widescreen placement (a full-screen still fills 16:9) applies as to the game's |
+| `d.image(image, drawer, clut)` | classic only (image's): a portrait or still by the game's own drawer (vs_render_gimLayerDrawRoutines[drawer], as vs_render_drawGimLayer calls it), in the kind's slot; the drawer's own widescreen placement (a full-screen still fills 16:9) applies as to the game's |
 | `d.window(x, y, w, h[, brightness])` | classic only: the game's text box window (its stone body, frame and shadow); brightness 1 a selected box, 0.5 the others |
 | `d.cursor(x, y[, step])` | classic only: the menus' pointing hand, its brightness animation at `step` (0..15; default: the game's) |
 | `d.bar(x, y, value, max[, pool])` | classic only: the status display's bar (`hp`, `mp`, `risk`) filled value / max |
@@ -535,7 +535,7 @@ end, { classic = true })
 Panels are new drawing, not claims: no kind is suppressed, nothing is compared
 by the parity gate, `rood.classic`'s claims are unaffected. See
 `pc/plugins/rood.craftbook`. The game side is one hook under `ROOD_PC` in
-`BATTLE.PRG/146C.c` func_8007629C (before `DrawOTag`), `hud_bridge.c`
+`BATTLE.PRG/146C.c` vs_render_presentFieldFrame (before `DrawOTag`), `hud_bridge.c`
 `pc_hud_panels_classic`; the test is player_state_smoke's craftbook checks (the
 window's body is the game's textured quad with the window's CLUT, the text the
 menu font's glyph sprites, the prompt the button sprite, nothing of it in the
@@ -551,7 +551,7 @@ game's own drawing, made of the game's own pieces (`d.text_raw` is the
 game's raw printer), and what it may change is a table:
 
 - `look.status`, `look.chain`: the game's strings, colour words and slides
-  (func_800958A4, func_80095A4C) as data, and `place = {anchor, dx, dy}`
+  (vs_battle_drawAbilityTimingResult, vs_battle_drawChainCount) as data, and `place = {anchor, dx, dy}`
   (16:9: the left edge, as the game's hook anchors them);
 - `look.gauges`: the HP / MP / RISK gauges' places, labels (the field UI
   page's HP, MP, RISK), steps (as the game writes them: packed
@@ -587,13 +587,13 @@ game's raw printer), and what it may change is a table:
   `sign`, `value` and the read-only `rise` (the record's unk12: 10 for each buff shown after it);
 - `look.damage`: a number over an actor (func_80094B0C): the large digits' cells, the colour
   words by pool (`hp`, `mp`: a loss, a gain), the bounce by frame (the game's table; each digit to
-  the left half the one before), and a stat's change (func_80094E18): its icon (the combat labels'
+  the left half the one before), and a stat's change (vs_battle_drawValueLabelCaption): its icon (the combat labels'
   texels by stat), its sign, the drift by half the age. Fields `value`, `sign`, `pool`, `stat`,
   `age`; the place is where the label loop put it (`call_x`, `call_y`, its spread applied). Its
   digits are the digits style's, so `look.typography.digits` sets them as it sets the gauges';
 - `look.actor_word`: MISS (its four capitals' texels, the squash by step, half blended) and the
-  combat labels (`labels`: each its colour and pieces, the game's D_800690B4; `pieces`, D_80068FAC's
-  texels; `colours`, D_80069134), their slide in and out, fade, held brightness, and a lowered
+  combat labels (`labels`: each its colour and pieces, the game's vs_battle_statusLabelLayouts; `pieces`, vs_battle_labelCaptionRects's
+  texels; `colours`, vs_battle_statusLabelColors), their slide in and out, fade, held brightness, and a lowered
   stat's arrow (its cell stepping from age 15); layer -20, centred like the numbers;
 - `look.emote`: the emote balloons: the balloon's corners and texels by side (D_80068F04,
   D_80068F64), the marks' offsets by side (D_80068F94, packed as the game adds them), the dots,
@@ -746,7 +746,7 @@ also in verify.sh's CPU lane) plays every element of each kind with
 9, 10, 99, first held, then its whole life (slide in, held, slide out:
 every age compared, the slides required); the gauges through HP / MP of
 one to four digits, empty and full, RISK ZERO and RISK's bar, the display
-sliding out and back (Ashley's record and `D_800EB9AF` written); the figure in both
+sliding out and back (Ashley's record and `vs_battle_hudHidden` written); the figure in both
 stances at all five limb conditions and their threshold boundaries, mixed conditions,
 and hidden/restored by the menu slide and lower-screen UI gate. Status icons cover all
 32 IDs on/off and clipped (including zero-width cells), counts 1/2/3/8/9/16/32,
@@ -772,7 +772,7 @@ checkpoint: actors on screen): every kind on every actor with both side bits (al
 sides), then one emoting actor moved through a grid of places beyond the view (its position
 written each frame) for the off-screen arrow, all eight directions; state parity there for three
 kinds. The proof masks what a classic draw's later allocation moves: the primitive buffers, the
-ordering tables (the text boxes' private one, D_800F4CD0, too) and the packet pointer and its
+ordering tables (the text boxes' private one, vs_menu_textBoxOrderingTables, too) and the packet pointer and its
 copies (D_800F1CC0, D_800F1BB8). The talk bubble's frame plays there too: the duke's
 bubble zooming in, every shape of the frames' table at each flip and tail (written into the
 open box), the next two lines' bubbles closing and opening; with `ui_bubbles vector` on, the
@@ -782,7 +782,7 @@ compared too: it links into `vs_scratch.unk8`); state parity holds it. The bubbl
 opening: the duke's line, its box as other kinds (font table, colour style) and selections
 (brightness), the next line typed out glyph by glyph; state parity there; the name window's
 text, in the save room, is compared with its band. The target rows, in the save room with targeting up (no
-enemy about: the gate writes the rows as func_800C5798 does): every part's name on a row's whole life
+enemy about: the gate writes the rows as vs_battle_initTargetSelectionRow does): every part's name on a row's whole life
 from either side (its slide, the plate's fade 8..0, its slide out), four rows at once on each side and
 bank with one selected, a deselected row's fade; the selected row's leader lines from points about
 Ashley in every direction to a row on either side, at their sweep's ages (every age 0..33 once);

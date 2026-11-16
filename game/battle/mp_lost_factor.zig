@@ -16,7 +16,7 @@ pub fn mpLostFactor(action: ?*v.vs_action_t, target: ?*v._hitEntity_t, _: ?*v._h
     const currentMP: c_int = actor.currentMP;
 
     const scaled: c_int = @divTrunc((maxMP -% currentMP) *% factor, 10);
-    const level: c_uint = v.g.D_800F19CC().*.?.unk0 -% 1;
+    const level: c_uint = v.g.vs_battle_actionState().*.?.unk0 -% 1;
     const sum: c_uint = psx.conv(c_uint, scaled) +% level;
     return psx.conv(i16, sum);
 }

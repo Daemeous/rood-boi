@@ -18,7 +18,7 @@ typedef struct {
     int from[PC_ROOM_ENTRIES]; /* the location each door is in */
     int floor_w, floor_h; /* its floor grid in cells (collision map), 0: unknown */
     /* its Circle of Magic (MPD section 9, _mpdRoomSection9 of type 16): the
-     * save point id it reports (func_8008A4FC: point + 1), 0 none; its cell
+     * save point id it reports (vs_field_currentSavePointId: point + 1), 0 none; its cell
      * x, z and level */
     int circle_id;
     int circle_cell[3];

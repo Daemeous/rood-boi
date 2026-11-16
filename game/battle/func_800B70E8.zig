@@ -1,14 +1,14 @@
-//! An event script opcode that starts a D_800F4B30 slot's move (pc/src/game/BATTLE/BATTLE.PRG/4A0A8.c).
+//! An event script opcode that starts a vs_event_splashTweens slot's move (pc/src/game/BATTLE/BATTLE.PRG/4A0A8.c).
 const psx = @import("common").psx;
 const v = @import("views_4A0A8");
 
 /// orig: func_800B70E8 (pc/src/game/BATTLE/BATTLE.PRG/4A0A8.c)
-/// Starts slot script[5] >> 6's move from its D_800EB9BC entry toward the script's targets; returns 1
-/// while the slot is still busy, 0 otherwise (or with no D_800EB9BC).
+/// Starts slot script[5] >> 6's move from its vs_render_gimLayers entry toward the script's targets; returns 1
+/// while the slot is still busy, 0 otherwise (or with no vs_render_gimLayers).
 pub fn func_800B70E8(script: [*c]u8, _: c_short) callconv(.c) c_int {
-    const base = v.g.D_800EB9BC().*;
+    const base = v.g.vs_render_gimLayers().*;
     const k: usize = script[5] >> 6;
-    const slot = &v.g.D_800F4B30()[k];
+    const slot = &v.g.vs_event_splashTweens()[k];
     const from_base = base orelse return 0;
     const from: *v.D_800EB9BC_t = &@as([*]v.D_800EB9BC_t, @ptrCast(from_base))[k];
     if (slot.unk3 != 0) return 1;

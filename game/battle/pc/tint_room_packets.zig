@@ -1,9 +1,9 @@
-//! Room tint (D2: 2EA3C.s func_80098D6C; the native list's tint is pc/src/room_native.c pc_room_native_tint).
+//! Room tint (D2: 2EA3C.s vs_render_tintRoomGeometryPrimitives; the native list's tint is pc/src/room_native.c pc_room_native_tint).
 const psx = @import("common").psx;
 
 const NativeTint = *const fn ([*c]const c_uint, c_int, c_int, c_int, c_int) callconv(.c) void;
 
-/// orig: func_80098D6C (pc/src/room_geometry.c)
+/// orig: vs_render_tintRoomGeometryPrimitives (pc/src/room_geometry.c)
 /// Tints the room list built from `start`: offsets are signed bytes * 4 and the fade is a GTE DPCS toward the luminance. The room's
 /// polygons are no longer packets (the opaque ones are in the native list, the translucent ones are markers), so there is no
 /// packet colour to change.

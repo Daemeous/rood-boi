@@ -2,7 +2,7 @@
 const v = @import("views_room_render");
 const psx = @import("common").psx;
 
-/// orig: func_80098160 (pc/src/room_render.c)
+/// orig: vs_render_setRoomPolygonNearClip (pc/src/room_render.c)
 /// Sets the room renderer's nearest depth bucket (a short).
 pub fn setRoomNearDepth(value: c_int) callconv(.c) void {
     v.g.near_depth().* = psx.conv(i16, value);

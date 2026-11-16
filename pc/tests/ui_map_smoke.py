@@ -139,7 +139,7 @@ class Session:
         self.cf = sym["vs_battle_mapCompletionFlags"]
         self.flags = sym["vs_main_stateFlags"]
         self.menu_state = sym["vs_battle_menuState"]
-        self.hud = sym["D_800EB9AF"]
+        self.hud = sym["vs_battle_hudHidden"]
         self.vram = sym["vram"]
         self.m5 = menu5_symbols()
 
@@ -211,10 +211,10 @@ class Session:
         return {
             "mapStatus": g.read(self.ms, 72),
             "mapPaling": g.read(self.flags + MAP_PALING, 32),
-            "cursorMemories": g.read(self.sym["D_800F4EE8"], 52),
+            "cursorMemories": g.read(self.sym["vs_menu_frameworkMenuMemory"], 52),
             "settings": g.read(self.sym["vs_main_settings"], 32),
             "menuState": g.read(self.menu_state, 4),
-            "hud": g.read(self.hud, 1) + g.read(self.sym["D_800EB9B0"], 4),
+            "hud": g.read(self.hud, 1) + g.read(self.sym["vs_battle_hudSlideOffset"], 4),
             "sceneBuffer": g.read(self.sym["vs_battle_sceneBuffer"], PTR),
             "camera": g.read(CAMERA, CAMERA_BYTES),
             "projection": g.read(self.sym["vs_main_projectionDistance"], 4),
@@ -756,7 +756,7 @@ def frame_checks(b, check, ground):
         windows = windows and 0 <= c[0] < 9 and 0 <= c[1] <= max(0, n - 9)
     check(len(seen) == n and windows, f"list: Down walks every row in a 9-row window ({sorted(seen)}, {windows})")
     g.press("cross", vsyncs=3, settle=6)
-    cm = g.read(b.sym["D_800F4EE8"], 2)
+    cm = g.read(b.sym["vs_menu_frameworkMenuMemory"], 2)
     c = b.map()["cursor"]
     check(list(cm) == c, f"list: Cross leaves the cursor memories as the window ({list(cm)} vs {c})")
     g.press("circle", vsyncs=3, settle=40)

@@ -4,7 +4,7 @@
  * screen; this file does to the game what it does, from the shell's events
  * (ui_manual.cpp), drained after every shell tick (pc_ui_menu_top):
  *   OPEN        _initMenuState: vs_battle_manualDisplayState zeroed without
- *               cursor memory; the world frozen (func_8008A4DC(0), as
+ *               cursor memory; the world frozen (vs_field_setFieldRenderingEnabled(0), as
  *               vs_menuE_exec's initMenu); the game's cursor on command 9
  *               (vs_battle_submenuStates[0], as deliver sets it); the select
  *               sound (deliver's)
@@ -12,7 +12,7 @@
  *               currentManual = their sum (494.c getSelection)
  *   SCROLL      scrollPositions[topic] (494.c showSubMenu, every frame)
  *   SOUND       vs_battle_playMenu{Leave,Select,Change}Sfx (0x7E: 6, 5, 4)
- *   CLOSE       the world back (func_8008A4DC(1), vs_menuE_exec's showMenu)
+ *   CLOSE       the world back (vs_field_setFieldRenderingEnabled(1), vs_menuE_exec's showMenu)
  *   ORIGINAL    currentManual = the topic, before deliver(10) runs MENUE
  *               (which seeds its list from it)
  * Not touched (the original's own resources, which nothing native uses): the
@@ -31,7 +31,7 @@
 #include "ui_manual.h"
 #include <libetc.h>
 
-extern int D_800F190C; /* BATTLE 146C.c: the world runs (func_8008A4DC) */
+extern int vs_field_isFieldRenderingEnabled; /* BATTLE 146C.c: the world runs (vs_field_setFieldRenderingEnabled) */
 
 void pc_ui_manual_bridge_fill(int settling);
 void pc_ui_manual_bridge_refresh(void);
@@ -56,14 +56,14 @@ static void apply(const pc_ui_manual_event* e)
             vs_main_bzero(&vs_battle_manualDisplayState, sizeof vs_battle_manualDisplayState);
         if (!owned) {
             owned = 1;
-            func_8008A4DC(0);
+            vs_field_setFieldRenderingEnabled(0);
         }
         vs_battle_submenuStates[0] = 9;
         vs_battle_playMenuSelectSfx();
         break;
     case PC_UI_MEV_LIST_STORE:
-        D_800F4EE8.cursorMemories[4] = (char)e->a;
-        D_800F4EE8.cursorMemories[5] = (char)e->b;
+        vs_menu_frameworkMenuMemory.cursorMemories[4] = (char)e->a;
+        vs_menu_frameworkMenuMemory.cursorMemories[5] = (char)e->b;
         vs_battle_manualDisplayState.currentManual = (u_short)e->c;
         break;
     case PC_UI_MEV_SCROLL:
@@ -80,7 +80,7 @@ static void apply(const pc_ui_manual_event* e)
         break;
     case PC_UI_MEV_CLOSE:
         if (owned) {
-            func_8008A4DC(1);
+            vs_field_setFieldRenderingEnabled(1);
             owned = 0;
         }
         break;
@@ -108,11 +108,11 @@ static void reconcile(void)
 {
     int on = pc_ui_manual_focus_topic() >= 0;
     if (owned && !on) {
-        func_8008A4DC(1);
+        vs_field_setFieldRenderingEnabled(1);
         owned = 0;
     } else if (!owned && on) {
         owned = 1;
-        func_8008A4DC(0);
+        vs_field_setFieldRenderingEnabled(0);
     }
 }
 
@@ -155,7 +155,7 @@ void pc_ui_manual_bridge_abandon(void)
     pc_ui_manual_leave();
     drain();
     if (owned) {
-        func_8008A4DC(1);
+        vs_field_setFieldRenderingEnabled(1);
         owned = 0;
     }
     pc_ui_manual_cache_show(-1, 0, 0);

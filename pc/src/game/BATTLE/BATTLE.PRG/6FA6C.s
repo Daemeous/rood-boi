@@ -5,16 +5,16 @@
 
 .section .text, "ax"
 
-glabel func_800D826C
+glabel vs_battle_aiIsEngagementReady
     lhu     $v0, 0x8E($a0)
     nop
     slti    $v0, $v0, 0x20
 alabel L800D8278
     jr      $ra
     xori    $v0, $v0, 0x1
-endlabel func_800D826C
+endlabel vs_battle_aiIsEngagementReady
 
-glabel func_800D8280
+glabel vs_battle_aiUpdateTemporaryAwarenessIndicator
     lbu     $v0, 0x12A($a0)
     addu    $t0, $a0, $zero
     beqz    $v0, .L800D82A4
@@ -22,13 +22,13 @@ glabel func_800D8280
     beqz    $v0, L800D8254
     sb      $v0, 0x12A($t0)
     lbu     $a0, 0x88($t0)
-    bgez    $zero, func_800D820C
+    bgez    $zero, vs_battle_aiSetActorAwarenessIndicator
     lhu     $a1, 0x138($t0)
 .L800D82A4:
     jr      $ra
-endlabel func_800D8280
+endlabel vs_battle_aiUpdateTemporaryAwarenessIndicator
 
-glabel func_800D82A8
+glabel vs_battle_aiDisengageActorById
     lui     $a1, (0x800F5878 >> 16)
     beqz    $a0, .L800D82A4
     ori     $a1, $a1, (0x800F5878 & 0xFFFF)
@@ -38,16 +38,16 @@ glabel func_800D82A8
     nop
     beqz    $a0, .L800D82A4
     nop
-endlabel func_800D82A8
+endlabel vs_battle_aiDisengageActorById
 
-glabel func_800D82CC
+glabel vs_battle_aiDisengageActor
     addiu   $sp, $sp, -0x30
     sw      $ra, 0x18($sp)
     sw      $s2, 0x1C($sp)
     sw      $s1, 0x14($sp)
     sw      $s0, 0x10($sp)
-    lui     $s2, %hi(D_800F58BC)
-    lw      $s2, %lo(D_800F58BC)($s2)
+    lui     $s2, %hi(vs_battle_aiRoomAiState)
+    lw      $s2, %lo(vs_battle_aiRoomAiState)($s2)
     addu    $s0, $a0, $zero
     lbu     $s1, 0x88($s0)
     addiu   $v0, $zero, 0x1
@@ -73,7 +73,7 @@ glabel func_800D82CC
     sh      $v0, 0x98($s0)
     addiu   $v0, $zero, 0x5A
     sh      $v0, 0x9A($s0)
-    jal     func_800DBF00
+    jal     vs_battle_aiUnlinkEngagedActor
     addu    $a0, $s0, $zero
     lbu     $v0, 0x12($s2)
     lui     $ra, %hi(L800DB894)
@@ -81,14 +81,14 @@ glabel func_800D82CC
     addu    $a0, $s1, $zero
     addi    $v0, $v0, -0x1 /* handwritten instruction */
     addiu   $a1, $zero, 0x0
-    bgez    $zero, func_800D820C
+    bgez    $zero, vs_battle_aiSetActorAwarenessIndicator
     sb      $v0, 0x12($s2)
-endlabel func_800D82CC
+endlabel vs_battle_aiDisengageActor
 
-glabel func_800D836C
+glabel vs_battle_aiTryEngageActor
     lhu     $t0, 0x8E($a0)
-    lui     $v1, %hi(D_800F58BC)
-    lw      $v1, %lo(D_800F58BC)($v1)
+    lui     $v1, %hi(vs_battle_aiRoomAiState)
+    lw      $v1, %lo(vs_battle_aiRoomAiState)($v1)
     bnez    $t0, .L800D82A4
     addiu   $v0, $zero, 0x1
     lbu     $t1, 0x12($v1)
@@ -125,4 +125,4 @@ glabel func_800D836C
     sw      $a0, 0x1C($v1)
     jr      $ra
     addiu   $v0, $zero, 0x1
-endlabel func_800D836C
+endlabel vs_battle_aiTryEngageActor

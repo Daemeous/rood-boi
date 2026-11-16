@@ -3,7 +3,7 @@ const c = @import("c_boot_sdk");
 const gte = @import("common").gte;
 
 
-/// orig: func_800E4660 (pc/src/boot_sdk.c)
+/// orig: vs_core_mathSquaredVectorLength (pc/src/boot_sdk.c)
 /// x*x + y*y + z*z through the GTE's SQR, which squares the signed 16-bit
 /// halves of the arguments (IR1-IR3), whatever their int values.
 pub fn squaredComponentSum(x: c_int, y: c_int, z: c_int) callconv(.c) c_int {

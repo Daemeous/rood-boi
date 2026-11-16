@@ -11,9 +11,9 @@ pub fn operateLock(lock: ?*v._mpdRoomSectionA) callconv(.c) void {
         lock.?.unk0.unkB = 1;
         if (lock.?.unk0.unk8.s16 == 0) {
             lock.?.unk0.unkA = 0x14;
-            c.func_8008C070(2, psx.cptr(c._mpdRoomSectionA, lock.?));
+            c.vs_field_queueGimmickAnimation(2, psx.cptr(c._mpdRoomSectionA, lock.?));
             return;
         }
-        c.func_8008D658(psx.cptr(c._mpdRoomSectionA, lock.?));
+        c.vs_field_toggleRoomSwitch(psx.cptr(c._mpdRoomSectionA, lock.?));
     }
 }

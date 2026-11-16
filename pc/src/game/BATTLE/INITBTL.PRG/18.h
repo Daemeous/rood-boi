@@ -1,3 +1,3 @@
 #pragma once
 
-void func_800FA35C(int startState);
+void vs_boot_initializeGameplayOverlay(int startState);

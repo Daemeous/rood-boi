@@ -14,7 +14,7 @@ void pc_dev_state(struct pc_dev_state* out) __attribute__((weak));
  * interactive fog (fog_sim.cpp): at most `max`, Ashley (slot 0) first;
  * returns how many. */
 struct pc_dev_actor {
-    int slot; /* the actor slot D_800F4538[slot]: 0 Ashley */
+    int slot; /* the actor slot vs_actors_actorRecords[slot]: 0 Ashley */
     float pos[3]; /* its feet, world units (y down) */
     float radius; /* its drop shadow's radius (world units): its footprint */
     int facing; /* 0..4095 */

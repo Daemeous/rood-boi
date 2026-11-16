@@ -1,6 +1,6 @@
 /* Fast travel between Circles of Magic (pc/docs/Fast_Travel.md): the game's
- * own Teleportation (MENU0 _teleportMenu, BATTLE func_800735F8 case 10,
- * func_8007C694, the door's room load), offered from the first Circle once the
+ * own Teleportation (MENU0 _teleportMenu, BATTLE vs_field_dispatchBattleActionMenuResult case 10,
+ * vs_field_teleportToLocation, the door's room load), offered from the first Circle once the
  * prologue is over (setting qol_fast_travel) instead of only once the game has
  * set vs_main_stateFlags.unkB5. The settings (cost mode, the port's
  * refusals) apply whoever unlocked it, while qol_fast_travel is on; with it
@@ -20,8 +20,8 @@ extern "C" {
 #define PC_FT_POINTS 48       /* savePointStates[48], MENU0's tables */
 #define PC_FT_USED 35         /* the entries with a location */
 #define PC_SHORTCUT_TRAVEL 9  /* vs_battle_shortcutInvoked of the Travel button (the game's run 1..8) */
-#define PC_FT_MAGIC_MASK 0xB7 /* D_800F4EA0 bits that grey Magic and every destination (MENU0) */
-#define PC_FT_NO_MP 0x20      /* ... MP 0 (func_800CABE0) */
+#define PC_FT_MAGIC_MASK 0xB7 /* vs_menu_frameworkActionRestrictions bits that grey Magic and every destination (MENU0) */
+#define PC_FT_NO_MP 0x20      /* ... MP 0 (vs_menu_frameworkActionRestrictionFlags) */
 #define PC_FT_HERE 15         /* _getTeleportCost of the Circle Ashley stands on */
 #define PC_FT_COST_MAX 4095   /* the packed cost's 12 bits (executeAbility.fields.unk0_19) */
 
@@ -61,11 +61,11 @@ typedef struct {
     int intro;    /* introState (3 and up: the prologue is over) */
     int warped;   /* the Room Browser: warped, or a warp under way */
     int no_save;  /* unkA7: the game refuses to save here now */
-    int circle;   /* func_8008A4FC(): the Circle under Ashley (point + 1), 0 none */
+    int circle;   /* vs_field_currentSavePointId(): the Circle under Ashley (point + 1), 0 none */
     int here;     /* this room's point in MENU0's table (_getTeleportCost's), PC_FT_POINTS none */
     int event;    /* an event script, a script room change, a screen transition or game over */
     int busy;     /* Ashley acts (unk954) or falls (status 0x4000), or L2 / R2 held */
-    unsigned mask; /* func_800CABE0(0) now */
+    unsigned mask; /* vs_menu_frameworkActionRestrictionFlags(0) now */
     int mp;
     unsigned char states[PC_FT_POINTS]; /* savePointStates: 0 not found, 1 found, 2 the spirit paling */
 } pc_ft_state;
@@ -87,7 +87,7 @@ const char* pc_ft_refused(const pc_ft_settings* c, const pc_ft_state* s, int poi
 /* NULL when the Travel button opens the destinations now, or why not. */
 const char* pc_ft_shortcut(const pc_ft_settings* c, const pc_ft_state* s);
 int pc_ft_counts_as_magic(const pc_ft_state* s); /* case 10 sets magicUsed */
-int pc_ft_packed(int point, int cost);           /* MENU0's hand-off (D_800F4E98.executeAbility) */
+int pc_ft_packed(int point, int cost);           /* MENU0's hand-off (vs_menu_frameworkActionSelection.executeAbility) */
 
 /* The RPC report (fast_travel.c fills it, pc_ft_json writes it). */
 typedef struct {
@@ -127,10 +127,10 @@ void pc_ft_log_arrival(const pc_ft_trip* t);
 int pc_fast_travel_unlock(void);             /* MENU0, for vs_main_stateFlags.unkB5 */
 int pc_fast_travel_cost(int raw);            /* MENU0: what destination of raw cost `raw` costs */
 unsigned pc_fast_travel_mask(unsigned bits); /* MENU0 / BATTLE: the menu mask bits that grey Magic */
-unsigned pc_fast_travel_menu_bits(void);     /* BATTLE func_800C930C: commands shown, never stored */
+unsigned pc_fast_travel_menu_bits(void);     /* BATTLE vs_menu_frameworkUpdateMainMenuSelection: commands shown, never stored */
 int pc_fast_travel_blocked(void);            /* MENU0: the Teleportation row greyed by the port's rules */
 const char* pc_fast_travel_why(void);        /* ... why (the modern Magick page) */
-int pc_fast_travel_begin(int packed);        /* BATTLE func_800735F8 case 10: 1 = set magicUsed */
+int pc_fast_travel_begin(int packed);        /* BATTLE vs_field_dispatchBattleActionMenuResult case 10: 1 = set magicUsed */
 int pc_fast_travel_poll(void);               /* room_warp.c's field poll: 1 = the Travel button opened the list */
 void pc_fast_travel_room_loaded(void);       /* room_warp.c: a room's sections are loaded */
 void pc_fast_travel_reset(void); /* boot_sdk.c: the game's state is replaced (no room read until one loads) */

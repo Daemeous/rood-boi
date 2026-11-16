@@ -2,8 +2,8 @@
 const v = @import("views_actor_cleanup");
 const psx = @import("common").psx;
 
-/// orig: func_800E75EC (pc/src/actor_cleanup.c)
-/// Word 0x14 of the D_800F58BC record, or 0 when no record is loaded.
+/// orig: vs_battle_aiRoomNavigationCeilingHeight (pc/src/actor_cleanup.c)
+/// Word 0x14 of the vs_battle_aiRoomAiState record, or 0 when no record is loaded.
 pub fn roomHeightLimit() callconv(.c) c_int {
-    return if (v.g.D_800F58BC().*) |room| room.unk14 else 0;
+    return if (v.g.vs_battle_aiRoomAiState().*) |room| room.unk14 else 0;
 }

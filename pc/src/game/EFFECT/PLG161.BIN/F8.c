@@ -4,7 +4,7 @@
 #include "pc/src/game/EFFECT/rotatingSurfaces.h"
 
 #define VS_RING_FUNCTION func_800FA7B0
-#define VS_RING_COLORS D_800FEC68
+#define VS_RING_COLORS vs_effects_plg161RingColorFactors
 #define VS_RING_TRANSPOSED
 #include "pc/src/game/EFFECT/rings.h"
 
@@ -15,12 +15,12 @@
 #define VS_TRAIL_UPDATE_FUNCTION func_800FC3D8
 #define VS_TRAIL_RENDER_FUNCTION func_800FC564
 #define VS_TRAIL_DISPATCH_FUNCTION func_800FCFB4
-#define VS_TRAIL_CORNER_STATE D_800FEC88
+#define VS_TRAIL_CORNER_STATE vs_effects_plg161TrailEmissionCounter
 #include "pc/src/game/EFFECT/trails9.h"
 
 #define VS_GRID_FUNCTION func_800FD4F4
 #include "pc/src/game/EFFECT/grids.h"
 
 #define VS_RING_FUNCTION func_800FE044
-#define VS_RING_COLORS D_800FEC8C
+#define VS_RING_COLORS vs_effects_plg161RingColorFactors2
 #include "pc/src/game/EFFECT/rings.h"

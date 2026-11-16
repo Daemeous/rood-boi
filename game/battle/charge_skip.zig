@@ -4,9 +4,9 @@ const psx = @import("common").psx;
 const v = @import("views_146C");
 const c = @import("c_146C");
 
-/// D_800F19CC, read at each use as the C does.
+/// vs_battle_actionState, read at each use as the C does.
 fn block() *v.D_800F19CC_t {
-    return v.g.D_800F19CC().*.?;
+    return v.g.vs_battle_actionState().*.?;
 }
 
 /// x86's float to int: out of range or NaN gives INT_MIN (the C's `(int)` of the setting).
@@ -33,7 +33,7 @@ pub fn kind(index: c_int) callconv(.c) c_int {
 /// orig: pc_charge_skip_state (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// Whether this vsync is in an action's wind-up (camera mode 4..6) and whether Skip takes it out.
 pub fn state(phase: *c_int, skipping: *c_int, actor: *c_int, action: *c_int) callconv(.c) c_int {
-    if (v.g.D_800F196C().* != 2 or v.g.D_800F19CC().* == null or v.g._cameraMode().* < 4 or v.g._cameraMode().* > 6) {
+    if (v.g.D_800F196C().* != 2 or v.g.vs_battle_actionState().* == null or v.g._cameraMode().* < 4 or v.g._cameraMode().* > 6) {
         v.g.charge_skip_from_set().* = 0;
         return 0;
     }
@@ -55,7 +55,7 @@ pub fn state(phase: *c_int, skipping: *c_int, actor: *c_int, action: *c_int) cal
     action.* = a.actionIndex;
     skipping.* = @intFromBool(v.g.pc_qol_skip_charging().* != 0 and (caster == 0 or v.g.pc_qol_skip_charging_who().* != 0) and
         (v.g.pc_charge_skip_kinds().* & c.charge_skip_kind(a.actionIndex)) != 0 and
-        v.g.D_800F4C34().* == 0 and
+        v.g.vs_event_playbackPhase().* == 0 and
         v.g._cameraMode().* >= 5 and
         c.pc_vsync_count() -% v.g.charge_skip_from().* >= psx.conv(c_uint, c.charge_skip_hold_vsyncs(caster)));
     return 1;
@@ -74,16 +74,16 @@ pub fn now() callconv(.c) c_int {
 /// orig: charge_skip_load (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// The effect's files loaded back to back: the loader's steps run, each file read when asked for, until it is ready.
 pub fn load() callconv(.c) void {
-    const context = v.g.D_800F569C().*;
+    const context = v.g.vs_effects_package().*;
     var i: c_int = 0;
     while (i < 64) : (i += 1) {
-        const loader = v.g.D_800F531C().*;
+        const loader = v.g.vs_effects_primaryPhase().*;
         if (loader != 6 and loader != 2 and loader != 8 and loader != 3) break;
-        c.func_800D7890(1);
-        _ = c.func_800CE9B0();
-        _ = c.pc_cd_queue_load(@ptrCast(v.g.D_800F568C().*));
+        c.vs_effects_selectEffectResourceContext(1);
+        _ = c.vs_effects_updatePrimaryEffects();
+        _ = c.pc_cd_queue_load(@ptrCast(v.g.vs_effects_resourceReadSlot().*));
     }
-    v.g.D_800F569C().* = context;
+    v.g.vs_effects_package().* = context;
     v.g.pc_charge_skip_pumped().* = i;
 }
 
@@ -91,11 +91,11 @@ pub fn load() callconv(.c) void {
 /// Where the game runs action phase 5: with Skip on, stops the cast sound, applies the turn, ends the magic circle, loads the effect and releases; 1 if it did.
 pub fn skip(phase: c_int) callconv(.c) c_int {
     if (phase != 5 or c.charge_skip_now() == 0) return 0;
-    c.func_80045D64(0x7E, 0x34);
-    c.func_80045D64(0x7E, 0x35);
-    c.func_80045D64(0x7E, 0x36);
+    c.vs_audio_stopSfx(0x7E, 0x34);
+    c.vs_audio_stopSfx(0x7E, 0x35);
+    c.vs_audio_stopSfx(0x7E, 0x36);
     // the index is a u8, the table has 17 entries: the C does not check
-    const actor = psx.at(v.g.D_800F4538(), block().unk854[block().unk0 & 3].unk4.unk0.targetActor).*;
+    const actor = psx.at(v.g.vs_actors_actorRecords(), block().unk854[block().unk0 & 3].unk4.unk0.targetActor).*;
     if (actor != null and actor.?.unk0.unk18 != 0) {
         const unk0 = &actor.?.unk0;
         unk0.pitch = psx.conv(i16, (@as(c_int, unk0.pitch) +% unk0.unk3C) & 0xFFF);
@@ -135,7 +135,7 @@ pub fn keepName(now_: c_int) callconv(.c) void {
         v.g.charge_skip_held().* = 0;
         return;
     }
-    if (now_ == 0 and v.g.D_800F196C().* == 2 and v.g.D_800F19CC().* != null and
+    if (now_ == 0 and v.g.D_800F196C().* == 2 and v.g.vs_battle_actionState().* != null and
         (c.pc_vsync_count() -% v.g.charge_skip_held_at().* < psx.conv(c_uint, v.g.charge_skip_held_vsyncs().*) or
             psx.getBits(&v.g.textBoxes()[7].unk0, "done") == 0))
     {
@@ -161,7 +161,7 @@ pub fn nameWindow(out: [*]u8, size: c_int, held: *c_int) callconv(.c) c_int {
 /// orig: pc_charge_skip_view (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// Test aid: the view and the caster's facing: lookAt xyz, position xyz, the camera's distance and yaw, the facing.
 pub fn view(out: *[9]c_int, actor_: c_int) callconv(.c) void {
-    const a: ?*v.D_800F4538_t = if (actor_ >= 0 and actor_ < 17) v.g.D_800F4538()[@intCast(actor_)] else null;
+    const a: ?*v.D_800F4538_t = if (actor_ >= 0 and actor_ < 17) v.g.vs_actors_actorRecords()[@intCast(actor_)] else null;
     const camera = &v.g.vs_view().camera;
     out[0] = camera.lookAt.vx;
     out[1] = camera.lookAt.vy;
@@ -180,7 +180,7 @@ pub fn battleState(camera: *c_int, actor: *c_int, action: *c_int) callconv(.c) c
     camera.* = psx.conv(c_int, v.g._cameraMode().*);
     actor.* = -1;
     action.* = -1;
-    if (v.g.D_800F19CC().* == null) return -1;
+    if (v.g.vs_battle_actionState().* == null) return -1;
     if (v.g.D_800F196C().* == 2) {
         const a = &block().unk854[block().unk0 & 3];
         actor.* = a.unk4.unk0.targetActor;
@@ -203,8 +203,8 @@ pub fn reseed(seed: c_uint) callconv(.c) void {
 /// orig: pc_charge_skip_trace (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// Diagnostics: this vsync's camera mode, the effect loader's state, object slot 0 in use, the cast flash flags and the background effects' ids and kinds.
 pub fn trace(out: [*]u8, size: c_int) callconv(.c) c_int {
-    var n: c_int = c.snprintf(out, psx.conv(c_ulong, size), "%d:%u:%d:%d", psx.conv(c_int, v.g._cameraMode().*), v.g.D_800F531C().*, @as(c_int, @intFromBool(v.g.vs_battle_objectDataSlots()[0].dataType != 0)), v.g.D_800F1868().*);
-    var e = v.g.D_800F54B0().*;
+    var n: c_int = c.snprintf(out, psx.conv(c_ulong, size), "%d:%u:%d:%d", psx.conv(c_int, v.g._cameraMode().*), v.g.vs_effects_primaryPhase().*, @as(c_int, @intFromBool(v.g.vs_battle_objectDataSlots()[0].dataType != 0)), v.g.D_800F1868().*);
+    var e = v.g.vs_effects_secondaryInstances().*;
     while (e != null and n < size -% 16) : (e = psx.get(e.?.next)) {
         n +%= c.snprintf(psx.at(out, n), psx.conv(c_ulong, size -% n), ",%d/%d", @as(c_int, e.?.unkD1C.unk38), @as(c_int, psx.getBits(e.?, "unk14_8")));
     }
@@ -214,13 +214,13 @@ pub fn trace(out: [*]u8, size: c_int) callconv(.c) c_int {
 /// orig: pc_charge_skip_window (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// The chain / defence ability window of the action under way (0: none open), for the tests.
 pub fn window() callconv(.c) c_int {
-    return if (v.g.D_800F19CC().* != null and v.g.D_800F196C().* == 2) @as(c_int, block().battleAbilityTargetWindow) else 0;
+    return if (v.g.vs_battle_actionState().* != null and v.g.D_800F196C().* == 2) @as(c_int, block().battleAbilityTargetWindow) else 0;
 }
 
 /// orig: pc_charge_skip_ability (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// The chain / defence input of the action under way for the tests: timer, window, attempt spent, success; 0 with no action.
 pub fn ability(out: *[4]c_int) callconv(.c) c_int {
-    if (v.g.D_800F19CC().* == null or v.g.D_800F196C().* != 2) return 0;
+    if (v.g.vs_battle_actionState().* == null or v.g.D_800F196C().* != 2) return 0;
     out[0] = block().battleAbilityTimer;
     out[1] = block().battleAbilityTargetWindow;
     out[2] = block().battleAbilityInputAttempted;

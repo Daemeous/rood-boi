@@ -7,7 +7,7 @@ const c = @import("c_5BF94");
 /// orig: _loadScreff2 (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// Nonzero: queues SCREFF2.PRG (lba 135000, 4096 bytes) into overlay slot 1 and marks it loading; zero: once the read is done (state 4), frees the slot, clears the mark and waits.
 pub fn loadScreff2(load: c_int) callconv(.c) void {
-    const p = v.g.D_800EB9B4().*.?;
+    const p = v.g.vs_effects_screenEffectOverlay().*.?;
     if (load != 0) {
         p.unk0 = 1;
         var file: v.vs_main_CdFile = undefined;

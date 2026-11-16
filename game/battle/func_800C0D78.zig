@@ -13,7 +13,7 @@ pub fn func_800C0D78() callconv(.c) void {
     var shape: *v.func_800C1564_t = @ptrFromInt(pad.addr(0x378));
     var color: c_int = 0x10401;
 
-    const d = v.g.D_800EB9B8().* orelse return;
+    const d = v.g.vs_battle_targetSphere().* orelse return;
 
     const sine: [*]i16 = @ptrFromInt(pad.addr(0x3B0));
     var k: usize = 0;
@@ -28,7 +28,7 @@ pub fn func_800C0D78() callconv(.c) void {
         i += 1;
     }) {
         shape.* = d.unk0[i];
-        c.func_800C02A8();
+        c.vs_render_loadFrameViewMatrix();
         const frame = gte.frame();
         @as(*align(1) c_uint, @ptrCast(&d.unk20)).* = gte.project(&frame, &shape.unk8).otz; // gte_stszotz: a whole word, as the macro stores it
 
@@ -62,7 +62,7 @@ pub fn func_800C0D78() callconv(.c) void {
         };
 
         c.func_800C253C(typ);
-        c.func_800C0B50(@ptrCast(shape), color);
+        c.vs_battle_drawSphereVolumeWireframe(@ptrCast(shape), color);
     }
     c.func_800C20B4();
 }

@@ -1,7 +1,7 @@
 //! Zero-filling whole words (D2: 7B5DC.s; oracle pc/src/battle_helpers.c).
 const c = @import("c_battle_helpers");
 
-/// orig: func_800E4288 (pc/src/battle_helpers.c)
+/// orig: vs_core_memoryClearAlignedWords (pc/src/battle_helpers.c)
 /// Zeroes `bytes >> 2` words at the destination. A span under 4 bytes or an
 /// unaligned destination is reported through pc_unimplemented, which the
 /// original (and so this port) does not stop at.

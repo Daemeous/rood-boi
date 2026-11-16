@@ -112,7 +112,7 @@ fn moveToward(state: *ai.vs_battle_aiState, actor: *ai.vs_battle_actor, angle_in
             // dir is 0..127 here; the C shifts by it (x86 masks the amount to 5 bits).
             blocked = ((@as(c_int, byte.*) >> @truncate(@as(c_uint, @bitCast(dir)))) & 1) | @intFromBool(here < there);
         } else {
-            blocked = c.func_800E4690(tile, dir);
+            blocked = c.vs_battle_aiIsAdjacentTileStepBlocked(tile, dir);
         }
     }
     if (blocked == 0) return;
@@ -138,15 +138,15 @@ fn walkToTile(state: *ai.vs_battle_aiState, actor: *ai.vs_battle_actor) void {
     const x: c_int = @bitCast((tile & 0xff) *% 128 +% 64);
     const z: c_int = @as(c_int, @bitCast((tile << 8) >> 17)) +% 64;
     state.unk178 = psx.conv(u16, z);
-    state.unk174 = (@as(c_uint, @bitCast(c.func_800E42D4(x, z))) << 16) | @as(c_uint, @bitCast(x));
+    state.unk174 = (@as(c_uint, @bitCast(c.vs_field_groundHeightAtWorldPosition(x, z))) << 16) | @as(c_uint, @bitCast(x));
     const own_x: c_int = state.position.xyz[0];
     const own_z: c_int = state.position.xyz[2];
     const heading = c.ratan2(own_x -% x, own_z -% z);
     s10(actor).* = heading;
-    c.func_800E4C1C(@intCast(tile & 0xff), @intCast((tile >> 16) & 0xff)); // bytes
+    c.vs_battle_aiReserveAiDestinationTile(@intCast(tile & 0xff), @intCast((tile >> 16) & 0xff)); // bytes
 }
 
-/// orig: func_800DEEFC (pc/src/battle_movement.c)
+/// orig: vs_battle_aiIssueActorCommand (pc/src/battle_movement.c)
 /// Issues movement/action command `action` to the actor's command block
 /// (0x54): records it at scratchpad 0x3C8, resets the block (byte 8 = 0x80,
 /// byte 10 = facing target) and fills it per action (jtbl_800F16F8, 18
@@ -216,7 +216,7 @@ pub fn issueCommand(state: *ai.vs_battle_aiState, action: c_int) callconv(.c) vo
             const tile = state.next.movementPosition.raw;
             w0C(actor).* = tile;
             actor.unk9 = 0x15;
-            c.func_800E4C1C(@intCast(tile & 0xff), @intCast((tile >> 16) & 0xff)); // bytes
+            c.vs_battle_aiReserveAiDestinationTile(@intCast(tile & 0xff), @intCast((tile >> 16) & 0xff)); // bytes
         },
         12 => {
             const tile = state.next.movementPosition.raw;
@@ -225,14 +225,14 @@ pub fn issueCommand(state: *ai.vs_battle_aiState, action: c_int) callconv(.c) vo
             const x: c_int = @as(c_int, @intCast(tile & 0xff)) << 7; // a byte
             const z: c_int = @as(c_int, @bitCast((tile << 8) >> 17)) +% 0x40;
             h10(actor).* = psx.conv(u16, z);
-            const height = c.func_800E42D4(x, z);
+            const height = c.vs_field_groundHeightAtWorldPosition(x, z);
             w0C(actor).* = (@as(c_uint, @bitCast(height +% lift)) << 16) | @as(c_uint, @bitCast(x +% 0x40));
         },
         13 => walkToTile(state, actor),
         14 => {
-            const here = c.func_800E42E0(state.tile.raw);
+            const here = c.vs_field_groundHeightAtPackedTile(state.tile.raw);
             const tile = state.next.movementPosition.raw;
-            var rise = c.func_800E42E0(tile) -% here;
+            var rise = c.vs_field_groundHeightAtPackedTile(tile) -% here;
             const flags: c_uint = state.flags;
             var code: u8 = undefined;
             if (rise < 0) rise = -%rise;
@@ -255,7 +255,7 @@ pub fn issueCommand(state: *ai.vs_battle_aiState, action: c_int) callconv(.c) vo
             const x = tile_x *% 128 +% 64;
             const z = tile_z *% 128 +% 64;
             state.unk178 = psx.conv(u16, z);
-            state.unk174 = (@as(c_uint, @bitCast(c.func_800E42D4(x, z))) << 16) | @as(c_uint, @bitCast(x));
+            state.unk174 = (@as(c_uint, @bitCast(c.vs_field_groundHeightAtWorldPosition(x, z))) << 16) | @as(c_uint, @bitCast(x));
             var speed: c_uint = undefined;
             var kind: c_int = undefined;
             if (gaitSpeed(state, 0x4200, &speed, &kind) < 0) {
@@ -263,7 +263,7 @@ pub fn issueCommand(state: *ai.vs_battle_aiState, action: c_int) callconv(.c) vo
                 return;
             }
             w10(actor).* = speed;
-            if (actor.id != 0 and (tile & 0xff00) == 0) c.func_800E4C1C(tile_x, tile_z);
+            if (actor.id != 0 and (tile & 0xff00) == 0) c.vs_battle_aiReserveAiDestinationTile(tile_x, tile_z);
         },
         15 => {
             const candidate: [*]u32 = @ptrCast(state.candidate);
@@ -274,7 +274,7 @@ pub fn issueCommand(state: *ai.vs_battle_aiState, action: c_int) callconv(.c) vo
             w0C(actor).* = (@as(c_uint, @bitCast(column)) << 16) | @as(c_uint, @bitCast(row));
             const slot_flags = psx.fieldAt(u32, &state.configs, @as(isize, @intCast(row)) * 32 + @as(isize, @intCast(column)) * 8).*; // row 0..7, column 0..3
             if (((@as(c_uint, 1) << @intCast((slot_flags >> 3) & 3)) & 6) == 0) {
-                const model: [*]u8 = @ptrCast(v.g.D_800F4538()[target & 0xf].?);
+                const model: [*]u8 = @ptrCast(v.g.vs_actors_actorRecords()[target & 0xf].?);
                 w10(actor).* = u32At(model, 0x1c).* -% (((target >> 7) & 0xfff) << 16);
                 h14(actor).* = u16At(model, 0x20).*;
             } else {

@@ -41,7 +41,7 @@ fn sortCandidates(v: [*]Entry, left: c_int, right: c_int) void {
     sortCandidates(v, last +% 1, right & 0xff);
 }
 
-/// orig: func_800DC3CC (pc/src/battle_helpers.c)
+/// orig: vs_battle_aiSortActionCandidates (pc/src/battle_helpers.c)
 /// Sorts the state's candidate pointers (0x430, count at 0x470) by score,
 /// descending; more than 256 candidates are reported through pc_unimplemented,
 /// which the original does not stop at.
@@ -51,7 +51,7 @@ pub fn sortActorCandidates(state: *ai.vs_battle_aiState) callconv(.c) void {
     if (count != 0) sortCandidates(@ptrCast(&state.entries.candidates), 0, count -% 1);
 }
 
-/// orig: func_800DC574 (pc/src/battle_helpers.c)
+/// orig: vs_battle_aiPromoteRandomizedActionCandidate (pc/src/battle_helpers.c)
 /// Gives the first `count` candidates (list at 0x430) one chance each, in
 /// order, to take the lead: a candidate whose action byte (bits 5-12 of word
 /// 1) is nonzero wins when rand() & 0x7F is below its weight (bits 19-26 of

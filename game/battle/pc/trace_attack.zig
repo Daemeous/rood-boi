@@ -5,11 +5,11 @@ const psx = @import("common").psx;
 const v = @import("views_battle_movement");
 
 /// orig: clear_of_obstacles (pc/src/battle_movement.c)
-/// 1 unless one of the room's obstacle points (func_8008D2C0) lies within
+/// 1 unless one of the room's obstacle points (vs_field_collectMovingPlatformPositions) lies within
 /// 0x40 / 0x20 / 0x40 of (x, y, z) (obstacle Y raised by 0x20).
 fn clearOfObstacles(x: c_int, y: c_int, z: c_int) c_int {
     var buffer: [8][2]c_uint = undefined;
-    const count = c.func_8008D2C0(&buffer);
+    const count = c.vs_field_collectMovingPlatformPositions(&buffer);
     if (count > 8) c.pc_unimplemented("obstacle point buffer overflow");
     // Past 8 points the original reads beyond its buffer: not bounds-checked.
     const points: [*][2]c_uint = &buffer;
@@ -27,7 +27,7 @@ fn clearOfObstacles(x: c_int, y: c_int, z: c_int) c_int {
     return 1;
 }
 
-/// orig: func_800E6C34 (pc/src/battle_movement.c)
+/// orig: vs_field_traceActorAndTerrainCollision (pc/src/battle_movement.c)
 /// Traces an attack from `from` toward `to` in 32 steps of (to - from) >> 5.
 /// Stops at the first actor (not `self`, not hidden by flags 0xEA, not
 /// knocked down) whose bounds contain the point while in front of the start,
@@ -56,12 +56,12 @@ pub fn traceAttack(from: [*]const c_uint, to: [*]const c_uint, out: [*]c_uint, s
             var body: [*]u8 = undefined;
             var reach: c_int = 0x3f;
             var height: c_int = undefined;
-            if (v.g.D_800F45E0()[index]) |engaged| {
+            if (v.g.vs_field_gimmickInstances()[index]) |engaged| {
                 body = @ptrCast(engaged);
                 if (body[0x12] == 0 or body[0x1a] != 0) continue;
                 height = 0x80;
             } else {
-                const object = v.g.D_800F4538()[index] orelse continue;
+                const object = v.g.vs_actors_actorRecords()[index] orelse continue;
                 body = @ptrCast(object);
                 const pose = psx.fieldAt(u8, &object.unk0._bits_skip, 3).* & 0xf;
                 reach = object.unk63C;
@@ -85,7 +85,7 @@ pub fn traceAttack(from: [*]const c_uint, to: [*]const c_uint, out: [*]c_uint, s
         }
         const pad = hit;
         if (hit == 0 and clearOfObstacles(x, y, z) != 0 and
-            y < @as(c_int, @bitCast(psx.conv(c_uint, c.func_8008DC7C(x, z)) << 17)) >> 17)
+            y < @as(c_int, @bitCast(psx.conv(c_uint, c.vs_field_floorHeightAt(x, z)) << 17)) >> 17)
         {
             steps += 1;
             if (steps < 32) continue;

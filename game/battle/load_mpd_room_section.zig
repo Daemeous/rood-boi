@@ -10,7 +10,7 @@ const c = @import("c_146C");
 /// rooms and door, then runs the room's setup calls. 0 for an empty section.
 pub fn loadMpdRoomSection(room: c_int, data: ?*anyopaque) callconv(.c) c_int {
     const lengths: [*]c_int = @ptrCast(@alignCast(data.?));
-    v.g.D_800F1BB6().* = 0;
+    v.g.vs_field_isRoomTintActive().* = 0;
     var size: c_uint = 0;
     var i: c_int = 0;
     while (i < 24) : (i += 1) { // i < 24
@@ -39,7 +39,7 @@ pub fn loadMpdRoomSection(room: c_int, data: ?*anyopaque) callconv(.c) c_int {
     rooms.unk1 = 0;
     rooms.unk2 = psx.conv(i16, room);
     if (psx.get(rooms.geometrySection) != null) {
-        c.func_8008B390(11, psx.get(rooms.geometrySection));
+        c.vs_field_offsetRoomTextureIds(11, psx.get(rooms.geometrySection));
     }
     if (psx.get(rooms.sectionE)) |section| {
         // Offsets from the section's start, not addresses: the section is file data with 4-byte slots.
@@ -66,14 +66,14 @@ pub fn loadMpdRoomSection(room: c_int, data: ?*anyopaque) callconv(.c) c_int {
             flags.doorEntered = 0;
         }
     }
-    c.func_8008B6B4();
-    c.func_80092548();
-    c.func_8008D710();
-    c.func_8008C538();
-    c.func_80093AB4();
+    c.vs_field_resetGimmickAnimationQueue();
+    c.vs_field_initializeRoomEffects();
+    c.vs_items_restoreRoomChestStates();
+    c.vs_field_initializeMovingPlatforms();
+    c.vs_battle_resetFloatingLabels();
     c.func_8008E8F8();
-    c.func_8008E938();
-    c.func_8008B320();
+    c.vs_field_initializeRoomBackgroundColors();
+    c.vs_field_uploadRoomPalettes();
     psx.Global(u8, "D_800F1BBC").ptr().* = 0;
     if (psx.get(rooms.sectionE) != null) {
         c.vs_main_wait();

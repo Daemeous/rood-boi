@@ -11,16 +11,16 @@ pub fn loadSeq(object: ?*v.vs_battle_objectData) callconv(.c) c_int {
     const state = v.g.D_800E8F2B().*;
     if (state == 1) return finishEtm(object);
     const obj = object.?;
-    if (state == 0) v.g.D_800F22E4().* = dataPtr(obj.dataAddr);
+    if (state == 0) v.g.vs_content_legacySequenceParseData().* = dataPtr(obj.dataAddr);
 
     if (obj.actorId == 0) {
-        const actor = psx.at(v.g.D_800F4538(), obj.index).*.?;
+        const actor = psx.at(v.g.vs_actors_actorRecords(), obj.index).*.?;
         if (obj.modelId != 0) {
-            if (findSharedSequence(obj)) v.g.D_800F22E4().* = dataPtr(obj.dataAddr);
+            if (findSharedSequence(obj)) v.g.vs_content_legacySequenceParseData().* = dataPtr(obj.dataAddr);
         }
         if (obj.modelId == 0) {
             if (cursorAddr() < 17) {
-                const source = psx.at(v.g.D_800F4538(), @as(c_int, @intCast(cursorAddr()))).*.?;
+                const source = psx.at(v.g.vs_actors_actorRecords(), @as(c_int, @intCast(cursorAddr()))).*.?;
                 actor.unk5B4 = source.unk5B4;
                 psx.put(&actor.unk5D4, psx.get(source.unk5D4));
                 return 0;
@@ -48,7 +48,7 @@ pub fn loadSeq(object: ?*v.vs_battle_objectData) callconv(.c) c_int {
             return copySequence(seq, size);
         }
         if (cursorAddr() < 17) {
-            const source = psx.at(v.g.D_800F4538(), @as(c_int, @intCast(cursorAddr()))).*.?;
+            const source = psx.at(v.g.vs_actors_actorRecords(), @as(c_int, @intCast(cursorAddr()))).*.?;
             actor.unk5B5 = source.unk5B5;
             var seq = seqOf(psx.get(source.unk5D8));
             if (obj.index < 2) {
@@ -60,7 +60,7 @@ pub fn loadSeq(object: ?*v.vs_battle_objectData) callconv(.c) c_int {
                     seq = seqOf(c.vs_main_allocHeap(0x7800));
                     doClone = true;
                 }
-                if (doClone) c.func_8009C378(cSeq(seq), cSeq(psx.get(source.unk5D8)));
+                if (doClone) c.vs_content_copyWeaponSequence(cSeq(seq), cSeq(psx.get(source.unk5D8)));
             }
             psx.put(&actor.unk5D8, seq);
             actor.unk5B1 = psx.conv(u8, obj.modelId);
@@ -92,7 +92,7 @@ pub fn loadSeq(object: ?*v.vs_battle_objectData) callconv(.c) c_int {
         size = roundUp4(size);
         return copySequence(seqOf(v.g.D_800F4768().*), size);
     } else if (obj.actorId == 4 or obj.actorId == 5) {
-        const actor = psx.at(v.g.D_800F4538(), obj.index).*.?;
+        const actor = psx.at(v.g.vs_actors_actorRecords(), obj.index).*.?;
         actor.unk5B6 = readU8();
         advance(4);
         var size = readI32();
@@ -106,13 +106,13 @@ pub fn loadSeq(object: ?*v.vs_battle_objectData) callconv(.c) c_int {
     } else {
         const slot: c_int = @as(c_int, obj.index) -% 1;
         psx.at(v.g.D_800F2450(), slot).* = 0;
-        if (psx.at(v.g.D_800F4528(), slot).* != null) return -2;
-        psx.at(v.g.D_800F4528(), slot).* = @ptrCast(cursor());
+        if (psx.at(v.g.vs_actors_sharedSequenceData(), slot).* != null) return -2;
+        psx.at(v.g.vs_actors_sharedSequenceData(), slot).* = @ptrCast(cursor());
         const count = readI32();
         advance(4);
         var i: c_int = 0;
         while (i < count) : (i += 1) {
-            psx.at(psx.at(v.g.D_800F4628(), slot), i).* = psx.conv(i16, readU16());
+            psx.at(psx.at(v.g.vs_actors_sharedSequenceAnimationIds(), slot), i).* = psx.conv(i16, readU16());
             advance(4);
         }
         i = 0;
@@ -120,21 +120,21 @@ pub fn loadSeq(object: ?*v.vs_battle_objectData) callconv(.c) c_int {
             psx.at(psx.at(v.g.D_800F4938(), slot), i).* = psx.conv(i16, readU16());
             advance(4);
         }
-        psx.at(psx.at(v.g.D_800F4628(), slot), i).* = -1;
+        psx.at(psx.at(v.g.vs_actors_sharedSequenceAnimationIds(), slot), i).* = -1;
         i = 0;
         while (i < count) : (i += 1) {
-            psx.at(psx.at(v.g.D_800F4810(), slot), i).* = toPtr(readU32());
+            psx.at(psx.at(v.g.vs_actors_sharedSequenceAnimationData(), slot), i).* = toPtr(readU32());
             advance(4);
         }
         i = 0;
         while (i < count) : (i += 1) {
-            const entry = psx.at(psx.at(v.g.D_800F4810(), slot), i);
+            const entry = psx.at(psx.at(v.g.vs_actors_sharedSequenceAnimationData(), slot), i);
             entry.* = toPtr(guest(entry.*) +% cursorAddr());
         }
-        psx.at(psx.at(v.g.D_800F4810(), slot), i).* = @ptrFromInt(std.math.maxInt(usize));
+        psx.at(psx.at(v.g.vs_actors_sharedSequenceAnimationData(), slot), i).* = @ptrFromInt(std.math.maxInt(usize));
         i = 0;
         while (i < 17) : (i += 1) {
-            if (v.g.D_800F4538().*[@intCast(i)]) |other| c.func_8009CAEC(@ptrCast(other), slot);
+            if (v.g.vs_actors_actorRecords().*[@intCast(i)]) |other| c.vs_content_bindSharedActorSequence(@ptrCast(other), slot);
         }
         if (obj.actorId == 1) return 0;
         v.g.D_800E8F2B().* = 1;
@@ -185,7 +185,7 @@ fn guest(p: ?*u8) u32 {
 }
 
 fn cursor() ?[*]u8 {
-    return v.g.D_800F22E4().*;
+    return v.g.vs_content_legacySequenceParseData().*;
 }
 
 fn cursorAddr() u32 {
@@ -210,14 +210,14 @@ fn readI32() c_int {
 }
 
 fn advance(n: usize) void {
-    const p = v.g.D_800F22E4();
+    const p = v.g.vs_content_legacySequenceParseData();
     p.* = p.*.? + n;
 }
 
 /// orig: vs_battleFindSharedSequence (pc/src/game/BATTLE/BATTLE.PRG/30DB0.c)
 /// Finds another actor slot holding the same sequence for this object and points the object at it.
 fn findSharedSequence(object: *v.vs_battle_objectData) bool {
-    const slots = v.g.D_800F4538();
+    const slots = v.g.vs_actors_actorRecords();
     const t1: u16 = psx.at(slots, object.index).*.?.unk6E6;
     var a: c_int = @as(c_int, @intFromBool(object.index >= 2)) * 2;
     while (a < 17) : (a += 1) {

@@ -634,12 +634,12 @@ colours, used where the game draws no sky or when a room picks
 **What the game has, per room.** Every room's MPD section B
 (`_mpdRoomSectionB`, 146C.h) starts with five colour words (`0x00BBGGRR`)
 and a rotation (`unk14`, three angles; zero in every room). On room load
-`func_8008E938` sorts the room into one of:
+`vs_field_initializeRoomBackgroundColors` sorts the room into one of:
 
-- **the gradient sphere** (the five not all equal): `func_8008EB30` copies
-  them to `D_800F1D78` and writes them into the 34-vertex mesh `D_80068C1C`
+- **the gradient sphere** (the five not all equal): `vs_field_setRoomBackgroundColors` copies
+  them to `vs_field_backgroundGradientColors` and writes them into the 34-vertex mesh `vs_field_legacyBackgroundGradientPackets`
   as five rings: the zenith pole (y -409), a ring of 8 at 26.5 degrees up,
-  16 on the horizon, 8 at 26.5 down, the nadir pole. `func_8008EC48` places
+  16 on the horizon, 8 at 26.5 down, the nadir pole. `vs_field_drawRoomBackground` places
   it about the eye each frame and `pc_background_packets` (boot_sdk.c) draws
   it as 64 Gouraud triangles, untextured, without perspective, behind
   everything: the field's only clear. Colours are 0..255 as drawn.
@@ -649,16 +649,16 @@ and a rotation (`unk14`, three angles; zero in every room). On room load
 - **nothing** (all five black): the black sphere; the set fills the view.
 
 Scripts change the colours at run time: the background fades of main.c
-(`func_800474DC` / the `_clutState.bg*` animation) rewrite `D_800F1D78`
-through `func_8008EB30`, frame by frame. A **panorama** replaces the sphere
-while a script turns it on (`func_8008EAF8` sets `D_800F1DC9`) and its two
-files (section 0x10: a TIM uploaded at texture page `D_800F1DC8`, its CLUT
-at row 238 (0x3BB0), and a tile layout, `D_800F1DCC`) are loaded:
-`func_8009147C` draws up to 31 x 31 tiles of 32 x 32 screen pixels, each a
+(`vs_render_transformBackgroundGradient` / the `_clutState.bg*` animation) rewrite `vs_field_backgroundGradientColors`
+through `vs_field_setRoomBackgroundColors`, frame by frame. A **panorama** replaces the sphere
+while a script turns it on (`vs_field_setTiledBackgroundEnabled` sets `vs_field_isTiledBackgroundEnabled`) and its two
+files (section 0x10: a TIM uploaded at texture page `vs_field_legacyBackgroundTexturePage`, its CLUT
+at row 238 (0x3BB0), and a tile layout, `vs_field_loadedBackgroundLayout`) are loaded:
+`vs_field_drawRoomBackgroundTiles` draws up to 31 x 31 tiles of 32 x 32 screen pixels, each a
 texture rectangle (`uv`) modulated by four corner colours, wrapping every
 1024 pixels across, scrolled by the camera's yaw and pitch (x: yaw x
-`D_800F1DB8` / 4096 - `D_800F1DB4`, y: `D_800F1DB6` - pitch x `D_800F1DBA` /
-4096; scripts set those with `func_8008EAE4` / `func_80091468`), rolled
+`vs_field_backgroundParallaxScaleXFixed12` / 4096 - `vs_field_backgroundOffsetX`, y: `vs_field_backgroundOffsetY` - pitch x `vs_field_backgroundParallaxScaleYFixed12` /
+4096; scripts set those with `vs_field_setBackgroundParallaxScale` / `vs_field_setRoomBackgroundOffset`), rolled
 with the camera, over a black TILE.
 
 Measured over the disc (all 421 room files; `env sky` = the 82 rooms the
@@ -672,14 +672,14 @@ generator finds open to the sky):
 | panorama files | 6 | 3 | the prologue (1/0-1, 2/0-1, 7/0, 8/0), all also with a sphere; shown while the opening's scripts turn it on (1/0 at the opening checkpoint: the burning town through the window) |
 
 **Derived sky.** `game_sky()` reads the live state each frame (weak
-imports `D_800F1D78`, `D_800F1DC6`, `D_800F1BB0`, `D_800F1DC9`,
-`D_800F1DC8`, `D_800F1DCC`; VRAM through `pc_native_vram`):
+imports `vs_field_backgroundGradientColors`, `vs_field_isSolidBackground`, `D_800F1BB0`, `vs_field_isTiledBackgroundEnabled`,
+`vs_field_legacyBackgroundTexturePage`, `vs_field_loadedBackgroundLayout`; VRAM through `pc_native_vram`):
 
 - the panorama when it is on: the mean colour, as drawn (CLUT texels x
   corner colours / 128), of its top, middle and bottom tile rows (zenith,
   26.5 degrees, horizon), black below;
 - else the flat backdrop: its texel through the CLUT, tinted, for all five;
-- else the sphere's five rings from `D_800F1D78`;
+- else the sphere's five rings from `vs_field_backgroundGradientColors`;
 - all black: no game sky.
 
 zenith = the first ring, horizon = the third; the ground stays the room's
@@ -723,8 +723,8 @@ directions, rebuilt on the CPU when the game sky changes (its inputs hash:
 the five colours, the panorama's scroll/scale and tile data, the VRAM
 rows it samples): for the sphere, its 64 triangles' Gouraud colours by
 direction (rotation `unk14`); for the panorama, each texel's (yaw, pitch)
-mapped through `func_8009147C`'s scroll (x = yaw x `D_800F1DB8` / 4096 -
-`D_800F1DB4` + column, wrapping at 1024; y from pitch and the 32-pixel
+mapped through `vs_field_drawRoomBackgroundTiles`'s scroll (x = yaw x `vs_field_backgroundParallaxScaleXFixed12` / 4096 -
+`vs_field_backgroundOffsetX` + column, wrapping at 1024; y from pitch and the 32-pixel
 rows, the camera's projection distance turning screen pixels into angle)
 to tile texels, black below the last row; then a separable blur of about
 15 degrees so a GI ray's single sample stays low-noise, and x

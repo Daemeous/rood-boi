@@ -9,7 +9,7 @@ A player reported the modern Items screen stuck after a few pickups (around
 Undercity West): misc rows' sub line "Loading..." in gold (MAINMENU.PRG not
 resident: items_bridge.c refuses Use, Discard, Sort and Move meanwhile), every
 item locked until a save was reloaded. The rows say "Loading..." while the
-shell's top level runs without MAINMENU (BATTLE func_800C97BC ticks it while
+shell's top level runs without MAINMENU (BATTLE vs_menu_frameworkUpdateMenuOverlay ticks it while
 vs_battle_loadMenuPrg(0) waits for its CD queue slot), which normally lasts
 the 2 or 3 frames of the load.
 
@@ -19,7 +19,7 @@ category and reads RPC ui_menu after 60 vsyncs: no row's use_reason is
 "Loading...", MAINMENU resident and the longest wait for it short; the CD
 queue is clean at rest (every slot free, nothing counted queued or reading).
   pickups  loot lists taken through the game's loot menu (RPC loot: the
-           drops list and func_800CB158, as after a battle; the modern Loot
+           drops list and vs_menu_frameworkOpenLootListMenu, as after a battle; the modern Loot
            screen, Square takes all): misc items, a copy of a bag armor and a
            gem, several rounds; then the save room's own chest (RPC chest:
            the field's chest flow), taken

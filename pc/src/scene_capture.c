@@ -1,7 +1,7 @@
 /* Scene capture for lighting: the current room's polygons in world space with
  * their baked vertex colours and texture references, plus the camera of the
  * latest frame. The original renders rooms straight from packed group-local
- * geometry with camera-composed matrices (func_8009723C); the same data with
+ * geometry with camera-composed matrices (vs_render_drawRoomGeometry); the same data with
  * an identity camera gives world space. Captured once per room data block;
  * the camera every frame. Consumers: the RPC (scene, scene_dump), light
  * estimation, and the hardware renderer's lighting. */
@@ -30,10 +30,10 @@ extern pc_matrix* RotMatrixYXZ_gte(pc_svector*, pc_matrix*);
 #include "present_guard.h" /* PC_PRESENT_GUARD (T1 R4a) */
 
 /* The game's room (vs_battle_roomData, BATTLE 146C.h _mpdRoomSection):
- * unk0 is 1 while a room is loaded (func_8008AB80, func_8008ABF0),
+ * unk0 is 1 while a room is loaded (vs_field_enableOwnedRoomRendering, vs_field_releaseOwnedRoomSections),
  * header.geometrySectionLen the geometry section's size, geometrySection
- * the block func_8009723C draws.
- * A room change frees the block and clears all of it (func_8008ABF0); the
+ * the block vs_render_drawRoomGeometry draws.
+ * A room change frees the block and clears all of it (vs_field_releaseOwnedRoomSections); the
  * disc then reads the next room, possibly into the freed memory, and
  * _loadMpdRoomSection sets the new block only once it is copied whole. */
 /* dev_state.c: the loaded room and its geometry block */
@@ -126,7 +126,7 @@ const unsigned* pc_room_group_geometry(
     return geometry;
 }
 
-/* Called by func_8009723C with the room geometry block before it is drawn. */
+/* Called by vs_render_drawRoomGeometry with the room geometry block before it is drawn. */
 void pc_scene_room(const void* data)
 {
     const unsigned char* bytes = data;

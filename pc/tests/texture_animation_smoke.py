@@ -7,7 +7,7 @@ user's report: the save point's sigil on the floor stood still).
 Continues from a copy of the card (never the card itself; skipped without
 one) into its save room (zone 9 room 17). The room's texture effects
 (BATTLE 2842C.c, room section 0xC) scroll the UVs of the save point's
-polygons (func_80091E10: the sigil and its light column). The native room
+polygons (vs_field_scrollRoomTextureCoordinates: the sigil and its light column). The native room
 draws them as animated materials (room_effects.c): its meshes keep the base
 UVs and each frame's draw list carries the offsets the game wrote, so no
 mesh is rewritten.

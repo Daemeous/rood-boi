@@ -891,11 +891,11 @@ float ashley_depth()
 /* ---- the camera subject (dof_focus subject) ----
  * Whom the game's camera frames, from the game's state (read only; dev_state.c, scene_submit.inc):
  *   - BATTLE's action state (D_800F196C 2), _cameraMode 4 to 10: from the wind-up on, the action camera
- *     (_handleCombatCameraZoom) steps toward func_800780A8's point, halfway between the performer and its
+ *     (_handleCombatCameraZoom) steps toward vs_battle_actionCameraMidpoint's point, halfway between the performer and its
  *     first target (or its aim point), and holds the performer through the cast, the release, the chain
  *     steps and the hits; 11 is the camera's return to Ashley. That look-at is no actor's: the subject is
  *     the performer (the caster), unless the rules say its target, the look-at itself or Ashley.
- *   - the same state's modes 1 and 3 with a target candidate chosen (the targeting sphere: func_8006E640
+ *   - the same state's modes 1 and 3 with a target candidate chosen (the targeting sphere: vs_field_trackActionCameraTarget
  *     steps the camera toward it) and mode 2's area point: the target.
  *   - anything else (field play, the camera following Ashley): Ashley.
  * The rules (dof_subject_*) are post fields, so any layer sets them; Situation -> Choice is one pure

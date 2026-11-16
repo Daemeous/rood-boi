@@ -58,8 +58,8 @@ SLOTS = ["WEAPON", "SHIELD", "R.ARM", "L.ARM", "HEAD", "BODY", "LEGS"]
 STATS = ["HUMAN", "BEAST", "UNDEAD", "PHANTOM", "DRAGON", "EVIL", "PHYSICS", "AIR", "FIRE", "EARTH", "WATER", "LIGHT",
          "DARKNESS"]
 VALUES = [1, 9, 10, 99, 100, 999]  # one to three figures (the spawners cap at 999)
-# The ages each kind's whole life must have shown: its slide in and out (func_800958A4: 64, 16, 4, 1 pixels
-# at ages 0..3 and 45..42; func_80095A4C: the first chain's 0..3, every count's 90..87); a number's bounce
+# The ages each kind's whole life must have shown: its slide in and out (vs_battle_drawAbilityTimingResult: 64, 16, 4, 1 pixels
+# at ages 0..3 and 45..42; vs_battle_drawChainCount: the first chain's 0..3, every count's 90..87); a number's bounce
 # (func_80094B0C: frames 0..15, then held at 15) and a stat's drift (half its age, to 30).
 SLIDES = {"status": {0, 1, 2, 3, 42, 43, 44, 45}, "chain": {0, 1, 2, 3, 87, 88, 89, 90},
           "damage": set(range(17)) | {30}}
@@ -125,13 +125,13 @@ def tour_gauges(g, check, counters):
             if check(bool(ok), f"gauges HP {hp}/{max_hp} MP {mp}/{max_mp} risk {risk}: compared ({c['frames']} frames, "
                                f"{c['mismatched']} mismatched, '{c['text']}')"):
                 covered.append({"hp": hp, "max_hp": max_hp, "mp": mp, "max_mp": max_mp, "risk": risk})
-        # the slide: out (D_800EB9AF, as a menu opening sets it) until hidden, then back
+        # the slide: out (vs_battle_hudHidden, as a menu opening sets it) until hidden, then back
         symbols = rood_rpc.symbols()
         before = counters("gauges")["frames"]
-        g.write(symbols["D_800EB9AF"], b"\x01")
-        out = g.until(lambda: int.from_bytes(g.read(symbols["D_800EB9B0"], 4), "little") == 0x200000, step=1, guard=60)
-        g.write(symbols["D_800EB9AF"], b"\x00")
-        back = g.until(lambda: int.from_bytes(g.read(symbols["D_800EB9B0"], 4), "little") == 0, step=1, guard=60)
+        g.write(symbols["vs_battle_hudHidden"], b"\x01")
+        out = g.until(lambda: int.from_bytes(g.read(symbols["vs_battle_hudSlideOffset"], 4), "little") == 0x200000, step=1, guard=60)
+        g.write(symbols["vs_battle_hudHidden"], b"\x00")
+        back = g.until(lambda: int.from_bytes(g.read(symbols["vs_battle_hudSlideOffset"], 4), "little") == 0, step=1, guard=60)
         frames = counters("gauges")["frames"] - before
         if check(bool(out) and bool(back) and frames >= 6, f"gauges: the display slid out and back ({frames} frames "
                                                             f"compared)"):
@@ -148,7 +148,7 @@ def tour_figure(g, check, counters):
     at = stats_address(g) - 0x18 + 0x398
     limbs = [at + i * 0xDC for i in range(5)]
     saved = [g.read(a, 4) for a in limbs]
-    stance_at = symbols["D_800EB9CC"]
+    stance_at = symbols["vs_battle_hudBattleMode"]
     stance = g.read(stance_at, 1)
     covered = []
     try:
@@ -175,7 +175,7 @@ def tour_figure(g, check, counters):
                   f"figure stance {pose}: mixed read-only conditions")
             covered.append({"stance": pose, "hp": [1, 24, 50, 99, 100]})
         # Menu slide and lower-screen visibility: no hook while hidden; restored drawing afterwards.
-        for name, hidden in (("D_800EB9AF", 1), ("vs_battle_lowerScreenUiState", 2)):
+        for name, hidden in (("vs_battle_hudHidden", 1), ("vs_battle_lowerScreenUiState", 2)):
             address = symbols[name]
             original = g.read(address, 1)
             try:
@@ -211,8 +211,8 @@ def tour_status_icons(g, check, counters):
     symbols = rood_rpc.symbols()
     at = stats_address(g) - 0x18 + 0x948
     saved = [(at, g.read(at, 12))]
-    for name, size in (("D_800EB9D0", 4), ("D_800EB9AE", 1), ("D_800EB9AF", 1),
-                       ("D_800EB9B0", 4), ("vs_gametime_tickspeed", 4)):
+    for name, size in (("D_800EB9D0", 4), ("D_800EB9AE", 1), ("vs_battle_hudHidden", 1),
+                       ("vs_battle_hudSlideOffset", 4), ("vs_gametime_tickspeed", 4)):
         saved.append((symbols[name], g.read(symbols[name], size)))
     mapped = struct.unpack("<8H", g.read(symbols["D_800EBC68"], 16))
     covered = []
@@ -267,11 +267,11 @@ def tour_status_icons(g, check, counters):
                 covered.append({"scenario": "disabled"})
             else:
                 compared("enabled again")
-        g.write(symbols["D_800EB9AF"], b"\x01")
-        check(bool(g.until(lambda: int.from_bytes(g.read(symbols["D_800EB9B0"], 4), "little") == 0x200000,
+        g.write(symbols["vs_battle_hudHidden"], b"\x01")
+        check(bool(g.until(lambda: int.from_bytes(g.read(symbols["vs_battle_hudSlideOffset"], 4), "little") == 0x200000,
                            step=1, guard=60)), "status_icons slide out")
-        g.write(symbols["D_800EB9AF"], b"\x00")
-        check(bool(g.until(lambda: int.from_bytes(g.read(symbols["D_800EB9B0"], 4), "little") == 0,
+        g.write(symbols["vs_battle_hudHidden"], b"\x00")
+        check(bool(g.until(lambda: int.from_bytes(g.read(symbols["vs_battle_hudSlideOffset"], 4), "little") == 0,
                            step=1, guard=60)), "status_icons slide back")
         compared("slide out and back")
     finally:
@@ -282,17 +282,17 @@ def tour_status_icons(g, check, counters):
 
 def battle_mode_fixture(g, mode=1, step=4, phase=0):
     symbols = rood_rpc.symbols()
-    g.write(symbols["D_800EB9CC"], bytes([mode]))
-    g.write(symbols["D_800EB9CD"], bytes([step]))
-    g.write(symbols["D_800EBD64"], phase.to_bytes(4, "little"))
+    g.write(symbols["vs_battle_hudBattleMode"], bytes([mode]))
+    g.write(symbols["vs_battle_battleModeIndicatorStep"], bytes([step]))
+    g.write(symbols["vs_battle_battleModeIndicatorWobble"], phase.to_bytes(4, "little"))
 
 
 def tour_battle_mode(g, check, counters):
     """Entry, exit, packed-colour pulse extrema/wrap, and the pre-update panel displacement."""
     symbols = rood_rpc.symbols()
     saved = [(symbols[n], g.read(symbols[n], size)) for n, size in
-             (("D_800EB9CC", 1), ("D_800EB9CD", 1), ("D_800EBD64", 4),
-              ("D_800EB9AF", 1), ("D_800EB9B0", 4), ("vs_gametime_tickspeed", 4))]
+             (("vs_battle_hudBattleMode", 1), ("vs_battle_battleModeIndicatorStep", 1), ("vs_battle_battleModeIndicatorWobble", 4),
+              ("vs_battle_hudHidden", 1), ("vs_battle_hudSlideOffset", 4), ("vs_gametime_tickspeed", 4))]
     covered = []
 
     def frame(label, expected_step=None, expected_slide=None, expected_pulse=None):
@@ -307,8 +307,8 @@ def tour_battle_mode(g, check, counters):
         covered.append({"scenario": label, "step": e["step"], "slide": e["slide"], "pulse": e["pulse"]})
 
     try:
-        g.write(symbols["D_800EB9AF"], b"\x00")
-        g.write(symbols["D_800EB9B0"], bytes(4))
+        g.write(symbols["vs_battle_hudHidden"], b"\x00")
+        g.write(symbols["vs_battle_hudSlideOffset"], bytes(4))
         for step in range(4):
             battle_mode_fixture(g, step=step, phase=1024)
             frame(f"entry {step + 1}", expected_step=step + 1, expected_pulse=0)
@@ -328,9 +328,9 @@ def tour_battle_mode(g, check, counters):
                       expected_pulse=0 if phase in (0, 2048) else 128 if phase in (1024, 3072) else None)
             g.run(64)  # an entire unpinned pulse period at each tickspeed
         for hidden in (1, 0):
-            g.write(symbols["D_800EB9AF"], bytes([hidden]))
+            g.write(symbols["vs_battle_hudHidden"], bytes([hidden]))
             for slide in ((0, 8, 16, 24, 32) if hidden else (32, 24, 16, 8, 0)):
-                g.write(symbols["D_800EB9B0"], (slide << 16).to_bytes(4, "little"))
+                g.write(symbols["vs_battle_hudSlideOffset"], (slide << 16).to_bytes(4, "little"))
                 battle_mode_fixture(g, phase=1024)
                 frame(f"panel {'out' if hidden else 'back'} {slide}", expected_slide=slide << 16)
         battle_mode_fixture(g, step=0)
@@ -346,10 +346,10 @@ def tour_battle_mode(g, check, counters):
 
 
 def label_pool(g):
-    """The label records (D_800F1BAC: 24-byte D_800F1BAC_t) and their count (D_800F227E)."""
+    """The label records (vs_battle_floatingLabels: 24-byte D_800F1BAC_t) and their count (vs_battle_floatingLabelCount)."""
     symbols = rood_rpc.symbols()
-    pool = int.from_bytes(g.read(symbols["D_800F1BAC"], PTR), "little")
-    return pool, g.read(symbols["D_800F227E"], 1)[0]
+    pool = int.from_bytes(g.read(symbols["vs_battle_floatingLabels"], PTR), "little")
+    return pool, g.read(symbols["vs_battle_floatingLabelCount"], 1)[0]
 
 
 def tour_buff(g, check, counters):
@@ -373,7 +373,7 @@ def tour_buff(g, check, counters):
     return covered
 
 
-LABELS = 29  # the combat labels with pieces (D_800690B4: 29..31 have none)
+LABELS = 29  # the combat labels with pieces (vs_battle_statusLabelLayouts: 29..31 have none)
 
 
 def spawn_word(g, kind=2, flags=0, index=0, age=0):
@@ -390,7 +390,7 @@ def spawn_word(g, kind=2, flags=0, index=0, age=0):
     at = pool + count * 24
     g.write(at, struct.pack("<hhhhBBBBHBBhh4s", 0, 0, 0, 0, kind, 0, 0xFB if kind == 2 else 255, age, index, flags,
                             0, spread, spread, bytes(4)))
-    g.write(symbols["D_800F227E"], (count + 1).to_bytes(2, "little"))
+    g.write(symbols["vs_battle_floatingLabelCount"], (count + 1).to_bytes(2, "little"))
     return at
 
 
@@ -451,11 +451,11 @@ TIMERS = [(0, 0, 0, 0), (0, 0, 1, 0), (1, 2, 3, 0), (4, 5, 6, 0), (7, 8, 9, 0), 
 
 
 def timer_fixture(g, minutes=0, seconds=0, hundredths=0, over=0, shown=1):
-    """The time attack's timer as its state holds it: D_8005046C's seconds, minutes and overflow bytes,
+    """The time attack's timer as its state holds it: vs_battle_puzzleTimer's seconds, minutes and overflow bytes,
     vs_main_stateFlags.puzzleTimerHundredths (+0xA0), vs_battle_lowerScreenUiState 1 (the lower screen shows
     it)."""
     symbols = rood_rpc.symbols()
-    g.write(symbols["D_8005046C"] + 1, bytes([seconds, minutes, over]))
+    g.write(symbols["vs_battle_puzzleTimer"] + 1, bytes([seconds, minutes, over]))
     g.write(symbols["vs_main_stateFlags"] + 0xA0, bytes([hundredths]))
     g.write(symbols["vs_battle_lowerScreenUiState"], bytes([shown]))
 
@@ -465,7 +465,7 @@ def tour_timer(g, check, counters):
     hidden and shown again."""
     symbols = rood_rpc.symbols()
     saved = [(symbols[n] + o, g.read(symbols[n] + o, size)) for n, o, size in
-             (("D_8005046C", 0, 4), ("vs_main_stateFlags", 0xA0, 1), ("vs_battle_lowerScreenUiState", 0, 1))]
+             (("vs_battle_puzzleTimer", 0, 4), ("vs_main_stateFlags", 0xA0, 1), ("vs_battle_lowerScreenUiState", 0, 1))]
     covered = []
     try:
         for minutes, seconds, hundredths, over in TIMERS:
@@ -549,12 +549,12 @@ def tour_text_band(g, check, counters):
 
 def targeting(g, on=True):
     """Targeting up (Circle, Circle in the save room: battle mode, then the target sphere; with no enemy about the
-    information box says so, D_800EABAA 16) or left (Cross: out of it, then the weapon sheathed). The rows are the
+    information box says so, vs_battle_targetSelectionStep 16) or left (Cross: out of it, then the weapon sheathed). The rows are the
     gate's to write (target_row)."""
     symbols = rood_rpc.symbols()
 
     def up():
-        return int.from_bytes(g.read(symbols["D_800EB9B8"], 4), "little") != 0
+        return int.from_bytes(g.read(symbols["vs_battle_targetSphere"], 4), "little") != 0
     if up() != on:
         g.call("input", buttons=[], vsyncs=2)  # (a fixture's held L2 + R2 let go first)
         g.run(4)
@@ -566,7 +566,7 @@ def targeting(g, on=True):
 
 
 def rows_at(g):
-    """D_800EB9B8's rows (unk990: 24 records; the game's layout: they hold a host pointer): (offset, size)."""
+    """vs_battle_targetSphere's rows (unk990: 24 records; the game's layout: they hold a host pointer): (offset, size)."""
     return g.layout("targetRows_unk990", 0x990), g.layout("targetRow_size", 20)
 
 
@@ -584,24 +584,24 @@ def limb_names(g):
 
 
 def write_row(g, i, state=1, selected=0, fade=8, age=0, x=248, y=32, bank=0, text=0):
-    """Row i as func_800C5798 writes one (state 1 shown, 2 coming in from the right / going out to the left, 3 the
+    """Row i as vs_battle_initTargetSelectionRow writes one (state 1 shown, 2 coming in from the right / going out to the left, 3 the
     other way; the 3D point the origin), and the fields the targeting steps (selected, the plate's fade, the line's
     age)."""
     import struct
-    base = int.from_bytes(g.read(rood_rpc.symbols()["D_800EB9B8"], 4), "little")
+    base = int.from_bytes(g.read(rood_rpc.symbols()["vs_battle_targetSphere"], 4), "little")
     first, size = rows_at(g)
     g.write(base + first + size * i, struct.pack("<BBBBhbbhhhh" + ("Q" if size == 24 else "I"), state, selected, fade,
                                                  age, x, y, bank, 0, 0, 0, 0, text))
 
 
 def row_state(g, i):
-    base = int.from_bytes(g.read(rood_rpc.symbols()["D_800EB9B8"], 4), "little")
+    base = int.from_bytes(g.read(rood_rpc.symbols()["vs_battle_targetSphere"], 4), "little")
     first, size = rows_at(g)
     return g.read(base + first + size * i, 1)[0]
 
 
 def clear_rows(g):
-    base = int.from_bytes(g.read(rood_rpc.symbols()["D_800EB9B8"], 4), "little")
+    base = int.from_bytes(g.read(rood_rpc.symbols()["vs_battle_targetSphere"], 4), "little")
     if base:
         first, size = rows_at(g)
         g.write(base + first, bytes(24 * size))
@@ -630,8 +630,8 @@ def tour_target_row(g, check, counters):
                                 if e["kind"] == "target_row" and e["live"])
                     return row_state(g, 0) == 1 and 0 in seen
                 g.until(faded, step=1, guard=40)
-                base = int.from_bytes(g.read(rood_rpc.symbols()["D_800EB9B8"], 4), "little")
-                g.write(base + rows_at(g)[0], bytes([out]))  # (as func_800C56C0 sends them off)
+                base = int.from_bytes(g.read(rood_rpc.symbols()["vs_battle_targetSphere"], 4), "little")
+                g.write(base + rows_at(g)[0], bytes([out]))  # (as vs_battle_dismissTargetSelectionRows sends them off)
                 gone = g.until(lambda: row_state(g, 0) == 0, step=1, guard=40)
                 frames = counters("target_row")["frames"] - before
                 check(bool(gone) and frames >= 8, f"target_row {name!r} from the {('right', 'left')[side]}, bank "
@@ -658,7 +658,7 @@ def tour_target_row(g, check, counters):
         clear_rows(g)
         write_row(g, 0, selected=1, text=names[1][0])
         g.run(4)
-        base = int.from_bytes(g.read(rood_rpc.symbols()["D_800EB9B8"], 4), "little")
+        base = int.from_bytes(g.read(rood_rpc.symbols()["vs_battle_targetSphere"], 4), "little")
         g.write(base + rows_at(g)[0] + 1, b"\0")
         seen = set()
         g.until(lambda: seen.update(e["fade"] for e in g.call("hud", action="list")["elements"]
@@ -684,7 +684,7 @@ def tour_target_line(g, check, counters):
     if not check(targeting(g), "target_line: targeting up"):
         return covered
     names = limb_names(g)
-    base = int.from_bytes(g.read(rood_rpc.symbols()["D_800EB9B8"], 4), "little")
+    base = int.from_bytes(g.read(rood_rpc.symbols()["vs_battle_targetSphere"], 4), "little")
     cx, cy, cz = struct.unpack("<hhh", g.read(base + 8, 6))  # (the sphere's centre: Ashley)
     points = [(cx + dx, cy + dy, cz + dz) for dx in (-768, 0, 768) for dy in (-512, 0) for dz in (-768, 0, 768)]
     try:
@@ -741,11 +741,11 @@ OFFSETS = [(dx, dy, dz) for dx in (-6000, 0, 6000) for dy in (-4000, 0, 4000) fo
 
 
 def emote_actors(g):
-    """The opening's actors with a record (D_800F4538, past Ashley): their positions' addresses."""
+    """The opening's actors with a record (vs_actors_actorRecords, past Ashley): their positions' addresses."""
     symbols = rood_rpc.symbols()
     found = []
     for i in range(1, 16):
-        actor = int.from_bytes(g.read(symbols["D_800F4538"] + PTR * i, PTR), "little")
+        actor = int.from_bytes(g.read(symbols["vs_actors_actorRecords"] + PTR * i, PTR), "little")
         if actor:
             found.append((i, actor + 0x1C))  # (unk0.position)
     return found
@@ -759,8 +759,8 @@ def tour_emote(g, check, counters):
     symbols = rood_rpc.symbols()
     kinds_at, sides_at = symbols["D_800F2260"], symbols["D_800F2274"]
     saved = [(kinds_at, g.read(kinds_at, 16)), (sides_at, g.read(sides_at, 4)),
-             (symbols["D_800F2270"], g.read(symbols["D_800F2270"], 2))]
-    g.write(symbols["D_800F2270"], bytes(2))
+             (symbols["vs_battle_actorMarkersHidden"], g.read(symbols["vs_battle_actorMarkersHidden"], 2))]
+    g.write(symbols["vs_battle_actorMarkersHidden"], bytes(2))
     covered, seen = [], set()
 
     def live():
@@ -824,7 +824,7 @@ def tour_emote(g, check, counters):
 
 def keep_emotes(g):
     symbols = rood_rpc.symbols()
-    g.write(symbols["D_800F2270"], bytes(2))
+    g.write(symbols["vs_battle_actorMarkersHidden"], bytes(2))
     g.write(symbols["D_800F2260"], bytes([0] + [1] * 15))
 
 
@@ -890,12 +890,12 @@ def tour_ability_icons(g, check, counters):
                       "ability_icons disabled Break Arts from C")
                 g.write(status_at, old_status)
             for index in range(1, 11):
-                g.write(symbols["D_800EBCE8"], index.to_bytes(1, "little"))
+                g.write(symbols["vs_battle_shortcutHudAnimationStep"], index.to_bytes(1, "little"))
                 elements = compared(f"unlocked {unlocked}, entry animation {index - 1}")
                 check(all(e["animation"] == index - 1 for e in elements), "ability_icons exact entry index")
             g.call("input", buttons=[], vsyncs=1)
             before = counters("ability_icons")["frames"]
-            check(bool(g.until(lambda: g.read(symbols["D_800EBCE8"], 1) == b"\x0a", step=1, guard=90)),
+            check(bool(g.until(lambda: g.read(symbols["vs_battle_shortcutHudAnimationStep"], 1) == b"\x0a", step=1, guard=90)),
                   "ability_icons animated hide completed")
             check(counters("ability_icons")["frames"] > before, "ability_icons hide frames compared")
             before = counters("ability_icons")["frames"]
@@ -952,11 +952,11 @@ OPENING = ("emote", "text_frame", "box_text")  # the kinds the opening shows (fi
 
 def tour_text_frame(g, check, counters):
     """The talk bubble's frame: every shape the frames' table has, each flip and tail, written into the open box's
-    fields (func_800CD3E4 reads them; the box's place and size stay the game's), then the next lines (the
+    fields (vs_menu_drawTextBoxFrame reads them; the box's place and size stay the game's), then the next lines (the
     bubble closing, opening, moving)."""
     import struct
     symbols = rood_rpc.symbols()
-    boxes, table = symbols["vs_battle_textBoxes"], symbols["D_800EB588"]
+    boxes, table = symbols["vs_battle_textBoxes"], symbols["vs_event_textBoxFrameStyles"]
     size = g.layout("textBox_size", 0x30)
     covered, seen = [], set()
 
@@ -1043,7 +1043,7 @@ NEW_GAME = ("image",)  # the kinds New Game's opening shows before the first bub
 
 
 def run_new_game(out, env, check, waivers, kinds):
-    """The images (func_800CCA90's tiled drawer): New Game's opening cards (the title, no card: Start, Circle). From
+    """The images (vs_render_drawGimLayer's tiled drawer): New Game's opening cards (the title, no card: Start, Circle). From
     the first card's first frame (a mark): the default and the fallback, state parity, then back to the mark and
     every frame of the cards' lives compared."""
     g = launch_at("title", card=str(out / "no-card.mcd"), fast=True, log=out / "game-new-game.log", extra_env=env)
@@ -1065,7 +1065,7 @@ def run_new_game(out, env, check, waivers, kinds):
         symbols = rood_rpc.symbols()
         pointer = 8 if pathlib.Path(rood_rpc.BINARY).read_bytes()[4] == 2 else 4
         masks = [[symbols["vs_scratch"], pointer]]
-        for name, size in (("D_8005E0C0", 0x20000), ("D_80055C80", 0x822 * 4)):
+        for name, size in (("vs_render_legacyPrimitiveBuffers", 0x20000), ("vs_render_legacyOrderingTables", 0x822 * 4)):
             for i in range(2):
                 address = int.from_bytes(g.read(symbols[name] + pointer * i, pointer), "little")
                 masks.append([address, size])
@@ -1247,7 +1247,7 @@ OPTION_COMMAND, VANILLA_OPTIONS = 7, 9  # the top level's Option row (MENU8), it
 
 ITEMS_COMMAND, ITEMS_MENU = 3, 4  # the top level's Items row; its currentMenu (MENU3's screen)
 INTRO_STATE = 0xAB  # vs_main_stateFlags.introState: under 3 (the prologue) Manage's Equip is unselectable
-ITEM_CATEGORY = 0x3A  # D_800F4EE8.unk3A.currentItemCategory: the category + 1 (0: the Manage page, category 7)
+ITEM_CATEGORY = 0x3A  # vs_menu_frameworkMenuMemory.unk3A.currentItemCategory: the category + 1 (0: the Manage page, category 7)
 
 
 def items_open(g, symbols):
@@ -1295,7 +1295,7 @@ def tour_items(g, symbols, toured, frames):
         g.press(button, vsyncs=3, settle=settle)
 
     def category():
-        return (g.read(symbols["D_800F4EE8"] + ITEM_CATEGORY, 1)[0] - 1) & 7
+        return (g.read(symbols["vs_menu_frameworkMenuMemory"] + ITEM_CATEGORY, 1)[0] - 1) & 7
 
     def rows_now():  # (the live rows and their places: a status view slides them)
         p = int.from_bytes(g.read(symbols["vs_battle_menuItems"], PTR), "little")
@@ -1390,7 +1390,7 @@ ITEM_CATEGORIES = {0: "weapons", 1: "blades", 2: "grips", 3: "shields", 4: "armo
 
 
 def items_category_now(g, symbols):
-    return (g.read(symbols["D_800F4EE8"] + ITEM_CATEGORY, 1)[0] - 1) & 7
+    return (g.read(symbols["vs_menu_frameworkMenuMemory"] + ITEM_CATEGORY, 1)[0] - 1) & 7
 
 
 def items_rows_now(g, symbols):
@@ -3273,7 +3273,7 @@ def tour_loot(g, symbols, toured, frames):
     g.rewind()  # (the bag, the cursor memory)
 
 
-STORAGE_TOP, STORAGE_ROW = 3, 0x9E  # MENUD's state: its top menu; D_800F4EE8 + 0x9E: its row (ui_container_smoke)
+STORAGE_TOP, STORAGE_ROW = 3, 0x9E  # MENUD's state: its top menu; vs_menu_frameworkMenuMemory + 0x9E: its row (ui_container_smoke)
 
 
 def storage_state(g, symbols):
@@ -3307,7 +3307,7 @@ def storage_store(g, symbols):
     """Storage's top menu, Store (row 1): the bag's first tab's list at rest (the tab arrows)."""
     storage_open(g, symbols)
     for _ in range(4):
-        if g.read(symbols["D_800F4EE8"] + STORAGE_ROW, 1)[0] == 1:
+        if g.read(symbols["vs_menu_frameworkMenuMemory"] + STORAGE_ROW, 1)[0] == 1:
             break
         g.press("down", vsyncs=3, settle=8)
         items_ready(g, symbols)
@@ -3361,18 +3361,18 @@ def storage_leave(g, symbols):
     g.run(30)
 
 
-STORAGE_CATEGORY = 0xA0  # D_800F4EE8 + 0xA0: MENUD's list's category + 1 (234.c: unkA0[0], unk85[0x1B])
+STORAGE_CATEGORY = 0xA0  # vs_menu_frameworkMenuMemory + 0xA0: MENUD's list's category + 1 (234.c: unkA0[0], unk85[0x1B])
 
 
 def storage_discard_open(g, symbols):
     """Storage's Store, the bag's misc tab, its first row's Discard: the amount picker at rest (MENUD's copy)."""
     storage_store(g, symbols)
     for _ in range(8):
-        if g.read(symbols["D_800F4EE8"] + STORAGE_CATEGORY, 1)[0] == 7:
+        if g.read(symbols["vs_menu_frameworkMenuMemory"] + STORAGE_CATEGORY, 1)[0] == 7:
             break
         g.press("r1", vsyncs=3, settle=10)
         items_ready(g, symbols)
-    if g.read(symbols["D_800F4EE8"] + STORAGE_CATEGORY, 1)[0] != 7:
+    if g.read(symbols["vs_menu_frameworkMenuMemory"] + STORAGE_CATEGORY, 1)[0] != 7:
         raise RpcError("Storage: the misc tab never reached")
     g.run(10)
     discard_picker(g, symbols, ("circle", "circle"))  # (picked, its actions)
@@ -3512,7 +3512,7 @@ def tour_storage_remove(g, symbols, toured, frames):
            views=views)
     before = frames()
     for _ in range(8):  # the weapons' tab: its row taken out
-        if g.read(symbols["D_800F4EE8"] + STORAGE_CATEGORY, 1)[0] == 1:
+        if g.read(symbols["vs_menu_frameworkMenuMemory"] + STORAGE_CATEGORY, 1)[0] == 1:
             break
         press("r1", settle=10)
     count = len([i for i, _ in items_rows_now(g, symbols) if 20 <= i < 30])
@@ -3544,7 +3544,7 @@ def tour_storage(g, symbols, toured, frames):
 
     def top_to(row):
         for _ in range(4):
-            if g.read(symbols["D_800F4EE8"] + STORAGE_ROW, 1)[0] == row:
+            if g.read(symbols["vs_menu_frameworkMenuMemory"] + STORAGE_ROW, 1)[0] == row:
                 return
             press("down")
         raise RpcError(f"Storage: the top menu's row {row} never reached")
@@ -3594,7 +3594,7 @@ def tour_storage(g, symbols, toured, frames):
     press("circle", settle=20)
     g.run(20)
     for _ in range(8):
-        if g.read(symbols["D_800F4EE8"] + STORAGE_CATEGORY, 1)[0] == 7:
+        if g.read(symbols["vs_menu_frameworkMenuMemory"] + STORAGE_CATEGORY, 1)[0] == 7:
             break
         press("r1", settle=10)
     discard_picker(g, symbols, ("circle", "circle"))  # (picked, its actions)
@@ -3627,7 +3627,7 @@ def tour_storage(g, symbols, toured, frames):
     g.rewind()  # (the container never saved: the menu closed, the save room)
 
 
-MENUF_MENU = 15  # currentMenu while a MENUF screen is up (RPC menuf: BATTLE's func_800CB23C, after a fight)
+MENUF_MENU = 15  # currentMenu while a MENUF screen is up (RPC menuf: BATTLE's vs_menu_frameworkOpenChallengeMenu, after a fight)
 MENUF_SCREENS = {0: "the congratulations", 1: "the time attack's start", 2: "the time attack's end",
                  4: "the cube puzzle's start", 5: "the cube puzzle's end", 6: "the cube puzzle's quit"}  # (3: none)
 
@@ -4403,7 +4403,7 @@ def run_opening(out, env, check, waivers, kinds):
         # state parity (§3.4) here: from one mark, rood.classic drawing, then the game
         pointer = 8 if pathlib.Path(rood_rpc.BINARY).read_bytes()[4] == 2 else 4
         masks = [[symbols["vs_scratch"], pointer]]
-        for name, size in (("D_8005E0C0", 0x20000), ("D_80055C80", 0x822 * 4)):
+        for name, size in (("vs_render_legacyPrimitiveBuffers", 0x20000), ("vs_render_legacyOrderingTables", 0x822 * 4)):
             for i in range(2):
                 address = int.from_bytes(g.read(symbols[name] + pointer * i, pointer), "little")
                 masks.append([address, size])
@@ -4411,7 +4411,7 @@ def run_opening(out, env, check, waivers, kinds):
         runs = ([("emote", k) for k in (1, 4, 5) if "emote" in kinds] + [("text_frame", 0)] * ("text_frame" in kinds)
                 + [("box_text", 0)] * ("box_text" in kinds))
         for kind, emote in runs:
-            g.write(symbols["D_800F2270"], bytes(2))
+            g.write(symbols["vs_battle_actorMarkersHidden"], bytes(2))
             g.write(symbols["D_800F2260"], bytes([0] + [emote] * 15))
             g.run(4)
             g.pause()
@@ -4738,10 +4738,10 @@ POPUPS = ("buff", "damage", "actor_word", "timer", "text_band")
 
 def packet_masks(symbols, pointer):
     """More of what the proof leaves out as packets, beside the primitive buffers and the ordering table: the
-    text boxes' private ordering tables (D_800F4CD0: three of 34 links, spliced into the frame's) and the room
+    text boxes' private ordering tables (vs_menu_textBoxOrderingTables: three of 34 links, spliced into the frame's) and the room
     drawing's copies of the packet pointer (D_800F1CC0, D_800F1BB8, 146C.c). A classic draw allocates its
     packets after the game's no-ops, so later packets, and the links to them, sit further on."""
-    masks = [[symbols["D_800F4CD0"], 3 * 34 * 4]]
+    masks = [[symbols["vs_menu_textBoxOrderingTables"], 3 * 34 * 4]]
     rows = {name: a for a, n, name in Symbols(rood_rpc.BINARY).rows if name in ("D_800F1CC0", "D_800F1BB8")}
     # the frame's draw items (draw_items.c, saved state): a claim's items follow the game's, which it marks not drawn
     items = [(a, n) for a, n, name in Symbols(rood_rpc.BINARY).rows if name == "pc_item_frame"]
@@ -4754,7 +4754,7 @@ def state_masks(g):
     symbols = rood_rpc.symbols()
     pointer = 8 if pathlib.Path(rood_rpc.BINARY).read_bytes()[4] == 2 else 4  # (ELF class: the arrays' pointers)
     masks = [[symbols["vs_scratch"], pointer]]  # vs_scratch.unk0, the packet pointer
-    for name, size in (("D_8005E0C0", 0x20000), ("D_80055C80", 0x822 * 4)):  # the frame's two of each
+    for name, size in (("vs_render_legacyPrimitiveBuffers", 0x20000), ("vs_render_legacyOrderingTables", 0x822 * 4)):  # the frame's two of each
         for i in range(2):
             address = int.from_bytes(g.read(symbols[name] + pointer * i, pointer), "little")
             masks.append([address, size])

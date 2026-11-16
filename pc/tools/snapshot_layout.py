@@ -31,8 +31,13 @@ restored stale after an engine rebuild; those are reported."""
 import hashlib
 import json
 import pathlib
+import re
 import struct
 import subprocess
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import symbol_names  # noqa: E402
 
 # The highest end of the image: the kernel starts the heap at a random point
 # up to 1 GB past it (64 bits), and the game stack is at 0x60000000.
@@ -127,10 +132,17 @@ class Elf:
         return ("symbol", name, self.section_name(shndx) if 0 < shndx < 0xFF00 else None)
 
 
-def _info(path, pinned):
-    """What the keys and the check need from one object, cached by content."""
+def _info(path, pinned, canon=lambda text: text):
+    """What the keys and the check need from one object, cached by content. Names go into the digests as the
+    decomp spelled them (canon: pc/names/symbols.tsv), so a rename leaves the keys, and so the save states, as they were."""
     elf = Elf(path)
     h = hashlib.sha256()
+    # Zig numbers its anonymous constants (__anon_145894) by the size of its string pool, which a rename changes:
+    # the n-th one met is the same constant, so each is hashed as its rank.
+    anons = {}
+    canon_names = canon
+    canon = lambda text: re.sub(r"__anon_\d+", lambda m: "__anon_#%d" % anons.setdefault(m.group(0), len(anons)),
+                                canon_names(text))
     defined = {}  # global symbol -> its section stays put across engine rebuilds
     state_refs = []  # (state section, target) of each relocation in a state section
     for name, info, shndx, value, size in elf.symbols:
@@ -145,27 +157,27 @@ def _info(path, pinned):
                                                                    ".rela.eh_frame", ".rel.eh_frame"))
                 and s["type"] not in (0, 2, 3)]  # NULL, SYMTAB, STRTAB
         for s in keep:
-            h.update(f"{s['name']}\0{s['type']}\0{s['flags']}\0{s['size']}\0{s['align']}\0{s['entsize']}\n".encode())
+            h.update(canon(f"{s['name']}\0{s['type']}\0{s['flags']}\0{s['size']}\0{s['align']}\0{s['entsize']}\n").encode())
             if s["type"] in (4, 9):
                 target = elf.section_name(s["info"])
                 for offset, kind, addend, symbol in elf.relocations(s):
-                    h.update(f"{target}\0{offset}\0{kind}\0{addend}\0{elf.symbol_target(symbol)}\n".encode())
+                    h.update(canon(f"{target}\0{offset}\0{kind}\0{addend}\0{elf.symbol_target(symbol)}\n").encode())
             else:
                 h.update(elf.contents(s))
         for name, info, shndx, value, size in elf.symbols:
             section = elf.section_name(shndx) if 0 < shndx < 0xFF00 else shndx
             if isinstance(section, str) and section.startswith(".debug"):
                 continue
-            h.update(f"{name}\0{info}\0{section}\0{value}\0{size}\n".encode())
+            h.update(canon(f"{name}\0{info}\0{section}\0{value}\0{size}\n").encode())
     else:
         # A host unit: only the layout of its state sections.
         for s in elf.sections:
             if _is_state(s["name"]):
-                h.update(f"{s['name']}\0{s['type']}\0{s['size']}\0{s['align']}\n".encode())
+                h.update(canon(f"{s['name']}\0{s['type']}\0{s['size']}\0{s['align']}\n").encode())
         for name, info, shndx, value, size in elf.symbols:
             section = elf.section_name(shndx) if 0 < shndx < 0xFF00 else None
             if section and _is_state(section):
-                h.update(f"{name}\0{info}\0{section}\0{value}\0{size}\n".encode())
+                h.update(canon(f"{name}\0{info}\0{section}\0{value}\0{size}\n").encode())
     for s in elf.sections:
         if s["type"] in (4, 9) and _is_state(elf.section_name(s["info"]) or ""):
             for _, _, _, symbol in elf.relocations(s):
@@ -226,13 +238,14 @@ def generate(objects, pinned, base, pointer_size, out, log=print):
     except (OSError, ValueError):
         cache = {}
     fresh = {}
+    canon = symbol_names.canonicaliser()
     pinned_set = set(map(str, pinned))
     infos = {}
     for obj in objects:
         data = pathlib.Path(obj).read_bytes()
         is_pinned = str(obj) in pinned_set
-        key = hashlib.sha256(data).hexdigest() + ("P" if is_pinned else "H")
-        info = cache.get(key) or _info(obj, is_pinned)
+        key = hashlib.sha256(data).hexdigest() + ("P" if is_pinned else "H") + "c2"  # c2: names as the decomp spelled them, anonymous constants by rank
+        info = cache.get(key) or _info(obj, is_pinned, canon)
         fresh[key] = info
         infos[str(obj)] = info
     cache_path.write_text(json.dumps(fresh))

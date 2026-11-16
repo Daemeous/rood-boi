@@ -7,7 +7,7 @@ const c = @import("c_30DB0");
 /// Runs the weapon-drawn attack of actor `arg0` against `arg1`, then clears its idle flags.
 pub fn func_8009DDF4(arg0: c_int, arg1: ?*v.SVECTOR) callconv(.c) void {
     // ROOD_PC: an empty actor slot reads through NULL, which maps to PS1 address 0 at 0x80000000.
-    const slot = psx.at(v.g.D_800F4538(), arg0).*;
+    const slot = psx.at(v.g.vs_actors_actorRecords(), arg0).*;
     const temp: *align(1) v.D_800F4538_t = if (slot) |p| p else psx.lowRam(v.D_800F4538_t);
     const hdr: *align(1) v.D_800F4538_unk0 = &temp.unk0;
 
@@ -19,12 +19,12 @@ pub fn func_8009DDF4(arg0: c_int, arg1: ?*v.SVECTOR) callconv(.c) void {
         var var_s1: c_int = 4;
 
         if (temp.unk63C < 0x80) {
-            hdr.unk3E = psx.conv(i16, c.func_8009E180(@ptrCast(temp), @ptrCast(arg1)));
+            hdr.unk3E = psx.conv(i16, c.vs_actors_actorFacingDeltaToPoint(@ptrCast(temp), @ptrCast(arg1)));
             hdr.unk18 = 4;
             var_s1 = 8;
         }
 
-        const temp_v0: c_int = c.func_8009E228(@ptrCast(temp), @ptrCast(arg1));
+        const temp_v0: c_int = c.vs_actors_pitchToPoint(@ptrCast(temp), @ptrCast(arg1));
         var var_a1: c_int = 0x4F;
 
         if (temp_v0 >= -0xE4) {
@@ -34,8 +34,8 @@ pub fn func_8009DDF4(arg0: c_int, arg1: ?*v.SVECTOR) callconv(.c) void {
             }
         }
 
-        _ = c.func_800A0204(arg0, var_a1, 0, var_s1);
-        c.func_8009FD38(@ptrCast(temp));
+        _ = c.vs_actors_playActorAnimation(arg0, var_a1, 0, var_s1);
+        c.vs_actors_headTrackingSpeed(@ptrCast(temp));
     }
 
     if (hdr.unkF == 0) {

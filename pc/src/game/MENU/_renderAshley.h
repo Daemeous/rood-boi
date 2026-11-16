@@ -90,10 +90,10 @@ static void _renderAshley(int mode)
             int scaledDistance;
             int offsetX;
             int offsetZ;
-            int cameraDistance = D_800F4538[1]->menuCameraDistance;
+            int cameraDistance = vs_actors_actorRecords[1]->menuCameraDistance;
 
             setVector(&camera->lookAt, ((-rsin(0xB00) * yOffset) >> 8) * cameraDistance,
-                -(D_800F4538[1]->menuCameraHeightOffset << 0xB),
+                -(vs_actors_actorRecords[1]->menuCameraHeightOffset << 0xB),
                 ((rcos(0xB00) * yOffset) >> 8) * cameraDistance);
 
             scaledDistance = cameraDistance * 4;
@@ -108,8 +108,8 @@ static void _renderAshley(int mode)
             camera->farClip = 0x1000;
             camera->position.vz = camera->lookAt.vz + offsetZ;
 
-            func_8007ACB0();
-            func_800F9EB8(&vs_view.viewMatrix);
+            vs_render_buildCameraViewMatrix();
+            vs_menu_frameworkDrawActorPreview(&vs_view.viewMatrix);
         }
         break;
 
@@ -128,16 +128,16 @@ static void _renderAshley(int mode)
             setVector(&camera->angles, 0, 0, 0);
             camera->farClip = 0x1000;
 
-            func_8007ACB0();
+            vs_render_buildCameraViewMatrix();
             vs_mainMenu_setBackgroundRenderPriority(2046, 128);
-            func_800F9A24(0);
+            vs_menu_frameworkLoadActorPreview(0);
         }
         break;
 
     case ashleyRenderModeRestore:
         if (render != 0) {
 
-            func_800F9E0C();
+            vs_menu_frameworkReleaseActorPreview();
             vs_mainMenu_setBackgroundRenderPriority(-4, 128);
             vs_battle_setProjectionDistance(projectionDistance);
 

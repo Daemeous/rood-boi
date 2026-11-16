@@ -2,10 +2,10 @@
 const c = @import("c_navigation");
 const v = @import("views_navigation");
 
-/// orig: func_800DC638 (pc/src/navigation.c)
+/// orig: vs_battle_aiUpdateRouteGateAvailability (pc/src/navigation.c)
 /// Clears the 0x8000/0x80000000 "closed" flags of the navigation table's links
 /// (0x100 words at D_800F58C0) whose room exit is active: the exits are the
-/// records func_8008D2C0 fills (halfword 3 of each is a bit number), and each
+/// records vs_field_collectMovingPlatformPositions fills (halfword 3 of each is a bit number), and each
 /// link word is matched against the eight tile words at D_800F5910. The
 /// oracle keeps the PS1 registers' mutation across iterations: `bit0` and
 /// `bit1` are shifted into themselves, and `one` (the register the assembly
@@ -14,7 +14,7 @@ const v = @import("views_navigation");
 /// goes on reading its stack buffer; so does this port.
 pub fn enableExitLinks() callconv(.c) void {
     var exits: [13][4]u16 = undefined;
-    const count = c.func_8008D2C0(&exits);
+    const count = c.vs_field_collectMovingPlatformPositions(&exits);
     if (count < 0 or count > 13) c.pc_unimplemented("room exit count exceeds original buffer");
     const records: [*]const [4]u16 = @ptrCast(&exits);
     var active: c_uint = 0;

@@ -2,10 +2,10 @@
 #include <stddef.h>
 #include <libgte.h>
 
-void func_800F9A24(int);
-void func_800F9A78(int arg0);
-void func_800F9CB0(void);
-void func_800F9E0C(void);
-int func_800F9EB8(MATRIX* arg0);
-void func_800FA2CC(void);
-void func_800FA3FC(int arg0);
+void vs_menu_frameworkLoadActorPreview(int);
+void vs_menu_frameworkCloneActorPreview(int arg0);
+void vs_menu_frameworkResetActorPreviewPose(void);
+void vs_menu_frameworkReleaseActorPreview(void);
+int vs_menu_frameworkDrawActorPreview(MATRIX* arg0);
+void vs_menu_frameworkResetAshleyEquipmentPose(void);
+void vs_menu_frameworkQueueAshleyWeaponAnimations(int arg0);

@@ -17,5 +17,5 @@ pub fn aimAtPoint(state: *ai.vs_battle_aiState, kind: c_int) callconv(.c) void {
         x -% @as(c_int, state.position.xyz[0]),
         z -% @as(c_int, state.position.xyz[2]),
     );
-    c.func_800E50A0(state, 1, heading);
+    c.vs_battle_aiDispatchAiLocomotionMode(state, 1, heading);
 }

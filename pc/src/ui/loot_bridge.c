@@ -1,9 +1,9 @@
 /* Modern menus, the Loot screen: the game side (battle builds).
  *
  * The game opens its loot menu itself: after a battle with drops
- * (BATTLE 146C.c:3539, 8423, 8554 func_800CB158(_lootListHead): the list of
- * drops, D_800EB9C4) and at a chest (146C.c:5354 func_800CB18C: the chest's
- * loot, D_800EB9C8); both func_800CACD0(0xC, 2), so MAINMENU's
+ * (BATTLE 146C.c:3539, 8423, 8554 vs_menu_frameworkOpenLootListMenu(_lootListHead): the list of
+ * drops, vs_menu_frameworkLootLists) and at a chest (146C.c:5354 vs_menu_frameworkOpenLootEntryMenu: the chest's
+ * loot, vs_menu_frameworkLootEntry); both vs_menu_frameworkOpenGameMenu(0xC, 2), so MAINMENU's
  * vs_mainMenu_exec runs MENUB's vs_menuB_exec as direct entry 12. With
  * ui_menus modern the direct-entry hook (menu_bridge.c pc_ui_direct_tick)
  * hands that session to this file instead: pc_ui_loot_begin on its first tick
@@ -19,20 +19,20 @@
  * (MAINMENU.PRG is resident: this runs inside its vs_mainMenu_exec, which
  * only runs once MAINMENU has loaded, and vs_mainMenu_exec only reaches its
  * direct entries with the submenu loaded). So the bag, its index lists, the
- * key flags and D_800F4E98.unk2 end byte for byte as the original menu leaves
+ * key flags and vs_menu_frameworkActionSelection.unk2 end byte for byte as the original menu leaves
  * them (ui_loot_smoke). What is the original's presentation only (the rows'
  * animations, the information box, the item names MENUB loads for its rows,
  * cursor and scroll) is left out; the shell has its own.
  *
  *   open    vs_menuB_exec state 0 (1825): vs_battle_playSfx10, the base stats
  *           (vs_mainMenu_populateBaseStats(16)), every bag list rebuilt, the
- *           allocation, _applyAllLootLists(D_800EB9C4) (1077: the chest's
+ *           allocation, _applyAllLootLists(vs_menu_frameworkLootLists) (1077: the chest's
  *           single loot when the list pointer is null; per loot the drops of
  *           the current difficulty, _applyLootList 1031, each copied into the
  *           loot's inventory, _copy*ToInventory 681-834, then
  *           _updateLootList 836). An empty list shows the game's emptyChest
  *           line (state 1, 1863); any button ends it (state 4; unk2 is left
- *           as func_800CACD0 set it, 0).
+ *           as vs_menu_frameworkOpenGameMenu set it, 0).
  *   Take    _processLootMenu processInput Circle (1587): the row fits (its
  *           lootState): sfx 0x7E 0xD, a key's flag (_setKeyFlag 1966:
  *           vs_battle_setStateFlag(id + 438, 1)), vs_mainMenu_copyItem(c |
@@ -55,9 +55,9 @@
  *           sound.
  *     Organize inventory  _topLevelMenuTransition (53): the bag in the Items
  *           menu (items2.h, the same as MENU3's): the world frozen and the
- *           HUD slid out as it does (func_8008A4DC(0); when D_800EB9AF was
- *           0: func_800CB654(1), D_800EB9B0 0x200000; undone on the way
- *           back; D_800EB9AF as the game has it under the shell's own
+ *           HUD slid out as it does (vs_field_setFieldRenderingEnabled(0); when vs_battle_hudHidden was
+ *           0: vs_battle_setHudHidden(1), vs_battle_hudSlideOffset 0x200000; undone on the way
+ *           back; vs_battle_hudHidden as the game has it under the shell's own
  *           slide-out, menu_bridge.c), the current category set and, without cursor memory,
  *           unk3A cleared (_itemNavigation(1)); a category change sets
  *           the current category (its L1 / R1, the change sound); Discard
@@ -74,10 +74,10 @@
  *           a key or sigil in the list cannot be left (invalidDiscard: the
  *           shell says so); else the Yes / No (on No): Yes sfx 0x7E 0x1C,
  *           ends with 2 if nothing was taken, else 1.
- *   end     vs_menuB_exec state 3 / 5 (1895, 1907): D_800F4E98.unk2 = (the
+ *   end     vs_menuB_exec state 3 / 5 (1895, 1907): vs_menu_frameworkActionSelection.unk2 = (the
  *           result is 1); then, once text box 7 is dismissed
  *           (vs_battle_dismissTextBox(7)), the allocation freed, the drops
- *           list freed (func_8008A6FC) when the loot came from it; *state 0, return 1
+ *           list freed (vs_items_clearRoomLootList) when the loot came from it; *state 0, return 1
  *           (vs_mainMenu_exec's func_800FAA5C then sets currentMenu 0x7F and
  *           gives the menu's resources back, as after MENUB).
  *
@@ -147,7 +147,7 @@ static struct {
     char claimed;                   /* _lootClaimed */
     int empty;                      /* the list came empty (vs_menuB_exec state 4) */
     int bag;                        /* the Organize inventory panel is up (_topLevelMenuTransition) */
-    char hud_saved;                 /* its D_8010A681: D_800EB9AF as it was */
+    char hud_saved;                 /* its vs_menu_lootHudWasHidden: vs_battle_hudHidden as it was */
     int closing;                    /* the result is in, state 5 runs (vs_battle_dismissTextBox(7)) */
     int dirty;                      /* the list, the loot's inventory or the bag changed: rows refilled */
     int focus;                      /* the focus the focused row's texts and card were filled for */
@@ -435,7 +435,7 @@ static void apply_all(vs_battle_lootListNode* node) /* _applyAllLootLists 1077 *
             node = node->next;
         }
     } else {
-        apply_list(D_800EB9C8);
+        apply_list(vs_menu_frameworkLootEntry);
     }
 }
 
@@ -454,7 +454,7 @@ static void set_key_flag(int arg0) /* _setKeyFlag 1966 */
 static void finish(int result)
 {
     if (result != 0) {
-        D_800F4E98.unk2 = result == 1;
+        vs_menu_frameworkActionSelection.unk2 = result == 1;
     }
     L.closing = 1;
     pc_ui_loot_close();
@@ -472,8 +472,8 @@ static int close_step(void)
         return 0;
     }
     vs_main_freeHeapR(L.inventory);
-    if (D_800EB9C4 != 0) {
-        func_8008A6FC();
+    if (vs_menu_frameworkLootLists != 0) {
+        vs_items_clearRoomLootList();
     }
     L.inventory = NULL;
     L.active = 0;
@@ -814,19 +814,19 @@ static void bag_open(int category)
         /* another category (MENUB's Items menu, L1 / R1: the change sound,
          * the current category) */
         vs_battle_playMenuChangeSfx();
-        D_800F4EE8.unk3A.currentItemCategory = (category + 1) & 7;
+        vs_menu_frameworkMenuMemory.unk3A.currentItemCategory = (category + 1) & 7;
         return;
     }
-    D_800F4EE8.unk3A.currentItemCategory = category + 1;
-    func_8008A4DC(0);
-    L.hud_saved = pc_ui_menu_hud_game(); /* D_800EB9AF (the shell's slide-out aside) */
+    vs_menu_frameworkMenuMemory.unk3A.currentItemCategory = category + 1;
+    vs_field_setFieldRenderingEnabled(0);
+    L.hud_saved = pc_ui_menu_hud_game(); /* vs_battle_hudHidden (the shell's slide-out aside) */
     if (!L.hud_saved) {
-        func_800CB654(1);
-        D_800EB9B0 = 0x200000;
+        vs_battle_setHudHidden(1);
+        vs_battle_hudSlideOffset = 0x200000;
     }
     /* _itemNavigation(1): the memories start over without cursor memory */
     if (vs_main_settings.cursorMemory == 0) {
-        vs_main_bzero(&D_800F4EE8.unk3A, sizeof D_800F4EE8.unk3A);
+        vs_main_bzero(&vs_menu_frameworkMenuMemory.unk3A, sizeof vs_menu_frameworkMenuMemory.unk3A);
     }
     L.bag = 1;
 }
@@ -836,10 +836,10 @@ static void bag_close(void)
     if (!L.bag) {
         return;
     }
-    func_8008A4DC(1);
+    vs_field_setFieldRenderingEnabled(1);
     if (L.hud_saved == 0) {
-        func_800CB654(0);
-        D_800EB9B0 = 0;
+        vs_battle_setHudHidden(0);
+        vs_battle_hudSlideOffset = 0;
     }
     pc_ui_menu_hud_keep(); /* the HUD stays out under the shell (menu_bridge.c) */
     L.bag = 0;
@@ -1068,7 +1068,7 @@ static void fill_rows(void)
     int i, c;
     const char* key_name = "";
     snap.valid = 1;
-    snap.chest = D_800EB9C4 == NULL && D_800EB9C8 != NULL;
+    snap.chest = vs_menu_frameworkLootLists == NULL && vs_menu_frameworkLootEntry != NULL;
     snap.count = L.count;
     snap.claimed = L.claimed;
     snap.keys = 0;
@@ -1217,7 +1217,7 @@ static void request(const pc_ui_request* r)
             /* _discardItems(1): nothing left (state 4), a chest untouched (5) */
             if (L.count == 0)
                 finish(1);
-            else if (L.claimed == 0 && D_800EB9C8 != NULL)
+            else if (L.claimed == 0 && vs_menu_frameworkLootEntry != NULL)
                 finish(2);
             return;
         }
@@ -1279,7 +1279,7 @@ int pc_ui_loot_begin(void)
     L.count = 0;
     L.active = 1;
 
-    apply_all(D_800EB9C4);
+    apply_all(vs_menu_frameworkLootLists);
     L.empty = L.count == 0;
 
     pc_ui_loot_open();
@@ -1333,25 +1333,25 @@ void pc_ui_loot_abandon(int reset)
 /* RPC loot (tests, dev_rpc.c): the loot menu opened as the game opens it.
  * nodes loot lists of sizeof (vs_battle_loot) bytes each: chest 0 links them
  * to the drops list (_lootListHead, as 146C.c builds it after a battle: each
- * node from the game's heap, actorId 0xFF) and calls func_800CB158; chest 1
- * opens the first as a chest's (func_800CB18C on a copy kept here). Then the
+ * node from the game's heap, actorId 0xFF) and calls vs_menu_frameworkOpenLootListMenu; chest 1
+ * opens the first as a chest's (vs_menu_frameworkOpenLootEntryMenu on a copy kept here). Then the
  * field's menu mode, as the field's Triangle opens the menu (146C.c:7614
- * func_8007357C: the field ticks the menu, func_800C97BC, and ends it when
- * it closes, func_800735F8; the after-battle and chest flows tick it in
+ * vs_field_beginBattleActionMenu: the field ticks the menu, vs_menu_frameworkUpdateMenuOverlay, and ends it when
+ * it closes, vs_field_dispatchBattleActionMenuResult; the after-battle and chest flows tick it in
  * their own modes, which need a battle's or a chest's state: see RPC chest
  * for the real chest flow). Only in the field with Ashley free to act, as
  * the field's Triangle checks it (field mode 1, no screen transition, no
- * 0x4000 status, unk954 0) and while no menu is open (func_800CACD0 refuses
+ * 0x4000 status, unk954 0) and while no menu is open (vs_menu_frameworkOpenGameMenu refuses
  * otherwise). A node the heap has no room for gives back the ones allocated
  * before it (the drops list as it was). Returns 1 when opened. */
-void func_8007357C(int arg0, int arg1); /* BATTLE 146C.c */
+void vs_field_beginBattleActionMenu(int arg0, int arg1); /* BATTLE 146C.c */
 extern u_int D_800F196C;                 /* the field's mode: 1 free to act, 9 a chest */
 static vs_battle_loot debug_chest;
 static int field_free(void)
 {
     return D_800F196C == 1 && vs_battle_screenTransitionStep != 1 && vs_battle_screenTransitionStep != 2
         && vs_battle_screenTransitionStep != 4 && vs_battle_characterState != NULL
-        && !(func_800A0BE0(0) & 0x4000) && vs_battle_characterState->unk3C->unk954 == 0
+        && !(vs_actors_actorStateFlags(0) & 0x4000) && vs_battle_characterState->unk3C->unk954 == 0
         && vs_battle_menuState.currentMenu == 0x3F;
 }
 int pc_ui_loot_debug_open(const unsigned char* data, int nodes, int chest)
@@ -1362,10 +1362,10 @@ int pc_ui_loot_debug_open(const unsigned char* data, int nodes, int chest)
         return 0;
     if (chest) {
         vs_battle_memcpy(&debug_chest, data, sizeof debug_chest);
-        func_800CB18C(&debug_chest);
+        vs_menu_frameworkOpenLootEntryMenu(&debug_chest);
         if (vs_battle_menuState.currentMenu != 0xC)
             return 0;
-        func_8007357C(0, 0);
+        vs_field_beginBattleActionMenu(0, 0);
         return 1;
     }
     for (i = nodes - 1; i >= 0; --i) {
@@ -1384,16 +1384,16 @@ int pc_ui_loot_debug_open(const unsigned char* data, int nodes, int chest)
         node->next = _lootListHead;
         _lootListHead = node;
     }
-    func_800CB158(_lootListHead);
+    vs_menu_frameworkOpenLootListMenu(_lootListHead);
     if (vs_battle_menuState.currentMenu != 0xC)
         return 0;
-    func_8007357C(0, 0);
+    vs_field_beginBattleActionMenu(0, 0);
     return 1;
 }
 
 /* RPC menuf (tests: classic_parity's MENUF tours): MAINMENU's screen 15 (MENUF: the congratulations, the time
  * attack's start and end, the cube puzzle's start, end and quit) opened as BATTLE opens it after a fight
- * (func_8007B7DC's func_800CB23C: func_800CACD0(0xF, 2), D_800F4FDB = 1) with vs_main_stateFlags.menuFSubmenu set
+ * (func_8007B7DC's vs_menu_frameworkOpenChallengeMenu: vs_menu_frameworkOpenGameMenu(0xF, 2), D_800F4FDB = 1) with vs_main_stateFlags.menuFSubmenu set
  * to `submenu` (0..6; what the room's script sets) and, when boss >= 0, timeAttackBoss (the course: 0..6), then
  * the field's menu mode as for RPC container. Only in the field with Ashley free to act. */
 int pc_ui_menuf_debug_open(int submenu, int boss)
@@ -1403,24 +1403,24 @@ int pc_ui_menuf_debug_open(int submenu, int boss)
     vs_main_stateFlags.menuFSubmenu = (char)submenu;
     if (boss >= 0)
         vs_main_stateFlags.timeAttackBoss = (u_char)boss;
-    func_800CB23C();
+    vs_menu_frameworkOpenChallengeMenu();
     if ((vs_battle_menuState.currentMenu & 0x3F) != 15)
         return 0;
-    func_8007357C(0, 0);
+    vs_field_beginBattleActionMenu(0, 0);
     return 1;
 }
 
 /* RPC chest (tests): the current room's chests (MPD section 13: position,
  * the opened flag's index unk10, its state flag 0x3C0 + unk10, the loot) as
  * JSON members, and a chest opened through the field's own flow: what the
- * field's Cross does at a chest (146C.c:7648, func_80074050 on the record
- * func_80074950 finds in front of Ashley), so field mode 9 runs as in play:
- * Ashley faces it, opens it (func_800743E0: func_800CB18C on its loot, the
- * menu), and func_800744B8 ticks the menu and, when it closes, sets the
- * chest's flag when something was taken (D_800F4E98.unk2) or closes the lid
+ * field's Cross does at a chest (146C.c:7648, vs_field_beginChestInteraction on the record
+ * vs_field_findFacingUnlootedChest finds in front of Ashley), so field mode 9 runs as in play:
+ * Ashley faces it, opens it (vs_field_openChestContents: vs_menu_frameworkOpenLootEntryMenu on its loot, the
+ * menu), and vs_field_updateChestContentsSelection ticks the menu and, when it closes, sets the
+ * chest's flag when something was taken (vs_menu_frameworkActionSelection.unk2) or closes the lid
  * (func_8008D5FC). Only in the field with Ashley free to act and the chest
  * not opened before. */
-void func_80074050(_mpdRoomSectionA* arg0, int arg1); /* BATTLE 146C.c */
+void vs_field_beginChestInteraction(_mpdRoomSectionA* arg0, int arg1); /* BATTLE 146C.c */
 static _mpdRoomSection13* room_chest(int index, int* count)
 {
     _mpdRoomSection13* chests = vs_battle_roomData.section13;
@@ -1457,28 +1457,28 @@ int pc_ui_loot_debug_chest_open(int index)
 {
     int n;
     _mpdRoomSection13* c = room_chest(index, &n);
-    /* a container (flag >= 64: func_800743E0 calls func_800CB1C0(flag - 64), MENU7's
+    /* a container (flag >= 64: vs_field_openChestContents calls vs_menu_frameworkOpenChestStorageMenu(flag - 64), MENU7's
      * container) is never "opened": its flag's state is not checked */
     if (c == NULL || !field_free() || (c->unk10 < 0x40 && vs_battle_getStateFlag(c->unk10 + 0x3C0)))
         return 0;
-    func_80074050((_mpdRoomSectionA*)c, 0);
+    vs_field_beginChestInteraction((_mpdRoomSectionA*)c, 0);
     return 1;
 }
 
 /* RPC container (tests, the fallback where a room has no container object): the save
- * room's container opened as the field opens it (BATTLE func_800CB1C0(location):
- * func_800CACD0(7, 2), D_800F4E6B = location + 0x40, D_800F4EA0 |= 0x400), then the
- * field's menu mode as for RPC loot (func_8007357C). location < 0: the room's save
- * point (func_8008A4FC()). Only in the field with Ashley free to act. */
+ * room's container opened as the field opens it (BATTLE vs_menu_frameworkOpenChestStorageMenu(location):
+ * vs_menu_frameworkOpenGameMenu(7, 2), D_800F4E6B = location + 0x40, vs_menu_frameworkActionRestrictions |= 0x400), then the
+ * field's menu mode as for RPC loot (vs_field_beginBattleActionMenu). location < 0: the room's save
+ * point (vs_field_currentSavePointId()). Only in the field with Ashley free to act. */
 int pc_ui_container_debug_open(int location)
 {
     if (!field_free())
         return 0;
     if (location < 0)
-        location = func_8008A4FC();
-    func_800CB1C0(location);
+        location = vs_field_currentSavePointId();
+    vs_menu_frameworkOpenChestStorageMenu(location);
     if ((vs_battle_menuState.currentMenu & 0x3F) != 7)
         return 0;
-    func_8007357C(0, 0);
+    vs_field_beginBattleActionMenu(0, 0);
     return 1;
 }

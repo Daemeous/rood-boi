@@ -149,7 +149,7 @@ int main(void)
     sp[5] = 0x00090010u;
     CHECK(pc_classic_suppress(sp, sp + 6) == 1 && (sp[0] >> 24) == 0);
 
-    /* what the GPU never reads is normalised away: a raw quad's colour (func_80094E18's stat icon leaves the
+    /* what the GPU never reads is normalised away: a raw quad's colour (vs_battle_drawValueLabelCaption's stat icon leaves the
      * buffer's) and a POLY_FT4's pads after its last two texel pairs; a modulated quad's colour still counts */
     unsigned q0 = 0xFFFFFF, q1 = 0xFFFFFF, *qa = ram + 940, *qb = ram + 960;
     unsigned* qp = add(&qa, &q0, 9);

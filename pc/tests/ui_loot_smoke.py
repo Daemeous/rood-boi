@@ -11,13 +11,13 @@ another in the bag (skipped otherwise). 4:3, 960x720 window (layout units
 1:1).
 
 Fixtures: the game opens its loot menu itself (after a battle: BATTLE
-func_800CB158 on the drops list; at a chest: func_800CB18C on the chest's
+vs_menu_frameworkOpenLootListMenu on the drops list; at a chest: vs_menu_frameworkOpenLootEntryMenu on the chest's
 loot). The test opens it the same way through RPC loot (loot_bridge.c
 pc_ui_loot_debug_open): loot lists built here (BATTLE vs_battle_loot, 0x220
 bytes: copies of records of the bag's own weapon, armor and a gem, misc
 items, keys), linked as the drops list (or one as a chest's) and opened with
-func_800CB158 / func_800CB18C, in the field's menu mode as the field's
-Triangle opens the menu (func_8007357C). Both processes get the same lists
+vs_menu_frameworkOpenLootListMenu / vs_menu_frameworkOpenLootEntryMenu, in the field's menu mode as the field's
+Triangle opens the menu (vs_field_beginBattleActionMenu). Both processes get the same lists
 and the same RAM set-up before the sessions that need it (the blades bag
 filled to 16 with copies of a bag blade; the misc bag filled to 64 records
 around a Cure Root stack of 90).
@@ -29,7 +29,7 @@ shares with MENU3: L1/R1 to the category, Circle twice, Discard, Yes); (b)
 ui_menus on: the shell's Loot screen (the same buttons; its Organize menu,
 its Yes / No, its Organize panel: Right to the category, Circle, Yes). After
 every session (the menu closed: currentMenu 0x3F) vs_main_inventory (0xF00
-bytes), vs_main_inventoryIndices (176 bytes), D_800F4E98 bytes 0..3 (unk0,
+bytes), vs_main_inventoryIndices (176 bytes), vs_menu_frameworkActionSelection bytes 0..3 (unk0,
 unk2: the loot's result, 1 when something was taken or nothing was left)
 and the keys' state flags (key id + 438) are compared byte for byte. The
 sessions:
@@ -70,30 +70,30 @@ sessions:
   13 a shield's disassembly (the shields bag full): its gem becomes a row,
     taken; the rest left
 And first, before any RAM set-up, the real chest flow on the save room's own
-chest (BATTLE func_80074050, what the field's Cross at a chest calls: field
-mode 9, the lid, func_800CB18C on the chest's loot, func_800744B8 ticking
+chest (BATTLE vs_field_beginChestInteraction, what the field's Cross at a chest calls: field
+mode 9, the lid, vs_menu_frameworkOpenLootEntryMenu on the chest's loot, vs_field_updateChestContentsSelection ticking
 the menu and closing the chest; RPC chest):
   R1 the chest left untouched (Cross: ends at once; the lid closes, its
     opened flag stays clear)
   R2 the chest again: one row taken, the rest left (its flag set)
 After every session also: _lootListHead, the game heap's free total (not
 below its value before the session in each process: nothing allocated is
-kept; the first session also sees a start-up block freed), D_800F190C (the world runs), D_800EB9AF (the HUD flag),
-D_800F4EE8.unk3A (the Items menu's current category and list memories) and
+kept; the first session also sees a start-up block freed), vs_field_isFieldRenderingEnabled (the world runs), vs_battle_hudHidden (the HUD flag),
+vs_menu_frameworkMenuMemory.unk3A (the Items menu's current category and list memories) and
 the chest's opened flag. In (a) each session must have done what it says
 (rows taken, the result), so a step the original menu missed cannot pass as
 parity.
 
-The after-battle flow (BATTLE func_800797BC / func_8007983C after a fight
+The after-battle flow (BATTLE vs_battle_updateLootResults / vs_battle_updateAbilityUnlockResults after a fight
 with drops) is not driven for real: no enemy near the save room can be
-fought and killed by a script reliably; its menu entry is func_800CB158 on
+fought and killed by a script reliably; its menu entry is vs_menu_frameworkOpenLootListMenu on
 the drops list as the RPC loot fixture calls it (only the field mode that
 ticks the menu differs).
 
 Shell-only checks (process b): the rows' fits / needs / organize / key
 fields; the Organize menu's entries; the shell closes with the session; a
 soft reset with the Organize panel open (the world frozen): over the title
-nothing of the screen is left, Continue gives a running world (D_800F190C
+nothing of the screen is left, Continue gives a running world (vs_field_isFieldRenderingEnabled
 1), the HUD flag as before and a loot menu that opens and closes again; a
 16:9 screenshot with --out.
 --out keeps screenshots (game imagery: keep it out of git)."""
@@ -124,7 +124,7 @@ WEAPON, BLADE, GRIP, ARMOR_REC, GEM, SHIELD = 32, 44, 16, 40, 28, 48
 IDX = {0: (0, 8), 1: (8, 16), 2: (24, 16), 3: (40, 8), 4: (48, 16), 5: (64, 48), 6: (112, 64)}
 CATEGORIES = ["weapons", "blades", "grips", "shields", "armor", "gems", "misc"]
 SETTINGS_CURSOR_MEMORY = 1  # vs_main_settings.cursorMemory
-CATEGORY_MEMORY = 0x3A      # D_800F4EE8.unk3A.currentItemCategory: category + 1 (0: the Manage page)
+CATEGORY_MEMORY = 0x3A      # vs_menu_frameworkMenuMemory.unk3A.currentItemCategory: category + 1 (0: the Manage page)
 
 # vs_battle_loot (func_8006B57C_t.h): weapon 0 (blade 4, grip 48, gems 64, name 148), blade 0xAC, grip 0xDC,
 # shield 0xF0, armor 0x170 / 0x19C, accessory 0x1C8, gem 0x1F4 (record at 0x1F8), misc 0x214 (3 x {id, flags, count})
@@ -246,13 +246,13 @@ class Session:
 
     def dump(self):
         """What a session may change (compared byte for byte between the processes)."""
-        return {"inventory": self.inv(), "indices": self.idx(), "D_800F4E98": self.g.read(self.sym["D_800F4E98"], 4),
+        return {"inventory": self.inv(), "indices": self.idx(), "vs_menu_frameworkActionSelection": self.g.read(self.sym["vs_menu_frameworkActionSelection"], 4),
                 "key flags": self.flags(),
                 "chest flag": bytes([self.g.call("state_flag", id=SAVE_ROOM_CHEST_FLAG)["value"]]),
                 "_lootListHead": self.g.read(self.sym["_lootListHead"], PTR),
-                "D_800F190C": self.g.read(self.sym["D_800F190C"], 4),
-                "D_800EB9AF": self.g.read(self.sym["D_800EB9AF"], 1),
-                "unk3A": self.g.read(self.sym["D_800F4EE8"] + 0x3A, 18),
+                "vs_field_isFieldRenderingEnabled": self.g.read(self.sym["vs_field_isFieldRenderingEnabled"], 4),
+                "vs_battle_hudHidden": self.g.read(self.sym["vs_battle_hudHidden"], 1),
+                "unk3A": self.g.read(self.sym["vs_menu_frameworkMenuMemory"] + 0x3A, 18),
                 "heap free": struct.pack("<I", self.heap_free())}
 
     def wait(self, pred, limit, what, step=1, quiet=False):
@@ -352,7 +352,7 @@ class Session:
         self.press("circle")
 
     def o_category(self):
-        return (self.g.read(self.sym["D_800F4EE8"] + CATEGORY_MEMORY, 1)[0] - 1) & 7
+        return (self.g.read(self.sym["vs_menu_frameworkMenuMemory"] + CATEGORY_MEMORY, 1)[0] - 1) & 7
 
     def o_items_category(self, c):
         """Organize inventory (MENUB's Items menu) on category c (L1 / R1)."""
@@ -782,7 +782,7 @@ def soft_reset(b, check):
     """A soft reset (L1 L2 R1 R2 Start Select) with the Organize panel open (the world frozen): the session is
     dropped (menu_bridge.c pc_ui_menu_reset), Continue gives a running world and a loot menu that works."""
     g = b.g
-    hud = b.g.read(b.sym["D_800EB9AF"], 1)[0]
+    hud = b.g.read(b.sym["vs_battle_hudHidden"], 1)[0]
     b.open([Loot().misc((345, 1))])  # the misc bag full (session 12): no room
     b.s_input()
     b.press("circle", settle=4)
@@ -791,7 +791,7 @@ def soft_reset(b, check):
     b.press("circle", settle=4)
     b.s_mode("bag")
     b.shot("reset-bag")
-    frozen = b.u32(b.sym["D_800F190C"])
+    frozen = b.u32(b.sym["vs_field_isFieldRenderingEnabled"])
     titles = pathlib.Path(g.log).read_text().count("TITLE MENU READY")
     g.call("input", buttons=["l1", "l2", "r1", "r2", "start", "select"], vsyncs=6)
     b.wait(lambda: pathlib.Path(g.log).read_text().count("TITLE MENU READY") > titles, 3000,
@@ -803,10 +803,10 @@ def soft_reset(b, check):
         g.press("circle", vsyncs=3, settle=90)
     g.run(400)
     state = g.state()
-    check((state["zone"], state["room"]) == (9, 17) and b.u32(b.sym["D_800F190C"]) == 1
-          and g.read(b.sym["D_800EB9AF"], 1)[0] == hud,
+    check((state["zone"], state["room"]) == (9, 17) and b.u32(b.sym["vs_field_isFieldRenderingEnabled"]) == 1
+          and g.read(b.sym["vs_battle_hudHidden"], 1)[0] == hud,
           f"reset: Continue: zone {state['zone']} room {state['room']}, the world runs "
-          f"({b.u32(b.sym['D_800F190C'])}), the HUD flag {g.read(b.sym['D_800EB9AF'], 1)[0]} ({hud})")
+          f"({b.u32(b.sym['vs_field_isFieldRenderingEnabled'])}), the HUD flag {g.read(b.sym['vs_battle_hudHidden'], 1)[0]} ({hud})")
     b.open([Loot().misc((CURE_BULB, 1))])
     b.s_input()
     b.press("cross", settle=4)
@@ -998,7 +998,7 @@ def main():
                 return 1
             d = a.dump()
             dumps_a.append(d)
-            unk2 = struct.unpack_from("<h", d["D_800F4E98"], 2)[0]
+            unk2 = struct.unpack_from("<h", d["vs_menu_frameworkActionSelection"], 2)[0]
             taken = d["inventory"] != before["inventory"]
             # records per category: as many more as the session takes (`more`; blades in 7: one discarded, one
             # taken), the stack of 90 at 100 in 8
@@ -1016,10 +1016,10 @@ def main():
             # nothing allocated is kept (the first session may also see a block of the start-up freed)
             check(struct.unpack("<I", d["heap free"])[0] >= struct.unpack("<I", before["heap free"])[0]
                   and d["_lootListHead"] == bytes(PTR)
-                  and d["D_800F190C"][0] == 1,
+                  and d["vs_field_isFieldRenderingEnabled"][0] == 1,
                   f"original: {name}: heap free {struct.unpack('<I', d['heap free'])[0]} (before "
                   f"{struct.unpack('<I', before['heap free'])[0]}), _lootListHead {d['_lootListHead'].hex()}, "
-                  f"D_800F190C {d['D_800F190C'][0]}")
+                  f"vs_field_isFieldRenderingEnabled {d['vs_field_isFieldRenderingEnabled'][0]}")
     finally:
         a.close()
     print(f"original: {len(sessions)} sessions in {time.monotonic() - t0:.0f} s", flush=True)

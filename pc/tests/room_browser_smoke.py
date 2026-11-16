@@ -273,7 +273,7 @@ def main():
         evidence("room-browser-home")
 
         # A cell off the room's floor: the arrival looks the cell up
-        # (func_80074B14 -> func_8008B764, NULL off the grid) and crashed;
+        # (vs_field_updateCameraTileConstraint -> vs_field_collisionCellAt, NULL off the grid) and crashed;
         # now the request is an RPC error and nothing is warped.
         grid = next((r for r in rooms["rooms"] if r["entries"] and r["floor"][0] > 0 and r["floor"][1] > 0
                      and (r["zone"], r["room"]) != home), None)
@@ -295,8 +295,8 @@ def main():
 
         # Room scripts on, enemies off: the rooms whose entry event moves an
         # enemy (the Ghost in 13/4, ...). The enemies spawn, so the script
-        # finds them (it used to dereference a NULL actor: func_800A97EC,
-        # func_800A9988), and are benched: hidden, out of the fight.
+        # finds them (it used to dereference a NULL actor: vs_actors_moveActorToTileAtRate,
+        # vs_actors_moveActorToPositionAtRate), and are benched: hidden, out of the fight.
         ptr = 8 if os.environ.get("ROOD_ARCH") == "64" else 4
         for where in SCRIPTED_ENEMY_ROOMS:
             if where not in listed or not listed[where]["entries"]:
@@ -309,7 +309,7 @@ def main():
                 st = game.state()
             raw = game.read_symbol("vs_battle_actors", 16 * ptr)
             slots = [j for j in range(2, 16) if int.from_bytes(raw[j * ptr:(j + 1) * ptr], "little")]
-            event = game.read_symbol("D_800F4C34", 1)[0]
+            event = game.read_symbol("vs_event_playbackPhase", 1)[0]
             new_log = pathlib.Path(game.log).read_text(errors="replace")[seen:]
             check(arrived and (st["zone"], st["room"]) == where and event == 0 and slots and "benched" in new_log,
                   f"scripts on, enemies off: zone {where[0]} room {where[1]}'s entry event runs to its end with "
@@ -317,7 +317,7 @@ def main():
 
         # Scripts off keeps the door scripts (event id bit 0x8000): the
         # rusted door in 13/6 still answers Cross with its own event
-        # (D_800F4BE0 2: a door-section script) instead of opening.
+        # (vs_event_eventSource 2: a door-section script) instead of opening.
         if (13, 6) in listed and listed[(13, 6)]["entries"]:
             status, st = warp(13, 6, scripts=False, enemies=False, cell=list(RUSTED_DOOR_FRONT))
             table = int.from_bytes(game.read_symbol("_mpdClearedSection", ptr), "little")
@@ -332,27 +332,27 @@ def main():
             check(kept and all(e & 0x8000 for e in kept),
                   f"scripts off: the trigger table keeps only door scripts ({[hex(e) for e in kept]})")
             game.press("cross", vsyncs=4, settle=30)
-            event = game.read_symbol("D_800F4C34", 1)[0]
-            kind = int.from_bytes(game.read_symbol("D_800F4BE0", 2), "little")
+            event = game.read_symbol("vs_event_playbackPhase", 1)[0]
+            kind = int.from_bytes(game.read_symbol("vs_event_eventSource", 2), "little")
             st = game.state()
             check(event != 0 and kind == 2 and (st["zone"], st["room"]) == (13, 6),
                   f"the scripted door runs its door event (event state {event}, kind {kind})")
             evidence("rusted-door")
             for _ in range(10):  # its message: dismissed
-                if game.read_symbol("D_800F4C34", 1)[0] == 0:
+                if game.read_symbol("vs_event_playbackPhase", 1)[0] == 0:
                     break
                 game.press("cross", vsyncs=4, settle=40)
-            check(game.read_symbol("D_800F4C34", 1)[0] == 0, "and its message closes")
+            check(game.read_symbol("vs_event_playbackPhase", 1)[0] == 0, "and its message closes")
 
         # Rooms entered out of story order: the entry events address actors
         # the rooms never spawned (the PS1 reads low RAM through the empty
-        # slot and carries on): func_800A97EC / func_800A9988 skip the move,
+        # slot and carries on): vs_actors_moveActorToTileAtRate / vs_actors_moveActorToPositionAtRate skip the move,
         # an effect on the empty slot reads the PS1's address 0. The events
         # (dialogue: buttons) run to their end.
         def drive_event(limit=400):
             for k in range(limit):
                 game.run(20)
-                event = game.read_symbol("D_800F4C34", 1)[0]
+                event = game.read_symbol("vs_event_playbackPhase", 1)[0]
                 if event == 0 and game.call("room_goto", action="status")["phase"] in (0, 4):
                     return True
                 if event:
@@ -374,7 +374,7 @@ def main():
                     game.run(20)
                     if game.call("room_goto", action="status")["phase"] >= 3:
                         break
-                raw = game.read_symbol("D_800F4538", 16 * ptr)  # what the script ops read
+                raw = game.read_symbol("vs_actors_actorRecords", 16 * ptr)  # what the script ops read
                 empty = int.from_bytes(raw[2 * ptr:3 * ptr], "little") == 0
                 ended = reply["ok"] and drive_event()
                 game.run(60)

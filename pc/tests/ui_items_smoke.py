@@ -28,7 +28,7 @@ shell's Items tab (L2/R2 the category, Circle the actions, the action, the
 quantity, Up to Yes; Move then the target row). After every operation
 vs_main_inventory (0xF00 bytes) and vs_main_inventoryIndices (176 bytes) are
 compared byte for byte; masked only what MASKS lists, with its reason. So are
-the cursor memories, D_800F4EE8 bytes 0..103 (cursorMemories with the Items
+the cursor memories, vs_menu_frameworkMenuMemory bytes 0..103 (cursorMemories with the Items
 lists' memories in unk3A and the action and sort menus' past it; see
 MEMORY_NOTE): (b) starts each operation from the bytes (a) had once on the
 operation's category, and must end with the bytes (a) ended with. The
@@ -44,9 +44,9 @@ menus open where they were left), weapons sorted by row 10 and then row 3
 (the sort menu scrolled down, then up from its memory), a quantity discard,
 a swap and a misc sort; the option goes back off.
 Use: Cure Root through each path; once its target is up (D_800F196C 2,
-currentMenu 0x3F): D_800F4E98 (8 bytes), vs_battle_menuState currentMenu /
+currentMenu 0x3F): vs_menu_frameworkActionSelection (8 bytes), vs_battle_menuState currentMenu /
 returnState / executeAbilityType, vs_battle_miscItemInvoked,
-vs_battle_submenuStates[0], D_800F4EE8 bytes 58..103 (the Items lists' and
+vs_battle_submenuStates[0], vs_menu_frameworkMenuMemory bytes 58..103 (the Items lists' and
 action and sort menus' cursor memories) compared (both zeroed first); Circle
 on the target: the stack loses one, HP goes up, inventory equal again.
 In (a) each operation must have done something (refused ones nothing; a
@@ -95,9 +95,9 @@ WEAPON_C, SHIELD_C, ARMOR_C, MISC_C = 0, 3, 4, 6
 SHIELD_SLOTS = 0x2F  # shields[i].gems[3]: the quick-swap slots' bits (weapon_slots.c)
 WEAPON_SLOT = 7      # weapons[i].gems[3]: its quick-swap slot (weapon_slots.c)
 SETTINGS_CURSOR_MEMORY = 1  # vs_main_settings.cursorMemory
-ITEM_MEMORIES = (58, 104)   # D_800F4EE8: unk3A (category, lists 30..37), action menus 38..44, sort menus 45..51
-MEMORY_BYTES = 104          # D_800F4EE8 bytes 0..103: every cursor memory the Items operations can store
-CATEGORY_MEMORY = 0x3A      # D_800F4EE8.unk3A.currentItemCategory: category + 1 (0: the Manage page)
+ITEM_MEMORIES = (58, 104)   # vs_menu_frameworkMenuMemory: unk3A (category, lists 30..37), action menus 38..44, sort menus 45..51
+MEMORY_BYTES = 104          # vs_menu_frameworkMenuMemory bytes 0..103: every cursor memory the Items operations can store
+CATEGORY_MEMORY = 0x3A      # vs_menu_frameworkMenuMemory.unk3A.currentItemCategory: category + 1 (0: the Manage page)
 
 # MENU3 _sortItems' lists (items1.h): sortStats[category], the menu's rows
 WEAPON_STATS = list(range(24))
@@ -121,7 +121,7 @@ MASKS = [
     for i in range(8)
 ]
 
-# The cursor memories after an operation (D_800F4EE8 bytes 0..103) are compared for every operation but the
+# The cursor memories after an operation (vs_menu_frameworkMenuMemory bytes 0..103) are compared for every operation but the
 # refused ones. The exceptions, as the bridge's header (items_bridge.c) lists them:
 MEMORY_NOTE = (
     "(b) starts each operation from (a)'s memories as (a) stood on the operation's category: on the way there "
@@ -187,21 +187,21 @@ class Session:
     def handoff(self):
         g, sym = self.g, self.sym
         ms = g.read(sym["vs_battle_menuState"], 3)
-        return {"D_800F4E98": g.read(sym["D_800F4E98"], 8).hex(),
+        return {"vs_menu_frameworkActionSelection": g.read(sym["vs_menu_frameworkActionSelection"], 8).hex(),
                 "currentMenu": ms[0], "returnState": ms[1], "executeAbilityType": ms[2],
                 "miscItemInvoked": g.read(sym["vs_battle_miscItemInvoked"], 1)[0],
                 "submenuStates[0]": g.read(sym["vs_battle_submenuStates"], 1)[0],
-                "D_800F4EE8[58:104]": g.read(sym["D_800F4EE8"], ITEM_MEMORIES[1])[ITEM_MEMORIES[0]:].hex()}
+                "vs_menu_frameworkMenuMemory[58:104]": g.read(sym["vs_menu_frameworkMenuMemory"], ITEM_MEMORIES[1])[ITEM_MEMORIES[0]:].hex()}
 
     def zero_memories(self):
         a, b = ITEM_MEMORIES
-        self.g.write(self.sym["D_800F4EE8"] + a, bytes(b - a))
+        self.g.write(self.sym["vs_menu_frameworkMenuMemory"] + a, bytes(b - a))
 
     def memories(self):
-        return self.g.read(self.sym["D_800F4EE8"], MEMORY_BYTES)
+        return self.g.read(self.sym["vs_menu_frameworkMenuMemory"], MEMORY_BYTES)
 
     def set_memories(self, data):
-        self.g.write(self.sym["D_800F4EE8"], data)
+        self.g.write(self.sym["vs_menu_frameworkMenuMemory"], data)
 
     def cursor_memory(self, on):
         self.g.write(self.sym["vs_main_settings"] + SETTINGS_CURSOR_MEMORY, b"\x01" if on else b"\x00")
@@ -273,7 +273,7 @@ class Session:
             self.g.press(button, vsyncs=3, settle=settle)
 
     def o_category(self):
-        return (self.g.read(self.sym["D_800F4EE8"] + CATEGORY_MEMORY, 1)[0] - 1) & 7
+        return (self.g.read(self.sym["vs_menu_frameworkMenuMemory"] + CATEGORY_MEMORY, 1)[0] - 1) & 7
 
     def o_open(self):
         """Triangle, Items: MENU3's list (the Manage page first: cursor memory off)."""

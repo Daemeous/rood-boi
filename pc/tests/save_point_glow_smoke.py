@@ -108,7 +108,7 @@ def main():
             check(False, f"Continue leads to the save room (zone {state['zone']} room {state['room']})")
             return 1
         game.call("graphics", widescreen=True)
-        actor = struct.unpack("<I", game.read_symbol("D_800F4538", 4))[0]  # Ashley's record (dev_state.c)
+        actor = struct.unpack("<I", game.read_symbol("vs_actors_actorRecords", 4))[0]  # Ashley's record (dev_state.c)
 
         axis = list(AXIS)
 

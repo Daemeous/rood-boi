@@ -4,14 +4,14 @@
 
 | Source | Function |
 |---|---|
-| `src/BATTLE/BATTLE.PRG/146C.c` | `func_8006CB04` |
-| `src/BATTLE/BATTLE.PRG/146C.c` | `func_80074BAC` |
-| `src/BATTLE/BATTLE.PRG/146C.c` | `func_80075554` |
-| `src/BATTLE/BATTLE.PRG/146C.c` | `func_8008AC78` |
-| `src/BATTLE/BATTLE.PRG/146C.c` | `func_8008CEB0` |
+| `src/BATTLE/BATTLE.PRG/146C.c` | `vs_battle_applyActionTargetEffects` |
+| `src/BATTLE/BATTLE.PRG/146C.c` | `vs_field_checkAshleyTileTriggers` |
+| `src/BATTLE/BATTLE.PRG/146C.c` | `vs_actors_executeQueuedActorCommands` |
+| `src/BATTLE/BATTLE.PRG/146C.c` | `vs_field_drawRoomScene` |
+| `src/BATTLE/BATTLE.PRG/146C.c` | `vs_field_drawMovingPlatformShadows` |
 | `src/BATTLE/BATTLE.PRG/49268.c` | `func_800B28A8` |
-| `src/BATTLE/BATTLE.PRG/4A0A8.c` | `func_800B9DB4` |
-| `src/BATTLE/BATTLE.PRG/771A8.c` | `func_800E3600` |
+| `src/BATTLE/BATTLE.PRG/4A0A8.c` | `vs_event_scriptSetAshleyBattleMode` |
+| `src/BATTLE/BATTLE.PRG/771A8.c` | `vs_battle_aiResolveDirectionalMovement` |
 | `src/EFFECT/PLG052.BIN/0.c` | `func_800F9800` |
 | `src/EFFECT/PLG053.BIN/0.c` | `func_800F9800` |
 | `src/EFFECT/PLG053.BIN/0.c` | `func_800FA368` |
@@ -31,8 +31,8 @@
 | `src/EFFECT/PLG074.BIN/F8.c` | `func_800FCFEC` |
 | `src/EFFECT/PLG074.BIN/F8.c` | `func_800FD534` |
 | `src/EFFECT/PLG074.BIN/F8.c` | `func_800FE3EC` |
-| `src/SLUS_010.40/25AC.c` | `func_8001369C` |
-| `src/SLUS_010.40/25AC.c` | `func_80015BAC` |
+| `src/SLUS_010.40/25AC.c` | `vs_audio_driverResetPlaybackState` |
+| `src/SLUS_010.40/25AC.c` | `vs_audio_seqReleaseSavedVoiceConflicts` |
 | `src/SLUS_010.40/libc/SPRINTF.c` | `sprintf` |
 | `src/SLUS_010.40/libcard/FORMAT.c` | `func_8002F154` |
 | `src/SLUS_010.40/libcard/FORMAT.c` | `_card_format` |

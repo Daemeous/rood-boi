@@ -14,10 +14,10 @@ pub fn isBehindFacing(state: *ai.vs_battle_aiState, tile: c_uint) callconv(.c) c
     const facing = state.movementTargetId;
     var angle: c_int = undefined;
     if (facing >= 16) {
-        const model: [*]u8 = @ptrCast(v.g.D_800F4538()[state.id].?);
+        const model: [*]u8 = @ptrCast(v.g.vs_actors_actorRecords()[state.id].?);
         angle = @as(*align(1) const u16, @ptrCast(model + 0x26)).*;
     } else {
-        const model: [*]u8 = @ptrCast(v.g.D_800F4538()[facing].?);
+        const model: [*]u8 = @ptrCast(v.g.vs_actors_actorRecords()[facing].?);
         const own_x: c_int = state.position.xyz[0];
         const own_z: c_int = state.position.xyz[2];
         const model_x: c_int = @as(*align(1) const u16, @ptrCast(model + 0x1c)).*;

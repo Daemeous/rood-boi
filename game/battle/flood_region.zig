@@ -4,7 +4,7 @@ const psx = common.psx;
 const v = @import("views_7CD68");
 const c = @import("c_7CD68");
 
-/// orig: func_800E5EC0 (pc/src/game/BATTLE/BATTLE.PRG/7CD68.c)
+/// orig: vs_battle_aiFloodFillAiTerrainHeights (pc/src/game/BATTLE/BATTLE.PRG/7CD68.c)
 /// Stamps cell (arg0, arg1) with arg2's low 10 bits, then recurses into each walkable, unstamped 4-neighbour.
 pub fn floodRegion(arg0: c_int, arg1: c_int, arg2: c_int) callconv(.c) void {
     const value: c_int = arg2 & 0x3FF;
@@ -26,7 +26,7 @@ pub fn floodRegion(arg0: c_int, arg1: c_int, arg2: c_int) callconv(.c) void {
             (v.g.D_800F58B8().*.?[@as(usize, z)][@as(usize, x)] & 0x20) != 0 and
             (v.g.D_800F58D0().*.?[@as(usize, z)][@as(usize, x)] & 0x2000) == 0)
         {
-            c.func_800E5EC0(psx.conv(c_int, x), psx.conv(c_int, z), arg2);
+            c.vs_battle_aiFloodFillAiTerrainHeights(psx.conv(c_int, x), psx.conv(c_int, z), arg2);
         }
     }
 }

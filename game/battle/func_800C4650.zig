@@ -14,11 +14,11 @@ pub fn func_800C4650(arg0: ?*v.func_800C4650_t, arg1: c_int) callconv(.c) void {
         const entry: *v.func_800C4650_t = &@as([*]v.func_800C4650_t, @ptrCast(arg0.?))[@intCast(i)];
         const kind: u8 = entry.unk9;
         if (kind >> 4 == 0) {
-            const ability: *v.func_800C1564_t = &v.g.D_800EB9B8().*.?.unk0[1];
-            if (c.func_800C1564(@ptrCast(ability), @ptrCast(&entry.unk0)) != 0) {
-                _ = c.func_8009FD5C(@as(c_int, kind), 0, @as(c_int, entry.unkA));
+            const ability: *v.func_800C1564_t = &v.g.vs_battle_targetSphere().*.?.unk0[1];
+            if (c.vs_battle_isPointInTargetVolume(@ptrCast(ability), @ptrCast(&entry.unk0)) != 0) {
+                _ = c.vs_actors_enableModelPalettePulse(@as(c_int, kind), 0, @as(c_int, entry.unkA));
             } else {
-                _ = c.func_8009FE74(@as(c_int, kind), @as(c_int, entry.unkA));
+                _ = c.vs_actors_disableModelPalettePulse(@as(c_int, kind), @as(c_int, entry.unkA));
             }
         }
     }

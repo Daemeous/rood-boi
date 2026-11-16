@@ -511,8 +511,8 @@ enum vs_battle_limbStatus {
     limbStatusExcellent
 };
 
-int func_800C4794(SVECTOR*);
-int func_800C58F8(u_char*);
+int vs_battle_updateSphereTargetPosition(SVECTOR*);
+int vs_battle_updateTargetSelectionMenu(u_char*);
 int vs_battle_setTextBox(int, char*);
 int vs_battle_selectTextBox(u_char);
 char* vs_battle_printf(char*, char*);
@@ -535,8 +535,8 @@ void vs_battle_renderTextRaw(char const* text, int xy, void* nextPrim);
 int vs_battle_printVariableWidthFontChar(u_int glyphId, int x, int y, u_long* ot);
 void vs_battle_setFontStyle(int arg0);
 void vs_battle_loadGim(int, int);
-void func_800C8550(u_int, void*, u_char*);
-void func_800C86AC(void);
+void vs_render_activateGimLayer(u_int, void*, u_char*);
+void vs_render_releaseGimImageSet(void);
 int vs_battle_loadMenuPrg(int arg0);
 
 enum vs_battle_informationTextBoxHeader {
@@ -572,8 +572,8 @@ vs_battle_menuItem_t* vs_battle_getMenuItem(int row);
 vs_battle_menuItem_t* vs_battle_setMenuItem(
     int row, int x, int y, int w, int backgroundWidth, char* text);
 void vs_battle_renderMenuItem(vs_battle_menuItem_t*);
-int func_800C930C(int);
-void func_800C97BC(void);
+int vs_menu_frameworkUpdateMainMenuSelection(int);
+void vs_menu_frameworkUpdateMenuOverlay(void);
 
 /**
  * Renders a digit or symbol from the battle digits.
@@ -596,8 +596,8 @@ void vs_battle_renderStatBar(int colorIndex, int w, u_long* before, int xy);
  */
 int vs_battle_getStatusFlags(vs_battle_actor2*);
 int vs_battle_getLimbStatus(vs_battle_uiEquipment_limb*);
-void func_800CAB40(void);
-int func_800CABE0(int);
+void vs_menu_frameworkResumeAfterActionSelection(void);
+int vs_menu_frameworkActionRestrictionFlags(int);
 
 /**
  * Determines whether the selected spell class is available
@@ -607,20 +607,20 @@ int func_800CABE0(int);
  */
 int vs_battle_isSpellClassUnlocked(int spellClass);
 int vs_battle_chainAbilitiesUnlocked(int);
-void func_800CB23C(void);
-void func_800CB660(int arg0);
-D_800F18EC_t* func_800CB66C(void);
-void func_800CB114(void);
-void func_800CB158(vs_battle_lootListNode*);
-void func_800CB18C(vs_battle_loot*);
-void func_800CB1C0(int);
+void vs_menu_frameworkOpenChallengeMenu(void);
+void vs_battle_setHudBattleMode(int arg0);
+D_800F18EC_t* vs_menu_frameworkActionSelectionState(void);
+void vs_menu_frameworkReleaseMenuRows(void);
+void vs_menu_frameworkOpenLootListMenu(vs_battle_lootListNode*);
+void vs_menu_frameworkOpenLootEntryMenu(vs_battle_loot*);
+void vs_menu_frameworkOpenChestStorageMenu(int);
 void _setArtAndAbilityToUnlock(int art, int battleAbility);
 void vs_battle_displaySceneMessage(int, int, int);
 int func_800CB45C(void);
 void func_800CB50C(void);
-void func_800CB550(void);
-void func_800CB560(void);
-void func_800CB654(int);
+void vs_battle_showPuzzleTimer(void);
+void vs_battle_hidePuzzleTimer(void);
+void vs_battle_setHudHidden(int);
 void func_800CB7DC(void);
 void vs_battle_rMemzero(void* arg0, int arg1);
 void vs_battle_rMemcpy(void* dest, void const* src, int size);
@@ -641,31 +641,31 @@ void vs_battle_initTextBox(
     int id, int flags, int x, int y, int w, int h, int centerX, int centerY);
 int vs_battle_dismissTextBox(int);
 void vs_battle_renderImage(int xy, void* buffer, int wh);
-void func_800CE64C(void);
+void vs_effects_initEffectRuntime(void);
 int func_800CEEBC(void);
-int func_800CEF74(int);
-int func_800CF0E8(func_800CF0E8_t*, int, int);
-void func_800CF1A8(void);
-int func_800CF3F8(func_800CF0E8_t*, int);
+int vs_effects_startEffectTrack(int);
+int vs_effects_beginActionEffect(func_800CF0E8_t*, int, int);
+void vs_effects_clearPrimaryEffects(void);
+int vs_effects_beginSecondaryEffects(func_800CF0E8_t*, int);
 int func_800CF48C(void);
 void func_800CF7A8(int, int, int, int);
 void func_800CF830(int, int);
 void func_800CF920(void);
 int vs_battle_getTextLineLength(char* str);
 int vs_battle_validateShortcutSelection(int shortcut);
-void func_800C8778(void);
-void func_800C9F88(void);
-void func_800CA2DC(void);
-int func_800CACD0(int menuState, int arg1);
+void vs_render_updateGimImageSet(void);
+void vs_battle_showShortcutHud(void);
+void vs_battle_drawBattleHud(void);
+int vs_menu_frameworkOpenGameMenu(int menuState, int arg1);
 void func_800CB83C(void);
-int func_800CF060(void);
+int vs_effects_updateEffectRuntime(void);
 void vs_battle_addVecToSvec(VECTOR* arg0, SVECTOR* arg1, VECTOR* arg2);
 void vs_battle_lerp2DVector(short* src, int t, int* vec);
 void vs_battle_lerpSvector(short* src, int t, SVECTOR* vec);
 void vs_battle_lerpVector(short* src, int t, VECTOR* vec);
 int vs_battle_randUniformInt(int, int);
 int func_800CFE1C(short* arg0, int arg1);
-void func_800D6D24(func_800D6CF_t* arg0);
+void vs_effects_advanceTextureAnimation(func_800D6CF_t* arg0);
 
 /**
  * Samples a curve from the currently loaded .P file.
@@ -694,25 +694,25 @@ void vs_battle_splineInterpolate(
 void vs_battle_svecToVec(SVECTOR* arg0, VECTOR* arg1);
 void vs_battle_vecToSvec(VECTOR* arg0, SVECTOR* arg1);
 void func_800D2ADC(D_800F53B8_t*, int, int, int, func_800FB4C0_t*);
-void func_800D6CCC(void* sprite); /* a func_800D6CF_t, cleared whole */
-void func_800D6CF0(func_800D6CF_t* arg0, int arg1, int arg2);
+void vs_effects_clearTextureAnimation(void* sprite); /* a func_800D6CF_t, cleared whole */
+void vs_effects_restartTextureAnimation(func_800D6CF_t* arg0, int arg1, int arg2);
 
 extern u_short vs_battle_menuStrings[];
 extern char* vs_battle_limbNames[];
 extern char vs_battle_characterWidths[];
 extern u_short vs_battle_statusStrings[];
 extern char D_800EB9AE;
-extern char D_800EB9AF;
-extern int D_800EB9B0;
-extern vs_battle_lootListNode* D_800EB9C4;
-extern vs_battle_loot* D_800EB9C8;
+extern char vs_battle_hudHidden;
+extern int vs_battle_hudSlideOffset;
+extern vs_battle_lootListNode* vs_menu_frameworkLootLists;
+extern vs_battle_loot* vs_menu_frameworkLootEntry;
 extern vs_battle_menuItem_t* vs_battle_menuItems;
 extern char vs_battle_rowAnimationSteps[];
-extern int D_800EBBEC[];
-extern char D_800EBBFC[];
+extern int vs_battle_hudGaugeLabelPositions[];
+extern char vs_battle_hudGaugeLabelWidths[];
 extern char D_800EBC00[];
 extern u_short vs_battle_statusIconTexOffsets[];
-extern u_int D_800EBC54[];
+extern u_int vs_battle_limbStatusColors[];
 extern char vs_battle_animationIndices[];
 extern char vs_battle_warlockSpellIds[];
 extern char vs_battle_shamanSpellIds[];
@@ -728,20 +728,20 @@ extern char vs_battle_unlockedBreakArt;
 extern char* vs_battle_stringBuf;
 extern char vs_battle_submenuStates[16];
 extern char vs_battle_lowerScreenUiState;
-extern D_800F18EC_t D_800F4E98;
-extern int D_800F4EA0;
-extern D_800F4EE8_t D_800F4EE8;
+extern D_800F18EC_t vs_menu_frameworkActionSelection;
+extern int vs_menu_frameworkActionRestrictions;
+extern D_800F4EE8_t vs_menu_frameworkMenuMemory;
 extern char vs_battle_unlockedBattleAbility;
 extern char D_800F4FDB;
-extern D_800F569C_t* D_800F569C;
+extern D_800F569C_t* vs_effects_package;
 extern D_800F569C_t D_800F56C8;
 extern vs_battle_textBox vs_battle_textBoxes[];
-extern D_800F53B8_t* D_800F53B8; /* the effect scripts, the first of a list */
+extern D_800F53B8_t* vs_effects_primaryInstances; /* the effect scripts, the first of a list */
 /* The particle emitter's working record (the PS1 kept it in the scratchpad at 0x1F8001D0). */
 extern func_800FA098_arg1 pc_effect_scratch;
 extern u_char vs_battle_miscItemInvoked;
 extern vs_battle_stringContext_t vs_battle_stringContext;
 extern vs_battle_menuState_t vs_battle_menuState;
-extern SVECTOR D_800F5310[];
-extern D_800F53B8_t* D_800F53BC;
+extern SVECTOR vs_effects_effectOrigin[];
+extern D_800F53B8_t* vs_effects_currentInstance;
 extern effectExec vs_battle_effectRenderers[];

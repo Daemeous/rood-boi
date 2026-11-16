@@ -5,7 +5,7 @@
 
 .section .text, "ax"
 
-glabel func_800B396C
+glabel vs_core_mathScaleMatrixColumns
     lw      $t0, 0x0($a0)
     lw      $t1, 0x4($a0)
     lw      $t2, 0x8($a0)
@@ -69,9 +69,9 @@ glabel func_800B396C
     sw      $t3, 0xC($v0)
     j       $ra
     sh      $t6, 0x10($v0)
-endlabel func_800B396C
+endlabel vs_core_mathScaleMatrixColumns
 
-glabel func_800B3A68
+glabel vs_render_projectModelVertices
     or      $t0, $a3, $zero
     lui     $a3, (0x1F800378 >> 16)
     sw      $s0, (0x1F800358 & 0xFFFF)($a3)
@@ -242,9 +242,9 @@ glabel func_800B3A68
     lw      $s7, (0x1F800374 & 0xFFFF)($a3)
     jr      $ra
     lw      $gp, (0x1F800378 & 0xFFFF)($a3)
-endlabel func_800B3A68
+endlabel vs_render_projectModelVertices
 
-glabel func_800B3CF0
+glabel vs_render_drawModelFlatPolygons
     lui     $t0, (0x1F800390 >> 16)
     sw      $s0, (0x1F800358 & 0xFFFF)($t0)
     sw      $s1, (0x1F80035C & 0xFFFF)($t0)
@@ -820,9 +820,9 @@ glabel func_800B3CF0
     lw      $gp, (0x1F80037C & 0xFFFF)($t0)
     jr      $ra
     lw      $fp, (0x1F800380 & 0xFFFF)($t0)
-endlabel func_800B3CF0
+endlabel vs_render_drawModelFlatPolygons
 
-glabel func_800B4594
+glabel vs_render_drawModelGouraudPolygons
     lui     $t0, (0x1F800390 >> 16)
     sw      $s0, (0x1F800358 & 0xFFFF)($t0)
     sw      $s1, (0x1F80035C & 0xFFFF)($t0)
@@ -1190,7 +1190,7 @@ glabel func_800B4594
     lw      $gp, (0x1F80037C & 0xFFFF)($t0)
     jr      $ra
     lw      $fp, (0x1F800380 & 0xFFFF)($t0)
-endlabel func_800B4594
+endlabel vs_render_drawModelGouraudPolygons
 
 glabel func_800B4B14
     lui     $t0, (0x1F800348 >> 16)
@@ -1213,7 +1213,7 @@ glabel func_800B4B14
     addi    $a0, $a0, 0x1C
     or      $a1, $zero, $zero
     or      $a2, $zero, $zero
-    jal     func_800A6EE8
+    jal     vs_field_sampleActorSupportHeight
     ori     $a3, $zero, 0x3
     or      $fp, $v0, $zero
     sra     $v1, $s1, 16
@@ -1244,7 +1244,7 @@ glabel func_800B4B14
     addi    $a0, $s0, 0x1C
     or      $a1, $s2, $zero
     or      $a2, $zero, $zero
-    jal     func_800A6EE8
+    jal     vs_field_sampleActorSupportHeight
     ori     $a3, $zero, 0x3
     lb      $t0, 0x0($s5)
     or      $s1, $v0, $zero
@@ -1252,7 +1252,7 @@ glabel func_800B4B14
     addiu   $a0, $s0, 0x1C
     neg     $a1, $s2
     or      $a2, $zero, $zero
-    jal     func_800A6EE8
+    jal     vs_field_sampleActorSupportHeight
     ori     $a3, $zero, 0x3
     lb      $t0, 0x0($s5)
     or      $v1, $v0, $zero
@@ -1291,7 +1291,7 @@ glabel func_800B4B14
     addiu   $a0, $s0, 0x1C
     or      $a1, $zero, $zero
     neg     $a2, $s2
-    jal     func_800A6EE8
+    jal     vs_field_sampleActorSupportHeight
     ori     $a3, $zero, 0x3
     lb      $t0, 0x0($s5)
     or      $s1, $v0, $zero
@@ -1299,7 +1299,7 @@ glabel func_800B4B14
     addiu   $a0, $s0, 0x1C
     or      $a1, $zero, $zero
     or      $a2, $zero, $s2
-    jal     func_800A6EE8
+    jal     vs_field_sampleActorSupportHeight
     ori     $a3, $zero, 0x3
     lb      $t0, 0x0($s5)
     or      $v1, $v0, $zero
@@ -1352,7 +1352,7 @@ glabel func_800B4B14
     addiu   $a1, $s7, %lo(D_1F8003C0)
 .L800B4D50:
     addiu   $a0, $s7, %lo(vs_scratch + 0x14)
-    jal     func_800B196C
+    jal     vs_core_mathPremultiplyRotationMatrix
     addiu   $a1, $s7, %lo(D_1F8003C0)
     lw      $v0, 0x24($s0)
     lw      $a0, 0x28($s0)
@@ -1366,7 +1366,7 @@ glabel func_800B4B14
     jal     RotMatrixYXZ_gte
     addiu   $a1, $s7, %lo(D_1F800350)
     addiu   $a0, $s7, %lo(D_1F8003C0)
-    jal     func_800B196C
+    jal     vs_core_mathPremultiplyRotationMatrix
     addiu   $a1, $s7, %lo(D_1F800350)
     addiu   $a0, $s7, %lo(D_1F8003C0)
     addiu   $a1, $s7, %lo(D_1F800350)
@@ -1400,7 +1400,7 @@ glabel func_800B4B14
     srl     $v1, $v1, 12
     sw      $v1, (0x1F8003F0 & 0xFFFF)($s7)
     addiu   $a0, $s7, %lo(D_1F8003C0)
-    jal     func_800B396C
+    jal     vs_core_mathScaleMatrixColumns
     addiu   $a1, $s7, %lo(D_1F8003E8)
     lw      $t0, (0x1F800014 & 0xFFFF)($s7)
     lw      $t1, (0x1F800018 & 0xFFFF)($s7)
@@ -2364,7 +2364,7 @@ glabel func_800B516C
     lw      $fp, (0x1F800380 & 0xFFFF)($t0)
 endlabel func_800B516C
 
-glabel func_800B5C30
+glabel vs_render_drawModelGouraudPolygonsWithOverrides
     lui     $t0, (0x1F800390 >> 16)
     sw      $s0, (0x1F800358 & 0xFFFF)($t0)
     sw      $s1, (0x1F80035C & 0xFFFF)($t0)
@@ -2883,4 +2883,4 @@ glabel func_800B5C30
     lw      $gp, (0x1F80037C & 0xFFFF)($t0)
     jr      $ra
     lw      $fp, (0x1F800380 & 0xFFFF)($t0)
-endlabel func_800B5C30
+endlabel vs_render_drawModelGouraudPolygonsWithOverrides

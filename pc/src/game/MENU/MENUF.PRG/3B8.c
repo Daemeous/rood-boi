@@ -140,7 +140,7 @@ int _initCongratulationsScreen(void)
 
     if (vs_battle_submenuState == 0) {
 
-        func_8007DFF0(0x1D, 3, 5);
+        vs_render_reserveTexturePages(0x1D, 3, 5);
 
         timData = vs_main_allocHeapR(_disFiles[rankDis].size);
         cdSlot = vs_main_allocateCdQueueSlot(&_disFiles[rankDis]);
@@ -190,7 +190,7 @@ int _initCongratulationsScreen(void)
         int mapCompletion;
         u_int chestsOpened;
 
-        func_80045000(2, 0x7F, 0);
+        vs_audio_playMusicSlot(2, 0x7F, 0);
         vs_main_freeHeapR(timData);
 
         _onScreenMapCompletion = 0;
@@ -279,7 +279,7 @@ int _initTimeAttackEnd(void)
 
     if (state == 0) {
 
-        func_8007DFF0(0x1D, 1, 5);
+        vs_render_reserveTexturePages(0x1D, 1, 5);
 
         timData = vs_main_allocHeapR(_disFiles[timeDis].size);
         cdSlot = vs_main_allocateCdQueueSlot(&_disFiles[1]);
@@ -320,7 +320,7 @@ int _initTimeAttackEnd(void)
         }
     } else if (vs_main_clearMusicLoadQueue() == 0) {
 
-        func_80045000(2, 0x7F, 0);
+        vs_audio_playMusicSlot(2, 0x7F, 0);
 
         _timeTrialTime = (vs_main_stateFlags.timeAttackMins << 0x10)
                        | (vs_main_stateFlags.timeAttackSecs << 8)
@@ -392,7 +392,7 @@ int _initTimeAttackStart(void)
 
     if (vs_battle_submenuState == 0) {
 
-        func_8007DFF0(0x1D, 2, 5);
+        vs_render_reserveTexturePages(0x1D, 2, 5);
 
         timData = vs_main_allocHeapR(_disFiles[attackDis].size);
         cdSlot = vs_main_allocateCdQueueSlot(&_disFiles[attackDis]);
@@ -861,17 +861,17 @@ int _renderCongratulationsScreen(void)
                     _screenState = 1;
                     _stateTimer = 0;
 
-                    func_80045BFC(0x7E, 0x74, 0x40, 0x30);
-                    func_80045BFC(0x7E, 0x75, 0x40, 0x30);
-                    func_80045C74(0x7E, 0x74, -0x10, 0x30);
-                    func_80045C74(0x7E, 0x75, -0x10, 0x30);
+                    vs_audio_fadeSfxVolume(0x7E, 0x74, 0x40, 0x30);
+                    vs_audio_fadeSfxVolume(0x7E, 0x75, 0x40, 0x30);
+                    vs_audio_fadeSfxPitch(0x7E, 0x74, -0x10, 0x30);
+                    vs_audio_fadeSfxPitch(0x7E, 0x75, -0x10, 0x30);
                 }
 
                 _renderPressButtonPrompt(214, 187, 48, _screenTimer);
             }
         } else if (vs_main_buttonsPressed.all & PADRright) {
 
-            func_80045D64(0x7E, 0);
+            vs_audio_stopSfx(0x7E, 0);
 
             _screenTimer = 272;
             _incrementingScore = 0;
@@ -898,8 +898,8 @@ int _renderCongratulationsScreen(void)
 
         if ((temp_v1 == 8) && (_elementAnimationState == temp_v1)) {
 
-            func_80045D64(0x7E, 0x74);
-            func_80045D64(0x7E, 0x75);
+            vs_audio_stopSfx(0x7E, 0x74);
+            vs_audio_stopSfx(0x7E, 0x75);
             vs_main_playSfxDefault(0x7E, 0x77);
             vs_main_playSfxDefault(0x7E, 0x78);
 
@@ -945,7 +945,7 @@ int _renderCongratulationsScreen(void)
                 break;
             }
 
-            func_8007E0A8(0x1D, 3, 5);
+            vs_render_retireTexturePages(0x1D, 3, 5);
             _nop2();
 
             return 1;
@@ -981,7 +981,7 @@ int _renderTimeAttackEnd(void)
         }
 
         if (_screenTimer == 0x60) {
-            func_80045D64(0x7E, 0x72);
+            vs_audio_stopSfx(0x7E, 0x72);
             vs_main_playSfxDefault(0x7E, 0x73);
         }
 
@@ -1017,7 +1017,7 @@ int _renderTimeAttackEnd(void)
 
         if ((vs_main_buttonsPressed.all & PADRright) || (_screenTimer >= 192)) {
 
-            func_80045D64(0x7E, 0);
+            vs_audio_stopSfx(0x7E, 0);
 
             _screenTimer = 0;
             ++_screenState;
@@ -1063,7 +1063,7 @@ int _renderTimeAttackEnd(void)
             ++_screenState;
         }
     } else {
-        func_8007E0A8(29, 1, 5);
+        vs_render_retireTexturePages(29, 1, 5);
 
         return 1;
     }
@@ -1121,15 +1121,15 @@ int _renderTimeAttackStart(void)
         }
 
     } else if (_screenState == 2) {
-        func_8007C36C(4);
-        func_8007DDAC(0);
-        func_8007DDB8(&D_801096F0[0]);
-        func_8007DDD4(&colors[1]);
-        func_8007DDF8((D_800F1A68_t*)(D_801096F0 + 2));
-        func_8007DE2C(0);
-        func_8007DE44(0U);
-        func_8007DE5C(0);
-        func_8007DD50(1);
+        vs_state_selectTickSpeed(4);
+        vs_render_setFramebufferEffectRoll(0);
+        vs_render_setFramebufferEffectScale(&D_801096F0[0]);
+        vs_render_setFramebufferEffectTint(&colors[1]);
+        vs_render_setFramebufferEffectOffset((D_800F1A68_t*)(D_801096F0 + 2));
+        vs_render_setFramebufferEffectBlendMode(0);
+        vs_render_setFramebufferEffectDepth(0U);
+        vs_render_setFramebufferEffectPreviousFrame(0);
+        vs_render_setFramebufferEffectEnabled(1);
 
         ++_screenState;
 
@@ -1159,15 +1159,15 @@ int _renderTimeAttackStart(void)
         if (_screenTimer >= 45) {
 
             if (_screenTimer == 45) {
-                func_8007DE2C(1);
-                func_8007DDB8(&D_801096F0[1]);
-                func_8007DDD4(&colors[0]);
+                vs_render_setFramebufferEffectBlendMode(1);
+                vs_render_setFramebufferEffectScale(&D_801096F0[1]);
+                vs_render_setFramebufferEffectTint(&colors[0]);
             } else if (_screenTimer == 0x2E) {
-                func_8007DE2C(0);
+                vs_render_setFramebufferEffectBlendMode(0);
             } else if (_screenTimer == 0x37) {
-                func_8007DDD4(&colors[2]);
+                vs_render_setFramebufferEffectTint(&colors[2]);
             } else if (_screenTimer == 0x3C) {
-                func_8007DDB8(&D_801096F0[0]);
+                vs_render_setFramebufferEffectScale(&D_801096F0[0]);
             }
 
             x = 104 - _screenTimer;
@@ -1197,10 +1197,10 @@ int _renderTimeAttackStart(void)
         }
 
     } else if (_screenState == 4) {
-        func_8007C36C(2);
-        func_8007DDB8(&D_801096F0[2]);
-        func_8007DD50(0);
-        func_8007E0A8(0x1D, 2, 5);
+        vs_state_selectTickSpeed(2);
+        vs_render_setFramebufferEffectScale(&D_801096F0[2]);
+        vs_render_setFramebufferEffectEnabled(0);
+        vs_render_retireTexturePages(0x1D, 2, 5);
 
         return 1;
     }
@@ -1505,7 +1505,7 @@ void _renderIncrementalScore(int x, int y, int timer, int arg3 __attribute__((un
 
             _incrementingScore = 0;
 
-            func_80045D64(0x7E, 0x72);
+            vs_audio_stopSfx(0x7E, 0x72);
             vs_main_playSfxDefault(0x7E, 0x73);
         }
     }
@@ -1624,7 +1624,7 @@ void _renderIncrementalMapCompletion(
             && (_incrementingMapCompletion != 0)) {
             _incrementingMapCompletion = 0;
 
-            func_80045D64(0x7E, 0x72);
+            vs_audio_stopSfx(0x7E, 0x72);
             vs_main_playSfxDefault(0x7E, 0x73);
         }
     }
@@ -2275,7 +2275,7 @@ int _initCubePuzzleStart(void)
 
     if (vs_battle_submenuState == 0) {
 
-        func_8007DFF0(0x1D, 2, 5);
+        vs_render_reserveTexturePages(0x1D, 2, 5);
 
         _iqDisData = vs_main_allocHeapR(_disFiles[iqDis].size);
         _iqDisCdSlot = vs_main_allocateCdQueueSlot(&_disFiles[iqDis]);
@@ -2372,7 +2372,7 @@ int _initCubePuzzleQuit(void)
 
     if (vs_battle_submenuState == 0) {
 
-        func_8007DFF0(0x1D, 1, 5);
+        vs_render_reserveTexturePages(0x1D, 1, 5);
 
         _escDisData = vs_main_allocHeapR(_disFiles[escDis].size);
         _escDisCdSLot = vs_main_allocateCdQueueSlot(&_disFiles[escDis]);
@@ -2457,13 +2457,13 @@ int _renderCubePuzzleStart(void)
     if (vs_main_buttonsPressed.all & PADRright) {
         if (_screenTimer >= 78) {
 
-            func_80045D64(126, 0);
-            func_8007E0A8(29, 2, 5);
+            vs_audio_stopSfx(126, 0);
+            vs_render_retireTexturePages(29, 2, 5);
 
             return 1;
         }
 
-        func_80045D64(126, 0);
+        vs_audio_stopSfx(126, 0);
 
         _screenTimer = 78;
     }
@@ -2515,7 +2515,7 @@ int _renderCubePuzzleEnd(void)
         }
 
         if (_screenTimer == 64) {
-            func_80045D64(0x7E, 0x72);
+            vs_audio_stopSfx(0x7E, 0x72);
             vs_main_playSfxDefault(0x7E, 0x73);
         }
 
@@ -2543,8 +2543,8 @@ int _renderCubePuzzleEnd(void)
         if (vs_main_buttonsPressed.all & PADRright) {
             if (_screenTimer >= 138) {
 
-                func_80045D64(0x7E, 0);
-                func_8007E0A8(0x1D, 2, 5);
+                vs_audio_stopSfx(0x7E, 0);
+                vs_render_retireTexturePages(0x1D, 2, 5);
 
                 vs_main_scoredata.miscScore += _puzzleModeRankPoints[rank];
 
@@ -2553,7 +2553,7 @@ int _renderCubePuzzleEnd(void)
                 return 1;
             }
 
-            func_80045D64(0x7E, 0);
+            vs_audio_stopSfx(0x7E, 0);
 
             _screenTimer = 138;
         }
@@ -2594,8 +2594,8 @@ int _renderCubePuzzleQuit(void)
     if (vs_main_buttonsPressed.all & PADRright) {
         if (_screenTimer > 62) {
 
-            func_80045D64(0x7E, 0);
-            func_8007E0A8(0x1D, 1, 5);
+            vs_audio_stopSfx(0x7E, 0);
+            vs_render_retireTexturePages(0x1D, 1, 5);
             _nop1();
 
             return 1;
@@ -2603,7 +2603,7 @@ int _renderCubePuzzleQuit(void)
 
         _screenTimer = 63;
 
-        func_80045D64(0x7E, 0);
+        vs_audio_stopSfx(0x7E, 0);
     }
 
     return 0;

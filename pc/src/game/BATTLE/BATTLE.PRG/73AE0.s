@@ -5,7 +5,7 @@
 
 .section .text, "ax"
 
-glabel func_800DC2E0
+glabel vs_battle_aiCopyActionCandidate
     lw      $t0, 0x0($a1)
     lw      $t1, 0x4($a1)
     lw      $t2, 0x8($a1)
@@ -17,4 +17,4 @@ glabel func_800DC2E0
     sw      $t3, 0xC($a0)
     jr      $ra
     sw      $t4, 0x10($a0)
-endlabel func_800DC2E0
+endlabel vs_battle_aiCopyActionCandidate

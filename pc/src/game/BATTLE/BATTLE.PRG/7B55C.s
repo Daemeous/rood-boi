@@ -5,7 +5,7 @@
 
 .section .text, "ax"
 
-glabel func_800E3D5C
+glabel vs_battle_aiCardinalPassabilityMask
     addu    $v1, $a1, $zero
     mtc2    $ra, $25
     mtc2    $a0, $12
@@ -38,4 +38,4 @@ glabel func_800E3D5C
     or      $a0, $a0, $a2
     jr      $ra
     or      $v0, $a0, $v0
-endlabel func_800E3D5C
+endlabel vs_battle_aiCardinalPassabilityMask

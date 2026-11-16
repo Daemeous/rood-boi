@@ -3,10 +3,10 @@ const c = @import("c_battle_movement");
 const v = @import("views_battle_movement");
 const psx = @import("common").psx;
 
-/// orig: func_800D82A8 (pc/src/battle_movement.c)
-/// Makes the AI entity of actor `id` leave the encounter (func_800D82CC);
+/// orig: vs_battle_aiDisengageActorById (pc/src/battle_movement.c)
+/// Makes the AI entity of actor `id` leave the encounter (vs_battle_aiDisengageActor);
 /// id 0 and an empty slot do nothing.
 pub fn leaveEncounterById(id: c_int) callconv(.c) void {
     if (id == 0) return;
-    if (psx.at(v.g.D_800F5878(), id).*) |entity| c.func_800D82CC(entity);
+    if (psx.at(v.g.vs_battle_aiActorAiStates(), id).*) |entity| c.vs_battle_aiDisengageActor(entity);
 }

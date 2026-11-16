@@ -5,11 +5,11 @@
 
 .section .text, "ax"
 
-glabel func_800E65DC
+glabel vs_battle_aiCacheActorAiWorkingState
     addiu   $v0, $zero, 0x10
     lui     $a3, (0x1F8003DC >> 16)
-    lui     $a0, %hi(D_800F5878)
-    addiu   $a0, $a0, %lo(D_800F5878)
+    lui     $a0, %hi(vs_battle_aiActorAiStates)
+    addiu   $a0, $a0, %lo(vs_battle_aiActorAiStates)
 .L800E65EC:
     sll     $a2, $v0, 2
     addu    $v1, $a0, $a2
@@ -18,8 +18,8 @@ glabel func_800E65DC
     addu    $v1, $a3, $a2
     bgez    $v0, .L800E65EC
     sw      $a1, (0x1F80037C & 0xFFFF)($v1)
-    lui     $v0, %hi(D_800F58BC)
-    lw      $v0, %lo(D_800F58BC)($v0)
+    lui     $v0, %hi(vs_battle_aiRoomAiState)
+    lw      $v0, %lo(vs_battle_aiRoomAiState)($v0)
     lui     $t0, %hi(D_800F58D0)
     lw      $t0, %lo(D_800F58D0)($t0)
     lui     $t1, %hi(D_800F58B8)
@@ -28,8 +28,8 @@ glabel func_800E65DC
     lw      $t2, %lo(D_800F58CC)($t2)
     lui     $t3, %hi(D_800F58C0)
     lw      $t3, %lo(D_800F58C0)($t3)
-    lui     $t4, %hi(D_800F58C4)
-    lw      $t4, %lo(D_800F58C4)($t4)
+    lui     $t4, %hi(vs_battle_aiSavedMovementRandomState)
+    lw      $t4, %lo(vs_battle_aiSavedMovementRandomState)($t4)
     lui     $t5, %hi(D_800F16E0)
     lw      $t5, %lo(D_800F16E0)($t5)
     lui     $t6, %hi(D_800F16E4)
@@ -53,4 +53,4 @@ glabel func_800E65DC
     sw      $t9, (0x1F8003F0 & 0xFFFF)($a3)
     jr      $ra
     sw      $v0, (0x1F8003DC & 0xFFFF)($a3)
-endlabel func_800E65DC
+endlabel vs_battle_aiCacheActorAiWorkingState

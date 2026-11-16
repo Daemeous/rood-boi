@@ -184,14 +184,14 @@ static void _configureMapMenu(int rowCount, int currentMap, char* menuText[])
     currentMap &= 0x7F;
 
     if ((rowCount < 9) || (currentMap < 8)) {
-        D_800F4EE8.cursorMemories[0] = currentMap;
-        D_800F4EE8.cursorMemories[1] = 0;
+        vs_menu_frameworkMenuMemory.cursorMemories[0] = currentMap;
+        vs_menu_frameworkMenuMemory.cursorMemories[1] = 0;
     } else if (currentMap >= (rowCount - 8)) {
-        D_800F4EE8.cursorMemories[0] = currentMap - (rowCount - 9);
-        D_800F4EE8.cursorMemories[1] = rowCount - 9;
+        vs_menu_frameworkMenuMemory.cursorMemories[0] = currentMap - (rowCount - 9);
+        vs_menu_frameworkMenuMemory.cursorMemories[1] = rowCount - 9;
     } else {
-        D_800F4EE8.cursorMemories[0] = 4;
-        D_800F4EE8.cursorMemories[1] = currentMap - 4;
+        vs_menu_frameworkMenuMemory.cursorMemories[0] = 4;
+        vs_menu_frameworkMenuMemory.cursorMemories[1] = currentMap - 4;
     }
 
     cursorMemory = vs_main_settings.cursorMemory;
@@ -214,7 +214,7 @@ static int _mapSelection(void)
     if (row < -1) {
         vs_mainMenu_clearMenuExcept(5);
     } else if (row >= 0) {
-        vs_mainMenu_flyoutMenuRightAndHoistSelection(D_800F4EE8.cursorMemories[0], 1);
+        vs_mainMenu_flyoutMenuRightAndHoistSelection(vs_menu_frameworkMenuMemory.cursorMemories[0], 1);
     }
 
     return row;
@@ -333,10 +333,10 @@ int vs_menu5_exec(u_char* state)
             --armfileLoadDelay;
             break;
         } else if (armFileLoaded) {
-            func_8008A4DC(0);
-            func_800CB654(1);
+            vs_field_setFieldRenderingEnabled(0);
+            vs_battle_setHudHidden(1);
 
-            D_800EB9B0 = 0x200000;
+            vs_battle_hudSlideOffset = 0x200000;
             *state = 6;
         } else {
             break;
@@ -353,11 +353,11 @@ int vs_menu5_exec(u_char* state)
 
         if (D_80108D38 != 0) {
             vs_mainMenu_setBackgroundRenderPriority(-4, 128);
-            func_800CB654(0);
+            vs_battle_setHudHidden(0);
 
-            D_800EB9B0 = 0;
+            vs_battle_hudSlideOffset = 0;
 
-            func_8008A4DC(1);
+            vs_field_setFieldRenderingEnabled(1);
             vs_mainMenu_setMenuCommand(menuActionNone);
             vs_mainMenu_clearMenuExcept(vs_mainMenu_menuItemIds_none);
 
@@ -454,7 +454,7 @@ static int const _ashleyIconBrightness[] = { 0x00404040, 0x00505050, 0x00606060,
     0x00808080, 0x00808080, 0x00707070, 0x00606060, 0x00505050, 0x00404040 };
 
 // Junk? Same values are used elsewhere for gradient lerping.
-static int const D_80102C40[] __attribute__((unused)) = { 0x006B4100, 0x006C8219,
+static int const vs_menu_mapUnusedGlobal1[] __attribute__((unused)) = { 0x006B4100, 0x006C8219,
     0x00663040, 0x00203840, 0x00330500, 0x00262801, 0x00200808, 0x00081010 };
 
 u_short _mapNames[] = {
@@ -1070,7 +1070,7 @@ static void _setCamera(void)
 
     _buildYawMatrix(&sp18, _cameraAngles.vy);
     _buildPitchMatrix(&sp38, _cameraAngles.vx);
-    func_80041C68(&sp38, &sp18);
+    vs_core_mathMultiplyMatrixIntoRight(&sp38, &sp18);
 
     applyVector(&sp10, _cameraPos.vx, _cameraPos.vy, _cameraPos.vz, = -);
 
@@ -2353,7 +2353,7 @@ static int func_8010839C(int arg0, int arg1, int arg2)
 {
     u_int temp_a2 = arg0 - 0x41;
 
-    if ((temp_a2 < 7) && ((func_8008E7BC(arg1, arg2, temp_a2) != 0))) {
+    if ((temp_a2 < 7) && ((vs_field_roomSigilDoorUnlockByte(arg1, arg2, temp_a2) != 0))) {
         return 0;
     }
     return vs_main_stateFlags.unk33F[arg0] < 2;
@@ -2489,17 +2489,17 @@ static void _pcListOpen(void)
     }
     currentMap &= 0x7F;
     if ((count < 9) || (currentMap < 8)) {
-        D_800F4EE8.cursorMemories[0] = currentMap;
-        D_800F4EE8.cursorMemories[1] = 0;
+        vs_menu_frameworkMenuMemory.cursorMemories[0] = currentMap;
+        vs_menu_frameworkMenuMemory.cursorMemories[1] = 0;
     } else if (currentMap >= (count - 8)) {
-        D_800F4EE8.cursorMemories[0] = currentMap - (count - 9);
-        D_800F4EE8.cursorMemories[1] = count - 9;
+        vs_menu_frameworkMenuMemory.cursorMemories[0] = currentMap - (count - 9);
+        vs_menu_frameworkMenuMemory.cursorMemories[1] = count - 9;
     } else {
-        D_800F4EE8.cursorMemories[0] = 4;
-        D_800F4EE8.cursorMemories[1] = currentMap - 4;
+        vs_menu_frameworkMenuMemory.cursorMemories[0] = 4;
+        vs_menu_frameworkMenuMemory.cursorMemories[1] = currentMap - 4;
     }
-    pc_ui_map_frame_list_open(ids, count, highlight, D_800F4EE8.cursorMemories[0],
-        D_800F4EE8.cursorMemories[1]);
+    pc_ui_map_frame_list_open(ids, count, highlight, vs_menu_frameworkMenuMemory.cursorMemories[0],
+        vs_menu_frameworkMenuMemory.cursorMemories[1]);
 }
 
 /* The frame's requests (map_frame.h), from processInput. Phase 0: one

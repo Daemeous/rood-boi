@@ -1,7 +1,7 @@
 #include "common.h"
 #include <libgte.h>
 
-extern u_char D_80040A14[];
+extern u_char vs_core_mathArcTangentTable[];
 
 long ratan2(long y, long x)
 {
@@ -16,12 +16,12 @@ long ratan2(long y, long x)
         if (ax < ay) {
             c = ax << 9;
             c /= ay;
-            c = D_80040A14[c];
+            c = vs_core_mathArcTangentTable[c];
             c = t - c;
         } else {
             c = ay << 9;
             c /= ax;
-            c = D_80040A14[c];
+            c = vs_core_mathArcTangentTable[c];
         }
         t = 1024;
         if (ax != x) {

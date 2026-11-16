@@ -7,8 +7,8 @@
 
 glabel func_800E4CF4
     lw      $t0, 0x4($a1)
-    lui     $v0, %hi(D_800F5878)
-    addiu   $v0, $v0, %lo(D_800F5878)
+    lui     $v0, %hi(vs_battle_aiActorAiStates)
+    addiu   $v0, $v0, %lo(vs_battle_aiActorAiStates)
     sll     $v1, $a2, 2
     addu    $v0, $v0, $v1
     srl     $t1, $t0, 5
@@ -75,7 +75,7 @@ glabel func_800E4CF4
     addu    $v0, $zero, $zero
 endlabel func_800E4CF4
 
-glabel func_800E4DF8
+glabel vs_battle_aiRefreshAiActionUsability
     lw      $t0, 0x54($a0)
     addiu   $t1, $zero, 0xDC
     addiu   $t2, $zero, 0x4
@@ -153,9 +153,9 @@ glabel func_800E4DF8
     or      $a2, $a2, $v1
     jr      $ra
     sw      $a2, 0x230($a0)
-endlabel func_800E4DF8
+endlabel vs_battle_aiRefreshAiActionUsability
 
-glabel func_800E4F14
+glabel vs_battle_aiRefreshAiResourceRestrictions
     lw      $t0, 0x54($a0)
     lbu     $t1, 0x17($a0)
     lw      $t0, 0x3C($t0)
@@ -198,4 +198,4 @@ glabel func_800E4F14
 .L800E4FA8:
     jr      $ra
     sb      $a3, 0x10($a0)
-endlabel func_800E4F14
+endlabel vs_battle_aiRefreshAiResourceRestrictions

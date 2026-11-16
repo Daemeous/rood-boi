@@ -9,52 +9,52 @@
 #include "pc/src/psx_types.h"
 
 void func_8008EB04(int*, int*);
-int func_800A91DC(int, int, int);
+int vs_field_findTopGimmickAtTile(int, int, int);
 /* Returns the animation record's guest address as an int (40564.c). */
-int func_800AD494(D_800F4538_t*, u_char, u_short**);
-void func_800AF844(SVECTOR*, SVECTOR*, int);
-void func_800B147C(D_800F4538_unkC54*, D_800F4538_unkC54*, int, int, int);
+int vs_actors_findActorAnimationHeader(D_800F4538_t*, u_char, u_short**);
+void vs_actors_alignPoseRotationBranches(SVECTOR*, SVECTOR*, int);
+void vs_actors_blendActorPose(D_800F4538_unkC54*, D_800F4538_unkC54*, int, int, int);
 
 extern u_char D_800E91A4[];
 extern u_char D_800E9278[];
 
-void func_800AB358(int index, u_char* arg);
-void func_800A41D0(D_800F4538_t* actor, int mode);
-void func_800AE6C0(D_800F4538_t*, int, int);
-int func_800A1280(int, int, SVECTOR*, int);
-void func_800AE828(int arg0, D_800F4538_t* arg1, int arg2);
-void func_800AD008(void*, void*);
-int func_800CEF74(int);
-int func_800AAD4C(int, int, int, int);
+void vs_actors_textureOverlayMove(int index, u_char* arg);
+void vs_field_applyGimmickInteractionCommand(D_800F4538_t* actor, int mode);
+void vs_audio_playActorSoundPair(D_800F4538_t*, int, int);
+int vs_actors_targetPoint(int, int, SVECTOR*, int);
+void vs_audio_playActorSurfaceContactSound(int arg0, D_800F4538_t* arg1, int arg2);
+void vs_actors_initializeActorAnimationPose(void*, void*);
+int vs_effects_startEffectTrack(int);
+int vs_actors_setTextureAnimation(int, int, int, int);
 void func_800AE46C();
 void func_800AE474();
-void func_800AC440(D_800F4538_t* arg0, int arg1, int arg2);
+void vs_actors_setActorBonePoseLock(D_800F4538_t* arg0, int arg1, int arg2);
 void func_800CF8BC(void);
-short func_800BEB00(void);
-extern u_char D_800E9298[];
+short vs_event_eventPlaybackState(void);
+extern u_char vs_actors_animationEventLengths[];
 extern u_char D_800E92DC[];
 extern int D_800F1868;
 extern u_short D_800E9A28[][4];
 
-int func_800AD714(D_800F4538_t* actor, D_800F4538_unkC54* state, int mode);
+int vs_actors_runAnimationEvents(D_800F4538_t* actor, D_800F4538_unkC54* state, int mode);
 
 void func_800AE46C(void);
 
 void func_800AE474(void);
 
-void func_800AE47C(D_800F4538_t* arg0);
+void vs_actors_restartActorAnimationEvents(D_800F4538_t* arg0);
 
-void func_800AE4FC(D_800F4538_unk0* arg0, int arg1);
+void vs_audio_playActorModelSound(D_800F4538_unk0* arg0, int arg1);
 
-void func_800AE68C(int arg0, int arg1);
+void vs_audio_playActorModelSoundVariant(int arg0, int arg1);
 
-void func_800AE6C0(D_800F4538_t* arg0, int arg1, int arg2);
+void vs_audio_playActorSoundPair(D_800F4538_t* arg0, int arg1, int arg2);
 
-void func_800AE7D8(void* arg0, int arg1, int arg2);
+void vs_audio_playGimmickSoundPair(void* arg0, int arg1, int arg2);
 
-void func_800AE828(int arg0, D_800F4538_t* arg1, int arg2);
+void vs_audio_playActorSurfaceContactSound(int arg0, D_800F4538_t* arg1, int arg2);
 
-void func_800AE980(D_800F4538_unkC54* dst, D_800F4538_unkC54* src, int count);
+void vs_actors_blendActorPoseHalfway(D_800F4538_unkC54* dst, D_800F4538_unkC54* src, int count);
 
 typedef struct {
     char prefix[0x3A];
@@ -69,11 +69,11 @@ extern struct {
     char prefix[0x1FD0];
     int scales[3];
 } D_800F2458;
-void func_800B07DC(D_800F4538_t*);
+void vs_actors_transformRootOffset(D_800F4538_t*);
 
-void func_800AEAE8(D_800F4538_t* actor);
+void vs_actors_actorRootOffset(D_800F4538_t* actor);
 
-extern MATRIX D_8005E218;
+extern MATRIX vs_render_cameraBasisMatrix;
 extern MATRIX D_800F4910;
 extern MATRIX D_800F49B8;
 
@@ -82,7 +82,7 @@ extern MATRIX D_800F49B8;
 static MATRIX func_800AEF94__zero __attribute__((used));
 static int func_800AEF94__reported __attribute__((used));
 static int func_800AE47C__reported __attribute__((used));
-void func_80041C68(MATRIX*, MATRIX*);
+void vs_core_mathMultiplyMatrixIntoRight(MATRIX*, MATRIX*);
 typedef struct {
     char prefix[0x64];
     MATRIX matrix;
@@ -90,19 +90,19 @@ typedef struct {
     VECTOR scale;
 } cameraTransformScratch;
 
-void func_800AECA0(MATRIX* source);
+void vs_render_prepareActorCameraMatrices(MATRIX* source);
 
 void func_800AEEC4(D_800F4538_t* arg0) __attribute__((unused));
 void func_800AEEC4(D_800F4538_t* arg0);
 
-void func_800AAE9C(void*);
-void func_800AB4F0(void*);
-void func_800AB788(void*, void*, int);
-void func_800AB9A4(void*);
-void func_800AC540(int, D_800F4538_t*);
+void vs_actors_stepTextureAnimations(void*);
+void vs_actors_stepTextureScrolling(void*);
+void vs_actors_updatePalettePulse(void*, void*, int);
+void vs_actors_updateActorAppearanceTransition(void*);
+void vs_actors_updateActorRoute(int, D_800F4538_t*);
 typedef struct objectAnimationState objectAnimationState;
-void func_800B0908(objectAnimationState*, int);
-void func_800B1A68(D_800F45E0_t*, MATRIX*);
+void vs_field_updateGimmickMotion(objectAnimationState*, int);
+void vs_actors_placeGimmick(D_800F45E0_t*, MATRIX*);
 extern int D_800E9308;
 extern u_char D_800F4B18, D_800F4B19;
 
@@ -111,11 +111,11 @@ struct frameScratch {
     int depth;
 };
 
-void func_800AEF94(MATRIX* camera);
+void vs_actors_updateAndDrawRoomModels(MATRIX* camera);
 
-void func_800AF6E8(D_800F4538_t* arg0);
+void vs_actors_updateActorAnimationBlend(D_800F4538_t* arg0);
 
-void func_800AF844(SVECTOR* dst, SVECTOR* src, int count);
+void vs_actors_alignPoseRotationBranches(SVECTOR* dst, SVECTOR* src, int count);
 
 void func_800AF960(D_800F45E0_t* arg0) __attribute__((unused));
 void func_800AF960(D_800F45E0_t* arg0);
@@ -126,15 +126,15 @@ struct animationFrameScratch {
     psx_ptr(u_char*) data;
 };
 PSX_ASSERT_SIZE(struct animationFrameScratch, 0x14);
-void func_800AFDE8(int, SVECTOR*, int);
+void vs_actors_decodeAnimationTrack(int, SVECTOR*, int);
 void func_800AFA28(D_800F4538_t* actor, D_800F4538_unkC54* state, int mode);
 
-void func_800AFDE8(int offset, SVECTOR* value, int rotation);
+void vs_actors_decodeAnimationTrack(int offset, SVECTOR* value, int rotation);
 
-int func_800A92B8(int x, int z);
+int vs_field_gimmickSupportHeight(int x, int z);
 int vs_gte_rsqrt(int);
-short func_800BEB00(void);
-extern u_char D_800F49F8;
+short vs_event_eventPlaybackState(void);
+extern u_char vs_actors_supportingGimmickIndex;
 
 typedef struct {
     int unk0;
@@ -143,7 +143,7 @@ typedef struct {
 
 void func_800B002C(D_800F4538_t* actor, int arg1);
 
-void func_800B07DC(D_800F4538_t* actor);
+void vs_actors_transformRootOffset(D_800F4538_t* actor);
 
 struct objectAnimationState {
     char prefix[8];
@@ -164,12 +164,12 @@ struct objectAnimationState {
     char pad60[0x10C];
     u_char material, durability, pad16E, parentObject, frame;
 };
-int func_800B101C();
-int func_800A3DB4(int, int, int);
-int func_800A6EE8(SVECTOR*, int, int, int);
-void func_800E6898(void*);
-void func_800E4C28(int, int);
-void func_800B0908(objectAnimationState* object, int unused);
+int vs_field_updateGimmickReactionAnimation();
+int vs_field_canPlaceGimmickAtPoint(int, int, int);
+int vs_field_sampleActorSupportHeight(SVECTOR*, int, int, int);
+void vs_battle_aiAddAiTileOccupant(void*);
+void vs_battle_aiReleaseAiDestinationTile(int, int);
+void vs_field_updateGimmickMotion(objectAnimationState* object, int unused);
 
 typedef struct {
     char prefix[8];
@@ -192,11 +192,11 @@ extern u_char D_800E91AC[], D_800E91BC[], D_800E91CC[], D_800E91DC[];
 extern u_char D_800E91EC[], D_800E91F0[], D_800E91FC[], D_800E9208[];
 extern u_char D_800E9218[], D_800E9228[], D_800E9238[], D_800E9248[];
 extern u_char D_800E9258[], D_800E9268[];
-int func_800A0104(int, int);
+int vs_field_setGimmickOrientation(int, int);
 
-int func_800B101C(objectMotionContext* object);
+int vs_field_updateGimmickReactionAnimation(objectMotionContext* object);
 
-int func_800B13CC(int arg0, int arg1, int arg2);
+int vs_field_gimmickSupportHeightBelow(int arg0, int arg1, int arg2);
 
 /* Declared for the Zig's c module (the C bodies that declared them are gone). */
 extern int sprintf(char*, const char*, ...);

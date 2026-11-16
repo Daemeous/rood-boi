@@ -21,16 +21,16 @@ pub fn func_800E153C(state: ?*v.vs_battle_aiState, _: c_int) callconv(.c) void {
 
         const dxv: c_int = @as(c_int, psx.getBits(&st.destination168.movementPosition.p, "x")) *% 128 -% @as(c_int, st.position.v.vx) +% 64;
         const dzv: c_int = @as(c_int, psx.getBits(&st.destination168.movementPosition.p, "z")) *% 128 -% @as(c_int, st.position.v.vz) +% 64;
-        if (c.func_800E4660(dxv, 0, dzv) > psx.conv(c_uint, distance *% distance)) {
-            c.func_800E1388(@ptrCast(st), st.tile.position.raw, angle, psx.conv(c_uint, distance));
+        if (c.vs_core_mathSquaredVectorLength(dxv, 0, dzv) > psx.conv(c_uint, distance *% distance)) {
+            c.vs_battle_aiProjectClearRadialDestination(@ptrCast(st), st.tile.position.raw, angle, psx.conv(c_uint, distance));
         }
 
-        if ((st.flags & 6) != 0 and (st.flagsC.b[1] != 0 or c.func_800E45F4(st.destination168.movementPosition.raw, st.tile.position.raw) < 16)) {
+        if ((st.flags & 6) != 0 and (st.flagsC.b[1] != 0 or c.vs_core_mathSquaredTileDistance(st.destination168.movementPosition.raw, st.tile.position.raw) < 16)) {
             const prev: i32 = @bitCast(st.previous48.movementPosition.raw << 8);
             if (prev >= 0) {
                 st.destination168.movementPosition = st.previous48.movementPosition;
             }
-            c.func_800E4B2C(@ptrCast(st), angle);
+            c.vs_battle_aiMoveActorTowardDestinationTile(@ptrCast(st), angle);
             return;
         }
 
@@ -38,7 +38,7 @@ pub fn func_800E153C(state: ?*v.vs_battle_aiState, _: c_int) callconv(.c) void {
         if (@as(c_int, st.attempts) < 6) break :search false;
 
         var dest = st.destination168.movementPosition;
-        if (c.func_800D954C(@ptrCast(st), dest.raw) > 0) break :search true;
+        if (c.vs_battle_aiDestinationOccupancy(@ptrCast(st), dest.raw) > 0) break :search true;
 
         var i: c_int = 0;
         while (i < 4) : (i += 1) {
@@ -46,7 +46,7 @@ pub fn func_800E153C(state: ?*v.vs_battle_aiState, _: c_int) callconv(.c) void {
             const entry: *v.D_800F16EC_t = @ptrFromInt(pad.addr(0x3EC) + off);
             psx.setBits(&dest.p, "x", psx.conv(u8, @as(c_int, psx.getBits(&st.destination168.movementPosition.p, "x")) +% @as(c_int, psx.getBits(entry, "dx"))));
             psx.setBits(&dest.p, "z", psx.conv(u8, @as(c_int, psx.getBits(&st.destination168.movementPosition.p, "z")) +% @as(c_int, psx.getBits(entry, "dz"))));
-            if (c.func_800D954C(@ptrCast(st), dest.raw) > 0) {
+            if (c.vs_battle_aiDestinationOccupancy(@ptrCast(st), dest.raw) > 0) {
                 st.destination168.movementPosition = dest;
                 break :search true;
             }
@@ -57,8 +57,8 @@ pub fn func_800E153C(state: ?*v.vs_battle_aiState, _: c_int) callconv(.c) void {
     if (reached) {
         st.attempts = 0;
         st.next.movementPosition = st.destination168.movementPosition;
-        c.func_800DEEFC(@ptrCast(st), 13);
+        c.vs_battle_aiIssueActorCommand(@ptrCast(st), 13);
         return;
     }
-    c.func_800E2CCC(@ptrCast(st));
+    c.vs_battle_aiRecoverMovement(@ptrCast(st));
 }

@@ -1,5 +1,5 @@
 /* Native room geometry (phase 2): the room's groups as render.h meshes,
- * built once per room from the same packed data func_8009723C walks
+ * built once per room from the same packed data vs_render_drawRoomGeometry walks
  * (room_geometry.c; decoded as scene_capture.c does), and submitted each
  * frame as instances in one draw list linked into the ordering table where
  * the room's polygons would be. room_geometry.c keeps deciding which groups
@@ -11,7 +11,7 @@
  * the semi-transparent room packets are built; the hardware path skips those
  * the native draws cover.
  *
- * Other blocks drawn through func_8009723C (func_8008E19C's animated floor
+ * Other blocks drawn through vs_render_drawRoomGeometry (vs_field_drawRoomTriggerMarker's animated floor
  * quads) become layered lists: room rules, drawn over
  * the native surfaces so far instead of resetting depth. Their geometry is
  * rewritten between calls (position, brightness), so their meshes are keyed
@@ -88,7 +88,7 @@ static unsigned hash_words(unsigned hash, const unsigned* words, unsigned count)
 }
 /* The room's signature: group geometry offsets and the first words of each
  * geometry block (rooms are not rewritten while shown). A layered block's
- * covers all of its geometry (func_8008E19C rewrites its quad each call). */
+ * covers all of its geometry (vs_field_drawRoomTriggerMarker rewrites its quad each call). */
 static unsigned signature(const unsigned char* data, int whole)
 {
     unsigned count = *(const unsigned*)data, hash = count * 2654435761u;
@@ -311,7 +311,7 @@ static group_mesh* mesh_for(room_block* b, unsigned offset, unsigned shift)
     return g;
 }
 /* Room texture animations rewrite polygons in the room data while it is
- * shown (BATTLE 2842C.c: func_80091C6C steps a UV atlas frame, func_80091E10
+ * shown (BATTLE 2842C.c: vs_field_advanceRoomTextureFrames steps a UV atlas frame, vs_field_scrollRoomTextureCoordinates
  * scrolls UVs, both writing the polygon's UV bytes; the save point's sigil
  * is one). Those effects are animated materials (room_effects.c: the mesh
  * keeps base UVs, the draw list carries the offsets), so their bytes are
@@ -444,7 +444,7 @@ static float next_cut, next_cut_previous; /* pc_room_native_group_cut */
 static int next_cut_ghost;
 
 extern int pc_live_camera_active(void) __attribute__((weak));
-/* func_8009723C begins: returns 2 when the native list takes this block's opaque
+/* vs_render_drawRoomGeometry begins: returns 2 when the native list takes this block's opaque
  * polygons (the semi-transparent ones stay packets with a marker), 0 to draw them
  * all as packets (the hardware path is off). */
 int pc_room_native_begin(const void* data, unsigned mode, const unsigned* first)
@@ -458,8 +458,8 @@ int pc_room_native_begin(const void* data, unsigned mode, const unsigned* first)
     pc_uv_effects_frame(data);
     if (!pc_hw_active)
         return 0;
-    /* The current room (func_8008B1FC); other blocks drawn with this
-     * function (func_8008E19C) are layered over it. */
+    /* The current room (vs_field_drawRoomGeometry); other blocks drawn with this
+     * function (vs_field_drawRoomTriggerMarker) are layered over it. */
     int room = pc_scene_room_data && data == pc_scene_room_data();
     unsigned count = *(const unsigned*)data;
     if (!count || count > 4096)
@@ -467,7 +467,7 @@ int pc_room_native_begin(const void* data, unsigned mode, const unsigned* first)
     room_block* block = block_for(data, room, render_frame_serial());
     if (!block)
         return 0;
-    /* The camera: the view matrix func_8008B1FC set (scratch 0x1F800014)
+    /* The camera: the view matrix vs_field_drawRoomGeometry set (scratch 0x1F800014)
      * and the GTE projection. */
     const gte_matrix* view = (const gte_matrix*)PC_VIEW_MATRIX;
     render_camera camera;
@@ -609,7 +609,7 @@ unsigned* pc_room_native_translucent(unsigned index, unsigned* packet, unsigned*
     }
     return render_list_link_translucent(list, first, 1, ot + bucket, packet);
 }
-/* func_8009723C ends with its packets written up to `packet`: link the
+/* vs_render_drawRoomGeometry ends with its packets written up to `packet`: link the
  * list's marker into the room's ordering table at the farthest room bucket
  * (drawn before any room polygon), mark the range for the hardware path,
  * and return the next free packet word. */
@@ -638,7 +638,7 @@ unsigned* pc_room_native_end(unsigned* packet, unsigned* ot)
     instance_mesh = NULL;
     return packet;
 }
-/* func_80098D6C tints the room packets of [start, ...): the same tint for
+/* vs_render_tintRoomGeometryPrimitives tints the room packets of [start, ...): the same tint for
  * the native list built with them. */
 void pc_room_native_tint(const unsigned* start, int dr, int dg, int db, int fade)
 {
@@ -659,7 +659,7 @@ void pc_room_native_tint(const unsigned* start, int dr, int dg, int db, int fade
  *
  * - Every wall group carries a facing mask (flags low byte, one bit per 45
  *   degrees of camera yaw); scene_submit.inc sets the camera's three bits
- *   (left, front, right) each frame and func_8009723C draws only the groups
+ *   (left, front, right) each frame and vs_render_drawRoomGeometry draws only the groups
  *   whose mask has all three: the walls between the camera and the room are
  *   left out ("cutaway walls").
  * - Each wall group has a black shell group (every vertex colour 0, the same
@@ -669,7 +669,7 @@ void pc_room_native_tint(const unsigned* start, int dr, int dg, int db, int fade
  *
  * The free camera used to keep every group, so from outside or above the
  * near walls and their black shells covered the room. While the free camera
- * flies, func_8009723C asks here instead (room_geometry.c): the facing mask
+ * flies, vs_render_drawRoomGeometry asks here instead (room_geometry.c): the facing mask
  * comes from the free camera's own yaw (pc_editor_game_cutaway), black shell
  * groups are skipped (pc_editor_hide_masks), and groups hidden in the
  * editor's Outliner stay hidden. Gameplay never calls these. The ray-traced
@@ -762,9 +762,9 @@ int pc_room_group_black(const void* data, unsigned index)
         return 0;
     return group_is_black(data, index);
 }
-/* The facing mask func_8009723C tests while the free camera flies: the bits
+/* The facing mask vs_render_drawRoomGeometry tests while the free camera flies: the bits
  * scene_submit.inc sets for a game camera with the free camera's yaw (from
- * the view matrix func_8007ACB0 built from it), or 0x10000 (as first-person
+ * the view matrix vs_render_buildCameraViewMatrix built from it), or 0x10000 (as first-person
  * view: every group) with pc_editor_game_cutaway off. */
 unsigned pc_room_editor_facing(void)
 {
@@ -783,7 +783,7 @@ unsigned pc_room_editor_facing(void)
     unsigned front = 1u << (((0x900 - yaw) & 0xfff) >> 9);
     return left | right | front;
 }
-/* func_8009723C, free camera: 1 when group `index` of block `data` is left
+/* vs_render_drawRoomGeometry, free camera: 1 when group `index` of block `data` is left
  * out (a black shell, or hidden in the Outliner). */
 int pc_room_editor_hidden(const void* data, unsigned index)
 {

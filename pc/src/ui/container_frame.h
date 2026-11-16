@@ -114,7 +114,7 @@ typedef struct {
     int handed_back;           /* this run's MENUD returned (MENU7 resumes at state 8) */
     int mode;                  /* PC_UI_CTR_* */
     int dir;                   /* D_80109A7A: 0 Remove, 1 Store; -1 before the first choice */
-    int top;                   /* the top menu's cursor (D_800F4EE8.unk9E): 0 Remove, 1 Store, 2 End */
+    int top;                   /* the top menu's cursor (vs_menu_frameworkMenuMemory.unk9E): 0 Remove, 1 Store, 2 End */
     char top_label[3][32];     /* MENUD's REMOVE / STORE, and End */
     char top_desc[3][PC_UI_CTR_TEXT]; /* removeDesc, storeDesc, "End item transfer." */
     int tab;                   /* (unkA0[0] - 1) & 7 */

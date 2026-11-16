@@ -322,7 +322,7 @@ stick put them. An R3 reset in a menu waits for the field.
 | `qol_map_invert` | 0 | the map screen pans the other way on both axes (D-pad, the left stick the game reads as the D-pad, arrow keys) |
 | `qol_map_controls` | 0 | the map screen's right stick and triggers: 0 Modern (the right stick turns and tilts, L2 / R2 alone zoom out / in), 1 Original (the PlayStation's: L2 / R2 with the right stick, the right stick pans) |
 | `qol_fp_invert_y` | 0 | in the first-person view up looks down and down looks up (D-pad and right stick; left and right unchanged) |
-| `analog_move` | 0 | the left stick walks and runs Ashley at any angle (`pc/src/analog_move.c`, BATTLE `func_8006E7F0`); off: the D-pad's eight directions, as the original. The D-pad and the keyboard are unchanged either way |
+| `analog_move` | 0 | the left stick walks and runs Ashley at any angle (`pc/src/analog_move.c`, BATTLE `vs_actors_updateAshleyMovementInput`); off: the D-pad's eight directions, as the original. The D-pad and the keyboard are unchanged either way |
 | `analog_dead_zone` | 20 | percent of the stick's travel that moves nothing |
 | `analog_run` | 70 | percent of the stick's travel from which she runs (the D-pad's pace); below it she walks (the pace R2 held gives; the original has only these two). R2 still walks |
 | `rumble_strength` | 100 | percent of the game's actuator bytes sent to the gamepad's motors (0 off); the game's own Vibration option still decides what it asks for |
@@ -341,7 +341,7 @@ what was sent (the recording backend without a gamepad).
 The two `qol_` options come from eremtsov's QoL mod (CC0) and are off by
 default: editor Graphics > Controls, the modern menus' System > Controls,
 RPC `camera_options {map_invert, fp_invert_y}`. The game tests them where
-it reads the direction (MENU5 `_menuManager`, BATTLE `func_8006EC7C`);
+it reads the direction (MENU5 `_menuManager`, BATTLE `vs_field_updateFirstPersonCamera`);
 the PS1 build keeps the original's directions (`make` still matches).
 `pc/tests/camera_options_smoke.py` tests them and the first-person stick.
 
@@ -429,7 +429,7 @@ Option pages, editor Graphics > Gameplay, RPC `skip_charging {mode, who, name,
 hold_mine, hold_enemy, reset}`.
 
 **Skip** takes the hold out; nothing runs faster. The action is committed
-before the wind-up begins (BATTLE `func_80070F28`: MP, HP or RISK paid, the
+before the wind-up begins (BATTLE `vs_battle_commitSelectedAction`: MP, HP or RISK paid, the
 item used, hits, damage and statuses rolled), so the wind-up decides nothing,
 and skipping it keeps the outcome. `pc/src/charge_skip.inc` (included in
 BATTLE's `146C.c`; `ROOD_PC` hooks where the game runs `_cameraMode` 5, at the
@@ -469,10 +469,10 @@ and defence windows open in the release (`_cameraMode` 7), which runs as it
 always does.
 
 Why the enemies' hold defaults to 0.35 s: a chain or defence press is judged
-only in the release (`func_80078AB4`), against a timer that starts there
-(`battleAbilityTimer`, zeroed by `func_80070278`) and a window that opens
-with the hit (`func_80069C6C`); a press before it is **FAST!** or **TOO
-FAST!** (`func_800958A4`'s labels) and spends the action's one attempt. Off,
+only in the release (`vs_battle_updateBattleAbilityTiming`), against a timer that starts there
+(`battleAbilityTimer`, zeroed by `vs_battle_startActionAnimation`) and a window that opens
+with the hit (`vs_battle_armDefenseAbilityTimingWindow`); a press before it is **FAST!** or **TOO
+FAST!** (`vs_battle_drawAbilityTimingResult`'s labels) and spends the action's one attempt. Off,
 the hold gives seconds of warning; skipped outright, an enemy's release
 follows the camera's arrival at once, so a press meant for after it (Circle
 for Ashley's own attack sphere, with a defence ability on Circle) lands in
@@ -755,7 +755,7 @@ once per open); the cursor memories and sounds are the original's. Square
 opens the original screen (its enemy model viewer included). Layout, sizes
 and rows are `pc/assets/ui/theme.json`'s "score" group (`ui_score_smoke`).
 
-- `pc/src/ui/menu_bridge.c` (battle builds) takes over `func_800C930C`, the
+- `pc/src/ui/menu_bridge.c` (battle builds) takes over `vs_menu_frameworkUpdateMainMenuSelection`, the
   top level, from one `#ifdef ROOD_PC` hook; `ui_shell.cpp` is the navigation
   state (ctest `ui_shell_probe`), `ui_draw.cpp` draws it on Dear ImGui's
   background draw list inside the game picture with the open fonts and the
@@ -987,7 +987,7 @@ for lying beyond the 4:3 sides. Where a 16:9 side shows a set that stops
 modelled room ends there: the PS1 camera simply never looked that way.
 Some of the 3D view is 2D, though, placed by the game in 4:3 screen space:
 the sky panorama of outdoor scenes (32x32 tiles of a 1024-wide picture
-scrolled with the camera, BATTLE `func_8009147C`; the opening's view of the
+scrolled with the camera, BATTLE `vs_field_drawRoomBackgroundTiles`; the opening's view of the
 manor) and the weather particles (Snowfly Forest's floating motes, snow and
 falling glints, `146C.c` `func_8008FAC8`..`func_80090434`). These were
 compressed into the 4:3 middle and clipped there; now the panorama and the
@@ -1014,7 +1014,7 @@ pixels where nothing is drawn, so the sides are never filled with it.
 
 The field never clears its frame buffer (`PutDrawEnv` with `isbg` 0): its
 clear is the background sphere (`pc_background_packets` in
-`pc/src/boot_sdk.c`, the game's `func_8009820C`), a gradient about the camera
+`pc/src/boot_sdk.c`, the game's `vs_render_drawSkyDome`), a gradient about the camera
 (black indoors, a room's fog or sky colours elsewhere) drawn as 2D behind the
 set, radius about 410 screen pixels, so it covers any view. In widescreen
 its triangles are kept as far past the 4:3 sides as the view reaches and
@@ -1235,7 +1235,7 @@ the space left. While it is open the keyboard and mouse belong to the editor (a
 gamepad still plays; Dear ImGui's own SDL 3 backend, `imgui_impl_sdl3`, feeds
 it). Right-drag in the view flies a free camera (WASD/QE, Shift faster; the
 pointer is hidden and held in relative mouse mode meanwhile, and returns where
-the drag began) that drives the game's own live rendering: func_8007ACB0 builds
+the drag began) that drives the game's own live rendering: vs_render_buildCameraViewMatrix builds
 the view from it (RPC `editor_camera` sets or reads it); Play returns to the
 game camera. The Outliner lists the room's lights and the game's glows (the
 path tracer's emitters) by name ("Save point glow", "Flame (candle) #2",
@@ -1453,7 +1453,7 @@ rectangle:
 | `menu` | menus, item and ability names, the information box (glyphs 0-188 of that page, 6-pixel fixed advance; menu rows come as 12 x 1 strips with a brightness gradient) | Asap Condensed Bold |
 | `info` | wide outlined capitals: RISK ZERO, NEXT, the map screen's BACK / ROTATION / ZOOM (field UI page (768, 0) rows 76-95, found through the game's own width and position tables, kept from when the field's overlay holds them so the map screen's overlay does not lose them; also digits, : / % + - in PLAY TIME, NEXT, map percentages) | Chakra Petch Bold |
 | `digits` | HUD numbers (HP, MP; old-style figures in two sizes and the small slash, row 0 of that page); the dot between current and maximum HP / MP is drawn as a disc of the original's size and place, outlined like the digits | Alegreya |
-| `status` | the battle's timing and chain words (`BATTLE.PRG` `func_800958A4`: TOO FAST!, FAST!, SLOW!, TOO SLOW!, COOL!, GOOD!, ...; `func_80095A4C`: 3 CHAINS): the info style's capitals, set as whole words (below) | Chakra Petch Bold, as the labels |
+| `status` | the battle's timing and chain words (`BATTLE.PRG` `vs_battle_drawAbilityTimingResult`: TOO FAST!, FAST!, SLOW!, TOO SLOW!, COOL!, GOOD!, ...; `vs_battle_drawChainCount`: 3 CHAINS): the info style's capitals, set as whole words (below) | Chakra Petch Bold, as the labels |
 | `labels` | words the game draws as images (below): HP, MP, COMMAND, MENU, INFORMATION, CAUTION, BATTLE MODE, ... | Chakra Petch Bold |
 
 Each glyph is a signed distance field (64 pixels per em) made with stb_truetype
@@ -1494,7 +1494,7 @@ reply reports `styles` (with `size`, `stroke`, `tracking`) and `tunables`.
 **Status words.** BATTLE.PRG prints its timing words and the chain count
 with `vs_battle_renderTextRawColor`: one sprite per glyph of the info style's
 capitals, centred on a point, in the game's colour. Two `ROOD_PC` hooks in
-`func_800958A4` and `func_80095A4C` (`PC_TEXT_STATUS`, `pc_text_status`)
+`vs_battle_drawAbilityTimingResult` and `vs_battle_drawChainCount` (`PC_TEXT_STATUS`, `pc_text_status`)
 hand over each call's packets; with `ui_text font` the string is set as one
 word in the `status` style (the font's advances and kerning, `tracking`,
 `size` grown about the cap height's middle, `stretch`, `embolden`, a `stroke`
@@ -1795,7 +1795,7 @@ time; rows meet exactly (it is semi-transparent), and 1x and `legacy` draw
 the lines.
 
 **Vector talk bubbles (`ui_bubbles vector`).** A talk bubble's frame is
-built each frame by BATTLE.PRG `func_800CD3E4` from one of nine shapes
+built each frame by BATTLE.PRG `vs_menu_drawTextBoxFrame` from one of nine shapes
 (rectangle, rough, jagged, shout, oval ...; mirrored by two flip bits, one
 of several tails): outline vertices placed in the box's rectangle, then a
 drop shadow (the fill polygons at +2, +2 in black, each outlined), the fill
@@ -1978,11 +1978,11 @@ and the names the map screen uses (`MENU5.PRG`, `SCENnnn.ARM`).
 Go makes the game itself change rooms: the field loop takes the request
 where it checks doors (`src/BATTLE/BATTLE.PRG/146C.c`, a hook under
 `ROOD_PC`; game side `pc/src/room_warp.c`) and starts the game's own door
-transition (`func_8007C4E0` within a zone, `func_8007C5C0` across zones,
+transition (`vs_field_beginRoomTransition` within a zone, `vs_field_beginZoneTransition` across zones,
 which loads the other zone file first) with a door record taken from a real
 door into the target room, so Ashley arrives where that door puts her, from
 any room. The editor stays open; the free camera and the pause come back
-after the fade-in. While the room loads (a second hook in `func_80089DC0`)
+after the fade-in. While the room loads (a second hook in `vs_field_finishRoomLoad`)
 the warp leaves its enemies out and its scripts unrun by default (toggles:
 Enemies, Room scripts): no cutscene, no story flag set by entering; the map
 screen's "rooms seen" bits are put back afterwards. The rooms' own temporary
@@ -2415,7 +2415,7 @@ redraws at about 60 Hz, and after each request):
 | `button_roles` | `confirm_cross`, `field_cross_attack`, `symbol_exceptions` | the optional button roles (battle builds; settings `qol_confirm_cross`, `qol_field_cross_attack`): both options, the game's context now (`menus`, `field`, `targeting`, `game`), whether Circle and Cross are exchanged there (`swap`) and each role's button (`confirm`, `cancel`, `attack`, `interact`, `target`), the game's own ○ / × drawn since start (`drawn`: for `text` and `sprite` how many of each as shown and how many were exchanged, `swapped`); `symbol_exceptions` false (tests) exchanges the ○ / × that name buttons the roles never move too |
 | `weapon_slots` | `enabled`, `name_ticks` | the optional weapon slots (battle builds): the option, overlay/assign/swap state, field mode, each weapon's slot and each shield's slot bits, what Ashley's battle record has equipped, `name_ticks` and the name's ticks left (`msg`), the labels' and hint's places |
 | `ui_menu` | `modern`, `pointer` | the modern menus (`pc/src/ui`, battle builds): sets `ui_menus`; `model_heap_extra` (bytes, tests: the Ashley model's heap check asks for that much more); `pointer {x, y, click, right, wheel, down, middle}` is the next drawn frame's mouse in layout units (1280 or 960 x 720; hit tests as a moved pointer; down / middle: that button held, drags); the shell: visible, holding (closed, a result held during a model load, still drawn), menus, tab, tabs, rows (id, label, enabled, reason when greyed, value), focused row, the Equipment screen; `theme` (the colours shown: `tint` id, `tint_rgb` 0..31, `ground`, `panel`, `stage` as #rrggbbaa, `rule`, `rule2`, `dim`, `ash`); `system.rows[].swatch` (#rrggbb: Menu tint's colour chip); `map` (the Map frame: state, MENU5's published scene / room / camera, areas, rooms, completion, the list's cursor, request counters, the drawn pointer targets `hits`, or null) and `map_heap_free`; `system.manual` (the Quick manual: mode topics / reading, topic, label, desc, row, page_top, line, lines, line_count, page, pages, loaded, square, k, size, overflow, unknown, the page's ten `page_lines`, sprites, rules, hidden, `art` (button-art sprites) and `art_prompts` (drawn as the device's prompts), the `sfx` counters, the drawn `hits`, or null; `system.manual_sfx`: the manual's requested sounds, on or off); `container` (the native Container screen while its MENU7 run is latched, else null: phase, m7_state, session, mode, tab, rows, cursor, menu, card, counts, prompt state, counters, the drawn `hits`; `pc/docs/Modern_Menus.md` "Container"); `data` (the native Data screen while armed or framed, else null; `container` 1 for the Container's save list: run, phase ops / card / files / prompt / wait / busy, state, op, save_ok, at_point, in_battle, warp_blocked, cursor, card, file, page, cancelled, ops_row, msg, msg_text, prompt, progress, fade, files_valid, files[] (state, generation, time, saves, hp, mp, location, clear, map, current, newest, name), cards (per card: -1 not checked, -2 no card, else its saves), card_sel, journey, goal {kind, a, auto}, seq, presses, busy_drops, rejected, expired, menu7_gated, settling, hover, the drawn `hits`); `backdrop_kept` (0 / 1: the presenter holds a picture of the world for the Ashley tab's model) and `backdrop_built` ([keep count, count the wait asked for] when the Ashley model was last built; [-1, 0] none yet) |
-| `container` | `location` | tests (battle builds): the save room's container opened as the field opens it (BATTLE `func_800CB1C0`, then the field's menu mode; `location` the container's number, default the room's save point), only with Ashley free to act; answers `opened`. `chest` `open=` also opens a container object (flag >= 64) |
+| `container` | `location` | tests (battle builds): the save room's container opened as the field opens it (BATTLE `vs_menu_frameworkOpenChestStorageMenu`, then the field's menu mode; `location` the container's number, default the room's save point), only with Ashley free to act; answers `opened`. `chest` `open=` also opens a container object (flag >= 64) |
 | `card` | `fail_writes`, `unformatted` | tests that save (battle builds): `fail_writes` refuses the card's writes, `unformatted` makes the cards read as unformatted until one is formatted; answers `writes` (data writes so far), `fail_writes`, `unformatted` |
 | `release` | | drop injected buttons |
 | `state` | | zone, room, start state, music, HP/MP, risk, Ashley's position |
@@ -2717,7 +2717,7 @@ and loads Ashley, equipment, ZONE020.ZND, and MAP213.MPD. It now reaches the
 battle frame loop after actor setup and collision/navigation initialization.
 Normal boot now passes actor/navigation frame preparation and reaches entry-script
 execution and shared effect setup. It renders the original VKP Headquarters
-opening card and caption. Continuing stops at scene transform `func_80098648`.
+opening card and caption. Continuing stops at scene transform `vs_render_buildScaleCompensatedRoomView`.
 No room is playable yet.
 Actor route paths still have unported callees; passing the current inactive-route
 case does not establish complete AI support. VSync query mode now matches the
@@ -2909,7 +2909,7 @@ subsequent music restart are reached through the original scripts and ordinary
 confirm input.
 
 Room subdivision (`pc/src/room_geometry.c`) translates `BATTLE/2EA3C.s`
-`func_80097AEC`/`CF0`/`F70`: 0x14-byte vertex records, byte UV/colour averages,
+`vs_render_subdivideRoomTriangle`/`CF0`/`F70`: 0x14-byte vertex records, byte UV/colour averages,
 arithmetic-shift XYZ midpoints, GTE re-projection, signed 16-bit leaf depths,
 the triangle-code conversion (`& 0xF7000000`) and the exact recursive order,
 including degenerate depth-zero edge triangles. `gte_probe` checks a level-1
@@ -2917,21 +2917,21 @@ triangle's packets, UV/clut/tpage words and ordering-table links.
 
 The enemy-AI candidate evaluation that starts after the gateway scene is
 hand-written assembly. Native translations with focused fixtures now cover
-`func_800E685C`, `func_800E4DF8`, `func_800E4F14`, `func_800E4CF4` (7C4F4/7E05C),
-`func_800DC810`, `func_800DC484`/`48C`, `func_800DC4F0` (73C84), `func_800DC424`
-(73C24), `func_800DC3E8`/`344`/`3CC` (73B0C, including the K&R candidate
-quicksort from 7E05C), `func_800DC2E0` (73AE0), `func_800D9DD8` (70D4C) and the
-MVMVA weighted sum `func_800DC284` (7399C, `pc/src/battle_gte.c`). Remaining
-routines in those files (`72B70.s`, `func_800DC30C`, `func_800DC574`,
-`func_800DC784`, `func_800DC19C`/`210`, the rest of `7E05C.s`)
+`vs_battle_aiSetActorVerticalMovementSteps`, `vs_battle_aiRefreshAiActionUsability`, `vs_battle_aiRefreshAiResourceRestrictions`, `func_800E4CF4` (7C4F4/7E05C),
+`vs_battle_aiApplyActionRelationshipChanges`, `vs_battle_aiIsActionHarmfulToActor`/`48C`, `vs_battle_aiCacheFallbackActionCandidate` (73C84), `vs_battle_aiCaptureActorConditionTable`
+(73C24), `vs_battle_aiCopyPlanningActorStats`/`344`/`3CC` (73B0C, including the K&R candidate
+quicksort from 7E05C), `vs_battle_aiCopyActionCandidate` (73AE0), `vs_battle_aiSelectActionMovementMode` (70D4C) and the
+MVMVA weighted sum `vs_battle_aiScoreActorCondition` (7399C, `pc/src/battle_gte.c`). Remaining
+routines in those files (`72B70.s`, `vs_battle_aiApplySimulatedStatDelta`, `vs_battle_aiPromoteRandomizedActionCandidate`,
+`vs_battle_aiMakeTargetHostile`, `vs_battle_aiEndAshleyAlliance`/`210`, the rest of `7E05C.s`)
 still trap explicitly when reached. The per-frame AI driver `func_800E511C`
 (fixed table `D_800F16BC`, called directly, scratchpad stack switch omitted),
-`func_800D820C`/`826C`/`8280`, `func_800E4358`, `func_800E4624`,
-`func_800E4478`/`44E8` (floor and line of sight) and `func_800E437C` (facing
+`vs_battle_aiSetActorAwarenessIndicator`/`826C`/`8280`, `vs_battle_aiTickActorDecisionTimers`, `vs_core_mathSquaredDistanceWithHeightOffsets`,
+`vs_field_isPositionAboveGround`/`44E8` (floor and line of sight) and `vs_battle_aiTargetFacingCosine` (facing
 cosine) followed. `--frames 7200 --advance-dialogue` passes (Ashley: "Here we
-go..."); `--frames 9000` stops at frame 7,286 on `func_800DB820` (`72B70.s`).
+go..."); `--frames 9000` stops at frame 7,286 on `vs_battle_aiDispatchMovementBehavior` (`72B70.s`).
 Two more no-audio guards skip sound-effect
-playback (`func_800461CC`) and the sound stop command (`func_80045DC0`).
+playback (`vs_audio_playBankSfx`) and the sound stop command (`vs_audio_stopAllSfxPlayback`).
 
 
 A shorter `--frames 2850 --advance-dialogue` run **passes** and captures the
@@ -2939,9 +2939,9 @@ ZONE002 exterior: rooftops, lit gateway and rain. The inspected enlarged image
 is retained locally as `pc/build/boot/new-game-zone2-2850.png` (ignored game data).
 This is a visible second-scene checkpoint, not proof of controllable gameplay.
 
-Subdivision investigation notes: `func_80097F70` averages signed 16-bit XYZ with
+Subdivision investigation notes: `vs_render_interpolateRoomVertexMidpoint` averages signed 16-bit XYZ with
 arithmetic shifts (negative odd sums round down), and averages unsigned byte UV
-and RGB channels independently. `func_80097AEC` makes four recursive triangle
+and RGB channels independently. `vs_render_subdivideRoomTriangle` makes four recursive triangle
 calls followed by three depth-zero triangle calls; preserve that submission order
 rather than assuming a generic four-triangle tessellator. Leaf packets use signed
 16-bit depth samples. These details need independent fixtures before replacing

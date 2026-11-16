@@ -32,7 +32,7 @@ pub fn func_80090434() callconv(.c) void {
     origin.vy = (velocity.vy -% origin.vy) >> 3;
     origin.vz = (velocity.vz -% origin.vz) >> 3;
 
-    if (v.g.D_800F1BA4().* == 0) {
+    if (v.g.vs_field_areRoomUpdatesPaused().* == 0) {
         if (v.g.D_800F1DC7().* != 0) {
             v.g.D_800F1DC7().* -%= 8;
         }
@@ -40,16 +40,16 @@ pub fn func_80090434() callconv(.c) void {
         v.g.D_800F1DC7().* +%= 8;
     }
 
-    var particleAddr: usize = @intFromPtr(v.g.D_800F1DD4().*);
+    var particleAddr: usize = @intFromPtr(v.g.vs_field_weatherParticles().*);
     var particle: *allowzero align(1) v.D_800F1DD4_t = @ptrFromInt(particleAddr);
 
     flags = 0;
-    while (flags < v.g.D_800F1DC0().*) : ({
+    while (flags < v.g.vs_field_weatherParticleCount().*) : ({
         flags +%= 1;
         particleAddr +%= @sizeOf(v.D_800F1DD4_t);
         particle = @ptrFromInt(particleAddr);
     }) {
-        if (v.g.D_800F1BA4().* == 0) {
+        if (v.g.vs_field_areRoomUpdatesPaused().* == 0) {
             var j: c_int = 0;
             while (j < (v.g.vs_gametime_tickspeed().* >> 1)) : (j +%= 1) {
                 particle.unkF = psx.conv(u8, @as(c_int, particle.unkF) +% ((c.rand() & 15) -% 7));
@@ -115,7 +115,7 @@ pub fn func_80090434() callconv(.c) void {
             sprite_item.tileFlat(ot, true, grey(color), xy(x -% ((x -% @as(c_int, particle.unk8)) *% 2), y -% ((y -% @as(c_int, particle.unkA)) *% 2)), size);
         }
 
-        if (v.g.D_800F1BA4().* == 0) {
+        if (v.g.vs_field_areRoomUpdatesPaused().* == 0) {
             particle.unk8 = psx.conv(i16, x);
             particle.unkA = psx.conv(i16, y);
         }

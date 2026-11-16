@@ -10,7 +10,7 @@ const sprite_item = @import("common").sprite_item;
 pub fn func_800CD158(id: c_int) callconv(.c) void {
     const box = psx.at(v.g.textBoxes(), id);
     var y: c_int = box.y;
-    const ot: [*c]c_uint = @ptrCast(psx.at(v.g.D_800F51B8().*.?, id *% 4 +% 1));
+    const ot: [*c]c_uint = @ptrCast(psx.at(v.g.vs_menu_activeTextBoxOrderingTable().*.?, id *% 4 +% 1));
     const edge: c_int = box.unk2A;
     const offset: c_int = if (v.g.vs_main_frameBuf().* != 0) 0 else 320;
     if (y == 0) {

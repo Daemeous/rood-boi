@@ -9,7 +9,7 @@ const psx = @import("common").psx;
 /// and starts a 30-frame cooldown. The original computes a masked byte but
 /// stores the raw value.
 pub fn requestCommandByte(state: *ai.vs_battle_aiState, value: c_int, range: c_int) callconv(.c) void {
-    const roll = c.func_800E45D4(range);
+    const roll = c.vs_battle_aiNextActorRandomMasked(range);
     if ((@intFromPtr(state.route) | state.unk155) != 0) return;
     if (!(roll < range)) return;
     state.unk155 = 30;

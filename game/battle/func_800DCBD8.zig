@@ -10,7 +10,7 @@ pub fn func_800DCBD8(arg0: ?*v.func_800DCAA0_t) callconv(.c) void {
     var i: c_int = 0;
     var threshold: c_int = 0;
     const id: c_int = @as(c_int, psx.getBits(a, "unkC_0"));
-    const table = v.g.D_800F5900().*.?;
+    const table = v.g.vs_battle_aiPlanningWorkspace().*.?;
 
     while (i < @as(c_int, table.unk4A)) : (i +%= 1) {
         const entry = psx.at(&table.unk4C, i);

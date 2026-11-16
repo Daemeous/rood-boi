@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include "ai_state.h"
 
-void func_800E4CE8(vs_battle_aiState* arg0);
+void vs_battle_aiForgetAiActionTarget(vs_battle_aiState* arg0);
 
-void func_800E4CE8(vs_battle_aiState* arg0);
+void vs_battle_aiForgetAiActionTarget(vs_battle_aiState* arg0);
 

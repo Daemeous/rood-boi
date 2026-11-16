@@ -4,7 +4,7 @@ const psx = @import("common").psx;
 const v = @import("views_7CD68");
 const c = @import("c_7CD68");
 
-/// orig: func_800E5710 (pc/src/game/BATTLE/BATTLE.PRG/7CD68.c)
+/// orig: vs_battle_aiBuildAiActionMetadata (pc/src/game/BATTLE/BATTLE.PRG/7CD68.c)
 /// Fills the action metadata of every slot of a state from the actions in its stats.
 pub fn fillActionMetadata(state: ?*v.vs_battle_aiState) callconv(.c) void {
     const st = state.?;
@@ -20,7 +20,7 @@ pub fn fillActionMetadata(state: ?*v.vs_battle_aiState) callconv(.c) void {
             const entry: *v.actionMetadataEntry = &st.configs.actionMetadataEntry[row][column];
             const mask: c_int = @as(c_int, 1) << @intCast((action.flags.raw >> 20) & 15);
 
-            entry.rangeSquared = psx.conv(u32, c.func_800E5698(@ptrCast(st), id));
+            entry.rangeSquared = psx.conv(u32, c.vs_battle_calculateActionRangeSquared(@ptrCast(st), id));
             // vs_gte_rsqrt takes and returns int: the u32 square is reinterpreted, the result converted back.
             const rsqrt: c_uint = psx.conv(c_uint, c.vs_gte_rsqrt(psx.conv(c_int, entry.rangeSquared)));
             psx.setBits(entry, "radius", psx.conv(u16, c.func_800E5600(psx.conv(c_int, psx.addr(st)), id, rsqrt)));
@@ -38,7 +38,7 @@ pub fn fillActionMetadata(state: ?*v.vs_battle_aiState) callconv(.c) void {
             }
 
             const flagType: u32 = action.flags.raw & 0xE0000;
-            const byte10: u8 = v.g.D_800F58BC().*.?.unkA;
+            const byte10: u8 = v.g.vs_battle_aiRoomAiState().*.?.unkA;
             const special = byte10 != 0 and flagType != 0x20000 and flagType != 0x60000 and (mask & 0x4000) != 0;
             psx.setBits(entry, "special", @intFromBool(special));
 

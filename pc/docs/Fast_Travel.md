@@ -12,8 +12,8 @@ rules, plain C), `pc/src/fast_travel.c` (the game side), four small
 
 The game already has save-point teleportation: MENU0's Magic >
 TELEPORTATION lists the Circles found (`savePointStates`), costs MP and
-moves Ashley with BATTLE `func_800735F8` case 10, which calls
-`func_8007C694`, the same screen transition and room load a door uses. The
+moves Ashley with BATTLE `vs_field_dispatchBattleActionMenuResult` case 10, which calls
+`vs_field_teleportToLocation`, the same screen transition and room load a door uses. The
 game only offers it once the Lich teaches the spell, late in the story.
 
 With fast travel on (the default), it is offered from the first Circle once
@@ -85,7 +85,7 @@ the game's unlock is in effect.
 
 ## Rules
 
-- **R1** Leave only from a Circle (`func_8008A4FC() != 0`) whose own state is
+- **R1** Leave only from a Circle (`vs_field_currentSavePointId() != 0`) whose own state is
   recorded (`savePointStates[here] != 0`; without it MENU0's cursor row
   would be uninitialised). The port's refusals grey MENU0's Teleportation
   row (one extra term in `initSubmenu`).
@@ -150,7 +150,7 @@ list, the PS1 buttons on the same key or element are taken out of that
 frame, so Select does not also toggle the camera's zoom. When it would not
 open the list (off a Circle, travel off, refused) nothing happens: no sound,
 and Select does what it always does. It opens MENU0 as an L2 shortcut opens
-a school's list (`func_800CACD0(1, 0)`, `vs_battle_shortcutInvoked` 9,
+a school's list (`vs_menu_frameworkOpenGameMenu(1, 0)`, `vs_battle_shortcutInvoked` 9,
 MENU0's `handleShortcut` going straight to `_teleportMenu`).
 
 The prompt (`fast_travel_prompt.cpp`, modern UI only: with `ui_menus` off
@@ -201,7 +201,7 @@ prompt in the field without a Circle of Magic until `rood.dev.clear`
 allows).
 
 The rules read the game only from a loaded room: the RPC report can come at
-any vsync, also inside a room load's wait loop, where `func_8008A4FC` would
+any vsync, also inside a room load's wait loop, where `vs_field_currentSavePointId` would
 read a collision map that is not there yet (`fast_travel.c` `ashley()`).
 
 ## What the card holds
@@ -220,10 +220,10 @@ destination + 1, the room record the destination. No sidecar file.
   the Teleportation row, and the Travel button's entry
   (`PC_SHORTCUT_TRAVEL` straight to the list, Cross closes). On the PS1 build
   every macro is the original's tokens.
-- `src/BATTLE/BATTLE.PRG/5BF94.c` `func_800C930C`: `pc_fast_travel_menu_bits()`
+- `src/BATTLE/BATTLE.PRG/5BF94.c` `vs_menu_frameworkUpdateMainMenuSelection`: `pc_fast_travel_menu_bits()`
   ORed into its local copy of `menuFlags`; the Magic command's mask through
   `pc_fast_travel_mask`.
-- `src/BATTLE/BATTLE.PRG/146C.c` `func_800735F8` case 10: `magicUsed` only
+- `src/BATTLE/BATTLE.PRG/146C.c` `vs_field_dispatchBattleActionMenuResult` case 10: `magicUsed` only
   when `pc_fast_travel_begin` says so.
 - `src/MENU/MAINMENU.PRG/C48.c` `vs_mainMenu_exec`: the Magic title's mask
   through `pc_fast_travel_mask` (`MAGIC_TITLE_MASK`, `0xB7` on the PS1).
@@ -283,7 +283,7 @@ and its arrival.
   Unbind Travel).
 
 Not tested: that A to B to A gives the same room state as a door entry (the
-arrival is the door's own load path, `func_8007C694` writing the door record
+arrival is the door's own load path, `vs_field_teleportToLocation` writing the door record
 the door loads use); the music (no RPC readout; the zone change switches it
 in `_finishLoadZnd` as for a door); a tour of every Circle on a late-game
 card (it needs a fixture card the pinned set does not have).

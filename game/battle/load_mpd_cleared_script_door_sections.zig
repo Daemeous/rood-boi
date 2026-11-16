@@ -5,8 +5,8 @@ const c = @import("c_4A0A8");
 
 /// orig: _loadMpdClearedScriptDoorSections (pc/src/game/BATTLE/BATTLE.PRG/4A0A8.c)
 /// Clears flag 0xA9 (and the room flags 32..63 on a fresh start), copies the cleared and door
-/// sections into heap blocks and the script section into D_800F4C30; returns 1 (copying no script)
-/// when D_800F4BE2 was 1, which it moves to 2.
+/// sections into heap blocks and the script section into vs_event_scriptBuffer; returns 1 (copying no script)
+/// when vs_event_roomChangeState was 1, which it moves to 2.
 pub fn loadMpdClearedScriptDoorSections(cleared_section: ?*anyopaque, cleared_section_len: u16, script_section: ?*anyopaque,
     script_section_len: u16, door_section: ?*anyopaque, door_section_len: u16, start_state: c_int) callconv(.c) c_int {
     c.vs_battle_setStateFlag(0xA9, 0);
@@ -26,18 +26,18 @@ pub fn loadMpdClearedScriptDoorSections(cleared_section: ?*anyopaque, cleared_se
     } else {
         v.g._mpdRoomDoorSection().* = null;
     }
-    if (v.g.D_800F4BE2().* == 1) {
-        v.g.D_800F4BE2().* = 2;
+    if (v.g.vs_event_roomChangeState().* == 1) {
+        v.g.vs_event_roomChangeState().* = 2;
         return 1;
     }
-    if (v.g.D_800F4BE2().* == 3) {
-        v.g.D_800F4C34().* = 0;
-        v.g.D_800F4BE2().* = 0;
-        v.g.D_800F4BB8().* = 0;
+    if (v.g.vs_event_roomChangeState().* == 3) {
+        v.g.vs_event_playbackPhase().* = 0;
+        v.g.vs_event_roomChangeState().* = 0;
+        v.g.vs_event_isStartConfirmed().* = 0;
     }
     v.g._mpdScriptSection().* = @intFromBool(script_section_len != 0);
     if (v.g._mpdScriptSection().* != 0) {
-        _ = c.memcpy(v.g.D_800F4C30().*, script_section, @as(c_int, script_section_len));
+        _ = c.memcpy(v.g.vs_event_scriptBuffer().*, script_section, @as(c_int, script_section_len));
     }
     return 0;
 }

@@ -19,7 +19,7 @@
  *   that matrix (and the actor's previous one, so frame interpolation moves
  *   it with the actor), and the triangles the game kept (its NCLIP and
  *   bucket tests) as decided entries, one marker per bucket.
- * - Particles (effect_particles.c, func_800D6E44): per node a centre
+ * - Particles (effect_particles.c, vs_effects_drawAnimatedSpriteParticles): per node a centre
  *   projected through the view (or a parent's) matrix and textured quads
  *   (POLY_FT4) placed around it in screen space, sized by the projection
  *   over the depth. Native: sprites (RENDER_POLY_SPRITE) at the centre's
@@ -204,7 +204,7 @@ void pc_shadow_items(const void* start, const void* end)
         pc_hw_effect_packets(lo, hi, 0);
 }
 
-/* ---- moving platforms' shadows (room_shadows.inc, func_8008CEB0) ---- */
+/* ---- moving platforms' shadows (room_shadows.inc, vs_field_drawMovingPlatformShadows) ---- */
 
 /* The square under a room's moving platform (MPD section 12: lifts, floating
  * blocks): POLY_F4, semi-transparent, flat grey, after a draw mode packet of
@@ -385,7 +385,7 @@ static void effect_items(const void* start, const void* end, uint32_t list)
         pc_hw_effect_packets(lo, hi, list);
 }
 
-/* func_800D6E44 starts its walk. */
+/* vs_effects_drawAnimatedSpriteParticles starts its walk. */
 void pc_particles_native_begin(void)
 {
     sprite_count = node_count = 0;

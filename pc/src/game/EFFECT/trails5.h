@@ -44,9 +44,9 @@ void VS_TRAIL_ORIGIN_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* arg1
     switch (arg1->flags & 7) {
     case 0:
         break;
-    // Fixed point D_800F5310
+    // Fixed point vs_effects_effectOrigin
     case 1:
-        vs_battle_addVecToSvec(&arg1->unk98, D_800F5310, &arg1->unk98);
+        vs_battle_addVecToSvec(&arg1->unk98, vs_effects_effectOrigin, &arg1->unk98);
         break;
     // Caster
     case 2:
@@ -252,8 +252,8 @@ void VS_TRAIL_TARGET_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* arg1
         break;
 
     case 0x80:
-        applyVector(&arg1->unk13C, D_800F5230.unkE0.vx, D_800F5230.unkE0.vy,
-            D_800F5230.unkE0.vz, +=);
+        applyVector(&arg1->unk13C, vs_effects_actionRequest.unkE0.vx, vs_effects_actionRequest.unkE0.vy,
+            vs_effects_actionRequest.unkE0.vz, +=);
         break;
     }
 
@@ -491,9 +491,9 @@ void VS_TRAIL_RENDER_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* arg1
         view = vs_gte_view_of(&vs_view.viewMatrix, vs_gte_screen_current());
     }
 
-    func_800D6D24(&arg3->unkC);
+    vs_effects_advanceTextureAnimation(&arg3->unkC);
 
-    temp_s7 = &D_800F569C->block1Data[arg3->unkC.unk1C->dataIndex];
+    temp_s7 = &vs_effects_package->block1Data[arg3->unkC.unk1C->dataIndex];
 
     for (i = 0; i < arg3->trailcount; ++i) {
 
@@ -630,7 +630,7 @@ int VS_TRAIL_DISPATCH_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
 
     func_800FA098_arg1* s4 = &pc_effect_scratch;
     func_800FA76C_arg3* temp_s0 = arg0->unk8;
-    D_800F53B8_t* temp_s5 = D_800F53BC;
+    D_800F53B8_t* temp_s5 = vs_effects_currentInstance;
     int var_s6 = 1;
 
     switch (arg1) {
@@ -640,7 +640,7 @@ int VS_TRAIL_DISPATCH_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
         temp_v0->unk1 = arg2 >> 8;
         temp_v0->unk0 = arg2;
         temp_v0->curveSampleDistance = 0;
-        temp_s3 = &D_800F569C->block5Data->unk4[temp_v0->unk1];
+        temp_s3 = &vs_effects_package->block5Data->unk4[temp_v0->unk1];
         trail = temp_s3->unkC0[0];
 
         if (trail > 16) {
@@ -655,7 +655,7 @@ int VS_TRAIL_DISPATCH_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
 
             // bad var reuse, trail = length of curve
             trail =
-                D_800F569C->curveBlock->curveSizes[temp_s3->transparencyCurve];
+                vs_effects_package->curveBlock->curveSizes[temp_s3->transparencyCurve];
 
             if (trail > 1) {
                 --trail;
@@ -663,7 +663,7 @@ int VS_TRAIL_DISPATCH_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
 
             for (j = 0; j < 5; ++j) {
                 temp_v0->sampledTransparencyCurve[j] = 
-                    D_800F569C->curves[temp_s3->transparencyCurve][(j * trail) / 4];
+                    vs_effects_package->curves[temp_s3->transparencyCurve][(j * trail) / 4];
             }
 
         } else {
@@ -672,12 +672,12 @@ int VS_TRAIL_DISPATCH_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
             }
         }
 
-        func_800D6CCC((int*)&temp_v0->unkC);
-        func_800D6CF0(&temp_v0->unkC, temp_s3->unk1, temp_s3->unk0);
+        vs_effects_clearTextureAnimation((int*)&temp_v0->unkC);
+        vs_effects_restartTextureAnimation(&temp_v0->unkC, temp_s3->unk1, temp_s3->unk0);
         break;
 
     case 2:
-        temp_s3 = &D_800F569C->block5Data->unk4[temp_s0->unk1];
+        temp_s3 = &vs_effects_package->block5Data->unk4[temp_s0->unk1];
         s4->flags = (temp_s3->flags);
 
         if (temp_s0->unk3 == 0) {

@@ -178,7 +178,7 @@ static int _weaponArtsMenu(int typeCursorMem)
         }
 
         for (i = 0; i < 4; ++i) {
-            if (D_800F4EA0 & 0x15F) {
+            if (vs_menu_frameworkActionRestrictions & 0x15F) {
                 rowTypes[i] |= 1;
             }
         }
@@ -414,7 +414,7 @@ int vs_menu1_exec(u_char* state)
                 *state = weaponCategoryMenu;
                 _weaponCategoriesMenu(1);
             } else {
-                D_800F4E98.executeAbility.s32 = selectedRow;
+                vs_menu_frameworkActionSelection.executeAbility.s32 = selectedRow;
                 vs_battle_menuState.executeAbilityType = 5;
                 *state = executeArt;
             }
@@ -460,7 +460,7 @@ int vs_menu1_exec(u_char* state)
 
     case executeArt:
         if (vs_mainmenu_ready() != 0) {
-            D_800F4E98.unk2 = 6;
+            vs_menu_frameworkActionSelection.unk2 = 6;
             vs_battle_menuState.returnState = vs_battle_menuState.currentMenu;
             vs_battle_menuState.currentMenu = 2;
             *state = none;

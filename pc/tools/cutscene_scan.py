@@ -5,7 +5,7 @@ player's catalog (pc/assets/cutscenes/catalog.json, pc/docs/Cutscene_Player.md).
 From the save room of a memory card (the tests' pinned card by default), for
 every room with a door in: back to the save room (an in-memory rewind), warp
 there with the room's scripts and enemies on (RPC room_goto, as the cutscene
-player's warp recipe does), and watch the event runner (D_800F4C34) through
+player's warp recipe does), and watch the event runner (vs_event_playbackPhase) through
 RPC cutscene's status: whether an event starts within WATCH vsyncs of the
 arrival, its id, and how long it runs (dialogue advanced with Circle / Cross
 when it waits; capped at CAP vsyncs). A crash restarts the game and is

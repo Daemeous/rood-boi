@@ -4,7 +4,7 @@ const v = @import("views_4A0A8");
 /// orig: func_800BD610 (pc/src/game/BATTLE/BATTLE.PRG/4A0A8.c)
 /// Returns a bit for each camera setting that is at its default value.
 pub fn func_800BD610() callconv(.c) c_int {
-    const d = v.g.D_800F4BA4().*.?;
+    const d = v.g.vs_event_camera().*.?;
     var temp: c_int = @intFromBool(d.lookAt.mode == 0xF);
     if (d.eye.mode == 0xF) temp |= 2;
     if (d.unk168.unkA == 0) temp |= 4;

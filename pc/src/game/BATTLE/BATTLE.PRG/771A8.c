@@ -12,41 +12,41 @@
 #include "pc/src/psx_types.h"
 #include "ai_state.h"
 
-int func_8008D2C0(func_8008D2C0_t*);
-void func_800DEEFC(vs_battle_aiState*, int);
+int vs_field_collectMovingPlatformPositions(func_8008D2C0_t*);
+void vs_battle_aiIssueActorCommand(vs_battle_aiState*, int);
 struct vs_battle_aiState;
-int func_800E0678(struct vs_battle_aiState*, int);
+int vs_battle_aiCanFlyInDirection(struct vs_battle_aiState*, int);
 struct vs_battle_aiState;
 int func_800E0918(struct vs_battle_aiState*, int, int);
-void func_800E2CCC(vs_battle_aiState*);
-void func_800E3600(vs_battle_aiState*, int, int);
-int func_800E42EC(int, int);
+void vs_battle_aiRecoverMovement(vs_battle_aiState*);
+void vs_battle_aiResolveDirectionalMovement(vs_battle_aiState*, int, int);
+int vs_field_groundHeightAtTile(int, int);
 int func_800E4764(vs_battle_aiState*, int*, int*);
 void func_800E4B18(vs_battle_aiState*);
-void func_800E678C(vs_battle_aiState*);
-extern D_800F58BC_t* D_800F58BC;
+void vs_battle_aiReleaseActorAiReservations(vs_battle_aiState*);
+extern D_800F58BC_t* vs_battle_aiRoomAiState;
 extern D_800F5910_t* D_800F5910;
-void func_800D8260(vs_battle_aiState* arg0, int arg1, int arg2);
+void vs_battle_aiSetTemporaryAwarenessIndicator(vs_battle_aiState* arg0, int arg1, int arg2);
 
-int func_800D96C8(vs_battle_aiState*, unsigned int, unsigned int, int);
-int func_800D954C(vs_battle_aiState*, unsigned int);
-unsigned int func_800E4660(int, int, int);
-void func_800E50A0(void*, int, int);
-int func_800E45D4(int);
-void func_800E1388(vs_battle_aiState*, vs_battle_movementPosition, int, unsigned int);
-int func_800E45D4(int);
+int vs_battle_aiCanTraverseTileEdge(vs_battle_aiState*, unsigned int, unsigned int, int);
+int vs_battle_aiDestinationOccupancy(vs_battle_aiState*, unsigned int);
+unsigned int vs_core_mathSquaredVectorLength(int, int, int);
+void vs_battle_aiDispatchAiLocomotionMode(void*, int, int);
+int vs_battle_aiNextActorRandomMasked(int);
+void vs_battle_aiProjectClearRadialDestination(vs_battle_aiState*, vs_battle_movementPosition, int, unsigned int);
+int vs_battle_aiNextActorRandomMasked(int);
 
-void func_800DF9A8(func_800DFA54_t* arg0, func_800DFA54_t* arg1);
+void vs_battle_aiResolveRouteGateExit(func_800DFA54_t* arg0, func_800DFA54_t* arg1);
 
-void func_800DFA54(int arg0, int arg1, int arg2, func_800DFA54_t* arg3);
+void vs_battle_aiFindNearestRouteGateEntry(int arg0, int arg1, int arg2, func_800DFA54_t* arg3);
 
-int func_800DFAF8(int arg0, u_int arg1, int arg2);
+int vs_battle_aiFindRouteGateAtTile(int arg0, u_int arg1, int arg2);
 
 typedef u_short routeEdgePair[2];
 
 extern u_char D_800F175C[];
-int func_8008E320(int);
-void func_800E4BE0(int);
+int vs_field_movingPlatformDwellTicks(int);
+void vs_battle_aiSetAiContactOccupancy(int);
 
 static inline u_int routeWord(routeEdgePair* pair) { return *(u_int*)pair; }
 
@@ -63,7 +63,7 @@ static inline int routeSetArea(vs_battle_aiState* state, vs_battle_movementPosit
     return 6;
 }
 
-int func_800DFBCC(vs_battle_aiState* state, int index, int area);
+int vs_battle_aiResolveNavigationAreaRoute(vs_battle_aiState* state, int index, int area);
 
 typedef struct {
     unsigned char p0, p1, tested, p3, result[8];
@@ -72,31 +72,31 @@ typedef struct {
 #define OBSTRUCTION_DIRECTIONS ((D_800F16EC_t*)PC_PAD(0x3EC))
 #define OBSTRUCTION_STATES(id) psx_slot_get(vs_battle_aiState*, PC_PAD(0x37C), id)
 
-int func_800E02B4(vs_battle_aiState* state, int direction, int ahead);
+int vs_battle_aiFlightDirectionObstruction(vs_battle_aiState* state, int direction, int ahead);
 
 #undef OBSTRUCTION_CACHE
 #undef OBSTRUCTION_DIRECTIONS
 #undef OBSTRUCTION_STATES
 
-int func_800E42EC(int, int);
+int vs_field_groundHeightAtTile(int, int);
 typedef struct {
     unsigned char tested, valid;
 } directionalCacheBits;
 #define MOVEMENT_CHECK_CACHE ((directionalCacheBits*)PC_PAD(0x3D0))
 #define MOVEMENT_CHECK_DIRECTIONS ((D_800F16EC_t*)PC_PAD(0x3EC))
 #define MOVEMENT_CHECK_TILES (psx_slot_get(__typeof__(unsigned short(*)[32]), PC_PAD(0x3C0), 0))
-int func_800E0678(vs_battle_aiState* state, int direction);
+int vs_battle_aiCanFlyInDirection(vs_battle_aiState* state, int direction);
 
 #undef MOVEMENT_CHECK_CACHE
 #undef MOVEMENT_CHECK_DIRECTIONS
 #undef MOVEMENT_CHECK_TILES
 
-int func_800E0850(vs_battle_aiState* arg0, u_int arg1);
+int vs_battle_aiLowestReachableGroundHeight(vs_battle_aiState* arg0, u_int arg1);
 
-void func_800E4B2C();
+void vs_battle_aiMoveActorTowardDestinationTile();
 void func_800E4B70();
-unsigned int func_800E45F4(unsigned int, unsigned int);
-int func_800E42E0(unsigned int);
+unsigned int vs_core_mathSquaredTileDistance(unsigned int, unsigned int);
+int vs_field_groundHeightAtPackedTile(unsigned int);
 void func_800E4B10(void*);
 int func_800E0918(vs_battle_aiState* state, int action, int mode);
 
@@ -108,8 +108,8 @@ typedef struct {
     char pad60[0x5DE];
     unsigned short height;
 } movementStepActor;
-int func_800E02B4(vs_battle_aiState*, int, int);
-int func_800E6A6C(int, int, int, int);
+int vs_battle_aiFlightDirectionObstruction(vs_battle_aiState*, int, int);
+int vs_battle_aiMinimumAiGroundHeightAlongSegment(int, int, int, int);
 void func_800E1238(vs_battle_aiState*, int);
 #define MOVEMENT_STEP_TILES (psx_slot_get(__typeof__(unsigned short(*)[32]), PC_PAD(0x3C0), 0))
 #define MOVEMENT_STEP_RESULT (*(int*)PC_PAD(0x3C8))
@@ -120,28 +120,28 @@ void func_800E0A68(vs_battle_aiState* state, int action);
 
 void func_800E1238(vs_battle_aiState* arg0, int arg1);
 
-void func_800E1388(vs_battle_aiState* state, vs_battle_movementPosition source, int angle, unsigned int distance);
+void vs_battle_aiProjectClearRadialDestination(vs_battle_aiState* state, vs_battle_movementPosition source, int angle, unsigned int distance);
 
-unsigned int func_800E4660(int, int, int);
-unsigned int func_800E45F4(unsigned int, unsigned int);
-void func_800E4B2C(vs_battle_aiState*, int);
+unsigned int vs_core_mathSquaredVectorLength(int, int, int);
+unsigned int vs_core_mathSquaredTileDistance(unsigned int, unsigned int);
+void vs_battle_aiMoveActorTowardDestinationTile(vs_battle_aiState*, int);
 void func_800E153C(vs_battle_aiState* state, int unused);
 
-void func_800E1764(vs_battle_aiState* state, int angle);
+void vs_battle_aiMoveAwayFromReference(vs_battle_aiState* state, int angle);
 
-u_char func_800E1850(u_char arg0, u_int arg1, int arg2);
+u_char vs_battle_aiFilterDirectionsByGroundHeight(u_char arg0, u_int arg1, int arg2);
 
 #define TERRAIN_TILE_MASK (psx_slot_get(unsigned char*, PC_PAD(0x3C4), 0))
 #define TERRAIN_MAP_WIDTH (*(unsigned char*)PC_PAD(0x3DC))
 #define TERRAIN_MOVE_RESULT (*(int*)PC_PAD(0x3C8))
 #define TERRAIN_TILES (psx_slot_get(__typeof__(unsigned short(*)[32]), PC_PAD(0x3C0), 0))
 struct vs_battle_aiState;
-int func_800DFBCC(struct vs_battle_aiState*, int, int);
+int vs_battle_aiResolveNavigationAreaRoute(struct vs_battle_aiState*, int, int);
 void func_800E4BB8(vs_battle_aiState*);
 void func_800E4B70(vs_battle_aiState*, int);
-void func_800E1908(vs_battle_aiState* state);
+void vs_battle_aiMoveWithHeightFilteredDirections(vs_battle_aiState* state);
 
-void func_800E19FC(vs_battle_aiState* state);
+void vs_battle_aiUpdateNavigationAreaMovement(vs_battle_aiState* state);
 
 #undef TERRAIN_TILE_MASK
 #undef TERRAIN_MAP_WIDTH
@@ -151,19 +151,19 @@ void func_800E19FC(vs_battle_aiState* state);
 #define WANDER_DIRECTIONS ((D_800F16EC_t*)PC_PAD(0x3EC))
 #define WANDER_TILES (psx_slot_get(__typeof__(unsigned short(*)[32]), PC_PAD(0x3C0), 0))
 
-int func_800E4690(unsigned int, int);
-int D_800D9B6C(vs_battle_aiState*, int);
+int vs_battle_aiIsAdjacentTileStepBlocked(unsigned int, int);
+int vs_battle_aiCanWalkInDirection(vs_battle_aiState*, int);
 
 static inline D_800F16EC_t* wanderDirection(int index)
 {
     return WANDER_DIRECTIONS + index;
 }
 
-int func_800E1BB8(vs_battle_aiState* state, unsigned int tile, unsigned int maxCount, int arg3);
+int vs_battle_aiChooseNextWanderTile(vs_battle_aiState* state, unsigned int tile, unsigned int maxCount, int arg3);
 
 static inline int wanderRandomHeading(int direction)
 {
-    int offset = func_800E45D4(512);
+    int offset = vs_battle_aiNextActorRandomMasked(512);
     int angle = direction << 9;
     offset += 0xFF00;
     return angle + offset;
@@ -175,55 +175,55 @@ static inline void wanderStartWalk(vs_battle_aiState* s)
     s->count = 0;
     s->cooldown = 60;
     s->mode++;
-    func_800E2CCC((vs_battle_aiState*)s);
+    vs_battle_aiRecoverMovement((vs_battle_aiState*)s);
 }
 
-void func_800E1EAC(vs_battle_aiState* state, unsigned int tile, unsigned int range);
+void vs_battle_aiUpdateWanderMovement(vs_battle_aiState* state, unsigned int tile, unsigned int range);
 
 #undef WANDER_DIRECTIONS
 #undef WANDER_TILES
 
 extern unsigned short (*D_800F58D8)[8];
-void func_800E50A0(void*, int, int);
+void vs_battle_aiDispatchAiLocomotionMode(void*, int, int);
 static inline unsigned int patrolWaypoint(unsigned short* row, int index)
 {
     unsigned short* ptr = row;
     ptr += index;
     return *ptr;
 }
-void func_800E23AC(vs_battle_aiState* state);
+void vs_battle_aiUpdateWaypointPatrol(vs_battle_aiState* state);
 
 int func_800E4FB0(void*, int, int);
-void func_800E50A0(void*, int, int);
+void vs_battle_aiDispatchAiLocomotionMode(void*, int, int);
 int func_800E4180(void*, int, int, int);
-void func_800E4904(void*);
+void vs_battle_aiRefreshAiTargetTile(void*);
 
-int func_800E24EC(vs_battle_aiState* s, int option);
+int vs_battle_aiUpdateTargetApproachMovement(vs_battle_aiState* s, int option);
 
 int func_800E4180(void*, int, int, int);
 
-int func_800E2B2C(vs_battle_aiState* context, int targetId);
+int vs_battle_aiUpdateTargetFacing(vs_battle_aiState* context, int targetId);
 
 typedef struct {
     char pad0[0x1C];
     short x, y, z;
 } movementActorPosition;
 void func_800E4B10(void*);
-int func_800E4320(int, int);
-void func_800E2CCC(vs_battle_aiState* state);
+int vs_field_groundHeightFlagsAtTile(int, int);
+void vs_battle_aiRecoverMovement(vs_battle_aiState* state);
 
 typedef int (*movementPathTest)(vs_battle_aiState*, int);
 
-int func_800D98E8(vs_battle_aiState*, int);
-int func_800E3D5C(vs_battle_aiState*, movementPathTest);
+int vs_battle_aiDirectionalBlockingActor(vs_battle_aiState*, int);
+int vs_battle_aiCardinalPassabilityMask(vs_battle_aiState*, movementPathTest);
 
-int func_800E2F5C(vs_battle_aiState* state, movementPathTest test, int mask);
+int vs_battle_aiFollowObstacleDetour(vs_battle_aiState* state, movementPathTest test, int mask);
 
 typedef int (*movementApproachTest)(vs_battle_aiState*, int);
 extern int (*D_800F1760[3][4])();
 u_int func_800E49D8(vs_battle_aiState*, u_int, int, int);
 int func_800E47E4(vs_battle_aiState*, u_int);
-u_int func_800D8400(vs_battle_aiState*, int, int, u_int);
+u_int vs_battle_aiFindAdjacentMovementDestination(vs_battle_aiState*, int, int, u_int);
 
-void func_800E3600(vs_battle_aiState* approach, int angleArg, int mode);
+void vs_battle_aiResolveDirectionalMovement(vs_battle_aiState* approach, int angleArg, int mode);
 

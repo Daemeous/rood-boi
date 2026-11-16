@@ -5,11 +5,11 @@ const v = @import("views_5BF94");
 const c = @import("c_5BF94");
 
 /// orig: vs_battle_loadGim (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
-/// Once (D_800EB9BC null): three image records for GIM `id` (palette arg1), a heap buffer of its size and a CD read of it into the buffer.
+/// Once (vs_render_gimLayers null): three image records for GIM `id` (palette arg1), a heap buffer of its size and a CD read of it into the buffer.
 pub fn loadGim(id: c_int, palette: c_int) callconv(.c) void {
-    if (v.g.D_800EB9BC().* == null) {
+    if (v.g.vs_render_gimLayers().* == null) {
         var gim: [*]v.gim_t = @ptrCast(@alignCast(c.vs_main_allocHeapR(@sizeOf(v.gim_t) * 3).?));
-        v.g.D_800EB9BC().* = &gim[0];
+        v.g.vs_render_gimLayers().* = &gim[0];
         const lbas = v.g._gimLbas();
         psx.put(&gim[0].data, @as(?*u16, @ptrCast(@alignCast(c.vs_main_allocHeapR(@bitCast(@as(c_int, psx.conv(u8, psx.at(lbas, id).*)) << 0xB))))));
         var i: c_int = 0;
@@ -28,7 +28,7 @@ pub fn loadGim(id: c_int, palette: c_int) callconv(.c) void {
         var file: v.vs_main_CdFile = undefined;
         file.lba = @bitCast(psx.at(lbas, id).* >> 8);
         file.size = @as(c_int, psx.conv(u8, psx.at(lbas, id).*)) << 0xB;
-        const first = v.g.D_800EB9BC().*.?;
+        const first = v.g.vs_render_gimLayers().*.?;
         psx.put(&first.cdQueueSlot, @as(?*v.vs_main_CdQueueSlot, @ptrCast(c.vs_main_allocateCdQueueSlot(@ptrCast(&file)))));
         c.vs_main_cdEnqueue(@ptrCast(@alignCast(psx.get(first.cdQueueSlot))), psx.get(first.data));
     }

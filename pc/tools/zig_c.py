@@ -252,7 +252,7 @@ def _drop_unprototyped(decls):
     """A function declared `T f();` (no prototype) and declared again with its
     parameters (the unit's definition, stripped to a declaration): translate-c
     keeps the first, `f(...)`, which no port can define or call typed (44F14's
-    func_800B101C). The unprototyped declaration goes; a body-less header
+    vs_field_updateGimmickReactionAnimation). The unprototyped declaration goes; a body-less header
     needs no order."""
     names = set(re.findall(rb"^[\w\s\*]*?\b(\w+)\s*\(\s*\)\s*;", decls, re.M))
     for name in names:
@@ -262,9 +262,9 @@ def _drop_unprototyped(decls):
 
 
 def _void_symbols(decls):
-    """`extern void D_800E9B5C;` (a symbol used only for its address, 4A0A8.c):
+    """`extern void vs_event_specialSubroutineScript;` (a symbol used only for its address, 4A0A8.c):
     translate-c refuses a variable of type void. An unsized char array is the
-    same symbol, and `&D_800E9B5C` still compares and casts the same."""
+    same symbol, and `&vs_event_specialSubroutineScript` still compares and casts the same."""
     return re.sub(rb"^(\s*)extern\s+void\s+(\w+)\s*;", rb"\1extern char \2[];", decls, flags=re.M)
 
 

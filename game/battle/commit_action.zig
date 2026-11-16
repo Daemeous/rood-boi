@@ -3,21 +3,21 @@ const psx = @import("common").psx;
 const v = @import("views_146C");
 const c = @import("c_146C");
 
-/// D_800F19CC, read at each use as the C does.
+/// vs_battle_actionState, read at each use as the C does.
 fn state() *v.D_800F19CC_t {
-    return v.g.D_800F19CC().*.?;
+    return v.g.vs_battle_actionState().*.?;
 }
 
-/// orig: func_80070F28 (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
+/// orig: vs_battle_commitSelectedAction (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// Commits the chosen action (`kind`: 0, 2 or another selects its setup). A menu choice left pending (unk298C
-/// 0xFF) with `kind` nonzero is dropped instead: back to the actor's turn (func_8006FBCC) for a targeted or plain
-/// action, or func_800704D8. Otherwise: link 0, the ability menu's item use counted down (the player's action), the
-/// setup, the hits (func_80085B10), the weapon's attack count and the heal count scored, the zoom kind from the
+/// 0xFF) with `kind` nonzero is dropped instead: back to the actor's turn (vs_battle_beginPostActionRecovery) for a targeted or plain
+/// action, or vs_battle_returnToBattleActionMenu. Otherwise: link 0, the ability menu's item use counted down (the player's action), the
+/// setup, the hits (vs_battle_resolveActionTargets), the weapon's attack count and the heal count scored, the zoom kind from the
 /// action, phase 4, every other actor told, and the screen and sound state for the action.
 pub fn commitAction(kind: c_int) callconv(.c) void {
     // ROOD_PC: the dev RPC action captures the state the menus leave here (pc/src/action_driver.c).
     c.pc_action_capture(@ptrCast(state()), kind, @bitCast(v.g.D_800F196C().*), @as(c_int, @as(*const u8, @ptrCast(v.g.vs_battle_menuState())).*));
-    c.func_8006EF10();
+    c.vs_field_storePreferredActionCameraDistance();
     const pending = state().unk298C;
     c.func_800C16DC();
     c.func_800C06E0();
@@ -26,21 +26,21 @@ pub fn commitAction(kind: c_int) callconv(.c) void {
     if (kind != 0) {
         if (pending == 0xFF) {
             if (state().unk8.unk4.unk0.targetActor != 0) {
-                c.func_800CB114();
+                c.vs_menu_frameworkReleaseMenuRows();
                 c.func_800E4C64(@as(c_int, state().unk8.unk4.unk0.targetActor));
                 state().unk8.actionIndex = 0;
-                c.func_8006FBCC(0);
+                c.vs_battle_beginPostActionRecovery(0);
                 return;
             }
             // the action index is not bounded by the C
             if (psx.getBits(psx.at(v.g.actions(), state().unk8.actionIndex), "unk2_0") == 0) {
-                c.func_800CB114();
+                c.vs_menu_frameworkReleaseMenuRows();
                 state().unk8.actionIndex = 0;
-                c.func_8006FBCC(0);
+                c.vs_battle_beginPostActionRecovery(0);
                 return;
             }
             state().unk8.actionIndex = 0;
-            c.func_800704D8();
+            c.vs_battle_returnToBattleActionMenu();
             return;
         }
     }
@@ -56,17 +56,17 @@ pub fn commitAction(kind: c_int) callconv(.c) void {
         }
         ability.unk2 = 0;
     } else {
-        c.func_800D82A8(@as(c_int, state().unk8.unk4.unk0.targetActor));
+        c.vs_battle_aiDisengageActorById(@as(c_int, state().unk8.unk4.unk0.targetActor));
     }
-    c.func_800CB114();
+    c.vs_menu_frameworkReleaseMenuRows();
     if (kind == 0) {
-        c.func_80070CAC();
+        c.vs_battle_collectEnvironmentActionTargets();
     } else if (kind == 2) {
-        c.func_80070B04();
+        c.vs_battle_setAllActionTargets();
     } else {
-        c.func_800708EC();
+        c.vs_battle_setSingleActionTarget();
     }
-    c.func_80085B10(@as(c_int, state().unk8.actionIndex), @ptrCast(&state().unk854[0]), @ptrCast(&state().unk8), 1);
+    c.vs_battle_resolveActionTargets(@as(c_int, state().unk8.actionIndex), @ptrCast(&state().unk854[0]), @ptrCast(&state().unk8), 1);
 
     if (state().unk8.unk4.unk0.targetActor == 0) {
         const index: c_int = state().unk8.actionIndex;
@@ -89,7 +89,7 @@ pub fn commitAction(kind: c_int) callconv(.c) void {
         }
     }
 
-    if (c.func_80077F70() >= 0x1C1 and psx.getBits(psx.at(v.g.actions(), state().unk8.actionIndex), "flagsD_4") == 1) {
+    if (c.vs_battle_actionTargetDistance() >= 0x1C1 and psx.getBits(psx.at(v.g.actions(), state().unk8.actionIndex), "flagsD_4") == 1) {
         state().unk2C0E = 0;
     } else {
         state().unk2C0E = psx.getBits(psx.at(v.g.actions(), state().unk8.actionIndex), "flagsD_4");
@@ -120,9 +120,9 @@ pub fn commitAction(kind: c_int) callconv(.c) void {
         }
     }
     c.vs_main_setClutState(1);
-    c.func_8007B1B8(8, 4, 0, 0, 0);
-    c.func_8006C250();
-    c.func_80095B70(1);
-    _ = c.func_8008B4C8(0);
-    c.func_8008B4BC(0);
+    c.vs_render_transformSceneColors(8, 4, 0, 0, 0);
+    c.vs_actors_freezeAllActorAnimations();
+    c.vs_battle_setActorMarkersHidden(1);
+    _ = c.vs_field_setMinimapVisible(0);
+    c.vs_field_setRoomAnimationsPaused(0);
 }

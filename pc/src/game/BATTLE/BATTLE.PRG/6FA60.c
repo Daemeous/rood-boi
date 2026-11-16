@@ -11,5 +11,5 @@
 #include <stdlib.h>
 #include "ai_state.h"
 
-void func_800D8260(vs_battle_aiState* arg0, int arg1, int arg2);
+void vs_battle_aiSetTemporaryAwarenessIndicator(vs_battle_aiState* arg0, int arg1, int arg2);
 

@@ -7,11 +7,11 @@
 int _loadObject(int arg0)
 {
     int _[6] __attribute__((unused));
-    D_800F4538_t* new_var = D_800F4538[0];
+    D_800F4538_t* new_var = vs_actors_actorRecords[0];
 
     if (arg0 == 1) {
-        func_8009AA84(1);
-        func_800FA2CC();
+        vs_content_releaseWeaponModel(1);
+        vs_menu_frameworkResetAshleyEquipmentPose();
         return 0;
     }
 
@@ -21,8 +21,8 @@ int _loadObject(int arg0)
             return 0;
         }
 
-        func_8009AA84(0);
-        func_800FA3FC(10);
+        vs_content_releaseWeaponModel(0);
+        vs_menu_frameworkQueueAshleyWeaponAnimations(10);
 
         ++vs_battle_loadObjectDataState;
         break;
@@ -30,7 +30,7 @@ int _loadObject(int arg0)
     case 1:
         if (vs_battle_processObjectDataQueue() == 0) {
 
-            func_800FA2CC();
+            vs_menu_frameworkResetAshleyEquipmentPose();
 
             vs_battle_loadObjectDataState = 0;
             return 0;

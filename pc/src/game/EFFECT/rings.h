@@ -62,7 +62,7 @@ int VS_RING_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
 
     alive = 1;
     state = arg0->unk8;
-    battle = D_800F53BC;
+    battle = vs_effects_currentInstance;
     switch (arg1) {
     case 1:
         state = vs_main_allocHeapR(sizeof *state);
@@ -75,15 +75,15 @@ int VS_RING_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
         state->height = 0;
         state->angle = 0;
         state->age = 0;
-        effect = &D_800F569C->block5Data->unk4[state->effect];
-        func_800D6CCC((int*)&state->texture);
-        func_800D6CF0(&state->texture, effect->unk1, effect->unk0);
+        effect = &vs_effects_package->block5Data->unk4[state->effect];
+        vs_effects_clearTextureAnimation((int*)&state->texture);
+        vs_effects_restartTextureAnimation(&state->texture, effect->unk1, effect->unk0);
         break;
     case 2: {
-        effect = &D_800F569C->block5Data->unk4[state->effect];
+        effect = &vs_effects_package->block5Data->unk4[state->effect];
         scratch->flags = effect->flags;
         actorMatrix = &battle->unk1C[effect->unkC8].unk38;
-        effect = &D_800F569C->block5Data->unk4[state->effect];
+        effect = &vs_effects_package->block5Data->unk4[state->effect];
         fraction = func_800CFE1C(
             effect->unk30, vs_battle_sampleCurve(effect->unk17, state->age));
         column = ((u_char*)effect)[7];
@@ -97,7 +97,7 @@ int VS_RING_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
         case 0:
             break;
         case 1:
-            vs_battle_addVecToSvec(&scratch->unk98, D_800F5310, &scratch->unk98);
+            vs_battle_addVecToSvec(&scratch->unk98, vs_effects_effectOrigin, &scratch->unk98);
             break;
         case 2:
             scratch->unk98.vx += actorMatrix->t[0];
@@ -212,9 +212,9 @@ int VS_RING_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
                 depths[drawRow][drawColumn] = projected.otz;
             }
         }
-        func_800D6D24(&state->texture);
+        vs_effects_advanceTextureAnimation(&state->texture);
         texture =
-            &D_800F569C->block1Data[state->texture.unk1C->dataIndex];
+            &vs_effects_package->block1Data[state->texture.unk1C->dataIndex];
 #ifdef VS_RING_TRANSPOSED
         for (column = 0; column < 9; ++column)
             u[column] = texture->v0 + texture->v1 * column / 8;

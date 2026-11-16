@@ -24,7 +24,7 @@ pub fn renderTextRawColor(text: [*c]const u8, x: c_int, color: c_int, nextPrim: 
 
 fn layout(text: [*c]const u8, x: c_int, color: c_int, nextPrim: ?*anyopaque) void {
     const scratch = v.g.vs_scratch();
-    const widths = v.g.D_800EB7B4();
+    const widths = v.g.vs_render_compactGlyphWidths();
     const kern = v.g.D_800EB708();
     const glyph = v.g.D_800EB7D4();
 

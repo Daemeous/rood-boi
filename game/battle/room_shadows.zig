@@ -19,9 +19,9 @@ fn scratch() *v.vs_scratch_t {
 const ShadowNative = *const fn (c_int, [*]const c_int, c_int, ?[*]c_uint, ?[*]c_uint) callconv(.c) ?[*]c_uint;
 const ShadowsEnd = *const fn (?*const anyopaque, ?*const anyopaque) callconv(.c) void;
 
-/// orig: func_8008CEB0 (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
+/// orig: vs_field_drawMovingPlatformShadows (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// Draws a flat subtractive square on the floor under each of the room's moving platforms (section 12) that is above the floor; the native renderer gets each square too.
-pub fn func_8008CEB0() callconv(.c) void {
+pub fn vs_field_drawMovingPlatformShadows() callconv(.c) void {
     // uninitialised in the original (the GTE reads the vector's pad word): zeroed
     var vertices = std.mem.zeroes([4]v.SVECTOR);
 
@@ -38,12 +38,12 @@ pub fn func_8008CEB0() callconv(.c) void {
         object = psx.at(object, 1);
     }) {
         if (psx.getBits(object, "unk0_9") != 0) continue;
-        if (c.func_8009195C(@as(c_int, psx.getBits(object, "unk0_0"))) == null) continue;
-        const cell = c.func_8008B764(psx.conv(c_uint, @divTrunc(object.unkA8, 0x80000)), psx.conv(c_uint, @divTrunc(object.unkB0, 0x80000)), 0).?;
+        if (c.vs_field_findRoomGeometryGroup(@as(c_int, psx.getBits(object, "unk0_0"))) == null) continue;
+        const cell = c.vs_field_collisionCellAt(psx.conv(c_uint, @divTrunc(object.unkA8, 0x80000)), psx.conv(c_uint, @divTrunc(object.unkB0, 0x80000)), 0).?;
         const cell_view: *v._mpdRoomSection3 = @ptrCast(cell);
         if (psx.getBits(cell_view, "unk0_17") != 0 and psx.conv(c_uint, @as(c_int, psx.getBits(cell_view, "unk0_0")) -% 15) >= 4) continue;
         var x: c_int = @divTrunc(object.unkA8, 4096);
-        var height: c_int = c.func_8008DC7C(x, @divTrunc(object.unkB0, 4096));
+        var height: c_int = c.vs_field_floorHeightAt(x, @divTrunc(object.unkB0, 4096));
         height <<= 17; // sign-extends the 15-bit height
         height >>= 17;
         x = object.unkAC;

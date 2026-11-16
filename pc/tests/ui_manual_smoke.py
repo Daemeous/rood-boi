@@ -26,9 +26,9 @@ Parity (three processes, the same story; waits on state, never on time):
      clicks out
   compared after every step (the steps' names equal, B2's A's prefix):
   vs_battle_manualDisplayState (0x24 bytes),
-  D_800F4EE8 (the cursor memories), vs_battle_submenuStates[0], the
-  settings and the world flag D_800F190C; after the closes also the menu
-  state, the HUD flags (D_800EB9AF, D_800EB9B0), text box 0's state and the
+  vs_menu_frameworkMenuMemory (the cursor memories), vs_battle_submenuStates[0], the
+  settings and the world flag vs_field_isFieldRenderingEnabled; after the closes also the menu
+  state, the HUD flags (vs_battle_hudHidden, vs_battle_hudSlideOffset), text box 0's state and the
   heap's largest free block (as large as before the session). MASKS: what
   may differ, each with its reason. --diff-all: snapshots at A's and B's
   ends, every differing symbol listed (snapshot_diff.py).
@@ -255,7 +255,7 @@ class Session:
         return struct.unpack("<H", self.game.read(self.display, 2))[0]
 
     def world(self):
-        return self.u32(self.sym["D_800F190C"])
+        return self.u32(self.sym["vs_field_isFieldRenderingEnabled"])
 
     def played(self):
         """The menu sounds the game played (RPC sfx: vs_main_playSfxDefault, bank 0x7E)."""
@@ -271,13 +271,13 @@ class Session:
         g, s = self.game, self.sym
         return {
             "display": g.read(self.display, 0x24),
-            "cursorMemories": g.read(s["D_800F4EE8"], 52),
+            "cursorMemories": g.read(s["vs_menu_frameworkMenuMemory"], 52),
             "submenu0": g.read(s["vs_battle_submenuStates"], 1),
             "settings": g.read(self.settings, 32),
-            "world": g.read(s["D_800F190C"], 4),
+            "world": g.read(s["vs_field_isFieldRenderingEnabled"], 4),
             # close only
             "menuState": g.read(self.menu_state, 4),
-            "hud": g.read(s["D_800EB9AF"], 1) + g.read(s["D_800EB9B0"], 4),
+            "hud": g.read(s["vs_battle_hudHidden"], 1) + g.read(s["vs_battle_hudSlideOffset"], 4),
             "textBox0": g.read(s["vs_battle_textBoxes"] + g.layout("textBox_state", 0x1C), 2),
             # the sounds played so far and those the manual asked for (compare_sounds, check_asked)
             "played": self.played(),
@@ -602,7 +602,7 @@ def story_pad(b, check, dumps):
     # Square on the row: the original MENUE on the native topic; Cross back to the shell
     g.press("square", vsyncs=3, settle=4)
     ok = b.wait_list()
-    cm = b.game.read(b.sym["D_800F4EE8"] + 4, 2)
+    cm = b.game.read(b.sym["vs_menu_frameworkMenuMemory"] + 4, 2)
     check(ok and b.current() == 12 and tuple(cm) == (7, 5),
           f"B: Square: MENUE's list on topic 12 ({b.current_menu():#x}, {b.current()}, {tuple(cm)})")
     g.press("cross", vsyncs=3, settle=4)

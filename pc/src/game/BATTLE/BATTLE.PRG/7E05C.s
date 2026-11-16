@@ -12,9 +12,9 @@ enddlabel D_80069C0C
 
 .section .text, "ax"
 
-glabel func_800E685C
-    lui     $a3, %hi(D_800F5878)
-    addiu   $a3, $a3, %lo(D_800F5878)
+glabel vs_battle_aiSetActorVerticalMovementSteps
+    lui     $a3, %hi(vs_battle_aiActorAiStates)
+    addiu   $a3, $a3, %lo(vs_battle_aiActorAiStates)
     sll     $a0, $a0, 2
     addu    $a3, $a3, $a0
     lw      $a3, 0x0($a3)
@@ -29,14 +29,14 @@ glabel func_800E685C
     sb      $v1, 0xB3($a3)
     jr      $ra
     sh      $a0, 0x226($a3)
-endlabel func_800E685C
+endlabel vs_battle_aiSetActorVerticalMovementSteps
 
-glabel func_800E6898
+glabel vs_battle_aiAddAiTileOccupant
     bgez    $zero, .L800E68A4
     addi    $a1, $zero, 0x1 /* handwritten instruction */
-endlabel func_800E6898
+endlabel vs_battle_aiAddAiTileOccupant
 
-glabel func_800E68A0
+glabel vs_battle_aiRemoveAiTileOccupant
     addi    $a1, $zero, -0x1 /* handwritten instruction */
 .L800E68A4:
     lui     $t2, %hi(D_800F58D0)
@@ -57,9 +57,9 @@ glabel func_800E68A0
     add     $t3, $t3, $a1 /* handwritten instruction */
     jr      $ra
     sh      $t3, 0x0($t0)
-endlabel func_800E68A0
+endlabel vs_battle_aiRemoveAiTileOccupant
 
-glabel func_800E68EC
+glabel vs_battle_aiMarkAiTileDynamicObstacle
     lui     $a2, %hi(D_800F58B8)
     lw      $a2, %lo(D_800F58B8)($a2)
     sll     $a0, $a0, 1
@@ -76,7 +76,7 @@ glabel func_800E68EC
     addu    $a1, $a2, $zero
     addiu   $sp, $sp, -0x18
     sw      $ra, 0x10($sp)
-    jal     func_8008B764
+    jal     vs_field_collisionCellAt
     addu    $a2, $zero, $zero
     lw      $a0, 0x0($v0)
     addi    $a1, $zero, 0x3 /* handwritten instruction */
@@ -92,14 +92,14 @@ glabel func_800E68EC
 alabel L800E6958
     addiu   $sp, $sp, -0x8
     sw      $ra, 0x4($sp)
-    jal     func_800E6974
+    jal     vs_core_sortPointersByDescendingKey
     sw      $s0, 0x0($sp)
     lw      $ra, 0x4($sp)
     bgez    $zero, .L800E6A64
     lw      $s0, 0x0($sp)
-endlabel func_800E68EC
+endlabel vs_battle_aiMarkAiTileDynamicObstacle
 
-glabel func_800E6974
+glabel vs_core_sortPointersByDescendingKey
     addiu   $sp, $sp, -0x8
     sw      $ra, 0x4($sp)
     sll     $t1, $a1, 8
@@ -151,12 +151,12 @@ glabel func_800E6974
     lw      $t8, 0x0($t2)
     sw      $t7, 0x0($t2)
     sw      $t8, 0x0($v0)
-    jal     func_800E6974
+    jal     vs_core_sortPointersByDescendingKey
     addi    $a2, $s0, -0x1 /* handwritten instruction */
     lw      $a2, 0x0($sp)
     nop
     andi    $a2, $a2, 0xFF
-    jal     func_800E6974
+    jal     vs_core_sortPointersByDescendingKey
     addi    $a1, $s0, 0x1 /* handwritten instruction */
 .L800E6A50:
     lw      $t0, 0x0($sp)
@@ -167,9 +167,9 @@ glabel func_800E6974
 .L800E6A64:
     jr      $ra
     addiu   $sp, $sp, 0x8
-endlabel func_800E6974
+endlabel vs_core_sortPointersByDescendingKey
 
-glabel func_800E6A6C
+glabel vs_battle_aiMinimumAiGroundHeightAlongSegment
     addiu   $sp, $sp, -0x38
     sw      $ra, 0x30($sp)
     sw      $s0, 0x10($sp)
@@ -192,7 +192,7 @@ glabel func_800E6A6C
     add     $a0, $s0, $s3 /* handwritten instruction */
     add     $a1, $s2, $s5 /* handwritten instruction */
     addu    $s0, $a0, $zero
-    jal     func_800E4318
+    jal     vs_field_groundHeightFlagsAtWorldPosition
     addu    $s2, $a1, $zero
     sll     $v0, $v0, 17
     sra     $v0, $v0, 17
@@ -219,12 +219,12 @@ glabel func_800E6A6C
     lw      $s1, 0x14($sp)
     jr      $ra
     addiu   $sp, $sp, 0x38
-endlabel func_800E6A6C
+endlabel vs_battle_aiMinimumAiGroundHeightAlongSegment
 
-glabel func_800E6B24
+glabel vs_battle_aiClearActorAiNavigationReset
     sll     $a0, $a0, 2
-    lui     $a1, %hi(D_800F5878)
-    addiu   $a1, $a1, %lo(D_800F5878)
+    lui     $a1, %hi(vs_battle_aiActorAiStates)
+    addiu   $a1, $a1, %lo(vs_battle_aiActorAiStates)
     addu    $a0, $a0, $a1
     lw      $a0, 0x0($a0)
     nop
@@ -232,9 +232,9 @@ glabel func_800E6B24
     addu    $v0, $a0, $zero
     bgez    $zero, L800E66F8
     sb      $zero, 0x1A($a0)
-endlabel func_800E6B24
+endlabel vs_battle_aiClearActorAiNavigationReset
 
-glabel func_800E6B4C
+glabel vs_battle_aiBuildAiTerrainHeightsWithWorkspace
     addiu   $sp, $sp, -0x30
     sw      $s0, 0x10($sp)
     sw      $ra, 0x18($sp)
@@ -248,7 +248,7 @@ glabel func_800E6B4C
     sw      $sp, 0x0($s0)
     ori     $at, $zero, 0x8000
     addu    $sp, $v0, $at
-    jal     func_800E6098
+    jal     vs_battle_aiBuildAiSpecialTerrainHeights
     nop
     lw      $sp, 0x0($s0)
     lui     $ra, %hi(L800DB89C)
@@ -256,12 +256,12 @@ glabel func_800E6B4C
     addu    $a0, $s0, $zero
     j       vs_main_freeHeapR
     addiu   $a1, $zero, 0x7
-endlabel func_800E6B4C
+endlabel vs_battle_aiBuildAiTerrainHeightsWithWorkspace
 
 glabel func_800E6BA0
     addiu   $sp, $sp, -0x40
     sw      $ra, 0x20($sp)
-    jal     func_8008D2C0
+    jal     vs_field_collectMovingPlatformPositions
     addu    $a0, $sp, $zero
     addu    $t3, $zero, $zero
     addu    $t4, $v0, $zero
@@ -303,7 +303,7 @@ glabel func_800E6BA0
     nop
 endlabel func_800E6BA0
 
-glabel func_800E6C34
+glabel vs_field_traceActorAndTerrainCollision
     addiu   $sp, $sp, -0x40
     sw      $s0, 0x18($sp)
     sw      $s1, 0x1C($sp)
@@ -348,8 +348,8 @@ glabel func_800E6C34
     addiu   $v0, $v0, %lo(vs_battle_actors)
     addu    $v0, $v0, $t1
     lw      $v0, 0x0($v0)
-    lui     $t2, %hi(D_800F45E0)
-    addiu   $t2, $t2, %lo(D_800F45E0)
+    lui     $t2, %hi(vs_field_gimmickInstances)
+    addiu   $t2, $t2, %lo(vs_field_gimmickInstances)
     beqz    $v0, .L800E6E08
     nop
     lbu     $v0, 0x1C($v0)
@@ -358,8 +358,8 @@ glabel func_800E6C34
     bnez    $v0, .L800E6E08
     srl     $v0, $t1, 2
     beq     $v0, $s1, .L800E6E08
-    lui     $t3, %hi(D_800F4538)
-    addiu   $t3, $t3, %lo(D_800F4538)
+    lui     $t3, %hi(vs_actors_actorRecords)
+    addiu   $t3, $t3, %lo(vs_actors_actorRecords)
     addu    $t4, $t2, $t1
     lw      $t4, 0x0($t4)
     addiu   $v0, $zero, 0x3F
@@ -440,7 +440,7 @@ glabel func_800E6C34
     nop
     beqz    $v0, .L800E6E60
     addu    $a0, $s2, $zero
-    jal     func_8008DC7C
+    jal     vs_field_floorHeightAt
     addu    $a1, $s4, $zero
     lw      $t0, 0x3C($sp)
     sll     $v0, $v0, 17
@@ -473,20 +473,20 @@ glabel func_800E6C34
     lw      $s6, 0x30($sp)
     lw      $s7, 0x34($sp)
     addiu   $sp, $sp, 0x40
-endlabel func_800E6C34
+endlabel vs_field_traceActorAndTerrainCollision
 
 glabel func_800E6EAC
     jr      $ra
 endlabel func_800E6EAC
 
-glabel func_800E6EB0
+glabel vs_battle_aiReleaseActorAiContactOccupancy
     lui     $t0, %hi(vs_battle_actors)
     addiu   $t0, $t0, %lo(vs_battle_actors)
     sll     $a0, $a0, 2
     addu    $t0, $t0, $a0
     lw      $t0, 0x0($t0)
-    lui     $t1, %hi(D_800F5878)
-    addiu   $t1, $t1, %lo(D_800F5878)
+    lui     $t1, %hi(vs_battle_aiActorAiStates)
+    addiu   $t1, $t1, %lo(vs_battle_aiActorAiStates)
     addu    $t1, $t1, $a0
     lw      $t1, 0x0($t1)
     sltiu   $v0, $t0, 0x1
@@ -506,10 +506,10 @@ glabel func_800E6EB0
     andi    $a1, $a1, 0xF
     bnez    $a1, func_800E6EAC
     srl     $a0, $a2, 8
-    bgez    $zero, func_800E4BD8
-endlabel func_800E6EB0
+    bgez    $zero, vs_battle_aiClearAiContactOccupancy
+endlabel vs_battle_aiReleaseActorAiContactOccupancy
 
-glabel func_800E6F1C
+glabel vs_battle_aiFreeRoomAiState
     lui     $t0, (0x800F5878 >> 16)
     addiu   $sp, $sp, -0x20
     sw      $s0, 0x10($sp)
@@ -522,7 +522,7 @@ glabel func_800E6F1C
     sll     $v0, $v0, 2
     addu    $t0, $t0, $v0
     lw      $t0, 0x0($t0)
-    jal     func_800E7454
+    jal     vs_battle_aiFreeActorAiState
     addu    $a0, $s0, $zero
     lw      $s0, 0x0($s0)
     lui     $t0, (0x800F5878 >> 16)
@@ -533,19 +533,19 @@ glabel func_800E6F1C
     sw      $zero, %lo(D_800F58B8)($at)
     lui     $at, %hi(D_800F58C0)
     sw      $zero, %lo(D_800F58C0)($at)
-    lui     $a0, %hi(D_800F58BC)
-    lw      $a0, %lo(D_800F58BC)($a0)
+    lui     $a0, %hi(vs_battle_aiRoomAiState)
+    lw      $a0, %lo(vs_battle_aiRoomAiState)($a0)
     jal     vs_main_freeHeap
     addiu   $a1, $zero, 0x7
     lw      $s0, 0x10($sp)
     lw      $ra, 0x18($sp)
-    lui     $at, %hi(D_800F58BC)
-    sw      $zero, %lo(D_800F58BC)($at)
+    lui     $at, %hi(vs_battle_aiRoomAiState)
+    sw      $zero, %lo(vs_battle_aiRoomAiState)($at)
     jr      $ra
     addiu   $sp, $sp, 0x20
-endlabel func_800E6F1C
+endlabel vs_battle_aiFreeRoomAiState
 
-glabel func_800E6F9C
+glabel vs_battle_aiInitializeRoomAiMap
     addiu   $sp, $sp, -0x30
     sw      $s0, 0x10($sp)
     sw      $s1, 0x14($sp)
@@ -576,11 +576,11 @@ glabel func_800E6F9C
     addiu   $a0, $zero, 0x1038
     jal     vs_main_allocHeap
     addiu   $a1, $zero, 0x7
-    lui     $at, %hi(D_800F58BC)
-    sw      $v0, %lo(D_800F58BC)($at)
+    lui     $at, %hi(vs_battle_aiRoomAiState)
+    sw      $v0, %lo(vs_battle_aiRoomAiState)($at)
     addu    $s0, $v0, $zero
     addu    $a0, $v0, $zero
-    jal     func_800E4288
+    jal     vs_core_memoryClearAlignedWords
     addiu   $a1, $zero, 0x1038
     addiu   $v0, $s0, 0x38
     lui     $at, %hi(D_800F58B8)
@@ -606,7 +606,7 @@ glabel func_800E6F9C
 .L800E7080:
     addu    $a2, $zero, $zero
     andi    $a0, $s1, 0x1F
-    jal     func_8008B764
+    jal     vs_field_collisionCellAt
     srl     $a1, $s1, 5
     beqz    $v0, .L800E7164
     andi    $a0, $s1, 0x1F
@@ -637,7 +637,7 @@ glabel func_800E6F9C
     or      $v1, $v1, $t5
     or      $v1, $v1, $t6
     or      $v1, $v1, $t7
-    jal     func_800E71DC
+    jal     vs_battle_aiSampleAiTileGroundHeight
     or      $s2, $v1, $t4
     addu    $t0, $s4, $zero
     sra     $v0, $v0, 6
@@ -647,7 +647,7 @@ glabel func_800E6F9C
     sh      $v0, 0x0($t0)
     addu    $a2, $zero, $zero
     andi    $a0, $s1, 0x1F
-    jal     func_8008D438
+    jal     vs_field_findRoomTriggerAtTile
     srl     $a1, $s1, 5
     beqz    $v0, .L800E7168
     addiu   $a3, $zero, 0x1
@@ -669,7 +669,7 @@ glabel func_800E6F9C
     slti    $v1, $s1, 0x400
     bnez    $v1, .L800E7080
     addiu   $s3, $s3, 0x2
-    jal     func_800E6B4C
+    jal     vs_battle_aiBuildAiTerrainHeightsWithWorkspace
     nop
     lui     $a1, %hi(D_800F58C0)
     lw      $a1, %lo(D_800F58C0)($a1)
@@ -693,11 +693,11 @@ glabel func_800E6F9C
     sb      $v0, 0xA($s0)
 .L800E71D0:
     lui     $ra, (0x800DB888 >> 16)
-    bgez    $zero, func_800DC638
+    bgez    $zero, vs_battle_aiUpdateRouteGateAvailability
     ori     $ra, $ra, (0x800DB888 & 0xFFFF)
-endlabel func_800E6F9C
+endlabel vs_battle_aiInitializeRoomAiMap
 
-glabel func_800E71DC
+glabel vs_battle_aiSampleAiTileGroundHeight
     addiu   $sp, $sp, -0x30
     sw      $s3, 0x20($sp)
     sw      $s5, 0x28($sp)
@@ -709,7 +709,7 @@ glabel func_800E71DC
     sll     $s0, $a0, 7
     sll     $s1, $a1, 7
     addiu   $a0, $s0, 0x40
-    jal     func_8008DC7C
+    jal     vs_field_floorHeightAt
     addiu   $a1, $s1, 0x40
     addu    $s5, $v0, $zero
     addu    $s2, $zero, $zero
@@ -721,7 +721,7 @@ glabel func_800E71DC
     andi    $a1, $s2, 0x3
     sll     $a1, $a1, 5
     add     $a0, $s0, $a0 /* handwritten instruction */
-    jal     func_8008DC7C
+    jal     vs_field_floorHeightAt
     add     $a1, $s1, $a1 /* handwritten instruction */
     addiu   $v1, $zero, 0xA
     bne     $s2, $v1, .L800E724C
@@ -766,7 +766,7 @@ glabel func_800E71DC
 .L800E72C8:
     bgez    $zero, L800DB888
     addu    $v0, $s5, $zero
-endlabel func_800E71DC
+endlabel vs_battle_aiSampleAiTileGroundHeight
 
 glabel func_800E72D0
     addiu   $sp, $sp, -0x30
@@ -803,7 +803,7 @@ glabel func_800E72D0
     andi    $t3, $t4, 0x1
     beqz    $t3, .L800E735C
     addu    $a0, $t1, $zero
-    jal     func_800DC210
+    jal     vs_battle_aiTryBeginAshleyAlliance
     addiu   $a1, $zero, 0x1
 .L800E735C:
     lw      $s0, 0x0($s0)
@@ -813,7 +813,7 @@ glabel func_800E72D0
     bgez    $zero, L800DB89C
 endlabel func_800E72D0
 
-glabel func_800E7370
+glabel vs_battle_aiInitializeActorAiRelations
     lui     $a3, (0x800F5878 >> 16)
     addiu   $sp, $sp, -0xC
     sw      $s0, 0x0($sp)
@@ -862,7 +862,7 @@ glabel func_800E7370
     srl     $t0, $t0, 6
     andi    $t0, $t0, 0x3
     slti    $t0, $t0, 0x1
-    bnez    $t0, func_800E7370
+    bnez    $t0, vs_battle_aiInitializeActorAiRelations
     addu    $a0, $a3, $zero
 alabel D_800E7430
     lw      $s1, 0x0($s1)
@@ -875,9 +875,9 @@ alabel D_800E7430
     lw      $s1, 0x4($sp)
     jr      $ra
     addiu   $sp, $sp, 0xC
-endlabel func_800E7370
+endlabel vs_battle_aiInitializeActorAiRelations
 
-glabel func_800E7454
+glabel vs_battle_aiFreeActorAiState
     addiu   $sp, $sp, -0x30
     sw      $s5, 0x28($sp)
     sw      $s0, 0x10($sp)
@@ -921,8 +921,8 @@ glabel func_800E7454
     lui     $t6, (0x800F5878 >> 16)
     bnez    $t0, .L800E74B8
 .L800E74F0:
-    lui     $s5, %hi(D_800F58BC)
-    lw      $s5, %lo(D_800F58BC)($s5)
+    lui     $s5, %hi(vs_battle_aiRoomAiState)
+    lw      $s5, %lo(vs_battle_aiRoomAiState)($s5)
     addiu   $v0, $zero, 0xC
 .L800E74FC:
     addu    $t4, $s5, $v0
@@ -939,9 +939,9 @@ glabel func_800E7454
     sll     $v0, $s1, 2
     addu    $v0, $v0, $t6
     lw      $s2, 0x0($v0)
-    jal     func_800E5240
+    jal     vs_battle_aiFreeActorNavigationOverride
     addu    $a0, $s1, $zero
-    jal     func_800E678C
+    jal     vs_battle_aiReleaseActorAiReservations
     addu    $a0, $s2, $zero
     beqz    $s1, L800DB890
     lhu     $t1, 0x10($s5)
@@ -959,15 +959,15 @@ glabel func_800E7454
     andi    $t0, $t0, 0xFC
     beqz    $s2, .L800E75AC
     sb      $t0, 0xB($s0)
-    jal     func_800D821C
+    jal     vs_battle_aiResetActorAwarenessIndicator
     addu    $a0, $s2, $zero
-    jal     func_800DBF00
+    jal     vs_battle_aiUnlinkEngagedActor
     addu    $a0, $s2, $zero
     addiu   $a1, $zero, 0x7
     jal     vs_main_freeHeap
     addu    $a0, $s2, $zero
-    lui     $a0, %hi(D_800F5878)
-    addiu   $a0, $a0, %lo(D_800F5878)
+    lui     $a0, %hi(vs_battle_aiActorAiStates)
+    addiu   $a0, $a0, %lo(vs_battle_aiActorAiStates)
     sll     $a1, $s1, 2
     addu    $a0, $a0, $a1
     sw      $zero, 0x0($a0)
@@ -990,19 +990,19 @@ glabel func_800E7454
     addiu   $a1, $zero, 0x7
     j       vs_main_freeHeap
     sw      $zero, 0x0($a3)
-endlabel func_800E7454
+endlabel vs_battle_aiFreeActorAiState
 
-glabel func_800E75EC
-    lui     $a3, %hi(D_800F58BC)
-    lw      $a3, %lo(D_800F58BC)($a3)
+glabel vs_battle_aiRoomNavigationCeilingHeight
+    lui     $a3, %hi(vs_battle_aiRoomAiState)
+    lw      $a3, %lo(vs_battle_aiRoomAiState)($a3)
     nop
     beqz    $a3, .L800E75CC
     addu    $v0, $zero, $zero
     bgez    $zero, .L800E75CC
     lw      $v0, 0x14($a3)
-endlabel func_800E75EC
+endlabel vs_battle_aiRoomNavigationCeilingHeight
 
-glabel func_800E7608
+glabel vs_battle_aiClearActorAiLinksAndPlan
     lui     $a3, %hi(vs_battle_actors)
     lw      $a3, %lo(vs_battle_actors)($a3)
     lui     $a1, (0x800F5878 >> 16)
@@ -1025,11 +1025,11 @@ glabel func_800E7608
     ori     $a1, $a1, (0x800F5878 & 0xFFFF)
     sll     $v0, $a0, 2
     addu    $a0, $v0, $a1
-    j       func_800D82CC
+    j       vs_battle_aiDisengageActor
     lw      $a0, 0x0($a0)
-endlabel func_800E7608
+endlabel vs_battle_aiClearActorAiLinksAndPlan
 
-glabel func_800E7660
+glabel vs_battle_aiAllocateOrbitingBossState
     addiu   $sp, $sp, -0x30
     sw      $ra, 0x18($sp)
     sw      $s0, 0x10($sp)
@@ -1039,9 +1039,9 @@ glabel func_800E7660
     addu    $a0, $v0, $zero
     lui     $at, %hi(D_800F5920)
     sw      $v0, %lo(D_800F5920)($at)
-    jal     func_800E4288
+    jal     vs_core_memoryClearAlignedWords
     addiu   $a1, $zero, 0x20
     addiu   $v1, $zero, 0x384
     j       L800DB89C
     sh      $v1, 0xC($v0)
-endlabel func_800E7660
+endlabel vs_battle_aiAllocateOrbitingBossState

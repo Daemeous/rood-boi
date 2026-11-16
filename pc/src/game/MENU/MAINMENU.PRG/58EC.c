@@ -35,7 +35,7 @@ static char _itemActionListOffset = 0;
 char _rangeRiskData[8];
 short D_80102488[4];
 char D_80102490[8];
-short D_80102498[4];
+short vs_menu_frameworkComparisonAccessoryStats[4];
 
 char _menuActionsPageOffset;
 char vs_mainMenu_currentStatusViewItem;
@@ -76,8 +76,8 @@ void vs_mainMenu_addMenuActions(
     if (subMenuId == actionMenuDiscard) {
         i = 1;
     } else if ((vs_main_settings.cursorMemory != 0) && (subMenuId != 3)) {
-        i = D_800F4EE8.cursorMemories[subMenuId * 2];
-        scrollOffset = D_800F4EE8.cursorMemories[subMenuId * 2 + 1];
+        i = vs_menu_frameworkMenuMemory.cursorMemories[subMenuId * 2];
+        scrollOffset = vs_menu_frameworkMenuMemory.cursorMemories[subMenuId * 2 + 1];
     }
 
     scrollableRows = rowCount - 7;
@@ -236,8 +236,8 @@ void vs_mainMenu_renderItemActionMenu(void)
                 vs_main_freeHeapR(_sortItemsTextBuf);
 
                 _sortItemsTextBuf = NULL;
-                D_800F4EE8.cursorMemories[_actionsSubMenuId * 2] = _selectedItemAction;
-                D_800F4EE8.cursorMemories[_actionsSubMenuId * 2 + 1] =
+                vs_menu_frameworkMenuMemory.cursorMemories[_actionsSubMenuId * 2] = _selectedItemAction;
+                vs_menu_frameworkMenuMemory.cursorMemories[_actionsSubMenuId * 2 + 1] =
                     _itemActionListOffset;
                 _selectedItemAction = -3;
                 break;
@@ -248,9 +248,9 @@ void vs_mainMenu_renderItemActionMenu(void)
                     menuItem->selected = 1;
                     vs_main_freeHeapR(_sortItemsTextBuf);
                     _sortItemsTextBuf = NULL;
-                    D_800F4EE8.cursorMemories[_actionsSubMenuId * 2] =
+                    vs_menu_frameworkMenuMemory.cursorMemories[_actionsSubMenuId * 2] =
                         _selectedItemAction;
-                    D_800F4EE8.cursorMemories[_actionsSubMenuId * 2 + 1] =
+                    vs_menu_frameworkMenuMemory.cursorMemories[_actionsSubMenuId * 2 + 1] =
                         _itemActionListOffset;
                     _selectedItemAction = selectedAction;
                     break;
@@ -263,8 +263,8 @@ void vs_mainMenu_renderItemActionMenu(void)
             if (vs_main_buttonsPressed.all & PADRdown) {
                 vs_main_freeHeapR(_sortItemsTextBuf);
                 _sortItemsTextBuf = NULL;
-                D_800F4EE8.cursorMemories[_actionsSubMenuId * 2] = _selectedItemAction;
-                D_800F4EE8.cursorMemories[_actionsSubMenuId * 2 + 1] =
+                vs_menu_frameworkMenuMemory.cursorMemories[_actionsSubMenuId * 2] = _selectedItemAction;
+                vs_menu_frameworkMenuMemory.cursorMemories[_actionsSubMenuId * 2 + 1] =
                     _itemActionListOffset;
                 _selectedItemAction = -2;
                 break;
@@ -767,11 +767,11 @@ void vs_mainMenu_unpackMenubg(u_int* buf)
         }
     }
 
-    func_8007DFF0(0x1A, 3, 6);
+    vs_render_reserveTexturePages(0x1A, 3, 6);
     ClearImage(&rects[0], 0, 0, 0);
     ClearImage(&rects[1], 0, 0, 0);
 
-    if (((vs_battle_menuState.currentMenu & 0x3F) == 7) && (D_800F4EA0 & 0x200)
+    if (((vs_battle_menuState.currentMenu & 0x3F) == 7) && (vs_menu_frameworkActionRestrictions & 0x200)
         && (vs_main_stateFlags.gameOver == 1)) {
         vs_battle_renderImage(vs_getXY(640, 511), data, vs_getWH(256, 1));
     } else {
@@ -805,8 +805,8 @@ void vs_mainmenu_setMenuRows(int rowCount, int rowInfo, char* strings[], int row
     rowInfo = (rowInfo >> 8) & 0xF;
 
     if (vs_main_settings.cursorMemory != 0) {
-        i = D_800F4EE8.cursorMemories[subMenuId * 2];
-        page = D_800F4EE8.cursorMemories[subMenuId * 2 + 1];
+        i = vs_menu_frameworkMenuMemory.cursorMemories[subMenuId * 2];
+        page = vs_menu_frameworkMenuMemory.cursorMemories[subMenuId * 2 + 1];
     }
 
     temp_v1_2 = 10;
@@ -890,8 +890,8 @@ int vs_mainMenu_storeCursor(void)
     vs_main_freeHeapR(_itemsText);
 
     _itemsText = NULL;
-    D_800F4EE8.cursorMemories[_subMenuId * 2] = _selectedRow;
-    D_800F4EE8.cursorMemories[_subMenuId * 2 + 1] = _subMenuPage;
+    vs_menu_frameworkMenuMemory.cursorMemories[_subMenuId * 2] = _selectedRow;
+    vs_menu_frameworkMenuMemory.cursorMemories[_subMenuId * 2 + 1] = _subMenuPage;
 
     return (_selectedRow + _subMenuPage) | ((_selectedRow + (_subMenuRowInfo * 10)) << 8);
 }
@@ -1020,8 +1020,8 @@ void vs_mainMenu_renderItemsList(void)
                 vs_main_freeHeapR(_itemsText);
 
                 _itemsText = NULL;
-                D_800F4EE8.cursorMemories[_subMenuId * 2] = _selectedRow;
-                D_800F4EE8.cursorMemories[_subMenuId * 2 + 1] = _subMenuPage;
+                vs_menu_frameworkMenuMemory.cursorMemories[_subMenuId * 2] = _selectedRow;
+                vs_menu_frameworkMenuMemory.cursorMemories[_subMenuId * 2 + 1] = _subMenuPage;
                 _selectedRow = -3;
 
                 return;
@@ -1036,8 +1036,8 @@ void vs_mainMenu_renderItemsList(void)
                     vs_main_freeHeapR(_itemsText);
 
                     _itemsText = NULL;
-                    D_800F4EE8.cursorMemories[_subMenuId * 2] = _selectedRow;
-                    D_800F4EE8.cursorMemories[_subMenuId * 2 + 1] = _subMenuPage;
+                    vs_menu_frameworkMenuMemory.cursorMemories[_subMenuId * 2] = _selectedRow;
+                    vs_menu_frameworkMenuMemory.cursorMemories[_subMenuId * 2 + 1] = _subMenuPage;
                     _selectedRow = absRow;
 
                     return;
@@ -1054,8 +1054,8 @@ void vs_mainMenu_renderItemsList(void)
                 vs_main_freeHeapR(_itemsText);
 
                 _itemsText = NULL;
-                D_800F4EE8.cursorMemories[_subMenuId * 2] = _selectedRow;
-                D_800F4EE8.cursorMemories[_subMenuId * 2 + 1] = _subMenuPage;
+                vs_menu_frameworkMenuMemory.cursorMemories[_subMenuId * 2] = _selectedRow;
+                vs_menu_frameworkMenuMemory.cursorMemories[_subMenuId * 2 + 1] = _subMenuPage;
                 _selectedRow = -2;
 
                 return;

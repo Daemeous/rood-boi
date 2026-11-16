@@ -9,7 +9,7 @@ const v = @import("views_146C");
 pub fn updateWeaponKillStreak(_: c_int) callconv(.c) void {
     const actor = psx.get(v.g.vs_battle_characterState().*.?.stats);
 
-    if (v.g.D_800F19CC().*.?.unk8.actionIndex >= 40) {
+    if (v.g.vs_battle_actionState().*.?.unk8.actionIndex >= 40) {
         return;
     }
 

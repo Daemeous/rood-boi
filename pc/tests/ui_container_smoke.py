@@ -28,13 +28,13 @@ container (the save room has no container object). Each set compares:
       storage (unk0, unkF00, unkFB0, unk87B0, itemsToTransfer, unkC430,
       unk105B0), containerEmpty, returnState / currentMenu,
       vs_menuD_containerData and the six vs_mainMenu_* pointers: A = B = C;
-      the cursor memories (D_800F4EE8): A = B; unk4BB0 reported (a scratch
+      the cursor memories (vs_menu_frameworkMenuMemory): A = B; unk4BB0 reported (a scratch
       buffer MENUD always rewrites before reading it: the waiver, checked
       against 234.c's source below)
   S2  after a save (KEY and the play time pinned at the confirm): the card
       images byte-identical, one write, only file 1's blocks changed, the
       decoded container block equal to S1's unkC430.data packed
-  S3  at the close: currentMenu 0x3F, D_800EB9B0 0, the background fade 0,
+  S3  at the close: currentMenu 0x3F, vs_battle_hudSlideOffset 0, the background fade 0,
       the heap's free total equal across the processes (A = B = C; printed
       next to its value at the open, not checked against it), the HUD flag
       and vs_mainMenu_hideMenu as before, no session (container null)
@@ -110,7 +110,7 @@ def overlay_symbols():
     function-local suffix dropped): the original's (A) presses go in when its menu takes input."""
     if _overlay:
         return _overlay
-    want = {"rood_ovl_menu_menud_prg": ("D_80109A70", "D_80109A68", "D_80109A69", "state", "D_80109A5C",
+    want = {"rood_ovl_menu_menud_prg": ("D_80109A70", "D_80109A68", "vs_menu_containerCategoryEmpty", "state", "vs_menu_containerTransferConfirmationStep",
                                         "D_80109A47"),
             "rood_ovl_menu_mainmenu_prg": ("vs_mainMenu_actionMenuState", "vs_mainMenu_itemsListRow", "_itemsText",
                                            "_sortItemsTextBuf")}
@@ -246,14 +246,14 @@ class Session:
         d["pointers"] = b"".join(g.read(self.sym[n], PTR) for n in (
             "vs_mainMenu_weapons", "vs_mainMenu_blades", "vs_mainMenu_grips", "vs_mainMenu_shields",
             "vs_mainMenu_armor", "vs_mainMenu_gems"))
-        cursor = g.read(self.sym["D_800F4EE8"], 0xF2)
+        cursor = g.read(self.sym["vs_menu_frameworkMenuMemory"], 0xF2)
         scratch = g.read(st + UNK4BB0[0], UNK4BB0[1])
         return d, cursor, scratch
 
     def s3(self):
-        return {"menu": self.u8("vs_battle_menuState"), "D_800EB9B0": self.u32(self.sym["D_800EB9B0"]),
+        return {"menu": self.u8("vs_battle_menuState"), "vs_battle_hudSlideOffset": self.u32(self.sym["vs_battle_hudSlideOffset"]),
                 "fade": struct.unpack("<i", self.g.read(self.sym["vs_mainMenu_backgroundFadeStep"], 4))[0],
-                "heap": self.heap_free(), "hud": self.u8("D_800EB9AF"), "hideMenu": self.u8("vs_mainMenu_hideMenu"),
+                "heap": self.heap_free(), "hud": self.u8("vs_battle_hudHidden"), "hideMenu": self.u8("vs_mainMenu_hideMenu"),
                 "container": self.ctr()}
 
     # ---- waits and presses ----
@@ -292,11 +292,11 @@ class Session:
             if md == 5:
                 st = rd("D_80109A68")
                 if st == 2:
-                    return (rd("D_80109A69") != 0 and self.items_ready()) or rows_in()
+                    return (rd("vs_menu_containerCategoryEmpty") != 0 and self.items_ready()) or rows_in()
                 if st == 6:
                     return rows_in()
                 if st == 15:  # func_801072B0's Yes / No (its state 1; 2 waits for the menu after the answer)
-                    return rd("D_80109A5C") == 1 and acts_in()
+                    return rd("vs_menu_containerTransferConfirmationStep") == 1 and acts_in()
                 if st in (9, 12):
                     return acts_in()
                 if st == 11:  # _discardMenu: its Yes / No (3, 7) at the action list's input row, the amount (5)
@@ -328,8 +328,8 @@ class Session:
             o = overlay_symbols()
             st = self.ptr("vs_menu_inventoryStorage")
             print(f"trace {self.name} {button}: menu {self.menu()} MENUD {self.md_state()} "
-                  f"80107490 {self.g.read(o['D_80109A68'], 1)[0]} top {self.u8('D_800F4EE8', 0x9E)} "
-                  f"tab {(self.u8('D_800F4EE8', 0xA0) - 1) & 7} staged "
+                  f"80107490 {self.g.read(o['D_80109A68'], 1)[0]} top {self.u8('vs_menu_frameworkMenuMemory', 0x9E)} "
+                  f"tab {(self.u8('vs_menu_frameworkMenuMemory', 0xA0) - 1) & 7} staged "
                   f"{self.g.read(st + 0xC3B0, 12).hex() if st else '-'}", flush=True)
 
     def phase(self):
@@ -361,7 +361,7 @@ class Session:
     # ---- the flow ----
     def open(self):
         """The container opened as the field opens it; MENU7's first prompt up."""
-        self.heap0, self.hud0, self.hide0 = self.heap_free(), self.u8("D_800EB9AF"), self.u8("vs_mainMenu_hideMenu")
+        self.heap0, self.hud0, self.hide0 = self.heap_free(), self.u8("vs_battle_hudHidden"), self.u8("vs_mainMenu_hideMenu")
         r = self.g.call("container")
         if not r.get("opened"):
             raise Timeout(f"{self.name}: the container did not open ({r})")
@@ -441,9 +441,9 @@ class Session:
         raise Timeout(f"{self.name}: MENUD's exit (mouse)")
 
     def top_to(self, i):
-        """MENUD's top menu cursor (D_800F4EE8.unk9E, the same RAM in every process) to row i by Down."""
+        """MENUD's top menu cursor (vs_menu_frameworkMenuMemory.unk9E, the same RAM in every process) to row i by Down."""
         for _ in range(3):
-            if self.u8("D_800F4EE8", 0x9E) == i:
+            if self.u8("vs_menu_frameworkMenuMemory", 0x9E) == i:
                 return
             self.press("down")
         raise Timeout(f"{self.name}: the top menu's row {i}")
@@ -651,7 +651,7 @@ def presentation(s, check, where):
         return
     c = s.ctr()
     check(s.u8("vs_mainMenu_hideMenu") == 1, f"{s.name}: {where}: vs_mainMenu_hideMenu set while latched")
-    check(s.u8("D_800EB9AF") == 1, f"{s.name}: {where}: the HUD held out")
+    check(s.u8("vs_battle_hudHidden") == 1, f"{s.name}: {where}: the HUD held out")
     check(all(s.item_state(i) == 0 for i in (0xA, 0xB, 20, 21, 32, 33)),
           f"{s.name}: {where}: MENUD's own menu items never set up")
     g0 = c["gated"]
@@ -725,10 +725,10 @@ def p1(mode, out, fx, box, made, sets, check, shots, results):
             for _ in range(8):
                 if s.mode != "A" and s.ctr()["tab"] == 6:
                     break
-                if s.mode == "A" and ((s.u8("D_800F4EE8", 0xA0) - 1) & 7) == 6:
+                if s.mode == "A" and ((s.u8("vs_menu_frameworkMenuMemory", 0xA0) - 1) & 7) == 6:
                     break
                 s.press("l1")
-            check(((s.u8("D_800F4EE8", 0xA0) - 1) & 7) == 6, f"{name}: set 6: on the misc tab")
+            check(((s.u8("vs_menu_frameworkMenuMemory", 0xA0) - 1) & 7) == 6, f"{name}: set 6: on the misc tab")
             for btn in ("circle", "down", "circle"):  # the 95 and 70 stacks merge
                 s.press(btn)
             s.shot("merged")
@@ -774,7 +774,7 @@ def p1(mode, out, fx, box, made, sets, check, shots, results):
             else:
                 s.press("circle")  # Remove
                 for _ in range(8):
-                    if ((s.u8("D_800F4EE8", 0xA0) - 1) & 7) == 6:
+                    if ((s.u8("vs_menu_frameworkMenuMemory", 0xA0) - 1) & 7) == 6:
                         break
                     s.press("l1")
                 for btn in ("circle", "circle", "circle", "cross", "circle"):  # stage, End, Yes: the top
@@ -829,13 +829,13 @@ def p1(mode, out, fx, box, made, sets, check, shots, results):
             else:
                 s.press("circle")  # Remove
                 for _ in range(8):  # weapons
-                    if ((s.u8("D_800F4EE8", 0xA0) - 1) & 7) == 0:
+                    if ((s.u8("vs_menu_frameworkMenuMemory", 0xA0) - 1) & 7) == 0:
                         break
                     s.press("r1")
                 for btn in ("circle", "circle", "circle"):  # pick, actions, Remove
                     s.press(btn)
                 for _ in range(8):  # misc
-                    if ((s.u8("D_800F4EE8", 0xA0) - 1) & 7) == 6:
+                    if ((s.u8("vs_menu_frameworkMenuMemory", 0xA0) - 1) & 7) == 6:
                         break
                     s.press("l1")
                 for btn in ("circle", "circle", "circle"):  # the 95 stack (row 0: the tab's first visit)
@@ -872,7 +872,7 @@ def p1(mode, out, fx, box, made, sets, check, shots, results):
             s.top_to(1)  # Store
             s.press("circle")
             for _ in range(8):
-                if ((s.u8("D_800F4EE8", 0xA0) - 1) & 7) == 0:
+                if ((s.u8("vs_menu_frameworkMenuMemory", 0xA0) - 1) & 7) == 0:
                     break
                 s.press("r1")
             for btn in ("circle", "circle", "circle"):  # the equipped first weapon: Store refused (invalid)
@@ -945,14 +945,14 @@ def pack(container):
 
 def s3_check(s, check, where):
     t = s.s3()
-    check(t["menu"] == CLOSED and t["D_800EB9B0"] == 0 and t["fade"] == 0,
-          f"{s.name}: {where}: closed ({t['menu']:#x}, D_800EB9B0 {t['D_800EB9B0']}, fade {t['fade']})")
+    check(t["menu"] == CLOSED and t["vs_battle_hudSlideOffset"] == 0 and t["fade"] == 0,
+          f"{s.name}: {where}: closed ({t['menu']:#x}, vs_battle_hudSlideOffset {t['vs_battle_hudSlideOffset']}, fade {t['fade']})")
     print(f"info: {s.name}: {where}: the heap's free total {t['heap']} (before the open {s.heap0}; compared "
           f"between the processes)")
     check(t["hud"] == s.hud0 and t["hideMenu"] == s.hide0,
           f"{s.name}: {where}: the HUD flag and hideMenu as before ({t['hud']}/{s.hud0}, {t['hideMenu']}/{s.hide0})")
     check(t["container"] is None and s.data() is None, f"{s.name}: {where}: no session left")
-    return (t["menu"], t["D_800EB9B0"], t["fade"], t["heap"], t["hud"], t["hideMenu"])
+    return (t["menu"], t["vs_battle_hudSlideOffset"], t["fade"], t["heap"], t["hud"], t["hideMenu"])
 
 
 def ppm_mean(path, box):

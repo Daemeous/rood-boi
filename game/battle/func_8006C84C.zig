@@ -7,7 +7,7 @@ const c = @import("c_146C");
 /// orig: func_8006C84C (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// Runs the queued entries of slot `unk0 & 3` through their action callbacks, ticking after each.
 pub fn func_8006C84C(arg0: c_int) callconv(.c) c_int {
-    const gs = v.g.D_800F19CC().*.?;
+    const gs = v.g.vs_battle_actionState().*.?;
     const temp = &gs.unk854[@as(usize, gs.unk0 & 3)];
 
     var i: c_int = 0;
@@ -43,7 +43,7 @@ pub fn func_8006C84C(arg0: c_int) callconv(.c) c_int {
             c.func_8006C4C4(0x26, @ptrCast(entry), 0);
         }
 
-        _ = c.func_8006C5AC(arg0);
+        _ = c.vs_battle_playWeaponHitSounds(arg0);
     }
 
     return 1;

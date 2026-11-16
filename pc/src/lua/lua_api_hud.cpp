@@ -794,7 +794,7 @@ int api_quad(lua_State* L)
 }
 
 // d.frame(x, y, w, h, {box, shape, flip?, tail?}): classic only: a text box's frame drawn by the game's own routine
-// (func_800CD3E4) on a copy of box `box` (0..7: its entries of the text boxes' ordering table): x, y its top-left,
+// (vs_menu_drawTextBoxFrame) on a copy of box `box` (0..7: its entries of the text boxes' ordering table): x, y its top-left,
 // w x h, shape (the frames' table: 0..15), flip (0..3: mirrored across, down), tail (the speaker's part, 0..15).
 int api_frame(lua_State* L)
 {
@@ -868,7 +868,7 @@ int api_char(lua_State* L)
 }
 
 // d.image(image, drawer, clut): classic only (image's): a portrait or still drawn by the game's own drawer
-// (D_800EC25C[drawer], as func_800CCA90 calls it) in the kind's slot: image 0..2, clut its CLUT word.
+// (vs_render_gimLayerDrawRoutines[drawer], as vs_render_drawGimLayer calls it) in the kind's slot: image 0..2, clut its CLUT word.
 int api_image(lua_State* L)
 {
     const char* fn = "rood.draw.image";
@@ -2411,7 +2411,7 @@ void fill_element(lua_State* L, const hud::Element& e, bool fresh = false)
     } else {
         set_nil(L, "glyphs");
     }
-    if (k == PC_HUD_TEXT_FRAME) { // the box as func_800CD3E4 reads it
+    if (k == PC_HUD_TEXT_FRAME) { // the box as vs_menu_drawTextBoxFrame reads it
         set_int(L, "box", f.box_id);
         set_int(L, "box_x", f.box_x);
         set_int(L, "box_y", f.box_y);

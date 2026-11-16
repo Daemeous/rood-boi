@@ -7,7 +7,7 @@ const v = @import("views_573B8");
 /// Copies the record at `src` into the target shape's unk10 and clears its unk2A.
 pub fn func_800C0700(arg0: ?*v.func_800C1564_t) callconv(.c) void {
     // ROOD_PC: with the shape freed, the original writes PS1 address 0 (psx.lowRam).
-    const shape: *v.D_800EB9B8_t = if (v.g.D_800EB9B8().*) |p| p else @alignCast(psx.lowRam(v.D_800EB9B8_t));
+    const shape: *v.D_800EB9B8_t = if (v.g.vs_battle_targetSphere().*) |p| p else @alignCast(psx.lowRam(v.D_800EB9B8_t));
     shape.unk0[1] = arg0.?.*;
     shape.unk2A = 0;
 }

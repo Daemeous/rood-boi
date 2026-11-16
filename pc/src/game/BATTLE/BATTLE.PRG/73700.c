@@ -12,17 +12,17 @@
 #include "pc/src/psx_types.h"
 #include "ai_state.h"
 
-void func_800D82CC(vs_battle_aiState*);
-void func_800E4C8C(vs_battle_aiState*);
-extern D_800F58BC_t* D_800F58BC;
+void vs_battle_aiDisengageActor(vs_battle_aiState*);
+void vs_battle_aiRememberAiActionTarget(vs_battle_aiState*);
+extern D_800F58BC_t* vs_battle_aiRoomAiState;
 struct vs_battle_aiState;
-void func_800DBF00(vs_battle_aiState*);
-void func_800DBFE4(struct vs_battle_aiState*);
+void vs_battle_aiUnlinkEngagedActor(vs_battle_aiState*);
+void vs_battle_aiUpdateEngagementBuildup(struct vs_battle_aiState*);
 
-void func_800DBF00(vs_battle_aiState* arg0);
+void vs_battle_aiUnlinkEngagedActor(vs_battle_aiState* arg0);
 
-void func_800D820C(int, int);
-void func_800DBFE4(vs_battle_aiState* state);
+void vs_battle_aiSetActorAwarenessIndicator(int, int);
+void vs_battle_aiUpdateEngagementBuildup(vs_battle_aiState* state);
 
-void func_800DC0D0(void);
+void vs_battle_aiAnimateEngagementPhase(void);
 

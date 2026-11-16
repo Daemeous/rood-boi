@@ -24,7 +24,7 @@ fn facingTrig(angle_in: c_uint) c_int {
     return if (angle & 0x800 != 0) -%value else value;
 }
 
-/// orig: func_800E437C (pc/src/battle_gte.c)
+/// orig: vs_battle_aiTargetFacingCosine (pc/src/battle_gte.c)
 /// The cosine (Q12, clamped to +-0x1000) between the facing `angle` and the XZ
 /// direction from `from` to `to` (shorts X, Y, Z); 0x1000 when `distance` is
 /// zero. The direction is normalised by VectorNormal.

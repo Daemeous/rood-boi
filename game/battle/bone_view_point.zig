@@ -9,10 +9,10 @@ const c = @import("c_38C1C");
 pub fn boneViewPoint(actorId: c_int, bone_in: c_int, result: [*c]c_ushort, endpoint: c_int) callconv(.c) c_int {
     var bone = bone_in;
     var model: ?*v.D_800F4538_unk68 = null;
-    const actor: ?*v.D_800F4538_t = psx.at(v.g.D_800F4538(), actorId).*;
+    const actor: ?*v.D_800F4538_t = psx.at(v.g.vs_actors_actorRecords(), actorId).*;
     if (actor) |a| model = psx.get(a.unk0.unk68);
     if (actor == null) {
-        const other = psx.at(v.g.D_800F45E0(), actorId).* orelse return -1;
+        const other = psx.at(v.g.vs_field_gimmickInstances(), actorId).* orelse return -1;
         const alt: *v.D_800F4538_t = @ptrCast(other);
         model = psx.get(alt.unk0.unk68);
     }

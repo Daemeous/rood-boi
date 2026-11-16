@@ -23,7 +23,7 @@ fn vv(p: [*c]c.VECTOR) *v.VECTOR {
 }
 
 fn camera() *v.D_800F4BA4_t {
-    return v.g.D_800F4BA4().*.?;
+    return v.g.vs_event_camera().*.?;
 }
 
 /// orig: _copyVector (pc/src/game/BATTLE/BATTLE.PRG/4A0A8.c)
@@ -156,7 +156,7 @@ pub fn func_800BC2E8(script: [*c]u8, _: c_short) callconv(.c) c_int {
             return 0;
         },
         7 => {
-            c.func_800A190C(c.func_800BFE50(psx.conv(u16, c.vs_battle_getShort(script + 1))), script[3], psx.cptr(c.SVECTOR, rotation), 2);
+            c.vs_actors_anchorPoint(c.vs_event_resolveScriptActorReference(psx.conv(u16, c.vs_battle_getShort(script + 1))), script[3], psx.cptr(c.SVECTOR, rotation), 2);
             _ = sVectorToFixedPointVector(v1, rotation);
             _ = c._setVectorImm(cv(v2), script + 4);
             _ = c._vectorAdd(cv(&cur.position), cv(v1), cv(v2));
@@ -167,7 +167,7 @@ pub fn func_800BC2E8(script: [*c]u8, _: c_short) callconv(.c) c_int {
         },
         8 => {
             cur.mode = 8;
-            cur.value = c.func_800BFE50(psx.conv(u16, c.vs_battle_getShort(script + 1)));
+            cur.value = c.vs_event_resolveScriptActorReference(psx.conv(u16, c.vs_battle_getShort(script + 1)));
             cur.delta = script[3];
             cur.time = 0;
             cur.duration = script[10];
@@ -182,16 +182,16 @@ pub fn func_800BC2E8(script: [*c]u8, _: c_short) callconv(.c) c_int {
             return 0;
         },
         10 => {
-            const id = c.func_800BFE50(psx.conv(u16, c.vs_battle_getShort(script + 1)));
+            const id = c.vs_event_resolveScriptActorReference(psx.conv(u16, c.vs_battle_getShort(script + 1)));
             scratch.value = id;
-            _ = c.func_800A1108(id, @ptrCast(&camera().unk1CC[1]));
+            _ = c.vs_actors_actorPlacement(id, @ptrCast(&camera().unk1CC[1]));
             scratch.rotation2.vz = 0;
             scratch.rotation2.vx = 0;
             scratch.rotation2.vy = psx.byteAt(i16, camera(), 0x1DA).*;
             _ = c.RotMatrix_gte(psx.cptr(c.SVECTOR, rotation2), psx.cptr(c.MATRIX, matrix));
             _ = c._setVectorImm(cv(v1), script + 4);
             gte.applyMatrixLV(matrix, v1, v1);
-            c.func_800A190C(scratch.value, script[3], psx.cptr(c.SVECTOR, rotation2), 2);
+            c.vs_actors_anchorPoint(scratch.value, script[3], psx.cptr(c.SVECTOR, rotation2), 2);
             _ = c._vectorAdd(cv(&cur.position), cv(sVectorToFixedPointVector(v2, rotation2)), cv(v1));
             if (camera().unk1E8 != 0x2000) {
                 _ = c._vectorSubtract(cv(&cur.position), cv(&cur.position), cv(&camera().unk1EC));

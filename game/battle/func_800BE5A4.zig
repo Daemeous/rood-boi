@@ -6,7 +6,7 @@ const c = @import("c_4A0A8");
 /// orig: func_800BE5A4 (pc/src/game/BATTLE/BATTLE.PRG/4A0A8.c)
 /// Steps the camera look-at point (arg0 0) or eye (other nonzero); arg0 2 steps both and averages their durations.
 pub fn func_800BE5A4(arg0: c_short) callconv(.c) void {
-    const base = v.g.D_800F4BA4().*.?;
+    const base = v.g.vs_event_camera().*.?;
     const temp_s0: *v.D_800F4BA4_t2 = &base.lookAt;
     const temp_s1: *v.D_800F4BA4_t2 = &base.eye;
 

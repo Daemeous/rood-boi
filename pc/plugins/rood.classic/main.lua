@@ -38,7 +38,7 @@ local function widescreen() return S("widescreen") == true end -- (the 16:9 view
 
 local function make_look()
   return {
-    -- The timing word (BATTLE.PRG func_800958A4, the label loop's kind 4): the game's own strings ('$'
+    -- The timing word (BATTLE.PRG vs_battle_drawAbilityTimingResult, the label loop's kind 4): the game's own strings ('$'
     -- centres the word on x; two-word phrases are padded with the font's narrow blanks), colours (PS1
     -- colour words: 0xBBGGRR, 0x80 full) and slide (pixels left of its place at ages 0..3 coming in,
     -- and from `slide_out` on going out, the steps backwards).
@@ -51,7 +51,7 @@ local function make_look()
       slide = { 64, 16, 4, 1 },
       slide_out = 42,
     },
-    -- The chain count (func_80095A4C, kind 5): "3 CHAINS" ("1 CHAIN"), slid in only for the first.
+    -- The chain count (vs_battle_drawChainCount, kind 5): "3 CHAINS" ("1 CHAIN"), slid in only for the first.
     chain = {
       place = { anchor = "left", dx = 0, dy = 0 },
       one = "$1 CHAIN",
@@ -60,10 +60,10 @@ local function make_look()
       slide = { 64, 16, 4, 1 },
       slide_out = 87,
     },
-    -- The status display's gauges (5BF94.c func_800CA2DC's _renderStatBar calls): HP, MP and RISK, each a
+    -- The status display's gauges (5BF94.c vs_battle_drawBattleHud's _renderStatBar calls): HP, MP and RISK, each a
     -- bar, its digits (the current value large, the maximum small with a separator) and its label; with no
-    -- risk, RISK ZERO. The game's places (D_800EBBDC, D_800EBBEC: x, y before the display's slide), labels
-    -- (the field UI page's HP, MP, RISK: D_800EBBFC, D_800EBC00) and the steps between them as data; the
+    -- risk, RISK ZERO. The game's places (vs_battle_hudGaugePositions, vs_battle_hudGaugeLabelPositions: x, y before the display's slide), labels
+    -- (the field UI page's HP, MP, RISK: vs_battle_hudGaugeLabelWidths, D_800EBC00) and the steps between them as data; the
     -- slots (bytes from vs_scratch.unk4) the game links them into.
     gauges = {
       place = { anchor = "left", dx = 0, dy = 0 }, -- 16:9: the panel's left edge
@@ -85,7 +85,7 @@ local function make_look()
       layers = { bars = -12, digits = -16 },
     },
     -- Ashley's silhouette: D_800EBCEC / D_800EBD14 / D_800EBD3C, in the game's limb order.
-    -- Each row is {dx, dy, width, height, u, v}; stance 0 then 1. Colours are D_800EBC54,
+    -- Each row is {dx, dy, width, height, u, v}; stance 0 then 1. Colours are vs_battle_limbStatusColors,
     -- indexed by the game's read-only condition (critical, damaged, wounded, good, excellent).
     figure = {
       place = { anchor = "left", x = 8, y = 184, dx = 0, dy = 0 }, layer = -4,
@@ -126,7 +126,7 @@ local function make_look()
       sprite = { page_x = 448, page_y = 256, bits = 4, u = 64, v = 0,
         w = 73, h = 10, clut_x = 976, clut_y = 220 },
     },
-    -- func_800C9CB4: clipped carousel cells and the count/selection indicators.
+    -- vs_battle_drawSlidingStatusIcon: clipped carousel cells and the count/selection indicators.
     status_icons = {
       place = { anchor = "left", dx = 0, dy = 0 }, layers = { icons = -4, indicators = -8 },
       x = 160, y = 8, cell = 16, supplemental_h = 8,
@@ -165,8 +165,8 @@ local function make_look()
       words = { page_x = 768, page_y = 0, bits = 4, clut_x = 848, clut_y = 223 },
       figures = { page_x = 768, page_y = 0, bits = 4, clut_x = 832, clut_y = 223 },
     },
-    -- A number over an actor (func_80094B0C, kind 1): damage, healing, MP; a stat's change (func_80094E18:
-    -- its icon of the combat labels (D_80068FAC by D_800E861C: u, v, w), its sign, the digits, drifting
+    -- A number over an actor (func_80094B0C, kind 1): damage, healing, MP; a stat's change (vs_battle_drawValueLabelCaption:
+    -- its icon of the combat labels (vs_battle_labelCaptionRects by D_800E861C: u, v, w), its sign, the digits, drifting
     -- by half the age). The large digits' cells, colour words by pool (a loss, a gain), the bounce by frame
     -- (a gain from frame 0, a loss from frame 4; each digit to the left half the one before).
     damage = {
@@ -186,12 +186,12 @@ local function make_look()
       },
     },
     -- A word over an actor (2842C.c's label loop, slot -20), the draw the game chose. MISS (func_8009506C): the
-    -- info capitals M, I, S, S (D_800E8640: u, v, w; 10 texels high) from 16 pixels left of its place, squashed
-    -- open over its first ages and shut over its last (D_800E8634: half its height by step), raw and half
+    -- info capitals M, I, S, S (vs_battle_lockedLabelPieces: u, v, w; 10 texels high) from 16 pixels left of its place, squashed
+    -- open over its first ages and shut over its last (vs_battle_lockedLabelHalfHeights: half its height by step), raw and half
     -- blended. A combat label (func_80095258): the ailments' and buffs' words, one or two pieces of the combat
-    -- labels' page (D_800690B4: its colour, then its pieces; `pieces` is D_80068FAC: u, v, w; 12 high), centred
+    -- labels' page (vs_battle_statusLabelLayouts: its colour, then its pieces; `pieces` is vs_battle_labelCaptionRects: u, v, w; 12 high), centred
     -- on its place, sliding in from the right and out to the left (`slide`, by its first and last ages), its
-    -- colour (D_80069134: r, g, b) faded in (`fade` / 32), held at half plus 96 (`lit`), then half; a lowered
+    -- colour (vs_battle_statusLabelColors: r, g, b) faded in (`fade` / 32), held at half plus 96 (`lit`), then half; a lowered
     -- stat's word (`lowered`) does not slide, takes the first colour and shows the arrow (func_800957D0)
     -- from age 15, its cell stepping right to the fourth.
     actor_word = {
@@ -251,7 +251,7 @@ local function make_look()
         quad = { page_x = 768, page_y = 0, bits = 4, clut_x = 976, clut_y = 223, raw = true,
           corners = { 0, 0, 0, 0, 0, 0, 0, 0 }, uvs = { 48, 48, 63, 48, 48, 63, 63, 63 } } },
     },
-    -- A text box's frame (5BF94.c func_800CD3E4: the talk bubbles' and the information box's shapes), drawn by
+    -- A text box's frame (5BF94.c vs_menu_drawTextBoxFrame: the talk bubbles' and the information box's shapes), drawn by
     -- the game's own routine on a copy of the box (d.frame): its place this frame, size, shape, flip and the
     -- speaker's tail are the game's (the opening's zoom included). (The vector talk bubbles, ui_bubbles vector,
     -- an option, redraw these copies as they do the game's.)
@@ -265,7 +265,7 @@ local function make_look()
     -- the font table, colour style and brightness it had. Its typography is ui_text's (the dialogue and menu
     -- styles; ui_text_layout, ui_text_bubble_align: the settings).
     box_text = { place = { anchor = "game", dx = 0, dy = 0 } },
-    -- A portrait or still (func_800CCA90; the opening's cards), by the game's own tiled drawer as the game calls it,
+    -- A portrait or still (vs_render_drawGimLayer; the opening's cards), by the game's own tiled drawer as the game calls it,
     -- placed as the game's (its full-screen stills fill 16:9 as the drawer itself decides).
     image = { place = { anchor = "game" } },
     -- A row of the targeting list (58578.c func_800C1DC4): the part's name by the raw printer (dx from the row's x:
@@ -298,7 +298,7 @@ local function make_look()
     },
     -- The area target's marker (func_800C28AC) at the point the game projected: unless the pitch is locked (`lock`),
     -- the brackets (`brackets`: two quads of the field UI page, mirrored, their corners packed as the game adds
-    -- them), then three sprites (`sprites`: the step packed, w, h, u, v; D_800EA670, D_800EA684, D_800EA698: from
+    -- them), then three sprites (`sprites`: the step packed, w, h, u, v; vs_battle_positionCursorSpriteOffsets, vs_battle_positionCursorSpriteSizes, vs_battle_positionCursorSpriteTexCoords: from
     -- the first, or locked from the third), the one at `pulse_at` by the brightness step (`pulse`:
     -- vs_battle_cursorBrightnessAnimation), the others at `brightness`. Slot -4.
     target_marker = {
@@ -636,7 +636,7 @@ local function slid(x, age, slide, out, coming_in)
   return x
 end
 
--- status: func_800958A4 (x, y: its call's 44, 48)
+-- status: vs_battle_drawAbilityTimingResult (x, y: its call's 44, 48)
 M.draw.status = function(e, d)
   local s = look.status
   local text = e.timing == "success" and s.success[(e.variant or 0) + 1] or s.words[e.timing]
@@ -646,7 +646,7 @@ M.draw.status = function(e, d)
   d.text_raw(text, x + s.place.dx, e.call_y + s.place.dy, s.colours[e.timing], look.typeset)
 end
 
--- chain: func_80095A4C (x, y: 44, 64)
+-- chain: vs_battle_drawChainCount (x, y: 44, 64)
 M.draw.chain = function(e, d)
   local c = look.chain
   local text = chain_text[e.value]
@@ -659,7 +659,7 @@ M.draw.chain = function(e, d)
   d.text_raw(text, x + c.place.dx, e.call_y + c.place.dy, c.colour, look.typeset)
 end
 
--- gauges: func_800CA2DC's _renderStatBar(0, 1, 2) and RISK ZERO. The game links each packet at the head of
+-- gauges: vs_battle_drawBattleHud's _renderStatBar(0, 1, 2) and RISK ZERO. The game links each packet at the head of
 -- its slot, so a slot draws in the reverse of the game's calls: the commands below go in drawing order
 -- (RISK ZERO, then RISK, MP, HP: each its label, value, separator, maximum, bar).
 local xy = rood.draw.xy
@@ -1015,7 +1015,7 @@ M.draw.emote = function(e, d)
   end
 end
 
--- text_frame: func_800CD3E4 for the box as the game set it this frame.
+-- text_frame: vs_menu_drawTextBoxFrame for the box as the game set it this frame.
 local frame = {}
 M.draw.text_frame = function(e, d)
   local t = look.text_frame

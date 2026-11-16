@@ -20,7 +20,7 @@ pub fn func_80093B68(actor: c_int, limbIndex: c_int, value: c_int, flags: c_int)
     var count: c_int = 0;
     var frame: c_int = 0;
     var i: c_int = 0;
-    while (i < @as(c_int, v.g.D_800F227E().*)) : (i +%= 1) {
+    while (i < @as(c_int, v.g.vs_battle_floatingLabelCount().*)) : (i +%= 1) {
         const e = psx.at(queue(), i);
         if (e.unk8.u8[0] == 1 and @as(c_int, e.unk8.u8[1]) == actor and e.unk6 >= 0) {
             frame = e.unkB;
@@ -29,7 +29,7 @@ pub fn func_80093B68(actor: c_int, limbIndex: c_int, value: c_int, flags: c_int)
     }
     var stacked: c_int = 0;
     i = 0;
-    while (i < @as(c_int, v.g.D_800F227E().*)) : (i +%= 1) {
+    while (i < @as(c_int, v.g.vs_battle_floatingLabelCount().*)) : (i +%= 1) {
         const e = psx.at(queue(), i);
         if (e.unk8.u8[0] == 1 and @as(c_int, e.unk8.u8[1]) == actor and @as(c_int, e.unkA) == limb and
             @as(c_int, e.unk6) == count -% 1)
@@ -39,21 +39,21 @@ pub fn func_80093B68(actor: c_int, limbIndex: c_int, value: c_int, flags: c_int)
         }
     }
 
-    const p: *v.D_800F1BAC_t = @ptrCast(@alignCast(c.func_800962E4()));
+    const p: *v.D_800F1BAC_t = @ptrCast(@alignCast(c.vs_battle_reserveFloatingLabel()));
     const result = if (limb != 255)
         c.func_800A1AF8(actor, limb, @ptrCast(p), 2)
     else
-        c.func_800A190C(actor, 255, @ptrCast(p), 2);
+        c.vs_actors_anchorPoint(actor, 255, @ptrCast(p), 2);
     if (result != 0) return -2;
 
     var mode = flags;
     if (mode & 128 != 0) {
-        if (c.func_800A1280(actor, 251, @ptrCast(&position), 0) != 0) return 0;
+        if (c.vs_actors_targetPoint(actor, 251, @ptrCast(&position), 0) != 0) return 0;
         if (@as(u16, @bitCast(position.vx)) >= 321) return 0;
         if (@as(u16, @bitCast(position.vy)) >= 241) return 0;
     }
     mode &= 127;
-    if (c.func_800A190C(actor, 251, @ptrCast(&position), 0) != 0) return -2;
+    if (c.vs_actors_anchorPoint(actor, 251, @ptrCast(&position), 0) != 0) return -2;
 
     p.unk10 = 4096;
     p.unk12 = 4096;
@@ -75,11 +75,11 @@ pub fn func_80093B68(actor: c_int, limbIndex: c_int, value: c_int, flags: c_int)
     }
     _ = c.sprintf(&p.displayText, v.g.D_800691E4(), @as(c_int, p.unkC & 0x7FFF));
     p.displayTextLen = psx.conv(u8, c.strlen(&p.displayText));
-    v.g.D_800F227E().* +%= 1;
+    v.g.vs_battle_floatingLabelCount().* +%= 1;
     return 0;
 }
 
-/// *D_800F1BAC as its entries (the views give the pointer opaque), read each time as the C does.
+/// *vs_battle_floatingLabels as its entries (the views give the pointer opaque), read each time as the C does.
 inline fn queue() [*c]v.D_800F1BAC_t {
-    return @ptrCast(@alignCast(v.g.D_800F1BAC().*));
+    return @ptrCast(@alignCast(v.g.vs_battle_floatingLabels().*));
 }

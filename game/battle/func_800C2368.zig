@@ -6,13 +6,13 @@ const v = @import("views_58578");
 const c = @import("c_58578");
 
 /// orig: func_800C2368 (pc/src/game/BATTLE/BATTLE.PRG/58578.c)
-/// Writes four vertex rings of the circle from `index` into D_800EB9B8 and the basis in scratchpad, then returns the next index.
+/// Writes four vertex rings of the circle from `index` into vs_battle_targetSphere and the basis in scratchpad, then returns the next index.
 pub fn func_800C2368(step: c_int, radius: c_int, index: c_int) callconv(.c) c_int {
     const basis: [*]i16 = @ptrFromInt(pad.addr(0x398));
     var idx = index;
 
-    // (char*)D_800EB9B8 + (index * 8 + points), with the original index.
-    const table: ?*v.D_800EB9B8_t = v.g.D_800EB9B8().*;
+    // (char*)vs_battle_targetSphere + (index * 8 + points), with the original index.
+    const table: ?*v.D_800EB9B8_t = v.g.vs_battle_targetSphere().*;
     const table_base: u32 = if (table) |t| psx.addr(t) else 0;
     var vaddr: u32 = table_base +% psx.conv(u32, idx *% 8 +% @as(c_int, @offsetOf(v.D_800EB9B8_t, "points")));
 

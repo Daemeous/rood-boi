@@ -19,8 +19,8 @@ glabel func_800F9BD8
     lw      $t9, 0x0($t3)
     addiu   $v0, $zero, -0x1
     sw      $v0, 0x0($t3)
-    lui     $v0, %hi(D_800EB9B4)
-    lw      $v0, %lo(D_800EB9B4)($v0)
+    lui     $v0, %hi(vs_effects_screenEffectOverlay)
+    lw      $v0, %lo(vs_effects_screenEffectOverlay)($v0)
     addiu   $t2, $t3, 0x1FF8
     lhu     $v1, 0x4($v0)
     lh      $v0, 0x6($v0)

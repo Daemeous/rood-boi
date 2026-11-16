@@ -33,10 +33,10 @@ pub fn validateShortcutSelection(shortcut: c_int) callconv(.c) c_int {
     if (noneUnlocked != 0) {
         c.vs_battle_playInvalidSfx();
         menuState = 0;
-        v.g.D_800F4E98().unk2 = 0;
-        v.g.D_800F4E98().unk0 = 2;
+        v.g.vs_menu_frameworkActionSelection().unk2 = 0;
+        v.g.vs_menu_frameworkActionSelection().unk0 = 2;
     } else {
-        menuState = c.func_800CACD0(menuState, 0);
+        menuState = c.vs_menu_frameworkOpenGameMenu(menuState, 0);
         v.g.vs_battle_shortcutInvoked().* = psx.conv(u8, shortcut);
         v.g.D_800F4FDB().* = 1;
     }

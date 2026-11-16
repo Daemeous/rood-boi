@@ -9,8 +9,8 @@ const c = @import("c_4A0A8");
 pub fn script_showTextBox(script: [*c]u8, _: c_short) callconv(.c) c_int {
     const statuses = v.g.vs_battle_textBoxStatuses();
     if (statuses[script[1]] == 0) {
-        // D_800F4BB0 is a pointer global: the inner read dereferences it, so a NULL table is the C's crash.
-        const table = v.g.D_800F4BB0().*.?;
+        // vs_event_dialogStrings is a pointer global: the inner read dereferences it, so a NULL table is the C's crash.
+        const table = v.g.vs_event_dialogStrings().*.?;
         const index = psx.at(table, script[2]).*;
         _ = c.vs_battle_setTextBox(@as(c_int, script[1]), @ptrCast(psx.at(table, index)));
         if (script[3] == 0) {

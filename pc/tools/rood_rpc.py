@@ -27,7 +27,9 @@ CLI:
                                               summon a HUD element (RPC hud show): status, chain, buff, damage, travel, name_window
     rood_rpc.py hud [list|clear|stats]        the HUD layer's elements, claims and timings
 
-The socket defaults to $ROOD_RPC or pc/build/boot/rpc.sock (on Windows tcp:47323, a
+The socket of a client defaults to $ROOD_RPC or pc/build/boot/rpc.sock; a game LAUNCHED here without one (Game.launch)
+gets a socket of its own (rood-rpc-PID-N.sock in the temp directory) so runs at once never share one, and one that
+is alive is never taken away (on Windows tcp:47323, a
 loopback TCP port; ROOD_RPC=tcp:PORT works on Linux too). Methods run at vsync
 boundaries; "step" pauses after N vsyncs, so step + wait_paused gives exact timing.
 
@@ -43,6 +45,7 @@ parallel runs (pc/tests/run.py) each get their own.
 """
 import argparse
 import atexit
+import itertools
 import json
 import os
 import pathlib
@@ -50,6 +53,7 @@ import secrets
 import socket
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 
@@ -74,6 +78,13 @@ DEFAULT_SOCKET = os.environ.get("ROOD_RPC", "tcp:47323" if WINDOWS else str(ROOT
 OUT = pathlib.Path(os.environ.get("ROOD_OUT") or ROOT / "pc/build/boot")
 _symbols = None
 _headless = None
+_launches = itertools.count()
+
+
+def unique_socket():
+    """A socket path of this run's own (the process and the launch's number, in the temp directory): a game
+    launched without one shares nothing with another run's."""
+    return os.path.join(tempfile.gettempdir(), f"rood-rpc-{os.getpid()}-{next(_launches)}.sock")
 PROFILE = os.environ.get("ROOD_RPC_PROFILE")  # Game.call timing log (profile_report.py)
 
 
@@ -93,6 +104,14 @@ def symbols():
             parts = line.split()
             if len(parts) == 3:
                 _symbols[parts[2]] = int(parts[0], 16)
+        # An older build (a comparison baseline) has the decomp's names, a newer one ours (pc/names/symbols.tsv):
+        # both answer to either.
+        import symbol_names
+        for old, new in symbol_names.load().items():
+            if old in _symbols and new not in _symbols:
+                _symbols[new] = _symbols[old]
+            elif new in _symbols and old not in _symbols:
+                _symbols[old] = _symbols[new]
     return _symbols
 
 
@@ -340,6 +359,20 @@ def connect(path):
     return sock
 
 
+def alive(path):
+    """A game is accepting connections on this Unix socket (a file left behind by a killed game is not)."""
+    if is_tcp(path):
+        return listening(path)
+    probe = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    try:
+        probe.connect(path)
+        return True
+    except OSError:
+        return False
+    finally:
+        probe.close()
+
+
 def listening(path):
     if not is_tcp(path):
         return os.path.exists(path)
@@ -385,6 +418,8 @@ class Game:
         pacing (vsync-exact RPC stepping is unaffected). snapshot: a save
         state (RPC snapshot save; pc/src/snapshot.c) to resume instead of
         booting: the game starts paused where it was saved."""
+        if socket_path is None and not os.environ.get("ROOD_RPC") and not WINDOWS:
+            socket_path = unique_socket()  # runs at once (two build_compares, two worktrees) never share one
         socket_path = with_token(socket_path or DEFAULT_SOCKET)
         env = dict(os.environ, ROOD_RPC=socket_path, ROOD_CONTROLLER="none", ROOD_AUDIO=audio)
         env.setdefault("ROOD_GI", "0")  # path tracing is slow on software GL; tests opt in
@@ -417,6 +452,8 @@ class Game:
                 env.pop("WAYLAND_DISPLAY", None)
                 processes.append(xvfb)
         if not is_tcp(socket_path) and os.path.exists(socket_path):
+            if alive(socket_path):  # another game's: never take its socket away
+                raise RpcError(f"{socket_path} is a running game's RPC socket; launch with another socket_path")
             os.unlink(socket_path)
         OUT.mkdir(parents=True, exist_ok=True)
         log_file = open(log or OUT / "rpc-game.log", "w")

@@ -36,17 +36,17 @@ pub fn func_80096768(stat: c_int, slot: c_int, value: c_int) callconv(.c) c_int 
             else => {},
         }
 
-        const base: [*c]v.D_800F1BAC_t = @ptrCast(@alignCast(v.g.D_800F1BAC().*));
+        const base: [*c]v.D_800F1BAC_t = @ptrCast(@alignCast(v.g.vs_battle_floatingLabels().*));
         var count: c_int = 0;
         var i: c_int = 0;
-        while (i < @as(c_int, v.g.D_800F227E().*)) : (i +%= 1) {
+        while (i < @as(c_int, v.g.vs_battle_floatingLabelCount().*)) : (i +%= 1) {
             const entry = psx.at(base, i);
             if (entry.unk8.u8[0] == 6 or entry.unk8.u8[0] == 7) {
                 count +%= 1;
             }
         }
 
-        const p: *v.D_800F1BAC_t = @ptrCast(@alignCast(c.func_800962E4()));
+        const p: *v.D_800F1BAC_t = @ptrCast(@alignCast(c.vs_battle_reserveFloatingLabel()));
         p.unk8.u8[0] = 7;
         p.unk8.u8[1] = 0x7F;
         p.unk6 = psx.conv(i16, count);
@@ -64,7 +64,7 @@ pub fn func_80096768(stat: c_int, slot: c_int, value: c_int) callconv(.c) c_int 
 
         _ = c.sprintf(&p.displayText, v.g.D_800691E4(), @as(c_int, p.unkC & 0x7FFF));
         p.displayTextLen = psx.conv(u8, c.strlen(&p.displayText));
-        v.g.D_800F227E().* +%= 1;
+        v.g.vs_battle_floatingLabelCount().* +%= 1;
     }
 
     return 0;

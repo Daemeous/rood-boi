@@ -18,17 +18,17 @@ pub fn func_800E1238(arg0: ?*v.vs_battle_aiState, arg1: c_int) callconv(.c) void
     }
 
     if (c.func_800E4764(@ptrCast(arg0), &sp10, &sp14) == 0) {
-        c.func_800E2CCC(@ptrCast(arg0));
+        c.vs_battle_aiRecoverMovement(@ptrCast(arg0));
         return;
     }
 
     const self = arg0.?;
     self.flags4.b[3] = 1;
-    c.func_800E3600(@ptrCast(self), value, 3);
+    c.vs_battle_aiResolveDirectionalMovement(@ptrCast(self), value, 3);
 
     if (@as(*const c_int, @ptrFromInt(pad.addr(0x3C8))).* != 5 and @as(*const c_int, @ptrFromInt(pad.addr(0x3C8))).* != 7) {
-        c.func_800E678C(@ptrCast(self));
-        c.func_800E2CCC(@ptrCast(self));
+        c.vs_battle_aiReleaseActorAiReservations(@ptrCast(self));
+        c.vs_battle_aiRecoverMovement(@ptrCast(self));
         return;
     }
 
@@ -40,7 +40,7 @@ pub fn func_800E1238(arg0: ?*v.vs_battle_aiState, arg1: c_int) callconv(.c) void
     const cosine = c.rcos(angle);
     const sine = c.rsin(angle);
 
-    const limit = c.func_800E0850(@ptrCast(self), psx.conv(c_uint, value));
+    const limit = c.vs_battle_aiLowestReachableGroundHeight(@ptrCast(self), psx.conv(c_uint, value));
     if (limit +% @as(c_int, self.heightBE) < @as(c_int, self.position.v.vy)) {
         self.moveY = -4096;
         self.moveZ = 0;
@@ -56,6 +56,6 @@ pub fn func_800E1238(arg0: ?*v.vs_battle_aiState, arg1: c_int) callconv(.c) void
         c.func_800E4B18(@ptrCast(self));
     } else {
         self.counter = 0;
-        c.func_800DEEFC(@ptrCast(self), sp14);
+        c.vs_battle_aiIssueActorCommand(@ptrCast(self), sp14);
     }
 }

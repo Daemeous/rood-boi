@@ -29,12 +29,12 @@ from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 
 # ENDING.PRG's data, by name (the build puts each where it lives: its PS1 address or a native region).
-CREDITS_DONE = "D_800DC188"  # u8: the credits loop ends
-CREDITS_FRAMES = "D_800DC18C"
+CREDITS_DONE = "vs_ending_creditsHasFinished"  # u8: the credits loop ends
+CREDITS_FRAMES = "vs_ending_creditsElapsedFrames"
 RANK = "_rank__ending"
 SCORE = "_score__ending"
 MAP_COMPLETION = "_mapCompletion__ending"  # percent
-RANK_SCREEN_STEP = "D_800DC20C"  # the MISSION COMPLETE animation's frame
+RANK_SCREEN_STEP = "vs_ending_resultsAnimationFrame"  # the MISSION COMPLETE animation's frame
 
 
 def mean(path):

@@ -12,19 +12,19 @@ pub fn removeActorAtIndex(index: c_uint, arg1: c_int) callconv(.c) c_int {
         const slots = v.g.vs_battle_actors();
 
         if (slots[@as(usize, index)]) |actor| {
-            c.func_80069FC4(psx.conv(c_int, index), arg1);
+            c.vs_actors_rememberEnemy(psx.conv(c_int, index), arg1);
 
             if (@as(c_int, actor.allegiance) == 0x10) {
-                _ = c.func_8009F530(psx.conv(c_int, index));
-                _ = c.func_80099D6C(psx.conv(c_int, index));
+                _ = c.vs_field_dropUnsupportedGimmickStack(psx.conv(c_int, index));
+                _ = c.vs_field_releaseGimmickInstance(psx.conv(c_int, index));
             } else {
-                _ = c.func_8009CFB0(psx.conv(c_int, index));
+                _ = c.vs_content_releaseActorModel(psx.conv(c_int, index));
                 if (actor.unk40 == 2) {
-                    _ = c.func_8009CFB0(psx.conv(c_int, index +% 4));
+                    _ = c.vs_content_releaseActorModel(psx.conv(c_int, index +% 4));
                 }
             }
 
-            c.func_800E7454(@ptrCast(actor));
+            c.vs_battle_aiFreeActorAiState(@ptrCast(actor));
 
             // Empty slots are skipped.
             var i: usize = 0;

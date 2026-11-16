@@ -41,7 +41,7 @@ def visit(card, out, socket, where):
             st = game.state()
             arrived = arrived or (st["zone"], st["room"]) == where
         for k in range(200):  # the entry event to its end (dialogue: buttons)
-            event = game.read_symbol("D_800F4C34", 1)[0]
+            event = game.read_symbol("vs_event_playbackPhase", 1)[0]
             if event == 0 and game.call("room_goto", action="status")["phase"] in (0, 4):
                 ended = reply["ok"]
                 break

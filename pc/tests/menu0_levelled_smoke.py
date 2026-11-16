@@ -20,7 +20,7 @@ For LV1 and then LV2: Triangle, Magic, Warlock, the Explosion row, Circle:
 the LV picker (cursorMemories[12] the level, [13] = 2 levels), drawn: the
 boxes up to the chosen level lit (yellow), the others not, the game still
 running; Left / Right to the level, Circle: targeting (D_800F196C 2, menu
-closed) with the hand-off D_800F4E98 = (unk2 7, the level's action id),
+closed) with the hand-off vs_menu_frameworkActionSelection = (unk2 7, the level's action id),
 executeAbilityType 6, returnState 0x41; Circle on the target: MP drops by
 that level's cost.
 --out keeps screenshots (game imagery: keep it out of git)."""
@@ -103,14 +103,14 @@ class Session:
         self.g.run(2)
 
     def levels(self):
-        cm = self.g.read(self.sym["D_800F4EE8"], 52)
+        cm = self.g.read(self.sym["vs_menu_frameworkMenuMemory"], 52)
         return cm[LEVEL_MEMORY], cm[LEVEL_MEMORY + 1]
 
     def targeting(self):
         return self.g.read(self.sym["D_800F196C"], 1)[0] == TARGETING
 
     def exec_fields(self):
-        e = self.g.read(self.sym["D_800F4E98"], 8)
+        e = self.g.read(self.sym["vs_menu_frameworkActionSelection"], 8)
         ms = self.g.read(self.sym["vs_battle_menuState"], 3)
         unk2, ability = struct.unpack("<hi", e[2:8])
         return unk2, ability, ms[2], ms[1]

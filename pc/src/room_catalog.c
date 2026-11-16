@@ -9,11 +9,11 @@
  * (SMALL/SCENnnn.ARM, as the game's map screen reads them).
  *
  * The warp is the game's own door transition (room_warp.c, the game side): a request is taken in the
- * field loop (vs_battle_exec, case 1, where func_80074BAC handles doors;
- * src hook pc_room_warp_poll under ROOD_PC) by calling func_8007C4E0 (same
- * zone) or func_8007C5C0 (another zone: the zone file is loaded) with a
+ * field loop (vs_battle_exec, case 1, where vs_field_checkAshleyTileTriggers handles doors;
+ * src hook pc_room_warp_poll under ROOD_PC) by calling vs_field_beginRoomTransition (same
+ * zone) or vs_field_beginZoneTransition (another zone: the zone file is loaded) with a
  * door record whose destination and arrival cell come from a real door
- * into the target room. While the new room loads (func_80089DC0, src hook
+ * into the target room. While the new room loads (vs_field_finishRoomLoad, src hook
  * pc_room_warp_room_loaded, pc_room_warp_room_spawned) the warp can bench
  * the room's enemies (spawned, so its scripts find them, but hidden and out
  * of the fight whenever no event runs) and leave its scripts unrun (no
@@ -373,7 +373,7 @@ static char warp_message[200];
 int pc_room_warp_cell[4] = { -1, 0, 0, 0 };
 
 /* Whether pc_room_warp_cell (when given) is on the room's floor grid: the
- * arrival looks its cell up (func_80074B14 -> func_8008B764), which is NULL
+ * arrival looks its cell up (vs_field_updateCameraTileConstraint -> vs_field_collisionCellAt), which is NULL
  * off the grid (x >= width or z >= height) and for levels 2 and up
  * (platforms: none to stand on here). 0 and `why` when it is not. */
 int pc_room_warp_cell_valid(int zone, int room, char* why, int size)

@@ -9,7 +9,7 @@ pub fn func_800D5088(arg0: ?*v.D_800F53B8_t) callconv(.c) c_int {
     var i: usize = 0;
     while (i < 5) : (i += 1) {
         const dst = psx.at(
-            &psx.get(v.g.D_800F569C().*.?.block5Data).?.unk4,
+            &psx.get(v.g.vs_effects_package().*.?.block5Data).?.unk4,
             v.g.D_800EC368()[arg0.?.unkD1C.unk18.unk2][i][3],
         );
         dst.rCurve = v.g.D_800EC368()[arg0.?.unkD1C.unk18.unk2][i][0];

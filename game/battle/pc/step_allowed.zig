@@ -16,12 +16,12 @@ fn navCell(x: c_int, z: c_int) *align(1) u16 {
     return @ptrFromInt(cells +% @as(usize, @bitCast(@as(isize, z *% 64 +% x *% 2))));
 }
 
-/// orig: func_800D96C8 (pc/src/battle_movement.c)
+/// orig: vs_battle_aiCanTraverseTileEdge (pc/src/battle_movement.c)
 /// Whether the actor may step from tile `from` to tile `to` in direction
 /// `dir`: 1 yes, 0 no, -1 when the step leaves its approach radius. Quirks
 /// kept: for a negative X step the original negates the Z delta instead of
 /// X; the area-code test always uses byte 0x132 (0x154 is loaded then
-/// overwritten); the approach test reads halfwords from the D_800F4538
+/// overwritten); the approach test reads halfwords from the vs_actors_actorRecords
 /// array itself (+0x1C/+0x20 past the entry, not through it) and passes the
 /// packed `to` tile as the SQR Z input.
 pub fn stepAllowed(state: *ai.vs_battle_aiState, from: c_uint, to: c_uint, dir: c_int) callconv(.c) c_int {
@@ -37,13 +37,13 @@ pub fn stepAllowed(state: *ai.vs_battle_aiState, from: c_uint, to: c_uint, dir: 
     const step_x: c_int = x -% from_x;
     var step_z: c_int = z -% from_z;
     // Evaluated left to right in the object.
-    const rise: c_int = c.func_800E42EC(x, z) -% c.func_800E42EC(from_x, from_z);
+    const rise: c_int = c.vs_field_groundHeightAtTile(x, z) -% c.vs_field_groundHeightAtTile(from_x, from_z);
     if (step_x < 0) step_z = -%step_z;
     if (step_z < 0) step_z = -%step_z;
     const climbing: c_int = state.flags0.b[3];
     var checked = false;
     if (step_x < 2 and step_z < 2) {
-        if (c.func_800D98E8(state, dir) != 0) return 0;
+        if (c.vs_battle_aiDirectionalBlockingActor(state, dir) != 0) return 0;
         checked = (climbing | @intFromBool(rise < 1)) == 0;
     }
     if (!checked) {
@@ -55,9 +55,9 @@ pub fn stepAllowed(state: *ai.vs_battle_aiState, from: c_uint, to: c_uint, dir: 
     if (state.flags4.b[1] == 0) return 1;
     if (state.unk89 == 1) {
         // The array's own address plus id * 4 (not * 8 on 64-bit): kept.
-        const entry: usize = @intFromPtr(v.g.D_800F4538()) +% @as(usize, state.actorId) *% 4;
+        const entry: usize = @intFromPtr(v.g.vs_actors_actorRecords()) +% @as(usize, state.actorId) *% 4;
         const radius: c_int = state.range -% 0x60;
-        const distance = c.func_800E4660(
+        const distance = c.vs_core_mathSquaredVectorLength(
             x *% 128 +% 64 -% @as(c_int, psx.byteAt(u16, @as([*]u8, @ptrFromInt(entry)), 0x1c).*),
             z *% 128 +% 64 -% @as(c_int, psx.byteAt(u16, @as([*]u8, @ptrFromInt(entry)), 0x20).*),
             @bitCast(to),
@@ -65,8 +65,8 @@ pub fn stepAllowed(state: *ai.vs_battle_aiState, from: c_uint, to: c_uint, dir: 
         if (distance < @as(c_int, @bitCast(@as(c_uint, @bitCast(radius)) *% @as(c_uint, @bitCast(radius))))) return -1;
     }
     const target = state.destination168.destination;
-    const current = c.func_800E45F4(state.tile.raw, target);
-    const next = c.func_800E4660(
+    const current = c.vs_core_mathSquaredTileDistance(state.tile.raw, target);
+    const next = c.vs_core_mathSquaredVectorLength(
         x -% @as(c_int, @intCast(target & 0xff)),
         0,
         z -% @as(c_int, @intCast((target >> 16) & 0xff)),

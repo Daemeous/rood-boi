@@ -6,14 +6,14 @@ const c = @import("c_573B8");
 /// orig: func_800C031C (pc/src/game/BATTLE/BATTLE.PRG/573B8.c)
 /// Allocates and clears the grid record if needed, then writes its 720 edge entries around the grid.
 pub fn func_800C031C() callconv(.c) void {
-    if (v.g.D_800EB9B8().* == null) {
+    if (v.g.vs_battle_targetSphere().* == null) {
         const raw: ?*align(4) anyopaque = @alignCast(c.vs_main_allocHeap(@sizeOf(v.D_800EB9B8_t)));
-        v.g.D_800EB9B8().* = @ptrCast(@alignCast(raw));
+        v.g.vs_battle_targetSphere().* = @ptrCast(@alignCast(raw));
     }
-    c.vs_battle_rMemzero(v.g.D_800EB9B8().*, @sizeOf(v.D_800EB9B8_t));
+    c.vs_battle_rMemzero(v.g.vs_battle_targetSphere().*, @sizeOf(v.D_800EB9B8_t));
     var index: c_int = 0;
-    v.g.D_800EB9B8().*.?.unk2D = 0xFF;
-    const edges: [*]align(1) i16 = @ptrCast(&v.g.D_800EB9B8().*.?.outlines);
+    v.g.vs_battle_targetSphere().*.?.unk2D = 0xFF;
+    const edges: [*]align(1) i16 = @ptrCast(&v.g.vs_battle_targetSphere().*.?.outlines);
 
     var x: c_int = 0;
     var y: c_int = 0;
