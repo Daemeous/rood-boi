@@ -322,7 +322,7 @@ void pc_hw_set_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tp
         side_paint_primitive(x0, y0, x1, y1, code, clip);
         return;
     }
-    if (layout_enabled() && !uv) {
+    if (layout_enabled() && !uv && (code & 0xe0) != 0x40) { /* (a line is covered or compressed, never extended) */
         /* Reaching one edge (within a pixel; a bar's drop shadow runs a
          * little past it) from at least a tenth of the screen away. */
         int left = clip[0], right = clip[0] + clip[2], reach = clip[2] / 10;
@@ -5597,7 +5597,8 @@ void pc_hw_text_overlay(int view_x, int view_y, int view_w, int view_h, int to_v
                                                                                                  : TEXT_TAG_GLYPH | TEXT_TAG_LINE)
                                                   : TEXT_TAG_CELL | TEXT_TAG_LINE;
     static hw_vertex v[MAX_VERTICES];
-    int n = 0, blend = 0, clip[4] = { 0, 0, 0, 0 };
+    int n = 0, blend = 0, clip[4] = { 0, 0, 0, 0 }, snap_pair = -1;
+    float snap_delta[2] = { 0, 0 };
     for (int i = 0; i <= overlay_count; i++) {
         const overlay_triangle* o = i < overlay_count ? &overlay[i] : NULL;
         if (o && (o->box[2] <= r[0] || o->box[0] >= r[0] + r[2] || o->box[3] <= r[1] || o->box[1] >= r[1] + r[3]
@@ -5626,6 +5627,29 @@ void pc_hw_text_overlay(int view_x, int view_y, int view_w, int view_h, int to_v
         blend = o->blend;
         memcpy(clip, o->clip, sizeof clip);
         memcpy(v + n, o->v, sizeof o->v);
+        if (pc_ui_text_snap && (o->v[0].window & (TEXT_TAG_GLYPH | TEXT_TAG_CELL | TEXT_TAG_LINE))) {
+            /* ui_text_snap: a glyph (its quad: this triangle and the next that shares an edge with it) starts on a whole window
+             * pixel, moved by under half of one, so a thin stem is the same wherever the letter falls. */
+            float sx = (float)view_w / rect[2], sy = (float)view_h / rect[3];
+            if (i != snap_pair) {
+                const overlay_triangle* q = i + 1 < overlay_count ? &overlay[i + 1] : NULL;
+                int shared = 0;
+                if (q && q->blend == o->blend && q->v[0].window == o->v[0].window && !memcmp(q->clip, o->clip, sizeof o->clip))
+                    for (int a = 0; a < 3; a++)
+                        for (int b = 0; b < 3; b++)
+                            shared += o->v[a].x == q->v[b].x && o->v[a].y == q->v[b].y;
+                float x0 = fminf(o->v[0].x, fminf(o->v[1].x, o->v[2].x)), y0 = fminf(o->v[0].y, fminf(o->v[1].y, o->v[2].y));
+                if (shared >= 2) {
+                    x0 = fminf(x0, fminf(q->v[0].x, fminf(q->v[1].x, q->v[2].x)));
+                    y0 = fminf(y0, fminf(q->v[0].y, fminf(q->v[1].y, q->v[2].y)));
+                    snap_pair = i + 1;
+                }
+                snap_delta[0] = (roundf((x0 - rect[0]) * sx) / sx + rect[0]) - x0;
+                snap_delta[1] = (roundf((y0 - rect[1]) * sy) / sy + rect[1]) - y0;
+            }
+            for (int k = 0; k < 3; k++)
+                v[n + k].x += snap_delta[0], v[n + k].y += snap_delta[1];
+        }
         n += 3;
     }
     (void)view_x, (void)view_y, (void)to_view;

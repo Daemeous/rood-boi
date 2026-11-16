@@ -102,6 +102,10 @@ extern const char* const pc_ui_text_overlay_names[2];
 enum { PC_UI_TEXT_FIELD_SDF = 0, PC_UI_TEXT_FIELD_MSDF = 1 };
 extern int pc_ui_text_field;
 extern const char* const pc_ui_text_field_names[2];
+/* ui_text_snap 1 (default) | 0: the glyphs drawn at the window's resolution (the overlay) start on a whole window pixel (a glyph's
+ * quad, its top-left corner, moves by under half a window pixel, x and y), so a thin stem of a letter is the same wherever the
+ * letter falls in a line instead of splitting its coverage over two pixels by chance. */
+extern int pc_ui_text_snap;
 /* Whether dialogue and menu glyphs are laid out now (ui_text font, any
  * internal resolution, either ui_text_layout). */
 int pc_ui_text_layout_on(int scale);

@@ -27,13 +27,14 @@ static int viewing_last;
 static const frame_list* view(void) { return viewing_last && last_frame ? last_frame : &pc_item_frame; }
 void pc_frame_view_last(int on) { viewing_last = on; }
 
-/* The markers placed this frame (their packet, the run), for the anchors that name packet memory. */
+/* The markers placed this frame (their packet, the run), for the anchors that name packet memory. Saved state with the items
+ * and tables: a save state resumed mid-frame has the frame's items and its tables' links back, and the order is read from these. */
 static struct {
     const void* packet;
     const uint32_t* entry; /* the table entry it was linked at */
     int first, count;
-} markers[ITEMS];
-static int marker_count;
+} markers[ITEMS] PC_SAVED_STATE;
+static int marker_count PC_SAVED_STATE;
 
 /* The ordering tables made this frame (ClearOTag, ClearOTagR): a placed run's slot is its entry's place in the table it lies in, and
  * the table's direction says which slot the walk reaches first. The order the placed runs are drawn in follows from these alone
@@ -42,13 +43,13 @@ static int marker_count;
 static struct {
     const uint32_t* base;
     int n, reverse;
-} tables[TABLES];
-static int table_next;
+} tables[TABLES] PC_SAVED_STATE;
+static int table_next PC_SAVED_STATE;
 /* A table's chain linked after an entry of another (pc_frame_splice: the text boxes' page of the table): its runs draw where the walk
  * reaches that entry, before the runs placed at it. */
 static struct {
     const uint32_t *at, *head;
-} splice_of[4];
+} splice_of[4] PC_SAVED_STATE;
 void pc_frame_splice_table(const void* at, const void* head)
 {
     for (int i = 0; i < 4; i++)
@@ -59,16 +60,28 @@ void pc_frame_splice_table(const void* at, const void* head)
 }
 void pc_frame_table(const void* base, int n, int reverse)
 {
+    const uint32_t* end = (const uint32_t*)base + n;
     int at = -1;
-    for (int i = 0; i < TABLES; i++)
-        if (tables[i].base == base)
+    /* (a table made over a range that overlaps another's, as the room teardown clears a sub-range of the frame's table, replaces it:
+     * what was linked in the old one is gone with its links, and a lookup by head finds the one table) */
+    for (int i = 0; i < TABLES; i++) {
+        if (!tables[i].base || tables[i].base >= end || tables[i].base + tables[i].n <= (const uint32_t*)base)
+            continue;
+        for (int m = 0; m < marker_count; m++)
+            if (markers[m].entry >= tables[i].base && markers[m].entry < tables[i].base + tables[i].n)
+                markers[m].entry = NULL;
+        if (at < 0)
             at = i;
+        else
+            tables[i].base = NULL;
+    }
+    if (at < 0)
+        for (int i = 0; i < TABLES && at < 0; i++)
+            if (!tables[i].base)
+                at = i;
     if (at < 0)
         at = table_next++ % TABLES;
     tables[at].base = base, tables[at].n = n, tables[at].reverse = reverse;
-    for (int i = 0; i < marker_count; i++) /* (a table made again drops what was linked in it) */
-        if (markers[i].entry >= tables[at].base && markers[i].entry < tables[at].base + n)
-            markers[i].entry = NULL;
 }
 /* Whether a run still has an item that draws (the others were suppressed: kind none). */
 int pc_frame_run_live(int first, int count)

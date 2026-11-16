@@ -189,6 +189,15 @@ extern "C" void pc_ui_upscale_panel(void)
                               "are drawn at the window's own resolution over the picture (anti-aliased edges one\n"
                               "window pixel wide), unless something the game draws later covers them. Off: they\n"
                               "are drawn into the picture at the internal resolution and scaled with it.");
+        {
+            bool snap = pc_ui_text_snap != 0;
+            if (ImGui::Checkbox("Snap glyphs to window pixels", &snap))
+                pc_ui_text_setting("ui_text_snap", snap ? "1" : "0");
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Text at the window's own resolution starts each letter on a whole window pixel (a letter\n"
+                                  "moves by under half a pixel), so thin strokes (i, l) look the same wherever they fall.\n"
+                                  "Settings key ui_text_snap.");
+        }
         pc_ui_text_stats t;
         pc_ui_text_get_stats(&t);
         ImGui::TextDisabled("%d fonts, %d glyphs, %ld regions drawn", t.fonts, t.glyphs, t.regions);

@@ -17,6 +17,11 @@ static void line_segment(uint32_t a, uint32_t b, unsigned ca, unsigned cb, int s
             if (narrowed_2d(ends, 2))
                 pc_hwc_set_narrowed();
         }
+        /* Widescreen: a line standing for the whole screen's width (the event film's scanlines) draws over the full view, as a
+         * polygon or rectangle that wide does (pc_hw_set_bounds decides; a line is never extended, only covered). */
+        pc_hwc_set_bounds((x0 < x1 ? x0 : x1) + draw_x, (y0 < y1 ? y0 : y1) + draw_y, (x0 > x1 ? x0 : x1) + draw_x + 1,
+            (y0 > y1 ? y0 : y1) + draw_y + 1, 0x40u | (semi ? 2u : 0u), tpage,
+            0, NULL, clip);
         pc_hwc_raster_post();
         pc_hwc_line(x0 + draw_x, y0 + draw_y, x1 + draw_x, y1 + draw_y, ca, cb, semi, tpage, clip,
             mask_set);

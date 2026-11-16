@@ -480,6 +480,12 @@ def suites(args, mode="egl"):
                  note="16:9: Game Over (opaque 2D over the whole 4:3 screen) clears the room from the view's sides; "
                       "a field frame with the command menu never completes a screen")]
           if args.save.exists() else []),
+        Suite("scanline_sides_smoke", [PY, str(TESTS / "scanline_sides_smoke.py")], 300,
+              note="16:9: the event film's scanlines (lines the width of the 4:3 screen) cover the view's sides too, "
+                   "as polygons and rectangles that wide do; 4:3 unchanged"),
+        Suite("ui_text_snap_smoke", [PY, str(TESTS / "ui_text_snap_smoke.py")], 300,
+              note="ui_text_snap: glyphs at the window's resolution start on a whole window pixel (1080p and 1440p); "
+                   "letter centroids move under a window pixel (max), 0 reproduces the unsnapped picture"),
         *([Suite("narrowed_2d_smoke", [PY, str(TESTS / "narrowed_2d_smoke.py"), "--card", str(args.save)], 600,
                  note="16:9: menu bars and headers never drawn as projected 2D with the menu's Ashley on screen "
                       "(render_stats, stat bands in one piece, even header letters); battle number popups over an "
@@ -880,7 +886,7 @@ CHECKPOINT_SUITES = {
     "hw_calls_smoke", "probe_gi_smoke", "animation_smoke", "editor_cutaway_smoke", "editor_undo_smoke", "editor_selection_smoke", "editor_schema_smoke", "editor_transform_smoke", "barn_doors_smoke", "editor_handles_smoke", "facing_cutaway_smoke",
     "camera_stick_smoke", "camera_stick_menus_smoke", "editor_snap_smoke", "editor_roomload_smoke", "room_browser_smoke", "room_entry_sound_smoke", "determinism_smoke", "route_continuation_smoke", "ending_smoke",
     "light_actors_smoke", "fixture_lighting_smoke", "sky_smoke", "game_sky_smoke", "glow_stability_smoke", "lighting_presets_smoke",
-    "gi_lag_smoke", "texture_animation_smoke", "save_menu_smoke", "screen_owner_smoke", "narrowed_2d_smoke", "weapon_slots_smoke", "ui_menus_smoke",
+    "gi_lag_smoke", "texture_animation_smoke", "save_menu_smoke", "screen_owner_smoke", "scanline_sides_smoke", "ui_text_snap_smoke", "narrowed_2d_smoke", "weapon_slots_smoke", "ui_menus_smoke",
     "ui_lines_smoke", "ui_text_smoke", "ui_text_columns_smoke", "button_prompts_smoke", "button_roles_symbols_smoke", "coplanar_order_smoke", "actor_room_order_smoke", "atmosphere_smoke",
     "void_fog_smoke",
     "fog_sim_smoke", "fog_volume_smoke", "particles_smoke", "save_point_glow_smoke", "emissive_smoke", "ui_ashley_smoke", "ui_ashley_stability_smoke",

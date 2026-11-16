@@ -6,7 +6,7 @@
 Plays build_compare's own routes (one game each) on BINARY (default pc/build/boot64/rood_battle_probe) with the census on, merges what each
 game reported (BUILD_COMPARE_CENSUS), and prints, per route, the packets left in the tables: raw packets (a draw mode, a
 polygon, a line, a rectangle or sprite, other) by slot with the first one seen, and the VRAM copies apart; the packets drawn at once (DrawPrim: the title) in no table, apart (slot -1000). The gate for taking
-the ordering table out (S6): "raw" reads 0 on every route; the copies (DR_MOVE and the loads and stores) are T5's.
+the ordering table out (S6): "raw" reads 0 on every route and the key order matches the walk on every table; the copies (DR_MOVE and the loads and stores) are T5's.
 Exit status 0 when no route has a raw packet, 1 otherwise."""
 import argparse
 import json
@@ -37,12 +37,13 @@ def run(binary, args, label, env_extra):
 def show(label, r):
     if not r:
         print(f"{label}: no census (the build has no ot_census?)")
-        return 0
+        return 0, 0
     k = r["kinds"]
     raw = sum(k.get(n, 0) for n in RAW)
     print(f"{label}: {r['tables']} tables; item markers {k['item_marker']}, native markers {k['native_marker']}, "
           f"raw {raw} ({', '.join(f'{n} {k[n]}' for n in RAW if k[n])}), vram copies {k['vram_copy']}, no-ops {k['nop']}")
     order = r.get("order")
+    bad_order = order["bad"] if order else 0
     if order:
         print(f"    key order against the table walk: {order['tables']} tables, {order['bad']} differ, {order['unknown']} of unknown table"
               + (f" (the first: walk {order['first'][0]} runs, keys {order['first'][1]}, differ at run {order['first'][2]}: walk {order['first'][3]}, keys {order['first'][4]})" if order['bad'] else ""))
@@ -52,7 +53,7 @@ def show(label, r):
     for row in r["rows"]:
         if row["kind"] in RAW or row["kind"] == "vram_copy":
             print(f"    slot {row['slot']:>5} {row['kind']:<8} x{row['n']:<8} first words {' '.join('%08x' % w for w in row['words'])}")
-    return raw
+    return raw, bad_order
 
 
 def main():
@@ -62,15 +63,19 @@ def main():
     ap.add_argument("--no-fight", action="store_true")
     ap.add_argument("--rooms", nargs="?", const=ROOMS, default="", help="also the fight in each of these rooms (zone,room;zone,room; default the eight of the gate)")
     args = ap.parse_args()
-    raw = 0
+    raw = order_bad = 0
     if not args.no_fight:
-        raw += show("fight", run(args.binary, [], "fight", {}))
+        r, b = show("fight", run(args.binary, [], "fight", {}))
+        raw, order_bad = raw + r, order_bad + b
     for room in filter(None, args.rooms.split(";")):
-        raw += show(f"fight in room {room}", run(args.binary, [], f"room {room}", {"BUILD_COMPARE_ROOM": room}))
+        r, b = show(f"fight in room {room}", run(args.binary, [], f"room {room}", {"BUILD_COMPARE_ROOM": room}))
+        raw, order_bad = raw + r, order_bad + b
     for route in args.menus.split(","):
-        raw += show(route, run(args.binary, ["--menus", route], route, {}))
-    print("gate:", "OPEN (0 raw packets on every route)" if not raw else f"closed ({raw} raw packets)")
-    return 1 if raw else 0
+        r, b = show(route, run(args.binary, ["--menus", route], route, {}))
+        raw, order_bad = raw + r, order_bad + b
+    print("gate:", "OPEN (0 raw packets, 0 tables whose key order differs from the walk, on every route)" if not raw and not order_bad
+          else f"closed ({raw} raw packets, {order_bad} tables out of order)")
+    return 1 if raw or order_bad else 0
 
 
 if __name__ == "__main__":

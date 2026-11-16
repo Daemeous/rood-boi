@@ -1447,6 +1447,7 @@ int pc_ui_text_overlay = PC_UI_TEXT_OVERLAY_AUTO;
 const char* const pc_ui_text_overlay_names[2] = { "off", "auto" };
 int pc_ui_text_field = PC_UI_TEXT_FIELD_MSDF;
 const char* const pc_ui_text_field_names[2] = { "sdf", "msdf" };
+int pc_ui_text_snap = 1;
 const char* const pc_ui_text_bubble_align_names[2] = { "left", "centre" };
 #define SLACK 1.0f   /* PS1 pixels a glyph's ink may end after the original's */
 #define MIN_GAP 0.5f /* PS1 pixels at least between neighbours' ink on any row */
@@ -3018,6 +3019,10 @@ int pc_ui_text_setting_value(const char* key, char* out, int size)
         snprintf(out, (size_t)size, "%s", pc_ui_text_field_names[pc_ui_text_field ? 1 : 0]);
         return 1;
     }
+    if (!strcmp(key, "ui_text_snap")) {
+        snprintf(out, (size_t)size, "%d", pc_ui_text_snap ? 1 : 0);
+        return 1;
+    }
     if (style_key(key, &style, &which)) {
         const pc_ui_text_style* st = settings_style(style, which);
         if (which == FIELD_FONT)
@@ -3061,6 +3066,15 @@ int pc_ui_text_setting(const char* key, const char* value)
         for (int k = 0; k < 2; k++)
             if (!strcmp(name, pc_ui_text_overlay_names[k]) || (name[0] == '0' + k && !name[1]))
                 pc_ui_text_overlay = k;
+        return 1;
+    }
+    if (!strcmp(key, "ui_text_snap")) { /* 1 | 0 (or on / off) */
+        char name[32] = "";
+        sscanf(value, "%31s", name);
+        if (!strcmp(name, "1") || !strcmp(name, "on"))
+            pc_ui_text_snap = 1;
+        else if (!strcmp(name, "0") || !strcmp(name, "off"))
+            pc_ui_text_snap = 0;
         return 1;
     }
     if (!strcmp(key, "ui_text_field")) { /* msdf | sdf (or 1 / 0) */
@@ -3120,6 +3134,7 @@ void pc_ui_text_settings_write(FILE* f)
     fprintf(f, "ui_text_bubble_align %s\n", pc_ui_text_bubble_align_names[pc_ui_text_bubble_align ? 1 : 0]);
     fprintf(f, "ui_text_overlay %s\n", pc_ui_text_overlay_names[pc_ui_text_overlay ? 1 : 0]);
     fprintf(f, "ui_text_field %s\n", pc_ui_text_field_names[pc_ui_text_field ? 1 : 0]);
+    fprintf(f, "ui_text_snap %d\n", pc_ui_text_snap ? 1 : 0);
     /* Only what differs from the built-in values. */
     for (int i = 0; i < PC_UI_TEXT_STYLES; i++)
         for (int k = 0; k < FIELDS; k++)
@@ -3139,12 +3154,12 @@ void pc_ui_text_get_stats(pc_ui_text_stats* s) { *s = stats; }
 
 int pc_ui_text_json(char* out, int size)
 {
-    int used = snprintf(out, (size_t)size, "{\"ui_text\":\"%s\",\"layout\":\"%s\",\"bubble_align\":\"%s\",\"field\":\"%s\","
+    int used = snprintf(out, (size_t)size, "{\"ui_text\":\"%s\",\"layout\":\"%s\",\"bubble_align\":\"%s\",\"field\":\"%s\",\"snap\":%d,"
                                            "\"regions\":%ld,\"labels\":%ld,\"failed\":%ld,\"fonts\":%d,\"glyphs\":%d,"
                                            "\"field_ms\":%.1f,\"styles\":[",
         pc_ui_text_names[pc_ui_text ? 1 : 0], pc_ui_text_layout_names[pc_ui_text_layout ? 1 : 0],
         pc_ui_text_bubble_align_names[pc_ui_text_bubble_align ? 1 : 0], pc_ui_text_field_names[pc_ui_text_field ? 1 : 0],
-        stats.regions, stats.labels, stats.failed,
+        pc_ui_text_snap ? 1 : 0, stats.regions, stats.labels, stats.failed,
         stats.fonts, stats.glyphs,
         stats.field_ms);
     for (int i = 0; i < PC_UI_TEXT_STYLES && used < size; i++) {

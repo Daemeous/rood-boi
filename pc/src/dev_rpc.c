@@ -2113,6 +2113,9 @@ static void handle_method(int fd, const char* request)
                 pc_ui_text_setting("ui_text_overlay", name);
             else if (number_value(member(params, "ui_text_overlay"), &n) && n >= 0 && n <= 1)
                 pc_ui_text_overlay = (int)n;
+            /* ui_text_snap 1 | 0. */
+            if (number_value(member(params, "ui_text_snap"), &n) && n >= 0 && n <= 1)
+                pc_ui_text_setting("ui_text_snap", n ? "1" : "0");
             /* ui_text_field "msdf" | "sdf" (or 1/0). */
             if (string_value(member(params, "ui_text_field"), name, sizeof name))
                 pc_ui_text_setting("ui_text_field", name);
@@ -2471,12 +2474,12 @@ static void handle_method(int fd, const char* request)
         if (used < (int)sizeof result - 100)
             used += snprintf(result + used - 1, sizeof result - used + 1,
                         ",\"ui_upscale\":\"%s\",\"ui_subpixel\":%d,\"ui_text\":\"%s\",\"ui_text_layout\":\"%s\","
-                        "\"ui_text_bubble_align\":\"%s\",\"ui_text_overlay\":\"%s\",\"ui_text_field\":\"%s\"}",
+                        "\"ui_text_bubble_align\":\"%s\",\"ui_text_overlay\":\"%s\",\"ui_text_field\":\"%s\",\"ui_text_snap\":%d}",
                         pc_ui_upscale_names[pc_ui_upscale ? 1 : 0], pc_ui_subpixel, pc_ui_text_names[pc_ui_text ? 1 : 0],
                         pc_ui_text_layout_names[pc_ui_text_layout ? 1 : 0],
                         pc_ui_text_bubble_align_names[pc_ui_text_bubble_align ? 1 : 0],
                         pc_ui_text_overlay_names[pc_ui_text_overlay ? 1 : 0],
-                        pc_ui_text_field_names[pc_ui_text_field ? 1 : 0])
+                        pc_ui_text_field_names[pc_ui_text_field ? 1 : 0], pc_ui_text_snap ? 1 : 0)
                 - 1;
         if (used < (int)sizeof result - 160)
             used += snprintf(result + used - 1, sizeof result - used + 1,
