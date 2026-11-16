@@ -80,6 +80,9 @@ void pc_vk_hw_text_overlay(const void* vertices, int count, int mode, const floa
     int view_y, int to_view);
 /* Normal (RGBA8) and depth (0..1) of the live target at scaled pixel x, y. */
 int pc_vk_hw_pick(int x, int y, float* depth, unsigned char normal[4]);
+/* The render-target capture: the live (replay: the replay) target's colour over native rectangle x0..x1, y0..y1 at the
+ * target's own resolution, for the draws after it that sample a frame buffer (WINDOW_CAPTURE); 1 when taken. */
+int pc_vk_hw_capture(int replay, int x0, int y0, int x1, int y1);
 /* The sampled copy of native VRAM (VK_TOKEN_VRAM) over native rectangle
  * x0..x1, y0..y1 from the live (replay: the replay) target's colour, on the
  * GPU, quantized as pc_hw_sync's read-back is; 0: unavailable here. */

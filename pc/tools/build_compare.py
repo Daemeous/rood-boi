@@ -603,6 +603,7 @@ def hashed(g, out, sample, hashes, taken=None, first=None):
                 if keep:
                     pathlib.Path(keep).mkdir(parents=True, exist_ok=True)
                     (pathlib.Path(keep) / f"{os.getpid()}-{len(hashes) - 1:04d}.ppm").write_bytes(shot.read_bytes())
+                    (pathlib.Path(keep) / f"{os.getpid()}-{len(hashes) - 1:04d}.vsync").write_text(str(g.status()["vsync"]))  # (the game's vsync: what a log of the build says it drew then)
     g.run = stepping
 
 
@@ -1136,6 +1137,11 @@ def play_menus(binary, card, out, names, sample, claims, aspect="4:3", extra_env
             text["status"]["glyphs"] -= base["status.glyphs"]
         results[name] = {"hashes": hashes, "stream": taken[1], "renderer": stats, "final": final, "word_glyphs": text.get("word_glyphs"), "regions": (text.get("regions"), text.get("failed")), "gi": gi_lines(out / f"{name}.log"), "published": published, "item_words": text.get("item_words"),
                          "status_glyphs": (text.get("status") or {}).get("glyphs") if isinstance(text.get("status"), dict) else text.get("status_glyphs")}
+    keep_logs = os.environ.get("BUILD_COMPARE_LOGS")  # (a directory: the games' logs kept, as the casts lane keeps them)
+    if keep_logs:
+        pathlib.Path(keep_logs).mkdir(parents=True, exist_ok=True)
+        for log in out.glob("*.log"):
+            (pathlib.Path(keep_logs) / f"{os.getpid()}-{log.name}").write_bytes(log.read_bytes())
     print("RESULT" + json.dumps(results))
 
 

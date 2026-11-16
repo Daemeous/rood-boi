@@ -202,6 +202,21 @@ force a GPU-to-CPU copy.
 **Status.** Partly native: the display image is native (scaled, lit, post-processed), but its inputs are
 still VRAM pixels and the CPU copy of VRAM is still kept exact.
 
+**Render-target capture (the screen copies' way out of VRAM).** A 2D sprite that samples a frame buffer as a
+16-bit texture (the menus' cross-fade of the previous screen and the feathers and strips they draw from the
+frame, the file menus' rows, the map's darkening and ripples, the opening's dissolves and afterimages:
+MAINMENU `_renderBackground`, MENU4 `_fadeScreenLeft` / `_drawMenuBackground`, MENU5 `_darkenBackground`, MENU7 / MENU9 /
+MENUE / TITLE file menus, BATTLE `func_800CC128`) used to read a PS1-resolution copy of VRAM made from the
+target by a point sample at each PS1 pixel (`vram_from_target`): smooth text at the target's resolution
+aliased into blocks, the live text drawn smooth over it ("113 . 113" doubled for the 15 frames of a menu's exit
+fade). With the Vulkan renderer such a primitive (`WINDOW_CAPTURE` in its vertices' window word, set when its texels
+were served from the target by `own_apply`) samples the render-target capture instead: `pc_vk_hw_capture` copies the
+target's colour over the texels it samples into the scratch image at the target's own resolution (binding 4 of the
+packet shader), taken before the draw and again for each primitive; a replayed frame takes it from the replay target
+(`replay_frame`), so interpolated frames match. Nothing reads VRAM for them: this is the shape T5's
+replacement of the VRAM array takes for what reads the frame. OpenGL has no capture: its copy averages each PS1
+pixel's block of the target instead of sampling its middle.
+
 **To replace.** Large. Native textures and palettes as assets (decoded once, keyed by asset id, palette
 animation as data) would remove both the VRAM array and the CPU rasterizer. That means every
 `LoadImage` caller (and the texture-page and CLUT fields in every packet and native mesh) naming an asset

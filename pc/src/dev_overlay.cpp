@@ -92,6 +92,8 @@ extern "C" void pc_cutscene_camera_input(void);
 extern "C" void pc_editor_input(void);
 extern "C" void pc_editor_panel(void);
 extern "C" void pc_editor_grid(void);
+extern "C" int pc_hw_screen_copy; /* gpu_hw.c: screen_copy native (1) | ps1 (0) */
+
 static bool active, visible;
 static void register_commands(); /* the command registry: File/Edit/View/Window items, tools, shortcuts */
 static bool show_help; /* Help > Keyboard shortcuts */
@@ -864,6 +866,15 @@ static void graphics_panel()
                 ImGui::SetNextItemWidth(120);
                 ImGui::SliderFloat("Black at", &pc_menu_fade_dip, 0.05f, 0.95f, "%.2f");
             }
+        }
+        {
+            bool native = pc_hw_screen_copy != 0;
+            if (ImGui::Checkbox("Screen copies at the target's resolution", &native))
+                pc_hw_screen_copy = native;
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Sprites that sample a frame buffer (the menus' blend with the previous screen, the feathers\n"
+                                  "and rows they darken, the afterimage) read it at the render target's resolution. Off: the\n"
+                                  "PS1's own (a PS1-resolution copy, blocky). Settings key screen_copy (native | ps1).");
         }
         extern int pc_screen_owner, pc_screen_owner_fill[3]; /* screen_owner.c */
         if (pc_gte_widescreen) {

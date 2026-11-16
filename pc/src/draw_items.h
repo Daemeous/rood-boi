@@ -172,6 +172,11 @@ const void* pc_frame_command(int index);
 int pc_frame_command_item(const void* command);
 /* The address of item `index`'s lowered packet (where the draw puts it; the key of anchors and interpolation). */
 const void* pc_frame_packet(int index);
+/* An ordering table made (ClearOTag, ClearOTagR: `reverse`), and the order the runs placed in the table of a DrawOTag's `head` draw in. */
+void pc_frame_table(const void* base, int n, int reverse);
+void pc_frame_splice_table(const void* at, const void* head); /* the table at `head` is walked after the entry `at` (pc_frame_splice) */
+int pc_frame_run_live(int first, int count); /* a run with an item that draws */
+int pc_frame_expected_order(const void* head, int* out, int max);
 /* Whether the run [first, first + count) has a native list's draw (PC_ITEM_NATIVE). */
 int pc_frame_run_has_native(int first, int count);
 /* Whether `packet` is a marker (pc_frame_place) and the run of items it places. */

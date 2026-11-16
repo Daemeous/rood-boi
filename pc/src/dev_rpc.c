@@ -652,6 +652,7 @@ static int paused_redraw_ms(void)
 extern int pc_snapshot_available(void);
 extern int pc_snapshot_point(const char* path, char* error, int size);
 extern int pc_snapshot_hash(char* out, int size);
+extern int pc_snapshot_ranges(char* out, int size, int dump, const char* path);
 extern const char* pc_snapshot_autosave_path(void);
 extern void pc_snapshot_restart(const char* path, int paused);
 extern int pc_snapshot_check(const char* path, char* why, int size);
@@ -1274,6 +1275,15 @@ static void handle_method(int fd, const char* request)
             string_value(member(params, "action"), action, sizeof action);
         if (!strcmp(action, "hash")) {
             pc_snapshot_hash(result, (int)sizeof result);
+            reply(fd, id, result);
+        } else if (!strcmp(action, "ranges")) {
+            long long dump = -1;
+            char dump_path[512] = "";
+            if (params) {
+                number_value(member(params, "dump"), &dump);
+                string_value(member(params, "path"), dump_path, sizeof dump_path);
+            }
+            pc_snapshot_ranges(result, (int)sizeof result, (int)dump, dump_path);
             reply(fd, id, result);
         } else if (!strcmp(action, "available")) {
             reply(fd, id, pc_snapshot_available() ? "{\"available\":true}" : "{\"available\":false}");
@@ -2103,6 +2113,11 @@ static void handle_method(int fd, const char* request)
                 pc_ui_text_setting("ui_text_overlay", name);
             else if (number_value(member(params, "ui_text_overlay"), &n) && n >= 0 && n <= 1)
                 pc_ui_text_overlay = (int)n;
+            /* ui_text_field "msdf" | "sdf" (or 1/0). */
+            if (string_value(member(params, "ui_text_field"), name, sizeof name))
+                pc_ui_text_setting("ui_text_field", name);
+            else if (number_value(member(params, "ui_text_field"), &n) && n >= 0 && n <= 1)
+                pc_ui_text_setting("ui_text_field", n ? "msdf" : "sdf");
             /* ui_text_bubble_align "left" | "centre" (or 0/1). */
             if (string_value(member(params, "ui_text_bubble_align"), name, sizeof name))
                 pc_ui_text_setting("ui_text_bubble_align", name);
@@ -2456,11 +2471,12 @@ static void handle_method(int fd, const char* request)
         if (used < (int)sizeof result - 100)
             used += snprintf(result + used - 1, sizeof result - used + 1,
                         ",\"ui_upscale\":\"%s\",\"ui_subpixel\":%d,\"ui_text\":\"%s\",\"ui_text_layout\":\"%s\","
-                        "\"ui_text_bubble_align\":\"%s\",\"ui_text_overlay\":\"%s\"}",
+                        "\"ui_text_bubble_align\":\"%s\",\"ui_text_overlay\":\"%s\",\"ui_text_field\":\"%s\"}",
                         pc_ui_upscale_names[pc_ui_upscale ? 1 : 0], pc_ui_subpixel, pc_ui_text_names[pc_ui_text ? 1 : 0],
                         pc_ui_text_layout_names[pc_ui_text_layout ? 1 : 0],
                         pc_ui_text_bubble_align_names[pc_ui_text_bubble_align ? 1 : 0],
-                        pc_ui_text_overlay_names[pc_ui_text_overlay ? 1 : 0])
+                        pc_ui_text_overlay_names[pc_ui_text_overlay ? 1 : 0],
+                        pc_ui_text_field_names[pc_ui_text_field ? 1 : 0])
                 - 1;
         if (used < (int)sizeof result - 160)
             used += snprintf(result + used - 1, sizeof result - used + 1,

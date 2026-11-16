@@ -16,9 +16,11 @@ At 1280 x 720, over the vsyncs after Circle opens Items (each present read back,
   - original: the same check fails (its hue drifts past HUE_SLACK as the picture's blue is added, and it never gets that
     dark): the test's own sanity.
 Over the vsyncs after Cross closes Items (the target, RPC gpu_dump, at the internal resolution):
-  - plain: the HUD's digits (the field's, behind the menu) are smooth font text in every fade frame: the share of
-    scale x scale blocks of one exact colour (a PS1-resolution picture of them: every block) stays near the rest
-    frame's (BLOCK_SLACK).
+  - plain and original: the HUD's digits (the field's, behind the menu) are smooth font text in every fade frame: the
+    share of scale x scale blocks of one exact colour (a PS1-resolution picture of them: every block) stays near the
+    rest frame's (BLOCK_SLACK). The original fade blends in the previous screen, which was a PS1-resolution copy of the
+    frame (the live text smooth over its blocky one: "113 . 113"); it is sampled from the render-target capture now
+    (gpu_hw.c WINDOW_CAPTURE), as is every screen copy of the game's.
 
     python3 pc/tests/menu_fade_smoke.py [--out DIR]
 """
@@ -184,7 +186,12 @@ def main():
           f"at rest {base:.2f})")
 
     original = lane(out, "original", "original")
-    falls, drift, depth, bright, *_ = original
+    falls, drift, depth, bright, (frames, rest), k = original
+    base = blocks(rest[0], k, rest[1])
+    worst = max(blocks(p, k, x) for p, x in frames)
+    check(worst <= base + BLOCK_SLACK,
+          f"original: the HUD's digits are smooth text in every closing fade frame too: the previous screen the game "
+          f"blends in is the target at its own resolution ({worst:.2f} of their blocks uniform, at rest {base:.2f})")
     check(drift > HUE_SLACK and depth > DIP_DEPTH,
           f"original: the same checks fail (hue drift {drift:.4f}, at most {HUE_SLACK}; depth {depth:.2f}, at most "
           f"{DIP_DEPTH}; brightness {[round(b, 1) for b in bright[:14]]})")

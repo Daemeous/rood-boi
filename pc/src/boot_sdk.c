@@ -497,6 +497,7 @@ u_long* ClearOTag(u_long* ot, int n)
 {
     if (n <= 0)
         pc_unimplemented("empty ordering table");
+    pc_frame_table(ot, n, 0);
     while (--n) {
         *ot = psx_to_int(u_long, (ot + 1)) & 0xffffff;
         ++ot;
@@ -509,6 +510,7 @@ u_long* ClearOTagR(u_long* ot, int n)
 {
     if (n <= 0)
         pc_unimplemented("empty reverse ordering table");
+    pc_frame_table(ot, n, 1);
     for (int i = n - 1; i > 0; --i)
         ot[i] = psx_to_int(u_long, &ot[i - 1]) & 0xffffff;
     D_80033504 = (psx_to_int(u_long, D_800334F0) & 0xffffff) | 0x04000000;

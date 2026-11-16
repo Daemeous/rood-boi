@@ -330,7 +330,9 @@ def win_command(args):
     # win_compat.h first.
     # The vendored Lua core (-DROOD_LUA_CORE) needs none of it either: Windows'
     # macros stay away from its identifiers.
-    host = "-nostdinc" not in args and not any(a.endswith(".i") for a in args) and "-DROOD_LUA_CORE" not in args
+    # Nor does msdfgen's core (-DMSDFGEN_PUBLIC=: its own names against windows.h's macros).
+    host = ("-nostdinc" not in args and not any(a.endswith(".i") for a in args) and "-DROOD_LUA_CORE" not in args
+            and "-DMSDFGEN_PUBLIC=" not in args)
     # GCC's (System V) bitfield and packed-struct layout, which the PS1
     # structures assume, not MSVC's.
     return command[:1] + ["-mcmodel=small", "-mno-ms-bitfields", "-D_WIN32_WINNT=0x0A00", "-isystem", str(win_include)] \
@@ -1501,6 +1503,18 @@ for name in LUA_CORE:
                     "-I" + str(lua_source), "-x", "c++", "-c", str(lua_source / (name + ".c")), "-o", str(obj)],
                    f"pc/third_party/lua/src/{name}.c", "c++")
     objects.append(obj)
+# msdfgen's core (vendored, MIT; pc/third_party/msdfgen: unchanged, no FreeType or Skia) and the glue that turns ui_text's glyph
+# outlines into multi-channel distance fields (pc/src/ui_msdf.cpp; setting ui_text_field msdf).
+msdf_source = root / "pc/third_party/msdfgen"
+for source in sorted((msdf_source / "core").glob("*.cpp")):
+    obj = out / ("msdfgen_" + source.stem + ".o")
+    compile_object(["g++", *cxx_flags, "-DMSDFGEN_PUBLIC=", "-I" + str(msdf_source), "-c", str(source), "-o", str(obj)],
+                   source.relative_to(root), "c++")
+    objects.append(obj)
+obj = out / "ui_msdf.o"
+compile_object(["g++", *cxx_flags, "-DMSDFGEN_PUBLIC=", "-I" + str(msdf_source), "-I" + str(imgui), "-Ipc/src",
+                "-c", "pc/src/ui_msdf.cpp", "-o", str(obj)], "pc/src/ui_msdf.cpp", "c++")
+objects.append(obj)
 # The extension system (pc/src/lua): runtime, API, RPC, console.
 for source in sorted((root / "pc/src/lua").glob("*.cpp")):
     obj = out / (source.stem + ".o")

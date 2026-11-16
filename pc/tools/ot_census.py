@@ -42,6 +42,10 @@ def show(label, r):
     raw = sum(k.get(n, 0) for n in RAW)
     print(f"{label}: {r['tables']} tables; item markers {k['item_marker']}, native markers {k['native_marker']}, "
           f"raw {raw} ({', '.join(f'{n} {k[n]}' for n in RAW if k[n])}), vram copies {k['vram_copy']}, no-ops {k['nop']}")
+    order = r.get("order")
+    if order:
+        print(f"    key order against the table walk: {order['tables']} tables, {order['bad']} differ, {order['unknown']} of unknown table"
+              + (f" (the first: walk {order['first'][0]} runs, keys {order['first'][1]}, differ at run {order['first'][2]}: walk {order['first'][3]}, keys {order['first'][4]})" if order['bad'] else ""))
     imm = r.get("immediate", {})
     if any(imm.values()):
         print(f"    drawn at once (DrawPrim, in no table: not the gate's): {', '.join(f'{n} {v}' for n, v in imm.items() if v)}")

@@ -114,7 +114,7 @@ static int make_targets(int scale)
                             | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     if (!make_target(&vk_hw.live) || !make_target(&vk_hw.replay)
         || !vk_image_create(&vk_hw.copy, vk_hw.width, vk_hw.height, VK_TARGET_FORMAT,
-            VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT)
+            VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT)
         || !vk_image_create(&vk_hw.room_depth, vk_hw.width, vk_hw.height, vk.depth_format, depth)
         || !vk_image_create(&vk_hw.before, vk_hw.width, vk_hw.height, vk.depth_format, depth)
         || !vk_image_create(&vk_hw.room_key, vk_hw.width, vk_hw.height, vk.depth_format, depth)
@@ -270,10 +270,10 @@ int pc_vk_hw_init(int scale, size_t vertex_size)
         || !vk_image_create(&vk_hw.dummy_color, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT,
             VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT))
         return 0;
-    VkDescriptorType draw_types[4] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+    VkDescriptorType draw_types[5] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
         VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER };
-    draw_set = vk_push_layout(draw_types, 4);
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER };
+    draw_set = vk_push_layout(draw_types, 5);
     upload_set = vk_push_layout(draw_types, 1);
     VkPushConstantRange draw_range = { VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(draw_push) };
     VkPipelineLayoutCreateInfo layout = { .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
@@ -440,6 +440,7 @@ void pc_vk_hw_draw_batch(unsigned fbo, const void* vertices, int count, int blen
     VkImageView atlas = (VkImageView)pc_ui_upscale_vk_view();
     vk_descriptors_image(&d, 2, atlas ? atlas : vk_hw.vram.view, vk.nearest);
     vk_descriptors_image(&d, 3, vk_hw.emissive.view, vk.nearest);
+    vk_descriptors_image(&d, 4, vk_hw.copy.view, vk.nearest); /* the capture (pc_vk_hw_capture): screen copies at the target's resolution */
     draw_push push = { .perspective = pc_hw_draw_perspective, .filtering = pc_hw_draw_filter, .occlusion = occlusion,
         .ui_scale = atlas ? pc_ui_upscale_draw_factor() : 0, .emissive = pc_hw_emissive(NULL),
         .materials = pc_material_active() };
@@ -800,6 +801,23 @@ int pc_vk_hw_sync_read(int replay, int x0, int y0, int x1, int y1, unsigned char
         sync_image.image, VK_IMAGE_LAYOUT_GENERAL,
         1, &blit, VK_FILTER_NEAREST);
     return vk_read_image(&sync_image, VK_IMAGE_ASPECT_COLOR_BIT, x0, y0, x1 - x0, y1 - y0, pixels, 4);
+}
+/* The render-target capture: the live (replay: the replay) target's colour over native rectangle x0..x1, y0..y1 kept
+ * as it is, at the target's own resolution, for the draws after it that sample a frame buffer as a texture (a screen copy:
+ * the menus' cross-fade of the previous screen; gpu_hw.c WINDOW_CAPTURE, hw_frag.glsl binding 4). One capture holds at a
+ * time (the next replaces it: gpu_hw.c draws what sampled the last before it takes another). */
+int pc_vk_hw_capture(int replay, int x0, int y0, int x1, int y1)
+{
+    x0 = x0 < 0 ? 0 : x0, y0 = y0 < 0 ? 0 : y0, x1 = x1 > 1024 ? 1024 : x1, y1 = y1 > 512 ? 512 : y1;
+    if (x1 <= x0 || y1 <= y0)
+        return 1;
+    int s = vk_hw.scale;
+    vk_end_rendering();
+    vk_barrier(); /* the target's drawing so far */
+    copy_image(&target_of(replay ? VK_TOKEN_REPLAY : VK_TOKEN_LIVE)->color, &vk_hw.copy, x0 * s, y0 * s, x0 * s, y0 * s,
+        (x1 - x0) * s, (y1 - y0) * s);
+    vk_barrier(); /* before the draws that sample it */
+    return 1;
 }
 /* The sampled copy of native VRAM over native rectangle x0..x1, y0..y1 from
  * the live (replay: the replay) target's colour, on the GPU

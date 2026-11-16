@@ -86,6 +86,7 @@ def main():
         ("imgui.txt", "pc/third_party/imgui/LICENSE.txt"),
         ("ImGuizmo.txt", "pc/third_party/ImGuizmo/LICENSE"),
         ("lua.txt", "pc/third_party/lua/LICENSE"),
+        ("msdfgen.txt", "pc/third_party/msdfgen/LICENSE.txt"),
         ("smaa.txt", "pc/third_party/smaa/LICENSE.txt"),
         ("glslang.txt", "pc/third_party/glslang/LICENSE.txt"),  # linked for shader hot reload
         ("psycross.txt", "pc/third_party/psycross/LICENSE"),

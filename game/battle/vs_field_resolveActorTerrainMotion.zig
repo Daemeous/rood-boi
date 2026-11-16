@@ -1,6 +1,7 @@
 //! An actor's step collision against the map: probes the tiles ahead and
 //! beside the move, accepts it, keeps one axis, or slides along a wall
 //! corner (pc/src/game/BATTLE/BATTLE.PRG/3A1A0.c).
+const std = @import("std");
 const common = @import("common");
 const pad = @import("common").pad;
 const psx = common.psx;
@@ -47,10 +48,10 @@ const Locals = struct {
     xResults: [5]c_int = undefined,
     zResults: [5]c_int = undefined,
     probeDirections: [2]c_int = undefined,
-    probe: v.SVECTOR = undefined,
-    opposite: v.SVECTOR = undefined,
-    xProbe: v.SVECTOR = undefined,
-    zProbe: v.SVECTOR = undefined,
+    probe: v.SVECTOR = std.mem.zeroes(v.SVECTOR), // (its pad is copied into the probe globals: zero, not stack garbage)
+    opposite: v.SVECTOR = std.mem.zeroes(v.SVECTOR), // (its pad is copied into the probe globals: zero, not stack garbage)
+    xProbe: v.SVECTOR = std.mem.zeroes(v.SVECTOR), // (its pad is copied into the probe globals: zero, not stack garbage)
+    zProbe: v.SVECTOR = std.mem.zeroes(v.SVECTOR), // (its pad is copied into the probe globals: zero, not stack garbage)
     // Uninitialised in the original when the actor's tile flags skip the
     // tile lookup (the probe-only path then stores it): null here.
     probeTiles: [2]?[*]u32 = .{ null, null },

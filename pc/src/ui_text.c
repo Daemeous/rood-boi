@@ -39,6 +39,7 @@
 #include "ui_text.h"
 #include "draw_items.h"
 #include "ui_labels.h"
+#include "ui_msdf.h"
 #include <math.h>
 #include <stddef.h>
 #include <time.h>
@@ -231,6 +232,7 @@ float pc_ui_text_info_tracking = INFO_TRACKING_DEFAULT;
 #define SDF_EM 64   /* distance field pixels per em (cap height ~45: upsampled smoothly at 8x) */
 #define SDF_PAD 16  /* field reaches this many of its pixels outside the outline (> one original pixel) */
 #define SDF_SCALE (127.0f / SDF_PAD)
+#define MSDF_NEAR 1.5f /* field pixels outside the edge where the median is the distance, then blended to the exact one over as many */
 
 /* What an outlined glyph needs beside its body inside the box it is drawn
  * in: the stroke, its anti-aliased edge (ui_text_edge_margin) and the
@@ -255,6 +257,7 @@ static int font_count;
 typedef struct {
     uint32_t key;       /* style << 24 | codepoint (0: empty) */
     unsigned char* sdf; /* NULL: the font lacks it */
+    unsigned char* msdf; /* ui_text_field msdf: the same field in three channels (ui_msdf.h), their median the distance; NULL: sdf's */
     int w, h, xoff, yoff;
     float x0, x1, top, bottom; /* outline box in field pixels (y up from the baseline) */
     float* profile;            /* ui_text_layout line: per field row from profile_y0 up, the ink's left and
@@ -308,6 +311,7 @@ static void drop_glyphs(void)
     for (int i = 0; i < GLYPH_SLOTS; i++)
         if (glyphs[i].sdf) {
             stbtt_FreeSDF(glyphs[i].sdf, NULL);
+            free(glyphs[i].msdf);
             free(glyphs[i].profile);
         }
     memset(glyphs, 0, sizeof glyphs);
@@ -315,9 +319,31 @@ static void drop_glyphs(void)
     stats.glyphs = 0;
 }
 
+/* The glyph's three-channel field (ui_msdf.h) in the pixels its single-channel one has (the bytes stbtt_GetGlyphSDF made,
+ * g->w x g->h from g->xoff, g->yoff), from the same outline; NULL when the generator cannot take it. */
+static unsigned char* msdf_of(const stbtt_fontinfo* info, float scale, int index, const glyph_field* g)
+{
+    int ix0, iy0, ix1, iy1;
+    stbtt_GetGlyphBitmapBoxSubpixel(info, index, scale, scale, 0.0f, 0.0f, &ix0, &iy0, &ix1, &iy1);
+    ix0 -= SDF_PAD, iy0 -= SDF_PAD, ix1 += SDF_PAD, iy1 += SDF_PAD;
+    if (ix0 != g->xoff || iy0 != g->yoff || ix1 - ix0 != g->w || iy1 - iy0 != g->h)
+        return NULL;
+    stbtt_vertex* vertices = NULL;
+    int count = stbtt_GetGlyphShape(info, index, &vertices);
+    unsigned char* field = NULL;
+    if (count > 0 && sizeof(stbtt_vertex) == sizeof(pc_msdf_vertex))
+        field = pc_msdf_glyph((const pc_msdf_vertex*)vertices, count, scale, ix0, iy0, ix1, iy1, SDF_PAD, 128, SDF_SCALE);
+    if (vertices)
+        stbtt_FreeShape(info, vertices);
+    return field;
+}
+
 /* The style's field of `codepoint` (NULL: no font, or the font lacks it). */
 static const glyph_field* field(int style, unsigned codepoint)
 {
+    static int env_done;
+    if (!env_done++ && getenv("ROOD_UI_TEXT_FIELD") && *getenv("ROOD_UI_TEXT_FIELD")) /* (comparisons: sdf | msdf, over the setting) */
+        pc_ui_text_field = strcmp(getenv("ROOD_UI_TEXT_FIELD"), "sdf") != 0;
     if (glyph_generation != pc_ui_text_generation) {
         drop_glyphs();
         glyph_generation = pc_ui_text_generation;
@@ -349,6 +375,12 @@ static const glyph_field* field(int style, unsigned codepoint)
         stats.field_ms += (t1.tv_sec - t0.tv_sec) * 1e3 + (t1.tv_nsec - t0.tv_nsec) / 1e6;
         if (!g->sdf)
             return NULL;
+        if (pc_ui_text_field == PC_UI_TEXT_FIELD_MSDF) { /* (a glyph the generator cannot take keeps the single channel) */
+            clock_gettime(CLOCK_MONOTONIC, &t0);
+            g->msdf = msdf_of(&f->info, f->scale, index, g);
+            clock_gettime(CLOCK_MONOTONIC, &t1);
+            stats.field_ms += (t1.tv_sec - t0.tv_sec) * 1e3 + (t1.tv_nsec - t0.tv_nsec) / 1e6;
+        }
         g->x0 = x0 * f->scale, g->x1 = x1 * f->scale, g->top = y1 * f->scale, g->bottom = y0 * f->scale;
         ++stats.glyphs;
         return g;
@@ -368,7 +400,24 @@ static float distance_at(const glyph_field* g, float x, float y)
     if (!(p[0] | p[1] | p[g->w] | p[g->w + 1]))
         return -1e4f; /* the field's floor: at least SDF_PAD away */
     float top = p[0] + (p[1] - p[0]) * ax, bottom = p[g->w] + (p[g->w + 1] - p[g->w]) * ax;
-    return (top + (bottom - top) * ay - 128.0f) / SDF_SCALE;
+    float plain = (top + (bottom - top) * ay - 128.0f) / SDF_SCALE;
+    if (g->msdf) {
+        /* The channels interpolated, their median the distance: a corner stays a corner at the glyph's edge. Outside a convex
+         * corner the median is the distance to the edges' lines, not to the corner (it points: a stroke around an acute corner
+         * a spike), so from MSDF_NEAR pixels out the exact distance (the single channel's) takes over, to the outline's
+         * stroke: the edge sharp, the outline round. */
+        const unsigned char *m = g->msdf + (iy * g->w + ix) * 3, *n = m + g->w * 3;
+        float c[3];
+        for (int k = 0; k < 3; k++) {
+            float t = m[k] + (m[3 + k] - m[k]) * ax, b2 = n[k] + (n[3 + k] - n[k]) * ax;
+            c[k] = t + (b2 - t) * ay;
+        }
+        float lo = fminf(c[0], c[1]), hi = fmaxf(c[0], c[1]);
+        float median = (fmaxf(lo, fminf(hi, c[2])) - 128.0f) / SDF_SCALE;
+        float away = fminf(fmaxf((-median - MSDF_NEAR) / MSDF_NEAR, 0.0f), 1.0f);
+        return median + (plain - median) * away;
+    }
+    return plain;
 }
 
 /* ---- icons (button_prompts.c): any font's glyph, finer, kept until exit ---- */
@@ -1396,6 +1445,8 @@ const char* const pc_ui_text_layout_names[2] = { "glyph", "line" };
 int pc_ui_text_bubble_align = PC_UI_TEXT_ALIGN_CENTRE;
 int pc_ui_text_overlay = PC_UI_TEXT_OVERLAY_AUTO;
 const char* const pc_ui_text_overlay_names[2] = { "off", "auto" };
+int pc_ui_text_field = PC_UI_TEXT_FIELD_MSDF;
+const char* const pc_ui_text_field_names[2] = { "sdf", "msdf" };
 const char* const pc_ui_text_bubble_align_names[2] = { "left", "centre" };
 #define SLACK 1.0f   /* PS1 pixels a glyph's ink may end after the original's */
 #define MIN_GAP 0.5f /* PS1 pixels at least between neighbours' ink on any row */
@@ -2963,6 +3014,10 @@ static const pc_ui_text_style* settings_style(int style, int k)
 int pc_ui_text_setting_value(const char* key, char* out, int size)
 {
     int style, which, t;
+    if (!strcmp(key, "ui_text_field")) {
+        snprintf(out, (size_t)size, "%s", pc_ui_text_field_names[pc_ui_text_field ? 1 : 0]);
+        return 1;
+    }
     if (style_key(key, &style, &which)) {
         const pc_ui_text_style* st = settings_style(style, which);
         if (which == FIELD_FONT)
@@ -3006,6 +3061,14 @@ int pc_ui_text_setting(const char* key, const char* value)
         for (int k = 0; k < 2; k++)
             if (!strcmp(name, pc_ui_text_overlay_names[k]) || (name[0] == '0' + k && !name[1]))
                 pc_ui_text_overlay = k;
+        return 1;
+    }
+    if (!strcmp(key, "ui_text_field")) { /* msdf | sdf (or 1 / 0) */
+        char name[32] = "";
+        sscanf(value, "%31s", name);
+        for (int k = 0; k < 2; k++)
+            if ((!strcmp(name, pc_ui_text_field_names[k]) || (name[0] == '0' + k && !name[1])) && k != pc_ui_text_field)
+                pc_ui_text_field = k, ++pc_ui_text_generation; /* (the fields are made again) */
         return 1;
     }
     if (!strcmp(key, "ui_text_layout")) { /* line | glyph (or 1 / 0) */
@@ -3056,6 +3119,7 @@ void pc_ui_text_settings_write(FILE* f)
     fprintf(f, "ui_text_layout %s\n", pc_ui_text_layout_names[pc_ui_text_layout ? 1 : 0]);
     fprintf(f, "ui_text_bubble_align %s\n", pc_ui_text_bubble_align_names[pc_ui_text_bubble_align ? 1 : 0]);
     fprintf(f, "ui_text_overlay %s\n", pc_ui_text_overlay_names[pc_ui_text_overlay ? 1 : 0]);
+    fprintf(f, "ui_text_field %s\n", pc_ui_text_field_names[pc_ui_text_field ? 1 : 0]);
     /* Only what differs from the built-in values. */
     for (int i = 0; i < PC_UI_TEXT_STYLES; i++)
         for (int k = 0; k < FIELDS; k++)
@@ -3075,11 +3139,12 @@ void pc_ui_text_get_stats(pc_ui_text_stats* s) { *s = stats; }
 
 int pc_ui_text_json(char* out, int size)
 {
-    int used = snprintf(out, (size_t)size, "{\"ui_text\":\"%s\",\"layout\":\"%s\",\"bubble_align\":\"%s\","
+    int used = snprintf(out, (size_t)size, "{\"ui_text\":\"%s\",\"layout\":\"%s\",\"bubble_align\":\"%s\",\"field\":\"%s\","
                                            "\"regions\":%ld,\"labels\":%ld,\"failed\":%ld,\"fonts\":%d,\"glyphs\":%d,"
                                            "\"field_ms\":%.1f,\"styles\":[",
         pc_ui_text_names[pc_ui_text ? 1 : 0], pc_ui_text_layout_names[pc_ui_text_layout ? 1 : 0],
-        pc_ui_text_bubble_align_names[pc_ui_text_bubble_align ? 1 : 0], stats.regions, stats.labels, stats.failed,
+        pc_ui_text_bubble_align_names[pc_ui_text_bubble_align ? 1 : 0], pc_ui_text_field_names[pc_ui_text_field ? 1 : 0],
+        stats.regions, stats.labels, stats.failed,
         stats.fonts, stats.glyphs,
         stats.field_ms);
     for (int i = 0; i < PC_UI_TEXT_STYLES && used < size; i++) {

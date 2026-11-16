@@ -1,0 +1,9 @@
+msdfgen v1.13.1 (tag), https://github.com/Chlumsky/msdfgen
+commit ec84cd53590bb114c5a7fa4fe7be5adafec6276a
+MIT licence (LICENSE.txt), Copyright (c) 2014 - 2026 Viktor Chlumsky.
+
+Only the core library is vendored (core/, msdfgen.h, LICENSE.txt), unchanged: the
+extensions (FreeType, Skia, SVG import), the command-line tool, the CMake files and
+the other directories are left out. The glyph outlines come from stb_truetype
+(pc/src/ui_msdf.cpp turns them into a msdfgen shape); the core is compiled into
+the game as C++ with -DMSDFGEN_PUBLIC= (pc/tools/build_boot.py).

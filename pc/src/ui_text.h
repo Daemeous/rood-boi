@@ -95,6 +95,13 @@ extern const char* const pc_ui_text_bubble_align_names[2];
 enum { PC_UI_TEXT_OVERLAY_OFF = 0, PC_UI_TEXT_OVERLAY_AUTO = 1 };
 extern int pc_ui_text_overlay;
 extern const char* const pc_ui_text_overlay_names[2];
+/* ui_text_field msdf (default) | sdf: the glyphs' distance fields. sdf: one channel (stb_truetype's, a corner rounded to
+ * the field's resolution); msdf: three channels (msdfgen, ui_msdf.h), their median the distance, taken after the channels
+ * are interpolated: sharp corners at any magnification. Coverage, the CLUT ramp, the outline and the translucency are the
+ * same either way: only the distance a texel holds differs. */
+enum { PC_UI_TEXT_FIELD_SDF = 0, PC_UI_TEXT_FIELD_MSDF = 1 };
+extern int pc_ui_text_field;
+extern const char* const pc_ui_text_field_names[2];
 /* Whether dialogue and menu glyphs are laid out now (ui_text font, any
  * internal resolution, either ui_text_layout). */
 int pc_ui_text_layout_on(int scale);

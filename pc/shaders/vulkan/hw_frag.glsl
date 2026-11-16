@@ -29,6 +29,7 @@ layout(binding = 1) uniform sampler2D room_depth;
 #endif
 layout(binding = 2) uniform usampler2D ui_atlas; // 2D regions magnified with MMPX
 layout(binding = 3) uniform usampler2D emissive_map; // emissive texels' slot map (emissive.glsl)
+layout(binding = 4) uniform sampler2D capture; // the render-target capture (vk_hw.c pc_vk_hw_capture): a frame buffer at the target's resolution
 layout(location = 0) out vec4 color;
 layout(location = 1) out vec4 normal_out;
 layout(location = 2) out vec4 albedo_out;
@@ -63,7 +64,19 @@ void main() {
     if ((flags & 1u) != 0u) {
         uint t;
         vec3 texel;
-        if ((flags & 16u) != 0u && pc.ui_scale > 0) {
+        if ((win & 0x10000000u) != 0u && ((tpage >> 7) & 3u) == 2u) {
+            // WINDOW_CAPTURE: a screen copy (15-bit texels of a frame buffer): the texels' own pixels of the captured target,
+            // not the PS1-resolution copy of VRAM (a point sample of the target at each PS1 pixel: smooth text turned into
+            // blocks). The captured picture is 8 bits a channel; the PS1's texel is 5 and black is transparent.
+            float scale = float(textureSize(capture, 0).x) / 1024.0;
+            vec2 at = (vec2(float((tpage & 15u) * 64u), float(((tpage >> 4) & 1u) * 256u)) + v_uv) * scale;
+            vec2 lo = (vec2(float((tpage & 15u) * 64u), float(((tpage >> 4) & 1u) * 256u)) + vec2(v_bounds.xy)) * scale;
+            vec2 hi = (vec2(float((tpage & 15u) * 64u), float(((tpage >> 4) & 1u) * 256u)) + vec2(max(v_bounds.zw, v_bounds.xy + 1u))) * scale;
+            vec4 cap = texelFetch(capture, ivec2(floor(clamp(at, lo, hi - 1.0))), 0);
+            texel = cap.rgb * 31.0;
+            vec3 q = floor(texel + 0.5);
+            t = uint(q.r) | (uint(q.g) << 5) | (uint(q.b) << 10) | (cap.a >= 0.5 ? 0x8000u : 0u);
+        } else if ((flags & 16u) != 0u && pc.ui_scale > 0) {
             // The texel's block in the atlas, clamped to the region ([min, max - 1]).
             ivec2 lo = ivec2(v_bounds.xy), hi = max(ivec2(v_bounds.zw) - 1, lo);
             ivec2 q = clamp(ivec2(floor(v_uv * float(pc.ui_scale) + 0.0001)), lo * pc.ui_scale, (hi + 1) * pc.ui_scale - 1);

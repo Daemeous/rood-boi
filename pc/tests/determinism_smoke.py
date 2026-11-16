@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Identical runs give identical game states, whatever the host's timing.
 
-A game warped to zone 9 room 5 (RPC room_goto {hold}) and stepped through the load
-is hashed (RAM, game state, IO, VRAM; RPC snapshot hash) at every step. The same run is made
+A game warped through the five platform rooms (RPC room_goto {hold}) and stepped through the loads
+is hashed (RAM, scratch, game state, IO, VRAM, the overlays' statics; RPC snapshot hash) at every step. The same run is made
 several times, the machine loaded with CPU burners of this test's own (the more the
 host's threads are starved, the wider a host-timing dependence shows), and every run must
 give the very same hashes. Before room_goto {hold}, the warp ran the game free until the
@@ -23,7 +23,7 @@ sys.path.insert(0, str(ROOT / "pc/tools"))
 from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 
-ROOM = (9, 5)
+ROOMS = ((9, 5), (15, 7), (24, 2), (25, 2), (32, 0))  # the platform rooms: actors collide with the map
 
 
 def one_run(card, out, socket, index):
@@ -32,17 +32,22 @@ def one_run(card, out, socket, index):
     try:
         game.run(10)
         before = game.status()["vsync"]
-        game.call("room_goto", hold=True, zone=ROOM[0], room=ROOM[1], enemies=False, scripts=False)
-        time.sleep(0.3)  # (a host's delay between two requests: the game must not move meanwhile)
-        after = game.status()
-        trace.append(("held", before, after["vsync"], after["paused"]))
-        for _ in range(60):
-            game.run(5)
-            h = game.call("snapshot", action="hash")
-            trace.append((h["vsync"], h["ram"], h["state"], h["io"], h["vram"]))
-            if game.call("room_goto", action="status")["phase"] in (0, 4):
-                break
-        arrived = (game.state()["zone"], game.state()["room"]) == ROOM
+        for index, room in enumerate(ROOMS):
+            game.call("room_goto", hold=True, zone=room[0], room=room[1], enemies=False, scripts=False)
+            if index == 0:
+                time.sleep(0.3)  # (a host's delay between two requests: the game must not move meanwhile)
+                after = game.status()
+                trace.append(("held", before, after["vsync"], after["paused"]))
+            for _ in range(80):
+                game.run(10)
+                h = game.call("snapshot", action="hash")
+                trace.append((h["vsync"], h["ram"], h["scratch"], h["state"], h["io"], h["vram"], h["overlays"]))
+                if game.call("room_goto", action="status")["phase"] in (0, 4):
+                    break
+            game.run(120)
+            h = game.call("snapshot", action="hash")  # (every sort of memory the snapshot holds, the overlays' statics too)
+            trace.append((h["vsync"], h["ram"], h["scratch"], h["state"], h["io"], h["vram"], h["overlays"]))
+        arrived = (game.state()["zone"], game.state()["room"]) == ROOMS[-1]
     finally:
         game.close()
     return trace, arrived
@@ -51,7 +56,7 @@ def one_run(card, out, socket, index):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--card", default=str(ROOT / "pc/save/card1.mcd"))
-    ap.add_argument("--runs", type=int, default=5)
+    ap.add_argument("--runs", type=int, default=4)
     ap.add_argument("--burners", type=int, default=2 * (os.cpu_count() or 4))
     ap.add_argument("--out")
     args = ap.parse_args()

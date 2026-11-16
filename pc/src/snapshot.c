@@ -94,6 +94,11 @@ int pc_snapshot_hash(char* out, int size)
     snprintf(out, (size_t)size, "{}");
     return 0;
 }
+int pc_snapshot_ranges(char* out, int size, int dump, const char* path)
+{
+    snprintf(out, (size_t)size, "{}");
+    return 0;
+}
 const char* pc_snapshot_autosave_path(void) { return NULL; }
 int pc_snapshot_check(const char* path, char* why, int size)
 {
@@ -997,6 +1002,27 @@ __attribute__((noinline)) int pc_snapshot_load_now(const char* path, char* error
     }
     snprintf(pending_path, sizeof pending_path, "%s", path);
     pc_snap_call_on_stack(stack + SIDE_STACK, load_on_side_stack);
+}
+
+/* RPC snapshot {action: "ranges"}: each range's name, address, size and hash (where two runs' hashes differ). */
+int pc_snapshot_ranges(char* out, int size, int dump, const char* path)
+{
+    if (pc_hwc_drain)
+        pc_hwc_drain();
+    range r[MAX_RANGES];
+    int n = ranges(r), used = snprintf(out, (size_t)size, "{\"ranges\":[");
+    if (dump >= 0 && dump < n && path && path[0]) { /* one range's bytes, to a file (where two runs differ) */
+        FILE* f = fopen(path, "wb");
+        if (f) {
+            fwrite(r[dump].start, 1, r[dump].size, f);
+            fclose(f);
+        }
+    }
+    for (int i = 0; i < n && used < size - 160; i++)
+        used += snprintf(out + used, (size_t)(size - used), "%s{\"name\":\"%s\",\"start\":%llu,\"size\":%llu,\"hash\":\"%016llx\"}",
+            i ? "," : "", r[i].name, (unsigned long long)(uintptr_t)r[i].start, (unsigned long long)r[i].size,
+            (unsigned long long)fnv(r[i].start, r[i].size, FNV0));
+    return used + snprintf(out + used, (size_t)(size - used), "]}");
 }
 
 /* RPC snapshot {action: "hash"}: FNV-1a hashes of what a snapshot holds

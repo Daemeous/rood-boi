@@ -1404,6 +1404,7 @@ pixel's corner as the PS1 does, not one past the image (`pc_hw_set_flipped_uv`).
 | `ui_subpixel` | 0 | text glyphs drawn where the game places them in 16.16 fixed point instead of whole pixels (even spacing while talk bubbles zoom open and shut) |
 | `ui_text` | `original` | `original`: the PS1's glyphs. `font`: the game's text drawn anti-aliased from open-licensed fonts (below), at any internal resolution |
 | `ui_text_overlay` | `auto` | `auto`: while the window is finer than the internal resolution, text and button icons from fonts are drawn at the window's own resolution over the picture (below); `off`: into the picture at the internal resolution |
+| `ui_text_field` | `msdf` | the glyphs' distance fields: `msdf`: three channels from [msdfgen](https://github.com/Chlumsky/msdfgen) (core, `pc/third_party/msdfgen`; `pc/src/ui_msdf.cpp` turns stb_truetype's outlines into its shapes), the channels interpolated and their median taken as the distance, so a corner stays a corner at any magnification; `sdf`: one channel (stb_truetype's, a corner rounded to the field's resolution). Coverage, the CLUT ramp, the outline and the translucency are the same either way; settings key, dev tools (Text outlines), settings RPC, `ROOD_UI_TEXT_FIELD` for comparisons |
 | `ui_text_layout` | `line` | with `ui_text font`: `line` sets each string the game prints (talk bubbles, menus, the information box, the memory card screens) with the font's own spacing and kerning (below); `glyph`: each glyph in the original's 12-pixel cell at the game's advance, its descenders drawn whole below the cell |
 | `ui_text_bubble_align` | `centre` | with `ui_text_layout line`, talk bubbles only (menus and the information box stay left): `centre` centres each line within the original line's extent, `left` starts it where the game does |
 | `ui_text_<style>_<field>` | the chosen fonts | per style (`dialogue`, `menu`, `info`, `digits`, `status`, `labels`; HUD typography below): `font` a TrueType file (relative to the repository root), `stretch` horizontal scale, `slant` added shear, `embolden` distance-field offset in em (bolder > 0), `aspect` for `digits` the least share of the font's own width/height a digit size may be condensed to (0.78; 0: any), `small_caps`, `outline` (the original is outlined), `size` (`status`, `labels`: cap height x the original's), `stroke` (outlined styles: the outline's width in PS1 pixels, 1), `tracking` (`status`, `labels`: letter spacing in em); saved only when they differ from the defaults |
@@ -1628,6 +1629,17 @@ levels (`pc_menu_fade_levels`; the classic record carries them: `e.dim`,
 it was. Without 2D at an opacity (the null renderer, `opacity_2d 0`) the
 original runs. Dev tools panel (Graphics), settings RPC (`menu_fade`,
 `menu_fade_dip`). Test: `pc/tests/menu_fade_smoke.py`.
+
+**Screen copies (`screen_copy native | ps1`, default native).** A sprite that samples a
+frame buffer as a 16-bit texture (the menus' blend with the previous screen, the feathers
+and rows the menus and the battle text bands darken from the frame, the map's darkening and
+ripples, the afterimage) read a PS1-resolution copy of VRAM made from the target by a point
+sample: smooth text aliased into blocks, drawn under the live text. `native` (Vulkan)
+samples the render-target capture at the target's own resolution
+(`pc_vk_hw_capture`, `pc/docs/PS1_Ties.md` T5; OpenGL averages each PS1 pixel's block of
+the target); `ps1` is the PS1-resolution copy as it was (for comparisons: `ROOD_SCREEN_COPY`
+overrides). `ROOD_CAPTURE_LOG=1` logs each capture triangle (`pc/tools/capture_mask.py`
+checks that the frames that differ differ only inside them).
 
 **Lines (`ui_text_layout line`, the default).** The game sets its text a
 glyph at a time in 12 x 12 cells at its own advances (about 6 pixels a

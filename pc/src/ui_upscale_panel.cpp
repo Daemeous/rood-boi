@@ -175,6 +175,15 @@ extern "C" void pc_ui_upscale_panel(void)
         }
         static const char* overlay_modes[] = { "Off (internal resolution)", "Auto (window resolution)" };
         ImGui::Combo("Text sharpness", &pc_ui_text_overlay, overlay_modes, 2);
+        {
+            static const char* field_modes[] = { "SDF (one channel)", "MSDF (corners kept)" };
+            int field = pc_ui_text_field;
+            if (ImGui::Combo("Text outlines", &field, field_modes, 2))
+                pc_ui_text_setting("ui_text_field", field ? "msdf" : "sdf");
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("The glyphs' distance fields: one channel rounds a corner to the field's resolution; three\n"
+                                  "(multi-channel, msdfgen) keep it sharp at any size. Settings key ui_text_field.");
+        }
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Auto: while the window is finer than the internal resolution, text and button icons\n"
                               "are drawn at the window's own resolution over the picture (anti-aliased edges one\n"

@@ -1650,6 +1650,9 @@ extern int pc_frame_marker(const uint32_t*, int*, int*) __attribute__((weak));
 extern void pc_frame_draw_run(int, int) __attribute__((weak));
 extern int pc_frame_run_pages(int, int, unsigned, int (*)(unsigned)) __attribute__((weak));
 extern int pc_frame_run_has_native(int, int) __attribute__((weak));
+extern int pc_frame_expected_order(const void*, int*, int) __attribute__((weak));
+extern int pc_frame_run_live(int, int) __attribute__((weak));
+extern void pc_frame_splice_table(const void*, const void*) __attribute__((weak));
 /* gpu_hw.c: the ordering table about to be drawn holds native draws, and
  * starts in drawing area `clip` (x, y, w, h). */
 extern void pc_hw_ot_native_area(const int*) __attribute__((weak));
@@ -1703,6 +1706,8 @@ void pc_frame_splice(const void* at, const void* head, const void* last)
     if (free_slot < 0)
         pc_unimplemented("too many spliced runs of the ordering table");
     splices[free_slot].at = at, splices[free_slot].head = head, splices[free_slot].last = last;
+    if (pc_frame_splice_table)
+        pc_frame_splice_table(at, head);
 }
 static const uint32_t* const* splice_of(const uint32_t* at)
 {
@@ -1726,6 +1731,8 @@ static const char* const census_names[CENSUS_KINDS] = { "item_marker", "native_m
 static struct {
     int on;
     unsigned long long tables, count[CENSUS_KINDS], immediate[CENSUS_KINDS]; /* (immediate: packets drawn at once, in no table) */
+    unsigned long long order_tables, order_bad, order_unknown; /* (census_order) */
+    int order_first[5]; /* the first table that differed: the runs in its walk, in its keys' order, the first place they differ, the walk's and the keys' run there */
     int rows;
     struct {
         int slot, kind;
@@ -1772,6 +1779,32 @@ static void census_note(const uint32_t* p, int slot)
         ++census.rows;
     }
 }
+/* The order the walk of an adopted table draws its item runs in, against the order their slots give (pc_frame_expected_order):
+ * the keys that replace the table. */
+static void census_order(const void* head)
+{
+    static int walked[8192], expected[8192];
+    int n = 0, m, i;
+    for (unsigned k = 0; k < frame.count && n < 8192; k++) {
+        const uint32_t* p = frame.words + frame.entry[k].off;
+        int first, count;
+        if (pc_frame_marker && pc_frame_marker(p, &first, &count) && pc_frame_run_live(first, count))
+            walked[n++] = first;
+    }
+    m = pc_frame_expected_order ? pc_frame_expected_order(head, expected, 8192) : -1;
+    if (m < 0) {
+        ++census.order_unknown;
+        return;
+    }
+    ++census.order_tables;
+    for (i = 0; i < n && i < m && walked[i] == expected[i]; i++)
+        ;
+    if (i == n && n == m)
+        return;
+    if (!census.order_bad++)
+        census.order_first[0] = n, census.order_first[1] = m, census.order_first[2] = i,
+        census.order_first[3] = i < n ? walked[i] : -1, census.order_first[4] = i < m ? expected[i] : -1;
+}
 int pc_ot_census_json(char* out, int size, int on, int reset)
 {
     int n = 0, i;
@@ -1780,7 +1813,9 @@ int pc_ot_census_json(char* out, int size, int on, int reset)
     n += snprintf(out + n, (size_t)(size - n), "{\"on\":%d,\"tables\":%llu,\"kinds\":{", census.on, census.tables);
     for (i = 0; i < CENSUS_KINDS; i++)
         n += snprintf(out + n, (size_t)(size - n), "%s\"%s\":%llu", i ? "," : "", census_names[i], census.count[i]);
-    n += snprintf(out + n, (size_t)(size - n), "},\"immediate\":{");
+    n += snprintf(out + n, (size_t)(size - n), "},\"order\":{\"tables\":%llu,\"bad\":%llu,\"unknown\":%llu,\"first\":[%d,%d,%d,%d,%d]},\"immediate\":{",
+        census.order_tables, census.order_bad, census.order_unknown, census.order_first[0], census.order_first[1], census.order_first[2],
+        census.order_first[3], census.order_first[4]);
     for (i = 0; i < CENSUS_KINDS; i++)
         n += snprintf(out + n, (size_t)(size - n), "%s\"%s\":%llu", i ? "," : "", census_names[i], census.immediate[i]);
     n += snprintf(out + n, (size_t)(size - n), "},\"rows\":[");
@@ -1936,6 +1971,8 @@ void pc_draw_packet(void* data, int chain)
     if (chain == 1) {
         ot_layers_begin(data);
         adopt(data, &pc_photo_hide_game2d && pc_photo_hide_game2d && &pc_photo_game2d_slots);
+        if (census.on)
+            census_order(data);
     } else if (chain)
         ot_layers_begin(data);
     else if (census.on)

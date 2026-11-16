@@ -101,6 +101,11 @@ int pc_opacity_2d = 1;
  * the previous screen. Plain needs 2D at an opacity (opacity_2d, the hardware renderer): without it the original
  * runs. menu_fade_dip (0..1) is where in the fade the field is black. */
 int pc_menu_fade = 1;
+/* screen_copy native | ps1: a sprite that samples a frame buffer as a texture (the menus' blend with the previous screen, the
+ * feathers and rows they darken, the afterimage) reads it from the render-target capture at the target's own resolution
+ * (native, default; Vulkan: pc_vk_hw_capture, OpenGL: the block of the target averaged) or from the PS1-resolution copy of
+ * VRAM as it was (ps1; gpu_hw.c; ROOD_SCREEN_COPY overrides it). */
+extern "C" int pc_hw_screen_copy;
 float pc_menu_fade_dip = 0.5f;
 extern "C" int pc_hw_opacity_on(void) __attribute__((weak)); /* hw_registry.c */
 /* The plain fade at a step of the game's (1..15 of 16: the main menu's _renderBackground, and the classic Lua's menu_background):
@@ -609,6 +614,15 @@ int apply_line(const char* line, int* scale, bool now)
         return 1;
     if (pc_lua_settings_parse(key, rest))
         return 1;
+    if (!strcmp(key, "screen_copy")) { /* ps1 | native (or 0 / 1) */
+        char name[32] = "";
+        sscanf(rest, "%31s", name);
+        if (!strcmp(name, "ps1") || !strcmp(name, "0"))
+            pc_hw_screen_copy = 0;
+        else if (!strcmp(name, "native") || !strcmp(name, "1"))
+            pc_hw_screen_copy = 1;
+        return 1;
+    }
     if (!strcmp(key, "menu_fade")) { /* original | plain (or 0 / 1) */
         char name[32] = "";
         sscanf(rest, "%31s", name);
@@ -942,6 +956,7 @@ extern "C" void pc_settings_write(FILE* f)
     fprintf(f, "ui_bubbles %s\n", pc_ui_bubbles_names[pc_ui_bubbles ? 1 : 0]);
     pc_button_prompts_settings_write(f);
     fprintf(f, "menu_fade %s\n", pc_menu_fade ? "plain" : "original");
+    fprintf(f, "screen_copy %s\n", pc_hw_screen_copy ? "native" : "ps1");
     fprintf(f, "gameplay_walls %s\n", pc_gameplay_walls ? "smart" : "original");
     pc_occlusion_settings_write(f);
     fprintf(f, "ui_menu_tint %s\n", pc_ui_tint_id(pc_ui_tint_current()));

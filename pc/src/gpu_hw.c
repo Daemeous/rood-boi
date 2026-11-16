@@ -650,6 +650,23 @@ static int text_bounds[4]; /* the image's texels (0, 0, w, h) */
 #define TEXT_TAG_GLYPH (1u << 29)
 #define TEXT_TAG_CELL (1u << 30)
 #define TEXT_TAG_LINE (1u << 31)
+/* The vertex's window word (texture window: bits 0..19): the screen copy it samples is the render-target capture, at the
+ * target's resolution (Vulkan: pc_vk_hw_capture, hw_frag.glsl binding 4), not the PS1-resolution copy of VRAM. */
+#define WINDOW_CAPTURE (1u << 28)
+static int capture_taken; /* the primitive being drawn: a capture of the texels it samples is in place */
+/* screen_copy native (default) | ps1: a screen copy is sampled from the capture, at the target's resolution, or from the PS1's
+ * (the PS1-resolution copy of VRAM, as it was). OpenGL: the copy's pixels the average of the target's block, or its middle. */
+int pc_hw_screen_copy = 1;
+extern unsigned pc_vsync_count(void);
+/* The setting, or ROOD_SCREEN_COPY (0 ps1, anything else native) when it is set (comparisons). */
+static int screen_copy_native(void)
+{
+    static int env = -2;
+    if (env == -2)
+        env = getenv("ROOD_SCREEN_COPY") && *getenv("ROOD_SCREEN_COPY") ? atoi(getenv("ROOD_SCREEN_COPY")) != 0 : -1;
+    return env >= 0 ? env : pc_hw_screen_copy != 0;
+}
+static int capture_log = -1; /* ROOD_CAPTURE_LOG=1: each capture triangle's corners (VRAM pixels) and the vsync, on stderr */
 static uint32_t triangle_tag;
 /* Sub-pixel vertex positions (PGXP-style); off restores PS1 vertex snapping. */
 int pc_hw_subpixel = 1;
@@ -673,6 +690,7 @@ static uint32_t dirty_tiles = 0xffffffffu;
  * first triangle (after its uploads); own_bands: where that copy is the
  * target's, not native VRAM (dirty again from the next textured primitive). */
 static int own_rects[4][4], own_count, own_active;
+static int own_want[4], own_want_valid; /* the texels the primitive samples (x0, y0, x1, y1, exclusive): what a capture takes whole */
 static uint32_t own_bands[16];
 static void own_apply(void);
 static const uint16_t* native_vram;
@@ -1371,6 +1389,7 @@ static void own_fold(void)
     if (any)
         dirty_tiles = tiles_of_bands(dirty_bands);
     own_active = 0;
+    capture_taken = 0;
 }
 static void upload_all_dirty(void)
 {
@@ -2294,7 +2313,13 @@ static void triangle_apply_body(const int* xy, const int* uv, const int* rgb, un
         v->tpage = (uint16_t)tpage;
         memcpy(&v->nx, normal, 4);
         v->clut = (uint16_t)clut;
-        v->window = window | triangle_tag;
+        v->window = window | triangle_tag | (capture_taken && ((tpage >> 7) & 3) == 2 ? WINDOW_CAPTURE : 0);
+        if (capture_taken && ((tpage >> 7) & 3) == 2) {
+            if (capture_log < 0)
+                capture_log = getenv("ROOD_CAPTURE_LOG") != NULL;
+            if (capture_log)
+                fprintf(stderr, "[capture] v%u %g,%g\n", pc_vsync_count(), (double)pos[i * 2], (double)pos[i * 2 + 1]);
+        }
         v->uv_min[0] = (uint8_t)bounds[0], v->uv_min[1] = (uint8_t)bounds[1];
         v->uv_max[0] = (uint8_t)bounds[2], v->uv_max[1] = (uint8_t)bounds[3];
         v->ui[0] = ui_offset[0], v->ui[1] = ui_offset[1];
@@ -4094,7 +4119,7 @@ static void pixels_to_vram(const unsigned char* pixels, int x0, int y0, int x1, 
  * here (ROOD_GPU_VRAM_COPY=0, or Vulkan without R16 storage images): the
  * caller reads back. */
 static GLuint vram_copy_fbo, vram_copy_program;
-static GLint u_vram_copy_target, u_vram_copy_scale;
+static GLint u_vram_copy_target, u_vram_copy_scale, u_vram_copy_average;
 static const char* vram_copy_vertex_source =
     "#version 330 core\n"
     "void main() {\n"
@@ -4106,9 +4131,22 @@ static const char* vram_copy_fragment_source = /* (pc/shaders/vulkan/vram_from_t
     "out uvec4 vram;\n"
     "uniform sampler2D target;\n"
     "uniform int scale;\n"
+    "uniform int average;\n"
     "void main() {\n"
     "    ivec2 at = ivec2(gl_FragCoord.xy);\n"
-    "    uvec4 c = uvec4(round(texelFetch(target, at * scale + scale / 2, 0) * 255.0));\n"
+    /* (OpenGL has no render-target capture: with screen_copy native a screen copy is this PS1-resolution copy, each pixel
+     * the average of its scale x scale block of the target, not a point sample of its middle: smooth text aliased into
+     * blocks; screen_copy ps1: the middle) */
+    "    vec4 sum = vec4(0.0);\n"
+    "    float n = 1.0;\n"
+    "    if (average != 0) {\n"
+    "        for (int y = 0; y < scale; y++)\n"
+    "            for (int x = 0; x < scale; x++)\n"
+    "                sum += texelFetch(target, at * scale + ivec2(x, y), 0);\n"
+    "        n = float(scale * scale);\n"
+    "    } else\n"
+    "        sum = texelFetch(target, at * scale + scale / 2, 0);\n"
+    "    uvec4 c = uvec4(round(sum / n * 255.0));\n"
     "    vram = uvec4((c.r >> 3) | ((c.g >> 3) << 5) | ((c.b >> 3) << 10) | (c.a >= 128u ? 0x8000u : 0u));\n"
     "}\n";
 /* ROOD_RASTER_SKIP=0: the CPU rasterizer draws everything (pc_hw_raster_skip). */
@@ -4150,6 +4188,7 @@ static int vram_from_target(int replay_target, int x0, int y0, int x1, int y1)
             }
             u_vram_copy_target = gl_GetUniformLocation(vram_copy_program, "target");
             u_vram_copy_scale = gl_GetUniformLocation(vram_copy_program, "scale");
+            u_vram_copy_average = gl_GetUniformLocation(vram_copy_program, "average");
             gl_GenFramebuffers(1, &vram_copy_fbo);
             gl_BindFramebuffer(GL_FRAMEBUFFER, vram_copy_fbo);
             gl_FramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, native_texture, 0);
@@ -4166,6 +4205,7 @@ static int vram_from_target(int replay_target, int x0, int y0, int x1, int y1)
         gl_BindTexture(GL_TEXTURE_2D, replay_target ? replay.color : target_texture);
         gl_Uniform1i(u_vram_copy_target, 0);
         gl_Uniform1i(u_vram_copy_scale, pc_hw_scale);
+        gl_Uniform1i(u_vram_copy_average, screen_copy_native());
         gl_BindVertexArray(empty_array);
         gl_DrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         gl_BindVertexArray(0);
@@ -4299,6 +4339,7 @@ static void own_add(int x, int y, int w, int h)
 static void own_apply(void)
 {
     flush();
+    capture_taken = 0;
     for (int i = 0; i < own_count; i++) {
         const int* r = own_rects[i];
         overlay_bake_rect(r[0], r[1], r[0] + r[2], r[1] + r[3]);
@@ -4314,6 +4355,18 @@ static void own_apply(void)
         }
     }
     own_count = 0;
+    /* A screen copy (15-bit texels of a frame buffer) is sampled from the render-target capture: the target over the texels
+     * the primitive samples, at its own resolution, as the loop above left it (the held text baked, the multisampled scope
+     * resolved). The PS1-resolution copies of VRAM stay for what reads them. */
+#ifdef ROOD_VULKAN
+    if (own_want_valid && screen_copy_native() && pc_vk_on()) {
+        const int* w = own_want;
+        overlay_bake_rect(w[0], w[1], w[2], w[3]); /* (the texels the stale parts left out too) */
+        if (ms_scope == target_fbo)
+            ms_end_over(w[0], w[1], w[2] - w[0], w[3] - w[1]);
+        capture_taken = pc_vk_hw_capture(0, w[0], w[1], w[2], w[3]);
+    }
+#endif
 }
 /* A primitive drawing in drawing area `clip` (x, y, w, h) is about to
  * sample texels [u0, u1] x [v0, v1] of texture page `tpage` through texture
@@ -4327,7 +4380,7 @@ static int sync_debug = -1;
 void pc_hw_sync_texture(unsigned tpage, unsigned clut, unsigned window, int u0, int v0, int u1, int v1, const int* clip)
 { PC_HW_METER(sync_texture);
     own_fold();
-    own_count = 0;
+    own_count = 0, own_want_valid = 0;
     if (!cstale.count && !cstale.placed_count)
         return;
     int tx = (tpage & 15) * 64, ty = ((tpage >> 4) & 1) * 256, depth = (tpage >> 7) & 3;
@@ -4337,7 +4390,10 @@ void pc_hw_sync_texture(unsigned tpage, unsigned clut, unsigned window, int u0, 
     int x0 = tx + (u0 >> shift), x1 = tx + (u1 >> shift);
     if (sync_debug < 0)
         sync_debug = getenv("ROOD_SYNC_DEBUG") != NULL;
+    own_want_valid = 0;
     if (clip && own_copies_enabled() && stale_covers(clip)) {
+        own_want[0] = x0, own_want[1] = ty + v0, own_want[2] = (x1 > 1023 ? 1023 : x1) + 1, own_want[3] = ty + v1 + 1;
+        own_want_valid = depth == 2;
         own_add(x0, ty + v0, (x1 > 1023 ? 1023 : x1) - x0 + 1, v1 - v0 + 1);
         if (depth < 2)
             own_add((clut & 63) * 16, (clut >> 6) & 511, depth ? 256 : 16, 1);
@@ -5327,6 +5383,11 @@ static void replay_frame(const recording* a, const recording* b, float t)
         }
         uint32_t restore[16] = { 0 };
         uint32_t own = op_feedback(b, o) ? replay_sample_own(op->texels, restore) : 0;
+#ifdef ROOD_VULKAN
+        /* A screen copy drawn from the capture (WINDOW_CAPTURE): the replay target over its texels, as the live draw took it. */
+        if (pc_vk_on() && scratch[0].window & WINDOW_CAPTURE && op->texels[2] > op->texels[0] && op->texels[3] > op->texels[1])
+            pc_vk_hw_capture(1, op->texels[0], op->texels[1], op->texels[2], op->texels[3]);
+#endif
         draw_batch(replay.fbo, scratch, op->count, op->blend, op->clip);
         if (own | unwritten)
             upload_tiles(own | unwritten); /* (native VRAM again) */

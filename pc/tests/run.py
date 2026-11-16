@@ -371,7 +371,7 @@ def suites(args, mode="egl"):
                   300, note="fresh warps (scripts, enemies) to 15/0 and 48/3: entry sounds slide an auto-pan depth "
                             "with no auto-pan wave (read through guest RAM 0), no crash"),
             Suite("determinism_smoke", [PY, str(TESTS / "determinism_smoke.py"), "--card", str(args.save)], 300,
-                  note="the same warp (room_goto hold) and steps, five times under CPU load: every step's game state hash is identical"),
+                  note="the same warp (room_goto hold) and steps, four times through five rooms under CPU load: every step's game state hash is identical"),
             Suite("route_continuation_smoke", [PY, str(TESTS / "route_continuation_smoke.py"), "--card",
                                                str(args.save)], 300,
                   note="enemies holding a room link (gate) continue their route (L800DF8A4) in zone 9 room 5"),
@@ -751,6 +751,9 @@ def suites(args, mode="egl"):
         Suite("text_fade_smoke", [PY, str(TESTS / "text_fade_smoke.py")], 300,
               note="text without a box fading out (type 0 closing, type 6): glyphs at the opacity, no "
                    "PS1-resolution rectangle (font, original, overlay); the game's upload is seen with it off"),
+        Suite("ui_text_msdf_smoke", [PY, str(TESTS / "ui_text_msdf_smoke.py")], 300,
+              note="ui_text_field msdf | sdf: the setting, the label drawn from the three-channel field, its glyphs where "
+                   "the one-channel field puts them"),
         Suite("menu_fade_smoke", [PY, str(TESTS / "menu_fade_smoke.py")], 400,
               note="menu_fade plain: Items opening dims the frame to black in its own colour and the picture comes in "
                    "from black; the original's fade does not; the HUD's text is smooth in every closing frame"),
@@ -891,7 +894,7 @@ CHECKPOINT_SUITES = {
     "hud_bench_smoke", "classic_hud_smoke", "classic_panels_smoke",
     "repl_smoke", "lua_imgui_smoke", "photo_foundation_smoke", "photo_engine_reload_smoke", "photo_mode_smoke", "photo_pace_smoke", "photo_full_room_smoke",
     "cutscene_player_smoke", "cutscene_viewer_smoke", "cutscene_sequencer_smoke", "cutscene_freecam_smoke",
-    "text_fade_smoke", "menu_fade_smoke",
+    "text_fade_smoke", "menu_fade_smoke", "ui_text_msdf_smoke",
 }
 
 
