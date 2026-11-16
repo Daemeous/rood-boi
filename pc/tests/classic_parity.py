@@ -2589,7 +2589,7 @@ def setup_state(g, symbols):
 
 def warp(g, zone, room):
     """RPC room_goto (scripts and enemies off; ui_workshop_smoke's warp)."""
-    reply = g.call("room_goto", zone=zone, room=room, scripts=False, enemies=False)
+    reply = g.call("room_goto", hold=True, zone=zone, room=room, scripts=False, enemies=False)
     if not reply.get("ok"):
         raise RpcError(f"room_goto {zone}/{room}: {reply}")
     for _ in range(60):

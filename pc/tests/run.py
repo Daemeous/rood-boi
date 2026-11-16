@@ -366,6 +366,8 @@ def suites(args, mode="egl"):
             Suite("room_entry_sound_smoke", [PY, str(TESTS / "room_entry_sound_smoke.py"), "--card", str(args.save)],
                   300, note="fresh warps (scripts, enemies) to 15/0 and 48/3: entry sounds slide an auto-pan depth "
                             "with no auto-pan wave (read through guest RAM 0), no crash"),
+            Suite("determinism_smoke", [PY, str(TESTS / "determinism_smoke.py"), "--card", str(args.save)], 300,
+                  note="the same warp (room_goto hold) and steps, five times under CPU load: every step's game state hash is identical"),
             Suite("route_continuation_smoke", [PY, str(TESTS / "route_continuation_smoke.py"), "--card",
                                                str(args.save)], 300,
                   note="enemies holding a room link (gate) continue their route (L800DF8A4) in zone 9 room 5"),
@@ -866,7 +868,7 @@ def stale_binaries(selected):
 # a suite that does not.
 CHECKPOINT_SUITES = {
     "hw_calls_smoke", "probe_gi_smoke", "animation_smoke", "editor_cutaway_smoke", "editor_undo_smoke", "editor_selection_smoke", "editor_schema_smoke", "editor_transform_smoke", "barn_doors_smoke", "editor_handles_smoke", "facing_cutaway_smoke",
-    "camera_stick_smoke", "camera_stick_menus_smoke", "editor_snap_smoke", "editor_roomload_smoke", "room_browser_smoke", "room_entry_sound_smoke", "route_continuation_smoke", "ending_smoke",
+    "camera_stick_smoke", "camera_stick_menus_smoke", "editor_snap_smoke", "editor_roomload_smoke", "room_browser_smoke", "room_entry_sound_smoke", "determinism_smoke", "route_continuation_smoke", "ending_smoke",
     "light_actors_smoke", "fixture_lighting_smoke", "sky_smoke", "game_sky_smoke", "glow_stability_smoke", "lighting_presets_smoke",
     "gi_lag_smoke", "texture_animation_smoke", "save_menu_smoke", "screen_owner_smoke", "narrowed_2d_smoke", "weapon_slots_smoke", "ui_menus_smoke",
     "ui_lines_smoke", "ui_text_smoke", "ui_text_columns_smoke", "button_prompts_smoke", "button_roles_symbols_smoke", "coplanar_order_smoke", "actor_room_order_smoke", "atmosphere_smoke",

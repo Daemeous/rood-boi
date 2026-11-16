@@ -60,7 +60,7 @@ STATS_HP = 0x18  # vs_battle_actor2.currentHP (the stats pointer is read by the 
 LOOT_BYTES = 0x220  # vs_battle_loot; a drop node is: next (the pointer's width), int actorId, the loot
 
 
-def loot(g, width):
+def loot(g):
     """Defeat the room's enemies and read the drop list: [(actor id, item bytes hash)]."""
     from rood_rpc import symbols
     sym = symbols()
@@ -70,7 +70,8 @@ def loot(g, width):
         stats = g.actor_stats(actor) if actor else 0
         if stats:
             g.write(stats + STATS_HP, (0).to_bytes(2, "little"))
-    head = lambda: int.from_bytes(g.read(sym["_lootListHead"], 8), "little") & ((1 << 8 * width) - 1)
+    width = 8  # a pointer of the 64-bit build
+    head = lambda: int.from_bytes(g.read(sym["_lootListHead"], 8), "little")
     for _ in range(40):
         g.run(15)
         if head():
@@ -105,7 +106,7 @@ def start(card, out, name):
         "ROOD_GI": os.environ.get("BUILD_COMPARE_GI", "0"), "ROOD_INTERPOLATE": "0", "ROOD_SETTINGS": str(out / "settings.cfg"), "ROOD_AUDIO": "none",
         "ROOD_WINDOW": "960x720", "ROOD_LIGHTS": str(out / "lights"), "ROOD_PREFABS": str(out / "prefabs")})
     g.call("graphics", interpolate=False)
-    g.call("room_goto", zone=ROOM[0], room=ROOM[1], enemies=True, scripts=False)
+    g.call("room_goto", hold=True, zone=ROOM[0], room=ROOM[1], enemies=True, scripts=False)
     for _ in range(80):
         g.run(20)
         if g.call("room_goto", action="status")["phase"] in (0, 4):
@@ -163,7 +164,7 @@ def census_write(g, name):
             pass
 
 
-def play(binary, seconds, card, out, width):
+def play(binary, seconds, card, out):
     """In a process of its own (ROOD_BINARY is read at import): the hashes, the casts and the drops, as JSON on stdout."""
     os.environ.update(ROOD_BINARY=binary, ROOD_SYMBOLS=binary, ROOD_HEADLESS="egl", ROOD_RENDERER="vulkan", ROOD_ARCH="64", ROOD_TEST_SNAPSHOTS="0")
     sys.path[:0] = [str(ROOT / "pc/tools"), str(ROOT / "pc/tests")]
@@ -202,7 +203,7 @@ def play(binary, seconds, card, out, width):
     # A second game: the enemies defeated while idle (one mid-cast does not die at once).
     g = start(card, out, "loot")
     try:
-        drops = loot(g, width)
+        drops = loot(g)
     finally:
         g.close()
     casts = [e for e in (entry.split(":") for entry in ended.split()) if len(e) >= 4 and int(e[0]) != 0 and e[2] == "1"]
@@ -243,7 +244,7 @@ def play_casts(binary, card, out, kinds, limit):
     snap = out / "room.snap"
     g = launch_at("save_room", card=card_copy, fast=True, log=out / "boot.log", extra_env=env, socket_path=socket)
     try:
-        g.call("room_goto", zone=smoke.ROOM[0], room=smoke.ROOM[1], enemies=True, scripts=False)
+        g.call("room_goto", hold=True, zone=smoke.ROOM[0], room=smoke.ROOM[1], enemies=True, scripts=False)
         for _ in range(80):
             g.run(20)
             if g.call("room_goto", action="status")["phase"] in (0, 4):
@@ -539,7 +540,7 @@ def play_casts(binary, card, out, kinds, limit):
                 r = Cast("casts", snap, card_copy, env, out, socket, fast=True)
                 g, sym = r.g, r.sym
                 prepare()
-                g.call("room_goto", zone=zone, room=room, enemies=True, scripts=False)
+                g.call("room_goto", hold=True, zone=zone, room=room, enemies=True, scripts=False)
                 for _ in range(80):
                     g.run(20)
                     if g.call("room_goto", action="status")["phase"] in (0, 4):
@@ -569,7 +570,7 @@ def play_casts(binary, card, out, kinds, limit):
 MENU_SAMPLE = 10  # vsyncs between display hashes in a menu route
 
 
-def hashed(g, out, sample, hashes, taken=None):
+def hashed(g, out, sample, hashes, taken=None, first=None):
     """g.run in steps that end on multiples of `sample` vsyncs, the display hashed at each: the hashes are the
     route's, whatever the route waits on (classic_parity.py's tours run a vsync at a time and press buttons)."""
     run, shot, state = g.run, out / "frame.ppm", {"t": 0}
@@ -586,6 +587,8 @@ def hashed(g, out, sample, hashes, taken=None):
             if state["t"] % sample == 0:
                 g.screenshot(str(shot))
                 hashes.append(hashlib.sha256(shot.read_bytes()).hexdigest()[:12])
+                if first and len(hashes) == 1:
+                    first()  # (counters of what is drawn count from here: the frames drawn before the first sample, while a route seeks or the game boots free to its first pause, are as many as the host's timing gave)
                 if os.environ.get("BUILD_COMPARE_VRAM_STREAM"):  # --vram-stream: the VRAM stream's running digest (RPC vram_stream) with the picture
                     hashes[-1] += ":" + g.call("vram_stream")["total"]["hash"][:10]
                 if os.environ.get("BUILD_COMPARE_REPLAY"):  # the interpolated frame's target (RPC gpu_dump replay) with the picture: the screenshot shows the game's own frame
@@ -809,7 +812,7 @@ def platforms(rooms=((9, 5), (15, 7), (24, 2), (25, 2), (32, 0))):
     breakpoint on the draw: 9-5, 9-6, 15-7..10, 24-2, 24-3, 24-7, 24-8, 24-13, 24-14, 25-2, 25-3, 31-1, 32-0."""
     def scene(g, cp, symbols):
         for zone, room in rooms:
-            g.call("room_goto", zone=zone, room=room, enemies=False, scripts=False)
+            g.call("room_goto", hold=True, zone=zone, room=room, enemies=False, scripts=False)
             for _ in range(80):
                 g.run(20)
                 if g.call("room_goto", action="status")["phase"] in (0, 4):
@@ -822,7 +825,7 @@ def weather(zone, room):
     """A room with weather, left to run: zone 40 (Snowfly Forest) has the motes (146C.c func_80090434), zone 48 the rain
     (func_8008F440); no room has the snow or the falling particles (a scan of all 419 rooms), whose code is gone."""
     def scene(g, cp, symbols):
-        g.call("room_goto", zone=zone, room=room, enemies=False, scripts=False)
+        g.call("room_goto", hold=True, zone=zone, room=room, enemies=False, scripts=False)
         for _ in range(80):
             g.run(20)
             if g.call("room_goto", action="status")["phase"] in (0, 4):
@@ -862,7 +865,7 @@ def weather_kind(kind):
     """The room's weather of `kind` (dev RPC weather: 2 snow, 4 falling particles, which no room's own data starts but a room
     script's command can) started in Snowfly Forest (a room with the weather section), left to run."""
     def scene(g, cp, symbols):
-        g.call("room_goto", zone=40, room=0, enemies=False, scripts=False)
+        g.call("room_goto", hold=True, zone=40, room=0, enemies=False, scripts=False)
         for _ in range(80):
             g.run(20)
             if g.call("room_goto", action="status")["phase"] in (0, 4):
@@ -891,7 +894,7 @@ def room_script(zone, room, steps=90):
     """A room's own event script (the cutscene's GIM images, screen wipes, screen effects): warped to with the room's scripts on
     (as cutscene_scan.py does), Circle pressed now and then to move its talk boxes along, left to play."""
     def scene(g, cp, symbols):
-        warp = g.call("room_goto", zone=zone, room=room, enemies=False, scripts=True)
+        warp = g.call("room_goto", hold=True, zone=zone, room=room, enemies=False, scripts=True)
         if not warp.get("ok", True):  # (a room with no door into it: the story_ routes play those)
             raise RuntimeError(f"script_{zone}_{room}: {warp.get('message')}")
         for _ in range(80):
@@ -971,7 +974,7 @@ def story_scene(scene_id, warp=False, scaled=0):
 def scene_areamap(g, cp, symbols):
     """The area map (146C.c vs_field_drawRoomScene: the room's map in the corner and its frame): Map Right set to Frame (vs_main_settings.simpleMap
     3), the map shown (vs_field_isMinimapVisible), in a room with a map section, the frame drawn with the weapon sheathed (green) and drawn (red, pulsing)."""
-    g.call("room_goto", zone=9, room=17, enemies=False, scripts=False)
+    g.call("room_goto", hold=True, zone=9, room=17, enemies=False, scripts=False)
     for _ in range(80):
         g.run(20)
         if g.call("room_goto", action="status")["phase"] in (0, 4):
@@ -1044,6 +1047,20 @@ SCENES = {"levelled": scene_levelled, "ending": scene_ending, "menuf": scene_men
           **{f"script_{z}_{r}": room_script(z, r) for z, r in ((9, 0), (48, 3), (9, 2), (22, 0), (9, 1), (22, 4), (22, 6), (24, 0), (24, 4), (24, 11), (24, 15), (25, 1), (39, 0), (40, 22), (41, 2), (49, 1), (49, 5), (50, 6), (50, 22), (51, 2), (51, 6), (53, 1), (53, 23), (53, 29), (54, 1), (55, 3), (55, 12), (56, 14), (56, 22))}, **{f"story_{i}": story_scene(i) for i in STORY_ROUTES}, **{f"story_{i}_warp": story_scene(i, warp=True) for i in STORY_WARPS}, **{f"story_{i}_scaled": story_scene(i, scaled=3000) for i in STORY_SCALED}, "platforms": platforms(), "forest": weather(40, 0), "rain": weather(48, 1), "snow": weather_kind(2), "fall": weather_kind(4),
           **{n: parity_tour(n) for n in ("gauges", "figure", "status_icons", "battle_mode", "buff", "actor_word", "timer", "text_band",
                                         "target_row", "target_line", "ability_icons")}}
+def ui_counts(g, renderer):
+    """The ui_text counters at this moment ({} when the renderer has none)."""
+    if renderer == "null":
+        return {}
+    try:
+        text = g.call("ui_text")
+    except Exception:
+        return {}
+    counts = {k: text[k] for k in ("word_glyphs", "item_words", "status_glyphs") if isinstance(text.get(k), int)}
+    if isinstance((text.get("status") or {}).get("glyphs"), int):
+        counts["status.glyphs"] = text["status"]["glyphs"]
+    return counts
+
+
 def play_menus(binary, card, out, names, sample, claims, aspect="4:3", extra_env=(), renderer="vulkan", settings_lines=()):
     """The routes of `names`, each in a game of its own: {route: [display hashes]}."""
     os.environ.update(ROOD_BINARY=binary, ROOD_SYMBOLS=binary, ROOD_HEADLESS="egl", ROOD_RENDERER=renderer, ROOD_ARCH="64",
@@ -1080,8 +1097,9 @@ def play_menus(binary, card, out, names, sample, claims, aspect="4:3", extra_env
         hashes = []
         taken = stream_start(g)
         census_start(g)
+        base = {}  # the ui_text counters at the route's first sample (see hashed)
         try:
-            hashed(g, out, sample, hashes, taken)
+            hashed(g, out, sample, hashes, taken, lambda: base.update(ui_counts(g, renderer)))
             SCENES[name](g, cp, rood_rpc.symbols())
             census_write(g, name)
             text = g.call("ui_text") if renderer != "null" else {}
@@ -1111,6 +1129,11 @@ def play_menus(binary, card, out, names, sample, claims, aspect="4:3", extra_env
                 stats, final = None, None
         finally:
             g.close()
+        for key, was in base.items():  # the route's own count
+            if isinstance(text.get(key), int):
+                text[key] -= was
+        if isinstance((text.get("status") or {}).get("glyphs"), int) and "status.glyphs" in base:
+            text["status"]["glyphs"] -= base["status.glyphs"]
         results[name] = {"hashes": hashes, "stream": taken[1], "renderer": stats, "final": final, "word_glyphs": text.get("word_glyphs"), "regions": (text.get("regions"), text.get("failed")), "gi": gi_lines(out / f"{name}.log"), "published": published, "item_words": text.get("item_words"),
                          "status_glyphs": (text.get("status") or {}).get("glyphs") if isinstance(text.get("status"), dict) else text.get("status_glyphs")}
     print("RESULT" + json.dumps(results))
@@ -1283,7 +1306,7 @@ def compare_rooms(args):
     sites, code = set(), 0
     for room in args.rooms.split(";"):
         env = dict(os.environ, BUILD_COMPARE_ROOM=room)
-        first, control, new = (run(binary, args, args.old_width, env) for binary in (args.old, args.old, args.new))
+        first, control, new = (run(binary, args, env) for binary in (args.old, args.old, args.new))
         noise, changed = differing(first, control), differing(first, new)
         sites |= set(new.get("sites") or [])
         print(f"room {room}: casts old {len(first['casts'])} new {len(new['casts'])}; control {len(noise)} of {len(first['frames'])} frames differ; "
@@ -1301,10 +1324,10 @@ def compare_rooms(args):
     return code
 
 
-def run(binary, args, width, env=None):
+def run(binary, args, env=None):
     with tempfile.TemporaryDirectory(prefix="build-compare-", dir=ROOT / "pc/build") as out:
         done = subprocess.run([sys.executable, __file__, "--play", binary, "--seconds", str(args.seconds), "--card", args.card,
-                               "--out", out, "--width", str(width)], capture_output=True, text=True, env=env)
+                               "--out", out], capture_output=True, text=True, env=env)
     lines = [line for line in done.stdout.splitlines() if line.startswith("RESULT")]
     if not lines:
         sys.exit(f"build_compare: {binary} did not finish:\n{done.stderr[-1500:]}")
@@ -1369,13 +1392,13 @@ def play_audio(binary, card, out):
     g = launch_at("save_room", card=card, fast=True, log=out / "audio.log", audio=f"wav:{out / 'audio.wav'}", extra_env={
         "ROOD_GI": os.environ.get("BUILD_COMPARE_GI", "0"), "ROOD_INTERPOLATE": "0", "ROOD_WINDOW": "960x720", "ROOD_LIGHTS": str(out / "lights"), "ROOD_PREFABS": str(out / "prefabs")})
     try:
-        g.call("room_goto", zone=ROOM[0], room=ROOM[1], enemies=True, scripts=False)
+        g.call("room_goto", hold=True, zone=ROOM[0], room=ROOM[1], enemies=True, scripts=False)
         for _ in range(80):
             g.run(20)
             if g.call("room_goto", action="status")["phase"] in (0, 4):
                 break
         g.run(1200)
-        g.call("room_goto", zone=15, room=0, enemies=True, scripts=True)
+        g.call("room_goto", hold=True, zone=15, room=0, enemies=True, scripts=True)
         g.run(900)
     finally:
         g.close()
@@ -1424,9 +1447,6 @@ def main():
     parser.add_argument("--vram-stream", action="store_true", help="--menus: each sampled frame also carries the VRAM stream's running digest (RPC vram_stream; both builds need it)")
     parser.add_argument("--casts", nargs="?", const="spells", help="the wider lane: cast every spell (spells[,arts])")
     parser.add_argument("--cast-limit", type=int, default=0, help="--casts: stop after this many actions")
-    parser.add_argument("--old-width", type=int, default=4, help="bytes of a pointer in OLD's drop nodes")
-    parser.add_argument("--new-width", type=int, default=8, help="the same in NEW")
-    parser.add_argument("--width", type=int, default=8, help=argparse.SUPPRESS)
     parser.add_argument("--play", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--play-casts", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--play-audio", action="store_true", help=argparse.SUPPRESS)
@@ -1451,7 +1471,7 @@ def main():
     if args.vram_stream:
         os.environ["BUILD_COMPARE_VRAM_STREAM"] = "1"
     if args.play:
-        return play(args.old, args.seconds, args.card, args.out, args.width)
+        return play(args.old, args.seconds, args.card, args.out)
     if args.play_audio:
         return play_audio(args.old, args.card, args.out)
     if args.play_casts:
@@ -1464,7 +1484,7 @@ def main():
         return compare_menus(args)
     if args.casts:
         return compare_casts(args)
-    first, control, new = run(args.old, args, args.old_width), run(args.old, args, args.old_width), run(args.new, args, args.new_width)
+    first, control, new = run(args.old, args), run(args.old, args), run(args.new, args)
     noise, changed = differing(first, control), differing(first, new)
     stream = stream_verdict("fight", first.get("stream"), control.get("stream"), new.get("stream")) if STREAM else 0
     if stream == 2:
@@ -1472,13 +1492,13 @@ def main():
     print(f"control (old against old): {len(noise)} of {len(first['frames'])} frames differ")
     print(f"old against new: {len(changed)} of {len(first['frames'])} frames differ{f' (first at {changed[0] / 4:.2f} s)' if changed else ''}")
     print(f"casts: old {len(first['casts'])}, new {len(new['casts'])}; the same: {first['casts'] == new['casts']}")
-    print(f"drops: old {len(first['drops'])}, new {len(new['drops'])}; the same: {first['drops'] == new['drops']}")
+    print(f"drops: old {len(first['drops'])}, new {len(new['drops'])}; the same: {first['drops'] == new['drops']}; control the same: {first['drops'] == control['drops']}")
     state_noise = compare_states(first, control)
     state_changed = compare_states(first, new)
     if state_noise is not None:
         print("build_compare: the control's states differ, so the states prove nothing")
         return 2
-    if noise:
+    if noise or first["drops"] != control["drops"] or first["casts"] != control["casts"]:
         print("build_compare: the control differs, so this proves nothing")
         return 2
     if not first["casts"]:

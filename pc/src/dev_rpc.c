@@ -4035,7 +4035,7 @@ static void handle_method(int fd, const char* request)
         reply(fd, id, "{\"requested\":true}");
     } else if (!strcmp(method, "rooms") || !strcmp(method, "room_goto")) {
         /* The Room Browser (room_warp.c): rooms lists every zone and room
-         * read from the disc (and the warp's state); room_goto {zone, room,
+         * read from the disc (and the warp's state); room_goto {zone, room, hold,
          * entry, enemies, scripts, block_saves} asks the game to load one,
          * {action: "return"} goes back where the warps started, "clear"
          * ends the warped state, "cancel" drops a request, "reset" makes the
@@ -4123,8 +4123,15 @@ static void handle_method(int fd, const char* request)
                 fail(fd, id, -32602, why);
                 return;
             }
-            ok = pc_room_browser_go ? pc_room_browser_go((int)zone, (int)room, (int)entry, why, sizeof why)
-                                    : pc_room_warp_request((int)zone, (int)room, (int)entry, why, sizeof why);
+            /* hold: true keeps a paused game paused (its steps then carry the warp, vsync by vsync). Without it the
+             * Room Browser's way: the game runs free until the arrival and pauses at whatever vsync the host
+             * reaches by then, so the game's state is not the same on every run. */
+            int hold = 0;
+            if (params)
+                bool_value(member(params, "hold"), &hold);
+            ok = pc_room_browser_go && !(hold && paused && step_budget == 0)
+                ? pc_room_browser_go((int)zone, (int)room, (int)entry, why, sizeof why)
+                : pc_room_warp_request((int)zone, (int)room, (int)entry, why, sizeof why);
         }
         warped = pc_room_warp_warped(&oz, &orr);
         snprintf(text, sizeof text, "%s", why[0] ? why : pc_room_warp_message());
