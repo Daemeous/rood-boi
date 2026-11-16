@@ -885,7 +885,7 @@ void pc_hud_menu(int kind, void* record, void* first, void* end)
         if (kind == PC_HUD_MENU_BACKGROUND) {
             const pc_classic_menu_background* b = record;
             f->menu_fade = b->fade, f->menu_brightness = b->brightness, f->menu_slot = b->slot * 4;
-            f->menu_frame = b->frame;
+            f->menu_frame = b->frame, f->menu_dim = b->dim, f->menu_open = b->open;
             slots[0] = element_slot = b->slot * 4;
         } else if (kind == PC_HUD_MENU_COMMAND) {
             const pc_classic_menu_command* c = record;
@@ -1955,7 +1955,7 @@ static int only_markers(const u_long* from, const u_long* to)
     }
     return 1;
 }
-static void emit_command(const pc_hud_classic_cmd* c, u_long* ot, int kind, int shadowed)
+static void emit_command_inner(const pc_hud_classic_cmd* c, u_long* ot, int kind, int shadowed)
 {
     if (!emit_items || !bridged(c->type)) {
         u_long* from = packet_cursor();
@@ -2007,6 +2007,14 @@ static void emit_command(const pc_hud_classic_cmd* c, u_long* ot, int kind, int 
         if (!emit_placed)
             vs_scratch.unk0 = mark;
     }
+}
+/* A command at an opacity (d.opacity): the items it made are drawn at it. */
+static void emit_command(const pc_hud_classic_cmd* c, u_long* ot, int kind, int shadowed)
+{
+    int before = pc_frame_count();
+    emit_command_inner(c, ot, kind, shadowed);
+    if (c->opacity > 0 && c->opacity < 256 && pc_frame_count() > before)
+        pc_frame_opacity(before, pc_frame_count(), c->opacity << 8);
 }
 static void emit_command_packets(const pc_hud_classic_cmd* c, u_long* ot, int kind, int shadowed)
 {

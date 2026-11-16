@@ -7,6 +7,7 @@
 #include "gpu.h"
 #include "pc/src/game/menuItem.h"
 #include "pc/src/game/spriteItem.h"
+#include "pc/src/draw_items.h"
 #include "vs_string.h"
 #include <libetc.h>
 #ifdef ROOD_PC
@@ -1174,6 +1175,38 @@ void vs_mainMenu_renderItemsList(void)
     }
 }
 
+/* menu_fade plain (project_settings.cpp pc_menu_fade_levels): a step of the fade (1..15 of 16) as the field dimmed to black by a
+ * black tile at an opacity, then the menu's picture at an opacity over it, from black (the same eight game frames; no
+ * subtraction, no previous screen blended in). The classic Lua's menu_background draws the same from the same levels. */
+extern int pc_menu_fade_levels(int step, int* dim, int* open) __attribute__((weak));
+static int _plainFadeLevels(int fadeStep, int* dim, int* open)
+{
+    return fadeStep < 16 && pc_menu_fade_levels != NULL && pc_menu_fade_levels(fadeStep, dim, open);
+}
+static void _renderPlainBackground(int dim, int open, u_long* before)
+{
+    int first, count;
+
+    if (open > 0) {
+        count = pc_frame_count();
+        vs_battle_spriteItem(before, _backgroundBrightness & 255, 256, vs_getWH(64, 240),
+            vs_getTpage(768, 256, clut8Bit, semiTransparencyFull, ditheringOff), vs_getUV0Clut(0, 0, 768, 227));
+        vs_battle_spriteItem(before, _backgroundBrightness & 255, 0, vs_getWH(256, 240),
+            vs_getTpage(640, 256, clut8Bit, semiTransparencyFull, ditheringOff), vs_getUV0Clut(0, 0, 768, 227));
+        if (open < 256) {
+            pc_frame_opacity(count, pc_frame_count(), open << 8);
+        }
+    }
+    /* (submitted last: the items of a slot draw in the opposite order, so the tile dims what is behind the picture) */
+    if (dim > 0) {
+        first = pc_frame_count();
+        vs_battle_tileFlatItem(before, 0, 0, 0, vs_getWH(320, 240));
+        if (dim < 256) {
+            pc_frame_opacity(first, pc_frame_count(), dim << 8);
+        }
+    }
+}
+
 /**
  * Renders the background with optional transparency.
  *
@@ -1190,6 +1223,14 @@ static void _renderBackground(int brightness)
 
     if (vs_main_frameBuf == 0) {
         uCoord = 320;
+    }
+
+    {
+        int dim, open;
+        if (_plainFadeLevels(brightness, &dim, &open)) {
+            _renderPlainBackground(dim, open, before);
+            return;
+        }
     }
 
     brightness *= 8;
@@ -1795,7 +1836,8 @@ void vs_mainMenu_renderScreen(void)
         /* PC_CLASSIC (classic_hook.h): the background, from its fade step and its slot.
          */
         pc_classic_menu_background pcBackground = { fadeStep, _backgroundBrightness,
-            _backgroundOtOffset, vs_main_frameBuf };
+            _backgroundOtOffset, vs_main_frameBuf, -1, -1 };
+        _plainFadeLevels(fadeStep, &pcBackground.dim, &pcBackground.open);
         PC_CLASSIC(PC_CLASSIC_SITE_MENU_BACKGROUND, &pcBackground, 0, 0,
             _renderBackground(fadeStep));
 #else

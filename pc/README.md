@@ -1611,6 +1611,24 @@ too). The software renderer keeps the game's own path, and
 The setting `opacity_2d 0` (or `ROOD_OPACITY_2D=0`, which wins when set) brings it back on the hardware ones (for comparisons).
 Test: `pc/tests/text_fade_smoke.py`.
 
+**Menu fade (`menu_fade plain | original`, default plain).** A menu screen's
+background fades over eight game frames (MAINMENU `_renderBackground`): the
+game adds the menu's picture to a half blend of the *previous screen* (a
+sprite sampling the other frame buffer), so the field never goes dark, the
+picture's blue is added to its hue and, on the hardware renderers, the previous
+screen is a PS1-resolution copy of the frame (the HUD's text in it is blocky,
+under the live text: doubled). `plain` is a normal fade by brightness alone,
+over the same frames: the field dims to black under a black tile drawn at an
+opacity (2D at an opacity, `opacity_2d`), then the menu's picture comes in from
+black at an opacity; `menu_fade_dip` (0.05..0.95, default 0.5) is where in the
+fade the field is black. Both the game's own drawing (the fallback) and
+rood.classic's Lua (`menu_background`, with `d.opacity`) draw it, from the same
+levels (`pc_menu_fade_levels`; the classic record carries them: `e.dim`,
+`e.open`, 0..256, -1 for the original). `original` is the game's cross-fade as
+it was. Without 2D at an opacity (the null renderer, `opacity_2d 0`) the
+original runs. Dev tools panel (Graphics), settings RPC (`menu_fade`,
+`menu_fade_dip`). Test: `pc/tests/menu_fade_smoke.py`.
+
 **Lines (`ui_text_layout line`, the default).** The game sets its text a
 glyph at a time in 12 x 12 cells at its own advances (about 6 pixels a
 letter in menus and the information box, proportional in talk bubbles). A

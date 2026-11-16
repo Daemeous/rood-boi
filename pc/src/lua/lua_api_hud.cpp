@@ -372,6 +372,7 @@ char classic_arena[8192];
 unsigned classic_arena_used;
 int classic_anchor = -1; // d.anchor in the last classic draw (PC_HUD_ANCHOR_*), -1: the element's
 int classic_layer = PC_HUD_LAYER_KIND; // d.layer: the slot of the commands that follow
+int classic_opacity = 0;               // d.opacity: 1..255 of 256 for the commands that follow, 0 none
 
 pc_hud_classic_cmd* next_classic(int type)
 {
@@ -384,6 +385,7 @@ pc_hud_classic_cmd* next_classic(int type)
     c->type = type;
     c->alpha = 1;
     c->layer = classic_layer;
+    c->opacity = classic_opacity;
     return c;
 }
 int pixel(float v) { return (int)std::floor(v + 0.5f); }
@@ -1502,6 +1504,21 @@ int api_layer(lua_State* L)
     return 0;
 }
 
+// d.opacity(v | nil): classic only: the commands that follow are drawn at opacity v (0..1) over what is behind them
+// (a fade: the field dimmed by a black tile, a picture coming in; not the PS1's half blend, d.sprite's alpha); nil or 1: as they are.
+// Drawn on the hardware renderer (2D at an opacity, opacity_2d); elsewhere the commands that follow are left as they are.
+int api_opacity(lua_State* L)
+{
+    const char* fn = "rood.draw.opacity";
+    need_classic(L, fn);
+    double v = lua_isnoneornil(L, 1) ? 1.0 : luaL_checknumber(L, 1);
+    if (!(v >= 0.0 && v <= 1.0))
+        return luaL_error(L, "%s: an opacity is 0..1", fn);
+    int level = (int)std::floor(v * 256.0 + 0.5);
+    classic_opacity = level >= 256 ? 0 : level < 1 ? 1 : level;
+    return 0;
+}
+
 // The game's packed screen position (x in the low half, y in the high: its arithmetic carries between them).
 uint32_t packed_xy(lua_Integer x, lua_Integer y) { return (uint32_t)(x & 0xFFFF) + ((uint32_t)(y & 0xFFFF) << 16); }
 void push_xy(lua_State* L, uint32_t xy)
@@ -1917,7 +1934,7 @@ void fill_menu(lua_State* L, const pc_hud_fields& f, bool clear)
     // ("fade" is target_row's too: nil for the other kinds by its block, above)
     static const char* const keys[] = { "brightness", "ot_slot", "buffer", "action", "color", "mode", "lit", "row",
         "option", "items", "equip", "bars", "gems", "page", "ok", "storage", "loot", "discard", "rename", "highlight",
-        "file", "file_menu", "menuf", "load" };
+        "file", "file_menu", "menuf", "load", "dim", "open" };
     if (clear)
         for (const char* key : keys)
             set_nil(L, key);
@@ -1926,6 +1943,8 @@ void fill_menu(lua_State* L, const pc_hud_fields& f, bool clear)
         set_int(L, "brightness", f.menu_brightness);
         set_int(L, "ot_slot", f.menu_slot);
         set_int(L, "buffer", f.menu_frame);
+        set_int(L, "dim", f.menu_dim);
+        set_int(L, "open", f.menu_open);
     } else if (k == PC_HUD_MENU_COMMAND) {
         set_int(L, "action", f.menu_action);
     } else if (k == PC_HUD_MENU_CURSOR) {
@@ -2753,6 +2772,7 @@ void open_hud(lua_State* L, Plugin* p)
     set_cfunction(L, -1, "text_raw", api_text_raw);
     set_cfunction(L, -1, "anchor", api_anchor);
     set_cfunction(L, -1, "layer", api_layer);
+    set_cfunction(L, -1, "opacity", api_opacity);
     set_cfunction(L, -1, "value", api_value);
     set_cfunction(L, -1, "digit", api_digit);
     set_cfunction(L, -1, "xy", api_xy);
@@ -2993,6 +3013,7 @@ int panels_classic_next(int* cursor, int* anchor)
         classic_arena_used = 0;
         classic_anchor = -1;
         classic_layer = PANEL_LAYER;
+        classic_opacity = 0;
         draw_panel(i, panel_width, 240.0f, true);
         panel_remember(*cursor);
         *cursor = (int)i + 1;
@@ -3024,6 +3045,7 @@ int classic_draw(bool parity = false, const char** why = nullptr)
     classic_arena_used = 0;
     classic_anchor = -1;
     classic_layer = PC_HUD_LAYER_KIND;
+    classic_opacity = 0;
     hud::Element* e = hud::last_recorded();
     if (!e || !e->used || (!parity && !e->suppressed)) {
         if (why)

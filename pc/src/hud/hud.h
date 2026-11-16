@@ -140,7 +140,7 @@ typedef struct {
     int row_selected, row_fade, row_bank; /* target_row: pc_classic_target_row's (the fade before the game steps it) */
     int row_x, row_y;     /* target_line: the row's place (call_x, call_y the line's start; age the lines' sweep) */
     int marker_lock, marker_step; /* target_marker: the call's lock (arg1), the brightness step (call_x, call_y its place) */
-    int menu_id, menu_fade, menu_brightness, menu_slot, menu_frame; /* menu_row: the row (0..39); menu_background:
+    int menu_id, menu_fade, menu_brightness, menu_slot, menu_frame, menu_dim, menu_open; /* menu_row: the row (0..39); menu_background:
                                                                      * the fade step, brightness, slot, frame buffer */
     int menu_action, menu_step, menu_color, menu_mode, menu_lit; /* menu_command: the action (call_y its slide);
                                                                   * menu_cursor: step, colour; menu_tabs: mode, step, lit */
@@ -331,6 +331,7 @@ typedef struct {
     pc_text_typeset typeset; /* text_raw with font 4 (the status style) */
     short corner[8];         /* quad with fit 1: x0, y0 .. x3, y3 from x, y, in the packet's vertex order */
     unsigned char uv[8];     /* and their texels u0, v0 .. u3, v3 */
+    int opacity;             /* 1..255 of 256: drawn at that opacity over what is behind it (d.opacity: a fade); 0 none */
     int layer;               /* the ordering-table slot (bytes from vs_scratch.unk4, d.layer); PC_HUD_LAYER_KIND: the
                               * kind's own */
 } pc_hud_classic_cmd;

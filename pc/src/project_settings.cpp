@@ -95,6 +95,28 @@ int pc_hud_label_opaque = 1;
  * read-back and upload (gpu_hw.c pc_hw_opacity_on; ROOD_OPACITY_2D, when set,
  * wins). */
 int pc_opacity_2d = 1;
+/* menu_fade plain | original: a main-menu screen's background fade (MAINMENU _renderBackground, over the same 8
+ * game frames either way). plain (default): the field dims to black (a black tile at the opacity), then the menu's
+ * picture comes in from black; original: the game's own cross-fade of the menu's picture added to a half-blend of
+ * the previous screen. Plain needs 2D at an opacity (opacity_2d, the hardware renderer): without it the original
+ * runs. menu_fade_dip (0..1) is where in the fade the field is black. */
+int pc_menu_fade = 1;
+float pc_menu_fade_dip = 0.5f;
+extern "C" int pc_hw_opacity_on(void) __attribute__((weak)); /* hw_registry.c */
+/* The plain fade at a step of the game's (1..15 of 16: the main menu's _renderBackground, and the classic Lua's menu_background):
+ * 1 and the opacity (0..256) of the black tile over the field (dim) and of the menu's picture (open) at this step; 0 when the
+ * game's own cross-fade runs (menu_fade original, or no 2D at an opacity: the null renderer, opacity_2d 0). */
+extern "C" int pc_menu_fade_levels(int step, int* dim, int* open)
+{
+    if (!pc_menu_fade || !pc_hw_opacity_on || !pc_hw_opacity_on())
+        return 0;
+    float cut = pc_menu_fade_dip < 0.05f ? 0.05f : pc_menu_fade_dip > 0.95f ? 0.95f : pc_menu_fade_dip;
+    float t = (float)step / 16.0f, black = t / cut, shown = (t - cut) / (1.0f - cut);
+    black = black < 0.0f ? 0.0f : black > 1.0f ? 1.0f : black;
+    shown = shown < 0.0f ? 0.0f : shown > 1.0f ? 1.0f : shown;
+    *dim = (int)(black * 256.0f + 0.5f), *open = (int)(shown * 256.0f + 0.5f);
+    return 1;
+}
 /* qol_map_controls: the map screen's right stick and triggers (map_pad.h):
  * 0 Modern (default: the right stick turns and tilts, L2 / R2 zoom), 1
  * Original (the PlayStation's: L2 / R2 + right stick, the stick pans). */
@@ -369,6 +391,7 @@ const Entry entries[] = {
     I("analog_dead_zone", pc_analog_dead_zone), /* percent of the stick's travel */
     I("analog_run", pc_analog_run), /* percent: at or past it Ashley runs */
     I("hud_label_opaque", pc_hud_label_opaque), /* the stat bars' label opaque (1) or the original's 0x180 (0) */
+    F("menu_fade_dip", pc_menu_fade_dip), /* menu_fade plain: where the field is black, 0.05..0.95 of the fade */
     I("opacity_2d", pc_opacity_2d), /* 2D at an opacity as primitives (1) or the game's read-back (0; ROOD_OPACITY_2D wins) */
     I("screen_owner", pc_screen_owner), /* 16:9: a screen of opaque 2D clears the scene from the view's sides (1) or leaves them (0) */
     IN("screen_owner_fill", pc_screen_owner_fill, 3), /* ... to this colour: red green blue, 0..255 */
@@ -586,6 +609,15 @@ int apply_line(const char* line, int* scale, bool now)
         return 1;
     if (pc_lua_settings_parse(key, rest))
         return 1;
+    if (!strcmp(key, "menu_fade")) { /* original | plain (or 0 / 1) */
+        char name[32] = "";
+        sscanf(rest, "%31s", name);
+        if (!strcmp(name, "original") || !strcmp(name, "0"))
+            pc_menu_fade = 0;
+        else if (!strcmp(name, "plain") || !strcmp(name, "1"))
+            pc_menu_fade = 1;
+        return 1;
+    }
     if (!strcmp(key, "gameplay_walls")) { /* original | smart (or 0 / 1) */
         char name[32] = "";
         sscanf(rest, "%31s", name);
@@ -909,6 +941,7 @@ extern "C" void pc_settings_write(FILE* f)
     fprintf(f, "ui_lines %s\n", pc_ui_lines_names[pc_ui_lines ? 1 : 0]);
     fprintf(f, "ui_bubbles %s\n", pc_ui_bubbles_names[pc_ui_bubbles ? 1 : 0]);
     pc_button_prompts_settings_write(f);
+    fprintf(f, "menu_fade %s\n", pc_menu_fade ? "plain" : "original");
     fprintf(f, "gameplay_walls %s\n", pc_gameplay_walls ? "smart" : "original");
     pc_occlusion_settings_write(f);
     fprintf(f, "ui_menu_tint %s\n", pc_ui_tint_id(pc_ui_tint_current()));

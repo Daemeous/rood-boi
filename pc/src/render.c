@@ -18,6 +18,7 @@
  * shade. */
 #define _POSIX_C_SOURCE 200809L
 #include "render_gl.h"
+#include "draw_items.h"
 #include "render_state.h"
 #include "room_editor.h"
 #include "occlusion.h" /* fading what hides the characters in play */
@@ -976,33 +977,30 @@ void render_list_translucent_clear(uint32_t id)
     if (list)
         list->translucent_used = 0;
 }
-/* The marker: GP0 no-ops to every packet consumer except the native draw
- * hook in pc_draw_packet (boot_runtime.c), which recognises the word. */
-#define RENDER_MARKER 0x00524e44u
-#define RENDER_TRANSLUCENT_MARKER 0x00544e44u
-/* Link a `words`-word packet (after its tag) at the head of `*ot_entry`. */
-static void link_packet(uint32_t* ot_entry, uint32_t* packet, uint32_t words)
-{
-    packet[0] = (*ot_entry & 0xffffff) | (words << 24);
-    *ot_entry = (*ot_entry & 0xff000000) | ((uint32_t)(uintptr_t)packet & 0xffffff);
-}
+/* The marker words a native item lowers to (draw_items.c): GP0 no-ops to every packet consumer except the native draw hook in
+ * pc_draw_packet (boot_runtime.c), which recognises them. */
+#define RENDER_MARKER PC_NATIVE_MARKER
+#define RENDER_TRANSLUCENT_MARKER PC_NATIVE_TRANSLUCENT_MARKER
+/* A native list's draw as an item placed at the head of `*ot_entry` with a marker made at `packet`; returns the packet cursor past it. */
 uint32_t* render_list_link(uint32_t list, uint32_t* ot_entry, uint32_t* packet)
 {
-    packet[1] = RENDER_MARKER;
-    packet[2] = list & 0xffffff;
-    link_packet(ot_entry, packet, 2);
-    return packet + 3;
+    int first = pc_frame_count();
+    pc_item* it = pc_frame_add(PC_ITEM_NATIVE, 0);
+    if (!it)
+        return packet;
+    it->mode = PC_ITEM_INHERIT, it->native_list = list & 0xffffff;
+    return pc_frame_place(first, 1, ot_entry, packet);
 }
 int render_is_marker(const uint32_t* packet) { return (packet[0] >> 24) == 2 && packet[1] == RENDER_MARKER; }
 /* Every word after the tag has a zero top byte: GPU no-ops elsewhere. */
 uint32_t* render_list_link_translucent(uint32_t list, int first, int count, uint32_t* ot_entry, uint32_t* packet)
 {
-    packet[1] = RENDER_TRANSLUCENT_MARKER;
-    packet[2] = list & 0xffffff;
-    packet[3] = (uint32_t)first & 0xffffff;
-    packet[4] = (uint32_t)count & 0xffffff;
-    link_packet(ot_entry, packet, 4);
-    return packet + 5;
+    int index = pc_frame_count();
+    pc_item* it = pc_frame_add(PC_ITEM_NATIVE, 0);
+    if (!it)
+        return packet;
+    it->mode = PC_ITEM_INHERIT, it->verts = 1, it->native_list = list & 0xffffff, it->native_first = first, it->native_count = count;
+    return pc_frame_place(index, 1, ot_entry, packet);
 }
 int render_translucent_marker(const uint32_t* packet, uint32_t* list, int* first, int* count)
 {

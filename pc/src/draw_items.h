@@ -33,7 +33,8 @@ enum {
     PC_ITEM_LINE,   /* a line from (x[0], y[0]) to (x[1], y[1]): flat, or shaded from rgb[0] to rgb[1] */
     PC_ITEM_AREA,   /* the drawing area for the items drawn after it: (x[0], y[0]) and w, h */
     PC_ITEM_MODE_SET, /* the draw mode (GP0 E1: `mode`) for the items drawn after it that carry none (PC_ITEM_INHERIT) */
-    PC_ITEM_MASK    /* the mask bit set when drawing (x[0] 1) or not (0): GP0 E6 */
+    PC_ITEM_MASK,   /* the mask bit set when drawing (x[0] 1) or not (0): GP0 E6 */
+    PC_ITEM_NATIVE  /* a native list's draw (render.c: a model, the room, an effects list): the list, and for a translucent run (verts 1) its entries first, count */
 };
 
 enum {
@@ -66,6 +67,10 @@ enum {
 #define PC_RGB(r, g, b) (((r) & 0xff) | ((g) & 0xff) << 8 | ((b) & 0xff) << 16)
 #define PC_GREY(v) (((v) & 0xff) * 0x010101)
 
+/* The words a native item lowers to (after the tag): the walk's native draw recognises them (render.c, boot_runtime.c). */
+#define PC_NATIVE_MARKER 0x00524e44u
+#define PC_NATIVE_TRANSLUCENT_MARKER 0x00544e44u
+
 typedef struct {
     unsigned char kind;  /* PC_ITEM_* */
     unsigned char verts; /* polygon: 3 or 4 */
@@ -79,6 +84,8 @@ typedef struct {
     unsigned char u[4], v[4]; /* textured: texel at each corner (a sprite's top left is u[0], v[0]) */
     unsigned char rgb[4][3];  /* colour per corner; a flat item's is rgb[0] */
     unsigned tw;              /* PC_ITEM_WINDOW: the window word's 20 bits */
+    unsigned native_list;     /* PC_ITEM_NATIVE: the list's id */
+    int native_first, native_count; /* PC_ITEM_NATIVE, translucent: its entries */
     unsigned short after;     /* PC_ITEM_AFTER: the draw mode word's bits */
     unsigned short before;    /* PC_ITEM_BEFORE: likewise */
     unsigned char anchor;     /* PC_ITEM_ANCHORED: PC_ANCHOR_* (gpu_hw.c), 0x20 set when exact */
@@ -165,6 +172,8 @@ const void* pc_frame_command(int index);
 int pc_frame_command_item(const void* command);
 /* The address of item `index`'s lowered packet (where the draw puts it; the key of anchors and interpolation). */
 const void* pc_frame_packet(int index);
+/* Whether the run [first, first + count) has a native list's draw (PC_ITEM_NATIVE). */
+int pc_frame_run_has_native(int first, int count);
 /* Whether `packet` is a marker (pc_frame_place) and the run of items it places. */
 int pc_frame_marker(const unsigned* packet, int* first, int* count);
 int pc_frame_run_pages(int first, int count, unsigned current, int (*wanted)(unsigned page));

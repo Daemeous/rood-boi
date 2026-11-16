@@ -363,6 +363,8 @@ local function make_look()
       sprite = { page_x = 640, page_y = 256, bits = 8, abr = 1, u = 0, v = 0, w = 0, h = 240, clut_x = 768,
         clut_y = 227, bgr = 0x808080 },
       behind = { page_x = 0, page_y = 0, bits = 15, abr = 1, u = 0, v = 0, w = 0, h = 240, bgr = 0x808080 },
+      -- menu_fade plain's tile over the field (the screen's 320 x 240: where the game's own sprites stand)
+      plain = { x = 0, y = 0, w = 320, h = 240 },
     },
     -- Our Option pages' value column (pc/src/ui/classic_options.c's draws: the game's menu font and gauge; its
     -- numbers are rood.options' M.style, read as the page draws them): ON / OFF, a choice between arrows, a
@@ -1183,6 +1185,28 @@ M.draw.menu_background = function(e, d)
   local opaque = e.fade == 16
   local level = opaque and e.brightness or e.fade * 8
   d.anchor(b.place.anchor)
+  if e.dim and e.dim >= 0 then
+    -- menu_fade plain: the field dims to black under a black tile (e.dim of 256 opaque), then the picture comes in
+    -- from black (e.open of 256), both at the game's own brightness for the picture; no previous screen blended in.
+    -- (in drawing order: the tile first, as the game's items submitted last)
+    local t = b.plain
+    if e.dim > 0 then
+      d.opacity(e.dim < 256 and e.dim / 256 or nil)
+      d.rect(t.x + dx, t.y + dy, t.w, t.h, 0x000000)
+    end
+    if e.open > 0 then
+      d.opacity(e.open < 256 and e.open / 256 or nil)
+      local s = b.sprite
+      s.bgr = (e.brightness % 256) * 0x010101
+      for i = #b.picture, 1, -1 do
+        local p = b.picture[i]
+        s.page_x, s.w = p[3], p[2]
+        d.sprite(p[1] + dx, dy, s)
+      end
+    end
+    d.opacity(nil)
+    return
+  end
   if not opaque then
     local h, u = b.behind, e.buffer == 0 and 320 or 0
     h.bgr = (128 - level) * 0x010101

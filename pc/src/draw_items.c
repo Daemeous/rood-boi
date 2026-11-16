@@ -604,6 +604,14 @@ static unsigned lower(const pc_item* it, uint32_t* p)
         if (it->mode != PC_ITEM_INHERIT) /* (INHERIT: a texture window alone) */
             p[n++] = 0xe1000000u | it->mode;
         break;
+    case PC_ITEM_NATIVE:
+        p[n++] = it->verts ? PC_NATIVE_TRANSLUCENT_MARKER : PC_NATIVE_MARKER;
+        p[n++] = it->native_list & 0xffffffu;
+        if (it->verts) {
+            p[n++] = (uint32_t)it->native_first & 0xffffffu;
+            p[n++] = (uint32_t)it->native_count & 0xffffffu;
+        }
+        break;
     case PC_ITEM_MASK:
         p[n++] = 0xe6000000u | (it->x[0] ? 1u : 0u);
         break;
@@ -706,7 +714,7 @@ int pc_frame_lower(int index, unsigned words[3][16], int lengths[3])
     if (it->kind == PC_ITEM_POLY && (it->flags & PC_ITEM_TEXTURED) && (it->flags & PC_ITEM_BEFORE)) {
         words[packets][0] = 0xe1000000u | it->before;
         lengths[packets++] = 1;
-    } else if (it->kind != PC_ITEM_AREA && it->kind != PC_ITEM_MODE_SET && it->kind != PC_ITEM_MASK && it->mode != PC_ITEM_INHERIT && !(it->flags & PC_ITEM_BRACKET)
+    } else if (it->kind != PC_ITEM_AREA && it->kind != PC_ITEM_MODE_SET && it->kind != PC_ITEM_MASK && it->kind != PC_ITEM_NATIVE && it->mode != PC_ITEM_INHERIT && !(it->flags & PC_ITEM_BRACKET)
         && !(it->kind == PC_ITEM_POLY && (it->flags & PC_ITEM_TEXTURED))) {
         words[packets][0] = 0xe1000000u | it->mode;
         lengths[packets++] = 1;
@@ -807,7 +815,7 @@ static void draw_run(int first, int count)
         }
         if (it->kind == PC_ITEM_MODE_SET && it->mode != PC_ITEM_INHERIT)
             mode = it->mode; /* (its packet is the mode) */
-        if (it->kind == PC_ITEM_AREA || it->kind == PC_ITEM_MODE_SET || it->kind == PC_ITEM_MASK) {
+        if (it->kind == PC_ITEM_AREA || it->kind == PC_ITEM_MODE_SET || it->kind == PC_ITEM_MASK || it->kind == PC_ITEM_NATIVE) {
             /* (a state: no draw mode of its own) */
         } else if (it->flags & PC_ITEM_BRACKET)
             mode = 0x200; /* (its words end with the mode set) */
@@ -867,6 +875,13 @@ int pc_frame_marker(const uint32_t* packet, int* first, int* count)
     return 1;
 }
 void pc_frame_draw_run(int first, int count) { draw_run(first, count); }
+int pc_frame_run_has_native(int first, int count)
+{
+    for (int i = first; i < first + count && i < pc_item_frame.count; i++)
+        if (pc_item_frame.item[i].kind == PC_ITEM_NATIVE)
+            return 1;
+    return 0;
+}
 /* Whether a run has a textured item drawn from a page `wanted` takes (an item that inherits the mode: `current`). */
 int pc_frame_run_pages(int first, int count, unsigned current, int (*wanted)(unsigned page))
 {

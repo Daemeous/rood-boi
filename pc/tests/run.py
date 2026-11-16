@@ -221,6 +221,10 @@ def suites(args, mode="egl"):
                    "unchanged, shadow names the wrong field/frame, clean restore and running reload",
               sources=[ROOT / "pc/tools/game_lib.py", ROOT / "game/battle/root.zig",
                        ROOT / "game/common/route.zig", ROOT / "pc/src/game_host.inc"]),
+        Suite("ot_census_gate", [PY, str(ROOT / "pc/tools/ot_census.py"), "--rooms"], 3600,
+              note="the ordering-table gate (S6): no route, fight or room leaves a raw packet in a table (pc/tools/ot_census.py; "
+                   "the VRAM copies are T5's, the packets drawn at once are in no table)",
+              sources=[ROOT / "pc/tools/build_compare.py", ROOT / "pc/src/boot_runtime.c"]),
         Suite("rpc_smoke", [PY, str(TESTS / "rpc_smoke.py")], 180),
         Suite("rpc_tcp_token_smoke", [PY, str(TESTS / "rpc_tcp_token_smoke.py")], 180,
               note="TCP RPC with a token: refused without it, with a wrong one, HTTP lines; never logged"),
@@ -747,6 +751,9 @@ def suites(args, mode="egl"):
         Suite("text_fade_smoke", [PY, str(TESTS / "text_fade_smoke.py")], 300,
               note="text without a box fading out (type 0 closing, type 6): glyphs at the opacity, no "
                    "PS1-resolution rectangle (font, original, overlay); the game's upload is seen with it off"),
+        Suite("menu_fade_smoke", [PY, str(TESTS / "menu_fade_smoke.py")], 400,
+              note="menu_fade plain: Items opening dims the frame to black in its own colour and the picture comes in "
+                   "from black; the original's fade does not; the HUD's text is smooth in every closing frame"),
         Suite("ui_upscale_smoke", [PY, str(TESTS / "ui_upscale_smoke.py"),
                                    *(["--card", str(args.save)] if args.save.exists() else [])], 300,
               note="2D/UI MMPX: only 2D changes, atlas = CPU reference, palette kept, cache, VRAM rewrites"),
@@ -884,7 +891,7 @@ CHECKPOINT_SUITES = {
     "hud_bench_smoke", "classic_hud_smoke", "classic_panels_smoke",
     "repl_smoke", "lua_imgui_smoke", "photo_foundation_smoke", "photo_engine_reload_smoke", "photo_mode_smoke", "photo_pace_smoke", "photo_full_room_smoke",
     "cutscene_player_smoke", "cutscene_viewer_smoke", "cutscene_sequencer_smoke", "cutscene_freecam_smoke",
-    "text_fade_smoke",
+    "text_fade_smoke", "menu_fade_smoke",
 }
 
 

@@ -75,7 +75,9 @@ typedef struct { int x, y, lock, step; } pc_classic_target_marker;
  * record, 0x40 bytes, before the emit steps its gradient), the pointing hand (vs_mainMenu_renderCursor: its
  * step, packed place, colour) and the tab arrows (vs_mainMenu_renderTabNavigation: mode, the step just taken,
  * lit). */
-typedef struct { int fade, brightness, slot, frame; } pc_classic_menu_background;
+/* dim, open: menu_fade plain (project_settings.cpp pc_menu_fade_levels): how opaque the black tile over the field and the menu's
+ * picture are drawn at this step (0..256); -1 when the game's own cross-fade (menu_fade original) is. */
+typedef struct { int fade, brightness, slot, frame, dim, open; } pc_classic_menu_background;
 #define PC_CLASSIC_SITE_MENU_BACKGROUND 23
 typedef struct { int action, y; } pc_classic_menu_command;
 #define PC_CLASSIC_SITE_MENU_COMMAND 24

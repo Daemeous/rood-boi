@@ -848,6 +848,23 @@ static void graphics_panel()
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("A text box's text fading out is drawn as sprites at that opacity. Off: the game's own\n"
                               "frame-buffer read-back and upload (for comparisons; ROOD_OPACITY_2D overrides).");
+        {
+            extern int pc_menu_fade; /* project_settings.cpp */
+            extern float pc_menu_fade_dip;
+            static const char* fades[] = { "Original", "Plain" };
+            ImGui::SetNextItemWidth(120);
+            if (ImGui::Combo("Menu fade", &pc_menu_fade, fades, 2))
+                pc_menu_fade = pc_menu_fade != 0;
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Original: the game's cross-fade into a menu's picture, blended with the previous\n"
+                                  "screen. Plain: the field dims to black, then the menu comes in from black (needs\n"
+                                  "2D at an opacity, above). Settings key menu_fade.");
+            if (pc_menu_fade) {
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(120);
+                ImGui::SliderFloat("Black at", &pc_menu_fade_dip, 0.05f, 0.95f, "%.2f");
+            }
+        }
         extern int pc_screen_owner, pc_screen_owner_fill[3]; /* screen_owner.c */
         if (pc_gte_widescreen) {
             bool owner = pc_screen_owner != 0;

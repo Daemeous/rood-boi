@@ -1649,6 +1649,7 @@ extern const float* pc_frame_drawing_span __attribute__((weak));
 extern int pc_frame_marker(const uint32_t*, int*, int*) __attribute__((weak));
 extern void pc_frame_draw_run(int, int) __attribute__((weak));
 extern int pc_frame_run_pages(int, int, unsigned, int (*)(unsigned)) __attribute__((weak));
+extern int pc_frame_run_has_native(int, int) __attribute__((weak));
 /* gpu_hw.c: the ordering table about to be drawn holds native draws, and
  * starts in drawing area `clip` (x, y, w, h). */
 extern void pc_hw_ot_native_area(const int*) __attribute__((weak));
@@ -1717,13 +1718,14 @@ static const uint32_t *ot_scene, *ot_top; /* (below: the table's scene base and 
 /* The ordering-table census (RPC ot_census, pc/tools/ot_census.py): what each adopted table holds besides the slots' own entries, by the
  * slot it sits in (words after the table's scene entry) and by kind: item markers (the frame's draw items), native-list markers, raw
  * packets (a draw mode, a polygon, a line, a rectangle or sprite, anything else) and VRAM copies (DR_MOVE and the loads and stores).
- * The ordering table can go once every route reads zero raw packets. */
+ * Packets drawn at once (DrawPrim, in no table: the title's screens) are counted apart, at the slot -1000, and are not the gate's. The ordering table can go once every route reads zero raw packets. */
 enum { CENSUS_ITEM_MARKER, CENSUS_NATIVE_MARKER, CENSUS_MODE, CENSUS_MOVE, CENSUS_POLYGON, CENSUS_LINE, CENSUS_RECT, CENSUS_OTHER, CENSUS_NOP, CENSUS_KINDS };
 static const char* const census_names[CENSUS_KINDS] = { "item_marker", "native_marker", "mode", "vram_copy", "polygon", "line", "rect", "other", "nop" };
 #define CENSUS_ROWS 512
+#define CENSUS_IMMEDIATE (-1000) /* (the slot of a packet drawn at once, not linked in a table) */
 static struct {
     int on;
-    unsigned long long tables, count[CENSUS_KINDS];
+    unsigned long long tables, count[CENSUS_KINDS], immediate[CENSUS_KINDS]; /* (immediate: packets drawn at once, in no table) */
     int rows;
     struct {
         int slot, kind;
@@ -1757,7 +1759,7 @@ static void census_note(const uint32_t* p, int slot)
             : code >= 0x60 && code < 0x80 ? CENSUS_RECT
                                           : CENSUS_OTHER;
     }
-    ++census.count[kind];
+    ++(slot == CENSUS_IMMEDIATE ? census.immediate : census.count)[kind];
     for (i = 0; i < census.rows; i++)
         if (census.row[i].slot == slot && census.row[i].kind == kind) {
             ++census.row[i].n;
@@ -1778,6 +1780,9 @@ int pc_ot_census_json(char* out, int size, int on, int reset)
     n += snprintf(out + n, (size_t)(size - n), "{\"on\":%d,\"tables\":%llu,\"kinds\":{", census.on, census.tables);
     for (i = 0; i < CENSUS_KINDS; i++)
         n += snprintf(out + n, (size_t)(size - n), "%s\"%s\":%llu", i ? "," : "", census_names[i], census.count[i]);
+    n += snprintf(out + n, (size_t)(size - n), "},\"immediate\":{");
+    for (i = 0; i < CENSUS_KINDS; i++)
+        n += snprintf(out + n, (size_t)(size - n), "%s\"%s\":%llu", i ? "," : "", census_names[i], census.immediate[i]);
     n += snprintf(out + n, (size_t)(size - n), "},\"rows\":[");
     for (i = 0; i < census.rows && n < size - 200; i++)
         n += snprintf(out + n, (size_t)(size - n), "%s{\"slot\":%d,\"kind\":\"%s\",\"n\":%llu,\"words\":[%u,%u,%u]}", i ? "," : "",
@@ -1878,14 +1883,13 @@ static int precise_slot_for(const uint32_t* p)
         return pc_ui_precise_slot ? pc_ui_precise_slot(GUEST(p)) : -1;
     return drawing_tag && drawing_tag + 1 == p ? walk_precise : -1;
 }
-/* Whether the adopted table holds a native draw (render.c marker). */
+/* Whether the adopted table holds a native draw (a PC_ITEM_NATIVE item's marker). */
 static int ot_has_native(void)
 {
     for (unsigned i = 0; i < frame.count; i++) {
         const uint32_t* p = frame.words + frame.entry[i].off;
-        uint32_t list;
         int first, count;
-        if (render_is_marker(p) || (render_translucent_marker && render_translucent_marker(p, &list, &first, &count)))
+        if (pc_frame_marker && pc_frame_marker(p, &first, &count) && pc_frame_run_has_native(first, count))
             return 1;
     }
     return 0;
@@ -1934,6 +1938,8 @@ void pc_draw_packet(void* data, int chain)
         adopt(data, &pc_photo_hide_game2d && pc_photo_hide_game2d && &pc_photo_game2d_slots);
     } else if (chain)
         ot_layers_begin(data);
+    else if (census.on)
+        census_note(data, CENSUS_IMMEDIATE); /* (a packet drawn at once, DrawPrim: the title's screens draw so, no table) */
     if (chain == 1 && pc_hw_ot_native_area && render_is_marker && ot_has_native()) {
         int clip[4] = { clip_x, clip_y, clip_w, clip_h };
         pc_hwc_ot_native_area(clip);
@@ -2038,9 +2044,11 @@ static void draw_packet(void* data, int chain)
         int world2d_run = hide2d && pc_frame_marker && pc_frame_marker(p, &run_first, &run_count)
             && pc_frame_run_pages(run_first, run_count, (unsigned)tpage, battle_page);
         hidden = en ? en->g2d_hidden : 0;
+        int native_run = pc_frame_marker && pc_frame_marker(p, &run_first, &run_count) && pc_frame_run_has_native(run_first, run_count);
         if (hide2d && !en->g2d_known && (world2d_run || ((hidden || world2d_packet(p))
             && !(render_is_marker && render_is_marker(p))
             && !(render_translucent_marker && render_translucent_marker(p, &t_list, &t_first, &t_count))
+            && !native_run
             && !mode_packet(p)))) {
             if (last && frame.end != 2)
                 break; /* (the chain ended, or left mapped memory: a skipped packet says nothing of it) */
