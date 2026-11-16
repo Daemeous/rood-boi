@@ -33,24 +33,24 @@ pub fn vs_effects_tickChildEffectTrack(script: ?*v.D_800F53B8_t, state_arg: ?*v.
     var spawn: v.D_800F53B8_t2 = undefined; // unk21..unk24 stay uninitialised, as in the C
     const event: *align(1) Event = @ptrCast(psx.get(state.data).?);
     var result: c_int = 1;
-    const block = psx.get(s.unkD1C.unk30) orelse return result;
-    if (event.frame <= block.unk2) {
+    const block = psx.get(s.context.unk30) orelse return result;
+    if (event.frame <= block.frame) {
         if (state.index < targetsCount()) {
             if (state.delay == 0) {
                 while (true) {
-                    setAddress(&spawn.unk14, psx.rawOf(v.g.vs_effects_package().*.?.block8Data));
-                    spawn.unk18 = kind;
-                    spawn.unk10 = 0;
-                    setAddress(&spawn.unk0, psx.rawOf(targetsOf().*) +% 4);
-                    setAddress(&spawn.unk4, psx.rawOf(targetsOf().*) +% 4);
-                    setAddress(&spawn.unk8, psx.rawOf(targetsOf().*) +% @as(u32, @bitCast(@as(i32, state.index) *% 12 +% 16)));
-                    setAddress(&spawn.unkC, psx.rawOf(targetsOf().*) +% @as(u32, @bitCast(@as(i32, state.index) *% 12 +% 16)));
-                    psx.put(&spawn.unk1C, s);
-                    spawn.unk20 = psx.getBits(s, "unk14_0");
+                    setAddress(&spawn.script, psx.rawOf(v.g.vs_effects_package().*.?.block8Data));
+                    spawn.scriptOffset = kind;
+                    spawn.priority = 0;
+                    setAddress(&spawn.source, psx.rawOf(targetsOf().*) +% 4);
+                    setAddress(&spawn.emitFrom, psx.rawOf(targetsOf().*) +% 4);
+                    setAddress(&spawn.target, psx.rawOf(targetsOf().*) +% @as(u32, @bitCast(@as(i32, state.index) *% 12 +% 16)));
+                    setAddress(&spawn.emitTo, psx.rawOf(targetsOf().*) +% @as(u32, @bitCast(@as(i32, state.index) *% 12 +% 16)));
+                    psx.put(&spawn.parent, s);
+                    spawn.token = psx.getBits(s, "unk14_0");
                     const child: *v.D_800F53B8_t = @ptrCast(@alignCast(c.vs_effects_createPrimaryEffectInstance(@ptrCast(&spawn)).?));
                     psx.setBits(s, "unk14_11", psx.getBits(s, "unk14_11") +% 1);
-                    if (psx.get(spawn.unk8).?.unk0.unk0 == 4) {
-                        child.unk10[1] = psx.at(&event.actors, @as(*u8, @ptrFromInt(@as(usize, psx.rawOf(spawn.unk8)) + 5)).*).*; // actors[6]: the byte is not checked
+                    if (psx.get(spawn.target).?.unk0.unk0 == 4) {
+                        child.unk10[1] = psx.at(&event.actors, @as(*u8, @ptrFromInt(@as(usize, psx.rawOf(spawn.target)) + 5)).*).*; // actors[6]: the byte is not checked
                     } else {
                         child.unk10[1] = event.actors[0];
                     }
@@ -65,15 +65,15 @@ pub fn vs_effects_tickChildEffectTrack(script: ?*v.D_800F53B8_t, state_arg: ?*v.
             }
         } else if (state.index == targetsCount()) {
             if (psx.getBits(s, "unk14_11") == 0) {
-                setAddress(&spawn.unk14, psx.rawOf(v.g.vs_effects_package().*.?.block8Data));
-                spawn.unk18 = kind;
-                spawn.unk10 = 0;
-                setAddress(&spawn.unk0, psx.rawOf(targetsOf().*) +% 4);
-                setAddress(&spawn.unk4, psx.rawOf(targetsOf().*) +% 4);
-                setAddress(&spawn.unk8, psx.rawOf(targetsOf().*) +% 16);
-                setAddress(&spawn.unkC, psx.rawOf(targetsOf().*) +% 16);
-                psx.put(&spawn.unk1C, s);
-                spawn.unk20 = psx.getBits(s, "unk14_0");
+                setAddress(&spawn.script, psx.rawOf(v.g.vs_effects_package().*.?.block8Data));
+                spawn.scriptOffset = kind;
+                spawn.priority = 0;
+                setAddress(&spawn.source, psx.rawOf(targetsOf().*) +% 4);
+                setAddress(&spawn.emitFrom, psx.rawOf(targetsOf().*) +% 4);
+                setAddress(&spawn.target, psx.rawOf(targetsOf().*) +% 16);
+                setAddress(&spawn.emitTo, psx.rawOf(targetsOf().*) +% 16);
+                psx.put(&spawn.parent, s);
+                spawn.token = psx.getBits(s, "unk14_0");
                 const child: *v.D_800F53B8_t = @ptrCast(@alignCast(c.vs_effects_createPrimaryEffectInstance(@ptrCast(&spawn)).?));
                 psx.setBits(s, "unk14_11", psx.getBits(s, "unk14_11") +% 1);
                 child.unk10[1] = event.final;

@@ -11,7 +11,7 @@ pub fn getAttackGemBuff(action: ?*v.vs_action_t, actor: ?*v.vs_battle_actor2) ca
     var gemBuff: c_int = 0;
 
     const a = actor.?;
-    if ((v.g.vs_battle_actors()[a.unk957].?.weaponDrawn & 1) != 0) {
+    if ((v.g.vs_battle_actors()[a.actorId].?.weaponDrawn & 1) != 0) {
         if (@as(c_int, psx.getBits(action.?, "type")) == c.actionTypeSpell) {
             hasGemBuff = 0;
             var i: usize = 0;

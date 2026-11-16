@@ -14,7 +14,7 @@ pub fn vs_battle_armDefenseAbilityTimingWindow(arg0: c_int) callconv(.c) void {
     const d = v.g.vs_battle_actionState().*.?;
     const idx = d.unk0 & 3;
 
-    if (d.unk854[idx].unk4.unk0.targetActor == 0) {
+    if (d.queue[idx].primaryTarget.target.targetActor == 0) {
         return;
     }
 

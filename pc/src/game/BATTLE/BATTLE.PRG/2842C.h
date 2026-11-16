@@ -27,9 +27,9 @@ typedef struct {
     u_char dataType;
     signed char index;
     short modelId;
-    void* unk4;
+    void* destination;
     u_long dataAddr;
-    vs_battle_objectData_flags unkC;
+    vs_battle_objectData_flags placement;
     u_char actorId;
     char unk11;
     char material;

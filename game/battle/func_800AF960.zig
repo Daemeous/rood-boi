@@ -17,12 +17,12 @@ pub fn func_800AF960(arg0: ?*v.D_800F45E0_t) callconv(.c) void {
     a2.unk8 &= 0xFFF;
 
     if (a2.unk5 != 0) {
-        var temp_lo: c_int = @divTrunc(@as(c_int, a2.unk10), @as(c_int, a2.unk5));
-        a2.unk10 = psx.conv(i16, @as(c_int, a2.unk10) -% temp_lo);
-        a2.unkC = psx.conv(u16, @as(c_int, a2.unkC) +% temp_lo);
-        temp_lo = @divTrunc(@as(c_int, a2.unk12), @as(c_int, a2.unk5));
-        a2.unk12 = psx.conv(i16, @as(c_int, a2.unk12) -% temp_lo);
-        a2.unkE = psx.conv(u16, @as(c_int, a2.unkE) +% temp_lo);
+        var temp_lo: c_int = @divTrunc(@as(c_int, a2.radiusExpandDelta), @as(c_int, a2.unk5));
+        a2.radiusExpandDelta = psx.conv(i16, @as(c_int, a2.radiusExpandDelta) -% temp_lo);
+        a2.radiusExpandRate = psx.conv(u16, @as(c_int, a2.radiusExpandRate) +% temp_lo);
+        temp_lo = @divTrunc(@as(c_int, a2.radiusShrinkDelta), @as(c_int, a2.unk5));
+        a2.radiusShrinkDelta = psx.conv(i16, @as(c_int, a2.radiusShrinkDelta) -% temp_lo);
+        a2.radiusShrinkRate = psx.conv(u16, @as(c_int, a2.radiusShrinkRate) +% temp_lo);
         a2.unk5 -%= 1;
     }
 }

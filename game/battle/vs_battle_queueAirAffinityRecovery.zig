@@ -9,7 +9,7 @@ pub fn vs_battle_queueAirAffinityRecovery(action: ?*v.vs_action_t, source: ?*v._
     if (v.g.vs_battle_actionState().*.?.unk8.unk2 == 1) {
         const amount = c._calculateStatChange(@ptrCast(action), @ptrCast(source), @ptrCast(target), hit, arg4);
         const entity = target.?;
-        entity.unk0.hp = psx.conv(i16, @as(c_int, entity.unk0.hp) +% amount);
+        entity.target.hp = psx.conv(i16, @as(c_int, entity.target.hp) +% amount);
         psx.setBits(entity, "hpEffect", 2);
         c.vs_battle_distributeLimbRecovery(@ptrCast(action), @ptrCast(target), amount);
     }

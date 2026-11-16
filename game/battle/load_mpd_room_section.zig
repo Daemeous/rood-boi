@@ -51,7 +51,7 @@ pub fn loadMpdRoomSection(room: c_int, data: ?*anyopaque) callconv(.c) c_int {
         }
     }
     if (psx.get(rooms.collisionMapSection) != null) {
-        psx.get(rooms.collisionMapSection).?.unk6 = psx.conv(i16, @as(c_int, psx.get(rooms.collisionMapSection).?.width) *%
+        psx.get(rooms.collisionMapSection).?.cellCount = psx.conv(i16, @as(c_int, psx.get(rooms.collisionMapSection).?.width) *%
             psx.get(rooms.collisionMapSection).?.height);
     }
     if (psx.get(rooms.sectionF) != null) {

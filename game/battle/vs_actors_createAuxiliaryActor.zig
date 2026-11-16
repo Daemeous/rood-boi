@@ -35,7 +35,7 @@ pub fn vs_actors_createAuxiliaryActor(slot: c_int, actorId: c_int, flags: ?*v.vs
         c.vs_main_bzero(block, @sizeOf(v.vs_battle_actor_dat2_unk0));
         const actor = &block.unk0.unk0;
         psx.put(&actor.stats, &block.unk0.unk50);
-        psx.put(&actor.unk44, &block.unk9B4);
+        psx.put(&actor.unk44, &block.model);
         actor.unk18 = 0xFE;
         actor.allegiance = 0x10;
         actor.unk40 = 0;
@@ -44,10 +44,10 @@ pub fn vs_actors_createAuxiliaryActor(slot: c_int, actorId: c_int, flags: ?*v.vs
         actor.unk26 = 0;
         request.dataType = 6;
         request.index = psx.conv(i8, index);
-        request.unkC = flags.?.*;
-        psx.setBits(&request.unkC, "unk0_8", psx.getBits(&request.unkC, "unk0_8") & 1);
+        request.placement = flags.?.*;
+        psx.setBits(&request.placement, "unk0_8", psx.getBits(&request.placement, "unk0_8") & 1);
         var high = actorId;
-        psx.put(&request.unk4, @as(?*anyopaque, psx.get(actor.unk44)));
+        psx.put(&request.destination, @as(?*anyopaque, psx.get(actor.unk44)));
         request.actorId = psx.conv(u8, actorId);
         if (actorId < 0) {
             high = actorId +% 0xFF;

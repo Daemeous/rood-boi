@@ -24,7 +24,7 @@ pub fn findAnimation(actor_: ?*anyopaque, animation: c_int, frames: [*c][*c]u16)
         idx = 0;
     } else if (animation == 0xFF) {
         p = table(psx.get(actor.unk5DC[3]));
-        if (actor.unk0.unkF == 0 or actor.unk6E6 == 2) {
+        if (actor.unk0.slot == 0 or actor.unk6E6 == 2) {
             idx = v.g.vs_battle_specialActionPitch().*;
         } else {
             if (actor.unk5B1 == 0) {

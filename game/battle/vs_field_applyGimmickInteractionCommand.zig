@@ -59,7 +59,7 @@ pub fn vs_field_applyGimmickInteractionCommand(actor: ?*v.D_800F4538_t, mode: c_
     // object == NULL short-circuits: the actor is only dereferenced here.
     if (object == null or psx.getBits(object.?, "unk9_0") != 0) {
         const act = actor.?;
-        _ = c.vs_actors_playActorAnimation(@as(c_int, act.unk0.unkF), @as(c_int, 1), @as(c_int, 0), @as(c_int, 8));
+        _ = c.vs_actors_playActorAnimation(@as(c_int, act.unk0.slot), @as(c_int, 1), @as(c_int, 0), @as(c_int, 8));
         return;
     }
 
@@ -89,7 +89,7 @@ pub fn vs_field_applyGimmickInteractionCommand(actor: ?*v.D_800F4538_t, mode: c_
     obj.unk26 = psx.conv(i16, direction *% 1024);
     obj.unk5C = 0xFF;
     obj.unk1A = 8;
-    obj.unk12 = act.unk0.unkF;
+    obj.unk12 = act.unk0.slot;
     act.unk0.unk13 = psx.conv(u8, v.g.vs_field_interactingGimmickId().*);
     psx.setBits(act, "unk5AC_3", 1);
 }

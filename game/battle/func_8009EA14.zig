@@ -24,7 +24,7 @@ pub fn func_8009EA14(actorId: c_int, source: ?*v.SVECTOR) callconv(.c) void {
                     if (dz2 < 0) dz2 = -%dz2;
                     const distance = c.vs_gte_rsqrt(dx +% dz2);
                     var anchor: v.SVECTOR = undefined;
-                    c.func_800A1AF8(actor.unk0.unkF, 0, psx.cptr(c.SVECTOR, &anchor), 0);
+                    c.func_800A1AF8(actor.unk0.slot, 0, psx.cptr(c.SVECTOR, &anchor), 0);
                     elevation = c.ratan2(@as(c_int, s.vy) -% anchor.vy, distance);
                 }
                 animation = 0x45;
@@ -67,7 +67,7 @@ pub fn func_8009EA14(actorId: c_int, source: ?*v.SVECTOR) callconv(.c) void {
     } else {
         if (psx.getBits(&actor.unk0, "unkB_0") == 3) c.func_800A2C48(@ptrCast(actor));
         actor.unk0.unk18 = 0;
-        if (actor.unk0.unkF == 0) {
+        if (actor.unk0.slot == 0) {
             actor.unk0.unk11 = 0;
             psx.setBits(&actor.unk0, "unkA_3", 0);
             psx.setBits(&actor.unk0, "unk9_6", 0);

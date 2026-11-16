@@ -15,16 +15,16 @@ pub fn vs_field_checkActorTrapAndFallTriggers(arg0: c_int, arg1: ?*v.func_8006EB
         @ptrCast(c.vs_field_collisionCellAt(0, 0, psx.conv(c_int, temp_a2 >> 16)))
     else
         @ptrCast(c.vs_field_collisionCellAt(
-            psx.conv(c_uint, psx.getBits(&arg1.?.unk0.fields, "unk0_0")),
-            psx.conv(c_uint, psx.getBits(&arg1.?.unk0.fields, "unk0_16")),
-            psx.conv(c_int, psx.getBits(&arg1.?.unk0.fields, "unk0_8")),
+            psx.conv(c_uint, psx.getBits(&arg1.?.packedTile.fields, "unk0_0")),
+            psx.conv(c_uint, psx.getBits(&arg1.?.packedTile.fields, "unk0_16")),
+            psx.conv(c_int, psx.getBits(&arg1.?.packedTile.fields, "unk0_8")),
         ));
 
     if (v.g.vs_battle_screenTransitionStep().* == 0) {
         if ((temp_v0 & 0x0100_0000) == 0) {
             const temp_s0: *v.vs_battle_actor = psx.at(v.g.vs_battle_actors(), arg0).*.?;
 
-            if ((arg1.?.unk0.value & 0xFFFFFF) != (temp_s0.unk2C.s32 & 0xFFFFFF) or
+            if ((arg1.?.packedTile.value & 0xFFFFFF) != (temp_s0.unk2C.s32 & 0xFFFFFF) or
                 temp_s3 != @as(c_int, temp_s0.unk2C.u8[3]) or
                 (temp_v0 & 0x70000) != 0)
             {
@@ -32,14 +32,14 @@ pub fn vs_field_checkActorTrapAndFallTriggers(arg0: c_int, arg1: ?*v.func_8006EB
                     if (psx.getBits(temp_s4.?, "unk0_16") != 0) {
                         if ((temp_v0 & 0x1670_4000) == 0) {
                             const temp_v0_2: ?*v._mpdRoomSection9 = @ptrCast(c.vs_field_findRoomTriggerAtTile(
-                                psx.conv(c_int, psx.getBits(&arg1.?.unk0.fields, "unk0_0")),
-                                psx.conv(c_int, psx.getBits(&arg1.?.unk0.fields, "unk0_16")),
-                                psx.conv(c_int, psx.getBits(&arg1.?.unk0.fields, "unk0_8")),
+                                psx.conv(c_int, psx.getBits(&arg1.?.packedTile.fields, "unk0_0")),
+                                psx.conv(c_int, psx.getBits(&arg1.?.packedTile.fields, "unk0_16")),
+                                psx.conv(c_int, psx.getBits(&arg1.?.packedTile.fields, "unk0_8")),
                             ));
                             if (temp_v0_2) |sec| {
                                 if (sec.unk6 != 0x10) {
                                     c.vs_field_beginTrapInteraction(@ptrCast(sec), @ptrCast(arg1), arg0);
-                                    temp_s0.unk2C.s32 = arg1.?.unk0.value;
+                                    temp_s0.unk2C.s32 = arg1.?.packedTile.value;
                                     temp_s0.unk2C.u8[3] = psx.conv(u8, temp_s3);
                                     return 3;
                                 }
@@ -48,13 +48,13 @@ pub fn vs_field_checkActorTrapAndFallTriggers(arg0: c_int, arg1: ?*v.func_8006EB
                     }
                 }
                 if ((temp_v0 & 0x504000) == 0) {
-                    temp_s0.unk2C.s32 = arg1.?.unk0.value;
+                    temp_s0.unk2C.s32 = arg1.?.packedTile.value;
                 }
                 temp_s0.unk2C.u8[3] = psx.conv(u8, temp_s3);
             }
 
             if (psx.getBits(temp_s4.?, "unk0_17") != 0) {
-                if (arg1.?.unk4.vy >= 0x11) {
+                if (arg1.?.position.vy >= 0x11) {
                     psx.get(psx.at(v.g.vs_battle_actors(), arg0).*.?.stats).?.currentHP = 0;
                     _ = c.vs_battle_resolveActorDefeat(0, arg0, 0);
                     if (@as(c_int, c.vs_event_evaluateRoomEventTriggers(0xC, 0, 0, 0)) == 1) {

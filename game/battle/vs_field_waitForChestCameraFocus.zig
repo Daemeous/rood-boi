@@ -6,7 +6,7 @@ const c = @import("c_146C");
 /// orig: vs_field_waitForChestCameraFocus (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// Returns 0 when the stored target is reached and vs_actors_actorStateFlags(0) has bit 27 set, else 1.
 pub fn vs_field_waitForChestCameraFocus() callconv(.c) c_int {
-    const src = &v.g.vs_field_interactionFocus().unk4.unk0.unk4;
+    const src = &v.g.vs_field_interactionFocus().unk4.location.position;
     // The C leaves sp10.pad unset; the object's stack holds 0 there, so start it at 0.
     var sp10: v.SVECTOR = .{ .vx = 0, .vy = 0, .vz = 0, .pad = 0 };
 

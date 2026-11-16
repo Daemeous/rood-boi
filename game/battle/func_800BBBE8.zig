@@ -39,54 +39,54 @@ pub fn func_800BBBE8() callconv(.c) void {
     cam().eye.mode = 0xF;
     cam().eye.follow = 0;
     cam().eye.following = 0;
-    cam().unk168.unkA = 0;
-    cam().unk168.unk2 = 0;
-    cam().unk168.unk0 = 1;
+    cam().unk168.durationFrames = 0;
+    cam().unk168.angle = 0;
+    cam().unk168.hasChanged = 1;
 
     c.vs_render_setFramebufferEffectEnabled(0);
 
-    cam().unk174.unkA = 0;
-    cam().unk174.unk2 = 0;
+    cam().unk174.durationFrames = 0;
+    cam().unk174.angle = 0;
 
     c.vs_render_setFramebufferEffectRoll(0);
 
-    cam().unk174.unk0 = 1;
-    cam().unk1FC.unk4 = 4096;
-    cam().unk1FC.unk2 = 4096;
+    cam().unk174.hasChanged = 1;
+    cam().screenScale.currentValue1 = 4096;
+    cam().screenScale.currentValue0 = 4096;
 
     c.vs_render_setFramebufferEffectScale(psx.cptr(c.D_800F1A68_t, v.g.D_800E9C0C()));
 
-    cam().unk21C.unk2 = 0;
-    cam().unk21C.unk4 = 0;
-    cam().unk21C.unk6 = 0;
-    cam().unk1FC.unk1E = 0;
+    cam().screenTint.currentValue0 = 0;
+    cam().screenTint.currentValue1 = 0;
+    cam().screenTint.currentValue2 = 0;
+    cam().screenScale.durationFrames = 0;
 
     c.vs_render_setFramebufferEffectTint(psx.cptr(c.P_CODE, v.g.vs_event_defaultScreenTint()));
 
-    cam().unk21C.unk1E = 0;
-    cam().unk23C.unk4 = 4096;
-    cam().unk23C.unk2 = 4096;
+    cam().screenTint.durationFrames = 0;
+    cam().screenTranslation.currentValue1 = 4096;
+    cam().screenTranslation.currentValue0 = 4096;
 
     c.vs_render_setFramebufferEffectOffset(psx.cptr(c.D_800F1A68_t, v.g.D_800E9C0C()));
 
-    cam().unk23C.unk1E = 0;
+    cam().screenTranslation.durationFrames = 0;
 
     c.vs_render_setFramebufferEffectBlendMode(1);
 
-    cam().unk25C.unk2 = 4096;
-    cam().unk25C.unk1E = 0;
-    cam().unk25C.unk4 = 0;
-    cam().projectionDistance.unk2 = 0x200;
-    cam().projectionDistance.unk9 = 0;
-    cam().projectionDistance.unk0 = 1;
-    cam().nearClip.unk2 = 0x40;
-    cam().nearClip.unk9 = 0;
-    cam().nearClip.unk0 = 1;
-    cam().farClip.unk2 = 0x1000;
-    cam().farClip.unk9 = 0;
-    cam().farClip.unk0 = 1;
+    cam().unk25C.currentValue0 = 4096;
+    cam().unk25C.durationFrames = 0;
+    cam().unk25C.currentValue1 = 0;
+    cam().projectionDistance.value = 0x200;
+    cam().projectionDistance.durationFrames = 0;
+    cam().projectionDistance.hasChanged = 1;
+    cam().nearClip.value = 0x40;
+    cam().nearClip.durationFrames = 0;
+    cam().nearClip.hasChanged = 1;
+    cam().farClip.value = 0x1000;
+    cam().farClip.durationFrames = 0;
+    cam().farClip.hasChanged = 1;
     cam().unk1A4.unk0.s16 = 0;
     cam().unk1A4.unkB = 0;
     cam().unk1B0.unkB = 0;
-    cam().unk1E8 = 0x2000;
+    cam().originActorId = 0x2000;
 }

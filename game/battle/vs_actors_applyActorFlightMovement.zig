@@ -10,9 +10,9 @@ pub fn vs_actors_applyActorFlightMovement(actor: ?*v.D_800F4538_t) callconv(.c) 
     const a = actor.?;
     const speed: c_int = psx.conv(c_int, a.unk1848.unk8);
 
-    const dvx: c_int = @divTrunc(@as(c_int, a.unk1848.unk10.vx) *% speed, 0x1000000);
-    const dvy: c_int = @divTrunc(@as(c_int, a.unk1848.unk10.vy) *% speed, 0x1000000);
-    const dvz: c_int = @divTrunc(@as(c_int, a.unk1848.unk10.vz) *% speed, 0x1000000);
+    const dvx: c_int = @divTrunc(@as(c_int, a.unk1848.step.vx) *% speed, 0x1000000);
+    const dvy: c_int = @divTrunc(@as(c_int, a.unk1848.step.vy) *% speed, 0x1000000);
+    const dvz: c_int = @divTrunc(@as(c_int, a.unk1848.step.vz) *% speed, 0x1000000);
 
     a.unk0.position.vx = psx.conv(i16, @as(c_int, a.unk0.position.vx) +% dvx);
     a.unk0.position.vy = psx.conv(i16, @as(c_int, a.unk0.position.vy) +% dvy);
@@ -25,7 +25,7 @@ pub fn vs_actors_applyActorFlightMovement(actor: ?*v.D_800F4538_t) callconv(.c) 
     const flags = psx.fieldAt(u32, &a.unk0._bits_skip, 0);
     flags.* |= 0x200000;
 
-    c.vs_actors_turnActorToOverTime(a.unk0.unkF, a.unk1848.unk6, 12);
+    c.vs_actors_turnActorToOverTime(a.unk0.slot, a.unk1848.unk6, 12);
 
     var animation: c_int = 1;
     if (speed > 0) {
@@ -39,6 +39,6 @@ pub fn vs_actors_applyActorFlightMovement(actor: ?*v.D_800F4538_t) callconv(.c) 
     }
 
     if (@as(c_int, a.animationId) != animation) {
-        c.vs_actors_playActorAnimation(a.unk0.unkF, animation, 0, 4);
+        c.vs_actors_playActorAnimation(a.unk0.slot, animation, 0, 4);
     }
 }

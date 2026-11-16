@@ -117,16 +117,16 @@ int func_800FA490(func_800D4910_t* arg0, u_int arg1, int arg2)
         state->height = 0;
         state->angle = 0;
         state->age = 0;
-        effect = &vs_effects_package->block5Data->unk4[state->effect];
+        effect = &vs_effects_package->block5Data->definitions[state->effect];
         vs_effects_clearTextureAnimation((int*)(&state->texture));
         vs_effects_restartTextureAnimation(&state->texture, effect->unkCA, effect->unkCB);
         break;
 
     case 2: {
-        effect = &vs_effects_package->block5Data->unk4[state->effect];
+        effect = &vs_effects_package->block5Data->definitions[state->effect];
         scratch->flags = effect->flags;
         actorMatrix = &battle->unk1C[effect->unkC8].unk38;
-        effect = &vs_effects_package->block5Data->unk4[state->effect];
+        effect = &vs_effects_package->block5Data->definitions[state->effect];
         column = vs_battle_sampleCurve(effect->unk17, state->age);
         fraction = func_800CFE1C(effect->unk30, column);
         column = ((u_char*)effect)[7];
@@ -154,22 +154,22 @@ int func_800FA490(func_800D4910_t* arg0, u_int arg1, int arg2)
         vs_battle_lerpVector(effect->unk24,
             vs_battle_sampleCurve(effect->unk9, state->age), &scratch->unkA8);
         column = vs_battle_sampleCurve(effect->unkD, state->age);
-        vs_battle_lerpSvector(effect->unk34[2], column, &scratch->unkF8);
+        vs_battle_lerpSvector(effect->unk34[2], column, &scratch->forceMin);
         vs_battle_lerpSvector(effect->unk34[3], column, &scratch->unk100);
         column = vs_battle_sampleCurve(effect->unkE, state->age);
-        vs_battle_lerpSvector(effect->unk34[4], column, &scratch->unk108);
-        vs_battle_lerpSvector(effect->unk34[5], column, &scratch->unk110);
+        vs_battle_lerpSvector(effect->unk34[4], column, &scratch->accelerationMin);
+        vs_battle_lerpSvector(effect->unk34[5], column, &scratch->accelerationMax);
         vs_battle_lerpVector(effect->unk34[0],
             vs_battle_sampleCurve(effect->unkA, state->age), &scratch->unkE8);
-        vs_battle_lerp2DVector(effect->unk94[2],
-            vs_battle_sampleCurve(effect->unkC, state->age), scratch->unk118);
-        state->radiusSpeed += scratch->unk108.vx;
+        vs_battle_lerp2DVector(effect->pairRanges[2],
+            vs_battle_sampleCurve(effect->unkC, state->age), scratch->speedRange);
+        state->radiusSpeed += scratch->accelerationMin.vx;
 
-        radiusValue = (state->radius += scratch->unkF8.vx + state->radiusSpeed);
+        radiusValue = (state->radius += scratch->forceMin.vx + state->radiusSpeed);
         height[0] = 0;
         radius[0] = radiusValue + scratch->unkA8.vx;
-        state->heightSpeed += scratch->unk108.vy;
-        state->height += scratch->unkF8.vy + state->heightSpeed;
+        state->heightSpeed += scratch->accelerationMin.vy;
+        state->height += scratch->forceMin.vy + state->heightSpeed;
         radius[2] = state->height + scratch->unkA8.vy;
 
         column = rsin(scratch->unkE8.vx);
@@ -180,16 +180,16 @@ int func_800FA490(func_800D4910_t* arg0, u_int arg1, int arg2)
         radius[1] = ((radius[1] * row) >> 12) + radius[0];
         radius[2] = ((radius[2] * row) >> 12) + radius[0];
         oldAngle = state->angle;
-        if (scratch->unk118[0] != scratch->unk118[1]) {
-            if (scratch->unk118[1] < scratch->unk118[0]) {
-                speed = (rand() % ((scratch->unk118[0] - scratch->unk118[1]) + 1))
-                      + scratch->unk118[1];
+        if (scratch->speedRange[0] != scratch->speedRange[1]) {
+            if (scratch->speedRange[1] < scratch->speedRange[0]) {
+                speed = (rand() % ((scratch->speedRange[0] - scratch->speedRange[1]) + 1))
+                      + scratch->speedRange[1];
             } else {
-                speed = (rand() % ((scratch->unk118[1] - scratch->unk118[0]) + 1))
-                      + scratch->unk118[0];
+                speed = (rand() % ((scratch->speedRange[1] - scratch->speedRange[0]) + 1))
+                      + scratch->speedRange[0];
             }
         } else {
-            speed = scratch->unk118[0];
+            speed = scratch->speedRange[0];
         }
         maxSpeed = oldAngle + speed;
         baseAngle = (state->angle = maxSpeed);
@@ -391,19 +391,19 @@ void func_800FDA04(func_800FD9A4_t* arg0, func_800FA098_arg1* arg1, D_800F53B8_t
     case 0:
         break;
     case 0xC0:
-        arg1->unk13C.vx += arg2->unk1C[arg3->unkC9].unk38.t[0];
-        arg1->unk13C.vy += arg2->unk1C[arg3->unkC9].unk38.t[1];
-        arg1->unk13C.vz += arg2->unk1C[arg3->unkC9].unk38.t[2];
+        arg1->attractionOffset.vx += arg2->unk1C[arg3->unkC9].unk38.t[0];
+        arg1->attractionOffset.vy += arg2->unk1C[arg3->unkC9].unk38.t[1];
+        arg1->attractionOffset.vz += arg2->unk1C[arg3->unkC9].unk38.t[2];
         break;
     case 0x80:
-        arg1->unk13C.vx += vs_effects_actionRequest.unkE0.vx;
-        arg1->unk13C.vy += vs_effects_actionRequest.unkE0.vy;
-        arg1->unk13C.vz += vs_effects_actionRequest.unkE0.vz;
+        arg1->attractionOffset.vx += vs_effects_actionRequest.unkE0.vx;
+        arg1->attractionOffset.vy += vs_effects_actionRequest.unkE0.vy;
+        arg1->attractionOffset.vz += vs_effects_actionRequest.unkE0.vz;
         break;
     }
-    arg0->unk98.vx = arg1->unk13C.vx;
-    arg0->unk98.vy = arg1->unk13C.vy;
-    arg0->unk98.vz = arg1->unk13C.vz;
+    arg0->unk98.vx = arg1->attractionOffset.vx;
+    arg0->unk98.vy = arg1->attractionOffset.vy;
+    arg0->unk98.vz = arg1->attractionOffset.vz;
 }
 
 void func_800FDC80(func_800FD9A4_t* arg0, func_800FA098_arg1* arg1, D_800F53B8_t* arg2,
@@ -425,9 +425,9 @@ void func_800FDC80(func_800FD9A4_t* arg0, func_800FA098_arg1* arg1, D_800F53B8_t
     arg0->unk98.vy = arg1->unk98.vy;
     arg0->unk98.vz = arg1->unk98.vz;
     arg0->unk88.vx = arg1->unk98.vx
-                   + ((-arg1->unk144.vx * rsin(arg2->unk1C[arg3->unkC8].unkBE)) >> 12);
+                   + ((-arg1->attractionJitter.vx * rsin(arg2->unk1C[arg3->unkC8].unkBE)) >> 12);
     arg0->unk88.vz = arg1->unk98.vz
-                   + ((-arg1->unk144.vx * rcos(arg2->unk1C[arg3->unkC8].unkBE)) >> 12);
+                   + ((-arg1->attractionJitter.vx * rcos(arg2->unk1C[arg3->unkC8].unkBE)) >> 12);
     arg0->unk88.vy = arg1->unk98.vy;
 }
 
@@ -469,7 +469,7 @@ int func_800FDEC4(func_800D4910_t* arg0, u_int arg1, int arg2)
         }
         break;
     case 2:
-        effect = &vs_effects_package->block5Data->unk4[state->effect];
+        effect = &vs_effects_package->block5Data->definitions[state->effect];
         scratch->flags = effect->flags;
         curve = effect->unk8;
         vs_battle_lerpVector(
@@ -478,12 +478,12 @@ int func_800FDEC4(func_800D4910_t* arg0, u_int arg1, int arg2)
             effect->unk24, vs_battle_sampleCurve(curve, state->age), &scratch->unkA8);
         vs_battle_lerpVector(effect->unk34[0],
             vs_battle_sampleCurve(effect->unkA, state->age), &scratch->unkE8);
-        vs_battle_lerp2DVector(effect->unk94[2],
-            vs_battle_sampleCurve(effect->unkC, state->age), scratch->unk118);
+        vs_battle_lerp2DVector(effect->pairRanges[2],
+            vs_battle_sampleCurve(effect->unkC, state->age), scratch->speedRange);
         vs_battle_lerpSvector(effect->unk34[6],
-            vs_battle_sampleCurve(effect->unkF, state->age), &scratch->unk13C);
+            vs_battle_sampleCurve(effect->unkF, state->age), &scratch->attractionOffset);
         vs_battle_lerpSvector(effect->unk34[7],
-            vs_battle_sampleCurve(effect->unk10, state->age), &scratch->unk144);
+            vs_battle_sampleCurve(effect->unk10, state->age), &scratch->attractionJitter);
         state->nearClip = func_800CFE1C(
             effect->unk30, vs_battle_sampleCurve(effect->unk17, state->age));
         switch (state->mode) {
@@ -527,7 +527,7 @@ int func_800FDEC4(func_800D4910_t* arg0, u_int arg1, int arg2)
             break;
         }
         state->endCamera.nearClip = state->nearClip;
-        state->endCamera.farClip = scratch->unk118[0];
+        state->endCamera.farClip = scratch->speedRange[0];
         vs_effects_cameraMotionEnds[0] = state->startCamera;
         vs_effects_cameraMotionEnds[1] = state->endCamera;
         ++state->age;

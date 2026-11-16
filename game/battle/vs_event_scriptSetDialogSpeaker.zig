@@ -14,7 +14,7 @@ pub fn vs_event_scriptSetDialogSpeaker(arg0: [*c]u8, _: c_short) callconv(.c) c_
     else
         0x20;
 
-    psx.setBits(&temp_s1.unk0, "unk0_24", psx.conv(u6, var_a0));
+    psx.setBits(&temp_s1.flags, "unk0_24", psx.conv(u6, var_a0));
     temp_s1.unk2E = psx.conv(i16, @as(c_int, arg0[1]) >> 4);
     return 0;
 }

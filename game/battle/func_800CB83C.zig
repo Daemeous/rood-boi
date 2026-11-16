@@ -43,7 +43,7 @@ pub fn func_800CB83C() callconv(.c) void {
         if (state == 0) {
             continue;
         }
-        const flags: c_int = @as(*align(4) const c_int, @ptrCast(&box.unk0)).*;
+        const flags: c_int = @as(*align(4) const c_int, @ptrCast(&box.flags)).*;
         v.g.D_800F4E80().* = @intCast(id);
         if (flags < 0) {
             continue;
@@ -102,7 +102,7 @@ pub fn func_800CB83C() callconv(.c) void {
         box.unk26 = psx.conv(i16, (y +% cy) >> 16);
         box.unk28 = psx.conv(i16, width >> 16);
         box.unk2A = psx.conv(i16, height >> 16);
-        switch (psx.getBits(&box.unk0, "unk0_0")) {
+        switch (psx.getBits(&box.flags, "unk0_0")) {
             0 => {
                 if (state < 0) {
                     c._renderTextImmediate(@ptrCast(box), scale);

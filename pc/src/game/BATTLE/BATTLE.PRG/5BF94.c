@@ -47,13 +47,13 @@ typedef struct {
 } func_800D57FC_t2;
 
 typedef struct {
-    func_800D5780_t2 unk0;
-    u_short unk2;
+    func_800D5780_t2 header;
+    u_short dataOffset;
 } func_800D55A4_t2;
 
 typedef struct {
     int count;
-    func_800D55A4_t2 unk4[0];
+    func_800D55A4_t2 tracks[0];
 } func_800D55A4_t;
 
 typedef struct {
@@ -63,15 +63,15 @@ typedef struct {
 } func_800D6894_t;
 
 typedef struct {
-    D_800F53B8_t3* unk0;
-    D_800F53B8_t3* unk4;
-    D_800F53B8_t3* unk8;
-    D_800F53B8_t3* unkC;
-    int unk10;
-    char* unk14;
-    int unk18;
-    D_800F53B8_t* unk1C;
-    u_char unk20;
+    D_800F53B8_t3* source;
+    D_800F53B8_t3* emitFrom;
+    D_800F53B8_t3* target;
+    D_800F53B8_t3* emitTo;
+    int priority;
+    char* script;
+    int scriptOffset;
+    D_800F53B8_t* parent;
+    u_char token;
     u_char unk21;
     u_char unk22;
     u_char unk23;
@@ -79,9 +79,9 @@ typedef struct {
 } D_800F53B8_t2;
 
 typedef struct {
-    int unk0;
-    int unk4;
-    int unk8;
+    int x;
+    int y;
+    int z;
     int unkC;
 } D_800F5620_t;
 

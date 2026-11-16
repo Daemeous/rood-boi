@@ -86,7 +86,7 @@ pub fn vs_battle_inflictActorStatuses(arg0: c_int, arg1: ?*v.vs_battle_actor2) c
             actor.unk33 = psx.conv(u8, @as(c_int, actor.unk2F) +% (@as(c_int, actor.unk2F) >> 2));
         }
 
-        c.vs_battle_aiSetActorVerticalMovementSteps(@as(c_int, actor.unk957), @as(c_int, actor.unk31), @as(c_int, actor.unk33));
+        c.vs_battle_aiSetActorVerticalMovementSteps(@as(c_int, actor.actorId), @as(c_int, actor.unk31), @as(c_int, actor.unk33));
     }
 
     if ((arg0 & 0x80000) != 0) {
@@ -135,7 +135,7 @@ pub fn vs_battle_inflictActorStatuses(arg0: c_int, arg1: ?*v.vs_battle_actor2) c
 
     if ((arg0 & 0x20000000) != 0) {
         // *(int*)&unk954 |= 0x20000: a 4-byte read-modify-write at unk954's address.
-        const unk954: *align(1) i32 = @as(*align(1) i32, @ptrCast(&actor.unk954));
+        const unk954: *align(1) i32 = @as(*align(1) i32, @ptrCast(&actor.actionRecoveryTimer));
         unk954.* |= 0x20000;
     }
 

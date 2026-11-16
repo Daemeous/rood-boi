@@ -52,7 +52,7 @@ pub fn vs_field_dropUnsupportedGimmickStack(slot: c_int) callconv(.c) void {
             @as(*align(1) c_int, @ptrCast(&entry.unk0.unk34)).* = 0;
             @as(*align(1) c_int, @ptrCast(&entry.unk0.unk34.vz)).* = 0;
             psx.setBits(&entry.unk0, "unkA_0", 3);
-            if (entry.unk0.unkF != 0) {
+            if (entry.unk0.slot != 0) {
                 entry.unk181A = 1;
                 entry.unk1814 = psx.conv(i16, entry.unk0.currentTileX);
                 entry.unk1818 = psx.conv(i16, entry.unk0.currentTileZ);
@@ -60,7 +60,7 @@ pub fn vs_field_dropUnsupportedGimmickStack(slot: c_int) callconv(.c) void {
             entry.unk0.unk11 = 4;
         }
 
-        i = @as(c_int, entry.unk0.unkF) +% 1;
+        i = @as(c_int, entry.unk0.slot) +% 1;
         psx.setBits(&entry.unk0, "unkA_3", 0);
         psx.setBits(&entry.unk0, "unk9_6", 0);
         psx.setBits(entry, "unk5AC_28", 0);

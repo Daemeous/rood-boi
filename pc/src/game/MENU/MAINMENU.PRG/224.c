@@ -32,9 +32,9 @@ void vs_menu_frameworkCloneActorPreview(int arg0)
     sp10.index = 1;
     sp10.modelId = temp_s2->unk6E6;
     sp10.dataAddr = arg0;
-    sp10.unk4 = temp_s3;
+    sp10.destination = temp_s3;
     sp10.actorId = 0xFF;
-    sp10.variant = temp_s2->unk0.unk10;
+    sp10.variant = temp_s2->unk0.variant;
     sp10.material = 0;
 
     vs_battle_populateDataSlot(&sp10);
@@ -46,10 +46,10 @@ void vs_menu_frameworkCloneActorPreview(int arg0)
         sp10.index = 16;
         sp10.modelId = temp_s0->unk6E6;
         sp10.dataAddr = temp_s2->unk17FD;
-        sp10.unk4 = temp_v0;
+        sp10.destination = temp_v0;
         sp10.actorId = 1;
         sp10.unk11 = 0xFC;
-        sp10.variant = temp_s2->unk0.unk10;
+        sp10.variant = temp_s2->unk0.variant;
         sp10.material = 0;
 
         vs_battle_populateDataSlot(&sp10);
@@ -57,14 +57,14 @@ void vs_menu_frameworkCloneActorPreview(int arg0)
 
     for (i = 0; i < 2; ++i) {
         vs_battle_wepModels_t* temp_s0 =
-            vs_battle_wepModels[(temp_s2->unk0.unkF * 2) + i];
+            vs_battle_wepModels[(temp_s2->unk0.slot * 2) + i];
         if (temp_s0 != 0) {
             temp_v0 = vs_main_allocHeap(sizeof *temp_s0);
             sp10.dataType = 4;
             sp10.index = i + 2;
             sp10.modelId = temp_s0->modelId;
             sp10.dataAddr = arg0 * 2 + i;
-            sp10.unk4 = temp_v0;
+            sp10.destination = temp_v0;
             sp10.actorId = 1;
             sp10.unk11 = temp_s0->unkC;
             sp10.material = temp_s0->material;
@@ -77,7 +77,7 @@ void vs_menu_frameworkCloneActorPreview(int arg0)
 
     temp_s3->unk5D4 = temp_s2->unk5D4;
 
-    if (temp_s2->unk0.unkF == 0) {
+    if (temp_s2->unk0.slot == 0) {
         temp_s3->unk5D8 = vs_main_allocHeap(0x7800);
 
         vs_content_copyWeaponSequence(temp_s3->unk5D8, temp_s2->unk5D8);
@@ -109,7 +109,7 @@ void vs_menu_frameworkResetActorPreviewPose(void)
 
     for (i = 0; i < 2; ++i) {
         if (vs_battle_unusedGlobal1[i] != NULL) {
-            vs_battle_unusedGlobal1[i]->unk8 |= 0x10;
+            vs_battle_unusedGlobal1[i]->opaque8 |= 0x10;
         }
     }
 

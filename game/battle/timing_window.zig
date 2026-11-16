@@ -26,9 +26,9 @@ fn missed() void {
 /// hit (an enemy's action, which counts the streak). Then, for an aimed action, the actor told unless it is busy,
 /// and the next step (vs_battle_advanceBattleAbilitySequence) once the cast flash is over.
 pub fn timingWindow() callconv(.c) void {
-    const slot = &state().unk854[state().unk0 & 3];
+    const slot = &state().queue[state().unk0 & 3];
     var margin: c_int = undefined;
-    if (slot.unk4.unk0.targetActor == 0) {
+    if (slot.primaryTarget.target.targetActor == 0) {
         margin = if (c.vs_battle_getStateFlag(1) != 0) 8 else 10;
     } else {
         margin = if (c.vs_battle_getStateFlag(1) != 0) 8 else 10;
@@ -66,8 +66,8 @@ pub fn timingWindow() callconv(.c) void {
         const settings = v.g.vs_main_settings();
 
         var mapped = false;
-        if (slot.unk4.unk40 == 0) {
-            if (slot.unk4.unk0.targetActor == 0) {
+        if (slot.primaryTarget.unk40 == 0) {
+            if (slot.primaryTarget.target.targetActor == 0) {
                 mapped = settings.mappedChainAbilities[index] != 0;
             } else if (settings.mappedDefenseAbilities[index] != 0) {
                 mapped = true;
@@ -79,7 +79,7 @@ pub fn timingWindow() callconv(.c) void {
                 if (state().battleAbilityTargetWindow == 0) {
                     _ = c.vs_battle_renderBattleAbilityTimingResult(1);
                     state().battleAbilityInputAttempted = 1;
-                } else if (slot.unk4.unk40 == 0) {
+                } else if (slot.primaryTarget.unk40 == 0) {
                     const window: c_int = state().battleAbilityTargetWindow;
                     if (window -% margin >= timer) {
                         _ = c.vs_battle_renderBattleAbilityTimingResult(0);
@@ -92,10 +92,10 @@ pub fn timingWindow() callconv(.c) void {
                         if (state().battleAbilityInputAttempted == 0) {
                             const fresh: c_int = ~@as(c_int, state().unk2C02) & @as(c_int, ability_buttons);
                             if (v.g.vs_main_buttonsPressed().all & @as(c_uint, @bitCast(fresh)) != 0) {
-                                if (slot.unk4.unk0.targetActor == 0) {
+                                if (slot.primaryTarget.target.targetActor == 0) {
                                     if (state().previousChainInput != button and settings.mappedChainAbilities[index] != 0) {
                                         state().previousChainInput = psx.conv(u8, button);
-                                        state().unk2C03 = state().previousChainInput;
+                                        state().chainAbilitySlot = state().previousChainInput;
                                         state().battleAbilityInputSuccessful = 1;
                                         state().battleAbilityInputAttempted = 1;
                                     } else {
@@ -104,11 +104,11 @@ pub fn timingWindow() callconv(.c) void {
                                 } else {
                                     // The loop's index is unused: every pass tests the first hit, as in the C.
                                     var i: c_int = 0;
-                                    while (i < slot.unk4A) : (i += 1) {
-                                        if (slot.unk4C[0].unk0.targetActor == 0 and slot.unk4C[0].unk40 == 0) {
+                                    while (i < slot.targetCount) : (i += 1) {
+                                        if (slot.targets[0].target.targetActor == 0 and slot.targets[0].unk40 == 0) {
                                             if (state().previousChainInput != button and settings.mappedDefenseAbilities[index] != 0) {
                                                 state().previousChainInput = psx.conv(u8, button);
-                                                state().unk2C03 = state().previousChainInput;
+                                                state().chainAbilitySlot = state().previousChainInput;
                                                 state().battleAbilityInputSuccessful = 2;
                                                 state().battleAbilityInputAttempted = 1;
                                                 const score = v.g.scoreData();
@@ -147,18 +147,18 @@ pub fn timingWindow() callconv(.c) void {
         }
     }
 
-    if (slot.unk4.unk40 == 0) {
-        if (c.vs_actors_isActorActionAnimationBusy(@as(c_int, slot.unk4.unk0.targetActor)) != 0) {
+    if (slot.primaryTarget.unk40 == 0) {
+        if (c.vs_actors_isActorActionAnimationBusy(@as(c_int, slot.primaryTarget.target.targetActor)) != 0) {
             return;
         }
-        if (state().battleAbilityInputAttempted != 0 or state().unk2C03 == 0) {
-            c.func_8009E5C4(@as(c_int, slot.unk4.unk0.targetActor));
+        if (state().battleAbilityInputAttempted != 0 or state().chainAbilitySlot == 0) {
+            c.func_8009E5C4(@as(c_int, slot.primaryTarget.target.targetActor));
         }
         // the first hit's target is not bounded by the C
-        if (slot.unk4C[0].unk40 == 0 and
-            psx.get(psx.at(v.g.vs_battle_actors(), slot.unk4C[0].unk0.targetActor).*.?.stats).?.currentHP == 0)
+        if (slot.targets[0].unk40 == 0 and
+            psx.get(psx.at(v.g.vs_battle_actors(), slot.targets[0].target.targetActor).*.?.stats).?.currentHP == 0)
         {
-            c.func_8009E5C4(@as(c_int, slot.unk4.unk0.targetActor));
+            c.func_8009E5C4(@as(c_int, slot.primaryTarget.target.targetActor));
         }
     }
     if (v.g.D_800F1868().* & 3 == 0) {

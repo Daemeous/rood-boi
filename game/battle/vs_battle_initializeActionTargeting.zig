@@ -18,23 +18,23 @@ pub fn vs_battle_initializeActionTargeting(action: c_int) callconv(.c) void {
         v.g.vs_battle_actionState().*.?.unk29A0 = 1;
         v.g.vs_battle_actionState().*.?.unk29A1 = 3;
         _ = c.vs_actors_actorPlacement(0, @ptrCast(&state));
-        v.g.vs_battle_actionState().*.?.unk29A2 = state.unk0.unk4.pad;
-        v.g.vs_battle_actionState().*.?.unk29A4 = 4;
-        v.g.vs_battle_actionState().*.?.unk29A5 = 4;
-        v.g.vs_battle_actionState().*.?.unk29A6 = 4;
-        v.g.vs_battle_actionState().*.?.unk29A7 = 0;
-        _ = c.vs_actors_anchorPoint(0, 250, @ptrCast(&v.g.vs_battle_actionState().*.?.unk29A8), 0);
+        v.g.vs_battle_actionState().*.?.unk29A2 = state.location.position.pad;
+        v.g.vs_battle_actionState().*.?.rangeX = 4;
+        v.g.vs_battle_actionState().*.?.rangeY = 4;
+        v.g.vs_battle_actionState().*.?.rangeZ = 4;
+        v.g.vs_battle_actionState().*.?.rangeAngle = 0;
+        _ = c.vs_actors_anchorPoint(0, 250, @ptrCast(&v.g.vs_battle_actionState().*.?.rangeOrigin), 0);
         _ = c.func_800C05EC(@ptrCast(&v.g.vs_battle_actionState().*.?.unk29A0), null, 0, null);
 
         v.g.vs_battle_actionState().*.?.unk29B0 = 2;
         v.g.vs_battle_actionState().*.?.unk29B1 = 3;
         _ = c.vs_actors_actorPlacement(1, @ptrCast(&state));
-        v.g.vs_battle_actionState().*.?.unk29B2 = state.unk0.unk4.pad;
-        v.g.vs_battle_actionState().*.?.unk29B4 = 4;
-        v.g.vs_battle_actionState().*.?.unk29B5 = 4;
-        v.g.vs_battle_actionState().*.?.unk29B6 = 4;
+        v.g.vs_battle_actionState().*.?.unk29B2 = state.location.position.pad;
+        v.g.vs_battle_actionState().*.?.areaX = 4;
+        v.g.vs_battle_actionState().*.?.areaY = 4;
+        v.g.vs_battle_actionState().*.?.areaZ = 4;
         v.g.vs_battle_actionState().*.?.unk29B7 = 0;
-        _ = c.vs_actors_anchorPoint(1, 250, @ptrCast(&v.g.vs_battle_actionState().*.?.unk29B8), 0);
+        _ = c.vs_actors_anchorPoint(1, 250, @ptrCast(&v.g.vs_battle_actionState().*.?.areaOrigin), 0);
         c.func_800C0700(@ptrCast(&v.g.vs_battle_actionState().*.?.unk29B0));
 
         var limb: c_int = 0;
@@ -44,7 +44,7 @@ pub fn vs_battle_initializeActionTargeting(action: c_int) callconv(.c) void {
             if (part >= 0) {
                 // count <= limb < 6: below the 23 slots of unk29C0.
                 const slot: usize = @intCast(count);
-                const el = &v.g.vs_battle_actionState().*.?.unk29C0[slot];
+                const el = &v.g.vs_battle_actionState().*.?.previews[slot];
                 _ = c.func_800A1B9C(1, limb, @ptrCast(el), 0);
                 el.unk8 = psx.conv(u8, c.vs_actors_boneTagValue(1, part, 0));
                 el.unkA = psx.conv(u8, limb);
@@ -52,8 +52,8 @@ pub fn vs_battle_initializeActionTargeting(action: c_int) callconv(.c) void {
                 count +%= 1;
             }
         }
-        v.g.vs_battle_actionState().*.?.unk2C00 = psx.conv(u16, count);
-        c.vs_battle_setSphereTargets(count, &v.g.vs_battle_actionState().*.?.unk29C0[0], 0);
+        v.g.vs_battle_actionState().*.?.previewCount = psx.conv(u16, count);
+        c.vs_battle_setSphereTargets(count, &v.g.vs_battle_actionState().*.?.previews[0], 0);
         v.g._cameraMode().* = 1;
         return;
     }

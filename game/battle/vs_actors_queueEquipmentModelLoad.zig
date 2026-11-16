@@ -19,7 +19,7 @@ pub fn vs_actors_queueEquipmentModelLoad(actor: ?*v.vs_battle_actor, actorId: c_
     sp10.dataType = 3;
     sp10.index = psx.conv(i8, tempS0);
     sp10.modelId = psx.conv(i16, wepId);
-    psx.put(&sp10.unk4, psx.get(psx.at(&actor.?.unk48, isShield).*));
+    psx.put(&sp10.destination, psx.get(psx.at(&actor.?.unk48, isShield).*));
     sp10.actorId = psx.conv(u8, actorId);
     if (isShield == 0) {
         sp10.unk11 = 0xF0;

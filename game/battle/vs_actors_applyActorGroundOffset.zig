@@ -10,9 +10,9 @@ pub fn vs_actors_applyActorGroundOffset(actor: ?*v.D_800F4538_t) callconv(.c) vo
     psx.setBits(&a.unk0, "unkA_5", 0);
 
     var next: v.SVECTOR = undefined;
-    next.vx = a.unk1848.unk10.vx;
+    next.vx = a.unk1848.step.vx;
     next.vy = 0;
-    next.vz = a.unk1848.unk10.vz;
+    next.vz = a.unk1848.step.vz;
     next.vy = psx.conv(i16, c.vs_field_sampleActorSupportHeight(
         psx.cptr(c.SVECTOR, &a.unk0.position),
         @as(c_int, next.vx),
@@ -29,7 +29,7 @@ pub fn vs_actors_applyActorGroundOffset(actor: ?*v.D_800F4538_t) callconv(.c) vo
     a.unk0.position.vz = next.vz;
 
     if ((psx.fieldAt(c_uint, &a.unk0._bits_skip, 0).* & 0x70000) != 0) {
-        c.vs_actors_updateActorJumpAndFall(@as(c_int, a.unk0.unkF), @ptrCast(a));
+        c.vs_actors_updateActorJumpAndFall(@as(c_int, a.unk0.slot), @ptrCast(a));
     } else {
         const height: i16 = next.vy;
         if (@as(c_int, height) > @as(c_int, a.unk0.position.vy) and
@@ -38,7 +38,7 @@ pub fn vs_actors_applyActorGroundOffset(actor: ?*v.D_800F4538_t) callconv(.c) vo
             a.unk0.unk34.vx = 0;
             a.unk0.unk34.vy = 0;
             a.unk0.unk34.vz = 0;
-            c.vs_actors_playActorAnimation(@as(c_int, a.unk0.unkF), 47, 0, 4);
+            c.vs_actors_playActorAnimation(@as(c_int, a.unk0.slot), 47, 0, 4);
             a.unk181A = 0;
             psx.setBits(&a.unk0, "unkA_3", 0);
             psx.setBits(&a.unk0, "unk9_6", 0);

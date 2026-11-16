@@ -9,13 +9,13 @@ pub fn vs_effects_initEffectInstance(src_block: ?*v.D_800F53B8_t2, dst_block: ?*
     const src = src_block.?;
     const dst = dst_block.?;
 
-    psx.put(&dst.previous, psx.get(src.unk1C));
+    psx.put(&dst.previous, psx.get(src.parent));
     dst.unk8 = 0;
-    dst.unk9 = psx.conv(u8, src.unk10);
-    dst.unkA = psx.conv(u16, src.unk18);
-    dst.unkC = src.unk14;
+    dst.unk9 = psx.conv(u8, src.priority);
+    dst.unkA = psx.conv(u16, src.scriptOffset);
+    dst.unkC = src.script;
     @as(*align(1) i32, @ptrCast(&dst.unk10)).* = 0;
-    psx.setBits(dst, "unk14_0", src.unk20);
+    psx.setBits(dst, "unk14_0", src.token);
     psx.put(&dst.unk18, null);
     psx.setBits(dst, "unk14_11", 0);
     psx.setBits(dst, "unk14_16", 0);
@@ -35,12 +35,12 @@ pub fn vs_effects_initEffectInstance(src_block: ?*v.D_800F53B8_t2, dst_block: ?*
         @as(*align(1) i32, @ptrCast(&entry.unk34)).* = 0;
     }
 
-    dst.unkD1C.unk0 = psx.get(src.unk0).?.unk0;
-    dst.unkD1C.unkC = psx.get(src.unk4).?.unk0;
-    dst.unkD1C.unk18 = psx.get(src.unk8).?.unk0;
-    dst.unkD1C.unk24 = psx.get(src.unkC).?.unk0;
+    dst.context.unk0 = psx.get(src.source).?.unk0;
+    dst.context.unkC = psx.get(src.emitFrom).?.unk0;
+    dst.context.unk18 = psx.get(src.target).?.unk0;
+    dst.context.unk24 = psx.get(src.emitTo).?.unk0;
 
-    psx.put(&dst.unkD1C.unk30, null);
-    psx.put(&dst.unkD1C.unk34, null);
-    dst.unkD1C.unk3C = 0;
+    psx.put(&dst.context.unk30, null);
+    psx.put(&dst.context.unk34, null);
+    dst.context.unk3C = 0;
 }

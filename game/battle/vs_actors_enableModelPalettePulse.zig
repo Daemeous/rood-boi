@@ -12,7 +12,7 @@ pub fn vs_actors_enableModelPalettePulse(arg0: c_int, arg1: c_int, arg2: c_int) 
     var t0: ?*v.D_800F45E0_t = null;
     var s: *v.D_800F4538_unk64 = undefined;
     if (a3) |actor| {
-        s = &actor.unk0.unk64;
+        s = &actor.unk0.palettePulse;
     } else {
         t0 = psx.at(v.g.vs_field_gimmickInstances(), arg0).*;
         const e = t0 orelse return -1;
@@ -26,7 +26,7 @@ pub fn vs_actors_enableModelPalettePulse(arg0: c_int, arg1: c_int, arg2: c_int) 
             const bytes: *align(2) [960]u8 = @alignCast(&actor.unk1424);
             _ = c.vs_main_loadClut(
                 @ptrCast(bytes),
-                psx.conv(c_uint, @as(c_int, actor.unk0.unkF) +% 0x16),
+                psx.conv(c_uint, @as(c_int, actor.unk0.slot) +% 0x16),
                 0,
                 0xA0,
             );

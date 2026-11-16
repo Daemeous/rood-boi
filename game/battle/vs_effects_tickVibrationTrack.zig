@@ -10,18 +10,18 @@ pub fn vs_effects_tickVibrationTrack(actor_arg: ?*v.D_800F53B8_t, event_arg: ?*v
     const actor = actor_arg.?;
     const event = event_arg.?;
     var result: c_int = 1;
-    const data: [*]u16 = @ptrCast(@alignCast(psx.get(event.unk0).?));
-    const packed_word: u16 = psx.at(data, event.unk6).*;
+    const data: [*]u16 = @ptrCast(@alignCast(psx.get(event.keys).?));
+    const packed_word: u16 = psx.at(data, event.keyIndex).*;
     var play = false;
-    if (@as(c_int, packed_word & 511) != psx.get(actor.unkD1C.unk30).?.unk2) {
+    if (@as(c_int, packed_word & 511) != psx.get(actor.context.unk30).?.frame) {
         return result;
     }
     switch (packed_word >> 14) {
         1 => {
-            if (actor.unkD1C.unk0.unk0 == 4 and psx.conv(u8, actor.unkD1C.unk0.unk4.unk0) == 0) play = true;
+            if (actor.context.unk0.unk0 == 4 and psx.conv(u8, actor.context.unk0.unk4.unk0) == 0) play = true;
         },
         2 => {
-            if (actor.unkD1C.unk18.unk0 == 4 and psx.conv(u8, actor.unkD1C.unk18.unk4.unk0) == 0) play = true;
+            if (actor.context.unk18.unk0 == 4 and psx.conv(u8, actor.context.unk18.unk4.unk0) == 0) play = true;
         },
         0 => play = true,
         3 => {
@@ -40,7 +40,7 @@ pub fn vs_effects_tickVibrationTrack(actor_arg: ?*v.D_800F53B8_t, event_arg: ?*v
     if (play) {
         const sound: [*]u8 = @ptrCast(psx.get(v.g.vs_effects_package().*.?.block11Data).?);
         const offsets: [*]align(1) i16 = @ptrCast(sound + 4);
-        const offset: isize = offsets[(psx.at(data, event.unk6).* >> 9) & 31];
+        const offset: isize = offsets[(psx.at(data, event.keyIndex).* >> 9) & 31];
         _ = c.vs_input_startVibrationPattern(@ptrFromInt(@intFromPtr(sound) +% @as(usize, @bitCast(offset))), 255, 1);
     }
     result = c.vs_effects_advanceTimelineKey(@ptrCast(event));

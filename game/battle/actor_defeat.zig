@@ -18,7 +18,7 @@ pub fn checkDefeated(actorId: c_int) callconv(.c) c_int {
             c.vs_battle_setActorMarker(actorId, 0);
             psx.at(actors, actorId).*.?.unk8 = 0x20;
             if (psx.at(actors, actorId).*.?.unk26 == 0) {
-                c.vs_actors_beginActorDeath(actorId, &v.g.vs_battle_actionState().*.?.unk29A8, 1);
+                c.vs_actors_beginActorDeath(actorId, &v.g.vs_battle_actionState().*.?.rangeOrigin, 1);
                 c.vs_actors_setActorAnimationLocked(actorId, 1);
                 if (psx.at(actors, actorId).*.?.unk27 != 0x80 or actorId == 0) {
                     ret = 1;

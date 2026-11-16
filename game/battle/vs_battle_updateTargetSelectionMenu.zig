@@ -292,7 +292,7 @@ pub fn vs_battle_updateTargetSelectionMenu(target: [*c]u8) callconv(.c) c_int {
     } else {
         switch (v.g.vs_battle_targetSelectionStep().*) {
             16 => {
-                psx.setBits(&v.g.textBoxes()[7].unk0, "unk0_8", 1);
+                psx.setBits(&v.g.textBoxes()[7].flags, "unk0_8", 1);
                 const sm = v.g.sceneMessages();
                 _ = c.vs_battle_setTextBox(7, @ptrCast(psx.at(sm, psx.at(sm, 0).*)));
                 if ((pressed() & 0x60) != 0) {

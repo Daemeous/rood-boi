@@ -8,14 +8,14 @@ const c = @import("c_4A0A8");
 pub fn func_800BBE94() callconv(.c) void {
     var sp10: v.func_8006EBF8_t = undefined;
 
-    if (v.g.vs_event_camera().*.?.unk1E8 == 0x2000) {
-        v.g.vs_event_camera().*.?.unk1EC.vz = 0;
-        v.g.vs_event_camera().*.?.unk1EC.vy = 0;
-        v.g.vs_event_camera().*.?.unk1EC.vx = 0;
+    if (v.g.vs_event_camera().*.?.originActorId == 0x2000) {
+        v.g.vs_event_camera().*.?.originOffset.vz = 0;
+        v.g.vs_event_camera().*.?.originOffset.vy = 0;
+        v.g.vs_event_camera().*.?.originOffset.vx = 0;
         return;
     }
-    _ = c.vs_actors_actorPlacement(@as(c_int, v.g.vs_event_camera().*.?.unk1E8), &sp10);
-    v.g.vs_event_camera().*.?.unk1EC.vx = @as(c_int, sp10.unk0.unk4.vx) *% 4096;
-    v.g.vs_event_camera().*.?.unk1EC.vy = @as(c_int, sp10.unk0.unk4.vy) *% 4096;
-    v.g.vs_event_camera().*.?.unk1EC.vz = @as(c_int, sp10.unk0.unk4.vz) *% 4096;
+    _ = c.vs_actors_actorPlacement(@as(c_int, v.g.vs_event_camera().*.?.originActorId), &sp10);
+    v.g.vs_event_camera().*.?.originOffset.vx = @as(c_int, sp10.location.position.vx) *% 4096;
+    v.g.vs_event_camera().*.?.originOffset.vy = @as(c_int, sp10.location.position.vy) *% 4096;
+    v.g.vs_event_camera().*.?.originOffset.vz = @as(c_int, sp10.location.position.vz) *% 4096;
 }

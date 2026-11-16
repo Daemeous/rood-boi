@@ -5,7 +5,7 @@ typedef struct {
     int unk0;
     int unk4;
     char unk8;
-    char unk9;
+    char flags;
 } vs_main_sfxContext;
 
 int TeardownSound(void);

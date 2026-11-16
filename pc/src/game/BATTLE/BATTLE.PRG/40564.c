@@ -8,8 +8,8 @@
 #include "pc/src/psx_types.h"
 
 typedef struct {
-    u_char unk0;
-    u_char unk1;
+    u_char frame;
+    u_char duration;
 } func_800AAE9C_t;
 
 /* An animation block as it is on disc: offsets from the block's own start. */

@@ -17,9 +17,9 @@ fn state() *v.D_800F19CC_t {
 pub fn vs_battle_startActionAnimation() callconv(.c) void {
     state().battleAbilityTargetWindow = 0;
     state().battleAbilityTimer = 0;
-    const slot = &state().unk854[state().unk0 & 3];
-    if (psx.conv(c_uint, @as(c_int, slot.actionIndex)) -% 0x16 < 0x20 and slot.unk4.unk40 == 0 and
-        slot.unk4.unk0.targetActor == 0)
+    const slot = &state().queue[state().unk0 & 3];
+    if (psx.conv(c_uint, @as(c_int, slot.actionIndex)) -% 0x16 < 0x20 and slot.primaryTarget.unk40 == 0 and
+        slot.primaryTarget.target.targetActor == 0)
     {
         c.vs_battle_setStateFlag(0xB8, 1);
     }
@@ -27,19 +27,19 @@ pub fn vs_battle_startActionAnimation() callconv(.c) void {
     if (link == 0) {
         // the action index is not bounded by the C
         if (psx.getBits(psx.at(v.g.actions(), slot.actionIndex), "unk2_0") == 0) {
-            c.vs_battle_playMeleeAttackAnimation(@as(c_int, slot.unk4.unk0.targetActor), psx.cptr(c.SVECTOR, &state().unk8.unk844), @as(c_int, slot.unk48));
-            state().battleAbilityTargetWindow = psx.conv(u16, c.vs_actors_animationBattleWindowFrame(@as(c_int, slot.unk4.unk0.targetActor)) *% 2);
+            c.vs_battle_playMeleeAttackAnimation(@as(c_int, slot.primaryTarget.target.targetActor), psx.cptr(c.SVECTOR, &state().unk8.unk844), @as(c_int, slot.unk48));
+            state().battleAbilityTargetWindow = psx.conv(u16, c.vs_actors_animationBattleWindowFrame(@as(c_int, slot.primaryTarget.target.targetActor)) *% 2);
         } else {
             if (slot.actionIndex >= 0x8D) {
                 if (slot.actionIndex < 0xB8) {
-                    c.func_8009F298(@as(c_int, slot.unk4.unk0.targetActor), psx.cptr(c.SVECTOR, &state().unk8.unk844), 1);
+                    c.func_8009F298(@as(c_int, slot.primaryTarget.target.targetActor), psx.cptr(c.SVECTOR, &state().unk8.unk844), 1);
                 } else if (slot.actionIndex < 0xE0) {
-                    c.func_8009EFEC(@as(c_int, slot.unk4.unk0.targetActor), psx.cptr(c.SVECTOR, &state().unk8.unk844), 1);
+                    c.func_8009EFEC(@as(c_int, slot.primaryTarget.target.targetActor), psx.cptr(c.SVECTOR, &state().unk8.unk844), 1);
                 } else {
-                    c.func_8009E2E0(@as(c_int, slot.unk4.unk0.targetActor), psx.cptr(c.SVECTOR, &state().unk8.unk844), 1);
+                    c.func_8009E2E0(@as(c_int, slot.primaryTarget.target.targetActor), psx.cptr(c.SVECTOR, &state().unk8.unk844), 1);
                 }
             } else {
-                c.func_8009E2E0(@as(c_int, slot.unk4.unk0.targetActor), psx.cptr(c.SVECTOR, &state().unk8.unk844), 1);
+                c.func_8009E2E0(@as(c_int, slot.primaryTarget.target.targetActor), psx.cptr(c.SVECTOR, &state().unk8.unk844), 1);
             }
             state().battleAbilityTargetWindow = 0;
             v.g.vs_gametime_tickspeed().* = 4;
@@ -47,12 +47,12 @@ pub fn vs_battle_startActionAnimation() callconv(.c) void {
     } else {
         if (slot.actionIndex < 0x28) {
             // mappedChainAbilities[unk2C03 - 1]: the C does not check the index
-            const ability = psx.at(&v.g.vs_main_settings().mappedChainAbilities, @as(c_int, state().unk2C03) - 1).*;
-            c.vs_battle_playChainAbilityAnimation(@as(c_int, slot.unk4.unk0.targetActor), psx.cptr(c.SVECTOR, &state().unk8.unk844), @as(c_int, ability) - 0x16, link);
+            const ability = psx.at(&v.g.vs_main_settings().mappedChainAbilities, @as(c_int, state().chainAbilitySlot) - 1).*;
+            c.vs_battle_playChainAbilityAnimation(@as(c_int, slot.primaryTarget.target.targetActor), psx.cptr(c.SVECTOR, &state().unk8.unk844), @as(c_int, ability) - 0x16, link);
         } else {
-            c.vs_battle_playDefenseAbilityAnimation(@as(c_int, slot.unk4.unk0.targetActor), psx.cptr(c.SVECTOR, &state().unk8.unk844), 0);
+            c.vs_battle_playDefenseAbilityAnimation(@as(c_int, slot.primaryTarget.target.targetActor), psx.cptr(c.SVECTOR, &state().unk8.unk844), 0);
         }
-        state().battleAbilityTargetWindow = psx.conv(u16, c.vs_actors_animationBattleWindowFrame(@as(c_int, slot.unk4.unk0.targetActor)) *% 2);
+        state().battleAbilityTargetWindow = psx.conv(u16, c.vs_actors_animationBattleWindowFrame(@as(c_int, slot.primaryTarget.target.targetActor)) *% 2);
     }
     c.vs_audio_stopSfx(0x7E, 0x34);
     c.vs_audio_stopSfx(0x7E, 0x35);
@@ -60,6 +60,6 @@ pub fn vs_battle_startActionAnimation() callconv(.c) void {
     if (c.pc_charge_skip_hold() == 0) {
         c.func_800CB50C();
     }
-    state().unk2C03 = 0;
+    state().chainAbilitySlot = 0;
     v.g._cameraMode().* = 7;
 }

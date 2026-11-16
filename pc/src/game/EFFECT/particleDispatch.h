@@ -23,7 +23,7 @@ int VS_PARTICLE_DISPATCH_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
         temp_s1->unk0 = arg2;
         temp_s1->unkC = 0;
         temp_s1->unk8 = 0;
-        temp_s2 = &vs_effects_package->block5Data->unk4[temp_s1->unk1];
+        temp_s2 = &vs_effects_package->block5Data->definitions[temp_s1->unk1];
 
         var_v0 = temp_s2->unkC0[1];
         if (temp_s2->unkC0[1] < temp_s2->unkC0[0]) {
@@ -44,7 +44,7 @@ int VS_PARTICLE_DISPATCH_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
         break;
 
     case 2:
-        temp_s2 = &vs_effects_package->block5Data->unk4[temp_s1->unk1];
+        temp_s2 = &vs_effects_package->block5Data->definitions[temp_s1->unk1];
 #ifdef VS_PARTICLE_UNTEXTURED
         a2->flags = temp_s2->flags & 0x3FFFFFF;
 #else

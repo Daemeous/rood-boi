@@ -17,10 +17,10 @@ pub fn vs_actors_selectSharedSequenceBank(index: c_uint) callconv(.c) c_int {
             const selOff: isize = @as(isize, v.g.vs_actors_sharedSequenceBankIndex().*) + 2;
             const idxOff: isize = @as(isize, @intCast(index)) + 1;
             if (psx.fieldAt(u8, &actor.unk183C, selOff).* != 0xFF and psx.fieldAt(u8, &actor.unk183C, idxOff).* == 0xFF) {
-                if (actor.unk180C[0].unk1 >= 2) {
+                if (actor.unk180C[0].currentFrame >= 2) {
                     _ = c.vs_actors_textureFrameMove(@ptrCast(actor), 0, 0);
                 }
-                if (actor.unk180C[1].unk1 >= 2) {
+                if (actor.unk180C[1].currentFrame >= 2) {
                     _ = c.vs_actors_textureFrameMove(@ptrCast(actor), 1, 0);
                 }
             }

@@ -7,7 +7,7 @@ const v = @import("views_146C");
 /// Scales the target's lost MP by hit `hitIndex`'s stat factor and adds the level term.
 pub fn mpLostFactor(action: ?*v.vs_action_t, target: ?*v._hitEntity_t, _: ?*v._hitEntity_t, hitIndex: c_int, _: c_int) callconv(.c) c_short {
     // The C does not check targetActor (a u8) against the slot count.
-    const slot = psx.at(v.g.vs_battle_actors(), target.?.unk0.targetActor).*.?;
+    const slot = psx.at(v.g.vs_battle_actors(), target.?.target.targetActor).*.?;
     const actor = psx.get(slot.stats).?;
 
     // hitParams has 2 entries; the C does not check hitIndex.

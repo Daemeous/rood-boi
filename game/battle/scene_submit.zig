@@ -155,8 +155,8 @@ fn roomState() u16 {
 pub fn battleAction(actor: *c_int, action: *c_int, phase: *c_int, chain: *c_int, kind: *c_int, plain: *c_int, aim: *[3]c_int, target: *c_int) callconv(.c) c_int {
     if (v.g.D_800F196C().* != 2 or v.g.vs_battle_actionState().* == null) return 0;
     const block = v.g.vs_battle_actionState().*.?;
-    const a = &block.unk854[block.unk0 & 3];
-    actor.* = a.unk4.unk0.targetActor;
+    const a = &block.queue[block.unk0 & 3];
+    actor.* = a.primaryTarget.target.targetActor;
     action.* = a.actionIndex;
     phase.* = psx.conv(c_int, v.g._cameraMode().*);
     chain.* = psx.conv(c_int, block.unk0);
@@ -166,7 +166,7 @@ pub fn battleAction(actor: *c_int, action: *c_int, phase: *c_int, chain: *c_int,
     aim[0] = block.unk8.unk844.vx;
     aim[1] = block.unk8.unk844.vy;
     aim[2] = block.unk8.unk844.vz;
-    target.* = if (a.unk4A != 0 and a.unk4C[0].unk40 == 0) @as(c_int, a.unk4C[0].unk0.targetActor) else -1;
+    target.* = if (a.targetCount != 0 and a.targets[0].unk40 == 0) @as(c_int, a.targets[0].target.targetActor) else -1;
     return 1;
 }
 
@@ -190,10 +190,10 @@ pub fn battleCameraTarget(position: *[3]c_int) callconv(.c) c_int {
     const character = psx.get(v.g.vs_battle_characterState().*);
     if (character == null or character.?.weaponDrawn != 1 or v.g.vs_battle_actionState().* == null) return 0;
     const block = v.g.vs_battle_actionState().*.?;
-    if (block.unk298D == 0xFF or block.unk2C00 == 0 or block.unk298D >= 23) return 0;
-    position[0] = block.unk29C0[block.unk298D].unk0.vx;
-    position[1] = block.unk29C0[block.unk298D].unk0.vy;
-    position[2] = block.unk29C0[block.unk298D].unk0.vz;
+    if (block.unk298D == 0xFF or block.previewCount == 0 or block.unk298D >= 23) return 0;
+    position[0] = block.previews[block.unk298D].unk0.vx;
+    position[1] = block.previews[block.unk298D].unk0.vy;
+    position[2] = block.previews[block.unk298D].unk0.vz;
     return 1;
 }
 
@@ -213,12 +213,12 @@ pub fn battleCameraFocus(out: *[14]c_int) callconv(.c) void {
     if (block != null and v.g.D_800F196C().* == 2) {
         const b = block.?;
         const mode = v.g._cameraMode().*;
-        if ((mode == 1 or mode == 3) and b.unk298D != 0xFF and b.unk2C00 != 0 and b.unk298D < 23) {
+        if ((mode == 1 or mode == 3) and b.unk298D != 0xFF and b.previewCount != 0 and b.unk298D < 23) {
             out[2] = 1;
-            out[3] = b.unk29C0[b.unk298D].unk0.vx;
-            out[4] = b.unk29C0[b.unk298D].unk0.vy;
-            out[5] = b.unk29C0[b.unk298D].unk0.vz;
-            out[13] = b.unk29C0[b.unk298D].unk9;
+            out[3] = b.previews[b.unk298D].unk0.vx;
+            out[4] = b.previews[b.unk298D].unk0.vy;
+            out[5] = b.previews[b.unk298D].unk0.vz;
+            out[13] = b.previews[b.unk298D].unk9;
         } else if (mode == 2) {
             out[6] = 1;
             out[7] = b.unk2998.vx;

@@ -9,7 +9,7 @@ pub fn vs_battle_playDefenseAbilityAnimation(arg0: c_int, arg1: ?*v.SVECTOR, _: 
     const temp_s0 = psx.at(v.g.vs_actors_actorRecords(), arg0).*.?;
 
     if (psx.getBits(&temp_s0.unk0, "weaponDrawn") != 0 and
-        (temp_s0.unk0.unkF == 0 or
+        (temp_s0.unk0.slot == 0 or
             (psx.getBits(&temp_s0.unk0, "unkA_5") == 0 and
                 psx.getBits(&temp_s0.unk0, "unkA_6") == 0 and
                 psx.getBits(&temp_s0.unk0, "unkA_0") != 2 and
@@ -18,7 +18,7 @@ pub fn vs_battle_playDefenseAbilityAnimation(arg0: c_int, arg1: ?*v.SVECTOR, _: 
         var var_s1: c_int = 4;
 
         if (@as(c_int, temp_s0.unk63C) < 0x80) {
-            temp_s0.unk0.unk3E = psx.conv(i16, c.vs_actors_actorFacingDeltaToPoint(@ptrCast(temp_s0), @ptrCast(arg1)));
+            temp_s0.unk0.facingDelta = psx.conv(i16, c.vs_actors_actorFacingDeltaToPoint(@ptrCast(temp_s0), @ptrCast(arg1)));
             temp_s0.unk0.unk18 = 4;
             var_s1 = 8;
         }
@@ -37,7 +37,7 @@ pub fn vs_battle_playDefenseAbilityAnimation(arg0: c_int, arg1: ?*v.SVECTOR, _: 
         c.vs_actors_headTrackingSpeed(@ptrCast(temp_s0));
     }
 
-    if (temp_s0.unk0.unkF == 0) {
+    if (temp_s0.unk0.slot == 0) {
         if (psx.getBits(&temp_s0.unk0, "unkA_0") != 3) {
             psx.setBits(&temp_s0.unk0, "unkA_0", 0);
         }

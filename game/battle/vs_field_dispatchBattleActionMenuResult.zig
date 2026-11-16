@@ -19,7 +19,7 @@ pub fn vs_field_dispatchBattleActionMenuResult(command: ?*v.D_800F18EC_t) callco
         10 => {
             var sp18: v.func_8006EBF8_t = undefined;
             _ = c.vs_actors_actorPlacement(0, @ptrCast(&sp18));
-            _ = c.func_8006F4B0(@ptrCast(&sp18.unk0));
+            _ = c.func_8006F4B0(@ptrCast(&sp18.location));
 
             // ROOD_PC: fast travel (pc/src/fast_travel.c) decides the trip; the flag is set only when it begins.
             if (c.pc_fast_travel_begin(cmd.executeAbility.s32) != 0) {

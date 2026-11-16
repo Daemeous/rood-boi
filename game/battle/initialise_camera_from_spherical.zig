@@ -32,9 +32,9 @@ pub fn initialiseCameraFromSpherical(outputPos: ?*v.VECTOR, outputLookAt: ?*v.VE
     _ = c.vs_actors_actorPlacement(0, &sp10);
 
     const lookAt = outputLookAt.?;
-    lookAt.vx = @as(c_int, sp10.unk0.unk4.vx) << 12;
-    lookAt.vy = psx.conv(c_int, psx.conv(c_uint, @as(c_int, sp10.unk0.unk4.vy) << 12) +% 0xFFFA6000);
-    lookAt.vz = @as(c_int, sp10.unk0.unk4.vz) << 12;
+    lookAt.vx = @as(c_int, sp10.location.position.vx) << 12;
+    lookAt.vy = psx.conv(c_int, psx.conv(c_uint, @as(c_int, sp10.location.position.vy) << 12) +% 0xFFFA6000);
+    lookAt.vz = @as(c_int, sp10.location.position.vz) << 12;
 
     c._clampPositionToZoneBounds(psx.cptr(c.VECTOR, lookAt), psx.cptr(c.VECTOR, lookAt));
 

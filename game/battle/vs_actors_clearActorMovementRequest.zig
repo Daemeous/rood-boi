@@ -6,7 +6,7 @@ const v = @import("views_3A1A0");
 pub fn vs_actors_clearActorMovementRequest(arg0: ?*v.D_800F4538_t) callconv(.c) void {
     const p = arg0.?;
     p.unk1848.unk0 = 1;
-    if (p.unk0.unkF == 0) {
+    if (p.unk0.slot == 0) {
         p.unk1848.unk0 = 0;
     }
     p.unk1848.unk4 = 0;

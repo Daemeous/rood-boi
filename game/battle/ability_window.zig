@@ -10,11 +10,11 @@ pub fn canUseBattleAbility(button: c_int) callconv(.c) c_int {
     const block = v.g.vs_battle_actionState().*.?;
     const settings = v.g.vs_main_settings();
     // unk0 & 3: below the 4 queued actions.
-    const current = &block.unk854[block.unk0 & 3];
+    const current = &block.queue[block.unk0 & 3];
     var ret: c_int = 1;
 
-    if (current.unk4.unk40 == 0 and current.unk4A != 0 and current.unk4C[0].unk40 == 0) {
-        if (current.unk4.unk0.targetActor == 0) {
+    if (current.primaryTarget.unk40 == 0 and current.targetCount != 0 and current.targets[0].unk40 == 0) {
+        if (current.primaryTarget.target.targetActor == 0) {
             var hasMappedAbility: c_int = 0;
             if (button == 0) {
                 var i: c_int = 0;
@@ -43,14 +43,14 @@ pub fn canUseBattleAbility(button: c_int) callconv(.c) c_int {
             }
         }
 
-        if (current.unk4C[0].unk0.targetActor == 0) {
+        if (current.targets[0].target.targetActor == 0) {
             _ = c.vs_actors_actorStateFlags(0);
-        } else if (psx.at(v.g.vs_battle_actors(), current.unk4C[0].unk0.targetActor).*.?.unk27 == 0x80) {
+        } else if (psx.at(v.g.vs_battle_actors(), current.targets[0].target.targetActor).*.?.unk27 == 0x80) {
             ret = 0;
         }
 
-        if (current.unk4.unk0.targetActor != 0) {
-            if (current.unk4C[0].unk0.targetActor != 0) {
+        if (current.primaryTarget.target.targetActor != 0) {
+            if (current.targets[0].target.targetActor != 0) {
                 ret = 0;
             }
         } else if (current.actionIndex >= 40) {
@@ -62,13 +62,13 @@ pub fn canUseBattleAbility(button: c_int) callconv(.c) c_int {
             ret = 0;
         }
 
-        if (current.unk4.unk0.targetActor == current.unk4C[0].unk0.targetActor) {
+        if (current.primaryTarget.target.targetActor == current.targets[0].target.targetActor) {
             ret = 0;
         }
 
         if (button != 0) {
             const stats = psx.get(v.g.vs_battle_characterState().*.?.stats);
-            if (current.unk4.unk0.targetActor == 0) {
+            if (current.primaryTarget.target.targetActor == 0) {
                 // mappedChainAbilities[button - 1]: the C does not check the button.
                 if (psx.conv(c_uint, c._getActionCost(psx.at(&settings.mappedChainAbilities, button -% 1).*, @ptrCast(stats), 0)) & 0xFF000000 == 0) {
                     ret = 0;

@@ -9,7 +9,7 @@ const c = @import("c_2842C");
 /// Frees entry `arg1->unk4[0].s32 + 0x40` when it is live, sets its slot to the saved pointer and marks it dead.
 pub fn vs_field_executeRoomEffectStopScript(_: ?*v.func_80092F74_t, arg1: ?*v.func_80092F74_t2) callconv(.c) c_int {
     // The index is unchecked in the C, so it is computed with wrapping arithmetic and used through psx.at.
-    const index: c_int = @as(c_int, arg1.?.unk4[0].s32) +% 0x40;
+    const index: c_int = @as(c_int, arg1.?.operands[0].s32) +% 0x40;
     const entry = psx.at(v.g.vs_field_roomEffectInstances(), index);
     if (entry.unk0 != 0) {
         c.vs_main_freeHeap(psx.get(entry.unk4));

@@ -26,7 +26,7 @@ pub fn displaySceneMessage(message: c_int, action: c_int, held: c_int) callconv(
         _ = c.vs_battle_printf(@ptrCast(psx.at(v.g.nameWindowText().*.?, 1)),
             @ptrCast(psx.at(v.g.menuStrings(), c.VS_menuStrings_OFFSET_spellMastered)));
     } else if (message == 11) {
-        psx.setBits(&v.g.textBoxes()[7].unk0, "unk0_8", 0);
+        psx.setBits(&v.g.textBoxes()[7].flags, "unk0_8", 0);
         const type_: c_int = psx.getBits(psx.at(v.g.actions(), action), "type");
         _ = c.vs_battle_printf(@ptrCast(psx.at(v.g.nameWindowText().*.?, 1)),
             @ptrCast(psx.at(v.g.menuStrings(), psx.at(v.g.menuStrings(), type_ +% 22).*)));

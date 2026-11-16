@@ -15,16 +15,16 @@ pub fn vs_field_finishRoomDoorRotation(arg0: c_int) callconv(.c) void {
                 const a2 = temp_a2.?;
                 const geo = a0.?;
                 // a0 is a byte base (void*): temp_v1 = a0 + unk0, then word indices 5 and 0.
-                const off: isize = @as(isize, a2.unk0);
-                psx.byteAt(c_int, geo, off + 20).* = a2.unk18;
+                const off: isize = @as(isize, a2.geometryOffset);
+                psx.byteAt(c_int, geo, off + 20).* = a2.restAngle;
                 psx.byteAt(c_int, geo, off).* |= 0x6000;
-                const temp_v0: c_int = -%a2.unk20;
-                const temp_a1: c_int = a2.unk1C;
-                a2.unk20 = temp_v0;
-                a2.unk8 = temp_v0;
-                a2.unk1C = a2.unk18;
-                a2.unk18 = temp_a1;
-                a2.unkC = -%a2.unkC;
+                const temp_v0: c_int = -%a2.initialVelocity;
+                const temp_a1: c_int = a2.startAngle;
+                a2.initialVelocity = temp_v0;
+                a2.angularVelocity = temp_v0;
+                a2.startAngle = a2.restAngle;
+                a2.restAngle = temp_a1;
+                a2.acceleration = -%a2.acceleration;
                 entry.unk0 = 0;
             }
         }

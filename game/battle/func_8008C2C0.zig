@@ -25,13 +25,13 @@ pub fn func_8008C2C0(arg0: c_int, arg1: c_int, arg2: c_int, arg3: c_int) callcon
                 {
                     // unk4 is the start of the byte list; s1 advances one byte per j.
                     j = 0;
-                    while (j < @as(c_int, new_var.unk2)) : (j +%= 1) {
+                    while (j < @as(c_int, new_var.effectCount)) : (j +%= 1) {
                         c.func_80091AC0(@as(c_int, psx.byteAt(u8, new_var, 4 + @as(isize, j)).*));
                     }
                     return 1;
                 }
             }
-            const unk2: c_int = new_var.unk2;
+            const unk2: c_int = new_var.effectCount;
             j = unk2 +% ((4 -% (unk2 & 3)) & 3) +% 4;
             i +%= j;
             entry = psx.byteAt(v._mpdRoomSection11, entry, @as(isize, j));

@@ -8,12 +8,12 @@ pub fn vs_actors_attachActorToParentBone(arg0: c_int, arg1: c_int, arg2: c_int, 
     const temp_a0: *v.D_800F4538_t = psx.at(v.g.vs_actors_actorRecords(), arg0).*.?;
 
     if (arg1 != -1) {
-        if (temp_a0.unk0.unk12 != 0xFF) {
-            if (psx.at(v.g.vs_actors_actorRecords(), @as(c_int, temp_a0.unk0.unk12)).*) |other| {
+        if (temp_a0.unk0.attachParent != 0xFF) {
+            if (psx.at(v.g.vs_actors_actorRecords(), @as(c_int, temp_a0.unk0.attachParent)).*) |other| {
                 psx.setBits(other, "unk5AC_4", psx.conv(u2, @as(c_int, psx.getBits(other, "unk5AC_4")) -% 1));
             }
         }
-        temp_a0.unk0.unk12 = psx.conv(u8, arg1);
+        temp_a0.unk0.attachParent = psx.conv(u8, arg1);
         temp_a0.unk0.unk13 = psx.conv(u8, arg2);
     }
 

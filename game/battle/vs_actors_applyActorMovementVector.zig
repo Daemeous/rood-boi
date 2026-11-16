@@ -9,7 +9,7 @@ const c = @import("c_38C1C");
 pub fn vs_actors_applyActorMovementVector(arg0: ?*v.D_800F4538_t) callconv(.c) void {
     const self = arg0.?;
     const pos = &self.unk0.position;
-    const vel = &self.unk1848.unk10;
+    const vel = &self.unk1848.step;
 
     // addVector: three i16 additions, each truncated back to i16 as the C does.
     pos.vx = psx.conv(i16, @as(c_int, pos.vx) +% @as(c_int, vel.vx));
@@ -20,5 +20,5 @@ pub fn vs_actors_applyActorMovementVector(arg0: ?*v.D_800F4538_t) callconv(.c) v
     self.unk0.currentTileX = psx.conv(u8, @divTrunc(@as(c_int, pos.vx), 128));
     self.unk0.currentTileZ = psx.conv(u8, @divTrunc(@as(c_int, pos.vz), 128));
 
-    c.vs_actors_turnActorToOverTime(self.unk0.unkF, self.unk1848.unk6, 12);
+    c.vs_actors_turnActorToOverTime(self.unk0.slot, self.unk1848.unk6, 12);
 }

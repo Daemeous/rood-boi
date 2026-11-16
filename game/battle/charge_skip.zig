@@ -37,13 +37,13 @@ pub fn state(phase: *c_int, skipping: *c_int, actor: *c_int, action: *c_int) cal
         v.g.charge_skip_from_set().* = 0;
         return 0;
     }
-    const a = &block().unk854[block().unk0 & 3];
+    const a = &block().queue[block().unk0 & 3];
     // the actions table has 256 entries: the index is checked first
     if (a.actionIndex >= 256 or psx.getBits(&v.g.actions()[a.actionIndex], "unk2_0") == 0) {
         v.g.charge_skip_from_set().* = 0;
         return 0;
     }
-    const caster: c_int = a.unk4.unk0.targetActor;
+    const caster: c_int = a.primaryTarget.target.targetActor;
     if (v.g._cameraMode().* == 4) {
         v.g.charge_skip_from_set().* = 0;
     } else if (v.g.charge_skip_from_set().* == 0) {
@@ -95,15 +95,15 @@ pub fn skip(phase: c_int) callconv(.c) c_int {
     c.vs_audio_stopSfx(0x7E, 0x35);
     c.vs_audio_stopSfx(0x7E, 0x36);
     // the index is a u8, the table has 17 entries: the C does not check
-    const actor = psx.at(v.g.vs_actors_actorRecords(), block().unk854[block().unk0 & 3].unk4.unk0.targetActor).*;
+    const actor = psx.at(v.g.vs_actors_actorRecords(), block().queue[block().unk0 & 3].primaryTarget.target.targetActor).*;
     if (actor != null and actor.?.unk0.unk18 != 0) {
         const unk0 = &actor.?.unk0;
-        unk0.pitch = psx.conv(i16, (@as(c_int, unk0.pitch) +% unk0.unk3C) & 0xFFF);
-        unk0.facing = psx.conv(i16, (@as(c_int, unk0.facing) +% unk0.unk3E) & 0xFFF);
-        unk0.roll = psx.conv(i16, (@as(c_int, unk0.roll) +% unk0.unk40) & 0xFFF);
-        unk0.unk3C = 0;
-        unk0.unk3E = 0;
-        unk0.unk40 = 0;
+        unk0.pitch = psx.conv(i16, (@as(c_int, unk0.pitch) +% unk0.rotationStepX) & 0xFFF);
+        unk0.facing = psx.conv(i16, (@as(c_int, unk0.facing) +% unk0.facingDelta) & 0xFFF);
+        unk0.roll = psx.conv(i16, (@as(c_int, unk0.roll) +% unk0.rotationStepZ) & 0xFFF);
+        unk0.rotationStepX = 0;
+        unk0.facingDelta = 0;
+        unk0.rotationStepZ = 0;
         unk0.unk18 = 0;
     }
     c.func_800CF920();
@@ -118,7 +118,7 @@ pub fn hold() callconv(.c) c_int {
     v.g.charge_skip_held().* = 0;
     if (v.g.nameWindowText().* == null or c.charge_skip_now() == 0) return 0;
     var vsyncs: c_int = floatToInt(v.g.pc_qol_skip_charging_name().* * 60.0 + 0.5);
-    vsyncs -%= c.charge_skip_hold_vsyncs(block().unk854[block().unk0 & 3].unk4.unk0.targetActor);
+    vsyncs -%= c.charge_skip_hold_vsyncs(block().queue[block().unk0 & 3].primaryTarget.target.targetActor);
     if (vsyncs > @as(c_int, v.g.nameWindowTimer().*)) vsyncs = v.g.nameWindowTimer().*;
     if (vsyncs <= 0) return 0;
     v.g.charge_skip_held().* = 1;
@@ -137,7 +137,7 @@ pub fn keepName(now_: c_int) callconv(.c) void {
     }
     if (now_ == 0 and v.g.D_800F196C().* == 2 and v.g.vs_battle_actionState().* != null and
         (c.pc_vsync_count() -% v.g.charge_skip_held_at().* < psx.conv(c_uint, v.g.charge_skip_held_vsyncs().*) or
-            psx.getBits(&v.g.textBoxes()[7].unk0, "done") == 0))
+            psx.getBits(&v.g.textBoxes()[7].flags, "done") == 0))
     {
         return;
     }
@@ -182,8 +182,8 @@ pub fn battleState(camera: *c_int, actor: *c_int, action: *c_int) callconv(.c) c
     action.* = -1;
     if (v.g.vs_battle_actionState().* == null) return -1;
     if (v.g.D_800F196C().* == 2) {
-        const a = &block().unk854[block().unk0 & 3];
-        actor.* = a.unk4.unk0.targetActor;
+        const a = &block().queue[block().unk0 & 3];
+        actor.* = a.primaryTarget.target.targetActor;
         action.* = a.actionIndex;
     }
     return psx.conv(c_int, v.g.D_800F196C().*);
@@ -206,7 +206,7 @@ pub fn trace(out: [*]u8, size: c_int) callconv(.c) c_int {
     var n: c_int = c.snprintf(out, psx.conv(c_ulong, size), "%d:%u:%d:%d", psx.conv(c_int, v.g._cameraMode().*), v.g.vs_effects_primaryPhase().*, @as(c_int, @intFromBool(v.g.vs_battle_objectDataSlots()[0].dataType != 0)), v.g.D_800F1868().*);
     var e = v.g.vs_effects_secondaryInstances().*;
     while (e != null and n < size -% 16) : (e = psx.get(e.?.next)) {
-        n +%= c.snprintf(psx.at(out, n), psx.conv(c_ulong, size -% n), ",%d/%d", @as(c_int, e.?.unkD1C.unk38), @as(c_int, psx.getBits(e.?, "unk14_8")));
+        n +%= c.snprintf(psx.at(out, n), psx.conv(c_ulong, size -% n), ",%d/%d", @as(c_int, e.?.context.effectId), @as(c_int, psx.getBits(e.?, "unk14_8")));
     }
     return if (n < size) n else size -% 1;
 }

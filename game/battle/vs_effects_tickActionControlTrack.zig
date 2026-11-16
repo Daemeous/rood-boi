@@ -8,13 +8,13 @@ const c = @import("c_5BF94");
 /// Dispatches queue entry `arg1` by its kind when its tag matches `arg0`'s, then retires it through vs_effects_advanceTimelineKey.
 pub fn vs_effects_tickActionControlTrack(arg0: ?*v.D_800F53B8_t, arg1: ?*v.func_800D5780_t) callconv(.c) c_int {
     // The entry pointer is a u32* in the PS1 layout: the offset is scaled by 4 (pointer minus int).
-    const entry_base: u32 = psx.addr(psx.get(arg1.?.unk0).?);
-    const neg: c_int = -%@as(c_int, arg1.?.unk6);
+    const entry_base: u32 = psx.addr(psx.get(arg1.?.keys).?);
+    const neg: c_int = -%@as(c_int, arg1.?.keyIndex);
     const entry_addr: u32 = entry_base -% @as(u32, @bitCast(neg)) *% 4;
     const entry: *align(1) v.func_800D6894_t = @ptrFromInt(@as(usize, entry_addr));
 
-    const expected = psx.get(arg0.?.unkD1C.unk30).?;
-    if (@as(c_int, entry.unk0) & 0x1FF == @as(c_int, expected.unk2)) {
+    const expected = psx.get(arg0.?.context.unk30).?;
+    if (@as(c_int, entry.unk0) & 0x1FF == @as(c_int, expected.frame)) {
         const a1: u8 = entry.unk2;
         const a2: u8 = entry.unk3;
 

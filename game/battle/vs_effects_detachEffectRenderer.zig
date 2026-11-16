@@ -1,4 +1,4 @@
-//! Unlinks a node from the list headed at owner.unkD1C.unk34 and frees it
+//! Unlinks a node from the list headed at owner.context.unk34 and frees it
 //! (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c).
 const common = @import("common");
 const psx = common.psx;
@@ -15,10 +15,10 @@ pub fn vs_effects_detachEffectRenderer(arg0: ?*v.D_800F53B8_t, arg1: ?*v.func_80
         c.vs_main_freeHeapR(node.unk8);
     }
 
-    if (psx.get(owner.unkD1C.unk34) == arg1) {
-        psx.put(&owner.unkD1C.unk34, node.next);
+    if (psx.get(owner.context.unk34) == arg1) {
+        psx.put(&owner.context.unk34, node.next);
     } else {
-        var prev: ?*align(4) v.func_800D4910_t = psx.get(owner.unkD1C.unk34);
+        var prev: ?*align(4) v.func_800D4910_t = psx.get(owner.context.unk34);
         while (prev.?.next != arg1) {
             prev = prev.?.next;
         }

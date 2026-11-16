@@ -6,7 +6,7 @@ const c = @import("c_4A0A8");
 
 /// Byte `name` (unk0_0: the cell's x, unk0_16: its z, unk0_24) of an actor's position record.
 fn cell(position: *v.func_8006EBF8_t, comptime name: []const u8) c_int {
-    return psx.getBits(&position.unk0.unk0.fields, name);
+    return psx.getBits(&position.location.packedTile.fields, name);
 }
 
 /// A trigger's actor reference (getShort(p + 1)) resolved by vs_event_resolveScriptActorReference.
@@ -180,7 +180,7 @@ pub fn vs_event_evaluateRoomEventTriggers(arg0: c_int, arg1: c_int, arg2: c_int,
                     if (psx.conv(i16, c.vs_field_gimmickPlacement(p[1], &position)) >= 0 and
                         cell(&position, "unk0_0") == p[2] and
                         cell(&position, "unk0_16") == p[3] and
-                        (p[4] == 0 or -%@divTrunc(@as(c_int, position.unk0.unk4.vy), 128) +% 1 == p[4]) and
+                        (p[4] == 0 or -%@divTrunc(@as(c_int, position.location.position.vy), 128) +% 1 == p[4]) and
                         (p[5] == 0 or (cell(&position, "unk0_24") >> 2) + 1 == p[5])) result = 1;
                     p += 6;
                 },

@@ -7,9 +7,9 @@ const v = @import("views_40564");
 pub fn vs_actors_setActorYawTurn(index: c_int, turn: c_short, mode: c_int) callconv(.c) void {
     const a: *v.D_800F4538_t = psx.at(v.g.vs_actors_actorRecords(), index).* orelse return;
     var m: c_int = @as(c_int, turn);
-    a.unk0.unk3E = psx.conv(i16, m);
-    a.unk0.unk3C = 0;
-    a.unk0.unk40 = 0;
+    a.unk0.facingDelta = psx.conv(i16, m);
+    a.unk0.rotationStepX = 0;
+    a.unk0.rotationStepZ = 0;
 
     // The C's `goto recenter` enters the recentring tail from the -1 branch.
     var recenter = false;
@@ -30,7 +30,7 @@ pub fn vs_actors_setActorYawTurn(index: c_int, turn: c_short, mode: c_int) callc
     }
 
     if (recenter) {
-        const sum: i16 = psx.conv(i16, @as(c_int, psx.conv(u16, a.unk0.facing)) +% @as(c_int, a.unk0.unk3E));
+        const sum: i16 = psx.conv(i16, @as(c_int, psx.conv(u16, a.unk0.facing)) +% @as(c_int, a.unk0.facingDelta));
         a.unk0.facing = sum;
         a.unk0.facing = psx.conv(i16, @rem(@as(c_int, sum), 4096));
     }

@@ -33,7 +33,7 @@ pub fn vs_menu_drawTextBoxFrame(index: c_int) callconv(.c) void {
     var y: c_int = box.unk26;
     var w: c_int = box.unk28;
     var h: c_int = box.unk2A;
-    var verts: ?[*]align(1) u16 = @ptrCast(psx.at(v.g.vs_event_textBoxFrameStyles(), psx.getBits(&box.unk0, "unk0_8")).*);
+    var verts: ?[*]align(1) u16 = @ptrCast(psx.at(v.g.vs_event_textBoxFrameStyles(), psx.getBits(&box.flags, "unk0_8")).*);
     // vs_menu_activeTextBoxOrderingTable + index * 4: computed before the shape test, read only after it.
     const ot_base: usize = if (v.g.vs_menu_activeTextBoxOrderingTable().*) |p| @intFromPtr(p) else 0;
     const ot: [*c]c_uint = @ptrFromInt(ot_base +% @as(usize, @bitCast(@as(isize, index) * 16)));
@@ -41,9 +41,9 @@ pub fn vs_menu_drawTextBoxFrame(index: c_int) callconv(.c) void {
         return;
     }
     var out: [*]i16 = @ptrFromInt(pad.addr(0x88));
-    var flip: c_int = psx.getBits(&box.unk0, "unk0_6");
+    var flip: c_int = psx.getBits(&box.flags, "unk0_6");
     const shape: [*]u8 = @ptrCast(verts.?);
-    const tail: c_int = psx.getBits(&box.unk0, "unk0_12");
+    const tail: c_int = psx.getBits(&box.flags, "unk0_12");
     var part: c_uint = @bitCast(psx.at(@as([*]align(1) const c_int, @ptrCast(shape)), tail).*);
     verts = @ptrCast(shape + (@as(usize, shape[1]) + 1) * 4);
     const count: u8 = shape[2];
@@ -151,5 +151,5 @@ pub fn vs_menu_drawTextBoxFrame(index: c_int) callconv(.c) void {
     }
     sprite_item.drawModeWindow(ot + 2, 0x17, 0x318); // the draw mode (GP0 E1) and the 64-texel tile window (E2) the frame leaves set
     // ROOD_PC: the talk bubble's frame.
-    if (psx.weak(BubbleFrame, "pc_bubble_frame")) |hook| hook(index, @ptrCast(&box.unk0), @ptrCast(&box.unk24), shape, frame_start, psx.get(scratch.unk0));
+    if (psx.weak(BubbleFrame, "pc_bubble_frame")) |hook| hook(index, @ptrCast(&box.flags), @ptrCast(&box.unk24), shape, frame_start, psx.get(scratch.unk0));
 }

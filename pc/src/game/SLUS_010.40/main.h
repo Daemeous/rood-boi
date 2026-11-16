@@ -213,12 +213,12 @@ typedef struct {
     char statusTimers[8];
     D_80060068_t2 limbs[6];
     int weaponDrawn;
-    int unk80;
-    int unk84;
+    int cameraPitch;
+    int cameraDistance;
 } D_80060068_t3;
 
 typedef struct {
-    D_80060068_t3 unk0;
+    D_80060068_t3 stats;
     int unkDC[9];
 } D_80060068_t;
 
@@ -391,17 +391,17 @@ typedef struct {
 } vs_main_inventory_t;
 
 typedef struct {
-    char unk0;
+    char recency;
     char zndId;
     u_short mapId;
-    u_int unk4;
-    char unk8[8][0x28];
+    u_int nextSlot;
+    char actorStates[8][0x28];
 } D_80061078_t;
 
 typedef struct {
-    char unk0;
-    char unk1;
-    u_short unk2;
+    char mode;
+    char pausedMode;
+    u_short resetScope;
     signed char frames;
     signed char seconds;
     signed char minutes;
@@ -418,7 +418,7 @@ typedef struct {
 typedef struct {
     u_char zndId;
     u_char mpdId;
-    _mpdRoomDoorSection2 unk2;
+    _mpdRoomDoorSection2 tileLocation;
     u_short unk4_0 : 8;
     u_short unk4_8 : 5;
     u_short unk4_13 : 2;
@@ -426,7 +426,7 @@ typedef struct {
     u_short unk6_0 : 10;
     u_short unk6_10 : 5;
     u_short unk6_15 : 1;
-    u_char unk8;
+    u_char doorId;
     u_char unk9;
     u_char unkA;
     u_char unkB;

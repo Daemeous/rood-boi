@@ -41,24 +41,24 @@ typedef struct {
         u_short u16[2];
         short s16[2];
         int s32;
-    } unk4[4];
+    } operands[4];
     int unk14;
     int unk18;
 } func_80092F74_t2;
 
 typedef struct {
-    int unk0;
-    char unk4;
-    char unk5;
-    char unk6;
-    char unk7;
-    int unk8;
-    int unkC;
-    int unk10;
-    int unk14;
-    int unk18;
-    int unk1C;
-    int unk20;
+    int geometryOffset;
+    char needsReset;
+    char startsInactive;
+    char kind;
+    char axis;
+    int angularVelocity;
+    int acceleration;
+    int dampingShift;
+    int angle;
+    int restAngle;
+    int startAngle;
+    int initialVelocity;
 } D_800F1DD8_t2;
 
 typedef struct {
@@ -91,34 +91,34 @@ typedef struct {
 
 typedef struct {
     u_char unk0[0xC];
-    u_char unkC;
-    u_char unkD;
+    u_char red1;
+    u_char green1;
     u_char unkE;
     u_char unkF;
-    u_char unk10;
-    u_char unk11;
+    u_char red2;
+    u_char green2;
     u_char unk12;
     u_char unk13;
-    u_char unk14;
-    u_char unk15;
+    u_char red3;
+    u_char green3;
     u_char unk16[0xA];
 } func_80093914_t;
 
 typedef struct {
     u_char unk0[0xC];
-    u_char unkC;
-    u_char unkD;
+    u_char red1;
+    u_char green1;
     u_char unkE;
     u_char unkF;
-    u_char unk10;
-    u_char unk11;
+    u_char red2;
+    u_char green2;
     u_char unk12;
     u_char unk13;
-    u_char unk14;
-    u_char unk15;
+    u_char red3;
+    u_char green3;
     u_char unk16[0xE];
-    u_char unk24;
-    u_char unk25;
+    u_char red4;
+    u_char green4;
     u_char unk26;
     u_char unk27;
 } func_80093914_t2;

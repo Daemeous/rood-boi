@@ -9,10 +9,10 @@ pub fn factorMagicDamageReceived(action: ?*v.vs_action_t, _: ?*v._hitEntity_t, _
     var result: i16 = 0;
     const current = v.g.vs_battle_actionState().*.?;
     if (@as(c_int, psx.getBits(psx.at(v.g.actions(), current.unk8.actionIndex), "type")) == c.actionTypeSpell) {
-        const effect = &current.unk8.unk4;
+        const effect = &current.unk8.primaryTarget;
         if (psx.getBits(effect, "hpEffect") == 1 or psx.getBits(effect, "hpEffect") == 3) {
-            const hp: c_int = @as(c_int, current.unk8.unk4.unk0.hp);
-            const mp: c_int = @as(c_int, current.unk8.unk4.unk0.mp);
+            const hp: c_int = @as(c_int, current.unk8.primaryTarget.target.hp);
+            const mp: c_int = @as(c_int, current.unk8.primaryTarget.target.mp);
             const statFactor: c_int = @as(c_int, psx.getBits(psx.at(&action.?.hitParams, arg3), "statFactor"));
             const product: c_int = (hp +% mp) *% statFactor;
             result = psx.conv(i16, @divTrunc(product, 10));

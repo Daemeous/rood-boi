@@ -26,7 +26,7 @@ pub fn script_initTextBox(script: [*c]u8, _: c_short) callconv(.c) c_int {
     box.unk2E = script[10];
     const ref = c.vs_battle_getShort(&script[8]);
     if (ref < 0x2000) {
-        psx.setBits(&box.unk0, "unk0_24", psx.conv(u6, c.vs_event_resolveScriptActorReference(psx.conv(u16, ref))));
+        psx.setBits(&box.flags, "unk0_24", psx.conv(u6, c.vs_event_resolveScriptActorReference(psx.conv(u16, ref))));
     }
     return 0;
 }

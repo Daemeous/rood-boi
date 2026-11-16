@@ -64,7 +64,7 @@ int _loadObjectData(int category, int wepId, int material)
 
         for (i = 0; i < 2; ++i) {
             if (vs_battle_unusedGlobal1[i] != NULL) {
-                vs_battle_unusedGlobal1[i]->unk11 = 0;
+                vs_battle_unusedGlobal1[i]->opaque11 = 0;
             }
         }
 
@@ -119,7 +119,7 @@ void _populateDataSlot(int wepId, int material)
     objData.dataType = 3;
     objData.index = index;
     objData.modelId = wepId;
-    objData.unk4 = vs_battle_characterState->unk48[index];
+    objData.destination = vs_battle_characterState->unk48[index];
     objData.actorId = 0;
     objData.unk11 = var_a3;
     objData.material = material;

@@ -54,12 +54,12 @@ int VS_MESH10_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
         *(int*)&state->rotation.vx = 0;
         *(int*)&state->rotation.vz = 0;
         state->age = 0;
-        effect = &vs_effects_package->block5Data->unk4[state->effect];
+        effect = &vs_effects_package->block5Data->definitions[state->effect];
         vs_effects_clearTextureAnimation((int*)&state->texture);
         vs_effects_restartTextureAnimation(&state->texture, effect->unk1, effect->unk0);
         break;
     case 2: {
-        effect = &vs_effects_package->block5Data->unk4[state->effect];
+        effect = &vs_effects_package->block5Data->definitions[state->effect];
         scratch->flags = effect->flags;
         actorMatrix = &battle->unk1C[effect->unkC8].unk38;
         vs_battle_lerpVector(effect->unk18,
@@ -79,7 +79,7 @@ int VS_MESH10_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
         vs_battle_lerpVector(effect->unk24,
             vs_battle_sampleCurve(effect->unk9, state->age), &scratch->unkA8);
         vs_battle_lerpSvector(effect->unk34[7],
-            vs_battle_sampleCurve(effect->unk10, state->age), &scratch->unk144);
+            vs_battle_sampleCurve(effect->unk10, state->age), &scratch->attractionJitter);
         if (effect->rCurve) {
             index = vs_battle_sampleCurve(effect->rCurve, state->age) * 2;
             color = index;
@@ -140,11 +140,11 @@ int VS_MESH10_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
         } while (0);
         for (index = 4; index < 10; ++index) {
             vertices[index].vx =
-                (VS_MESH10_VERTICES[index].vx * scratch->unk144.vx) >> 12;
+                (VS_MESH10_VERTICES[index].vx * scratch->attractionJitter.vx) >> 12;
             vertices[index].vy =
-                (VS_MESH10_VERTICES[index].vy * scratch->unk144.vy) >> 12;
+                (VS_MESH10_VERTICES[index].vy * scratch->attractionJitter.vy) >> 12;
             vertices[index].vz =
-                (VS_MESH10_VERTICES[index].vz * scratch->unk144.vz) >> 12;
+                (VS_MESH10_VERTICES[index].vz * scratch->attractionJitter.vz) >> 12;
         }
         vs_battle_lerpVector(effect->unk34[0],
             vs_battle_sampleCurve(effect->unkA, state->age), &scratch->unkE8);

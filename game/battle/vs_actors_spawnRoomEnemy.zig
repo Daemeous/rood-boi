@@ -41,13 +41,13 @@ pub fn vs_actors_spawnRoomEnemy(id: c_int, spawn: ?*v.mpdEnemySpawn, init: ?*v.v
     const zudIndex = data.mpdIdentifer;
     const bladeId: c_int = @as(u8, @bitCast(data.weapon.blade.wepId));
     const shieldId: c_int = @as(u8, @bitCast(data.shield.base.wepId));
-    const two_part = psx.GlobalMany(u8, "vs_actors_usesSecondaryBodyModel").ptr()[data.unk2] != 0;
+    const two_part = psx.GlobalMany(u8, "vs_actors_usesSecondaryBodyModel").ptr()[data.characterKind] != 0;
     var actor: *v.vs_battle_actor = undefined;
     // The block: the actor, its stats, its object (the model), then the unk48 records: two weapon records,
     // or for a two-part enemy the second part's object.
     const stats_at = @offsetOf(v.vs_battle_actor_dat2, "unk0") + @offsetOf(@FieldType(v.vs_battle_actor_dat2, "unk0"), "unk50");
-    const object_at = @offsetOf(v.vs_battle_actor_dat2, "unk9B4");
-    const records_at = @offsetOf(v.vs_battle_actor_dat, "unk22B4");
+    const object_at = @offsetOf(v.vs_battle_actor_dat2, "model");
+    const records_at = @offsetOf(v.vs_battle_actor_dat, "modelSlots");
     const object_size = common.object.region(v.D_800F4538_t);
     if (two_part) {
         const block = c.vs_main_allocHeap(@intCast(records_at + object_size)).?;
@@ -71,32 +71,32 @@ pub fn vs_actors_spawnRoomEnemy(id: c_int, spawn: ?*v.mpdEnemySpawn, init: ?*v.v
     }
     actor.equippedWeaponCategory = psx.conv(u8, category);
     var loaded = false;
-    if (psx.get(zone.unk1C) != null) {
-        if (zudIndex +% 1 == zone.unk14) {
+    if (psx.get(zone.zudData) != null) {
+        if (zudIndex +% 1 == zone.loadedZudIndexPlusOne) {
             loaded = true;
         } else {
-            c.vs_main_freeHeapR(psx.get(zone.unk1C));
-            psx.put(&zone.unk1C, null);
-            zone.unk14 = 0;
+            c.vs_main_freeHeapR(psx.get(zone.zudData));
+            psx.put(&zone.zudData, null);
+            zone.loadedZudIndexPlusOne = 0;
         }
     }
     if (!loaded) {
         file.lba = psx.at(psx.get(zone.zudFiles).?, zudIndex).lba;
         file.size = psx.at(psx.get(zone.zudFiles).?, zudIndex).size;
-        if (psx.get(zone.unk18) != null) {
+        if (psx.get(zone.zudDiscRequest) != null) {
             c.vs_main_nop9(0xA7, 0);
         }
-        psx.put(&zone.unk18, @as(?*v.vs_main_CdQueueSlot, @ptrCast(@alignCast(c.vs_main_allocateCdQueueSlot(@ptrCast(&file))))));
-        psx.put(&zone.unk1C, c.vs_main_allocHeapR(psx.conv(c_uint, file.size)));
-        c.vs_main_cdEnqueuePriority(@ptrCast(@alignCast(psx.get(zone.unk18))), psx.get(zone.unk1C));
-        while (psx.get(zone.unk18).?.state != 4) {
+        psx.put(&zone.zudDiscRequest, @as(?*v.vs_main_CdQueueSlot, @ptrCast(@alignCast(c.vs_main_allocateCdQueueSlot(@ptrCast(&file))))));
+        psx.put(&zone.zudData, c.vs_main_allocHeapR(psx.conv(c_uint, file.size)));
+        c.vs_main_cdEnqueuePriority(@ptrCast(@alignCast(psx.get(zone.zudDiscRequest))), psx.get(zone.zudData));
+        while (psx.get(zone.zudDiscRequest).?.state != 4) {
             _ = c.vs_main_gametimeUpdate(0);
         }
-        c.vs_main_freeCdQueueSlot(@ptrCast(@alignCast(psx.get(zone.unk18))));
-        psx.put(&zone.unk18, null);
-        zone.unk14 = zudIndex +% 1;
+        c.vs_main_freeCdQueueSlot(@ptrCast(@alignCast(psx.get(zone.zudDiscRequest))));
+        psx.put(&zone.zudDiscRequest, null);
+        zone.loadedZudIndexPlusOne = zudIndex +% 1;
     }
-    const zud: *v.zudHeader = @ptrCast(@alignCast(psx.get(zone.unk1C).?));
+    const zud: *v.zudHeader = @ptrCast(@alignCast(psx.get(zone.zudData).?));
     const zud_addr = psx.addr(zud);
     object.dataType = 2;
     object.index = psx.conv(i8, id);
@@ -104,31 +104,31 @@ pub fn vs_actors_spawnRoomEnemy(id: c_int, spawn: ?*v.mpdEnemySpawn, init: ?*v.v
     object.modelId = psx.at(@as([*]v._zndEnemy, @ptrCast(psx.get(zone.zndEnemies).?)), zudIndex).unk0[2];
     var height: c_int = undefined;
     if (savedState(enemy.index)) |saved| {
-        psx.setBits(&object.unkC, "unk0_0", saved.x);
-        psx.setBits(&object.unkC, "unk0_16", saved.z);
-        psx.setBits(&object.unkC, "unk0_8", saved.direction);
+        psx.setBits(&object.placement, "unk0_0", saved.x);
+        psx.setBits(&object.placement, "unk0_16", saved.z);
+        psx.setBits(&object.placement, "unk0_8", saved.direction);
         height = saved.height;
-        psx.setBits(&object.unkC, "unk0_8", psx.getBits(&object.unkC, "unk0_8") & 1);
+        psx.setBits(&object.placement, "unk0_8", psx.getBits(&object.placement, "unk0_8") & 1);
     } else {
-        psx.setBits(&object.unkC, "unk0_0", enemy.x);
-        psx.setBits(&object.unkC, "unk0_16", enemy.z);
-        psx.setBits(&object.unkC, "unk0_8", enemy.direction);
+        psx.setBits(&object.placement, "unk0_0", enemy.x);
+        psx.setBits(&object.placement, "unk0_16", enemy.z);
+        psx.setBits(&object.placement, "unk0_8", enemy.direction);
         height = @as(c_int, enemy.height) << 6;
-        psx.setBits(&object.unkC, "unk0_8", psx.getBits(&object.unkC, "unk0_8") & 1);
+        psx.setBits(&object.placement, "unk0_8", psx.getBits(&object.placement, "unk0_8") & 1);
     }
-    psx.setBits(&object.unkC, "unk0_24", psx.conv(u8, height));
-    psx.put(&object.unk4, @as(?*anyopaque, psx.get(actor.unk44)));
+    psx.setBits(&object.placement, "unk0_24", psx.conv(u8, height));
+    psx.put(&object.destination, @as(?*anyopaque, psx.get(actor.unk44)));
     object.actorId = 0xFF;
     object.variant = enemy.variant & 1;
     object.material = data.unk24;
     _ = c.vs_battle_populateDataSlot(@ptrCast(&object));
-    if (data.unk2 != 0x7F) {
-        if (psx.GlobalMany(u8, "vs_actors_usesSecondaryBodyModel").ptr()[data.unk2] != 0) {
+    if (data.characterKind != 0x7F) {
+        if (psx.GlobalMany(u8, "vs_actors_usesSecondaryBodyModel").ptr()[data.characterKind] != 0) {
             object.dataType = 1;
             object.index = psx.conv(i8, id +% 4);
             const templates: [*]v.vs_battle_charInitData = @ptrCast(@alignCast(psx.get(zone.zndEnemies).?));
-            object.modelId = @as(i16, psx.at(templates, zudIndex).unk2) + 1;
-            psx.put(&object.unk4, @as(?*anyopaque, psx.get(actor.unk48[0])));
+            object.modelId = @as(i16, psx.at(templates, zudIndex).characterKind) + 1;
+            psx.put(&object.destination, @as(?*anyopaque, psx.get(actor.unk48[0])));
             object.actorId = psx.conv(u8, id);
             object.unk11 = 0xFC;
             object.variant = 0;
@@ -139,7 +139,7 @@ pub fn vs_actors_spawnRoomEnemy(id: c_int, spawn: ?*v.mpdEnemySpawn, init: ?*v.v
                 object.index = psx.conv(i8, id *% 2);
                 object.dataAddr = @as(u32, @bitCast(zud.blade)) +% zud_addr;
                 object.modelId = @intCast(bladeId); // a byte
-                psx.put(&object.unk4, @as(?*anyopaque, psx.get(actor.unk48[0])));
+                psx.put(&object.destination, @as(?*anyopaque, psx.get(actor.unk48[0])));
                 object.actorId = psx.conv(u8, id);
                 object.unk11 = 0xF0;
                 object.material = psx.conv(u8, data.weapon.material);
@@ -150,7 +150,7 @@ pub fn vs_actors_spawnRoomEnemy(id: c_int, spawn: ?*v.mpdEnemySpawn, init: ?*v.v
                 object.index = psx.conv(i8, id *% 2 +% 1);
                 object.dataAddr = @as(u32, @bitCast(zud.shield)) +% zud_addr;
                 object.modelId = @intCast(shieldId); // a byte
-                psx.put(&object.unk4, @as(?*anyopaque, psx.get(actor.unk48[1])));
+                psx.put(&object.destination, @as(?*anyopaque, psx.get(actor.unk48[1])));
                 object.actorId = psx.conv(u8, id);
                 object.unk11 = 0xF1;
                 object.material = psx.conv(u8, data.shield.material);
@@ -223,7 +223,7 @@ pub fn vs_actors_spawnRoomEnemy(id: c_int, spawn: ?*v.mpdEnemySpawn, init: ?*v.v
             stats.limbs[k].hp = saved.limbHP[k];
         }
         c.vs_battle_inflictActorStatuses(saved.statuses, @ptrCast(stats));
-        result = c.vs_battle_aiCreateActorAiState(@ptrCast(actor), saved.unk2);
+        result = c.vs_battle_aiCreateActorAiState(@ptrCast(actor), saved.aiFlags);
     } else {
         result = c.vs_battle_aiCreateActorAiState(@ptrCast(actor), -1);
     }

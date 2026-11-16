@@ -8,13 +8,13 @@ pub fn vs_field_advanceRoomEffectMotion(arg0: ?*v.func_80092F74_t, arg1: ?*v.fun
     var var_a0: c_int = 0;
     const new_var = arg1.?;
 
-    if (new_var.unk4[0].u16[1] == 1) {
+    if (new_var.operands[0].u16[1] == 1) {
         var_a0 = c.vs_field_stepRoomEffectGravity(@ptrCast(arg0));
-    } else if (new_var.unk4[0].u16[1] == 2) {
+    } else if (new_var.operands[0].u16[1] == 2) {
         var_a0 = c.vs_field_stepRoomEffectDampedMotion(@ptrCast(arg0));
     }
 
-    if (@as(c_int, new_var.unk4[0].u16[0]) == 0x8000) {
+    if (@as(c_int, new_var.operands[0].u16[0]) == 0x8000) {
         if (var_a0 == 0) {
             return 0;
         }
@@ -22,7 +22,7 @@ pub fn vs_field_advanceRoomEffectMotion(arg0: ?*v.func_80092F74_t, arg1: ?*v.fun
         const self = arg0.?;
         // ++arg0->unk18: wraps as the C's 32-bit int does.
         self.unk18 +%= 1;
-        if (self.unk18 >= @as(c_int, new_var.unk4[0].u16[0])) {
+        if (self.unk18 >= @as(c_int, new_var.operands[0].u16[0])) {
             self.unk18 = 0;
             return 0;
         }

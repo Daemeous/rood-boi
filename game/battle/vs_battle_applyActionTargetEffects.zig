@@ -12,13 +12,13 @@ pub fn vs_battle_applyActionTargetEffects(arg0: c_int, arg1: ?*v.func_8006CE70_t
         var applied = false;
         var effect: c_int = 6;
         const base = v.g.vs_battle_actionState().*.?;
-        const temp_s0: *v.D_800F19CC_t2 = &base.unk854[base.unk0 & 3];
+        const temp_s0: *v.D_800F19CC_t2 = &base.queue[base.unk0 & 3];
 
         var i: c_int = 0;
-        while (i < @as(c_int, temp_s0.unk4A)) : (i +%= 1) {
-            const entry = psx.at(&temp_s0.unk4C, i);
-            if (@as(c_int, entry.unk0.targetActor) == arg0 and entry.unk40 == 0) {
-                switch (@as(c_int, entry.unk0.unk3)) {
+        while (i < @as(c_int, temp_s0.targetCount)) : (i +%= 1) {
+            const entry = psx.at(&temp_s0.targets, i);
+            if (@as(c_int, entry.target.targetActor) == arg0 and entry.unk40 == 0) {
+                switch (@as(c_int, entry.target.unk3)) {
                     0, 1 => {
                         effect = 0;
                     },
@@ -42,7 +42,7 @@ pub fn vs_battle_applyActionTargetEffects(arg0: c_int, arg1: ?*v.func_8006CE70_t
 
         switch (effect) {
             0 => {
-                c.func_8009EA14(arg0, psx.cptr(c.SVECTOR, &base.unk29A8));
+                c.func_8009EA14(arg0, psx.cptr(c.SVECTOR, &base.rangeOrigin));
             },
             5 => {
                 if (arg0 == 0) {
@@ -50,7 +50,7 @@ pub fn vs_battle_applyActionTargetEffects(arg0: c_int, arg1: ?*v.func_8006CE70_t
                 }
             },
             4 => {
-                c.func_8009DDF4(arg0, psx.cptr(c.SVECTOR, &base.unk29A8));
+                c.func_8009DDF4(arg0, psx.cptr(c.SVECTOR, &base.rangeOrigin));
             },
             else => {},
         }

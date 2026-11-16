@@ -7,5 +7,6 @@ const c = @import("c_146C");
 pub fn vs_render_appendOverlayPrimitive(arg0: [*c]c_int) callconv(.c) void {
     const base: usize = @intFromPtr(v.g.vs_render_legacyCurrentOrderingTable().*);
     const p: [*c]c_uint = @ptrFromInt(base +% 0x2084);
-    c.vs_render_splicePrimitiveList(p, @ptrCast(arg0));
+    // ROOD_PC: a copy (DR_MOVE) becomes a draw item (pc/src/draw_items.c); the marker is spliced where the packet was.
+    c.pc_frame_copy_tail(p, @ptrCast(arg0));
 }

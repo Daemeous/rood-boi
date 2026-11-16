@@ -35,17 +35,17 @@ void* const vs_overlay_slots[5] = { (void*)(ROOD_GUEST_RAM_BASE + 0x68800), _mai
 
 typedef struct {
     int unk0[2];
-    u_short unk8;
-    u_short unkA;
-    char* unkC;
+    u_short active;
+    u_short ownerTag;
+    char* pattern;
     int unk10[10];
 } padAct_t;
 
 typedef struct {
-    char unk0[6];
-    short unk6[5];
-    int unk10[6];
-    D_8005DC6C_t unk28;
+    char progress[6];
+    short blendParams[5];
+    int colorFixed[6];
+    D_8005DC6C_t baseColor;
 } D_8005DC80_t;
 
 typedef struct {
@@ -87,8 +87,8 @@ typedef struct {
     short bgTransitionTargetG;
     short bgTransitionTargetB;
     int bgColors[5][6];
-    D_8005DC6C_t unk7F14[5];
-    D_8005DC80_t unk7F28[17];
+    D_8005DC6C_t backgroundBaseColors[5];
+    D_8005DC80_t modelColorFades[17];
 } _clutState_t;
 
 enum diskState_e {
@@ -113,8 +113,8 @@ typedef struct {
     char state;
     char unk1;
     char unk2;
-    char unk3;
-    u_int unk4;
+    char failureCount;
+    u_int sectorsReceived;
     u_int sectorCount;
     int cdSector;
     int byteCount;
@@ -126,9 +126,9 @@ typedef struct {
     int unk28;
     enum cdBufferModes_e bufferMode;
     u_int sectorBufIndex;
-    int unk34;
-    u_int unk38;
-    u_int unk3C;
+    int bufferedSectors;
+    u_int ringSectorsWritten;
+    u_int ringWriteIndex;
     u_int ringBufIndex;
     int framesSinceLastRead;
 } vs_main_disk_t;
@@ -8360,7 +8360,7 @@ static void _sysReinit(void)
     vs_main_gametime.t.m = 0;
     vs_main_gametime.t.s = 0;
     vs_main_gametime.t.f = 0;
-    vs_state_ashleySnapshot.unk0.unk0 = 0;
+    vs_state_ashleySnapshot.stats.unk0 = 0;
 }
 
 int vs_main_execTitle(void)
@@ -8420,7 +8420,7 @@ void vs_main_wait(void) { vs_overlay_wait(); }
 
 void vs_main_enableReset(int enable) { _resetEnabled = enable; }
 
-void vs_save_markAshleySnapshotValid(void) { vs_state_ashleySnapshot.unk0.unk0 = 1; }
+void vs_save_markAshleySnapshotValid(void) { vs_state_ashleySnapshot.stats.unk0 = 1; }
 
 void vs_save_captureAshleySnapshot(void)
 {
@@ -8442,11 +8442,11 @@ void vs_save_captureAshleySnapshot(void)
     vs_state_savedEntryDoor = vs_field_pendingDestinationDoor;
     vs_actors_actorPlacement(0, &sp10);
 
-    vs_state_savedEntryDoor.unk4_8 = sp10.unk0.unk0.fields.unk0_0;
-    vs_state_savedEntryDoor.unk6_10 = sp10.unk0.unk0.fields.unk0_16;
-    vs_state_savedEntryDoor.unk2.unk0_13 = sp10.unk0.unk0.fields.unk0_8;
-    vs_state_savedEntryDoor.unk4_13 = sp10.unk0.unk0.fields.unk0_24 >> 6;
-    vs_state_savedEntryDoor.unk6_0 = _zoneContext.unk68 & 0x3FF;
+    vs_state_savedEntryDoor.unk4_8 = sp10.location.packedTile.fields.unk0_0;
+    vs_state_savedEntryDoor.unk6_10 = sp10.location.packedTile.fields.unk0_16;
+    vs_state_savedEntryDoor.tileLocation.unk0_13 = sp10.location.packedTile.fields.unk0_8;
+    vs_state_savedEntryDoor.unk4_13 = sp10.location.packedTile.fields.unk0_24 >> 6;
+    vs_state_savedEntryDoor.unk6_0 = _zoneContext.currentSceneId & 0x3FF;
 
     for (var_s1 = 0; var_s1 < 32; ++var_s1) {
         for (actionsLearned = 0, i = 0; i < 8; ++i) {
@@ -8457,43 +8457,43 @@ void vs_save_captureAshleySnapshot(void)
     }
     temp_t0 = vs_battle_characterState->unk3C;
     temp_t5 = &vs_state_ashleySnapshot;
-    temp_t5->unk0.currentHP = temp_t0->currentHP;
-    temp_t5->unk0.maxHP = temp_t0->maxHP;
-    temp_t5->unk0.currentMP = temp_t0->currentMP;
-    temp_t5->unk0.maxMP = temp_t0->maxMP;
-    temp_t5->unk0.strength = temp_t0->strength;
-    temp_t5->unk0.totalStrength = temp_t0->totalStrength;
-    temp_t5->unk0.intelligence = temp_t0->intelligence;
-    temp_t5->unk0.totalIntelligence = temp_t0->totalIntelligence;
-    temp_t5->unk0.agility = temp_t0->agility;
-    temp_t5->unk0.totalAgility = temp_t0->totalAgility;
-    temp_t5->unk0.risk = temp_t0->risk;
-    temp_t5->unk0.flags = temp_t0->unk954;
-    temp_t5->unk0.statuses = temp_t0->statuses;
+    temp_t5->stats.currentHP = temp_t0->currentHP;
+    temp_t5->stats.maxHP = temp_t0->maxHP;
+    temp_t5->stats.currentMP = temp_t0->currentMP;
+    temp_t5->stats.maxMP = temp_t0->maxMP;
+    temp_t5->stats.strength = temp_t0->strength;
+    temp_t5->stats.totalStrength = temp_t0->totalStrength;
+    temp_t5->stats.intelligence = temp_t0->intelligence;
+    temp_t5->stats.totalIntelligence = temp_t0->totalIntelligence;
+    temp_t5->stats.agility = temp_t0->agility;
+    temp_t5->stats.totalAgility = temp_t0->totalAgility;
+    temp_t5->stats.risk = temp_t0->risk;
+    temp_t5->stats.flags = temp_t0->actionRecoveryTimer;
+    temp_t5->stats.statuses = temp_t0->statuses;
 
     for (i = 0; i < 8; ++i) {
-        temp_t5->unk0.statusTimers[i] = temp_t0->statusTimers[i];
+        temp_t5->stats.statusTimers[i] = temp_t0->statusTimers[i];
     }
 
     var_t4 = 0;
     var_t3 = 0;
 
     for (i = 0; i < 6; ++i) {
-        temp_t5->unk0.limbs[i].hp = temp_t0->limbs[i].hp;
-        temp_t5->unk0.limbs[i].maxHp = temp_t0->limbs[i].maxHp;
+        temp_t5->stats.limbs[i].hp = temp_t0->limbs[i].hp;
+        temp_t5->stats.limbs[i].maxHp = temp_t0->limbs[i].maxHp;
 
         for (j = 0; j < 4; ++j) {
-            temp_t5->unk0.limbs[i].types[j] = temp_t0->limbs[i].types[j];
+            temp_t5->stats.limbs[i].types[j] = temp_t0->limbs[i].types[j];
         }
 
         for (j = 0; j < 8; ++j) {
-            temp_t5->unk0.limbs[i].affinities[j] = temp_t0->limbs[i].affinities[j];
+            temp_t5->stats.limbs[i].affinities[j] = temp_t0->limbs[i].affinities[j];
         }
     }
 
-    temp_t5->unk0.weaponDrawn = vs_battle_characterState->weaponDrawn;
-    temp_t5->unk0.unk80 = vs_battle_cameraCurrentSpherical.delta.pitch;
-    temp_t5->unk0.unk84 = vs_battle_cameraCurrentSpherical.initialDistance;
+    temp_t5->stats.weaponDrawn = vs_battle_characterState->weaponDrawn;
+    temp_t5->stats.cameraPitch = vs_battle_cameraCurrentSpherical.delta.pitch;
+    temp_t5->stats.cameraDistance = vs_battle_cameraCurrentSpherical.initialDistance;
 
     for (var_s1 = 0; var_s1 < 16; ++var_s1) {
         vs_actors_rememberEnemy(var_s1, 0);
@@ -8618,7 +8618,7 @@ int vs_input_startVibrationPattern(char* arg0, u_int arg1, int arg2)
 
     if (arg1 == 0xFF) {
         for (i = 0; i < 2; ++i) {
-            if (_padAct[i].unk8 == 0) {
+            if (_padAct[i].active == 0) {
                 ret = i + 1;
                 break;
             }
@@ -8629,15 +8629,15 @@ int vs_input_startVibrationPattern(char* arg0, u_int arg1, int arg2)
 
     if (ret != 0) {
         i = ret - 1;
-        _padAct[i].unkC = arg0;
+        _padAct[i].pattern = arg0;
         _padAct[i].unk10[4] = 1;
         _padAct[i].unk10[10] = *arg0;
         _padAct[i].unk10[11] = 0;
         _padAct[i].unk10[5] = 0;
         _padAct[i].unk10[7] = 0;
         _padAct[i].unk10[1] = 0;
-        _padAct[i].unk8 = 1;
-        _padAct[i].unkA = arg2;
+        _padAct[i].active = 1;
+        _padAct[i].ownerTag = arg2;
         return ret;
     }
     return 0;
@@ -8648,8 +8648,8 @@ static int vs_input_clearVibrationSlot(int arg0)
     int i = arg0 - 1;
     _padAct[i].unk10[7] = 0;
     _padAct[i].unk10[1] = 0;
-    _padAct[i].unkC = 0;
-    _padAct[i].unk8 = 0;
+    _padAct[i].pattern = 0;
+    _padAct[i].active = 0;
 
     return arg0;
 }
@@ -8665,7 +8665,7 @@ int vs_input_stopVibrationPatterns(u_int arg0, int arg1)
     }
     if (arg1 != 0) {
         for (i = 0; i < 2; ++i) {
-            if (_padAct[i].unkA == arg1) {
+            if (_padAct[i].ownerTag == arg1) {
                 vs_input_clearVibrationSlot(i + 1);
             }
         }
@@ -8680,7 +8680,7 @@ int vs_input_stopVibrationPatterns(u_int arg0, int arg1)
 static int vs_input_pauseVibrationSlot(int arg0)
 {
     int v0 = arg0 - 1;
-    _padAct[v0].unk8 = 0;
+    _padAct[v0].active = 0;
     return arg0;
 }
 
@@ -8706,7 +8706,7 @@ static int vs_input_pauseVibrationPatterns(int arg0)
 static int vs_input_resumeVibrationSlot(int arg0)
 {
     int v0 = arg0 - 1;
-    _padAct[v0].unk8 = 1;
+    _padAct[v0].active = 1;
     return arg0;
 }
 
@@ -8736,10 +8736,10 @@ void vs_main_resetPadAct(void)
     vs_main_padDisconnectAll();
 
     for (i = 0; i < 2; ++i) {
-        _padAct[i].unkC = NULL;
+        _padAct[i].pattern = NULL;
         _padAct[i].unk10[7] = 0;
         _padAct[i].unk10[1] = 0;
-        _padAct[i].unk8 = 0;
+        _padAct[i].active = 0;
     }
 }
 
@@ -8759,11 +8759,11 @@ void vs_main_setVibrateParams(void)
     _padAct[0].unk0[0] = 0;
 
     for (j = 0; j < 2; ++j) {
-        if (_padAct[j].unk8 == 0) {
+        if (_padAct[j].active == 0) {
             continue;
         }
 
-        temp_t1 = _padAct[j].unkC;
+        temp_t1 = _padAct[j].pattern;
 
         if (temp_t1 != 0) {
             for (i = 0; i < 2; ++i) {
@@ -8801,13 +8801,13 @@ void vs_main_setVibrateParams(void)
                     _padAct[0].unk0[i] = 0;
                 }
             }
-            _padAct[j].unk8 = _padAct[j].unk10[0] | _padAct[j].unk10[6];
-            if (_padAct[j].unk8 == 0) {
-                _padAct[j].unkC = 0;
+            _padAct[j].active = _padAct[j].unk10[0] | _padAct[j].unk10[6];
+            if (_padAct[j].active == 0) {
+                _padAct[j].pattern = 0;
             }
             continue;
         }
-        _padAct[j].unk8 = 0;
+        _padAct[j].active = 0;
     }
 
     if (vs_main_settings.vibrationOn != 0) {
@@ -9114,9 +9114,9 @@ static void _diskReadCallback(u_char intr, u_char result[] __attribute__((unused
     if (vs_main_disk.bufferMode == cdBufferModeNone) {
         DsGetSector(vs_main_disk.vram + vs_main_disk.sectorBufIndex * 2048, 512);
     } else {
-        DsGetSector(_cdReadBuffer + vs_main_disk.unk3C * 2048, 512);
-        if (++vs_main_disk.unk3C >= 16) {
-            vs_main_disk.unk3C = 0;
+        DsGetSector(_cdReadBuffer + vs_main_disk.ringWriteIndex * 2048, 512);
+        if (++vs_main_disk.ringWriteIndex >= 16) {
+            vs_main_disk.ringWriteIndex = 0;
         }
     }
 
@@ -9127,11 +9127,11 @@ static void _diskReadCallback(u_char intr, u_char result[] __attribute__((unused
         }
         break;
     case cdBufferModeBuffered:
-        ++vs_main_disk.unk38;
-        ++vs_main_disk.unk34;
+        ++vs_main_disk.ringSectorsWritten;
+        ++vs_main_disk.bufferedSectors;
         break;
     case cdBufferModeManual:
-        ++vs_main_disk.unk38;
+        ++vs_main_disk.ringSectorsWritten;
         if (++vs_main_disk.ringBufIndex >= 16) {
             vs_main_disk.ringBufIndex = 0;
         }
@@ -9140,7 +9140,7 @@ static void _diskReadCallback(u_char intr, u_char result[] __attribute__((unused
         break;
     }
 
-    if (++vs_main_disk.unk4 >= vs_main_disk.sectorCount) {
+    if (++vs_main_disk.sectorsReceived >= vs_main_disk.sectorCount) {
         DsEndReadySystem();
     }
 }
@@ -9228,12 +9228,12 @@ static int _diskInitRead(int sector, u_int bytes, void* vram)
         vs_main_disk.byteCount = bytes;
         vs_main_disk.vram = vram;
         vs_main_disk.ringBufIndex = 0;
-        vs_main_disk.unk3C = 0;
+        vs_main_disk.ringWriteIndex = 0;
         vs_main_disk.sectorBufIndex = 0;
-        vs_main_disk.unk34 = 0;
-        vs_main_disk.unk4 = 0;
-        vs_main_disk.unk3 = 0;
-        vs_main_disk.unk38 = 0;
+        vs_main_disk.bufferedSectors = 0;
+        vs_main_disk.sectorsReceived = 0;
+        vs_main_disk.failureCount = 0;
+        vs_main_disk.ringSectorsWritten = 0;
         vs_main_disk.sectorCount = bytes / 2048;
         if (bytes % 2048) {
             ++vs_main_disk.sectorCount;
@@ -9281,13 +9281,13 @@ static void vs_content_updateDiscCommands(void)
         if (vs_main_disk.commandId == 0) {
             DsReadyCallback(0);
             vs_main_disk.state = diskCommandFailed;
-            ++vs_main_disk.unk3;
+            ++vs_main_disk.failureCount;
         }
         break;
     case diskReadInit: {
         int status = DsSystemStatus();
         if (status == DslReady) {
-            vs_main_disk.unk4 = 0;
+            vs_main_disk.sectorsReceived = 0;
             vs_main_disk.sectorBufIndex = 0;
             if (vs_main_disk.byteCount != 0) {
                 vs_main_disk.state = diskReadReady;
@@ -9301,7 +9301,7 @@ static void vs_content_updateDiscCommands(void)
 
             if (vs_main_disk.commandId == 0) {
                 vs_main_disk.state = diskReadError;
-                ++vs_main_disk.unk3;
+                ++vs_main_disk.failureCount;
             }
         }
         break;
@@ -9309,8 +9309,8 @@ static void vs_content_updateDiscCommands(void)
     case diskCommandFailed: {
         int status = DsSystemStatus();
         if (status == DslReady) {
-            vs_main_disk.unk4 = 0;
-            ++vs_main_disk.unk3;
+            vs_main_disk.sectorsReceived = 0;
+            ++vs_main_disk.failureCount;
             seconds = vs_main_frameDuration / 60;
             if (seconds < 420) {
                 DsIntToPos(
@@ -9338,16 +9338,16 @@ static void vs_content_updateDiscCommands(void)
         }
         if (vs_main_disk.commandId == 0) {
             vs_main_disk.state = diskCommandFailed;
-            ++vs_main_disk.unk3;
+            ++vs_main_disk.failureCount;
         }
         break;
     }
     case diskReadError: {
         int status = DsSystemStatus();
         if (status == DslReady) {
-            vs_main_disk.unk4 = 0;
+            vs_main_disk.sectorsReceived = 0;
             vs_main_disk.sectorBufIndex = 0;
-            ++vs_main_disk.unk3;
+            ++vs_main_disk.failureCount;
 
             if (vs_main_disk.byteCount != 0) {
                 vs_main_disk.state = diskReadReady;
@@ -9361,7 +9361,7 @@ static void vs_content_updateDiscCommands(void)
 
             if (vs_main_disk.commandId == 0) {
                 vs_main_disk.state = diskReadError;
-                ++vs_main_disk.unk3;
+                ++vs_main_disk.failureCount;
             }
         }
         break;
@@ -9383,7 +9383,7 @@ static void vs_content_updateDiscCommands(void)
 
     if (vs_main_disk.bufferMode != cdBufferModeNone) {
         for (i = 0; i < 16; ++i) {
-            if (vs_main_disk.sectorBufIndex >= vs_main_disk.unk38) {
+            if (vs_main_disk.sectorBufIndex >= vs_main_disk.ringSectorsWritten) {
                 return;
             }
             if (vs_main_disk.bufferMode == cdBufferModeBuffered) {
@@ -9395,7 +9395,7 @@ static void vs_content_updateDiscCommands(void)
                 if (vs_main_disk.ringBufIndex >= 16) {
                     vs_main_disk.ringBufIndex = 0;
                 }
-                --vs_main_disk.unk34;
+                --vs_main_disk.bufferedSectors;
                 ++vs_main_disk.sectorBufIndex;
                 if (vs_main_disk.sectorBufIndex >= vs_main_disk.sectorCount) {
                     vs_main_disk.state = diskIdle;
@@ -9444,12 +9444,12 @@ int vs_main_streamXa(int sector, int byteCount)
         vs_main_disk.cdSector = sector;
         vs_main_disk.byteCount = byteCount;
         vs_main_disk.ringBufIndex = 0;
-        vs_main_disk.unk3C = 0;
+        vs_main_disk.ringWriteIndex = 0;
         vs_main_disk.sectorBufIndex = 0;
-        vs_main_disk.unk34 = 0;
-        vs_main_disk.unk4 = 0;
-        vs_main_disk.unk3 = 0;
-        vs_main_disk.unk38 = 0;
+        vs_main_disk.bufferedSectors = 0;
+        vs_main_disk.sectorsReceived = 0;
+        vs_main_disk.failureCount = 0;
+        vs_main_disk.ringSectorsWritten = 0;
         vs_main_disk.state = diskReadXaInit;
         return 1;
     }
@@ -11040,7 +11040,7 @@ void vs_render_setBackgroundGradientBase(int arg0, D_8005DC6C_t* arg1)
     if (_clutState.active != 0) {
         vs_render_setBackgroundGradientColors(arg0, arg1);
         for (i = 0; i < 5; ++i) {
-            _clutState.unk7F14[i] = arg1[i];
+            _clutState.backgroundBaseColors[i] = arg1[i];
         }
     }
 }
@@ -11075,19 +11075,19 @@ void vs_render_transformBackgroundGradient(int arg0, int arg1, int arg2, int arg
             break;
         case 4:
         case 9:
-            var_t1 = (_clutState.unk7F14[i].r + arg2) << 0x10;
-            var_t0 = (_clutState.unk7F14[i].g + arg3) << 0x10;
-            var_a1 = (_clutState.unk7F14[i].b + arg4) << 0x10;
+            var_t1 = (_clutState.backgroundBaseColors[i].r + arg2) << 0x10;
+            var_t0 = (_clutState.backgroundBaseColors[i].g + arg3) << 0x10;
+            var_a1 = (_clutState.backgroundBaseColors[i].b + arg4) << 0x10;
             break;
         case 5:
-            var_t1 = (_clutState.unk7F14[i].r << 0xF) + (arg2 << 0x10);
-            var_t0 = (_clutState.unk7F14[i].g << 0xF) + (arg3 << 0x10);
-            var_a1 = (_clutState.unk7F14[i].b << 0xF) + (arg4 << 0x10);
+            var_t1 = (_clutState.backgroundBaseColors[i].r << 0xF) + (arg2 << 0x10);
+            var_t0 = (_clutState.backgroundBaseColors[i].g << 0xF) + (arg3 << 0x10);
+            var_a1 = (_clutState.backgroundBaseColors[i].b << 0xF) + (arg4 << 0x10);
             break;
         case 6: {
-            int v1 = _clutState.unk7F14[i].g;
-            int a0 = _clutState.unk7F14[i].b;
-            int v0 = _clutState.unk7F14[i].r;
+            int v1 = _clutState.backgroundBaseColors[i].g;
+            int a0 = _clutState.backgroundBaseColors[i].b;
+            int v0 = _clutState.backgroundBaseColors[i].r;
             var_a1 = v1 << 0x10;
             a0 <<= 0x10;
             v0 <<= 0x11;
@@ -11099,9 +11099,9 @@ void vs_render_transformBackgroundGradient(int arg0, int arg1, int arg2, int arg
             var_a1 = v0 / 6 + (arg4 << 0x10);
         } break;
         case 7: {
-            int v1 = _clutState.unk7F14[i].g;
-            int a0 = _clutState.unk7F14[i].b;
-            int v0 = _clutState.unk7F14[i].r;
+            int v1 = _clutState.backgroundBaseColors[i].g;
+            int a0 = _clutState.backgroundBaseColors[i].b;
+            int v0 = _clutState.backgroundBaseColors[i].r;
             var_a1 = v1 << 0x10;
             a0 <<= 0x10;
             v0 <<= 0x11;
@@ -11113,9 +11113,9 @@ void vs_render_transformBackgroundGradient(int arg0, int arg1, int arg2, int arg
             var_a1 = v0 / 12 + (arg4 << 0x10);
         } break;
         case 8:
-            var_t1 = _clutState.unk7F14[i].r << 0x10;
-            var_t0 = _clutState.unk7F14[i].g << 0x10;
-            var_a1 = _clutState.unk7F14[i].b << 0x10;
+            var_t1 = _clutState.backgroundBaseColors[i].r << 0x10;
+            var_t0 = _clutState.backgroundBaseColors[i].g << 0x10;
+            var_a1 = _clutState.backgroundBaseColors[i].b << 0x10;
             break;
         case 11:
             _clutState.bgTransitionMode = 0;
@@ -11222,8 +11222,8 @@ void func_80047910(int arg0, int arg1, D_8005DC6C_t* arg2)
         return;
     }
 
-    temp_t0 = &_clutState.unk7F28[arg1];
-    temp_a3 = _clutState.unk7F28[arg1].unk10;
+    temp_t0 = &_clutState.modelColorFades[arg1];
+    temp_a3 = _clutState.modelColorFades[arg1].colorFixed;
     temp_a1 = _shift_left(arg2->r);
     temp_t1 = _shift_left(arg2->g);
     temp_t2 = _shift_left(arg2->b);
@@ -11238,14 +11238,14 @@ void func_80047910(int arg0, int arg1, D_8005DC6C_t* arg2)
         temp_a3[2] = temp_t2;
     }
     if (arg0 != 0) {
-        temp_t0->unk0[0] = 1;
-        temp_t0->unk0[1] = 0;
-        temp_t0->unk0[2] = 0;
-        temp_t0->unk0[3] = arg0;
+        temp_t0->progress[0] = 1;
+        temp_t0->progress[1] = 0;
+        temp_t0->progress[2] = 0;
+        temp_t0->progress[3] = arg0;
         return;
     }
 
-    temp_t0->unk0[0] = 0;
+    temp_t0->progress[0] = 0;
     sp10.unk0 = (temp_a3[0] / 65536) - 64;
     sp10.unk1 = (temp_a3[1] / 65536) - 64;
     sp10.unk2 = (temp_a3[2] / 65536) - 64;
@@ -11254,7 +11254,7 @@ void func_80047910(int arg0, int arg1, D_8005DC6C_t* arg2)
     if (arg1 != 0) {
         vs_actors_setActorFadeParameters(arg1 - 1, &sp10);
     } else {
-        vs_field_setRoomTint(&sp10, temp_t0->unk6[3] >> 2);
+        vs_field_setRoomTint(&sp10, temp_t0->blendParams[3] >> 2);
     }
 }
 
@@ -11262,7 +11262,7 @@ static void func_80047AB4(int arg0, int arg1, D_8005DC6C_t* arg2)
 {
     if (_clutState.active != 0) {
         func_80047910(arg0, arg1, arg2);
-        _clutState.unk7F28[arg1].unk28 = *arg2;
+        _clutState.modelColorFades[arg1].baseColor = *arg2;
     }
 }
 
@@ -11275,8 +11275,8 @@ void func_80047B30(int arg0, int arg1, int arg2, int arg3, int arg4, int arg5)
     int var_t0;
     int var_v0;
     int var_v1;
-    D_8005DC80_t* t1 = &_clutState.unk7F28[arg2];
-    int* t2 = t1->unk10;
+    D_8005DC80_t* t1 = &_clutState.modelColorFades[arg2];
+    int* t2 = t1->colorFixed;
 
     var_t4 = 0;
     switch (arg0) {
@@ -11300,22 +11300,22 @@ void func_80047B30(int arg0, int arg1, int arg2, int arg3, int arg4, int arg5)
         break;
     case 4:
     case 9:
-        var_a1 = (t1->unk28.r + arg3) << 0x10;
-        var_t0 = (t1->unk28.g + arg4) << 0x10;
-        var_a2 = (t1->unk28.b + arg5) << 0x10;
+        var_a1 = (t1->baseColor.r + arg3) << 0x10;
+        var_t0 = (t1->baseColor.g + arg4) << 0x10;
+        var_a2 = (t1->baseColor.b + arg5) << 0x10;
         break;
     case 5:
         var_t4 = 0x4000;
-        var_a1 = (t1->unk28.r << 0xF) + (arg3 << 0x10);
-        var_t0 = (t1->unk28.g << 0xF) + (arg4 << 0x10);
-        var_a2 = (t1->unk28.b << 0xF) + (arg5 << 0x10);
+        var_a1 = (t1->baseColor.r << 0xF) + (arg3 << 0x10);
+        var_t0 = (t1->baseColor.g << 0xF) + (arg4 << 0x10);
+        var_a2 = (t1->baseColor.b << 0xF) + (arg5 << 0x10);
         break;
     case 6:
         var_t4 = 0x4000;
         {
-            int v1 = t1->unk28.g;
-            int a0 = t1->unk28.b;
-            int v0 = t1->unk28.r;
+            int v1 = t1->baseColor.g;
+            int a0 = t1->baseColor.b;
+            int v0 = t1->baseColor.r;
             var_a2 = v1 << 0x10;
             a0 <<= 0x10;
             v0 <<= 0x11;
@@ -11330,9 +11330,9 @@ void func_80047B30(int arg0, int arg1, int arg2, int arg3, int arg4, int arg5)
     case 7:
         var_t4 = 0x4000;
         {
-            int v1 = t1->unk28.g;
-            int a0 = t1->unk28.b;
-            int v0 = t1->unk28.r;
+            int v1 = t1->baseColor.g;
+            int a0 = t1->baseColor.b;
+            int v0 = t1->baseColor.r;
             var_a2 = v1 << 0x10;
             a0 <<= 0x10;
             v0 <<= 0x11;
@@ -11346,12 +11346,12 @@ void func_80047B30(int arg0, int arg1, int arg2, int arg3, int arg4, int arg5)
         break;
     case 8:
     case 15:
-        var_a1 = t1->unk28.r << 0x10;
-        var_t0 = t1->unk28.g << 0x10;
-        var_a2 = t1->unk28.b << 0x10;
+        var_a1 = t1->baseColor.r << 0x10;
+        var_t0 = t1->baseColor.g << 0x10;
+        var_a2 = t1->baseColor.b << 0x10;
         break;
     case 11:
-        t1->unk0[4] = 0;
+        t1->progress[4] = 0;
         return;
     default:
         var_a1 = t2[0] + (arg3 << 0x10);
@@ -11385,27 +11385,27 @@ void func_80047B30(int arg0, int arg1, int arg2, int arg3, int arg4, int arg5)
         t2[3] = ((int)(var_a1 - (t2[0] & 0xFFFF0000)) / (arg1 * 2));
         t2[4] = ((int)(var_t0 - (t2[1] & 0xFFFF0000)) / (arg1 * 2));
         t2[5] = ((int)(var_a2 - (t2[2] & 0xFFFF0000)) / (arg1 * 2));
-        t1->unk6[4] = ((var_t4 - t1->unk6[3]) / (arg1 * 2));
+        t1->blendParams[4] = ((var_t4 - t1->blendParams[3]) / (arg1 * 2));
     } else {
         t2[0] = var_a1;
         t2[1] = var_t0;
         t2[2] = var_a2;
-        t1->unk6[3] = var_t4;
+        t1->blendParams[3] = var_t4;
     }
     var_v0 = 1;
     if (arg1 != 0) {
-        t1->unk0[0] = 1;
-        t1->unk0[1] = 0;
-        t1->unk0[2] = 0;
-        t1->unk0[3] = arg1;
-        t1->unk0[4] = arg0;
+        t1->progress[0] = 1;
+        t1->progress[1] = 0;
+        t1->progress[2] = 0;
+        t1->progress[3] = arg1;
+        t1->progress[4] = arg0;
         if (arg0 == 9) {
-            t1->unk6[0] = arg3;
-            t1->unk6[1] = arg4;
-            t1->unk6[2] = arg5;
+            t1->blendParams[0] = arg3;
+            t1->blendParams[1] = arg4;
+            t1->blendParams[2] = arg5;
         }
     } else {
-        t1->unk0[0] = 0;
+        t1->progress[0] = 0;
         var_v0 = t2[0] >> 0x10;
         if (t2[0] < 0) {
             var_v1 = t2[0] + 0xFFFF;
@@ -11428,7 +11428,7 @@ void func_80047B30(int arg0, int arg1, int arg2, int arg3, int arg4, int arg5)
         if (arg2 != 0) {
             vs_actors_setActorFadeParameters(arg2 - 1, &sp10);
         } else {
-            vs_field_setRoomTint(&sp10, ((u_short)t1->unk6[3] << 0x10) >> 0x12);
+            vs_field_setRoomTint(&sp10, ((u_short)t1->blendParams[3] << 0x10) >> 0x12);
         }
     }
 }
@@ -11503,11 +11503,11 @@ void vs_render_updateModelTintTransitions(void)
     D_800F4538_unk58_2 sp18;
     int i;
     int var_v0;
-    D_8005DC80_t* p = _clutState.unk7F28;
+    D_8005DC80_t* p = _clutState.modelColorFades;
 
     for (i = 0; i < 17; ++i) {
-        int* a2 = p[i].unk10;
-        if (p[i].unk0[0] != 0) {
+        int* a2 = p[i].colorFixed;
+        if (p[i].progress[0] != 0) {
             a2[0] += a2[3];
             a2[1] += a2[4];
             a2[2] += a2[5];
@@ -11532,24 +11532,24 @@ void vs_render_updateModelTintTransitions(void)
             if (i != 0) {
                 vs_actors_setActorFadeParameters(i - 1, &sp18);
             } else {
-                p[0].unk6[3] += p[0].unk6[4];
-                vs_field_setRoomTint(&sp18, p[0].unk6[3] >> 2);
+                p[0].blendParams[3] += p[0].blendParams[4];
+                vs_field_setRoomTint(&sp18, p[0].blendParams[3] >> 2);
             }
-            ++p[i].unk0[1];
-            if (p[i].unk0[1] >= (p[i].unk0[3] * 2)) {
-                if (p[i].unk0[4] == 9) {
-                    func_80047FC0(4, p[i].unk0[3], i, p[i].unk6[0] / 2, p[i].unk6[1] / 2,
-                        p[i].unk6[2] / 2);
-                    p[i].unk0[4] = 10;
-                } else if (p[i].unk0[4] == 10) {
+            ++p[i].progress[1];
+            if (p[i].progress[1] >= (p[i].progress[3] * 2)) {
+                if (p[i].progress[4] == 9) {
+                    func_80047FC0(4, p[i].progress[3], i, p[i].blendParams[0] / 2, p[i].blendParams[1] / 2,
+                        p[i].blendParams[2] / 2);
+                    p[i].progress[4] = 10;
+                } else if (p[i].progress[4] == 10) {
                     func_80047B30(
-                        9, p[i].unk0[3], i, p[i].unk6[0], p[i].unk6[1], p[i].unk6[2]);
-                    p[i].unk0[4] = 9;
-                } else if (p[i].unk0[4] == 14) {
-                    func_80047B30(15, p[i].unk0[3], i, 0, 0, 0);
-                    p[i].unk0[4] = 15;
+                        9, p[i].progress[3], i, p[i].blendParams[0], p[i].blendParams[1], p[i].blendParams[2]);
+                    p[i].progress[4] = 9;
+                } else if (p[i].progress[4] == 14) {
+                    func_80047B30(15, p[i].progress[3], i, 0, 0, 0);
+                    p[i].progress[4] = 15;
                 } else {
-                    p[i].unk0[0] = 0;
+                    p[i].progress[0] = 0;
                 }
             }
         }
@@ -11822,9 +11822,9 @@ void vs_render_captureRoomBackgroundColors(void)
     int* var_v1 = vs_field_roomBackgroundColors();
 
     for (i = 0; i < 5; ++i) {
-        _clutState.unk7F14[i].r = var_v1[i];
-        _clutState.unk7F14[i].g = (var_v1[i] & 0xFF00) / 256;
-        _clutState.unk7F14[i].b = (var_v1[i] & 0xFF0000) / 65536;
+        _clutState.backgroundBaseColors[i].r = var_v1[i];
+        _clutState.backgroundBaseColors[i].g = (var_v1[i] & 0xFF00) / 256;
+        _clutState.backgroundBaseColors[i].b = (var_v1[i] & 0xFF0000) / 65536;
 
         bgColors[i][0] = (var_v1[i] & 0xFF) << 16;
         bgColors[i][1] = (var_v1[i] & 0xFF00) << 8;
@@ -11862,13 +11862,13 @@ void vs_main_clutInit(void)
     _clutState.bgTransitionMode = 0;
 
     for (i = 0; i < 17; ++i) {
-        _clutState.unk7F28[i].unk0[0] = 0;
-        _clutState.unk7F28[i].unk0[4] = 0;
-        _clutState.unk7F28[i].unk6[3] = 0;
-        *((int*)&_clutState.unk7F28[i].unk28) = 0x404040;
-        _clutState.unk7F28[i].unk10[2] = 0x400000;
-        _clutState.unk7F28[i].unk10[1] = 0x400000;
-        _clutState.unk7F28[i].unk10[0] = 0x400000;
+        _clutState.modelColorFades[i].progress[0] = 0;
+        _clutState.modelColorFades[i].progress[4] = 0;
+        _clutState.modelColorFades[i].blendParams[3] = 0;
+        *((int*)&_clutState.modelColorFades[i].baseColor) = 0x404040;
+        _clutState.modelColorFades[i].colorFixed[2] = 0x400000;
+        _clutState.modelColorFades[i].colorFixed[1] = 0x400000;
+        _clutState.modelColorFades[i].colorFixed[0] = 0x400000;
     }
 }
 

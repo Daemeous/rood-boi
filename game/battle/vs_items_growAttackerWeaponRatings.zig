@@ -13,10 +13,10 @@ pub fn vs_items_growAttackerWeaponRatings(action: ?*v.vs_action_t, arg1: ?*v.vs_
         const temp_s1: *v.vs_battle_uiEquipment = &actor.weapon.blade;
         if (actor.weapon.blade.id != 0) {
             if (arg2 != 0) {
-                c._triggerClassChange(@ptrCast(act), @ptrCast(temp_s1), arg2 -% 1, 0xF0, @as(c_int, actor.unk957));
+                c._triggerClassChange(@ptrCast(act), @ptrCast(temp_s1), arg2 -% 1, 0xF0, @as(c_int, actor.actorId));
             }
             if (arg3 != 0) {
-                c._triggerArmorAffinityChange(@ptrCast(act), @ptrCast(temp_s1), arg3 -% 1, 0xF0, @as(c_int, actor.unk957));
+                c._triggerArmorAffinityChange(@ptrCast(act), @ptrCast(temp_s1), arg3 -% 1, 0xF0, @as(c_int, actor.actorId));
             }
         }
         c._calculateWeaponClassAffinity(@ptrCast(actor));

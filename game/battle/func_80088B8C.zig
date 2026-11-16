@@ -9,10 +9,10 @@ const v = @import("views_146C");
 pub fn func_80088B8C() callconv(.c) void {
     if (v.g.D_800F196C().* == 2 and v.g._cameraMode().* < 4 and v.g._cameraMode().* != 0) {
         if (v.g.vs_battle_targetingRiskTimer().* == 0 and
-            (psx.get(v.g.vs_battle_actors()[@as(usize, v.g.vs_battle_actionState().*.?.unk8.unk4.unk0.targetActor)].?.stats).?.statuses & 8) != 0 and
-            v.g.vs_battle_actionState().*.?.unk8.unk4.unk40 == 0)
+            (psx.get(v.g.vs_battle_actors()[@as(usize, v.g.vs_battle_actionState().*.?.unk8.primaryTarget.target.targetActor)].?.stats).?.statuses & 8) != 0 and
+            v.g.vs_battle_actionState().*.?.unk8.primaryTarget.unk40 == 0)
         {
-            if (v.g.vs_battle_actionState().*.?.unk8.unk4.unk0.targetActor == 0) {
+            if (v.g.vs_battle_actionState().*.?.unk8.primaryTarget.target.targetActor == 0) {
                 const stats = psx.get(v.g.vs_battle_characterState().*.?.stats).?;
                 if (stats.risk < 100) {
                     stats.risk +%= 1;

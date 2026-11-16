@@ -1180,7 +1180,7 @@ static int _renderLimbUi(int init)
                 (vs_battle_rowAnimationSteps[step] + 224) | ((34 + i * 16) << 16), 0);
 
             if (step < 8) {
-                func_800A13EC(1, limb->unk5, lineXy, 0);
+                func_800A13EC(1, limb->anchorBone, lineXy, 0);
                 _drawLimbLeaderLine(i, lineXy[0], 8 - step, 0);
             }
 
@@ -1227,7 +1227,7 @@ static int _renderLimbUi(int init)
                           : vs_getRGB888(128, 128, 128) >> temp_s6,
                 0);
 
-            func_800A13EC(1, limb->unk5, lineXy, 0);
+            func_800A13EC(1, limb->anchorBone, lineXy, 0);
 
             if (!(step & 0x80) && ((_fadeScreen | _drawBackgroundFirst) == 0)) {
                 _drawLimbLeaderLine(i, lineXy[0], 8, i == step);

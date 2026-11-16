@@ -15,7 +15,7 @@ pub fn vs_field_beginDoorToggle(arg0: ?*v._mpdRoomSectionA) callconv(.c) c_int {
         c.vs_field_markSigilDoorUnlocked(@as(c_int, psx.conv(i16, temp_a0)) -% 0x1CA);
     }
     if (section.unkE == 0) {
-        section.unk13 = 8;
+        section.delayFrames = 8;
         c.vs_field_queueGimmickAnimation(3, psx.cptr(c._mpdRoomSectionA, section));
         return 1;
     }

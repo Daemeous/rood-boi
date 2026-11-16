@@ -11,7 +11,7 @@ pub fn vs_items_removeWeaponEnchantmentOnEquip() callconv(.c) void {
 
     if ((temp_s0.statuses & 0x01E00000) != 0) {
         // The status word is read again after the first call: the callee may have changed it.
-        c.func_80093FEC(@as(c_int, temp_s0.unk957), 0, temp_s0.statuses & 0x01E00000, 1);
+        c.func_80093FEC(@as(c_int, temp_s0.actorId), 0, temp_s0.statuses & 0x01E00000, 1);
         c.vs_battle_removeActorStatuses(temp_s0.statuses & 0x01E00000, @ptrCast(temp_s0));
     }
 }

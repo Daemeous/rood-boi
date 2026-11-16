@@ -13,7 +13,7 @@ pub fn findBone(actorId: c_int, wanted: c_int, field: c_int) callconv(.c) c_int 
     }
 
     const nBones: c_int = @as(c_int, model.?.unk0.nBones);
-    const var_v1 = psx.get(model.?.unk0.unk68);
+    const var_v1 = psx.get(model.?.unk0.model);
 
     if (wanted == 0xFF) return 0;
 

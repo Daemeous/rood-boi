@@ -11,7 +11,7 @@ pub fn initTextBox(id: c_int, flags: c_int, x: c_int, y: c_int, charsPerLine: c_
 
     // *(int*)&box->unk0 = flags & 0xFFFF;
     psx.byteAt(c_int, box, 0).* = flags & 0xFFFF;
-    psx.setBits(&box.unk0, "unk0_24", 32);
+    psx.setBits(&box.flags, "unk0_24", 32);
     box.x = psx.conv(i16, x);
     box.y = psx.conv(i16, y);
     box.unk4 = 0;
@@ -27,17 +27,17 @@ pub fn initTextBox(id: c_int, flags: c_int, x: c_int, y: c_int, charsPerLine: c_
     box.centerY = psx.conv(i16, centerY);
 
     // Shift amount is unk0_4 * 4 in {0, 4, 8, 12}: always below 32.
-    const shift: c_int = @as(c_int, psx.getBits(&box.unk0, "unk0_4")) *% 4;
+    const shift: c_int = @as(c_int, psx.getBits(&box.flags, "unk0_4")) *% 4;
     box.unk22 = psx.conv(u8, ((@as(c_int, 0x45A5) >> @as(u5, @intCast(shift))) & 0xF) *% 2);
 
     if (box.state <= 0) {
         box.state = 1;
     }
 
-    switch (@as(c_int, psx.getBits(&box.unk0, "unk0_0"))) {
+    switch (@as(c_int, psx.getBits(&box.flags, "unk0_0"))) {
         1 => {
-            psx.setBits(&box.unk0, "unk0_0", 7);
-            psx.setBits(&box.unk0, "unk0_8", 0);
+            psx.setBits(&box.flags, "unk0_0", 7);
+            psx.setBits(&box.flags, "unk0_8", 0);
         },
         4 => {
             box.charsPerLine = 0x18;
@@ -47,8 +47,8 @@ pub fn initTextBox(id: c_int, flags: c_int, x: c_int, y: c_int, charsPerLine: c_
             box.yIndent = psx.conv(i16, @as(c_int, 0xF2) -% (h *% 0xD));
         },
         5 => {
-            psx.setBits(&box.unk0, "unk0_0", 7);
-            psx.setBits(&box.unk0, "unk0_8", 2);
+            psx.setBits(&box.flags, "unk0_0", 7);
+            psx.setBits(&box.flags, "unk0_8", 2);
         },
         else => {},
     }

@@ -22,7 +22,7 @@ pub fn vs_field_openChestContents() callconv(.c) void {
         c.vs_battle_displaySceneMessage(message, psx.get(v.g.vs_field_interactionFocus().unk0).?.unkE, 1);
         c.func_8006C2FC();
     } else {
-        const item = psx.get(v.g.vs_field_interactionFocus().unk0).?.unk10;
+        const item = psx.get(v.g.vs_field_interactionFocus().unk0).?.linkedLockIndex;
         if (item < 0x40) {
             c.vs_menu_frameworkOpenLootEntryMenu(@ptrCast(psx.at(psx.get(v.g.vs_field_interactionFocus().unk0).?, 1)));
         } else {

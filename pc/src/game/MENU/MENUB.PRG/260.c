@@ -1937,7 +1937,7 @@ int vs_menuB_exec(u_char* state)
         break;
 
     case 4:
-        if ((vs_battle_textBoxes[7].unk0.done)
+        if ((vs_battle_textBoxes[7].flags.done)
             && (vs_main_buttonsPressed.pad[0].low != 0)) {
             *state = 5;
         }

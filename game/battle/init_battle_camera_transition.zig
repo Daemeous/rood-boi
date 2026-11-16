@@ -25,12 +25,12 @@ pub fn initBattleCameraTransition() callconv(.c) void {
     transition.*.?.toProjectionDistance = 224;
     transition.*.?.toFarClip = 0x2000;
     _ = c.vs_actors_actorPlacement(0, &actor);
-    transition.*.?.toSpherical.values.yaw = actor.unk0.unk4.pad;
+    transition.*.?.toSpherical.values.yaw = actor.location.position.pad;
     transition.*.?.toSpherical.values.pitch = 0;
     transition.*.?.toSpherical.values.distance = v.g.vs_battle_cameraCurrentSpherical().values.distance;
-    target.vx = @as(c_int, actor.unk0.unk4.vx) *% 4096;
-    target.vy = (@as(c_int, actor.unk0.unk4.vy) -% 0xB4) *% 4096;
-    target.vz = @as(c_int, actor.unk0.unk4.vz) *% 4096;
+    target.vx = @as(c_int, actor.location.position.vx) *% 4096;
+    target.vy = (@as(c_int, actor.location.position.vy) -% 0xB4) *% 4096;
+    target.vz = @as(c_int, actor.location.position.vz) *% 4096;
     c._computeCameraTransition(@ptrCast(&target));
     v.g.D_800F196C().* = 7;
     v.g._cameraMode().* = 0;

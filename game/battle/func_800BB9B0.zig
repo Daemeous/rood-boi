@@ -18,25 +18,25 @@ pub fn func_800BB9B0() callconv(.c) void {
         const idx: usize = @intCast(i);
         const s1_addr: usize = s1_start +% idx *% @sizeOf(v.D_800EB9BC_t);
 
-        if (s0.unk3 != 0) {
-            s0.unk2 = psx.conv(u8, @as(c_int, s0.unk2) +% (v.g.vs_gametime_tickspeed().* >> 1));
+        if (s0.durationFrames != 0) {
+            s0.elapsedFrames = psx.conv(u8, @as(c_int, s0.elapsedFrames) +% (v.g.vs_gametime_tickspeed().* >> 1));
             const temp_a0: i16 = psx.conv(i16, c.vs_event_evaluateInterpolationCurve(
-                @as(c_int, s0.unk1),
-                @as(c_int, s0.unk2),
-                @as(c_int, s0.unk3),
+                @as(c_int, s0.easingMode),
+                @as(c_int, s0.elapsedFrames),
+                @as(c_int, s0.durationFrames),
             ));
             const t: c_int = temp_a0;
 
             if (v.g.vs_render_gimLayers().* != null) {
                 const s1: *align(1) v.D_800EB9BC_t = @ptrFromInt(s1_addr);
-                s1.unk8 = psx.conv(i16, @as(c_int, s0.unk4) +% ((@as(c_int, s0.unk8) *% t) >> 12));
-                s1.unkA = psx.conv(i16, @as(c_int, s0.unk6) +% ((@as(c_int, s0.unkA) *% t) >> 12));
-                s1.unkC = psx.conv(i16, @as(c_int, s0.unkC) +% ((@as(c_int, s0.unkE) *% t) >> 12));
-                psx.setBits(s1, "unk0_24", psx.conv(u8, @as(c_int, s0.unk10) +% ((@as(c_int, s0.unk12) *% t) >> 12)));
+                s1.unk8 = psx.conv(i16, @as(c_int, s0.startX) +% ((@as(c_int, s0.deltaX) *% t) >> 12));
+                s1.unkA = psx.conv(i16, @as(c_int, s0.startY) +% ((@as(c_int, s0.deltaY) *% t) >> 12));
+                s1.unkC = psx.conv(i16, @as(c_int, s0.startScaleFixed12) +% ((@as(c_int, s0.deltaScaleFixed12) *% t) >> 12));
+                psx.setBits(s1, "unk0_24", psx.conv(u8, @as(c_int, s0.startBrightness) +% ((@as(c_int, s0.deltaBrightness) *% t) >> 12)));
             }
 
-            if (s0.unk2 >= s0.unk3) {
-                s0.unk3 = 0;
+            if (s0.elapsedFrames >= s0.durationFrames) {
+                s0.durationFrames = 0;
             }
         }
     }

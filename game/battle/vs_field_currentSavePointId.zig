@@ -12,7 +12,7 @@ pub fn vs_field_currentSavePointId() callconv(.c) c_int {
 
     const temp_v0_2: c_uint = psx.conv(c_uint, c.vs_actors_actorStateFlags(0));
     const temp_a2: c_uint = temp_v0_2 & 0x70000;
-    const s0: *v.func_8006EBF8_t_fields = &sp10.unk0.unk0.fields;
+    const s0: *v.func_8006EBF8_t_fields = &sp10.location.packedTile.fields;
 
     const var_a0: c_int = if (temp_a2 != 0) 0 else @as(c_int, psx.getBits(s0, "unk0_0"));
     const var_a1: c_int = if (temp_a2 != 0) 0 else @as(c_int, psx.getBits(s0, "unk0_16"));

@@ -19,7 +19,7 @@ pub fn vs_field_transitionDoorsAtTile(arg0: c_int, arg1: c_int, arg2: c_int) cal
     var i: c_int = 0;
     while (i < temp_s1) : (i +%= 1) {
         const section = psx.at(first, i);
-        const key = &section.unk2;
+        const key = &section.tileLocation;
         if ((arg2 >= 2 and @as(c_int, psx.getBits(key, "unk0_10")) == arg2) or
             (@as(c_int, psx.getBits(key, "unk0_0")) == arg0 and
                 @as(c_int, psx.getBits(key, "unk0_5")) == arg1 and

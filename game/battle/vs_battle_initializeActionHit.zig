@@ -8,7 +8,7 @@ const c = @import("c_146C");
 /// Zeroes a hit entity, sets its unk0.unk3 to 6, and clears the word after inflictStatuses.
 pub fn vs_battle_initializeActionHit(hit: ?*v._hitEntity_t) callconv(.c) void {
     c.vs_main_bzero(hit, @sizeOf(v._hitEntity_t));
-    hit.?.unk0.unk3 = 6;
+    hit.?.target.unk3 = 6;
     // *(&arg0->inflictStatuses + 1): the element after inflictStatuses, an int.
     psx.at(&hit.?.inflictStatuses, 1).* = 0;
 }

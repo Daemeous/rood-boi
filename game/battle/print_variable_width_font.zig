@@ -23,17 +23,17 @@ pub fn printVariableWidthFont(box_arg: ?*v.vs_battle_textBox) callconv(.c) void 
     var chars_remaining: c_int = box.speed;
     if (chars_remaining == 0) return;
 
-    v.g._fontTable().* = @intFromBool(psx.getBits(&box.unk0, "unk0_0") != 4);
+    v.g._fontTable().* = @intFromBool(psx.getBits(&box.flags, "unk0_0") != 4);
     v.g._fontBrightness().* = box.brightness;
     v.g.D_800F4CB8().* = psx.conv(u8, (1 - (@as(c_int, @as(*const u8, @ptrCast(box)).*) & 1)) * 4);
-    if (psx.getBits(&box.unk0, "unk0_0") == 2) {
+    if (psx.getBits(&box.flags, "unk0_0") == 2) {
         v.g._fontTable().* = 0;
         v.g.D_800F4CB8().* = 0;
     }
     var current_string: [*c]u8 = @ptrCast(psx.get(box.string));
     var print_x: c_int = box.xIndent;
     var print_y: c_int = box.yIndent;
-    psx.setBits(&box.unk0, "done", 0);
+    psx.setBits(&box.flags, "done", 0);
     while (chars_remaining > 0) {
         if (post_continuation != 0) {
             post_continuation -= 1;
@@ -59,9 +59,9 @@ pub fn printVariableWidthFont(box_arg: ?*v.vs_battle_textBox) callconv(.c) void 
                         if (v.g.vs_main_buttonsPressed().pad[0].low != 0) {
                             chars_remaining = 0;
                         } else {
-                            done = @rem(@as(c_int, psx.getBits(&box.unk0, "arrowAnimFrame")) +% v.g.vs_gametime_tickspeed().*, 24);
+                            done = @rem(@as(c_int, psx.getBits(&box.flags, "arrowAnimFrame")) +% v.g.vs_gametime_tickspeed().*, 24);
                             print_x = c.vs_battle_printVariableWidthFontChar(@bitCast(0xBC - (done >> 3)), print_x, print_y, ot);
-                            psx.setBits(&box.unk0, "arrowAnimFrame", psx.conv(u8, done));
+                            psx.setBits(&box.flags, "arrowAnimFrame", psx.conv(u8, done));
                         }
                         done = 1;
                     } else {
@@ -79,7 +79,7 @@ pub fn printVariableWidthFont(box_arg: ?*v.vs_battle_textBox) callconv(.c) void 
                         if (shifted > 0) {
                             box.unk2C = psx.conv(i16, (shifted >> 0x12) - @as(c_int, shake));
                         }
-                        psx.setBits(&box.unk0, "done", 1);
+                        psx.setBits(&box.flags, "done", 1);
                         if (v.g.vs_main_buttonsPressed().pad[0].low != 0 or post_continuation != 0) {
                             box.speed = 0xFFFF;
                         }
@@ -226,11 +226,11 @@ pub fn printVariableWidthFont(box_arg: ?*v.vs_battle_textBox) callconv(.c) void 
     if (box.prevChunksPrinted != chunks_printed and sfx != 0) {
         c.vs_main_playSfxDefault(0x7E, sfx);
     }
-    if ((psx.getBits(&box.unk0, "unk0_24") & 0x20) == 0) {
+    if ((psx.getBits(&box.flags, "unk0_24") & 0x20) == 0) {
         if (box.unk2C != 0) {
             box.unk2C +%= 1;
         } else {
-            _ = c.vs_actors_setTextureAnimation(psx.getBits(&box.unk0, "unk0_24"), 0, 0, 0);
+            _ = c.vs_actors_setTextureAnimation(psx.getBits(&box.flags, "unk0_24"), 0, 0, 0);
         }
     }
     box.prevChunksPrinted = psx.conv(u16, chunks_printed);

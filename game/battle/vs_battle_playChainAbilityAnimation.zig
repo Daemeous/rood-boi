@@ -30,7 +30,7 @@ pub fn vs_battle_playChainAbilityAnimation(arg0: c_int, arg1: ?*v.SVECTOR, arg2:
         }
 
         dist = c.vs_gte_rsqrt(dist +% zz);
-        c.func_800A1AF8(@as(c_int, actor.unk0.unkF), 0, psx.cptr(c.SVECTOR, &sp10), 0);
+        c.func_800A1AF8(@as(c_int, actor.unk0.slot), 0, psx.cptr(c.SVECTOR, &sp10), 0);
         pitch = c.ratan2(@as(c_int, target.vy) -% @as(c_int, sp10.vy), dist);
     }
 
@@ -71,7 +71,7 @@ pub fn vs_battle_playChainAbilityAnimation(arg0: c_int, arg1: ?*v.SVECTOR, arg2:
         turn = angle;
     }
 
-    actor.unk0.unk3E = psx.conv(i16, turn);
+    actor.unk0.facingDelta = psx.conv(i16, turn);
     actor.unk0.unk18 = 0xA;
     _ = c.vs_actors_playActorAnimation(arg0, anim, 0, 8);
 }

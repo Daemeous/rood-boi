@@ -53,7 +53,7 @@ pub fn func_800CD158(id: c_int) callconv(.c) void {
             sprite_item.tileFlat(ot, false, 0, y << 16, (0xF00000 -% (y << 16)) | 320);
         }
         if (box.state == @as(c_int, box.unk22) + 1) {
-            c.func_800CD0FC(y -% 7, @bitCast(@as(c_int, psx.getBits(&box.unk0, "unk0_8")) - 1));
+            c.func_800CD0FC(y -% 7, @bitCast(@as(c_int, psx.getBits(&box.flags, "unk0_8")) - 1));
         }
     }
 }

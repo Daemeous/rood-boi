@@ -15,9 +15,9 @@ typedef struct {
 PSX_ASSERT_SIZE(D_1F8003BC_t, 0x44);
 
 typedef struct {
-    short unk0;
+    short directionX;
     short unk2;
-    short unk4;
+    short directionZ;
 } func_800A3054_t;
 
 typedef struct {

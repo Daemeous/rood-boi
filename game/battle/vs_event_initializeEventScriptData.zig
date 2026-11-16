@@ -55,9 +55,9 @@ pub fn vs_event_initializeEventScriptData(data: [*c]u8) callconv(.c) void {
         pairs[2 * i] = 0;
     }
     v.g.vs_event_weatherTweenDuration().* = 0;
-    v.g.vs_event_splashTweens()[2].unk3 = 0;
-    v.g.vs_event_splashTweens()[1].unk3 = 0;
-    v.g.vs_event_splashTweens()[0].unk3 = 0;
+    v.g.vs_event_splashTweens()[2].durationFrames = 0;
+    v.g.vs_event_splashTweens()[1].durationFrames = 0;
+    v.g.vs_event_splashTweens()[0].durationFrames = 0;
     v.g.vs_event_musicSlot().* = psx.conv(u8, c.vs_main_getcurrentMusicSlot());
     v.g.vs_event_eventFileDiscRequest().* = null;
     var flag: c_short = 16;

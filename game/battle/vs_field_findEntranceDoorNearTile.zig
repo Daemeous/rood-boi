@@ -15,12 +15,12 @@ pub fn vs_field_findEntranceDoorNearTile(x: c_int, y: c_int, kind: c_int) callco
         var i: c_int = 0;
         while (i < temp_t4) : (i +%= 1) {
             const entry = psx.at(base, i);
-            if (kind >= 2 and @as(c_int, psx.getBits(&entry.unk2, "unk0_10")) == kind) break;
-            if (@as(c_int, psx.getBits(&entry.unk2, "unk0_10")) == kind) {
+            if (kind >= 2 and @as(c_int, psx.getBits(&entry.tileLocation, "unk0_10")) == kind) break;
+            if (@as(c_int, psx.getBits(&entry.tileLocation, "unk0_10")) == kind) {
                 var j: c_int = 0;
                 while (j < 9) : (j +%= 1) {
-                    if (@as(c_int, psx.getBits(&entry.unk2, "unk0_0")) == (x -% 1) +% (j -% @divTrunc(j, 3) *% 3) and
-                        @as(c_int, psx.getBits(&entry.unk2, "unk0_5")) == (y -% 1) +% @divTrunc(j, 3))
+                    if (@as(c_int, psx.getBits(&entry.tileLocation, "unk0_0")) == (x -% 1) +% (j -% @divTrunc(j, 3) *% 3) and
+                        @as(c_int, psx.getBits(&entry.tileLocation, "unk0_5")) == (y -% 1) +% @divTrunc(j, 3))
                     {
                         break;
                     }
@@ -33,7 +33,7 @@ pub fn vs_field_findEntranceDoorNearTile(x: c_int, y: c_int, kind: c_int) callco
 
     if (var_s0) |door| {
         _ = c.vs_main_memcpy(v.g.vs_field_entranceDoorRecord(), door, @sizeOf(v._mpdRoomDoorSection_t));
-        const door_id: c_int = c._getDoorId(@as(c_int, door.unk8));
+        const door_id: c_int = c._getDoorId(@as(c_int, door.doorId));
         v.g.vs_battle_doorEntered().* = psx.conv(i16, door_id);
     } else {
         c.vs_main_bzero(v.g.vs_field_entranceDoorRecord(), @sizeOf(v._mpdRoomDoorSection_t));

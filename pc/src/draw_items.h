@@ -34,6 +34,7 @@ enum {
     PC_ITEM_AREA,   /* the drawing area for the items drawn after it: (x[0], y[0]) and w, h */
     PC_ITEM_MODE_SET, /* the draw mode (GP0 E1: `mode`) for the items drawn after it that carry none (PC_ITEM_INHERIT) */
     PC_ITEM_MASK,   /* the mask bit set when drawing (x[0] 1) or not (0): GP0 E6 */
+    PC_ITEM_COPY,   /* a copy within VRAM (DR_MOVE: GP0 80h): the rectangle (x[0], y[0], w, h) to (x[1], y[1]); T5 retires it */
     PC_ITEM_NATIVE  /* a native list's draw (render.c: a model, the room, an effects list): the list, and for a translucent run (verts 1) its entries first, count */
 };
 
@@ -177,6 +178,12 @@ void pc_frame_table(const void* base, int n, int reverse);
 void pc_frame_splice_table(const void* at, const void* head); /* the table at `head` is walked after the entry `at` (pc_frame_splice) */
 int pc_frame_run_live(int first, int count); /* a run with an item that draws */
 int pc_frame_expected_order(const void* head, int* out, int max);
+/* The walk of a table takes the runs in by the slot they are placed at (boot_runtime.c adopt): the index is made once per table, then by entry: the marker packets
+ * placed at `entry` in draw order (`tail`: those appended at the end of its chain), whether some are appended, and whether two entries lie in one table. */
+void pc_frame_markers_index(void);
+int pc_frame_entry_markers(const void* entry, int tail, const void** out, int max);
+int pc_frame_entry_has_tail(const void* entry);
+int pc_frame_same_table(const void* a, const void* b);
 /* Whether the run [first, first + count) has a native list's draw (PC_ITEM_NATIVE). */
 int pc_frame_run_has_native(int first, int count);
 /* Whether `packet` is a marker (pc_frame_place) and the run of items it places. */
@@ -204,6 +211,10 @@ void pc_frame_anchor_markers(const void* start, const void* end, int anchor);
 void pc_frame_opacity(int first, int end, int opacity);
 /* A horizontal line item drawn as one row of a filled shape (the area map's floor): the shape it has, as gpu_hw.c draws it at upscale. */
 void pc_frame_span(int item, int length, float top_left, float top_right, float bottom_left, float bottom_right);
+/* A DR_MOVE the game built (SetDrawMove) and appends to the end of the top slot of the table (vs_render_appendOverlayPrimitive): its
+ * copy becomes a PC_ITEM_COPY item, a marker is spliced where the packet would have linked, drawn after what the slot holds. A packet
+ * that is not a copy (no size) is spliced as it is. */
+void pc_frame_copy_tail(unsigned* top, unsigned* packet);
 /* Draws the frame's items in order: what DrawOTag did for a table. */
 void pc_frame_draw(void);
 /* Links a marker for items [first, first + count) at the head of `*ot_entry`

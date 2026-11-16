@@ -8,7 +8,7 @@ const c = @import("c_146C");
 /// Counts down the action wait, then runs the finish of the action (or the battle end) once the wait ends.
 pub fn func_80078364() callconv(.c) void {
     if (v.g.vs_battle_actionState().*.?.unk2984 != 0) {
-        if (v.g.vs_battle_actionState().*.?.unk8.unk4.unk0.targetActor != 0) {
+        if (v.g.vs_battle_actionState().*.?.unk8.primaryTarget.target.targetActor != 0) {
             v.g.vs_battle_actionState().*.?.unk298E +%= 1;
             if (@as(c_int, v.g.vs_battle_actionState().*.?.unk298E) >= 0x1F) {
                 v.g.vs_battle_actionState().*.?.unk298C = 0;

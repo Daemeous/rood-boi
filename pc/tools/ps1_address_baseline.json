@@ -2,10 +2,13 @@
  "ps1_address": 7,
  "scratchpad": 52,
  "unnamed_symbol": 7548,
+ "byte_offset_access": 496,
+ "ram_reference": 51,
+ "unnamed_field": 11630,
  "guest_pointer_field": 8,
  "guest_pointer_access": 38,
  "address_as_integer": 195,
- "zig_raw_memory": 944,
+ "zig_raw_memory": 919,
  "gpu_packet_writes": 22,
  "lift_bridge": 3
 }

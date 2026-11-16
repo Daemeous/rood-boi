@@ -7,7 +7,7 @@ const c = @import("c_44F14");
 /// Plays sound `sfx` for `owner`'s slot, panned by its position, and `altSfx` too when nonzero.
 pub fn vs_audio_playActorSoundPair(arg0: ?*v.D_800F4538_t, arg1: c_int, arg2: c_int) callconv(.c) void {
     // Array index is unchecked: the C indexes vs_actors_actorRecords by a u8.
-    const temp: *v.D_800F4538_t = psx.at(v.g.vs_actors_actorRecords(), @as(c_uint, arg0.?.unk0.unkF)).*.?;
+    const temp: *v.D_800F4538_t = psx.at(v.g.vs_actors_actorRecords(), @as(c_uint, arg0.?.unk0.slot)).*.?;
     var sp10: [2]c_int = undefined;
 
     if (temp.unk17E4.unk0 == 2) {
@@ -21,7 +21,7 @@ pub fn vs_audio_playActorSoundPair(arg0: ?*v.D_800F4538_t, arg1: c_int, arg2: c_
             psx.getBits(&temp.unk0, "unkA_3") != 0 or
             psx.getBits(&temp.unk0, "unkA_5") != 0)
         {
-            _ = c.vs_actors_targetPoint(@as(c_int, arg0.?.unk0.unkF), @as(c_int, 0xFF), @ptrCast(&temp.unk6FC), @as(c_int, 0));
+            _ = c.vs_actors_targetPoint(@as(c_int, arg0.?.unk0.slot), @as(c_int, 0xFF), @ptrCast(&temp.unk6FC), @as(c_int, 0));
         }
 
         const temp_v0: c_int = c.vs_main_computeSfxPan(

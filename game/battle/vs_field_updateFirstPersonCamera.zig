@@ -67,8 +67,8 @@ pub fn vs_field_updateFirstPersonCamera() callconv(.c) void {
     c.vs_actors_turnActorToOverTime(0, psx.conv(u16, camera.yaw & 0xFFF), 0);
     _ = c.vs_actors_actorPlacement(0, &actor);
     const position = &v.g.vs_view().camera.position;
-    position.vx = @as(c_int, actor.unk0.unk4.vx) *% 4096;
-    position.vz = @as(c_int, actor.unk0.unk4.vz) *% 4096;
-    position.vy = (@as(c_int, actor.unk0.unk4.vy) -% 180) *% 4096;
+    position.vx = @as(c_int, actor.location.position.vx) *% 4096;
+    position.vz = @as(c_int, actor.location.position.vz) *% 4096;
+    position.vy = (@as(c_int, actor.location.position.vy) -% 180) *% 4096;
     c._setCameraLookAtFromAngles(@ptrCast(camera));
 }

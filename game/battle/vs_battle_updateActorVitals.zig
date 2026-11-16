@@ -77,10 +77,10 @@ pub fn vs_battle_updateActorVitals() callconv(.c) c_int {
                 }
             } else if ((status & 0x01002001) == 1) {
                 if (psx.get(actor.?.stats)) |stats| {
-                    if (stats.unk954 > 35) {
-                        stats.unk954 -= 35;
-                    } else if (stats.unk954 != 0) {
-                        stats.unk954 = 0;
+                    if (stats.actionRecoveryTimer > 35) {
+                        stats.actionRecoveryTimer -= 35;
+                    } else if (stats.actionRecoveryTimer != 0) {
+                        stats.actionRecoveryTimer = 0;
                     }
                     if (every(30) and stats.currentHP != 0) {
                         if (actor.?.weaponDrawn & 1 != 0) {

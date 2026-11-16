@@ -10,11 +10,11 @@ fn flag(id: c_int) c_int {
 /// The zone's ZUD buffer freed and forgotten.
 fn dropZud() void {
     const zone = v.g._zoneContext();
-    if (psx.get(zone.unk1C) != null) {
-        c.vs_main_freeHeapR(psx.get(zone.unk1C));
+    if (psx.get(zone.zudData) != null) {
+        c.vs_main_freeHeapR(psx.get(zone.zudData));
     }
-    psx.put(&zone.unk1C, null);
-    zone.unk14 = 0;
+    psx.put(&zone.zudData, null);
+    zone.loadedZudIndexPlusOne = 0;
 }
 
 /// orig: vs_field_spawnRoomActors (pc/src/game/BATTLE/BATTLE.PRG/146C.c)

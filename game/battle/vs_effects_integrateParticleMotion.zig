@@ -7,9 +7,9 @@ const c = @import("c_5BF94");
 /// Steps every effect node in the list one tick: drag and gravity, then attraction toward its target.
 pub fn vs_effects_integrateParticleMotion(node: ?*v.func_800D2904_t) callconv(.c) void {
     const drag: c_int = v.g.vs_effects_particleDrag().*;
-    const gravityX: c_int = v.g.vs_effects_particleGravity().unk0;
-    const gravityY: c_int = v.g.vs_effects_particleGravity().unk4;
-    const gravityZ: c_int = v.g.vs_effects_particleGravity().unk8;
+    const gravityX: c_int = v.g.vs_effects_particleGravity().x;
+    const gravityY: c_int = v.g.vs_effects_particleGravity().y;
+    const gravityZ: c_int = v.g.vs_effects_particleGravity().z;
 
     var cur = node;
     while (cur) |n| {

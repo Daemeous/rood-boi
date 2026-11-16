@@ -8,12 +8,12 @@ const c = @import("c_146C");
 pub fn vs_state_setSceneTimerPaused(arg0: c_int) callconv(.c) void {
     const g = v.g.vs_state_sceneTimer();
     if (arg0 != 0) {
-        const temp_v1: c_int = g.unk0;
-        g.unk0 = 0;
-        g.unk1 = psx.conv(u8, temp_v1);
+        const temp_v1: c_int = g.mode;
+        g.mode = 0;
+        g.pausedMode = psx.conv(u8, temp_v1);
         c.vs_battle_hidePuzzleTimer();
         return;
     }
-    g.unk0 = g.unk1;
+    g.mode = g.pausedMode;
     c.vs_battle_showPuzzleTimer();
 }

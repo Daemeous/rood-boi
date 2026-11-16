@@ -10,7 +10,7 @@ pub fn vs_field_refreshAshleyInteractionTile(arg0: ?*v.D_800F4538_t) callconv(.c
     const actor = arg0.?;
     var var_a0: c_int = 1;
 
-    if (actor.unk0.unkF == 0) {
+    if (actor.unk0.slot == 0) {
         const anim: c_int = actor.animationId;
         if (psx.conv(c_uint, anim -% 0x4F) >= 4) {
             if (psx.conv(c_uint, anim -% 0x47) >= 4 and anim != 0x4C) {

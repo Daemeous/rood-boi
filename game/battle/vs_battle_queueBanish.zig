@@ -8,7 +8,7 @@ const c = @import("c_146C");
 pub fn vs_battle_queueBanish(_: ?*v.vs_action_t, _: ?*v._hitEntity_t, target: ?*v._hitEntity_t, _: c_int, arg4: c_int) callconv(.c) c_int {
     _ = c._setApplicableStatuses(0x1D, @ptrCast(target));
     if (arg4 != 0) {
-        psx.setBits(psx.get(v.g.vs_battle_actors()[target.?.unk0.targetActor].?.stats).?, "isAnalyzed", 1);
+        psx.setBits(psx.get(v.g.vs_battle_actors()[target.?.target.targetActor].?.stats).?, "isAnalyzed", 1);
     }
     return 0; // no return statement in the C (the result register's leftover)
 }

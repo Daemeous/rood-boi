@@ -14,7 +14,7 @@ pub fn vs_actors_clearActorBonePoseLocks(unit: ?*v.D_800F4538_t) callconv(.c) vo
     var i: c_int = 0;
     while (i < @as(c_int, s.unk0.nBones)) : (i +%= 1) {
         // The C re-reads unk68 on every iteration; the armature array is zero-length, so no bounds check.
-        const armatures = &psx.get(s.unk0.unk68).?.armatures;
+        const armatures = &psx.get(s.unk0.model).?.armatures;
         psx.at(armatures, i).unkC = 0;
     }
 }

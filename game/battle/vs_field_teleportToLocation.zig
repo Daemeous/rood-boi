@@ -15,9 +15,9 @@ pub fn vs_field_teleportToLocation(location: c_int, arg1: c_int, arg2: c_int, ef
     const door = v.g.vs_field_pendingDestinationDoor();
     psx.setBits(door, "unk4_8", psx.conv(u5, arg1));
     psx.setBits(door, "unk6_10", psx.conv(u5, arg2));
-    psx.setBits(&door.unk2, "unk0_13", 0);
+    psx.setBits(&door.tileLocation, "unk0_13", 0);
     _ = c.vs_actors_actorPlacement(0, &actor);
-    const facing: c_int = @as(c_int, actor.unk0.unk4.pad) +% 0x200;
+    const facing: c_int = @as(c_int, actor.location.position.pad) +% 0x200;
     var quarter = facing -% @divTrunc(facing, 4096) *% 4096;
     if (quarter < 0) {
         quarter +%= 0x3FF;

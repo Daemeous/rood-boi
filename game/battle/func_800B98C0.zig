@@ -17,7 +17,7 @@ pub fn func_800B98C0(arg0: [*c]u8, _: c_short) callconv(.c) c_int {
         sp10.zndId = arg0[1];
         sp10.mpdId = arg0[2];
         psx.setBits(&sp10, "unk4_8", psx.conv(u5, arg0[3]));
-        psx.setBits(&sp10.unk2, "unk0_13", psx.conv(u3, arg0[4]));
+        psx.setBits(&sp10.tileLocation, "unk0_13", psx.conv(u3, arg0[4]));
         psx.setBits(&sp10, "unk6_10", psx.conv(u5, arg0[5]));
         psx.setBits(&sp10, "unk4_13", psx.conv(u2, arg0[6]));
         psx.setBits(&sp10, "unk4_15", psx.conv(u1, arg0[7]));

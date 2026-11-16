@@ -19,15 +19,15 @@ pub fn vs_field_findFacingUnlootedChest(arg0: c_int) callconv(.c) ?*v._mpdRoomSe
     )));
 
     if (temp_v0) |room| {
-        if (@as(c_int, room.unk12) == temp_s2) {
-            if (c.vs_battle_getStateFlag(psx.conv(c_short, @as(c_int, room.unk10) +% 0x3C0)) == 0) {
+        if (@as(c_int, room.facing) == temp_s2) {
+            if (c.vs_battle_getStateFlag(psx.conv(c_short, @as(c_int, room.openedFlag) +% 0x3C0)) == 0) {
                 // Sign-extend the 16-bit height: shift up 17, arithmetic shift back down.
                 const height: c_int = @as(c_int, c.vs_field_floorHeightAt(
                     ((@as(c_int, sp20[0]) << 7) | 0x40),
                     ((@as(c_int, sp20[2]) << 7) | 0x40),
                 ));
                 const expected: c_int = ((height << 17) >> 17) +% 0x60;
-                if (@as(c_int, sp10.unk0.unk4.vy) == expected) {
+                if (@as(c_int, sp10.location.position.vy) == expected) {
                     return room;
                 }
             }

@@ -12,14 +12,14 @@ pub fn func_8009DDF4(arg0: c_int, arg1: ?*v.SVECTOR) callconv(.c) void {
     const hdr: *align(1) v.D_800F4538_unk0 = &temp.unk0;
 
     if (psx.getBits(hdr, "weaponDrawn") != 0 and
-        (hdr.unkF == 0 or
+        (hdr.slot == 0 or
             (psx.getBits(hdr, "unkA_5") == 0 and psx.getBits(hdr, "unkA_6") == 0 and
                 psx.getBits(hdr, "unkA_0") != 2 and psx.getBits(hdr, "unkA_0") != 3)))
     {
         var var_s1: c_int = 4;
 
         if (temp.unk63C < 0x80) {
-            hdr.unk3E = psx.conv(i16, c.vs_actors_actorFacingDeltaToPoint(@ptrCast(temp), @ptrCast(arg1)));
+            hdr.facingDelta = psx.conv(i16, c.vs_actors_actorFacingDeltaToPoint(@ptrCast(temp), @ptrCast(arg1)));
             hdr.unk18 = 4;
             var_s1 = 8;
         }
@@ -38,7 +38,7 @@ pub fn func_8009DDF4(arg0: c_int, arg1: ?*v.SVECTOR) callconv(.c) void {
         c.vs_actors_headTrackingSpeed(@ptrCast(temp));
     }
 
-    if (hdr.unkF == 0) {
+    if (hdr.slot == 0) {
         if (psx.getBits(hdr, "unkA_0") != 3) {
             psx.setBits(hdr, "unkA_0", 0);
         }

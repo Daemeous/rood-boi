@@ -11,16 +11,16 @@ pub fn func_800BBAFC() callconv(.c) void {
     const s = v.g.vs_event_weatherTween();
     if (s.unk3 != 0) {
         // unk2 is a u8 and wraps; the shift and division are done in int, and unk3 != 0 makes the division defined.
-        s.unk2 +%= 1;
-        const step: c_int = @divTrunc(@as(c_int, s.unk2) << 12, @as(c_int, s.unk3));
+        s.elapsedFrames +%= 1;
+        const step: c_int = @divTrunc(@as(c_int, s.elapsedFrames) << 12, @as(c_int, s.unk3));
         const temp_lo: i16 = psx.conv(i16, step);
         const t: c_int = temp_lo;
-        s.unk4 = psx.conv(i16, (@as(c_int, s.unk6) +% ((@as(c_int, s.unk8) *% t) >> 12)) & 0xFFF);
+        s.windDirection = psx.conv(i16, (@as(c_int, s.unk6) +% ((@as(c_int, s.unk8) *% t) >> 12)) & 0xFFF);
         s.unkA = psx.conv(i16, @as(c_int, s.unkC) +% ((@as(c_int, s.unkE) *% t) >> 12));
-        s.unk10 = psx.conv(i16, @as(c_int, s.unk12) +% ((@as(c_int, s.unk14) *% t) >> 12));
-        c.vs_field_setWeatherWindAngles(@as(c_int, s.unk4), @as(c_int, s.unkA));
-        c.vs_field_setWeatherIntensity(@as(c_int, s.unk10));
-        if (s.unk2 == s.unk3) {
+        s.intensity = psx.conv(i16, @as(c_int, s.unk12) +% ((@as(c_int, s.unk14) *% t) >> 12));
+        c.vs_field_setWeatherWindAngles(@as(c_int, s.windDirection), @as(c_int, s.unkA));
+        c.vs_field_setWeatherIntensity(@as(c_int, s.intensity));
+        if (s.elapsedFrames == s.unk3) {
             s.unk3 = 0;
         }
     }

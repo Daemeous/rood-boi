@@ -60,7 +60,7 @@ pub fn startJump(actor: ?*v.D_800F4538_t, target: [*c]u8, speed_in: c_int, facin
     var velocity: c_int = 0;
 
     if (y <= 0) {
-        if (a.unk0.unkF != 0) {
+        if (a.unk0.slot != 0) {
             c.vs_audio_playActorModelSound(@ptrCast(&a.unk0), 12);
         }
         i = @intFromBool(y >= -64);
@@ -113,7 +113,7 @@ pub fn startJump(actor: ?*v.D_800F4538_t, target: [*c]u8, speed_in: c_int, facin
 
     a.unk1816 = psx.conv(i16, frames);
     a.unk181A = 2;
-    c.vs_actors_playActorAnimation(@as(c_int, a.unk0.unkF), animation, 0, 4);
+    c.vs_actors_playActorAnimation(@as(c_int, a.unk0.slot), animation, 0, 4);
     flags.* = (flags.* & ~@as(c_uint, 0x70000)) | 0x20000;
-    c.vs_actors_turnActorToAtRate(@as(c_int, a.unk0.unkF), @as(c_int, facing), 8);
+    c.vs_actors_turnActorToAtRate(@as(c_int, a.unk0.slot), @as(c_int, facing), 8);
 }

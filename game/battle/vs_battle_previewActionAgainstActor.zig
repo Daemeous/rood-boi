@@ -20,9 +20,9 @@ pub fn vs_battle_previewActionAgainstActor(action: c_int, user: c_int, target: c
     const area = &frame.area;
     const point = &frame.point;
     request.actionIndex = psx.conv(u16, action);
-    request.unk4.unk40 = 0;
-    request.unk4.unk0.targetActor = psx.conv(u8, user);
-    request.unk4A = 0;
+    request.primaryTarget.unk40 = 0;
+    request.primaryTarget.target.targetActor = psx.conv(u8, user);
+    request.targetCount = 0;
     // vs_main_actions has 256 entries in the views; the action index is not bounded by the C: psx.at.
     const spec = psx.at(v.g.actions(), action);
     switch (psx.getBits(spec, "unk2_4")) {
@@ -59,25 +59,25 @@ pub fn vs_battle_previewActionAgainstActor(action: c_int, user: c_int, target: c
             while (i < 6) : (i += 1) { // i < 6
                 if (c.func_800A1B9C(target, i, point, 2) >= 0 and c.vs_battle_isPointInTargetVolume(@ptrCast(area), point) != 0) {
                     // unk4C has 30 entries: at most 6 here
-                    request.unk4C[@intCast(count)].unk40 = 0;
-                    request.unk4C[@intCast(count)].unk0.targetActor = psx.conv(u8, target);
-                    request.unk4C[@intCast(count)].unk0.targetLimb = psx.conv(i8, i);
+                    request.targets[@intCast(count)].unk40 = 0;
+                    request.targets[@intCast(count)].target.targetActor = psx.conv(u8, target);
+                    request.targets[@intCast(count)].target.targetLimb = psx.conv(i8, i);
                     count += 1;
                 }
             }
-            request.unk4A = psx.conv(u16, count);
+            request.targetCount = psx.conv(u16, count);
         },
         5, 7 => {
-            request.unk4C[0].unk40 = 0;
-            request.unk4C[0].unk0.targetActor = psx.conv(u8, target);
-            request.unk4C[0].unk0.targetLimb = psx.conv(i8, limb);
-            request.unk4A = 1;
+            request.targets[0].unk40 = 0;
+            request.targets[0].target.targetActor = psx.conv(u8, target);
+            request.targets[0].target.targetLimb = psx.conv(i8, limb);
+            request.targetCount = 1;
         },
         1, 2, 3, 4 => {
-            request.unk4C[0].unk40 = 0;
-            request.unk4C[0].unk0.targetActor = psx.conv(u8, target);
-            request.unk4C[0].unk0.targetLimb = psx.conv(i8, psx.getBits(psx.get(psx.at(v.g.vs_battle_actors(), target).*.?.stats).?, "unk36"));
-            request.unk4A = 1;
+            request.targets[0].unk40 = 0;
+            request.targets[0].target.targetActor = psx.conv(u8, target);
+            request.targets[0].target.targetLimb = psx.conv(i8, psx.getBits(psx.get(psx.at(v.g.vs_battle_actors(), target).*.?.stats).?, "unk36"));
+            request.targetCount = 1;
         },
         else => {},
     }

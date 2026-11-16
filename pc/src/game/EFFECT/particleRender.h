@@ -38,7 +38,7 @@ void VS_PARTICLE_RENDER_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* a
         width = 1;
 
     vs_battle_lerpSvector(
-        arg0->unk34[4], vs_battle_sampleCurve(arg0->unkE, arg3->unkC), &arg1->unk108);
+        arg0->unk34[4], vs_battle_sampleCurve(arg0->unkE, arg3->unkC), &arg1->accelerationMin);
 
     if (arg0->rCurve != 0) {
         segment = vs_battle_sampleCurve(arg0->rCurve, arg3->unkC) * 2;
@@ -102,10 +102,10 @@ void VS_PARTICLE_RENDER_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* a
             angles[segment] -= 0x400;
         }
 
-        width = arg1->unk108.vx / 2;
+        width = arg1->accelerationMin.vx / 2;
         screenStart = screenPoints;
-        if (arg1->unk108.vy)
-            width += (rand() % arg1->unk108.vy) / 2;
+        if (arg1->accelerationMin.vy)
+            width += (rand() % arg1->accelerationMin.vy) / 2;
         offsetX = (rcos(angles[0]) * width) >> 0xC;
         offsetY = (rsin(angles[0]) * width) >> 0xC;
         quad.x[0] = screenStart[0].vx + offsetX;
@@ -119,9 +119,9 @@ void VS_PARTICLE_RENDER_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* a
         quad.v[0] = topV;
         quad.v[2] = bottomV;
         for (segment = 0; segment < 7; ++segment) {
-            width = arg1->unk108.vx / 2;
-            if (arg1->unk108.vy)
-                width += (rand() % arg1->unk108.vy) / 2;
+            width = arg1->accelerationMin.vx / 2;
+            if (arg1->accelerationMin.vy)
+                width += (rand() % arg1->accelerationMin.vy) / 2;
             angleOrDepth = (angles[segment] + angles[segment + 1]) / 2;
             offsetX = (rcos(angleOrDepth) * width) >> 0xC;
             offsetY = (rsin(angleOrDepth) * width) >> 0xC;
@@ -169,9 +169,9 @@ void VS_PARTICLE_RENDER_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* a
             vs_effect_advance(&quad, 2, 3);
         }
 
-        width = arg1->unk108.vx / 2;
-        if (arg1->unk108.vy)
-            width += (rand() % arg1->unk108.vy) / 2;
+        width = arg1->accelerationMin.vx / 2;
+        if (arg1->accelerationMin.vy)
+            width += (rand() % arg1->accelerationMin.vy) / 2;
         offsetX = (rcos(angles[segment]) * width) >> 0xC;
         offsetY = (rsin(angles[segment]) * width) >> 0xC;
         quad.x[1] = ((u_short*)screenStart)[segment * 2 + 2] + offsetX;

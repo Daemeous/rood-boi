@@ -8,7 +8,7 @@ const c = @import("c_146C");
 /// Applies the hit's status effects to the target's statuses, from the target's limb HP after the hit.
 pub fn vs_battle_deriveLimbInjuryStatuses(arg0: ?*v._hitEntity_t) callconv(.c) void {
     const hit = arg0.?;
-    const target = psx.get(v.g.vs_battle_actors()[hit.unk0.targetActor].?.stats).?;
+    const target = psx.get(v.g.vs_battle_actors()[hit.target.targetActor].?.stats).?;
 
     var a2: u16 = undefined;
     var a1: i16 = undefined;
@@ -65,7 +65,7 @@ pub fn vs_battle_deriveLimbInjuryStatuses(arg0: ?*v._hitEntity_t) callconv(.c) v
         }
     }
 
-    if (hit.unk0.targetActor == 0) {
+    if (hit.target.targetActor == 0) {
         var i: c_int = 0;
         while (i < 4) : (i +%= 1) {
             const li: usize = @intCast(i);

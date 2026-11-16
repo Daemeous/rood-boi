@@ -9,7 +9,7 @@ pub fn getActionFlags(actorId: c_int, actionId: c_int) callconv(.c) c_int {
     const action = psx.at(v.g.actions(), actionId);
     const actorSlot = psx.at(v.g.vs_battle_actors(), actorId).*.?;
     const actor = psx.get(actorSlot.stats).?;
-    var ret: c_int = @intFromBool(actor.unk954 != 0);
+    var ret: c_int = @intFromBool(actor.actionRecoveryTimer != 0);
 
     const cost = c._getActionCost(psx.conv(c_uint, actionId), @ptrCast(actor), 0);
     if ((@as(c_uint, @bitCast(cost)) & 0xFF00_0000) == 0) {

@@ -10,8 +10,8 @@ const c = @import("c_146C");
 pub fn damageFromTrapPanel(action: ?*v.vs_action_t, _: ?*v._hitEntity_t, hit: ?*v._hitEntity_t, nHit: c_int, withRandMod: c_int) callconv(.c) i16 {
     // sp10 in the C: every field it reads is set first.
     var sp10: v._hitIntermediate = undefined;
-    const actor = psx.get(v.g.vs_battle_actors()[hit.?.unk0.targetActor].?.stats).?;
-    const limb: c_int = hit.?.unk0.targetLimb;
+    const actor = psx.get(v.g.vs_battle_actors()[hit.?.target.targetActor].?.stats).?;
+    const limb: c_int = hit.?.target.targetLimb;
     // targetLimb, the hit's type and the source affinity (affinity - 1: 255 for 0) are not bounded by the C.
     const params = psx.at(&action.?.hitParams, nHit);
     sp10.value = psx.conv(i16, @divTrunc(@as(c_int, actor.maxHP), 10));
@@ -42,7 +42,7 @@ pub fn damageFromTrapPanel(action: ?*v.vs_action_t, _: ?*v._hitEntity_t, hit: ?*
         }
         sp10.armorStatFactor = psx.conv(i16, @as(c_int, sp10.armorStatFactor) -% (dpMod >> 2));
     }
-    if (v.g.vs_battle_actors()[actor.unk957].?.weaponDrawn & 1 != 0) {
+    if (v.g.vs_battle_actors()[actor.actorId].?.weaponDrawn & 1 != 0) {
         sp10.shieldStat = actor.shield.currentStr;
         if (sp10.@"type" != 0) {
             sp10.shieldStatFactor = psx.conv(i16, @as(c_int, sp10.shieldStatFactor) +% psx.at(&actor.shield.types, sp10.@"type").*);

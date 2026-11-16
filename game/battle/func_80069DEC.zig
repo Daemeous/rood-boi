@@ -10,7 +10,7 @@ pub fn func_80069DEC(mapId: c_int, zndId: c_int) callconv(.c) void {
     while (i < 4) : (i += 1) {
         const entry = &table[i];
         if (@as(c_int, entry.mapId) == mapId and @as(c_int, entry.zndId) == zndId) {
-            c.vs_main_bzero(&entry.unk8, @sizeOf(@TypeOf(entry.unk8)));
+            c.vs_main_bzero(&entry.actorStates, @sizeOf(@TypeOf(entry.actorStates)));
         }
     }
 }

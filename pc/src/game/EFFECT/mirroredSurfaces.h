@@ -68,7 +68,7 @@ int VS_MIRROR_SURFACE_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
         state->heightSpeed = 0;
         state->height = 0;
         state->age = 0;
-        effect = &vs_effects_package->block5Data->unk4[state->effect];
+        effect = &vs_effects_package->block5Data->definitions[state->effect];
         curveIndex = effect->transparencyCurve;
         if (curveIndex) {
             sample = vs_effects_package->curveBlock->curveSizes[curveIndex];
@@ -91,7 +91,7 @@ int VS_MIRROR_SURFACE_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
         vs_effects_restartTextureAnimation(&state->texture, effect->unkCA, effect->unkCB);
         break;
     case 2: {
-        effect = &vs_effects_package->block5Data->unk4[state->effect];
+        effect = &vs_effects_package->block5Data->definitions[state->effect];
         scratch->flags = effect->flags;
         actorMatrix = &battle->unk1C[effect->unkC8].unk38;
         vs_battle_lerpVector(effect->unk18,
@@ -113,21 +113,21 @@ int VS_MIRROR_SURFACE_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
             vs_battle_sampleCurve(effect->unk9, state->age), &scratch->unkA8);
         radiusStep = 0;
         sample = vs_battle_sampleCurve(effect->unkD, state->age);
-        vs_battle_lerpSvector(effect->unk34[2], sample, &scratch->unkF8);
+        vs_battle_lerpSvector(effect->unk34[2], sample, &scratch->forceMin);
         vs_battle_lerpSvector(effect->unk34[3], sample, &scratch->unk100);
         row = 0;
         sample = vs_battle_sampleCurve(effect->unkE, state->age);
-        vs_battle_lerpSvector(effect->unk34[4], sample, &scratch->unk108);
-        vs_battle_lerpSvector(effect->unk34[5], sample, &scratch->unk110);
+        vs_battle_lerpSvector(effect->unk34[4], sample, &scratch->accelerationMin);
+        vs_battle_lerpSvector(effect->unk34[5], sample, &scratch->accelerationMax);
         vs_battle_lerpVector(effect->unk34[1],
             vs_battle_sampleCurve(effect->unkB, state->age), &scratch->unkC8);
-        vs_battle_lerp2DVector(effect->unk94[2],
-            vs_battle_sampleCurve(effect->unkC, state->age), scratch->unk118);
-        state->heightSpeed += scratch->unk108.vy;
-        tempHeight = state->height += scratch->unkF8.vy + state->heightSpeed;
+        vs_battle_lerp2DVector(effect->pairRanges[2],
+            vs_battle_sampleCurve(effect->unkC, state->age), scratch->speedRange);
+        state->heightSpeed += scratch->accelerationMin.vy;
+        tempHeight = state->height += scratch->forceMin.vy + state->heightSpeed;
         heightValue = tempHeight + scratch->unkA8.vy;
-        state->radiusSpeed += scratch->unk108.vx;
-        state->radius += scratch->unkF8.vx + state->radiusSpeed;
+        state->radiusSpeed += scratch->accelerationMin.vx;
+        state->radius += scratch->forceMin.vx + state->radiusSpeed;
         radiusValue = state->radius + scratch->unkA8.vx;
         for (row = 0; row < 9; ++row) {
             if (row < 5) {
@@ -161,9 +161,9 @@ int VS_MIRROR_SURFACE_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
                             >> 12);
                 }
             }
-            radiusStep += scratch->unk110.vx;
+            radiusStep += scratch->accelerationMax.vx;
             radiusValue += radiusStep + scratch->unk100.vx;
-            heightStep += scratch->unk110.vy;
+            heightStep += scratch->accelerationMax.vy;
             heightValue += heightStep + scratch->unk100.vy;
             if (effect->rCurve)
                 colors[row].r = state->factors[row]

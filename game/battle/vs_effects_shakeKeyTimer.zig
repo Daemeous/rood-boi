@@ -8,7 +8,7 @@ const c = @import("c_5BF94");
 /// unkA = vs_effects_segmentedEffectCurveDuration(the unk0_4 field of the command word after the current pair), as an i16.
 pub fn vs_effects_shakeKeyTimer(command: ?*v.func_800D5780_t) callconv(.c) void {
     const cmd = command.?;
-    const words: [*]u32 = @ptrCast(psx.get(cmd.unk0).?);
-    const entry: *v.func_800D57FC_t2 = @ptrCast(psx.at(words, @as(c_int, cmd.unk6) *% 2 +% 1));
+    const words: [*]u32 = @ptrCast(psx.get(cmd.keys).?);
+    const entry: *v.func_800D57FC_t2 = @ptrCast(psx.at(words, @as(c_int, cmd.keyIndex) *% 2 +% 1));
     cmd.unkA = psx.conv(i16, c.vs_effects_segmentedEffectCurveDuration(@as(c_int, psx.getBits(entry, "unk0_4"))));
 }

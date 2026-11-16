@@ -17,7 +17,7 @@ pub fn vs_field_placeAshleyAtRoomEntrance() callconv(.c) void {
 
     sp28.unk0_0 = psx.conv(u8, psx.getBits(door, "unk4_8"));
     sp28.unk0_16 = psx.conv(u8, psx.getBits(door, "unk6_10"));
-    sp28.unk0_8 = psx.conv(u8, psx.getBits(&door.unk2, "unk0_13"));
+    sp28.unk0_8 = psx.conv(u8, psx.getBits(&door.tileLocation, "unk0_13"));
     // unk4_13 is 0..3, so the product is 0..192 and fits the 8-bit field.
     psx.setBits(&sp28, "unk0_24", psx.conv(u8, @as(c_int, psx.getBits(door, "unk4_13")) *% 64));
     c.vs_actors_placeActorInRoom(0, @ptrCast(&sp28), -0x800, 2);

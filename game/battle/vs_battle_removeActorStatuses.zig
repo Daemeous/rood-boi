@@ -90,14 +90,14 @@ pub fn vs_battle_removeActorStatuses(mask: c_int, actor_ptr: ?*v.vs_battle_actor
             actor.unk33 = actor.unk2F;
         }
 
-        c.vs_battle_aiSetActorVerticalMovementSteps(@as(c_int, actor.unk957), @as(c_int, actor.unk31), @as(c_int, actor.unk33));
+        c.vs_battle_aiSetActorVerticalMovementSteps(@as(c_int, actor.actorId), @as(c_int, actor.unk31), @as(c_int, actor.unk33));
     }
 
     if ((mask & 0x800) != 0 and (actor.statuses & 0x8010) == 0) {
         actor.unk31 = actor.unk2E;
         actor.unk33 = actor.unk2F;
 
-        c.vs_battle_aiSetActorVerticalMovementSteps(@as(c_int, actor.unk957), @as(c_int, actor.unk31), @as(c_int, actor.unk33));
+        c.vs_battle_aiSetActorVerticalMovementSteps(@as(c_int, actor.actorId), @as(c_int, actor.unk31), @as(c_int, actor.unk33));
     }
 
     if ((mask & 0x180000) != 0) {
@@ -157,7 +157,7 @@ pub fn vs_battle_removeActorStatuses(mask: c_int, actor_ptr: ?*v.vs_battle_actor
                 if (actor.weapon.blade.affinities[inc] < 50 and c.vs_main_getRand(8) == 0) {
                     actor.weapon.blade.affinities[inc] +%= 1;
 
-                    if (actor.unk957 == 0) {
+                    if (actor.actorId == 0) {
                         c.func_80096768(240, statIncrease +% 6, 1);
                     }
                 }
@@ -165,7 +165,7 @@ pub fn vs_battle_removeActorStatuses(mask: c_int, actor_ptr: ?*v.vs_battle_actor
                 if (actor.weapon.blade.affinities[dec] > -100 and c.vs_main_getRand(16) == 0) {
                     actor.weapon.blade.affinities[dec] -%= 1;
 
-                    if (actor.unk957 == 0) {
+                    if (actor.actorId == 0) {
                         c.func_80096768(240, statDecrease +% 6, (std.math.minInt(c_int) | 1));
                     }
                 }
@@ -215,7 +215,7 @@ pub fn vs_battle_removeActorStatuses(mask: c_int, actor_ptr: ?*v.vs_battle_actor
                 if (actor.shield.base.affinities[inc] < 50 and c.vs_main_getRand(8) == 0) {
                     actor.shield.base.affinities[inc] +%= 1;
 
-                    if (actor.unk957 == 0) {
+                    if (actor.actorId == 0) {
                         c.func_80096768(241, statIncrease +% 6, 1);
                     }
                 }
@@ -223,7 +223,7 @@ pub fn vs_battle_removeActorStatuses(mask: c_int, actor_ptr: ?*v.vs_battle_actor
                 if (actor.shield.base.affinities[dec] > -100 and c.vs_main_getRand(16) == 0) {
                     actor.shield.base.affinities[dec] -%= 1;
 
-                    if (actor.unk957 == 0) {
+                    if (actor.actorId == 0) {
                         c.func_80096768(241, statDecrease +% 6, (std.math.minInt(c_int) | 1));
                     }
                 }
@@ -240,7 +240,7 @@ pub fn vs_battle_removeActorStatuses(mask: c_int, actor_ptr: ?*v.vs_battle_actor
                     if (limb.armor.armor.affinities[inc] < 50 and c.vs_main_getRand(8) == 0) {
                         limb.armor.armor.affinities[inc] +%= 1;
 
-                        if (actor.unk957 == 0) {
+                        if (actor.actorId == 0) {
                             c.func_80096768(@as(c_int, limb.nameIndex), statIncrease +% 6, 1);
                         }
                     }
@@ -248,7 +248,7 @@ pub fn vs_battle_removeActorStatuses(mask: c_int, actor_ptr: ?*v.vs_battle_actor
                     if (limb.armor.armor.affinities[dec] > -100 and c.vs_main_getRand(16) == 0) {
                         limb.armor.armor.affinities[dec] -%= 1;
 
-                        if (actor.unk957 == 0) {
+                        if (actor.actorId == 0) {
                             c.func_80096768(@as(c_int, limb.nameIndex), statDecrease +% 6, (std.math.minInt(c_int) | 1));
                         }
                     }

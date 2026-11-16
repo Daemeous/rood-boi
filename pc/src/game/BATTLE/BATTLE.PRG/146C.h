@@ -9,7 +9,7 @@ typedef struct {
     short width;
     short height;
     short unk4;
-    short unk6;
+    short cellCount;
 } _mpdRoomCollisionMapSection;
 
 typedef struct {
@@ -80,9 +80,9 @@ typedef struct {
 } _mpdRoomSection3;
 
 typedef struct {
-    short unk0;
-    short unk2;
-    short unk4;
+    short tileX;
+    short tileZ;
+    short floorLayer;
     short unk6;
     union {
         short s16;
@@ -96,12 +96,12 @@ typedef struct {
 } _mpdRoomSection9;
 
 typedef struct {
-    _mpdRoomSection9 unk0;
+    _mpdRoomSection9 trigger;
     short keyOrSigil;
     short unkE;
-    short unk10;
+    short linkedLockIndex;
     char unk12;
-    char unk13;
+    char delayFrames;
 } _mpdRoomSectionA;
 
 typedef struct {
@@ -167,8 +167,8 @@ typedef struct {
     u_short unk0_11 : 3;
     u_short unk0_14 : 1;
     u_short unk0_15 : 1;
-    u_short unk2;
-    char unk4[0];
+    u_short effectCount;
+    char effectIds[0];
 } _mpdRoomSection11;
 
 typedef struct {
@@ -196,17 +196,17 @@ typedef struct {
 } _mpdRoomSection12;
 
 typedef struct {
-    short unk0;
-    short unk2;
+    short tileX;
+    short tileZ;
     short unk4;
     short unk6;
-    short unk8;
+    short isOpen;
     short unkA;
     short unkC;
     short unkE;
-    short unk10;
-    short unk12;
-    vs_battle_loot unk14;
+    short openedFlag;
+    short facing;
+    vs_battle_loot loot;
 } _mpdRoomSection13;
 
 typedef struct {
@@ -404,7 +404,7 @@ typedef struct {
     /* 0x00 */ short hp;
     /* 0x02 */ short maxHp;
     /* 0x04 */ signed char agilityDefenseBonus;
-    /* 0x05 */ char unk5;
+    /* 0x05 */ char anchorBone;
     /* 0x06 */ u_char nameIndex;
     /* 0x07 */ char chainEvasion;
     /* 0x08 */ short types[4];
@@ -547,14 +547,14 @@ typedef struct {
     /* 0x398 */ vs_battle_uiEquipment_limb limbs[6];
     /* 0x8C0 */ vs_battle_actor_unk8C0 armor[6][4];
     /* 0x920 */ char dpSplash[6][6];
-    /* 0x944 */ int unk944;
+    /* 0x944 */ int statusImmunities;
     /* 0x948 */ int statuses;
     /* 0x94C */ u_char statusTimers[8];
-    /* 0x954 */ u_short unk954;
+    /* 0x954 */ u_short actionRecoveryTimer;
     /* 0x956 */ u_char unk956_0 : 1;
     /* 0x956 */ u_char isAnalyzed : 1;
     /* 0x956 */ u_char unk956_2 : 6;
-    /* 0x957 */ u_char unk957;
+    /* 0x957 */ u_char actorId;
     /* 0x958 */ vs_battle_uiMisc miscItem;
     /* 0x95C */ int unk95C;
     /* 0x960 */ vs_battle_uiMiscRand unk960;
@@ -616,7 +616,7 @@ typedef struct {
         vs_battle_actor unk0;
         vs_battle_actor2 unk50;
     } unk0;
-    D_800F4538_unk0 unk9B4;
+    D_800F4538_unk0 model;
     MATRIX unk6C[8];
     int unk16C;
     int unk170;
@@ -626,8 +626,8 @@ typedef struct {
 typedef struct {
     vs_battle_actor_dat2 unk0;
     /* the rest of the object: its room runs from unk9B4 */
-    char unkB2C[VS_OBJECT_REGION - (sizeof(vs_battle_actor_dat2) - __builtin_offsetof(vs_battle_actor_dat2, unk9B4))];
-    vs_battle_actor4 unk22B4[2];
+    char unkB2C[VS_OBJECT_REGION - (sizeof(vs_battle_actor_dat2) - __builtin_offsetof(vs_battle_actor_dat2, model))];
+    vs_battle_actor4 modelSlots[2];
 } vs_battle_actor_dat;
 
 typedef struct {
@@ -690,9 +690,9 @@ typedef struct {
     int zndEnemyCount;
     _zndEnemy* zndEnemies;
     vs_main_CdFile* zudFiles;
-    int unk14;
-    vs_main_CdQueueSlot* unk18;
-    void* unk1C;
+    int loadedZudIndexPlusOne;
+    vs_main_CdQueueSlot* zudDiscRequest;
+    void* zudData;
     vs_main_CdQueueSlot* zndCdFile;
     void* zndData;
     int musicId;
@@ -700,8 +700,8 @@ typedef struct {
     int unk30;
     int mapId;
     int unk38;
-    short unk3C;
-    short unk3E;
+    short tileColumns;
+    short tileRows;
     _zoneContextBounds bounds;
     int unk48;
     int unk4C;
@@ -711,12 +711,12 @@ typedef struct {
     void* mpdData;
     u_int mpdEnemyCount;
     _mpdEnemy* mpdEnemies;
-    int unk68;
+    int currentSceneId;
 } _zoneContext_t;
 
 typedef struct {
-    int unk0;
-    int unk4;
+    int x;
+    int y;
     int unk8;
     int unkC;
 } D_800F1A68_t;
@@ -841,14 +841,14 @@ typedef struct {
     signed char types[4];
     signed char affinities[8];
     _actions actions[4];
-    _armorIntermediate unk20;
+    _armorIntermediate armor;
     char dpSplash[6];
     char unk5A[2];
 } _limbInit;
 
 typedef struct {
     u_short subType;
-    char unk2;
+    char characterKind;
     u_int reach : 5;
     u_int unk3_5 : 3;
     char name[24];

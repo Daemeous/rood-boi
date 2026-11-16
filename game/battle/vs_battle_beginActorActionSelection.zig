@@ -9,8 +9,8 @@ const c = @import("c_146C");
 pub fn vs_battle_beginActorActionSelection(arg0: c_int, arg1: c_ushort) callconv(.c) void {
     v.g.D_800F196C().* = 2;
     c.vs_main_bzero(&v.g.vs_battle_actionState().*.?.unk8, 0x84C);
-    v.g.vs_battle_actionState().*.?.unk8.unk4.unk40 = 0;
-    v.g.vs_battle_actionState().*.?.unk8.unk4.unk0.targetActor = psx.conv(u8, arg0);
+    v.g.vs_battle_actionState().*.?.unk8.primaryTarget.unk40 = 0;
+    v.g.vs_battle_actionState().*.?.unk8.primaryTarget.target.targetActor = psx.conv(u8, arg0);
     v.g.vs_battle_actionState().*.?.unk8.actionIndex = arg1;
     c.vs_field_storePreferredActionCameraDistance();
     c.func_80088CA0();
@@ -24,12 +24,12 @@ pub fn vs_battle_beginActorActionSelection(arg0: c_int, arg1: c_ushort) callconv
 
     // vs_battle_actors[arg0]: no bounds check, as in the C; a null actor traps where the C would fault.
     const temp_a0: *v.vs_battle_actor = psx.at(v.g.vs_battle_actors(), arg0).*.?;
-    v.g.vs_battle_actionState().*.?.unk29C0[0].unk9 = temp_a0.unk10.u8[0];
-    v.g.vs_battle_actionState().*.?.unk29C0[0].unkA = temp_a0.unk10.u8[2];
-    v.g.vs_battle_actionState().*.?.unk8.unk4A = 0;
+    v.g.vs_battle_actionState().*.?.previews[0].unk9 = temp_a0.unk10.u8[0];
+    v.g.vs_battle_actionState().*.?.previews[0].unkA = temp_a0.unk10.u8[2];
+    v.g.vs_battle_actionState().*.?.unk8.targetCount = 0;
     v.g.vs_battle_actionState().*.?.unk298E = 0;
     v.g.vs_battle_actionState().*.?.unk4 = 0;
-    c.func_8009E5C4(@as(c_int, v.g.vs_battle_actionState().*.?.unk8.unk4.unk0.targetActor));
+    c.func_8009E5C4(@as(c_int, v.g.vs_battle_actionState().*.?.unk8.primaryTarget.target.targetActor));
 
     if (v.g.vs_battle_actionState().*.?.unk2984 != 0) {
         c.func_800C031C();
@@ -40,7 +40,7 @@ pub fn vs_battle_beginActorActionSelection(arg0: c_int, arg1: c_ushort) callconv
 
     var i: c_int = 0;
     while (i < 16) : (i +%= 1) {
-        if (i != @as(c_int, v.g.vs_battle_actionState().*.?.unk8.unk4.unk0.targetActor)) {
+        if (i != @as(c_int, v.g.vs_battle_actionState().*.?.unk8.primaryTarget.target.targetActor)) {
             const temp_v0: c_uint = c.vs_actors_actorStateFlags(i);
             if ((temp_v0 & 4) != 0) {
                 // The flags argument is an int in the callee's prototype: the C converts the u_int.

@@ -18,6 +18,6 @@ pub fn vs_field_disableTrapAtPosition(arg0: ?*v.func_8006CE70_t) callconv(.c) vo
     if (section_c != null) {
         const section: *v._mpdRoomSection9 = @ptrCast(section_c);
         c.vs_field_setRoomTriggerEnabled(section_c, 1);
-        c.vs_battle_aiMarkAiTileDynamicObstacle(@as(c_int, section.unk0), @as(c_int, section.unk2));
+        c.vs_battle_aiMarkAiTileDynamicObstacle(@as(c_int, section.tileX), @as(c_int, section.tileZ));
     }
 }

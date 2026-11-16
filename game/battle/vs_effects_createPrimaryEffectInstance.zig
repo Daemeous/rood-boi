@@ -14,14 +14,14 @@ pub fn vs_effects_createPrimaryEffectInstance(arg0: ?*v.D_800F53B8_t2) callconv(
 
     var currentNode: ?*v.D_800F53B8_t = v.g.vs_effects_primaryInstances().*;
 
-    if (currentNode == null or arg0.?.unk10 < @as(i32, currentNode.?.unk9)) {
+    if (currentNode == null or arg0.?.priority < @as(i32, currentNode.?.unk9)) {
         psx.put(&newNode.next, currentNode);
         v.g.vs_effects_primaryInstances().* = newNode;
     } else {
         while (true) {
             // psx_copy/psx_set of guest pointer words: the following node is read once, its value is the same.
             const following = psx.get(currentNode.?.next);
-            if (following == null or arg0.?.unk10 < @as(i32, following.?.unk9)) {
+            if (following == null or arg0.?.priority < @as(i32, following.?.unk9)) {
                 psx.put(&newNode.next, following);
                 psx.put(&currentNode.?.next, newNode);
                 break;

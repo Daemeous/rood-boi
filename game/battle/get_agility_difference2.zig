@@ -10,10 +10,10 @@ const c = @import("c_146C");
 pub fn getAgilityDifference2(action: ?*v.vs_action_t, source: ?*v._hitEntity_t, target: ?*v._hitEntity_t, hitNumber: c_int, addVariance: c_int) callconv(.c) c_int {
     var agiDiff: c_int = undefined;
     var i: usize = undefined;
-    const targetLimb: c_int = @as(c_int, target.?.unk0.targetLimb);
+    const targetLimb: c_int = @as(c_int, target.?.target.targetLimb);
 
-    const sourceActor = psx.get(v.g.vs_battle_actors()[source.?.unk0.targetActor].?.stats).?;
-    const targetActor = psx.get(v.g.vs_battle_actors()[target.?.unk0.targetActor].?.stats).?;
+    const sourceActor = psx.get(v.g.vs_battle_actors()[source.?.target.targetActor].?.stats).?;
+    const targetActor = psx.get(v.g.vs_battle_actors()[target.?.target.targetActor].?.stats).?;
 
     var sourceValue: c_int = @as(c_int, sourceActor.agility) +% @as(c_int, sourceActor.accessory.currentAgility);
     var targetValue: c_int = @as(c_int, targetActor.agility) +% @as(c_int, targetActor.accessory.currentAgility);
@@ -24,11 +24,11 @@ pub fn getAgilityDifference2(action: ?*v.vs_action_t, source: ?*v._hitEntity_t, 
         targetValue +%= @as(c_int, targetActor.limbs[i].armor.currentAgility);
     }
 
-    if ((v.g.vs_battle_actors()[sourceActor.unk957].?.weaponDrawn & 1) != 0) {
+    if ((v.g.vs_battle_actors()[sourceActor.actorId].?.weaponDrawn & 1) != 0) {
         sourceValue +%= @as(c_int, sourceActor.weapon.currentAgility) +% @as(c_int, sourceActor.shield.currentAgility);
     }
 
-    if ((v.g.vs_battle_actors()[targetActor.unk957].?.weaponDrawn & 1) != 0) {
+    if ((v.g.vs_battle_actors()[targetActor.actorId].?.weaponDrawn & 1) != 0) {
         targetValue +%= @as(c_int, targetActor.weapon.currentAgility) +% @as(c_int, targetActor.shield.currentAgility);
     }
 

@@ -15,7 +15,7 @@ fn word5AC(actor: *v.D_800F4538_t) c_int {
 
 /// The vertex word `which` of vertex `index` in the actor's model (`(short*)(vertexOffset + index * 8)`).
 fn vertexWord(actor: *v.D_800F4538_t, index: c_int, which: c_int) *align(1) i16 {
-    const model = psx.get(actor.unk0.unk68).?;
+    const model = psx.get(actor.unk0.model).?;
     const base: [*]u8 = @ptrFromInt(@intFromPtr(model) +% model.vertexOffset);
     return psx.byteAt(i16, base, @as(isize, index) * 8 + @as(isize, which) * 2);
 }
@@ -42,8 +42,8 @@ fn wrapHalf(motion: *v.D_800F4538_unk1864) void {
 
 fn applyTranslation(motion: *v.D_800F4538_unk1864, arg: c_int) void {
     if (arg == 0) {
-        motion.unkC = psx.conv(u16, @as(c_int, motion.unkC) +% motion.unk10);
-        motion.unkE = psx.conv(u16, @as(c_int, motion.unkE) +% motion.unk12);
+        motion.radiusExpandRate = psx.conv(u16, @as(c_int, motion.radiusExpandRate) +% motion.radiusExpandDelta);
+        motion.radiusShrinkRate = psx.conv(u16, @as(c_int, motion.radiusShrinkRate) +% motion.radiusShrinkDelta);
     }
     motion.unk5 = psx.conv(u8, arg);
 }
@@ -246,18 +246,18 @@ fn execute(actor: *v.D_800F4538_t, state: *v.D_800F4538_unkC54, mode: c_int, id:
         10 => c.vs_audio_playActorModelSound(@ptrCast(&actor.unk0), s[1]),
         25 => psx.setBits(actor, "unk5AC_20", 1),
         51 => {
-            motion.unk10 = target16(s, 1, motion.unkC);
+            motion.radiusExpandDelta = target16(s, 1, motion.radiusExpandRate);
             arg.* = s[3];
             applyTranslation(motion, arg.*);
         },
         52 => {
-            motion.unk12 = target16(s, 1, motion.unkE);
+            motion.radiusShrinkDelta = target16(s, 1, motion.radiusShrinkRate);
             arg.* = s[3];
             applyTranslation(motion, arg.*);
         },
         53 => {
-            motion.unk10 = target16(s, 1, motion.unkC);
-            motion.unk12 = target16(s, 3, motion.unkE);
+            motion.radiusExpandDelta = target16(s, 1, motion.radiusExpandRate);
+            motion.radiusShrinkDelta = target16(s, 3, motion.radiusShrinkRate);
             arg.* = s[5];
             applyTranslation(motion, arg.*);
         },
@@ -288,11 +288,11 @@ fn execute(actor: *v.D_800F4538_t, state: *v.D_800F4538_unkC54, mode: c_int, id:
         60 => {
             arg.* = s[1];
             const point: [*]const u16 = @as([*]const u16, @ptrCast(&v.g.D_800E9A28()[0])) + @as(usize, @intCast(arg.*)) * 4;
-            motion.unk10 = psx.conv(i16, @as(c_int, point[0]) -% motion.unkC);
-            motion.unk12 = psx.conv(i16, @as(c_int, point[1]) -% motion.unkE);
+            motion.radiusExpandDelta = psx.conv(i16, @as(c_int, point[0]) -% motion.radiusExpandRate);
+            motion.radiusShrinkDelta = psx.conv(i16, @as(c_int, point[1]) -% motion.radiusShrinkRate);
             if (motion.unk5 == 0) {
-                motion.unkC = psx.conv(u16, @as(c_int, motion.unkC) +% motion.unk10);
-                motion.unkE = psx.conv(u16, @as(c_int, motion.unkE) +% motion.unk12);
+                motion.radiusExpandRate = psx.conv(u16, @as(c_int, motion.radiusExpandRate) +% motion.radiusExpandDelta);
+                motion.radiusShrinkRate = psx.conv(u16, @as(c_int, motion.radiusShrinkRate) +% motion.radiusShrinkDelta);
             }
             const delta: i16 = @bitCast(point[2]);
             motion.unkA = psx.conv(i16, @as(c_int, delta) -% motion.unk8);
@@ -318,7 +318,7 @@ fn execute(actor: *v.D_800F4538_t, state: *v.D_800F4538_unkC54, mode: c_int, id:
 pub fn vs_actors_runAnimationEvents(actor: ?*v.D_800F4538_t, state: ?*v.D_800F4538_unkC54, mode: c_int) callconv(.c) c_int {
     const a = actor.?;
     const st = state.?;
-    const id: c_int = a.unk0.unkF;
+    const id: c_int = a.unk0.slot;
     var script: [*]u8 = @ptrCast(psx.get(st.unk544).?);
     // Uninitialised in the original until the first command sets it; read by
     // command 2's animation call when it comes first (0 here).

@@ -8,7 +8,7 @@ const c = @import("c_5BF94");
 /// Calls each effect's renderer with 2; frees (vs_effects_detachEffectRenderer) those that return 0. Returns 1.
 pub fn vs_effects_tickScriptRenderers(script: ?*v.D_800F53B8_t) callconv(.c) c_int {
     const Renderer = *const fn (*align(4) v.func_800D4910_t, c_uint, c_int) callconv(.c) c_int; // effectExec
-    var node = psx.get(script.?.unkD1C.unk34);
+    var node = psx.get(script.?.context.unk34);
     while (node) |n| {
         const next = n.next;
         const renderer: ?Renderer = @ptrCast(n.renderer);

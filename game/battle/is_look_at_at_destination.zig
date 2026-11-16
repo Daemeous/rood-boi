@@ -10,11 +10,11 @@ pub fn isLookAtAtDestination() callconv(.c) c_int {
     var sp30: v.func_8006EBF8_t = undefined;
 
     _ = c.vs_actors_actorPlacement(0, &sp30);
-    sp10.position.vx = @as(c_int, sp30.unk0.unk4.vx) *% 4096;
-    const vyScaled: c_int = @as(c_int, sp30.unk0.unk4.vy) *% 4096;
+    sp10.position.vx = @as(c_int, sp30.location.position.vx) *% 4096;
+    const vyScaled: c_int = @as(c_int, sp30.location.position.vy) *% 4096;
     // The sum is unsigned in C (0xFFFA6000 is an unsigned int), then stored back as int.
     sp10.position.vy = psx.conv(c_int, psx.conv(c_uint, vyScaled) +% 0xFFFA6000);
-    sp10.position.vz = @as(c_int, sp30.unk0.unk4.vz) *% 4096;
+    sp10.position.vz = @as(c_int, sp30.location.position.vz) *% 4096;
     if (sp10.position.vy > 0) {
         sp10.position.vy = 0;
     }

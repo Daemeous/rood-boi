@@ -12,7 +12,7 @@ pub fn vs_items_removeArmorEnchantmentOnEquip() callconv(.c) void {
 
     if ((temp.statuses & 0x1E000000) != 0) {
         // The status bits are read again for the second call: the first may change them.
-        c.func_80093FEC(@as(c_int, temp.unk957), 0, temp.statuses & 0x1E000000, 1);
+        c.func_80093FEC(@as(c_int, temp.actorId), 0, temp.statuses & 0x1E000000, 1);
         c.vs_battle_removeActorStatuses(temp.statuses & 0x1E000000, @ptrCast(temp));
     }
 }

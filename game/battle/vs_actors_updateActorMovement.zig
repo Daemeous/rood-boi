@@ -102,7 +102,7 @@ pub fn vs_actors_updateActorMovement(arg0: c_int) callconv(.c) void {
             }
             if (c.vs_field_isPointOnMovingPlatform(s.unk6E4, psx.cptr(c.SVECTOR, &s.unk0.position)) == 0) {
                 s.unk6E4 = 0;
-                c.vs_battle_aiClearActorAiNavigationReset(s.unk0.unkF);
+                c.vs_battle_aiClearActorAiNavigationReset(s.unk0.slot);
             }
             if (s.unk181A == 1) {
                 s.unk1814 = s.unk0.position.vx;

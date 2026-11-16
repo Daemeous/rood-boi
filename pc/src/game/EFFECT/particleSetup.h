@@ -197,21 +197,21 @@ void VS_PARTICLE_ORIGIN_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* a
     case 24:
     case 32:
     case 40:
-        arg1->unk184 = 4;
-        arg1->unk188 = 4;
+        arg1->ringSegments = 4;
+        arg1->ringPositions = 4;
         break;
 
     case 48:
-        arg1->unk184 = arg0->unkCA;
+        arg1->ringSegments = arg0->unkCA;
 
-        if (arg1->unk184 == 0) {
-            arg1->unk184 = 1;
+        if (arg1->ringSegments == 0) {
+            arg1->ringSegments = 1;
         }
 
-        arg1->unk188 = arg0->unkCB;
+        arg1->ringPositions = arg0->unkCB;
 
-        if (arg1->unk188 == 0) {
-            arg1->unk188 = arg1->unk184;
+        if (arg1->ringPositions == 0) {
+            arg1->ringPositions = arg1->ringSegments;
         }
         break;
 
@@ -219,10 +219,10 @@ void VS_PARTICLE_ORIGIN_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* a
         return;
     }
 
-    temp_lo = 0x1000 / arg1->unk184;
+    temp_lo = 0x1000 / arg1->ringSegments;
 
     if ((arg1->flags & 0x1800) != 0x1000) {
-        VS_PARTICLE_CORNER_STATE %= arg1->unk188;
+        VS_PARTICLE_CORNER_STATE %= arg1->ringPositions;
         temp_s0_2 = (VS_PARTICLE_CORNER_STATE * temp_lo) + 0x200;
         sp10 = (rcos(temp_s0_2) * arg1->unkA8.vx) >> 0xC;
         var_fp = (rsin(temp_s0_2) * arg1->unkA8.vz) >> 0xC;
@@ -230,7 +230,7 @@ void VS_PARTICLE_ORIGIN_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* a
 
     for (i = 0; i < arg3->unk2; ++i) {
         temp_s1 = arg3->unk4 + (i * 4);
-        VS_PARTICLE_CORNER_STATE = (VS_PARTICLE_CORNER_STATE + 1) % arg1->unk188;
+        VS_PARTICLE_CORNER_STATE = (VS_PARTICLE_CORNER_STATE + 1) % arg1->ringPositions;
         temp_s0_2 = (VS_PARTICLE_CORNER_STATE * temp_lo) + 0x200;
         temp_s3 = (rcos(temp_s0_2) * arg1->unkA8.vx) >> 0xC;
         temp_s0_2 = (rsin(temp_s0_2) * arg1->unkA8.vz) >> 0xC;
@@ -264,20 +264,20 @@ void VS_PARTICLE_TARGET_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* a
     int i;
 
     vs_battle_lerpSvector(
-        arg0->unk34[6], vs_battle_sampleCurve(arg0->unkF, arg3->unkC), &arg1->unk13C);
+        arg0->unk34[6], vs_battle_sampleCurve(arg0->unkF, arg3->unkC), &arg1->attractionOffset);
     vs_battle_lerpSvector(
-        arg0->unk34[7], vs_battle_sampleCurve(arg0->unk10, arg3->unkC), &arg1->unk144);
+        arg0->unk34[7], vs_battle_sampleCurve(arg0->unk10, arg3->unkC), &arg1->attractionJitter);
 
     switch (arg1->flags & 0x1C0) {
     case 0xC0:
-        arg1->unk13C.vx += arg2->unk1C[arg0->unkC9].unk38.t[0];
-        arg1->unk13C.vy += arg2->unk1C[arg0->unkC9].unk38.t[1];
-        arg1->unk13C.vz += arg2->unk1C[arg0->unkC9].unk38.t[2];
+        arg1->attractionOffset.vx += arg2->unk1C[arg0->unkC9].unk38.t[0];
+        arg1->attractionOffset.vy += arg2->unk1C[arg0->unkC9].unk38.t[1];
+        arg1->attractionOffset.vz += arg2->unk1C[arg0->unkC9].unk38.t[2];
         break;
     case 0x80:
-        arg1->unk13C.vx += vs_effects_actionRequest.unkE0.vx;
-        arg1->unk13C.vy += vs_effects_actionRequest.unkE0.vy;
-        arg1->unk13C.vz += vs_effects_actionRequest.unkE0.vz;
+        arg1->attractionOffset.vx += vs_effects_actionRequest.unkE0.vx;
+        arg1->attractionOffset.vy += vs_effects_actionRequest.unkE0.vy;
+        arg1->attractionOffset.vz += vs_effects_actionRequest.unkE0.vz;
         break;
     case 0:
         break;
@@ -286,11 +286,11 @@ void VS_PARTICLE_TARGET_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* a
     for (i = 0; i < arg3->unk2; ++i) {
         SVECTOR* temp_s0 = &arg3->unk4[i * 4 + 3];
         temp_s0->vx =
-            arg1->unk13C.vx + vs_battle_randUniformInt(arg1->unk144.vx, -arg1->unk144.vx);
+            arg1->attractionOffset.vx + vs_battle_randUniformInt(arg1->attractionJitter.vx, -arg1->attractionJitter.vx);
         temp_s0->vy =
-            arg1->unk13C.vy + vs_battle_randUniformInt(arg1->unk144.vy, -arg1->unk144.vy);
+            arg1->attractionOffset.vy + vs_battle_randUniformInt(arg1->attractionJitter.vy, -arg1->attractionJitter.vy);
         temp_s0->vz =
-            arg1->unk13C.vz + vs_battle_randUniformInt(arg1->unk144.vz, -arg1->unk144.vz);
+            arg1->attractionOffset.vz + vs_battle_randUniformInt(arg1->attractionJitter.vz, -arg1->attractionJitter.vz);
     }
 }
 
@@ -320,36 +320,36 @@ void VS_PARTICLE_CONTROL_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* 
                                + (arg1->unk34.vz * arg1->unk34.vz));
 
         vs_battle_lerp2DVector(
-            arg0->unk94[0], vs_battle_sampleCurve(arg0->unk12, arg3->unkC), arg1->unk124);
+            arg0->pairRanges[0], vs_battle_sampleCurve(arg0->unk12, arg3->unkC), arg1->unk124);
         vs_battle_lerp2DVector(
-            arg0->unk94[1], vs_battle_sampleCurve(arg0->unk13, arg3->unkC), arg1->unk12C);
+            arg0->pairRanges[1], vs_battle_sampleCurve(arg0->unk13, arg3->unkC), arg1->unk12C);
         vs_battle_lerp2DVector(
-            arg0->unk94[2], vs_battle_sampleCurve(arg0->unkC, arg3->unkC), arg1->unk118);
+            arg0->pairRanges[2], vs_battle_sampleCurve(arg0->unkC, arg3->unkC), arg1->speedRange);
         vs_battle_lerpVector(
             arg0->unk34[1], vs_battle_sampleCurve(arg0->unkB, arg3->unkC), &arg1->unkC8);
         vs_battle_lerpVector(
             arg0->unk34[0], vs_battle_sampleCurve(arg0->unkA, arg3->unkC), &arg1->unkE8);
         vs_battle_lerpSvector(
-            arg0->unk34[2], vs_battle_sampleCurve(arg0->unkD, arg3->unkC), &arg1->unkF8);
+            arg0->unk34[2], vs_battle_sampleCurve(arg0->unkD, arg3->unkC), &arg1->forceMin);
 
-        if (arg1->unkF8.vx != 0) {
+        if (arg1->forceMin.vx != 0) {
             int var_v0_2 =
-                (arg1->unk118[0] + (rand() % arg1->unkF8.vx)) - (arg1->unkF8.vx / 2);
+                (arg1->speedRange[0] + (rand() % arg1->forceMin.vx)) - (arg1->forceMin.vx / 2);
             if (&arg1->unk34) {
                 sp10.vz = (temp_s0 * var_v0_2) / 256;
             } else {
                 sp10.vz = (temp_s0 * var_v0_2) / 256;
             }
         } else {
-            sp10.vz = (temp_s0 * arg1->unk118[0]) / 256;
+            sp10.vz = (temp_s0 * arg1->speedRange[0]) / 256;
         }
 
-        if (arg1->unkF8.vy != 0) {
+        if (arg1->forceMin.vy != 0) {
             int var_v0_3 =
-                (arg1->unk118[1] + (rand() % arg1->unkF8.vy)) - (arg1->unkF8.vy / 2);
+                (arg1->speedRange[1] + (rand() % arg1->forceMin.vy)) - (arg1->forceMin.vy / 2);
             sp18.vz = temp_s0 + ((temp_s0 * var_v0_3) / 256);
         } else {
-            sp18.vz = temp_s0 + ((temp_s0 * arg1->unk118[1]) / 256);
+            sp18.vz = temp_s0 + ((temp_s0 * arg1->speedRange[1]) / 256);
         }
 
         var_s3 = arg1->unk124[0];

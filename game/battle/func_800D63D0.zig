@@ -8,9 +8,9 @@ const c = @import("c_5BF94");
 /// vs_battle_applyActionSourceEffects(id low byte, NULL) for a kind-4 unk0 target, else vs_battle_applyActionSourceEffects(its unk6, its data).
 pub fn func_800D63D0(script: ?*v.D_800F53B8_t) callconv(.c) void {
     const s = script.?;
-    if (s.unkD1C.unk0.unk0 == 4) {
-        c.vs_battle_applyActionSourceEffects(@as(c_int, psx.conv(u8, s.unkD1C.unk0.unk4.unk0)), null);
+    if (s.context.unk0.unk0 == 4) {
+        c.vs_battle_applyActionSourceEffects(@as(c_int, psx.conv(u8, s.context.unk0.unk4.unk0)), null);
     } else {
-        c.vs_battle_applyActionSourceEffects(s.unkD1C.unk0.unk4.unk6, @ptrCast(&s.unkD1C.unk0.unk4));
+        c.vs_battle_applyActionSourceEffects(s.context.unk0.unk4.unk6, @ptrCast(&s.context.unk0.unk4));
     }
 }

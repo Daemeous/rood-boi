@@ -44,14 +44,14 @@ pub fn func_800B002C(actor: ?*v.D_800F4538_t, arg1: c_int) callconv(.c) void {
     const a = actor.?;
     const body = &a.unk0;
 
-    if (psx.fieldAt(c_int, &body.unk2C, 0).* == 0x10001000 and body.unk30 == 4096) {
-        scratch.offset.vx = @as(i16, @bitCast(psx.fieldAt(u16, &a.unk704.unk0, 328).*)) >> 1;
-        scratch.offset.vy = @as(i16, @bitCast(psx.fieldAt(u16, &a.unk704.unk0, 330).*)) >> 1;
-        scratch.offset.vz = @as(i16, @bitCast(psx.fieldAt(u16, &a.unk704.unk0, 332).*)) >> 1;
+    if (psx.fieldAt(c_int, &body.scaleX, 0).* == 0x10001000 and body.scaleZ == 4096) {
+        scratch.offset.vx = @as(i16, @bitCast(a.unk704.unk0[41].vx)) >> 1;
+        scratch.offset.vy = @as(i16, @bitCast(a.unk704.unk0[41].vy)) >> 1;
+        scratch.offset.vz = @as(i16, @bitCast(a.unk704.unk0[41].vz)) >> 1;
     } else {
-        scratch.offset.vx = psx.conv(i16, @divTrunc(@as(c_int, psx.fieldAt(i16, &a.unk704.unk0, 328).*) *% body.unk2E, 8192));
-        scratch.offset.vy = psx.conv(i16, @divTrunc(@as(c_int, psx.fieldAt(i16, &a.unk704.unk0, 330).*) *% body.unk30, 8192));
-        scratch.offset.vz = psx.conv(i16, @divTrunc(@as(c_int, psx.fieldAt(i16, &a.unk704.unk0, 332).*) *% body.unk2C, 8192));
+        scratch.offset.vx = psx.conv(i16, @divTrunc(@as(c_int, a.unk704.unk0[41].vx) *% body.scaleY, 8192));
+        scratch.offset.vy = psx.conv(i16, @divTrunc(@as(c_int, a.unk704.unk0[41].vy) *% body.scaleZ, 8192));
+        scratch.offset.vz = psx.conv(i16, @divTrunc(@as(c_int, a.unk704.unk0[41].vz) *% body.scaleX, 8192));
     }
     scratch.offset.vx = psx.conv(i16, @divTrunc(@as(c_int, scratch.offset.vx) *% a.unk183C, 4096));
     scratch.offset.vy = psx.conv(i16, @divTrunc(@as(c_int, scratch.offset.vy) *% a.unk183C, 4096));
@@ -60,26 +60,26 @@ pub fn func_800B002C(actor: ?*v.D_800F4538_t, arg1: c_int) callconv(.c) void {
     if (arg1 == 0) {
         if (a.unk5C8 != 0) {
             const n: c_int = a.unk5C8;
-            var dx: c_int = @divTrunc(@as(c_int, body.unk44.vx), n);
-            body.unk44.vx = psx.conv(i16, @as(c_int, body.unk44.vx) -% dx);
-            body.unk2C = psx.conv(i16, @as(c_int, body.unk2C) +% dx);
-            dx = @divTrunc(@as(c_int, body.unk44.vy), a.unk5C8);
-            body.unk44.vy = psx.conv(i16, @as(c_int, body.unk44.vy) -% dx);
-            body.unk2E = psx.conv(i16, @as(c_int, body.unk2E) +% dx);
-            dx = @divTrunc(@as(c_int, body.unk44.vz), a.unk5C8);
-            body.unk44.vz = psx.conv(i16, @as(c_int, body.unk44.vz) -% dx);
-            body.unk30 = psx.conv(i16, @as(c_int, body.unk30) +% dx);
+            var dx: c_int = @divTrunc(@as(c_int, body.scaleDelta.vx), n);
+            body.scaleDelta.vx = psx.conv(i16, @as(c_int, body.scaleDelta.vx) -% dx);
+            body.scaleX = psx.conv(i16, @as(c_int, body.scaleX) +% dx);
+            dx = @divTrunc(@as(c_int, body.scaleDelta.vy), a.unk5C8);
+            body.scaleDelta.vy = psx.conv(i16, @as(c_int, body.scaleDelta.vy) -% dx);
+            body.scaleY = psx.conv(i16, @as(c_int, body.scaleY) +% dx);
+            dx = @divTrunc(@as(c_int, body.scaleDelta.vz), a.unk5C8);
+            body.scaleDelta.vz = psx.conv(i16, @as(c_int, body.scaleDelta.vz) -% dx);
+            body.scaleZ = psx.conv(i16, @as(c_int, body.scaleZ) +% dx);
             a.unk5C8 -%= 1;
         }
         if (body.unk18 != 0) {
-            var dx: c_int = @divTrunc(@as(c_int, body.unk3C), body.unk18);
-            body.unk3C = psx.conv(i16, @as(c_int, body.unk3C) -% dx);
+            var dx: c_int = @divTrunc(@as(c_int, body.rotationStepX), body.unk18);
+            body.rotationStepX = psx.conv(i16, @as(c_int, body.rotationStepX) -% dx);
             body.pitch = psx.conv(i16, (@as(c_int, body.pitch) +% dx) & 0xFFF);
-            dx = @divTrunc(@as(c_int, body.unk3E), body.unk18);
-            body.unk3E = psx.conv(i16, @as(c_int, body.unk3E) -% dx);
+            dx = @divTrunc(@as(c_int, body.facingDelta), body.unk18);
+            body.facingDelta = psx.conv(i16, @as(c_int, body.facingDelta) -% dx);
             body.facing = psx.conv(i16, (@as(c_int, body.facing) +% dx) & 0xFFF);
-            dx = @divTrunc(@as(c_int, body.unk40), body.unk18);
-            body.unk40 = psx.conv(i16, @as(c_int, body.unk40) -% dx);
+            dx = @divTrunc(@as(c_int, body.rotationStepZ), body.unk18);
+            body.rotationStepZ = psx.conv(i16, @as(c_int, body.rotationStepZ) -% dx);
             body.roll = psx.conv(i16, (@as(c_int, body.roll) +% dx) & 0xFFF);
             body.unk18 -%= 1;
         }

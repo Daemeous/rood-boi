@@ -19,8 +19,8 @@ pub fn func_8007D360() callconv(.c) void {
     v.g.D_800F1A9C()[0] = 0x80;
     v.g.D_800F1A9C()[1] = 0x80;
     v.g.D_800F1A9C()[2] = 0x80;
-    v.g.vs_render_framebufferEffectOffset().unk0 = 0;
-    v.g.vs_render_framebufferEffectOffset().unk4 = 0;
+    v.g.vs_render_framebufferEffectOffset().x = 0;
+    v.g.vs_render_framebufferEffectOffset().y = 0;
     v.g.vs_render_framebufferEffectOffset().unk8 = 0;
     v.g.vs_render_framebufferEffectDepth().* = 0;
     v.g.vs_render_framebufferEffectUsesPreviousFrame().* = 0;

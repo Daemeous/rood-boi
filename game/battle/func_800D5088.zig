@@ -9,12 +9,12 @@ pub fn func_800D5088(arg0: ?*v.D_800F53B8_t) callconv(.c) c_int {
     var i: usize = 0;
     while (i < 5) : (i += 1) {
         const dst = psx.at(
-            &psx.get(v.g.vs_effects_package().*.?.block5Data).?.unk4,
-            v.g.D_800EC368()[arg0.?.unkD1C.unk18.unk2][i][3],
+            &psx.get(v.g.vs_effects_package().*.?.block5Data).?.definitions,
+            v.g.D_800EC368()[arg0.?.context.unk18.unk2][i][3],
         );
-        dst.rCurve = v.g.D_800EC368()[arg0.?.unkD1C.unk18.unk2][i][0];
-        dst.gCurve = v.g.D_800EC368()[arg0.?.unkD1C.unk18.unk2][i][1];
-        dst.bCurve = v.g.D_800EC368()[arg0.?.unkD1C.unk18.unk2][i][2];
+        dst.rCurve = v.g.D_800EC368()[arg0.?.context.unk18.unk2][i][0];
+        dst.gCurve = v.g.D_800EC368()[arg0.?.context.unk18.unk2][i][1];
+        dst.bCurve = v.g.D_800EC368()[arg0.?.context.unk18.unk2][i][2];
     }
     return 1;
 }

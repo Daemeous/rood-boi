@@ -1926,8 +1926,8 @@ int pc_ui_container_call_end(int entry, int state, int r)
         /* MENU7's information box (text box 7, inited with the CAUTION header for its
          * messages, which the gate keeps empty) would show its header through the
          * backdrop: none while framed (presentation only; its init and dismiss are MENU7's) */
-        if (vs_battle_textBoxes[7].unk0.unk0_8 == informationTextBoxHeaderCaution)
-            vs_battle_textBoxes[7].unk0.unk0_8 = informationTextBoxHeaderNone;
+        if (vs_battle_textBoxes[7].flags.unk0_8 == informationTextBoxHeaderCaution)
+            vs_battle_textBoxes[7].flags.unk0_8 = informationTextBoxHeaderNone;
         if (r != 0) {
             *m7->framed = 0;
             pc_ui_container_end();

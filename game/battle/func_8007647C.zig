@@ -35,5 +35,5 @@ pub fn func_8007647C(arg0: c_int, arg1: c_int) callconv(.c) void {
     temp_s1.unk27 = 0x80;
     temp_s1.unk29 = 0;
     temp_s1.defeated = 0;
-    temp_s0.unk957 = 0x80;
+    temp_s0.actorId = 0x80;
 }

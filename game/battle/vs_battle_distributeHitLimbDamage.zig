@@ -13,7 +13,7 @@ pub fn vs_battle_distributeHitLimbDamage(action: ?*v.vs_action_t, entity: ?*v._h
         adjustments[i] = 0;
     }
 
-    const actor = psx.get(v.g.vs_battle_actors()[ent.unk0.targetActor].?.stats).?;
+    const actor = psx.get(v.g.vs_battle_actors()[ent.target.targetActor].?.stats).?;
 
     switch (psx.getBits(action.?, "unk2_4")) {
         0, 1, 2, 3, 4 => {
@@ -35,7 +35,7 @@ pub fn vs_battle_distributeHitLimbDamage(action: ?*v.vs_action_t, entity: ?*v._h
             }
         },
         5, 7, 14 => {
-            const splash = psx.at(&actor.dpSplash, ent.unk0.targetLimb);
+            const splash = psx.at(&actor.dpSplash, ent.target.targetLimb);
             i = 0;
             while (i < 6) : (i += 1) {
                 const dp: c_int = @as(c_int, baseValue) *% @as(c_int, splash[i]);
@@ -44,7 +44,7 @@ pub fn vs_battle_distributeHitLimbDamage(action: ?*v.vs_action_t, entity: ?*v._h
             }
         },
         6, 8, 11, 12 => {
-            const target = ent.unk0.targetLimb;
+            const target = ent.target.targetLimb;
             psx.at(adjustments, target).* = baseValue;
             const limb = psx.at(&ent.limbs, target);
             limb.effects.value0 = psx.conv(i16, @as(c_int, limb.effects.value0) +% @as(c_int, baseValue));

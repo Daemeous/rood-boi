@@ -8,7 +8,7 @@ typedef struct {
     u_short unk2;
     short unk4;
     short unk6;
-    int unk8;
+    int vignetteEnabled;
     vs_main_CdQueueSlot* slot;
 } D_800EB9B4_t;
 

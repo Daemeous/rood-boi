@@ -16,9 +16,9 @@ pub fn vs_actors_queueScriptedActorSpawn(arg0: c_uint, arg1: c_int, arg2: ?*v.vs
             slot.* = actor;
             psx.put(&actor.stats, &temp.unk0.unk0.unk50);
             actor.unk40 = 1;
-            psx.put(&actor.unk44, &temp.unk0.unk9B4);
-            psx.put(&actor.unk48[0], &temp.unk22B4[0]);
-            psx.put(&actor.unk48[1], &temp.unk22B4[1]);
+            psx.put(&actor.unk44, &temp.unk0.model);
+            psx.put(&actor.unk48[0], &temp.modelSlots[0]);
+            psx.put(&actor.unk48[1], &temp.modelSlots[1]);
             c.vs_actors_initializeActorDefaults(arg0, arg1, 0, 0, 6);
             const s0 = c.vs_actors_queueActorModelLoad(@ptrCast(actor), psx.conv(c_int, arg0), arg1, @ptrCast(arg2), 0);
             _ = c.vs_battle_aiCreateActorAiState(@ptrCast(slot.*), -1);

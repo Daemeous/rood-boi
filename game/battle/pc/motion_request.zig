@@ -11,7 +11,7 @@ fn objectOf(id: c_int) *v.D_800F4538_t {
 
 /// The u32 at byte 0 or 4 of the request's position pair (unk10: vx and vy, vz and pad).
 fn position(a: *v.D_800F4538_t, half: isize) *align(1) c_uint {
-    return psx.fieldAt(c_uint, &a.unk1848.unk10, half * 4);
+    return psx.fieldAt(c_uint, &a.unk1848.step, half * 4);
 }
 
 /// The kind word of the request: unk0 to unk3 as one u32.

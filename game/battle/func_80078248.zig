@@ -7,7 +7,7 @@ const c = @import("c_146C");
 pub fn func_80078248() callconv(.c) void {
     const state = v.g.vs_battle_actionState().*.?;
     if (state.unk2984 != 0) {
-        if (state.unk8.unk4.unk0.targetActor != 0) {
+        if (state.unk8.primaryTarget.target.targetActor != 0) {
             state.unk298E +%= 1;
             if (state.unk298E >= 0x1F) {
                 c.vs_battle_commitSelectedAction(1);

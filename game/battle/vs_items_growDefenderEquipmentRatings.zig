@@ -21,7 +21,7 @@ pub fn vs_items_growDefenderEquipmentRatings(arg0: ?*v.vs_action_t, arg1: ?*v.vs
 
     if (kind == 1) {
         const actor = arg1.?;
-        if ((psx.at(v.g.vs_battle_actors(), actor.unk957).*.?.weaponDrawn & 1) != 0 and actor.shield.base.id != 0) {
+        if ((psx.at(v.g.vs_battle_actors(), actor.actorId).*.?.weaponDrawn & 1) != 0 and actor.shield.base.id != 0) {
             sp10[@intCast(count)] = 0xFF;
             count +%= 1;
         }
@@ -36,7 +36,7 @@ pub fn vs_items_growDefenderEquipmentRatings(arg0: ?*v.vs_action_t, arg1: ?*v.vs
 
     if (kind == 2) {
         const actor = arg1.?;
-        if ((psx.at(v.g.vs_battle_actors(), actor.unk957).*.?.weaponDrawn & 1) != 0) {
+        if ((psx.at(v.g.vs_battle_actors(), actor.actorId).*.?.weaponDrawn & 1) != 0) {
             if (actor.shield.base.id != 0) {
                 sp10[@intCast(count)] = 0xFF;
                 count +%= 1;
@@ -62,10 +62,10 @@ pub fn vs_items_growDefenderEquipmentRatings(arg0: ?*v.vs_action_t, arg1: ?*v.vs
         const equipment = &subject.shield.base;
         if (subject.shield.base.id != 0) {
             if (arg2 != 0) {
-                c._triggerClassChange(@ptrCast(arg0), @ptrCast(equipment), arg2 -% 1, 0xF1, @as(c_int, subject.unk957));
+                c._triggerClassChange(@ptrCast(arg0), @ptrCast(equipment), arg2 -% 1, 0xF1, @as(c_int, subject.actorId));
             }
             if (arg3 != 0) {
-                c._triggerWeaponAffinityChange(@ptrCast(arg0), @ptrCast(equipment), arg3 -% 1, 0xF1, @as(c_int, subject.unk957));
+                c._triggerWeaponAffinityChange(@ptrCast(arg0), @ptrCast(equipment), arg3 -% 1, 0xF1, @as(c_int, subject.actorId));
             }
         }
         c._calculateShieldClassAffinity(@ptrCast(subject));
@@ -75,10 +75,10 @@ pub fn vs_items_growDefenderEquipmentRatings(arg0: ?*v.vs_action_t, arg1: ?*v.vs
         const equipment = &limb.armor.armor;
         if (equipment.id != 0) {
             if (arg2 != 0) {
-                c._triggerClassChange(@ptrCast(arg0), @ptrCast(equipment), arg2 -% 1, @as(c_int, limb.nameIndex), @as(c_int, subject.unk957));
+                c._triggerClassChange(@ptrCast(arg0), @ptrCast(equipment), arg2 -% 1, @as(c_int, limb.nameIndex), @as(c_int, subject.actorId));
             }
             if (arg3 != 0) {
-                c._triggerWeaponAffinityChange(@ptrCast(arg0), @ptrCast(equipment), arg3 -% 1, @as(c_int, limb.nameIndex), @as(c_int, subject.unk957));
+                c._triggerWeaponAffinityChange(@ptrCast(arg0), @ptrCast(equipment), arg3 -% 1, @as(c_int, limb.nameIndex), @as(c_int, subject.actorId));
             }
         }
         c._calculateArmorClassAffinity(@ptrCast(subject), pick);

@@ -119,7 +119,7 @@ typedef struct {
 } vs_battle_textBox_fields;
 
 typedef struct {
-    vs_battle_textBox_fields unk0;
+    vs_battle_textBox_fields flags;
     short unk4;
     short unk6;
     char* string;
@@ -262,7 +262,7 @@ typedef struct {
     short unk24[6];
     short unk30[2];
     short unk34[8][6];
-    short unk94[5][4];
+    short pairRanges[5][4];
     short unkBC[2];
     short unkC0[2];
     u_char rCurve;
@@ -304,19 +304,19 @@ typedef struct {
     VECTOR unkC8;
     VECTOR unkD8;
     VECTOR unkE8;
-    SVECTOR unkF8;
+    SVECTOR forceMin;
     SVECTOR unk100;
-    SVECTOR unk108;
-    SVECTOR unk110;
-    int unk118[2];
+    SVECTOR accelerationMin;
+    SVECTOR accelerationMax;
+    int speedRange[2];
     int unk120;
     int unk124[2];
     int unk12C[2];
     int unk134[2];
-    SVECTOR unk13C;
-    SVECTOR unk144;
-    int unk14C[2];
-    func_800D2904_curves unk154;
+    SVECTOR attractionOffset;
+    SVECTOR attractionJitter;
+    int attractionRange[2];
+    func_800D2904_curves colorCurves;
     u_char unk158[0x10];
     int unk168;
     int unk16C;
@@ -325,13 +325,13 @@ typedef struct {
     int unk178;
     int unk17C;
     u_char unk180;
-    int unk184;
-    int unk188;
+    int ringSegments;
+    int ringPositions;
 } func_800FA098_arg1;
 
 typedef struct {
     int count;
-    func_800FA098_arg0 unk4[0];
+    func_800FA098_arg0 definitions[0];
 } pFileBlock5;
 
 typedef struct {
@@ -448,20 +448,20 @@ typedef struct {
 } func_800D5780_t2;
 
 typedef struct {
-    /* 0x0 */ u_long* unk0;
-    /* 0x4 */ func_800D5780_t2 unk4;
-    /* 0x6 */ short unk6;
+    /* 0x0 */ u_long* keys;
+    /* 0x4 */ func_800D5780_t2 header;
+    /* 0x6 */ short keyIndex;
     /* 0x8 */ short unk8;
     /* 0xA */ short unkA;
     /* 0xC */ int unkC;
 } func_800D5780_t;
 
 typedef struct {
-    char unk0;
+    char trackCount;
     char unk1;
-    short unk2;
-    int unk4;
-    func_800D5780_t unk8[0];
+    short frame;
+    int activeTracks;
+    func_800D5780_t tracks[0];
 } D_800F53B8_t4;
 
 typedef struct {
@@ -471,7 +471,7 @@ typedef struct {
     D_800F53B8_t3_2 unk24;
     D_800F53B8_t4* unk30;
     func_800D4910_t* unk34;
-    short unk38;
+    short effectId;
     short unk3A;
     int unk3C;
 } D_800F53B8_t3;
@@ -490,7 +490,7 @@ typedef struct D_800F53B8_t {
     u_int unk14_16 : 16;
     func_800D2904_t* unk18;
     func_800CE714_t2_2 unk1C[16];
-    D_800F53B8_t3 unkD1C;
+    D_800F53B8_t3 context;
 } D_800F53B8_t;
 
 typedef struct {

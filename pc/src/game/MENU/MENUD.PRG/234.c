@@ -1769,7 +1769,7 @@ int _discardMenu(int arg0)
     switch (state) {
     case init:
         var_v0 = 0;
-        if (vs_battle_textBoxes[7].unk0.done) {
+        if (vs_battle_textBoxes[7].flags.done) {
             if (vs_mainmenu_ready() != 0) {
                 state = ((discardType & 1) + 1);
             }

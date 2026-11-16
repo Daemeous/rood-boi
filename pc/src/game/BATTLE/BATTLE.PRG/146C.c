@@ -56,7 +56,7 @@ typedef struct {
 } limbEffects_t;
 
 typedef struct {
-    func_8008631C_t2 unk0;
+    func_8008631C_t2 target;
     short risk;
     short strength;
     short intelligence;
@@ -95,10 +95,10 @@ typedef struct {
     u_short actionIndex;
     char unk2;
     char unk3;
-    _hitEntity_t unk4;
+    _hitEntity_t primaryTarget;
     u_short unk48;
-    u_short unk4A;
-    _hitEntity_t unk4C[30];
+    u_short targetCount;
+    _hitEntity_t targets[30];
     SVECTOR unk844;
 } D_800F19CC_t2;
 
@@ -119,7 +119,7 @@ typedef struct {
     u_int unk0;
     u_int unk4;
     D_800F19CC_t2 unk8;
-    D_800F19CC_t2 unk854[4];
+    D_800F19CC_t2 queue[4];
     int unk2984;
     int unk2988;
     u_char unk298C;
@@ -131,29 +131,29 @@ typedef struct {
     char unk29A0;
     char unk29A1;
     short unk29A2;
-    char unk29A4;
-    char unk29A5;
-    char unk29A6;
-    char unk29A7;
-    SVECTOR unk29A8;
+    char rangeX;
+    char rangeY;
+    char rangeZ;
+    char rangeAngle;
+    SVECTOR rangeOrigin;
     char unk29B0;
     char unk29B1;
     short unk29B2;
-    char unk29B4;
-    char unk29B5;
-    char unk29B6;
+    char areaX;
+    char areaY;
+    char areaZ;
     char unk29B7;
-    SVECTOR unk29B8;
-    D_800F19CC_t5 unk29C0[23];
+    SVECTOR areaOrigin;
+    D_800F19CC_t5 previews[23];
     int unk2BE8;
     int unk2BEC;
     int unk2BF0;
     int unk2BF4;
     int unk2BF8;
     int unk2BFC;
-    u_short unk2C00;
+    u_short previewCount;
     char unk2C02;
-    char unk2C03;
+    char chainAbilitySlot;
     char previousChainInput;
     char battleAbilityInputSuccessful;
     char battleAbilityInputAttempted;
@@ -165,9 +165,9 @@ typedef struct {
 } D_800F19CC_t;
 
 typedef struct {
-    char unk0;
+    char spawnSlot;
     char unk1;
-    short unk2;
+    short aiFlags;
     short currentHP;
     short maxHP;
     short currentMP;
@@ -176,8 +176,8 @@ typedef struct {
     short totalIntelligence;
     short totalAgility;
     short limbHp[6];
-    int unk20;
-    int unk24;
+    int statuses;
+    int placement;
 } func_80069EF0_t;
 
 typedef struct {
@@ -349,7 +349,7 @@ typedef struct {
 typedef struct {
     u_char unk0;
     u_char hidden;
-    short unk2;
+    short aiFlags;
     short currentHP;
     short maxHP;
     short currentMP;
@@ -367,8 +367,8 @@ typedef struct {
 } savedEnemyState;
 
 typedef struct {
-    int unk0;
-    int unk4;
+    int characterIds;
+    int shieldIds;
     int model;
     int unkC;
     int blade;
@@ -1619,10 +1619,10 @@ static short _getPhysicalAttackDamage(vs_action_t* action, _hitEntity_t* source,
     int defense;
 
     vs_battle_actor2* sourceActor =
-        vs_battle_actors[source->unk0.targetActor]->unk3C;
+        vs_battle_actors[source->target.targetActor]->unk3C;
     vs_battle_actor2* targetActor =
-        vs_battle_actors[target->unk0.targetActor]->unk3C;
-    int limb = target->unk0.targetLimb;
+        vs_battle_actors[target->target.targetActor]->unk3C;
+    int limb = target->target.targetLimb;
 
     sp18.sourceClass = sourceActor->enemyClass;
     sp18.targetClass = targetActor->enemyClass;
@@ -1637,7 +1637,7 @@ static short _getPhysicalAttackDamage(vs_action_t* action, _hitEntity_t* source,
     }
 
     if (action->hitParams[nHit].affinity == 0) {
-        if (!(vs_battle_actors[sourceActor->unk957]->weaponDrawn & 1)
+        if (!(vs_battle_actors[sourceActor->actorId]->weaponDrawn & 1)
             || sourceActor->weapon.blade.id == 0) {
             affinity = 0;
         } else {
@@ -1665,7 +1665,7 @@ static short _getPhysicalAttackDamage(vs_action_t* action, _hitEntity_t* source,
             targetActor->limbs[limb].affinities[i]
             + targetActor->limbs[limb].armor.classAffinityCurrent.affinity[0][i];
 
-        if (vs_battle_actors[targetActor->unk957]->weaponDrawn & 1) {
+        if (vs_battle_actors[targetActor->actorId]->weaponDrawn & 1) {
             sp18.tempTargetAffinity +=
                 targetActor->shield.classAffinityCurrent.affinity[0][i];
         }
@@ -1679,7 +1679,7 @@ static short _getPhysicalAttackDamage(vs_action_t* action, _hitEntity_t* source,
     sp18.targetAffinity = affinity;
     sp18.value = sourceActor->strength;
 
-    if (vs_battle_actors[sourceActor->unk957]->weaponDrawn & 1) {
+    if (vs_battle_actors[sourceActor->actorId]->weaponDrawn & 1) {
 
         sp18.value = sp18.value + sourceActor->weapon.currentStr;
         sp18.typeValue = sourceActor->weapon.damageTypeValue;
@@ -1738,7 +1738,7 @@ static short _getPhysicalAttackDamage(vs_action_t* action, _hitEntity_t* source,
                               / 4;
     }
 
-    if (vs_battle_actors[targetActor->unk957]->weaponDrawn & 1) {
+    if (vs_battle_actors[targetActor->actorId]->weaponDrawn & 1) {
 
         sp18.shieldStat += targetActor->shield.currentStr;
         sp18.shieldStatFactor =

@@ -18,20 +18,20 @@ pub fn vs_battle_playWeaponHitSounds(slot: c_int) callconv(.c) c_int {
     var sp20: v.SVECTOR = .{ .vx = 0, .vy = 0, .vz = 0, .pad = 0 };
 
     const base = v.g.vs_battle_actionState().*.?;
-    const temp = &base.unk854[@intCast(base.unk0 & 3)];
+    const temp = &base.queue[@intCast(base.unk0 & 3)];
 
     var i: c_int = 0;
-    while (i < @as(c_int, temp.unk4A)) : (i +%= 1) {
+    while (i < @as(c_int, temp.targetCount)) : (i +%= 1) {
         // unk4A may exceed the 30 entries of unk4C: the C does not check it.
-        const entry = psx.at(&temp.unk4C, i);
+        const entry = psx.at(&temp.targets, i);
         if (entry.unk40 == 0) {
-            _ = c.vs_actors_actorPlacement(@as(c_int, entry.unk0.targetActor), &sp10);
+            _ = c.vs_actors_actorPlacement(@as(c_int, entry.target.targetActor), &sp10);
 
-            sp20.vx = sp10.unk0.unk4.vx;
-            sp20.vz = sp10.unk0.unk4.vz;
-            sp20.vy = sp10.unk0.unk4.vy;
+            sp20.vx = sp10.location.position.vx;
+            sp20.vz = sp10.location.position.vz;
+            sp20.vy = sp10.location.position.vy;
 
-            switch (entry.unk0.unk3) {
+            switch (entry.target.unk3) {
                 0, 1, 2, 4 => switch (psx.at(v.g.vs_battle_actors(), slot).*.?.equippedWeaponCategory) {
                     1 => {
                         panSound(0x47, &sp20);

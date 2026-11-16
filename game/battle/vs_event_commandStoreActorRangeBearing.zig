@@ -13,8 +13,8 @@ pub fn vs_event_commandStoreActorRangeBearing(script: [*c]u8, _: c_short) callco
     const flag = c.vs_battle_getShort(script + 6);
     _ = c.vs_actors_actorPlacement(c.vs_event_resolveScriptActorReference(psx.conv(u16, c.vs_battle_getShort(script + 1))), &first);
     _ = c.vs_actors_actorPlacement(c.vs_event_resolveScriptActorReference(psx.conv(u16, c.vs_battle_getShort(script + 3))), &second);
-    const dx = psx.conv(i16, @as(c_int, first.unk0.unk4.vx) -% second.unk0.unk4.vx);
-    const dz = psx.conv(i16, @as(c_int, first.unk0.unk4.vz) -% second.unk0.unk4.vz);
+    const dx = psx.conv(i16, @as(c_int, first.location.position.vx) -% second.location.position.vx);
+    const dz = psx.conv(i16, @as(c_int, first.location.position.vz) -% second.location.position.vz);
     const distance = @divTrunc(c.vs_gte_rsqrt(@as(c_int, dx) * dx +% @as(c_int, dz) * dz), @as(c_int, script[5])); // a short squared: no overflow
     c.vs_battle_setStateFlag(flag, psx.conv(u8, if (distance < 0x100) distance & 0xFF else -1));
     c.vs_battle_setStateFlag(psx.conv(i16, @as(c_int, flag) +% 1), psx.conv(u8, (c.ratan2(dx, dz) >> 4) & 0xFF));

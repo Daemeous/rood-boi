@@ -496,7 +496,7 @@ void vs_mainmenu_setInformationMessage(char* message)
 #pragma vsstring(end)
 
     vs_battle_memcpy(&infoMessage[2], message, 96);
-    vs_battle_textBoxes[7].unk0.unk0_24 = 32;
+    vs_battle_textBoxes[7].flags.unk0_24 = 32;
     vs_battle_setTextBox(7, infoMessage);
 }
 

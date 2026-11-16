@@ -35,8 +35,8 @@ pub fn vs_content_releaseActorModel(slot: c_int) callconv(.c) c_int {
         };
 
         if (!found) {
-            c.vs_audio_stopBankSfx(0x180, @ptrFromInt(@intFromPtr(psx.get(temp.unk0.unk68).?) +% psx.get(temp.unk0.unk68).?.akaoOffset), 0);
-            c.vs_main_freeHeap(psx.get(temp.unk0.unk68));
+            c.vs_audio_stopBankSfx(0x180, @ptrFromInt(@intFromPtr(psx.get(temp.unk0.model).?) +% psx.get(temp.unk0.model).?.akaoOffset), 0);
+            c.vs_main_freeHeap(psx.get(temp.unk0.model));
             c.vs_main_freeHeap(psx.get(temp.unk5D0));
         }
 

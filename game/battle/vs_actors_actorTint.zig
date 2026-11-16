@@ -12,6 +12,6 @@ pub fn vs_actors_actorTint(arg0: c_int, arg1: ?*v.D_800F4538_unk58_2) callconv(.
         return -1;
     }
 
-    arg1.?.* = entry.?.unk0.unk58;
+    arg1.?.* = entry.?.unk0.tint;
     return 0;
 }

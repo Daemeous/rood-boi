@@ -9,9 +9,9 @@ pub fn vs_actors_setActorRotation(slot: c_int, speed: ?*v.SVECTOR, timer: c_int)
     const a: *v.D_800F4538_t = psx.at(v.g.vs_actors_actorRecords(), slot).*.?;
     const src = speed.?;
 
-    a.unk0.unk3C = src.vx;
-    a.unk0.unk3E = src.vy;
-    a.unk0.unk40 = src.vz;
+    a.unk0.rotationStepX = src.vx;
+    a.unk0.facingDelta = src.vy;
+    a.unk0.rotationStepZ = src.vz;
 
     if (timer != 0 and timer != -1) {
         a.unk0.unk18 = psx.conv(u16, timer);
@@ -19,9 +19,9 @@ pub fn vs_actors_setActorRotation(slot: c_int, speed: ?*v.SVECTOR, timer: c_int)
     }
 
     if (timer == -1) {
-        const ax: c_int = @as(c_int, a.unk0.unk3C);
-        const ay: c_int = @as(c_int, a.unk0.unk3E);
-        const az: c_int = @as(c_int, a.unk0.unk40);
+        const ax: c_int = @as(c_int, a.unk0.rotationStepX);
+        const ay: c_int = @as(c_int, a.unk0.facingDelta);
+        const az: c_int = @as(c_int, a.unk0.rotationStepZ);
 
         var m: c_int = if (ax >= 0) ax else -%ax;
         const my: c_int = if (ay >= 0) ay else -%ay;
@@ -42,9 +42,9 @@ pub fn vs_actors_setActorRotation(slot: c_int, speed: ?*v.SVECTOR, timer: c_int)
     }
 
     // recenter:
-    a.unk0.pitch = psx.conv(i16, @as(c_int, a.unk0.pitch) +% @as(c_int, a.unk0.unk3C));
-    a.unk0.facing = psx.conv(i16, @as(c_int, a.unk0.facing) +% @as(c_int, a.unk0.unk3E));
-    a.unk0.roll = psx.conv(i16, @as(c_int, a.unk0.roll) +% @as(c_int, a.unk0.unk40));
+    a.unk0.pitch = psx.conv(i16, @as(c_int, a.unk0.pitch) +% @as(c_int, a.unk0.rotationStepX));
+    a.unk0.facing = psx.conv(i16, @as(c_int, a.unk0.facing) +% @as(c_int, a.unk0.facingDelta));
+    a.unk0.roll = psx.conv(i16, @as(c_int, a.unk0.roll) +% @as(c_int, a.unk0.rotationStepZ));
 
     a.unk0.pitch = psx.conv(i16, @as(c_int, a.unk0.pitch) & 0xFFF);
     a.unk0.facing = psx.conv(i16, @as(c_int, a.unk0.facing) & 0xFFF);

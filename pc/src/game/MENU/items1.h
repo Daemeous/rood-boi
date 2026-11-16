@@ -1267,7 +1267,7 @@ static int _discardMenu(int params)
 
     switch (state) {
     case init:
-        if (vs_battle_textBoxes[7].unk0.done) {
+        if (vs_battle_textBoxes[7].flags.done) {
             if (vs_mainmenu_ready() != 0) {
                 state = ((discardType & 1) + discardOneInit);
             }

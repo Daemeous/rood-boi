@@ -10,19 +10,19 @@ pub fn applyBattleAbilityEffect(arg0: ?*v._hitEntity_t) callconv(.c) void {
     c.func_800971D4();
 
     const hit = arg0.?;
-    const targetActorId: c_int = @as(c_int, hit.unk0.targetActor);
-    const targetLimb: c_int = @as(c_int, hit.unk0.targetLimb);
+    const targetActorId: c_int = @as(c_int, hit.target.targetActor);
+    const targetLimb: c_int = @as(c_int, hit.target.targetLimb);
     const actor = psx.get(psx.at(v.g.vs_battle_actors(), targetActorId).*.?.stats);
 
-    if (hit.unk0.unk3 == 4) {
+    if (hit.target.unk3 == 4) {
         c.vs_battle_queueActorStatChangeNumber(targetActorId, targetLimb, 0, 2);
     }
 
     switch (psx.getBits(hit, "hpEffect")) {
         2 => {
-            c.vs_battle_queueActorStatChangeNumber(targetActorId, targetLimb, @as(c_int, hit.unk0.hp), 0);
+            c.vs_battle_queueActorStatChangeNumber(targetActorId, targetLimb, @as(c_int, hit.target.hp), 0);
             const a = actor.?;
-            a.currentHP +%= hit.unk0.hp;
+            a.currentHP +%= hit.target.hp;
             if (a.maxHP < a.currentHP) a.currentHP = a.maxHP;
 
             var i: usize = 0;
@@ -33,10 +33,10 @@ pub fn applyBattleAbilityEffect(arg0: ?*v._hitEntity_t) callconv(.c) void {
         },
         3, 1 => {
             // hp | 0x80000000: unsigned in C, passed as an int.
-            c.vs_battle_queueActorStatChangeNumber(targetActorId, targetLimb, @bitCast(psx.conv(c_uint, @as(c_int, hit.unk0.hp)) | 0x8000_0000), 0);
+            c.vs_battle_queueActorStatChangeNumber(targetActorId, targetLimb, @bitCast(psx.conv(c_uint, @as(c_int, hit.target.hp)) | 0x8000_0000), 0);
             const a = actor.?;
-            if (a.currentHP > hit.unk0.hp) {
-                a.currentHP -%= hit.unk0.hp;
+            if (a.currentHP > hit.target.hp) {
+                a.currentHP -%= hit.target.hp;
             } else {
                 a.currentHP = 0;
             }
@@ -60,16 +60,16 @@ pub fn applyBattleAbilityEffect(arg0: ?*v._hitEntity_t) callconv(.c) void {
 
     switch (psx.getBits(hit, "mpEffect")) {
         2 => {
-            c.vs_battle_queueActorStatChangeNumber(targetActorId, targetLimb, @as(c_int, hit.unk0.mp), 1);
+            c.vs_battle_queueActorStatChangeNumber(targetActorId, targetLimb, @as(c_int, hit.target.mp), 1);
             const a = actor.?;
-            a.currentMP +%= hit.unk0.mp;
+            a.currentMP +%= hit.target.mp;
             if (a.maxMP < a.currentMP) a.currentMP = a.maxMP;
         },
         1 => {
-            c.vs_battle_queueActorStatChangeNumber(targetActorId, targetLimb, @bitCast(psx.conv(c_uint, @as(c_int, hit.unk0.mp)) | 0x8000_0000), 1);
+            c.vs_battle_queueActorStatChangeNumber(targetActorId, targetLimb, @bitCast(psx.conv(c_uint, @as(c_int, hit.target.mp)) | 0x8000_0000), 1);
             const a = actor.?;
-            if (a.currentMP > hit.unk0.mp) {
-                a.currentMP -%= hit.unk0.mp;
+            if (a.currentMP > hit.target.mp) {
+                a.currentMP -%= hit.target.mp;
             } else {
                 a.currentMP = 0;
             }
@@ -228,7 +228,7 @@ pub fn applyBattleAbilityEffect(arg0: ?*v._hitEntity_t) callconv(.c) void {
             }
 
             // targetLimb is a signed index: psx.at, as the C indexes without a check.
-            const limb = psx.at(&a.limbs, hit.unk0.targetLimb);
+            const limb = psx.at(&a.limbs, hit.target.targetLimb);
             if (@as(c_int, limb.armor.currentDp) > @as(c_int, hit.armorDp)) {
                 limb.armor.currentDp = psx.conv(u16, @as(c_int, limb.armor.currentDp) -% @as(c_int, hit.armorDp));
             } else {

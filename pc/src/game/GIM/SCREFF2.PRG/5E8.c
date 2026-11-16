@@ -6,7 +6,7 @@
 #include "pc/src/game/spriteItem.h"
 #include <libgte.h>
 
-void func_800F9DE8(int arg0) { vs_effects_screenEffectOverlay->unk8 = arg0; }
+void func_800F9DE8(int arg0) { vs_effects_screenEffectOverlay->vignetteEnabled = arg0; }
 
 static int func_800F9DF8(int arg0, int arg1)
 {

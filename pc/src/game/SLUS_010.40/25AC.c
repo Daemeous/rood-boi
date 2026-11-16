@@ -61,8 +61,8 @@ typedef struct {
     int unk4;
     int unk8;
     int unkC;
-    int unk10;
-    int unk14;
+    int extParam1;
+    int extParam2;
 } D_800378C0_t;
 
 // Streaming state for vs_audio_samplesUploadBankChunk (instrument bank uploaded in chunks)
@@ -469,7 +469,7 @@ int func_800123C8(vs_main_sfxContext* arg0)
 {
     int ret = 0;
     if ((unsigned)psx_to_int(psx_long, arg0) >= ROOD_GUEST_RAM_BASE) {
-        ret = arg0->unk9 >> 7;
+        ret = arg0->flags >> 7;
     } else if (g_Sound_SfxMetadataTable[psx_to_int(psx_long, arg0)] & 0x8000) {
         ret = 1;
     }
@@ -1167,7 +1167,7 @@ void vs_audio_driverResetPlaybackState(void)
         pChannel->Type = 1;
         pChannel->unk58 = 0;
         pChannel->unkDC = 0x7F00;
-        pChannel->unk8C = 0;
+        pChannel->effectVolumeSlideLength = 0;
         pChannel->unk86 = 0;
         pChannel->unk40 = 0;
         pChannel->KeyOnVolumeSlideLength = 0;
@@ -2672,7 +2672,7 @@ void Sound_LoadAkaoSequence(FAkaoSequence* in_Sequence)
             pChannel->ChannelPan = 0x8000;
             pChannel->ChannelPanSlideLength = 0;
             pChannel->PortamentoSteps = 0;
-            pChannel->unk8C = 0;
+            pChannel->effectVolumeSlideLength = 0;
             pChannel->ChannelVolumeSlideLength = 0;
             pChannel->FinePitchDelta = 0;
             pChannel->RandomPitchDepth = 0;
@@ -2877,7 +2877,7 @@ void vs_audio_soundEffectsStartChannelProgram(FSoundChannel* in_Channel, FSoundC
     in_Channel->ChannelPanSlideLength = 0;
     in_Channel->unk6C = pan;
     volume = ((u_short)in_CommandParams->Param4 & 0x7F) << 8;
-    in_Channel->unk8C = 0;
+    in_Channel->effectVolumeSlideLength = 0;
     in_Channel->unkDC = volume;
     voiceMask = 1 << in_CommandParams->ExtParam1;
     in_Channel->Length1 = 2;
@@ -3489,7 +3489,7 @@ void Sound_Cmd_A0_unk(FSoundCommandParams* arg0)
         for (i = 0; i < 12; ++i, ++var_a1, var_a3 *= 2) {
             if ((mask & var_a3) && (var_a1->unk28 & arg0->Param2)) {
                 var_a1->unkDC = (arg0->Param3 & 0x7F) << 8;
-                var_a1->unk8C = 0;
+                var_a1->effectVolumeSlideLength = 0;
                 var_a1->VoiceParams.VoiceParamFlags |= 3;
             }
         }
@@ -3497,7 +3497,7 @@ void Sound_Cmd_A0_unk(FSoundCommandParams* arg0)
         for (i = 0; i < 12; ++i, ++var_a1, var_a3 *= 2) {
             if ((mask & var_a3) && (var_a1->unk3C == arg0->Param1)) {
                 var_a1->unkDC = (arg0->Param3 & 0x7F) << 8;
-                var_a1->unk8C = 0;
+                var_a1->effectVolumeSlideLength = 0;
                 var_a1->VoiceParams.VoiceParamFlags |= 3;
             }
         }
@@ -3515,16 +3515,16 @@ void Sound_Cmd_A1_unk(FSoundCommandParams* arg0)
         for (i = 0; i < 12; ++i, ++var_a2, var_t0 *= 2) {
             if ((mask & var_t0) && (var_a2->unk28 & arg0->Param2)) {
                 short v = arg0->Param3 != 0 ? arg0->Param3 : 1;
-                var_a2->unkDE = (short)(((arg0->Param4 & 0x7F) << 8) - var_a2->unkDC) / v;
-                var_a2->unk8C = v;
+                var_a2->effectVolumeSlideStep = (short)(((arg0->Param4 & 0x7F) << 8) - var_a2->unkDC) / v;
+                var_a2->effectVolumeSlideLength = v;
             }
         }
     } else {
         for (i = 0; i < 12; ++i, ++var_a2, var_t0 *= 2) {
             if ((mask & var_t0) && (var_a2->unk3C == arg0->Param1)) {
                 short v = arg0->Param3 != 0 ? arg0->Param3 : 1;
-                var_a2->unkDE = (short)(((arg0->Param4 & 0x7F) << 8) - var_a2->unkDC) / v;
-                var_a2->unk8C = v;
+                var_a2->effectVolumeSlideStep = (short)(((arg0->Param4 & 0x7F) << 8) - var_a2->unkDC) / v;
+                var_a2->effectVolumeSlideLength = v;
             }
         }
     }
@@ -3540,7 +3540,7 @@ void Sound_Cmd_A8_unk(FSoundCommandParams* arg0)
     for (i = 0, var_a1 = vs_audio_soundEffectsChannels; i < 12; ++i, ++var_a1, var_a3 *= 2) {
         if ((mask & var_a3) && !(var_a1->unk28 & 0x02000000)) {
             var_a1->unkDC = (arg0->Param1 & 0x7F) << 8;
-            var_a1->unk8C = 0;
+            var_a1->effectVolumeSlideLength = 0;
             var_a1->VoiceParams.VoiceParamFlags |= 3;
         }
     }
@@ -3560,9 +3560,9 @@ void Sound_Cmd_A9_unk(FSoundCommandParams* arg0)
             if (arg0->Param1 != 0) {
                 var_a1 = arg0->Param1;
             }
-            var_a2->unkDE =
+            var_a2->effectVolumeSlideStep =
                 ((short)(((arg0->Param2 & 0x7F) << 8) - var_a2->unkDC) / var_a1);
-            var_a2->unk8C = var_a1;
+            var_a2->effectVolumeSlideLength = var_a1;
         }
     }
 }
@@ -3604,7 +3604,7 @@ void Sound_Cmd_A3_unk(FSoundCommandParams* arg0)
         for (i = 0; i < 12; ++i, ++var_a2, var_t0 *= 2) {
             if ((mask & var_t0) && (var_a2->unk28 & arg0->Param2)) {
                 short v = arg0->Param3 != 0 ? arg0->Param3 : 1;
-                var_a2->unkDA = (short)((((char)arg0->Param4) << 8) - var_a2->unk6C) / v;
+                var_a2->effectPanSlideStep = (short)((((char)arg0->Param4) << 8) - var_a2->unk6C) / v;
                 var_a2->unk6E = v;
             }
         }
@@ -3612,7 +3612,7 @@ void Sound_Cmd_A3_unk(FSoundCommandParams* arg0)
         for (i = 0; i < 12; ++i, ++var_a2, var_t0 *= 2) {
             if ((mask & var_t0) && (var_a2->unk3C == arg0->Param1)) {
                 short v = arg0->Param3 != 0 ? arg0->Param3 : 1;
-                var_a2->unkDA = (short)((((char)arg0->Param4) << 8) - var_a2->unk6C) / v;
+                var_a2->effectPanSlideStep = (short)((((char)arg0->Param4) << 8) - var_a2->unk6C) / v;
                 var_a2->unk6E = v;
             }
         }
@@ -3649,7 +3649,7 @@ void Sound_Cmd_AB_unk(FSoundCommandParams* arg0)
             if (arg0->Param1 != 0) {
                 var_a1 = arg0->Param1;
             }
-            var_a2->unkDA = (short)((((char)arg0->Param2) << 8) - var_a2->unk6C) / var_a1;
+            var_a2->effectPanSlideStep = (short)((((char)arg0->Param2) << 8) - var_a2->unk6C) / var_a1;
             var_a2->unk6E = var_a1;
         }
     }
@@ -4176,8 +4176,8 @@ u_int vs_audio_mixerDispatchCommand(u_int in_Command)
         pParams->Param2 = vs_audio_driverCommandArguments.unk4;
         pParams->Param3 = vs_audio_driverCommandArguments.unk8;
         pParams->Param4 = vs_audio_driverCommandArguments.unkC;
-        pParams->ExtParam1 = vs_audio_driverCommandArguments.unk10;
-        pParams->ExtParam2 = vs_audio_driverCommandArguments.unk14;
+        pParams->ExtParam1 = vs_audio_driverCommandArguments.extParam1;
+        pParams->ExtParam2 = vs_audio_driverCommandArguments.extParam2;
         break;
     }
     vs_audio_mixerCommandHandlers[in_Command](pParams);
@@ -4333,9 +4333,9 @@ void vs_audio_seqUpdateGlobalSlides(void)
                 continue;
             }
 
-            if (var_a1_2->unk8C != 0) {
-                --var_a1_2->unk8C;
-                temp_s1 = var_a1_2->unkDC + var_a1_2->unkDE;
+            if (var_a1_2->effectVolumeSlideLength != 0) {
+                --var_a1_2->effectVolumeSlideLength;
+                temp_s1 = var_a1_2->unkDC + var_a1_2->effectVolumeSlideStep;
                 if ((temp_s1 & 0xFF00) != (var_a1_2->unkDC & 0xFF00)) {
                     var_a1_2->VoiceParams.VoiceParamFlags |= 3;
                 }
@@ -4344,7 +4344,7 @@ void vs_audio_seqUpdateGlobalSlides(void)
 
             if (var_a1_2->unk6E != 0) {
                 --var_a1_2->unk6E;
-                temp_s1 = var_a1_2->unk6C + var_a1_2->unkDA;
+                temp_s1 = var_a1_2->unk6C + var_a1_2->effectPanSlideStep;
                 if ((temp_s1 & 0xFF00) != (var_a1_2->unk6C & 0xFF00)) {
                     var_a1_2->VoiceParams.VoiceParamFlags |= 3;
                 }
@@ -5476,7 +5476,7 @@ void SoundVM_unused1(
     FSoundChannel* in_pChannel, u_int in_VoiceFlags __attribute__((unused)))
 {
     in_pChannel->unkDC = *(in_pChannel->ProgramCounter)++ << 8;
-    in_pChannel->unk8C = 0;
+    in_pChannel->effectVolumeSlideLength = 0;
     if (in_pChannel->UpdateFlags & 0x100) {
         in_pChannel->VoiceParams.VoiceParamFlags |= 3;
     }
@@ -5490,13 +5490,13 @@ void SoundVM_unused2(
     short v;
     int pc;
 
-    if ((in_pChannel->unk8C = *(in_pChannel->ProgramCounter)++) == 0) {
-        in_pChannel->unk8C = 0x100;
+    if ((in_pChannel->effectVolumeSlideLength = *(in_pChannel->ProgramCounter)++) == 0) {
+        in_pChannel->effectVolumeSlideLength = 0x100;
     }
 
     pc = *((in_pChannel->ProgramCounter)++) << 8;
     v = in_pChannel->unkDC & 0xFF00;
-    in_pChannel->unkDE = ((pc - v) / in_pChannel->unk8C);
+    in_pChannel->effectVolumeSlideStep = ((pc - v) / in_pChannel->effectVolumeSlideLength);
     in_pChannel->unkDC = v;
 }
 

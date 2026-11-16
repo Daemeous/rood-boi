@@ -48,10 +48,10 @@ pub fn vs_field_drawRoomTriggerMarkers() callconv(.c) void {
                     s2 = 0;
                 }
                 // The C shifts the 16-bit result left by 17 in an int; the top bits are lost, as in C.
-                const j: c_int = @as(c_int, c.vs_field_floorHeightAt(@as(c_int, s3.unk0) << 7, @as(c_int, s3.unk2) << 7)) << 17;
+                const j: c_int = @as(c_int, c.vs_field_floorHeightAt(@as(c_int, s3.tileX) << 7, @as(c_int, s3.tileZ) << 7)) << 17;
                 c.vs_field_drawRoomTriggerMarker(
-                    @as(c_int, s3.unk0) << 7,
-                    @as(c_int, s3.unk2) << 7,
+                    @as(c_int, s3.tileX) << 7,
+                    @as(c_int, s3.tileZ) << 7,
                     psx.conv(c_short, j >> 17),
                     @as(c_uint, s3.unkB),
                 );

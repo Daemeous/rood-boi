@@ -10,7 +10,7 @@ pub fn vs_actors_restoreActorBasePose(actorId: c_int, animation: c_int) callconv
     if (actor) |a| {
         const currentAnimation: c_int = a.animationId;
         if (currentAnimation != 0xC6 and currentAnimation != 0xC8 and
-            (a.unk0.unkF != 0 or (psx.fieldAt(u32, &a.unk0._bits_skip, 0).* & 0x184000) != 0x80000))
+            (a.unk0.slot != 0 or (psx.fieldAt(u32, &a.unk0._bits_skip, 0).* & 0x184000) != 0x80000))
         {
             const flags = psx.fieldAt(u32, &a.unk0._bits_skip, 0).*;
             const state = flags & 0x70000000;
@@ -36,7 +36,7 @@ pub fn vs_actors_restoreActorBasePose(actorId: c_int, animation: c_int) callconv
                             a.unk0.position.vz = psx.conv(i16, @as(c_int, psx.conv(u16, a.unk0.position.vz)) +%
                                 @as(c_int, psx.conv(u16, a.unk0.unk34.vz)));
                             a.unk0.facing = psx.conv(i16, @as(c_int, psx.conv(u16, a.unk0.facing)) +%
-                                @as(c_int, psx.conv(u16, a.unk0.unk3E)));
+                                @as(c_int, psx.conv(u16, a.unk0.facingDelta)));
                         }
                     } else if ((movementFlags & 0xF00) == 0) {
                         var baseAnimation: c_int = a.animationId;
@@ -45,7 +45,7 @@ pub fn vs_actors_restoreActorBasePose(actorId: c_int, animation: c_int) callconv
                         }
                         if (baseAnimation != 0x62) {
                             var distance: c_int = 1;
-                            if (a.unk0.unkF == 0) {
+                            if (a.unk0.slot == 0) {
                                 const reactionAnimation: c_int = a.animationId;
                                 var move = false;
                                 if (psx.conv(c_uint, reactionAnimation -% 0x4F) >= 4) {
@@ -81,7 +81,7 @@ pub fn vs_actors_restoreActorBasePose(actorId: c_int, animation: c_int) callconv
                                 }
                             }
                             if (psx.getBits(a, "unk5AC_3") != 0) {
-                                _ = c.vs_actors_playActorAnimation(@as(c_int, a.unk0.unkF), 0x4B, 0, 0xC);
+                                _ = c.vs_actors_playActorAnimation(@as(c_int, a.unk0.slot), 0x4B, 0, 0xC);
                             } else {
                                 _ = c.vs_actors_playActorAnimation(actorId, animation, 0, 0x10);
                                 a.unk1846 = 0;

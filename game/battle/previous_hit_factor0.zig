@@ -8,7 +8,7 @@ const v = @import("views_146C");
 /// Returns the previous hit's factor for action hit parameter `index`, from the first actor's HP and MP.
 pub fn previousHitFactor0(action: ?*v.vs_action_t, _: ?*v._hitEntity_t, _: ?*v._hitEntity_t, index: c_int, _: c_int) callconv(.c) c_short {
     const game = v.g.vs_battle_actionState().*.?;
-    const entity = &game.unk8.unk4C[0].unk0;
+    const entity = &game.unk8.targets[0].target;
     const hp: c_int = entity.hp;
     const mp: c_int = entity.mp;
     // hitParams[index]: the C does not check the index against the array's two entries.

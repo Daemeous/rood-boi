@@ -23,12 +23,12 @@ pub fn vs_battle_collectEnvironmentActionTargets() callconv(.c) void {
                 if (r.unk6 != 16) {
                     const t = psx.at(&list.targets, list.count);
                     t.kind = 3;
-                    t.x = psx.conv(i16, @as(c_int, r.unk0) *% 128 +% 64);
-                    const yArg0: c_int = (@as(c_int, r.unk0) << 7) | 64;
-                    const yArg1: c_int = (@as(c_int, r.unk2) << 7) | 64;
+                    t.x = psx.conv(i16, @as(c_int, r.tileX) *% 128 +% 64);
+                    const yArg0: c_int = (@as(c_int, r.tileX) << 7) | 64;
+                    const yArg1: c_int = (@as(c_int, r.tileZ) << 7) | 64;
                     const yRaw: c_int = @as(c_int, c.vs_field_floorHeightAt(yArg0, yArg1));
                     t.y = psx.conv(i16, (yRaw << 17) >> 17);
-                    t.z = psx.conv(i16, @as(c_int, r.unk2) *% 128 +% 64);
+                    t.z = psx.conv(i16, @as(c_int, r.tileZ) *% 128 +% 64);
                     t.radius = 128;
                     list.count +%= 1;
                 }

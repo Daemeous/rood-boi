@@ -13,10 +13,10 @@ pub fn factorPhysicalDamageReceived0(action: ?*v.vs_action_t, _: ?*v._hitEntity_
     // vs_main_actions[actionIndex] is not checked against 256: the C does not check either.
     const actionType = psx.getBits(psx.at(v.g.actions(), d.unk8.actionIndex), "type");
     if (@as(c_int, actionType) != c.actionTypeSpell) {
-        const hpEffect = psx.getBits(&d.unk8.unk4, "hpEffect");
+        const hpEffect = psx.getBits(&d.unk8.primaryTarget, "hpEffect");
         if (hpEffect == 1 or hpEffect == 3) {
-            const hp: c_int = d.unk8.unk4.unk0.hp;
-            const mp: c_int = d.unk8.unk4.unk0.mp;
+            const hp: c_int = d.unk8.primaryTarget.target.hp;
+            const mp: c_int = d.unk8.primaryTarget.target.mp;
             // hitParams has 2 entries; arg3 is not checked in the C either.
             const statFactor: c_int = @as(c_int, psx.getBits(psx.at(&action.?.hitParams, arg3), "statFactor"));
             factor = psx.conv(i16, @divTrunc((hp +% mp) *% statFactor, 10));

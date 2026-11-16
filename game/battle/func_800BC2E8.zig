@@ -160,8 +160,8 @@ pub fn func_800BC2E8(script: [*c]u8, _: c_short) callconv(.c) c_int {
             _ = sVectorToFixedPointVector(v1, rotation);
             _ = c._setVectorImm(cv(v2), script + 4);
             _ = c._vectorAdd(cv(&cur.position), cv(v1), cv(v2));
-            if (camera().unk1E8 != 0x2000) {
-                _ = c._vectorSubtract(cv(&cur.position), cv(&cur.position), cv(&camera().unk1EC));
+            if (camera().originActorId != 0x2000) {
+                _ = c._vectorSubtract(cv(&cur.position), cv(&cur.position), cv(&camera().originOffset));
             }
             return 0;
         },
@@ -193,8 +193,8 @@ pub fn func_800BC2E8(script: [*c]u8, _: c_short) callconv(.c) c_int {
             gte.applyMatrixLV(matrix, v1, v1);
             c.vs_actors_anchorPoint(scratch.value, script[3], psx.cptr(c.SVECTOR, rotation2), 2);
             _ = c._vectorAdd(cv(&cur.position), cv(sVectorToFixedPointVector(v2, rotation2)), cv(v1));
-            if (camera().unk1E8 != 0x2000) {
-                _ = c._vectorSubtract(cv(&cur.position), cv(&cur.position), cv(&camera().unk1EC));
+            if (camera().originActorId != 0x2000) {
+                _ = c._vectorSubtract(cv(&cur.position), cv(&cur.position), cv(&camera().originOffset));
             }
             return 0;
         },
@@ -213,9 +213,9 @@ pub fn func_800BC2E8(script: [*c]u8, _: c_short) callconv(.c) c_int {
             cur.delta = vectorMagnitude(vv(c._vectorSubtract(cv(v1), cv(&cur.position), cv(&cur.computed))));
             cur.value = @divTrunc(cur.delta, @as(c_int, script[2]));
             const far: i32 = std.math.minInt(i32);
-            camera().unk27C.vz = far;
-            camera().unk27C.vy = far;
-            camera().unk27C.vx = far;
+            camera().lastTerrainPosition.vz = far;
+            camera().lastTerrainPosition.vy = far;
+            camera().lastTerrainPosition.vx = far;
             return 0;
         },
         // 6 and 12..15 return no value in the C: both objects leave script[0] & 15 in the result register.

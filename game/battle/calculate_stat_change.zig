@@ -12,7 +12,7 @@ pub fn calculateStatChange(action: ?*v.vs_action_t, arg1: ?*v._hitEntity_t, arg2
     const target = arg2.?;
 
     // vs_battle_actors[targetActor]: the index is a u8 and the table has no bounds in C.
-    if (target.unk40 == 0 and psx.get(psx.at(v.g.vs_battle_actors(), target.unk0.targetActor).*.?.stats).?.unk957 == 128) {
+    if (target.unk40 == 0 and psx.get(psx.at(v.g.vs_battle_actors(), target.target.targetActor).*.?.stats).?.actorId == 128) {
         amount = 999;
     } else {
         // action->hitParams[hit]: hit is not checked against the array in C.

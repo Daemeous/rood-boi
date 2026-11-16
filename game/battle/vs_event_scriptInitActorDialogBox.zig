@@ -60,9 +60,9 @@ pub fn vs_event_scriptInitActorDialogBox(script: [*c]u8, _: c_short) callconv(.c
 
     // BUG in the original: texture is never initialized; both objects (32- and 64-bit) store 0 into unk0_24.
     const texture: c_int = 0;
-    psx.setBits(&box.unk0, "unk0_24", psx.conv(u6, texture));
-    psx.setBits(&box.unk0, "unk0_6", psx.getBits(&b.offset, "alignment"));
-    psx.setBits(&box.unk0, "unk0_12", psx.getBits(&b.offset, "flags"));
+    psx.setBits(&box.flags, "unk0_24", psx.conv(u6, texture));
+    psx.setBits(&box.flags, "unk0_6", psx.getBits(&b.offset, "alignment"));
+    psx.setBits(&box.flags, "unk0_12", psx.getBits(&b.offset, "flags"));
     box.unk2E = psx.conv(i16, script[8]);
     return 0;
 }

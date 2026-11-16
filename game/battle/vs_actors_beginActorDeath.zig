@@ -19,7 +19,7 @@ pub fn vs_actors_beginActorDeath(actorId: c_int, context: ?*anyopaque, animate: 
             actor.unk0.unk34.vx = 0;
             actor.unk0.unk34.vz = 0;
             // The vertical speed is kept only when falling-free: unkF == 0, mode 3, vy > 0.
-            const keepVy = actor.unk0.unkF == 0 and
+            const keepVy = actor.unk0.slot == 0 and
                 (psx.fieldAt(c_int, &actor.unk0._bits_skip, 0).* & 0x70000) == 0x30000 and
                 actor.unk0.unk34.vy > 0;
             if (!keepVy) actor.unk0.unk34.vy = -6;

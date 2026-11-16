@@ -264,7 +264,7 @@ static void queue_entry(vs_battle_objectData** q, int direct, int type, int inde
     e->index = index;
     e->modelId = model;
     if (type == 3)
-        e->unk4 = vs_battle_characterState->unk48[index];
+        e->destination = vs_battle_characterState->unk48[index];
     e->actorId = 0;
     if (type == 3) {
         e->unk11 = 240 + index;
@@ -337,7 +337,7 @@ static void begin_swap(vs_main_inventoryWeapon* w)
 static int swap_allowed(void)
 {
     return ((vs_battle_screenTransitionStep - 1) >= 2U) && (vs_battle_screenTransitionStep != 4)
-        && !(vs_actors_actorStateFlags(0) & 0x6000) && (vs_battle_characterState->unk3C->unk954 == 0)
+        && !(vs_actors_actorStateFlags(0) & 0x6000) && (vs_battle_characterState->unk3C->actionRecoveryTimer == 0)
         && (vs_actors_isActorActionAnimationBusy(0) == 0) && (vs_battle_objectDataSlots[0].dataType == 0);
 }
 

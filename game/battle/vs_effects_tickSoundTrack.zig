@@ -10,9 +10,9 @@ pub fn vs_effects_tickSoundTrack(script_arg: ?*v.D_800F53B8_t, cmd_arg: ?*v.func
     const script = script_arg.?;
     const cmd = cmd_arg.?;
     var position: v.SVECTOR = undefined;
-    const commands: [*]u32 = @ptrCast(psx.get(cmd.unk0).?);
-    const command: c_uint = psx.at(commands, cmd.unk6).*;
-    if ((command & 0x1FF) == psx.conv(c_uint, @as(c_int, psx.get(script.unkD1C.unk30).?.unk2))) {
+    const commands: [*]u32 = @ptrCast(psx.get(cmd.keys).?);
+    const command: c_uint = psx.at(commands, cmd.keyIndex).*;
+    if ((command & 0x1FF) == psx.conv(c_uint, @as(c_int, psx.get(script.context.unk30).?.frame))) {
         const kind: c_int = @intCast((command >> 18) & 3);
         if (kind == 2) {
             const pfile = v.g.vs_effects_package().*.?;
@@ -24,11 +24,11 @@ pub fn vs_effects_tickSoundTrack(script_arg: ?*v.D_800F53B8_t, cmd_arg: ?*v.func
             if (((command >> 20) & 3) == 0) {
                 c.vs_main_playSfxDefault(bank, @intCast((command >> 9) & 0x1FF));
             } else {
-                const entry = psx.at(&script.unk1C, (psx.at(commands, cmd.unk6).* >> 22) & 63); // unk1C[16]: up to 63, unchecked
+                const entry = psx.at(&script.unk1C, (psx.at(commands, cmd.keyIndex).* >> 22) & 63); // unk1C[16]: up to 63, unchecked
                 position.vx = psx.conv(i16, entry.unk38.t[0]);
                 position.vy = psx.conv(i16, entry.unk38.t[1]);
                 position.vz = psx.conv(i16, entry.unk38.t[2]);
-                c.vs_main_panSfx(bank, @intCast((psx.at(commands, cmd.unk6).* >> 9) & 0x1FF), @ptrCast(&position));
+                c.vs_main_panSfx(bank, @intCast((psx.at(commands, cmd.keyIndex).* >> 9) & 0x1FF), @ptrCast(&position));
             }
         }
         return c.vs_effects_advanceTimelineKey(@ptrCast(cmd));

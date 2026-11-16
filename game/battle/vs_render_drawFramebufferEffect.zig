@@ -21,8 +21,8 @@ pub fn vs_render_drawFramebufferEffect(ot: ?*anyopaque) callconv(.c) void {
     _ = c.memset(&sp60, @as(c_int, 0), @as(usize, 8));
 
     if (v.g.vs_render_framebufferEffectState().* == 2) {
-        translation.vx = v.g.vs_render_framebufferEffectOffset().unk0 +% 0xA0;
-        translation.vy = v.g.vs_render_framebufferEffectOffset().unk4 +% 0x70;
+        translation.vx = v.g.vs_render_framebufferEffectOffset().x +% 0xA0;
+        translation.vy = v.g.vs_render_framebufferEffectOffset().y +% 0x70;
         _ = c.RotMatrix_gte(@ptrCast(v.g.vs_render_framebufferEffectRotation()), psx.cptr(c.MATRIX, &sp18));
         _ = c.TransMatrix(psx.cptr(c.MATRIX, &sp18), psx.cptr(c.VECTOR, &translation));
         _ = c.ScaleMatrix(psx.cptr(c.MATRIX, &sp18), @ptrCast(v.g.vs_render_framebufferEffectScale()));
@@ -60,8 +60,8 @@ pub fn vs_render_drawFramebufferEffect(ot: ?*anyopaque) callconv(.c) void {
             while (s1 < 5) : (s1 +%= 1) {
                 const temp_s0: c_int = s1 << 6;
                 const page: c_int = c.GetTPage(2, v.g.vs_render_framebufferEffectBlendMode().*, temp_s0 +% (buffer *% 0x140), 0);
-                const x: c_int = @as(c_int, psx.conv(i16, @as(c_int, psx.conv(u16, v.g.vs_render_framebufferEffectOffset().unk0)) +% temp_s0));
-                const item = sprite_item.sprite(slot, 0x100, (x & 0xFFFF) | (@as(c_int, psx.conv(i16, v.g.vs_render_framebufferEffectOffset().unk4)) << 16), 64 | (223 << 16), 0, 0);
+                const x: c_int = @as(c_int, psx.conv(i16, @as(c_int, psx.conv(u16, v.g.vs_render_framebufferEffectOffset().x)) +% temp_s0));
+                const item = sprite_item.sprite(slot, 0x100, (x & 0xFFFF) | (@as(c_int, psx.conv(i16, v.g.vs_render_framebufferEffectOffset().y)) << 16), 64 | (223 << 16), 0, 0);
                 sprite_item.color(item, rgb, true);
                 sprite_item.drawModeWindow(slot, 0x200 | (page & 0x1FF), 0);
             }

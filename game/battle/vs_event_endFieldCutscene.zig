@@ -24,7 +24,7 @@ pub fn vs_event_endFieldCutscene() callconv(.c) void {
     _ = c.vs_battle_aiRebuildActorActionPlans(null);
     c.vs_battle_aiUpdateRouteGateAvailability();
     if (c.vs_event_evaluateRoomEventTriggers(0xA, 0, 0, 0) == 1 or
-        (v.g.vs_state_sceneTimer().unk0 != 0 and c.vs_event_evaluateRoomEventTriggers(0x10, 0, 0, 0) == 1))
+        (v.g.vs_state_sceneTimer().mode != 0 and c.vs_event_evaluateRoomEventTriggers(0x10, 0, 0, 0) == 1))
     {
         c.vs_event_startPreparedCutscene();
         return;

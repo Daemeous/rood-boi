@@ -33,6 +33,7 @@ static struct {
     const void* packet;
     const uint32_t* entry; /* the table entry it was linked at */
     int first, count;
+    int tail; /* linked at the end of the slot's chain (pc_frame_copy_tail), not at its head */
 } markers[ITEMS] PC_SAVED_STATE;
 static int marker_count PC_SAVED_STATE;
 
@@ -83,6 +84,63 @@ void pc_frame_table(const void* base, int n, int reverse)
         at = table_next++ % TABLES;
     tables[at].base = base, tables[at].n = n, tables[at].reverse = reverse;
 }
+/* The markers by the table entry they are placed at, for the walk of a table (boot_runtime.c adopt): sorted by entry, the runs linked at
+ * the head of the entry apart from those appended at the end of its chain. */
+static int marker_by_entry[ITEMS];
+static int by_entry_count;
+static int by_entry_cmp(const void* a, const void* b)
+{
+    const int i = *(const int*)a, j = *(const int*)b;
+    if (markers[i].entry != markers[j].entry)
+        return markers[i].entry < markers[j].entry ? -1 : 1;
+    if (markers[i].tail != markers[j].tail)
+        return markers[i].tail - markers[j].tail;
+    return markers[i].tail ? i - j : j - i; /* (linked at the head: the last placed first; appended: in the order made) */
+}
+void pc_frame_markers_index(void)
+{
+    by_entry_count = 0;
+    for (int i = 0; i < marker_count; i++)
+        if (markers[i].entry)
+            marker_by_entry[by_entry_count++] = i;
+    qsort(marker_by_entry, (size_t)by_entry_count, sizeof marker_by_entry[0], by_entry_cmp);
+}
+static int by_entry_first(const void* entry, int tail)
+{
+    int lo = 0, hi = by_entry_count;
+    while (lo < hi) {
+        int mid = (lo + hi) / 2, m = marker_by_entry[mid];
+        if (markers[m].entry < (const uint32_t*)entry || (markers[m].entry == (const uint32_t*)entry && markers[m].tail < tail))
+            lo = mid + 1;
+        else
+            hi = mid;
+    }
+    return lo;
+}
+int pc_frame_entry_markers(const void* entry, int tail, const void** out, int max)
+{
+    int n = 0;
+    for (int k = by_entry_first(entry, tail); k < by_entry_count && n < max; k++) {
+        const int m = marker_by_entry[k];
+        if (markers[m].entry != (const uint32_t*)entry || markers[m].tail != tail)
+            break;
+        out[n++] = markers[m].packet;
+    }
+    return n;
+}
+int pc_frame_entry_has_tail(const void* entry)
+{
+    int k = by_entry_first(entry, 1);
+    return k < by_entry_count && markers[marker_by_entry[k]].entry == (const uint32_t*)entry && markers[marker_by_entry[k]].tail;
+}
+/* Whether `a` and `b` are entries of one registered table. */
+int pc_frame_same_table(const void* a, const void* b)
+{
+    for (int i = 0; i < TABLES; i++)
+        if (tables[i].base && (const uint32_t*)a >= tables[i].base && (const uint32_t*)a < tables[i].base + tables[i].n)
+            return (const uint32_t*)b >= tables[i].base && (const uint32_t*)b < tables[i].base + tables[i].n;
+    return 0;
+}
 /* Whether a run still has an item that draws (the others were suppressed: kind none). */
 int pc_frame_run_live(int first, int count)
 {
@@ -112,7 +170,7 @@ int pc_frame_expected_order(const void* head, int* out, int max)
         long slot, sub;
         if (e >= tables[t].base && e < tables[t].base + tables[t].n) {
             slot = e - tables[t].base;
-            sub = (1L << 19) + (ITEMS - 1 - i);
+            sub = markers[i].tail ? (1L << 19) + ITEMS + i : (1L << 19) + (ITEMS - 1 - i);
         } else { /* a spliced table's run: at the entry the table is linked after */
             slot = -1;
             for (int sp = 0; sp < 4 && slot < 0; sp++) {
@@ -151,6 +209,7 @@ int pc_frame_expected_order(const void* head, int* out, int max)
 static int sites_on, sites_count, peak;
 static const void* sites[SITES];
 
+extern void vs_render_splicePrimitiveList(uint32_t* at, int* packet);
 /* boot_runtime.c: one lowered packet drawn as a member of an ordering table. */
 extern void pc_draw_item_packet(void* packet);
 extern void pc_hwc_frame_room(void); /* hw_cmd.c */
@@ -725,6 +784,13 @@ static unsigned lower(const pc_item* it, uint32_t* p)
             p[n++] = (uint32_t)it->native_count & 0xffffffu;
         }
         break;
+    case PC_ITEM_COPY: /* (the words SetDrawMove wrote) */
+        p[n++] = 0x01000000u;
+        p[n++] = 0x80000000u;
+        p[n++] = xy_word(it, 0);
+        p[n++] = xy_word(it, 1);
+        p[n++] = (uint16_t)it->w | (uint32_t)(uint16_t)it->h << 16;
+        break;
     case PC_ITEM_MASK:
         p[n++] = 0xe6000000u | (it->x[0] ? 1u : 0u);
         break;
@@ -827,7 +893,7 @@ int pc_frame_lower(int index, unsigned words[3][16], int lengths[3])
     if (it->kind == PC_ITEM_POLY && (it->flags & PC_ITEM_TEXTURED) && (it->flags & PC_ITEM_BEFORE)) {
         words[packets][0] = 0xe1000000u | it->before;
         lengths[packets++] = 1;
-    } else if (it->kind != PC_ITEM_AREA && it->kind != PC_ITEM_MODE_SET && it->kind != PC_ITEM_MASK && it->kind != PC_ITEM_NATIVE && it->mode != PC_ITEM_INHERIT && !(it->flags & PC_ITEM_BRACKET)
+    } else if (it->kind != PC_ITEM_AREA && it->kind != PC_ITEM_MODE_SET && it->kind != PC_ITEM_MASK && it->kind != PC_ITEM_COPY && it->kind != PC_ITEM_NATIVE && it->mode != PC_ITEM_INHERIT && !(it->flags & PC_ITEM_BRACKET)
         && !(it->kind == PC_ITEM_POLY && (it->flags & PC_ITEM_TEXTURED))) {
         words[packets][0] = 0xe1000000u | it->mode;
         lengths[packets++] = 1;
@@ -928,7 +994,7 @@ static void draw_run(int first, int count)
         }
         if (it->kind == PC_ITEM_MODE_SET && it->mode != PC_ITEM_INHERIT)
             mode = it->mode; /* (its packet is the mode) */
-        if (it->kind == PC_ITEM_AREA || it->kind == PC_ITEM_MODE_SET || it->kind == PC_ITEM_MASK || it->kind == PC_ITEM_NATIVE) {
+        if (it->kind == PC_ITEM_AREA || it->kind == PC_ITEM_MODE_SET || it->kind == PC_ITEM_MASK || it->kind == PC_ITEM_COPY || it->kind == PC_ITEM_NATIVE) {
             /* (a state: no draw mode of its own) */
         } else if (it->flags & PC_ITEM_BRACKET)
             mode = 0x200; /* (its words end with the mode set) */
@@ -969,7 +1035,7 @@ uint32_t* pc_frame_place(int first, int count, uint32_t* ot_entry, uint32_t* pac
     for (int i = first; i < first + count && i < pc_item_frame.count; i++)
         pc_item_frame.item[i].flags |= PC_ITEM_PLACED;
     if (marker_count < ITEMS)
-        markers[marker_count].packet = packet, markers[marker_count].entry = ot_entry, markers[marker_count].first = first, markers[marker_count++].count = count;
+        markers[marker_count].tail = 0, markers[marker_count].packet = packet, markers[marker_count].entry = ot_entry, markers[marker_count].first = first, markers[marker_count++].count = count;
     packet[0] = (*ot_entry & 0xffffff) | 3u << 24;
     packet[1] = MARKER;
     packet[2] = (uint32_t)first & 0xffffff;
@@ -1005,4 +1071,28 @@ int pc_frame_run_pages(int first, int count, unsigned current, int (*wanted)(uns
             return 1;
     }
     return 0;
+}
+
+void pc_frame_copy_tail(unsigned* top, unsigned* packet)
+{
+    /* (SetDrawMove's words: the tag with the length 5, then the cache clear and the copy command, source, destination, size) */
+    if ((packet[0] >> 24) == 5 && packet[1] == 0x01000000u && packet[2] == 0x80000000u) {
+        int first = pc_item_frame.count;
+        pc_item* it = pc_frame_add(PC_ITEM_COPY, 0);
+        if (it) {
+            it->mode = PC_ITEM_INHERIT;
+            it->x[0] = (int16_t)packet[3], it->y[0] = (int16_t)(packet[3] >> 16);
+            it->x[1] = (int16_t)packet[4], it->y[1] = (int16_t)(packet[4] >> 16);
+            it->w = (int16_t)packet[5], it->h = (int16_t)(packet[5] >> 16);
+            it->flags |= PC_ITEM_PLACED;
+            if (marker_count < ITEMS)
+                markers[marker_count].packet = packet, markers[marker_count].entry = top, markers[marker_count].first = first,
+                markers[marker_count].count = 1, markers[marker_count++].tail = 1;
+            packet[0] = 3u << 24;
+            packet[1] = MARKER;
+            packet[2] = (uint32_t)first & 0xffffff;
+            packet[3] = 1;
+        }
+    }
+    vs_render_splicePrimitiveList(top, (int*)packet);
 }

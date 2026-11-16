@@ -84,7 +84,7 @@ pub fn vs_actors_updateAndDrawRoomModels(camera: [*c]v.MATRIX) callconv(.c) void
         if (psx.at(entries, i).*) |actor| {
             if (actor.unk0.nBones != 0 and common.object.flags8(actor).* & 1 == 0 and actor.unk0.unk13 != 0xFC) {
                 c.vs_actors_stepTextureAnimations(@ptrCast(actor));
-                if (actor.unk0.unk64.unk0 != 0) c.vs_actors_updatePalettePulse(@ptrCast(actor), null, 0);
+                if (actor.unk0.palettePulse.unk0 != 0) c.vs_actors_updatePalettePulse(@ptrCast(actor), null, 0);
                 if (common.object.flags8(actor).* & 0xF00 != 0) c.vs_actors_updateActorAppearanceTransition(@ptrCast(actor));
                 const flags = common.object.flags8(actor).*;
                 common.object.flags8(actor).* = flags & 0x7FFF_FFFF;
@@ -100,7 +100,7 @@ pub fn vs_actors_updateAndDrawRoomModels(camera: [*c]v.MATRIX) callconv(.c) void
                     c.vs_actors_actorRootOffset(@ptrCast(actor));
                 }
                 if (common.object.flags8(actor).* & 0x2000 != 0) {
-                    if (psx.at(entries, actor.unk0.unk12).*) |parent| {
+                    if (psx.at(entries, actor.unk0.attachParent).*) |parent| {
                         c.func_800B28A8(@ptrCast(actor), @ptrCast(psx.at(&parent.bones, actor.unk0.unk13)), 0);
                     } else {
                         // The C's block-scope statics (globalised by the build).
@@ -110,7 +110,7 @@ pub fn vs_actors_updateAndDrawRoomModels(camera: [*c]v.MATRIX) callconv(.c) void
                         if (before == 0) {
                             var line: [96]u8 = undefined;
                             _ = c.sprintf(&line, "[actor] slot %d is attached to bone %d of empty slot %d", i,
-                                @as(c_int, actor.unk0.unk13), @as(c_int, actor.unk0.unk12));
+                                @as(c_int, actor.unk0.unk13), @as(c_int, actor.unk0.attachParent));
                             c.pc_log(&line);
                         }
                         c.func_800B28A8(@ptrCast(actor), @ptrCast(v.g.func_800AEF94__zero()), 0);
@@ -122,7 +122,7 @@ pub fn vs_actors_updateAndDrawRoomModels(camera: [*c]v.MATRIX) callconv(.c) void
                         if (attachmentId >= 2) {
                             const attached = psx.at(entries, actor.unk17FD).*.?;
                             c.vs_actors_stepTextureAnimations(@ptrCast(attached));
-                            if (attached.unk0.unk64.unk0 != 0) c.vs_actors_updatePalettePulse(@ptrCast(attached), null, 0);
+                            if (attached.unk0.palettePulse.unk0 != 0) c.vs_actors_updatePalettePulse(@ptrCast(attached), null, 0);
                             if (common.object.flags8(attached).* & 0xF00 != 0) c.vs_actors_updateActorAppearanceTransition(@ptrCast(attached));
                             if (common.object.flags8(actor).* & 4 != 0) {
                                 fadeColour(attached);

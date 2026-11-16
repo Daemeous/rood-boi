@@ -37,7 +37,7 @@ pub fn vs_actors_restartActorAnimationEvents(arg0: ?*v.D_800F4538_t) callconv(.c
         if (before == 0) {
             var line: [96]u8 = undefined;
             _ = c.sprintf(&line, "[actor] slot %d: animation %d has no sequence loaded",
-                @as(c_int, actor.unk0.unkF), @as(c_int, actor.animationId));
+                @as(c_int, actor.unk0.slot), @as(c_int, actor.animationId));
             c.pc_log(&line);
         }
         return;

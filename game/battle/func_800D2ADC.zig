@@ -83,7 +83,7 @@ pub fn func_800D2ADC(arg0: ?*v.D_800F53B8_t, event: c_int, arg2: c_int, arg3_in:
     var prevX: c_int = 0; // set before it is read (the ring's interpolated modes)
     var prevZ: c_int = 0;
     const scratch: *Scratch = v.g.pc_effect_scratch();
-    const def = psx.at(&psx.get(v.g.vs_effects_package().*.?.block5Data).?.unk4, event);
+    const def = psx.at(&psx.get(v.g.vs_effects_package().*.?.block5Data).?.definitions, event);
 
     scratch.flags = psx.getBits(def, "flags");
     scratch.unk28 = psx.conv(u16, scratch.flags);
@@ -287,19 +287,19 @@ pub fn func_800D2ADC(arg0: ?*v.D_800F53B8_t, event: c_int, arg2: c_int, arg3_in:
         },
         40, 48 => |shape| {
             if (shape == 40) {
-                scratch.unk184 = 4;
-                scratch.unk188 = 4;
+                scratch.ringSegments = 4;
+                scratch.ringPositions = 4;
             } else {
-                scratch.unk184 = def.unkCA;
-                if (scratch.unk184 == 0) scratch.unk184 = 1;
-                scratch.unk188 = def.unkCB;
-                if (scratch.unk188 == 0) scratch.unk188 = scratch.unk184;
+                scratch.ringSegments = def.unkCA;
+                if (scratch.ringSegments == 0) scratch.ringSegments = 1;
+                scratch.ringPositions = def.unkCB;
+                if (scratch.ringPositions == 0) scratch.ringPositions = scratch.ringSegments;
             }
-            const step = @divTrunc(@as(c_int, 0x1000), scratch.unk184);
+            const step = @divTrunc(@as(c_int, 0x1000), scratch.ringSegments);
             const point = v.g.vs_effects_emissionCounter();
             const mode = scratch.flags & 0x1800;
             if (mode != 0x1000) {
-                point.* = @rem(point.*, scratch.unk188);
+                point.* = @rem(point.*, scratch.ringPositions);
                 const angle = point.* *% step +% 0x200;
                 prevX = (c.rcos(angle) *% a.vx) >> 12;
                 prevZ = (c.rsin(angle) *% a.vz) >> 12;
@@ -307,7 +307,7 @@ pub fn func_800D2ADC(arg0: ?*v.D_800F53B8_t, event: c_int, arg2: c_int, arg3_in:
             i = 0;
             while (i < count) : (i += 1) {
                 const range = 0x1194 -% sample;
-                point.* = @rem(point.* +% 1, scratch.unk188);
+                point.* = @rem(point.* +% 1, scratch.ringPositions);
                 const angle = point.* *% step +% 0x200;
                 const x = (c.rcos(angle) *% a.vx) >> 12;
                 const z = (c.rsin(angle) *% a.vz) >> 12;
@@ -335,9 +335,9 @@ pub fn func_800D2ADC(arg0: ?*v.D_800F53B8_t, event: c_int, arg2: c_int, arg3_in:
         else => {},
     }
 
-    c.vs_battle_lerp2DVector(&def.unk94[2], curveAt(def.unkC), &scratch.unk118);
-    scratch.unk118[0] = shl(scratch.unk118[0], 5);
-    scratch.unk118[1] = shl(scratch.unk118[1], 5);
+    c.vs_battle_lerp2DVector(&def.pairRanges[2], curveAt(def.unkC), &scratch.speedRange);
+    scratch.speedRange[0] = shl(scratch.speedRange[0], 5);
+    scratch.speedRange[1] = shl(scratch.speedRange[1], 5);
     c.vs_battle_lerpVector(&def.unk34[1], curveAt(def.unkB), vp(&scratch.unkC8));
     c.vs_battle_lerpVector(&def.unk34[0], curveAt(def.unkA), vp(&scratch.unkE8));
     node = first;
@@ -345,7 +345,7 @@ pub fn func_800D2ADC(arg0: ?*v.D_800F53B8_t, event: c_int, arg2: c_int, arg3_in:
     const b = &scratch.unkB8;
     const aim = scratch.flags & 0xE000;
     if (aim == 0x4000 or aim == 0x6000) {
-        const target = if (aim == 0x4000) &effect.unkD1C.unkC else &effect.unkD1C.unk24;
+        const target = if (aim == 0x4000) &effect.context.unkC else &effect.context.unk24;
         if (target.unk0 == 4) {
             const bytes: *const [4]u8 = @ptrCast(&target.unk4);
             c.func_800A1AF8(bytes[0], bytes[2], sp(s), 0);
@@ -383,7 +383,7 @@ pub fn func_800D2ADC(arg0: ?*v.D_800F53B8_t, event: c_int, arg2: c_int, arg3_in:
                     const matrixView = gte.viewRotation(matrix, gte.no_screen);
                     gte.rotateTo(vp(b), &matrixView, s);
                 }
-                scratch.unk120 = uniform(scratch.unk118[0], scratch.unk118[1]);
+                scratch.unk120 = uniform(scratch.speedRange[0], scratch.speedRange[1]);
                 const n = node.?;
                 n.unk18[0] = (b.vx *% scratch.unk120) >> 12;
                 n.unk18[1] = (b.vy *% scratch.unk120) >> 12;
@@ -398,7 +398,7 @@ pub fn func_800D2ADC(arg0: ?*v.D_800F53B8_t, event: c_int, arg2: c_int, arg3_in:
                 b.vx = (scratch.unk98.vx -% n.unkC) >> 12;
                 b.vy = (scratch.unk98.vy -% n.unk10) >> 12;
                 b.vz = (scratch.unk98.vz -% n.unk14) >> 12;
-                scratch.unk120 = uniform(scratch.unk118[0], scratch.unk118[1]);
+                scratch.unk120 = uniform(scratch.speedRange[0], scratch.speedRange[1]);
                 if (b.vx != 0 or b.vy != 0 or b.vz != 0) {
                     _ = c.VectorNormal(vp(b), vp(b));
                     n.unk18[0] = (b.vx *% scratch.unk120) >> 12;
@@ -415,26 +415,26 @@ pub fn func_800D2ADC(arg0: ?*v.D_800F53B8_t, event: c_int, arg2: c_int, arg3_in:
         else => {},
     }
 
-    c.vs_battle_lerpSvector(&def.unk34[2], curveAt(def.unkD), sp(&scratch.unkF8));
+    c.vs_battle_lerpSvector(&def.unk34[2], curveAt(def.unkD), sp(&scratch.forceMin));
     c.vs_battle_lerpSvector(&def.unk34[3], curveAt(def.unkD), sp(&scratch.unk100));
-    c.vs_battle_lerpSvector(&def.unk34[4], curveAt(def.unkE), sp(&scratch.unk108));
-    c.vs_battle_lerpSvector(&def.unk34[5], curveAt(def.unkE), sp(&scratch.unk110));
+    c.vs_battle_lerpSvector(&def.unk34[4], curveAt(def.unkE), sp(&scratch.accelerationMin));
+    c.vs_battle_lerpSvector(&def.unk34[5], curveAt(def.unkE), sp(&scratch.accelerationMax));
     node = first;
     i = 0;
     while (i < count) : (i += 1) {
         const n = node.?;
-        n.unk24[0] = uniform(scratch.unkF8.vx, scratch.unk100.vx);
-        n.unk24[1] = uniform(scratch.unkF8.vy, scratch.unk100.vy);
-        n.unk24[2] = uniform(scratch.unkF8.vz, scratch.unk100.vz);
-        n.unk30[0] = uniform(scratch.unk108.vx, scratch.unk110.vx);
-        n.unk30[1] = uniform(scratch.unk108.vy, scratch.unk110.vy);
-        n.unk30[2] = uniform(scratch.unk108.vz, scratch.unk110.vz);
+        n.unk24[0] = uniform(scratch.forceMin.vx, scratch.unk100.vx);
+        n.unk24[1] = uniform(scratch.forceMin.vy, scratch.unk100.vy);
+        n.unk24[2] = uniform(scratch.forceMin.vz, scratch.unk100.vz);
+        n.unk30[0] = uniform(scratch.accelerationMin.vx, scratch.accelerationMax.vx);
+        n.unk30[1] = uniform(scratch.accelerationMin.vy, scratch.accelerationMax.vy);
+        n.unk30[2] = uniform(scratch.accelerationMin.vz, scratch.accelerationMax.vz);
         node = next(n);
     }
 
-    c.vs_battle_lerp2DVector(&def.unk94[0], curveAt(def.unk12), &scratch.unk124);
-    c.vs_battle_lerp2DVector(&def.unk94[1], curveAt(def.unk13), &scratch.unk12C);
-    c.vs_battle_lerp2DVector(&def.unk94[4], curveAt(def.unk14), &scratch.unk134);
+    c.vs_battle_lerp2DVector(&def.pairRanges[0], curveAt(def.unk12), &scratch.unk124);
+    c.vs_battle_lerp2DVector(&def.pairRanges[1], curveAt(def.unk13), &scratch.unk12C);
+    c.vs_battle_lerp2DVector(&def.pairRanges[4], curveAt(def.unk14), &scratch.unk134);
     node = first;
     i = 0;
     while (i < count) : (i += 1) {
@@ -445,12 +445,12 @@ pub fn func_800D2ADC(arg0: ?*v.D_800F53B8_t, event: c_int, arg2: c_int, arg3_in:
         node = next(n);
     }
 
-    c.vs_battle_lerpSvector(&def.unk34[6], curveAt(def.unkF), sp(&scratch.unk13C));
-    c.vs_battle_lerpSvector(&def.unk34[7], curveAt(def.unk10), sp(&scratch.unk144));
+    c.vs_battle_lerpSvector(&def.unk34[6], curveAt(def.unkF), sp(&scratch.attractionOffset));
+    c.vs_battle_lerpSvector(&def.unk34[7], curveAt(def.unk10), sp(&scratch.attractionJitter));
     node = first;
 
-    const pivot = &scratch.unk13C;
-    const spread = &scratch.unk144;
+    const pivot = &scratch.attractionOffset;
+    const spread = &scratch.attractionJitter;
     switch (scratch.flags & 0x1C0) {
         0, 0x40 => {
             i = 0;
@@ -485,17 +485,17 @@ pub fn func_800D2ADC(arg0: ?*v.D_800F53B8_t, event: c_int, arg2: c_int, arg3_in:
         else => {},
     }
 
-    c.vs_battle_lerp2DVector(&def.unk94[3], curveAt(def.unk11), &scratch.unk14C);
+    c.vs_battle_lerp2DVector(&def.pairRanges[3], curveAt(def.unk11), &scratch.attractionRange);
     node = first;
-    scratch.unk154.@"packed" = psx.fieldAt(i32, &def.rCurve, 0).*;
+    scratch.colorCurves.@"packed" = psx.fieldAt(i32, &def.rCurve, 0).*;
     // The PC C skips this read when no node was taken (count 0).
-    if (count > 0) scratch.unk154.fields.age = node.?.unk74.fields.age;
+    if (count > 0) scratch.colorCurves.fields.age = node.?.unk74.fields.age;
     i = 0;
     while (i < count) : (i += 1) {
         const n = node.?;
         n.unk5C = @bitCast(scratch.flags);
-        const value = uniform(scratch.unk14C[0], scratch.unk14C[1]);
-        n.unk74.@"packed" = scratch.unk154.@"packed";
+        const value = uniform(scratch.attractionRange[0], scratch.attractionRange[1]);
+        n.unk74.@"packed" = scratch.colorCurves.@"packed";
         n.unk70 = value;
         psx.fieldAt(u16, &n.endEvent, 0).* = psx.fieldAt(u16, &def.unk2, 0).*;
         psx.setBits(n, "unk60_0", scratch.unk180);

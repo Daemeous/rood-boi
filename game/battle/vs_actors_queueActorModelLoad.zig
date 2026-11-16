@@ -15,8 +15,8 @@ pub fn vs_actors_queueActorModelLoad(actor: ?*v.vs_battle_actor, index: c_int, w
     request.dataType = 1;
     request.index = psx.conv(i8, index);
     request.modelId = psx.conv(i16, wepId);
-    request.unkC = flags.?.*;
-    psx.put(&request.unk4, @as(?*anyopaque, psx.get(actor.?.unk44)));
+    request.placement = flags.?.*;
+    psx.put(&request.destination, @as(?*anyopaque, psx.get(actor.?.unk44)));
     if (arg4 & 0x80 != 0) {
         request.actorId = psx.conv(u8, (arg4 & 0xF00) >> 8);
         request.unk11 = psx.conv(u8, (arg4 & 0xF000) >> 0xC);

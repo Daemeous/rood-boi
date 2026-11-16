@@ -11,13 +11,13 @@ pub fn vs_battle_previewActionAgainstLimb(action: c_int, actorIndex: c_int, targ
     // ROOD_PC: the whole request is zeroed first, padding included.
     var sp10: v.D_800F19CC_t2 = std.mem.zeroes(v.D_800F19CC_t2);
 
-    sp10.unk4C[0].unk0.targetActor = psx.conv(u8, targetActor);
+    sp10.targets[0].target.targetActor = psx.conv(u8, targetActor);
     sp10.actionIndex = psx.conv(u16, action);
-    sp10.unk4.unk40 = 0;
-    sp10.unk4.unk0.targetActor = psx.conv(u8, actorIndex);
-    sp10.unk4A = 1;
-    sp10.unk4C[0].unk40 = 0;
-    sp10.unk4C[0].unk0.targetLimb = psx.conv(i8, targetLimb);
+    sp10.primaryTarget.unk40 = 0;
+    sp10.primaryTarget.target.targetActor = psx.conv(u8, actorIndex);
+    sp10.targetCount = 1;
+    sp10.targets[0].unk40 = 0;
+    sp10.targets[0].target.targetLimb = psx.conv(i8, targetLimb);
 
     c.vs_battle_resolveActionTargets(action, @ptrCast(arg4), @ptrCast(&sp10), 0);
 

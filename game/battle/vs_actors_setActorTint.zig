@@ -11,7 +11,7 @@ pub fn vs_actors_setActorTint(arg0: c_int, arg1: ?*v.D_800F4538_unk58_2) callcon
 
     if (arg1) |src| {
         psx.setBits(temp_a2, "unk5AC_8", 1);
-        temp_a2.unk0.unk58 = src.*;
+        temp_a2.unk0.tint = src.*;
     } else {
         psx.setBits(temp_a2, "unk5AC_8", 0);
     }

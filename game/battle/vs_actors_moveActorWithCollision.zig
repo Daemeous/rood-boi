@@ -393,21 +393,21 @@ pub fn vs_actors_moveActorWithCollision(index: c_int, direction_in: c_int, dista
     }
 
     if ((flagsWord(actor) & 0x1000) != 0 and speed == 0) {
-        if (@as(c_int, psx.fieldAt(u16, &actor.unk18D6, 0).*) == @as(c_int, actor.unk0.position.vx) +% @as(c_int, motion.vx) and
-            @as(c_int, psx.fieldAt(u16, &actor.unk18D8, 0).*) == @as(c_int, actor.unk0.position.vz) +% @as(c_int, motion.vz))
+        if (@as(c_int, actor.unk18D6) == @as(c_int, actor.unk0.position.vx) +% @as(c_int, motion.vx) and
+            @as(c_int, actor.unk18D8) == @as(c_int, actor.unk0.position.vz) +% @as(c_int, motion.vz))
         {
             distance = 0;
             return done(actor, distance, direction, status);
         }
-        psx.fieldAt(u16, &actor.unk18D6, 0).* = psx.fieldAt(u16, &actor.unk18D2, 0).*;
-        psx.fieldAt(u16, &actor.unk18D8, 0).* = psx.fieldAt(u16, &actor.unk18D4, 0).*;
+        actor.unk18D6 = actor.unk18D2;
+        actor.unk18D8 = actor.unk18D4;
         psx.fieldAt(u16, &actor.unk18D2, 0).* = psx.conv(u16, @as(c_int, actor.unk0.position.vx) +% @as(c_int, motion.vx));
         psx.fieldAt(u16, &actor.unk18D4, 0).* = psx.conv(u16, @as(c_int, actor.unk0.position.vz) +% @as(c_int, motion.vz));
     } else {
-        const previousX: c_int = @as(c_int, psx.fieldAt(u16, &actor.unk18D2, 0).*);
-        const previousZ: c_int = @as(c_int, psx.fieldAt(u16, &actor.unk18D4, 0).*);
-        psx.fieldAt(u16, &actor.unk18D2, 0).* = 0;
-        psx.fieldAt(u16, &actor.unk18D4, 0).* = 0;
+        const previousX: c_int = @as(c_int, actor.unk18D2);
+        const previousZ: c_int = @as(c_int, actor.unk18D4);
+        actor.unk18D2 = 0;
+        actor.unk18D4 = 0;
         psx.fieldAt(u16, &actor.unk18D6, 0).* = psx.conv(u16, previousX);
         psx.fieldAt(u16, &actor.unk18D8, 0).* = psx.conv(u16, previousZ);
     }
@@ -535,7 +535,7 @@ pub fn vs_actors_moveActorWithCollision(index: c_int, direction_in: c_int, dista
                 _ = c.vs_actors_playActorAnimation(index, @as(c_int, v.g.D_800E90C4().*), 0, 4);
             }
             psx.setBits(&actor.unk0, "unkA_3", 1);
-            actor.unk1800 = psx.conv(i16, (@as(c_int, actor.unk0.facing) +% @as(c_int, actor.unk0.unk3E)) & 0xFFF);
+            actor.unk1800 = psx.conv(i16, (@as(c_int, actor.unk0.facing) +% @as(c_int, actor.unk0.facingDelta)) & 0xFFF);
             psx.setBits(&actor.unk0, "unk9_6", 1);
         } else if ((statusWord(actor) & 0x180000) == 0x100000) {
             _ = c.vs_actors_playActorAnimation(index, @as(c_int, v.g.D_800E90C6().*), 0, 4);
@@ -550,7 +550,7 @@ pub fn vs_actors_moveActorWithCollision(index: c_int, direction_in: c_int, dista
                 psx.setBits(&actor.unk0, "unkA_3", 2);
             }
             _ = c.vs_actors_playActorAnimation(index, @as(c_int, psx.at(v.g.D_800E90C3(), result).*), 0, 4);
-            actor.unk1800 = psx.conv(i16, (@as(c_int, actor.unk0.facing) +% @as(c_int, actor.unk0.unk3E)) & 0xFFF);
+            actor.unk1800 = psx.conv(i16, (@as(c_int, actor.unk0.facing) +% @as(c_int, actor.unk0.facingDelta)) & 0xFFF);
             if (index == 0) {
                 c.vs_audio_playActorSoundPair(@ptrCast(actor), 0x29, 0);
             } else {

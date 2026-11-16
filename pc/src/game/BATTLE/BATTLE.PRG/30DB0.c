@@ -27,7 +27,7 @@ typedef struct {
     u_char unk0;
     u_char unk1;
     u_char unk2;
-    u_char unk3;
+    u_char orientation;
     int unk4;
     int unk8;
 } func_800A0024_t;

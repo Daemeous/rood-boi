@@ -75,15 +75,15 @@ int VS_RING_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
         state->height = 0;
         state->angle = 0;
         state->age = 0;
-        effect = &vs_effects_package->block5Data->unk4[state->effect];
+        effect = &vs_effects_package->block5Data->definitions[state->effect];
         vs_effects_clearTextureAnimation((int*)&state->texture);
         vs_effects_restartTextureAnimation(&state->texture, effect->unk1, effect->unk0);
         break;
     case 2: {
-        effect = &vs_effects_package->block5Data->unk4[state->effect];
+        effect = &vs_effects_package->block5Data->definitions[state->effect];
         scratch->flags = effect->flags;
         actorMatrix = &battle->unk1C[effect->unkC8].unk38;
-        effect = &vs_effects_package->block5Data->unk4[state->effect];
+        effect = &vs_effects_package->block5Data->definitions[state->effect];
         fraction = func_800CFE1C(
             effect->unk30, vs_battle_sampleCurve(effect->unk17, state->age));
         column = ((u_char*)effect)[7];
@@ -108,21 +108,21 @@ int VS_RING_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
         vs_battle_lerpVector(effect->unk24,
             vs_battle_sampleCurve(effect->unk9, state->age), &scratch->unkA8);
         column = vs_battle_sampleCurve(effect->unkD, state->age);
-        vs_battle_lerpSvector(effect->unk34[2], column, &scratch->unkF8);
+        vs_battle_lerpSvector(effect->unk34[2], column, &scratch->forceMin);
         vs_battle_lerpSvector(effect->unk34[3], column, &scratch->unk100);
         column = vs_battle_sampleCurve(effect->unkE, state->age);
-        vs_battle_lerpSvector(effect->unk34[4], column, &scratch->unk108);
-        vs_battle_lerpSvector(effect->unk34[5], column, &scratch->unk110);
+        vs_battle_lerpSvector(effect->unk34[4], column, &scratch->accelerationMin);
+        vs_battle_lerpSvector(effect->unk34[5], column, &scratch->accelerationMax);
         vs_battle_lerpVector(effect->unk34[0],
             vs_battle_sampleCurve(effect->unkA, state->age), &scratch->unkE8);
-        vs_battle_lerp2DVector(effect->unk94[2],
-            vs_battle_sampleCurve(effect->unkC, state->age), scratch->unk118);
-        state->radiusSpeed += scratch->unk108.vx;
-        radiusValue = state->radius += scratch->unkF8.vx + state->radiusSpeed;
+        vs_battle_lerp2DVector(effect->pairRanges[2],
+            vs_battle_sampleCurve(effect->unkC, state->age), scratch->speedRange);
+        state->radiusSpeed += scratch->accelerationMin.vx;
+        radiusValue = state->radius += scratch->forceMin.vx + state->radiusSpeed;
         height[0] = 0;
         radius[0] = radiusValue + scratch->unkA8.vx;
-        state->heightSpeed += scratch->unk108.vy;
-        state->height += scratch->unkF8.vy + state->heightSpeed;
+        state->heightSpeed += scratch->accelerationMin.vy;
+        state->height += scratch->forceMin.vy + state->heightSpeed;
         radius[2] = state->height + scratch->unkA8.vy;
         column = rsin(scratch->unkE8.vx);
         height[2] = (radius[2] * column) >> 12;
@@ -132,17 +132,17 @@ int VS_RING_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
         radius[1] = ((radius[1] * row) >> 12) + radius[0];
         radius[2] = ((radius[2] * row) >> 12) + radius[0];
         do {
-            speed = scratch->unk118[0];
-            maxSpeed = scratch->unk118[1];
+            speed = scratch->speedRange[0];
+            maxSpeed = scratch->speedRange[1];
         } while (0);
         row = state->angle;
         if (speed != maxSpeed) {
             if (maxSpeed < speed) {
-                speed = rand() % (scratch->unk118[0] - scratch->unk118[1] + 1)
-                      + scratch->unk118[1];
+                speed = rand() % (scratch->speedRange[0] - scratch->speedRange[1] + 1)
+                      + scratch->speedRange[1];
             } else {
-                speed = rand() % (scratch->unk118[1] - scratch->unk118[0] + 1)
-                      + scratch->unk118[0];
+                speed = rand() % (scratch->speedRange[1] - scratch->speedRange[0] + 1)
+                      + scratch->speedRange[0];
             }
         }
         maxSpeed = row + speed;

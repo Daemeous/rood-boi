@@ -17,7 +17,7 @@ pub fn vs_field_updateChestContentsSelection() callconv(.c) c_int {
     if (temp.unk0 == 1) return 1;
     if (temp.unk2 != 0) {
         c.vs_battle_setStateFlag(
-            psx.conv(c_short, @as(c_int, psx.get(v.g.vs_field_interactionFocus().unk0).?.unk10) +% 0x3C0),
+            psx.conv(c_short, @as(c_int, psx.get(v.g.vs_field_interactionFocus().unk0).?.linkedLockIndex) +% 0x3C0),
             1,
         );
     } else {

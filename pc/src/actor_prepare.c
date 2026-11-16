@@ -125,7 +125,7 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
     vs_gte_view view;
     vs_gte_result transformed;
 
-    psx_set(scratch->model, actor->unk0.unk68);
+    psx_set(scratch->model, actor->unk0.model);
     view = vs_gte_view_of(parent, VS_GTE_NO_SCREEN);
     *(int*)&scratch->translation = *(int*)&scratch->offset;
     *(int*)&scratch->translation.vz = *(int*)&scratch->offset.vz;
@@ -136,9 +136,9 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
     scratch->matrix.t[0] = transformed.mac[1];
     scratch->matrix.t[1] = transformed.mac[2];
     scratch->matrix.t[2] = transformed.mac[3];
-    scratch->rotation.vx += actor->unk0.unk24;
+    scratch->rotation.vx += actor->unk0.rotationX;
     scratch->rotation.vy += actor->unk0.facing;
-    scratch->rotation.vz += actor->unk0.unk28;
+    scratch->rotation.vz += actor->unk0.rotationZ;
 
     if (VS_OBJECT_FLAGS5AC(actor) & 0x200000) {
         if ((short)vs_event_eventPlaybackState() == 4 || (((actorFlags*)actor)->flags & 4)) {
@@ -174,10 +174,10 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
         scratch->scale.vz = actor->unk183C;
         vs_core_mathScaleMatrixColumns(&scratch->matrix, &scratch->scale);
     }
-    if (*(int*)&actor->unk0.unk2C != 0x10001000 || actor->unk0.unk30 != 0x1000) {
-        scratch->scale.vx = actor->unk0.unk2E;
-        scratch->scale.vy = actor->unk0.unk30;
-        scratch->scale.vz = actor->unk0.unk2C;
+    if (*(int*)&actor->unk0.scaleX != 0x10001000 || actor->unk0.scaleZ != 0x1000) {
+        scratch->scale.vx = actor->unk0.scaleY;
+        scratch->scale.vy = actor->unk0.scaleZ;
+        scratch->scale.vz = actor->unk0.scaleX;
         vs_core_mathScaleMatrixColumns(&scratch->matrix, &scratch->scale);
     }
     *vs_actors_skeletonPose = scratch->matrix;
@@ -235,7 +235,7 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
             case 5:
             case 6:
                 if (((actorFlags*)actor)->flags & 4) {
-                    boneSpin* spin = (boneSpin*)&actor->unk1864.unk10 + value;
+                    boneSpin* spin = (boneSpin*)&actor->unk1864.radiusExpandDelta + value;
                     scratch->rotation.vx = spin->angle += spin->step;
                 }
                 break;
@@ -288,9 +288,9 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
                 scratch->scale.vy = actor->unk183C;
                 scratch->scale.vz = actor->unk183C;
                 vs_core_mathScaleMatrixColumns(&scratch->matrix, &scratch->scale);
-                scratch->scale.vx = actor->unk0.unk2E;
-                scratch->scale.vy = actor->unk0.unk30;
-                scratch->scale.vz = actor->unk0.unk2C;
+                scratch->scale.vx = actor->unk0.scaleY;
+                scratch->scale.vy = actor->unk0.scaleZ;
+                scratch->scale.vz = actor->unk0.scaleX;
                 vs_core_mathScaleMatrixColumns(&scratch->matrix, &scratch->scale);
             } else {
                 vs_core_mathBuildEulerRotationMatrixQuadrant(&scratch->rotation, &scratch->matrix);
@@ -335,7 +335,7 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
         return;
     }
     if (actor->unk0.position.vy >= 256) {
-        if (actor->unk0.unkF == 0 || (short)vs_event_eventPlaybackState() != 4) {
+        if (actor->unk0.slot == 0 || (short)vs_event_eventPlaybackState() != 4) {
             return;
         }
     }
@@ -343,13 +343,13 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
     savedIdentity = *(actorIdentity*)actor;
     source = actor;
     if (arg2 < 2) {
-        psx_set(scratch->model, actor->unk0.unk68);
+        psx_set(scratch->model, actor->unk0.model);
         scratch->unk36 = actor->unk6E8;
         scratch->unk38 = actor->unk6EA;
         scratch->tpage = vs_render_legacyActorTextureSlots[actor->unk5BB].tpage;
     } else {
         *(actorIdentity*)actor = *(actorIdentity*)vs_actors_actorRecords[arg2];
-        psx_set(scratch->model, vs_actors_actorRecords[arg2]->unk0.unk68);
+        psx_set(scratch->model, vs_actors_actorRecords[arg2]->unk0.model);
         scratch->unk36 = vs_actors_actorRecords[arg2]->unk6E8;
         scratch->unk38 = vs_actors_actorRecords[arg2]->unk6EA;
         scratch->tpage = vs_render_legacyActorTextureSlots[vs_actors_actorRecords[arg2]->unk5BB].tpage;
@@ -361,7 +361,7 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
     } else {
         blend = 0;
         ((actorFlags*)actor)->flags &= ~0x1000;
-        if (D_800E8FC0 != 0 || source->unk0.unk64.unk0 != 0) {
+        if (D_800E8FC0 != 0 || source->unk0.palettePulse.unk0 != 0) {
             blend = 1;
         }
         if (((((actorFlags*)source)->flags >> 8 & 0xF) - 4) < 5
@@ -380,15 +380,15 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
                         value = actor->unk0.position.vz;
                         value <<= 16;
                         func_8008C458(value | actor->unk0.position.vx, actor->unk0.unk5D,
-                            &actor->unk0.unk58, &scratch->offset);
+                            &actor->unk0.tint, &scratch->offset);
                     } else {
-                        actor->unk0.unk58.unk0 = 0x80;
-                        actor->unk0.unk58.unk1 = 0x80;
-                        actor->unk0.unk58.unk2 = 0x80;
+                        actor->unk0.tint.unk0 = 0x80;
+                        actor->unk0.tint.unk1 = 0x80;
+                        actor->unk0.tint.unk2 = 0x80;
                     }
                 }
                 if (((((actorFlags*)source)->flags >> 8) & 0xF) < 4) {
-                    ((u_char*)&source->unk1864)[0] = value = actor->unk0.unk58.unk0;
+                    ((u_char*)&source->unk1864)[0] = value = actor->unk0.tint.unk0;
                     value += (signed char)source->unk6F2 * 4;
                     if (value < 0) {
                         value = 0;
@@ -397,7 +397,7 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
                         value = 255;
                     }
                     ((u_char*)&source->unk0.unk54)[0] = value;
-                    ((u_char*)&source->unk1864)[1] = value = actor->unk0.unk58.unk1;
+                    ((u_char*)&source->unk1864)[1] = value = actor->unk0.tint.unk1;
                     value += (signed char)source->unk6F1 * 4;
                     if (value < 0) {
                         value = 0;
@@ -406,7 +406,7 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
                         value = 255;
                     }
                     ((u_char*)&source->unk0.unk54)[1] = value;
-                    ((u_char*)&source->unk1864)[2] = value = actor->unk0.unk58.unk2;
+                    ((u_char*)&source->unk1864)[2] = value = actor->unk0.tint.unk2;
                     value += (signed char)source->unk6F0 * 4;
                     if (value < 0) {
                         value = 0;

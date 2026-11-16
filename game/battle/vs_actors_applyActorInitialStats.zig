@@ -26,7 +26,7 @@ fn vary(base: i16, varied: c_int) i16 {
 pub fn vs_actors_applyActorInitialStats(slot: c_int, actor: ?*v.vs_battle_actor2, init: ?*v.vs_battle_charInitData, varied: c_int) callconv(.c) void {
     const a = actor.?;
     const d = init.?;
-    a.unk957 = psx.conv(u8, slot);
+    a.actorId = psx.conv(u8, slot);
     for (0..24) |k| {
         a.name[k] = d.name[k];
     }
@@ -81,11 +81,11 @@ pub fn vs_actors_applyActorInitialStats(slot: c_int, actor: ?*v.vs_battle_actor2
         limb.agilityDefenseBonus = psx.conv(i8, source.agilityDefenseBonus);
         const part = c.func_800A152C(slot, i, 2);
         if (part >= 0) {
-            limb.unk5 = psx.conv(u8, part);
+            limb.anchorBone = psx.conv(u8, part);
             limb.nameIndex = psx.conv(u8, c.vs_actors_boneTagValue(slot, part, 0));
         } else {
             limb.nameIndex = 0;
-            limb.unk5 = 0;
+            limb.anchorBone = 0;
         }
         limb.chainEvasion = source.chainEvasion;
         for (0..4) |k| {
@@ -94,7 +94,7 @@ pub fn vs_actors_applyActorInitialStats(slot: c_int, actor: ?*v.vs_battle_actor2
         for (0..7) |k| {
             limb.affinities[k] = source.affinities[k];
         }
-        c._applyArmorStats(@ptrCast(&limb.armor), @ptrCast(&source.unk20));
+        c._applyArmorStats(@ptrCast(&limb.armor), @ptrCast(&source.armor));
     }
     c.vs_battle_nop0(@ptrCast(a));
     for (0..6) |l| {
@@ -112,13 +112,13 @@ pub fn vs_actors_applyActorInitialStats(slot: c_int, actor: ?*v.vs_battle_actor2
             a.dpSplash[l][k] = d.limbs[l].dpSplash[k];
         }
     }
-    a.unk944 = d.unk28;
+    a.statusImmunities = d.unk28;
     a.statuses = 0;
-    if (a.unk944 < 0) {
+    if (a.statusImmunities < 0) {
         a.statuses = @bitCast(@as(c_uint, 1) << 31);
     }
     for (0..5) |k| {
         a.statusTimers[k] = 0;
     }
-    a.unk954 = 0;
+    a.actionRecoveryTimer = 0;
 }

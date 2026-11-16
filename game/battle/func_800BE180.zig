@@ -21,17 +21,17 @@ pub fn func_800BE180() callconv(.c) void {
 
     var count: i16 = 0;
     var i: i16 = 0;
-    var entry: *v.func_800BDF6C_t = @ptrCast(&base.unk1A4.unk2);
+    var entry: *v.func_800BDF6C_t = @ptrCast(&base.unk1A4.displacement);
 
     while (i < 2) : ({
         entry = @ptrFromInt(@intFromPtr(entry) +% @sizeOf(v.func_800BDF6C_t));
         i +%= 1;
     }) {
         if (c.func_800BE01C(psx.cptr(c.func_800BDF6C_t, entry)) != 0) {
-            const unkA: c_int = entry.unkA;
-            const x: c_int = @as(c_int, entry.unk2) *% (((unkA >> 2) & 3) -% 1);
-            const y: c_int = @as(c_int, entry.unk2) *% (((unkA >> 4) & 3) -% 1);
-            const z: c_int = @as(c_int, entry.unk2) *% ((unkA >> 6) -% 1);
+            const unkA: c_int = entry.axisMask;
+            const x: c_int = @as(c_int, entry.displacement) *% (((unkA >> 2) & 3) -% 1);
+            const y: c_int = @as(c_int, entry.displacement) *% (((unkA >> 4) & 3) -% 1);
+            const z: c_int = @as(c_int, entry.displacement) *% ((unkA >> 6) -% 1);
 
             shake.c.vx = psx.conv(i16, x);
             shake.c.vy = psx.conv(i16, y);
@@ -55,10 +55,10 @@ pub fn func_800BE180() callconv(.c) void {
     if (count != 0) {
         const a: *v.SVECTOR = @ptrFromInt(pad.addr(0xD8));
         const b: *v.SVECTOR = @ptrFromInt(pad.addr(0xE0));
-        base.unk1BE = a.vx;
+        base.shakeEyeOffsetX = a.vx;
         base.unk1C0 = a.vy;
         base.unk1C2 = a.vz;
-        base.unk1C6 = b.vx;
+        base.shakeLookAtOffsetX = b.vx;
         base.unk1C8 = b.vy;
         base.unk1CA = b.vz;
     }

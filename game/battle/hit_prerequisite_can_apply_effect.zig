@@ -11,7 +11,7 @@ pub fn hitPrerequisiteCanApplyEffect(debuff: c_int, arg1: [*c]u8) callconv(.c) c
     const actor: *v.vs_battle_actor = actors[arg1.*].?;
     const temp_a1: *v.vs_battle_actor2 = psx.get(actor.stats).?;
 
-    if ((params[0] & temp_a1.unk944) == 0 and (params[3] & temp_a1.statuses) == 0) {
+    if ((params[0] & temp_a1.statusImmunities) == 0 and (params[3] & temp_a1.statuses) == 0) {
         return 0;
     }
     return 1;

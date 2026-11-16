@@ -11,13 +11,13 @@ pub fn getHitGemModifier(action: ?*v.vs_action_t, source: ?*v._hitEntity_t, targ
     var gemModifier: c_int = 100;
     if (source) |src| {
         if (src.unk40 == 0) {
-            const actor = v.g.vs_battle_actors()[src.unk0.targetActor].?;
+            const actor = v.g.vs_battle_actors()[src.target.targetActor].?;
             gemModifier +%= @as(c_int, c._getAttackGemBuff(@ptrCast(action), @ptrCast(psx.get(actor.stats))));
         }
     }
     if (target) |tgt| {
         if (tgt.unk40 == 0) {
-            const actor = v.g.vs_battle_actors()[tgt.unk0.targetActor].?;
+            const actor = v.g.vs_battle_actors()[tgt.target.targetActor].?;
             gemModifier -%= @as(c_int, c._getDefenseGemBuff(@ptrCast(action), @ptrCast(psx.get(actor.stats)), hitNumber));
         }
     }

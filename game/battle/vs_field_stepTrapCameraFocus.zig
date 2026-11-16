@@ -9,7 +9,7 @@ const c = @import("c_146C");
 pub fn vs_field_stepTrapCameraFocus() callconv(.c) c_int {
     // The C leaves the local's pad field uninitialised; only vx, vy and vz are copied.
     var sp10: v.SVECTOR = undefined;
-    const src = &v.g.vs_field_interactionFocus().unk4.unk0.unk4;
+    const src = &v.g.vs_field_interactionFocus().unk4.location.position;
     sp10.vx = psx.conv(i16, psx.conv(u16, src.vx));
     sp10.vy = psx.conv(i16, psx.conv(u16, src.vy));
     sp10.vz = psx.conv(i16, psx.conv(u16, src.vz));

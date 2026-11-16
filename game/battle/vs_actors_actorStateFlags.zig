@@ -27,10 +27,10 @@ pub fn vs_actors_actorStateFlags(actorId: c_int) callconv(.c) c_uint {
         if (psx.getBits(&a.unkC54, "unk548_16") != 0) out.* |= 0x08000080;
         if (psx.getBits(&a.unkC54, "unk548_17") != 0) out.* |= 0x100;
         if (psx.getBits(a, "unk5AC_4") != 0) out.* |= 0x200;
-        if (a.unk0.unk12 != 0xFF) out.* |= 0x400;
+        if (a.unk0.attachParent != 0xFF) out.* |= 0x400;
 
         // Weapon model slots: the C indexes past the 20-entry array for large unkF; psx.at keeps that.
-        const wepIndex: c_int = @as(c_int, a.unk0.unkF) *% 2;
+        const wepIndex: c_int = @as(c_int, a.unk0.slot) *% 2;
         const wep0 = psx.at(v.g.vs_battle_wepModels(), wepIndex).*;
         if (wep0 != null and psx.getBits(wep0.?, "unk8_4") != 0) out.* |= 0x800;
         const wep1 = psx.at(v.g.vs_battle_wepModels(), wepIndex +% 1).*;

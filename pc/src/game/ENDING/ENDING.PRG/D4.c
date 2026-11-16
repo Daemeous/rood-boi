@@ -34,36 +34,36 @@ typedef struct _creditsElement {
 
 typedef struct {
     int unk0;
-    u_char unk4;
-    u_char unk5;
-    u_char unk6;
+    u_char vertexZeroRed;
+    u_char vertexZeroGreen;
+    u_char vertexZeroBlue;
     u_char unk7;
-    short unk8;
-    short unkA;
+    short vertexZeroX;
+    short vertexZeroY;
     short unkC;
     short unkE;
-    u_char unk10;
-    u_char unk11;
-    u_char unk12;
+    u_char vertexOneRed;
+    u_char vertexOneGreen;
+    u_char vertexOneBlue;
     u_char unk13;
-    short unk14;
-    short unk16;
+    short vertexOneX;
+    short vertexOneY;
     short unk18;
     short unk1A;
-    u_char unk1C;
-    u_char unk1D;
-    u_char unk1E;
+    u_char vertexTwoRed;
+    u_char vertexTwoGreen;
+    u_char vertexTwoBlue;
     u_char unk1F;
-    short unk20;
-    short unk22;
+    short vertexTwoX;
+    short vertexTwoY;
     short unk24;
     short unk26;
-    u_char unk28;
-    u_char unk29;
-    u_char unk2A;
+    u_char vertexThreeRed;
+    u_char vertexThreeGreen;
+    u_char vertexThreeBlue;
     u_char unk2B;
-    short unk2C;
-    short unk2E;
+    short vertexThreeX;
+    short vertexThreeY;
 } func_80069388_t;
 
 typedef struct {
@@ -77,8 +77,8 @@ typedef struct {
     u_char unk1;
     u_char unk2;
     u_char unk3;
-    int unk4;
-    func_8006A9C0_t unk8;
+    int mode;
+    func_8006A9C0_t firstBlock;
 } func_8006A9C0_t2;
 
 enum easeMode {
@@ -515,102 +515,102 @@ static void vs_ending_creditsApplyRadialVertexFade(func_80069388_t* arg0, short 
     if (arg2 == 0) {
         temp_s0 = (arg1 * 128) / 80;
         v0 = temp_s0
-           + (((200 - _inverseDistanceFromScreencenter(arg0->unk8, arg0->unkA)) << 7)
+           + (((200 - _inverseDistanceFromScreencenter(arg0->vertexZeroX, arg0->vertexZeroY)) << 7)
                / 400);
 
         if (v0 < 0x81) {
-            arg0->unk6 = v0;
+            arg0->vertexZeroBlue = v0;
         } else {
-            arg0->unk6 = 128;
+            arg0->vertexZeroBlue = 128;
         }
 
-        arg0->unk4 = arg0->unk5 = arg0->unk6;
+        arg0->vertexZeroRed = arg0->vertexZeroGreen = arg0->vertexZeroBlue;
 
         v0 = temp_s0
-           + (((200 - _inverseDistanceFromScreencenter(arg0->unk14, arg0->unk16)) << 7)
+           + (((200 - _inverseDistanceFromScreencenter(arg0->vertexOneX, arg0->vertexOneY)) << 7)
                / 400);
 
         if (v0 < 0x81) {
-            arg0->unk12 = v0;
+            arg0->vertexOneBlue = v0;
         } else {
-            arg0->unk12 = 128;
+            arg0->vertexOneBlue = 128;
         }
 
-        arg0->unk10 = arg0->unk11 = arg0->unk12;
+        arg0->vertexOneRed = arg0->vertexOneGreen = arg0->vertexOneBlue;
 
         v0 = temp_s0
-           + (((200 - _inverseDistanceFromScreencenter(arg0->unk20, arg0->unk22)) << 7)
+           + (((200 - _inverseDistanceFromScreencenter(arg0->vertexTwoX, arg0->vertexTwoY)) << 7)
                / 400);
 
         if (v0 < 0x81) {
-            arg0->unk1E = v0;
+            arg0->vertexTwoBlue = v0;
         } else {
-            arg0->unk1E = 128;
+            arg0->vertexTwoBlue = 128;
         }
 
-        arg0->unk1C = arg0->unk1D = arg0->unk1E;
+        arg0->vertexTwoRed = arg0->vertexTwoGreen = arg0->vertexTwoBlue;
 
         v0 = temp_s0
-           + (((200 - _inverseDistanceFromScreencenter(arg0->unk2C, arg0->unk2E)) << 7)
+           + (((200 - _inverseDistanceFromScreencenter(arg0->vertexThreeX, arg0->vertexThreeY)) << 7)
                / 400);
 
         if (v0 < 0x81) {
-            arg0->unk2A = v0;
+            arg0->vertexThreeBlue = v0;
         } else {
-            arg0->unk2A = 128;
+            arg0->vertexThreeBlue = 128;
         }
 
     } else {
 
         temp_s0 = ((0x50 - arg1) << 7) / 80;
         v0 = temp_s0
-           - (((200 - _inverseDistanceFromScreencenter(arg0->unk8, arg0->unkA)) << 7)
+           - (((200 - _inverseDistanceFromScreencenter(arg0->vertexZeroX, arg0->vertexZeroY)) << 7)
                / 400);
 
         if (v0 >= 0) {
-            arg0->unk6 = v0;
+            arg0->vertexZeroBlue = v0;
         } else {
-            arg0->unk6 = 0;
+            arg0->vertexZeroBlue = 0;
         }
 
-        arg0->unk4 = arg0->unk5 = arg0->unk6;
+        arg0->vertexZeroRed = arg0->vertexZeroGreen = arg0->vertexZeroBlue;
 
         v0 = temp_s0
-           - (((200 - _inverseDistanceFromScreencenter(arg0->unk14, arg0->unk16)) << 7)
+           - (((200 - _inverseDistanceFromScreencenter(arg0->vertexOneX, arg0->vertexOneY)) << 7)
                / 400);
 
         if (v0 >= 0) {
-            arg0->unk12 = v0;
+            arg0->vertexOneBlue = v0;
         } else {
-            arg0->unk12 = 0;
+            arg0->vertexOneBlue = 0;
         }
 
-        arg0->unk10 = arg0->unk11 = arg0->unk12;
+        arg0->vertexOneRed = arg0->vertexOneGreen = arg0->vertexOneBlue;
 
         v0 = temp_s0
-           - (((200 - _inverseDistanceFromScreencenter(arg0->unk20, arg0->unk22)) << 7)
+           - (((200 - _inverseDistanceFromScreencenter(arg0->vertexTwoX, arg0->vertexTwoY)) << 7)
                / 400);
 
         if (v0 >= 0) {
-            arg0->unk1E = v0;
+            arg0->vertexTwoBlue = v0;
         } else {
-            arg0->unk1E = 0;
+            arg0->vertexTwoBlue = 0;
         }
 
-        arg0->unk1C = arg0->unk1D = arg0->unk1E;
+        arg0->vertexTwoRed = arg0->vertexTwoGreen = arg0->vertexTwoBlue;
 
         v0 = temp_s0
-           - (((200 - _inverseDistanceFromScreencenter(arg0->unk2C, arg0->unk2E)) << 7)
+           - (((200 - _inverseDistanceFromScreencenter(arg0->vertexThreeX, arg0->vertexThreeY)) << 7)
                / 400);
 
         if (v0 >= 0) {
-            arg0->unk2A = v0;
+            arg0->vertexThreeBlue = v0;
         } else {
-            arg0->unk2A = 0;
+            arg0->vertexThreeBlue = 0;
         }
     }
 
-    arg0->unk28 = arg0->unk29 = arg0->unk2A;
+    arg0->vertexThreeRed = arg0->vertexThreeGreen = arg0->vertexThreeBlue;
 }
 
 static void _renderllustration(_creditsElement* element)
@@ -1030,9 +1030,9 @@ static void vs_ending_creditsRunFrames(void)
 static void vs_ending_creditsUploadTexture(func_8006A9C0_t2* arg0)
 {
     RECT rect;
-    func_8006A9C0_t* p = &arg0->unk8;
+    func_8006A9C0_t* p = &arg0->firstBlock;
 
-    if (arg0->unk4 & 8) {
+    if (arg0->mode & 8) {
         rect.x = p->rect.x;
         rect.y = p->rect.y;
         rect.w = p->rect.w;

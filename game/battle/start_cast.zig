@@ -43,24 +43,24 @@ pub fn startCast() callconv(.c) void {
         state().battleAbilityInputAttempted = 0;
     }
 
-    const action = &state().unk854[state().unk0 & 3];
+    const action = &state().queue[state().unk0 & 3];
     // the action index is not bounded by the C
     if (psx.getBits(psx.at(v.g.actions(), action.actionIndex), "unk2_0") == 0) {
         c.vs_battle_startActionAnimation();
         return;
     }
 
-    _ = c.vs_actors_actorPlacement(@as(c_int, action.unk4.unk0.targetActor), &actor_position);
-    sound_position.vx = actor_position.unk0.unk4.vx;
-    sound_position.vz = actor_position.unk0.unk4.vz;
-    sound_position.vy = actor_position.unk0.unk4.vy;
+    _ = c.vs_actors_actorPlacement(@as(c_int, action.primaryTarget.target.targetActor), &actor_position);
+    sound_position.vx = actor_position.location.position.vx;
+    sound_position.vz = actor_position.location.position.vz;
+    sound_position.vy = actor_position.location.position.vy;
 
-    const caster: c_int = action.unk4.unk0.targetActor;
+    const caster: c_int = action.primaryTarget.target.targetActor;
     var mode: c_int = undefined;
     if (action.actionIndex < 0x8D) {
         c.func_8009E2E0(caster, psx.cptr(c.SVECTOR, &state().unk8.unk844), 0);
         c.vs_main_panSfx(0x7E, 0x34, psx.cptr(c.SVECTOR, &sound_position));
-        if (action.unk4.unk0.targetActor == 0) {
+        if (action.primaryTarget.target.targetActor == 0) {
             c.vs_battle_setStateFlag(0xB7, 1);
         }
         mode = 2;
@@ -71,7 +71,7 @@ pub fn startCast() callconv(.c) void {
     } else if (action.actionIndex < 0xE0) {
         c.func_8009EFEC(caster, psx.cptr(c.SVECTOR, &state().unk8.unk844), 0);
         c.vs_main_panSfx(0x7E, 0x34, psx.cptr(c.SVECTOR, &sound_position));
-        if (action.unk4.unk0.targetActor == 0) {
+        if (action.primaryTarget.target.targetActor == 0) {
             c.vs_battle_setStateFlag(0xB9, 1);
         }
         mode = 3;
@@ -84,21 +84,21 @@ pub fn startCast() callconv(.c) void {
     request.effectId = psx.at(v.g.actions(), action.actionIndex).unk1;
     request.unk3 = 0; // otherCount
     psx.byteAt(u16, &request, target(-1)).* = 4;
-    psx.byteAt(u8, &request, target(-1) + 4).* = action.unk4.unk0.targetActor;
+    psx.byteAt(u8, &request, target(-1) + 4).* = action.primaryTarget.target.targetActor;
     psx.byteAt(u8, &request, target(-1) + 5).* = 0;
-    psx.byteAt(i8, &request, target(-1) + 6).* = psx.conv(i8, c.func_800A152C(@as(c_int, action.unk4.unk0.targetActor), 255, 2));
+    psx.byteAt(i8, &request, target(-1) + 6).* = psx.conv(i8, c.func_800A152C(@as(c_int, action.primaryTarget.target.targetActor), 255, 2));
 
     var count: c_int = 0;
     var i: c_int = 0;
     // the hit count is not bounded by the C: unk4C[i] and targets[count] through byte offsets
-    while (i < action.unk4A) : (i += 1) {
-        const hit = psx.at(&action.unk4C, i);
+    while (i < action.targetCount) : (i += 1) {
+        const hit = psx.at(&action.targets, i);
         if (hit.unk40 == 0) {
             var duplicate = false;
             var j: c_int = 0;
             while (j < count) : (j += 1) {
-                if (psx.at(&action.unk4C, j).unk40 == 0 and
-                    psx.byteAt(u8, &request, target(j) + 4).* == hit.unk0.targetActor)
+                if (psx.at(&action.targets, j).unk40 == 0 and
+                    psx.byteAt(u8, &request, target(j) + 4).* == hit.target.targetActor)
                 {
                     psx.byteAt(i8, &request, target(j) + 6).* = 0;
                     duplicate = true;
@@ -106,20 +106,20 @@ pub fn startCast() callconv(.c) void {
             }
             if (duplicate) continue;
             psx.byteAt(u16, &request, target(count)).* = 4;
-            psx.byteAt(u8, &request, target(count) + 4).* = hit.unk0.targetActor;
+            psx.byteAt(u8, &request, target(count) + 4).* = hit.target.targetActor;
             psx.byteAt(u8, &request, target(count) + 5).* = 0;
-            psx.byteAt(i8, &request, target(count) + 6).* = psx.conv(i8, c.func_800A152C(@as(c_int, hit.unk0.targetActor), @as(c_int, hit.unk0.targetLimb), 2));
+            psx.byteAt(i8, &request, target(count) + 6).* = psx.conv(i8, c.func_800A152C(@as(c_int, hit.target.targetActor), @as(c_int, hit.target.targetLimb), 2));
             // Original bug: the limb tested is hit `count`'s, not hit `i`'s (the part is then set again either way).
-            if (psx.at(&action.unk4C, count).unk0.targetLimb == -1) {
-                const limb = psx.getBits(psx.get(psx.at(v.g.vs_battle_actors(), hit.unk0.targetActor).*.?.stats).?, "unk36");
-                psx.byteAt(i8, &request, target(count) + 6).* = psx.conv(i8, c.func_800A152C(@as(c_int, hit.unk0.targetActor), @as(c_int, limb), 2));
+            if (psx.at(&action.targets, count).target.targetLimb == -1) {
+                const limb = psx.getBits(psx.get(psx.at(v.g.vs_battle_actors(), hit.target.targetActor).*.?.stats).?, "unk36");
+                psx.byteAt(i8, &request, target(count) + 6).* = psx.conv(i8, c.func_800A152C(@as(c_int, hit.target.targetActor), @as(c_int, limb), 2));
             } else {
-                psx.byteAt(i8, &request, target(count) + 6).* = psx.conv(i8, c.func_800A152C(@as(c_int, hit.unk0.targetActor), @as(c_int, hit.unk0.targetLimb), 2));
+                psx.byteAt(i8, &request, target(count) + 6).* = psx.conv(i8, c.func_800A152C(@as(c_int, hit.target.targetActor), @as(c_int, hit.target.targetLimb), 2));
             }
             count += 1; // at most unk4A (u16)
         } else {
             psx.byteAt(u16, &request, target(count)).* = 5;
-            psx.byteAt(v.SVECTOR, &request, target(count) + 4).* = @as(*align(1) const v.SVECTOR, @ptrCast(&hit.unk0)).*;
+            psx.byteAt(v.SVECTOR, &request, target(count) + 4).* = @as(*align(1) const v.SVECTOR, @ptrCast(&hit.target)).*;
             count += 1; // at most unk4A (u16)
         }
     }
@@ -131,14 +131,14 @@ pub fn startCast() callconv(.c) void {
         if (slot != null and (slot.?.unk40 == 1 or slot.?.unk40 == 2)) {
             var duplicate = false;
             var j: c_int = 0;
-            while (j < action.unk4A) : (j += 1) {
+            while (j < action.targetCount) : (j += 1) {
                 // Original bug: the C tests hit j's unk40 but hit `other`'s target (unk4C[i], not unk4C[j]).
-                if (psx.at(&action.unk4C, j).unk40 == 0 and other == psx.at(&action.unk4C, other).unk0.targetActor) {
+                if (psx.at(&action.targets, j).unk40 == 0 and other == psx.at(&action.targets, other).target.targetActor) {
                     duplicate = true;
                     break;
                 }
             }
-            if (other == action.unk4.unk0.targetActor) {
+            if (other == action.primaryTarget.target.targetActor) {
                 duplicate = true;
             }
             if (!duplicate) {
@@ -151,16 +151,16 @@ pub fn startCast() callconv(.c) void {
     request.unkE0.vx = action.unk844.vx;
     request.unkE0.vy = action.unk844.vy;
     request.unkE0.vz = action.unk844.vz;
-    if (request.effectId == 0x27 and action.unk4C[0].unk40 == 4) {
+    if (request.effectId == 0x27 and action.targets[0].unk40 == 4) {
         request.effectId = 0x24;
     }
     _ = c.vs_effects_beginActionEffect(psx.cptr(c.func_800CF0E8_t, &request), mode, @as(c_int, action.unk2));
 
     if (action.actionIndex >= 0x8D and action.actionIndex < 0xE0) {
         // the caster is not bounded by the C
-        const actor = psx.at(v.g.vs_battle_actors(), action.unk4.unk0.targetActor).*.?;
+        const actor = psx.at(v.g.vs_battle_actors(), action.primaryTarget.target.targetActor).*.?;
         object.dataType = 7;
-        object.index = @bitCast(action.unk4.unk0.targetActor);
+        object.index = @bitCast(action.primaryTarget.target.targetActor);
         object.modelId = 0;
         if (action.actionIndex < 0xB8) {
             object.actorId = 5;

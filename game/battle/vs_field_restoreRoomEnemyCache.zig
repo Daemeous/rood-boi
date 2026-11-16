@@ -15,7 +15,7 @@ pub fn vs_field_restoreRoomEnemyCache() callconv(.c) void {
 
     while (j < 4) : (j +%= 1) {
         const rec = &records[@intCast(j)];
-        if (rec.unk0 != 0 and @as(c_int, rec.zndId) == zone.zndId and @as(c_int, rec.mapId) == zone.mapId) {
+        if (rec.recency != 0 and @as(c_int, rec.zndId) == zone.zndId and @as(c_int, rec.mapId) == zone.mapId) {
             found = 1;
             v.g.vs_state_currentRoomStateSlot().* = j;
             while (psx.conv(c_uint, i) < zone.mpdEnemyCount) : (i +%= 1) {
@@ -33,7 +33,7 @@ pub fn vs_field_restoreRoomEnemyCache() callconv(.c) void {
         i = 0;
         j = 0;
         while (j < 4) : (j +%= 1) {
-            if (records[@intCast(j)].unk0 < records[@intCast(i)].unk0) {
+            if (records[@intCast(j)].recency < records[@intCast(i)].recency) {
                 i = j;
             }
         }
@@ -44,13 +44,13 @@ pub fn vs_field_restoreRoomEnemyCache() callconv(.c) void {
     i = 0;
     while (i < 4) : (i +%= 1) {
         const cur: usize = @intCast(v.g.vs_state_currentRoomStateSlot().*);
-        if (records[cur].unk0 < records[@intCast(i)].unk0) {
-            records[@intCast(i)].unk0 -%= 1;
+        if (records[cur].recency < records[@intCast(i)].recency) {
+            records[@intCast(i)].recency -%= 1;
         }
     }
 
     const slot: usize = @intCast(v.g.vs_state_currentRoomStateSlot().*);
-    records[slot].unk0 = 4;
+    records[slot].recency = 4;
     records[slot].zndId = psx.conv(u8, zone.zndId);
     records[slot].mapId = psx.conv(u16, zone.mapId);
 }

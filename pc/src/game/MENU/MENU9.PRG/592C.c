@@ -216,7 +216,7 @@ int vs_menu9_parseZudFile(void)
         slot.index = 1;
         slot.dataAddr = _zudData->shpOffset + psx_to_int(u_long, _zudData);
         slot.modelId = _zudData->characterId;
-        slot.unk4 = _zudBuffer;
+        slot.destination = _zudBuffer;
         slot.actorId = 0xFF;
         slot.variant = _paletteFlag & 1;
         slot.material = _zudData->defaultMaterial;
@@ -226,7 +226,7 @@ int vs_menu9_parseZudFile(void)
             slot.dataType = 1;
             slot.index = 16;
             slot.modelId = _variantMap[_modelVariant];
-            slot.unk4 = _zudBuffer + VS_OBJECT_REGION;
+            slot.destination = _zudBuffer + VS_OBJECT_REGION;
             slot.actorId = 1;
             slot.unk11 = 0xFC;
             slot.variant = 0;
@@ -238,7 +238,7 @@ int vs_menu9_parseZudFile(void)
                 slot.index = 2;
                 slot.dataAddr = _zudData->weaponWepOffset + psx_to_int(u_long, _zudData);
                 slot.modelId = _zudData->weapon;
-                slot.unk4 = _zudBuffer + VS_OBJECT_REGION;
+                slot.destination = _zudBuffer + VS_OBJECT_REGION;
                 slot.actorId = 1;
                 slot.unk11 = 0xF0;
                 slot.material = _zudData->weaponMaterial;
@@ -250,7 +250,7 @@ int vs_menu9_parseZudFile(void)
                 slot.index = 3;
                 slot.dataAddr = _zudData->shieldWepOffset + psx_to_int(u_long, _zudData);
                 slot.modelId = _zudData->shield;
-                slot.unk4 = _zudBuffer + VS_OBJECT_REGION + sizeof(vs_battle_wepModels_t);
+                slot.destination = _zudBuffer + VS_OBJECT_REGION + sizeof(vs_battle_wepModels_t);
                 slot.actorId = 1;
                 slot.unk11 = 0xF1;
                 slot.material = _zudData->shieldMaterial;

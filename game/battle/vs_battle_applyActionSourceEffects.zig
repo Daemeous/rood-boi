@@ -13,10 +13,10 @@ pub fn vs_battle_applyActionSourceEffects(arg0: c_int, _: ?*v.func_8006CE70_t) c
     }
 
     const base = v.g.vs_battle_actionState().*.?;
-    const t: *v.D_800F19CC_t2 = &base.unk854[@as(usize, base.unk0 & 3)];
+    const t: *v.D_800F19CC_t2 = &base.queue[@as(usize, base.unk0 & 3)];
 
-    if (@as(c_int, t.unk4.unk0.targetActor) == arg0 and t.unk4.unk40 == 0) {
-        switch (@as(c_int, t.unk4.unk0.unk3)) {
+    if (@as(c_int, t.primaryTarget.target.targetActor) == arg0 and t.primaryTarget.unk40 == 0) {
+        switch (@as(c_int, t.primaryTarget.target.unk3)) {
             2, 3, 4 => {},
             0, 1 => c.func_8009EA14(arg0, psx.cptr(c.SVECTOR, &t.unk844)),
             5 => {
@@ -27,6 +27,6 @@ pub fn vs_battle_applyActionSourceEffects(arg0: c_int, _: ?*v.func_8006CE70_t) c
             else => {},
         }
 
-        c._applyBattleAbilityEffect(@ptrCast(&t.unk4));
+        c._applyBattleAbilityEffect(@ptrCast(&t.primaryTarget));
     }
 }

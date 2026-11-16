@@ -9,7 +9,7 @@ pub fn vs_actors_disableModelPalettePulse(slot: c_int, bit: c_int) callconv(.c) 
 
     var a0: *u8 = undefined;
     if (temp_v0) |actor| {
-        a0 = psx.fieldAt(u8, &actor.unk0.unk64.unk0, 0);
+        a0 = psx.fieldAt(u8, &actor.unk0.palettePulse.unk0, 0);
     } else {
         const other: ?*v.D_800F45E0_t = psx.at(v.g.vs_field_gimmickInstances(), slot).*;
         const o = other orelse return -1;

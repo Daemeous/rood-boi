@@ -76,11 +76,11 @@ pub fn vs_actors_updateActorJumpAndFall(arg0: c_int, arg1: ?*Actor) callconv(.c)
             if (timer(actor) < 0) actor.unk0.unk11 = 0;
             if (timer(actor) == 0) {
                 actor.unk6EC = 0;
-                if (actor.unk0.unkF != 0) {
+                if (actor.unk0.slot != 0) {
                     if (common.object.flags8(actor).* & 0x400000 == 0 and actor.unk5CC != 0) return;
                     if (profile != 3) c.vs_actors_playActorAnimation(arg0, 1, 0, 8);
                     c.vs_battle_aiReleaseAiDestinationTile(@as(c_int, actor.unk0.currentTileX), @as(c_int, actor.unk0.currentTileZ));
-                    c.vs_battle_aiReleaseActorAiContactOccupancy(actor.unk0.unkF);
+                    c.vs_battle_aiReleaseActorAiContactOccupancy(actor.unk0.slot);
                 }
                 actor.unk1846 = 0;
                 common.object.flags8(actor).* &= 0xFFF8FFFF;
@@ -98,7 +98,7 @@ fn airborne(arg0: c_int, actor: *Actor, profile: c_int, state: c_int) void {
         const t: i8 = @truncate(@as(c_int, actor.unk0.unk11) -% halfTick());
         actor.unk0.unk11 = @bitCast(t);
         if (t > 0) return;
-        c.vs_actors_playActorAnimation(actor.unk0.unkF, 0x2F, 0, 8);
+        c.vs_actors_playActorAnimation(actor.unk0.slot, 0x2F, 0, 8);
         actor.unk0.unk11 = 0;
     }
     var y: c_int = undefined;
@@ -221,7 +221,7 @@ fn airborne(arg0: c_int, actor: *Actor, profile: c_int, state: c_int) void {
     actor.unk0.unk11 = 0;
     if (y < 3000) {
         const f = common.object.flags8(actor).*;
-        if (actor.unk0.unkF != 0 or f & 0xF00 == 0 or ((f >> 8) & 0xF) >= 6) {
+        if (actor.unk0.slot != 0 or f & 0xF00 == 0 or ((f >> 8) & 0xF) >= 6) {
             if (floor >= 4) {
                 c.vs_audio_playActorSurfaceContactSound(arg0, @ptrCast(actor), 0x42);
                 if (floor >= 6 and arg0 == 0) actor.unk0.unk11 = 8;

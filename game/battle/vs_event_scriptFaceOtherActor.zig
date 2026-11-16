@@ -20,7 +20,7 @@ pub fn vs_event_scriptFaceOtherActor(arg0: [*c]u8, _: c_short) callconv(.c) c_in
     if (arg0[5] != 0xFF) {
         var_a2 = @as(c_int, arg0[5]);
     }
-    _ = c.vs_actors_turnActorTowardTileAtRate(temp_s0_2, @ptrCast(&sp10.unk0.unk0.fields), var_a2);
+    _ = c.vs_actors_turnActorTowardTileAtRate(temp_s0_2, @ptrCast(&sp10.location.packedTile.fields), var_a2);
     // temp_s0_2 is 0..65535 after the mask: the index is in range of the table.
     v.g.vs_event_scriptControlledActors()[@as(usize, @intCast(temp_s0_2))] = 1;
     return 0;

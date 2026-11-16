@@ -10,24 +10,24 @@ const c = @import("c_146C");
 pub fn vs_field_triggerActorTrap(arg0: ?*v._mpdRoomSectionA, arg1: ?*v.func_8006EBF8_t, targetActor: c_int) callconv(.c) void {
     var sp10: v.func_800CF0E8_t = std.mem.zeroes(v.func_800CF0E8_t);
 
-    v.g.vs_battle_actionState().*.?.unk8.unk4.unk40 = 3;
-    v.g.vs_battle_actionState().*.?.unk8.unk4A = 1;
-    v.g.vs_battle_actionState().*.?.unk8.unk4C[0].unk40 = 0;
-    v.g.vs_battle_actionState().*.?.unk8.unk4C[0].unk0.targetActor = psx.conv(u8, targetActor);
+    v.g.vs_battle_actionState().*.?.unk8.primaryTarget.unk40 = 3;
+    v.g.vs_battle_actionState().*.?.unk8.targetCount = 1;
+    v.g.vs_battle_actionState().*.?.unk8.targets[0].unk40 = 0;
+    v.g.vs_battle_actionState().*.?.unk8.targets[0].target.targetActor = psx.conv(u8, targetActor);
     const actor = psx.get(psx.at(v.g.vs_battle_actors(), targetActor).*.?.stats).?;
-    v.g.vs_battle_actionState().*.?.unk8.unk4C[0].unk0.targetLimb = psx.conv(i8, psx.getBits(actor, "unk36"));
+    v.g.vs_battle_actionState().*.?.unk8.targets[0].target.targetLimb = psx.conv(i8, psx.getBits(actor, "unk36"));
     v.g.vs_battle_actionState().*.?.unk4 = 1;
     v.g.vs_battle_actionState().*.?.unk0 = 0;
-    v.g.vs_battle_actionState().*.?.unk29A8.vx = arg1.?.unk0.unk4.vx;
-    v.g.vs_battle_actionState().*.?.unk29A8.vy = arg1.?.unk0.unk4.vy;
-    v.g.vs_battle_actionState().*.?.unk29A8.vz = arg1.?.unk0.unk4.vz;
+    v.g.vs_battle_actionState().*.?.rangeOrigin.vx = arg1.?.location.position.vx;
+    v.g.vs_battle_actionState().*.?.rangeOrigin.vy = arg1.?.location.position.vy;
+    v.g.vs_battle_actionState().*.?.rangeOrigin.vz = arg1.?.location.position.vz;
     c.vs_battle_resolveActionTargets(
-        @as(c_int, arg0.?.unk0.unk6) +% 6,
-        @ptrCast(&v.g.vs_battle_actionState().*.?.unk854[0]),
+        @as(c_int, arg0.?.trigger.unk6) +% 6,
+        @ptrCast(&v.g.vs_battle_actionState().*.?.queue[0]),
         @ptrCast(&v.g.vs_battle_actionState().*.?.unk8),
         1,
     );
-    sp10.effectId = psx.conv(u16, @as(c_int, arg0.?.unk0.unk6) +% 6);
+    sp10.effectId = psx.conv(u16, @as(c_int, arg0.?.trigger.unk6) +% 6);
     sp10.unk4 = 5;
     sp10.unk10 = 4;
     sp10.unk2 = 1;

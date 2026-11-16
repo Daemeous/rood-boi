@@ -28,6 +28,12 @@ RULES = {
     "ps1_address": re.compile(r"\b0[xX](?:80|[aA]0)[0-9a-fA-F]{6}\b"),
     "scratchpad": re.compile(r"\b0[xX]1[fF]80[0-9a-fA-F]{4}\b|\bgetScratchAddr\b"),
     "unnamed_symbol": re.compile(r"\b(?:D|func)_80[0-9a-fA-F]{6}\b"),
+    # memory lane (pc/docs/plans/2026-11-16-memory-lane.md): code that reaches a field by its PS1 byte offset (S1), and
+    # references to the 2 MB RAM block, the game heap's address and the page that stands for PS1 address 0 (S9)
+    "byte_offset_access": re.compile(r"\bpsx\.(?:fieldAt|byteAt)\(|\bPSX_OFFSET\("),
+    "ram_reference": re.compile(r"\bROOD_GUEST_RAM_(?:BASE|SIZE)\b|\bguest_ram_base\b|\bVS_MAIN_HEAP_ADDRESS\b|\brood_null_page\b|\bmap_guest\s*\("),
+    # a struct member still called by its offset (pc/tools/import_fields.py gives them names), used as .unkNN or ->unkNN
+    "unnamed_field": re.compile(r"(?<![.])(?:\.|->)unk[0-9A-Fa-f]+\b"),
     "guest_pointer_field": re.compile(r"\bpsx_ptr\("),
     "guest_pointer_access": re.compile(r"\bpsx_(?:get|set|set_raw|copy|add|postinc|load|store)\("),
     "address_as_integer": re.compile(r"\bpsx_to_(?:int|ptr)\(|\bpsx\.(?:addr|rawOf)\("),

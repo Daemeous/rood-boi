@@ -38,7 +38,7 @@ pub fn func_8009E2E0(slot: c_int, target: ?*v.SVECTOR, phase: c_int) callconv(.c
             diff = 0;
         }
 
-        actor.unk0.unk3E = psx.conv(i16, diff);
+        actor.unk0.facingDelta = psx.conv(i16, diff);
         actor.unk0.unk18 = 10;
 
         if (@as(c_int, actor.unk63C) > 0x80) {

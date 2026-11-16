@@ -30,21 +30,21 @@ pub fn vs_effects_initializeTransformStates(arg0: ?*v.D_800F53B8_t) callconv(.c)
         if ((@as(c_int, definition.unk0) & 2) != 0) {
             switch (@as(c_int, definition.unk0) & 0x18) {
                 0x10 => {
-                    if (ctx.unkD1C.unk24.unk0 == 4) {
-                        state.actor = psx.fieldAt(u8, &ctx.unkD1C.unk24.unk4, 0).*;
-                        state.bone = psx.fieldAt(u8, &ctx.unkD1C.unk24.unk4, 2).*;
+                    if (ctx.context.unk24.unk0 == 4) {
+                        state.actor = psx.fieldAt(u8, &ctx.context.unk24.unk4, 0).*;
+                        state.bone = psx.fieldAt(u8, &ctx.context.unk24.unk4, 2).*;
                     } else {
                         state.actor = 0xFF;
-                        c.vs_core_mathTranslationTransform(@ptrCast(&ctx.unkD1C.unk24.unk4), @ptrCast(&state.attachment));
+                        c.vs_core_mathTranslationTransform(@ptrCast(&ctx.context.unk24.unk4), @ptrCast(&state.attachment));
                     }
                 },
                 8 => {
-                    if (ctx.unkD1C.unkC.unk0 == 4) {
-                        state.actor = psx.fieldAt(u8, &ctx.unkD1C.unkC.unk4, 0).*;
-                        state.bone = psx.fieldAt(u8, &ctx.unkD1C.unkC.unk4, 2).*;
+                    if (ctx.context.unkC.unk0 == 4) {
+                        state.actor = psx.fieldAt(u8, &ctx.context.unkC.unk4, 0).*;
+                        state.bone = psx.fieldAt(u8, &ctx.context.unkC.unk4, 2).*;
                     } else {
                         state.actor = 0xFF;
-                        c.vs_core_mathTranslationTransform(@ptrCast(&ctx.unkD1C.unkC.unk4), @ptrCast(&state.attachment));
+                        c.vs_core_mathTranslationTransform(@ptrCast(&ctx.context.unkC.unk4), @ptrCast(&state.attachment));
                     }
                 },
                 0 => {
@@ -60,21 +60,21 @@ pub fn vs_effects_initializeTransformStates(arg0: ?*v.D_800F53B8_t) callconv(.c)
         if ((@as(c_int, definition.unk0) & 0x80) != 0) {
             switch (@as(c_int, definition.unk0) & 0xC00) {
                 0x800 => {
-                    if (ctx.unkD1C.unk24.unk0 == 4) {
-                        state.targetActor = psx.fieldAt(u8, &ctx.unkD1C.unk24.unk4, 0).*;
-                        state.targetBone = psx.fieldAt(u8, &ctx.unkD1C.unk24.unk4, 2).*;
+                    if (ctx.context.unk24.unk0 == 4) {
+                        state.targetActor = psx.fieldAt(u8, &ctx.context.unk24.unk4, 0).*;
+                        state.targetBone = psx.fieldAt(u8, &ctx.context.unk24.unk4, 2).*;
                     } else {
                         state.targetActor = 0xFF;
-                        state.saved = @as(*const v.SVECTOR, @ptrCast(&ctx.unkD1C.unk24.unk4)).*;
+                        state.saved = @as(*const v.SVECTOR, @ptrCast(&ctx.context.unk24.unk4)).*;
                     }
                 },
                 0x400 => {
-                    if (ctx.unkD1C.unkC.unk0 == 4) {
-                        state.targetActor = psx.fieldAt(u8, &ctx.unkD1C.unkC.unk4, 0).*;
-                        state.targetBone = psx.fieldAt(u8, &ctx.unkD1C.unkC.unk4, 2).*;
+                    if (ctx.context.unkC.unk0 == 4) {
+                        state.targetActor = psx.fieldAt(u8, &ctx.context.unkC.unk4, 0).*;
+                        state.targetBone = psx.fieldAt(u8, &ctx.context.unkC.unk4, 2).*;
                     } else {
                         state.targetActor = 0xFF;
-                        state.saved = @as(*const v.SVECTOR, @ptrCast(&ctx.unkD1C.unkC.unk4)).*;
+                        state.saved = @as(*const v.SVECTOR, @ptrCast(&ctx.context.unkC.unk4)).*;
                     }
                 },
                 0 => {

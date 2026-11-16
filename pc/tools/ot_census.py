@@ -27,7 +27,7 @@ def run(binary, args, label, env_extra):
     card = str(ROOT / "pc/build/test-card1.mcd")
     with tempfile.TemporaryDirectory(prefix="census-") as census, tempfile.TemporaryDirectory(prefix="census-game-") as out:
         env = dict(os.environ, BUILD_COMPARE_CENSUS=census, **env_extra)
-        child = (["--play", binary, "--seconds", "30", "--width", "8"] if not args else ["--play-menus", binary] + args)
+        child = (["--play", binary, "--seconds", "30"] if not args else ["--play-menus", binary] + args)
         subprocess.run([sys.executable, str(ROOT / "pc/tools/build_compare.py")] + child + ["--card", card, "--out", out], env=env,
                        capture_output=True, text=True)
         reports = [json.loads(f.read_text()) for f in sorted(pathlib.Path(census).glob("*.json"))]

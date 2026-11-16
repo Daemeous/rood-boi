@@ -15,7 +15,7 @@ pub fn vs_field_beginChestInteraction(arg0: ?*v._mpdRoomSectionA, arg1: c_int) c
     c.vs_field_storePreferredActionCameraDistance();
     psx.put(&v.g.vs_field_interactionFocus().unk0, arg0);
     _ = c.vs_actors_actorPlacement(arg1, @ptrCast(&v.g.vs_field_interactionFocus().unk4));
-    v.g.vs_field_interactionFocus().unk4.unkC = arg1;
+    v.g.vs_field_interactionFocus().unk4.actorIndex = arg1;
 
     var i: c_int = 0;
     while (i < 16) : (i +%= 1) {
@@ -23,8 +23,8 @@ pub fn vs_field_beginChestInteraction(arg0: ?*v._mpdRoomSectionA, arg1: c_int) c
     }
 
     const section = arg0.?;
-    sp10[0] = psx.conv(c_short, (@as(c_int, section.unk0.unk0) << 7) +% 0x40);
-    sp10[2] = psx.conv(c_short, (@as(c_int, section.unk0.unk2) << 7) +% 0x40);
+    sp10[0] = psx.conv(c_short, (@as(c_int, section.trigger.tileX) << 7) +% 0x40);
+    sp10[2] = psx.conv(c_short, (@as(c_int, section.trigger.tileZ) << 7) +% 0x40);
     c.func_8009E070(0, @ptrCast(&sp10), 1);
 
     v.g.vs_battle_actionState().*.?.unk4 = 0;

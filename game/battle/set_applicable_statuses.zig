@@ -10,13 +10,13 @@ pub fn setApplicableStatuses(arg0: c_int, entity: ?*v._hitEntity_t) callconv(.c)
     var remove: c_int = 0;
     const params = psx.at(v.g.vs_main_statusEffectParams(), arg0);
     const e = entity.?;
-    const temp_a2 = psx.get(v.g.vs_battle_actors()[e.unk0.targetActor].?.stats).?;
+    const temp_a2 = psx.get(v.g.vs_battle_actors()[e.target.targetActor].?.stats).?;
 
-    if (temp_a2.unk957 != 128) {
+    if (temp_a2.actorId != 128) {
         const temp_t0: c_int = temp_a2.statuses;
 
         if ((temp_t0 & params[3]) == 0) {
-            remove = params[0] & ~temp_a2.unk944 & (~temp_t0 | params[2]);
+            remove = params[0] & ~temp_a2.statusImmunities & (~temp_t0 | params[2]);
             e.removeStatuses |= remove;
             inflict = params[2] & temp_a2.statuses;
             e.inflictStatuses |= inflict;

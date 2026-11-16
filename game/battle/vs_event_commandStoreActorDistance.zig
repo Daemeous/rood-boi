@@ -12,8 +12,8 @@ pub fn vs_event_commandStoreActorDistance(script: [*c]u8, _: c_short) callconv(.
     var second = std.mem.zeroes(v.func_8006EBF8_t);
     _ = c.vs_actors_actorPlacement(c.vs_event_resolveScriptActorReference(psx.conv(u16, c.vs_battle_getShort(script + 1))), &first);
     _ = c.vs_actors_actorPlacement(c.vs_event_resolveScriptActorReference(psx.conv(u16, c.vs_battle_getShort(script + 3))), &second);
-    const dx = psx.conv(i16, @as(c_int, first.unk0.unk4.vx) -% second.unk0.unk4.vx);
-    const dz = psx.conv(i16, @as(c_int, first.unk0.unk4.vz) -% second.unk0.unk4.vz);
+    const dx = psx.conv(i16, @as(c_int, first.location.position.vx) -% second.location.position.vx);
+    const dz = psx.conv(i16, @as(c_int, first.location.position.vz) -% second.location.position.vz);
     const flag: c_int = c.vs_battle_getShort(script + 5);
     var distance = c.vs_gte_rsqrt(@as(c_int, dx) * dx +% @as(c_int, dz) * dz); // a short squared: no overflow
     if (distance < 0) distance +%= 0x7F;

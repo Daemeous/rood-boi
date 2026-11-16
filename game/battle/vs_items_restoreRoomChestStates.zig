@@ -20,19 +20,19 @@ pub fn vs_items_restoreRoomChestStates() callconv(.c) void {
         }) {
             const s3 = &p[0];
             const temp = c.vs_field_collisionCellAt(
-                psx.conv(c_uint, s3.unk0),
-                psx.conv(c_uint, s3.unk2),
+                psx.conv(c_uint, s3.tileX),
+                psx.conv(c_uint, s3.tileZ),
                 psx.conv(c_int, s3.unk4),
             );
-            if (c.vs_battle_getStateFlag(psx.conv(c_short, @as(c_int, s3.unk10) +% 0x3C0)) != 0) {
-                s3.unk8 = 1;
+            if (c.vs_battle_getStateFlag(psx.conv(c_short, @as(c_int, s3.openedFlag) +% 0x3C0)) != 0) {
+                s3.isOpen = 1;
                 c.vs_field_finishRoomTiltRotation(psx.conv(c_int, s3.unk6));
                 if (temp) |t| {
                     const sec3: *v._mpdRoomSection3 = @ptrCast(t);
                     psx.setBits(sec3, "unk0_10", 5);
                 }
             } else {
-                s3.unk8 = 0;
+                s3.isOpen = 0;
                 if (temp) |t| {
                     const sec3: *v._mpdRoomSection3 = @ptrCast(t);
                     psx.setBits(sec3, "unk0_10", 0);

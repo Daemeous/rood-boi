@@ -9,18 +9,18 @@ const c = @import("c_5BF94");
 pub fn vs_effects_tickParticleEmissionTrack(script: ?*v.D_800F53B8_t, cmd_arg: ?*v.func_800D5780_t) callconv(.c) c_int {
     const s = script.?;
     const cmd = cmd_arg.?;
-    const e: [*]v.func_800D57FC_t = @ptrCast(psx.get(cmd.unk0).?);
+    const e: [*]v.func_800D57FC_t = @ptrCast(psx.get(cmd.keys).?);
     var ret: c_int = 1;
-    const key: c_int = psx.getBits(psx.at(e, cmd.unk6), "unk0_0");
-    const cur: c_int = psx.get(s.unkD1C.unk30).?.unk2;
+    const key: c_int = psx.getBits(psx.at(e, cmd.keyIndex), "unk0_0");
+    const cur: c_int = psx.get(s.context.unk30).?.frame;
     if (cur < key) {
         return ret;
     }
     c.vs_effects_sampleAllEffectCurves(cmd.unk8);
-    const entry = psx.at(e, cmd.unk6);
+    const entry = psx.at(e, cmd.keyIndex);
     c.func_800D2ADC(@ptrCast(s), psx.getBits(entry, "unk0_20"), psx.getBits(entry, "unk0_26"), psx.getBits(entry, "unk0_16"), null);
     cmd.unk8 +%= 1;
-    if ((psx.get(s.unkD1C.unk30).?.unk1 & 1) == 0) {
+    if ((psx.get(s.context.unk30).?.unk1 & 1) == 0) {
         cmd.unkA -%= 1;
     }
     if (cmd.unkA == 0) {

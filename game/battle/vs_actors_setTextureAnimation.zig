@@ -18,11 +18,11 @@ pub fn vs_actors_setTextureAnimation(actorId: c_int, index: c_int, value: c_int,
         1 => {
             if (@as(c_int, psx.getBits(slot, "unk0_4")) == 1 and @as(c_int, psx.getBits(slot, "unk0_0")) == value) return 0;
             psx.setBits(slot, "unk0_0", psx.conv(u4, value));
-            slot.unk2 = 0;
+            slot.keyIndex = 0;
             if (index == 1) {
-                slot.unk3 = psx.conv(u8, actorId *% 10);
+                slot.ticks = psx.conv(u8, actorId *% 10);
             } else {
-                slot.unk3 = 0;
+                slot.ticks = 0;
             }
             psx.setBits(slot, "unk0_4", psx.conv(u4, mode));
         },

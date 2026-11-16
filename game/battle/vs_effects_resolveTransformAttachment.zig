@@ -13,7 +13,7 @@ pub fn vs_effects_resolveTransformAttachment(arg0: c_int, arg1: ?*v.func_800D0C6
         c.func_800A1720(@as(c_int, rec.unk34), @as(c_int, rec.unk35), psx.cptr(c.func_800CFE98_t, &rec.unk78), &sp20);
         var sp10: v.func_8006EBF8_t = undefined;
         _ = c.vs_actors_actorPlacement(@as(c_int, rec.unk34), &sp10);
-        rec.unkBE = sp10.unk0.unk4.pad;
+        rec.unkBE = sp10.location.position.pad;
         return;
     }
     switch (rec.unk34) {

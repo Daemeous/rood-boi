@@ -8,10 +8,10 @@ const c = @import("c_146C");
 /// orig: _getIntelligenceDifference (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// Works out a hit's intelligence difference (source over target), clamped to 0..254.
 pub fn getIntelligenceDifference(action: ?*v.vs_action_t, source: ?*v._hitEntity_t, target: ?*v._hitEntity_t, hitNumber: c_int, addVariance: c_int) callconv(.c) c_int {
-    const targetLimb: c_int = @as(c_int, target.?.unk0.targetLimb);
+    const targetLimb: c_int = @as(c_int, target.?.target.targetLimb);
 
-    const sourceActor = psx.get(v.g.vs_battle_actors()[source.?.unk0.targetActor].?.stats).?;
-    const targetActor = psx.get(v.g.vs_battle_actors()[target.?.unk0.targetActor].?.stats).?;
+    const sourceActor = psx.get(v.g.vs_battle_actors()[source.?.target.targetActor].?.stats).?;
+    const targetActor = psx.get(v.g.vs_battle_actors()[target.?.target.targetActor].?.stats).?;
 
     var sourceActorValue: c_int = @as(c_int, sourceActor.intelligence) +% @as(c_int, sourceActor.accessory.currentInt);
     var targetActorValue: c_int = @as(c_int, targetActor.intelligence) +% @as(c_int, targetActor.accessory.currentInt);
@@ -21,11 +21,11 @@ pub fn getIntelligenceDifference(action: ?*v.vs_action_t, source: ?*v._hitEntity
         targetActorValue +%= @as(c_int, targetActor.limbs[i].armor.currentInt);
     }
 
-    if ((v.g.vs_battle_actors()[sourceActor.unk957].?.weaponDrawn & 1) != 0) {
+    if ((v.g.vs_battle_actors()[sourceActor.actorId].?.weaponDrawn & 1) != 0) {
         sourceActorValue +%= @as(c_int, sourceActor.weapon.currentInt) +% @as(c_int, sourceActor.shield.currentInt);
     }
 
-    if ((v.g.vs_battle_actors()[targetActor.unk957].?.weaponDrawn & 1) != 0) {
+    if ((v.g.vs_battle_actors()[targetActor.actorId].?.weaponDrawn & 1) != 0) {
         targetActorValue +%= @as(c_int, targetActor.weapon.currentInt) +% @as(c_int, targetActor.shield.currentInt);
     }
 

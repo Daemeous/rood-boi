@@ -12,8 +12,8 @@ pub fn vs_field_beginScriptedZoneTransition(section: ?*v._mpdRoomDoorSection_t, 
     _ = c.vs_field_beginZoneTransition(@ptrCast(section), arg1, arg2);
     _ = c.vs_actors_actorPlacement(0, &sp10);
     c.vs_field_findEntranceDoorNearTile(
-        @as(c_int, psx.getBits(&sp10.unk0.unk0.fields, "unk0_0")),
-        @as(c_int, psx.getBits(&sp10.unk0.unk0.fields, "unk0_16")),
-        @as(c_int, psx.getBits(&sp10.unk0.unk0.fields, "unk0_8")),
+        @as(c_int, psx.getBits(&sp10.location.packedTile.fields, "unk0_0")),
+        @as(c_int, psx.getBits(&sp10.location.packedTile.fields, "unk0_16")),
+        @as(c_int, psx.getBits(&sp10.location.packedTile.fields, "unk0_8")),
     );
 }

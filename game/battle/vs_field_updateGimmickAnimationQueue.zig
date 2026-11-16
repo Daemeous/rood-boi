@@ -23,8 +23,8 @@ pub fn vs_field_updateGimmickAnimationQueue() callconv(.c) void {
         } else if (slot.unk0 == 2) {
             const entry = psx.get(slot.unk4).?;
             // unkA is a u8 promoted to int before the shift: the shift wraps in C, so it wraps here.
-            entry.unk0.unkA -%= 1;
-            const shifted: c_int = @bitCast(@as(c_uint, entry.unk0.unkA) << 24);
+            entry.trigger.unkA -%= 1;
+            const shifted: c_int = @bitCast(@as(c_uint, entry.trigger.unkA) << 24);
             if (shifted <= 0) {
                 c.vs_field_toggleRoomSwitch(@ptrCast(entry));
                 slot.unk0 = 0;
@@ -33,8 +33,8 @@ pub fn vs_field_updateGimmickAnimationQueue() callconv(.c) void {
             }
         } else if (slot.unk0 == 3) {
             const entry = psx.get(slot.unk4).?;
-            entry.unk13 -%= 1;
-            if (entry.unk13 == 0) {
+            entry.delayFrames -%= 1;
+            if (entry.delayFrames == 0) {
                 _ = c.vs_field_startDoorAnimation(@ptrCast(entry));
                 slot.unk0 = 0;
                 psx.put(&slot.unk4, null);

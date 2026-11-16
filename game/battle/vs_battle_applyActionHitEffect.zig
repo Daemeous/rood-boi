@@ -30,18 +30,18 @@ pub fn vs_battle_applyActionHitEffect(action: ?*v.vs_action_t, arg1: ?*v._hitEnt
     const e2 = arg2.?;
     const actors = v.g.vs_battle_actors();
 
-    if (e2.unk40 == 0 and targetStats(actors, e2.unk0.targetActor).unk957 == 0x80) {
-        e2.unk0.hp = psx.conv(i16, @as(c_int, e2.unk0.hp) +% 999);
+    if (e2.unk40 == 0 and targetStats(actors, e2.target.targetActor).actorId == 0x80) {
+        e2.target.hp = psx.conv(i16, @as(c_int, e2.target.hp) +% 999);
         psx.setBits(e2, "hpEffect", 1);
     } else if (actionKind(action) == c.actionTypeSpell) {
-        if (e2.unk40 == 0 and (psx.conv(u32, targetStats(actors, e2.unk0.targetActor).statuses) & ((@as(u32, 1) << 31) | 0x40000)) != 0) {
+        if (e2.unk40 == 0 and (psx.conv(u32, targetStats(actors, e2.target.targetActor).statuses) & ((@as(u32, 1) << 31) | 0x40000)) != 0) {
             v.g._lastValue().* = 0;
         } else {
             callMediator(action, arg1, arg2, hit, arg3);
         }
         if (e2.unk40 == 0) {
-            const st = targetStats(actors, e2.unk0.targetActor);
-            if (st.unk957 != 0x80) {
+            const st = targetStats(actors, e2.target.targetActor);
+            if (st.actorId != 0x80) {
                 e2.inflictStatuses |= st.statuses & 0x61000;
             }
         }
@@ -49,17 +49,17 @@ pub fn vs_battle_applyActionHitEffect(action: ?*v.vs_action_t, arg1: ?*v._hitEnt
         callMediator(action, arg1, arg2, hit, arg3);
     }
 
-    if (arg3 != 0 and arg1.?.unk40 == 0 and arg1.?.unk0.targetActor == 0 and
+    if (arg3 != 0 and arg1.?.unk40 == 0 and arg1.?.target.targetActor == 0 and
         e2.unk40 == 0 and
-        targetStats(actors, e2.unk0.targetActor).unk957 != 0x80 and
+        targetStats(actors, e2.target.targetActor).actorId != 0x80 and
         (actionKind(action) == c.actionTypeAbility or
             actionKind(action) == c.actionTypeBreakArt or
             actionKind(action) == c.actionTypeBaseAttack) and
-        targetStats(actors, e2.unk0.targetActor).currentHP <= e2.unk0.hp and
-        e2.unk0.targetActor != 0 and
-        actors[e2.unk0.targetActor].?.unk29 == 0)
+        targetStats(actors, e2.target.targetActor).currentHP <= e2.target.hp and
+        e2.target.targetActor != 0 and
+        actors[e2.target.targetActor].?.unk29 == 0)
     {
-        const target = actors[e2.unk0.targetActor].?;
+        const target = actors[e2.target.targetActor].?;
         target.unk29 = 1;
         const cs = v.g.vs_battle_characterState().*.?;
         const temp_s0: u8 = cs.equippedWeaponCategory % 10;

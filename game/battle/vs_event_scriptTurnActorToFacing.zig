@@ -14,7 +14,7 @@ pub fn vs_event_scriptTurnActorToFacing(script: [*c]u8, _: c_short) callconv(.c)
     const third: i16 = if (script[5] != 0xFF) script[5] else -1;
     if (script[4] != 0) {
         _ = c.vs_actors_actorPlacement(actor, @ptrCast(&state));
-        var turn: c_int = (@as(c_int, script[3]) << 4) -% state.unk0.unk4.pad;
+        var turn: c_int = (@as(c_int, script[3]) << 4) -% state.location.position.pad;
         if (turn < -0x1000 / 2) turn +%= 0x1000;
         if (turn > 0x1000 / 2) turn -%= 0x1000;
         switch (@as(i8, @bitCast(script[4]))) {

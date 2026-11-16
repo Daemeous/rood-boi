@@ -7,6 +7,6 @@ const v = @import("views_6F014");
 /// Records block 2's entry count and points the unit's block-2 data at the block.
 pub fn parsePfileBlock2(block: ?*v.pFileBlock2) callconv(.c) void {
     const state = v.g.vs_effects_package().*.?;
-    state.block2Count = block.?.unk0;
+    state.block2Count = block.?.animationCount;
     psx.put(&state.block2Data, block);
 }

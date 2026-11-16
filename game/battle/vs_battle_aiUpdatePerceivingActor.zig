@@ -41,7 +41,7 @@ pub fn vs_battle_aiUpdatePerceivingActor() callconv(.c) void {
         const state: *v.vs_battle_aiState = @ptrFromInt(@as(usize, stateAddr));
         state.unk1D = 0;
         const object: ?*v.actorObject = psx.get(state.object.actorObject);
-        state.unk90 = psx.get(a.stats).?.unk954;
+        state.unk90 = psx.get(a.stats).?.actionRecoveryTimer;
 
         var arg: c_int = 0;
         const outcome: Outcome = outcome_blk: {

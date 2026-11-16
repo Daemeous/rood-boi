@@ -106,14 +106,14 @@ pub fn battleExec() callconv(.c) void {
                                 if (c.vs_field_checkAshleyTileTriggers(0, @ptrCast(&position)) != 0) {
                                     break :mode;
                                 }
-                                if (characterStats().unk954 == 0 and (status & 0x4000) == 0 and
+                                if (characterStats().actionRecoveryTimer == 0 and (status & 0x4000) == 0 and
                                     v.g.vs_field_isMenuRequestQueued().* == 0 and (v.g.vs_main_buttonsPreviousState().* & 1) != 0)
                                 {
                                     c.vs_field_beginShortcutMenu();
                                     break :mode;
                                 }
                                 if (v.g.vs_field_isMenuRequestQueued().* != 0) {
-                                    if (characterStats().unk954 == 0 and (status & 0x4000) == 0 and
+                                    if (characterStats().actionRecoveryTimer == 0 and (status & 0x4000) == 0 and
                                         c.vs_menu_frameworkOpenGameMenu(0, 0) != 0)
                                     {
                                         c.vs_field_beginBattleActionMenu(0, 0);
@@ -121,7 +121,7 @@ pub fn battleExec() callconv(.c) void {
                                         break :mode;
                                     }
                                 } else if ((buttonsPressed() & 0x10) != 0 and (v.g.vs_main_buttonsPreviousState().* & 1) == 0) {
-                                    if (characterStats().unk954 == 0 and (status & 0x4000) == 0) {
+                                    if (characterStats().actionRecoveryTimer == 0 and (status & 0x4000) == 0) {
                                         if (c.vs_menu_frameworkOpenGameMenu(0, 0) != 0) {
                                             c.vs_field_beginBattleActionMenu(0, 0);
                                             break :mode;
@@ -170,7 +170,7 @@ pub fn battleExec() callconv(.c) void {
                                     }
                                     if ((buttonsPressed() & 0x20) != 0) {
                                         if (characterWeaponDrawn() != 0) {
-                                            if (characterStats().unk954 == 0 and (characterStats().statuses & 0x2000) == 0) {
+                                            if (characterStats().actionRecoveryTimer == 0 and (characterStats().statuses & 0x2000) == 0) {
                                                 c.vs_main_playSfxDefault(0x7E, 9);
                                                 c.vs_battle_beginActorActionSelection(0, 1);
                                                 skipCameraUpdate = 1;
@@ -322,7 +322,7 @@ pub fn battleExec() callconv(.c) void {
                                     4 => {
                                         _ = c.vs_field_trackInteractionCameraToAshley();
                                         if (c._isLookAtAtDestination() != 0) {
-                                            _ = c.vs_battle_aiRebuildActorActionPlans(&v.g.vs_battle_actionState().*.?.unk854[0]);
+                                            _ = c.vs_battle_aiRebuildActorActionPlans(&v.g.vs_battle_actionState().*.?.queue[0]);
                                             c.vs_battle_beginPostActionRecovery(0);
                                             v.g.D_800F196C().* = 2;
                                         }

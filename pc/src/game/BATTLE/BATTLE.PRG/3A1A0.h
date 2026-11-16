@@ -51,10 +51,10 @@ typedef struct {
     u_char unk7;
     u_short unk8;
     short unkA;
-    u_short unkC;
-    u_short unkE;
-    short unk10;
-    short unk12;
+    u_short radiusExpandRate;
+    u_short radiusShrinkRate;
+    short radiusExpandDelta;
+    short radiusShrinkDelta;
 } D_800F4538_unk1864;
 
 typedef struct {
@@ -115,7 +115,7 @@ typedef struct {
     short unk6;
     u_int unk8;
     int unkC;
-    SVECTOR unk10;
+    SVECTOR step;
 } D_800F4538_unk1848;
 
 typedef struct {
@@ -156,35 +156,35 @@ typedef struct {
     u_char unkC_4 : 4;
     u_char unkD;
     u_char unkE;
-    u_char unkF;
-    u_char unk10;
+    u_char slot;
+    u_char variant;
     u_char unk11;
-    u_char unk12;
+    u_char attachParent;
     u_char unk13;
     u_short unk14;
     u_short unk16;
     u_short unk18;
     u_short unk1A;
     SVECTOR position;
-    short unk24;
+    short rotationX;
     short facing;
-    short unk28;
+    short rotationZ;
     short unk2A;
-    short unk2C;
-    short unk2E;
-    short unk30;
+    short scaleX;
+    short scaleY;
+    short scaleZ;
     short unk32;
     SVECTOR unk34;
-    short unk3C;
-    short unk3E;
-    short unk40;
+    short rotationStepX;
+    short facingDelta;
+    short rotationStepZ;
     u_short unk42;
-    SVECTOR unk44;
+    SVECTOR scaleDelta;
     int unk4C;
     short unk50;
     short unk52;
     int unk54;
-    D_800F4538_unk58_2 unk58;
+    D_800F4538_unk58_2 tint;
     u_char currentTileX;
     u_char unk5D;
     u_char currentTileZ;
@@ -193,16 +193,16 @@ typedef struct {
     u_char unk61;
     u_char lastTouchedTileZ;
     u_char unk63;
-    D_800F4538_unk64 unk64;
-    D_800F4538_unk68* unk68;
+    D_800F4538_unk64 palettePulse;
+    D_800F4538_unk68* model;
 } D_800F4538_unk0;
 
 typedef struct {
     u_char unk0_0 : 4;
     u_char unk0_4 : 4;
-    u_char unk1;
-    u_char unk2;
-    u_char unk3;
+    u_char currentFrame;
+    u_char keyIndex;
+    u_char ticks;
 } D_800F4538_unk180C;
 
 typedef struct {

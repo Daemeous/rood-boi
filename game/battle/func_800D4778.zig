@@ -19,9 +19,9 @@ fn setAddress(field: anytype, address: u32) void {
 pub fn func_800D4778(script: ?*v.D_800F53B8_t) callconv(.c) c_int {
     const s = script.?;
     var spawn: v.D_800F53B8_t2 = undefined; // the C leaves the other fields uninitialised
-    setAddress(&spawn.unk14, psx.rawOf(s.unkC));
-    spawn.unk18 = c.vs_effects_readScriptHalfword(@ptrCast(s));
-    psx.put(&spawn.unk0, &s.unkD1C);
+    setAddress(&spawn.script, psx.rawOf(s.unkC));
+    spawn.scriptOffset = c.vs_effects_readScriptHalfword(@ptrCast(s));
+    psx.put(&spawn.source, &s.context);
     _ = c.vs_effects_createPrimaryEffectInstance(@ptrCast(&spawn));
     return 1;
 }

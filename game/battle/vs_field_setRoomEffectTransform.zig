@@ -8,10 +8,10 @@ const c = @import("c_2842C");
 pub fn vs_field_setRoomEffectTransform(arg0: ?*v.func_80092F74_t, arg1: ?*v.func_80092F74_t2) callconv(.c) c_int {
     const dst = arg0.?;
     const src = arg1.?;
-    dst.unkC = src.unk4[0].s32;
-    dst.unk10 = src.unk4[1].s32;
-    dst.unk14 = src.unk4[2].s32;
-    dst.unk1C.vx = psx.conv(i16, src.unk4[3].s32);
+    dst.unkC = src.operands[0].s32;
+    dst.unk10 = src.operands[1].s32;
+    dst.unk14 = src.operands[2].s32;
+    dst.unk1C.vx = psx.conv(i16, src.operands[3].s32);
     dst.unk1C.vy = psx.conv(i16, src.unk14);
     dst.unk1C.vz = psx.conv(i16, src.unk18);
     c.vs_field_writeRoomEffectTransform(psx.cptr(c.func_80092F74_t, dst));

@@ -94,10 +94,10 @@ static int completion(void)
 /* This journey (read only): what a save now would record. */
 static void fill_journey(pc_ui_data_model* m)
 {
-    m->hp = vs_state_ashleySnapshot.unk0.currentHP;
-    m->hp_max = vs_state_ashleySnapshot.unk0.maxHP;
-    m->mp = vs_state_ashleySnapshot.unk0.currentMP;
-    m->mp_max = vs_state_ashleySnapshot.unk0.maxMP;
+    m->hp = vs_state_ashleySnapshot.stats.currentHP;
+    m->hp_max = vs_state_ashleySnapshot.stats.maxHP;
+    m->mp = vs_state_ashleySnapshot.stats.currentMP;
+    m->mp_max = vs_state_ashleySnapshot.stats.maxMP;
     m->map = completion();
     m->saves = vs_main_settings.cumulativeSaveCount;
     m->play_h = vs_main_gametime.t.h;

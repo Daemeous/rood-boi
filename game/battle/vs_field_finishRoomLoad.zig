@@ -40,32 +40,32 @@ pub fn vs_field_finishRoomLoad(arg0: c_int) callconv(.c) void {
 
     a0 = c.vs_battle_getCurrentSceneId();
 
-    if (a0 != zone.unk68) {
-        zone.unk68 = a0;
+    if (a0 != zone.currentSceneId) {
+        zone.currentSceneId = a0;
         c.func_80088CAC();
     }
 
-    if (v.g.vs_state_sceneTimer().unk2 == 0) {
+    if (v.g.vs_state_sceneTimer().resetScope == 0) {
         c.vs_state_resetSceneTimer();
     }
 
     v.g.vs_field_isRoomVisitPending().* = 1;
     a0 = c._getCollisionMapDimensions(0);
     const lo: c_int = a0 & 0xFFFF;
-    zone.unk3C = psx.conv(i16, @divTrunc(lo, 16));
+    zone.tileColumns = psx.conv(i16, @divTrunc(lo, 16));
 
     if (a0 < 0) {
         a0 +%= 0xFFFFF;
     }
-    zone.unk3E = psx.conv(i16, a0 >> 20);
+    zone.tileRows = psx.conv(i16, a0 >> 20);
 
     if (c._getMapBounds(0) != null) {
         zone.bounds = @as(*const v._zoneContextBounds, @ptrCast(c._getMapBounds(0))).*;
     } else {
         zone.bounds.minZ = 0;
         zone.bounds.minX = 0;
-        zone.bounds.maxX = zone.unk3C;
-        zone.bounds.maxZ = zone.unk3E;
+        zone.bounds.maxX = zone.tileColumns;
+        zone.bounds.maxZ = zone.tileRows;
     }
 
     {
@@ -173,9 +173,9 @@ pub fn vs_field_finishRoomLoad(arg0: c_int) callconv(.c) void {
 
     _ = c.vs_actors_actorPlacement(0, &sp40);
 
-    sp20.vx = @as(c_int, sp40.unk0.unk4.vx) *% 4096;
-    sp20.vy = @as(c_int, sp40.unk0.unk4.vy) *% 4096 -% 90 * 4096;
-    sp20.vz = @as(c_int, sp40.unk0.unk4.vz) *% 4096;
+    sp20.vx = @as(c_int, sp40.location.position.vx) *% 4096;
+    sp20.vy = @as(c_int, sp40.location.position.vy) *% 4096 -% 90 * 4096;
+    sp20.vz = @as(c_int, sp40.location.position.vz) *% 4096;
 
     c._clampPositionToZoneBounds(psx.cptr(c.VECTOR, &sp20), psx.cptr(c.VECTOR, &lookAt));
 
@@ -184,7 +184,7 @@ pub fn vs_field_finishRoomLoad(arg0: c_int) callconv(.c) void {
 
     c._setCameraPositionFromAngles(psx.cptr(c._sphericalValues, &cam.values));
     _ = c.vs_actors_actorPlacement(0, &sp40);
-    c.vs_field_updateCameraTileConstraint(0, @ptrCast(&sp40.unk0.unk0.fields));
+    c.vs_field_updateCameraTileConstraint(0, @ptrCast(&sp40.location.packedTile.fields));
     c.func_8007D360();
     c.vs_main_commitClut();
     c.vs_render_configureFieldDisplay(0x140, 0xF0, v.g.vs_main_projectionDistance().*, 0, 0, 0);

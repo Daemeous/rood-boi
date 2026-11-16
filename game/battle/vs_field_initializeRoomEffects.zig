@@ -25,15 +25,15 @@ pub fn vs_field_initializeRoomEffects() callconv(.c) void {
         var index: c_int = 0;
         while (consumed < total) {
             const rec: *align(1) v.D_800F1DD8_t2 = @ptrFromInt(data);
-            if (rec.unk6 < 7 and sizes[rec.unk6] != 0) {
+            if (rec.kind < 7 and sizes[rec.kind] != 0) {
                 const entry = psx.at(v.g.vs_field_roomEffectInstances(), index);
                 psx.put(&entry.unk4, @as(*align(1) v.D_800F1DD8_t2, @ptrFromInt(data)));
-                entry.unk0 = @intFromBool(rec.unk5 == 0);
+                entry.unk0 = @intFromBool(rec.startsInactive == 0);
                 entry.unk2 = 1;
                 entry.unk3 = 0;
-                entry.unk1 = rec.unk6;
-                rec.unk4 = 1;
-                const step: c_int = sizes[rec.unk6];
+                entry.unk1 = rec.kind;
+                rec.needsReset = 1;
+                const step: c_int = sizes[rec.kind];
                 consumed +%= step;
                 data +%= @as(usize, @bitCast(@as(isize, step)));
                 index +%= 1;

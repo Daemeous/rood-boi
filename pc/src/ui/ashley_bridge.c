@@ -540,11 +540,11 @@ static u_int clone_units(void)
     if (a->unk17FD >= 2)
         n += heap_units(VS_OBJECT_REGION);
     for (i = 0; i < 2; ++i) {
-        int k = a->unk0.unkF * 2 + i;
+        int k = a->unk0.slot * 2 + i;
         if (k < 20 && vs_battle_wepModels[k])
             n += heap_units(sizeof(vs_battle_wepModels_t)) + heap_units(sizeof(_wepModelOffsets));
     }
-    if (a->unk0.unkF == 0)
+    if (a->unk0.slot == 0)
         n += heap_units(0x7800);
     return n + (HEAP_MARGIN + (u_int)(pc_ui_ashley_heap_extra > 0 ? pc_ui_ashley_heap_extra : 0)) / 16;
 }

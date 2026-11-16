@@ -11,9 +11,9 @@ pub fn vs_battle_resolveActionTargets(action: c_int, result: ?*v.D_800F19CC_t2, 
     c.vs_battle_clearActionRequest(result);
     const res = result.?;
     res.actionIndex = psx.conv(u16, action);
-    c.vs_battle_initializeActionHit(@ptrCast(&res.unk4));
+    c.vs_battle_initializeActionHit(@ptrCast(&res.primaryTarget));
     const src = source.?;
-    res.unk4.unk40 = src.unk4.unk40;
+    res.primaryTarget.unk40 = src.primaryTarget.unk40;
 
     // origin is read in the original even when unk40 != 0 (uninitialised there): zeroed here.
     var origin: v.SVECTOR = .{ .vx = 0, .vy = 0, .vz = 0, .pad = 0 };
@@ -24,27 +24,27 @@ pub fn vs_battle_resolveActionTargets(action: c_int, result: ?*v.D_800F19CC_t2, 
     var limb: c_int = 0;
     var i: c_int = 0;
 
-    if (res.unk4.unk40 == 0) {
-        res.unk4.unk0.targetActor = src.unk4.unk0.targetActor;
-        res.unk4.unk0.targetLimb = src.unk4.unk0.targetLimb;
-        attacker = psx.get(v.g.vs_battle_actors()[res.unk4.unk0.targetActor].?.stats);
-        c.func_800A1AF8(@as(c_int, res.unk4.unk0.targetActor), 0, psx.cptr(c.SVECTOR, &origin), 0);
+    if (res.primaryTarget.unk40 == 0) {
+        res.primaryTarget.target.targetActor = src.primaryTarget.target.targetActor;
+        res.primaryTarget.target.targetLimb = src.primaryTarget.target.targetLimb;
+        attacker = psx.get(v.g.vs_battle_actors()[res.primaryTarget.target.targetActor].?.stats);
+        c.func_800A1AF8(@as(c_int, res.primaryTarget.target.targetActor), 0, psx.cptr(c.SVECTOR, &origin), 0);
     } else {
         attacker = null;
     }
 
-    res.unk4A = src.unk4A;
-    while (i < src.unk4A) : (i +%= 1) {
-        const dst = psx.at(&res.unk4C, i);
-        const from = psx.at(&src.unk4C, i);
+    res.targetCount = src.targetCount;
+    while (i < src.targetCount) : (i +%= 1) {
+        const dst = psx.at(&res.targets, i);
+        const from = psx.at(&src.targets, i);
         c.vs_battle_initializeActionHit(@ptrCast(dst));
         dst.unk40 = from.unk40;
         if (dst.unk40 == 0) {
-            dst.unk0.targetActor = from.unk0.targetActor;
-            dst.unk0.targetLimb = from.unk0.targetLimb;
+            dst.target.targetActor = from.target.targetActor;
+            dst.target.targetLimb = from.target.targetLimb;
         } else if (psx.conv(c_uint, dst.unk40) < 6) {
-            const dstVec: *v.SVECTOR = @ptrCast(&dst.unk0);
-            dstVec.* = @as(*v.SVECTOR, @ptrCast(&from.unk0)).*;
+            const dstVec: *v.SVECTOR = @ptrCast(&dst.target);
+            dstVec.* = @as(*v.SVECTOR, @ptrCast(&from.target)).*;
         }
     }
     res.unk844 = src.unk844;
@@ -55,7 +55,7 @@ pub fn vs_battle_resolveActionTargets(action: c_int, result: ?*v.D_800F19CC_t2, 
         best = @as(c_int, psx.getBits(&spec.hitParams[0], "affinity")) -% 1;
     } else if (attacker != null) {
         const att = attacker.?;
-        if ((v.g.vs_battle_actors()[att.unk957].?.weaponDrawn & 1) != 0 and att.weapon.blade.id != 0) {
+        if ((v.g.vs_battle_actors()[att.actorId].?.weaponDrawn & 1) != 0 and att.weapon.blade.id != 0) {
             var k: c_int = 0;
             while (k < 7) : (k += 1) {
                 const aff = att.weapon.classAffinityCurrent.affinity[0][@intCast(k)];
@@ -88,26 +88,26 @@ pub fn vs_battle_resolveActionTargets(action: c_int, result: ?*v.D_800F19CC_t2, 
     }
 
     var hit: c_int = 0;
-    const user: *v._hitEntity_t = &res.unk4;
+    const user: *v._hitEntity_t = &res.primaryTarget;
     v.g._lastValue().* = 0;
     v.g.D_800F1A04().* = 0;
     v.g.D_800F1A00().* = 0;
     while (hit < 2) : (hit += 1) {
         sw: switch (psx.getBits(&spec.hitParams[@intCast(hit)], "prerequisiteFunction")) {
             6, 7, 8 => {
-                c.vs_battle_applyActionHitEffect(@ptrCast(spec), @ptrCast(&res.unk4), @ptrCast(&res.unk4C[0]), arg3, hit);
+                c.vs_battle_applyActionHitEffect(@ptrCast(spec), @ptrCast(&res.primaryTarget), @ptrCast(&res.targets[0]), arg3, hit);
             },
             3 => {
-                if (res.unk4.unk40 != 0) break :sw;
-                const entry: *v._hitEntity_t = &res.unk4;
-                const stats = psx.get(v.g.vs_battle_actors()[res.unk4.unk0.targetActor].?.stats);
+                if (res.primaryTarget.unk40 != 0) break :sw;
+                const entry: *v._hitEntity_t = &res.primaryTarget;
+                const stats = psx.get(v.g.vs_battle_actors()[res.primaryTarget.target.targetActor].?.stats);
                 v.g.D_800F1A00().* = 1;
                 v.g.D_800F1A04().* = psx.conv(u32, c._doesAttackHit(@ptrCast(spec), @ptrCast(entry), @ptrCast(entry), hit, arg3));
                 if (v.g.D_800F1A04().* != 0 or arg3 == 0) {
                     c.vs_battle_applyActionHitEffect(@ptrCast(spec), @ptrCast(entry), @ptrCast(entry), arg3, hit);
                     if (arg3 != 0 and psx.getBits(stats.?, "unk956_0") != 0) {
                         c.vs_battle_initializeActionHit(@ptrCast(entry));
-                        entry.unk0.unk3 = 4;
+                        entry.target.unk3 = 4;
                     }
                     c.vs_battle_deriveLimbInjuryStatuses(@ptrCast(entry));
                 }
@@ -115,33 +115,33 @@ pub fn vs_battle_resolveActionTargets(action: c_int, result: ?*v.D_800F19CC_t2, 
             0 => {},
             else => {
                 i = 0;
-                while (i < res.unk4A) : (i +%= 1) {
-                    const entry = psx.at(&res.unk4C, i);
+                while (i < res.targetCount) : (i +%= 1) {
+                    const entry = psx.at(&res.targets, i);
                     var redirected: c_int = 0;
                     if (arg3 != 0 and psx.getBits(spec, "flagsD_6") != 0) {
                         if (entry.unk40 == 0) {
-                            c.vs_battle_actionTargetLimbPosition(entry.unk0.targetActor, entry.unk0.targetLimb, psx.cptr(c.SVECTOR, &position));
+                            c.vs_battle_actionTargetLimbPosition(entry.target.targetActor, entry.target.targetLimb, psx.cptr(c.SVECTOR, &position));
                         } else {
-                            position = @as(*v.SVECTOR, @ptrCast(&entry.unk0)).*;
+                            position = @as(*v.SVECTOR, @ptrCast(&entry.target)).*;
                         }
                         redirected = c.vs_field_traceActorAndTerrainCollision(
                             psx.cptr(c.SVECTOR, &origin),
                             psx.cptr(c.SVECTOR, &position),
                             psx.cptr(c.SVECTOR, &impact),
-                            @as(c_int, res.unk4.unk0.targetActor),
+                            @as(c_int, res.primaryTarget.target.targetActor),
                         );
                         if (redirected != 0) {
                             if (impact.pad == 0) {
                                 entry.unk40 = 1;
-                                @as(*v.SVECTOR, @ptrCast(&entry.unk0)).* = impact;
-                                entry.unk0.mp = 0x80;
+                                @as(*v.SVECTOR, @ptrCast(&entry.target)).* = impact;
+                                entry.target.mp = 0x80;
                                 res.unk48 = 1;
                             } else {
                                 if (psx.conv(u16, impact.pad) < 17) {
                                     target = impact.pad;
-                                    if (target -% 1 != @as(c_int, entry.unk0.targetActor)) {
-                                        entry.unk0.targetActor = psx.conv(u8, target -% 1);
-                                        entry.unk0.targetLimb = psx.conv(i8, psx.getBits(psx.get(v.g.vs_battle_actors()[entry.unk0.targetActor].?.stats).?, "unk36"));
+                                    if (target -% 1 != @as(c_int, entry.target.targetActor)) {
+                                        entry.target.targetActor = psx.conv(u8, target -% 1);
+                                        entry.target.targetLimb = psx.conv(i8, psx.getBits(psx.get(v.g.vs_battle_actors()[entry.target.targetActor].?.stats).?, "unk36"));
                                         res.unk48 = 1;
                                     }
                                 }
@@ -151,42 +151,42 @@ pub fn vs_battle_resolveActionTargets(action: c_int, result: ?*v.D_800F19CC_t2, 
                     }
                     if (redirected != 0) continue;
                     if (entry.unk40 != 0) continue;
-                    const stats = psx.get(v.g.vs_battle_actors()[entry.unk0.targetActor].?.stats);
+                    const stats = psx.get(v.g.vs_battle_actors()[entry.target.targetActor].?.stats);
                     v.g.D_800F1A00().* = psx.conv(u32, c._canPerformAttack(@ptrCast(spec), @ptrCast(entry), hit));
                     if (v.g.D_800F1A00().* != 0) {
                         v.g.D_800F1A04().* = psx.conv(u32, c._doesAttackHit(@ptrCast(spec), @ptrCast(user), @ptrCast(entry), hit, arg3));
                         if (v.g.D_800F1A04().* != 0 or arg3 == 0) {
                             c.vs_battle_applyActionHitEffect(@ptrCast(spec), @ptrCast(user), @ptrCast(entry), arg3, hit);
-                            target = entry.unk0.targetActor;
+                            target = entry.target.targetActor;
                             if (v.g.vs_battle_actors()[@intCast(target)].?.unk27 == 0x80 and target != 0 and psx.getBits(stats.?, "unk956_0") != 0) {
-                                limb = psx.conv(u8, entry.unk0.targetLimb);
+                                limb = psx.conv(u8, entry.target.targetLimb);
                                 c.vs_battle_initializeActionHit(@ptrCast(entry));
-                                entry.unk0.targetActor = psx.conv(u8, target);
-                                entry.unk0.unk3 = 4;
-                                entry.unk0.targetLimb = psx.conv(i8, limb);
+                                entry.target.targetActor = psx.conv(u8, target);
+                                entry.target.unk3 = 4;
+                                entry.target.targetLimb = psx.conv(i8, limb);
                             }
                             if (arg3 != 0 and psx.getBits(stats.?, "unk956_0") != 0) {
-                                limb = psx.conv(u8, entry.unk0.targetLimb);
-                                target = entry.unk0.targetActor;
+                                limb = psx.conv(u8, entry.target.targetLimb);
+                                target = entry.target.targetActor;
                                 c.vs_battle_initializeActionHit(@ptrCast(entry));
-                                entry.unk0.unk3 = 4;
-                                entry.unk0.targetActor = psx.conv(u8, target);
-                                entry.unk0.targetLimb = psx.conv(i8, limb);
+                                entry.target.unk3 = 4;
+                                entry.target.targetActor = psx.conv(u8, target);
+                                entry.target.targetLimb = psx.conv(i8, limb);
                             }
                             c.vs_battle_deriveLimbInjuryStatuses(@ptrCast(entry));
                         }
                     } else if (hit == 0) {
-                        entry.unk0.hitThreshold = 0xFF;
+                        entry.target.hitThreshold = 0xFF;
                     }
                 }
             },
         }
     }
 
-    c.vs_battle_finalizeActionHit(@ptrCast(&res.unk4));
+    c.vs_battle_finalizeActionHit(@ptrCast(&res.primaryTarget));
     i = 0;
-    while (i < res.unk4A) : (i +%= 1) {
-        c.vs_battle_finalizeActionHit(@ptrCast(psx.at(&res.unk4C, i)));
+    while (i < res.targetCount) : (i +%= 1) {
+        c.vs_battle_finalizeActionHit(@ptrCast(psx.at(&res.targets, i)));
     }
     if (v.g.vs_battle_actionState().*.?.unk0 == 0 and arg3 != 0) {
         src.* = res.*;

@@ -59,7 +59,7 @@ static int _breakArtUnlocked(int init)
         vs_main_actions[actionId].unlocked = 1;
         messageTimeout = 120;
 
-    } else if (vs_battle_textBoxes[7].unk0.done) {
+    } else if (vs_battle_textBoxes[7].flags.done) {
         if ((messageTimeout == 0) || (vs_main_buttonsPressed.pad[0].low != 0)) {
             return 1;
         }
@@ -395,7 +395,7 @@ static int _battleAbilityUnlocked(int initialize)
         break;
 
     case showMessage:
-        if (vs_battle_textBoxes[7].unk0.done) {
+        if (vs_battle_textBoxes[7].flags.done) {
             if ((timeout == 0) || (vs_main_buttonsPressed.pad[0].low != 0)) {
                 return 1;
             }

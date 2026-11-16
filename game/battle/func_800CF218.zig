@@ -22,37 +22,37 @@ pub fn func_800CF218(request_arg: ?*v.func_800CF0E8_t, arg1: c_int, arg2: c_int)
     var spawn: v.D_800F53B8_t2 = undefined; // unk21..unk24 stay uninitialised, as in the C
     const token = psx.conv(u8, c.vs_effects_allocateEffectToken());
     const base: u32 = psx.addr(&request.unk4); // (D_800F53B8_t3*)&arg0->unk4
-    setAddress(&spawn.unk0, base);
-    setAddress(&spawn.unk14, psx.rawOf(v.g.vs_effects_package().*.?.block8Data));
-    spawn.unk18 = @as(c_int, request.effectId) * 3;
-    psx.put(&spawn.unk1C, null);
-    spawn.unk20 = token;
+    setAddress(&spawn.source, base);
+    setAddress(&spawn.script, psx.rawOf(v.g.vs_effects_package().*.?.block8Data));
+    spawn.scriptOffset = @as(c_int, request.effectId) * 3;
+    psx.put(&spawn.parent, null);
+    spawn.token = token;
     v.g.vs_effects_secondaryRequest().* = request.*;
     var i: c_int = 0;
     while (i < request.unk2) : (i += 1) { // i < a u8 count
         const target = psx.byteAt(v.D_800F53B8_t3, request, i * 12 + 16); // (char*)arg0 + i * 12 + 16
         const id: c_int = request.effectId;
         if ((id >= 40 and id <= 41) or (id >= 44 and id <= 53)) {
-            setAddress(&spawn.unk4, psx.addr(target));
-            setAddress(&spawn.unkC, base);
+            setAddress(&spawn.emitFrom, psx.addr(target));
+            setAddress(&spawn.emitTo, base);
         } else {
             switch (psx.conv(u16, id)) {
                 23, 25 => {
-                    setAddress(&spawn.unk4, psx.addr(target));
-                    setAddress(&spawn.unkC, base);
+                    setAddress(&spawn.emitFrom, psx.addr(target));
+                    setAddress(&spawn.emitTo, base);
                 },
                 else => {
-                    setAddress(&spawn.unk4, base);
-                    setAddress(&spawn.unkC, psx.addr(target));
+                    setAddress(&spawn.emitFrom, base);
+                    setAddress(&spawn.emitTo, psx.addr(target));
                 },
             }
         }
-        setAddress(&spawn.unk8, psx.addr(target));
-        spawn.unk10 = psx.byteAt(u16, request, i * 12 + 16).*;
+        setAddress(&spawn.target, psx.addr(target));
+        spawn.priority = psx.byteAt(u16, request, i * 12 + 16).*;
         const child = c.vs_effects_createSecondaryEffectInstance(@ptrCast(&spawn)).?;
         const s: *v.D_800F53B8_t = @ptrCast(@alignCast(child));
-        s.unkD1C.unk3C = arg2;
-        s.unkD1C.unk38 = @bitCast(request.effectId);
+        s.context.unk3C = arg2;
+        s.context.effectId = @bitCast(request.effectId);
         if (request.effectId == 54) {
             psx.setBits(s, "unk14_8", 4);
         } else {

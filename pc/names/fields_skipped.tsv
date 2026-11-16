@@ -1,0 +1,1706 @@
+# struct	old	reason	detail (pc/tools/import_fields.py; rewritten each run)
+AkaoSeqHeader	id	not a placeholder name (already descriptive: left)	sequenceId
+AkaoSeqHeader	reverb_type	not a placeholder name (already descriptive: left)	reverbMode
+AkaoTimeStamp	day_bcd	not a placeholder name (already descriptive: left)	dayBcd
+AkaoTimeStamp	hours_bcd	not a placeholder name (already descriptive: left)	hoursBcd
+AkaoTimeStamp	minutes_bcd	not a placeholder name (already descriptive: left)	minutesBcd
+AkaoTimeStamp	month_bcd	not a placeholder name (already descriptive: left)	monthBcd
+AkaoTimeStamp	seconds_bcd	not a placeholder name (already descriptive: left)	secondsBcd
+AkaoTimeStamp	year_bcd	not a placeholder name (already descriptive: left)	yearBcd
+AnimationState_t	enabled	not a placeholder name (already descriptive: left)	reserved0
+ColorInfo		no struct of that name in our tree	
+D_1F80035C_t		members differ from the ledger's (names or order or count)	
+D_1F8003BC_t		members differ from the ledger's (names or order or count)	
+D_1F8003EC_t		no struct of that name in our tree	
+D_80036770_t	unk0	confidence med (deferred)	bankId
+D_80036770_t	unk4	confidence med (deferred)	alternateBankId
+D_80036770_t	unk8	confidence low (deferred)	reserved8
+D_80036770_t	unkC	confidence low (deferred)	reservedC
+D_800378C0_t	unk0	type differs from the ledger's (ours __UINTPTR_TYPE__, theirs void *)	param1
+D_800378C0_t	unk4	confidence med (deferred)	param2
+D_800378C0_t	unk8	confidence med (deferred)	param3
+D_800378C0_t	unkC	confidence med (deferred)	param4
+D_80039BC8_t	InstrumentBytesRemaining	not a placeholder name (already descriptive: left)	instrumentBytesRemaining
+D_80039BC8_t	SpuAddr	not a placeholder name (already descriptive: left)	spuAddress
+D_80039BC8_t	SpuBytesRemaining	not a placeholder name (already descriptive: left)	spuBytesRemaining
+D_80039BC8_t	pInstrumentDst	not a placeholder name (already descriptive: left)	instrumentDestination
+D_8005DC6C_t	b	not a placeholder name (already descriptive: left)	blue
+D_8005DC6C_t	g	not a placeholder name (already descriptive: left)	green
+D_8005DC6C_t	r	not a placeholder name (already descriptive: left)	red
+D_8005DC6C_t	unk3	confidence med (deferred)	pad3
+D_80060068_t	unkDC	confidence low (deferred)	reservedDC
+D_80060068_t3	currentHP	not a placeholder name (already descriptive: left)	currentHp
+D_80060068_t3	currentMP	not a placeholder name (already descriptive: left)	currentMp
+D_80060068_t3	flags	not a placeholder name (already descriptive: left)	actorFlags
+D_80060068_t3	maxHP	not a placeholder name (already descriptive: left)	maxHp
+D_80060068_t3	maxMP	not a placeholder name (already descriptive: left)	maxMp
+D_80060068_t3	unk0	confidence med (deferred)	isPending
+D_80061078_t	zndId	not a placeholder name (already descriptive: left)	zoneId
+D_800E8594_t	unk0	confidence med (deferred)	positionX
+D_800E8594_t	unk18	confidence low (deferred)	reserved18
+D_800E8594_t	unk1C	confidence low (deferred)	reserved1C
+D_800E8594_t	unk2	confidence med (deferred)	height
+D_800E8594_t	unk20	confidence low (deferred)	reserved20
+D_800E8594_t	unk24	confidence med (deferred)	lastVertexShade
+D_800E8594_t	unk4	confidence med (deferred)	positionZ
+D_800E8594_t	unk6	confidence low (deferred)	reserved06
+D_800E8594_t	unk8	confidence low (deferred)	reserved08
+D_800E8594_t	unkC	confidence med (deferred)	vertexShades
+D_800E8FB4_t	unk0	confidence med (deferred)	instanceFlags
+D_800E8FB4_t	unk4	confidence low (deferred)	instanceWord4
+D_800E8FB4_t	unk8	confidence low (deferred)	recolorCount
+D_800E8FB4_t	unkC	confidence med (deferred)	modelDataSize
+D_800EB9B4_t	unk0	confidence med (deferred)	loading
+D_800EB9B4_t	unk1	confidence low (deferred)	opaque1
+D_800EB9B4_t	unk2	confidence med (deferred)	feedbackLayer
+D_800EB9B4_t	unk4	confidence low (deferred)	radialWarpArg0
+D_800EB9B4_t	unk6	confidence low (deferred)	radialWarpArg1
+D_800EB9B8_t		members differ from the ledger's (names or order or count)	
+D_800EB9B8_t		members differ from the ledger's (names or order or count)	
+D_800EB9B8_t		members differ from the ledger's (names or order or count)	
+D_800EB9B8_t2		no struct of that name in our tree	
+D_800EB9B8_unk990		members differ from the ledger's (names or order or count)	
+D_800EB9BC_t		members differ from the ledger's (names or order or count)	
+D_800F16EC_t	unk0_2	not a placeholder name (already descriptive: left)	reserved2Bits
+D_800F16EC_t	unk0_6	not a placeholder name (already descriptive: left)	reserved6Bits
+D_800F18C8_t		no struct of that name in our tree	
+D_800F18E8_t		no struct of that name in our tree	
+D_800F18EC_t	unk0	confidence med (deferred)	menuStatus
+D_800F18EC_t	unk2	confidence med (deferred)	selectionKind
+D_800F1910_t	unk0	confidence med (deferred)	triggerRecord
+D_800F1910_t	unk4	confidence med (deferred)	actorQuery
+D_800F19CC_t		members differ from the ledger's (names or order or count)	
+D_800F19CC_t2	actionIndex	not a placeholder name (already descriptive: left)	actionId
+D_800F19CC_t2	unk2	confidence low (deferred)	effectVariant
+D_800F19CC_t2	unk3	confidence med (deferred)	damageType
+D_800F19CC_t2	unk48	confidence low (deferred)	animationParameter
+D_800F19CC_t2	unk844	confidence med (deferred)	focusPosition
+D_800F19CC_t5		members differ from the ledger's (names or order or count)	
+D_800F1A68_t	unk8	confidence low (deferred)	reserved8
+D_800F1A68_t	unkC	confidence low (deferred)	reservedC
+D_800F1ABC_t		no struct of that name in our tree	
+D_800F1BAC_t		members differ from the ledger's (names or order or count)	
+D_800F1BB0_t	unk0	confidence med (deferred)	red
+D_800F1BB0_t	unk1	confidence med (deferred)	green
+D_800F1BB0_t	unk2	confidence med (deferred)	blue
+D_800F1BB0_t	unk3	confidence low (deferred)	reserved03
+D_800F1BB0_t	unk4	confidence med (deferred)	strength
+D_800F1BB0_t	unk6	confidence med (deferred)	isActive
+D_800F1D08_t	values	not a placeholder name (already descriptive: left)	records
+D_800F1D28_t	unk0	confidence med (deferred)	jobKind
+D_800F1D28_t	unk4	confidence med (deferred)	trigger
+D_800F1DD4_t		members differ from the ledger's (names or order or count)	
+D_800F1DD8_t	unk0	confidence med (deferred)	isActive
+D_800F1DD8_t	unk1	confidence med (deferred)	kindOrObjectCount
+D_800F1DD8_t	unk2	confidence med (deferred)	isUpdateEnabled
+D_800F1DD8_t	unk3	confidence low (deferred)	reserved03
+D_800F1DD8_t	unk4	confidence med (deferred)	currentData
+D_800F1DD8_t	unk8	confidence med (deferred)	originalData
+D_800F2458_t		members differ from the ledger's (names or order or count)	
+D_800F3C58_t		no struct of that name in our tree	
+D_800F4538_t		members differ from the ledger's (names or order or count)	
+D_800F4538_t2		members differ from the ledger's (names or order or count)	
+D_800F4538_unk0	freeze	not a placeholder name (already descriptive: left)	isFrozen
+D_800F4538_unk0	lastTouchedTileX	not a placeholder name (already descriptive: left)	previousTileX
+D_800F4538_unk0	lastTouchedTileZ	not a placeholder name (already descriptive: left)	previousTileZ
+D_800F4538_unk0	nBones	not a placeholder name (already descriptive: left)	boneCount
+D_800F4538_unk0	nOther	not a placeholder name (already descriptive: left)	otherPolygonCount
+D_800F4538_unk0	nQuads	not a placeholder name (already descriptive: left)	quadCount
+D_800F4538_unk0	nTriangles	not a placeholder name (already descriptive: left)	triangleCount
+D_800F4538_unk0	nVertexGroups	not a placeholder name (already descriptive: left)	vertexGroupCount
+D_800F4538_unk0	skip	not a placeholder name (already descriptive: left)	isSkipped
+D_800F4538_unk0	unk11	confidence med (deferred)	jumpCountdown
+D_800F4538_unk0	unk13	confidence med (deferred)	attachBone
+D_800F4538_unk0	unk14	confidence med (deferred)	lookYaw
+D_800F4538_unk0	unk16	confidence med (deferred)	lookPitch
+D_800F4538_unk0	unk18	confidence med (deferred)	turnFrames
+D_800F4538_unk0	unk1A	confidence low (deferred)	currentAnimation
+D_800F4538_unk0	unk2A	confidence low (deferred)	reserved2A
+D_800F4538_unk0	unk32	confidence low (deferred)	reserved32
+D_800F4538_unk0	unk34	confidence med (deferred)	rootMotion
+D_800F4538_unk0	unk42	confidence low (deferred)	reserved42
+D_800F4538_unk0	unk4C	confidence low (deferred)	supportOffset
+D_800F4538_unk0	unk50	confidence low (deferred)	reserved50
+D_800F4538_unk0	unk52	confidence med (deferred)	previousFacing
+D_800F4538_unk0	unk54	type differs from the ledger's (ours int, theirs CVECTOR)	baseColor
+D_800F4538_unk0	unk5D	confidence med (deferred)	currentTileLayer
+D_800F4538_unk0	unk5F	confidence low (deferred)	reserved5F
+D_800F4538_unk0	unk61	confidence med (deferred)	previousTileLayer
+D_800F4538_unk0	unk63	confidence low (deferred)	reserved63
+D_800F4538_unk0	unk8_3	not a placeholder name (already descriptive: left)	uvLayout
+D_800F4538_unk0	unk8_4	not a placeholder name (already descriptive: left)	textureSlotCountMinusOne
+D_800F4538_unk0	unk8_7	not a placeholder name (already descriptive: left)	isParsed
+D_800F4538_unk0	unk9_0	not a placeholder name (already descriptive: left)	actionAnimationState
+D_800F4538_unk0	unk9_4	not a placeholder name (already descriptive: left)	isPreviewModel
+D_800F4538_unk0	unk9_5	not a placeholder name (already descriptive: left)	isAttached
+D_800F4538_unk0	unk9_6	not a placeholder name (already descriptive: left)	movementPending
+D_800F4538_unk0	unk9_7	not a placeholder name (already descriptive: left)	soundEnabled
+D_800F4538_unk0	unkA_0	not a placeholder name (already descriptive: left)	movementMode
+D_800F4538_unk0	unkA_3	not a placeholder name (already descriptive: left)	locomotionState
+D_800F4538_unk0	unkA_5	not a placeholder name (already descriptive: left)	motionLocked
+D_800F4538_unk0	unkA_6	not a placeholder name (already descriptive: left)	isJumping
+D_800F4538_unk0	unkB_0	not a placeholder name (already descriptive: left)	reactionState
+D_800F4538_unk0	unkB_4	not a placeholder name (already descriptive: left)	poseState
+D_800F4538_unk0	unkB_7	not a placeholder name (already descriptive: left)	wasDrawn
+D_800F4538_unk0	unkC_0	not a placeholder name (already descriptive: left)	supportLayer
+D_800F4538_unk0	unkC_4	not a placeholder name (already descriptive: left)	placementLayer
+D_800F4538_unk0	unkD	confidence low (deferred)	reservedD
+D_800F4538_unk0	unkE	confidence med (deferred)	copiedWordCount
+D_800F4538_unk0	visible	not a placeholder name (already descriptive: left)	isVisible
+D_800F4538_unk180C	unk0_0	not a placeholder name (already descriptive: left)	timeline
+D_800F4538_unk180C	unk0_4	not a placeholder name (already descriptive: left)	mode
+D_800F4538_unk181C		no struct of that name in our tree	
+D_800F4538_unk1848	unk0	confidence med (deferred)	mode
+D_800F4538_unk1848	unk1	confidence low (deferred)	reserved1
+D_800F4538_unk1848	unk2	confidence low (deferred)	reserved2
+D_800F4538_unk1848	unk3	confidence low (deferred)	reserved3
+D_800F4538_unk1848	unk4	confidence med (deferred)	direction
+D_800F4538_unk1848	unk6	confidence med (deferred)	facing
+D_800F4538_unk1848	unk8	confidence med (deferred)	distance
+D_800F4538_unk1848	unkC	confidence low (deferred)	reservedC
+D_800F4538_unk1864	unk0	confidence low (deferred)	reserved0
+D_800F4538_unk1864	unk4	confidence med (deferred)	levelFrames
+D_800F4538_unk1864	unk5	confidence med (deferred)	radiusFrames
+D_800F4538_unk1864	unk6	confidence low (deferred)	reserved6
+D_800F4538_unk1864	unk7	confidence low (deferred)	reserved7
+D_800F4538_unk1864	unk8	confidence low (deferred)	level
+D_800F4538_unk1864	unkA	confidence med (deferred)	levelDelta
+D_800F4538_unk58	unk0	confidence med (deferred)	offsetX
+D_800F4538_unk58	unk1	confidence med (deferred)	offsetY
+D_800F4538_unk58	unk2	confidence med (deferred)	offsetZ
+D_800F4538_unk58	unk3	confidence med (deferred)	depthBias
+D_800F4538_unk58_2	unk0	confidence med (deferred)	red
+D_800F4538_unk58_2	unk1	confidence med (deferred)	green
+D_800F4538_unk58_2	unk2	confidence med (deferred)	blue
+D_800F4538_unk58_2	unk3	confidence low (deferred)	code
+D_800F4538_unk58_3	unk0_0	not a placeholder name (already descriptive: left)	opaque0Bit0
+D_800F4538_unk58_3	unk0_16	not a placeholder name (already descriptive: left)	opaque2Bit0
+D_800F4538_unk58_3	unk0_24	not a placeholder name (already descriptive: left)	opaque3Bit0
+D_800F4538_unk58_3	unk0_8	not a placeholder name (already descriptive: left)	opaque1Bit0
+D_800F4538_unk614		no struct of that name in our tree	
+D_800F4538_unk61C		no struct of that name in our tree	
+D_800F4538_unk64	unk0	confidence med (deferred)	kind
+D_800F4538_unk64	unk1	confidence med (deferred)	level
+D_800F4538_unk64	unk2	confidence low (deferred)	flags
+D_800F4538_unk64	unk3	confidence low (deferred)	parameter
+D_800F4538_unk68	akaoOffset	not a placeholder name (already descriptive: left)	soundSection
+D_800F4538_unk68	armatures	not a placeholder name (already descriptive: left)	bones
+D_800F4538_unk68	groupOffset	not a placeholder name (already descriptive: left)	groupSection
+D_800F4538_unk68	polyOffset	not a placeholder name (already descriptive: left)	polygonSection
+D_800F4538_unk68	unk0	confidence med (deferred)	header
+D_800F4538_unk68	vertexOffset	not a placeholder name (already descriptive: left)	vertexSection
+D_800F4538_unkC54		members differ from the ledger's (names or order or count)	
+D_800F4590_t	unk0	confidence low (deferred)	reserved0
+D_800F4590_t	unk10	confidence low (deferred)	reserved10
+D_800F4590_t	unk4	confidence low (deferred)	reserved4
+D_800F4590_t	unkC	confidence low (deferred)	reservedC
+D_800F45E0_t		members differ from the ledger's (names or order or count)	
+D_800F4B28_t		no struct of that name in our tree	
+D_800F4B30_t	unk0	confidence low (deferred)	reserved00
+D_800F4B88_t	unk0	confidence low (deferred)	reserved00
+D_800F4B88_t	unk1	confidence low (deferred)	reserved01
+D_800F4B88_t	unk12	confidence med (deferred)	startIntensity
+D_800F4B88_t	unk14	confidence med (deferred)	deltaIntensity
+D_800F4B88_t	unk3	confidence med (deferred)	durationFrames
+D_800F4B88_t	unk6	confidence med (deferred)	startWindDirection
+D_800F4B88_t	unk8	confidence med (deferred)	deltaWindDirection
+D_800F4B88_t	unkA	confidence med (deferred)	windStrength
+D_800F4B88_t	unkC	confidence med (deferred)	startWindStrength
+D_800F4B88_t	unkE	confidence med (deferred)	deltaWindStrength
+D_800F4BA4_t		members differ from the ledger's (names or order or count)	
+D_800F4BA4_t2	angle	not a placeholder name (already descriptive: left)	orbitAngle
+D_800F4BA4_t2	angleDelta	not a placeholder name (already descriptive: left)	orbitAngleDelta
+D_800F4BA4_t2	aux	not a placeholder name (already descriptive: left)	heightOffset
+D_800F4BA4_t2	computed	not a placeholder name (already descriptive: left)	computedPosition
+D_800F4BA4_t2	current	not a placeholder name (already descriptive: left)	currentPosition
+D_800F4BA4_t2	delta	not a placeholder name (already descriptive: left)	motionScalarDelta
+D_800F4BA4_t2	duration	not a placeholder name (already descriptive: left)	durationFrames
+D_800F4BA4_t2	ease1	not a placeholder name (already descriptive: left)	easingPrimary
+D_800F4BA4_t2	ease2	not a placeholder name (already descriptive: left)	easingSecondary
+D_800F4BA4_t2	ease3	not a placeholder name (already descriptive: left)	easingTertiary
+D_800F4BA4_t2	follow	not a placeholder name (already descriptive: left)	followRequest
+D_800F4BA4_t2	following	not a placeholder name (already descriptive: left)	isFollowing
+D_800F4BA4_t2	mode	not a placeholder name (already descriptive: left)	motionMode
+D_800F4BA4_t2	position	not a placeholder name (already descriptive: left)	destination
+D_800F4BA4_t2	previousCamera	not a placeholder name (already descriptive: left)	previousCameraPosition
+D_800F4BA4_t2	start	not a placeholder name (already descriptive: left)	startPosition
+D_800F4BA4_t2	target	not a placeholder name (already descriptive: left)	partnerPosition
+D_800F4BA4_t2	time	not a placeholder name (already descriptive: left)	elapsedFrames
+D_800F4BA4_t2	value	not a placeholder name (already descriptive: left)	motionScalar
+D_800F4BA4_t2	velocity	not a placeholder name (already descriptive: left)	displacement
+D_800F4EE8_t	unk34	confidence low (deferred)	opaque34
+D_800F4EE8_t	unk3A	confidence low (deferred)	opaque3A
+D_800F4EE8_t	unk4C	confidence low (deferred)	reserved4C
+D_800F4EE8_t	unk50	confidence low (deferred)	reserved50
+D_800F4EE8_t	unk51	confidence low (deferred)	opaque51
+D_800F4EE8_t	unk85	confidence low (deferred)	opaque85
+D_800F4EE8_t	unk9E	confidence low (deferred)	opaque9E
+D_800F4EE8_t	unkA0	confidence low (deferred)	opaqueA0
+D_800F4EE8_t	unkB2	confidence low (deferred)	reservedB2
+D_800F53B8_t		members differ from the ledger's (names or order or count)	
+D_800F53B8_t2	unk21	confidence low (deferred)	reserved21
+D_800F53B8_t2	unk22	confidence low (deferred)	reserved22
+D_800F53B8_t2	unk23	confidence low (deferred)	reserved23
+D_800F53B8_t2	unk24	confidence low (deferred)	reserved24
+D_800F53B8_t3	unk0	type differs from the ledger's (ours D_800F53B8_t3_2, theirs actionEffectTarget)	source
+D_800F53B8_t3	unk18	type differs from the ledger's (ours D_800F53B8_t3_2, theirs actionEffectTarget)	target
+D_800F53B8_t3	unk24	type differs from the ledger's (ours D_800F53B8_t3_2, theirs actionEffectTarget)	emitTo
+D_800F53B8_t3	unk30	confidence med (deferred)	timeline
+D_800F53B8_t3	unk34	confidence med (deferred)	renderer
+D_800F53B8_t3	unk3A	confidence med (deferred)	phase
+D_800F53B8_t3	unk3C	confidence low (deferred)	parameter
+D_800F53B8_t3	unkC	type differs from the ledger's (ours D_800F53B8_t3_2, theirs actionEffectTarget)	emitFrom
+D_800F53B8_t4	unk1	confidence med (deferred)	flags
+D_800F54B8_t	unk0	confidence med (deferred)	phase
+D_800F54B8_t	unk1_0	not a placeholder name (already descriptive: left)	shapeCurve
+D_800F54B8_t	unk1_5	not a placeholder name (already descriptive: left)	curveStep
+D_800F54B8_t	unk1_6	not a placeholder name (already descriptive: left)	randomStep
+D_800F54B8_t	unk1_7	not a placeholder name (already descriptive: left)	reserved1Bit7
+D_800F54B8_t	unk2	confidence med (deferred)	stepCurve
+D_800F54B8_t	unk3	confidence med (deferred)	randomStepCurve
+D_800F54B8_t	unk4	confidence med (deferred)	amplitude
+D_800F54B8_t	unk5	confidence med (deferred)	angle
+D_800F54D8_t	unk20	confidence med (deferred)	shakeLateral
+D_800F54D8_t	unk24	confidence med (deferred)	shakeVertical
+D_800F54D8_t	unk28	confidence med (deferred)	shakeDepth
+D_800F54D8_t	unk2C	confidence med (deferred)	shakeRoll
+D_800F5620_t	unkC	confidence low (deferred)	reservedC
+D_800F569C_t		members differ from the ledger's (names or order or count)	
+D_800F58BC_t		members differ from the ledger's (names or order or count)	
+D_800F5910_t	unk0_0	not a placeholder name (already descriptive: left)	tileX
+D_800F5910_t	unk0_10	not a placeholder name (already descriptive: left)	reservedBits10
+D_800F5910_t	unk0_5	not a placeholder name (already descriptive: left)	tileZ
+D_800F5920_t		members differ from the ledger's (names or order or count)	
+FAkaoFileBlob	Magic	not a placeholder name (already descriptive: left)	magic
+FAkaoFileBlob	MetadataTableA	not a placeholder name (already descriptive: left)	metadataTableA
+FAkaoFileBlob	MetadataTableB	not a placeholder name (already descriptive: left)	metadataTableB
+FAkaoFileBlob	ProgramData	not a placeholder name (already descriptive: left)	programData
+FAkaoFileBlob	ProgramOffsets	not a placeholder name (already descriptive: left)	programOffsets
+FAkaoFileBlob	unk_0x4	not a placeholder name (already descriptive: left)	reserved04
+FAkaoHeader	CurrentPage	not a placeholder name (already descriptive: left)	currentPage
+FAkaoHeader	Magic	not a placeholder name (already descriptive: left)	magic
+FAkaoHeader	SampleRate	not a placeholder name (already descriptive: left)	sampleRate
+FAkaoHeader	TotalPages	not a placeholder name (already descriptive: left)	totalPages
+FAkaoHeader	unk_0x04	not a placeholder name (already descriptive: left)	reserved04
+FAkaoHeader	unk_0x08	not a placeholder name (already descriptive: left)	reserved08
+FAkaoHeader	unk_0x14	not a placeholder name (already descriptive: left)	reserved14
+FAkaoHeader	unk_0x18	not a placeholder name (already descriptive: left)	reserved18
+FAkaoHeader	unk_0x24	not a placeholder name (already descriptive: left)	reserved24
+FAkaoHeader	unk_0x28	not a placeholder name (already descriptive: left)	reserved28
+FAkaoSequence	AllocatedVoiceMask	not a placeholder name (already descriptive: left)	allocatedVoiceMask
+FAkaoSequence	ChannelEnableMask	not a placeholder name (already descriptive: left)	channelEnableMask
+FAkaoSequence	KeyedMask	not a placeholder name (already descriptive: left)	keyedMask
+FAkaoSequence	KeymapRegionOffset	not a placeholder name (already descriptive: left)	keymapRegionOffset
+FAkaoSequence	PatchRegionOffset	not a placeholder name (already descriptive: left)	patchRegionOffset
+FAkaoSequence	Payload	not a placeholder name (already descriptive: left)	payload
+FAkaoSequence	unk00	confidence low (deferred)	reserved00
+FAkaoSequence	unk04	confidence low (deferred)	reserved04
+FAkaoSequence	unk08	confidence low (deferred)	reserved08
+FAkaoSequence	unk0C	confidence low (deferred)	reserved0C
+FAkaoSequence	unk10	confidence low (deferred)	reserved10
+FAkaoSequence	unk14	confidence med (deferred)	sampleBankId
+FAkaoSequence	unk18	confidence low (deferred)	reserved18
+FAkaoSequence	unk1C	confidence med (deferred)	instrumentDataOffset
+FAkaoSequence	unk2C	confidence low (deferred)	reserved2C
+FAkaoSequence	unk38	confidence med (deferred)	resumeKeyOnMask
+FAkaoSequence	unk3C	confidence med (deferred)	pushReleaseMask
+FSound80094FA0	ChannelFlags	not a placeholder name (already descriptive: left)	channelFlags
+FSound80094FA0	ControlFlags	not a placeholder name (already descriptive: left)	controlFlags
+FSound80094FA0	VoiceIndex	not a placeholder name (already descriptive: left)	voiceIndex
+FSound80094FA0	VoiceSampleRate	not a placeholder name (already descriptive: left)	voiceSampleRate
+FSound80094FA0	VoicesInUseFlags	not a placeholder name (already descriptive: left)	voicesInUseMask
+FSound80094FA0	Volume	not a placeholder name (already descriptive: left)	volume
+FSound80094FA0	field0_0x0	not a placeholder name (already descriptive: left)	reserved00
+FSound80094FA0	field10_0x28	not a placeholder name (already descriptive: left)	reserved28
+FSound80094FA0	field11_0x2c	not a placeholder name (already descriptive: left)	reserved2C
+FSound80094FA0	field12_0x30	not a placeholder name (already descriptive: left)	reserved30
+FSound80094FA0	field13_0x34	not a placeholder name (already descriptive: left)	reserved34
+FSound80094FA0	field14_0x38	not a placeholder name (already descriptive: left)	reserved38
+FSound80094FA0	field15_0x3c	not a placeholder name (already descriptive: left)	reserved3C
+FSound80094FA0	field17_0x44	not a placeholder name (already descriptive: left)	reserved44
+FSound80094FA0	field18_0x48	not a placeholder name (already descriptive: left)	reserved48
+FSound80094FA0	field19_0x4c	not a placeholder name (already descriptive: left)	reserved4C
+FSound80094FA0	field20_0x4d	not a placeholder name (already descriptive: left)	reserved4D
+FSound80094FA0	field21_0x4e	not a placeholder name (already descriptive: left)	reserved4E
+FSound80094FA0	field22_0x4f	not a placeholder name (already descriptive: left)	reserved4F
+FSound80094FA0	field23_0x50	not a placeholder name (already descriptive: left)	reserved50
+FSound80094FA0	field24_0x54	not a placeholder name (already descriptive: left)	reserved54
+FSound80094FA0	field2_0x8	not a placeholder name (already descriptive: left)	reserved08
+FSound80094FA0	field6_0x18	not a placeholder name (already descriptive: left)	reserved18
+FSound80094FA0	field7_0x1c	not a placeholder name (already descriptive: left)	reserved1C
+FSound80094FA0	field8_0x20	not a placeholder name (already descriptive: left)	reserved20
+FSound80094FA0	field9_0x24	not a placeholder name (already descriptive: left)	reserved24
+FSound80094FA0	unk_Mask_0x4	not a placeholder name (already descriptive: left)	reserved04
+FSoundChannel		members differ from the ledger's (names or order or count)	
+FSoundChannelConfig		members differ from the ledger's (names or order or count)	
+FSoundCommandParams	ExtParam1	not a placeholder name (already descriptive: left)	extParam1
+FSoundCommandParams	ExtParam2	not a placeholder name (already descriptive: left)	extParam2
+FSoundCommandParams	Param1	not a placeholder name (already descriptive: left)	param1
+FSoundCommandParams	Param2	not a placeholder name (already descriptive: left)	param2
+FSoundCommandParams	Param3	not a placeholder name (already descriptive: left)	param3
+FSoundCommandParams	Param4	not a placeholder name (already descriptive: left)	param4
+FSoundCutsceneStreamData	AkaoHeader	not a placeholder name (already descriptive: left)	streamHeader
+FSoundCutsceneStreamData	AudioData	not a placeholder name (already descriptive: left)	audioData
+FSoundCutsceneStreamData	unk_0x00	not a placeholder name (already descriptive: left)	reserved00
+FSoundCutsceneStreamData	unk_0xAC	not a placeholder name (already descriptive: left)	reservedAC
+FSoundCutsceneStreamState	ControlFlags	not a placeholder name (already descriptive: left)	controlFlags
+FSoundCutsceneStreamState	CurrentPage	not a placeholder name (already descriptive: left)	currentPage
+FSoundCutsceneStreamState	PageIndex	not a placeholder name (already descriptive: left)	pageIndex
+FSoundCutsceneStreamState	PageRingBufferSize	not a placeholder name (already descriptive: left)	pageRingSize
+FSoundCutsceneStreamState	StreamPageIndex	not a placeholder name (already descriptive: left)	streamPageIndex
+FSoundCutsceneStreamState	TotalPages	not a placeholder name (already descriptive: left)	totalPages
+FSoundCutsceneStreamState	VoiceIndex	not a placeholder name (already descriptive: left)	voiceIndex
+FSoundCutsceneStreamState	VoiceSampleRate	not a placeholder name (already descriptive: left)	sampleRate
+FSoundCutsceneStreamState	VoicesInUseFlags	not a placeholder name (already descriptive: left)	voiceMask
+FSoundCutsceneStreamState	VolFadeStepSize	not a placeholder name (already descriptive: left)	volumeFadeStep
+FSoundCutsceneStreamState	VolFadeStepsRemaining	not a placeholder name (already descriptive: left)	volumeFadeTicksLeft
+FSoundCutsceneStreamState	Volume	not a placeholder name (already descriptive: left)	volume
+FSoundCutsceneStreamState	field12_0x30	not a placeholder name (already descriptive: left)	reserved30
+FSoundCutsceneStreamState	field14_0x38	not a placeholder name (already descriptive: left)	reserved38
+FSoundCutsceneStreamState	field19_0x4c	not a placeholder name (already descriptive: left)	pan
+FSoundCutsceneStreamState	field23_0x50	not a placeholder name (already descriptive: left)	reserved50
+FSoundCutsceneStreamState	field24_0x54	not a placeholder name (already descriptive: left)	reserved54
+FSoundCutsceneStreamState	field2_0x8	not a placeholder name (already descriptive: left)	formatFlags
+FSoundCutsceneStreamState	field7_0x1c	not a placeholder name (already descriptive: left)	reserved1C
+FSoundCutsceneStreamState	field8_0x20	not a placeholder name (already descriptive: left)	reserved20
+FSoundCutsceneStreamState	field9_0x24	not a placeholder name (already descriptive: left)	reserved24
+FSoundCutsceneStreamState	pCurrentChunk	not a placeholder name (already descriptive: left)	currentChunk
+FSoundCutsceneStreamState	pStreamBase	not a placeholder name (already descriptive: left)	streamBase
+FSoundCutsceneStreamState	unk_Mask_0x4	not a placeholder name (already descriptive: left)	auxiliaryMask
+FSoundFadeTimer	SavedValue	not a placeholder name (already descriptive: left)	savedValue
+FSoundFadeTimer	Step	not a placeholder name (already descriptive: left)	step
+FSoundFadeTimer	TicksRemaining	not a placeholder name (already descriptive: left)	ticksRemaining
+FSoundFadeTimer	Value	not a placeholder name (already descriptive: left)	value
+FSoundGlobalFlags	ControlLatches	not a placeholder name (already descriptive: left)	controlLatches
+FSoundGlobalFlags	MixBehavior	not a placeholder name (already descriptive: left)	mixBehavior
+FSoundGlobalFlags	UpdateFlags	not a placeholder name (already descriptive: left)	updateFlags
+FSoundInstrumentInfo	AdsrLower	not a placeholder name (already descriptive: left)	adsrLower
+FSoundInstrumentInfo	AdsrUpper	not a placeholder name (already descriptive: left)	adsrUpper
+FSoundInstrumentInfo	FineTune	not a placeholder name (already descriptive: left)	fineTune
+FSoundInstrumentInfo	LoopAddr	not a placeholder name (already descriptive: left)	loopStart
+FSoundInstrumentInfo	SampleNote	not a placeholder name (already descriptive: left)	rootNote
+FSoundInstrumentInfo	StartAddr	not a placeholder name (already descriptive: left)	sampleStart
+FSoundKeymapEntry8	AdsrAttackRate	not a placeholder name (already descriptive: left)	attackRate
+FSoundKeymapEntry8	AdsrSustainRate	not a placeholder name (already descriptive: left)	sustainRate
+FSoundKeymapEntry8	InstrumentIndex	not a placeholder name (already descriptive: left)	instrumentIndex
+FSoundKeymapEntry8	Note	not a placeholder name (already descriptive: left)	note
+FSoundKeymapEntry8	PanAndReverb	not a placeholder name (already descriptive: left)	panAndReverb
+FSoundKeymapEntry8	ReleaseRate	not a placeholder name (already descriptive: left)	releaseRate
+FSoundKeymapEntry8	SustainModeCode	not a placeholder name (already descriptive: left)	sustainMode
+FSoundKeymapEntry8	VolumeScale	not a placeholder name (already descriptive: left)	volumeScale
+FSoundVoiceModeFlags	Fm	not a placeholder name (already descriptive: left)	fm
+FSoundVoiceModeFlags	Noise	not a placeholder name (already descriptive: left)	noise
+FSoundVoiceModeFlags	Reverb	not a placeholder name (already descriptive: left)	reverb
+FSoundVoiceParams	AdsrLower	not a placeholder name (already descriptive: left)	adsrLower
+FSoundVoiceParams	AdsrUpper	not a placeholder name (already descriptive: left)	adsrUpper
+FSoundVoiceParams	AssignedVoiceNumber	not a placeholder name (already descriptive: left)	assignedVoice
+FSoundVoiceParams	LoopAddress	not a placeholder name (already descriptive: left)	loopStart
+FSoundVoiceParams	SampleRate	not a placeholder name (already descriptive: left)	sampleRate
+FSoundVoiceParams	StartAddress	not a placeholder name (already descriptive: left)	sampleStart
+FSoundVoiceParams	VoiceParamFlags	not a placeholder name (already descriptive: left)	dirtyFlags
+FSoundVoiceParams	Volume	not a placeholder name (already descriptive: left)	volume
+FSoundVoiceParams	VolumeScale	not a placeholder name (already descriptive: left)	volumeScale
+FSoundVoiceSchedulerState	ActiveChannelMask	not a placeholder name (already descriptive: left)	activeVoices
+FSoundVoiceSchedulerState	FmVoiceFlags	not a placeholder name (already descriptive: left)	fmVoices
+FSoundVoiceSchedulerState	KeyOffFlags	not a placeholder name (already descriptive: left)	pendingKeyOff
+FSoundVoiceSchedulerState	KeyOnFlags	not a placeholder name (already descriptive: left)	pendingKeyOn
+FSoundVoiceSchedulerState	KeyedFlags	not a placeholder name (already descriptive: left)	keyedVoices
+FSoundVoiceSchedulerState	NoiseClock	not a placeholder name (already descriptive: left)	noiseClock
+FSoundVoiceSchedulerState	NoiseVoiceFlags	not a placeholder name (already descriptive: left)	noiseVoices
+FSoundVoiceSchedulerState	ReverbVoiceFlags	not a placeholder name (already descriptive: left)	reverbVoices
+FSoundVoiceSchedulerState	TempoAccumumulator	not a placeholder name (already descriptive: left)	tempoAccumulator
+FSoundVoiceSchedulerState	field11_0x2a	not a placeholder name (already descriptive: left)	pad2A
+FSoundVoiceSchedulerState	field12_0x2b	not a placeholder name (already descriptive: left)	pad2B
+FSoundVoiceSchedulerState	field13_0x2c	not a placeholder name (already descriptive: left)	reserved2C
+FSoundVoiceSchedulerState	unk14	confidence med (deferred)	effectTempo
+FSoundVoiceSchedulerState	unk_Flags_0x10	not a placeholder name (already descriptive: left)	pausedEffectVoices
+FSpuVoiceInfo	pEnvx	not a placeholder name (already descriptive: left)	envelopeLevel
+FSpuVoiceInfo	unk0	confidence low (deferred)	reserved0
+FSpuVoiceInfo	unk6	confidence low (deferred)	reserved6
+MovieData_t	decodedData	not a placeholder name (already descriptive: left)	decodedBuffers
+MovieData_t	decodedDataIndex	not a placeholder name (already descriptive: left)	decodedBufferIndex
+MovieData_t	encodedData	not a placeholder name (already descriptive: left)	encodedBuffers
+MovieData_t	encodedDataIndex	not a placeholder name (already descriptive: left)	encodedBufferIndex
+MovieData_t	frameBufIndex	not a placeholder name (already descriptive: left)	frameRectIndex
+MovieData_t	frameBufs	not a placeholder name (already descriptive: left)	frameRects
+MovieData_t	renderTarget	not a placeholder name (already descriptive: left)	sliceRect
+PLG005_data_t		no struct of that name in our tree	
+TrailPacket		no struct of that name in our tree	
+VS_POLY_FT4		no struct of that name in our tree	
+VS_POLY_G4	r0g0b0code	not a placeholder name (already descriptive: left)	colorZeroAndCode
+VS_POLY_G4	r1g1b1	not a placeholder name (already descriptive: left)	colorOne
+VS_POLY_G4	r2g2b2	not a placeholder name (already descriptive: left)	colorTwo
+VS_POLY_G4	r3g3b3	not a placeholder name (already descriptive: left)	colorThree
+VS_POLY_G4	x0y0	not a placeholder name (already descriptive: left)	positionZero
+VS_POLY_G4	x1y1	not a placeholder name (already descriptive: left)	positionOne
+VS_POLY_G4	x2y2	not a placeholder name (already descriptive: left)	positionTwo
+VS_POLY_G4	x3y3	not a placeholder name (already descriptive: left)	positionThree
+VS_POLY_G4_TPAGE	r0g0b0code	not a placeholder name (already descriptive: left)	colorZeroAndCode
+VS_POLY_G4_TPAGE	r1g1b1	not a placeholder name (already descriptive: left)	colorOne
+VS_POLY_G4_TPAGE	r2g2b2	not a placeholder name (already descriptive: left)	colorTwo
+VS_POLY_G4_TPAGE	r3g3b3	not a placeholder name (already descriptive: left)	colorThree
+VS_POLY_G4_TPAGE	tpage	not a placeholder name (already descriptive: left)	texturePage
+VS_POLY_G4_TPAGE	x0y0	not a placeholder name (already descriptive: left)	positionZero
+VS_POLY_G4_TPAGE	x1y1	not a placeholder name (already descriptive: left)	positionOne
+VS_POLY_G4_TPAGE	x2y2	not a placeholder name (already descriptive: left)	positionTwo
+VS_POLY_G4_TPAGE	x3y3	not a placeholder name (already descriptive: left)	positionThree
+VS_SPRT	r0g0b0code	not a placeholder name (already descriptive: left)	colorCommand
+VS_SPRT	tpage	not a placeholder name (already descriptive: left)	texturePageCommand
+VS_SPRT	u0v0clut	not a placeholder name (already descriptive: left)	uvPalette
+VS_SPRT	wh	not a placeholder name (already descriptive: left)	size
+VS_SPRT	x0y0	not a placeholder name (already descriptive: left)	position
+VS_TILE	r0g0b0code	not a placeholder name (already descriptive: left)	colorAndCode
+VS_TILE	wh	not a placeholder name (already descriptive: left)	size
+VS_TILE	x0y0	not a placeholder name (already descriptive: left)	position
+VS_TILE_TPAGE	r0g0b0code	not a placeholder name (already descriptive: left)	colorCommand
+VS_TILE_TPAGE	tpage	not a placeholder name (already descriptive: left)	texturePageCommand
+VS_TILE_TPAGE	wh	not a placeholder name (already descriptive: left)	size
+VS_TILE_TPAGE	x0y0	not a placeholder name (already descriptive: left)	position
+_accessoryIntermediate	equip	not a placeholder name (already descriptive: left)	equipment
+_accessoryIntermediate	unk32	confidence low (deferred)	reserved32
+_accessoryIntermediate	unk33	confidence low (deferred)	reserved33
+_actions	id	not a placeholder name (already descriptive: left)	actionId
+_actions	unk2	confidence low (deferred)	opaque2
+_armature_t		members differ from the ledger's (names or order or count)	
+_armorInfo	_	not a placeholder name (already descriptive: left)	reserved7
+_armorInfo	subId	not a placeholder name (already descriptive: left)	reserved0
+_armorIntermediate	equip	not a placeholder name (already descriptive: left)	equipment
+_armorIntermediate	unk32	confidence low (deferred)	opaque32
+_clutSlot	animState	not a placeholder name (already descriptive: left)	transition
+_clutSlot	clutBase	not a placeholder name (already descriptive: left)	baseColors
+_clutSlot	colorInfo	not a placeholder name (already descriptive: left)	entries
+_clutSlot	unk4	confidence low (deferred)	reserved0
+_clutState_t		members differ from the ledger's (names or order or count)	
+_creditsElement	currentStep	not a placeholder name (already descriptive: left)	animationFrame
+_creditsElement	data	not a placeholder name (already descriptive: left)	textBytes
+_creditsElement	illustId	not a placeholder name (already descriptive: left)	illustrationIndex
+_creditsElement	renderer	not a placeholder name (already descriptive: left)	render
+_creditsElement	state	not a placeholder name (already descriptive: left)	phase
+_creditsElement	unk18	confidence low (deferred)	reserved18
+_creditsElement	unk1C	confidence low (deferred)	reserved1C
+_creditsElement	unk20	confidence low (deferred)	reserved20
+_creditsElement	unk24	confidence low (deferred)	reserved24
+_creditsElement	unk28	confidence low (deferred)	reserved28
+_creditsElement	unk2C	confidence low (deferred)	reserved2C
+_creditsElement	x	not a placeholder name (already descriptive: left)	xFixed8
+_creditsElement	y	not a placeholder name (already descriptive: left)	yFixed8
+_gazetteRow	unk1	confidence low (deferred)	opaque1
+_hitEntity_t	agility	not a placeholder name (already descriptive: left)	agilityChange
+_hitEntity_t	armorDp	not a placeholder name (already descriptive: left)	armorDpChange
+_hitEntity_t	intelligence	not a placeholder name (already descriptive: left)	intelligenceChange
+_hitEntity_t	maxHp	not a placeholder name (already descriptive: left)	maxHpChange
+_hitEntity_t	maxMp	not a placeholder name (already descriptive: left)	maxMpChange
+_hitEntity_t	risk	not a placeholder name (already descriptive: left)	riskChange
+_hitEntity_t	shieldPp	not a placeholder name (already descriptive: left)	shieldPpChange
+_hitEntity_t	strength	not a placeholder name (already descriptive: left)	strengthChange
+_hitEntity_t	unk1C_16	not a placeholder name (already descriptive: left)	statStatusEffect
+_hitEntity_t	unk1C_26	not a placeholder name (already descriptive: left)	sourceResult
+_hitEntity_t	unk1C_28	not a placeholder name (already descriptive: left)	reservedBits28
+_hitEntity_t	unk40	confidence med (deferred)	targetsPosition
+_hitEntity_t	weaponDp	not a placeholder name (already descriptive: left)	weaponDpChange
+_hitEntity_t	weaponPp	not a placeholder name (already descriptive: left)	weaponPpChange
+_hitIntermediate		a member of ours could not be read	
+_limbInit	unk5A	confidence low (deferred)	reserved5A
+_lootListItem	unk2	confidence low (deferred)	opaque2
+_menuBgChunkWidths_t	unk0	confidence low (deferred)	reserved0
+_menuBgChunkWidths_t	unk4	confidence low (deferred)	reserved4
+_menuBgChunkWidths_t	unk8	confidence low (deferred)	reserved8
+_menuBgTransparencies_t	unk0	confidence low (deferred)	reserved0
+_menuBgTransparencies_t	unk4	confidence low (deferred)	reserved4
+_menuBgTransparencies_t	unk8	confidence low (deferred)	reserved8
+_menuBgTransparencies_t	unkC	confidence low (deferred)	reservedC
+_monBinData_t		a member of ours could not be read	
+_mpdEnemy		members differ from the ledger's (names or order or count)	
+_mpdGeometryHeader	dataOffset	not a placeholder name (already descriptive: left)	reserved1C
+_mpdGeometryHeader	unk0	confidence low (deferred)	reserved0
+_mpdGeometryHeader	unk10	confidence low (deferred)	reserved10
+_mpdGeometryHeader	unk14	confidence low (deferred)	reserved14
+_mpdGeometryHeader	unk18	confidence low (deferred)	reserved18
+_mpdGeometryHeader	unk20	confidence low (deferred)	reserved20
+_mpdGeometryHeader	unk24	confidence low (deferred)	reserved24
+_mpdGeometryHeader	unk28	confidence low (deferred)	reserved28
+_mpdGeometryHeader	unk2C	confidence low (deferred)	reserved2C
+_mpdGeometryHeader	unk30	confidence low (deferred)	reserved30
+_mpdGeometryHeader	unk34	confidence low (deferred)	reserved34
+_mpdGeometryHeader	unk38	confidence low (deferred)	reserved38
+_mpdGeometryHeader	unk3C	confidence low (deferred)	reserved3C
+_mpdGeometryHeader	unk4	confidence low (deferred)	reserved4
+_mpdGeometryHeader	unk8	confidence low (deferred)	reserved8
+_mpdGeometryHeader	unkC	confidence low (deferred)	reservedC
+_mpdGeometrySection	groups	not a placeholder name (already descriptive: left)	groupHeaders
+_mpdGeometrySection	numGroups	not a placeholder name (already descriptive: left)	groupCount
+_mpdHeader	clearedSectionLen	not a placeholder name (already descriptive: left)	clearedSectionSize
+_mpdHeader	doorSectionLen	not a placeholder name (already descriptive: left)	doorSectionSize
+_mpdHeader	enemySectionLen	not a placeholder name (already descriptive: left)	enemySectionSize
+_mpdHeader	lootSectionLen	not a placeholder name (already descriptive: left)	lootSectionSize
+_mpdHeader	roomSectionLen	not a placeholder name (already descriptive: left)	roomSectionSize
+_mpdHeader	scriptSectionLen	not a placeholder name (already descriptive: left)	scriptSectionSize
+_mpdPolygt3		a member of ours could not be read	
+_mpdPolygt4		a member of ours could not be read	
+_mpdRoomCollisionMapSection	unk4	confidence low (deferred)	heightOrigin
+_mpdRoomDoorSection2	unk0_0	not a placeholder name (already descriptive: left)	tileX
+_mpdRoomDoorSection2	unk0_10	not a placeholder name (already descriptive: left)	floorLayer
+_mpdRoomDoorSection2	unk0_13	not a placeholder name (already descriptive: left)	entryDirection
+_mpdRoomDoorSection2	unk0_5	not a placeholder name (already descriptive: left)	tileZ
+_mpdRoomDoorSection_t	mpdId	not a placeholder name (already descriptive: left)	destinationRoomId
+_mpdRoomDoorSection_t	unk4_0	not a placeholder name (already descriptive: left)	requiredFlagValue
+_mpdRoomDoorSection_t	unk4_13	not a placeholder name (already descriptive: left)	entryElevation
+_mpdRoomDoorSection_t	unk4_15	not a placeholder name (already descriptive: left)	hasEntryStep
+_mpdRoomDoorSection_t	unk4_8	not a placeholder name (already descriptive: left)	entryTileX
+_mpdRoomDoorSection_t	unk6_0	not a placeholder name (already descriptive: left)	requiredFlagId
+_mpdRoomDoorSection_t	unk6_10	not a placeholder name (already descriptive: left)	entryTileZ
+_mpdRoomDoorSection_t	unk6_15	not a placeholder name (already descriptive: left)	reserved06Bit15
+_mpdRoomDoorSection_t	unk9	confidence low (deferred)	reserved09
+_mpdRoomDoorSection_t	unkA	confidence low (deferred)	reserved0A
+_mpdRoomDoorSection_t	unkB	confidence low (deferred)	reserved0B
+_mpdRoomDoorSection_t	zndId	not a placeholder name (already descriptive: left)	destinationZoneId
+_mpdRoomSection	collisionMapSection	not a placeholder name (already descriptive: left)	collisionMap
+_mpdRoomSection	doorSection	not a placeholder name (already descriptive: left)	doors
+_mpdRoomSection	geometrySection	not a placeholder name (already descriptive: left)	geometry
+_mpdRoomSection	lightingSection	not a placeholder name (already descriptive: left)	lighting
+_mpdRoomSection	section10	not a placeholder name (already descriptive: left)	tiledBackground
+_mpdRoomSection	section11	not a placeholder name (already descriptive: left)	viewTriggers
+_mpdRoomSection	section12	not a placeholder name (already descriptive: left)	movingPlatforms
+_mpdRoomSection	section13	not a placeholder name (already descriptive: left)	containers
+_mpdRoomSection	section14	not a placeholder name (already descriptive: left)	soundData
+_mpdRoomSection	section18	not a placeholder name (already descriptive: left)	zoneBounds
+_mpdRoomSection	section3	not a placeholder name (already descriptive: left)	tileCells
+_mpdRoomSection	section9	not a placeholder name (already descriptive: left)	floorTriggers
+_mpdRoomSection	sectionA	not a placeholder name (already descriptive: left)	lockTriggers
+_mpdRoomSection	sectionB	not a placeholder name (already descriptive: left)	environment
+_mpdRoomSection	sectionD	not a placeholder name (already descriptive: left)	effectScripts
+_mpdRoomSection	sectionF	not a placeholder name (already descriptive: left)	minimapScene
+_mpdRoomSection	textureEffectsSection	not a placeholder name (already descriptive: left)	textureEffects
+_mpdRoomSection	unk0	confidence med (deferred)	isLoaded
+_mpdRoomSection	unk1	confidence low (deferred)	displayFlag
+_mpdRoomSection	unk2	confidence med (deferred)	roomIndex
+_mpdRoomSection11	unk0_0	not a placeholder name (already descriptive: left)	tileX
+_mpdRoomSection11	unk0_10	not a placeholder name (already descriptive: left)	floorLayer
+_mpdRoomSection11	unk0_11	not a placeholder name (already descriptive: left)	viewDirection
+_mpdRoomSection11	unk0_14	not a placeholder name (already descriptive: left)	mode
+_mpdRoomSection11	unk0_15	not a placeholder name (already descriptive: left)	reserved00Bit15
+_mpdRoomSection11	unk0_5	not a placeholder name (already descriptive: left)	tileZ
+_mpdRoomSection12		members differ from the ledger's (names or order or count)	
+_mpdRoomSection13	unk4	confidence med (deferred)	layer
+_mpdRoomSection13	unk6	confidence med (deferred)	lidRotationId
+_mpdRoomSection13	unkA	confidence low (deferred)	reservedA
+_mpdRoomSection13	unkC	confidence med (deferred)	lockLevel
+_mpdRoomSection13	unkE	confidence low (deferred)	reservedE
+_mpdRoomSection3		members differ from the ledger's (names or order or count)	
+_mpdRoomSection9	unk6	confidence low (deferred)	kind
+_mpdRoomSection9	unk8	confidence med (deferred)	lockState
+_mpdRoomSection9	unkA	confidence med (deferred)	activation
+_mpdRoomSection9	unkB	confidence med (deferred)	markerFade
+_mpdRoomSectionA	unk12	confidence med (deferred)	isTriggered
+_mpdRoomSectionA	unkE	confidence med (deferred)	isOpen
+_mpdRoomSectionB		members differ from the ledger's (names or order or count)	
+_mpdRoomSectionE	unk0	confidence low (deferred)	reserved00
+_mpdRoomSectionE	unk10	type differs from the ledger's (ours int, theirs int *)	secondArray
+_mpdRoomSectionE	unk14	confidence med (deferred)	payload
+_mpdRoomSectionE	unk4	confidence med (deferred)	secondArrayOffset
+_mpdRoomSectionE	unk8	confidence med (deferred)	hasSecondArray
+_mpdRoomSectionE	unkC	type differs from the ledger's (ours int, theirs int *)	firstArray
+_sphericalCamera	unk24	confidence med (deferred)	zoomVelocity
+_syd	data	not a placeholder name (already descriptive: left)	reservedC
+_textBoxSelector_t	unk8	confidence low (deferred)	reserved8
+_textBoxSelector_t	unk9	confidence low (deferred)	reserved9
+_textBoxSelector_t	unkC	confidence low (deferred)	reservedC
+_trail	unk	not a placeholder name (already descriptive: left)	opaque54
+_wepModelOffsets	polygonsOffset	not a placeholder name (already descriptive: left)	polygonSection
+_wepModelOffsets	texturesOffset	not a placeholder name (already descriptive: left)	textureSection
+_wepModelOffsets	unk0	confidence med (deferred)	header
+_wepModelOffsets	unk40	confidence low (deferred)	fileBody
+_wepModelOffsets	vertexGroupsOffset	not a placeholder name (already descriptive: left)	vertexGroupSection
+_wepModelOffsets	verticesOffset	not a placeholder name (already descriptive: left)	vertexSection
+_zndEnemy	unk0	confidence med (deferred)	recordBytes
+_zndHeader	enemiesLen	not a placeholder name (already descriptive: left)	enemiesSize
+_zndHeader	mpdLen	not a placeholder name (already descriptive: left)	mpdListSize
+_zndHeader	mpdOffset	not a placeholder name (already descriptive: left)	mpdListOffset
+_zndHeader	timLen	not a placeholder name (already descriptive: left)	texturesSize
+_zndHeader	timOffset	not a placeholder name (already descriptive: left)	texturesOffset
+_zoneContext_t	mpdCdFile	not a placeholder name (already descriptive: left)	mpdDiscRequest
+_zoneContext_t	mpdLbas	not a placeholder name (already descriptive: left)	mpdFiles
+_zoneContext_t	unk30	confidence med (deferred)	isMusicFadeEnabled
+_zoneContext_t	unk38	confidence low (deferred)	reserved38
+_zoneContext_t	unk48	confidence low (deferred)	reserved48
+_zoneContext_t	unk4C	confidence low (deferred)	reserved4C
+_zoneContext_t	unk50	confidence low (deferred)	reserved50
+_zoneContext_t	unk54	confidence low (deferred)	reserved54
+_zoneContext_t	zndCdFile	not a placeholder name (already descriptive: left)	zndDiscRequest
+_zudData_t	shieldWepLen	not a placeholder name (already descriptive: left)	reserved1C
+_zudData_t	shpLen	not a placeholder name (already descriptive: left)	reservedC
+_zudData_t	unk2	confidence low (deferred)	opaque2
+_zudData_t	wepLen	not a placeholder name (already descriptive: left)	reserved14
+actionCandidateEntry	flag1	not a placeholder name (already descriptive: left)	opaque10Bit1
+actionCandidateEntry	flag2	not a placeholder name (already descriptive: left)	reserved10Bit2
+actionCandidateEntry	flag3	not a placeholder name (already descriptive: left)	reserved10Bit3
+actionCandidateEntry	flag4	not a placeholder name (already descriptive: left)	reserved10Bit4
+actionCandidateEntry	flag5	not a placeholder name (already descriptive: left)	reserved10Bit5
+actionCandidateEntry	heading	not a placeholder name (already descriptive: left)	reservedCBit7
+actionCandidateEntry	high	not a placeholder name (already descriptive: left)	reserved12Bit6
+actionCandidateEntry	low	not a placeholder name (already descriptive: left)	reserved10Bit0
+actionCandidateEntry	pad29	not a placeholder name (already descriptive: left)	reserved7Bit5
+actionCandidateEntry	padC27	not a placeholder name (already descriptive: left)	reservedFBit3
+actionCandidateEntry	part	not a placeholder name (already descriptive: left)	reservedCBit4
+actionCandidateEntry	score	not a placeholder name (already descriptive: left)	reserved0
+actionCandidateState		no struct of that name in our tree	
+actionCandidateTarget	flags	not a placeholder name (already descriptive: left)	opaque0
+actionCandidateTarget	pad	not a placeholder name (already descriptive: left)	reserved1
+actionChoice	action	not a placeholder name (already descriptive: left)	reserved4Bit5
+actionChoice	category	not a placeholder name (already descriptive: left)	reserved4Bit0
+actionChoice	flags	not a placeholder name (already descriptive: left)	reserved10
+actionChoice	score	not a placeholder name (already descriptive: left)	reserved8
+actionChoice	slot	not a placeholder name (already descriptive: left)	reserved4Bit3
+actionChoice	targetWeight	not a placeholder name (already descriptive: left)	reservedEBit3
+actionChoice	unk0	confidence low (deferred)	reserved0
+actionChoice	unk4_13	not a placeholder name (already descriptive: left)	reserved5Bit5
+actionChoice	unkC_0	not a placeholder name (already descriptive: left)	reservedCBit0
+actionChoice	unkC_27	not a placeholder name (already descriptive: left)	reservedFBit3
+actionChoiceFlags	flag0	not a placeholder name (already descriptive: left)	reserved0Bit0
+actionChoiceFlags	flag1	not a placeholder name (already descriptive: left)	reserved0Bit1
+actionChoiceFlags	flag2	not a placeholder name (already descriptive: left)	reserved0Bit2
+actionChoiceFlags	flag3	not a placeholder name (already descriptive: left)	reserved0Bit3
+actionChoiceFlags	unk4	bitfield (left for its own step)	reserved0Bit4
+actionChoiceInfo	flag23	not a placeholder name (already descriptive: left)	reservedEBit7
+actionChoiceInfo	flag28	not a placeholder name (already descriptive: left)	reservedFBit4
+actionChoiceInfo	flag29	not a placeholder name (already descriptive: left)	reservedFBit5
+actionChoiceInfo	unk0	confidence low (deferred)	reserved0
+actionChoiceInfo	unk10	confidence low (deferred)	reserved10
+actionChoiceInfo	unkC_0	not a placeholder name (already descriptive: left)	reservedCBit0
+actionChoiceInfo	unkC_24	not a placeholder name (already descriptive: left)	reservedFBit0
+actionChoiceInfo	unkC_30	not a placeholder name (already descriptive: left)	reservedFBit6
+actionChoiceState		no struct of that name in our tree	
+actionCostView	flags	not a placeholder name (already descriptive: left)	reserved0
+actionCostView	pad4	not a placeholder name (already descriptive: left)	reserved4
+actionDispatchActor		no struct of that name in our tree	
+actionDispatchEntry	distance	not a placeholder name (already descriptive: left)	reserved8
+actionDispatchEntry	flags4	not a placeholder name (already descriptive: left)	reserved4
+actionDispatchEntry	flagsC	not a placeholder name (already descriptive: left)	reservedC
+actionDispatchEntry	pad0	not a placeholder name (already descriptive: left)	reserved0
+actionDispatchModel	flags	not a placeholder name (already descriptive: left)	opaque8
+actionDispatchModel	id	not a placeholder name (already descriptive: left)	reserved12
+actionDispatchModel	pad0	not a placeholder name (already descriptive: left)	reserved0
+actionDispatchModel	pad13	not a placeholder name (already descriptive: left)	reserved13
+actionDispatchModel	padC	not a placeholder name (already descriptive: left)	reservedC
+actionDispatchModel	status	not a placeholder name (already descriptive: left)	reserved1A
+actionDispatchRegistry		no struct of that name in our tree	
+actionDispatchState		no struct of that name in our tree	
+actionEffectRequest		members differ from the ledger's (names or order or count)	
+actionEffectTarget		a member of ours could not be read	
+actionMetadataAction	flags	not a placeholder name (already descriptive: left)	opaque0
+actionMetadataAction	flagsC	not a placeholder name (already descriptive: left)	opaqueC
+actionMetadataAction	pad	not a placeholder name (already descriptive: left)	reserved4
+actionMetadataAction	rest	not a placeholder name (already descriptive: left)	reserved10
+actionMetadataEntry	f0	not a placeholder name (already descriptive: left)	reserved0Bit0
+actionMetadataEntry	f1	not a placeholder name (already descriptive: left)	opaque0Bit1
+actionMetadataEntry	f2	not a placeholder name (already descriptive: left)	opaque0Bit2
+actionMetadataEntry	f7	not a placeholder name (already descriptive: left)	reserved0Bit7
+actionMetadataEntry	high	not a placeholder name (already descriptive: left)	reserved3Bit0
+actionMetadataSlot	pad	not a placeholder name (already descriptive: left)	reserved2
+actionMetadataState		no struct of that name in our tree	
+actionMetadataStats	pad	not a placeholder name (already descriptive: left)	reserved0
+actionMetadataWord	raw	not a placeholder name (already descriptive: left)	word
+actionPlanState		no struct of that name in our tree	
+actionReactionAction	pad0	not a placeholder name (already descriptive: left)	reserved0
+actionReactionAction	pad1C	not a placeholder name (already descriptive: left)	reserved1C
+actionReactionMotion	flag	not a placeholder name (already descriptive: left)	isOrbiting
+actionReactionMotion	pad0	not a placeholder name (already descriptive: left)	reserved0
+actionReactionState		no struct of that name in our tree	
+actionReactionTarget	b	not a placeholder name (already descriptive: left)	bytes
+actionReactionTarget	p	not a placeholder name (already descriptive: left)	reactionBits
+actionReactionTarget	raw	not a placeholder name (already descriptive: left)	word
+actionScoreActor		no struct of that name in our tree	
+actionSetupContext		no struct of that name in our tree	
+actionSlotConfig	enabled	not a placeholder name (already descriptive: left)	reserved0Bit7
+actionSlotConfig	flag2	not a placeholder name (already descriptive: left)	reserved0Bit2
+actionSlotConfig	flag5	not a placeholder name (already descriptive: left)	reserved0Bit5
+actionSlotConfig	mode	not a placeholder name (already descriptive: left)	reserved0Bit3
+actionSlotConfig	range	not a placeholder name (already descriptive: left)	reserved1Bit0
+actionSlotConfig	unk0_0	not a placeholder name (already descriptive: left)	reserved0Bit0
+actionSlotConfig	unk0_24	not a placeholder name (already descriptive: left)	reserved3Bit0
+actionSlotConfig	usable	not a placeholder name (already descriptive: left)	reserved0Bit6
+actionSlotConfig	value	not a placeholder name (already descriptive: left)	reserved4
+actionStatApplication	pad2	not a placeholder name (already descriptive: left)	reserved2
+actionStatApplication	pad48	not a placeholder name (already descriptive: left)	reserved48
+actionStatDelta	addStatus	not a placeholder name (already descriptive: left)	reserved14
+actionStatDelta	mp	not a placeholder name (already descriptive: left)	reserved6
+actionStatDelta	pad1	not a placeholder name (already descriptive: left)	reserved1
+actionStatDelta	pad20	not a placeholder name (already descriptive: left)	reserved20
+actionStatDelta	pad3	not a placeholder name (already descriptive: left)	reserved3
+actionStatDelta	pad3A	not a placeholder name (already descriptive: left)	reserved3A
+actionStatDelta	pad3E	not a placeholder name (already descriptive: left)	reserved3E
+actionStatDelta	pad8	not a placeholder name (already descriptive: left)	reserved8
+actionStatDelta	removeStatus	not a placeholder name (already descriptive: left)	reserved18
+actionStatDelta	value10	not a placeholder name (already descriptive: left)	reserved38
+actionStatDelta	value14	not a placeholder name (already descriptive: left)	reserved3C
+actionStatDelta	value2	not a placeholder name (already descriptive: left)	reserved2
+actorEvaluationActor		no struct of that name in our tree	
+actorEvaluationContext	f44	not a placeholder name (already descriptive: left)	opaque44
+actorEvaluationContext	pad0	not a placeholder name (already descriptive: left)	reserved0
+actorEvaluationContext	pad5	not a placeholder name (already descriptive: left)	reserved5
+actorEvaluationState		no struct of that name in our tree	
+actorEvaluationStats	f31	not a placeholder name (already descriptive: left)	opaque31
+actorEvaluationStats	f33	not a placeholder name (already descriptive: left)	opaque33
+actorEvaluationStats	pad0	not a placeholder name (already descriptive: left)	reserved0
+actorEvaluationStats	pad1A	not a placeholder name (already descriptive: left)	reserved1A
+actorEvaluationStats	pad32	not a placeholder name (already descriptive: left)	reserved32
+actorInitializationActor		no struct of that name in our tree	
+actorInitializationFlags	raw	not a placeholder name (already descriptive: left)	word
+actorInitializationModel		no struct of that name in our tree	
+actorInitializationPoint		no struct of that name in our tree	
+actorInitializationState		no struct of that name in our tree	
+actorInitializationStats	field30	not a placeholder name (already descriptive: left)	opaque30
+actorInitializationStats	field31	not a placeholder name (already descriptive: left)	opaque31
+actorInitializationStats	field32	not a placeholder name (already descriptive: left)	opaque32
+actorInitializationStats	field33	not a placeholder name (already descriptive: left)	opaque33
+actorInitializationStats	pad0	not a placeholder name (already descriptive: left)	reserved0
+actorObject		members differ from the ledger's (names or order or count)	
+actorPhaseFlags		no struct of that name in our tree	
+actorRelation	raw	not a placeholder name (already descriptive: left)	word
+actorRelationState		no struct of that name in our tree	
+actorSettingsActor		no struct of that name in our tree	
+actorSettingsEntry	first	not a placeholder name (already descriptive: left)	movePeriod
+actorSettingsEntry	pad	not a placeholder name (already descriptive: left)	reserved5
+actorSettingsEntry	second	not a placeholder name (already descriptive: left)	restPeriod
+actorSettingsEntry	third	not a placeholder name (already descriptive: left)	rate
+actorSettingsState		no struct of that name in our tree	
+actorSettingsWord	byte	not a placeholder name (already descriptive: left)	bytes
+actorSettingsWord	half	not a placeholder name (already descriptive: left)	halves
+actorSettingsWord	raw	not a placeholder name (already descriptive: left)	word
+actorTimerState		no struct of that name in our tree	
+actorTransformScratch		defined differently in several of our files	
+actorUpdateActor		no struct of that name in our tree	
+actorUpdatePoint	unk4	confidence low (deferred)	opaque4
+actorUpdateState		no struct of that name in our tree	
+actorUpdateStats	current	not a placeholder name (already descriptive: left)	reserved1C
+actorUpdateStats	max	not a placeholder name (already descriptive: left)	reserved20
+actorUpdateStats	unk0	confidence low (deferred)	reserved0
+animationFrameScratch	data	not a placeholder name (already descriptive: left)	trackData
+animationFrameScratch	first	not a placeholder name (already descriptive: left)	firstFrame
+animationFrameScratch	last	not a placeholder name (already descriptive: left)	lastFrame
+animationFrameScratch	prefix	not a placeholder name (already descriptive: left)	reserved0
+cameraMotionScratch	unk40	confidence low (deferred)	pad40
+cameraMotionScratch	unk8	confidence low (deferred)	pad08
+cameraScratch	rotation2	not a placeholder name (already descriptive: left)	actorRotation
+cameraScratch	unk40	confidence low (deferred)	pad40
+cameraScratch	unk60	confidence low (deferred)	pad60
+cameraScratch	unk8	confidence low (deferred)	pad08
+cameraScratch	v1	not a placeholder name (already descriptive: left)	currentOffset
+cameraScratch	v2	not a placeholder name (already descriptive: left)	destinationOffset
+cameraScratch	v3	not a placeholder name (already descriptive: left)	workVector
+cameraShakeScratch	a	not a placeholder name (already descriptive: left)	eyeShake
+cameraShakeScratch	b	not a placeholder name (already descriptive: left)	lookAtShake
+cameraShakeScratch	c	not a placeholder name (already descriptive: left)	axisShake
+cameraShakeScratch	unk0	confidence low (deferred)	pad00
+cameraTransformScratch	gap	not a placeholder name (already descriptive: left)	reserved84
+cameraTransformScratch	matrix	not a placeholder name (already descriptive: left)	reserved64
+cameraTransformScratch	prefix	not a placeholder name (already descriptive: left)	reserved0
+cameraTransformScratch	scale	not a placeholder name (already descriptive: left)	reserved8C
+candidateMovementState		no struct of that name in our tree	
+candidateMovementWord	raw	not a placeholder name (already descriptive: left)	word
+clutAnimState_t		no struct of that name in our tree	
+da4bcActor		no struct of that name in our tree	
+da4bcEntry	distance	not a placeholder name (already descriptive: left)	reserved8
+da4bcEntry	flagsC	not a placeholder name (already descriptive: left)	opaqueC
+da4bcEntry	unk0	confidence low (deferred)	reserved0
+da4bcEntry	unk4	confidence low (deferred)	reserved4
+da4bcEntryTarget	pad	not a placeholder name (already descriptive: left)	reserved0Bit4
+da4bcModel	pad0	not a placeholder name (already descriptive: left)	reserved0
+da4bcModel	pad1E	not a placeholder name (already descriptive: left)	reserved1E
+da4bcModel	pad22	not a placeholder name (already descriptive: left)	reserved22
+da4bcPoint	b	not a placeholder name (already descriptive: left)	bytes
+da4bcPoint	raw	not a placeholder name (already descriptive: left)	word
+da4bcState		no struct of that name in our tree	
+da4bcTargetBits	pad0	not a placeholder name (already descriptive: left)	reserved0Bit0
+da4bcTargetBits	pad27	not a placeholder name (already descriptive: left)	reserved3Bit3
+da4bcTargetBits	pad30	not a placeholder name (already descriptive: left)	reserved3Bit6
+da4bcTargetBits	pad8	not a placeholder name (already descriptive: left)	reserved1Bit0
+da4bcTargetState		no struct of that name in our tree	
+directionalCachePoint	p	not a placeholder name (already descriptive: left)	tile
+directionalCachePoint	raw	not a placeholder name (already descriptive: left)	word
+directionalCacheState		no struct of that name in our tree	
+effectAttractionView		no struct of that name in our tree	
+effectDefinitionView		no struct of that name in our tree	
+effectMotionState	mass	not a placeholder name (already descriptive: left)	reserved0
+effectTrailConfig		no struct of that name in our tree	
+effectTransformState	control0	not a placeholder name (already descriptive: left)	reservedC0
+effectTransformState	control1	not a placeholder name (already descriptive: left)	reservedC8
+effectTransformState	flags	not a placeholder name (already descriptive: left)	opaque6
+effectTransformState	pad10	not a placeholder name (already descriptive: left)	reserved10
+effectTransformState	pad2C	not a placeholder name (already descriptive: left)	reserved2C
+effectTransformState	pad8	not a placeholder name (already descriptive: left)	reserved8
+effectTransformState	view	not a placeholder name (already descriptive: left)	reserved58
+effectTransformState	world	not a placeholder name (already descriptive: left)	reserved38
+fileMenuElements_t	unk7	confidence low (deferred)	reserved7
+fileMenuElements_t	unkA	confidence low (deferred)	reservedA
+fontTable_t	clut	not a placeholder name (already descriptive: left)	palettes
+fontTable_t	data	not a placeholder name (already descriptive: left)	indexedPixels
+frameScratch	unused	not a placeholder name (already descriptive: left)	reserved0
+func_800172D4_t	unk10	confidence low (deferred)	reserved10
+func_800172D4_t	unk4	confidence low (deferred)	reserved04
+func_800172D4_t	unk8	confidence low (deferred)	reserved08
+func_800172D4_t	unkC	confidence low (deferred)	reserved0C
+func_8004644C_t		no struct of that name in our tree	
+func_80069388_t	unk0	confidence med (deferred)	dmaTag
+func_80069388_t	unk13	confidence med (deferred)	pad13
+func_80069388_t	unk18	confidence med (deferred)	vertexOneUv
+func_80069388_t	unk1A	confidence med (deferred)	texturePage
+func_80069388_t	unk1F	confidence med (deferred)	pad1F
+func_80069388_t	unk24	confidence med (deferred)	vertexTwoUv
+func_80069388_t	unk26	confidence med (deferred)	pad26
+func_80069388_t	unk2B	confidence med (deferred)	pad2B
+func_80069388_t	unk7	confidence med (deferred)	command
+func_80069388_t	unkC	confidence med (deferred)	vertexZeroUv
+func_80069388_t	unkE	confidence med (deferred)	palette
+func_80069EF0_t	currentHP	not a placeholder name (already descriptive: left)	currentHp
+func_80069EF0_t	currentMP	not a placeholder name (already descriptive: left)	currentMp
+func_80069EF0_t	maxHP	not a placeholder name (already descriptive: left)	maxHp
+func_80069EF0_t	maxMP	not a placeholder name (already descriptive: left)	maxMp
+func_80069EF0_t	totalAgility	not a placeholder name (already descriptive: left)	agility
+func_80069EF0_t	totalIntelligence	not a placeholder name (already descriptive: left)	intelligence
+func_80069EF0_t	totalStrength	not a placeholder name (already descriptive: left)	strength
+func_80069EF0_t	unk1	confidence med (deferred)	isHidden
+func_8006A9C0_t	data	not a placeholder name (already descriptive: left)	pixelBytes
+func_8006A9C0_t	rect	not a placeholder name (already descriptive: left)	uploadRect
+func_8006A9C0_t	size	not a placeholder name (already descriptive: left)	blockSizeBytes
+func_8006A9C0_t2	unk0	confidence med (deferred)	identifier
+func_8006A9C0_t2	unk1	confidence med (deferred)	reserved01
+func_8006A9C0_t2	unk2	confidence med (deferred)	reserved02
+func_8006A9C0_t2	unk3	confidence med (deferred)	reserved03
+func_8006C4C4_t		members differ from the ledger's (names or order or count)	
+func_8006EBF8_t2	unk0	confidence low (deferred)	reserved0
+func_8006EBF8_t2	unk4	confidence low (deferred)	reserved4
+func_8006EBF8_t2	unk8	confidence low (deferred)	reserved8
+func_8006EBF8_t_fields	unk0_0	not a placeholder name (already descriptive: left)	tileX
+func_8006EBF8_t_fields	unk0_16	not a placeholder name (already descriptive: left)	tileZ
+func_8006EBF8_t_fields	unk0_24	not a placeholder name (already descriptive: left)	facing
+func_8006EBF8_t_fields	unk0_8	not a placeholder name (already descriptive: left)	tileLayer
+func_800765B0_t		a member of ours could not be read	
+func_80077DF0_t2	unk0	confidence low (deferred)	reserved0
+func_80077DF0_t3	unk0	confidence low (deferred)	reserved0
+func_80077DF0_t3	unk44	confidence low (deferred)	reserved44
+func_80085A34_t	unk0	confidence low (deferred)	reserved0
+func_80085A34_t	unk1	confidence low (deferred)	reserved1
+func_80085A34_t	unk10	confidence low (deferred)	reserved10
+func_80085A34_t	unk14	confidence low (deferred)	opaque14
+func_80085A34_t	unk18	confidence low (deferred)	opaque18
+func_80085A34_t	unk1C	confidence low (deferred)	opaque1C
+func_80085A34_t	unk2	confidence low (deferred)	opaque2
+func_80085A34_t	unk20	confidence low (deferred)	reserved20
+func_80085A34_t	unk3	confidence low (deferred)	opaque3
+func_80085A34_t	unk4	confidence low (deferred)	reserved4
+func_80085A34_t	unk40	confidence low (deferred)	opaque40
+func_80085A34_t	unk8	confidence low (deferred)	reserved8
+func_80085A34_t	unkC	confidence low (deferred)	reservedC
+func_8008631C_t2	unk3	confidence med (deferred)	impactKind
+func_80089888_t	unk0_0	not a placeholder name (already descriptive: left)	tileX
+func_80089888_t	unk0_16	not a placeholder name (already descriptive: left)	tileZ
+func_80089888_t	unk0_24	not a placeholder name (already descriptive: left)	height
+func_80089888_t	unk0_8	not a placeholder name (already descriptive: left)	direction
+func_8008D2C0_t		defined differently in several of our files	
+func_8008D2C0_t		defined differently in several of our files	
+func_80091C6C_t	unk4	confidence low (deferred)	reserved04
+func_80091C6C_t2		no struct of that name in our tree	
+func_80091E10_t	unk13	confidence low (deferred)	reserved13
+func_80091E10_t	unk4	confidence low (deferred)	reserved04
+func_80091FE8_t	unk4	confidence low (deferred)	reserved04
+func_80092548_t	active	not a placeholder name (already descriptive: left)	isActive
+func_80092548_t	count	not a placeholder name (already descriptive: left)	objectCount
+func_80092548_t	unk1	confidence low (deferred)	reserved01
+func_80092548_t	unk3	confidence low (deferred)	reserved03
+func_80092548_t2		no struct of that name in our tree	
+func_80092B04_t		no struct of that name in our tree	
+func_80092B04_t2	unk0	confidence med (deferred)	size
+func_80092B04_t2	unk2	confidence med (deferred)	opcode
+func_80092F74_t		members differ from the ledger's (names or order or count)	
+func_80092F74_t2	unk0	type differs from the ledger's (ours int, theirs int *)	reserved00
+func_80092F74_t2	unk14	confidence med (deferred)	extraOperandOne
+func_80092F74_t2	unk18	confidence med (deferred)	extraOperandTwo
+func_80093914_t	unk0	confidence med (deferred)	positions
+func_80093914_t	unk12	confidence med (deferred)	blue2
+func_80093914_t	unk13	confidence med (deferred)	u3
+func_80093914_t	unk16	confidence med (deferred)	remainder
+func_80093914_t	unkE	confidence med (deferred)	blue1
+func_80093914_t	unkF	confidence med (deferred)	type
+func_80093914_t2	unk0	confidence med (deferred)	positions
+func_80093914_t2	unk12	confidence med (deferred)	blue2
+func_80093914_t2	unk13	confidence med (deferred)	u3
+func_80093914_t2	unk16	confidence med (deferred)	middle
+func_80093914_t2	unk26	confidence med (deferred)	blue4
+func_80093914_t2	unk27	confidence med (deferred)	v4
+func_80093914_t2	unkE	confidence med (deferred)	blue1
+func_80093914_t2	unkF	confidence med (deferred)	type
+func_800962E4_t	unk0	confidence low (deferred)	opaque0
+func_800962E4_t	unk2	confidence low (deferred)	opaque2
+func_800962E4_t	unk4	confidence low (deferred)	opaque4
+func_800962E4_t	unk6	confidence low (deferred)	reserved6
+func_800962E4_t	unk8	confidence low (deferred)	opaque8
+func_800962E4_t	unk9	confidence low (deferred)	reserved9
+func_800962E4_t	unkA	confidence low (deferred)	reservedA
+func_800962E4_t	unkB	confidence low (deferred)	opaqueB
+func_800962E4_t	unkC	confidence low (deferred)	reservedC
+func_800962E4_t	unkE	confidence low (deferred)	reservedE
+func_800962E4_t	unkF	confidence low (deferred)	reservedF
+func_8009C378_t		members differ from the ledger's (names or order or count)	
+func_800A0024_t	unk0	confidence low (deferred)	placementByte0
+func_800A0024_t	unk1	confidence med (deferred)	heightAboveGround
+func_800A0024_t	unk2	confidence low (deferred)	placementByte2
+func_800A0024_t	unk4	confidence med (deferred)	positionXY
+func_800A0024_t	unk8	confidence med (deferred)	positionZ
+func_800A1108_t	unk0	confidence low (deferred)	reserved0
+func_800A1108_t	unk10	confidence low (deferred)	reserved10
+func_800A1108_t	unk14	confidence low (deferred)	reserved14
+func_800A1108_t	unk18	confidence low (deferred)	reserved18
+func_800A1108_t	unk1C	confidence low (deferred)	reserved1C
+func_800A1108_t	unk20	confidence low (deferred)	reserved20
+func_800A1108_t	unk4	confidence low (deferred)	reserved4
+func_800A1108_t	unk8	confidence low (deferred)	reserved8
+func_800A1108_t	unkC	confidence low (deferred)	reservedC
+func_800A1DE8_t		no struct of that name in our tree	
+func_800A3054_t	unk2	confidence low (deferred)	reserved2
+func_800A6660_t	unk0	confidence low (deferred)	reserved0
+func_800A6660_t	unk6	confidence med (deferred)	restartTurn
+func_800A6798_t		no struct of that name in our tree	
+func_800AB358_t		no struct of that name in our tree	
+func_800AB788_t		no struct of that name in our tree	
+func_800AC690_contact_t	contact	not a placeholder name (already descriptive: left)	reserved0Bit0
+func_800AC690_contact_t	unk4	bitfield (left for its own step)	reserved0Bit4
+func_800AC690_flags_t	state	not a placeholder name (already descriptive: left)	reserved2Bit0
+func_800AC690_flags_t	unk0	bitfield (left for its own step)	reserved0Bit0
+func_800AC690_flags_t	unk13	bitfield (left for its own step)	reserved2Bit3
+func_800AC690_timer_t	timer	not a placeholder name (already descriptive: left)	tickRemainder
+func_800AC690_timer_t	unk0	bitfield (left for its own step)	reserved0
+func_800ACF54_t	unk0	confidence med (deferred)	low
+func_800ACF54_t	unk4	confidence med (deferred)	high
+func_800AD494_t		members differ from the ledger's (names or order or count)	
+func_800BB68C_t	unk0	confidence med (deferred)	remainingCount
+func_800BB68C_t	unk1	confidence med (deferred)	cursor
+func_800BB68C_t	unk2	confidence med (deferred)	actorIds
+func_800BDBB4_t	unk0	confidence low (deferred)	reserved00
+func_800BDBB4_t	unk10	confidence low (deferred)	reserved10
+func_800BDBB4_t	unk18	confidence low (deferred)	reserved18
+func_800BDBB4_t	unk1A	confidence low (deferred)	reserved1A
+func_800BDBB4_t	unk8	confidence low (deferred)	reserved08
+func_800BDBB4_t2	unk0	confidence med (deferred)	easedFraction
+func_800BDF6C_t	unk0	confidence med (deferred)	envelopeShape
+func_800BDF6C_t	unk4	confidence med (deferred)	cycles
+func_800BDF6C_t	unk6	confidence med (deferred)	amplitude
+func_800BDF6C_t	unk8	confidence med (deferred)	elapsedFrames
+func_800BDF6C_t	unk9	confidence med (deferred)	durationFrames
+func_800BDF6C_t	unkB	confidence low (deferred)	reserved0B
+func_800BDF6C_unk180_t	unkA	confidence low (deferred)	reserved0A
+func_800BDF6C_unk180_t	unkB	confidence low (deferred)	reserved0B
+func_800C0FA8_t2	unk0	confidence low (deferred)	opaque0
+func_800C0FA8_t2	unk10	confidence low (deferred)	opaque10
+func_800C0FA8_t2	unk18	confidence low (deferred)	opaque18
+func_800C0FA8_t2	unk8	confidence low (deferred)	opaque8
+func_800C1564_flags	unk0	bitfield (left for its own step)	reserved0Bit0
+func_800C1564_flags	unk1	bitfield (left for its own step)	opaque1Bit0
+func_800C1564_flags	unk2	bitfield (left for its own step)	reserved2Bit0
+func_800C1564_flags	unk3	bitfield (left for its own step)	opaque3Bit0
+func_800C1564_t	unk0	confidence med (deferred)	kind
+func_800C1564_t	unk1	confidence low (deferred)	opaque1
+func_800C1564_t	unk2	confidence med (deferred)	angle
+func_800C1564_t	unk4	confidence med (deferred)	scale
+func_800C1564_t	unk8	type differs from the ledger's (ours SVECTOR, theirs short[4])	position
+func_800C4650_t	unk0	confidence low (deferred)	opaque0
+func_800C4650_t	unk6	confidence low (deferred)	reserved6
+func_800C4650_t	unk7	confidence low (deferred)	reserved7
+func_800C4650_t	unk8	confidence low (deferred)	reserved8
+func_800C4650_t	unk9	confidence low (deferred)	opaque9
+func_800C4650_t	unkA	confidence low (deferred)	opaqueA
+func_800C4650_t	unkB	confidence low (deferred)	reservedB
+func_800C4794_t	vec	not a placeholder name (already descriptive: left)	vector
+func_800C56C0_t		no struct of that name in our tree	
+func_800C56C0_t2		no struct of that name in our tree	
+func_800C5798_t		members differ from the ledger's (names or order or count)	
+func_800CCE10_t	unk0_0	not a placeholder name (already descriptive: left)	x
+func_800CCE10_t	unk0_12	not a placeholder name (already descriptive: left)	y
+func_800CCE10_t	unk0_24	not a placeholder name (already descriptive: left)	alignment
+func_800CCE10_t	unk0_26	not a placeholder name (already descriptive: left)	opaque3Bit2
+func_800CE714_t2_2	unk0	confidence low (deferred)	reserved0
+func_800CE714_t2_2	unk10	confidence low (deferred)	reserved10
+func_800CE714_t2_2	unk14	confidence low (deferred)	reserved14
+func_800CE714_t2_2	unk18	confidence low (deferred)	reserved18
+func_800CE714_t2_2	unk1C	confidence low (deferred)	positionX
+func_800CE714_t2_2	unk20	confidence med (deferred)	positionY
+func_800CE714_t2_2	unk24	confidence low (deferred)	positionZ
+func_800CE714_t2_2	unk28	confidence low (deferred)	reserved28
+func_800CE714_t2_2	unk2C	confidence low (deferred)	reserved2C
+func_800CE714_t2_2	unk30	confidence low (deferred)	reserved30
+func_800CE714_t2_2	unk34	confidence med (deferred)	actor
+func_800CE714_t2_2	unk35	confidence med (deferred)	bone
+func_800CE714_t2_2	unk36	confidence med (deferred)	targetActor
+func_800CE714_t2_2	unk37	confidence med (deferred)	targetBone
+func_800CE714_t2_2	unk38	confidence med (deferred)	world
+func_800CE714_t2_2	unk4	confidence low (deferred)	reserved4
+func_800CE714_t2_2	unk58	confidence med (deferred)	view
+func_800CE714_t2_2	unk78	confidence low (deferred)	reserved78
+func_800CE714_t2_2	unk8	confidence low (deferred)	reserved8
+func_800CE714_t2_2	unkBE	confidence low (deferred)	opaqueBE
+func_800CE714_t2_2	unkC	confidence low (deferred)	reservedC
+func_800CE714_t2_2	unkC0	confidence low (deferred)	reservedC0
+func_800CFAAC_t		no struct of that name in our tree	
+func_800CFE1C_t	unk0	confidence low (deferred)	reserved0
+func_800CFE1C_t	unk2	confidence low (deferred)	reserved2
+func_800D0548_arg0	curve	not a placeholder name (already descriptive: left)	reserved5
+func_800D0548_arg0	flags	not a placeholder name (already descriptive: left)	reserved0
+func_800D0548_arg0	limit	not a placeholder name (already descriptive: left)	reservedE
+func_800D0548_arg0	mode	not a placeholder name (already descriptive: left)	reservedA
+func_800D0548_arg0	pad2	not a placeholder name (already descriptive: left)	reserved2
+func_800D0548_arg0	pad6	not a placeholder name (already descriptive: left)	reserved6
+func_800D0548_arg0	padC	not a placeholder name (already descriptive: left)	reservedC
+func_800D0548_arg0	padF	not a placeholder name (already descriptive: left)	reservedF
+func_800D0548_arg0	shape12	not a placeholder name (already descriptive: left)	reserved12
+func_800D0548_arg0	unk10	confidence low (deferred)	reserved10
+func_800D0548_arg1		members differ from the ledger's (names or order or count)	
+func_800D0B30_t		members differ from the ledger's (names or order or count)	
+func_800D0B30_t2	unk0	confidence low (deferred)	reserved0
+func_800D0B30_t2	unk10	confidence med (deferred)	translation
+func_800D0B30_t2	unk20	confidence med (deferred)	scale
+func_800D0B30_t2	unk30	confidence low (deferred)	reserved30
+func_800D0B30_t2	unk4	confidence low (deferred)	reserved4
+func_800D0B30_t2	unk48	confidence med (deferred)	local
+func_800D0B30_t2	unk5C	confidence low (deferred)	reserved68
+func_800D0B30_t2	unk60	confidence low (deferred)	reserved6C
+func_800D0B30_t2	unk64	confidence low (deferred)	reserved70
+func_800D0B30_t2	unk8	confidence med (deferred)	rotationOffset
+func_800D0C60_t		members differ from the ledger's (names or order or count)	
+func_800D2904_curves		a member of ours could not be read	
+func_800D2904_t		members differ from the ledger's (names or order or count)	
+func_800D4910_t	unk8	confidence med (deferred)	rendererState
+func_800D52A4_t		no struct of that name in our tree	
+func_800D52A4_t2		no struct of that name in our tree	
+func_800D55A4_t	count	not a placeholder name (already descriptive: left)	trackCount
+func_800D5780_t	unk8	confidence low (deferred)	curveFrame
+func_800D5780_t	unkA	confidence med (deferred)	keyTimer
+func_800D5780_t	unkC	confidence low (deferred)	keyParameter
+func_800D5780_t2	unk0_0	not a placeholder name (already descriptive: left)	kind
+func_800D5780_t2	unk0_8	not a placeholder name (already descriptive: left)	keyCount
+func_800D57FC_t	unk0_0	not a placeholder name (already descriptive: left)	frame
+func_800D57FC_t	unk0_16	not a placeholder name (already descriptive: left)	opaque2Bit0
+func_800D57FC_t	unk0_20	not a placeholder name (already descriptive: left)	opaque2Bit4
+func_800D57FC_t	unk0_26	not a placeholder name (already descriptive: left)	opaque3Bit2
+func_800D57FC_t	unk0_8	not a placeholder name (already descriptive: left)	duration
+func_800D57FC_t2	unk0_0	not a placeholder name (already descriptive: left)	reserved0Bit0
+func_800D57FC_t2	unk0_4	not a placeholder name (already descriptive: left)	curve
+func_800D5A98_t		no struct of that name in our tree	
+func_800D5A98_t2		no struct of that name in our tree	
+func_800D5D74_t	unk0_0	not a placeholder name (already descriptive: left)	frame
+func_800D5D74_t	unk0_21	not a placeholder name (already descriptive: left)	opaque2Bit5
+func_800D5D74_t	unk0_27	not a placeholder name (already descriptive: left)	reserved3Bit3
+func_800D5D74_t	unk0_9	not a placeholder name (already descriptive: left)	opaque1Bit1
+func_800D5D74_t	unk4	confidence low (deferred)	opaque4
+func_800D6048_t	unk0	confidence low (deferred)	reserved0
+func_800D6048_t	unk10	type differs from the ledger's (ours D_800F53B8_t3_2[16], theirs actionEffectTarget[16])	reserved10
+func_800D6310_t	unk0	confidence med (deferred)	frame
+func_800D6310_t	unk2	confidence low (deferred)	duration
+func_800D6310_t	unk4	confidence med (deferred)	red
+func_800D6310_t	unk5	confidence med (deferred)	green
+func_800D6310_t	unk6	confidence med (deferred)	blue
+func_800D6310_t	unk7	confidence low (deferred)	mode
+func_800D6508_t		no struct of that name in our tree	
+func_800D6894_t	unk0	confidence med (deferred)	frame
+func_800D6894_t	unk2	confidence low (deferred)	opaque2
+func_800D6894_t	unk3	confidence low (deferred)	opaque3
+func_800D6A18_t	unk0_0	not a placeholder name (already descriptive: left)	frame
+func_800D6A18_t	unk0_9	not a placeholder name (already descriptive: left)	reserved1Bit1
+func_800D6A18_t	unk2	confidence low (deferred)	reserved2
+func_800D6A18_t	unk4_0	not a placeholder name (already descriptive: left)	opaque4Bit0
+func_800D6A18_t	unk4_16	not a placeholder name (already descriptive: left)	opaque6Bit0
+func_800D6A18_t	unk4_17	not a placeholder name (already descriptive: left)	opaque6Bit1
+func_800D6A18_t	unk4_24	not a placeholder name (already descriptive: left)	opaque7Bit0
+func_800D6A18_t	unk4_25	not a placeholder name (already descriptive: left)	opaque7Bit1
+func_800D6A18_t	unk4_4	not a placeholder name (already descriptive: left)	opaque4Bit4
+func_800D6A18_t	unk4_9	not a placeholder name (already descriptive: left)	opaque5Bit1
+func_800D6CF_t		members differ from the ledger's (names or order or count)	
+func_800D8400_t		no struct of that name in our tree	
+func_800DA1D4_t		no struct of that name in our tree	
+func_800DC888_t		no struct of that name in our tree	
+func_800DCAA0_t		members differ from the ledger's (names or order or count)	
+func_800DCAA0_t1		no struct of that name in our tree	
+func_800DCAA0_t2		no struct of that name in our tree	
+func_800DD604_t		no struct of that name in our tree	
+func_800DEB10_t		members differ from the ledger's (names or order or count)	
+func_800DEB10_t2		no struct of that name in our tree	
+func_800DEEA4_t		members differ from the ledger's (names or order or count)	
+func_800DEEA4_t2		no struct of that name in our tree	
+func_800DFA54_t	unk0	confidence low (deferred)	opaque0
+func_800DFA54_t	unk1	confidence low (deferred)	opaque1
+func_800DFA54_t	unk2	confidence low (deferred)	opaque2
+func_800E0850_t		no struct of that name in our tree	
+func_800E1238_t		members differ from the ledger's (names or order or count)	
+func_800E5568_t	rangeX	not a placeholder name (already descriptive: left)	reserved0
+func_800E5698_t		no struct of that name in our tree	
+func_800E5698_t2	unk0	confidence low (deferred)	reserved0
+func_800E5698_t2	unk38	confidence low (deferred)	opaque38
+func_800E5A74_t	unk0	confidence low (deferred)	reserved0
+func_800E5A74_t	unk4	confidence low (deferred)	opaque4
+func_800E78F4_t		no struct of that name in our tree	
+func_800E78F4_t2	unk0	confidence low (deferred)	reserved0
+func_800E78F4_t2	unk4	confidence low (deferred)	reserved4
+func_800FA098_arg0		members differ from the ledger's (names or order or count)	
+func_800FA098_arg1		members differ from the ledger's (names or order or count)	
+func_800FA098_arg3	unk0	confidence low (deferred)	opaque0
+func_800FA098_arg3	unk1	confidence med (deferred)	definitionIndex
+func_800FA098_arg3	unk10	confidence med (deferred)	textureAnimation
+func_800FA098_arg3	unk2	confidence med (deferred)	count
+func_800FA098_arg3	unk4	confidence med (deferred)	controlPoints
+func_800FA098_arg3	unk8	confidence low (deferred)	opaque8
+func_800FA098_arg3	unkC	confidence med (deferred)	age
+func_800FA098_arg3_2	unk0	confidence low (deferred)	reserved0
+func_800FA098_arg3_2	unk2	confidence low (deferred)	reserved2
+func_800FA76C_arg3	unk0	confidence low (deferred)	opaque0
+func_800FA76C_arg3	unk1	confidence med (deferred)	definitionIndex
+func_800FA76C_arg3	unk3	confidence low (deferred)	opaque3
+func_800FA76C_arg3	unkC	confidence med (deferred)	textureAnimation
+func_800FB4C0_t	unk0	confidence low (deferred)	reserved0
+func_800FB4C0_t	unk1C	confidence low (deferred)	reserved1C
+func_800FB4C0_t	unk60	bitfield (left for its own step)	transparency
+func_800FB4C0_t	unk60_12	not a placeholder name (already descriptive: left)	reserved61Bit4
+func_800FB4C0_t	unk60_8	not a placeholder name (already descriptive: left)	variant
+func_800FB4C0_t	unk64	confidence low (deferred)	reserved64
+func_800FB4C0_t	unkC	confidence med (deferred)	position
+func_800FD9A4_t	padCC	not a placeholder name (already descriptive: left)	reservedCC
+func_800FD9A4_t	unk88	confidence med (deferred)	lookAt
+func_800FD9A4_t	unk98	confidence med (deferred)	eye
+func_800FD9A4_t	unkA8	confidence med (deferred)	view
+func_80103080_t	unk0	confidence low (deferred)	reserved0
+func_80103080_t	unk2	confidence low (deferred)	reserved2
+func_80103080_t	unk4	confidence low (deferred)	reserved4
+func_80103080_t	unk5	confidence low (deferred)	reserved5
+func_80103080_t	unk6	confidence low (deferred)	reserved6
+func_80103080_t	unk7	confidence low (deferred)	reserved7
+gim_t		members differ from the ledger's (names or order or count)	
+imgHeader_t	hHi	not a placeholder name (already descriptive: left)	heightHigh
+imgHeader_t	hLo	not a placeholder name (already descriptive: left)	heightLow
+imgHeader_t	wHi	not a placeholder name (already descriptive: left)	widthHigh
+imgHeader_t	wLo	not a placeholder name (already descriptive: left)	widthLow
+intPair	unk0	confidence low (deferred)	reserved0
+intPair	unk4	confidence low (deferred)	reserved4
+labelBoxPrim_t		no struct of that name in our tree	
+limbEffects_t	value0	not a placeholder name (already descriptive: left)	opaque0
+limbEffects_t	value1	not a placeholder name (already descriptive: left)	opaque2
+mcdata_t	_dirEntBuf	not a placeholder name (already descriptive: left)	directoryEntry
+mcdata_t	locationCluts	not a placeholder name (already descriptive: left)	locationPalettes
+mcdata_t	saveFileInfo	not a placeholder name (already descriptive: left)	fileHeaders
+mcdata_t	unk400	confidence med (deferred)	fileIconPalettes
+mcdata_t	unk4E0	confidence med (deferred)	fileIconBitmaps
+mcdata_t	unk860	confidence low (deferred)	reserved860
+mcdata_t	unkBE0	confidence low (deferred)	reservedBE0
+mcdata_t	unkFE0	confidence low (deferred)	reservedFE0
+menuBg_t	clut	not a placeholder name (already descriptive: left)	palette
+menuBg_t	data	not a placeholder name (already descriptive: left)	indexedPixels
+menuItemPrim_t		no struct of that name in our tree	
+menuItemState_t	enabled	not a placeholder name (already descriptive: left)	isEnabled
+menuItemState_t	outlinePos	not a placeholder name (already descriptive: left)	outlinePosition
+menuItemState_t	state	not a placeholder name (already descriptive: left)	motion
+menuItemState_t	targetPos	not a placeholder name (already descriptive: left)	targetPosition
+menuItemState_t	textPos	not a placeholder name (already descriptive: left)	textPosition
+menuShapeVertex		no struct of that name in our tree	
+movementActorPosition	pad0	not a placeholder name (already descriptive: left)	reserved0
+movementActorPosition	y	not a placeholder name (already descriptive: left)	reserved1E
+movementCheckObject	flags	not a placeholder name (already descriptive: left)	opaque8
+movementCheckObject	pad0	not a placeholder name (already descriptive: left)	reserved0
+movementCheckState		no struct of that name in our tree	
+movementDecisionContext		no struct of that name in our tree	
+movementDestinationState		no struct of that name in our tree	
+movementPath	raw	not a placeholder name (already descriptive: left)	word
+movementPathState		no struct of that name in our tree	
+movementRecoveryContext	flags	not a placeholder name (already descriptive: left)	opaque8
+movementRecoveryContext	pad0	not a placeholder name (already descriptive: left)	reserved0
+movementRecoveryContext	pad16	not a placeholder name (already descriptive: left)	reserved16
+movementRecoveryContext	padC	not a placeholder name (already descriptive: left)	reservedC
+movementRecoveryState		no struct of that name in our tree	
+movementStepActor	pad0	not a placeholder name (already descriptive: left)	reserved0
+movementStepActor	pad20	not a placeholder name (already descriptive: left)	reserved20
+movementStepActor	pad60	not a placeholder name (already descriptive: left)	reserved60
+movementStepPosition	p	not a placeholder name (already descriptive: left)	tile
+movementStepPosition	raw	not a placeholder name (already descriptive: left)	word
+movementStepState		no struct of that name in our tree	
+mpdObjectSpawn		a member of ours could not be read	
+nearestWaypointDestination	flags	not a placeholder name (already descriptive: left)	reserved3
+nearestWaypointDestination	y	not a placeholder name (already descriptive: left)	reserved1
+nearestWaypointState		no struct of that name in our tree	
+objectAnimationState	drx	not a placeholder name (already descriptive: left)	rotationRemainingX
+objectAnimationState	dry	not a placeholder name (already descriptive: left)	rotationRemainingY
+objectAnimationState	drz	not a placeholder name (already descriptive: left)	rotationRemainingZ
+objectAnimationState	dx	not a placeholder name (already descriptive: left)	slideX
+objectAnimationState	dy	not a placeholder name (already descriptive: left)	velocityY
+objectAnimationState	dz	not a placeholder name (already descriptive: left)	slideZ
+objectAnimationState	pad10	not a placeholder name (already descriptive: left)	reserved10
+objectAnimationState	pad13	not a placeholder name (already descriptive: left)	reserved13
+objectAnimationState	pad14	not a placeholder name (already descriptive: left)	reserved14
+objectAnimationState	pad16E	not a placeholder name (already descriptive: left)	reserved16E
+objectAnimationState	pad2A	not a placeholder name (already descriptive: left)	reserved2A
+objectAnimationState	pad32	not a placeholder name (already descriptive: left)	reserved32
+objectAnimationState	pad42	not a placeholder name (already descriptive: left)	reserved42
+objectAnimationState	pad5D	not a placeholder name (already descriptive: left)	reserved5D
+objectAnimationState	pad5F	not a placeholder name (already descriptive: left)	reserved5F
+objectAnimationState	pad60	not a placeholder name (already descriptive: left)	reserved60
+objectAnimationState	padC	not a placeholder name (already descriptive: left)	reservedC
+objectAnimationState	parentObject	not a placeholder name (already descriptive: left)	carrier
+objectAnimationState	prefix	not a placeholder name (already descriptive: left)	reserved0
+objectAnimationState	rx	not a placeholder name (already descriptive: left)	rotationX
+objectAnimationState	ry	not a placeholder name (already descriptive: left)	rotationY
+objectAnimationState	rz	not a placeholder name (already descriptive: left)	rotationZ
+objectAnimationState	sx	not a placeholder name (already descriptive: left)	scaleX
+objectAnimationState	sy	not a placeholder name (already descriptive: left)	scaleY
+objectAnimationState	sz	not a placeholder name (already descriptive: left)	scaleZ
+objectMotionContext	padding10	not a placeholder name (already descriptive: left)	reserved10
+objectMotionContext	padding16C	not a placeholder name (already descriptive: left)	reserved16C
+objectMotionContext	padding16F	not a placeholder name (already descriptive: left)	reserved16F
+objectMotionContext	padding22	not a placeholder name (already descriptive: left)	pad22
+objectMotionContext	padding2A	not a placeholder name (already descriptive: left)	pad2A
+objectMotionContext	padding32	not a placeholder name (already descriptive: left)	pad32
+objectMotionContext	padding34	not a placeholder name (already descriptive: left)	reserved34
+objectMotionContext	padding38	not a placeholder name (already descriptive: left)	reserved38
+objectMotionContext	padding3C	not a placeholder name (already descriptive: left)	reserved3C
+objectMotionContext	paddingC	not a placeholder name (already descriptive: left)	reserved0C
+objectMotionContext	prefix	not a placeholder name (already descriptive: left)	reserved00
+obstructionCache	p0	not a placeholder name (already descriptive: left)	reserved0
+obstructionCache	p1	not a placeholder name (already descriptive: left)	reserved1
+obstructionCache	p3	not a placeholder name (already descriptive: left)	reserved3
+obstructionModel	pad	not a placeholder name (already descriptive: left)	reserved0
+obstructionState		no struct of that name in our tree	
+obstructionVector	pad	not a placeholder name (already descriptive: left)	reserved6
+pFileBlock2	data	not a placeholder name (already descriptive: left)	reserved4
+pFileBlock5	count	not a placeholder name (already descriptive: left)	reserved0
+pFileBlock9	unk0	confidence med (deferred)	gravityRange
+pFileBlock9	unk10	confidence low (deferred)	reserved10
+pFileBlock9	unk11	confidence low (deferred)	reserved11
+pFileBlock9	unk12	confidence med (deferred)	gravityCurve
+pFileBlock9	unk13	confidence med (deferred)	dragCurve
+pFileBlock9	unk14	confidence low (deferred)	frameCount
+pFileBlock9	unk15	confidence med (deferred)	transformCount
+pFileBlock9	unk16	confidence med (deferred)	timelineIds
+pFileBlock9	unkC	confidence med (deferred)	dragRange
+pFileTexture		no struct of that name in our tree	
+pFileTextureInfo		no struct of that name in our tree	
+p_file_t	data	not a placeholder name (already descriptive: left)	blocks
+padAct_t	unk0	confidence med (deferred)	motorLevels
+padAct_t	unk10	confidence med (deferred)	channels
+patrolWaypointState		no struct of that name in our tree	
+percent_t	data	not a placeholder name (already descriptive: left)	text
+portInfo_t	actData	not a placeholder name (already descriptive: left)	actuatorLevels
+portInfo_t	exId	not a placeholder name (already descriptive: left)	extendedType
+portInfo_t	lStickX	not a placeholder name (already descriptive: left)	leftStickX
+portInfo_t	lStickY	not a placeholder name (already descriptive: left)	leftStickY
+portInfo_t	lock	not a placeholder name (already descriptive: left)	modeLock
+portInfo_t	mode	not a placeholder name (already descriptive: left)	controllerType
+portInfo_t	rStickX	not a placeholder name (already descriptive: left)	rightStickX
+portInfo_t	rStickY	not a placeholder name (already descriptive: left)	rightStickY
+portInfo_t	states	not a placeholder name (already descriptive: left)	buttonBits
+primBuf_t		no struct of that name in our tree	
+primBuf_t		no struct of that name in our tree	
+radialMotion	angle	not a placeholder name (already descriptive: left)	orbitAngle
+radialMotion	facing	not a placeholder name (already descriptive: left)	heading
+radialMotion	flag3	not a placeholder name (already descriptive: left)	distanceCached
+radialMotion	flagA	not a placeholder name (already descriptive: left)	isOrbiting
+radialMotion	frame	not a placeholder name (already descriptive: left)	pathStep
+radialMotion	pad12	not a placeholder name (already descriptive: left)	reserved12
+radialMotion	pad4	not a placeholder name (already descriptive: left)	reserved4
+radialMotion	padC	not a placeholder name (already descriptive: left)	reservedC
+radialMotion	state	not a placeholder name (already descriptive: left)	phase
+radialMotion	x	not a placeholder name (already descriptive: left)	startX
+radialMotion	z	not a placeholder name (already descriptive: left)	startZ
+radialMotionActor	flags	not a placeholder name (already descriptive: left)	opaque8
+radialMotionActor	pad	not a placeholder name (already descriptive: left)	reserved0
+radialMotionContext		no struct of that name in our tree	
+radialMotionState		no struct of that name in our tree	
+routeEdgeActor		no struct of that name in our tree	
+routeEdgeGlobals		no struct of that name in our tree	
+routeEdgeState		no struct of that name in our tree	
+saveFileInfo_t	unk44	confidence low (deferred)	reserved44
+saveFileInfo_t	unk60	confidence med (deferred)	iconHeaderBytes
+savedEnemyState	currentHP	not a placeholder name (already descriptive: left)	currentHp
+savedEnemyState	currentMP	not a placeholder name (already descriptive: left)	currentMp
+savedEnemyState	hidden	not a placeholder name (already descriptive: left)	isHidden
+savedEnemyState	limbHP	not a placeholder name (already descriptive: left)	limbHp
+savedEnemyState	maxHP	not a placeholder name (already descriptive: left)	maxHp
+savedEnemyState	maxMP	not a placeholder name (already descriptive: left)	maxMp
+savedEnemyState	unk0	confidence med (deferred)	spawnSlot
+savedEnemyState	unk1E	confidence low (deferred)	reserved1E
+savedEnemyState	x	not a placeholder name (already descriptive: left)	tileX
+savedEnemyState	z	not a placeholder name (already descriptive: left)	tileZ
+savedata_t		defined differently in several of our files	
+savedata_t		defined differently in several of our files	
+savedata_unk180_2_t	base	not a placeholder name (already descriptive: left)	slotHeader
+savedata_unk180_2_t	key	not a placeholder name (already descriptive: left)	cipherKey
+savedata_unk180_t	checksums	not a placeholder name (already descriptive: left)	blockChecksums
+savedata_unk180_t	stats	not a placeholder name (already descriptive: left)	summary
+scriptBytePair	high	not a placeholder name (already descriptive: left)	highByte
+scriptBytePair	low	not a placeholder name (already descriptive: left)	lowByte
+soundData_t	currentSfxId	not a placeholder name (already descriptive: left)	currentSfxBank
+soundData_t	musicQueueSlot	not a placeholder name (already descriptive: left)	musicRequests
+soundData_t	sfxData	not a placeholder name (already descriptive: left)	sfxBankData
+soundData_t	sfxIds	not a placeholder name (already descriptive: left)	sfxBankIds
+soundData_t	sfxQueueSlot	not a placeholder name (already descriptive: left)	sfxBankRequests
+soundData_t	soundData	not a placeholder name (already descriptive: left)	waveBankData
+soundData_t	soundFileId	not a placeholder name (already descriptive: left)	waveBankId
+soundData_t	soundQueueSlot	not a placeholder name (already descriptive: left)	waveBankRequest
+soundData_t	unk14	confidence med (deferred)	musicHandles
+soundData_t	unk4	confidence med (deferred)	playingMusicHandle
+soundData_t	unk64	confidence med (deferred)	sfxStreamData
+soundData_t	unk70	confidence low (deferred)	reserved70
+soundData_t	unk8	confidence med (deferred)	currentMusicId
+soundEventTargets	count	not a placeholder name (already descriptive: left)	reserved2
+soundEventTargets	prefix	not a placeholder name (already descriptive: left)	reserved4
+soundEventTargets	target	not a placeholder name (already descriptive: left)	reserved10
+soundEventTargets	unk0	confidence low (deferred)	reserved0
+soundEventTargets	unk3	confidence low (deferred)	reserved3
+stats_t	unk1B	confidence low (deferred)	reservedF
+statusEffectTable	entries	not a placeholder name (already descriptive: left)	reserved0
+statusEffectTick	interval	not a placeholder name (already descriptive: left)	reserved6
+statusEffectTick	mask	not a placeholder name (already descriptive: left)	reserved0
+statusEffectTick	unk4	confidence low (deferred)	reserved4
+statusEffectTick	unk8	confidence low (deferred)	reserved8
+statusEffectTick	unkC	confidence low (deferred)	reservedC
+stuckMovementPosition	p	not a placeholder name (already descriptive: left)	tile
+stuckMovementPosition	raw	not a placeholder name (already descriptive: left)	word
+stuckMovementState		no struct of that name in our tree	
+tagsprt_t		no struct of that name in our tree	
+targetMovementActor		no struct of that name in our tree	
+targetMovementFlags	f0	not a placeholder name (already descriptive: left)	active
+targetMovementFlags	f1	not a placeholder name (already descriptive: left)	opaque0Bit1
+targetMovementFlags	f2	not a placeholder name (already descriptive: left)	opaque0Bit2
+targetMovementFlags	f5	not a placeholder name (already descriptive: left)	visible
+targetMovementFlags	pad3	not a placeholder name (already descriptive: left)	reserved0Bit3
+targetMovementFlags	pad6	not a placeholder name (already descriptive: left)	reserved0Bit6
+targetMovementModel	flags	not a placeholder name (already descriptive: left)	opaque8
+targetMovementModel	pad0	not a placeholder name (already descriptive: left)	reserved0
+targetMovementModel	pad1E	not a placeholder name (already descriptive: left)	reserved1E
+targetMovementModel	padC	not a placeholder name (already descriptive: left)	reservedC
+targetMovementPoint	b	not a placeholder name (already descriptive: left)	bytes
+targetMovementPoint	raw	not a placeholder name (already descriptive: left)	word
+targetMovementState		no struct of that name in our tree	
+terrainMovementActor		no struct of that name in our tree	
+terrainMovementPoint	p	not a placeholder name (already descriptive: left)	tile
+terrainMovementPoint	raw	not a placeholder name (already descriptive: left)	word
+terrainMovementState		no struct of that name in our tree	
+texMapAnimation_t		no struct of that name in our tree	
+texMapOverlay_t	h	not a placeholder name (already descriptive: left)	height
+texMapOverlay_t	w	not a placeholder name (already descriptive: left)	width
+textOffset	flags	not a placeholder name (already descriptive: left)	opaque3Bit2
+textPlacement	distance	not a placeholder name (already descriptive: left)	clampDistance
+textPlacement	offset	not a placeholder name (already descriptive: left)	anchorOffset
+textPlacement	x	not a placeholder name (already descriptive: left)	screenX
+textPlacement	y	not a placeholder name (already descriptive: left)	screenY
+trackingMotion	angle	not a placeholder name (already descriptive: left)	orbitAngle
+trackingMotion	facing	not a placeholder name (already descriptive: left)	heading
+trackingMotion	flag3	not a placeholder name (already descriptive: left)	distanceCached
+trackingMotion	height	not a placeholder name (already descriptive: left)	savedHeight
+trackingMotion	initialized	not a placeholder name (already descriptive: left)	started
+trackingMotion	pad15	not a placeholder name (already descriptive: left)	reserved15
+trackingMotion	pad8	not a placeholder name (already descriptive: left)	reserved8
+trackingMotion	phase	not a placeholder name (already descriptive: left)	healthPhase
+trackingMotion	radiusSquared	not a placeholder name (already descriptive: left)	distanceSquared
+trackingMotion	state	not a placeholder name (already descriptive: left)	phase
+trackingMotion	stateC	not a placeholder name (already descriptive: left)	cooldown
+trackingMotion	stateE	not a placeholder name (already descriptive: left)	requested
+trackingMotionActor	pad	not a placeholder name (already descriptive: left)	reserved0
+trackingMotionActor	y	not a placeholder name (already descriptive: left)	reserved1E
+trackingMotionState		no struct of that name in our tree	
+trackingMotionStats	current	not a placeholder name (already descriptive: left)	currentHp
+trackingMotionStats	maximum	not a placeholder name (already descriptive: left)	maxHp
+trackingMotionStats	pad	not a placeholder name (already descriptive: left)	reserved0
+uiTable_t	page0	not a placeholder name (already descriptive: left)	pageZeroPixels
+uiTable_t	page1	not a placeholder name (already descriptive: left)	pageOnePixels
+unkPrim		no struct of that name in our tree	
+unkPrim		no struct of that name in our tree	
+vs_actionFlags_t		no struct of that name in our tree	
+vs_action_t		a member of ours could not be read	
+vs_battle_actor		members differ from the ledger's (names or order or count)	
+vs_battle_actor2		members differ from the ledger's (names or order or count)	
+vs_battle_actor2_flags	unk0	confidence low (deferred)	reserved0
+vs_battle_actor2_flags	unk2_0	not a placeholder name (already descriptive: left)	reserved2Bit0
+vs_battle_actor2_flags	unk2_1	not a placeholder name (already descriptive: left)	reserved2Bit1
+vs_battle_actor2_flags	unk2_2	not a placeholder name (already descriptive: left)	reserved2Bit2
+vs_battle_actor2_flags	unk3	confidence low (deferred)	reserved3
+vs_battle_actor4	unk0	type differs from the ledger's (ours char[sizeof(vs_battle_wepModels_t)], theirs char[1512])	storage
+vs_battle_actor_dat		members differ from the ledger's (names or order or count)	
+vs_battle_actor_dat2		members differ from the ledger's (names or order or count)	
+vs_battle_actor_unk8C0	id	not a placeholder name (already descriptive: left)	actionId
+vs_battle_actor_unk8C0	unk2_4	not a placeholder name (already descriptive: left)	effectModelId
+vs_battle_actor_unk8C0	unk3	confidence low (deferred)	opaque3
+vs_battle_backgroundLayout	unk8	confidence low (deferred)	reserved08
+vs_battle_backgroundTile	colors	not a placeholder name (already descriptive: left)	cornerColors
+vs_battle_backgroundTile	uv	not a placeholder name (already descriptive: left)	textureRect
+vs_battle_charInitData	mpdIdentifer	not a placeholder name (already descriptive: left)	zudIndex
+vs_battle_charInitData	unk23	confidence low (deferred)	opaque23
+vs_battle_charInitData	unk24	confidence med (deferred)	material
+vs_battle_charInitData	unk26	confidence low (deferred)	opaque26
+vs_battle_charInitData	unk28	confidence low (deferred)	opaque28
+vs_battle_charInitData	unk2C	confidence low (deferred)	opaque2C
+vs_battle_charInitData	unk30	confidence low (deferred)	opaque30
+vs_battle_charInitData	unk31	confidence low (deferred)	opaque31
+vs_battle_charInitData	unk32	confidence low (deferred)	opaque32
+vs_battle_charInitData	unk33	confidence low (deferred)	reserved33
+vs_battle_charInitData	unk3_5	not a placeholder name (already descriptive: left)	enemyClass
+vs_battle_classAffinityBaseline	affinity	not a placeholder name (already descriptive: left)	affinities
+vs_battle_classAffinityBaseline	class	not a placeholder name (already descriptive: left)	classes
+vs_battle_classAffinityCurrent	affinity	not a placeholder name (already descriptive: left)	affinities
+vs_battle_classAffinityCurrent	class	not a placeholder name (already descriptive: left)	classes
+vs_battle_door	exit	not a placeholder name (already descriptive: left)	reserved1
+vs_battle_door	flags	not a placeholder name (already descriptive: left)	reserved2
+vs_battle_door	id	not a placeholder name (already descriptive: left)	reserved0
+vs_battle_door	lock	not a placeholder name (already descriptive: left)	reserved3
+vs_battle_lootListNode	actorId	not a placeholder name (already descriptive: left)	droppedMask
+vs_battle_lootedAccessory	unk1	confidence low (deferred)	reserved1
+vs_battle_lootedAccessory	unk2	confidence low (deferred)	reserved2
+vs_battle_lootedAccessory	unk3	confidence low (deferred)	reserved3
+vs_battle_lootedArmor	unk1	confidence low (deferred)	reserved1
+vs_battle_lootedArmor	unk2	confidence low (deferred)	reserved2
+vs_battle_lootedArmor	unk3	confidence low (deferred)	reserved3
+vs_battle_lootedBlade	unk1	confidence low (deferred)	reserved1
+vs_battle_lootedBlade	unk2	confidence low (deferred)	reserved2
+vs_battle_lootedBlade	unk3	confidence low (deferred)	reserved3
+vs_battle_lootedGem	unk1	confidence low (deferred)	reserved1
+vs_battle_lootedGem	unk2	confidence low (deferred)	reserved2
+vs_battle_lootedGem	unk3	confidence low (deferred)	reserved3
+vs_battle_lootedGrip	unk1	confidence low (deferred)	reserved1
+vs_battle_lootedGrip	unk2	confidence low (deferred)	reserved2
+vs_battle_lootedGrip	unk3	confidence low (deferred)	reserved3
+vs_battle_lootedMisc	id	not a placeholder name (already descriptive: left)	itemId
+vs_battle_lootedShield	unk1	confidence low (deferred)	reserved1
+vs_battle_lootedShield	unk2	confidence low (deferred)	reserved2
+vs_battle_lootedShield	unk3	confidence low (deferred)	reserved3
+vs_battle_lootedWeapon	unk1	confidence low (deferred)	reserved1
+vs_battle_lootedWeapon	unk2	confidence low (deferred)	reserved2
+vs_battle_lootedWeapon	unk3	confidence low (deferred)	reserved3
+vs_battle_manualDisplayState_t	unk2	confidence low (deferred)	reserved02
+vs_battle_manualDisplayState_t	unk20	confidence low (deferred)	reserved20
+vs_battle_manualDisplayState_t	unk22	confidence low (deferred)	reserved22
+vs_battle_manualDisplayState_t	unk23	confidence low (deferred)	reserved23
+vs_battle_movementPosition	p	not a placeholder name (already descriptive: left)	tile
+vs_battle_movementPosition	p	not a placeholder name (already descriptive: left)	tile
+vs_battle_movementPosition	p	not a placeholder name (already descriptive: left)	tile
+vs_battle_movementPosition	p	not a placeholder name (already descriptive: left)	tile
+vs_battle_movementPosition	raw	not a placeholder name (already descriptive: left)	word
+vs_battle_movementPosition	raw	not a placeholder name (already descriptive: left)	word
+vs_battle_movementPosition	raw	not a placeholder name (already descriptive: left)	word
+vs_battle_movementPosition	raw	not a placeholder name (already descriptive: left)	word
+vs_battle_objectData	actorId	not a placeholder name (already descriptive: left)	subKind
+vs_battle_objectData	dataAddr	not a placeholder name (already descriptive: left)	dataAddress
+vs_battle_objectData	dataType	not a placeholder name (already descriptive: left)	assetKind
+vs_battle_objectData	index	not a placeholder name (already descriptive: left)	targetSlot
+vs_battle_objectData	unk11	confidence med (deferred)	textureSlot
+vs_battle_objectData_flags	unk0_0	not a placeholder name (already descriptive: left)	tileX
+vs_battle_objectData_flags	unk0_16	not a placeholder name (already descriptive: left)	tileZ
+vs_battle_objectData_flags	unk0_24	not a placeholder name (already descriptive: left)	height
+vs_battle_objectData_flags	unk0_8	not a placeholder name (already descriptive: left)	direction
+vs_battle_prim	p0	not a placeholder name (already descriptive: left)	reserved0
+vs_battle_prim	p1	not a placeholder name (already descriptive: left)	reserved1
+vs_battle_prim	p2	not a placeholder name (already descriptive: left)	reserved2
+vs_battle_prim	p3	not a placeholder name (already descriptive: left)	reserved3
+vs_battle_range_t	unk1	confidence low (deferred)	secondRange
+vs_battle_range_t	unk2	confidence low (deferred)	thirdRange
+vs_battle_room		members differ from the ledger's (names or order or count)	
+vs_battle_screenTransitionWipePoly		no struct of that name in our tree	
+vs_battle_texInfo_t	clut0	not a placeholder name (already descriptive: left)	palette
+vs_battle_texInfo_t	clut1	not a placeholder name (already descriptive: left)	alternatePalette
+vs_battle_texInfo_t	refCount	not a placeholder name (already descriptive: left)	referenceCount
+vs_battle_texInfo_t	tpage	not a placeholder name (already descriptive: left)	texturePage
+vs_battle_textBox	unk1F	confidence low (deferred)	reserved1F
+vs_battle_textBox	unk22	confidence med (deferred)	openDuration
+vs_battle_textBox	unk23	confidence low (deferred)	reserved23
+vs_battle_textBox	unk24	confidence med (deferred)	frameX
+vs_battle_textBox	unk26	confidence med (deferred)	frameY
+vs_battle_textBox	unk28	confidence med (deferred)	frameWidth
+vs_battle_textBox	unk2A	confidence med (deferred)	frameHeight
+vs_battle_textBox	unk2C	confidence low (deferred)	opaque2C
+vs_battle_textBox	unk2E	confidence low (deferred)	opaque2E
+vs_battle_textBox	unk4	confidence low (deferred)	opaque4
+vs_battle_textBox	unk6	confidence low (deferred)	opaque6
+vs_battle_textBox_fields	unk0_0	not a placeholder name (already descriptive: left)	kind
+vs_battle_textBox_fields	unk0_12	not a placeholder name (already descriptive: left)	framePart
+vs_battle_textBox_fields	unk0_24	not a placeholder name (already descriptive: left)	speakerTexture
+vs_battle_textBox_fields	unk0_31	not a placeholder name (already descriptive: left)	opaque3Bit7
+vs_battle_textBox_fields	unk0_4	not a placeholder name (already descriptive: left)	openStyle
+vs_battle_textBox_fields	unk0_6	not a placeholder name (already descriptive: left)	alignment
+vs_battle_textBox_fields	unk0_8	not a placeholder name (already descriptive: left)	frameShape
+vs_battle_uiArmor	unk88	confidence med (deferred)	affinityModifiers
+vs_battle_uiArmor	unk99	confidence low (deferred)	opaque99
+vs_battle_uiArmor	unk9B	confidence low (deferred)	reserved9B
+vs_battle_uiEquipment	unk14	confidence low (deferred)	opaque14
+vs_battle_uiEquipment	wepId	not a placeholder name (already descriptive: left)	weaponModelId
+vs_battle_uiMisc	unk3	confidence low (deferred)	reserved03
+vs_battle_uiMiscRand	unk3	confidence low (deferred)	reserved03
+vs_battle_uiShield	unk0	confidence low (deferred)	reserved0
+vs_battle_uiShield	unk134	confidence med (deferred)	affinityModifiers
+vs_battle_uiShield	unkDB	confidence low (deferred)	reservedDB
+vs_battle_uiWeapon	unk10B	confidence med (deferred)	recoveryDelay
+vs_battle_uiWeapon	unk168	confidence med (deferred)	affinityModifiers
+vs_battle_uiWeapon_unk	unk0	confidence low (deferred)	reserved0
+vs_battle_wepModels_t		members differ from the ledger's (names or order or count)	
+vs_closedRingPrim		no struct of that name in our tree	
+vs_closedRingState	pad	not a placeholder name (already descriptive: left)	reserved2
+vs_closedRingUV	u	not a placeholder name (already descriptive: left)	reserved0
+vs_closedRingUV	v	not a placeholder name (already descriptive: left)	reserved1
+vs_gridPrim		no struct of that name in our tree	
+vs_hitParams_t		a member of ours could not be read	
+vs_main_CdQueueSlot	unkC	confidence low (deferred)	opaqueC
+vs_main_HeapHeader	blockSz	not a placeholder name (already descriptive: left)	blockSize
+vs_main_HeapHeader	unkC	confidence low (deferred)	reservedC
+vs_main_disk_t	cdLoc	not a placeholder name (already descriptive: left)	position
+vs_main_disk_t	cdSector	not a placeholder name (already descriptive: left)	startSector
+vs_main_disk_t	pcm	not a placeholder name (already descriptive: left)	xaFilter
+vs_main_disk_t	ringBufIndex	not a placeholder name (already descriptive: left)	ringReadIndex
+vs_main_disk_t	sectorBufIndex	not a placeholder name (already descriptive: left)	destinationSector
+vs_main_disk_t	unk1	confidence low (deferred)	xaModeMarker
+vs_main_disk_t	unk2	confidence low (deferred)	reserved2
+vs_main_disk_t	unk24	confidence low (deferred)	reserved24
+vs_main_disk_t	unk28	confidence low (deferred)	reserved28
+vs_main_disk_t	vram	not a placeholder name (already descriptive: left)	destination
+vs_main_flags_t	acaciaSigilUsed	not a placeholder name (already descriptive: left)	reserved393
+vs_main_flags_t	anemoneSigilUsed	not a placeholder name (already descriptive: left)	reserved397
+vs_main_flags_t	asterSigilUsed	not a placeholder name (already descriptive: left)	reserved38E
+vs_main_flags_t	azaleaSigilUsed	not a placeholder name (already descriptive: left)	reserved39B
+vs_main_flags_t	bronzeKeyObtained	not a placeholder name (already descriptive: left)	reserved380
+vs_main_flags_t	callaSigilUsed	not a placeholder name (already descriptive: left)	reserved391
+vs_main_flags_t	cattleyaSigilUsed	not a placeholder name (already descriptive: left)	reserved39E
+vs_main_flags_t	chamomileSigilUsed	not a placeholder name (already descriptive: left)	reserved388
+vs_main_flags_t	clematisSigilUsed	not a placeholder name (already descriptive: left)	reserved38B
+vs_main_flags_t	colombineSigilUsed	not a placeholder name (already descriptive: left)	reserved396
+vs_main_flags_t	crimsonKeyObtained	not a placeholder name (already descriptive: left)	reserved386
+vs_main_flags_t	euleliaSigilUsed	not a placeholder name (already descriptive: left)	reserved38F
+vs_main_flags_t	fernSigilUsed	not a placeholder name (already descriptive: left)	reserved38D
+vs_main_flags_t	hyacinthSigilUsed	not a placeholder name (already descriptive: left)	reserved38C
+vs_main_flags_t	ironKeyObtained	not a placeholder name (already descriptive: left)	reserved381
+vs_main_flags_t	kalmiaSigilUsed	not a placeholder name (already descriptive: left)	reserved395
+vs_main_flags_t	laurelSigilUsed	not a placeholder name (already descriptive: left)	reserved392
+vs_main_flags_t	lilySigilUsed	not a placeholder name (already descriptive: left)	reserved389
+vs_main_flags_t	mandrakeSigilUsed	not a placeholder name (already descriptive: left)	reserved39F
+vs_main_flags_t	marigoldSigilUsed	not a placeholder name (already descriptive: left)	reserved39A
+vs_main_flags_t	melissaSigilUsed	not a placeholder name (already descriptive: left)	reserved390
+vs_main_flags_t	palmSigilUsed	not a placeholder name (already descriptive: left)	reserved394
+vs_main_flags_t	platinumKeyObtained	not a placeholder name (already descriptive: left)	reserved384
+vs_main_flags_t	schirraSigilUsed	not a placeholder name (already descriptive: left)	reserved399
+vs_main_flags_t	silverKeyObtained	not a placeholder name (already descriptive: left)	reserved382
+vs_main_flags_t	steelKeyObtained	not a placeholder name (already descriptive: left)	reserved385
+vs_main_flags_t	stockSigilUsed	not a placeholder name (already descriptive: left)	reserved39D
+vs_main_flags_t	tearoseSigilUsed	not a placeholder name (already descriptive: left)	reserved38A
+vs_main_flags_t	tigertailSigilUsed	not a placeholder name (already descriptive: left)	reserved39C
+vs_main_flags_t	unk106	confidence low (deferred)	reserved106
+vs_main_flags_t	unk11	confidence low (deferred)	opaque11
+vs_main_flags_t	unk11E	confidence low (deferred)	reserved11E
+vs_main_flags_t	unk12	confidence low (deferred)	reserved12
+vs_main_flags_t	unk13	confidence low (deferred)	reserved13
+vs_main_flags_t	unk135	confidence low (deferred)	reserved155
+vs_main_flags_t	unk14	confidence low (deferred)	reserved14
+vs_main_flags_t	unk15	confidence low (deferred)	reserved15
+vs_main_flags_t	unk16	confidence low (deferred)	reserved16
+vs_main_flags_t	unk17	confidence low (deferred)	reserved17
+vs_main_flags_t	unk18	confidence low (deferred)	reserved18
+vs_main_flags_t	unk186	confidence low (deferred)	opaque186
+vs_main_flags_t	unk19	confidence low (deferred)	reserved19
+vs_main_flags_t	unk1A	confidence low (deferred)	reserved1A
+vs_main_flags_t	unk1B	confidence low (deferred)	reserved1B
+vs_main_flags_t	unk1B6	confidence low (deferred)	reserved1B6
+vs_main_flags_t	unk1C	confidence low (deferred)	reserved1C
+vs_main_flags_t	unk1D	confidence low (deferred)	reserved1D
+vs_main_flags_t	unk1E	confidence low (deferred)	reserved1E
+vs_main_flags_t	unk1F	confidence low (deferred)	reserved1F
+vs_main_flags_t	unk20	confidence low (deferred)	opaque20
+vs_main_flags_t	unk21	confidence low (deferred)	reserved21
+vs_main_flags_t	unk3	confidence low (deferred)	reserved3
+vs_main_flags_t	unk33F	confidence low (deferred)	opaque33F
+vs_main_flags_t	unk3A8	confidence low (deferred)	reserved3A0
+vs_main_flags_t	unk4	confidence low (deferred)	reserved4
+vs_main_flags_t	unk40	confidence low (deferred)	opaque40
+vs_main_flags_t	unk400	confidence low (deferred)	reserved400
+vs_main_flags_t	unk41	confidence low (deferred)	reserved41
+vs_main_flags_t	unk5	confidence low (deferred)	reserved5
+vs_main_flags_t	unk6	confidence low (deferred)	reserved6
+vs_main_flags_t	unk7	confidence low (deferred)	reserved7
+vs_main_flags_t	unk8	confidence low (deferred)	reserved8
+vs_main_flags_t	unk9	confidence low (deferred)	reserved9
+vs_main_flags_t	unkA	confidence low (deferred)	reservedA
+vs_main_flags_t	unkA5	confidence low (deferred)	reservedA5
+vs_main_flags_t	unkA6	confidence low (deferred)	reservedA6
+vs_main_flags_t	unkA7	confidence low (deferred)	opaqueA7
+vs_main_flags_t	unkA8	confidence low (deferred)	opaqueA8
+vs_main_flags_t	unkA9	confidence low (deferred)	reservedA9
+vs_main_flags_t	unkAA	confidence low (deferred)	reservedAA
+vs_main_flags_t	unkAC	confidence low (deferred)	opaqueAC
+vs_main_flags_t	unkB	confidence low (deferred)	reservedB
+vs_main_flags_t	unkB5	confidence low (deferred)	opaqueB5
+vs_main_flags_t	unkBA	confidence low (deferred)	reservedBA
+vs_main_flags_t	unkBB	confidence low (deferred)	reservedBB
+vs_main_flags_t	unkBC	confidence low (deferred)	reservedBC
+vs_main_flags_t	unkBD	confidence low (deferred)	reservedBD
+vs_main_flags_t	unkBE	confidence low (deferred)	reservedBE
+vs_main_flags_t	unkBF	confidence low (deferred)	reservedBF
+vs_main_flags_t	unkC	confidence low (deferred)	opaqueC
+vs_main_flags_t	unkC0	confidence low (deferred)	reservedC0
+vs_main_flags_t	unkC1	confidence low (deferred)	reservedC1
+vs_main_flags_t	unkC2	confidence low (deferred)	reservedC2
+vs_main_flags_t	unkC3	confidence low (deferred)	reservedC3
+vs_main_flags_t	unkC8	confidence low (deferred)	reservedC8
+vs_main_flags_t	unkC9	confidence low (deferred)	reservedC9
+vs_main_flags_t	unkCA	confidence low (deferred)	reservedCA
+vs_main_flags_t	unkCB	confidence low (deferred)	reservedCB
+vs_main_flags_t	unkD	confidence low (deferred)	opaqueD
+vs_main_flags_t	unkD2	confidence low (deferred)	reservedD2
+vs_main_flags_t	unkE	confidence low (deferred)	opaqueE
+vs_main_flags_t	unkF	confidence low (deferred)	reservedF
+vs_main_flags_t	verbenaSigilUsed	not a placeholder name (already descriptive: left)	reserved398
+vs_main_inventoryBlade	unk10_5	not a placeholder name (already descriptive: left)	reserved10Bit5
+vs_main_inventoryBlade	unk11	confidence low (deferred)	reserved11
+vs_main_inventoryBlade	unk12	confidence low (deferred)	opaque12
+vs_main_inventoryGem	unk3	confidence low (deferred)	reserved3
+vs_main_inventoryShield	unk2	confidence low (deferred)	reserved2
+vs_main_scoredata_t	unk10	confidence low (deferred)	reserved10
+vs_main_scoredata_t	unk8A	confidence low (deferred)	reserved8A
+vs_main_settings_t	unk0_0	not a placeholder name (already descriptive: left)	reserved0Bit0
+vs_main_sfxContext	unk0	confidence low (deferred)	reserved0
+vs_main_sfxContext	unk4	confidence low (deferred)	reserved4
+vs_main_sfxContext	unk8	confidence low (deferred)	reserved8
+vs_main_statusEffectParams_t		no struct of that name in our tree	
+vs_menu_container	data	not a placeholder name (already descriptive: left)	items
+vs_menu_inventoryStorage_t	unk0	confidence med (deferred)	savedInventory
+vs_menu_inventoryStorage_t	unk105B0	confidence med (deferred)	gadgetBag
+vs_menu_inventoryStorage_t	unk4BB0	confidence med (deferred)	transferPreview
+vs_menu_inventoryStorage_t	unk87B0	confidence med (deferred)	stagedTransfer
+vs_menu_inventoryStorage_t	unkC430	confidence med (deferred)	container
+vs_menu_inventoryStorage_t	unkF00	confidence med (deferred)	savedInventoryIndices
+vs_menu_inventoryStorage_t	unkFB0	confidence med (deferred)	storedContainer
+vs_mesh10Prim		no struct of that name in our tree	
+vs_mesh10State	pad	not a placeholder name (already descriptive: left)	reserved2
+vs_mirrorSurfacePrim		no struct of that name in our tree	
+vs_mirrorSurfaceState	pad	not a placeholder name (already descriptive: left)	reserved2
+vs_particleLine		no struct of that name in our tree	
+vs_particlePrim		no struct of that name in our tree	
+vs_ringPrim		no struct of that name in our tree	
+vs_ringState	pad	not a placeholder name (already descriptive: left)	reserved2
+vs_rotatingSurfacePrim		no struct of that name in our tree	
+vs_rotatingSurfaceState	pad	not a placeholder name (already descriptive: left)	reserved2
+vs_scratch_t		members differ from the ledger's (names or order or count)	
+vs_surfacePrim		no struct of that name in our tree	
+vs_surfaceState	pad	not a placeholder name (already descriptive: left)	reserved2
+vs_tiledRingPrim		no struct of that name in our tree	
+vs_tiledRingState	pad	not a placeholder name (already descriptive: left)	reserved2
+vs_trail9	unk	not a placeholder name (already descriptive: left)	opaque74
+vs_trail9Prim		no struct of that name in our tree	
+vs_trail9State	trailcount	not a placeholder name (already descriptive: left)	trailCount
+vs_trail9State	unk0	confidence med (deferred)	lifetime
+vs_trail9State	unk1	confidence med (deferred)	effect
+vs_trail9State	unk3	confidence low (deferred)	opaque3
+vs_trail9State	unkC	confidence med (deferred)	texture
+vs_transposedRingPrim		no struct of that name in our tree	
+vs_transposedRingState	pad	not a placeholder name (already descriptive: left)	reserved2
+vs_transposedRingUV	u	not a placeholder name (already descriptive: left)	reserved0
+vs_transposedRingUV	v	not a placeholder name (already descriptive: left)	reserved1
+wanderObject	flags	not a placeholder name (already descriptive: left)	opaque8
+wanderObject	pad0	not a placeholder name (already descriptive: left)	reserved0
+wanderState		no struct of that name in our tree	
+zudHeader	blade	not a placeholder name (already descriptive: left)	weaponOffset
+zudHeader	effect	not a placeholder name (already descriptive: left)	commonAnimationOffset
+zudHeader	effectSize	not a placeholder name (already descriptive: left)	commonAnimationSize
+zudHeader	model	not a placeholder name (already descriptive: left)	characterShapeOffset
+zudHeader	shield	not a placeholder name (already descriptive: left)	shieldOffset
+zudHeader	unk14	confidence med (deferred)	weaponSize
+zudHeader	unk1C	confidence med (deferred)	shieldSize
+zudHeader	unkC	confidence med (deferred)	characterShapeSize
+zudHeader	weaponEffect	not a placeholder name (already descriptive: left)	battleAnimationOffset
+zudHeader	weaponEffectSize	not a placeholder name (already descriptive: left)	battleAnimationSize

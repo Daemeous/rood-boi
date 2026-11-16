@@ -13,6 +13,6 @@ pub fn func_800A11D8(index: c_int, bone: c_int, out_matrix: ?*v.MATRIX, out_arma
     }
     const m = model.?;
     out_matrix.?.* = psx.at(&m.bones, bone).*;
-    const shape = psx.get(m.unk0.unk68).?;
+    const shape = psx.get(m.unk0.model).?;
     out_armature[0] = psx.conv(c_uint, psx.at(&shape.armatures, bone).unk0);
 }

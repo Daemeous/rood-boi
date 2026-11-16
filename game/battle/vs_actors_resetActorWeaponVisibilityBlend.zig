@@ -10,7 +10,7 @@ pub fn vs_actors_resetActorWeaponVisibilityBlend(arg0: c_int) callconv(.c) void 
 
     var i: c_int = 0;
     while (i < 2) : (i += 1) {
-        const model = psx.at(v.g.vs_battle_wepModels(), @as(c_int, temp.unk0.unkF) *% 2 +% i).*;
+        const model = psx.at(v.g.vs_battle_wepModels(), @as(c_int, temp.unk0.slot) *% 2 +% i).*;
         if (model) |m| {
             if (m.unkD != 0) {
                 if (psx.getBits(m, "unk8_4") != 0) {

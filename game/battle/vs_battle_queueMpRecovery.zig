@@ -8,7 +8,7 @@ const c = @import("c_146C");
 pub fn vs_battle_queueMpRecovery(action: ?*v.vs_action_t, source: ?*v._hitEntity_t, target: ?*v._hitEntity_t, hit: c_int, arg4: c_int) callconv(.c) c_int {
     const amount = c._calculateStatChange(@ptrCast(action), @ptrCast(source), @ptrCast(target), hit, arg4);
     const entity = target.?;
-    entity.unk0.mp = psx.conv(i16, @as(c_int, entity.unk0.mp) +% amount);
+    entity.target.mp = psx.conv(i16, @as(c_int, entity.target.mp) +% amount);
     psx.setBits(entity, "mpEffect", 2);
     return 0; // no return statement in the C (the result register's leftover)
 }

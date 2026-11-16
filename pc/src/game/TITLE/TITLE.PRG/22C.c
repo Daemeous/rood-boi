@@ -693,8 +693,8 @@ static void _packageGameSaveData(int targetFile)
     vs_main_settings.currentGameSaveCount = 0;
     s5->unk180.base.unk8 = 0x20000107;
     s5->stats.gameTime.t = vs_main_gametime.t;
-    s5->stats.currentHP = vs_state_ashleySnapshot.unk0.currentHP;
-    s5->stats.maxHP = vs_state_ashleySnapshot.unk0.maxHP;
+    s5->stats.currentHP = vs_state_ashleySnapshot.stats.currentHP;
+    s5->stats.maxHP = vs_state_ashleySnapshot.stats.maxHP;
     s5->stats.cumulativeSaveCount = vs_main_settings.cumulativeSaveCount;
     s5->stats.currentGameSaveCount = vs_main_settings.currentGameSaveCount;
     s5->stats.saveLocation = 0x30;
@@ -704,8 +704,8 @@ static void _packageGameSaveData(int targetFile)
     memset(&savedata2->containerData.misc, 0,
         sizeof savedata2->containerData.misc / 4); // Why / 4?
     s5->stats.clearCount = vs_main_stateFlags.clearCount;
-    s5->stats.currentMP = vs_state_ashleySnapshot.unk0.currentMP;
-    s5->stats.maxMP = vs_state_ashleySnapshot.unk0.maxMP;
+    s5->stats.currentMP = vs_state_ashleySnapshot.stats.currentMP;
+    s5->stats.maxMP = vs_state_ashleySnapshot.stats.maxMP;
     _rMemcpy(savedata->unk200, &vs_main_stateFlags, sizeof savedata->unk200);
     _rMemcpy(savedata->unk640, vs_main_actionsLearned, sizeof savedata->unk640);
     _rMemcpy(savedata->mapStatus, &vs_main_mapStatus, sizeof savedata->mapStatus);
@@ -4871,7 +4871,7 @@ static void _initGameData(void)
     vs_gametime_tickspeed = 2;
     vs_state_savedEntryDoor.unk4_8 = 4;
     vs_state_savedEntryDoor.unk6_10 = 2;
-    vs_state_savedEntryDoor.unk2.unk0_13 = 0;
+    vs_state_savedEntryDoor.tileLocation.unk0_13 = 0;
     vs_state_savedEntryDoor.unk4_13 = 2;
 }
 

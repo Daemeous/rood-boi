@@ -188,7 +188,7 @@ static void effect_nodes(struct json* j)
                 e->unk30, e->unk34, e->unk35, e->unk36, e->unk37, e->unkBE, fnv(&e->unk38, sizeof e->unk38 + sizeof e->unk58),
                 fnv(e->unk78, sizeof e->unk78 + 2 + sizeof e->unkC0));
         }
-        put(j, "t3a", n->unkD1C.unk38); put(j, "t3b", n->unkD1C.unk3A); put(j, "t3c", n->unkD1C.unk3C);
+        put(j, "t3a", n->context.effectId); put(j, "t3b", n->context.unk3A); put(j, "t3c", n->context.unk3C);
         j->p += sprintf(j->p, "\"particles\":[");
         int k = 0;
         for (func_800D2904_t* p = n->unk18; p && k < 96 && guest_pointer(p, sizeof *p); p = p->next, ++k) {
@@ -236,7 +236,7 @@ void pc_rpc_battle_state(char* out, unsigned size)
         if (o) {
             j.p += sprintf(j.p, "\"object\":{");
             put(&j, "x", o->unk0.position.vx); put(&j, "y", o->unk0.position.vy); put(&j, "z", o->unk0.position.vz);
-            put(&j, "angleX", o->unk0.unk24); F(&j, &o->unk0, facing); put(&j, "angleZ", o->unk0.unk28);
+            put(&j, "angleX", o->unk0.rotationX); F(&j, &o->unk0, facing); put(&j, "angleZ", o->unk0.rotationZ);
             put(&j, "tileX", o->unk0.currentTileX); put(&j, "tileZ", o->unk0.currentTileZ);
             put(&j, "flags8", *(unsigned*)((char*)&o->unk0 + 8)); put(&j, "flagsC", *(unsigned*)((char*)&o->unk0 + 0xC));
             put(&j, "flags5AC", VS_OBJECT_FLAGS5AC(o)); F(&j, o, animationId); F(&j, o, unk5B9); F(&j, o, unk5BA);

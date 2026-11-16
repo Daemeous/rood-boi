@@ -13,7 +13,7 @@ const HitFunction = *const fn (?*v.vs_action_t, ?*v._hitEntity_t, ?*v._hitEntity
 pub fn doesAttackHit(action: ?*v.vs_action_t, source: ?*v._hitEntity_t, target: ?*v._hitEntity_t, hitNumber: c_int, addVariance: c_int) callconv(.c) c_int {
     const actors = v.g.vs_battle_actors();
     var threshold: c_int = undefined;
-    if (target.?.unk40 == 0 and psx.get(actors[target.?.unk0.targetActor].?.stats).?.unk957 == 0x80) {
+    if (target.?.unk40 == 0 and psx.get(actors[target.?.target.targetActor].?.stats).?.actorId == 0x80) {
         threshold = 100;
     } else {
         const table = psx.GlobalMany(?HitFunction, "_hitFunctions").ptr();
@@ -21,7 +21,7 @@ pub fn doesAttackHit(action: ?*v.vs_action_t, source: ?*v._hitEntity_t, target: 
         const params = psx.at(&action.?.hitParams, hitNumber);
         threshold = table[psx.getBits(params, "hitFunction")].?(action, source, target, hitNumber, addVariance);
         if (@as(c_int, psx.getBits(action.?, "type")) == c.actionTypeSpell and
-            psx.get(actors[target.?.unk0.targetActor].?.stats).?.statuses < 0)
+            psx.get(actors[target.?.target.targetActor].?.stats).?.statuses < 0)
         {
             threshold = 0;
         }
@@ -31,7 +31,7 @@ pub fn doesAttackHit(action: ?*v.vs_action_t, source: ?*v._hitEntity_t, target: 
     }
     if (threshold != 255) {
         if (target.?.unk40 == 0) {
-            if (psx.get(actors[target.?.unk0.targetActor].?.stats).?.statuses & 4 != 0) {
+            if (psx.get(actors[target.?.target.targetActor].?.stats).?.statuses & 4 != 0) {
                 threshold *%= 2;
             }
         }
@@ -39,12 +39,12 @@ pub fn doesAttackHit(action: ?*v.vs_action_t, source: ?*v._hitEntity_t, target: 
             threshold = 100;
         }
     }
-    if (hitNumber == 0 or target.?.unk0.hitThreshold == 255) {
-        target.?.unk0.hitThreshold = psx.conv(u8, threshold);
+    if (hitNumber == 0 or target.?.target.hitThreshold == 255) {
+        target.?.target.hitThreshold = psx.conv(u8, threshold);
     }
     const chance = c.vs_main_getRand(100);
     if (threshold != 255) {
-        if (source.?.unk40 == 0 and source.?.unk0.targetActor == 0) {
+        if (source.?.unk40 == 0 and source.?.target.targetActor == 0) {
             threshold +%= 10;
         }
         return @intFromBool(chance < threshold);

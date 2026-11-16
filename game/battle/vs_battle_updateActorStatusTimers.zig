@@ -48,7 +48,7 @@ pub fn vs_battle_updateActorStatusTimers(actor: ?*v.vs_battle_actor2) callconv(.
                 } else {
                     a.currentHP = psx.conv(i16, @as(c_int, a.currentHP) -% hp);
                 }
-                c.func_80093B68(@as(c_int, a.unk957), 0, hp | @as(c_int, @bitCast(@as(c_uint, 0x8000_0000))), 0);
+                c.func_80093B68(@as(c_int, a.actorId), 0, hp | @as(c_int, @bitCast(@as(c_uint, 0x8000_0000))), 0);
             } else if ((a.statuses & 0x20000) != 0) {
                 // regen: gain HP and heal every limb that is hurt
                 a.statusTimers[5] = v.g.vs_battle_statusParams17TickInterval().*;
@@ -65,7 +65,7 @@ pub fn vs_battle_updateActorStatusTimers(actor: ?*v.vs_battle_actor2) callconv(.
                     }
                 }
 
-                c.func_80093B68(@as(c_int, a.unk957), 0, hp, 0);
+                c.func_80093B68(@as(c_int, a.actorId), 0, hp, 0);
             }
         }
     }
@@ -82,7 +82,7 @@ pub fn vs_battle_updateActorStatusTimers(actor: ?*v.vs_battle_actor2) callconv(.
         if (found != 0) statuses |= 0x10;
     }
 
-    if (a.unk957 == 0) {
+    if (a.actorId == 0) {
         if ((a.statuses & 0xF) != 0) {
             for (0..4) |i| {
                 const flag = v.g.D_800E8204()[i];
@@ -98,7 +98,7 @@ pub fn vs_battle_updateActorStatusTimers(actor: ?*v.vs_battle_actor2) callconv(.
     }
 
     if (statuses != 0) {
-        c.func_80093FEC(@as(c_int, a.unk957), 0, statuses, 1);
+        c.func_80093FEC(@as(c_int, a.actorId), 0, statuses, 1);
         c.vs_battle_removeActorStatuses(statuses, @ptrCast(a));
     }
 }

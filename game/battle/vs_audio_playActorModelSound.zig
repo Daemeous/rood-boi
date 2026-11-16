@@ -13,7 +13,7 @@ pub fn vs_audio_playActorModelSound(arg0: ?*v.D_800F4538_unk0, arg1: c_int) call
 
     if (@as(c_int, rec.position.vy) >= 0xBB8) return;
 
-    const actor = psx.at(v.g.vs_actors_actorRecords(), rec.unkF).*.?;
+    const actor = psx.at(v.g.vs_actors_actorRecords(), rec.slot).*.?;
 
     var sp0: c_int = undefined;
     var sp1: c_int = undefined;
@@ -23,7 +23,7 @@ pub fn vs_audio_playActorModelSound(arg0: ?*v.D_800F4538_unk0, arg1: c_int) call
     } else {
         // The int at byte 8 of unk0: `(int*)&nQuads + 1`.
         if ((psx.fieldAt(c_int, &actor.unk0, 8).* & 0x3F9F00) != 0x8000) {
-            _ = c.vs_actors_targetPoint(@as(c_int, rec.unkF), 0xFF, @ptrCast(&actor.unk6FC), 0);
+            _ = c.vs_actors_targetPoint(@as(c_int, rec.slot), 0xFF, @ptrCast(&actor.unk6FC), 0);
         }
 
         const temp = c.vs_main_computeSfxPan(psx.fieldAt(c_int, &actor.unk6FC, 0).*, @as(c_int, actor.unk6FC.vz));
@@ -40,7 +40,7 @@ pub fn vs_audio_playActorModelSound(arg0: ?*v.D_800F4538_unk0, arg1: c_int) call
 
     if (sp1 == 0) return;
 
-    const akao_raw: *align(4) anyopaque = @ptrFromInt(@intFromPtr(psx.get(rec.unk68).?) +% psx.get(rec.unk68).?.akaoOffset);
+    const akao_raw: *align(4) anyopaque = @ptrFromInt(@intFromPtr(psx.get(rec.model).?) +% psx.get(rec.model).?.akaoOffset);
     const akao: [*c]c_uint = @ptrCast(akao_raw);
 
     if (kind == 8) {

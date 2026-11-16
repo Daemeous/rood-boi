@@ -12,13 +12,13 @@ pub fn vs_field_beginTrapInteraction(section: ?*v._mpdRoomSectionA, source: ?*v.
     v.g._cameraMode().* = 1;
     _ = c.vs_field_storePreferredActionCameraDistance();
     psx.put(&v.g.vs_field_interactionFocus().unk0, section);
-    v.g.vs_field_interactionFocus().unk4.unk0 = source.?.*;
-    v.g.vs_field_interactionFocus().unk4.unkC = arg2;
+    v.g.vs_field_interactionFocus().unk4.location = source.?.*;
+    v.g.vs_field_interactionFocus().unk4.actorIndex = arg2;
     for (0..16) |i| {
         c.func_8009E5C4(@intCast(i));
     }
     if (v.g.vs_main_settings().information != 0) {
-        c.vs_battle_displaySceneMessage(0xB, @as(c_int, section.?.unk0.unk6) +% 6, 1);
+        c.vs_battle_displaySceneMessage(0xB, @as(c_int, section.?.trigger.unk6) +% 6, 1);
     }
     v.g.vs_battle_actionState().*.?.unk4 = 0;
     v.g.vs_battle_actionState().*.?.unk8.actionIndex = 0;

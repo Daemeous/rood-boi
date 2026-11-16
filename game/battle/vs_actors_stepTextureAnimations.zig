@@ -20,26 +20,26 @@ pub fn vs_actors_stepTextureAnimations(actor: ?*v.D_800F4538_t) callconv(.c) c_i
         if (psx.getBits(slot, "unk0_0") == 0) continue;
         const mode = psx.getBits(slot, "unk0_4");
         if (mode == 2) continue;
-        if (mode == 0 and slot.unk1 == 1) {
+        if (mode == 0 and slot.currentFrame == 1) {
             psx.setBits(slot, "unk0_0", 0);
             continue;
         }
         if (mode == 0 or mode == 1) {
             const row: c_uint = psx.getBits(slot, "unk0_0");
             var p: *v.func_800AAE9C_t = if (i == 0)
-                psx.at(@as([*]v.func_800AAE9C_t, @ptrCast(psx.at(v.g.D_800E909C(), row))), slot.unk2)
+                psx.at(@as([*]v.func_800AAE9C_t, @ptrCast(psx.at(v.g.D_800E909C(), row))), slot.keyIndex)
             else
-                psx.at(@as([*]v.func_800AAE9C_t, @ptrCast(psx.at(v.g.D_800E916C(), row))), slot.unk2);
+                psx.at(@as([*]v.func_800AAE9C_t, @ptrCast(psx.at(v.g.D_800E916C(), row))), slot.keyIndex);
 
-            slot.unk3 +%= 1;
+            slot.ticks +%= 1;
 
-            if (p.unk1 < slot.unk3) {
-                slot.unk3 = 0;
-                slot.unk2 +%= 1;
+            if (p.duration < slot.ticks) {
+                slot.ticks = 0;
+                slot.keyIndex +%= 1;
                 p = psx.at(p, 1);
 
-                if (p.unk0 == 0) {
-                    slot.unk2 = 0;
+                if (p.frame == 0) {
+                    slot.keyIndex = 0;
                     p = if (i == 0)
                         &psx.at(v.g.D_800E909C(), psx.getBits(slot, "unk0_0"))[0]
                     else
@@ -47,13 +47,13 @@ pub fn vs_actors_stepTextureAnimations(actor: ?*v.D_800F4538_t) callconv(.c) c_i
                 }
             }
 
-            if (p.unk0 == 0) {
+            if (p.frame == 0) {
                 return i;
             }
 
-            slot.unk1 = p.unk0;
+            slot.currentFrame = p.frame;
         }
-        c.vs_actors_textureFrameMove(@ptrCast(actor.?), i, @as(c_int, slot.unk1) -% 1);
+        c.vs_actors_textureFrameMove(@ptrCast(actor.?), i, @as(c_int, slot.currentFrame) -% 1);
     }
     return 1;
 }

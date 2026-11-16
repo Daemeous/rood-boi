@@ -12,11 +12,11 @@ pub fn vs_field_interactWithLockedRoomObject(arg0: ?*v._mpdRoomSectionA) callcon
 
     // sp10[1] and sp10[3] are never written in the original; they are zeroed here.
     var sp10 = [_]i16{ 0, 0, 0, 0 };
-    sp10[0] = psx.conv(i16, (@as(c_int, sec.unk0.unk0) << 7) +% 0x40);
-    sp10[2] = psx.conv(i16, (@as(c_int, sec.unk0.unk2) << 7) +% 0x40);
+    sp10[0] = psx.conv(i16, (@as(c_int, sec.trigger.tileX) << 7) +% 0x40);
+    sp10[2] = psx.conv(i16, (@as(c_int, sec.trigger.tileZ) << 7) +% 0x40);
     var action: c_int = 0;
 
-    switch (sec.unk0.unk8.lock.state) {
+    switch (sec.trigger.unk8.lock.state) {
         0 => action = 1,
         1, 3 => {
             if (c.vs_battle_itemIdIsInInventory(@as(c_int, sec.keyOrSigil)) != 0) {
@@ -24,10 +24,10 @@ pub fn vs_field_interactWithLockedRoomObject(arg0: ?*v._mpdRoomSectionA) callcon
                     c.vs_battle_setStateFlag(psx.conv(c_short, @as(c_int, sec.keyOrSigil) +% 0x1B6), 2);
                     _ = c.vs_battle_decreaseMiscCount(@as(c_int, sec.keyOrSigil));
                 }
-                sec.unk0.unk8.lock.state = 0;
+                sec.trigger.unk8.lock.state = 0;
                 action = 2;
             } else if (c.vs_battle_getStateFlag(psx.conv(c_short, @as(c_int, sec.keyOrSigil) +% 0x1B6)) != 0) {
-                sec.unk0.unk8.lock.state = 0;
+                sec.trigger.unk8.lock.state = 0;
                 action = 3;
             }
         },
@@ -47,10 +47,10 @@ pub fn vs_field_interactWithLockedRoomObject(arg0: ?*v._mpdRoomSectionA) callcon
         return 0;
     }
 
-    if (sec.unk0.unk8.lock.state != 0) {
+    if (sec.trigger.unk8.lock.state != 0) {
         // Other lock states leave template unset in the original; it is zeroed here.
         var template: c_int = 0;
-        switch (sec.unk0.unk8.lock.state) {
+        switch (sec.trigger.unk8.lock.state) {
             1 => {
                 template = 6;
                 if (@as(c_int, sec.keyOrSigil) >= c.chamomileSigil) {

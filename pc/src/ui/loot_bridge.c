@@ -1351,7 +1351,7 @@ static int field_free(void)
 {
     return D_800F196C == 1 && vs_battle_screenTransitionStep != 1 && vs_battle_screenTransitionStep != 2
         && vs_battle_screenTransitionStep != 4 && vs_battle_characterState != NULL
-        && !(vs_actors_actorStateFlags(0) & 0x4000) && vs_battle_characterState->unk3C->unk954 == 0
+        && !(vs_actors_actorStateFlags(0) & 0x4000) && vs_battle_characterState->unk3C->actionRecoveryTimer == 0
         && vs_battle_menuState.currentMenu == 0x3F;
 }
 int pc_ui_loot_debug_open(const unsigned char* data, int nodes, int chest)
@@ -1438,19 +1438,19 @@ int pc_ui_loot_debug_chest(int index, int out[12])
     out[11] = field_free();
     if (c == NULL)
         return n;
-    out[0] = c->unk0;
-    out[1] = c->unk2;
+    out[0] = c->tileX;
+    out[1] = c->tileZ;
     out[2] = c->unk4;
-    out[3] = c->unk10;
-    out[4] = vs_battle_getStateFlag(c->unk10 + 0x3C0);
+    out[3] = c->openedFlag;
+    out[4] = vs_battle_getStateFlag(c->openedFlag + 0x3C0);
     out[5] = c->unkC;
-    out[6] = c->unk14.weapon.blade.id;
-    out[7] = c->unk14.shield.shield.id;
-    out[8] = c->unk14.armor[0].armor.id;
-    out[9] = c->unk14.gem.gem.id;
+    out[6] = c->loot.weapon.blade.id;
+    out[7] = c->loot.shield.shield.id;
+    out[8] = c->loot.armor[0].armor.id;
+    out[9] = c->loot.gem.gem.id;
     out[10] = 0;
     for (k = 0; k < 3; ++k)
-        out[10] += c->unk14.misc[k].id != 0;
+        out[10] += c->loot.misc[k].id != 0;
     return n;
 }
 int pc_ui_loot_debug_chest_open(int index)
@@ -1459,7 +1459,7 @@ int pc_ui_loot_debug_chest_open(int index)
     _mpdRoomSection13* c = room_chest(index, &n);
     /* a container (flag >= 64: vs_field_openChestContents calls vs_menu_frameworkOpenChestStorageMenu(flag - 64), MENU7's
      * container) is never "opened": its flag's state is not checked */
-    if (c == NULL || !field_free() || (c->unk10 < 0x40 && vs_battle_getStateFlag(c->unk10 + 0x3C0)))
+    if (c == NULL || !field_free() || (c->openedFlag < 0x40 && vs_battle_getStateFlag(c->openedFlag + 0x3C0)))
         return 0;
     vs_field_beginChestInteraction((_mpdRoomSectionA*)c, 0);
     return 1;

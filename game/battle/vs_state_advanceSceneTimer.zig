@@ -11,10 +11,10 @@ pub fn vs_state_advanceSceneTimer() callconv(.c) c_int {
     const timer = v.g.vs_state_sceneTimer();
     var result: c_int = 0;
     const waiting: c_int = 0; // var_s2: never set in the C
-    if (@as(c_int, timer.unk0) == result) {
+    if (@as(c_int, timer.mode) == result) {
         return result;
     }
-    if (timer.unk0 == 1) {
+    if (timer.mode == 1) {
         if (timer.hours <= 0) {
             timer.frames = psx.conv(i8, @as(c_int, timer.frames) +% v.g.vs_gametime_tickspeed().*);
             if (timer.frames > 59) {
@@ -27,7 +27,7 @@ pub fn vs_state_advanceSceneTimer() callconv(.c) c_int {
                         timer.minutes = 0;
                         timer.hours +%= 1;
                         if (timer.hours > 0) {
-                            timer.hours = psx.conv(i8, timer.unk0);
+                            timer.hours = psx.conv(i8, timer.mode);
                         }
                     }
                 }

@@ -12,14 +12,14 @@
 #include <memory.h>
 
 typedef struct {
-    size_t unk0;
-    size_t unk4;
-    size_t unk8;
-    size_t unkC;
-    size_t unk10;
-    size_t unk14;
-    size_t unk18;
-    size_t unk1C;
+    size_t image0Offset;
+    size_t image1Offset;
+    size_t paletteOffset;
+    size_t image2Offset;
+    size_t image3Offset;
+    size_t image4Offset;
+    size_t fixedImageOffset;
+    size_t interfaceDataOffset;
 } System_dat_h;
 
 void vs_menu_frameworkInitGameInterface(void*);
@@ -102,7 +102,7 @@ static vs_battle_charInitData D_800FAB18 = {
                 {.index = 2},
                 {.index = 3},
             },
-            .unk20 = {
+            .armor = {
                 .equip = {
                     .id           = 191,
                     .subId        = 65,
@@ -127,7 +127,7 @@ static vs_battle_charInitData D_800FAB18 = {
                 {.index = 2},
                 {.index = 3},
             },
-            .unk20 = {
+            .armor = {
                 .equip = {
                     .id           = 191,
                     .subId        = 65,
@@ -152,7 +152,7 @@ static vs_battle_charInitData D_800FAB18 = {
                 {.index = 2},
                 {.index = 3},
             },
-            .unk20 = {
+            .armor = {
                 .equip = {
                     .id           = 143,
                     .subId        = 17,
@@ -176,7 +176,7 @@ static vs_battle_charInitData D_800FAB18 = {
                 {.index = 2},
                 {.index = 3},
             },
-            .unk20 = {
+            .armor = {
                 .equip = {
                     .id           = 159,
                     .subId        = 33,
@@ -201,7 +201,7 @@ static vs_battle_charInitData D_800FAB18 = {
                 {.index = 2},
                 {.index = 3},
             },
-            .unk20 = {
+            .armor = {
                 .equip = {
                     .id           = 175,
                     .subId        = 49,
@@ -264,40 +264,40 @@ static void _loadSystemDat(void)
     buf = (System_dat_h*)vs_main_allocHeapR(VS_SYSTEM_DAT_SIZE);
     vs_main_diskLoadFile(VS_SYSTEM_DAT_LBA, VS_SYSTEM_DAT_SIZE, buf);
 
-    p_hdr = (void*)buf + buf->unk0;
+    p_hdr = (void*)buf + buf->image0Offset;
     setRECT(&rect, p_hdr->x, p_hdr->y, p_hdr->w, p_hdr->h);
     LoadImage(&rect, (u_long*)p_hdr + 2);
     DrawSync(0);
 
-    p_hdr = (void*)buf + buf->unk4;
+    p_hdr = (void*)buf + buf->image1Offset;
     setRECT(&rect, p_hdr->x, p_hdr->y, p_hdr->w, p_hdr->h);
     LoadImage(&rect, (u_long*)p_hdr + 2);
     DrawSync(0);
 
-    p_hdr = (void*)buf + buf->unk8;
+    p_hdr = (void*)buf + buf->paletteOffset;
     vs_main_loadClut((u_short*)p_hdr + 2, 0xF, 0, p_hdr->x);
 
-    p_hdr = (RECT*)((signed char*)buf + buf->unkC);
+    p_hdr = (RECT*)((signed char*)buf + buf->image2Offset);
     setRECT(&rect, p_hdr->x, p_hdr->y, p_hdr->w, p_hdr->h);
     LoadImage(&rect, (u_long*)p_hdr + 2);
     DrawSync(0);
 
-    p_hdr = (void*)buf + buf->unk10;
+    p_hdr = (void*)buf + buf->image3Offset;
     setRECT(&rect, p_hdr->x, p_hdr->y, p_hdr->w, p_hdr->h);
     LoadImage(&rect, (u_long*)p_hdr + 2);
     DrawSync(0);
 
-    p_hdr = (void*)buf + buf->unk14;
+    p_hdr = (void*)buf + buf->image4Offset;
     setRECT(&rect, p_hdr->x, p_hdr->y, p_hdr->w, p_hdr->h);
     LoadImage(&rect, (u_long*)p_hdr + 2);
     DrawSync(0);
 
-    p_hdr = (void*)buf + buf->unk18;
+    p_hdr = (void*)buf + buf->fixedImageOffset;
     setRECT(&rect, 0x300, 0xF0, p_hdr->x, p_hdr->y);
     LoadImage(&rect, (u_long*)p_hdr + 1);
     DrawSync(0);
 
-    vs_menu_frameworkInitGameInterface((void*)buf + buf->unk1C);
+    vs_menu_frameworkInitGameInterface((void*)buf + buf->interfaceDataOffset);
     vs_main_freeHeapR(buf);
 }
 
@@ -312,7 +312,7 @@ static void vs_actors_restoreAshleyRuntimeState(void)
     int j;
     int i;
     vs_battle_actor2* temp_s0 = vs_battle_characterState->unk3C;
-    D_80060068_t3* s1 = &vs_state_ashleySnapshot.unk0;
+    D_80060068_t3* s1 = &vs_state_ashleySnapshot.stats;
 
     temp_s0->currentHP = s1->currentHP;
     temp_s0->maxHP = s1->maxHP;
@@ -325,7 +325,7 @@ static void vs_actors_restoreAshleyRuntimeState(void)
     temp_s0->agility = s1->agility;
     temp_s0->totalAgility = s1->totalAgility;
     temp_s0->risk = s1->risk;
-    temp_s0->unk954 = s1->flags;
+    temp_s0->actionRecoveryTimer = s1->flags;
 
     vs_battle_inflictActorStatuses(s1->statuses, temp_s0);
 
@@ -353,9 +353,9 @@ static void vs_actors_restoreAshleyRuntimeState(void)
         vs_battle_setHudBattleMode(1);
     }
 
-    vs_state_ashleySnapshot.unk0.unk0 = 0;
-    vs_battle_cameraCurrentSpherical.delta.pitch = s1->unk80;
-    vs_battle_cameraCurrentSpherical.initialDistance = s1->unk84;
+    vs_state_ashleySnapshot.stats.unk0 = 0;
+    vs_battle_cameraCurrentSpherical.delta.pitch = s1->cameraPitch;
+    vs_battle_cameraCurrentSpherical.initialDistance = s1->cameraDistance;
 }
 
 static void vs_actors_spawnAshleyWithEquipment(void)
@@ -455,7 +455,7 @@ static void vs_actors_spawnAshleyWithEquipment(void)
 
     vs_battle_nop0(vs_battle_characterState->unk3C);
 
-    if (vs_state_ashleySnapshot.unk0.unk0 != 0) {
+    if (vs_state_ashleySnapshot.stats.unk0 != 0) {
         vs_actors_restoreAshleyRuntimeState();
     }
 
@@ -503,11 +503,11 @@ void vs_boot_initializeGameplayOverlay(int startState __attribute__((unused)))
     func_800E6EAC();
     vs_main_resetPadAct();
     func_800F9818();
-    _zoneContext.unk68 = 0;
+    _zoneContext.currentSceneId = 0;
     _zoneContext.unk38 = 0;
     _zoneContext.mapId = 0;
     _zoneContext.zndId = 0;
-    _zoneContext.unk18 = 0;
+    _zoneContext.zudDiscRequest = 0;
     _zoneContext.mpdCdFile = NULL;
     _zoneContext.zndCdFile = NULL;
     _zoneContext.mpdData = NULL;
@@ -515,7 +515,7 @@ void vs_boot_initializeGameplayOverlay(int startState __attribute__((unused)))
     _zoneContext.musicSlot = 0;
     _zoneContext.musicId = 0;
     _zoneContext.unk30 = 1;
-    _zoneContext.unk14 = 0;
+    _zoneContext.loadedZudIndexPlusOne = 0;
     vs_field_pendingDestinationDoor = vs_state_savedEntryDoor;
     vs_battle_screenTransitionEffect = 0;
     vs_battle_screenTransitionStep = 4;
@@ -528,12 +528,12 @@ void vs_boot_initializeGameplayOverlay(int startState __attribute__((unused)))
     vs_gametime_tickspeed = 2;
     vs_main_projectionDistance = 0x200;
     vs_main_nearClip = 0x40;
-    vs_state_sceneTimer.unk0 = 0;
+    vs_state_sceneTimer.mode = 0;
     vs_state_sceneTimer.hours = 0;
     vs_state_sceneTimer.minutes = 0;
     vs_state_sceneTimer.seconds = 0;
     vs_state_sceneTimer.frames = 0;
-    _zoneContext.unk68 = vs_state_savedEntryDoor.unk6_0;
+    _zoneContext.currentSceneId = vs_state_savedEntryDoor.unk6_0;
     vs_battle_cameraTransition = NULL;
     vs_field_resetCameraToAshley();
     vs_view.camera.farClip = 0x1000;

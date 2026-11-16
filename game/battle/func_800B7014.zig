@@ -14,7 +14,7 @@ pub fn func_800B7014(packet: [*c]u8, _: c_short) callconv(.c) c_int {
     // packet[1] >> 6 is 0..3: the slot index into both tables.
     const slot: c_int = @as(c_int, packet[1]) >> 6;
 
-    psx.at(v.g.vs_event_splashTweens(), slot).unk3 = 0;
+    psx.at(v.g.vs_event_splashTweens(), slot).durationFrames = 0;
 
     const entry = psx.at(head.?, slot);
     psx.setBits(entry, "unk0_3", psx.conv(u3, @as(c_int, packet[1]) & 3));

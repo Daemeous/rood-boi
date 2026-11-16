@@ -32,7 +32,7 @@ pub fn vs_effects_destroyPrimaryEffectInstance(script_arg: ?*v.D_800F53B8_t) cal
         }
     }
     c.vs_effects_releaseAllEffectParticles(@ptrCast(script));
-    var node = psx.get(script.unkD1C.unk34);
+    var node = psx.get(script.context.unk34);
     while (node) |n| {
         const next = n.next;
         const renderer: ?Renderer = @ptrCast(n.renderer);

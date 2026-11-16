@@ -10,7 +10,7 @@ const c = @import("c_146C");
 /// Fills a request from the current battle actor and hit entity `arg1` against `targetLimb`, then hands it to vs_effects_beginSecondaryEffects.
 pub fn func_8006C4C4(arg0: c_int, arg1: ?*v._hitEntity_t, targetLimb: c_int) callconv(.c) void {
     const base = v.g.vs_battle_actionState().*.?;
-    const temp = &base.unk854[base.unk0 & 3];
+    const temp = &base.queue[base.unk0 & 3];
 
     // Zeroed first: the fields the request does not set reach vs_effects_beginSecondaryEffects as zero.
     var sp10 = std.mem.zeroes(v.func_8006C4C4_t);
@@ -21,22 +21,22 @@ pub fn func_8006C4C4(arg0: c_int, arg1: ?*v._hitEntity_t, targetLimb: c_int) cal
     sp10.unk2 = 1;
     sp10.unk3 = 0;
     sp10.unk4 = 4;
-    sp10.targetActor = temp.unk4.unk0.targetActor;
+    sp10.targetActor = temp.primaryTarget.target.targetActor;
     sp10.unkA = 0;
 
     const hit = arg1.?;
     if (hit.unk40 == 0) {
         sp10.unk10 = 4;
-        sp10.unk14.targetActor = hit.unk0.targetActor;
+        sp10.unk14.targetActor = hit.target.targetActor;
         sp10.unk14.targetLimb = psx.conv(i8, targetLimb);
         sp10.unk14.hitThreshold = psx.conv(u8, c.func_800A152C(
-            @as(c_int, hit.unk0.targetActor),
-            @as(c_int, hit.unk0.targetLimb),
+            @as(c_int, hit.target.targetActor),
+            @as(c_int, hit.target.targetLimb),
             2,
         ));
     } else {
         sp10.unk10 = 5;
-        sp10.unk14 = hit.unk0;
+        sp10.unk14 = hit.target;
     }
 
     sp10.unk12 = psx.conv(i16, temp.unk2);

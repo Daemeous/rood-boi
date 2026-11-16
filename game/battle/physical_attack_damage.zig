@@ -4,11 +4,11 @@ const v = @import("views_146C");
 const c = @import("c_146C");
 
 fn stats(entity: *v._hitEntity_t) *v.vs_battle_actor2 {
-    return psx.get(v.g.vs_battle_actors()[entity.unk0.targetActor].?.stats).?;
+    return psx.get(v.g.vs_battle_actors()[entity.target.targetActor].?.stats).?;
 }
 
 fn drawn(actor: *v.vs_battle_actor2) bool {
-    return v.g.vs_battle_actors()[actor.unk957].?.weaponDrawn & 1 != 0;
+    return v.g.vs_battle_actors()[actor.actorId].?.weaponDrawn & 1 != 0;
 }
 
 /// The C's `x * 100 / max` wear in percent (u16 operands).
@@ -28,7 +28,7 @@ fn physicalAttackDamage(action: *v.vs_action_t, source: *v._hitEntity_t, target:
     var sp18: v._hitIntermediate = undefined;
     const attacker = stats(source);
     const defender = stats(target);
-    const limb_index: c_int = target.unk0.targetLimb;
+    const limb_index: c_int = target.target.targetLimb;
     // hitParams has 2 entries, limbs 6, the type and affinity tables 4 and 8: the C bounds none of the indices.
     const params = psx.at(&action.hitParams, nHit);
     const limb = psx.at(&defender.limbs, limb_index);

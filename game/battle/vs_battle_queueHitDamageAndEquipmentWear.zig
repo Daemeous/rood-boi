@@ -9,13 +9,13 @@ const c = @import("c_146C");
 /// unk957 is 0x80, and with arg4 set wears DP and PP (_adjustDpPp, vs_items_accumulateHitEquipmentPp).
 pub fn vs_battle_queueHitDamageAndEquipmentWear(action: ?*v.vs_action_t, source: ?*v._hitEntity_t, target: ?*v._hitEntity_t, hit: c_int, arg4: c_int) callconv(.c) c_int {
     const actors = v.g.vs_battle_actors();
-    const source_stats = psx.get(actors[source.?.unk0.targetActor].?.stats);
-    const target_stats = psx.get(actors[target.?.unk0.targetActor].?.stats);
+    const source_stats = psx.get(actors[source.?.target.targetActor].?.stats);
+    const target_stats = psx.get(actors[target.?.target.targetActor].?.stats);
     const critical = psx.Global(c_int, "vs_battle_criticalHitOccurred").ptr();
     critical.* = 0;
     const amount = c._calculateStatChange(@ptrCast(action), @ptrCast(source), @ptrCast(target), hit, arg4);
     const entity = target.?;
-    entity.unk0.hp = psx.conv(i16, @as(c_int, entity.unk0.hp) +% amount);
+    entity.target.hp = psx.conv(i16, @as(c_int, entity.target.hp) +% amount);
     if (critical.* != 0) {
         psx.setBits(entity, "hpEffect", 3);
     } else {
@@ -23,7 +23,7 @@ pub fn vs_battle_queueHitDamageAndEquipmentWear(action: ?*v.vs_action_t, source:
     }
     if (entity.unk40 == 0) {
         c.vs_battle_distributeHitLimbDamage(@ptrCast(action), @ptrCast(target), amount);
-        if (target_stats.?.unk957 != 0x80) {
+        if (target_stats.?.actorId != 0x80) {
             entity.inflictStatuses |= target_stats.?.statuses & 0x8000;
         }
         if (arg4 != 0) {

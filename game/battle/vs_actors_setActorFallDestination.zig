@@ -10,10 +10,10 @@ pub fn vs_actors_setActorFallDestination(arg0: ?*v.D_800F4538_t, arg1: ?*v.func_
 
     var var_a2: c_int = 0x3F;
     var var_a3: c_int = 0x3F;
-    if (offsets.unk0 < 0) {
+    if (offsets.directionX < 0) {
         var_a2 = -0x3F;
     }
-    if (offsets.unk4 < 0) {
+    if (offsets.directionZ < 0) {
         var_a3 = -0x3F;
     }
 

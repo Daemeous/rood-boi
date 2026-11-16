@@ -42,13 +42,13 @@ typedef struct {
 } D_800F4BA4_t2;
 
 typedef struct {
-    char unk0;
-    char unk1;
-    short unk2;
-    short unk4;
-    short unk6;
-    short unk8;
-    short unkA;
+    char hasChanged;
+    char easingMode;
+    short angle;
+    short startAngle;
+    short deltaAngle;
+    short elapsedFrames;
+    short durationFrames;
 } func_800BD57C_t;
 
 typedef struct {
@@ -56,45 +56,45 @@ typedef struct {
         u_char u8[2];
         short s16;
     } unk0;
-    short unk2;
+    short displacement;
     short unk4;
     short unk6;
     char unk8;
     char unk9;
-    char unkA;
+    char axisMask;
     char unkB;
 } func_800BDF6C_t;
 
 typedef struct {
-    char unk0;
-    char unk1;
-    short unk2;
-    short unk4;
-    short unk6;
-    char unk8;
-    char unk9;
+    char hasChanged;
+    char easingMode;
+    short value;
+    short startValue;
+    short deltaValue;
+    char elapsedFrames;
+    char durationFrames;
     char unkA;
     char unkB;
 } func_800BDF6C_unk180_t;
 
 typedef struct {
     char unk0;
-    char unk1;
-    short unk2;
-    short unk4;
-    short unk6;
+    char easingMode;
+    short currentValue0;
+    short currentValue1;
+    short currentValue2;
     short unk8;
-    short unkA;
-    short unkC;
-    short unkE;
+    short startValue0;
+    short startValue1;
+    short startValue2;
     short unk10;
-    short unk12;
-    short unk14;
-    short unk16;
+    short deltaValue0;
+    short deltaValue1;
+    short deltaValue2;
     short unk18;
     short unk1A;
-    short unk1C;
-    short unk1E;
+    short elapsedFrames;
+    short durationFrames;
 } func_800BDBB4_t;
 
 typedef struct {
@@ -108,22 +108,22 @@ typedef struct {
     func_800BDF6C_t unk1A4;
     func_800BDF6C_t unk1B0;
     short unk1BC;
-    short unk1BE;
+    short shakeEyeOffsetX;
     short unk1C0;
     short unk1C2;
     short unk1C4;
-    short unk1C6;
+    short shakeLookAtOffsetX;
     short unk1C8;
     short unk1CA;
     int unk1CC[7];
-    u_short unk1E8;
+    u_short originActorId;
     u_short unk1EA;
-    VECTOR unk1EC;
-    func_800BDBB4_t unk1FC;
-    func_800BDBB4_t unk21C;
-    func_800BDBB4_t unk23C;
+    VECTOR originOffset;
+    func_800BDBB4_t screenScale;
+    func_800BDBB4_t screenTint;
+    func_800BDBB4_t screenTranslation;
     func_800BDBB4_t unk25C;
-    VECTOR unk27C;
+    VECTOR lastTerrainPosition;
 } D_800F4BA4_t;
 
 typedef struct {
@@ -143,31 +143,31 @@ _Static_assert(sizeof(D_800EB9BC_t) == sizeof(gim_t), "D_800EB9BC_t != gim_t");
 
 typedef struct {
     char unk0;
-    char unk1;
-    char unk2;
-    char unk3;
-    short unk4;
-    short unk6;
-    short unk8;
-    short unkA;
-    short unkC;
-    short unkE;
-    short unk10;
-    short unk12;
+    char easingMode;
+    char elapsedFrames;
+    char durationFrames;
+    short startX;
+    short startY;
+    short deltaX;
+    short deltaY;
+    short startScaleFixed12;
+    short deltaScaleFixed12;
+    short startBrightness;
+    short deltaBrightness;
 } D_800F4B30_t;
 
 typedef struct {
     char unk0;
     char unk1;
-    char unk2;
+    char elapsedFrames;
     char unk3;
-    short unk4;
+    short windDirection;
     short unk6;
     short unk8;
     short unkA;
     short unkC;
     short unkE;
-    short unk10;
+    short intensity;
     short unk12;
     short unk14;
 } D_800F4B88_t;

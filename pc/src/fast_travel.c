@@ -97,7 +97,7 @@ static void fill(pc_ft_state* s)
     s->here = a ? pc_ft_here(vs_battle_getCurrentRoomId()) : PC_FT_POINTS;
     s->event = vs_event_playbackPhase != 0 || vs_event_roomChangeState != 0 || vs_battle_screenTransitionStep != 0
         || vs_main_stateFlags.gameOver != 0;
-    s->busy = !a || a->unk954 != 0 || (status & 0x4000) || (vs_main_buttonsState & 3); /* L2, R2 */
+    s->busy = !a || a->actionRecoveryTimer != 0 || (status & 0x4000) || (vs_main_buttonsState & 3); /* L2, R2 */
     s->mask = a ? (unsigned)vs_menu_frameworkActionRestrictionFlags(0) : ~0u;
     s->mp = a ? a->currentMP : 0;
     for (i = 0; i < PC_FT_POINTS; ++i)

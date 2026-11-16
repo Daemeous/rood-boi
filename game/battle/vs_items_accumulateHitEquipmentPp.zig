@@ -31,7 +31,7 @@ pub fn vs_items_accumulateHitEquipmentPp(action: ?*v.vs_action_t, attacker: ?*v.
     var_t1 = 100;
 
     const a2 = defender.?;
-    const drawn = psx.at(v.g.vs_battle_actors(), a2.unk957).*.?.weaponDrawn;
+    const drawn = psx.at(v.g.vs_battle_actors(), a2.actorId).*.?.weaponDrawn;
     if ((drawn & 1) != 0) {
         var_t0 = 0;
         for (&a2.shield.gems) |*gem| {

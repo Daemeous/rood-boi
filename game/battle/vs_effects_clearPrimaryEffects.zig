@@ -11,9 +11,9 @@ pub fn vs_effects_clearPrimaryEffects() callconv(.c) void {
 
     while (cur) |s0| {
         const next = psx.get(s0.next);
-        if (psx.get(s0.unkD1C.unk30)) |block| {
+        if (psx.get(s0.context.unk30)) |block| {
             c.vs_main_freeHeapR(block);
-            psx.put(&s0.unkD1C.unk30, null);
+            psx.put(&s0.context.unk30, null);
         }
         c.vs_effects_destroyPrimaryEffectInstance(@ptrCast(s0));
         cur = next;

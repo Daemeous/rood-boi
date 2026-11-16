@@ -8,8 +8,8 @@ const v = @import("views_146C");
 pub fn factorDamageReceived(action: ?*v.vs_action_t, _: ?*v._hitEntity_t, _: ?*v._hitEntity_t, hitNumber: c_int, _: c_int) callconv(.c) i16 {
     var factor: i16 = 0;
     const block = v.g.vs_battle_actionState().*.?;
-    if (@as(c_int, psx.getBits(&block.unk8.unk4, "hpEffect")) == 1 or @as(c_int, psx.getBits(&block.unk8.unk4, "hpEffect")) == 3) {
-        const received: c_int = @as(c_int, block.unk8.unk4.unk0.hp) +% block.unk8.unk4.unk0.mp;
+    if (@as(c_int, psx.getBits(&block.unk8.primaryTarget, "hpEffect")) == 1 or @as(c_int, psx.getBits(&block.unk8.primaryTarget, "hpEffect")) == 3) {
+        const received: c_int = @as(c_int, block.unk8.primaryTarget.target.hp) +% block.unk8.primaryTarget.target.mp;
         // hitParams[hitNumber]: the C does not check the hit number.
         const statFactor: c_int = psx.getBits(psx.at(&action.?.hitParams, hitNumber), "statFactor");
         factor = psx.conv(i16, @divTrunc(received *% statFactor, 10));

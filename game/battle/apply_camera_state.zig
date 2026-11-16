@@ -54,14 +54,14 @@ pub fn applyCameraState() callconv(.c) void {
     } else {
         _ = copyVector(&lookAt, &camera().lookAt.current);
         _ = copyVector(&position, &camera().eye.current);
-        if (camera().unk1E8 != 0x2000) {
-            _ = c._vectorAdd(cv(&lookAt), cv(&lookAt), cv(&camera().unk1EC));
-            _ = c._vectorAdd(cv(&position), cv(&position), cv(&camera().unk1EC));
+        if (camera().originActorId != 0x2000) {
+            _ = c._vectorAdd(cv(&lookAt), cv(&lookAt), cv(&camera().originOffset));
+            _ = c._vectorAdd(cv(&position), cv(&position), cv(&camera().originOffset));
         }
     }
     if (camera().unk1A4.unk0.s16 != 0) {
-        _ = sVectorToFixedPointVector(v1, @ptrCast(&camera().unk1BE)); // (SVECTOR*)&unk1BE: unk1BE..unk1C2
-        _ = sVectorToFixedPointVector(v2, @ptrCast(&camera().unk1C6)); // (SVECTOR*)&unk1C6: unk1C6..unk1CA
+        _ = sVectorToFixedPointVector(v1, @ptrCast(&camera().shakeEyeOffsetX)); // (SVECTOR*)&unk1BE: unk1BE..unk1C2
+        _ = sVectorToFixedPointVector(v2, @ptrCast(&camera().shakeLookAtOffsetX)); // (SVECTOR*)&unk1C6: unk1C6..unk1CA
         rotation.vz = 0;
         rotation.vx = 0;
         rotation.vy = psx.conv(i16, c._atan2FixedPoint(lookAt.vx -% position.vx, lookAt.vz -% position.vz));
@@ -73,24 +73,24 @@ pub fn applyCameraState() callconv(.c) void {
     }
     c.vs_battle_setCameraLookAt(cv(&lookAt));
     c.vs_battle_setCameraPosition(cv(&position));
-    if (camera().unk168.unk0 != 0) {
-        c.vs_battle_setCameraRoll(camera().unk168.unk2);
-        camera().unk168.unk0 = 0;
+    if (camera().unk168.hasChanged != 0) {
+        c.vs_battle_setCameraRoll(camera().unk168.angle);
+        camera().unk168.hasChanged = 0;
     }
-    if (camera().unk174.unk0 != 0) {
-        c.vs_render_setFramebufferEffectRoll(camera().unk174.unk2);
-        camera().unk174.unk0 = 0;
+    if (camera().unk174.hasChanged != 0) {
+        c.vs_render_setFramebufferEffectRoll(camera().unk174.angle);
+        camera().unk174.hasChanged = 0;
     }
-    if (camera().projectionDistance.unk0 != 0) {
-        c.vs_battle_setProjectionDistance(camera().projectionDistance.unk2);
-        camera().projectionDistance.unk0 = 0;
+    if (camera().projectionDistance.hasChanged != 0) {
+        c.vs_battle_setProjectionDistance(camera().projectionDistance.value);
+        camera().projectionDistance.hasChanged = 0;
     }
-    if (camera().nearClip.unk0 != 0) {
-        c.vs_battle_setNearClip(camera().nearClip.unk2);
-        camera().nearClip.unk0 = 0;
+    if (camera().nearClip.hasChanged != 0) {
+        c.vs_battle_setNearClip(camera().nearClip.value);
+        camera().nearClip.hasChanged = 0;
     }
-    if (camera().farClip.unk0 != 0) {
-        c.vs_battle_setFarClip(camera().farClip.unk2, v.g.D_800F4C6A().*);
-        camera().farClip.unk0 = 0;
+    if (camera().farClip.hasChanged != 0) {
+        c.vs_battle_setFarClip(camera().farClip.value, v.g.D_800F4C6A().*);
+        camera().farClip.hasChanged = 0;
     }
 }

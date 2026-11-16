@@ -86,7 +86,7 @@ pub fn drawWeaponModel(weapon: ?*v.vs_battle_wepModels_t, source: ?*v.MATRIX) ca
     const a = actor.?;
     if ((psx.fieldAt(c_int, &a.unk0._bits_skip, 0).* & 2) != 0) {
         if (a.unk0.position.vy >= 256) {
-            if (a.unk0.unkF == 0 or c.vs_event_eventPlaybackState() != 4) return;
+            if (a.unk0.slot == 0 or c.vs_event_eventPlaybackState() != 4) return;
         }
         if (c.vs_render_projectModelVertices(
             w,

@@ -16,7 +16,7 @@ pub fn checkFirstPersonViewExit() callconv(.c) void {
 
     var sp10: v.func_8006EBF8_t = undefined;
     _ = c.vs_actors_actorPlacement(0, &sp10);
-    c.vs_field_updateCameraTileConstraint(0, @ptrCast(&sp10.unk0.unk0.fields));
+    c.vs_field_updateCameraTileConstraint(0, @ptrCast(&sp10.location.packedTile.fields));
     _ = c.vs_battle_syncCameraAnglesFromPosition(
         psx.cptr(c._sphericalCamera, &v.g.vs_battle_cameraTransition().*.?.toSpherical),
     );

@@ -7,13 +7,13 @@ const v = @import("views_146C");
 /// Writes three direction bytes from the packed word, then steps one of them by the sector of the rotation.
 pub fn vs_field_tileInFrontOfActor(info: ?*v.func_8006EBF8_t, offsets: [*c]u8) callconv(.c) c_int {
     const a = info.?;
-    var var_v1: c_int = (@as(c_int, a.unk0.unk4.pad) +% 0x200) & 0xFFF;
+    var var_v1: c_int = (@as(c_int, a.location.position.pad) +% 0x200) & 0xFFF;
     if (var_v1 < 0) {
         var_v1 +%= 0x3FF;
     }
-    offsets[0] = psx.getBits(&a.unk0.unk0.fields, "unk0_0");
-    offsets[2] = psx.getBits(&a.unk0.unk0.fields, "unk0_16");
-    offsets[1] = psx.getBits(&a.unk0.unk0.fields, "unk0_8");
+    offsets[0] = psx.getBits(&a.location.packedTile.fields, "unk0_0");
+    offsets[2] = psx.getBits(&a.location.packedTile.fields, "unk0_16");
+    offsets[1] = psx.getBits(&a.location.packedTile.fields, "unk0_8");
 
     var_v1 = var_v1 >> 10;
     switch (var_v1) {

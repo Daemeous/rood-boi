@@ -16,19 +16,19 @@ pub fn vs_field_startDoorAnimation(arg0: ?*v._mpdRoomSectionA) callconv(.c) c_in
         c.vs_main_playSfxDefault(0x7E, 0x16);
         c.vs_main_playSfxDefault(0x7E, 0x17);
     }
-    _ = c.vs_field_startRoomEffect(@as(c_int, section.unk0.unk8.lock.unk1));
+    _ = c.vs_field_startRoomEffect(@as(c_int, section.trigger.unk8.lock.unk1));
     if (section.unkE != 0) {
         c.vs_field_toggleDoorCollision(psx.cptr(c._mpdRoomSectionA, section));
     }
-    if (section.unk10 != -1) {
+    if (section.linkedLockIndex != -1) {
         const temp_s0 = psx.get(v.g.vs_battle_roomData().sectionA).?;
         // The index is re-read from the section at each use, as the C re-reads it after calls.
-        if (psx.at(temp_s0, section.unk10).unk0.unkA != 0) {
-            _ = c.vs_field_startRoomEffect(@as(c_int, psx.at(temp_s0, section.unk10).unk0.unk8.lock.unk1));
-            if (psx.at(temp_s0, section.unk10).unkE != 0) {
-                c.vs_field_toggleDoorCollision(psx.cptr(c._mpdRoomSectionA, psx.at(temp_s0, section.unk10)));
+        if (psx.at(temp_s0, section.linkedLockIndex).trigger.unkA != 0) {
+            _ = c.vs_field_startRoomEffect(@as(c_int, psx.at(temp_s0, section.linkedLockIndex).trigger.unk8.lock.unk1));
+            if (psx.at(temp_s0, section.linkedLockIndex).unkE != 0) {
+                c.vs_field_toggleDoorCollision(psx.cptr(c._mpdRoomSectionA, psx.at(temp_s0, section.linkedLockIndex)));
             }
-            psx.at(temp_s0, section.unk10).unk12 = 1;
+            psx.at(temp_s0, section.linkedLockIndex).unk12 = 1;
         }
     }
     c.vs_field_queueGimmickAnimation(1, psx.cptr(c._mpdRoomSectionA, section));

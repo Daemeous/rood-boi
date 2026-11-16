@@ -8,7 +8,7 @@ const c = @import("c_146C");
 pub fn vs_battle_queueHpRecovery(action: ?*v.vs_action_t, source: ?*v._hitEntity_t, target: ?*v._hitEntity_t, hit: c_int, arg4: c_int) callconv(.c) c_int {
     const amount = c._calculateStatChange(@ptrCast(action), @ptrCast(source), @ptrCast(target), hit, arg4);
     const entity = target.?;
-    entity.unk0.hp = psx.conv(i16, @as(c_int, entity.unk0.hp) +% amount);
+    entity.target.hp = psx.conv(i16, @as(c_int, entity.target.hp) +% amount);
     psx.setBits(entity, "hpEffect", 2);
     if (entity.unk40 == 0) {
         c.vs_battle_distributeLimbRecovery(@ptrCast(action), @ptrCast(target), amount);

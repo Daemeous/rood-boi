@@ -15,7 +15,7 @@
 struct func_800D4910_t;
 
 typedef struct {
-    int unk0;
+    int assetCount;
     _loadFileContext loadContexts[8];
     u_short slots[8];
     u_short isClut[8];
@@ -28,7 +28,7 @@ typedef struct {
 } pFileBlock1;
 
 typedef struct {
-    int unk0;
+    int animationCount;
     u_char data[0];
 } pFileBlock2;
 

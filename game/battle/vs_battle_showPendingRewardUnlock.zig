@@ -12,8 +12,8 @@ pub fn vs_battle_showPendingRewardUnlock() callconv(.c) void {
     // vs_main_actions has 256 entries in the views; actionIndex is a u16 the C does not bound: psx.at.
     if (block.*.?.unk8.actionIndex != 0 and
         psx.getBits(psx.at(v.g.actions(), block.*.?.unk8.actionIndex), "unlocked") == 0 and
-        block.*.?.unk8.unk4.unk40 == 0 and block.*.?.unk2C07 == 0 and
-        block.*.?.unk8.unk4.unk0.targetActor == 0)
+        block.*.?.unk8.primaryTarget.unk40 == 0 and block.*.?.unk2C07 == 0 and
+        block.*.?.unk8.primaryTarget.target.targetActor == 0)
     {
         v.g._cameraMode().* = 6;
         c.vs_battle_beginRewardPause();

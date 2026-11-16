@@ -8,8 +8,8 @@ const c = @import("c_146C");
 /// Records arg0 and arg1, splits arg2 into frames, seconds, minutes and hours unless arg0 is 1, and sets state flags 0xA0..0xA3.
 pub fn vs_state_startSceneTimer(arg0: c_int, arg1: c_int, arg2: c_int) callconv(.c) void {
     const st = v.g.vs_state_sceneTimer();
-    st.unk0 = psx.conv(u8, arg0);
-    st.unk2 = psx.conv(u16, arg1);
+    st.mode = psx.conv(u8, arg0);
+    st.resetScope = psx.conv(u16, arg1);
     st.hours = 0;
     st.minutes = 0;
     st.seconds = 0;

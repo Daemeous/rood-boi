@@ -57,19 +57,19 @@ pub fn func_800AFA28(actor: ?*v.D_800F4538_t, state: ?*v.D_800F4538_unkC54, mode
             }
             shadow.unk8 &= 0xFFF;
             if (shadow.unk5 != 0) {
-                var delta = @divTrunc(@as(c_int, shadow.unk10), @as(c_int, shadow.unk5));
-                shadow.unk10 = psx.conv(i16, @as(c_int, shadow.unk10) -% delta);
-                shadow.unkC = psx.conv(u16, @as(c_int, shadow.unkC) +% delta);
-                delta = @divTrunc(@as(c_int, shadow.unk12), @as(c_int, shadow.unk5));
-                shadow.unk12 = psx.conv(i16, @as(c_int, shadow.unk12) -% delta);
-                shadow.unkE = psx.conv(u16, @as(c_int, shadow.unkE) +% delta);
+                var delta = @divTrunc(@as(c_int, shadow.radiusExpandDelta), @as(c_int, shadow.unk5));
+                shadow.radiusExpandDelta = psx.conv(i16, @as(c_int, shadow.radiusExpandDelta) -% delta);
+                shadow.radiusExpandRate = psx.conv(u16, @as(c_int, shadow.radiusExpandRate) +% delta);
+                delta = @divTrunc(@as(c_int, shadow.radiusShrinkDelta), @as(c_int, shadow.unk5));
+                shadow.radiusShrinkDelta = psx.conv(i16, @as(c_int, shadow.radiusShrinkDelta) -% delta);
+                shadow.radiusShrinkRate = psx.conv(u16, @as(c_int, shadow.radiusShrinkRate) +% delta);
                 shadow.unk5 -%= 1;
             }
             if (@as(c_int, psx.conv(i16, st.unk540)) >= @as(c_int, psx.conv(u16, a.unk5BC))) {
                 flags.* |= 0x20000;
                 const queued = a.unk6E0;
                 if (queued != 0) {
-                    queueAnimation()(@as(c_int, a.unk0.unkF), @as(c_int, a.unk6E0), @as(c_int, a.unk6E1), @as(c_int, a.unk6E2));
+                    queueAnimation()(@as(c_int, a.unk0.slot), @as(c_int, a.unk6E0), @as(c_int, a.unk6E1), @as(c_int, a.unk6E2));
                     a.unk6E0 = 0;
                     return;
                 }

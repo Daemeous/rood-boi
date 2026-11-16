@@ -10,7 +10,7 @@ pub fn vs_field_beginScriptedRoomTransition(arg0: ?*v._mpdRoomDoorSection_t, arg
     var sp10: v.func_8006EBF8_t = undefined;
     _ = c.vs_field_beginRoomTransition(@ptrCast(arg0), arg1, arg2);
     _ = c.vs_actors_actorPlacement(0, &sp10);
-    const fields = &sp10.unk0.unk0.fields;
+    const fields = &sp10.location.packedTile.fields;
     c.vs_field_findEntranceDoorNearTile(
         @as(c_int, psx.getBits(fields, "unk0_0")),
         @as(c_int, psx.getBits(fields, "unk0_16")),

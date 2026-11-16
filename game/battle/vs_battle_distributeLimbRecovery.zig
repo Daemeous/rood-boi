@@ -7,7 +7,7 @@ const v = @import("views_146C");
 /// Splits `amount` over the target's damaged limbs in proportion to each limb's lost HP.
 pub fn vs_battle_distributeLimbRecovery(_: ?*v.vs_action_t, entity: ?*v._hitEntity_t, amount: c_short) callconv(.c) void {
     const hit = entity.?;
-    const actor = psx.get(v.g.vs_battle_actors()[hit.unk0.targetActor].?.stats).?;
+    const actor = psx.get(v.g.vs_battle_actors()[hit.target.targetActor].?.stats).?;
     var limbDamageTaken: c_int = 0;
 
     var i: usize = 0;

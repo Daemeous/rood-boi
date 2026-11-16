@@ -13,7 +13,7 @@ pub fn vs_effects_setParticleColorCurves(arg0: ?*v.D_800F53B8_t) callconv(.c) c_
 
     const block = psx.get(v.g.vs_effects_package().*.?.block5Data).?;
     // unk4 is a zero-length array; the index is 0..63 and the C indexes past its declared end.
-    const dst = psx.at(&block.unk4, first & 0x3F);
+    const dst = psx.at(&block.definitions, first & 0x3F);
 
     dst.rCurve = psx.conv(u8, (@as(c_int, first) >> 6) +% ((@as(c_int, second) & 0xF) << 2));
     dst.gCurve = psx.conv(u8, (@as(c_int, second) >> 4) +% ((@as(c_int, third) & 3) << 4));

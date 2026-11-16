@@ -59,7 +59,7 @@ int VS_GRID_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
         state->xSpacing = state->xSpeed = 0;
         state->zSpacing = state->zSpeed = 0;
         state->xPhase = state->zPhase = 0;
-        effect = &vs_effects_package->block5Data->unk4[state->effect];
+        effect = &vs_effects_package->block5Data->definitions[state->effect];
         state->tpage =
             ((effect->unkCA & 7) | ((((u_int*)effect)[1] >> 21) & 0xE0)) + 0x18;
         state->clut = ((effect->unkCB & 7) << 6) | 0x3C30;
@@ -68,7 +68,7 @@ int VS_GRID_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
         state->uScroll = state->vScroll = 0;
         break;
     case 2:
-        effect = &vs_effects_package->block5Data->unk4[state->effect];
+        effect = &vs_effects_package->block5Data->definitions[state->effect];
         scratch->flags = effect->flags;
         matrix = &battle->unk1C[effect->unkC8].unk38;
         vs_battle_lerpVector(effect->unk18,
@@ -88,28 +88,28 @@ int VS_GRID_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
         vs_battle_lerpVector(effect->unk24,
             vs_battle_sampleCurve(effect->unk9, state->age), &scratch->unkA8);
         sample = vs_battle_sampleCurve(effect->unkD, state->age);
-        vs_battle_lerpSvector(effect->unk34[2], sample, &scratch->unkF8);
+        vs_battle_lerpSvector(effect->unk34[2], sample, &scratch->forceMin);
         vs_battle_lerpSvector(effect->unk34[3], sample, &scratch->unk100);
         sample = vs_battle_sampleCurve(effect->unkE, state->age);
-        vs_battle_lerpSvector(effect->unk34[4], sample, &scratch->unk108);
-        vs_battle_lerpSvector(effect->unk34[5], sample, &scratch->unk110);
+        vs_battle_lerpSvector(effect->unk34[4], sample, &scratch->accelerationMin);
+        vs_battle_lerpSvector(effect->unk34[5], sample, &scratch->accelerationMax);
         vs_battle_lerpVector(effect->unk34[0],
             vs_battle_sampleCurve(effect->unkA, state->age), &scratch->unkE8);
         vs_battle_lerpVector(effect->unk34[1],
             vs_battle_sampleCurve(effect->unkB, state->age), &scratch->unkC8);
-        vs_battle_lerp2DVector(effect->unk94[2],
-            vs_battle_sampleCurve(effect->unkC, state->age), scratch->unk118);
-        vs_battle_lerp2DVector(effect->unk94[0],
+        vs_battle_lerp2DVector(effect->pairRanges[2],
+            vs_battle_sampleCurve(effect->unkC, state->age), scratch->speedRange);
+        vs_battle_lerp2DVector(effect->pairRanges[0],
             vs_battle_sampleCurve(effect->unk12, state->age), scratch->unk124);
-        vs_battle_lerp2DVector(effect->unk94[1],
+        vs_battle_lerp2DVector(effect->pairRanges[1],
             vs_battle_sampleCurve(effect->unk13, state->age), scratch->unk12C);
         depthMode = func_800CFE1C(
             effect->unk30, vs_battle_sampleCurve(effect->unk17, state->age));
-        state->xSpeed += scratch->unk108.vx;
-        state->xSpacing += scratch->unkF8.vx + state->xSpeed;
+        state->xSpeed += scratch->accelerationMin.vx;
+        state->xSpacing += scratch->forceMin.vx + state->xSpeed;
         xSpacing = scratch->unkA8.vx + state->xSpacing;
-        state->zSpeed += scratch->unk108.vy;
-        state->zSpacing += scratch->unkF8.vy + state->zSpeed;
+        state->zSpeed += scratch->accelerationMin.vy;
+        state->zSpacing += scratch->forceMin.vy + state->zSpeed;
         zSpacing = scratch->unkA8.vy + state->zSpacing;
         xPhase = state->xPhase += scratch->unkC8.vx;
         zPhase = state->zPhase += scratch->unkC8.vy;
@@ -119,7 +119,7 @@ int VS_GRID_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
             x[4 + sample] = column + scratch->unk98.vx;
             column += xSpacing;
             xSpacing += acceleration + scratch->unk100.vx;
-            acceleration += scratch->unk110.vx;
+            acceleration += scratch->accelerationMax.vx;
         }
         row = zAcceleration = 0;
         for (sample = 0; sample < 5; ++sample) {
@@ -127,13 +127,13 @@ int VS_GRID_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
             z[4 + sample] = row + scratch->unk98.vz;
             row += zSpacing;
             zSpacing += zAcceleration + scratch->unk100.vy;
-            zAcceleration += scratch->unk110.vy;
+            zAcceleration += scratch->accelerationMax.vy;
         }
         for (row = 0; row < 9; ++row) {
             angleX = xPhase;
             angleZ = zPhase;
-            xPhase += scratch->unk118[0];
-            zPhase += scratch->unk118[1];
+            xPhase += scratch->speedRange[0];
+            zPhase += scratch->speedRange[1];
             for (column = 0; column < 9; ++column) {
                 vertices[row][column].vx =
                     x[column] + ((rsin(angleX) * scratch->unkE8.vx) >> 12);
@@ -169,15 +169,15 @@ int VS_GRID_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
         } else
             color.b = 128;
         scroll = state->uScroll;
-        state->uScroll = (scroll + scratch->unk12C[0]) % effect->unk94[0][0];
+        state->uScroll = (scroll + scratch->unk12C[0]) % effect->pairRanges[0][0];
         uvBase = state->u + scroll;
         for (sample = 0; sample < 9; ++sample)
-            u[sample] = uvBase + effect->unk94[0][0] * sample / 8;
+            u[sample] = uvBase + effect->pairRanges[0][0] * sample / 8;
         scroll = state->vScroll;
-        state->vScroll = (scroll + scratch->unk12C[1]) % effect->unk94[0][2];
+        state->vScroll = (scroll + scratch->unk12C[1]) % effect->pairRanges[0][2];
         uvBase = state->v + scroll;
         for (sample = 0; sample < 9; ++sample)
-            v[sample] = uvBase + effect->unk94[0][2] * sample / 8;
+            v[sample] = uvBase + effect->pairRanges[0][2] * sample / 8;
         if (scratch->flags & 0x20000) {
             view = vs_gte_view_of(&battle->unk1C[effect->unkC8].unk58, vs_gte_screen_current());
         } else {

@@ -14,7 +14,7 @@ pub fn vs_event_scriptSlideActorToWorldPos(script: [*c]u8, _: c_short) callconv(
     const x: c_int = @as(c_int, c.vs_battle_getShort(script + 3)) >> 1;
     const y: i16 = c.vs_battle_getShort(script + 5);
     const z: i16 = c.vs_battle_getShort(script + 7);
-    const pos = &state.unk0.unk4;
+    const pos = &state.location.position;
     if (script[3] & 1 != 0) {
         _ = c.vs_actors_actorPlacement(actor, @ptrCast(&state));
         pos.vx = psx.conv(i16, @as(c_int, pos.vx) +% x);

@@ -17,7 +17,7 @@ pub fn projectBonePoint(slot: c_int, bone: c_int, out: c_int, mode: c_int) callc
     const model = var_v1.?;
 
     const v0 = psx.at(&model.bones, bone);
-    const temp = psx.get(model.unk0.unk68);
+    const temp = psx.get(model.unk0.model);
 
     const view = gte.viewOf(v0, gte.screenCurrent());
 

@@ -7,7 +7,7 @@ const v = @import("views_30DB0");
 /// Clears bit unk9_5 of the model in slot `arg0` when its linked slot (unk12) is valid; returns -2 for 0xFF and -1 for a bad link.
 pub fn func_8009FFA8(arg0: c_int, _: c_int) callconv(.c) c_int {
     const temp_a0: *v.D_800F4538_t = v.g.vs_actors_actorRecords()[@intCast(arg0)].?;
-    const temp_v1: c_int = @as(c_int, temp_a0.unk0.unk12);
+    const temp_v1: c_int = @as(c_int, temp_a0.unk0.attachParent);
 
     if (temp_v1 == 0xFF) {
         return -2;

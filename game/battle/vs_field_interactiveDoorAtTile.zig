@@ -10,17 +10,17 @@ pub fn vs_field_interactiveDoorAtTile(arg0: c_int, arg1: c_int, arg2: c_int) cal
     if (psx.get(room.sectionA)) |first| {
         const temp_t2: c_int = psx.conv(c_int, room.header.sectionALen / 20);
         const base: *v._mpdRoomSectionA = first;
-        if (base.unk0.unkA != 0) {
+        if (base.trigger.unkA != 0) {
             var i: c_int = 0;
             while (i < temp_t2) : (i +%= 1) {
                 const row: *v._mpdRoomSectionA = psx.at(base, i);
-                const x: c_int = row.unk0.unk0;
-                const y: c_int = row.unk0.unk2;
-                const z: c_int = row.unk0.unk4;
+                const x: c_int = row.trigger.tileX;
+                const y: c_int = row.trigger.tileZ;
+                const z: c_int = row.trigger.floorLayer;
 
                 if (x == arg0 and y == arg1 and z == arg2) return row;
 
-                switch (@as(c_int, row.unk0.unk6) -% 4) {
+                switch (@as(c_int, row.trigger.unk6) -% 4) {
                     0 => {
                         if (x == arg0 and (y -% 1) == arg1 and z == arg2) return row;
                     },

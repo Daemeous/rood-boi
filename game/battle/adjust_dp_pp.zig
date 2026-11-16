@@ -15,7 +15,7 @@ pub fn adjustDpPp(action: ?*v.vs_action_t, source: ?*v.vs_battle_actor2, target:
         }
     }
 
-    if ((v.g.vs_battle_actors()[target.?.unk957].?.weaponDrawn & 1) != 0) {
+    if ((v.g.vs_battle_actors()[target.?.actorId].?.weaponDrawn & 1) != 0) {
         const dp = &target.?.shield.currentDp;
         if (@as(c_int, dp.*) >= amount) {
             dp.* = psx.conv(u16, @as(c_int, dp.*) -% amount);

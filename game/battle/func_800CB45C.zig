@@ -8,7 +8,7 @@ const c = @import("c_5BF94");
 /// Polls the scene message window: 1 while its text types out, else counts its hold down and closes it.
 pub fn func_800CB45C() callconv(.c) c_int {
     if (v.g.nameWindowText().* != null) {
-        if (psx.getBits(&v.g.textBoxes()[7].unk0, "done") == 0) {
+        if (psx.getBits(&v.g.textBoxes()[7].flags, "done") == 0) {
             return 1;
         }
 

@@ -76,7 +76,7 @@ int VS_ROTATING_SURFACE_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
         state->height = 0;
         state->angle = 0;
         state->age = 0;
-        effect = &vs_effects_package->block5Data->unk4[state->effect];
+        effect = &vs_effects_package->block5Data->definitions[state->effect];
         curveIndex = effect->transparencyCurve;
         if (curveIndex) {
             sample = vs_effects_package->curveBlock->curveSizes[curveIndex];
@@ -99,7 +99,7 @@ int VS_ROTATING_SURFACE_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
         vs_effects_restartTextureAnimation(&state->texture, effect->unkCA, effect->unkCB);
         break;
     case 2: {
-        effect = &vs_effects_package->block5Data->unk4[state->effect];
+        effect = &vs_effects_package->block5Data->definitions[state->effect];
         scratch->flags = effect->flags;
         actorMatrix = &battle->unk1C[effect->unkC8].unk38;
         vs_battle_lerpVector(effect->unk18,
@@ -119,34 +119,34 @@ int VS_ROTATING_SURFACE_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
         vs_battle_lerpVector(effect->unk24,
             vs_battle_sampleCurve(effect->unk9, state->age), &scratch->unkA8);
         sample = vs_battle_sampleCurve(effect->unkD, state->age);
-        vs_battle_lerpSvector(effect->unk34[2], sample, &scratch->unkF8);
+        vs_battle_lerpSvector(effect->unk34[2], sample, &scratch->forceMin);
         vs_battle_lerpSvector(effect->unk34[3], sample, &scratch->unk100);
         sample = vs_battle_sampleCurve(effect->unkE, state->age);
-        vs_battle_lerpSvector(effect->unk34[4], sample, &scratch->unk108);
-        vs_battle_lerpSvector(effect->unk34[5], sample, &scratch->unk110);
+        vs_battle_lerpSvector(effect->unk34[4], sample, &scratch->accelerationMin);
+        vs_battle_lerpSvector(effect->unk34[5], sample, &scratch->accelerationMax);
         vs_battle_lerpVector(effect->unk34[1],
             vs_battle_sampleCurve(effect->unkB, state->age), &scratch->unkC8);
-        vs_battle_lerp2DVector(effect->unk94[2],
-            vs_battle_sampleCurve(effect->unkC, state->age), scratch->unk118);
-        state->heightSpeed += scratch->unk108.vy;
-        tempHeight = state->height += scratch->unkF8.vy + state->heightSpeed;
+        vs_battle_lerp2DVector(effect->pairRanges[2],
+            vs_battle_sampleCurve(effect->unkC, state->age), scratch->speedRange);
+        state->heightSpeed += scratch->accelerationMin.vy;
+        tempHeight = state->height += scratch->forceMin.vy + state->heightSpeed;
         heightBase = scratch->unkA8.vy;
-        state->radiusSpeed += scratch->unk108.vx;
-        tempRadius = state->radius += scratch->unkF8.vx + state->radiusSpeed;
+        state->radiusSpeed += scratch->accelerationMin.vx;
+        tempRadius = state->radius += scratch->forceMin.vx + state->radiusSpeed;
         radiusBase = scratch->unkA8.vx;
         heightValue = tempHeight + heightBase;
         radiusValue = tempRadius + radiusBase;
         oldAngle = state->angle;
-        if (scratch->unk118[0] != scratch->unk118[1]) {
-            if (scratch->unk118[1] < scratch->unk118[0]) {
-                speed = rand() % (scratch->unk118[0] - scratch->unk118[1] + 1)
-                      + scratch->unk118[1];
+        if (scratch->speedRange[0] != scratch->speedRange[1]) {
+            if (scratch->speedRange[1] < scratch->speedRange[0]) {
+                speed = rand() % (scratch->speedRange[0] - scratch->speedRange[1] + 1)
+                      + scratch->speedRange[1];
             } else {
-                speed = rand() % (scratch->unk118[1] - scratch->unk118[0] + 1)
-                      + scratch->unk118[0];
+                speed = rand() % (scratch->speedRange[1] - scratch->speedRange[0] + 1)
+                      + scratch->speedRange[0];
             }
         } else {
-            speed = scratch->unk118[0];
+            speed = scratch->speedRange[0];
         }
         baseAngle = state->angle = oldAngle + speed;
         angleAccel = 0;
@@ -172,10 +172,10 @@ int VS_ROTATING_SURFACE_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
                 vertices[row][column].vy = scratch->unk98.vy + heightPosition;
                 vertices[row][column].vz += scratch->unk98.vz;
             }
-            heightStep += scratch->unk110.vy;
+            heightStep += scratch->accelerationMax.vy;
             heightValue += heightStep + scratch->unk100.vy;
             heightPosition += heightValue;
-            radiusStep += scratch->unk110.vx;
+            radiusStep += scratch->accelerationMax.vx;
             radiusValue += radiusStep + scratch->unk100.vx;
             angleAccel += scratch->unkC8.vz;
             angleSpeed += angleAccel + scratch->unkC8.vy;

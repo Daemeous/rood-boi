@@ -67,7 +67,7 @@ pub fn vs_actors_updateActorLocomotionAnimation(actor: ?*v.D_800F4538_t, speed: 
         var entry: [*c]c.u_short = null;
         _ = c.vs_actors_findActorAnimationHeader(@ptrCast(a), next, &entry);
         if (entry == null) next = 6;
-        _ = c.vs_actors_playActorAnimation(a.unk0.unkF, next, 0, 8);
+        _ = c.vs_actors_playActorAnimation(a.unk0.slot, next, 0, 8);
         return 0;
     } else if (speed >= @as(c_int, a.unk5B9) - 1) {
         if (ua -% 0x13 < 2) return 0;
@@ -77,14 +77,14 @@ pub fn vs_actors_updateActorLocomotionAnimation(actor: ?*v.D_800F4538_t, speed: 
             var result: c_uint = old & ~@as(c_uint, 0x02000000);
             result |= (state ^ 1) << 25;
             psx.fieldAt(c_uint, &a._bits_unk5AC_0, 0).* = result;
-            _ = c.vs_actors_playActorAnimation(a.unk0.unkF, @as(c_int, @intCast(state)) +% 0x13, 0, 6);
+            _ = c.vs_actors_playActorAnimation(a.unk0.slot, @as(c_int, @intCast(state)) +% 0x13, 0, 6);
             return 0;
         }
         next = 0x13;
         if (animation == 0xD or animation == 0xF) {
             next = 0x14;
         }
-        _ = c.vs_actors_queueActorAnimation(a.unk0.unkF, next, 4, 0);
+        _ = c.vs_actors_queueActorAnimation(a.unk0.slot, next, 4, 0);
         return 0;
     } else if (speed > 0) {
         // false: walk_start; true: walk_toggle.
@@ -112,7 +112,7 @@ pub fn vs_actors_updateActorLocomotionAnimation(actor: ?*v.D_800F4538_t, speed: 
             if (quadrant == 2) {
                 next = @as(c_int, step) +% 0xF;
             }
-            _ = c.vs_actors_playActorAnimation(a.unk0.unkF, next, 0, 6);
+            _ = c.vs_actors_playActorAnimation(a.unk0.slot, next, 0, 6);
             return 0;
         } else {
             // walk_start
@@ -123,17 +123,17 @@ pub fn vs_actors_updateActorLocomotionAnimation(actor: ?*v.D_800F4538_t, speed: 
             if (quadrant == 2) {
                 next += 2;
             }
-            _ = c.vs_actors_queueActorAnimation(a.unk0.unkF, next, 4, 0);
+            _ = c.vs_actors_queueActorAnimation(a.unk0.slot, next, 4, 0);
             return 0;
         }
     } else {
         if (ua -% 0xD < 4) {
-            _ = c.vs_actors_playActorAnimation(a.unk0.unkF, 6, 0, 10);
-            _ = c.vs_actors_queueActorAnimation(a.unk0.unkF, 1, 10, 0);
+            _ = c.vs_actors_playActorAnimation(a.unk0.slot, 6, 0, 10);
+            _ = c.vs_actors_queueActorAnimation(a.unk0.slot, 1, 10, 0);
             return 0;
         }
         if (animation != 1 and a.unk1848.unk0 != 6) {
-            _ = c.vs_actors_playActorAnimation(a.unk0.unkF, 1, 0, 10);
+            _ = c.vs_actors_playActorAnimation(a.unk0.slot, 1, 0, 10);
             a.unk5B3 = 0;
         }
         a.unk5B3 = psx.conv(u8, @as(c_int, a.unk5B3) +% @divTrunc(v.g.vs_gametime_tickspeed().*, 2));
@@ -143,7 +143,7 @@ pub fn vs_actors_updateActorLocomotionAnimation(actor: ?*v.D_800F4538_t, speed: 
     }
 
     if (play_pending) {
-        _ = c.vs_actors_playActorAnimation(a.unk0.unkF, next, 0, frames);
+        _ = c.vs_actors_playActorAnimation(a.unk0.slot, next, 0, frames);
     }
     return 0;
 }

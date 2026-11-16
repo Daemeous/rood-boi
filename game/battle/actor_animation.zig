@@ -90,7 +90,7 @@ pub fn startAnimation(actorId: c_int, animation: c_int, _: c_int, blendFrames_: 
             }
             break :setHeading;
         }
-        actor.unk1800 = psx.conv(i16, (@as(c_int, actor.unk0.facing) +% actor.unk0.unk3E) & 0xFFF);
+        actor.unk1800 = psx.conv(i16, (@as(c_int, actor.unk0.facing) +% actor.unk0.facingDelta) & 0xFFF);
     }
 
     var found: c_int = undefined;

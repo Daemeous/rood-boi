@@ -12,18 +12,18 @@ pub fn vs_actors_acquireRememberedEnemy(arg0: c_int) callconv(.c) ?*anyopaque {
     var i: usize = 0;
     while (i < 8) : (i += 1) {
         // arg0 + 1 wraps (-fwrapv).
-        if (@as(c_int, zone.unk8[i][0]) == arg0 +% 1) {
-            found = &zone.unk8[i];
+        if (@as(c_int, zone.actorStates[i][0]) == arg0 +% 1) {
+            found = &zone.actorStates[i];
             break;
         }
     }
 
     if (found == null) {
         // unk4 is not bounded by the C: the index is computed without a check.
-        found = psx.at(&zone.unk8, psx.conv(c_int, zone.unk4));
-        zone.unk4 +%= 1;
-        if (zone.unk4 >= 8) {
-            zone.unk4 = 0;
+        found = psx.at(&zone.actorStates, psx.conv(c_int, zone.nextSlot));
+        zone.nextSlot +%= 1;
+        if (zone.nextSlot >= 8) {
+            zone.nextSlot = 0;
         }
     }
 

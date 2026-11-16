@@ -7,7 +7,7 @@ const c = @import("c_146C");
 pub fn func_80079050() callconv(.c) void {
     const d = v.g.vs_battle_actionState().*.?;
     const index: usize = d.unk0 & 3;
-    if (c.vs_battle_aiRebuildActorActionPlans(&d.unk854[index]) == 0) {
+    if (c.vs_battle_aiRebuildActorActionPlans(&d.queue[index]) == 0) {
         _ = c.func_80069D14();
         _ = c.vs_battle_beginActionTrailFade();
     }

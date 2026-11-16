@@ -177,18 +177,18 @@ void VS_TRAIL_ORIGIN_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* arg1
     case 24:
     case 32:
     case 40:
-        arg1->unk184 = 4;
-        arg1->unk188 = 4;
+        arg1->ringSegments = 4;
+        arg1->ringPositions = 4;
         break;
 
     case 48:
-        arg1->unk184 = arg0->unkCA;
-        if (arg1->unk184 == 0) {
-            arg1->unk184 = 1;
+        arg1->ringSegments = arg0->unkCA;
+        if (arg1->ringSegments == 0) {
+            arg1->ringSegments = 1;
         }
-        arg1->unk188 = arg0->unkCB;
-        if (arg1->unk188 == 0) {
-            arg1->unk188 = arg1->unk184;
+        arg1->ringPositions = arg0->unkCB;
+        if (arg1->ringPositions == 0) {
+            arg1->ringPositions = arg1->ringSegments;
         }
         break;
 
@@ -196,10 +196,10 @@ void VS_TRAIL_ORIGIN_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* arg1
         return;
     }
 
-    temp_lo = ONE / arg1->unk184;
+    temp_lo = ONE / arg1->ringSegments;
 
     if ((arg1->flags & 0x1800) != 0x1000) {
-        VS_TRAIL_CORNER_STATE = VS_TRAIL_CORNER_STATE % arg1->unk188;
+        VS_TRAIL_CORNER_STATE = VS_TRAIL_CORNER_STATE % arg1->ringPositions;
         temp_s0_2 = (VS_TRAIL_CORNER_STATE * temp_lo) + ONE / 8;
         sp10 = (rcos(temp_s0_2) * arg1->unkA8.vx) >> 0xC;
         sp14 = (rsin(temp_s0_2) * arg1->unkA8.vz) >> 0xC;
@@ -207,7 +207,7 @@ void VS_TRAIL_ORIGIN_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* arg1
 
     for (i = 0; i < arg3->trailcount; ++i) {
         splinePoint = &arg3->trails[i].splinePoints[0];
-        VS_TRAIL_CORNER_STATE = (VS_TRAIL_CORNER_STATE + 1) % arg1->unk188;
+        VS_TRAIL_CORNER_STATE = (VS_TRAIL_CORNER_STATE + 1) % arg1->ringPositions;
         temp_s0_2 = (VS_TRAIL_CORNER_STATE * temp_lo) + ONE / 8;
         temp_s3 = (rcos(temp_s0_2) * arg1->unkA8.vx) >> 0xC;
         temp_s0_2 = (rsin(temp_s0_2) * arg1->unkA8.vz) >> 0xC;
@@ -238,21 +238,21 @@ void VS_TRAIL_TARGET_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* arg1
     int i;
 
     vs_battle_lerpSvector(arg0->unk34[6],
-        vs_battle_sampleCurve(arg0->unkF, arg3->curveSampleDistance), &arg1->unk13C);
+        vs_battle_sampleCurve(arg0->unkF, arg3->curveSampleDistance), &arg1->attractionOffset);
     vs_battle_lerpSvector(arg0->unk34[7],
-        vs_battle_sampleCurve(arg0->unk10, arg3->curveSampleDistance), &arg1->unk144);
+        vs_battle_sampleCurve(arg0->unk10, arg3->curveSampleDistance), &arg1->attractionJitter);
 
     switch (arg1->flags & 0x1C0) {
     case 0:
         break;
 
     case 0xC0:
-        applyVector(&arg1->unk13C, arg2->unk1C[arg0->unkC9].unk38.t[0],
+        applyVector(&arg1->attractionOffset, arg2->unk1C[arg0->unkC9].unk38.t[0],
             arg2->unk1C[arg0->unkC9].unk38.t[1], arg2->unk1C[arg0->unkC9].unk38.t[2], +=);
         break;
 
     case 0x80:
-        applyVector(&arg1->unk13C, vs_effects_actionRequest.unkE0.vx, vs_effects_actionRequest.unkE0.vy,
+        applyVector(&arg1->attractionOffset, vs_effects_actionRequest.unkE0.vx, vs_effects_actionRequest.unkE0.vy,
             vs_effects_actionRequest.unkE0.vz, +=);
         break;
     }
@@ -260,10 +260,10 @@ void VS_TRAIL_TARGET_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* arg1
     for (i = 0; i < arg3->trailcount; ++i) {
         SVECTOR* v = &arg3->trails[i].splinePoints[3];
         setVector(v,
-            arg1->unk13C.vx + vs_battle_randUniformInt(arg1->unk144.vx, -arg1->unk144.vx),
-            arg1->unk13C.vy + vs_battle_randUniformInt(arg1->unk144.vy, -arg1->unk144.vy),
-            arg1->unk13C.vz
-                + vs_battle_randUniformInt(arg1->unk144.vz, -arg1->unk144.vz));
+            arg1->attractionOffset.vx + vs_battle_randUniformInt(arg1->attractionJitter.vx, -arg1->attractionJitter.vx),
+            arg1->attractionOffset.vy + vs_battle_randUniformInt(arg1->attractionJitter.vy, -arg1->attractionJitter.vy),
+            arg1->attractionOffset.vz
+                + vs_battle_randUniformInt(arg1->attractionJitter.vz, -arg1->attractionJitter.vz));
     }
 }
 
@@ -292,37 +292,37 @@ void VS_TRAIL_CONTROL_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* arg
                                + (arg1->unk34.vy * arg1->unk34.vy)
                                + (arg1->unk34.vz * arg1->unk34.vz));
 
-        vs_battle_lerp2DVector(arg0->unk94[0],
+        vs_battle_lerp2DVector(arg0->pairRanges[0],
             vs_battle_sampleCurve(arg0->unk12, arg3->curveSampleDistance), arg1->unk124);
-        vs_battle_lerp2DVector(arg0->unk94[1],
+        vs_battle_lerp2DVector(arg0->pairRanges[1],
             vs_battle_sampleCurve(arg0->unk13, arg3->curveSampleDistance), arg1->unk12C);
-        vs_battle_lerp2DVector(arg0->unk94[2],
-            vs_battle_sampleCurve(arg0->unkC, arg3->curveSampleDistance), arg1->unk118);
+        vs_battle_lerp2DVector(arg0->pairRanges[2],
+            vs_battle_sampleCurve(arg0->unkC, arg3->curveSampleDistance), arg1->speedRange);
         vs_battle_lerpVector(arg0->unk34[1],
             vs_battle_sampleCurve(arg0->unkB, arg3->curveSampleDistance), &arg1->unkC8);
         vs_battle_lerpVector(arg0->unk34[0],
             vs_battle_sampleCurve(arg0->unkA, arg3->curveSampleDistance), &arg1->unkE8);
         vs_battle_lerpSvector(arg0->unk34[2],
-            vs_battle_sampleCurve(arg0->unkD, arg3->curveSampleDistance), &arg1->unkF8);
+            vs_battle_sampleCurve(arg0->unkD, arg3->curveSampleDistance), &arg1->forceMin);
 
-        if (arg1->unkF8.vx != 0) {
+        if (arg1->forceMin.vx != 0) {
             int var_v0_2 =
-                (arg1->unk118[0] + (rand() % arg1->unkF8.vx)) - (arg1->unkF8.vx / 2);
+                (arg1->speedRange[0] + (rand() % arg1->forceMin.vx)) - (arg1->forceMin.vx / 2);
             if (&arg1->unk34) {
                 sp10.vz = (temp_s0 * var_v0_2) / 256;
             } else {
                 sp10.vz = (temp_s0 * var_v0_2) / 256;
             }
         } else {
-            sp10.vz = (temp_s0 * arg1->unk118[0]) / 256;
+            sp10.vz = (temp_s0 * arg1->speedRange[0]) / 256;
         }
 
-        if (arg1->unkF8.vy != 0) {
+        if (arg1->forceMin.vy != 0) {
             int var_v0_3 =
-                (arg1->unk118[1] + (rand() % arg1->unkF8.vy)) - (arg1->unkF8.vy / 2);
+                (arg1->speedRange[1] + (rand() % arg1->forceMin.vy)) - (arg1->forceMin.vy / 2);
             sp18.vz = temp_s0 + ((temp_s0 * var_v0_3) / 256);
         } else {
-            sp18.vz = temp_s0 + ((temp_s0 * arg1->unk118[1]) / 256);
+            sp18.vz = temp_s0 + ((temp_s0 * arg1->speedRange[1]) / 256);
         }
 
         var_s3 = arg1->unk124[0];
@@ -371,7 +371,7 @@ void VS_TRAIL_INIT_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* arg1,
     int speed;
     int i;
 
-    vs_battle_lerp2DVector(arg0->unk94[4], 0, arg1->unk134);
+    vs_battle_lerp2DVector(arg0->pairRanges[4], 0, arg1->unk134);
 
     speed = func_800CFE1C(arg0->unk30, 0) << 0xC;
 
@@ -461,7 +461,7 @@ void VS_TRAIL_RENDER_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* arg1
     int temp_s3;
 
     vs_battle_lerpSvector(arg0->unk34[4],
-        vs_battle_sampleCurve(arg0->unkE, arg3->curveSampleDistance), &arg1->unk108);
+        vs_battle_sampleCurve(arg0->unkE, arg3->curveSampleDistance), &arg1->accelerationMin);
 
     if (arg0->rCurve != 0) {
         j = vs_battle_sampleCurve(arg0->rCurve, arg3->curveSampleDistance) * 2;
@@ -516,7 +516,7 @@ void VS_TRAIL_RENDER_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* arg1
                 spA0[j] -= 0x400;
             }
 
-            temp_s3 = arg1->unk108.vx / 2;
+            temp_s3 = arg1->accelerationMin.vx / 2;
             temp_s0 = (rcos(spA0[0]) * temp_s3) >> 0xC;
             temp_a1_2 = (rsin(spA0[0]) * temp_s3) >> 0xC;
             spF0 = sp50;
@@ -640,7 +640,7 @@ int VS_TRAIL_DISPATCH_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
         temp_v0->unk1 = arg2 >> 8;
         temp_v0->unk0 = arg2;
         temp_v0->curveSampleDistance = 0;
-        temp_s3 = &vs_effects_package->block5Data->unk4[temp_v0->unk1];
+        temp_s3 = &vs_effects_package->block5Data->definitions[temp_v0->unk1];
         trail = temp_s3->unkC0[0];
 
         if (trail > 16) {
@@ -677,7 +677,7 @@ int VS_TRAIL_DISPATCH_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
         break;
 
     case 2:
-        temp_s3 = &vs_effects_package->block5Data->unk4[temp_s0->unk1];
+        temp_s3 = &vs_effects_package->block5Data->definitions[temp_s0->unk1];
         s4->flags = (temp_s3->flags);
 
         if (temp_s0->unk3 == 0) {

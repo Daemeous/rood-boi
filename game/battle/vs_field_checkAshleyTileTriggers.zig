@@ -94,23 +94,23 @@ pub fn vs_field_checkAshleyTileTriggers(actorId: c_int, cell: [*c]u8) callconv(.
         }
         actor.unk2C.u8[3] = @intCast(falling); // 0 or 1
     }
-    if (!entered and psx.getBits(room.?, "unk0_17") != 0 and position.unk4.vy > 16) {
+    if (!entered and psx.getBits(room.?, "unk0_17") != 0 and position.position.vy > 16) {
         status = c.vs_field_roomFallDestination();
         if (status != -1 and status != 0) {
             door.zndId = psx.conv(u8, @divTrunc(status, 65536));
             door.mpdId = psx.conv(u8, @rem(status, 65536));
-            psx.setBits(&door.unk2, "unk0_0", psx.conv(u5, cell[0]));
-            psx.setBits(&door, "unk4_8", psx.getBits(&door.unk2, "unk0_0"));
-            psx.setBits(&door.unk2, "unk0_5", psx.conv(u5, cell[2]));
-            psx.setBits(&door, "unk6_10", psx.getBits(&door.unk2, "unk0_5"));
-            psx.setBits(&door.unk2, "unk0_10", psx.conv(u3, cell[1]));
-            psx.setBits(&door.unk2, "unk0_13", 7);
+            psx.setBits(&door.tileLocation, "unk0_0", psx.conv(u5, cell[0]));
+            psx.setBits(&door, "unk4_8", psx.getBits(&door.tileLocation, "unk0_0"));
+            psx.setBits(&door.tileLocation, "unk0_5", psx.conv(u5, cell[2]));
+            psx.setBits(&door, "unk6_10", psx.getBits(&door.tileLocation, "unk0_5"));
+            psx.setBits(&door.tileLocation, "unk0_10", psx.conv(u3, cell[1]));
+            psx.setBits(&door.tileLocation, "unk0_13", 7);
             psx.setBits(&door, "unk4_13", psx.conv(u2, cell[3] >> 6));
             psx.setBits(&door, "unk4_15", 0);
             psx.setBits(&door, "unk6_15", 0);
             if (@as(c_int, door.zndId) == v.g._zoneContext().zndId) {
                 _ = c.vs_field_beginRoomTransition(@ptrCast(&door), 0, 8);
-            } else if (psx.get(actor.stats).?.unk957 != 0) {
+            } else if (psx.get(actor.stats).?.actorId != 0) {
                 _ = c.vs_field_beginZoneTransition(@ptrCast(&door), 0, 8);
             } else {
                 _ = c.vs_field_beginZoneTransition(@ptrCast(&door), 0, 8);
@@ -122,16 +122,16 @@ pub fn vs_field_checkAshleyTileTriggers(actorId: c_int, cell: [*c]u8) callconv(.
         const stats = psx.get(actor.stats).?;
         if (stats.currentHP < 21) {
             if (stats.currentHP != 0) {
-                c.func_80093B68(stats.unk957, 0, std.math.minInt(c_int) | 0x14, 0);
+                c.func_80093B68(stats.actorId, 0, std.math.minInt(c_int) | 0x14, 0);
             }
             psx.get(actor.stats).?.currentHP = 0;
-            _ = c.vs_battle_beginActorDefeatAnimation(psx.get(actor.stats).?.unk957);
+            _ = c.vs_battle_beginActorDefeatAnimation(psx.get(actor.stats).?.actorId);
             return 1;
         }
         stats.currentHP = psx.conv(i16, @as(c_int, stats.currentHP) - 20); // at least 21
         c.vs_battle_setDoorEntered();
         _ = c.vs_field_beginRoomTransition(@ptrCast(v.g.vs_field_pendingDestinationDoor()), 0, 8);
-        c.func_80093B68(psx.get(actor.stats).?.unk957, 0, std.math.minInt(c_int) | 0x14, 0);
+        c.func_80093B68(psx.get(actor.stats).?.actorId, 0, std.math.minInt(c_int) | 0x14, 0);
         c.vs_actors_resetActorRunMomentum(actorId);
         c.vs_field_setEntranceDoorRecord(@ptrCast(v.g.vs_field_pendingDestinationDoor()));
         return 1;

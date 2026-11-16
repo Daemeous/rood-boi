@@ -10,58 +10,58 @@ pub fn func_800BDC9C(script: [*c]u8, _: c_short) callconv(.c) c_int {
     switch (script[0]) {
         234 => {
             const r = &cam.projectionDistance;
-            r.unk9 = script[3];
-            if (r.unk9 == 0) {
-                r.unk2 = if (script[1] != 0) psx.conv(i16, @as(c_int, script[1]) << 2) else 4096 / 8;
-                r.unk0 = 1;
+            r.durationFrames = script[3];
+            if (r.durationFrames == 0) {
+                r.value = if (script[1] != 0) psx.conv(i16, @as(c_int, script[1]) << 2) else 4096 / 8;
+                r.hasChanged = 1;
             } else {
                 if (script[1] != 0) {
-                    r.unk4 = r.unk2;
-                    r.unk6 = psx.conv(i16, (@as(c_int, script[1]) << 2) - r.unk4);
+                    r.startValue = r.value;
+                    r.deltaValue = psx.conv(i16, (@as(c_int, script[1]) << 2) - r.startValue);
                 } else {
-                    r.unk6 = 4096 / 8;
+                    r.deltaValue = 4096 / 8;
                 }
-                r.unk1 = script[2];
-                r.unk8 = 0;
+                r.easingMode = script[2];
+                r.elapsedFrames = 0;
             }
             return 0;
         },
         235 => {
             const r = &cam.nearClip;
-            r.unk9 = script[3];
-            if (r.unk9 == 0) {
-                r.unk2 = if (script[1] != 0) script[1] else 64;
-                r.unk0 = 1;
+            r.durationFrames = script[3];
+            if (r.durationFrames == 0) {
+                r.value = if (script[1] != 0) script[1] else 64;
+                r.hasChanged = 1;
             } else {
                 const near: c_int = if (script[1] != 0) script[1] else 64;
-                r.unk4 = r.unk2;
-                r.unk6 = psx.conv(i16, near - r.unk4);
-                r.unk1 = script[2];
-                r.unk8 = 0;
+                r.startValue = r.value;
+                r.deltaValue = psx.conv(i16, near - r.startValue);
+                r.easingMode = script[2];
+                r.elapsedFrames = 0;
             }
             return 0;
         },
         236 => {
             const r = &cam.farClip;
-            r.unk9 = script[3];
-            if (r.unk9 == 0) {
-                r.unk2 = if (script[1] != 0) psx.conv(i16, @as(c_int, script[1]) << 7) else 4096;
-                r.unk0 = 1;
+            r.durationFrames = script[3];
+            if (r.durationFrames == 0) {
+                r.value = if (script[1] != 0) psx.conv(i16, @as(c_int, script[1]) << 7) else 4096;
+                r.hasChanged = 1;
             } else {
                 if (script[1] != 0) {
-                    r.unk4 = r.unk2;
-                    r.unk6 = psx.conv(i16, (@as(c_int, script[1]) << 7) - r.unk4);
+                    r.startValue = r.value;
+                    r.deltaValue = psx.conv(i16, (@as(c_int, script[1]) << 7) - r.startValue);
                 } else {
-                    r.unk6 = 4096;
+                    r.deltaValue = 4096;
                 }
-                r.unk1 = script[2];
-                r.unk8 = 0;
+                r.easingMode = script[2];
+                r.elapsedFrames = 0;
             }
             return 0;
         },
         239 => {
             // (func_800BDF6C_t*)&unk1A4.unk2: two 12-byte slots from byte 0x1A6
-            const entries: [*]v.func_800BDF6C_t = @ptrCast(&cam.unk1A4.unk2);
+            const entries: [*]v.func_800BDF6C_t = @ptrCast(&cam.unk1A4.displacement);
             if (script[2] == 0) {
                 entries[1].unk9 = 0;
                 entries[0].unk9 = 0;
@@ -73,7 +73,7 @@ pub fn func_800BDC9C(script: [*c]u8, _: c_short) callconv(.c) c_int {
                 if (entry.unk9 == 0) {
                     entry.unk4 = script[1];
                     entry.unk6 = script[2];
-                    entry.unkA = script[3];
+                    entry.axisMask = script[3];
                     entry.unk0.u8[1] = script[4];
                     entry.unk9 = script[5];
                     entry.unk8 = 0;

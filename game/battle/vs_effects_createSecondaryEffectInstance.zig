@@ -13,14 +13,14 @@ pub fn vs_effects_createSecondaryEffectInstance(arg0: ?*v.D_800F53B8_t2) callcon
 
     const a1: ?*v.D_800F53B8_t = v.g.vs_effects_secondaryInstances().*;
 
-    if (a1 == null or arg0.?.unk10 < @as(c_int, a1.?.unk9)) {
+    if (a1 == null or arg0.?.priority < @as(c_int, a1.?.unk9)) {
         psx.put(&temp.next, a1);
         v.g.vs_effects_secondaryInstances().* = temp;
     } else {
         var cur: *v.D_800F53B8_t = a1.?;
         while (true) {
             const next_ = psx.get(cur.next);
-            if (next_ == null or arg0.?.unk10 < @as(c_int, next_.?.unk9)) {
+            if (next_ == null or arg0.?.priority < @as(c_int, next_.?.unk9)) {
                 psx.put(&temp.next, next_);
                 psx.put(&cur.next, temp);
                 break;

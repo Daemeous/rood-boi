@@ -8,7 +8,7 @@ const v = @import("views_146C");
 pub fn hpLostFactor(arg0: ?*v.vs_action_t, arg1: ?*v._hitEntity_t, arg2: ?*v._hitEntity_t, arg3: c_int, arg4: c_int) callconv(.c) c_short {
     _ = arg2;
     _ = arg4;
-    const slot = v.g.vs_battle_actors()[arg1.?.unk0.targetActor].?;
+    const slot = v.g.vs_battle_actors()[arg1.?.target.targetActor].?;
     const actor = psx.get(slot.stats).?;
     const action = arg0.?;
     // arg3 is not checked by the C: psx.at indexes as the C does.

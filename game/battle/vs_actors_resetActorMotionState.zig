@@ -7,9 +7,9 @@ const c = @import("c_30DB0");
 /// Resets the entity in slot `index` of vs_actors_actorRecords to its spawn state, if the slot is in use.
 pub fn vs_actors_resetActorMotionState(index: c_int, _: c_int) callconv(.c) void {
     if (psx.get(psx.at(v.g.vs_actors_actorRecords(), index).*)) |slot| {
-        slot.unk0.unk2C = 0x1000;
-        slot.unk0.unk2E = 0x1000;
-        slot.unk0.unk30 = 0x1000;
+        slot.unk0.scaleX = 0x1000;
+        slot.unk0.scaleY = 0x1000;
+        slot.unk0.scaleZ = 0x1000;
         slot.unk17FC = -2;
         slot.unk0.unk11 = 0;
         slot.unk5C8 = 0;
@@ -43,7 +43,7 @@ pub fn vs_actors_resetActorMotionState(index: c_int, _: c_int) callconv(.c) void
         _ = c.vs_actors_setActorSoundOverrides(index, psx.cptr(c.D_800F4538_unk64, &sp10));
         slot.unk5BE = 4;
         slot.unk17FF = 0;
-        slot.unk0.unk64.unk0 = 0;
+        slot.unk0.palettePulse.unk0 = 0;
         slot.unk1860 = 0;
         psx.setBits(&slot.unk0, "unkC_0", 0);
         psx.setBits(&slot.unk0, "unkC_4", 0);
@@ -68,8 +68,8 @@ pub fn vs_actors_resetActorMotionState(index: c_int, _: c_int) callconv(.c) void
         psx.setBits(slot, "unk5AC_15", 0);
         const s0 = &slot.unk1864;
         _ = c.memset(s0, @as(c_int, 0), @as(usize, @sizeOf(v.D_800F4538_unk1864)));
-        s0.unkC = slot.shadowRadiusExpandRate;
-        s0.unkE = slot.shadowRadiusShrinkRate;
+        s0.radiusExpandRate = slot.shadowRadiusExpandRate;
+        s0.radiusShrinkRate = slot.shadowRadiusShrinkRate;
         _ = c.memset(&slot.unk1848, @as(c_int, 0), @as(usize, @sizeOf(v.D_800F4538_unk1848)));
     }
 }

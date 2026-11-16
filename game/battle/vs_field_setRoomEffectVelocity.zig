@@ -7,13 +7,13 @@ const v = @import("views_2842C");
 pub fn vs_field_setRoomEffectVelocity(arg0: ?*v.func_80092F74_t, arg1: ?*v.func_80092F74_t2) callconv(.c) c_int {
     const dst = arg0.?;
     const src = arg1.?;
-    dst.unk24 = psx.conv(i16, src.unk4[0].u16[0]);
-    dst.unk26 = psx.conv(i16, src.unk4[0].u16[1]);
-    dst.unk28 = psx.conv(i16, src.unk4[1].u16[0]);
-    dst.unk2A = psx.conv(i16, src.unk4[1].u16[1]);
-    dst.unk2C = psx.conv(i16, src.unk4[2].u16[0]);
-    dst.unk2E = psx.conv(i16, src.unk4[2].u16[1]);
-    dst.unk30 = psx.conv(i16, src.unk4[3].u16[0]);
-    dst.unk32 = psx.conv(i16, src.unk4[3].u16[1]);
+    dst.unk24 = psx.conv(i16, src.operands[0].u16[0]);
+    dst.unk26 = psx.conv(i16, src.operands[0].u16[1]);
+    dst.unk28 = psx.conv(i16, src.operands[1].u16[0]);
+    dst.unk2A = psx.conv(i16, src.operands[1].u16[1]);
+    dst.unk2C = psx.conv(i16, src.operands[2].u16[0]);
+    dst.unk2E = psx.conv(i16, src.operands[2].u16[1]);
+    dst.unk30 = psx.conv(i16, src.operands[3].u16[0]);
+    dst.unk32 = psx.conv(i16, src.operands[3].u16[1]);
     return 0;
 }

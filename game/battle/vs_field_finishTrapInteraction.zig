@@ -10,9 +10,9 @@ pub fn vs_field_finishTrapInteraction() callconv(.c) void {
     v.g._cameraMode().* = 4;
     v.g.vs_gametime_tickspeed().* = 2;
     c.func_800CB50C();
-    c.vs_field_setRoomTriggerEnabled(psx.cptr(c._mpdRoomSection9, &psx.get(v.g.vs_field_interactionFocus().unk0).?.unk0), 1);
+    c.vs_field_setRoomTriggerEnabled(psx.cptr(c._mpdRoomSection9, &psx.get(v.g.vs_field_interactionFocus().unk0).?.trigger), 1);
     c.vs_battle_aiMarkAiTileDynamicObstacle(
-        @as(c_int, psx.get(v.g.vs_field_interactionFocus().unk0).?.unk0.unk0),
-        @as(c_int, psx.get(v.g.vs_field_interactionFocus().unk0).?.unk0.unk2),
+        @as(c_int, psx.get(v.g.vs_field_interactionFocus().unk0).?.trigger.tileX),
+        @as(c_int, psx.get(v.g.vs_field_interactionFocus().unk0).?.trigger.tileZ),
     );
 }

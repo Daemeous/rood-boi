@@ -13,10 +13,10 @@ pub fn factorMagicDamageReceivedOfType(action: ?*v.vs_action_t, _: ?*v._hitEntit
     // vs_main_actions[actionIndex] is not bounds-checked by the C: psx.at keeps that.
     const actionType: c_int = psx.getBits(psx.at(v.g.actions(), d.unk8.actionIndex), "type");
     if (actionType == c.actionTypeSpell) {
-        const hpEffect: c_int = psx.getBits(&d.unk8.unk4, "hpEffect");
+        const hpEffect: c_int = psx.getBits(&d.unk8.primaryTarget, "hpEffect");
         if (hpEffect == actionType or hpEffect == 3) {
-            const hp: c_int = d.unk8.unk4.unk0.hp;
-            const mp: c_int = d.unk8.unk4.unk0.mp;
+            const hp: c_int = d.unk8.primaryTarget.target.hp;
+            const mp: c_int = d.unk8.primaryTarget.target.mp;
             const statFactor: c_int = psx.getBits(psx.at(&action.?.hitParams, arg3), "statFactor");
             const total: c_int = (hp +% mp) *% statFactor;
             a2 = psx.conv(c_short, @divTrunc(total, 10));

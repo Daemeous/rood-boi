@@ -18,7 +18,7 @@ pub fn func_800CB708() callconv(.c) void {
         if (state.unk2 != 0) {
             c.pc_screff2_tiles();
         }
-        if (state.unk8 != 0) {
+        if (state.vignetteEnabled != 0) {
             c.pc_screff2_border();
         }
     }

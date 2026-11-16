@@ -14,7 +14,7 @@ pub fn func_8009DF3C(slot: c_int, command: c_int) callconv(.c) void {
     var var_s0: c_int = 0;
     var var_s1: c_int = 0;
 
-    if (temp.unk0.unkF == 0) {
+    if (temp.unk0.slot == 0) {
         return;
     }
 

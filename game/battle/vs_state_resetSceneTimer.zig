@@ -8,7 +8,7 @@ const c = @import("c_146C");
 /// Zeroes the battle clock, sets state flags 0xA0..0xA3 from it, then runs vs_battle_hidePuzzleTimer.
 pub fn vs_state_resetSceneTimer() callconv(.c) void {
     const clock = v.g.vs_state_sceneTimer();
-    clock.unk0 = 0;
+    clock.mode = 0;
     clock.hours = 0;
     clock.minutes = 0;
     clock.seconds = 0;

@@ -10,12 +10,12 @@ pub fn vs_actors_beginActorShadowBlend(arg0: ?*v.D_800F4538_t, arg1: c_int) call
     const a2: *v.D_800F4538_unk1864 = &self.unk1864;
     a2.unk5 = 0;
     if (arg1 == 0) {
-        a2.unkC = self.shadowRadiusExpandRate;
-        a2.unkE = self.shadowRadiusShrinkRate;
+        a2.radiusExpandRate = self.shadowRadiusExpandRate;
+        a2.radiusShrinkRate = self.shadowRadiusShrinkRate;
         a2.unk8 = 0;
     } else {
-        a2.unk10 = psx.conv(i16, @as(c_int, self.shadowRadiusExpandRate) -% @as(c_int, a2.unkC));
-        a2.unk12 = psx.conv(i16, @as(c_int, self.shadowRadiusShrinkRate) -% @as(c_int, a2.unkE));
+        a2.radiusExpandDelta = psx.conv(i16, @as(c_int, self.shadowRadiusExpandRate) -% @as(c_int, a2.radiusExpandRate));
+        a2.radiusShrinkDelta = psx.conv(i16, @as(c_int, self.shadowRadiusShrinkRate) -% @as(c_int, a2.radiusShrinkRate));
         a2.unkA = psx.conv(i16, -%@as(c_int, a2.unk8));
     }
     a2.unk4 = psx.conv(u8, arg1);

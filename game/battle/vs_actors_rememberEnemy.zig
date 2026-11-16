@@ -14,7 +14,7 @@ pub fn vs_actors_rememberEnemy(arg0: c_int, arg1: c_int) callconv(.c) void {
     const stats = psx.get(actor.stats).?;
     const raw: *align(4) anyopaque = @alignCast(c.vs_actors_acquireRememberedEnemy(actor.unk27).?);
     const entry: *v.func_80069EF0_t = @ptrCast(raw);
-    entry.unk0 = psx.conv(u8, @as(c_int, actor.unk27) +% 1);
+    entry.spawnSlot = psx.conv(u8, @as(c_int, actor.unk27) +% 1);
     entry.currentHP = psx.conv(i16, @as(c_int, stats.currentHP));
     entry.maxHP = psx.conv(i16, @as(c_int, stats.maxHP));
     entry.currentMP = psx.conv(i16, @as(c_int, stats.currentMP));
@@ -27,7 +27,7 @@ pub fn vs_actors_rememberEnemy(arg0: c_int, arg1: c_int) callconv(.c) void {
         entry.limbHp[i] = stats.limbs[i].hp;
     }
 
-    entry.unk20 = stats.statuses;
+    entry.statuses = stats.statuses;
 
     if ((psx.conv(c_uint, c.vs_actors_actorStateFlags(arg0)) & 0x0100_0000) != 0) {
         entry.unk1 = psx.conv(u8, arg1);
@@ -36,10 +36,10 @@ pub fn vs_actors_rememberEnemy(arg0: c_int, arg1: c_int) callconv(.c) void {
         entry.unk1 = psx.conv(u8, arg1);
     }
 
-    entry.unk2 = c.vs_battle_aiPackActorAiPersistenceFlags(arg0);
+    entry.aiFlags = c.vs_battle_aiPackActorAiPersistenceFlags(arg0);
 
     _ = c.vs_actors_actorPlacement(arg0, &sp10);
     c.vs_actors_actorSavedPlacement(arg0, psx.conv(c_int, @as(c_int, stats.unk30)), @ptrCast(&sp10));
 
-    entry.unk24 = sp10.unk0.unk0.value;
+    entry.placement = sp10.location.packedTile.value;
 }

@@ -8,12 +8,12 @@ pub fn vs_actors_actorSavedPlacement(arg0: c_int, arg1: c_int, arg2: ?*v.func_80
     const temp = psx.at(v.g.vs_actors_actorRecords(), arg0).*;
     if (temp) |t| {
         const out = arg2.?;
-        out.unk0.unk0.value = t.unk1868;
+        out.location.packedTile.value = t.unk1868;
         if (psx.getBits(&t.unk0, "unkA_5") != 0 and (arg1 == 0x10 or arg1 == 0x20)) {
             // *(int*)&temp->unk0.currentTileX: an unaligned 4-byte read across the tile fields.
             const word: *align(1) i32 = @ptrCast(&t.unk0.currentTileX);
-            out.unk0.unk0.value = word.*;
+            out.location.packedTile.value = word.*;
         }
-        psx.setBits(&out.unk0.unk0.fields, "unk0_24", psx.conv(u8, @divTrunc(@as(c_int, t.unk0.facing), 16)));
+        psx.setBits(&out.location.packedTile.fields, "unk0_24", psx.conv(u8, @divTrunc(@as(c_int, t.unk0.facing), 16)));
     }
 }

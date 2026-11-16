@@ -9,7 +9,7 @@ const c = @import("c_3A1A0");
 pub fn func_800A2C48(entity: ?*v.D_800F4538_t) callconv(.c) void {
     const e = entity.?;
     // &unk5DC[4] is one past the array's end (the address of unk5EC): psx.at does not bounds-check.
-    _ = c.vs_actors_translateActorToTileAtRate(e.unk0.unkF, @ptrCast(psx.at(&e.unk5DC, 4)), 0);
+    _ = c.vs_actors_translateActorToTileAtRate(e.unk0.slot, @ptrCast(psx.at(&e.unk5DC, 4)), 0);
     e.unk6E0 = 0;
     psx.setBits(&e.unk0, "unkB_0", 4);
     c.func_800A29A0(@ptrCast(entity));

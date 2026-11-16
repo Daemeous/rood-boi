@@ -14,7 +14,7 @@ fn link(k: c_int) *v.D_800F19CC_t2 {
     if (k < 0) {
         rounded = k +% 3;
     }
-    return &state().unk854[@intCast(k -% (rounded >> 2) *% 4)];
+    return &state().queue[@intCast(k -% (rounded >> 2) *% 4)];
 }
 
 /// orig: vs_battle_finishActionSequence (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
@@ -60,14 +60,14 @@ pub fn vs_battle_finishActionSequence() callconv(.c) void {
             while (true) {
                 const chain = link(k);
                 var h: c_int = 0;
-                if (chain.unk4A != 0) {
+                if (chain.targetCount != 0) {
                     while (true) {
-                        const hit = psx.at(&chain.unk4C, h);
-                        if (hit.unk40 == 0 and c.vs_actors_isActorActionAnimationBusy(hit.unk0.targetActor) +% 1 >= 2) {
+                        const hit = psx.at(&chain.targets, h);
+                        if (hit.unk40 == 0 and c.vs_actors_isActorActionAnimationBusy(hit.target.targetActor) +% 1 >= 2) {
                             idle = false;
                         }
                         h += 1; // h < a u16
-                        if (!(h < chain.unk4A)) break;
+                        if (!(h < chain.targetCount)) break;
                     }
                 }
                 k += 1; // k < a u32
@@ -78,18 +78,18 @@ pub fn vs_battle_finishActionSequence() callconv(.c) void {
             c.vs_field_resumeFieldAfterMenu();
             c.vs_battle_setHudHidden(0);
             k = 0;
-            c.func_8009E5C4(state().unk8.unk4.unk0.targetActor);
+            c.func_8009E5C4(state().unk8.primaryTarget.target.targetActor);
             if (state().unk4 != 0) {
                 while (true) {
                     const chain = link(k);
                     var h: c_int = 0;
-                    if (chain.unk4A != 0) {
+                    if (chain.targetCount != 0) {
                         while (true) {
-                            if (psx.at(&chain.unk4C, h).unk40 == 0) {
-                                _ = c.vs_battle_resolveActorDefeat(chain.unk4.unk0.targetActor, psx.at(&chain.unk4C, h).unk0.targetActor, 1);
+                            if (psx.at(&chain.targets, h).unk40 == 0) {
+                                _ = c.vs_battle_resolveActorDefeat(chain.primaryTarget.target.targetActor, psx.at(&chain.targets, h).target.targetActor, 1);
                             }
                             h += 1; // h < a u16
-                            if (!(h < chain.unk4A)) break;
+                            if (!(h < chain.targetCount)) break;
                         }
                     }
                     k += 1; // k < a u32
@@ -100,8 +100,8 @@ pub fn vs_battle_finishActionSequence() callconv(.c) void {
             if (state().unk4 != 0) {
                 while (true) {
                     const chain = link(k);
-                    if (chain.unk4.unk40 == 0) {
-                        const user = chain.unk4.unk0.targetActor;
+                    if (chain.primaryTarget.unk40 == 0) {
+                        const user = chain.primaryTarget.target.targetActor;
                         _ = c.vs_battle_resolveActorDefeat(user, user, 1);
                     }
                     k += 1; // k < a u32

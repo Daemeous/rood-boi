@@ -16,10 +16,10 @@ pub fn vs_field_applyUnlockEffectToRoomObject(arg0: ?*v.func_8006CE70_t) callcon
             const rooms: [*c]v._mpdRoomSectionA = @ptrFromInt(@intFromPtr(c.func_8008E3B8(&sp10)));
             const slot: usize = @intCast(@as(c_int, self.unk6) & 0xF);
             const entry = &rooms[slot];
-            const state: c_int = entry.unk0.unk8.lock.state;
+            const state: c_int = entry.trigger.unk8.lock.state;
 
             if (state < 4 and state >= 2 and c.vs_field_rollRiskLockBreak() != 0) {
-                entry.unk0.unk8.lock.state = 0;
+                entry.trigger.unk8.lock.state = 0;
 
                 c.vs_main_playSfxDefault(0x7E, 0x3F);
                 c.vs_main_playSfxDefault(0x7E, 0x40);
@@ -34,7 +34,7 @@ pub fn vs_field_applyUnlockEffectToRoomObject(arg0: ?*v.func_8006CE70_t) callcon
             const entry = &rooms[slot];
 
             if (entry.unkC < 4 and entry.unkC >= 2 and
-                c.vs_battle_getStateFlag(psx.conv(c_short, @as(c_int, entry.unk10) +% 0x3C0)) == 0 and
+                c.vs_battle_getStateFlag(psx.conv(c_short, @as(c_int, entry.openedFlag) +% 0x3C0)) == 0 and
                 c.vs_field_rollRiskLockBreak() != 0)
             {
                 entry.unkC = 0;

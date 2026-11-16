@@ -10,18 +10,18 @@ pub fn vs_field_trackActionCameraTarget(arg0: c_int) callconv(.c) void {
     var targetPos: v.SVECTOR = undefined;
 
     _ = c.vs_actors_actorPlacement(arg0, &sp10);
-    targetPos.vx = sp10.unk0.unk4.vx;
-    targetPos.vz = sp10.unk0.unk4.vz;
-    targetPos.vy = psx.conv(i16, @as(c_int, sp10.unk0.unk4.vy) -% 0x5A);
-    c.vs_field_updateCameraTileConstraint(arg0, @ptrCast(&sp10.unk0.unk0.fields));
+    targetPos.vx = sp10.location.position.vx;
+    targetPos.vz = sp10.location.position.vz;
+    targetPos.vy = psx.conv(i16, @as(c_int, sp10.location.position.vy) -% 0x5A);
+    c.vs_field_updateCameraTileConstraint(arg0, @ptrCast(&sp10.location.packedTile.fields));
 
     switch (v.g._cameraMode().*) {
         1, 3 => {
             c.vs_field_updateCameraOrbitInput();
             const ability = v.g.vs_battle_actionState().*.?;
-            if (ability.unk298D != 0xFF and ability.unk2C00 != 0) {
+            if (ability.unk298D != 0xFF and ability.previewCount != 0) {
                 // unk298D is a u8 index that the C does not bound to the 23 entries.
-                const entry = psx.at(&ability.unk29C0, ability.unk298D);
+                const entry = psx.at(&ability.previews, ability.unk298D);
                 targetPos.vx = entry.unk0.vx;
                 targetPos.vy = entry.unk0.vy;
                 targetPos.vz = entry.unk0.vz;

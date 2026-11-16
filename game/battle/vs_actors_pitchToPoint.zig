@@ -26,6 +26,6 @@ pub fn vs_actors_pitchToPoint(actor: ?*v.D_800F4538_t, point: ?*v.SVECTOR) callc
     }
 
     var_s0 = c.vs_gte_rsqrt(var_s0 +% var_v1);
-    c.func_800A1AF8(@as(c_int, self.unk0.unkF), 0, psx.cptr(c.SVECTOR, &sp10), 0);
+    c.func_800A1AF8(@as(c_int, self.unk0.slot), 0, psx.cptr(c.SVECTOR, &sp10), 0);
     return c.ratan2(@as(c_int, target.vy) -% @as(c_int, sp10.vy), var_s0);
 }

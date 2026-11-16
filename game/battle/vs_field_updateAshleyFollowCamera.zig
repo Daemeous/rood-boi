@@ -17,9 +17,9 @@ pub fn vs_field_updateAshleyFollowCamera() callconv(.c) c_int {
     // Positions are 4.12 fixed point: each component is shifted left by 12.
     // The y offset is the C's constant 0xFFFA6000, i.e. -0x5A000 as an int.
     var position: v.VECTOR = undefined;
-    position.vx = @as(c_int, sp10.unk0.unk4.vx) << 12;
-    position.vy = (@as(c_int, sp10.unk0.unk4.vy) << 12) +% -0x5A000;
-    position.vz = @as(c_int, sp10.unk0.unk4.vz) << 12;
+    position.vx = @as(c_int, sp10.location.position.vx) << 12;
+    position.vy = (@as(c_int, sp10.location.position.vy) << 12) +% -0x5A000;
+    position.vz = @as(c_int, sp10.location.position.vz) << 12;
 
     c._snapLookAtToPosition(psx.cptr(c.VECTOR, &position));
     c._setCameraPositionFromAngles(psx.cptr(c._sphericalValues, &v.g.vs_battle_cameraCurrentSpherical().values));

@@ -9,9 +9,9 @@ pub fn vs_battle_grantPendingAbilityUnlock() callconv(.c) void {
     const d = v.g.vs_battle_actionState().*.?;
     if (d.unk8.actionIndex != 0 and
         psx.getBits(psx.at(v.g.actions(), d.unk8.actionIndex), "unlocked") == 0 and
-        d.unk8.unk4.unk40 == 0 and
+        d.unk8.primaryTarget.unk40 == 0 and
         d.unk2C07 == 0 and
-        d.unk8.unk4.unk0.targetActor == 0)
+        d.unk8.primaryTarget.target.targetActor == 0)
     {
         v.g._cameraMode().* = 0xE;
         c.vs_field_pauseFieldForMenu();

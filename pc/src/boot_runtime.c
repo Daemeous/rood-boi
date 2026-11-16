@@ -1651,6 +1651,10 @@ extern void pc_frame_draw_run(int, int) __attribute__((weak));
 extern int pc_frame_run_pages(int, int, unsigned, int (*)(unsigned)) __attribute__((weak));
 extern int pc_frame_run_has_native(int, int) __attribute__((weak));
 extern int pc_frame_expected_order(const void*, int*, int) __attribute__((weak));
+extern void pc_frame_markers_index(void) __attribute__((weak));
+extern int pc_frame_entry_markers(const void*, int, const void**, int) __attribute__((weak));
+extern int pc_frame_entry_has_tail(const void*) __attribute__((weak));
+extern int pc_frame_same_table(const void*, const void*) __attribute__((weak));
 extern int pc_frame_run_live(int, int) __attribute__((weak));
 extern void pc_frame_splice_table(const void*, const void*) __attribute__((weak));
 /* gpu_hw.c: the ordering table about to be drawn holds native draws, and
@@ -1831,55 +1835,95 @@ int pc_ot_census_json(char* out, int size, int on, int reset)
     }
     return n;
 }
+/* The frame's entry for packet `p`: its words, where it came from, its layer and what the layers said about it. */
+static void adopt_push(const uint32_t* p, int photo, int* front, int* hidden, int* census_slot)
+{
+    unsigned len = *p >> 24;
+    if (frame.count == frame.capacity) {
+        frame.capacity = frame.capacity ? frame.capacity * 2 : 4096;
+        frame.entry = realloc(frame.entry, frame.capacity * sizeof *frame.entry);
+    }
+    if (frame.used + 1 + len > frame.word_capacity) {
+        frame.word_capacity = (frame.used + 1 + len) * 2 + 65536;
+        frame.words = realloc(frame.words, frame.word_capacity * sizeof *frame.words);
+    }
+    if (!frame.entry || !frame.words)
+        pc_unimplemented("out of memory adopting an ordering table");
+    walk_entry* e = &frame.entry[frame.count++];
+    memset(e, 0, sizeof *e);
+    e->guest = (uintptr_t)p;
+    e->off = (uint32_t)frame.used;
+    memcpy(frame.words + frame.used, p, (1 + (size_t)len) * sizeof *p);
+    frame.used += 1 + len;
+    e->front = (uint8_t)(*front = ot_layers_note_of(p, *front));
+    if (census.on) {
+        if (len == 0 && ot_scene && p >= ot_scene - 32 && p <= ot_top)
+            *census_slot = (int)(p - ot_scene);
+        census_note(p, *census_slot);
+    }
+    resolve_attr(p, &e->attr);
+    if (photo) {
+        e->g2d_known = (uint8_t)game2d_entry(p, hidden);
+        e->g2d_hidden = (uint8_t)*hidden;
+    }
+}
+/* The item runs placed at `entry` (pc_frame_place), where the slot's key puts them: the runs linked at its head, the last placed
+ * first, or (`tail`) those appended at the end of its chain (pc_frame_copy_tail). Their marker packets are walked here by key, not
+ * by the links they were written with. Returns how many were taken in. */
+static int adopt_markers(const uint32_t* entry, int tail, int photo, int* front, int* hidden, int* census_slot)
+{
+    static const void* packets[8192];
+    int n = pc_frame_entry_markers ? pc_frame_entry_markers(entry, tail, packets, 8192) : 0, taken = 0;
+    for (int i = 0; i < n; i++) {
+        int first, count;
+        adopt_push(packets[i], photo, front, hidden, census_slot);
+        taken += pc_frame_marker(packets[i], &first, &count); /* (one a classic claim suppressed is a no-op by now: not a marker) */
+    }
+    return taken;
+}
 static void adopt(const void* head, int photo)
 {
     const uint32_t* p = head;
     const uint32_t *stop_at = NULL; /* (in a spliced run: its last packet, after which the table goes on where it left it) */
+    const uint32_t *splice_at = NULL, *tail_entry = NULL; /* (the entry a spliced run is walked after; the entry whose appended runs wait for the end of its chain) */
     unsigned resume = 0;
+    unsigned long long linked = 0, taken = 0; /* (marker packets reached by their links, and those taken in by key) */
     frame.count = 0, frame.used = 0, frame.end = 2;
     int front = 0, hidden = 0, census_slot = 0; /* (the layers are positions in the table: settled here, as the walk reaches each entry) */
     if (census.on)
         ++census.tables;
+    if (pc_frame_markers_index)
+        pc_frame_markers_index();
     for (unsigned links = 0; links < 100000; links++) {
         uint32_t tag = *p;
         unsigned len = tag >> 24;
-        if (frame.count == frame.capacity) {
-            frame.capacity = frame.capacity ? frame.capacity * 2 : 4096;
-            frame.entry = realloc(frame.entry, frame.capacity * sizeof *frame.entry);
+        int first_run, run_count;
+        int is_marker = len && pc_frame_marker && pc_frame_marker(p, &first_run, &run_count);
+        if (tail_entry && len == 0 && pc_frame_same_table && pc_frame_same_table(tail_entry, p)) { /* (the next slot of the table: the appended runs end the one before) */
+            taken += (unsigned)adopt_markers(tail_entry, 1, photo, &front, &hidden, &census_slot);
+            tail_entry = NULL;
         }
-        if (frame.used + 1 + len > frame.word_capacity) {
-            frame.word_capacity = (frame.used + 1 + len) * 2 + 65536;
-            frame.words = realloc(frame.words, frame.word_capacity * sizeof *frame.words);
-        }
-        if (!frame.entry || !frame.words)
-            pc_unimplemented("out of memory adopting an ordering table");
-        walk_entry* e = &frame.entry[frame.count++];
-        memset(e, 0, sizeof *e);
-        e->guest = (uintptr_t)p;
-        e->off = (uint32_t)frame.used;
-        memcpy(frame.words + frame.used, p, (1 + (size_t)len) * sizeof *p);
-        frame.used += 1 + len;
-        e->front = (uint8_t)(front = ot_layers_note_of(p, front));
-        if (census.on) {
-            if (len == 0 && ot_scene && p >= ot_scene - 32 && p <= ot_top)
-                census_slot = (int)(p - ot_scene);
-            census_note(p, census_slot);
-        }
-        resolve_attr(p, &e->attr);
-        if (photo) {
-            e->g2d_known = (uint8_t)game2d_entry(p, &hidden);
-            e->g2d_hidden = (uint8_t)hidden;
-        }
+        if (is_marker)
+            ++linked; /* (an item marker: drawn where its key puts it, not here) */
+        else
+            adopt_push(p, photo, &front, &hidden, &census_slot);
         unsigned next = tag & 0xffffff;
-        if (stop_at && p == stop_at) {
-            next = resume, stop_at = NULL;
-        } else if (!stop_at) {
+        int entry = !is_marker && len == 0; /* (a slot of an ordering table) */
+        if (entry && pc_frame_entry_has_tail && pc_frame_entry_has_tail(p))
+            tail_entry = p;
+        if (!stop_at) {
             const uint32_t* const* run = splice_of(p);
-            if (run) { /* the spliced run is walked here, then this packet's own link */
-                resume = next, stop_at = run[1];
+            if (run) { /* the spliced run is walked here, then this packet's own link (and the runs linked at its head) */
+                resume = next, stop_at = run[1], splice_at = p;
                 p = run[0];
                 continue;
             }
+        }
+        if (entry)
+            taken += (unsigned)adopt_markers(p, 0, photo, &front, &hidden, &census_slot);
+        if (stop_at && p == stop_at) {
+            taken += (unsigned)adopt_markers(splice_at, 0, photo, &front, &hidden, &census_slot);
+            next = resume, stop_at = NULL, splice_at = NULL;
         }
         if (next == 0xffffff) {
             frame.end = 0;
@@ -1891,6 +1935,10 @@ static void adopt(const void* head, int photo)
             break;
         }
     }
+    if (tail_entry)
+        taken += (unsigned)adopt_markers(tail_entry, 1, photo, &front, &hidden, &census_slot);
+    if (census.on && frame.end == 0 && linked != taken) /* (a marker packet linked in the table that no run was placed at: the keys do not give the walk) */
+        ++census.order_bad;
     memset(splices, 0, sizeof splices); /* (consumed: the next frame makes its own) */
 }
 /* The entry after the one whose tag word is `tag` (a pointer into the frame's words): its tag, 1 for none, NULL when `tag` is

@@ -9,8 +9,8 @@ const c = @import("c_5BF94");
 pub fn vs_effects_tickTargetActorColourTrack(script_arg: ?*v.D_800F53B8_t, cmd_arg: ?*v.func_800D5780_t, all: c_int) callconv(.c) c_int {
     const script = script_arg.?;
     const cmd = cmd_arg.?;
-    const entry: *v.func_800D6310_t = @ptrCast(psx.at(@as([*]u32, @ptrCast(psx.get(cmd.unk0).?)), @as(c_int, cmd.unk6) *% 2));
-    if (entry.unk0 != psx.get(script.unkD1C.unk30).?.unk2) {
+    const entry: *v.func_800D6310_t = @ptrCast(psx.at(@as([*]u32, @ptrCast(psx.get(cmd.keys).?)), @as(c_int, cmd.keyIndex) *% 2));
+    if (entry.unk0 != psx.get(script.context.unk30).?.frame) {
         return 1;
     }
     if (all != 0) {
@@ -22,8 +22,8 @@ pub fn vs_effects_tickTargetActorColourTrack(script_arg: ?*v.D_800F53B8_t, cmd_a
                 c.vs_render_transformActorColors(entry.unk7, entry.unk2, target.unk4.unk0 & 0xFF, psx.conv(c_short, @as(c_int, entry.unk4) - 128), psx.conv(c_short, @as(c_int, entry.unk5) - 128), psx.conv(c_short, @as(c_int, entry.unk6) - 128));
             }
         }
-    } else if (script.unkD1C.unk24.unk0 == 4 and (c.vs_actors_actorStateFlags(script.unkD1C.unk24.unk4.unk0 & 0xFF) & 2) != 0) {
-        c.vs_render_transformActorColors(entry.unk7, entry.unk2, script.unkD1C.unk24.unk4.unk0 & 0xFF, psx.conv(c_short, @as(c_int, entry.unk4) - 128), psx.conv(c_short, @as(c_int, entry.unk5) - 128), psx.conv(c_short, @as(c_int, entry.unk6) - 128));
+    } else if (script.context.unk24.unk0 == 4 and (c.vs_actors_actorStateFlags(script.context.unk24.unk4.unk0 & 0xFF) & 2) != 0) {
+        c.vs_render_transformActorColors(entry.unk7, entry.unk2, script.context.unk24.unk4.unk0 & 0xFF, psx.conv(c_short, @as(c_int, entry.unk4) - 128), psx.conv(c_short, @as(c_int, entry.unk5) - 128), psx.conv(c_short, @as(c_int, entry.unk6) - 128));
     }
     return c.vs_effects_advanceTimelineKey(@ptrCast(cmd));
 }

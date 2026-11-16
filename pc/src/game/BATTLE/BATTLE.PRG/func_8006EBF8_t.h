@@ -12,11 +12,11 @@ typedef struct {
     union {
         func_8006EBF8_t_fields fields;
         int value;
-    } unk0;
-    SVECTOR unk4;
+    } packedTile;
+    SVECTOR position;
 } func_8006EBF8_t3;
 
 typedef struct {
-    func_8006EBF8_t3 unk0;
-    int unkC;
+    func_8006EBF8_t3 location;
+    int actorIndex;
 } func_8006EBF8_t;

@@ -13,10 +13,10 @@ PSX_ASSERT_SIZE(func_8009C378_t, 0x7900);
 typedef struct {
     int unk0;
     int unk4;
-    int unk8;
+    int opaque8;
     int unkC;
     char unk10;
-    char unk11;
+    char opaque11;
 } D_800F4590_t;
 
 typedef struct {

@@ -8,7 +8,7 @@ const c = @import("c_5BF94");
 /// If the script's unk0 target is of kind 4, func_8006CDB8 on its id's low byte.
 pub fn func_800D6574(script: ?*v.D_800F53B8_t) callconv(.c) void {
     const s = script.?;
-    if (s.unkD1C.unk0.unk0 == 4) {
-        c.func_8006CDB8(@as(c_int, psx.conv(u8, s.unkD1C.unk0.unk4.unk0)));
+    if (s.context.unk0.unk0 == 4) {
+        c.func_8006CDB8(@as(c_int, psx.conv(u8, s.context.unk0.unk4.unk0)));
     }
 }

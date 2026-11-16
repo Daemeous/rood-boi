@@ -23,32 +23,32 @@ fn state() *v.D_800F19CC_t {
 pub fn vs_battle_collectGroundAreaActionTargets(arg0: c_int) callconv(.c) void {
     var actorState: v.func_8006EBF8_t = undefined;
     const actors = v.g.vs_battle_actors();
-    const attacker = psx.get(actors[state().unk8.unk4.unk0.targetActor].?.stats);
+    const attacker = psx.get(actors[state().unk8.primaryTarget.target.targetActor].?.stats);
     const action: c_int = state().unk8.actionIndex;
     state().unk2988 = arg0;
     // vs_main_actions has 256 entries in the views; actionIndex is a u16 the C does not bound: psx.at.
     state().unk29A0 = psx.getBits(psx.at(v.g.actions(), action), "shape");
     const spec = psx.at(v.g.actions(), action);
     state().unk29A1 = 2;
-    _ = c.vs_actors_actorPlacement(state().unk8.unk4.unk0.targetActor, &actorState);
-    state().unk29A2 = actorState.unk0.unk4.pad;
+    _ = c.vs_actors_actorPlacement(state().unk8.primaryTarget.target.targetActor, &actorState);
+    state().unk29A2 = actorState.location.position.pad;
     var count: c_int = 0;
     // The C tests the whole range word's top 5 bits against 0xFF: never true.
     if ((psx.byteAt(u32, spec, 4).* >> 27) == 0xFF) {
-        state().unk29A4 = psx.getBits(attacker.?, "currentRange");
-        state().unk29A5 = psx.getBits(attacker.?, "unk39");
-        state().unk29A6 = psx.getBits(attacker.?, "unk3A");
-        state().unk29A7 = @as(u8, psx.getBits(attacker.?, "currentAttackShapeAngle")) << 3;
+        state().rangeX = psx.getBits(attacker.?, "currentRange");
+        state().rangeY = psx.getBits(attacker.?, "unk39");
+        state().rangeZ = psx.getBits(attacker.?, "unk3A");
+        state().rangeAngle = @as(u8, psx.getBits(attacker.?, "currentAttackShapeAngle")) << 3;
     } else {
-        state().unk29A4 = spec.rangeX;
-        state().unk29A5 = spec.rangeY;
-        state().unk29A6 = spec.rangeZ;
-        state().unk29A7 = @as(u8, psx.getBits(spec, "angle")) << 3;
+        state().rangeX = spec.rangeX;
+        state().rangeY = spec.rangeY;
+        state().rangeZ = spec.rangeZ;
+        state().rangeAngle = @as(u8, psx.getBits(spec, "angle")) << 3;
         state().unk29B2 = 0;
         state().unk29B0 = spec.aoe_24 & 7;
-        state().unk29B4 = spec.aoe_0;
-        state().unk29B5 = spec.aoe_8;
-        state().unk29B6 = spec.aoe_16;
+        state().areaX = spec.aoe_0;
+        state().areaY = spec.aoe_8;
+        state().areaZ = spec.aoe_16;
         state().unk29B7 = spec.aoe_24 & 0xF8;
         const kind = psx.getBits(psx.at(v.g.actions(), action), "unk2_4");
         var i: c_int = 0;
@@ -56,7 +56,7 @@ pub fn vs_battle_collectGroundAreaActionTargets(arg0: c_int) callconv(.c) void {
             const status = c.vs_actors_actorStateFlags(i);
             const actor = actors[@intCast(i)];
             if (actor != null and (status & 0x3000001) == 1 and
-                (i != state().unk8.unk4.unk0.targetActor or psx.GlobalMany(u8, "D_800E81B4").ptr()[kind] != 0) and
+                (i != state().unk8.primaryTarget.target.targetActor or psx.GlobalMany(u8, "D_800E81B4").ptr()[kind] != 0) and
                 (@as(c_int, actor.?.allegiance) & psx.GlobalMany(u8, "D_800E81D4").ptr()[kind]) != 0 and
                 (actor.?.allegiance & 0x8000) == 0)
             {
@@ -66,30 +66,30 @@ pub fn vs_battle_collectGroundAreaActionTargets(arg0: c_int) callconv(.c) void {
                     while (limb < 6) : (limb += 1) { // limb < 6
                         const part = c.func_800A152C(i, limb, 2);
                         if (part >= 0) {
-                            _ = c.func_800A1B9C(i, limb, @ptrCast(psx.at(&state().unk29C0, count)), 0);
-                            psx.at(&state().unk29C0, count).unk8 = psx.conv(u8, c.vs_actors_boneTagValue(i, part, 0));
-                            psx.at(&state().unk29C0, count).unkA = psx.conv(u8, limb);
-                            psx.at(&state().unk29C0, count).unk9 = psx.conv(u8, i);
+                            _ = c.func_800A1B9C(i, limb, @ptrCast(psx.at(&state().previews, count)), 0);
+                            psx.at(&state().previews, count).unk8 = psx.conv(u8, c.vs_actors_boneTagValue(i, part, 0));
+                            psx.at(&state().previews, count).unkA = psx.conv(u8, limb);
+                            psx.at(&state().previews, count).unk9 = psx.conv(u8, i);
                             count += 1; // at most 60
                         }
                     }
                 } else {
-                    c.vs_actors_anchorPoint(i, 255, psx.at(&state().unk29C0, count), 0);
+                    c.vs_actors_anchorPoint(i, 255, psx.at(&state().previews, count), 0);
                     psx.at(&@as(*v.actionTargetContextView, @ptrCast(state())).targets, count).limb = -1;
-                    psx.at(&state().unk29C0, count).unk9 = psx.conv(u8, i);
+                    psx.at(&state().previews, count).unk9 = psx.conv(u8, i);
                     count += 1; // at most 60
                 }
             }
         }
     }
-    state().unk2C00 = psx.conv(u16, count);
-    c.vs_actors_anchorPoint(state().unk8.unk4.unk0.targetActor, 250, &state().unk29A8, 0);
-    if (state().unk8.unk4.unk0.targetActor != 0) {
-        state().unk2998 = unk10Vector(actors[state().unk8.unk4.unk0.targetActor]);
+    state().previewCount = psx.conv(u16, count);
+    c.vs_actors_anchorPoint(state().unk8.primaryTarget.target.targetActor, 250, &state().rangeOrigin, 0);
+    if (state().unk8.primaryTarget.target.targetActor != 0) {
+        state().unk2998 = unk10Vector(actors[state().unk8.primaryTarget.target.targetActor]);
         state().unk2998.pad = 0;
     }
     if (state().unk2984 != 0) {
-        c.func_800C05EC(&state().unk29A0, &state().unk29B0, count, &state().unk29C0);
+        c.func_800C05EC(&state().unk29A0, &state().unk29B0, count, &state().previews);
     }
     v.g._cameraMode().* = 2;
 }

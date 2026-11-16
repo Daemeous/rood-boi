@@ -15,13 +15,13 @@ pub fn vs_actors_updateActorSteering(arg0: ?*v.D_800F4538_t, arg1: c_int, arg2: 
     }
     if (u.unk18 != 0) {
         if (arg2.?.unk6 == 0) {
-            var delta: c_int = arg1 -% ((facing +% @as(c_int, u.unk3E)) & 0xFFF);
+            var delta: c_int = arg1 -% ((facing +% @as(c_int, u.facingDelta)) & 0xFFF);
             if (delta >= 4096 / 2) {
                 delta -%= 4096;
             } else if (delta < -4096 / 2) {
                 delta +%= 4096;
             }
-            u.unk3E = psx.conv(i16, @as(c_int, u.unk3E) +% delta);
+            u.facingDelta = psx.conv(i16, @as(c_int, u.facingDelta) +% delta);
         } else {
             var delta: c_int = arg1 -% facing;
             if (delta >= 4096 / 2) {
@@ -29,14 +29,14 @@ pub fn vs_actors_updateActorSteering(arg0: ?*v.D_800F4538_t, arg1: c_int, arg2: 
             } else if (delta < -4096 / 2) {
                 delta +%= 4096;
             }
-            u.unk3E = psx.conv(i16, delta);
+            u.facingDelta = psx.conv(i16, delta);
             u.unk18 = 12;
         }
     } else {
-        c.vs_actors_turnActorToOverTime(@as(c_int, u.unkF), psx.conv(c_short, arg1), 12);
+        c.vs_actors_turnActorToOverTime(@as(c_int, u.slot), psx.conv(c_short, arg1), 12);
     }
     if (@as(c_int, obj.unk63C) > 0x80) {
-        var delta: c_int = @divTrunc(@as(c_int, u.unk3E), 32);
+        var delta: c_int = @divTrunc(@as(c_int, u.facingDelta), 32);
         if (delta < 0) {
             delta = 0 -% delta;
         }

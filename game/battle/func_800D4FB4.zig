@@ -9,8 +9,8 @@ const v = @import("views_5BF94");
 pub fn func_800D4FB4(arg0: ?*v.D_800F53B8_t) callconv(.c) c_int {
     var i: usize = 0;
     while (i < 2) : (i += 1) {
-        const dst = psx.at(&psx.get(v.g.vs_effects_package().*.?.block5Data).?.unk4, i);
-        const kind: usize = @as(usize, arg0.?.unkD1C.unk18.unk2);
+        const dst = psx.at(&psx.get(v.g.vs_effects_package().*.?.block5Data).?.definitions, i);
+        const kind: usize = @as(usize, arg0.?.context.unk18.unk2);
         const curve = v.g.D_800EC330();
         dst.rCurve = curve[kind][i][0];
         dst.gCurve = curve[kind][i][1];

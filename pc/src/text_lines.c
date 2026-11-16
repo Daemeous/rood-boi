@@ -23,9 +23,9 @@ static int walk(vs_battle_textBox* box, int x, int y, int glyph, int* glyphs, in
     const u_char* str = (const u_char*)box->string;
     const u_char* saved = NULL;
     char number[16];
-    int table = box->unk0.unk0_0 != 4, justify = 0, printX = box->xIndent, printY = box->yIndent, count = 0;
+    int table = box->flags.unk0_0 != 4, justify = 0, printX = box->xIndent, printY = box->yIndent, count = 0;
     int mismatch = 0, steps = 0;
-    if (box->unk0.unk0_0 == 2)
+    if (box->flags.unk0_0 == 2)
         table = 0;
     if (!str)
         return 0;
@@ -135,8 +135,8 @@ static int walk(vs_battle_textBox* box, int x, int y, int glyph, int* glyphs, in
  * Manual's page buffer was kept, a dead stack frame): only a printed box's string is the game's to walk. */
 static int printed(const vs_battle_textBox* box)
 {
-    int state = box->state, kind = box->unk0.unk0_0;
-    if (!box->string || state <= 0 || box->unk0.unk0_31 || state != box->unk22 + 1)
+    int state = box->state, kind = box->flags.unk0_0;
+    if (!box->string || state <= 0 || box->flags.unk0_31 || state != box->unk22 + 1)
         return 0;
     return kind != 3 && kind != 6;
 }

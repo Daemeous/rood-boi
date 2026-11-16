@@ -17,9 +17,9 @@ pub fn hpHealed(action: ?*v.vs_action_t, source: ?*v._hitEntity_t, target: ?*v._
     var sp18 = std.mem.zeroes(v._hitIntermediate);
 
     // the actor indices are not bounded by the C
-    const sourceActor = psx.get(psx.at(actors, source.?.unk0.targetActor).*.?.stats).?;
-    const targetActor = psx.get(psx.at(actors, tgt.unk0.targetActor).*.?.stats).?;
-    const limb: c_int = tgt.unk0.targetLimb;
+    const sourceActor = psx.get(psx.at(actors, source.?.target.targetActor).*.?.stats).?;
+    const targetActor = psx.get(psx.at(actors, tgt.target.targetActor).*.?.stats).?;
+    const limb: c_int = tgt.target.targetLimb;
     const limbp = psx.at(&targetActor.limbs, limb);
     const hit = psx.at(&act.hitParams, nHit);
 
@@ -30,7 +30,7 @@ pub fn hpHealed(action: ?*v.vs_action_t, source: ?*v._hitEntity_t, target: ?*v._
     // affinity 0 makes sourceAffinity 0xFF: every affinity table below is then read past its end, as in the C
     const affinity = sp18.sourceAffinity;
 
-    if (psx.at(actors, sourceActor.unk957).*.?.weaponDrawn & 1 != 0) {
+    if (psx.at(actors, sourceActor.actorId).*.?.weaponDrawn & 1 != 0) {
         sp18.value = psx.conv(i16, @as(c_int, sp18.value) +% sourceActor.weapon.currentInt);
         if (affinity != 0) {
             sp18.weaponAffinity = psx.at(&sourceActor.weapon.classAffinityCurrent.affinity[0], affinity).*;
@@ -74,7 +74,7 @@ pub fn hpHealed(action: ?*v.vs_action_t, source: ?*v._hitEntity_t, target: ?*v._
         sp18.armorStatFactor = psx.conv(i16, @as(c_int, sp18.armorStatFactor) -% @divTrunc(@divTrunc((@as(c_int, limbp.armor.maxDp) -% limbp.armor.currentDp) *% 100, @as(c_int, limbp.armor.maxDp)), 4));
     }
 
-    if (psx.at(actors, targetActor.unk957).*.?.weaponDrawn & 1 != 0) {
+    if (psx.at(actors, targetActor.actorId).*.?.weaponDrawn & 1 != 0) {
         sp18.shieldStat = targetActor.shield.currentInt;
         if (sp18.@"type" != 0) {
             sp18.shieldStatFactor = psx.conv(i16, @as(c_int, sp18.shieldStatFactor) +% psx.at(&targetActor.shield.types, sp18.@"type").*);

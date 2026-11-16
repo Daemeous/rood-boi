@@ -9,19 +9,19 @@ const c = @import("c_4A0A8");
 pub fn func_800BBE10(arg0: c_ushort) callconv(.c) void {
     const cam = v.g.vs_event_camera().*.?;
     if (arg0 == 0x2000) {
-        if (cam.unk1E8 != arg0) {
+        if (cam.originActorId != arg0) {
             _ = c._vectorAdd(
                 psx.cptr(c.VECTOR, &cam.eye.current),
                 psx.cptr(c.VECTOR, &cam.eye.current),
-                psx.cptr(c.VECTOR, &cam.unk1EC),
+                psx.cptr(c.VECTOR, &cam.originOffset),
             );
             _ = c._vectorAdd(
                 psx.cptr(c.VECTOR, &cam.lookAt.current),
                 psx.cptr(c.VECTOR, &cam.lookAt.current),
-                psx.cptr(c.VECTOR, &cam.unk1EC),
+                psx.cptr(c.VECTOR, &cam.originOffset),
             );
         }
     }
-    cam.unk1E8 = arg0;
+    cam.originActorId = arg0;
     c.func_800BBE94();
 }

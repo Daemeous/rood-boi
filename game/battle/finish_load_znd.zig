@@ -21,7 +21,7 @@ pub fn finishLoadZnd(id: c_int) callconv(.c) void {
     }
     c.vs_main_freeCdQueueSlot(@ptrCast(@alignCast(psx.get(zone.zndCdFile))));
     psx.put(&zone.zndCdFile, null);
-    if (v.g.vs_state_sceneTimer().unk2 == 1) {
+    if (v.g.vs_state_sceneTimer().resetScope == 1) {
         c.vs_state_resetSceneTimer();
     }
     const header: *v._zndHeader = @ptrCast(@alignCast(psx.get(zone.zndData).?));

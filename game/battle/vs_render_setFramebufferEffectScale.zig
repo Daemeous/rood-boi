@@ -7,6 +7,6 @@ const v = @import("views_146C");
 /// Copies the record's first two words into the global pair vs_render_framebufferEffectScale.
 pub fn vs_render_setFramebufferEffectScale(arg0: ?*v.D_800F1A68_t) callconv(.c) void {
     const dst = v.g.vs_render_framebufferEffectScale();
-    dst[0] = arg0.?.unk0;
-    dst[1] = arg0.?.unk4;
+    dst[0] = arg0.?.x;
+    dst[1] = arg0.?.y;
 }

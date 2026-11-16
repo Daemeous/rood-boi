@@ -11,10 +11,10 @@ pub fn vs_battle_addActionRecoveryDelay(arg0: c_uint, arg1: ?*v.vs_battle_actor2
         const actor = arg1.?;
         if (new_var.flags_0 == 0xFF) {
             const sum: c_int = @as(c_int, actor.weapon.unk10B) + @as(c_int, psx.getBits(actor, "unk956_2"));
-            actor.unk954 = psx.conv(u16, @as(c_int, actor.unk954) +% (sum << 8));
+            actor.actionRecoveryTimer = psx.conv(u16, @as(c_int, actor.actionRecoveryTimer) +% (sum << 8));
         } else {
             const new_var2: c_int = @as(c_int, new_var.flags_0) + @as(c_int, psx.getBits(actor, "unk956_2"));
-            actor.unk954 = psx.conv(u16, @as(c_int, actor.unk954) +% (new_var2 << 8));
+            actor.actionRecoveryTimer = psx.conv(u16, @as(c_int, actor.actionRecoveryTimer) +% (new_var2 << 8));
         }
     }
 }

@@ -15,7 +15,7 @@ pub fn vs_effects_updateSecondaryEffects() callconv(.c) c_int {
         v.g.vs_effects_currentInstance().* = node;
         const next = psx.get(node.next);
 
-        switch (@as(c_int, node.unkD1C.unk3A)) {
+        switch (@as(c_int, node.context.unk3A)) {
             2 => {},
             3 => {
                 c.vs_effects_acquireParticlePool(0xFF);
@@ -28,7 +28,7 @@ pub fn vs_effects_updateSecondaryEffects() callconv(.c) c_int {
 
                 c.vs_effects_updateParticleGravityAndDrag();
 
-                var s0: ?*align(4) v.func_800D4910_t = psx.get(node.unkD1C.unk34);
+                var s0: ?*align(4) v.func_800D4910_t = psx.get(node.context.unk34);
                 while (s0 != null) {
                     const entry = s0.?;
                     const next_entry = entry.next;

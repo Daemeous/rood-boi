@@ -6,8 +6,8 @@ const v = @import("views_5BF94");
 /// Loads unkC and unkA from the table entry at index unk6 of the table at unk0.
 pub fn vs_effects_particleKeyTimingOf(arg0: ?*v.func_800D5780_t) callconv(.c) void {
     const a = arg0.?;
-    const base: [*]v.func_800D57FC_t = @ptrCast(psx.get(a.unk0).?);
+    const base: [*]v.func_800D57FC_t = @ptrCast(psx.get(a.keys).?);
     // The index is re-read from a.unk6 for each store, as the C reads arg0->unk6 each time.
-    a.unkC = psx.conv(i32, psx.getBits(psx.at(base, a.unk6), "unk0_20"));
-    a.unkA = psx.conv(i16, psx.getBits(psx.at(base, a.unk6), "unk0_8"));
+    a.unkC = psx.conv(i32, psx.getBits(psx.at(base, a.keyIndex), "unk0_20"));
+    a.unkA = psx.conv(i16, psx.getBits(psx.at(base, a.keyIndex), "unk0_8"));
 }

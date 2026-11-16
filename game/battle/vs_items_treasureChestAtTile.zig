@@ -12,7 +12,7 @@ pub fn vs_items_treasureChestAtTile(arg0: c_int, arg1: c_int, arg2: c_int) callc
         var i: c_int = 0;
         while (i < count) : (i +%= 1) {
             const entry = psx.at(first, i);
-            if (@as(c_int, entry.unk0) == arg0 and @as(c_int, entry.unk2) == arg1) {
+            if (@as(c_int, entry.tileX) == arg0 and @as(c_int, entry.tileZ) == arg1) {
                 if (@as(c_int, entry.unk4) == arg2) {
                     return entry;
                 }

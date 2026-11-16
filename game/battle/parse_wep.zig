@@ -41,7 +41,7 @@ pub fn parseWep(object: *v.vs_battle_objectData) callconv(.c) c_int {
     const pass = v.g.D_800E8F29();
     if (pass.* == 0) {
         if (model == null) {
-            psx.at(models, object.index).* = @ptrCast(@alignCast(psx.get(object.unk4)));
+            psx.at(models, object.index).* = @ptrCast(@alignCast(psx.get(object.destination)));
             model = psx.at(models, object.index).*;
             if (model == null) return -2;
             _ = memset(model, 0, @sizeOf(v.vs_battle_wepModels_t));

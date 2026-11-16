@@ -10,11 +10,11 @@ pub fn boneViewPoint(actorId: c_int, bone_in: c_int, result: [*c]c_ushort, endpo
     var bone = bone_in;
     var model: ?*v.D_800F4538_unk68 = null;
     const actor: ?*v.D_800F4538_t = psx.at(v.g.vs_actors_actorRecords(), actorId).*;
-    if (actor) |a| model = psx.get(a.unk0.unk68);
+    if (actor) |a| model = psx.get(a.unk0.model);
     if (actor == null) {
         const other = psx.at(v.g.vs_field_gimmickInstances(), actorId).* orelse return -1;
         const alt: *v.D_800F4538_t = @ptrCast(other);
-        model = psx.get(alt.unk0.unk68);
+        model = psx.get(alt.unk0.model);
     }
 
     // NULL for a weapon bone without a weapon model: the C reads it only after that -1 return.

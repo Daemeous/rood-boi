@@ -10,22 +10,22 @@ const c = @import("c_146C");
 pub fn vs_field_toggleRoomSwitch(section: ?*v._mpdRoomSectionA) callconv(.c) void {
     const room = section.?;
 
-    if (room.unk0.unk8.s16 == 0) {
+    if (room.trigger.unk8.s16 == 0) {
         _ = c.vs_main_playSfxDefault(0x7E, 0x3B);
         _ = c.vs_main_playSfxDefault(0x7E, 0x3C);
     } else {
         _ = c.vs_main_playSfxDefault(0x7E, 0x3D);
         _ = c.vs_main_playSfxDefault(0x7E, 0x3E);
     }
-    _ = c.vs_field_startRoomEffect(@as(c_int, room.unk0.unk6));
-    room.unk0.unkB = 0;
-    room.unk0.unk8.s16 = @as(i16, @intFromBool(room.unk0.unk8.s16 == 0));
+    _ = c.vs_field_startRoomEffect(@as(c_int, room.trigger.unk6));
+    room.trigger.unkB = 0;
+    room.trigger.unk8.s16 = @as(i16, @intFromBool(room.trigger.unk8.s16 == 0));
     const temp: ?*v._mpdRoomSection3 = @ptrCast(c.vs_field_collisionCellAt(
-        psx.conv(c_uint, room.unk0.unk0),
-        psx.conv(c_uint, room.unk0.unk2),
-        psx.conv(c_int, room.unk0.unk4),
+        psx.conv(c_uint, room.trigger.tileX),
+        psx.conv(c_uint, room.trigger.tileZ),
+        psx.conv(c_int, room.trigger.floorLayer),
     ));
     if (temp) |t| {
-        psx.setBits(t, "unk0_10", psx.conv(u3, @as(c_int, room.unk0.unk8.s16) *% 5));
+        psx.setBits(t, "unk0_10", psx.conv(u3, @as(c_int, room.trigger.unk8.s16) *% 5));
     }
 }

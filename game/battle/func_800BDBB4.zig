@@ -10,22 +10,22 @@ const c = @import("c_4A0A8");
 /// Advances a timed interpolation by half a tick, writes its position, and returns 1 while it runs (0 when idle).
 pub fn func_800BDBB4(arg0: ?*v.func_800BDBB4_t) callconv(.c) c_int {
     const p = arg0.?;
-    if (p.unk1E == 0) {
+    if (p.durationFrames == 0) {
         return 0;
     }
 
-    p.unk1C = psx.conv(i16, @as(c_int, p.unk1C) +% (v.g.vs_gametime_tickspeed().* >> 1));
+    p.elapsedFrames = psx.conv(i16, @as(c_int, p.elapsedFrames) +% (v.g.vs_gametime_tickspeed().* >> 1));
 
-    const v0: c_int = c.vs_event_evaluateInterpolationCurve(@as(c_int, p.unk1), @as(c_int, p.unk1C), @as(c_int, p.unk1E));
+    const v0: c_int = c.vs_event_evaluateInterpolationCurve(@as(c_int, p.easingMode), @as(c_int, p.elapsedFrames), @as(c_int, p.durationFrames));
     // Scratchpad 0x1F800088: the factor is re-read from memory after each store, as the C does.
     const a0: *v.func_800BDBB4_t2 = @ptrFromInt(pad.addr(0x88));
     a0.unk0 = v0;
-    p.unk2 = psx.conv(i16, @as(c_int, p.unkA) +% ((@as(c_int, p.unk12) *% a0.unk0) >> 12));
-    p.unk4 = psx.conv(i16, @as(c_int, p.unkC) +% ((@as(c_int, p.unk14) *% a0.unk0) >> 12));
-    p.unk6 = psx.conv(i16, @as(c_int, p.unkE) +% ((@as(c_int, p.unk16) *% a0.unk0) >> 12));
+    p.currentValue0 = psx.conv(i16, @as(c_int, p.startValue0) +% ((@as(c_int, p.deltaValue0) *% a0.unk0) >> 12));
+    p.currentValue1 = psx.conv(i16, @as(c_int, p.startValue1) +% ((@as(c_int, p.deltaValue1) *% a0.unk0) >> 12));
+    p.currentValue2 = psx.conv(i16, @as(c_int, p.startValue2) +% ((@as(c_int, p.deltaValue2) *% a0.unk0) >> 12));
 
-    if (p.unk1C == p.unk1E) {
-        p.unk1E = 0;
+    if (p.elapsedFrames == p.durationFrames) {
+        p.durationFrames = 0;
     }
     return 1;
 }

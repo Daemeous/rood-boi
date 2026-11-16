@@ -8,7 +8,7 @@ pub fn vs_battle_beginPostActionRecovery(arg0: c_int) callconv(.c) void {
     var i: c_int = 0;
     while (i < 16) : (i +%= 1) {
         // Each condition is evaluated in C's order and short-circuits the same way.
-        if (i != @as(c_int, v.g.vs_battle_actionState().*.?.unk8.unk4.unk0.targetActor) and
+        if (i != @as(c_int, v.g.vs_battle_actionState().*.?.unk8.primaryTarget.target.targetActor) and
             (c.vs_actors_actorStateFlags(i) & 0x01000000) == 0 and
             (c.vs_actors_actorStateFlags(i) & 1) != 0)
         {

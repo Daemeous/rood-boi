@@ -94,15 +94,15 @@ transform:;
     MATRIX* camera = &vs_view.viewMatrix;
     RotMatrixYXZ_gte(&slope, &terrain);
     vs_core_mathPremultiplyRotationMatrix(camera, &terrain);
-    SVECTOR angles = *(SVECTOR*)&actor->unk0.unk24; /* unk24, facing, unk28, unk2A */
+    SVECTOR angles = *(SVECTOR*)&actor->unk0.rotationX; /* unk24, facing, unk28, unk2A */
     angles.vy += (short)actor->unk1864.unk8;
     RotMatrixYXZ_gte(&angles, &rotation);
     vs_core_mathPremultiplyRotationMatrix(&terrain, &rotation);
-    unsigned scale_x = (unsigned)(int)(short)actor->unk1864.unkC >> 1;
-    unsigned scale_z = (unsigned)(int)(short)actor->unk1864.unkE >> 1;
-    VECTOR scale = { (((size * (unsigned short)actor->unk0.unk2E) >> 12) * scale_z) >> 12,
-        *(unsigned*)&actor->unk0.unk30, /* unk30 and unk32 */
-        (((size * (unsigned short)actor->unk0.unk2C) >> 12) * scale_x) >> 12, 0 };
+    unsigned scale_x = (unsigned)(int)(short)actor->unk1864.radiusExpandRate >> 1;
+    unsigned scale_z = (unsigned)(int)(short)actor->unk1864.radiusShrinkRate >> 1;
+    VECTOR scale = { (((size * (unsigned short)actor->unk0.scaleY) >> 12) * scale_z) >> 12,
+        *(unsigned*)&actor->unk0.scaleZ, /* unk30 and unk32 */
+        (((size * (unsigned short)actor->unk0.scaleX) >> 12) * scale_x) >> 12, 0 };
     vs_core_mathScaleMatrixColumns(&rotation, &scale);
     vs_gte_screen screen = vs_gte_screen_current();
     vs_gte_view camera_view = vs_gte_view_of(camera, screen);

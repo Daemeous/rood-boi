@@ -12,7 +12,7 @@ pub fn vs_actors_boneTagValue(actorIndex: c_int, armatureIndex: c_int, part: c_i
         if (alt == null) return -1;
         actor = @ptrCast(alt);
     }
-    const model = psx.get(actor.?.unk0.unk68);
+    const model = psx.get(actor.?.unk0.model);
     // No default in the C: any other part returns the uninitialised v (the
     // object returns whatever is in its result register); every caller passes 0.
     var result: c_uint = undefined;

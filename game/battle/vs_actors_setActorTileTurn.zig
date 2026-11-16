@@ -29,9 +29,9 @@ pub fn vs_actors_setActorTileTurn(slot: c_int, target: ?*v.func_8006EBF8_t_field
         angle +%= 4096;
     }
 
-    actor.unk0.unk3E = psx.conv(i16, angle);
-    actor.unk0.unk3C = 0;
-    actor.unk0.unk40 = 0;
+    actor.unk0.facingDelta = psx.conv(i16, angle);
+    actor.unk0.rotationStepX = 0;
+    actor.unk0.rotationStepZ = 0;
 
     if (angle == 0) return;
 
@@ -58,5 +58,5 @@ pub fn vs_actors_setActorTileTurn(slot: c_int, target: ?*v.func_8006EBF8_t_field
         return;
     }
 
-    actor.unk0.facing = psx.conv(i16, (@as(c_int, actor.unk0.facing) +% @as(c_int, actor.unk0.unk3E)) & 0xFFF);
+    actor.unk0.facing = psx.conv(i16, (@as(c_int, actor.unk0.facing) +% @as(c_int, actor.unk0.facingDelta)) & 0xFFF);
 }

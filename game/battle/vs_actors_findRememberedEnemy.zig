@@ -11,8 +11,8 @@ pub fn vs_actors_findRememberedEnemy(arg0: c_int) callconv(.c) ?*anyopaque {
     const block = psx.at(v.g.D_80061078(), v.g.vs_state_currentRoomStateSlot().*);
     var i: usize = 0;
     while (i < 8) : (i += 1) {
-        if (@as(c_int, block.unk8[i][0]) == arg0 +% 1) {
-            found = &block.unk8[i];
+        if (@as(c_int, block.actorStates[i][0]) == arg0 +% 1) {
+            found = &block.actorStates[i];
         }
     }
     return found;

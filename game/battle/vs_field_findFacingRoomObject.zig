@@ -27,7 +27,7 @@ pub fn vs_field_findFacingRoomObject(arg0: c_int) callconv(.c) ?*v._mpdRoomSecti
     const dist: c_short = c.vs_field_floorHeightAt(x, z);
     // sign-extend the low 15 bits of the 16-bit result
     const wide: c_int = (@as(c_int, dist) << 17) >> 17;
-    const diff: c_int = wide -% @as(c_int, sp10.unk0.unk4.vy);
+    const diff: c_int = wide -% @as(c_int, sp10.location.position.vy);
     const band: c_int = diff +% 0x3F;
     if (psx.conv(c_uint, band) >= 0x7F) {
         temp_s1 = null;

@@ -11,7 +11,7 @@ pub fn vs_actors_initializeActorFromTemplate(id: c_int, arg1: ?*v.vs_battle_char
     const actor = psx.at(v.g.vs_battle_actors(), id).*.?;
     actor.id = id;
     const temp_s4 = psx.get(actor.stats);
-    actor.unk18 = arg1.?.unk2;
+    actor.unk18 = arg1.?.characterKind;
     actor.subType = arg1.?.subType;
     actor.unk2A = psx.conv(u8, arg2);
     actor.unk2B = psx.conv(u8, arg3);

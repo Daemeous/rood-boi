@@ -29,7 +29,7 @@ fn loadFile(lba: c_int, size: c_int, buf: ?*anyopaque) c_int {
 /// orig: vs_effects_updateEffectTextureLoading (pc/src/game/BATTLE/BATTLE.PRG/6F014.c)
 /// Advances the battle file loader one step: loads the next queued file into its VRAM slot, and frees the load buffer when the queue is finished.
 pub fn vs_effects_updateEffectTextureLoading() callconv(.c) c_int {
-    if (v.g.D_800F5680().* == 0 and v.g.vs_effects_textureLoads().unk0 != 0) {
+    if (v.g.D_800F5680().* == 0 and v.g.vs_effects_textureLoads().assetCount != 0) {
         v.g.vs_effects_textureLoadIndex().* = 0;
         c.vs_effects_setEffectTextureLoadState(1);
     }
@@ -78,7 +78,7 @@ pub fn vs_effects_updateEffectTextureLoading() callconv(.c) c_int {
 
                 v.g.vs_effects_textureLoadIndex().* +%= 1;
 
-                if (v.g.vs_effects_textureLoads().unk0 == v.g.vs_effects_textureLoadIndex().*) {
+                if (v.g.vs_effects_textureLoads().assetCount == v.g.vs_effects_textureLoadIndex().*) {
                     c.vs_effects_setEffectTextureLoadState(2);
                 }
 

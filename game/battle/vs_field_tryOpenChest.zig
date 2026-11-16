@@ -13,8 +13,8 @@ pub fn vs_field_tryOpenChest(arg0: ?*v._mpdRoomSectionA, arg1: c_int) callconv(.
     var sp10: [4]c_short = .{ 0, 0, 0, 0 };
     const shift: u5 = 7;
 
-    sp10[0] = psx.conv(c_short, (@as(c_int, section.unk0.unk0) << shift) +% 0x40);
-    sp10[2] = psx.conv(c_short, (@as(c_int, section.unk0.unk2) << shift) +% 0x40);
+    sp10[0] = psx.conv(c_short, (@as(c_int, section.trigger.tileX) << shift) +% 0x40);
+    sp10[2] = psx.conv(c_short, (@as(c_int, section.trigger.tileZ) << shift) +% 0x40);
     var var_s1: c_int = 0;
 
     sw: switch (section.keyOrSigil) {

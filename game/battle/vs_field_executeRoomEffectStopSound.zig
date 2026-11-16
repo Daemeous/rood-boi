@@ -8,7 +8,7 @@ const c = @import("c_2842C");
 pub fn vs_field_executeRoomEffectStopSound(_: ?*v.func_80092F74_t, arg1: ?*v.func_80092F74_t2) callconv(.c) c_int {
     const section14 = psx.get(v.g.vs_battle_roomData().section14);
     if (section14) |p| {
-        c.vs_audio_stopBankSfx(0x200, @ptrCast(p), @as(c_int, arg1.?.unk4[0].u16[1]));
+        c.vs_audio_stopBankSfx(0x200, @ptrCast(p), @as(c_int, arg1.?.operands[0].u16[1]));
         v.g.vs_field_roomEffectSoundId().* = -1;
     }
     return 0;

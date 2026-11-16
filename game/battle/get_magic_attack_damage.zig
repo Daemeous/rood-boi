@@ -22,9 +22,9 @@ pub fn getMagicAttackDamage(action: ?*v.vs_action_t, source: ?*v._hitEntity_t, t
     var attack: c_int = undefined;
     var defense: c_int = undefined;
 
-    const sourceActor = psx.get(actors[src.unk0.targetActor].?.stats).?;
-    const targetActor = psx.get(actors[tgt.unk0.targetActor].?.stats).?;
-    const limb: c_int = tgt.unk0.targetLimb;
+    const sourceActor = psx.get(actors[src.target.targetActor].?.stats).?;
+    const targetActor = psx.get(actors[tgt.target.targetActor].?.stats).?;
+    const limb: c_int = tgt.target.targetLimb;
     const limbp = psx.at(&targetActor.limbs, limb);
     const hit = psx.at(&act.hitParams, nHit);
 
@@ -32,7 +32,7 @@ pub fn getMagicAttackDamage(action: ?*v.vs_action_t, source: ?*v._hitEntity_t, t
     sp18.@"type" = psx.conv(u8, psx.getBits(hit, "type"));
 
     if (psx.getBits(hit, "affinity") == 0) {
-        if ((actors[sourceActor.unk957].?.weaponDrawn & 1) == 0 or sourceActor.weapon.blade.id == 0) {
+        if ((actors[sourceActor.actorId].?.weaponDrawn & 1) == 0 or sourceActor.weapon.blade.id == 0) {
             affinity = 0;
         } else {
             affinity = 0;
@@ -53,7 +53,7 @@ pub fn getMagicAttackDamage(action: ?*v.vs_action_t, source: ?*v._hitEntity_t, t
         i = 0;
         while (i < 7) : (i +%= 1) {
             sp18.tempTargetAffinity = psx.conv(i16, @as(c_int, limbp.affinities[i]) +% limbp.armor.classAffinityCurrent.affinity[0][i]);
-            if ((actors[targetActor.unk957].?.weaponDrawn & 1) != 0) {
+            if ((actors[targetActor.actorId].?.weaponDrawn & 1) != 0) {
                 sp18.tempTargetAffinity = psx.conv(i16, @as(c_int, sp18.tempTargetAffinity) +% targetActor.shield.classAffinityCurrent.affinity[0][i]);
             }
             if (maxAffinity < sp18.tempTargetAffinity) {
@@ -70,7 +70,7 @@ pub fn getMagicAttackDamage(action: ?*v.vs_action_t, source: ?*v._hitEntity_t, t
 
     sp18.value = psx.conv(i16, sourceActor.intelligence);
 
-    if ((actors[sourceActor.unk957].?.weaponDrawn & 1) != 0) {
+    if ((actors[sourceActor.actorId].?.weaponDrawn & 1) != 0) {
         sp18.value = psx.conv(i16, @as(c_int, sp18.value) +% sourceActor.weapon.currentInt);
         const wa = sourceActor.weapon.classAffinityCurrent.affinity[0][sp18.sourceAffinity];
         sp18.weaponAffinity = wa;
@@ -111,7 +111,7 @@ pub fn getMagicAttackDamage(action: ?*v.vs_action_t, source: ?*v._hitEntity_t, t
         sp18.armorStatFactor = psx.conv(i16, @as(c_int, sp18.armorStatFactor) -% @divTrunc(@divTrunc((@as(c_int, limbp.armor.maxDp) -% limbp.armor.currentDp) *% 100, @as(c_int, limbp.armor.maxDp)), 4));
     }
 
-    if ((actors[targetActor.unk957].?.weaponDrawn & 1) != 0) {
+    if ((actors[targetActor.actorId].?.weaponDrawn & 1) != 0) {
         sp18.shieldStat = targetActor.shield.currentInt;
 
         if (sp18.@"type" != 0) {

@@ -18,9 +18,9 @@ pub fn vs_actors_allocateActorWithEquipment(arg0: c_int, arg1: c_int, bladeWepId
 
     psx.put(&actor.stats, &temp.unk0.unk0.unk50);
     actor.unk40 = 1;
-    psx.put(&actor.unk44, &temp.unk0.unk9B4);
-    psx.put(&actor.unk48[0], &temp.unk22B4[0]);
-    psx.put(&actor.unk48[1], &temp.unk22B4[1]);
+    psx.put(&actor.unk44, &temp.unk0.model);
+    psx.put(&actor.unk48[0], &temp.modelSlots[0]);
+    psx.put(&actor.unk48[1], &temp.modelSlots[1]);
 
     var i: c_int = 0xA;
     if (bladeWepId != 0) {

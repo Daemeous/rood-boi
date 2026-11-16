@@ -16,7 +16,7 @@ fn hasGemEffect(actor: *v.vs_battle_actor2, effect: u8) bool {
 pub fn getDefenseGemBuff(action: ?*v.vs_action_t, actor: ?*v.vs_battle_actor2, hitNumber: c_int) callconv(.c) c_short {
     var gemBuff: c_int = 0;
     const a = actor.?;
-    if ((v.g.vs_battle_actors()[a.unk957].?.weaponDrawn & 1) != 0) {
+    if ((v.g.vs_battle_actors()[a.actorId].?.weaponDrawn & 1) != 0) {
         const act = action.?;
         if (psx.getBits(act, "type") == 1) {
             if (hasGemEffect(a, 6)) gemBuff +%= 20;

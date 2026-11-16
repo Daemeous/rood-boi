@@ -25,9 +25,9 @@ pub fn commitAction(kind: c_int) callconv(.c) void {
     c.func_800C05B4();
     if (kind != 0) {
         if (pending == 0xFF) {
-            if (state().unk8.unk4.unk0.targetActor != 0) {
+            if (state().unk8.primaryTarget.target.targetActor != 0) {
                 c.vs_menu_frameworkReleaseMenuRows();
-                c.func_800E4C64(@as(c_int, state().unk8.unk4.unk0.targetActor));
+                c.func_800E4C64(@as(c_int, state().unk8.primaryTarget.target.targetActor));
                 state().unk8.actionIndex = 0;
                 c.vs_battle_beginPostActionRecovery(0);
                 return;
@@ -46,7 +46,7 @@ pub fn commitAction(kind: c_int) callconv(.c) void {
     }
     state().unk4 = 1;
     state().unk0 = 0;
-    if (state().unk8.unk4.unk0.targetActor == 0) {
+    if (state().unk8.primaryTarget.target.targetActor == 0) {
         // ROOD_PC guard: the ability menu state is null until the menu first opens; the PS1 reads address 0.
         const ability: *align(1) v.D_800F18EC_t = if (psx.Global(?*v.D_800F18EC_t, "D_800F18EC").ptr().*) |p| p else psx.lowRam(v.D_800F18EC_t);
         if (ability.unk2 != 7) {
@@ -56,7 +56,7 @@ pub fn commitAction(kind: c_int) callconv(.c) void {
         }
         ability.unk2 = 0;
     } else {
-        c.vs_battle_aiDisengageActorById(@as(c_int, state().unk8.unk4.unk0.targetActor));
+        c.vs_battle_aiDisengageActorById(@as(c_int, state().unk8.primaryTarget.target.targetActor));
     }
     c.vs_menu_frameworkReleaseMenuRows();
     if (kind == 0) {
@@ -66,13 +66,13 @@ pub fn commitAction(kind: c_int) callconv(.c) void {
     } else {
         c.vs_battle_setSingleActionTarget();
     }
-    c.vs_battle_resolveActionTargets(@as(c_int, state().unk8.actionIndex), @ptrCast(&state().unk854[0]), @ptrCast(&state().unk8), 1);
+    c.vs_battle_resolveActionTargets(@as(c_int, state().unk8.actionIndex), @ptrCast(&state().queue[0]), @ptrCast(&state().unk8), 1);
 
-    if (state().unk8.unk4.unk0.targetActor == 0) {
+    if (state().unk8.primaryTarget.target.targetActor == 0) {
         const index: c_int = state().unk8.actionIndex;
-        if ((index == 1 or psx.conv(c_uint, index -% 0xB8) < 0x28) and state().unk8.unk4C[0].unk40 == 0 and
+        if ((index == 1 or psx.conv(c_uint, index -% 0xB8) < 0x28) and state().unk8.targets[0].unk40 == 0 and
             // the target is not bounded by the C
-            psx.at(v.g.vs_battle_actors(), state().unk8.unk4C[0].unk0.targetActor).*.?.unk27 != 0x80)
+            psx.at(v.g.vs_battle_actors(), state().unk8.targets[0].target.targetActor).*.?.unk27 != 0x80)
         {
             const attacks = &v.g.scoreData().weaponAttacks;
             if (v.g.vs_battle_characterState().*.?.equippedWeaponCategory == 0xA) {
@@ -96,7 +96,7 @@ pub fn commitAction(kind: c_int) callconv(.c) void {
     }
     state().unk2C02 = 0;
     state().previousChainInput = 0;
-    state().unk2C03 = 0;
+    state().chainAbilitySlot = 0;
     state().unk2C07 = 0;
 
     if (state().unk8.actionIndex >= 55) {
@@ -115,7 +115,7 @@ pub fn commitAction(kind: c_int) callconv(.c) void {
     v.g._cameraMode().* = 4;
     var i: c_int = 0;
     while (i < 16) : (i += 1) {
-        if (i != state().unk8.unk4.unk0.targetActor) {
+        if (i != state().unk8.primaryTarget.target.targetActor) {
             c.func_8009E5C4(i);
         }
     }

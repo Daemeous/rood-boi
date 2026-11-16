@@ -9,7 +9,7 @@ const c = @import("c_146C");
 pub fn func_800782E4() callconv(.c) void {
     const state = v.g.vs_battle_actionState().*.?;
     if (state.unk2984 != 0) {
-        if (state.unk8.unk4.unk0.targetActor != 0) {
+        if (state.unk8.primaryTarget.target.targetActor != 0) {
             state.unk298E +%= 1;
             const count: c_uint = state.unk298E;
             if (count < 0x1F) return;

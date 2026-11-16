@@ -15,7 +15,7 @@ pub fn vs_field_createGimmickInstance(arg0: ?*v.vs_battle_objectData) callconv(.
 
     if (psx.at(t, obj.index).* != null) return -3;
 
-    const raw = psx.get(obj.unk4);
+    const raw = psx.get(obj.destination);
     const fetched: ?*v.D_800F45E0_t = if (raw) |p| @ptrCast(@alignCast(p)) else null;
     psx.at(t, obj.index).* = fetched;
     const s1 = fetched orelse return -2;
@@ -89,7 +89,7 @@ pub fn vs_field_createGimmickInstance(arg0: ?*v.vs_battle_objectData) callconv(.
     s1.unk64.unk0 = 0;
     psx.setBits(s1, "unk8_0", 1);
     psx.setBits(s1, "unk8_1", 0);
-    psx.fieldAt(i32, &s1.unk5C, 0).* = psx.fieldAt(i32, &obj.unkC, 0).*;
+    psx.fieldAt(i32, &s1.unk5C, 0).* = psx.fieldAt(i32, &obj.placement, 0).*;
     s1.unk5F = 0;
     s1.unk1C = psx.conv(i16, (@as(c_int, s1.unk5C) << 7) +% 0x40);
     s1.unk20 = psx.conv(i16, (@as(c_int, s1.unk5E) << 7) +% 0x40);

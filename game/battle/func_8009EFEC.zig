@@ -31,7 +31,7 @@ pub fn func_8009EFEC(actorId: c_int, target: ?*v.SVECTOR, mode: c_int) callconv(
             }
             facingDelta = angle;
         }
-        a.unk0.unk3E = psx.conv(i16, facingDelta);
+        a.unk0.facingDelta = psx.conv(i16, facingDelta);
         a.unk0.unk18 = 0xA;
         if (a.unk63C >= 0x80) {
             a.unk0.unk18 = 0x14;
@@ -52,7 +52,7 @@ pub fn func_8009EFEC(actorId: c_int, target: ?*v.SVECTOR, mode: c_int) callconv(
             // Re-read the slot: the call above may have changed it.
             const fallback: ?*v.D_800F4538_t = psx.at(v.g.vs_actors_actorRecords(), actorId).*;
             if (fallback) |fb| {
-                fb.unk0.unk3E = psx.conv(i16, c.vs_actors_actorFacingDeltaToPoint(@ptrCast(fb), @ptrCast(target)));
+                fb.unk0.facingDelta = psx.conv(i16, c.vs_actors_actorFacingDeltaToPoint(@ptrCast(fb), @ptrCast(target)));
                 fb.unk0.unk18 = 0xA;
                 if (fb.unk63C >= 0x81) {
                     fb.unk0.unk18 = 0x14;
@@ -86,7 +86,7 @@ pub fn func_8009EFEC(actorId: c_int, target: ?*v.SVECTOR, mode: c_int) callconv(
                     verticalAngle = -%verticalAngle;
                 }
                 value = c.vs_gte_rsqrt(value +% verticalAngle);
-                _ = c.func_800A1AF8(@as(c_int, act.unk0.unkF), 0, @ptrCast(&origin), 0);
+                _ = c.func_800A1AF8(@as(c_int, act.unk0.slot), 0, @ptrCast(&origin), 0);
                 verticalAngle = c.ratan2(
                     @as(c_int, t.vy) -% @as(c_int, origin.vy),
                     value,

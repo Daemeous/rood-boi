@@ -15,7 +15,7 @@ pub fn vs_event_scriptWalkActorToWorldPos(arg0: [*c]u8, _: c_short) callconv(.c)
     const temp_s2: i16 = c.vs_battle_getShort(arg0 + 5);
     const temp_s3: i16 = c.vs_battle_getShort(arg0 + 7);
 
-    const vec: *v.SVECTOR = &sp10.unk0.unk4;
+    const vec: *v.SVECTOR = &sp10.location.position;
 
     if ((arg0[3] & 1) != 0) {
         _ = c.vs_actors_actorPlacement(@as(c_int, temp_s4), &sp10);

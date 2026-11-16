@@ -53,7 +53,7 @@ pub fn loadSeq(object: ?*v.vs_battle_objectData) callconv(.c) c_int {
             var seq = seqOf(psx.get(source.unk5D8));
             if (obj.index < 2) {
                 var doClone = false;
-                if (actor.unk0.unkF == 0) {
+                if (actor.unk0.slot == 0) {
                     seq = seqOf(v.g.D_800F4930().*);
                     doClone = true;
                 } else if (cursor() == null) {
@@ -75,7 +75,7 @@ pub fn loadSeq(object: ?*v.vs_battle_objectData) callconv(.c) c_int {
         advance(4);
         size = roundUp4(size);
         var seq: ?*align(1) v.func_8009C378_t = null;
-        if (actor.unk0.unkF != 0) {
+        if (actor.unk0.slot != 0) {
             const alloc = c.vs_main_allocHeap(psx.conv(c_uint, size));
             if (alloc == null) return -2;
             seq = seqOf(alloc);

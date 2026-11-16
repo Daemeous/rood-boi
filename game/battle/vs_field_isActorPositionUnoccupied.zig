@@ -9,7 +9,7 @@ const v = @import("views_40564");
 pub fn vs_field_isActorPositionUnoccupied(actor: ?*v.D_800F4538_t, position: ?*v.SVECTOR) callconv(.c) c_int {
     const scratch: *v.actorCollisionExclusion = @ptrFromInt(pad.addr(0x3BC));
     const a = actor.?;
-    if (a.unk0.unkF == 0) {
+    if (a.unk0.slot == 0) {
         if ((psx.fieldAt(c_uint, &a._bits_unk5AC_0, 0).* & 0x800) != 0) return 1;
         if ((psx.fieldAt(c_uint, &a._bits_unk5AC_0, 0).* & 0x1000) != 0) return 1;
         var i: c_int = 2;

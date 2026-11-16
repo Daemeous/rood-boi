@@ -13,26 +13,26 @@ pub fn func_800BDAB4() callconv(.c) void {
     var sp10: v.D_800F1A68_t = std.mem.zeroes(v.D_800F1A68_t);
     var sp20: v.P_CODE = std.mem.zeroes(v.P_CODE);
 
-    if (c.func_800BDBB4(psx.cptr(c.func_800BDBB4_t, &v.g.vs_event_camera().*.?.unk1FC)) != 0) {
-        sp10.unk0 = psx.conv(i32, v.g.vs_event_camera().*.?.unk1FC.unk2);
-        sp10.unk4 = psx.conv(i32, v.g.vs_event_camera().*.?.unk1FC.unk4);
+    if (c.func_800BDBB4(psx.cptr(c.func_800BDBB4_t, &v.g.vs_event_camera().*.?.screenScale)) != 0) {
+        sp10.x = psx.conv(i32, v.g.vs_event_camera().*.?.screenScale.currentValue0);
+        sp10.y = psx.conv(i32, v.g.vs_event_camera().*.?.screenScale.currentValue1);
         c.vs_render_setFramebufferEffectScale(psx.cptr(c.D_800F1A68_t, &sp10));
     }
-    if (c.func_800BDBB4(psx.cptr(c.func_800BDBB4_t, &v.g.vs_event_camera().*.?.unk21C)) != 0) {
-        sp20.r0 = psx.conv(u8, v.g.vs_event_camera().*.?.unk21C.unk2);
-        sp20.g0 = psx.conv(u8, v.g.vs_event_camera().*.?.unk21C.unk4);
-        sp20.b0 = psx.conv(u8, v.g.vs_event_camera().*.?.unk21C.unk6);
+    if (c.func_800BDBB4(psx.cptr(c.func_800BDBB4_t, &v.g.vs_event_camera().*.?.screenTint)) != 0) {
+        sp20.r0 = psx.conv(u8, v.g.vs_event_camera().*.?.screenTint.currentValue0);
+        sp20.g0 = psx.conv(u8, v.g.vs_event_camera().*.?.screenTint.currentValue1);
+        sp20.b0 = psx.conv(u8, v.g.vs_event_camera().*.?.screenTint.currentValue2);
         c.vs_render_setFramebufferEffectTint(psx.cptr(c.P_CODE, &sp20));
     }
-    if (c.func_800BDBB4(psx.cptr(c.func_800BDBB4_t, &v.g.vs_event_camera().*.?.unk23C)) != 0) {
-        sp10.unk0 = psx.conv(i32, v.g.vs_event_camera().*.?.unk23C.unk2);
-        sp10.unk4 = psx.conv(i32, v.g.vs_event_camera().*.?.unk23C.unk4);
+    if (c.func_800BDBB4(psx.cptr(c.func_800BDBB4_t, &v.g.vs_event_camera().*.?.screenTranslation)) != 0) {
+        sp10.x = psx.conv(i32, v.g.vs_event_camera().*.?.screenTranslation.currentValue0);
+        sp10.y = psx.conv(i32, v.g.vs_event_camera().*.?.screenTranslation.currentValue1);
         c.vs_render_setFramebufferEffectOffset(psx.cptr(c.D_800F1A68_t, &sp10));
     }
     if (c.func_800BDBB4(psx.cptr(c.func_800BDBB4_t, &v.g.vs_event_camera().*.?.unk25C)) != 0) {
         c.pc_screff2_set_warp(
-            @as(c_int, v.g.vs_event_camera().*.?.unk25C.unk2),
-            @as(c_int, v.g.vs_event_camera().*.?.unk25C.unk4),
+            @as(c_int, v.g.vs_event_camera().*.?.unk25C.currentValue0),
+            @as(c_int, v.g.vs_event_camera().*.?.unk25C.currentValue1),
         );
     }
 }

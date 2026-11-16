@@ -12,7 +12,7 @@ pub fn func_800CF830(arg0: c_int, arg1: c_int) callconv(.c) void {
     _ = arg1;
     var script = v.g.vs_effects_secondaryInstances().*;
     while (script) |s| {
-        var node = psx.get(s.unkD1C.unk34);
+        var node = psx.get(s.context.unk34);
         while (node) |n| {
             const address: usize = if (n.renderer) |r| @intFromPtr(r) else 0;
             if (address == @intFromPtr(&c.func_800CE174)) {

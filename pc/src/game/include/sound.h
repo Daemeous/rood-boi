@@ -356,7 +356,7 @@ typedef struct {
     u_short unk86;
     u_short ChannelVolumeSlideLength;
     u_short KeyOnVolumeSlideLength;
-    u_short unk8C;
+    u_short effectVolumeSlideLength;
     u_short ChannelPan;
     u_short ChannelPanSlideLength;
     u_short PitchSlideStepsCurrent;
@@ -395,9 +395,9 @@ typedef struct {
     short LengthStored;
     short LengthFixed;
     short VolumeBalanceSlideStep;
-    short unkDA;
+    short effectPanSlideStep;
     short unkDC;
-    short unkDE;
+    short effectVolumeSlideStep;
     short PanSlideStep;
     short Transpose;
     short FineTune;

@@ -8,6 +8,6 @@ const c = @import("c_146C");
 /// Copies `data` over the loot part of the room's section 13, if that section is loaded.
 pub fn loadMpdLootSection(data: ?*anyopaque) callconv(.c) void {
     if (psx.get(v.g.vs_battle_roomData().section13)) |section| {
-        c.vs_main_memcpy(&section.unk14, data, @as(c_uint, @sizeOf(@TypeOf(section.unk14))));
+        c.vs_main_memcpy(&section.loot, data, @as(c_uint, @sizeOf(@TypeOf(section.loot))));
     }
 }

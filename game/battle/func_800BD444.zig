@@ -14,38 +14,38 @@ pub fn func_800BD444(arg0: [*c]u8, _: c_short) callconv(.c) c_int {
     else
         &v.g.vs_event_camera().*.?.unk174;
 
-    track.unkA = psx.conv(i16, arg0[4]);
+    track.durationFrames = psx.conv(i16, arg0[4]);
 
-    if (track.unkA == 0) {
-        track.unk2 = c.vs_battle_getShort(arg0 + 1);
-        track.unk0 = 1;
+    if (track.durationFrames == 0) {
+        track.angle = c.vs_battle_getShort(arg0 + 1);
+        track.hasChanged = 1;
     } else {
-        track.unk4 = track.unk2;
+        track.startAngle = track.angle;
         const angle: c_int = c.vs_battle_getShort(arg0 + 1);
-        track.unk6 = psx.conv(i16, angle -% @as(c_int, track.unk2));
+        track.deltaAngle = psx.conv(i16, angle -% @as(c_int, track.angle));
 
-        if (@as(c_int, track.unk6) < -(4096 / 2)) {
-            track.unk6 = psx.conv(i16, @as(c_int, track.unk6) +% 4096);
-        } else if (@as(c_int, track.unk6) > (4096 / 2)) {
-            track.unk6 = psx.conv(i16, @as(c_int, track.unk6) -% 4096);
+        if (@as(c_int, track.deltaAngle) < -(4096 / 2)) {
+            track.deltaAngle = psx.conv(i16, @as(c_int, track.deltaAngle) +% 4096);
+        } else if (@as(c_int, track.deltaAngle) > (4096 / 2)) {
+            track.deltaAngle = psx.conv(i16, @as(c_int, track.deltaAngle) -% 4096);
         }
 
         switch (@as(c_int, arg0[3]) >> 4) {
             0 => {
-                if (@as(c_int, track.unk6) > 0) {
-                    track.unk6 = psx.conv(i16, @as(c_int, track.unk6) -% 4096);
+                if (@as(c_int, track.deltaAngle) > 0) {
+                    track.deltaAngle = psx.conv(i16, @as(c_int, track.deltaAngle) -% 4096);
                 }
             },
             2 => {
-                if (@as(c_int, track.unk6) < 0) {
-                    track.unk6 = psx.conv(i16, @as(c_int, track.unk6) +% 4096);
+                if (@as(c_int, track.deltaAngle) < 0) {
+                    track.deltaAngle = psx.conv(i16, @as(c_int, track.deltaAngle) +% 4096);
                 }
             },
             else => {},
         }
 
-        track.unk1 = arg0[3] & 0xF;
-        track.unk8 = 0;
+        track.easingMode = arg0[3] & 0xF;
+        track.elapsedFrames = 0;
     }
     return 0;
 }

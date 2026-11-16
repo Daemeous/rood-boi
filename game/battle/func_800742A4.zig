@@ -11,8 +11,8 @@ pub fn func_800742A4() callconv(.c) void {
     var point = [4]i16{ 0, 0, 0, 0 };
     v.g._cameraMode().* = 4;
     v.g.vs_gametime_tickspeed().* = 2;
-    point[0] = psx.conv(i16, (@as(c_int, psx.get(v.g.vs_field_interactionFocus().unk0).?.unk0.unk0) << 7) +% 0x40);
-    point[2] = psx.conv(i16, (@as(c_int, psx.get(v.g.vs_field_interactionFocus().unk0).?.unk0.unk2) << 7) +% 0x40);
+    point[0] = psx.conv(i16, (@as(c_int, psx.get(v.g.vs_field_interactionFocus().unk0).?.trigger.tileX) << 7) +% 0x40);
+    point[2] = psx.conv(i16, (@as(c_int, psx.get(v.g.vs_field_interactionFocus().unk0).?.trigger.tileZ) << 7) +% 0x40);
     c.func_8009E070(0, &point, 4);
     c.func_800CB50C();
 }

@@ -8,7 +8,7 @@ const c = @import("c_5BF94");
 pub fn dismissTextBox(id: c_int) callconv(.c) c_int {
     const box = psx.at(v.g.textBoxes(), id);
 
-    const flags: c_int = @as(c_int, psx.getBits(&box.unk0, "unk0_24"));
+    const flags: c_int = @as(c_int, psx.getBits(&box.flags, "unk0_24"));
     if ((flags & 0x20) == 0) {
         _ = c.vs_actors_setTextureAnimation(flags, 0, 0, 0);
     }
@@ -17,7 +17,7 @@ pub fn dismissTextBox(id: c_int) callconv(.c) c_int {
         if (box.state > 0) {
             box.unk22 = 8;
             box.state = -1;
-            psx.setBits(&box.unk0, "unk0_4", 0);
+            psx.setBits(&box.flags, "unk0_4", 0);
         }
         return -1;
     }

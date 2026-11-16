@@ -11,8 +11,8 @@ pub fn vs_effects_attachScriptRenderer(arg0: ?*v.D_800F53B8_t) callconv(.c) c_in
     const hi: c_uint = @as(c_uint, c.vs_effects_readScriptHalfword(@ptrCast(arg0))) << 16;
     temp_s0 = temp_s0 +% @as(c_int, @bitCast(hi));
 
-    if (arg0.?.unkD1C.unk3C != 0) {
-        temp_s0 = arg0.?.unkD1C.unk3C;
+    if (arg0.?.context.unk3C != 0) {
+        temp_s0 = arg0.?.context.unk3C;
     }
 
     const effects = psx.GlobalMany(c.effectExec, "D_800EC324").ptr();

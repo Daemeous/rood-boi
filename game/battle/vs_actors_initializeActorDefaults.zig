@@ -42,7 +42,7 @@ pub fn vs_actors_initializeActorDefaults(id: c_uint, arg1: c_int, arg2: c_int, a
     stats.maxMP = 100;
     stats.currentMP = 100;
     stats.risk = 0;
-    stats.unk954 = 0;
+    stats.actionRecoveryTimer = 0;
     if (arg1 == 41) {
         stats.unk30 = 16;
         stats.unk32 = 32;
@@ -64,5 +64,5 @@ pub fn vs_actors_initializeActorDefaults(id: c_uint, arg1: c_int, arg2: c_int, a
     actor.unk27 = 128;
     actor.unk29 = 0;
     actor.defeated = 0;
-    stats.unk957 = 128;
+    stats.actorId = 128;
 }

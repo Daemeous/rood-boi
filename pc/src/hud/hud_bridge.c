@@ -1051,7 +1051,7 @@ void pc_hud_text_band(void* record, int id, void* first, void* end)
     f.key = &keys[id];
     f.box_id = id;
     f.band_top = box->y == 0, f.band_edge = box->unk2A, f.band_lines = box->lineCount;
-    f.band_settled = box->state == box->unk22 + 1, f.band_icon = box->unk0.unk0_8;
+    f.band_settled = box->state == box->unk22 + 1, f.band_icon = box->flags.unk0_8;
     f.x = 160, f.y = f.band_top ? f.band_edge * 0.5f : 240 - f.band_edge * 0.5f;
     f.w = 320, f.h = (float)f.band_edge;
     f.anchor = PC_HUD_ANCHOR_CENTRE;
@@ -1073,7 +1073,7 @@ void pc_hud_text_frame(void* record, int id, void* first, void* end)
     f.key = &keys[id];
     f.box_id = id;
     f.box_x = box->unk24, f.box_y = box->unk26, f.box_w = box->unk28, f.box_h = box->unk2A;
-    f.box_shape = box->unk0.unk0_8, f.box_flip = box->unk0.unk0_6, f.box_tail = box->unk0.unk0_12;
+    f.box_shape = box->flags.unk0_8, f.box_flip = box->flags.unk0_6, f.box_tail = box->flags.unk0_12;
     f.x = (float)f.box_x + f.box_w * 0.5f, f.y = (float)f.box_y + f.box_h * 0.5f;
     f.w = (float)f.box_w, f.h = (float)f.box_h;
     f.anchor = PC_HUD_ANCHOR_CENTRE;
@@ -1312,7 +1312,7 @@ int pc_hud_bridge_name_window(pc_hud_fields* f)
     f->kind = PC_HUD_NAME_WINDOW;
     f->key = &name;
     pc_ui_text_decode((const unsigned char*)vs_menu_sceneNotificationBuffer, 112, f->text, sizeof f->text);
-    if (box->unk0.unk0_0 == 4) { /* (the scene message's kind: func_800CD158's band across the screen's bottom,
+    if (box->flags.unk0_0 == 4) { /* (the scene message's kind: func_800CD158's band across the screen's bottom,
                                   * or its top when the box is at 0, unk2A rows high) */
         f->w = 320, f->h = (float)box->unk2A;
         f->x = 160, f->y = box->y == 0 ? f->h * 0.5f : 240.0f - f->h * 0.5f;
@@ -1798,11 +1798,11 @@ static void frame_packets(const pc_hud_classic_cmd* c, int shadowed)
 {
     int id = c->a & 7;
     vs_battle_textBox* box = &vs_battle_textBoxes[id];
-    vs_battle_textBox_fields fields = box->unk0;
+    vs_battle_textBox_fields fields = box->flags;
     short place[4] = { box->unk24, box->unk26, box->unk28, box->unk2A };
     u_long* table = vs_menu_activeTextBoxOrderingTable;
     box->unk24 = (short)c->x, box->unk26 = (short)c->y, box->unk28 = (short)c->w, box->unk2A = (short)c->h;
-    box->unk0.unk0_8 = (u_int)c->b & 15, box->unk0.unk0_6 = (u_int)c->c & 3, box->unk0.unk0_12 = (u_int)c->d & 15;
+    box->flags.unk0_8 = (u_int)c->b & 15, box->flags.unk0_6 = (u_int)c->c & 3, box->flags.unk0_12 = (u_int)c->d & 15;
     if (shadowed) {
         vs_menu_activeTextBoxOrderingTable = box_shadow;
         box_shadow_id = id;
@@ -1813,7 +1813,7 @@ static void frame_packets(const pc_hud_classic_cmd* c, int shadowed)
     vs_menu_activeTextBoxOrderingTable = table;
     if (&pc_bubble_frame_muted)
         pc_bubble_frame_muted = 0;
-    box->unk0 = fields;
+    box->flags = fields;
     box->unk24 = place[0], box->unk26 = place[1], box->unk28 = place[2], box->unk2A = place[3];
 }
 
@@ -1825,14 +1825,14 @@ static void band_packets(const pc_hud_classic_cmd* c, int shadowed)
 {
     int id = c->a & 7;
     vs_battle_textBox* box = &vs_battle_textBoxes[id];
-    vs_battle_textBox_fields fields = box->unk0;
+    vs_battle_textBox_fields fields = box->flags;
     short y = box->y, edge = box->unk2A, state = box->state;
     char lines = box->lineCount;
     u_long* table = vs_menu_activeTextBoxOrderingTable;
     u_long* icon = vs_scratch.unk8;
     box->y = c->b ? 0 : 1, box->unk2A = (short)c->c, box->lineCount = (char)c->d;
     box->state = c->font ? box->unk22 + 1 : 0;
-    box->unk0.unk0_8 = (u_int)c->align & 15;
+    box->flags.unk0_8 = (u_int)c->align & 15;
     if (shadowed) {
         vs_menu_activeTextBoxOrderingTable = box_shadow;
         box_shadow_id = id;
@@ -1842,7 +1842,7 @@ static void band_packets(const pc_hud_classic_cmd* c, int shadowed)
     func_800CD158(id);
     vs_menu_activeTextBoxOrderingTable = table;
     vs_scratch.unk8 = icon;
-    box->unk0 = fields;
+    box->flags = fields;
     box->y = y, box->unk2A = edge, box->state = state, box->lineCount = lines;
 }
 

@@ -87,23 +87,23 @@ pub fn parseShp(object: *v.vs_battle_objectData) callconv(.c) c_int {
         } else {
             const entry = psx.at(actors, object.index);
             if (entry.* == null) {
-                entry.* = @ptrCast(@alignCast(psx.get(object.unk4)));
+                entry.* = @ptrCast(@alignCast(psx.get(object.destination)));
                 if (entry.* == null) return -2;
                 _ = memset(entry.*, 0, common.object.region(v.D_800F4538_t));
                 entry.*.?.unk5BB = 0xFF;
-                entry.*.?.unk0.unk12 = 0xFF;
+                entry.*.?.unk0.attachParent = 0xFF;
             }
             const a = entry.*.?;
             actor_opt = a;
             const modelId: c_int = object.modelId;
             if (modelId == 0x7F) {
                 a.unk6E6 = psx.conv(u16, modelId);
-                a.unk0.unkF = psx.conv(u8, object.index);
+                a.unk0.slot = psx.conv(u8, object.index);
                 psx.fieldAt(u16, &a.unk640, 0).* = 0x40;
                 psx.fieldAt(u16, &a.unk640, 2).* = 10000;
-                reset(a.unk0.unkF);
+                reset(a.unk0.slot);
                 psx.setBits(&a.unk0, "skip", 0);
-                c.vs_actors_placeActorInRoom(a.unk0.unkF, @ptrCast(&object.unkC), 0, 1);
+                c.vs_actors_placeActorInRoom(a.unk0.slot, @ptrCast(&object.placement), 0, 1);
                 pass.* = 0;
                 return 0;
             }
@@ -128,14 +128,14 @@ pub fn parseShp(object: *v.vs_battle_objectData) callconv(.c) c_int {
                 psx.at(textures, @as(c_int, actor.unk5BB) + i).refCount +%= 1;
             }
         }
-        psx.fieldAt(v.vs_battle_objectData_flags, &actor.unk0.currentTileX, 0).* = object.unkC;
+        psx.fieldAt(v.vs_battle_objectData_flags, &actor.unk0.currentTileX, 0).* = object.placement;
         clutCount.* = if (flagWord(actor) & 0x08000000 != 0) 0xA0 else 0x10;
         stage = .setup_palettes;
     }
 
     if (stage == .parse) {
         data = advance(data, 4);
-        psx.fieldAt(v.vs_battle_objectData_flags, &actor.unk0.currentTileX, 0).* = object.unkC;
+        psx.fieldAt(v.vs_battle_objectData_flags, &actor.unk0.currentTileX, 0).* = object.placement;
         psx.setBits(&actor.unk0, "skip", 1);
         psx.fieldAt(c_int, &actor.unk0.nBones, 0).* = readInt(data);
         psx.fieldAt(c_int, &actor.unk0.nQuads, 0).* = readInt(data +% 4);
@@ -146,7 +146,7 @@ pub fn parseShp(object: *v.vs_battle_objectData) callconv(.c) c_int {
         data = advance(data, 4);
         const model: ?*v.D_800F4538_unk68 = @ptrCast(@alignCast(c.vs_main_allocHeap(psx.conv(c_uint, size))));
         _ = memcpy(model, @ptrFromInt(data), @as(u32, @bitCast(size)));
-        psx.put(&actor.unk0.unk68, model);
+        psx.put(&actor.unk0.model, model);
         if (model == null) return -2;
         data = advance(data, size);
 
@@ -285,7 +285,7 @@ pub fn parseShp(object: *v.vs_battle_objectData) callconv(.c) c_int {
 
     if (stage == .fix_uvs) {
         const count: c_int = @as(c_int, actor.unk0.nOther) + actor.unk0.nTriangles + actor.unk0.nQuads;
-        const header = psx.get(actor.unk0.unk68).?;
+        const header = psx.get(actor.unk0.model).?;
         var prim: usize = @intFromPtr(header) +% header.polyOffset;
         const texV: c_int = @as(c_int, v.g.vs_actors_textureSlotRowOffsets()[actor.unk5BB]) << 6;
         if (psx.getBits(&actor.unk0, "unk8_3") == 0) {
@@ -350,8 +350,8 @@ pub fn parseShp(object: *v.vs_battle_objectData) callconv(.c) c_int {
     }
     if (object.index == 0 and object.modelId == 6) return 0;
 
-    actor.unk0.unkF = psx.conv(u8, object.index);
-    actor.unk0.unk10 = object.variant;
+    actor.unk0.slot = psx.conv(u8, object.index);
+    actor.unk0.variant = object.variant;
     psx.setBits(&actor.unk0, "unk8_7", 1);
     psx.setBits(&actor.unk0, "unk9_0", 0);
     actor.unk6E5 = 13;
@@ -370,9 +370,9 @@ pub fn parseShp(object: *v.vs_battle_objectData) callconv(.c) c_int {
     psx.setBits(actor, "unk5AC_8", 0);
     actor.unk5C2 = 8;
     actor.unk5C0 = 0x20;
-    actor.unk0.unk2C = 0x1000;
-    actor.unk0.unk2E = 0x1000;
-    actor.unk0.unk30 = 0x1000;
+    actor.unk0.scaleX = 0x1000;
+    actor.unk0.scaleY = 0x1000;
+    actor.unk0.scaleZ = 0x1000;
     actor.unk5B2 = 1;
     psx.setBits(&actor.unk0, "unkC_0", 0);
     psx.setBits(&actor.unk0, "unkC_4", 0);
@@ -381,12 +381,12 @@ pub fn parseShp(object: *v.vs_battle_objectData) callconv(.c) c_int {
     psx.fieldAt(c_int, &actor.unk6F0, 0).* = 0;
     psx.setBits(actor, "unk648_0", 800);
     actor.unk0.unk54 = 0x808080;
-    psx.fieldAt(c_int, &actor.unk0.unk58, 0).* = 0x404040;
+    psx.fieldAt(c_int, &actor.unk0.tint, 0).* = 0x404040;
     actor.unk183C = psx.conv(i16, v.g.D_800F4438().vx);
 
     var i: c_int = 0;
     while (i < actor.unk0.nBones) : (i += 1) {
-        const armature = psx.at(&psx.get(actor.unk0.unk68).?.armatures, i);
+        const armature = psx.at(&psx.get(actor.unk0.model).?.armatures, i);
         if (armature.unk8 >= 3 and armature.unk8 < 7) {
             const joint = psx.fieldAt([2]u16, &actor.unk1880, (@as(isize, armature.unk8) - 3) * 4);
             joint[1] = 0;
@@ -414,23 +414,23 @@ pub fn parseShp(object: *v.vs_battle_objectData) callconv(.c) c_int {
         if (effects[@intCast(i)] != null) c.vs_content_bindSharedActorSequence(@ptrCast(actor), i);
     }
     c.func_8009D7E8(object.index, 0);
-    reset(actor.unk0.unkF);
+    reset(actor.unk0.slot);
     actor.unk0.unk13 = 0;
     psx.setBits(&actor.unk0, "unk9_5", 0);
 
     if (object.actorId == 0xFF) {
-        c.vs_actors_placeActorInRoom(object.index, @ptrCast(&object.unkC), 0, object.material);
-        actor.unk0.unk12 = 0xFF;
+        c.vs_actors_placeActorInRoom(object.index, @ptrCast(&object.placement), 0, object.material);
+        actor.unk0.attachParent = 0xFF;
     } else if (object.unk11 == 0xFC) {
-        actor.unk0.unk12 = object.actorId;
+        actor.unk0.attachParent = object.actorId;
         actor.unk0.unk13 = 0xFC;
-        psx.at(actors, actor.unk0.unk12).*.?.unk17FD = psx.conv(u8, object.index);
-        psx.at(actors, actor.unk0.unk12).*.?.unk6F4.unk0 = 0;
-        psx.at(actors, actor.unk0.unk12).*.?.unk6F4.unk1 = 0;
-        psx.at(actors, actor.unk0.unk12).*.?.unk6F4.unk2 = 0;
-        psx.at(actors, actor.unk0.unk12).*.?.unk6F4.unk3 = 8;
+        psx.at(actors, actor.unk0.attachParent).*.?.unk17FD = psx.conv(u8, object.index);
+        psx.at(actors, actor.unk0.attachParent).*.?.unk6F4.unk0 = 0;
+        psx.at(actors, actor.unk0.attachParent).*.?.unk6F4.unk1 = 0;
+        psx.at(actors, actor.unk0.attachParent).*.?.unk6F4.unk2 = 0;
+        psx.at(actors, actor.unk0.attachParent).*.?.unk6F4.unk3 = 8;
     } else {
-        actor.unk0.unk12 = 0xFF;
+        actor.unk0.attachParent = 0xFF;
         c.vs_actors_attachActorToParentBone(object.index, object.actorId, object.unk11, 0);
     }
     pass.* = 0;

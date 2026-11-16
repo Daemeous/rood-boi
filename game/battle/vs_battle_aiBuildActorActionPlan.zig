@@ -78,7 +78,7 @@ pub fn vs_battle_aiBuildActorActionPlan(state: ?*v.vs_battle_aiState) callconv(.
     }
 
     if (snapshotActorStats() != 0) {
-        const fromStats: c_int = @divTrunc(@as(c_int, psx.get(s.stats.actor2).?.unk954), 35);
+        const fromStats: c_int = @divTrunc(@as(c_int, psx.get(s.stats.actor2).?.actionRecoveryTimer), 35);
         const minDelay: c_int = if (@as(c_int, s.minDelay) < fromStats) fromStats else s.minDelay;
         v.g.vs_battle_aiRoomAiState().*.?.unk18 = 0;
 

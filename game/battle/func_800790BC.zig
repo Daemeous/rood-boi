@@ -11,14 +11,14 @@ pub fn func_800790BC() callconv(.c) void {
     var s4: c_int = 1;
     var i: c_int = 0;
     // uninitialised in the original when base.unk4 is 0; the port reads slot 0 there.
-    var s3: *v.D_800F19CC_t2 = &base.unk854[0];
+    var s3: *v.D_800F19CC_t2 = &base.queue[0];
 
     while (psx.conv(c_uint, i) < base.unk4) : (i +%= 1) {
-        s3 = &base.unk854[@intCast(@rem(i, 4))];
+        s3 = &base.queue[@intCast(@rem(i, 4))];
         var j: c_int = 0;
-        while (j < @as(c_int, s3.unk4A)) : (j +%= 1) {
-            const e = psx.at(&s3.unk4C, j);
-            if (e.unk40 == 0 and (c.vs_actors_isActorActionAnimationBusy(@as(c_int, e.unk0.targetActor)) +% 1) > 1) {
+        while (j < @as(c_int, s3.targetCount)) : (j +%= 1) {
+            const e = psx.at(&s3.targets, j);
+            if (e.unk40 == 0 and (c.vs_actors_isActorActionAnimationBusy(@as(c_int, e.target.targetActor)) +% 1) > 1) {
                 s4 = 0;
             }
         }
@@ -28,20 +28,20 @@ pub fn func_800790BC() callconv(.c) void {
         s4 = 1;
         i = 0;
         while (psx.conv(c_uint, i) < base.unk4) : (i +%= 1) {
-            s3 = &base.unk854[@intCast(@rem(i, 4))];
-            if (s3.unk4.unk40 == 0) {
-                _ = c.vs_battle_beginActorDefeatAnimation(@as(c_int, s3.unk4.unk0.targetActor));
+            s3 = &base.queue[@intCast(@rem(i, 4))];
+            if (s3.primaryTarget.unk40 == 0) {
+                _ = c.vs_battle_beginActorDefeatAnimation(@as(c_int, s3.primaryTarget.target.targetActor));
             }
             var j: c_int = 0;
-            while (j < @as(c_int, s3.unk4A)) : (j +%= 1) {
-                const e = psx.at(&s3.unk4C, j);
-                if (e.unk40 == 0 and c.vs_battle_beginActorDefeatAnimation(@as(c_int, e.unk0.targetActor)) != 0) {
+            while (j < @as(c_int, s3.targetCount)) : (j +%= 1) {
+                const e = psx.at(&s3.targets, j);
+                if (e.unk40 == 0 and c.vs_battle_beginActorDefeatAnimation(@as(c_int, e.target.targetActor)) != 0) {
                     s4 = 2;
                 }
             }
         }
 
-        if (s3.unk4.unk0.targetActor != 0) {
+        if (s3.primaryTarget.target.targetActor != 0) {
             s4 = 0;
         }
 
