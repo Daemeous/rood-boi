@@ -42,7 +42,7 @@ pub fn func_800A2CD4(arg0: ?*v.D_800F4538_t) callconv(.c) void {
         },
         3 => {
             // The word at 0x119C has no view field: read it at its offset.
-            if (a.unk0.unk1A == 0 and (psx.fieldAt(c_uint, &a.unkC54._bits_unk548_0, 0).* & 0x20000) != 0) {
+            if (a.unk0.unk1A == 0 and (psx.bitsAt(c_uint, &a.unkC54._bits_unk548_0, 0).* & 0x20000) != 0) {
                 block10(a);
             }
         },

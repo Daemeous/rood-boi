@@ -6,7 +6,7 @@ const v = @import("views_5BF94");
 
 /// orig: vs_effects_releaseAllEffectParticles (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// Splices the owner's record chain onto the head of the free list, then debits the free count by the owner's count and clears it.
-pub fn vs_effects_releaseAllEffectParticles(arg0: ?*v.D_800F53B8_t) callconv(.c) void {
+pub fn vs_effects_releaseAllEffectParticles(arg0: ?*v.vs_effects_EffectInstance) callconv(.c) void {
     const owner = arg0.?;
     const temp_a1 = psx.get(owner.unk18);
     var var_a0 = temp_a1;

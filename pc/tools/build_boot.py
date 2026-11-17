@@ -2352,7 +2352,7 @@ def lp64_native_imports():
         if name in OVERRUN:
             pinned[name] = "read past its end by the code, into neighbours that must stay where they are"
         elif len({info.get("ps1_size") for obj, info in declarations.get(declared_name(name), []) if not obj.stem.endswith("_zig")}) > 1:
-            # Declared as different things (D_800E909C: u_char [] here, func_800AAE9C_t [][28] there): the bytes are
+            # Declared as different things (D_800E909C: u_char [] here, vs_actors_TextureAnimationKey [][28] there): the bytes are
             # a table of the larger kind, whose extent the labels after it do not mark.
             pinned[name] = "declared with different sizes: its extent is not the next label's"
         elif not (plain_data(name) or unsized):

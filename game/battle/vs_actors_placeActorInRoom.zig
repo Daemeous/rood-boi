@@ -5,7 +5,7 @@ const c = @import("c_3A1A0");
 
 /// orig: vs_actors_placeActorInRoom (pc/src/game/BATTLE/BATTLE.PRG/3A1A0.c)
 /// Places actor `actorId` at `placement`, on the floor, under the ceiling or on a platform, per `mode`.
-pub fn vs_actors_placeActorInRoom(actorId: c_int, placement: ?*v.func_80089888_t, height: c_int, mode: c_int) callconv(.c) void {
+pub fn vs_actors_placeActorInRoom(actorId: c_int, placement: ?*v.vs_field_ActorPlacement, height: c_int, mode: c_int) callconv(.c) void {
     const actor: *v.D_800F4538_t = psx.at(v.g.vs_actors_actorRecords(), actorId).*.?;
     const pl = placement.?;
 
@@ -31,18 +31,18 @@ pub fn vs_actors_placeActorInRoom(actorId: c_int, placement: ?*v.func_80089888_t
         if (c.vs_actors_findActorAtFlightPosition(actorId, psx.cptr(c.SVECTOR, position)) != 0) {
             _ = c.vs_actors_separateActorFlightPlacement(actorId, psx.cptr(c.SVECTOR, position));
         }
-        psx.fieldAt(c_int, &actor.unk0._bits_skip, 0).* |= 0x200000;
+        psx.bitsAt(c_int, &actor.unk0._bits_skip, 0).* |= 0x200000;
         _ = c.vs_actors_playActorAnimation(actorId, 8, 0, 0);
     } else {
         if (mode == 0x40 or mode == 0x80) {
-            psx.fieldAt(c_int, &actor.unk0._bits_skip, 0).* |= 0x400000;
+            psx.bitsAt(c_int, &actor.unk0._bits_skip, 0).* |= 0x400000;
         }
         const tileType: u8 = pl.unk0_8;
         if (tileType == 7) {
             actor.unk0.unk5D = 0;
             actor.unk0.position.vy = psx.conv(i16, height);
             actor.unk0.unk34.vy = 0;
-            psx.fieldAt(c_uint, &actor.unk0._bits_skip, 0).* = (psx.fieldAt(c_uint, &actor.unk0._bits_skip, 0).* & 0xFFF8_FFFF) | 0x3_0000;
+            psx.bitsAt(c_uint, &actor.unk0._bits_skip, 0).* = (psx.bitsAt(c_uint, &actor.unk0._bits_skip, 0).* & 0xFFF8_FFFF) | 0x3_0000;
         } else {
             if (tileType >= 2) {
                 const anchorPtr = c.func_800A4A24(tileType);

@@ -27,7 +27,7 @@ pub fn func_800A17BC(actorSlot: c_int, armatureIndex: c_int, outMatrix: ?*anyopa
     } else if ((armatureIndex & 0xF0) == 0x40) {
         const model = psx.at(v.g.vs_battle_wepModels(), actorSlot *% 2).*;
         if (model == null) return 0;
-        const offsets: *v.D_800F4538_unk68 = @ptrCast(psx.get(model.?.offsets).?);
+        const offsets: *v.vs_actors_ShpModel = @ptrCast(psx.get(model.?.offsets).?);
         outArmature.* = psx.at(&offsets.armatures, armatureIndex -% 0x3F).unk0;
     } else {
         outArmature.* = psx.at(&psx.get(actor.?.unk0.model).?.armatures, armatureIndex).unk0;

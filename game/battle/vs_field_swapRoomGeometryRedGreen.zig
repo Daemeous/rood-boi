@@ -16,7 +16,7 @@ pub fn vs_field_swapRoomGeometryRedGreen(arg0: c_int) callconv(.c) void {
     const block: [*]align(1) c_int = @ptrFromInt(@as(usize, block_addr));
     const n0 = block[0];
     const n1 = block[1];
-    var t: [*]v.func_80093914_t = @ptrCast(block + 2);
+    var t: [*]v.vs_field_MpdTriangleColorView = @ptrCast(block + 2);
     var i: c_int = 0;
     while (i < n0) : (i +%= 1) {
         const tmp0 = t[0].red1;
@@ -30,7 +30,7 @@ pub fn vs_field_swapRoomGeometryRedGreen(arg0: c_int) callconv(.c) void {
         t[0].green3 = tmp2;
         t += 1;
     }
-    var q: [*]v.func_80093914_t2 = @ptrCast(t);
+    var q: [*]v.vs_field_MpdQuadColorView = @ptrCast(t);
     i = 0;
     while (i < n1) : (i +%= 1) {
         const tmp0 = q[0].red1;

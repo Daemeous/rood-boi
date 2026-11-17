@@ -7,7 +7,7 @@ const c = @import("c_44F14");
 
 /// orig: vs_audio_playActorModelSound (pc/src/game/BATTLE/BATTLE.PRG/44F14.c)
 /// Plays sound `kind` at the record's position: panned, with the actor's sound overrides applied.
-pub fn vs_audio_playActorModelSound(arg0: ?*v.D_800F4538_unk0, arg1: c_int) callconv(.c) void {
+pub fn vs_audio_playActorModelSound(arg0: ?*v.vs_actors_ModelInstance, arg1: c_int) callconv(.c) void {
     const rec = arg0.?;
     const kind: c_int = arg1;
 

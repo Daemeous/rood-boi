@@ -11,9 +11,9 @@ const psx = @import("common").psx;
 pub fn unloadAllActors() callconv(.c) void {
     var node: ?*ai.vs_battle_actor = @ptrCast(@alignCast(v.g.vs_battle_actors()[0]));
     while (node) |n| : (node = @ptrCast(n.next)) c.vs_battle_aiFreeActorAiState(n);
-    v.g.D_800F58D0().* = 0;
-    v.g.D_800F58B8().* = 0;
-    v.g.D_800F58C0().* = 0;
+    v.g.D_800F58D0().* = null;
+    v.g.D_800F58B8().* = null;
+    v.g.D_800F58C0().* = null;
     c.vs_main_freeHeap(v.g.vs_battle_aiRoomAiState().*);
     v.g.vs_battle_aiRoomAiState().* = null;
 }

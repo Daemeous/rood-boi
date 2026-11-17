@@ -276,7 +276,7 @@ typedef struct {
     char unk640[0x20];
     char mapStatus[0x48];
     vs_main_settings_t unk6A8;
-    D_80060068_t unk6C8;
+    vs_state_AshleySnapshot unk6C8;
     char unk7C8[15][256];
     char unk16C8[0xB0];
     _mpdRoomDoorSection_t unk1778;

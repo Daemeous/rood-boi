@@ -4,7 +4,7 @@ const v = @import("views_2842C");
 
 /// orig: func_80092C68 (pc/src/game/BATTLE/BATTLE.PRG/2842C.c)
 /// Computes the per-axis extents at unk24..unk28, clamps them against the box, then writes the display offsets at unk2A..unk32.
-pub fn func_80092C68(arg0: ?*v.func_80092F74_t, arg1: ?*v.func_80092F74_t2) callconv(.c) c_int {
+pub fn func_80092C68(arg0: ?*v.func_80092F74_t, arg1: ?*v.vs_field_RoomEffectCommand) callconv(.c) c_int {
     const a = arg0.?;
     const b = arg1.?;
     const span: c_int = b.operands[1].u16[1];

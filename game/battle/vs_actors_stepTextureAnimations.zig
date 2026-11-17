@@ -26,10 +26,10 @@ pub fn vs_actors_stepTextureAnimations(actor: ?*v.D_800F4538_t) callconv(.c) c_i
         }
         if (mode == 0 or mode == 1) {
             const row: c_uint = psx.getBits(slot, "unk0_0");
-            var p: *v.func_800AAE9C_t = if (i == 0)
-                psx.at(@as([*]v.func_800AAE9C_t, @ptrCast(psx.at(v.g.D_800E909C(), row))), slot.keyIndex)
+            var p: *v.vs_actors_TextureAnimationKey = if (i == 0)
+                psx.at(@as([*]v.vs_actors_TextureAnimationKey, @ptrCast(psx.at(v.g.D_800E909C(), row))), slot.keyIndex)
             else
-                psx.at(@as([*]v.func_800AAE9C_t, @ptrCast(psx.at(v.g.D_800E916C(), row))), slot.keyIndex);
+                psx.at(@as([*]v.vs_actors_TextureAnimationKey, @ptrCast(psx.at(v.g.D_800E916C(), row))), slot.keyIndex);
 
             slot.ticks +%= 1;
 

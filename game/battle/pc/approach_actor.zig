@@ -12,9 +12,9 @@ const pad = @import("common").pad;
 /// the original's leftover $v0 (id * 4) does.
 pub fn approachActor(state: *ai.vs_battle_aiState, id: c_int, distance: c_int, option: c_int) callconv(.c) c_int {
     const model_slot = psx.at(v.g.vs_actors_actorRecords(), id).*;
-    const cached = psx.at(@as([*]align(1) u32, @ptrFromInt(pad.addr(0) + 0x37c)), id).*;
+    const cached = pad.aiState(id);
     var result: c_int = undefined;
-    if (cached == 0) {
+    if (cached == null) {
         result = id *% 4;
     } else {
         const model: [*]u8 = @ptrCast(model_slot.?);

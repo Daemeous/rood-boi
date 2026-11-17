@@ -5,7 +5,7 @@ const v = @import("views_5BF94");
 
 /// orig: vs_effects_initEffectInstance (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// Clears a scene record's sixteen entries and copies the source block's links and fields into it.
-pub fn vs_effects_initEffectInstance(src_block: ?*v.D_800F53B8_t2, dst_block: ?*v.D_800F53B8_t) callconv(.c) void {
+pub fn vs_effects_initEffectInstance(src_block: ?*v.vs_effects_EffectSpawnRequest, dst_block: ?*v.vs_effects_EffectInstance) callconv(.c) void {
     const src = src_block.?;
     const dst = dst_block.?;
 

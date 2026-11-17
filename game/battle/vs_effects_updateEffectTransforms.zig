@@ -7,8 +7,8 @@ const c = @import("c_5BF94");
 
 /// orig: vs_effects_updateEffectTransforms (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// Updates each effect transform: its attachment, world matrix, look-at and view matrix.
-pub fn vs_effects_updateEffectTransforms(arg0: ?*v.D_800F53B8_t) callconv(.c) void {
-    const scratch: *v.func_800D0B30_t2 = @ptrFromInt(pad.addr(0x2C8));
+pub fn vs_effects_updateEffectTransforms(arg0: ?*v.vs_effects_EffectInstance) callconv(.c) void {
+    const scratch: *v.func_800D0B30_t2 = pad.at(v.func_800D0B30_t2, 0x2C8);
     var i: c_int = 0;
     while (i < @as(c_int, psx.get(v.g.vs_effects_package().*.?.block9Data).?.unk15)) : (i +%= 1) {
         const defs: [*]v.func_800D0B30_t = @ptrCast(@alignCast(psx.get(v.g.vs_effects_package().*.?.block10Data).?));

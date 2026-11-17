@@ -4,12 +4,12 @@ const v = @import("views_146C");
 const c = @import("c_146C");
 
 /// vs_battle_actionState, read at each use as the C does.
-fn state() *v.D_800F19CC_t {
+fn state() *v.vs_battle_ActionState {
     return v.g.vs_battle_actionState().*.?;
 }
 
 /// The chain link of `k` (`k % 4` as the C's decompiled signed form computes it).
-fn link(k: c_int) *v.D_800F19CC_t2 {
+fn link(k: c_int) *v.vs_battle_ActionRequest {
     var rounded = k;
     if (k < 0) {
         rounded = k +% 3;

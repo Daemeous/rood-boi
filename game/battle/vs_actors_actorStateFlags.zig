@@ -37,7 +37,7 @@ pub fn vs_actors_actorStateFlags(actorId: c_int) callconv(.c) c_uint {
         if (wep1 != null and psx.getBits(wep1.?, "unk8_4") != 0) out.* |= 0x1000;
 
         // Guest word at &unk5B4 - 2 ints, i.e. byte offset 0x5AC.
-        const word: c_uint = psx.fieldAt(c_uint, &a._bits_unk5AC_0, 0).*;
+        const word: c_uint = psx.bitsAt(c_uint, &a._bits_unk5AC_0, 0).*;
         if ((word & 0x0100_0000) != 0) out.* |= 0x2000;
 
         if (psx.getBits(&a.unk0, "unkA_0") != 0) out.* |= 0x4000;

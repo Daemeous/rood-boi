@@ -32,7 +32,7 @@ int VS_RING_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
     u_char u[9];
     u_char v[3];
     func_800FB4C0_t child = { 0 }; /* (unk60_8, the draw order the children take: 0, their own) */
-    D_800F53B8_t* battle;
+    vs_effects_EffectInstance* battle;
     int alive;
     MATRIX* actorMatrix;
     int fraction;
@@ -56,9 +56,9 @@ int VS_RING_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
     u_char* color;
     pc_item* prim;
     pFileBlock1Data* texture;
-    func_800FA098_arg0* effect;
+    vs_effects_ParticleDefinition* effect;
     vs_ringState* state;
-    func_800FA098_arg1* scratch = &pc_effect_scratch;
+    vs_effects_ParticleEmitterScratch* scratch = &pc_effect_scratch;
 
     alive = 1;
     state = arg0->unk8;

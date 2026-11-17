@@ -54,14 +54,14 @@ pub fn vs_actors_spawnRoomEnemy(id: c_int, spawn: ?*v.mpdEnemySpawn, init: ?*v.v
         actor = @ptrCast(@alignCast(block));
         psx.put(&actor.stats, at(v.vs_battle_actor2, block, stats_at));
         actor.unk40 = 2;
-        psx.put(&actor.unk44, at(v.D_800F4538_unk0, block, object_at));
+        psx.put(&actor.unk44, at(v.vs_actors_ModelInstance, block, object_at));
         psx.put(&actor.unk48[0], at(v.vs_battle_actor4, block, records_at));
     } else {
         const block = c.vs_main_allocHeap(@intCast(@sizeOf(v.vs_battle_actor_dat))).?;
         actor = @ptrCast(@alignCast(block));
         psx.put(&actor.stats, at(v.vs_battle_actor2, block, stats_at));
         actor.unk40 = 1;
-        psx.put(&actor.unk44, at(v.D_800F4538_unk0, block, object_at));
+        psx.put(&actor.unk44, at(v.vs_actors_ModelInstance, block, object_at));
         psx.put(&actor.unk48[0], at(v.vs_battle_actor4, block, records_at));
         psx.put(&actor.unk48[1], at(v.vs_battle_actor4, block, records_at + @sizeOf(v.vs_battle_actor4)));
     }
@@ -201,8 +201,8 @@ pub fn vs_actors_spawnRoomEnemy(id: c_int, spawn: ?*v.mpdEnemySpawn, init: ?*v.v
     stats.miscItem.count = enemy.itemCount;
     psx.byteAt(u16, stats, 0x95C).* = enemy.item2Id;
     psx.byteAt(u8, stats, 0x95E).* = enemy.item2Count;
-    psx.byteAt(u16, stats, 0x960).* = enemy.item3Id;
-    psx.byteAt(u8, stats, 0x962).* = enemy.item3Count;
+    stats.unk960.id = enemy.item3Id;
+    stats.unk960.dropRate = enemy.item3Count;
     // the spawn's 8 setting bytes fill flags30 and unk34
     actor.flags30.raw = std.mem.readInt(u32, enemy.settings.bytes[0..4], .little);
     actor.unk34 = std.mem.readInt(i32, enemy.settings.bytes[4..8], .little);

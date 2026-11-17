@@ -14,9 +14,9 @@ typedef struct {
         int value;
     } packedTile;
     SVECTOR position;
-} func_8006EBF8_t3;
+} vs_actors_ActorLocation;
 
 typedef struct {
-    func_8006EBF8_t3 location;
+    vs_actors_ActorLocation location;
     int actorIndex;
 } func_8006EBF8_t;

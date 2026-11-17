@@ -44,7 +44,7 @@ void func_800AE474(void);
 
 void vs_actors_restartActorAnimationEvents(D_800F4538_t* arg0);
 
-void vs_audio_playActorModelSound(D_800F4538_unk0* arg0, int arg1);
+void vs_audio_playActorModelSound(vs_actors_ModelInstance* arg0, int arg1);
 
 void vs_audio_playActorModelSoundVariant(int arg0, int arg1);
 
@@ -123,9 +123,10 @@ void func_800AF960(D_800F45E0_t* arg0);
 struct animationFrameScratch {
     char prefix[8];
     int first, last;
-    psx_ptr(u_char*) data;
+    int pad10; /* the guest pointer was here: a real pointer follows, 0x3EC + 0x14 .. 0x1C */
+    u_char* data __attribute__((packed, aligned(4))); /* bytes of the animation data: any alignment */
 };
-PSX_ASSERT_SIZE(struct animationFrameScratch, 0x14);
+PSX_ASSERT_SIZE(struct animationFrameScratch, 0x1c);
 void vs_actors_decodeAnimationTrack(int, SVECTOR*, int);
 void func_800AFA28(D_800F4538_t* actor, D_800F4538_unkC54* state, int mode);
 

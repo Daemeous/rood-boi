@@ -7,7 +7,7 @@ const v = @import("views_battle_motion");
 /// Clears the motion flags (byte 0xA bits 5-6), sets bit 6, then hands the
 /// target to vs_actors_beginActorJumpToTile.
 fn motionReset(model: *v.D_800F4538_t, target: ?[*]c_int, speed: c_int, facing: c_int) void {
-    const moving = psx.fieldAt(u8, &model.unk0._bits_skip, 2);
+    const moving = psx.bitsAt(u8, &model.unk0._bits_skip, 2);
     moving.* = (moving.* & 0x9f) | 0x40;
     c.vs_actors_beginActorJumpToTile(model, target, speed, facing);
 }
@@ -16,7 +16,7 @@ fn motionReset(model: *v.D_800F4538_t, target: ?[*]c_int, speed: c_int, facing: 
 /// Sets motion bits 5-6, plays animation 0x1F (blend 8) and hands the target
 /// to vs_actors_beginActorJumpToTile.
 fn motionAnimated(id: c_int, model: *v.D_800F4538_t, target: ?[*]c_int, speed: c_int, facing: c_int) void {
-    psx.fieldAt(u8, &model.unk0._bits_skip, 2).* |= 0x60;
+    psx.bitsAt(u8, &model.unk0._bits_skip, 2).* |= 0x60;
     _ = c.vs_actors_playActorAnimation(id, 0x1f, 0, 8);
     c.vs_actors_beginActorJumpToTile(model, target, speed, facing);
 }
@@ -26,7 +26,7 @@ fn motionAnimated(id: c_int, model: *v.D_800F4538_t, target: ?[*]c_int, speed: c
 /// with bit 5 animates first; otherwise the low two bits of byte 0x5B0 become 1.
 pub fn startMove(id: c_int, target: ?[*]c_int, speed: c_int, facing: c_int) callconv(.c) void {
     const model = v.g.vs_actors_actorRecords()[@intCast(id)].?;
-    const moving = psx.fieldAt(u8, &model.unk0._bits_skip, 2);
+    const moving = psx.bitsAt(u8, &model.unk0._bits_skip, 2);
     if (moving.* & 0x40 != 0) {
         motionReset(model, target, speed, facing);
         return;
@@ -35,7 +35,7 @@ pub fn startMove(id: c_int, target: ?[*]c_int, speed: c_int, facing: c_int) call
         motionAnimated(id, model, target, speed, facing);
         return;
     }
-    const mode = psx.fieldAt(u8, &model._bits_unk5AC_0, 4);
+    const mode = psx.bitsAt(u8, &model._bits_unk5AC_0, 4);
     mode.* = (mode.* & 0xfc) | 1;
     c.vs_actors_beginActorJumpToTile(model, target, speed, facing);
 }

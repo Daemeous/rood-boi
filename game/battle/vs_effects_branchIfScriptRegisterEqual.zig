@@ -6,9 +6,9 @@ const c = @import("c_5BF94");
 
 /// orig: vs_effects_branchIfScriptRegisterEqual (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// Compares the slot `unk10` selects against the second value and passes the result on; always returns 1.
-pub fn vs_effects_branchIfScriptRegisterEqual(arg0: ?*v.D_800F53B8_t) callconv(.c) c_int {
+pub fn vs_effects_branchIfScriptRegisterEqual(arg0: ?*v.vs_effects_EffectInstance) callconv(.c) c_int {
     const self = arg0.?;
-    const handle: ?*c.D_800F53B8_t = @ptrCast(self);
+    const handle: ?*c.vs_effects_EffectInstance = @ptrCast(self);
 
     // Object order: the index call, then the slot load, then the second call, then the compare.
     const index = c.vs_effects_readScriptByte(handle);

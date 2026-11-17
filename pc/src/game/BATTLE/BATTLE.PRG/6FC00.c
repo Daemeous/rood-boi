@@ -32,7 +32,7 @@ int vs_core_mathSquaredDistanceWithHeightOffsets(short*, short*, int, int);
 int vs_field_isTerrainSegmentBlocked(SVECTOR*, SVECTOR*, int, int);
 int vs_battle_aiTargetFacingCosine(SVECTOR*, SVECTOR*, int, u_int);
 
-#define RELATION_STATES(id) psx_slot_get(vs_battle_aiState*, PC_PAD(0x37C), id)
+#define RELATION_STATES(id) ((vs_battle_aiState*)vs_nav.aiStates[id])
 
 static inline int checkExtent(
     SVECTOR* from, SVECTOR* to, vs_battle_aiState* state, int id)

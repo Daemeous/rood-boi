@@ -44,9 +44,9 @@ int func_800FA48C(func_800D4910_t* arg0, u_int arg1, int arg2)
     MATRIX unusedTransform;
     func_800FB4C0_t child = { 0 }; /* (unk60_8, the draw order the children take: 0, their own) */
     vs_closedRingState* state;
-    func_800FA098_arg1* scratch = &pc_effect_scratch;
-    func_800FA098_arg0* effect;
-    D_800F53B8_t* battle;
+    vs_effects_ParticleEmitterScratch* scratch = &pc_effect_scratch;
+    vs_effects_ParticleDefinition* effect;
+    vs_effects_EffectInstance* battle;
     int alive;
     MATRIX* actorMatrix;
     int fraction;

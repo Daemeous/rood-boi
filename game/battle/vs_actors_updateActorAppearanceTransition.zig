@@ -28,7 +28,7 @@ pub fn vs_actors_updateActorAppearanceTransition(arg0: ?*v.D_800F45E0_t) callcon
     var weapon0: ?*v.vs_battle_wepModels_t = null;
 
     // Phase 1: slide the object by the sine of its angle.
-    const temp_v1: c_uint = psx.fieldAt(c_uint, &a._bits_unk8_0, 0).*;
+    const temp_v1: c_uint = psx.bitsAt(c_uint, &a._bits_unk8_0, 0).*;
     if (((temp_v1 >> 8) & 0xF) < 6) {
         if ((temp_v1 & 0x70000) != 0) {
             var_v0 = c.rsin(0x200) *% @as(c_int, psx.fieldAt(u16, &a.unk5EC, 80).*);
@@ -40,13 +40,13 @@ pub fn vs_actors_updateActorAppearanceTransition(arg0: ?*v.D_800F45E0_t) callcon
             a.unk34 = psx.conv(i16, @divTrunc(@as(c_int, a.unk34), 2));
             a.unk38 = psx.conv(i16, @divTrunc(@as(c_int, psx.conv(i16, temp_a2)), 2));
             c.vs_actors_updateActorJumpAndFall(@as(c_int, a.unkF), @ptrCast(a));
-            if ((psx.fieldAt(u16, &a._bits_unk8_0, 2).* & 7) >= 4) {
+            if ((psx.bitsAt(u16, &a._bits_unk8_0, 2).* & 7) >= 4) {
                 if (a.unkF != 0) {
                     _ = c.vs_actors_findActorAnimationHeader(a, 0xAB, &sp28);
                     if (sp28 != null) {
-                        psx.fieldAt(u32, &a._bits_unk5AC_0, 0).* &= 0xFEFF_FFFF;
+                        psx.bitsAt(u32, &a._bits_unk5AC_0, 0).* &= 0xFEFF_FFFF;
                         c.vs_actors_playActorAnimation(@as(c_int, a.unkF), 0x47, 0, 8);
-                        psx.fieldAt(u32, &a._bits_unk5AC_0, 0).* |= 0x0100_0000;
+                        psx.bitsAt(u32, &a._bits_unk5AC_0, 0).* |= 0x0100_0000;
                     }
                 }
             }
@@ -54,14 +54,14 @@ pub fn vs_actors_updateActorAppearanceTransition(arg0: ?*v.D_800F45E0_t) callcon
     }
 
     // Phase 2: the fade step, from the tick speed.
-    const temp_v1_2: c_uint = psx.fieldAt(c_uint, &a._bits_unk8_0, 0).*;
+    const temp_v1_2: c_uint = psx.bitsAt(c_uint, &a._bits_unk8_0, 0).*;
     const tick: c_uint = @bitCast(v.g.vs_gametime_tickspeed().*);
     const tickSum: c_int = @bitCast(tick +% (tick >> 31));
     var_s4 = tickSum >> 1;
     var_s6 = 0;
     if ((temp_v1_2 & 0x80) != 0) {
         var_s6 = 1;
-        if ((psx.fieldAt(u32, &a._bits_unk5AC_0, 0).* & 0x0800_0000) != 0) {
+        if ((psx.bitsAt(u32, &a._bits_unk5AC_0, 0).* & 0x0800_0000) != 0) {
             sp2C = 0xA0;
         } else {
             var_s6 = 0;
@@ -82,7 +82,7 @@ pub fn vs_actors_updateActorAppearanceTransition(arg0: ?*v.D_800F45E0_t) callcon
         if ((temp_v1_2 & 0xF00) == 0x200) var_s4 *%= 2;
     }
 
-    const mode: c_int = psx.conv(c_int, (psx.fieldAt(c_uint, &a._bits_unk8_0, 0).* >> 8) & 0xF);
+    const mode: c_int = psx.conv(c_int, (psx.bitsAt(c_uint, &a._bits_unk8_0, 0).* >> 8) & 0xF);
     var st: State = undefined;
     switch (mode) {
         2 => {
@@ -95,7 +95,7 @@ pub fn vs_actors_updateActorAppearanceTransition(arg0: ?*v.D_800F45E0_t) callcon
             st = .block20;
         },
         4 => {
-            if ((psx.fieldAt(u32, &a._bits_unk5AC_0, 0).* & 8) != 0) {
+            if ((psx.bitsAt(u32, &a._bits_unk5AC_0, 0).* & 8) != 0) {
                 var_s5 = psx.at(v.g.vs_field_gimmickInstances(), a.unk13).*;
                 const v5 = var_s5.?;
                 c.vs_actors_anchorPoint(@as(c_int, v5.unk12), 0xF0, @ptrCast(&sp18), 1);
@@ -108,7 +108,7 @@ pub fn vs_actors_updateActorAppearanceTransition(arg0: ?*v.D_800F45E0_t) callcon
                 psx.byteAt(i32, v5, 0x34).* = 0;
                 v5.unk12 = 0xFF;
                 v5.unk26 = psx.conv(i16, (@as(c_int, psx.conv(u16, v5.unk26)) +% angle) & 0xFFF);
-                psx.fieldAt(u32, &a._bits_unk5AC_0, 0).* &= 0xFFFF_FFF7;
+                psx.bitsAt(u32, &a._bits_unk5AC_0, 0).* &= 0xFFFF_FFF7;
                 v.g.D_800F4B19().* = a.unk13;
             }
             var_v1 = @as(c_int, psx.conv(u8, a.unk54)) -% (var_s4 *% 4);
@@ -162,11 +162,11 @@ pub fn vs_actors_updateActorAppearanceTransition(arg0: ?*v.D_800F45E0_t) callcon
             if (var_s0 < temp_v1_5) var_s0 = temp_v1_5;
             if (var_s0 != temp_v1_5) var_s3 = 1;
             a.unk6F2 = psx.conv(u8, var_s0);
-            var_s3 |= c.vs_actors_stepRgbTowardTarget(psx.fieldAt(u8, &a.unk54, 0), psx.fieldAt(u8, &a.unk58.unk0, 0), (0 -% var_s4) *% 8);
+            var_s3 |= c.vs_actors_stepRgbTowardTarget(psx.fieldAt(u8, &a.unk54, 0), &a.unk58.unk0, (0 -% var_s4) *% 8);
             st = .block20;
         },
         11 => {
-            psx.fieldAt(u32, &a._bits_unk8_0, 0).* &= 0xFFFF_F0FF;
+            psx.bitsAt(u32, &a._bits_unk8_0, 0).* &= 0xFFFF_F0FF;
             return;
         },
         12 => {
@@ -190,7 +190,7 @@ pub fn vs_actors_updateActorAppearanceTransition(arg0: ?*v.D_800F45E0_t) callcon
             },
             .block20 => {
                 var_s3 |= c.vs_actors_applyPaletteTransition(var_fp, sp2C -% var_s6, var_s4, var_s2, sp30);
-                if ((psx.fieldAt(u32, &a._bits_unk8_0, 0).* & 0x80) != 0) {
+                if ((psx.bitsAt(u32, &a._bits_unk8_0, 0).* & 0x80) != 0) {
                     var_s0 = 0;
                     while (true) {
                         weapon0 = psx.at(v.g.vs_battle_wepModels(), @as(c_int, a.unkF) *% 2 +% var_s0).*;
@@ -202,11 +202,11 @@ pub fn vs_actors_updateActorAppearanceTransition(arg0: ?*v.D_800F45E0_t) callcon
                         if (!(var_s0 < 2)) break;
                     }
                 }
-                if (((psx.fieldAt(u32, &a._bits_unk8_0, 0).* & 0xF00) == 0x300) and var_s3 == 0) {
+                if (((psx.bitsAt(u32, &a._bits_unk8_0, 0).* & 0xF00) == 0x300) and var_s3 == 0) {
                     a.unk54 = 0x404040;
                     _ = c.vs_actors_applyPaletteTransition(var_fp, sp2C -% var_s6, var_s4, 2, sp30);
                     var_s0 = 0;
-                    if ((psx.fieldAt(u32, &a._bits_unk8_0, 0).* & 0x80) != 0) {
+                    if ((psx.bitsAt(u32, &a._bits_unk8_0, 0).* & 0x80) != 0) {
                         while (true) {
                             weapon0 = psx.at(v.g.vs_battle_wepModels(), @as(c_int, a.unkF) *% 2 +% var_s0).*;
                             if (weapon0) |w| {
@@ -225,7 +225,7 @@ pub fn vs_actors_updateActorAppearanceTransition(arg0: ?*v.D_800F45E0_t) callcon
                 }
             },
             .block32 => {
-                if ((psx.fieldAt(u32, &a._bits_unk8_0, 0).* & 0x80) != 0) {
+                if ((psx.bitsAt(u32, &a._bits_unk8_0, 0).* & 0x80) != 0) {
                     const img: *align(2) u16 = @alignCast(psx.fieldAt(u16, &a.unk11A4, 960));
                     c.vs_main_loadClut(img, @as(c_uint, a.unkF) +% 4, 0, psx.conv(c_uint, sp2C));
                     var_s0 = 0;
@@ -234,7 +234,7 @@ pub fn vs_actors_updateActorAppearanceTransition(arg0: ?*v.D_800F45E0_t) callcon
                         weapon0 = psx.at(v.g.vs_battle_wepModels(), @as(c_int, a.unkF) *% 2 +% var_s0).*;
                         if (weapon0) |w| {
                             psx.byteAt(u32, w, 8).* = (psx.byteAt(u32, w, 8).* & 0xFFFF_F0FF) |
-                                (psx.fieldAt(u32, &a._bits_unk8_0, 0).* & 0xF00);
+                                (psx.bitsAt(u32, &a._bits_unk8_0, 0).* & 0xF00);
                             c.vs_main_loadClut(&w.unk500, @as(c_uint, a.unkF) +% 4, psx.conv(c_uint, clutOffset), @as(c_uint, w.nClutColors));
                         }
                         var_s0 +%= 1;
@@ -258,17 +258,17 @@ pub fn vs_actors_updateActorAppearanceTransition(arg0: ?*v.D_800F45E0_t) callcon
             },
             .tail => {
                 if (var_s3 == 0) {
-                    const temp_v0_3: c_uint = psx.fieldAt(u32, &a._bits_unk8_0, 0).*;
+                    const temp_v0_3: c_uint = psx.bitsAt(u32, &a._bits_unk8_0, 0).*;
                     const temp_v1_3: c_uint = (temp_v0_3 & 0xFFFF_F0FF) |
                         ((((temp_v0_3 >> 8) & 0xF) +% 1) & 0xF) << 8;
-                    psx.fieldAt(u32, &a._bits_unk8_0, 0).* = temp_v1_3;
+                    psx.bitsAt(u32, &a._bits_unk8_0, 0).* = temp_v1_3;
                     var_s0 = 0;
                     if ((temp_v1_3 & 0x80) != 0) {
                         while (true) {
                             weapon0 = psx.at(v.g.vs_battle_wepModels(), @as(c_int, a.unkF) *% 2 +% var_s0).*;
                             if (weapon0) |w| {
                                 psx.byteAt(u32, w, 8).* = (psx.byteAt(u32, w, 8).* & 0xFFFF_F0FF) |
-                                    (psx.fieldAt(u32, &a._bits_unk8_0, 0).* & 0xF00);
+                                    (psx.bitsAt(u32, &a._bits_unk8_0, 0).* & 0xF00);
                             }
                             var_s0 +%= 1;
                             if (!(var_s0 < 2)) break;

@@ -4,7 +4,7 @@ const v = @import("views_146C");
 const c = @import("c_146C");
 
 /// vs_battle_actionState, read at each use as the C does.
-fn state() *v.D_800F19CC_t {
+fn state() *v.vs_battle_ActionState {
     return v.g.vs_battle_actionState().*.?;
 }
 
@@ -22,7 +22,7 @@ fn userHalf(high: bool) c_int {
 /// enemy user, the entry it targeted last (its target and limb, else its target). Camera mode 1.
 pub fn vs_battle_collectDirectActionTargets(arg0: c_int) callconv(.c) void {
     var actorState: v.func_8006EBF8_t = undefined;
-    var result: v.D_800F19CC_t2 = undefined;
+    var result: v.vs_battle_ActionRequest = undefined;
     const actors = v.g.vs_battle_actors();
     const action: c_int = state().unk8.actionIndex;
     state().unk2988 = arg0;

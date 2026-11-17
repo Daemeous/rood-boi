@@ -193,7 +193,7 @@ typedef struct {
     u_short maxHp;
     u_short types[4];
     u_short affinities[8];
-} D_80060068_t2;
+} vs_state_AshleyLimbSnapshot;
 
 typedef struct {
     int unk0;
@@ -211,16 +211,16 @@ typedef struct {
     u_short flags;
     int statuses;
     char statusTimers[8];
-    D_80060068_t2 limbs[6];
+    vs_state_AshleyLimbSnapshot limbs[6];
     int weaponDrawn;
     int cameraPitch;
     int cameraDistance;
-} D_80060068_t3;
+} vs_state_AshleyStatsSnapshot;
 
 typedef struct {
-    D_80060068_t3 stats;
+    vs_state_AshleyStatsSnapshot stats;
     int unkDC[9];
-} D_80060068_t;
+} vs_state_AshleySnapshot;
 
 enum itemIdentifiers { bronzeKey = 458, chamomileSigil = 466 };
 
@@ -366,7 +366,7 @@ typedef struct {
     char g;
     char b;
     char unk3;
-} D_8005DC6C_t;
+} vs_render_ColorRgb8;
 
 typedef struct {
     int lStickX;
@@ -396,7 +396,7 @@ typedef struct {
     u_short mapId;
     u_int nextSlot;
     char actorStates[8][0x28];
-} D_80061078_t;
+} vs_state_RoomEnemyStates;
 
 typedef struct {
     char mode;
@@ -406,7 +406,7 @@ typedef struct {
     signed char seconds;
     signed char minutes;
     signed char hours;
-} D_80050468_t;
+} vs_state_SceneTimer;
 
 typedef struct {
     u_short unk0_0 : 5;
@@ -451,7 +451,7 @@ extern char vs_field_zoneMusicIds[];
 extern char D_8004FDD0[];
 extern u_short vs_main_artsPointsRequirements[][4];
 extern u_short vs_main_battleAbilitiesPointsRequirements[];
-extern D_80050468_t vs_state_sceneTimer;
+extern vs_state_SceneTimer vs_state_sceneTimer;
 extern void* vs_render_legacyOrderingTables[];
 extern short D_8005DFD4;
 extern short vs_render_viewportWidth;
@@ -487,11 +487,11 @@ extern vs_main_settings_t vs_main_settings;
 extern int vs_main_startState;
 extern vs_main_artsStatus_t vs_main_artsStatus;
 extern int vs_state_currentRoomStateSlot;
-extern D_80060068_t vs_state_ashleySnapshot;
+extern vs_state_AshleySnapshot vs_state_ashleySnapshot;
 extern vs_main_inventory_t vs_main_inventory;
 extern _mpdRoomDoorSection_t vs_state_savedEntryDoor;
 extern vs_Gametime_t vs_main_gametime;
-extern D_80061078_t D_80061078[4];
+extern vs_state_RoomEnemyStates D_80061078[4];
 extern vs_main_flags_t vs_main_stateFlags;
 extern vs_main_inventoryIndices_t vs_main_inventoryIndices;
 extern vs_main_stickPos vs_main_stickPosBuf;
@@ -561,7 +561,7 @@ int vs_audio_unbindRoomCutsceneStream(void);
 void vs_main_loadClutTransition(
     /*int duration, int slot, u_short* sourceClut, int clutOffset*/);
 void vs_main_transformClutSlot(int, int, int, short, int, int);
-void vs_render_setBackgroundGradientColors(int arg0, D_8005DC6C_t* arg1);
+void vs_render_setBackgroundGradientColors(int arg0, vs_render_ColorRgb8* arg1);
 void vs_main_loadSoundFile(int);
 void vs_render_requestBackgroundGradientTransform(int, int, int, int, int);
 void func_80047FC0(int, int, int, int, int, int);
@@ -587,7 +587,7 @@ void vs_audio_stopSfx(int arg0, int arg1);
 void vs_main_wait(void);
 void vs_main_initHeap(vs_main_HeapHeader* node, u_int value);
 /* The game's heap: a free list in fixed RAM after the overlay slots (T12). */
-#define VS_MAIN_HEAP_ADDRESS 0x8010C000
+#define VS_MAIN_HEAP_ADDRESS 0x80200000 /* ROOD_HEAP_BASE: the arena beside the PS1's 2 MB, not inside it */
 #define VS_MAIN_HEAP_SIZE 0xF2000
 void vs_main_resetGame(void);
 int vs_main_processSoundQueue(void);

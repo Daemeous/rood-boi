@@ -6,7 +6,7 @@ const c = @import("c_5BF94");
 
 /// orig: vs_effects_initializeTransformStates (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// Fills each effect transform state from its definition: rotation, the actor and bone it is attached to, and its target.
-pub fn vs_effects_initializeTransformStates(arg0: ?*v.D_800F53B8_t) callconv(.c) void {
+pub fn vs_effects_initializeTransformStates(arg0: ?*v.vs_effects_EffectInstance) callconv(.c) void {
     var i: c_int = 0;
     while (i < @as(c_int, psx.get(v.g.vs_effects_package().*.?.block9Data).?.unk15)) : (i +%= 1) {
         const ctx = arg0.?;

@@ -173,7 +173,7 @@ static void effect_nodes(struct json* j)
 {
     j->p += sprintf(j->p, ",\"effects\":[");
     int count = 0;
-    for (D_800F53B8_t* n = vs_effects_primaryInstances; n && count < 64 && guest_pointer(n, sizeof *n); n = n->next, ++count) {
+    for (vs_effects_EffectInstance* n = vs_effects_primaryInstances; n && count < 64 && guest_pointer(n, sizeof *n); n = n->next, ++count) {
         if (j->p + 8192 > j->end)
             break;
         j->p += sprintf(j->p, "{");

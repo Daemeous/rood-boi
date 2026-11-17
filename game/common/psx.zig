@@ -272,6 +272,18 @@ pub inline fn fieldAt(comptime T: type, field: anytype, off: isize) *align(1) T 
     return @ptrFromInt(@intFromPtr(field) +% @as(usize, @bitCast(off)));
 }
 
+/// A word of a bitfield group (`_bits_*`): a T at byte `off` of the group, bounds-checked against the group's bytes at
+/// compile time (a read past the group is an error, which `fieldAt` accepted silently).
+pub inline fn bitsAt(comptime T: type, group: anytype, comptime off: usize) *align(1) T {
+    const A = @typeInfo(@TypeOf(group)).pointer.child;
+    comptime {
+        const info = @typeInfo(A);
+        if (info != .array or info.array.child != u8 or off + @sizeOf(T) > info.array.len)
+            @compileError("psx.bitsAt: a " ++ @typeName(T) ++ " at " ++ std.fmt.comptimePrint("{d}", .{off}) ++ " does not fit " ++ @typeName(A));
+    }
+    return @ptrCast(@as([*]u8, @ptrCast(group)) + off);
+}
+
 /// C's `long` in game code: 4 bytes on 32-bit, 8 on 64-bit Linux and on the
 /// Windows twin (whose units have `long` respelled `long long`).
 pub const Long = if (@sizeOf(usize) == 8) i64 else i32;

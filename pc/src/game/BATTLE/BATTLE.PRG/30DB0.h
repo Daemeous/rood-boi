@@ -17,7 +17,7 @@ typedef struct {
     int unkC;
     char unk10;
     char opaque11;
-} D_800F4590_t;
+} vs_menu_FrameworkPreviewPoseState;
 
 typedef struct {
     short tpage;
@@ -26,7 +26,7 @@ typedef struct {
     u_char refCount;
 } vs_battle_texInfo_t;
 
-extern D_800F4590_t* vs_battle_unusedGlobal1[];
+extern vs_menu_FrameworkPreviewPoseState* vs_battle_unusedGlobal1[];
 extern int vs_battle_unusedGlobal2;
 extern _wepModelOffsets* vs_battle_commonWepBuffs[];
 extern vs_battle_texInfo_t vs_render_legacyActorTextureSlots[];

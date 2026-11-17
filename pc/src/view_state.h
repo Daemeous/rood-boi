@@ -13,5 +13,6 @@ extern void* vs_scratch[4];
  * areas of collision and the GTE (the PS1 kept them in its scratchpad). They overlay one another, so they are one
  * block, indexed by their PS1 offset from 0x1F800000 (0x68..0x3FF; the bytes below are vs_scratch and vs_view).
  * (The game's vs_pad, scratch.h.) */
-extern unsigned char vs_pad[0x400];
+extern unsigned char vs_pad[0x408];
+
 #define PC_PAD(offset) (vs_pad + (offset))

@@ -17,7 +17,7 @@ fn actorLimb(stats: *v.vs_battle_actor2, limb: c_int) *align(1) v.vs_battle_uiEq
 /// Scores every enabled action slot against every living actor and keeps the best candidate in the state.
 pub fn vs_battle_aiEnumerateActionCandidates(state: ?*v.vs_battle_aiState, threshold: c_int) callconv(.c) void {
     const st = state.?;
-    const list: *[4]v.actionCandidateEntry = @ptrFromInt(pad.addr(0x30C));
+    const list: *[4]v.actionCandidateEntry = pad.at([4]v.actionCandidateEntry, 0x30C);
 
     c.vs_core_memoryClearAlignedWords(@ptrCast(list), @sizeOf(v.actionCandidateEntry));
     list[0].distanceSquared = 256;

@@ -26,11 +26,11 @@ fn setAddress(field: anytype, address: u32) void {
 
 /// orig: vs_effects_tickChildEffectTrack (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// From its frame on: spawns one child script per P-file target (a delay between them), each told its actor, then a final one once the children are done; 0 after that.
-pub fn vs_effects_tickChildEffectTrack(script: ?*v.D_800F53B8_t, state_arg: ?*v.timedSpawnState, kind: c_int) callconv(.c) c_int {
+pub fn vs_effects_tickChildEffectTrack(script: ?*v.vs_effects_EffectInstance, state_arg: ?*v.timedSpawnState, kind: c_int) callconv(.c) c_int {
     const Event = extern struct { actors: [6]u8, final: u8, frame: u8, delay: u8 };
     const s = script.?;
     const state = state_arg.?;
-    var spawn: v.D_800F53B8_t2 = undefined; // unk21..unk24 stay uninitialised, as in the C
+    var spawn: v.vs_effects_EffectSpawnRequest = undefined; // unk21..unk24 stay uninitialised, as in the C
     const event: *align(1) Event = @ptrCast(psx.get(state.data).?);
     var result: c_int = 1;
     const block = psx.get(s.context.unk30) orelse return result;
@@ -47,7 +47,7 @@ pub fn vs_effects_tickChildEffectTrack(script: ?*v.D_800F53B8_t, state_arg: ?*v.
                     setAddress(&spawn.emitTo, psx.rawOf(targetsOf().*) +% @as(u32, @bitCast(@as(i32, state.index) *% 12 +% 16)));
                     psx.put(&spawn.parent, s);
                     spawn.token = psx.getBits(s, "unk14_0");
-                    const child: *v.D_800F53B8_t = @ptrCast(@alignCast(c.vs_effects_createPrimaryEffectInstance(@ptrCast(&spawn)).?));
+                    const child: *v.vs_effects_EffectInstance = @ptrCast(@alignCast(c.vs_effects_createPrimaryEffectInstance(@ptrCast(&spawn)).?));
                     psx.setBits(s, "unk14_11", psx.getBits(s, "unk14_11") +% 1);
                     if (psx.get(spawn.target).?.unk0.unk0 == 4) {
                         child.unk10[1] = psx.at(&event.actors, @as(*u8, @ptrFromInt(@as(usize, psx.rawOf(spawn.target)) + 5)).*).*; // actors[6]: the byte is not checked
@@ -74,7 +74,7 @@ pub fn vs_effects_tickChildEffectTrack(script: ?*v.D_800F53B8_t, state_arg: ?*v.
                 setAddress(&spawn.emitTo, psx.rawOf(targetsOf().*) +% 16);
                 psx.put(&spawn.parent, s);
                 spawn.token = psx.getBits(s, "unk14_0");
-                const child: *v.D_800F53B8_t = @ptrCast(@alignCast(c.vs_effects_createPrimaryEffectInstance(@ptrCast(&spawn)).?));
+                const child: *v.vs_effects_EffectInstance = @ptrCast(@alignCast(c.vs_effects_createPrimaryEffectInstance(@ptrCast(&spawn)).?));
                 psx.setBits(s, "unk14_11", psx.getBits(s, "unk14_11") +% 1);
                 child.unk10[1] = event.final;
                 state.index +%= 1;

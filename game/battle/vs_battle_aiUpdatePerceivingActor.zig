@@ -36,9 +36,7 @@ pub fn vs_battle_aiUpdatePerceivingActor() callconv(.c) void {
         a.unkB &= 0xfc;
         const id: c_int = a.id;
         // The state pointer is the scratchpad slot 0x1F80037C + 4 * id, read as a 4-byte guest address.
-        const slot: u32 = pad.guest(0x37C) +% @as(u32, @bitCast(@as(c_int, 4) *% id));
-        const stateAddr: u32 = @as(*const u32, @ptrFromInt(@as(usize, slot))).*;
-        const state: *v.vs_battle_aiState = @ptrFromInt(@as(usize, stateAddr));
+        const state: *v.vs_battle_aiState = @ptrCast(@alignCast(pad.aiState(id)));
         state.unk1D = 0;
         const object: ?*v.actorObject = psx.get(state.object.actorObject);
         state.unk90 = psx.get(a.stats).?.actionRecoveryTimer;
@@ -69,7 +67,7 @@ pub fn vs_battle_aiUpdatePerceivingActor() callconv(.c) void {
 
             arg = c.vs_core_elapsedFrameCounterTicks();
             if (v.g.D_800F16F4().* < arg) break :outcome_blk .idle;
-            @as(*c_int, @ptrFromInt(pad.addr(0x3FC))).* = arg;
+            pad.at(c_int, 0x3FC).* = arg;
             if (state.unk18 != 0) {
                 if (state.unk12A != 0 and state.unk138 == 6) break :outcome_blk .idle;
                 state.unk18 = 0;

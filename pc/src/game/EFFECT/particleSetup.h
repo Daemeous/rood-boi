@@ -30,10 +30,10 @@ typedef struct {
 extern int VS_PARTICLE_CORNER_STATE;
 
 void VS_PARTICLE_RENDER_FUNCTION(
-    func_800FA098_arg0*, func_800FA098_arg1*, D_800F53B8_t*, func_800FA098_arg3*);
+    vs_effects_ParticleDefinition*, vs_effects_ParticleEmitterScratch*, vs_effects_EffectInstance*, func_800FA098_arg3*);
 
-void VS_PARTICLE_ORIGIN_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* arg1,
-    D_800F53B8_t* arg2, func_800FA098_arg3* arg3)
+void VS_PARTICLE_ORIGIN_FUNCTION(vs_effects_ParticleDefinition* arg0, vs_effects_ParticleEmitterScratch* arg1,
+    vs_effects_EffectInstance* arg2, func_800FA098_arg3* arg3)
 {
     vs_gte_view view;
     int sp10;
@@ -258,8 +258,8 @@ void VS_PARTICLE_ORIGIN_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* a
     }
 }
 
-void VS_PARTICLE_TARGET_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* arg1,
-    D_800F53B8_t* arg2, func_800FA098_arg3* arg3)
+void VS_PARTICLE_TARGET_FUNCTION(vs_effects_ParticleDefinition* arg0, vs_effects_ParticleEmitterScratch* arg1,
+    vs_effects_EffectInstance* arg2, func_800FA098_arg3* arg3)
 {
     int i;
 
@@ -294,8 +294,8 @@ void VS_PARTICLE_TARGET_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* a
     }
 }
 
-void VS_PARTICLE_CONTROL_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* arg1,
-    D_800F53B8_t* arg2, func_800FA098_arg3* arg3)
+void VS_PARTICLE_CONTROL_FUNCTION(vs_effects_ParticleDefinition* arg0, vs_effects_ParticleEmitterScratch* arg1,
+    vs_effects_EffectInstance* arg2, func_800FA098_arg3* arg3)
 {
     vs_gte_view view;
     SVECTOR sp10;

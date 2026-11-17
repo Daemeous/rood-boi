@@ -63,9 +63,9 @@ pub fn traceAttack(from: [*]const c_uint, to: [*]const c_uint, out: [*]c_uint, s
             } else {
                 const object = v.g.vs_actors_actorRecords()[index] orelse continue;
                 body = @ptrCast(object);
-                const pose = psx.fieldAt(u8, &object.unk0._bits_skip, 3).* & 0xf;
+                const pose = psx.bitsAt(u8, &object.unk0._bits_skip, 3).* & 0xf;
                 reach = object.unk63C;
-                if (pose == 1 or pose == 2 or (psx.fieldAt(u8, &object._bits_unk5AC_0, 3).* & 1) == 1) continue;
+                if (pose == 1 or pose == 2 or (psx.bitsAt(u8, &object._bits_unk5AC_0, 3).* & 1) == 1) continue;
                 height = object.menuCameraHeightOffset;
             }
             const position: c_uint = psx.byteAt(c_uint, body, 0x1c).*;

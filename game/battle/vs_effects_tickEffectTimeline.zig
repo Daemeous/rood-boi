@@ -8,7 +8,7 @@ const c = @import("c_5BF94");
 
 /// orig: vs_effects_tickEffectTimeline (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// Runs each active entry of the effect's timeline, retires the ones that report done, then counts the update.
-pub fn vs_effects_tickEffectTimeline(arg0: ?*v.D_800F53B8_t, arg1: c_int) callconv(.c) void {
+pub fn vs_effects_tickEffectTimeline(arg0: ?*v.vs_effects_EffectInstance, arg1: c_int) callconv(.c) void {
     const self = arg0.?;
     var var_s1: c_int = 0;
     while (var_s1 < @as(c_int, psx.get(self.context.unk30).?.trackCount)) : (var_s1 +%= 1) {

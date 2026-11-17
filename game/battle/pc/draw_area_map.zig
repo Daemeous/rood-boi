@@ -26,7 +26,7 @@ pub fn drawAreaMap(rooms: [*]c_uint, camera: *const gte.View) callconv(.c) void 
     const count: c_uint = table[0];
     const scratch = common.scratch.get();
     const ot: [*]c_uint = @ptrCast(@alignCast(scratch.unk4.?));
-    const xy: [*]c_uint = @ptrFromInt(pad.addr(0x100));
+    const xy: [*]c_uint = pad.many(c_uint, 0x100);
     const shapes: *c_uint = &ot[5];
     const markers: *c_uint = &ot[4];
     const blink: c_uint = v.g.vs_field_roomAnimationTicks().*;

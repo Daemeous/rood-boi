@@ -16,8 +16,7 @@ pub fn func_800DA738(state: ?*v.vs_battle_aiState) callconv(.c) c_int {
     var active: c_int = 0;
     if (@as(c_int, s.id) != target and target != 16) {
         // psx_slot_get(vs_battle_aiState*, 0x1F80037C, target): a guest pointer slot in the scratchpad.
-        const slot0: u32 = @as(*align(1) const u32, @ptrFromInt(@as(usize, psx.conv(u32, @as(c_int, @bitCast(pad.guest(0x37C))) +% (4 *% target))))).*;
-        if (slot0 != 0) {
+        if (pad.aiState(target) != null) {
             active = @as(c_int, @intFromBool((psx.conv(u8, psx.at(&s.tbl.t.targets.bits32, target).*) >> 6) == 2));
         }
     }
@@ -61,8 +60,7 @@ pub fn func_800DA738(state: ?*v.vs_battle_aiState) callconv(.c) c_int {
         }
         if (active != 0) {
             if (valid) {
-                const slotB_raw: u32 = @as(*align(1) const u32, @ptrFromInt(@as(usize, psx.conv(u32, @as(c_int, @bitCast(pad.guest(0x37C))) +% (4 *% target))))).*;
-                const slotB: *align(1) v.vs_battle_aiState = @ptrFromInt(@as(usize, slotB_raw));
+                const slotB: *align(1) v.vs_battle_aiState = @ptrCast(@alignCast(pad.aiState(target)));
                 if (psx.at(&slotB.tbl.t.distances, candidate).* <= 0x23FFF) {
                     s.movementTargetId = psx.conv(u8, target);
                     c.vs_battle_aiRecoverMovement(@ptrCast(s));

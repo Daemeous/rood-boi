@@ -5,8 +5,8 @@ const c = @import("c_5BF94");
 
 /// orig: vs_effects_destroySecondaryEffectInstance (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// Unlinks `entry` from the list at vs_effects_secondaryInstances, frees what it owns and the node.
-pub fn vs_effects_destroySecondaryEffectInstance(entry: ?*v.D_800F53B8_t) callconv(.c) void {
-    var cur: ?*v.D_800F53B8_t = v.g.vs_effects_secondaryInstances().*;
+pub fn vs_effects_destroySecondaryEffectInstance(entry: ?*v.vs_effects_EffectInstance) callconv(.c) void {
+    var cur: ?*v.vs_effects_EffectInstance = v.g.vs_effects_secondaryInstances().*;
     if (cur == entry) {
         v.g.vs_effects_secondaryInstances().* = psx.get(entry.?.next);
     } else {

@@ -11,7 +11,7 @@ const c = @import("c_146C");
 pub fn vs_battle_filterAreaActionTargets() callconv(.c) void {
     const d = v.g.vs_battle_actionState().*.?;
     // uninitialised in the original: written by vs_battle_previewActionAgainstLimb before it is read
-    var result: v.D_800F19CC_t2 = std.mem.zeroes(v.D_800F19CC_t2);
+    var result: v.vs_battle_ActionRequest = std.mem.zeroes(v.vs_battle_ActionRequest);
 
     d.unk2990 = d.unk2998;
     c.func_800C06E0();

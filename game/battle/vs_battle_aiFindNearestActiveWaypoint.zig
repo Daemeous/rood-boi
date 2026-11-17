@@ -21,10 +21,9 @@ fn nearestWaypointValue(row: [*]u16, index: c_int) c_uint {
 /// Scans the eight waypoint slots and writes the cell of the nearest enabled one to destination.
 pub fn vs_battle_aiFindNearestActiveWaypoint(state: ?*v.vs_battle_aiState, destination: ?*v.nearestWaypointDestination) callconv(.c) void {
     var closest: c_uint = 0xFFFF_FFFF;
-    const scratch: *c_int = @ptrFromInt(pad.addr(0x3BC));
     var index: c_int = 0;
-    const savedMap: c_int = scratch.*;
-    scratch.* = @as(c_int, @bitCast(psx.addr(v.g.D_800F58D0().*)));
+    const savedMap = pad.nav.floors; // the slot is borrowed for the special-terrain heights while the loop runs
+    pad.nav.floors = v.g.D_800F58D0().*;
 
     while (index < 8) : (index +%= 1) {
         const entry: u16 = nearestWaypointAddress(v.g.D_800F58C8().*.?, index).*;
@@ -47,5 +46,5 @@ pub fn vs_battle_aiFindNearestActiveWaypoint(state: ?*v.vs_battle_aiState, desti
         }
     }
 
-    scratch.* = savedMap;
+    pad.nav.floors = savedMap;
 }

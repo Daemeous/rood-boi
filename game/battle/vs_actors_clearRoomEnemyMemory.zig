@@ -6,5 +6,5 @@ const c = @import("c_146C");
 /// Zeroes vs_state_currentRoomStateSlot and the four-entry record table at D_80061078.
 pub fn vs_actors_clearRoomEnemyMemory() callconv(.c) void {
     v.g.vs_state_currentRoomStateSlot().* = 0;
-    c.vs_main_bzero(@ptrCast(v.g.D_80061078()), @intCast(@sizeOf([4]v.D_80061078_t)));
+    c.vs_main_bzero(@ptrCast(v.g.D_80061078()), @intCast(@sizeOf([4]v.vs_state_RoomEnemyStates)));
 }

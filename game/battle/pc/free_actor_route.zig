@@ -9,7 +9,7 @@ const ai = @import("views_71618");
 pub fn freeActorRoute(id: c_uint) callconv(.c) void {
     if (id >= 17) c.pc_unimplemented("actor navigation index");
     const state = v.g.vs_battle_aiActorAiStates()[id];
-    if (v.g.D_800F58B8().* == 0 or state == null) return;
+    if (v.g.D_800F58B8().* == null or state == null) return;
     const st: *ai.vs_battle_aiState = @ptrCast(@alignCast(state.?));
     const route = st.route orelse return;
     st.route = null;

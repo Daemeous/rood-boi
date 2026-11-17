@@ -7,7 +7,7 @@ typedef struct {
     char unk0_8;
     char unk0_16;
     u_int unk0_24 : 8;
-} func_80089888_t;
+} vs_field_ActorPlacement;
 
 typedef struct {
     u_char actorId : 3;
@@ -96,8 +96,8 @@ typedef struct {
     u_int vertexOffset;
     u_int polyOffset;
     _armature_t armatures[0];
-} D_800F4538_unk68;
-PSX_ASSERT_SIZE(D_800F4538_unk68, 0x40);
+} vs_actors_ShpModel;
+PSX_ASSERT_SIZE(vs_actors_ShpModel, 0x40);
 
 typedef struct {
     u_char unk0;
@@ -194,8 +194,8 @@ typedef struct {
     u_char lastTouchedTileZ;
     u_char unk63;
     D_800F4538_unk64 palettePulse;
-    D_800F4538_unk68* model;
-} D_800F4538_unk0;
+    vs_actors_ShpModel* model;
+} vs_actors_ModelInstance;
 
 typedef struct {
     u_char unk0_0 : 4;
@@ -203,7 +203,7 @@ typedef struct {
     u_char currentFrame;
     u_char keyIndex;
     u_char ticks;
-} D_800F4538_unk180C;
+} vs_actors_TextureAnimationSlot;
 
 typedef struct {
     u_char x;
@@ -213,7 +213,7 @@ typedef struct {
 } texMapOverlay_t;
 
 typedef struct {
-    D_800F4538_unk0 unk0;
+    vs_actors_ModelInstance unk0;
     MATRIX bones[42];
     u_char unk5AC_0 : 2;
     u_char unk5AC_2 : 1;
@@ -331,7 +331,7 @@ typedef struct {
     u_char unk17FF;
     short unk1800;
     u_char unk1802[0xA];
-    D_800F4538_unk180C unk180C[2];
+    vs_actors_TextureAnimationSlot unk180C[2];
     short unk1814;
     short unk1816;
     short unk1818;
@@ -616,7 +616,7 @@ int vs_actors_actorPlacement(int, void*);
 void vs_actors_actorSavedPlacement(int, int, func_8006EBF8_t*);
 void vs_actors_beginActorJumpMovement(int, int, int);
 void vs_actors_updateRoomActorMovement(void);
-void vs_actors_placeActorInRoom(int, func_80089888_t*, int, int);
+void vs_actors_placeActorInRoom(int, vs_field_ActorPlacement*, int, int);
 void vs_field_snapRoomActorsToSupport(void);
 D_800F4538_t* func_800A3C00(D_800F45E0_t* arg0, u_int arg1);
 void func_800A4828(int, MATRIX*);

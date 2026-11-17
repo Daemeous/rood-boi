@@ -6,7 +6,7 @@ const v = @import("views_2842C");
 
 /// orig: vs_field_hideRoomEffectObject (pc/src/game/BATTLE/BATTLE.PRG/2842C.c)
 /// Stores 0x100 at the pointer in `arg0.unk0` when `arg0.unk8` is non-negative; returns 0.
-pub fn vs_field_hideRoomEffectObject(arg0: ?*v.func_80092F74_t, _: ?*v.func_80092F74_t2) callconv(.c) c_int {
+pub fn vs_field_hideRoomEffectObject(arg0: ?*v.func_80092F74_t, _: ?*v.vs_field_RoomEffectCommand) callconv(.c) c_int {
     if (arg0.?.unk8 >= 0) {
         psx.get(arg0.?.unk0).?.* = 0x100;
     }

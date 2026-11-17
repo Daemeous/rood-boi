@@ -98,9 +98,9 @@ fn moveToward(state: *ai.vs_battle_aiState, actor: *ai.vs_battle_actor, angle_in
     while (i < 4 and blocked == 0) : (i += 1) { // i < 4: the corner count
         const dir: c_int = @as(*const i8, @ptrCast(scratchByte(0x3e0 +% corners[i][1] *% 4 +% corners[i][0]))).*;
         if (dir < 0) continue;
-        if (@as(*const u32, @ptrFromInt(pad.addr(0x3F4))).* != 0) {
-            const floors: usize = @as(*const u32, @ptrFromInt(pad.addr(0x3BC))).*;
-            const bitmap: usize = @as(*const u32, @ptrFromInt(pad.addr(0x3C4))).*;
+        if (pad.nav.exits != null) {
+            const floors: usize = @intFromPtr(pad.nav.floors.?);
+            const bitmap: usize = @intFromPtr(pad.nav.bitmap.?);
             const here_cell: *align(1) const u16 = @ptrFromInt(floors +% @as(usize, @bitCast(@as(isize, tile_z *% 64) +% @as(isize, tile_x *% 2))));
             const here: c_int = (@as(c_int, here_cell.*) >> 10) & 7;
             const there_z = (tile_z +% corners[i][1]) -% 1;
@@ -153,7 +153,7 @@ fn walkToTile(state: *ai.vs_battle_aiState, actor: *ai.vs_battle_actor) void {
 /// entries). Byte 9 receives the command code.
 pub fn issueCommand(state: *ai.vs_battle_aiState, action: c_int) callconv(.c) void {
     const actor: *ai.vs_battle_actor = @ptrCast(state.actor);
-    @as(*u32, @ptrFromInt(pad.addr(0x3C8))).* = @bitCast(action);
+    pad.at(u32, 0x3C8).* = @bitCast(action);
     actor.unk8 = 0x80;
     actor.unkA = state.movementTargetId;
     switch (action) {

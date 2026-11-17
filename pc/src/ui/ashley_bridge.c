@@ -73,6 +73,7 @@
 #include "build/assets/MENU/MENU4.PRG/status.h"
 #include "scratch.h"
 #include "gpu.h"
+#include "../../../pc/src/game/spriteItem.h"
 #include "../camera_stick.h"
 #include "../room_warp.h"
 #include "ui_shell.h"
@@ -428,18 +429,11 @@ static void no_rim_copy(void)
 static int ot_model; /* this tick's ordering table holds the tile (and the model): pc_ui_ashley_ot_model */
 static void clear_behind(void)
 {
-    u_long* prim = vs_scratch.unk0;
-    void* ot = vs_scratch.unk4;
-    u_int* back = ot + 0x1FF4;
+    unsigned* back = (unsigned*)((char*)vs_scratch.unk4 + 0x1FF4); /* (an item placed in the table's back slot) */
     int r, g, b;
 
     pc_ui_theme_ground_rgb(&r, &g, &b);
-    prim[0] = (*back & 0xFFFFFF) | (3 << 24);
-    prim[1] = vs_getRGB0(primTile, r, g, b);
-    prim[2] = vs_getXY(0, 0);
-    prim[3] = vs_getWH(320, 240);
-    *back = (psx_to_int(u_long, prim) << 8) >> 8;
-    vs_scratch.unk0 = prim + 4;
+    vs_battle_tileFlatItem(back, 0, (r & 0xff) | (g & 0xff) << 8 | (b & 0xff) << 16, vs_getXY(0, 0), vs_getWH(320, 240));
     ot_model = 1;
 }
 

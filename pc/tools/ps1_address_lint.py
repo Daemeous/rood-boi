@@ -26,7 +26,13 @@ TREES = [("pc/src", C_SUFFIXES), ("game", C_SUFFIXES | {".zig"})]
 SKIP = ("pc/src/third_party/",)
 RULES = {
     "ps1_address": re.compile(r"\b0[xX](?:80|[aA]0)[0-9a-fA-F]{6}\b"),
-    "scratchpad": re.compile(r"\b0[xX]1[fF]80[0-9a-fA-F]{4}\b|\bgetScratchAddr\b"),
+    # the scratchpad proper, 0x1F800000-0x1F8003FF (T14); the I/O page above it (0x1F801000..: SPU, DMA and root counter
+    # registers) is the SDK layer's (T16, T18, T21), counted apart
+    "scratchpad": re.compile(r"\b0[xX]1[fF]800[0-3][0-9a-fA-F]{2}\b|\bgetScratchAddr\b"),
+    # the scratchpad's typed overlays reached by a PS1 offset (T14, memory lane S3): pad.addr(0xNNN) in Zig, PC_PAD(0xNNN) in C;
+    # pad.at(T, off) and pad.many(T, off) are the checked form and not counted
+    "pad_offset": re.compile(r"\bpad\.addr\(|\bPC_PAD\(|\bSCRATCH_AT\("),
+    "io_register": re.compile(r"\b0[xX]1[fF]80(?!0[0-3])[0-9a-fA-F]{4}\b"),
     "unnamed_symbol": re.compile(r"\b(?:D|func)_80[0-9a-fA-F]{6}\b"),
     # memory lane (pc/docs/plans/2026-11-16-memory-lane.md): code that reaches a field by its PS1 byte offset (S1), and
     # references to the 2 MB RAM block, the game heap's address and the page that stands for PS1 address 0 (S9)

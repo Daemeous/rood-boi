@@ -9,7 +9,7 @@ const c = @import("c_38C1C");
 /// orig: func_800A1DE8 (pc/src/game/BATTLE/BATTLE.PRG/38C1C.c)
 /// Returns an actor's bone matrix (or its object, weapon or root offset) placed for the camera, in the scratchpad.
 pub fn boneViewMatrix(actorId: c_int, bone: c_int, _: ?*v.MATRIX) callconv(.c) ?*v.MATRIX {
-    const scratch: *v.boneMatrixScratch = @ptrFromInt(pad.addr(0x35C));
+    const scratch: *v.boneMatrixScratch = pad.at(v.boneMatrixScratch, 0x35C);
     const actor: ?*v.D_800F4538_t = psx.at(v.g.vs_actors_actorRecords(), actorId).*;
 
     if (actor) |a| {

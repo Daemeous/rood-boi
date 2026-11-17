@@ -7,7 +7,7 @@ const c = @import("c_58578");
 /// orig: func_800C2254 (pc/src/game/BATTLE/BATTLE.PRG/58578.c)
 /// Writes 33 circle vertices from the scratchpad basis at `angle` into the table from `index`; returns the index after them.
 pub fn func_800C2254(angle: c_int, index: c_int) callconv(.c) c_int {
-    const basis: *[3][3]i16 = @ptrFromInt(pad.addr(0x398));
+    const basis: *[3][3]i16 = pad.at([3][3]i16, 0x398);
     const base: [*]u8 = @ptrCast(v.g.vs_battle_targetSphere().*.?);
     var idx = index;
     var point: c_int = 0;

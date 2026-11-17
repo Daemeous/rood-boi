@@ -7,7 +7,7 @@ const c = @import("c_3A1A0");
 /// Runs one step of the actor's state machine, dispatching on its unkB_0 state.
 pub fn func_800A29A0(arg0: ?*v.D_800F4538_t) callconv(.c) void {
     const a = arg0.?;
-    const word: *align(1) c_uint = psx.fieldAt(c_uint, &a.unk0._bits_skip, 0);
+    const word: *align(1) c_uint = psx.bitsAt(c_uint, &a.unk0._bits_skip, 0);
     switch (@as(c_int, psx.getBits(&a.unk0, "unkB_0"))) {
         1 => {
             word.* &= 0xFFDF_FFFF;
@@ -22,8 +22,8 @@ pub fn func_800A29A0(arg0: ?*v.D_800F4538_t) callconv(.c) void {
                 var v2: c_int = 0;
                 if (a.unk0.unk13 == 0xFC) {
                     const d = psx.at(v.g.vs_actors_actorRecords(), a.unk0.attachParent).*.?;
-                    v2 = @intFromBool((((psx.fieldAt(c_uint, &d.unk0._bits_skip, 0).* >> 8) & 0xF)) < 9);
-                } else if ((psx.fieldAt(c_uint, &a.unkC54._bits_unk548_0, 0).* & 0x20000) != 0) {
+                    v2 = @intFromBool((((psx.bitsAt(c_uint, &d.unk0._bits_skip, 0).* >> 8) & 0xF)) < 9);
+                } else if ((psx.bitsAt(c_uint, &a.unkC54._bits_unk548_0, 0).* & 0x20000) != 0) {
                     v2 = a.unk5CC;
                 } else {
                     take = false;
@@ -31,7 +31,7 @@ pub fn func_800A29A0(arg0: ?*v.D_800F4538_t) callconv(.c) void {
                 if (take and v2 == 0) {
                     word.* = (word.* & ~@as(c_uint, 0xF00)) | 0x900;
                     _ = c.vs_actors_translateActorToTileAtRate(a.unk0.slot, @ptrCast(psx.fieldAt(u8, &a.unk5EC.vx, 0)), 0);
-                    a.unk0.facing = psx.conv(i16, psx.fieldAt(u16, &a.unk5EC.pad, 0).*);
+                    a.unk0.facing = psx.conv(i16, a.unk5EC.pad);
                     _ = c.vs_actors_playActorAnimation(@as(c_int, a.unk0.slot), 0x15, 0, 8);
                     _ = c.vs_actors_queueActorAnimation(@as(c_int, a.unk0.slot), 0x16, 8, 0);
                     word.* = (word.* & 0xF0FF_FFFF) | 0x0300_0000;
@@ -42,7 +42,7 @@ pub fn func_800A29A0(arg0: ?*v.D_800F4538_t) callconv(.c) void {
             if (((word.* & 0xF00)) != 0) return;
             const zero: bool = if (a.unk0.unk13 == 0xFC) blk: {
                 const d = psx.at(v.g.vs_actors_actorRecords(), a.unk0.attachParent).*.?;
-                break :blk (psx.fieldAt(c_uint, &d.unk0._bits_skip, 0).* & 0xF00) == 0;
+                break :blk (psx.bitsAt(c_uint, &d.unk0._bits_skip, 0).* & 0xF00) == 0;
             } else a.unk5CC == 0;
             if (!zero) return;
             _ = c.vs_actors_playActorAnimation(@as(c_int, a.unk0.slot), 1, 0, 8);
@@ -68,7 +68,7 @@ fn case4(a: *v.D_800F4538_t) void {
 fn case5(a: *v.D_800F4538_t, word: *align(1) c_uint) void {
     if (a.unk17FD >= 2) {
         const d = psx.at(v.g.vs_actors_actorRecords(), a.unk17FD).*.?;
-        if ((psx.fieldAt(c_uint, &d.unk0._bits_skip, 0).* & 0x0F00_0000) != 0) {
+        if ((psx.bitsAt(c_uint, &d.unk0._bits_skip, 0).* & 0x0F00_0000) != 0) {
             word.* = (word.* & 0xF0FF_FFFF) | 0x0500_0000;
             return;
         }

@@ -9,7 +9,7 @@ const c = @import("c_5BF94");
 /// Hands slot `arg0`'s pending text to vs_effects_createPrimaryEffectInstance once and clears its pending bit; returns the status of func_800CEEBC.
 pub fn vs_effects_startEffectTrack(arg0: c_int) callconv(.c) c_int {
     // unk24 is never written here: it is uninitialised in the original too.
-    var sp10: v.D_800F53B8_t2 = undefined;
+    var sp10: v.vs_effects_EffectSpawnRequest = undefined;
 
     c.vs_effects_selectEffectResourceContext(1);
     const result = c.func_800CEEBC();
@@ -36,7 +36,7 @@ pub fn vs_effects_startEffectTrack(arg0: c_int) callconv(.c) c_int {
             psx.put(&sp10.parent, null);
             sp10.token = v.g.vs_effects_primaryToken().*;
             psx.put(&sp10.script, a1);
-            _ = c.vs_effects_createPrimaryEffectInstance(psx.cptr(c.D_800F53B8_t2, &sp10));
+            _ = c.vs_effects_createPrimaryEffectInstance(psx.cptr(c.vs_effects_EffectSpawnRequest, &sp10));
             c.vs_effects_setPrimaryEffectPhase(4);
             v.g.vs_effects_startedTrackCount().* +%= 1;
             flags.* &= ~bit;

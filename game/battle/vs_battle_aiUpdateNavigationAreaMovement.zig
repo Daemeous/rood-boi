@@ -6,9 +6,9 @@ const c = @import("c_771A8");
 
 /// Low nibble of the terrain entry at (z, x) in the tile table whose address the scratchpad slot 0x1F8003C0 holds.
 fn terrainTile(z: u8, x: u8) c_int {
-    const table: u32 = @as(*const u32, @ptrFromInt(pad.addr(0x3C0))).*;
+    const table: usize = @intFromPtr(pad.nav.cells.?);
     const off: u32 = @as(u32, z) *% 64 +% @as(u32, x) *% 2;
-    const p: *align(1) const u16 = @ptrFromInt(@as(usize, table +% off));
+    const p: *align(1) const u16 = @ptrFromInt(table +% @as(usize, off));
     return @as(c_int, p.*) & 15;
 }
 
@@ -47,7 +47,7 @@ pub fn vs_battle_aiUpdateNavigationAreaMovement(state: ?*v.vs_battle_aiState) ca
         }
         if (!at_move) {
             st.flags0.b[2] = active;
-            @as(*u8, @ptrFromInt(pad.addr(0x3D0))).* = 0;
+            pad.at(u8, 0x3D0).* = 0;
         }
     }
     // move:

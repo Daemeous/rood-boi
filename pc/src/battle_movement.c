@@ -5,7 +5,7 @@
 #include "psx_types.h" /* psx_load/psx_store: 4-byte guest pointers */
 #include "game/BATTLE/BATTLE.PRG/ai_state.h"
 extern unsigned char* vs_battle_aiActorAiStates[];
-extern unsigned D_800F58D8; /* a 32-bit guest address */
+extern unsigned short (*D_800F58D8)[8];
 /* Scratchpad bytes and words; pointers kept there are 4-byte guest addresses
  * (SCRATCH_PTR), like every pointer stored inside the PS1-layout actor and AI
  * records read below by offset (psx_load/psx_store). */
@@ -70,7 +70,7 @@ void vs_battle_aiDispatchMovementBehavior(void* state);
 
 /* Guest words at 0x800F58xx hold 32-bit guest addresses (see psx_load). */
 extern D_800F58BC_t* vs_battle_aiRoomAiState;
-extern unsigned D_800F58B8;
+extern unsigned short (*D_800F58B8)[32];
 extern int vs_core_mathSquaredVectorLength(int, int, int);
 extern int vs_gte_rsqrt(int);
 
@@ -126,7 +126,7 @@ extern void vs_battle_aiClearAiContactOccupancy(int);
 extern int vs_battle_aiFindRouteGateAtTile(int, unsigned, int);
 extern int vs_battle_aiDestinationOccupancy(void*, unsigned);
 extern void vs_battle_aiIssueActorCommand(void*, int);
-extern unsigned D_800F5910; /* guest address of the room's u16 link pairs */
+extern unsigned short* D_800F5910; /* the room's u16 link pairs */
 /* 766FC.s L800DF8A4: continue a route through a room link (gate). Byte 0x19B
  * is the gate bit the actor holds in the room flags (vs_battle_aiSetAiContactOccupancy by
  * vs_battle_aiResolveNavigationAreaRoute), word 0x19C the far end it is heading to. Off a link tile
@@ -163,7 +163,7 @@ void pc_route_continuation(void* state, unsigned caller_s2)
     }
     int index = vs_battle_aiFindRouteGateAtTile(psx_to_int(int, base), *(unsigned*)&base->exit, 0);
     if (index >= 0) {
-        unsigned link = psx_to_ptr(unsigned short*, D_800F5910)[index * 2];
+        unsigned link = D_800F5910[index * 2];
         unsigned tile = (caller_s2 & 0xff000000u) | (link & 0x1f) | (((link >> 5) & 0x1f) << 16);
         if (vs_battle_aiDestinationOccupancy(state, tile) > 0) {
             *(int*)&base->exit = -1;
@@ -381,9 +381,9 @@ int vs_battle_aiCanWalkInDirection(void* state, int dir)
             goto done;
         if (dir & 1)
             probe = (signed char)SCRATCH8(0x3e0 + (next_x - tile_x + 1) + (next_z - tile_z + 1) * 4);
-        unsigned char* cells = SCRATCH_PTR(unsigned char*, 0x3c0);
+        unsigned char* cells = (unsigned char*)vs_nav.cells;
         unsigned short* cell = (unsigned short*)(cells + next_x * 2 + next_z * 64);
-        if (!SCRATCH32(0x3f4)) {
+        if (!vs_nav.exits) {
             blocked = vs_battle_aiIsAdjacentTileStepBlocked(tile, probe);
         } else {
             unsigned reserved = base->previous.stuckMovementPosition.raw;
@@ -393,7 +393,7 @@ int vs_battle_aiCanWalkInDirection(void* state, int dir)
                 blocked = 1;
                 goto done;
             }
-            unsigned char* bitmap = SCRATCH_PTR(unsigned char*, 0x3c4);
+            unsigned char* bitmap = vs_nav.bitmap;
             blocked = (bitmap[tile_z * SCRATCH8(0x3dc) + tile_x] >> probe) & 1;
         }
         if (blocked)
@@ -411,7 +411,7 @@ int vs_battle_aiCanWalkInDirection(void* state, int dir)
             blocked = 1;
             goto done;
         }
-        unsigned char* floors = SCRATCH_PTR(unsigned char*, 0x3bc);
+        unsigned char* floors = (unsigned char*)vs_nav.floors;
         blocked = (int)(*(unsigned short*)(floors + tile_x * 2 + tile_z * 64) & 0x1c00)
                 < (int)(*(unsigned short*)(floors + next_x * 2 + next_z * 64) & 0x1c00);
     }
@@ -702,7 +702,8 @@ void vs_battle_aiRememberAiActionTarget(void* state);
 
 
 /* Room-entry and actor bookkeeping helpers from 7BDD4.s and 7E05C.s. */
-extern unsigned D_800F58D0, D_800F5920;
+extern unsigned short (*D_800F58D0)[32];
+extern unsigned D_800F5920;
 extern void* vs_main_allocHeap(unsigned);
 extern void vs_core_memoryClearAlignedWords(void*, unsigned);
 
@@ -749,7 +750,7 @@ static void tile_occupancy(unsigned char* actor, int delta)
     if (!D_800F58B8)
         return;
     unsigned short* cell =
-        psx_to_ptr(unsigned short*, D_800F58D0 + (placement & 0xff) * 2 + ((placement << 8) >> 18));
+        (unsigned short*)((unsigned char*)D_800F58D0 + (placement & 0xff) * 2 + ((placement << 8) >> 18));
     *cell += delta << 10;
 }
 void vs_battle_aiAddAiTileOccupant(void* actor);

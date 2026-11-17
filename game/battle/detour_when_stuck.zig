@@ -9,7 +9,7 @@ const c = @import("c_71618");
 /// Detours a stuck movement state one step at a time; returns 1 while the detour continues, else 0.
 pub fn detourWhenStuck(state: ?*v.vs_battle_aiState) callconv(.c) c_int {
     // Scratchpad table of direction deltas (D_800F16EC_t, one byte per entry).
-    const dirTable: [*]v.D_800F16EC_t = @ptrFromInt(pad.addr(0x3EC));
+    const dirTable: [*]v.D_800F16EC_t = pad.many(v.D_800F16EC_t, 0x3EC);
 
     if (v.g.D_800F5920().* == null) {
         const s = state.?;

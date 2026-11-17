@@ -10,7 +10,7 @@ fn unk10Vector(actor: ?*v.vs_battle_actor) v.SVECTOR {
 }
 
 /// vs_battle_actionState, read at each use as the C does.
-fn state() *v.D_800F19CC_t {
+fn state() *v.vs_battle_ActionState {
     return v.g.vs_battle_actionState().*.?;
 }
 

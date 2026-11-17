@@ -32,7 +32,7 @@ pub fn enterMovementMode(state: *ai.vs_battle_aiState, mode: c_int) callconv(.c)
         const tile_x: c_int = @intCast(tile & 0xff);
         const tile_z: c_int = @intCast((tile >> 16) & 0xff);
         var choice: c_int = -1;
-        const entries: [*]align(1) const i16 = @ptrFromInt(v.g.D_800F58D8().* +% @as(c_uint, state.row) *% 16);
+        const entries: [*]align(1) const i16 = @ptrFromInt(@intFromPtr(v.g.D_800F58D8().*.?) +% @as(usize, state.row) *% 16);
         var i: c_int = 0;
         while (i < 8) : (i += 1) { // i < 8: the entry count
             const entry: c_int = entries[@intCast(i)];

@@ -1,0 +1,33 @@
+# The scratchpad's overlays (vs_pad, 0x408 bytes): every offset the code reaches, the types it is viewed as, and the files (users) - generated 2026-11-16 from the tree
+# offset	types	files	role (the owner reads and writes it)	owner subsystem	users
+0x0	c_uint	1	actor scratch (pc_actor_scratch)	rendering: actor update	update_actor_navigation
+0x88	(C), c_int, i16, v.cameraShakeScratch, v.vs_event_EasedFractionScratch	6	camera shake, eased-fraction scratch, area-map grid	events, field camera, map screen	func_800BDBB4 func_800BDF6C func_800BE01C func_800BE180 screff2_warp vs_menu_drawTextBoxFrame
+0xd8	v.SVECTOR	1	camera look-at SVECTORs	events (func_800BE180)	func_800BE180
+0xe0	v.SVECTOR	1	camera look-at SVECTORs	events (func_800BE180)	func_800BE180
+0x100	(C), (raw), c_uint	3	room background packets, map screen rows	field rendering	4D8 draw_area_map draw_room_background
+0x18c	v.actionStatSnapshot	1	action stat snapshot	battle HUD (func_800DCC94)	func_800DCC94
+0x2c8	v.func_800D0B30_t2	1	effect transforms	effects	vs_effects_updateEffectTransforms
+0x30c	[4]v.actionCandidateEntry	1	action candidate list	battle AI actions	vs_battle_aiEnumerateActionCandidates
+0x330	v.MATRIX	1	rotation matrix	menu target shape	func_800C085C
+0x350	(raw), i16	2	GTE basis words	menu target shape	func_800C085C func_800C282C
+0x35c	(C), (raw), v.D_1F80035C_t, v.actorTransformScratch, v.boneMatrixScratch, v.boneTransformScratch, v.cameraTransformScratch, v.weaponTransformScratch	12	transform workspace: actor, weapon, bone, camera (the overlays of one frame step)	actors, rendering (actor_prepare, weapon_model, func_800B002C, ...)	actor_prepare actor_transform bone_view_matrix func_800B002C vs_actors_actorRootOffset vs_actors_applyLockedBoneTransform vs_actors_placeGimmick vs_actors_updateAndDrawRoomModels vs_field_setGimmickOr
+0x378	v.func_800C1564_t	1	target shape	menu target shape (func_800C0D78)	func_800C0D78
+0x37c	(C), (raw), u32	12	AI state table: one slot per actor (17 guest pointers, written by pc_actor_scratch)	battle AI and navigation	6FC00 771A8 approach_point func_800DA738 psx_types vs_battle_aiFlightDirectionObstruction vs_battle_aiFollowObstacleDetour vs_battle_aiMoveForActionCandidate vs_battle_aiResolveNavigationAreaRoute vs_
+0x390	(C)	1	actor native scratch (C)	actor_native.c	actor_native
+0x398	(raw), [3][3]i16, i16, u16, u32	5	GTE basis (3x3 i16)	menu target shape, GTE math	draw_menu_target_shape func_800C0758 func_800C2254 func_800C2368 func_800C253C
+0x3a0	(raw)	1	GTE vector	menu target shape	draw_menu_target_shape
+0x3a8	(raw), v.SVECTOR	2	gimbal SVECTOR	gimmick placement	vs_actors_applyLockedBoneTransform vs_actors_placeGimmick
+0x3b0	i16	2	sine table words	menu target shape	func_800C0758 func_800C0D78
+0x3bc	(raw), c_int, u32, v.ActorCollisionSamples, v.D_1F8003BC_t, v.actorCollisionExclusion, v.collisionResponseScratch, v.collisionScratchView	12	floor grid slot (a guest pointer) / collision scratch (overlays: samples, exclusion, response, probe)	AI navigation (slot) and field collision (overlays)	floor_height issue_command navigation_floor vs_battle_aiFindNearestActiveWaypoint vs_battle_aiResolveNavigationAreaRoute vs_field_applyActorWallRepulsion vs_field_canActorSeparateFromOverlaps vs_field
+0x3c0	(C), (raw), u32, v.MATRIX	14	navigation cells slot (guest pointer) / actor matrix (overlay)	AI navigation (slot) and gimmick/weapon transforms (overlay)	771A8 actor_prepare func_800E0A68 vs_actors_applyLockedBoneTransform vs_actors_placeGimmick vs_battle_aiCanFlyInDirection vs_battle_aiChooseNextWanderTile vs_battle_aiFollowObstacleDetour vs_battle_ai
+0x3c4	(C), (raw), u32	5	occupancy bitmap slot (guest pointer)	AI navigation	771A8 issue_command vs_battle_aiChooseNextWanderTile vs_battle_aiMoveWithHeightFilteredDirections vs_battle_aiResolveNavigationAreaRoute
+0x3c8	(C), c_int, u32	5	navigation words	AI navigation	771A8 func_800E0A68 func_800E1238 issue_command vs_battle_aiMoveWithHeightFilteredDirections
+0x3d0	(C), c_int, u8, v.directionalCacheBits, v.obstructionCache	7	obstruction and direction caches	AI flight and wander	771A8 vs_battle_aiCanFlyInDirection vs_battle_aiFlightDirectionObstruction vs_battle_aiUpdateActorDecisions vs_battle_aiUpdateNavigationAreaMovement vs_battle_aiUpdateTargetApproachMovement vs_battle_
+0x3d4	[3]c_int, [3]i32	2	GTE result vector	gimmick placement	vs_actors_applyLockedBoneTransform vs_actors_placeGimmick
+0x3dc	(C), u8	5	width byte	AI wander / navigation	771A8 vs_battle_aiChooseNextWanderTile vs_battle_aiMoveWithHeightFilteredDirections vs_battle_aiRecoverMovement vs_battle_aiResolveNavigationAreaRoute
+0x3e0	(raw)	1	Euler angles	gimmick placement	vs_actors_placeGimmick
+0x3ec	(C), (raw), c.animationFrameScratch, v.D_800F16EC_t	16	direction table (D_800F16EC) / animation frame scratch (overlays)	AI wander and animation decode	771A8 detour_when_stuck func_800AFA28 func_800E153C vs_actors_decodeAnimationTrack vs_battle_aiCanFlyInDirection vs_battle_aiChooseNextWanderTile vs_battle_aiFilterDirectionsByGroundHeight vs_battle_a
+0x3f4	(raw), c_int, u32	4	occupancy flag	AI navigation	climb_target issue_command vs_battle_aiChooseNextWanderTile vs_battle_aiResolveNavigationAreaRoute
+0x3f8	i32, u16, u32	2	saved movement random state	battle AI (scratch_random)	scratch_random vs_battle_aiSaveMovementRandomState
+0x3fc	c_int, u32	3	movement random word	battle AI	scratch_random vs_battle_aiUpdateActorDecisions vs_battle_aiUpdatePerceivingActor
+0x400	(raw)	1	the extension: native pointers of the collision and animation overlays	field collision, animation decode	vs_render_drawGimTiles

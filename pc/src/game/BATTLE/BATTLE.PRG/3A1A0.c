@@ -8,17 +8,18 @@
 typedef struct {
     int unk0;
     int pad04[5];
-    psx_ptr(D_800F45E0_t) unk18;
+    int pad18; /* the guest pointer to the probed actor was here: it is a real pointer now, after the struct */
     short unk1C[18];
     int unk40;
+    D_800F45E0_t* actor __attribute__((packed, aligned(4))); /* 0x44: ends at 0x3BC + 0x4C, 8 bytes past the 1 KB pad */
 } D_1F8003BC_t;
-PSX_ASSERT_SIZE(D_1F8003BC_t, 0x44);
+PSX_ASSERT_SIZE(D_1F8003BC_t, 0x4c);
 
 typedef struct {
     short directionX;
     short unk2;
     short directionZ;
-} func_800A3054_t;
+} vs_actors_FallDirection;
 
 typedef struct {
     short unk0;
@@ -79,7 +80,7 @@ void func_800A2CD4(D_800F4538_t* arg0);
 
 void vs_actors_stepActorTransitionDisplacement(D_800F4538_t* arg0);
 
-void vs_actors_setActorFallDestination(D_800F4538_t* arg0, func_800A3054_t* arg1);
+void vs_actors_setActorFallDestination(D_800F4538_t* arg0, vs_actors_FallDirection* arg1);
 
 inline int vs_actors_findActorAtFlightPosition(int, SVECTOR*);
 void vs_actors_separateActorFlightPlacement(int, SVECTOR*);
@@ -87,7 +88,7 @@ int vs_field_actorSupportHeight(int, int);
 func_8008D2C0_t* func_800A4A24(int);
 void vs_actors_saveActorGroundedTransform(D_800F4538_t*);
 
-void vs_actors_placeActorInRoom(int actorId, func_80089888_t* placement, int height, int mode);
+void vs_actors_placeActorInRoom(int actorId, vs_field_ActorPlacement* placement, int height, int mode);
 
 inline int vs_actors_findActorAtFlightPosition(int arg0, SVECTOR* arg1);
 
@@ -200,7 +201,7 @@ int vs_field_resolveActorTerrainMotion(D_800F4538_t*, SVECTOR*, int*, int);
 int func_800A9530(D_800F4538_t*, SVECTOR*);
 void vs_actors_setActorMotion(int, SVECTOR*, int);
 void vs_actors_setActorTranslation(int, SVECTOR*, int);
-void vs_audio_playActorModelSound(D_800F4538_unk0*, int);
+void vs_audio_playActorModelSound(vs_actors_ModelInstance*, int);
 void vs_actors_updateActorSteering(D_800F4538_t*, int, func_800A6660_t*);
 
 int vs_actors_moveActorWithCollision(int index, int direction, int distance, SVECTOR* input);

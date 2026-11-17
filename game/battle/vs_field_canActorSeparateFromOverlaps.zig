@@ -21,7 +21,7 @@ pub fn vs_field_canActorSeparateFromOverlaps(actor: ?*v.D_800F4538_t, motion: ?*
         @as(*align(1) v.actorCollisionExclusion, @ptrFromInt(clear)).excluded = 0;
     }
 
-    const flags: c_uint = psx.fieldAt(c_uint, &a._bits_unk5AC_0, 0).*;
+    const flags: c_uint = psx.bitsAt(c_uint, &a._bits_unk5AC_0, 0).*;
     if ((flags & 0x800) != 0) return psx.conv(c_int, flags & 0x800);
 
     const radius: c_int = psx.fieldAt(u16, &a.unk640, 0).*;
@@ -37,9 +37,9 @@ pub fn vs_field_canActorSeparateFromOverlaps(actor: ?*v.D_800F4538_t, motion: ?*
     while (i < 17) : (i += 1) {
         const other = slots[@intCast(i)] orelse continue;
 
-        const otherFlags: c_uint = psx.fieldAt(c_uint, &other.unk0._bits_skip, 0).*;
+        const otherFlags: c_uint = psx.bitsAt(c_uint, &other.unk0._bits_skip, 0).*;
         if ((otherFlags & 1) != 0) continue;
-        if ((psx.fieldAt(c_uint, &other._bits_unk5AC_0, 0).* & 0x1000000) != 0) continue;
+        if ((psx.bitsAt(c_uint, &other._bits_unk5AC_0, 0).* & 0x1000000) != 0) continue;
         if (other.unk0.unk13 == 0xFC) continue;
         if ((otherFlags & 0xF000000) == 0x2000000) continue;
 

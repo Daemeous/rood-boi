@@ -67,7 +67,7 @@ pub fn func_800DCC94(state: ?*v.vs_battle_aiState, candidate: ?*v.actionCandidat
     const cand = candidate.?;
     cand.score = 0;
     psx.setBits(cand, "weight", 128);
-    const stats: *v.actionStatSnapshot = @ptrFromInt(pad.addr(0x18C));
+    const stats: *v.actionStatSnapshot = pad.at(v.actionStatSnapshot, 0x18C);
     c.vs_battle_aiCaptureActorConditionTable(psx.cptr(c.actionStatSnapshot, stats));
     const st = state.?;
     if (st.special != 0 and (flags & 16) != 0) {

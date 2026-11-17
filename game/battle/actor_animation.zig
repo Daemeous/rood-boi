@@ -15,11 +15,11 @@ pub fn startAnimation(actorId: c_int, animation: c_int, _: c_int, blendFrames_: 
     }
     // vs_actors_actorRecords[actorId]: the C does not check the id.
     const actor = psx.at(v.g.vs_actors_actorRecords(), actorId).* orelse return -1;
-    if (psx.fieldAt(c_int, &actor._bits_unk5AC_0, 0).* & 0x1000000 != 0) {
+    if (psx.bitsAt(c_int, &actor._bits_unk5AC_0, 0).* & 0x1000000 != 0) {
         return 0;
     }
     psx.setBits(actor, "unk5AC_16", 0);
-    if (psx.fieldAt(c_int, &actor._bits_unk5AC_0, 0).* & 0x800000 != 0) {
+    if (psx.bitsAt(c_int, &actor._bits_unk5AC_0, 0).* & 0x800000 != 0) {
         c.vs_actors_restartActorAnimationEvents(@ptrCast(actor));
     }
     psx.setBits(actor, "unk5AC_23", 0);
@@ -34,7 +34,7 @@ pub fn startAnimation(actorId: c_int, animation: c_int, _: c_int, blendFrames_: 
     actor.unk1802[6] = 0;
     _ = c.vs_actors_setTextureAnimation(actorId, 1, 1, 1);
     c.vs_actors_clearActorBonePoseLocks(@ptrCast(actor));
-    if (psx.fieldAt(c_int, &actor._bits_unk5AC_0, 0).* & 0x8000 != 0 and keepFlag15 == 0) {
+    if (psx.bitsAt(c_int, &actor._bits_unk5AC_0, 0).* & 0x8000 != 0 and keepFlag15 == 0) {
         psx.setBits(actor, "unk5AC_15", 0);
     }
     var anim = animation;

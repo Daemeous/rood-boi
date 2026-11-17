@@ -12,7 +12,7 @@ extern fn func_800A2CD4(?*anyopaque) callconv(.c) void;
 
 /// The actor's status word: the u32 at offset 8 (skip, visible, the unk9_0 and unkA_0 fields).
 fn statusWord(actor: *v.D_800F4538_t) c_uint {
-    return psx.fieldAt(c_uint, &actor.unk0._bits_skip, 0).*;
+    return psx.bitsAt(c_uint, &actor.unk0._bits_skip, 0).*;
 }
 
 /// orig: vs_actors_updateActorMovement (pc/src/game/BATTLE/BATTLE.PRG/3A1A0.c)

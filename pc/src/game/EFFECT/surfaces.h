@@ -37,7 +37,7 @@ int VS_SURFACE_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
     int maxFactor;
     u_char u[VS_SURFACE_U_SEGMENTS + 1];
     u_char v[5];
-    D_800F53B8_t* battle;
+    vs_effects_EffectInstance* battle;
     int alive;
     int heightStep;
     int row, column;
@@ -48,8 +48,8 @@ int VS_SURFACE_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
     int curveIndex;
     int initIndex, tempHeight;
     vs_surfaceState* state;
-    func_800FA098_arg1* scratch = &pc_effect_scratch;
-    func_800FA098_arg0* effect;
+    vs_effects_ParticleEmitterScratch* scratch = &pc_effect_scratch;
+    vs_effects_ParticleDefinition* effect;
     MATRIX* actorMatrix;
     pc_item* prim;
     pFileBlock1Data* texture;

@@ -4,7 +4,7 @@ const c = @import("c_5BF94");
 
 /// orig: vs_effects_restoreActionEffectCamera (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// Keyframe 0 from the current camera (vs_effects_captureEffectCamera), keyframe 1 = vs_effects_savedActionCamera, over `frames` (0 means 1) frames: vs_effects_setEffectCameraTransitionMode(2).
-pub fn vs_effects_restoreActionEffectCamera(script: ?*v.D_800F53B8_t, frames_arg: u8) callconv(.c) void {
+pub fn vs_effects_restoreActionEffectCamera(script: ?*v.vs_effects_EffectInstance, frames_arg: u8) callconv(.c) void {
     _ = script;
     var frames = frames_arg;
     const keys = v.g.vs_effects_cameraMotionEnds();

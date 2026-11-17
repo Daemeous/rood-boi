@@ -19,8 +19,8 @@ fn shortAt(base: [*]u8, offset: isize) c_int {
 pub fn drawMenuTargetShape(shape: [*]u8, color_in: c_uint) callconv(.c) void {
     const block = v.g.vs_battle_targetSphere().*.?;
     var point: usize = @intFromPtr(&block.points);
-    const scratch: [*]u32 = @ptrFromInt(pad.addr(0x398));
-    const halves: [*]u16 = @ptrFromInt(pad.addr(0x398));
+    const scratch: [*]u32 = pad.many(u32, 0x398);
+    const halves: [*]u16 = pad.many(u16, 0x398);
     const matrix: [*c]c.MATRIX = @ptrFromInt(pad.addr(0x398));
     const scale = c.func_800C085C(shape + 4, shortAt(shape, 2));
     _ = c.RotMatrixYXZ_gte(@ptrFromInt(@intFromPtr(&block.unk24)), matrix);

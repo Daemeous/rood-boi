@@ -2,12 +2,12 @@
 
 int VS_PARTICLE_DISPATCH_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
 {
-    func_800FA098_arg0* temp_s2;
+    vs_effects_ParticleDefinition* temp_s2;
     int var_a0;
     short var_v0;
-    func_800FA098_arg1* a2 = &pc_effect_scratch;
+    vs_effects_ParticleEmitterScratch* a2 = &pc_effect_scratch;
     func_800FA098_arg3* temp_s1 = arg0->unk8;
-    D_800F53B8_t* temp_s0 = vs_effects_currentInstance;
+    vs_effects_EffectInstance* temp_s0 = vs_effects_currentInstance;
     int s3 = 1;
 
     switch (arg1) {

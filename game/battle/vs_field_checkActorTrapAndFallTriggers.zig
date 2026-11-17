@@ -6,7 +6,7 @@ const c = @import("c_146C");
 
 /// orig: vs_field_checkActorTrapAndFallTriggers (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// Updates actor arg0's record from the room-section probe arg1 and returns the outcome (0 nothing, 1 or 2 the death paths, 3 a section handled).
-pub fn vs_field_checkActorTrapAndFallTriggers(arg0: c_int, arg1: ?*v.func_8006EBF8_t3) callconv(.c) c_int {
+pub fn vs_field_checkActorTrapAndFallTriggers(arg0: c_int, arg1: ?*v.vs_actors_ActorLocation) callconv(.c) c_int {
     const temp_v0: c_uint = psx.conv(c_uint, c.vs_actors_actorStateFlags(arg0));
     const temp_a2: c_uint = temp_v0 & 0x70000;
     const temp_s3: c_int = psx.conv(c_int, (temp_v0 >> 14) & 1);

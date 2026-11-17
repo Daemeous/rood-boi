@@ -13,7 +13,7 @@ pub fn vs_field_setGimmickOrientation(index: c_int, material: c_int) callconv(.c
 
     obj.unk6C[8].unk2 = psx.conv(u8, material);
     const m: c_int = material *% 4;
-    const scratch: *v.D_1F80035C_t = @ptrFromInt(pad.addr(0x35C));
+    const scratch: *v.D_1F80035C_t = pad.at(v.D_1F80035C_t, 0x35C);
     const table = v.g.vs_field_gimmickOrientationRotations();
     scratch.unk84.vx = psx.conv(i16, @as(c_int, psx.at(table, m).*) *% 1024);
     scratch.unk84.vy = psx.conv(i16, @as(c_int, psx.at(table, m +% 1).*) *% 1024);

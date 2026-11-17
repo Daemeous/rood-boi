@@ -6,7 +6,7 @@ const v = @import("views_5BF94");
 
 /// orig: func_800D4FB4 (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// Writes the R, G and B curves of the current curve kind into both block 5 entries.
-pub fn func_800D4FB4(arg0: ?*v.D_800F53B8_t) callconv(.c) c_int {
+pub fn func_800D4FB4(arg0: ?*v.vs_effects_EffectInstance) callconv(.c) c_int {
     var i: usize = 0;
     while (i < 2) : (i += 1) {
         const dst = psx.at(&psx.get(v.g.vs_effects_package().*.?.block5Data).?.definitions, i);

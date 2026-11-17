@@ -60,8 +60,8 @@ pub fn func_800BDC9C(script: [*c]u8, _: c_short) callconv(.c) c_int {
             return 0;
         },
         239 => {
-            // (func_800BDF6C_t*)&unk1A4.unk2: two 12-byte slots from byte 0x1A6
-            const entries: [*]v.func_800BDF6C_t = @ptrCast(&cam.unk1A4.displacement);
+            // (vs_event_ShakeOscillator*)&unk1A4.unk2: two 12-byte slots from byte 0x1A6
+            const entries: [*]v.vs_event_ShakeOscillator = @ptrCast(&cam.unk1A4.displacement);
             if (script[2] == 0) {
                 entries[1].unk9 = 0;
                 entries[0].unk9 = 0;

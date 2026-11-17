@@ -39,6 +39,7 @@ storage, ending, menuf, dialogue (the talk bubble's every shape: first_bubble), 
 (MENU7's game over LOAD). opening_events (the opening played through, the scanlines forced on) and script_<zone>_<room> (a room's own event script, for the rooms with a door into them) and platforms (the platform shadows of rooms 9-5, 15-7, 24-2, 25-2, 32-0) and story_<scene id> (a story scene of pc/assets/cutscenes/story.json played as the cutscene player plays it, from the title: the rooms and events no warp reaches; the wipes, the screen effect, its border).
 """
 import argparse
+import atexit
 import contextlib
 import hashlib
 import json
@@ -164,6 +165,39 @@ def census_write(g, name):
             pass
 
 
+RAW_PACKET_LINE = "[ot] a raw packet is linked in a table"  # (boot_runtime.c raw_tripwire: a screen that still links a packet by hand)
+TRIPWIRES = []
+
+
+def tripwire(out):
+    """In a play child: the games' logs under `out` that hold the tripwire's line, as TRIPWIRE lines on stdout for the parent."""
+    for path in sorted(pathlib.Path(out).rglob("*.log")):
+        try:
+            for line in path.read_text(errors="replace").splitlines():
+                if RAW_PACKET_LINE in line:
+                    print(f"TRIPWIRE {path.name}: {line.strip()}")
+                    break
+        except OSError:
+            pass
+
+
+def note_tripwire(stdout):
+    """In the parent: what a child reported; the lanes fail when any game linked a raw packet (the exit status is made at exit)."""
+    TRIPWIRES.extend(line[len("TRIPWIRE "):] for line in stdout.splitlines() if line.startswith("TRIPWIRE "))
+
+
+def _tripwire_exit():
+    if TRIPWIRES:
+        print("FAIL: a raw packet is linked in an ordering table (the tables are going: T4), the tripwire in the games' logs:")
+        for line in sorted(set(TRIPWIRES)):
+            print("   ", line)
+        sys.stdout.flush()
+        os._exit(1)
+
+
+atexit.register(_tripwire_exit)
+
+
 def play(binary, seconds, card, out):
     """In a process of its own (ROOD_BINARY is read at import): the hashes, the casts and the drops, as JSON on stdout."""
     os.environ.update(ROOD_BINARY=binary, ROOD_SYMBOLS=binary, ROOD_HEADLESS="egl", ROOD_RENDERER="vulkan", ROOD_ARCH="64", ROOD_TEST_SNAPSHOTS="0")
@@ -207,6 +241,12 @@ def play(binary, seconds, card, out):
     finally:
         g.close()
     casts = [e for e in (entry.split(":") for entry in ended.split()) if len(e) >= 4 and int(e[0]) != 0 and e[2] == "1"]
+    tripwire(out)
+    keep_logs = os.environ.get("BUILD_COMPARE_LOGS")  # (a directory: the games' logs kept, as the casts and menus lanes keep them)
+    if keep_logs:
+        pathlib.Path(keep_logs).mkdir(parents=True, exist_ok=True)
+        for log in out.glob("*.log"):
+            (pathlib.Path(keep_logs) / f"{os.getpid()}-{log.name}").write_bytes(log.read_bytes())
     print("RESULT" + json.dumps({"frames": frames, "casts": casts, "drops": drops, "states": states, "sites": sites, "stream": taken[1]}))
 
 
@@ -564,6 +604,7 @@ def play_casts(binary, card, out, kinds, limit):
         pathlib.Path(keep).mkdir(parents=True, exist_ok=True)
         for log in out.glob("*.log"):
             (pathlib.Path(keep) / f"{os.getpid()}-{log.name}").write_bytes(log.read_bytes())
+    tripwire(out)
     print("RESULT" + json.dumps({"actions": actions, "states": states, "sites": sites, "peak": peak}))
 
 
@@ -1142,6 +1183,7 @@ def play_menus(binary, card, out, names, sample, claims, aspect="4:3", extra_env
         pathlib.Path(keep_logs).mkdir(parents=True, exist_ok=True)
         for log in out.glob("*.log"):
             (pathlib.Path(keep_logs) / f"{os.getpid()}-{log.name}").write_bytes(log.read_bytes())
+    tripwire(out)
     print("RESULT" + json.dumps(results))
 
 
@@ -1166,6 +1208,7 @@ def run_menus(binary, args, names):
                                str(args.menu_sample), "--claims", args.claims, "--aspect", args.aspect, "--renderer", args.renderer] + [a for kv in args.setting for a in ("--setting", kv)] + [ "--card", args.card, "--out", out]
                               + [a for kv in env_of(binary, args) for a in ("--env", kv)],
                               capture_output=True, text=True)
+    note_tripwire(done.stdout)
     lines = [line for line in done.stdout.splitlines() if line.startswith("RESULT")]
     if not lines:
         sys.exit(f"build_compare: {binary} did not finish:\n{done.stderr[-1500:]}\n{done.stdout[-1500:]}")
@@ -1261,6 +1304,7 @@ def run_casts(binary, args):
             os.makedirs(keep)
         done = subprocess.run([sys.executable, __file__, "--play-casts", binary, "--casts", args.casts, "--cast-limit",
                                str(args.cast_limit), "--card", args.card, "--out", out], capture_output=True, text=True)
+    note_tripwire(done.stdout)
     lines = [line for line in done.stdout.splitlines() if line.startswith("RESULT")]
     if not lines:
         sys.exit(f"build_compare: {binary} did not finish:\n{done.stderr[-1500:]}\n{done.stdout[-1500:]}")
@@ -1334,6 +1378,7 @@ def run(binary, args, env=None):
     with tempfile.TemporaryDirectory(prefix="build-compare-", dir=ROOT / "pc/build") as out:
         done = subprocess.run([sys.executable, __file__, "--play", binary, "--seconds", str(args.seconds), "--card", args.card,
                                "--out", out], capture_output=True, text=True, env=env)
+    note_tripwire(done.stdout)
     lines = [line for line in done.stdout.splitlines() if line.startswith("RESULT")]
     if not lines:
         sys.exit(f"build_compare: {binary} did not finish:\n{done.stderr[-1500:]}")

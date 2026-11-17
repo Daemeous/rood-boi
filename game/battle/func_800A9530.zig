@@ -25,7 +25,7 @@ fn platformById(arg0: c_int) *v.func_8008D2C0_t {
 
 /// The actor's flag word at byte 0x5AC.
 fn flagsOf(actor: *v.D_800F4538_t) *align(1) c_uint {
-    return psx.fieldAt(c_uint, &actor._bits_unk5AC_0, 0);
+    return psx.bitsAt(c_uint, &actor._bits_unk5AC_0, 0);
 }
 
 /// orig: func_800A9530 (pc/src/game/BATTLE/BATTLE.PRG/40564.c)

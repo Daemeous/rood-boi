@@ -35,14 +35,15 @@ typedef struct {
     char padding[0xE];
     SVECTOR translation;
     SVECTOR offset;
-    psx_ptr(MATRIX) parent;
-    int pad60;
+    /* real pointers, packed into the slots the PS1 layout gave them (the scratchpad's overlays keep their offsets):
+     * parent takes the 4 bytes of the old pad60, model the 4 bytes of tail padding */
+    MATRIX* parent __attribute__((packed, aligned(4)));
     MATRIX matrix;
     SVECTOR rotation;
     VECTOR scale;
-    psx_ptr(D_800F4538_unk68) model;
+    vs_actors_ShpModel* model __attribute__((packed, aligned(4)));
 } actorTransformScratch;
-PSX_ASSERT_SIZE(actorTransformScratch, 0xa0);
+PSX_ASSERT_SIZE(actorTransformScratch, 0xa4);
 extern struct {
     char prefix[0x1800];
     MATRIX boneMatrices[42];
@@ -125,7 +126,7 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
     vs_gte_view view;
     vs_gte_result transformed;
 
-    psx_set(scratch->model, actor->unk0.model);
+    scratch->model = actor->unk0.model;
     view = vs_gte_view_of(parent, VS_GTE_NO_SCREEN);
     *(int*)&scratch->translation = *(int*)&scratch->offset;
     *(int*)&scratch->translation.vz = *(int*)&scratch->offset.vz;
@@ -195,14 +196,14 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
     scratch->translation.vx = scratch->translation.vy = 0;
 
     for (i = 1; i < actor->unk0.nBones; ++i) {
-        value = psx_get(scratch->model)->armatures[i].unkC;
+        value = scratch->model->armatures[i].unkC;
         if (value != 0) {
             vs_actors_applyLockedBoneTransform(actor, parent, i, value);
         } else {
-            parentBone = psx_get(scratch->model)->armatures[i].unk4;
-            psx_set(scratch->parent, &actor->bones[parentBone]);
-            view = vs_gte_view_of(psx_get(scratch->parent), VS_GTE_NO_SCREEN);
-            length = (u_short)psx_get(scratch->model)->armatures[parentBone].unk0;
+            parentBone = scratch->model->armatures[i].unk4;
+            scratch->parent = &actor->bones[parentBone];
+            view = vs_gte_view_of(scratch->parent, VS_GTE_NO_SCREEN);
+            length = (u_short)scratch->model->armatures[parentBone].unk0;
             scratch->translation.vy = 0;
             scratch->translation.vz = 0;
             scratch->translation.vx = -length;
@@ -210,7 +211,7 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
             scratch->rotation.vx = actor->unk704.unk0[i].vx >> 1;
             scratch->rotation.vy = actor->unk704.unk0[i].vy >> 1;
             scratch->rotation.vz = actor->unk704.unk0[i].vz >> 1;
-            value = (i + psx_get(scratch->model)->armatures)->unk8;
+            value = (i + scratch->model->armatures)->unk8;
 
             switch (value) {
             case 0:
@@ -343,20 +344,20 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
     savedIdentity = *(actorIdentity*)actor;
     source = actor;
     if (arg2 < 2) {
-        psx_set(scratch->model, actor->unk0.model);
+        scratch->model = actor->unk0.model;
         scratch->unk36 = actor->unk6E8;
         scratch->unk38 = actor->unk6EA;
         scratch->tpage = vs_render_legacyActorTextureSlots[actor->unk5BB].tpage;
     } else {
         *(actorIdentity*)actor = *(actorIdentity*)vs_actors_actorRecords[arg2];
-        psx_set(scratch->model, vs_actors_actorRecords[arg2]->unk0.model);
+        scratch->model = vs_actors_actorRecords[arg2]->unk0.model;
         scratch->unk36 = vs_actors_actorRecords[arg2]->unk6E8;
         scratch->unk38 = vs_actors_actorRecords[arg2]->unk6EA;
         scratch->tpage = vs_render_legacyActorTextureSlots[vs_actors_actorRecords[arg2]->unk5BB].tpage;
         source = vs_actors_actorRecords[arg2];
     }
 
-    if (vs_render_projectModelVertices(actor, actor->bones, -vs_main_nearClip << 2, psx_get(scratch->model)) == 0) {
+    if (vs_render_projectModelVertices(actor, actor->bones, -vs_main_nearClip << 2, scratch->model) == 0) {
         ((actorFlags*)actor)->flags |= 0x1000;
     } else {
         blend = 0;
@@ -373,7 +374,7 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
         }
         if (!(((actorFlags*)actor)->flags & 8)) {
             if (arg2 == 1) {
-                vs_render_drawModelFlatPolygons(&D_800F2458, actor, &actor->unk6F8, psx_get(scratch->model));
+                vs_render_drawModelFlatPolygons(&D_800F2458, actor, &actor->unk6F8, scratch->model);
             } else {
                 if (!(VS_OBJECT_FLAGS5AC(actor) & 0x100)) {
                     if (VS_OBJECT_FLAGS648(actor) & 0x10000) {
@@ -418,10 +419,10 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
                 }
                 if (blend) {
                     func_800B516C(
-                        &D_800F2458, actor, &source->unk0.unk54, psx_get(scratch->model));
+                        &D_800F2458, actor, &source->unk0.unk54, scratch->model);
                 } else {
                     vs_render_drawModelFlatPolygons(
-                        &D_800F2458, actor, &source->unk0.unk54, psx_get(scratch->model));
+                        &D_800F2458, actor, &source->unk0.unk54, scratch->model);
                 }
             }
         } else {
@@ -441,9 +442,9 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
                 ((u_char*)&actor->unk1864)[2] = value;
             }
             if (blend) {
-                vs_render_drawModelGouraudPolygonsWithOverrides(&D_800F2458, actor, &actor->unk0.unk54, psx_get(scratch->model));
+                vs_render_drawModelGouraudPolygonsWithOverrides(&D_800F2458, actor, &actor->unk0.unk54, scratch->model);
             } else {
-                vs_render_drawModelGouraudPolygons(&D_800F2458, actor, &actor->unk0.unk54, psx_get(scratch->model));
+                vs_render_drawModelGouraudPolygons(&D_800F2458, actor, &actor->unk0.unk54, scratch->model);
             }
         }
     }

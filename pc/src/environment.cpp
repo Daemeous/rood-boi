@@ -42,8 +42,8 @@ typedef struct {
     char unk3;
     short unk4;
     short unk6;
-} D_800F1BB0_t;
-extern D_800F1BB0_t D_800F1BB0 __attribute__((weak));
+} vs_field_RoomTint;
+extern vs_field_RoomTint D_800F1BB0 __attribute__((weak));
 /* The sky panorama (2842C.h; vs_field_drawRoomBackgroundTiles), drawn instead of the sphere while a
  * script has it on (vs_field_isTiledBackgroundEnabled) and its layout is loaded (vs_field_loadedBackgroundLayout): tiles of 32 x
  * 32 screen pixels, each a texture rectangle of tpage vs_field_legacyBackgroundTexturePage | (colors[1].cd << 7)

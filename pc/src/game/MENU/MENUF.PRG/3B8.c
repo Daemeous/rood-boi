@@ -1079,7 +1079,7 @@ static void _renderStartCountdown(int arg0, int arg1, int arg2);
 int _renderTimeAttackStart(void)
 {
     static int countdownOffsets[] = { 121, 93, 67, 43, 25, 12, 3, 0 };
-    static D_800F1A68_t D_801096F0[3] = { { 0x1029, 0x1029, 0x1000 },
+    static vs_render_FramebufferEffectTranslation D_801096F0[3] = { { 0x1029, 0x1029, 0x1000 },
         { 0x107A, 0x107A, 0x1000 } };
     static P_CODE colors[] = { { 220, 80, 64 }, { 64, 128, 220 }, { 128, 128, 128 } };
 
@@ -1125,7 +1125,7 @@ int _renderTimeAttackStart(void)
         vs_render_setFramebufferEffectRoll(0);
         vs_render_setFramebufferEffectScale(&D_801096F0[0]);
         vs_render_setFramebufferEffectTint(&colors[1]);
-        vs_render_setFramebufferEffectOffset((D_800F1A68_t*)(D_801096F0 + 2));
+        vs_render_setFramebufferEffectOffset((vs_render_FramebufferEffectTranslation*)(D_801096F0 + 2));
         vs_render_setFramebufferEffectBlendMode(0);
         vs_render_setFramebufferEffectDepth(0U);
         vs_render_setFramebufferEffectPreviousFrame(0);

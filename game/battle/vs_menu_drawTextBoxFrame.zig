@@ -40,7 +40,7 @@ pub fn vs_menu_drawTextBoxFrame(index: c_int) callconv(.c) void {
     if (verts == null) {
         return;
     }
-    var out: [*]i16 = @ptrFromInt(pad.addr(0x88));
+    var out: [*]i16 = pad.many(i16, 0x88);
     var flip: c_int = psx.getBits(&box.flags, "unk0_6");
     const shape: [*]u8 = @ptrCast(verts.?);
     const tail: c_int = psx.getBits(&box.flags, "unk0_12");

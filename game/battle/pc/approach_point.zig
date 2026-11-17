@@ -11,8 +11,7 @@ const pad = @import("common").pad;
 pub fn refreshApproachPoint(state: *ai.vs_battle_aiState) callconv(.c) void {
     const id = state.actorId;
     const model_slot = v.g.vs_actors_actorRecords()[id];
-    const present: *align(1) const u32 = @ptrFromInt(@as(usize, pad.addr(0x37C)) + @as(usize, id) * 4);
-    if (present.* == 0) return;
+    if (pad.aiState(id) == null) return;
     const model: [*]u8 = @ptrCast(model_slot.?);
     var group: c_int = -1;
     // Uninitialised in the original when group stays -1 (a flagged model whose

@@ -4,7 +4,7 @@ const v = @import("views_2842C");
 
 /// orig: vs_field_advanceRoomEffectMotion (pc/src/game/BATTLE/BATTLE.PRG/2842C.c)
 /// Runs the mode's check on `arg0`, then returns 0 when its end condition is met, else 1.
-pub fn vs_field_advanceRoomEffectMotion(arg0: ?*v.func_80092F74_t, arg1: ?*v.func_80092F74_t2) callconv(.c) c_int {
+pub fn vs_field_advanceRoomEffectMotion(arg0: ?*v.func_80092F74_t, arg1: ?*v.vs_field_RoomEffectCommand) callconv(.c) c_int {
     var var_a0: c_int = 0;
     const new_var = arg1.?;
 

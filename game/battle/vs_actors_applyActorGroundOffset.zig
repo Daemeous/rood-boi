@@ -28,7 +28,7 @@ pub fn vs_actors_applyActorGroundOffset(actor: ?*v.D_800F4538_t) callconv(.c) vo
     a.unk0.position.vx = next.vx;
     a.unk0.position.vz = next.vz;
 
-    if ((psx.fieldAt(c_uint, &a.unk0._bits_skip, 0).* & 0x70000) != 0) {
+    if ((psx.bitsAt(c_uint, &a.unk0._bits_skip, 0).* & 0x70000) != 0) {
         c.vs_actors_updateActorJumpAndFall(@as(c_int, a.unk0.slot), @ptrCast(a));
     } else {
         const height: i16 = next.vy;

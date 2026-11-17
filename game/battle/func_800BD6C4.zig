@@ -9,7 +9,7 @@ const c = @import("c_4A0A8");
 /// Runs the camera, fade, colour or screen-effect opcode at script; returns 1 while a timed effect in progress blocks it.
 pub fn func_800BD6C4(script: [*c]u8, _: c_short) callconv(.c) c_int {
     // uninitialised in the original: the callees copy the whole struct, but only the fields written here are read.
-    var values: v.D_800F1A68_t = .{ .x = 0, .y = 0, .unk8 = 0, .unkC = 0 };
+    var values: v.vs_render_FramebufferEffectTranslation = .{ .x = 0, .y = 0, .unk8 = 0, .unkC = 0 };
     var color: v.P_CODE = .{ .r0 = 0, .g0 = 0, .b0 = 0, .code = 0 };
 
     switch (script[0]) {
@@ -26,7 +26,7 @@ pub fn func_800BD6C4(script: [*c]u8, _: c_short) callconv(.c) c_int {
             if (v.g.vs_event_camera().*.?.screenScale.durationFrames == 0) {
                 values.x = @as(c_int, script[1]) << 7;
                 values.y = @as(c_int, script[2]) << 7;
-                c.vs_render_setFramebufferEffectScale(psx.cptr(c.D_800F1A68_t, &values));
+                c.vs_render_setFramebufferEffectScale(psx.cptr(c.vs_render_FramebufferEffectTranslation, &values));
             } else {
                 v.g.vs_event_camera().*.?.screenScale.elapsedFrames = 0;
                 c.vs_render_readFramebufferEffectScale(&values.x);
@@ -65,10 +65,10 @@ pub fn func_800BD6C4(script: [*c]u8, _: c_short) callconv(.c) c_int {
             if (v.g.vs_event_camera().*.?.screenTranslation.durationFrames == 0) {
                 values.x = psx.conv(c_int, psx.conv(i8, script[1]));
                 values.y = psx.conv(c_int, psx.conv(i8, script[2]));
-                c.vs_render_setFramebufferEffectOffset(psx.cptr(c.D_800F1A68_t, &values));
+                c.vs_render_setFramebufferEffectOffset(psx.cptr(c.vs_render_FramebufferEffectTranslation, &values));
             } else {
                 v.g.vs_event_camera().*.?.screenTranslation.elapsedFrames = 0;
-                c.vs_render_readFramebufferEffectOffset(psx.cptr(c.D_800F1A68_t, &values));
+                c.vs_render_readFramebufferEffectOffset(psx.cptr(c.vs_render_FramebufferEffectTranslation, &values));
                 const st = v.g.vs_event_camera().*.?;
                 st.screenTranslation.startValue0 = psx.conv(i16, values.x);
                 st.screenTranslation.deltaValue0 = psx.conv(i16, @as(c_int, psx.conv(i8, script[1])) -% @as(c_int, st.screenTranslation.startValue0));
@@ -111,10 +111,10 @@ pub fn func_800BD6C4(script: [*c]u8, _: c_short) callconv(.c) c_int {
                 c.vs_render_setFramebufferEffectBlendMode(0);
                 values.x = 0;
                 values.y = 0;
-                c.vs_render_setFramebufferEffectOffset(psx.cptr(c.D_800F1A68_t, &values));
+                c.vs_render_setFramebufferEffectOffset(psx.cptr(c.vs_render_FramebufferEffectTranslation, &values));
                 values.x = 4096;
                 values.y = 4096;
-                c.vs_render_setFramebufferEffectScale(psx.cptr(c.D_800F1A68_t, &values));
+                c.vs_render_setFramebufferEffectScale(psx.cptr(c.vs_render_FramebufferEffectTranslation, &values));
                 color.r0 = 128;
                 color.g0 = 128;
                 color.b0 = 128;
@@ -127,10 +127,10 @@ pub fn func_800BD6C4(script: [*c]u8, _: c_short) callconv(.c) c_int {
                 c.vs_render_setFramebufferEffectBlendMode(0);
                 values.x = 0;
                 values.y = 2;
-                c.vs_render_setFramebufferEffectOffset(psx.cptr(c.D_800F1A68_t, &values));
+                c.vs_render_setFramebufferEffectOffset(psx.cptr(c.vs_render_FramebufferEffectTranslation, &values));
                 values.x = 4096;
                 values.y = 4096;
-                c.vs_render_setFramebufferEffectScale(psx.cptr(c.D_800F1A68_t, &values));
+                c.vs_render_setFramebufferEffectScale(psx.cptr(c.vs_render_FramebufferEffectTranslation, &values));
                 color.r0 = 144;
                 color.g0 = 144;
                 color.b0 = 144;

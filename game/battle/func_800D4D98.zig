@@ -3,7 +3,7 @@ const v = @import("views_5BF94");
 
 /// orig: func_800D4D98 (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// Clears D_800F522C and reports success.
-pub fn func_800D4D98(_: ?*v.D_800F53B8_t) callconv(.c) c_int {
+pub fn func_800D4D98(_: ?*v.vs_effects_EffectInstance) callconv(.c) c_int {
     v.g.D_800F522C().* = 0;
     return 1;
 }

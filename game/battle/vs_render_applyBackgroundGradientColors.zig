@@ -5,6 +5,6 @@ const c = @import("c_146C");
 
 /// orig: vs_render_applyBackgroundGradientColors (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// Passes its two arguments on to vs_render_setBackgroundGradientColors unchanged.
-pub fn vs_render_applyBackgroundGradientColors(arg0: c_int, arg1: ?*v.D_8005DC6C_t) callconv(.c) void {
+pub fn vs_render_applyBackgroundGradientColors(arg0: c_int, arg1: ?*v.vs_render_ColorRgb8) callconv(.c) void {
     c.vs_render_setBackgroundGradientColors(arg0, @ptrCast(arg1));
 }

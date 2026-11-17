@@ -97,6 +97,9 @@ class Layouts:
         for path in sorted((ROOT / "pc/build/boot64/zig").glob("views_*.json")):
             for name, t in json.load(open(path))["types"].items():
                 self.types.setdefault(name, t)
+        sys.path.insert(0, str(ROOT / "pc/tools"))
+        import zig_views
+        self.zig = zig_views.load_names()["fields"]  # (struct, DWARF field) -> the name the Zig view gives it
         self.owners = collections.defaultdict(list)  # field name -> [(struct, field)]
         for s, t in self.types.items():
             for f in t["fields"]:
@@ -127,7 +130,7 @@ class Layouts:
             fs = self.size(f["type"])
             if fs is None or not (start <= offset < start + max(fs, 1)):
                 continue
-            return self._into(f["name"], f["type"], offset - start, size)
+            return self._into(self.zig.get((struct, f["name"]), f["name"]), f["type"], offset - start, size)
         return None
 
     def _into(self, name, ty, rel, size):
@@ -231,7 +234,7 @@ def named(limit, only):
     print(f"rewrote {done} sites")
 
 
-ZIG_ERR = re.compile(r"^(game/\S+?\.zig):(\d+):(\d+): error:", re.M)
+ZIG_ERR = re.compile(r"^(game/\S+?\.zig):(\d+):(\d+): (?:error:|note: called inline here)", re.M)
 
 
 def fix(rounds=200):
@@ -303,7 +306,76 @@ def check(base_dir):
 
 # ------------------------------------------------------------------ the type oracle: the compiler says what X is
 PROBES = ROOT / "pc/build/zig_offsets_probes.tsv"  # index, file, kind, T, root expression, offset, original text
-LOG = re.compile(r'@as\(\*const \[\d+:0\]u8, "PROBE"\), (\d+), @as\(\*const \[\d+:0\]u8, "([^"]*)"\)')
+LOG = re.compile(r'@as\(\*const \[\d+:0\]u8, "PROBE"\), @as\(comptime_int, (\d+)\), @as\(\*const \[\d+:0\]u8, "([^"]*)"\)')
+
+
+def bits(limit=0):
+    """psx.fieldAt(T, &X._bits_G, off) -> psx.bitsAt(T, &X._bits_G, off) (off a literal): the same access, bounds-checked
+    against the group's bytes by the compiler. fix puts back the lines that read past the group."""
+    saved, n = [], 0
+    for f in zig_files():
+        path = ROOT / f
+        text = path.read_text()
+        edits = []
+        for start, end, kind, args in sites(text):
+            if kind == "fieldAt" and len(args) == 3 and re.fullmatch(r"&[\w.()]*\._bits_\w+", args[1]) and re.fullmatch(r"\d+", args[2]):
+                edits.append((start, start + len("psx.fieldAt")))
+        if not edits:
+            continue
+        lines = text.split("\n")
+        for s, e in edits:
+            ln = text.count("\n", 0, s)
+            saved.append((f, ln + 1, lines[ln]))
+        for s, e in sorted(edits, reverse=True):
+            text = text[:s] + "psx.bitsAt" + text[e:]
+        # the offset argument is dropped into the 3-argument form
+        text = re.sub(r"psx\.bitsAt\(([^,]+), (&[\w.()]*\._bits_\w+), (\d+)\)", r"psx.bitsAt(\1, \2, \3)", text)
+        path.write_text(text)
+        n += len(edits)
+    SAVED.parent.mkdir(parents=True, exist_ok=True)
+    SAVED.write_text("".join(f"{f}\t{l}\t{t}\n" for f, l, t in saved))
+    print(f"rewrote {n} sites")
+
+
+PAD = [
+    # const x: *T = @ptrFromInt(pad.addr(0xN));  ->  pad.at(T, 0xN)
+    (re.compile(r"(:\s*\*(?:const\s+)?)([\w.\[\]]+)(\s*=\s*)@ptrFromInt\(pad\.addr\((0x[0-9A-Fa-f]+)\)\)"),
+     lambda m: m.group(1) + m.group(2) + m.group(3) + "pad.at(" + m.group(2) + ", " + m.group(4) + ")"),
+    # x: [*]T = ...  ->  pad.many(T, 0xN)
+    (re.compile(r"(:\s*\[\*\](?:const\s+)?(?:align\(\d+\)\s+)?)([\w.]+)(\s*=\s*)@ptrFromInt\(pad\.addr\((0x[0-9A-Fa-f]+)\)\)"),
+     lambda m: m.group(1) + m.group(2) + m.group(3) + "pad.many(" + m.group(2) + ", " + m.group(4) + ")"),
+    # @as([*]const T, @ptrFromInt(pad.addr(0xN)))  ->  pad.many(T, 0xN)
+    (re.compile(r"@as\(\[\*\](?:const\s+)?(?:align\(\d+\)\s+)?([\w.]+), @ptrFromInt\(pad\.addr\((0x[0-9A-Fa-f]+)\)\)\)"),
+     lambda m: "pad.many(" + m.group(1) + ", " + m.group(2) + ")"),
+    # @as(*[3]i32, @ptrFromInt(...))  ->  pad.at([3]i32, 0xN)
+    (re.compile(r"@as\(\*(?:const\s+)?(\[\d+\][\w.]+), @ptrFromInt\(pad\.addr\((0x[0-9A-Fa-f]+)\)\)\)"),
+     lambda m: "pad.at(" + m.group(1) + ", " + m.group(2) + ")"),
+    # @as(*const T, @ptrFromInt(pad.addr(0xN)))  ->  pad.at(T, 0xN)
+    (re.compile(r"@as\(\*(?:const\s+)?([\w.]+), @ptrFromInt\(pad\.addr\((0x[0-9A-Fa-f]+)\)\)\)"),
+     lambda m: "pad.at(" + m.group(1) + ", " + m.group(2) + ")"),
+]
+
+
+def pad_mode():
+    saved, n = [], 0
+    for f in zig_files():
+        if f.endswith("game/common/pad.zig"):
+            continue
+        path = ROOT / f
+        text = path.read_text()
+        orig = text.split("\n")
+        new = text
+        for rx, fn in PAD:
+            new = rx.sub(fn, new)
+        if new != text:
+            for i, (a, b) in enumerate(zip(orig, new.split("\n"))):
+                if a != b:
+                    saved.append((f, i + 1, a))
+                    n += 1
+            path.write_text(new)
+    SAVED.parent.mkdir(parents=True, exist_ok=True)
+    SAVED.write_text("".join(f"{f}\t{l}\t{t}\n" for f, l, t in saved))
+    print(f"rewrote {n} lines")
 
 
 def probe_edit(only):
@@ -342,30 +414,87 @@ def probe_edit(only):
     print(f"{len(rows)} probes in the tree: build, then probe-read")
 
 
-def probe_read(logtext):
+def probe_apply(logfile):
+    """Take the types the probe build printed and rewrite each site whose base type is a struct of the views."""
+    subprocess.run(["git", "-C", str(ROOT), "checkout", "--", "game"], check=True)  # the probes out
     lay = Layouts()
-    types = {}
-    for m in LOG.finditer(logtext):
-        types[int(m.group(1))] = m.group(2)
-    print(f"{len(types)} types read")
-    out = []
-    for l in PROBES.read_text().split("\n"):
-        if l:
-            out.append(l.split("\t"))
-    return lay, types, out
-
+    types = {int(m.group(1)): m.group(2) for m in LOG.finditer(pathlib.Path(logfile).read_text())}
+    rows = [l.split("\t") for l in PROBES.read_text().split("\n") if l]
+    byfile = collections.defaultdict(dict)
+    for idx, f, kind, T, base, member, off in rows:
+        byfile[f][int(idx)] = (kind, T, base, member, int(off, 0))
+    done, saved = 0, []
+    idx = 0
+    for f in zig_files():
+        if f not in byfile:
+            continue
+        path = ROOT / f
+        text = path.read_text()
+        edits = []
+        for start, end, kind, args in sites(text):
+            if len(args) != 3 or args[0] not in ZIG_SIZES or not re.fullmatch(r"-?\d+|0x[0-9A-Fa-f]+", args[2]):
+                continue
+            if kind == "fieldAt" and (not args[1].startswith("&") or "_bits_" in args[1]):
+                continue
+            mine = [i for i in byfile[f] if i == idx]
+            cur = idx
+            idx += 1
+            if not mine:
+                continue
+            kind_, T, base, member, off = byfile[f][cur]
+            ty = types.get(cur)
+            if not ty or ty.startswith("?") or "[" in ty:
+                continue
+            name = ty.lstrip("*").replace("const ", "").split(".")[-1]
+            if name not in lay.types:
+                continue
+            size = ZIG_SIZES[T]
+            if kind_ == "fieldAt" and member:
+                fields = [g for g in lay.types[name]["fields"] if lay.zig.get((name, g["name"]), g["name"]) == member
+                          or g["name"] == member]
+                if len(fields) != 1 or fields[0]["bitsize"]:
+                    continue
+                target = lay.path(name, fields[0]["bitpos"] // 8 + off, size)
+            else:
+                target = lay.path(name, off, size)
+            if not target:
+                continue
+            new = base + "." + target
+            tail = text[end:end + 2]
+            edits.append((start, end + 2, new) if tail == ".*" else (start, end, "&" + new))
+        lines = text.split("\n")
+        for s, e, _ in edits:
+            ln = text.count("\n", 0, s)
+            saved.append((f, ln + 1, lines[ln]))
+        for s, e, new in sorted(edits, reverse=True):
+            text = text[:s] + new + text[e:]
+        if edits:
+            path.write_text(text)
+        done += len(edits)
+    SAVED.write_text("".join(f"{f}\t{l}\t{t}\n" for f, l, t in saved))
+    print(f"rewrote {done} sites of {len(rows)} probes")
+    return 0
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("mode", choices=["scan", "named", "fix", "check"])
+    ap.add_argument("mode", choices=["scan", "named", "fix", "check", "probe", "probe-apply", "bits", "pad"])
     ap.add_argument("--max", type=int, default=0)
     ap.add_argument("--files")
+    ap.add_argument("--log", help="probe-apply: the failed build's output")
     ap.add_argument("--base", default="/mnt/tomb-3/rood-boi/wip/t7-base/objs", help="the build before's objects (check)")
     a = ap.parse_args()
     if a.mode == "scan":
         scan()
     elif a.mode == "named":
         named(a.max, set(a.files.split(",")) if a.files else None)
+    elif a.mode == "pad":
+        pad_mode()
+    elif a.mode == "bits":
+        bits()
+    elif a.mode == "probe":
+        probe_edit(set(a.files.split(",")) if a.files else None)
+    elif a.mode == "probe-apply":
+        return probe_apply(a.log)
     elif a.mode == "check":
         return check(a.base)
     else:

@@ -359,7 +359,9 @@ typedef struct {
 static int ranges(range* out)
 {
     int n = 0;
-    out[n++] = (range) { (char*)(uintptr_t)ROOD_GUEST_RAM_BASE, ROOD_GUEST_RAM_SIZE, "ram" };
+    out[n++] = (range) { (char*)(uintptr_t)ROOD_GUEST_RAM_BASE, ROOD_PS1_RAM_SIZE, "ram" };
+    /* the game heap's arena: its used size is the original's (vs_main_initHeap's), rounded to a page */
+    out[n++] = (range) { (char*)(uintptr_t)ROOD_HEAP_BASE, (ROOD_HEAP_SIZE + 0xFFFu) & ~0xFFFu, "heap" };
     out[n++] = (range) { (char*)(uintptr_t)0x1f800000u, 0x1000, "scratch" };
     out[n++] = (range) { (char*)(uintptr_t)0x1f801000u, 0x1000, "io" };
     if (__start_rood_state_data)

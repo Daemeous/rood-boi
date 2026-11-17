@@ -117,7 +117,7 @@ typedef struct {
     char actionsLearned[32];
     char mapStatus[0x48];
     vs_main_settings_t settings;
-    D_80060068_t unk6C8;
+    vs_state_AshleySnapshot unk6C8;
     vs_main_inventory_t inventory;
     vs_main_inventoryIndices_t unk16C8;
     _mpdRoomDoorSection_t unk1778;

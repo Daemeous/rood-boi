@@ -6,7 +6,7 @@ const c = @import("c_5BF94");
 
 /// orig: vs_effects_tickParticleEmissionTrack (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// From the command's frame on: vs_effects_sampleAllEffectCurves(unk8), func_800D2ADC with the entry's fields, unk8 + 1; unkA counts down unless the script is paused (unk1 bit 0); the next command at 0.
-pub fn vs_effects_tickParticleEmissionTrack(script: ?*v.D_800F53B8_t, cmd_arg: ?*v.func_800D5780_t) callconv(.c) c_int {
+pub fn vs_effects_tickParticleEmissionTrack(script: ?*v.vs_effects_EffectInstance, cmd_arg: ?*v.func_800D5780_t) callconv(.c) c_int {
     const s = script.?;
     const cmd = cmd_arg.?;
     const e: [*]v.func_800D57FC_t = @ptrCast(psx.get(cmd.keys).?);

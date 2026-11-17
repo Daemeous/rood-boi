@@ -27,7 +27,7 @@ fn relativeSampleHeight(samples: *v.ActorCollisionSamples, sector: c_int, offset
 /// Fills the scratchpad collision samples around an actor and flags the directions it cannot step into.
 pub fn vs_field_sampleActorCollisionPerimeter(actor: ?*v.D_800F4538_t, diagonal: c_int) callconv(.c) void {
     const a = actor.?;
-    const samples: *v.ActorCollisionSamples = @ptrFromInt(pad.addr(0x3BC));
+    const samples: *v.ActorCollisionSamples = pad.at(v.ActorCollisionSamples, 0x3BC);
 
     psx.setBits(a, "unk5AC_12", 0);
     var i: c_int = 7;
@@ -35,7 +35,7 @@ pub fn vs_field_sampleActorCollisionPerimeter(actor: ?*v.D_800F4538_t, diagonal:
         samples.blocked[@intCast(i)] = 0;
     }
 
-    if ((psx.fieldAt(c_uint, &a._bits_unk5AC_0, 0).* & 0x600) != 0) {
+    if ((psx.bitsAt(c_uint, &a._bits_unk5AC_0, 0).* & 0x600) != 0) {
         i = 7;
         while (i >= 0) : (i -%= 1) {
             samples.heights[@intCast(i)] = 0;

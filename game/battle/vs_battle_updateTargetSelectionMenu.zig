@@ -254,8 +254,8 @@ fn caseNineteen(target: [*c]u8) void {
     }
     v.g.stringContext().integers[0] = @as(i32, entry.unkC);
     v.g.stringContext().integers[1] = @as(i32, entry.unkE);
-    _ = c.vs_battle_printf(@ptrCast(psx.byteAt(u8, battleState(), 0x4A54)), v.g.vs_battle_targetInfoTemplate());
-    _ = c.vs_battle_setTextBox(7, @ptrCast(psx.byteAt(u8, battleState(), 0x4A54)));
+    _ = c.vs_battle_printf(@ptrCast(&battleState().outlines[1336]), v.g.vs_battle_targetInfoTemplate());
+    _ = c.vs_battle_setTextBox(7, @ptrCast(&battleState().outlines[1336]));
 }
 
 /// orig: vs_battle_updateTargetSelectionMenu (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)

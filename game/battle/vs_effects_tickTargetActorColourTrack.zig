@@ -6,7 +6,7 @@ const c = @import("c_5BF94");
 
 /// orig: vs_effects_tickTargetActorColourTrack (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// At the command's frame: vs_render_transformActorColors for each of the request's kind-4 targets (or, with `all` 0, the script's unk24 target) whose vs_actors_actorStateFlags has bit 1; then the next command; else 1.
-pub fn vs_effects_tickTargetActorColourTrack(script_arg: ?*v.D_800F53B8_t, cmd_arg: ?*v.func_800D5780_t, all: c_int) callconv(.c) c_int {
+pub fn vs_effects_tickTargetActorColourTrack(script_arg: ?*v.vs_effects_EffectInstance, cmd_arg: ?*v.func_800D5780_t, all: c_int) callconv(.c) c_int {
     const script = script_arg.?;
     const cmd = cmd_arg.?;
     const entry: *v.func_800D6310_t = @ptrCast(psx.at(@as([*]u32, @ptrCast(psx.get(cmd.keys).?)), @as(c_int, cmd.keyIndex) *% 2));

@@ -1706,7 +1706,7 @@ static struct {
 } frame PC_HOST = { 0 };
 static const uint32_t* guest_packet(unsigned link)
 {
-    if (link < 0x200000)
+    if (link < ROOD_GUEST_RAM_SIZE)
         return (const uint32_t*)(uintptr_t)(link | ROOD_GUEST_RAM_BASE);
     if (sizeof(void*) == 4 && link >= 0x400000 && link < 0x1000000)
         return (const uint32_t*)(uintptr_t)link;
@@ -1933,6 +1933,22 @@ static int adopt_markers(const uint32_t* entry, int tail, int photo, int* front,
     pc_frame_entry_markers(entry, tail, packets, n);
     return adopt_runs(packets, n, photo, front, hidden, census_slot);
 }
+/* A packet linked into a table that is no item marker and no table terminator: a screen that still builds packets by hand. The tables are going
+ * (T4: the frame is items ordered by their slots), and a packet like this draws nothing once they have. Logged once per command and process;
+ * pc/tests/run.py and pc/tools/build_compare.py fail a suite or a lane whose game log holds the line (RAW_PACKET_LINE there). */
+static void raw_tripwire(const uint32_t* p, unsigned len)
+{
+    static unsigned char seen[256];
+    unsigned code = p[1] >> 24, k;
+    if (!len || !code || (len == 4 && p[1] == 0x80000000u && p[2] == 0) || seen[code]) /* (command 0: GP0 no-ops) */
+        return;
+    for (k = 1; k <= len && !p[k]; k++) /* (GP0 no-ops: a packet of zero words draws nothing) */
+        ;
+    if (k > len)
+        return;
+    seen[code] = 1;
+    fprintf(stderr, "[ot] a raw packet is linked in a table: %u words, command %02x (%08x %08x)\n", len, code, p[1], len > 1 ? p[2] : 0);
+}
 static void adopt(const void* head, int photo)
 {
     const uint32_t* p = head;
@@ -1955,8 +1971,10 @@ static void adopt(const void* head, int photo)
             tail_entry = NULL;
         }
         adopt_before((unsigned)((uintptr_t)p & 0xffffff), photo, &front, &hidden, &census_slot); /* (the runs placed in front of this packet) */
-        if (!is_marker) /* (an item marker reached by a link is not drawn here: where its key puts it) */
+        if (!is_marker) { /* (an item marker reached by a link is not drawn here: where its key puts it) */
             adopt_push(p, photo, &front, &hidden, &census_slot);
+            raw_tripwire(p, len);
+        }
         unsigned next = tag & 0xffffff;
         int entry = !is_marker; /* (where runs are placed: a slot of a table, or after a packet: the runs placed there follow it) */
         if (entry && pc_frame_walk_visit)

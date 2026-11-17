@@ -113,7 +113,7 @@ extern int randIndex;
  * loader's state, object slot 0 in use, D_800F1868 and the background
  * effects' ids and kinds. */
 extern u_int vs_effects_primaryPhase;
-extern D_800F53B8_t* vs_effects_secondaryInstances;
+extern vs_effects_EffectInstance* vs_effects_secondaryInstances;
 /* The chain / defence ability window of the action under way (0: none open;
  * vs_battle_armDefenseAbilityTimingWindow opens it: battleAbilityTargetWindow), for the tests. */
 /* The chain / defence input of the action under way (vs_battle_updateBattleAbilityTiming), for the

@@ -7,19 +7,19 @@ const v = @import("views_40564");
 /// orig: vs_field_isActorPositionUnoccupied (pc/src/game/BATTLE/BATTLE.PRG/40564.c)
 /// Returns 0 when another live, unexcluded actor's box around its position covers `position`, else 1.
 pub fn vs_field_isActorPositionUnoccupied(actor: ?*v.D_800F4538_t, position: ?*v.SVECTOR) callconv(.c) c_int {
-    const scratch: *v.actorCollisionExclusion = @ptrFromInt(pad.addr(0x3BC));
+    const scratch: *v.actorCollisionExclusion = pad.at(v.actorCollisionExclusion, 0x3BC);
     const a = actor.?;
     if (a.unk0.slot == 0) {
-        if ((psx.fieldAt(c_uint, &a._bits_unk5AC_0, 0).* & 0x800) != 0) return 1;
-        if ((psx.fieldAt(c_uint, &a._bits_unk5AC_0, 0).* & 0x1000) != 0) return 1;
+        if ((psx.bitsAt(c_uint, &a._bits_unk5AC_0, 0).* & 0x800) != 0) return 1;
+        if ((psx.bitsAt(c_uint, &a._bits_unk5AC_0, 0).* & 0x1000) != 0) return 1;
         var i: c_int = 2;
         while (i < 17) : (i +%= 1) {
             const other = v.g.vs_actors_actorRecords()[@intCast(i)];
             if (other == null or other.? == a) continue;
             const o = other.?;
-            const flags: c_int = @bitCast(psx.fieldAt(c_uint, &o.unk0._bits_skip, 0).*);
+            const flags: c_int = @bitCast(psx.bitsAt(c_uint, &o.unk0._bits_skip, 0).*);
             if ((flags & 1) != 0) continue;
-            if ((psx.fieldAt(c_uint, &o._bits_unk5AC_0, 0).* & 0x1000000) != 0) continue;
+            if ((psx.bitsAt(c_uint, &o._bits_unk5AC_0, 0).* & 0x1000000) != 0) continue;
             if (o.unk0.unk13 == 0xFC) continue;
             if ((flags & 0xF000000) == 0x2000000) continue;
             if (psx.byteAt(v.actorCollisionExclusion, scratch, @as(isize, i)).excluded != 0) continue;

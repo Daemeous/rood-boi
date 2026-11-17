@@ -19,7 +19,7 @@ fn parentOf(n: *v.func_800D2904_t) v.func_800FB4C0_t {
 
 /// orig: vs_effects_tickEffectParticles (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// Advances every effect node on the list: ages it, fires its tick event, counts its lifetime down and ends it.
-pub fn vs_effects_tickEffectParticles(arg0: ?*v.D_800F53B8_t) callconv(.c) c_int {
+pub fn vs_effects_tickEffectParticles(arg0: ?*v.vs_effects_EffectInstance) callconv(.c) c_int {
     const a = arg0.?;
     var next: ?*v.func_800D2904_t = psx.get(a.unk18);
 

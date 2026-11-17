@@ -5,7 +5,7 @@ const v = @import("views_4A0A8");
 
 /// orig: vs_event_nextScriptSelectedActor (pc/src/game/BATTLE/BATTLE.PRG/4A0A8.c)
 /// Pops the next byte of a counted queue, or returns 1 when the count is zero.
-pub fn vs_event_nextScriptSelectedActor(arg0: ?*v.func_800BB68C_t) callconv(.c) c_ushort {
+pub fn vs_event_nextScriptSelectedActor(arg0: ?*v.vs_event_ActorSelection) callconv(.c) c_ushort {
     const q = arg0.?;
     if (q.unk0 == 0) {
         return 1;

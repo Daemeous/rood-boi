@@ -440,7 +440,7 @@ extern void vs_battle_aiFindNearestActiveWaypoint(void*, void*);
 void vs_battle_aiSelectActionMovementMode(void* state);
 
 
-extern unsigned D_800F58B8;
+extern unsigned short (*D_800F58B8)[32];
 extern unsigned D_800F590C;
 extern int D_800F58D4;
 extern void vs_battle_aiCacheActorAiWorkingState(void); /* pc/src/actor_update.c */

@@ -19,7 +19,7 @@ typedef struct {
     _loadFileContext loadContexts[8];
     u_short slots[8];
     u_short isClut[8];
-} D_800F5638_t;
+} vs_effects_TextureLoadList;
 
 typedef struct {
     short tableCount;
@@ -78,7 +78,7 @@ extern D_800F16EC_t D_800F16EC[8];
 extern int vs_effects_curveSamples[];
 extern char vs_effects_secondaryRequest[];
 extern int vs_effects_textureLoadIndex;
-extern D_800F5638_t vs_effects_textureLoads;
+extern vs_effects_TextureLoadList vs_effects_textureLoads;
 extern u_int D_800F5680;
 extern vs_main_CdQueueSlot* vs_effects_resourceReadSlot;
 extern u_int _plgLoadState;

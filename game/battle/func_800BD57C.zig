@@ -6,7 +6,7 @@ const c = @import("c_4A0A8");
 
 /// orig: func_800BD57C (pc/src/game/BATTLE/BATTLE.PRG/4A0A8.c)
 /// While the timer's target (unkA) is positive, steps its elapsed time and sets the output from the curve.
-pub fn func_800BD57C(arg0: ?*v.func_800BD57C_t) callconv(.c) void {
+pub fn func_800BD57C(arg0: ?*v.vs_event_AngleTween) callconv(.c) void {
     const p = arg0.?;
     if (@as(c_int, p.durationFrames) > 0) {
         p.elapsedFrames = psx.conv(i16, @as(c_int, p.elapsedFrames) +% (v.g.vs_gametime_tickspeed().* >> 1));

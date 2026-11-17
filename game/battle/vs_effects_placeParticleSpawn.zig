@@ -6,7 +6,7 @@ const c = @import("c_5BF94");
 
 /// orig: vs_effects_placeParticleSpawn (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// Rotates the object's offset into its local vector when flagged, then writes its world position from the offset and the base position.
-pub fn vs_effects_placeParticleSpawn(object: ?*v.func_800FA098_arg1, out: ?*v.func_800D2904_t, rotation: *const gte.View) callconv(.c) void {
+pub fn vs_effects_placeParticleSpawn(object: ?*v.vs_effects_ParticleEmitterScratch, out: ?*v.func_800D2904_t, rotation: *const gte.View) callconv(.c) void {
     const a = object.?;
     if ((a.flags & 0x40000) != 0) {
         gte.rotateTo(&a.unk34, rotation, &a.unk2C);

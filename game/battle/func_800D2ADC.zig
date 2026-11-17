@@ -9,7 +9,7 @@ const v = @import("views_5BF94");
 const c = @import("c_5BF94");
 
 const Node = v.func_800D2904_t;
-const Scratch = v.func_800FA098_arg1;
+const Scratch = v.vs_effects_ParticleEmitterScratch;
 
 fn vp(p: *v.VECTOR) [*c]c.VECTOR {
     return psx.cptr(c.VECTOR, p);
@@ -76,7 +76,7 @@ fn rotTrans(out: [*c]c.VECTOR, view: *const gte.View, vec: *v.SVECTOR) void {
 /// and gives them angular speeds, sizes, a pivot (flags & 0x1C0), the colour
 /// curves, the transparency curve (arg2, the event's, the parent's or 4) and
 /// the blend mode (arg3, or the parent's).
-pub fn func_800D2ADC(arg0: ?*v.D_800F53B8_t, event: c_int, arg2: c_int, arg3_in: c_int, parent: ?*v.func_800FB4C0_t) callconv(.c) void {
+pub fn func_800D2ADC(arg0: ?*v.vs_effects_EffectInstance, event: c_int, arg2: c_int, arg3_in: c_int, parent: ?*v.func_800FB4C0_t) callconv(.c) void {
     const effect = arg0.?;
     var arg3 = arg3_in;
     var node: ?*Node = null;

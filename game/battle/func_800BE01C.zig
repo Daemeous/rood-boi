@@ -8,7 +8,7 @@ const c = @import("c_4A0A8");
 
 /// orig: func_800BE01C (pc/src/game/BATTLE/BATTLE.PRG/4A0A8.c)
 /// Advances the record's timer by half a tick and sets its scale and offset from its curve.
-pub fn func_800BE01C(arg0: ?*v.func_800BDF6C_t) callconv(.c) c_int {
+pub fn func_800BE01C(arg0: ?*v.vs_event_ShakeOscillator) callconv(.c) c_int {
     const e = arg0.?;
     const temp_s1: c_int = @as(c_int, e.unk4) << 12;
 
@@ -18,7 +18,7 @@ pub fn func_800BE01C(arg0: ?*v.func_800BDF6C_t) callconv(.c) c_int {
 
     if (e.unk9 < e.unk8) e.unk8 = e.unk9;
 
-    const scratch: *c_int = @ptrFromInt(pad.addr(0x88));
+    const scratch: *c_int = pad.at(c_int, 0x88);
     const unk8: c_int = e.unk8;
     const unk9: c_int = e.unk9;
 

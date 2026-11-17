@@ -42,8 +42,8 @@ pub fn blockingActor(state: *ai.vs_battle_aiState, dir: c_int) callconv(.c) c_in
     const lookup: c_int = @as(i8, @bitCast(scratch8(0x3e0 +% neighbour).*));
     var open: c_int = 1;
     if (lookup >= 0) {
-        if (psx.byteAt(u32, scratch8(0x3f4), 0).* != 0) {
-            const bitmap: [*]u8 = @ptrFromInt(psx.byteAt(u32, scratch8(0x3c4), 0).*);
+        if (pad.nav.exits != null) {
+            const bitmap: [*]u8 = pad.nav.bitmap.?;
             const index: c_int = @as(c_int, scratch8(0x3dc).*) *% tile_z +% tile_x;
             open = (@as(c_int, psx.at(bitmap, index).*) >> @truncate(@as(c_uint, @bitCast(lookup)))) & 1;
         } else {
@@ -59,12 +59,12 @@ pub fn blockingActor(state: *ai.vs_battle_aiState, dir: c_int) callconv(.c) c_in
         const id = n.id;
         if (id == state.id) continue;
         const model: [*]u8 = @ptrCast(psx.at(v.g.vs_actors_actorRecords(), id).*.?);
-        const other: *align(4) ai.vs_battle_aiState = @ptrFromInt(psx.byteAt(u32, scratch8(0x37c +% id *% 4), 0).*);
+        const other: ?*align(4) ai.vs_battle_aiState = @ptrCast(@alignCast(pad.aiState(id)));
         var position: c_uint = undefined;
         var depth: c_uint = undefined;
         if (id != 0 and model[0xa] & 0x1f != 0) {
-            position = other.unk174;
-            depth = other.unk178;
+            position = other.?.unk174;
+            depth = other.?.unk178;
         } else {
             position = psx.byteAt(u32, model, 0x1c).*;
             depth = psx.byteAt(u16, model, 0x20).*;
@@ -76,9 +76,9 @@ pub fn blockingActor(state: *ai.vs_battle_aiState, dir: c_int) callconv(.c) c_in
         if (ox <= 0) ox = -%ox;
         if (oy <= 0) oy = -%oy;
         if (oz <= 0) oz = -%oz;
-        const reach: c_int = @as(c_int, other.collisionRadius) +% other.step +% @as(c_int, @bitCast(self_size));
+        const reach: c_int = @as(c_int, other.?.collisionRadius) +% other.?.step +% @as(c_int, @bitCast(self_size));
         if (ox -% reach > 0 or oz -% reach > 0) continue;
-        if (oy -% @as(c_int, @bitCast((self_height +% @as(u16, @bitCast(other.extent))) >> 1)) > 0) continue;
+        if (oy -% @as(c_int, @bitCast((self_height +% @as(u16, @bitCast(other.?.extent))) >> 1)) > 0) continue;
         result = id +% 1;
         break;
     }

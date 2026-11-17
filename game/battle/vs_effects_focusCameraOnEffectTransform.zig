@@ -6,7 +6,7 @@ const c = @import("c_5BF94");
 
 /// orig: vs_effects_focusCameraOnEffectTransform (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// Both keyframes from the current camera, keyframe 1 looking at unk1C[index]'s translation, over `frames` (0 means 1): vs_effects_setEffectCameraTransitionMode(2).
-pub fn vs_effects_focusCameraOnEffectTransform(script: ?*v.D_800F53B8_t, index: u8, frames_arg: u8) callconv(.c) void {
+pub fn vs_effects_focusCameraOnEffectTransform(script: ?*v.vs_effects_EffectInstance, index: u8, frames_arg: u8) callconv(.c) void {
     const s = script.?;
     var frames = frames_arg;
     const keys = v.g.vs_effects_cameraMotionEnds();

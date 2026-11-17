@@ -19,7 +19,7 @@ fn setAddress(field: anytype, address: u32) void {
 pub fn func_800CF218(request_arg: ?*v.func_800CF0E8_t, arg1: c_int, arg2: c_int) callconv(.c) u8 {
     _ = arg1;
     const request = request_arg.?;
-    var spawn: v.D_800F53B8_t2 = undefined; // unk21..unk24 stay uninitialised, as in the C
+    var spawn: v.vs_effects_EffectSpawnRequest = undefined; // unk21..unk24 stay uninitialised, as in the C
     const token = psx.conv(u8, c.vs_effects_allocateEffectToken());
     const base: u32 = psx.addr(&request.unk4); // (D_800F53B8_t3*)&arg0->unk4
     setAddress(&spawn.source, base);
@@ -50,7 +50,7 @@ pub fn func_800CF218(request_arg: ?*v.func_800CF0E8_t, arg1: c_int, arg2: c_int)
         setAddress(&spawn.target, psx.addr(target));
         spawn.priority = psx.byteAt(u16, request, i * 12 + 16).*;
         const child = c.vs_effects_createSecondaryEffectInstance(@ptrCast(&spawn)).?;
-        const s: *v.D_800F53B8_t = @ptrCast(@alignCast(child));
+        const s: *v.vs_effects_EffectInstance = @ptrCast(@alignCast(child));
         s.context.unk3C = arg2;
         s.context.effectId = @bitCast(request.effectId);
         if (request.effectId == 54) {

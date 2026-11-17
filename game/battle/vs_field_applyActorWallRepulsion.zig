@@ -9,7 +9,7 @@ const v = @import("views_3A1A0");
 pub fn vs_field_applyActorWallRepulsion(actor: ?*v.D_800F4538_t, motion: ?*v.SVECTOR) callconv(.c) void {
     const a = actor.?;
     if (psx.getBits(a, "unk5AC_12") != 0) {
-        const scratch: *v.collisionResponseScratch = @ptrFromInt(pad.addr(0x3BC));
+        const scratch: *v.collisionResponseScratch = pad.at(v.collisionResponseScratch, 0x3BC);
         const contacts = &scratch.contacts;
         var x: c_int = 0;
         var z: c_int = @as(c_int, @intFromBool(contacts[0] != 0)) *% 16;

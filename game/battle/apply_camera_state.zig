@@ -16,7 +16,7 @@ fn cv(p: *v.VECTOR) [*c]c.VECTOR {
     return psx.cptr(c.VECTOR, p);
 }
 
-fn camera() *v.D_800F4BA4_t {
+fn camera() *v.vs_event_CameraState {
     return v.g.vs_event_camera().*.?;
 }
 

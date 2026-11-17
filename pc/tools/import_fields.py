@@ -47,7 +47,7 @@ anytype anyopaque anyerror noreturn true false i8 i16 i32 i64 u8 u16 u32 u64 f32
 c_short c_char main self this""".split())
 
 
-PLACEHOLDER = re.compile(r"unk[0-9A-Fa-f]+")
+PLACEHOLDER = re.compile(r"unk[0-9A-Fa-f]+(?:_\d+)?")
 
 
 def git(*args):
@@ -325,6 +325,8 @@ def main():
                     help="with --apply: rename only the declarations; --fix then finds each use by the compiler's error "
                          "(type-aware: the struct is in the message), so old names that several structs share, "
                          "even renamed differently, work")
+    ap.add_argument("--bitfields", action="store_true", help="also rename bitfield members")
+    ap.add_argument("--types", action="store_true", help="rename the struct and union names (vs_battle_ActionState) instead of members")
     ap.add_argument("--fix", action="store_true",
                     help="build (build_boot.py --arch 64) and rewrite the uses the compiler rejects, until it builds")
     ap.add_argument("--structs", help="comma list: only these structs")
@@ -334,6 +336,8 @@ def main():
 
     if args.fix:
         return run_fix()
+    if args.types:
+        return run_types(args)
     structs = our_structs()
     flat = flatten(structs)
     by_name = collections.defaultdict(list)
@@ -409,7 +413,7 @@ def main():
                 skipped.append((name, old, "not a placeholder name (already descriptive: left)", new))
             elif m.name in bad:
                 skipped.append((name, old, "type differs from the ledger's (ours " + m.type + m.dims + ", theirs " + r["type"] + ")", new))
-            elif m.bits is not None:
+            elif m.bits is not None and not args.bitfields:
                 skipped.append((name, old, "bitfield (left for its own step)", new))
             elif r["confidence"] not in args.confidence.split(","):
                 skipped.append((name, old, "confidence " + r["confidence"] + " (deferred)", new))
@@ -541,6 +545,115 @@ def finish(final, applied, mapping, headers, changed):
     (NAMES / "fields.tsv").write_text("# struct\told\tnew\tconfidence\tledger field id (pc/tools/import_fields.py)\n"
                                       + "".join("\t".join(r) + "\n" for r in rows))
     print(f"applied {len(final)} renames: {headers} headers, {changed} sources edited")
+    return 0
+
+
+# ------------------------------------------------------------------ --types: the struct and union names
+TYPE_PLACEHOLDER = re.compile(r"_?(?:D|func)_(?:80|1F80)[0-9A-Fa-f]{6}\w*")
+
+
+def type_name(final):
+    """Battle::Ai::DirectionDelta -> vs_battle_AiDirectionDelta (the global of the same leaf, vs_battle_aiDirectionDelta,
+    stays distinct by the capital)."""
+    parts = [p for p in final.split("::") if p]
+    if len(parts) < 2:
+        return None
+    rest = "".join(p[:1].upper() + p[1:] for p in parts[1:])
+    return f"vs_{parts[0].lower()}_{rest}"
+
+
+def run_types(args):
+    structs = our_structs()
+    flat = flatten(structs)
+    by_name = collections.defaultdict(list)
+    for s, path in flat:
+        if path == "":
+            for nm in s.names:
+                by_name[nm].append(s)
+    types, fields = load_ledger(args.ledgers)
+    applied_new = {}  # (struct, ledger's member name) -> the name an earlier run gave it
+    if (NAMES / "fields.tsv").exists():
+        for l in (NAMES / "fields.tsv").read_text().splitlines():
+            if l and not l.startswith("#"):
+                a = l.split("\t")
+                applied_new[(a[0], a[1])] = a[2]
+    rows = []
+    for l in (NAMES / "types.tsv").read_text().splitlines() if (NAMES / "types.tsv").exists() else []:
+        if l and not l.startswith("#"):
+            rows.append(l.split("\t"))
+    done = {r[0] for r in rows}
+    used = set(re.findall(r"\bvs_\w+", git("grep", "-h", "-o", "-E", r"\bvs_\w+", "--", ".", ":!pc/names")))
+    used |= {r[1] for r in rows}
+    skipped, cands = [], []
+    for tid, tr in sorted(types.items()):
+        if tr["kind"] not in ("struct", "union") or not TYPE_PLACEHOLDER.fullmatch(tr["name"]):
+            continue
+        name, new = tr["name"], type_name(tr["final_name"]) if tr["final_name"] else None
+        if name in done:
+            continue
+        if args.structs and name not in args.structs.split(","):
+            continue
+        ours = by_name.get(name)
+        if not ours:
+            skipped.append((name, "", "no struct of that name in our tree", new or ""))
+            continue
+        sig = {tuple((m.name, m.type, our_dims(m.dims), m.bits) for m in s.members) for s in ours}
+        s = ours[0]
+        rowsf = fields.get(tid, [])
+        if len(sig) > 1 or not s.ok or any(m.name is None for m in s.members):
+            skipped.append((name, "", "defined differently or unreadable", new or ""))
+        elif len(s.members) != len(rowsf) or any(
+                m.name != r["name"] and applied_new.get((name, r["name"])) != m.name for m, r in zip(s.members, rowsf)):
+            skipped.append((name, "", "members differ from the ledger's", new or ""))
+        elif tr["confidence"] not in args.confidence.split(","):
+            skipped.append((name, "", "confidence " + tr["confidence"] + " (deferred)", new or ""))
+        elif not new or not re.fullmatch(r"vs_[a-z0-9]+_[A-Z][A-Za-z0-9]*", new):
+            skipped.append((name, "", "no usable name", tr["final_name"]))
+        elif new in used:
+            skipped.append((name, "", "name already in use", new))
+        else:
+            cands.append((name, new, tr["confidence"], tid))
+    # one new name for several old names, or one old name with several: drop
+    cnt = collections.Counter(c[1] for c in cands)
+    cands = [c for c in cands if cnt[c[1]] == 1]
+    present = collections.Counter()
+    texts = {}
+    for f in git("ls-files", *USE_TREES).splitlines():
+        if f.startswith(("pc/docs/plans/", "pc/docs/porting/reviews/", "pc/names/", "pc/assets/", "pc/build/", "pc/third_party/",
+                         "pc/src/third_party/", "pc/shaders/")) or f.endswith(".json"):
+            continue
+        try:
+            texts[f] = (ROOT / f).read_text()
+        except (UnicodeDecodeError, OSError):
+            continue
+    sel = []
+    for name, new, conf, tid in cands:
+        if any(re.search(r"(?<![A-Za-z0-9_])" + re.escape(name) + r"(?![A-Za-z0-9_])", x) for x in texts.values()):
+            sel.append((name, new, conf, tid))
+        else:
+            skipped.append((name, "", "not in our code", new))
+    if args.max:
+        sel = sel[:args.max]
+    print(f"types: {len(sel)} selected; skipped {len(skipped)}")
+    (NAMES / "types_skipped.tsv").write_text("# type\t\treason\tdetail (import_fields.py --types)\n"
+                                           + "".join("\t".join(s) + "\n" for s in sorted(skipped)))
+    if not args.apply:
+        for c in sel[:20]:
+            print("  ", *c)
+        return 0
+    mapping = {c[0]: c[1] for c in sel}
+    pat = re.compile(r"(?<![A-Za-z0-9_])(" + "|".join(re.escape(o) for o in sorted(mapping, key=len, reverse=True)) + r")(?![A-Za-z0-9_])")
+    changed = 0
+    for f, x in texts.items():
+        n = pat.sub(lambda m: mapping[m.group(1)], x)
+        if n != x:
+            (ROOT / f).write_text(n)
+            changed += 1
+    allrows = rows + [[c[0], c[1], c[2], c[3]] for c in sel]
+    allrows.sort()
+    (NAMES / "types.tsv").write_text("# old\tnew\tconfidence\tledger type id (pc/tools/import_fields.py --types)\n"
+                                    + "".join("\t".join(r) + "\n" for r in allrows))
+    print(f"renamed {len(sel)} types in {changed} files")
     return 0
 
 

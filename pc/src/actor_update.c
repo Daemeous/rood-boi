@@ -4,7 +4,10 @@
 #include "game/BATTLE/BATTLE.PRG/ai_state.h"
 extern unsigned char* vs_battle_aiActorAiStates[];
 extern D_800F58BC_t* vs_battle_aiRoomAiState;
-extern unsigned D_800F58D0, D_800F58B8, D_800F58CC, D_800F58C0, vs_battle_aiSavedMovementRandomState;
+extern unsigned short (*D_800F58D0)[32];
+extern unsigned short (*D_800F58B8)[32];
+extern unsigned char *D_800F58CC, *D_800F58C0;
+extern unsigned vs_battle_aiSavedMovementRandomState;
 extern unsigned D_800F16E0, D_800F16E4, D_800F16E8, D_800F16EC, D_800F16F0;
 extern void pc_unimplemented(const char*);
 extern int vs_core_elapsedFrameCounterTicks(void);
@@ -25,11 +28,11 @@ extern void pc_route_continuation(void*, unsigned); /* battle_movement.c */
 void pc_actor_scratch(unsigned* scratch)
 {
     for (int i = 16; i >= 0; --i)
-        scratch[(0x37c / 4) + i] = psx_to_int(unsigned, vs_battle_aiActorAiStates[i]);
-    scratch[0x3bc / 4] = D_800F58D0;
-    scratch[0x3c0 / 4] = D_800F58B8;
-    scratch[0x3c4 / 4] = D_800F58CC;
-    scratch[0x3f4 / 4] = D_800F58C0;
+        vs_nav.aiStates[i] = vs_battle_aiActorAiStates[i];
+    vs_nav.floors = D_800F58D0;
+    vs_nav.cells = D_800F58B8;
+    vs_nav.bitmap = D_800F58CC;
+    vs_nav.exits = D_800F58C0;
     scratch[0x3f8 / 4] = vs_battle_aiSavedMovementRandomState;
     scratch[0x3e0 / 4] = D_800F16E0;
     scratch[0x3e4 / 4] = D_800F16E4;

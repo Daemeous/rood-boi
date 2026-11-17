@@ -9,7 +9,7 @@ const c = @import("c_2842C");
 /// orig: vs_field_updateRoomEffects (pc/src/game/BATTLE/BATTLE.PRG/2842C.c)
 /// Runs the kind-dispatched handlers of the first entries, then the timed steps of the next ones, freeing those that finish.
 pub fn vs_field_updateRoomEffects() callconv(.c) void {
-    const Handler = *const fn (?*v.D_800F1DD8_t2) callconv(.c) c_int;
+    const Handler = *const fn (?*v.vs_field_SwingEffectRecord) callconv(.c) c_int;
 
     var i: c_int = 0;
     while (i < @as(c_int, v.g.vs_field_textureEffectCount().*)) : (i +%= 1) {

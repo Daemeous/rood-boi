@@ -5,7 +5,7 @@ const v = @import("views_2842C");
 
 /// orig: vs_field_updateRoomRotationEffect (pc/src/game/BATTLE/BATTLE.PRG/2842C.c)
 /// Steps a swinging angle channel, writes its angle into the room geometry, and returns 1 while it still swings.
-pub fn vs_field_updateRoomRotationEffect(arg0: ?*v.D_800F1DD8_t2) callconv(.c) c_int {
+pub fn vs_field_updateRoomRotationEffect(arg0: ?*v.vs_field_SwingEffectRecord) callconv(.c) c_int {
     const base: ?*i32 = psx.get(v.g.vs_battle_roomData().geometrySection);
     const s = arg0.?;
     var ret: c_int = 1;

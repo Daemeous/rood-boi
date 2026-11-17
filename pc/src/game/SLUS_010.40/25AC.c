@@ -63,7 +63,7 @@ typedef struct {
     int unkC;
     int extParam1;
     int extParam2;
-} D_800378C0_t;
+} vs_audio_CommandArguments;
 
 // Streaming state for vs_audio_samplesUploadBankChunk (instrument bank uploaded in chunks)
 typedef struct {
@@ -71,7 +71,7 @@ typedef struct {
     int SpuAddr; // next SPU transfer address; 0 = start a new stream
     u_int SpuBytesRemaining;
     u_int InstrumentBytesRemaining;
-} D_80039BC8_t;
+} vs_audio_BankStreamState;
 
 #define AKAO_MAGIC 0x4F414B41 // 'AKAO'
 
@@ -133,7 +133,7 @@ extern u_int* g_Sound_SfxProgramOffsets;
 extern u_short* g_Sound_SfxMetadataTable;
 extern char* g_Sound_SfxProgramData;
 extern int D_800378A0;
-D_800378C0_t vs_audio_driverCommandArguments;
+vs_audio_CommandArguments vs_audio_driverCommandArguments;
 extern int vs_audio_mixerMutedMusicChannels;
 extern char _spuMemInfo;
 extern volatile int _isSpuTransfer;
@@ -158,7 +158,7 @@ extern int D_8003789C;
 extern int D_80039B00;
 extern u_int vs_audio_seqSemitonePitches[];
 extern int vs_audio_samplesBankStreamDestination;
-D_80039BC8_t vs_audio_samplesBankStream;
+vs_audio_BankStreamState vs_audio_samplesBankStream;
 extern int D_80037850[16];
 extern FSoundCommandParams D_80037790;
 extern FSoundCommandHandler vs_audio_mixerCommandHandlers[];

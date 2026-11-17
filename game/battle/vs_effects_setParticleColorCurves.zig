@@ -6,7 +6,7 @@ const c = @import("c_5BF94");
 
 /// orig: vs_effects_setParticleColorCurves (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// Reads three curve bytes and stores the packed R, G and B curves in the block-5 entry they select.
-pub fn vs_effects_setParticleColorCurves(arg0: ?*v.D_800F53B8_t) callconv(.c) c_int {
+pub fn vs_effects_setParticleColorCurves(arg0: ?*v.vs_effects_EffectInstance) callconv(.c) c_int {
     const first = c.vs_effects_readScriptByte(@ptrCast(arg0));
     const second = c.vs_effects_readScriptByte(@ptrCast(arg0));
     const third = c.vs_effects_readScriptByte(@ptrCast(arg0));

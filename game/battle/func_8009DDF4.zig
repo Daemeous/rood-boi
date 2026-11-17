@@ -9,7 +9,7 @@ pub fn func_8009DDF4(arg0: c_int, arg1: ?*v.SVECTOR) callconv(.c) void {
     // ROOD_PC: an empty actor slot reads through NULL, which maps to PS1 address 0 at 0x80000000.
     const slot = psx.at(v.g.vs_actors_actorRecords(), arg0).*;
     const temp: *align(1) v.D_800F4538_t = if (slot) |p| p else psx.lowRam(v.D_800F4538_t);
-    const hdr: *align(1) v.D_800F4538_unk0 = &temp.unk0;
+    const hdr: *align(1) v.vs_actors_ModelInstance = &temp.unk0;
 
     if (psx.getBits(hdr, "weaponDrawn") != 0 and
         (hdr.slot == 0 or

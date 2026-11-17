@@ -8,17 +8,14 @@ const c = @import("c_771A8");
 
 /// Direction table in the scratchpad (OBSTRUCTION_DIRECTIONS).
 fn dirEntry(direction: c_int) *align(1) v.D_800F16EC_t {
-    const table: [*]align(1) v.D_800F16EC_t = @ptrFromInt(pad.addr(0x3EC));
+    const table: [*]align(1) v.D_800F16EC_t = pad.many(v.D_800F16EC_t, 0x3EC);
     return psx.at(table, direction);
 }
 
 /// Per-state word in the scratchpad table at 0x1F80037C (OBSTRUCTION_STATES).
 fn scratchState(id: i32) *align(1) v.vs_battle_aiState {
     // 4 * id wraps in int, then sign-extends to the target's address width.
-    const off: isize = @as(c_int, 4) *% id;
-    const addr: usize = @as(usize, pad.addr(0x37C)) +% @as(usize, @bitCast(off));
-    const word = @as(*const u32, @ptrFromInt(addr)).*;
-    return @ptrFromInt(@as(usize, word));
+    return @ptrCast(@alignCast(pad.aiState(id)));
 }
 
 /// True when the point (dx, dz) lies behind the direction's travel.
@@ -44,7 +41,7 @@ fn markTested(cache: *v.obstructionCache, direction: c_int) void {
 /// orig: vs_battle_aiFlightDirectionObstruction (pc/src/game/BATTLE/BATTLE.PRG/771A8.c)
 /// Tests whether a move of `state` in `direction` (`ahead` steps) is blocked by a point or an actor, caching the answer per direction.
 pub fn vs_battle_aiFlightDirectionObstruction(state: ?*v.vs_battle_aiState, direction: c_int, ahead: c_int) callconv(.c) c_int {
-    const cache: *v.obstructionCache = @ptrFromInt(pad.addr(0x3D0));
+    const cache: *v.obstructionCache = pad.at(v.obstructionCache, 0x3D0);
     // Shift count is the low 5 bits (x86 masks it); direction is not range-checked by the C.
     const shift: u5 = psx.conv(u5, direction);
     if (((@as(c_int, cache.tested) >> shift) & 1) != 0)

@@ -28,7 +28,7 @@ fn directionDz(packed_direction: c_int) c_int {
 /// returned unchanged. As in the original, the flagged-cell walk continues
 /// past the step limit while byte 0xB2 is nonzero.
 pub fn resolveFlaggedCell(state: *ai.vs_battle_aiState, tile_in: c_uint, dir: c_int, from: c_uint) callconv(.c) c_uint {
-    const cells: usize = psx.byteAt(u32, scratch8(0x3c0), 0).*;
+    const cells: usize = @intFromPtr(pad.nav.cells.?);
     var tile = tile_in & 0xffffff;
     var x: c_int = @intCast(tile & 0xff);
     var z: c_int = @intCast(tile >> 16);

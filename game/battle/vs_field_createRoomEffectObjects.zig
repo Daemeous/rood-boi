@@ -6,7 +6,7 @@ const c = @import("c_2842C");
 
 /// orig: vs_field_createRoomEffectObjects (pc/src/game/BATTLE/BATTLE.PRG/2842C.c)
 /// Allocates one entry per script id in `arg0`'s block, fills each from its id's record and points the block at the table.
-pub fn vs_field_createRoomEffectObjects(arg0: ?*v.D_800F1DD8_t) callconv(.c) void {
+pub fn vs_field_createRoomEffectObjects(arg0: ?*v.vs_field_RoomEffectInstance) callconv(.c) void {
     const a = arg0.?;
     const count: c_int = a.unk1;
 
@@ -16,7 +16,7 @@ pub fn vs_field_createRoomEffectObjects(arg0: ?*v.D_800F1DD8_t) callconv(.c) voi
 
     // The id block's address is read before the field is overwritten with the table.
     var ids: usize = @intFromPtr(psx.get(a.unk4));
-    psx.put(&a.unk4, @as(?*v.D_800F1DD8_t2, @ptrCast(elem_base)));
+    psx.put(&a.unk4, @as(?*v.vs_field_SwingEffectRecord, @ptrCast(elem_base)));
     ids +%= 4;
 
     var script: usize = ids +% @as(usize, a.unk1);

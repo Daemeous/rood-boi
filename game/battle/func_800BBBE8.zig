@@ -5,7 +5,7 @@ const v = @import("views_4A0A8");
 const c = @import("c_4A0A8");
 
 /// The camera block allocated by func_800BBBE8, re-read at each store as the C does.
-fn cam() *v.D_800F4BA4_t {
+fn cam() *v.vs_event_CameraState {
     return v.g.vs_event_camera().*.?;
 }
 
@@ -23,7 +23,7 @@ pub fn func_800BBBE8() callconv(.c) void {
     var sp20: v.VECTOR = undefined;
     var sp30: v.VECTOR = undefined;
 
-    psx.put(v.g.vs_event_camera(), c.vs_main_allocHeapR(@as(c_uint, @sizeOf(v.D_800F4BA4_t))));
+    psx.put(v.g.vs_event_camera(), c.vs_main_allocHeapR(@as(c_uint, @sizeOf(v.vs_event_CameraState))));
     v.g.vs_event_skipNextFieldCameraRestore().* = 0;
 
     c.vs_battle_getCameraPosition(psx.cptr(c.VECTOR, &sp20));
@@ -54,7 +54,7 @@ pub fn func_800BBBE8() callconv(.c) void {
     cam().screenScale.currentValue1 = 4096;
     cam().screenScale.currentValue0 = 4096;
 
-    c.vs_render_setFramebufferEffectScale(psx.cptr(c.D_800F1A68_t, v.g.D_800E9C0C()));
+    c.vs_render_setFramebufferEffectScale(psx.cptr(c.vs_render_FramebufferEffectTranslation, v.g.D_800E9C0C()));
 
     cam().screenTint.currentValue0 = 0;
     cam().screenTint.currentValue1 = 0;
@@ -67,7 +67,7 @@ pub fn func_800BBBE8() callconv(.c) void {
     cam().screenTranslation.currentValue1 = 4096;
     cam().screenTranslation.currentValue0 = 4096;
 
-    c.vs_render_setFramebufferEffectOffset(psx.cptr(c.D_800F1A68_t, v.g.D_800E9C0C()));
+    c.vs_render_setFramebufferEffectOffset(psx.cptr(c.vs_render_FramebufferEffectTranslation, v.g.D_800E9C0C()));
 
     cam().screenTranslation.durationFrames = 0;
 

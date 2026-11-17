@@ -6,7 +6,7 @@ const c = @import("c_146C");
 
 /// orig: vs_field_transitionDoorsAtTile (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// Fills vs_field_matchingDoorRecords with the room's door sections matching arg0/arg1/arg2 and returns it, or null when the room has no door section.
-pub fn vs_field_transitionDoorsAtTile(arg0: c_int, arg1: c_int, arg2: c_int) callconv(.c) ?*v.D_800F1D08_t {
+pub fn vs_field_transitionDoorsAtTile(arg0: c_int, arg1: c_int, arg2: c_int) callconv(.c) ?*v.vs_field_DoorMatchList {
     const room = v.g.vs_battle_roomData();
     const first = psx.get(room.doorSection) orelse return null;
 

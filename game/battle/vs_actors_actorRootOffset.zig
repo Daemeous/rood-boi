@@ -8,7 +8,7 @@ const c = @import("c_44F14");
 /// Sets the scale defaults, derives the scratchpad offset from the actor's extents and scale, and copies its rotation.
 pub fn vs_actors_actorRootOffset(actor: ?*v.D_800F4538_t) callconv(.c) void {
     const a = actor.?;
-    const scratch: *v.actorTransformScratch = @ptrFromInt(pad.addr(0x35C));
+    const scratch: *v.actorTransformScratch = pad.at(v.actorTransformScratch, 0x35C);
 
     v.g.D_800F2458().scales[0] = 64;
     v.g.D_800F2458().scales[1] = 64;

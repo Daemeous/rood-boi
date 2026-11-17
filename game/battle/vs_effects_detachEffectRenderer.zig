@@ -7,7 +7,7 @@ const c = @import("c_5BF94");
 
 /// orig: vs_effects_detachEffectRenderer (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// Frees the node's unk8 block, unlinks the node from the list and frees the node.
-pub fn vs_effects_detachEffectRenderer(arg0: ?*v.D_800F53B8_t, arg1: ?*v.func_800D4910_t) callconv(.c) void {
+pub fn vs_effects_detachEffectRenderer(arg0: ?*v.vs_effects_EffectInstance, arg1: ?*v.func_800D4910_t) callconv(.c) void {
     const owner = arg0.?;
     const node = arg1.?;
 

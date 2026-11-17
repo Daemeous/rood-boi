@@ -24,7 +24,7 @@ fn vectorMagnitude(arg0: *v.VECTOR) c_int {
 
 /// orig: func_800BE53C (pc/src/game/BATTLE/BATTLE.PRG/4A0A8.c)
 /// Sets the move's duration in proportion to the distance from its current point to its position.
-pub fn func_800BE53C(arg0: ?*v.D_800F4BA4_t2) callconv(.c) void {
+pub fn func_800BE53C(arg0: ?*v.vs_event_CameraTrack) callconv(.c) void {
     const a = arg0.?;
     var sp10: v.VECTOR = undefined;
     _ = c._vectorSubtract(psx.cptr(c.VECTOR, &sp10), psx.cptr(c.VECTOR, &a.current), psx.cptr(c.VECTOR, &a.position));

@@ -18,14 +18,13 @@ typedef struct {
     u_short tpage, clut;
     char pad38[0x14];
     SVECTOR translation, position;
-    psx_ptr(MATRIX) parent;
-    int pad60;
+    MATRIX* parent __attribute__((packed, aligned(4)));  /* a real pointer in the old parent and pad60 slots */
     MATRIX matrix;
     SVECTOR rotation;
     VECTOR scale;
-    psx_ptr(char) model;
+    char* model __attribute__((packed, aligned(4)));  /* and in the tail padding: the overlay keeps its offsets */
 } weaponTransformScratch;
-PSX_ASSERT_SIZE(weaponTransformScratch, 0xa0);
+PSX_ASSERT_SIZE(weaponTransformScratch, 0xa4);
 extern MATRIX vs_actors_skeletonPose[];
 extern MATRIX D_800F3C78;
 void vs_core_mathBuildEulerRotationMatrixQuadrant(SVECTOR*, MATRIX*);

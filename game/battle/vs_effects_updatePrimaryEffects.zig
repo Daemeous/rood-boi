@@ -6,7 +6,7 @@ const c = @import("c_5BF94");
 /// orig: vs_effects_updatePrimaryEffects (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// Runs one step of the battle load state machine; returns 1 while it is still busy, 0 when done.
 pub fn vs_effects_updatePrimaryEffects() callconv(.c) c_int {
-    var var_s0: ?*v.D_800F53B8_t = v.g.vs_effects_primaryInstances().*;
+    var var_s0: ?*v.vs_effects_EffectInstance = v.g.vs_effects_primaryInstances().*;
     var var_s2: c_int = 1;
 
     sw: switch (v.g.vs_effects_primaryPhase().*) {

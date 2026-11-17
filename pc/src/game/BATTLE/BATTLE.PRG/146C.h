@@ -607,7 +607,7 @@ typedef struct vs_battle_actor {
     int unk38;
     vs_battle_actor2* unk3C;
     int unk40;
-    D_800F4538_unk0* unk44;
+    vs_actors_ModelInstance* unk44;
     vs_battle_actor4* unk48[2];
 } vs_battle_actor;
 
@@ -616,7 +616,7 @@ typedef struct {
         vs_battle_actor unk0;
         vs_battle_actor2 unk50;
     } unk0;
-    D_800F4538_unk0 model;
+    vs_actors_ModelInstance model;
     MATRIX unk6C[8];
     int unk16C;
     int unk170;
@@ -719,7 +719,7 @@ typedef struct {
     int y;
     int unk8;
     int unkC;
-} D_800F1A68_t;
+} vs_render_FramebufferEffectTranslation;
 
 typedef struct {
     int yaw;
@@ -1010,9 +1010,9 @@ void vs_battle_setCameraLookAt(VECTOR* inLookAt);
 void vs_battle_setNearClip(int arg0);
 void vs_render_setFramebufferEffectEnabled(int);
 void vs_render_setFramebufferEffectRoll(int arg0);
-void vs_render_setFramebufferEffectScale(D_800F1A68_t* arg0);
+void vs_render_setFramebufferEffectScale(vs_render_FramebufferEffectTranslation* arg0);
 void vs_render_setFramebufferEffectTint(P_CODE* arg0);
-void vs_render_setFramebufferEffectOffset(D_800F1A68_t* arg0);
+void vs_render_setFramebufferEffectOffset(vs_render_FramebufferEffectTranslation* arg0);
 void vs_render_setFramebufferEffectBlendMode(int arg0);
 void vs_render_setFramebufferEffectDepth(u_int arg0);
 void vs_render_setFramebufferEffectPreviousFrame(int arg0);

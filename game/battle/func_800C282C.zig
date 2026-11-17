@@ -9,7 +9,7 @@ const c = @import("c_58578");
 /// Syncs the camera angles, writes the yaw's rotation matrix terms to the scratchpad, stores the yaw in vs_battle_targetSphere and returns the scratchpad block.
 pub fn func_800C282C() callconv(.c) ?*anyopaque {
     var camera: v._sphericalCamera = undefined;
-    const p: [*]i16 = @ptrFromInt(pad.addr(0x350));
+    const p: [*]i16 = pad.many(i16, 0x350);
     _ = c.vs_battle_syncCameraAnglesFromPosition(psx.cptr(c._sphericalCamera, &camera));
     const yaw: c_int = camera.values.yaw;
     const cosYaw: c_int = c.rcos(yaw);

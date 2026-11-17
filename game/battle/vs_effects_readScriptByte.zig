@@ -5,7 +5,7 @@ const v = @import("views_5BF94");
 
 /// orig: vs_effects_readScriptByte (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// Returns the script byte at the cursor unkA and advances the cursor (a u16: it wraps).
-pub fn vs_effects_readScriptByte(script: ?*v.D_800F53B8_t) callconv(.c) u8 {
+pub fn vs_effects_readScriptByte(script: ?*v.vs_effects_EffectInstance) callconv(.c) u8 {
     const s = script.?;
     const cursor = s.cursor;
     s.cursor = cursor +% 1;

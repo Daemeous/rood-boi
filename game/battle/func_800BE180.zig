@@ -9,7 +9,7 @@ const c = @import("c_4A0A8");
 /// orig: func_800BE180 (pc/src/game/BATTLE/BATTLE.PRG/4A0A8.c)
 /// Sums the active camera shake entries into the scratchpad vectors and publishes the result in the camera block.
 pub fn func_800BE180() callconv(.c) void {
-    const shake: *v.cameraShakeScratch = @ptrFromInt(pad.addr(0x88));
+    const shake: *v.cameraShakeScratch = pad.at(v.cameraShakeScratch, 0x88);
     shake.b.vz = 0;
     shake.b.vy = 0;
     shake.b.vx = 0;
@@ -17,17 +17,17 @@ pub fn func_800BE180() callconv(.c) void {
     shake.a.vy = 0;
     shake.a.vx = 0;
 
-    const base: *v.D_800F4BA4_t = v.g.vs_event_camera().*.?;
+    const base: *v.vs_event_CameraState = v.g.vs_event_camera().*.?;
 
     var count: i16 = 0;
     var i: i16 = 0;
-    var entry: *v.func_800BDF6C_t = @ptrCast(&base.unk1A4.displacement);
+    var entry: *v.vs_event_ShakeOscillator = @ptrCast(&base.unk1A4.displacement);
 
     while (i < 2) : ({
-        entry = @ptrFromInt(@intFromPtr(entry) +% @sizeOf(v.func_800BDF6C_t));
+        entry = @ptrFromInt(@intFromPtr(entry) +% @sizeOf(v.vs_event_ShakeOscillator));
         i +%= 1;
     }) {
-        if (c.func_800BE01C(psx.cptr(c.func_800BDF6C_t, entry)) != 0) {
+        if (c.func_800BE01C(psx.cptr(c.vs_event_ShakeOscillator, entry)) != 0) {
             const unkA: c_int = entry.axisMask;
             const x: c_int = @as(c_int, entry.displacement) *% (((unkA >> 2) & 3) -% 1);
             const y: c_int = @as(c_int, entry.displacement) *% (((unkA >> 4) & 3) -% 1);
@@ -53,8 +53,8 @@ pub fn func_800BE180() callconv(.c) void {
 
     base.unk1A4.unk0.s16 = count;
     if (count != 0) {
-        const a: *v.SVECTOR = @ptrFromInt(pad.addr(0xD8));
-        const b: *v.SVECTOR = @ptrFromInt(pad.addr(0xE0));
+        const a: *v.SVECTOR = pad.at(v.SVECTOR, 0xD8);
+        const b: *v.SVECTOR = pad.at(v.SVECTOR, 0xE0);
         base.shakeEyeOffsetX = a.vx;
         base.unk1C0 = a.vy;
         base.unk1C2 = a.vz;

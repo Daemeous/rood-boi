@@ -5,7 +5,7 @@ const v = @import("views_2842C");
 
 /// orig: vs_field_executeRoomEffectCommands (pc/src/game/BATTLE/BATTLE.PRG/2842C.c)
 /// Runs each of the arg1 entries' command scripts until it ends; returns nonzero unless every entry is idle.
-pub fn vs_field_executeRoomEffectCommands(arg0: ?*v.func_80092F74_t, arg1: c_int, _: ?*v.D_800F1DD8_t) callconv(.c) c_int {
+pub fn vs_field_executeRoomEffectCommands(arg0: ?*v.func_80092F74_t, arg1: c_int, _: ?*v.vs_field_RoomEffectInstance) callconv(.c) c_int {
     const Handler = *const fn (?*anyopaque, ?*anyopaque) callconv(.c) c_int;
 
     var idle: c_int = 0;
@@ -15,7 +15,7 @@ pub fn vs_field_executeRoomEffectCommands(arg0: ?*v.func_80092F74_t, arg1: c_int
         const entry = &entries[@intCast(i)];
         if (psx.get(entry.unk4) != null) {
             while (true) {
-                const cmd: *align(1) v.func_80092B04_t2 = @ptrCast(psx.get(entry.unk4).?);
+                const cmd: *align(1) v.vs_field_RoomEffectCommandHeader = @ptrCast(psx.get(entry.unk4).?);
                 if (cmd.unk0 != 0 and cmd.unk2 < 0xD) {
                     const flagged = v.g.vs_main_stateFlags().unkA8 != 0;
                     if (flagged) {

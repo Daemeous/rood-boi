@@ -38,7 +38,7 @@ pub fn vs_field_restoreRoomEnemyCache() callconv(.c) void {
             }
         }
         v.g.vs_state_currentRoomStateSlot().* = i;
-        c.vs_main_bzero(&records[@intCast(i)], @as(c_int, @sizeOf(v.D_80061078_t)));
+        c.vs_main_bzero(&records[@intCast(i)], @as(c_int, @sizeOf(v.vs_state_RoomEnemyStates)));
     }
 
     i = 0;

@@ -16,9 +16,9 @@ fn setAddress(field: anytype, address: u32) void {
 
 /// orig: func_800D4778 (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// vs_effects_createPrimaryEffectInstance on a spawn record of the script's byte pointer, its next halfword and its unkD1C block; returns 1.
-pub fn func_800D4778(script: ?*v.D_800F53B8_t) callconv(.c) c_int {
+pub fn func_800D4778(script: ?*v.vs_effects_EffectInstance) callconv(.c) c_int {
     const s = script.?;
-    var spawn: v.D_800F53B8_t2 = undefined; // the C leaves the other fields uninitialised
+    var spawn: v.vs_effects_EffectSpawnRequest = undefined; // the C leaves the other fields uninitialised
     setAddress(&spawn.script, psx.rawOf(s.unkC));
     spawn.scriptOffset = c.vs_effects_readScriptHalfword(@ptrCast(s));
     psx.put(&spawn.source, &s.context);

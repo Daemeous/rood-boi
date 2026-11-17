@@ -49,7 +49,13 @@
  * address is written. A guest pointer's 32-bit word is an address in it (or
  * in the first 4 GB of the host for natively placed objects). */
 #define ROOD_GUEST_RAM_BASE 0x80000000
-#define ROOD_GUEST_RAM_SIZE 0x200000
+#define ROOD_PS1_RAM_SIZE 0x200000
+/* The mapped window the game's 24-bit ordering-table links and range checks cover: the PS1's 2 MB, then the game heap's
+ * arena (ROOD_HEAP_BASE), which left the 2 MB block (memory lane S4) and may grow into the rest. Pages nobody
+ * touches cost nothing. */
+#define ROOD_GUEST_RAM_SIZE 0x1000000
+#define ROOD_HEAP_BASE 0x80200000
+#define ROOD_HEAP_SIZE 0xF2000 /* the original's, VS_MAIN_HEAP_SIZE: the snapshot saves this much of the arena */
 
 #if defined(ROOD_PC_LP64) /* only the PC passes it */
 

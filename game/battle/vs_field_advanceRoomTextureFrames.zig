@@ -6,7 +6,7 @@ const v = @import("views_2842C");
 
 /// orig: vs_field_advanceRoomTextureFrames (pc/src/game/BATTLE/BATTLE.PRG/2842C.c)
 /// Steps an animated quad's tick and frame and writes its frame's UVs into the room geometry.
-pub fn vs_field_advanceRoomTextureFrames(arg0: ?*v.func_80091C6C_t) callconv(.c) c_int {
+pub fn vs_field_advanceRoomTextureFrames(arg0: ?*v.vs_field_TextureFrameEffect) callconv(.c) c_int {
     const anim = arg0.?;
     const base = psx.get(v.g.vs_battle_roomData().geometrySection).?;
 

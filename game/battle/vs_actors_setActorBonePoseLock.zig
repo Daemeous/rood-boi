@@ -11,7 +11,7 @@ pub fn vs_actors_setActorBonePoseLock(arg0: ?*v.D_800F4538_t, arg1: c_int, arg2:
     // &psx_get(unk68)->armatures[arg1]: an address only, the C dereferences it when it writes.
     // A null base stays 0, so the offset is the address the C computes.
     const base_addr: usize = if (psx.get(self.unk0.model)) |p| @intFromPtr(p) else 0;
-    const off: isize = @as(isize, @offsetOf(v.D_800F4538_unk68, "armatures")) +% @as(isize, arg1) *% @sizeOf(v._armature_t);
+    const off: isize = @as(isize, @offsetOf(v.vs_actors_ShpModel, "armatures")) +% @as(isize, arg1) *% @sizeOf(v._armature_t);
     const temp_s2: *align(1) v._armature_t = @ptrFromInt(base_addr +% @as(usize, @bitCast(off)));
 
     var i: c_int = 0;

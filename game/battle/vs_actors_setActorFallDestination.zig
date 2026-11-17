@@ -4,7 +4,7 @@ const v = @import("views_3A1A0");
 
 /// orig: vs_actors_setActorFallDestination (pc/src/game/BATTLE/BATTLE.PRG/3A1A0.c)
 /// Sets the actor's secondary position to its position moved by 63 on each axis, negated where the input's component is negative.
-pub fn vs_actors_setActorFallDestination(arg0: ?*v.D_800F4538_t, arg1: ?*v.func_800A3054_t) callconv(.c) void {
+pub fn vs_actors_setActorFallDestination(arg0: ?*v.D_800F4538_t, arg1: ?*v.vs_actors_FallDirection) callconv(.c) void {
     const actor = arg0.?;
     const offsets = arg1.?;
 

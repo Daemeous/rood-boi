@@ -34,6 +34,17 @@ extern vs_scratch_t vs_scratch;
  * areas of collision and the GTE (the PS1 kept them in its scratchpad). They overlay one another, so they are one
  * block, indexed by their PS1 offset from 0x1F800000 (0x68..0x3FF; the bytes below are vs_scratch and vs_view).
  * Defined in 146C.c. */
-extern unsigned char vs_pad[0x400];
+extern unsigned char vs_pad[0x408];
 #define PC_PAD(offset) (vs_pad + (offset))
+/* The navigation pointers the AI reads, real pointers (memory lane S3b: they were 4-byte guest words in vs_pad at 0x37C,
+ * 0x3BC, 0x3C0, 0x3C4 and 0x3F4, filled each actor update by pc_actor_scratch; the overlays at those offsets no longer
+ * share them). game/common/pad.zig mirrors the layout. */
+typedef struct {
+    void* aiStates[17];            /* vs_battle_aiState*, by actor id (was 0x37C) */
+    unsigned short (*floors)[32];  /* the room's floor grid, D_800F58D0 (was 0x3BC) */
+    unsigned short (*cells)[32];   /* the navigation cells, D_800F58B8 (was 0x3C0) */
+    unsigned char* bitmap;         /* the occupancy bitmap, D_800F58CC (was 0x3C4) */
+    unsigned char* exits;          /* the room's exit table, D_800F58C0, non-null when the occupancy bitmap is active (was 0x3F4) */
+} vs_nav_t;
+extern vs_nav_t vs_nav;
 extern vs_view_t vs_view;

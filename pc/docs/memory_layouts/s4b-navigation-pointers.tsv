@@ -1,0 +1,21 @@
+# S4b: the navigation pointers (state item, old location, new location, size, note)
+# item	old	new	old size	new size	note
+D_800F58B8 (tile flag map / navigation cells)	pc units: unsigned (4 bytes of a pointer); BATTLE units: u_short (*)[32]	u_short (*)[32] everywhere	4 (read) / 8 (native)	8	declarations agree now; the Zig views follow
+D_800F58D0 (special terrain heights / floor grid)	as above	u_short (*)[32]	4/8	8	
+D_800F58CC (occupancy bitmap)	unsigned (pc), u32 (Zig)	unsigned char *	4	8	
+D_800F58C0 (room section / exit table)	unsigned (pc), int (BATTLE decl), u32 (Zig)	unsigned char *	4	8	
+D_800F58C8, D_800F58D8, D_800F5908, D_800F5910	unsigned/u32 in the pc views, pointers in BATTLE	pointers everywhere	4/8	8	the navigation grid builder (navigation_grid.zig) stores real pointers
+vs_pad[0x37C..0x3BC) AI state table	17 x 4-byte guest pointers, filled by pc_actor_scratch	vs_nav.aiStates[17]	68	136	separate native struct vs_nav (scratch.h, pad.zig Nav)
+vs_pad[0x3BC] floor grid slot	4-byte guest pointer	vs_nav.floors	4	8	the collision overlays at 0x3BC no longer share it
+vs_pad[0x3C0] navigation cells slot	4-byte guest pointer	vs_nav.cells	4	8	the matrix overlay at 0x3C0 no longer shares it
+vs_pad[0x3C4] occupancy bitmap slot	4-byte guest pointer	vs_nav.bitmap	4	8	
+vs_pad[0x3F4] exit table slot / flag	4-byte word	vs_nav.exits	4	8	truthiness is now the pointer's, not its low word's
+# Evidence that S4b changes no behaviour (the question: did an overlay ever clobber a navigation slot before a read?)
+# Instrument (temporary, not committed): the old 4-byte pad slots kept as they were, written by pc_actor_scratch; every read of a slot
+# (C macros, Zig pad accessors) compared the slot's word with the native pointer and logged any difference.
+# lane	nav reads	clobbered reads
+# 120 s fight (room 48-10)	>= 10,000	0
+# 9 rooms (40-3 10-1 22-0 48-10 24-2 9-5 15-7 25-2 32-0, three games each)	>= 125,000	0
+# spells lane (45 actions)	>= 70,000	0
+# enemy-ability rooms (43 rooms, one game each; 29-0 hits an unimplemented effect opcode on main too)	>= 1,378,000	0
+# So the overlays at 0x37C..0x3F4 never overwrote a slot between pc_actor_scratch and a read in these runs: the clobber was dead there.

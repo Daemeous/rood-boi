@@ -44,7 +44,7 @@ pub fn setMotionRequestAnimated(id: c_int, pos: [*]const c_uint, b: c_int, cc: c
     a.unk1848.unk6 = @bitCast(@as(u16, @truncate(@as(c_uint, @bitCast(cc)))));
     position(a, 0).* = pos[0];
     position(a, 1).* = pos[1];
-    psx.fieldAt(u8, &a.unk0._bits_skip, 2).* |= 0x20;
+    psx.bitsAt(u8, &a.unk0._bits_skip, 2).* |= 0x20;
     kind(a).* = 3;
 }
 

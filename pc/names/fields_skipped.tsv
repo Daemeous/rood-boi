@@ -16,26 +16,15 @@ D_80036770_t	unk0	confidence med (deferred)	bankId
 D_80036770_t	unk4	confidence med (deferred)	alternateBankId
 D_80036770_t	unk8	confidence low (deferred)	reserved8
 D_80036770_t	unkC	confidence low (deferred)	reservedC
-D_800378C0_t	unk0	type differs from the ledger's (ours __UINTPTR_TYPE__, theirs void *)	param1
-D_800378C0_t	unk4	confidence med (deferred)	param2
-D_800378C0_t	unk8	confidence med (deferred)	param3
-D_800378C0_t	unkC	confidence med (deferred)	param4
-D_80039BC8_t	InstrumentBytesRemaining	not a placeholder name (already descriptive: left)	instrumentBytesRemaining
-D_80039BC8_t	SpuAddr	not a placeholder name (already descriptive: left)	spuAddress
-D_80039BC8_t	SpuBytesRemaining	not a placeholder name (already descriptive: left)	spuBytesRemaining
-D_80039BC8_t	pInstrumentDst	not a placeholder name (already descriptive: left)	instrumentDestination
-D_8005DC6C_t	b	not a placeholder name (already descriptive: left)	blue
-D_8005DC6C_t	g	not a placeholder name (already descriptive: left)	green
-D_8005DC6C_t	r	not a placeholder name (already descriptive: left)	red
-D_8005DC6C_t	unk3	confidence med (deferred)	pad3
-D_80060068_t	unkDC	confidence low (deferred)	reservedDC
-D_80060068_t3	currentHP	not a placeholder name (already descriptive: left)	currentHp
-D_80060068_t3	currentMP	not a placeholder name (already descriptive: left)	currentMp
-D_80060068_t3	flags	not a placeholder name (already descriptive: left)	actorFlags
-D_80060068_t3	maxHP	not a placeholder name (already descriptive: left)	maxHp
-D_80060068_t3	maxMP	not a placeholder name (already descriptive: left)	maxMp
-D_80060068_t3	unk0	confidence med (deferred)	isPending
-D_80061078_t	zndId	not a placeholder name (already descriptive: left)	zoneId
+D_800378C0_t		no struct of that name in our tree	
+D_80039BC8_t		no struct of that name in our tree	
+D_80050468_t		no struct of that name in our tree	
+D_8005DC6C_t		no struct of that name in our tree	
+D_8005DC80_t		no struct of that name in our tree	
+D_80060068_t		no struct of that name in our tree	
+D_80060068_t2		no struct of that name in our tree	
+D_80060068_t3		no struct of that name in our tree	
+D_80061078_t		no struct of that name in our tree	
 D_800E8594_t	unk0	confidence med (deferred)	positionX
 D_800E8594_t	unk18	confidence low (deferred)	reserved18
 D_800E8594_t	unk1C	confidence low (deferred)	reserved1C
@@ -50,11 +39,7 @@ D_800E8FB4_t	unk0	confidence med (deferred)	instanceFlags
 D_800E8FB4_t	unk4	confidence low (deferred)	instanceWord4
 D_800E8FB4_t	unk8	confidence low (deferred)	recolorCount
 D_800E8FB4_t	unkC	confidence med (deferred)	modelDataSize
-D_800EB9B4_t	unk0	confidence med (deferred)	loading
-D_800EB9B4_t	unk1	confidence low (deferred)	opaque1
-D_800EB9B4_t	unk2	confidence med (deferred)	feedbackLayer
-D_800EB9B4_t	unk4	confidence low (deferred)	radialWarpArg0
-D_800EB9B4_t	unk6	confidence low (deferred)	radialWarpArg1
+D_800EB9B4_t		members differ from the ledger's (names or order or count)	
 D_800EB9B8_t		members differ from the ledger's (names or order or count)	
 D_800EB9B8_t		members differ from the ledger's (names or order or count)	
 D_800EB9B8_t		members differ from the ledger's (names or order or count)	
@@ -67,104 +52,28 @@ D_800F18C8_t		no struct of that name in our tree
 D_800F18E8_t		no struct of that name in our tree	
 D_800F18EC_t	unk0	confidence med (deferred)	menuStatus
 D_800F18EC_t	unk2	confidence med (deferred)	selectionKind
-D_800F1910_t	unk0	confidence med (deferred)	triggerRecord
-D_800F1910_t	unk4	confidence med (deferred)	actorQuery
-D_800F19CC_t		members differ from the ledger's (names or order or count)	
-D_800F19CC_t2	actionIndex	not a placeholder name (already descriptive: left)	actionId
-D_800F19CC_t2	unk2	confidence low (deferred)	effectVariant
-D_800F19CC_t2	unk3	confidence med (deferred)	damageType
-D_800F19CC_t2	unk48	confidence low (deferred)	animationParameter
-D_800F19CC_t2	unk844	confidence med (deferred)	focusPosition
+D_800F1910_t		no struct of that name in our tree	
+D_800F19CC_t		no struct of that name in our tree	
+D_800F19CC_t2		no struct of that name in our tree	
 D_800F19CC_t5		members differ from the ledger's (names or order or count)	
-D_800F1A68_t	unk8	confidence low (deferred)	reserved8
-D_800F1A68_t	unkC	confidence low (deferred)	reservedC
+D_800F1A68_t		no struct of that name in our tree	
 D_800F1ABC_t		no struct of that name in our tree	
 D_800F1BAC_t		members differ from the ledger's (names or order or count)	
-D_800F1BB0_t	unk0	confidence med (deferred)	red
-D_800F1BB0_t	unk1	confidence med (deferred)	green
-D_800F1BB0_t	unk2	confidence med (deferred)	blue
-D_800F1BB0_t	unk3	confidence low (deferred)	reserved03
-D_800F1BB0_t	unk4	confidence med (deferred)	strength
-D_800F1BB0_t	unk6	confidence med (deferred)	isActive
-D_800F1D08_t	values	not a placeholder name (already descriptive: left)	records
-D_800F1D28_t	unk0	confidence med (deferred)	jobKind
-D_800F1D28_t	unk4	confidence med (deferred)	trigger
+D_800F1BB0_t		no struct of that name in our tree	
+D_800F1D08_t		no struct of that name in our tree	
+D_800F1D28_t		no struct of that name in our tree	
 D_800F1DD4_t		members differ from the ledger's (names or order or count)	
-D_800F1DD8_t	unk0	confidence med (deferred)	isActive
-D_800F1DD8_t	unk1	confidence med (deferred)	kindOrObjectCount
-D_800F1DD8_t	unk2	confidence med (deferred)	isUpdateEnabled
-D_800F1DD8_t	unk3	confidence low (deferred)	reserved03
-D_800F1DD8_t	unk4	confidence med (deferred)	currentData
-D_800F1DD8_t	unk8	confidence med (deferred)	originalData
+D_800F1DD8_t		no struct of that name in our tree	
+D_800F1DD8_t2		no struct of that name in our tree	
 D_800F2458_t		members differ from the ledger's (names or order or count)	
 D_800F3C58_t		no struct of that name in our tree	
 D_800F4538_t		members differ from the ledger's (names or order or count)	
 D_800F4538_t2		members differ from the ledger's (names or order or count)	
-D_800F4538_unk0	freeze	not a placeholder name (already descriptive: left)	isFrozen
-D_800F4538_unk0	lastTouchedTileX	not a placeholder name (already descriptive: left)	previousTileX
-D_800F4538_unk0	lastTouchedTileZ	not a placeholder name (already descriptive: left)	previousTileZ
-D_800F4538_unk0	nBones	not a placeholder name (already descriptive: left)	boneCount
-D_800F4538_unk0	nOther	not a placeholder name (already descriptive: left)	otherPolygonCount
-D_800F4538_unk0	nQuads	not a placeholder name (already descriptive: left)	quadCount
-D_800F4538_unk0	nTriangles	not a placeholder name (already descriptive: left)	triangleCount
-D_800F4538_unk0	nVertexGroups	not a placeholder name (already descriptive: left)	vertexGroupCount
-D_800F4538_unk0	skip	not a placeholder name (already descriptive: left)	isSkipped
-D_800F4538_unk0	unk11	confidence med (deferred)	jumpCountdown
-D_800F4538_unk0	unk13	confidence med (deferred)	attachBone
-D_800F4538_unk0	unk14	confidence med (deferred)	lookYaw
-D_800F4538_unk0	unk16	confidence med (deferred)	lookPitch
-D_800F4538_unk0	unk18	confidence med (deferred)	turnFrames
-D_800F4538_unk0	unk1A	confidence low (deferred)	currentAnimation
-D_800F4538_unk0	unk2A	confidence low (deferred)	reserved2A
-D_800F4538_unk0	unk32	confidence low (deferred)	reserved32
-D_800F4538_unk0	unk34	confidence med (deferred)	rootMotion
-D_800F4538_unk0	unk42	confidence low (deferred)	reserved42
-D_800F4538_unk0	unk4C	confidence low (deferred)	supportOffset
-D_800F4538_unk0	unk50	confidence low (deferred)	reserved50
-D_800F4538_unk0	unk52	confidence med (deferred)	previousFacing
-D_800F4538_unk0	unk54	type differs from the ledger's (ours int, theirs CVECTOR)	baseColor
-D_800F4538_unk0	unk5D	confidence med (deferred)	currentTileLayer
-D_800F4538_unk0	unk5F	confidence low (deferred)	reserved5F
-D_800F4538_unk0	unk61	confidence med (deferred)	previousTileLayer
-D_800F4538_unk0	unk63	confidence low (deferred)	reserved63
-D_800F4538_unk0	unk8_3	not a placeholder name (already descriptive: left)	uvLayout
-D_800F4538_unk0	unk8_4	not a placeholder name (already descriptive: left)	textureSlotCountMinusOne
-D_800F4538_unk0	unk8_7	not a placeholder name (already descriptive: left)	isParsed
-D_800F4538_unk0	unk9_0	not a placeholder name (already descriptive: left)	actionAnimationState
-D_800F4538_unk0	unk9_4	not a placeholder name (already descriptive: left)	isPreviewModel
-D_800F4538_unk0	unk9_5	not a placeholder name (already descriptive: left)	isAttached
-D_800F4538_unk0	unk9_6	not a placeholder name (already descriptive: left)	movementPending
-D_800F4538_unk0	unk9_7	not a placeholder name (already descriptive: left)	soundEnabled
-D_800F4538_unk0	unkA_0	not a placeholder name (already descriptive: left)	movementMode
-D_800F4538_unk0	unkA_3	not a placeholder name (already descriptive: left)	locomotionState
-D_800F4538_unk0	unkA_5	not a placeholder name (already descriptive: left)	motionLocked
-D_800F4538_unk0	unkA_6	not a placeholder name (already descriptive: left)	isJumping
-D_800F4538_unk0	unkB_0	not a placeholder name (already descriptive: left)	reactionState
-D_800F4538_unk0	unkB_4	not a placeholder name (already descriptive: left)	poseState
-D_800F4538_unk0	unkB_7	not a placeholder name (already descriptive: left)	wasDrawn
-D_800F4538_unk0	unkC_0	not a placeholder name (already descriptive: left)	supportLayer
-D_800F4538_unk0	unkC_4	not a placeholder name (already descriptive: left)	placementLayer
-D_800F4538_unk0	unkD	confidence low (deferred)	reservedD
-D_800F4538_unk0	unkE	confidence med (deferred)	copiedWordCount
-D_800F4538_unk0	visible	not a placeholder name (already descriptive: left)	isVisible
-D_800F4538_unk180C	unk0_0	not a placeholder name (already descriptive: left)	timeline
-D_800F4538_unk180C	unk0_4	not a placeholder name (already descriptive: left)	mode
+D_800F4538_unk0		no struct of that name in our tree	
+D_800F4538_unk180C		no struct of that name in our tree	
 D_800F4538_unk181C		no struct of that name in our tree	
-D_800F4538_unk1848	unk0	confidence med (deferred)	mode
-D_800F4538_unk1848	unk1	confidence low (deferred)	reserved1
-D_800F4538_unk1848	unk2	confidence low (deferred)	reserved2
-D_800F4538_unk1848	unk3	confidence low (deferred)	reserved3
-D_800F4538_unk1848	unk4	confidence med (deferred)	direction
-D_800F4538_unk1848	unk6	confidence med (deferred)	facing
-D_800F4538_unk1848	unk8	confidence med (deferred)	distance
-D_800F4538_unk1848	unkC	confidence low (deferred)	reservedC
-D_800F4538_unk1864	unk0	confidence low (deferred)	reserved0
-D_800F4538_unk1864	unk4	confidence med (deferred)	levelFrames
-D_800F4538_unk1864	unk5	confidence med (deferred)	radiusFrames
-D_800F4538_unk1864	unk6	confidence low (deferred)	reserved6
-D_800F4538_unk1864	unk7	confidence low (deferred)	reserved7
-D_800F4538_unk1864	unk8	confidence low (deferred)	level
-D_800F4538_unk1864	unkA	confidence med (deferred)	levelDelta
+D_800F4538_unk1848		members differ from the ledger's (names or order or count)	
+D_800F4538_unk1864		members differ from the ledger's (names or order or count)	
 D_800F4538_unk58	unk0	confidence med (deferred)	offsetX
 D_800F4538_unk58	unk1	confidence med (deferred)	offsetY
 D_800F4538_unk58	unk2	confidence med (deferred)	offsetZ
@@ -183,51 +92,15 @@ D_800F4538_unk64	unk0	confidence med (deferred)	kind
 D_800F4538_unk64	unk1	confidence med (deferred)	level
 D_800F4538_unk64	unk2	confidence low (deferred)	flags
 D_800F4538_unk64	unk3	confidence low (deferred)	parameter
-D_800F4538_unk68	akaoOffset	not a placeholder name (already descriptive: left)	soundSection
-D_800F4538_unk68	armatures	not a placeholder name (already descriptive: left)	bones
-D_800F4538_unk68	groupOffset	not a placeholder name (already descriptive: left)	groupSection
-D_800F4538_unk68	polyOffset	not a placeholder name (already descriptive: left)	polygonSection
-D_800F4538_unk68	unk0	confidence med (deferred)	header
-D_800F4538_unk68	vertexOffset	not a placeholder name (already descriptive: left)	vertexSection
+D_800F4538_unk68		no struct of that name in our tree	
 D_800F4538_unkC54		members differ from the ledger's (names or order or count)	
-D_800F4590_t	unk0	confidence low (deferred)	reserved0
-D_800F4590_t	unk10	confidence low (deferred)	reserved10
-D_800F4590_t	unk4	confidence low (deferred)	reserved4
-D_800F4590_t	unkC	confidence low (deferred)	reservedC
+D_800F4590_t		no struct of that name in our tree	
 D_800F45E0_t		members differ from the ledger's (names or order or count)	
 D_800F4B28_t		no struct of that name in our tree	
-D_800F4B30_t	unk0	confidence low (deferred)	reserved00
-D_800F4B88_t	unk0	confidence low (deferred)	reserved00
-D_800F4B88_t	unk1	confidence low (deferred)	reserved01
-D_800F4B88_t	unk12	confidence med (deferred)	startIntensity
-D_800F4B88_t	unk14	confidence med (deferred)	deltaIntensity
-D_800F4B88_t	unk3	confidence med (deferred)	durationFrames
-D_800F4B88_t	unk6	confidence med (deferred)	startWindDirection
-D_800F4B88_t	unk8	confidence med (deferred)	deltaWindDirection
-D_800F4B88_t	unkA	confidence med (deferred)	windStrength
-D_800F4B88_t	unkC	confidence med (deferred)	startWindStrength
-D_800F4B88_t	unkE	confidence med (deferred)	deltaWindStrength
-D_800F4BA4_t		members differ from the ledger's (names or order or count)	
-D_800F4BA4_t2	angle	not a placeholder name (already descriptive: left)	orbitAngle
-D_800F4BA4_t2	angleDelta	not a placeholder name (already descriptive: left)	orbitAngleDelta
-D_800F4BA4_t2	aux	not a placeholder name (already descriptive: left)	heightOffset
-D_800F4BA4_t2	computed	not a placeholder name (already descriptive: left)	computedPosition
-D_800F4BA4_t2	current	not a placeholder name (already descriptive: left)	currentPosition
-D_800F4BA4_t2	delta	not a placeholder name (already descriptive: left)	motionScalarDelta
-D_800F4BA4_t2	duration	not a placeholder name (already descriptive: left)	durationFrames
-D_800F4BA4_t2	ease1	not a placeholder name (already descriptive: left)	easingPrimary
-D_800F4BA4_t2	ease2	not a placeholder name (already descriptive: left)	easingSecondary
-D_800F4BA4_t2	ease3	not a placeholder name (already descriptive: left)	easingTertiary
-D_800F4BA4_t2	follow	not a placeholder name (already descriptive: left)	followRequest
-D_800F4BA4_t2	following	not a placeholder name (already descriptive: left)	isFollowing
-D_800F4BA4_t2	mode	not a placeholder name (already descriptive: left)	motionMode
-D_800F4BA4_t2	position	not a placeholder name (already descriptive: left)	destination
-D_800F4BA4_t2	previousCamera	not a placeholder name (already descriptive: left)	previousCameraPosition
-D_800F4BA4_t2	start	not a placeholder name (already descriptive: left)	startPosition
-D_800F4BA4_t2	target	not a placeholder name (already descriptive: left)	partnerPosition
-D_800F4BA4_t2	time	not a placeholder name (already descriptive: left)	elapsedFrames
-D_800F4BA4_t2	value	not a placeholder name (already descriptive: left)	motionScalar
-D_800F4BA4_t2	velocity	not a placeholder name (already descriptive: left)	displacement
+D_800F4B30_t		no struct of that name in our tree	
+D_800F4B88_t		no struct of that name in our tree	
+D_800F4BA4_t		no struct of that name in our tree	
+D_800F4BA4_t2		no struct of that name in our tree	
 D_800F4EE8_t	unk34	confidence low (deferred)	opaque34
 D_800F4EE8_t	unk3A	confidence low (deferred)	opaque3A
 D_800F4EE8_t	unk4C	confidence low (deferred)	reserved4C
@@ -237,20 +110,10 @@ D_800F4EE8_t	unk85	confidence low (deferred)	opaque85
 D_800F4EE8_t	unk9E	confidence low (deferred)	opaque9E
 D_800F4EE8_t	unkA0	confidence low (deferred)	opaqueA0
 D_800F4EE8_t	unkB2	confidence low (deferred)	reservedB2
-D_800F53B8_t		members differ from the ledger's (names or order or count)	
-D_800F53B8_t2	unk21	confidence low (deferred)	reserved21
-D_800F53B8_t2	unk22	confidence low (deferred)	reserved22
-D_800F53B8_t2	unk23	confidence low (deferred)	reserved23
-D_800F53B8_t2	unk24	confidence low (deferred)	reserved24
-D_800F53B8_t3	unk0	type differs from the ledger's (ours D_800F53B8_t3_2, theirs actionEffectTarget)	source
-D_800F53B8_t3	unk18	type differs from the ledger's (ours D_800F53B8_t3_2, theirs actionEffectTarget)	target
-D_800F53B8_t3	unk24	type differs from the ledger's (ours D_800F53B8_t3_2, theirs actionEffectTarget)	emitTo
-D_800F53B8_t3	unk30	confidence med (deferred)	timeline
-D_800F53B8_t3	unk34	confidence med (deferred)	renderer
-D_800F53B8_t3	unk3A	confidence med (deferred)	phase
-D_800F53B8_t3	unk3C	confidence low (deferred)	parameter
-D_800F53B8_t3	unkC	type differs from the ledger's (ours D_800F53B8_t3_2, theirs actionEffectTarget)	emitFrom
-D_800F53B8_t4	unk1	confidence med (deferred)	flags
+D_800F53B8_t		no struct of that name in our tree	
+D_800F53B8_t2		no struct of that name in our tree	
+D_800F53B8_t3		members differ from the ledger's (names or order or count)	
+D_800F53B8_t4		no struct of that name in our tree	
 D_800F54B8_t	unk0	confidence med (deferred)	phase
 D_800F54B8_t	unk1_0	not a placeholder name (already descriptive: left)	shapeCurve
 D_800F54B8_t	unk1_5	not a placeholder name (already descriptive: left)	curveStep
@@ -264,7 +127,8 @@ D_800F54D8_t	unk20	confidence med (deferred)	shakeLateral
 D_800F54D8_t	unk24	confidence med (deferred)	shakeVertical
 D_800F54D8_t	unk28	confidence med (deferred)	shakeDepth
 D_800F54D8_t	unk2C	confidence med (deferred)	shakeRoll
-D_800F5620_t	unkC	confidence low (deferred)	reservedC
+D_800F5620_t		no struct of that name in our tree	
+D_800F5638_t		no struct of that name in our tree	
 D_800F569C_t		members differ from the ledger's (names or order or count)	
 D_800F58BC_t		members differ from the ledger's (names or order or count)	
 D_800F5910_t	unk0_0	not a placeholder name (already descriptive: left)	tileX
@@ -425,6 +289,7 @@ MovieData_t	frameBufIndex	not a placeholder name (already descriptive: left)	fra
 MovieData_t	frameBufs	not a placeholder name (already descriptive: left)	frameRects
 MovieData_t	renderTarget	not a placeholder name (already descriptive: left)	sliceRect
 PLG005_data_t		no struct of that name in our tree	
+System_dat_h		members differ from the ledger's (names or order or count)	
 TrailPacket		no struct of that name in our tree	
 VS_POLY_FT4		no struct of that name in our tree	
 VS_POLY_G4	r0g0b0code	not a placeholder name (already descriptive: left)	colorZeroAndCode
@@ -485,22 +350,9 @@ _creditsElement	unk2C	confidence low (deferred)	reserved2C
 _creditsElement	x	not a placeholder name (already descriptive: left)	xFixed8
 _creditsElement	y	not a placeholder name (already descriptive: left)	yFixed8
 _gazetteRow	unk1	confidence low (deferred)	opaque1
-_hitEntity_t	agility	not a placeholder name (already descriptive: left)	agilityChange
-_hitEntity_t	armorDp	not a placeholder name (already descriptive: left)	armorDpChange
-_hitEntity_t	intelligence	not a placeholder name (already descriptive: left)	intelligenceChange
-_hitEntity_t	maxHp	not a placeholder name (already descriptive: left)	maxHpChange
-_hitEntity_t	maxMp	not a placeholder name (already descriptive: left)	maxMpChange
-_hitEntity_t	risk	not a placeholder name (already descriptive: left)	riskChange
-_hitEntity_t	shieldPp	not a placeholder name (already descriptive: left)	shieldPpChange
-_hitEntity_t	strength	not a placeholder name (already descriptive: left)	strengthChange
-_hitEntity_t	unk1C_16	not a placeholder name (already descriptive: left)	statStatusEffect
-_hitEntity_t	unk1C_26	not a placeholder name (already descriptive: left)	sourceResult
-_hitEntity_t	unk1C_28	not a placeholder name (already descriptive: left)	reservedBits28
-_hitEntity_t	unk40	confidence med (deferred)	targetsPosition
-_hitEntity_t	weaponDp	not a placeholder name (already descriptive: left)	weaponDpChange
-_hitEntity_t	weaponPp	not a placeholder name (already descriptive: left)	weaponPpChange
+_hitEntity_t		members differ from the ledger's (names or order or count)	
 _hitIntermediate		a member of ours could not be read	
-_limbInit	unk5A	confidence low (deferred)	reserved5A
+_limbInit		members differ from the ledger's (names or order or count)	
 _lootListItem	unk2	confidence low (deferred)	opaque2
 _menuBgChunkWidths_t	unk0	confidence low (deferred)	reserved0
 _menuBgChunkWidths_t	unk4	confidence low (deferred)	reserved4
@@ -537,23 +389,12 @@ _mpdHeader	roomSectionLen	not a placeholder name (already descriptive: left)	roo
 _mpdHeader	scriptSectionLen	not a placeholder name (already descriptive: left)	scriptSectionSize
 _mpdPolygt3		a member of ours could not be read	
 _mpdPolygt4		a member of ours could not be read	
-_mpdRoomCollisionMapSection	unk4	confidence low (deferred)	heightOrigin
+_mpdRoomCollisionMapSection		members differ from the ledger's (names or order or count)	
 _mpdRoomDoorSection2	unk0_0	not a placeholder name (already descriptive: left)	tileX
 _mpdRoomDoorSection2	unk0_10	not a placeholder name (already descriptive: left)	floorLayer
 _mpdRoomDoorSection2	unk0_13	not a placeholder name (already descriptive: left)	entryDirection
 _mpdRoomDoorSection2	unk0_5	not a placeholder name (already descriptive: left)	tileZ
-_mpdRoomDoorSection_t	mpdId	not a placeholder name (already descriptive: left)	destinationRoomId
-_mpdRoomDoorSection_t	unk4_0	not a placeholder name (already descriptive: left)	requiredFlagValue
-_mpdRoomDoorSection_t	unk4_13	not a placeholder name (already descriptive: left)	entryElevation
-_mpdRoomDoorSection_t	unk4_15	not a placeholder name (already descriptive: left)	hasEntryStep
-_mpdRoomDoorSection_t	unk4_8	not a placeholder name (already descriptive: left)	entryTileX
-_mpdRoomDoorSection_t	unk6_0	not a placeholder name (already descriptive: left)	requiredFlagId
-_mpdRoomDoorSection_t	unk6_10	not a placeholder name (already descriptive: left)	entryTileZ
-_mpdRoomDoorSection_t	unk6_15	not a placeholder name (already descriptive: left)	reserved06Bit15
-_mpdRoomDoorSection_t	unk9	confidence low (deferred)	reserved09
-_mpdRoomDoorSection_t	unkA	confidence low (deferred)	reserved0A
-_mpdRoomDoorSection_t	unkB	confidence low (deferred)	reserved0B
-_mpdRoomDoorSection_t	zndId	not a placeholder name (already descriptive: left)	destinationZoneId
+_mpdRoomDoorSection_t		members differ from the ledger's (names or order or count)	
 _mpdRoomSection	collisionMapSection	not a placeholder name (already descriptive: left)	collisionMap
 _mpdRoomSection	doorSection	not a placeholder name (already descriptive: left)	doors
 _mpdRoomSection	geometrySection	not a placeholder name (already descriptive: left)	geometry
@@ -574,25 +415,12 @@ _mpdRoomSection	textureEffectsSection	not a placeholder name (already descriptiv
 _mpdRoomSection	unk0	confidence med (deferred)	isLoaded
 _mpdRoomSection	unk1	confidence low (deferred)	displayFlag
 _mpdRoomSection	unk2	confidence med (deferred)	roomIndex
-_mpdRoomSection11	unk0_0	not a placeholder name (already descriptive: left)	tileX
-_mpdRoomSection11	unk0_10	not a placeholder name (already descriptive: left)	floorLayer
-_mpdRoomSection11	unk0_11	not a placeholder name (already descriptive: left)	viewDirection
-_mpdRoomSection11	unk0_14	not a placeholder name (already descriptive: left)	mode
-_mpdRoomSection11	unk0_15	not a placeholder name (already descriptive: left)	reserved00Bit15
-_mpdRoomSection11	unk0_5	not a placeholder name (already descriptive: left)	tileZ
+_mpdRoomSection11		members differ from the ledger's (names or order or count)	
 _mpdRoomSection12		members differ from the ledger's (names or order or count)	
-_mpdRoomSection13	unk4	confidence med (deferred)	layer
-_mpdRoomSection13	unk6	confidence med (deferred)	lidRotationId
-_mpdRoomSection13	unkA	confidence low (deferred)	reservedA
-_mpdRoomSection13	unkC	confidence med (deferred)	lockLevel
-_mpdRoomSection13	unkE	confidence low (deferred)	reservedE
+_mpdRoomSection13		members differ from the ledger's (names or order or count)	
 _mpdRoomSection3		members differ from the ledger's (names or order or count)	
-_mpdRoomSection9	unk6	confidence low (deferred)	kind
-_mpdRoomSection9	unk8	confidence med (deferred)	lockState
-_mpdRoomSection9	unkA	confidence med (deferred)	activation
-_mpdRoomSection9	unkB	confidence med (deferred)	markerFade
-_mpdRoomSectionA	unk12	confidence med (deferred)	isTriggered
-_mpdRoomSectionA	unkE	confidence med (deferred)	isOpen
+_mpdRoomSection9		members differ from the ledger's (names or order or count)	
+_mpdRoomSectionA		members differ from the ledger's (names or order or count)	
 _mpdRoomSectionB		members differ from the ledger's (names or order or count)	
 _mpdRoomSectionE	unk0	confidence low (deferred)	reserved00
 _mpdRoomSectionE	unk10	type differs from the ledger's (ours int, theirs int *)	secondArray
@@ -618,15 +446,7 @@ _zndHeader	mpdLen	not a placeholder name (already descriptive: left)	mpdListSize
 _zndHeader	mpdOffset	not a placeholder name (already descriptive: left)	mpdListOffset
 _zndHeader	timLen	not a placeholder name (already descriptive: left)	texturesSize
 _zndHeader	timOffset	not a placeholder name (already descriptive: left)	texturesOffset
-_zoneContext_t	mpdCdFile	not a placeholder name (already descriptive: left)	mpdDiscRequest
-_zoneContext_t	mpdLbas	not a placeholder name (already descriptive: left)	mpdFiles
-_zoneContext_t	unk30	confidence med (deferred)	isMusicFadeEnabled
-_zoneContext_t	unk38	confidence low (deferred)	reserved38
-_zoneContext_t	unk48	confidence low (deferred)	reserved48
-_zoneContext_t	unk4C	confidence low (deferred)	reserved4C
-_zoneContext_t	unk50	confidence low (deferred)	reserved50
-_zoneContext_t	unk54	confidence low (deferred)	reserved54
-_zoneContext_t	zndCdFile	not a placeholder name (already descriptive: left)	zndDiscRequest
+_zoneContext_t		members differ from the ledger's (names or order or count)	
 _zudData_t	shieldWepLen	not a placeholder name (already descriptive: left)	reserved1C
 _zudData_t	shpLen	not a placeholder name (already descriptive: left)	reservedC
 _zudData_t	unk2	confidence low (deferred)	opaque2
@@ -841,36 +661,16 @@ func_800172D4_t	unk4	confidence low (deferred)	reserved04
 func_800172D4_t	unk8	confidence low (deferred)	reserved08
 func_800172D4_t	unkC	confidence low (deferred)	reserved0C
 func_8004644C_t		no struct of that name in our tree	
-func_80069388_t	unk0	confidence med (deferred)	dmaTag
-func_80069388_t	unk13	confidence med (deferred)	pad13
-func_80069388_t	unk18	confidence med (deferred)	vertexOneUv
-func_80069388_t	unk1A	confidence med (deferred)	texturePage
-func_80069388_t	unk1F	confidence med (deferred)	pad1F
-func_80069388_t	unk24	confidence med (deferred)	vertexTwoUv
-func_80069388_t	unk26	confidence med (deferred)	pad26
-func_80069388_t	unk2B	confidence med (deferred)	pad2B
-func_80069388_t	unk7	confidence med (deferred)	command
-func_80069388_t	unkC	confidence med (deferred)	vertexZeroUv
-func_80069388_t	unkE	confidence med (deferred)	palette
-func_80069EF0_t	currentHP	not a placeholder name (already descriptive: left)	currentHp
-func_80069EF0_t	currentMP	not a placeholder name (already descriptive: left)	currentMp
-func_80069EF0_t	maxHP	not a placeholder name (already descriptive: left)	maxHp
-func_80069EF0_t	maxMP	not a placeholder name (already descriptive: left)	maxMp
-func_80069EF0_t	totalAgility	not a placeholder name (already descriptive: left)	agility
-func_80069EF0_t	totalIntelligence	not a placeholder name (already descriptive: left)	intelligence
-func_80069EF0_t	totalStrength	not a placeholder name (already descriptive: left)	strength
-func_80069EF0_t	unk1	confidence med (deferred)	isHidden
-func_8006A9C0_t	data	not a placeholder name (already descriptive: left)	pixelBytes
-func_8006A9C0_t	rect	not a placeholder name (already descriptive: left)	uploadRect
-func_8006A9C0_t	size	not a placeholder name (already descriptive: left)	blockSizeBytes
-func_8006A9C0_t2	unk0	confidence med (deferred)	identifier
-func_8006A9C0_t2	unk1	confidence med (deferred)	reserved01
-func_8006A9C0_t2	unk2	confidence med (deferred)	reserved02
-func_8006A9C0_t2	unk3	confidence med (deferred)	reserved03
+func_80069388_t		no struct of that name in our tree	
+func_80069EF0_t		no struct of that name in our tree	
+func_8006A9C0_t		no struct of that name in our tree	
+func_8006A9C0_t2		no struct of that name in our tree	
 func_8006C4C4_t		members differ from the ledger's (names or order or count)	
+func_8006EBF8_t		members differ from the ledger's (names or order or count)	
 func_8006EBF8_t2	unk0	confidence low (deferred)	reserved0
 func_8006EBF8_t2	unk4	confidence low (deferred)	reserved4
 func_8006EBF8_t2	unk8	confidence low (deferred)	reserved8
+func_8006EBF8_t3		no struct of that name in our tree	
 func_8006EBF8_t_fields	unk0_0	not a placeholder name (already descriptive: left)	tileX
 func_8006EBF8_t_fields	unk0_16	not a placeholder name (already descriptive: left)	tileZ
 func_8006EBF8_t_fields	unk0_24	not a placeholder name (already descriptive: left)	facing
@@ -893,16 +693,12 @@ func_80085A34_t	unk40	confidence low (deferred)	opaque40
 func_80085A34_t	unk8	confidence low (deferred)	reserved8
 func_80085A34_t	unkC	confidence low (deferred)	reservedC
 func_8008631C_t2	unk3	confidence med (deferred)	impactKind
-func_80089888_t	unk0_0	not a placeholder name (already descriptive: left)	tileX
-func_80089888_t	unk0_16	not a placeholder name (already descriptive: left)	tileZ
-func_80089888_t	unk0_24	not a placeholder name (already descriptive: left)	height
-func_80089888_t	unk0_8	not a placeholder name (already descriptive: left)	direction
+func_80089888_t		no struct of that name in our tree	
 func_8008D2C0_t		defined differently in several of our files	
 func_8008D2C0_t		defined differently in several of our files	
-func_80091C6C_t	unk4	confidence low (deferred)	reserved04
+func_80091C6C_t		no struct of that name in our tree	
 func_80091C6C_t2		no struct of that name in our tree	
-func_80091E10_t	unk13	confidence low (deferred)	reserved13
-func_80091E10_t	unk4	confidence low (deferred)	reserved04
+func_80091E10_t		no struct of that name in our tree	
 func_80091FE8_t	unk4	confidence low (deferred)	reserved04
 func_80092548_t	active	not a placeholder name (already descriptive: left)	isActive
 func_80092548_t	count	not a placeholder name (already descriptive: left)	objectCount
@@ -910,26 +706,11 @@ func_80092548_t	unk1	confidence low (deferred)	reserved01
 func_80092548_t	unk3	confidence low (deferred)	reserved03
 func_80092548_t2		no struct of that name in our tree	
 func_80092B04_t		no struct of that name in our tree	
-func_80092B04_t2	unk0	confidence med (deferred)	size
-func_80092B04_t2	unk2	confidence med (deferred)	opcode
+func_80092B04_t2		no struct of that name in our tree	
 func_80092F74_t		members differ from the ledger's (names or order or count)	
-func_80092F74_t2	unk0	type differs from the ledger's (ours int, theirs int *)	reserved00
-func_80092F74_t2	unk14	confidence med (deferred)	extraOperandOne
-func_80092F74_t2	unk18	confidence med (deferred)	extraOperandTwo
-func_80093914_t	unk0	confidence med (deferred)	positions
-func_80093914_t	unk12	confidence med (deferred)	blue2
-func_80093914_t	unk13	confidence med (deferred)	u3
-func_80093914_t	unk16	confidence med (deferred)	remainder
-func_80093914_t	unkE	confidence med (deferred)	blue1
-func_80093914_t	unkF	confidence med (deferred)	type
-func_80093914_t2	unk0	confidence med (deferred)	positions
-func_80093914_t2	unk12	confidence med (deferred)	blue2
-func_80093914_t2	unk13	confidence med (deferred)	u3
-func_80093914_t2	unk16	confidence med (deferred)	middle
-func_80093914_t2	unk26	confidence med (deferred)	blue4
-func_80093914_t2	unk27	confidence med (deferred)	v4
-func_80093914_t2	unkE	confidence med (deferred)	blue1
-func_80093914_t2	unkF	confidence med (deferred)	type
+func_80092F74_t2		no struct of that name in our tree	
+func_80093914_t		no struct of that name in our tree	
+func_80093914_t2		no struct of that name in our tree	
 func_800962E4_t	unk0	confidence low (deferred)	opaque0
 func_800962E4_t	unk2	confidence low (deferred)	opaque2
 func_800962E4_t	unk4	confidence low (deferred)	opaque4
@@ -942,11 +723,7 @@ func_800962E4_t	unkC	confidence low (deferred)	reservedC
 func_800962E4_t	unkE	confidence low (deferred)	reservedE
 func_800962E4_t	unkF	confidence low (deferred)	reservedF
 func_8009C378_t		members differ from the ledger's (names or order or count)	
-func_800A0024_t	unk0	confidence low (deferred)	placementByte0
-func_800A0024_t	unk1	confidence med (deferred)	heightAboveGround
-func_800A0024_t	unk2	confidence low (deferred)	placementByte2
-func_800A0024_t	unk4	confidence med (deferred)	positionXY
-func_800A0024_t	unk8	confidence med (deferred)	positionZ
+func_800A0024_t		members differ from the ledger's (names or order or count)	
 func_800A1108_t	unk0	confidence low (deferred)	reserved0
 func_800A1108_t	unk10	confidence low (deferred)	reserved10
 func_800A1108_t	unk14	confidence low (deferred)	reserved14
@@ -957,10 +734,11 @@ func_800A1108_t	unk4	confidence low (deferred)	reserved4
 func_800A1108_t	unk8	confidence low (deferred)	reserved8
 func_800A1108_t	unkC	confidence low (deferred)	reservedC
 func_800A1DE8_t		no struct of that name in our tree	
-func_800A3054_t	unk2	confidence low (deferred)	reserved2
+func_800A3054_t		no struct of that name in our tree	
 func_800A6660_t	unk0	confidence low (deferred)	reserved0
 func_800A6660_t	unk6	confidence med (deferred)	restartTurn
 func_800A6798_t		no struct of that name in our tree	
+func_800AAE9C_t		no struct of that name in our tree	
 func_800AB358_t		no struct of that name in our tree	
 func_800AB788_t		no struct of that name in our tree	
 func_800AC690_contact_t	contact	not a placeholder name (already descriptive: left)	reserved0Bit0
@@ -973,23 +751,12 @@ func_800AC690_timer_t	unk0	bitfield (left for its own step)	reserved0
 func_800ACF54_t	unk0	confidence med (deferred)	low
 func_800ACF54_t	unk4	confidence med (deferred)	high
 func_800AD494_t		members differ from the ledger's (names or order or count)	
-func_800BB68C_t	unk0	confidence med (deferred)	remainingCount
-func_800BB68C_t	unk1	confidence med (deferred)	cursor
-func_800BB68C_t	unk2	confidence med (deferred)	actorIds
-func_800BDBB4_t	unk0	confidence low (deferred)	reserved00
-func_800BDBB4_t	unk10	confidence low (deferred)	reserved10
-func_800BDBB4_t	unk18	confidence low (deferred)	reserved18
-func_800BDBB4_t	unk1A	confidence low (deferred)	reserved1A
-func_800BDBB4_t	unk8	confidence low (deferred)	reserved08
-func_800BDBB4_t2	unk0	confidence med (deferred)	easedFraction
-func_800BDF6C_t	unk0	confidence med (deferred)	envelopeShape
-func_800BDF6C_t	unk4	confidence med (deferred)	cycles
-func_800BDF6C_t	unk6	confidence med (deferred)	amplitude
-func_800BDF6C_t	unk8	confidence med (deferred)	elapsedFrames
-func_800BDF6C_t	unk9	confidence med (deferred)	durationFrames
-func_800BDF6C_t	unkB	confidence low (deferred)	reserved0B
-func_800BDF6C_unk180_t	unkA	confidence low (deferred)	reserved0A
-func_800BDF6C_unk180_t	unkB	confidence low (deferred)	reserved0B
+func_800BB68C_t		no struct of that name in our tree	
+func_800BD57C_t		no struct of that name in our tree	
+func_800BDBB4_t		no struct of that name in our tree	
+func_800BDBB4_t2		no struct of that name in our tree	
+func_800BDF6C_t		no struct of that name in our tree	
+func_800BDF6C_unk180_t		no struct of that name in our tree	
 func_800C0FA8_t2	unk0	confidence low (deferred)	opaque0
 func_800C0FA8_t2	unk10	confidence low (deferred)	opaque10
 func_800C0FA8_t2	unk18	confidence low (deferred)	opaque18
@@ -1071,10 +838,9 @@ func_800D2904_t		members differ from the ledger's (names or order or count)
 func_800D4910_t	unk8	confidence med (deferred)	rendererState
 func_800D52A4_t		no struct of that name in our tree	
 func_800D52A4_t2		no struct of that name in our tree	
-func_800D55A4_t	count	not a placeholder name (already descriptive: left)	trackCount
-func_800D5780_t	unk8	confidence low (deferred)	curveFrame
-func_800D5780_t	unkA	confidence med (deferred)	keyTimer
-func_800D5780_t	unkC	confidence low (deferred)	keyParameter
+func_800D55A4_t		no struct of that name in our tree	
+func_800D55A4_t2		no struct of that name in our tree	
+func_800D5780_t		members differ from the ledger's (names or order or count)	
 func_800D5780_t2	unk0_0	not a placeholder name (already descriptive: left)	kind
 func_800D5780_t2	unk0_8	not a placeholder name (already descriptive: left)	keyCount
 func_800D57FC_t	unk0_0	not a placeholder name (already descriptive: left)	frame
@@ -1139,8 +905,8 @@ func_800E5A74_t	unk4	confidence low (deferred)	opaque4
 func_800E78F4_t		no struct of that name in our tree	
 func_800E78F4_t2	unk0	confidence low (deferred)	reserved0
 func_800E78F4_t2	unk4	confidence low (deferred)	reserved4
-func_800FA098_arg0		members differ from the ledger's (names or order or count)	
-func_800FA098_arg1		members differ from the ledger's (names or order or count)	
+func_800FA098_arg0		no struct of that name in our tree	
+func_800FA098_arg1		no struct of that name in our tree	
 func_800FA098_arg3	unk0	confidence low (deferred)	opaque0
 func_800FA098_arg3	unk1	confidence med (deferred)	definitionIndex
 func_800FA098_arg3	unk10	confidence med (deferred)	textureAnimation
@@ -1264,8 +1030,8 @@ obstructionCache	p3	not a placeholder name (already descriptive: left)	reserved3
 obstructionModel	pad	not a placeholder name (already descriptive: left)	reserved0
 obstructionState		no struct of that name in our tree	
 obstructionVector	pad	not a placeholder name (already descriptive: left)	reserved6
-pFileBlock2	data	not a placeholder name (already descriptive: left)	reserved4
-pFileBlock5	count	not a placeholder name (already descriptive: left)	reserved0
+pFileBlock2		members differ from the ledger's (names or order or count)	
+pFileBlock5		members differ from the ledger's (names or order or count)	
 pFileBlock9	unk0	confidence med (deferred)	gravityRange
 pFileBlock9	unk10	confidence low (deferred)	reserved10
 pFileBlock9	unk11	confidence low (deferred)	reserved11
@@ -1278,8 +1044,7 @@ pFileBlock9	unkC	confidence med (deferred)	dragRange
 pFileTexture		no struct of that name in our tree	
 pFileTextureInfo		no struct of that name in our tree	
 p_file_t	data	not a placeholder name (already descriptive: left)	blocks
-padAct_t	unk0	confidence med (deferred)	motorLevels
-padAct_t	unk10	confidence med (deferred)	channels
+padAct_t		members differ from the ledger's (names or order or count)	
 patrolWaypointState		no struct of that name in our tree	
 percent_t	data	not a placeholder name (already descriptive: left)	text
 portInfo_t	actData	not a placeholder name (already descriptive: left)	actuatorLevels
@@ -1311,24 +1076,15 @@ radialMotionState		no struct of that name in our tree
 routeEdgeActor		no struct of that name in our tree	
 routeEdgeGlobals		no struct of that name in our tree	
 routeEdgeState		no struct of that name in our tree	
-saveFileInfo_t	unk44	confidence low (deferred)	reserved44
-saveFileInfo_t	unk60	confidence med (deferred)	iconHeaderBytes
-savedEnemyState	currentHP	not a placeholder name (already descriptive: left)	currentHp
-savedEnemyState	currentMP	not a placeholder name (already descriptive: left)	currentMp
-savedEnemyState	hidden	not a placeholder name (already descriptive: left)	isHidden
-savedEnemyState	limbHP	not a placeholder name (already descriptive: left)	limbHp
-savedEnemyState	maxHP	not a placeholder name (already descriptive: left)	maxHp
-savedEnemyState	maxMP	not a placeholder name (already descriptive: left)	maxMp
-savedEnemyState	unk0	confidence med (deferred)	spawnSlot
-savedEnemyState	unk1E	confidence low (deferred)	reserved1E
-savedEnemyState	x	not a placeholder name (already descriptive: left)	tileX
-savedEnemyState	z	not a placeholder name (already descriptive: left)	tileZ
+saveBase_t		defined differently in several of our files	
+saveFileInfo_t		defined differently in several of our files	
+saveFileSubInfo_t		defined differently in several of our files	
+savedEnemyState		members differ from the ledger's (names or order or count)	
 savedata_t		defined differently in several of our files	
 savedata_t		defined differently in several of our files	
 savedata_unk180_2_t	base	not a placeholder name (already descriptive: left)	slotHeader
 savedata_unk180_2_t	key	not a placeholder name (already descriptive: left)	cipherKey
-savedata_unk180_t	checksums	not a placeholder name (already descriptive: left)	blockChecksums
-savedata_unk180_t	stats	not a placeholder name (already descriptive: left)	summary
+savedata_unk180_t		defined differently in several of our files	
 scriptBytePair	high	not a placeholder name (already descriptive: left)	highByte
 scriptBytePair	low	not a placeholder name (already descriptive: left)	lowByte
 soundData_t	currentSfxId	not a placeholder name (already descriptive: left)	currentSfxBank
@@ -1426,17 +1182,7 @@ vs_battle_actor_unk8C0	unk3	confidence low (deferred)	opaque3
 vs_battle_backgroundLayout	unk8	confidence low (deferred)	reserved08
 vs_battle_backgroundTile	colors	not a placeholder name (already descriptive: left)	cornerColors
 vs_battle_backgroundTile	uv	not a placeholder name (already descriptive: left)	textureRect
-vs_battle_charInitData	mpdIdentifer	not a placeholder name (already descriptive: left)	zudIndex
-vs_battle_charInitData	unk23	confidence low (deferred)	opaque23
-vs_battle_charInitData	unk24	confidence med (deferred)	material
-vs_battle_charInitData	unk26	confidence low (deferred)	opaque26
-vs_battle_charInitData	unk28	confidence low (deferred)	opaque28
-vs_battle_charInitData	unk2C	confidence low (deferred)	opaque2C
-vs_battle_charInitData	unk30	confidence low (deferred)	opaque30
-vs_battle_charInitData	unk31	confidence low (deferred)	opaque31
-vs_battle_charInitData	unk32	confidence low (deferred)	opaque32
-vs_battle_charInitData	unk33	confidence low (deferred)	reserved33
-vs_battle_charInitData	unk3_5	not a placeholder name (already descriptive: left)	enemyClass
+vs_battle_charInitData		members differ from the ledger's (names or order or count)	
 vs_battle_classAffinityBaseline	affinity	not a placeholder name (already descriptive: left)	affinities
 vs_battle_classAffinityBaseline	class	not a placeholder name (already descriptive: left)	classes
 vs_battle_classAffinityCurrent	affinity	not a placeholder name (already descriptive: left)	affinities
@@ -1480,11 +1226,7 @@ vs_battle_movementPosition	raw	not a placeholder name (already descriptive: left
 vs_battle_movementPosition	raw	not a placeholder name (already descriptive: left)	word
 vs_battle_movementPosition	raw	not a placeholder name (already descriptive: left)	word
 vs_battle_movementPosition	raw	not a placeholder name (already descriptive: left)	word
-vs_battle_objectData	actorId	not a placeholder name (already descriptive: left)	subKind
-vs_battle_objectData	dataAddr	not a placeholder name (already descriptive: left)	dataAddress
-vs_battle_objectData	dataType	not a placeholder name (already descriptive: left)	assetKind
-vs_battle_objectData	index	not a placeholder name (already descriptive: left)	targetSlot
-vs_battle_objectData	unk11	confidence med (deferred)	textureSlot
+vs_battle_objectData		members differ from the ledger's (names or order or count)	
 vs_battle_objectData_flags	unk0_0	not a placeholder name (already descriptive: left)	tileX
 vs_battle_objectData_flags	unk0_16	not a placeholder name (already descriptive: left)	tileZ
 vs_battle_objectData_flags	unk0_24	not a placeholder name (already descriptive: left)	height
@@ -1501,17 +1243,7 @@ vs_battle_texInfo_t	clut0	not a placeholder name (already descriptive: left)	pal
 vs_battle_texInfo_t	clut1	not a placeholder name (already descriptive: left)	alternatePalette
 vs_battle_texInfo_t	refCount	not a placeholder name (already descriptive: left)	referenceCount
 vs_battle_texInfo_t	tpage	not a placeholder name (already descriptive: left)	texturePage
-vs_battle_textBox	unk1F	confidence low (deferred)	reserved1F
-vs_battle_textBox	unk22	confidence med (deferred)	openDuration
-vs_battle_textBox	unk23	confidence low (deferred)	reserved23
-vs_battle_textBox	unk24	confidence med (deferred)	frameX
-vs_battle_textBox	unk26	confidence med (deferred)	frameY
-vs_battle_textBox	unk28	confidence med (deferred)	frameWidth
-vs_battle_textBox	unk2A	confidence med (deferred)	frameHeight
-vs_battle_textBox	unk2C	confidence low (deferred)	opaque2C
-vs_battle_textBox	unk2E	confidence low (deferred)	opaque2E
-vs_battle_textBox	unk4	confidence low (deferred)	opaque4
-vs_battle_textBox	unk6	confidence low (deferred)	opaque6
+vs_battle_textBox		members differ from the ledger's (names or order or count)	
 vs_battle_textBox_fields	unk0_0	not a placeholder name (already descriptive: left)	kind
 vs_battle_textBox_fields	unk0_12	not a placeholder name (already descriptive: left)	framePart
 vs_battle_textBox_fields	unk0_24	not a placeholder name (already descriptive: left)	speakerTexture
@@ -1524,6 +1256,7 @@ vs_battle_uiArmor	unk99	confidence low (deferred)	opaque99
 vs_battle_uiArmor	unk9B	confidence low (deferred)	reserved9B
 vs_battle_uiEquipment	unk14	confidence low (deferred)	opaque14
 vs_battle_uiEquipment	wepId	not a placeholder name (already descriptive: left)	weaponModelId
+vs_battle_uiEquipment_limb		members differ from the ledger's (names or order or count)	
 vs_battle_uiMisc	unk3	confidence low (deferred)	reserved03
 vs_battle_uiMiscRand	unk3	confidence low (deferred)	reserved03
 vs_battle_uiShield	unk0	confidence low (deferred)	reserved0
@@ -1542,16 +1275,7 @@ vs_hitParams_t		a member of ours could not be read
 vs_main_CdQueueSlot	unkC	confidence low (deferred)	opaqueC
 vs_main_HeapHeader	blockSz	not a placeholder name (already descriptive: left)	blockSize
 vs_main_HeapHeader	unkC	confidence low (deferred)	reservedC
-vs_main_disk_t	cdLoc	not a placeholder name (already descriptive: left)	position
-vs_main_disk_t	cdSector	not a placeholder name (already descriptive: left)	startSector
-vs_main_disk_t	pcm	not a placeholder name (already descriptive: left)	xaFilter
-vs_main_disk_t	ringBufIndex	not a placeholder name (already descriptive: left)	ringReadIndex
-vs_main_disk_t	sectorBufIndex	not a placeholder name (already descriptive: left)	destinationSector
-vs_main_disk_t	unk1	confidence low (deferred)	xaModeMarker
-vs_main_disk_t	unk2	confidence low (deferred)	reserved2
-vs_main_disk_t	unk24	confidence low (deferred)	reserved24
-vs_main_disk_t	unk28	confidence low (deferred)	reserved28
-vs_main_disk_t	vram	not a placeholder name (already descriptive: left)	destination
+vs_main_disk_t		members differ from the ledger's (names or order or count)	
 vs_main_flags_t	acaciaSigilUsed	not a placeholder name (already descriptive: left)	reserved393
 vs_main_flags_t	anemoneSigilUsed	not a placeholder name (already descriptive: left)	reserved397
 vs_main_flags_t	asterSigilUsed	not a placeholder name (already descriptive: left)	reserved38E
@@ -1653,9 +1377,7 @@ vs_main_inventoryShield	unk2	confidence low (deferred)	reserved2
 vs_main_scoredata_t	unk10	confidence low (deferred)	reserved10
 vs_main_scoredata_t	unk8A	confidence low (deferred)	reserved8A
 vs_main_settings_t	unk0_0	not a placeholder name (already descriptive: left)	reserved0Bit0
-vs_main_sfxContext	unk0	confidence low (deferred)	reserved0
-vs_main_sfxContext	unk4	confidence low (deferred)	reserved4
-vs_main_sfxContext	unk8	confidence low (deferred)	reserved8
+vs_main_sfxContext		members differ from the ledger's (names or order or count)	
 vs_main_statusEffectParams_t		no struct of that name in our tree	
 vs_menu_container	data	not a placeholder name (already descriptive: left)	items
 vs_menu_inventoryStorage_t	unk0	confidence med (deferred)	savedInventory
@@ -1694,13 +1416,4 @@ vs_transposedRingUV	v	not a placeholder name (already descriptive: left)	reserve
 wanderObject	flags	not a placeholder name (already descriptive: left)	opaque8
 wanderObject	pad0	not a placeholder name (already descriptive: left)	reserved0
 wanderState		no struct of that name in our tree	
-zudHeader	blade	not a placeholder name (already descriptive: left)	weaponOffset
-zudHeader	effect	not a placeholder name (already descriptive: left)	commonAnimationOffset
-zudHeader	effectSize	not a placeholder name (already descriptive: left)	commonAnimationSize
-zudHeader	model	not a placeholder name (already descriptive: left)	characterShapeOffset
-zudHeader	shield	not a placeholder name (already descriptive: left)	shieldOffset
-zudHeader	unk14	confidence med (deferred)	weaponSize
-zudHeader	unk1C	confidence med (deferred)	shieldSize
-zudHeader	unkC	confidence med (deferred)	characterShapeSize
-zudHeader	weaponEffect	not a placeholder name (already descriptive: left)	battleAnimationOffset
-zudHeader	weaponEffectSize	not a placeholder name (already descriptive: left)	battleAnimationSize
+zudHeader		members differ from the ledger's (names or order or count)	

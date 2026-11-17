@@ -9,7 +9,7 @@ const c = @import("c_146C");
 /// Fills an action request aimed at one target and returns the action's cost byte.
 pub fn vs_battle_previewActionAgainstLimb(action: c_int, actorIndex: c_int, targetActor: c_int, targetLimb: c_int, arg4: ?*anyopaque) callconv(.c) c_int {
     // ROOD_PC: the whole request is zeroed first, padding included.
-    var sp10: v.D_800F19CC_t2 = std.mem.zeroes(v.D_800F19CC_t2);
+    var sp10: v.vs_battle_ActionRequest = std.mem.zeroes(v.vs_battle_ActionRequest);
 
     sp10.targets[0].target.targetActor = psx.conv(u8, targetActor);
     sp10.actionIndex = psx.conv(u16, action);

@@ -10,9 +10,9 @@ pub fn vs_actors_restoreActorBasePose(actorId: c_int, animation: c_int) callconv
     if (actor) |a| {
         const currentAnimation: c_int = a.animationId;
         if (currentAnimation != 0xC6 and currentAnimation != 0xC8 and
-            (a.unk0.slot != 0 or (psx.fieldAt(u32, &a.unk0._bits_skip, 0).* & 0x184000) != 0x80000))
+            (a.unk0.slot != 0 or (psx.bitsAt(u32, &a.unk0._bits_skip, 0).* & 0x184000) != 0x80000))
         {
-            const flags = psx.fieldAt(u32, &a.unk0._bits_skip, 0).*;
+            const flags = psx.bitsAt(u32, &a.unk0._bits_skip, 0).*;
             const state = flags & 0x70000000;
             if (((flags >> 16) & 7) < 2 and state != 0x20000000 and state != 0x50000000) {
                 const action = flags & 0x0F000000;
@@ -24,7 +24,7 @@ pub fn vs_actors_restoreActorBasePose(actorId: c_int, animation: c_int) callconv
                     skipMove = true;
                 }
                 if (!skipMove) {
-                    const movementFlags = psx.fieldAt(u32, &a.unk0._bits_skip, 0).*;
+                    const movementFlags = psx.bitsAt(u32, &a.unk0._bits_skip, 0).*;
                     if ((movementFlags & 0x180000) == 0x100000) {
                         if (psx.fieldAt(u32, &a.unk0.unk18, 0).* != 0) {
                             a.unk0.unk1A = 0;
@@ -91,20 +91,20 @@ pub fn vs_actors_restoreActorBasePose(actorId: c_int, animation: c_int) callconv
                 }
             }
             // resetState:
-            if ((psx.fieldAt(u32, &a.unk0._bits_skip, 0).* & 0x180000) != 0x100000) {
-                psx.fieldAt(u32, &a.unk0._bits_skip, 0).* &= 0xFFE7FFFF;
+            if ((psx.bitsAt(u32, &a.unk0._bits_skip, 0).* & 0x180000) != 0x100000) {
+                psx.bitsAt(u32, &a.unk0._bits_skip, 0).* &= 0xFFE7FFFF;
             }
             a.unk5C8 = 0;
             a.unk0.unk18 = 0;
             a.unk0.unk1A = 0;
-            psx.fieldAt(u32, &a.unk0._bits_skip, 0).* &= 0xFFFFBFFF;
+            psx.bitsAt(u32, &a.unk0._bits_skip, 0).* &= 0xFFFFBFFF;
             _ = c.vs_actors_resetActorRunMomentum(actorId);
         }
     } else {
         const object = psx.at(v.g.vs_field_gimmickInstances(), actorId).*;
         if (object) |obj| {
             const objectState: c_int = obj.unk1A;
-            if ((objectState == 0xF9 or objectState == 0xFF) and psx.fieldAt(u8, &obj.unk6C, 260).* == 0) {
+            if ((objectState == 0xF9 or objectState == 0xFF) and obj.unk6C[8].unk4 == 0) {
                 obj.unk1A = 0;
             }
         }

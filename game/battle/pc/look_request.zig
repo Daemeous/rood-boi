@@ -12,7 +12,7 @@ fn lookRequest(id: c_int, position: [*]const c_int, b: c_int, kind: c_int) void 
     psx.fieldAt(c_int, &a.unk5EC, 0).* = position[0];
     psx.fieldAt(c_int, &a.unk5EC, 4).* = position[1];
     psx.fieldAt(u16, &a.unk5EC, 6).* = @truncate(@as(c_uint, @bitCast(b)));
-    const flags = psx.fieldAt(u8, &a.unk0._bits_skip, 3);
+    const flags = psx.bitsAt(u8, &a.unk0._bits_skip, 3);
     flags.* = (flags.* & 0x8f) | @as(u8, @truncate(@as(c_uint, @bitCast(kind))));
 }
 

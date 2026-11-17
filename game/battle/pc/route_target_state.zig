@@ -11,7 +11,7 @@ const psx = @import("common").psx;
 pub fn routeTargetState(id: c_uint) callconv(.c) c_int {
     if (id >= 17) c.pc_unimplemented("actor navigation index");
     const state = v.g.vs_battle_aiActorAiStates()[id];
-    if (v.g.D_800F58B8().* == 0 or state == null) return 2;
+    if (v.g.D_800F58B8().* == null or state == null) return 2;
     const st: *ai.vs_battle_aiState = @ptrCast(@alignCast(state.?));
     const route = st.route orelse return 2;
     const tile_word: *align(1) const c_uint = @ptrCast(route.tilePointer.words.?);

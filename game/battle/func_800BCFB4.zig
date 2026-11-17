@@ -53,7 +53,7 @@ fn toNormalIntegerVector(src: *v.VECTOR, dst: *v.VECTOR) void {
 /// Moves `cam` toward its position in steps of `value` (2..10 of them, the last when fewer), stopping
 /// below the first point whose ground (func_800BD2B8) is higher than it; done (time = duration) when
 /// the move is short or ends where the last one did (unk27C).
-pub fn func_800BCFB4(arg: ?*v.D_800F4BA4_t2) callconv(.c) void {
+pub fn func_800BCFB4(arg: ?*v.vs_event_CameraTrack) callconv(.c) void {
     const cam = arg.?;
     _ = c._vectorSubtract(cv(delta), cv(&cam.target), cv(&cam.position));
     c._vecToRotMatrix(cv(delta), cm(matrix));

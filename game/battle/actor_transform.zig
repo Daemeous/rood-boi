@@ -10,7 +10,7 @@ const c = @import("c_44F14");
 /// orig: vs_actors_transformRootOffset (pc/src/game/BATTLE/BATTLE.PRG/44F14.c)
 /// The scratchpad offset rotated by the actor's pitch, facing and roll, plus its position.
 pub fn offsetToWorld(actor: ?psx.GuestPtr(v.D_800F4538_t)) callconv(.c) void {
-    const scratch: *v.actorTransformScratch = @ptrFromInt(pad.addr(0x35C));
+    const scratch: *v.actorTransformScratch = pad.at(v.actorTransformScratch, 0x35C);
     scratch.rotation.vx = actor.?.unk0.pitch;
     scratch.rotation.vy = actor.?.unk0.facing;
     scratch.rotation.vz = actor.?.unk0.roll;

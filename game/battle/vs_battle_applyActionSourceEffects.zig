@@ -13,7 +13,7 @@ pub fn vs_battle_applyActionSourceEffects(arg0: c_int, _: ?*v.func_8006CE70_t) c
     }
 
     const base = v.g.vs_battle_actionState().*.?;
-    const t: *v.D_800F19CC_t2 = &base.queue[@as(usize, base.unk0 & 3)];
+    const t: *v.vs_battle_ActionRequest = &base.queue[@as(usize, base.unk0 & 3)];
 
     if (@as(c_int, t.primaryTarget.target.targetActor) == arg0 and t.primaryTarget.unk40 == 0) {
         switch (@as(c_int, t.primaryTarget.target.unk3)) {

@@ -1114,6 +1114,23 @@ def record_durations(timings, config, results):
     timings.write_text(json.dumps(data, indent=1, sort_keys=True) + "\n")
 
 
+RAW_PACKET_LINE = "[ot] a raw packet is linked in a table"
+
+
+def raw_packet_lines(out):
+    """The tripwire's lines in the logs under a suite's output directory (one per file at most)."""
+    found = []
+    for path in sorted(pathlib.Path(out).rglob("*.log")):
+        try:
+            for line in path.read_text(errors="replace").splitlines():
+                if RAW_PACKET_LINE in line:
+                    found.append(f"{path.name}: {line.strip()}")
+                    break
+        except OSError:
+            pass
+    return found
+
+
 def run_suite(suite, index, args, mode, results, lock):
     out = OUT / suite.name.replace(":", "-")
     if suite.name.startswith("soak"):
@@ -1187,6 +1204,12 @@ def run_suite(suite, index, args, mode, results, lock):
                 pass
             p.wait()
     elapsed = time.monotonic() - start
+    if result == "PASS":  # the tripwire: a raw packet linked in an ordering table (boot_runtime.c raw_tripwire), in any log the suite's games wrote
+        raw = raw_packet_lines(out)
+        if raw:
+            result = "FAIL (raw packet)"
+            with log.open("a") as output:
+                output.write("FAIL: a raw packet is linked in an ordering table (the tables are going: T4):\n" + "\n".join(raw) + "\n")
     if suite.name == "snapshot_equivalence" and args.snapshot_dir:
         (args.snapshot_dir / "building").unlink(missing_ok=True)  # the checkpoints' tests may go on
     pathlib.Path(env["ROOD_RPC"]).unlink(missing_ok=True)

@@ -13,16 +13,14 @@ pub fn vs_battle_aiUpdateActorDecisions() callconv(.c) void {
     var actor = psx.get(head.next);
     while (actor) |a| {
         // Per-actor state pointer: the scratchpad table at 0x1F80037C, indexed by actor id.
-        const slot_addr: usize = pad.addr(0x37C) +% @as(usize, @bitCast(@as(isize, @as(c_int, 4) *% a.id)));
-        const slot: *const u32 = @ptrFromInt(slot_addr);
-        const state: *v.vs_battle_aiState = @ptrFromInt(@as(usize, slot.*));
+        const state: *v.vs_battle_aiState = @ptrCast(@alignCast(pad.aiState(a.id)));
 
         if (state.unk14 == 0 or state.unk1D != 0) {
             const value = c.vs_core_elapsedFrameCounterTicks();
             if (v.g.D_800F16F4().* < value) {
                 c.vs_battle_aiIssueActorCommand(@ptrCast(state), 17);
             } else {
-                @as(*c_int, @ptrFromInt(pad.addr(0x3FC))).* = value;
+                pad.at(c_int, 0x3FC).* = value;
                 if (state.unk14 != 0 and state.unk1D != 0) {
                     const height: c_int = blk: {
                         if (v.g.vs_battle_aiActorAiStates()[0]) |tail_raw| {
@@ -48,13 +46,13 @@ pub fn vs_battle_aiUpdateActorDecisions() callconv(.c) void {
                     state.flags0.word = 0;
                     state.flags4.word = 0;
                     state.flags8.word = 0;
-                    const table_word: *const u32 = @ptrFromInt(pad.addr(0x3C0));
+            
                     // Rows of 32 cells, indexed unchecked as the C does (z * 32 + x: a tile byte past 31 reads on).
-                    const cells: [*]u16 = @ptrFromInt(@as(usize, table_word.*));
+                    const cells: [*]u16 = @ptrCast(pad.nav.cells.?);
                     const terrain = psx.conv(c_int, cells[@as(usize, state.tile.b[2]) * 32 + state.tile.b[0]] & 15);
                     state.area = psx.conv(u8, terrain);
                     state.terrain132 = psx.conv(i8, terrain);
-                    @as(*c_int, @ptrFromInt(pad.addr(0x3D0))).* = 0;
+                    pad.at(c_int, 0x3D0).* = 0;
                     c.vs_battle_aiDispatchMovementBehavior(@ptrCast(state));
                     c.func_800DB7B4(@ptrCast(state));
                 }

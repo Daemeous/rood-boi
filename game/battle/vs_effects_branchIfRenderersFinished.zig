@@ -6,7 +6,7 @@ const c = @import("c_5BF94");
 
 /// orig: vs_effects_branchIfRenderersFinished (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// vs_effects_branchScriptIf(unkD1C.unk34 == NULL, script); returns 1.
-pub fn vs_effects_branchIfRenderersFinished(script: ?*v.D_800F53B8_t) callconv(.c) c_int {
+pub fn vs_effects_branchIfRenderersFinished(script: ?*v.vs_effects_EffectInstance) callconv(.c) c_int {
     c.vs_effects_branchScriptIf(@intFromBool(psx.get(script.?.context.unk34) == null), @ptrCast(script));
     return 1;
 }

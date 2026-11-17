@@ -8,7 +8,7 @@ const c = @import("c_30DB0");
 /// Stops an actor's motion and starts its fall, then plays its animation (or holds it), and does the same for the actor linked to it; an empty slot resets its object instead.
 pub fn vs_actors_beginActorDeath(actorId: c_int, context: ?*anyopaque, animate: c_int) callconv(.c) void {
     if (psx.at(v.g.vs_actors_actorRecords(), actorId).*) |actor| {
-        const flags0: c_int = psx.fieldAt(c_int, &actor.unk0._bits_skip, 0).*;
+        const flags0: c_int = psx.bitsAt(c_int, &actor.unk0._bits_skip, 0).*;
         if ((flags0 & 0x270000) != 0 or (flags0 & 0x180000) == 0x100000) {
             const low = psx.getBits(&actor.unk0, "unkC_0");
             if (low != 0) {
@@ -20,11 +20,11 @@ pub fn vs_actors_beginActorDeath(actorId: c_int, context: ?*anyopaque, animate: 
             actor.unk0.unk34.vz = 0;
             // The vertical speed is kept only when falling-free: unkF == 0, mode 3, vy > 0.
             const keepVy = actor.unk0.slot == 0 and
-                (psx.fieldAt(c_int, &actor.unk0._bits_skip, 0).* & 0x70000) == 0x30000 and
+                (psx.bitsAt(c_int, &actor.unk0._bits_skip, 0).* & 0x70000) == 0x30000 and
                 actor.unk0.unk34.vy > 0;
             if (!keepVy) actor.unk0.unk34.vy = -6;
             actor.unk181A = 0;
-            psx.fieldAt(c_int, &actor.unk0._bits_skip, 0).* = (psx.fieldAt(c_int, &actor.unk0._bits_skip, 0).* & ~@as(c_int, 0x70000)) | 0x30000;
+            psx.bitsAt(c_int, &actor.unk0._bits_skip, 0).* = (psx.bitsAt(c_int, &actor.unk0._bits_skip, 0).* & ~@as(c_int, 0x70000)) | 0x30000;
         }
         if (animate != 0) {
             var animationId: c_int = 0x46;
@@ -33,7 +33,7 @@ pub fn vs_actors_beginActorDeath(actorId: c_int, context: ?*anyopaque, animate: 
             var animation: [*c]c.u_short = null;
             _ = c.vs_actors_findActorAnimationHeader(@ptrCast(actor), 0xAB, &animation);
             if (animation != null) {
-                if ((psx.fieldAt(c_int, &actor.unk0._bits_skip, 0).* & 0x70000) == 0) animationId = 0x47;
+                if ((psx.bitsAt(c_int, &actor.unk0._bits_skip, 0).* & 0x70000) == 0) animationId = 0x47;
             }
             _ = c.vs_actors_playActorAnimation(actorId, animationId, 0, 6);
             c.vs_actors_headTrackingSpeed(@ptrCast(actor));
@@ -47,7 +47,7 @@ pub fn vs_actors_beginActorDeath(actorId: c_int, context: ?*anyopaque, animate: 
     } else {
         if (psx.at(v.g.vs_field_gimmickInstances(), actorId).*) |object| {
             object.unk1A = 0xF7;
-            psx.fieldAt(u8, &object.unk6C, 260).* = 0;
+            object.unk6C[8].unk4 = 0;
             _ = c.vs_audio_playGimmickSoundPair(@ptrCast(object), 0x32, 0);
         }
     }

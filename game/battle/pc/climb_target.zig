@@ -11,7 +11,7 @@ const pad = @import("common").pad;
 /// min(steps - 1, 2) but tests its constant, so the bound is steps - 1.
 pub fn climbTarget(state: *ai.vs_battle_aiState, tile_in: c_uint, dir: c_int, steps: c_int) callconv(.c) c_uint {
     var tile = tile_in;
-    if (@as(*const u32, @ptrFromInt(pad.addr(0x3F4))).* == 0) return 0;
+    if (pad.nav.exits == null) return 0;
     const current = state.tile.raw;
     var floor = c.vs_field_groundHeightAtPackedTile(current);
     const raw = c.vs_field_groundHeightFlagsAtPackedTile(tile);

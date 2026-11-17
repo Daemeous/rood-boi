@@ -4,7 +4,7 @@ const v = @import("views_4A0A8");
 const c = @import("c_4A0A8");
 
 /// vs_event_camera, read again for every statement as the C does (its stores and calls may change it).
-fn camera() *v.D_800F4BA4_t {
+fn camera() *v.vs_event_CameraState {
     return v.g.vs_event_camera().*.?;
 }
 
@@ -20,13 +20,13 @@ pub fn func_800BC9E0() callconv(.c) void {
     camera().lookAt.target.vy = camera().eye.current.vy;
     camera().lookAt.target.vz = camera().eye.current.vz;
     var cam = camera();
-    c.func_800BCA8C(psx.cptr(c.D_800F4BA4_t2, &cam.lookAt), psx.cptr(c.D_800F4BA4_t2, &cam.eye));
+    c.func_800BCA8C(psx.cptr(c.vs_event_CameraTrack, &cam.lookAt), psx.cptr(c.vs_event_CameraTrack, &cam.eye));
     cam = camera();
-    c.func_800BCA8C(psx.cptr(c.D_800F4BA4_t2, &cam.eye), psx.cptr(c.D_800F4BA4_t2, &cam.lookAt));
-    c.func_800BD57C(psx.cptr(c.func_800BD57C_t, &camera().unk168));
-    c.func_800BD57C(psx.cptr(c.func_800BD57C_t, &camera().unk174));
-    c.func_800BDF6C(psx.cptr(c.func_800BDF6C_unk180_t, &camera().projectionDistance));
-    c.func_800BDF6C(psx.cptr(c.func_800BDF6C_unk180_t, &camera().nearClip));
-    c.func_800BDF6C(psx.cptr(c.func_800BDF6C_unk180_t, &camera().farClip));
+    c.func_800BCA8C(psx.cptr(c.vs_event_CameraTrack, &cam.eye), psx.cptr(c.vs_event_CameraTrack, &cam.lookAt));
+    c.func_800BD57C(psx.cptr(c.vs_event_AngleTween, &camera().unk168));
+    c.func_800BD57C(psx.cptr(c.vs_event_AngleTween, &camera().unk174));
+    c.func_800BDF6C(psx.cptr(c.vs_event_LensTween, &camera().projectionDistance));
+    c.func_800BDF6C(psx.cptr(c.vs_event_LensTween, &camera().nearClip));
+    c.func_800BDF6C(psx.cptr(c.vs_event_LensTween, &camera().farClip));
     c.func_800BE180();
 }

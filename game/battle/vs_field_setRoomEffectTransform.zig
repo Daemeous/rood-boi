@@ -5,7 +5,7 @@ const c = @import("c_2842C");
 
 /// orig: vs_field_setRoomEffectTransform (pc/src/game/BATTLE/BATTLE.PRG/2842C.c)
 /// Copies three words and a short vector from `src` into `dst`, then calls vs_field_writeRoomEffectTransform on `dst`.
-pub fn vs_field_setRoomEffectTransform(arg0: ?*v.func_80092F74_t, arg1: ?*v.func_80092F74_t2) callconv(.c) c_int {
+pub fn vs_field_setRoomEffectTransform(arg0: ?*v.func_80092F74_t, arg1: ?*v.vs_field_RoomEffectCommand) callconv(.c) c_int {
     const dst = arg0.?;
     const src = arg1.?;
     dst.unkC = src.operands[0].s32;

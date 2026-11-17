@@ -9,13 +9,12 @@ const c = @import("c_771A8");
 
 /// `((D_800F16EC_t*)0x1F8003EC)[direction]`: a heading's tile step.
 fn step(direction: c_int) *v.D_800F16EC_t {
-    return psx.at(@as([*]v.D_800F16EC_t, @ptrFromInt(pad.addr(0x3EC))), direction);
+    return psx.at(pad.many(v.D_800F16EC_t, 0x3EC), direction);
 }
 
 /// The other actor's path state in scratchpad slot `0x1F80037C + 4 * index`.
 fn blockerState(index: c_int) *v.vs_battle_aiState {
-    const slot = psx.at(@as([*]const u32, @ptrFromInt(pad.addr(0x37C))), index);
-    return @ptrFromInt(@as(usize, slot.*));
+    return @ptrCast(@alignCast(pad.aiState(index)));
 }
 
 /// The tile one step from `tile` toward `direction` (y 0). The C builds it in an
@@ -72,7 +71,7 @@ pub fn vs_battle_aiFollowObstacleDetour(state: ?*v.vs_battle_aiState, test_: c.m
                     if (s.flags4.b[0] == 0) {
                         const x: c_int = @as(c_int, psx.getBits(&s.tile.position.p, "x")) +% psx.getBits(step(@bitCast(direction)), "dx");
                         const z: c_int = @as(c_int, psx.getBits(&s.tile.position.p, "z")) +% psx.getBits(step(@bitCast(direction)), "dz");
-                        const grid: [*][32]u16 = @ptrFromInt(@as(usize, @as(*const u32, @ptrFromInt(pad.addr(0x3C0))).*));
+                        const grid: [*][32]u16 = pad.nav.cells.?;
                         const bounds = v.g.vs_battle_aiRoomAiState().*.?;
                         // mask: the C's shift is undefined outside 0-31.
                         if ((@as(c_int, psx.at(psx.at(grid, z), x).*) >> @intCast(mask)) & 1 != 0 or

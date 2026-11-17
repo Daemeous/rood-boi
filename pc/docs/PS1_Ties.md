@@ -477,7 +477,7 @@ the same address.
 **Player feels.** Nothing directly.
 
 **Evidence.**
-- Baseline `scratchpad` count: 1020. By file (grep of the lint's hits): `pc/src/game/BATTLE` 351,
+- Baseline `scratchpad` count: 1020 (2026-11-08; since then the scratchpad is a native block `vs_pad` of 0x408 bytes, reached by `pad.at`, `pad.many`, `pad.addr` and `PC_PAD`; its owner table is pc/docs/memory_layouts/scratchpad-overlays.tsv; the lint's old `scratchpad` rule also counted I/O registers, now `io_register`). By file (grep of the lint's hits): `pc/src/game/BATTLE` 351,
   `game/battle` (Zig) 258, `pc/src/game/MENU` 114, `pc/src/game/EFFECT` 47, `pc/src/game/ENDING` 29,
   `pc/src/scene_submit.inc` 19.
 - `pc/src/game/include/scratch.h` (`vs_scratch_t`); `pc/src/boot_runtime.c` maps the page.
@@ -550,7 +550,7 @@ Why the 301 are pinned (each counted once, in this order; `lp64_imports.json` sa
   it, as one native region with the guest layout (each region starts at the guest address's alignment: a
   member keeps its low address bits), each member after an array extended to the next import (the bytes
   between labels are read through the table's base). An import declared with different sizes (D_800E909C:
-  `u_char []` here, `func_800AAE9C_t [][28]` there; 11 imports) stays: the labels after it lie inside a larger
+  `u_char []` here, `vs_actors_TextureAnimationKey [][28]` there; 11 imports) stays: the labels after it lie inside a larger
   table, and moving it with the extent of the next label dropped Ashley's mouth texture in the story scenes.
 - 121 are in the plug-in slot: the link places each in `pc_plugin_slot` (see T10), not at its PS1 address.
   2 are shared between BATTLE, INITBTL and the program (one object over several overlays: INITBTL's

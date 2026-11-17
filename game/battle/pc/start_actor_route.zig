@@ -28,7 +28,7 @@ pub fn startActorRoute(id: c_uint, x: c_int, z: c_int) callconv(.c) c_int {
     const target: c_uint = (@as(c_uint, @bitCast(z)) << 16) | @as(c_uint, @bitCast(x));
     if (id >= 17) c.pc_unimplemented("actor navigation index");
     const state: ?*ai.vs_battle_aiState = @ptrCast(@alignCast(v.g.vs_battle_aiActorAiStates()[id]));
-    if (v.g.D_800F58B8().* == 0 or state == null) return 0;
+    if (v.g.D_800F58B8().* == null or state == null) return 0;
     c.vs_battle_aiDisengageActor(@ptrCast(state));
     c.vs_battle_aiResetActorAwarenessIndicator(@ptrCast(state));
     c.vs_battle_aiUnlinkEngagedActor(@ptrCast(state));

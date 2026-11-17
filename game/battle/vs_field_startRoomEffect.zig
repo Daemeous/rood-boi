@@ -21,7 +21,7 @@ pub fn vs_field_startRoomEffect(arg0: c_int) callconv(.c) c_int {
         }
         entry.unk0 = 1;
         psx.put(&entry.unk4, psx.get(entry.unk8));
-        c.vs_field_createRoomEffectObjects(psx.cptr(c.D_800F1DD8_t, entry));
+        c.vs_field_createRoomEffectObjects(psx.cptr(c.vs_field_RoomEffectInstance, entry));
         return 1;
     }
     return 0;

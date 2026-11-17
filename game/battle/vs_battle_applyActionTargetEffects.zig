@@ -12,7 +12,7 @@ pub fn vs_battle_applyActionTargetEffects(arg0: c_int, arg1: ?*v.func_8006CE70_t
         var applied = false;
         var effect: c_int = 6;
         const base = v.g.vs_battle_actionState().*.?;
-        const temp_s0: *v.D_800F19CC_t2 = &base.queue[base.unk0 & 3];
+        const temp_s0: *v.vs_battle_ActionRequest = &base.queue[base.unk0 & 3];
 
         var i: c_int = 0;
         while (i < @as(c_int, temp_s0.targetCount)) : (i +%= 1) {

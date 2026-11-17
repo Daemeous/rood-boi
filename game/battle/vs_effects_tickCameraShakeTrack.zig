@@ -6,7 +6,7 @@ const c = @import("c_5BF94");
 
 /// orig: vs_effects_tickCameraShakeTrack (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// From the command's frame on: at it, vs_effects_startCameraShakeChannels with the first entry's fields (an original bug: e->, not e[unk6]); each call counts unkA down, the next command at 0.
-pub fn vs_effects_tickCameraShakeTrack(script: ?*v.D_800F53B8_t, cmd_arg: ?*v.func_800D5780_t) callconv(.c) c_int {
+pub fn vs_effects_tickCameraShakeTrack(script: ?*v.vs_effects_EffectInstance, cmd_arg: ?*v.func_800D5780_t) callconv(.c) c_int {
     const cmd = cmd_arg.?;
     const e: [*]v.func_800D6A18_t = @ptrCast(psx.get(cmd.keys).?);
     var ret: c_int = 1;

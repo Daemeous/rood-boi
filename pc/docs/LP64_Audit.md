@@ -287,7 +287,7 @@ Pointer-typed imports:
 | `D_800F18E4` | `void *` | - | zero | BATTLE | 2 |
 | `D_800F18EC` | `D_800F18EC_t *` | - | zero | BATTLE | 3 |
 | `D_800F192C` | `vs_battle_actor *` | - | zero | BATTLE | 2 |
-| `vs_battle_actionState` | `D_800F19CC_t *` | - | zero | BATTLE | 610 |
+| `vs_battle_actionState` | `vs_battle_ActionState *` | - | zero | BATTLE | 610 |
 | `vs_field_roomPalettes` | `u_short *` | - | zero | BATTLE | 7 |
 | `vs_battle_floatingLabels` | `D_800F1BAC_t (*)[32]` | - | zero | BATTLE | 28 |
 | `D_800F1BB8` | `void *` | - | zero | BATTLE | 2 |
@@ -304,13 +304,13 @@ Pointer-typed imports:
 | `vs_content_legacySequenceParseData` | `u_char *` | - | zero | BATTLE | 38 |
 | `vs_actors_sharedSequenceData` | `void *[]` | - | zero | BATTLE | 9 |
 | `vs_actors_actorRecords` | `D_800F4538_t *[17]` | - | zero | BATTLE, MENU, pc | 262 |
-| `vs_battle_unusedGlobal1` | `D_800F4590_t *[]` | - | unknown | MENU | 4 |
+| `vs_battle_unusedGlobal1` | `vs_menu_FrameworkPreviewPoseState *[]` | - | unknown | MENU | 4 |
 | `vs_field_gimmickInstances` | `D_800F45E0_t *[16]` | - | zero | BATTLE, MENU, pc | 73 |
 | `D_800F4768` | `void *` | - | zero | BATTLE | 3 |
 | `vs_actors_sharedSequenceAnimationData` | `char *[4][16]` | - | zero | BATTLE | 10 |
 | `D_800F4930` | `void *` | - | zero | BATTLE | 3 |
 | `vs_field_collisionProbeTile` | `u_int *` | - | zero | BATTLE | 21 |
-| `vs_event_camera` | `D_800F4BA4_t *` | - | zero | BATTLE | 242 |
+| `vs_event_camera` | `vs_event_CameraState *` | - | zero | BATTLE | 242 |
 | `vs_event_dialogStrings` | `u_short *` | - | zero | BATTLE | 3 |
 | `vs_event_eventFileDiscRequest` | `short *` | - | zero | BATTLE | 7 |
 | `vs_event_vibrationPatterns` | `char *[]` | - | zero | BATTLE | 4 |
@@ -320,9 +320,9 @@ Pointer-typed imports:
 | `vs_event_threadCursors` | `u_char *[]` | - | zero | BATTLE | 10 |
 | `vs_event_vibrationPatternBuffer` | `void *` | - | zero | BATTLE | 3 |
 | `D_800F5218` | `vs_main_CdQueueSlot *` | - | zero | BATTLE | 7 |
-| `vs_effects_primaryInstances` | `D_800F53B8_t *` | - | zero | BATTLE | 8 |
-| `vs_effects_currentInstance` | `D_800F53B8_t *` | - | zero | BATTLE, pc | 199 |
-| `vs_effects_secondaryInstances` | `D_800F53B8_t *` | - | zero | BATTLE | 7 |
+| `vs_effects_primaryInstances` | `vs_effects_EffectInstance *` | - | zero | BATTLE | 8 |
+| `vs_effects_currentInstance` | `vs_effects_EffectInstance *` | - | zero | BATTLE, pc | 199 |
+| `vs_effects_secondaryInstances` | `vs_effects_EffectInstance *` | - | zero | BATTLE | 7 |
 | `vs_effects_freeParticles` | `func_800D2904_t *` | - | zero | BATTLE | 9 |
 | `vs_effects_particlePool` | `func_800D2904_t *` | - | zero | BATTLE | 20 |
 | `vs_effects_resourceReadSlot` | `vs_main_CdQueueSlot *` | - | zero | BATTLE | 7 |
@@ -534,7 +534,7 @@ fell 22 -> 14 structs, all SDK runtime types (see below). Totals 728 -> 663; no 
 its `vs_scratch` sites were converted too). 32-bit builds, `make commit-check`
 ("All files match") and `run.py -j 2` unchanged.
 
-- *ps1-overlay, via the codemod:* `D_800378C0_t`, `D_80039BC8_t`,
+- *ps1-overlay, via the codemod:* `vs_audio_CommandArguments`, `vs_audio_BankStreamState`,
   `FSoundChannel`, `FSoundChannelConfig`, `padAct_t`, `soundData_t`,
   `struct FSoundCutsceneStreamState` (sound driver state at image addresses)
   and `vs_scratch_t` (scratchpad; 67 files in every group, 538 reads, 143
@@ -654,7 +654,7 @@ actor_blend, actor_vertices). The 4 left are packed OT links
   (`pc/src`), so native layout would have meant fixing every view and offset.
   The codemod converted 49 structs (154 declarations, 500 reads, 69 writes,
   13 copies, 64 asserts, 31 files): `struct vs_battle_actor`, `D_800F4538_t`,
-  `D_800F4538_unk0`, `D_800F4538_unk68`, `D_800F4538_unkC54`, `D_800F45E0_t`,
+  `vs_actors_ModelInstance`, `vs_actors_ShpModel`, `D_800F4538_unkC54`, `D_800F45E0_t`,
   `D_800F45E0_unk68`, `vs_battle_wepModels_t`, `D_1F8003BC_t`,
   `actorTransformScratch`, `weaponTransformScratch`, `struct animationFrameScratch`,
   `func_800AD494_t`, `D_800F58BC_t`, and the AI views in 6F014/6FC00/71618/73700/
@@ -771,11 +771,11 @@ one). 32-bit builds, `make commit-check` ("All files match") and `run.py -j 2`
   viewed through alias structs and read by offset in port code. The codemod
   converted 32 structs (86 declarations, 709 reads, 205 writes, 13 copies,
   73 files): `_mpdRoomSection`, `_mpdRoomSectionE`, `_zoneContext_t`,
-  `vs_battle_room`, `D_800F1910_t`, `D_800F1D08_t`, `D_800F1D28_t`,
-  `D_800F1DD8_t`, `func_80092B04_t`, `func_80092F74_t`, `func_80092F74_t2`,
+  `vs_battle_room`, `vs_field_InteractionFocus`, `vs_field_DoorMatchList`, `vs_field_GimmickAnimationJob`,
+  `vs_field_RoomEffectInstance`, `func_80092B04_t`, `func_80092F74_t`, `vs_field_RoomEffectCommand`,
   `vs_battle_objectData`, `func_8009C378_t`, `func_8004644C_t`,
   `D_800EB9B8_unk990`, `D_800F569C_t` (the P-file block pointers),
-  `func_800D6CF_t`, `D_800F53B8_t` (and `_t2`, `_t3`), `func_800D5780_t`,
+  `func_800D6CF_t`, `vs_effects_EffectInstance` (and `_t2`, `_t3`), `func_800D5780_t`,
   `timedSpawnState`, `func_800D2904_t`, `vs_battle_lootListNode`,
   `vs_battle_menuState_t`, `vs_battle_menuItem_t`, `vs_battle_stringContext_t`,
   `vs_battle_textBox`, `func_800C56C0_t`, `func_800C56C0_t2`, `gim_t`,
@@ -932,7 +932,7 @@ proposes no edit in an effects or MENU file (3 in `5BF94.c`, `psx_copy` from
   The MAINMENU `vs_main_allocHeap(0x1900)` allocations are model buffers, not
   actor records; `D_800F4538_t` is asserted at its PS1 size 0x18D4 since task 3.
 - *Shared (owned by the BATTLE world/UI task):* `func_800D6CF_t` and
-  `func_800D2904_t` (`5BF94.h`, PS1 layout since task 4), `func_800FA098_arg0/arg1`
+  `func_800D2904_t` (`5BF94.h`, PS1 layout since task 4), `vs_effects_ParticleDefinition/arg1`
   (`5BF94.h`, scratch view at 0x1F8001D0), `func_800D4910_t` (`6E644.h`),
   `vs_battle_objectData.dataAddr` (`2842C.h`, `u_long`, written by MENU9),
   the import `vs_battle_unusedGlobal1[]` (`30DB0.h`, read by MAINMENU/MENU3) and the other

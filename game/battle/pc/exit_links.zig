@@ -22,12 +22,12 @@ pub fn enableExitLinks() callconv(.c) void {
     while (k >= 0) : (k -%= 1) {
         active |= @as(c_uint, 1) << @as(u5, @intCast(records[@intCast(k)][3] & 31));
     }
-    if (v.g.D_800F58C0().* == 0) return;
+    if (v.g.D_800F58C0().* == null) return;
     var one: c_uint = 0;
     var one_known = false;
     var offset: c_uint = 0;
     while (offset < 0x400) : (offset += 4) {
-        const entry: *align(1) c_uint = @ptrFromInt(@as(usize, v.g.D_800F58C0().* +% offset));
+        const entry: *align(1) c_uint = @ptrFromInt(@intFromPtr(v.g.D_800F58C0().*.?) +% @as(usize, offset));
         var value = entry.*;
         if (value & 0x04000400 != 0) {
             value |= (@as(c_uint, 1) << 31) | (1 << 15);
@@ -39,7 +39,7 @@ pub fn enableExitLinks() callconv(.c) void {
             var bit1 = (value >> 29) & 3;
             var i: c_uint = 0;
             while (i < 8) : (i += 1) {
-                const links: [*]align(1) const c_uint = @ptrFromInt(@as(usize, v.g.D_800F5910().*));
+                const links: [*]align(1) const c_uint = @ptrCast(v.g.D_800F5910().*.?);
                 const link = links[i];
                 const x = link & 31;
                 const z = (link >> 5) & 31;

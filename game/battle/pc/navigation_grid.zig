@@ -16,13 +16,13 @@ const grid_views = @import("views_actor_cleanup"); // the navigation record's ty
 /// oracle would write through a null grid.
 pub fn buildNavigationGrid() callconv(.c) void {
     const section: ?[*]u8 = @ptrCast(c.func_8008B6FC());
-    const address = psx.addr(section); // the nav words below are 4-byte guest addresses
-    v.g.D_800F58C0().* = address;
-    v.g.D_800F58D8().* = address +% 0x400;
-    v.g.D_800F58C8().* = address +% 0x440;
-    v.g.D_800F5908().* = address +% 0x450;
-    v.g.D_800F5910().* = address +% 0x454;
-    v.g.D_800F58CC().* = address +% 0x498;
+    const base: usize = @intFromPtr(section); // a section address (0 if the room has none, as before)
+    v.g.D_800F58C0().* = @ptrFromInt(base);
+    v.g.D_800F58D8().* = @ptrFromInt(base +% 0x400);
+    v.g.D_800F58C8().* = @ptrFromInt(base +% 0x440);
+    v.g.D_800F5908().* = @ptrFromInt(base +% 0x450);
+    v.g.D_800F5910().* = @ptrFromInt(base +% 0x454);
+    v.g.D_800F58CC().* = @ptrFromInt(base +% 0x498);
     const bytes = @sizeOf(grid_views.D_800F58BC_t) + 0x1000;
     const grid: *grid_views.D_800F58BC_t = @ptrCast(@alignCast(c.vs_main_allocHeap(bytes) orelse {
         c.pc_unimplemented("navigation allocation failed");
@@ -32,8 +32,8 @@ pub fn buildNavigationGrid() callconv(.c) void {
     c.vs_core_memoryClearAlignedWords(grid, bytes);
     const cells: [*]u16 = @ptrCast(&grid.cells);
     const heights: [*]u16 = cells + 0x400;
-    v.g.D_800F58B8().* = psx.addr(cells);
-    v.g.D_800F58D0().* = psx.addr(heights);
+    v.g.D_800F58B8().* = @ptrCast(cells);
+    v.g.D_800F58D0().* = @ptrCast(heights);
     const size = c._getCollisionMapDimensions(0);
     const packed_size: u16 = @truncate(((size & 0xffff) >> 4) | (size >> 12));
     grid.unk4 = packed_size;
@@ -60,7 +60,7 @@ pub fn buildNavigationGrid() callconv(.c) void {
     }
     c.vs_battle_aiBuildAiTerrainHeightsWithWorkspace();
     if (section) |s| {
-        const settings = @as(*align(1) const c_uint, @ptrFromInt(@as(usize, v.g.D_800F5908().*))).*;
+        const settings = @as(*align(1) const c_uint, @ptrCast(v.g.D_800F5908().*.?)).*;
         @as(*align(1) c_uint, @ptrCast(grid)).* = @as(*align(1) const c_uint, @ptrCast(s + 0x494)).*;
         grid.unkD = @truncate(settings >> 29);
         grid.unk8 = @truncate((settings << 3) >> 24);

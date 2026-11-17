@@ -6,7 +6,7 @@ const v = @import("views_5BF94");
 
 /// orig: vs_effects_releaseEffectParticle (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// Unlinks `arg0` from its list, pushes it onto the free list and updates both counts.
-pub fn vs_effects_releaseEffectParticle(arg0: ?*v.func_800D2904_t, arg1: ?*v.D_800F53B8_t) callconv(.c) void {
+pub fn vs_effects_releaseEffectParticle(arg0: ?*v.func_800D2904_t, arg1: ?*v.vs_effects_EffectInstance) callconv(.c) void {
     const self = arg0.?;
     const owner = arg1.?;
 

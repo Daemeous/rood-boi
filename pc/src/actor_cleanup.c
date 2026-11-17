@@ -5,7 +5,8 @@
 extern unsigned char* vs_battle_aiActorAiStates[];
 /* Guest words at 0x800F58xx: 32-bit guest addresses. */
 extern D_800F58BC_t* vs_battle_aiRoomAiState;
-extern unsigned D_800F58B8, D_800F590C, D_800F5920;
+extern unsigned short (*D_800F58B8)[32];
+extern unsigned D_800F590C, D_800F5920;
 extern void vs_battle_aiFreeActorNavigationOverride(unsigned);
 extern void vs_battle_setActorMarker(int, int);
 extern void vs_battle_aiUnlinkEngagedActor(void*);
@@ -20,7 +21,8 @@ void vs_battle_aiReleaseActorAiReservations(void* actor);
 void vs_battle_aiFreeActorAiState(void* actor);
 
 
-extern unsigned D_800F58D0, D_800F58C0;
+extern unsigned short (*D_800F58D0)[32];
+extern unsigned char* D_800F58C0;
 void vs_battle_aiFreeRoomAiState(void);
 
 

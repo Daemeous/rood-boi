@@ -273,7 +273,7 @@ typedef struct {
     u_char unkC9;
     u_char unkCA;
     u_char unkCB;
-} func_800FA098_arg0;
+} vs_effects_ParticleDefinition;
 
 typedef union {
     int packed;
@@ -327,11 +327,11 @@ typedef struct {
     u_char unk180;
     int ringSegments;
     int ringPositions;
-} func_800FA098_arg1;
+} vs_effects_ParticleEmitterScratch;
 
 typedef struct {
     int count;
-    func_800FA098_arg0 definitions[0];
+    vs_effects_ParticleDefinition definitions[0];
 } pFileBlock5;
 
 typedef struct {
@@ -462,23 +462,23 @@ typedef struct {
     short frame;
     int activeTracks;
     func_800D5780_t tracks[0];
-} D_800F53B8_t4;
+} vs_effects_EffectTimeline;
 
 typedef struct {
     D_800F53B8_t3_2 unk0;
     D_800F53B8_t3_2 unkC;
     D_800F53B8_t3_2 unk18;
     D_800F53B8_t3_2 unk24;
-    D_800F53B8_t4* unk30;
+    vs_effects_EffectTimeline* unk30;
     func_800D4910_t* unk34;
     short effectId;
     short unk3A;
     int unk3C;
 } D_800F53B8_t3;
 
-typedef struct D_800F53B8_t {
-    struct D_800F53B8_t* next;
-    struct D_800F53B8_t* previous;
+typedef struct vs_effects_EffectInstance {
+    struct vs_effects_EffectInstance* next;
+    struct vs_effects_EffectInstance* previous;
     char unk8;
     char unk9;
     u_short cursor; /* the script cursor: offset of the next command byte */
@@ -491,7 +491,7 @@ typedef struct D_800F53B8_t {
     func_800D2904_t* unk18;
     func_800CE714_t2_2 unk1C[16];
     D_800F53B8_t3 context;
-} D_800F53B8_t;
+} vs_effects_EffectInstance;
 
 typedef struct {
     u_char unk0[0xC];
@@ -693,7 +693,7 @@ void vs_battle_splineInterpolate(
 
 void vs_battle_svecToVec(SVECTOR* arg0, VECTOR* arg1);
 void vs_battle_vecToSvec(VECTOR* arg0, SVECTOR* arg1);
-void func_800D2ADC(D_800F53B8_t*, int, int, int, func_800FB4C0_t*);
+void func_800D2ADC(vs_effects_EffectInstance*, int, int, int, func_800FB4C0_t*);
 void vs_effects_clearTextureAnimation(void* sprite); /* a func_800D6CF_t, cleared whole */
 void vs_effects_restartTextureAnimation(func_800D6CF_t* arg0, int arg1, int arg2);
 
@@ -736,12 +736,12 @@ extern char D_800F4FDB;
 extern D_800F569C_t* vs_effects_package;
 extern D_800F569C_t D_800F56C8;
 extern vs_battle_textBox vs_battle_textBoxes[];
-extern D_800F53B8_t* vs_effects_primaryInstances; /* the effect scripts, the first of a list */
+extern vs_effects_EffectInstance* vs_effects_primaryInstances; /* the effect scripts, the first of a list */
 /* The particle emitter's working record (the PS1 kept it in the scratchpad at 0x1F8001D0). */
-extern func_800FA098_arg1 pc_effect_scratch;
+extern vs_effects_ParticleEmitterScratch pc_effect_scratch;
 extern u_char vs_battle_miscItemInvoked;
 extern vs_battle_stringContext_t vs_battle_stringContext;
 extern vs_battle_menuState_t vs_battle_menuState;
 extern SVECTOR vs_effects_effectOrigin[];
-extern D_800F53B8_t* vs_effects_currentInstance;
+extern vs_effects_EffectInstance* vs_effects_currentInstance;
 extern effectExec vs_battle_effectRenderers[];

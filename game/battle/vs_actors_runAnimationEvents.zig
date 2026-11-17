@@ -10,7 +10,7 @@ const c = @import("c_44F14");
 const Tail = enum { next, reload, done };
 
 fn word5AC(actor: *v.D_800F4538_t) c_int {
-    return psx.fieldAt(c_int, &actor._bits_unk5AC_0, 0).*;
+    return psx.bitsAt(c_int, &actor._bits_unk5AC_0, 0).*;
 }
 
 /// The vertex word `which` of vertex `index` in the actor's model (`(short*)(vertexOffset + index * 8)`).
@@ -22,7 +22,7 @@ fn vertexWord(actor: *v.D_800F4538_t, index: c_int, which: c_int) *align(1) i16 
 
 /// The sound pan of `target` (cases 5, 7, 8): 0x80 when it is a spectator, else from its position.
 fn targetPan(id: c_int, target: *v.D_800F4538_t) c_int {
-    if (psx.fieldAt(c_int, &target.unk0._bits_skip, 0).* & 0x3F9F00 != 0x8000) {
+    if (psx.bitsAt(c_int, &target.unk0._bits_skip, 0).* & 0x3F9F00 != 0x8000) {
         _ = c.vs_actors_targetPoint(id, 0xFF, @ptrCast(&target.unk6FC), 0);
     }
     return c.vs_main_computeSfxPan(psx.fieldAt(c_int, &target.unk6FC, 0).*, target.unk6FC.vz);
@@ -78,7 +78,7 @@ fn execute(actor: *v.D_800F4538_t, state: *v.D_800F4538_unkC54, mode: c_int, id:
             return .reload;
         },
         55 => {
-            const wait = psx.fieldAt(u8, &state._bits_unk548_0, 1);
+            const wait = psx.bitsAt(u8, &state._bits_unk548_0, 1);
             if (wait.* == 0) {
                 wait.* = s[1];
             } else {

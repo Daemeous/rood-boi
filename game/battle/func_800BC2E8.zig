@@ -22,7 +22,7 @@ fn vv(p: [*c]c.VECTOR) *v.VECTOR {
     return @ptrCast(@alignCast(p));
 }
 
-fn camera() *v.D_800F4BA4_t {
+fn camera() *v.vs_event_CameraState {
     return v.g.vs_event_camera().*.?;
 }
 
@@ -61,8 +61,8 @@ fn sVectorToFixedPointVector(dst: *v.VECTOR, src: *v.SVECTOR) *v.VECTOR {
 /// position (7, 10), follow (8), a return (9) and a straight dolly (11).
 pub fn func_800BC2E8(script: [*c]u8, _: c_short) callconv(.c) c_int {
     const cam = camera();
-    const cur: *v.D_800F4BA4_t2 = if ((script[0] & 16) == 0) &cam.lookAt else &cam.eye;
-    const other: *v.D_800F4BA4_t2 = if ((script[0] & 16) == 0) &cam.eye else &cam.lookAt;
+    const cur: *v.vs_event_CameraTrack = if ((script[0] & 16) == 0) &cam.lookAt else &cam.eye;
+    const other: *v.vs_event_CameraTrack = if ((script[0] & 16) == 0) &cam.eye else &cam.lookAt;
     switch (script[0] & 15) {
         0 => {
             _ = c._setVectorImm(cv(&cur.position), script + 1);

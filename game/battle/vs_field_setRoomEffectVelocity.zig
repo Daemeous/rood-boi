@@ -4,7 +4,7 @@ const v = @import("views_2842C");
 
 /// orig: vs_field_setRoomEffectVelocity (pc/src/game/BATTLE/BATTLE.PRG/2842C.c)
 /// Copies the eight halfwords of arg1's four-word table into arg0's fields at 0x24..0x32.
-pub fn vs_field_setRoomEffectVelocity(arg0: ?*v.func_80092F74_t, arg1: ?*v.func_80092F74_t2) callconv(.c) c_int {
+pub fn vs_field_setRoomEffectVelocity(arg0: ?*v.func_80092F74_t, arg1: ?*v.vs_field_RoomEffectCommand) callconv(.c) c_int {
     const dst = arg0.?;
     const src = arg1.?;
     dst.unk24 = psx.conv(i16, src.operands[0].u16[0]);

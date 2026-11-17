@@ -34,7 +34,7 @@ fn routeTarget(state: *ai.vs_battle_aiState) void {
 /// updates it and releases its route.
 pub fn updateActorNavigation() callconv(.c) void {
     c.vs_battle_aiCacheActorAiWorkingState();
-    const scratch: [*]c_uint = @ptrFromInt(pad.addr(0x0));
+    const scratch: [*]c_uint = pad.many(c_uint, 0x0);
     var actor: ?*ai.vs_battle_actor = @ptrCast(@alignCast(v.g.vs_battle_actors()[0]));
     var visited: c_uint = 0;
     while (actor) |a| : (actor = @ptrCast(a.next)) {
@@ -46,8 +46,7 @@ pub fn updateActorNavigation() callconv(.c) void {
         // An actor without an AI state (no attribute bit 0/2) has a null entry;
         // the original then loads its route record from address 0x18C, the PS1
         // kernel area (read here through guest RAM).
-        const entry = scratch[0x37c / 4 + id];
-        const base: *align(4) ai.vs_battle_aiState = @ptrFromInt(@as(usize, if (entry != 0) entry else 0x8000_0000));
+        const base: *align(4) ai.vs_battle_aiState = if (pad.aiState(id)) |e| @ptrCast(@alignCast(e)) else @ptrFromInt(0x8000_0000);
         const route = base.route;
         scratch[0x3fc / 4] = @bitCast(c.vs_core_elapsedFrameCounterTicks());
         const state = route orelse continue;
@@ -73,7 +72,7 @@ pub fn updateActorNavigation() callconv(.c) void {
         state.position.word[1] = @bitCast(z);
         const cell = ((tile >> 16) & 255) *% 32 +% (tile & 255);
         if (cell >= 1024) c.pc_unimplemented("actor navigation tile outside grid");
-        const ground: c_uint = @as(*align(1) u16, @ptrFromInt(@as(usize, v.g.D_800F58B8().*) +% @as(usize, cell) *% 2)).* & 15;
+        const ground: c_uint = @as(*align(1) u16, @ptrFromInt(@intFromPtr(v.g.D_800F58B8().*.?) +% @as(usize, cell) *% 2)).* & 15;
         x &= 65535;
         z &= 65535;
         state.unk120 = (x >> 6) | ((z >> 6) << 16);

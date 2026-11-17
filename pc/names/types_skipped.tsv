@@ -1,0 +1,137 @@
+# type		reason	detail (import_fields.py --types)
+D_80036770_t		confidence med (deferred)	vs_audio_MusicSampleBankIds
+D_800E8594_t		confidence med (deferred)	vs_field_TriggerMarkerVertex
+D_800E8FB4_t		confidence med (deferred)	vs_field_GimmickTemplate
+D_800EB9B4_t		confidence med (deferred)	vs_effects_ScreenEffectOverlay
+D_800EB9B8_t		members differ from the ledger's	vs_battle_TargetSphere
+D_800EB9B8_t		members differ from the ledger's	vs_battle_TargetSphere
+D_800EB9B8_t		members differ from the ledger's	vs_battle_TargetSphereSetupView
+D_800EB9B8_t2		no struct of that name in our tree	vs_battle_TargetSphereSpec
+D_800EB9B8_unk990		members differ from the ledger's	vs_battle_SphereTargetLabel
+D_800EB9BC_t		members differ from the ledger's	vs_event_SplashLayerView
+D_800F16EC_t		name already in use	vs_battle_AiDirectionDelta
+D_800F18C8_t		no struct of that name in our tree	vs_field_RoomLoadResetBlock
+D_800F18E8_t		no struct of that name in our tree	vs_field_DoorFlagIdWord
+D_800F18EC_t		confidence med (deferred)	vs_menu_FrameworkActionSelection
+D_800F19CC_t5		members differ from the ledger's	vs_battle_TargetPreview
+D_800F1ABC_t		no struct of that name in our tree	vs_render_LegacyFramebufferEffectPackets
+D_800F1BAC_t		members differ from the ledger's	vs_battle_FloatingLabel
+D_800F1DD4_t		members differ from the ledger's	vs_field_WeatherParticle
+D_800F2458_t		members differ from the ledger's	vs_actors_ModelRenderContext
+D_800F3C58_t		no struct of that name in our tree	vs_actors_SkeletonPose
+D_800F4538_t		members differ from the ledger's	vs_actors_ActorRecord
+D_800F4538_t2		members differ from the ledger's	vs_field_GimmickObjectInfo
+D_800F4538_unk181C		no struct of that name in our tree	vs_actors_TextureScrollState
+D_800F4538_unk1848		confidence med (deferred)	vs_actors_MovementRequest
+D_800F4538_unk1864		confidence med (deferred)	vs_actors_ShadowBlend
+D_800F4538_unk58		confidence med (deferred)	vs_actors_CompanionOffset
+D_800F4538_unk58_2		confidence med (deferred)	vs_render_ColorCode
+D_800F4538_unk58_3		confidence low (deferred)	vs_menu_FrameworkPreviewPoseBytes
+D_800F4538_unk614		no struct of that name in our tree	vs_actors_TextureCellOrigin
+D_800F4538_unk61C		no struct of that name in our tree	vs_actors_TextureScrollBounds
+D_800F4538_unk64		confidence med (deferred)	vs_actors_ModelEffectSlot
+D_800F4538_unkC54		members differ from the ledger's	vs_actors_AnimationPose
+D_800F45E0_t		members differ from the ledger's	vs_field_GimmickInstance
+D_800F4B28_t		no struct of that name in our tree	vs_event_InterpolationCurve
+D_800F4EE8_t		confidence med (deferred)	vs_menu_FrameworkMenuMemory
+D_800F53B8_t3		confidence med (deferred)	vs_effects_EffectInstanceTargets
+D_800F54B8_t		confidence med (deferred)	vs_effects_CameraShakeChannel
+D_800F54D8_t		confidence med (deferred)	vs_effects_EffectCamera
+D_800F569C_t		members differ from the ledger's	vs_effects_EffectPackage
+D_800F58BC_t		members differ from the ledger's	vs_battle_AiRoomAiState
+D_800F5910_t		confidence med (deferred)	vs_battle_AiRouteGateEnd
+D_800F5920_t		members differ from the ledger's	vs_battle_AiArenaOrbitState
+func_800172D4_t		confidence low (deferred)	vs_audio_SfxSlotRequest
+func_8004644C_t		no struct of that name in our tree	vs_audio_SoundReleaseView
+func_8006C4C4_t		members differ from the ledger's	vs_effects_HitEffectRequest
+func_8006EBF8_t		confidence med (deferred)	vs_actors_ActorLocationQuery
+func_8006EBF8_t2		confidence low (deferred)	vs_actors_ActorLocationWords
+func_8006EBF8_t_fields		confidence med (deferred)	vs_actors_TileTarget
+func_800765B0_t		defined differently or unreadable	vs_actors_AuxiliaryActorWord
+func_80077DF0_t		confidence med (deferred)	vs_field_CameraPositionPair
+func_80077DF0_t2		confidence low (deferred)	vs_actors_SpawnScratch
+func_80077DF0_t3		confidence low (deferred)	vs_actors_SpawnScratchPair
+func_80085A34_t		confidence med (deferred)	vs_battle_HitStatusView
+func_8008631C_t2		confidence med (deferred)	vs_battle_HitTargetWord
+func_8008D2C0_t		defined differently or unreadable	vs_field_PlatformContactPoint
+func_8008D2C0_t		defined differently or unreadable	vs_field_PlatformContactPoint
+func_80091C6C_t2		no struct of that name in our tree	vs_field_MpdPolygonUvView
+func_80091FE8_t		confidence med (deferred)	vs_field_TextureRegionScrollEffect
+func_80092548_t		confidence med (deferred)	vs_field_RoomEffectScriptHeader
+func_80092548_t2		no struct of that name in our tree	vs_field_RoomEffectChunkHeader
+func_80092B04_t		no struct of that name in our tree	vs_field_RoomEffectObjectView
+func_80092F74_t		members differ from the ledger's	vs_field_RoomEffectObject
+func_800962E4_t		confidence med (deferred)	vs_battle_FloatingLabelSpec
+func_8009C378_t		members differ from the ledger's	vs_content_SequenceBuffer
+func_800A0024_t		confidence med (deferred)	vs_field_GimmickSnapshot
+func_800A1108_t		confidence low (deferred)	vs_actors_PlacementBuffer
+func_800A1DE8_t		no struct of that name in our tree	vs_render_ModelScratchpadBoneView
+func_800A6660_t		confidence med (deferred)	vs_actors_TurnRequest
+func_800A6798_t		no struct of that name in our tree	vs_field_SavedPositionWords
+func_800AB358_t		no struct of that name in our tree	vs_actors_TextureOverlayUpload
+func_800AB788_t		no struct of that name in our tree	vs_actors_PalettePulseView
+func_800AC690_contact_t		confidence low (deferred)	vs_actors_JumpContactView
+func_800AC690_flags_t		confidence low (deferred)	vs_actors_JumpFlagsView
+func_800AC690_timer_t		confidence med (deferred)	vs_actors_AirborneTickAccumulator
+func_800ACF54_t		confidence med (deferred)	vs_core_WordPair
+func_800AD494_t		members differ from the ledger's	vs_actors_SeqAnimationBank
+func_800C0FA8_t2		confidence med (deferred)	vs_battle_TargetVolumeMatrix
+func_800C1564_flags		confidence med (deferred)	vs_battle_TargetVolumeFlags
+func_800C1564_t		confidence med (deferred)	vs_battle_TargetVolume
+func_800C4650_t		confidence med (deferred)	vs_battle_TargetLabelLine
+func_800C4794_t		confidence low (deferred)	vs_battle_VectorWords
+func_800C56C0_t		no struct of that name in our tree	vs_battle_TargetSphereLabelView
+func_800C56C0_t2		no struct of that name in our tree	vs_battle_TargetSphereLabelEntry
+func_800C5798_t		members differ from the ledger's	vs_battle_TargetInfoLine
+func_800CCE10_t		confidence med (deferred)	vs_menu_TextAnchorWord
+func_800CE714_t2_2		confidence med (deferred)	vs_effects_TransformSlot
+func_800CFAAC_t		no struct of that name in our tree	vs_effects_ParticleEndpointView
+func_800CFE1C_t		confidence low (deferred)	vs_battle_EffectScriptWord
+func_800D0548_arg0		confidence low (deferred)	vs_battle_EffectTransformDefinition
+func_800D0548_arg1		members differ from the ledger's	vs_effects_TransformMotionView
+func_800D0B30_t		members differ from the ledger's	vs_effects_TransformDefinition
+func_800D0B30_t2		confidence med (deferred)	vs_effects_AnimatedLocalTransform
+func_800D0C60_t		members differ from the ledger's	vs_battle_EffectRendererState
+func_800D2904_curves		defined differently or unreadable	vs_effects_ParticleColorWord
+func_800D2904_t		members differ from the ledger's	vs_effects_Particle
+func_800D4910_t		confidence med (deferred)	vs_effects_RendererSlot
+func_800D52A4_t		no struct of that name in our tree	vs_effects_ParticleMotion
+func_800D52A4_t2		no struct of that name in our tree	vs_effects_FixedVector
+func_800D5780_t		confidence med (deferred)	vs_effects_TimelineTrack
+func_800D5780_t2		confidence med (deferred)	vs_effects_TimelineTrackHeader
+func_800D57FC_t		confidence med (deferred)	vs_effects_ParticleTrackKey
+func_800D57FC_t2		confidence low (deferred)	vs_effects_ShakeTrackKey
+func_800D5A98_t		no struct of that name in our tree	vs_effects_ChildTrackKey
+func_800D5A98_t2		no struct of that name in our tree	vs_effects_ChildTrackView
+func_800D5D74_t		confidence med (deferred)	vs_effects_RendererTrackKey
+func_800D6048_t		confidence low (deferred)	vs_battle_EffectTransformBlock
+func_800D6310_t		confidence med (deferred)	vs_effects_ColorTrackKey
+func_800D6508_t		no struct of that name in our tree	vs_effects_TransformControlView
+func_800D6894_t		confidence low (deferred)	vs_effects_ActionControlKey
+func_800D6A18_t		confidence med (deferred)	vs_effects_ShakeChannelKey
+func_800D8400_t		no struct of that name in our tree	vs_battle_AiMoveTargetView
+func_800DA1D4_t		no struct of that name in our tree	vs_battle_AiRelationWord
+func_800DC888_t		no struct of that name in our tree	vs_battle_AiActionTiming
+func_800DCAA0_t		members differ from the ledger's	vs_battle_AiActionCandidate
+func_800DCAA0_t1		no struct of that name in our tree	vs_battle_AiCandidateTable
+func_800DCAA0_t2		no struct of that name in our tree	vs_battle_AiCandidateFlags
+func_800DD604_t		no struct of that name in our tree	vs_battle_AiActionSlotMetadata
+func_800DEB10_t		members differ from the ledger's	vs_battle_AiEngagementActor
+func_800DEB10_t2		no struct of that name in our tree	vs_battle_AiEngagementData
+func_800DEEA4_t		members differ from the ledger's	vs_battle_AiReactionRecord
+func_800DEEA4_t2		no struct of that name in our tree	vs_battle_AiActionExecutionView
+func_800DFA54_t		confidence med (deferred)	vs_battle_AiRouteGateTile
+func_800E0850_t		no struct of that name in our tree	vs_battle_AiFloorHeightView
+func_800E1238_t		members differ from the ledger's	vs_battle_AiAiModelView
+func_800E5568_t		confidence med (deferred)	vs_battle_AiActionRangeShape
+func_800E5698_t		no struct of that name in our tree	vs_battle_AiActionRangeView
+func_800E5698_t2		confidence med (deferred)	vs_battle_AiActionRangeView2
+func_800E5A74_t		confidence med (deferred)	vs_battle_AiSavedSettingsPair
+func_800E78F4_t		no struct of that name in our tree	vs_battle_AiActorAiState
+func_800E78F4_t2		confidence low (deferred)	vs_battle_AiWordPair
+func_800FA098_arg3		confidence med (deferred)	vs_effects_ParticleQuadSet
+func_800FA098_arg3_2		confidence low (deferred)	vs_effects_ParticleQuadWord
+func_800FA76C_arg3		confidence med (deferred)	vs_effects_TrailQuadSet
+func_800FB4C0_t		confidence med (deferred)	vs_effects_PluginEffectState
+func_800FD9A4_t		confidence med (deferred)	vs_effects_Plg128CameraEffectState
+func_80103080_t		confidence low (deferred)	vs_battle_EffectParameterBytes

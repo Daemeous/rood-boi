@@ -19,7 +19,7 @@ pub fn vs_field_applyGimmickInteractionCommand(actor: ?*v.D_800F4538_t, mode: c_
             3 => obj.unk1A = 0xFE,
             else => {},
         }
-        psx.fieldAt(u8, &obj.unk6C, 260).* = 0;
+        obj.unk6C[8].unk4 = 0;
         _ = c.vs_battle_aiRemoveAiTileOccupant(@ptrCast(obj));
         return;
     }

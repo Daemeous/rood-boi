@@ -10,7 +10,7 @@
 typedef struct {
     u_char frame;
     u_char duration;
-} func_800AAE9C_t;
+} vs_actors_TextureAnimationKey;
 
 /* An animation block as it is on disc: offsets from the block's own start. */
 typedef struct {
@@ -46,8 +46,8 @@ void vs_actors_setActorTileTurn(int, func_8006EBF8_t_fields*, int, int);
 void vs_actors_textureFrameMove(D_800F4538_t*, int, int);
 
 extern u_char vs_actors_sharedSequenceBankIndex;
-extern func_800AAE9C_t D_800E909C[][28];
-extern func_800AAE9C_t D_800E916C[][8];
+extern vs_actors_TextureAnimationKey D_800E909C[][28];
+extern vs_actors_TextureAnimationKey D_800E916C[][8];
 extern u_char D_800F2450[];
 extern void* D_800F4768;
 extern char D_800F49DC;

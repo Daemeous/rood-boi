@@ -8,8 +8,8 @@
 
 #endif
 
-void VS_PARTICLE_RENDER_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* arg1,
-    D_800F53B8_t* arg2, func_800FA098_arg3* arg3)
+void VS_PARTICLE_RENDER_FUNCTION(vs_effects_ParticleDefinition* arg0, vs_effects_ParticleEmitterScratch* arg1,
+    vs_effects_EffectInstance* arg2, func_800FA098_arg3* arg3)
 {
     vs_gte_view view;
     vs_gte_result projected;

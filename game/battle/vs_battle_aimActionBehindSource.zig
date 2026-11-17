@@ -5,7 +5,7 @@ const c = @import("c_146C");
 
 /// orig: vs_battle_aimActionBehindSource (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// Looks up the vector for `state.unk4` and stores it in entity 29's armor vector, its x and z rotated by the vector's angle.
-pub fn vs_battle_aimActionBehindSource(state: ?*v.D_800F19CC_t) callconv(.c) void {
+pub fn vs_battle_aimActionBehindSource(state: ?*v.vs_battle_ActionState) callconv(.c) void {
     const s = state.?;
     var sp10: v.func_8006EBF8_t = undefined;
     _ = c.vs_actors_actorPlacement(psx.conv(c_int, psx.conv(u8, s.unk4)), &sp10);

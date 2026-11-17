@@ -38,9 +38,9 @@ int VS_ROTATING_SURFACE_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
     u_char u[VS_ROTATING_SURFACE_U_SEGMENTS + 1];
     u_char v[5];
     vs_rotatingSurfaceState* state;
-    func_800FA098_arg1* scratch = &pc_effect_scratch;
-    func_800FA098_arg0* effect;
-    D_800F53B8_t* battle;
+    vs_effects_ParticleEmitterScratch* scratch = &pc_effect_scratch;
+    vs_effects_ParticleDefinition* effect;
+    vs_effects_EffectInstance* battle;
     int alive;
     int heightPosition;
     int heightValue;

@@ -23,6 +23,6 @@ pub fn vs_field_drawRoomGeometry(arg0: ?*anyopaque) callconv(.c) void {
     v.g.D_800F1BB8().* = v.g.vs_scratch().unk0;
 
     if (v.g.D_800F1BB0().unk6 != 0) {
-        c.vs_render_tintRoomGeometryPrimitives(v.g.D_800F1CC0().*, v.g.D_800F1BB8().*, psx.cptr(c.D_800F1BB0_t, v.g.D_800F1BB0()), 0);
+        c.vs_render_tintRoomGeometryPrimitives(v.g.D_800F1CC0().*, v.g.D_800F1BB8().*, psx.cptr(c.vs_field_RoomTint, v.g.D_800F1BB0()), 0);
     }
 }

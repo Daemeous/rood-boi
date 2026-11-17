@@ -6,7 +6,7 @@ const c = @import("c_4A0A8");
 /// orig: vs_event_buildScriptActorSelection (pc/src/game/BATTLE/BATTLE.PRG/4A0A8.c)
 /// Fills set with the actors a script reference names: with bit 0x2000, every live actor slot
 /// (0x2003: only the hostile ones); otherwise the one actor vs_event_resolveScriptActorReference resolves.
-pub fn vs_event_buildScriptActorSelection(ref: u16, set: *v.func_800BB68C_t) callconv(.c) void {
+pub fn vs_event_buildScriptActorSelection(ref: u16, set: *v.vs_event_ActorSelection) callconv(.c) void {
     var count: i16 = 0;
     set.unk0 = 0;
     set.unk1 = 0;

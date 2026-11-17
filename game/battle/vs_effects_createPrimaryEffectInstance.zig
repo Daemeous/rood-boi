@@ -7,12 +7,12 @@ const c = @import("c_5BF94");
 
 /// orig: vs_effects_createPrimaryEffectInstance (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// Allocates a list node, fills it from `arg0` and links it into the list in key order; returns the node.
-pub fn vs_effects_createPrimaryEffectInstance(arg0: ?*v.D_800F53B8_t2) callconv(.c) ?*v.D_800F53B8_t {
-    const newNode: *v.D_800F53B8_t = @ptrCast(@alignCast(c.vs_main_allocHeapR(@sizeOf(v.D_800F53B8_t)).?));
+pub fn vs_effects_createPrimaryEffectInstance(arg0: ?*v.vs_effects_EffectSpawnRequest) callconv(.c) ?*v.vs_effects_EffectInstance {
+    const newNode: *v.vs_effects_EffectInstance = @ptrCast(@alignCast(c.vs_main_allocHeapR(@sizeOf(v.vs_effects_EffectInstance)).?));
 
     c.vs_effects_initEffectInstance(@ptrCast(arg0), @ptrCast(newNode));
 
-    var currentNode: ?*v.D_800F53B8_t = v.g.vs_effects_primaryInstances().*;
+    var currentNode: ?*v.vs_effects_EffectInstance = v.g.vs_effects_primaryInstances().*;
 
     if (currentNode == null or arg0.?.priority < @as(i32, currentNode.?.unk9)) {
         psx.put(&newNode.next, currentNode);

@@ -8,7 +8,7 @@ const c = @import("c_38C1C");
 /// Writes the bone's origin (endpoint 0), end (1) or middle (other) in camera space to `result`; -1 when the slot or the weapon model is missing.
 pub fn boneViewPoint(actorId: c_int, bone_in: c_int, result: [*c]c_ushort, endpoint: c_int) callconv(.c) c_int {
     var bone = bone_in;
-    var model: ?*v.D_800F4538_unk68 = null;
+    var model: ?*v.vs_actors_ShpModel = null;
     const actor: ?*v.D_800F4538_t = psx.at(v.g.vs_actors_actorRecords(), actorId).*;
     if (actor) |a| model = psx.get(a.unk0.model);
     if (actor == null) {

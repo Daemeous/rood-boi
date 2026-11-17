@@ -1,5 +1,6 @@
 #include "common.h"
 #include "pc/src/game/spriteItem.h"
+#include "pc/src/draw_items.h"
 #include "238.h"
 #include "pc/src/gte_value.h"
 #include "57BC.h"
@@ -142,17 +143,23 @@ void _renderScrollableMenuItem(vs_battle_menuItem_t* menuItem)
             var_s0 = 120 - s5;
         }
 
-        prim[0] = (*before & 0xFFFFFF) | (6 << 24);
-        prim[1] = vs_getTpage(0, 0, clut4Bit, semiTransparencyFull, ditheringOn);
-        prim[2] = vs_battle_uiGradientStop(8 - animState, bgWidth, var_s0)
-                | vs_getRGB0(primLineG2SemiTrans, 0, 0, 0);
-        prim[3] = xy;
-        prim[4] = vs_battle_uiGradientStop(animState, bgWidth, var_s0);
-        prim[5] = ((xy + w - 1) & 0xFFFF) | ((xy >> 0x10) << 0x10);
-        prim[6] = vs_getTpage(0, 0, clut4Bit, semiTransparencyFull, ditheringOff);
-
-        *before = (psx_to_int(u_long, prim) << 8) >> 8;
-        prim += 7;
+        /* a draw item: the row's shaded line, drawn dithered in the full-blend mode, the mode without dithering left set after it,
+         * placed where the packet linked (at `before`) */
+        {
+            int first = pc_frame_count();
+            pc_item* it = pc_frame_add(PC_ITEM_LINE, 0);
+            u_int c0 = (u_int)vs_battle_uiGradientStop(8 - animState, bgWidth, var_s0), c1 = (u_int)vs_battle_uiGradientStop(animState, bgWidth, var_s0);
+            if (it) {
+                it->flags = PC_ITEM_SHADED | PC_ITEM_SEMI | PC_ITEM_AFTER;
+                it->mode = (unsigned short)(vs_getTpage(0, 0, clut4Bit, semiTransparencyFull, ditheringOn) & 0x3fff);
+                it->after = (unsigned short)(vs_getTpage(0, 0, clut4Bit, semiTransparencyFull, ditheringOff) & 0x3fff);
+                it->x[0] = (short)xy, it->y[0] = (short)(xy >> 16);
+                it->x[1] = (short)(xy + w - 1), it->y[1] = (short)(xy >> 16);
+                it->rgb[0][0] = (unsigned char)c0, it->rgb[0][1] = (unsigned char)(c0 >> 8), it->rgb[0][2] = (unsigned char)(c0 >> 16);
+                it->rgb[1][0] = (unsigned char)c1, it->rgb[1][1] = (unsigned char)(c1 >> 8), it->rgb[1][2] = (unsigned char)(c1 >> 16);
+            }
+            prim = (u_long*)pc_frame_place(first, pc_frame_count() - first, (unsigned*)before, (unsigned*)prim);
+        }
         xy += vs_getXY(0, 1);
     }
 

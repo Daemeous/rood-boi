@@ -22,7 +22,7 @@ pub fn vs_actors_updateActorPlatformContact(actor: ?*v.D_800F4538_t, mode: c_int
                 (@as(c_int, contact.unk2) -% @as(c_int, psx.fieldAt(i16, &a.unk17EC, 2).*)));
         },
         1 => {
-            const movement: c_uint = psx.fieldAt(c_uint, &a.unk0._bits_skip, 0).* & 0x70000;
+            const movement: c_uint = psx.bitsAt(c_uint, &a.unk0._bits_skip, 0).* & 0x70000;
             if (movement == 0x20000 or movement == 0x30000) return;
             const contactId: c_int = @as(c_int, psx.getBits(&a.unk0, "unkC_0"));
             if (@as(c_int, psx.getBits(&a.unk0, "unkC_4")) != contactId) {
@@ -46,13 +46,13 @@ pub fn vs_actors_updateActorPlatformContact(actor: ?*v.D_800F4538_t, mode: c_int
                     c.vs_field_setMovingPlatformActor(@as(c_int, psx.getBits(&a.unk0, "unkC_0")) -% 2, @as(c_int, a.unk0.slot));
                 } else {
                     c.vs_field_setMovingPlatformActor(previous -% 2, -1);
-                    if ((psx.fieldAt(c_uint, &a.unk0._bits_skip, 0).* & 0x70000) == 0) {
+                    if ((psx.bitsAt(c_uint, &a.unk0._bits_skip, 0).* & 0x70000) == 0) {
                         a.unk6EE = 0;
                         a.unk6EF = 0;
                     }
                 }
             }
-            if (a.unk0.slot == 0 and (psx.fieldAt(c_uint, &a.unk0._bits_skip, 0).* & 0x70000) == 0 and
+            if (a.unk0.slot == 0 and (psx.bitsAt(c_uint, &a.unk0._bits_skip, 0).* & 0x70000) == 0 and
                 @as(c_int, psx.getBits(&a.unk0, "unkC_0")) != @as(c_int, psx.fieldAt(i16, &a.unk17EC, 6).*))
             {
                 c.vs_battle_aiClearAiContactOccupancy(@as(c_int, psx.fieldAt(i16, &a.unk17EC, 6).*));

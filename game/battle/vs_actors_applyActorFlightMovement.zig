@@ -22,7 +22,7 @@ pub fn vs_actors_applyActorFlightMovement(actor: ?*v.D_800F4538_t) callconv(.c) 
     a.unk0.currentTileZ = psx.conv(u8, @divTrunc(@as(c_int, a.unk0.position.vz), 128));
 
     // *(u_int*)((char*)actor + 8) |= 0x200000: a 32-bit access at byte 8, unaligned as the C has it.
-    const flags = psx.fieldAt(u32, &a.unk0._bits_skip, 0);
+    const flags = psx.bitsAt(u32, &a.unk0._bits_skip, 0);
     flags.* |= 0x200000;
 
     c.vs_actors_turnActorToOverTime(a.unk0.slot, a.unk1848.unk6, 12);

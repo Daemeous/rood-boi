@@ -6,7 +6,7 @@ const c = @import("c_5BF94");
 
 /// orig: vs_effects_loadRegisterTimeline (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// Chooses the slot the unit's menu opens on, redirects it through the block 9 table, and opens it.
-pub fn vs_effects_loadRegisterTimeline(arg0: ?*v.D_800F53B8_t) callconv(.c) c_int {
+pub fn vs_effects_loadRegisterTimeline(arg0: ?*v.vs_effects_EffectInstance) callconv(.c) c_int {
     const slot: u8 = c.vs_effects_readScriptByte(@ptrCast(arg0));
     var index: u8 = psx.at(&arg0.?.unk10, slot).*;
 

@@ -60,7 +60,7 @@ pub fn vs_battle_aiUpdateWanderMovement(state: ?*v.vs_battle_aiState, tile: c_ui
         s.timerC2 = if (@as(c_uint, @bitCast(c.vs_battle_aiNextActorRandomMasked(128))) < 44) move else 0;
     }
     s.flags0.b[2] = 1;
-    @as(*u8, @ptrFromInt(pad.addr(0x3D0))).* = 0;
+    pad.at(u8, 0x3D0).* = 0;
     recover: {
         if (!(s.timerC2 < move)) break :recover;
         if (range >= 63) {
@@ -88,7 +88,7 @@ pub fn vs_battle_aiUpdateWanderMovement(state: ?*v.vs_battle_aiState, tile: c_ui
             if (s.flags & 8 != 0) {
                 c.vs_battle_aiProjectClearRadialDestination(@ptrCast(s), s.tile.position.raw, s.angle, @bitCast(s.distance));
             }
-            const steps: [*]v.D_800F16EC_t = @ptrFromInt(pad.addr(0x3EC));
+            const steps: [*]v.D_800F16EC_t = pad.many(v.D_800F16EC_t, 0x3EC);
             var boundsHeading: c_int = @as(c_int, s.angle) >> 9;
             var boundsIndex: c_int = 0;
             while (boundsIndex < 2) : ({
@@ -152,6 +152,5 @@ pub fn vs_battle_aiUpdateWanderMovement(state: ?*v.vs_battle_aiState, tile: c_ui
 
 /// The collision grid: the guest pointer in scratchpad word 0x1F8003C0, rows of 32 tiles.
 fn gridRows() [*][32]u16 {
-    const word: *const u32 = @ptrFromInt(pad.addr(0x3C0));
-    return @ptrFromInt(@as(usize, word.*));
+    return pad.nav.cells.?;
 }

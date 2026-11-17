@@ -38,10 +38,10 @@ fn poseAt(st: *v.D_800F4538_unkC54, off: c_int) [*c]c.SVECTOR {
 pub fn func_800AFA28(actor: ?*v.D_800F4538_t, state: ?*v.D_800F4538_unkC54, mode: c_int) callconv(.c) void {
     const a = actor.?;
     const st = state.?;
-    const scratch: *c.animationFrameScratch = @ptrFromInt(pad.addr(0x3EC));
+    const scratch: *c.animationFrameScratch = pad.at(c.animationFrameScratch, 0x3EC);
 
     // The state word at unk548_0: bit 17 cleared here, set and cleared below.
-    const flags = psx.fieldAt(c_uint, &st._bits_unk548_0, 0);
+    const flags = psx.bitsAt(c_uint, &st._bits_unk548_0, 0);
     flags.* &= 0xFFFD_FFFF;
 
     var frameOrOffset: c_int = @as(c_int, psx.conv(i16, st.unk540));
@@ -74,7 +74,7 @@ pub fn func_800AFA28(actor: ?*v.D_800F4538_t, state: ?*v.D_800F4538_unkC54, mode
                     return;
                 }
             }
-            if ((psx.fieldAt(c_uint, &a.unk0._bits_skip, 0).* & 4) != 0) {
+            if ((psx.bitsAt(c_uint, &a.unk0._bits_skip, 0).* & 4) != 0) {
                 if (@as(c_int, st.unk542) == @as(c_int, psx.conv(i16, st.unk540))) {
                     frameEvent()(@ptrCast(a), @ptrCast(st), mode);
                 }
@@ -93,7 +93,7 @@ pub fn func_800AFA28(actor: ?*v.D_800F4538_t, state: ?*v.D_800F4538_unkC54, mode
     const frame: c_int = @as(c_int, psx.conv(i16, st.unk540));
     if (frame != 1 and (flags.* & 0x10000) == 0) {
         const lastFrame = frame -% 1;
-        if (psx.fieldAt(u8, &st._bits_unk548_0, 1).* == 0) {
+        if (psx.bitsAt(u8, &st._bits_unk548_0, 1).* == 0) {
             if (lastFrame < frameOrOffset) frameOrOffset = 1;
             if (frameOrOffset == 0) frameOrOffset = 1;
 

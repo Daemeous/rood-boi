@@ -13,7 +13,7 @@ pub fn vs_actors_rememberEnemy(arg0: c_int, arg1: c_int) callconv(.c) void {
 
     const stats = psx.get(actor.stats).?;
     const raw: *align(4) anyopaque = @alignCast(c.vs_actors_acquireRememberedEnemy(actor.unk27).?);
-    const entry: *v.func_80069EF0_t = @ptrCast(raw);
+    const entry: *v.vs_actors_RoomActorRecordWrite = @ptrCast(raw);
     entry.spawnSlot = psx.conv(u8, @as(c_int, actor.unk27) +% 1);
     entry.currentHP = psx.conv(i16, @as(c_int, stats.currentHP));
     entry.maxHP = psx.conv(i16, @as(c_int, stats.maxHP));

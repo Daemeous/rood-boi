@@ -9,7 +9,7 @@ const psx = @import("common").psx;
 /// repeated up to 8 MB), for the original's out-of-list reads. An unaligned
 /// or non-RAM address would raise an address/bus error on the PS1.
 fn guestWord(address: c_uint) c_uint {
-    if ((address & 0x1fffffff) >= 0x00800000 or (address & 3) != 0)
+    if ((address & 0xffffffff) >= 0x00800000 or (address & 3) != 0)
         c.pc_unimplemented("actor engagement read outside guest RAM");
     return psx.byteAt(u32, @as([*]u8, @ptrFromInt(psx.guest_ram_base)), @intCast(address & 0x1fffff)).*;
 }

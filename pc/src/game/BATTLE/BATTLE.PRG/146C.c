@@ -100,7 +100,7 @@ typedef struct {
     u_short targetCount;
     _hitEntity_t targets[30];
     SVECTOR unk844;
-} D_800F19CC_t2;
+} vs_battle_ActionRequest;
 
 typedef struct {
     SVECTOR unk0;
@@ -118,8 +118,8 @@ typedef struct {
 typedef struct {
     u_int unk0;
     u_int unk4;
-    D_800F19CC_t2 unk8;
-    D_800F19CC_t2 queue[4];
+    vs_battle_ActionRequest unk8;
+    vs_battle_ActionRequest queue[4];
     int unk2984;
     int unk2988;
     u_char unk298C;
@@ -162,7 +162,7 @@ typedef struct {
     u_short battleAbilityTargetWindow;
     short unk2C0C;
     short unk2C0E;
-} D_800F19CC_t;
+} vs_battle_ActionState;
 
 typedef struct {
     char spawnSlot;
@@ -178,12 +178,12 @@ typedef struct {
     short limbHp[6];
     int statuses;
     int placement;
-} func_80069EF0_t;
+} vs_actors_RoomActorRecordWrite;
 
 typedef struct {
     _mpdRoomSectionA* unk0;
     func_8006EBF8_t unk4;
-} D_800F1910_t;
+} vs_field_InteractionFocus;
 
 typedef struct {
     signed char unk0;
@@ -192,7 +192,7 @@ typedef struct {
     char unk3;
     short unk4;
     short unk6;
-} D_800F1BB0_t;
+} vs_field_RoomTint;
 
 typedef struct {
     int unk0;
@@ -282,7 +282,7 @@ typedef struct {
 typedef struct {
     int unk0;
     _mpdRoomSectionA* unk4;
-} D_800F1D28_t;
+} vs_field_GimmickAnimationJob;
 
 typedef struct {
     short unk0;
@@ -416,7 +416,7 @@ typedef struct {
 typedef struct {
     int count;
     _mpdRoomDoorSection_t* values[32]; /* the PS1's 0x1D08..0x1D28 held a count and 7 words; a room with more matching doors overran it */
-} D_800F1D08_t;
+} vs_field_DoorMatchList;
 
 typedef struct {
     psx_long mpdOffset;
@@ -561,7 +561,7 @@ int _getActionCost(u_int, vs_battle_actor2*, int);
 void vs_battle_deriveLimbInjuryStatuses(_hitEntity_t*);
 void vs_battle_applyActionHitEffect(
     vs_action_t* arg0, _hitEntity_t* arg1, _hitEntity_t* arg2, int arg3, int arg4);
-void vs_battle_resolveActionTargets(int, D_800F19CC_t2*, D_800F19CC_t2*, int);
+void vs_battle_resolveActionTargets(int, vs_battle_ActionRequest*, vs_battle_ActionRequest*, int);
 void vs_battle_removeActorStatuses(int, vs_battle_actor2*);
 void _applyBattleAbilityEffect(_hitEntity_t*);
 void vs_battle_updateActorStatusTimers(vs_battle_actor2*);
@@ -644,7 +644,7 @@ void func_800971D4(void);
 void vs_render_drawRoomGeometry(void*, int);
 void vs_render_setRoomTextureLodDepth(int);
 void vs_render_updateRoomGroupTransforms(void*);
-void vs_render_tintRoomGeometryPrimitives(void*, void*, D_800F1BB0_t*, int);
+void vs_render_tintRoomGeometryPrimitives(void*, void*, vs_field_RoomTint*, int);
 void vs_field_setGimmickPaletteTable(u_short*);
 void func_8009D458(void);
 void vs_actors_resetAllActorMovement(void);
@@ -699,14 +699,14 @@ extern char vs_content_overlayWorkspaceOwner;
 extern int D_800F18FC;
 extern int D_800F1908;
 extern int vs_field_isFieldRenderingEnabled;
-D_800F1910_t vs_field_interactionFocus;
+vs_field_InteractionFocus vs_field_interactionFocus;
 extern vs_battle_actor* D_800F192C;
 extern int D_800F1968;
 extern u_int D_800F196C;
 extern int vs_field_isRoomVisitPending;
 extern char vs_render_legacyTexturePageReservations[];
 extern int D_800F19C8;
-extern D_800F19CC_t* vs_battle_actionState;
+extern vs_battle_ActionState* vs_battle_actionState;
 extern u_int D_800F1A00;
 extern u_int D_800F1A04;
 extern u_int _lastValue;
@@ -719,13 +719,13 @@ extern int vs_render_framebufferEffectScale[];
 extern int vs_render_framebufferEffectUsesPreviousFrame;
 extern u_int vs_render_framebufferEffectDepth;
 extern int D_800F1A50[];
-extern D_800F1A68_t vs_render_framebufferEffectOffset;
+extern vs_render_FramebufferEffectTranslation vs_render_framebufferEffectOffset;
 extern P_CODE vs_render_framebufferEffectTint;
 extern char D_800F1A9C[];
 extern int vs_render_framebufferEffectState;
 extern int vs_render_framebufferEffectBlendMode;
 extern u_short vs_field_areRoomUpdatesPaused;
-extern D_800F1BB0_t D_800F1BB0;
+extern vs_field_RoomTint D_800F1BB0;
 extern short vs_field_isRoomTintActive;
 extern void* D_800F1BB8;
 extern char D_800F1BBC;
@@ -737,14 +737,15 @@ vs_view_t vs_view;
  * the GTE's registers. */
 vs_gte_view vs_frame_view;
 vs_scratch_t vs_scratch;
-unsigned char vs_pad[0x400] __attribute__((aligned(16)));
+unsigned char vs_pad[0x408] __attribute__((aligned(16)));
+vs_nav_t vs_nav;
 _zoneContext_t _zoneContext;
 extern u_short vs_field_entranceDoorPlatformFlags;
 extern void* D_800F1CC0;
 extern char vs_field_isMinimapVisible;
 extern u_short vs_field_roomAnimationTicks;
-D_800F1D08_t vs_field_matchingDoorRecords;
-D_800F1D28_t vs_field_gimmickAnimationQueue[8];
+vs_field_DoorMatchList vs_field_matchingDoorRecords;
+vs_field_GimmickAnimationJob vs_field_gimmickAnimationQueue[8];
 extern short vs_field_pendingGimmickAnimationCount;
 extern u_short vs_field_triggerMarkerFrameTicks;
 extern int vs_field_backgroundGradientColors[5];
@@ -946,7 +947,7 @@ int _stepCameraTransition(void);
 
 void func_8006F450(func_800CF0E8_t* arg0);
 
-void func_8006F4B0(func_8006EBF8_t3* arg0);
+void func_8006F4B0(vs_actors_ActorLocation* arg0);
 
 void _setRoomSeen(void);
 
@@ -972,7 +973,7 @@ void vs_battle_beginActionTrailFade(void);
 
 void vs_battle_finishBattleAbilitySequence(void);
 
-void vs_battle_aiNotifyActionRelationshipChanges(D_800F19CC_t2*);
+void vs_battle_aiNotifyActionRelationshipChanges(vs_battle_ActionRequest*);
 void func_80093F24(u_int);
 
 void vs_battle_advanceBattleAbilitySequence(void);
@@ -999,7 +1000,7 @@ int vs_battle_previewActionAgainstLimb(int, int, int, int, void*);
 
 void vs_battle_filterAreaActionTargets(void);
 
-void vs_battle_aimActionBehindSource(D_800F19CC_t* arg0);
+void vs_battle_aimActionBehindSource(vs_battle_ActionState* arg0);
 
 void vs_battle_setSingleActionTarget(void);
 
@@ -1124,7 +1125,7 @@ void vs_field_triggerActorTrap(_mpdRoomSectionA* arg0, func_8006EBF8_t* arg1, in
 
 void vs_field_tryOpenChest(_mpdRoomSectionA* arg0, int arg1);
 
-void vs_field_beginTrapInteraction(_mpdRoomSectionA* arg0, func_8006EBF8_t3* arg1, int arg2);
+void vs_field_beginTrapInteraction(_mpdRoomSectionA* arg0, vs_actors_ActorLocation* arg1, int arg2);
 
 void vs_field_beginChestInteraction(_mpdRoomSectionA* arg0, int arg1);
 
@@ -1170,10 +1171,10 @@ int vs_field_checkAshleyTileTriggers(int, u_char*);
 /* PC only: the decomp's closest non-matching C for vs_field_checkAshleyTileTriggers
  * (rood-reverse .work/ultracode/r7-near-b/74bac/p40.full.c, score 40: a
  * register-allocation swap, same behaviour). */
-D_800F1D08_t* vs_field_transitionDoorsAtTile(int, int, int);
+vs_field_DoorMatchList* vs_field_transitionDoorsAtTile(int, int, int);
 int vs_field_checkAshleyTileTriggers(int actorId, u_char* cell);
 
-int vs_field_checkActorTrapAndFallTriggers(int arg0, func_8006EBF8_t3* arg1);
+int vs_field_checkActorTrapAndFallTriggers(int arg0, vs_actors_ActorLocation* arg1);
 
 void vs_actors_consumeActorMovementOffset(vs_battle_actor* arg0, SVECTOR* arg1);
 
@@ -1503,11 +1504,11 @@ void vs_render_setFramebufferEffectEnabled(int arg0);
 
 void vs_render_setFramebufferEffectRoll(int arg0);
 
-void vs_render_setFramebufferEffectScale(D_800F1A68_t* arg0);
+void vs_render_setFramebufferEffectScale(vs_render_FramebufferEffectTranslation* arg0);
 
 void vs_render_setFramebufferEffectTint(P_CODE* arg0);
 
-void vs_render_setFramebufferEffectOffset(D_800F1A68_t* arg0);
+void vs_render_setFramebufferEffectOffset(vs_render_FramebufferEffectTranslation* arg0);
 
 void vs_render_setFramebufferEffectBlendMode(int arg0);
 
@@ -1519,7 +1520,7 @@ void vs_render_readFramebufferEffectScale(int* arg0);
 
 void vs_render_readFramebufferEffectTint(P_CODE* arg0);
 
-void vs_render_readFramebufferEffectOffset(D_800F1A68_t* arg0);
+void vs_render_readFramebufferEffectOffset(vs_render_FramebufferEffectTranslation* arg0);
 
 void func_8007DF40(void);
 
@@ -1833,11 +1834,11 @@ void vs_battle_finalizeActionHit(func_80085A34_t* arg0);
 
 int vs_field_traceActorAndTerrainCollision(SVECTOR*, SVECTOR*, SVECTOR*, int);
 
-void vs_battle_resolveActionTargets(int action, D_800F19CC_t2* result, D_800F19CC_t2* source, int arg3);
+void vs_battle_resolveActionTargets(int action, vs_battle_ActionRequest* result, vs_battle_ActionRequest* source, int arg3);
 
 int vs_battle_previewActionAgainstLimb(int arg0, int arg1, int targetActor, int targetLimb, void* arg4);
 
-int vs_battle_previewActionAgainstActor(int arg0, int arg1, int targetActor, int arg3, SVECTOR* arg4, SVECTOR* arg5, D_800F19CC_t2* arg6);
+int vs_battle_previewActionAgainstActor(int arg0, int arg1, int targetActor, int arg3, SVECTOR* arg4, SVECTOR* arg5, vs_battle_ActionRequest* arg6);
 
 #ifdef ROOD_PC
 #undef sp860
@@ -1978,7 +1979,7 @@ void vs_field_setEntranceDoorRecord(char (*arg0)[12]);
 
 void vs_field_findEntranceDoorNearTile(int arg0, int arg1, int arg2);
 
-D_800F1D08_t* vs_field_transitionDoorsAtTile(int arg0, int arg1, int arg2);
+vs_field_DoorMatchList* vs_field_transitionDoorsAtTile(int arg0, int arg1, int arg2);
 
 _mpdRoomSectionA* vs_field_interactiveDoorAtTile(int arg0, int arg1, int arg2);
 

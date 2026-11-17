@@ -158,9 +158,9 @@ one game at a time.
 | S0 | Meters: lint rules `pinned_import` (from `lp64_imports.json`), `byte_offset_access` (fieldAt, byteAt, PSX_OFFSET), `ram_reference`; baseline | lint counts | 2 d |
 | S1 | Names not offsets (T13a). Field names from the ledger (Part 1, in progress), then replace `psx.fieldAt/byteAt` and `PSX_OFFSET` sites by named fields, a file or subsystem per commit (37 sites in `vs_actors_updateActorAppearanceTransition.zig`, 23 in `parse_shp.zig`, ... 944 in all). Where the structs genuinely overlay, give the overlaid struct a union member | object_identity (often identical code); gate | 6-8 d |
 | S2 | Host reads by name: generated layout table (DWARF) and RPC `field {path}`/`symbol_info`; tests and tools move off `g.read(address)`, `pc_*_offset_*` symbols, `nm` in `rood_rpc.py`; Oracle masks and digests by symbol | the 42 tests pass unchanged in meaning; classic_parity | 4-5 d |
-| S3 | Scratchpad to a typed workspace (T14, 52 sites; `hw.h` 18, LIBPRESS 12, libpad 6, `25AC.c`, `5BF94.c`) | gate; lint `scratchpad` 0 | 3 d |
+| S3 | Scratchpad overlays. Measured: the old lint's 52 `scratchpad` hits were 46 I/O-page hardware registers (T16/T18/T21, now the `io_register` meter) and 6 scratchpad mentions; the real scratchpad code is `pad.addr(0xNNN)` (Zig, 137) and `PC_PAD(0xNNN)` (C, 21): about 15 typed overlays (actor and weapon transform 0x35C, collision 0x3BC, animation frame 0x3EC, AI slots 0x37C, ...) that alias one another in a native 1 KB block (`vs_pad`, not at 0x1F800000). S3a (done): `pad.at(T, off)` and `pad.many(T, off)`, compile-time checked, replace the `@ptrFromInt(pad.addr(..))` casts (86 lines; object code identical, 527 of 527). S3b: the rest by hand (offset arithmetic, tables), then name each overlay's owner; relocation of the block with S9 | new meter `pad_offset` (176 -> 90) | S3a 0.5 d measured |
 | S4a | The 8 `psx_ptr` fields and 38 accesses to native pointers or offsets (S6 prerequisites first where the field is in a file struct) | lint `guest_pointer_*` 0; gate | 3-4 d |
-| S4 | Heap to a pinned host arena (2.2): `psx_addr` limit and the low stack lifted; arena size a setting | determinism_smoke, snapshot resume across the new range, heap report equals before | 3-4 d |
+| S4 | Heap to its own arena (done as the first form, measured): the game heap's arena left the PS1's 2 MB block for 0x80200000, the same allocator, size and offsets from the arena start (heap report equal). It stays in the 16 MB window (0x80000000..) and below 4 GB: the ordering tables and primitive buffers are allocated from this heap (INITBTL, vs_field_finishRoomLoad) and the game's 24-bit links cannot name another address, so the arena leaves the window, and the `psx_addr` 4 GB limit and the low stack go, only after T4 (frames as data) or when those buffers get a separate allocator. Layout table: memory_layouts/s4-heap-arena.tsv | determinism_smoke, snapshot, heap report, fight, menus | 0.5 d measured |
 | S5 | `address_as_integer` 195: packet words stay (T4), file offsets move to S6, the rest to typed pointers | lint count | 3 d |
 | S6 | File decoders, one format per commit: MPD sections, SHP, SEQ, WEP, ARM, ZND, effect P-files, menu data, saves (T22). Native struct filled from bytes; payload kept raw where the renderer wants it. 15 formats or so | gate per format; rooms lane, spells lane; for formats a room test (a room load compared by `rood_rpc` before and after) | 25-35 d |
 | S7 | Globals by group (2.4), the 301 pinned: first the unsized-array and overlap groups with real extents, then the plug-in slot with T10, then the pointed-at ones after their decoder | lint `pinned_import` per group; gate | 10-14 d |
@@ -172,6 +172,17 @@ S0-S3 can run in parallel with each other and with the T4 and T10 lanes; S4a-S5 
 S6 (pointed-at) and T10 (plug-in slot); S9 needs S4-S8. Total S0-S10: an unmeasured 70-90 agent days guess (3 workers: 4-6 calendar
 weeks), dominated by S6 and S7. The first four steps cost about 15 days and already stop new code from depending on
 offsets.
+
+**Order as decided after the first S1 measurements (2026-11-16, coordinator):** automatic S1 tops out at about 10%
+and the rest is file sections (S6's) or hand work, so S1's tail is not ground down site by site. The order is now:
+(1) bitfields: the names import for the few placeholder bitfields, and `psx.bitsAt`, a compile-time bounds-checked window
+over a `_bits_*` group instead of `psx.fieldAt` on its bytes; mapping the masks to named bits is left to hand work where
+a subsystem is touched; (2) S3, the scratchpad overlays (see its row: S3a done, the lint's 52 were mostly I/O registers);
+(3) S4a, the 8 `psx_ptr` fields and 38 accesses, then S4, the game heap in its own pinned arena (identical allocator,
+size and behaviour; the port arena for decoded objects comes with S6; the low stack and the 4 GB limit go; proven by
+determinism_smoke, snapshot and rewind across the new range, and a heap report equal to before); (4) the remaining S1
+sites are absorbed by S6 as each file format is decoded, or done by hand when a subsystem is touched anyway.
+Medium-confidence field names are deferred.
 
 ### 3.1 S1 measured so far (2026-11-16, first 3 hours)
 
@@ -193,6 +204,39 @@ Not yet the 100 sites the plan asked for; what the first hours showed, for the r
   rest without guessing. Bitfield words need the views generator to emit a named word. Honest throughput after the
   tooling: 23 verified sites in roughly 1.5 hours of which most was building the tool and finding the bad rule; a
   steady rate is still unmeasured.
+
+### 3.2 Measured rates (2026-11-16, one worker, about 11 hours from 07:17)
+
+| Step | What | Agent time | Notes |
+|---|---|---|---|
+| Part 1 | 273 field renames, 55 type renames, the tools (import_fields.py with the compiler-driven --fix) | about 5 h | the first tool version had three bugs the build found; each chunk's proof (14-route menus lane 30 min, fight 40 s, Windows build 4 min, smokes 3 min) is about 1 h of wall time on top of the work |
+| S0 | meters: byte_offset_access, ram_reference, unnamed_field, pad_offset, io_register (and the scratchpad split) | 0.5 h | |
+| S1 | 138 raw accesses named or bounds-checked (25 + 13 by DWARF and type oracle, 100 bitsAt) | about 4 h | most of it building the oracle and finding a wrong rule through the fight gate; the automatic ceiling is about 10% of the 944; there is no steady hand rate yet |
+| S3a | 98 scratchpad casts to pad.at/pad.many | 1 h | object code identical: the cheapest kind of proof |
+| S3b 1 | owner table of the scratchpad | 0.5 h | documentation |
+| S4a | 6 pointer fields in scratch overlays | about 3 h | layout arithmetic and the Zig/C translate-c disagreement over packed pointers; 14 menu routes + fight + spells + determinism |
+| S4 | the heap arena out of the 2 MB block | about 2 h | the surprise was that packets live in the heap |
+| S4b | the navigation pointers (8 globals declared four ways) and the AI's pad slots as a native struct | about 3 h of work and 2 h of proof | the coordinator asked for proof that the clobber was dead: an instrumented build over a fight, 9 rooms, the spells lane and 43 enemy rooms, 1.5 million slot reads, 0 clobbered; the `--casts enemies` lane as one run dies on an unimplemented effect opcode on main too |
+
+What this changes in the estimates above (S5 onward are still guesses, now with a floor):
+
+- A proven step costs at least 1 to 1.5 hours of wall time for the gates whatever its size, so the cost of S6 (15 formats)
+  and S7 (the pinned groups) is at least one proven commit per format or group: 15 + about 12 commits, 1.5 to 3 hours each
+  when the code change is small and a day when it is not. The earlier 25-35 and 10-14 day guesses stand as ranges, not
+  as measurements.
+- S5 looked at (end of day 1): `address_as_integer` is 188 now. Beyond the sound driver (28) and the effect spawn fields, the
+  event script VM is a trap: its 250 opcode handlers all return `int`, and the ones that jump return a script address in that
+  int (the interpreter loop treats it as an address), so widening the address means widening the return type of the whole
+  table and every handler, C and Zig (about 14 handlers return addresses; the rest would need a defined upper half). It is a
+  day of mechanical work with a high-risk surface (the scripts are the whole game's story), so it waits for S6's script
+  format decoding to turn the cursor into an index.
+- S5 (`address_as_integer` 195) is not one sweep: 28 sites are the sound driver's command parameters carrying guest
+  addresses (T18: they need a handle table), about 40 are effect and room code in Zig storing heap pointers in 32-bit
+  fields, the rest are packet words. About 6 days, with the sound part possibly folded into T18.
+- S4 b (the arena above 4 GB and the low stack gone) cannot precede S5 and a separate allocator for the packet and
+  ordering-table buffers: 2 to 3 days after S5.
+- The navigation slots in the scratchpad (60 sites, guest pointers mirroring 32-bit globals) wait for the T15 pointer
+  globals (D_800F58xx): 2 days after those are widened.
 
 ## 4. What breaks when layouts change
 

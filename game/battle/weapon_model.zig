@@ -17,11 +17,11 @@ fn matrixAt(base: anytype, off: isize) [*c]c.MATRIX {
 /// Steps a weapon's scale, rebuilds its bone matrices from its source matrix, and draws it on its actor's pass.
 pub fn drawWeaponModel(weapon: ?*v.vs_battle_wepModels_t, source: ?*v.MATRIX) callconv(.c) void {
     const w = weapon.?;
-    const scratch: *v.weaponTransformScratch = @ptrFromInt(pad.addr(0x35C));
+    const scratch: *v.weaponTransformScratch = pad.at(v.weaponTransformScratch, 0x35C);
     const actor = v.g.vs_actors_actorRecords()[psx.getBits(w, "actorId")];
 
     psx.put(&scratch.model, psx.get(w.offsets));
-    @as(*v.MATRIX, @ptrFromInt(pad.addr(0x3C0))).* = source.?.*;
+    pad.at(v.MATRIX, 0x3C0).* = source.?.*;
 
     if (w.unk13 != 0) {
         const target: c_int = w.unk12;
@@ -84,7 +84,7 @@ pub fn drawWeaponModel(weapon: ?*v.vs_battle_wepModels_t, source: ?*v.MATRIX) ca
     }
 
     const a = actor.?;
-    if ((psx.fieldAt(c_int, &a.unk0._bits_skip, 0).* & 2) != 0) {
+    if ((psx.bitsAt(c_int, &a.unk0._bits_skip, 0).* & 2) != 0) {
         if (a.unk0.position.vy >= 256) {
             if (a.unk0.slot == 0 or c.vs_event_eventPlaybackState() != 4) return;
         }
@@ -97,7 +97,7 @@ pub fn drawWeaponModel(weapon: ?*v.vs_battle_wepModels_t, source: ?*v.MATRIX) ca
             scratch.tpage = psx.conv(u16, psx.at(v.g.vs_battle_wepTextures(), w.texSlot).tpage);
             scratch.clut = psx.conv(u16, psx.at(v.g.vs_battle_wepTextures(), w.clutSlotOffset).clut0);
 
-            const flags: c_uint = psx.fieldAt(c_uint, &a.unk0._bits_skip, 0).*;
+            const flags: c_uint = psx.bitsAt(c_uint, &a.unk0._bits_skip, 0).*;
             var value: c_int = 0;
             if ((((flags >> 8) & 15) -% 4) < 5) {
                 value = 1;

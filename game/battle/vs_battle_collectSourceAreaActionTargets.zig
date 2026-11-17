@@ -10,7 +10,7 @@ fn unk10Vector(actor: ?*v.vs_battle_actor) v.SVECTOR {
 }
 
 /// vs_battle_actionState, read at each use as the C does.
-fn state() *v.D_800F19CC_t {
+fn state() *v.vs_battle_ActionState {
     return v.g.vs_battle_actionState().*.?;
 }
 
@@ -26,7 +26,7 @@ fn kind(spec: *v.vs_action_t) u32 {
 /// with its hit preview (vs_battle_previewActionAgainstLimb into vs_battle_populateActionTargetPreview). Then the list (vs_battle_setSphereTargets), unk298C 240, camera 3.
 pub fn vs_battle_collectSourceAreaActionTargets(_: c_int) callconv(.c) void {
     var origin: v.SVECTOR = undefined;
-    var result: v.D_800F19CC_t2 = undefined;
+    var result: v.vs_battle_ActionRequest = undefined;
     const actors = v.g.vs_battle_actors();
     const action: c_int = state().unk8.actionIndex;
     c.func_800A1AF8(state().unk8.primaryTarget.target.targetActor, 0, @ptrCast(&origin), 0);

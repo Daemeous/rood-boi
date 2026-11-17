@@ -32,33 +32,17 @@ pub fn func_800C28AC(position: ?*v.SVECTOR, arg1: c_int) callconv(.c) void {
     pcMarker.step = @as(c_int, v.g.vs_battle_positionCursorBlinkFrame().*);
     const pcMarkerFirst = v.g.vs_scratch().unk0;
 
+    const otPtr: [*c]c_uint = @ptrFromInt(@as(usize, psx.addr(ot)));
+
     if (arg1 == 0) {
-        var prim: [*]align(1) c_uint = @ptrCast(psx.get(v.g.vs_scratch().unk0).?);
-        prim[0] = (ot.* & 0xFFFFFF) | 0x9000000;
-        prim[1] = 0x2C808080;
-        prim[2] = xyu +% 0xFFF7FFF3;
-        prim[3] = 0x37FD38F1;
-        prim[4] = xyu +% 0xFFF7FFFD;
-        prim[5] = 0xC38E7;
-        prim[6] = xyu +% 0xFFFEFFF3;
-        prim[7] = 0x3FF1;
-        prim[8] = xyu +% 0xFFFEFFFD;
-        prim[9] = 0x3FE7;
-        ot.* = psx.addr(prim);
-        prim += 10;
-        prim[0] = (ot.* & 0xFFFFFF) | 0x9000000;
-        prim[1] = 0x2C808080;
-        prim[2] = xyu +% 0x1FFF3;
-        prim[3] = 0x37FD40F1;
-        prim[4] = xyu +% 0x1FFFD;
-        prim[5] = 0xC40E7;
-        prim[6] = xyu +% 0x8FFF3;
-        prim[7] = 0x47F1;
-        prim[8] = xyu +% 0x8FFFD;
-        prim[9] = 0x47E7;
-        ot.* = psx.addr(prim);
-        prim += 10;
-        psx.put(&v.g.vs_scratch().unk0, prim);
+        // The marker's frame: two textured quads (page 12, the clut 0x37FD), draw items placed at the slot where their packets linked.
+        const brightness: c_int = 0x808080;
+        const quad1_xy = [4]c_int{ @bitCast(xyu +% 0xFFF7FFF3), @bitCast(xyu +% 0xFFF7FFFD), @bitCast(xyu +% 0xFFFEFFF3), @bitCast(xyu +% 0xFFFEFFFD) };
+        const quad1_uv = [4]c_int{ 0x38F1, 0x38E7, 0x3FF1, 0x3FE7 };
+        _ = sprite_item.ft4(otPtr, false, false, 0x0C, 0x37FD, brightness, &quad1_xy, &quad1_uv);
+        const quad2_xy = [4]c_int{ @bitCast(xyu +% 0x1FFF3), @bitCast(xyu +% 0x1FFFD), @bitCast(xyu +% 0x8FFF3), @bitCast(xyu +% 0x8FFFD) };
+        const quad2_uv = [4]c_int{ 0x40F1, 0x40E7, 0x47F1, 0x47E7 };
+        _ = sprite_item.ft4(otPtr, false, false, 0x0C, 0x37FD, brightness, &quad2_xy, &quad2_uv);
     }
 
     var i: c_int = 0;
@@ -68,7 +52,6 @@ pub fn func_800C28AC(position: ?*v.SVECTOR, arg1: c_int) callconv(.c) void {
             @as(c_int, v.g.vs_battle_cursorBrightnessAnimation()[v.g.vs_battle_positionCursorBlinkFrame().*])
         else
             0x80;
-        const otPtr: [*c]c_uint = @ptrFromInt(@as(usize, psx.addr(ot)));
         _ = sprite_item.sprite(otPtr, brightness, xy +% psx.at(v.g.vs_battle_positionCursorSpriteOffsets(), index).*, psx.at(v.g.vs_battle_positionCursorSpriteSizes(), index).*, sprite_item.page, @bitCast(psx.conv(c_uint, psx.at(v.g.vs_battle_positionCursorSpriteTexCoords(), index).*)));
     }
 

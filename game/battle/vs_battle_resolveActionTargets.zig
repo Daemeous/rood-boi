@@ -6,7 +6,7 @@ const c = @import("c_146C");
 
 /// orig: vs_battle_resolveActionTargets (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// Resolves action `action`'s hits against its targets into `result`; with `arg3` set, it also commits the result to `source` and charges the action.
-pub fn vs_battle_resolveActionTargets(action: c_int, result: ?*v.D_800F19CC_t2, source: ?*v.D_800F19CC_t2, arg3: c_int) callconv(.c) void {
+pub fn vs_battle_resolveActionTargets(action: c_int, result: ?*v.vs_battle_ActionRequest, source: ?*v.vs_battle_ActionRequest, arg3: c_int) callconv(.c) void {
     const spec = psx.at(v.g.actions(), action);
     c.vs_battle_clearActionRequest(result);
     const res = result.?;

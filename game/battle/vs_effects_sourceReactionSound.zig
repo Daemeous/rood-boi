@@ -6,7 +6,7 @@ const c = @import("c_5BF94");
 
 /// orig: vs_effects_sourceReactionSound (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// For a kind-4 unkC target: vs_audio_playActorModelSoundVariant(its id byte, variant) for a variant below 4, else a random 0..2 other than the last (vs_effects_lastReactionSoundVariant, which keeps it).
-pub fn vs_effects_sourceReactionSound(script: ?*v.D_800F53B8_t, variant: u8) callconv(.c) void {
+pub fn vs_effects_sourceReactionSound(script: ?*v.vs_effects_EffectInstance, variant: u8) callconv(.c) void {
     const s = script.?;
     if (s.context.unkC.unk0 == 4) {
         if (variant < 4) {

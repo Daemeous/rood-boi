@@ -34,7 +34,7 @@ pub fn vs_actors_textureFrameMove(actor: ?*v.D_800F4538_t, index: c_int, frame: 
     var width: c_int = overlay.w;
     const height: c_int = overlay.h;
 
-    if ((psx.fieldAt(c_int, &a._bits_unk5AC_0, 0).* & 0x0800_0000) == 0) {
+    if ((psx.bitsAt(c_int, &a._bits_unk5AC_0, 0).* & 0x0800_0000) == 0) {
         srcX = @divTrunc(srcX, 4);
         width = @divTrunc(width, 4);
         dstX = @divTrunc(dstX, 4);

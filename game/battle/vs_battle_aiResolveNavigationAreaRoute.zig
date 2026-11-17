@@ -9,14 +9,9 @@ const c = @import("c_771A8");
 
 const Position = v.vs_battle_movementPosition;
 
-/// A scratchpad word holding a guest pointer.
-fn slotPtr(comptime T: type, address: usize) T {
-    return @ptrFromInt(@as(usize, @as(*const u32, @ptrFromInt(address)).*));
-}
-
 /// `((D_800F16EC_t*)0x1F8003EC)[direction]`: a heading's tile step.
 fn step(direction: c_int) *v.D_800F16EC_t {
-    return psx.at(@as([*]v.D_800F16EC_t, @ptrFromInt(pad.addr(0x3EC))), direction);
+    return psx.at(pad.many(v.D_800F16EC_t, 0x3EC), direction);
 }
 
 /// orig: routeWord (pc/src/game/BATTLE/BATTLE.PRG/771A8.c)
@@ -32,7 +27,7 @@ fn routeHalf(pair: *const [2]u16, index: usize) u16 {
 /// orig: routeTile (pc/src/game/BATTLE/BATTLE.PRG/771A8.c)
 /// The area grid's tile (scratchpad 0x1F8003C0, rows of 32).
 fn routeTile(z: c_int, x: c_int) c_uint {
-    return psx.at(psx.at(slotPtr([*][32]u16, pad.addr(0x3C0)), z), x).*;
+    return psx.at(psx.at(pad.nav.cells.?, z), x).*;
 }
 
 /// orig: routeSetArea (pc/src/game/BATTLE/BATTLE.PRG/771A8.c)
@@ -43,16 +38,16 @@ fn routeSetArea(s: *v.vs_battle_aiState, position: Position) c_int {
 
 /// The wall grid's tile (scratchpad 0x1F8003BC, rows of 32).
 fn wallTile(z: c_int, x: c_int) u16 {
-    return psx.at(psx.at(slotPtr([*][32]u16, pad.addr(0x3BC)), z), x).*;
+    return psx.at(psx.at(pad.nav.floors.?, z), x).*;
 }
 
 /// The C's `center:` tail: head for the target actor, or the candidate tile's centre.
 fn center(s: *v.vs_battle_aiState, candidate: Position) c_int {
     const target = s.movementTargetId;
-    if (target != 16 and psx.at(@as([*]const u32, @ptrFromInt(pad.addr(0x37C))), target).* != 0) {
-        const actor = slotPtr(*align(4) v.vs_battle_aiState, pad.addr(0x37C) + 4 * @as(usize, target));
+    if (target != 16 and pad.aiState(target) != null) {
+        const actor: *align(4) v.vs_battle_aiState = @ptrCast(@alignCast(pad.aiState(target)));
         s.moveX = psx.at(psx.get(actor.position60.shorts).?, 0).*;
-        const again = slotPtr(*align(4) v.vs_battle_aiState, pad.addr(0x37C) + 4 * @as(usize, s.movementTargetId));
+        const again: *align(4) v.vs_battle_aiState = @ptrCast(@alignCast(pad.aiState(s.movementTargetId)));
         s.moveZ = psx.at(psx.get(again.position60.shorts).?, 2).*;
     } else {
         s.moveX = @as(c_int, psx.getBits(&candidate.p, "x")) *% 128 +% 64;
@@ -92,7 +87,7 @@ pub fn vs_battle_aiResolveNavigationAreaRoute(state: ?*v.vs_battle_aiState, inde
     const s = state.?;
     const position: Position = .{ .raw = @as(*align(4) const c_uint, @ptrCast(&s.tile.position)).* };
     var routes: [2]u16 align(4) = undefined;
-    @as(*c_uint, @ptrCast(&routes)).* = psx.at(slotPtr([*]const c_uint, pad.addr(0x3F4)), area *% 16 +% index).*;
+    @as(*c_uint, @ptrCast(&routes)).* = psx.at(@as([*]const c_uint, @ptrCast(@alignCast(pad.nav.exits.?))), area *% 16 +% index).*;
     if (routeWord(&routes) & 0x1BE0 == 0) {
         return 6;
     }
@@ -160,8 +155,8 @@ pub fn vs_battle_aiResolveNavigationAreaRoute(state: ?*v.vs_battle_aiState, inde
         if (wallTile(psx.getBits(&candidate.p, "z"), psx.getBits(&candidate.p, "x")) & 0x1C00 != 0) {
             return stop(s, &candidate);
         }
-        const passages = slotPtr([*]const u8, pad.addr(0x3C4));
-        const width: c_int = @as(*const u8, @ptrFromInt(pad.addr(0x3DC))).*;
+        const passages: [*]const u8 = pad.nav.bitmap.?;
+        const width: c_int = pad.at(u8, 0x3DC).*;
         const cell = psx.at(passages, @as(c_int, psx.getBits(&position.p, "z")) *% width +% psx.getBits(&position.p, "x")).*;
         // *direction indexes the 8 headings: below 8 in the game's table; the shift as x86 masks it.
         if ((@as(c_int, cell) >> @truncate(@as(c_uint, direction.*))) & 1 != 0) {

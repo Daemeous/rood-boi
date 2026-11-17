@@ -8,10 +8,10 @@ const c = @import("c_4A0A8");
 /// its vs_actors_actorStateFlags flags rewritten: bits 0x800 and 0x1000 kept where script[4] bits 1 and 3 say
 /// so, else taken from bits 0 and 2, ORed with script[3]; then vs_actors_resetActorWeaponVisibilityBlend.
 pub fn vs_event_scriptSetActorGroupFlags(script: [*c]u8, _: c_short) callconv(.c) c_int {
-    var set: v.func_800BB68C_t = undefined;
-    c.vs_event_buildScriptActorSelection(psx.conv(u16, c.vs_battle_getShort(script + 1)), psx.cptr(c.func_800BB68C_t, &set));
+    var set: v.vs_event_ActorSelection = undefined;
+    c.vs_event_buildScriptActorSelection(psx.conv(u16, c.vs_battle_getShort(script + 1)), psx.cptr(c.vs_event_ActorSelection, &set));
     while (true) {
-        const actor: c_int = c.vs_event_nextScriptSelectedActor(psx.cptr(c.func_800BB68C_t, &set));
+        const actor: c_int = c.vs_event_nextScriptSelectedActor(psx.cptr(c.vs_event_ActorSelection, &set));
         if (actor == 1) break;
         const flags: c_uint = c.vs_actors_actorStateFlags(actor);
         var bit11: c_uint = flags & 0x800;

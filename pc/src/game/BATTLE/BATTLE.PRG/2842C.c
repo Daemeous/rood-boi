@@ -44,7 +44,7 @@ typedef struct {
     } operands[4];
     int unk14;
     int unk18;
-} func_80092F74_t2;
+} vs_field_RoomEffectCommand;
 
 typedef struct {
     int geometryOffset;
@@ -59,21 +59,21 @@ typedef struct {
     int restAngle;
     int startAngle;
     int initialVelocity;
-} D_800F1DD8_t2;
+} vs_field_SwingEffectRecord;
 
 typedef struct {
     char unk0;
     u_char unk1;
     char unk2;
     char unk3;
-    D_800F1DD8_t2* unk4;
-    D_800F1DD8_t2* unk8;
-} D_800F1DD8_t;
+    vs_field_SwingEffectRecord* unk4;
+    vs_field_SwingEffectRecord* unk8;
+} vs_field_RoomEffectInstance;
 
 typedef struct {
     short unk0;
     short unk2;
-} func_80092B04_t2;
+} vs_field_RoomEffectCommandHeader;
 
 typedef struct {
     u_short unk0;
@@ -102,7 +102,7 @@ typedef struct {
     u_char red3;
     u_char green3;
     u_char unk16[0xA];
-} func_80093914_t;
+} vs_field_MpdTriangleColorView;
 
 typedef struct {
     u_char unk0[0xC];
@@ -121,7 +121,7 @@ typedef struct {
     u_char green4;
     u_char unk26;
     u_char unk27;
-} func_80093914_t2;
+} vs_field_MpdQuadColorView;
 
 typedef struct {
     int geometryOffset;
@@ -137,7 +137,7 @@ typedef struct {
     u_char frame;
     u_char u[4];
     u_char v[4];
-} func_80091C6C_t;
+} vs_field_TextureFrameEffect;
 
 typedef struct {
     int geometryOffset;
@@ -157,7 +157,7 @@ typedef struct {
     char unk13;
     u_char u[4];
     u_char v[4];
-} func_80091E10_t;
+} vs_field_TextureScrollEffect;
 
 typedef struct {
     u_char tick;
@@ -188,8 +188,8 @@ void func_80090434(void);
 void func_80090B28(void);
 int vs_battle_clamp(short, int, int);
 void vs_field_applyWeatherIntensity(void);
-void vs_field_createRoomEffectObjects(D_800F1DD8_t*);
-int vs_field_executeRoomEffectCommands(func_80092F74_t*, int, D_800F1DD8_t*);
+void vs_field_createRoomEffectObjects(vs_field_RoomEffectInstance*);
+int vs_field_executeRoomEffectCommands(func_80092F74_t*, int, vs_field_RoomEffectInstance*);
 int vs_field_startRoomEffect(int);
 void vs_field_writeRoomEffectTransform(func_80092F74_t* arg0);
 int vs_field_stepRoomEffectGravity(func_80092F74_t* arg0);
@@ -204,8 +204,8 @@ int func_800A1AF8(int, int, u_short*, int);
 void* vs_battle_reserveFloatingLabel();
 void vs_battle_removeFloatingLabel(int);
 
-extern int (*vs_field_textureEffectHandlers[])(D_800F1DD8_t2*);
-extern int (*vs_field_roomEffectOpcodeHandlers[])(func_80092F74_t*, func_80092B04_t2*);
+extern int (*vs_field_textureEffectHandlers[])(vs_field_SwingEffectRecord*);
+extern int (*vs_field_roomEffectOpcodeHandlers[])(func_80092F74_t*, vs_field_RoomEffectCommandHeader*);
 extern char vs_field_weatherVolumeByIntensity[];
 extern int D_80068F04[][4];
 extern u_short D_80068F64[][4];
@@ -242,12 +242,12 @@ extern short vs_field_weatherIntensity;
 extern char vs_field_roomWeatherKind;
 extern char vs_field_isWeatherVariationEnabled;
 extern void* vs_field_weatherParticles;
-D_800F1DD8_t vs_field_roomEffectInstances[96]; /* 0x480 bytes of 12-byte entries on the PS1 */
+vs_field_RoomEffectInstance vs_field_roomEffectInstances[96]; /* 0x480 bytes of 12-byte entries on the PS1 */
 
 /* room_effects.c: whether slot is running and its record (the PS1 reads were by byte offset). */
 int pc_effect_slot(int slot, const unsigned char** record)
 {
-    const D_800F1DD8_t* e = &vs_field_roomEffectInstances[slot];
+    const vs_field_RoomEffectInstance* e = &vs_field_roomEffectInstances[slot];
     *record = (const unsigned char*)e->unk4;
     return e->unk0 && e->unk2;
 }
@@ -334,57 +334,57 @@ int func_80091AC0(int arg0);
 
 void vs_field_updateRoomEffects(void);
 
-int vs_field_advanceRoomTextureFrames(func_80091C6C_t* arg0);
+int vs_field_advanceRoomTextureFrames(vs_field_TextureFrameEffect* arg0);
 
-int vs_field_scrollRoomTextureCoordinates(func_80091E10_t* arg0);
+int vs_field_scrollRoomTextureCoordinates(vs_field_TextureScrollEffect* arg0);
 
 int vs_field_animateRoomTextureImages(func_80091FE8_t* arg0);
 
-int vs_field_updateRoomRotationEffect(D_800F1DD8_t2* arg0);
+int vs_field_updateRoomRotationEffect(vs_field_SwingEffectRecord* arg0);
 
 int func_80092540(void);
 
 void vs_field_initializeRoomEffects(void);
 
-void vs_field_createRoomEffectObjects(D_800F1DD8_t* arg0);
+void vs_field_createRoomEffectObjects(vs_field_RoomEffectInstance* arg0);
 
 int vs_field_startRoomEffect(int arg0);
 
 int vs_field_releaseRoomEffects(void);
 
-int vs_field_executeRoomEffectCommands(func_80092F74_t* arg0, int arg1, D_800F1DD8_t* arg2);
+int vs_field_executeRoomEffectCommands(func_80092F74_t* arg0, int arg1, vs_field_RoomEffectInstance* arg2);
 
-int func_80092C68(func_80092F74_t* arg0, func_80092F74_t2* arg1);
+int func_80092C68(func_80092F74_t* arg0, vs_field_RoomEffectCommand* arg1);
 
-int vs_field_setRoomEffectVelocity(func_80092F74_t* arg0, func_80092F74_t2* arg1);
+int vs_field_setRoomEffectVelocity(func_80092F74_t* arg0, vs_field_RoomEffectCommand* arg1);
 
-int vs_field_setRoomEffectTransform(func_80092F74_t* arg0, func_80092F74_t2* arg1);
+int vs_field_setRoomEffectTransform(func_80092F74_t* arg0, vs_field_RoomEffectCommand* arg1);
 
 void vs_field_writeRoomEffectTransform(func_80092F74_t* arg0);
 
-int func_80092F6C(func_80092F74_t* arg0 __attribute__((unused)), func_80092F74_t2* arg1 __attribute__((unused)));
+int func_80092F6C(func_80092F74_t* arg0 __attribute__((unused)), vs_field_RoomEffectCommand* arg1 __attribute__((unused)));
 
-int vs_field_hideRoomEffectObject(func_80092F74_t* arg0, func_80092F74_t2* arg1 __attribute__((unused)));
+int vs_field_hideRoomEffectObject(func_80092F74_t* arg0, vs_field_RoomEffectCommand* arg1 __attribute__((unused)));
 
-int vs_field_executeRoomEffectShowGroup(func_80092F74_t* arg0, func_80092F74_t2* arg1);
+int vs_field_executeRoomEffectShowGroup(func_80092F74_t* arg0, vs_field_RoomEffectCommand* arg1);
 
-int vs_field_advanceRoomEffectMotion(func_80092F74_t* arg0, func_80092F74_t2* arg1);
+int vs_field_advanceRoomEffectMotion(func_80092F74_t* arg0, vs_field_RoomEffectCommand* arg1);
 
 int vs_field_stepRoomEffectGravity(func_80092F74_t* arg0);
 
 int vs_field_stepRoomEffectDampedMotion(func_80092F74_t* arg0);
 
-int vs_field_executeRoomEffectPlaySound(func_80092F74_t* arg0, func_80092F74_t2* arg1);
+int vs_field_executeRoomEffectPlaySound(func_80092F74_t* arg0, vs_field_RoomEffectCommand* arg1);
 
-int vs_field_executeRoomEffectStopSound(func_80092F74_t* arg0, func_80092F74_t2* arg1);
+int vs_field_executeRoomEffectStopSound(func_80092F74_t* arg0, vs_field_RoomEffectCommand* arg1);
 
-int vs_field_executeRoomEffectStartEffect(func_80092F74_t* arg0 __attribute__((unused)), func_80092F74_t2* arg1);
+int vs_field_executeRoomEffectStartEffect(func_80092F74_t* arg0 __attribute__((unused)), vs_field_RoomEffectCommand* arg1);
 
-int vs_field_executeRoomEffectHideGroup(func_80092F74_t* unk0 __attribute__((unused)), func_80092F74_t2* arg1);
+int vs_field_executeRoomEffectHideGroup(func_80092F74_t* unk0 __attribute__((unused)), vs_field_RoomEffectCommand* arg1);
 
-int vs_field_executeRoomEffectStopScript(func_80092F74_t* arg0, func_80092F74_t2* arg1);
+int vs_field_executeRoomEffectStopScript(func_80092F74_t* arg0, vs_field_RoomEffectCommand* arg1);
 
-int func_800936F0(func_80092F74_t* arg0 __attribute__((unused)), func_80092F74_t2* arg1 __attribute__((unused)));
+int func_800936F0(func_80092F74_t* arg0 __attribute__((unused)), vs_field_RoomEffectCommand* arg1 __attribute__((unused)));
 
 int vs_field_toggleRoomEffectUpdates(int arg0);
 

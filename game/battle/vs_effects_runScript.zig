@@ -6,8 +6,8 @@ const c = @import("c_5BF94");
 
 /// orig: vs_effects_runScript (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// Runs commands through vs_effects_scriptOpcodeHandlers while they return 1; 0 when one returns 2, else 1. An opcode past the table's 49 is reported (ROOD_PC: pc_effect_bad_opcode) and the script ends (the C called whatever the byte past the table held: the program's own data, a crash); the table is the original's, so this is a script whose cursor is not on a command (data read as one).
-pub fn vs_effects_runScript(script: ?*v.D_800F53B8_t) callconv(.c) c_int {
-    const Command = *const fn (?*v.D_800F53B8_t) callconv(.c) c_int;
+pub fn vs_effects_runScript(script: ?*v.vs_effects_EffectInstance) callconv(.c) c_int {
+    const Command = *const fn (?*v.vs_effects_EffectInstance) callconv(.c) c_int;
     var result: c_int = undefined;
     while (true) {
         const opcode: c_uint = c.vs_effects_readScriptByte(@ptrCast(script));

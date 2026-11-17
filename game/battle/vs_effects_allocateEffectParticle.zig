@@ -6,7 +6,7 @@ const c = @import("c_5BF94");
 
 /// orig: vs_effects_allocateEffectParticle (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// Pops vs_effects_freeParticles (func_800CE644 first when it is empty: the C then reads through NULL), clears it and pushes it on the script's list (unk18, count unk8).
-pub fn vs_effects_allocateEffectParticle(script: ?*v.D_800F53B8_t) callconv(.c) ?*v.func_800D2904_t {
+pub fn vs_effects_allocateEffectParticle(script: ?*v.vs_effects_EffectInstance) callconv(.c) ?*v.func_800D2904_t {
     const s = script.?;
     const free = v.g.vs_effects_freeParticles().*;
     if (free == null) {

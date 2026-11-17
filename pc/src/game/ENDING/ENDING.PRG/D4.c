@@ -64,13 +64,13 @@ typedef struct {
     u_char unk2B;
     short vertexThreeX;
     short vertexThreeY;
-} func_80069388_t;
+} vs_ending_CreditsTexturedGradientQuadView;
 
 typedef struct {
     int size;
     RECT rect;
     char data[0];
-} func_8006A9C0_t;
+} vs_ending_CreditsTimImageBlockHeader;
 
 typedef struct {
     u_char unk0;
@@ -78,8 +78,8 @@ typedef struct {
     u_char unk2;
     u_char unk3;
     int mode;
-    func_8006A9C0_t firstBlock;
-} func_8006A9C0_t2;
+    vs_ending_CreditsTimImageBlockHeader firstBlock;
+} vs_ending_CreditsTimHeader;
 
 enum easeMode {
     easeModeLinear,
@@ -94,12 +94,12 @@ void _renderText(_creditsElement* arg0);
 static void vs_ending_creditsStartMusic(void);
 static void _setDrawEnv(DRAWENV*);
 static void vs_ending_creditsRunFrames(void);
-static void vs_ending_creditsUploadTexture(func_8006A9C0_t2*);
+static void vs_ending_creditsUploadTexture(vs_ending_CreditsTimHeader*);
 static void _resetElements(void);
 static int _renderElements(void);
 static _creditsElement* _addRenderer(void (*arg0)(_creditsElement*));
 static void _parseCreditsScript(void);
-static void vs_ending_creditsQueueIllustrationDecode(func_8006A9C0_t2* arg0, void* arg1);
+static void vs_ending_creditsQueueIllustrationDecode(vs_ending_CreditsTimHeader* arg0, void* arg1);
 int vs_ending_creditsDecodeIllustrationStep(void);
 static int _drawScreen(void);
 static void vs_ending_creditsAllocateRenderBuffers(void);
@@ -135,21 +135,21 @@ extern u_char vs_ending_creditsRippleDistanceGrid[4][16];
 #endif
 extern u_char vs_ending_creditsScriptBytes[];
 extern u_char _glyphWidths[];
-extern func_8006A9C0_t2 D_8007005C;
-extern func_8006A9C0_t2 D_8007709C;
-extern func_8006A9C0_t2 D_80088ABC;
-extern func_8006A9C0_t2 D_8009A4DC;
-extern func_8006A9C0_t2 D_800ABEFC;
-extern func_8006A9C0_t2 D_800BD91C;
-extern func_8006A9C0_t2 D_800CF33C;
-extern func_8006A9C0_t2 D_800D7F7C;
-extern func_8006A9C0_t2 D_800D837C;
-extern func_8006A9C0_t2 D_800D975C;
-extern func_8006A9C0_t2 D_800DB09C;
-extern func_8006A9C0_t2 D_800DB26C;
+extern vs_ending_CreditsTimHeader D_8007005C;
+extern vs_ending_CreditsTimHeader D_8007709C;
+extern vs_ending_CreditsTimHeader D_80088ABC;
+extern vs_ending_CreditsTimHeader D_8009A4DC;
+extern vs_ending_CreditsTimHeader D_800ABEFC;
+extern vs_ending_CreditsTimHeader D_800BD91C;
+extern vs_ending_CreditsTimHeader D_800CF33C;
+extern vs_ending_CreditsTimHeader D_800D7F7C;
+extern vs_ending_CreditsTimHeader D_800D837C;
+extern vs_ending_CreditsTimHeader D_800D975C;
+extern vs_ending_CreditsTimHeader D_800DB09C;
+extern vs_ending_CreditsTimHeader D_800DB26C;
 extern int _countableRooms[];
 extern u_char vs_ending_creditsIllustrationDecodePhase;
-extern func_8006A9C0_t2* vs_ending_creditsIllustrationTimWorkspace;
+extern vs_ending_CreditsTimHeader* vs_ending_creditsIllustrationTimWorkspace;
 extern u_short _illustrationTimers[];
 extern int _illustLbas[];
 extern int _illustSizes[];
@@ -235,7 +235,7 @@ extern short _scrollSpeed;
 extern short vs_ending_creditsDecodeBudgetStartTick;
 extern u_short vs_ending_creditsBackgroundBrightness;
 extern void* vs_ending_creditsQueuedCompressedImage;
-extern func_8006A9C0_t2* vs_ending_creditsQueuedTimDestination;
+extern vs_ending_CreditsTimHeader* vs_ending_creditsQueuedTimDestination;
 extern void* vs_ending_creditsIllustrationResources[];
 extern u_int _rank;
 extern int _clearCount;
@@ -505,9 +505,9 @@ static int _inverseDistanceFromScreencenter(int arg0, int arg1)
     return vs_gte_rsqrt(arg0 * arg0 + arg1 * arg1);
 }
 
-static void vs_ending_creditsApplyRadialVertexFade(func_80069388_t* arg0, short arg1, short arg2)
+static void vs_ending_creditsApplyRadialVertexFade(vs_ending_CreditsTexturedGradientQuadView* arg0, short arg1, short arg2)
     __attribute__((unused));
-static void vs_ending_creditsApplyRadialVertexFade(func_80069388_t* arg0, short arg1, short arg2)
+static void vs_ending_creditsApplyRadialVertexFade(vs_ending_CreditsTexturedGradientQuadView* arg0, short arg1, short arg2)
 {
     short temp_s0;
     short v0;
@@ -1027,10 +1027,10 @@ static void vs_ending_creditsRunFrames(void)
     }
 }
 
-static void vs_ending_creditsUploadTexture(func_8006A9C0_t2* arg0)
+static void vs_ending_creditsUploadTexture(vs_ending_CreditsTimHeader* arg0)
 {
     RECT rect;
-    func_8006A9C0_t* p = &arg0->firstBlock;
+    vs_ending_CreditsTimImageBlockHeader* p = &arg0->firstBlock;
 
     if (arg0->mode & 8) {
         rect.x = p->rect.x;
@@ -1038,7 +1038,7 @@ static void vs_ending_creditsUploadTexture(func_8006A9C0_t2* arg0)
         rect.w = p->rect.w;
         rect.h = p->rect.h;
         LoadImage(&rect, (void*)p->data);
-        p = (func_8006A9C0_t*)((void*)arg0 + (p->size + 8));
+        p = (vs_ending_CreditsTimImageBlockHeader*)((void*)arg0 + (p->size + 8));
     }
 
     rect.x = p->rect.x;
@@ -1219,7 +1219,7 @@ static int _ease(short mode, short currentStep, short totalSteps)
     }
 }
 
-static void vs_ending_creditsQueueIllustrationDecode(func_8006A9C0_t2* arg0, void* arg1)
+static void vs_ending_creditsQueueIllustrationDecode(vs_ending_CreditsTimHeader* arg0, void* arg1)
 {
     vs_ending_creditsIllustrationDecodePhase = 1;
     vs_ending_creditsQueuedCompressedImage = arg1;

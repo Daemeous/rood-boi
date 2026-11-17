@@ -4,7 +4,7 @@ const c = @import("c_5BF94");
 
 /// orig: vs_effects_refreshParticleEnvironment (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// Runs vs_effects_updateParticleGravityAndDrag and returns 1; the argument is unused.
-pub fn vs_effects_refreshParticleEnvironment(_: ?*v.D_800F53B8_t) callconv(.c) c_int {
+pub fn vs_effects_refreshParticleEnvironment(_: ?*v.vs_effects_EffectInstance) callconv(.c) c_int {
     c.vs_effects_updateParticleGravityAndDrag();
     return 1;
 }

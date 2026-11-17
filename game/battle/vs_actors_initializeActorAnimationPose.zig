@@ -15,7 +15,7 @@ pub fn vs_actors_initializeActorAnimationPose(arg0: ?*anyopaque, arg1: ?*anyopaq
     }
     psx.setBits(actor, "unk5AC_23", 0);
     pose.unk540 = 0;
-    psx.fieldAt(u8, &pose._bits_unk548_0, 1).* = 0;
+    psx.bitsAt(u8, &pose._bits_unk548_0, 1).* = 0;
     pose.unk150[41].vx = 0;
     pose.unk150[41].vy = 0;
     pose.unk150[41].vz = 0;
@@ -45,7 +45,7 @@ pub fn vs_actors_initializeActorAnimationPose(arg0: ?*anyopaque, arg1: ?*anyopaq
         psx.put(&pose.unk544, data);
     }
     psx.setBits(pose, "unk548_16", 0);
-    psx.fieldAt(u8, &pose._bits_unk548_0, 0).* = actor.animationId;
+    psx.bitsAt(u8, &pose._bits_unk548_0, 0).* = actor.animationId;
 
     if (header[4] != 0) {
         const data: *align(1) u8 = @ptrFromInt(@as(usize, dataBase +% psx.conv(u32, header[4])));

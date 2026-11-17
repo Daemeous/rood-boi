@@ -4,7 +4,7 @@ const c = @import("c_5BF94");
 
 /// orig: vs_effects_targetRoomTile (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// If the script's unk18 target is of kind 5, vs_field_disableTrapAtPosition on its data.
-pub fn vs_effects_targetRoomTile(script: ?*v.D_800F53B8_t) callconv(.c) void {
+pub fn vs_effects_targetRoomTile(script: ?*v.vs_effects_EffectInstance) callconv(.c) void {
     const s = script.?;
     if (s.context.unk18.unk0 == 5) {
         c.vs_field_disableTrapAtPosition(@ptrCast(&s.context.unk18.unk4));

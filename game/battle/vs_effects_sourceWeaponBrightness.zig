@@ -6,7 +6,7 @@ const c = @import("c_5BF94");
 
 /// orig: vs_effects_sourceWeaponBrightness (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// For a kind-4 unkC target: vs_actors_setWeaponBrightnessOverride(its id's low byte, 1, value), or (.., 0, 0) when value is 0.
-pub fn vs_effects_sourceWeaponBrightness(script: ?*v.D_800F53B8_t, value: u8) callconv(.c) void {
+pub fn vs_effects_sourceWeaponBrightness(script: ?*v.vs_effects_EffectInstance, value: u8) callconv(.c) void {
     const s = script.?;
     if (s.context.unkC.unk0 == 4) {
         if (value != 0) {

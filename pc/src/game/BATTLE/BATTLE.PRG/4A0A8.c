@@ -39,7 +39,7 @@ typedef struct {
     VECTOR computed;
     VECTOR current;
     VECTOR target;
-} D_800F4BA4_t2;
+} vs_event_CameraTrack;
 
 typedef struct {
     char hasChanged;
@@ -49,7 +49,7 @@ typedef struct {
     short deltaAngle;
     short elapsedFrames;
     short durationFrames;
-} func_800BD57C_t;
+} vs_event_AngleTween;
 
 typedef struct {
     union {
@@ -63,7 +63,7 @@ typedef struct {
     char unk9;
     char axisMask;
     char unkB;
-} func_800BDF6C_t;
+} vs_event_ShakeOscillator;
 
 typedef struct {
     char hasChanged;
@@ -75,7 +75,7 @@ typedef struct {
     char durationFrames;
     char unkA;
     char unkB;
-} func_800BDF6C_unk180_t;
+} vs_event_LensTween;
 
 typedef struct {
     char unk0;
@@ -95,18 +95,18 @@ typedef struct {
     short unk1A;
     short elapsedFrames;
     short durationFrames;
-} func_800BDBB4_t;
+} vs_event_TripleTween;
 
 typedef struct {
-    D_800F4BA4_t2 lookAt;
-    D_800F4BA4_t2 eye;
-    func_800BD57C_t unk168;
-    func_800BD57C_t unk174;
-    func_800BDF6C_unk180_t projectionDistance;
-    func_800BDF6C_unk180_t nearClip;
-    func_800BDF6C_unk180_t farClip;
-    func_800BDF6C_t unk1A4;
-    func_800BDF6C_t unk1B0;
+    vs_event_CameraTrack lookAt;
+    vs_event_CameraTrack eye;
+    vs_event_AngleTween unk168;
+    vs_event_AngleTween unk174;
+    vs_event_LensTween projectionDistance;
+    vs_event_LensTween nearClip;
+    vs_event_LensTween farClip;
+    vs_event_ShakeOscillator unk1A4;
+    vs_event_ShakeOscillator unk1B0;
     short unk1BC;
     short shakeEyeOffsetX;
     short unk1C0;
@@ -119,12 +119,12 @@ typedef struct {
     u_short originActorId;
     u_short unk1EA;
     VECTOR originOffset;
-    func_800BDBB4_t screenScale;
-    func_800BDBB4_t screenTint;
-    func_800BDBB4_t screenTranslation;
-    func_800BDBB4_t unk25C;
+    vs_event_TripleTween screenScale;
+    vs_event_TripleTween screenTint;
+    vs_event_TripleTween screenTranslation;
+    vs_event_TripleTween unk25C;
     VECTOR lastTerrainPosition;
-} D_800F4BA4_t;
+} vs_event_CameraState;
 
 typedef struct {
     u_int unk0_0 : 1;
@@ -154,7 +154,7 @@ typedef struct {
     short deltaScaleFixed12;
     short startBrightness;
     short deltaBrightness;
-} D_800F4B30_t;
+} vs_event_SplashTween;
 
 typedef struct {
     char unk0;
@@ -170,17 +170,17 @@ typedef struct {
     short intensity;
     short unk12;
     short unk14;
-} D_800F4B88_t;
+} vs_event_WeatherTween;
 
 typedef struct {
     int unk0;
-} func_800BDBB4_t2;
+} vs_event_EasedFractionScratch;
 
 typedef struct {
     char unk0;
     char unk1;
     char unk2[22];
-} func_800BB68C_t;
+} vs_event_ActorSelection;
 
 typedef struct {
     int x : 12;
@@ -235,7 +235,7 @@ typedef struct {
 
 void vs_render_readFramebufferEffectScale(int*);
 void vs_render_readFramebufferEffectTint(P_CODE*);
-void vs_render_readFramebufferEffectOffset(D_800F1A68_t*);
+void vs_render_readFramebufferEffectOffset(vs_render_FramebufferEffectTranslation*);
 short vs_field_floorHeightAt(int, int);
 int vs_field_setRoomWeather(int);
 void vs_actors_anchorPoint(int, int, SVECTOR*, int);
@@ -243,20 +243,20 @@ void func_800AACDC(void);
 int vs_event_calcDialogAnchorPlacement(
     SVECTOR* origin, u_char* script, textPlacement* result, u_char direction);
 int func_800B9C58(u_char*, short);
-void vs_event_buildScriptActorSelection(u_short, func_800BB68C_t*);
-u_short vs_event_nextScriptSelectedActor(func_800BB68C_t* arg0);
+void vs_event_buildScriptActorSelection(u_short, vs_event_ActorSelection*);
+u_short vs_event_nextScriptSelectedActor(vs_event_ActorSelection* arg0);
 int vs_event_actorDialogAnchor(int arg0, SVECTOR* arg1);
 void func_800BBE10(u_short);
 void func_800BBE04(int arg0);
 void func_800BBE94(void);
-void func_800BCA8C(D_800F4BA4_t2*, D_800F4BA4_t2*);
-void func_800BCFB4(D_800F4BA4_t2*);
+void func_800BCA8C(vs_event_CameraTrack*, vs_event_CameraTrack*);
+void func_800BCFB4(vs_event_CameraTrack*);
 void func_800BC1CC(short, int);
 int func_800BD2B8(MATRIX*);
-void func_800BD57C(func_800BD57C_t* arg0);
+void func_800BD57C(vs_event_AngleTween* arg0);
 int func_800BD610(void);
-int func_800BDBB4(func_800BDBB4_t* arg0);
-void func_800BDF6C(func_800BDF6C_unk180_t* arg0);
+int func_800BDBB4(vs_event_TripleTween* arg0);
+void func_800BDF6C(vs_event_LensTween* arg0);
 void func_800BE180(void);
 void func_800BE36C(int, int);
 void func_800BE3A0(void);
@@ -304,12 +304,12 @@ extern D_800EB9BC_t* vs_render_gimLayers;
 extern int D_800F19C8;
 extern u_short vs_event_scanlineOverlayFrame;
 extern u_short vs_event_customEasingCurves[];
-extern D_800F4B30_t vs_event_splashTweens[];
+extern vs_event_SplashTween vs_event_splashTweens[];
 extern unsigned char vs_event_scriptControlledActors[17];
-extern D_800F4B88_t vs_event_weatherTween;
+extern vs_event_WeatherTween vs_event_weatherTween;
 extern char vs_event_weatherTweenDuration;
 extern char vs_event_skipNextFieldCameraRestore;
-extern D_800F4BA4_t* vs_event_camera;
+extern vs_event_CameraState* vs_event_camera;
 extern void* _mpdClearedSection;
 extern u_short* vs_event_dialogStrings;
 extern char vs_event_cachedFlagValue;
@@ -953,9 +953,9 @@ int vs_event_commandFinishEvent(u_char* arg0, short arg1);
 
 int vs_battle_script_playMenuSelectSfx(u_char* arg0, short arg1);
 
-void vs_event_buildScriptActorSelection(u_short arg0, func_800BB68C_t* arg1);
+void vs_event_buildScriptActorSelection(u_short arg0, vs_event_ActorSelection* arg1);
 
-u_short vs_event_nextScriptSelectedActor(func_800BB68C_t* arg0);
+u_short vs_event_nextScriptSelectedActor(vs_event_ActorSelection* arg0);
 
 int vs_event_actorDialogAnchor(int arg0, SVECTOR* arg1);
 
@@ -966,7 +966,7 @@ void func_800BB9B0(void);
 void func_800BBAFC(void);
 
 extern P_CODE vs_event_defaultScreenTint;
-extern D_800F1A68_t D_800E9C0C;
+extern vs_render_FramebufferEffectTranslation D_800E9C0C;
 
 void func_800BBBE8(void);
 
@@ -986,15 +986,15 @@ int func_800BC2E8(u_char* script, short unused);
 
 void func_800BC9E0(void);
 
-void func_800BCA8C(D_800F4BA4_t2* c, D_800F4BA4_t2* other);
+void func_800BCA8C(vs_event_CameraTrack* c, vs_event_CameraTrack* other);
 
-void func_800BCFB4(D_800F4BA4_t2* c);
+void func_800BCFB4(vs_event_CameraTrack* c);
 
 int func_800BD2B8(MATRIX* arg0);
 
 int func_800BD444(u_char* arg0, short arg1);
 
-void func_800BD57C(func_800BD57C_t* arg0);
+void func_800BD57C(vs_event_AngleTween* arg0);
 
 int func_800BD610(void);
 
@@ -1002,13 +1002,13 @@ int func_800BD6C4(u_char* script, short arg1);
 
 void func_800BDAB4(void);
 
-int func_800BDBB4(func_800BDBB4_t* arg0);
+int func_800BDBB4(vs_event_TripleTween* arg0);
 
 int func_800BDC9C(u_char* script, short arg1);
 
-void func_800BDF6C(func_800BDF6C_unk180_t* arg0);
+void func_800BDF6C(vs_event_LensTween* arg0);
 
-int func_800BE01C(func_800BDF6C_t* arg0);
+int func_800BE01C(vs_event_ShakeOscillator* arg0);
 
 void func_800BE180(void);
 
@@ -1018,7 +1018,7 @@ void func_800BE3A0(void);
 
 void func_800BE3D0(char arg0);
 
-void func_800BE53C(D_800F4BA4_t2* arg0);
+void func_800BE53C(vs_event_CameraTrack* arg0);
 
 void func_800BE5A4(short arg0);
 

@@ -6,7 +6,7 @@ const c = @import("c_5BF94");
 
 /// orig: vs_effects_tickVibrationTrack (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// At the command's frame: plays block 11's sound (vs_input_startVibrationPattern) when its target condition holds (0: always; 1, 2: the unk0 / unk18 target is actor 0; 3: any of the P-file's sound targets is), then the next command; else 1.
-pub fn vs_effects_tickVibrationTrack(actor_arg: ?*v.D_800F53B8_t, event_arg: ?*v.func_800D5780_t) callconv(.c) c_int {
+pub fn vs_effects_tickVibrationTrack(actor_arg: ?*v.vs_effects_EffectInstance, event_arg: ?*v.func_800D5780_t) callconv(.c) c_int {
     const actor = actor_arg.?;
     const event = event_arg.?;
     var result: c_int = 1;

@@ -7,7 +7,7 @@ const c = @import("c_146C");
 
 /// orig: vs_field_beginTrapInteraction (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// Starts a battle on room section `section` with source pose `source` and `arg2`, and shows the opening message when the information setting is on.
-pub fn vs_field_beginTrapInteraction(section: ?*v._mpdRoomSectionA, source: ?*v.func_8006EBF8_t3, arg2: c_int) callconv(.c) void {
+pub fn vs_field_beginTrapInteraction(section: ?*v._mpdRoomSectionA, source: ?*v.vs_actors_ActorLocation, arg2: c_int) callconv(.c) void {
     v.g.D_800F196C().* = 8;
     v.g._cameraMode().* = 1;
     _ = c.vs_field_storePreferredActionCameraDistance();

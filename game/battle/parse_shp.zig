@@ -27,7 +27,7 @@ inline fn byte(data: usize) *u8 {
 
 /// *(u_int*)((char*)actor + 0x5AC): the actor's flag word.
 inline fn flagWord(actor: *v.D_800F4538_t) c_uint {
-    return psx.fieldAt(c_uint, &actor._bits_unk5AC_0, 0).*;
+    return psx.bitsAt(c_uint, &actor._bits_unk5AC_0, 0).*;
 }
 
 /// A texture slot's VRAM origin from vs_actors_textureSlotOrigins (x, y in 4-byte entries) and vs_actors_textureSlotRowOffsets (the y step).
@@ -144,7 +144,7 @@ pub fn parseShp(object: *v.vs_battle_objectData) callconv(.c) c_int {
         data = advance(data, 0xE8);
         var size = readInt(data);
         data = advance(data, 4);
-        const model: ?*v.D_800F4538_unk68 = @ptrCast(@alignCast(c.vs_main_allocHeap(psx.conv(c_uint, size))));
+        const model: ?*v.vs_actors_ShpModel = @ptrCast(@alignCast(c.vs_main_allocHeap(psx.conv(c_uint, size))));
         _ = memcpy(model, @ptrFromInt(data), @as(u32, @bitCast(size)));
         psx.put(&actor.unk0.model, model);
         if (model == null) return -2;

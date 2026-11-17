@@ -50,7 +50,7 @@ MATRIX* func_800A1DE8(int actorId, int bone, MATRIX* unused);
 
 SVECTOR* func_800A4A24(int);
 int vs_field_actorSupportHeight(int, int);
-void vs_audio_playActorModelSound(D_800F4538_unk0*, int);
+void vs_audio_playActorModelSound(vs_actors_ModelInstance*, int);
 void vs_actors_playActorAnimation(int, int, int, int);
 
 extern u_char vs_actors_jumpHangFrames[];

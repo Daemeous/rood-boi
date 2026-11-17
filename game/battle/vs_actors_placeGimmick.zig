@@ -23,7 +23,7 @@ fn stlvnl(t: *[3]i32, mac: *const [3]i32) void {
 pub fn vs_actors_placeGimmick(object: ?*v.D_800F45E0_t, camera: ?*v.MATRIX) callconv(.c) void {
     const obj = object.?;
     const cam = camera.?;
-    const scratch: *v.weaponTransformScratch = @ptrFromInt(pad.addr(0x35C));
+    const scratch: *v.weaponTransformScratch = pad.at(v.weaponTransformScratch, 0x35C);
     var holderRotation: v.MATRIX = undefined;
     var anchors: [2]v.SVECTOR = undefined;
 
@@ -50,7 +50,7 @@ pub fn vs_actors_placeGimmick(object: ?*v.D_800F45E0_t, camera: ?*v.MATRIX) call
             scratch.rotation.vx = psx.conv(i16, @as(c_int, pose.vx) +% obj.unk24);
             scratch.rotation.vy = psx.conv(i16, @as(c_int, pose.vy) +% obj.unk26);
             scratch.rotation.vz = psx.conv(i16, @as(c_int, pose.vz) +% psx.conv(i16, obj.unk28));
-            stlvnl(@as(*[3]i32, @ptrFromInt(pad.addr(0x3D4))), &mac);
+            stlvnl(pad.at([3]i32, 0x3D4), &mac);
             c.vs_core_mathBuildEulerRotationMatrixQuadrant(psx.cptr(c.SVECTOR, svAt(pad.addr(0x3E0))), psx.cptr(c.MATRIX, matAt(pad.addr(0x3C0))));
             scratch.rotation.vx = holder.?.unk0.pitch;
             scratch.rotation.vy = holder.?.unk0.facing;
@@ -62,7 +62,7 @@ pub fn vs_actors_placeGimmick(object: ?*v.D_800F45E0_t, camera: ?*v.MATRIX) call
                 scratch.rotation.vx = obj.unk24;
                 scratch.rotation.vy = obj.unk26;
                 scratch.rotation.vz = psx.conv(i16, obj.unk28);
-                stlvnl(@as(*[3]i32, @ptrFromInt(pad.addr(0x3D4))), &mac);
+                stlvnl(pad.at([3]i32, 0x3D4), &mac);
                 _ = c.RotMatrixYXZ_gte(psx.cptr(c.SVECTOR, svAt(pad.addr(0x3E0))), psx.cptr(c.MATRIX, matAt(pad.addr(0x3C0))));
                 c.vs_core_mathPremultiplyRotationMatrix(psx.cptr(c.MATRIX, cam), psx.cptr(c.MATRIX, matAt(pad.addr(0x3C0))));
                 // CompMatrixLV called through the two-argument form (m0 = m0 * m1), as the C does.
@@ -74,7 +74,7 @@ pub fn vs_actors_placeGimmick(object: ?*v.D_800F45E0_t, camera: ?*v.MATRIX) call
                 break :composed;
             }
             matAt(pad.addr(0x3C0)).* = @as(*v.MATRIX, @ptrCast(&obj.unk6C[4])).*;
-            stlvnl(@as(*[3]i32, @ptrFromInt(pad.addr(0x3D4))), &mac);
+            stlvnl(pad.at([3]i32, 0x3D4), &mac);
         } else {
             const pose: *v.SVECTOR = @ptrCast(&obj.unk6C[5]);
             scratch.rotation.vx = pose.vx;
@@ -110,7 +110,7 @@ pub fn vs_actors_placeGimmick(object: ?*v.D_800F45E0_t, camera: ?*v.MATRIX) call
     }
     v.g.D_800F3C78().* = scratch.matrix;
     @as(*v.MATRIX, @ptrCast(&obj.unk6C[1])).* = scratch.matrix;
-    if ((psx.fieldAt(c_int, &obj._bits_unk8_0, 0).* & 2) != 0) {
+    if ((psx.bitsAt(c_int, &obj._bits_unk8_0, 0).* & 2) != 0) {
         if (c.vs_render_projectModelVertices(
             obj,
             psx.cptr(c.MATRIX, @as(*v.MATRIX, @ptrCast(&obj.unk6C[0]))),
@@ -118,12 +118,12 @@ pub fn vs_actors_placeGimmick(object: ?*v.D_800F45E0_t, camera: ?*v.MATRIX) call
             psx.get(obj.unk68),
         ) != 0) {
             scratch.tpage = c.GetTPage(0, 0, 0x40, 0x100);
-            if (obj.unk64.unk0 != 0 or ((psx.fieldAt(c_uint, &obj._bits_unk8_0, 0).* >> 8) & 0xF) >= 6) {
+            if (obj.unk64.unk0 != 0 or ((psx.bitsAt(c_uint, &obj._bits_unk8_0, 0).* >> 8) & 0xF) >= 6) {
                 scratch.clut = c.GetClut((@as(c_int, obj.unkF) << 4) +% 0x300, 0xFF);
             } else {
                 scratch.clut = c.GetClut((@as(c_int, obj.unkF) << 4) +% 0x300, 0xED);
             }
-            const flags: c_uint = psx.fieldAt(c_uint, &obj._bits_unk8_0, 0).*;
+            const flags: c_uint = psx.bitsAt(c_uint, &obj._bits_unk8_0, 0).*;
             var value = false;
             if ((((flags >> 8) & 0xF) -% 4) < 5) {
                 if ((flags & 0xF00) != 0x600) value = true;

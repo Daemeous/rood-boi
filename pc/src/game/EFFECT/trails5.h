@@ -16,8 +16,8 @@
 
 extern int VS_TRAIL_CORNER_STATE;
 
-void VS_TRAIL_ORIGIN_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* arg1,
-    D_800F53B8_t* arg2, func_800FA76C_arg3* arg3)
+void VS_TRAIL_ORIGIN_FUNCTION(vs_effects_ParticleDefinition* arg0, vs_effects_ParticleEmitterScratch* arg1,
+    vs_effects_EffectInstance* arg2, func_800FA76C_arg3* arg3)
 {
     vs_gte_view view;
     int sp10;
@@ -232,8 +232,8 @@ void VS_TRAIL_ORIGIN_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* arg1
     }
 }
 
-void VS_TRAIL_TARGET_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* arg1,
-    D_800F53B8_t* arg2, func_800FA76C_arg3* arg3)
+void VS_TRAIL_TARGET_FUNCTION(vs_effects_ParticleDefinition* arg0, vs_effects_ParticleEmitterScratch* arg1,
+    vs_effects_EffectInstance* arg2, func_800FA76C_arg3* arg3)
 {
     int i;
 
@@ -267,8 +267,8 @@ void VS_TRAIL_TARGET_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* arg1
     }
 }
 
-void VS_TRAIL_CONTROL_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* arg1,
-    D_800F53B8_t* arg2, func_800FA76C_arg3* arg3)
+void VS_TRAIL_CONTROL_FUNCTION(vs_effects_ParticleDefinition* arg0, vs_effects_ParticleEmitterScratch* arg1,
+    vs_effects_EffectInstance* arg2, func_800FA76C_arg3* arg3)
 {
     vs_gte_view view;
     SVECTOR sp10;
@@ -365,8 +365,8 @@ void VS_TRAIL_CONTROL_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* arg
     }
 }
 
-void VS_TRAIL_INIT_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* arg1,
-    D_800F53B8_t* arg2 __attribute__((unused)), func_800FA76C_arg3* arg3)
+void VS_TRAIL_INIT_FUNCTION(vs_effects_ParticleDefinition* arg0, vs_effects_ParticleEmitterScratch* arg1,
+    vs_effects_EffectInstance* arg2 __attribute__((unused)), func_800FA76C_arg3* arg3)
 {
     int speed;
     int i;
@@ -392,9 +392,9 @@ void VS_TRAIL_INIT_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* arg1,
     }
 }
 
-void VS_TRAIL_UPDATE_FUNCTION(func_800FA098_arg0* arg0 __attribute__((unused)),
-    func_800FA098_arg1* arg1 __attribute__((unused)),
-    D_800F53B8_t* arg2 __attribute__((unused)), func_800FA76C_arg3* arg3)
+void VS_TRAIL_UPDATE_FUNCTION(vs_effects_ParticleDefinition* arg0 __attribute__((unused)),
+    vs_effects_ParticleEmitterScratch* arg1 __attribute__((unused)),
+    vs_effects_EffectInstance* arg2 __attribute__((unused)), func_800FA76C_arg3* arg3)
 {
     int i;
 
@@ -434,8 +434,8 @@ void VS_TRAIL_UPDATE_FUNCTION(func_800FA098_arg0* arg0 __attribute__((unused)),
     }
 }
 
-void VS_TRAIL_RENDER_FUNCTION(func_800FA098_arg0* arg0, func_800FA098_arg1* arg1,
-    D_800F53B8_t* arg2, func_800FA76C_arg3* arg3)
+void VS_TRAIL_RENDER_FUNCTION(vs_effects_ParticleDefinition* arg0, vs_effects_ParticleEmitterScratch* arg1,
+    vs_effects_EffectInstance* arg2, func_800FA76C_arg3* arg3)
 {
     vs_gte_view view;
     vs_gte_result projected;
@@ -623,14 +623,14 @@ int VS_TRAIL_DISPATCH_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
 {
     vs_gte_view view;
     func_800FB4C0_t sp18 = { 0 }; /* (unk60_8, the draw order the children take: 0, their own) */
-    func_800FA098_arg0* temp_s3;
+    vs_effects_ParticleDefinition* temp_s3;
     int trail;
     int j;
     func_800FA76C_arg3* temp_v0;
 
-    func_800FA098_arg1* s4 = &pc_effect_scratch;
+    vs_effects_ParticleEmitterScratch* s4 = &pc_effect_scratch;
     func_800FA76C_arg3* temp_s0 = arg0->unk8;
-    D_800F53B8_t* temp_s5 = vs_effects_currentInstance;
+    vs_effects_EffectInstance* temp_s5 = vs_effects_currentInstance;
     int var_s6 = 1;
 
     switch (arg1) {

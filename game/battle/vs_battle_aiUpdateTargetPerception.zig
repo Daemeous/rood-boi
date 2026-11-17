@@ -20,10 +20,7 @@ fn modelObject(index: c_int) *v.actorObject {
 
 /// RELATION_STATES(id): the relation state in the scratchpad slot, or NULL.
 fn relationStates(id: c_int) ?*v.vs_battle_aiState {
-    const slot_addr: u32 = pad.guest(0x37C) +% psx.conv(u32, id) *% 4;
-    const word = @as(*const u32, @ptrFromInt(@as(usize, slot_addr))).*;
-    if (word == 0) return null;
-    return @ptrFromInt(@as(usize, word));
+    return @ptrCast(@alignCast(pad.aiState(id)));
 }
 
 /// orig: checkExtent (pc/src/game/BATTLE/BATTLE.PRG/6FC00.c)
@@ -151,9 +148,9 @@ pub fn vs_battle_aiUpdateTargetPerception(state: ?*v.vs_battle_aiState, id: c_in
     // Blocked when an actor nearer than the target sits on the line toward it.
     {
         const pos = objectOf(id);
-        const map_addr: u32 = @as(*const u32, @ptrFromInt(pad.addr(0x3C0))).*;
+
         // Rows of 32 cells, indexed unchecked as the C does (z * 32 + x: a tile byte past 31 reads on).
-        const cells: [*]u16 = @ptrFromInt(@as(usize, map_addr));
+        const cells: [*]u16 = @ptrCast(pad.nav.cells.?);
         const z: usize = psx.getBits(&pos.tile.p, "z");
         const x: usize = psx.getBits(&pos.tile.p, "x");
         if ((cells[z * 32 + x] & 0x2000) != 0) {

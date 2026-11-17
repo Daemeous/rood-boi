@@ -7,7 +7,7 @@ const c = @import("c_5BF94");
 /// orig: vs_effects_updateSecondaryEffects (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// Steps every list entry by its state and returns the OR of their flag bits.
 pub fn vs_effects_updateSecondaryEffects() callconv(.c) c_int {
-    var s1: ?*v.D_800F53B8_t = v.g.vs_effects_secondaryInstances().*;
+    var s1: ?*v.vs_effects_EffectInstance = v.g.vs_effects_secondaryInstances().*;
     var s3: c_int = 0;
 
     while (s1 != null) {

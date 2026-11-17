@@ -30,17 +30,17 @@ extern short D_800F55A0;
 extern D_800F54D8_t vs_effects_cameraMotionEnds[2];
 
 void func_800FE3D0(
-    func_800FA098_arg0*, func_800FA098_arg1*, D_800F53B8_t*, func_800FA76C_arg3*);
+    vs_effects_ParticleDefinition*, vs_effects_ParticleEmitterScratch*, vs_effects_EffectInstance*, func_800FA76C_arg3*);
 void func_800FEB6C(
-    func_800FA098_arg0*, func_800FA098_arg1*, D_800F53B8_t*, func_800FA76C_arg3*);
+    vs_effects_ParticleDefinition*, vs_effects_ParticleEmitterScratch*, vs_effects_EffectInstance*, func_800FA76C_arg3*);
 void func_800FED84(
-    func_800FA098_arg0*, func_800FA098_arg1*, D_800F53B8_t*, func_800FA76C_arg3*);
+    vs_effects_ParticleDefinition*, vs_effects_ParticleEmitterScratch*, vs_effects_EffectInstance*, func_800FA76C_arg3*);
 void func_800FF248(
-    func_800FA098_arg0*, func_800FA098_arg1*, D_800F53B8_t*, func_800FA76C_arg3*);
+    vs_effects_ParticleDefinition*, vs_effects_ParticleEmitterScratch*, vs_effects_EffectInstance*, func_800FA76C_arg3*);
 void func_800FF3C0(
-    func_800FA098_arg0*, func_800FA098_arg1*, D_800F53B8_t*, func_800FA76C_arg3*);
+    vs_effects_ParticleDefinition*, vs_effects_ParticleEmitterScratch*, vs_effects_EffectInstance*, func_800FA76C_arg3*);
 void func_800FF54C(
-    func_800FA098_arg0*, func_800FA098_arg1*, D_800F53B8_t*, func_800FA76C_arg3*);
+    vs_effects_ParticleDefinition*, vs_effects_ParticleEmitterScratch*, vs_effects_EffectInstance*, func_800FA76C_arg3*);
 
 #define VS_SURFACE_FUNCTION func_800F98F8
 #define VS_SURFACE_VERTICES vs_effects_plg128SurfaceVertices
@@ -81,9 +81,9 @@ int func_800FA490(func_800D4910_t* arg0, u_int arg1, int arg2)
     MATRIX unusedTransform;
     func_800FB4C0_t child = { 0 }; /* (unk60_8, the draw order the children take: 0, their own) */
     vs_closedRingState* state;
-    func_800FA098_arg1* scratch = &pc_effect_scratch;
-    func_800FA098_arg0* effect;
-    D_800F53B8_t* battle;
+    vs_effects_ParticleEmitterScratch* scratch = &pc_effect_scratch;
+    vs_effects_ParticleDefinition* effect;
+    vs_effects_EffectInstance* battle;
     int alive;
     MATRIX* actorMatrix;
     int fraction;
@@ -369,8 +369,8 @@ void func_800FD9A4(func_800FD9A4_t* arg0, VECTOR* arg1)
     arg0->unkA8.t[2] = arg1->vz;
 }
 
-void func_800FDA04(func_800FD9A4_t* arg0, func_800FA098_arg1* arg1, D_800F53B8_t* arg2,
-    func_800FA098_arg0* arg3)
+void func_800FDA04(func_800FD9A4_t* arg0, vs_effects_ParticleEmitterScratch* arg1, vs_effects_EffectInstance* arg2,
+    vs_effects_ParticleDefinition* arg3)
 {
     switch (arg1->flags & 7) {
     case 0:
@@ -406,8 +406,8 @@ void func_800FDA04(func_800FD9A4_t* arg0, func_800FA098_arg1* arg1, D_800F53B8_t
     arg0->unk98.vz = arg1->attractionOffset.vz;
 }
 
-void func_800FDC80(func_800FD9A4_t* arg0, func_800FA098_arg1* arg1, D_800F53B8_t* arg2,
-    func_800FA098_arg0* arg3)
+void func_800FDC80(func_800FD9A4_t* arg0, vs_effects_ParticleEmitterScratch* arg1, vs_effects_EffectInstance* arg2,
+    vs_effects_ParticleDefinition* arg3)
 {
     switch (arg1->flags & 7) {
     case 0:
@@ -431,7 +431,7 @@ void func_800FDC80(func_800FD9A4_t* arg0, func_800FA098_arg1* arg1, D_800F53B8_t
     arg0->unk88.vy = arg1->unk98.vy;
 }
 
-void func_800FDE78(func_800FD9A4_t* arg0, func_800FA098_arg1* scratch)
+void func_800FDE78(func_800FD9A4_t* arg0, vs_effects_ParticleEmitterScratch* scratch)
 {
     arg0->endCamera.position.vx = arg0->unk88.vx << 12;
     arg0->endCamera.position.vy = arg0->unk88.vy << 12;
@@ -445,9 +445,9 @@ int func_800FDEC4(func_800D4910_t* arg0, u_int arg1, int arg2)
 {
     vs_gte_view view;
     func_800FD9A4_t* state = arg0->unk8;
-    D_800F53B8_t* battle = vs_effects_currentInstance;
-    func_800FA098_arg1* scratch = &pc_effect_scratch;
-    func_800FA098_arg0* effect;
+    vs_effects_EffectInstance* battle = vs_effects_currentInstance;
+    vs_effects_ParticleEmitterScratch* scratch = &pc_effect_scratch;
+    vs_effects_ParticleDefinition* effect;
     int alive = 1;
     int curve;
     switch (arg1) {

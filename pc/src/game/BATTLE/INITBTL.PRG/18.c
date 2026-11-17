@@ -312,7 +312,7 @@ static void vs_actors_restoreAshleyRuntimeState(void)
     int j;
     int i;
     vs_battle_actor2* temp_s0 = vs_battle_characterState->unk3C;
-    D_80060068_t3* s1 = &vs_state_ashleySnapshot.stats;
+    vs_state_AshleyStatsSnapshot* s1 = &vs_state_ashleySnapshot.stats;
 
     temp_s0->currentHP = s1->currentHP;
     temp_s0->maxHP = s1->maxHP;

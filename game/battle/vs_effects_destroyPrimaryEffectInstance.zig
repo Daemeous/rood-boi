@@ -16,7 +16,7 @@ fn setAddress(field: anytype, address: u32) void {
 
 /// orig: vs_effects_destroyPrimaryEffectInstance (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// Unlinks the script from vs_effects_primaryInstances's list, frees its particles (vs_effects_releaseAllEffectParticles) and effects (each renderer called with 4, then vs_effects_detachEffectRenderer), and frees it.
-pub fn vs_effects_destroyPrimaryEffectInstance(script_arg: ?*v.D_800F53B8_t) callconv(.c) void {
+pub fn vs_effects_destroyPrimaryEffectInstance(script_arg: ?*v.vs_effects_EffectInstance) callconv(.c) void {
     const Renderer = *const fn (*align(4) v.func_800D4910_t, c_uint, c_int) callconv(.c) c_int; // effectExec
     const script = script_arg.?;
     var link = v.g.vs_effects_primaryInstances().*;

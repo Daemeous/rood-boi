@@ -11,7 +11,7 @@ const psx = @import("common").psx;
 /// and, for types 0xAC and 0xAD, the data block at D_800F5920. Nothing
 /// without a grid (D_800F58B8).
 pub fn unloadActor(node: *ai.vs_battle_actor) callconv(.c) void {
-    if (v.g.D_800F58B8().* == 0) return;
+    if (v.g.D_800F58B8().* == null) return;
     const id: c_uint = @bitCast(node.id);
     if (@as(u8, @truncate(node.allegiance)) & 0x14 != 0) v.g.D_800F590C().* -%= @as(c_uint, 1) << @intCast(id & 31);
     const states = v.g.vs_battle_aiActorAiStates();

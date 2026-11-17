@@ -18,7 +18,7 @@ pub fn vs_field_checkAshleyTileTriggers(actorId: c_int, cell: [*c]u8) callconv(.
     const entered = false;
     var status: c_int = @bitCast(c.vs_actors_actorStateFlags(actorId));
     const falling: c_int = @intFromBool((status & 0x4000) != 0);
-    const position: *v.func_8006EBF8_t3 = @ptrCast(@alignCast(cell));
+    const position: *v.vs_actors_ActorLocation = @ptrCast(@alignCast(cell));
     var room: ?*v._mpdRoomSection3 = undefined;
     if (status & 0x70000 != 0) {
         room = @ptrCast(c.vs_field_collisionCellAt(0, 0, (status & 0x70000) >> 16));
@@ -61,7 +61,7 @@ pub fn vs_field_checkAshleyTileTriggers(actorId: c_int, cell: [*c]u8) callconv(.
                 }
             }
             if (psx.getBits(room.?, "unk0_14") != 0 and (status & 0x4000) == 0) {
-                var doors: ?*v.D_800F1D08_t = undefined;
+                var doors: ?*v.vs_field_DoorMatchList = undefined;
                 if (status & 0x70000 != 0) {
                     if (status & 0x20000000 != 0) {
                         doors = null;

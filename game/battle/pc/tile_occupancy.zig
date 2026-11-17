@@ -8,8 +8,8 @@ const v = @import("views_battle_movement");
 /// placement is read first, as in the original).
 fn tileOccupancy(actor: [*]u8, delta: c_int) void {
     const placement: c_uint = psx.byteAt(c_uint, actor, 0x5c).*;
-    if (v.g.D_800F58B8().* == 0) return;
-    const address = v.g.D_800F58D0().* +% (placement & 0xff) *% 2 +% ((placement << 8) >> 18);
+    if (v.g.D_800F58B8().* == null) return;
+    const address = @intFromPtr(v.g.D_800F58D0().*.?) +% @as(usize, (placement & 0xff) *% 2 +% ((placement << 8) >> 18));
     const cell: *align(1) u16 = @ptrFromInt(address);
     cell.* = psx.conv(u16, @as(c_int, cell.*) +% (delta << 10));
 }

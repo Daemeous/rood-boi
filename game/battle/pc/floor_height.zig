@@ -7,7 +7,7 @@ const pad = @import("common").pad;
 /// (64-byte rows of 16-bit cells): sign((cell & 0x3FF) << 6) minus
 /// (cell & 0x1C00) >> 3.
 pub fn floorHeight(x: c_int, z: c_int) callconv(.c) c_int {
-    const grid: usize = @as(*const u32, @ptrFromInt(pad.addr(0x3BC))).*;
+    const grid: usize = @intFromPtr(pad.nav.floors.?);
     const offset: isize = @as(isize, z *% 64) +% @as(isize, x *% 2);
     const cell: c_uint = @as(*align(1) const u16, @ptrFromInt(grid +% @as(usize, @bitCast(offset)))).*;
     const shifted: c_int = @bitCast(cell << 22);

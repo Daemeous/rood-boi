@@ -30,6 +30,7 @@ static char _submenuSlot[0x9800] __attribute__((aligned(16)));
 static char _effPurgeSlot[0x4800] __attribute__((aligned(16)));
 /* The plug-ins' tables are imports placed in it by the link (imports.ld: pc_plugin_slot + their offset). */
 char pc_plugin_slot[0x9000] __attribute__((aligned(16)));
+_Static_assert(VS_MAIN_HEAP_SIZE == ROOD_HEAP_SIZE && VS_MAIN_HEAP_ADDRESS == ROOD_HEAP_BASE, "the heap arena: psx_types.h and main.h agree");
 void* const vs_overlay_slots[5] = { (void*)(ROOD_GUEST_RAM_BASE + 0x68800), _mainMenuSlot, _submenuSlot,
     pc_plugin_slot, _effPurgeSlot };
 
@@ -45,8 +46,8 @@ typedef struct {
     char progress[6];
     short blendParams[5];
     int colorFixed[6];
-    D_8005DC6C_t baseColor;
-} D_8005DC80_t;
+    vs_render_ColorRgb8 baseColor;
+} vs_render_ModelColorFade;
 
 typedef struct {
     char unk4;
@@ -87,8 +88,8 @@ typedef struct {
     short bgTransitionTargetG;
     short bgTransitionTargetB;
     int bgColors[5][6];
-    D_8005DC6C_t backgroundBaseColors[5];
-    D_8005DC80_t modelColorFades[17];
+    vs_render_ColorRgb8 backgroundBaseColors[5];
+    vs_render_ModelColorFade modelColorFades[17];
 } _clutState_t;
 
 enum diskState_e {
@@ -8433,7 +8434,7 @@ void vs_save_captureAshleySnapshot(void)
     int var_t4;
     signed char actionsLearned;
     vs_battle_actor2* temp_t0;
-    D_80060068_t* temp_t5;
+    vs_state_AshleySnapshot* temp_t5;
     int v0;
     int v0_2;
     int v1;
@@ -10991,7 +10992,7 @@ void vs_main_transformClutSlot(
 
 static inline int _shift_left(int arg0) { return arg0 << 0x10; }
 
-void vs_render_setBackgroundGradientColors(int arg0, D_8005DC6C_t* arg1)
+void vs_render_setBackgroundGradientColors(int arg0, vs_render_ColorRgb8* arg1)
 {
     int sp10[5];
     int i;
@@ -11033,7 +11034,7 @@ void vs_render_setBackgroundGradientColors(int arg0, D_8005DC6C_t* arg1)
     }
 }
 
-void vs_render_setBackgroundGradientBase(int arg0, D_8005DC6C_t* arg1)
+void vs_render_setBackgroundGradientBase(int arg0, vs_render_ColorRgb8* arg1)
 {
     int i;
 
@@ -11208,10 +11209,10 @@ void vs_render_requestBackgroundGradientTransform(int arg0, int arg1, int arg2, 
     }
 }
 
-void func_80047910(int arg0, int arg1, D_8005DC6C_t* arg2)
+void func_80047910(int arg0, int arg1, vs_render_ColorRgb8* arg2)
 {
     D_800F4538_unk58_2 sp10;
-    D_8005DC80_t* temp_t0;
+    vs_render_ModelColorFade* temp_t0;
     int temp_a1;
     int temp_t1;
     int temp_t2;
@@ -11258,7 +11259,7 @@ void func_80047910(int arg0, int arg1, D_8005DC6C_t* arg2)
     }
 }
 
-static void func_80047AB4(int arg0, int arg1, D_8005DC6C_t* arg2)
+static void func_80047AB4(int arg0, int arg1, vs_render_ColorRgb8* arg2)
 {
     if (_clutState.active != 0) {
         func_80047910(arg0, arg1, arg2);
@@ -11275,7 +11276,7 @@ void func_80047B30(int arg0, int arg1, int arg2, int arg3, int arg4, int arg5)
     int var_t0;
     int var_v0;
     int var_v1;
-    D_8005DC80_t* t1 = &_clutState.modelColorFades[arg2];
+    vs_render_ModelColorFade* t1 = &_clutState.modelColorFades[arg2];
     int* t2 = t1->colorFixed;
 
     var_t4 = 0;
@@ -11503,7 +11504,7 @@ void vs_render_updateModelTintTransitions(void)
     D_800F4538_unk58_2 sp18;
     int i;
     int var_v0;
-    D_8005DC80_t* p = _clutState.modelColorFades;
+    vs_render_ModelColorFade* p = _clutState.modelColorFades;
 
     for (i = 0; i < 17; ++i) {
         int* a2 = p[i].colorFixed;

@@ -9,7 +9,7 @@ const c = @import("c_battle_helpers");
 /// cell with bit 13 set has floor 0, else floor = sign15(sign((cell & 0x3FF)
 /// << 6) - ((cell & 0x1C00) >> 3)). Returns 1 when y < floor.
 pub fn belowFloor(x: c_int, y: c_int, z: c_int) callconv(.c) c_int {
-    const grid: [*]u8 = @ptrFromInt(@as(usize, @as(*u32, @ptrFromInt(pad.addr(0x3BC))).*));
+    const grid: [*]u8 = @ptrCast(pad.nav.floors.?);
     const cell: c_uint = psx.byteAt(u16, grid, @as(isize, (z >> 7) *% 64) + @as(isize, (x >> 7) *% 2)).*;
     var floor: c_int = 0;
     if (cell & 0x2000 == 0) {

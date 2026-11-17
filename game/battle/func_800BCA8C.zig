@@ -66,7 +66,7 @@ fn toNormalIntegerVector(src: *v.VECTOR, dst: *v.VECTOR) void {
 }
 
 /// The easing curve `ease` at the point's time (vs_event_evaluateInterpolationCurve).
-fn eased(cam: *v.D_800F4BA4_t2, ease: u8) c_int {
+fn eased(cam: *v.vs_event_CameraTrack, ease: u8) c_int {
     return c.vs_event_evaluateInterpolationCurve(ease, cam.time, cam.duration);
 }
 
@@ -74,7 +74,7 @@ fn eased(cam: *v.D_800F4BA4_t2, ease: u8) c_int {
 /// Steps a camera point (look-at or eye) by its mode: a linear (2) or eased-distance (3) move, an orbit
 /// (4: around start, 5: around position), an actor-relative point (8), an offset (9) or the dolly
 /// (11); then the follow blend, and at the end of its time mode 15 and the follow's drift.
-pub fn func_800BCA8C(arg: ?*v.D_800F4BA4_t2, _: ?*v.D_800F4BA4_t2) callconv(.c) void {
+pub fn func_800BCA8C(arg: ?*v.vs_event_CameraTrack, _: ?*v.vs_event_CameraTrack) callconv(.c) void {
     const cam = arg.?;
     if (cam.mode == 15) return;
     if (cam.mode != 11) {
@@ -133,7 +133,7 @@ pub fn func_800BCA8C(arg: ?*v.D_800F4BA4_t2, _: ?*v.D_800F4BA4_t2) callconv(.c) 
             _ = c._vectorAdd(cv(&cam.computed), cv(sVectorToFixedPointVector(v1, rotation)), cv(&cam.velocity));
         },
         9 => _ = c._vectorAdd(cv(&cam.computed), cv(&cam.velocity), cv(&cam.target)),
-        11 => c.func_800BCFB4(psx.cptr(c.D_800F4BA4_t2, cam)),
+        11 => c.func_800BCFB4(psx.cptr(c.vs_event_CameraTrack, cam)),
         else => {},
     }
     _ = copyVector(&cam.previousCamera, &cam.current);

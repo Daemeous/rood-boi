@@ -1,0 +1,7 @@
+# S4: the game heap's arena left the PS1's 2 MB block (state item, old location, new location, size, note)
+# item	old	new	size	note
+game heap arena	0x8010C000 (inside the 2 MB RAM)	0x80200000 (the window beside it)	0xF2000 (the original's; unchanged)	vs_main_initHeap at the same three call sites; blocks keep their offsets from the arena start (heap report equal: one free block at offset 563568, 16663 units, 300 vsyncs later 14041)
+guest window	0x80000000 + 0x200000 (RAM)	0x80000000 + 0x1000000	0x1000000 (mapped; untouched pages cost nothing)	the 24-bit ordering-table links (guest_packet) and the RPC/range checks cover the whole window: the ordering tables and primitive buffers are allocated from the heap (INITBTL 18.c, vs_field_finishRoomLoad), so the arena cannot leave the window until T4
+snapshot range "ram"	0x80000000	0x80000000	0x200000 (was the whole guest range)	the PS1's 2 MB only
+snapshot range "heap"	(part of "ram")	0x80200000	0xF2000 rounded to a page	new range; Oracle digests and the in-process rewind follow pc_state_ranges
+no_hostile_near_target.zig	address & 0x1fffff	address & 0xffffff	-	reads a heap object by its address through the window

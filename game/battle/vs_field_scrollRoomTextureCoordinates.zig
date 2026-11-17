@@ -4,7 +4,7 @@ const v = @import("views_2842C");
 
 /// orig: vs_field_scrollRoomTextureCoordinates (pc/src/game/BATTLE/BATTLE.PRG/2842C.c)
 /// Advances a scrolling UV window every `delay` ticks and rewrites the quad's texture coordinates in the room geometry.
-pub fn vs_field_scrollRoomTextureCoordinates(arg0: ?*v.func_80091E10_t) callconv(.c) c_int {
+pub fn vs_field_scrollRoomTextureCoordinates(arg0: ?*v.vs_field_TextureScrollEffect) callconv(.c) c_int {
     const quad = arg0.?;
     // psx_raw of the geometry section: the 4-byte guest address, widened as a host address.
     const base: usize = psx.rawOf(v.g.vs_battle_roomData().geometrySection);

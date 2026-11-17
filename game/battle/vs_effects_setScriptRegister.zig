@@ -6,7 +6,7 @@ const c = @import("c_5BF94");
 
 /// orig: vs_effects_setScriptRegister (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// unk10[next byte] = (u8) next halfword; returns 1.
-pub fn vs_effects_setScriptRegister(script: ?*v.D_800F53B8_t) callconv(.c) c_int {
+pub fn vs_effects_setScriptRegister(script: ?*v.vs_effects_EffectInstance) callconv(.c) c_int {
     const s = script.?;
     // Object order: the value (vs_effects_readScriptHalfword) before the index (vs_effects_readScriptByte).
     const value = c.vs_effects_readScriptHalfword(@ptrCast(s));

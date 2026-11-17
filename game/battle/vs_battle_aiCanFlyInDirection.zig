@@ -9,7 +9,7 @@ const c = @import("c_771A8");
 /// orig: vs_battle_aiCanFlyInDirection (pc/src/game/BATTLE/BATTLE.PRG/771A8.c)
 /// Whether the tile one step from `state` in `direction` can be moved to, cached per direction.
 pub fn vs_battle_aiCanFlyInDirection(state: ?*v.vs_battle_aiState, direction: c_int) callconv(.c) c_int {
-    const bits: *v.directionalCacheBits = @ptrFromInt(pad.addr(0x3D0));
+    const bits: *v.directionalCacheBits = pad.at(v.directionalCacheBits, 0x3D0);
     // x86 masks a shift count to 5 bits; the object shifts by `direction` the same way.
     const shift: u5 = @truncate(@as(c_uint, @bitCast(direction)));
     const bit: c_int = @as(c_int, 1) << shift;
@@ -22,7 +22,7 @@ pub fn vs_battle_aiCanFlyInDirection(state: ?*v.vs_battle_aiState, direction: c_
         if (c.vs_battle_aiFlightDirectionObstruction(@ptrCast(state), direction, 1) != 0) break :check false;
 
         const st = state.?;
-        const entry = psx.at(@as([*]v.D_800F16EC_t, @ptrFromInt(pad.addr(0x3EC))), direction);
+        const entry = psx.at(pad.many(v.D_800F16EC_t, 0x3EC), direction);
         const x: c_int = @as(c_int, st.tile.cache.p.x) +% @as(c_int, psx.getBits(entry, "dx"));
         const z: c_int = @as(c_int, st.tile.cache.p.z) +% @as(c_int, psx.getBits(entry, "dz"));
 
@@ -35,8 +35,8 @@ pub fn vs_battle_aiCanFlyInDirection(state: ?*v.vs_battle_aiState, direction: c_
 
         // The tile table: a guest address in the scratchpad, rows of 32 u16. x and z are
         // at least minX and minZ (u8), so they are nonnegative here.
-        const tile_base: u32 = @as(*const u32, @ptrFromInt(pad.addr(0x3C0))).*;
-        const tile_addr: usize = @as(usize, tile_base) + @as(usize, @intCast(z)) * 64 + @as(usize, @intCast(x)) * 2;
+        const tile_base: usize = @intFromPtr(pad.nav.cells.?);
+        const tile_addr: usize = tile_base + @as(usize, @intCast(z)) * 64 + @as(usize, @intCast(x)) * 2;
         const tile: u16 = @as(*align(1) const u16, @ptrFromInt(tile_addr)).*;
         if ((tile & 0x40) != 0) break :check false;
 

@@ -12,7 +12,7 @@ fn scratch8(offset: c_int) *u8 {
 /// orig: nav_cell (pc/src/battle_movement.c)
 /// The navigation cell of tile (x, z) in the grid cached at scratchpad 0x3C0.
 fn navCell(x: c_int, z: c_int) *align(1) u16 {
-    const cells: usize = psx.byteAt(u32, scratch8(0x3c0), 0).*;
+    const cells: usize = @intFromPtr(pad.nav.cells.?);
     return @ptrFromInt(cells +% @as(usize, @bitCast(@as(isize, z *% 64 +% x *% 2))));
 }
 

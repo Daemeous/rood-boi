@@ -12,10 +12,10 @@ pub fn vs_battle_aiMoveWithHeightFilteredDirections(state: ?*v.vs_battle_aiState
 
     // TERRAIN_TILE_MASK base is the guest pointer stored at scratchpad 0x1F8003C4;
     // the row width is the byte at 0x1F8003DC. The index is never negative.
-    const table: u32 = @as(*const u32, @ptrFromInt(pad.addr(0x3C4))).*;
-    const width: c_int = @as(*const u8, @ptrFromInt(pad.addr(0x3DC))).*;
+    const table: usize = @intFromPtr(pad.nav.bitmap.?);
+    const width: c_int = pad.at(u8, 0x3DC).*;
     const index: c_int = @as(c_int, s.tile.terrain.p.z) *% width +% @as(c_int, s.tile.terrain.p.x);
-    const tile: *align(1) u8 = @ptrFromInt(@as(usize, table +% @as(u32, @bitCast(index))));
+    const tile: *align(1) u8 = @ptrFromInt(table +% @as(usize, @as(u32, @bitCast(index))));
     const old: c_int = tile.*;
     const actor = psx.get(s.actor);
 
@@ -28,7 +28,7 @@ pub fn vs_battle_aiMoveWithHeightFilteredDirections(state: ?*v.vs_battle_aiState
         0);
     tile.* = psx.conv(u8, old);
 
-    const mode: c_int = @as(*const c_int, @ptrFromInt(pad.addr(0x3C8))).*;
+    const mode: c_int = pad.at(c_int, 0x3C8).*;
     // x86 masks a variable shift count to 5 bits; the C relies on that.
     const shift: u5 = @truncate(@as(u32, @bitCast(mode)));
     if (((@as(c_int, 0xA0) >> shift) & 1) != 0) {

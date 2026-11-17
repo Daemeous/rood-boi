@@ -2,7 +2,7 @@
 #include "30DB0.h"
 
 void func_8006CD60(u_int*, int, int);
-void vs_audio_playActorModelSound(D_800F4538_unk0*, int);
+void vs_audio_playActorModelSound(vs_actors_ModelInstance*, int);
 void vs_actors_actorRootOffset(D_800F4538_t*);
 void vs_render_prepareActorCameraMatrices(MATRIX*);
 void vs_actors_updateActorAnimationBlend(D_800F4538_t*);

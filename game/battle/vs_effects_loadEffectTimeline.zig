@@ -6,10 +6,10 @@ const c = @import("c_5BF94");
 
 /// orig: vs_effects_loadEffectTimeline (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// Replaces the entry table at arg0's block-3 slot with the entries of scene arg1.
-pub fn vs_effects_loadEffectTimeline(arg0: ?*v.D_800F53B8_t, arg1: c_int, _: c_int) callconv(.c) void {
+pub fn vs_effects_loadEffectTimeline(arg0: ?*v.vs_effects_EffectInstance, arg1: c_int, _: c_int) callconv(.c) void {
     const owner = arg0.?;
     const entry_raw = c._getPFileBlock3section(psx.cptr(c.pFileBlock3, psx.get(v.g.vs_effects_package().*.?.block3Data).?), arg1);
-    const entry: *align(1) v.func_800D55A4_t = @ptrCast(entry_raw.?);
+    const entry: *align(1) v.vs_content_PFileTimelineTable = @ptrCast(entry_raw.?);
     var count: c_int = 0;
     var i: c_int = 0;
 
@@ -17,7 +17,7 @@ pub fn vs_effects_loadEffectTimeline(arg0: ?*v.D_800F53B8_t, arg1: c_int, _: c_i
         c.vs_main_freeHeapR(psx.get(owner.context.unk30));
     }
 
-    const size: c_int = entry.count *% @as(c_int, @sizeOf(v.func_800D5780_t)) +% @as(c_int, @offsetOf(v.D_800F53B8_t4, "tracks"));
+    const size: c_int = entry.count *% @as(c_int, @sizeOf(v.func_800D5780_t)) +% @as(c_int, @offsetOf(v.vs_effects_EffectTimeline, "tracks"));
     psx.put(&owner.context.unk30, c.vs_main_allocHeapR(psx.conv(c_uint, size)));
     const p = psx.get(owner.context.unk30).?;
     p.trackCount = psx.conv(u8, entry.count);

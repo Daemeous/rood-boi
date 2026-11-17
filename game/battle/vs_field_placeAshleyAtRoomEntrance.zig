@@ -10,7 +10,7 @@ const c = @import("c_146C");
 pub fn vs_field_placeAshleyAtRoomEntrance() callconv(.c) void {
     var sp10: v.SVECTOR = undefined;
     var sp18: v.func_8006EBF8_t = undefined;
-    var sp28: v.func_80089888_t = undefined;
+    var sp28: v.vs_field_ActorPlacement = undefined;
     const door = v.g.vs_field_pendingDestinationDoor();
 
     c.func_8009D458();

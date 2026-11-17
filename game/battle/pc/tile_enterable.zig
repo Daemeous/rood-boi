@@ -12,7 +12,7 @@ fn scratch8(offset: c_int) *u8 {
 /// orig: nav_cell (pc/src/battle_movement.c)
 /// The navigation cell of tile (x, z) in the grid cached at scratchpad 0x3C0.
 fn navCell(x: c_int, z: c_int) *align(1) u16 {
-    const cells: usize = psx.byteAt(u32, scratch8(0x3c0), 0).*;
+    const cells: usize = @intFromPtr(pad.nav.cells.?);
     return @ptrFromInt(cells +% @as(usize, @bitCast(@as(isize, z *% 64 +% x *% 2))));
 }
 
@@ -38,8 +38,7 @@ pub fn tileEnterable(state: *ai.vs_battle_aiState, tile: c_uint) callconv(.c) c_
         const model: [*]u8 = @ptrCast(psx.at(v.g.vs_actors_actorRecords(), id).*.?);
         // An actor without an AI state has a null slot: the PC C then reads
         // the null page (the original read PS1 address 0).
-        const word = psx.byteAt(u32, scratch8(0x37c +% id *% 4), 0).*;
-        const other: *align(4) ai.vs_battle_aiState = if (word != 0) @ptrFromInt(word) else @alignCast(@ptrCast(psx.lowRam(ai.vs_battle_aiState)));
+        const other: *align(4) ai.vs_battle_aiState = if (pad.aiState(id)) |w| @ptrCast(@alignCast(w)) else @alignCast(@ptrCast(psx.lowRam(ai.vs_battle_aiState)));
         var position: c_uint = undefined;
         var depth: c_uint = undefined;
         if (id != 0 and model[0xa] & 0x1f != 0) {

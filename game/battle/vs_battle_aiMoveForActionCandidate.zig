@@ -26,8 +26,7 @@ pub fn vs_battle_aiMoveForActionCandidate(state: ?*v.vs_battle_aiState, entry: ?
     id = @as(c_int, psx.getBits(ent, "targetId"));
     if (id == 16) return 0;
     // Scratchpad slot table at 0x1F80037C, one u32 per target.
-    const slot: *const c_uint = @ptrFromInt(@as(usize, @as(c_uint, @bitCast(@as(c_int, @bitCast(pad.guest(0x37C))) +% (id *% 4)))));
-    if (slot.* == 0) return 0;
+    if (pad.aiState(id) == null) return 0;
 
     var label: Label = switch (st.mode12E) {
         1 => .normal,

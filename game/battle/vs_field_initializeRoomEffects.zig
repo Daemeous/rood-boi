@@ -24,10 +24,10 @@ pub fn vs_field_initializeRoomEffects() callconv(.c) void {
         var consumed: c_int = 0;
         var index: c_int = 0;
         while (consumed < total) {
-            const rec: *align(1) v.D_800F1DD8_t2 = @ptrFromInt(data);
+            const rec: *align(1) v.vs_field_SwingEffectRecord = @ptrFromInt(data);
             if (rec.kind < 7 and sizes[rec.kind] != 0) {
                 const entry = psx.at(v.g.vs_field_roomEffectInstances(), index);
-                psx.put(&entry.unk4, @as(*align(1) v.D_800F1DD8_t2, @ptrFromInt(data)));
+                psx.put(&entry.unk4, @as(*align(1) v.vs_field_SwingEffectRecord, @ptrFromInt(data)));
                 entry.unk0 = @intFromBool(rec.startsInactive == 0);
                 entry.unk2 = 1;
                 entry.unk3 = 0;
@@ -57,10 +57,10 @@ pub fn vs_field_initializeRoomEffects() callconv(.c) void {
             entry.unk1 = rec.count;
             entry.unk2 = 1;
             entry.unk3 = 0;
-            psx.put(&entry.unk4, @as(*align(1) v.D_800F1DD8_t2, @ptrFromInt(data)));
-            psx.put(&entry.unk8, @as(*align(1) v.D_800F1DD8_t2, @ptrFromInt(data)));
+            psx.put(&entry.unk4, @as(*align(1) v.vs_field_SwingEffectRecord, @ptrFromInt(data)));
+            psx.put(&entry.unk8, @as(*align(1) v.vs_field_SwingEffectRecord, @ptrFromInt(data)));
             if (entry.unk0 != 0) {
-                c.vs_field_createRoomEffectObjects(psx.cptr(c.D_800F1DD8_t, entry));
+                c.vs_field_createRoomEffectObjects(psx.cptr(c.vs_field_RoomEffectInstance, entry));
             }
 
             var size: c_int = @as(c_int, entry.unk1) +% 4;

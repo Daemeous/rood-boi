@@ -9,8 +9,8 @@ const c = @import("c_573B8");
 /// orig: func_800C085C (pc/src/game/BATTLE/BATTLE.PRG/573B8.c)
 /// Builds the rotation for `angle`, applies the per-axis scale bytes to it, and returns the transposed matrix in the scratchpad.
 pub fn func_800C085C(scale: [*c]u8, angle: c_int) callconv(.c) ?*v.MATRIX {
-    const scratch: [*]i16 = @ptrFromInt(pad.addr(0x350));
-    const rotation: *v.MATRIX = @ptrFromInt(pad.addr(0x330));
+    const scratch: [*]i16 = pad.many(i16, 0x350);
+    const rotation: *v.MATRIX = pad.at(v.MATRIX, 0x330);
 
     scratch[0] = psx.conv(i16, -%(@as(c_int, scale[3]) << 4));
     scratch[1] = psx.conv(i16, angle);

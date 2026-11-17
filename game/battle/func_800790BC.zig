@@ -11,7 +11,7 @@ pub fn func_800790BC() callconv(.c) void {
     var s4: c_int = 1;
     var i: c_int = 0;
     // uninitialised in the original when base.unk4 is 0; the port reads slot 0 there.
-    var s3: *v.D_800F19CC_t2 = &base.queue[0];
+    var s3: *v.vs_battle_ActionRequest = &base.queue[0];
 
     while (psx.conv(c_uint, i) < base.unk4) : (i +%= 1) {
         s3 = &base.queue[@intCast(@rem(i, 4))];

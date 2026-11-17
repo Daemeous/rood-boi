@@ -12,10 +12,12 @@ extern short func_8008E4AC(void);
 extern unsigned* vs_field_collisionCellAt(unsigned, unsigned, int);
 extern unsigned short* vs_field_findRoomTriggerAtTile(unsigned, unsigned, int);
 extern int vs_field_floorHeightAt(int, int);
-/* Guest words at 0x800F58xx hold 32-bit guest addresses: stored as words so
- * a write never spills into the next one (the game declares D_800F58C0 int). */
-extern unsigned D_800F58C0, D_800F58D8, D_800F58C8, D_800F5908, D_800F5910, D_800F58CC,
-    D_800F58B8, D_800F58D0;
+/* The navigation record's pointers (real pointers: the decomp's BATTLE units declare them so too). */
+extern unsigned char *D_800F58C0, *D_800F58CC, *D_800F5908;
+extern unsigned short (*D_800F58D8)[8];
+extern unsigned short *D_800F58C8, *D_800F5910;
+extern unsigned short (*D_800F58B8)[32];
+extern unsigned short (*D_800F58D0)[32];
 extern void pc_unimplemented(const char*);
 
 int vs_battle_aiSampleAiTileGroundHeight(int x, int z);

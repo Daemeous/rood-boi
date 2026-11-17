@@ -10,7 +10,7 @@ const v = @import("views_battle_helpers");
 /// is reported through pc_unimplemented (the original would spin forever),
 /// and the step then spins forever too.
 pub fn runAiDriver() callconv(.c) void {
-    if (v.g.D_800F58B8().* == 0) return;
+    if (v.g.D_800F58B8().* == null) return;
     c.vs_battle_aiCacheActorAiWorkingState();
     if (v.g.D_800F590C().* & 0xffff == 0) c.pc_unimplemented("AI driver with no active actors");
     var id: c_int = v.g.D_800F58D4().*;

@@ -5,7 +5,7 @@ const v = @import("views_5BF94");
 
 /// orig: vs_effects_completeChildScript (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// Steps the previous entry's `unk14_11` count down by one (wrapping 0 to 31) and returns 1.
-pub fn vs_effects_completeChildScript(arg0: ?*v.D_800F53B8_t) callconv(.c) c_int {
+pub fn vs_effects_completeChildScript(arg0: ?*v.vs_effects_EffectInstance) callconv(.c) c_int {
     if (psx.get(arg0.?.previous)) |previous| {
         // --unk14_11 on a u5 bitfield: promoted to int, decremented, truncated to 5 bits.
         const count = psx.getBits(previous, "unk14_11");

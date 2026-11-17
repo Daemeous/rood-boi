@@ -25,7 +25,7 @@ int VS_GRID_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
     CVECTOR color;
     u_char u[9];
     u_char v[9];
-    D_800F53B8_t* battle;
+    vs_effects_EffectInstance* battle;
     int alive;
     int depthMode;
     int xPhase;
@@ -43,8 +43,8 @@ int VS_GRID_FUNCTION(func_800D4910_t* arg0, u_int arg1, int arg2)
     int scroll;
     int depth;
     vs_gridState* state;
-    func_800FA098_arg1* scratch = &pc_effect_scratch;
-    func_800FA098_arg0* effect;
+    vs_effects_ParticleEmitterScratch* scratch = &pc_effect_scratch;
+    vs_effects_ParticleDefinition* effect;
     MATRIX* matrix;
     pc_item* prim;
     alive = 1;

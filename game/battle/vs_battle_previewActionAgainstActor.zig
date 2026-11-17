@@ -9,9 +9,9 @@ const c = @import("c_146C");
 /// area at `to`; 11, 12: its range aimed from `from` to `to`) every limb of the target inside the area, for kinds
 /// 5 and 7 limb `limb`, for 1..4 the target's own limb (unk36); resolves it into `result` (vs_battle_resolveActionTargets). Returns
 /// the top byte of the action's cost for the user.
-pub fn vs_battle_previewActionAgainstActor(action: c_int, user: c_int, target: c_int, limb: c_int, from: ?*v.SVECTOR, to: ?*v.SVECTOR, result: ?*v.D_800F19CC_t2) callconv(.c) c_int {
+pub fn vs_battle_previewActionAgainstActor(action: c_int, user: c_int, target: c_int, limb: c_int, from: ?*v.SVECTOR, to: ?*v.SVECTOR, result: ?*v.vs_battle_ActionRequest) callconv(.c) c_int {
     // ROOD_PC: the request is cleared first (its unwritten parts were stack residue, pc/docs/Oracle.md).
-    var request = std.mem.zeroes(v.D_800F19CC_t2);
+    var request = std.mem.zeroes(v.vs_battle_ActionRequest);
     // The C declares `u_short sp870[2]` directly below `func_800C1564_t sp860` (the host compiler's layout, 0x2C and
     // 0x30 from the stack pointer), but func_800A1B9C writes three halfwords: the third overwrites the area's first two
     // bytes (shape and unk1) before vs_battle_isPointInTargetVolume reads both. The PS1 frame has 8 bytes there, so it does not; this keeps

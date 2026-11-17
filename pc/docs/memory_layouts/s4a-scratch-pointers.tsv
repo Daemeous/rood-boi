@@ -1,0 +1,10 @@
+# S4a: the scratchpad overlays that held 4-byte guest pointers (state item, old location, new location, size, note)
+# struct	member	old offset	old size	new offset	new size	note
+actorTransformScratch	parent	0x5C	4	0x5C	8	native pointer, packed aligned(4); absorbs the old pad60 word; matrix stays at 0x64
+actorTransformScratch	model	0x9C	4	0x9C	8	native pointer; struct 0xA0 -> 0xA4, ends at the 0x400 pad end
+weaponTransformScratch	parent	0x5C	4	0x5C	8	as actorTransformScratch
+weaponTransformScratch	model	0x9C	4	0x9C	8	as actorTransformScratch
+D_1F8003BC_t	unk18	0x18	4	-	-	removed: the word is pad18, unused
+D_1F8003BC_t	actor	-	-	0x44	8	native pointer after the struct: 0x3BC + 0x44 = pad offset 0x400; struct 0x44 -> 0x4C
+animationFrameScratch	data	0x10	4	0x14	8	native pointer after the struct (pad10 at 0x10 unused); struct 0x14 -> 0x1C; at pad 0x3EC ends 0x408
+vs_pad	-	0x400	0x400	0x400	0x408	the pad block grows 8 bytes for the two pointers that end past 0x400

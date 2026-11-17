@@ -5,6 +5,6 @@ const v = @import("views_5BF94");
 
 /// orig: vs_effects_holdTimelineFrame (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// unkD1C.unk30->unk1 |= 1.
-pub fn vs_effects_holdTimelineFrame(script: ?*v.D_800F53B8_t) callconv(.c) void {
+pub fn vs_effects_holdTimelineFrame(script: ?*v.vs_effects_EffectInstance) callconv(.c) void {
     psx.get(script.?.context.unk30).?.unk1 |= 1;
 }
