@@ -31,7 +31,7 @@ typedef struct {
  * (battle_statics.py, STATE.tsv). */
 static func_8008D2C0_t func_800A4A24__platforms[4] __attribute__((used));
 
-void vs_render_appendOverlayPrimitive(DR_MOVE*);
+void pc_frame_move(unsigned* packet, const short* rect, int x, int y);
 int vs_field_collectMovingPlatformPositions(func_8008D2C0_t*);
 void vs_actors_playActorAnimation(int, int, int, int);
 void vs_actors_targetPoint(int, int, SVECTOR*, int);

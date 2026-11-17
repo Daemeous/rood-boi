@@ -49,8 +49,6 @@ typedef struct {
 
 extern GpuEnv D_80033444;
 extern int (*D_80033440)(); /* GPU_printf */
-extern u_long D_800334F0[]; /* terminating primitive */
-extern u_long D_80033504; /* tag linking to it */
 extern volatile u_long* D_8003355C; /* DMA6 MADR */
 extern volatile u_long* D_80033560; /* DMA6 BCR */
 extern volatile u_long* D_80033564; /* DMA6 CHCR */
@@ -179,52 +177,12 @@ int MoveImage(RECT* rect, int x, int y)
     return D_8003343C->addque2(D_8003343C->cwc, D_800334D0.move, 0x14, 0);
 }
 
-u_long* ClearOTag(u_long* ot, int n)
-{
-    u_long* term;
-
-    if (D_80033444.level >= 2) {
-        D_80033440("ClearOTag(%08x,%d)...\n", ot, n);
-    }
-    while (--n) {
-        setlen(ot, 0);
-        setaddr(ot, ot + 1);
-        ot++;
-    }
-    term = &D_80033504;
-    *term = ((u_long)D_800334F0 & 0xFFFFFF) | 0x04000000;
-    *ot = (u_long)term & 0xFFFFFF;
-    return ot;
-}
-
-u_long* ClearOTagR(u_long* ot, int n)
-{
-    u_long* term;
-
-    if (D_80033444.level >= 2) {
-        D_80033440("ClearOTagR(%08x,%d)...\n", ot, n);
-    }
-    D_8003343C->otc(ot, n);
-    term = &D_80033504;
-    *term = ((u_long)D_800334F0 & 0xFFFFFF) | 0x04000000;
-    *ot = (u_long)term & 0xFFFFFF;
-    return ot;
-}
-
 void DrawPrim(void* p)
 {
     int len = ((P_TAG*)p)->len;
 
     D_8003343C->sync(0);
     D_8003343C->cwb((u_long*)p + 1, len);
-}
-
-void DrawOTag(u_long* p)
-{
-    if (D_80033444.level >= 2) {
-        D_80033440("DrawOTag(%08x)...\n", p);
-    }
-    D_8003343C->addque2(D_8003343C->cwc, p, 0, 0);
 }
 
 DRAWENV* PutDrawEnv(DRAWENV* env)
@@ -237,17 +195,6 @@ DRAWENV* PutDrawEnv(DRAWENV* env)
     D_8003343C->addque2(D_8003343C->cwc, &env->dr_env, sizeof(DR_ENV), 0);
     memcpy(&D_80033444.draw, env, sizeof(DRAWENV));
     return env;
-}
-
-void DrawOTagEnv(u_long* p, DRAWENV* env)
-{
-    if (D_80033444.level >= 2) {
-        D_80033440("DrawOTagEnv(%08x,&08x)...\n", p, env);
-    }
-    func_80029694(&env->dr_env, env);
-    setaddr(&env->dr_env, p);
-    D_8003343C->addque2(D_8003343C->cwc, &env->dr_env, sizeof(DR_ENV), 0);
-    memcpy(&D_80033444.draw, env, sizeof(DRAWENV));
 }
 
 DRAWENV* GetDrawEnv(DRAWENV* env)
@@ -480,22 +427,6 @@ int MoveImage2(RECT* rect, int x, int y)
     D_800334D0.move[3] = (y << 16) | (x & 0xFFFF);
     D_800334D0.move[4] = *(u_long*)&rect->w;
     D_8003343C->cwc(D_800334D0.move);
-    return 0;
-}
-
-int DrawOTag2(u_long* p)
-{
-    if (D_80033444.level >= 2) {
-        D_80033440("DrawOTag(%08x)...\n", p);
-    }
-    func_8002AB84();
-    while ((*D_80033558 & 0x01000000) || !(*D_8003354C & 0x04000000)) {
-        if (func_8002ABB8()) {
-            return -1;
-        }
-    }
-    DMACallback(2, _GPU_ResetCallback);
-    D_8003343C->cwc(p);
     return 0;
 }
 

@@ -17,7 +17,6 @@
 #include "pc/src/game/SLUS_010.40/32154.h"
 #include "pc/src/game/BATTLE/INITBTL.PRG/18.h"
 #include <abs.h>
-#include "insertTPage.h"
 #include <libetc.h>
 #include <libgpu.h>
 #include <libgte.h>
@@ -367,21 +366,6 @@ typedef struct {
 } savedEnemyState;
 
 typedef struct {
-    int characterIds;
-    int shieldIds;
-    int model;
-    int unkC;
-    int blade;
-    int unk14;
-    int shield;
-    int unk1C;
-    int effect;
-    int effectSize;
-    int weaponEffect;
-    int weaponEffectSize;
-} zudHeader;
-
-typedef struct {
     u_char type;
     u_char unk1;
     u_char unk2;
@@ -461,6 +445,7 @@ typedef struct {
     int unk20;
 } func_800A1108_t;
 
+void pc_insert_tpage(int after, int tpage); /* the draw mode set for what draws after the slot `after` of the frame's table: an item (boot_sdk.c) */
 int _loadMpdRoomSection(int, void* data);
 int _dropMisc(vs_battle_loot*, vs_battle_uiMisc*);
 int _dropMiscRand(vs_battle_loot*, vs_battle_uiMiscRand*);
@@ -1277,7 +1262,6 @@ void vs_boot_initializeGameplayOverlay(int);
 
 void vs_battle_exec(void);
 
-void vs_render_appendOverlayPrimitive(int* arg0);
 
 int vs_battle_syncCameraAnglesFromPosition(_sphericalCamera* arg0);
 
@@ -2162,3 +2146,28 @@ extern void pc_room_warp_room_spawned(void);
 extern int pc_room_warp_poll(void);
 extern int pc_action_poll(void); /* pc/src/action_driver.c: the dev RPC action */
 extern void pc_action_capture(const void* state, int kind, int mode, int menu);
+
+static vs_zud_part vs_zud_partAt(const void* file, int index)
+{
+    const u_char* base = (const u_char*)file;
+    const unsigned* word = (const unsigned*)(base + 8 + 8 * index);
+    vs_zud_part part = { (void*)(base + word[0]), (int)word[1] };
+    return part;
+}
+
+void vs_zud_decode(vs_zud_file* out, const void* file)
+{
+    const u_char* base = (const u_char*)file;
+    out->characterId = base[0];
+    out->weapon = base[1];
+    out->weaponCategory = base[2];
+    out->weaponMaterial = base[3];
+    out->shield = base[4];
+    out->shieldMaterial = base[5];
+    out->defaultMaterial = base[6];
+    out->shp = vs_zud_partAt(file, 0);
+    out->weaponWep = vs_zud_partAt(file, 1);
+    out->shieldWep = vs_zud_partAt(file, 2);
+    out->commonSeq = vs_zud_partAt(file, 3);
+    out->battleSeq = vs_zud_partAt(file, 4);
+}

@@ -117,7 +117,6 @@ extern vs_main_CdQueueSlot* _shpCdSlot;
 extern u_short* _etmData;
 extern vs_main_CdFile _etmFile;
 extern vs_main_CdQueueSlot* _etmFileCdSlot;
-extern void* _wepFileEpilog;
 extern u_char vs_actors_sequenceTexturePagesOneBased[];
 extern u_char D_800F2450[];
 extern D_800F2458_t D_800F2458;

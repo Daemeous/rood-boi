@@ -8,7 +8,6 @@ const c = @import("c_40564");
 /// Sets up a draw-move packet for `rect` at (x, y) and advances the packet cursor past it.
 pub fn vs_render_queueTextureRectangleMove(arg0: ?*v.RECT, arg1: c_int, arg2: c_int) callconv(.c) void {
     const drMove: *v.DR_MOVE = @ptrCast(@alignCast(common.scratch.get().unk0));
-    c.SetDrawMove(psx.cptr(c.DR_MOVE, drMove), @ptrCast(arg0), arg1, arg2);
-    c.vs_render_appendOverlayPrimitive(psx.cptr(c.DR_MOVE, drMove));
+    c.pc_frame_move(@ptrCast(drMove), @ptrCast(arg0), arg1, arg2);
     common.scratch.get().unk0 = psx.at(drMove, 1);
 }

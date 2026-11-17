@@ -23,7 +23,6 @@
 #include "gpu.h"
 #include "pc/src/game/menuItem.h"
 #include "pc/src/game/spriteItem.h"
-#include "insertTPage.h"
 #include <libetc.h>
 #include <abs.h>
 

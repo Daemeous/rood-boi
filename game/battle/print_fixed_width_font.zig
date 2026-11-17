@@ -1,5 +1,6 @@
 //! Prints a text box's string in the fixed-width font (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c).
 const common = @import("common");
+const sprite_item = common.sprite_item;
 const psx = common.psx;
 const v = @import("views_5BF94");
 const c = @import("c_5BF94");
@@ -26,7 +27,7 @@ pub fn printFixedWidthFont(box_arg: ?*v.vs_battle_textBox, scale: c_int) callcon
             v.g.D_800F4CB8().* = 0;
         }
         var done: c_int = box.brightness;
-        v.g._fontBrightness().* = done | (done << 8) | (done << 0x10) | 0x2C000000;
+        v.g._fontBrightness().* = @bitCast(sprite_item.rgbCode(@bitCast(done | (done << 8) | (done << 0x10)), 0x2C));
         done = 0;
         while (true) {
             const current: c_uint = str[0];

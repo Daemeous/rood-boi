@@ -56,6 +56,12 @@
 #define ROOD_GUEST_RAM_SIZE 0x1000000
 #define ROOD_HEAP_BASE 0x80200000
 #define ROOD_HEAP_SIZE 0xF2000 /* the original's, VS_MAIN_HEAP_SIZE: the snapshot saves this much of the arena */
+/* The port arena (memory lane S6): the decoded file objects live here, never in the game heap, so decoding does not
+ * change the game's allocation pattern. game/common/port_arena.zig is the
+ * allocator (header, roots, size-class free lists). The snapshot saves all of it as the "port" range, so its size is a deliberate
+ * setting (a snapshot only loads into a build with the same range). */
+#define ROOD_PORT_BASE (ROOD_HEAP_BASE + 0x100000)
+#define ROOD_PORT_SIZE 0x40000
 
 #if defined(ROOD_PC_LP64) /* only the PC passes it */
 
@@ -125,15 +131,6 @@ static inline __UINT32_TYPE__ psx_addr(const void* pointer) {
 #define psx_to_ptr(T, value)                                                   \
     ((T)(__UINTPTR_TYPE__)(__UINT32_TYPE__)(value))
 #define psx_to_int(T, pointer) ((T)psx_addr(pointer))
-/* A pointer or an integer as a 32-bit word, for SDK macros that take either
- * (setaddr: a primitive or a link word). Pointers are checked like
- * psx_to_int; integers are truncated as the PS1's u_long cast does. */
-#define psx_word(value)                                                        \
-    __builtin_choose_expr(                                                     \
-        __builtin_classify_type(value) == 5 /* pointer_type_class */,          \
-        psx_addr((const void*)(__UINTPTR_TYPE__)(value)),                      \
-        (__UINT32_TYPE__)(__UINTPTR_TYPE__)(value))
-
 #else /* PS1, or the 32-bit PC build: pointers are already 4 bytes. */
 
 #define psx_ptr(T) T*
@@ -146,7 +143,6 @@ static inline __UINT32_TYPE__ psx_addr(const void* pointer) {
 #define psx_set_raw(field, T, value) ((field) = (T)(value))
 #define psx_to_ptr(T, value) ((T)(value))
 #define psx_to_int(T, pointer) ((T)(pointer))
-#define psx_word(value) ((unsigned long)(value))
 
 #endif
 

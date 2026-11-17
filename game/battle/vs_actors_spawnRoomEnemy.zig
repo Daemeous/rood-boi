@@ -96,11 +96,11 @@ pub fn vs_actors_spawnRoomEnemy(id: c_int, spawn: ?*v.mpdEnemySpawn, init: ?*v.v
         psx.put(&zone.zudDiscRequest, null);
         zone.loadedZudIndexPlusOne = zudIndex +% 1;
     }
-    const zud: *v.zudHeader = @ptrCast(@alignCast(psx.get(zone.zudData).?));
-    const zud_addr = psx.addr(zud);
+    var zud: c.vs_zud_file = undefined;
+    c.vs_zud_decode(&zud, psx.get(zone.zudData));
     object.dataType = 2;
     object.index = psx.conv(i8, id);
-    object.dataAddr = @as(u32, @bitCast(zud.model)) +% zud_addr;
+    object.dataAddr = @intFromPtr(zud.shp.data);
     object.modelId = psx.at(@as([*]v._zndEnemy, @ptrCast(psx.get(zone.zndEnemies).?)), zudIndex).unk0[2];
     var height: c_int = undefined;
     if (savedState(enemy.index)) |saved| {
@@ -137,7 +137,7 @@ pub fn vs_actors_spawnRoomEnemy(id: c_int, spawn: ?*v.mpdEnemySpawn, init: ?*v.v
             if (bladeId != 0) {
                 object.dataType = 4;
                 object.index = psx.conv(i8, id *% 2);
-                object.dataAddr = @as(u32, @bitCast(zud.blade)) +% zud_addr;
+                object.dataAddr = @intFromPtr(zud.weaponWep.data);
                 object.modelId = @intCast(bladeId); // a byte
                 psx.put(&object.destination, @as(?*anyopaque, psx.get(actor.unk48[0])));
                 object.actorId = psx.conv(u8, id);
@@ -148,7 +148,7 @@ pub fn vs_actors_spawnRoomEnemy(id: c_int, spawn: ?*v.mpdEnemySpawn, init: ?*v.v
             if (shieldId != 0) {
                 object.dataType = 4;
                 object.index = psx.conv(i8, id *% 2 +% 1);
-                object.dataAddr = @as(u32, @bitCast(zud.shield)) +% zud_addr;
+                object.dataAddr = @intFromPtr(zud.shieldWep.data);
                 object.modelId = @intCast(shieldId); // a byte
                 psx.put(&object.destination, @as(?*anyopaque, psx.get(actor.unk48[1])));
                 object.actorId = psx.conv(u8, id);
@@ -157,18 +157,18 @@ pub fn vs_actors_spawnRoomEnemy(id: c_int, spawn: ?*v.mpdEnemySpawn, init: ?*v.v
                 _ = c.vs_battle_populateDataSlot(@ptrCast(&object));
             }
         }
-        if ((id < 2 or (flags & 3) == 1) and zud.weaponEffectSize != 0) {
+        if ((id < 2 or (flags & 3) == 1) and zud.battleSeq.size != 0) {
             object.dataType = 8;
             object.index = psx.conv(i8, id);
-            object.dataAddr = @as(u32, @bitCast(zud.weaponEffect)) +% zud_addr;
+            object.dataAddr = @intFromPtr(zud.battleSeq.data);
             object.actorId = 0;
             object.modelId = actor.equippedWeaponCategory;
             _ = c.vs_battle_populateDataSlot(@ptrCast(&object));
         }
-        if (zud.effectSize != 0) {
+        if (zud.commonSeq.size != 0) {
             object.dataType = 8;
             object.index = psx.conv(i8, id);
-            object.dataAddr = @as(u32, @bitCast(zud.effect)) +% zud_addr;
+            object.dataAddr = @intFromPtr(zud.commonSeq.data);
             object.actorId = 0;
             object.modelId = 0;
             _ = c.vs_battle_populateDataSlot(@ptrCast(&object));

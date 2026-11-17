@@ -8,6 +8,16 @@ const Command = *const fn (c_int) callconv(.c) ?*const anyopaque;
 /// The draw mode of vs_battle_setSpriteDefaultTexPage's packet (the default texture page).
 pub const page: c_int = @bitCast(@as(c_uint, 0xE100000C));
 
+/// The draw mode (GP0 E1 word) of texture page `bits`: what the item makers take as a mode (0: the GPU's).
+pub fn pageMode(bits: c_uint) c_int {
+    return @bitCast(bits | (@as(c_uint, 0xE1) << 24));
+}
+
+/// A colour word `rgb` (0xBBGGRR) with the GP0 command `code` in its top byte: the colour the line and glyph item makers read the command from.
+pub fn rgbCode(rgb: c_uint, code: c_uint) c_uint {
+    return rgb | (code << 24);
+}
+
 /// A sprite at `ot` (null: vs_scratch.unk8): `brightness` (bit 8: semi-transparent), place (x low, y high), size, draw mode as
 /// an E1 word (0: the GPU's), texels and CLUT. Returns the item.
 pub fn sprite(ot: ?*anyopaque, brightness: c_int, xy: c_int, wh: c_int, mode: c_int, uv_clut: c_int) c_int {

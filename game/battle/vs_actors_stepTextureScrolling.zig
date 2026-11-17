@@ -86,8 +86,7 @@ pub fn vs_actors_stepTextureScrolling(actor: ?*v.D_800F4538_t) callconv(.c) void
                     rect.y = psx.conv(i16, originY +% y);
                     rect.w = psx.conv(i16, width);
                     rect.h = psx.conv(i16, height);
-                    c.SetDrawMove(psx.cptr(c.DR_MOVE, packet), psx.cptr(c.RECT, &rect), originX +% destX, originY +% part[1]);
-                    c.vs_render_appendOverlayPrimitive(psx.cptr(c.DR_MOVE, packet));
+                    c.pc_frame_move(@ptrCast(packet), @ptrCast(&rect), originX +% destX, originY +% part[1]);
                     packetEnd(packet);
                 }
             }

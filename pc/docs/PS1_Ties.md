@@ -167,8 +167,10 @@ special-casing. Widescreen is done by narrowing projection and anchoring packets
 **Status.** Largely items and native lists (2026-11-12 survey, `pc/docs/plans/2026-11-12-t4-survey.md`): ENDING, MENUF's leaves,
 MENU 0/4/5/7/8/9/D/E, MAINMENU, about 33 effect plug-ins, SCREFF2, battle text, sprites, tiles and stat bars draw as typed
 items (`pc/src/draw_items.c`, `pc/docs/plans/2026-11-08-frames-as-data.md`); the room, characters and shadows are native
-lists with reference packets. What remains as packets: the 3D packet builders (actor, room, particle), the 2D tail
-(HUD claim emitters, text-box rows, sky, shadows, lines) and `DR_MOVE`. 12 packet and ordering-table imports stay pinned
+lists with reference packets. The frame's ordering tables hold no packets and no links (2026-11-17: `pc_frame_table_clear` zeroes a table,
+`pc_frame_table_draw` draws the runs placed in it, `pc_frame_table_check` is the tripwire for a packet written into one), the texture
+moves are copy items (`pc_frame_move`), the lint rule `gpu_packet_writes` is 0 and no 24-bit link word is written or read in game or
+engine code. What is left of T4 is the packets the host still lowers items to and the 3D packet builders' reference packets. 12 packet and ordering-table imports stay pinned
 in guest RAM (`vs_menu_textBoxOrderingTables`, `vs_field_triggerMarkerMatrix`, `vs_field_triggerMarkerVertex`, `vs_field_triggerMarkerTextureSource`, `D_800E9C00`, `vs_event_defaultScreenTint`, `D_800E9C0C`,
 `vs_render_framebufferEffectOffset`, `vs_render_framebufferEffectTint`, `vs_battle_mapCompletionFlags`, `vs_main_drawEnv`, `vs_main_dispEnv`).
 

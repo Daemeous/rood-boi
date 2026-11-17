@@ -32,8 +32,8 @@ pub fn vs_render_drawGimFramebufferFade(gim: ?*v.gim_t, arg1: c_int, prims: [*c]
     // placed here, not left to gpu_hw.c's screen-copy guess.
     const pair_start: c_int = if (psx.weak(Count, "pc_frame_count")) |count| count() else 0;
     // (no texel word: the packets' was whatever the buffer held; they copy the frame buffer in 15-bit colour)
-    _ = sprite_item.sprite(prims, 0x80 -% temp_s0, 0, 0xF00100, @bitCast((psx.conv(c_uint, var_s1) >> 6) | new_var | 0xE1000000), 0);
-    _ = sprite_item.sprite(prims, 0x80 -% temp_s0, 0x100, 0xF00040, @bitCast(psx.conv(c_uint, (var_s1 +% 0x100) >> 6) | new_var | 0xE1000000), 0);
+    _ = sprite_item.sprite(prims, 0x80 -% temp_s0, 0, 0xF00100, sprite_item.pageMode((psx.conv(c_uint, var_s1) >> 6) | new_var), 0);
+    _ = sprite_item.sprite(prims, 0x80 -% temp_s0, 0x100, 0xF00040, sprite_item.pageMode(psx.conv(c_uint, (var_s1 +% 0x100) >> 6) | new_var), 0);
     if (psx.weak(Anchor, "pc_frame_anchor")) |anchor| {
         anchor(pair_start, psx.weak(Count, "pc_frame_count").?(), 0x15);
     }

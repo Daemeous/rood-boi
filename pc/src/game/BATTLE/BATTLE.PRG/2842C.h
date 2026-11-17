@@ -28,7 +28,7 @@ typedef struct {
     signed char index;
     short modelId;
     void* destination;
-    u_long dataAddr;
+    __UINTPTR_TYPE__ dataAddr; /* the file's data (an address in the heap), or the slot of another loaded object that has it (below 20) */
     vs_battle_objectData_flags placement;
     u_char actorId;
     char unk11;

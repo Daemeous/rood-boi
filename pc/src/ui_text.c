@@ -2533,26 +2533,9 @@ int pc_ui_text_status_quad(const uint16_t* vram, const void* command, int u, int
     return 0;
 }
 
-/* A small-capital word from one of its sprites (`command`: the sprite's
- * command word in guest RAM). vs_battle_renderTextRawColor builds a call's
- * packets one after another: a texture page packet (E1), then a 5-word
- * sprite per character (10 rows of the info style's page, one CLUT, one
- * row), each linked to the next; the last links to what the ordering table
- * held. Anything else (another printer's glyphs, a packet reused since)
- * finds no word: drawn glyph by glyph, as before. */
-#define GUEST_RAM ROOD_GUEST_RAM_BASE
-#define GUEST_RAM_END (ROOD_GUEST_RAM_BASE + ROOD_GUEST_RAM_SIZE)
-static int in_guest_ram(const uint32_t* p, int count)
-{
-    uintptr_t a = (uintptr_t)p;
-    return a >= GUEST_RAM && a % 4 == 0 && a + (uintptr_t)count * 4 <= GUEST_RAM_END;
-}
-static const uint32_t* linked(const uint32_t* p) { return (const uint32_t*)(uintptr_t)(GUEST_RAM | (p[0] & 0xffffff)); }
-static int small_caps_packet(const uint32_t* p, unsigned clut, int y)
-{
-    return in_guest_ram(p, 5) && p[0] >> 24 == 4 && (p[1] >> 24 & 0xfc) == 0x64 && p[3] >> 16 == clut
-        && p[4] >> 16 == 10 && (p[4] & 0xffff) >= 1 && (p[4] & 0xffff) <= 15 && (int16_t)(p[2] >> 16) == y;
-}
+/* A small-capital word from one of its sprites (`command`: the sprite's lowered command): vs_battle_renderTextRawColor makes a call's sprites
+ * as the items of one group (10 rows of the info style's page, one CLUT, one row), drawn from the highest index down. Anything else
+ * (another printer's glyphs) finds no word: drawn glyph by glyph, as before. */
 /* The same for draw items: a call's sprites are the items of one group, drawn from the highest index down. */
 static int small_caps_item(const pc_item* it, unsigned clut, int y)
 {
@@ -2589,35 +2572,7 @@ static int find_word_items(int index, unsigned clut, status_string* s)
 static int find_word(const void* command, unsigned clut, status_string* s)
 {
     int item = pc_frame_command_item(command);
-    if (item >= 0)
-        return find_word_items(item, clut, s);
-    const uint32_t* p = (const uint32_t*)command - 1;
-    if (!in_guest_ram(p, 5))
-        return 0;
-    int y = (int16_t)(p[2] >> 16), back = 0;
-    if (!small_caps_packet(p, clut, y))
-        return 0;
-    while (back++ < STATUS_GLYPHS && small_caps_packet(p - 5, clut, y) && linked(p - 5) == p)
-        p -= 5;
-    const uint32_t* t = p - 2;
-    if (!in_guest_ram(t, 2) || t[0] >> 24 != 1 || t[1] >> 24 != 0xe1 || linked(t) != p)
-        return 0; /* not the start of a call */
-    memset(s, 0, sizeof *s);
-    s->style = PC_UI_TEXT_INFO;
-    s->tpage = t[1] & 0x7ff;
-    for (;;) {
-        if (s->count == STATUS_GLYPHS)
-            return 0; /* (longer than any word: glyph by glyph) */
-        s->glyph[s->count].command = p + 1;
-        s->glyph[s->count].x = (int16_t)(p[2] & 0xffff), s->glyph[s->count].y = y;
-        s->glyph[s->count].u = (int)(p[3] & 255), s->glyph[s->count].v = (int)(p[3] >> 8 & 255);
-        s->glyph[s->count].clut = clut, s->glyph[s->count].w = (int)(p[4] & 0xffff);
-        ++s->count;
-        if (linked(p) != p + 5 || !small_caps_packet(p + 5, clut, y))
-            break;
-        p += 5;
-    }
-    return 1;
+    return item >= 0 && find_word_items(item, clut, s);
 }
 
 static int same_word(const status_string* a, const status_string* b)

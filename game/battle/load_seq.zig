@@ -170,8 +170,8 @@ fn seqOf(p: ?*anyopaque) ?*align(1) v.func_8009C378_t {
     return @ptrCast(p);
 }
 
-fn dataPtr(addr: u32) ?[*]u8 {
-    // psx_to_ptr: the integer zero-extended; address 0 is NULL, which the cursor may hold.
+fn dataPtr(addr: usize) ?[*]u8 {
+    // address 0 is NULL, which the cursor may hold.
     return @ptrFromInt(@as(usize, addr));
 }
 

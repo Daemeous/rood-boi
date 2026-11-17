@@ -4,6 +4,7 @@ const v = @import("views_battle_gte");
 const psx = @import("common").psx;
 const pad = @import("common").pad;
 const gte = @import("common").gte;
+const sprite_item = @import("common").sprite_item;
 
 fn shortAt(base: [*]u8, offset: isize) c_int {
     return psx.byteAt(i16, base, offset).*;
@@ -33,7 +34,7 @@ pub fn drawMenuTargetShape(shape: [*]u8, color_in: c_uint) callconv(.c) void {
     // The light matrix (the composed rotation's five words) and the background colour, as the registers took them.
     const light: [5]c_uint = .{ scratch[0], scratch[1], scratch[2], scratch[3], scratch[4] };
     const background: [3]c_uint = .{ @bitCast(shortAt(shape, 8)), @bitCast(shortAt(shape, 0xa)), @bitCast(shortAt(shape, 0xc)) };
-    const color = color_in | 0x44000000;
+    const color = sprite_item.rgbCode(color_in, 0x44);
     var count: c_uint = @as(c_uint, @as(u16, @bitCast(block.unk32)));
     const divisor: c_int = if (shape[6] < shape[4]) shape[4] else shape[6];
     const bias: c_int = @as(c_int, block.unk20) << 1;

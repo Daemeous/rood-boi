@@ -4,26 +4,6 @@
 #include "pc/src/game/BATTLE/BATTLE.PRG/2842C.h"
 #include "build/src/include/lbas.h"
 
-typedef struct {
-    u_char characterId;
-    u_char weapon;
-    u_char unk2;
-    u_char weaponMaterial;
-    u_char shield;
-    u_char shieldMaterial;
-    u_char defaultMaterial;
-    u_long shpOffset;
-    int shpLen;
-    u_long weaponWepOffset;
-    int wepLen;
-    u_long shieldWepOffset;
-    int shieldWepLen;
-    u_long commonSeqOffset;
-    int commonSeqLen;
-    u_long battleSeqOffset;
-    int battleSeqLen;
-} _zudData_t;
-
 static int _zudLbas[] = { VS_Z003U00_ZUD_LBA, VS_Z003U00_ZUD_LBA, VS_Z003U00_ZUD_LBA,
     VS_Z003U00_ZUD_LBA, VS_Z009U16_ZUD_LBA, VS_Z003U00_ZUD_LBA, VS_Z013U15_ZUD_LBA,
     VS_Z003U00_ZUD_LBA, VS_Z003U00_ZUD_LBA, VS_Z003U00_ZUD_LBA, VS_Z003U00_ZUD_LBA,
@@ -163,7 +143,7 @@ static char _modelVariants[] = { 30, 31, 32, 33, 172, 173 };
 static char _variantMap[] = { 27, 27, 72, 72, 80, 80, 72, 52 };
 
 static vs_main_CdQueueSlot* _zudCdSlot;
-static _zudData_t* _zudData;
+static void* _zudData;
 static void* _zudBuffer;
 static int _modelVariant;
 static int _paletteFlag;
@@ -203,6 +183,7 @@ void vs_menu9_loadZudFile(int id)
 int vs_menu9_parseZudFile(void)
 {
     vs_battle_objectData slot;
+    vs_zud_file zud;
 
     if (_zudCdSlot != NULL) {
         if (_zudCdSlot->state != vs_main_CdQueueStateLoaded) {
@@ -212,14 +193,16 @@ int vs_menu9_parseZudFile(void)
         vs_main_freeCdQueueSlot(_zudCdSlot);
         _zudCdSlot = NULL;
 
+        vs_zud_decode(&zud, _zudData);
+
         slot.dataType = 2;
         slot.index = 1;
-        slot.dataAddr = _zudData->shpOffset + psx_to_int(u_long, _zudData);
-        slot.modelId = _zudData->characterId;
+        slot.dataAddr = (__UINTPTR_TYPE__)zud.shp.data;
+        slot.modelId = zud.characterId;
         slot.destination = _zudBuffer;
         slot.actorId = 0xFF;
         slot.variant = _paletteFlag & 1;
-        slot.material = _zudData->defaultMaterial;
+        slot.material = zud.defaultMaterial;
         vs_battle_populateDataSlot(&slot);
 
         if (_modelVariant != 0) {
@@ -233,44 +216,44 @@ int vs_menu9_parseZudFile(void)
             vs_battle_populateDataSlot(&slot);
         } else {
 
-            if (_zudData->weapon != 0) {
+            if (zud.weapon != 0) {
                 slot.dataType = 4;
                 slot.index = 2;
-                slot.dataAddr = _zudData->weaponWepOffset + psx_to_int(u_long, _zudData);
-                slot.modelId = _zudData->weapon;
+                slot.dataAddr = (__UINTPTR_TYPE__)zud.weaponWep.data;
+                slot.modelId = zud.weapon;
                 slot.destination = _zudBuffer + VS_OBJECT_REGION;
                 slot.actorId = 1;
                 slot.unk11 = 0xF0;
-                slot.material = _zudData->weaponMaterial;
+                slot.material = zud.weaponMaterial;
                 vs_battle_populateDataSlot(&slot);
             }
 
-            if (_zudData->shield != 0) {
+            if (zud.shield != 0) {
                 slot.dataType = 4;
                 slot.index = 3;
-                slot.dataAddr = _zudData->shieldWepOffset + psx_to_int(u_long, _zudData);
-                slot.modelId = _zudData->shield;
+                slot.dataAddr = (__UINTPTR_TYPE__)zud.shieldWep.data;
+                slot.modelId = zud.shield;
                 slot.destination = _zudBuffer + VS_OBJECT_REGION + sizeof(vs_battle_wepModels_t);
                 slot.actorId = 1;
                 slot.unk11 = 0xF1;
-                slot.material = _zudData->shieldMaterial;
+                slot.material = zud.shieldMaterial;
                 vs_battle_populateDataSlot(&slot);
             }
         }
 
-        if (_zudData->battleSeqLen != 0) {
+        if (zud.battleSeq.size != 0) {
             slot.dataType = 8;
             slot.index = 1;
-            slot.dataAddr = _zudData->battleSeqOffset + psx_to_int(u_long, _zudData);
+            slot.dataAddr = (__UINTPTR_TYPE__)zud.battleSeq.data;
             slot.actorId = 0;
-            slot.modelId = _zudData->unk2;
+            slot.modelId = zud.weaponCategory;
             vs_battle_populateDataSlot(&slot);
         }
 
-        if (_zudData->commonSeqLen != 0) {
+        if (zud.commonSeq.size != 0) {
             slot.dataType = 8;
             slot.index = 1;
-            slot.dataAddr = _zudData->commonSeqOffset + psx_to_int(u_long, _zudData);
+            slot.dataAddr = (__UINTPTR_TYPE__)zud.commonSeq.data;
             slot.actorId = 0;
             slot.modelId = 0;
             vs_battle_populateDataSlot(&slot);

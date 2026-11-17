@@ -153,7 +153,7 @@ pub fn parseShp(object: *v.vs_battle_objectData) callconv(.c) c_int {
         var queued: v.vs_battle_objectData = undefined;
         queued.dataType = 8;
         queued.index = object.index;
-        queued.dataAddr = psx.addr(@as(?*u8, @ptrFromInt(data)));
+        queued.dataAddr = data;
         queued.modelId = 0xFF;
         queued.actorId = 0;
         _ = c._loadSeq(@ptrCast(&queued));

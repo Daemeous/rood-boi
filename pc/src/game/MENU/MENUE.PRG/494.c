@@ -10,7 +10,6 @@
 #include "lbaMacros.h"
 #include "build/src/include/lbas.h"
 #include "vs_string.h"
-#include "insertTPage.h"
 #include "pc/src/game/menuItem.h"
 #include <libetc.h>
 #include <stdio.h>

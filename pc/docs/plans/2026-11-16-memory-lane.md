@@ -162,7 +162,7 @@ one game at a time.
 | S4a | The 8 `psx_ptr` fields and 38 accesses to native pointers or offsets (S6 prerequisites first where the field is in a file struct) | lint `guest_pointer_*` 0; gate | 3-4 d |
 | S4 | Heap to its own arena (done as the first form, measured): the game heap's arena left the PS1's 2 MB block for 0x80200000, the same allocator, size and offsets from the arena start (heap report equal). It stays in the 16 MB window (0x80000000..) and below 4 GB: the ordering tables and primitive buffers are allocated from this heap (INITBTL, vs_field_finishRoomLoad) and the game's 24-bit links cannot name another address, so the arena leaves the window, and the `psx_addr` 4 GB limit and the low stack go, only after T4 (frames as data) or when those buffers get a separate allocator. Layout table: memory_layouts/s4-heap-arena.tsv | determinism_smoke, snapshot, heap report, fight, menus | 0.5 d measured |
 | S5 | `address_as_integer` 195: packet words stay (T4), file offsets move to S6, the rest to typed pointers | lint count | 3 d |
-| S6 | File decoders, one format per commit: MPD sections, SHP, SEQ, WEP, ARM, ZND, effect P-files, menu data, saves (T22). Native struct filled from bytes; payload kept raw where the renderer wants it. 15 formats or so | gate per format; rooms lane, spells lane; for formats a room test (a room load compared by `rood_rpc` before and after) | 25-35 d |
+| S6 | File decoders, one format per commit: WEP (done 2026-11-17, with the port arena), ZUD with the object queue's file address widened (done 2026-11-17), then SHP and SEQ loaders, ZND/MPD tables, the effect P-file's spawn fields, ARM, menu data, saves (T22). Native struct filled from bytes; payload kept raw where the renderer wants it. Design and survey: section 3.3 | gate per format; rooms lane, spells lane, 13 menu routes with the story scenes, GI replay, classic_parity, determinism, snapshot, rewind, Windows | measured: 12 and 20 agent minutes of work for the first two (easy ones), 2.5 h of proof each (one lane at a time); re-estimate in 3.3 |
 | S7 | Globals by group (2.4), the 301 pinned: first the unsized-array and overlap groups with real extents, then the plug-in slot with T10, then the pointed-at ones after their decoder | lint `pinned_import` per group; gate | 10-14 d |
 | S8 | `ownership.toml` keyed by name; `imports.ld`, reference ELF address checks (T11) | build links; hotswap smokes | 3 d |
 | S9 | Delete the RAM block: `map_guest`, `ROOD_GUEST_RAM_*`, slot addresses, `rood_null_page` (guards at the NULL-TABLE sites), the low stack address | lint `ps1_address` 0; gate; full lane once | 3-4 d |
@@ -239,6 +239,64 @@ What this changes in the estimates above (S5 onward are still guesses, now with 
   ordering-table buffers: 2 to 3 days after S5.
 - The navigation slots in the scratchpad (60 sites, guest pointers mirroring 32-bit globals) wait for the T15 pointer
   globals (D_800F58xx): 2 days after those are widened.
+
+### 3.3 S6 design (2026-11-17): what a decoder is here, and the first formats
+
+Survey (read before choosing; all from the tree at memory-2's head):
+
+- The 14 pinned imports in the group "a pointer word in a game file points into it" are false positives for S6: the
+  detector (`pointed_into` in `build_boot.py`) scans words of the EXE, the PRGs and EFFECT/*.BIN for anything that looks like a RAM
+  address, and what it finds are static pointer tables inside overlay data (BATTLE.PRG 0x835ac: the four school spell-id
+  pointers; `_uiTable`, `_saveMenuBg_clut`, `vs_main_inventoryIndices`, ...). They are T15 data, **S7's**, not file formats; freeing
+  them needs the pointer tables made native, not a decoder.
+- The container level of ZND, MPD, SHP and the P-file is already decoded by copy into native structs with native pointers
+  (`load_znd_*`, `loadMpd*Section`, `parseShp`, `bindEffectPackageBlocks`): there is little to decode there. What is left in S6 is
+  (a) the cursors that carry a file address in a 32-bit field (`vs_battle_objectData.dataAddr`, the effect spawn fields), and
+  (b) in-place use of file bytes: SEQ is a delta-stream the animation code walks with an offset kept in 16-bit actor fields,
+  MPD geometry and room texture frames poke polygons by offset. (b) are views (S1) or a redesign of playback, not a decode, and
+  are last.
+- So the order is by self-contained size: WEP (one reader, two passes, a cursor in a pinned global), then ZUD (the enemy
+  package: two readers of the same header, in battle and in MENU9, feeding `dataAddr`), then the rest of the `dataAddr`
+  loaders (SHP, SEQ), then the P-file spawn fields.
+
+What a decoder is:
+
+1. The file's bytes are read once, by one function per format (`game/battle/<format>_file.zig`, `decode(at)`), which holds the format's layout as
+   its header comment and returns a native record. Nothing else reads the layout.
+2. The record holds the fields as native types and, for the payload the renderer or `LoadImage` wants raw (polygons, palettes,
+   textures, bone info), 64-bit pointers into the raw buffer. The raw buffer stays in the game heap exactly as the original allocated
+   and freed it: **a decoder never takes or releases a block the original allocates**, so the heap's allocation sequence is the
+   original's. Where the original made a copy of part of the file in the heap (the WEP offsets block, `allocHeap(size)`), the copy is still made:
+   the game's allocator pattern is the claim, and the copy is what the renderer reads.
+3. The record lives in the port arena (`game/common/port_arena.zig`, `ROOD_PORT_BASE` 0x80300000, 0x40000 bytes in the 16 MB window
+   beside the heap's arena). A header (bump offset, high-water mark, 8 root slots, 64 size-class free lists, offsets only), then 16-byte units.
+   Each decoded format owns a root slot: `put` frees what the root held and allocates the new record, `clear` frees it, so an aborted load
+   cannot leak and the arena does not grow with play time. Objects are at most 1 KB (a decoder of a larger table splits it); allocation failure
+   returns null and the loader fails as the game's own allocation failures do.
+4. Snapshot and rewind: the arena is a snapshot range ("port", after "io"; saved whole, so the capacity is a deliberate constant), so
+   the Oracle digest, `snapshot_resume` and the in-process rewind carry the records; pointers into the heap stay valid because both arenas
+   are at fixed addresses. Sizing: the records are tens to hundreds of bytes (WEP 64); 256 KB holds every decoded format of the plan with room
+   (a zone's MPD table is a few KB); raising it is a change of `ROOD_PORT_SIZE` in `psx_types.h` and `psx.zig` and takes old snapshots with it.
+   The arena may later leave the window (pointers in it are 64-bit); it is inside now because the window is already mapped.
+5. Users switch over format by format: the decode function is called where the loader first touches the bytes, and every
+   later reader takes the record. The old cursor globals go (`_wepFileEpilog` is the first). Layout tables: `memory_layouts/s6-*.tsv`.
+
+Measured (2026-11-17, one worker): the port arena and WEP, from a cut-off draft: 12 minutes to review, redo the allocator and the
+snapshot range order, build and commit; ZUD plus widening `dataAddr`: 20 minutes (one build error class: a static inline in a header is not
+shareable with Zig, so the decoder is a plain function in 146C.c; a stray `sed` on `unk2` in a shared header, caught by the build). The proof is the
+cost: the lanes in order are fight x2 (35 s each), 8 rooms (3 min), casts (2.5 min), 13 menu routes (9 min), GI replay (5 min), the smokes
+(4 min), classic_parity (25 min), Windows (4 min, in parallel): about 55 minutes of wall time with one game at a time, about 80 with parity.
+So a format is about 1.5 hours of wall time when its change is a decoder of a header or a cursor, whatever its size, and the proof
+dominates. The remaining formats by kind: loaders of the same shape (SHP's pass 0/1 cursor, the effect spawn fields, ZND/MPD tables):
+about half a day each with proof; SEQ (a delta stream walked in place, offsets kept in 16-bit actor fields) and MPD geometry/room texture
+frames (polygon pokes by offset): a day each, and they are S1 views work as much as decoding. About 8 formats of the first kind and 3 of
+the second: roughly 7-9 days, not 25-35.
+Not covered by any lane or suite: the ENEMY menu's ZUD load (MENU9, `vs_menu9_parseZudFile`), which runs only with the classic menus
+(ui_menus off), the Bestiary and Circle on an unlocked foe (ui_score_smoke checks that the native screen does not load one). It was
+compared by hand for ZUD: all 78 foes set unlocked, the first 12 opened in turn on main and on the new build, and the preview actor's bone count,
+model id and the weapon and shield slots' bones and models printed after each load: 12 of 12 equal (including foes with a weapon, a shield, both, and
+two-part models). The probe is pc/tools/bestiary_zud_probe.py (it drives ui_score_smoke's Session; run it on both builds with ROOD_BINARY and ROOD_SYMBOLS and diff). The battle spawn path, which uses the
+same decoder, is covered by every fight and room lane.
 
 ## 4. What breaks when layouts change
 

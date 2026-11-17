@@ -217,10 +217,9 @@ void pc_frame_anchor_markers(const void* start, const void* end, int anchor);
 void pc_frame_opacity(int first, int end, int opacity);
 /* A horizontal line item drawn as one row of a filled shape (the area map's floor): the shape it has, as gpu_hw.c draws it at upscale. */
 void pc_frame_span(int item, int length, float top_left, float top_right, float bottom_left, float bottom_right);
-/* A DR_MOVE the game built (SetDrawMove) and appends to the end of the top slot of the table (vs_render_appendOverlayPrimitive): its
- * copy becomes a PC_ITEM_COPY item, a marker is spliced where the packet would have linked, drawn after what the slot holds. A packet
- * that is not a copy (no size) is spliced as it is. */
-void pc_frame_copy_tail(unsigned* top, unsigned* packet);
+/* A copy of the VRAM rectangle `rect` (x, y, w, h: four shorts) to (x, y), drawn after what the top slot of the frame's table holds (the effects' texture
+ * moves): a PC_ITEM_COPY item placed at the end of that slot by a marker made at `packet`. A copy with no size draws nothing. */
+void pc_frame_move(unsigned* packet, const short* rect, int x, int y);
 /* Draws the frame's items in order: what DrawOTag did for a table. */
 void pc_frame_draw(void);
 /* Links a marker for items [first, first + count) at the head of `*ot_entry`

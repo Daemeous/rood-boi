@@ -87,10 +87,8 @@ typedef struct {
     unsigned w[PC_CLASSIC_PACKET_WORDS];
 } pc_classic_packet;
 
-/* How the walker reads guest memory: a link (24 bits) as a pointer to its
- * packet's tag word (NULL: the end), and a packet's anchor. */
+/* How the walker reads a packet: its anchor. */
 typedef struct {
-    const unsigned* (*resolve)(unsigned link, void* user);
     int (*anchor)(const unsigned* tag, void* user);
     void* user;
 } pc_classic_walker;
@@ -99,10 +97,8 @@ typedef struct {
 pc_classic_walker pc_classic_guest(void); /* (made at the call: no host data points at the
                                               * engine library's functions, which reload in place) */
 
-/* The packets of [lo, hi) linked from the slot `head` (a tag word: its link
- * is the first packet), in drawing order: followed while they lie in the
- * range (the site's packets are linked at the slot's head, so the first one
- * outside it ends them). Returns how many went into out (at most max). */
+/* The runs placed at the slot `head` whose markers lie in [lo, hi) (the frame's tables hold no links: a screen is items a marker
+ * places at a slot), in drawing order, as the packets they lower to. Returns how many went into out (at most max). */
 int pc_classic_walk(const pc_classic_walker* walker, const unsigned* head, const void* lo, const void* hi,
     pc_classic_packet* out, int max);
 /* ROOD_CLASSIC_ITEMS=1 (dev): the claims of sites the game draws as packets draw as items too, so a display
@@ -120,8 +116,7 @@ int pc_classic_scan(const pc_classic_walker* walker, const void* lo, const void*
  * nothing drawn after them changes (a packet of a draw mode and a sprite, as
  * the game's sprites are, draws: it goes); how many. */
 int pc_classic_suppress(void* lo, void* hi);
-/* The same for the packets of [lo, hi) linked from an ordering-table slot (head), by the links: what the
- * allocation walk cannot reach past a packet shorter than its allocation. */
+/* The same for the runs placed at an ordering-table slot (head) whose markers lie in [lo, hi). */
 int pc_classic_suppress_linked(const unsigned* head, void* lo, void* hi);
 
 /* A word's field ("code", "colour", "xy", "uv", "clut", "tpage", "wh",

@@ -28,7 +28,6 @@
 #include "build/assets/MENU/MENU9.PRG/timeAttackDescriptions.h"
 #include "build/assets/MENU/MENU9.PRG/miscInfo.h"
 #include "build/src/include/lbas.h"
-#include "insertTPage.h"
 #include "vs_string.h"
 #include "gpu.h"
 #include "pc/src/game/menuItem.h"

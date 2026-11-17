@@ -28,9 +28,9 @@ pub fn func_800CD158(id: c_int) callconv(.c) void {
     while (i < count) : (i += 1) { // i < count <= 16
         var brightness: c_uint = ((count - i) * 128) / (count + 1);
         const page: c_uint = (@as(c_uint, @bitCast(offset + 256)) >> 6) | 0x100;
-        _ = sprite_item.sprite(ot, @bitCast(brightness), (y << 16) | 256, 0x10040, @bitCast(page | 0xE1000000), y << 8);
+        _ = sprite_item.sprite(ot, @bitCast(brightness), (y << 16) | 256, 0x10040, sprite_item.pageMode(page), y << 8);
         const page2: c_uint = (@as(c_uint, @bitCast(offset)) >> 6) | 0x100;
-        _ = sprite_item.sprite(ot, @bitCast(brightness), y << 16, 0x10100, @bitCast(page2 | 0xE1000000), y << 8);
+        _ = sprite_item.sprite(ot, @bitCast(brightness), y << 16, 0x10100, sprite_item.pageMode(page2), y << 8);
         brightness = page2;
         if (y < 128) {
             y -%= 1;

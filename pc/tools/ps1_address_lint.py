@@ -26,7 +26,7 @@ TREES = [("pc/src", C_SUFFIXES), ("game", C_SUFFIXES | {".zig"})]
 SKIP = ("pc/src/third_party/",)
 # Python tools and tests: only the rules of PY_RULES count there (and only they, not the C ones, count in C)
 PY_TREES = [("pc/tools", {".py"}), ("pc/tests", {".py"})]
-RAW_API_TESTS = ("pc/tests/rpc_smoke.py", "pc/tests/ownership_smoke.py", "pc/tests/zig_hotswap_smoke.py", "pc/tests/layout_smoke.py")
+RAW_API_TESTS = ("pc/tests/rpc_smoke.py", "pc/tests/ownership_smoke.py", "pc/tests/zig_hotswap_smoke.py", "pc/tests/layout_smoke.py", "pc/tests/port_arena_smoke.py")
 PY_RULES = {
     # host reads of game memory by address (memory lane S2): the symbol table of nm (`symbols()`), reads and writes at an
     # address (`g.read(`, `game.write(`, `.read(0x...)`), `read_symbol`, the pc_*_offset_* helpers, and address constants.

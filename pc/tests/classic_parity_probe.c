@@ -19,46 +19,35 @@ static int failures;
         }                                                                                                              \
     } while (0)
 
-/* Guest memory: links are word offsets into `ram` from BASE. */
-#define BASE 0x100000u
+/* Guest memory: an arena of packets one after another (the frame's tables hold no links). */
 static unsigned ram[1024];
-static unsigned link_of(const unsigned* p) { return BASE + (unsigned)(p - ram) * 4; }
-static const unsigned* resolve(unsigned link, void* user)
-{
-    (void)user;
-    link &= 0xFFFFFF;
-    if (link == 0xFFFFFF || link < BASE || link >= BASE + sizeof ram)
-        return NULL;
-    return &ram[(link - BASE) / 4];
-}
 static int anchor_value = 1;
 static int anchor(const unsigned* tag, void* user)
 {
     (void)tag, (void)user;
     return anchor_value;
 }
-static const pc_classic_walker walker = { resolve, anchor, NULL };
+static const pc_classic_walker walker = { anchor, NULL };
 
-/* A packet of n words at *at, linked at the head of slot (prepended), as AddPrim. */
-static unsigned* add(unsigned** at, unsigned* slot, int n)
+/* A packet of n words at *at; returns its words. */
+static unsigned* add(unsigned** at, int n)
 {
     unsigned* p = *at;
-    p[0] = (*slot & 0xFFFFFF) | ((unsigned)n << 24);
-    *slot = link_of(p) & 0xFFFFFF;
+    p[0] = (unsigned)n << 24;
     *at = p + 1 + n;
     return p + 1;
 }
 
-/* "SLOW!" as vs_battle_renderTextRawColor builds it: a chain, not AddPrim per glyph. */
-static unsigned* print(unsigned* at, unsigned* slot, int x, int y, unsigned colour)
+/* "SLOW!" as vs_battle_renderTextRawColor builds it: a draw mode, a sprite per glyph and a zero-length tail. */
+static unsigned* print(unsigned* at, int x, int y, unsigned colour)
 {
     static const int u[5] = { 172, 140, 168, 200, 4 }, w[5] = { 7, 7, 8, 9, 3 };
-    unsigned *first = at, *p = at;
-    p[0] = (link_of(p + 2) & 0xFFFFFF) | 0x01000000u;
+    unsigned* p = at;
+    p[0] = 0x01000000u;
     p[1] = 0xE100000Cu;
     p += 2;
     for (int i = 0; i < 5; i++) {
-        p[0] = (link_of(p + 5) & 0xFFFFFF) | 0x04000000u;
+        p[0] = 0x04000000u;
         p[1] = colour | 0x64000000u;
         p[2] = (unsigned)(x & 0xFFFF) | (unsigned)y << 16;
         p[3] = (unsigned)u[i] | 76u << 8 | 0x37F60000u;
@@ -66,8 +55,7 @@ static unsigned* print(unsigned* at, unsigned* slot, int x, int y, unsigned colo
         p += 5;
         x += w[i];
     }
-    *p = *slot & 0xFFFFFF; /* the tail: the slot's old head */
-    *slot = link_of(first) & 0xFFFFFF;
+    *p = 0; /* the tail: no length */
     return p + 1;
 }
 
@@ -75,30 +63,28 @@ int main(void)
 {
     pc_classic_packet game[32], lua[32], again[32];
     pc_classic_diff d;
-    unsigned slot = 0xFFFFFF, shadow = 0xFFFFFF;
 
-    /* something older in the slot first (outside the range) */
+    /* something older in the arena first (outside the range) */
     unsigned* at = ram;
-    unsigned* old = add(&at, &slot, 3);
+    unsigned* old = add(&at, 3);
     old[0] = 0x60404040u, old[1] = 0, old[2] = 0x00100010u;
     unsigned* lo = at;
-    unsigned* hi = print(at, &slot, 44, 48, 0x408040u);
-    int n = pc_classic_walk(&walker, &slot, lo, hi, game, 32);
+    unsigned* hi = print(at, 44, 48, 0x408040u);
+    int n = pc_classic_scan(&walker, lo, hi, game, 32);
     CHECK(n == 6); /* the draw mode and five glyphs: the tail and the older packet left out */
     CHECK(game[0].words == 1 && game[0].w[0] == 0xE100000Cu);
     CHECK(game[1].words == 4 && (game[1].w[0] >> 24) == 0x64 && game[1].w[1] == (44u | 48u << 16));
     CHECK(game[5].w[1] == ((44u + 7 + 7 + 8 + 9) | 48u << 16));
     CHECK(game[2].anchor == 1 && game[0].at == 0 && game[1].at == 2);
 
-    /* the round trip: each kept packet emitted again elsewhere (last first, linked at a shadow
-     * slot's head, as a classic draw does) and walked equal */
+    /* the round trip: each kept packet emitted again elsewhere and read equal */
     unsigned* lo2 = ram + 512;
     at = lo2;
-    for (int i = n - 1; i >= 0; i--) {
-        unsigned* p = add(&at, &shadow, game[i].words);
+    for (int i = 0; i < n; i++) {
+        unsigned* p = add(&at, game[i].words);
         memcpy(p, game[i].w, sizeof(unsigned) * game[i].words);
     }
-    int m = pc_classic_walk(&walker, &shadow, lo2, at, lua, 32);
+    int m = pc_classic_scan(&walker, lo2, at, lua, 32);
     CHECK(m == n);
     CHECK(pc_classic_compare(game, n, lua, m, &d) == 0 && d.index == -1 && d.fields == 0);
 
@@ -142,7 +128,7 @@ int main(void)
 
     /* emit-only suppression: the glyphs become no-ops, the draw mode stays; the walk then sees only it */
     CHECK(pc_classic_suppress(lo, hi) == 5);
-    CHECK(pc_classic_walk(&walker, &slot, lo, hi, again, 32) == 1 && again[0].w[0] == 0xE100000Cu);
+    CHECK(pc_classic_scan(&walker, lo, hi, again, 32) == 1 && again[0].w[0] == 0xE100000Cu);
     /* a sprite packet as the game's (its draw mode, then the sprite) draws: it goes too */
     unsigned* sp = ram + 900;
     sp[0] = 0x05000000u, sp[1] = 0xE100000Cu, sp[2] = 0x64808080u, sp[3] = 0x000A000Au, sp[4] = 0x37F60090u,
@@ -151,21 +137,19 @@ int main(void)
 
     /* what the GPU never reads is normalised away: a raw quad's colour (vs_battle_drawValueLabelCaption's stat icon leaves the
      * buffer's) and a POLY_FT4's pads after its last two texel pairs; a modulated quad's colour still counts */
-    unsigned q0 = 0xFFFFFF, q1 = 0xFFFFFF, *qa = ram + 940, *qb = ram + 960;
-    unsigned* qp = add(&qa, &q0, 9);
-    unsigned* qq = add(&qb, &q1, 9);
+    unsigned *qa = ram + 940, *qb = ram + 960;
+    unsigned* qp = add(&qa, 9);
+    unsigned* qq = add(&qb, 9);
     static const unsigned quad[9] = { 0x2D123456u, 0x00100010u, 0x37BC0010u, 0x00100018u, 0x001C0018u, 0x001C0010u,
         0xBEEF1C10u, 0x001C0018u, 0xF00D1C18u };
     memcpy(qp, quad, sizeof quad);
     memcpy(qq, quad, sizeof quad);
     qq[0] = 0x2D000000u, qq[6] &= 0xFFFFu, qq[8] &= 0xFFFFu;
     pc_classic_packet qg[1], ql[1];
-    CHECK(pc_classic_walk(&walker, &q0, ram, ram + 1024, qg, 1) == 1
-        && pc_classic_walk(&walker, &q1, ram, ram + 1024, ql, 1) == 1);
+    CHECK(pc_classic_scan(&walker, qp - 1, qp + 9, qg, 1) == 1 && pc_classic_scan(&walker, qq - 1, qq + 9, ql, 1) == 1);
     CHECK(pc_classic_compare(qg, 1, ql, 1, &d) == 0);
     qp[0] = 0x2C123456u, qq[0] = 0x2C000000u; /* (modulated: its colour drawn) */
-    CHECK(pc_classic_walk(&walker, &q0, ram, ram + 1024, qg, 1) == 1
-        && pc_classic_walk(&walker, &q1, ram, ram + 1024, ql, 1) == 1);
+    CHECK(pc_classic_scan(&walker, qp - 1, qp + 9, qg, 1) == 1 && pc_classic_scan(&walker, qq - 1, qq + 9, ql, 1) == 1);
     CHECK(pc_classic_compare(qg, 1, ql, 1, &d) == 1 && d.field == PC_CLASSIC_FIELD_COLOUR);
 
     /* the dump */

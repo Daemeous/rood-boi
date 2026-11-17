@@ -861,6 +861,9 @@ static void run_game_on_low_stack(void)
  * when a range is taken. */
 /* See psx_types.h: where the game's reads through the original's NULLs land. */
 unsigned char rood_null_page[0x10000] __attribute__((aligned(16)));
+/* The port arena's place, for game/common/port_arena.zig (the one definition is psx_types.h's). */
+const uintptr_t rood_port_base = ROOD_PORT_BASE;
+const unsigned rood_port_size = ROOD_PORT_SIZE;
 
 static void* map_guest(uintptr_t address, size_t size)
 {

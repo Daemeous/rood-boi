@@ -40,7 +40,7 @@ static struct {
         const void* packet;
         const uint32_t* entry; /* the table entry it is placed at */
         int first, count;
-        int tail; /* appended at the end of the slot's chain (pc_frame_copy_tail), not at its head */
+        int tail; /* appended at the end of the slot's chain (pc_frame_move), not at its head */
     } markers[ITEMS];
     int marker_count;
     struct {
@@ -912,7 +912,7 @@ static const unsigned* immediate_build(int first)
             n += lengths[k];
         }
     }
-    immediate_packet[0] = (unsigned)n << 24 | 0x00ffffffu;
+    immediate_packet[0] = (unsigned)n << 24;
     return n ? immediate_packet + 1 + last : NULL;
 }
 const void* pc_frame_immediate_command(int first) { return immediate_build(first); }
@@ -922,7 +922,7 @@ void pc_frame_immediate_words(const unsigned* words, int n)
     if (n > 16)
         n = 16;
     memcpy(packet + 1, words, (size_t)n * sizeof *words);
-    packet[0] = (unsigned)n << 24 | 0x00ffffffu;
+    packet[0] = (unsigned)n << 24;
     DrawPrim(packet);
 }
 void pc_frame_immediate_run(int first)
@@ -943,7 +943,7 @@ void pc_frame_immediate_run(int first)
             }
         }
         (void)last;
-        immediate_packet[0] = (unsigned)words_n << 24 | 0x00ffffffu;
+        immediate_packet[0] = (unsigned)words_n << 24;
         if (words_n)
             DrawPrim(immediate_packet);
     }
@@ -999,7 +999,7 @@ static void draw_run(int first, int count)
         } else if (textured_poly && mode >= 0)
             mode = (mode & ~0x1ff) | (it->mode & 0x1ff);
         unsigned words = lower(it, at + 3);
-        at[2] = (words << 24) | 0xffffffu;
+        at[2] = words << 24;
         pc_frame_drawing_hidden = (it->flags & PC_ITEM_HW_HIDDEN) != 0; /* (boot_runtime.c draw_packet leaves it out of the hardware picture) */
         pc_draw_item_packet(at + 2);
         pc_frame_drawing_hidden = 0;
@@ -1067,33 +1067,30 @@ int pc_frame_run_pages(int first, int count, unsigned current, int (*wanted)(uns
     return 0;
 }
 
-void pc_frame_copy_tail(unsigned* top, unsigned* packet)
+extern void* vs_render_legacyCurrentOrderingTable __attribute__((weak));
+void pc_frame_move(unsigned* packet, const short* rect, int x, int y)
 {
-    /* (SetDrawMove's words: the tag with the length 5, then the cache clear and the copy command, source, destination, size) */
-    if ((packet[0] >> 24) == 5 && packet[1] == 0x01000000u && packet[2] == 0x80000000u) {
-        int first = pc_item_frame.count;
-        pc_item* it = pc_frame_add(PC_ITEM_COPY, 0);
-        if (it) {
-            it->mode = PC_ITEM_INHERIT;
-            it->x[0] = (int16_t)packet[3], it->y[0] = (int16_t)(packet[3] >> 16);
-            it->x[1] = (int16_t)packet[4], it->y[1] = (int16_t)(packet[4] >> 16);
-            it->w = (int16_t)packet[5], it->h = (int16_t)(packet[5] >> 16);
-            it->flags |= PC_ITEM_PLACED;
-            if (marker_count < ITEMS)
-                markers[marker_count].packet = packet, markers[marker_count].entry = top, markers[marker_count].first = first,
-                markers[marker_count].count = 1, markers[marker_count++].tail = 1;
-            packet[0] = 3u << 24;
-            packet[1] = MARKER;
-            packet[2] = (uint32_t)first & 0xffffff;
-            packet[3] = 1;
-            return; /* (placed at the end of the slot, not linked) */
-        }
-    }
-    { /* a packet that is no copy: nothing draws it (the tripwire, as pc_frame_table_check's) */
-        static int told;
-        if (!told++)
-            fprintf(stderr, "[ot] a raw packet is linked in a table: appended at the end of the top slot, %u words (%08x)\n", packet[0] >> 24, packet[1]);
-    }
+    /* the copy of the rectangle (x, y, w, h: rect[0..3]) to (x, y), an item drawn after what the top slot of the frame's table holds; a copy with
+     * no size draws nothing. `packet` is the four words of memory its marker takes (a DR_MOVE's room: the cursor moves past it). */
+    if (!rect[2] || !rect[3] || !&vs_render_legacyCurrentOrderingTable)
+        return;
+    uint32_t* top = (uint32_t*)((char*)vs_render_legacyCurrentOrderingTable + 0x2084);
+    int first = pc_item_frame.count;
+    pc_item* it = pc_frame_add(PC_ITEM_COPY, 0);
+    if (!it)
+        return;
+    it->mode = PC_ITEM_INHERIT;
+    it->x[0] = rect[0], it->y[0] = rect[1];
+    it->x[1] = (int16_t)x, it->y[1] = (int16_t)y;
+    it->w = rect[2], it->h = rect[3];
+    it->flags |= PC_ITEM_PLACED;
+    if (marker_count < ITEMS)
+        markers[marker_count].packet = packet, markers[marker_count].entry = top, markers[marker_count].first = first,
+        markers[marker_count].count = 1, markers[marker_count++].tail = 1;
+    packet[0] = 3u << 24;
+    packet[1] = MARKER;
+    packet[2] = (uint32_t)first & 0xffffff;
+    packet[3] = 1;
 }
 
 /* The marker packets placed at `entry` that lie in [lo, hi) of packet memory, in the order the table draws them (the head's: the last

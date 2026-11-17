@@ -1,0 +1,7 @@
+# S6, second format (ZUD): the enemy package decoded, and the object queue's file address widened (state item, old location, new location, size, note)
+# item	old	new	size	note
+vs_battle_objectData.dataAddr	+0x10, u_long (4 bytes): the file's data address in the heap, or the slot of another loaded object that has it (below 20)	+0x10, 8 bytes (pointer-sized integer, __UINTPTR_TYPE__): the data's address, or the slot (below 20)	4 -> 8	the loaders keep reading it as one value; the heap is below 4 GB today, so the values equal the old ones zero-extended (a heap above 4 GB no longer truncates)
+vs_battle_objectData.placement	+0x14	+0x18	4	moved by the widening
+vs_battle_objectData.actorId, unk11, material, variant	+0x18, +0x19, +0x1A, +0x1B	+0x1C, +0x1D, +0x1E, +0x1F	1 each	moved by the widening
+vs_battle_objectData (whole)	0x20 (0x1C padded to 8)	0x20	32	the object data queue's slots (vs_battle_objectDataSlots) keep their size and count
+ZUD header, battle view zudHeader (146C.c) and menu view _zudData_t (MENU9 592C.c)	the file's 0x30 bytes cast in place, offsets added to the file's address in 32 bits at each use (6 sites)	vs_zud_file (146C.h), filled by vs_zud_decode (146C.c) from the bytes; each part is {pointer into the raw file, size}	32 on the stack of the caller	both readers call the one decoder; the file stays raw in its heap buffer (allocated and freed by the callers as before), so the game heap's allocation sequence is unchanged; no record is kept (the header is 0x30 bytes, decoded where it is read), so nothing new in the port arena

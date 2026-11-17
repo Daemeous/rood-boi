@@ -500,6 +500,10 @@ def suites(args, mode="egl"):
                       "enemy in their compressed boxes on every landing frame; the area-targeting floor "
                       "fill drawn projected (no bands beside it) with smooth edges")]
           if args.save.exists() else []),
+        *([Suite("port_arena_smoke", [PY, str(TESTS / "port_arena_smoke.py"), "--card", str(args.save)], 300,
+                 note="memory lane S6: the port arena is a snapshot range, holds the decoded weapon file's header "
+                      "and nothing left over, and a rewind restores it")]
+          if args.save.exists() else []),
         *([Suite("weapon_slots_smoke", [PY, str(TESTS / "weapon_slots_smoke.py"), "--card", str(args.save)], 300,
                  note="QoL weapon slots: off = the game's L2 overlay; swaps, assign mode, shields, D-pad, drawn; "
                       "the mod's save bytes survive a save and reload")]

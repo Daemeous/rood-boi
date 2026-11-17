@@ -2,19 +2,11 @@
 const psx = @import("common").psx;
 const v = @import("views_30DB0");
 const c = @import("c_30DB0");
+const wep_file = @import("wep_file.zig");
 
 /// The C calls memcpy and memset without a prototype: an int size goes as its 32 bits, zero-extended.
 const Memcpy = *const fn (?*anyopaque, ?*const anyopaque, usize) callconv(.c) ?*anyopaque;
 const Memset = *const fn (?*anyopaque, c_int, usize) callconv(.c) ?*anyopaque;
-
-/// The guest pointer `data` advanced by a C int (pointer arithmetic: sign-extended).
-inline fn advance(data: usize, n: c_int) usize {
-    return data +% @as(usize, @bitCast(@as(isize, n)));
-}
-
-inline fn readInt(data: usize) c_int {
-    return @as(*align(1) const c_int, @ptrFromInt(data)).*;
-}
 
 inline fn byte(data: usize) *u8 {
     return @ptrFromInt(data);
@@ -49,7 +41,7 @@ pub fn parseWep(object: *v.vs_battle_objectData) callconv(.c) c_int {
         }
         if (model.?.nBones != 0) return -3;
 
-        if (psx.addr(@as(?*u8, @ptrFromInt(data))) < 20) {
+        if (data < 20) {
             next = .copy_slot;
         } else {
             var found = false;
@@ -75,7 +67,7 @@ pub fn parseWep(object: *v.vs_battle_objectData) callconv(.c) c_int {
             }
         }
     } else if (pass.* == 1) {
-        data = @intFromPtr(v.g._wepFileEpilog().*);
+        data = @intFromPtr((wep_file.current() orelse return -2).bone_info);
         texV = 0xE0;
         next = .fix_prims;
     }
@@ -83,7 +75,7 @@ pub fn parseWep(object: *v.vs_battle_objectData) callconv(.c) c_int {
     switch (next) {
         .copy_slot => {
             const m = model.?;
-            const slot: u32 = psx.addr(@as(?*u8, @ptrFromInt(data)));
+            const slot: usize = data;
             c.vs_main_memcpy(m, models[slot], @sizeOf(v.vs_battle_wepModels_t));
             if (m.texSlot != 0xFF) {
                 const textures = v.g.vs_battle_wepTextures();
@@ -141,6 +133,7 @@ pub fn parseWep(object: *v.vs_battle_objectData) callconv(.c) c_int {
                 }
             }
             _ = memcpy(&m.unkBoneInfo, @ptrFromInt(data), intBits(@as(c_int, m.nBones) * 8));
+            wep_file.release();
             c._loadMaterialPalette(object.index, object.material);
             m.unk11 = 64;
             psx.setBits(m, "unk8_4", 0);
@@ -157,12 +150,9 @@ pub fn parseWep(object: *v.vs_battle_objectData) callconv(.c) c_int {
 
     // A pass other than 0 and 1 parses into the slot as it is (null: the C crashes on it).
     const m = model.?;
-    data = advance(data, 4);
-    @as(*align(1) c_int, @ptrCast(&m.nBones)).* = readInt(data);
-    @as(*align(1) c_int, @ptrCast(&m.nQuads)).* = readInt(data +% 4);
-    data = advance(data, 8);
-    var size = readInt(data);
-    data = advance(data, 4);
+    const file = wep_file.decode(data) orelse return -2;
+    @as(*align(1) c_int, @ptrCast(&m.nBones)).* = file.n_bones;
+    @as(*align(1) c_int, @ptrCast(&m.nQuads)).* = file.n_quads;
 
     var buf: ?*v._wepModelOffsets = null;
     if (object.index == 0) {
@@ -171,19 +161,12 @@ pub fn parseWep(object: *v.vs_battle_objectData) callconv(.c) c_int {
         buf = v.g.vs_battle_commonWepBuffs()[1];
     }
     var dst = buf;
-    if (dst == null) dst = @ptrCast(@alignCast(c.vs_main_allocHeap(psx.conv(c_uint, size))));
-    _ = memcpy(dst, @ptrFromInt(data), intBits(size));
+    if (dst == null) dst = @ptrCast(@alignCast(c.vs_main_allocHeap(psx.conv(c_uint, file.offsets_size))));
+    _ = memcpy(dst, file.offsets, intBits(file.offsets_size));
     psx.put(&m.offsets, dst);
     if (dst == null) return -2;
 
-    data = advance(data, size);
-    data = advance(data, 5);
-    var texW: c_uint = byte(data).*;
-    texW *%= 2;
-    data = advance(data, 2);
-    size = byte(data).*;
-    data = advance(data, 1);
-
+    const texW = file.tex_width;
     const textures = v.g.vs_battle_wepTextures();
     var i: c_int = 0;
     if (@as(c_int, @bitCast(texW)) < 65) {
@@ -209,25 +192,17 @@ pub fn parseWep(object: *v.vs_battle_objectData) callconv(.c) c_int {
 
     m.texSlot = psx.conv(u8, i);
     m.clutSlotOffset = psx.conv(u8, @as(c_int, object.unk11) +% (@as(c_int, object.actorId) << 1) +% 16);
-    var w: c_int = undefined;
-    var count: c_int = undefined;
-    if (size == 96) {
-        w = 32;
-        count = 64;
+    if (file.doublePalette()) {
         psx.setBits(m, "isDoubleClut", 1);
         m.nClutColors = 96;
     } else {
-        w = 16;
-        count = 32;
         psx.setBits(m, "isDoubleClut", 0);
         m.nClutColors = 48;
     }
-    c.vs_main_memcpy(&m.unk440, @ptrFromInt(data), @intCast(w * 2));
-    data = advance(data, w * 2);
+    c.vs_main_memcpy(&m.unk440, @constCast(file.palette_first), @intCast(file.firstPaletteBytes()));
     i = 0;
     while (i < 7) : (i += 1) { // i < 7: the palette count
-        c.vs_main_memcpy(&m.palettes[@intCast(i)], @ptrFromInt(data), @intCast(count * 2));
-        data = advance(data, count * 2);
+        c.vs_main_memcpy(&m.palettes[@intCast(i)], @constCast(file.palettes + @as(usize, @intCast(i)) * file.paletteBytes()), @intCast(file.paletteBytes()));
     }
 
     const texU: c_int = @divTrunc(@as(c_int, m.texSlot), 2) * 64 + (@as(c_int, m.texSlot) & 1) * 32;
@@ -240,9 +215,7 @@ pub fn parseWep(object: *v.vs_battle_objectData) callconv(.c) c_int {
     };
     // LoadImage's u_long* as the C passes it: a byte pointer, any alignment.
     const loadImage: *const fn ([*c]c.RECT, ?*const anyopaque) callconv(.c) c_int = @ptrCast(&c.LoadImage);
-    _ = loadImage(psx.cptr(c.RECT, &rect), @ptrFromInt(data));
-    data +%= @as(usize, texW *% 32);
+    _ = loadImage(psx.cptr(c.RECT, &rect), file.texture);
     pass.* = 1;
-    v.g._wepFileEpilog().* = @ptrFromInt(data);
     return -1;
 }

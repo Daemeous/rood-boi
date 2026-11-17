@@ -11,8 +11,7 @@ pub fn func_800AACDC() callconv(.c) void {
 
     const temp_s0: [*c]c.DR_MOVE = @ptrCast(@alignCast(common.scratch.get().unk0));
 
-    c.SetDrawMove(temp_s0, psx.cptr(c.RECT, &sp10), 16, 400);
-    c.vs_render_appendOverlayPrimitive(temp_s0);
+    c.pc_frame_move(@ptrCast(temp_s0), @ptrCast(&sp10), 16, 400);
 
     // One DR_MOVE past the packet.
     common.scratch.get().unk0 = temp_s0 + 1;

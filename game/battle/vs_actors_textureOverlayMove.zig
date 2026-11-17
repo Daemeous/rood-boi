@@ -60,13 +60,12 @@ pub fn vs_actors_textureOverlayMove(index: c_int, arg: [*c]u8) callconv(.c) void
         rect.h = psx.conv(i16, height);
         rect.x = psx.conv(i16, ((page & 15) << 6) +% srcX);
 
-        c.SetDrawMove(
-            psx.cptr(c.DR_MOVE, packet),
-            psx.cptr(c.RECT, &rect),
+        c.pc_frame_move(
+            @ptrCast(packet),
+            @ptrCast(&rect),
             dstX +% (x << 6),
             (y << 8) +% (row << 6) +% py,
         );
-        c.vs_render_appendOverlayPrimitive(psx.cptr(c.DR_MOVE, packet));
         packetEnd(packet);
     }
 }

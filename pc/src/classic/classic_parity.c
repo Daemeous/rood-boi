@@ -39,12 +39,6 @@ int pc_classic_kind_of(const char* name)
     return 0;
 }
 
-static const unsigned* guest_resolve(unsigned link, void* user)
-{
-    (void)user;
-    link &= 0xFFFFFFu;
-    return link == 0xFFFFFFu ? NULL : (const unsigned*)(uintptr_t)(link | 0x80000000u);
-}
 static int guest_anchor(const unsigned* tag, void* user)
 {
     (void)user;
@@ -52,7 +46,7 @@ static int guest_anchor(const unsigned* tag, void* user)
 }
 pc_classic_walker pc_classic_guest(void)
 {
-    pc_classic_walker w = { guest_resolve, guest_anchor, NULL };
+    pc_classic_walker w = { guest_anchor, NULL };
     return w;
 }
 
@@ -179,28 +173,18 @@ int pc_classic_walk_items(const pc_classic_walker* walker, int first, int end, p
     return end > first ? item_packets(walker, NULL, NULL, first, end - first, 1, out, max) : 0;
 }
 
-/* The runs placed at an entry (the frame's tables hold no links: a screen is items placed at a slot, in the order the slot draws them),
- * then the packets linked from it in [lo, hi) (a chain of raw packets, as the recorder's tests build). */
+/* The runs placed at an entry (the frame's tables hold no links: a screen is items placed at a slot, in the order the slot draws them). */
 #define PLACED 256
 int pc_classic_walk(const pc_classic_walker* walker, const unsigned* head, const void* lo, const void* hi,
     pc_classic_packet* out, int max)
 {
     const void* placed[PLACED];
-    int count = 0, steps = 0;
+    int count = 0;
     if (!walker || !head)
         return 0;
     int made = pc_frame_markers_at ? pc_frame_markers_at(head, lo, hi, placed, PLACED) : 0;
     for (int i = 0; i < made && count < max; i++)
         count += keep_or_expand(walker, placed[i], lo, &out[count], max - count);
-    const unsigned* tag = walker->resolve(head[0], walker->user);
-    while (tag && (const void*)tag >= lo && (const void*)tag < hi && steps++ < 4096) {
-        unsigned n = tag[0] >> 24;
-        if (n >= PC_CLASSIC_PACKET_WORDS || (const void*)(tag + 1 + n) > hi)
-            break; /* not a packet: the walk ends */
-        if (n && count < max)
-            count += keep_or_expand(walker, tag, lo, &out[count], max - count);
-        tag = walker->resolve(tag[0], walker->user);
-    }
     return count;
 }
 
@@ -275,14 +259,11 @@ int pc_classic_suppress(void* lo, void* hi)
     return count;
 }
 
-/* The packets of [lo, hi) linked from head, turned into no-ops as pc_classic_suppress does. The links, not the
- * allocation: a packet can own more words than its length says (vs_battle_renderStatBar's empty bar: a 3-word tile
- * in 14 words allocated, the rest stale), and the allocation walk ends there, leaving the packets after it drawn. */
+/* The runs placed at `head` whose markers lie in [lo, hi), turned into no-ops as pc_classic_suppress does. */
 int pc_classic_suppress_linked(const unsigned* head, void* lo, void* hi)
 {
-    pc_classic_walker walker = pc_classic_guest();
     const void* placed[PLACED];
-    int count = 0, steps = 0;
+    int count = 0;
     unsigned frame = pc_vsync_count ? pc_vsync_count() : 0;
     if (!head)
         return 0;
@@ -296,24 +277,6 @@ int pc_classic_suppress_linked(const unsigned* head, void* lo, void* hi)
         if (n && !mode_only(tag)) {
             if (suppressed_count < (int)(sizeof suppressed / sizeof suppressed[0]))
                 suppressed[suppressed_count].tag = tag, suppressed[suppressed_count++].n = (unsigned char)n;
-            if (pc_frame_marker && pc_frame_suppress && pc_frame_marker(tag, &first, &items))
-                pc_frame_suppress(first, first + items);
-            tag[0] &= 0x00FFFFFFu;
-            ++count;
-        }
-    }
-    for (unsigned* tag = (unsigned*)walker.resolve(head[0], NULL);
-         tag && (void*)tag >= lo && (void*)(tag + 1) <= hi && steps++ < 4096;
-         tag = (unsigned*)walker.resolve(tag[0], NULL)) {
-        unsigned n = tag[0] >> 24;
-        if (!n)
-            n = suppressed_length(tag);
-        if (n >= PC_CLASSIC_PACKET_WORDS || (void*)(tag + 1 + n) > hi)
-            break;
-        if (tag[0] >> 24 && !mode_only(tag)) {
-            if (suppressed_count < (int)(sizeof suppressed / sizeof suppressed[0]))
-                suppressed[suppressed_count].tag = tag, suppressed[suppressed_count++].n = (unsigned char)n;
-            int first, items;
             if (pc_frame_marker && pc_frame_suppress && pc_frame_marker(tag, &first, &items))
                 pc_frame_suppress(first, first + items);
             tag[0] &= 0x00FFFFFFu;
@@ -959,7 +922,7 @@ int pc_classic_immediate_draw(const void* packet)
     }
     rec.held[rec.held_count].upload = 0;
     memset(rec.held[rec.held_count].raw, 0, sizeof rec.held[0].raw);
-    rec.held[rec.held_count].raw[0] = (unsigned)n << 24 | 0x00FFFFFFu;
+    rec.held[rec.held_count].raw[0] = (unsigned)n << 24;
     memcpy(rec.held[rec.held_count].raw + 1, p + 1, sizeof p[0] * (size_t)n);
     rec.held_count++;
     return 1;

@@ -44,7 +44,7 @@ pub fn loadWep(arg0: ?*v.vs_battle_objectData) callconv(.c) c_int {
             var wepFileSize: c_int = @as(c_int, psx.at(v.g._wepFileSectorOffsets(), obj.modelId).*);
             wepFileSize = wepFileSize << 11;
             v.g._wepFileData().* = c.vs_main_allocHeapR(psx.conv(c_uint, wepFileSize));
-            obj.dataAddr = psx.addr(v.g._wepFileData().*); // psx_to_int: fatal above 4 GB
+            obj.dataAddr = @intFromPtr(v.g._wepFileData().*);
 
             if (v.g._wepFileData().* == null) {
                 return -2;

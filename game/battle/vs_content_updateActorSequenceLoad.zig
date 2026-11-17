@@ -72,7 +72,7 @@ fn loadSpecial(object: *v.vs_battle_objectData, sectors: *c_uint) ?c_int {
         object.modelId = 0;
     }
     v.g.vs_content_legacySequenceFileBuffer().* = c.vs_main_allocHeapR(sectors.* << 11);
-    object.dataAddr = psx.addr(v.g.vs_content_legacySequenceFileBuffer().*);
+    object.dataAddr = @intFromPtr(v.g.vs_content_legacySequenceFileBuffer().*);
     if (v.g.vs_content_legacySequenceFileBuffer().* == null) return -2;
     const lba: c_int = @as(c_int, psx.at(psx.at(v.g.vs_content_legacyMaterialModelSequenceDiscOffsets(), object.material), object.modelId).*);
     v.g.vs_content_legacySequenceFileLocation().lba = psx.conv(i32, lba +% 0x1943E);
@@ -87,7 +87,7 @@ fn startLoad(object: *v.vs_battle_objectData, actor: ?*v.D_800F4538_t, sectors: 
             sectors.* = @as(c_uint, loadU16(offset(sequences, 0xA0 +% @as(c_int, object.modelId) *% 2)) >> 11);
             if (sectors.* == 0) return 0;
             v.g.vs_content_legacySequenceFileBuffer().* = c.vs_main_allocHeapR(sectors.* << 11);
-            object.dataAddr = psx.addr(v.g.vs_content_legacySequenceFileBuffer().*);
+            object.dataAddr = @intFromPtr(v.g.vs_content_legacySequenceFileBuffer().*);
             if (v.g.vs_content_legacySequenceFileBuffer().* == null) return -2;
             v.g.vs_content_legacySequenceFileLocation().lba = psx.conv(i32, loadU32(offset(sequences, 0x70 +% @as(c_int, object.modelId) *% 4)));
             if (object.index == 0) {
@@ -107,7 +107,7 @@ fn startLoad(object: *v.vs_battle_objectData, actor: ?*v.D_800F4538_t, sectors: 
             sectors.* = psx.at(v.g.vs_content_legacySequenceSectorCounts(), object.modelId).*;
             if (sectors.* == 0) return -2;
             v.g.vs_content_legacySequenceFileBuffer().* = c.vs_main_allocHeap(sectors.* << 11);
-            object.dataAddr = psx.addr(v.g.vs_content_legacySequenceFileBuffer().*);
+            object.dataAddr = @intFromPtr(v.g.vs_content_legacySequenceFileBuffer().*);
             if (v.g.vs_content_legacySequenceFileBuffer().* == null) return -2;
             const lba: c_int = @as(c_int, psx.at(v.g.vs_content_legacySequenceDiscOffsets(), object.modelId).*);
             v.g.vs_content_legacySequenceFileLocation().lba = psx.conv(i32, lba +% 0x19797);
@@ -115,7 +115,7 @@ fn startLoad(object: *v.vs_battle_objectData, actor: ?*v.D_800F4538_t, sectors: 
         3 => {
             sectors.* = psx.at(v.g.vs_content_legacyMaterialSequenceSectorCounts(), object.material).*;
             v.g.vs_content_legacySequenceFileBuffer().* = c.vs_main_allocHeapR(sectors.* << 11);
-            object.dataAddr = psx.addr(v.g.vs_content_legacySequenceFileBuffer().*);
+            object.dataAddr = @intFromPtr(v.g.vs_content_legacySequenceFileBuffer().*);
             if (v.g.vs_content_legacySequenceFileBuffer().* == null) return -2;
             const lba: c_int = @as(c_int, psx.at(v.g.vs_content_legacyMaterialSequenceDiscOffsets(), object.material).*);
             v.g.vs_content_legacySequenceFileLocation().lba = psx.conv(i32, lba +% 0x18043);
@@ -130,7 +130,7 @@ fn startLoad(object: *v.vs_battle_objectData, actor: ?*v.D_800F4538_t, sectors: 
             if (sectors.* == 0) return -2;
             v.g.vs_content_legacySequenceFileLocation().lba = psx.conv(i32, psx.at(&actor.?.spSeqLbas, object.modelId).*);
             v.g.vs_content_legacySequenceFileBuffer().* = c.vs_main_allocHeapR(sectors.* << 11);
-            object.dataAddr = psx.addr(v.g.vs_content_legacySequenceFileBuffer().*);
+            object.dataAddr = @intFromPtr(v.g.vs_content_legacySequenceFileBuffer().*);
             if (v.g.vs_content_legacySequenceFileBuffer().* == null) return -2;
         },
         // No other actor kind has a case: the original leaves `sectors` uninitialised here;

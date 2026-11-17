@@ -35,7 +35,7 @@ fn startLoad(arg0: ?*v.vs_battle_objectData) c_int {
 
     const data = c.vs_main_allocHeapR(psx.conv(c_uint, shpFileSize));
     v.g._shpData().* = data;
-    obj.dataAddr = if (data) |p| psx.addr(p) else 0;
+    obj.dataAddr = @intFromPtr(data);
     if (data == null) return -2;
 
     v.g._loadShpState().* = 1;

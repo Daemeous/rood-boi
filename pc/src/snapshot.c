@@ -364,6 +364,8 @@ static int ranges(range* out)
     out[n++] = (range) { (char*)(uintptr_t)ROOD_HEAP_BASE, (ROOD_HEAP_SIZE + 0xFFFu) & ~0xFFFu, "heap" };
     out[n++] = (range) { (char*)(uintptr_t)0x1f800000u, 0x1000, "scratch" };
     out[n++] = (range) { (char*)(uintptr_t)0x1f801000u, 0x1000, "io" };
+    /* the port arena (decoded file objects, S6), all of it; after "io" so the digest's first three ranges stay ram, heap, scratch */
+    out[n++] = (range) { (char*)(uintptr_t)ROOD_PORT_BASE, ROOD_PORT_SIZE, "port" };
     if (__start_rood_state_data)
         out[n++] = (range) { __start_rood_state_data, (size_t)(__stop_rood_state_data - __start_rood_state_data), "state_data" };
     if (__start_rood_state_bss)

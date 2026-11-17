@@ -1042,7 +1042,6 @@ pub const func_8007424C = @import("func_8007424C.zig");
 pub const vs_field_updateChestContentsSelection = @import("vs_field_updateChestContentsSelection.zig");
 pub const vs_field_findFacingUnlootedChest = @import("vs_field_findFacingUnlootedChest.zig");
 pub const is_look_at_at_destination = @import("is_look_at_at_destination.zig");
-pub const vs_render_appendOverlayPrimitive = @import("vs_render_appendOverlayPrimitive.zig");
 pub const vs_battle_endRewardPause = @import("vs_battle_endRewardPause.zig");
 pub const func_8007B7DC = @import("func_8007B7DC.zig");
 pub const vs_battle_updatePendingLootDialog = @import("vs_battle_updatePendingLootDialog.zig");

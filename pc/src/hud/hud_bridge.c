@@ -360,7 +360,7 @@ static u_long* slot_for(int kind, int layer)
     else
         ++shadow_count;
     shadows[i].offset = offset;
-    shadows[i].head = 0x00FFFFFF;
+    shadows[i].head = 0;
     return &shadows[i].head;
 }
 /* The text boxes' own ordering table (vs_menu_activeTextBoxOrderingTable: 34 entries, 4 a box, spliced into the frame's by func_800CB83C;
@@ -415,9 +415,9 @@ static void parity(int kind, int element_anchor)
     if (&pc_hw_anchor_muted_as)
         pc_hw_anchor_muted_as = -1;
     for (i = 0; i < 34; ++i)
-        box_shadow[i] = 0x00FFFFFF;
+        box_shadow[i] = 0;
     for (i = 0; i < 8; ++i)
-        menu_shadow[i] = 0x00FFFFFF;
+        menu_shadow[i] = 0;
     menu_shadowed = 0;
     classic_packets(cmds, count, anchor, kind, 1);
     shadowing = 0;
@@ -1551,7 +1551,7 @@ int pc_hud_classic_glyph(int button) { return button >= 0 && button < 8 ? 16 : 0
  * the page), its place and size, texels and CLUT, colour. Returns the item. */
 static int sprite(u_long* ot, int x, int y, int w, int h, u_long page, u_long uv_clut, unsigned rgb, float alpha)
 {
-    int item = vs_battle_spriteItem(ot, semi(alpha) ? 0x180 : 0x80, xy(x, y), xy(w, h), page ? (int)(0xE1000000 | page) : 0,
+    int item = vs_battle_spriteItem(ot, semi(alpha) ? 0x180 : 0x80, xy(x, y), xy(w, h), page ? (int)(VS_MODE_E1 | page) : 0,
         (int)uv_clut);
     return vs_battle_spriteColor(item, (int)modulate(rgb), semi(alpha));
 }
@@ -1824,7 +1824,7 @@ static void band_packets(const pc_hud_classic_cmd* c, int shadowed)
     if (shadowed) {
         vs_menu_activeTextBoxOrderingTable = box_shadow;
         box_shadow_id = id;
-        band_icon_shadow = 0x00FFFFFF;
+        band_icon_shadow = 0;
         vs_scratch.unk8 = &band_icon_shadow; /* (its icon's slot: setSpriteDefault reads it there) */
     }
     func_800CD158(id);
@@ -1988,7 +1988,7 @@ static void emit_command_inner(const pc_hud_classic_cmd* c, u_long* ot, int kind
     {
         /* (the printers make items and place them at `ot` by markers themselves; a frame of items alone has no table: the
          * markers link into a scratch head and are given back, the items stay, drawn by their order) */
-        u_long head = 0x00FFFFFF, *mark = packet_cursor();
+        u_long head = 0, *mark = packet_cursor();
         emit_command_packets(c, emit_placed ? ot : &head, kind, shadowed);
         if (pc_classic_force_items())
             pc_classic_items_note(only_markers(mark, packet_cursor()), c->type); /* (the test mode's log: ROOD_CLASSIC_ITEMS) */
@@ -2161,7 +2161,7 @@ extern void pc_draw_packet(void* data, int chain); /* boot_runtime.c */
 static int words_only(int type) { return type == PC_HUD_CMD_PACKET; }
 static int immediate_packets(const pc_hud_classic_cmd* cmds, int n, int kind, int draw, pc_classic_packet* out, int max)
 {
-    u_long head = 0x00FFFFFF;
+    u_long head = 0;
     void* start = packet_cursor();
     const pc_hud_classic_cmd* glyph = NULL;
     pc_classic_walker walker = pc_classic_guest();

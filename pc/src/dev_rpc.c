@@ -4714,7 +4714,7 @@ static void handle_method(int fd, const char* request)
         }
         pc_draw_env((int)area[0], (int)area[1], (int)area[2], (int)area[3], (int)area[4], (int)area[5], 0);
         if (count) {
-            words[0] = (uint32_t)count << 24 | 0xffffff;
+            words[0] = (uint32_t)count << 24;
             pc_draw_packet(words, 0);
         }
         snprintf(result, sizeof result, "{\"words\":%zu}", count);

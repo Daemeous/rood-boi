@@ -67,8 +67,7 @@ pub fn vs_actors_textureFrameMove(actor: ?*v.D_800F4538_t, index: c_int, frame: 
     rect.h = psx.conv(i16, height);
 
     srcY = (y << 8) +% (row << 6) +% py;
-    c.SetDrawMove(psx.cptr(c.DR_MOVE, packet), psx.cptr(c.RECT, &rect), dstX +% (x << 6), srcY);
-    c.vs_render_appendOverlayPrimitive(psx.cptr(c.DR_MOVE, packet));
+    c.pc_frame_move(@ptrCast(packet), @ptrCast(&rect), dstX +% (x << 6), srcY);
 
     // vs_battlePacketEnd: the cursor advances by one DR_MOVE.
     common.scratch.get().unk0 = psx.at(packet, 1);
