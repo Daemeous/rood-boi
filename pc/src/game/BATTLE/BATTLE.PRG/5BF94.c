@@ -249,6 +249,7 @@ void vs_effects_branchScriptIf(int, D_800F53B8_t*);
 u_char vs_effects_readScriptByte(D_800F53B8_t*);
 u_short vs_effects_readScriptHalfword(D_800F53B8_t*);
 int vs_effects_runScript(D_800F53B8_t* arg0);
+void pc_effect_bad_opcode(int opcode, int cursor); /* boot_runtime.c: reports it, once per second of battle frames */
 void vs_effects_loadEffectTimeline(D_800F53B8_t*, int, int);
 void vs_effects_particleKeyTimingOf(func_800D5780_t*);
 void vs_effects_shakeKeyTimer(func_800D5780_t*);

@@ -8,6 +8,7 @@
 #include "pc/src/game/menuItem.h"
 #include "pc/src/game/spriteItem.h"
 #include "pc/src/draw_items.h"
+#include "pc/src/widescreen.h"
 #include "vs_string.h"
 #include <libetc.h>
 #ifdef ROOD_PC
@@ -1175,6 +1176,18 @@ void vs_mainMenu_renderItemsList(void)
     }
 }
 
+/* The menu's picture (the emblem: two sprites, 256 + 64 wide, the screen's whole height) sits where the game puts it in the 4:3
+ * screen, compressed with the rest of the 2D in 16:9. Left to the widescreen guesses, two sprites that wide and that tall
+ * stand for a full-screen picture (pc_hw_set_bounds' backdrop rule: the map's) and are spread over the whole view: the emblem
+ * came in 4/3 too wide and shrank to its size when the screen settled. */
+static void _anchorPicture(int first)
+{
+#ifdef ROOD_PC
+    pc_frame_anchor(first, pc_frame_count(), PC_ANCHOR_CENTRE | PC_ANCHOR_EXACT);
+#else
+    (void)first;
+#endif
+}
 /* menu_fade plain (project_settings.cpp pc_menu_fade_levels): a step of the fade (1..15 of 16) as the field dimmed to black by a
  * black tile at an opacity, then the menu's picture at an opacity over it, from black (the same eight game frames; no
  * subtraction, no previous screen blended in). The classic Lua's menu_background draws the same from the same levels. */
@@ -1193,6 +1206,7 @@ static void _renderPlainBackground(int dim, int open, u_long* before)
             vs_getTpage(768, 256, clut8Bit, semiTransparencyFull, ditheringOff), vs_getUV0Clut(0, 0, 768, 227));
         vs_battle_spriteItem(before, _backgroundBrightness & 255, 0, vs_getWH(256, 240),
             vs_getTpage(640, 256, clut8Bit, semiTransparencyFull, ditheringOff), vs_getUV0Clut(0, 0, 768, 227));
+        _anchorPicture(count);
         if (open < 256) {
             pc_frame_opacity(count, pc_frame_count(), open << 8);
         }
@@ -1216,6 +1230,7 @@ static void _renderPlainBackground(int dim, int open, u_long* before)
 static void _renderBackground(int brightness)
 {
     int opaque;
+    int first = 0;
     u_long* prim;
 
     int uCoord = 0;
@@ -1242,11 +1257,15 @@ static void _renderBackground(int brightness)
         brightness |= 256;
     }
 
+#ifdef ROOD_PC
+    first = pc_frame_count();
+#endif
     vs_battle_spriteItem(before, brightness, 256, vs_getWH(64, 240),
         vs_getTpage(768, 256, clut8Bit, semiTransparencyFull, ditheringOff), vs_getUV0Clut(0, 0, 768, 227));
 
     vs_battle_spriteItem(before, brightness, 0, vs_getWH(256, 240),
         vs_getTpage(640, 256, clut8Bit, semiTransparencyFull, ditheringOff), vs_getUV0Clut(0, 0, 768, 227));
+    _anchorPicture(first);
 
     if (!opaque) {
         int new_var = 288;

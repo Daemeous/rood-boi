@@ -7,8 +7,8 @@ const c = @import("c_5BF94");
 pub fn vs_effects_branchScriptIf(arg0: c_int, arg1: ?*v.D_800F53B8_t) callconv(.c) void {
     if (arg0 != 0) {
         const value = c.vs_effects_readScriptHalfword(@ptrCast(arg1));
-        arg1.?.unkA = value;
+        arg1.?.cursor = value;
     } else {
-        arg1.?.unkA +%= 2;
+        arg1.?.cursor +%= 2;
     }
 }

@@ -6,6 +6,6 @@ const c = @import("c_5BF94");
 /// Stores vs_effects_readScriptHalfword's result in the entry's unkA and returns 1.
 pub fn vs_effects_jumpScript(arg0: ?*v.D_800F53B8_t) callconv(.c) c_int {
     const value = c.vs_effects_readScriptHalfword(@ptrCast(arg0));
-    arg0.?.unkA = value;
+    arg0.?.cursor = value;
     return 1;
 }

@@ -1093,6 +1093,20 @@ static char _menuElementStops[] = { 0, 1, 2, 4, 8, 16, 32, 56, 80, 104, 128, 152
     200, 224, 248, 255, 255, 255, 255 };
 static signed char _cursorFileOpSaturation[] = { 0, -56, -112, -104, -96, -88, -80, -72,
     -64, -56, -48, -40, -32, -24, -16, -8 };
+#ifdef ROOD_PC
+extern int pc_qol_file_flash_fix; /* project_settings.cpp */
+/* The completion flash's colour at step `counter` (-16 .. -1) of its fade: -_cursorFileOpSaturation[counter + 17]. The table has 16 entries; the
+ * last step (-1) reads the byte after it, whatever the build has there, and drew a bright band above the file for two frames (its
+ * colour followed the picture behind it: pink after one load, yellow after another). qol_file_flash_fix (default 1) ends the fade at
+ * 0, where the table's own pattern goes (8, then 0); 0 reads the byte as the game does. */
+static int _fileFlashColour(int counter)
+{
+    int step = counter + 17;
+    if (step < (int)sizeof _cursorFileOpSaturation)
+        return -_cursorFileOpSaturation[step];
+    return pc_qol_file_flash_fix ? 0 : -(&_cursorFileOpSaturation[0])[step];
+}
+#endif
 
 static void _drawSaveInfoUI(int xy, enum vs_fileMenuUiIds_e id)
 {
@@ -1757,8 +1771,12 @@ static void _drawFileMenuElement(fileMenuElements_t* element)
             }
             if ((element->selected != 0) && (_fileProgressCounter != 0)) {
                 if (_fileProgressCounter < 0) {
+#ifdef ROOD_PC
+                    _fileProcessingCompleteAnim(_fileFlashColour(_fileProgressCounter++), y);
+#else
                     signed char* p = (_cursorFileOpSaturation + _fileProgressCounter++);
                     _fileProcessingCompleteAnim(-p[17], y);
+#endif
                 } else {
                     int new_var3 = 0x140;
                     _fileProcessingAnim(
@@ -1810,8 +1828,7 @@ static void _pcFileElement(fileMenuElements_t* element)
     record.inner = element->innertextBlendFactor;
     record.arrow = _pcArrowState ? *_pcArrowState : 0;
     if (_fileProgressCounter < 0) { /* (as the draw reads it: p[17] from the step) */
-        signed char* p = _cursorFileOpSaturation + _fileProgressCounter;
-        record.progress_colour = -p[17];
+        record.progress_colour = _fileFlashColour(_fileProgressCounter);
     }
     slot = element->slotId;
     if (element->selected != 0 && _fileProgressCounter != 0) {

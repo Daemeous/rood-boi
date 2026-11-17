@@ -7,6 +7,6 @@ const c = @import("c_5BF94");
 /// Stores vs_effects_readScriptHalfword's result in the record's unkA and returns 0.
 pub fn vs_effects_yieldScriptAt(arg0: ?*v.D_800F53B8_t) callconv(.c) c_int {
     const result: u16 = c.vs_effects_readScriptHalfword(@ptrCast(arg0));
-    arg0.?.unkA = result;
+    arg0.?.cursor = result;
     return 0;
 }

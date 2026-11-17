@@ -1198,6 +1198,7 @@ M.draw.menu_background = function(e, d)
       d.opacity(e.open < 256 and e.open / 256 or nil)
       local s = b.sprite
       s.bgr = (e.brightness % 256) * 0x010101
+      d.anchor("centre") -- the picture sits in the 4:3 screen (the game's _anchorPicture), not spread over the view
       for i = #b.picture, 1, -1 do
         local p = b.picture[i]
         s.page_x, s.w = p[3], p[2]
@@ -1217,6 +1218,7 @@ M.draw.menu_background = function(e, d)
   end
   local s = b.sprite
   s.bgr = (level % 256) * 0x010101
+  d.anchor("centre") -- (as above)
   for i = #b.picture, 1, -1 do
     local p = b.picture[i]
     s.page_x, s.w = p[3], p[2]

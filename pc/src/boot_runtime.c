@@ -155,6 +155,17 @@ void pc_unimplemented(const char* name)
     exit(2);
 }
 void pc_log(const char* message) { fprintf(stderr, "[boot] %s\n", message); }
+/* An effect script's command byte past the table's 49 (vs_effects_runScript): the cursor is not on a command. The script ends;
+ * reported at most once per 60 battle frames. */
+void pc_effect_bad_opcode(int opcode, int cursor)
+{
+    static unsigned last __attribute__((section(".data.rood_host"))) = ~0u;
+    if (last == ~0u || battle_frames - last >= 60) {
+        fprintf(stderr, "[effect] command opcode %d at cursor %#x is out of range: the script ends (battle frame %u)\n", opcode, cursor,
+            battle_frames);
+        last = battle_frames;
+    }
+}
 /* ROOD_SYNC_DEBUG: who reads VRAM back (StoreImage callers). */
 void pc_store_image_debug(int x, int y, int w, int h, const void* caller)
 {
@@ -631,7 +642,18 @@ static void pc_dump_stack(int sig)
 #ifdef _WIN32
     int n = CaptureStackBackTrace(0, 62, frames, NULL);
 #else
-    int n = backtrace(frames, 64);
+    /* The frame-pointer chain (the build keeps frame pointers), each link checked: backtrace() unwinds by CFI, which the game's
+     * own stack (mapped below 2 GB, run_game_on_low_stack) does not describe past its first frame: it ran off the stack and
+     * the report of a stop (pc_unimplemented) died of a segmentation fault instead of printing. */
+    int n = 0;
+    void** fp = __builtin_frame_address(0);
+    while (n < 64 && fp && ((uintptr_t)fp & 7) == 0) {
+        frames[n++] = fp[1];
+        void** next = fp[0];
+        if (next <= fp || (uintptr_t)next - (uintptr_t)fp > (1u << 20))
+            break;
+        fp = next;
+    }
 #endif
     char line[32];
     (void)sig;
@@ -1652,6 +1674,9 @@ extern int pc_frame_run_pages(int, int, unsigned, int (*)(unsigned)) __attribute
 extern int pc_frame_run_has_native(int, int) __attribute__((weak));
 extern int pc_frame_expected_order(const void*, int*, int) __attribute__((weak));
 extern void pc_frame_markers_index(void) __attribute__((weak));
+extern void pc_frame_walk_visit(const void*) __attribute__((weak));
+extern int pc_frame_walk_before(unsigned, const void**, int) __attribute__((weak));
+extern int pc_frame_walk_rest(const void**, int) __attribute__((weak));
 extern int pc_frame_entry_markers(const void*, int, const void**, int) __attribute__((weak));
 extern int pc_frame_entry_has_tail(const void*) __attribute__((weak));
 extern int pc_frame_same_table(const void*, const void*) __attribute__((weak));
@@ -1870,24 +1895,50 @@ static void adopt_push(const uint32_t* p, int photo, int* front, int* hidden, in
 /* The item runs placed at `entry` (pc_frame_place), where the slot's key puts them: the runs linked at its head, the last placed
  * first, or (`tail`) those appended at the end of its chain (pc_frame_copy_tail). Their marker packets are walked here by key, not
  * by the links they were written with. Returns how many were taken in. */
-static int adopt_markers(const uint32_t* entry, int tail, int photo, int* front, int* hidden, int* census_slot)
+/* Runs placed at the entry `entry` or before a packet (pc_frame_walk_before) are packets of the frame like the others: pushed, and the runs
+ * placed at them (a marker is an entry too) after them. */
+static int adopt_runs(const void* const* packets, int n, int photo, int* front, int* hidden, int* census_slot)
 {
-    static const void* packets[8192];
-    int n = pc_frame_entry_markers ? pc_frame_entry_markers(entry, tail, packets, 8192) : 0, taken = 0;
+    int taken = 0;
     for (int i = 0; i < n; i++) {
         int first, count;
         adopt_push(packets[i], photo, front, hidden, census_slot);
         taken += pc_frame_marker(packets[i], &first, &count); /* (one a classic claim suppressed is a no-op by now: not a marker) */
+        if (pc_frame_walk_visit)
+            pc_frame_walk_visit(packets[i]);
+        int m = pc_frame_entry_markers(packets[i], 0, NULL, 0);
+        if (m) {
+            const void* placed[m];
+            pc_frame_entry_markers(packets[i], 0, placed, m);
+            taken += adopt_runs(placed, m, photo, front, hidden, census_slot);
+        }
     }
     return taken;
+}
+static int adopt_before(unsigned addr, int photo, int* front, int* hidden, int* census_slot)
+{
+    int n = pc_frame_walk_before ? pc_frame_walk_before(addr, NULL, 0) : 0;
+    if (!n)
+        return 0;
+    const void* placed[n];
+    pc_frame_walk_before(addr, placed, n);
+    return adopt_runs(placed, n, photo, front, hidden, census_slot);
+}
+static int adopt_markers(const uint32_t* entry, int tail, int photo, int* front, int* hidden, int* census_slot)
+{
+    int n = pc_frame_entry_markers ? pc_frame_entry_markers(entry, tail, NULL, 0) : 0;
+    if (!n)
+        return 0;
+    const void* packets[n];
+    pc_frame_entry_markers(entry, tail, packets, n);
+    return adopt_runs(packets, n, photo, front, hidden, census_slot);
 }
 static void adopt(const void* head, int photo)
 {
     const uint32_t* p = head;
     const uint32_t *stop_at = NULL; /* (in a spliced run: its last packet, after which the table goes on where it left it) */
-    const uint32_t *splice_at = NULL, *tail_entry = NULL; /* (the entry a spliced run is walked after; the entry whose appended runs wait for the end of its chain) */
+    const uint32_t* tail_entry = NULL; /* (the entry whose appended runs wait for the end of its chain) */
     unsigned resume = 0;
-    unsigned long long linked = 0, taken = 0; /* (marker packets reached by their links, and those taken in by key) */
     frame.count = 0, frame.used = 0, frame.end = 2;
     int front = 0, hidden = 0, census_slot = 0; /* (the layers are positions in the table: settled here, as the walk reaches each entry) */
     if (census.on)
@@ -1900,32 +1951,30 @@ static void adopt(const void* head, int photo)
         int first_run, run_count;
         int is_marker = len && pc_frame_marker && pc_frame_marker(p, &first_run, &run_count);
         if (tail_entry && len == 0 && pc_frame_same_table && pc_frame_same_table(tail_entry, p)) { /* (the next slot of the table: the appended runs end the one before) */
-            taken += (unsigned)adopt_markers(tail_entry, 1, photo, &front, &hidden, &census_slot);
+            adopt_markers(tail_entry, 1, photo, &front, &hidden, &census_slot);
             tail_entry = NULL;
         }
-        if (is_marker)
-            ++linked; /* (an item marker: drawn where its key puts it, not here) */
-        else
+        adopt_before((unsigned)((uintptr_t)p & 0xffffff), photo, &front, &hidden, &census_slot); /* (the runs placed in front of this packet) */
+        if (!is_marker) /* (an item marker reached by a link is not drawn here: where its key puts it) */
             adopt_push(p, photo, &front, &hidden, &census_slot);
         unsigned next = tag & 0xffffff;
-        int entry = !is_marker && len == 0; /* (a slot of an ordering table) */
+        int entry = !is_marker; /* (where runs are placed: a slot of a table, or after a packet: the runs placed there follow it) */
+        if (entry && pc_frame_walk_visit)
+            pc_frame_walk_visit(p);
         if (entry && pc_frame_entry_has_tail && pc_frame_entry_has_tail(p))
             tail_entry = p;
         if (!stop_at) {
             const uint32_t* const* run = splice_of(p);
             if (run) { /* the spliced run is walked here, then this packet's own link (and the runs linked at its head) */
-                resume = next, stop_at = run[1], splice_at = p;
+                resume = next, stop_at = run[1];
                 p = run[0];
                 continue;
             }
         }
-        if (entry)
-            taken += (unsigned)adopt_markers(p, 0, photo, &front, &hidden, &census_slot);
-        if (stop_at && p == stop_at) {
-            taken += (unsigned)adopt_markers(splice_at, 0, photo, &front, &hidden, &census_slot);
-            next = resume, stop_at = NULL, splice_at = NULL;
-        }
+        if (stop_at && p == stop_at)
+            next = resume, stop_at = NULL;
         if (next == 0xffffff) {
+            adopt_before(0xffffff, photo, &front, &hidden, &census_slot); /* (the runs placed at the end of a chain) */
             frame.end = 0;
             break;
         }
@@ -1936,9 +1985,15 @@ static void adopt(const void* head, int photo)
         }
     }
     if (tail_entry)
-        taken += (unsigned)adopt_markers(tail_entry, 1, photo, &front, &hidden, &census_slot);
-    if (census.on && frame.end == 0 && linked != taken) /* (a marker packet linked in the table that no run was placed at: the keys do not give the walk) */
-        ++census.order_bad;
+        adopt_markers(tail_entry, 1, photo, &front, &hidden, &census_slot);
+    {
+        int rest = pc_frame_walk_rest ? pc_frame_walk_rest(NULL, 0) : 0;
+        if (rest) { /* (their packet is gone from the chain: they draw last) */
+            const void* placed[rest];
+            pc_frame_walk_rest(placed, rest);
+            adopt_runs(placed, rest, photo, &front, &hidden, &census_slot);
+        }
+    }
     memset(splices, 0, sizeof splices); /* (consumed: the next frame makes its own) */
 }
 /* The entry after the one whose tag word is `tag` (a pointer into the frame's words): its tag, 1 for none, NULL when `tag` is
@@ -2198,8 +2253,7 @@ static void draw_packet(void* data, int chain)
         walk_precise = -2;
         drawing_tag = NULL;
         pc_gpu_immediate = 0;
-        unsigned next = tag & 0xffffff;
-        if (!chain || next == 0xffffff)
+        if (!chain) /* (an adopted table ends with its entries: a marker taken in by its slot has no link to follow) */
             break;
         if (last && frame.end == 1)
             pc_unimplemented("ordering table pointer outside mapped memory");

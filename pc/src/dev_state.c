@@ -177,7 +177,7 @@ static void effect_nodes(struct json* j)
         if (j->p + 8192 > j->end)
             break;
         j->p += sprintf(j->p, "{");
-        F(j, n, unk8); F(j, n, unk9); F(j, n, unkA);
+        F(j, n, unk8); F(j, n, unk9); put(j, "unkA", n->cursor); /* the key keeps the old name: build_compare compares it across builds */
         put(j, "word14", *(unsigned*)(n->unk10 + 4));
         for (int i = 0; i < 4; ++i)
             j->p += sprintf(j->p, "\"unk10_%d\":%d,", i, n->unk10[i]);

@@ -53,6 +53,10 @@ extern float pc_lights_snap_move, pc_lights_snap_angle;
 /* Gameplay options, read by the game side. qol_weapon_slots: the weapon
  * slots quick swap on L2 + R2 (weapon_slots.c, battle builds), off by default. */
 int pc_qol_weapon_slots;
+/* qol_file_flash_fix 1 (default) | 0: the file menus' completion flash (MENU7 260.c _fileProcessingCompleteAnim) ends at colour 0 on its last
+ * step, as its table's pattern goes; 0: it reads the byte after the table there, as the game does, and draws a bright band above
+ * the file for two frames (its colour follows the picture behind it). */
+int pc_qol_file_flash_fix = 1;
 /* Its look and timing (weapon_slots.c): qol_weapon_slots_name_ticks, how long
  * a swapped weapon's name stays up (game ticks); qol_weapon_slots_label<N>
  * (N 0..7: 0..3 the button group, 4..7 the D-pad group) a label's text x, y
@@ -404,6 +408,7 @@ const Entry entries[] = {
     I("qol_field_cross_attack", pc_qol_field_cross_attack),
     /* Gameplay. */
     I("qol_weapon_slots", pc_qol_weapon_slots),
+    I("qol_file_flash_fix", pc_qol_file_flash_fix),
     I("qol_weapon_slots_name_ticks", pc_qol_weapon_slots_name_ticks), /* game ticks */
     IN("qol_weapon_slots_label0", pc_qol_weapon_slots_label[0], 4), /* text x y, bullet x y */
     IN("qol_weapon_slots_label1", pc_qol_weapon_slots_label[1], 4),

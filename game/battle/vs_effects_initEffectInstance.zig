@@ -12,7 +12,7 @@ pub fn vs_effects_initEffectInstance(src_block: ?*v.D_800F53B8_t2, dst_block: ?*
     psx.put(&dst.previous, psx.get(src.parent));
     dst.unk8 = 0;
     dst.unk9 = psx.conv(u8, src.priority);
-    dst.unkA = psx.conv(u16, src.scriptOffset);
+    dst.cursor = psx.conv(u16, src.scriptOffset);
     dst.unkC = src.script;
     @as(*align(1) i32, @ptrCast(&dst.unk10)).* = 0;
     psx.setBits(dst, "unk14_0", src.token);

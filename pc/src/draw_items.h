@@ -181,7 +181,7 @@ int pc_frame_expected_order(const void* head, int* out, int max);
 /* The walk of a table takes the runs in by the slot they are placed at (boot_runtime.c adopt): the index is made once per table, then by entry: the marker packets
  * placed at `entry` in draw order (`tail`: those appended at the end of its chain), whether some are appended, and whether two entries lie in one table. */
 void pc_frame_markers_index(void);
-int pc_frame_entry_markers(const void* entry, int tail, const void** out, int max);
+int pc_frame_entry_markers(const void* entry, int tail, const void** out, int max); /* (returns how many there are, writing up to max) */
 int pc_frame_entry_has_tail(const void* entry);
 int pc_frame_same_table(const void* a, const void* b);
 /* Whether the run [first, first + count) has a native list's draw (PC_ITEM_NATIVE). */

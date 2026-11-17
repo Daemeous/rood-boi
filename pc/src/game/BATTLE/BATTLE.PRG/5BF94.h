@@ -481,7 +481,7 @@ typedef struct D_800F53B8_t {
     struct D_800F53B8_t* previous;
     char unk8;
     char unk9;
-    u_short unkA;
+    u_short cursor; /* the script cursor: offset of the next command byte */
     char* unkC;
     char unk10[4];
     u_int unk14_0 : 8;

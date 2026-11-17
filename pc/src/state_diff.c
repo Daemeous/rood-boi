@@ -10,6 +10,8 @@ extern int pc_spu_state_size(void) __attribute__((weak));
 extern void pc_spu_state_save(void*) __attribute__((weak));
 extern int pc_spu_state_load(const void*, int) __attribute__((weak));
 
+/* draw_items.c: the frame's drawing bookkeeping, one object inside the saved state (not compared). */
+extern void pc_frame_book(void** start, size_t* size) __attribute__((weak));
 #define MAX_RANGES 170
 #define PAGE 4096
 struct pc_state_image {
@@ -33,6 +35,22 @@ static int describe(pc_state_image* m)
     m->count = pc_state_ranges(m->ranges, MAX_RANGES);
     if (m->count <= 0 || m->count > MAX_RANGES)
         return -1;
+    if (pc_frame_book) { /* (the range it lies in, split around it) */
+        void* at;
+        size_t size;
+        pc_frame_book(&at, &size);
+        for (int i = 0; i < m->count && m->count < MAX_RANGES; i++) {
+            pc_state_range r = m->ranges[i];
+            char *lo = (char*)r.start, *hi = lo + r.size, *b = at;
+            if (b < lo || b + size > hi)
+                continue;
+            memmove(&m->ranges[i + 1], &m->ranges[i], (size_t)(m->count - i) * sizeof m->ranges[0]);
+            m->ranges[i] = (pc_state_range) { r.start, (size_t)(b - lo), r.name };
+            m->ranges[i + 1] = (pc_state_range) { b + size, (size_t)(hi - (b + size)), r.name };
+            m->count++;
+            break;
+        }
+    }
     m->bytes = 0;
     for (int i = 0; i < m->count; i++) {
         pc_state_range* r = &m->ranges[i];
