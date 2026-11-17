@@ -1,4 +1,9 @@
-"""Check a later VKP scene reached by 4,000 original battle frames."""
+"""Check a later VKP scene reached by 4,000 original battle frames.
+
+The captured frame is the CPU rasterizer's picture of the PS1 display area. Since the room and the characters are native lists (S5.2 / S5.3,
+c5a2cfdcf: no longer built as packets) it holds only the 2D the game draws: here the scene's talk bubble on black. The 3D (the room, the
+actor) is checked by the renderer's own suites; this one keeps what the CPU frame can show: the checkpoint is reached and the dialogue's
+bubble and text are drawn."""
 
 import pathlib
 import subprocess
@@ -48,8 +53,7 @@ actor = sum(
     for y in range(65, 215)
     for x in range(200, 310)
 )
-assert len(colors) > 100 and nonblack > 25000, "Later scene missing"
-assert bright > 2000 and actor > 7000, "Dialogue or visible actor region missing"
-print(
-    f"PASS: 4,000 original scene frames, {len(colors)} colors, {nonblack} nonblack pixels, dialogue and actor regions present (not gameplay)"
-)
+assert len(colors) > 10 and nonblack > 5000, "Later scene missing"
+assert bright > 2000, "Dialogue missing"
+assert actor == 0, "The CPU frame holds 3D again: restore the scene and actor checks (nonblack > 25000, actor > 7000)"
+print(f"PASS: 4,000 original scene frames, {len(colors)} colors, {nonblack} nonblack pixels, the dialogue bubble present (2D only: the 3D is native)")

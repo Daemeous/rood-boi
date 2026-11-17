@@ -443,6 +443,8 @@ int vs_battle_updateTargetSelectionMenu(u_char* target);
 
 void vs_render_splicePrimitiveList(u_long* arg0, int* arg1);
 
+void pc_frame_table_clear(unsigned* ot, int n, int reverse);
+
 void vs_battle_renderTextRawColor(char const* text, int x, int color, void* nextPrim);
 
 void vs_battle_renderTextRaw(char const* text, int xy, void* nextPrim);

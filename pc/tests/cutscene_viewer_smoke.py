@@ -65,12 +65,14 @@ def ppm(path):
 
 
 def pixels_apart(a, b):
-    """How many pixels differ (a size change: all)."""
+    """How many pixels differ by more than one level of 255 in a channel (a size change: all). One level is rounding: the screen copies
+    the story's fades sample (screen_copy native, 78face25f) come from the render-target capture, whose last bit follows the history of
+    the frames before it (a replay starts from another one), so a replayed picture is a level off in a tenth of its pixels."""
     wa, ha, da = ppm(a)
     wb, hb, db = ppm(b)
     if (wa, ha) != (wb, hb):
         return wa * ha
-    return sum(1 for i in range(0, len(da), 3) if da[i:i + 3] != db[i:i + 3])
+    return sum(1 for i in range(0, len(da), 3) if max(abs(da[i + k] - db[i + k]) for k in range(3)) > 1)
 
 
 def main():

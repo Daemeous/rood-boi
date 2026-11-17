@@ -129,7 +129,9 @@ class Session:
         lights = pathlib.Path(tempfile.mkdtemp(prefix="lights-", dir=out))
         env = {"ROOD_WINDOW": "960x720", "ROOD_LIGHTS": str(lights), "ROOD_GI": "0",
                "ROOD_CARD2": str(self.card2)}
-        self.g = launch_at("save_room", card=self.card1, fast=True, log=out / f"{name}.log", extra_env=env)
+        # (two sessions at once: each its own socket; run.py puts one ROOD_RPC in the environment, which a launch without a socket_path takes)
+        self.g = launch_at("save_room", card=self.card1, fast=True, log=out / f"{name}.log", extra_env=env,
+                           socket_path=f"/tmp/rood-ui-data-{name}-{os.getpid()}.sock")
         self.g.call("graphics", interpolate=False)
         self.g.call("ui_menu", modern=bool(modern))
         self.sym = symbols()

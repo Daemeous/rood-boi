@@ -39,5 +39,5 @@ pub fn vs_menu_frameworkInitGameInterface(base: ?*anyopaque) callconv(.c) void {
     _ = c.DrawSync(0);
 
     const ot: [*c]c.u_long = @ptrCast(v.g.vs_menu_activeTextBoxOrderingTable().*.?);
-    _ = c.ClearOTag(ot, 0x22);
+    c.pc_frame_table_clear(ot, 0x22, 0);
 }

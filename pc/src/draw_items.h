@@ -175,7 +175,11 @@ int pc_frame_command_item(const void* command);
 const void* pc_frame_packet(int index);
 /* An ordering table made (ClearOTag, ClearOTagR: `reverse`), and the order the runs placed in the table of a DrawOTag's `head` draw in. */
 void pc_frame_table(const void* base, int n, int reverse);
-void pc_frame_splice_table(const void* at, const void* head); /* the table at `head` is walked after the entry `at` (pc_frame_splice) */
+/* The frame's ordering tables, as the game makes and draws them (boot_sdk.c): a table of `n` entries made (a `reverse` one is drawn from its last entry), and the
+ * table whose first-reached entry is `head` drawn. */
+void pc_frame_table_clear(unsigned* ot, int n, int reverse);
+void pc_frame_table_draw(unsigned* head);
+void pc_frame_splice_table(const void* at, const void* head); /* the table at `head` is walked after the entry `at` (pc_frame_table_after) */
 int pc_frame_run_live(int first, int count); /* a run with an item that draws */
 int pc_frame_expected_order(const void* head, int* out, int max);
 /* The walk of a table takes the runs in by the slot they are placed at (boot_runtime.c adopt): the index is made once per table, then by entry: the marker packets

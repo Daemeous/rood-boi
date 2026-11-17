@@ -1721,7 +1721,7 @@ static int ot_layers_note_of(const uint32_t* p, int front);
 static struct {
     const uint32_t *at, *head, *last;
 } splices[SPLICES];
-void pc_frame_splice(const void* at, const void* head, const void* last)
+void pc_frame_table_after(const void* at, const void* head, const void* last)
 {
     int i, free_slot = -1;
     for (i = 0; i < SPLICES; i++) {

@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 project(rood_pc LANGUAGES C)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
+include(CTest) # (the probes below are tests: without it add_test writes no CTestTestfile and ctest finds none)
 
 add_executable(state_diff_test tests/state_diff_test.c src/state_diff.c)
 target_include_directories(state_diff_test PRIVATE src)

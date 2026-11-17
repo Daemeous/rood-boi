@@ -1,5 +1,6 @@
 #include "pc/src/game/immediateItem.h"
 #include "22C.h"
+void pc_frame_table_draw(unsigned* head);
 #include "titleData.h"
 #include "../SLUS_010.40/main.h"
 #include "../SLUS_010.40/sfx.h"
@@ -4845,7 +4846,7 @@ static int _renderScreen(u_long* ot)
     vsync = vs_main_gametimeUpdate(0);
     PutDispEnv(vs_main_frameBuf + vs_main_dispEnv);
     PutDrawEnv(vs_main_frameBuf + vs_main_drawEnv);
-    DrawOTag(ot);
+    pc_frame_table_draw(ot);
     return vsync;
 }
 

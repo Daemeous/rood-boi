@@ -70,8 +70,10 @@ def shot(game, path):
 
 def play(card, out, name, extra):
     """The three moments in one game: their counters and screenshots."""
+    # screen_copy ps1 in both (78face25f: the default native samples the render-target capture at the target's own resolution, which
+    # the read-back path of the old game cannot give: the comparison is of the copy's two PS1-resolution routes)
     env = {"ROOD_PERF": "1", "ROOD_GI": "0", "ROOD_LIGHTS": str(out / f"lights-{name}"), "ROOD_WINDOW": "960x720",
-           **extra}
+           "ROOD_SCREEN_COPY": "0", **extra}
     game = launch_at("save_room", card=str(card), fast=True, log=out / f"{name}.log", extra_env=env)
     result = {}
     try:

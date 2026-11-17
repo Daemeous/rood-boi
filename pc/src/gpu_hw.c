@@ -3087,9 +3087,11 @@ static void screen_owner_primitive(int x0, int y0, int x1, int y1, unsigned code
             return;
     }
     /* What opaque 2D reaches of the view's sides: a full-view cover, an extension, an edge-anchored one. */
-    if (primitive_cover || primitive_extend > 0 || edge_anchored())
+    /* (A picture that fills the view, PC_ANCHOR_FILL, draws in the sides too: the cutscene stills; clearing them boxed those.) */
+    int fills = primitive_anchor == PC_ANCHOR_FILL && !primitive_cover && layout_enabled();
+    if (primitive_cover || primitive_extend > 0 || edge_anchored() || fills)
         pc_screen_owner_side_drawn(clip, 1, y0, y1);
-    if (primitive_cover || primitive_extend < 0 || edge_anchored())
+    if (primitive_cover || primitive_extend < 0 || edge_anchored() || fills)
         pc_screen_owner_side_drawn(clip, 0, y0, y1);
     if (!pc_screen_owner_cover(clip, x0, y0, x1, y1))
         return;

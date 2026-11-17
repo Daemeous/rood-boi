@@ -27,6 +27,7 @@
 extern "C" {
 int pc_present_guard_on, pc_present_inside, pc_present_paused;
 void pc_present_violation(const char*) {}
+void pc_present_guard_check(const char*) {}
 }
 
 

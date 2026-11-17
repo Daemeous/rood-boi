@@ -17,7 +17,7 @@ pub fn vs_field_unloadCurrentRoom() callconv(.c) void {
         // The scratch slot holds a guest address; it is passed on as the C's pointer value.
         const slot = psx.get(v.g.vs_scratch().unk4);
         const slot_addr: u32 = if (slot) |p| psx.addr(p) else 0;
-        _ = c.ClearOTagR(@ptrFromInt(@as(usize, slot_addr)), 0x800);
+        c.pc_frame_table_clear(@ptrFromInt(@as(usize, slot_addr)), 0x800, 1);
         _ = c.func_8007DF40();
         c._drawScreenTransition(@ptrFromInt(@as(usize, slot_addr)));
 

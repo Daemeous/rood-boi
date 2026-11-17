@@ -30,7 +30,7 @@ void pc_frame_view_last(int on) { viewing_last = on; }
 /* The frame's drawing bookkeeping, one object (pc_frame_book): the markers placed this frame (their packet, the entry of an ordering table they
  * are placed at, the run), for the anchors that name packet memory and the order the walk of a table draws in; the ordering tables made
  * this frame (ClearOTag, ClearOTagR: a placed run's slot is its entry's place in the table it lies in, and the table's direction says
- * which slot the walk reaches first); a table drawn where an entry of another is (pc_frame_splice: the text boxes' page of the table).
+ * which slot the walk reaches first); a table drawn where an entry of another is (pc_frame_table_after: the text boxes' page of the table).
  * Saved state, as the items are: a save state resumed mid-frame has the frame's items back, and the order is read from this. It is the frame's
  * output, not the game's state: the state parity gates compare a game run and a run of the classic layer, which build the same
  * picture with other bookkeeping, so state_diff.c leaves this object out of what it compares. */

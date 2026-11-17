@@ -44,7 +44,7 @@ pub fn vs_render_presentFieldFrame(otag: [*c]c_uint) callconv(.c) c_int {
     const HudPanels = *const fn (?*anyopaque) callconv(.c) void;
     if (psx.weak(HudPanels, "pc_hud_panels_classic")) |hud| hud(@ptrCast(otag));
 
-    c.DrawOTag(otag);
+    c.pc_frame_table_draw(otag);
 
     // ROOD_PC: frame-complete notification to the host.
     c.pc_battle_frame_complete();

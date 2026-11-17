@@ -1085,9 +1085,16 @@ def case_settings(t, check, args):
     check(st["prompt_anchor"] == 2 and abs(st["prompt_offset"][0] + 0.025) < 1e-6
           and abs(st["prompt_offset"][1] - 0.035) < 1e-6,
           f"settings: the old qol_fast_travel_prompt_x / _y migrate to the top right default ({st})")
+    # (the file keeps only the keys that differ from the defaults, 1c7482f68: the anchor 2 and its offsets are the defaults, so a
+    # save does not write them; a changed one is written)
     check("qol_fast_travel_prompt_x" not in text and "qol_fast_travel_prompt_y" not in text
-          and "qol_fast_travel_prompt_anchor 2\n" in text and "qol_fast_travel_prompt_offset_x -0.025\n" in text,
-          "settings: saved with qol_fast_travel_prompt_anchor / _offset_x / _y, without the old keys")
+          and "qol_fast_travel_prompt_anchor" not in text and "qol_fast_travel_prompt_offset_x" not in text,
+          "settings: saved without the old keys and without the default anchor / offsets")
+    t.ft(set={"prompt_anchor": 6, "prompt_offset_x": 0.02})
+    text = pathlib.Path(t.g.call("settings", action="save")["path"]).read_text()
+    check("qol_fast_travel_prompt_anchor 6\n" in text and "qol_fast_travel_prompt_offset_x 0.02\n" in text,
+          "settings: a changed anchor / offset is saved (qol_fast_travel_prompt_anchor 6, _offset_x 0.02)")
+    t.ft(set={"prompt_anchor": 2, "prompt_offset_x": -0.025})
 
 
 def settings_env(out):

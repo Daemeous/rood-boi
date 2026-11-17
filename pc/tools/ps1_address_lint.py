@@ -57,6 +57,10 @@ RULES = {
         r"|->(?:poly\.)?tag\s*=(?!=)|\.tag\s*=(?!=)|\bdrawMode\s*=(?!=)|\|\s*0[xX]0[0-9a-fA-F]000000\b"
         # a command or link byte shifted into a packet's top byte as a constant (the Zig printers: (96 << 24), (0xE1 << 24))
         r"|\(\s*(?:0[xX](?:[2-7][0-9a-fA-F]|[eE][1-6])|(?:3[2-9]|[4-9][0-9]|1[01][0-9]|12[0-7]))\s*<<\s*24\s*\)"),
+    # Ordering tables (PS1_Ties.md T4): the frame is typed draw items ordered by their slot (pc/src/draw_items.c), not packets the host walks. The calls
+    # that made, linked and drew a table by the SDK's names, and the libgpu macros that link a packet: nothing in the game or the engine uses them
+    # (the frame's tables are pc_frame_table_clear and pc_frame_table_draw, boot_sdk.c). Baseline 0: it is not allowed to rise.
+    "ordering_table": re.compile(r"\b(?:ClearOTagR?|DrawOTag\w*|AddPrims?|catPrim|termPrim|setaddr|getaddr|pc_frame_splice)\b"),
     # The packet-to-item decoder (pc_frame_add_packets, the claims' word commands in hud_bridge.c): it only shrinks, as the
     # printers and the screens that need it move to items.
     "lift_bridge": re.compile(r"\bpc_frame_add_packets\s*\("),
@@ -65,7 +69,8 @@ RULES = {
 ONLY_UNDER = {}
 # Rules that leave out paths: the SDK's own libgpu and the walker that draws the packets (they are what the game's
 # packets are for, T16), and the typed items' lowering to packets (it goes when a renderer takes items directly).
-SKIP_FOR = {"gpu_packet_writes": ("pc/src/game/SLUS_010.40/libgpu/", "pc/src/boot_sdk.c", "pc/src/boot_runtime.c",
+SKIP_FOR = {"ordering_table": ("pc/src/game/SLUS_010.40/libgpu/",),
+            "gpu_packet_writes": ("pc/src/game/SLUS_010.40/libgpu/", "pc/src/boot_sdk.c", "pc/src/boot_runtime.c",
                                   "pc/src/boot_polygons.inc", "pc/src/boot_lines.inc", "pc/src/gpu_hw.c",
                                   "pc/src/draw_items.c",
                                   # not GPU packets: the SPU's registers and volume words, the movie library's data words,

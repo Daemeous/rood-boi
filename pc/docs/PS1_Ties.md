@@ -150,7 +150,9 @@ special-casing. Widescreen is done by narrowing projection and anchoring packets
 (T6).
 
 **Evidence.**
-- `pc/src/boot_sdk.c`: `DrawOTag`, `DrawPrim`, `ClearOTag`, `ClearOTagR`.
+- `pc/src/boot_sdk.c`: `pc_frame_table_clear` and `pc_frame_table_draw` (what `ClearOTag`, `ClearOTagR` and `DrawOTag` were), `DrawPrim`. The
+  lint rule `ordering_table` (`ps1_address_lint.py`, baseline 0) fails on the SDK's names and the libgpu link macros in game or engine code;
+  `raw_tripwire` (boot_runtime.c) logs a packet still linked into a table and `run.py` and `build_compare.py` fail on it.
 - `pc/src/boot_runtime.c`: `pc_draw_packet`, `next_packet` (OT links; the 4-byte-pointer branch is dead on
   64-bit), the marker checks (`render_is_marker`, `render_translucent_marker`).
 - `pc/src/render.c`: `pc_native_room = 2`, `pc_native_actors = 2`, `pc_native_blend`, `pc_native_objects`,

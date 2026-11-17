@@ -52,9 +52,6 @@ BENIGN = {}
 # (wrong declarations are fixed instead; pc/docs/LP64_Audit.md, "Import
 # aliases"). Only REVIEWs are silenced: a HAZARD for the pair still reports.
 REVIEWED = {
-    ("vs_battle_puzzleTimer", "vs_state_sceneTimer"):
-        "5BF94.c passes the battle timer's frames/seconds/minutes/hours bytes to _renderTimer(int*) "
-        "as one word; plain bytes, no pointers",
     ("D_800F4438", "D_800F2458"):
         "the shared scale VECTOR after the 63 bone matrices (vs_actors_skeletonPose[63]); 30DB0.c's "
         "D_800F2458.unk1FE0 is the low half of its vx (a u_short load that matches); no pointers",
