@@ -1,5 +1,6 @@
 /* Vagrant Story snapshot for the developer RPC `state` method (dev_rpc.c).
  * Compiled with the game headers so field offsets follow the decompilation. */
+#include "game_pointer.h"
 #include "psx_types.h"
 #include "common.h"
 #include "../../pc/src/game/BATTLE/BATTLE.PRG/146C.h"
@@ -21,19 +22,14 @@ extern int sprintf(char*, const char*, ...);
 /* Actor records live in the guest heap; during the attract demo and room
  * transitions the slots can hold stale values, so only follow pointers that
  * lie in guest RAM (this runs every frame for the lights). */
-static int guest_pointer(const void* p, unsigned size)
-{
-    __UINTPTR_TYPE__ a = (__UINTPTR_TYPE__)p;
-    return a >= ROOD_GUEST_RAM_BASE + 0x10000ul && a + size <= (ROOD_GUEST_RAM_BASE + ROOD_GUEST_RAM_SIZE) && !(a & 3);
-}
 void pc_dev_state(struct pc_dev_state* out)
 {
     D_800F4538_t* player = vs_actors_actorRecords[0];
     vs_battle_actor* actor = vs_battle_actors[0];
     short* stats = NULL;
-    if (!guest_pointer(player, sizeof *player))
+    if (!pc_game_pointer_ok(player, sizeof *player))
         player = NULL;
-    if (guest_pointer(actor, sizeof *actor) && guest_pointer(actor->unk3C, 0x24))
+    if (pc_game_pointer_ok(actor, sizeof *actor) && pc_game_pointer_ok(actor->unk3C, 0x24))
         stats = (short*)((unsigned char*)actor->unk3C + 0x18);
     out->valid = 1;
     const _mpdRoomDoorSection_t* location = vs_field_pendingDestinationDoor.zndId ? &vs_field_pendingDestinationDoor : &vs_state_savedEntryDoor;
@@ -65,7 +61,7 @@ int pc_dev_actors(struct pc_dev_actor* out, int max)
     int n = 0;
     for (int i = 0; i < 17 && n < max; i++) {
         D_800F4538_t* actor = vs_actors_actorRecords[i];
-        if (!guest_pointer(actor, sizeof *actor))
+        if (!pc_game_pointer_ok(actor, sizeof *actor))
             continue;
         out[n].slot = i;
         out[n].pos[0] = actor->unk0.position.vx;
@@ -86,7 +82,7 @@ int pc_dev_actor_of(const void* p)
 {
     for (int i = 0; i < 17; i++) {
         D_800F4538_t* actor = vs_actors_actorRecords[i];
-        if (guest_pointer(actor, sizeof *actor) && (const char*)p >= (const char*)actor
+        if (pc_game_pointer_ok(actor, sizeof *actor) && (const char*)p >= (const char*)actor
             && (const char*)p < (const char*)actor + sizeof *actor)
             return i;
     }
@@ -94,7 +90,7 @@ int pc_dev_actor_of(const void* p)
         return -1;
     for (int i = 0; i < 20; i++) {
         vs_battle_wepModels_t* held = vs_battle_wepModels[i];
-        if (guest_pointer(held, sizeof *held) && (const char*)p >= (const char*)held
+        if (pc_game_pointer_ok(held, sizeof *held) && (const char*)p >= (const char*)held
             && (const char*)p < (const char*)held + sizeof *held)
             return held->actorId;
     }
@@ -173,7 +169,7 @@ static void effect_nodes(struct json* j)
 {
     j->p += sprintf(j->p, ",\"effects\":[");
     int count = 0;
-    for (vs_effects_EffectInstance* n = vs_effects_primaryInstances; n && count < 64 && guest_pointer(n, sizeof *n); n = n->next, ++count) {
+    for (vs_effects_EffectInstance* n = vs_effects_primaryInstances; n && count < 64 && pc_game_pointer_ok(n, sizeof *n); n = n->next, ++count) {
         if (j->p + 8192 > j->end)
             break;
         j->p += sprintf(j->p, "{");
@@ -191,7 +187,7 @@ static void effect_nodes(struct json* j)
         put(j, "t3a", n->context.effectId); put(j, "t3b", n->context.unk3A); put(j, "t3c", n->context.unk3C);
         j->p += sprintf(j->p, "\"particles\":[");
         int k = 0;
-        for (func_800D2904_t* p = n->unk18; p && k < 96 && guest_pointer(p, sizeof *p); p = p->next, ++k) {
+        for (func_800D2904_t* p = n->unk18; p && k < 96 && pc_game_pointer_ok(p, sizeof *p); p = p->next, ++k) {
             if (j->p + 512 > j->end)
                 break;
             j->p += sprintf(j->p, "\"%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%llx,%u,%d,%d,%d,%d,%d,%d\",",
@@ -212,11 +208,11 @@ void pc_rpc_battle_state(char* out, unsigned size)
         vs_battle_actor* a = i < 16 ? vs_battle_actors[i] : NULL;
         D_800F4538_t* o = vs_actors_actorRecords[i];
         vs_battle_aiState* s = i < 16 ? vs_battle_aiActorAiStates[i] : NULL;
-        if (!guest_pointer(a, sizeof *a))
+        if (!pc_game_pointer_ok(a, sizeof *a))
             a = NULL;
-        if (!guest_pointer(o, sizeof *o))
+        if (!pc_game_pointer_ok(o, sizeof *o))
             o = NULL;
-        if (!guest_pointer(s, sizeof *s))
+        if (!pc_game_pointer_ok(s, sizeof *s))
             s = NULL;
         if (!a && !o && !s)
             continue;
@@ -227,7 +223,7 @@ void pc_rpc_battle_state(char* out, unsigned size)
             put(&j, "unk10", a->unk10.s32); F(&j, a, unk14); F(&j, a, unk18); F(&j, a, subType); F(&j, a, unk1C);
             F(&j, a, weaponDrawn); F(&j, a, defeated); put(&j, "flags30", a->flags30.raw); F(&j, a, unk34);
             F(&j, a, unk38); F(&j, a, unk40);
-            if (guest_pointer(a->unk3C, sizeof *a->unk3C)) {
+            if (pc_game_pointer_ok(a->unk3C, sizeof *a->unk3C)) {
                 vs_battle_actor2* t = a->unk3C;
                 F(&j, t, currentHP); F(&j, t, currentMP); F(&j, t, statuses);
             }
@@ -246,7 +242,7 @@ void pc_rpc_battle_state(char* out, unsigned size)
             j.p += sprintf(j.p, "\"end\":0},");
         }
         D_800F45E0_t* q = i < 16 ? vs_field_gimmickInstances[i] : NULL;
-        if (guest_pointer(q, sizeof *q)) {
+        if (pc_game_pointer_ok(q, sizeof *q)) {
             j.p += sprintf(j.p, "\"model\":{");
             F(&j, q, unk0); F(&j, q, unk1); F(&j, q, unk12); F(&j, q, unk13); F(&j, q, unk1A); F(&j, q, unk1C);
             F(&j, q, unk1E); F(&j, q, unk20); F(&j, q, unk22); F(&j, q, unk24); F(&j, q, unk26);

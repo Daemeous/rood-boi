@@ -341,7 +341,12 @@ The free camera draws the moment as the game built it, from another place:
   the renderer's temporal history (GI, denoisers, frame interpolation) is
   host state, so a replayed *picture* matches when those settle or are off
   (the native picture always matches; with GI off and interpolation off
-  the presented picture matched too).
+  the presented picture matched too). Screen copies are the exception while
+  `screen_copy native` is on: a flash or afterimage blends the frame before
+  it from the render target, whose 8 bits a mark does not hold, so the same
+  frame replayed from another mark can be a level off in a tenth of its
+  pixels (cutscene_viewer_smoke compares with `screen_copy ps1`, where the
+  copy is VRAM's and a mark holds it).
 - Inputs outside the pad, the camera stick and the scanline estimate are
   not logged: Lua plugins that change game state, the modern menus (host
   UI), RPC memory writes. A replayed read the log does not hold counts as a

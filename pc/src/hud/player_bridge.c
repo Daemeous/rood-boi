@@ -34,6 +34,7 @@
  * are copied before and put back after, so a query leaves the game's memory
  * byte for byte as it was. This unit's own statics are host state
  * (.data.rood_host): a query changes no save state either. */
+#include "../game_pointer.h"
 #include "common.h"
 #include "../../../pc/src/game/BATTLE/BATTLE.PRG/146C.h"
 #include "../../../pc/src/game/BATTLE/BATTLE.PRG/5BF94.h"
@@ -76,19 +77,14 @@ static const u_char capacities[PC_PQ_BAG_CATEGORIES] = { 8, 16, 16, 8, 16, 48, 6
 
 /* A pointer into guest RAM (as query_bridge.c checks: during room changes and the
  * attract demo the slots can hold stale values). */
-static int guest(const void* p, unsigned size)
-{
-    __UINTPTR_TYPE__ a = (__UINTPTR_TYPE__)p;
-    return a >= 0x80010000ul && a + size <= 0x80200000ul && !(a & 3);
-}
 
 static vs_battle_actor2* ashley(void)
 {
     vs_battle_actor2* a;
-    if (!vs_battle_characterState || !guest(vs_battle_characterState, sizeof *vs_battle_characterState))
+    if (!vs_battle_characterState || !pc_game_pointer_ok(vs_battle_characterState, sizeof *vs_battle_characterState))
         return NULL;
     a = vs_battle_characterState->unk3C;
-    return a && guest(a, sizeof *a) ? a : NULL;
+    return a && pc_game_pointer_ok(a, sizeof *a) ? a : NULL;
 }
 
 static void copy_text(char* out, int size, const char* text)

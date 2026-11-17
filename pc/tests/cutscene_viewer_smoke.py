@@ -47,6 +47,10 @@ STATE_KEYS = ("ram", "scratch", "io", "overlays", "vram")
 # history (the native characters' frame-to-frame matching) is host state the take does not rewind: a replayed
 # picture can differ in a few pixels of a moving character (seen: 9 of 307,200).
 PICTURE_SLACK = 64
+# The pictures are compared with screen_copy ps1 (ROOD_SCREEN_COPY=0): the story's fades and afterimages then sample the PS1-resolution
+# copy of VRAM, which a mark holds, so a replay from another mark draws them the same. With screen_copy native (the default) they sample
+# the render target at its own resolution, whose 8 bits a mark does not hold: the same frame replayed from another mark is a level off in
+# a tenth of its pixels (23,487 of 307,200 at frame 300 here; pc/docs/Cutscene_Player.md, Limits).
 
 
 def ppm(path):
@@ -65,14 +69,62 @@ def ppm(path):
 
 
 def pixels_apart(a, b):
-    """How many pixels differ by more than one level of 255 in a channel (a size change: all). One level is rounding: the screen copies
-    the story's fades sample (screen_copy native, 78face25f) come from the render-target capture, whose last bit follows the history of
-    the frames before it (a replay starts from another one), so a replayed picture is a level off in a tenth of its pixels."""
+    """How many pixels differ at all (a size change: all)."""
     wa, ha, da = ppm(a)
     wb, hb, db = ppm(b)
     if (wa, ha) != (wb, hb):
         return wa * ha
-    return sum(1 for i in range(0, len(da), 3) if max(abs(da[i + k] - db[i + k]) for k in range(3)) > 1)
+    return sum(1 for i in range(0, len(da), 3) if da[i:i + 3] != db[i:i + 3])
+
+
+def native_lane(out, check, scene="room-070-00-s081"):
+    """screen_copy native (the default), forward only: the scene played once, then two replays that both land on the mark before M
+    (a backward seek each, no seek to an earlier frame between them) and step on to N. Their pictures at N are the same to the bit:
+    the replays began from the same mark, so the render target's 8 bits the screen copies carry are the same history."""
+    game = launch_at("title", fast=True, log=out / "native.log", socket_path=f"/tmp/rood-cutscene-native-{os.getpid()}.sock", extra_env={
+        "ROOD_CARD1": str(out / "absent-card1.mcd"), "ROOD_CARD2": str(out / "absent-card2.mcd"),
+        "ROOD_CUTSCENES": str(out / "cutscenes-native"), "ROOD_PHOTOS": str(out / "photos-native"), "ROOD_WINDOW": "640x480"})
+    try:
+        def cs(**params):
+            return game.call("cutscene", **params)
+
+        def settle(guard=300):
+            deadline = Deadline(guard)
+            while cs()["busy"]:
+                if deadline.passed():
+                    raise RpcError("native lane: still busy")
+                time.sleep(0.05)
+
+        def go(frame):
+            cs(action="seek", frame=frame)
+            settle()
+
+        def presented(frame, path):
+            go(frame - 1)
+            path.unlink(missing_ok=True)
+            game.call("present_dump", path=str(path))
+            cs(action="step", frames=1)
+            if not wait_for_file(path, 60):
+                raise RpcError("no frame presented")
+            settle()
+
+        game.call("graphics", interpolate=False)
+        cs(action="start", scene=scene)
+        settle(600)
+        cs(action="play")
+        deadline = Deadline(300)
+        while cs()["frame"] < N + 60 and not deadline.passed():
+            time.sleep(0.1)
+        cs(action="pause")
+        pictures = []
+        for k in range(2):
+            go(M)
+            presented(N, out / f"native-{k}.ppm")
+            pictures.append(out / f"native-{k}.ppm")
+        apart = pixels_apart(*pictures)
+        check(apart == 0, f"screen_copy native: two replays from the mark before {M}, forward to {N}: the same presented picture ({apart} pixels apart)")
+    finally:
+        game.close()
 
 
 def main():
@@ -94,7 +146,7 @@ def main():
         return ok
 
     game = launch_at("title", fast=True, log=out / "game.log", socket_path=socket, extra_env={
-        "ROOD_CARD1": str(out / "absent-card1.mcd"), "ROOD_CARD2": str(out / "absent-card2.mcd"),
+        "ROOD_SCREEN_COPY": "0", "ROOD_CARD1": str(out / "absent-card1.mcd"), "ROOD_CARD2": str(out / "absent-card2.mcd"),
         "ROOD_CUTSCENES": str(out / "cutscenes"), "ROOD_PHOTOS": str(out / "photos"), "ROOD_WINDOW": "640x480"})
 
     def cs(**params):
@@ -227,6 +279,7 @@ def main():
         check("[crash]" not in log and "[UNIMPLEMENTED]" not in log, "no crash")
     finally:
         game.close()
+    native_lane(out, check)
     if failures:
         print(f"FAIL cutscene viewer: {len(failures)} check(s)")
         return 1

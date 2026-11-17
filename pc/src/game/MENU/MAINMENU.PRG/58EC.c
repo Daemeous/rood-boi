@@ -1177,9 +1177,7 @@ void vs_mainMenu_renderItemsList(void)
 }
 
 /* The menu's picture (the emblem: two sprites, 256 + 64 wide, the screen's whole height) sits where the game puts it in the 4:3
- * screen, compressed with the rest of the 2D in 16:9. Left to the widescreen guesses, two sprites that wide and that tall
- * stand for a full-screen picture (pc_hw_set_bounds' backdrop rule: the map's) and are spread over the whole view: the emblem
- * came in 4/3 too wide and shrank to its size when the screen settled. */
+ * screen, compressed with the rest of the 2D in 16:9: placed by this anchor, nothing guessed from its size. */
 static void _anchorPicture(int first)
 {
 #ifdef ROOD_PC

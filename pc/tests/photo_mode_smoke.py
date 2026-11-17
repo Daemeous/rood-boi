@@ -317,6 +317,12 @@ def run(out, card):
             h = g.call("snapshot", action="hash")
             return {k: h[k] for k in DIGEST}
 
+        def still_ranges():
+            """The hash of each range a save state holds that the sound driver does not live in: the sound driver's state (the music
+            channels and sequences, the I/O block) is native game statics (state_bss) and moves while Music keep runs it in real time."""
+            return [(r["name"], r["hash"]) for r in g.call("snapshot", action="ranges")["ranges"]
+                    if r["name"] not in ("ram", "heap", "io", "state_bss")]
+
         def nothing_held(p):
             return (p["phase"] == "running" and not p["owners"] and p["camera"] is None and p["hidden"] == 0
                     and p["format"] == 0 and p["input"] == "")
@@ -633,6 +639,7 @@ def run(out, card):
         # ---- Music keep (the default): the sound goes on while the game is held ----
         value("rood.settings.set('plugin:rood.photo/music', 'keep')")
         held_keep = digest()
+        held_ranges = still_ranges()
         press("f12")
         until("Music keep: the sound driver runs in real time while held",
               lambda: photo()["audio"] == 2 and photo()["audio_vsyncs"] > 30)
@@ -640,8 +647,8 @@ def run(out, card):
         g.wait_presents(20)
         g.call("system", key="h", down=False)
         kept = digest()
-        check(kept["vsync"] == held_keep["vsync"] and all(kept[k] == held_keep[k] for k in ("scratch", "overlays")),
-              "the game itself still held (the vsync, the overlays; only the sound's RAM moves)")
+        check(kept["vsync"] == held_keep["vsync"] and kept["scratch"] == held_keep["scratch"] and still_ranges() == held_ranges,
+              "the game itself still held (the vsync, the scratchpad, the overlays' statics; only the sound's state moves)")
         press("f12")
         until("and it leaves", lambda: nothing_held(photo()) and value("M.state.active") is False)
         g.run(30)

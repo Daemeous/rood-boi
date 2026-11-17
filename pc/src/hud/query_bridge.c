@@ -11,6 +11,7 @@
  *             (weapon_slots.c), an event script (scene_submit.inc)
  * Pointers are followed only into guest RAM: during room changes and the
  * attract demo the slots can hold stale values. */
+#include "../game_pointer.h"
 #include "common.h"
 #include "../../../pc/src/game/BATTLE/BATTLE.PRG/146C.h"
 #include "../../../pc/src/game/BATTLE/BATTLE.PRG/3A1A0.h"
@@ -25,11 +26,6 @@ int pc_battle_field_menu_open(void);                       /* weapon_slots.c */
 int pc_battle_event_running(void) __attribute__((weak));   /* scene_submit.inc */
 int pc_ui_ashley_statuses(vs_battle_actor2* a, pc_game_status* out, int max); /* ui/ashley_bridge.c */
 
-static int guest(const void* p, unsigned size)
-{
-    __UINTPTR_TYPE__ a = (__UINTPTR_TYPE__)p;
-    return a >= 0x80010000ul && a + size <= 0x80200000ul && !(a & 3);
-}
 
 void pc_game_query_fill(pc_game_query* out)
 {
@@ -49,10 +45,10 @@ void pc_game_query_fill(pc_game_query* out)
     out->first_person = _firstPersonViewEnabled != 0;
     out->menu = pc_battle_field_menu_open();
     out->event = pc_battle_event_running && pc_battle_event_running();
-    if (guest(vs_battle_characterState, sizeof *vs_battle_characterState))
+    if (pc_game_pointer_ok(vs_battle_characterState, sizeof *vs_battle_characterState))
         a = vs_battle_characterState->unk3C;
     actor = vs_actors_actorRecords[0];
-    if (!a || !guest(a, sizeof *a) || !guest(actor, sizeof *actor))
+    if (!a || !pc_game_pointer_ok(a, sizeof *a) || !pc_game_pointer_ok(actor, sizeof *actor))
         return;
     out->ashley = 1;
     out->hp = a->currentHP;

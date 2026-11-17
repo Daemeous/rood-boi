@@ -8,6 +8,7 @@
 #include "scratch.h"
 #define PC_LEAF_TABLE 0 /* (the frame is items alone: the leaves' items are placed in no table: menufLeaf.h) */
 #include "pc/src/draw_items.h"
+#include "pc/src/widescreen.h"
 #include "pc/src/gte_value.h"
 #include <libapi.h>
 #include <libetc.h>
@@ -670,10 +671,14 @@ static void _renderllustration(_creditsElement* element)
         break;
     }
 
+    /* The picture is the 4:3 screen's: centred in 16:9 at its own proportions (placed by this anchor, not left to
+     * pc_hw_set_bounds' guess of a full-screen picture: it spread the two halves over the view and the 4:3 box cropped them). */
+    int pcPicture = pc_frame_count();
     pc_frame_sprite(4, 0, 0, 0xA0, 0xE0, 0, 0, PC_GREY(vs_ending_creditsIllustrationBrightness),
         getClut(0, vs_ending_creditsIllustrationPaletteY), PC_ITEM_MODE(getTPage(1, 2, vs_ending_creditsIllustrationTexturePageX, 256)), PC_ITEM_SEMI);
     pc_frame_sprite(4, 0xA0, 0, 0xA0, 0xE0, 0x20, 0, PC_GREY(vs_ending_creditsIllustrationBrightness),
         getClut(0, vs_ending_creditsIllustrationPaletteY), PC_ITEM_MODE(getTPage(1, 2, vs_ending_creditsIllustrationTexturePageX + 64, 256)), PC_ITEM_SEMI);
+    pc_frame_anchor(pcPicture, pc_frame_count(), PC_ANCHOR_CENTRE | PC_ANCHOR_EXACT);
 }
 
 static int _creditsStrWidth(u_char* str)

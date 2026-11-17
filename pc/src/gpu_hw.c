@@ -177,12 +177,10 @@ void pc_hw_set_flipped_uv(const int* xy, const int* uv)
  * primitive covers the view when it
  *
  * - spans the drawing area's full width (a few pixels' tolerance): fades,
- *   flashes, the battle-mode message bar, backdrops;
+ *   flashes, the battle-mode message bar;
  * - is untextured and reaches well past the top or bottom: wipe quads (sized
  *   beyond the screen and rotated) and fans of gradient triangles about the
  *   centre, as a whole;
- * - is a full-height sprite at the screen's left or right edge: the pieces a
- *   full-screen picture is drawn in (the map's background, 256 + 64);
  * - is a screen copy: 15-bit texels sampling a frame buffer (a recent
  *   display area, or a VRAM copy of one) about where it draws (the map's
  *   rippling transition redraws the last frame in strips; menus dim a copy
@@ -346,10 +344,6 @@ void pc_hw_set_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tp
     /* Untextured shapes reaching well past the top or bottom (wipes; fans
      * of gradient triangles about the centre) are screen effects as a whole. */
     int tall = !uv && (y0 < clip[1] - 32 || y1 > clip[1] + clip[3] + 32 || (y0 < clip[1] && y1 > clip[1] + clip[3]));
-    /* Full-height sprites at the screen's left or right edge: the pieces a
-     * full-screen picture is drawn in (the map's background, 256 + 64). */
-    int backdrop = (code & 0xe0) == 0x60 && uv && y0 <= clip[1] + tolerance && y1 >= clip[1] + clip[3] - tolerance
-        && (x0 <= clip[0] + tolerance || x1 >= clip[0] + clip[2] - tolerance) && x1 - x0 >= clip[2] / 8;
     int copy = 0;
     if (uv && ((tpage >> 7) & 3) >= 2) {
         /* 15-bit texels (depth 3 reads as 15-bit too): the sampled VRAM
@@ -370,10 +364,10 @@ void pc_hw_set_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tp
      * ones). A screen-wide rectangle in it is a clear (the black tile behind
      * the sky panorama) and covers the view. */
     if (primitive_anchor == PC_ANCHOR_SCENE) {
-        tall = backdrop = copy = 0;
+        tall = copy = 0;
         wide = wide && (code & 0xe0) == 0x60;
     }
-    primitive_cover = wide || tall || backdrop || copy || primitive_anchor == PC_ANCHOR_COVER;
+    primitive_cover = wide || tall || copy || primitive_anchor == PC_ANCHOR_COVER;
     if (primitive_cover || primitive_anchor == PC_ANCHOR_SCENE)
         primitive_extend = 0;
     trace_bounds(x0, y0, x1, y1, code, tpage, uv, clip);
@@ -404,7 +398,7 @@ void pc_hw_set_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tp
         ++logged;
         fprintf(stderr, "[widescreen] full-view 2D code 0x%02x (%d,%d)-(%d,%d) in area %d,%d %dx%d: %s\n", code & 0xff,
             key[1], key[2], key[3], key[4], clip[0], clip[1], clip[2], clip[3],
-            wide ? "full width" : tall ? "past the top or bottom" : backdrop ? "full-screen picture piece" : "a copy of the screen");
+            wide ? "full width" : tall ? "past the top or bottom" : "a copy of the screen");
     }
 }
 
