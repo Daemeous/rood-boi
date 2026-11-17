@@ -10,7 +10,7 @@ serialises it) unless ROOD_ENGINE_SMOKE_NO_BUILD=1, and runs the host on a
 copy of the library (ROOD_ENGINE_LIBRARY), from the opening checkpoint:
 
 1. Interposition: a setting the engine applies (qol_map_invert) lands in the
-   host-owned variable the game reads (read_symbol on the host).
+   host-owned variable the game reads (read by name from the host).
 2. RPC reload while paused: the reply names generation 2 at the same vsync,
    the library at its base, no host data left pointing into the old library;
    the game state (RPC snapshot hash) equals the state before; the game is
@@ -133,7 +133,6 @@ def menu_while_open(work, socket, env):
         game = checkpoints.launch_at("save_room", card=cards.card1, fast=True, socket_path=socket,
                                      log=work / "menu.log", extra_env=dict(env, ROOD_CARD1=str(cards.card1)))
         try:
-            menu_state = rood_rpc.symbols()["vs_battle_menuState"]
             game.call("ui_menu", modern=True)
             game.press("triangle", vsyncs=3, settle=40)
             check(game.call("ui_menu")["visible"], "the modern menu is open")
@@ -144,11 +143,11 @@ def menu_while_open(work, socket, env):
                 check("retry" in str(error) and "menu" in str(error),
                       f"a reload is refused while the modern menu is open ({error})")
             game.press("triangle", vsyncs=3, settle=120)
-            closed = not game.call("ui_menu")["visible"] and game.read(menu_state, 1)[0] == 0x3F
+            closed = not game.call("ui_menu")["visible"] and game.value("vs_battle_menuState.currentMenu") == 0x3F
             reply = game.call("reload")
             check(closed and reply.get("reloaded"), "once it closed, the reload goes through")
             game.press("triangle", vsyncs=3, settle=40)
-            check(game.call("ui_menu")["visible"] and game.read(menu_state, 1)[0] == 0,
+            check(game.call("ui_menu")["visible"] and game.value("vs_battle_menuState.currentMenu") == 0,
                   "the menu opens again on the new library")
         finally:
             game.close()
@@ -172,7 +171,7 @@ def main():
     # binary used to prepare the runner's checkpoint cache. Never resume a
     # static stack into that different pinned code layout.
     os.environ["ROOD_TEST_SNAPSHOTS"] = "0"
-    os.environ["ROOD_SYMBOLS"] = str(DEV / "rood_host")  # read_symbol: the host's addresses
+    os.environ["ROOD_SYMBOLS"] = str(DEV / "rood_host")  # the layout table of the host (the engine-library build)
     socket = f"/tmp/rood-reload-{os.getpid()}.sock"
     env = dict(checkpoints._base_env(work), ROOD_ENGINE_LIBRARY=str(library),
                ROOD_SETTINGS=str(work / "settings.ini"),
@@ -184,9 +183,9 @@ def main():
     process = game.processes[0]
     try:
         # 1. The engine writes the host's copy.
-        before_invert = int.from_bytes(game.read_symbol("pc_qol_map_invert", 4), "little")
+        before_invert = int.from_bytes(game.data("pc_qol_map_invert", 4), "little")
         game.call("settings", apply=settings)
-        invert = int.from_bytes(game.read_symbol("pc_qol_map_invert", 4), "little")
+        invert = int.from_bytes(game.data("pc_qol_map_invert", 4), "little")
         check(before_invert == 0 and invert == 1,
               f"a setting the engine applies lands in the host-owned variable ({before_invert} -> {invert})")
         game.call("snapshot", action="save", path=str(work / "start.snap"))
@@ -206,7 +205,7 @@ def main():
         status = game.status()
         check(status["paused"], "the game is still paused (the RPC's state carried over)")
         line = game.call("settings", get="qol_map_invert").get("line")
-        kept = int.from_bytes(game.read_symbol("pc_qol_map_invert", 4), "little")
+        kept = int.from_bytes(game.data("pc_qol_map_invert", 4), "little")
         check(line == "qol_map_invert 1" and kept == 1, f"settings survive (\"{line}\", host-owned value {kept})")
 
         # 3. An engine change takes effect.
@@ -244,7 +243,7 @@ def main():
             check(state(game) == (before, vsync) and game.status()["paused"],
                   f"ABI rejection {attempt + 1} preserves state, vsync, pause and RPC connectivity")
             check(game.call("settings", get="qol_map_invert").get("line") == "qol_map_invert 1"
-                  and int.from_bytes(game.read_symbol("pc_qol_map_invert", 4), "little") == 1,
+                  and int.from_bytes(game.data("pc_qol_map_invert", 4), "little") == 1,
                   "ABI rejection preserves settings and host-owned state")
             check(len(list(work.glob("*.live-*"))) == 1, "only the fallback library's live link remains")
         swap(good, library)

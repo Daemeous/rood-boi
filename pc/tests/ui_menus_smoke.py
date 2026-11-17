@@ -35,7 +35,7 @@ import tempfile
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from weapon_slots_smoke import default_card  # noqa: E402
 
@@ -57,11 +57,6 @@ def main():
     lights = pathlib.Path(tempfile.mkdtemp(prefix="lights-", dir=out))
     env = {"ROOD_WINDOW": "960x720", "ROOD_LIGHTS": str(lights), "ROOD_GI": "0"}
     os.environ.pop("ROOD_SETTINGS", None)
-    sym = symbols()
-    menu_state = sym["vs_battle_menuState"]
-    shortcut_invoked = sym["vs_battle_shortcutInvoked"]
-    hud_hide = sym["vs_battle_hudHidden"]  # the field HUD slides out while set
-    actions, action_ranges = sym["vs_main_actions"], sym["D_800EBD68"]
     failures = []
 
     def check(ok, message):
@@ -77,7 +72,7 @@ def main():
             return 1
 
         def current_menu():
-            return game.read(menu_state, 1)[0]
+            return game.value("vs_battle_menuState.currentMenu")
 
         def shell():
             return game.call("ui_menu")
@@ -99,7 +94,7 @@ def main():
         game.press("triangle", vsyncs=3, settle=40)
         s = shell()
         check(s["visible"] and s["tab"] == "ashley", f"on: the shell opens on Ashley ({s})")
-        check(game.read(hud_hide, 1)[0] == 1, "on: the field HUD slides out behind the shell")
+        check(game.value("vs_battle_hudHidden") == 1, "on: the field HUD slides out behind the shell")
         shot("ashley")
         game.press("r1", vsyncs=3, settle=10)
         check(shell()["tab"] == "equipment", "R1: Equipment")
@@ -159,7 +154,7 @@ def main():
         game.press("triangle", vsyncs=3, settle=90)
         check(current_menu() == CLOSED, "Triangle closes the menu")
         check(not shell()["visible"], "the shell is hidden after closing")
-        check(game.read(hud_hide, 1)[0] == 0, "the field HUD is back after closing")
+        check(game.value("vs_battle_hudHidden") == 0, "the field HUD is back after closing")
         shot("closed")
         # the next open is the game's own menu
         game.press("triangle", vsyncs=3, settle=40)
@@ -173,7 +168,7 @@ def main():
         game.run(30)
         game.call("input", buttons=["up"], vsyncs=3)
         game.run(40)
-        invoked = game.read(shortcut_invoked, 1)[0]
+        invoked = game.value("vs_battle_shortcutInvoked")
         check(current_menu() == 4 and invoked == 5,
               f"L2 + Up opens the misc items shortcut (currentMenu {current_menu():#x}, shortcut {invoked})")
         check(not shell()["visible"], "the shell stays hidden over the shortcut list")
@@ -191,10 +186,10 @@ def main():
         # Break Arts: unlock the break arts in RAM (vs_main_actions records of 52 bytes, unlocked =
         # byte 13 bit 7; D_800EBD68[2..3] = the break arts range vs_menu_frameworkOpenGameMenu checks for the
         # Break Arts command)
-        lo, hi = game.read(action_ranges + 2, 2)
+        lo, hi = game.data("D_800EBD68[2]", 2)
         for a in range(lo, hi):
-            b = game.read(actions + a * 52 + 13, 1)[0]
-            game.write(actions + a * 52 + 13, bytes([b | 0x80]))
+            b = game.data("vs_main_actions", 1, offset=a * 52 + 13)[0]
+            game.store_data("vs_main_actions", bytes([b | 0x80]), offset=a * 52 + 13)
         game.press("triangle", vsyncs=3, settle=40)
         for _ in range(7):
             if shell()["tab"] == "abilities":

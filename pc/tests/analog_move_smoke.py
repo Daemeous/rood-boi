@@ -41,7 +41,7 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from weapon_slots_smoke import default_card  # noqa: E402
 
@@ -72,7 +72,6 @@ def main():
     game = launch_at("save_room", card=card, fast=True, log=out / "game.log",
                      extra_env={"ROOD_WINDOW": "960x720", "ROOD_GI": "0"})
     try:
-        port = symbols()["_portInfo"]
 
         def settings(*lines):
             game.call("settings", apply=list(lines))
@@ -167,14 +166,14 @@ def main():
         check(idle(left_stick=stick_at(150, 1.0)), "off again: the stick does nothing")
 
         # ---- rumble ----
-        act = port + 8
-        check(game.read(port + 1, 1)[0] != 0, "the pad has an extended ID (the small motor's byte is its on/off)")
+        act = "_portInfo[0]"  # (the pad port: the actuator bytes sit 8 on)
+        check(game.value("_portInfo[0].exId") != 0, "the pad has an extended ID (the small motor's byte is its on/off)")
 
         def rumble(small, large):
             """The game rewrites its actuator bytes every frame in the field (vs_main_setVibrateParams: no
             script, so zero), so paused: the bytes are written and one vsync stepped, which reads them."""
             game.pause()
-            game.write(act, bytes([small, large]))
+            game.store_data(act, bytes([small, large]), offset=8)
             game.run(1)
             return game.call("rumble")
 
@@ -202,7 +201,7 @@ def main():
         check(game.call("rumble")["calls"] == calls, "silent motors are not asked again")
         rumble(0, 90)
         for _ in range(12):  # held by the game: one refresh in 8 fields
-            game.write(act, bytes([0, 90]))
+            game.store_data(act, bytes([0, 90]), offset=8)
             game.run(1)
         check(game.call("rumble")["calls"] >= calls + 2, "a running motor is refreshed (SDL stops it after its duration)")
         rumble(0, 0)

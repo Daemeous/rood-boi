@@ -46,12 +46,11 @@ from PIL import Image
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 import golden_frames as gf  # noqa: E402
 
-POSITION = 28  # D_800F4538_t unk0.position (3 shorts, world units, y down)
-YAW = symbols()["vs_view"] + 0x48  # vs_view: camera.angles.vy
+YAW = "vs_view.camera.angles.vy"
 SPOT = (704, 0, 960)  # behind the beam at zone 51 room 1's save point
 failures = []
 
@@ -77,7 +76,7 @@ def goto(game, zone, room, enemies):
 
 
 def yaw(game):
-    return struct.unpack("<I", game.read(YAW, 4))[0] & 0xFFF
+    return struct.unpack("<I", game.data(YAW, 4))[0] & 0xFFF
 
 
 def turn_to(game, target):
@@ -129,9 +128,7 @@ def field(game, out, save):
     if not goto(game, 51, 1, False):
         check(False, "zone 51 room 1 through room_goto")
         return
-    width = pointer_size()
-    actor = int.from_bytes(game.read(symbols()["vs_actors_actorRecords"], width), "little")
-    game.write(actor + POSITION, struct.pack("<3h", *SPOT))
+    game.store_data("vs_actors_actorRecords[0]->unk0.position", struct.pack("<3h", *SPOT))
     game.run(60)
     check(turn_to(game, 0x400), f"the camera at yaw 0x400 ({yaw(game):#05x})")
     game.call("occlusion", occlusion="off")
@@ -218,9 +215,7 @@ def nothing_in_front(game, out, save, name, zone, room, presses, spot=None, targ
         check(False, f"zone {zone} room {room} through room_goto")
         return
     if spot:
-        width = pointer_size()
-        actor = int.from_bytes(game.read(symbols()["vs_actors_actorRecords"], width), "little")
-        game.write(actor + POSITION, struct.pack("<3h", *spot))
+        game.store_data("vs_actors_actorRecords[0]->unk0.position", struct.pack("<3h", *spot))
         game.run(60)
     for _ in range(presses):
         game.call("input", buttons=["r1"], vsyncs=4)

@@ -41,8 +41,6 @@ static struct {
         const uint32_t* entry; /* the table entry it is placed at */
         int first, count;
         int tail; /* appended at the end of the slot's chain (pc_frame_copy_tail), not at its head */
-        unsigned behind; /* what the entry's link held when the run was placed (24 bits): the packet the run is before in the table's chain, 0xffffff the end of it */
-        unsigned char eligible, taken; /* (the walk of a table: its entry is reached; the run is taken in) */
     } markers[ITEMS];
     int marker_count;
     struct {
@@ -96,132 +94,6 @@ void pc_frame_table(const void* base, int n, int reverse)
         at = table_next++ % TABLES;
     tables[at].base = base, tables[at].n = n, tables[at].reverse = reverse;
 }
-/* The markers by the table entry they are placed at, for the walk of a table (boot_runtime.c adopt): sorted by entry, the runs linked at
- * the head of the entry apart from those appended at the end of its chain. */
-static int marker_by_entry[ITEMS];
-static int by_entry_count, by_behind_n;
-static int by_entry_cmp(const void* a, const void* b)
-{
-    const int i = *(const int*)a, j = *(const int*)b;
-    if (markers[i].entry != markers[j].entry)
-        return markers[i].entry < markers[j].entry ? -1 : 1;
-    if (markers[i].tail != markers[j].tail)
-        return markers[i].tail - markers[j].tail;
-    return markers[i].tail ? i - j : j - i; /* (linked at the head: the last placed first; appended: in the order made) */
-}
-static int by_entry_first(const void* entry, int tail);
-static int marker_by_behind[ITEMS];
-static int by_behind_cmp(const void* a, const void* b)
-{
-    const int i = *(const int*)a, j = *(const int*)b;
-    if (markers[i].behind != markers[j].behind)
-        return markers[i].behind < markers[j].behind ? -1 : 1;
-    return j - i; /* (the last placed first: it was linked in front of the others) */
-}
-void pc_frame_markers_index(void)
-{
-    int behind_count = 0;
-    by_entry_count = 0;
-    for (int i = 0; i < marker_count; i++) {
-        markers[i].eligible = markers[i].taken = 0;
-        if (markers[i].entry && !markers[i].tail) {
-            marker_by_entry[by_entry_count++] = i;
-            marker_by_behind[behind_count++] = i;
-        } else if (markers[i].entry)
-            marker_by_entry[by_entry_count++] = i;
-    }
-    qsort(marker_by_entry, (size_t)by_entry_count, sizeof marker_by_entry[0], by_entry_cmp);
-    qsort(marker_by_behind, (size_t)behind_count, sizeof marker_by_behind[0], by_behind_cmp);
-    by_behind_n = behind_count;
-}
-/* The walk reached the entry `p`: the runs placed at it can be taken in where they were placed (their packet before which they were linked). */
-void pc_frame_walk_visit(const void* p)
-{
-    for (int k = by_entry_first(p, 0); k < by_entry_count; k++) {
-        const int m = marker_by_entry[k];
-        if (markers[m].entry != (const uint32_t*)p || markers[m].tail)
-            break;
-        markers[m].eligible = 1;
-    }
-}
-/* The runs that were placed before the packet at 24-bit address `addr` (in front of it in the chain they were linked in): the entry's
- * runs the walk has reached and not taken in yet, the last placed first, written to `out` (up to max); returns how many. */
-int pc_frame_walk_before(unsigned addr, const void** out, int max)
-{
-    int n = 0, lo = 0, hi = by_behind_n;
-    while (lo < hi) {
-        int mid = (lo + hi) / 2;
-        if (markers[marker_by_behind[mid]].behind < addr)
-            lo = mid + 1;
-        else
-            hi = mid;
-    }
-    for (int k = lo; k < by_behind_n; k++) {
-        const int m = marker_by_behind[k];
-        if (markers[m].behind != addr)
-            break;
-        if (markers[m].eligible && !markers[m].taken) {
-            if (n < max)
-                out[n] = markers[m].packet, markers[m].taken = 1;
-            n++;
-        }
-    }
-    return n;
-}
-static int by_entry_first(const void* entry, int tail)
-{
-    int lo = 0, hi = by_entry_count;
-    while (lo < hi) {
-        int mid = (lo + hi) / 2, m = marker_by_entry[mid];
-        if (markers[m].entry < (const uint32_t*)entry || (markers[m].entry == (const uint32_t*)entry && markers[m].tail < tail))
-            lo = mid + 1;
-        else
-            hi = mid;
-    }
-    return lo;
-}
-int pc_frame_entry_markers(const void* entry, int tail, const void** out, int max)
-{
-    int n = 0; /* (the count of them all: `out` takes up to `max`) */
-    for (int k = by_entry_first(entry, tail); k < by_entry_count; k++) {
-        const int m = marker_by_entry[k];
-        if (markers[m].entry != (const uint32_t*)entry || markers[m].tail != tail)
-            break;
-        if (markers[m].taken)
-            continue;
-        if (n < max)
-            out[n] = markers[m].packet, markers[m].taken = 1;
-        n++;
-    }
-    return n;
-}
-/* The runs of reached entries not taken in by the end of the walk (the packet they were placed before is no longer in the chain). */
-int pc_frame_walk_rest(const void** out, int max)
-{
-    int n = 0;
-    for (int k = 0; k < by_behind_n; k++) {
-        const int m = marker_by_behind[k];
-        if (markers[m].eligible && !markers[m].taken) {
-            if (n < max)
-                out[n] = markers[m].packet, markers[m].taken = 1;
-            n++;
-        }
-    }
-    return n;
-}
-int pc_frame_entry_has_tail(const void* entry)
-{
-    int k = by_entry_first(entry, 1);
-    return k < by_entry_count && markers[marker_by_entry[k]].entry == (const uint32_t*)entry && markers[marker_by_entry[k]].tail;
-}
-/* Whether `a` and `b` are entries of one registered table. */
-int pc_frame_same_table(const void* a, const void* b)
-{
-    for (int i = 0; i < TABLES; i++)
-        if (tables[i].base && (const uint32_t*)a >= tables[i].base && (const uint32_t*)a < tables[i].base + tables[i].n)
-            return (const uint32_t*)b >= tables[i].base && (const uint32_t*)b < tables[i].base + tables[i].n;
-    return 0;
-}
 /* Whether a run still has an item that draws (the others were suppressed: kind none). */
 int pc_frame_run_live(int first, int count)
 {
@@ -230,10 +102,24 @@ int pc_frame_run_live(int first, int count)
             return 1;
     return 0;
 }
-/* The runs placed in the table `head` (a DrawOTag's argument) lies in, in the order the table's walk draws them: the slot the walk
- * reaches first (a reverse table: the last), and at one slot the run placed last first (it was linked at the slot's head). Their first
- * items go to `out`; returns how many, or -1 when no table holds `head`. */
-int pc_frame_expected_order(const void* head, int* out, int max)
+/* The runs placed in the table `head` (a table drawn: pc_frame_table_draw's argument) lies in, in the order they draw: the slot the table's
+ * drawing reaches first (a reverse table: the last), and at one slot the run placed last first (it was at the slot's head), those appended
+ * at the end of a slot after them, and a spliced table's runs where the drawing reaches the entry it is drawn after (pc_frame_table_after),
+ * before the runs placed there. The slots before the head are not reached; suppressed runs (kind none) draw nothing and are left out.
+ * Returns how many runs, or -1 when no table holds `head`; pc_frame_table_run reads them. */
+static int order_marker[ITEMS];
+static const uint32_t* order_at[ITEMS]; /* (a spliced table's run: the entry it is drawn after) */
+typedef struct {
+    long key;
+    int marker;
+    const uint32_t* at;
+} keyed;
+static int keyed_cmp(const void* a, const void* b)
+{
+    const keyed *x = a, *y = b;
+    return x->key < y->key ? -1 : x->key > y->key;
+}
+int pc_frame_table_order(const void* head)
 {
     const uint32_t* h = head;
     int t = -1, n = 0;
@@ -242,17 +128,16 @@ int pc_frame_expected_order(const void* head, int* out, int max)
             t = i;
     if (t < 0)
         return -1;
-    long key[ITEMS];
-    int order[ITEMS];
-    for (int i = 0; i < marker_count && n < max && n < ITEMS; i++) {
-        const uint32_t* e = markers[i].entry;
+    static keyed run[ITEMS];
+    for (int i = 0; i < marker_count && n < ITEMS; i++) {
+        const uint32_t *e = markers[i].entry, *at = NULL;
         if (!e || !pc_frame_run_live(markers[i].first, markers[i].count))
             continue;
         long slot, sub;
         if (e >= tables[t].base && e < tables[t].base + tables[t].n) {
             slot = e - tables[t].base;
             sub = markers[i].tail ? (1L << 19) + ITEMS + i : (1L << 19) + (ITEMS - 1 - i);
-        } else { /* a spliced table's run: at the entry the table is linked after */
+        } else { /* a spliced table's run: at the entry the table is drawn after */
             slot = -1;
             for (int sp = 0; sp < 4 && slot < 0; sp++) {
                 int bt = -1;
@@ -261,6 +146,7 @@ int pc_frame_expected_order(const void* head, int* out, int max)
                         bt = b;
                 if (bt >= 0 && splice_of[sp].at >= tables[t].base && splice_of[sp].at < tables[t].base + tables[t].n) {
                     slot = splice_of[sp].at - tables[t].base;
+                    at = splice_of[sp].at;
                     sub = (long)(tables[bt].reverse ? tables[bt].n - 1 - (e - tables[bt].base) : e - tables[bt].base) * ITEMS + (ITEMS - 1 - i);
                 }
             }
@@ -268,21 +154,48 @@ int pc_frame_expected_order(const void* head, int* out, int max)
                 continue;
         }
         long from = h - tables[t].base;
-        if (tables[t].reverse ? slot > from : slot < from) /* (the walk starts at `head`: the slots before it are not reached) */
+        if (tables[t].reverse ? slot > from : slot < from) /* (drawing starts at `head`: the slots before it are not reached) */
             continue;
-        key[n] = ((tables[t].reverse ? -slot : slot) << 20) + sub;
-        order[n++] = i;
+        run[n].key = ((tables[t].reverse ? -slot : slot) << 20) + sub, run[n].marker = i, run[n].at = at;
+        n++;
     }
-    for (int a = 1; a < n; a++) {
-        long k = key[a];
-        int o = order[a], b = a - 1;
-        for (; b >= 0 && key[b] > k; b--)
-            key[b + 1] = key[b], order[b + 1] = order[b];
-        key[b + 1] = k, order[b + 1] = o;
-    }
+    qsort(run, (size_t)n, sizeof run[0], keyed_cmp);
     for (int i = 0; i < n; i++)
-        out[i] = markers[order[i]].first;
+        order_marker[i] = run[i].marker, order_at[i] = run[i].at;
     return n;
+}
+/* Run `k` of the last pc_frame_table_order: its marker packet, the entry it is placed at and (a spliced table's run) the entry of the
+ * table drawn that its table is drawn after, else NULL. */
+void pc_frame_table_run(int k, const void** packet, const void** entry, const void** at)
+{
+    *packet = markers[order_marker[k]].packet, *entry = markers[order_marker[k]].entry, *at = order_at[k];
+}
+/* The tripwire for a packet written into a table by hand: the frame's tables are made empty (pc_frame_table_clear writes no link) and
+ * nothing is linked into them, so at the draw a slot with a link in it, or a marker whose tag got one, is a screen that still builds a
+ * packet and links it. It would draw nothing now: logged (once per process; pc/tests/run.py and pc/tools/build_compare.py fail a suite or a
+ * lane whose game log holds the line), the first slot's word with it. Returns how many linked words were found. */
+int pc_frame_table_check(const void* head)
+{
+    static int told;
+    const uint32_t* h = head;
+    int found = 0;
+    for (int t = 0; t < TABLES; t++) {
+        if (!tables[t].base || h < tables[t].base || h >= tables[t].base + tables[t].n)
+            continue;
+        for (int i = 0; i < tables[t].n; i++)
+            if (tables[t].base[i] & 0xffffff) {
+                if (!found && !told++)
+                    fprintf(stderr, "[ot] a raw packet is linked in a table: slot %d holds %08x\n", i, tables[t].base[i]);
+                found++;
+            }
+    }
+    for (int i = 0; i < marker_count; i++)
+        if (markers[i].entry && (*(const uint32_t*)markers[i].packet & 0xffffff)) {
+            if (!found && !told++)
+                fprintf(stderr, "[ot] a raw packet is linked in a table: after a marker (%08x)\n", *(const uint32_t*)markers[i].packet);
+            found++;
+        }
+    return found;
 }
 
 /* Developer coverage: the call sites that placed an item, by return address (dev_rpc.c effect_sites). */
@@ -290,7 +203,6 @@ int pc_frame_expected_order(const void* head, int* out, int max)
 static int sites_on, sites_count, peak;
 static const void* sites[SITES];
 
-extern void vs_render_splicePrimitiveList(uint32_t* at, int* packet);
 /* boot_runtime.c: one lowered packet drawn as a member of an ordering table. */
 extern void pc_draw_item_packet(void* packet);
 extern void pc_hwc_frame_room(void); /* hw_cmd.c */
@@ -1116,15 +1028,13 @@ uint32_t* pc_frame_place(int first, int count, uint32_t* ot_entry, uint32_t* pac
     for (int i = first; i < first + count && i < pc_item_frame.count; i++)
         pc_item_frame.item[i].flags |= PC_ITEM_PLACED;
     if (marker_count < ITEMS)
-        markers[marker_count].tail = 0, markers[marker_count].behind = *ot_entry & 0xffffff, markers[marker_count].packet = packet, markers[marker_count].entry = ot_entry, markers[marker_count].first = first, markers[marker_count++].count = count;
-    /* Linked at the head of the entry, as the packet it stands for was: the readers that follow the chain from an entry find it (the classic
-     * layer's captures, the screen warp). The walk of a table (boot_runtime.c adopt) skips a marker it reaches by a link and takes the run in
-     * where it was placed (the entry, and the packet it was linked before: `behind`). */
-    packet[0] = (*ot_entry & 0xffffff) | 3u << 24;
+        markers[marker_count].tail = 0, markers[marker_count].packet = packet, markers[marker_count].entry = ot_entry, markers[marker_count].first = first, markers[marker_count++].count = count;
+    /* Not linked into the table: the entry is the run's key, where the table's drawing takes it in (pc_frame_table_order), and the readers
+     * that followed the chain from an entry ask for the runs placed there (pc_frame_markers_at). */
+    packet[0] = 3u << 24;
     packet[1] = MARKER;
     packet[2] = (uint32_t)first & 0xffffff;
     packet[3] = (uint32_t)count & 0xffffff;
-    *ot_entry = (*ot_entry & 0xff000000) | ((uint32_t)(uintptr_t)packet & 0xffffff);
     return packet + 4;
 }
 
@@ -1171,12 +1081,41 @@ void pc_frame_copy_tail(unsigned* top, unsigned* packet)
             it->flags |= PC_ITEM_PLACED;
             if (marker_count < ITEMS)
                 markers[marker_count].packet = packet, markers[marker_count].entry = top, markers[marker_count].first = first,
-                markers[marker_count].count = 1, markers[marker_count].behind = 0xffffff, markers[marker_count++].tail = 1;
+                markers[marker_count].count = 1, markers[marker_count++].tail = 1;
             packet[0] = 3u << 24;
             packet[1] = MARKER;
             packet[2] = (uint32_t)first & 0xffffff;
             packet[3] = 1;
+            return; /* (placed at the end of the slot, not linked) */
         }
     }
-    vs_render_splicePrimitiveList(top, (int*)packet);
+    { /* a packet that is no copy: nothing draws it (the tripwire, as pc_frame_table_check's) */
+        static int told;
+        if (!told++)
+            fprintf(stderr, "[ot] a raw packet is linked in a table: appended at the end of the top slot, %u words (%08x)\n", packet[0] >> 24, packet[1]);
+    }
+}
+
+/* The marker packets placed at `entry` that lie in [lo, hi) of packet memory, in the order the table draws them (the head's: the last
+ * placed first, then those appended at the end), for the readers that followed the chain from an entry (the classic layer). */
+int pc_frame_markers_at(const void* entry, const void* lo, const void* hi, const void** out, int max)
+{
+    int n = 0;
+    for (int tail = 0; tail < 2; tail++)
+        for (int k = 0; k < marker_count && n < max; k++) {
+            int i = tail ? k : marker_count - 1 - k;
+            if (markers[i].entry == (const uint32_t*)entry && markers[i].tail == tail && (const void*)markers[i].packet >= lo
+                && (const void*)markers[i].packet < hi)
+                out[n++] = markers[i].packet;
+        }
+    return n;
+}
+/* The runs placed at the entries [lo, hi] (a table's slots from the one drawn last of them to the one first), for a reader that deforms them all. */
+int pc_frame_runs_between(const void* lo, const void* hi, int* firsts, int* counts, int max)
+{
+    int n = 0;
+    for (int i = 0; i < marker_count && n < max; i++)
+        if (markers[i].entry && (const void*)markers[i].entry >= lo && (const void*)markers[i].entry <= hi)
+            firsts[n] = markers[i].first, counts[n++] = markers[i].count;
+    return n;
 }

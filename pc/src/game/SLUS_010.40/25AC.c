@@ -189,9 +189,6 @@ extern FSoundChannelConfig* g_pSavedMousicConfig;
 extern FSoundChannel* g_pSecondaryMusicChannels;
 extern FSoundFadeTimer g_Sound_MasterFadeTimer;
 FSoundCutsceneStreamState g_Sound_Cutscene_StreamState;
-/* For the smokes (heal_audio_smoke): where the stream state's fields are in this build. */
-const unsigned pc_sound_stream_offset_voices = __builtin_offsetof(FSoundCutsceneStreamState, VoicesInUseFlags);
-const unsigned pc_sound_stream_offset_pages = __builtin_offsetof(FSoundCutsceneStreamState, TotalPages);
 extern u_int g_Sound_ProgramCounter;
 extern FSoundChannelConfig* g_Sound_VoiceChannelConfigs[VOICE_COUNT];
 #define SfxSoundChannels (vs_audio_soundEffectsChannels + 10)

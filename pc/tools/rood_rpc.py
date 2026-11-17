@@ -7,7 +7,7 @@ Python:
     game.wait_title()
     game.press("start"); game.run(120)              # run 120 vsyncs, then pause
     print(game.state()); game.screenshot("shot.png")
-    game.read_symbol("randIndex", 4)
+    game.value("randIndex")                         # state by name: the game resolves "vs_battle_actors[3]->stats.currentHP"
     game.close()
 
 CLI:
@@ -88,24 +88,29 @@ def unique_socket():
 PROFILE = os.environ.get("ROOD_RPC_PROFILE")  # Game.call timing log (profile_report.py)
 
 
-HEAP_POINTER = 8  # a vs_main_HeapHeader link, in bytes (main.h)
-
-
 def symbols():
-    """Game symbols -> addresses (native build is non-PIE, so nm is exact)."""
+    """Game symbols -> addresses, from the layout table (the executable's own DWARF and symbol table, so no nm).
+    Raw addresses are what tools move away from (memory lane S2: Game.field names state by path and the game
+    resolves it); this stays for the tests that have not moved yet, and answers a build's decomp or new names alike.
+    A Windows executable (a PE image, read by a MinGW nm under WSL: ROOD_SYMBOLS, ROOD_NM) still goes through nm."""
     global _symbols
     if _symbols is None:
-        _symbols = {}
-        # The executable that is running (or ROOD_SYMBOLS, e.g. rood.exe
-        # read by a MinGW nm under WSL); ROOD_NM picks the nm.
         image = os.environ.get("ROOD_SYMBOLS") or str(BUILD / ("rood.exe" if WINDOWS else "rood_battle_probe"))
+        with open(image, "rb") as f:
+            elf = f.read(4) == b"\x7fELF"
+        if elf:
+            table = layout()
+            _symbols = {n: s["address"] for n, s in table.syms.items()}
+            for old, new in table.aliases.items():
+                if old in _symbols and new not in _symbols:
+                    _symbols[new] = _symbols[old]
+            return _symbols
+        _symbols = {}
         out = subprocess.run([os.environ.get("ROOD_NM", "nm"), image], capture_output=True, text=True).stdout
         for line in out.splitlines():
             parts = line.split()
             if len(parts) == 3:
                 _symbols[parts[2]] = int(parts[0], 16)
-        # An older build (a comparison baseline) has the decomp's names, a newer one ours (pc/names/symbols.tsv):
-        # both answer to either.
         import symbol_names
         for old, new in symbol_names.load().items():
             if old in _symbols and new not in _symbols:
@@ -115,8 +120,36 @@ def symbols():
     return _symbols
 
 
+_table = None
+
+
+def layout():
+    """The layout table of the executable that is running (pc/tools/layout_table.py): the sidecar the build wrote
+    beside it, else generated from its DWARF. Only for builds older than the RPC `field` (Game.field answers
+    them client side); a current game resolves names itself."""
+    global _table
+    if _table is None:
+        import layout_table
+        image = os.environ.get("ROOD_SYMBOLS") or str(BUILD / ("rood.exe" if WINDOWS else "rood_battle_probe"))
+        _table = layout_table.Table.for_binary(image)
+    return _table
+
+
 class RpcError(RuntimeError):
     pass
+
+
+class Field:
+    """A named place in game memory, as the game's RPC `field` answers: address, size, kind (int, uint, float, bool,
+    pointer, guest_pointer, struct, union, array), type name, value (a scalar's number) and data (its bytes)."""
+
+    def __init__(self, path, address, size, kind, type_name, value, data, readable=True):
+        self.path, self.address, self.size, self.kind, self.type, self.value, self.data = (
+            path, address, size, kind, type_name, value, data)
+        self.readable = readable  # false: named and sized, but in memory the RPC does not read (read-only data)
+
+    def __repr__(self):
+        return f"Field({self.path!r}, kind={self.kind}, size={self.size}, value={self.value})"
 
 
 # ---- the game's own time: waits and hang guards that a paused game does not trip ----
@@ -540,7 +573,19 @@ class Game:
             raise RpcError("connection closed (game exited?)")
         response = json.loads(line)
         if "error" in response:
-            raise RpcError(response["error"]["message"])
+            message = response["error"]["message"]
+            if "is for another build" in message and method in ("field", "symbol_info", "symbols") \
+                    and not getattr(self, "_relayout", False):
+                # the sidecar is older than the executable (a development build relinked): make it again, ask again
+                self._relayout = True
+                try:
+                    import layout_table
+                    image = os.environ.get("ROOD_SYMBOLS") or str(BUILD / ("rood.exe" if WINDOWS else "rood_battle_probe"))
+                    layout_table.Table.for_binary(image)
+                    return self._call(method, params)
+                finally:
+                    self._relayout = False
+            raise RpcError(message)
         return response["result"]
 
     # ---- conveniences ----
@@ -735,67 +780,163 @@ class Game:
     def write(self, address, data):
         return self.call("write", address=address, hex=bytes(data).hex())
 
-    def read_symbol(self, name, length=4):
-        return self.read(symbols()[name], length)
+    # ---- state by name: the game resolves the path ("vs_battle_actors[3]->unk3C.hp", pc/tools/layout_table.py
+    # has the grammar), so a tool never knows an address or an offset; a build older than the RPC answers through
+    # its own layout table. ----
+    def field(self, path, length=None, offset=0):
+        """The Field at `path`. `length`: how many bytes from its address come back as data (default: its size).
+        `offset`: bytes past the named place (for a record laid out by a file format, the save card's, that no name
+        is worth); the answer is then untyped."""
+        params = {"path": path} if length is None else {"path": path, "length": length}
+        if offset:
+            params["offset"] = offset
+        if getattr(self, "_named", True):
+            try:
+                r = self.call("field", **params)
+                self._named = True
+                return Field(path, r["address"], r["size"], r["kind"], r.get("type"), r.get("value"),
+                             bytes.fromhex(r.get("hex", "")), r.get("readable", True))
+            except RpcError as e:
+                if "unknown method" not in str(e):
+                    raise
+                self._named = False
+        table = layout()
+        try:
+            ref = table.resolve(path, read=self.read)
+        except LookupError as e:
+            raise RpcError(str(e))
+        if offset:
+            ref = {**ref, "address": ref["address"] + offset, "size": max(ref["size"] - offset, 0), "type": None,
+                   "bitsize": 0, "bitoffset": 0, "limit": None if ref["limit"] is None else ref["limit"] - offset}
+        size = ref["size"] if not length else length  # (length 0: no bytes back, but the scalar's value is decoded)
+        try:
+            data, readable = (self.read(ref["address"], size) if size else b""), True
+        except RpcError:
+            data, readable = b"", False
+        t = table.types.get(ref["type"])
+        return Field(path, ref["address"], ref["size"], table.kind_word(ref["type"]), t["name"] if t else None,
+                     table.decode(ref, data) if readable else None, b"" if length == 0 else data, readable)
 
-    def actor_offset(self, name, old=None):
-        """A vs_battle_actor field's byte offset (stats, models, weapon): the game exports its layout.
-        A build older than the export (a comparison baseline) answers `old`."""
-        sym = symbols().get(f"pc_actor_offset_{name}")
-        return int.from_bytes(self.read(sym, 4), "little") if sym else old
+    def value(self, path):
+        """A scalar's number at `path` (bit fields extracted, pointers as their address)."""
+        f = self.field(path, length=0 if getattr(self, "_named", True) else None)
+        if f.value is None:
+            raise RpcError(f"{path} is not readable" if not f.readable else f"{path} is a {f.kind}, not a scalar")
+        return f.value
 
-    def layout(self, name, old):
-        """A record's size or a field's offset the game exports (pc_layout_<name>: menuItem_size, textBox_state, ...).
-        `old` is the PS1 layout's, for a baseline built before the export."""
-        cache = self.__dict__.setdefault("_layouts", {})
-        if name not in cache:
-            sym = symbols().get(f"pc_layout_{name}")
-            cache[name] = int.from_bytes(self.read(sym, 4), "little") if sym else old
-        return cache[name]
+    def data(self, path, length=None, offset=0):
+        """The bytes at `path` (its whole size, or `length` bytes from its address; `offset`: see field)."""
+        f = self.field(path, length, offset)
+        if not f.readable:
+            raise RpcError(f"{path} is not readable")
+        return f.data
 
-    def object_size(self):
-        """The byte size of a D_800F4538_t (the game exports it; a baseline built before answers the PS1 size)."""
-        sym = symbols().get("pc_object_size")
-        return int.from_bytes(self.read(sym, 4), "little") if sym else 6356
+    def store(self, path, value):
+        """Sets the scalar at `path` to an integer; bit fields keep their neighbours."""
+        if getattr(self, "_named", True):
+            try:
+                return self.call("field", path=path, value=value)
+            except RpcError as e:
+                if "unknown method" not in str(e):
+                    raise
+                self._named = False
+        table = layout()
+        ref = table.resolve(path, read=self.read)
+        t = table.types[ref["type"]]
+        if ref["bitsize"]:
+            width = (ref["bitoffset"] + ref["bitsize"] + 7) // 8
+            old = int.from_bytes(self.read(ref["address"], width), "little")
+            mask = ((1 << ref["bitsize"]) - 1) << ref["bitoffset"]
+            raw = (old & ~mask) | ((value << ref["bitoffset"]) & mask)
+        else:
+            width = 4 if t["kind"] == "P" else t["size"]
+            raw = value & ((1 << 8 * width) - 1)
+        return self.write(ref["address"], raw.to_bytes(width, "little"))
 
-    def object_offset(self, name, old):
-        """An offset in a D_800F4538_t, exported by the game; `old` is the PS1 layout's, for a baseline older than the export."""
-        sym = symbols().get(f"pc_object_offset_{name}")
-        return int.from_bytes(self.read(sym, 4), "little") if sym else old
+    def store_data(self, path, data, offset=0):
+        """Writes `data` from the address of the field at `path` (`offset` bytes past it: see field); it may cover the
+        members that follow, up to the end of the symbol the path starts from."""
+        if getattr(self, "_named", True):
+            try:
+                return self.call("field", path=path, hex=bytes(data).hex(), **({"offset": offset} if offset else {}))
+            except RpcError as e:
+                if "unknown method" not in str(e):
+                    raise
+                self._named = False
+        ref = layout().resolve(path, read=self.read)
+        room = (ref["limit"] - offset) if ref["limit"] is not None else 1 << 30  # (behind a pointer: an allocation's extent is not known)
+        if not 0 < len(data) <= room:
+            raise RpcError(f"{path}: {len(data)} bytes go past the end of its object")
+        return self.write(ref["address"] + offset, data)
 
-    def room_u32(self, name, old):
-        """A word of the room record (vs_battle_roomData): its state byte or a section length. `old`: the PS1 offset."""
-        sym = symbols().get(f"pc_room_offset_{name}")
-        offset = int.from_bytes(self.read(sym, 4), "little") if sym else old
-        return int.from_bytes(self.read(symbols()["vs_battle_roomData"] + offset, 4), "little")
+    def info(self, path):
+        """Where `path` is and what it is: address, size, kind, type, count and element for arrays, and the
+        fields of its struct (name, offset, size, kind, type, bits)."""
+        if getattr(self, "_named", True):
+            try:
+                r = self.call("symbol_info", name=path)
+                self._named = True
+                return r
+            except RpcError as e:
+                if "unknown method" not in str(e):
+                    raise
+                self._named = False
+        table = layout()
+        try:
+            return table.info(table.resolve(path, read=self.read))
+        except LookupError as e:
+            raise RpcError(str(e))
 
-    def room_pointer(self, name, old):
-        """A section pointer of the room record (a host pointer on 64 bits, a guest word before)."""
-        sym = symbols().get(f"pc_room_offset_{name}")
-        offset = int.from_bytes(self.read(sym, 4), "little") if sym else old
-        width = 8 if sym and os.environ.get("ROOD_ARCH") == "64" else 4
-        return int.from_bytes(self.read(symbols()["vs_battle_roomData"] + offset, width), "little")
+    def table(self, path, count, *names):
+        """`count` consecutive records at `path` (an array's or a pointer's first element, "vs_battle_menuItems[0]")
+        as dicts of the named members' values, from one read: the record size and the members' offsets are the
+        game's own (symbol_info), not the caller's. A member that is an array comes as bytes."""
+        info = self.info(path)
+        stride = info["size"]
+        members = {f["name"]: f for f in info.get("fields", [])}
+        missing = [n for n in names if n not in members]
+        if missing:
+            raise RpcError(f"{path} has no member {missing[0]}")
+        raw = self.data(path, stride * count)
+        out = []
+        for i in range(count):
+            row = {}
+            for n in names:
+                f = members[n]
+                chunk = raw[i * stride + f["offset"]:i * stride + f["offset"] + f["size"]]
+                if f.get("bits"):
+                    word = int.from_bytes(chunk, "little") >> (f["bit_offset"] - f["offset"] * 8)
+                    row[n] = word & ((1 << f["bits"]) - 1)
+                elif f["kind"] in ("int", "uint", "bool", "pointer", "guest_pointer") and 0 < f["size"] <= 8:
+                    row[n] = int.from_bytes(chunk, "little", signed=f["kind"] == "int")
+                else:
+                    row[n] = chunk
+            out.append(row)
+        return out
 
-    def actor_stats(self, actor):
-        """The actor's stats record address (vs_battle_actor.unk3C: a host pointer, a guest word in old builds)."""
-        offset = self.actor_offset("stats", 0x3C)
-        width = 8 if symbols().get("pc_actor_offset_stats") and os.environ.get("ROOD_ARCH") == "64" else 4
-        return int.from_bytes(self.read(actor + offset, width), "little")
-
-    def u32(self, name_or_address):
-        a = symbols()[name_or_address] if isinstance(name_or_address, str) else name_or_address
-        return int.from_bytes(self.read(a, 4), "little")
+    def symbols_like(self, prefix):
+        """{name: address} of the symbols that start with `prefix`."""
+        if getattr(self, "_named", True):
+            try:
+                r = self.call("symbols", prefix=prefix)
+                self._named = True
+                return {s["name"]: s["address"] for s in r["symbols"]}
+            except RpcError as e:
+                if "unknown method" not in str(e):
+                    raise
+                self._named = False
+        return {n: s["address"] for n, s in layout().syms.items() if n.startswith(prefix)}
 
     def heap_free(self):
-        """The game heap's free total in heap units: heapA's circular free list of vs_main_HeapHeader
-        (prev, next, blockSz: one pointer is HEAP_POINTER bytes; the addresses fit in 32 bits)."""
-        head = symbols()["heapA"]
-        node, total = self.u32(head + HEAP_POINTER), 0
-        for _ in range(4096):
-            if node in (head, 0):
+        """The game heap's free total in heap units: heapA's circular free list of vs_main_HeapHeader (prev, next,
+        blockSz), walked by name (a node's path is its predecessor's .next)."""
+        head, node, total = self.field("heapA", length=0).address, "heapA", 0
+        for _ in range(300):  # (a path is at most 2048 characters: the list is a few dozen blocks)
+            following = self.value(node + ".next")
+            if following in (head, 0):
                 break
-            total += self.u32(node + 2 * HEAP_POINTER)
-            node = self.u32(node + HEAP_POINTER)
+            node += ".next"
+            total += self.value(node + ".blockSz")
         return total
 
     def wait_title(self, timeout=120):
@@ -870,7 +1011,7 @@ def bridge(path):
             if method == "symbol":
                 result = {"address": symbols()[params["name"]]}
             elif method == "read_symbol":
-                result = {"hex": game.read_symbol(params["name"], params.get("length", 4)).hex()}
+                result = {"hex": game.data(params["name"], params.get("length", 4)).hex()}
             else:
                 result = game.call(method, **params)
             response = {"jsonrpc": "2.0", "id": request.get("id"), "result": result}

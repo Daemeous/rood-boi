@@ -57,32 +57,23 @@ ROOM = tuple(int(n) for n in os.environ.get("BUILD_COMPARE_ROOM", "48,10").split
 
 
 ROOM_ENEMIES = range(2, 10)  # vs_battle_actors slots of the room's enemies
-STATS_HP = 0x18  # vs_battle_actor2.currentHP (the stats pointer is read by the build's exported offset)
-LOOT_BYTES = 0x220  # vs_battle_loot; a drop node is: next (the pointer's width), int actorId, the loot
 
 
 def loot(g):
     """Defeat the room's enemies and read the drop list: [(actor id, item bytes hash)]."""
-    from rood_rpc import symbols
-    sym = symbols()
-    pointers = g.read(sym["vs_battle_actors"], 16 * 8)
     for slot in ROOM_ENEMIES:
-        actor = int.from_bytes(pointers[slot * 8:slot * 8 + 8], "little")
-        stats = g.actor_stats(actor) if actor else 0
-        if stats:
-            g.write(stats + STATS_HP, (0).to_bytes(2, "little"))
-    width = 8  # a pointer of the 64-bit build
-    head = lambda: int.from_bytes(g.read(sym["_lootListHead"], 8), "little")
+        if g.value(f"vs_battle_actors[{slot}]") and g.value(f"vs_battle_actors[{slot}]->stats"):
+            g.store(f"vs_battle_actors[{slot}]->stats->currentHP", 0)
+    head = lambda: g.value("_lootListHead")
     for _ in range(40):
         g.run(15)
         if head():
             break
     g.run(60)
-    drops, node = [], head()
-    while node and len(drops) < 64:
-        raw = g.read(node, width + 4 + LOOT_BYTES)
-        drops.append([int.from_bytes(raw[width:width + 4], "little"), hashlib.sha256(raw[width + 4:]).hexdigest()[:16]])
-        node = int.from_bytes(raw[:width], "little")
+    drops, node = [], "_lootListHead"  # (the list: a node's path is its predecessor's ->next)
+    while g.value(node) and len(drops) < 64:
+        drops.append([g.value(node + "->actorId"), hashlib.sha256(g.data(node + "->loot")).hexdigest()[:16]])
+        node += "->next"
     return drops
 
 
@@ -146,25 +137,6 @@ def stream_start(g):
     return taken
 
 
-def census_start(g):
-    """BUILD_COMPARE_CENSUS=DIR: the ordering-table census (pc/tools/ot_census.py) counts from here."""
-    if os.environ.get("BUILD_COMPARE_CENSUS"):
-        try:
-            g.call("ot_census", on=True, reset=True)
-        except Exception:
-            pass
-
-
-def census_write(g, name):
-    out = os.environ.get("BUILD_COMPARE_CENSUS")
-    if out:
-        try:
-            pathlib.Path(out).mkdir(parents=True, exist_ok=True)
-            (pathlib.Path(out) / f"{os.getpid()}-{name}.json").write_text(json.dumps(g.call("ot_census")))
-        except Exception:
-            pass
-
-
 RAW_PACKET_LINE = "[ot] a raw packet is linked in a table"  # (boot_runtime.c raw_tripwire: a screen that still links a packet by hand)
 TRIPWIRES = []
 
@@ -206,7 +178,6 @@ def play(binary, seconds, card, out):
     out = pathlib.Path(out)
     (out / "settings.cfg").write_text("qol_skip_charging 0\nui_menus 0\n" + os.environ.get("BUILD_COMPARE_SETTINGS", ""))
     g = start(card, out, "fight")
-    census_start(g)
     sites = []
     try:
         try:
@@ -226,7 +197,6 @@ def play(binary, seconds, card, out):
                 states.append(g.call("battle_state"))
             except Exception:
                 states.append(None)
-        census_write(g, "fight")
         ended = g.call("skip_charging").get("ended", "")
         try:
             sites = g.call("effect_sites")["sites"]
@@ -339,8 +309,7 @@ def play_casts(binary, card, out, kinds, limit):
                 try:
                     state = g.call("battle_state")
                     if os.environ.get("ROOD_CAST_VIEW"):  # the scene's view record (vs_view; the scratchpad at 0x1F800010 before it)
-                        symbols = sys.modules["rood_rpc"].symbols()
-                        state["view"] = g.read(symbols.get("vs_view", 0x1F800010), 0x58).hex()
+                        state["view"] = g.data("vs_view", 0x58).hex()
                     self.last_states.append(state)
                 except Exception:
                     self.last_states.append(None)
@@ -372,19 +341,17 @@ def play_casts(binary, card, out, kinds, limit):
 
     Cast.drive = drive
     r = Cast("casts", snap, card_copy, env, out, socket, fast=True)
-    g, sym = r.g, r.sym
+    g = r.g
     actions, sites, peak, states = {}, [], 0, {}
     try:
         def prepare():
             g.call("ui_menu", modern=True)
             g.call("skip_charging", mode="skip", who="all", name=smoke.NAME_SECONDS)
-            g.write(sym["vs_main_settings"] + smoke.INFORMATION, b"\x01")
-            flags = g.read(sym["vs_main_settings"] + soak.MENU_FLAGS, 1)[0]
-            g.write(sym["vs_main_settings"] + soak.MENU_FLAGS, bytes([flags | 1]))
+            g.store("vs_main_settings.information", 1)
+            g.store("vs_main_settings.menuFlags", g.value("vs_main_settings.menuFlags") | 1)
             for name, size in SCHOOLS:
-                for i in g.read(sym[f"vs_battle_{name}SpellIds"], size):
-                    a = sym["vs_main_actions"] + i * smoke.ACTION + smoke.ACTION_UNLOCKED
-                    g.write(a, bytes([g.read(a, 1)[0] | 0x80]))
+                for i in g.data(f"vs_battle_{name}SpellIds", size):
+                    g.store(f"vs_main_actions[{i}].unlocked", 1)
             g.run(4)
             try:
                 g.call("effect_sites", on=True, reset=True)
@@ -394,22 +361,19 @@ def play_casts(binary, card, out, kinds, limit):
         count = 0
         by_actor = set()
         found = {}
-        record = lambda i: g.read(sym["vs_main_actions"] + i * smoke.ACTION, smoke.ACTION)
+        name0 = lambda i: g.data(f"vs_main_actions[{i}].name", 1)[0]  # (an action's name: 0xE7 ends it, 0 none)
         def drive_actors(tag, attack):
             """The game's own entry for an actor's action (vs_battle_beginActorActionSelection: the base attack's, and what the actor commands run for the
             enemies, which choose from their own list of abilities, stats + 0x8C0: armor[6][4] of 4 bytes, the id first): Ashley's
             attack with her weapon drawn, then each ability of each enemy of the room (its effect data is the room's)."""
             nonlocal count
-            pointers = g.read(sym["vs_battle_actors"], 16 * 8)
             todo = [(0, 1)] if attack else []
             for slot in ROOM_ENEMIES:
-                actor = int.from_bytes(pointers[slot * 8:slot * 8 + 8], "little")
-                stats = g.actor_stats(actor) if actor else 0
-                if stats:
-                    todo += [(slot, i) for i in sorted({struct.unpack_from("<h", g.read(stats + 0x8C0 + 4 * k, 4))[0] for k in range(24)}) if 0 < i < 256]
+                stats = f"vs_battle_actors[{slot}]->stats"
+                if g.value(f"vs_battle_actors[{slot}]") and g.value(stats):
+                    todo += [(slot, i) for i in sorted({g.value(f"{stats}.armor[{k // 4}][{k % 4}].id") for k in range(24)}) if 0 < i < 256]
             for slot, action_id in todo:
-                raw = record(action_id)
-                if raw[smoke.ACTION_NAME] == 0xE7 or raw[smoke.ACTION_NAME] == 0 or action_id in by_actor or action_id in ENEMY_SKIPS or (limit and count >= limit):
+                if name0(action_id) in (0xE7, 0) or action_id in by_actor or action_id in ENEMY_SKIPS or (limit and count >= limit):
                     continue
                 by_actor.add(action_id)  # (one actor's run of an action: the effect is the same for any other)
                 g.rewind()
@@ -461,7 +425,7 @@ def play_casts(binary, card, out, kinds, limit):
         if "drive" in kinds and "driven" not in kinds:
             # The items: a misc item of each kind of target (the action each names: its type and shape of target), used from the Items screen.
             misc = b"".join(struct.pack("<HBB", soak.FIRST_MISC + k, 2, k + 1) for k in range(64))
-            g.write(sym["vs_main_inventory"] + smoke.MISC, misc)
+            g.store_data("vs_main_inventory.misc", misc)
             g.run(4)
             seen = set()
             for row in range(64):
@@ -482,7 +446,7 @@ def play_casts(binary, card, out, kinds, limit):
                     break
                 if not lst[row]["usable"] or lst[row]["action"] == 0:
                     continue
-                key = (g.read(sym["vs_main_actions"] + lst[row]["action"] * smoke.ACTION + 2, 1)[0] >> 1 & 7, g.read(sym["vs_main_actions"] + lst[row]["action"] * smoke.ACTION + 2, 1)[0] >> 4)
+                key = (g.value(f"vs_main_actions[{lst[row]['action']}].type"), g.value(f"vs_main_actions[{lst[row]['action']}].unk2_4"))
                 if key in seen:
                     continue
                 seen.add(key)
@@ -502,11 +466,10 @@ def play_casts(binary, card, out, kinds, limit):
         if "arts" in kinds or ("drive" in kinds and "driven" not in kinds):
             art0, _ = r.learn_art()
             for k in range(4):
-                a = sym["vs_main_actions"] + (art0 + k) * smoke.ACTION + smoke.ACTION_UNLOCKED
-                g.write(a, bytes([g.read(a, 1)[0] | 0x80]))
+                g.store(f"vs_main_actions[{art0 + k}].unlocked", 1)
             r.shell("abilities")
             cat = r.ab()["equipped_category"]
-            g.write(sym["vs_main_artsStatus"] + smoke.ARTS_LEARNED + cat % 10, bytes([4]))
+            g.store(f"vs_main_artsStatus.artsLearned[{cat % 10}]", 4)
             r.shell_close()
             for k in range(4):
                 r.refill()
@@ -531,7 +494,7 @@ def play_casts(binary, card, out, kinds, limit):
             print(f"build_compare: after the rewind {g.call('action')['kinds_captured']} kinds are kept", file=sys.stderr)
             # Every action the game's table defines, but those that cannot take the captured state: a different kind of target (the
             # action's type and shape) or no name. Each skip is said, with its reason.
-            record = lambda i: g.read(sym["vs_main_actions"] + i * smoke.ACTION, smoke.ACTION)
+            name0 = lambda i: g.data(f"vs_main_actions[{i}].name", 1)[0]
             skipped = {}
             crashers = DRIVE_CRASHES
             for action_id in range(int(os.environ.get("BUILD_COMPARE_FROM", "0")), 256):
@@ -540,8 +503,7 @@ def play_casts(binary, card, out, kinds, limit):
                 if action_id in crashers:
                     skipped[action_id] = crashers[action_id]
                     continue
-                raw = record(action_id)
-                if raw[smoke.ACTION_NAME] == 0xE7 or raw[smoke.ACTION_NAME] == 0:
+                if name0(action_id) in (0xE7, 0):
                     skipped[action_id] = "no name"
                     continue
                 g.rewind()  # (each action from the room as it was: an action that leaves the game in a state of its own cannot spoil the next)
@@ -553,7 +515,7 @@ def play_casts(binary, card, out, kinds, limit):
                 states[f"drive {action_id}"] = r.last_states if hashes else None
                 count += hashes is not None
                 if hashes is None:
-                    skipped[action_id] = f"no menu-driven cast left a state for its kind of target (type {raw[2] >> 1 & 7}), or it could not start"
+                    skipped[action_id] = f"no menu-driven cast left a state for its kind of target (type {g.value(f'vs_main_actions[{action_id}].type')}), or it could not start"
             drive_actors("this room", True)
             reasons = {}
             for action_id, why in skipped.items():
@@ -578,7 +540,7 @@ def play_casts(binary, card, out, kinds, limit):
                     pass
                 r.close()
                 r = Cast("casts", snap, card_copy, env, out, socket, fast=True)
-                g, sym = r.g, r.sym
+                g = r.g
                 prepare()
                 g.call("room_goto", hold=True, zone=zone, room=room, enemies=True, scripts=False)
                 for _ in range(80):
@@ -648,11 +610,10 @@ def hashed(g, out, sample, hashes, taken=None, first=None):
     g.run = stepping
 
 
-def scene_ending(g, cp, symbols):
+def scene_ending(g, cp):
     """The credits skipped, MISSION COMPLETE coming in, at rest and left with Cross (its fade-out)."""
     from ending_smoke import RANK_SCREEN_STEP
-    at = symbols[RANK_SCREEN_STEP] if isinstance(RANK_SCREEN_STEP, str) else RANK_SCREEN_STEP  # (a name once ENDING's data moved)
-    step = lambda: int.from_bytes(g.read(at, 4), "little")
+    step = lambda: int.from_bytes(g.data(RANK_SCREEN_STEP, 4), "little")
     g.call("ending")
     g.run(1200)
     g.press("start", vsyncs=4, settle=200)
@@ -661,7 +622,7 @@ def scene_ending(g, cp, symbols):
     g.press("cross", vsyncs=3, settle=240)
 
 
-def scene_mainmenu(g, cp, symbols):
+def scene_mainmenu(g, cp):
     """The menu opened from the field, each top command entered, moved through and left."""
     g.press("triangle", vsyncs=3, settle=60)
     for _ in range(9):
@@ -673,13 +634,12 @@ def scene_mainmenu(g, cp, symbols):
     g.press("cross", vsyncs=3, settle=60)
 
 
-def scene_manual(g, cp, symbols):
+def scene_manual(g, cp):
     """The Quick Manual (MENUE): the list, a topic's pages, back (classic_parity.py's own opening)."""
     from menu_nav import top_command
-    flags = int.from_bytes(g.read(symbols["vs_main_settings"] + 2, 2), "little")
-    g.write(symbols["vs_main_settings"] + 2, (flags | 1 << cp.MANUAL_COMMAND).to_bytes(2, "little"))
+    g.store("vs_main_settings.menuFlags", g.value("vs_main_settings.menuFlags") | 1 << cp.MANUAL_COMMAND)
     g.press("triangle", vsyncs=3, settle=30)
-    top_command(g, symbols, cp.MANUAL_COMMAND)
+    top_command(g, cp.MANUAL_COMMAND)
     g.press("circle", vsyncs=2, settle=2)
     g.run(400)  # (a fixed wait: the manual's own state is read by symbol, and not by every build's)
     for button in ("down", "down", "up", "circle"):
@@ -690,20 +650,19 @@ def scene_manual(g, cp, symbols):
         g.press("cross", vsyncs=3, settle=40)
 
 
-def scene_levelled(g, cp, symbols):
+def scene_levelled(g, cp):
     """The original Magic menu's LV picker (MENU0 84.c), a levelled Warlock spell with LV1 and LV2 learned: to LV1, to LV2,
     then LV1 again (menu0_levelled_smoke.py's route: its setup and its walk to the picker, the pad sequence the same)."""
     import struct
     import menu0_levelled_smoke as m
     s = m.Session.__new__(m.Session)
-    s.g, s.sym, s.out, s.shots = g, symbols, pathlib.Path("."), False
+    s.g, s.out, s.shots = g, pathlib.Path("."), False
     g.call("ui_menu", modern=False)
-    f = symbols["vs_main_settings"] + m.MENU_FLAGS
-    g.write(f, struct.pack("<H", struct.unpack("<H", g.read(f, 2))[0] | 1))
+    g.store("vs_main_settings.menuFlags", g.value("vs_main_settings.menuFlags") | 1)
     for level in range(4):
         s.set_learned(m.EXPLOSION + level, level < 2)
     g.run(2)
-    spells = [i for i in g.read(symbols["vs_battle_warlockSpellIds"], 18) if s.learned(i)]
+    spells = [i for i in g.data("vs_battle_warlockSpellIds", 18) if s.learned(i)]
     s.fill_mp(s.cost(m.EXPLOSION) + 10)
     for _ in range(4):
         g.press("triangle", vsyncs=3, settle=10)
@@ -725,51 +684,51 @@ def scene_levelled(g, cp, symbols):
     g.run(40)
 
 
-def scene_menuf(g, cp, symbols):
+def scene_menuf(g, cp):
     """MENUF's screens, each played through and again skipped (classic_parity.py tour_menuf)."""
-    cp.tour_menuf(g, symbols, lambda *args, **kwargs: None, lambda: None)
+    cp.tour_menuf(g, lambda *args, **kwargs: None, lambda: None)
 
 
 def tour(name):
     """classic_parity.py's tour `name` from a fresh game (each opens its screen itself): its pad work and waits, hashed."""
-    def scene(g, cp, symbols):
+    def scene(g, cp):
         import collections
-        getattr(cp, f"tour_{name}")(g, symbols, lambda *args, **kwargs: None, lambda: collections.defaultdict(int))
+        getattr(cp, f"tour_{name}")(g, lambda *args, **kwargs: None, lambda: collections.defaultdict(int))
     return scene
 
 
 def hud_tour(name):
     """classic_parity.py's tour_<name>(g, check, counters) (the HUD buff rows): its RPC shows and waits, hashed; every check passes."""
-    def scene(g, cp, symbols):
+    def scene(g, cp):
         import collections
         getattr(cp, f"tour_{name}")(g, lambda ok, *args, **kwargs: True, lambda kind: collections.defaultdict(int))
     return scene
 
 
-def scene_emote_arrow(g, cp, symbols):
+def scene_emote_arrow(g, cp):
     """The off-screen emote arrow (func_80095C18's kind 4, whose edge arrow is func_8009651C's shadow quad): at the opening
     (first_bubble) an actor shows the arrow emote and is moved through a grid of places around and beyond the view
     (classic_parity.py's OFFSETS), its position written each vsync; also every balloon emote once (the text-box icons)."""
     import struct
-    kinds_at, sides_at = symbols["D_800F2260"], symbols["D_800F2274"]
-    g.write(symbols["vs_battle_actorMarkersHidden"], bytes(2))
+    kinds_at, sides_at = "D_800F2260", "D_800F2274"
+    g.store_data("vs_battle_actorMarkersHidden", bytes(2))
     g.run(200)  # (the bubble's zoom)
     actors = cp.emote_actors(g)
     if not actors:
         return
     for kind in (1, 2, 3, 5, 6, 7):
-        g.write(kinds_at, bytes([0] + [kind] * 15))
-        g.write(sides_at, struct.pack("<I", 0xFFFF if kind & 1 else 0))
+        g.store_data(kinds_at, bytes([0] + [kind] * 15))
+        g.store(sides_at, 0xFFFF if kind & 1 else 0)
         g.run(6)
     i, at = actors[0]
-    x0, y0, z0 = struct.unpack("<hhh", g.read(at, 6))
-    g.write(kinds_at, bytes([0] + [4 if a == i else 0 for a in range(1, 16)]))
+    x0, y0, z0 = struct.unpack("<hhh", g.data(at, 6))
+    g.store_data(kinds_at, bytes([0] + [4 if a == i else 0 for a in range(1, 16)]))
     clamp = lambda v: max(-32768, min(32767, v))
     for dx, dy, dz in cp.OFFSETS:
         for _ in range(4):
-            g.write(at, struct.pack("<hhh", clamp(x0 + dx), clamp(y0 + dy), clamp(z0 + dz)))
+            g.store_data(at, struct.pack("<hhh", clamp(x0 + dx), clamp(y0 + dy), clamp(z0 + dz)))
             g.run(1)
-    g.write(at, struct.pack("<hhh", x0, y0, z0))
+    g.store_data(at, struct.pack("<hhh", x0, y0, z0))
 
 
 STORY_ROUTES = ("room-001-00-s000", "room-003-00-s000", "evt-0001", "evt-0002", "room-010-00-s000", "room-034-00-s034", "room-032-17-s038",
@@ -780,40 +739,37 @@ STORY_SCALED = ("room-001-00-s000",)  # the scenes with GIM images, played again
 CHECKPOINT = {"dialogue": "first_bubble", "emote_arrow": "first_bubble", "title": "title", "opening": "title", "opening_events": "title", **{f"story_{i}": "title" for i in STORY_ROUTES}, **{f"story_{i}_warp": "title" for i in STORY_WARPS}, **{f"story_{i}_scaled": "title" for i in STORY_SCALED}}  # (the routes that do not start in the save room)
 
 
-def scene_dialogue(g, cp, symbols):
+def scene_dialogue(g, cp):
     """The duke's talk bubble (the first_bubble checkpoint, no card): its zoom; every bubble shape the frames' table has,
     each flip and tail, written into the open box's fields (classic_parity.py tour_text_frame); the next lines."""
-    import struct
-    boxes, table = symbols["vs_battle_textBoxes"], symbols["vs_event_textBoxFrameStyles"]
-    ptr = cp.PTR
+    boxes, table = "vs_battle_textBoxes", "vs_event_textBoxFrameStyles"
     g.run(200)
 
     def open_box():
         for i in range(8):
-            flags = struct.unpack_from("<I", g.read(boxes + i * 0x30, 4))[0]
-            state = struct.unpack("<h", g.read(boxes + i * 0x30 + 0x1C, 2))[0]
+            flags, state = g.value(f"{boxes}[{i}].flags"), g.value(f"{boxes}[{i}].state")
             if state != 0 and (flags & 15) in (2, 7):
                 return i, flags
         return None, None
     box, flags = open_box()
     if box is None:
         raise SystemExit("build_compare dialogue: no talk bubble open")
-    shapes = [k for k in range(16) if int.from_bytes(g.read(table + k * ptr, ptr), "little")]
+    shapes = [k for k in range(16) if g.value(f"{table}[{k}]")]
     try:
         for shape in shapes:
             for flip in range(4):
                 for tail in range(4):
-                    g.write(boxes + box * 0x30, struct.pack("<I", (flags & ~0xFFC0) | flip << 6 | shape << 8 | tail << 12
-                                                            | (flags & 0xFFFF0000)))
+                    g.store(f"{boxes}[{box}].flags", (flags & ~0xFFC0) | flip << 6 | shape << 8 | tail << 12
+                            | (flags & 0xFFFF0000))
                     g.run(3)
     finally:
-        g.write(boxes + box * 0x30, struct.pack("<I", flags))
+        g.store(f"{boxes}[{box}].flags", flags)
     for _ in range(3):  # the next lines: the bubble closes, the next one opens and zooms in
         g.press("circle", vsyncs=3, settle=0)
         g.run(300)
 
 
-def scene_title(g, cp, symbols):
+def scene_title(g, cp):
     """The title (no card needed to rest): its menu idle, then Start and Continue: the LOAD screen (TITLE 22C.c's copy of
     the file menu): the cards, card 1's files walked past the last page and back, the first file loaded."""
     def press(button, settle=8):
@@ -841,7 +797,7 @@ def parity_tour(name, scale=1):
     popups are drawn that much larger by ui_text: ui_text font is on in these games). Known: against a build older than 739f4c808
     actor_word_x2's frames 667-668 (two labels at once) differ: that build scaled a label 2x for two frames on a stale member
     address of the popup placement (ui_text.c); later builds keep it at normal size, as in the frames before."""
-    def scene(g, cp, symbols):
+    def scene(g, cp):
         g.call("classic", parity=True, reset=True)
         g.call("ui_text", scale=scale)
         getattr(cp, f"tour_{name}")(g, lambda ok, message="": ok, lambda kind: g.call("classic")["kinds"][kind])
@@ -852,7 +808,7 @@ def platforms(rooms=((9, 5), (15, 7), (24, 2), (25, 2), (32, 0))):
     """The rooms whose moving platforms are above the floor, each left to run: the flat subtractive squares under them
     (146C.c vs_field_drawMovingPlatformShadows, room_shadows.zig; the native renderer gets each too). Found by a scan of all 419 rooms with a
     breakpoint on the draw: 9-5, 9-6, 15-7..10, 24-2, 24-3, 24-7, 24-8, 24-13, 24-14, 25-2, 25-3, 31-1, 32-0."""
-    def scene(g, cp, symbols):
+    def scene(g, cp):
         for zone, room in rooms:
             g.call("room_goto", hold=True, zone=zone, room=room, enemies=False, scripts=False)
             for _ in range(80):
@@ -866,7 +822,7 @@ def platforms(rooms=((9, 5), (15, 7), (24, 2), (25, 2), (32, 0))):
 def weather(zone, room):
     """A room with weather, left to run: zone 40 (Snowfly Forest) has the motes (146C.c func_80090434), zone 48 the rain
     (func_8008F440); no room has the snow or the falling particles (a scan of all 419 rooms), whose code is gone."""
-    def scene(g, cp, symbols):
+    def scene(g, cp):
         g.call("room_goto", hold=True, zone=zone, room=room, enemies=False, scripts=False)
         for _ in range(80):
             g.run(20)
@@ -876,7 +832,7 @@ def weather(zone, room):
     return scene
 
 
-def scene_opening(g, cp, symbols):
+def scene_opening(g, cp):
     """New Game's opening (the title, no card: Start, Circle): its picture cards (vs_render_drawGimLayer's tiled drawer, the scaled and
     fading images), the manor's exterior in the rain and the first dialogue, left to play with Circle now and then."""
     g.run(60)
@@ -890,7 +846,7 @@ def scene_opening(g, cp, symbols):
 
 def popups(scale):
     """The damage and heal numbers (HP and MP, both signs, one to three digits) shown over the party, at UI text scale `scale`."""
-    def scene(g, cp, symbols):
+    def scene(g, cp):
         g.call("classic", parity=True, reset=True)
         g.call("ui_text", scale=scale)
         for pool in ("hp", "mp"):
@@ -906,7 +862,7 @@ def popups(scale):
 def weather_kind(kind):
     """The room's weather of `kind` (dev RPC weather: 2 snow, 4 falling particles, which no room's own data starts but a room
     script's command can) started in Snowfly Forest (a room with the weather section), left to run."""
-    def scene(g, cp, symbols):
+    def scene(g, cp):
         g.call("room_goto", hold=True, zone=40, room=0, enemies=False, scripts=False)
         for _ in range(80):
             g.run(20)
@@ -918,7 +874,7 @@ def weather_kind(kind):
     return scene
 
 
-def scene_opening_events(g, cp, symbols):
+def scene_opening_events(g, cp):
     """New Game's opening played through (its event script: the GIM images, the wipe among them, the screen effect's tiles, the
     five-panel screen freeze), Circle every 90 vsyncs to move its talk boxes along; for part of it the film's scanlines
     (vs_event_isScanlineOverlayEnabled, an event opcode's flag) are forced on, as EVT 6 and 15 turn them on (no room starts those)."""
@@ -927,7 +883,7 @@ def scene_opening_events(g, cp, symbols):
     g.press("circle", vsyncs=3, settle=0)
     for step in range(90):
         if 30 <= step < 40:
-            g.write(symbols["vs_event_isScanlineOverlayEnabled"], b"\x01")
+            g.store("vs_event_isScanlineOverlayEnabled", 1)
         g.run(30)
         g.press("circle", vsyncs=2, settle=4)
 
@@ -935,7 +891,7 @@ def scene_opening_events(g, cp, symbols):
 def room_script(zone, room, steps=90):
     """A room's own event script (the cutscene's GIM images, screen wipes, screen effects): warped to with the room's scripts on
     (as cutscene_scan.py does), Circle pressed now and then to move its talk boxes along, left to play."""
-    def scene(g, cp, symbols):
+    def scene(g, cp):
         warp = g.call("room_goto", hold=True, zone=zone, room=room, enemies=False, scripts=True)
         if not warp.get("ok", True):  # (a room with no door into it: the story_ routes play those)
             raise RuntimeError(f"script_{zone}_{room}: {warp.get('message')}")
@@ -959,7 +915,7 @@ def story_scene(scene_id, warp=False, scaled=0):
     border is on, so the scene's frames are drawn through it (the warp deforms what the ordering table holds: packets and polygon items).
     With `scaled`: the scene's GIM images drawn at that scale (vs_render_gimLayers's records, unkC's low 14 bits; the scripts here leave them at 4096) from
     the first frame they show to the end: the textured quads of vs_render_drawGimTiles's scaled branch."""
-    def scene(g, cp, symbols):
+    def scene(g, cp):
         story = json.loads((ROOT / "pc/assets/cutscenes/story.json").read_text())
         frames = next(s["frames"] for s in story["scenes"] if s["id"] == scene_id)
         g.call("cutscene", action="start", scene=scene_id)
@@ -984,26 +940,25 @@ def story_scene(scene_id, warp=False, scaled=0):
             if not g.call("cutscene")["busy"]:
                 break
         if scaled:
-            images = symbols["vs_render_gimLayers"]
             for step in range(frames // 10 + 12):
                 g.run(10)
-                base = int.from_bytes(g.read(images, 8), "little")
-                shown = [base + i * 0x3F8 for i in range(4) if base and g.read(base + i * 0x3F8 + 3, 1)[0]]  # (a record's unk3 is its brightness)
+                shown = [f"vs_render_gimLayers[{i}]" for i in range(4)
+                         if g.value("vs_render_gimLayers") and g.value(f"vs_render_gimLayers[{i}].unk3")]  # (a record's unk3 is its brightness)
                 for gim in shown:
-                    unk_c = int.from_bytes(g.read(gim + 0xC, 2), "little")
-                    g.write(gim + 0xC, ((unk_c & 0xC000) | scaled).to_bytes(2, "little"))
+                    unk_c = g.value(gim + ".unkC")
+                    g.store(gim + ".unkC", (unk_c & 0xC000) | scaled)
                 if step >= frames // 10 + 11:
                     break
             return
         if warp:
-            state = symbols["D_800F4ED8"]  # (the screen effect's state: unk8 the border's, then unk4 and unk6 the warp's base scale and growth)
+            state = "D_800F4ED8"  # (the screen effect's state: words 4 and 5 the border's, 2 and 3 the warp's base scale and growth)
             for _ in range(frames // 10 + 12):
                 g.run(10)
-                if int.from_bytes(g.read(state + 8, 4), "little"):
+                if g.value(state + "[4]") or g.value(state + "[5]"):
                     break
             else:
                 raise RuntimeError(f"{scene_id}: the border never came on")
-            g.write(state + 4, struct.pack("<hh", 3400, -48))
+            g.store_data(state + "[2]", struct.pack("<hh", 3400, -48))
             g.run(frames + 120)
             return
         if scene_id in STORY_SETTLE:  # (the frame the seek lands on is not the same to the pixel in every game: evt-0069's first)
@@ -1013,7 +968,7 @@ def story_scene(scene_id, warp=False, scaled=0):
     return scene
 
 
-def scene_areamap(g, cp, symbols):
+def scene_areamap(g, cp):
     """The area map (146C.c vs_field_drawRoomScene: the room's map in the corner and its frame): Map Right set to Frame (vs_main_settings.simpleMap
     3), the map shown (vs_field_isMinimapVisible), in a room with a map section, the frame drawn with the weapon sheathed (green) and drawn (red, pulsing)."""
     g.call("room_goto", hold=True, zone=9, room=17, enemies=False, scripts=False)
@@ -1021,49 +976,44 @@ def scene_areamap(g, cp, symbols):
         g.run(20)
         if g.call("room_goto", action="status")["phase"] in (0, 4):
             break
-    g.write(symbols["vs_main_settings"] + 9, b"\x03")
-    g.write(symbols["vs_field_isMinimapVisible"], b"\x01")
+    g.store("vs_main_settings.simpleMap", 3)
+    g.store("vs_field_isMinimapVisible", 1)
     g.run(120)
     g.press("circle", vsyncs=3, settle=90)  # (the weapon drawn)
     g.run(120)
 
 
-def scene_transition(g, cp, symbols):
+def scene_transition(g, cp):
     """The screen transition's drawing (146C.c _drawScreenTransition): each effect (fade to black, to white, the wipe at both
     wipe angles) held at a few alphas, written each step (the transition's own step stays idle, so the room goes on)."""
-    effect, alpha, angle = (symbols[n] for n in ("vs_battle_screenTransitionEffect", "vs_battle_screenTransitionAlpha",
-                                                   "vs_battle_screenTransitionWipeAngle"))
-    size = cp.PTR if False else 4
+    effect, alpha, angle = ("vs_battle_screenTransitionEffect", "vs_battle_screenTransitionAlpha",
+                            "vs_battle_screenTransitionWipeAngle")
     g.run(120)
     for kind in (0, 1, 2, 4, 5):
         for wipe_angle in ((0, 1024, 2048) if kind == 2 else (0,)):
             for level in (16, 64, 128, 200, 254, 255):
-                g.write(effect, kind.to_bytes(4, "little"))
-                g.write(angle, wipe_angle.to_bytes(4, "little"))
-                g.write(alpha, level.to_bytes(4, "little"))
+                g.store(effect, kind)
+                g.store(angle, wipe_angle)
+                g.store(alpha, level)
                 g.run(2)
-    g.write(alpha, (0).to_bytes(4, "little"))
+    g.store(alpha, 0)
     g.run(20)
 
 
-def scene_gameover(g, cp, symbols):
+def scene_gameover(g, cp):
     """The game over's LOAD (MENU7 vs_menu7_gameOver): Ashley's HP to 0, Continue, the cards, card 1's files walked, the
     first file loaded."""
-    import struct
-    PTR = cp.PTR
-
     def press(button, settle=8):
         g.press(button, vsyncs=3, settle=settle)
 
-    def ashley():
-        actor = int.from_bytes(g.read(symbols["vs_battle_actors"], PTR), "little")
+    def ashley():  # (her stats record's path, once the room has her)
         try:
-            return actor and g.actor_stats(actor)
+            return cp.ASHLEY if g.value("vs_battle_actors[0]") and g.value(cp.ASHLEY) else 0
         except Exception:
             return 0
     g.until(ashley, step=10, guard=600, what="Ashley in the room")
     g.run(60)
-    g.write(ashley() + 0x18, (0).to_bytes(2, "little"))
+    g.store(cp.ASHLEY + ".currentHP", 0)
     g.until(lambda: g.state()["game_over"], step=10, guard=200, what="Game Over")
     g.run(240)
     for _ in range(6):
@@ -1138,12 +1088,10 @@ def play_menus(binary, card, out, names, sample, claims, aspect="4:3", extra_env
         g = launch_at(CHECKPOINT.get(name, "save_room"), card=str(card_copy), fast=True, log=out / f"{name}.log", extra_env=env)
         hashes = []
         taken = stream_start(g)
-        census_start(g)
         base = {}  # the ui_text counters at the route's first sample (see hashed)
         try:
             hashed(g, out, sample, hashes, taken, lambda: base.update(ui_counts(g, renderer)))
-            SCENES[name](g, cp, rood_rpc.symbols())
-            census_write(g, name)
+            SCENES[name](g, cp)
             text = g.call("ui_text") if renderer != "null" else {}
             try:
                 if renderer != "null":

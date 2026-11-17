@@ -45,7 +45,6 @@ from checkpoints import launch_at  # noqa: E402
 # vs_battle_roomData (_mpdRoomSection, 146C.h): unk0 (1 while a room is
 # loaded), header.geometrySectionLen, geometrySection (a 4-byte guest
 # pointer on every build).
-ROOM_STATE, ROOM_GEOMETRY_LEN, ROOM_GEOMETRY = 0x00, 0x04, 0x64
 TARGETS = ((11, 0), (13, 0), (50, 0))  # other zones (the first two listed are used)
 MAX_VSYNCS = 3000  # one room change, stepped one vsync at a time
 
@@ -81,12 +80,12 @@ def main():
     def live():
         """The game's loaded room block: (group count, first group's
         position) or None while no room is loaded."""
-        geometry = game.room_pointer("geometrySection", ROOM_GEOMETRY)
-        length = game.room_u32("geometrySectionLen", ROOM_GEOMETRY_LEN)
-        if game.room_u32("unk0", ROOM_STATE) & 0xFF != 1 or not geometry or length < 4:
+        geometry = "vs_battle_roomData.geometrySection[0]"
+        length = game.value("vs_battle_roomData.header.geometrySectionLen")
+        if game.value("vs_battle_roomData.unk0") & 0xFF != 1 or not game.value("vs_battle_roomData.geometrySection") or length < 4:
             return None
-        count = struct.unpack("<I", game.read(geometry, 4))[0]
-        position = list(struct.unpack("<3i", game.read(geometry + 8, 12))) if 0 < count <= 4096 else None
+        count = struct.unpack("<I", game.data(geometry, 4))[0]
+        position = list(struct.unpack("<3i", game.data(geometry, 12, offset=8))) if 0 < count <= 4096 else None
         return count, position
 
     stats = {}
@@ -206,7 +205,7 @@ def main():
                 transition = {"seen": False}
 
                 def through():
-                    step = struct.unpack("<I", game.read_symbol("vs_battle_screenTransitionStep", 4))[0]
+                    step = struct.unpack("<I", game.data("vs_battle_screenTransitionStep", 4))[0]
                     transition["seen"] |= step != 0
                     st = game.state()
                     return transition["seen"] and step == 0 and (st["zone"], st["room"]) == walked

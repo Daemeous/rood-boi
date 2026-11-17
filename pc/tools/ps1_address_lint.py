@@ -24,6 +24,18 @@ BASELINE = ROOT / "pc/tools/ps1_address_baseline.json"
 C_SUFFIXES = {".c", ".h", ".inc", ".cpp", ".hpp"}
 TREES = [("pc/src", C_SUFFIXES), ("game", C_SUFFIXES | {".zig"})]
 SKIP = ("pc/src/third_party/",)
+# Python tools and tests: only the rules of PY_RULES count there (and only they, not the C ones, count in C)
+PY_TREES = [("pc/tools", {".py"}), ("pc/tests", {".py"})]
+RAW_API_TESTS = ("pc/tests/rpc_smoke.py", "pc/tests/ownership_smoke.py", "pc/tests/zig_hotswap_smoke.py", "pc/tests/layout_smoke.py")
+PY_RULES = {
+    # host reads of game memory by address (memory lane S2): the symbol table of nm (`symbols()`), reads and writes at an
+    # address (`g.read(`, `game.write(`, `.read(0x...)`), `read_symbol`, the pc_*_offset_* helpers, and address constants.
+    # The named form is Game.field/value/data/store/info (rood_rpc.py): the game resolves the path
+    "tool_address_read": re.compile(
+        r"\bsymbols\(\)|\bread_symbol\(|\.u32\(|\.(?:object_offset|actor_offset|room_u32|room_pointer|actor_stats|object_size)\("
+        r"|\bg(?:ame)?\.(?:read|write)\(|\.(?:read|write)\(\s*(?:0[xX][0-9a-fA-F]{5,}|[a-z_.]*addr(?:ess)?\b)"
+        r"|\bpc_(?:actor|object|room)_offset_|\bROOD_NM\b|\b0[xX](?:80|[aA]0|1[fF]80)[0-9a-fA-F]{6}\b"),
+}
 RULES = {
     "ps1_address": re.compile(r"\b0[xX](?:80|[aA]0)[0-9a-fA-F]{6}\b"),
     # the scratchpad proper, 0x1F800000-0x1F8003FF (T14); the I/O page above it (0x1F801000..: SPU, DMA and root counter
@@ -96,9 +108,33 @@ def sources():
                 yield name, path
 
 
+def py_sources():
+    for tree, suffixes in PY_TREES:
+        for path in sorted((ROOT / tree).rglob("*")):
+            if path.suffix in suffixes and path.is_file():
+                yield path.relative_to(ROOT).as_posix(), path
+
+
 def scan():
     """{rule: count}, {rule: [(file, line, text)]}."""
-    counts, hits = dict.fromkeys(RULES, 0), {rule: [] for rule in RULES}
+    counts = dict.fromkeys([*RULES, *PY_RULES], 0)
+    hits = {rule: [] for rule in counts}
+    for name, path in py_sources():
+        if name in ("pc/tools/ps1_address_lint.py", "pc/tools/build_boot.py", "pc/tools/rood_rpc.py"):  # (the build reads no
+            continue                                                                       # running game; rood_rpc is the client)
+        if name in RAW_API_TESTS:  # (they test the RPC's raw read and write, and the guest bytes the engine library must leave)
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+        if not re.search(r"^\s*(?:from|import) (?:rood_rpc|game_lib)\b|\bimport rood_rpc\b", text, re.M):
+            continue  # reads no running game (the build's own address tables, the importers, the Zig tools)
+        for number, line in enumerate(text.splitlines(), 1):
+            if line.lstrip().startswith("#"):
+                continue
+            for rule, pattern in PY_RULES.items():
+                found = pattern.findall(line)
+                if found:
+                    counts[rule] += len(found)
+                    hits[rule].append((name, number, line.strip()[:110]))
     for name, path in sources():
         code = strip_comments(path.read_text(encoding="utf-8", errors="replace"))
         for number, line in enumerate(code.splitlines(), 1):
@@ -123,7 +159,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--update", action="store_true")
     parser.add_argument("--raise", dest="accept_rise", action="store_true")
-    parser.add_argument("--where", choices=sorted(RULES))
+    parser.add_argument("--where", choices=sorted([*RULES, *PY_RULES]))
     args = parser.parse_args()
     counts, hits = scan()
     if args.where:

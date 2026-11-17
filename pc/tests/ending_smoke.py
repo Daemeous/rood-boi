@@ -78,7 +78,7 @@ def main():
         return "[UNIMPLEMENTED]" in text or "[crash]" in text
 
     def u32(name):
-        return int.from_bytes(game.read_symbol(name, 4), "little")
+        return int.from_bytes(game.data(name, 4), "little")
 
     def screen(name):
         path = out / f"{name}.png"
@@ -109,7 +109,7 @@ def main():
         if not check(screen(f"pass{n}-credits") > 30, f"pass {n}: credits on screen"):
             return None
         game.press("start", vsyncs=4, settle=200)
-        check(game.read_symbol(CREDITS_DONE, 1) == b"\x01", f"pass {n}: Start skips the credits")
+        check(game.data(CREDITS_DONE, 1) == b"\x01", f"pass {n}: Start skips the credits")
         for _ in range(60):
             game.run(30)
             if crashed() or u32(RANK_SCREEN_STEP) > 0x120:

@@ -36,7 +36,7 @@ from PIL import Image
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 
 FRAMES = 24          # vsyncs read after each press (the fade takes 16)
@@ -104,17 +104,15 @@ class Session:
         self.game = launch_at("save_room", card=card, fast=True, log=self.out / "game.log",
                               socket_path=f"/tmp/rood-menu-fade-{name}-{os.getpid()}.sock",
                               extra_env={"ROOD_SETTINGS": str(settings), "ROOD_WINDOW": "1280x720", "ROOD_AUDIO": "none"})
-        self.sym = symbols()
-
     def to_items_command(self):
-        g, sym = self.game, self.sym
+        g = self.game
         g.run(120)
         for _ in range(8):
-            if g.read(sym["vs_battle_menuState"], 1)[0] & 0x3F != 0x3F:
+            if g.value("vs_battle_menuState.currentMenu") & 0x3F != 0x3F:
                 break
             g.press("triangle", vsyncs=3, settle=40)
         g.run(40)
-        self.top_command(g, sym, self.cp.ITEMS_COMMAND)
+        self.top_command(g, self.cp.ITEMS_COMMAND)
 
     def opening(self):
         """Circle on Items, the presents after it."""
@@ -130,7 +128,7 @@ class Session:
     def closing(self):
         """Cross on Items; the target (PPM) at each vsync after it, and the VRAM X of the frame shown."""
         g = self.game
-        self.cp.items_ready(g, self.sym)
+        self.cp.items_ready(g)
         g.run(40)
         g.press("cross", vsyncs=2, settle=0)
         frames = []
@@ -157,7 +155,7 @@ def lane(out, name, menu_fade):
         s.to_items_command()
         lights = [light(p) for p in s.opening()]
         falls, drift, depth, bright = entry_fade(lights)
-        s.cp.items_ready(s.game, s.sym)
+        s.cp.items_ready(s.game)
         closing = s.closing()
         return falls, drift, depth, bright, closing, s.game.call("graphics")["scale"]
     finally:

@@ -44,7 +44,7 @@ from PIL import Image
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from post_smoke import edge_energy, masks, redrawn  # noqa: E402
 from dof_smoke import depth_sz  # noqa: E402
@@ -72,11 +72,9 @@ def pointer_size():
 
 def actor_feet(game, slot):
     """An actor slot's feet (vs_actors_actorRecords[slot] position), or None when the slot is empty."""
-    width = pointer_size()
-    actor = int.from_bytes(game.read(symbols()["vs_actors_actorRecords"] + slot * width, width), "little")
-    if not actor:
+    if not game.value(f"vs_actors_actorRecords[{slot}]"):
         return None
-    return struct.unpack("<3h", game.read(actor + POSITION, 6))
+    return struct.unpack("<3h", game.data(f"vs_actors_actorRecords[{slot}]->unk0.position", 6))
 
 
 def view(game, point):

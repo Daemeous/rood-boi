@@ -41,7 +41,7 @@ from PIL import Image
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 
 # The game's state the stick must not touch (symbol, bytes). The camera's own
@@ -77,22 +77,21 @@ def default_card():
 
 class Run:
     def __init__(self, game, out):
-        self.g, self.out, self.sym = game, out, symbols()
+        self.g, self.out = game, out
 
-    def u8(self, name, offset=0):
-        return self.g.read(self.sym[name] + offset, 1)[0]
-
-    def u32(self, name):
-        return struct.unpack("<I", self.g.read(self.sym[name], 4))[0]
+    def word(self, name):
+        return struct.unpack("<I", self.g.data(name, 4))[0]
 
     def yaw(self):
-        return struct.unpack("<i", self.g.read(self.sym[SPHERICAL], 4))[0] & 0xFFF
+        return struct.unpack("<i", self.g.data(SPHERICAL, 4))[0] & 0xFFF
 
     def menu(self):
-        return self.u8("vs_battle_menuState")
+        return self.g.value("vs_battle_menuState.currentMenu")
 
     def state(self):
-        return {name: self.g.read(self.sym[name], size).hex() for name, size in GAME_STATE}
+        # (each object whole: a size past the object's own is cut to it, and the ones the table has no size for keep theirs)
+        return {name: self.g.data(name, min(size, self.g.field(name, length=0).size or size)).hex()
+                for name, size in GAME_STATE}
 
     def picture(self, name):
         path = self.out / f"{name}.png"
@@ -104,7 +103,7 @@ class Run:
             if pred():
                 return True
             self.g.run(step)
-        return check(False, f"{what} (within {limit} vsyncs; field mode {self.u32('D_800F196C')}, "
+        return check(False, f"{what} (within {limit} vsyncs; field mode {self.word('D_800F196C')}, "
                             f"menu {self.menu():#x})")
 
     def twice(self, label, stick):
@@ -148,16 +147,16 @@ def menu_check(r, label, stick, allowed, picture=True):
 
 def open_command(r):
     r.g.press("triangle", vsyncs=3, settle=10)
-    r.wait(lambda: r.u32("D_800F196C") == 5 and r.menu() == 0, "the Triangle menu open")
+    r.wait(lambda: r.word("D_800F196C") == 5 and r.menu() == 0, "the Triangle menu open")
     r.g.run(60)  # (slid in)
 
 
 def close_to_field(r):
     for _ in range(6):
-        if r.menu() == CLOSED and r.u32("D_800F196C") == 1:
+        if r.menu() == CLOSED and r.word("D_800F196C") == 1:
             break
         r.g.press("triangle", vsyncs=3, settle=40)
-    r.wait(lambda: r.menu() == CLOSED and r.u32("D_800F196C") == 1, "back in the field")
+    r.wait(lambda: r.menu() == CLOSED and r.word("D_800F196C") == 1, "back in the field")
     r.g.run(20)
 
 
@@ -239,7 +238,7 @@ def session(args, out, modern):
                     if r.menu() != 0x0C:
                         break
                     game.press("cross", vsyncs=3, settle=60)
-                r.wait(lambda: r.u32("D_800F196C") == 1, "the chest's loot closed, back in the field")
+                r.wait(lambda: r.word("D_800F196C") == 1, "the chest's loot closed, back in the field")
                 check(r.yaw() == yaw, f"chest: back in the field the yaw is the stick's ({r.yaw():#x}, {yaw:#x})")
         log = pathlib.Path(game.log).read_text(errors="replace")
         check("[crash]" not in log, f"{look}: no crash")

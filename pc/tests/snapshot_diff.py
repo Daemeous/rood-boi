@@ -3,17 +3,15 @@
 
     python3 pc/tests/snapshot_diff.py a.snap b.snap [--binary pc/build/boot64/rood_battle_probe]
 
-Prints each memory range that differs with the symbols (from the game
-binary's nm, guest data imports included) that hold the differing bytes.
+Prints each memory range that differs with the symbols and members (from the game
+binary's layout table) that hold the differing bytes.
 Exit status 0 when every compared range is identical. The game stack is
 compared separately (its host frames hold wall-clock values); the log is not
 compared. Used by snapshot_equivalence.py.
 """
 import argparse
-import bisect
 import pathlib
 import struct
-import subprocess
 import sys
 
 HEADER = struct.Struct("<8sIIQII")  # version 1
@@ -55,31 +53,18 @@ def read(path):
 
 
 class Symbols:
+    """Names for addresses from the binary's layout table (pc/tools/layout_table.py): "vs_main_inventory.weapons[3].blade"."""
+
     def __init__(self, binary):
-        rows = []
-        out = subprocess.run(["nm", "-S", "-n", str(binary)], capture_output=True, text=True).stdout
-        for line in out.splitlines():
-            parts = line.split()
-            if len(parts) == 4:
-                rows.append((int(parts[0], 16), int(parts[1], 16), parts[3]))
-            elif len(parts) == 3:
-                rows.append((int(parts[0], 16), 0, parts[2]))
-        rows.sort()
-        self.rows = rows
-        self.starts = [r[0] for r in rows]
+        sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "tools"))
+        import layout_table
+        self.index = layout_table.NameIndex(layout_table.Table.for_binary(binary))
 
     def name(self, address):
-        i = bisect.bisect_right(self.starts, address) - 1
-        while i >= 0:
-            start, size, name = self.rows[i]
-            if size == 0 or address < start + size:
-                return f"{name}+{address - start:#x}"
-            i -= 1
-        return f"{address:#x}"
+        return self.index.name(address)
 
     def is_volatile(self, address):
-        i = bisect.bisect_right(self.starts, address) - 1
-        return i >= 0 and self.rows[i][2] in VOLATILE and address < self.rows[i][0] + max(self.rows[i][1], 1)
+        return False  # (native statics holding wall-clock time: none now)
 
 
 def stack_range(snapshot):

@@ -46,7 +46,7 @@ import tempfile
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, Game, symbols  # noqa: E402
+from rood_rpc import OUT, Game  # noqa: E402
 from weapon_slots_smoke import default_card  # noqa: E402
 
 CLOSED = 0x3F
@@ -71,9 +71,6 @@ def main():
     settings = out / "settings.cfg"
     settings.write_text("qol_confirm_cross 1\n")
     env = {"ROOD_WINDOW": "960x720", "ROOD_LIGHTS": str(lights), "ROOD_GI": "0", "ROOD_SETTINGS": str(settings)}
-    sym = symbols()
-    menu_state, submenu = sym["vs_battle_menuState"], sym["vs_battle_submenuStates"]
-    field_mode, camera_mode = sym["D_800F196C"], sym["_cameraMode"]
     failures = []
 
     def check(ok, message):
@@ -87,7 +84,7 @@ def main():
             return game.call("button_roles", **params)
 
         def current_menu():
-            return game.read(menu_state, 1)[0]
+            return game.value("vs_battle_menuState.currentMenu")
 
         def drawn():
             return game.call("weapon_slots")["weapon_drawn"]
@@ -118,10 +115,10 @@ def main():
 
         def to_status():
             for _ in range(10):
-                if game.read(submenu, 1)[0] == STATUS:
+                if game.value("vs_battle_submenuStates[0]") == STATUS:
                     return True
                 game.press("down", vsyncs=3, settle=8)
-            return game.read(submenu, 1)[0] == STATUS
+            return game.value("vs_battle_submenuStates[0]") == STATUS
 
         def status_round_trip(confirm, cancel, label):
             ok = open_menu() and to_status()
@@ -335,7 +332,7 @@ def main():
         game.press("cross", vsyncs=3, settle=60)
         game.press("cross", vsyncs=3, settle=40)
         r = roles()
-        mode, phase = game.read(field_mode, 1)[0], game.read(camera_mode, 1)[0]
+        mode, phase = game.data("D_800F196C", 1)[0], game.data("_cameraMode", 1)[0]
         check(r["context"] == "targeting" and r["swap"] == 1,
               f"both on, drawn: Cross opens targeting (mode {mode}, phase {phase}, {r['context']}, swap {r['swap']})")
         for _ in range(4):
@@ -350,31 +347,29 @@ def main():
         # The modern menus' tabs follow qol_confirm_cross (still on), then the original buttons. The
         # first chain ability learned in RAM (vs_main_actions[id] unlocked: byte 13 bit 7), so that the
         # Abilities tab shows whatever the card has learned.
-        acts = sym["vs_main_actions"]
-        first = game.read(sym["vs_battle_chainAbilityOffsets"], 1)[0]
-        b = game.read(acts + first * 52 + 13, 1)[0]
-        game.write(acts + first * 52 + 13, bytes([b | 0x80]))
+        first = game.value("vs_battle_chainAbilityOffsets[0]")
+        game.store(f"vs_main_actions[{first}].unlocked", 1)
 
         # The original Battle Abilities list (MENU2, its state in vs_battle_submenuStates[3]: 5 the
         # Chain / Defense choice, 6 the chain list): the buttons are the game's own there.
         check(open_menu(), "both on: the menu opens")
         for _ in range(10):
-            if game.read(submenu, 1)[0] == BATTLE_ABILITIES:
+            if game.value("vs_battle_submenuStates[0]") == BATTLE_ABILITIES:
                 break
             game.press("down", vsyncs=3, settle=8)
         game.press("cross", vsyncs=3, settle=120)
         opened = current_menu()
         game.press("cross", vsyncs=3, settle=60)
-        state = game.read(submenu + 3, 1)[0]
+        state = game.value("vs_battle_submenuStates[3]")
         r = roles()
         check(opened == (3 | 0x40) and state == 6 and r["context"] == "game" and r["swap"] == 0,
               f"Battle Abilities > Chain (Cross, Cross): the list, the game's own buttons "
               f"({opened:#x}, state {state}, {r['context']}, swap {r['swap']})")
         game.press("circle", vsyncs=3, settle=20)
-        state = game.read(submenu + 3, 1)[0]
+        state = game.value("vs_battle_submenuStates[3]")
         check(state == 6, f"the list: Circle puts the ability on Circle and stays (state {state})")
         game.press("cross", vsyncs=3, settle=60)
-        state = game.read(submenu + 3, 1)[0]
+        state = game.value("vs_battle_submenuStates[3]")
         check(state != 6, f"the list: Cross leaves it (state {state})")
         for _ in range(4):
             if current_menu() == CLOSED:

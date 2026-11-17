@@ -46,7 +46,7 @@ from PIL import Image
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, Deadline, Game, symbols  # noqa: E402
+from rood_rpc import OUT, Deadline, Game  # noqa: E402
 from weapon_slots_smoke import default_card  # noqa: E402
 
 CLOSED = 0x3F
@@ -168,8 +168,6 @@ def main():
         game.call("graphics", widescreen=True, perspective=False)
 
         if have_card:
-            sym = symbols()
-            menu_state = sym["vs_battle_menuState"]
             game.press("start", vsyncs=4, settle=90)
             for _ in range(3):
                 game.press("circle", vsyncs=3, settle=90)
@@ -178,7 +176,7 @@ def main():
             check((state["zone"], state["room"]) == (9, 17), f"in the save room ({state})")
 
             def current_menu():
-                return game.read(menu_state, 1)[0]
+                return game.value("vs_battle_menuState.currentMenu")
 
             def key(name, vsyncs=4, settle=40):
                 game.call("system", key=name, down=True)
@@ -293,9 +291,8 @@ def main():
         g = game.call("graphics")
         check(g["widescreen"] and not g["perspective"],
               f"relaunch: widescreen 1, perspective_textures 0 kept ({g['widescreen']}, {g['perspective']})")
-        sym = symbols()
-        tint = struct.unpack("<i", game.read(sym["pc_ui_menu_tint"], 4))[0]
-        custom = list(struct.unpack("<3i", game.read(sym["pc_ui_menu_tint_custom"], 12)))
+        tint = struct.unpack("<i", game.data("pc_ui_menu_tint", 4))[0]
+        custom = list(struct.unpack("<3i", game.data("pc_ui_menu_tint_custom", 12)))
         check(tint == 1 and custom == [31, 0, 9],
               f"ui_menu_tint 1: Classic; ui_menu_tint_custom 40 -3 9 clamped to [31, 0, 9] ({tint}, {custom})")
         game.call("settings", action="save")

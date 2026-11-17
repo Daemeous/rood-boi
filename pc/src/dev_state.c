@@ -271,11 +271,6 @@ void pc_rpc_battle_state(char* out, unsigned size)
     j.p += sprintf(j.p, "}");
 }
 
-/* The zone context's layout, for tests that read it (two_model_enemy_smoke). */
-const unsigned pc_zone_offset_zndEnemies = __builtin_offsetof(_zoneContext_t, zndEnemies);
-const unsigned pc_zone_offset_mpdEnemyCount = __builtin_offsetof(_zoneContext_t, mpdEnemyCount);
-const unsigned pc_zone_offset_mpdEnemies = __builtin_offsetof(_zoneContext_t, mpdEnemies);
-const unsigned pc_zone_size = sizeof(_zoneContext_t);
 /* The loaded room's blocks for the host units (room_effects.c, scene_capture.c): the geometry block and the
  * texture-effects section with their lengths, and whether a room is loaded. */
 int pc_room_loaded(void)
@@ -297,28 +292,3 @@ const unsigned* pc_room_light_table(int* enabled)
     *enabled = (signed char)vs_battle_roomData.unk0;
     return (const unsigned*)vs_battle_roomData.lightingSection;
 }
-/* The room record's layout, for tests that read it (Game.room_pointer / room_u32 in rood_rpc.py). */
-#define ROOM_OFFSET(name) const unsigned pc_room_offset_##name = __builtin_offsetof(_mpdRoomSection, name)
-ROOM_OFFSET(unk0);
-ROOM_OFFSET(geometrySection);
-ROOM_OFFSET(doorSection);
-ROOM_OFFSET(textureEffectsSection);
-ROOM_OFFSET(section12);
-const unsigned pc_room_offset_geometrySectionLen = __builtin_offsetof(_mpdRoomSection, header.geometrySectionLen);
-const unsigned pc_room_offset_textureEffectsSectionLen = __builtin_offsetof(_mpdRoomSection, header.textureEffectsSectionLen);
-const unsigned pc_room_offset_section12Len = __builtin_offsetof(_mpdRoomSection, header.section12Len);
-
-/* The battle menu's record layouts (Game.layout in rood_rpc.py): a menu item and a text box hold a host
- * pointer, so tests read their strides and later fields from here, not from the PS1's. */
-#define LAYOUT(name, type, field) const unsigned pc_layout_##name##_##field = __builtin_offsetof(type, field)
-const unsigned pc_layout_menuItem_size = sizeof(vs_battle_menuItem_t);
-LAYOUT(menuState, vs_battle_menuState_t, cdQueue);
-const unsigned pc_layout_textBox_size = sizeof(vs_battle_textBox);
-LAYOUT(textBox, vs_battle_textBox, x);
-LAYOUT(textBox, vs_battle_textBox, state);
-LAYOUT(textBox, vs_battle_textBox, brightness);
-LAYOUT(textBox, vs_battle_textBox, charsPerLine);
-LAYOUT(textBox, vs_battle_textBox, lineCount);
-LAYOUT(textBox, vs_battle_textBox, unk22);
-LAYOUT(targetRows, D_800EB9B8_t, unk990); /* the battle menu block's target rows (classic_parity.py) */
-const unsigned pc_layout_targetRow_size = sizeof(D_800EB9B8_unk990);

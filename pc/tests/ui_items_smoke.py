@@ -77,7 +77,7 @@ import time
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from weapon_slots_smoke import default_card  # noqa: E402
 
@@ -146,11 +146,9 @@ class Session:
     def __init__(self, name, out, card, env, shots):
         self.name, self.out, self.shots = name, out, shots
         self.g = launch_at("save_room", card=card, fast=True, log=out / f"{name}.log", extra_env=env)
-        self.sym = symbols()
-        s = self.sym
-        self.inventory, self.indices = s["vs_main_inventory"], s["vs_main_inventoryIndices"]
-        self.selected_action = s.get("_selectedItemAction")
-        self.action_offset = s.get("_itemActionListOffset")
+        self.inventory, self.indices = "vs_main_inventory", "vs_main_inventoryIndices"  # (byte images: card layout)
+        self.selected_action = "_selectedItemAction" if self.g.symbols_like("_selectedItemAction") else None
+        self.action_offset = "_itemActionListOffset"
 
     def close(self):
         self.g.close()
@@ -160,51 +158,45 @@ class Session:
             self.g.present_screenshot(self.out / f"{self.name}-{name}.png")
 
     # ---- reads ----
-    def ptr(self, address):
-        return int.from_bytes(self.g.read(address, PTR), "little")
-
     def menu(self):
-        return self.g.read(self.sym["vs_battle_menuState"], 1)[0]
+        return self.g.value("vs_battle_menuState.currentMenu")
 
     def inv(self):
-        return self.g.read(self.inventory, INVENTORY_BYTES)
+        return self.g.data(self.inventory, INVENTORY_BYTES)
 
     def idx(self):
-        return self.g.read(self.indices, INDICES_BYTES)
+        return self.g.data(self.indices, INDICES_BYTES)
 
     def dump(self):
         return {"inventory": self.inv(), "indices": self.idx()}
 
-    def actor2(self):
-        return self.g.actor_stats(self.ptr(self.sym["vs_battle_characterState"]))
-
     def hp(self):
-        return struct.unpack("<h", self.g.read(self.actor2() + 0x18, 2))[0]
+        return self.g.value("vs_battle_characterState->stats->currentHP")
 
     def targeting(self):
-        return self.g.read(self.sym["D_800F196C"], 1)[0] == TARGETING
+        return self.g.data("D_800F196C", 1)[0] == TARGETING
 
     def handoff(self):
-        g, sym = self.g, self.sym
-        ms = g.read(sym["vs_battle_menuState"], 3)
-        return {"vs_menu_frameworkActionSelection": g.read(sym["vs_menu_frameworkActionSelection"], 8).hex(),
+        g = self.g
+        ms = g.data("vs_battle_menuState", 3)
+        return {"vs_menu_frameworkActionSelection": g.data("vs_menu_frameworkActionSelection", 8).hex(),
                 "currentMenu": ms[0], "returnState": ms[1], "executeAbilityType": ms[2],
-                "miscItemInvoked": g.read(sym["vs_battle_miscItemInvoked"], 1)[0],
-                "submenuStates[0]": g.read(sym["vs_battle_submenuStates"], 1)[0],
-                "vs_menu_frameworkMenuMemory[58:104]": g.read(sym["vs_menu_frameworkMenuMemory"], ITEM_MEMORIES[1])[ITEM_MEMORIES[0]:].hex()}
+                "miscItemInvoked": g.value("vs_battle_miscItemInvoked"),
+                "submenuStates[0]": g.value("vs_battle_submenuStates[0]"),
+                "vs_menu_frameworkMenuMemory[58:104]": g.data("vs_menu_frameworkMenuMemory", ITEM_MEMORIES[1])[ITEM_MEMORIES[0]:].hex()}
 
     def zero_memories(self):
         a, b = ITEM_MEMORIES
-        self.g.write(self.sym["vs_menu_frameworkMenuMemory"] + a, bytes(b - a))
+        self.g.store_data("vs_menu_frameworkMenuMemory", bytes(b - a), offset=a)  # (cursor memories: the framework's table)
 
     def memories(self):
-        return self.g.read(self.sym["vs_menu_frameworkMenuMemory"], MEMORY_BYTES)
+        return self.g.data("vs_menu_frameworkMenuMemory", MEMORY_BYTES)
 
     def set_memories(self, data):
-        self.g.write(self.sym["vs_menu_frameworkMenuMemory"], data)
+        self.g.store_data("vs_menu_frameworkMenuMemory", data)
 
     def cursor_memory(self, on):
-        self.g.write(self.sym["vs_main_settings"] + SETTINGS_CURSOR_MEMORY, b"\x01" if on else b"\x00")
+        self.g.store_data("vs_main_settings.cursorMemory", b"\x01" if on else b"\x00")
 
     def wait(self, pred, limit, what, step=1, quiet=False):
         for n in range(0, limit + 1, step):
@@ -218,23 +210,22 @@ class Session:
     def prepare(self):
         """The RAM set-up both processes share (see the module docstring)."""
         g, inv = self.g, self.inv()
-        base = self.inventory
-        g.write(self.sym["vs_main_settings"] + SETTINGS_CURSOR_MEMORY, b"\x00")
+        g.store("vs_main_settings.cursorMemory", 0)
         misc = b"".join(struct.pack("<HBB", i, n, k + 1) for k, (i, n) in enumerate(MISC_BAG))
         misc += b"".join(struct.pack("<HBB", 0, 0, k + 1) for k in range(len(MISC_BAG), 64))
-        g.write(base + MISC, misc)
+        g.store_data("vs_main_inventory.misc", misc)
         lo, size = IDX[MISC_C]
-        g.write(self.indices + lo, bytes(range(1, len(MISC_BAG) + 1)) + bytes(size - len(MISC_BAG)))
+        g.store_data("vs_main_inventoryIndices.misc", bytes(range(1, len(MISC_BAG) + 1)) + bytes(size - len(MISC_BAG)))
         # a gem in the first bag weapon (its grip gets a slot), that weapon and the second shield on slot 2
         w = self.bag_weapon(inv)
         grip = inv[WEAPONS + w * WEAPON + 2]
-        g.write(base + GRIPS + (grip - 1) * GRIP + 4, b"\x01")
+        g.store(f"vs_main_inventory.grips[{grip - 1}].gemSlots", 1)
         gem = struct.pack("<HBBBbbb8b8bHh", 261, 0, 0, 0, 2, 0, 1, *([5, 0, 0, 0, 0, -3, 0, 0]),
                           *([0, 4, 0, 0, 0, 0, 0, 0]), w + 1, 1)
-        g.write(base + GEMS, gem)
-        g.write(self.indices + IDX[5][0], b"\x01")
-        g.write(base + WEAPONS + w * WEAPON + 4, bytes([1, 0, 0, 2]))  # gems[0] = gem 1, gems[3] = slot 2
-        g.write(base + SHIELDS + 1 * SHIELD + SHIELD_SLOTS, b"\x02")
+        g.store_data("vs_main_inventory.gems[0]", gem)
+        g.store_data("vs_main_inventoryIndices.gems", b"\x01")
+        g.store_data(f"vs_main_inventory.weapons[{w}].gems", bytes([1, 0, 0, 2]))  # gems[0] = gem 1, gems[3] = slot 2
+        g.store("vs_main_inventory.shields[1].gems[3]", 2)
         g.run(2)
         return w
 
@@ -244,12 +235,10 @@ class Session:
 
     # ---- the original Items screen (ui_menus off) ----
     def menu_items(self):
-        p = self.ptr(self.sym["vs_battle_menuItems"])
-        if not p:
+        if not self.g.value("vs_battle_menuItems"):
             return {}
-        size = self.g.layout("menuItem_size", 64)
-        raw = self.g.read(p, size * 40)
-        return {i: (raw[i * size], raw[i * size + 6]) for i in range(40) if raw[i * size]}
+        rows = self.g.table("vs_battle_menuItems[0]", 40, "state", "selected")
+        return {i: (row["state"], row["selected"]) for i, row in enumerate(rows) if row["state"]}
 
     def wait_ready(self, want=None, limit=400):
         """Every menu item idle (vs_mainmenu_ready) a few frames in a row; `want` live."""
@@ -273,7 +262,7 @@ class Session:
             self.g.press(button, vsyncs=3, settle=settle)
 
     def o_category(self):
-        return (self.g.read(self.sym["vs_menu_frameworkMenuMemory"] + CATEGORY_MEMORY, 1)[0] - 1) & 7
+        return (self.g.value("vs_menu_frameworkMenuMemory.unk3A.currentItemCategory") - 1) & 7
 
     def o_open(self):
         """Triangle, Items: MENU3's list (the Manage page first: cursor memory off)."""
@@ -311,8 +300,8 @@ class Session:
     def o_action_index(self):
         if self.selected_action is None:
             return None
-        sel = struct.unpack("<i", self.g.read(self.selected_action, 4))[0]
-        return sel + self.g.read(self.action_offset, 1)[0]
+        sel = struct.unpack("<i", self.g.data(self.selected_action, 4))[0]
+        return sel + self.g.data(self.action_offset, 1)[0]
 
     def o_pick(self, c, r):
         """Row r of category c picked up (Circle once)."""

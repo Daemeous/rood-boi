@@ -74,7 +74,7 @@ import time
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from weapon_slots_smoke import default_card  # noqa: E402
 
@@ -91,8 +91,8 @@ SETTINGS_CURSOR_MEMORY = 1
 MEMORIES = (106, 124)  # vs_menu_frameworkMenuMemory cursorMemories ids 53..61 (MENUC's lists)
 SHIELD_SLOTS = 0x2F    # shields[i].gems[3]: weapon_slots.c's quick-swap bits (a port mod byte)
 WEAPON_SLOT = 7        # weapons[i].gems[3]: its quick-swap slot
-ACTOR2_BYTES = 0x964   # vs_battle_actor2 (BATTLE 146C.h)
-STATUSES = 0x948       # vs_battle_actor2.statuses
+ACTOR2 = "vs_battle_characterState->stats"  # Ashley's vs_battle_actor2
+ACTOR2_BYTES = 0x964   # its first bytes (the record compared whole, BATTLE 146C.h)
 ENCHANT = 0x00400000   # a weapon enchantment's status (vs_items_removeWeaponEnchantmentOnEquip clears 0x01E00000 on vs_battle_equipWeapon)
 
 FRAMES = "the two paths take different numbers of frames"
@@ -177,7 +177,6 @@ class Session:
     def __init__(self, name, out, card, env, shots):
         self.name, self.out, self.shots = name, out, shots
         self.g = launch_at("save_room", card=card, fast=True, log=out / f"{name}.log", extra_env=env)
-        self.sym = symbols()
 
     def close(self):
         self.g.close()
@@ -187,40 +186,32 @@ class Session:
             self.g.run(4)
             self.g.present_screenshot(self.out / f"{self.name}-{name}.png")
 
-    def ptr(self, address):
-        return int.from_bytes(self.g.read(address, PTR), "little")
-
     def menu(self):
-        return self.g.read(self.sym["vs_battle_menuState"], 1)[0]
+        return self.g.value("vs_battle_menuState.currentMenu")
 
     def bag(self):
         return Bag(self.inv(), self.idx())
 
     def inv(self):
-        return self.g.read(self.sym["vs_main_inventory"], INVENTORY_BYTES)
+        return self.g.data("vs_main_inventory", INVENTORY_BYTES)
 
     def idx(self):
-        return self.g.read(self.sym["vs_main_inventoryIndices"], INDICES_BYTES)
+        return self.g.data("vs_main_inventoryIndices", INDICES_BYTES)
 
     def memories(self):
         a, b = MEMORIES
-        return self.g.read(self.sym["vs_menu_frameworkMenuMemory"] + a, b - a)
-
-    def actor2(self):
-        """Ashley's vs_battle_actor2 (psx_get(vs_battle_characterState->unk3C))."""
-        state = self.ptr(self.sym["vs_battle_characterState"])
-        return self.g.actor_stats(state)
+        return self.g.data("vs_menu_frameworkMenuMemory", b - a, offset=a)  # (cursor memories: the framework's own table)
 
     def statuses(self):
-        return struct.unpack("<I", self.g.read(self.actor2() + STATUSES, 4))[0]
+        return self.g.value(ACTOR2 + ".statuses")
 
     def enchant(self):
         """The equipped weapon enchanted: the status bit written into the battle record."""
-        self.g.write(self.actor2() + STATUSES, struct.pack("<I", self.statuses() | ENCHANT))
+        self.g.store(ACTOR2 + ".statuses", self.statuses() | ENCHANT)
         self.g.run(2)
 
     def dump(self):
-        return {"inventory": self.inv(), "indices": self.idx(), "actor2": self.g.read(self.actor2(), ACTOR2_BYTES)}
+        return {"inventory": self.inv(), "indices": self.idx(), "actor2": self.g.data(ACTOR2 + "[0]", ACTOR2_BYTES)}
 
     def wait(self, pred, limit, what, step=2, quiet=False):
         for n in range(0, limit + 1, step):
@@ -250,41 +241,35 @@ class Session:
 
     def prepare(self):
         """The RAM set-up both processes share (the module docstring)."""
-        g, base, bag = self.g, self.sym["vs_main_inventory"], self.bag()
-        g.write(self.sym["vs_main_settings"] + SETTINGS_CURSOR_MEMORY, b"\x00")
+        g, bag = self.g, self.bag()
+        g.store("vs_main_settings.cursorMemory", 0)
         for k, gid in enumerate((261, 262, 263)):  # three gems, unset
             rec = struct.pack("<HBBBbbb8b8bHh", gid, gid - 260, 0, 0, k + 1, 0, -1, *([4, 0, 0, 0, 0, -2, 0, 0]),
                               *([0, 3, 0, 0, 0, 0, 0, 0]), 0, k + 1)
-            g.write(base + GEMS + k * GEM, rec)
-        lo, _ = IDX[5]
-        g.write(self.indices_addr() + lo, bytes([1, 2, 3]))
+            g.store_data(f"vs_main_inventory.gems[{k}]", rec)
+        g.store_data("vs_main_inventoryIndices.gems", bytes([1, 2, 3]))
         weapons = bag.listed(0)
         for i in weapons:
             w = bag.weapon(i)
-            g.write(base + GRIPS + (w["grip"] - 1) * GRIP + 4, bytes([1 if w["equipped"] else 2]))
+            g.store(f"vs_main_inventory.grips[{w['grip'] - 1}].gemSlots", 1 if w["equipped"] else 2)
         for i in range(8):
             if bag.shield(i)["id"]:
-                g.write(base + SHIELDS + i * SHIELD + 4 + 12, b"\x01")
+                g.store(f"vs_main_inventory.shields[{i}].base.gemSlots", 1)
         g.run(2)
         self.ui(reequip=True)  # the battle record as the bag now (the gem slots of the equipped weapon / shield)
         # damage: blades' DP below their maximum, PP that a repair costs
         for k, i in enumerate(bag.listed(1)):
             b = bag.inv[BLADES + i * BLADE:BLADES + (i + 1) * BLADE]
             max_dp = u16(b, 4)
-            g.write(base + BLADES + i * BLADE + 8, struct.pack("<HH", max_dp - 1500 - 700 * k, 40 + 30 * k))
+            g.store_data(f"vs_main_inventory.blades[{i}].currentDp", struct.pack("<HH", max_dp - 1500 - 700 * k, 40 + 30 * k))
         g.run(2)
-
-    def indices_addr(self):
-        return self.sym["vs_main_inventoryIndices"]
 
     # ---- the original Setup screen (ui_menus off) ----
     def menu_items(self):
-        p = self.ptr(self.sym["vs_battle_menuItems"])
-        if not p:
+        if not self.g.value("vs_battle_menuItems"):
             return {}
-        size = self.g.layout("menuItem_size", 64)
-        raw = self.g.read(p, size * 40)
-        return {i: (raw[i * size], raw[i * size + 6]) for i in range(40) if raw[i * size]}
+        rows = self.g.table("vs_battle_menuItems[0]", 40, "state", "selected")
+        return {i: (row["state"], row["selected"]) for i, row in enumerate(rows) if row["state"]}
 
     def wait_ready(self, want=None, limit=600):
         calm = 0
@@ -769,18 +754,17 @@ def greying_checks(b, check):
 
 def full_weapons_check(b, check):
     """Eight weapons (records faked: a blade id in each empty one; put back after): Assemble greyed."""
-    base = b.sym["vs_main_inventory"]
-    saved = b.g.read(base, 0x100)
+    saved = b.g.data("vs_main_inventory.weapons", 0x100)
     for i in range(8):
         if not saved[i * WEAPON + 1]:
-            b.g.write(base + i * WEAPON + 1, b"\x01\x01")
+            b.g.store_data(f"vs_main_inventory.weapons[{i}].blade", b"\x01\x01")  # (the blade and the grip)
     b.s_open()
     rows = {r["id"]: r for r in b.ws().get("rows") or []}
     a = rows.get("assemble", {})
     check(not a.get("enabled") and "carry" in a.get("reason", ""),
           f"eight weapons: Assemble greyed with MENUC's weaponsFull ({a})")
     b.press("triangle", settle=10)
-    b.g.write(base, saved)
+    b.g.store_data("vs_main_inventory.weapons", saved)
     b.s_close()
 
 

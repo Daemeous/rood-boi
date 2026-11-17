@@ -69,7 +69,7 @@ import time
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, BUILD, symbols  # noqa: E402
+from rood_rpc import OUT, BUILD  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from weapon_slots_smoke import default_card  # noqa: E402
 
@@ -89,19 +89,8 @@ MASKS = []
 
 
 def menue_symbols():
-    """MENUE's statics: each name must resolve to one address in its overlay."""
-    image = BUILD / "rood_battle_probe"
-    out = subprocess.run([os.environ.get("ROOD_OBJDUMP", "objdump"), "-t", str(image)], capture_output=True,
-                         text=True).stdout
-    found = {}
-    for line in out.splitlines():
-        parts = line.split()
-        if len(parts) >= 6 and parts[-1] in MENUE_STATICS and parts[-3].startswith(MENUE_SECTION):
-            found.setdefault(parts[-1], []).append(int(parts[0], 16))
-    bad = [n for n in MENUE_STATICS if len(found.get(n, [])) != 1]
-    if bad:
-        raise RuntimeError(f"MENUE statics not resolved to one address: {bad} ({found})")
-    return {n: a[0] for n, a in found.items()}
+    """MENUE's statics by name (<overlay>:<name>: other overlays have statics of the same name)."""
+    return {n: f"{MENUE_SECTION}:{n}" for n in MENUE_STATICS}
 
 
 # ---- the reference: the disc's page files as the reader shows them ----
@@ -221,12 +210,6 @@ class Session:
         self.name, self.out, self.shots = name, out, shots
         self.game = launch_at("save_room", card=card, fast=True, log=out / f"{name}.log", extra_env=env)
         self.game.call("graphics", interpolate=False)
-        sym = symbols()
-        self.sym = sym
-        self.menu_state = sym["vs_battle_menuState"]
-        self.settings = sym["vs_main_settings"]
-        self.display = sym["vs_battle_manualDisplayState"]
-        self.items_row = sym["vs_mainMenu_itemsListRow"]
         self.me = menue_symbols()
 
     def close(self):
@@ -240,22 +223,22 @@ class Session:
         return (self.shell().get("system") or {}).get("manual")
 
     def current_menu(self):
-        return self.game.read(self.menu_state, 1)[0]
+        return self.game.value("vs_battle_menuState.currentMenu")
 
-    def u32(self, addr):
-        return struct.unpack("<I", self.game.read(addr, 4))[0]
+    def word(self, name):
+        return struct.unpack("<I", self.game.data(name, 4))[0]
 
     def menue(self, name):
-        return struct.unpack("<i", self.game.read(self.me[name], 4))[0]
+        return struct.unpack("<i", self.game.data(self.me[name], 4))[0]
 
     def scroll(self, t):
-        return struct.unpack("<H", self.game.read(self.display + 4 + 2 * t, 2))[0]
+        return struct.unpack("<H", self.game.data("vs_battle_manualDisplayState", 2, offset=4 + 2 * t))[0]
 
     def current(self):
-        return struct.unpack("<H", self.game.read(self.display, 2))[0]
+        return struct.unpack("<H", self.game.data("vs_battle_manualDisplayState", 2))[0]
 
     def world(self):
-        return self.u32(self.sym["vs_field_isFieldRenderingEnabled"])
+        return self.word("vs_field_isFieldRenderingEnabled")
 
     def played(self):
         """The menu sounds the game played (RPC sfx: vs_main_playSfxDefault, bank 0x7E)."""
@@ -268,17 +251,17 @@ class Session:
         return {k: m.get(k, 0) for k in SOUNDS} if m else None
 
     def dump(self):
-        g, s = self.game, self.sym
+        g = self.game
         return {
-            "display": g.read(self.display, 0x24),
-            "cursorMemories": g.read(s["vs_menu_frameworkMenuMemory"], 52),
-            "submenu0": g.read(s["vs_battle_submenuStates"], 1),
-            "settings": g.read(self.settings, 32),
-            "world": g.read(s["vs_field_isFieldRenderingEnabled"], 4),
+            "display": g.data("vs_battle_manualDisplayState", 0x24),
+            "cursorMemories": g.data("vs_menu_frameworkMenuMemory", 52),
+            "submenu0": g.data("vs_battle_submenuStates", 1),
+            "settings": g.data("vs_main_settings", 32),
+            "world": g.data("vs_field_isFieldRenderingEnabled", 4),
             # close only
-            "menuState": g.read(self.menu_state, 4),
-            "hud": g.read(s["vs_battle_hudHidden"], 1) + g.read(s["vs_battle_hudSlideOffset"], 4),
-            "textBox0": g.read(s["vs_battle_textBoxes"] + g.layout("textBox_state", 0x1C), 2),
+            "menuState": g.data("vs_battle_menuState", 4),
+            "hud": g.data("vs_battle_hudHidden", 1) + g.data("vs_battle_hudSlideOffset", 4),
+            "textBox0": g.data("vs_battle_textBoxes[0].state", 2),
             # the sounds played so far and those the manual asked for (compare_sounds, check_asked)
             "played": self.played(),
             "asked": self.asked(),
@@ -294,10 +277,10 @@ class Session:
     # ---- the fixture ----
     def fixture(self, cursor_memory=1):
         g = self.game
-        flags = struct.unpack("<H", g.read(self.settings + 2, 2))[0]
+        flags = struct.unpack("<H", g.data("vs_main_settings.menuFlags", 2))[0]
         if not flags & (1 << QUICK_MANUAL):
-            g.write(self.settings + 2, struct.pack("<H", flags | 1 << QUICK_MANUAL))
-        g.write(self.settings + 1, bytes([cursor_memory]))
+            g.store("vs_main_settings.menuFlags", flags | 1 << QUICK_MANUAL)
+        g.store("vs_main_settings.cursorMemory", cursor_memory)
 
     # ---- waits (state) ----
     def wait(self, pred, limit=600, step=2):
@@ -311,7 +294,7 @@ class Session:
     def wait_list(self):
         """MENUE's list takes input (its rows in: MAINMENU 58EC.c case 17)."""
         return self.wait(lambda: self.current_menu() == MANUAL_MENU and self.menue("_showMenuState") == SHOW_LIST
-                         and self.game.read(self.items_row, 1)[0] == 17)
+                         and self.game.value("vs_mainMenu_itemsListRow") == 17)
 
     def wait_page(self):
         return self.wait(lambda: self.current_menu() == MANUAL_MENU and self.menue("_showMenuState") == SHOW_PAGE)
@@ -324,8 +307,7 @@ class Session:
     def wait_top(self):
         """The original top level takes input (rows slid in: D_800F4CC0 >= 0)."""
         return self.wait(lambda: self.current_menu() == 0 and struct.unpack(
-            "<i", self.game.read(self.sym["D_800F4CC0"], 4))[0] >= 0 and self.game.read(
-            self.sym["vs_battle_menuItems"], 4) != b"\0\0\0\0")
+            "<i", self.game.data("D_800F4CC0", 4))[0] >= 0 and self.game.data("vs_battle_menuItems", 4) != b"\0\0\0\0")
 
     def wait_shell(self):
         ok = self.wait(lambda: self.shell()["visible"] and self.current_menu() == 0, 300, 3)
@@ -341,7 +323,7 @@ class Session:
         g.press("triangle", vsyncs=3, settle=10)
         self.wait_top()
         for _ in range(12):
-            if g.read(self.sym["vs_battle_submenuStates"], 1)[0] == QUICK_MANUAL:
+            if g.value("vs_battle_submenuStates[0]") == QUICK_MANUAL:
                 break
             g.press("up", vsyncs=3, settle=6)
         g.press("circle", vsyncs=3, settle=4)
@@ -602,7 +584,7 @@ def story_pad(b, check, dumps):
     # Square on the row: the original MENUE on the native topic; Cross back to the shell
     g.press("square", vsyncs=3, settle=4)
     ok = b.wait_list()
-    cm = b.game.read(b.sym["vs_menu_frameworkMenuMemory"] + 4, 2)
+    cm = b.game.data("vs_menu_frameworkMenuMemory.cursorMemories[4]", 2)
     check(ok and b.current() == 12 and tuple(cm) == (7, 5),
           f"B: Square: MENUE's list on topic 12 ({b.current_menu():#x}, {b.current()}, {tuple(cm)})")
     g.press("cross", vsyncs=3, settle=4)
@@ -863,7 +845,7 @@ def robustness(b, check):
     b.open_shell()
     g.press("circle", vsyncs=3, settle=2)
     frozen = b.world()
-    g.write(b.menu_state, bytes([CLOSED]))
+    g.store("vs_battle_menuState.currentMenu", CLOSED)
     g.run(6)
     check(frozen == 0 and b.manual() is None and b.world() == 1,
           f"robust: a forced currentMenu write ends the manual, the world runs ({frozen} -> {b.world()})")

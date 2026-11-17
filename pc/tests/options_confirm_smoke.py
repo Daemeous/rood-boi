@@ -41,7 +41,7 @@ import tempfile
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, Deadline, symbols  # noqa: E402
+from rood_rpc import OUT, Deadline  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from card_fixtures import default_save  # noqa: E402
 from menu_nav import top_command  # noqa: E402
@@ -82,7 +82,6 @@ def main():
             failures.append(message)
 
     game = launch_at("save_room", card=card, log=out / "game.log", extra_env=env)
-    sym = symbols()
     try:
         def opt():
             return game.call("options")
@@ -134,7 +133,7 @@ def main():
 
         # ---- classic: Option > Display ----
         game.press("triangle", vsyncs=3, settle=30)
-        top_command(game, sym, OPTION_COMMAND)
+        top_command(game, OPTION_COMMAND)
         press("circle")
         o = wait("list")
         display = VANILLA_ROWS + o["entries"].index("rood.options/display")
@@ -212,7 +211,7 @@ def main():
               "classic Display rows = rood.menu.rows(display, classic)")
         game.press("triangle", vsyncs=3, settle=2)
         for _ in range(600):  # the menu closed (vs_battle_menuState.currentMenu 0x3F)
-            if game.read(sym["vs_battle_menuState"], 1)[0] == 0x3F:
+            if game.value("vs_battle_menuState.currentMenu") == 0x3F:
                 break
             game.run(1)
 

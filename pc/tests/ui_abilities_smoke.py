@@ -71,24 +71,19 @@ import tempfile
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from weapon_slots_smoke import default_card  # noqa: E402
 
 CLOSED = 0x3F
 BREAK_ARTS = 0x42  # the original Break Arts list from the top level (command 1 + 1 | 0x40)
 TARGETING = 2      # D_800F196C while a break art's target is chosen
-PTR = 8 if os.environ.get("ROOD_ARCH") == "64" else 4  # host pointers (vs_battle_menuItems, characterState)
+ACTOR2 = "vs_battle_characterState->stats"  # the character's vs_battle_actor2 (currentHP)
 
 # vs_main_settings (main.h): cursorMemory at 1, mappedChainAbilities[4] at 12, mappedDefenseAbilities[4] at 16
 CURSOR_MEMORY, MAPPED, MAPPED_BYTES = 1, 12, 8
 LOADING = "Loading\u2026"  # an art's reason while MAINMENU is not resident yet
-# vs_action_t: 52 bytes, cost (signed) at 3, unlocked = bit 7 of byte 13
-ACTION, ACTION_COST, ACTION_UNLOCKED = 52, 3, 13
-# vs_main_artsStatus_t: artsLearned[12], kills.weaponCategories[10] (u16), battleAbilitiesUnlocked, total
-LEARNED, KILLS, ABILITIES_UNLOCKED = 0, 12, 32  # kills.total follows battleAbilitiesUnlocked
 FIRST_ART = 184
-HP = 0x18  # vs_battle_actor2.currentHP
 BUTTONS = ("circle", "triangle", "square")
 DAGGER = 1
 
@@ -135,7 +130,6 @@ class Session:
         self.name, self.out, self.shots = name, out, shots
         # Continue from the card (checkpoints.py: booted, or its validated save state).
         self.g = launch_at("save_room", card=card, fast=True, log=out / f"{name}.log", extra_env=env)
-        self.sym = symbols()
 
     def close(self):
         self.g.close()
@@ -145,24 +139,20 @@ class Session:
             self.g.present_screenshot(self.out / f"{self.name}-{name}.png")
 
     # ---- reads ----
-    def ptr(self, address):
-        return int.from_bytes(self.g.read(address, PTR), "little")
-
     def menu(self):
-        return self.g.read(self.sym["vs_battle_menuState"], 1)[0]
+        return self.g.value("vs_battle_menuState.currentMenu")
 
     def mapped(self):
-        return self.g.read(self.sym["vs_main_settings"] + MAPPED, MAPPED_BYTES)
+        return self.g.data("vs_main_settings.mappedChainAbilities[0]", MAPPED_BYTES)
 
-    def action(self, i):
-        return self.g.read(self.sym["vs_main_actions"] + i * ACTION, ACTION)
+    def learned(self, i):
+        return bool(self.g.value(f"vs_main_actions[{i}].unlocked"))
 
-    def actor2(self):
-        actor = self.ptr(self.sym["vs_battle_characterState"])
-        return self.g.actor_stats(actor)
+    def cost(self, i):
+        return s8(self.g.value(f"vs_main_actions[{i}].cost"))
 
     def hp(self):
-        return struct.unpack("<h", self.g.read(self.actor2() + HP, 2))[0]
+        return self.g.value(ACTOR2 + ".currentHP")
 
     def ui(self, **params):
         return self.g.call("ui_menu", **params)
@@ -183,12 +173,10 @@ class Session:
     # ---- the original menu (ui_menus off) ----
     def menu_items(self):
         """vs_battle_menuItems: {id: (state, selected)} of the live items ({} when none)."""
-        p = self.ptr(self.sym["vs_battle_menuItems"])
-        if not p:
+        if not self.g.value("vs_battle_menuItems"):
             return {}
-        size = self.g.layout("menuItem_size", 64)
-        raw = self.g.read(p, size * 40)
-        return {i: (raw[i * size], raw[i * size + 6]) for i in range(40) if raw[i * size]}
+        rows = self.g.table("vs_battle_menuItems[0]", 40, "state", "selected")
+        return {i: (row["state"], row["selected"]) for i, row in enumerate(rows) if row["state"]}
 
     def wait_ready(self, want, limit=400):
         """Until item `want` is live and every item idle (vs_mainmenu_ready) for a few frames."""
@@ -205,12 +193,11 @@ class Session:
 
     def item_icon(self, i):
         """vs_battle_menuItems[i].rowIcon (the Break Arts list's title: its category)."""
-        p = self.ptr(self.sym["vs_battle_menuItems"])
-        return self.g.read(p + i * self.g.layout("menuItem_size", 64) + 9, 1)[0] if p else None
+        return self.g.value(f"vs_battle_menuItems[{i}].rowIcon") if self.g.value("vs_battle_menuItems") else None
 
     def ab_rows(self, cat):
         """The learned arts of category `cat` (the original list's rows before View Arts)."""
-        return sum(1 for i in range(4) if self.action(FIRST_ART + (cat - 1) * 4 + i)[ACTION_UNLOCKED] & 0x80)
+        return sum(1 for i in range(4) if self.learned(FIRST_ART + (cat - 1) * 4 + i))
 
     def selected(self, ids):
         items = self.menu_items()
@@ -442,8 +429,8 @@ def main():
 
 def learned(s, kind):
     """The learned actions of a type, in the game's list order (MENU2)."""
-    table = s.g.read(s.sym[f"vs_battle_{kind}AbilityOffsets"], 14)
-    return [i for i in table if s.action(i)[ACTION_UNLOCKED] & 0x80]
+    table = s.g.data(f"vs_battle_{kind}AbilityOffsets", 14)
+    return [i for i in table if s.learned(i)]
 
 
 def learned_counts(s):
@@ -462,16 +449,15 @@ def lists_checks(b, check):
         ids = learned(b, kind)
         entries = ab[kind]["entries"]
         got = [e["id"] for e in entries]
-        costs = [s8(b.action(i)[ACTION_COST]) for i in ids]
+        costs = [b.cost(i) for i in ids]
         check(got == ids and all(e["name"].strip() for e in entries) and [e["cost"] for e in entries] == costs,
               f"{kind}: the learned actions {[e['name'] for e in entries]} ids {got} (RAM {ids}), "
               f"RISK costs {[e['cost'] for e in entries]} (actions {costs})")
         slots = [x["id"] for x in ab[kind]["slots"]]
         check(slots == list(mapped[t * 4:t * 4 + 3]), f"{kind}: the slots {slots} = the mapped bytes")
-    status = b.sym["vs_main_artsStatus"]
-    unlocked, total = struct.unpack("<HH", b.g.read(status + ABILITIES_UNLOCKED, 4))
+    unlocked, total = b.g.value("vs_main_artsStatus.kills.battleAbilitiesUnlocked"), b.g.value("vs_main_artsStatus.kills.total")
     if unlocked < 22:
-        req = struct.unpack("<H", b.g.read(b.sym["vs_main_battleAbilitiesPointsRequirements"] + 2 * unlocked, 2))[0]
+        req = b.g.value(f"vs_main_battleAbilitiesPointsRequirements[{unlocked}]")
         want = max(0, req - total)
     else:
         want = -1
@@ -485,19 +471,18 @@ def arts_checks(b, check):
     b.shell_close()  # the menu's commands (menuFlags: Break Arts) are set when it opens
     cat = ab["equipped_category"]
     c = cat % 10
-    status, acts = b.sym["vs_main_artsStatus"], b.sym["vs_main_actions"]
-    req = struct.unpack("<4H", g.read(b.sym["vs_main_artsPointsRequirements"] + c * 8, 8))
+    status = "vs_main_artsStatus"
+    req = struct.unpack("<4H", g.data(f"vs_main_artsPointsRequirements[{c}]", 8))
     art0 = FIRST_ART + (cat - 1) * 4
     dagger0 = FIRST_ART + (DAGGER - 1) * 4
     kills = req[1] + 3 if req[1] + 3 < req[2] else req[1]
     # the equipped category's first art learned, the second pending, the dagger's first learned
     for art in (art0, dagger0):
-        v = g.read(acts + art * ACTION + ACTION_UNLOCKED, 1)[0]
-        g.write(acts + art * ACTION + ACTION_UNLOCKED, bytes([v | 0x80]))
-    g.write(status + LEARNED + c, bytes([1]))
-    g.write(status + LEARNED + DAGGER, bytes([1]))
-    g.write(status + KILLS + 2 * c, struct.pack("<H", kills))
-    cost = s8(b.action(art0)[ACTION_COST])
+        g.store(f"vs_main_actions[{art}].unlocked", 1)
+    g.store(f"{status}.artsLearned[{c}]", 1)
+    g.store(f"{status}.artsLearned[{DAGGER}]", 1)
+    g.store(f"{status}.kills.weaponCategories[{c}]", kills)
+    cost = b.cost(art0)
 
     b.shell_open("arts")
     g.run(2)
@@ -551,11 +536,11 @@ def arts_checks(b, check):
           f"drawn, another category's art '{dagger['name']}': not usable, '{dagger['reason']}'")
     # HP too low: HP = the cost
     hp0 = b.hp()
-    g.write(b.actor2() + HP, struct.pack("<h", cost))
+    g.store(ACTOR2 + ".currentHP", cost)
     g.run(2)
     art = b.ab()["categories"][cat - 1]["arts"][0]
     check(not art["usable"] and "hp" in art["reason"].lower(), f"HP {cost} = the cost: not usable, '{art['reason']}'")
-    g.write(b.actor2() + HP, struct.pack("<h", hp0))
+    g.store(ACTOR2 + ".currentHP", hp0)
     g.run(2)
     art = b.ab()["categories"][cat - 1]["arts"][0]
     check(art["usable"] and not art["reason"], f"drawn, HP {hp0}: usable ('{art['reason']}')")
@@ -567,10 +552,9 @@ def arts_checks(b, check):
 
     # a second art of the equipped category learned (the original list has two rows and View Arts)
     art1 = art0 + 1
-    v = g.read(acts + art1 * ACTION + ACTION_UNLOCKED, 1)[0]
-    g.write(acts + art1 * ACTION + ACTION_UNLOCKED, bytes([v | 0x80]))
-    g.write(status + LEARNED + c, bytes([2]))
-    g.write(b.sym["vs_main_settings"] + CURSOR_MEMORY, bytes([1]))  # the shell reopens where it was
+    g.store(f"vs_main_actions[{art1}].unlocked", 1)
+    g.store(f"{status}.artsLearned[{c}]", 2)
+    g.store("vs_main_settings.cursorMemory", 1)  # the shell reopens where it was
 
     # the shell reopens on the art: refused while MAINMENU loads ("Loading…"), cast once it is resident
     b.shell_open("arts")
@@ -597,13 +581,13 @@ def arts_checks(b, check):
                 break
     if check(loading is not None and not x["usable"], f"reopened, MAINMENU loading: art 1 not usable, "
                                                       f"'{x.get('reason')}' (vsync {loading})"):
-        before = g.read(b.sym["vs_menu_frameworkActionSelection"], 8)
+        before = g.data("vs_menu_frameworkActionSelection", 8)
         b.ui(pointer={"x": ART_X, "y": art_y(1), "click": True})  # the next drawn frame's click: a confirm
         g.run(1)
         still = b.ab()["categories"][cat - 1]["arts"][1]
         g.run(3)
         check(still["reason"] == LOADING and b.ui()["visible"] and b.menu() == 0
-              and g.read(b.sym["vs_menu_frameworkActionSelection"], 8) == before,
+              and g.data("vs_menu_frameworkActionSelection", 8) == before,
               f"cast while loading: refused (visible {b.ui()['visible']}, currentMenu {b.menu():#x}, "
               f"reason then '{still['reason']}')")
         b.pointer(-1, -1)
@@ -650,8 +634,8 @@ def confirm(b, check, cost, what):
     """Circle on the target (until targeting ends): HP drops by the cost."""
     g = b.g
     hp1 = b.hp()
-    F = b.sym["D_800F196C"]
-    target(b, "circle", lambda: g.read(F, 1)[0] != TARGETING)
+    F = "D_800F196C"
+    target(b, "circle", lambda: g.data(F, 1)[0] != TARGETING)
     b.wait(lambda: b.hp() != hp1, 60, "", step=2, quiet=True)
     g.run(4)
     check(b.hp() == hp1 - cost, f"{what}: HP {hp1} -> {b.hp()} (cost {cost})")
@@ -682,14 +666,14 @@ def cancel(b, check, art, row, cat, what):
     check(b.hp() == hp1, f"{what}: cancelled, no HP spent ({hp1} -> {b.hp()})")
     check(n is not None and BREAK_ARTS not in seen and b.menu() == 0,
           f"{what}: target cancelled: the shell, no original screen (currentMenu {b.menu():#x}, "
-          f"seen {sorted(hex(m) for m in seen)}, D_800F196C {g.read(b.sym['D_800F196C'], 1)[0]}, "
-          f"menuItems {b.ptr(b.sym['vs_battle_menuItems']):#x})")
+          f"seen {sorted(hex(m) for m in seen)}, D_800F196C {g.data('D_800F196C', 1)[0]}, "
+          f"menuItems {b.g.value('vs_battle_menuItems'):#x})")
     check(s.get("visible") and s.get("tab") == "abilities" and ab.get("sub") == "arts"
           and ab.get("mode") == "arts" and ab.get("category") == cat and ab.get("art") == row,
           f"{what}: on {s.get('tab')} > {ab.get('sub')}, mode {ab.get('mode')}, category {ab.get('category')} "
           f"({cat}), art {ab.get('art')} ({row})")
     g.run(20)
-    hud = g.read(b.sym["vs_battle_hudHidden"], 1)[0]
+    hud = g.value("vs_battle_hudHidden")
     check(hud == 1 and b.ui()["visible"], f"{what}: the field HUD slid out for the shell (vs_battle_hudHidden {hud})")
     b.shot(f"cancel-shell-{row}")
 
@@ -705,11 +689,11 @@ def original_cancel(b, check, art, row, cat):
     g.run(10)
     rows = list(range(20, 20 + b.ab_rows(cat) + 1))
     b.nav(rows, 20 + row)
-    F = b.sym["D_800F196C"]
+    F = "D_800F196C"
     g.press("circle", vsyncs=3, settle=1)
-    n = b.wait(lambda: g.read(F, 1)[0] == TARGETING and b.menu() == CLOSED, 300, "", step=2, quiet=True)
-    e = g.read(b.sym["vs_menu_frameworkActionSelection"], 8)
-    ms = g.read(b.sym["vs_battle_menuState"], 3)
+    n = b.wait(lambda: g.data(F, 1)[0] == TARGETING and b.menu() == CLOSED, 300, "", step=2, quiet=True)
+    e = g.data("vs_menu_frameworkActionSelection", 8)
+    ms = g.data("vs_battle_menuState", 3)
     unk2, ability = struct.unpack("<hi", e[2:8])
     check(n is not None and ability == art and unk2 == 6 and ms[2] == 5 and ms[1] == BREAK_ARTS,
           f"original list: cast {ability} ({art}), unk2 {unk2}, executeAbilityType {ms[2]}, "
@@ -756,18 +740,18 @@ def cast(b, check, art, row=0):
                                                  f"('{x['reason']}', drawn {ab['weapon_drawn']}, HP {ab['hp']})"):
         b.shot("not-usable")
         raise RuntimeError("the cast cannot start")
-    F = b.sym["D_800F196C"]
-    before = g.read(F, 1)[0]
+    F = "D_800F196C"
+    before = g.data(F, 1)[0]
     g.press("circle", vsyncs=3, settle=1)
     b.wait(lambda: not b.ui()["visible"], 30, "the shell closes for the cast")
-    e = b.g.read(b.sym["vs_menu_frameworkActionSelection"], 8)
-    ms = b.g.read(b.sym["vs_battle_menuState"], 3)
+    e = b.g.data("vs_menu_frameworkActionSelection", 8)
+    ms = b.g.data("vs_battle_menuState", 3)
     unk2, ability = struct.unpack("<hi", e[2:8])
     check(ability == art and unk2 == 6 and ms[2] == 5 and ms[1] == BREAK_ARTS,
           f"cast: vs_menu_frameworkActionSelection executeAbility {ability} ({art}), unk2 {unk2}, executeAbilityType {ms[2]}, "
           f"returnState {ms[1]:#x}")
-    n = b.wait(lambda: g.read(F, 1)[0] == TARGETING and b.menu() == CLOSED, 300, "", step=2, quiet=True)
-    check(n is not None, f"targeting (D_800F196C {before} -> {g.read(F, 1)[0]}), the menu closed ({b.menu():#x})")
+    n = b.wait(lambda: g.data(F, 1)[0] == TARGETING and b.menu() == CLOSED, 300, "", step=2, quiet=True)
+    check(n is not None, f"targeting (D_800F196C {before} -> {g.data(F, 1)[0]}), the menu closed ({b.menu():#x})")
     g.run(20)
     b.shot("targeting")
 

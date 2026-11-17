@@ -45,7 +45,7 @@ from PIL import Image
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, RpcError, symbols  # noqa: E402
+from rood_rpc import OUT, RpcError  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 
 BLOCK_SLACK = 0.15    # closing: at most this much more of the rectangle in uniform blocks than when open
@@ -71,17 +71,13 @@ class Session:
         self.game = launch_at("first_bubble", log=self.out / "game.log",
                               socket_path=f"/tmp/rood-text-fade-{name}-{os.getpid()}.sock",
                               extra_env={"ROOD_SETTINGS": str(settings), "ROOD_WINDOW": "1280x720", **env})
-        self.base = symbols()["vs_battle_textBoxes"]
+        self.base = "vs_battle_textBoxes[0]"  # (box 0)
 
     def box(self):
-        g = self.game  # the text box's layout is the game's (Game.layout: it holds a host pointer)
-        raw = g.read(self.base, g.layout("textBox_size", 0x30))
-        flags, = struct.unpack_from("<I", raw, 0)
-        x, y = struct.unpack_from("<hh", raw, g.layout("textBox_x", 0x14))
-        state, = struct.unpack_from("<h", raw, g.layout("textBox_state", 0x1C))
-        return {"flags": flags, "x": x, "y": y, "state": state, "duration": raw[g.layout("textBox_unk22", 0x22)],
-                "w": raw[g.layout("textBox_charsPerLine", 0x20)] * 12 + 10,
-                "h": raw[g.layout("textBox_lineCount", 0x21)] * 13 + 4}
+        g, b = self.game, self.base  # (the members by name: the box holds a host pointer)
+        return {"flags": g.value(b + ".flags"), "x": g.value(b + ".x"), "y": g.value(b + ".y"),
+                "state": g.value(b + ".state"), "duration": g.value(b + ".unk22"),
+                "w": g.value(b + ".charsPerLine") * 12 + 10, "h": g.value(b + ".lineCount") * 13 + 4}
 
     def settle(self):
         """Until box 0 is open and settled (its text printing)."""
@@ -94,7 +90,7 @@ class Session:
 
     def retype(self, kind):
         b = self.box()
-        self.game.write(self.base, struct.pack("<I", (b["flags"] & ~0xF) | kind))
+        self.game.store(self.base + ".flags", (b["flags"] & ~0xF) | kind)
 
     def dump(self, name):
         """The target, and the displayed frame buffer's VRAM X (the frame just drawn)."""

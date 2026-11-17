@@ -210,9 +210,8 @@ def run_bubbles(out):
     try:
         g.call("graphics", interpolate=False, ui_text="font", ui_bubbles="vector")
         g.run(200)
-        sym = rood_rpc.symbols()
-        g.write(sym["vs_battle_actorMarkersHidden"], bytes(4))  # (the scene keeps them off)
-        g.write(sym["D_800F2260"], bytes([0] + [1] * 15))  # a balloon with dots over each actor
+        g.store_data("vs_battle_actorMarkersHidden", bytes(2))  # (the scene keeps them off)
+        g.store_data("D_800F2260", bytes([0] + [1] * 15))  # a balloon with dots over each actor
 
         def emotes():
             e = g.call("ui_bubbles")["emotes"]
@@ -235,7 +234,7 @@ def run_bubbles(out):
         def every_kind():
             total = 0
             for kind in range(2, 8):
-                g.write(sym["D_800F2260"], bytes([0] + [kind] * 15))
+                g.store_data("D_800F2260", bytes([0] + [kind] * 15))
                 total += drawn()
             return total
 
@@ -246,7 +245,7 @@ def run_bubbles(out):
         g.run(2)
         again = every_kind()
         check(again > 0, f"shown again: drawn ({again})")
-        g.write(sym["D_800F2260"], bytes(16))
+        g.store_data("D_800F2260", bytes(16))
     finally:
         g.close()
     log = (out / "game-bubbles.log").read_text(errors="replace")

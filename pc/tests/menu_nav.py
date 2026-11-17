@@ -5,11 +5,11 @@ travel's Magic command on a Circle of Magic, pc/docs/Fast_Travel.md)."""
 MAGIC_COMMAND, ABILITIES_COMMAND, MAP_COMMAND, DATA_COMMAND = 0, 2, 5, 6
 
 
-def top_command(game, sym, command, limit=16):
+def top_command(game, command, limit=16):
     """Down until the top level's cursor is on `command` (the menu open)."""
     for _ in range(limit):
-        if game.read(sym["vs_battle_submenuStates"], 1)[0] == command:
+        if game.value("vs_battle_submenuStates[0]") == command:
             return
         game.press("down", vsyncs=3, settle=10)
     raise TimeoutError(f"the top level's cursor never reached command {command} "
-                       f"(at {game.read(sym['vs_battle_submenuStates'], 1)[0]})")
+                       f"(at {game.value('vs_battle_submenuStates[0]')})")

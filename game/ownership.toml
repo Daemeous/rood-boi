@@ -1541,7 +1541,6 @@ functions = [
     { addr = 0x800C5798, name = "vs_battle_initTargetSelectionRow", zig = "vs_battle_initTargetSelectionRow.vs_battle_initTargetSelectionRow" },
     { addr = 0x800C58A4, name = "_getStatusString", zig = "get_status_string.getStatusString" },
     { addr = 0x800C58F8, name = "vs_battle_updateTargetSelectionMenu", zig = "vs_battle_updateTargetSelectionMenu.vs_battle_updateTargetSelectionMenu" },
-    { addr = 0x800C64D0, name = "vs_render_splicePrimitiveList", zig = "vs_render_splicePrimitiveList.vs_render_splicePrimitiveList" },
     { addr = 0x800C6540, name = "vs_battle_renderTextRawColor", zig = "render_text_raw_color.renderTextRawColor" },
     { addr = 0x800C6828, name = "vs_battle_renderTextRaw", zig = "render_text_raw.renderTextRaw" },
     { addr = 0x800C6850, name = "_writeStringTerminator", zig = "write_string_terminator.writeStringTerminator" },

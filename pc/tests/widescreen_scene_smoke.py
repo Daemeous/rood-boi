@@ -114,7 +114,7 @@ def opening(out, check):
             g.run(50)
             steps += 1
             st = g.state()
-            sky = g.read_symbol("vs_field_isTiledBackgroundEnabled", 1)[0] and int.from_bytes(g.read_symbol("vs_field_loadedBackgroundLayout", 4), "little")
+            sky = g.value("vs_field_isTiledBackgroundEnabled") and int.from_bytes(g.data("vs_field_loadedBackgroundLayout", 4), "little")
             if (st["zone"], st["room"]) == (2, 0) and sky:
                 found = True
                 break
@@ -159,7 +159,7 @@ def forest(out, card, check):
                 break
         g.run(60)
         st = g.state()
-        weather = g.read_symbol("vs_field_roomWeatherKind", 1)[0]
+        weather = g.value("vs_field_roomWeatherKind")
         check((st["zone"], st["room"]) == (40, 0) and weather == 3,
               f"Snowfly Forest (zone {st['zone']} room {st['room']}), its motes on (weather {weather})")
         counts = {}

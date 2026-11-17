@@ -43,7 +43,7 @@ sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
 import numpy as np  # noqa: E402
 from PIL import Image  # noqa: E402
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from menu_nav import DATA_COMMAND, top_command  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 
@@ -82,7 +82,6 @@ def main():
     lights = pathlib.Path(tempfile.mkdtemp(prefix="lights-", dir=out))
     env = {"ROOD_WINDOW": "960x720", "ROOD_LIGHTS": str(lights), "ROOD_GI": "0"}
     os.environ.pop("ROOD_SETTINGS", None)  # the option's default (off), not the user's settings
-    inventory = symbols()["vs_main_inventory"]
     failures = []
 
     def check(ok, message):
@@ -105,7 +104,7 @@ def main():
             return game.call("weapon_slots", **params)
 
         def raw():
-            return game.read(inventory, INVENTORY_BYTES)
+            return game.data("vs_main_inventory", INVENTORY_BYTES)
 
         def slot_bytes():
             b = raw()
@@ -184,7 +183,7 @@ def main():
 
         # Slot 2 as the mod writes it, then L2 + R2 + Triangle.
         other = next(i for i in one_handed if i != start) if len(one_handed) > 1 else both[0]
-        game.write(inventory + other * WEAPON + SLOT_BYTE, bytes([2]))
+        game.store(f"vs_main_inventory.weapons[{other}].gems[3]", 2)  # (the weapon's quick-swap slot)
         overlay(settle=25, hold=90)
         w = ws()
         shot("overlay")
@@ -251,7 +250,7 @@ def main():
 
         # The real D-pad: Up (slot 5) equips the two-handed weapon, no shield.
         heavy = both[0]
-        game.write(inventory + heavy * WEAPON + SLOT_BYTE, bytes([5]))
+        game.store(f"vs_main_inventory.weapons[{heavy}].gems[3]", 5)
         overlay("up")
         w = wait_swap()
         check(w["equipped"] == heavy and w["actor_weapon"] == weapons[heavy][0] and w["actor_shield"] == 0,
@@ -279,7 +278,7 @@ def main():
 
         # Save to the card copy: DATA > SAVE > MEMORY CARD slot 1 > file 1 > YES.
         game.press("triangle", vsyncs=3, settle=60)
-        top_command(game, symbols(), DATA_COMMAND)  # by the game's cursor (fast travel's Magic on a Circle)
+        top_command(game, DATA_COMMAND)  # by the game's cursor (fast travel's Magic on a Circle)
         game.press("circle", vsyncs=3, settle=60)  # DATA
         game.press("circle", vsyncs=3, settle=150)  # SAVE
         game.press("circle", vsyncs=3, settle=150)  # MEMORY CARD slot 1
@@ -294,7 +293,7 @@ def main():
     game = launch("reload")
     try:
         state = game.state()
-        b = game.read(inventory, INVENTORY_BYTES)
+        b = game.data("vs_main_inventory", INVENTORY_BYTES)
         loaded = ([b[i * WEAPON + SLOT_BYTE] for i in range(8)],
                   [b[SHIELDS + i * SHIELD + SHIELD_SLOT_BYTE] for i in range(8)])
         check(state.get("player") is not None and loaded == saved,

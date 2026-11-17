@@ -1,3 +1,4 @@
+#include <string.h>
 #include <sys/types.h>
 #include <libgte.h>
 #include <inline_c.h>
@@ -361,7 +362,7 @@ extern void pc_gte_new_generation(void);
 extern void pc_hwc_frame_room(void); /* hw_cmd.c */
 extern void pc_hwc_begin_ot(void); /* hw_cmd.c */
 extern void pc_hwc_end_ot(void);
-/* The frame's table drawn: the packets and item runs linked in the table the walk of `p` starts at. */
+/* The frame's table drawn: the item runs placed in the table `p` lies in, from `p` on. */
 void pc_frame_table_draw(u_long* p)
 {
     pc_hwc_frame_room(); /* (the room this frame is drawn in: emissive scopes) */
@@ -491,25 +492,15 @@ void pc_insert_tpage(int after, int page)
     PC_PACKET_CURSOR = cursor;
 }
 
-/* An ordering table made for the frame: registered (pc_frame_table: the runs placed in it are ordered by their slots), and its entries
- * linked as the SDK's ClearOTag (forward) and ClearOTagR (`reverse`) linked them, ending in the SDK's terminating primitive. */
-extern u_long D_800334F0[];
-extern u_long D_80033504;
+/* An ordering table made for the frame (what ClearOTag and ClearOTagR made): registered (pc_frame_table: the runs placed in it are ordered by their
+ * slots; `reverse` is a table drawn from its last slot) and empty: its entries hold no link, and a link found in one at the draw is a packet written
+ * into it by hand (pc_frame_table_check). */
 void pc_frame_table_clear(u_long* ot, int n, int reverse)
 {
     if (n <= 0)
         pc_unimplemented("empty ordering table");
     pc_frame_table(ot, n, reverse);
-    if (reverse) {
-        for (int i = n - 1; i > 0; --i)
-            ot[i] = psx_to_int(u_long, &ot[i - 1]) & 0xffffff;
-    } else {
-        for (int i = 0; i < n - 1; ++i)
-            ot[i] = psx_to_int(u_long, (ot + i + 1)) & 0xffffff;
-        ot += n - 1;
-    }
-    D_80033504 = (psx_to_int(u_long, D_800334F0) & 0xffffff) | 0x04000000;
-    *ot = psx_to_int(u_long, &D_80033504) & 0xffffff;
+    memset(ot, 0, (size_t)n * sizeof *ot);
 }
 
 /* pc/src/game/SLUS_010.40/32154.s: vs_core_mathNormalizeVector, shared by VectorNormal,

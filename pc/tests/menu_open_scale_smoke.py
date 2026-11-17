@@ -34,7 +34,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
 import rood_rpc  # noqa: E402
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from engine_reload_smoke import build  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 
@@ -66,15 +66,14 @@ def open_status(out, name, fade, wide, claims):
         (d / "plugins").mkdir(exist_ok=True)
         env.update(ROOD_PLUGINS=str(d / "plugins"), ROOD_PLUGIN_DATA=str(d / "plugin_data"), ROOD_PLUGINS_SHIPPED=str(ROOT / "pc/plugins"))
     g = launch_at("save_room", card=card, fast=True, log=d / "game.log", extra_env=env)
-    sym = symbols()
     try:
         g.run(120)
         for _ in range(8):
-            if g.read(sym["vs_battle_menuState"], 1)[0] & 0x3F != 0x3F:
+            if g.value("vs_battle_menuState.currentMenu") & 0x3F != 0x3F:
                 break
             g.press("triangle", vsyncs=3, settle=40)
         g.run(40)
-        top_command(g, sym, 4)  # STATUS
+        top_command(g, 4)  # STATUS
         g.press("circle", vsyncs=2, settle=0)
         paths = []
         for k in range(FRAMES):

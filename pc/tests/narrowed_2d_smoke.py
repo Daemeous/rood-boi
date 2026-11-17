@@ -77,7 +77,7 @@ from scipy import ndimage
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from card_fixtures import card_guard, default_save  # noqa: E402
 import ui_equip_smoke  # noqa: E402
@@ -310,25 +310,24 @@ def popups(card, out):
             if g.call("room_goto", action="status")["phase"] in (0, 4):
                 break
         g.run(300)
-        enemy = 0
+        enemy = None  # (an enemy's stats record: its path)
         for slot in range(1, 16):
-            actor = s.ptr(s.sym["vs_battle_actors"] + slot * D.PTR)
-            if actor:
-                enemy = g.actor_stats(actor)
+            if g.value(f"vs_battle_actors[{slot}]") and g.value(f"vs_battle_actors[{slot}]->stats"):
+                enemy = f"vs_battle_actors[{slot}]->stats"
                 break
-        if not check(enemy != 0, "an enemy in zone 9 room 18"):
+        if not check(enemy is not None, "an enemy in zone 9 room 18"):
             return
         frames = bad = 0
         for tick in range(POPUPS):
-            g.write(enemy + D.HP, struct.pack("<h", 200))
-            statuses = struct.unpack("<I", g.read(enemy + D.STATUSES, 4))[0]
-            g.write(enemy + D.STATUSES, struct.pack("<I", statuses | D.POISON))
-            g.write(enemy + D.TIMERS + 5, bytes([2]))
+            g.store(enemy + ".currentHP", 200)
+            statuses = g.value(enemy + ".statuses")
+            g.store(enemy + ".statuses", statuses | D.POISON)
+            g.store(enemy + ".statusTimers[5]", 2)
             for _ in range(200):
                 g.run(1)
                 if s.count() and s.label()["kind"] == 1:
                     break
-            g.write(enemy + D.STATUSES, struct.pack("<I", statuses & ~D.POISON))
+            g.store(enemy + ".statuses", statuses & ~D.POISON)
             def shown():
                 """The digits drawn lately while the popup shows (the list keeps the last ones drawn)."""
                 live = s.count() and s.label()["kind"] == 1 and s.label()["wait"] < 0
@@ -362,7 +361,6 @@ class Caster(ui_magick_smoke.Session):
     def __init__(self, name, out, card, env):
         self.name, self.out, self.shots = name, out, False
         self.g = launch_at("save_room", card=card, fast=True, log=out / f"{name}.log", extra_env=env)
-        self.sym = symbols()
 
 
 def fill(card, out):

@@ -42,14 +42,13 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 import card_fixtures as cf  # noqa: E402
-from ui_loot_smoke import Loot, CURE_ROOT, CURE_BULB, MISC  # noqa: E402
+from ui_loot_smoke import Loot, CURE_ROOT, CURE_BULB  # noqa: E402
 
 CLOSED = 0x3F
 CATEGORIES = ["weapons", "blades", "grips", "shields", "armor", "gems", "misc"]
-MISC_IDX = 112        # vs_main_inventoryIndices: the misc list (64 entries)
 SLOT = 24             # sizeof vs_main_CdQueueSlot
 LOADING = "Loading"
 SETTLE = 60           # vsyncs a check waits after opening a category
@@ -59,7 +58,6 @@ LONGEST = 10          # the longest wait for MAINMENU a menu open may take (tick
 class Session:
     def __init__(self, out, card, env):
         self.g = launch_at("save_room", card=card, fast=True, log=out / "game.log", extra_env=env)
-        self.sym = symbols()
         self.log = out / "game.log"
         self.g.call("ui_menu", modern=True)
         self.g.run(2)
@@ -68,7 +66,7 @@ class Session:
         self.g.close()
 
     def u8(self, name):
-        return self.g.read(self.sym[name], 1)[0]
+        return self.g.data(name, 1)[0]
 
     def menu(self):
         return self.u8("vs_battle_menuState")
@@ -91,9 +89,9 @@ class Session:
 
     def queue(self):
         """The CD queue's slots in use (state, priority, lba) and its counts (processing, queued)."""
-        raw = self.g.read(self.sym["_cdQueue"], 32 * SLOT)
+        raw = self.g.data("_cdQueue", 32 * SLOT)
         used = [struct.unpack_from("<hhi", raw, i * SLOT) for i in range(32) if struct.unpack_from("<h", raw, i * SLOT)[0]]
-        return used, struct.unpack("<hh", self.g.read(self.sym["_cdQueueCount"], 4))
+        return used, struct.unpack("<hh", self.g.data("_cdQueueCount", 4))
 
     def shell_items(self):
         for _ in range(6):
@@ -158,7 +156,7 @@ class Session:
 
 
 def case_pickups(s, check):
-    inv = s.g.read(s.sym["vs_main_inventory"], 0xF00)
+    inv = s.g.data("vs_main_inventory", 0xF00)
     s.items_check(check, "pickups: before")
     misc = [(CURE_ROOT, 1), (CURE_BULB, 2), (325, 1)]
     for k in range(4):
@@ -180,11 +178,10 @@ def case_pickups(s, check):
 
 
 def case_full(s, check):
-    inv, idx = s.sym["vs_main_inventory"], s.sym["vs_main_inventoryIndices"]
     for k in range(3):
         records = b"".join(struct.pack("<HBB", 330 + (i % 40), 1, i + 1) for i in range(64))
-        s.g.write(inv + MISC, records)
-        s.g.write(idx + MISC_IDX, bytes(range(1, 65)))
+        s.g.store_data("vs_main_inventory.misc", records)
+        s.g.store_data("vs_main_inventoryIndices.misc", bytes(range(1, 65)))
         s.g.run(4)
         r = s.g.call("loot", hex=Loot().misc((CURE_ROOT, 1)).hex(), chest=False)
         if not r.get("opened"):
@@ -225,16 +222,14 @@ def case_stall(s, check):
     before = s.items_check(check, "stall: before")
     s.shell_items()
     s.g.run(SETTLE)
-    raw = s.g.read(s.sym["_cdQueue"], 32 * SLOT)
+    raw = s.g.data("_cdQueue", 32 * SLOT)
     free = next(i for i in range(32) if struct.unpack_from("<h", raw, i * SLOT)[0] == 0)
-    state = s.sym["vs_battle_menuState"]
-    at = s.g.layout("menuState_cdQueue", 4)  # the slot of the last menu load (a host pointer on 64 bits)
-    word = "<Q" if at == 8 else "<I"
-    last = struct.unpack(word, s.g.read(state + at, struct.calcsize(word)))[0]
-    check(0 <= last - s.sym["_cdQueue"] < 32 * SLOT, f"stall: the menu's slot pointer is a queue slot ({last:#x})")
+    queue = s.g.field("_cdQueue").address  # (slot pointers are values the game holds: the queue's address and a slot's)
+    last = s.g.value("vs_battle_menuState.cdQueue")  # the slot of the last menu load
+    check(0 <= last - queue < 32 * SLOT, f"stall: the menu's slot pointer is a queue slot ({last:#x})")
     # loading 1, its slot a free one: nothing will ever load it
-    s.g.write(state + 3, b"\x01")
-    s.g.write(state + at, struct.pack(word, s.sym["_cdQueue"] + free * SLOT))
+    s.g.store("vs_battle_menuState.loading", 1)
+    s.g.store("vs_battle_menuState.cdQueue", queue + free * SLOT)
     s.g.run(2)
     stalled = s.ui().get("mainmenu", {})
     check(not stalled.get("resident"), f"stall: MAINMENU waits for the slot ({stalled})")

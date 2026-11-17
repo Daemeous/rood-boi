@@ -31,7 +31,7 @@ from PIL import Image
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from card_fixtures import card_guard, default_save  # noqa: E402
 
@@ -71,8 +71,7 @@ def launch(out, card, label):
 
 def game_over(game):
     """Ashley's HP to 0; the Game Over screen once it has faded in."""
-    actor = int.from_bytes(game.read(symbols()["vs_battle_actors"], PTR), "little")
-    game.write(game.actor_stats(actor) + 0x18, struct.pack("<h", 0))
+    game.store("vs_battle_actors[0]->stats->currentHP", 0)
     game.until(lambda: game.state()["game_over"], step=10, guard=200, what="Game Over")
     game.run(240)
 

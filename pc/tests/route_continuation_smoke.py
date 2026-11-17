@@ -59,16 +59,13 @@ def main():
             failures.append(message)
 
     game = launch_at("save_room", card=card, fast=True, log=out / "game.log", extra_env=env, socket_path=socket)
-    ptr = 8 if os.environ.get("ROOD_ARCH") == "64" else 4
+    ROOM = "vs_battle_aiRoomAiState"  # the room's navigation record (a pointer), the actors' AI states: vs_battle_aiState
 
-    def off(name):
-        return int.from_bytes(game.read_symbol(f"pc_ai_offset_{name}", 4), "little")
-
-    def u32(address):
-        return int.from_bytes(game.read(address, 4), "little")
+    def ai(i, member):
+        return f"vs_battle_aiActorAiStates[{i}]->{member}"
 
     def continuations():
-        return int.from_bytes(game.read_symbol("pc_route_continuations", 4), "little")
+        return int.from_bytes(game.data("pc_route_continuations", 4), "little")
 
     try:
         check(game.state().get("player") is not None, "continued into gameplay")
@@ -81,34 +78,33 @@ def main():
         game.run(30)
         st = game.state()
         check((st["zone"], st["room"]) == (9, 5), f"in the Wine Guild Hall (zone {st['zone']} room {st['room']})")
-        raw = game.read_symbol("vs_battle_aiActorAiStates", 16 * ptr)
-        states = [int.from_bytes(raw[i * ptr:(i + 1) * ptr], "little") for i in range(16)]
-        enemies = [a for i, a in enumerate(states) if i and a]
-        free = [a for a in enemies if game.read(a + off('priority'), 1)[0] == 0]
+        enemies = [i for i in range(1, 16) if game.value(f"vs_battle_aiActorAiStates[{i}]")]
+        free = [a for a in enemies if game.value(ai(a, "unk125")) == 0]
         check(len(free) > 0, f"{len(enemies)} enemies with AI states, {len(free)} moving through vs_battle_aiMoveActorTowardDestinationTile/4B70")
-        room = int.from_bytes(game.read_symbol("vs_battle_aiRoomAiState", 4), "little")
+        room = game.value(ROOM)
         check(room != 0, f"the room's navigation record at {room:#x}")
 
         before = continuations()
         released = 0
         for attempt in range(12):
             for a in enemies:
-                game.write(a + off('gate'), bytes([GATE]))
-                game.write(a + off('far_end'), (0x00050004).to_bytes(4, "little"))
-            game.write(room + 0xE, bytes([1 << GATE]))
+                game.store(ai(a, "gate"), GATE)
+                game.store_data(ai(a, "exit"), (0x00050004).to_bytes(4, "little"))  # (the exit and the byte after it)
+            game.store(ROOM + "->closedGates", 1 << GATE)
             game.run(30)
             for a in free:
-                if game.read(a + off('gate'), 1)[0] == 0:
+                if game.value(ai(a, "gate")) == 0:
                     released += 1
-                    check(u32(a + off('far_end')) == 0xFFFFFFFF, f"  the enemy's far end is reset ({u32(a + off('far_end')):#x})")
-                    check(not (game.read(room + 0xE, 1)[0] >> GATE) & 1, "  and the room's gate bit is clear")
+                    far_end = int.from_bytes(game.data(ai(a, "exit"), 4), "little")
+                    check(far_end == 0xFFFFFFFF, f"  the enemy's far end is reset ({far_end:#x})")
+                    check(not (game.value(ROOM + "->closedGates") >> GATE) & 1, "  and the room's gate bit is clear")
             if released:
                 break
             game.press("circle", 3, 30)  # battle mode: the enemies re-plan
         ran = continuations() - before
         check(ran > 0 and released > 0, f"route continuations ran {ran} times; {released} gate releases seen")
         for a in enemies:  # let go of the remaining marks
-            game.write(a + off('gate'), bytes([0]))
+            game.store(ai(a, "gate"), 0)
         game.run(600)
         check(game.state()["zone"] == 9, "the game plays on for 600 vsyncs")
     finally:

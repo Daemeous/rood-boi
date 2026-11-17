@@ -441,8 +441,6 @@ char* _getStatusString(uint arg0);
 
 int vs_battle_updateTargetSelectionMenu(u_char* target);
 
-void vs_render_splicePrimitiveList(u_long* arg0, int* arg1);
-
 void pc_frame_table_clear(unsigned* ot, int n, int reverse);
 
 void vs_battle_renderTextRawColor(char const* text, int x, int color, void* nextPrim);

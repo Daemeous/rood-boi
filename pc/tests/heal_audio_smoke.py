@@ -51,7 +51,7 @@ import numpy as np
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 
 CURE_ROOT = 323
@@ -129,13 +129,12 @@ def main():
 
     g = launch_at("save_room", card=card, fast=True, log=out / "game.log", extra_env=env, socket_path=socket,
                   audio=f"wav:{wav}")
-    sym = symbols()
     try:
         def ui():
             return g.call("ui_menu")
 
         def mode_now():
-            return g.read(sym["D_800F196C"], 1)[0], g.read(sym["vs_battle_menuState"], 1)[0]
+            return g.data("D_800F196C", 1)[0], g.value("vs_battle_menuState.currentMenu")
 
         def wait(pred, limit, what, step=2):
             for _ in range(0, limit + 1, step):
@@ -147,23 +146,16 @@ def main():
         def recorded():
             return g.call("system")["audio_recorded"]
 
-        stream_base = sym["g_Sound_Cutscene_StreamState"]
-
-        def field(name, old):
-            at = sym.get(f"pc_sound_stream_offset_{name}")
-            return int.from_bytes(g.read(at, 4), "little") if at else old
-
-        stream_voices = stream_base + field("voices", 0x0C)
-        stream_left = stream_base + field("pages", 0x14)
+        stream_state = "g_Sound_Cutscene_StreamState"  # the cutscene stream's state (VoicesInUseFlags, TotalPages)
 
         def stream():
-            return struct.unpack("<i", g.read(stream_voices, 4))[0]
+            return g.value(stream_state + ".VoicesInUseFlags")
 
         def left():
-            return struct.unpack("<I", g.read(stream_left, 4))[0]
+            return g.value(stream_state + ".TotalPages")
 
         def roots():
-            raw = g.read(sym["vs_main_inventory"] + MISC, 64 * 4)
+            raw = g.data("vs_main_inventory.misc[0].id", 64 * 4)
             return sum(raw[k * 4 + 2] for k in range(64) if struct.unpack_from("<H", raw, k * 4)[0] == CURE_ROOT)
 
         g.call("ui_menu", modern=True)
@@ -205,7 +197,7 @@ def main():
         for _ in range(6):  # the target cursor takes presses once it is up
             g.call("input", buttons=["circle"], vsyncs=3)
             g.run(4)
-            if g.read(sym["_cameraMode"], 1)[0] not in (1, 3):
+            if g.data("_cameraMode", 1)[0] not in (1, 3):
                 break
             g.run(36)
         # The action, polled for the stream; then back in the field.

@@ -56,14 +56,13 @@ import os
 import pathlib
 import shutil
 import struct
-import subprocess
 import sys
 import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, BUILD, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 import card_fixtures as cf  # noqa: E402
 from menu_nav import DATA_COMMAND, top_command  # noqa: E402
@@ -73,42 +72,24 @@ DATA_MENU = 7 | 0x40
 PTR = 8 if os.environ.get("ROOD_ARCH") == "64" else 4
 MENU7_SECTION = "rood_ovl_menu_menu7_prg"
 MENU7_STATICS = ("_selectCursorXy", "_fileMenuElements")
-ELEMENT = 52  # sizeof(fileMenuElements_t); y at +14
 # a menu item (Game.layout menuItem_size): x at +20
 KEY = 0x2468ACE1
 GAMETIME = bytes([0, 45, 23, 1])  # vs_main_gametime: 1:23:45
 # _applyLoadedSaveFile's blocks: vs_main_scoredata .. vs_main_inventoryIndices (one span of main's data)
-SPAN = (0x8005FEA0, 0x80061AE0)
-# The span's globals in the PS1 layout (offsets from SPAN[0]); read by symbol, as a global that moved out of guest RAM is not at its
+SPAN = (0, 0x1C40)  # offsets in _applyLoadedSaveFile's span
+# The span's globals in the save layout (offsets from SPAN[0]); read by symbol, as a global that moved out of guest RAM is not at its
 # guest address: the bytes are concatenated in the PS1's order, so an offset in the span is still the PS1 offset.
-SPAN_GLOBALS = (("vs_main_scoredata", 0x8005FEA0), ("vs_main_actionsLearned", 0x8005FFB8), ("vs_main_mapStatus", 0x8005FFD8),
-                ("vs_main_settings", 0x80060020), ("vs_main_artsStatus", 0x80060040), ("vs_state_currentRoomStateSlot", 0x80060064),
-                ("vs_state_ashleySnapshot", 0x80060068), ("vs_main_inventory", 0x80060168), ("vs_state_savedEntryDoor", 0x80061068),
-                ("vs_main_gametime", 0x80061074), ("D_80061078", 0x80061078), ("vs_main_stateFlags", 0x80061598),
-                ("vs_main_inventoryIndices", 0x800619D8))
-GAMETIME_AT = 0x80061074 - SPAN[0]  # vs_main_gametime's offset in the span
-
-
-_menu7 = None
+SPAN_GLOBALS = (("vs_main_scoredata", 0x0), ("vs_main_actionsLearned", 0x118), ("vs_main_mapStatus", 0x138),
+                ("vs_main_settings", 0x180), ("vs_main_artsStatus", 0x1a0), ("vs_state_currentRoomStateSlot", 0x1c4),
+                ("vs_state_ashleySnapshot", 0x1c8), ("vs_main_inventory", 0x2c8), ("vs_state_savedEntryDoor", 0x11c8),
+                ("vs_main_gametime", 0x11d4), ("D_80061078", 0x11d8), ("vs_main_stateFlags", 0x16f8),
+                ("vs_main_inventoryIndices", 0x1b38))
+GAMETIME_AT = 0x11D4  # vs_main_gametime's offset in the span
 
 
 def menu7_symbols():
-    global _menu7
-    if _menu7:
-        return _menu7
-    image = BUILD / "rood_battle_probe"
-    out = subprocess.run([os.environ.get("ROOD_OBJDUMP", "objdump"), "-t", str(image)], capture_output=True,
-                         text=True).stdout
-    found = {}
-    for line in out.splitlines():
-        parts = line.split()
-        if len(parts) >= 6 and parts[-1] in MENU7_STATICS and parts[-3].startswith(MENU7_SECTION):
-            found.setdefault(parts[-1], []).append(int(parts[0], 16))
-    bad = [n for n in MENU7_STATICS if len(found.get(n, [])) != 1]
-    if bad:
-        raise RuntimeError(f"MENU7 statics not resolved to one address: {bad}")
-    _menu7 = {n: a[0] for n, a in found.items()}
-    return _menu7
+    """MENU7's statics by name (<overlay>:<name>: other overlays have statics of the same name)."""
+    return {n: f"{MENU7_SECTION}:{n}" for n in MENU7_STATICS}
 
 
 class Timeout(Exception):
@@ -134,7 +115,6 @@ class Session:
                            socket_path=f"/tmp/rood-ui-data-{name}-{os.getpid()}.sock")
         self.g.call("graphics", interpolate=False)
         self.g.call("ui_menu", modern=bool(modern))
-        self.sym = symbols()
         self.m7 = menu7_symbols()
 
     def close(self):
@@ -147,21 +127,21 @@ class Session:
     def data(self):
         return self.ui().get("data")
 
-    def u8(self, name, offset=0):
-        return self.g.read(self.sym[name] + offset, 1)[0]
+    def u8(self, name):
+        return self.g.data(name, 1)[0]
 
     def current_menu(self):
         return self.u8("vs_battle_menuState")
 
     def menu7_state(self):
-        return self.u8("vs_battle_submenuStates", 7)
+        return self.u8("vs_battle_submenuStates[7]")
 
     def cursor(self):
-        v = struct.unpack("<I", self.g.read(self.m7["_selectCursorXy"], 4))[0]
+        v = struct.unpack("<I", self.g.data(self.m7["_selectCursorXy"], 4))[0]
         return v & 0xFFFF, v >> 16, v
 
     def page(self):
-        y = struct.unpack("<h", self.g.read(self.m7["_fileMenuElements"] + 5 * ELEMENT + 14, 2))[0]
+        y = self.g.value(self.m7["_fileMenuElements"] + "[5].y")
         return (72 - y) // 40
 
     def file_cursor(self):
@@ -175,18 +155,17 @@ class Session:
         return self.u8("vs_battle_hudHidden")
 
     def title_x(self):
-        items = int.from_bytes(self.g.read(self.sym["vs_battle_menuItems"], PTR), "little")
-        return struct.unpack("<h", self.g.read(items + 6 * self.g.layout("menuItem_size", 64) + 20, 2))[0] if items else None
+        return self.g.value("vs_battle_menuItems[6].x") if self.g.value("vs_battle_menuItems") else None
 
     def span(self):
         ends = [a for _, a in SPAN_GLOBALS[1:]] + [SPAN[1]]
-        return b"".join(self.g.read(self.sym[name], end - a) for (name, a), end in zip(SPAN_GLOBALS, ends))
+        return b"".join(self.g.data(name)[:end - a].ljust(end - a, b"\0") for (name, a), end in zip(SPAN_GLOBALS, ends))  # (each global whole, padded to its slot)
 
     def exit_state(self):
         g = self.g
-        return {"currentMenu": self.current_menu(), "settings": g.read(self.sym["vs_main_settings"], 32),
-                "cursorMemories": g.read(self.sym["vs_menu_frameworkMenuMemory"], 0x90), "hud": self.hud(),
-                "fade": struct.unpack("<i", g.read(self.sym["vs_mainMenu_backgroundFadeStep"], 4))[0]}
+        return {"currentMenu": self.current_menu(), "settings": g.data("vs_main_settings", 32),
+                "cursorMemories": g.data("vs_menu_frameworkMenuMemory", 0x90), "hud": self.hud(),
+                "fade": struct.unpack("<i", g.data("vs_mainMenu_backgroundFadeStep", 4))[0]}
 
     def shot(self, name):
         if self.shots:
@@ -246,7 +225,7 @@ class Session:
                 self.press("down", settle=4)
             self.press("circle", settle=2)
         else:
-            top_command(g, self.sym, DATA_COMMAND)  # by the game's cursor (fast travel's Magic on a Circle)
+            top_command(g, DATA_COMMAND)  # by the game's cursor (fast travel's Magic on a Circle)
             self.press("circle", settle=2)
         self.wait(lambda: self.current_menu() == DATA_MENU and self.menu7_state() == 6, "the Data chooser")
         g.run(20 if self.modern else 90)  # the chooser takes input (the original's rows slide in first)
@@ -280,8 +259,8 @@ class Session:
         trigger()
         for _ in range(60):
             if self.cursor()[2] == 0:
-                self.g.write(self.sym["_keystreamState"], struct.pack("<I", KEY))
-                self.g.write(self.sym["vs_main_gametime"], GAMETIME)
+                self.g.store("_keystreamState", KEY)
+                self.g.store_data("vs_main_gametime", GAMETIME)
                 return
             self.g.run(1)
         raise Timeout(f"{self.name}: the confirm was not taken")
@@ -325,7 +304,7 @@ def menu7_driver(g, name, out, modern=False, shots=False, card1=None):
     (fast_travel_smoke.py)."""
     s = Session.__new__(Session)
     s.name, s.out, s.shots, s.modern, s.card1 = name, out, shots, modern, card1
-    s.g, s.sym, s.m7 = g, symbols(), menu7_symbols()
+    s.g, s.m7 = g, menu7_symbols()
     return s
 
 

@@ -109,7 +109,7 @@ import time
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from weapon_slots_smoke import default_card  # noqa: E402
 
@@ -206,8 +206,7 @@ class Session:
     def __init__(self, name, out, card, env, shots):
         self.name, self.out, self.shots = name, out, shots
         self.g = launch_at("save_room", card=card, fast=True, log=out / f"{name}.log", extra_env=env)
-        self.sym = symbols()
-        self.inventory, self.indices = self.sym["vs_main_inventory"], self.sym["vs_main_inventoryIndices"]
+        self.inventory, self.indices = "vs_main_inventory", "vs_main_inventoryIndices"  # (byte images: card layout)
 
     def close(self):
         self.g.close()
@@ -216,43 +215,40 @@ class Session:
         if self.shots:
             self.g.present_screenshot(self.out / f"{self.name}-{name}.png")
 
-    def ptr(self, address):
-        return int.from_bytes(self.g.read(address, PTR), "little")
-
     def byte(self, name, signed=False):
-        v = self.g.read(self.sym[name], 1)[0]
+        v = self.g.data(name, 1)[0]
         return v - 256 if signed and v > 127 else v
 
     def menu(self):
-        return self.g.read(self.sym["vs_battle_menuState"], 1)[0]
+        return self.g.value("vs_battle_menuState.currentMenu")
 
     def inv(self):
-        return self.g.read(self.inventory, INVENTORY_BYTES)
+        return self.g.data(self.inventory, INVENTORY_BYTES)
 
     def idx(self):
-        return self.g.read(self.indices, INDICES_BYTES)
+        return self.g.data(self.indices, INDICES_BYTES)
 
     def flags(self):
         return bytes(self.g.call("state_flag", id=k + KEY_FLAG)["value"] for k in KEYS)
 
-    def u32(self, address):
-        return int.from_bytes(self.g.read(address, 4), "little")
+    def word(self, name):
+        return int.from_bytes(self.g.data(name, 4), "little")
 
     def heap_free(self):
         return self.g.heap_free()
 
     def field_mode(self):
-        return self.u32(self.sym["D_800F196C"])
+        return self.word("D_800F196C")
 
     def dump(self):
         """What a session may change (compared byte for byte between the processes)."""
-        return {"inventory": self.inv(), "indices": self.idx(), "vs_menu_frameworkActionSelection": self.g.read(self.sym["vs_menu_frameworkActionSelection"], 4),
+        return {"inventory": self.inv(), "indices": self.idx(), "vs_menu_frameworkActionSelection": self.g.data("vs_menu_frameworkActionSelection", 4),
                 "key flags": self.flags(),
                 "chest flag": bytes([self.g.call("state_flag", id=SAVE_ROOM_CHEST_FLAG)["value"]]),
-                "_lootListHead": self.g.read(self.sym["_lootListHead"], PTR),
-                "vs_field_isFieldRenderingEnabled": self.g.read(self.sym["vs_field_isFieldRenderingEnabled"], 4),
-                "vs_battle_hudHidden": self.g.read(self.sym["vs_battle_hudHidden"], 1),
-                "unk3A": self.g.read(self.sym["vs_menu_frameworkMenuMemory"] + 0x3A, 18),
+                "_lootListHead": self.g.data("_lootListHead", PTR),
+                "vs_field_isFieldRenderingEnabled": self.g.data("vs_field_isFieldRenderingEnabled", 4),
+                "vs_battle_hudHidden": self.g.data("vs_battle_hudHidden", 1),
+                "unk3A": self.g.data("vs_menu_frameworkMenuMemory.unk3A.currentItemCategory", 18),
                 "heap free": struct.pack("<I", self.heap_free())}
 
     def wait(self, pred, limit, what, step=1, quiet=False):
@@ -288,16 +284,14 @@ class Session:
 
     # ---- set-up ----
     def write_inv(self, offset, data):
-        self.g.write(self.inventory + offset, data)
+        self.g.store_data(self.inventory, data, offset=offset)
 
     # ---- the original (MENUB) ----
     def menu_items(self):
-        p = self.ptr(self.sym["vs_battle_menuItems"])
-        if not p:
+        if not self.g.value("vs_battle_menuItems"):
             return {}
-        size = self.g.layout("menuItem_size", 64)
-        raw = self.g.read(p, size * 40)
-        return {i: (raw[i * size], raw[i * size + 6]) for i in range(40) if raw[i * size]}
+        rows = self.g.table("vs_battle_menuItems[0]", 40, "state", "selected")
+        return {i: (row["state"], row["selected"]) for i, row in enumerate(rows) if row["state"]}
 
     def wait_ready(self, want=None, limit=400):
         calm = 0
@@ -324,7 +318,7 @@ class Session:
         self.wait(ready, limit, "MENUB's list takes input", step=2)
 
     def o_cursor(self):
-        return self.byte("_selectedLoot", True) + self.g.read(self.sym["_lootListOffset"], 1)[0]
+        return self.byte("_selectedLoot", True) + self.g.value("_lootListOffset")
 
     def o_count(self):
         return self.byte("_lootListCount")
@@ -352,7 +346,7 @@ class Session:
         self.press("circle")
 
     def o_category(self):
-        return (self.g.read(self.sym["vs_menu_frameworkMenuMemory"] + CATEGORY_MEMORY, 1)[0] - 1) & 7
+        return (self.g.value("vs_menu_frameworkMenuMemory.unk3A.currentItemCategory") - 1) & 7
 
     def o_items_category(self, c):
         """Organize inventory (MENUB's Items menu) on category c (L1 / R1)."""
@@ -782,7 +776,7 @@ def soft_reset(b, check):
     """A soft reset (L1 L2 R1 R2 Start Select) with the Organize panel open (the world frozen): the session is
     dropped (menu_bridge.c pc_ui_menu_reset), Continue gives a running world and a loot menu that works."""
     g = b.g
-    hud = b.g.read(b.sym["vs_battle_hudHidden"], 1)[0]
+    hud = b.g.value("vs_battle_hudHidden")
     b.open([Loot().misc((345, 1))])  # the misc bag full (session 12): no room
     b.s_input()
     b.press("circle", settle=4)
@@ -791,7 +785,7 @@ def soft_reset(b, check):
     b.press("circle", settle=4)
     b.s_mode("bag")
     b.shot("reset-bag")
-    frozen = b.u32(b.sym["vs_field_isFieldRenderingEnabled"])
+    frozen = b.word("vs_field_isFieldRenderingEnabled")
     titles = pathlib.Path(g.log).read_text().count("TITLE MENU READY")
     g.call("input", buttons=["l1", "l2", "r1", "r2", "start", "select"], vsyncs=6)
     b.wait(lambda: pathlib.Path(g.log).read_text().count("TITLE MENU READY") > titles, 3000,
@@ -803,10 +797,10 @@ def soft_reset(b, check):
         g.press("circle", vsyncs=3, settle=90)
     g.run(400)
     state = g.state()
-    check((state["zone"], state["room"]) == (9, 17) and b.u32(b.sym["vs_field_isFieldRenderingEnabled"]) == 1
-          and g.read(b.sym["vs_battle_hudHidden"], 1)[0] == hud,
+    check((state["zone"], state["room"]) == (9, 17) and b.word("vs_field_isFieldRenderingEnabled") == 1
+          and g.value("vs_battle_hudHidden") == hud,
           f"reset: Continue: zone {state['zone']} room {state['room']}, the world runs "
-          f"({b.u32(b.sym['vs_field_isFieldRenderingEnabled'])}), the HUD flag {g.read(b.sym['vs_battle_hudHidden'], 1)[0]} ({hud})")
+          f"({b.word('vs_field_isFieldRenderingEnabled')}), the HUD flag {g.value('vs_battle_hudHidden')} ({hud})")
     b.open([Loot().misc((CURE_BULB, 1))])
     b.s_input()
     b.press("cross", settle=4)
@@ -865,7 +859,7 @@ def plan(inv, idx, difficulty):
         recs = [(CURE_ROOT, 90)] + [(CURE_BULB, 1)] * 63
         s.write_inv(MISC, b"".join(struct.pack("<HBB", i, n, k + 1) for k, (i, n) in enumerate(recs)))
         lo, size = IDX[6]
-        s.g.write(s.indices + lo, bytes(range(1, 65)))
+        s.g.store_data(s.indices, bytes(range(1, 65)), offset=lo)
 
     shields = [k for k in list_rows(idx, 3) if inv[SHIELDS + k * SHIELD + 4]]
 
@@ -885,7 +879,7 @@ def plan(inv, idx, difficulty):
         recs = [(CURE_BULB, 5), (CURE_BULB, 3), (CURE_ROOT, 40)] + [(340, 100)] * 61
         s.write_inv(MISC, b"".join(struct.pack("<HBB", i, n, k + 1) for k, (i, n) in enumerate(recs)))
         lo, size = IDX[6]
-        s.g.write(s.indices + lo, bytes(range(1, 65)))
+        s.g.store_data(s.indices, bytes(range(1, 65)), offset=lo)
 
     other = EVERY_DIFFICULTY & ~(difficulty + 1)  # droppable at no difficulty but the current one's
 
@@ -967,9 +961,9 @@ def main():
         if (state["zone"], state["room"]) != (9, 17):
             print(f"FAIL: not in the save room after Continue: {state}")
             return 1
-        a.g.write(a.sym["vs_main_settings"] + SETTINGS_CURSOR_MEMORY, b"\x00")
+        a.g.store("vs_main_settings.cursorMemory", 0)
         a.g.run(2)
-        difficulty = a.g.read(a.sym["vs_main_stateFlags"] + 1, 1)[0]
+        difficulty = a.g.value("vs_main_stateFlags.difficulty")
         chest = a.g.call("chest")
         if not chest.get("chests") or chest["chests"][0]["opened"] or chest["chests"][0]["flag"] + 0x3C0 != \
                 SAVE_ROOM_CHEST_FLAG:
@@ -1029,7 +1023,7 @@ def main():
     b = Session("shell", out, card, env, bool(args.out))
     try:
         b.g.call("ui_menu", modern=True)
-        b.g.write(b.sym["vs_main_settings"] + SETTINGS_CURSOR_MEMORY, b"\x00")
+        b.g.store("vs_main_settings.cursorMemory", 0)
         b.g.run(2)
         rest = diff(start, b.dump())
         check(not rest, f"both processes start equal {rest}")
@@ -1064,8 +1058,8 @@ def main():
                 check(misc_multiset(want, CURE_BULB) == misc_multiset(got, CURE_BULB)
                       and len(list_rows(want["indices"], 6)) == len(list_rows(got["indices"], 6)),
                       f"{name}: every other misc stack as the original's")
-                b.g.write(b.inventory, want["inventory"])  # both processes equal again for the sessions after
-                b.g.write(b.indices, want["indices"])
+                b.g.store_data(b.inventory, want["inventory"])  # both processes equal again for the sessions after
+                b.g.store_data(b.indices, want["indices"])
                 b.g.run(2)
             else:
                 rest = diff(want, got)

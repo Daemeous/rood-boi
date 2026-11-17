@@ -84,7 +84,7 @@ import tempfile
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, Game, symbols  # noqa: E402
+from rood_rpc import OUT, Game  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 
 ROOM = (9, 18)
@@ -96,7 +96,7 @@ ACTION, ACTION_COST, ACTION_UNLOCKED = 52, 3, 13  # vs_action_t
 HP, MP, STATUSES = 0x18, 0x1C, 0x948  # vs_battle_actor2 currentHP, currentMP, statuses
 MISC = 0xE00  # vs_main_inventory: the misc bag (id u16, count u8, index u8)
 SCORE = 0x114  # sizeof vs_main_scoredata_t
-FLAGS = (0xB7, 0xB9)  # vs_main_stateFlags set by vs_battle_startActionPresentation
+FLAGS = ("magicUsed", "breakArtsUsed")  # vs_main_stateFlags members set by vs_battle_startActionPresentation
 OBJECT_SLOT = 0x14  # sizeof vs_battle_objectData
 ACTOR_POSITION = 0x1C  # D_800F4538_t unk0.position (facing at 0x26)
 CLOSED = 0x3F
@@ -161,32 +161,26 @@ class Run:
                       "hold_enemy": HOLD_ENEMY if "hold" in mode else 0.0}
         self.g = Game.launch(card=str(card), log=out / f"{mode}.log", extra_env=env, socket_path=socket,
                              snapshot=snap, fast=fast)
-        self.sym = symbols()
 
     def close(self):
         self.g.close()
 
-    def ptr(self, address):
-        return int.from_bytes(self.g.read(address, PTR), "little")
-
-    def u32(self, address):
-        return int.from_bytes(self.g.read(address, 4), "little")
+    def word(self, name):
+        return int.from_bytes(self.g.data(name), "little")  # (the whole object: up to a word)
 
     def u8(self, name):
-        return self.g.read(self.sym[name], 1)[0]
+        return self.g.data(name, 1)[0]
 
     def actor2(self, slot):
-        actor = self.ptr(self.sym["vs_battle_actors"] + slot * PTR)
-        return self.g.actor_stats(actor) if actor else 0
+        """The path of the stats record of the actor in `slot`, or None."""
+        return f"vs_battle_actors[{slot}]->stats" if self.g.value(f"vs_battle_actors[{slot}]") else None
 
     def stats(self, slot):
         """(HP, MP, statuses) of the actor in slot `slot`, or None."""
         a2 = self.actor2(slot)
         if not a2:
             return None
-        hp, = struct.unpack("<h", self.g.read(a2 + HP, 2))
-        mp, = struct.unpack("<h", self.g.read(a2 + MP, 2))
-        return hp, mp, self.u32(a2 + STATUSES)
+        return self.g.value(a2 + ".currentHP"), self.g.value(a2 + ".currentMP"), self.g.value(a2 + ".statuses")
 
     def actors(self):
         return [self.stats(i) for i in range(16)]
@@ -195,8 +189,8 @@ class Run:
         """Every actor's position (x, y, z) and facing (vs_actors_actorRecords[i]->unk0), or None."""
         out = []
         for i in range(17):
-            actor = self.ptr(self.sym["vs_actors_actorRecords"] + i * PTR)
-            out.append(struct.unpack("<3h4xh", self.g.read(actor + ACTOR_POSITION, 12)) if actor else None)
+            actor = self.g.value(f"vs_actors_actorRecords[{i}]")
+            out.append(struct.unpack("<3h4xh", self.g.data(f"vs_actors_actorRecords[{i}]->unk0.position", 12)) if actor else None)
         return out
 
     def mode_now(self):
@@ -206,33 +200,33 @@ class Run:
         return self.u8("_cameraMode")
 
     def misc(self, item):
-        raw = self.g.read(self.sym["vs_main_inventory"] + MISC, 64 * 4)
+        raw = self.g.data("vs_main_inventory.misc[0].id", 64 * 4)
         return sum(raw[k * 4 + 2] for k in range(64) if struct.unpack_from("<H", raw, k * 4)[0] == item)
 
     def flags(self):
-        return tuple(self.g.read(self.sym["vs_main_stateFlags"] + f, 1)[0] for f in FLAGS)
+        return tuple(self.g.value(f"vs_main_stateFlags.{f}") for f in FLAGS)
 
     def heap_free(self):
         return self.g.heap_free()
 
     def clean(self):
         """What a finished action leaves (each should be its idle value)."""
-        slots = self.g.read(self.sym["vs_battle_objectDataSlots"], 16 * OBJECT_SLOT)
+        slots = self.g.data("vs_battle_objectDataSlots", 16 * OBJECT_SLOT)
         return {"state": self.u8("D_800F196C"), "camera": self.camera_mode(),
-                "effects": self.ptr(self.sym["vs_effects_primaryInstances"]), "background": self.ptr(self.sym["vs_effects_secondaryInstances"]),
-                "name window": self.ptr(self.sym["vs_menu_sceneNotificationBuffer"]), "D_800F522C": self.u32(self.sym["D_800F522C"]),
+                "effects": self.g.value("vs_effects_primaryInstances"), "background": self.g.value("vs_effects_secondaryInstances"),
+                "name window": self.g.value("vs_menu_sceneNotificationBuffer"), "D_800F522C": self.word("D_800F522C"),
                 "object slots": [slots[i * OBJECT_SLOT] for i in range(16) if slots[i * OBJECT_SLOT]],
-                "tickspeed": self.u32(self.sym["vs_gametime_tickspeed"])}
+                "tickspeed": self.word("vs_gametime_tickspeed")}
 
     def ui(self):
         return self.g.call("ui_menu")
 
     def information(self, on):
-        self.g.write(self.sym["vs_main_settings"] + INFORMATION, bytes([1 if on else 0]))
+        self.g.store("vs_main_settings.information", 1 if on else 0)
 
     def action_name(self, action):
         """vs_main_actions[action].name to its terminator, hex."""
-        raw = self.g.read(self.sym["vs_main_actions"] + action * ACTION + ACTION_NAME, 24)
+        raw = self.g.data(f"vs_main_actions[{action}].name", 24)
         return raw.split(b"\xe7")[0].hex()
 
     def wait(self, pred, limit, what, step=2):
@@ -243,16 +237,15 @@ class Run:
         raise TimeoutError(f"{self.mode}: {what}: not after {limit} vsyncs (mode {self.mode_now()})")
 
     def prepare(self):
-        g, sym = self.g, self.sym
+        g = self.g
         g.call("ui_menu", modern=True)
         g.call("skip_charging", mode=self.setting, who="mine", pin=PIN, name=NAME_SECONDS, **self.holds)
         self.information(True)
-        a = sym["vs_main_actions"] + SOLID_SHOCK * ACTION + ACTION_UNLOCKED
-        g.write(a, bytes([g.read(a, 1)[0] | 0x80]))
+        g.store(f"vs_main_actions[{SOLID_SHOCK}].unlocked", 1)
         a2 = self.actor2(0)
-        g.write(a2 + MP, struct.pack("<hh", 99, 99))
+        g.store_data(a2 + ".currentMP", struct.pack("<hh", 99, 99))  # (currentMP, maxMP)
         for f in FLAGS:
-            g.write(sym["vs_main_stateFlags"] + f, b"\0")
+            g.store(f"vs_main_stateFlags.{f}", 0)
         self.map_defense()
         g.run(2)
 
@@ -275,11 +268,10 @@ class Run:
 
     def map_defense(self):
         """A defence ability on Circle (learned), so enemy actions on Ashley open its window."""
-        g, sym = self.g, self.sym
-        defense = g.read(sym["vs_battle_defenseAbilityOffsets"], 1)[0]
-        a = sym["vs_main_actions"] + defense * ACTION + ACTION_UNLOCKED
-        g.write(a, bytes([g.read(a, 1)[0] | 0x80]))
-        g.write(sym["vs_main_settings"] + MAPPED_DEFENSE, bytes([defense]))
+        g = self.g
+        defense = g.value("vs_battle_defenseAbilityOffsets[0]")
+        g.store(f"vs_main_actions[{defense}].unlocked", 1)
+        g.store("vs_main_settings.mappedDefenseAbilities[0]", defense)
 
     def ab(self):
         return self.ui().get("abilities") or {}
@@ -331,18 +323,17 @@ class Run:
     def learn_art(self):
         """The equipped category's first Break Art learned (the unlocked bit, artsLearned); returns
         (its id, its HP cost). The weapon drawn."""
-        g, sym = self.g, self.sym
+        g = self.g
         self.shell("abilities")
         cat = self.ab()["equipped_category"]
         drawn = self.ab().get("weapon_drawn")
         self.shell_close()  # (the menu's commands are set when it opens)
         art = FIRST_ART + (cat - 1) * 4
-        a = sym["vs_main_actions"] + art * ACTION
-        g.write(a + ACTION_UNLOCKED, bytes([g.read(a + ACTION_UNLOCKED, 1)[0] | 0x80]))
-        g.write(sym["vs_main_artsStatus"] + ARTS_LEARNED + cat % 10, bytes([1]))
+        g.store(f"vs_main_actions[{art}].unlocked", 1)
+        g.store(f"vs_main_artsStatus.artsLearned[{cat % 10}]", 1)
         if not drawn:
             g.press("circle", vsyncs=3, settle=60)  # draw the weapon (in the field)
-        return art, struct.unpack("b", g.read(a + ACTION_COST, 1))[0]
+        return art, struct.unpack("b", g.data(f"vs_main_actions[{art}].cost", 1))[0]
 
     def art_menu(self, art):
         """Abilities > Break Arts, the art focused (row 0)."""
@@ -389,7 +380,7 @@ class Run:
         g.run(2)  # (a name window held to the action's end closes in the next game frame)
         stats = g.call("skip_charging")
         return {"stats": stats, "end": WIND_UP + n, "before": before, "after": self.actors(), "flags": self.flags(),
-                "score": self.g.read(self.sym["vs_main_scoredata"], SCORE), "clean": self.clean(),
+                "score": self.g.data("vs_main_scoredata", SCORE), "clean": self.clean(),
                 "heap": self.heap_free()}
 
 
@@ -461,7 +452,7 @@ def main():
         r = Run(mode, snap, card, env, out, socket)
         try:
             r.prepare()
-            cost = struct.unpack("b", r.g.read(r.sym["vs_main_actions"] + SOLID_SHOCK * ACTION + ACTION_COST, 1))[0]
+            cost = struct.unpack("b", r.g.data("vs_main_actions[97].cost", 1))[0]
             r.shell("magick")
             for _ in range(6):
                 if r.ui()["magick"].get("sub") == "warlock":
@@ -495,7 +486,7 @@ def main():
             for slot in range(1, 16):
                 a2 = r.actor2(slot)
                 if a2:
-                    r.g.write(a2 + HP, r.g.read(a2 + HP + 2, 2))  # currentHP = maxHP
+                    r.g.store(a2 + ".currentHP", r.g.value(a2 + ".maxHP"))  # currentHP = maxHP
             art_id, art_cost = r.learn_art()
             r.art_menu(art_id)
             art = r.act("the Break Art")
@@ -694,7 +685,7 @@ def main():
         # ("hold" paced, its holds' wall time checked)
         r = Run(f"casters-{mode}", casters_snap, card, env, out, socket, fast=mode != "hold")
         try:
-            g, sym = r.g, r.sym
+            g = r.g
             g.call("skip_charging", mode=r.setting, who="all", pin=PIN, reset=True, name=NAME_SECONDS, **r.holds)
             r.information(True)
             r.map_defense()

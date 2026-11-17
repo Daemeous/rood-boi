@@ -74,7 +74,7 @@ from PIL import Image
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, Game, symbols  # noqa: E402
+from rood_rpc import OUT, Game  # noqa: E402
 import golden_frames as gf  # noqa: E402
 
 WINDOW = (854, 480)  # 16:9: the view fills the window
@@ -141,13 +141,12 @@ def add_labels(game):
     vs_battle_renderBattleAbilityTimingResult (BATTLE 2842C.c) and the chain
     counter do: "GOOD!" (type 4, success, text 1) and "3 CHAINS" (type 5),
     beside the status display at the left (24-byte records, vs_battle_floatingLabels)."""
-    table = int.from_bytes(game.read_symbol("vs_battle_floatingLabels", 4), "little")
-    count = int.from_bytes(game.read_symbol("vs_battle_floatingLabelCount", 2), "little")
+    count = game.value("vs_battle_floatingLabelCount")
     good, chains = bytearray(24), bytearray(24)
     good[8], good[12], good[15] = 4, 2, 1
     chains[8], chains[12] = 5, 3
-    game.write(table + count * 24, bytes(good) + bytes(chains))
-    game.write(symbols()["vs_battle_floatingLabelCount"], (count + 2).to_bytes(2, "little"))
+    game.store_data(f"vs_battle_floatingLabels[0][{count}]", bytes(good) + bytes(chains))
+    game.store("vs_battle_floatingLabelCount", count + 2)
 
 
 def green_left(image, rows):

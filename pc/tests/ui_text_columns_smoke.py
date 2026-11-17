@@ -82,8 +82,7 @@ def main():
         g = s.g
         g.call("ui_menu", modern=False)
         g.call("graphics", ui_text="font", ui_text_layout="line", interpolate=False, aa="off")
-        f = s.sym["vs_main_settings"] + m.MENU_FLAGS
-        g.write(f, struct.pack("<H", struct.unpack("<H", g.read(f, 2))[0] | 1))
+        g.store("vs_main_settings.menuFlags", g.value("vs_main_settings.menuFlags") | 1)
         g.run(2)
         g.press("triangle", vsyncs=3, settle=10)
         s.wait_ready(m.MAGIC_ITEM)

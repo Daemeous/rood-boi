@@ -73,13 +73,13 @@ import time
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, Game, awake, symbols  # noqa: E402
+from rood_rpc import OUT, Game, awake  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from weapon_slots_smoke import default_card  # noqa: E402
 from ui_ashley_smoke import GROUND  # noqa: E402  (the theme's ground colour)
 
 CLOSED = 0x3F
-SIMPLE_MAP, MONO_SOUND = 9, 10  # vs_main_settings_t (pc/src/game/SLUS_010.40/main.h)
+SIMPLE_MAP, MONO_SOUND = "simpleMap", "monoSound"  # vs_main_settings members
 DATA_MENU = 7 | 0x40  # System > Data: command 6, the game's own screen
 
 # Shell layout, 4:3 (960 x 720 layout units; ui_system_draw.cpp)
@@ -129,9 +129,6 @@ def main():
     env = {"ROOD_WINDOW": "960x720", "ROOD_LIGHTS": str(lights), "ROOD_GI": "0", "ROOD_SETTINGS": str(settings)}
     for name in ("ROOD_WIDESCREEN", "ROOD_PERSPECTIVE"):
         os.environ.pop(name, None)
-    sym = symbols()
-    menu_state = sym["vs_battle_menuState"]
-    main_settings = sym["vs_main_settings"]
     failures = []
 
     def check(ok, message):
@@ -140,10 +137,10 @@ def main():
             failures.append(message)
 
     def read_int(game, name, count=1):
-        return list(struct.unpack(f"<{count}i", game.read(sym[name], 4 * count)))
+        return list(struct.unpack(f"<{count}i", game.data(name, 4 * count)))
 
     def read_float(game, name):
-        return struct.unpack("<f", game.read(sym[name], 4))[0]
+        return struct.unpack("<f", game.data(name, 4))[0]
 
     def view_aspect(game):
         x, y, w, h = read_int(game, "pc_gl_view", 4)
@@ -175,10 +172,10 @@ def main():
         raise Timeout(what)
 
     def current_menu():
-        return game.read(menu_state, 1)[0]
+        return game.value("vs_battle_menuState.currentMenu")
 
-    def game_byte(offset):
-        return game.read(main_settings + offset, 1)[0]
+    def game_byte(member):
+        return game.value("vs_main_settings." + member)
 
     def shot(name):
         if args.out:

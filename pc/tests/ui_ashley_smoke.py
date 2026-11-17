@@ -60,14 +60,13 @@ import tempfile
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from weapon_slots_smoke import default_card  # noqa: E402
 
 CLOSED = 0x3F
 STATUS = 0x45  # the original Status (MENU4: command 4 -> 5 | 0x40)
-PTR = 8 if os.environ.get("ROOD_ARCH") == "64" else 4  # host pointers (characterState, vs_actors_actorRecords, wepModels)
-CAMERA, CAMERA_BYTES = symbols()["vs_view"] + 4, 0x54  # vs_view: the view matrix and the camera
+ACTOR2 = "vs_battle_characterState->stats"  # Ashley's vs_battle_actor2
 
 
 def theme_ground():
@@ -79,14 +78,7 @@ def theme_ground():
 
 GROUND = theme_ground()
 
-# vs_battle_actor2 (146C.h)
-HP, HP_MAX, MP, MP_MAX, RISK = 0x18, 0x1A, 0x1C, 0x1E, 0x20
-STR, INT, AGL = 0x22, 0x26, 0x2A
-ACC_STR, ACC_INT, ACC_AGL = 0x338 + 0x30, 0x338 + 0x32, 0x338 + 0x34  # accessory.currentStr ...
-LIMBS, LIMB = 0x398, 0xDC  # limbs[6]: hp, maxHp, ..., nameIndex at +6
-STATUSES, TIMERS = 0x948, 0x94C
-STR_UP, CURSE = 0x40, 0x10000
-MODEL_ID = 14  # vs_battle_wepModels_t.modelId (ui_equip_smoke MODEL_HEADER)
+STR_UP, CURSE = 0x40, 0x10000  # statuses bits
 
 
 
@@ -168,7 +160,6 @@ def main():
     lights = pathlib.Path(tempfile.mkdtemp(prefix="lights-", dir=out))
     env = {"ROOD_WINDOW": "960x720", "ROOD_LIGHTS": str(lights), "ROOD_GI": "0"}
     os.environ.pop("ROOD_SETTINGS", None)
-    sym = symbols()
     failures = []
 
     def check(ok, message):
@@ -184,7 +175,7 @@ def main():
         if (state["zone"], state["room"]) != (9, 17):
             print(f"FAIL: not in the save room after Continue: {state}")
             return 1
-        t = Test(g, sym, out, args.out is not None, check)
+        t = Test(g, out, args.out is not None, check)
         t.run_43()
         t.run_169()
         t.soft_reset()
@@ -205,38 +196,30 @@ def continue_game(g):
 
 
 class Test:
-    def __init__(self, g, sym, out, shots, check):
-        self.g, self.sym, self.out, self.shots, self.check = g, sym, out, shots, check
+    def __init__(self, g, out, shots, check):
+        self.g, self.out, self.shots, self.check = g, out, shots, check
         self.picture_n = 0
 
     # ---- reads ----
-    def ptr(self, address):
-        return int.from_bytes(self.g.read(address, PTR), "little")
-
     def i32(self, name):
-        return int.from_bytes(self.g.read(self.sym[name], 4), "little", signed=True)
+        return int.from_bytes(self.g.data(name, 4), "little", signed=True)
 
     def u8(self, name):
-        return self.g.read(self.sym[name], 1)[0]
+        return self.g.data(name, 1)[0]
 
     def menu(self):
-        return self.u8("vs_battle_menuState")
-
-    def actor2(self):
-        actor = self.ptr(self.sym["vs_battle_characterState"])
-        return self.g.actor_stats(actor)
+        return self.g.value("vs_battle_menuState.currentMenu")
 
     def clone(self):
-        return self.ptr(self.sym["vs_actors_actorRecords"] + PTR)  # vs_actors_actorRecords[1]: the menu clone's slot
+        return self.g.value("vs_actors_actorRecords[1]")  # vs_actors_actorRecords[1]: the menu clone's slot
 
     def model_id(self, i):
-        p = self.ptr(self.sym["vs_battle_wepModels"] + i * PTR)
-        return self.g.read(p + MODEL_ID, 1)[0] if p else None
+        return self.g.value(f"vs_battle_wepModels[{i}]->modelId") if self.g.value(f"vs_battle_wepModels[{i}]") else None
 
     def world(self):
         """What the menu changes and must give back."""
         return {"190C": self.i32("vs_field_isFieldRenderingEnabled"), "9AE": self.u8("D_800EB9AE"), "hud": self.u8("vs_battle_hudHidden"),
-                "H": self.i32("vs_main_projectionDistance"), "camera": self.g.read(CAMERA, CAMERA_BYTES)}
+                "H": self.i32("vs_main_projectionDistance"), "camera": self.g.data("vs_view.viewMatrix", 0x54)}  # (the view matrix and the camera)
 
     def ui(self, **params):
         return self.g.call("ui_menu", **params)
@@ -279,20 +262,22 @@ class Test:
     def data_checks(self):
         check, g = self.check, self.g
         a = self.ash()
-        rec = g.read(self.actor2(), 0x964)
-        want = {"hp": s16(rec, HP), "hp_max": s16(rec, HP_MAX), "mp": s16(rec, MP), "mp_max": s16(rec, MP_MAX),
-                "risk": u16(rec, RISK)}
+        st = ACTOR2
+        want = {"hp": g.value(st + ".currentHP"), "hp_max": g.value(st + ".maxHP"), "mp": g.value(st + ".currentMP"),
+                "mp_max": g.value(st + ".maxMP"), "risk": g.value(st + ".risk")}
         got = {k: a.get(k) for k in want}
         check(a.get("valid") and got == want, f"HP / MP / RISK as Ashley's record: {got} (RAM {want})")
-        eqp = (u16(rec, STR) + s16(rec, ACC_STR), u16(rec, INT) + s16(rec, ACC_INT), u16(rec, AGL) + s16(rec, ACC_AGL))
+        eqp = (g.value(st + ".strength") + g.value(st + ".accessory.currentStr"),
+               g.value(st + ".intelligence") + g.value(st + ".accessory.currentInt"),
+               g.value(st + ".agility") + g.value(st + ".accessory.currentAgility"))
         check((a.get("str"), a.get("int"), a.get("agl")) == eqp,
               f"STR / INT / AGL {a.get('str')}/{a.get('int')}/{a.get('agl')} = the record's + the accessory's {eqp}")
         limbs = []
         for i in range(6):
-            raw = rec[LIMBS + i * LIMB:LIMBS + (i + 1) * LIMB]
-            if raw[6] == 0:
+            limb = f"{st}.limbs[{i}]"
+            if g.value(limb + ".nameIndex") == 0:
                 break
-            hp, hp_max = s16(raw, 0), s16(raw, 2)
+            hp, hp_max = g.value(limb + ".hp"), g.value(limb + ".maxHp")
             limbs.append((hp, hp_max, limb_state(hp, hp_max)))
         got = [(x["hp"], x["hp_max"], x["state"]) for x in a.get("limbs", [])]
         check(got == limbs and len(limbs) == 5 and all(x["name"] for x in a["limbs"]),
@@ -302,15 +287,14 @@ class Test:
               f"'{a.get('room')}', play time {a.get('play')}")
 
         # status effects: STR-up with its timer, curse (no timer)
-        address = self.actor2()
         before_effects = len(a.get("effects", []))
-        statuses = int.from_bytes(g.read(address + STATUSES, 4), "little")
-        timer0 = g.read(address + TIMERS, 1)
-        g.write(address + STATUSES, (statuses | STR_UP | CURSE).to_bytes(4, "little"))
-        g.write(address + TIMERS, bytes([77]))
+        statuses = g.value(ACTOR2 + ".statuses")
+        timer0 = g.data(ACTOR2 + ".statusTimers", 1)
+        g.store(ACTOR2 + ".statuses", statuses | STR_UP | CURSE)
+        g.store_data(ACTOR2 + ".statusTimers", bytes([77]))
         g.run(2)
         effects = self.ash().get("effects", [])
-        left = g.read(address + TIMERS, 1)[0]
+        left = g.data(ACTOR2 + ".statusTimers", 1)[0]
         buffs = [e for e in effects if e["buff"]]
         ailments = [e for e in effects if not e["buff"]]
         check(before_effects == 0 and len(effects) == 2 and all(e["name"] for e in effects),
@@ -320,8 +304,8 @@ class Test:
         check(len(ailments) == 1 and ailments[0]["seconds"] == -1, f"curse: an ailment without a timer ({ailments})")
         if self.shots:
             self.picture("ashley-effects", False)
-        g.write(address + STATUSES, statuses.to_bytes(4, "little"))
-        g.write(address + TIMERS, timer0)
+        g.store(ACTOR2 + ".statuses", statuses)
+        g.store_data(ACTOR2 + ".statusTimers", timer0)
         g.run(2)
         check(len(self.ash().get("effects", [])) == before_effects, "the effects go with the bits")
 

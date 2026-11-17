@@ -46,7 +46,7 @@ from PIL import Image
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
-from rood_rpc import OUT, Game, symbols  # noqa: E402
+from rood_rpc import OUT, Game  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 
 failures = []
@@ -121,8 +121,7 @@ def target(game, path):
 
 
 def cpu_region(game):
-    base = symbols()["vram"]
-    rows = [np.frombuffer(game.read(base + (y * 1024 + BASE_X) * 2, W * 2), "<u2") for y in range(BASE_Y, BASE_Y + H)]
+    rows = [np.frombuffer(game.data("vram", W * 2, offset=(y * 1024 + BASE_X) * 2), "<u2") for y in range(BASE_Y, BASE_Y + H)]
     px = np.array(rows)
     return np.stack([(px & 31) * 8, ((px >> 5) & 31) * 8, ((px >> 10) & 31) * 8], -1).astype(np.uint8)
 
@@ -254,9 +253,8 @@ def synthetic(game, out, shots):
 # ---- the opening's first talk bubble ----
 
 
-def box_state(game, sym):
-    raw = game.read(sym["vs_battle_textBoxes"], game.layout("textBox_size", 0x30))
-    return struct.unpack_from("<I", raw, 0)[0], struct.unpack_from("<h", raw, game.layout("textBox_state", 0x1C))[0]
+def box_state(game):
+    return game.value("vs_battle_textBoxes[0].flags"), game.value("vs_battle_textBoxes[0].state")
 
 
 def dump_screen(game, out):
@@ -309,12 +307,11 @@ def paper_bounds(mask, near, scale, margin=4):
 def zoom(game, out, mode):
     """New Game to the opening's first talk bubble, through its zoom: per box
     state, the drawn bubble (RPC) and its paper's bounds in the picture."""
-    sym = symbols()
     # The game is at checkpoints.py's first_bubble (New Game, Circle, 2200 vsyncs).
     game.call("graphics", scale=4, ui_bubbles=mode)
     frames = {}
     for _ in range(240):
-        _, state = box_state(game, sym)
+        _, state = box_state(game)
         if state > 0 and state not in frames:
             game.run(1)  # the frame built at this state is the next one shown
             im, disp = dump_screen(game, out)
@@ -328,7 +325,6 @@ def zoom(game, out, mode):
 
 
 def bubble(game, out, shots, original):
-    sym = symbols()
     frames = zoom(game, out, "vector")
     states = sorted(frames)
     check(len(states) >= 9, f"bubble: the zoom drew {len(states)} frames ({states})")
@@ -402,20 +398,20 @@ def bubble(game, out, shots, original):
     check(off <= 2.0, f"bubble vector, ui_subpixel: outline within 2 px of the game's points ({off:.2f})")
     game.call("graphics", ui_subpixel=0)
     # The game's shapes (0-8), mirrorings and tails, poked into the live bubble.
-    flags0, _ = box_state(game, sym)
+    flags0, _ = box_state(game)
     combos = [(s, 0, 4) for s in range(9)] + [(8, f, 4) for f in (1, 2, 3)] + [(8, 0, t) for t in (0, 1, 2, 3, 5, 6)]
     before = game.call("ui_bubbles")
     bad = []
     for shape, flip, tail in combos:
         flags = (flags0 & ~0xFFC0) | (flip << 6) | (shape << 8) | (tail << 12)
-        game.write(sym["vs_battle_textBoxes"], struct.pack("<I", flags))
+        game.store_data("vs_battle_textBoxes", struct.pack("<I", flags))
         game.run(8)
         b = game.call("ui_bubbles")["bubbles"][0]
         if (b["shape"], b["flip"], b["tail"]) != (shape, flip, tail) or b["bounds"] != [float(v) for v in
                                                                                         b["game_bounds"]]:
             bad.append((shape, flip, tail))
     after = game.call("ui_bubbles")
-    game.write(sym["vs_battle_textBoxes"], struct.pack("<I", flags0))
+    game.store_data("vs_battle_textBoxes", struct.pack("<I", flags0))
     check(not bad and after["mismatched"] == before["mismatched"],
           f"bubble vector: {len(combos)} shapes/mirrorings/tails drawn from their own points "
           f"({len(bad)} not: {bad}; fell back {after['mismatched'] - before['mismatched']})")

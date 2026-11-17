@@ -41,7 +41,7 @@ from scipy import ndimage
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from button_prompts_smoke import default_card  # noqa: E402
 
@@ -78,8 +78,6 @@ def main():
            "ROOD_GI": "0"}
     if os.environ.get("ROOD_RENDERER") == "vulkan" and os.environ.get("VK_LAYER_PATH"):
         env.setdefault("ROOD_VK_VALIDATE", "1")
-    sym = symbols()
-    menu_state, submenu = sym["vs_battle_menuState"], sym["vs_battle_submenuStates"]
     game = launch_at("save_room", card=card, socket_path=f"/tmp/rood-symbols-{os.getpid()}.sock",
                      log=str(work / "game.log"), extra_env=env, fast=True)
     try:
@@ -92,7 +90,7 @@ def main():
             return game.call("button_roles", **params)
 
         def current_menu():
-            return game.read(menu_state, 1)[0] & 0xFF
+            return game.value("vs_battle_menuState.currentMenu") & 0xFF
 
         def record(name, confirm_cross, exceptions=True):
             """Record frames with the option, then draw the last one again: its
@@ -134,10 +132,10 @@ def main():
                     break
                 game.press("triangle", vsyncs=3, settle=60)
             for _ in range(12):
-                if game.read(submenu, 1)[0] == row:
+                if game.value("vs_battle_submenuStates[0]") == row:
                     break
                 game.press("down", vsyncs=3, settle=12)
-            ok = current_menu() != CLOSED and game.read(submenu, 1)[0] == row
+            ok = current_menu() != CLOSED and game.value("vs_battle_submenuStates[0]") == row
             game.press(confirm, vsyncs=3, settle=90)
             return ok
 

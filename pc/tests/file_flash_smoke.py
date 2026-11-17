@@ -30,7 +30,7 @@ os.environ["ROOD_TEST_SNAPSHOTS"] = "0"
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 import classic_parity as cp  # noqa: E402
 
@@ -58,7 +58,6 @@ def run(out, name, wide, fix, room):
     if wide:
         env["ROOD_WIDESCREEN"] = "1"
     g = launch_at("save_room", card=card, fast=True, log=d / "game.log", extra_env=env)
-    sym = symbols()
     try:
         g.run(120)
         if room:
@@ -68,9 +67,9 @@ def run(out, name, wide, fix, room):
                 if g.call("room_goto", action="status")["phase"] in (0, 4):
                     break
             g.run(60)
-        cp.data_open(g, sym)
+        cp.data_open(g)
         g.press("down", vsyncs=3, settle=8)
-        cp.press_until(g, "circle", lambda: cp.data_state(g, sym) == cp.DATA_LOAD)
+        cp.press_until(g, "circle", lambda: cp.data_state(g) == cp.DATA_LOAD)
         g.run(90)
         g.press("circle", vsyncs=3, settle=8)
         g.run(90)

@@ -45,11 +45,10 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
 from checkpoints import launch_at  # noqa: E402
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 
-PTR = 8 if os.environ.get("ROOD_ARCH") == "64" else 4  # host pointers (characterState, the label pool)
-HP = 0x18                     # vs_battle_actor2 currentHP
-STATUSES, TIMERS = 0x948, 0x94C  # vs_battle_actor2 statuses, statusTimers[8]
+ACTOR2 = "vs_battle_characterState->stats"  # the character's vs_battle_actor2 (currentHP, statuses, statusTimers[8])
+POOL = "vs_battle_floatingLabels[0]"  # the label pool: D_800F1BAC_t each, behind a pointer
 POISON, REGEN = 0x4000, 0x20000  # statuses ticking with statusTimers[5]
 LABEL = 24                    # D_800F1BAC_t
 COLOURS = ((128, 128, 128), (0, 128, 0), (128, 0, 128), (0, 128, 128))  # func_80094B0C
@@ -73,33 +72,26 @@ class Session:
     def __init__(self, out, card, env):
         self.out = out
         self.g = launch_at("save_room", card=card, fast=True, log=out / "game.log", extra_env=env)
-        self.sym = symbols()
-        actor = self.ptr(self.sym["vs_battle_characterState"])
-        self.actor2 = self.g.actor_stats(actor)
-        self.pool = self.ptr(self.sym["vs_battle_floatingLabels"])
-
-    def ptr(self, address):
-        return int.from_bytes(self.g.read(address, PTR), "little")
 
     def count(self):
-        return struct.unpack("<h", self.g.read(self.sym["vs_battle_floatingLabelCount"], 2))[0]
+        return self.g.value("vs_battle_floatingLabelCount")
 
     def label(self, i=0):
-        raw = self.g.read(self.pool + LABEL * i, LABEL)
+        raw = self.g.data(f"{POOL}[{i}]", LABEL)
         kind, frame, amount, style, length = raw[8], raw[11], struct.unpack("<H", raw[12:14])[0], raw[14], raw[15]
         return {"raw": raw, "kind": kind, "frame": frame, "amount": amount, "style": style,
                 "wait": struct.unpack("<h", raw[6:8])[0], "text": raw[20:20 + min(length, 4)].decode(errors="replace")}
 
     def hp(self):
-        return struct.unpack("<h", self.g.read(self.actor2 + HP, 2))[0]
+        return self.g.value(ACTOR2 + ".currentHP")
 
     def status_tick(self, bit, what):
         """A status ticking at once (statusTimers[5] 2): its popup, the status
         cleared again. Returns the label (index 0) or None."""
         g = self.g
-        statuses = struct.unpack("<I", g.read(self.actor2 + STATUSES, 4))[0]
-        g.write(self.actor2 + STATUSES, struct.pack("<I", statuses | bit))
-        g.write(self.actor2 + TIMERS + 5, bytes([2]))
+        statuses = g.value(ACTOR2 + ".statuses")
+        g.store(ACTOR2 + ".statuses", statuses | bit)
+        g.store(ACTOR2 + ".statusTimers[5]", 2)
         hp = self.hp()
         found = None
         for _ in range(400):
@@ -107,7 +99,7 @@ class Session:
             if self.count() and self.label()["kind"] == 1:
                 found = self.label()
                 break
-        g.write(self.actor2 + STATUSES, struct.pack("<I", statuses & ~bit))
+        g.store(ACTOR2 + ".statuses", statuses & ~bit)
         check(found is not None, f"{what}: the game's status tick made a number popup (HP {hp} -> {self.hp()})")
         return found
 
@@ -283,8 +275,8 @@ def stat_sign(s, work, lab):
     raw[15], raw[20:24] = 2, b"12\0\0"
     g.call("graphics", ui_text="font")
     g.call("ui_text", forget_signs=True)
-    g.write(s.pool, bytes(raw))
-    g.write(s.sym["vs_battle_floatingLabelCount"], struct.pack("<h", 1))
+    g.store_data(POOL + "[0]", bytes(raw))
+    g.store("vs_battle_floatingLabelCount", 1)
     g.run(6)  # (drawn in the next frame's ordering table)
     t = g.call("ui_text")
     check("-" in t["popups_drawn"] and "1" in t["popups_drawn"] and "2" in t["popups_drawn"],
@@ -332,7 +324,7 @@ def main():
             if not s.count():
                 break
             g.run(2)
-        g.write(s.actor2 + HP, struct.pack("<h", 40))
+        g.store(ACTOR2 + ".currentHP", 40)
         lab = s.status_tick(REGEN, "heal")
         if lab:
             check(not lab["amount"] & 0x8000, f"heal: a green heal number ({lab})")

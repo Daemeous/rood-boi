@@ -53,7 +53,7 @@ from scipy import ndimage
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from menu_nav import ABILITIES_COMMAND, top_command  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 
@@ -231,10 +231,10 @@ CELLS = ["triangle", "square", "circle", "cross"]  # the page's cells at (16 k, 
 def cross_geometry(game):
     """Where the cross's sprites are on screen now, from the game's tables:
     {button: (x, y)} for the 16 x 16 face sprites and the D-pad's (x, y)."""
-    step = game.read_symbol("vs_battle_shortcutHudAnimationStep", 1)[0]
-    steps = game.read_symbol("vs_battle_rowAnimationSteps", 16)
+    step = game.data("vs_battle_shortcutHudAnimationStep", 1)[0]
+    steps = game.data("vs_battle_rowAnimationSteps", 16)
     slide = int.from_bytes(steps[step:step + 1], "little", signed=True) if step < 16 else None
-    table = game.read_symbol("D_800EBC88", 16)
+    table = game.data("D_800EBC88", 16)
     faces = {}
     for k, button in enumerate(CELLS):
         v = int.from_bytes(table[4 * k:4 * k + 4], "little")
@@ -416,7 +416,7 @@ def run(work, card, shots):
             return
         cross_checks(game, work, shots)
         game.press("triangle", vsyncs=3, settle=60)
-        top_command(game, symbols(), ABILITIES_COMMAND)  # by the game's cursor (fast travel's Magic on a Circle)
+        top_command(game, ABILITIES_COMMAND)  # by the game's cursor (fast travel's Magic on a Circle)
         game.press("circle", vsyncs=3, settle=60)  # Battle Abilities: the information box names ○, △ and □
         compare_modes(game, work, "chain", shots, "text", ["circle", "triangle", "square"])
         # Internal resolution 1: icons too (blocks of the 2x atlas).

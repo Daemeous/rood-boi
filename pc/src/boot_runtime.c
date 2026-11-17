@@ -1370,18 +1370,12 @@ static intptr_t key_delta PC_HOST;
 #define GUEST(q) ((const void*)((uintptr_t)(q) + (uintptr_t)key_delta))
 
 static const uint32_t* frame_next_packet(const uint32_t* tag);
-static const uint32_t* guest_packet(unsigned link);
-/* The packet linked after `tag`: in an adopted table, the frame's next entry; for a packet drawn where it lies, its own link
- * (a lowered draw item's ends the chain). */
+/* The packet after `tag`: in an adopted table, the frame's next entry; NULL for a packet drawn where it lies (DrawPrim, a lowered draw item:
+ * nothing is linked after it). */
 static const uint32_t* next_packet(const uint32_t* tag)
 {
     const uint32_t* next = frame_next_packet(tag);
-    if (next)
-        return next == (const uint32_t*)1 ? NULL : next;
-    unsigned link = tag[0] & 0xffffff;
-    if (link == 0xffffff)
-        return NULL;
-    return guest_packet(link);
+    return next && next != (const uint32_t*)1 ? next : NULL;
 }
 /* (which sparse register of guest memory a link names: the 32-bit build also followed native addresses) */
 static int round_px(float v)
@@ -1672,16 +1666,10 @@ extern int pc_frame_marker(const uint32_t*, int*, int*) __attribute__((weak));
 extern void pc_frame_draw_run(int, int) __attribute__((weak));
 extern int pc_frame_run_pages(int, int, unsigned, int (*)(unsigned)) __attribute__((weak));
 extern int pc_frame_run_has_native(int, int) __attribute__((weak));
-extern int pc_frame_expected_order(const void*, int*, int) __attribute__((weak));
-extern void pc_frame_markers_index(void) __attribute__((weak));
-extern void pc_frame_walk_visit(const void*) __attribute__((weak));
-extern int pc_frame_walk_before(unsigned, const void**, int) __attribute__((weak));
-extern int pc_frame_walk_rest(const void**, int) __attribute__((weak));
-extern int pc_frame_entry_markers(const void*, int, const void**, int) __attribute__((weak));
-extern int pc_frame_entry_has_tail(const void*) __attribute__((weak));
-extern int pc_frame_same_table(const void*, const void*) __attribute__((weak));
-extern int pc_frame_run_live(int, int) __attribute__((weak));
 extern void pc_frame_splice_table(const void*, const void*) __attribute__((weak));
+extern int pc_frame_table_order(const void*) __attribute__((weak));
+extern void pc_frame_table_run(int, const void**, const void**, const void**) __attribute__((weak));
+extern int pc_frame_table_check(const void*) __attribute__((weak));
 /* gpu_hw.c: the ordering table about to be drawn holds native draws, and
  * starts in drawing area `clip` (x, y, w, h). */
 extern void pc_hw_ot_native_area(const int*) __attribute__((weak));
@@ -1702,166 +1690,19 @@ static struct {
     unsigned count, capacity;
     uint32_t* words;
     size_t used, word_capacity;
-    int end; /* how the chain ended: 0 at its end, 1 on a link outside mapped memory, 2 it did not (a cycle) */
 } frame PC_HOST = { 0 };
-static const uint32_t* guest_packet(unsigned link)
-{
-    if (link < ROOD_GUEST_RAM_SIZE)
-        return (const uint32_t*)(uintptr_t)(link | ROOD_GUEST_RAM_BASE);
-    if (sizeof(void*) == 4 && link >= 0x400000 && link < 0x1000000)
-        return (const uint32_t*)(uintptr_t)link;
-    return NULL;
-}
 static int game2d_entry(const uint32_t* p, int* hidden);
-static int ot_layers_note_of(const uint32_t* p, int front);
-/* A run of packets linked after another packet without touching either's link (AddPrims did: the text boxes' page of the
- * ordering table after its slot in the frame's): the walk of the table follows `head` .. `last` after `at` and then `at`'s own
- * link. Saved state (it is made in the frame, used at its DrawOTag, then gone). */
-#define SPLICES 4
-static struct {
-    const uint32_t *at, *head, *last;
-} splices[SPLICES];
+/* A table drawn where an entry of another is (the text boxes' page of the table, after its slot in the frame's): draw_items.c orders its runs
+ * there. */
 void pc_frame_table_after(const void* at, const void* head, const void* last)
 {
-    int i, free_slot = -1;
-    for (i = 0; i < SPLICES; i++) {
-        if (splices[i].at == at) {
-            free_slot = i;
-            break;
-        }
-        if (!splices[i].at && free_slot < 0)
-            free_slot = i;
-    }
-    if (free_slot < 0)
-        pc_unimplemented("too many spliced runs of the ordering table");
-    splices[free_slot].at = at, splices[free_slot].head = head, splices[free_slot].last = last;
+    (void)last;
     if (pc_frame_splice_table)
         pc_frame_splice_table(at, head);
 }
-static const uint32_t* const* splice_of(const uint32_t* at)
-{
-    static const uint32_t* found[2];
-    for (int i = 0; i < SPLICES; i++)
-        if (splices[i].at == at) {
-            found[0] = splices[i].head, found[1] = splices[i].last;
-            return found;
-        }
-    return NULL;
-}
 static const uint32_t *ot_scene, *ot_top; /* (below: the table's scene base and top) */
-/* The ordering-table census (RPC ot_census, pc/tools/ot_census.py): what each adopted table holds besides the slots' own entries, by the
- * slot it sits in (words after the table's scene entry) and by kind: item markers (the frame's draw items), native-list markers, raw
- * packets (a draw mode, a polygon, a line, a rectangle or sprite, anything else) and VRAM copies (DR_MOVE and the loads and stores).
- * Packets drawn at once (DrawPrim, in no table: the title's screens) are counted apart, at the slot -1000, and are not the gate's. The ordering table can go once every route reads zero raw packets. */
-enum { CENSUS_ITEM_MARKER, CENSUS_NATIVE_MARKER, CENSUS_MODE, CENSUS_MOVE, CENSUS_POLYGON, CENSUS_LINE, CENSUS_RECT, CENSUS_OTHER, CENSUS_NOP, CENSUS_KINDS };
-static const char* const census_names[CENSUS_KINDS] = { "item_marker", "native_marker", "mode", "vram_copy", "polygon", "line", "rect", "other", "nop" };
-#define CENSUS_ROWS 512
-#define CENSUS_IMMEDIATE (-1000) /* (the slot of a packet drawn at once, not linked in a table) */
-static struct {
-    int on;
-    unsigned long long tables, count[CENSUS_KINDS], immediate[CENSUS_KINDS]; /* (immediate: packets drawn at once, in no table) */
-    unsigned long long order_tables, order_bad, order_unknown; /* (census_order) */
-    int order_first[5]; /* the first table that differed: the runs in its walk, in its keys' order, the first place they differ, the walk's and the keys' run there */
-    int rows;
-    struct {
-        int slot, kind;
-        unsigned long long n;
-        uint32_t words[3]; /* the first one seen: its tag and first two words */
-    } row[CENSUS_ROWS];
-} census PC_HOST;
-static void census_note(const uint32_t* p, int slot)
-{
-    unsigned len = *p >> 24;
-    int kind, first, count, i;
-    uint32_t list;
-    if (!len)
-        return;
-    if (pc_frame_marker && pc_frame_marker(p, &first, &count))
-        kind = CENSUS_ITEM_MARKER;
-    else if ((render_is_marker && render_is_marker(p)) || (render_translucent_marker && render_translucent_marker(p, &list, &first, &count)))
-        kind = CENSUS_NATIVE_MARKER;
-    else {
-        unsigned code = p[1] >> 24, k;
-        for (k = 1; k <= len && !p[k]; k++) /* (GP0 no-ops: a packet of zero words) */
-            ;
-        if (k > len)
-            code = 0x100;
-        else if (code == 0x01 && len > 1 && (p[2] >> 24) >= 0x80 && (p[2] >> 24) < 0xE0) /* (a cache clear, then the copy: DR_MOVE) */
-            code = p[2] >> 24;
-        kind = code == 0x100 ? CENSUS_NOP : code >= 0xE1 && code <= 0xE6 ? CENSUS_MODE
-            : code >= 0x80 && code < 0xE0 ? CENSUS_MOVE
-            : code >= 0x20 && code < 0x40 ? CENSUS_POLYGON
-            : code >= 0x40 && code < 0x60 ? CENSUS_LINE
-            : code >= 0x60 && code < 0x80 ? CENSUS_RECT
-                                          : CENSUS_OTHER;
-    }
-    ++(slot == CENSUS_IMMEDIATE ? census.immediate : census.count)[kind];
-    for (i = 0; i < census.rows; i++)
-        if (census.row[i].slot == slot && census.row[i].kind == kind) {
-            ++census.row[i].n;
-            return;
-        }
-    if (census.rows < CENSUS_ROWS) {
-        census.row[census.rows].slot = slot, census.row[census.rows].kind = kind, census.row[census.rows].n = 1;
-        census.row[census.rows].words[0] = p[0], census.row[census.rows].words[1] = len > 0 ? p[1] : 0;
-        census.row[census.rows].words[2] = len > 1 ? p[2] : 0;
-        ++census.rows;
-    }
-}
-/* The order the walk of an adopted table draws its item runs in, against the order their slots give (pc_frame_expected_order):
- * the keys that replace the table. */
-static void census_order(const void* head)
-{
-    static int walked[8192], expected[8192];
-    int n = 0, m, i;
-    for (unsigned k = 0; k < frame.count && n < 8192; k++) {
-        const uint32_t* p = frame.words + frame.entry[k].off;
-        int first, count;
-        if (pc_frame_marker && pc_frame_marker(p, &first, &count) && pc_frame_run_live(first, count))
-            walked[n++] = first;
-    }
-    m = pc_frame_expected_order ? pc_frame_expected_order(head, expected, 8192) : -1;
-    if (m < 0) {
-        ++census.order_unknown;
-        return;
-    }
-    ++census.order_tables;
-    for (i = 0; i < n && i < m && walked[i] == expected[i]; i++)
-        ;
-    if (i == n && n == m)
-        return;
-    if (!census.order_bad++)
-        census.order_first[0] = n, census.order_first[1] = m, census.order_first[2] = i,
-        census.order_first[3] = i < n ? walked[i] : -1, census.order_first[4] = i < m ? expected[i] : -1;
-}
-int pc_ot_census_json(char* out, int size, int on, int reset)
-{
-    int n = 0, i;
-    if (on >= 0)
-        census.on = on;
-    n += snprintf(out + n, (size_t)(size - n), "{\"on\":%d,\"tables\":%llu,\"kinds\":{", census.on, census.tables);
-    for (i = 0; i < CENSUS_KINDS; i++)
-        n += snprintf(out + n, (size_t)(size - n), "%s\"%s\":%llu", i ? "," : "", census_names[i], census.count[i]);
-    n += snprintf(out + n, (size_t)(size - n), "},\"order\":{\"tables\":%llu,\"bad\":%llu,\"unknown\":%llu,\"first\":[%d,%d,%d,%d,%d]},\"immediate\":{",
-        census.order_tables, census.order_bad, census.order_unknown, census.order_first[0], census.order_first[1], census.order_first[2],
-        census.order_first[3], census.order_first[4]);
-    for (i = 0; i < CENSUS_KINDS; i++)
-        n += snprintf(out + n, (size_t)(size - n), "%s\"%s\":%llu", i ? "," : "", census_names[i], census.immediate[i]);
-    n += snprintf(out + n, (size_t)(size - n), "},\"rows\":[");
-    for (i = 0; i < census.rows && n < size - 200; i++)
-        n += snprintf(out + n, (size_t)(size - n), "%s{\"slot\":%d,\"kind\":\"%s\",\"n\":%llu,\"words\":[%u,%u,%u]}", i ? "," : "",
-            census.row[i].slot, census_names[census.row[i].kind], census.row[i].n, census.row[i].words[0], census.row[i].words[1],
-            census.row[i].words[2]);
-    n += snprintf(out + n, (size_t)(size - n), "]}");
-    if (reset) {
-        int keep = census.on;
-        memset(&census, 0, sizeof census);
-        census.on = keep;
-    }
-    return n;
-}
 /* The frame's entry for packet `p`: its words, where it came from, its layer and what the layers said about it. */
-static void adopt_push(const uint32_t* p, int photo, int* front, int* hidden, int* census_slot)
+static void adopt_push(const uint32_t* p, int photo, int front, int* hidden, const uint32_t* ref)
 {
     unsigned len = *p >> 24;
     if (frame.count == frame.capacity) {
@@ -1880,139 +1721,38 @@ static void adopt_push(const uint32_t* p, int photo, int* front, int* hidden, in
     e->off = (uint32_t)frame.used;
     memcpy(frame.words + frame.used, p, (1 + (size_t)len) * sizeof *p);
     frame.used += 1 + len;
-    e->front = (uint8_t)(*front = ot_layers_note_of(p, *front));
-    if (census.on) {
-        if (len == 0 && ot_scene && p >= ot_scene - 32 && p <= ot_top)
-            *census_slot = (int)(p - ot_scene);
-        census_note(p, *census_slot);
-    }
+    e->front = (uint8_t)front;
     resolve_attr(p, &e->attr);
     if (photo) {
         e->g2d_known = (uint8_t)game2d_entry(p, hidden);
         e->g2d_hidden = (uint8_t)*hidden;
     }
+    (void)ref;
 }
-/* The item runs placed at `entry` (pc_frame_place), where the slot's key puts them: the runs linked at its head, the last placed
- * first, or (`tail`) those appended at the end of its chain (pc_frame_copy_tail). Their marker packets are walked here by key, not
- * by the links they were written with. Returns how many were taken in. */
-/* Runs placed at the entry `entry` or before a packet (pc_frame_walk_before) are packets of the frame like the others: pushed, and the runs
- * placed at them (a marker is an entry too) after them. */
-static int adopt_runs(const void* const* packets, int n, int photo, int* front, int* hidden, int* census_slot)
-{
-    int taken = 0;
-    for (int i = 0; i < n; i++) {
-        int first, count;
-        adopt_push(packets[i], photo, front, hidden, census_slot);
-        taken += pc_frame_marker(packets[i], &first, &count); /* (one a classic claim suppressed is a no-op by now: not a marker) */
-        if (pc_frame_walk_visit)
-            pc_frame_walk_visit(packets[i]);
-        int m = pc_frame_entry_markers(packets[i], 0, NULL, 0);
-        if (m) {
-            const void* placed[m];
-            pc_frame_entry_markers(packets[i], 0, placed, m);
-            taken += adopt_runs(placed, m, photo, front, hidden, census_slot);
-        }
-    }
-    return taken;
-}
-static int adopt_before(unsigned addr, int photo, int* front, int* hidden, int* census_slot)
-{
-    int n = pc_frame_walk_before ? pc_frame_walk_before(addr, NULL, 0) : 0;
-    if (!n)
-        return 0;
-    const void* placed[n];
-    pc_frame_walk_before(addr, placed, n);
-    return adopt_runs(placed, n, photo, front, hidden, census_slot);
-}
-static int adopt_markers(const uint32_t* entry, int tail, int photo, int* front, int* hidden, int* census_slot)
-{
-    int n = pc_frame_entry_markers ? pc_frame_entry_markers(entry, tail, NULL, 0) : 0;
-    if (!n)
-        return 0;
-    const void* packets[n];
-    pc_frame_entry_markers(entry, tail, packets, n);
-    return adopt_runs(packets, n, photo, front, hidden, census_slot);
-}
-/* A packet linked into a table that is no item marker and no table terminator: a screen that still builds packets by hand. The tables are going
- * (T4: the frame is items ordered by their slots), and a packet like this draws nothing once they have. Logged once per command and process;
- * pc/tests/run.py and pc/tools/build_compare.py fail a suite or a lane whose game log holds the line (RAW_PACKET_LINE there). */
-static void raw_tripwire(const uint32_t* p, unsigned len)
-{
-    static unsigned char seen[256];
-    unsigned code = p[1] >> 24, k;
-    if (!len || !code || (len == 4 && p[1] == 0x80000000u && p[2] == 0) || seen[code]) /* (command 0: GP0 no-ops) */
-        return;
-    for (k = 1; k <= len && !p[k]; k++) /* (GP0 no-ops: a packet of zero words draws nothing) */
-        ;
-    if (k > len)
-        return;
-    seen[code] = 1;
-    fprintf(stderr, "[ot] a raw packet is linked in a table: %u words, command %02x (%08x %08x)\n", len, code, p[1], len > 1 ? p[2] : 0);
-}
+/* The ordering table of a DrawOTag, taken in: the frame is the runs placed in it, in the order their slots give (draw_items.c
+ * pc_frame_table_order), each run's marker packet copied once at the start of the draw (T4 slice S1, pc/docs/plans/2026-11-12-t4-survey.md): what a packet
+ * is (its words), where it came from (`guest`, the key the address-keyed registries and readers still use until they take attributes) and
+ * what the layers said about it are settled here. Nothing is linked: a table holds no packets (a link in one is the tripwire's). */
 static void adopt(const void* head, int photo)
 {
-    const uint32_t* p = head;
-    const uint32_t *stop_at = NULL; /* (in a spliced run: its last packet, after which the table goes on where it left it) */
-    const uint32_t* tail_entry = NULL; /* (the entry whose appended runs wait for the end of its chain) */
-    unsigned resume = 0;
-    frame.count = 0, frame.used = 0, frame.end = 2;
-    int front = 0, hidden = 0, census_slot = 0; /* (the layers are positions in the table: settled here, as the walk reaches each entry) */
-    if (census.on)
-        ++census.tables;
-    if (pc_frame_markers_index)
-        pc_frame_markers_index();
-    for (unsigned links = 0; links < 100000; links++) {
-        uint32_t tag = *p;
-        unsigned len = tag >> 24;
-        int first_run, run_count;
-        int is_marker = len && pc_frame_marker && pc_frame_marker(p, &first_run, &run_count);
-        if (tail_entry && len == 0 && pc_frame_same_table && pc_frame_same_table(tail_entry, p)) { /* (the next slot of the table: the appended runs end the one before) */
-            adopt_markers(tail_entry, 1, photo, &front, &hidden, &census_slot);
-            tail_entry = NULL;
-        }
-        adopt_before((unsigned)((uintptr_t)p & 0xffffff), photo, &front, &hidden, &census_slot); /* (the runs placed in front of this packet) */
-        if (!is_marker) { /* (an item marker reached by a link is not drawn here: where its key puts it) */
-            adopt_push(p, photo, &front, &hidden, &census_slot);
-            raw_tripwire(p, len);
-        }
-        unsigned next = tag & 0xffffff;
-        int entry = !is_marker; /* (where runs are placed: a slot of a table, or after a packet: the runs placed there follow it) */
-        if (entry && pc_frame_walk_visit)
-            pc_frame_walk_visit(p);
-        if (entry && pc_frame_entry_has_tail && pc_frame_entry_has_tail(p))
-            tail_entry = p;
-        if (!stop_at) {
-            const uint32_t* const* run = splice_of(p);
-            if (run) { /* the spliced run is walked here, then this packet's own link (and the runs linked at its head) */
-                resume = next, stop_at = run[1];
-                p = run[0];
-                continue;
-            }
-        }
-        if (stop_at && p == stop_at)
-            next = resume, stop_at = NULL;
-        if (next == 0xffffff) {
-            adopt_before(0xffffff, photo, &front, &hidden, &census_slot); /* (the runs placed at the end of a chain) */
-            frame.end = 0;
-            break;
-        }
-        p = guest_packet(next);
-        if (!p) {
-            frame.end = 1;
-            break;
-        }
+    int front = 0, hidden = 0, n;
+    frame.count = 0, frame.used = 0;
+    if (pc_frame_table_check)
+        pc_frame_table_check(head);
+    n = pc_frame_table_order ? pc_frame_table_order(head) : -1;
+    if (n < 0)
+        pc_unimplemented("an ordering table drawn that was not made");
+    for (int k = 0; k < n; k++) {
+        const void *packet, *entry, *at;
+        pc_frame_table_run(k, &packet, &entry, &at);
+        const uint32_t* ref = at ? at : entry; /* (the slot the run draws at: its layer and, in photo mode, the game 2D it belongs to) */
+        if (ref && ot_scene && (const uint32_t*)ref <= ot_top && (const uint32_t*)ref >= ot_scene - 32)
+            front = (const uint32_t*)ref < ot_scene;
+        hidden = 0;
+        if (photo && ref)
+            game2d_entry(ref, &hidden);
+        adopt_push(packet, photo, front, &hidden, ref);
     }
-    if (tail_entry)
-        adopt_markers(tail_entry, 1, photo, &front, &hidden, &census_slot);
-    {
-        int rest = pc_frame_walk_rest ? pc_frame_walk_rest(NULL, 0) : 0;
-        if (rest) { /* (their packet is gone from the chain: they draw last) */
-            const void* placed[rest];
-            pc_frame_walk_rest(placed, rest);
-            adopt_runs(placed, rest, photo, &front, &hidden, &census_slot);
-        }
-    }
-    memset(splices, 0, sizeof splices); /* (consumed: the next frame makes its own) */
 }
 /* The entry after the one whose tag word is `tag` (a pointer into the frame's words): its tag, 1 for none, NULL when `tag` is
  * not in the frame. */
@@ -2074,16 +1814,6 @@ static void ot_layers_begin(const void* top)
     ot_scene = scene <= (uintptr_t)top && (uintptr_t)top - scene < ot_span * 4u ? (const uint32_t*)scene : NULL;
     ot_front = 0;
 }
-/* An ordering table's own entry (a link word in its array: ClearOTagR's
- * tags, no command words) tells the layer of the packets linked after it. */
-/* The layer of the entries after `p` (ot_layers_begin: the scene's base): an ordering table entry (a link word, no command words)
- * tells the layer of the packets linked after it. */
-static int ot_layers_note_of(const uint32_t* p, int front)
-{
-    if (ot_scene && (*p >> 24) == 0 && p <= ot_top && p >= ot_scene - 32)
-        return p < ot_scene;
-    return front;
-}
 extern int pc_photo_hide_game2d __attribute__((weak));
 extern int pc_photo_game2d_slots __attribute__((weak));
 void pc_draw_packet(void* data, int chain)
@@ -2092,12 +1822,8 @@ void pc_draw_packet(void* data, int chain)
     if (chain == 1) {
         ot_layers_begin(data);
         adopt(data, &pc_photo_hide_game2d && pc_photo_hide_game2d && &pc_photo_game2d_slots);
-        if (census.on)
-            census_order(data);
     } else if (chain)
         ot_layers_begin(data);
-    else if (census.on)
-        census_note(data, CENSUS_IMMEDIATE); /* (a packet drawn at once, DrawPrim: the title's screens draw so, no table) */
     if (chain == 1 && pc_hw_ot_native_area && render_is_marker && ot_has_native()) {
         int clip[4] = { clip_x, clip_y, clip_w, clip_h };
         pc_hwc_ot_native_area(clip);
@@ -2190,7 +1916,6 @@ static void draw_packet(void* data, int chain)
         const walk_entry* en = chain == 1 ? &frame.entry[at] : NULL;
         uint32_t* p = en ? frame.words + en->off : data;
         const uint32_t* guest = en ? (const uint32_t*)en->guest : p;
-        int last = at + 1 == count_entries;
         uint32_t tag = *p;
         key_delta = (intptr_t)((uintptr_t)guest - (uintptr_t)p);
         if (en)
@@ -2208,8 +1933,6 @@ static void draw_packet(void* data, int chain)
             && !(render_translucent_marker && render_translucent_marker(p, &t_list, &t_first, &t_count))
             && !native_run
             && !mode_packet(p)))) {
-            if (last && frame.end != 2)
-                break; /* (the chain ended, or left mapped memory: a skipped packet says nothing of it) */
             continue;
         }
         pc_hw_attr single;
@@ -2273,12 +1996,8 @@ static void draw_packet(void* data, int chain)
         pc_gpu_immediate = 0;
         if (!chain) /* (an adopted table ends with its entries: a marker taken in by its slot has no link to follow) */
             break;
-        if (last && frame.end == 1)
-            pc_unimplemented("ordering table pointer outside mapped memory");
     }
     key_delta = outer_delta;
-    if (chain == 1 && frame.end == 2)
-        pc_unimplemented("ordering table cycle");
 }
 
 extern int pc_title_input_ready; /* (below) */

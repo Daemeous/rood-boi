@@ -52,7 +52,6 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = pathlib.Path(__file__).resolve().parents[1].parent
 WORK = ROOT / "pc/build/font_match"
 FONTS = WORK / "fonts"
-BATTLE_BASE = 0x80068800  # BATTLE.PRG load address (config/BATTLE/BATTLE.PRG/splat.yaml)
 GF = "https://raw.githubusercontent.com/google/fonts/main"
 
 # The game's character set for glyph indices 0..0x7C (tools/etc/vsString.py).
@@ -198,7 +197,7 @@ SAMPLES = {
 def capture(card):
     """VRAM of the field (the UI page is the field's, not the title's)."""
     sys.path.insert(0, str(ROOT / "pc/tools"))
-    from rood_rpc import Game, symbols
+    from rood_rpc import Game
     run = WORK / "run"
     run.mkdir(parents=True, exist_ok=True)
     copy = run / "card.mcd"
@@ -214,8 +213,7 @@ def capture(card):
         game.run(400)
         if not game.state().get("player"):
             raise SystemExit("capture: the save did not reach the field")
-        base = symbols()["vram"]
-        raw = b"".join(game.read(base + y * 2048, 32 * 2048) for y in range(0, 512, 32))
+        raw = b"".join(game.data("vram", 32 * 2048, offset=y * 2048) for y in range(0, 512, 32))
     finally:
         game.close()
     np.save(WORK / "vram.npy", np.frombuffer(raw, "<u2").reshape(512, 1024))
@@ -239,11 +237,11 @@ class Glyph:
 def battle_tables():
     data = (ROOT / "data/BATTLE/BATTLE.PRG").read_bytes()
 
-    def at(address, n):
-        return data[address - BATTLE_BASE:address - BATTLE_BASE + n]
+    def at(offset, n):  # (offsets in BATTLE.PRG: its load address, config/BATTLE/BATTLE.PRG/splat.yaml, is not needed)
+        return data[offset:offset + n]
 
-    return {"advance": at(0x800EB810, 378), "small_widths": at(0x800EB7B4, 32), "small_index": at(0x800EB7D4, 0x3C),
-            "kern": at(0x800EB708, 169)}
+    return {"advance": at(0x83010, 378), "small_widths": at(0x82fb4, 32), "small_index": at(0x82fd4, 0x3C),
+            "kern": at(0x82f08, 169)}
 
 
 def original_glyphs():

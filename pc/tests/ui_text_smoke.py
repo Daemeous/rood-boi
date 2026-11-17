@@ -110,7 +110,7 @@ from scipy import ndimage
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 from checkpoints import launch_at  # noqa: E402
-from rood_rpc import OUT, Game, symbols  # noqa: E402
+from rood_rpc import OUT, Game  # noqa: E402
 
 # ui_text's own drawing of the HUD's words and the C++ Travel prompt are what this tests: the
 # shipped plugins stay off (rood.hud claims them with the modern look; hud_bench_smoke tests that).
@@ -925,7 +925,7 @@ def check_cross(game, work, shots):
     against the original), and the dot drawn alone as a disc."""
     game.call("input", buttons=["l2"], vsyncs=230)  # released after compare's frames
     game.run(200)
-    step = game.read_symbol("vs_battle_shortcutHudAnimationStep", 1)[0]
+    step = game.value("vs_battle_shortcutHudAnimationStep")
     if not check(step != 10, f"cross: the L2 shortcut cross is open (animation step {step})"):
         return
     compare(game, work, "cross", shots, "cross", "bright")
@@ -980,11 +980,10 @@ def run_emotes(work, shots):
     try:
         game.call("graphics", interpolate=False, aa="off", ui_text_overlay="off", ui_text="original", ui_bubbles="original")
         game.run(200)
-        kinds = symbols()["D_800F2260"]
-        game.write(symbols()["vs_battle_actorMarkersHidden"], bytes(4))  # (the scene keeps them off)
+        game.store_data("vs_battle_actorMarkersHidden", bytes(2))  # (the scene keeps them off)
         before = game.call("ui_bubbles")["emotes"]
         for kind in range(1, 8):
-            game.write(kinds, bytes([0] + [kind] * 15))
+            game.store_data("D_800F2260", bytes([0] + [kind] * 15))
             game.call("graphics", ui_text="original", ui_bubbles="original")
             game.run(4)
             plain, info = redraw(game, work, "original", f"emote-{kind}-plain")
@@ -1011,7 +1010,7 @@ def run_emotes(work, shots):
             if shots:
                 Image.fromarray(np.concatenate([again[crop], drawn[crop]], axis=1)).save(shots / f"emote-{kind}.png")
             del plain
-        game.write(kinds, bytes(16))
+        game.store_data("D_800F2260", bytes(16))
         after = game.call("ui_bubbles")["emotes"]
         check(after["balloons"] > before["balloons"] and after["dots"] > before["dots"]
               and after["marks"] > before["marks"], f"emotes: balloons, dots and marks drawn again ({after})")
@@ -1180,17 +1179,16 @@ class Popups:
 
     def __init__(self, game):
         self.g = game
-        self.sym = symbols()
-        self.pool = int.from_bytes(game.read(self.sym["vs_battle_floatingLabels"], PTR), "little")
+        self.pool = "vs_battle_floatingLabels[0]"
 
     def show(self, *records, vsyncs=3):
         for _ in range(vsyncs):  # (each vsync: the records as written, drawn in the next frame)
-            self.g.write(self.pool, b"".join(records))
-            self.g.write(self.sym["vs_battle_floatingLabelCount"], struct.pack("<h", len(records)))
+            self.g.store_data(self.pool, b"".join(records))
+            self.g.store_data("vs_battle_floatingLabelCount", struct.pack("<h", len(records)))
             self.g.run(1)
 
     def clear(self):
-        self.g.write(self.sym["vs_battle_floatingLabelCount"], struct.pack("<h", 0))
+        self.g.store("vs_battle_floatingLabelCount", 0)
         self.g.run(2)
 
 

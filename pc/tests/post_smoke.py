@@ -158,7 +158,7 @@ def main():
     try:
         game.pause()
         game.run(max(0, 1300 - game.status()["vsync"]))  # the publisher cards, then the movie (movie_smoke.py)
-        playing = game.u32("pc_display_rgb24") == 1
+        playing = int.from_bytes(game.data("pc_display_rgb24", 4), "little") == 1
         off = capture(game, out / "movie")
         game.call("post", set=everything, snap=True)
         game.wait_presents(2)

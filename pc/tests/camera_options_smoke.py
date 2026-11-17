@@ -30,7 +30,7 @@ import tempfile
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, Game, symbols  # noqa: E402
+from rood_rpc import OUT, Game  # noqa: E402
 from weapon_slots_smoke import default_card  # noqa: E402
 
 CLOSED = 0x3F
@@ -53,10 +53,7 @@ def main():
     settings = out / "settings.cfg"
     settings.write_text("qol_map_invert 1\n")
     env = {"ROOD_WINDOW": "960x720", "ROOD_LIGHTS": str(lights), "ROOD_GI": "0", "ROOD_SETTINGS": str(settings)}
-    sym = symbols()
-    spherical, fp_flag = sym["vs_battle_cameraCurrentSpherical"], sym["_firstPersonViewEnabled"]
-    menu_state, submenu = sym["vs_battle_menuState"], sym["vs_battle_submenuStates"]
-    geom_x, geom_y = sym["_geomOffsetX"], sym["_geomOffsetY"]
+    fp_flag, geom_x, geom_y = "_firstPersonViewEnabled", "_geomOffsetX", "_geomOffsetY"
     failures = []
 
     def check(ok, message):
@@ -69,18 +66,18 @@ def main():
         def options(**params):
             return game.call("camera_options", **params)
 
-        def i32(address):
-            return struct.unpack("<i", game.read(address, 4))[0]
+        def i32(name):
+            return struct.unpack("<i", game.data(name, 4))[0]
 
         def yaw_pitch():
-            return struct.unpack("<ii", game.read(spherical, 8))
+            return struct.unpack("<ii", game.data("vs_battle_cameraCurrentSpherical", 8))
 
         def wrap(d):
             return (d + 2048) % 4096 - 2048
 
         def look(buttons=None, stick=None, vsyncs=12):
             """Pitch 0, then hold `buttons` or the right stick; the yaw and pitch changes."""
-            game.write(spherical + 4, struct.pack("<i", 0))
+            game.store("vs_battle_cameraCurrentSpherical.values.pitch", 0)
             game.run(2)
             y0, p0 = yaw_pitch()
             if stick:
@@ -137,11 +134,11 @@ def main():
 
         # ---- the map ----
         def current_menu():
-            return game.read(menu_state, 1)[0]
+            return game.value("vs_battle_menuState.currentMenu")
 
         game.press("triangle", vsyncs=3, settle=40)
         for _ in range(10):
-            if game.read(submenu, 1)[0] == MAP_ROW:
+            if game.value("vs_battle_submenuStates[0]") == MAP_ROW:
                 break
             game.press("down", vsyncs=3, settle=8)
         game.press("circle", vsyncs=3, settle=240)

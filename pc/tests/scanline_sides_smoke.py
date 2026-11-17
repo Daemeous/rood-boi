@@ -28,7 +28,7 @@ os.environ["ROOD_TEST_SNAPSHOTS"] = "0"  # (New Game with no memory card: the ch
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 
 failures = []
@@ -73,14 +73,13 @@ def take(widescreen, out, label):
     game = launch_at("title", card=str(out / "no-card.mcd"), fast=True, log=out / f"scanline-{label}.log", extra_env=env)
     try:
         game.call("graphics", widescreen=widescreen, interpolate=False)
-        flag = symbols()["vs_event_isScanlineOverlayEnabled"]
         game.run(60)
         game.press("start", vsyncs=4, settle=90)
         game.press("circle", vsyncs=3, settle=0)
         shots = []
         for step in range(max(STEPS) + 1):
             if 30 <= step < 40:
-                game.write(flag, b"\x01")
+                game.store("vs_event_isScanlineOverlayEnabled", 1)
             game.run(30)
             game.press("circle", vsyncs=2, settle=4)
             if step in STEPS:

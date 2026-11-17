@@ -150,11 +150,14 @@ special-casing. Widescreen is done by narrowing projection and anchoring packets
 (T6).
 
 **Evidence.**
-- `pc/src/boot_sdk.c`: `pc_frame_table_clear` and `pc_frame_table_draw` (what `ClearOTag`, `ClearOTagR` and `DrawOTag` were), `DrawPrim`. The
-  lint rule `ordering_table` (`ps1_address_lint.py`, baseline 0) fails on the SDK's names and the libgpu link macros in game or engine code;
-  `raw_tripwire` (boot_runtime.c) logs a packet still linked into a table and `run.py` and `build_compare.py` fail on it.
-- `pc/src/boot_runtime.c`: `pc_draw_packet`, `next_packet` (OT links; the 4-byte-pointer branch is dead on
-  64-bit), the marker checks (`render_is_marker`, `render_translucent_marker`).
+- `pc/src/boot_sdk.c`: `pc_frame_table_clear` (what `ClearOTag` and `ClearOTagR` were: registers the table and leaves it empty, no link words) and
+  `pc_frame_table_draw` (`DrawOTag`), `DrawPrim`. The lint rule `ordering_table` (`ps1_address_lint.py`, baseline 0) fails on the SDK's names and the
+  libgpu link macros in game or engine code. The tripwire is `pc_frame_table_check` (`draw_items.c`, called where a table is drawn): a link in a slot of a
+  table, or on a marker, is a packet written into it by hand; it logs `[ot] a raw packet is linked in a table` and `run.py` and `build_compare.py` fail
+  on it.
+- `pc/src/draw_items.c`: `pc_frame_table_order` (the runs placed in a table, in the order their slots give), `pc_frame_place`.
+- `pc/src/boot_runtime.c`: `adopt` (the frame of a table drawn is its runs' marker packets, in that order), `pc_draw_packet`, the marker checks
+  (`render_is_marker`, `render_translucent_marker`).
 - `pc/src/render.c`: `pc_native_room = 2`, `pc_native_actors = 2`, `pc_native_blend`, `pc_native_objects`,
   `pc_native_shadows`, `pc_native_effects` (all on); `pc_reconstruct = 0`.
 - `pc/src/gpu_hw.c`: `pc_hw_begin_ot`, `pc_hw_native_marker`, `pc_hw_effect_packets`.

@@ -38,18 +38,15 @@ from PIL import Image
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, RpcError, symbols  # noqa: E402
+from rood_rpc import OUT, RpcError  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from weapon_slots_smoke import default_card  # noqa: E402
 
 CLOSED = 0x3F
 MENU0 = 0x41       # currentMenu while the original Magic screen runs from the top level
 TARGETING = 2      # D_800F196C while a spell's target is chosen
-PTR = 8 if os.environ.get("ROOD_ARCH") == "64" else 4  # host pointers (vs_battle_menuItems, characterState)
 
-ACTION, ACTION_COST, ACTION_UNLOCKED = 52, 3, 13  # vs_action_t
-MENU_FLAGS = 2                 # vs_main_settings.menuFlags (bit 0: the Magic command)
-MP, MP_MAX = 0x1C, 0x1E        # vs_battle_actor2 currentMP / maxMP
+ACTOR2 = "vs_battle_characterState->stats"  # the character's stats record (vs_battle_actor2: currentMP, maxMP)
 EXPLOSION = 106                # LV1; LV2..LV4 are 107..109
 MAGIC_ITEM, WARLOCK_ITEM, SPELL_ITEM = 0, 10, 20  # MENU0's menu item ids
 LEVEL_MEMORY = 12              # cursorMemories[12] the picker's level, [13] how many
@@ -63,55 +60,41 @@ class Session:
     def __init__(self, out, card, env, shots):
         self.out, self.shots = out, shots
         self.g = launch_at("save_room", card=card, fast=True, log=out / "game.log", extra_env=env)
-        self.sym = symbols()
 
     def close(self):
         self.g.close()
 
-    def ptr(self, address):
-        return int.from_bytes(self.g.read(address, PTR), "little")
-
     def menu(self):
-        return self.g.read(self.sym["vs_battle_menuState"], 1)[0]
-
-    def action_byte(self, i, offset):
-        return self.sym["vs_main_actions"] + i * ACTION + offset
+        return self.g.value("vs_battle_menuState.currentMenu")
 
     def learned(self, i):
-        return bool(self.g.read(self.action_byte(i, ACTION_UNLOCKED), 1)[0] & 0x80)
+        return bool(self.g.value(f"vs_main_actions[{i}].unlocked"))
 
     def set_learned(self, i, on):
-        a = self.action_byte(i, ACTION_UNLOCKED)
-        v = self.g.read(a, 1)[0]
-        self.g.write(a, bytes([(v | 0x80) if on else (v & 0x7F)]))
+        self.g.store(f"vs_main_actions[{i}].unlocked", int(on))
 
     def cost(self, i):
-        return s8(self.g.read(self.action_byte(i, ACTION_COST), 1)[0])
-
-    def actor2(self):
-        actor = self.ptr(self.sym["vs_battle_characterState"])
-        return self.g.actor_stats(actor)
+        return s8(self.g.value(f"vs_main_actions[{i}].cost"))
 
     def mp(self):
-        return struct.unpack("<h", self.g.read(self.actor2() + MP, 2))[0]
+        return self.g.value(ACTOR2 + ".currentMP")
 
     def fill_mp(self, need):
-        a = self.actor2()
-        mp, mp_max = struct.unpack("<hh", self.g.read(a + MP, 4))
+        mp_max = self.g.value(ACTOR2 + ".maxMP")
         top = max(mp_max, need)
-        self.g.write(a + MP, struct.pack("<hh", top, top))
+        self.g.store_data(ACTOR2 + ".currentMP", struct.pack("<hh", top, top))
         self.g.run(2)
 
     def levels(self):
-        cm = self.g.read(self.sym["vs_menu_frameworkMenuMemory"], 52)
+        cm = self.g.data("vs_menu_frameworkMenuMemory", 52)
         return cm[LEVEL_MEMORY], cm[LEVEL_MEMORY + 1]
 
     def targeting(self):
-        return self.g.read(self.sym["D_800F196C"], 1)[0] == TARGETING
+        return self.g.data("D_800F196C", 1)[0] == TARGETING
 
     def exec_fields(self):
-        e = self.g.read(self.sym["vs_menu_frameworkActionSelection"], 8)
-        ms = self.g.read(self.sym["vs_battle_menuState"], 3)
+        e = self.g.data("vs_menu_frameworkActionSelection", 8)
+        ms = self.g.data("vs_battle_menuState", 3)
         unk2, ability = struct.unpack("<hi", e[2:8])
         return unk2, ability, ms[2], ms[1]
 
@@ -125,12 +108,10 @@ class Session:
         raise TimeoutError(f"{what}: not after {limit} vsyncs (currentMenu {self.menu():#x})")
 
     def menu_items(self):
-        p = self.ptr(self.sym["vs_battle_menuItems"])
-        if not p:
+        if not self.g.value("vs_battle_menuItems"):
             return {}
-        size = self.g.layout("menuItem_size", 64)
-        raw = self.g.read(p, size * 40)
-        return {i: (raw[i * size], raw[i * size + 6]) for i in range(40) if raw[i * size]}
+        rows = self.g.table("vs_battle_menuItems[0]", 40, "state", "selected")
+        return {i: (row["state"], row["selected"]) for i, row in enumerate(rows) if row["state"]}
 
     def wait_ready(self, want, limit=400):
         calm = 0
@@ -278,12 +259,11 @@ def main():
         if (state["zone"], state["room"]) != (9, 17):
             print(f"FAIL: not in the save room after Continue: {state}")
             return 1
-        f = s.sym["vs_main_settings"] + MENU_FLAGS
-        g.write(f, struct.pack("<H", struct.unpack("<H", g.read(f, 2))[0] | 1))
+        g.store("vs_main_settings.menuFlags", g.value("vs_main_settings.menuFlags") | 1)  # (bit 0: the Magic command)
         for level in range(4):
             s.set_learned(EXPLOSION + level, level < 2)
         g.run(2)
-        spells = [i for i in g.read(s.sym["vs_battle_warlockSpellIds"], 18) if s.learned(i)]
+        spells = [i for i in g.data("vs_battle_warlockSpellIds", 18) if s.learned(i)]
         for level in (0, 1):
             cast(s, check, level, spells)
         log = (out / "game.log").read_text(errors="replace")

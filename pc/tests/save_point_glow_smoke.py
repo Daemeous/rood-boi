@@ -108,13 +108,12 @@ def main():
             check(False, f"Continue leads to the save room (zone {state['zone']} room {state['room']})")
             return 1
         game.call("graphics", widescreen=True)
-        actor = struct.unpack("<I", game.read_symbol("vs_actors_actorRecords", 4))[0]  # Ashley's record (dev_state.c)
 
         axis = list(AXIS)
 
         def place(dx, dz):
             """Ashley at the axis + (dx, dz): his position (SVECTOR at 0x1C)."""
-            game.write(actor + 0x1C, struct.pack("<hhh", int(axis[0] + dx), 0, int(axis[1] + dz)))
+            game.store_data("vs_actors_actorRecords[0]->unk0.position", struct.pack("<hhh", int(axis[0] + dx), 0, int(axis[1] + dz)))  # (Ashley's record)
 
         def frame_shadow(name, dx, dz, tag):
             """What the player sees: the presented frame with glow shadows on

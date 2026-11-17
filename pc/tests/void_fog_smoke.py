@@ -73,7 +73,7 @@ from PIL import Image
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from editor_cutaway_smoke import default_card  # noqa: E402
 from facing_cutaway_smoke import kept  # noqa: E402
@@ -82,7 +82,7 @@ import lighting_format as lf  # noqa: E402
 ROOM = (48, 0)
 SPOT = (972, 0, 1221)  # the report's spot (world x, y, z; y down)
 CELL = [7, 0, 9, 0]  # its 128-unit floor cell (x, level, z, facing): room_goto's made-up door
-YAW = symbols()["vs_view"] + 0x48  # vs_view: camera.angles.vy
+YAW = "vs_view.camera.angles.vy"
 LUMA = np.array([0.299, 0.587, 0.114], np.float32)
 GLOW_FOG = {"density": 0.01, "height": 48, "offset": 0, "noise": 0, "color": [0, 0, 0], "fill": [0.6, 0.6, 0.6],
             "sky": 0}  # emits, scatters nothing: it glows wherever it is
@@ -147,7 +147,7 @@ def main():
                      socket_path=socket)
 
     def yaw():
-        return struct.unpack("<I", game.read(YAW, 4))[0] & 0xFFF
+        return struct.unpack("<I", game.data(YAW, 4))[0] & 0xFFF
 
     def turn():
         """R1: the game camera turns 45 degrees; wait until it holds still."""

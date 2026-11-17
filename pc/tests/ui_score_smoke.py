@@ -57,13 +57,12 @@ import os
 import pathlib
 import shutil
 import struct
-import subprocess
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, BUILD, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from card_fixtures import (card_guard, score_fixture, sha256, SCOREDATA, SCOREDATA_SIZE,  # noqa: E402
                            TRIAL_NONE)
@@ -84,33 +83,9 @@ ACTION_SIZE = 52  # sizeof(vs_action_t) (main.h: unk10 at 0x10, name[24] at 28);
 SOUND_IDS = (4, 5, 6, 7)
 
 
-def symbol_table():
-    """The probe's symbol table (ROOD_OBJDUMP, else objdump): (address, size, section, name) per symbol (the
-    game's globals are absolute, sizeless; the overlays' statics carry their sizes)."""
-    out = subprocess.run([os.environ.get("ROOD_OBJDUMP", "objdump"), "-t", str(BUILD / "rood_battle_probe")],
-                         capture_output=True, text=True).stdout
-    rows = []
-    for line in out.splitlines():
-        parts = line.split()
-        if len(parts) >= 6:
-            try:
-                rows.append((int(parts[0], 16), int(parts[-2], 16), parts[-3], parts[-1]))
-            except ValueError:
-                pass
-    return rows
-
-
-def menu9_symbols(rows):
-    """MENU9's statics: each name must resolve to exactly one (address, size) in MENU9's own sections
-    (ENDING's same-named statics, and MENUF's, live in theirs)."""
-    found = {}
-    for addr, size, section, name in rows:
-        if name in MENU9_STATICS and section.startswith(MENU9_SECTION):
-            found.setdefault(name, []).append((addr, size))
-    bad = [n for n in MENU9_STATICS if len(found.get(n, [])) != 1]
-    if bad:
-        raise RuntimeError(f"MENU9 statics not resolved to one address: {bad} ({found})")
-    return {n: a[0] for n, a in found.items()}
+def menu9_names():
+    """MENU9's statics by name: <overlay>:<name> (ENDING's and MENUF's same-named statics live in their own)."""
+    return {n: f"{MENU9_SECTION}:{n}" for n in MENU9_STATICS}
 
 
 # ---- the game's rules, ported here as the reference (238.c) ----
@@ -210,12 +185,8 @@ class Session:
         self.game.call("graphics", interpolate=False)
         self.game.call("ui_menu", modern=modern)
         self.modern = modern
-        s = symbols()
-        self.sym = s
-        self.table = symbol_table()
-        m9 = menu9_symbols(self.table)
-        self.m9 = {n: a for n, (a, _) in m9.items()}
-        self.m9_size = {n: z for n, (_, z) in m9.items()}
+        self.m9 = menu9_names()
+        self.m9_size = {n: self.game.field(path, length=0).size for n, path in self.m9.items()}
 
     def close(self):
         self.game.close()
@@ -228,13 +199,13 @@ class Session:
         return (self.shell().get("system") or {}).get("score")
 
     def rd(self, name, n):
-        return self.game.read(self.sym[name], n)
+        return self.game.data(name, n)
 
-    def u8(self, name, off=0):
-        return self.game.read(self.sym[name] + off, 1)[0]
+    def u8(self, name):
+        return self.game.data(name, 1)[0]
 
-    def i32(self, addr):
-        return struct.unpack("<i", self.game.read(addr, 4))[0]
+    def i32(self, name):
+        return struct.unpack("<i", self.game.data(name, 4))[0]
 
     def current_menu(self):
         return self.u8("vs_battle_menuState")
@@ -244,50 +215,50 @@ class Session:
 
     def statics(self):
         g = self.game
-        return {"score": struct.unpack("<I", g.read(self.m9["_score"], 4))[0],
-                "rank": struct.unpack("<H", g.read(self.m9["_characterRank"], 2))[0],
-                "clears": struct.unpack("<H", g.read(self.m9["_clearCount"], 2))[0],
-                "chests": struct.unpack("<H", g.read(self.m9["_openedChestCount"], 2))[0],
-                "map": struct.unpack("<H", g.read(self.m9["_mapCompletion"], 2))[0]}
+        return {"score": struct.unpack("<I", g.data(self.m9["_score"], 4))[0],
+                "rank": struct.unpack("<H", g.data(self.m9["_characterRank"], 2))[0],
+                "clears": struct.unpack("<H", g.data(self.m9["_clearCount"], 2))[0],
+                "chests": struct.unpack("<H", g.data(self.m9["_openedChestCount"], 2))[0],
+                "map": struct.unpack("<H", g.data(self.m9["_mapCompletion"], 2))[0]}
 
     def played(self):
         r = self.game.call("sfx")
         return [r["menu"][k] for k in SOUND_IDS]
 
     def dump(self):
-        g, s = self.game, self.sym
+        g = self.game
         return {
-            "scoredata": g.read(s["vs_main_scoredata"], SCOREDATA_SIZE),
-            "roomFlags": g.read(s["vs_main_mapStatus"], 64),
-            "menu9": g.read(s["vs_battle_menu9CursorMemory"], 8),
-            "cm23": g.read(s["vs_menu_frameworkMenuMemory"] + 2, 2),
-            "cursorMemory": g.read(s["vs_main_settings"] + 1, 1),
+            "scoredata": g.data("vs_main_scoredata", SCOREDATA_SIZE),
+            "roomFlags": g.data("vs_main_mapStatus", 64),
+            "menu9": g.data("vs_battle_menu9CursorMemory", 8),
+            "cm23": g.data("vs_menu_frameworkMenuMemory.cursorMemories[2]", 2),
+            "cursorMemory": g.data("vs_main_settings.cursorMemory", 1),
             "played": self.played(),
         }
 
     def close_dump(self):
-        g, s = self.game, self.sym
+        g = self.game
         d = self.dump()
-        d.update({"world": g.read(s["vs_field_isFieldRenderingEnabled"], 4), "hud": g.read(s["vs_battle_hudSlideOffset"], 4),
-                  "menu": g.read(s["vs_battle_menuState"], 1)})
+        d.update({"world": g.data("vs_field_isFieldRenderingEnabled", 4), "hud": g.data("vs_battle_hudSlideOffset", 4),
+                  "menu": g.data("vs_battle_menuState", 1)})
         return d
 
     # ---- the fixture ----
     def fixture(self, kind, cursor_memory=1, seed=None, room_bit=False, kill_flags=None):
-        g, s = self.game, self.sym
-        flags = struct.unpack("<H", g.read(s["vs_main_settings"] + 2, 2))[0]
-        g.write(s["vs_main_settings"] + 2, struct.pack("<H", flags | 1 << SCORE_COMMAND))
-        g.write(s["vs_main_settings"] + 1, bytes([cursor_memory]))
+        g = self.game
+        flags = struct.unpack("<H", g.data("vs_main_settings.menuFlags", 2))[0]
+        g.store("vs_main_settings.menuFlags", flags | 1 << SCORE_COMMAND)
+        g.store("vs_main_settings.cursorMemory", cursor_memory)
         f = score_fixture(kind, kill_flags)
         for off, data in f["scoredata"].items():
-            g.write(s["vs_main_scoredata"] + off, data)
+            g.store_data("vs_main_scoredata", data, offset=off)
         for off, data in f["state"].items():
-            g.write(s["vs_main_stateFlags"] + off, data)
+            g.store_data("vs_main_stateFlags", data, offset=off)
         if seed is not None:
-            g.write(s["vs_battle_menu9CursorMemory"], bytes(seed))
+            g.store_data("vs_battle_menu9CursorMemory", bytes(seed))
         if room_bit:
-            r1 = struct.unpack("<I", g.read(s["vs_main_mapStatus"] + 4, 4))[0]
-            g.write(s["vs_main_mapStatus"] + 4, struct.pack("<I", (r1 | 0x800000) & ~0x400000))
+            r1 = struct.unpack("<I", g.data("vs_main_mapStatus.roomFlags[1]", 4))[0]
+            g.store_data("vs_main_mapStatus.roomFlags[1]", struct.pack("<I", (r1 | 0x800000) & ~0x400000))
 
     # ---- waits ----
     def wait(self, pred, limit=600, step=2):
@@ -309,8 +280,8 @@ class Session:
         return ok
 
     def wait_top_level(self):
-        return self.wait(lambda: self.current_menu() == 0 and self.i32(self.sym["D_800F4CC0"]) >= 0
-                         and self.game.read(self.sym["vs_battle_menuItems"], 4) != b"\0\0\0\0")
+        return self.wait(lambda: self.current_menu() == 0 and self.i32("D_800F4CC0") >= 0
+                         and self.game.data("vs_battle_menuItems", 4) != b"\0\0\0\0")
 
     def wait_page(self, mode):
         """A's MENU9 in `mode` ("top" or a section) taking input; B's screen there."""
@@ -341,7 +312,7 @@ class Session:
         g.press("triangle", vsyncs=3, settle=10)
         self.wait_top_level()
         for _ in range(12):
-            if self.u8("vs_battle_submenuStates") == SCORE_COMMAND:
+            if self.u8("vs_battle_submenuStates[0]") == SCORE_COMMAND:
                 break
             g.press("up", vsyncs=3, settle=6)
         g.press("circle", vsyncs=3, settle=4)
@@ -411,7 +382,7 @@ def story(s, check, dumps):
         d["json"] = (sc["score"], sc["rank"])
     d["statics"] = s.statics()
     dumps.append((f"open{n}", d))
-    row = s.game.read(s.sym["vs_menu_frameworkMenuMemory"] + 2, 1)[0]
+    row = s.game.value("vs_menu_frameworkMenuMemory.cursorMemories[2]")
     for _ in range((3 - row) & 3):
         s.step("down", None)
     s.game.run(6)
@@ -436,10 +407,10 @@ def story(s, check, dumps):
 def bestiary_unlocked(b, check):
     """B: Circle on an unlocked foe: the hint only. Nothing delivered to MENU9 (currentMenu, MENU9's state),
     no ZUD load (the CD queue and the heap's head unchanged), the cursor memory unchanged."""
-    g, s = b.game, b.sym
+    g = b.game
     b.fixture("fresh", 1, [0] * 8, kill_flags=[-1] * 26)
     b.open()
-    row = g.read(s["vs_menu_frameworkMenuMemory"] + 2, 1)[0]
+    row = g.value("vs_menu_frameworkMenuMemory.cursorMemories[2]")
     for _ in range((3 - row) & 3):
         b.step("down", None)
     g.run(6)
@@ -448,7 +419,7 @@ def bestiary_unlocked(b, check):
     unlocked = sc["mon_ok"] and sc["text"]["bestiary"][sc["focus"]]["unlocked"]
 
     def state():  # a ZUD load allocates from heapA: its head block unchanged
-        return (g.read(s["heapA"], 64), b.current_menu(), b.menu_state(), b.rd("vs_battle_menu9CursorMemory", 8),
+        return (g.data("heapA", 24), b.current_menu(), b.menu_state(), b.rd("vs_battle_menu9CursorMemory", 8),
                 b.played())
     before = state()
     b.step("circle", None)
@@ -465,7 +436,7 @@ def bestiary_unlocked(b, check):
 def moves(s, check, dumps, n):
     """From the top: Down, Circle (a section), Down x3, Up, Up x8, Up (the wrap on a press at the top), Cross;
     Down, Circle, Down x9, Cross; Down, Circle, Down x2, Cross (each section's own rules)."""
-    row = s.game.read(s.sym["vs_menu_frameworkMenuMemory"] + 2, 1)[0]  # _setRows' at the open (the list keeps its own after)
+    row = s.game.value("vs_menu_frameworkMenuMemory.cursorMemories[2]")  # _setRows' at the open (the list keeps its own after)
     for k, downs in enumerate((3, 9, 2)):
         s.step("down", None)
         row = (row + 1) & 3
@@ -515,9 +486,9 @@ def sweep(b, check):
     """Each case from the fresh fixture (every modelled stateFlags field zero): the score and rank against this
     file's ports, the titles (JSON titles_mask, scoredata.titles, _setTitleFlags' port) and each boundary's
     title bit or rank, on both sides of it."""
-    g, s = b.game, b.sym
+    g = b.game
     stride = ACTION_SIZE
-    mask = struct.unpack("<16I", g.read(s["vs_battle_mapCompletionFlags"], 64))
+    mask = struct.unpack("<16I", g.data("vs_battle_mapCompletionFlags", 64))
     cases = []  # (name, scoredata writes, stateFlags writes, [(title bit, on)], rank or None)
     for chain in (5, 6, 10, 11, 15, 16, 20, 21, 25, 26, 29, 30, 31, 50, 51):
         cases.append((f"chain {chain}", {SCOREDATA["max_chain"]: struct.pack("<H", chain)}, {},
@@ -551,9 +522,9 @@ def sweep(b, check):
     for name, sd, st, bits, rank in cases:
         b.fixture("fresh", 1)
         for off, data in sd.items():
-            g.write(s["vs_main_scoredata"] + off, data)
+            g.store_data("vs_main_scoredata", data, offset=off)
         for off, data in st.items():
-            g.write(s["vs_main_stateFlags"] + off, data)
+            g.store_data("vs_main_stateFlags", data, offset=off)
         before = b.rd("vs_main_scoredata", SCOREDATA_SIZE)
         state = b.rd("vs_main_stateFlags", STATE_CHESTS + 64)
         actions = b.rd("vs_main_actions", 256 * stride)
@@ -597,7 +568,7 @@ def sweep(b, check):
             for i in (missing, 40):
                 acts[i * stride + 13] &= 0x7F
         b.fixture("fresh", 1)
-        g.write(s["vs_main_actions"], bytes(acts))
+        g.store_data("vs_main_actions", bytes(acts))
         before = b.rd("vs_main_scoredata", SCOREDATA_SIZE)
         state = b.rd("vs_main_stateFlags", STATE_CHESTS + 64)
         b.open()
@@ -609,10 +580,10 @@ def sweep(b, check):
               f"sweep abilities {'all' if on else 'one missing'}: titles {titles:#010x} = port {ref:#010x}")
         b.step("triangle", None)
         b.wait_closed()
-        g.write(s["vs_main_actions"], saved)
+        g.store_data("vs_main_actions", saved)
     # the high-water marks: a stored value above the live one stays (fresh: no chest opened)
     b.fixture("fresh", 1)
-    g.write(s["vs_main_scoredata"] + SCOREDATA["map"], struct.pack("<II", 300, 50))
+    g.store_data("vs_main_scoredata.mapCompletion", struct.pack("<II", 300, 50))
     b.open()
     after = b.rd("vs_main_scoredata", SCOREDATA_SIZE)
     sc = b.score()
@@ -653,7 +624,7 @@ def text_checks(b, check):
     sizes = b.m9_size
 
     def table(name, n):
-        return table_strings(g.read(m9[name], sizes[name]), n)
+        return table_strings(g.data(m9[name], sizes[name]), n)
     menu = table("_menuText", 4)
     check(t["sections"] == menu, f"text: the sections' names = MENU9's menuText ({t['sections']})")
     titles, descs = table("_titleText", 32), table("_titleDescriptions", 32)
@@ -711,12 +682,12 @@ def mon_original(a, check):
     """A: the Encyclopaedia open (state 14): MENU9's _monBinData read whole."""
     a.fixture("midgame", 1)
     a.open()
-    row = a.game.read(a.sym["vs_menu_frameworkMenuMemory"] + 2, 1)[0]
+    row = a.game.value("vs_menu_frameworkMenuMemory.cursorMemories[2]")
     for _ in range((3 - row) & 3):
         a.step("down", None)
     a.step("circle", "bestiary")
-    p = int.from_bytes(a.game.read(a.m9["_monBinData"], PTR), "little")
-    data = a.game.read(p, 14336) if p else b""
+    p = a.game.value(a.m9["_monBinData"])
+    data = a.game.data(a.m9["_monBinData"] + "[0]", 14336) if p else b""
     a.step("triangle", None)
     a.wait_closed()
     check(len(data) == 14336, f"mon: A's _monBinData read ({p:#x})")
@@ -745,7 +716,7 @@ def mon_compare(data, sc, check):
 
 # ---- 7: the pointer (C) ----
 def mouse(c, check, wide):
-    g, s = c.game, c.sym
+    g = c.game
     tag = "16:9" if wide else "4:3"
     g.call("graphics", widescreen=wide)
     g.run(10)
@@ -861,7 +832,7 @@ def robustness(b, check):
     b.fixture("midgame", 1)
     b.open()
     frozen = struct.unpack("<i", b.rd("vs_field_isFieldRenderingEnabled", 4))[0]
-    b.game.write(b.sym["vs_battle_menuState"], bytes([CLOSED]))
+    b.game.store("vs_battle_menuState.currentMenu", CLOSED)
     b.game.run(8)
     world = struct.unpack("<i", b.rd("vs_field_isFieldRenderingEnabled", 4))[0]
     check(frozen == 0 and (b.score() is None) and world == 1,

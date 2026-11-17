@@ -81,7 +81,7 @@ import tempfile
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, BUILD, symbols  # noqa: E402
+from rood_rpc import OUT, BUILD  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from card_fixtures import card_guard, default_save  # noqa: E402
 from menu_nav import MAP_COMMAND, top_command  # noqa: E402
@@ -89,8 +89,6 @@ from menu_nav import MAP_COMMAND, top_command  # noqa: E402
 CLOSED = 0x3F
 MAP_MENU = 6 | 0x40
 PTR = 8 if os.environ.get("ROOD_ARCH") == "64" else 4
-CAMERA, CAMERA_BYTES = symbols()["vs_view"] + 4, 0x54  # vs_view: the view matrix and the camera
-MAP_PALING = 0x135  # offsetof(vs_main_flags_t, mapPaling)
 AREAS = list(range(1, 14))  # the fixture's visited areas (13 > the list's 9 rows)
 TARGET_ROW = 4  # the parity story's area: four rows below the current one
 VRAM_STRIDE = 2048
@@ -109,19 +107,8 @@ MASKS = []
 
 
 def menu5_symbols():
-    """MENU5's statics: each name must resolve to one address in its overlay."""
-    image = BUILD / "rood_battle_probe"
-    out = subprocess.run([os.environ.get("ROOD_OBJDUMP", "objdump"), "-t", str(image)], capture_output=True,
-                         text=True).stdout
-    found = {}
-    for line in out.splitlines():
-        parts = line.split()
-        if len(parts) >= 6 and parts[-1] in MENU5_STATICS and parts[-3].startswith(MENU5_SECTION):
-            found.setdefault(parts[-1], []).append(int(parts[0], 16))
-    bad = [n for n in MENU5_STATICS if len(found.get(n, [])) != 1]
-    if bad:
-        raise RuntimeError(f"MENU5 statics not resolved to one address: {bad} ({found})")
-    return {n: a[0] for n, a in found.items()}
+    """MENU5's statics by name (<overlay>:<name>: other overlays have statics of the same name)."""
+    return {n: f"{MENU5_SECTION}:{n}" for n in MENU5_STATICS}
 
 
 def ground_like(px, ground):
@@ -133,14 +120,6 @@ class Session:
         self.name, self.out, self.shots = name, out, shots
         self.game = launch_at("save_room", card=card, fast=True, log=out / f"{name}.log", extra_env=env)
         self.game.call("graphics", interpolate=False)
-        sym = symbols()
-        self.sym = sym
-        self.ms = sym["vs_main_mapStatus"]
-        self.cf = sym["vs_battle_mapCompletionFlags"]
-        self.flags = sym["vs_main_stateFlags"]
-        self.menu_state = sym["vs_battle_menuState"]
-        self.hud = sym["vs_battle_hudHidden"]
-        self.vram = sym["vram"]
         self.m5 = menu5_symbols()
 
     def close(self):
@@ -154,15 +133,15 @@ class Session:
         return self.shell().get("map")
 
     def current_menu(self):
-        return self.game.read(self.menu_state, 1)[0]
+        return self.game.value("vs_battle_menuState.currentMenu")
 
     def menu5(self):
         """MENU5's own statics, as the frame's model names them."""
         g, m5 = self.game, self.m5
 
         def i32(name):
-            return struct.unpack("<i", g.read(m5[name], 4))[0]
-        vx, vy, _vz = struct.unpack("<3h", g.read(m5["_cameraAngles"], 6))
+            return struct.unpack("<i", g.data(m5[name], 4))[0]
+        vx, vy, _vz = struct.unpack("<3h", g.data(m5["_cameraAngles"], 6))
         return {"scene": i32("_currentScene"), "room": i32("_currentRoomIndex"), "yaw": vy, "pitch": vx,
                 "distance": i32("_cameraDistance"), "geom": [i32("_geomOffsetX"), i32("_geomOffsetY")],
                 "menu_state": i32("_menuState")}
@@ -179,29 +158,29 @@ class Session:
     def align(self):
         """Just after a map frame (it runs every second vsync): pad holds
         then cover the same frames in every process."""
-        n = self.game.read(self.m5["_menuFramesCounter"], 4)
+        n = self.game.data(self.m5["_menuFramesCounter"], 4)
         for _ in range(4):
             self.game.run(1)
-            if self.game.read(self.m5["_menuFramesCounter"], 4) != n:
+            if self.game.data(self.m5["_menuFramesCounter"], 4) != n:
                 return
 
     def controls(self):
         return self.shell().get("map_controls")
 
     def scene_buffer(self):
-        return int.from_bytes(self.game.read(self.sym["vs_battle_sceneBuffer"], PTR), "little")
+        return int.from_bytes(self.game.data("vs_battle_sceneBuffer", PTR), "little")
 
     def room_flags(self):
-        return self.game.read(self.ms, 64)
+        return self.game.data("vs_main_mapStatus", 64)
 
     def area_flags(self):
-        return struct.unpack("<2I", self.game.read(self.ms + 64, 8))
+        return struct.unpack("<2I", self.game.data("vs_main_mapStatus.areaFlags[0]", 8))
 
     def vram_rows(self, y0, y1, x0, x1):
         g, out = self.game, b""
         for y in range(y0, y1, 16):
             n = min(16, y1 - y)
-            raw = g.read(self.vram + y * VRAM_STRIDE, n * VRAM_STRIDE)
+            raw = g.data("vram", n * VRAM_STRIDE, offset=y * VRAM_STRIDE)
             for k in range(n):
                 out += raw[k * VRAM_STRIDE + x0 * 2:k * VRAM_STRIDE + x1 * 2]
         return out
@@ -209,15 +188,15 @@ class Session:
     def dump(self):
         g = self.game
         return {
-            "mapStatus": g.read(self.ms, 72),
-            "mapPaling": g.read(self.flags + MAP_PALING, 32),
-            "cursorMemories": g.read(self.sym["vs_menu_frameworkMenuMemory"], 52),
-            "settings": g.read(self.sym["vs_main_settings"], 32),
-            "menuState": g.read(self.menu_state, 4),
-            "hud": g.read(self.hud, 1) + g.read(self.sym["vs_battle_hudSlideOffset"], 4),
-            "sceneBuffer": g.read(self.sym["vs_battle_sceneBuffer"], PTR),
-            "camera": g.read(CAMERA, CAMERA_BYTES),
-            "projection": g.read(self.sym["vs_main_projectionDistance"], 4),
+            "mapStatus": g.data("vs_main_mapStatus", 72),
+            "mapPaling": g.data("vs_main_stateFlags.mapPaling", 32),
+            "cursorMemories": g.data("vs_menu_frameworkMenuMemory", 52),
+            "settings": g.data("vs_main_settings", 32),
+            "menuState": g.data("vs_battle_menuState", 4),
+            "hud": g.data("vs_battle_hudHidden", 1) + g.data("vs_battle_hudSlideOffset", 4),
+            "sceneBuffer": g.data("vs_battle_sceneBuffer", PTR),
+            "camera": g.data("vs_view.viewMatrix", 0x54),  # (the view matrix and the camera)
+            "projection": g.data("vs_main_projectionDistance", 4),
             "vram_bg": self.vram_rows(256, 496, 640, 800),
             "vram_clut": self.vram_rows(227, 228, 768, 1024),
         }
@@ -245,12 +224,12 @@ class Session:
         g = self.game
         print(f"{self.name}: card areaFlags {self.area_flags()[0]:#x}, roomFlags {self.room_flags().hex()}")
         rf = struct.unpack("<16I", self.room_flags())
-        cf = struct.unpack("<16I", g.read(self.cf, 64))
-        g.write(self.ms, struct.pack("<16I", *[a | b for a, b in zip(rf, cf)]))
+        cf = struct.unpack("<16I", g.data("vs_battle_mapCompletionFlags", 64))
+        g.store_data("vs_main_mapStatus", struct.pack("<16I", *[a | b for a, b in zip(rf, cf)]))
         area = self.area_flags()[0]
         for i in AREAS:
             area |= 1 << i
-        g.write(self.ms + 64, struct.pack("<I", area))
+        g.store("vs_main_mapStatus.areaFlags[0]", area)
 
     # ---- waits ----
     def wait_map(self, pred, limit=600, step=2):
@@ -410,7 +389,7 @@ def rooms_and_turn(s):
 def story_original(a, check, dumps, views):
     g = a.game
     g.press("triangle", vsyncs=3, settle=40)
-    top_command(g, symbols(), MAP_COMMAND)  # by the game's cursor (fast travel's Magic on a Circle)
+    top_command(g, MAP_COMMAND)  # by the game's cursor (fast travel's Magic on a Circle)
     g.press("circle", vsyncs=3, settle=150)
     check(a.current_menu() == MAP_MENU, f"off: Triangle, Down to Map, Circle opens the game's map ({a.current_menu():#x})")
     check(a.map() is None, "off: no frame (map null)")
@@ -534,7 +513,7 @@ def controls_checks(s, check, framed, opened=False):
     deadzone = g.call("camera_stick").get("deadzone", 0.15)
 
     def cmd_state():
-        return struct.unpack("<h", g.read(s.m5["_menuCommandsState"], 2))[0]
+        return struct.unpack("<h", g.data(s.m5["_menuCommandsState"], 2))[0]
 
     def reset():
         g.hold(["start"], 2)
@@ -644,7 +623,7 @@ def frame_checks(b, check, ground):
     heap_before = b.shell().get("map_heap_free")
     check(heap_before is not None, f"closed: map_heap_free published ({heap_before})")
     vram_before = (b.vram_rows(256, 496, 640, 800), b.vram_rows(227, 228, 768, 1024))
-    hud_before = g.read(b.hud, 1)[0]
+    hud_before = g.data("vs_battle_hudHidden", 1)[0]
     s = b.shell()
     check(s.get("map") is None, "closed: map null")
 
@@ -655,7 +634,7 @@ def frame_checks(b, check, ground):
     current = [a["id"] for a in m["areas"] if a["current"]]
     check(current == [m["scene"]] and m["current_scene"] == m["scene"],
           f"open: the current area is the scene ({current}, scene {m['scene']})")
-    want = completion(b.room_flags(), g.read(b.cf, 64))
+    want = completion(b.room_flags(), g.data("vs_battle_mapCompletionFlags", 64))
     check(m["completion"] == want, f"open: completion {m['completion']}% = the game's formula ({want}%)")
     check(b.room_flags() == flags_before, "open: roomFlags unchanged by the frame's completion")
     image = b.image("open")
@@ -756,7 +735,7 @@ def frame_checks(b, check, ground):
         windows = windows and 0 <= c[0] < 9 and 0 <= c[1] <= max(0, n - 9)
     check(len(seen) == n and windows, f"list: Down walks every row in a 9-row window ({sorted(seen)}, {windows})")
     g.press("cross", vsyncs=3, settle=6)
-    cm = g.read(b.sym["vs_menu_frameworkMenuMemory"], 2)
+    cm = g.data("vs_menu_frameworkMenuMemory", 2)
     c = b.map()["cursor"]
     check(list(cm) == c, f"list: Cross leaves the cursor memories as the window ({list(cm)} vs {c})")
     g.press("circle", vsyncs=3, settle=40)
@@ -848,8 +827,8 @@ def frame_checks(b, check, ground):
 
     # paling
     pal = next(a["id"] for a in b.map()["areas"] if a["id"] not in (b.map()["scene"],))
-    old_pal = g.read(b.flags + MAP_PALING + pal, 1)
-    g.write(b.flags + MAP_PALING + pal, b"\x01")
+    old_pal = g.data(f"vs_main_stateFlags.mapPaling[{pal}]", 1)
+    g.store(f"vs_main_stateFlags.mapPaling[{pal}]", 1)
     b.click("area", pal, run=3)
     m = b.wait_map(lambda m: m and m["scene"] == pal and m["state"] == "ready")
     jam = [a for a in m["areas"] if a["id"] == pal]
@@ -873,7 +852,7 @@ def frame_checks(b, check, ground):
     b.click("area", out_id, run=3)
     m = b.wait_map(lambda m: m and m["scene"] == out_id and m["state"] == "ready")
     check(m["scene"] == out_id and not m["paling"], f"paling: switching out works ({m['scene']})")
-    g.write(b.flags + MAP_PALING + pal, old_pal)
+    g.store_data(f"vs_main_stateFlags.mapPaling[{pal}]", old_pal)
 
     # close: Cross (shell on the Map row), Triangle (closed, everything back)
     g.press("cross", vsyncs=3, settle=4)
@@ -885,7 +864,7 @@ def frame_checks(b, check, ground):
     check(b.wait_closed(), "close: Triangle closes the menu")
     g.run(60)
     s = b.shell()
-    check(g.read(b.hud, 1)[0] == hud_before, f"close: the HUD flag is back ({g.read(b.hud, 1)[0]} vs {hud_before})")
+    check(g.data("vs_battle_hudHidden", 1)[0] == hud_before, f"close: the HUD flag is back ({g.data("vs_battle_hudHidden", 1)[0]} vs {hud_before})")
     check(b.scene_buffer() == 0, "close: vs_battle_sceneBuffer is NULL")
     check(s.get("map_heap_free") is not None and s.get("map_heap_free") == heap_before,
           f"close: the heap's largest free block as before ({s.get('map_heap_free')} vs {heap_before})")
@@ -948,13 +927,13 @@ def robustness(b, check):
     # mid-run, so this is the last case)
     if not b.map():
         b.open_shell_map()
-    g.write(b.menu_state, bytes([CLOSED]))
+    g.store("vs_battle_menuState.currentMenu", CLOSED)
     g.run(4)
     s = b.shell()
     check(s.get("map") is None, f"robust: a forced currentMenu write ends the frame ({s.get('map') and 'map'})")
     # written back, MENU5 runs on with its latch but no frame (as a save
     # state restored with the map open): its own controls help and list
-    g.write(b.menu_state, bytes([MAP_MENU]))
+    g.store("vs_battle_menuState.currentMenu", MAP_MENU)
     g.run(10)
     drawn = b.controls()
     g.run(20)

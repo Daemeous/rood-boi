@@ -59,7 +59,7 @@ import time
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, BINARY, Deadline, Game, RpcError, awake, listening, symbols  # noqa: E402
+from rood_rpc import OUT, BINARY, Deadline, Game, RpcError, awake, listening  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from card_fixtures import card_guard, default_save  # noqa: E402
 
@@ -448,12 +448,8 @@ def queries(g, check):
     # save_room loads the supplied card; it does not promise a sheathed weapon.
     # Independent oracle: vs_actors_actorRecords[0]->unk0.weaponDrawn (3A1A0.h, byte 0x0A bit 7),
     # not rood.game itself. The array is native pointers even in the LP64 build.
-    pointer = 8 if pathlib.Path(BINARY).read_bytes()[4] == 2 else 4
-    actor_slot = symbols()["vs_actors_actorRecords"]
-
     def weapon_drawn():
-        actor = int.from_bytes(g.read(actor_slot, pointer), "little")
-        return bool(g.read(actor + 0x0A, 1)[0] & 0x80)
+        return bool(g.value("vs_actors_actorRecords[0]->unk0.weaponDrawn"))
 
     def verify():
         st, battle = g.call("state"), weapon_drawn()

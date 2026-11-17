@@ -51,9 +51,9 @@ class Soak(smoke.Run):
         for slot in range(16):
             a2 = self.actor2(slot)
             if a2:
-                g.write(a2 + smoke.HP, g.read(a2 + smoke.HP + 2, 2))
-                g.write(a2 + smoke.MP, g.read(a2 + smoke.MP + 2, 2))
-        g.write(self.actor2(0) + smoke.MP, struct.pack("<hh", 999, 999))
+                g.store(a2 + ".currentHP", g.value(a2 + ".maxHP"))
+                g.store(a2 + ".currentMP", g.value(a2 + ".maxMP"))
+        g.store_data(self.actor2(0) + ".currentMP", struct.pack("<hh", 999, 999))
 
     def run_action(self, what):
         """From the focused row: Circle, then Circle on the target. Returns None when the game did not take
@@ -135,21 +135,20 @@ def main():
         g.close()
 
     r = Soak("soak", snap, card, env, out, socket, fast=True)
-    g, sym = r.g, r.sym
+    g = r.g
     ran, refused, results = [], [], []
     try:
         g.call("ui_menu", modern=True)
         g.call("skip_charging", mode=args.mode, who="all", name=smoke.NAME_SECONDS)
-        g.write(sym["vs_main_settings"] + smoke.INFORMATION, b"\x01")
-        flags = g.read(sym["vs_main_settings"] + MENU_FLAGS, 1)[0]
-        g.write(sym["vs_main_settings"] + MENU_FLAGS, bytes([flags | 1]))
+        g.store("vs_main_settings.information", 1)
+        flags = g.data("vs_main_settings.menuFlags", 1)[0]
+        g.store_data("vs_main_settings.menuFlags", bytes([flags | 1]))
         for name, size in SCHOOLS:
-            for i in g.read(sym[f"vs_battle_{name}SpellIds"], size):
-                a = sym["vs_main_actions"] + i * smoke.ACTION + smoke.ACTION_UNLOCKED
-                g.write(a, bytes([g.read(a, 1)[0] | 0x80]))
+            for i in g.data(f"vs_battle_{name}SpellIds", size):
+                g.store(f"vs_main_actions[{i}].unlocked", 1)
         misc = b"".join(struct.pack("<HBB", args.first + k, 2, k + 1) for k in range(min(args.items, 64)))
         misc += b"".join(struct.pack("<HBB", 0, 0, k + 1) for k in range(min(args.items, 64), 64))
-        g.write(sym["vs_main_inventory"] + smoke.MISC, misc)
+        g.store_data("vs_main_inventory.misc[0].id", misc)
         g.run(4)
 
         def record(kind, what, res, windup=True):
@@ -237,11 +236,10 @@ def main():
         if "arts" in parts:
             art0, _ = r.learn_art()
             for k in range(4):
-                a = sym["vs_main_actions"] + (art0 + k) * smoke.ACTION + smoke.ACTION_UNLOCKED
-                g.write(a, bytes([g.read(a, 1)[0] | 0x80]))
+                g.store(f"vs_main_actions[{art0 + k}].unlocked", 1)
             r.shell("abilities")
             cat = r.ab()["equipped_category"]
-            g.write(sym["vs_main_artsStatus"] + smoke.ARTS_LEARNED + cat % 10, bytes([4]))
+            g.store(f"vs_main_artsStatus.artsLearned[{cat % 10}]", 4)
             r.shell_close()
             for k in range(4):
                 r.refill()

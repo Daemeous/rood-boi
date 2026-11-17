@@ -197,7 +197,7 @@ def run(out, card):
             """The groups a free camera's whole room has: not a black shell, not hidden by the room's own
             flag 0x100 (its event scripts), not the alternate set the room draws without (flag 0x8000 with
             vs_render_drawRoomGeometry's mode bit 0); the camera's hide list (0x1000) and facing cutaway count."""
-            mode = int.from_bytes(g.read_symbol("D_800F19C8", 4), "little") & 1
+            mode = int.from_bytes(g.data("D_800F19C8", 4), "little") & 1
             gs = groups()
             shown = [x for x in gs if not x["black"] and not x["flags"] & 0x100 and not (x["flags"] >> 15 & mode)]
             listed = [i for i, x in enumerate(gs) if x["flags"] & 0x1000]

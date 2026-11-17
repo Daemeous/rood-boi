@@ -445,6 +445,7 @@
 #define _GNU_SOURCE
 #include "draw_items.h" /* pc_frame_view_last: it was called undeclared, returning int */
 #include "psx_types.h"
+#include "dev_layout.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
@@ -834,6 +835,38 @@ static int number_value(const char* v, long long* out)
     return 1;
 }
 /* Digest masks are bounded pairs, parsed fully before changing the baseline. */
+static int readable(uintptr_t address, uintptr_t length);
+static int field_readable(uintptr_t address, uintptr_t length);
+/* One mask by name: {"path": "vs_scratch.unk0"} (its range is the field's), optionally "size" (the bytes from its
+ * address) and "deref": true (the range starts where the pointer there points: a frame's buffer, not the pointer).
+ * Returns 1 and fills start and size, else 0. The ranges are the game's own names, so a step that moves state
+ * leaves the masks as they are (memory lane S2). */
+static int named_mask(const char* object, uintptr_t* start, size_t* size)
+{
+    char path[2048], error[128];
+    long long wanted = 0;
+    dev_layout_ref ref;
+    if (!string_value(member(object, "path"), path, sizeof path)
+        || !dev_layout_resolve(path, field_readable, &ref, error, sizeof error))
+        return 0;
+    int have_size = number_value(member(object, "size"), &wanted);
+    const char* deref = member(object, "deref");
+    uintptr_t address = ref.address;
+    if (deref && !strncmp(deref, "true", 4)) {
+        uintptr_t value = 0;
+        size_t width = dev_layout_kind(ref.type) == 'P' ? 4 : sizeof value;
+        if (!readable(address, width))
+            return 0;
+        memcpy(&value, (void*)address, width);
+        address = value;
+    }
+    size_t length = have_size ? (size_t)wanted : ref.size;
+    if (!length || length > SIZE_MAX - address)
+        return 0;
+    *start = address;
+    *size = length;
+    return 1;
+}
 static int digest_masks(const char* p, uintptr_t* starts, size_t* sizes)
 {
     int count = 0;
@@ -841,7 +874,18 @@ static int digest_masks(const char* p, uintptr_t* starts, size_t* sizes)
     p = skip(p);
     if (*p == ']') return 0;
     for (;;) {
-        if (*p++ != '[' || count == 64) return -1;
+        if (count == 64) return -1;
+        if (*p == '{') {
+            const char* end = value_end(p);
+            if (!end || !named_mask(p, &starts[count], &sizes[count])) return -1;
+            count++;
+            p = skip(end);
+            if (*p == ']') return count;
+            if (*p++ != ',') return -1;
+            p = skip(p);
+            continue;
+        }
+        if (*p++ != '[') return -1;
         p = skip(p);
         if (*p < '0' || *p > '9') return -1;
         char* end;
@@ -1196,6 +1240,199 @@ static int writable(uintptr_t address, uintptr_t length)
             || (address >= (uintptr_t)__data_start && end <= (uintptr_t)_end));
 }
 
+/* ---- the layout table's methods: `field` and `symbol_info` (dev_layout.h) ---- */
+static const char* kind_word(char kind)
+{
+    switch (kind) {
+    case 'i': return "int";
+    case 'n': return "uint";
+    case 'f': return "float";
+    case 'b': return "bool";
+    case 'p': return "pointer";
+    case 'P': return "guest_pointer";
+    case 's': return "struct";
+    case 'u': return "union";
+    case 'a': return "array";
+    case 'v': return "void";
+    default: return "none";
+    }
+}
+static int field_readable(uintptr_t address, uintptr_t length) { return readable(address, length); }
+
+/* {path, offset?}: the value (scalars) and bytes (hex) at a named place, e.g. "vs_battle_actors[3]->stats.currentHP";
+ * {path, value} or {path, hex} writes it first (hex may cover the members that follow, up to the end of the symbol). {path, length} sets how many bytes from the address
+ * come back as hex (default: the field's size, at most 60000; 0: none). */
+static void field_method(int fd, const char* id, const char* params, char* result, size_t size)
+{
+    char path[2048], error[256] = "", scalar[64];
+    long long length = 0, value;
+    static char hex[2 * 65536 + 2];
+    dev_layout_ref ref;
+    if (!params || !string_value(member(params, "path"), path, sizeof path)) {
+        fail(fd, id, -32602, "field needs path");
+        return;
+    }
+    if (!dev_layout_resolve(path, field_readable, &ref, error, sizeof error)) {
+        fail(fd, id, -32000, error);
+        return;
+    }
+    long long offset = 0;
+    if (number_value(member(params, "offset"), &offset) && offset) {
+        /* bytes from the named place: for a record whose layout is a file's (the save card's), where a name for each
+         * member is not worth it; the typed answer (value, kind) is dropped, the range is checked as before */
+        if (offset < 0 || (ref.limit != (size_t)~0 && (size_t)offset > ref.limit)) {
+            fail(fd, id, -32000, "offset goes past the end of the object the path names");
+            return;
+        }
+        ref.address += (uintptr_t)offset;
+        if (ref.limit != (size_t)~0)
+            ref.limit -= (size_t)offset;
+        ref.size = ref.size > (unsigned)offset ? ref.size - (unsigned)offset : 0;
+        ref.type = 0;
+        ref.bitsize = ref.bitshift = 0;
+    }
+    int explicit_length = number_value(member(params, "length"), &length);
+    size_t span = explicit_length ? (length < 0 ? 0 : (size_t)length) : ref.size;
+    if (span > ref.limit) {
+        fail(fd, id, -32000, "length goes past the end of the object the path names");
+        return;
+    }
+    int can_read = readable(ref.address, span ? span : 1);
+    if (span && !can_read) {
+        fail(fd, id, -32000, "range not readable");
+        return;
+    }
+    if (number_value(member(params, "value"), &value)) {
+        if (!writable(ref.address, ref.size) || !dev_layout_store_value(&ref, value)) {
+            fail(fd, id, -32000, "not a writable scalar");
+            return;
+        }
+    } else if (string_value(member(params, "hex"), hex, sizeof hex)) {
+        size_t bytes = strlen(hex) / 2;
+        if (strlen(hex) % 2 || !bytes || bytes > ref.limit || !writable(ref.address, bytes)) {
+            fail(fd, id, -32000, "hex must be 1 or more bytes, written from the address and within the object the path names");
+            return;
+        }
+        for (size_t i = 0; i < bytes; i++) {
+            unsigned byte;
+            if (sscanf(hex + 2 * i, "%2x", &byte) != 1) {
+                fail(fd, id, -32602, "bad hex");
+                return;
+            }
+            ((unsigned char*)ref.address)[i] = (unsigned char)byte;
+        }
+    }
+    char kind = dev_layout_kind(ref.type);
+    size_t used = (size_t)snprintf(result, size, "{\"address\":%llu,\"size\":%u,\"kind\":\"%s\"",
+        (unsigned long long)ref.address, ref.size, kind_word(kind));
+    const char* name = dev_layout_type_name(ref.type);
+    if (name)
+        used += (size_t)snprintf(result + used, size - used, ",\"type\":\"%s\"", json_str(name));
+    if (!can_read) {  /* read-only data, code: named and sized, not readable through this method */
+        snprintf(result + used, size - used, ",\"readable\":false}");
+        reply(fd, id, result);
+        return;
+    }
+    if (ref.size && dev_layout_format_value(&ref, scalar, sizeof scalar))
+        used += (size_t)snprintf(result + used, size - used, ",\"value\":%s", scalar);
+    long long shown = explicit_length ? length : ref.size < 60000 ? ref.size : 60000;
+    used += (size_t)snprintf(result + used, size - used, ",\"hex\":\"");
+    for (long long i = 0; i < shown && used + 4 < size; i++)
+        used += (size_t)snprintf(result + used, size - used, "%02x", ((unsigned char*)ref.address)[i]);
+    snprintf(result + used, size - used, "\"}");
+    reply(fd, id, result);
+}
+
+/* {name} (a symbol or a path): where it is, its size and type, and the members of its struct (an array's element,
+ * a pointer's target) with offset, size and type: what a tool needs to name state without knowing a layout. */
+static void symbol_info_method(int fd, const char* id, const char* params, char* result, size_t size)
+{
+    char path[2048], error[256] = "";
+    dev_layout_ref ref;
+    if (!params || !string_value(member(params, "name"), path, sizeof path)) {
+        fail(fd, id, -32602, "symbol_info needs name");
+        return;
+    }
+    if (!dev_layout_resolve(path, field_readable, &ref, error, sizeof error)) {
+        fail(fd, id, -32000, error);
+        return;
+    }
+    char kind = dev_layout_kind(ref.type);
+    size_t used = (size_t)snprintf(result, size, "{\"address\":%llu,\"size\":%u,\"kind\":\"%s\"",
+        (unsigned long long)ref.address, ref.size, kind_word(kind));
+    const char* name = dev_layout_type_name(ref.type);
+    if (name)
+        used += (size_t)snprintf(result + used, size - used, ",\"type\":\"%s\"", json_str(name));
+    int base = ref.type;
+    unsigned count = 0;
+    if (kind == 'a' || kind == 'p' || kind == 'P') {
+        base = dev_layout_type_target(ref.type, &count);
+        if (kind == 'a')
+            used += (size_t)snprintf(result + used, size - used, ",\"count\":%u", count);
+        used += (size_t)snprintf(result + used, size - used, ",\"%s\":{\"size\":%u,\"kind\":\"%s\"",
+            kind == 'a' ? "element" : "target", dev_layout_type_size(base), kind_word(dev_layout_kind(base)));
+        name = dev_layout_type_name(base);
+        if (name)
+            used += (size_t)snprintf(result + used, size - used, ",\"type\":\"%s\"", json_str(name));
+        used += (size_t)snprintf(result + used, size - used, "}");
+        while (dev_layout_kind(base) == 'a')  /* a matrix: the innermost element's members */
+            base = dev_layout_type_target(base, &count);
+    }
+    char base_kind = dev_layout_kind(base);
+    if (base_kind == 's' || base_kind == 'u') {
+        used += (size_t)snprintf(result + used, size - used, ",\"fields\":[");
+        const char* member_name;
+        unsigned offset;
+        int member_type, bits, bit_offset;
+        for (int i = 0; dev_layout_member(base, i, &member_name, &offset, &member_type, &bits, &bit_offset)
+            && used + 300 < size; i++) {
+            used += (size_t)snprintf(result + used, size - used,
+                "%s{\"name\":\"%s\",\"offset\":%u,\"size\":%u,\"kind\":\"%s\"", i ? "," : "",
+                member_name ? json_str(member_name) : "", offset, dev_layout_type_size(member_type),
+                kind_word(dev_layout_kind(member_type)));
+            const char* member_type_name = dev_layout_type_name(member_type);
+            if (member_type_name)
+                used += (size_t)snprintf(result + used, size - used, ",\"type\":\"%s\"", json_str(member_type_name));
+            if (bits)
+                used += (size_t)snprintf(result + used, size - used, ",\"bits\":%d,\"bit_offset\":%d", bits, bit_offset);
+            used += (size_t)snprintf(result + used, size - used, "}");
+        }
+        used += (size_t)snprintf(result + used, size - used, "]");
+    }
+    snprintf(result + used, size - used, "}");
+    reply(fd, id, result);
+}
+
+static void symbols_each(void* context, const char* name, uintptr_t address, unsigned size, int type)
+{
+    (void)type;
+    char** cursor = context;  /* [0] result, [1] end */
+    size_t room = (size_t)(cursor[1] - cursor[0]);
+    if (room < 200)
+        return;
+    int n = snprintf(cursor[0], room, "%s{\"name\":\"%s\",\"address\":%llu,\"size\":%u}", cursor[0][-1] == '[' ? "" : ",",
+        json_str(name), (unsigned long long)address, size);
+    cursor[0] += n;
+}
+
+/* {prefix}: the symbols whose names start with it (name, address, size) */
+static void symbols_method(int fd, const char* id, const char* params, char* result, size_t size)
+{
+    char prefix[160] = "";
+    if (params)
+        string_value(member(params, "prefix"), prefix, sizeof prefix);
+    const char* error;
+    if (!dev_layout_load(&error)) {
+        fail(fd, id, -32000, error ? error : "no layout table");
+        return;
+    }
+    size_t used = (size_t)snprintf(result, size, "{\"symbols\":[");
+    char* cursor[2] = {result + used, result + size - 8};
+    dev_layout_each_symbol(prefix, symbols_each, cursor);
+    snprintf(cursor[0], 8 + 3, "]}");
+    reply(fd, id, result);
+}
+
 static void handle_method(int fd, const char* request)
 {
     char id[64] = "null", method[64], text[512];
@@ -1240,7 +1477,7 @@ static void handle_method(int fd, const char* request)
             size_t sizes[64];
             int count = digest_masks(masks, starts, sizes);
             if (count < 0 || pc_digest_record_masks((int)ticks, starts, sizes, count)) {
-                fail(fd, id, -32602, "digest masks: idle game, up to 64 [address, positive size] pairs");
+                fail(fd, id, -32602, "digest masks: idle game, up to 64 masks: [address, positive size] or {path, size?, deref?} (a name that resolves)");
                 return;
             }
         }
@@ -3217,21 +3454,6 @@ static void handle_method(int fd, const char* request)
         }
         pc_rt_direct_json(result, (int)sizeof result);
         reply(fd, id, result);
-    } else if (!strcmp(method, "ot_census")) {
-        /* What the adopted ordering tables hold (boot_runtime.c census): {on: true|false} counts from now, {reset: true} zeroes the counts. */
-        extern int pc_ot_census_json(char* out, int size, int on, int reset);
-        int on_flag = -1, reset = 0;
-        if (params) {
-            int v = 0;
-            if (member(params, "on")) {
-                bool_value(member(params, "on"), &v);
-                on_flag = v;
-            }
-            bool_value(member(params, "reset"), &reset);
-        }
-        static char census_json[60000];
-        pc_ot_census_json(census_json, (int)sizeof census_json, on_flag, reset);
-        reply(fd, id, census_json);
     } else if (!strcmp(method, "hw_meter")) {
         /* The renderer hook meter (hw_meter.h, T1 plan R0; ROOD_HW_METER=1): every pc_hw_* hook's calls, those made inside the
          * draw walk and from other threads, per-frame rates, time (with ROOD_PERF=1), what the return-value hooks answered and
@@ -4582,6 +4804,12 @@ static void handle_method(int fd, const char* request)
         }
         snprintf(result, sizeof result, "{\"written\":%zu}", length);
         reply(fd, id, result);
+    } else if (!strcmp(method, "field")) {
+        field_method(fd, id, params, result, sizeof result);
+    } else if (!strcmp(method, "symbol_info")) {
+        symbol_info_method(fd, id, params, result, sizeof result);
+    } else if (!strcmp(method, "symbols")) {
+        symbols_method(fd, id, params, result, sizeof result);
     } else if (!strcmp(method, "state")) {
         if (!pc_rpc_state) {
             fail(fd, id, -32000, "state needs the battle build");

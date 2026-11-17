@@ -40,7 +40,7 @@ from PIL import Image
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
-from rood_rpc import OUT, Game, symbols  # noqa: E402
+from rood_rpc import OUT, Game  # noqa: E402
 
 failures = []
 
@@ -158,7 +158,7 @@ def run(label, card, shots, extra_env, gpu):
                 # over the first seconds (the clock's digits, the cursor's states): the cache must reach a window
                 # that adds nothing, within a few, and then hold.
                 game.call("graphics", ui_upscale="mmpx")
-                game.write(symbols()["vs_main_gametime"], bytes([0, 0, 0, 100]))
+                game.store_data("vs_main_gametime", bytes([0, 0, 0, 100]))
                 game.run(30)
                 windows = 0
                 while True:

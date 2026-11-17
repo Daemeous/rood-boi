@@ -181,13 +181,15 @@ void pc_frame_table_clear(unsigned* ot, int n, int reverse);
 void pc_frame_table_draw(unsigned* head);
 void pc_frame_splice_table(const void* at, const void* head); /* the table at `head` is walked after the entry `at` (pc_frame_table_after) */
 int pc_frame_run_live(int first, int count); /* a run with an item that draws */
-int pc_frame_expected_order(const void* head, int* out, int max);
-/* The walk of a table takes the runs in by the slot they are placed at (boot_runtime.c adopt): the index is made once per table, then by entry: the marker packets
- * placed at `entry` in draw order (`tail`: those appended at the end of its chain), whether some are appended, and whether two entries lie in one table. */
-void pc_frame_markers_index(void);
-int pc_frame_entry_markers(const void* entry, int tail, const void** out, int max); /* (returns how many there are, writing up to max) */
-int pc_frame_entry_has_tail(const void* entry);
-int pc_frame_same_table(const void* a, const void* b);
+/* The runs placed in the table `head` lies in, in draw order (pc_frame_table_order: how many, -1 when no table holds `head`), and run `k`'s marker
+ * packet, the entry it is placed at and, for a spliced table's run, the entry of the drawn table it is drawn after (else NULL). The tripwire: how many
+ * slots of the table (and markers) hold a link, that is a packet written into the table by hand. */
+int pc_frame_table_order(const void* head);
+void pc_frame_table_run(int k, const void** packet, const void** entry, const void** at);
+int pc_frame_table_check(const void* head);
+/* The marker packets placed at `entry` that lie in [lo, hi), in drawing order; the runs placed at the entries [lo, hi]. */
+int pc_frame_markers_at(const void* entry, const void* lo, const void* hi, const void** out, int max);
+int pc_frame_runs_between(const void* lo, const void* hi, int* firsts, int* counts, int max);
 /* Whether the run [first, first + count) has a native list's draw (PC_ITEM_NATIVE). */
 int pc_frame_run_has_native(int first, int count);
 /* Whether `packet` is a marker (pc_frame_place) and the run of items it places. */

@@ -32,7 +32,7 @@ try:
     game.pause()
     # The publisher/developer cards take 728 vsyncs; the movie follows.
     game.run(max(0, 1300 - game.status()["vsync"]))
-    assert game.u32("pc_display_rgb24") == 1, "movie not in 24-bit display mode"
+    assert int.from_bytes(game.data("pc_display_rgb24", 4), "little") == 1, "movie not in 24-bit display mode"
     width, height, pixels = frame(game, "movie-smoke-a.ppm")
     assert (width, height) == (320, 224), (width, height)
     mean = sum(pixels) / len(pixels)
@@ -53,7 +53,7 @@ try:
     game.wait_title(timeout=30)
     title_vsync = game.status()["vsync"]
     assert title_vsync - movie_end < 300, (movie_end, title_vsync)
-    assert game.u32("pc_display_rgb24") == 0, "title still in 24-bit mode"
+    assert int.from_bytes(game.data("pc_display_rgb24", 4), "little") == 0, "title still in 24-bit mode"
 
     # New Game stops the stream and frees the movie buffers.
     game.press("start")

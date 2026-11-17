@@ -213,8 +213,12 @@ suites = ["gi_smoke", "probe_gi_smoke", "fixture_lighting_smoke", "light_actors_
 
 # ---- RPC, the developer state and the overlay's panels ----
 [[rule]]
+paths = ["pc/src/dev_layout.*", "pc/tools/layout_table.py", "pc/tests/layout_smoke.py"]
+suites = ["layout_smoke", "rpc_smoke"]
+
+[[rule]]
 paths = ["pc/src/dev_rpc.c"]
-suites = ["rpc_smoke", "rpc_tcp_token_smoke", "repl_smoke", "lua_smoke", "tunables_smoke", "player_state_smoke"]
+suites = ["rpc_smoke", "layout_smoke", "rpc_tcp_token_smoke", "repl_smoke", "lua_smoke", "tunables_smoke", "player_state_smoke"]
 
 [[rule]]
 paths = ["pc/src/dev_state.*"]

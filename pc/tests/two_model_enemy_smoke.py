@@ -5,7 +5,7 @@ Enemies whose SHP id is flagged in vs_actors_usesSecondaryBodyModel (Ghost 26, W
 Guildenstern 79/175) take two actor slots: vs_actors_spawnRoomEnemy loads a second model
 into slot id + 4 with model id _zoneContext.zndEnemies[zud].unk2 + 1. The
 decompiled code read that table through vs_actors_zoneCharacterInitData, which is
-_zoneContext.zndEnemies (0x800F1880 + 0xC); vs_field_unloadCurrentRoom (leaving a room)
+_zoneContext.zndEnemies; vs_field_unloadCurrentRoom (leaving a room)
 freed _zoneContext.mpdEnemies through D_800F18E4 (+0x64). On the 64-bit build
 those names were host pointers in native slots of their own that nothing
 wrote (pc/tools/lp64_alias_scan.py): a Ghost dereferenced NULL, and every
@@ -27,7 +27,7 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 
 GHOST_ROOM = (13, 4)  # Catacombs, The Lamenting Mother: one Ghost
@@ -53,7 +53,6 @@ def main():
            "ROOD_LIGHTING": str(out / "lighting")}
     os.environ.pop("ROOD_SETTINGS", None)
     socket = os.environ.get("ROOD_RPC") or f"/tmp/rood-twomodel-{os.getpid()}.sock"
-    ptr = 8 if os.environ.get("ROOD_ARCH") == "64" else 4
     failures = []
 
     def check(ok, message):
@@ -62,9 +61,6 @@ def main():
             failures.append(message)
 
     game = launch_at("save_room", card=card, fast=True, log=out / "game.log", extra_env=env, socket_path=socket)
-
-    def u32(address):
-        return int.from_bytes(game.read(address, 4), "little")
 
     def warp(zone, room):
         reply = game.call("room_goto", zone=zone, room=room, enemies=True, scripts=False)
@@ -78,8 +74,7 @@ def main():
               f"warped to zone {zone} room {room} (now zone {st['zone']} room {st['room']})")
 
     def actors():
-        raw = game.read_symbol("vs_battle_actors", 16 * ptr)
-        return [int.from_bytes(raw[i * ptr:(i + 1) * ptr], "little") for i in range(16)]
+        return [game.value(f"vs_battle_actors[{i}]") for i in range(16)]
 
     def heap_free():
         """Free blocks on the game heap (heapA's circular free list)."""
@@ -88,18 +83,15 @@ def main():
     try:
         check(game.state().get("player") is not None, "continued into gameplay")
         warp(*GHOST_ROOM)
-        flags = game.read_symbol("vs_actors_usesSecondaryBodyModel", 256)
-        width = 8 if os.environ.get("ROOD_ARCH") == "64" else 4
-        zone = game.read_symbol("pc_zone_size", 4)
-        zone = game.read_symbol("_zoneContext", int.from_bytes(zone, "little"))
-        at = lambda name, size: int.from_bytes(zone[game.u32(name):game.u32(name) + size], "little")
-        znd, count, mpd = at("pc_zone_offset_zndEnemies", width), at("pc_zone_offset_mpdEnemyCount", 4), at("pc_zone_offset_mpdEnemies", width)
-        shps = [game.read(znd + game.read(mpd + i * 0x28 + 4, 1)[0] * 0x464 + 2, 1)[0] for i in range(count)]
+        flags = game.data("vs_actors_usesSecondaryBodyModel", 256)
+        count = game.value("_zoneContext.mpdEnemyCount")
+        shps = [game.data(f"_zoneContext.zndEnemies[{game.data(f'_zoneContext.mpdEnemies[{i}].unk4', 1)[0]}].unk0", 1, offset=2)[0]
+                for i in range(count)]
         check(any(flags[s] for s in shps), f"the room spawns a two-model enemy (SHP ids {shps})")
         # A two-model actor (0x3BB4 bytes, unk40 = 2) reserves data slot
         # id + 4 for the second model, which vs_actors_spawnRoomEnemy loads with the
         # model id read from zndEnemies.
-        two = [j for j, a in enumerate(actors()) if 2 <= j < 10 and a and u32(a + game.actor_offset("models")) == 2]
+        two = [j for j, a in enumerate(actors()) if 2 <= j < 10 and a and game.value(f"vs_battle_actors[{j}]->unk40") == 2]
         check(bool(two), f"the enemy is a two-model actor (actors with unk40 = 2: {two})")
         frames = []
         for k in range(3):

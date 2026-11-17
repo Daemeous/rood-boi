@@ -60,12 +60,13 @@ import tempfile
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from weapon_slots_smoke import default_card, two_handed  # noqa: E402
 
 CLOSED = 0x3F
-PTR = 8 if os.environ.get("ROOD_ARCH") == "64" else 4  # host pointers (vs_battle_menuItems, vs_actors_actorRecords, ...)
+ACTOR = "vs_battle_characterState"  # the character's actor record (a pointer) and its stats
+ACTOR2 = ACTOR + "->stats"
 
 # vs_main_inventory_t (main.h) and records
 INVENTORY_BYTES = 3840
@@ -81,18 +82,18 @@ MODEL_HEADER = 20  # vs_battle_wepModels_t up to unk13: counts, flags, material,
 # Masked: (region, start, end, reason). Everything else must be equal.
 FRAMES = "the two paths take different numbers of frames"
 MASKS = [
-    ("actor2", 0x18, 0x1A, "currentHP: regenerates with game time; " + FRAMES),
-    ("actor2", 0x1C, 0x1E, "currentMP: as currentHP"),
+    ("actor2", ("currentHP",), ("currentHP", 2), "currentHP: regenerates with game time; " + FRAMES),
+    ("actor2", ("currentMP",), ("currentMP", 2), "currentMP: as currentHP"),
 ] + [
-    ("actor2", 0x398 + k * 0xDC, 0x398 + k * 0xDC + 2, f"limbs[{k}].hp: regenerates with game time; " + FRAMES)
+    ("actor2", ("limb", k), ("limb", k, 2), f"limbs[{k}].hp: regenerates with game time; " + FRAMES)
     for k in range(6)
 ] + [
-    ("object0", ("bones", 108), ("bones_end", 1452), "bones[42]: the pose matrices, recomputed from the animation every frame"),
-    ("object0", ("unk6FC", 0x6FC), ("unk704", 0x704), "unk6FC: already differs between two processes before any menu (pose sway)"),
-    ("object0", ("unk704", 0x704), ("unk11A4", 0x11A4), "unk704, unkC54: the animation frame buffers (func_800AFA28); "
+    ("object0", ("bones",), ("bones_end",), "bones[42]: the pose matrices, recomputed from the animation every frame"),
+    ("object0", ("unk6FC",), ("unk704",), "unk6FC: already differs between two processes before any menu (pose sway)"),
+    ("object0", ("unk704",), ("unk11A4",), "unk704, unkC54: the animation frame buffers (func_800AFA28); "
                                "their phase follows the frame count, " + FRAMES),
 ] + [
-    ("models", i * MODEL_HEADER + 15, i * MODEL_HEADER + 16,
+    ("models", ("model", i), ("model", i, 1),
      "texSlot: the first free weapon texture slot; the original loads while the menu's Ashley "
      "(actor 1) holds her own model slots, so it gets another free slot (same texture, other place)")
     for i in range(WEP_MODELS)
@@ -151,17 +152,7 @@ class Session:
         self.out, self.shots, self.name = out, shots, name
         # Continue from the card (checkpoints.py: booted, or its validated save state).
         self.game = launch_at("save_room", card=card, fast=True, log=out / f"{name}.log", extra_env=env)
-        for key, old in (("bones", 108), ("bones_end", 1452), ("unk6FC", 0x6FC), ("unk704", 0x704), ("unk11A4", 0x11A4)):
-            OBJECT_OFFSETS[key] = self.game.object_offset(key, old)
-        sym = symbols()
-        self.menu_state = sym["vs_battle_menuState"]
-        self.inventory = sym["vs_main_inventory"]
-        self.indices = sym["vs_main_inventoryIndices"]
-        self.items_ptr = sym["vs_battle_menuItems"]
-        self.char_state = sym["vs_battle_characterState"]
-        self.objects = sym["vs_actors_actorRecords"]
-        self.wep_models = sym["vs_battle_wepModels"]
-        self.load_state = sym["vs_battle_loadObjectDataState"]
+        set_offsets(self.game)
 
     def close(self):
         self.game.close()
@@ -170,23 +161,14 @@ class Session:
         if self.shots:
             self.game.present_screenshot(self.out / f"{self.name}-{name}.png")
 
-    def ptr(self, address):
-        return int.from_bytes(self.game.read(address, PTR), "little")
-
     def current_menu(self):
-        return self.game.read(self.menu_state, 1)[0]
+        return self.game.value("vs_battle_menuState.currentMenu")
 
     def inv(self):
-        return self.game.read(self.inventory, INVENTORY_BYTES)
+        return self.game.data("vs_main_inventory", INVENTORY_BYTES)
 
     def idx(self):
-        return self.game.read(self.indices, INDICES_BYTES)
-
-    def actor(self):
-        return self.ptr(self.char_state)
-
-    def actor2(self):
-        return self.game.actor_stats(self.actor())
+        return self.game.data("vs_main_inventoryIndices", INDICES_BYTES)
 
     def ws(self):
         return self.game.call("weapon_slots")
@@ -197,7 +179,7 @@ class Session:
         g = self.game
         for _ in range(limit // 10):
             w = self.ws()
-            if not w["loading"] and not w.get("menu_reload") and g.read(self.load_state, 4) == bytes(4):
+            if not w["loading"] and not w.get("menu_reload") and g.data("vs_battle_loadObjectDataState", 1) == bytes(1):
                 break
             g.run(10)
         else:
@@ -206,28 +188,24 @@ class Session:
 
     def dump(self):
         g = self.game
-        actor = self.actor()
-        objects = [self.ptr(self.objects + i * PTR) for i in range(1)]
         d = {
             "inventory": self.inv(),
             "indices": self.idx(),
-            "actor": g.read(actor, g.actor_offset("size", 80)),
-            "actor2": g.read(self.actor2(), ACTOR2_BYTES),
+            "actor": g.data(ACTOR + "[0]"),
+            "actor2": g.data(ACTOR2 + "[0]", ACTOR2_BYTES),
         }
-        d["object0"] = g.read(objects[0], g.object_size())
+        d["object0"] = g.data("vs_actors_actorRecords[0][0]")
         models = b""
         for i in range(WEP_MODELS):
-            p = self.ptr(self.wep_models + i * PTR)
-            models += g.read(p, MODEL_HEADER) if p else bytes(MODEL_HEADER)
+            models += g.data(f"vs_battle_wepModels[{i}][0]", MODEL_HEADER) if g.value(f"vs_battle_wepModels[{i}]") else bytes(MODEL_HEADER)
         d["models"] = models
         return d
 
     # ---- the original menu (ui_menus off) ----
     def menu_items(self):
         """vs_battle_menuItems: {id: (state, selected)} of the live items."""
-        size = self.game.layout("menuItem_size", 64)
-        raw = self.game.read(self.ptr(self.items_ptr), size * 40)
-        return {i: (raw[i * size], raw[i * size + 6]) for i in range(40) if raw[i * size]}
+        rows = self.game.table("vs_battle_menuItems[0]", 40, "state", "selected")
+        return {i: (row["state"], row["selected"]) for i, row in enumerate(rows) if row["state"]}
 
     def wait_ready(self, limit=400, want=None):
         """Until every menu item is idle (vs_mainmenu_ready) for a few frames
@@ -236,7 +214,7 @@ class Session:
         calm = 0
         for _ in range(limit // 4):
             items = self.menu_items()
-            ok = all(s <= 1 for s, _ in items.values()) and g.read(self.load_state, 4) == bytes(4)
+            ok = all(s <= 1 for s, _ in items.values()) and g.data("vs_battle_loadObjectDataState", 1) == bytes(1)
             if want is not None:
                 ok = ok and want in items
             calm = calm + 1 if ok else 0
@@ -465,12 +443,30 @@ def diff(a, b):
     return found
 
 
-OBJECT_OFFSETS = {}  # the object masks' offsets, read from the game
+OFFSETS = {}  # the masks' member offsets, asked of the game's layout table
+
+
+def set_offsets(g):
+    """Where the masked members sit in each dumped record: the record's address and a member's, both by name."""
+    def at(record, member=""):
+        return g.field(record + member, length=0).address - g.field(record, length=0).address
+    obj, stats = "vs_actors_actorRecords[0][0]", ACTOR2 + "[0]"
+    for key in ("bones", "unk6FC", "unk704", "unk11A4"):
+        OFFSETS[(key,)] = at(obj, "." + key)
+    OFFSETS[("bones_end",)] = OFFSETS[("bones",)] + g.field(obj + ".bones", length=0).size
+    OFFSETS[("currentHP",)], OFFSETS[("currentMP",)] = at(stats, ".currentHP"), at(stats, ".currentMP")
+    for k in range(6):
+        OFFSETS[("limb", k)] = at(stats, f".limbs[{k}].hp")
+    for i in range(WEP_MODELS):
+        OFFSETS[("model", i)] = i * MODEL_HEADER + at(f"vs_battle_wepModels[{i}][0]", ".texSlot")
 
 
 def masked(region, offset):
     def at(bound):
-        return bound if isinstance(bound, int) else OBJECT_OFFSETS[bound[0]]
+        if isinstance(bound, int):
+            return bound
+        return OFFSETS[bound[:-1]] + bound[-1] if len(bound) > 1 and isinstance(bound[-1], int) and bound[:-1] in OFFSETS \
+            else OFFSETS[bound]
     return any(r == region and at(s) <= offset < at(e) for r, s, e, _ in MASKS)
 
 
@@ -588,7 +584,7 @@ def shell_checks(b, check):
     b.shot("gear")
     e = b.eq()
     inv = b.inv()
-    actor2 = g.read(b.actor2(), ACTOR2_BYTES)
+    actor2 = g.data(ACTOR2 + "[0]", ACTOR2_BYTES)
     slots = e.get("slots") or []
     check([x["id"] for x in slots] == GEAR_IDS, f"eight gear slots {[x.get('id') for x in slots]}")
     k = next(i for i in range(8) if inv[WEAPONS + i * WEAPON + 3])
@@ -780,9 +776,8 @@ def early_equip_checks(b, check, k):
     mouse drives it (the pad is ignored for the shell's first two ticks):
     every vsync a click on the weapon row, then on the wanted candidate."""
     g = b.game
-    settings = symbols()["vs_main_settings"]
-    memory = g.read(settings + 1, 1)  # cursorMemory: the shell reopens on its last tab
-    g.write(settings + 1, b"\x01")
+    memory = g.data("vs_main_settings.cursorMemory", 1)  # cursorMemory: the shell reopens on its last tab
+    g.store("vs_main_settings.cursorMemory", 1)
     err = b.shell_open_equipment() or b.shell_close()
     inv = b.inv()
     other = next(i for i in range(8) if inv[WEAPONS + i * WEAPON + 1] and i != k
@@ -826,7 +821,7 @@ def early_equip_checks(b, check, k):
     w = b.ws()
     check(err is None and changed is not None and w["equipped"] == other,
           f"early equip: once resident, the click equips weapon {other} (equipped {w['equipped']}) {err or ''}")
-    g.write(settings + 1, memory)
+    g.store_data("vs_main_settings.cursorMemory", memory)
 
 
 def soft_reset_checks(b, check, k):
@@ -836,8 +831,8 @@ def soft_reset_checks(b, check, k):
     the shell is drawn or held, the HUD flag is back, the reload's finish is
     dropped; Continue again gives a working field and menu."""
     g = b.game
-    hud = symbols()["vs_battle_hudHidden"]
-    hud_before = g.read(hud, 1)[0]
+    hud = "vs_battle_hudHidden"
+    hud_before = g.data(hud, 1)[0]
     err = b.shell_open_equipment()
     if not check(err is None and b.shell_focus(0), f"reset: the weapon slot {err or ''}"):
         return
@@ -857,7 +852,7 @@ def soft_reset_checks(b, check, k):
     g.hold("triangle", 3)  # a held result (the load runs)
     s = b.shell()
     print(f"reset: before the reset: holding {s.get('holding')}, visible {s.get('visible')}, "
-          f"reload {b.ws().get('menu_reload')}, HUD flag {g.read(hud, 1)[0]}")
+          f"reload {b.ws().get('menu_reload')}, HUD flag {g.data(hud, 1)[0]}")
     titles = pathlib.Path(g.log).read_text().count("TITLE MENU READY")
     g.call("input", buttons=["l1", "l2", "r1", "r2", "start", "select"], vsyncs=6)
     for _ in range(100):
@@ -869,10 +864,10 @@ def soft_reset_checks(b, check, k):
         return
     s = b.shell()
     w = b.ws()
-    check(not s.get("visible") and not s.get("holding") and g.read(hud, 1)[0] == hud_before
+    check(not s.get("visible") and not s.get("holding") and g.data(hud, 1)[0] == hud_before
           and not w.get("menu_reload"),
           f"reset: over the title the shell is gone (visible {s.get('visible')}, holding {s.get('holding')}), "
-          f"HUD flag {g.read(hud, 1)[0]} (before {hud_before}), reload dropped ({w.get('menu_reload')})")
+          f"HUD flag {g.data(hud, 1)[0]} (before {hud_before}), reload dropped ({w.get('menu_reload')})")
     b.shot("reset-title")
     g.press("start", vsyncs=4, settle=90)
     for _ in range(3):
@@ -883,9 +878,9 @@ def soft_reset_checks(b, check, k):
     e = b.eq()
     err = err or b.shell_close()
     check(err is None and (state["zone"], state["room"]) == (9, 17) and e.get("valid")
-          and g.read(hud, 1)[0] == hud_before,
+          and g.data(hud, 1)[0] == hud_before,
           f"reset: Continue again: the field and the menu work (room {state['zone']}/{state['room']}, "
-          f"HUD flag {g.read(hud, 1)[0]}) {err or ''}")
+          f"HUD flag {g.data(hud, 1)[0]}) {err or ''}")
 
 
 def u16(raw, offset):

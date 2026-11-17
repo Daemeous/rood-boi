@@ -45,7 +45,7 @@ from PIL import Image, ImageDraw
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from editor_cutaway_smoke import default_card  # noqa: E402
 
@@ -134,16 +134,16 @@ def main():
         if (state["zone"], state["room"]) != (ZONE, ROOM):
             check(False, f"warped to zone {ZONE} room {ROOM} ({state['zone']}/{state['room']})")
             return 1
-        table = game.room_pointer("section12", SECTION12)
-        count = game.room_u32("section12Len", SECTION12_LEN) // ENTRY
-        check(table != 0 and count >= 1, f"the room has moving platforms ({count})")
-        if not table or not count:
+        table = "vs_battle_roomData.section12[0]"  # (the room file's platform records)
+        count = game.value("vs_battle_roomData.header.section12Len") // ENTRY
+        check(game.value("vs_battle_roomData.section12") != 0 and count >= 1, f"the room has moving platforms ({count})")
+        if not game.value("vs_battle_roomData.section12") or not count:
             return 1
-        word = struct.unpack("<I", game.read(table, 4))[0]
-        game.write(table, struct.pack("<I", word & ~(1 << 9)))  # shown (unk0_9: hidden)
+        word = struct.unpack("<I", game.data(table, 4))[0]
+        game.store_data(table, struct.pack("<I", word & ~(1 << 9)))  # shown (unk0_9: hidden)
         game.run(2)
-        game.write(symbols()["vs_field_areMovingPlatformsPaused"], b"\x01")  # the platforms stop (vs_field_updateMovingPlatforms returns)
-        x, altitude, z = (v / 4096 for v in struct.unpack("<iii", game.read(table + 0xA8, 12)))
+        game.store_data("vs_field_areMovingPlatformsPaused", b"\x01")  # the platforms stop (vs_field_updateMovingPlatforms returns)
+        x, altitude, z = (v / 4096 for v in struct.unpack("<iii", game.data(table, 12, offset=0xA8)))
         print(f"platform at x {x:.0f} z {z:.0f}, {altitude:.0f} above y 0")
         game.call("editor_camera", x=x, y=-1300, z=z - 700, yaw=0, pitch=-60)
         game.run(SETTLE)
@@ -151,7 +151,7 @@ def main():
         frames, square = {}, None
         for shadow in (True, False):
             # The platform's altitude: its own, or out of the floor's reach.
-            game.write(table + 0xAC, struct.pack("<i", int(altitude * 4096) if shadow else -0x7000000))
+            game.store_data(table, struct.pack("<i", int(altitude * 4096) if shadow else -0x7000000), offset=0xAC)
             game.run(SETTLE)
             tag = "shadow" if shadow else "none"
             path = game.present_screenshot(out / f"{tag}.png")
@@ -161,7 +161,7 @@ def main():
                 print(f"{tag}: shadow_markers {stats['shadow_markers']}, "
                       f"legacy_other_triangles {stats['legacy_other_triangles']}")
                 # Where it is (effect_native.c): its centre and shade, and the camera.
-                record = game.read(symbols()["pc_platform_shadow_records"], RECORD)
+                record = game.data("pc_platform_shadow_records", RECORD)
                 serial, shade = struct.unpack("<Ii", record[:8])
                 check(serial and stats["frame_serial"] - serial <= 2 and stats["shadow_markers"] >= 1,
                       f"the platform's shadow is drawn natively (frame {serial}, now {stats['frame_serial']})")

@@ -73,7 +73,7 @@ from PIL import Image
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 
 SETTLE = 45
@@ -115,13 +115,13 @@ def window_camera(game, yaw=270):
 
 
 def show_platforms(game):
-    table = game.room_pointer("section12", 0xA8)
-    count = game.room_u32("section12Len", 0x48) // 184
-    for i in range(count):
-        word = struct.unpack("<I", game.read(table + i * 184, 4))[0]
-        game.write(table + i * 184, struct.pack("<I", word & ~(1 << 9)))
+    table = "vs_battle_roomData.section12[0]"
+    count = game.value("vs_battle_roomData.header.section12Len") // 184
+    for i in range(count):  # (the platform records of the room file: 184 bytes each)
+        word = struct.unpack("<I", game.data(table, 4, offset=i * 184))[0]
+        game.store_data(table, struct.pack("<I", word & ~(1 << 9)), offset=i * 184)
     game.run(2)
-    game.write(symbols()["vs_field_areMovingPlatformsPaused"], b"\x01")
+    game.store_data("vs_field_areMovingPlatformsPaused", b"\x01")
 
 
 def entry_of(game, eid):
@@ -512,11 +512,9 @@ def object_light_tests(game, out, check):
         check(False, "warped to zone 32 room 3")
         return
     show_platforms(game)
-    table = game.room_pointer("section12", 0xA8)
-    x, altitude, z = (v / 4096 for v in struct.unpack("<iii", game.read(table + 0xA8, 12)))
+    x, altitude, z = (v / 4096 for v in struct.unpack("<iii", game.data("vs_battle_roomData.section12[0]", 12, offset=0xA8)))
     game.call("editor_camera", x=x, y=-altitude - 500, z=z - 600, yaw=0, pitch=-35)
-    actor = struct.unpack("<I", game.read_symbol("vs_actors_actorRecords", 4))[0]  # Ashley's record: position at 0x1C
-    game.write(actor + 0x1C, struct.pack("<hhh", int(x), int(-altitude - 10), int(z)))
+    game.store_data("vs_actors_actorRecords[0]->unk0.position", struct.pack("<hhh", int(x), int(-altitude - 10), int(z)))  # (Ashley's record)
     game.run(30)
     on = game.state()["player"]
     legs, views = {}, {}

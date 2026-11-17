@@ -461,7 +461,6 @@ typedef struct {
     int unk20;
 } func_800A1108_t;
 
-void vs_render_splicePrimitiveList(u_long*, int*);
 int _loadMpdRoomSection(int, void* data);
 int _dropMisc(vs_battle_loot*, vs_battle_uiMisc*);
 int _dropMiscRand(vs_battle_loot*, vs_battle_uiMiscRand*);

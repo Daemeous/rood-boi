@@ -56,7 +56,7 @@ from PIL import Image
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from menu_nav import DATA_COMMAND, top_command  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from card_fixtures import card_guard, default_save  # noqa: E402
@@ -162,7 +162,7 @@ def check_save_confirm(args, out, card, check):
     try:
         game.call("graphics", widescreen=True)
         game.press("triangle", vsyncs=3, settle=60)
-        top_command(game, symbols(), DATA_COMMAND)
+        top_command(game, DATA_COMMAND)
         game.press("circle", vsyncs=3, settle=60)  # DATA: SAVE is the first row
         for _ in range(3):  # SAVE, MEMORY CARD slot 1, the first file: "Overwrite the file?"
             game.press("circle", vsyncs=3, settle=150)
@@ -251,10 +251,8 @@ def check_game_over_load(args, out, card, check):
 
     try:
         game.call("graphics", widescreen=True, interpolate=True, present_rate=1)
-        # Ashley's HP to 0 (vs_battle_actors[0] -> +0x3c -> +0x18): the game's own Game Over follows.
-        actor = int.from_bytes(game.read(symbols()["vs_battle_actors"], PTR), "little")
-        record = game.actor_stats(actor)
-        game.write(record + 0x18, struct.pack("<h", 0))
+        # Ashley's HP to 0: the game's own Game Over follows.
+        game.store("vs_battle_actors[0]->stats->currentHP", 0)
         game.until(lambda: game.state()["game_over"], step=10, guard=120, what="Game Over")
 
         def lit(image, x, y):  # (4:3 PS1 pixels)
@@ -318,7 +316,7 @@ def run(args, out, card, images):
             return 1
         # Command menu > DATA > LOAD (second) > MEMORY CARD slot 1.
         game.press("triangle", vsyncs=3, settle=60)
-        top_command(game, symbols(), DATA_COMMAND)  # by the game's cursor (fast travel's Magic on a Circle)
+        top_command(game, DATA_COMMAND)  # by the game's cursor (fast travel's Magic on a Circle)
         game.press("circle", vsyncs=3, settle=60)
         game.press("down", vsyncs=3, settle=10)
         game.press("circle", vsyncs=3, settle=150)

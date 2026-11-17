@@ -6,7 +6,7 @@ an entry sound effect slides the auto-pan depth (opcode DF) of a channel that
 never enabled auto-pan (opcode BC), so Sound_UpdateSlidesAndDelays reads the
 channel's NULL LFO wave. The PS1 reads its RAM at address 0; the PC build
 crashed there (SIGSEGV, 64-bit) until ROOD_PC read it through guest RAM
-0x80000000 (25AC.c LFO_WAVE).
+guest RAM's base (25AC.c LFO_WAVE).
 
 The crash needs the sound channels as a fresh launch leaves them (after
 other rooms' effects the channel may hold a wave), so each room gets its own
@@ -41,7 +41,7 @@ def visit(card, out, socket, where):
             st = game.state()
             arrived = arrived or (st["zone"], st["room"]) == where
         for k in range(200):  # the entry event to its end (dialogue: buttons)
-            event = game.read_symbol("vs_event_playbackPhase", 1)[0]
+            event = game.value("vs_event_playbackPhase")
             if event == 0 and game.call("room_goto", action="status")["phase"] in (0, 4):
                 ended = reply["ok"]
                 break

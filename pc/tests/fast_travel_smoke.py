@@ -70,12 +70,11 @@ import tempfile
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, Game, symbols  # noqa: E402
+from rood_rpc import OUT, Game  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 import checkpoints  # noqa: E402
 import card_fixtures as cf  # noqa: E402
 
-PTR = 8 if os.environ.get("ROOD_ARCH") == "64" else 4  # host pointers (characterState, menuItems)
 # The C++ Travel prompt (fast_travel_prompt.cpp) is what this tests: the shipped plugins stay off
 # (rood.hud claims the prompt with the modern look; hud_bench_smoke tests that).
 os.environ.setdefault("ROOD_PLUGINS_SHIPPED", "")
@@ -83,12 +82,11 @@ CLOSED = 0x3F           # vs_battle_menuState.currentMenu with no menu
 FLAGS_SIZE = 0x440      # sizeof(vs_main_flags_t)
 UNK_A7, INTRO, UNK_B5, MAGIC_USED, SAVE_POINTS = 0xA7, 0xAB, 0xB5, 0xB7, 0x156
 MENU_FLAGS = 2          # vs_main_settings.menuFlags (bit 0: the Magic command)
-MP, MP_MAX = 0x1C, 0x1E  # vs_battle_actor2 currentMP / maxMP
+ACTOR2 = "vs_battle_characterState->stats"  # the character's vs_battle_actor2 (currentMP, maxMP)
 # a menu item (Game.layout menuItem_size): state +0, selected +6, unselectable +7
 MAGIC_ITEM, TELEPORT_ITEM, LIST_ITEM = 0, 14, 20  # the top level's Magic, MENU0's Teleport row, the destinations
 TELEPORT_MENU = 14      # vs_menu0_exec's state while _teleportMenu runs (vs_battle_submenuStates[1])
 SHORTCUT_TRAVEL = 9     # vs_battle_shortcutInvoked of the Travel button (fast_travel.h)
-INITIAL_DISTANCE = 32   # vs_battle_cameraCurrentSpherical.initialDistance (Select: 0x600 near / 0x900 far)
 USED = 35
 SAVE_FLAGS, SAVE_SETTINGS, SAVE_ROOM = 0x200, 0x6A8, 0x1778  # savedata_t (MENU7 260.c)
 
@@ -115,7 +113,6 @@ class Trip:
     def __init__(self, name, out, card, menus, env, shots=False):
         self.name, self.out, self.card, self.menus, self.env, self.shots = name, out, card, menus, env, shots
         self.g = launch_at("save_room", card=card, fast=True, log=out / f"{name}.log", extra_env=env)
-        self.sym = symbols()
         self.g.call("graphics", interpolate=False)
         self.g.call("ui_menu", modern=menus == "on")
         self.g.run(2)
@@ -137,63 +134,57 @@ class Trip:
     def mg(self):
         return self.ui().get("magick") or {}
 
-    def u8(self, name, offset=0):
-        return self.g.read(self.sym[name] + offset, 1)[0]
+    def u8(self, name):
+        return self.g.data(name, 1)[0]
 
-    def u32(self, address):
-        return struct.unpack("<I", self.g.read(address, 4))[0]
+    def word(self, name):
+        return struct.unpack("<I", self.g.data(name, 4))[0]
 
     def flags(self):
-        return bytes(self.g.read(self.sym["vs_main_stateFlags"], FLAGS_SIZE))
+        return bytes(self.g.data("vs_main_stateFlags", FLAGS_SIZE))
 
-    def set_flag(self, offset, value):
-        self.g.write(self.sym["vs_main_stateFlags"] + offset, bytes([value]))
+    def set_flag(self, member, value):
+        """vs_main_stateFlags.<member> (a member of the flags record: unkA7, introState, savePointStates[3], ...)."""
+        self.g.store("vs_main_stateFlags." + member, value)
 
     def settings_bytes(self):
-        return bytes(self.g.read(self.sym["vs_main_settings"], 4))
+        return bytes(self.g.data("vs_main_settings", 4))
 
     def menu(self):
         return self.u8("vs_battle_menuState")
 
     def menu0_state(self):
-        return self.u8("vs_battle_submenuStates", 1)
-
-    def actor2(self):
-        actor = int.from_bytes(self.g.read(self.sym["vs_battle_characterState"], PTR), "little")
-        return self.g.actor_stats(actor)
+        return self.u8("vs_battle_submenuStates[1]")
 
     def mp(self):
-        return struct.unpack("<h", self.g.read(self.actor2() + MP, 2))[0]
+        return self.g.value(ACTOR2 + ".currentMP")
 
     def set_mp(self, mp, top=None):
-        a = self.actor2()
-        mp_max = struct.unpack("<h", self.g.read(a + MP_MAX, 2))[0]
+        mp_max = self.g.value(ACTOR2 + ".maxMP")
         top = max(mp_max, top or 0, mp)
-        self.g.write(a + MP, struct.pack("<hh", mp, top))
+        self.g.store_data(ACTOR2 + ".currentMP", struct.pack("<hh", mp, top))
         self.g.run(2)
 
     def location(self):
         st = self.g.state()
-        table = self.g.read(self.sym["vs_main_locationZoneMapIds"], 1024)
+        table = self.g.data("vs_main_locationZoneMapIds", 1024)
         return next((i for i in range(1, 512) if table[2 * i] == st["zone"] and table[2 * i + 1] == st["room"]), 0)
 
     def room_of(self, location):
-        table = self.g.read(self.sym["vs_main_locationZoneMapIds"], 1024)
+        table = self.g.data("vs_main_locationZoneMapIds", 1024)
         return table[2 * location], table[2 * location + 1]
 
     def handoff(self):
-        e = self.g.read(self.sym["vs_menu_frameworkActionSelection"], 8)
+        e = self.g.data("vs_menu_frameworkActionSelection", 8)
         unk2 = struct.unpack("<h", e[2:4])[0]
         return unk2, struct.unpack("<I", e[4:8])[0]
 
     # ---- the original menus ----
     def items(self):
-        p = int.from_bytes(self.g.read(self.sym["vs_battle_menuItems"], PTR), "little")
-        if not p:
+        if not self.g.value("vs_battle_menuItems"):
             return {}
-        size = self.g.layout("menuItem_size", 64)
-        raw = self.g.read(p, size * 40)
-        return {i: (raw[i * size], raw[i * size + 6], raw[i * size + 7]) for i in range(40) if raw[i * size]}
+        rows = self.g.table("vs_battle_menuItems[0]", 40, "state", "selected", "unselectable")
+        return {i: (row["state"], row["selected"], row["unselectable"]) for i, row in enumerate(rows) if row["state"]}
 
     def wait(self, pred, limit, what, step=2, quiet=False):
         for n in range(0, limit + 1, step):
@@ -309,7 +300,7 @@ def case_warp(t, check, args):
            1800, "the warp arrives", step=4)
     g.run(120)  # its entry script runs (a Circle's records it)
     if t.flags()[SAVE_POINTS + target] == 0:
-        t.set_flag(SAVE_POINTS + target, 1)  # as its script would (with the Circle's own event already played)
+        t.set_flag(f"savePointStates[{target}]", 1)  # as its script would (with the Circle's own event already played)
         print(f"info: warp: Circle {target}'s script did not record it here; recorded by the test")
     s = t.ft()
     check(s["state"]["warped"] == 1 and s["blocked"].startswith("Leave the Room Browser"),
@@ -368,7 +359,7 @@ def case_reload(t, check, args):
         return
     # an extra Circle in RAM only (not on the card), then a warp chain: the snapshot holds it
     extra = unfound[-1]
-    t.set_flag(SAVE_POINTS + extra, 1)
+    t.set_flag(f"savePointStates[{extra}]", 1)
     target = None
     for k in unfound[:-1]:
         zone, room = t.room_of(DATA[k] & 0x1FF)
@@ -718,7 +709,7 @@ def case_refuse(t, check, args):
     t.set_mp(99, 99)
     # the prologue (introState < 3): the port's unlock off, nothing offered
     intro = t.flags()[INTRO]
-    t.set_flag(INTRO, 2)
+    t.set_flag("introState", 2)
     g.run(6)
     s = t.ft()
     check(s["whose"] == "off" and s["unlock"] == 0 and s["menu_bits"] == 0 and s["why"] == "Not yet: after the prologue."
@@ -731,10 +722,10 @@ def case_refuse(t, check, args):
     else:
         tp = shell_teleport(t)
         check(tp is None or not tp["exists"], f"refuse: introState 2: no Teleport page ({tp and tp['exists']})")
-    t.set_flag(INTRO, intro)
+    t.set_flag("introState", intro)
     g.run(4)
     # R3: the game refuses to save here now
-    t.set_flag(UNK_A7, 1)
+    t.set_flag("unkA7", 1)
     g.run(2)
     s = t.ft()
     check(s["blocked"] == "Cannot travel from here now." and s["why"], f"refuse: R3 unkA7: '{s['blocked']}'")
@@ -746,9 +737,9 @@ def case_refuse(t, check, args):
         tp = shell_teleport(t)
         check(tp is not None and tp["exists"] and not tp["enabled"] and tp["reason"] == "Cannot travel from here now.",
               f"refuse: R3: Magick > Teleport refused ({tp and (tp['exists'], tp['enabled'], tp['reason'])})")
-    t.set_flag(UNK_A7, 0)
+    t.set_flag("unkA7", 0)
     # R1: this room's Circle not recorded (MENU0's cursor would have no current row)
-    t.set_flag(SAVE_POINTS + here, 0)
+    t.set_flag(f"savePointStates[{here}]", 0)
     g.run(2)
     s = t.ft()
     check("not recorded" in s["blocked"], f"refuse: R1 this Circle unrecorded: '{s['blocked']}'")
@@ -760,14 +751,14 @@ def case_refuse(t, check, args):
         tp = shell_teleport(t)
         check(tp is not None and tp["exists"] and not tp["enabled"] and "not recorded" in tp["reason"],
               f"refuse: R1: Magick > Teleport refused ({tp and (tp['exists'], tp['enabled'], tp['reason'])})")
-    t.set_flag(SAVE_POINTS + here, 1)
+    t.set_flag(f"savePointStates[{here}]", 1)
     # an event script running
     n = t.ft()["ignored"]
-    g.write(t.sym["vs_event_playbackPhase"], b"\x01")
+    g.store("vs_event_playbackPhase", 1)
     t.ft(press=True)
     g.run(2)
     s = t.ft()
-    g.write(t.sym["vs_event_playbackPhase"], b"\x00")
+    g.store("vs_event_playbackPhase", 0)
     g.run(6)
     check(s["state"]["event"] == 1 and s["why"] == "Not during an event." and t.menu() == CLOSED
           and t.ft()["ignored"] == n + 1, f"refuse: an event script: '{s['why']}'")
@@ -832,8 +823,8 @@ def case_game(t, check, args):
     """The game's own Teleportation learned (unkB5 1, as the Lich's event sets it): the
     settings still decide (a YouTube player's report: they stopped mattering)."""
     g, off = t.g, args.menus == "off"
-    t.set_flag(UNK_B5, 1)
-    t.set_flag(MAGIC_USED, 0)
+    t.set_flag("unkB5", 1)
+    t.set_flag("magicUsed", 0)
     t.set_mp(99, 99)
     s = t.ft()
     target = nearest_other(s)
@@ -866,7 +857,7 @@ def case_game(t, check, args):
     check(drop == 7, f"game: MP charged {drop} (flat 7, not the game's {raw})")
     check(t.flags()[MAGIC_USED] == 1, "game: magicUsed set, as the game's Teleportation does")
     t.ft(set={"cost": "free"})
-    t.set_flag(UNK_B5, 2)
+    t.set_flag("unkB5", 2)
     g.run(2)
     s = t.ft()
     check(s["unlock"] == 2 and "paling" in s["why"], f"game: unkB5 2: the spirit paling ('{s['why']}')")
@@ -907,7 +898,7 @@ def key(t, name, hold=3):
 
 def case_button(t, check, args):
     g = t.g
-    cam = t.sym["vs_battle_cameraCurrentSpherical"] + INITIAL_DISTANCE
+    cam = "vs_battle_cameraCurrentSpherical.initialDistance"
     s = t.ft()
     here, target = s["state"]["here"], nearest_other(s)
     if target is None:
@@ -924,34 +915,34 @@ def case_button(t, check, args):
         g.call("system", virtual_pad="back", down=False)
         g.run(10)
     t.ft(set={"enabled": False})  # the control: back is only Select, the camera's zoom toggles
-    d0 = t.u32(cam)
+    d0 = t.word(cam)
     pad_back()
-    zoomed = t.u32(cam) != d0
+    zoomed = t.word(cam) != d0
     check(zoomed and t.menu() == CLOSED, f"button: fast travel off: the pad's back is Select (zoom {d0:#x} -> "
-                                         f"{t.u32(cam):#x}, menu {t.menu():#x})")
+                                         f"{t.word(cam):#x}, menu {t.menu():#x})")
     if zoomed:
         pad_back()  # back
     t.ft(set={"enabled": True})
-    d0 = t.u32(cam)
+    d0 = t.word(cam)
     pad_back()
     t.wait(lambda: t.menu() == 1 and t.u8("vs_battle_shortcutInvoked") == SHORTCUT_TRAVEL, 30,
            "the default pad binding opens MENU0 (currentMenu 1, shortcut 9)")
     wait_list(t)
-    check(t.u32(cam) == d0, f"button: the pad's back: the list, Select's zoom not toggled ({d0:#x} -> {t.u32(cam):#x})")
+    check(t.word(cam) == d0, f"button: the pad's back: the list, Select's zoom not toggled ({d0:#x} -> {t.word(cam):#x})")
     g.press("cross", vsyncs=3, settle=10)
     t.wait(lambda: t.menu() == CLOSED, 180, "Cross closes the menu", step=2)
     g.run(20)
     # a key for Travel, shared with Select (Tab), as the default pad element (back) is
     g.call("button_prompts", bind={"bind_key_travel": "tab"})
     t.ft(set={"enabled": False})  # the control: Tab is only Select, the camera's zoom toggles
-    d0 = t.u32(cam)
+    d0 = t.word(cam)
     key(t, "tab")
-    if t.u32(cam) != d0:
+    if t.word(cam) != d0:
         key(t, "tab")  # back
     else:
         print("info: button: Select does not toggle the zoom here (no control)")
     t.ft(set={"enabled": True})
-    d0 = t.u32(cam)
+    d0 = t.word(cam)
     key(t, "tab")
     t.wait(lambda: t.menu() == 1 and t.u8("vs_battle_shortcutInvoked") == SHORTCUT_TRAVEL, 30,
            "the Travel button opens MENU0 (currentMenu 1, shortcut 9)")
@@ -961,7 +952,7 @@ def case_button(t, check, args):
           "button: straight to the destinations (the TELEPORTATION title, no school rows)")
     check(t.selected(range(LIST_ITEM, LIST_ITEM + len(rows))) == LIST_ITEM + rows.index(here),
           "button: the cursor on this Circle")
-    check(t.u32(cam) == d0, f"button: Select's zoom not toggled by the shared key ({d0:#x} -> {t.u32(cam):#x})")
+    check(t.word(cam) == d0, f"button: Select's zoom not toggled by the shared key ({d0:#x} -> {t.word(cam):#x})")
     t.shot("button-list")
     g.press("cross", vsyncs=3, settle=10)
     t.wait(lambda: t.menu() == CLOSED, 180, "Cross closes the menu", step=2)
@@ -974,9 +965,9 @@ def case_button(t, check, args):
     check(unk2 == 0xA and ability == packed(target, 0), f"button: MENU0's hand-off ({ability:#x})")
     s = arrive(t, target)
     check(s["last"]["arrived"] and s["opened"] == 3, f"button: arrived on Circle {target} (opened {s['opened']})")
-    t.set_flag(UNK_A7, 1)
+    t.set_flag("unkA7", 1)
     check(button_refused(t), "button: a refused press (unkA7) opens nothing")
-    t.set_flag(UNK_A7, 0)
+    t.set_flag("unkA7", 0)
 
 
 def drawn(t, vsyncs=20):
@@ -1050,10 +1041,10 @@ def case_prompt(t, check, args):
     check(drawn(t) == 0, "prompt: not on the keyboard while Travel has no key")
     g.call("button_prompts", bind={"bind_key_travel": "t"})
     check(drawn(t) > 0, "prompt: on the keyboard once Travel has a key")
-    t.set_flag(UNK_A7, 1)
+    t.set_flag("unkA7", 1)
     g.run(4)
     check(drawn(t) == 0, "prompt: not while travel is refused (unkA7)")
-    t.set_flag(UNK_A7, 0)
+    t.set_flag("unkA7", 0)
     # original mode (the PS1's glyphs): Travel is no PS1 button, so the keyboard shows
     # its key (none bound: no prompt), not Select's PlayStation glyph
     g.call("button_prompts", button_prompts="original")

@@ -45,14 +45,14 @@ import numpy as np
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, Game, symbols  # noqa: E402
+from rood_rpc import OUT, Game  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 import golden_frames as gf  # noqa: E402
 
-FACING = symbols()["vs_view"]  # scratch: facing mask (low byte), first-person view (bit 16)
-POSITION = symbols()["vs_view"] + 0x24  # scratch camera.position (VECTOR, 20.12)
-LOOK_AT = symbols()["vs_view"] + 0x34
-YAW = symbols()["vs_view"] + 0x48  # vs_view: camera.angles.vy
+FACING = "vs_view.firstPersonViewFacing"  # facing mask (low byte), first-person view (bit 16)
+POSITION = "vs_view.camera.position"  # (VECTOR, 20.12)
+LOOK_AT = "vs_view.camera.lookAt"
+YAW = "vs_view.camera.angles.vy"
 VULKAN = os.environ.get("ROOD_RENDERER") == "vulkan" and os.environ.get("ROOD_ARCH") == "64"
 
 
@@ -191,26 +191,25 @@ def main():
     os.environ.pop("ROOD_SETTINGS", None)
     game = launch_at("save_room", card=card, fast=True, log=out / "game.log", extra_env=env)
     failures = []
-    sym = symbols()
 
     def check(ok, message):
         print(("ok:   " if ok else "FAIL: ") + message, flush=True)
         if not ok:
             failures.append(message)
 
-    def u32(address):
-        return struct.unpack("<I", game.read(address, 4))[0]
+    def u32(name):
+        return struct.unpack("<I", game.data(name, 4))[0]
 
-    def i32s(address, count):
-        return struct.unpack(f"<{count}i", game.read(address, 4 * count))
+    def i32s(name, count):
+        return struct.unpack(f"<{count}i", game.data(name, 4 * count))
 
     def spherical():
         """values (yaw, pitch, distance, mode), delta (yaw, pitch, distance, mode)."""
-        v = i32s(sym["vs_battle_cameraCurrentSpherical"], 8)
+        v = i32s("vs_battle_cameraCurrentSpherical", 8)
         return v[:4], v[4:]
 
     def game_state():
-        return u32(sym["D_800F196C"]), u32(sym["_cameraMode"])
+        return u32("D_800F196C"), u32("_cameraMode")
 
     def scratch_yaw():
         return u32(YAW) & 0xFFF

@@ -1,17 +1,18 @@
 {
- "ps1_address": 8,
+ "ps1_address": 7,
  "scratchpad": 6,
  "pad_offset": 60,
  "io_register": 46,
- "unnamed_symbol": 7545,
+ "unnamed_symbol": 7540,
  "byte_offset_access": 375,
- "ram_reference": 52,
- "unnamed_field": 11623,
+ "ram_reference": 49,
+ "unnamed_field": 11622,
  "guest_pointer_field": 2,
  "guest_pointer_access": 23,
- "address_as_integer": 182,
- "zig_raw_memory": 679,
+ "address_as_integer": 173,
+ "zig_raw_memory": 675,
  "gpu_packet_writes": 16,
  "ordering_table": 0,
- "lift_bridge": 3
+ "lift_bridge": 3,
+ "tool_address_read": 0
 }

@@ -183,7 +183,7 @@ def main():
         if len(others) < 2:
             others += [r for r in rooms["rooms"] if r["entries"] and r["zone"] not in (home[0], *(o["zone"] for o in others))][:2]
         targets = ([same] if same else []) + others[:3]
-        map_before = game.read_symbol("vs_main_mapStatus", 72)
+        map_before = game.data("vs_main_mapStatus", 72)
         game.call("graphics", gi=False)
         visited = set()
         for i, t in enumerate(targets):
@@ -202,7 +202,7 @@ def main():
             if i == 0:
                 evidence("room-browser-warped")
         check(len(visited) >= 3 or (len(visited) >= 2 and not same), f"warped across zones {sorted(visited)}")
-        check(game.read_symbol("vs_main_mapStatus", 72) == map_before, "the map's rooms-seen bits are untouched")
+        check(game.data("vs_main_mapStatus", 72) == map_before, "the map's rooms-seen bits are untouched")
 
         # Lighting in a warped-to room: pack layers, a user edit, revert, promote.
         target = targets[-1]
@@ -297,7 +297,6 @@ def main():
         # enemy (the Ghost in 13/4, ...). The enemies spawn, so the script
         # finds them (it used to dereference a NULL actor: vs_actors_moveActorToTileAtRate,
         # vs_actors_moveActorToPositionAtRate), and are benched: hidden, out of the fight.
-        ptr = 8 if os.environ.get("ROOD_ARCH") == "64" else 4
         for where in SCRIPTED_ENEMY_ROOMS:
             if where not in listed or not listed[where]["entries"]:
                 continue
@@ -307,9 +306,8 @@ def main():
             if arrived:
                 game.run(240)
                 st = game.state()
-            raw = game.read_symbol("vs_battle_actors", 16 * ptr)
-            slots = [j for j in range(2, 16) if int.from_bytes(raw[j * ptr:(j + 1) * ptr], "little")]
-            event = game.read_symbol("vs_event_playbackPhase", 1)[0]
+            slots = [j for j in range(2, 16) if game.value(f"vs_battle_actors[{j}]")]
+            event = game.data("vs_event_playbackPhase", 1)[0]
             new_log = pathlib.Path(game.log).read_text(errors="replace")[seen:]
             check(arrived and (st["zone"], st["room"]) == where and event == 0 and slots and "benched" in new_log,
                   f"scripts on, enemies off: zone {where[0]} room {where[1]}'s entry event runs to its end with "
@@ -320,29 +318,29 @@ def main():
         # (vs_event_eventSource 2: a door-section script) instead of opening.
         if (13, 6) in listed and listed[(13, 6)]["entries"]:
             status, st = warp(13, 6, scripts=False, enemies=False, cell=list(RUSTED_DOOR_FRONT))
-            table = int.from_bytes(game.read_symbol("_mpdClearedSection", ptr), "little")
-            offsets = game.read(table, 32) if table else b""
+            table = game.value("_mpdClearedSection")
+            offsets = game.data("_mpdClearedSection[0]", 32) if table else b""
             kept = []
             for k in range(16 if table else 0):
                 off = int.from_bytes(offsets[2 * k:2 * k + 2], "little")
                 if off == 0xFFFF:
                     break
-                entry = game.read(table + off, 3)
+                entry = game.data("_mpdClearedSection[0]", 3, offset=off)
                 kept.append(entry[1] | entry[2] << 8)
             check(kept and all(e & 0x8000 for e in kept),
                   f"scripts off: the trigger table keeps only door scripts ({[hex(e) for e in kept]})")
             game.press("cross", vsyncs=4, settle=30)
-            event = game.read_symbol("vs_event_playbackPhase", 1)[0]
-            kind = int.from_bytes(game.read_symbol("vs_event_eventSource", 2), "little")
+            event = game.data("vs_event_playbackPhase", 1)[0]
+            kind = int.from_bytes(game.data("vs_event_eventSource", 2), "little")
             st = game.state()
             check(event != 0 and kind == 2 and (st["zone"], st["room"]) == (13, 6),
                   f"the scripted door runs its door event (event state {event}, kind {kind})")
             evidence("rusted-door")
             for _ in range(10):  # its message: dismissed
-                if game.read_symbol("vs_event_playbackPhase", 1)[0] == 0:
+                if game.data("vs_event_playbackPhase", 1)[0] == 0:
                     break
                 game.press("cross", vsyncs=4, settle=40)
-            check(game.read_symbol("vs_event_playbackPhase", 1)[0] == 0, "and its message closes")
+            check(game.data("vs_event_playbackPhase", 1)[0] == 0, "and its message closes")
 
         # Rooms entered out of story order: the entry events address actors
         # the rooms never spawned (the PS1 reads low RAM through the empty
@@ -352,7 +350,7 @@ def main():
         def drive_event(limit=400):
             for k in range(limit):
                 game.run(20)
-                event = game.read_symbol("vs_event_playbackPhase", 1)[0]
+                event = game.data("vs_event_playbackPhase", 1)[0]
                 if event == 0 and game.call("room_goto", action="status")["phase"] in (0, 4):
                     return True
                 if event:
@@ -374,8 +372,7 @@ def main():
                     game.run(20)
                     if game.call("room_goto", action="status")["phase"] >= 3:
                         break
-                raw = game.read_symbol("vs_actors_actorRecords", 16 * ptr)  # what the script ops read
-                empty = int.from_bytes(raw[2 * ptr:3 * ptr], "little") == 0
+                empty = game.value("vs_actors_actorRecords[2]") == 0  # (what the script ops read)
                 ended = reply["ok"] and drive_event()
                 game.run(60)
                 alive = game.state()["zone"] in (where[0],)

@@ -606,7 +606,6 @@ pub const get_status_string = @import("get_status_string.zig");
 pub const vs_battle_initTargetSelectionRow = @import("vs_battle_initTargetSelectionRow.zig");
 pub const render_text_raw = @import("render_text_raw.zig");
 pub const write_string_terminator = @import("write_string_terminator.zig");
-pub const vs_render_splicePrimitiveList = @import("vs_render_splicePrimitiveList.zig");
 pub const set_text_box = @import("set_text_box.zig");
 pub const set_font_style = @import("set_font_style.zig");
 pub const get_text_line_length = @import("get_text_line_length.zig");

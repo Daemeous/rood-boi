@@ -428,16 +428,20 @@ static void parity(int kind, int element_anchor)
     if (&pc_hw_anchor_muted_as && pc_hw_anchor_muted_as >= 0)
         lua_anchor = pc_hw_anchor_muted_as; /* (a game routine anchored its own range, as it does the game's) */
     walker.anchor = shadow_anchor;
-    for (i = 1; i < shadow_count; ++i) /* (the table's drawing order: the higher slot first) */
-        for (j = i; j > 0 && shadows[j].offset > shadows[j - 1].offset; --j) {
-            int o = shadows[j].offset;
-            u_long h = shadows[j].head;
-            shadows[j] = shadows[j - 1];
-            shadows[j - 1].offset = o, shadows[j - 1].head = h;
-        }
-    for (i = 0; i < shadow_count; ++i)
-        n += pc_classic_walk(&walker, (const unsigned*)&shadows[i].head, start, packet_cursor(), lua + n,
-            PC_CLASSIC_CAPTURE - n);
+    { /* (the table's drawing order: the higher slot first. The runs placed at a slot are keyed by the slot's address: the slots are
+       * not moved, the walk takes them in this order) */
+        int order[SHADOW_SLOTS];
+        for (i = 0; i < shadow_count; ++i)
+            order[i] = i;
+        for (i = 1; i < shadow_count; ++i)
+            for (j = i; j > 0 && shadows[order[j]].offset > shadows[order[j - 1]].offset; --j) {
+                int t = order[j];
+                order[j] = order[j - 1], order[j - 1] = t;
+            }
+        for (i = 0; i < shadow_count; ++i)
+            n += pc_classic_walk(&walker, (const unsigned*)&shadows[order[i]].head, start, packet_cursor(), lua + n,
+                PC_CLASSIC_CAPTURE - n);
+    }
     if (box_shadow_id >= 0) { /* (its own anchor: the walker's, as the game's capture) */
         pc_classic_walker box = pc_classic_guest();
         box.anchor = shadow_anchor;
@@ -984,22 +988,6 @@ int vs_mainMenu_renderIntColor(int value, int xy, int color, u_long* before); /*
 static void button_background_packets(u_long* ot, int x, int y, int w, int h)
 {
     int i;
-    if (!emit_items) { /* (the game's own drawing here is packets: so is the claim's) */
-        u_long* p = packet_cursor();
-        for (i = 0; i < h; ++i) {
-            p[0] = vs_getTag(u_long[6], ot[0]);
-            p[1] = vs_getTpage(0, 0, 0, 0, ditheringOn);
-            p[2] = vs_getRGB0(primLineG2, 64, 56, 32);
-            p[3] = ((x & 0xFFFF) | ((y + i) << 0x10));
-            p[4] = vs_getRGB888(16, 16, 8);
-            p[5] = vs_getXY_2((x + w) - i, y + i);
-            p[6] = vs_getTpage(0, 0, clut4Bit, semiTransparencyHalf, ditheringOff);
-            ot[0] = ((psx_to_int(u_long, p) << 8) >> 8);
-            p += 7;
-        }
-        vs_scratch.unk0 = p;
-        return;
-    }
     for (i = 0; i < h; ++i) {
         /* a draw item: the shaded line drawn in the dithered mode, the semi-transparent half mode left set after it, placed at
          * `ot` by a marker (a frame of items alone: by its depth) */

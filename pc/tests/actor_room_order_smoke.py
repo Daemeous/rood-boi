@@ -43,7 +43,7 @@ from PIL import Image
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, Game, symbols, wait_for_file  # noqa: E402
+from rood_rpc import OUT, Game, wait_for_file  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 
 WINDOW = "960x720"
@@ -61,7 +61,7 @@ BASE = {"room_slack_units": 2, "aa": "off"}
 # The beam (occlusion_smoke): Ashley behind it at zone 51 room 1's save point.
 POSITION = 28  # D_800F4538_t unk0.position
 SPOT = (704, 0, 960)
-YAW = symbols()["vs_view"] + 0x48  # vs_view: camera.angles.vy
+YAW = "vs_view.camera.angles.vy"
 
 failures = []
 
@@ -111,14 +111,10 @@ def reach_search(out, env, socket):
     """Play the prologue from first_bubble to "Now, search!"; returns its save state."""
     snap = out / "search.snap"
     game = launch_at("first_bubble", fast=True, log=out / "game-drive.log", extra_env=env, socket_path=socket)
-    sym = symbols()
-
-    def ptr(address):
-        return int.from_bytes(game.read(address, PTR), "little")
 
     def actor2(slot):
-        actor = ptr(sym["vs_battle_actors"] + slot * PTR)
-        return game.actor_stats(actor) if actor else 0
+        """The actor's stats record (a path), or None when the slot has none."""
+        return f"vs_battle_actors[{slot}]->stats" if game.value(f"vs_battle_actors[{slot}]") else None
     try:
         weakened = False
         for _ in range(600):
@@ -129,7 +125,7 @@ def reach_search(out, env, socket):
             if state["zone"] == 3 and not weakened and vsync >= WEAKEN_AT:
                 for slot in FIGHTERS:
                     if actor2(slot):
-                        game.write(actor2(slot) + HP, struct.pack("<h", 1))
+                        game.store(actor2(slot) + ".currentHP", 1)
                 weakened = True
             game.press("circle", vsyncs=3, settle=57)
         state = game.state()
@@ -184,7 +180,7 @@ def leg(out, env, socket, save):
 
 
 def yaw(game):
-    return struct.unpack("<I", game.read(YAW, 4))[0] & 0xFFF
+    return struct.unpack("<I", game.data(YAW, 4))[0] & 0xFFF
 
 
 def screen(game, point, shape):
@@ -207,8 +203,7 @@ def beam(card, out, env, socket, save):
                 break
         state = game.state()
         check((state["zone"], state["room"]) == (51, 1), f"zone 51 room 1 (at {state['zone']}/{state['room']})")
-        actor = int.from_bytes(game.read(symbols()["vs_actors_actorRecords"], PTR), "little")
-        game.write(actor + POSITION, struct.pack("<3h", *SPOT))
+        game.store_data("vs_actors_actorRecords[0]->unk0.position", struct.pack("<3h", *SPOT))
         game.run(60)
         for _ in range(8):
             if abs(yaw(game) - 0x400) < 8:

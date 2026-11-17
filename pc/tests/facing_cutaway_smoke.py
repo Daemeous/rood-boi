@@ -58,12 +58,12 @@ from PIL import Image
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 import golden_frames as gf  # noqa: E402
 
-FACING = symbols()["vs_view"]  # scratch: the facing mask (low byte), first-person view (bit 16)
-YAW = symbols()["vs_view"] + 0x48  # vs_view: camera.angles.vy
+FACING = "vs_view.firstPersonViewFacing"  # the facing mask (low byte), first-person view (bit 16)
+YAW = "vs_view.camera.angles.vy"
 GRAPHICS = {**gf.DEFAULTS, "scale": 2, "interpolate": True, "gameplay_walls": "original",
             "editor_hide_masks": True, "editor_game_cutaway": True, "editor_cutaway": True}
 
@@ -127,8 +127,8 @@ def main():
         if not ok:
             failures.append(message)
 
-    def u32(address):
-        return struct.unpack("<I", game.read(address, 4))[0]
+    def u32(name):
+        return struct.unpack("<I", game.data(name, 4))[0]
 
     def yaw():
         return u32(YAW) & 0xFFF
@@ -295,15 +295,15 @@ def main():
                     break
                 turn("save-turn-back")
             # The save room's door to room 12 (index 2) leads to room 13 instead.
-            doors = game.room_pointer("doorSection", 0x70)
-            entry = bytearray(game.read(doors + 2 * 12, 12))
+            doors = "vs_battle_roomData.doorSection[0]"
+            entry = bytearray(game.data(doors, 12, offset=2 * 12))
             if entry[1] != 12:
                 check(False, f"the save room's third door leads to room 12 ({entry[1]})")
             else:
                 entry[1] = 13
                 u4, u6 = struct.unpack_from("<HH", entry, 4)
                 struct.pack_into("<HH", entry, 4, (u4 & 0x80FF) | (5 << 8), (u6 & 0x83FF) | (8 << 10))  # cell 5, 8
-                game.write(doors + 2 * 12, bytes(entry))
+                game.store_data(doors, bytes(entry), offset=2 * 12)
                 game.call("graphics")
                 game.hold("left", 12)
                 game.run(5)

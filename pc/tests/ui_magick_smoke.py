@@ -71,7 +71,7 @@ import tempfile
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, Game, symbols  # noqa: E402
+from rood_rpc import OUT, Game  # noqa: E402
 from weapon_slots_smoke import default_card  # noqa: E402
 
 CLOSED = 0x3F
@@ -79,12 +79,8 @@ MENU0 = 0x41       # currentMenu while the original Magick screen runs from the 
 TARGETING = 2      # D_800F196C while a spell's target is chosen
 PTR = 8 if os.environ.get("ROOD_ARCH") == "64" else 4  # host pointers (vs_battle_menuItems, characterState)
 
-# vs_action_t: 52 bytes, cost (signed) at 3, unlocked = bit 7 of byte 13
-ACTION, ACTION_COST, ACTION_UNLOCKED = 52, 3, 13
-MENU_FLAGS = 2                 # vs_main_settings.menuFlags (bit 0: the Magick command)
-MP, MP_MAX = 0x1C, 0x1E        # vs_battle_actor2 currentMP / maxMP
-STATUSES, SILENCE = 0x948, 0x1000
-UNK_B5, SAVE_POINTS = 0xB5, 0x156  # vs_main_stateFlags.unkB5 / savePointStates[48]
+ACTOR2 = "vs_battle_characterState->stats"  # the character's stats record (vs_battle_actor2: currentMP, maxMP, statuses)
+SILENCE = 0x1000  # its statuses word's bit
 SCHOOLS = (("warlock", 18), ("shaman", 6), ("sorcerer", 18), ("enchanter", 8))
 HEAL, HERAKLES, WARLOCK_SPELL, EXPLOSION, THUNDERBURST = 96, 60, 0x61, 0x6A, 0x6E
 LEARN = (HEAL, HERAKLES, WARLOCK_SPELL, EXPLOSION, EXPLOSION + 1, EXPLOSION + 2, THUNDERBURST, THUNDERBURST + 1)
@@ -145,7 +141,6 @@ class Session:
     def __init__(self, name, out, card, env, shots):
         self.name, self.out, self.shots = name, out, shots
         self.g = Game.launch(fast=True, card=str(card), log=out / f"{name}.log", extra_env=env)
-        self.sym = symbols()
         g = self.g
         g.wait_title()
         g.press("start", vsyncs=4, settle=90)
@@ -161,64 +156,51 @@ class Session:
             self.g.present_screenshot(self.out / f"{self.name}-{name}.png")
 
     def prepare(self):
-        g, sym = self.g, self.sym
-        f = sym["vs_main_settings"] + MENU_FLAGS
-        g.write(f, struct.pack("<H", struct.unpack("<H", g.read(f, 2))[0] | 1))
+        g = self.g
+        g.store("vs_main_settings.menuFlags", g.value("vs_main_settings.menuFlags") | 1)  # (bit 0: the Magick command)
         for i in LEARN:
             self.learn(i)
         for i in UNLEARN:
-            a = self.sym["vs_main_actions"] + i * ACTION + ACTION_UNLOCKED
-            g.write(a, bytes([g.read(a, 1)[0] & 0x7F]))
-        a = self.actor2()
-        g.write(a + MP, g.read(a + MP_MAX, 2))
+            g.store(f"vs_main_actions[{i}].unlocked", 0)
+        g.store(ACTOR2 + ".currentMP", g.value(ACTOR2 + ".maxMP"))
         g.run(2)
 
     # ---- reads ----
-    def ptr(self, address):
-        return int.from_bytes(self.g.read(address, PTR), "little")
 
     def menu(self):
-        return self.g.read(self.sym["vs_battle_menuState"], 1)[0]
-
-    def action(self, i):
-        return self.g.read(self.sym["vs_main_actions"] + i * ACTION, ACTION)
+        return self.g.value("vs_battle_menuState.currentMenu")
 
     def cost(self, i):
-        return s8(self.action(i)[ACTION_COST])
+        return s8(self.g.value(f"vs_main_actions[{i}].cost"))
 
     def learned(self, i):
-        return bool(self.action(i)[ACTION_UNLOCKED] & 0x80)
+        return bool(self.g.value(f"vs_main_actions[{i}].unlocked"))
 
     def learn(self, i):
-        a = self.sym["vs_main_actions"] + i * ACTION + ACTION_UNLOCKED
-        self.g.write(a, bytes([self.g.read(a, 1)[0] | 0x80]))
-
-    def actor2(self):
-        actor = self.ptr(self.sym["vs_battle_characterState"])
-        return self.g.actor_stats(actor)
+        self.g.store(f"vs_main_actions[{i}].unlocked", 1)
 
     def mp(self):
-        return struct.unpack("<h", self.g.read(self.actor2() + MP, 2))[0]
+        return self.g.value(ACTOR2 + ".currentMP")
 
     def set_mp(self, v):
-        self.g.write(self.actor2() + MP, struct.pack("<h", v))
+        self.g.store(ACTOR2 + ".currentMP", v)
         self.g.run(2)
 
     def targeting(self):
-        return self.g.read(self.sym["D_800F196C"], 1)[0] == TARGETING
+        return self.g.data("D_800F196C", 1)[0] == TARGETING
 
     def handoff(self):
         """The game state a spell's hand-off writes (compared between the processes)."""
-        g, sym = self.g, self.sym
-        ms = g.read(sym["vs_battle_menuState"], 3)
-        return {"vs_menu_frameworkActionSelection": g.read(sym["vs_menu_frameworkActionSelection"], 8).hex(),
+        g = self.g
+        ms = g.data("vs_battle_menuState", 3)
+        return {"vs_menu_frameworkActionSelection": g.data("vs_menu_frameworkActionSelection", 8).hex(),
                 "currentMenu": ms[0], "returnState": ms[1], "executeAbilityType": ms[2],
-                "submenuStates[0]": g.read(sym["vs_battle_submenuStates"], 1)[0],
-                "cursorMemories": g.read(sym["vs_menu_frameworkMenuMemory"], 52).hex()}
+                "submenuStates[0]": g.value("vs_battle_submenuStates[0]"),
+                "cursorMemories": g.data("vs_menu_frameworkMenuMemory", 52).hex()}
 
     def exec_fields(self):
-        e = self.g.read(self.sym["vs_menu_frameworkActionSelection"], 8)
-        ms = self.g.read(self.sym["vs_battle_menuState"], 3)
+        e = self.g.data("vs_menu_frameworkActionSelection", 8)
+        ms = self.g.data("vs_battle_menuState", 3)
         unk2, ability = struct.unpack("<hi", e[2:8])
         return unk2, ability, ms[2], ms[1]
 
@@ -240,12 +222,10 @@ class Session:
 
     # ---- the original menu (ui_menus off) ----
     def menu_items(self):
-        p = self.ptr(self.sym["vs_battle_menuItems"])
-        if not p:
+        if not self.g.value("vs_battle_menuItems"):
             return {}
-        size = self.g.layout("menuItem_size", 64)
-        raw = self.g.read(p, size * 40)
-        return {i: (raw[i * size], raw[i * size + 6]) for i in range(40) if raw[i * size]}
+        rows = self.g.table("vs_battle_menuItems[0]", 40, "state", "selected")
+        return {i: (row["state"], row["selected"]) for i, row in enumerate(rows) if row["state"]}
 
     def wait_ready(self, want, limit=400):
         calm = 0
@@ -392,7 +372,7 @@ def main():
         a.prepare()
         start_a = a.handoff()
         heal_cost = a.cost(HEAL)
-        shaman = [i for i in a.g.read(a.sym["vs_battle_shamanSpellIds"], 6) if a.learned(i)]
+        shaman = [i for i in a.g.data("vs_battle_shamanSpellIds", 6) if a.learned(i)]
         g = a.g
         g.press("triangle", vsyncs=3, settle=10)
         a.wait_ready(0)
@@ -498,11 +478,10 @@ def parity(b, check, orig, heal_cost):
 def snapshot_checks(b, check):
     b.shell_open()
     m = b.mg()
-    a = b.actor2()
-    mp, mp_max = struct.unpack("<hh", b.g.read(a + MP, 4))
+    mp, mp_max = b.g.value(ACTOR2 + ".currentMP"), b.g.value(ACTOR2 + ".maxMP")
     check(m["valid"] and m["mp"] == mp and m["mp_max"] == mp_max, f"MP {m['mp']} / {m['mp_max']} (RAM {mp} / {mp_max})")
     for k, (name, size) in enumerate(SCHOOLS):
-        table = list(b.g.read(b.sym[f"vs_battle_{name}SpellIds"], size))
+        table = list(b.g.data(f"vs_battle_{name}SpellIds", size))
         ids = [i for i in table if b.learned(i)]
         sc = m["schools"][k]
         got = [x["id"] for x in sc["spells"]]
@@ -569,7 +548,7 @@ def original_cancel(b, check):
     g.press("circle", vsyncs=3, settle=10)
     b.wait_ready(20)
     g.run(10)
-    shaman = [i for i in g.read(b.sym["vs_battle_shamanSpellIds"], 6) if b.learned(i)]
+    shaman = [i for i in g.data("vs_battle_shamanSpellIds", 6) if b.learned(i)]
     b.nav(range(20, 20 + len(shaman)), 20 + shaman.index(HEAL))
     g.press("circle", vsyncs=3, settle=1)
     n = b.wait_targeting()
@@ -607,7 +586,7 @@ def spell_row(b, id):
 
 
 def level_memory(b):
-    return b.g.read(b.sym["vs_menu_frameworkMenuMemory"], 52)[LEVEL_MEMORY]
+    return b.g.data("vs_menu_frameworkMenuMemory", 52)[LEVEL_MEMORY]
 
 
 def hover(b, row):
@@ -618,10 +597,10 @@ def hover(b, row):
 def level_memory_checks(b, check):
     """The LV picker's level is the game's cursorMemories[12]: kept across a close, clamped (and
     written back) by a spell with fewer levels."""
-    g, a = b.g, b.actor2()
-    saved = g.read(a + MP, 4)
+    g = b.g
+    saved = g.data(ACTOR2 + ".currentMP", 4)  # (currentMP, maxMP)
     mp = b.cost(EXPLOSION + 2) + 20  # LV3 affordable (more than an early save's maximum)
-    g.write(a + MP, struct.pack("<hh", mp, mp))
+    g.store_data(ACTOR2 + ".currentMP", struct.pack("<hh", mp, mp))
     g.run(2)
     b.shell_open("warlock")
     row, thunder = explosion_row(b), spell_row(b, THUNDERBURST)
@@ -630,7 +609,7 @@ def level_memory_checks(b, check):
     check(b.mg()["focus"] == EXPLOSION + 2 and level_memory(b) == 2,
           f"Explosion LV3 focused ({b.mg()['focus']}), cursorMemories[12] {level_memory(b)}")
     unk2, ability, kind, _ = cast(b, check, "Explosion LV3")
-    cm = b.g.read(b.sym["vs_menu_frameworkMenuMemory"], 52)
+    cm = b.g.data("vs_menu_frameworkMenuMemory", 52)
     check((unk2, ability, kind) == (7, EXPLOSION + 2, 6) and (cm[LEVEL_MEMORY], cm[LEVEL_MEMORY + 1]) == (2, 3),
           f"Explosion LV3 hand-off: id {ability} ({EXPLOSION + 2}), LV picker memory "
           f"{cm[LEVEL_MEMORY]} of {cm[LEVEL_MEMORY + 1]}")
@@ -652,7 +631,7 @@ def level_memory_checks(b, check):
           f"back on Explosion: LV{m['level'] + 1} (LV2: the clamp was written back), focus {m['focus']}")
     b.shell_level(0)
     b.shell_close()
-    g.write(a + MP, saved)
+    g.store_data(ACTOR2 + ".currentMP", saved)
     g.run(2)
 
 
@@ -662,10 +641,10 @@ def no_mp_checks(b, check):
     mp0 = b.mp()
     mask = 0
     for _ in range(3):  # MP regenerates: 0 at the very frame the menu opens
-        g.write(b.actor2() + MP, struct.pack("<h", 0))
+        g.store(ACTOR2 + ".currentMP", 0)
         g.press("triangle", vsyncs=3, settle=4)
         b.wait(lambda: b.ui().get("visible") and b.menu() == 0, 120, "the shell opens", step=2)
-        mask = struct.unpack("<H", g.read(b.sym["vs_menu_frameworkActionRestrictions"], 2))[0]
+        mask = struct.unpack("<H", g.data("vs_menu_frameworkActionRestrictions", 2))[0]
         if mask & NO_MP:
             break
         b.shell_close()
@@ -675,9 +654,9 @@ def no_mp_checks(b, check):
     check(mask & NO_MP and m["mask"] & NO_MP and spells and all(not u and r == POOR for _, u, r in spells),
           f"MP 0 at the open (vs_menu_frameworkActionRestrictions {mask:#x}, snapshot mask {m['mask']:#x}): every spell greyed "
           f"'{POOR}' ({spells})")
-    before = g.read(b.sym["vs_menu_frameworkActionSelection"], 8)
+    before = g.data("vs_menu_frameworkActionSelection", 8)
     g.press("circle", vsyncs=3, settle=10)
-    check(b.ui()["visible"] and b.menu() == 0 and g.read(b.sym["vs_menu_frameworkActionSelection"], 8) == before,
+    check(b.ui()["visible"] and b.menu() == 0 and g.data("vs_menu_frameworkActionSelection", 8) == before,
           f"MP 0: Circle refused (visible {b.ui()['visible']}, currentMenu {b.menu():#x})")
     b.shot("no-mp")
     b.shell_close()
@@ -686,7 +665,6 @@ def no_mp_checks(b, check):
 
 def level_checks(b, check):
     g = b.g
-    sym = b.sym
     # LV2 by Right
     b.shell_open("warlock")
     row = explosion_row(b)
@@ -696,7 +674,7 @@ def level_checks(b, check):
     check(b.mg()["level"] == 1 and b.mg()["focus"] == EXPLOSION + 1,
           f"Right: Explosion LV{b.mg()['level'] + 1}, focus {b.mg()['focus']}")
     unk2, ability, kind, ret = cast(b, check, "Explosion LV2 (Right)")
-    cm = g.read(sym["vs_menu_frameworkMenuMemory"], 52)
+    cm = g.data("vs_menu_frameworkMenuMemory", 52)
     check((unk2, ability, kind, ret) == (7, EXPLOSION + 1, 6, MENU0) and (cm[LEVEL_MEMORY], cm[LEVEL_MEMORY + 1]) == (1, 3),
           f"Explosion LV2 hand-off: id {ability} ({EXPLOSION + 1}), unk2 {unk2}, type {kind}, return {ret:#x}, "
           f"LV picker memory {cm[LEVEL_MEMORY]} of {cm[LEVEL_MEMORY + 1]}")
@@ -735,9 +713,9 @@ def level_checks(b, check):
     check(lv3 > lv2 and x["level"][1]["usable"] and not x["level"][2]["usable"] and x["level"][2]["reason"] == POOR,
           f"MP {lv2}: LV2 usable {x['level'][1]['usable']}, LV3 (cost {lv3}) usable {x['level'][2]['usable']}, "
           f"'{x['level'][2]['reason']}'")
-    before = g.read(sym["vs_menu_frameworkActionSelection"], 8)
+    before = g.data("vs_menu_frameworkActionSelection", 8)
     g.press("circle", vsyncs=3, settle=10)
-    check(b.ui()["visible"] and b.menu() == 0 and g.read(sym["vs_menu_frameworkActionSelection"], 8) == before,
+    check(b.ui()["visible"] and b.menu() == 0 and g.data("vs_menu_frameworkActionSelection", 8) == before,
           f"LV3 refused: the shell stays ({b.ui()['visible']}, {b.menu():#x}), vs_menu_frameworkActionSelection untouched")
     b.shot("explosion-lv3-poor")
     b.shell_level(0)
@@ -747,51 +725,49 @@ def level_checks(b, check):
 
 def silence_checks(b, check):
     g = b.g
-    a = b.actor2()
-    st = struct.unpack("<I", g.read(a + STATUSES, 4))[0]
-    g.write(a + STATUSES, struct.pack("<I", st | SILENCE))
+    st = g.value(ACTOR2 + ".statuses")
+    g.store(ACTOR2 + ".statuses", st | SILENCE)
     b.shell_open("warlock")
     m = b.mg()
     spells = [(x["name"], lv["usable"], lv["reason"]) for s in m["schools"] for x in s["spells"] for lv in x["level"]]
     check(spells and all(not u and SILENCED in r for _, u, r in spells),
           f"silenced: every spell greyed with the reason ({spells})")
-    before = g.read(b.sym["vs_menu_frameworkActionSelection"], 8)
+    before = g.data("vs_menu_frameworkActionSelection", 8)
     g.press("circle", vsyncs=3, settle=10)
-    check(b.ui()["visible"] and b.menu() == 0 and g.read(b.sym["vs_menu_frameworkActionSelection"], 8) == before,
+    check(b.ui()["visible"] and b.menu() == 0 and g.data("vs_menu_frameworkActionSelection", 8) == before,
           f"silenced: Circle refused (visible {b.ui()['visible']}, currentMenu {b.menu():#x})")
     b.shot("silence")
     b.shell_close()
-    g.write(a + STATUSES, struct.pack("<I", st))
+    g.store(ACTOR2 + ".statuses", st)
     g.run(2)
 
 
 def room_id(b):
     st = b.g.state()
-    table = b.g.read(b.sym["vs_main_locationZoneMapIds"], 1024)
+    table = b.g.data("vs_main_locationZoneMapIds", 1024)
     return next((i for i in range(512) if table[2 * i] == st["zone"] and table[2 * i + 1] == st["room"]), 0)
 
 
 def teleport_checks(b, check):
-    g, sym = b.g, b.sym
-    flags = sym["vs_main_stateFlags"]
+    g = b.g
     data, costs = menu0_tables()
     room = room_id(b)
     here = next((i for i in range(48) if (data[i] & 0xFFFF) == room), None)
     if not check(here is not None, f"the save room (location {room:#x}) has a Circle of Magic in MENU0's table"):
         return
-    g.write(flags + UNK_B5, bytes([1]))
+    g.store("vs_main_stateFlags.unkB5", 1)
     # the settings' cost mode applies after the game's own unlock too (pc/docs/Fast_Travel.md):
     # Game, the costs checked here (the default, Free, would make every trip 0)
     g.call("fast_travel", set={"cost": "game"})
-    pts = bytearray(g.read(flags + SAVE_POINTS, 48))
+    points = "vs_main_stateFlags.savePointStates"
+    pts = bytearray(g.data(points, 48))
     others = [p for p in (0, 1, 3, 10, 30) if p != here]
     for p in others + [here]:
         pts[p] = pts[p] or 1
     paling = next(p for p in (5, 6, 7) if p != here)
     pts[paling] = 2
-    g.write(flags + SAVE_POINTS, bytes(pts))
-    a = b.actor2()
-    g.write(a + MP, g.read(a + MP_MAX, 2))
+    g.store_data(points, bytes(pts))
+    g.store(ACTOR2 + ".currentMP", g.value(ACTOR2 + ".maxMP"))
     g.run(2)
     b.shell_open("teleport")
     m = b.mg()
@@ -813,13 +789,13 @@ def teleport_checks(b, check):
     b.shot("teleport")
     # Circle on the paling circle: refused
     idx = [d["point"] for d in dests]
-    before = g.read(sym["vs_menu_frameworkActionSelection"], 8)
+    before = g.data("vs_menu_frameworkActionSelection", 8)
     for _ in range(50):
         if b.mg()["focus"] == paling:
             break
         g.press("down", vsyncs=3, settle=4)
     g.press("circle", vsyncs=3, settle=10)
-    check(b.ui()["visible"] and g.read(sym["vs_menu_frameworkActionSelection"], 8) == before,
+    check(b.ui()["visible"] and g.data("vs_menu_frameworkActionSelection", 8) == before,
           f"Circle on the paling circle: refused (visible {b.ui()['visible']})")
     # teleport to the nearest other circle
     target = min((p for p in others), key=lambda p: abs(p - here))
@@ -831,7 +807,7 @@ def teleport_checks(b, check):
     mp0, st0 = b.mp(), g.state()
     g.press("circle", vsyncs=3, settle=1)
     b.wait(lambda: not b.ui()["visible"], 30, "the shell closes for the teleport")
-    e = g.read(sym["vs_menu_frameworkActionSelection"], 8)
+    e = g.data("vs_menu_frameworkActionSelection", 8)
     unk2, packed = struct.unpack("<hi", e[2:8])
     want = teleport_packed(data, target, cost)
     check(unk2 == 0xA and packed == want, f"teleport hand-off: unk2 {unk2:#x}, executeAbility {packed:#x} "

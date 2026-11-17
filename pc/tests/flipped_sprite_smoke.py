@@ -34,7 +34,7 @@ from PIL import Image
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
-from rood_rpc import OUT, Game, symbols  # noqa: E402
+from rood_rpc import OUT, Game  # noqa: E402
 
 failures = []
 
@@ -132,10 +132,9 @@ def classify(rgb):
 
 
 def cpu_region(game):
-    base = symbols()["vram"]
     rows = []
     for y in range(BASE_Y, BASE_Y + 128):
-        raw = game.read(base + (y * 1024 + BASE_X) * 2, 256)
+        raw = game.data("vram", 256, offset=(y * 1024 + BASE_X) * 2)
         rows.append(np.frombuffer(raw, "<u2"))
     px = np.array(rows)
     rgb = np.stack([(px & 31) * 8, ((px >> 5) & 31) * 8, ((px >> 10) & 31) * 8], -1)

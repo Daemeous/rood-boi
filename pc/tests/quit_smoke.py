@@ -39,7 +39,7 @@ import time
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, Deadline, RpcError, symbols  # noqa: E402
+from rood_rpc import OUT, Deadline, RpcError  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from card_fixtures import default_save  # noqa: E402
 from menu_nav import top_command  # noqa: E402
@@ -73,7 +73,6 @@ class Run:
         env.update(extra or {})
         self.game = launch_at("save_room", card=self.card, log=self.work / "game.log", extra_env=env,
                               socket_path=str(socket))
-        self.sym = symbols()
         self.room = self.game.state()["zone"], self.game.state()["room"]
 
     # ---- reading ----
@@ -81,7 +80,7 @@ class Run:
         return pathlib.Path(self.game.log).read_text(errors="replace").count("TITLE MENU READY")
 
     def menu(self):
-        return self.game.read(self.sym["vs_battle_menuState"], 1)[0]
+        return self.game.value("vs_battle_menuState.currentMenu")
 
     def shell(self):
         return self.game.call("ui_menu")
@@ -141,7 +140,7 @@ class Run:
         for _ in range(3):
             self.game.press("circle", vsyncs=3, settle=90)
         self.until(lambda: self.starts() > before, "Continue: the title started a game", limit=2400, step=8)
-        self.until(lambda: self.menu() == CLOSED and self.game.read(self.sym["D_800F196C"], 1)[0] == 1
+        self.until(lambda: self.menu() == CLOSED and self.game.data("D_800F196C", 1)[0] == 1
                    and (self.game.state()["zone"], self.game.state()["room"]) == self.room,
                    "Continue: the save's room again", limit=2400, step=8)
         self.game.run(30)
@@ -172,14 +171,12 @@ def main():
 
     def soft_reset_state(run):
         """What the soft reset leaves in the settings it changes (main.c: monoSound 0, vibrationOn 1)."""
-        base = run.sym["vs_main_settings"]
-        return run.game.read(base + MONO_SOUND, 1)[0], run.game.read(base + VIBRATION_ON, 1)[0]
+        return run.game.value("vs_main_settings.monoSound"), run.game.value("vs_main_settings.vibrationOn")
 
     def prime(run):
         """Settings the soft reset changes, set the other way first (so the check shows the reset ran)."""
-        base = run.sym["vs_main_settings"]
-        run.game.write(base + MONO_SOUND, bytes([1]))
-        run.game.write(base + VIBRATION_ON, bytes([0]))
+        run.game.store("vs_main_settings.monoSound", 1)
+        run.game.store("vs_main_settings.vibrationOn", 0)
 
     cases = args.cases.split(",")
 
@@ -233,7 +230,7 @@ def main():
             g.call("ui_menu", modern=False)
             prime(run)
             g.press("triangle", vsyncs=3, settle=30)
-            top_command(g, run.sym, OPTION_COMMAND)
+            top_command(g, OPTION_COMMAND)
             run.press("circle")
             o = run.until(lambda: (lambda c: c if c["screen"] == "list" and c["ready"] else None)(run.classic()),
                           "the Option list")

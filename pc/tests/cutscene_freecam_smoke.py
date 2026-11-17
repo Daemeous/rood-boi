@@ -52,7 +52,6 @@ MOON = {"azimuth": 279, "elevation": 35, "color": [0.582, 0.655, 0.886], "intens
 SKY = {"zenith": [0.074, 0.091, 0.149], "horizon": [0.18, 0.182, 0.214], "ground": [0.032, 0.03, 0.033],
        "sun_tint": 0.25, "ambient": 0.6, "source": "manual"}
 # vs_battle_roomData (_mpdRoomSection, 146C.h): geometrySection, a 4-byte guest pointer.
-ROOM_GEOMETRY = 0x64
 
 
 def main():
@@ -275,24 +274,24 @@ def main():
 
         # ---- a group an event script hides stays hidden from the free camera ----
         scene(COURTYARD, 300)
-        geometry = game.room_pointer("geometrySection", ROOM_GEOMETRY)
-        count = struct.unpack("<I", game.read(geometry, 4))[0]
+        geometry = "vs_battle_roomData.geometrySection[0]"
+        count = struct.unpack("<I", game.data(geometry, 4))[0]
         groups = game.call("room_groups")["groups"]
         shown = [i for i, x in enumerate(groups) if not x["black"] and not x["flags"] & 0x100
                  and not x["flags"] & 0x8000]
         check(count == len(groups) and len(shown) > 2, f"the courtyard's groups ({len(shown)} of {count} shown)")
         if shown:
             target = max(shown, key=lambda i: groups[i]["polygons"])
-            address = geometry + 4 + target * 0x40
-            flags = struct.unpack("<I", game.read(address, 4))[0]
+            group = 4 + target * 0x40  # (the group's record in the geometry section: the file's layout)
+            flags = struct.unpack("<I", game.data(geometry, 4, offset=group))[0]
             camera(True, position=[-2500, -5000, -5000], target=[1300, -1000, 0])
             whole = stats()["instances"]
             camera(False)
-            game.write(address, struct.pack("<I", flags | 0x100))  # as vs_field_hideRoomGeometryGroup (an event script) does
+            game.store_data(geometry, struct.pack("<I", flags | 0x100), offset=group)  # as vs_field_hideRoomGeometryGroup (an event script) does
             camera(True, position=[-2500, -5000, -5000], target=[1300, -1000, 0])
             hid = stats()["instances"]
             camera(False)
-            game.write(address, struct.pack("<I", flags))
+            game.store_data(geometry, struct.pack("<I", flags), offset=group)
             check(hid == whole - 1, f"the free camera leaves out the group the event hid ({whole} -> {hid} instances)")
 
         # ---- the baked shadow: the far floor slab the PS1 baked dark stays dark ----

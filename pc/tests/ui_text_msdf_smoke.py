@@ -22,7 +22,7 @@ from PIL import Image
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 
 WINDOW = (2560, 1440)
@@ -52,14 +52,13 @@ def shot(out, field):
     g = launch_at("save_room", card=card, fast=True, log=d / "game.log",
                   socket_path=f"/tmp/rood-msdf-{field}-{os.getpid()}.sock",
                   extra_env={"ROOD_SETTINGS": str(d / "settings.cfg"), "ROOD_WINDOW": f"{WINDOW[0]}x{WINDOW[1]}", "ROOD_AUDIO": "none"})
-    sym = symbols()
     try:
         g.run(160)
         for _ in range(8):
-            if g.read(sym["vs_battle_menuState"], 1)[0] & 0x3F != 0x3F:
+            if g.value("vs_battle_menuState.currentMenu") & 0x3F != 0x3F:
                 break
             g.press("triangle", vsyncs=3, settle=40)
-        top_command(g, sym, 4)  # STATUS
+        top_command(g, 4)  # STATUS
         for _ in range(5):
             g.press("circle", vsyncs=2, settle=2)
             g.run(30)

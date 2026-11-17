@@ -141,15 +141,6 @@ extern unsigned short* D_800F5910; /* the room's u16 link pairs */
  * `caller_s2` passes it. vs_battle_aiDestinationOccupancy shifts byte 3 out and the command
  * consumers (vs_actors_executeQueuedActorCommands, vs_actors_beginActorJumpToTile, vs_actors_beginTeleport) read bytes 0-2
  * only, so the value is unobservable; callers pass what they know. */
-/* The AI state's layout for the test that pokes it (route_continuation_smoke reads these by symbol). */
-const unsigned pc_ai_offset_priority = __builtin_offsetof(vs_battle_aiState, unk125);
-const unsigned pc_ai_offset_gate = __builtin_offsetof(vs_battle_aiState, gate);
-const unsigned pc_ai_offset_far_end = __builtin_offsetof(vs_battle_aiState, exit);
-/* The actor's layout, for tests that read actor records. */
-const unsigned pc_actor_offset_stats = __builtin_offsetof(vs_battle_actor, unk3C);
-const unsigned pc_actor_offset_models = __builtin_offsetof(vs_battle_actor, unk40);
-const unsigned pc_actor_offset_weapon = __builtin_offsetof(vs_battle_actor, equippedWeaponCategory);
-const unsigned pc_actor_offset_size = sizeof(vs_battle_actor);
 unsigned pc_route_continuations; /* times run (tests read it by symbol) */
 void pc_route_continuation(void* state, unsigned caller_s2)
 {

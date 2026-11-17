@@ -21,6 +21,7 @@ extern int pc_frame_marker(const unsigned* packet, int* first, int* count) __att
 extern int pc_frame_order(int first, int count, int unplaced, int* out, int max) __attribute__((weak));
 extern int pc_frame_lower(int index, unsigned words[3][16], int lengths[3]) __attribute__((weak));
 extern int pc_frame_suppress(int first, int end) __attribute__((weak));
+extern int pc_frame_markers_at(const void* entry, const void* lo, const void* hi, const void** out, int max) __attribute__((weak));
 extern const void* pc_frame_packet(int index) __attribute__((weak));
 extern pc_item* pc_frame_item(int index) __attribute__((weak)); /* (absent in classic_parity_probe, as the others) */
 
@@ -178,12 +179,19 @@ int pc_classic_walk_items(const pc_classic_walker* walker, int first, int end, p
     return end > first ? item_packets(walker, NULL, NULL, first, end - first, 1, out, max) : 0;
 }
 
+/* The runs placed at an entry (the frame's tables hold no links: a screen is items placed at a slot, in the order the slot draws them),
+ * then the packets linked from it in [lo, hi) (a chain of raw packets, as the recorder's tests build). */
+#define PLACED 256
 int pc_classic_walk(const pc_classic_walker* walker, const unsigned* head, const void* lo, const void* hi,
     pc_classic_packet* out, int max)
 {
+    const void* placed[PLACED];
     int count = 0, steps = 0;
     if (!walker || !head)
         return 0;
+    int made = pc_frame_markers_at ? pc_frame_markers_at(head, lo, hi, placed, PLACED) : 0;
+    for (int i = 0; i < made && count < max; i++)
+        count += keep_or_expand(walker, placed[i], lo, &out[count], max - count);
     const unsigned* tag = walker->resolve(head[0], walker->user);
     while (tag && (const void*)tag >= lo && (const void*)tag < hi && steps++ < 4096) {
         unsigned n = tag[0] >> 24;
@@ -273,12 +281,27 @@ int pc_classic_suppress(void* lo, void* hi)
 int pc_classic_suppress_linked(const unsigned* head, void* lo, void* hi)
 {
     pc_classic_walker walker = pc_classic_guest();
+    const void* placed[PLACED];
     int count = 0, steps = 0;
     unsigned frame = pc_vsync_count ? pc_vsync_count() : 0;
     if (!head)
         return 0;
     if (frame != suppressed_frame)
         suppressed_frame = frame, suppressed_count = 0;
+    int made = pc_frame_markers_at ? pc_frame_markers_at(head, lo, hi, placed, PLACED) : 0;
+    for (int i = 0; i < made; i++) {
+        unsigned* tag = (unsigned*)placed[i];
+        unsigned n = tag[0] >> 24;
+        int first, items;
+        if (n && !mode_only(tag)) {
+            if (suppressed_count < (int)(sizeof suppressed / sizeof suppressed[0]))
+                suppressed[suppressed_count].tag = tag, suppressed[suppressed_count++].n = (unsigned char)n;
+            if (pc_frame_marker && pc_frame_suppress && pc_frame_marker(tag, &first, &items))
+                pc_frame_suppress(first, first + items);
+            tag[0] &= 0x00FFFFFFu;
+            ++count;
+        }
+    }
     for (unsigned* tag = (unsigned*)walker.resolve(head[0], NULL);
          tag && (void*)tag >= lo && (void*)(tag + 1) <= hi && steps++ < 4096;
          tag = (unsigned*)walker.resolve(tag[0], NULL)) {

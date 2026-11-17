@@ -30,7 +30,7 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from card_fixtures import card_guard, default_save  # noqa: E402
 
@@ -58,9 +58,9 @@ def present(g, path):
 def label_boxes(g):
     """The HP and MP labels' boxes in PS1 pixels (x, y, w, h): _renderStatBar's sprite (RISK's box is
     "RISK  ZERO"'s, drawn as opaque text, at zero risk)."""
-    xy = g.read_symbol("vs_battle_hudGaugeLabelPositions", 16)
-    widths = g.read_symbol("vs_battle_hudGaugeLabelWidths", 4)
-    slide = g.u32("vs_battle_hudSlideOffset")
+    xy = g.data("vs_battle_hudGaugeLabelPositions", 16)
+    widths = g.data("vs_battle_hudGaugeLabelWidths", 4)
+    slide = int.from_bytes(g.data("vs_battle_hudSlideOffset", 4), "little")
     boxes = []
     for i in range(2):
         v = int.from_bytes(xy[4 * i:4 * i + 4], "little") - slide

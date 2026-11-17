@@ -37,7 +37,7 @@ def title(extra_env=None, movies=False, log="skip-intro.log"):
         vsync = game.status()["vsync"]
         game.run(60)
         picture = frame(game, log + ".ppm")
-        skip_movies = game.u32("pc_skip_movies")
+        skip_movies = int.from_bytes(game.data("pc_skip_movies", 4), "little")
         return vsync, picture, pathlib.Path(game.log).read_text(errors="replace"), skip_movies
     finally:
         game.close()

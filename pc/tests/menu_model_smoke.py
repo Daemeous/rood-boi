@@ -28,7 +28,7 @@ import tempfile
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from card_fixtures import default_save  # noqa: E402
 from menu_nav import top_command  # noqa: E402
@@ -71,7 +71,6 @@ def main():
 
     card_before = card.read_bytes()
     game = launch_at("save_room", card=card, fast=True, log=out / "game.log", extra_env=env)
-    sym = symbols()
     try:
         game.call("ui_menu", modern=False)
 
@@ -102,11 +101,11 @@ def main():
         def rows_by_id(m):
             return {r["id"]: r for r in (m or {}).get("rows", [])}
 
-        game_options = game.read(sym["vs_main_settings"], 32)
+        game_options = game.data("vs_main_settings", 32)
 
         # ---- the Option list ----
         game.press("triangle", vsyncs=3, settle=30)
-        top_command(game, sym, OPTION_COMMAND)
+        top_command(game, OPTION_COMMAND)
         press("circle")
         o = wait("list")
         m = menu()
@@ -176,7 +175,7 @@ def main():
                 break
             game.run(1)
         game.run(30)
-        check(game.read(sym["vs_main_settings"], 32) == game_options,
+        check(game.data("vs_main_settings", 32) == game_options,
               "the game's own options (vs_main_settings) unchanged")
     except Timeout as e:
         check(False, f"timed out: {e}")

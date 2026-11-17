@@ -35,7 +35,7 @@ import time
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, Game, RpcError, symbols  # noqa: E402
+from rood_rpc import OUT, Game, RpcError  # noqa: E402
 from soak import resolve_stacks  # noqa: E402
 
 DIRECTIONS = ["up", "down", "left", "right"]
@@ -147,13 +147,13 @@ class Soak:
 
     def counter(self):
         try:
-            return int.from_bytes(self.game.read_symbol("pc_route_continuations", 4), "little")
+            return self.game.value("pc_route_continuations")
         except Exception:
             return -1
 
     def actors(self):
         try:
-            words = self.game.read_symbol("vs_battle_actors", 64)
+            words = self.game.data("vs_battle_actors", 64)
         except Exception:
             return -1
         return sum(1 for i in range(1, 16) if int.from_bytes(words[4 * i:4 * i + 4], "little"))

@@ -42,7 +42,7 @@ import tempfile
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
-from rood_rpc import OUT, symbols  # noqa: E402
+from rood_rpc import OUT  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 from weapon_slots_smoke import default_card  # noqa: E402
 
@@ -176,7 +176,6 @@ def main():
     shutil.copyfile(ROOT / "pc/assets/ui/theme.json", theme)
     env = {"ROOD_WINDOW": f"{WINDOW[0]}x{WINDOW[1]}", "ROOD_LIGHTS": str(lights), "ROOD_GI": "0",
            "ROOD_SETTINGS": str(settings), "ROOD_UI_THEME": str(theme)}
-    sym = symbols()
     failures = []
 
     def check(ok, message):
@@ -203,7 +202,7 @@ def main():
             raise TimeoutError(f"{what}: {ui()}")
 
         def clone():
-            return int.from_bytes(g.read(sym["vs_actors_actorRecords"] + PTR, PTR), "little")
+            return g.value("vs_actors_actorRecords[1]")
 
         g.call("ui_menu", modern=True)
         g.run(10)
@@ -212,7 +211,7 @@ def main():
              "the Ashley model")
         g.run(8)
         address = clone()
-        rim = g.read(address + g.object_offset("unk17FD", 0x17FD), 1)[0] if address else -1
+        rim = g.value("vs_actors_actorRecords[1]->unk17FD") if address else -1
         studio = g.call("graphics").get("menu_studio")
         check(studio == 1 and rim == 0,
               f"the model view's own light: graphics menu_studio {studio} (want 1), the clone's rim copy "
@@ -258,13 +257,13 @@ def main():
             colour, depth = pictures(g, out / f"view{view}")
             # the clone alone (nothing behind it): gaps
             g.call("pause", paused=False)
-            g.write(address + g.object_offset("unk17FD", 0x17FD), bytes([0]))
+            g.store("vs_actors_actorRecords[1]->unk17FD", 0)
             g.run(3)
             g.call("pause", paused=True)
             alone_count = g.call("render_stats")["object_instances"]
             alone, alone_depth = pictures(g, out / f"view{view}-alone")
             n_gap, holes = gaps(alone_depth, box)
-            g.write(address + g.object_offset("unk17FD", 0x17FD), bytes([rim]))
+            g.store("vs_actors_actorRecords[1]->unk17FD", rim)
             g.call("pause", paused=False)
             total_gap += n_gap
             extra.append(shown - alone_count)
