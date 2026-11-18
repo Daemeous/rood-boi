@@ -260,15 +260,14 @@ extern u_short vs_ending_creditsDecodeBackreferenceOffset;
 
 int func_800688D4(int angle)
 {
-    int value = psx_to_int(int, _trig_table);
+    const u_char* value = (const u_char*)_trig_table;
     int quadrant, test, index;
 
     quadrant = angle & 0x400;
     test = angle & 0x3FF;
     if (quadrant) {
         if (!test) {
-            value = 0x1000;
-            goto negate;
+            return (angle & 0x800) ? -0x1000 : 0x1000;
         }
         angle = 0x800 - angle;
     }
@@ -281,12 +280,13 @@ int func_800688D4(int angle)
     }
     index <<= 2;
     value += index;
-    value = *psx_to_ptr(u_short*, value);
-negate:
-    if (angle & 0x800) {
-        value = -value;
+    {
+        int result = *(const u_short*)value;
+        if (angle & 0x800) {
+            result = -result;
+        }
+        return result;
     }
-    return value;
 }
 
 void _renderPhantomPain(_creditsElement* element)

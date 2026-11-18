@@ -12,7 +12,7 @@ const pad = @import("common").pad;
 /// it (vs_battle_aiUpdateNavigationAreaMovement).
 fn routeTarget(state: *ai.vs_battle_aiState) void {
     if (state.gate != 0) {
-        c.pc_route_continuation(state, psx.addr(state));
+        c.pc_route_continuation(state, @truncate(@intFromPtr(state)));
         return;
     }
     const target = state.unk160;

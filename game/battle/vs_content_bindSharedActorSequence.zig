@@ -20,7 +20,7 @@ pub fn vs_content_bindSharedActorSequence(arg0: ?*v.D_800F4538_t, arg1: c_int) c
         if (id == @as(c_int, psx.at(v.g.D_800E8960(), s.unk6E6).*) or id == @as(c_int, s.unk6E6)) {
             // char* p = entry + 8; a null entry gives address 8, as the C does.
             const entry: ?*u8 = psx.at(names, i).*;
-            p = @ptrFromInt(@as(usize, (if (entry) |q| psx.addr(q) else 0) +% 8));
+            p = @ptrFromInt(@intFromPtr(entry) +% 8);
             hit = true;
             break;
         }

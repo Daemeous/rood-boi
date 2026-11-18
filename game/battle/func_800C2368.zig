@@ -13,8 +13,8 @@ pub fn func_800C2368(step: c_int, radius: c_int, index: c_int) callconv(.c) c_in
 
     // (char*)vs_battle_targetSphere + (index * 8 + points), with the original index.
     const table: ?*v.D_800EB9B8_t = v.g.vs_battle_targetSphere().*;
-    const table_base: u32 = if (table) |t| psx.addr(t) else 0;
-    var vaddr: u32 = table_base +% psx.conv(u32, idx *% 8 +% @as(c_int, @offsetOf(v.D_800EB9B8_t, "points")));
+    const table_base: usize = @intFromPtr(table);
+    var vaddr: usize = table_base +% @as(usize, psx.conv(u32, idx *% 8 +% @as(c_int, @offsetOf(v.D_800EB9B8_t, "points"))));
 
     var base: c_int = 0;
     while (base < 0x1000) : (base +%= 0x400) {
@@ -29,7 +29,7 @@ pub fn func_800C2368(step: c_int, radius: c_int, index: c_int) callconv(.c) c_in
             phase +%= step;
             vaddr +%= 8;
         }) {
-            const vertex: *align(1) v.menuCircleVertex = @ptrFromInt(@as(usize, vaddr));
+            const vertex: *align(1) v.menuCircleVertex = @ptrFromInt(vaddr);
             vertex.xyz[0] = psx.conv(i16, (x *% c.rcos(phase)) >> 12);
             vertex.xyz[1] = psx.conv(i16, y);
             vertex.xyz[2] = psx.conv(i16, (z *% c.rsin(phase)) >> 12);

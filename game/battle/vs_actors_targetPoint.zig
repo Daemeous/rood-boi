@@ -50,9 +50,7 @@ pub fn vs_actors_targetPoint(arg0: c_int, arg1: c_int, arg2: ?*v.SVECTOR, arg3: 
         return var_v0;
     }
 
-    // psx_addr(arg2): NULL is address 0.
-    const addr: c_int = if (arg2) |p| @bitCast(psx.addr(p)) else 0;
-    const v1 = c.func_800A141C(arg0, var_v0, addr, arg3);
+    const v1 = c.func_800A141C(arg0, var_v0, arg2, arg3);
     if (v1 < 0) {
         return v1;
     }

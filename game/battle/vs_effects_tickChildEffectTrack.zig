@@ -16,7 +16,7 @@ fn targetsCount() u8 {
 
 /// psx_set of a guest address: the 4-byte field's address on 64-bit, the pointer's bits on 32-bit (stored as
 /// the C stores it: by its bits, so an unaligned address does not trap).
-fn setAddress(field: anytype, address: u32) void {
+fn setAddress(field: anytype, address: usize) void {
     const F = @typeInfo(@TypeOf(field)).pointer.child;
     switch (@typeInfo(F)) {
         .optional, .pointer => @as(*usize, @ptrCast(field)).* = address,
@@ -38,19 +38,19 @@ pub fn vs_effects_tickChildEffectTrack(script: ?*v.vs_effects_EffectInstance, st
         if (state.index < targetsCount()) {
             if (state.delay == 0) {
                 while (true) {
-                    setAddress(&spawn.script, psx.rawOf(v.g.vs_effects_package().*.?.block8Data));
+                    setAddress(&spawn.script, @intFromPtr(psx.get(v.g.vs_effects_package().*.?.block8Data)));
                     spawn.scriptOffset = kind;
                     spawn.priority = 0;
-                    setAddress(&spawn.source, psx.rawOf(targetsOf().*) +% 4);
-                    setAddress(&spawn.emitFrom, psx.rawOf(targetsOf().*) +% 4);
-                    setAddress(&spawn.target, psx.rawOf(targetsOf().*) +% @as(u32, @bitCast(@as(i32, state.index) *% 12 +% 16)));
-                    setAddress(&spawn.emitTo, psx.rawOf(targetsOf().*) +% @as(u32, @bitCast(@as(i32, state.index) *% 12 +% 16)));
+                    setAddress(&spawn.source, @intFromPtr(psx.get(targetsOf().*)) +% 4);
+                    setAddress(&spawn.emitFrom, @intFromPtr(psx.get(targetsOf().*)) +% 4);
+                    setAddress(&spawn.target, @intFromPtr(psx.get(targetsOf().*)) +% @as(usize, @as(u32, @bitCast(@as(i32, state.index) *% 12 +% 16))));
+                    setAddress(&spawn.emitTo, @intFromPtr(psx.get(targetsOf().*)) +% @as(usize, @as(u32, @bitCast(@as(i32, state.index) *% 12 +% 16))));
                     psx.put(&spawn.parent, s);
                     spawn.token = psx.getBits(s, "unk14_0");
                     const child: *v.vs_effects_EffectInstance = @ptrCast(@alignCast(c.vs_effects_createPrimaryEffectInstance(@ptrCast(&spawn)).?));
                     psx.setBits(s, "unk14_11", psx.getBits(s, "unk14_11") +% 1);
                     if (psx.get(spawn.target).?.unk0.unk0 == 4) {
-                        child.unk10[1] = psx.at(&event.actors, @as(*u8, @ptrFromInt(@as(usize, psx.rawOf(spawn.target)) + 5)).*).*; // actors[6]: the byte is not checked
+                        child.unk10[1] = psx.at(&event.actors, @as(*u8, @ptrFromInt(@intFromPtr(psx.get(spawn.target)) + 5)).*).*; // actors[6]: the byte is not checked
                     } else {
                         child.unk10[1] = event.actors[0];
                     }
@@ -65,13 +65,13 @@ pub fn vs_effects_tickChildEffectTrack(script: ?*v.vs_effects_EffectInstance, st
             }
         } else if (state.index == targetsCount()) {
             if (psx.getBits(s, "unk14_11") == 0) {
-                setAddress(&spawn.script, psx.rawOf(v.g.vs_effects_package().*.?.block8Data));
+                setAddress(&spawn.script, @intFromPtr(psx.get(v.g.vs_effects_package().*.?.block8Data)));
                 spawn.scriptOffset = kind;
                 spawn.priority = 0;
-                setAddress(&spawn.source, psx.rawOf(targetsOf().*) +% 4);
-                setAddress(&spawn.emitFrom, psx.rawOf(targetsOf().*) +% 4);
-                setAddress(&spawn.target, psx.rawOf(targetsOf().*) +% 16);
-                setAddress(&spawn.emitTo, psx.rawOf(targetsOf().*) +% 16);
+                setAddress(&spawn.source, @intFromPtr(psx.get(targetsOf().*)) +% 4);
+                setAddress(&spawn.emitFrom, @intFromPtr(psx.get(targetsOf().*)) +% 4);
+                setAddress(&spawn.target, @intFromPtr(psx.get(targetsOf().*)) +% 16);
+                setAddress(&spawn.emitTo, @intFromPtr(psx.get(targetsOf().*)) +% 16);
                 psx.put(&spawn.parent, s);
                 spawn.token = psx.getBits(s, "unk14_0");
                 const child: *v.vs_effects_EffectInstance = @ptrCast(@alignCast(c.vs_effects_createPrimaryEffectInstance(@ptrCast(&spawn)).?));

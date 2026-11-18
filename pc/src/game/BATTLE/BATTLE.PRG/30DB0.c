@@ -66,7 +66,7 @@ int vs_field_setGimmickOrientation(int, int);
 void vs_actors_beginActorShadowBlend(D_800F4538_t*, int);
 void func_800A11D8(int, int, MATRIX*, u_long*);
 /* 38C1C.c takes the output vector's address as an int. */
-int func_800A141C(int arg0, int arg1, int arg2, int arg3);
+int func_800A141C(int arg0, int arg1, void* arg2, int arg3);
 int func_800A152C(int, int, int);
 void func_800A2C48(D_800F4538_t*);
 void vs_actors_clearActorMovementRequest(D_800F4538_t*);
@@ -76,7 +76,7 @@ int vs_actors_setTextureAnimation(int, int, int, int);
 void vs_actors_restartsTextureFrames(int);
 void vs_actors_clearActorBonePoseLocks(D_800F4538_t*);
 void vs_actors_initializeActorAnimationPose(void*, void*);
-int vs_actors_findActorAnimationHeader(D_800F4538_t*, int, u_short**);
+void* vs_actors_findActorAnimationHeader(D_800F4538_t*, int, u_short**);
 void vs_audio_actorSoundPanAndVolume(int, int*, int*, int);
 int vs_actors_runAnimationEvents(D_800F4538_t*, D_800F4538_unkC54*, int);
 void vs_actors_restartActorAnimationEvents(D_800F4538_t*);
@@ -161,7 +161,6 @@ int _loadShp(vs_battle_objectData* arg0);
 
 extern u_char vs_actors_textureSlotOrigins[];
 extern u_char vs_actors_textureSlotRowOffsets[];
-extern u_char* D_800F22B4;
 extern u_char D_800F22B8;
 extern int D_800F22BC;
 extern int D_800F22C0;
@@ -183,7 +182,6 @@ int vs_content_updateActorSequenceLoad(vs_battle_objectData* object);
 inline void vs_content_copyWeaponSequence(func_8009C378_t* arg0, func_8009C378_t* arg1);
 
 extern u_char D_800E8F2B;
-extern u_char* vs_content_legacySequenceParseData;
 extern void* D_800F4768;
 
 int _loadSeq(vs_battle_objectData* object);

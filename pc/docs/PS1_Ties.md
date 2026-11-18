@@ -674,6 +674,12 @@ under a race detector.
 - `pc/src/audio_output.c`: the audio thread, the sound lock, the device stream.
 - `pc/src/game/include/hw.h`, `sound.h`.
 
+**The arena alias (memory lane, 2026-11-17).** The sound driver's parameter words (`Param1`, `Param2`, `PendingSequence`,
+`FSoundChannel.unk3C`, the ids that are addresses) are 32 bits and name blobs in the game heap, which lives above 4 GB. They
+resolve through `ROOD_ARENA_ALIAS` (0x80200000 plus the offset in the arena: a name, not a mapping; `psx_addr`, `psx_word`, `psx_to_ptr`). This is a
+temporary PS1-shaped tie. T18 removes it: the words become real pointers or small handles, and then `ROOD_ARENA_ALIAS` and its naming are deleted
+from psx_types.h. The lint meter `arena_alias` counts the sites that go through it and may only fall; the alias goes when it is 0.
+
 **Status.** Partly native; off the game thread (T18b, moderate version) when there is an audio device. While a
 photo mode render runs the sound lock is held, so the sound is quiet for those frames. CD-XA is still fed per
 game field (T19).

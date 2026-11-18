@@ -9,14 +9,14 @@ const c = @import("c_44F14");
 /// Advances an SVECTOR's animation stream over the scratchpad's frame range, applying each frame's deltas.
 pub fn vs_actors_decodeAnimationTrack(offset: c_int, value: ?*v.SVECTOR, rotation: c_int) callconv(.c) void {
     const mem = struct {
-        fn byte(a: u32) u8 {
-            return @as(*align(1) const u8, @ptrFromInt(@as(usize, a))).*;
+        fn byte(a: usize) u8 {
+            return @as(*align(1) const u8, @ptrFromInt(a)).*;
         }
-        fn s16(a: u32) c_int {
+        fn s16(a: usize) c_int {
             return (@as(c_int, @as(i8, @bitCast(byte(a)))) << 8) | @as(c_int, byte(a +% 1));
         }
-        fn word(a: u32) u32 {
-            return @as(*align(1) const u32, @ptrFromInt(@as(usize, a))).*;
+        fn word(a: usize) u32 {
+            return @as(*align(1) const u32, @ptrFromInt(a)).*;
         }
     };
 
@@ -24,14 +24,14 @@ pub fn vs_actors_decodeAnimationTrack(offset: c_int, value: ?*v.SVECTOR, rotatio
     const val = value.?;
     const delta = psx.byteAt(v.SVECTOR, val, 0x2A0);
 
-    var data: u32 = psx.conv(u32, psx.conv(u16, val.pad));
+    var data: usize = psx.conv(u32, psx.conv(u16, val.pad));
     var nextFrame: c_int = @as(c_int, psx.conv(u16, delta.pad));
     var frame: c_int = psx.conv(c_int, scratch.first);
     var flags: c_int = 0;
     var count: c_int = 0;
     var packedBits: c_int = 0;
 
-    data +%= psx.conv(u32, offset) +% (psx.rawOf(scratch.data) +% mem.word(psx.rawOf(scratch.data)));
+    data +%= @as(usize, psx.conv(u32, offset)) +% (@intFromPtr(psx.get(scratch.data)) +% mem.word(@intFromPtr(psx.get(scratch.data))));
 
     while (frame <= psx.conv(c_int, scratch.last)) {
         while (nextFrame < frame) {
@@ -112,7 +112,7 @@ pub fn vs_actors_decodeAnimationTrack(offset: c_int, value: ?*v.SVECTOR, rotatio
         frame +%= 1;
     }
 
-    data -%= psx.conv(u32, offset) +% (psx.rawOf(scratch.data) +% mem.word(psx.rawOf(scratch.data)));
+    data -%= @as(usize, psx.conv(u32, offset)) +% (@intFromPtr(psx.get(scratch.data)) +% mem.word(@intFromPtr(psx.get(scratch.data))));
     val.pad = psx.conv(i16, data);
     delta.pad = psx.conv(i16, nextFrame);
 }

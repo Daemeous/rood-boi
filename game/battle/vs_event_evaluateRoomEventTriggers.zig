@@ -19,7 +19,7 @@ fn actorOf(p: [*]u8) i16 {
 /// 0x40 event file arg1; else, unless a script runs, the first of the room's 16 triggers whose
 /// type mask has bits of arg0 and whose conditions (cells, flags, actors, items, heights; 0xFE
 /// negates the next) all hold starts its event (1); none: 0 at the list's end marker.
-pub fn vs_event_evaluateRoomEventTriggers(arg0: c_int, arg1: c_int, arg2: c_int, arg3: c_int) callconv(.c) c_short {
+pub fn vs_event_evaluateRoomEventTriggers(arg0: c_int, arg1: c_int, arg2: isize, arg3: c_int) callconv(.c) c_short {
     var buf: [64]u8 = undefined; // sprintf's target, never read
     var position = std.mem.zeroes(v.func_8006EBF8_t); // the C's stack record, written by the callees
     const kind: i16 = psx.conv(i16, arg0);
@@ -156,7 +156,7 @@ pub fn vs_event_evaluateRoomEventTriggers(arg0: c_int, arg1: c_int, arg2: c_int,
                 },
                 8 => {
                     if (mode == 1) {
-                        const data: [*]u8 = @ptrFromInt(@as(usize, psx.conv(u32, arg2))); // psx_to_ptr(u_char*, arg2)
+                        const data: [*]u8 = @ptrFromInt(@as(usize, @bitCast(arg2))); // arg2 is an actor id, or here the address of a record
                         if (data[0] == p[1] and data[2] == p[2]) result = 1;
                     }
                     p += 3;

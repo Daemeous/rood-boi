@@ -4141,18 +4141,18 @@ u_int vs_audio_mixerDispatchCommand(u_int in_Command)
         in_Command = 0;
         break;
     case 0xD8:
-        pParams->Param1 = (u_int)((unsigned long)(vs_audio_driverCommandArguments.unk0));
+        pParams->Param1 = psx_word(vs_audio_driverCommandArguments.unk0);
         vs_audio_mixerCommandHandlers[0xD0](pParams);
         in_Command = 0xD4;
         break;
     case 0xD9:
-        pParams->Param1 = (u_int)((unsigned long)(vs_audio_driverCommandArguments.unk0));
+        pParams->Param1 = psx_word(vs_audio_driverCommandArguments.unk0);
         pParams->Param2 = vs_audio_driverCommandArguments.unk4;
         vs_audio_mixerCommandHandlers[0xD1](pParams);
         in_Command = 0xD5;
         break;
     case 0xDA:
-        pParams->Param1 = (u_int)((unsigned long)(vs_audio_driverCommandArguments.unk0));
+        pParams->Param1 = psx_word(vs_audio_driverCommandArguments.unk0);
         pParams->Param2 = vs_audio_driverCommandArguments.unk4;
         pParams->Param3 = vs_audio_driverCommandArguments.unk8;
         vs_audio_mixerCommandHandlers[0xD2](pParams);
@@ -4169,7 +4169,7 @@ u_int vs_audio_mixerDispatchCommand(u_int in_Command)
         in_Command = 0x9E;
         break;
     default:
-        pParams->Param1 = (u_int)((unsigned long)(vs_audio_driverCommandArguments.unk0));
+        pParams->Param1 = psx_word(vs_audio_driverCommandArguments.unk0);
         pParams->Param2 = vs_audio_driverCommandArguments.unk4;
         pParams->Param3 = vs_audio_driverCommandArguments.unk8;
         pParams->Param4 = vs_audio_driverCommandArguments.unkC;

@@ -333,7 +333,8 @@ void vs_menu_frameworkResetAshleyEquipmentPose(void)
 
     temp_s1->animationId = i_2;
     temp_s1->unk5AC_20 = 0;
-    temp_s1->unk187C = vs_actors_findActorAnimationHeader(temp_s1, i_2, &sp10);
+    /* the animation table's identity (actor_animation.zig compares it); only its low 32 bits are kept */
+    temp_s1->unk187C = (int)(__UINTPTR_TYPE__)vs_actors_findActorAnimationHeader(temp_s1, i_2, &sp10);
     temp_s1->unk6E3 = D_800F49DC;
     temp_s1->unk5BC = *sp10;
 

@@ -8,8 +8,7 @@ const c = @import("c_74088");
 /// orig: actorLimb (pc/src/game/BATTLE/BATTLE.PRG/74088.c)
 /// The limb entry `limb` of `stats`, addressed as the C addresses it (limbs[] field of the stats block).
 fn actorLimb(stats: *v.vs_battle_actor2, limb: c_int) *align(1) v.vs_battle_uiEquipment_limb {
-    const base: u32 = psx.addr(stats);
-    const addr: u32 = base +% @as(u32, @bitCast(limb)) *% @sizeOf(v.vs_battle_uiEquipment_limb) +% @offsetOf(v.vs_battle_actor2, "limbs");
+    const addr: usize = @intFromPtr(stats) +% @offsetOf(v.vs_battle_actor2, "limbs") +% @as(usize, @bitCast(@as(isize, limb) *% @sizeOf(v.vs_battle_uiEquipment_limb)));
     return @ptrFromInt(addr);
 }
 
@@ -63,7 +62,7 @@ pub fn vs_battle_aiEnumerateActionCandidates(state: ?*v.vs_battle_aiState, thres
 
                 switch (psx.getBits(config, "mode")) {
                     1 => {
-                        c.func_800DCC94(@ptrCast(st), @ptrCast(candidate), 1, @ptrFromInt(psx.addr(info)));
+                        c.func_800DCC94(@ptrCast(st), @ptrCast(candidate), 1, @ptrFromInt(@intFromPtr(info)));
                         c.vs_battle_aiCacheFallbackActionCandidate(@ptrCast(candidate), @ptrCast(info));
                         if (list[1].score > list[0].score) {
                             c.vs_battle_aiAppendActionCandidate(@ptrCast(st), @ptrCast(candidate));
@@ -78,7 +77,7 @@ pub fn vs_battle_aiEnumerateActionCandidates(state: ?*v.vs_battle_aiState, thres
                             if (actorLimb(psx.get(a.stats).?, limb).maxHp != 0) {
                                 last = limb;
                                 psx.setBits(&list[1], "part", psx.conv(u3, last));
-                                c.func_800DCC94(@ptrCast(st), @ptrCast(candidate), 2, @ptrFromInt(psx.addr(info)));
+                                c.func_800DCC94(@ptrCast(st), @ptrCast(candidate), 2, @ptrFromInt(@intFromPtr(info)));
                                 const chance: c_int = psx.conv(c_int, psx.getBits(&list[1], "weight"));
                                 if ((c.rand() & 127) < chance and list[1].score > list[2].score) {
                                     c.vs_battle_aiCopyActionCandidate(@ptrCast(&list[2]), @ptrCast(candidate));
@@ -113,7 +112,7 @@ pub fn vs_battle_aiEnumerateActionCandidates(state: ?*v.vs_battle_aiState, thres
                             const h: c_int = target.height;
                             const absHeading: c_int = if (h >= 0) h else -%h;
                             psx.setBits(&list[1], "heading", psx.conv(u12, absHeading));
-                            c.func_800DCC94(@ptrCast(st), @ptrCast(candidate), 3, @ptrFromInt(psx.addr(info)));
+                            c.func_800DCC94(@ptrCast(st), @ptrCast(candidate), 3, @ptrFromInt(@intFromPtr(info)));
                             const chance: c_int = psx.conv(c_int, psx.getBits(&list[1], "weight"));
                             if ((c.rand() & 127) < chance and list[1].score > list[2].score) {
                                 c.vs_battle_aiCopyActionCandidate(@ptrCast(&list[2]), @ptrCast(candidate));

@@ -24,15 +24,15 @@ pub fn vs_actors_initializeActorAnimationPose(arg0: ?*anyopaque, arg1: ?*anyopaq
 
     var headerC: [*c]c_ushort = null;
     const ret = c.vs_actors_findActorAnimationHeader(actor, @as(c_int, actor.animationId), &headerC);
-    if (ret == 0) return;
-    const anim: *align(1) v.func_800AD494_t = @ptrFromInt(@as(usize, psx.conv(u32, ret)));
-    const dataBase: u32 = psx.conv(u32, ret) +% anim.dataOffset;
+    if (ret == null) return;
+    const anim: *align(1) v.func_800AD494_t = @ptrCast(ret.?);
+    const dataBase: usize = @intFromPtr(ret.?) +% anim.dataOffset;
     var header: [*]align(1) c_ushort = @ptrCast(headerC);
 
     if (header[2] == 0) {
         pose.unk542 = 0xFFFF;
     } else {
-        var data: *align(1) u8 = @ptrFromInt(@as(usize, dataBase));
+        var data: *align(1) u8 = @ptrFromInt(dataBase);
         data = psx.byteAt(u8, data, @as(isize, header[2]));
         var value: c_int = data.*;
         if (value == 0xFF) {
@@ -48,7 +48,7 @@ pub fn vs_actors_initializeActorAnimationPose(arg0: ?*anyopaque, arg1: ?*anyopaq
     psx.bitsAt(u8, &pose._bits_unk548_0, 0).* = actor.animationId;
 
     if (header[4] != 0) {
-        const data: *align(1) u8 = @ptrFromInt(@as(usize, dataBase +% psx.conv(u32, header[4])));
+        const data: *align(1) u8 = @ptrFromInt(dataBase +% psx.conv(u32, header[4]));
         c.vs_actors_decodeInitialPoseVector(psx.cptr(c.SVECTOR, &pose.unk150[41]), @ptrCast(data), 0xFF);
     }
 
@@ -59,13 +59,13 @@ pub fn vs_actors_initializeActorAnimationPose(arg0: ?*anyopaque, arg1: ?*anyopaq
     }
 
     {
-        const data: *align(1) u8 = @ptrFromInt(@as(usize, dataBase +% psx.conv(u32, header[3])));
+        const data: *align(1) u8 = @ptrFromInt(dataBase +% psx.conv(u32, header[3]));
         c.vs_actors_decodeInitialPoseVector(psx.cptr(c.SVECTOR, &pose.unk0[41]), @ptrCast(data), frame);
     }
 
     var i: c_int = 0;
     while (i < actor.unk0.nBones) : (i +%= 1) {
-        const data: *align(1) u8 = @ptrFromInt(@as(usize, dataBase +% psx.conv(u32, header[@as(usize, @intCast(5 +% i))])));
+        const data: *align(1) u8 = @ptrFromInt(dataBase +% psx.conv(u32, header[@as(usize, @intCast(5 +% i))]));
         c.vs_actors_decodeInitialPoseVector(psx.cptr(c.SVECTOR, psx.at(&pose.unk0, i)), @ptrCast(data), frame);
     }
 
@@ -73,7 +73,7 @@ pub fn vs_actors_initializeActorAnimationPose(arg0: ?*anyopaque, arg1: ?*anyopaq
         i = 0;
         while (i < actor.unk0.nBones) : (i +%= 1) {
             const hi: usize = @intCast(@as(c_int, actor.unk0.nBones) +% i +% 5);
-            var data: *align(1) u8 = @ptrFromInt(@as(usize, dataBase +% psx.conv(u32, header[hi])));
+            var data: *align(1) u8 = @ptrFromInt(dataBase +% psx.conv(u32, header[hi]));
             const sv = psx.at(&pose.unk150, i);
             if (data.* == 0xFE and psx.byteAt(u8, data, 1).* == 1) {
                 data = psx.byteAt(u8, data, 2);

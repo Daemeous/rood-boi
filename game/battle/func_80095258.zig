@@ -98,7 +98,7 @@ pub fn func_80095258(x_arg: c_int, y: c_int, p: ?*v.D_800F1BAC_t) callconv(.c) v
             const rx: c_int = rect.x;
             const ry: c_int = rect.y;
             // A semi-transparent quad (the page and CLUT of the label's colour: step 4 has its own).
-            _ = sprite_item.ft4(@as(?*anyopaque, @ptrFromInt(@as(usize, psx.rawOf(scratch.unk4)) -% 20)), false, true,
+            _ = sprite_item.ft4(@as(?*anyopaque, @ptrFromInt(@intFromPtr(psx.get(scratch.unk4)) -% 20)), false, true,
                 if (step != 4) 0x37 else 0x17, if (step != 4) 14140 else 14141, rgb,
                 &[4]c_int{ xy(x, y -% 6), xy(x +% w, y -% 6), xy(x, y +% 6), xy(x +% w, y +% 6) },
                 &[4]c_int{ uv(rx, ry), uv(rx +% w, ry), uv(rx, ry +% 12), uv(rx +% w, ry +% 12) });

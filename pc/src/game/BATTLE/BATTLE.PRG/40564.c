@@ -277,7 +277,7 @@ void vs_actors_restartActorAnimationEvents(D_800F4538_t*);
 
 void vs_actors_initializeActorAnimationPose(void* arg0, void* arg1);
 
-int vs_actors_findActorAnimationHeader(void* arg0, int arg1, u_short** arg2);
+void* vs_actors_findActorAnimationHeader(void* arg0, int arg1, u_short** arg2);
 
 void vs_audio_actorSoundPanAndVolume(int arg0, int* arg1, int* arg2);
 

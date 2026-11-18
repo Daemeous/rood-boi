@@ -11,8 +11,8 @@ fn table(p: ?*anyopaque) ?*Table {
 }
 
 /// orig: vs_actors_findActorAnimationHeader (pc/src/game/BATTLE/BATTLE.PRG/40564.c)
-/// Finds animation `animation` of `actor`: its table (the return value, a guest address; 0 when absent) and its frames (`frames`, NULL for an empty entry).
-pub fn findAnimation(actor_: ?*anyopaque, animation: c_int, frames: [*c][*c]u16) callconv(.c) c_int {
+/// Finds animation `animation` of `actor`: its table (the return value; null when absent) and its frames (`frames`, NULL for an empty entry).
+pub fn findAnimation(actor_: ?*anyopaque, animation: c_int, frames: [*c][*c]u16) callconv(.c) ?*anyopaque {
     const actor: *align(1) v.D_800F4538_t = @ptrCast(actor_.?);
     var p: ?*Table = undefined;
     var idx: c_int = undefined;
@@ -28,23 +28,23 @@ pub fn findAnimation(actor_: ?*anyopaque, animation: c_int, frames: [*c][*c]u16)
             idx = v.g.vs_battle_specialActionPitch().*;
         } else {
             if (actor.unk5B1 == 0) {
-                return 0;
+                return null;
             }
             idx = @as(c_int, actor.unk5B1) - 1; // a u8 above 0
             idx = idx *% 3 +% v.g.vs_battle_specialActionPitch().*;
         }
         if (idx >= actor.unk5B6) {
-            return 0;
+            return null;
         }
     } else if (animation == 0xFE) {
         p = table(psx.get(actor.unk5DC[3]));
         if (actor.unk5B1 == 0) {
-            return 0;
+            return null;
         }
         idx = @as(c_int, actor.unk5B1) - 1; // a u8 above 0
         idx = idx *% 3 +% 31;
         if (idx >= actor.unk5B6) {
-            return 0;
+            return null;
         }
     } else if (animation >= 0xDC) {
         // unk5DC[vs_actors_sharedSequenceBankIndex]: the C does not check the index.
@@ -57,18 +57,18 @@ pub fn findAnimation(actor_: ?*anyopaque, animation: c_int, frames: [*c][*c]u16)
         p = table(psx.get(actor.unk5D8));
         idx = animation -% 100;
         if (idx >= actor.unk5B5) {
-            return 0;
+            return null;
         }
     } else {
         p = table(psx.get(actor.unk5D4));
         idx = animation;
         if (idx >= actor.unk5B4) {
-            return 0;
+            return null;
         }
     }
 
     if (p == null) {
-        return 0;
+        return null;
     }
 
     // unk4[idx]: a negative animation below 100 reads before the table, as the C does.
@@ -81,5 +81,5 @@ pub fn findAnimation(actor_: ?*anyopaque, animation: c_int, frames: [*c][*c]u16)
     } else {
         frames.* = psx.at(&p.?.unk8, ((@as(c_int, actor.unk0.nBones) *% 4 +% 10) *% idx) >> 1);
     }
-    return @bitCast(psx.addr(p.?));
+    return @ptrCast(p.?);
 }

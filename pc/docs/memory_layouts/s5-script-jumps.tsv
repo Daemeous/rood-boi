@@ -1,0 +1,4 @@
+# S5: the event script VM's jumps stop returning addresses in an int (state item, old, new, size, note)
+# item	old	new	size	note
+jumping opcode handlers (jumpFwd, 2, 3, 4, IfFlag, IfFlags, IfFlagContext, BackIf, EndCutsceneAndJump, StartScriptContext, specialOp 16, ReturnToSavedAddress)	the int return was the target's address (any value above 4 is an address)	event_jump.to(target) stores the target in vs_event_jumpTarget and returns the code 5; the interpreter (vs_event_executeScriptThread) takes it in the same step	8 bytes (a new game global in 573B8.c, not read across a frame)	the 250 handlers keep their signature; the codes 0..4 are unchanged; any other value still jumps to that value as an address (the 64-bit object's opcode 238 falls through to script[0])
+vs_event_subroutineReturnCursor	int holding script + 6	u_char* (4A0A8.c extern; the global is moved to its 8-byte size by the import mover)	4 -> 8	set by specialOp 16, read by ReturnToSavedAddress

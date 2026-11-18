@@ -45,8 +45,8 @@ pub fn unloadActor(node: *ai.vs_battle_actor) callconv(.c) void {
     }
     const kind = node.subType;
     if (kind == 0xac or kind == 0xad) {
-        const data: ?*anyopaque = @ptrFromInt(@as(usize, v.g.D_800F5920().*));
-        v.g.D_800F5920().* = 0;
+        const data: ?*anyopaque = v.g.D_800F5920().*;
+        v.g.D_800F5920().* = null;
         c.vs_main_freeHeap(data);
     }
 }

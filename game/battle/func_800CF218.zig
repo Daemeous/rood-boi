@@ -6,7 +6,7 @@ const c = @import("c_5BF94");
 
 /// psx_set of a guest address: the 4-byte field's address on 64-bit, the pointer's bits on 32-bit (stored as
 /// the C stores it: by its bits, so an unaligned address does not trap).
-fn setAddress(field: anytype, address: u32) void {
+fn setAddress(field: anytype, address: usize) void {
     const F = @typeInfo(@TypeOf(field)).pointer.child;
     switch (@typeInfo(F)) {
         .optional, .pointer => @as(*usize, @ptrCast(field)).* = address,
@@ -21,9 +21,9 @@ pub fn func_800CF218(request_arg: ?*v.func_800CF0E8_t, arg1: c_int, arg2: c_int)
     const request = request_arg.?;
     var spawn: v.vs_effects_EffectSpawnRequest = undefined; // unk21..unk24 stay uninitialised, as in the C
     const token = psx.conv(u8, c.vs_effects_allocateEffectToken());
-    const base: u32 = psx.addr(&request.unk4); // (D_800F53B8_t3*)&arg0->unk4
+    const base: usize = @intFromPtr(&request.unk4); // (D_800F53B8_t3*)&arg0->unk4
     setAddress(&spawn.source, base);
-    setAddress(&spawn.script, psx.rawOf(v.g.vs_effects_package().*.?.block8Data));
+    setAddress(&spawn.script, @intFromPtr(psx.get(v.g.vs_effects_package().*.?.block8Data)));
     spawn.scriptOffset = @as(c_int, request.effectId) * 3;
     psx.put(&spawn.parent, null);
     spawn.token = token;
@@ -33,21 +33,21 @@ pub fn func_800CF218(request_arg: ?*v.func_800CF0E8_t, arg1: c_int, arg2: c_int)
         const target = psx.byteAt(v.D_800F53B8_t3, request, i * 12 + 16); // (char*)arg0 + i * 12 + 16
         const id: c_int = request.effectId;
         if ((id >= 40 and id <= 41) or (id >= 44 and id <= 53)) {
-            setAddress(&spawn.emitFrom, psx.addr(target));
+            setAddress(&spawn.emitFrom, @intFromPtr(target));
             setAddress(&spawn.emitTo, base);
         } else {
             switch (psx.conv(u16, id)) {
                 23, 25 => {
-                    setAddress(&spawn.emitFrom, psx.addr(target));
+                    setAddress(&spawn.emitFrom, @intFromPtr(target));
                     setAddress(&spawn.emitTo, base);
                 },
                 else => {
                     setAddress(&spawn.emitFrom, base);
-                    setAddress(&spawn.emitTo, psx.addr(target));
+                    setAddress(&spawn.emitTo, @intFromPtr(target));
                 },
             }
         }
-        setAddress(&spawn.target, psx.addr(target));
+        setAddress(&spawn.target, @intFromPtr(target));
         spawn.priority = psx.byteAt(u16, request, i * 12 + 16).*;
         const child = c.vs_effects_createSecondaryEffectInstance(@ptrCast(&spawn)).?;
         const s: *v.vs_effects_EffectInstance = @ptrCast(@alignCast(child));

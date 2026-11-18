@@ -93,14 +93,14 @@ pub fn startAnimation(actorId: c_int, animation: c_int, _: c_int, blendFrames_: 
         actor.unk1800 = psx.conv(i16, (@as(c_int, actor.unk0.facing) +% actor.unk0.facingDelta) & 0xFFF);
     }
 
-    var found: c_int = undefined;
+    var found: ?*anyopaque = undefined;
     retry: while (true) {
         found = c.vs_actors_findActorAnimationHeader(@ptrCast(actor), anim, &frames);
-        if (found == 0 or frames == null) {
+        if (found == null or frames == null) {
             psx.setBits(actor, "unk5AC_15", 0);
             if (anim == 0) {
-                // `return;` in an int function: the object returns vs_actors_findActorAnimationHeader's result (%eax).
-                return found;
+                // `return;` in an int function: the object returns vs_actors_findActorAnimationHeader's result (%eax), 0 here.
+                return 0;
             }
             anim = 0;
             continue :retry;
@@ -109,9 +109,11 @@ pub fn startAnimation(actorId: c_int, animation: c_int, _: c_int, blendFrames_: 
     }
 
     actor.animationId = psx.conv(u8, anim);
-    if (c.vs_event_eventPlaybackState() == 4 or actor.unk187C != found or @as(c_int, v.g.D_800F49DC().*) != actor.unk6E3) {
+    // The table's identity, kept in the actor as the low 32 bits of its address (only compared).
+    const token: c_int = @bitCast(@as(c_uint, @truncate(@intFromPtr(found))));
+    if (c.vs_event_eventPlaybackState() == 4 or actor.unk187C != token or @as(c_int, v.g.D_800F49DC().*) != actor.unk6E3) {
         actor.unk6E3 = v.g.D_800F49DC().*;
-        actor.unk187C = found;
+        actor.unk187C = token;
         actor.unk5BC = psx.conv(i16, frames[0]);
         c.vs_actors_initializeActorAnimationPose(@ptrCast(actor), &actor.unkC54);
         actor.unk6E0 = 0;

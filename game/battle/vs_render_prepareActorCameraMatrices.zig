@@ -52,7 +52,7 @@ pub fn vs_render_prepareActorCameraMatrices(source: ?*v.MATRIX) callconv(.c) voi
     // ROOD_PC: the first word holds the source's guest address, the rest of D_800F4910 is zero.
     const src = source.?;
     v.g.D_800F4910().* = std.mem.zeroes(v.MATRIX);
-    @as(*c_uint, @ptrCast(v.g.D_800F4910())).* = psx.addr(src);
+    @as(*c_uint, @ptrCast(v.g.D_800F4910())).* = @truncate(@intFromPtr(src)); // an identity token (the low 32 bits of the source's address)
 
     v.g.D_800F49B8().* = scratch.matrix;
     v.g.D_800F49B8().t[0] = src.t[0];

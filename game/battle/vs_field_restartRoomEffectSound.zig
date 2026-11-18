@@ -8,12 +8,12 @@ const c = @import("c_2842C");
 pub fn vs_field_restartRoomEffectSound() callconv(.c) void {
     if (v.g.vs_field_roomEffectSoundId().* != -1) {
         // The section14 address is a guest address that need not be aligned for u32: pass its bits as an unaligned pointer, as the C does.
-        const raw: u32 = psx.rawOf(v.g.vs_battle_roomData().section14);
+        const raw: usize = @intFromPtr(psx.get(v.g.vs_battle_roomData().section14));
         if (raw != 0) {
             const F = *const fn (c_int, ?*anyopaque, c_uint) callconv(.c) void;
             @as(F, @ptrCast(&c.vs_audio_playBankSfxCentered))(
                 0x200,
-                @ptrFromInt(@as(usize, raw)),
+                @ptrFromInt(raw),
                 psx.conv(c_uint, v.g.vs_field_roomEffectSoundId().*),
             );
         }

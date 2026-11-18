@@ -6,14 +6,14 @@ const c = @import("c_2842C");
 /// orig: vs_field_swapRoomGeometryRedGreen (pc/src/game/BATTLE/BATTLE.PRG/2842C.c)
 /// Swaps the byte pairs of the two tables in the room section block that `vs_field_findRoomGeometryGroup(arg0)` locates.
 pub fn vs_field_swapRoomGeometryRedGreen(arg0: c_int) callconv(.c) void {
-    // C reads the base before calling vs_field_findRoomGeometryGroup; the base is a guest address, used as integer arithmetic.
-    const base_addr: u32 = psx.rawOf(v.g.vs_battle_roomData().geometrySection);
+    // C reads the base before calling vs_field_findRoomGeometryGroup.
+    const base_addr: usize = @intFromPtr(psx.get(v.g.vs_battle_roomData().geometrySection));
     const entry_opt = c.vs_field_findRoomGeometryGroup(arg0);
     if (entry_opt == null) return;
     // vs_field_findRoomGeometryGroup returns an int*: the entry is read as a guest int array.
     const entry: [*]align(1) c_int = @ptrCast(entry_opt.?);
-    const block_addr: u32 = base_addr +% @as(u32, @bitCast(entry[7]));
-    const block: [*]align(1) c_int = @ptrFromInt(@as(usize, block_addr));
+    const block_addr: usize = base_addr +% @as(usize, @as(u32, @bitCast(entry[7])));
+    const block: [*]align(1) c_int = @ptrFromInt(block_addr);
     const n0 = block[0];
     const n1 = block[1];
     var t: [*]v.vs_field_MpdTriangleColorView = @ptrCast(block + 2);

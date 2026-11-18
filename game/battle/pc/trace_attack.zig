@@ -32,7 +32,7 @@ fn clearOfObstacles(x: c_int, y: c_int, z: c_int) c_int {
 /// Stops at the first actor (not `self`, not hidden by flags 0xEA, not
 /// knocked down) whose bounds contain the point while in front of the start,
 /// at an obstacle, or below the floor: stores the point (pad = actor id + 1,
-/// or 0) in `out` and returns its address; 0 when nothing was hit.
+/// or 0) in `out` and returns 1 (the original returns the record's address, which callers only test); 0 when nothing was hit.
 pub fn traceAttack(from: [*]const c_uint, to: [*]const c_uint, out: [*]c_uint, self: c_int) callconv(.c) c_int {
     var x: c_int = psx.conv(i16, from[0]);
     var y: c_int = @as(c_int, @bitCast(from[0])) >> 16;
@@ -93,6 +93,6 @@ pub fn traceAttack(from: [*]const c_uint, to: [*]const c_uint, out: [*]c_uint, s
         }
         out[0] = @as(c_uint, @bitCast(x & 0xffff)) | (@as(c_uint, @bitCast(y)) << 16);
         out[1] = @as(c_uint, @bitCast(z & 0xffff)) | (@as(c_uint, @bitCast(pad)) << 16);
-        return @bitCast(psx.addr(out));
+        return 1; // the original returns the record's address; callers only test it
     }
 }

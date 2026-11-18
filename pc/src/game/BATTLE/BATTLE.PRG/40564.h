@@ -18,4 +18,4 @@ int vs_actors_setTextureAnimation(int, int, int, int);
 void vs_actors_stepTextureScrolling(void*);
 void vs_actors_startActorAppearanceTransition(int, int);
 void vs_actors_initializeActorAnimationPose(void*, void*);
-int vs_actors_findActorAnimationHeader(void*, int, u_short**);
+void* vs_actors_findActorAnimationHeader(void*, int, u_short**);

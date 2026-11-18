@@ -31,7 +31,7 @@ pub fn vs_effects_updateEffectTransforms(arg0: ?*v.vs_effects_EffectInstance) ca
         }
 
         if (state.actor != 0xFF and ((definition.unk0 & 0x20) != 0 or (state.flags & 1) == 0)) {
-            c.vs_effects_resolveTransformAttachment(@bitCast(psx.addr(arg0.?)), @ptrCast(state));
+            c.vs_effects_resolveTransformAttachment(@bitCast(@as(c_uint, @truncate(@intFromPtr(arg0.?)))), @ptrCast(state));
             state.flags |= 1;
         }
 

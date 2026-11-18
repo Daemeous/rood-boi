@@ -9,7 +9,7 @@ const c = @import("c_44F14");
 
 // Callees the unit's translate-c declarations do not list: linked by their
 // original symbols.
-const LoadAnimFn = *const fn (*anyopaque, c_int, *anyopaque) callconv(.c) c_int;
+const LoadAnimFn = *const fn (*anyopaque, c_int, *anyopaque) callconv(.c) ?*anyopaque;
 /// (A function, not a module-level pointer constant: that would be a relocated data slot in the engine library.)
 inline fn loadAnimation() LoadAnimFn {
     return @extern(LoadAnimFn, .{ .name = "vs_actors_findActorAnimationHeader" });
@@ -98,9 +98,9 @@ pub fn func_800AFA28(actor: ?*v.D_800F4538_t, state: ?*v.D_800F4538_unkC54, mode
             if (frameOrOffset == 0) frameOrOffset = 1;
 
             var header: [*c]u16 = null;
-            const dataWord: c_uint = @bitCast(loadAnimation()(@ptrCast(a), @as(c_int, a.animationId), @ptrCast(&header)));
-            if (dataWord != 0) {
-                const frames: *align(1) u8 = @ptrFromInt(@as(usize, dataWord));
+            const dataWord = loadAnimation()(@ptrCast(a), @as(c_int, a.animationId), @ptrCast(&header));
+            if (dataWord != null) {
+                const frames: *align(1) u8 = @ptrCast(dataWord.?);
                 scratch.first = psx.conv(@TypeOf(scratch.first), frameOrOffset);
                 scratch.last = psx.conv(@TypeOf(scratch.last), lastFrame);
                 psx.put(&scratch.data, frames);

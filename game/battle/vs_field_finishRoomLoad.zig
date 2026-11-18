@@ -31,9 +31,10 @@ pub fn vs_field_finishRoomLoad(arg0: c_int) callconv(.c) void {
     c.vs_main_clutInit();
 
     const mpdHeader: *anyopaque = psx.get(zone.mpdData).?;
-    const hdr: *align(1) v._mpdHeader = @ptrCast(mpdHeader);
+    var mpd: c.vs_mpd_file = undefined;
+    c.vs_mpd_decode(&mpd, mpdHeader);
 
-    _ = c._loadMpdRoomSection(0, @ptrFromInt(@as(usize, psx.conv(u32, hdr.roomSectionOffset) +% psx.addr(mpdHeader))));
+    _ = c._loadMpdRoomSection(0, mpd.room.data);
 
     zone.zndId = v.g.vs_field_pendingDestinationDoor().zndId;
     zone.mapId = v.g.vs_field_pendingDestinationDoor().mpdId;
@@ -78,34 +79,25 @@ pub fn vs_field_finishRoomLoad(arg0: c_int) callconv(.c) void {
 
     c.vs_render_captureRoomBackgroundColors();
 
-    if (hdr.lootSectionLen != 0) {
-        _ = c._loadMpdLootSection(@ptrFromInt(@as(usize, psx.conv(u32, hdr.lootSectionOffset) +% psx.addr(mpdHeader))));
+    if (mpd.loot.size != 0) {
+        _ = c._loadMpdLootSection(mpd.loot.data);
     }
 
-    {
-        const clearedAddr: u32 = psx.conv(u32, hdr.clearedSectionOffset) +% psx.addr(mpdHeader);
-        const scriptAddr: u32 = psx.conv(u32, hdr.scriptSectionOffset) +% psx.addr(mpdHeader);
-        const doorAddr: u32 = psx.conv(u32, hdr.doorSectionOffset) +% psx.addr(mpdHeader);
-        const doorLen: u16 = hdr.doorSectionLen;
-        tempS4 = c._loadMpdClearedScriptDoorSections(
-            @ptrFromInt(@as(usize, clearedAddr)),
-            hdr.clearedSectionLen,
-            @ptrFromInt(@as(usize, scriptAddr)),
-            hdr.scriptSectionLen,
-            @ptrFromInt(@as(usize, doorAddr)),
-            doorLen,
-            @as(c_int, @intFromBool(v.g.vs_main_startState().* == 1)),
-        );
-    }
+    tempS4 = c._loadMpdClearedScriptDoorSections(
+        mpd.cleared.data,
+        @intCast(mpd.cleared.size),
+        mpd.script.data,
+        @intCast(mpd.script.size),
+        mpd.door.data,
+        @intCast(mpd.door.size),
+        @as(c_int, @intFromBool(v.g.vs_main_startState().* == 1)),
+    );
 
     if (v.g.vs_main_startState().* == 1) {
         v.g.vs_main_startState().* = 5;
     }
 
-    _ = c._loadMpdEnemySection(
-        @ptrFromInt(@as(usize, psx.conv(u32, hdr.enemySectionOffset) +% psx.addr(mpdHeader))),
-        psx.conv(c_uint, hdr.enemySectionLen),
-    );
+    _ = c._loadMpdEnemySection(mpd.enemy.data, psx.conv(c_uint, mpd.enemy.size));
 
     c.vs_main_freeHeapR(mpdHeader);
 

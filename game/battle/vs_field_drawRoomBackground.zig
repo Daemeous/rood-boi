@@ -21,10 +21,10 @@ pub fn vs_field_drawRoomBackground(arg0: ?*v.VECTOR) callconv(.c) void {
 
             // ROOD_PC: PC_ANCHOR_PACKETS(PC_ANCHOR_SCENE, ...) around the tile draw (pc/src/widescreen.h).
             const PC_ANCHOR_SCENE: c_int = 0x14;
-            const anchor_start: ?*anyopaque = @ptrFromInt(@as(usize, psx.rawOf(scratch.unk0)));
+            const anchor_start: ?*anyopaque = psx.get(scratch.unk0);
             c.vs_field_drawRoomBackgroundTiles(psx.cptr(c.vs_battle_backgroundLayout, layout), x, y, @as(c_int, v.g.vs_field_legacyBackgroundTexturePage().*));
             if (psx.weak(AnchorPackets, "pc_hw_anchor_packets")) |hook| {
-                hook(anchor_start, @ptrFromInt(@as(usize, psx.rawOf(scratch.unk0))), PC_ANCHOR_SCENE);
+                hook(anchor_start, psx.get(scratch.unk0), PC_ANCHOR_SCENE);
             }
         }
     } else if (v.g.vs_field_isSolidBackground().* != 0) {
@@ -45,7 +45,7 @@ pub fn vs_field_drawRoomBackground(arg0: ?*v.VECTOR) callconv(.c) void {
         }
         const xy = [4]c_int{ 0, 320, 240 << 16, 320 | (240 << 16) };
         const uv = [4]c_int{ 248 | (248 << 8), 249 | (248 << 8), 248 | (249 << 8), 249 | (249 << 8) };
-        const ot: ?*anyopaque = @ptrFromInt(@as(usize, psx.rawOf(scratch.unk4) +% 0x1FFC));
+        const ot: ?*anyopaque = @ptrFromInt(@intFromPtr(psx.get(scratch.unk4)) +% 0x1FFC);
         _ = sprite_item.ft4(ot, false, false, 0x11, 0x38B1, rgb, &xy, &uv);
     } else {
         var angles: *v.VECTOR = undefined;

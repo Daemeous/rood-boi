@@ -59,7 +59,7 @@ pub fn func_80094B0C(x_in: c_int, y_in: c_int, p: ?*v.D_800F1BAC_t) callconv(.c)
     const ci: usize = @intCast(color);
     const scratch = common.scratch.get();
     // The slot 20 bytes before the table the scratchpad names.
-    const ot: ?*anyopaque = @ptrFromInt(@as(usize, psx.addr(psx.get(scratch.unk4).?) -% 20));
+    const ot: ?*anyopaque = @ptrFromInt(@intFromPtr(psx.get(scratch.unk4).?) -% 20);
 
     i = @as(c_int, q.displayTextLen) -% 1;
     while (i >= 0) : ({

@@ -12,7 +12,7 @@ pub fn decideMovement(state: *ai.vs_battle_aiState) callconv(.c) void {
     if (c.vs_battle_aiTryExecutePlannedActions(state) != 0 or c.vs_battle_aiTryRecoverBlockedMovement(state) != 0) return;
     const callback: ?*const fn (?*anyopaque) callconv(.c) c_int = @ptrCast(state.callback);
     if (callback) |call| {
-        c.pc_require_native_callback(psx.addr(call), "actor movement callback", 0);
+        c.pc_require_native_callback(@truncate(@intFromPtr(call)), "actor movement callback", 0);
         if (call(state) != 0) return;
     }
     c.vs_battle_aiWanderAroundSavedCenter(state);

@@ -2361,8 +2361,8 @@ void pc_classic_immediate_site(int kind, void* record)
  * nothing of the game's is suppressed. Only where the table is the scene's (vs_scratch.unk4 below its top),
  * and not in a photo's render. */
 extern int pc_photo_rendering __attribute__((weak));
-static unsigned panel_first, panel_last; /* the last frame's panel packets (guest addresses), RPC hud stats */
-void pc_hud_panel_range(unsigned* first, unsigned* last)
+static unsigned long long panel_first, panel_last; /* the last frame's panel packets (addresses), RPC hud stats */
+void pc_hud_panel_range(unsigned long long* first, unsigned long long* last)
 {
     *first = panel_first, *last = panel_last;
 }
@@ -2384,7 +2384,7 @@ void pc_hud_panels_classic(void* otag)
         }
     panel_first = panel_last = 0;
     if (packet_cursor() != start) {
-        panel_first = psx_to_int(unsigned, start);
-        panel_last = psx_to_int(unsigned, packet_cursor());
+        panel_first = (__UINTPTR_TYPE__)start;
+        panel_last = (__UINTPTR_TYPE__)packet_cursor();
     }
 }

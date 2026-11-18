@@ -111,7 +111,7 @@ pub fn vs_battle_aiResolveNavigationAreaRoute(state: ?*v.vs_battle_aiState, inde
             if (route & 0x8000 != 0) {
                 continue;
             }
-            const result = c.vs_battle_aiFindRouteGateAtTile(@bitCast(psx.addr(s)), position.raw, 1);
+            const result = c.vs_battle_aiFindRouteGateAtTile(@bitCast(@as(c_uint, @truncate(@intFromPtr(s)))), position.raw, 1);
             if (result >= 0) {
                 i = result >> 1;
                 if (c.vs_field_movingPlatformDwellTicks(i) >= 0) {

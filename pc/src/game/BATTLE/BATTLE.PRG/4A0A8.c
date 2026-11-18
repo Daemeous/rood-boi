@@ -332,7 +332,7 @@ extern char vs_event_weaponTransitionPending;
 extern short _mpdScriptSection;
 extern short vs_event_isChainedEventLoaded;
 extern char _textBoxSelectionPending;
-extern int vs_event_subroutineReturnCursor;
+extern u_char* vs_event_subroutineReturnCursor;
 extern char vs_event_musicSlot;
 extern char D_800F4C6A;
 
@@ -1115,7 +1115,7 @@ int vs_field_gimmickPlacement(int, void*);
 int vs_field_gimmickSupportHeight(int, int);
 int vs_actors_isActorRetainedAfterDefeat(int);
 
-short vs_event_evaluateRoomEventTriggers(int arg0, int arg1, int arg2, int arg3);
+short vs_event_evaluateRoomEventTriggers(int arg0, int arg1, __INTPTR_TYPE__ arg2, int arg3);
 
 void vs_event_initializeEventScriptData(u_char* data);
 

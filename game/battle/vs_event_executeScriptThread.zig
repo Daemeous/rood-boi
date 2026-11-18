@@ -4,6 +4,7 @@ const common = @import("common");
 const psx = common.psx;
 const v = @import("views_573B8");
 const c = @import("c_573B8");
+const event_jump = @import("event_jump.zig");
 
 const Op = *const fn ([*c]u8, c_short) callconv(.c) c_int;
 
@@ -62,6 +63,10 @@ pub fn vs_event_executeScriptThread(arg0: [*c][*c]u8, arg1: c_short) callconv(.c
             },
             2 => return 1,
             4 => script = @ptrCast(psx.at(script, c.vs_event_opcodeSize(script))),
+            event_jump.code => {
+                script = event_jump.take();
+                continue;
+            },
             else => {
                 script = @ptrFromInt(@as(usize, @as(u32, @bitCast(ret))));
                 continue;

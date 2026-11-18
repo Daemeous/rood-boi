@@ -36,6 +36,24 @@ typedef struct {
 /* Reads the header of the ZUD file at `file` into `out`: each part's pointer is the file's address plus its offset. */
 void vs_zud_decode(vs_zud_file* out, const void* file);
 
+/* The MPD file (a room): a 0x30-byte header of six sections, each a byte offset from the file's start and a length, then the
+ * sections. vs_mpd_decode (146C.c) reads it once; the sections stay raw in the file's buffer (each loader copies or reads
+ * its own) and the decoded form holds a pointer and a length for each.
+ *
+ *   +0x00 i32 offset, u16 length (+2 pad): room, cleared, script, door sections, 8 bytes each
+ *   +0x20 i32 offset, i32 length: enemy section; +0x28 i32 offset, i32 length: loot section
+ */
+typedef struct {
+    vs_zud_part room;
+    vs_zud_part cleared;
+    vs_zud_part script;
+    vs_zud_part door;
+    vs_zud_part enemy;
+    vs_zud_part loot;
+} vs_mpd_file;
+
+void vs_mpd_decode(vs_mpd_file* out, const void* file);
+
 typedef struct {
     short width;
     short height;

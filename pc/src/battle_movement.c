@@ -152,7 +152,7 @@ void pc_route_continuation(void* state, unsigned caller_s2)
         base->gate = 0;
         return;
     }
-    int index = vs_battle_aiFindRouteGateAtTile(psx_to_int(int, base), *(unsigned*)&base->exit, 0);
+    int index = vs_battle_aiFindRouteGateAtTile((int)(__UINTPTR_TYPE__)base, *(unsigned*)&base->exit, 0);
     if (index >= 0) {
         unsigned link = D_800F5910[index * 2];
         unsigned tile = (caller_s2 & 0xff000000u) | (link & 0x1f) | (((link >> 5) & 0x1f) << 16);
@@ -694,7 +694,7 @@ void vs_battle_aiRememberAiActionTarget(void* state);
 
 /* Room-entry and actor bookkeeping helpers from 7BDD4.s and 7E05C.s. */
 extern unsigned short (*D_800F58D0)[32];
-extern unsigned D_800F5920;
+extern void* D_800F5920;
 extern void* vs_main_allocHeap(unsigned);
 extern void vs_core_memoryClearAlignedWords(void*, unsigned);
 

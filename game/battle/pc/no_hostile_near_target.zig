@@ -4,16 +4,6 @@ const c = @import("c_battle_movement");
 const v = @import("views_battle_movement");
 const psx = @import("common").psx;
 
-/// orig: guest_word (pc/src/battle_movement.c)
-/// A word of PS1 main RAM through any of its KUSEG/KSEG0/KSEG1 mirrors (2 MB
-/// repeated up to 8 MB), for the original's out-of-list reads. An unaligned
-/// or non-RAM address would raise an address/bus error on the PS1.
-fn guestWord(address: c_uint) c_uint {
-    if ((address & 0xffffffff) >= 0x00800000 or (address & 3) != 0)
-        c.pc_unimplemented("actor engagement read outside guest RAM");
-    return psx.byteAt(u32, @as([*]u8, @ptrFromInt(psx.guest_ram_base)), @intCast(address & 0x1fffff)).*;
-}
-
 /// orig: vs_battle_aiHasNearbyEnemy (pc/src/battle_movement.c)
 /// 1 unless some hostile actor (relation >= 3) stands within two tiles of
 /// the engaged target of `id`. The original starts its list walk at
@@ -25,16 +15,11 @@ pub fn noHostileNearTarget(state: *ai.vs_battle_aiState, id: c_int) callconv(.c)
     var node: ?*ai.vs_battle_actor = @ptrCast(@alignCast(v.g.vs_battle_actors()));
     while (node) |n| : (node = @ptrCast(n.next)) {
         const other: c_uint = @bitCast(n.id);
-        const relation_address: c_uint = psx.addr(state) +% 0x1a4 +% (other << 2);
-        const relation: c_uint = if (other < 16)
-            psx.fieldAt(u32, &state.tbl.t.targets.bits32, @as(isize, @intCast(other * 4))).*
-        else
-            guestWord(relation_address);
+        // An id past the list reads PS1 RAM beyond the record (the C's guest_word): never observed, and unimplemented here.
+        if (other >= 16) c.pc_unimplemented("actor engagement read outside the actor list");
+        const relation: c_uint = psx.fieldAt(u32, &state.tbl.t.targets.bits32, @as(isize, @intCast(other * 4))).*;
         if (((relation >> 6) & 3) < 3) continue;
-        const tile: c_uint = if (other < 16)
-            psx.byteAt(u32, @as([*]u8, @ptrCast(v.g.vs_actors_actorRecords()[other].?)), 0x5c).*
-        else
-            guestWord(guestWord(0x800f4538 +% (other << 2)) +% 0x5c);
+        const tile: c_uint = psx.byteAt(u32, @as([*]u8, @ptrCast(v.g.vs_actors_actorRecords()[other].?)), 0x5c).*;
         const target: [*]u8 = @ptrCast(psx.at(v.g.vs_field_gimmickInstances(), id).*.?);
         if (c.vs_core_mathSquaredTileDistance(tile, psx.byteAt(u32, target, 0x5c).*) < 3) return 0;
     }

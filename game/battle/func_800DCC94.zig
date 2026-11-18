@@ -74,7 +74,7 @@ pub fn func_800DCC94(state: ?*v.vs_battle_aiState, candidate: ?*v.actionCandidat
         special = 1;
         psx.setBits(cand, "weight", 40);
     } else if (mode != 0) {
-        c.func_800DCAA0(@ptrCast(st), @as(c_int, @bitCast(psx.addr(stats))), @ptrCast(cand), mode);
+        c.func_800DCAA0(@ptrCast(st), @ptrCast(stats), @ptrCast(cand), mode);
         c.func_800DCBD8(@ptrCast(cand));
     }
     var actor: ?*v.vs_battle_actor = @ptrCast(v.g.vs_battle_actors()[0]);

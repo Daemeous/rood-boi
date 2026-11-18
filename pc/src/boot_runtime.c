@@ -968,6 +968,8 @@ static void run_game_on_low_stack(void)
 /* See psx_types.h: where the game's reads through the original's NULLs land. */
 unsigned char rood_null_page[0x10000] __attribute__((aligned(16)));
 /* The port arena's place, for game/common/port_arena.zig (the one definition is psx_types.h's). */
+const uintptr_t rood_arena_base = ROOD_ARENA_BASE;
+const unsigned rood_arena_size = ROOD_ARENA_SIZE;
 const uintptr_t rood_port_base = ROOD_PORT_BASE;
 const unsigned rood_port_size = ROOD_PORT_SIZE;
 
@@ -1043,6 +1045,7 @@ int main(int argc, char** argv)
      * layers especially) maps memory of its own, which must not land in the
      * guest's fixed ranges. */
     void* ram = map_guest(ROOD_GUEST_RAM_BASE, ROOD_GUEST_RAM_SIZE);
+    void* arenas = map_guest(ROOD_ARENA_BASE, ROOD_ARENA_SIZE);
 #ifdef _WIN32
     /* Windows reserves in 64 KB granules: the scratchpad and the I/O page
      * (below) are one allocation. */
@@ -1059,7 +1062,7 @@ int main(int argc, char** argv)
      * pc/src/audio_spu.cpp synchronises them into the software SPU. */
     void* io = pc_guest_pages + 0x1000;
 #endif
-    if (!ram || !scratch || !io) {
+    if (!ram || !arenas || !scratch || !io) {
         perror("guest mapping");
         return 1;
     }

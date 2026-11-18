@@ -9,7 +9,7 @@ void func_800BEBEC(void);
 char vs_battle_getStateFlag(short);
 void vs_battle_setStateFlag(short id, char value);
 int vs_event_requestEventStart(void);
-short vs_event_evaluateRoomEventTriggers(int, int, int, int);
+short vs_event_evaluateRoomEventTriggers(int, int, __INTPTR_TYPE__, int);
 int vs_battle_invalidOpcode(u_char*, short);
 int vs_event_scriptWaitForEventFile(u_char*, short);
 int func_800B6724(u_char*, short);

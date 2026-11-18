@@ -14,7 +14,7 @@ pub fn removeActor(actor: ?*v.vs_battle_actor) callconv(.c) c_int {
         while (i < 16) : (i += 1) {
             if (slots[i]) |slot| {
                 // Guest addresses compared and copied as the C does: a stale `next` need not be aligned.
-                if (psx.rawOf(slot.next) == psx.addr(actor)) {
+                if (@intFromPtr(psx.get(slot.next)) == @intFromPtr(actor)) {
                     psx.copy(&slot.next, a.next);
                     psx.put(&a.next, null);
                     return 1;

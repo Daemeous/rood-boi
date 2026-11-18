@@ -1,0 +1,7 @@
+# S4 last step: the arenas left the 16 MB window (state item, old location, new location, size, note)
+# item	old	new	size	note
+game heap arena	0x80200000 (in the 16 MB window beside the PS1's 2 MB)	ROOD_ARENA_BASE 0x90000000 (own mapping, below 4 GB)	0xF2000 (unchanged)	the allocator, its size and every block's offset from the arena start are unchanged (heap report equal); VS_MAIN_HEAP_ADDRESS and ROOD_HEAP_BASE are one constant (psx_types.h) asserted equal in main.c
+port arena	0x80300000 (window)	ROOD_ARENA_BASE + 0x100000	0x40000 (unchanged)	same range name "port"
+guest window	0x80000000 + 0x1000000	0x80000000 + 0x200000 (ROOD_GUEST_RAM_SIZE = ROOD_PS1_RAM_SIZE)	0x200000	the PS1's 2 MB only; mapped with the arenas' mapping (ROOD_ARENA_SIZE 0x200000) by boot_runtime.c map_guest
+range checks	ROOD_GUEST_RAM_BASE .. + ROOD_GUEST_RAM_SIZE (pc_game_pointer_ok, dev_rpc readable/writable)	rood_guest_memory(address, size) in psx_types.h: the window or the arenas	-	one definition for every host bridge
+player_bridge HEAP_START	u_int cast of the heap address	pointer-sized	-	the player-state snapshot of the heap copied the right bytes only because the address fitted in 32 bits

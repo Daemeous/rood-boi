@@ -17,7 +17,7 @@ void vs_actors_turnActorToAtRate(int, int, int);
 
 extern MATRIX D_800F49B8;
 
-int func_800A141C(int arg0, int arg1, int arg2, int arg3);
+int func_800A141C(int arg0, int arg1, void* arg2, int arg3);
 
 int func_800A152C(int arg0, int arg1, int arg2);
 

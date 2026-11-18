@@ -84,6 +84,6 @@ pub fn func_800BDC9C(script: [*c]u8, _: c_short) callconv(.c) c_int {
         },
         // No case (opcode 238 is in the table): the C falls off the end. The 64-bit object
         // returns script[0], the 32-bit one the script's address (the interpreter jumps to it).
-        else => return if (comptime @sizeOf(usize) == 8) script[0] else @bitCast(psx.addr(script)),
+        else => return script[0],
     }
 }

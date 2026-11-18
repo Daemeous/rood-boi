@@ -133,7 +133,7 @@ pub fn func_800CB83C() callconv(.c) void {
     const ot_address: usize = if (ot_base.*) |p| @intFromPtr(p) else 0;
     // The page of the text boxes' table is walked after the frame's slot (unk4 - 6 words) and then that slot's own link: the
     // table's packets are not linked into the frame's (the frame's walk, boot_runtime.c, follows the splice).
-    psx.weak(Splice, "pc_frame_table_after").?(@ptrFromInt(@as(usize, psx.rawOf(v.g.vs_scratch().unk4)) -% 6 * 4), @ptrFromInt(ot_address), @ptrFromInt(ot_address +% 33 * 4));
+    psx.weak(Splice, "pc_frame_table_after").?(@ptrFromInt(@intFromPtr(psx.get(v.g.vs_scratch().unk4)) -% 6 * 4), @ptrFromInt(ot_address), @ptrFromInt(ot_address +% 33 * 4));
     const page = v.g.vs_menu_textBoxBufferIndex();
     page.* = if (page.* == 2) 0 else page.* +% 1;
     ot_base.* = @as([*]u32, @ptrCast(v.g.vs_menu_textBoxOrderingTables())) + @as(usize, page.*) * 34;

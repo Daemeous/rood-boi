@@ -3,6 +3,7 @@
 const common = @import("common");
 const psx = common.psx;
 const v = @import("views_2842C");
+const mpd_polygon = @import("mpd_polygon.zig");
 
 /// orig: vs_field_advanceRoomTextureFrames (pc/src/game/BATTLE/BATTLE.PRG/2842C.c)
 /// Steps an animated quad's tick and frame and writes its frame's UVs into the room geometry.
@@ -24,24 +25,7 @@ pub fn vs_field_advanceRoomTextureFrames(arg0: ?*v.vs_field_TextureFrameEffect) 
         const u: c_int = @bitCast(@as(c_uint, anim.baseU) +% @as(c_uint, anim.frameWidth) *% (frame % columns));
         const w: c_int = @bitCast(@as(c_uint, anim.baseV) +% @as(c_uint, anim.frameHeight) *% (frame / columns));
 
-        const off: isize = anim.geometryOffset;
-        if ((psx.byteAt(u8, base, off + 0xF).* & 0x3C) == 0x34) {
-            psx.byteAt(u8, base, off + 0x18).* = psx.conv(u8, @as(c_int, anim.u[0]) +% u);
-            psx.byteAt(u8, base, off + 0x1C).* = psx.conv(u8, @as(c_int, anim.u[1]) +% u);
-            psx.byteAt(u8, base, off + 0x13).* = psx.conv(u8, @as(c_int, anim.u[2]) +% u);
-            psx.byteAt(u8, base, off + 0x19).* = psx.conv(u8, @as(c_int, anim.v[0]) +% w);
-            psx.byteAt(u8, base, off + 0x1D).* = psx.conv(u8, @as(c_int, anim.v[1]) +% w);
-            psx.byteAt(u8, base, off + 0x17).* = psx.conv(u8, @as(c_int, anim.v[2]) +% w);
-        } else {
-            psx.byteAt(u8, base, off + 0x18).* = psx.conv(u8, @as(c_int, anim.u[0]) +% u);
-            psx.byteAt(u8, base, off + 0x1C).* = psx.conv(u8, @as(c_int, anim.u[1]) +% u);
-            psx.byteAt(u8, base, off + 0x13).* = psx.conv(u8, @as(c_int, anim.u[2]) +% u);
-            psx.byteAt(u8, base, off + 0x23).* = psx.conv(u8, @as(c_int, anim.u[3]) +% u);
-            psx.byteAt(u8, base, off + 0x19).* = psx.conv(u8, @as(c_int, anim.v[0]) +% w);
-            psx.byteAt(u8, base, off + 0x1D).* = psx.conv(u8, @as(c_int, anim.v[1]) +% w);
-            psx.byteAt(u8, base, off + 0x17).* = psx.conv(u8, @as(c_int, anim.v[2]) +% w);
-            psx.byteAt(u8, base, off + 0x27).* = psx.conv(u8, @as(c_int, anim.v[3]) +% w);
-        }
+        mpd_polygon.setUv(mpd_polygon.at(@intFromPtr(base), anim.geometryOffset), anim.u, anim.v, u, w);
     }
     return 1;
 }

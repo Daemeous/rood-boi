@@ -20,5 +20,5 @@ pub fn vs_field_tryTriggerFacingTileEvent(arg0: c_int) callconv(.c) c_int {
     _ = c.vs_field_tileInFrontOfActor(@ptrCast(&sp10), &sp20[0]);
     // The C's "BUG: arg2 should be an actor ID?": in mode 1 vs_event_evaluateRoomEventTriggers
     // reads the cell's bytes [0] and [2] through it, so the address is meant.
-    return @intFromBool(c.vs_event_evaluateRoomEventTriggers(4, 0, @bitCast(psx.addr(sp20)), 1) == 1);
+    return @intFromBool(c.vs_event_evaluateRoomEventTriggers(4, 0, @as(isize, @bitCast(@intFromPtr(sp20))), 1) == 1);
 }

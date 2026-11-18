@@ -7,7 +7,7 @@ const c = @import("c_74088");
 
 /// orig: func_800DCAA0 (pc/src/game/BATTLE/BATTLE.PRG/74088.c)
 /// Runs the target check for `source` against `state` (mode 3 also tests the actor's height) and calls vs_battle_aiApplySimulatedActionResults with `arg1` on success.
-pub fn func_800DCAA0(arg0: ?*v.vs_battle_aiState, arg1: c_int, arg2: ?*v.func_800DCAA0_t, arg3: c_int) callconv(.c) void {
+pub fn func_800DCAA0(arg0: ?*v.vs_battle_aiState, arg1: ?*anyopaque, arg2: ?*v.func_800DCAA0_t, arg3: c_int) callconv(.c) void {
     const a0 = arg0.?;
     const a2 = arg2.?;
     var sp20: v.SVECTOR = undefined;
@@ -42,9 +42,8 @@ pub fn func_800DCAA0(arg0: ?*v.vs_battle_aiState, arg1: c_int, arg2: ?*v.func_80
         );
     }
     if (temp_v0 != 0) {
-        // psx_to_ptr(void*, arg1): any address, aligned or not (the C passes it through
-        // untyped); the call goes through the callee typed with an untyped pointer.
+        // arg1: any address, aligned or not (passed through untyped); the call goes through the callee typed with an untyped pointer.
         const apply: *const fn (?*anyopaque) callconv(.c) void = @ptrCast(&c.vs_battle_aiApplySimulatedActionResults);
-        apply(@ptrFromInt(@as(usize, psx.conv(u32, arg1))));
+        apply(arg1);
     }
 }

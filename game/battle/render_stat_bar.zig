@@ -10,8 +10,8 @@ pub fn renderStatBar(colorIndex: c_int, current: c_int, max: c_int) callconv(.c)
     var cur = current;
 
     // vs_scratch.unk4 - 0xC: a guest address minus 12 bytes, as the C computes it.
-    const base_addr: u32 = psx.addr(psx.get(v.g.vs_scratch().unk4).?);
-    const prim: [*c]c_uint = @ptrFromInt(@as(usize, base_addr -% 12));
+    const base_addr: usize = @intFromPtr(psx.get(v.g.vs_scratch().unk4).?);
+    const prim: [*c]c_uint = @ptrFromInt(base_addr -% 12);
     var xy: c_int = psx.at(v.g.vs_battle_hudGaugePositions(), colorIndex).* -% v.g.vs_battle_hudSlideOffset().*;
 
     if (max != 0) {

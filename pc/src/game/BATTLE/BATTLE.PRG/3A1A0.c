@@ -214,7 +214,7 @@ int vs_field_hasActorLedgeSideSupport(D_800F4538_t* arg0);
 
 extern u_char D_800E90CC[];
 extern u_char D_800E90D0[];
-int vs_actors_findActorAnimationHeader(void*, int, u_short**);
+void* vs_actors_findActorAnimationHeader(void*, int, u_short**);
 
 int vs_actors_updateActorLocomotionAnimation(D_800F4538_t* actor, int speed, int direction);
 

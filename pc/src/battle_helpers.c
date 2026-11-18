@@ -394,7 +394,7 @@ int vs_battle_aiIsActionBeneficialToActor(int action, int id);
 
 extern int D_800F58F0;
 extern unsigned D_800F58F4;
-extern unsigned D_800F58F8; /* a 32-bit guest address */
+extern unsigned char* D_800F58F8; /* the fallback candidates (16 entries of 0x14 bytes) */
 /* 73C84.s: remember the first candidate for each action slot whose action has
  * flag 0x40, up to 16 entries. The slot bit is set even when the list is full. */
 void vs_battle_aiCacheFallbackActionCandidate(void* candidate, void* info);
@@ -407,7 +407,7 @@ void vs_battle_aiCacheFallbackActionCandidate(void* candidate, void* info);
 int func_800E4CF4(void* state, void* candidate, int id);
 
 
-extern unsigned D_800F5904; /* a 32-bit guest address */
+extern unsigned char (*D_800F5904)[256]; /* the (target, action) used flags */
 /* 73B0C.s: append a scored candidate (up to 16, nonzero weight) to the state's
  * list at 0x2F0, record its pointer at 0x430, and mark (target, action) used. */
 void vs_battle_aiAppendActionCandidate(void* state, void* candidate);

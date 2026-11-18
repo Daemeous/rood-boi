@@ -10,7 +10,6 @@ pub fn vs_effects_particleAnimationData(arg0: c_int) callconv(.c) ?*anyopaque {
     const base: *u16 = psx.get(v.g.vs_effects_package().*.?.block2Data).?;
     // arg0 + 2 wraps as int; the C does not check the index against the block size.
     const off: u16 = psx.at(base, arg0 +% 2).*;
-    // (u_char*)base + off: guest address arithmetic in 32 bits.
-    const addr: u32 = psx.addr(base) +% @as(u32, off);
-    return @ptrFromInt(@as(usize, addr));
+    // (u_char*)base + off.
+    return @ptrFromInt(@intFromPtr(base) +% @as(usize, off));
 }

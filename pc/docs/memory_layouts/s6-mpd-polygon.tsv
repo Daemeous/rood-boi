@@ -1,0 +1,6 @@
+# S6/S5: the room geometry polygon record named once; a few address-holding ints (state item, old, new, size, note)
+# item	old	new	size	note
+MPD geometry polygon UV bytes (vs_field_advanceRoomTextureFrames, vs_field_scrollRoomTextureCoordinates)	fifteen and eight byteAt/index writes at raw offsets of the section's bytes, duplicated in the two functions	mpd_polygon.zig: Polygon view (+0xF code, u at +0x18/+0x1C/+0x13 and +0x23, v at +0x19/+0x1D/+0x17 and +0x27, texture id +0x1E) and setUv; the bytes are the file's, the renderer reads them in place	-	zig_raw_memory 636 -> 630
+hud panel packet span (pc_hud_panel_range, the RPC hud stats)	two u_int words holding the span's addresses	unsigned long long	4 -> 8 each	
+vs_field_traceActorAndTerrainCollision (trace_attack.zig)	returned the record's address as an int	returns 1 (callers only test it)	-	
+no_hostile_near_target out-of-list reads	computed a 32-bit address and read the PS1's RAM through it (never reached: any heap address is outside the 2 MB, so it already ended in pc_unimplemented)	pc_unimplemented without the address	-	

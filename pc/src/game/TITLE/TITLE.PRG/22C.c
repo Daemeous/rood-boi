@@ -582,7 +582,7 @@ static int _applyLoadedSaveFile(int verifyOnly)
 
     _decode(unk180->key, &unk180->base.slotState,
         sizeof(savedata_t)
-            - psx_to_int(u_long, &((savedata_t*)0)->unk180.unk180.base.slotState));
+            - __builtin_offsetof(savedata_t, unk180.unk180.base.slotState));
 
     blockCount = 92;
     if (verifyOnly != 0) {

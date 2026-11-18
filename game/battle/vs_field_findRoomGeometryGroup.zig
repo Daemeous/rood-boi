@@ -8,11 +8,9 @@ const v = @import("views_2842C");
 pub fn vs_field_findRoomGeometryGroup(arg0: c_int) callconv(.c) ?*anyopaque {
     const section = psx.get(v.g.vs_battle_roomData().geometrySection) orelse return null;
     const count: c_int = section.*;
-    // a1 = section + 1 (int*): 4 bytes on; a1 + arg0 * 16 ints: arg0 * 64 bytes on. Wrapping, as the 32-bit C.
-    const base: c_uint = psx.addr(section);
-    const off: c_uint = @as(c_uint, @bitCast(arg0 *% 64)) +% 4;
+    // a1 = section + 1 (int*): 4 bytes on; a1 + arg0 * 16 ints: arg0 * 64 bytes on.
     if (arg0 >= 0 and arg0 < count) {
-        return @ptrFromInt(@as(usize, base +% off));
+        return @ptrFromInt(@intFromPtr(section) +% @as(usize, @intCast(arg0)) *% 64 +% 4);
     }
     return null;
 }

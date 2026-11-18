@@ -43,7 +43,7 @@ pub fn func_8009651C(position: ?*v.SVECTOR, direction: c_int) callconv(.c) void 
     // setUV4(48, 48, 63, 48, 48, 63, 63, 63)
     const texels = [4]c_int{ 48 | (48 << 8), 63 | (48 << 8), 48 | (63 << 8), 63 | (63 << 8) };
     // AddPrim(psx_get(unk4) - 16, ...): the ordering table address is a guest address, 16 bytes back.
-    const ot_addr: u32 = psx.addr(psx.get(scratch.unk4).?) -% 16;
+    const ot_addr: usize = @intFromPtr(psx.get(scratch.unk4).?) -% 16;
     // (the packet's colour was never set: a shade-tex polygon ignores it)
-    _ = sprite_item.ft4(@ptrFromInt(@as(usize, ot_addr)), true, false, (768 & 0x3ff) >> 6, (223 << 6) | ((976 >> 4) & 0x3f), 0, &corners, &texels);
+    _ = sprite_item.ft4(@ptrFromInt(ot_addr), true, false, (768 & 0x3ff) >> 6, (223 << 6) | ((976 >> 4) & 0x3f), 0, &corners, &texels);
 }

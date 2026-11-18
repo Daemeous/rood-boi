@@ -23,7 +23,7 @@ pub fn fillActionMetadata(state: ?*v.vs_battle_aiState) callconv(.c) void {
             entry.rangeSquared = psx.conv(u32, c.vs_battle_calculateActionRangeSquared(@ptrCast(st), id));
             // vs_gte_rsqrt takes and returns int: the u32 square is reinterpreted, the result converted back.
             const rsqrt: c_uint = psx.conv(c_uint, c.vs_gte_rsqrt(psx.conv(c_int, entry.rangeSquared)));
-            psx.setBits(entry, "radius", psx.conv(u16, c.func_800E5600(psx.conv(c_int, psx.addr(st)), id, rsqrt)));
+            psx.setBits(entry, "radius", psx.conv(u16, c.func_800E5600(@as(c_int, @bitCast(@as(c_uint, @truncate(@intFromPtr(st))))), id, rsqrt)));
 
             psx.setBits(entry, "longRange", @intFromBool(entry.rangeSquared > 0x51000 and (action.flagsC & 0x20000000) == 0));
 

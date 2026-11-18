@@ -25,10 +25,10 @@ pub fn func_800C1DC4(arg0: ?*v.D_800EB9B8_unk990) callconv(.c) void {
     var pcRowFirst: ?*anyopaque = undefined;
 
     // vs_scratch.unk8 is a void*: the subtraction below is in bytes, as GNU C does.
-    const scratchUnk8: c_uint = psx.addr(psx.get(v.g.vs_scratch().unk8).?);
+    const scratchUnk8: usize = @intFromPtr(psx.get(v.g.vs_scratch().unk8).?);
     const nOff: c_int = @as(c_int, row.unk1) *% 4 -% 8;
-    const nextPrim: c_uint = scratchUnk8 -% @as(c_uint, @bitCast(nOff));
-    const np: [*]align(1) c_uint = @ptrFromInt(@as(usize, nextPrim));
+    const nextPrim: usize = scratchUnk8 -% @as(usize, @bitCast(@as(isize, nOff)));
+    const np: [*]align(1) c_uint = @ptrFromInt(nextPrim);
 
     if (row.unk1 != 0) gradient = 8;
     color0 = 8 -% gradient;
@@ -62,7 +62,7 @@ pub fn func_800C1DC4(arg0: ?*v.D_800EB9B8_unk990) callconv(.c) void {
     pcRow.selected = @as(c_int, row.unk1);
     pcRow.fade = @as(c_int, row.unk2);
     pcRow.bank = @as(c_int, row.unk7);
-    pcRow.slot = psx.conv(c_int, nextPrim -% psx.addr(psx.get(v.g.vs_scratch().unk4).?));
+    pcRow.slot = @truncate(@as(isize, @bitCast(nextPrim -% @intFromPtr(psx.get(v.g.vs_scratch().unk4).?))));
     pcRowFirst = v.g.vs_scratch().unk0;
 
     c.vs_battle_renderTextRawColor(row.limbName, textXy, color, @ptrCast(np));

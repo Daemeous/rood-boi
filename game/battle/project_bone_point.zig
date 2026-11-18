@@ -8,7 +8,7 @@ const c = @import("c_38C1C");
 
 /// orig: func_800A141C (pc/src/game/BATTLE/BATTLE.PRG/38C1C.c)
 /// Projects the bone's origin (mode 0), its end (1) or its middle (other) and stores the GTE's screen xy and depth words at `out`; -1 when the slot is empty.
-pub fn projectBonePoint(slot: c_int, bone: c_int, out: c_int, mode: c_int) callconv(.c) c_int {
+pub fn projectBonePoint(slot: c_int, bone: c_int, out: ?*anyopaque, mode: c_int) callconv(.c) c_int {
     var var_v1: ?*v.D_800F4538_t = psx.at(v.g.vs_actors_actorRecords(), slot).*;
     if (var_v1 == null) {
         var_v1 = @ptrCast(psx.at(v.g.vs_field_gimmickInstances(), slot).*);
@@ -38,7 +38,7 @@ pub fn projectBonePoint(slot: c_int, bone: c_int, out: c_int, mode: c_int) callc
     const projected = gte.project(&view, &sp0);
     v.g.pc_gte_anchored().* -%= 1;
 
-    const dst: *align(1) [2]c_uint = @ptrFromInt(@as(usize, psx.conv(u32, out)));
+    const dst: *align(1) [2]c_uint = @ptrCast(out.?);
     dst[0] = @bitCast(projected.sxy);
     dst[1] = projected.sz;
 

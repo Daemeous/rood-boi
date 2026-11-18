@@ -32,8 +32,8 @@ pub fn vs_actors_applyLockedBoneTransform(actor_in: ?*v.D_800F4538_t, parent: ?*
     // *psx_to_ptr(MATRIX*, boneOffset + psx_to_int(int, table)) = *matrix;
     const bone_offset: c_int = bone << 5;
     const table = v.g.vs_actors_skeletonPose();
-    const table_addr: c_uint = psx.conv(c_uint, bone_offset) +% psx.addr(table);
-    @as(*align(1) v.MATRIX, @ptrFromInt(@as(usize, table_addr))).* = matrix.*;
+    const table_addr: usize = @as(usize, psx.conv(c_uint, bone_offset)) +% @intFromPtr(table);
+    @as(*align(1) v.MATRIX, @ptrFromInt(table_addr)).* = matrix.*;
 
     // actor->bones[bone] = *matrix;
     psx.fieldAt(v.MATRIX, &actor.bones, bone_offset).* = matrix.*;

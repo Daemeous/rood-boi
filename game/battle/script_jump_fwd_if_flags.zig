@@ -1,6 +1,7 @@
 //! The event script's conditional jump on two state flags (pc/src/game/BATTLE/BATTLE.PRG/4A0A8.c).
 const psx = @import("common").psx;
 const c = @import("c_4A0A8");
+const event_jump = @import("event_jump.zig");
 
 /// orig: vs_battle_script_jumpFwdIfFlags (pc/src/game/BATTLE/BATTLE.PRG/4A0A8.c)
 /// Compares two state flags by script[1]'s test; on a pass returns the script address
@@ -19,5 +20,5 @@ pub fn script_jumpFwdIfFlags(script: [*c]u8, _: c_short) callconv(.c) c_int {
         80 => if (a > b) return 0,
         else => {},
     }
-    return @bitCast(psx.addr(psx.at(script, c.vs_battle_getShort(script + 4))));
+    return event_jump.to(psx.at(script, c.vs_battle_getShort(script + 4)));
 }

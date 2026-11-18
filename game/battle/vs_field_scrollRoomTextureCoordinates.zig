@@ -1,13 +1,13 @@
 //! Scrolls a textured quad's UV window across the room geometry section (pc/src/game/BATTLE/BATTLE.PRG/2842C.c).
 const psx = @import("common").psx;
 const v = @import("views_2842C");
+const mpd_polygon = @import("mpd_polygon.zig");
 
 /// orig: vs_field_scrollRoomTextureCoordinates (pc/src/game/BATTLE/BATTLE.PRG/2842C.c)
 /// Advances a scrolling UV window every `delay` ticks and rewrites the quad's texture coordinates in the room geometry.
 pub fn vs_field_scrollRoomTextureCoordinates(arg0: ?*v.vs_field_TextureScrollEffect) callconv(.c) c_int {
     const quad = arg0.?;
-    // psx_raw of the geometry section: the 4-byte guest address, widened as a host address.
-    const base: usize = psx.rawOf(v.g.vs_battle_roomData().geometrySection);
+    const base: usize = @intFromPtr(psx.get(v.g.vs_battle_roomData().geometrySection));
 
     // ++tick is a u8 increment: the stored (wrapped) value is what the comparison sees.
     quad.tick +%= 1;
@@ -39,25 +39,8 @@ pub fn vs_field_scrollRoomTextureCoordinates(arg0: ?*v.vs_field_TextureScrollEff
         quad.currentU = psx.conv(u8, uPos);
         quad.currentV = psx.conv(u8, vPos);
 
-        // base + geometryOffset: a signed offset, pointer arithmetic on the guest address.
-        const polygon: [*]align(1) u8 = @ptrFromInt(base +% @as(usize, @bitCast(@as(isize, quad.geometryOffset))));
-        if ((@as(c_int, polygon[0xF]) & 0x3C) == 0x34) {
-            polygon[0x18] = psx.conv(u8, @as(c_int, quad.u[0]) +% uPos);
-            polygon[0x1C] = psx.conv(u8, @as(c_int, quad.u[1]) +% uPos);
-            polygon[0x13] = psx.conv(u8, @as(c_int, quad.u[2]) +% uPos);
-            polygon[0x19] = psx.conv(u8, @as(c_int, quad.v[0]) +% vPos);
-            polygon[0x1D] = psx.conv(u8, @as(c_int, quad.v[1]) +% vPos);
-            polygon[0x17] = psx.conv(u8, @as(c_int, quad.v[2]) +% vPos);
-        } else {
-            polygon[0x18] = psx.conv(u8, @as(c_int, quad.u[0]) +% uPos);
-            polygon[0x1C] = psx.conv(u8, @as(c_int, quad.u[1]) +% uPos);
-            polygon[0x13] = psx.conv(u8, @as(c_int, quad.u[2]) +% uPos);
-            polygon[0x23] = psx.conv(u8, @as(c_int, quad.u[3]) +% uPos);
-            polygon[0x19] = psx.conv(u8, @as(c_int, quad.v[0]) +% vPos);
-            polygon[0x1D] = psx.conv(u8, @as(c_int, quad.v[1]) +% vPos);
-            polygon[0x17] = psx.conv(u8, @as(c_int, quad.v[2]) +% vPos);
-            polygon[0x27] = psx.conv(u8, @as(c_int, quad.v[3]) +% vPos);
-        }
+        // base + geometryOffset: a signed offset.
+        mpd_polygon.setUv(mpd_polygon.at(base, quad.geometryOffset), quad.u, quad.v, uPos, vPos);
     }
     return 1;
 }

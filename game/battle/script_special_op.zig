@@ -2,6 +2,7 @@
 const psx = @import("common").psx;
 const v = @import("views_4A0A8");
 const c = @import("c_4A0A8");
+const event_jump = @import("event_jump.zig");
 
 /// orig: vs_battle_script_specialOp (pc/src/game/BATTLE/BATTLE.PRG/4A0A8.c)
 /// Runs special operation script[1] with argument script[2]: the ending (1, over two steps),
@@ -47,8 +48,8 @@ pub fn script_specialOp(script: [*c]u8, _: c_short) callconv(.c) c_int {
         14 => c.vs_field_setMovingPlatformsPaused(script[2]),
         15 => c.pc_screff2_set_border(script[2]),
         16 => {
-            v.g.vs_event_subroutineReturnCursor().* = @bitCast(psx.addr(script + 6));
-            return @bitCast(psx.addr(psx.Global(u8, "vs_event_specialSubroutineScript").ptr()));
+            v.g.vs_event_subroutineReturnCursor().* = script + 6;
+            return event_jump.to(psx.Global(u8, "vs_event_specialSubroutineScript").ptr());
         },
         17 => c.vs_field_cancelPendingRoomVisit(),
         else => _ = c.sprintf(&buf, @constCast("<SPECIAL=%d> IS UNDEFINED!"), @as(c_int, script[1])),

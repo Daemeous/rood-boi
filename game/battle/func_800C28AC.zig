@@ -32,7 +32,7 @@ pub fn func_800C28AC(position: ?*v.SVECTOR, arg1: c_int) callconv(.c) void {
     pcMarker.step = @as(c_int, v.g.vs_battle_positionCursorBlinkFrame().*);
     const pcMarkerFirst = v.g.vs_scratch().unk0;
 
-    const otPtr: [*c]c_uint = @ptrFromInt(@as(usize, psx.addr(ot)));
+    const otPtr: [*c]c_uint = @ptrFromInt(@intFromPtr(ot));
 
     if (arg1 == 0) {
         // The marker's frame: two textured quads (page 12, the clut 0x37FD), draw items placed at the slot where their packets linked.

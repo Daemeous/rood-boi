@@ -25,9 +25,9 @@ pub fn initActorState(actor: ?*v.vs_battle_actor, options: c_int) callconv(.c) c
         if (kind == 2 or kind == 4) {
             const table = v.g.vs_battle_aiRoomAiState().*.?;
             for (0..4) |k| {
-                const slot = psx.byteAt(i32, table, 40 + 4 * @as(isize, @intCast(k)));
-                if (slot.* == 0) {
-                    slot.* = psx.conv(i32, psx.addr(a));
+                // The first free slot of the room record's registry of such actors (the PS1's word at +0x28 + 4 * k).
+                if (table.registered[k] == null) {
+                    table.registered[k] = a;
                     break;
                 }
             }

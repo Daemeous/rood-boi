@@ -251,7 +251,7 @@ pub fn drawParticles(head: ?*v.func_800D6E44_t) callconv(.c) void {
             if (psx.weak(NativeNode, "pc_particles_native_node")) |native_node| {
                 // The node's particle system for glows (glows.c): its sprite script and table, and the matrix it is attached to.
                 const attached = node.flags & 0x20000 != 0;
-                const source: c_uint = (psx.rawOf(node.sprite.unk18) *% 2654435761) ^ (@as(c_uint, node.sprite.unk16) << 8) ^
+                const source: c_uint = (@as(c_uint, @truncate(@intFromPtr(psx.get(node.sprite.unk18)))) *% 2654435761) ^ (@as(c_uint, node.sprite.unk16) << 8) ^
                     (if (attached) 0x10000 +% @as(c_uint, node.matrixIndex) else 0);
                 native_node(indices.unk0, &page_clut, &tile_rgb, &tile_xy, &tile_uv, &view, centre_sz, centre_xy, depth, node, node.curves.fields.age, (source & 0x07ffffff) | (if (attached) @as(c_uint, 0x08000000) else 0) | 1); // attached: glows.c
             }

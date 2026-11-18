@@ -73,7 +73,7 @@ typedef struct {
 void vs_battle_aiApplySimulatedStatDelta(short*, short*, int, int);
 void vs_battle_aiApplySimulatedActionResults(actionStatSnapshot* stats);
 
-void func_800DCAA0(vs_battle_aiState* arg0, int arg1, func_800DCAA0_t* arg2, int arg3);
+void func_800DCAA0(vs_battle_aiState* arg0, void* arg1, func_800DCAA0_t* arg2, int arg3);
 
 void func_800DCBD8(func_800DCAA0_t* arg0);
 
@@ -146,9 +146,7 @@ void vs_battle_aiCacheFallbackActionCandidate(actionCandidateEntry*, actionChoic
 
 static inline vs_battle_uiEquipment_limb* actorLimb(vs_battle_actor2* stats, int limb)
 {
-    return psx_to_ptr(vs_battle_actor2*,
-        limb * sizeof(vs_battle_uiEquipment_limb) + psx_to_int(int, stats))
-        ->limbs;
+    return (vs_battle_uiEquipment_limb*)((char*)stats->limbs + limb * sizeof(vs_battle_uiEquipment_limb));
 }
 
 typedef struct {

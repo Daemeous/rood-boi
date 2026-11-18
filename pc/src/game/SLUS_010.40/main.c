@@ -10123,7 +10123,7 @@ static int vs_audio_resolveSfxProgram(int arg0, int arg1)
         }
 #endif
         temp_v1 =
-            (int)(__INTPTR_TYPE__)vs_main_soundData.sfxData[vs_main_soundData.currentSfxId - 1];
+            (int)psx_word((__UINTPTR_TYPE__)vs_main_soundData.sfxData[vs_main_soundData.currentSfxId - 1]);
         temp_v1 = (int)temp_v1 + (arg1 + psx_to_ptr(int*, temp_v1))[1];
         break;
     default:

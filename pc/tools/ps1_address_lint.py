@@ -49,6 +49,9 @@ RULES = {
     # memory lane (pc/docs/plans/2026-11-16-memory-lane.md): code that reaches a field by its PS1 byte offset (S1), and
     # references to the 2 MB RAM block, the game heap's address and the page that stands for PS1 address 0 (S9)
     "byte_offset_access": re.compile(r"\bpsx\.(?:fieldAt|byteAt)\(|\bPSX_OFFSET\("),
+    # a 32-bit word that names an arena object through ROOD_ARENA_ALIAS (psx_types.h): a temporary tie, removed with T18 (the sound driver's
+    # parameter words become pointers or handles); the alias and its 0x80200000 naming are deleted when this reaches 0
+    "arena_alias": re.compile(r"\bpsx_(?:word|word_ptr|to_int|to_ptr)\("),
     "ram_reference": re.compile(r"\bROOD_GUEST_RAM_(?:BASE|SIZE)\b|\bguest_ram_base\b|\bVS_MAIN_HEAP_ADDRESS\b|\brood_null_page\b|\bmap_guest\s*\("),
     # a struct member still called by its offset (pc/tools/import_fields.py gives them names), used as .unkNN or ->unkNN
     "unnamed_field": re.compile(r"(?<![.])(?:\.|->)unk[0-9A-Fa-f]+\b"),

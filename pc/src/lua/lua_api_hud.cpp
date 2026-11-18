@@ -3254,7 +3254,7 @@ std::string stats_json()
     }
     static const char* const CLASSIC_TYPES[] = { "text", "rect", "gradient", "glyph", "sprite", "window", "cursor",
         "bar", "text_raw", "value", "digit", "frame", "band", "char", "image", "plate", "leader", "quad" };
-    unsigned panel_first = 0, panel_last = 0; // the classic panels' packets of the last game frame
+    unsigned long long panel_first = 0, panel_last = 0; // the classic panels' packets of the last game frame
     if (pc_hud_panel_range)
         pc_hud_panel_range(&panel_first, &panel_last);
     auto classic_json = [&](const pc_hud_classic_cmd* buffer, int used) {

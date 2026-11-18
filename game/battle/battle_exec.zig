@@ -148,16 +148,16 @@ pub fn battleExec() callconv(.c) void {
                                             c.func_80073898();
                                             break :mode;
                                         }
-                                        var result: c_int = psx.conv(c_int, psx.addr(c.vs_field_findFacingRoomObject(0)));
-                                        if (result != 0) {
-                                            if (c.vs_field_interactWithLockedRoomObject(@ptrFromInt(@as(usize, psx.conv(u32, result)))) == 0) {
+                                        const room_object = c.vs_field_findFacingRoomObject(0);
+                                        if (room_object != null) {
+                                            if (c.vs_field_interactWithLockedRoomObject(room_object) == 0) {
                                                 c.vs_field_beginObjectInteractionWait();
                                                 break :mode;
                                             }
                                         } else {
-                                            result = psx.conv(c_int, psx.addr(c.vs_field_findFacingUnlootedChest(0)));
-                                            if (result != 0) {
-                                                c.vs_field_beginChestInteraction(@ptrFromInt(@as(usize, psx.conv(u32, result))), 0);
+                                            const chest = c.vs_field_findFacingUnlootedChest(0);
+                                            if (chest != null) {
+                                                c.vs_field_beginChestInteraction(@ptrCast(@alignCast(chest)), 0);
                                                 break :mode;
                                             }
                                         }

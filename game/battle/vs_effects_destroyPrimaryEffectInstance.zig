@@ -6,7 +6,7 @@ const c = @import("c_5BF94");
 
 /// psx_set of a guest address: the 4-byte field's address on 64-bit, the pointer's bits on 32-bit (stored as
 /// the C stores it: by its bits, so an unaligned address does not trap).
-fn setAddress(field: anytype, address: u32) void {
+fn setAddress(field: anytype, address: usize) void {
     const F = @typeInfo(@TypeOf(field)).pointer.child;
     switch (@typeInfo(F)) {
         .optional, .pointer => @as(*usize, @ptrCast(field)).* = address,
@@ -25,7 +25,7 @@ pub fn vs_effects_destroyPrimaryEffectInstance(script_arg: ?*v.vs_effects_Effect
     } else {
         while (psx.get(link.?.next)) |next| {
             if (next == script) {
-                setAddress(&link.?.next, psx.rawOf(script.next));
+                setAddress(&link.?.next, @intFromPtr(psx.get(script.next)));
                 break;
             }
             link = next;

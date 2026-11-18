@@ -3,6 +3,7 @@ const common = @import("common");
 const psx = common.psx;
 const v = @import("views_30DB0");
 const c = @import("c_30DB0");
+const shp_file = @import("shp_file.zig");
 
 /// The C calls memcpy and memset without a prototype: an int size goes as its 32 bits, zero-extended.
 const Memcpy = *const fn (?*anyopaque, ?*const anyopaque, usize) callconv(.c) ?*anyopaque;
@@ -11,15 +12,6 @@ const Memset = *const fn (?*anyopaque, c_int, usize) callconv(.c) ?*anyopaque;
 const Reset = *const fn (c_int) callconv(.c) void;
 /// LoadImage's u_long* as the C passes it: a byte pointer, any alignment.
 const LoadImage = *const fn ([*c]c.RECT, ?*const anyopaque) callconv(.c) c_int;
-
-/// The guest pointer `data` advanced by a C int (pointer arithmetic: sign-extended).
-inline fn advance(data: usize, n: c_int) usize {
-    return data +% @as(usize, @bitCast(@as(isize, n)));
-}
-
-inline fn readInt(data: usize) c_int {
-    return @as(*align(1) const c_int, @ptrFromInt(data)).*;
-}
 
 inline fn byte(data: usize) *u8 {
     return @ptrFromInt(data);
@@ -66,21 +58,14 @@ pub fn parseShp(object: *v.vs_battle_objectData) callconv(.c) c_int {
 
     if (pass.* == 0) {
         if (object.index == 0 and object.modelId == 6) {
-            data = object.dataAddr;
+            const f = shp_file.decode(object.dataAddr);
             const a = actors[0].?;
-            data = advance(data, 0xF4);
-            const size = readInt(data);
-            data = advance(data, size +% 4);
-            data = advance(data, 4);
-            const skip = readInt(data);
             clutCount.* = a.unk0.unkE;
             v.g.D_800F22C0().* = 0x80;
             v.g.D_800F22C4().* = 0x80;
-            data = advance(data, skip +% 4);
-            data = advance(data, 8);
-            c.vs_main_memcpy(&a.unk11A4, @ptrFromInt(data), @as(c_uint, clutCount.*) * 4);
+            c.vs_main_memcpy(&a.unk11A4, @constCast(f.cluts), @as(c_uint, clutCount.*) * 4);
             slotRect(a.unk5BB, &rect);
-            _ = loadImage(psx.cptr(c.RECT, &rect), @ptrFromInt(advance(data, @as(c_int, clutCount.*) * 4)));
+            _ = loadImage(psx.cptr(c.RECT, &rect), f.cluts + @as(usize, clutCount.*) * 4);
             object.variant = 0;
             actor_opt = a;
             stage = .setup_palettes;
@@ -134,40 +119,30 @@ pub fn parseShp(object: *v.vs_battle_objectData) callconv(.c) c_int {
     }
 
     if (stage == .parse) {
-        data = advance(data, 4);
+        const f = shp_file.decode(data);
         psx.fieldAt(v.vs_battle_objectData_flags, &actor.unk0.currentTileX, 0).* = object.placement;
         psx.setBits(&actor.unk0, "skip", 1);
-        psx.fieldAt(c_int, &actor.unk0.nBones, 0).* = readInt(data);
-        psx.fieldAt(c_int, &actor.unk0.nQuads, 0).* = readInt(data +% 4);
-        data = advance(data, 8);
-        c.vs_main_memcpy(&actor.texMapOverlays, @ptrFromInt(data), 0xE8);
-        data = advance(data, 0xE8);
-        var size = readInt(data);
-        data = advance(data, 4);
-        const model: ?*v.vs_actors_ShpModel = @ptrCast(@alignCast(c.vs_main_allocHeap(psx.conv(c_uint, size))));
-        _ = memcpy(model, @ptrFromInt(data), @as(u32, @bitCast(size)));
+        psx.fieldAt(c_int, &actor.unk0.nBones, 0).* = f.n_bones;
+        psx.fieldAt(c_int, &actor.unk0.nQuads, 0).* = f.n_quads;
+        c.vs_main_memcpy(&actor.texMapOverlays, @constCast(f.overlays), 0xE8);
+        const model: ?*v.vs_actors_ShpModel = @ptrCast(@alignCast(c.vs_main_allocHeap(psx.conv(c_uint, f.model_size))));
+        _ = memcpy(model, f.model, @as(u32, @bitCast(f.model_size)));
         psx.put(&actor.unk0.model, model);
         if (model == null) return -2;
-        data = advance(data, size);
 
         var queued: v.vs_battle_objectData = undefined;
         queued.dataType = 8;
         queued.index = object.index;
-        queued.dataAddr = data;
+        queued.dataAddr = @intFromPtr(f.seq);
         queued.modelId = 0xFF;
         queued.actorId = 0;
         _ = c._loadSeq(@ptrCast(&queued));
-        data = advance(data, 4);
 
-        var i: c_int = readInt(data);
-        data = advance(data, 4);
-        data = advance(data, i);
-        size = readInt(data);
+        var i: c_int = 0;
         psx.setBits(actor, "unk5B0_5", 1);
-        data = advance(data, 4);
 
-        if (size == 4) {
-            size = readInt(data);
+        if (f.shares()) {
+            const size = f.shared_model_id;
             var other: ?*v.D_800F4538_t = null;
             i = 0;
             while (i < 17) : (i += 1) { // i < 17: the actor slots
@@ -185,17 +160,13 @@ pub fn parseShp(object: *v.vs_battle_objectData) callconv(.c) c_int {
             stage = .fix_uvs;
         } else {
             const header = v.g.D_800F22BC();
-            header.* = byte(data).*;
+            header.* = f.flags;
             psx.setBits(actor, "unk5AC_27", psx.conv(u1, @as(c_int, psx.conv(u8, header.*))));
             psx.setBits(&actor.unk0, "unk8_3", psx.conv(u1, header.* >> 4));
-            data +%= 1;
-            v.g.D_800F22C0().* = @as(c_int, byte(data).*) * 2;
-            data +%= 1;
-            v.g.D_800F22C4().* = @as(c_int, byte(data).*) * 2;
-            data +%= 1;
-            clutCount.* = byte(data).*;
+            v.g.D_800F22C0().* = f.width;
+            v.g.D_800F22C4().* = f.height;
+            clutCount.* = f.clut_count;
             actor.unk0.unkE = clutCount.*;
-            data +%= 1;
 
             var n: c_int = @divTrunc(v.g.D_800F22C4().*, 64);
             if (v.g.D_800F22C0().* == 0x100) n = 8;
@@ -271,13 +242,10 @@ pub fn parseShp(object: *v.vs_battle_objectData) callconv(.c) c_int {
                 } else {
                     slot.tpage = psx.conv(i16, @as(c_int, slot.tpage) & ~@as(c_int, 0x180));
                 }
-                c.vs_main_memcpy(&actor.unk11A4, @ptrFromInt(data), @as(c_uint, clutCount.*) * 4);
-                data = advance(data, @as(c_int, clutCount.*) * 4);
+                c.vs_main_memcpy(&actor.unk11A4, @constCast(f.cluts), @as(c_uint, clutCount.*) * 4);
                 slotRect(actor.unk5BB, &rect);
-                _ = loadImage(psx.cptr(c.RECT, &rect), @ptrFromInt(data));
-                data = advance(data, v.g.D_800F22C0().* *% v.g.D_800F22C4().*);
+                _ = loadImage(psx.cptr(c.RECT, &rect), f.texture);
                 pass.* = 1;
-                v.g.D_800F22B4().* = @ptrFromInt(data);
                 return -1;
             }
         }

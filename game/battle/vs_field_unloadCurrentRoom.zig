@@ -11,17 +11,17 @@ pub fn vs_field_unloadCurrentRoom() callconv(.c) void {
     var i: c_int = 0;
     while (i < 2) : (i += 1) {
         const frame: ?*anyopaque = psx.at(v.g.vs_render_legacyOrderingTables(), v.g.vs_main_frameBuf().*).*;
-        const frame_addr: u32 = if (frame) |p| psx.addr(p) else 0;
-        psx.put(&v.g.vs_scratch().unk4, @as(?*anyopaque, @ptrFromInt(@as(usize, frame_addr +% 0x10))));
+        const frame_addr: usize = @intFromPtr(frame);
+        psx.put(&v.g.vs_scratch().unk4, @as(?*anyopaque, @ptrFromInt(frame_addr +% 0x10)));
 
         // The scratch slot holds a guest address; it is passed on as the C's pointer value.
         const slot = psx.get(v.g.vs_scratch().unk4);
-        const slot_addr: u32 = if (slot) |p| psx.addr(p) else 0;
-        c.pc_frame_table_clear(@ptrFromInt(@as(usize, slot_addr)), 0x800, 1);
+        const slot_addr: usize = @intFromPtr(slot);
+        c.pc_frame_table_clear(@ptrFromInt(slot_addr), 0x800, 1);
         _ = c.func_8007DF40();
-        c._drawScreenTransition(@ptrFromInt(@as(usize, slot_addr)));
+        c._drawScreenTransition(@ptrFromInt(slot_addr));
 
-        _ = c.vs_render_presentFieldFrame(@ptrFromInt(@as(usize, slot_addr +% 0x1FFC)));
+        _ = c.vs_render_presentFieldFrame(@ptrFromInt(slot_addr +% 0x1FFC));
     }
 
     _ = c.DrawSync(0);

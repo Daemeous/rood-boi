@@ -7,7 +7,7 @@ const c = @import("c_44F14");
 
 /// vs_actors_findActorAnimationHeader: the animation's sequence word and its header (no prototype
 /// in the unit that takes the actor view).
-const LoadAnimFn = *const fn (*v.D_800F4538_t, c_int, *?[*]u16) callconv(.c) c_int;
+const LoadAnimFn = *const fn (*v.D_800F4538_t, c_int, *?[*]u16) callconv(.c) ?*anyopaque;
 /// (A function, not a module-level pointer constant: that would be a relocated data slot in the engine library.)
 inline fn loadAnimation() LoadAnimFn {
     return @extern(LoadAnimFn, .{ .name = "vs_actors_findActorAnimationHeader" });
@@ -28,8 +28,8 @@ inline fn decode() DecodeFn {
 pub fn vs_actors_restartActorAnimationEvents(arg0: ?*v.D_800F4538_t) callconv(.c) void {
     const actor = arg0.?;
     var header: ?[*]u16 = undefined;
-    const word: u32 = @bitCast(loadAnimation()(actor, @as(c_int, actor.animationId), &header));
-    if (word == 0 or header == null) {
+    const word = loadAnimation()(actor, @as(c_int, actor.animationId), &header);
+    if (word == null or header == null) {
         // The C's block-scope `static int reported` (globalised by the build).
         const reported = v.g.func_800AE47C__reported();
         const before = reported.*;
@@ -42,7 +42,7 @@ pub fn vs_actors_restartActorAnimationEvents(arg0: ?*v.D_800F4538_t) callconv(.c
         }
         return;
     }
-    const sequence: [*]u8 = @ptrFromInt(@as(usize, word +% psx.byteAt(u32, @as(*u8, @ptrFromInt(@as(usize, word))), 0).*));
+    const sequence: [*]u8 = @ptrFromInt(@intFromPtr(word.?) +% psx.byteAt(u32, @as(*u8, @ptrCast(word.?)), 0).*);
     const op = sequence + header.?[2];
 
     var count: c_int = op[0];

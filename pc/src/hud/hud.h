@@ -368,7 +368,7 @@ void pc_hud_frame(void);
  * classic panels' packets, linked into it. */
 void pc_hud_panels_classic(void* otag);
 /* Their packets' guest range in the last frame ([first, last), 0, 0: none): RPC hud stats panel_packets. */
-void pc_hud_panel_range(unsigned* first, unsigned* last) __attribute__((weak));
+void pc_hud_panel_range(unsigned long long* first, unsigned long long* last) __attribute__((weak));
 /* Then, whatever rood.ui.hide hides: plugins' panels (rood.draw.panel) over the picture (its size in pixels). */
 void pc_hud_panels(float dt, int view_w, int view_h);
 /* RPC hud (dev_rpc.c): the params object's text; JSON in out, or < 0 with the error. */

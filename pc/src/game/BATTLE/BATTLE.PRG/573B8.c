@@ -9,6 +9,8 @@
 
 extern u_char vs_event_opcodeSizes[];
 extern int (*_opcodeFunctionTable[])(u_char*, short);
+/* Where a jumping opcode handler sends the script (game/battle/event_jump.zig): the handlers return an int, which cannot hold an address; read in the same step. */
+u_char* vs_event_jumpTarget;
 extern unsigned char vs_event_scriptControlledActors[17];
 extern vs_main_CdQueueSlot* vs_event_eventFileDiscRequest;
 extern vs_main_CdFile vs_event_eventFileDiscLocation;

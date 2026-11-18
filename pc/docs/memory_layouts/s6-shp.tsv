@@ -1,0 +1,4 @@
+# S6: the actor shape file (SHP) decoded (state item, old, new, size, note)
+# item	old	new	size	note
+SHP file in parseShp	a 32-bit-style cursor (data) advanced through the file by hand in both branches of pass 0 (Ashley's palette reload and the general load)	ShpFile (shp_file.zig) filled by decode(at): counts, overlays, model, sequence block, texture block (shared id or flags, size, palettes, texture) as pointers into the raw heap buffer	~100 bytes on the caller's stack	no record is kept: pass 1 does not read the file; the payload stays raw; the heap's allocation sequence is the original's (the model copy is still allocated)
+D_800F22B4	a global pointer holding the cursor after the texture, written at the end of pass 0 and read by nothing	removed	8 bytes	dead state

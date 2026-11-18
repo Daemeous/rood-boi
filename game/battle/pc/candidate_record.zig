@@ -17,7 +17,7 @@ pub fn recordCandidate(candidate: [*]align(1) c_uint, info: [*]u8) callconv(.c) 
     const count = v.g.D_800F58F0().*;
     if (count < 16) {
         v.g.D_800F58F0().* = count +% 1;
-        const slot = @as(usize, v.g.D_800F58F8().*) +% @as(usize, @bitCast(@as(isize, count *% 0x14)));
+        const slot = @intFromPtr(v.g.D_800F58F8().*) +% @as(usize, @bitCast(@as(isize, count *% 0x14)));
         c.vs_battle_aiCopyActionCandidate(@ptrFromInt(slot), @ptrCast(candidate));
     }
 }
@@ -29,7 +29,7 @@ pub fn recordCandidate(candidate: [*]align(1) c_uint, info: [*]u8) callconv(.c) 
 pub fn addScoredCandidate(state: *ai.vs_battle_aiState, candidate: [*]align(1) c_uint) callconv(.c) void {
     const count = state.count470;
     if (count >= 16 or (candidate[3] >> 19) & 0xff == 0) return;
-    const used: [*]u8 = @ptrFromInt(@as(usize, v.g.D_800F5904().*));
+    const used: [*]u8 = @ptrCast(v.g.D_800F5904().*.?);
     used[((candidate[3] & 0xf) << 8) + ((candidate[1] >> 5) & 0xff)] = 1;
     const record = psx.fieldAt(u8, &state.candidates, @as(isize, count *% 0x14));
     psx.at(&state.entries.candidates, count).* = @ptrCast(@alignCast(record));

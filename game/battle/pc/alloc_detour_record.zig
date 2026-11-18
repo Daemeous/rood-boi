@@ -10,7 +10,7 @@ const v = @import("views_battle_movement");
 pub fn allocDetourRecord(state: *ai.vs_battle_aiState) callconv(.c) void {
     _ = state;
     const record: ?[*]u8 = @ptrCast(c.vs_main_allocHeap(0x20));
-    v.g.D_800F5920().* = psx.addr(record);
+    v.g.D_800F5920().* = @ptrCast(record);
     c.vs_core_memoryClearAlignedWords(record, 0x20);
     psx.byteAt(u16, record.?, 0xc).* = 0x384;
 }

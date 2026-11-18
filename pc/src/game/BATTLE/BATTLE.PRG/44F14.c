@@ -11,7 +11,7 @@
 void func_8008EB04(int*, int*);
 int vs_field_findTopGimmickAtTile(int, int, int);
 /* Returns the animation record's guest address as an int (40564.c). */
-int vs_actors_findActorAnimationHeader(D_800F4538_t*, u_char, u_short**);
+void* vs_actors_findActorAnimationHeader(D_800F4538_t*, u_char, u_short**);
 void vs_actors_alignPoseRotationBranches(SVECTOR*, SVECTOR*, int);
 void vs_actors_blendActorPose(D_800F4538_unkC54*, D_800F4538_unkC54*, int, int, int);
 

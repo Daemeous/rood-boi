@@ -2171,3 +2171,21 @@ void vs_zud_decode(vs_zud_file* out, const void* file)
     out->commonSeq = vs_zud_partAt(file, 3);
     out->battleSeq = vs_zud_partAt(file, 4);
 }
+
+void vs_mpd_decode(vs_mpd_file* out, const void* file)
+{
+    const _mpdHeader* h = (const _mpdHeader*)file;
+    const u_char* base = (const u_char*)file;
+    out->room.data = (void*)(base + (u_int)h->roomSectionOffset);
+    out->room.size = h->roomSectionLen;
+    out->cleared.data = (void*)(base + (u_int)h->clearedSectionOffset);
+    out->cleared.size = h->clearedSectionLen;
+    out->script.data = (void*)(base + (u_int)h->scriptSectionOffset);
+    out->script.size = h->scriptSectionLen;
+    out->door.data = (void*)(base + (u_int)h->doorSectionOffset);
+    out->door.size = h->doorSectionLen;
+    out->enemy.data = (void*)(base + (u_int)h->enemySectionOffset);
+    out->enemy.size = h->enemySectionLen;
+    out->loot.data = (void*)(base + (u_int)h->lootSectionOffset);
+    out->loot.size = h->lootSectionLen;
+}

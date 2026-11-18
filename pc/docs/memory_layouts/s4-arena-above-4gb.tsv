@@ -1,0 +1,5 @@
+# S4 last step: the arenas above 4 GB (state item, old, new, size, note)
+# item	old	new	size	note
+ROOD_ARENA_BASE (the game heap's arena and the port arena)	0x90000000 (own mapping, below 4 GB)	0x100000000 (own mapping, above 4 GB); VS_MAIN_HEAP_ADDRESS the same constant	0x200000 mapped (the heap's 0xF2000 and the port arena's 0x40000 inside it)	pointers into the arenas are plain 64-bit pointers
+a guest word naming an arena object (psx_addr, psx_to_int, psx_word; read back by psx_to_ptr, psx_word_ptr)	the pointer's low 32 bits	ROOD_ARENA_ALIAS (the end of the PS1's 2 MB, 0x80200000) + the offset in the arena: a name, not a mapping (nothing is mapped there)	32 bits	the sound driver's parameter words (Param1/Param2, PendingSequence, FSoundChannel.unk3C), the bank wrappers in main.c and the effects' remaining word users go through it unchanged; an address outside the arenas is its own word
+battle_helpers.c externs D_800F5904 and D_800F58F8	unsigned (a 32-bit address)	the pointers they are (u_char (*)[256], u_char*), as 74088.c declares them	4 -> 8	two declarations of one global disagreed: the narrow one truncated an arena address
