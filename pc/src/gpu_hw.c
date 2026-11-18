@@ -731,6 +731,30 @@ static void rvram_put(int x, int y, int w, int h, const uint16_t* pixels)
         }
 }
 static void rvram_apply(int x, int y, int w, int h) { rvram_put(x, y, w, h, NULL); }
+/* The stream's copy event applied to the renderer's own VRAM (T5-3): the game's loop on the renderer's array, 16 pixels read before
+ * they are written, rows top to bottom, wrapping at the edges, the destination's mask bit kept when mask_check and set when mask_set.
+ * It carries no pixels: the copy's source is in the renderer's VRAM as the stream and the raster posts made it. */
+static void rvram_copy(int sx, int sy, int dx, int dy, int w, int h, int mask_set, int mask_check)
+{
+    {
+        uint32_t tiles = tiles_for(dx < 0 ? 0 : dx, dy < 0 ? 0 : dy, dx + w > 1024 ? 1023 : dx + w - 1, dy + h > 512 ? 511 : dy + h - 1);
+        pc_ui_upscale_tiles_changed(tiles);
+        pc_emissive_vram_dirty(tiles);
+        pc_screen_owner_vram_changed(tiles);
+    }
+    for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x += 16) {
+            uint16_t block[16];
+            int count = w - x < 16 ? w - x : 16;
+            for (int j = 0; j < count; j++)
+                block[j] = rvram[(size_t)((sy + y) & 511) * 1024 + (size_t)((sx + x + j) & 1023)];
+            for (int j = 0; j < count; j++) {
+                uint16_t* dst = &rvram[(size_t)((dy + y) & 511) * 1024 + (size_t)((dx + x + j) & 1023)];
+                if (!mask_check || !(*dst & 0x8000))
+                    *dst = (uint16_t)(block[j] | (mask_set ? 0x8000 : 0));
+            }
+        }
+}
 
 static const char* draw_vertex_source =
     "#version 330 core\n"
@@ -3202,11 +3226,11 @@ void pc_hw_upload(int x, int y, int w, int h, const uint16_t* pixels)
 }
 /* VRAM-to-VRAM copy (GP0 0x80) in the scaled target, through a scratch copy
  * so overlapping rectangles read the source before it is overwritten. */
-void pc_hw_copy(int sx, int sy, int dx, int dy, int w, int h, const uint16_t* pixels)
+void pc_hw_copy(int sx, int sy, int dx, int dy, int w, int h, int mask_set, int mask_check)
 { PC_HW_METER(copy);
     if (!pc_hw_active || w <= 0 || h <= 0)
         return;
-    rvram_put(dx, dy, w, h, pixels); /* the stream's copy event */
+    rvram_copy(sx, sy, dx, dy, w, h, mask_set, mask_check); /* the stream's copy event */
     flush();
     overlay_bake_rect(sx, sy, sx + w, sy + h); /* what it reads */
     overlay_bake_rect(dx, dy, dx + w, dy + h);

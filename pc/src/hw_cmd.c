@@ -54,7 +54,7 @@ extern void pc_emissive_room_mesh(uint32_t, unsigned, unsigned, unsigned);
 extern void pc_emissive_frame_room(int valid, int zone, int room);
 extern void pc_hw_fill(int, int, int, int, int, int, int, const uint16_t*);
 extern void pc_hw_upload(int, int, int, int, const uint16_t*);
-extern void pc_hw_copy(int, int, int, int, int, int, const uint16_t*);
+extern void pc_hw_copy(int, int, int, int, int, int, int, int);
 extern void pc_hw_upload_mode(int);
 extern void pc_hw_sync_texture(unsigned, unsigned, unsigned, int, int, int, int, const int*);
 extern void pc_stream_apply(int op, unsigned tag, const int* v, int n); /* boot_runtime.c: the digest's side of a record */
@@ -708,8 +708,7 @@ typedef struct {
     int x, y, w, h;
 } vram_upload_record;
 typedef struct {
-    vram_pixels p;
-    int sx, sy, dx, dy, w, h;
+    int sx, sy, dx, dy, w, h, mask_set, mask_check;
 } vram_copy_record;
 void pc_hwc_vram_fill(int x, int y, int w, int h, int r, int g, int b)
 {
@@ -733,14 +732,12 @@ void pc_hwc_vram_upload(int x, int y, int w, int h)
     if (inline_now())
         pc_hwc_flush();
 }
-void pc_hwc_vram_copy(int sx, int sy, int dx, int dy, int w, int h)
+void pc_hwc_vram_copy(int sx, int sy, int dx, int dy, int w, int h, int mask_set, int mask_check)
 {
     if (!pc_hw_active || w <= 0 || h <= 0)
         return;
-    vram_copy_record q = { { 0, NULL }, sx, sy, dx, dy, w, h };
-    unsigned char* slot = vram_reserve(C_VRAM_COPY, sizeof q, (size_t)w * (size_t)h);
-    vram_take(&q.p, dx, dy, w, h);
-    memcpy(slot, &q, sizeof q);
+    vram_copy_record q = { sx, sy, dx, dy, w, h, mask_set, mask_check };
+    memcpy(record(C_VRAM_COPY, (int)sizeof q), &q, sizeof q);
     if (inline_now())
         pc_hwc_flush();
 }
@@ -1029,8 +1026,7 @@ static void apply_batch(batch* b)
         case C_VRAM_COPY: {
             vram_copy_record q;
             memcpy(&q, r, sizeof q);
-            pc_hw_copy(q.sx, q.sy, q.dx, q.dy, q.w, q.h, vram_pixels_of(b, &q.p));
-            free(q.p.block);
+            pc_hw_copy(q.sx, q.sy, q.dx, q.dy, q.w, q.h, q.mask_set, q.mask_check);
             at += 1 + (int)sizeof q;
             break;
         }

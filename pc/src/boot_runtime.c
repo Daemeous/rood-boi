@@ -1619,7 +1619,7 @@ static void commands(uint32_t* p, unsigned n)
                 }
             pc_hwc_mark(dx, dy, dx + w - 1, dy + h - 1);
             pc_hwc_raster_post();
-            pc_hwc_vram_copy((int)sx, (int)sy, (int)dx, (int)dy, (int)w, (int)h);
+            pc_hwc_vram_copy((int)sx, (int)sy, (int)dx, (int)dy, (int)w, (int)h, (int)mask_set, mask_check ? 1 : 0);
             i += 4;
             continue;
         }

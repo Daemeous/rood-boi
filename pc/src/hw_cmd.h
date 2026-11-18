@@ -107,7 +107,7 @@ void pc_hwc_upload_mode(int mode); /* what the next LoadImage is (widescreen.h P
  * them without reading the game's memory. Call them where pc_hw_fill, pc_hw_upload and pc_hw_copy were called. */
 void pc_hwc_vram_fill(int x, int y, int w, int h, int r, int g, int b);
 void pc_hwc_vram_upload(int x, int y, int w, int h);
-void pc_hwc_vram_copy(int sx, int sy, int dx, int dy, int w, int h);
+void pc_hwc_vram_copy(int sx, int sy, int dx, int dy, int w, int h, int mask_set, int mask_check); /* (no pixels: the renderer applies the copy to its own VRAM) */
 void pc_hwc_before_write(int x, int y, int w, int h);
 void pc_hwc_stale_copy(int sx, int sy, int dx, int dy, int w, int h);
 void pc_hwc_fence_store(int x, int y, int w, int h);

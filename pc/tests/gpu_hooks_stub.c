@@ -96,9 +96,9 @@ void pc_hwc_vram_fill(int x, int y, int w, int h, int r, int g, int b)
     (void)x, (void)y, (void)w, (void)h, (void)r, (void)g, (void)b;
 }
 void pc_hwc_vram_upload(int x, int y, int w, int h) { (void)x, (void)y, (void)w, (void)h; }
-void pc_hwc_vram_copy(int sx, int sy, int dx, int dy, int w, int h)
+void pc_hwc_vram_copy(int sx, int sy, int dx, int dy, int w, int h, int mask_set, int mask_check)
 {
-    (void)sx, (void)sy, (void)dx, (void)dy, (void)w, (void)h;
+    (void)sx, (void)sy, (void)dx, (void)dy, (void)w, (void)h, (void)mask_set, (void)mask_check;
 }
 void pc_hw_set_2d(int is_2d) { (void)is_2d; }
 void pc_hw_set_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned tpage, unsigned clut, const int* uv, const int* clip)
