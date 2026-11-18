@@ -17,6 +17,7 @@
  * Needs OpenGL 4.3 compute (pc_gl_compute); the game view simply has no
  * indirect light without it. */
 #define _POSIX_C_SOURCE 200809L
+#include "vram_texels.h"
 #include "present_header.h" /* the present frame header: the Vulkan GI code reads its settings there (T1 R4b) */
 #include "gl_api.h"
 #include "scene_capture.h"
@@ -441,7 +442,7 @@ static uint16_t vram_texel(unsigned u, unsigned v, unsigned tpage, unsigned clut
     unsigned tx = (tpage & 15) * 64, ty = ((tpage >> 4) & 1) * 256, depth = (tpage >> 7) & 3;
     unsigned cx = (clut & 63) * 16, cy = (clut >> 6) & 511;
     u &= 255, v &= 255;
-#define AT(x, y) vram[((y) & 511) * 1024 + ((x) & 1023)]
+#define AT(x, y) pc_vram_at(vram, (x), (y))
     if (depth == 0)
         return AT(cx + ((AT(tx + (u >> 2), ty + v) >> ((u & 3) * 4)) & 15), cy);
     if (depth == 1)

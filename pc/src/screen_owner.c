@@ -1,4 +1,5 @@
 /* A screen that owns the display: the bookkeeping (screen_owner.h). */
+#include "vram_texels.h"
 #include "screen_owner.h"
 
 #include <stdlib.h>
@@ -141,16 +142,15 @@ static int texels_opaque(const uint16_t* vram, unsigned tpage, unsigned clut, co
     int cx = (int)(clut & 63) * 16, cy = (int)(clut >> 6 & 511);
     for (int v = uv[1]; v <= uv[3]; v++)
         for (int u = uv[0]; u <= uv[2]; u++) {
-            size_t row = (size_t)((ty + v) & 511) * 1024;
             unsigned texel;
             if (depth == 0) {
-                unsigned word = vram[row + (size_t)((tx + (u >> 2)) & 1023)];
-                texel = vram[(size_t)(cy & 511) * 1024 + (size_t)((cx + (int)(word >> ((u & 3) * 4) & 15)) & 1023)];
+                unsigned word = pc_vram_at(vram, tx + (u >> 2), ty + v);
+                texel = pc_vram_at(vram, cx + (int)(word >> ((u & 3) * 4) & 15), cy);
             } else if (depth == 1) {
-                unsigned word = vram[row + (size_t)((tx + (u >> 1)) & 1023)];
-                texel = vram[(size_t)(cy & 511) * 1024 + (size_t)((cx + (int)(word >> ((u & 1) * 8) & 255)) & 1023)];
+                unsigned word = pc_vram_at(vram, tx + (u >> 1), ty + v);
+                texel = pc_vram_at(vram, cx + (int)(word >> ((u & 1) * 8) & 255), cy);
             } else
-                texel = vram[row + (size_t)((tx + u) & 1023)];
+                texel = pc_vram_at(vram, tx + u, ty + v);
             if (texel == 0)
                 return 0;
         }

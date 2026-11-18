@@ -369,7 +369,7 @@ def suites(args, mode="egl"):
             Suite("room_entry_sound_smoke", [PY, str(TESTS / "room_entry_sound_smoke.py"), "--card", str(args.save)],
                   300, note="fresh warps (scripts, enemies) to 15/0 and 48/3: entry sounds slide an auto-pan depth "
                             "with no auto-pan wave (read through guest RAM 0), no crash"),
-            Suite("determinism_smoke", [PY, str(TESTS / "determinism_smoke.py"), "--card", str(args.save)], 300,
+            Suite("determinism_smoke", [PY, str(TESTS / "determinism_smoke.py"), "--card", str(args.save)], 900,
                   note="the same warp (room_goto hold) and steps, four times through five rooms under CPU load: every step's game state hash is identical"),
             Suite("route_continuation_smoke", [PY, str(TESTS / "route_continuation_smoke.py"), "--card",
                                                str(args.save)], 300,

@@ -170,6 +170,25 @@ def _tripwire_exit():
 atexit.register(_tripwire_exit)
 
 
+def census_start(g):
+    """BUILD_COMPARE_VRAM_CENSUS=DIR: the VRAM role census (pc/tools/vram_census.py) counts from here."""
+    if os.environ.get("BUILD_COMPARE_VRAM_CENSUS"):
+        try:
+            g.call("vram_census", on=True, reset=True)
+        except Exception:
+            pass
+
+
+def census_write(g, name):
+    out = os.environ.get("BUILD_COMPARE_VRAM_CENSUS")
+    if out:
+        try:
+            pathlib.Path(out).mkdir(parents=True, exist_ok=True)
+            (pathlib.Path(out) / f"{os.getpid()}-{name}.json").write_text(json.dumps(g.call("vram_census")))
+        except Exception:
+            pass
+
+
 def play(binary, seconds, card, out):
     """In a process of its own (ROOD_BINARY is read at import): the hashes, the casts and the drops, as JSON on stdout."""
     os.environ.update(ROOD_BINARY=binary, ROOD_SYMBOLS=binary, ROOD_HEADLESS="egl", ROOD_RENDERER="vulkan", ROOD_ARCH="64", ROOD_TEST_SNAPSHOTS="0")
@@ -187,6 +206,7 @@ def play(binary, seconds, card, out):
         g.call("skip_charging", reset=True)
         frames, states = [], []
         taken = stream_start(g)
+        census_start(g)
         for _ in range(seconds * 4):
             g.run(15)
             stream_take(g, taken)
@@ -197,6 +217,7 @@ def play(binary, seconds, card, out):
                 states.append(g.call("battle_state"))
             except Exception:
                 states.append(None)
+        census_write(g, "fight")
         ended = g.call("skip_charging").get("ended", "")
         try:
             sites = g.call("effect_sites")["sites"]
@@ -939,6 +960,8 @@ def story_scene(scene_id, warp=False, scaled=0):
             time.sleep(0.1)
             if not g.call("cutscene")["busy"]:
                 break
+        if os.environ.get("BUILD_COMPARE_VRAM_STREAM"):  # (the digest runs from the first frame of the replay: the way there was unpaced and is not the same twice)
+            g.call("vram_stream", reset=True)
         if scaled:
             for step in range(frames // 10 + 12):
                 g.run(10)
@@ -1088,10 +1111,12 @@ def play_menus(binary, card, out, names, sample, claims, aspect="4:3", extra_env
         g = launch_at(CHECKPOINT.get(name, "save_room"), card=str(card_copy), fast=True, log=out / f"{name}.log", extra_env=env)
         hashes = []
         taken = stream_start(g)
+        census_start(g)
         base = {}  # the ui_text counters at the route's first sample (see hashed)
         try:
             hashed(g, out, sample, hashes, taken, lambda: base.update(ui_counts(g, renderer)))
             SCENES[name](g, cp)
+            census_write(g, name)
             text = g.call("ui_text") if renderer != "null" else {}
             try:
                 if renderer != "null":

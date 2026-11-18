@@ -340,7 +340,7 @@ static VkAccelerationStructureGeometryKHR vrt_geometry(VkDeviceAddress triangles
 extern const uint16_t* pc_hw_renderer_vram(void);
 static int vrt_vram_texel(const uint16_t* vram, int u, int v, unsigned tpage, unsigned clut)
 {
-#define VRT_FETCH(x, y) vram[((y) & 511) * 1024 + ((x) & 1023)]
+#define VRT_FETCH(x, y) pc_vram_at(vram, (x), (y))
     int tx = (int)(tpage & 15) * 64, ty = (int)((tpage >> 4) & 1) * 256;
     int cx = (int)(clut & 63) * 16, cy = (int)((clut >> 6) & 511);
     unsigned depth = (tpage >> 7) & 3;

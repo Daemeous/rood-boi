@@ -192,6 +192,75 @@ static void stream_mix(const void* data, size_t bytes)
         stream.total = (stream.total ^ p[i]) * 0x100000001b3ull;
     }
 }
+/* The VRAM role census (T5-0, pc/docs/plans/2026-11-17-vram.md; RPC vram_census, pc/tools/vram_census.py): what touches each 64 x 64 block of the
+ * array, by the call that does it: uploads, fills, copies (written to / read from), StoreImage reads, the rectangles the CPU rasterizer drew,
+ * texel pages and CLUT rows the primitives sample, and the display rectangle (one count per vsync). The roles (texture, CLUT, frame, movie,
+ * scratch) are read off the counts by the tool. Off until asked; a count is one event or primitive, not a pixel. Host state. */
+enum { VC_UPLOAD, VC_FILL, VC_COPY_DST, VC_COPY_SRC, VC_STORE, VC_RASTER, VC_TEXEL, VC_CLUT, VC_DISPLAY, VC_KINDS };
+static const char* const vcen_names[VC_KINDS] = { "upload", "fill", "copy_dst", "copy_src", "store", "raster", "texel", "clut", "display" };
+static struct {
+    int on;
+    unsigned frames;
+    unsigned long long cell[VC_KINDS][128];
+} vcen __attribute__((section(".data.rood_host")));
+static void vcen_rect(int kind, int x, int y, int w, int h)
+{
+    if (w <= 0 || h <= 0)
+        return;
+    int x1 = x + w - 1, y1 = y + h - 1;
+    x = x < 0 ? 0 : x, y = y < 0 ? 0 : y, x1 = x1 > 1023 ? 1023 : x1, y1 = y1 > 511 ? 511 : y1;
+    for (int cy = y / 64; cy <= y1 / 64; cy++)
+        for (int cx = x / 64; cx <= x1 / 64; cx++)
+            ++vcen.cell[kind][cy * 16 + cx];
+}
+/* A primitive samples texels of the page `tpage` between (u0, v0) and (u1, v1) and, in a paletted mode, the CLUT row `clut`. */
+void pc_vram_census_sample(unsigned tpage, unsigned clut, int u0, int v0, int u1, int v1)
+{
+    if (!vcen.on)
+        return;
+    int mode = (int)(tpage >> 7 & 3), div = mode == 0 ? 4 : mode == 1 ? 2 : 1, px = (int)(tpage & 15) * 64, py = (int)(tpage >> 4 & 1) * 256;
+    if (u0 > u1)
+        u0 ^= u1, u1 ^= u0, u0 ^= u1;
+    if (v0 > v1)
+        v0 ^= v1, v1 ^= v0, v0 ^= v1;
+    u0 = u0 < 0 ? 0 : u0, v0 = v0 < 0 ? 0 : v0, u1 = u1 > 255 ? 255 : u1, v1 = v1 > 255 ? 255 : v1;
+    vcen_rect(VC_TEXEL, px + u0 / div, py + v0, (u1 - u0) / div + 1, v1 - v0 + 1);
+    if (mode < 2)
+        vcen_rect(VC_CLUT, (int)(clut & 63) * 16, (int)(clut >> 6 & 511), mode == 0 ? 16 : 256, 1);
+}
+/* The CPU rasterizer drew a primitive whose bounding box is [x0, x1] x [y0, y1] (as the renderer's marks give it, not clipped). */
+void pc_vram_census_raster(int x0, int y0, int x1, int y1)
+{
+    if (vcen.on)
+        vcen_rect(VC_RASTER, x0, y0, x1 - x0 + 1, y1 - y0 + 1);
+}
+int pc_vram_census_json(char* out, int size, int on, int reset)
+{
+    int n = 0;
+    if (on >= 0)
+        vcen.on = on;
+    n += snprintf(out + n, (size_t)(size - n), "{\"on\":%d,\"frames\":%u,\"cells\":{", vcen.on, vcen.frames);
+    for (int c = 0, first = 1; c < 128; c++) {
+        int any = 0;
+        for (int k = 0; k < VC_KINDS; k++)
+            any |= vcen.cell[k][c] != 0;
+        if (!any || n > size - 400)
+            continue;
+        n += snprintf(out + n, (size_t)(size - n), "%s\"%d,%d\":{", first ? "" : ",", c % 16 * 64, c / 16 * 64);
+        first = 0;
+        for (int k = 0, f = 1; k < VC_KINDS; k++)
+            if (vcen.cell[k][c])
+                n += snprintf(out + n, (size_t)(size - n), "%s\"%s\":%llu", f ? "" : ",", vcen_names[k], vcen.cell[k][c]), f = 0;
+        n += snprintf(out + n, (size_t)(size - n), "}");
+    }
+    n += snprintf(out + n, (size_t)(size - n), "}}");
+    if (reset) {
+        int keep = vcen.on;
+        memset(&vcen, 0, sizeof vcen);
+        vcen.on = keep;
+    }
+    return n;
+}
 static void stream_event(int kind, int x, int y, int w, int h, const void* payload, size_t bytes)
 {
     int head[7] = { kind, x, y, w, h, (int)stream.draws, (int)bytes };
@@ -199,6 +268,36 @@ static void stream_event(int kind, int x, int y, int w, int h, const void* paylo
     if (payload && bytes)
         stream_mix(payload, bytes);
     ++stream.events, ++stream.total_events;
+    {   /* ROOD_VRAM_STREAM_LOG=<path>: every event of the process, one line each (the frame, kind, rectangle, draws before it, the payload's hash): where two runs' digests part */
+        static FILE* log __attribute__((section(".data.rood_host")));
+        static int tried __attribute__((section(".data.rood_host")));
+        if (!tried) {
+            const char* path = getenv("ROOD_VRAM_STREAM_LOG");
+            char name[512];
+            tried = 1;
+            if (path) {
+                snprintf(name, sizeof name, "%s.%d", path, (int)getpid());
+                log = fopen(name, "w");
+            }
+        }
+        if (log) {
+            unsigned long long fh = 1469598103934665603ull;
+            for (size_t i = 0; payload && i < bytes; i++)
+                fh = (fh ^ ((const unsigned char*)payload)[i]) * 1099511628211ull;
+            fprintf(log, "%u %d %d %d %d %d %u %zu %016llx\n", stream.frames, kind, x, y, w, h, stream.draws, bytes, fh);
+            fflush(log);
+        }
+    }
+    if (vcen.on) {
+        if (kind == 1)
+            vcen_rect(VC_UPLOAD, x, y, w, h);
+        else if (kind == 2)
+            vcen_rect(VC_STORE, x, y, w, h);
+        else if (kind == 3 || kind == 4)
+            vcen_rect(VC_FILL, x, y, w, h);
+        else if (kind == 5 && payload)
+            vcen_rect(VC_COPY_DST, x, y, w, h), vcen_rect(VC_COPY_SRC, ((const int*)payload)[0], ((const int*)payload)[1], w, h);
+    }
 }
 /* T5 S3: the points where the game waits for the renderer. The CPU rasterizer and StoreImage read VRAM that only the GPU target
  * holds (gpu_hw.c: stale rectangles); the call copies the target back (pc_hw_syncs counts the copies). Each one that copied is a
@@ -224,6 +323,8 @@ static void stream_vsync(void)
     pc_hwc_raster_post(); /* the frame's last rasterized rectangles */
     pc_hwc_post(); /* (the renderer has the records before the frame is presented: the present request posts them anyway) */
     vcheck_vsync();
+    if (vcen.on)
+        vcen_rect(VC_DISPLAY, display_x, display_y, display_w, display_h), ++vcen.frames;
     stream.last = stream.frame, stream.last_events = stream.events;
     stream.frame = 0xcbf29ce484222325ull, stream.events = 0, stream.draws = 0, ++stream.frames;
 }
@@ -391,6 +492,11 @@ static void vcheck_vsync(void)
         fprintf(f, "}}\n");
         fclose(f);
     }
+}
+/* RPC vram_stream {reset}: the running digest starts again (a route whose first frames are not exact, a game reaching its scene unpaced, takes its digest from where it is). */
+void pc_vram_stream_reset(void)
+{
+    stream.total = 0xcbf29ce484222325ull, stream.total_events = 0;
 }
 /* RPC vram_stream: {frames, frame: {events, hash} (the last completed frame), total: {events, hash}}. */
 int pc_vram_stream_json(char* out, int size)

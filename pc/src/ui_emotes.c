@@ -21,6 +21,7 @@
  *   bubbles' lettering), fitted to the original's ink box: a dark mark in
  *   its ink's colour, a light one (the '?' alone) inside its dark outline.
  * The heart is a pictograph and stays the game's. */
+#include "vram_texels.h"
 #include "ui_bubbles.h"
 #include "ui_text.h"
 #include <math.h>
@@ -50,10 +51,10 @@ static const emote_image images[] = {
 #define SMOOTH 0.6f /* texels: the silhouette's smoothing */
 
 static int luma555(uint16_t c) { return (c & 31) * 299 + (c >> 5 & 31) * 587 + (c >> 10 & 31) * 114; }
-static const uint16_t* clut_of(const uint16_t* vram) { return vram + 220 * 1024 + 992; }
+static const uint16_t* clut_of(const uint16_t* vram) { return pc_vram_row(vram, 220) + 992; }
 static int index_at(const uint16_t* vram, int u, int v)
 {
-    return (vram[((PAGE_Y + v) & 511) * 1024 + ((PAGE_X + (u >> 2)) & 1023)] >> ((u & 3) * 4)) & 15;
+    return (pc_vram_at(vram, PAGE_X + (u >> 2), PAGE_Y + v) >> ((u & 3) * 4)) & 15;
 }
 static uint32_t image_hash(const uint16_t* vram, const emote_image* e)
 {

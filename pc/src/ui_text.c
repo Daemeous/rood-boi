@@ -35,6 +35,7 @@
  * battle's status words (SLOW!, 3 CHAINS) as whole words in the status style
  * ("status words"). Every style field is a setting ("settings" below). */
 #define _POSIX_C_SOURCE 200809L
+#include "vram_texels.h"
 #include "psx_types.h"
 #include "ui_text.h"
 #include "draw_items.h"
@@ -185,7 +186,7 @@ uint16_t pc_ui_dist_colour(uint32_t t, float d, const uint16_t* lut, float width
 
 void pc_ui_text_resolve(const uint16_t* vram, unsigned clut, uint32_t* texels, int count, int factor, float least)
 {
-    const uint16_t* lut = vram + (clut >> 6 & 511) * 1024 + (clut & 63) * 16;
+    const uint16_t* lut = pc_vram_clut(vram, clut);
     for (int i = 0; i < count; i++) {
         float c;
         uint32_t t = texels[i];
@@ -516,7 +517,7 @@ static int digits_sign(int code, int u, int v, int w, glyph_info* g)
 
 static int page_index(const uint16_t* vram, int page_x, int u, int v)
 {
-    return (vram[(v & 511) * 1024 + ((page_x + (u >> 2)) & 1023)] >> ((u & 3) * 4)) & 15;
+    return (pc_vram_at(vram, page_x + (u >> 2), v) >> ((u & 3) * 4)) & 15;
 }
 /* The game's small-capital tables (BATTLE.PRG, in guest RAM while the
  * field or a battle runs): 4-bit widths and page positions of ' '..'Z'. */
@@ -718,7 +719,7 @@ void pc_ui_text_forget_signs(void)
 
 static int texel4(const uint16_t* vram, int page_x, int page_y, int u, int v)
 {
-    return (vram[((page_y + v) & 511) * 1024 + ((page_x + (u >> 2)) & 1023)] >> ((u & 3) * 4)) & 15;
+    return (pc_vram_at(vram, page_x + (u >> 2), page_y + v) >> ((u & 3) * 4)) & 15;
 }
 
 unsigned pc_ui_text_glyph_at(unsigned tpage, unsigned clut, int u0, int v0, int u1, int v1)
@@ -827,7 +828,7 @@ static int label_layout_make(const uint16_t* vram, unsigned clut, const pc_ui_la
 {
     const pc_ui_text_style* st = &pc_ui_text_styles[PC_UI_TEXT_LABELS];
     font_file* f = font_for(st->font);
-    const uint16_t* lut = vram + (clut >> 6 & 511) * 1024 + (clut & 63) * 16;
+    const uint16_t* lut = pc_vram_clut(vram, clut);
     memset(o, 0, sizeof *o);
     o->l = l;
     if (!f || l->v1 - l->v0 >= 32)
@@ -1346,8 +1347,8 @@ int pc_ui_text_render(const uint16_t* vram, unsigned tpage, unsigned clut, int u
          * colours (their CLUT, 832,223: the small 0's brightest inside its
          * outline, index 1) as the nearest of its own, a label's texels
          * (outline into lettering). */
-        const uint16_t* own = vram + (clut >> 6 & 511) * 1024 + (clut & 63) * 16;
-        const uint16_t* digits = vram + 223 * 1024 + 832;
+        const uint16_t* own = pc_vram_clut(vram, clut);
+        const uint16_t* digits = pc_vram_row(vram, 223) + 832;
         int top = 0;
         for (int y = 0; y < 10; y++)
             for (int x = 0; x < 6; x++) {

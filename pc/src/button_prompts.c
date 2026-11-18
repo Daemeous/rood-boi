@@ -33,6 +33,7 @@
  * the texels inside the region change. A key or element without an icon
  * keeps the original. */
 #define _POSIX_C_SOURCE 200809L
+#include "vram_texels.h"
 #include "button_prompts.h"
 #include "boot_controller.h"
 #include "ui_text.h"
@@ -355,7 +356,7 @@ typedef struct {
 
 static int page_index(const uint16_t* vram, int page_x, int u, int v)
 {
-    return (vram[(v & 511) * 1024 + ((page_x + (u >> 2)) & 1023)] >> ((u & 3) * 4)) & 15;
+    return (pc_vram_at(vram, page_x + (u >> 2), v) >> ((u & 3) * 4)) & 15;
 }
 
 /* PS1 pad bits of the font's 0xAE-0xB1 and of the sprites in reading order. */
@@ -649,7 +650,7 @@ int pc_button_prompts_render(const uint16_t* vram, unsigned tpage, unsigned clut
             }
             bright[y * n + x] = b;
         }
-    const uint16_t* lut = vram + (clut >> 6 & 511) * 1024 + (clut & 63) * 16;
+    const uint16_t* lut = pc_vram_clut(vram, clut);
     /* Text: the original glyph's ramp, index 1 up to the highest it uses. */
     int hi = 1, stp_votes = 0, opaque = 0;
     for (int y = 0; y < r.cell; y++)

@@ -3407,12 +3407,38 @@ static void handle_method(int fd, const char* request)
     } else if (!strcmp(method, "vram_stream")) {
         /* The VRAM stream's digest (boot_runtime.c, T5 S0): the last completed frame's and the running one. */
         extern int pc_vram_stream_json(char*, int) __attribute__((weak));
+        extern void pc_vram_stream_reset(void) __attribute__((weak));
         if (!pc_vram_stream_json) {
             fail(fd, id, -32000, "no VRAM stream in this build");
             return;
         }
+        if (params && pc_vram_stream_reset) { /* {reset: true}: the running digest starts again */
+            int reset = 0;
+            bool_value(member(params, "reset"), &reset);
+            if (reset)
+                pc_vram_stream_reset();
+        }
         pc_vram_stream_json(result, (int)sizeof result);
         reply(fd, id, result);
+    } else if (!strcmp(method, "vram_census")) {
+        /* What touches each 64 x 64 block of VRAM (boot_runtime.c, T5-0): {on: true|false} counts from now, {reset: true} zeroes the counts. */
+        extern int pc_vram_census_json(char* out, int size, int on, int reset) __attribute__((weak));
+        int on_flag = -1, reset = 0;
+        if (!pc_vram_census_json) {
+            fail(fd, id, -32000, "no VRAM census in this build");
+            return;
+        }
+        if (params) {
+            int v = 0;
+            if (member(params, "on")) {
+                bool_value(member(params, "on"), &v);
+                on_flag = v;
+            }
+            bool_value(member(params, "reset"), &reset);
+        }
+        static char census_json[60000];
+        pc_vram_census_json(census_json, (int)sizeof census_json, on_flag, reset);
+        reply(fd, id, census_json);
     } else if (!strcmp(method, "hw_calls")) {
         /* Every game-side request into the renderer once (hw_calls.h), from this thread: what each answers (the native VRAM texture's
          * handle, the display rectangle, the casters, the present lists, the overlay's text counts). A request whose definition is

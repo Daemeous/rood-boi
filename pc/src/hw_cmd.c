@@ -40,6 +40,8 @@ extern void pc_hw_ot_native_area(const int*) __attribute__((weak));
 extern void pc_hw_rect(int, int, int, int, int, int, unsigned, unsigned, unsigned, unsigned, unsigned, const int*, int, int);
 extern void pc_hw_line(int, int, int, int, unsigned, unsigned, int, unsigned, const int*, int);
 extern void pc_hw_mark_raster(int, int, int, int);
+extern void pc_vram_census_sample(unsigned tpage, unsigned clut, int u0, int v0, int u1, int v1) __attribute__((weak)); /* boot_runtime.c: the VRAM role census (T5-0) */
+extern void pc_vram_census_raster(int x0, int y0, int x1, int y1) __attribute__((weak));
 extern void pc_hw_mark(int, int, int, int);
 extern void pc_hw_before_write(int, int, int, int) __attribute__((weak));
 extern void pc_hw_stale_copy(int, int, int, int, int, int) __attribute__((weak));
@@ -306,6 +308,8 @@ typedef struct {
 void pc_hwc_rect(int x, int y, int w, int h, int u, int v, unsigned color, unsigned code, unsigned tpage, unsigned clut,
     unsigned window, const int* clip4, int mask_set, int mask_check)
 {
+    if (code & 4 && &pc_vram_census_sample)
+        pc_vram_census_sample(tpage, clut, u, v, u + w - 1, v + h - 1);
     rect_record r = { x, y, w, h, u, v, color, code, tpage, clut, window, { 0, 0, 0, 0 }, mask_set, mask_check, pc_gpu_command, pc_gpu_immediate, 0, 0 };
     {
         pc_ui_text_piece_info call = { 0 };
@@ -344,6 +348,13 @@ int pc_hwc_triangle(const int* xy, const int* uv, const int* rgb, unsigned code,
     const int* clip, int mask_set, int mask_check)
 {
     triangle_record t;
+    if (code & 4 && &pc_vram_census_sample) {
+        int u0 = uv[0], v0 = uv[1], u1 = uv[0], v1 = uv[1];
+        for (int i = 1; i < 3; i++)
+            u0 = uv[2 * i] < u0 ? uv[2 * i] : u0, u1 = uv[2 * i] > u1 ? uv[2 * i] : u1,
+            v0 = uv[2 * i + 1] < v0 ? uv[2 * i + 1] : v0, v1 = uv[2 * i + 1] > v1 ? uv[2 * i + 1] : v1;
+        pc_vram_census_sample(tpage, clut, u0, v0, u1, v1);
+    }
     pc_hw_triangle_decide(uv, code, tpage, clip, pc_hwc_mirror.is_2d, pc_hwc_mirror.poly_effect, &pc_hwr_stale, pc_hw_suppress, &t.decision);
     if (t.decision.action != PC_HW_TRI_IGNORE) {
         memcpy(t.xy, xy, sizeof t.xy), memcpy(t.uv, uv, sizeof t.uv), memcpy(t.rgb, rgb, sizeof t.rgb);
@@ -362,6 +373,8 @@ int pc_hwc_triangle(const int* xy, const int* uv, const int* rgb, unsigned code,
 static int pend[64][4], pend_count;
 void pc_hwc_mark_raster(int x0, int y0, int x1, int y1)
 {
+    if (&pc_vram_census_raster)
+        pc_vram_census_raster(x0, y0, x1, y1);
     if (pc_hw_active) {
         if (pend_count == 64)
             pc_hwc_raster_post();

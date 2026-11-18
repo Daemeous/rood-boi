@@ -67,6 +67,7 @@
  *            (pc_button_roles_texels); the packet in guest memory stays as
  *            the game built it. Only when both cells hold a picture (the
  *            page can hold something else). */
+#include "vram_texels.h"
 #include "common.h"
 #include "../../pc/src/game/BATTLE/BATTLE.PRG/146C.h"
 #include "../../pc/src/game/BATTLE/BATTLE.PRG/5BF94.h"
@@ -215,7 +216,7 @@ static int cell_inked(const unsigned short* vram, int u0)
 {
     for (int y = 0; y < 16; y++)
         for (int x = 0; x < 16; x += 4) /* 4-bit: four texels a word */
-            if (vram[(BUTTON_ROW + y) * 1024 + UI_PAGE * 64 + (u0 + x) / 4])
+            if (pc_vram_row(vram, BUTTON_ROW + y)[UI_PAGE * 64 + (u0 + x) / 4])
                 return 1;
     return 0;
 }

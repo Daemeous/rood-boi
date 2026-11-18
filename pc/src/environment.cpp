@@ -2,6 +2,7 @@
 // from the lighting layers' `env sun` and `env sky` items; the editor's
 // Atmosphere tab edits them (with a sun direction gizmo in the view), RPC
 // `environment` reads and sets them, the renderers read pc_env_gpu_get.
+#include "vram_texels.h"
 #include "environment.h"
 
 #include <math.h>
@@ -154,13 +155,13 @@ GameSky game_sky()
                     for (int u = t.x; u < t.x + t.w; u += 2) {
                         uint16_t col;
                         if (depth == 0) {
-                            uint16_t w = vram[((base_y + v) & 511) * 1024 + ((base_x + u / 4) & 1023)];
-                            col = vram[238 * 1024 + 768 + ((w >> ((u & 3) * 4)) & 15)];
+                            uint16_t w = (uint16_t)pc_vram_at(vram, base_x + u / 4, base_y + v);
+                            col = pc_vram_row(vram, 238)[768 + ((w >> ((u & 3) * 4)) & 15)];
                         } else if (depth == 1) {
-                            uint16_t w = vram[((base_y + v) & 511) * 1024 + ((base_x + u / 2) & 1023)];
-                            col = vram[238 * 1024 + 768 + ((w >> ((u & 1) * 8)) & 255)];
+                            uint16_t w = (uint16_t)pc_vram_at(vram, base_x + u / 2, base_y + v);
+                            col = pc_vram_row(vram, 238)[768 + ((w >> ((u & 1) * 8)) & 255)];
                         } else
-                            col = vram[((base_y + v) & 511) * 1024 + ((base_x + u) & 1023)];
+                            col = (uint16_t)pc_vram_at(vram, base_x + u, base_y + v);
                         if (!col)
                             continue; /* transparent */
                         tex[0] += (col & 31) * 8, tex[1] += ((col >> 5) & 31) * 8, tex[2] += ((col >> 10) & 31) * 8;
@@ -202,9 +203,9 @@ GameSky game_sky()
         int seen = 0;
         for (int v = 248; v < 250; v++)
             for (int u = 248; u < 250; u++) {
-                uint16_t word = vram[(256 + v) * 1024 + 64 + u / 4];
+                uint16_t word = pc_vram_row(vram, 256 + v)[64 + u / 4];
                 int index = (word >> ((u & 3) * 4)) & 15;
-                uint16_t c = vram[226 * 1024 + 784 + index];
+                uint16_t c = pc_vram_row(vram, 226)[784 + index];
                 if (!c)
                     continue; /* transparent: not drawn */
                 texel[0] += (c & 31) * 8, texel[1] += ((c >> 5) & 31) * 8, texel[2] += ((c >> 10) & 31) * 8;

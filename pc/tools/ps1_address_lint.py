@@ -76,12 +76,30 @@ RULES = {
     # The packet-to-item decoder (pc_frame_add_packets, the claims' word commands in hud_bridge.c): it only shrinks, as the
     # printers and the screens that need it move to items.
     "lift_bridge": re.compile(r"\bpc_frame_add_packets\s*\("),
+    # The VRAM lane (pc/docs/plans/2026-11-17-vram.md, T5): the game's 1024 x 512 array and the calls that move pixels in and out of it.
+    # vram_direct: a reader that indexes a VRAM image by hand (`vram[...]`, `vram + y * 1024`): the readers go through pc/src/vram_texels.h (T5-1);
+    # vram_pointer: code that fetches the game's array (pc_native_vram) or names the renderer's copy outside the VRAM module; both leave out the
+    # modules that own and move the arrays (boot_runtime.c, gpu_hw.c, hw_cmd.c, renderer_rq.c, boot_window.c) and the header.
+    "vram_direct": re.compile(r"\bvram\s*\[|\bvram\s*\+[^;]*\b1024\b"),
+    "vram_pointer": re.compile(r"\b(?:pc_native_vram|native_vram)\b"),
+    # vram_sdk_calls: the SDK's transfers in game and engine code (the operations of the target design); vram_frame_readers: those that read a
+    # frame back (StoreImage in TITLE, MENU5, MENU7: T5-4 makes them captures).
+    "vram_sdk_calls": re.compile(r"\b(?:LoadImage2?|StoreImage|ClearImage|MoveImage2?)\s*\("),
+    "vram_frame_readers": re.compile(r"\bStoreImage\s*\("),
+    # cpu_raster: the CPU rasterizer's code lines in its two includes (its pixel and rectangle code in boot_runtime.c goes with them in T5-6);
+    # stale_area: the stale-area model that copies the renderer's frame back for the CPU (T5-6 deletes it).
+    "cpu_raster": re.compile(r"^\s*\S"),
+    "stale_area": re.compile(r"\b(?:pc_hw_sync\w*|pc_hwc_sync\w*|pc_hw_raster_skip|vram_from_target|pc_hw_mark_raster|pc_hwc_mark_raster|pc_hwc_raster_post|rvram_apply|raster_refresh|pc_hw_stale\w*|pc_hwc_stale\w*)\b"),
 }
 # Rules that count only under a path (the others count in every tree).
-ONLY_UNDER = {}
+ONLY_UNDER = {"vram_frame_readers": ("pc/src/game/TITLE/", "pc/src/game/MENU/MENU5.PRG/", "pc/src/game/MENU/MENU7.PRG/"),
+              "cpu_raster": ("pc/src/boot_polygons.inc", "pc/src/boot_lines.inc")}
 # Rules that leave out paths: the SDK's own libgpu and the walker that draws the packets (they are what the game's
 # packets are for, T16), and the typed items' lowering to packets (it goes when a renderer takes items directly).
 SKIP_FOR = {"ordering_table": ("pc/src/game/SLUS_010.40/libgpu/",),
+            "vram_direct": ("pc/src/boot_runtime.c", "pc/src/gpu_hw.c", "pc/src/hw_cmd.c", "pc/src/renderer_rq.c", "pc/src/boot_window.c", "pc/src/vk_hw.c", "pc/src/vram_texels.h"),
+            "vram_pointer": ("pc/src/boot_runtime.c", "pc/src/gpu_hw.c"),
+            "vram_sdk_calls": ("pc/src/game/SLUS_010.40/libgpu/", "pc/src/boot_sdk.c"),
             "gpu_packet_writes": ("pc/src/game/SLUS_010.40/libgpu/", "pc/src/boot_sdk.c", "pc/src/boot_runtime.c",
                                   "pc/src/boot_polygons.inc", "pc/src/boot_lines.inc", "pc/src/gpu_hw.c",
                                   "pc/src/draw_items.c",

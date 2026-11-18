@@ -28,6 +28,7 @@
  * (render-to-texture: screen effects sample the framebuffer) and regions
  * whose content changes on most frames (bypassed for a while) stay nearest. */
 #define _POSIX_C_SOURCE 200809L
+#include "vram_texels.h"
 #include "gl_api.h"
 #include "ui_upscale.h"
 #include "ui_text.h" /* ui_text font: glyph regions drawn from a font instead of magnified */
@@ -484,10 +485,10 @@ static uint64_t decode(const uint16_t* vram, unsigned tpage, unsigned clut, int 
     uint16_t* out)
 {
     int tx = (int)(tpage & 15) * 64, ty = (int)((tpage >> 4) & 1) * 256, depth = (int)((tpage >> 7) & 3);
-    const uint16_t* lut = vram + ((clut >> 6) & 511) * 1024 + (clut & 63) * 16;
+    const uint16_t* lut = pc_vram_clut(vram, clut);
     uint64_t hash = 0x9e3779b97f4a7c15ull ^ ((uint64_t)w << 32 | (uint64_t)h);
     for (int y = 0; y < h; y++) {
-        const uint16_t* row = vram + ((ty + v0 + y) & 511) * 1024;
+        const uint16_t* row = pc_vram_row(vram, ty + v0 + y);
         uint16_t* o = out + y * w;
         for (int x = 0; x < w; x++) {
             int u = u0 + x;

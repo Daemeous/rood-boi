@@ -1,6 +1,7 @@
 // Emissive texels (emissive.h, pc/docs/Emissive.md): the catalog, texture
 // uses and their content keys, the slot map the draw shaders read, the CPU
 // evaluation for glows, and the RPC. The editor panel is emissive_editor.cpp.
+#include "vram_texels.h"
 #include "emissive.h"
 #include "emissive_internal.h"
 
@@ -193,7 +194,7 @@ struct Md5 {
 uint16_t vram_at(int x, int y)
 {
     const uint16_t* v = emissive_vram();
-    return v ? v[(y & 511) * 1024 + (x & 1023)] : 0;
+    return v ? pc_vram_at(v, x, y) : 0;
 }
 /* Texel (u, v) of a page: its colour and CLUT index (16-bit pages: the colour). */
 uint16_t texel(unsigned u, unsigned v, unsigned tpage, unsigned clut, unsigned* index)
@@ -231,7 +232,7 @@ std::string content_key(unsigned tpage, unsigned clut, int u0, int v0, int u1, i
     for (int v = v0; v <= v1; v++) {
         int n = 0;
         if (vram && depth <= 2) { /* (the indices straight from the page's row: texel() without its CLUT reads) */
-            const uint16_t* line = vram + (size_t)((ty + (v & 255)) & 511) * 1024;
+            const uint16_t* line = pc_vram_row(vram, ty + (v & 255));
             for (int u = u0; u <= u1; u++) {
                 unsigned uu = (unsigned)u & 255, i;
                 if (depth == 0)
@@ -1413,7 +1414,7 @@ template <typename F> static void clut_runs(const Use& u, F run)
     if (!vram || depth >= 2)
         return;
     int cx = (int)(u.clut & 63) * 16, cy = (int)((u.clut >> 6) & 511), n = depth == 0 ? 16 : 256;
-    const uint16_t* row = vram + (size_t)cy * 1024;
+    const uint16_t* row = pc_vram_row(vram, cy);
     int first = std::min(n, 1024 - cx);
     run(row + cx, first);
     if (first < n)
@@ -1430,7 +1431,7 @@ template <typename F> static void texel_runs(const Use& u, F run)
     int shift = depth == 0 ? 2 : depth == 1 ? 1 : 0;
     int x0 = tx + (u.box[0] >> shift), x1 = tx + (u.box[2] >> shift);
     for (int v = u.box[1]; v <= u.box[3]; v++) {
-        const uint16_t* row = vram + (size_t)((ty + v) & 511) * 1024;
+        const uint16_t* row = pc_vram_row(vram, ty + v);
         for (int x = x0; x <= x1;) { /* (a run stops at VRAM's right edge: it wraps) */
             int at = x & 1023, n = std::min(x1 - x + 1, 1024 - at);
             run(row + at, n);
