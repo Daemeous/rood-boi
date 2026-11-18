@@ -54,6 +54,24 @@ typedef struct {
 
 void vs_mpd_decode(vs_mpd_file* out, const void* file);
 
+/* The ZND file (a zone): a 0x1C-byte header naming three parts by byte offset from the file's start (and, for two, their length), then
+ * the parts. vs_znd_decode (146C.c) reads it once; the parts stay raw in the file's buffer, which the zone loader frees after it copies
+ * what it keeps.
+ *
+ *   +0x00 i32 offset, i32 length: the MPD table (one vs_main_CdFile per room)
+ *   +0x08 i32 offset, i32 length: the enemy part: i32 count N, N vs_main_CdFile (the ZUD files), N enemy records of 0x464 bytes
+ *   +0x10 i32 offset, i32 length: the images (loadZndTims)
+ *   +0x18 i32 music id
+ */
+typedef struct {
+    vs_zud_part mpd;
+    vs_zud_part enemies;
+    vs_zud_part tims;
+    int musicId;
+} vs_znd_file;
+
+void vs_znd_decode(vs_znd_file* out, const void* file);
+
 typedef struct {
     short width;
     short height;

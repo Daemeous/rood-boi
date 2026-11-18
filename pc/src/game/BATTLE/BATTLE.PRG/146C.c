@@ -2189,3 +2189,16 @@ void vs_mpd_decode(vs_mpd_file* out, const void* file)
     out->loot.data = (void*)(base + (u_int)h->lootSectionOffset);
     out->loot.size = h->lootSectionLen;
 }
+
+void vs_znd_decode(vs_znd_file* out, const void* file)
+{
+    const _zndHeader* h = (const _zndHeader*)file;
+    const u_char* base = (const u_char*)file;
+    out->mpd.data = (void*)(base + (u_int)h->mpdOffset);
+    out->mpd.size = h->mpdLen;
+    out->enemies.data = (void*)(base + (u_int)h->enemiesOffset);
+    out->enemies.size = h->enemiesLen;
+    out->tims.data = (void*)(base + (u_int)h->timOffset);
+    out->tims.size = h->timLen;
+    out->musicId = h->musicId;
+}

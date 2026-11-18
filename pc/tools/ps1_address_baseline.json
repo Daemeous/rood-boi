@@ -11,7 +11,7 @@
  "guest_pointer_field": 2,
  "guest_pointer_access": 23,
  "address_as_integer": 45,
- "zig_raw_memory": 612,
+ "zig_raw_memory": 603,
  "gpu_packet_writes": 0,
  "ordering_table": 0,
  "lift_bridge": 3,

@@ -3,11 +3,6 @@ const psx = @import("common").psx;
 const v = @import("views_146C");
 const c = @import("c_146C");
 
-/// `header + offset` as the C computes it (`offset + (long)header`); the file's offsets are word offsets.
-fn part(comptime T: type, header: *v._zndHeader, offset: c_int) T {
-    return @ptrFromInt(@intFromPtr(header) +% @as(usize, @bitCast(@as(isize, offset))));
-}
-
 /// orig: _finishLoadZnd (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// Queues zone file `id` unless one is queued, waits for it, frees its queue slot, hands its enemies, textures and
 /// map list to their loaders, frees it, and switches the music to the zone's (when the music is on, vs_audio_zoneMusicSwitchEnabled).
@@ -24,11 +19,13 @@ pub fn finishLoadZnd(id: c_int) callconv(.c) void {
     if (v.g.vs_state_sceneTimer().resetScope == 1) {
         c.vs_state_resetSceneTimer();
     }
-    const header: *v._zndHeader = @ptrCast(@alignCast(psx.get(zone.zndData).?));
-    c._loadZndEnemies(part([*c]c_int, header, header.enemiesOffset), header.enemiesLen);
-    c._loadZndTims(part(?*anyopaque, header, header.timOffset));
-    c._loadMpdLbas(part(?*anyopaque, header, header.mpdOffset), header.mpdLen);
-    const musicId = header.musicId;
+    const header = psx.get(zone.zndData).?;
+    var znd: c.vs_znd_file = undefined;
+    c.vs_znd_decode(&znd, header);
+    c._loadZndEnemies(@ptrCast(@alignCast(znd.enemies.data)), znd.enemies.size);
+    c._loadZndTims(znd.tims.data);
+    c._loadMpdLbas(znd.mpd.data, znd.mpd.size);
+    const musicId = znd.musicId;
     c.vs_main_freeHeapR(header);
     psx.put(&zone.zndData, null);
     if (v.g.vs_main_startState().* == 1) {

@@ -303,6 +303,48 @@ same decoder, is covered by every fight and room lane.
 removes it: the words become real pointers or handles, then `ROOD_ARENA_ALIAS`, `psx_word` and the arena arm of `psx_addr`/`psx_to_ptr` are deleted.
 The lint meter `arena_alias` (psx_word, psx_word_ptr, psx_to_int, psx_to_ptr sites; baseline 53 at the first step) may only fall; zero means the alias can go.
 
+### 3.5 The effect package loader (S6, 2026-11-17)
+
+What it is: an effect P-file ("package") is read into one heap buffer (`vs_effects_loadEffectPackage`: `vs_battle_pfileBuf`, sized by
+the queued context, read in one disc request), then `vs_effects_bindEffectPackageBlocks` walks its block chain and a small route per block
+type (`_parsePfileBlock1, 2, 3, 5, 8, 9, 10, 11, 12, 13` and the curve block) stores a pointer (and sometimes a count or a derived
+table) into the global record `vs_effects_package` (`D_800F569C_t`, 0xD4 bytes of pointers: native since S4). That is already a decode by
+copy of the offsets, spread over twelve one-line owned functions.
+
+Plan, one commit:
+1. `game/battle/effect_package.zig` holds the format (the block chain: u32 meta, kind in the high half, size in the low half, 0 ends; each
+   kind's role and layout, in its header comment) and one `bind(first)` that walks the chain and fills the package record, including the three
+   blocks with a derived part (block 1: the table pointers and count; the curve block: its 32 curve pointers; blocks 12 and 13: the room sound
+   bank and cutscene stream they hand to the audio side).
+2. `vs_effects_bindEffectPackageBlocks` becomes a call of it. The twelve routes have no other caller (the C twin's calls are replaced by the
+   owned function), so their files, `ownership.toml` entries, `root.zig` imports and C prototypes are removed (always remove what is no longer needed).
+3. The raw payload stays in the file buffer (particle definitions, curves, key tables, timeline); the record keeps pointers, as before; the heap
+   allocation of the buffer and its release are the callers' and unchanged.
+
+Not in this step: the effect scripts' interpreter reads the blocks in place by offset (that is the S1 views work, per opcode) and the effect
+plug-ins (T10). Saves are T22's and wait for the open questions.
+
+Proof (targeted until the lanes are released): fights and rooms (every fight loads its packages), the spells lane (the packages with
+particles, curves and room sound), `effect_opcode_smoke`; the full set when land-17 is in.
+
+### 3.6 ARM, the map scene file (S6, 2026-11-17)
+
+What it is: `SMALL/SCENnnn.ARM` (31 files, one per map scene) is the map screen's data and also the shape of the MPD's section F (the room's
+own scene). The map screen (MENU5.PRG 4D8.c) reads it into a heap buffer (`vs_battle_sceneBuffer`, `vs_main_allocHeapR` of the file's size) and
+uses it in place. Layout: `i32 count`, `count` room records of 12 bytes (`visited`, `size` of the room's blob, `zoneId`, `mapId + 1`), the room
+blobs one after another (vertex counts and vertices, lines; `_scaleRoomVertices` scales them in place), then `count` name records of 36 bytes (32
+bytes of name, `prev` and `next` as shorts). Three things touch it: `vs_battle_initSceneAndGetRoomNames` (turns each record's `size` into the
+blob's offset from the buffer's start, in the same word, and returns the names), `vs_battle_setRoomsUnk0` (writes `visited` from the room flags)
+and the map code (blob = buffer + offset). All of it is offsets from the buffer and 32-bit words that never hold an address, so the file is not a
+64-bit problem; what is left is that the layout is spread over a C macro, a Zig function with integer arithmetic and the comment in
+`room_catalog.c`.
+
+Plan, one commit: `game/battle/arm_file.zig` names the layout once (header comment, `Scene`/`Room`/`Name` views, `names(scene)` and `blob(scene, room)`
+as pointer arithmetic); `initSceneAndGetRoomNames` uses it (the in-place size-to-offset conversion stays: the map code reads `dataOffset`);
+`vs_battle_roomDataOf` in MENU5 stays a C macro (the map code is C and unchanged). Not here: decoding the blobs into separate arrays (that
+is the map screen's rewrite, T-menus), and `_scaleRoomVertices`'s in-place scaling. Proof: the `map` and `areamap` menu routes (both read a scene),
+rooms (the MPD's section F goes through the same function), `room_catalog` users.
+
 ### 3.4 Above 4 GB: what still stops it (2026-11-17, measured)
 
 The arenas are out of the window (S4, second step) but below 4 GB. To find what needs that, a build put the arena at 0x1_9000_0000 with the

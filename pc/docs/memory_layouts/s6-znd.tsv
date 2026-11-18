@@ -1,0 +1,4 @@
+# S6: the zone file (ZND) header decoded (state item, old, new, size, note)
+# item	old	new	size	note
+ZND header (_zndHeader, 146C.c)	the 0x1C bytes cast in place; finishLoadZnd added three offsets to the file's address (part())	vs_znd_file (146C.h) filled by vs_znd_decode (146C.c): the MPD table, the enemy part and the images as {pointer into the raw file, length}, and the music id	56 bytes on the caller's stack	the parts stay raw in the file's heap buffer, freed by finishLoadZnd as before; _loadZndEnemies, _loadZndTims and _loadMpdLbas take the pointers
+TIM image header (vs_battle_parseTim)	an integer cursor advanced by hand with five @ptrFromInt	pointer arithmetic over the blob; the layout (mode, optional palette block, image block: size, RECT at +4, pixels at +12) is the file header comment	-	the record (TIM_IMAGE) is unchanged: mode and pointers into the blob

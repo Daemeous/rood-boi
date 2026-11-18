@@ -40,9 +40,6 @@ typedef struct {
 void vs_effects_setParticleGravity(VECTOR*);
 void vs_effects_setParticleDrag(int*);
 void vs_effects_selectEffectResourceContext(int arg0);
-void _parsePfileBlock1(pFileBlock1* arg0);
-void _parsePfileBlock12(void*);
-void _parsePfileBlock13(void*);
 void vs_effects_setEffectTextureLoadState(int);
 void vs_battle_setPlgLoadState(int);
 void vs_effects_bindEffectPackageBlocks(p_file_t* arg0);
@@ -113,29 +110,18 @@ void vs_effects_saveEffectResourceContext(void);
 
 void vs_effects_restoreEffectResourceContext(void);
 
-void _parsePfileBlock5(pFileBlock5* block);
 
 void vs_effects_updateParticleGravityAndDrag(void);
 
-void _parsePfileBlock3(void* block);
 
-void _parsePfileCurveBlock(pFileCurveBlock* block);
 
-void _parsePfileBlock8(void* block);
 
-void _parsePfileBlock9(pFileBlock9* arg0);
 
-void _parsePfileBlock10(void* arg0);
 
-void _parsePfileBlock1(pFileBlock1* block);
 
-void _parsePfileBlock2(pFileBlock2* block);
 
-void _parsePfileBlock11(u_char* arg0);
 
-void _parsePfileBlock12(void* arg0);
 
-void _parsePfileBlock13(void* arg0);
 
 int vs_battle_loadEffPurge(void);
 

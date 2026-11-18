@@ -1,0 +1,3 @@
+# S6: the map scene file (ARM) layout named once (state item, old, new, size, note)
+# item	old	new	size	note
+scene record walk in vs_battle_initSceneAndGetRoomNames	integer arithmetic with @ptrFromInt over the buffer	arm_file.zig: the file's layout (count, 12-byte room records, blobs, 36-byte name records) as its header comment and initNames() by typed pointer arithmetic	-	the in-place size-to-offset conversion of each room record's word 1 is unchanged (the map code reads it); no word holds an address

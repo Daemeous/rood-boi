@@ -1,0 +1,3 @@
+# S6: the effect package (P-file) loader (state item, old, new, size, note)
+# item	old	new	size	note
+block chain walk and per-block parsers	vs_effects_bindEffectPackageBlocks plus twelve owned one-line routes (_parsePfileBlock1, 2, 3, 5, 8, 9, 10, 11, 12, 13, _parsePfileCurveBlock), each storing a pointer into vs_effects_package	effect_package.zig: bind(first) walks the chain and fills the record; the file's layout is its header comment; the routes, their ownership entries, root.zig imports and C prototypes are removed	-	vs_effects_package (D_800F569C_t) is unchanged; the payload stays raw in the file buffer; the buffer's allocation and release are the callers'
