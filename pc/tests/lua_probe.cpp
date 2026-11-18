@@ -409,9 +409,9 @@ static void registry()
     std::string refs = "local t = {} for i = 1, 33 do t[i] = 'x' .. i end "
                        "rood.registry.register('probe.refs', '@probe-reg/r', 1, { after = t })";
     CHECK(contains(eval_error(r, refs.c_str()), "more than 32 ids"));
-    double start = rl::now_seconds();
+    double start = rl::budget_now(); /* this thread's CPU time: wall time counts a busy machine's waits */
     CHECK(rl::registry_list("probe.many").size() == 4096);
-    CHECK(rl::now_seconds() - start < 1.0);
+    CHECK(rl::budget_now() - start < 1.0);
     rl::drop_registry("@probe-reg-big");
 }
 
@@ -730,11 +730,13 @@ static void host_memory()
     CHECK(rl::registry_list("probe.big").size() >= 6 && rl::registry_list("probe.big").size() < 9);
     eval_json(m, "for i = 1, 20 do rood.registry.remove('probe.big', '@probe-mem/e' .. i) end");
     /* a loop of costly rood calls (each copying 60000 parts) stops at the first call past the
-     * budget, not RL_HOOK_STEP instructions later (3 s for a 250 ms eval before) */
-    double start = rl::now_seconds();
+     * budget, not RL_HOOK_STEP instructions later (3 s for a 250 ms eval before). Timed on the
+     * budget's own clock (this thread's CPU time): wall time counts the waits for a core on a busy
+     * machine, which made this check fail under load though the budget stopped where it should */
+    double start = rl::budget_now();
     CHECK(contains(eval_error(m, "local t = {} for i = 1, 60000 do t[i] = i end while true do rood.emit('probe/x', t) end"),
         "budget exceeded"));
-    CHECK(rl::now_seconds() - start < 0.6);
+    CHECK(rl::budget_now() - start < 0.6);
     CHECK(rl::registry_list("probe.big").empty());
 }
 
