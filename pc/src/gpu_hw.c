@@ -120,7 +120,7 @@ static uintptr_t current_packet; /* the GPU packet being drawn (pc_hw_set_packet
 static int primitive_uv_shift[2]; /* pc_hw_set_flipped_uv */
 /* Widescreen placement kinds of packet ranges (widescreen.h PC_ANCHOR_*, low bits). */
 enum { PC_ANCHOR_NONE, PC_ANCHOR_LEFT, PC_ANCHOR_RIGHT, PC_ANCHOR_FILL, PC_ANCHOR_SCENE, PC_ANCHOR_COVER,
-    PC_ANCHOR_PROJECTED };
+    PC_ANCHOR_PROJECTED, PC_ANCHOR_SLIDE };
 static int primitive_anchor; /* of the packet being drawn (pc_hw_set_attr) */
 static int primitive_opacity = 256; /* of the packet being drawn (pc_hw_opacity_packets): 0..256 */
 void pc_hw_set_2d(int is_2d)
@@ -293,6 +293,7 @@ static void trace_bounds(int x0, int y0, int x1, int y1, unsigned code, unsigned
         x0 - clip[0], y0 - clip[1], x1 - clip[0], y1 - clip[1], clip[0], clip[1], clip[2], clip[3], texture,
         primitive_narrowed ? "projected" : primitive_cover ? "cover"
         : primitive_anchor == PC_ANCHOR_SCENE ? "scene (compressed, whole view)"
+        : primitive_anchor == PC_ANCHOR_SLIDE ? "slide (compressed, clipped to the whole view)"
         : primitive_anchor ? (primitive_anchor == 1 ? "anchor left" : primitive_anchor == 2 ? "anchor right" : "fill")
         : primitive_extend > 0 ? "extend right" : primitive_extend < 0 ? "extend left" : "compress");
 }
@@ -438,6 +439,19 @@ static int scene_enabled(void)
         pc_widescreen_scene = !getenv("ROOD_WIDESCREEN_SCENE") || *getenv("ROOD_WIDESCREEN_SCENE") != '0';
     return pc_widescreen_scene;
 }
+/* PC_ANCHOR_SLIDE: 2D the menu slides in from (or out to) a screen edge, compressed like the rest of the 2D but clipped to the
+ * whole 16:9 view, so it travels from the view's own edge to its place in the 4:3 screen (the game's clip is the compressed
+ * 4:3 drawing area, which made it appear from nothing a fifth of the view in). Setting menu_slide (on), ROOD_MENU_SLIDE over it;
+ * off: the original's clipped slide. */
+int pc_menu_slide = 1;
+static int slide_enabled(void)
+{
+    static int env = -2;
+    if (env == -2)
+        env = getenv("ROOD_MENU_SLIDE") && *getenv("ROOD_MENU_SLIDE") ? atoi(getenv("ROOD_MENU_SLIDE")) != 0 : -1;
+    return env >= 0 ? env : pc_menu_slide != 0;
+}
+int pc_hw_slide_enabled(void) { return slide_enabled(); }
 /* Scaled about a screen edge (the HUD's anchors). */
 static int edge_anchored(void)
 {
@@ -2111,7 +2125,7 @@ static void triangle_apply_body(const int* xy, const int* uv, const int* rgb, un
         area[1] = clip[1];
         area[2] = (int)ceilf(right) - area[0];
         area[3] = clip[3];
-    } else if ((compress || extend) && layout_enabled() && primitive_anchor != PC_ANCHOR_SCENE) {
+    } else if ((compress || extend) && layout_enabled() && primitive_anchor != PC_ANCHOR_SCENE && primitive_anchor != PC_ANCHOR_SLIDE) {
         /* The drawing area compressed like its contents (an extended side
          * reaches the view's edge). */
         float left = extend < 0 ? (float)clip[0] : centre + (clip[0] - centre) * 0.75f;
@@ -3138,7 +3152,7 @@ static void side_paint_primitive(int x0, int y0, int x1, int y1, unsigned code, 
     int inner_left = (int)ceilf(centre + (left - centre) * 0.75f - 0.001f);
     int inner_right = (int)floorf(centre + (right - centre) * 0.75f + 0.001f);
     int anchored = edge_anchored() && !primitive_cover;
-    if (primitive_cover || primitive_narrowed || primitive_anchor == PC_ANCHOR_SCENE
+    if (primitive_cover || primitive_narrowed || primitive_anchor == PC_ANCHOR_SCENE || primitive_anchor == PC_ANCHOR_SLIDE
         || (primitive_anchor == PC_ANCHOR_FILL && !primitive_cover)) {
         /* Full-view, projected or view-wide 2D: it may draw anywhere in the area. */
         if (side_paint_count)

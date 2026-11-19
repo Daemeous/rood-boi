@@ -703,6 +703,9 @@ static void _renderAbilityCost(void)
         int i;
         int x0;
         int x1 = -vs_battle_rowAnimationSteps[animState];
+#ifdef ROOD_PC
+        int pcSlideFirst = pc_frame_count(); /* the cost element slides in from the left while x1 is not 0 (PC_ANCHOR_SLIDE) */
+#endif
 
         for (i = 0; i < 2; ++i) {
             vs_battle_renderTextRawColor(_textHeaders[i].text,
@@ -718,6 +721,10 @@ static void _renderAbilityCost(void)
             x0 | (171 << 16), vs_getRGB888(64, 48, 102), (x1 + 80) | (171 << 16));
 
         vs_battle_tileFlatItem(scratch, 0, 0, x0 | (162 << 16), vs_getWH(82, 11));
+#ifdef ROOD_PC
+        if (x1 != 0)
+            pc_frame_anchor(pcSlideFirst, pc_frame_count(), PC_ANCHOR_SLIDE);
+#endif
     }
 }
 

@@ -1,3 +1,6 @@
+#ifdef ROOD_PC
+#include "pc/src/widescreen.h"
+#endif
 #include "common.h"
 #include "../../SLUS_010.40/main.h"
 #include "../MAINMENU.PRG/C48.h"
@@ -3373,6 +3376,10 @@ int vs_menuD_exec(u_char* arg0)
     }
     if (vs_menu_containerControlsPanelSlideStep != 0) {
         int s3;
+#ifdef ROOD_PC
+        int pcSlideFirst = pc_frame_count(); /* the button strip and the counts slide unless the panel is at rest (step 10) */
+        int pcSlideMoving = vs_menu_containerControlsPanelSlideStep != 10;
+#endif
         i = 0x10 - i;
 #ifdef ROOD_PC
         /* PC_CLASSIC (classic_hook.h): the button strip, from its slide and state. */
@@ -3452,6 +3459,10 @@ int vs_menuD_exec(u_char* arg0)
 #ifdef ROOD_PC
             });
         }
+        if (vs_menu_containerCapacityListSlideStep != 0 && vs_menu_containerCapacityListSlideStep != 10)
+            pcSlideMoving = 1;
+        if (pcSlideMoving)
+            pc_frame_anchor(pcSlideFirst, pc_frame_count(), PC_ANCHOR_SLIDE);
 #endif
     }
     return 0;

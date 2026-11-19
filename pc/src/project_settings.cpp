@@ -205,6 +205,7 @@ int pc_ui_menu_tint_custom[3] = { 8, 7, 7 }; /* Custom's colour, 0..31 per chann
 #include "lighting_quality.h" /* the lighting quality keys (lighting_preset, gi_method, shadows, ...) */
 #include "probe_gi.h"
 #include "ui_upscale.h" /* 2D / UI: ui_upscale nearest | mmpx, ui_subpixel */
+extern int pc_menu_slide; /* gpu_hw.c */
 #include "screen_owner.h" /* screen_owner, screen_owner_fill: the 16:9 view's sides when opaque 2D covers the 4:3 screen */
 #include "ui_text.h"    /* 2D / UI: ui_text original | font, ui_text_<style>_font ... */
 #include "ui_bubbles.h" /* 2D / UI: ui_lines, ui_outline_boost, ui_bubbles, ui_bubble_outline */
@@ -404,6 +405,7 @@ const Entry entries[] = {
     I("opacity_2d", pc_opacity_2d), /* 2D at an opacity as primitives (1) or the game's read-back (0; ROOD_OPACITY_2D wins) */
     I("screen_owner", pc_screen_owner), /* 16:9: a screen of opaque 2D clears the scene from the view's sides (1) or leaves them (0) */
     IN("screen_owner_fill", pc_screen_owner_fill, 3), /* ... to this colour: red green blue, 0..255 */
+    I("menu_slide", pc_menu_slide), /* 16:9: the menus' rows slide in from the view's edges (1) or from the 4:3 screen's (0, the original's clip) */
     I("qol_confirm_cross", pc_qol_confirm_cross),
     I("qol_field_cross_attack", pc_qol_field_cross_attack),
     /* Gameplay. */

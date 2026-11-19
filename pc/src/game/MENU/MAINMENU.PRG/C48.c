@@ -1,4 +1,8 @@
 #include "C48.h"
+#ifdef ROOD_PC
+#include "pc/src/widescreen.h"
+static int pcSlideMoving; /* the panel being drawn is sliding (PC_ANCHOR_SLIDE): set by its body */
+#endif
 #include "2D10.h"
 #include "58EC.h"
 #include "pc/src/game/SLUS_010.40/main.h"
@@ -946,7 +950,11 @@ void vs_mainMenu_updateStatPage(int enabledPage)
     }
 }
 
+#ifdef ROOD_PC
+static void vs_mainMenu_drawClassAffinityTypeBody(int arg0)
+#else
 void vs_mainMenu_drawClassAffinityType(int arg0)
+#endif
 {
     static int D_801020F4 = 0;
     static u_char vs_menu_frameworkStatPagePanelSlideStep = 0;
@@ -992,6 +1000,9 @@ void vs_mainMenu_drawClassAffinityType(int arg0)
         }
     }
 
+#ifdef ROOD_PC
+    pcSlideMoving = var_s1 != 0;
+#endif
     if (var_s1 <= 0) {
 #ifdef ROOD_PC
         /* PC_CLASSIC (classic_hook.h): the class / affinity / type table, from its slide,
@@ -1009,6 +1020,18 @@ void vs_mainMenu_drawClassAffinityType(int arg0)
 
     vs_mainMenu_itemStatPage = statPage;
 }
+#ifdef ROOD_PC
+/* PC_ANCHOR_SLIDE (widescreen.h): the panel's draw items are a slide while it is moving, clipped to the whole 16:9 view, not the
+ * 4:3 screen it slides in from (the body notes it in pcSlideMoving where it steps the slide). */
+void vs_mainMenu_drawClassAffinityType(int arg0)
+{
+    int first = pc_frame_count();
+    pcSlideMoving = 0;
+    vs_mainMenu_drawClassAffinityTypeBody(arg0);
+    if (pcSlideMoving)
+        pc_frame_anchor(first, pc_frame_count(), PC_ANCHOR_SLIDE);
+}
+#endif
 
 void vs_mainMenu_setRangeRisk(int range, int risk, int arg2, int arg3)
 {
@@ -1062,7 +1085,11 @@ void vs_mainMenu_populateBaseStats(int actorId)
  *
  * @param animate 1 = slide in, 2 = slide out
  */
+#ifdef ROOD_PC
+static void vs_mainMenu_renderEquipStatsBody(int animate)
+#else
 void vs_mainMenu_renderEquipStats(int animate)
+#endif
 {
     static char const* rangeRiskStr[] = { "#RANGE", "#RISK" };
     static char const* statStr[] = { "#STRENGTH", "#INTELLIGENCE", "#AGILITY", NULL,
@@ -1098,12 +1125,18 @@ void vs_mainMenu_renderEquipStats(int animate)
         if (vs_menu_frameworkPrimaryStatPanelSlideStep != 0) {
             position += vs_battle_rowAnimationSteps[vs_menu_frameworkPrimaryStatPanelSlideStep];
             --vs_menu_frameworkPrimaryStatPanelSlideStep;
+#ifdef ROOD_PC
+            pcSlideMoving = 1;
+#endif
         }
     } else if (vs_menu_frameworkPrimaryStatPanelSlideStep == 0) {
         return;
     } else {
         position += ((8 - vs_menu_frameworkPrimaryStatPanelSlideStep) << 5);
         --vs_menu_frameworkPrimaryStatPanelSlideStep;
+#ifdef ROOD_PC
+        pcSlideMoving = 1;
+#endif
     }
 #ifdef ROOD_PC
     /* PC_CLASSIC (classic_hook.h): the panel, from its place (slid) and the values it
@@ -1176,6 +1209,18 @@ void vs_mainMenu_renderEquipStats(int animate)
     }
 #endif
 }
+#ifdef ROOD_PC
+/* PC_ANCHOR_SLIDE (widescreen.h): the panel's draw items are a slide while it is moving, clipped to the whole 16:9 view, not the
+ * 4:3 screen it slides in from (the body notes it in pcSlideMoving where it steps the slide). */
+void vs_mainMenu_renderEquipStats(int animate)
+{
+    int first = pc_frame_count();
+    pcSlideMoving = 0;
+    vs_mainMenu_renderEquipStatsBody(animate);
+    if (pcSlideMoving)
+        pc_frame_anchor(first, pc_frame_count(), PC_ANCHOR_SLIDE);
+}
+#endif
 
 static u_short dpPpBarAnimState = 0;
 static u_short _currentDp = 0;

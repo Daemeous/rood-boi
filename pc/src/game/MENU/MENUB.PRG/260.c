@@ -1,3 +1,6 @@
+#ifdef ROOD_PC
+#include "pc/src/widescreen.h"
+#endif
 #include "260.h"
 #include "pc/src/game/BATTLE/BATTLE.PRG/146C.h"
 #include "pc/src/game/BATTLE/BATTLE.PRG/30DB0.h"
@@ -213,6 +216,7 @@ static int _topLevelMenuTransition(int category)
 
     if (_statusCommandAnimationStep != 0) {
 #ifdef ROOD_PC
+        int pcSlideFirst = pc_frame_count(); /* slides while stepValue is not 0 (PC_ANCHOR_SLIDE) */
         /* PC_CLASSIC (classic_hook.h): the STATUS strip (MENU3's, 16C.c, copied here),
          * from its slide and its state. */
         pc_classic_items_status_button pcStatus = { stepValue, _statusCommandState };
@@ -224,6 +228,8 @@ static int _topLevelMenuTransition(int category)
             0x202020 << _statusCommandState, NULL);
 #ifdef ROOD_PC
         });
+        if (stepValue != 0)
+            pc_frame_anchor(pcSlideFirst, pc_frame_count(), PC_ANCHOR_SLIDE);
 #endif
     }
 
@@ -1975,7 +1981,14 @@ int vs_menuB_exec(u_char* state)
     }
 
     if (_inventoryCapacityFlyinTimer < 10) {
+#ifdef ROOD_PC
+        int pcSlideFirst = pc_frame_count(); /* the capacities panel flies in from the screen's edge while i is not 0 */
+#endif
         _displayInventoryCapacities(i);
+#ifdef ROOD_PC
+        if (i != 0)
+            pc_frame_anchor(pcSlideFirst, pc_frame_count(), PC_ANCHOR_SLIDE);
+#endif
     }
 
     if (_showLoot != 0) {
@@ -1992,7 +2005,14 @@ int vs_menuB_exec(u_char* state)
 
     if (_lootLeftEdge < 10) {
 
+#ifdef ROOD_PC
+        int pcSlideFirst = pc_frame_count(); /* the loot list slides while i is not 0 */
+#endif
         _displayCurrentLoot(i);
+#ifdef ROOD_PC
+        if (i != 0)
+            pc_frame_anchor(pcSlideFirst, pc_frame_count(), PC_ANCHOR_SLIDE);
+#endif
 
         if (D_8010A6B7 & 0xF) {
             vs_battle_getMenuItem(D_8010A6B7 + 31)->selected = 1;

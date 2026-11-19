@@ -40,7 +40,11 @@ enum { PC_UPLOAD_SCREEN_IMAGE = 1, PC_UPLOAD_SCREEN_PICTURE = 2 };
  * tells (boot_runtime.c narrowed_2d), which matches a span's ends only where
  * they happen to land on a projected point: the rest were compressed. */
 enum { PC_ANCHOR_CENTRE = 0x10, PC_ANCHOR_LEFT_EDGE = 0x11, PC_ANCHOR_RIGHT_EDGE = 0x12, PC_ANCHOR_FILL = 0x13,
-    PC_ANCHOR_SCENE = 0x14, PC_ANCHOR_COVER = 0x15, PC_ANCHOR_PROJECTED = 0x16 };
+    PC_ANCHOR_SCENE = 0x14, PC_ANCHOR_COVER = 0x15, PC_ANCHOR_PROJECTED = 0x16, PC_ANCHOR_SLIDE = 0x17 };
+/* PC_ANCHOR_SLIDE: 2D a menu slides in from, or out to, a screen edge (its rows, its labels, its picture): compressed about the
+ * screen's centre like the rest of the 2D, but clipped to the whole view, so it travels from the view's own edge (setting
+ * menu_slide; off, the original's clip at the 4:3 screen's edge). Set only for the pieces that move: gpu_hw.c keeps its edge
+ * extension and the other guesses for them. */
 /* PC_ANCHOR_EXACT, or'ed with one of the above: a range placed by data (the
  * classic look drawn in Lua, pc/src/classic): scaled about its anchor and
  * nothing more: no edge extension, no cover or backdrop guesses, no side

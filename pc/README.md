@@ -968,7 +968,13 @@ timing/chain labels beside it at the left, BATTLE MODE at the right, the map
 screen's controls help and compass at the left. A still that covers the
 screen (the idle cutscene's VKP Headquarters) is magnified to fill the view
 in its proportions (`PC_ANCHOR_FILL`; its top and bottom eighths fall
-outside). A picture the game loads straight into the frame buffer (the title
+outside). What a menu screen slides in from the screen's edges (its picture's
+label, tabs and rows, drawn between the framework's `vs_mainMenu_exec` and each
+row's `vs_battle_renderMenuItem` while it slides) is `PC_ANCHOR_SLIDE`: compressed
+like the other 2D but clipped to the whole view, so it travels in from the view's
+own edge to its place in the 4:3 screen, where the original's clip made it appear
+from nothing a fifth of the view in (setting `menu_slide`, on; 0 is the original's
+clipped slide; `pc/tests/menu_open_slide_smoke.py`). A picture the game loads straight into the frame buffer (the title
 screen, its copyright; the game code marks those LoadImages, `PC_UPLOAD_AS`)
 is drawn compressed like the 2D over it; StoreImage
 reads back only what native VRAM lacks (native 3D), so the CPU's own 2D

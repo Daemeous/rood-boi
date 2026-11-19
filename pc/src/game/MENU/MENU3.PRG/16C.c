@@ -1,4 +1,7 @@
 #include "16C.h"
+#ifdef ROOD_PC
+#include "pc/src/widescreen.h"
+#endif
 #include "68C4.h"
 #include "pc/src/game/SLUS_010.40/31724.h"
 #include "pc/src/game/BATTLE/BATTLE.PRG/2842C.h"
@@ -1539,6 +1542,7 @@ int vs_menu3_exec(u_char* state)
 
     if (_statusCommandAnimationStep != 0) {
 #ifdef ROOD_PC
+        int pcSlideFirst = pc_frame_count(); /* the strip slides in from the screen's left edge while `row` is not 0 (PC_ANCHOR_SLIDE) */
         /* PC_CLASSIC (classic_hook.h): the STATUS strip, from its slide and its state. */
         pc_classic_items_status_button pcStatus = { row, _statusCommandState };
         PC_CLASSIC(PC_CLASSIC_SITE_ITEMS_STATUS_BUTTON, &pcStatus, 0, 0, {
@@ -1549,6 +1553,8 @@ int vs_menu3_exec(u_char* state)
             vs_getRGB888(32, 32, 32) << _statusCommandState, NULL);
 #ifdef ROOD_PC
         });
+        if (row != 0)
+            pc_frame_anchor(pcSlideFirst, pc_frame_count(), PC_ANCHOR_SLIDE);
 #endif
     }
 

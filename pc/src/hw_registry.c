@@ -12,12 +12,13 @@
 #include <string.h>
 
 /* Widescreen placement kinds of packet ranges (widescreen.h PC_ANCHOR_*, low bits). */
-enum { PC_ANCHOR_NONE, PC_ANCHOR_LEFT, PC_ANCHOR_RIGHT, PC_ANCHOR_FILL, PC_ANCHOR_SCENE, PC_ANCHOR_COVER, PC_ANCHOR_PROJECTED };
+enum { PC_ANCHOR_NONE, PC_ANCHOR_LEFT, PC_ANCHOR_RIGHT, PC_ANCHOR_FILL, PC_ANCHOR_SCENE, PC_ANCHOR_COVER, PC_ANCHOR_PROJECTED, PC_ANCHOR_SLIDE };
 extern int pc_hw_active;
 extern int pc_hw_suppress;
 extern void pc_ui_bubbles_frame(void) __attribute__((weak));
 int pc_hw_layout_enabled(void); /* gpu_hw.c: the widescreen layout fixes are on */
 int pc_hw_scene_enabled(void);  /* gpu_hw.c: the widescreen scene anchors are on */
+int pc_hw_slide_enabled(void);  /* gpu_hw.c: the menus' slide-in anchors are on (setting menu_slide) */
 
 /* Drop shadow and effect packet ranges (effect_native.c): [start, end) of the markers and lowered items of effects list `list`
  * (0: no list took them, the items draw as they are). Recorded while an ordering table is built and made active at its DrawOTag.
@@ -91,7 +92,7 @@ void pc_hw_anchor_packets(const void* start, const void* end, int anchor)
             return;
         anchor &= 0x0f;
     }
-    if ((anchor == PC_ANCHOR_SCENE || anchor == PC_ANCHOR_COVER) && !pc_hw_scene_enabled())
+    if (((anchor == PC_ANCHOR_SCENE || anchor == PC_ANCHOR_COVER) && !pc_hw_scene_enabled()) || (anchor == PC_ANCHOR_SLIDE && !pc_hw_slide_enabled()))
         return;
     if (end > start && pc_frame_anchor_markers) /* (the draw items a marker in the range places are anchored as the packets were) */
         pc_frame_anchor_markers(start, end, anchor | (exact ? 0x20 : 0));
@@ -119,7 +120,7 @@ int pc_hw_item_anchor(int anchor)
             return -1;
         anchor &= 0x0f;
     }
-    if ((anchor == PC_ANCHOR_SCENE || anchor == PC_ANCHOR_COVER) && !pc_hw_scene_enabled())
+    if (((anchor == PC_ANCHOR_SCENE || anchor == PC_ANCHOR_COVER) && !pc_hw_scene_enabled()) || (anchor == PC_ANCHOR_SLIDE && !pc_hw_slide_enabled()))
         return -1;
     return anchor | (exact ? 0x20 : 0);
 }
@@ -133,7 +134,7 @@ int pc_hw_anchor_recorded(int anchor)
             return 0;
         anchor &= 0x0f;
     }
-    if ((anchor == PC_ANCHOR_SCENE || anchor == PC_ANCHOR_COVER) && !pc_hw_scene_enabled())
+    if (((anchor == PC_ANCHOR_SCENE || anchor == PC_ANCHOR_COVER) && !pc_hw_scene_enabled()) || (anchor == PC_ANCHOR_SLIDE && !pc_hw_slide_enabled()))
         return 0;
     return anchor;
 }
@@ -498,3 +499,4 @@ int pc_hwr_texture_stale(unsigned tpage, unsigned clut, unsigned window, int u0,
     }
     return 0;
 }
+

@@ -1,3 +1,6 @@
+#ifdef ROOD_PC
+#include "pc/src/widescreen.h"
+#endif
 #include "21A0.h"
 #include "pc/src/game/SLUS_010.40/main.h"
 #include "pc/src/game/BATTLE/BATTLE.PRG/146C.h"
@@ -897,10 +900,23 @@ int vs_menu8_execRename(char* state)
         if (_animStep != 0) {
             --_animStep;
         }
+#ifdef ROOD_PC
+        int pcSlideFirst = pc_frame_count(); /* the rename panel slides while its offset is not 0 (PC_ANCHOR_SLIDE) */
         _renderRenameMenu(vs_battle_rowAnimationSteps[_animStep]);
+        if (vs_battle_rowAnimationSteps[_animStep] != 0)
+            pc_frame_anchor(pcSlideFirst, pc_frame_count(), PC_ANCHOR_SLIDE);
+#else
+        _renderRenameMenu(vs_battle_rowAnimationSteps[_animStep]);
+#endif
     } else if (_animStep < 10) {
         ++_animStep;
+#ifdef ROOD_PC
+        int pcSlideFirst = pc_frame_count();
         _renderRenameMenu(_animStep << 5);
+        pc_frame_anchor(pcSlideFirst, pc_frame_count(), PC_ANCHOR_SLIDE);
+#else
+        _renderRenameMenu(_animStep << 5);
+#endif
     }
 
     return 0;

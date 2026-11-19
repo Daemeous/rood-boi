@@ -488,6 +488,9 @@ def suites(args, mode="egl"):
         Suite("menu_open_scale_smoke", [PY, str(TESTS / "menu_open_scale_smoke.py")], 900,
               note="16:9 (1760x1216, the dev64 split build): the menu's emblem keeps its size through the open of a screen "
                    "(plain / original fade, classic claims; 4:3 control)"),
+        Suite("menu_open_slide_smoke", [PY, str(TESTS / "menu_open_slide_smoke.py")], 900,
+              note="16:9 (1760x1216): ITEMS opened from COMMAND: the label and rows slide in from the view's own edges (menu_slide 1; 0: "
+                   "clipped at the 4:3 screen's), the 4:3 part of every frame the 4:3 slide's, no pop at the 4:3 edge"),
         Suite("file_flash_smoke", [PY, str(TESTS / "file_flash_smoke.py")], 600,
               note="Data > LOAD: the slot's completion flash ends clean (no bright band above the file for two frames: its last step "
                    "read past the table), from two rooms, 16:9 and 4:3; qol_file_flash_fix 0 keeps the game's read"),
@@ -898,7 +901,7 @@ CHECKPOINT_SUITES = {
     "hw_calls_smoke", "probe_gi_smoke", "animation_smoke", "editor_cutaway_smoke", "editor_undo_smoke", "editor_selection_smoke", "editor_schema_smoke", "editor_transform_smoke", "barn_doors_smoke", "editor_handles_smoke", "facing_cutaway_smoke",
     "camera_stick_smoke", "camera_stick_menus_smoke", "editor_snap_smoke", "editor_roomload_smoke", "room_browser_smoke", "room_entry_sound_smoke", "determinism_smoke", "route_continuation_smoke", "ending_smoke",
     "light_actors_smoke", "fixture_lighting_smoke", "sky_smoke", "game_sky_smoke", "glow_stability_smoke", "lighting_presets_smoke",
-    "gi_lag_smoke", "texture_animation_smoke", "save_menu_smoke", "screen_owner_smoke", "scanline_sides_smoke", "ui_text_snap_smoke", "menu_open_scale_smoke", "file_flash_smoke", "effect_opcode_smoke", "narrowed_2d_smoke", "weapon_slots_smoke", "ui_menus_smoke",
+    "gi_lag_smoke", "texture_animation_smoke", "save_menu_smoke", "screen_owner_smoke", "scanline_sides_smoke", "ui_text_snap_smoke", "menu_open_scale_smoke", "menu_open_slide_smoke", "file_flash_smoke", "effect_opcode_smoke", "narrowed_2d_smoke", "weapon_slots_smoke", "ui_menus_smoke",
     "ui_lines_smoke", "ui_text_smoke", "ui_text_columns_smoke", "button_prompts_smoke", "button_roles_symbols_smoke", "coplanar_order_smoke", "actor_room_order_smoke", "atmosphere_smoke",
     "void_fog_smoke",
     "fog_sim_smoke", "fog_volume_smoke", "particles_smoke", "save_point_glow_smoke", "emissive_smoke", "ui_ashley_smoke", "ui_ashley_stability_smoke",

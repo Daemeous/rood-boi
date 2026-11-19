@@ -717,9 +717,13 @@ void pc_frame_anchor(int first, int end, int anchor)
     int a = pc_hw_item_anchor ? pc_hw_item_anchor(anchor) : -1;
     if (a < 0)
         return;
+    /* PC_ANCHOR_SLIDE (7, widescreen.h) is the weakest kind: the screen a slide belongs to is anchored as one, after the pieces that
+     * name their own place (a range at a screen edge, a picture): those keep theirs, whichever range is the smaller. */
+    const int slide = 7;
     for (int i = first; i < end && i < pc_item_frame.count; i++) {
         pc_item* it = &pc_item_frame.item[i];
-        if (!(it->flags & PC_ITEM_ANCHORED) || end - first < it->anchor_span) {
+        int held = it->flags & PC_ITEM_ANCHORED, held_slide = held && it->anchor == slide;
+        if (!held || (a == slide ? 0 : held_slide || end - first < it->anchor_span)) {
             it->flags |= PC_ITEM_ANCHORED;
             it->anchor = (unsigned char)a;
             it->anchor_span = end - first;

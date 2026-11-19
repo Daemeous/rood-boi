@@ -5,10 +5,21 @@ const v = @import("views_5BF94");
 const c = @import("c_5BF94");
 const sprite_item = @import("common").sprite_item;
 
+const Count = *const fn () callconv(.c) c_int;
+const Anchor = *const fn (c_int, c_int, c_int) callconv(.c) void;
+/// PC_ANCHOR_SLIDE (pc/src/widescreen.h): a row in a slide is clipped to the whole 16:9 view, not the 4:3 screen it slides in to.
+const anchor_slide: c_int = 0x17;
+
 /// orig: vs_battle_renderMenuItem (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// Draws a menu item's label, gradient background and sub text into the packet at the scratchpad cursor.
 pub fn renderMenuItem(menuItem: ?*v.vs_battle_menuItem_t) callconv(.c) void {
     const m = menuItem.?;
+    // ROOD_PC: the items this row draws are anchored as a slide while it slides (in, or out: states 2 to 5, away from its target), placed by the
+    // producer, not left to gpu_hw.c's clip at the 4:3 screen's edge; a row parked at its target past the edge stays clipped there.
+    const first: c_int = if (psx.weak(Count, "pc_frame_count")) |count| count() else 0;
+    defer if (m.state >= 2 and (m.x != m.targetPosition0 or m.y != m.targetPosition1)) {
+        if (psx.weak(Anchor, "pc_frame_anchor")) |anchor| anchor(first, psx.weak(Count, "pc_frame_count").?(), anchor_slide);
+    };
     var y: c_int = m.gradientState;
     const scratch: [*c]c_uint = @ptrFromInt(@intFromPtr(v.g.vs_scratch().unk8) +% 8);
     const w: c_int = m.w;

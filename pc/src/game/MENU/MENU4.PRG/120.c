@@ -1,3 +1,6 @@
+#ifdef ROOD_PC
+#include "pc/src/widescreen.h"
+#endif
 #include "120.h"
 #include "pc/src/game/SLUS_010.40/31724.h"
 #include "pc/src/game/BATTLE/BATTLE.PRG/146C.h"
@@ -1157,6 +1160,12 @@ static int _renderLimbUi(int init)
         return 0;
     }
 
+#ifdef ROOD_PC
+    /* PC_ANCHOR_SLIDE (widescreen.h): the limb list slides in from, and out to, the screen's right edge (the cases that step
+     * limbAnimSteps: the first and the last): their items travel the whole 16:9 view. */
+    int pcSlideFirst = pc_frame_count();
+    int pcSlideCase = state;
+#endif
     switch (state) {
     case _renderLimbUiNone:
         break;
@@ -1259,6 +1268,10 @@ static int _renderLimbUi(int init)
         }
         break;
     }
+#ifdef ROOD_PC
+    if (pcSlideCase == _renderLimbUiInit || pcSlideCase == 3)
+        pc_frame_anchor(pcSlideFirst, pc_frame_count(), PC_ANCHOR_SLIDE);
+#endif
     return 0;
 }
 

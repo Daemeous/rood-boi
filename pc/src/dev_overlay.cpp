@@ -877,7 +877,15 @@ static void graphics_panel()
                                   "PS1's own (a PS1-resolution copy, blocky). Settings key screen_copy (native | ps1).");
         }
         extern int pc_screen_owner, pc_screen_owner_fill[3]; /* screen_owner.c */
+        extern int pc_menu_slide; /* gpu_hw.c */
         if (pc_gte_widescreen) {
+            bool slide = pc_menu_slide != 0;
+            if (ImGui::Checkbox("16:9: menus slide in from the view's edges", &slide))
+                pc_menu_slide = slide;
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("A menu screen's label, rows and picture slide in from the screen's edges. On: they travel in from the\n"
+                                  "16:9 view's own edge. Off: the original's clip, so they appear from the 4:3 screen's edge.\n"
+                                  "Settings key menu_slide.");
             bool owner = pc_screen_owner != 0;
             if (ImGui::Checkbox("16:9: a full 2D screen clears the view's sides", &owner))
                 pc_screen_owner = owner;
