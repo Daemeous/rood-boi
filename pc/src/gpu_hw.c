@@ -2052,11 +2052,11 @@ void pc_hw_triangle_decide(const int* uv, unsigned code, unsigned tpage, const i
     int suppress, pc_hw_tri_decision* out)
 {
     out->skip = 0, out->action = PC_HW_TRI_IGNORE, out->ui = 0, out->other = 0, out->stats = 0, out->mark = 0;
+    out->suppress = suppress; /* (the digest takes it, whether the renderer is on or not: left unset when it was off, a triangle's note carried stack garbage and the stream digest was not the same from build to build) */
     if (!pc_hw_active) {
         pc_hw_meter_result(PC_HW_triangle, PC_HW_WHY_TRI_INACTIVE, 0);
         return;
     }
-    out->suppress = suppress;
     if (suppress || free_camera_afterimage(uv, code, tpage, clip, is_2d)) {
         out->action = PC_HW_TRI_RESET;
         pc_hw_meter_result(PC_HW_triangle, PC_HW_WHY_TRI_SUPPRESSED, 0);

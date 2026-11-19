@@ -609,8 +609,11 @@ def hashed(g, out, sample, hashes, taken=None, first=None):
             if taken is not None:
                 stream_take(g, taken)
             if state["t"] % sample == 0:
-                g.screenshot(str(shot))
-                hashes.append(hashlib.sha256(shot.read_bytes()).hexdigest()[:12])
+                if os.environ.get("BUILD_COMPARE_ITEMS"):  # (the null renderer draws no pixels: the sample is the drawing stream's chain, RPC stream)
+                    hashes.append(g.call("stream", count=0)["chain"][:12])
+                else:
+                    g.screenshot(str(shot))
+                    hashes.append(hashlib.sha256(shot.read_bytes()).hexdigest()[:12])
                 if first and len(hashes) == 1:
                     first()  # (counters of what is drawn count from here: the frames drawn before the first sample, while a route seeks or the game boots free to its first pause, are as many as the host's timing gave)
                 if os.environ.get("BUILD_COMPARE_VRAM_STREAM"):  # --vram-stream: the VRAM stream's running digest (RPC vram_stream) with the picture
@@ -962,6 +965,8 @@ def story_scene(scene_id, warp=False, scaled=0):
                 break
         if os.environ.get("BUILD_COMPARE_VRAM_STREAM"):  # (the digest runs from the first frame of the replay: the way there was unpaced and is not the same twice)
             g.call("vram_stream", reset=True)
+        if os.environ.get("BUILD_COMPARE_ITEMS"):  # (the null renderer's chain: likewise)
+            g.call("stream", on=True, reset=True)
         if scaled:
             for step in range(frames // 10 + 12):
                 g.run(10)
@@ -1109,6 +1114,9 @@ def play_menus(binary, card, out, names, sample, claims, aspect="4:3", extra_env
         else:
             card_copy.write_bytes(pathlib.Path(card).read_bytes())
         g = launch_at(CHECKPOINT.get(name, "save_room"), card=str(card_copy), fast=True, log=out / f"{name}.log", extra_env=env)
+        if renderer == "null":  # (no pixels: the drawing stream's chain from here is the picture)
+            os.environ["BUILD_COMPARE_ITEMS"] = "1"
+            g.call("stream", on=True, reset=True)
         hashes = []
         taken = stream_start(g)
         census_start(g)
@@ -1480,7 +1488,7 @@ def main():
     parser.add_argument("--claims", choices=["on", "off"], default="on", help="--menus: rood.classic's claims on or off")
     parser.add_argument("--new-env", action="append", default=[], metavar="KEY=VALUE", help="--menus: set in NEW's game (a dev flag such as ROOD_CLASSIC_ITEMS=1)")
     parser.add_argument("--env", action="append", default=[], help=argparse.SUPPRESS)
-    parser.add_argument("--renderer", choices=["vulkan", "null"], default="vulkan", help="--menus: null hashes the CPU reference frame (the original drawing, no GPU; no ui_text)")
+    parser.add_argument("--renderer", choices=["vulkan", "null"], default="vulkan", help="--menus: null draws no pixels (no GPU, no CPU rasterizer): the sample is the drawing stream's chain, the items the game made; no ui_text")
     parser.add_argument("--setting", action="append", default=[], metavar="'KEY VALUE'", help="--menus: a settings.cfg line (ui_text original)")
     parser.add_argument("--aspect", choices=["4:3", "16:9"], default="4:3", help="--menus: the display's aspect")
     parser.add_argument("--stream", action="store_true", help="also compare every vsync's drawing digest (RPC stream: the words the walk draws, native marker draws, environments); fight, --rooms and --menus lanes. OLD must have the RPC")

@@ -122,6 +122,7 @@ static struct {
     const char* menu_context;
     int menu_allowed, menu_ticks, menu_places;
     unsigned menu_vsync;
+    unsigned menu_seen; /* the vsync the game last ran a menu's field mode (pc_camera_stick_menu), the stick's menus listed or not */
     /* First-person look (pc_camera_stick_first_person). */
     unsigned fp_vsync;
     int fp_ticked, fp_looks, fp_yaw, fp_pitch;
@@ -418,6 +419,11 @@ int pc_camera_stick_menu_listed(const char* name)
 int pc_camera_stick_menu(void* spherical, int field_mode, int camera_mode, int current_menu)
 {
     pc_spherical_camera* camera = spherical;
+    /* The menus' field modes (5 the Triangle menu and its screens, 6 the L2 shortcut cross, 11 a message), whichever of their screens
+     * or closing steps: the game is in a menu, not holding the camera. The zoom stays where the stick put it through them: the
+     * closing frames tick nothing, and the first placement after them must not find the stick idle (pc_camera_stick_place). */
+    if (field_mode == 5 || field_mode == 6 || field_mode == 11)
+        s.menu_seen = now();
     const char* name = pc_camera_stick_context(field_mode, camera_mode, current_menu);
     if (name && !strcmp(name, "command") && pc_ui_shell_camera_context && pc_ui_shell_camera_context())
         name = pc_ui_shell_camera_context();
@@ -518,7 +524,8 @@ void pc_camera_stick_place(void* spherical_values, const int* look_at)
     s.placed = 1;
     s.last_place = t;
     float dt = (gap > 4 ? 4 : gap) / 59.94f;
-    int active = pc_camera_stick && s.ticked && !s.locked && t - s.last_tick <= ACTIVE_VSYNCS;
+    unsigned held = s.menu_seen > s.last_tick ? s.menu_seen : s.last_tick; /* the stick's last tick, or the last frame of a menu */
+    int active = pc_camera_stick && s.ticked && !s.locked && t - held <= ACTIVE_VSYNCS;
     float target = active ? s.zoom : 1;
     float k = dt / 0.1f;
     s.zoom_applied += (target - s.zoom_applied) * (k > 1 ? 1 : k);
@@ -580,7 +587,8 @@ void pc_camera_stick_place(void* spherical_values, const int* look_at)
 int pc_camera_stick_json(char* out, int size)
 {
     unsigned t = now();
-    int active = pc_camera_stick && s.ticked && !s.locked && t - s.last_tick <= ACTIVE_VSYNCS;
+    unsigned held = s.menu_seen > s.last_tick ? s.menu_seen : s.last_tick;
+    int active = pc_camera_stick && s.ticked && !s.locked && t - held <= ACTIVE_VSYNCS;
     return snprintf(out, (size_t)size,
         "{\"enabled\":%d,\"speed\":%g,\"deadzone\":%g,\"curve\":%g,\"invert_x\":%d,\"invert_y\":%d,"
         "\"zoom\":%d,\"zoom_speed\":%g,\"zoom_min\":%g,\"zoom_max\":%g,\"zoom_pitch\":%g,\"collision\":%d,"

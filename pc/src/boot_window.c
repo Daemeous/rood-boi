@@ -129,6 +129,8 @@ void pc_window_init(int enabled, int run_fast)
          * delivers RPC/recorded input. Native VRAM stays CPU-owned; never
          * initialize a video driver, hardware target or overlay here. */
         pc_window_enabled = 1;
+        extern int pc_raster_off; /* boot_runtime.c: no CPU rasterization (T5-5) */
+        pc_raster_off = !getenv("ROOD_NULL_RASTER"); /* (ROOD_NULL_RASTER=1: rasterize as before, the comparison with the pixel-drawing null renderer) */
         /* Settings normally load from the graphical overlay. The loader
          * itself is CPU-only (hardware scale changes guard pc_hw_active). */
         extern void pc_settings_load(void);
@@ -137,7 +139,7 @@ void pc_window_init(int enabled, int run_fast)
         if (widescreen)
             pc_gte_widescreen = *widescreen == '1';
         pc_settings_load();
-        fprintf(stderr, "[window] null backend: CPU VRAM, RPC input, no video initialization\n");
+        fprintf(stderr, "[window] null backend: CPU VRAM, RPC input, no video initialization, no pixels\n");
         return;
     }
     if (!enabled)

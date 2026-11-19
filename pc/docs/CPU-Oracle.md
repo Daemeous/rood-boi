@@ -1,10 +1,12 @@
 # CPU-only oracle backend (experimental)
 
-`ROOD_RENDERER=null` retains game execution, RPC input/stepping, CPU PS1
-rasterization and emulated VRAM. It creates no window, video context, hardware
-render target, Vulkan device or presentation path. CPU VRAM is game-observable
-memory (StoreImage, copies, textures); it is deliberately **not removed**.
-Graphics libraries remain linked, but are not initialized.
+`ROOD_RENDERER=null` retains game execution, RPC input/stepping and the game's own VRAM array (the transfers: StoreImage, copies, uploads).
+Since T5-5 (2026-11-18, `pc/docs/plans/2026-11-17-vram.md`) it draws **no pixels**: the CPU rasterizer is left out (`pc_raster_off`, `boot_runtime.c`), the
+game's items are produced and walked as always, and the drawing stream digest (RPC `stream`) is what a run's picture is: `build_compare --renderer null`
+hashes the stream's chain (`BUILD_COMPARE_ITEMS`; the story routes restart it at the replay's first frame, as `--vram-stream` does), and `null_backend_smoke` requires `vram_stream.raster_px` to be 0. The chain is a stable yardstick across builds on all 13 routes of the menus lane (control 0 differ on each; the null renderer without pixels and the one that rasterizes agree, old against new, on every one). It was not on title, storage, data and ending until the digest was fixed (2026-11-18): `pc_hw_triangle_decide` returned before it set `decision->suppress` when the hardware path was off, so each triangle's digest note carried stack garbage and the digest depended on the build's stack layout, not on the items. The last build that rasterized on the null renderer
+(the CPU reference frame, "the original's drawing") is tagged `t5-last-cpu-frame` (4af64bc28); the frames this page describes below are from it.
+It creates no window, video context, hardware render target, Vulkan device or presentation path. CPU VRAM is game-observable memory (StoreImage, copies,
+textures); it is deliberately **not removed**. Graphics libraries remain linked, but are not initialized.
 
 `pc_window_init` preserves logical controller presence, loads the private
 settings profile, and returns before SDL video initialization. Existing inactive

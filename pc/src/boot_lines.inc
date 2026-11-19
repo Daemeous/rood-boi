@@ -28,6 +28,9 @@ static void line_segment(uint32_t a, uint32_t b, unsigned ca, unsigned cb, int s
         pc_hwc_mark_raster((x0 < x1 ? x0 : x1) + draw_x, (y0 < y1 ? y0 : y1) + draw_y,
             (x0 > x1 ? x0 : x1) + draw_x, (y0 > y1 ? y0 : y1) + draw_y);
     }
+    if (pc_raster_off) /* (the null renderer: no pixels) */
+        return;
+    raster_pixels += (unsigned long long)(steps + 1);
     for (int i = 0; i <= steps; ++i) {
         int x = x0, y = y0;
         unsigned color = 0;

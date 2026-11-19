@@ -140,6 +140,11 @@ static int display_x, display_y, display_w = 320, display_h = 224;
 static int draw_x, draw_y, clip_x, clip_y, clip_w = 1024, clip_h = 512, tpage;
 static unsigned int frames;
 static unsigned texture_window, mask_set, mask_check;
+/* The null renderer draws no pixels (T5-5, pc/docs/plans/2026-11-17-vram.md): the game runs, its items are produced and walked, and the CPU rasterizer
+ * is left out (boot_window.c sets it; the rest of the walk, the transfers and the stream digest are as they were). raster_pixels counts the pixels the
+ * rasterizer visited (RPC vram_stream "raster_px"). Host settings and counters, not saved state. */
+int pc_raster_off __attribute__((section(".data.rood_host")));
+static unsigned long long raster_pixels __attribute__((section(".data.rood_host")));
 void vs_main_exec(void);
 /* Overlay statics restart on each overlay load (overlay_statics.c). */
 extern void pc_overlay_statics_init(void);
@@ -506,12 +511,12 @@ int pc_vram_stream_json(char* out, int size)
     int n = snprintf(out, (size_t)size,
         "{\"frames\":%u,\"frame\":{\"events\":%u,\"hash\":\"%016llx\"},\"total\":{\"events\":%u,\"hash\":\"%016llx\"},"
         "\"check\":{\"on\":%d,\"frames\":%u,\"bad_frames\":%u,\"bad_pixels\":%llu,\"first_bad\":[%d,%d,%d,%d,%d,%d],"
-        "\"feedback_samples\":%llu,\"first_feedback\":[%d,%d,%d,%d]},\"fences\":{\"store\":%u,\"texture\":%u}}",
+        "\"feedback_samples\":%llu,\"first_feedback\":[%d,%d,%d,%d]},\"fences\":{\"store\":%u,\"texture\":%u},\"raster_px\":%llu}",
         stream.frames, stream.last_events, (unsigned long long)stream.last, stream.total_events,
         (unsigned long long)stream.total, vcheck.on > 0, vcheck.checked, vcheck.bad_frames, vcheck.bad_pixels,
         vcheck.first_bad[0], vcheck.first_bad[1], vcheck.first_bad[2], vcheck.first_bad[3], vcheck.first_bad[4],
         vcheck.first_bad[5], vcheck.feedback, vcheck.first_feedback[0], vcheck.first_feedback[1],
-        vcheck.first_feedback[2], vcheck.first_feedback[3], fence_counts[1], fence_counts[2]);
+        vcheck.first_feedback[2], vcheck.first_feedback[3], fence_counts[1], fence_counts[2], raster_pixels);
     if (n > 2 && &pc_hw_stats && n + 280 < size) { /* + "renderer": the replay statistics (gpu_hw.c) */
         n -= 1;
         n += snprintf(out + n, (size_t)(size - n),
@@ -1178,6 +1183,23 @@ __attribute__((constructor)) static void stream_digest_env(void)
 }
 static void digest_mix(uint32_t w)
 {
+    {   /* ROOD_STREAM_WORDS=<path>: every word the digest takes, with the frame it goes into (the index of the frame being built), in <path>.<pid>: where two runs' digests part without the stderr trace (which changes the run) */
+        static FILE* wlog __attribute__((section(".data.rood_host")));
+        static int wtried __attribute__((section(".data.rood_host")));
+        if (!wtried) {
+            const char* path = getenv("ROOD_STREAM_WORDS");
+            char name[512];
+            wtried = 1;
+            if (path) {
+                snprintf(name, sizeof name, "%s.%d", path, (int)getpid());
+                wlog = fopen(name, "wb");
+            }
+        }
+        if (wlog) {
+            uint32_t rec[2] = { stream_closed, w };
+            fwrite(rec, sizeof rec, 1, wlog);
+        }
+    }
     if (stream_tracing())
         fprintf(stderr, "[stream mix] %08x acc %016llx\n", w, (unsigned long long)stream_acc);
     for (int i = 0; i < 4; i++) {
@@ -1728,10 +1750,15 @@ static void commands(uint32_t* p, unsigned n)
                     i += words;
                     continue;
                 }
+                if (pc_raster_off) { /* (the null renderer: no pixels) */
+                    i += words;
+                    continue;
+                }
                 pc_hwc_mark_raster(x, y, x + (int)w - 1, y + (int)h - 1);
             }
             uint64_t cost = pc_cost_begin();
             pc_cost_count(PC_COUNT_RASTER_PX, w * h);
+            raster_pixels += (unsigned long long)w * h;
             for (unsigned yy = 0; yy < h; yy++)
                 for (unsigned xx = 0; xx < w; xx++) {
                     uint16_t c;

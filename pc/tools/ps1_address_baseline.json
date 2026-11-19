@@ -19,7 +19,7 @@
  "vram_pointer": 18,
  "vram_sdk_calls": 80,
  "vram_frame_readers": 9,
- "cpu_raster": 315,
+ "cpu_raster": 321,
  "stale_area": 107,
  "tool_address_read": 0
 }

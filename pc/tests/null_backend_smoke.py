@@ -45,7 +45,13 @@ def main():
                 children = Path(f"/proc/{pid}/task/{pid}/children").read_text().strip()
                 assert not children, children
             assert "null backend: CPU VRAM" in (work / "game.log").read_text()
-            print("PASS: null launch, no graphics probe/display helper, hardware inactive, RPC stepping, no GPU device descriptors")
+            # T5-5: the null renderer draws no pixels; the game's drawing is the items it makes, walked as always (the stream digest).
+            game.call("stream", on=True, reset=True)
+            game.run(60)
+            drawn = game.call("stream", count=8)
+            assert drawn["closed"] >= 1 and any(f[1] > 0 for f in drawn["frames"]), drawn  # frames closed, with words drawn
+            assert game.call("vram_stream")["raster_px"] == 0, "the CPU rasterizer ran on the null renderer"
+            print("PASS: null launch, no graphics probe/display helper, hardware inactive, RPC stepping, no GPU device descriptors, no pixels (the stream is walked, the rasterizer visited none)")
         finally:
             game.close()
     return 0
