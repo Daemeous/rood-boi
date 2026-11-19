@@ -332,7 +332,7 @@ typedef struct {
     int PitchSlide;
     u_int UpdateFlags;
     int unk38;
-    u_int unk3C;
+    __UINTPTR_TYPE__ unk3C; /* the playing sound's identity: an id, or the address of its blob */
     int unk40;
     u_int unk44;
     int Volume;
@@ -488,8 +488,8 @@ typedef struct {
 // vs_audio_seqPrimaryMusicConfig + 0x80 = D_80036770).
 
 typedef struct {
-    u_int Param1;
-    u_int Param2;
+    __UINTPTR_TYPE__ Param1; /* an id, or the address of a sequence or sound-effect blob */
+    __UINTPTR_TYPE__ Param2;
     u_int Param3; // Seems to be usually flags
     u_int Param4;
     u_int ExtParam1;

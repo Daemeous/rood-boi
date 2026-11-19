@@ -113,7 +113,7 @@ int DrawSync(int mode)
 }
 u_long DrawSyncCallback(void (*fn)(void))
 {
-    u_long old = psx_to_int(u_long, draw_callback);
+    u_long old = (u_long)(__UINTPTR_TYPE__)draw_callback; /* a code address: the executable is below 4 GB */
     draw_callback = fn;
     return old;
 }
@@ -160,7 +160,7 @@ int VSync(int mode)
 }
 int VSyncCallback(void (*fn)(void))
 {
-    int old = psx_to_int(int, vsync_callback);
+    int old = (int)(__UINTPTR_TYPE__)vsync_callback; /* a code address: the executable is below 4 GB */
     vsync_callback = fn;
     return old;
 }

@@ -9603,7 +9603,7 @@ void vs_audio_saveMusicPlaybackState(void) { vs_audio_playbackSaveMusicState(); 
 void vs_audio_setMusicJumpThreshold(int arg0)
 {
 #ifndef ROOD_PC_NO_AUDIO
-    vs_audio_controlSetMusicBranchThreshold(psx_to_ptr(void*, arg0));
+    vs_audio_controlSetMusicBranchThreshold((void*)(__UINTPTR_TYPE__)(u_int)arg0);
 #endif
 }
 
@@ -9940,7 +9940,7 @@ static void vs_audio_playBuiltInSfxChannel(int id, int arg1, int arg2, int arg3)
 static void vs_audio_playSfxProgramChannel(void* data, int arg1, int arg2, int arg3)
 {
     if (arg1 == 0x200) {
-        if (data != psx_to_ptr(void*, vs_audio_playbackSoundEffectIdForTag(0x200))) {
+        if ((__UINTPTR_TYPE__)data != vs_audio_playbackSoundEffectIdForTag(0x200)) {
             vs_audio_playbackPlaySoundEffectBlob(data, 0x200, arg2, arg3);
         }
     } else {
@@ -10099,9 +10099,9 @@ void vs_main_panSfx(int arg0, int arg1, SVECTOR* vec)
     _do_panSfx(arg0, arg1, projected.sxy, projected.otz);
 }
 
-static int vs_audio_resolveSfxProgram(int arg0, int arg1)
+static __UINTPTR_TYPE__ vs_audio_resolveSfxProgram(int arg0, int arg1)
 {
-    int temp_v1;
+    __UINTPTR_TYPE__ temp_v1;
 
     switch (arg0) {
     case 0x1:
@@ -10122,9 +10122,8 @@ static int vs_audio_resolveSfxProgram(int arg0, int arg1)
             break;
         }
 #endif
-        temp_v1 =
-            (int)psx_word((__UINTPTR_TYPE__)vs_main_soundData.sfxData[vs_main_soundData.currentSfxId - 1]);
-        temp_v1 = (int)temp_v1 + (arg1 + psx_to_ptr(int*, temp_v1))[1];
+        temp_v1 = (__UINTPTR_TYPE__)vs_main_soundData.sfxData[vs_main_soundData.currentSfxId - 1];
+        temp_v1 = temp_v1 + (arg1 + (int*)temp_v1)[1];
         break;
     default:
         vs_main_nop10(0x95, 0);
@@ -10141,7 +10140,7 @@ void vs_audio_fadeSfxVolume(int arg0, int arg1, int arg2, char arg3)
     return;
 #endif
 
-    int temp_v0;
+    __UINTPTR_TYPE__ temp_v0;
 
     if (arg1 != 0) {
         temp_v0 = vs_audio_resolveSfxProgram(arg0, arg1);
@@ -10165,7 +10164,7 @@ void vs_audio_fadeSfxPitch(int arg0, int arg1, int arg2, char arg3)
     return;
 #endif
 
-    int temp_v0;
+    __UINTPTR_TYPE__ temp_v0;
 
     if (arg1 != 0) {
         temp_v0 = vs_audio_resolveSfxProgram(arg0, arg1);
@@ -10189,9 +10188,9 @@ void vs_audio_fadeSfxPan(int arg0, int arg1, int arg2, char arg3)
 #endif
 
     if (arg1 != 0) {
-        arg0 = vs_audio_resolveSfxProgram(arg0, arg1);
-        if (arg0 != 0) {
-            vs_audio_controlFadeSoundEffectPan(arg0, 0, arg3, arg2);
+        __UINTPTR_TYPE__ program = vs_audio_resolveSfxProgram(arg0, arg1);
+        if (program != 0) {
+            vs_audio_controlFadeSoundEffectPan(program, 0, arg3, arg2);
         } else {
             do {
                 vs_audio_controlFadeSoundEffectPan(arg1, 0, arg3, arg2);
@@ -10210,10 +10209,10 @@ void vs_audio_stopSfx(int arg0, int arg1)
 #endif
 
     if (arg1 != 0) {
-        arg0 = vs_audio_resolveSfxProgram(arg0, arg1);
+        __UINTPTR_TYPE__ program = vs_audio_resolveSfxProgram(arg0, arg1);
 
-        if (arg0 != 0) {
-            vs_audio_playbackStopSoundEffects(arg0, 0);
+        if (program != 0) {
+            vs_audio_playbackStopSoundEffects(program, 0);
         } else {
             vs_audio_playbackStopSoundEffects(arg1, 0);
         }
@@ -10482,7 +10481,7 @@ void vs_audio_stopBankSfx(int arg0, int* arg1, int arg2)
 #endif
 
     int var_a1;
-    char* var_a0 = (char*)arg1 + (arg1 + arg2)[1];
+    __UINTPTR_TYPE__ var_a0 = (__UINTPTR_TYPE__)((char*)arg1 + (arg1 + arg2)[1]);
 
     if (arg2 != 0) {
         var_a1 = 0;
@@ -10490,12 +10489,12 @@ void vs_audio_stopBankSfx(int arg0, int* arg1, int arg2)
         var_a0 = 0;
         var_a1 = arg0;
     }
-    vs_audio_playbackStopSoundEffects(psx_to_int(int, var_a0), var_a1);
+    vs_audio_playbackStopSoundEffects(var_a0, var_a1);
 }
 
 void vs_audio_fadeBankSfxVolume(int arg0, int* arg1, int arg2, int arg3, int arg4)
 {
-    int a0 = psx_to_int(int, (char*)arg1 + (arg2 + arg1)[1]);
+    __UINTPTR_TYPE__ a0 = (__UINTPTR_TYPE__)((char*)arg1 + (arg2 + arg1)[1]);
 
     if (arg2 == 0) {
         vs_audio_controlFadeSoundEffectVolume(0, arg0, arg4 & 0xFF, arg3);

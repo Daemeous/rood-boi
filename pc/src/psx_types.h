@@ -54,7 +54,7 @@
 #define ROOD_GUEST_RAM_SIZE ROOD_PS1_RAM_SIZE
 /* The arenas (memory lane S4, S6): the game heap and the port arena live in their own mapping, at an address we
  * choose and keep the same in every process (so snapshots and rewind restore them). Pointers into them are ordinary 64-bit
- * pointers; a 32-bit word that must name one (a few ids that are addresses) uses ROOD_ARENA_ALIAS below. ROOD_ARENA_SIZE is what is mapped (pages nobody touches cost nothing). */
+ * pointers; no 32-bit word names them (the sound driver's words are pointer-sized since T18). ROOD_ARENA_SIZE is what is mapped (pages nobody touches cost nothing). */
 #define ROOD_ARENA_BASE 0x100000000ull
 #define ROOD_ARENA_SIZE 0x200000
 /* The game heap's arena: its used size is the original's (VS_MAIN_HEAP_SIZE); the snapshot saves this much of it. */
@@ -94,40 +94,16 @@ extern unsigned char rood_null_page[0x10000];
 extern void pc_psx_bad_pointer(const void* pointer)
     __attribute__((noreturn));
 
-/* The 32-bit name of an object in an arena (a "guest word": the sound driver's parameters, a few ids that are addresses): the
- * arenas' bytes, in order, at the guest addresses just past the PS1's 2 MB, where the game heap lived before S4. The word is
- * a name, not a mapping: psx_addr makes it from the pointer and psx_word_ptr (psx_to_ptr) takes it back. An address outside
- * the arenas is its own word (the executable, the game stack, the window). */
-#define ROOD_ARENA_ALIAS (ROOD_GUEST_RAM_BASE + ROOD_PS1_RAM_SIZE)
-
 static inline __UINT32_TYPE__ psx_addr(const void* pointer) {
     __UINTPTR_TYPE__ value = (__UINTPTR_TYPE__)pointer;
-    if (value - ROOD_ARENA_BASE < ROOD_ARENA_SIZE) {
-        return (__UINT32_TYPE__)(ROOD_ARENA_ALIAS + (value - ROOD_ARENA_BASE));
-    }
     if (value >> 32) {
         pc_psx_bad_pointer(pointer);
     }
     return (__UINT32_TYPE__)value;
 }
 
-/* psx_addr for a value that is an id or an address (the sound driver's parameter word): an arena address becomes its alias
- * word, anything else (an id, an address below 4 GB) is truncated as before. */
-static inline __UINT32_TYPE__ psx_word(__UINTPTR_TYPE__ value) {
-    if (value - ROOD_ARENA_BASE < ROOD_ARENA_SIZE) {
-        return (__UINT32_TYPE__)(ROOD_ARENA_ALIAS + (value - ROOD_ARENA_BASE));
-    }
-    return (__UINT32_TYPE__)value;
-}
-
-static inline void* psx_word_ptr(__UINT32_TYPE__ word) {
-    if ((__UINT32_TYPE__)(word - ROOD_ARENA_ALIAS) < ROOD_ARENA_SIZE) {
-        return (void*)(__UINTPTR_TYPE__)(ROOD_ARENA_BASE + (word - ROOD_ARENA_ALIAS));
-    }
-    return (void*)(__UINTPTR_TYPE__)word;
-}
-
-#define psx_get(field) ((__typeof__((field).psx_type_[0]))psx_word_ptr((field).raw))
+#define psx_get(field)                                                         \
+    ((__typeof__((field).psx_type_[0]))(__UINTPTR_TYPE__)(field).raw)
 /* The unevaluated assignment to a T* keeps the type check (and warnings) a
  * plain assignment has; a conditional would also reject char* -> u_char*. */
 #define psx_set(field, pointer)                                                \
@@ -163,7 +139,8 @@ static inline void* psx_word_ptr(__UINT32_TYPE__ word) {
  * (sound command parameters, offsets added to a pointer's address): the
  * integer is zero-extended (a sign-extended 0x80000000 would be a bad
  * pointer) and the pointer is checked to have a guest address. */
-#define psx_to_ptr(T, value) ((T)psx_word_ptr((__UINT32_TYPE__)(value)))
+#define psx_to_ptr(T, value)                                                   \
+    ((T)(__UINTPTR_TYPE__)(__UINT32_TYPE__)(value))
 #define psx_to_int(T, pointer) ((T)psx_addr(pointer))
 #else /* PS1, or the 32-bit PC build: pointers are already 4 bytes. */
 

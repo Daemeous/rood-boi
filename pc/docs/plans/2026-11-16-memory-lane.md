@@ -298,11 +298,30 @@ model id and the weapon and shield slots' bones and models printed after each lo
 two-part models). The probe is pc/tools/bestiary_zud_probe.py (it drives ui_score_smoke's Session; run it on both builds with ROOD_BINARY and ROOD_SYMBOLS and diff). The battle spawn path, which uses the
 same decoder, is covered by every fight and room lane.
 
-**The alias is temporary (decision 2026-11-17).** A guest word naming an arena object is `ROOD_ARENA_ALIAS` plus its offset (psx_types.h). That is a
+**The alias was temporary (decision 2026-11-17); it was deleted by T18 on 2026-11-18 (section 3.7, PS1_Ties.md T18).** A guest word naming an arena object is `ROOD_ARENA_ALIAS` plus its offset (psx_types.h). That is a
 32-bit word naming memory, a PS1-shaped tie kept only so the sound driver's parameter words work unchanged. T18 (the sound driver; PS1_Ties.md)
 removes it: the words become real pointers or handles, then `ROOD_ARENA_ALIAS`, `psx_word` and the arena arm of `psx_addr`/`psx_to_ptr` are deleted.
 The lint meter `arena_alias` (psx_word, psx_word_ptr, psx_to_int, psx_to_ptr sites; baseline 53 at the first step) may only fall; zero means the alias can go.
 
+### 3.7 T18: the sound driver's words become pointers, and the alias goes (2026-11-18)
+
+Where the alias is used (lint meter `arena_alias`, 54 at the start): the command parameters `FSoundCommandParams.Param1/Param2` (u_int), the pending
+sequence word `D_80037788.PendingSequence`, the playing channel's identity `FSoundChannel.unk3C` (compared with `Param1` by the stop, fade and evict
+commands), the commands' argument word `unk4` (dead: it only serves the pair command 0x16, which nothing issues), the ids-or-addresses that travel
+through main.c's wrappers (`vs_audio_resolveSfxProgram`'s int return, the bank wrappers, `vs_audio_playbackSoundEffectIdForTag`'s int return,
+`vs_audio_controlSoundEffectChannelIds`' u_int array), and a few tokens (`unk38`, the old callbacks of `DrawSyncCallback` and `VSyncCallback`).
+
+Decision: widen, not a handle table. The words become `__UINTPTR_TYPE__` and hold either an id (a small number, zero-extended: `u_long` ids as before;
+the sentinels -1 and -2 are compared as ints, so a sign-extended or a zero-extended one both match) or a real pointer; a pointer is told from an id
+by being above 0xFFFF (`func_800123C8`, the only place that asks). A handle table would add a table and a lifetime to a driver that is going to be
+replaced by a host mixer anyway (T18b); the widening is mechanical and each step has a compile-time check (the LP64 pass refuses a pointer
+cast to a smaller integer). The `FSoundCommandParams` and `FSoundChannel` structs grow (two statics and an array of 24 channels); nothing reads them by offset.
+
+Steps, one commit: remove the dead pair command and `vs_audio_playbackStartMusicPair`; widen the fields and the wrappers; replace each `psx_to_int`/`psx_to_ptr`/`psx_word` by the
+pointer or a cast; delete `ROOD_ARENA_ALIAS`, `psx_word`, `psx_word_ptr` and the arena arm of `psx_addr`/`psx_to_ptr`/`psx_get` (they return to the PS1 form: a word is the
+pointer's 32 bits and fatal above 4 GB), and the `arena_alias` meter. Proof: the audio lane of build_compare (the recorded mix of the fight room, byte for byte), the
+13 menu routes and the story scenes (scripted sound effects), casts spells and enemies (effect sounds), determinism, snapshot and rewind (the driver's state is in the
+saved range), and the heap above 4 GB as it is now.
 ### 3.5 The effect package loader (S6, 2026-11-17)
 
 What it is: an effect P-file ("package") is read into one heap buffer (`vs_effects_loadEffectPackage`: `vs_battle_pfileBuf`, sized by

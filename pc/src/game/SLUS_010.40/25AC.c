@@ -79,7 +79,7 @@ typedef struct {
 // once the active music stops. Only this word is used; D_80037790 (the
 // parameters vs_audio_mixerDispatchCommand queues with a command) starts 8 bytes on.
 typedef struct {
-    u_int PendingSequence;
+    __UINTPTR_TYPE__ PendingSequence;
 } D_80037788_t;
 
 typedef void (*FSoundCommandHandler)(FSoundCommandParams*);
@@ -90,7 +90,7 @@ int vs_audio_samplesUploadBank(void*, int, int, int);
 void vs_audio_driverResetPlaybackState(void);
 static void StartSound(void);
 static void SetVoiceKeyOff(u_int);
-void Sound_EvictSfxVoice(int, int);
+void Sound_EvictSfxVoice(__UINTPTR_TYPE__, int);
 void vs_audio_soundEffectsStartChannelProgram(FSoundChannel*, FSoundCommandParams*, int, char*);
 void Sound_PlaySfxProgram(FSoundCommandParams*, char*, char*, int);
 int vs_audio_samplesSoundEffectBankSlot(int);
@@ -152,7 +152,7 @@ extern char D_80039AF2;
 extern int vs_audio_driverRecentTickCostTotal;
 extern u_short vs_audio_seqTickCounter;
 extern int vs_audio_driverRecentTickCosts[];
-extern D_80037788_t D_80037788;
+D_80037788_t D_80037788;
 extern int D_80037898;
 extern int D_8003789C;
 extern int D_80039B00;
@@ -160,7 +160,7 @@ extern u_int vs_audio_seqSemitonePitches[];
 extern int vs_audio_samplesBankStreamDestination;
 vs_audio_BankStreamState vs_audio_samplesBankStream;
 extern int D_80037850[16];
-extern FSoundCommandParams D_80037790;
+FSoundCommandParams D_80037790;
 extern FSoundCommandHandler vs_audio_mixerCommandHandlers[];
 
 extern FSoundChannelConfig* g_pActiveMusicConfig;
@@ -203,7 +203,7 @@ FSoundChannelConfig vs_audio_seqPrimaryMusicConfig;
 FSoundChannel vs_audio_seqSavedMusicChannels[32]; /* 32 channels */
 extern FSoundInstrumentInfo g_InstrumentInfo[256];
 extern short* g_Sound_LfoTable[];
-extern FSoundCommandParams D_80037800;
+FSoundCommandParams D_80037800;
 extern int vs_audio_mixerMusicPitchScaleStep;
 extern int vs_audio_mixerTempoScaleStep;
 extern short vs_audio_mixerMusicPitchScaleSlideLength;
@@ -358,17 +358,6 @@ u_int vs_audio_playbackQueueMusicTransition(void* arg0)
     return vs_audio_mixerDispatchCommand(0x14);
 }
 
-void* vs_audio_playbackStartMusicPair(void* arg0, int arg1)
-{
-    u_long v0;
-    vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
-    vs_audio_driverCommandArguments.unk4 = arg1;
-    vs_audio_mixerDispatchCommand(0x16);
-    v0 = vs_audio_driverCommandArguments.unk4 << 0x10;
-    v0 += (u_long)((unsigned long)(vs_audio_driverCommandArguments.unk0));
-    return psx_to_ptr(void*, v0);
-}
-
 void func_8001215C(void) { vs_audio_mixerDispatchCommand(0x17); }
 
 int vs_audio_playbackPlaySoundEffect(u_long arg0, int arg1, int arg2, int arg3)
@@ -384,7 +373,7 @@ int vs_audio_playbackPlaySoundEffect(u_long arg0, int arg1, int arg2, int arg3)
     return temp_s0;
 }
 
-int vs_audio_playbackPlaySoundEffectBlob(void* arg0, int arg1, int arg2, int arg3)
+__UINTPTR_TYPE__ vs_audio_playbackPlaySoundEffectBlob(void* arg0, int arg1, int arg2, int arg3)
 {
     void* var_v0;
 
@@ -397,14 +386,10 @@ int vs_audio_playbackPlaySoundEffectBlob(void* arg0, int arg1, int arg2, int arg
         vs_audio_mixerDispatchCommand(0x24);
         var_v0 = arg0;
     }
-#ifdef ROOD_PC_LP64
-    return var_v0 == (void*)-1 ? (u_long)-1 : psx_to_int(u_long, var_v0);
-#else
-    return psx_to_int(u_long, var_v0);
-#endif
+    return var_v0 == (void*)-1 ? (__UINTPTR_TYPE__)(u_long)-1 : (__UINTPTR_TYPE__)var_v0;
 }
 
-void vs_audio_playbackStopSoundEffects(u_long arg0, int arg1)
+void vs_audio_playbackStopSoundEffects(__UINTPTR_TYPE__ arg0, int arg1)
 {
     vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
     vs_audio_driverCommandArguments.unk4 = arg1 & 0xFFFFFF;
@@ -444,7 +429,7 @@ int vs_audio_playbackActiveSoundEffectTags(void)
     return var_a0 & 0xFFFFFF;
 }
 
-int vs_audio_playbackSoundEffectIdForTag(int arg0)
+__UINTPTR_TYPE__ vs_audio_playbackSoundEffectIdForTag(int arg0)
 {
     FSoundChannel* var_a1;
     int var_v1;
@@ -465,9 +450,9 @@ int vs_audio_playbackSoundEffectIdForTag(int arg0)
 int func_800123C8(vs_main_sfxContext* arg0)
 {
     int ret = 0;
-    if ((unsigned)psx_to_int(psx_long, arg0) >= ROOD_GUEST_RAM_BASE) {
+    if ((__UINTPTR_TYPE__)arg0 > 0xFFFF) { /* an address (an id is below 0x10000) */
         ret = arg0->flags >> 7;
-    } else if (g_Sound_SfxMetadataTable[psx_to_int(psx_long, arg0)] & 0x8000) {
+    } else if (g_Sound_SfxMetadataTable[(__UINTPTR_TYPE__)arg0] & 0x8000) {
         ret = 1;
     }
     return ret;
@@ -561,7 +546,7 @@ void vs_audio_controlSetSoundEffectVolume(void* arg0, int arg1, int arg2)
     vs_audio_mixerDispatchCommand(0xA0);
 }
 
-void vs_audio_controlFadeSoundEffectVolume(int arg0, int arg1, int arg2, int arg3)
+void vs_audio_controlFadeSoundEffectVolume(__UINTPTR_TYPE__ arg0, int arg1, int arg2, int arg3)
 {
     vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
     vs_audio_driverCommandArguments.unk4 = arg1 & 0xFFFFFF;
@@ -591,7 +576,7 @@ void vs_audio_controlSetSoundEffectPan(void* arg0, int arg1, int arg2)
     vs_audio_mixerDispatchCommand(0xA2);
 }
 
-void vs_audio_controlFadeSoundEffectPan(int arg0, int arg1, int arg2, int arg3)
+void vs_audio_controlFadeSoundEffectPan(__UINTPTR_TYPE__ arg0, int arg1, int arg2, int arg3)
 {
     vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
     vs_audio_driverCommandArguments.unk4 = arg1 & 0xFFFFFF;
@@ -621,7 +606,7 @@ void vs_audio_controlSetSoundEffectPitch(void* arg0, int arg1, int arg2)
     vs_audio_mixerDispatchCommand(0xA4);
 }
 
-void vs_audio_controlFadeSoundEffectPitch(int arg0, int arg1, int arg2, int arg3)
+void vs_audio_controlFadeSoundEffectPitch(__UINTPTR_TYPE__ arg0, int arg1, int arg2, int arg3)
 {
     vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(arg0);
     vs_audio_driverCommandArguments.unk4 = arg1 & 0xFFFFFF;
@@ -980,17 +965,6 @@ void vs_audio_controlSetCutscenePan(int arg0)
 {
     vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)(((arg0 & 0xFF) << 8));
     vs_audio_mixerDispatchCommand(0xE6);
-}
-
-u_int vs_audio_controlSoundEffectChannelIds(u_int* arg0)
-{
-    int i;
-    FSoundChannel* var_a1 = vs_audio_soundEffectsChannels;
-
-    for (i = 0; i < 12; ++i) {
-        *arg0++ = (var_a1++)->unk3C;
-    }
-    return g_Sound_VoiceSchedulerState.ActiveChannelMask;
 }
 
 void Sound_CopyAndRelocateInstruments(FSoundInstrumentInfo* in_A,
@@ -2613,7 +2587,7 @@ void Sound_LoadAkaoSequence(FAkaoSequence* in_Sequence)
 
     pSequence = in_Sequence;
     pChannelOffsets = (u_short*)in_Sequence;
-    g_pActiveMusicConfig->unk38 = psx_to_int(int, in_Sequence);
+    g_pActiveMusicConfig->unk38 = (int)(__UINTPTR_TYPE__)in_Sequence; /* an identity: compared, never followed */
     channelMask = in_Sequence->ChannelEnableMask;
     if (g_pSavedMousicConfig != NULL) {
         mask = vs_audio_seqAssignedVoiceMask(
@@ -2756,7 +2730,7 @@ void Sound_KillMusicConfig(
     }
 }
 
-void Sound_EvictSfxVoice(int in_SfxId, int in_StopFlags)
+void Sound_EvictSfxVoice(__UINTPTR_TYPE__ in_SfxId, int in_StopFlags)
 {
     u_int i;
     int maxPriority;
@@ -2823,8 +2797,8 @@ void Sound_EvictSfxVoice(int in_SfxId, int in_StopFlags)
     } else {
         for (i = 0; i < 12; i++, pChannel++, voiceBit <<= 1) {
             if (activeVoices & voiceBit) {
-                if (in_SfxId == -1) {
-                    if ((int)pChannel->unk3C < 0) {
+                if ((int)in_SfxId == -1) {
+                    if (pChannel->unk3C > 0xFFFF) { /* the sounds started from a blob (their identity is its address) */
                         if (pChannel->UpdateFlags & 0x100000) {
                             pChannel->UpdateFlags |= 0x200000;
                         } else {
@@ -2833,7 +2807,7 @@ void Sound_EvictSfxVoice(int in_SfxId, int in_StopFlags)
                             pChannel->UpdateFlags = 0;
                         }
                     }
-                } else if (in_SfxId == -2) {
+                } else if ((int)in_SfxId == -2) {
                     if (pChannel->unk28 == 0) {
                         if (pChannel->UpdateFlags & 0x100000) {
                             pChannel->UpdateFlags |= 0x200000;
@@ -3088,8 +3062,8 @@ void Sound_SetMusicSequence(FAkaoSequence* in_Sequence, int in_SwapWithSavedStat
     g_pActiveMusicConfig->StatusFlags |=
         in_Sequence->unk14 == D_80036770.unk4 ? 0x40 : 0x20;
 
-    delta = psx_to_int(int, in_Sequence) - vs_audio_seqPrimaryMusicConfig.unk38;
-    g_pActiveMusicConfig->unk38 = psx_to_int(int, in_Sequence);
+    delta = (int)(__UINTPTR_TYPE__)in_Sequence - vs_audio_seqPrimaryMusicConfig.unk38;
+    g_pActiveMusicConfig->unk38 = (int)(__UINTPTR_TYPE__)in_Sequence; /* an identity: compared, never followed */
     g_pActiveMusicConfig->PendingKeyOnMask = 0;
     g_Sound_GlobalFlags.UpdateFlags |= 0x90;
     g_pActiveMusicConfig->SequencePatchTable = (FAkaoSequence*)((char*)g_pActiveMusicConfig->SequencePatchTable
@@ -3181,10 +3155,10 @@ void Sound_Cmd_10_StartFieldMusic(FSoundCommandParams* in_Params)
 {
     if ((g_PushedMusicConfig.MusicId != 0)
         && (g_PushedMusicConfig.MusicId == in_Params->Param3)) {
-        Sound_SetMusicSequence(psx_to_ptr(FAkaoSequence*, in_Params->Param1), 0);
+        Sound_SetMusicSequence((FAkaoSequence*)(in_Params->Param1), 0);
         return;
     }
-    Sound_LoadAkaoSequence(psx_to_ptr(FAkaoSequence*, in_Params->Param1));
+    Sound_LoadAkaoSequence((FAkaoSequence*)(in_Params->Param1));
     g_pActiveMusicConfig->MusicId = in_Params->Param3;
 }
 
@@ -3212,7 +3186,7 @@ void Sound_Cmd_19_Unk(FSoundCommandParams* arg0)
         Sound_memcpy32(g_ActiveMusicChannels,
             (FSoundChannelConfig*)g_pSecondaryMusicChannels, sizeof(g_ActiveMusicChannels));
     }
-    Sound_LoadAkaoSequence(psx_to_ptr(FAkaoSequence*, arg0->Param1));
+    Sound_LoadAkaoSequence((FAkaoSequence*)(arg0->Param1));
     g_pActiveMusicConfig->A_Volume = (arg0->ExtParam1 & 0x7F) << 0x10;
     g_pActiveMusicConfig->unk68 = 0;
     g_pActiveMusicConfig->MusicId = arg0->Param3;
@@ -3226,7 +3200,7 @@ void Sound_Cmd_1A_Unk(FSoundCommandParams* arg0)
         && (g_PushedMusicConfig.MusicId == arg0->Param3)) {
         g_pSavedMousicConfig = &g_PushedMusicConfig;
         g_pSecondaryMusicChannels = vs_audio_seqSavedMusicChannels;
-        Sound_SetMusicSequence(psx_to_ptr(FAkaoSequence*, arg0->Param1), 1);
+        Sound_SetMusicSequence((FAkaoSequence*)(arg0->Param1), 1);
     } else {
         if ((g_pActiveMusicConfig->ActiveChannelMask != 0)
             && ((g_pSavedMousicConfig == NULL) || (SAVED_MUSIC_CONFIG->MusicId == 0))) {
@@ -3236,7 +3210,7 @@ void Sound_Cmd_1A_Unk(FSoundCommandParams* arg0)
             Sound_memcpy32(g_ActiveMusicChannels,
                 (FSoundChannelConfig*)g_pSecondaryMusicChannels, sizeof(g_ActiveMusicChannels));
         }
-        Sound_LoadAkaoSequence(psx_to_ptr(FAkaoSequence*, arg0->Param1));
+        Sound_LoadAkaoSequence((FAkaoSequence*)(arg0->Param1));
         g_pActiveMusicConfig->MusicId = arg0->Param3;
     }
     g_Sound_GlobalFlags.MixBehavior &= ~0x100;
@@ -3270,8 +3244,8 @@ void Sound_Cmd_34_unk(FSoundCommandParams* arg0)
     char* temp_a1;
     char* temp_a2;
 
-    temp_a1 = psx_to_ptr(char*, arg0->Param1);
-    temp_a2 = psx_to_ptr(char*, arg0->Param2);
+    temp_a1 = (char*)arg0->Param1;
+    temp_a2 = (char*)arg0->Param2;
     arg0->Param1 = 0x400;
     arg0->Param2 = 0x01000000;
     arg0->Param3 = 0x80;
@@ -3314,8 +3288,8 @@ void vs_audio_soundEffectsPlayBlobPrograms(FSoundCommandParams* in_Params)
     char* programCounter2;
     int count;
 
-    in_Params->ExtParam1 = vs_audio_samplesSoundEffectBankSlot(psx_to_ptr(int*, in_Params->Param1)[2]);
-    header = psx_to_ptr(int*, in_Params->Param1);
+    in_Params->ExtParam1 = vs_audio_samplesSoundEffectBankSlot(((int*)in_Params->Param1)[2]);
+    header = ((int*)in_Params->Param1);
     offsets = header + 4;
     count = header[1];
     data = (char*)header;
@@ -3323,10 +3297,10 @@ void vs_audio_soundEffectsPlayBlobPrograms(FSoundCommandParams* in_Params)
 
     entry = (u_short*)(data + *offsets);
     programCounter1 =
-        *entry == 0xFFFF ? NULL : psx_to_ptr(char*, *entry + psx_to_int(int, entry) + 4);
+        *entry == 0xFFFF ? NULL : ((char*)entry + *entry + 4);
     entry++;
     programCounter2 =
-        *entry == 0xFFFF ? NULL : psx_to_ptr(char*, *entry + psx_to_int(int, entry) + 2);
+        *entry == 0xFFFF ? NULL : ((char*)entry + *entry + 2);
     Sound_PlaySfxProgram(in_Params, programCounter1, programCounter2, 0);
 
     while (--count != 0) {
@@ -3334,11 +3308,11 @@ void vs_audio_soundEffectsPlayBlobPrograms(FSoundCommandParams* in_Params)
         entry = (u_short*)(data + *offsets);
         programCounter1 = *entry == 0xFFFF
                             ? NULL
-                            : psx_to_ptr(char*, *entry + psx_to_int(int, entry) + 4);
+                            : ((char*)entry + *entry + 4);
         entry++;
         programCounter2 = *entry == 0xFFFF
                             ? NULL
-                            : psx_to_ptr(char*, *entry + psx_to_int(int, entry) + 2);
+                            : ((char*)entry + *entry + 2);
         Sound_PlaySfxProgram(in_Params, programCounter1, programCounter2, 1);
     }
 }
@@ -3816,7 +3790,7 @@ void vs_audio_mixerStopMusicAndCancelReplacement(void)
     }
 
     g_pActiveMusicConfig->StatusFlags &= 0xFFFEFFFF;
-    *(int*)&D_80037788.PendingSequence = 0;
+    D_80037788.PendingSequence = 0;
 }
 
 void Sound_Cmd_11_StopAllMusic(FSoundCommandParams* in_Params)
@@ -4067,7 +4041,7 @@ u_int vs_audio_mixerDispatchCommand(u_int in_Command)
                 || ((g_pSavedMousicConfig != NULL)
                     && (SAVED_MUSIC_CONFIG->MusicId != g_pActiveMusicConfig->MusicId))) {
                 Sound_SetReverbMode(pSequence->reverb_type);
-                pParams->Param1 = psx_to_int(u_int, pSequence);
+                pParams->Param1 = (__UINTPTR_TYPE__)pSequence;
                 pParams->Param3 = pSequence->id;
                 switch (in_Command) {
                 case 0x12:
@@ -4104,32 +4078,10 @@ u_int vs_audio_mixerDispatchCommand(u_int in_Command)
         }
         pData = vs_audio_driverCommandArguments.unk0;
         g_pActiveMusicConfig->StatusFlags |= 0x10000;
-        D_80037788.PendingSequence = psx_to_int(u_int, pData);
+        D_80037788.PendingSequence = (__UINTPTR_TYPE__)pData;
         result = ((AkaoSeqHeader*)vs_audio_driverCommandArguments.unk0)->id;
         break;
     }
-    case 0x16:
-        if ((*(int*)vs_audio_driverCommandArguments.unk0 == AKAO_MAGIC)
-            && (*psx_to_ptr(int*, vs_audio_driverCommandArguments.unk4) == AKAO_MAGIC)) {
-            pSequence = psx_to_ptr(AkaoSeqHeader*, vs_audio_driverCommandArguments.unk4);
-            g_Sound_GlobalFlags.ControlLatches &= ~0x7700;
-            Sound_SetReverbMode(pSequence->reverb_type);
-            vs_audio_driverCommandArguments.unk4 = pSequence->id;
-            Sound_LoadAkaoSequence((FAkaoSequence*)pSequence);
-            g_pActiveMusicConfig->MusicId = pSequence->id;
-            Sound_memcpy32(g_ActiveMusicChannels, vs_audio_seqSavedMusicChannels, sizeof(g_ActiveMusicChannels));
-            Sound_memcpy32(&vs_audio_seqPrimaryMusicConfig, &g_PushedMusicConfig, sizeof(FSoundChannelConfig));
-            pSequence = (AkaoSeqHeader*)vs_audio_driverCommandArguments.unk0;
-            vs_audio_driverCommandArguments.unk0 = (__UINTPTR_TYPE__)((u_int)pSequence->id);
-            Sound_LoadAkaoSequence((FAkaoSequence*)pSequence);
-            g_pSavedMousicConfig = &g_PushedMusicConfig;
-            g_pSecondaryMusicChannels = vs_audio_seqSavedMusicChannels;
-            g_pActiveMusicConfig->MusicId = pSequence->id;
-            g_PushedMusicConfig.ActiveChannelMask &= ~g_PushedMusicConfig.unk30;
-            g_Sound_GlobalFlags.ControlLatches |= 0x100;
-        }
-        in_Command = 0;
-        break;
     case 0x17:
         if (g_Sound_GlobalFlags.ControlLatches & 0x1100) {
             if (g_Sound_GlobalFlags.ControlLatches & 0x100) {
@@ -4141,18 +4093,18 @@ u_int vs_audio_mixerDispatchCommand(u_int in_Command)
         in_Command = 0;
         break;
     case 0xD8:
-        pParams->Param1 = psx_word(vs_audio_driverCommandArguments.unk0);
+        pParams->Param1 = vs_audio_driverCommandArguments.unk0;
         vs_audio_mixerCommandHandlers[0xD0](pParams);
         in_Command = 0xD4;
         break;
     case 0xD9:
-        pParams->Param1 = psx_word(vs_audio_driverCommandArguments.unk0);
+        pParams->Param1 = vs_audio_driverCommandArguments.unk0;
         pParams->Param2 = vs_audio_driverCommandArguments.unk4;
         vs_audio_mixerCommandHandlers[0xD1](pParams);
         in_Command = 0xD5;
         break;
     case 0xDA:
-        pParams->Param1 = psx_word(vs_audio_driverCommandArguments.unk0);
+        pParams->Param1 = vs_audio_driverCommandArguments.unk0;
         pParams->Param2 = vs_audio_driverCommandArguments.unk4;
         pParams->Param3 = vs_audio_driverCommandArguments.unk8;
         vs_audio_mixerCommandHandlers[0xD2](pParams);
@@ -4169,7 +4121,7 @@ u_int vs_audio_mixerDispatchCommand(u_int in_Command)
         in_Command = 0x9E;
         break;
     default:
-        pParams->Param1 = psx_word(vs_audio_driverCommandArguments.unk0);
+        pParams->Param1 = vs_audio_driverCommandArguments.unk0;
         pParams->Param2 = vs_audio_driverCommandArguments.unk4;
         pParams->Param3 = vs_audio_driverCommandArguments.unk8;
         pParams->Param4 = vs_audio_driverCommandArguments.unkC;
@@ -4565,10 +4517,10 @@ psx_long vs_audio_seqTickPlayback(void)
             temp_v0->ActiveChannelMask = 0;
         }
     }
-    p = psx_to_ptr(u_short*, D_80037788.PendingSequence);
+    p = (u_short*)D_80037788.PendingSequence;
     if (p != 0) {
         if (g_pActiveMusicConfig->ActiveChannelMask == 0) {
-            D_80037800.Param1 = psx_to_int(u_int, p);
+            D_80037800.Param1 = (__UINTPTR_TYPE__)p;
             D_80037800.Param3 = p[2];
             Sound_Cmd_10_StartFieldMusic(&D_80037800);
 
@@ -6739,10 +6691,11 @@ void vs_audio_cutsceneRefillStereoSecondBuffer(void)
 
 void Sound_Cutscene_StartStream(u_int*, int, int);
 
-void vs_audio_cutsceneReplaceStream(int* arg0)
+/* The handler of sound command 0xE0 (vs_audio_mixerCommandHandlers): its argument is the command's FSoundCommandParams. */
+void vs_audio_cutsceneReplaceStream(FSoundCommandParams* arg0)
 {
     IRQCallbackProc();
-    Sound_Cutscene_StartStream(psx_to_ptr(u_int*, arg0[0]), arg0[1], arg0[2]);
+    Sound_Cutscene_StartStream((u_int*)arg0->Param1, arg0->Param2, arg0->Param3);
     g_Sound_VoiceSchedulerState.ActiveChannelMask &=
         ~g_Sound_Cutscene_StreamState.VoicesInUseFlags;
 }

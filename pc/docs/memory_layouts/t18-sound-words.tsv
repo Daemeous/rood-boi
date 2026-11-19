@@ -1,0 +1,10 @@
+# T18: the sound driver's words become pointer-sized and ROOD_ARENA_ALIAS is deleted (state item, old, new, size, note)
+# item	old	new	size	note
+FSoundCommandParams.Param1, Param2	u_int (an id, or the arena alias of a blob)	__UINTPTR_TYPE__ (an id zero-extended, or the blob's address)	4 -> 8 each (the struct 0x18 -> 0x20)	the two statics D_80037790 and D_80037800 are defined in 25AC.c (they were imports, which cannot hold pointers beside integers)
+D_80037788.PendingSequence	u_int	__UINTPTR_TYPE__	4 -> 8	defined in 25AC.c; cleared whole
+FSoundChannel.unk3C	u_int	__UINTPTR_TYPE__	4 -> 8	the playing sound's identity: an id (below 0x10000) or a blob address; Sound_EvictSfxVoice's "all blob sounds" test is > 0xFFFF (it was bit 31)
+Sound_EvictSfxVoice, vs_audio_controlFadeSoundEffect{Volume,Pan,Pitch}, vs_audio_playbackStopSoundEffects first parameter	int / u_long	__UINTPTR_TYPE__ (the sentinels -1 and -2 are compared as ints)	-	
+vs_audio_resolveSfxProgram, vs_audio_playbackSoundEffectIdForTag, vs_audio_playbackPlaySoundEffectBlob returns	int / u_long (an id or an address)	__UINTPTR_TYPE__	-	
+func_800123C8's id-or-pointer test	>= 0x80000000	> 0xFFFF	-	
+vs_audio_playbackStartMusicPair, command 0x16, vs_audio_controlSoundEffectChannelIds	dead (no caller)	removed	-	
+ROOD_ARENA_ALIAS, psx_word, psx_word_ptr, the arena arm of psx_addr, psx_to_ptr and psx_get; the arena_alias lint meter	the alias naming	deleted: a guest word is a pointer's 32 bits again and fatal above 4 GB (psx_addr's last users are the executable's code addresses)	-	address_as_integer 45 -> 6
