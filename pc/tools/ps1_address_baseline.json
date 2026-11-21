@@ -15,10 +15,11 @@
  "ordering_table": 0,
  "lift_bridge": 3,
  "vram_direct": 0,
- "vram_pointer": 18,
+ "vram_pointer": 17,
  "vram_sdk_calls": 80,
  "vram_frame_readers": 9,
- "cpu_raster": 321,
- "stale_area": 107,
- "tool_address_read": 0
+ "cpu_raster": 0,
+ "stale_area": 0,
+ "tool_address_read": 0,
+ "vram_readback": 60
 }

@@ -30,6 +30,43 @@ extern void pc_snapshot_resume_if_requested(void) __attribute__((weak)); /* snap
 extern void pc_engine_start(void) __attribute__((weak));
 extern void pc_engine_vsync(void) __attribute__((weak));
 const uint16_t* pc_native_vram(void) { return vram; } /* the game's array: the hardware init's mirror source, snapshots */
+/* Where the renderer drew (T5-6): the game's array holds only what transfers wrote and what read-backs copied from the target, so a cell
+ * (64 x 16 pixels; bit `band` of column `c`) a primitive's pixels fell in is not the game's to compare until a transfer covers it whole
+ * again. The oracle digest (snapshot.c) leaves those cells out. Saved state (it is what the digest is computed over, so a restore, a restart and a rewind must
+ * bring it back with the array: the digest of the restored state is the saved one). */
+static uint32_t vram_drawn[16];
+/* A primitive's pixels, inclusive, inside the drawing area (the walk, boot_gpu_polygons.inc, boot_gpu_lines.inc and the rectangle code). */
+void pc_vram_census_raster(int x0, int y0, int x1, int y1);
+static void vram_note_drawn(int x0, int y0, int x1, int y1)
+{
+    pc_vram_census_raster(x0, y0, x1, y1);
+    x0 = x0 < 0 ? 0 : x0, y0 = y0 < 0 ? 0 : y0, x1 = x1 > 1023 ? 1023 : x1, y1 = y1 > 511 ? 511 : y1;
+    for (int c = x0 >> 6; x0 <= x1 && y0 <= y1 && c <= x1 >> 6; c++)
+        for (int b = y0 >> 4; b <= y1 >> 4; b++)
+            vram_drawn[c] |= 1u << b;
+}
+/* A transfer wrote this rectangle: the cells it covers whole are exact again. */
+static void vram_note_written(int x, int y, int w, int h)
+{
+    int c0 = (x + 63) >> 6, c1 = (x + w) >> 6, b0 = (y + 15) >> 4, b1 = (y + h) >> 4; /* [c0, c1) x [b0, b1) */
+    for (int c = c0; c < c1 && c < 16; c++)
+        for (int b = b0; b < b1 && b < 32; b++)
+            vram_drawn[c] &= ~(1u << b);
+}
+/* The oracle's digest of the game's array: FNV-1a over the cells no primitive drew in (snapshot.c). */
+uint64_t pc_vram_transfer_digest(uint64_t h)
+{
+    for (int b = 0; b < 32; b++)
+        for (int row = 0; row < 16; row++)
+            for (int c = 0; c < 16; c++) {
+                if (vram_drawn[c] >> b & 1)
+                    continue;
+                const unsigned char* p = (const unsigned char*)(vram + (b * 16 + row) * 1024 + c * 64);
+                for (int i = 0; i < 128; i++)
+                    h = (h ^ p[i]) * 1099511628211ull;
+            }
+    return h;
+}
 /* The VRAM the renderer's readers (lighting, environment, path tracing, the text and prompt tools) see: the renderer's own copy
  * when the hardware renderer runs (gpu_hw.c, T5 S2), else the game's array (the CPU rasterizer owns VRAM). T1 R2. */
 extern int pc_hw_active __attribute__((weak));
@@ -65,7 +102,6 @@ extern void pc_hw_sync(int, int, int, int) __attribute__((weak));
 extern void pc_hw_sync_store(int, int, int, int) __attribute__((weak));
 extern void pc_hw_sync_texture(unsigned, unsigned, unsigned, int, int, int, int, const int*) __attribute__((weak));
 extern void pc_hw_stale_copy(int, int, int, int, int, int) __attribute__((weak));
-extern int pc_hw_raster_skip(int, int, int, int) __attribute__((weak));
 /* What a VRAM write replaces, kept for frame interpolation (gpu_hw.c). */
 extern void pc_hw_before_write(int, int, int, int) __attribute__((weak));
 extern void pc_hw_set_2d(int);
@@ -140,11 +176,6 @@ static int display_x, display_y, display_w = 320, display_h = 224;
 static int draw_x, draw_y, clip_x, clip_y, clip_w = 1024, clip_h = 512, tpage;
 static unsigned int frames;
 static unsigned texture_window, mask_set, mask_check;
-/* The null renderer draws no pixels (T5-5, pc/docs/plans/2026-11-17-vram.md): the game runs, its items are produced and walked, and the CPU rasterizer
- * is left out (boot_window.c sets it; the rest of the walk, the transfers and the stream digest are as they were). raster_pixels counts the pixels the
- * rasterizer visited (RPC vram_stream "raster_px"). Host settings and counters, not saved state. */
-int pc_raster_off __attribute__((section(".data.rood_host")));
-static unsigned long long raster_pixels __attribute__((section(".data.rood_host")));
 void vs_main_exec(void);
 /* Overlay statics restart on each overlay load (overlay_statics.c). */
 extern void pc_overlay_statics_init(void);
@@ -198,7 +229,7 @@ static void stream_mix(const void* data, size_t bytes)
     }
 }
 /* The VRAM role census (T5-0, pc/docs/plans/2026-11-17-vram.md; RPC vram_census, pc/tools/vram_census.py): what touches each 64 x 64 block of the
- * array, by the call that does it: uploads, fills, copies (written to / read from), StoreImage reads, the rectangles the CPU rasterizer drew,
+ * array, by the call that does it: uploads, fills, copies (written to / read from), StoreImage reads, the rectangles the primitives drew ("raster"),
  * texel pages and CLUT rows the primitives sample, and the display rectangle (one count per vsync). The roles (texture, CLUT, frame, movie,
  * scratch) are read off the counts by the tool. Off until asked; a count is one event or primitive, not a pixel. Host state. */
 enum { VC_UPLOAD, VC_FILL, VC_COPY_DST, VC_COPY_SRC, VC_STORE, VC_RASTER, VC_TEXEL, VC_CLUT, VC_DISPLAY, VC_KINDS };
@@ -233,7 +264,7 @@ void pc_vram_census_sample(unsigned tpage, unsigned clut, int u0, int v0, int u1
     if (mode < 2)
         vcen_rect(VC_CLUT, (int)(clut & 63) * 16, (int)(clut >> 6 & 511), mode == 0 ? 16 : 256, 1);
 }
-/* The CPU rasterizer drew a primitive whose bounding box is [x0, x1] x [y0, y1] (as the renderer's marks give it, not clipped). */
+/* A primitive was drawn (by the renderer) over [x0, x1] x [y0, y1], inside its drawing area. */
 void pc_vram_census_raster(int x0, int y0, int x1, int y1)
 {
     if (vcen.on)
@@ -269,9 +300,11 @@ int pc_vram_census_json(char* out, int size, int on, int reset)
 static void stream_event(int kind, int x, int y, int w, int h, const void* payload, size_t bytes)
 {
     int head[7] = { kind, x, y, w, h, (int)stream.draws, (int)bytes };
-    stream_mix(head, sizeof head);
-    if (payload && bytes)
-        stream_mix(payload, bytes);
+    if (kind != 6) { /* (a fence, kind 6, is a read-back the renderer made for a read: it is counted and logged, not part of what the game wrote; the digest is of the writes, so two builds that write alike have one digest whatever they read back) */
+        stream_mix(head, sizeof head);
+        if (payload && bytes)
+            stream_mix(payload, bytes);
+    }
     ++stream.events, ++stream.total_events;
     {   /* ROOD_VRAM_STREAM_LOG=<path>: every event of the process, one line each (the frame, kind, rectangle, draws before it, the payload's hash): where two runs' digests part */
         static FILE* log __attribute__((section(".data.rood_host")));
@@ -325,7 +358,6 @@ static void fence_event(int cause, int before, int x, int y, int w, int h)
 static void vcheck_vsync(void);
 static void stream_vsync(void)
 {
-    pc_hwc_raster_post(); /* the frame's last rasterized rectangles */
     pc_hwc_post(); /* (the renderer has the records before the frame is presented: the present request posts them anyway) */
     vcheck_vsync();
     if (vcen.on)
@@ -335,20 +367,18 @@ static void stream_vsync(void)
 }
 /* ROOD_VRAM_STREAM_CHECK=1 (T5 S1): the completeness proof of the stream. A shadow array is built from the stream's commands
  * alone (upload, fill, copy; the draws never touch it) and compared with native VRAM each vsync over every pixel the CPU has not
- * touched since a command last wrote it. `taint` marks the pixels the rasterizer wrote (pixel()) or the GPU read-back replaced
- * (gpu_hw.c pixels_to_vram -> pc_vram_taint), carried by copies and cleared by uploads and fills. An untainted pixel that differs
- * is a writer the stream does not have; the rasterizer sampling a tainted texel or CLUT entry is render-to-texture or frame
- * feedback, counted with the first one's tpage and CLUT. Debug only: 3 MB and a pass of 512 K pixels a vsync. */
+ * touched since a command last wrote it. `taint` marks the pixels the GPU read-back replaced (gpu_hw.c pixels_to_vram ->
+ * pc_vram_taint), carried by copies and cleared by uploads and fills. An untainted pixel that differs is a writer the stream
+ * does not have. Debug only: 3 MB and a pass of 512 K pixels a vsync. */
 static struct {
     int on, rebase;
     uint16_t* shadow;
     uint8_t* taint;
-    unsigned long long bad_pixels, feedback;
-    unsigned checked, bad_frames, feedback_frames;
-    int first_bad[6], first_feedback[4];
+    unsigned long long bad_pixels;
+    unsigned checked, bad_frames;
+    int first_bad[6];
     unsigned long long rv_miss, rv_raster, rv_miss_cell[128], rv_raster_cell[128]; /* renderer VRAM (gpu_hw.c, T5 S2) against the game's: untainted / tainted pixels that differ, summed over vsyncs */
-    unsigned long long fb_cell[128], bad_cell[128]; /* by 64x64 block of VRAM: cell = y / 64 * 16 + x / 64 */
-    unsigned long long fb_tpage[256];               /* feedback samples by the sampling primitive's tpage (low 8 bits) */
+    unsigned long long bad_cell[128]; /* by 64x64 block of VRAM: cell = y / 64 * 16 + x / 64 */
 } vcheck __attribute__((section(".data.rood_host"))) = { -1 };
 static int vcheck_on(void)
 {
@@ -374,15 +404,6 @@ void pc_vram_taint(int x0, int y0, int x1, int y1)
     if (vcheck_on())
         for (int y = y0; y < y1; y++)
             memset(vcheck.taint + y * 1024 + x0, 1, (size_t)(x1 - x0));
-}
-static void vcheck_sample(int index, unsigned tpage_now, unsigned clut_now)
-{
-    if (!vcheck.on || !vcheck.taint[index])
-        return;
-    ++vcheck.fb_cell[(index >> 10) / 64 * 16 + (index & 1023) / 64], ++vcheck.fb_tpage[tpage_now & 255];
-    if (!vcheck.feedback++)
-        vcheck.first_feedback[0] = (int)tpage_now, vcheck.first_feedback[1] = (int)clut_now,
-        vcheck.first_feedback[2] = index & 1023, vcheck.first_feedback[3] = index >> 10;
 }
 static void vcheck_write(int x, int y, int w, int h, const uint16_t* source, int kind, const int* extra)
 {
@@ -474,7 +495,7 @@ static void vcheck_vsync(void)
     const char* path = getenv("ROOD_VRAM_STREAM_CHECK_OUT"); /* the cell tables, rewritten every 60 vsyncs (a lane reads the last) */
     FILE* f = path && vcheck.checked % 60 == 0 ? fopen(path, "w") : NULL;
     if (f) {
-        fprintf(f, "{\"frames\":%u,\"bad_pixels\":%llu,\"feedback\":%llu,\"bad_cell\":{", vcheck.checked, vcheck.bad_pixels, vcheck.feedback);
+        fprintf(f, "{\"frames\":%u,\"bad_pixels\":%llu,\"bad_cell\":{", vcheck.checked, vcheck.bad_pixels);
         for (int c = 0, n = 0; c < 128; c++)
             if (vcheck.bad_cell[c])
                 fprintf(f, "%s\"%d,%d\":%llu", n++ ? "," : "", c % 16 * 64, c / 16 * 64, vcheck.bad_cell[c]);
@@ -486,14 +507,6 @@ static void vcheck_vsync(void)
         for (int c = 0, n = 0; c < 128; c++)
             if (vcheck.rv_raster_cell[c])
                 fprintf(f, "%s\"%d,%d\":%llu", n++ ? "," : "", c % 16 * 64, c / 16 * 64, vcheck.rv_raster_cell[c]);
-        fprintf(f, "},\"fb_cell\":{");
-        for (int c = 0, n = 0; c < 128; c++)
-            if (vcheck.fb_cell[c])
-                fprintf(f, "%s\"%d,%d\":%llu", n++ ? "," : "", c % 16 * 64, c / 16 * 64, vcheck.fb_cell[c]);
-        fprintf(f, "},\"fb_tpage\":{");
-        for (int c = 0, n = 0; c < 256; c++)
-            if (vcheck.fb_tpage[c])
-                fprintf(f, "%s\"%d\":%llu", n++ ? "," : "", c, vcheck.fb_tpage[c]);
         fprintf(f, "}}\n");
         fclose(f);
     }
@@ -506,23 +519,21 @@ void pc_vram_stream_reset(void)
 /* RPC vram_stream: {frames, frame: {events, hash} (the last completed frame), total: {events, hash}}. */
 int pc_vram_stream_json(char* out, int size)
 {
-    extern unsigned long long pc_hw_raster_posted __attribute__((weak));
     extern struct { unsigned long long replays, rewritten, unwritten, fell_back, valid, invalid_overlap, invalid_count; } pc_hw_stats __attribute__((weak));
     int n = snprintf(out, (size_t)size,
         "{\"frames\":%u,\"frame\":{\"events\":%u,\"hash\":\"%016llx\"},\"total\":{\"events\":%u,\"hash\":\"%016llx\"},"
-        "\"check\":{\"on\":%d,\"frames\":%u,\"bad_frames\":%u,\"bad_pixels\":%llu,\"first_bad\":[%d,%d,%d,%d,%d,%d],"
-        "\"feedback_samples\":%llu,\"first_feedback\":[%d,%d,%d,%d]},\"fences\":{\"store\":%u,\"texture\":%u},\"raster_px\":%llu}",
+        "\"check\":{\"on\":%d,\"frames\":%u,\"bad_frames\":%u,\"bad_pixels\":%llu,\"first_bad\":[%d,%d,%d,%d,%d,%d]},"
+        "\"fences\":{\"store\":%u,\"texture\":%u}}",
         stream.frames, stream.last_events, (unsigned long long)stream.last, stream.total_events,
         (unsigned long long)stream.total, vcheck.on > 0, vcheck.checked, vcheck.bad_frames, vcheck.bad_pixels,
         vcheck.first_bad[0], vcheck.first_bad[1], vcheck.first_bad[2], vcheck.first_bad[3], vcheck.first_bad[4],
-        vcheck.first_bad[5], vcheck.feedback, vcheck.first_feedback[0], vcheck.first_feedback[1],
-        vcheck.first_feedback[2], vcheck.first_feedback[3], fence_counts[1], fence_counts[2], raster_pixels);
+        vcheck.first_bad[5], fence_counts[1], fence_counts[2]);
     if (n > 2 && &pc_hw_stats && n + 280 < size) { /* + "renderer": the replay statistics (gpu_hw.c) */
         n -= 1;
         n += snprintf(out + n, (size_t)(size - n),
-            ",\"renderer\":{\"raster_posted\":%llu,\"replays\":%llu,\"rewritten\":%llu,\"unwritten\":%llu,\"fell_back\":%llu,"
+            ",\"renderer\":{\"replays\":%llu,\"rewritten\":%llu,\"unwritten\":%llu,\"fell_back\":%llu,"
             "\"valid\":%llu,\"invalid_overlap\":%llu,\"invalid_count\":%llu}}",
-            pc_hw_raster_posted, pc_hw_stats.replays, pc_hw_stats.rewritten, pc_hw_stats.unwritten, pc_hw_stats.fell_back,
+            pc_hw_stats.replays, pc_hw_stats.rewritten, pc_hw_stats.unwritten, pc_hw_stats.fell_back,
             pc_hw_stats.valid, pc_hw_stats.invalid_overlap, pc_hw_stats.invalid_count);
     }
     if (n > 2 && pc_jitter_json && n + 160 < size) { /* + "jitter" (render_jitter.c) */
@@ -543,12 +554,10 @@ void pc_vram_transfer(int x, int y, int w, int h, void* data, int write)
         vcheck_write(x, y, w, h, data, 1, NULL);
     if (!write && pc_hw_sync_store) {
         int before = fence_syncs();
-        pc_hwc_raster_post();
         pc_hwc_fence_store(x, y, w, h); /* StoreImage: the renderer has everything before it, and the pixels are in VRAM when it returns */
         fence_event(1, before, x, y, w, h);
     }
     if (write && pc_hw_before_write) {
-        pc_hwc_raster_post(); /* (what the write replaces includes the rectangles rasterized so far) */
         pc_hwc_before_write(x, y, w, h);
     }
     for (int row = 0; row < h; row++) {
@@ -560,7 +569,7 @@ void pc_vram_transfer(int x, int y, int w, int h, void* data, int write)
             memcpy(dp, vp, (size_t)w * 2);
     }
     if (write) {
-        pc_hwc_raster_post();
+        vram_note_written(x, y, w, h);
         pc_hwc_vram_upload(x, y, w, h);
     }
 }
@@ -591,8 +600,8 @@ void pc_vram_clear(int x, int y, int w, int h, int r, int g, int b)
         int pw = part & 1 ? x + w - 1024 : (x + w > 1024 ? 1024 - x : w);
         int ph = part & 2 ? y + h - 512 : (y + h > 512 ? 512 - y : h);
         if (pw > 0 && ph > 0) {
+            vram_note_written(px, py, pw, ph);
             pc_hwc_mark(px, py, px + pw - 1, py + ph - 1);
-            pc_hwc_raster_post();
             pc_hwc_vram_fill(px, py, pw, ph, r, g, b);
         }
     }
@@ -613,8 +622,8 @@ void pc_vram_rect(int x, int y, int w, int h, int r, int g, int b)
         for (int col = x0; col < x1; col++)
             vram[row * 1024 + col] = color;
     pc_cost_end(PC_COST_RASTER, cost);
+    vram_note_written(x0, y0, x1 - x0, y1 - y0);
     pc_hwc_mark(x0, y0, x1 - 1, y1 - 1);
-    pc_hwc_raster_post();
     pc_hwc_vram_fill(x0, y0, x1 - x0, y1 - y0, r, g, b);
 }
 static void copy_file(const char* from, const char* to)
@@ -1420,70 +1429,6 @@ void pc_draw_env(int x, int y, int w, int h, int ox, int oy, int tp)
     tpage = tp;
     { int v[7] = { x, y, w, h, ox, oy, tp }; stream_record(2, v, 7); }
 }
-static int clamp5(int x) { return x < 0 ? 0 : x > 31 ? 31 : x; }
-static void pixel(int x, int y, uint16_t color, int semi)
-{
-    if (x < clip_x || y < clip_y || x >= clip_x + clip_w || y >= clip_y + clip_h || x < 0
-        || y < 0 || x >= 1024 || y >= 512)
-        return;
-    uint16_t* dst = &vram[y * 1024 + x];
-    if (mask_check && (*dst & 0x8000))
-        return;
-    if (vcheck.on > 0)
-        vcheck.taint[y * 1024 + x] = 1;
-    if (semi) {
-        int output = 0;
-        for (int ch = 0; ch < 3; ch++) {
-            int a = (*dst >> (ch * 5)) & 31, b = (color >> (ch * 5)) & 31, c = 0;
-            switch ((tpage >> 5) & 3) {
-            case 0:
-                c = (a / 2) + (b / 2);
-                break;
-            case 1:
-                c = a + b;
-                break;
-            case 2:
-                c = a - b;
-                break;
-            case 3:
-                c = a + b / 4;
-                break;
-            }
-            output |= clamp5(c) << (ch * 5);
-        }
-        color = (color & 0x8000) | output;
-    }
-    *dst = color | (mask_set ? 0x8000 : 0);
-}
-static uint16_t texture(int u, int v, unsigned clut)
-{
-    int tx = (tpage & 15) * 64, ty = ((tpage >> 4) & 1) * 256;
-    unsigned val;
-    unsigned maskx = (texture_window & 31) * 8, masky = ((texture_window >> 5) & 31) * 8;
-    u = ((u & ~maskx) | (((texture_window >> 10) & 31) * 8 & maskx)) & 255;
-    v = ((v & ~masky) | (((texture_window >> 15) & 31) * 8 & masky)) & 255;
-    if (vcheck.on > 0) {
-        int column = (tpage >> 7 & 3) == 0 ? u / 4 : (tpage >> 7 & 3) == 1 ? u / 2 : u;
-        vcheck_sample(((ty + v) & 511) * 1024 + ((tx + column) & 1023), tpage, clut);
-        if ((tpage >> 7 & 3) < 2)
-            vcheck_sample(((clut >> 6) & 511) * 1024 + ((clut & 63) * 16 & 1023), tpage, clut);
-    }
-    switch ((tpage >> 7) & 3) {
-    case 0:
-        val =
-            (vram[((ty + v) & 511) * 1024 + ((tx + u / 4) & 1023)] >> ((u & 3) * 4)) & 15;
-        break;
-    case 1:
-        val = (vram[((ty + v) & 511) * 1024 + ((tx + u / 2) & 1023)] >> ((u & 1) * 8))
-            & 255;
-        break;
-    default:
-        /* 2: 15-bit direct. 3 is "reserved" and the GPU reads it as 15-bit
-         * too (the ending's rank screen background uses it). */
-        return vram[((ty + v) & 511) * 1024 + ((tx + u) & 1023)];
-    }
-    return vram[((clut >> 6) & 511) * 1024 + (((clut & 63) * 16 + val) & 1023)];
-}
 /* The command word of the sprite or polygon the hardware path is being
  * handed (gpu_hw.c: which game string a glyph belongs to, ui_text.c). */
 const void* pc_gpu_command;
@@ -1521,8 +1466,8 @@ static int round_px(float v)
  * game's ○ / × button where Circle and Cross are exchanged (0: as drawn). */
 extern int pc_button_roles_texels(const uint16_t* vram, unsigned tpage, unsigned clut, int u0, int v0, int u1, int v1)
     __attribute__((weak));
-#include "boot_polygons.inc"
-#include "boot_lines.inc"
+#include "boot_gpu_polygons.inc"
+#include "boot_gpu_lines.inc"
 
 /* The words a packet hands the GPU, into the digest. Only what the GPU ignores is left out: a textured primitive with the raw
  * bit (code bit 0) is not modulated, so its colour bytes are never read (in an old packet they were whatever the memory held,
@@ -1562,7 +1507,7 @@ static void stream_commands_now(const uint32_t* p, unsigned n)
                 stream_current[0] = (stream_current[0] & ~0x1ffu) | ((p[i + at] >> 16) & 0x1ffu);
         }
         int raw_textured = ((code & 0xe0) == 0x20 || (code & 0xe0) == 0x60) && (code & 4) && (code & 1);
-        /* (a line's command byte uses bits 4 (shaded), 3 (poly-line) and 1 (semi-transparent) only: line_command, boot_lines.inc) */
+        /* (a line's command byte uses bits 4 (shaded), 3 (poly-line) and 1 (semi-transparent) only: line_command, boot_gpu_lines.inc) */
         digest_mix(raw_textured ? p[i] & 0xff000000u : (code >= 0x40 && code <= 0x5f) ? p[i] & ~0x05000000u : p[i]);
         for (unsigned k = 1; k < len; k++) {
             uint32_t w = p[i + k];
@@ -1623,7 +1568,6 @@ static void commands(uint32_t* p, unsigned n)
             if (pc_hw_stale_copy)
                 pc_hwc_stale_copy((int)sx, (int)sy, (int)dx, (int)dy, (int)w, (int)h);
             if (pc_hw_before_write) {
-                pc_hwc_raster_post();
                 pc_hwc_before_write((int)dx, (int)dy, (int)w, (int)h);
             }
             for (unsigned y = 0; y < h; ++y)
@@ -1639,8 +1583,17 @@ static void commands(uint32_t* p, unsigned n)
                             *dst = block[j] | (mask_set ? 0x8000 : 0);
                     }
                 }
+            {   /* (a copy out of a drawn cell is no more exact than its source) */
+                int drawn = 0;
+                for (int c = (int)sx >> 6; c <= (int)(sx + w - 1) >> 6 && c < 16; c++)
+                    for (int b = (int)sy >> 4; b <= (int)(sy + h - 1) >> 4 && b < 32; b++)
+                        drawn |= vram_drawn[c] >> b & 1;
+                if (drawn)
+                    vram_note_drawn((int)dx, (int)dy, (int)(dx + w - 1), (int)(dy + h - 1));
+                else
+                    vram_note_written((int)dx, (int)dy, (int)w, (int)h);
+            }
             pc_hwc_mark(dx, dy, dx + w - 1, dy + h - 1);
-            pc_hwc_raster_post();
             pc_hwc_vram_copy((int)sx, (int)sy, (int)dx, (int)dy, (int)w, (int)h, (int)mask_set, mask_check ? 1 : 0);
             i += 4;
             continue;
@@ -1717,69 +1670,23 @@ static void commands(uint32_t* p, unsigned n)
                     (int)(uv & 255) + (int)w - 1, (int)((uv >> 8) & 255) + (int)h - 1);
             if (tex && pc_hw_sync_texture) {
                 int clip[4] = { clip_x, clip_y, clip_w, clip_h }, before = fence_syncs();
-                pc_hwc_raster_post();
                 pc_hwc_fence_texture(tpage, uv >> 16, texture_window, uv & 255, (uv >> 8) & 255,
                     (int)(uv & 255) + (int)w - 1, (int)((uv >> 8) & 255) + (int)h - 1, clip);
                 fence_event(2, before, (int)(uv & 255), (int)((uv >> 8) & 255), (int)w, (int)h);
             }
+            vram_note_drawn(x > clip_x ? x : clip_x, y > clip_y ? y : clip_y,
+                (x + (int)w < clip_x + clip_w ? x + (int)w : clip_x + clip_w) - 1,
+                (y + (int)h < clip_y + clip_h ? y + (int)h : clip_y + clip_h) - 1);
             {
                 int clip[4] = { clip_x, clip_y, clip_w, clip_h };
                 pc_hwc_set_2d(1); /* sprites and tiles are screen-space */
                 int texels[4] = { (int)(uv & 255), (int)((uv >> 8) & 255), (int)(uv & 255) + (int)w - 1, (int)((uv >> 8) & 255) + (int)h - 1 };
                 pc_hwc_set_bounds(x, y, x + (int)w, y + (int)h, code, tpage, uv >> 16, tex ? texels : NULL, clip);
                 pc_gpu_command = GUEST(p + i);
-                pc_hwc_raster_post();
                 pc_hwc_rect(x, y, (int)w, (int)h, uv & 255, (uv >> 8) & 255, p[i] & 0xffffff, code,
                     tpage, uv >> 16, texture_window, clip, mask_set, mask_check);
                 pc_gpu_command = NULL;
             }
-            {
-                /* (the pixels it may draw: inside the drawing area and VRAM) */
-                int x0 = x > clip_x ? x : clip_x, y0 = y > clip_y ? y : clip_y;
-                int x1 = x + (int)w < clip_x + clip_w ? x + (int)w : clip_x + clip_w;
-                int y1 = y + (int)h < clip_y + clip_h ? y + (int)h : clip_y + clip_h;
-                x0 = x0 < 0 ? 0 : x0, y0 = y0 < 0 ? 0 : y0, x1 = x1 > 1024 ? 1024 : x1, y1 = y1 > 512 ? 512 : y1;
-                if (x1 <= x0 || y1 <= y0) {
-                    i += words;
-                    continue;
-                }
-                /* Where the target's picture replaces native VRAM before any
-                 * read, nothing is drawn here (as for triangles). */
-                if (pc_hw_raster_skip && pc_hw_raster_skip(x0, y0, x1 - 1, y1 - 1)) {
-                    pc_cost_count(PC_COUNT_SKIPPED_PX, (unsigned)((x1 - x0) * (y1 - y0)));
-                    i += words;
-                    continue;
-                }
-                if (pc_raster_off) { /* (the null renderer: no pixels) */
-                    i += words;
-                    continue;
-                }
-                pc_hwc_mark_raster(x, y, x + (int)w - 1, y + (int)h - 1);
-            }
-            uint64_t cost = pc_cost_begin();
-            pc_cost_count(PC_COUNT_RASTER_PX, w * h);
-            raster_pixels += (unsigned long long)w * h;
-            for (unsigned yy = 0; yy < h; yy++)
-                for (unsigned xx = 0; xx < w; xx++) {
-                    uint16_t c;
-                    if (tex) {
-                        c = texture((uv & 255) + xx, ((uv >> 8) & 255) + yy, uv >> 16);
-                        if (c == 0)
-                            continue;
-                        if (!(code & 1)) {
-                            unsigned mod = c & 0x8000;
-                            for (int ch = 0; ch < 3; ch++)
-                                mod |= clamp5(((c >> (ch * 5)) & 31)
-                                              * ((p[i] >> (ch * 8)) & 255) / 128)
-                                    << (ch * 5);
-                            c = mod;
-                        }
-                    } else
-                        c = ((p[i] & 255) >> 3) | ((((p[i] >> 8) & 255) >> 3) << 5)
-                          | ((((p[i] >> 16) & 255) >> 3) << 10);
-                    pixel(x + xx, y + yy, c, (code & 2) && (!tex || (c & 0x8000)));
-                }
-            pc_cost_end(PC_COST_RASTER, cost);
             i += words;
             continue;
         }

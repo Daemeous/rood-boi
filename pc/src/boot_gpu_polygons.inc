@@ -1,7 +1,5 @@
-/* Initial CPU polygon rasterizer for native-port bring-up. Affine UVs (taken
- * at pixel corners, as the PS1 does), packed RGB555/CLUT textures, Gouraud
- * colors, top-left edge ownership, and PS1 blend modes. Interpolation
- * precision and dithering are not yet hardware-exact. */
+/* The GPU's polygon packets (GP0 0x20-0x3F): decoded into vertices and handed to the renderer (pc_hwc_triangle). Nothing is drawn
+ * here: the renderer owns every pixel (T5-6 retired the CPU rasterizer). A degenerate or over-wide triangle is dropped as the GPU does. */
 typedef struct {
     int x, y, u, v, color[3];
     int z; /* GTE view depth (SZ) for projected vertices, 0 for 2D */
@@ -11,14 +9,6 @@ static int64_t edge(const pc_gpu_vertex* a, const pc_gpu_vertex* b, int x2, int 
 {
     return (int64_t)(b->x - a->x) * (y2 - a->y * 2)
          - (int64_t)(b->y - a->y) * (x2 - a->x * 2);
-}
-static int floor_div(int64_t n, int64_t d) /* d > 0 */
-{
-    return (int)(n >= 0 ? n / d : -((-n + d - 1) / d));
-}
-static int top_left(const pc_gpu_vertex* a, const pc_gpu_vertex* b)
-{
-    return b->y < a->y || (b->y == a->y && b->x > a->x);
 }
 static void triangle(
     pc_gpu_vertex a, pc_gpu_vertex b, pc_gpu_vertex c, unsigned code, unsigned clut)
@@ -44,90 +34,20 @@ static void triangle(
         if (vertex[i].y > maxy)
             maxy = vertex[i].y;
     }
-    /* PS1 rejects primitives whose coordinate span exceeds the GPU limits. */
+    /* The GPU rejects primitives whose coordinate span exceeds its limits. */
     if (maxx - minx >= 1024 || maxy - miny >= 512)
         return;
-    {
-        int xy[6] = { a.x, a.y, b.x, b.y, c.x, c.y }, uv[6] = { a.u, a.v, b.u, b.v, c.u, c.v };
-        int rgb[9] = { a.color[0], a.color[1], a.color[2], b.color[0], b.color[1], b.color[2],
-            c.color[0], c.color[1], c.color[2] };
-        int clip[4] = { clip_x, clip_y, clip_w, clip_h };
-        int depth[3] = { a.z, b.z, c.z };
-        float precise[6] = { a.fx, a.fy, b.fx, b.fy, c.fx, c.fy };
-        pc_hwc_set_depth(depth);
-        pc_hwc_set_precise(precise);
-        /* Covered by a native draw without reference packets: only the
-         * hardware target gets it (gpu_hw.c keeps the area stale). */
-        pc_hwc_raster_post();
-        if (pc_hwc_triangle(xy, uv, rgb, code, tpage, clut, texture_window, clip, mask_set, mask_check))
-            return;
-    }
-    if (minx < clip_x)
-        minx = clip_x;
-    if (miny < clip_y)
-        miny = clip_y;
-    if (maxx >= clip_x + clip_w)
-        maxx = clip_x + clip_w - 1;
-    if (maxy >= clip_y + clip_h)
-        maxy = clip_y + clip_h - 1;
-    if (minx < 0)
-        minx = 0;
-    if (miny < 0)
-        miny = 0;
-    if (maxx > 1023)
-        maxx = 1023;
-    if (maxy > 511)
-        maxy = 511;
-    if (maxx < minx || maxy < miny)
-        return;
-    /* Where the target's picture replaces native VRAM before any read (a
-     * drawing area native draws left stale), nothing is drawn here. */
-    if (pc_hw_raster_skip && pc_hw_raster_skip(minx, miny, maxx, maxy)) {
-        pc_cost_count(PC_COUNT_SKIPPED_PX, (unsigned)((maxx - minx + 1) * (maxy - miny + 1)));
-        return;
-    }
-    if (pc_raster_off) /* (the null renderer: no pixels, the items and the stream are what it produces) */
-        return;
-    pc_hwc_mark_raster(minx, miny, maxx, maxy);
-    uint64_t cost = pc_cost_begin();
-    pc_cost_count(PC_COUNT_RASTER_PX, (unsigned)((maxx - minx + 1) * (maxy - miny + 1)));
-    raster_pixels += (unsigned long long)((maxx - minx + 1) * (maxy - miny + 1));
-    int tl0 = top_left(&b, &c), tl1 = top_left(&c, &a), tl2 = top_left(&a, &b);
-    for (int y = miny; y <= maxy; ++y)
-        for (int x = minx; x <= maxx; ++x) {
-            int64_t w0 = edge(&b, &c, x * 2 + 1, y * 2 + 1);
-            int64_t w1 = edge(&c, &a, x * 2 + 1, y * 2 + 1);
-            int64_t w2 = edge(&a, &b, x * 2 + 1, y * 2 + 1);
-            if (w0 < 0 || (!w0 && !tl0) || w1 < 0 || (!w1 && !tl1) || w2 < 0
-                || (!w2 && !tl2))
-                continue;
-            unsigned color = 0;
-            if (code & 4) {
-                /* The PS1 interpolates texture coordinates at the pixel's
-                 * top-left corner, rounding to nearest (Mednafen's +0.5 on
-                 * the base value): a flipped sprite (U falling to the right)
-                 * samples its own texels, not one past them as the centre would. */
-                int64_t c0 = edge(&b, &c, x * 2, y * 2), c1 = edge(&c, &a, x * 2, y * 2), c2 = edge(&a, &b, x * 2, y * 2);
-                int u = floor_div(c0 * a.u + c1 * b.u + c2 * c.u + area / 2, area);
-                int v = floor_div(c0 * a.v + c1 * b.v + c2 * c.v + area / 2, area);
-                color = texture(u, v, clut);
-                if (!color)
-                    continue;
-            }
-            if (!(code & 4) || !(code & 1)) {
-                unsigned shaded = color & 0x8000;
-                for (int ch = 0; ch < 3; ++ch) {
-                    int shade =
-                        (w0 * a.color[ch] + w1 * b.color[ch] + w2 * c.color[ch]) / area;
-                    int component =
-                        code & 4 ? ((color >> (ch * 5)) & 31) * shade / 128 : shade / 8;
-                    shaded |= clamp5(component) << (ch * 5);
-                }
-                color = shaded;
-            }
-            pixel(x, y, color, (code & 2) && (!(code & 4) || (color & 0x8000)));
-        }
-    pc_cost_end(PC_COST_RASTER, cost);
+    vram_note_drawn(minx > clip_x ? minx : clip_x, miny > clip_y ? miny : clip_y,
+        (maxx < clip_x + clip_w - 1 ? maxx : clip_x + clip_w - 1), (maxy < clip_y + clip_h - 1 ? maxy : clip_y + clip_h - 1));
+    int xy[6] = { a.x, a.y, b.x, b.y, c.x, c.y }, uv[6] = { a.u, a.v, b.u, b.v, c.u, c.v };
+    int rgb[9] = { a.color[0], a.color[1], a.color[2], b.color[0], b.color[1], b.color[2],
+        c.color[0], c.color[1], c.color[2] };
+    int clip[4] = { clip_x, clip_y, clip_w, clip_h };
+    int depth[3] = { a.z, b.z, c.z };
+    float precise[6] = { a.fx, a.fy, b.fx, b.fy, c.fx, c.fy };
+    pc_hwc_set_depth(depth);
+    pc_hwc_set_precise(precise);
+    pc_hwc_triangle(xy, uv, rgb, code, tpage, clut, texture_window, clip, mask_set, mask_check);
 }
 static unsigned polygon_command(const uint32_t* p, unsigned available)
 {
@@ -192,7 +112,6 @@ static unsigned polygon_command(const uint32_t* p, unsigned available)
             v0 = vertex[i].v < v0 ? vertex[i].v : v0, v1 = vertex[i].v > v1 ? vertex[i].v : v1;
         }
         int clip[4] = { clip_x, clip_y, clip_w, clip_h };
-        pc_hwc_raster_post();
         pc_hwc_fence_texture(tpage, clut, texture_window, u0, v0, u1, v1, clip);
     }
     /* ui_text: a battle number popup's digit at the UI text scale (ui_text.c; scale 1: unchanged). */
@@ -257,7 +176,6 @@ static unsigned polygon_command(const uint32_t* p, unsigned available)
         }
         int clip[4] = { clip_x, clip_y, clip_w, clip_h };
         pc_gpu_command = GUEST(p);
-        pc_hwc_raster_post(); /* (what the CPU drew so far is in the renderer's VRAM before it samples for the quad) */
         text_piece = pc_hwc_text_quad(fxy, fuv, vertex[0].color, code, tpage, clut, texture_window, clip, mask_set,
             mask_check);
         pc_gpu_command = NULL;
@@ -265,9 +183,7 @@ static unsigned polygon_command(const uint32_t* p, unsigned available)
     triangle(vertex[0], vertex[1], vertex[2], code, clut);
     if (count == 4)
         triangle(vertex[1], vertex[2], vertex[3], code, clut);
-    if (text_piece) {
-        pc_hwc_raster_post(); /* (the quad's own rasterized rectangles reach the renderer before it draws the piece) */
+    if (text_piece)
         pc_hwc_text_piece_done();
-    }
     return words;
 }

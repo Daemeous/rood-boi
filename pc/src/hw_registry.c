@@ -335,28 +335,11 @@ void pc_hwr_translucent(uint32_t list)
 
 /* ---- the stale areas ---- */
 pc_stale_set pc_hwr_stale;
-/* A rectangle [x0, x1) x [y0, y1) joins a list: inside an entry it is stale already, one it contains grows, a full list merges the newest into the last. */
-static void list_add(int (*rects)[4], int* count, int x0, int y0, int x1, int y1)
+static void cells_set(uint32_t* cells, int x0, int y0, int x1, int y1) /* pixels, exclusive, inside the VRAM */
 {
-    for (int i = 0; i < *count; i++) {
-        int* r = rects[i];
-        if (x0 >= r[0] && y0 >= r[1] && x1 <= r[0] + r[2] && y1 <= r[1] + r[3])
-            return; /* already stale */
-        if (r[0] >= x0 && r[1] >= y0 && r[0] + r[2] <= x1 && r[1] + r[3] <= y1) {
-            r[0] = x0, r[1] = y0, r[2] = x1 - x0, r[3] = y1 - y0; /* grows */
-            return;
-        }
-    }
-    if (*count == PC_MAX_STALE) {
-        /* Full: merge the newest into the last (a bounding box). */
-        int* r = rects[PC_MAX_STALE - 1];
-        int a0 = r[0] < x0 ? r[0] : x0, b0 = r[1] < y0 ? r[1] : y0;
-        int a1 = r[0] + r[2] > x1 ? r[0] + r[2] : x1, b1 = r[1] + r[3] > y1 ? r[1] + r[3] : y1;
-        r[0] = a0, r[1] = b0, r[2] = a1 - a0, r[3] = b1 - b0;
-        return;
-    }
-    int* r = rects[(*count)++];
-    r[0] = x0, r[1] = y0, r[2] = x1 - x0, r[3] = y1 - y0;
+    for (int c = x0 >> 6; c <= (x1 - 1) >> 6; c++)
+        for (int b = y0 >> 4; b <= (y1 - 1) >> 4; b++)
+            cells[c] |= 1u << b;
 }
 void pc_stale_mark(pc_stale_set* set, const int* clip, int kind)
 {
@@ -367,8 +350,8 @@ void pc_stale_mark(pc_stale_set* set, const int* clip, int kind)
     int y1 = clip[1] + clip[3] > 512 ? 512 : clip[1] + clip[3];
     if (x1 <= x0 || y1 <= y0)
         return;
-    if (kind & PC_STALE_MISSING) {
-        if (set->in_ot) {
+    if (kind & (PC_STALE_MISSING | PC_STALE_DRAWN)) {
+        if ((kind & PC_STALE_MISSING) && set->in_ot) {
             int known = 0;
             for (int i = 0; i < set->ot_count && !known; i++) {
                 const int* r = set->ot[i];
@@ -379,10 +362,10 @@ void pc_stale_mark(pc_stale_set* set, const int* clip, int kind)
                 r[0] = x0, r[1] = y0, r[2] = x1, r[3] = y1;
             }
         }
-        list_add(set->rects, &set->count, x0, y0, x1, y1);
+        cells_set(set->missing, x0, y0, x1, y1);
     }
     if (kind & PC_STALE_PLACED)
-        list_add(set->placed, &set->placed_count, x0, y0, x1, y1);
+        cells_set(set->placed, x0, y0, x1, y1);
 }
 int pc_stale_covers(const pc_stale_set* set, const int* clip)
 {
@@ -400,70 +383,74 @@ int pc_stale_covers(const pc_stale_set* set, const int* clip)
     }
     return 0;
 }
-void pc_stale_remove_entry(pc_stale_set* set, int list, int i, int x0, int y0, int x1, int y1)
+int pc_stale_any(const pc_stale_set* set)
+{
+    for (int c = 0; c < 16; c++)
+        if (set->missing[c] | set->placed[c])
+            return 1;
+    return 0;
+}
+int pc_stale_cells(const uint32_t* cells)
+{
+    int n = 0;
+    for (int c = 0; c < 16; c++)
+        n += __builtin_popcount(cells[c]);
+    return n;
+}
+int pc_stale_bbox(const uint32_t* cells, int x, int y, int w, int h, int* out)
+{
+    int x0 = x < 0 ? 0 : x, y0 = y < 0 ? 0 : y, x1 = x + w > 1024 ? 1024 : x + w, y1 = y + h > 512 ? 512 : y + h;
+    if (x1 <= x0 || y1 <= y0)
+        return 0;
+    int c0 = x0 >> 6, c1 = (x1 - 1) >> 6, b0 = y0 >> 4, b1 = (y1 - 1) >> 4;
+    uint32_t bands = (b1 - b0 == 31 ? ~0u : ((1u << (b1 - b0 + 1)) - 1)) << b0;
+    int minc = 99, maxc = -1, minb = 99, maxb = -1;
+    for (int c = c0; c <= c1; c++) {
+        uint32_t bits = cells[c] & bands;
+        if (!bits)
+            continue;
+        minc = c < minc ? c : minc, maxc = c;
+        int lo = __builtin_ctz(bits), hi = 31 - __builtin_clz(bits);
+        minb = lo < minb ? lo : minb, maxb = hi > maxb ? hi : maxb;
+    }
+    if (maxc < 0)
+        return 0;
+    out[0] = minc * 64, out[1] = minb * 16, out[2] = (maxc + 1) * 64, out[3] = (maxb + 1) * 16;
+    return 1;
+}
+int pc_stale_meets(const uint32_t* cells, int x, int y, int w, int h)
+{
+    int box[4];
+    return pc_stale_bbox(cells, x, y, w, h, box);
+}
+void pc_stale_clear(uint32_t* cells, int x0, int y0, int x1, int y1)
+{
+    for (int c = x0 >> 6; c <= (x1 - 1) >> 6 && c < 16; c++)
+        for (int b = y0 >> 4; b <= (y1 - 1) >> 4 && b < 32; b++)
+            cells[c] &= ~(1u << b);
+}
+void pc_stale_readback(pc_stale_set* set, int x, int y, int w, int h)
 {
     for (int k = 0; k < set->ot_count;) {
         const int* o = set->ot[k];
-        if (o[0] < x1 && x0 < o[2] && o[1] < y1 && y0 < o[3])
+        if (o[0] < x + w && x < o[2] && o[1] < y + h && y < o[3])
             memmove(set->ot[k], set->ot[k + 1], (size_t)(--set->ot_count - k) * sizeof set->ot[0]);
         else
             ++k;
     }
-    int (*rects)[4] = list ? set->placed : set->rects;
-    int* count = list ? &set->placed_count : &set->count;
-    memmove(rects[i], rects[i + 1], (size_t)(*count - i - 1) * sizeof rects[0]);
-    --*count;
-}
-void pc_stale_readback(pc_stale_set* set, int x, int y, int w, int h)
-{
-    for (int i = 0; i < set->count; i++) {
-        const int* r = set->rects[i];
-        if (r[0] == x && r[1] == y && r[2] == w && r[3] == h) {
-            pc_stale_remove_entry(set, 0, i, x, y, x + w, y + h);
-            return;
-        }
-    }
+    pc_stale_clear(set->missing, x, y, x + w, y + h);
 }
 void pc_stale_copy(pc_stale_set* set, int sx, int sy, int dx, int dy, int w, int h)
 {
     int clip[4] = { dx, dy, w, h };
-    for (int i = 0; i < set->count; i++) {
-        const int* r = set->rects[i];
-        if (sx < r[0] + r[2] && r[0] < sx + w && sy < r[1] + r[3] && r[1] < sy + h) {
-            pc_stale_mark(set, clip, PC_STALE_MISSING);
-            break;
-        }
-    }
-    for (int i = 0; i < set->placed_count; i++) {
-        const int* r = set->placed[i];
-        if (sx < r[0] + r[2] && r[0] < sx + w && sy < r[1] + r[3] && r[1] < sy + h) {
-            pc_stale_mark(set, clip, PC_STALE_PLACED);
-            break;
-        }
-    }
+    if (pc_stale_meets(set->missing, sx, sy, w, h))
+        pc_stale_mark(set, clip, PC_STALE_MISSING);
+    if (pc_stale_meets(set->placed, sx, sy, w, h))
+        pc_stale_mark(set, clip, PC_STALE_PLACED);
 }
 void pc_hwr_end_ot(void)
 {
     pc_hwr_stale.in_ot = 0, pc_hwr_stale.ot_count = 0;
-}
-
-/* The CPU rasterizer is about to draw over (x0, y0)-(x1, y1), inclusive, already clipped to its drawing area: 1 when that is left out
- * (the target's picture replaces it before anything reads it: the stale areas of the table being drawn). A producer's query. */
-int pc_hw_raster_skip_enabled(void);
-int pc_hw_raster_skip(int x0, int y0, int x1, int y1)
-{
-    if (!pc_hw_active || !pc_hwr_stale.ot_count) {
-        pc_hw_meter_result(PC_HW_raster_skip, PC_HW_WHY_SKIP_INACTIVE, 0);
-        return 0;
-    }
-    if (!pc_hw_raster_skip_enabled()) {
-        pc_hw_meter_result(PC_HW_raster_skip, PC_HW_WHY_SKIP_DISABLED, 0);
-        return 0;
-    }
-    int clip[4] = { x0, y0, x1 - x0 + 1, y1 - y0 + 1 };
-    int covered = pc_stale_covers(&pc_hwr_stale, clip);
-    pc_hw_meter_result(PC_HW_raster_skip, covered ? PC_HW_WHY_SKIP_COVERED : PC_HW_WHY_SKIP_NOT_COVERED, covered);
-    return covered;
 }
 
 /* Whether the texture a primitive is about to sample may need the renderer to read back (pc_hw_sync_texture): decided from the producer's stale
@@ -475,27 +462,22 @@ int pc_hwr_texture_stale(unsigned tpage, unsigned clut, unsigned window, int u0,
 {
     if (widescreen)
         return 1;
-    if (!pc_hwr_stale.count)
+    if (!pc_stale_meets(pc_hwr_stale.missing, 0, 0, 1024, 512))
         return 0;
     int tx = (int)(tpage & 15) * 64, ty = (int)((tpage >> 4) & 1) * 256, depth = (int)((tpage >> 7) & 3);
     if ((window & 0x3ff) || u0 < 0 || v0 < 0 || u1 > 255 || v1 > 255 || u1 < u0 || v1 < v0)
         u0 = v0 = 0, u1 = v1 = 255;
     int shift = depth == 0 ? 2 : depth == 1 ? 1 : 0;
     int x0 = tx + (u0 >> shift), x1 = tx + (u1 >> shift);
-    if (clip && pc_hw_own_copies_enabled() && pc_stale_covers(&pc_hwr_stale, clip))
+    if (pc_hw_own_copies_enabled())
         return 0; /* (own copies, on the renderer's side: no read-back) */
     int rects[2][4] = { { x0, ty + v0, (x1 > 1023 ? 1023 : x1) - x0 + 1, v1 - v0 + 1 }, { (int)(clut & 63) * 16, (int)((clut >> 6) & 511), depth ? 256 : 16, 1 } };
     for (int k = 0; k < (depth < 2 ? 2 : 1); k++) {
         const int* q = rects[k];
         if (q[2] <= 0 || q[3] <= 0)
             continue;
-        for (int i = 0; i < pc_hwr_stale.count; i++) {
-            const int* r = pc_hwr_stale.rects[i];
-            int a0 = q[0] > r[0] ? q[0] : r[0], b0 = q[1] > r[1] ? q[1] : r[1];
-            int a1 = q[0] + q[2] < r[0] + r[2] ? q[0] + q[2] : r[0] + r[2], b1 = q[1] + q[3] < r[1] + r[3] ? q[1] + q[3] : r[1] + r[3];
-            if (a1 > a0 && b1 > b0)
-                return 1;
-        }
+        if (pc_stale_meets(pc_hwr_stale.missing, q[0], q[1], q[2], q[3]))
+            return 1;
     }
     return 0;
 }

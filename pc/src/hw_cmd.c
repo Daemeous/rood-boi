@@ -39,10 +39,10 @@ extern void pc_hw_native_translucent(unsigned, int, int, int, int, const int*, u
 extern void pc_hw_ot_native_area(const int*) __attribute__((weak));
 extern void pc_hw_rect(int, int, int, int, int, int, unsigned, unsigned, unsigned, unsigned, unsigned, const int*, int, int);
 extern void pc_hw_line(int, int, int, int, unsigned, unsigned, int, unsigned, const int*, int);
-extern void pc_hw_mark_raster(int, int, int, int);
 extern void pc_vram_census_sample(unsigned tpage, unsigned clut, int u0, int v0, int u1, int v1) __attribute__((weak)); /* boot_runtime.c: the VRAM role census (T5-0) */
-extern void pc_vram_census_raster(int x0, int y0, int x1, int y1) __attribute__((weak));
 extern void pc_hw_mark(int, int, int, int);
+extern void pc_hw_mark_drawn(const int*);
+extern void pc_hw_drawn_area(const int* clip, const int* bounds, int* area);
 extern void pc_hw_before_write(int, int, int, int) __attribute__((weak));
 extern void pc_hw_stale_copy(int, int, int, int, int, int) __attribute__((weak));
 extern int pc_hw_text_quad_decide(int, const float*, const int*, unsigned, unsigned, unsigned, const int*, pc_ui_text_piece_info*);
@@ -61,17 +61,15 @@ extern void pc_stream_apply(int op, unsigned tag, const int* v, int n); /* boot_
 extern void pc_stream_apply_words(const uint32_t* p, unsigned n);
 extern void pc_hw_begin_ot(void);
 extern void pc_hw_end_ot(void);
-extern int pc_hw_raster_skip_enabled(void);
 extern int pc_hw_active;
 extern const uint16_t* pc_native_vram(void);
 extern int pc_gpu_immediate; /* DrawPrim, not an ordering table: ui_text identifies the info signs by it */
 extern const void* pc_gpu_command; /* the packet a rectangle or text quad draws (boot_runtime.c) */
 
-enum { C_SET_2D = 1, C_SET_NARROWED, C_SET_PRECISE, C_SET_DEPTH, C_SET_PACKET, C_SET_FLIPPED_UV, C_SET_BOUNDS, C_SET_ATTR, C_NATIVE_MARKER, C_NATIVE_TRANSLUCENT, C_OT_NATIVE_AREA, C_RECT, C_LINE, C_TRIANGLE, C_MARK_RASTER, C_MARK, C_RASTER_POST, C_BEFORE_WRITE, C_STALE_COPY, C_TEXT_PIECE, C_TEXT_PIECE_DONE, C_EMISSIVE_NOTE, C_EMISSIVE_GONE, C_EMISSIVE_ROOM_MESH, C_FRAME_ROOM, C_VRAM_FILL, C_VRAM_UPLOAD, C_VRAM_COPY, C_SET_WIDESCREEN, C_UPLOAD_MODE, C_BEGIN_OT, C_END_OT, C_SET_SUPPRESS, C_TEXTURE_FENCE, C_STREAM, C_STREAM_WORDS, C_FRAME_MENU_MODEL, C_SET_SETTINGS, C_SET_EXACT, C_CLEAR_EXACT, C_SKIP_PRESENT };
+enum { C_SET_2D = 1, C_SET_NARROWED, C_SET_PRECISE, C_SET_DEPTH, C_SET_PACKET, C_SET_FLIPPED_UV, C_SET_BOUNDS, C_SET_ATTR, C_NATIVE_MARKER, C_NATIVE_TRANSLUCENT, C_OT_NATIVE_AREA, C_RECT, C_LINE, C_TRIANGLE, C_MARK, C_BEFORE_WRITE, C_STALE_COPY, C_TEXT_PIECE, C_TEXT_PIECE_DONE, C_EMISSIVE_NOTE, C_EMISSIVE_GONE, C_EMISSIVE_ROOM_MESH, C_FRAME_ROOM, C_VRAM_FILL, C_VRAM_UPLOAD, C_VRAM_COPY, C_SET_WIDESCREEN, C_UPLOAD_MODE, C_BEGIN_OT, C_END_OT, C_SET_SUPPRESS, C_TEXTURE_FENCE, C_STREAM, C_STREAM_WORDS, C_FRAME_MENU_MODEL, C_SET_SETTINGS, C_SET_EXACT, C_CLEAR_EXACT, C_SKIP_PRESENT };
 
 struct pc_hwc_mirror_t pc_hwc_mirror = { .cur_effect = -1, .poly_effect = -1, .settings = { 1, 0, 1, 1, 1 } }; /* (the settings: the renderer's defaults, gpu_hw.c) */
 int pc_hwc_pending;
-int pc_hwc_stale_pending;
 /* ROOD_HWC_INLINE=1: every record is applied at once, as the walk called the hooks before the buffer (the proof's reference:
  * the same binary, identical frames expected with and without). */
 static int inline_mode = -1;
@@ -289,7 +287,7 @@ void pc_hwc_native_translucent(unsigned list, int first, int count, int draw_x, 
 }
 void pc_hwc_ot_native_area(const int* clip4)
 {
-    if (pc_hw_active && pc_hwr_stale.in_ot && pc_hw_raster_skip_enabled())
+    if (pc_hw_active && pc_hwr_stale.in_ot)
         pc_stale_mark(&pc_hwr_stale, clip4, PC_STALE_MISSING); /* (the renderer marks its own set at the record) */
     memcpy(record(C_OT_NATIVE_AREA, 4 * sizeof(int)), clip4, 4 * sizeof(int));
     if (inline_now())
@@ -302,6 +300,7 @@ typedef struct {
     int clip[4], mask_set, mask_check;
     const void* command;
     int immediate;
+    int marked, area[4]; /* the producer marked `area` stale (the renderer marks its own set when it applies the record) */
     unsigned string; /* the printer's string and advance the packet belongs to, read where the walk is (the call table is the game's) */
     float advance;
 } rect_record;
@@ -310,7 +309,15 @@ void pc_hwc_rect(int x, int y, int w, int h, int u, int v, unsigned color, unsig
 {
     if (code & 4 && &pc_vram_census_sample)
         pc_vram_census_sample(tpage, clut, u, v, u + w - 1, v + h - 1);
-    rect_record r = { x, y, w, h, u, v, color, code, tpage, clut, window, { 0, 0, 0, 0 }, mask_set, mask_check, pc_gpu_command, pc_gpu_immediate, 0, 0 };
+    rect_record r = { x, y, w, h, u, v, color, code, tpage, clut, window, { 0, 0, 0, 0 }, mask_set, mask_check, pc_gpu_command, pc_gpu_immediate, 0, 0, 0, { 0, 0, 0, 0 } };
+    {   /* what it draws is the target's alone: the area is stale in the game's VRAM (the decision a triangle of it would get) */
+        pc_hw_tri_decision d;
+        const int uv[6] = { u, v, u + w, v, u, v + h };
+        const int bounds[4] = { x, y, x + w, y + h };
+        pc_hw_triangle_decide(uv, code, tpage, clip4, pc_hwc_mirror.is_2d, pc_hwc_mirror.poly_effect, &pc_hwr_stale, pc_hw_suppress, bounds, &d);
+        r.marked = d.mark;
+        memcpy(r.area, d.area, sizeof r.area);
+    }
     {
         pc_ui_text_piece_info call = { 0 };
         if (pc_ui_text_piece_call(pc_gpu_command, &call))
@@ -326,12 +333,17 @@ typedef struct {
     unsigned ca, cb;
     int semi;
     unsigned tpage;
-    int clip[4], mask_set;
+    int clip[4], mask_set, marked, area[4];
 } line_record;
 void pc_hwc_line(int x0, int y0, int x1, int y1, unsigned ca, unsigned cb, int semi, unsigned tpage, const int* clip4,
     int mask_set)
 {
-    line_record r = { x0, y0, x1, y1, ca, cb, semi, tpage, { 0, 0, 0, 0 }, mask_set };
+    line_record r = { x0, y0, x1, y1, ca, cb, semi, tpage, { 0, 0, 0, 0 }, mask_set, 0, { 0, 0, 0, 0 } };
+    if (pc_hw_active && !pc_hw_suppress) { /* (pc_hw_line draws it: its bounds are the target's alone) */
+        const int bounds[4] = { x0 < x1 ? x0 : x1, y0 < y1 ? y0 : y1, (x0 > x1 ? x0 : x1) + 1, (y0 > y1 ? y0 : y1) + 1 };
+        pc_hw_drawn_area(clip4, bounds, r.area);
+        pc_stale_mark(&pc_hwr_stale, r.area, PC_STALE_MISSING), r.marked = 1;
+    }
     memcpy(r.clip, clip4, sizeof r.clip);
     memcpy(record(C_LINE, sizeof r), &r, sizeof r);
     if (inline_now())
@@ -344,7 +356,7 @@ typedef struct {
     int clip[4], mask_set, mask_check;
     pc_hw_tri_decision decision;
 } triangle_record;
-int pc_hwc_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, unsigned tpage, unsigned clut, unsigned window,
+void pc_hwc_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, unsigned tpage, unsigned clut, unsigned window,
     const int* clip, int mask_set, int mask_check)
 {
     triangle_record t;
@@ -355,7 +367,14 @@ int pc_hwc_triangle(const int* xy, const int* uv, const int* rgb, unsigned code,
             v0 = uv[2 * i + 1] < v0 ? uv[2 * i + 1] : v0, v1 = uv[2 * i + 1] > v1 ? uv[2 * i + 1] : v1;
         pc_vram_census_sample(tpage, clut, u0, v0, u1, v1);
     }
-    pc_hw_triangle_decide(uv, code, tpage, clip, pc_hwc_mirror.is_2d, pc_hwc_mirror.poly_effect, &pc_hwr_stale, pc_hw_suppress, &t.decision);
+    {
+        int x0 = xy[0], y0 = xy[1], x1 = xy[0], y1 = xy[1];
+        for (int i = 1; i < 3; i++)
+            x0 = xy[2 * i] < x0 ? xy[2 * i] : x0, x1 = xy[2 * i] > x1 ? xy[2 * i] : x1,
+            y0 = xy[2 * i + 1] < y0 ? xy[2 * i + 1] : y0, y1 = xy[2 * i + 1] > y1 ? xy[2 * i + 1] : y1;
+        const int bounds[4] = { x0, y0, x1 + 1, y1 + 1 };
+        pc_hw_triangle_decide(uv, code, tpage, clip, pc_hwc_mirror.is_2d, pc_hwc_mirror.poly_effect, &pc_hwr_stale, pc_hw_suppress, bounds, &t.decision);
+    }
     if (t.decision.action != PC_HW_TRI_IGNORE) {
         memcpy(t.xy, xy, sizeof t.xy), memcpy(t.uv, uv, sizeof t.uv), memcpy(t.rgb, rgb, sizeof t.rgb);
         t.code = code, t.tpage = tpage, t.clut = clut, t.window = window;
@@ -365,27 +384,8 @@ int pc_hwc_triangle(const int* xy, const int* uv, const int* rgb, unsigned code,
         if (inline_now())
             pc_hwc_flush();
     }
-    return t.decision.skip;
 }
 
-/* The pending rasterized rectangles (the producer's list; the renderer's is kept in step by the mark records) and the pixel
- * payload of the posts: a pool the flush empties, and a block of its own for a post too big for it. */
-static int pend[64][4], pend_count;
-void pc_hwc_mark_raster(int x0, int y0, int x1, int y1)
-{
-    if (&pc_vram_census_raster)
-        pc_vram_census_raster(x0, y0, x1, y1);
-    if (pc_hw_active) {
-        if (pend_count == 64)
-            pc_hwc_raster_post();
-        int* r = pend[pend_count++];
-        r[0] = x0, r[1] = y0, r[2] = x1, r[3] = y1;
-    }
-    int rect[4] = { x0, y0, x1, y1 };
-    memcpy(record(C_MARK_RASTER, sizeof rect), rect, sizeof rect);
-    if (inline_now())
-        pc_hwc_flush();
-}
 void pc_hwc_mark(int x0, int y0, int x1, int y1)
 {
     int rect[4] = { x0, y0, x1, y1 };
@@ -393,53 +393,6 @@ void pc_hwc_mark(int x0, int y0, int x1, int y1)
     if (inline_now())
         pc_hwc_flush();
 }
-typedef struct {
-    int count;
-    size_t offset;    /* into the pool, or ... */
-    uint16_t* block;  /* ... a block of its own (freed when applied) */
-    int rects[64][4]; /* clipped to the VRAM */
-} post_record;
-void pc_hwc_raster_post(void)
-{
-    if (!pend_count)
-        return;
-    const uint16_t* vram = pc_native_vram();
-    post_record q;
-    size_t total = 0;
-    q.count = 0;
-    for (int i = 0; i < pend_count; i++) {
-        const int* r = pend[i];
-        int x0 = r[0] < 0 ? 0 : r[0], y0 = r[1] < 0 ? 0 : r[1], x1 = r[2] > 1023 ? 1023 : r[2], y1 = r[3] > 511 ? 511 : r[3];
-        if (x1 < x0 || y1 < y0)
-            continue;
-        q.rects[q.count][0] = x0, q.rects[q.count][1] = y0, q.rects[q.count][2] = x1, q.rects[q.count][3] = y1;
-        ++q.count;
-        total += (size_t)(x1 - x0 + 1) * (size_t)(y1 - y0 + 1);
-    }
-    pend_count = 0;
-    if (!q.count)
-        return;
-    uint16_t* at;
-    q.block = NULL, q.offset = 0;
-    if (total > POOL_PIXELS - current->pool_used)
-        hwc_post(); /* the pool is empty in the next batch */
-    unsigned char* slot = record(C_RASTER_POST, sizeof q); /* (may hand the batch over: before the pool is used) */
-    if (total <= POOL_PIXELS - current->pool_used) {
-        q.offset = current->pool_used;
-        at = current->pool + current->pool_used;
-        current->pool_used += total;
-    } else
-        at = q.block = malloc(total * sizeof *at);
-    for (int i = 0; i < q.count; i++) {
-        int x0 = q.rects[i][0], y0 = q.rects[i][1], x1 = q.rects[i][2], y1 = q.rects[i][3], w = x1 - x0 + 1;
-        for (int y = y0; y <= y1; y++, at += w)
-            memcpy(at, vram + (size_t)y * 1024 + x0, (size_t)w * sizeof *at);
-    }
-    memcpy(slot, &q, sizeof q);
-    if (inline_now())
-        pc_hwc_flush();
-}
-
 typedef struct {
     pc_ui_text_piece_info info;
     unsigned rgb, code, window;
@@ -483,7 +436,6 @@ void pc_hwc_stale_copy(int sx, int sy, int dx, int dy, int w, int h)
     int v[6] = { sx, sy, dx, dy, w, h };
     pc_stale_copy(&pc_hwr_stale, sx, sy, dx, dy, w, h);
     memcpy(record(C_STALE_COPY, sizeof v), v, sizeof v);
-    pc_hwc_stale_pending = 1;
     if (inline_now())
         pc_hwc_flush();
 }
@@ -560,8 +512,12 @@ void pc_hwc_resync(void)
 }
 void pc_hwc_fence_sync(int x, int y, int w, int h)
 {
-    pc_rq rq = { .kind = PC_RQ_SYNC, .arg = { x, y, w, h } };
-    fence(&rq);
+    /* A capture (a screenshot, a checkpoint): the rectangle as asked, read in one piece whatever the stale areas are, and no stale area is
+     * touched, so looking at the picture does not change what the game does next. */
+    pc_rq_readback reply;
+    pc_rq rq = { .kind = PC_RQ_CAPTURE, .arg = { x, y, w, h }, .out = &reply, .out_bytes = sizeof reply };
+    pc_renderer_rq(&rq);
+    pc_rq_readback_apply(&reply, (uint16_t*)(uintptr_t)pc_native_vram());
 }
 /* ---- the emissive matcher's inputs (hw_cmd.h) ---- */
 /* The instance keys already noted, as emissive.cpp keys them (a mesh and, with a texture override, its page and CLUT): the
@@ -927,6 +883,8 @@ static void apply_batch(batch* b)
             int was_immediate = pc_gpu_immediate;
             pc_gpu_immediate = q.immediate;
             pc_hw_set_call(q.string, q.advance);
+            if (q.marked)
+                pc_hw_mark_drawn(q.area);
             pc_hw_rect(q.x, q.y, q.w, q.h, q.u, q.v, q.color, q.code, q.tpage, q.clut, q.window, q.clip, q.mask_set, q.mask_check);
             pc_hw_set_call(0, -1.0f);
             pc_gpu_immediate = was_immediate;
@@ -937,6 +895,8 @@ static void apply_batch(batch* b)
         case C_LINE: {
             line_record q;
             memcpy(&q, r, sizeof q);
+            if (q.marked)
+                pc_hw_mark_drawn(q.area);
             pc_hw_line(q.x0, q.y0, q.x1, q.y1, q.ca, q.cb, q.semi, q.tpage, q.clip, q.mask_set);
             at += 1 + (int)sizeof q;
             break;
@@ -1030,26 +990,11 @@ static void apply_batch(batch* b)
             at += 1 + (int)sizeof q;
             break;
         }
-        case C_MARK_RASTER: {
-            int rect[4];
-            memcpy(rect, r, sizeof rect);
-            pc_hw_mark_raster(rect[0], rect[1], rect[2], rect[3]);
-            at += 1 + (int)sizeof rect;
-            break;
-        }
         case C_MARK: {
             int rect[4];
             memcpy(rect, r, sizeof rect);
             pc_hw_mark(rect[0], rect[1], rect[2], rect[3]);
             at += 1 + (int)sizeof rect;
-            break;
-        }
-        case C_RASTER_POST: {
-            post_record q;
-            memcpy(&q, r, sizeof q);
-            pc_hw_raster_apply(q.rects, q.count, q.block ? q.block : b->pool + q.offset);
-            free(q.block);
-            at += 1 + (int)sizeof q;
             break;
         }
         case C_BEFORE_WRITE: {
@@ -1092,7 +1037,6 @@ static void hwc_post(void)
     batch* b = current;
     b->pending = pc_hwc_pending;
     pc_hwc_pending = 0;
-    pc_hwc_stale_pending = 0;
     struct apply_args args = { b };
     if (pc_render_thread >= 2) {
         __atomic_store_n(&b->busy, 1, __ATOMIC_RELAXED);
@@ -1127,11 +1071,11 @@ static void stale_check(void)
         return;
     static unsigned long long checks, differ, nonempty, in_table;
     ++checks;
-    nonempty += pc_hwr_stale.count > 0 || pc_hwr_stale.ot_count > 0;
+    nonempty += pc_stale_any(&pc_hwr_stale) || pc_hwr_stale.ot_count > 0;
     in_table += pc_hwr_stale.in_ot;
     if (!pc_hw_stale_matches(&pc_hwr_stale) && ++differ && shown++ < 20)
-        fprintf(stderr, "[stale] the producer's set differs from the renderer's after check %llu (%llu differ); producer %d rects, in_ot %d, ot %d\n", checks,
-            differ, pc_hwr_stale.count, pc_hwr_stale.in_ot, pc_hwr_stale.ot_count);
+        fprintf(stderr, "[stale] the producer's set differs from the renderer's after check %llu (%llu differ); producer %d cells, in_ot %d, ot %d\n", checks,
+            differ, pc_stale_cells(pc_hwr_stale.missing), pc_hwr_stale.in_ot, pc_hwr_stale.ot_count);
     if (checks % 5000 == 0)
         fprintf(stderr, "[stale] %llu checks, %llu differ, %llu with something stale, %llu inside a table\n", checks, differ, nonempty, in_table);
 }

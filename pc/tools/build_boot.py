@@ -428,7 +428,7 @@ def state_sections(obj):
     """Save states (pc/src/snapshot.c): the object's .data/.bss join the
     sections rood_state_data / rood_state_bss, which a snapshot saves and
     restores whole. For the game's own units and the host units whose statics
-    are game state (the SDK layer, CPU rasterizer and VRAM, GTE, CD drive,
+    are game state (the SDK layer, the GPU command state and VRAM, GTE, CD drive,
     MDEC, XA, the libspu layer). Variables placed in .data.rood_host (host
     configuration read from the environment) stay out. The Windows twin (when
     it is built already) gets state_sections_coff's renames."""

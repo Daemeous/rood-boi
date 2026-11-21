@@ -26,25 +26,31 @@ void pc_hwr_marker(uint32_t list, const int* clip);
 void pc_hwr_translucent(uint32_t list);
 const span_shape* pc_hwr_span_shape_of(uintptr_t packet);
 /* The stale areas (T1 R4e): where the renderer's target holds what native VRAM lacks. Two copies run the same marks: the renderer's (read-backs,
- * own copies) and the producer's (what the CPU rasterizer may leave out: raster_skip). Kinds: STALE_MISSING (native VRAM lacks what a native
- * draw made), STALE_PLACED (the target's picture is placed for the view). */
-#define PC_MAX_STALE 8
-enum { PC_STALE_MISSING = 1, PC_STALE_PLACED = 2 };
-/* Two lists, one a kind: what native VRAM lacks (MISSING: a native draw made it; the producer keeps this list too) and where the target's picture
- * is placed for the view (PLACED: the renderer's own marks, which the producer never needs). The marks of the first all come from the
- * records' own inputs, so both copies run them in the same order and stay equal; the second can be marked by the renderer's internal
- * work (side-paint clearing, a widescreen upload, a display change) without anything having to be told. */
+ * own copies) and the producer's (which fences ask the renderer to read back). Kinds: STALE_MISSING (the game's VRAM lacks what the renderer drew:
+ * every primitive, since T5-6, and what a native list drew), STALE_PLACED (the target's picture is placed for the view). */
+#define PC_MAX_STALE 8 /* (the table's own native marks `ot`) */
+enum { PC_STALE_MISSING = 1, PC_STALE_PLACED = 2, PC_STALE_DRAWN = 4 }; /* (DRAWN: a primitive's own bounds, in the MISSING set, but not among the table's own native marks `ot`) */
+/* Two sets, one a kind: what native VRAM lacks (MISSING: what the renderer drew; the producer keeps this set too) and where the target's picture
+ * is placed for the view (PLACED: the renderer's own marks, which the producer never needs). Each is a bitmap of 64 x 16 cells (bit `band` of
+ * word `column`): a mark sets the cells it touches, a read-back clears the cells it read, so a partial read leaves the rest exactly and nothing is
+ * ever merged or lost. The marks of the first all come from the records' own inputs, so both copies run them in the same order and stay equal;
+ * the second can be marked by the renderer's internal work (side-paint clearing, a widescreen upload, a display change) without anything having
+ * to be told. */
 typedef struct {
-    int rects[PC_MAX_STALE][4], count;         /* MISSING: x, y, w, h */
-    int placed[PC_MAX_STALE][4], placed_count; /* PLACED: x, y, w, h */
+    uint32_t missing[16], placed[16];          /* MISSING, PLACED: the cells */
     int ot[PC_MAX_STALE][4], ot_count, in_ot;  /* the table being drawn's own MISSING marks: x0, y0, x1, y1 */
 } pc_stale_set;
 void pc_stale_mark(pc_stale_set* set, const int* clip, int kind);
 int pc_stale_covers(const pc_stale_set* set, const int* clip);
-/* Entry i of a list (0 MISSING, 1 PLACED) was read back as [x0, x1) x [y0, y1): the table's marks it covered go, and the entry. */
-void pc_stale_remove_entry(pc_stale_set* set, int list, int i, int x0, int y0, int x1, int y1);
-/* A read-back of the rectangle (x, y, w, h) was made by the renderer: the producer's copy forgets the MISSING entry that is that rectangle. */
+/* Whether any cell is stale; whether one of `cells` meets the rectangle (x, y, w, h). */
+int pc_stale_any(const pc_stale_set* set);
+int pc_stale_meets(const uint32_t* cells, int x, int y, int w, int h);
+/* The pixel rectangle {x0, y0, x1, y1} (cell-aligned, x1 and y1 exclusive) bounding the stale cells that meet (x, y, w, h); 0 when none does. */
+int pc_stale_bbox(const uint32_t* cells, int x, int y, int w, int h, int* out);
+/* A read-back made by the renderer over the cell-aligned rectangle [x0, x1) x [y0, y1): its cells are current, the table's marks it covered go. */
+void pc_stale_clear(uint32_t* cells, int x0, int y0, int x1, int y1);
 void pc_stale_readback(pc_stale_set* set, int x, int y, int w, int h);
+int pc_stale_cells(const uint32_t* cells); /* how many are stale */
 void pc_stale_copy(pc_stale_set* set, int sx, int sy, int dx, int dy, int w, int h);
 extern pc_stale_set pc_hwr_stale; /* the producer's */
 void pc_hwr_end_ot(void);

@@ -12,10 +12,10 @@ static uint64_t vsyncs, game_from;
  * SLOW_NS is logged with them (ROOD_PERF), to see what a hitch was doing. */
 static uint64_t frame[PC_COST_SECTIONS];
 #define SLOW_NS 12000000u
-static const char* const section_names[PC_COST_SECTIONS] = { "game", "host", "draw", "raster", "emissive", "upload",
+static const char* const section_names[PC_COST_SECTIONS] = { "game", "host", "draw", "fill", "emissive", "upload",
     "readback", "gpu_copy", "fence_wait", "present", "debug_ppm" };
 static const char* const counter_names[PC_COUNTERS] = { "upload_kb", "uploads", "readbacks", "gpu_copies", "hashed_texels",
-    "debug_ppm", "passes", "barriers", "raster_px", "skipped_px" };
+    "debug_ppm", "passes", "barriers" };
 
 __attribute__((constructor)) static void cost_init(void) { pc_cost_on = getenv("ROOD_PERF") != NULL; }
 uint64_t pc_cost_clock(void)

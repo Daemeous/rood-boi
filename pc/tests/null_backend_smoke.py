@@ -50,8 +50,7 @@ def main():
             game.run(60)
             drawn = game.call("stream", count=8)
             assert drawn["closed"] >= 1 and any(f[1] > 0 for f in drawn["frames"]), drawn  # frames closed, with words drawn
-            assert game.call("vram_stream")["raster_px"] == 0, "the CPU rasterizer ran on the null renderer"
-            print("PASS: null launch, no graphics probe/display helper, hardware inactive, RPC stepping, no GPU device descriptors, no pixels (the stream is walked, the rasterizer visited none)")
+            print("PASS: null launch, no graphics probe/display helper, hardware inactive, RPC stepping, no GPU device descriptors, no pixels (the stream is walked)")
         finally:
             game.close()
     return 0

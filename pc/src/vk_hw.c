@@ -36,6 +36,8 @@ static VkPipeline opaque_pipeline, blend_pipelines[4], cover_pipeline, upload_pi
  * and depth (colour untouched), its colour added / subtracted by coverage
  * ("over": cover_pipeline). */
 static VkPipeline text_solid_pipeline, text_add_pipeline, text_sub_pipeline;
+static int text_colour_only; /* text drawn for a read (pc_vk_hw_text_colour_only): colour only, the G-buffer and depth untouched */
+void pc_vk_hw_text_colour_only(int on) { text_colour_only = on; }
 static vk_attachments live_attachments, replay_attachments, object_attachments, object_replay_attachments;
 /* MSAA: the twins' attachments, the packet pipelines at their sample count
  * ([1]: 2D, every sample at the pixel centre), and load/resolve. */
@@ -115,6 +117,8 @@ static int make_targets(int scale)
     if (!make_target(&vk_hw.live) || !make_target(&vk_hw.replay)
         || !vk_image_create(&vk_hw.copy, vk_hw.width, vk_hw.height, VK_TARGET_FORMAT,
             VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT)
+        || !vk_image_create(&vk_hw.scratch, vk_hw.width, vk_hw.height, VK_TARGET_FORMAT,
+            VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT)
         || !vk_image_create(&vk_hw.room_depth, vk_hw.width, vk_hw.height, vk.depth_format, depth)
         || !vk_image_create(&vk_hw.before, vk_hw.width, vk_hw.height, vk.depth_format, depth)
         || !vk_image_create(&vk_hw.room_key, vk_hw.width, vk_hw.height, vk.depth_format, depth)
@@ -330,6 +334,7 @@ void pc_vk_hw_resize(int scale)
     destroy_target(&vk_hw.live);
     destroy_target(&vk_hw.replay);
     vk_image_destroy_later(&vk_hw.copy);
+    vk_image_destroy_later(&vk_hw.scratch);
     vk_image_destroy_later(&vk_hw.room_depth);
     vk_image_destroy_later(&vk_hw.before);
     vk_image_destroy_later(&vk_hw.room_key);
@@ -463,12 +468,14 @@ void pc_vk_hw_draw_batch(unsigned fbo, const void* vertices, int count, int blen
             centre = ((const hw_vertex*)vertices)[i].z <= 0.0f;
     if (blend >= 16) { /* BLEND_TEXT (+ the PS1 mode, 4: opaque): text from distance texels; + 8: 2D at an opacity */
         int mode = (blend - 16) & 7;
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, ms ? ms_text_solid : text_solid_pipeline);
-        vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, draw_layout);
-        push.pass = 3;
-        vkCmdPushConstants(cmd, draw_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof push,
-            &push);
-        vkCmdDraw(cmd, (uint32_t)count, 1, 0, 0);
+        if (!text_colour_only) { /* (the solid pass writes the G-buffer and depth; the passes after it only colour) */
+            vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, ms ? ms_text_solid : text_solid_pipeline);
+            vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, draw_layout);
+            push.pass = 3;
+            vkCmdPushConstants(cmd, draw_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof push,
+                &push);
+            vkCmdDraw(cmd, (uint32_t)count, 1, 0, 0);
+        }
         vkCmdSetDepthWriteEnable(cmd, VK_FALSE);
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, ms ? ms_cover : cover_pipeline);
         push.pass = 4;
@@ -801,6 +808,22 @@ int pc_vk_hw_sync_read(int replay, int x0, int y0, int x1, int y1, unsigned char
         sync_image.image, VK_IMAGE_LAYOUT_GENERAL,
         1, &blit, VK_FILTER_NEAREST);
     return vk_read_image(&sync_image, VK_IMAGE_ASPECT_COLOR_BIT, x0, y0, x1 - x0, y1 - y0, pixels, 4);
+}
+/* The live target's colour over native rectangle x0..x1, y0..y1 kept aside (restore 0) or put back (restore 1): the held text is drawn into the
+ * target for a read of it (a screen copy sampling the picture) and then taken out again, so the picture shown keeps its text live. */
+void pc_vk_hw_scratch(int restore, int x0, int y0, int x1, int y1)
+{
+    x0 = x0 < 0 ? 0 : x0, y0 = y0 < 0 ? 0 : y0, x1 = x1 > 1024 ? 1024 : x1, y1 = y1 > 512 ? 512 : y1;
+    if (x1 <= x0 || y1 <= y0)
+        return;
+    int s = vk_hw.scale;
+    vk_end_rendering();
+    vk_barrier(); /* the target's drawing so far */
+    if (restore)
+        copy_image(&vk_hw.scratch, &vk_hw.live.color, x0 * s, y0 * s, x0 * s, y0 * s, (x1 - x0) * s, (y1 - y0) * s);
+    else
+        copy_image(&vk_hw.live.color, &vk_hw.scratch, x0 * s, y0 * s, x0 * s, y0 * s, (x1 - x0) * s, (y1 - y0) * s);
+    vk_barrier();
 }
 /* The render-target capture: the live (replay: the replay) target's colour over native rectangle x0..x1, y0..y1 kept
  * as it is, at the target's own resolution, for the draws after it that sample a frame buffer as a texture (a screen copy:

@@ -86,14 +86,17 @@ RULES = {
     # frame back (StoreImage in TITLE, MENU5, MENU7: T5-4 makes them captures).
     "vram_sdk_calls": re.compile(r"\b(?:LoadImage2?|StoreImage|ClearImage|MoveImage2?)\s*\("),
     "vram_frame_readers": re.compile(r"\bStoreImage\s*\("),
-    # cpu_raster: the CPU rasterizer's code lines in its two includes (its pixel and rectangle code in boot_runtime.c goes with them in T5-6);
-    # stale_area: the stale-area model that copies the renderer's frame back for the CPU (T5-6 deletes it).
+    # cpu_raster: code lines of the CPU rasterizer's two includes (T5-6 deleted the rasterizer; the files that survive as the command parsers
+    # are boot_gpu_polygons.inc and boot_gpu_lines.inc and are not counted); stale_area: the names of what retired with it (the raster skip, the
+    # raster marks and posts); vram_readback: what survives of the stale-area model as the read-back of the renderer's frame into the game's VRAM
+    # array (StoreImage of a drawn area, a sprite sampling the frame, screenshots and checkpoints), counted so that it only falls (T5-7).
     "cpu_raster": re.compile(r"^\s*\S"),
-    "stale_area": re.compile(r"\b(?:pc_hw_sync\w*|pc_hwc_sync\w*|pc_hw_raster_skip|vram_from_target|pc_hw_mark_raster|pc_hwc_mark_raster|pc_hwc_raster_post|rvram_apply|raster_refresh|pc_hw_stale\w*|pc_hwc_stale\w*)\b"),
+    "stale_area": re.compile(r"\b(?:pc_hw_raster_skip|pc_hw_mark_raster|pc_hwc_mark_raster|pc_hwc_raster_post|pc_hw_raster_apply|raster_refresh)\b"),
+    "vram_readback": re.compile(r"\b(?:pc_hw_sync(?:_store|_texture|s)?|pc_hwc_fence_sync|vram_from_target|rvram_apply|pc_hw_stale\w*|pc_hwc_stale\w*)\b"),
 }
 # Rules that count only under a path (the others count in every tree).
 ONLY_UNDER = {"vram_frame_readers": ("pc/src/game/TITLE/", "pc/src/game/MENU/MENU5.PRG/", "pc/src/game/MENU/MENU7.PRG/"),
-              "cpu_raster": ("pc/src/boot_polygons.inc", "pc/src/boot_lines.inc")}
+              "cpu_raster": ("pc/src/boot_polygons.inc", "pc/src/boot_lines.inc")} # (the files are gone: 0)
 # Rules that leave out paths: the SDK's own libgpu and the walker that draws the packets (they are what the game's
 # packets are for, T16), and the typed items' lowering to packets (it goes when a renderer takes items directly).
 SKIP_FOR = {"ordering_table": ("pc/src/game/SLUS_010.40/libgpu/",),
@@ -101,7 +104,7 @@ SKIP_FOR = {"ordering_table": ("pc/src/game/SLUS_010.40/libgpu/",),
             "vram_pointer": ("pc/src/boot_runtime.c", "pc/src/gpu_hw.c"),
             "vram_sdk_calls": ("pc/src/game/SLUS_010.40/libgpu/", "pc/src/boot_sdk.c"),
             "gpu_packet_writes": ("pc/src/game/SLUS_010.40/libgpu/", "pc/src/boot_sdk.c", "pc/src/boot_runtime.c",
-                                  "pc/src/boot_polygons.inc", "pc/src/boot_lines.inc", "pc/src/gpu_hw.c",
+                                  "pc/src/boot_gpu_polygons.inc", "pc/src/boot_gpu_lines.inc", "pc/src/gpu_hw.c",
                                   "pc/src/draw_items.c",
                                   # not GPU packets: the SPU's registers and volume words, the movie library's data words,
                                   # and the classic layer's own records (a `.tag` field of its suppression list)

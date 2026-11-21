@@ -17,7 +17,7 @@ enum {
     PC_COST_GAME,      /* the game between ticks (its logic and drawing) */
     PC_COST_HOST,      /* the host's vsync work (pc_tick: pacing, audio, presenting) */
     PC_COST_DRAW,      /* ordering tables and packets (pc_draw_packet), mirror included */
-    PC_COST_RASTER,    /* the CPU rasterizer's pixel loops (native VRAM) */
+    PC_COST_RASTER,    /* the game's VRAM array's fill loops (ClearImage, flat rectangles) */
     PC_COST_EMISSIVE,  /* emissive matching (pc_emissive_sync) */
     PC_COST_UPLOAD,    /* native VRAM tiles copied for the GPU */
     PC_COST_READBACK,  /* the GPU target read back into native VRAM (pc_hw_sync) */
@@ -36,8 +36,6 @@ enum {
     PC_COUNT_DEBUG_PPM,  /* debug images written */
     PC_COUNT_PASSES,     /* Vulkan: rendering begun (each a render pass on the GPU) */
     PC_COUNT_BARRIERS,   /* Vulkan: full memory barriers recorded */
-    PC_COUNT_RASTER_PX,  /* pixels the CPU rasterizer visited (bounding boxes) */
-    PC_COUNT_SKIPPED_PX, /* pixels it left out (stale: the target's replace them; pc_hw_raster_skip) */
     PC_COUNTERS
 };
 

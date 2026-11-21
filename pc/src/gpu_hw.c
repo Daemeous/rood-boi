@@ -1,7 +1,8 @@
 /* Upscaled hardware rasterizer (OpenGL 3.3).
  *
- * The CPU rasterizer in boot_runtime.c remains the reference: it keeps native
- * VRAM exact for StoreImage, effects and texture decoding. Every primitive,
+ * The renderer draws every pixel (the CPU rasterizer was retired in T5-6): the game's VRAM array holds what
+ * transfers wrote, and what the stale-area read-backs copied from the target for StoreImage, a sprite sampling
+ * the frame, screenshots and checkpoints. Every primitive,
  * fill, copy and upload is mirrored here into an RGBA8 render target of
  * (1024 x 512) * scale, which is what the window displays. Textures are always
  * decoded from native VRAM (an R16UI texture), re-uploaded per 64x256 tile only
@@ -557,13 +558,9 @@ static void flush(void);
  * else is drawn, then laid out as lines (text_run_flush, below). */
 static int text_piece_count, text_emitting;
 static void text_run_flush(void);
-/* The drawing areas native draws left stale in the ordering table being
- * drawn (STALE_MISSING; pc_hw_begin_ot .. pc_hw_end_ot). What the CPU
- * rasterizer would draw inside one is replaced by the target's picture
- * before anything reads it there (pc_hw_sync): it is not drawn
- * (pc_hw_raster_skip). Only this table's own marks count, so the choice
- * is the same in a game resumed from a save state (whose host state starts
- * empty) as in the game that saved it. */
+/* The drawing areas the ordering table being drawn drew in (STALE_MISSING; pc_hw_begin_ot .. pc_hw_end_ot): the target's picture
+ * replaces the game's VRAM there before anything reads it (pc_hw_sync). Only this table's own marks count for own copies, so the
+ * choice is the same in a game resumed from a save state (whose host state starts empty) as in the game that saved it. */
 /* The renderer's own stale set (the producer keeps its copy in hw_registry.c: pc_hwr_stale). */
 static pc_stale_set cstale;
 void pc_hw_end_ot(void) { PC_HW_METER(end_ot); cstale.in_ot = 0, cstale.ot_count = 0; }
@@ -1092,9 +1089,7 @@ void pc_hw_init_now(const uint16_t* vram)
         return; /* CPU rasterization owns VRAM; no graphics target, even if called explicitly. */
     const char* setting = getenv("ROOD_SCALE");
     int scale = setting ? atoi(setting) : 4;
-    if (scale < 1)
-        return;
-    pc_hw_scale = scale > 8 ? 8 : scale;
+    pc_hw_scale = scale < 1 ? 1 : scale > 8 ? 8 : scale; /* (there is no CPU rasterizer to fall back to: ROOD_SCALE 0 is 1) */
     pc_hw_scale_setting = pc_hw_scale;
     if (setting && pc_settings_env_override)
         pc_settings_env_override("internal_resolution"); /* not saved as the user's (project_settings.cpp) */
@@ -1304,23 +1299,12 @@ void pc_hw_mark(int x0, int y0, int x1, int y1)
 /* Replay statistics (RPC vram_stream "renderer"): frames drawn as interpolated, batches redrawn with undone writes, batches
  * that fell back to B's pixels, recordings finished valid / invalidated by writes. */
 struct { unsigned long long replays, rewritten, unwritten, fell_back, valid, invalid_overlap, invalid_count; } pc_hw_stats;
-/* The CPU rasterizer's output reaches the renderer as a post record carrying the pixels (hw_cmd.c, T5 S3b and T1 R1.5): the renderer
- * takes nothing of the game's array for it. The marks only say the sampled copy lacks the rectangle. */
-unsigned long long pc_hw_raster_posted;
-void pc_hw_raster_apply(const int (*rects)[4], int count, const uint16_t* pixels)
-{ PC_HW_METER(raster_post);
-    for (int i = 0; i < count; i++) {
-        int x0 = rects[i][0], y0 = rects[i][1], x1 = rects[i][2], y1 = rects[i][3];
-        int w = x1 - x0 + 1, h = y1 - y0 + 1;
-        for (int row = 0; row < h; row++)
-            memcpy(rvram + (size_t)(y0 + row) * 1024 + x0, pixels + (size_t)row * w, (size_t)w * sizeof *rvram);
-        pixels += (size_t)w * h;
-        ++pc_hw_raster_posted;
-    }
-}
-void pc_hw_mark_raster(int x0, int y0, int x1, int y1)
-{ PC_HW_METER(mark_raster);
-    pc_hw_mark(x0, y0, x1, y1);
+/* A draw record's drawing area is now the target's alone: game VRAM lacks what it drew until something reads it back (the stale
+ * rectangles, below). The producer marked its own set when it recorded it (hw_cmd.c). */
+static void mark_stale_kind(const int* clip, int kind);
+void pc_hw_mark_drawn(const int* clip)
+{ PC_HW_METER(mark_drawn);
+    mark_stale_kind(clip, PC_STALE_DRAWN);
 }
 /* The sampled copy of VRAM: `bands` (dirty_bands' layout) from `vram`
  * (1024 x 512 halfwords), as one copy per run of bands in a column, all in
@@ -1777,15 +1761,26 @@ static int overlay_cells_hit(int x0, int y0, int x1, int y1)
 /* Draw the picked triangles (overlay_pick) into `fbo`, in their order, a
  * batch per run of one blend and drawing area; `record`: as part of the
  * frame being recorded (where they are drawn now). */
-static void overlay_draw_picked(GLuint fbo, int record)
+static void overlay_draw_picked(GLuint fbo, int record, const int* limit)
 {
     static hw_vertex v[MAX_VERTICES];
     int n = 0, blend = 0, clip[4] = { 0, 0, 0, 0 };
     for (int i = 0; i <= overlay_count; i++) {
         const overlay_triangle* o = i < overlay_count && overlay_pick[i] ? &overlay[i] : NULL;
+        int oc[4];
+        if (o) {
+            memcpy(oc, o->clip, sizeof oc);
+            if (limit) { /* (nothing outside `limit` is drawn: what is drawn is put back there only) */
+                int x1 = oc[0] + oc[2] < limit[2] ? oc[0] + oc[2] : limit[2], y1 = oc[1] + oc[3] < limit[3] ? oc[1] + oc[3] : limit[3];
+                oc[0] = oc[0] > limit[0] ? oc[0] : limit[0], oc[1] = oc[1] > limit[1] ? oc[1] : limit[1];
+                oc[2] = x1 - oc[0], oc[3] = y1 - oc[1];
+                if (oc[2] <= 0 || oc[3] <= 0)
+                    continue;
+            }
+        }
         if (i < overlay_count && !o)
             continue;
-        if (n && (!o || o->blend != blend || memcmp(o->clip, clip, sizeof clip) || n + 3 > MAX_VERTICES)) {
+        if (n && (!o || o->blend != blend || memcmp(oc, clip, sizeof clip) || n + 3 > MAX_VERTICES)) {
             if (record)
                 record_vertices(v, n, blend, clip, 1);
             pc_ui_upscale_prepare();
@@ -1795,7 +1790,7 @@ static void overlay_draw_picked(GLuint fbo, int record)
         if (!o)
             break;
         blend = o->blend;
-        memcpy(clip, o->clip, sizeof clip);
+        memcpy(clip, oc, sizeof clip);
         memcpy(v + n, o->v, sizeof o->v);
         n += 3;
     }
@@ -1830,8 +1825,34 @@ static int overlay_bake_rect(int x0, int y0, int x1, int y1)
     if (any) {
         for (int i = 0; i < overlay_count; i++)
             overlay_baked += overlay_pick[i];
-        overlay_draw_picked(target_fbo, 1);
+        overlay_draw_picked(target_fbo, 1, NULL);
         overlay_remove_picked();
+    }
+    return any;
+}
+/* The held triangles that may draw inside (x0, y0)-(x1, y1) drawn into the target for a read of it, and left held: the caller takes the drawing out
+ * again (pc_vk_hw_scratch) so the picture shown keeps its text live. 0 when none. */
+static int overlay_draw_for_read(int x0, int y0, int x1, int y1)
+{
+    if (!overlay_count || !overlay_cells_hit(x0, y0, x1, y1))
+        return 0;
+    int any = 0;
+    for (int i = 0; i < overlay_count; i++) {
+        const int* b = overlay[i].box;
+        overlay_pick[i] = b[0] < x1 && x0 < b[2] && b[1] < y1 && y0 < b[3];
+        any |= overlay_pick[i];
+    }
+    if (any) {
+#ifdef ROOD_VULKAN
+        if (pc_vk_on())
+            pc_vk_hw_text_colour_only(1); /* (colour only: the G-buffer and depth are not changed, and so need no putting back) */
+#endif
+        int limit[4] = { x0, y0, x1, y1 };
+        overlay_draw_picked(target_fbo, 0, limit); /* (not recorded: it comes out again; drawn only inside the rectangle that is put back) */
+#ifdef ROOD_VULKAN
+        if (pc_vk_on())
+            pc_vk_hw_text_colour_only(0);
+#endif
     }
     return any;
 }
@@ -1867,7 +1888,7 @@ static void overlay_bake_under(const hw_vertex* v, int count, const int* clip)
     if (any) {
         for (int i = 0; i < overlay_count; i++)
             overlay_baked += overlay_pick[i];
-        overlay_draw_picked(target_fbo, 1);
+        overlay_draw_picked(target_fbo, 1, NULL);
         overlay_remove_picked();
     }
 }
@@ -1961,7 +1982,7 @@ static void record_triangle(const float* world, unsigned code, unsigned tpage, u
  * not kept for its kind: the CPU
  * rasterizer may skip it (its area is then stale until pc_hw_sync). */
 static void mark_stale(const int* clip);
-enum { STALE_MISSING = PC_STALE_MISSING, STALE_PLACED = PC_STALE_PLACED }; /* (the stale lists, below) */
+enum { STALE_MISSING = PC_STALE_MISSING, STALE_PLACED = PC_STALE_PLACED, STALE_DRAWN = PC_STALE_DRAWN }; /* (the stale lists, below) */
 static void mark_stale_kind(const int* clip, int kind);
 int pc_hw_suppress; /* the packet being drawn is left out here (ui_bubbles.h): the game side's flag; the renderer has its own copy, below */
 static int rsuppress;
@@ -2048,9 +2069,22 @@ static int free_camera_afterimage(const int* uv, unsigned code, unsigned tpage, 
  * drew), the settings and the game-side suppress flag, never the GPU; the primitive state it needs (2D or not) comes in as an
  * argument, as the walk set it. It marks stale areas (the tables the CPU rasterizer's skip and the read-backs go by) and counts.
  * The renderer's part is pc_hw_triangle_apply. */
-void pc_hw_triangle_decide(const int* uv, unsigned code, unsigned tpage, const int* clip, int is_2d, int effect, pc_stale_set* stale,
-    int suppress, pc_hw_tri_decision* out)
+/* The area a drawn primitive leaves stale: its bounds `b` (x0, y0, x1, y1, exclusive), widened by 2 (a scaled glyph, a precise corner, a line's end
+ * pixel), inside the drawing area `clip`; no bounds: the whole drawing area. */
+void pc_hw_drawn_area(const int* clip, const int* b, int* area)
 {
+    if (!b) {
+        memcpy(area, clip, 4 * sizeof *area);
+        return;
+    }
+    int x0 = b[0] - 2 > clip[0] ? b[0] - 2 : clip[0], y0 = b[1] - 2 > clip[1] ? b[1] - 2 : clip[1];
+    int x1 = b[2] + 2 < clip[0] + clip[2] ? b[2] + 2 : clip[0] + clip[2], y1 = b[3] + 2 < clip[1] + clip[3] ? b[3] + 2 : clip[1] + clip[3];
+    area[0] = x0, area[1] = y0, area[2] = x1 > x0 ? x1 - x0 : 0, area[3] = y1 > y0 ? y1 - y0 : 0;
+}
+void pc_hw_triangle_decide(const int* uv, unsigned code, unsigned tpage, const int* clip, int is_2d, int effect, pc_stale_set* stale,
+    int suppress, const int* bounds, pc_hw_tri_decision* out)
+{
+    memcpy(out->area, clip, sizeof out->area);
     out->skip = 0, out->action = PC_HW_TRI_IGNORE, out->ui = 0, out->other = 0, out->stats = 0, out->mark = 0;
     out->suppress = suppress; /* (the digest takes it, whether the renderer is on or not: left unset when it was off, a triangle's note carried stack garbage and the stream digest was not the same from build to build) */
     if (!pc_hw_active) {
@@ -2077,6 +2111,11 @@ void pc_hw_triangle_decide(const int* uv, unsigned code, unsigned tpage, const i
         out->stats |= 1u << 1;
     /* ui: screen furniture, its texture may be magnified (pc_ui_upscale); not an effect's items (world geometry). */
     out->action = PC_HW_TRI_DRAW, out->ui = is_2d && !range, out->other = !is_2d;
+    if (stale) { /* what it draws is the target's alone: game VRAM lacks it (the renderer marks its own set when it applies the decision) */
+        pc_hw_drawn_area(clip, bounds, out->area);
+        pc_stale_mark(stale, out->area, PC_STALE_DRAWN);
+        out->mark = 1;
+    }
     if (stale && pc_hwc_mirror.widescreen && layout_enabled())
         pc_stale_mark(stale, clip, PC_STALE_PLACED); /* (the renderer's apply marks its own set the same) */
 }
@@ -2393,7 +2432,7 @@ void pc_hw_triangle_apply(const int* xy, const int* uv, const int* rgb, unsigned
     if (decision->stats & 2)
         ++packet_stats.legacy_effect_triangles;
     if (decision->mark)
-        mark_stale(clip);
+        mark_stale_kind(decision->area, decision->action == PC_HW_TRI_DRAW ? STALE_DRAWN : STALE_MISSING);
     triangle_apply_body(xy, uv, rgb, code, tpage, clut, window, clip, mask_set, mask_check, decision);
     int v[4] = { decision->skip, primitive_anchor | primitive_exact << 8, primitive_opacity, decision->suppress };
     pc_stream_note(1, v, 4);
@@ -2403,7 +2442,7 @@ int pc_hw_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, 
     const int* clip, int mask_set, int mask_check)
 { PC_HW_METER(triangle);
     pc_hw_tri_decision decision;
-    pc_hw_triangle_decide(uv, code, tpage, clip, primitive_2d, poly_effect, NULL, rsuppress, &decision);
+    pc_hw_triangle_decide(uv, code, tpage, clip, primitive_2d, poly_effect, NULL, rsuppress, NULL, &decision);
     pc_hw_triangle_apply(xy, uv, rgb, code, tpage, clut, window, clip, mask_set, mask_check, &decision);
     return decision.skip;
 }
@@ -3379,6 +3418,9 @@ void pc_hw_resync(const uint16_t* vram)
     flush();
     ms_end();
     forget_recordings();
+    /* The target is now the game's array exactly: nothing is stale (a stale cell is where the target holds more than the array), whatever it was
+     * before the restore, restart or rewind, so the set starts empty and no read-back or own copy is hidden by it. */
+    memset(&cstale, 0, sizeof cstale);
     mark_dirty_tiles(0xffffffffu);
     pc_hw_upload(0, 0, 1024, 512, vram);
 }
@@ -4183,15 +4225,6 @@ static const char* vram_copy_fragment_source = /* (pc/shaders/vulkan/vram_from_t
     "    uvec4 c = uvec4(round(sum / n * 255.0));\n"
     "    vram = uvec4((c.r >> 3) | ((c.g >> 3) << 5) | ((c.b >> 3) << 10) | (c.a >= 128u ? 0x8000u : 0u));\n"
     "}\n";
-/* ROOD_RASTER_SKIP=0: the CPU rasterizer draws everything (pc_hw_raster_skip). */
-int pc_hw_raster_skip_enabled(void);
-static int raster_skip_enabled(void)
-{
-    static int enabled = -1;
-    if (enabled < 0)
-        enabled = !getenv("ROOD_RASTER_SKIP") || atoi(getenv("ROOD_RASTER_SKIP")) != 0;
-    return enabled;
-}
 static int vram_copy_enabled = -1;
 int pc_hw_own_copies_enabled(void);
 static int own_copies_enabled(void)
@@ -4259,71 +4292,95 @@ void pc_hw_sync_store(int x, int y, int w, int h)
 }
 static void sync_kinds(int x, int y, int w, int h, int kinds)
 {
-    if (!pc_hw_active || (!cstale.count && !cstale.placed_count) || w <= 0 || h <= 0)
+    if (!pc_hw_active || !pc_stale_any(&cstale) || w <= 0 || h <= 0)
         return;
     for (int list = 0; list < 2; list++) {
-    int (*rects)[4] = list ? cstale.placed : cstale.rects;
-    int* count = list ? &cstale.placed_count : &cstale.count;
+    uint32_t* cells = list ? cstale.placed : cstale.missing;
     if (!(kinds & (list ? STALE_PLACED : STALE_MISSING)))
         continue;
-    for (int i = 0; i < *count;) {
-        int* r = rects[i];
-        int x0 = x > r[0] ? x : r[0], y0 = y > r[1] ? y : r[1];
-        int x1 = x + w < r[0] + r[2] ? x + w : r[0] + r[2], y1 = y + h < r[1] + r[3] ? y + h : r[1] + r[3];
-        if (x1 <= x0 || y1 <= y0) {
-            ++i;
-            continue;
+    int box[4];
+    if (!pc_stale_bbox(cells, x, y, w, h, box))
+        continue;
+    /* Copy back the stale cells the request meets (their bounding box: the held text baked into the picture for it is only what lies
+     * there, not a whole drawing area's); every other cell stays as it was. */
+    int x0 = box[0], y0 = box[1], x1 = box[2], y1 = box[3];
+    static int debug = -1;
+    if (debug < 0)
+        debug = getenv("ROOD_SYNC_DEBUG") != NULL;
+    if (debug)
+        fprintf(stderr, "[sync] read %d,%d %dx%d: stale cells %d,%d..%d,%d from %p\n", x, y, w, h, x0, y0, x1, y1, __builtin_return_address(0));
+    flush();
+    overlay_bake_rect(x0, y0, x1, y1);
+    if (ms_scope == target_fbo)
+        ms_end_over(x0, y0, x1 - x0, y1 - y0);
+    static unsigned char pixels[1024 * 512 * 4];
+    read_native_pixels(target_fbo, x0, y0, x1, y1, pixels);
+    if (readback_reply && readback_reply->count < 8) {
+        /* a request's reply (renderer_rq.h): the pixels travel back and the game side takes them into its array */
+        int w = x1 - x0, h = y1 - y0;
+        uint16_t* packed = malloc((size_t)w * (size_t)h * sizeof *packed);
+        if (packed) {
+            const unsigned char* src = pixels;
+            for (int i = 0; i < w * h; i++, src += 4)
+                packed[i] = (uint16_t)((src[0] >> 3) | ((src[1] >> 3) << 5) | ((src[2] >> 3) << 10) | (src[3] >= 128 ? 0x8000 : 0));
+            int k = readback_reply->count++;
+            readback_reply->rect[k].x = x0, readback_reply->rect[k].y = y0, readback_reply->rect[k].w = w, readback_reply->rect[k].h = h;
+            readback_reply->rect[k].pixels = packed;
+            rvram_put(x0, y0, w, h, packed); /* the read-back is the renderer's too */
         }
-        static int debug = -1;
-        if (debug < 0)
-            debug = getenv("ROOD_SYNC_DEBUG") != NULL;
-        if (debug)
-            fprintf(stderr, "[sync] read %d,%d %dx%d: stale %d,%d %dx%d from %p\n", x, y, w, h, r[0], r[1], r[2], r[3],
-                __builtin_return_address(0));
-        /* Copy the whole stale rectangle back: it is then current. */
-        x0 = r[0], y0 = r[1], x1 = r[0] + r[2], y1 = r[1] + r[3];
-        flush();
-        overlay_bake_rect(x0, y0, x1, y1);
-        if (ms_scope == target_fbo)
-            ms_end_over(x0, y0, x1 - x0, y1 - y0);
-        static unsigned char pixels[1024 * 512 * 4];
-        read_native_pixels(target_fbo, x0, y0, x1, y1, pixels);
-        if (readback_reply && readback_reply->count < 8) {
-            /* a request's reply (renderer_rq.h): the pixels travel back and the game side takes them into its array */
-            int w = x1 - x0, h = y1 - y0;
-            uint16_t* packed = malloc((size_t)w * (size_t)h * sizeof *packed);
-            if (packed) {
-                const unsigned char* src = pixels;
-                for (int i = 0; i < w * h; i++, src += 4)
-                    packed[i] = (uint16_t)((src[0] >> 3) | ((src[1] >> 3) << 5) | ((src[2] >> 3) << 10) | (src[3] >= 128 ? 0x8000 : 0));
-                int k = readback_reply->count++;
-                readback_reply->rect[k].x = x0, readback_reply->rect[k].y = y0, readback_reply->rect[k].w = w, readback_reply->rect[k].h = h;
-                readback_reply->rect[k].pixels = packed;
-                rvram_put(x0, y0, w, h, packed); /* the read-back is the renderer's too */
-            }
-        } else {
-            pixels_to_vram(pixels, x0, y0, x1, y1, (uint16_t*)(uintptr_t)native_vram);
-            rvram_apply(x0, y0, x1 - x0, y1 - y0);
-        }
-        pc_vram_taint(x0, y0, x1, y1); /* ROOD_VRAM_STREAM_CHECK: not the stream's */
-        mark_dirty(x0, y0, x1 - 1, y1 - 1); /* the sampled copy follows */
-        pc_ui_upscale_tiles_changed(tiles_for(x0, y0, x1 - 1, y1 - 1));
-        pc_emissive_vram_dirty(tiles_for(x0, y0, x1 - 1, y1 - 1));
-        ++pc_hw_syncs;
-        /* Native VRAM is current there now: the CPU rasterizer draws there again. */
-        for (int k = 0; k < cstale.ot_count;) {
-            const int* o = cstale.ot[k];
-            if (o[0] < x1 && x0 < o[2] && o[1] < y1 && y0 < o[3]) {
-                pc_hw_meter_result(PC_HW_sync, PC_HW_WHY_OT_STALE_READBACK, 1);
-                memmove(cstale.ot[k], cstale.ot[k + 1], (size_t)(--cstale.ot_count - k) * sizeof cstale.ot[0]);
-            }
-            else
-                ++k;
-        }
-        memmove(r, rects[i + 1], (size_t)(*count - i - 1) * sizeof rects[0]);
-        --*count;
+    } else {
+        pixels_to_vram(pixels, x0, y0, x1, y1, (uint16_t*)(uintptr_t)native_vram);
+        rvram_apply(x0, y0, x1 - x0, y1 - y0);
     }
+    pc_vram_taint(x0, y0, x1, y1); /* ROOD_VRAM_STREAM_CHECK: not the stream's */
+    mark_dirty(x0, y0, x1 - 1, y1 - 1); /* the sampled copy follows */
+    pc_ui_upscale_tiles_changed(tiles_for(x0, y0, x1 - 1, y1 - 1));
+    pc_emissive_vram_dirty(tiles_for(x0, y0, x1 - 1, y1 - 1));
+    ++pc_hw_syncs;
+    /* The game's VRAM is current there now. */
+    for (int k = 0; k < cstale.ot_count;) {
+        const int* o = cstale.ot[k];
+        if (o[0] < x1 && x0 < o[2] && o[1] < y1 && y0 < o[3]) {
+            pc_hw_meter_result(PC_HW_sync, PC_HW_WHY_OT_STALE_READBACK, 1);
+            memmove(cstale.ot[k], cstale.ot[k + 1], (size_t)(--cstale.ot_count - k) * sizeof cstale.ot[0]);
+        }
+        else
+            ++k;
     }
+    pc_stale_clear(cells, x0, y0, x1, y1);
+    }
+}
+/* A capture: the target's picture of the rectangle (x, y, w, h) as it is, read in one blit of exactly that extent. The extent is the
+ * request's, never a stale rectangle's: the driver's nearest blit places its samples by the extent it is given (measured with a probe:
+ * the same pixels read as 64 x 224 and as 320 x 224 differ in 1,903 channel values), so a read whose extent followed the stale areas
+ * gave a picture that depended on how the frame happened to be drawn. The pixels go to the game's VRAM and the renderer's like a
+ * read-back's; the stale areas stay as they are. */
+void pc_hw_capture_read(int x, int y, int w, int h)
+{ PC_HW_METER(capture_read);
+    if (!pc_hw_active || w <= 0 || h <= 0 || x < 0 || y < 0 || x + w > 1024 || y + h > 512 || !readback_reply)
+        return;
+    int x0 = x, y0 = y, x1 = x + w, y1 = y + h;
+    flush();
+    /* (no overlay_bake_rect: the held text overlay is drawn over the picture at presentation, and baking it into the target would change what
+     * is shown from here on; the capture is the game's own pixels, as the reference's mirror was) */
+    if (ms_scope == target_fbo)
+        ms_end_over(x0, y0, x1 - x0, y1 - y0);
+    static unsigned char pixels[1024 * 512 * 4];
+    read_native_pixels(target_fbo, x0, y0, x1, y1, pixels);
+    uint16_t* packed = readback_reply->count < 8 ? malloc((size_t)w * (size_t)h * sizeof *packed) : NULL;
+    if (!packed)
+        return;
+    const unsigned char* src = pixels;
+    for (int i = 0; i < w * h; i++, src += 4)
+        packed[i] = (uint16_t)((src[0] >> 3) | ((src[1] >> 3) << 5) | ((src[2] >> 3) << 10) | (src[3] >= 128 ? 0x8000 : 0));
+    int k = readback_reply->count++;
+    readback_reply->rect[k].x = x0, readback_reply->rect[k].y = y0, readback_reply->rect[k].w = w, readback_reply->rect[k].h = h;
+    readback_reply->rect[k].pixels = packed;
+    rvram_put(x0, y0, w, h, packed);
+    pc_vram_taint(x0, y0, x1, y1);
+    mark_dirty(x0, y0, x1 - 1, y1 - 1);
+    pc_ui_upscale_tiles_changed(tiles_for(x0, y0, x1 - 1, y1 - 1));
+    pc_emissive_vram_dirty(tiles_for(x0, y0, x1 - 1, y1 - 1));
 }
 /* A VRAM copy (the hardware target copies too): a stale source makes the
  * destination stale (copied back when something reads it), rather than
@@ -4337,7 +4394,6 @@ void pc_hw_stale_copy(int sx, int sy, int dx, int dy, int w, int h)
  * where native VRAM is stale anyway: in a drawing area a native draw of
  * this ordering table left missing (read back from the target before
  * anything reads it there; cstale.ot). */
-static int stale_covers(const int* clip) { return pc_stale_covers(&cstale, clip); }
 /* boot_runtime.c: the ordering table being drawn holds native draws (they
  * leave its drawing area stale, mark_stale) and starts in drawing area
  * `clip`. The target's picture is what native VRAM lacks there from the
@@ -4345,16 +4401,18 @@ static int stale_covers(const int* clip) { return pc_stale_covers(&cstale, clip)
  * the native draws too (the backdrop: the whole screen each frame). */
 void pc_hw_ot_native_area(const int* clip)
 { PC_HW_METER(ot_native_area);
-    if (pc_hw_active && cstale.in_ot && raster_skip_enabled())
+    if (pc_hw_active && cstale.in_ot)
         mark_stale(clip);
 }
 /* The stale parts of rectangle (x, y, w, h) become own copies. */
 static void own_add(int x, int y, int w, int h)
 {
-    for (int i = 0; i < cstale.count + cstale.placed_count; i++) {
-        const int* r = i < cstale.count ? cstale.rects[i] : cstale.placed[i - cstale.count];
-        int x0 = x > r[0] ? x : r[0], y0 = y > r[1] ? y : r[1];
-        int x1 = x + w < r[0] + r[2] ? x + w : r[0] + r[2], y1 = y + h < r[1] + r[3] ? y + h : r[1] + r[3];
+    for (int list = 0; list < 2; list++) {
+        int box[4];
+        if (!pc_stale_bbox(list ? cstale.placed : cstale.missing, x, y, w, h, box))
+            continue;
+        int x0 = x > box[0] ? x : box[0], y0 = y > box[1] ? y : box[1];
+        int x1 = x + w < box[2] ? x + w : box[2], y1 = y + h < box[3] ? y + h : box[3];
         if (x1 <= x0 || y1 <= y0)
             continue;
         if (own_count == 4) { /* (more than the texels and the CLUT met: one box) */
@@ -4370,13 +4428,39 @@ static void own_add(int x, int y, int w, int h)
 }
 /* At the primitive's first triangle: its own copies, from the target as
  * drawn so far (or, where the GPU cannot, read back as before). */
+static int stale_covers(const int* clip) { return pc_stale_covers(&cstale, clip); }
 static void own_apply(void)
 {
     flush();
     capture_taken = 0;
+    /* The held text the reads below need in the picture (the copied rows hold the text drawn into them) is drawn into the target for them and
+     * taken out again (Vulkan: pc_vk_hw_scratch), so the picture shown keeps its text live, at the window's resolution; elsewhere it is baked. */
+    int scratch = 0, u[4] = { 1 << 20, 1 << 20, -(1 << 20), -(1 << 20) };
+#ifdef ROOD_VULKAN
+    if (pc_vk_on() && overlay_count) {
+        for (int i = 0; i < own_count; i++) {
+            const int* r = own_rects[i];
+            u[0] = r[0] < u[0] ? r[0] : u[0], u[1] = r[1] < u[1] ? r[1] : u[1];
+            u[2] = r[0] + r[2] > u[2] ? r[0] + r[2] : u[2], u[3] = r[1] + r[3] > u[3] ? r[1] + r[3] : u[3];
+        }
+        if (own_want_valid && screen_copy_native()) {
+            u[0] = own_want[0] < u[0] ? own_want[0] : u[0], u[1] = own_want[1] < u[1] ? own_want[1] : u[1];
+            u[2] = own_want[2] > u[2] ? own_want[2] : u[2], u[3] = own_want[3] > u[3] ? own_want[3] : u[3];
+        }
+        if (u[2] > u[0] && overlay_cells_hit(u[0], u[1], u[2], u[3])) {
+            if (ms_scope == target_fbo)
+                ms_end_over(u[0], u[1], u[2] - u[0], u[3] - u[1]);
+            pc_vk_hw_scratch(0, u[0], u[1], u[2], u[3]);
+            scratch = 1;
+            if (!overlay_draw_for_read(u[0], u[1], u[2], u[3]))
+                scratch = 0;
+        }
+    }
+#endif
     for (int i = 0; i < own_count; i++) {
         const int* r = own_rects[i];
-        overlay_bake_rect(r[0], r[1], r[0] + r[2], r[1] + r[3]);
+        if (!scratch && !pc_vk_on())
+            overlay_bake_rect(r[0], r[1], r[0] + r[2], r[1] + r[3]);
         if (ms_scope == target_fbo)
             ms_end_over(r[0], r[1], r[2], r[3]);
         if (vram_from_target(0, r[0], r[1], r[0] + r[2], r[1] + r[3]))
@@ -4395,11 +4479,14 @@ static void own_apply(void)
 #ifdef ROOD_VULKAN
     if (own_want_valid && screen_copy_native() && pc_vk_on()) {
         const int* w = own_want;
-        overlay_bake_rect(w[0], w[1], w[2], w[3]); /* (the texels the stale parts left out too) */
+        if (!scratch && !pc_vk_on())
+            overlay_bake_rect(w[0], w[1], w[2], w[3]); /* (the texels the stale parts left out too) */
         if (ms_scope == target_fbo)
             ms_end_over(w[0], w[1], w[2] - w[0], w[3] - w[1]);
         capture_taken = pc_vk_hw_capture(0, w[0], w[1], w[2], w[3]);
     }
+    if (scratch)
+        pc_vk_hw_scratch(1, u[0], u[1], u[2], u[3]); /* the picture shown: its text live again */
 #endif
 }
 /* A primitive drawing in drawing area `clip` (x, y, w, h) is about to
@@ -4415,7 +4502,7 @@ void pc_hw_sync_texture(unsigned tpage, unsigned clut, unsigned window, int u0, 
 { PC_HW_METER(sync_texture);
     own_fold();
     own_count = 0, own_want_valid = 0;
-    if (!cstale.count && !cstale.placed_count)
+    if (!pc_stale_any(&cstale))
         return;
     int tx = (tpage & 15) * 64, ty = ((tpage >> 4) & 1) * 256, depth = (tpage >> 7) & 3;
     if ((window & 0x3ff) || u0 < 0 || v0 < 0 || u1 > 255 || v1 > 255 || u1 < u0 || v1 < v0)
@@ -4425,7 +4512,7 @@ void pc_hw_sync_texture(unsigned tpage, unsigned clut, unsigned window, int u0, 
     if (sync_debug < 0)
         sync_debug = getenv("ROOD_SYNC_DEBUG") != NULL;
     own_want_valid = 0;
-    if (clip && own_copies_enabled() && stale_covers(clip)) {
+    if (own_copies_enabled()) { /* (the sampled copy takes its texels on the GPU: the CPU rasterizer that read them back into the game's VRAM is gone, and a read-back per sampling draw stalls the renderer and bakes the held text; ROOD_GPU_VRAM_COPY=0 reads back) */
         own_want[0] = x0, own_want[1] = ty + v0, own_want[2] = (x1 > 1023 ? 1023 : x1) + 1, own_want[3] = ty + v1 + 1;
         own_want_valid = depth == 2;
         own_add(x0, ty + v0, (x1 > 1023 ? 1023 : x1) - x0 + 1, v1 - v0 + 1);
@@ -5468,7 +5555,7 @@ int pc_hw_redraw_now(int area[4])
     replay_frame(&recordings[previous], b, 1.0f);
     if (overlay_count && redraw_text) { /* text held back for the window: drawn into the picture (as it would be) */
         memset(overlay_pick, 1, (size_t)overlay_count);
-        overlay_draw_picked(replay.fbo, 0);
+        overlay_draw_picked(replay.fbo, 0, NULL);
     }
     ms_end();
     force_replay = 1; /* the next interpolated image is drawn afresh */
@@ -5734,7 +5821,7 @@ static void close_frame(unsigned vsync)
 {
     recording* now = recording_now();
     if (now->op_count || now->triangle_count) {
-        packet_stats.stale_rects = cstale.count + cstale.placed_count;
+        packet_stats.stale_rects = pc_stale_cells(cstale.missing) + pc_stale_cells(cstale.placed);
         packet_stats.vram_syncs = pc_hw_syncs;
         render_frame_end(&packet_stats);
         memset(&packet_stats, 0, sizeof packet_stats);
@@ -6044,15 +6131,11 @@ GLuint pc_hw_native_texture_now(void)
 /* hw_registry.c reads the widescreen switches through these. */
 int pc_hw_layout_enabled(void) { return layout_enabled(); }
 int pc_hw_scene_enabled(void) { return scene_enabled(); }
-int pc_hw_raster_skip_enabled(void) { return raster_skip_enabled(); }
 /* ROOD_STALE_CHECK=1 (hw_cmd.c): whether the producer's stale set is the renderer's (they run the same marks; the check is made where no record is pending). */
 int pc_hw_stale_matches(const pc_stale_set* p)
 {
-    if (p->count != cstale.count || p->ot_count != cstale.ot_count || p->in_ot != cstale.in_ot)
+    if (memcmp(p->missing, cstale.missing, sizeof p->missing) || p->ot_count != cstale.ot_count || p->in_ot != cstale.in_ot)
         return 0;
-    for (int i = 0; i < p->count; i++)
-        if (memcmp(p->rects[i], cstale.rects[i], sizeof p->rects[i]))
-            return 0;
     for (int i = 0; i < p->ot_count; i++)
         if (memcmp(p->ot[i], cstale.ot[i], sizeof p->ot[i]))
             return 0;

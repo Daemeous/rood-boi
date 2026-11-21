@@ -263,13 +263,6 @@ target_include_directories(vs_encode_probe PRIVATE src)
 target_link_options(vs_encode_probe PRIVATE -Wl,--gc-sections)
 target_link_libraries(vs_encode_probe PRIVATE m)
 
-# Exercise the actual packet decoder without running game code or opening a window.
-add_library(gpu_probe_runtime OBJECT src/boot_runtime.c)
-target_compile_definitions(gpu_probe_runtime PRIVATE main=pc_boot_main)
-target_compile_options(gpu_probe_runtime PRIVATE -ffunction-sections -fdata-sections)
-add_executable(gpu_probe tests/gpu_probe.c tests/gpu_hooks_stub.c src/frame_cost.c $<TARGET_OBJECTS:gpu_probe_runtime>)
-target_link_options(gpu_probe PRIVATE -Wl,--gc-sections)
-add_test(NAME gpu_probe COMMAND gpu_probe)
 add_custom_target(check-room
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/room_smoke.py
     DEPENDS battle-probe

@@ -143,9 +143,9 @@ void pc_hw_meter_vsync(void)
  * value, "flag" a renderer flag the game or classic layer sets, "table" bookkeeping the earlier hooks of the frame
  * wrote (stale areas). None depends on the GPU's state or on timing. */
 static const char* const why_names[PC_HW_WHY_COUNT] = { "tri_inactive", "tri_suppressed", "tri_effect_stale",
-    "tri_drawn", "skip_inactive", "skip_disabled", "skip_covered", "skip_not_covered", "ot_stale_dropped_by_readback" };
-static const char* const why_depends[PC_HW_WHY_COUNT] = { "flag", "flag", "frame+setting+table", "frame", "flag+table", "setting",
-    "table", "table", "readback (the game sampling or storing stale texels)" };
+    "tri_drawn", "ot_stale_dropped_by_readback" };
+static const char* const why_depends[PC_HW_WHY_COUNT] = { "flag", "flag", "frame+setting+table", "frame",
+    "readback (the game sampling or storing stale texels)" };
 
 int pc_hw_meter_json(char* out, int size, int reset)
 {

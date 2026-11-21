@@ -20,6 +20,7 @@ typedef struct {
     int scale, width, height; /* 1024 x 512 times scale */
     vk_target live, replay;
     vk_image copy; /* scratch for VRAM-to-VRAM copies */
+    vk_image scratch; /* the live target's colour over a rectangle, kept while held text is drawn into it for a read and taken out again (pc_vk_hw_scratch) */
     vk_image room_depth, before; /* native surfaces' depth, and before an object list */
     /* The room list's order key (bucket << 10 | sequence) and its own depth
      * (VK_TOKEN_ROOM_KEY, VK_TOKEN_ROOM_ONLY: pc_native_actor_window). */

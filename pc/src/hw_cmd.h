@@ -31,28 +31,25 @@ extern struct pc_hwc_mirror_t {
  * the pending depth and precise positions (left out, or suppressed), or draw it with this classification. */
 enum { PC_HW_TRI_IGNORE, PC_HW_TRI_RESET, PC_HW_TRI_DRAW };
 typedef struct {
-    int skip;   /* 1: a native draw covers it and the CPU rasterizer may leave it out */
+    int skip;   /* 1: a native draw covers it (only the digest notes it now) */
     int action; /* PC_HW_TRI_* */
     int ui, other;
     int suppress;   /* the suppress flag it was decided with (the digest takes it) */
-    int mark;       /* it marked the drawing area stale (the renderer marks its own set when it applies the decision) */
+    int mark;       /* it marked `area` stale (the renderer marks its own set when it applies the decision) */
+    int area[4];    /* x, y, w, h: what it marked (the primitive's bounds inside the drawing area; a covered effect polygon: the whole area) */
     unsigned stats; /* bits: the packet counters the renderer adds when it applies the triangle (gpu_hw.c) */
 } pc_hw_tri_decision;
 void pc_hw_triangle_decide(const int* uv, unsigned code, unsigned tpage, const int* clip, int is_2d, int effect, pc_stale_set* stale,
-    int suppress, pc_hw_tri_decision* out);
-void pc_hw_raster_apply(const int (*rects)[4], int count, const uint16_t* pixels);
+    int suppress, const int* bounds, pc_hw_tri_decision* out);
 void pc_hw_triangle_apply(const int* xy, const int* uv, const int* rgb, unsigned code, unsigned tpage, unsigned clut,
     unsigned window, const int* clip, int mask_set, int mask_check, const pc_hw_tri_decision* decision);
-/* A triangle: decided now, queued for the renderer; returns the decision's skip (the CPU rasterizer's answer). */
-int pc_hwc_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, unsigned tpage, unsigned clut, unsigned window,
+/* A triangle: decided now, queued for the renderer. */
+void pc_hwc_triangle(const int* xy, const int* uv, const int* rgb, unsigned code, unsigned tpage, unsigned clut, unsigned window,
     const int* clip, int mask_set, int mask_check);
 
 extern int pc_hwc_pending; /* bytes recorded and not yet applied */
 void pc_hwc_flush(void);
 void pc_hwc_post(void); /* hand the recorded batch to the renderer without waiting for it */
-/* A stale_copy record is waiting: pc_hw_raster_skip (the producer's own query, which does not apply the records) reads the table it
- * changes, so it applies them first when this is set. */
-extern int pc_hwc_stale_pending;
 /* The first thing a hook does: apply what the walk recorded before it. */
 extern int pc_gte_widescreen;
 extern int pc_hw_suppress;
@@ -62,7 +59,6 @@ void pc_hwc_sync_settings(void); /* a record when one of the draw settings the r
 extern int pc_render_thread;
 #define PC_HWC_SYNC() ((void)(pc_gte_widescreen != pc_hwc_mirror.widescreen ? (pc_hwc_sync_widescreen(), 0) : 0), (void)(pc_hw_suppress != pc_hwc_mirror.suppress ? (pc_hwc_sync_suppress(), 0) : 0), (void)(pc_hwc_pending || pc_render_thread >= 2 ? (pc_hwc_flush(), 0) : 0))
 /* The same, only when a stale_copy record is waiting (the producer's own queries). */
-#define PC_HWC_SYNC_STALE() ((void)(pc_hwc_stale_pending || pc_render_thread >= 2 ? (pc_hwc_flush(), 0) : 0))
 
 void pc_hwc_frame_menu_model(int on);
 void pc_hwc_set_2d(int is_2d);
@@ -89,12 +85,7 @@ void pc_hwc_rect(int x, int y, int w, int h, int u, int v, unsigned color, unsig
     unsigned window, const int* clip4, int mask_set, int mask_check);
 void pc_hwc_line(int x0, int y0, int x1, int y1, unsigned ca, unsigned cb, int semi, unsigned tpage, const int* clip4,
     int mask_set);
-/* The CPU rasterizer's output (T5 S3b): the rectangles a primitive draws are noted (mark_raster) and posted before the next hook
- * (raster_post). The pending list is the producer's; a post carries the rectangles' pixels as the game's VRAM array holds them
- * at that moment, so the renderer needs nothing of the game's memory. pc_hwc_mark is the dirty mark of a rectangle written by
- * anything else (LoadImage, a copy, a fill). */
-void pc_hwc_mark_raster(int x0, int y0, int x1, int y1);
-void pc_hwc_raster_post(void);
+/* pc_hwc_mark is the dirty mark of a rectangle written by anything else than a draw (LoadImage, a copy, a fill). */
 void pc_hwc_mark(int x0, int y0, int x1, int y1);
 void pc_hwc_begin_ot(void);
 void pc_hwc_end_ot(void);

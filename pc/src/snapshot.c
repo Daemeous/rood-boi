@@ -331,6 +331,7 @@ extern void pc_game_stack_entered(void);  /* boot_runtime.c: Windows' stack boun
 extern void pc_input_rewound(void) __attribute__((weak)); /* input_record.c */
 extern void pc_tick_resumed(void);        /* boot_runtime.c: the rest of a resumed vsync */
 extern const uint16_t* pc_native_vram(void);
+extern uint64_t pc_vram_transfer_digest(uint64_t seed); /* boot_runtime.c: the game's array less the cells a primitive drew in (T5-6) */
 /* Subsystems with state outside those ranges (weak: absent in some builds). */
 extern void pc_sound_lock(void) __attribute__((weak)), pc_sound_unlock(void) __attribute__((weak)); /* audio_output.c */
 extern int pc_spu_state_size(void) __attribute__((weak));
@@ -1050,7 +1051,7 @@ int pc_snapshot_hash(char* out, int size)
         "\"layout_key\":\"%016llx\"}",
         (unsigned long long)fnv(r[0].start, r[0].size, FNV0), (unsigned long long)fnv(r[1].start, r[1].size, FNV0),
         (unsigned long long)fnv(r[2].start, r[2].size, FNV0), (unsigned long long)state,
-        (unsigned long long)overlays, (unsigned long long)fnv(pc_native_vram(), 1024 * 512 * 2, FNV0),
+        (unsigned long long)overlays, (unsigned long long)pc_vram_transfer_digest(FNV0),
         pc_vsync_count(), (unsigned long long)code_key(), (unsigned long long)layout_key());
 }
 #endif

@@ -21,6 +21,7 @@
 #include <SDL3/SDL_timer.h>
 
 extern "C" char pc_nrd_tune[160];
+extern "C" int pc_window_present_rate(void);
 char pc_nrd_tune[160];
 #ifdef ROOD_NRD
 #include <NRD.h>
@@ -48,7 +49,6 @@ struct State {
     VkDescriptorPool pools[VK_FRAMES] = {};
     uint64_t pool_serial[VK_FRAMES] = {};
     char version[32] = "";
-    struct timespec last_time = {};
 } nrd_state;
 
 VkFormat vk_format(nrd::Format f)
@@ -305,13 +305,9 @@ extern "C" int vk_nrd_denoise(const vk_nrd_frame* f)
     common.resourceSize[0] = common.resourceSizePrev[0] = common.rectSize[0] = common.rectSizePrev[0] = (uint16_t)f->width;
     common.resourceSize[1] = common.resourceSizePrev[1] = common.rectSize[1] = common.rectSizePrev[1] = (uint16_t)f->height;
     common.denoisingRange = f->denoising_range;
-    /* Frame time from a monotonic clock, clamped (NRD's own timer reads the
-     * wall clock; a paused game re-presents far faster than it plays). */
-    struct timespec now;
-    clock_gettime(CLOCK_MONOTONIC, &now);
-    double ms = (now.tv_sec - s.last_time.tv_sec) * 1e3 + (now.tv_nsec - s.last_time.tv_nsec) * 1e-6;
-    s.last_time = now;
-    common.timeDeltaBetweenFrames = (float)(ms < 1.0 ? 1.0 : ms > 100.0 ? 100.0 : ms);
+    /* Frame time: one game vsync (60 Hz) over the images shown per vsync. Not a clock: the denoised picture then depends on the game's
+     * frames alone, not on how long the machine took between them (a loaded or paused run gave another picture). */
+    common.timeDeltaBetweenFrames = 1000.0f / (60.0f * (float)(pc_window_present_rate() > 1 ? pc_window_present_rate() : 1));
     common.frameIndex = f->frame_index;
     common.accumulationMode = f->reset ? nrd::AccumulationMode::CLEAR_AND_RESTART : nrd::AccumulationMode::CONTINUE;
     if (nrd::SetCommonSettings(*s.instance, common) != nrd::Result::SUCCESS)

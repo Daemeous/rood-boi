@@ -2,14 +2,13 @@
 """2D lines and vector talk bubbles at the internal resolution
 (pc/src/gpu_hw.c pc_hw_line, pc/src/ui_bubbles.c; README "2D / UI").
 
-Synthetic draws (RPC gpu_draw at the title screen, no game imagery) on
-both rasterizers: a filled polygon outlined edge by edge with one-pixel
+Synthetic draws (RPC gpu_draw at the title screen, no game imagery): a filled polygon outlined edge by edge with one-pixel
 lines (as the game outlines its talk bubbles), an open polyline with sharp
 turns, horizontal, vertical, diagonal and shallow lines, a semi-transparent
 line. Checks:
 
 - default ui_lines joined, ui_outline_boost 0, ui_bubbles original;
-- 1x: the hardware target's line pixels are the CPU rasterizer's;
+- 1x: the hardware target's line pixels are the reference of the 4x checks below (the CPU rasterizer's, until T5-6 retired it, were compared here);
 - 4x: a horizontal and a vertical line are 4 internal pixels thick; along
   the polyline every sample within 0.3 PS1 pixels of its centre line is
   covered (no gaps at joins); each 4 x 4 block's coverage gives back the 1x
@@ -120,12 +119,6 @@ def target(game, path):
     return scale, crop
 
 
-def cpu_region(game):
-    rows = [np.frombuffer(game.data("vram", W * 2, offset=(y * 1024 + BASE_X) * 2), "<u2") for y in range(BASE_Y, BASE_Y + H)]
-    px = np.array(rows)
-    return np.stack([(px & 31) * 8, ((px >> 5) & 31) * 8, ((px >> 10) & 31) * 8], -1).astype(np.uint8)
-
-
 def white(rgb):
     return (rgb[..., 0] > 200) & (rgb[..., 1] > 200) & (rgb[..., 2] > 200)
 
@@ -185,17 +178,10 @@ def synthetic(game, out, shots):
         check(got == scale, f"hardware target at internal scale {got}")
         hw = white(rgb)
         if scale == 1:
-            cpu = white(cpu_region(game))
-            # The semi-transparent line blends; compare the opaque white lines.
-            keep = np.ones_like(cpu)
+            # The semi-transparent line blends; the opaque white lines are the reference.
+            keep = np.ones_like(hw)
             keep[135:175, :64] = False
-            diff = int((cpu[keep] != hw[keep]).sum())
-            if diff:
-                print("  differ at (x, y, CPU):",
-                      [(int(x), int(y), bool(cpu[y, x])) for y, x in zip(*np.nonzero((cpu != hw) & keep))][:12])
-            check(diff == 0, f"1x: the hardware lines are the CPU rasterizer's pixels ({diff} differ of "
-                             f"{int(cpu[keep].sum())})")
-            lines_mask = cpu & keep
+            lines_mask = hw & keep
             continue
         # 4x
         h = thickness(hw, scale, 0, 30, 96, 106)

@@ -106,6 +106,31 @@ def start(card, out, name):
     return g
 
 
+PRESENT = os.environ.get("BUILD_COMPARE_PRESENT") == "1"  # --present: each sample also carries the presented picture (RPC present_dump, what the player sees); the comparison is on it
+
+
+def present_hash(g, out):
+    """The hash of the picture the window shows (RPC present_dump), not of the game-side mirror the RPC screenshot reads."""
+    ppm = pathlib.Path(out) / "present.ppm"
+    ppm.unlink(missing_ok=True)
+    g.wait_presents(3)
+    g.call("present_dump", path=str(ppm.resolve()))
+    for _ in range(200):
+        if ppm.exists():
+            break
+        g.wait_presents(1)
+    return hashlib.sha256(ppm.read_bytes()).hexdigest()[:12]
+
+
+def view(h):
+    """What is compared: the presented picture's part of a sample (--present), else the whole sample."""
+    return h.split("~", 1)[1] if PRESENT and "~" in h else h
+
+
+def shot_view(h):
+    return h.split("~", 1)[0]
+
+
 STREAM = os.environ.get("BUILD_COMPARE_STREAM") == "1"  # --stream: every vsync's drawing digest (RPC stream) is kept and compared
 
 
@@ -211,8 +236,11 @@ def play(binary, seconds, card, out):
             g.run(15)
             stream_take(g, taken)
             shot = out / "frame.ppm"
-            g.screenshot(str(shot))
-            frames.append(hashlib.sha256(shot.read_bytes()).hexdigest()[:16])
+            if PRESENT:  # (no RPC screenshot: reading the display back bakes the text overlay into the picture where a stale area is read, which changes what is shown from then on, in the build that has one)
+                frames.append("-~" + present_hash(g, out))
+            else:
+                g.screenshot(str(shot))
+                frames.append(hashlib.sha256(shot.read_bytes()).hexdigest()[:16])
             try:  # a build older than the RPC has none: the comparison says so
                 states.append(g.call("battle_state"))
             except Exception:
@@ -611,6 +639,8 @@ def hashed(g, out, sample, hashes, taken=None, first=None):
             if state["t"] % sample == 0:
                 if os.environ.get("BUILD_COMPARE_ITEMS"):  # (the null renderer draws no pixels: the sample is the drawing stream's chain, RPC stream)
                     hashes.append(g.call("stream", count=0)["chain"][:12])
+                elif PRESENT:  # (the presented picture alone: see the fight lane)
+                    hashes.append("-~" + present_hash(g, out))
                 else:
                     g.screenshot(str(shot))
                     hashes.append(hashlib.sha256(shot.read_bytes()).hexdigest()[:12])
@@ -1178,6 +1208,17 @@ def gi_lines(path):
     return [text.count("[gi] path-traced global illumination ready"), text.count("[gi] ") - text.count("[gi] path-traced global illumination ready")]
 
 
+def log_tails(out, lines=40):
+    """The last lines of every game log under `out` (stderr is in them): a run that did not finish keeps its evidence in the message, the directory goes with it."""
+    text = []
+    for path in sorted(pathlib.Path(out).rglob("*.log")):
+        try:
+            text.append(f"--- {path.name} (last {lines} lines)\n" + "\n".join(path.read_text(errors='replace').splitlines()[-lines:]))
+        except OSError:
+            pass
+    return "\n".join(text)
+
+
 def env_of(binary, args):
     """--new-env's settings, for NEW's runs only."""
     return args.new_env if binary == args.new else []
@@ -1189,10 +1230,11 @@ def run_menus(binary, args, names):
                                str(args.menu_sample), "--claims", args.claims, "--aspect", args.aspect, "--renderer", args.renderer] + [a for kv in args.setting for a in ("--setting", kv)] + [ "--card", args.card, "--out", out]
                               + [a for kv in env_of(binary, args) for a in ("--env", kv)],
                               capture_output=True, text=True)
+        tails = log_tails(out) if not any(line.startswith("RESULT") for line in done.stdout.splitlines()) else ""
     note_tripwire(done.stdout)
     lines = [line for line in done.stdout.splitlines() if line.startswith("RESULT")]
     if not lines:
-        sys.exit(f"build_compare: {binary} did not finish:\n{done.stderr[-1500:]}\n{done.stdout[-1500:]}")
+        sys.exit(f"build_compare: {binary} did not finish (exit {done.returncode}):\n{done.stderr[-1500:]}\n{done.stdout[-1500:]}\n{tails}")
     return json.loads(lines[-1][6:])
 
 
@@ -1285,10 +1327,11 @@ def run_casts(binary, args):
             os.makedirs(keep)
         done = subprocess.run([sys.executable, __file__, "--play-casts", binary, "--casts", args.casts, "--cast-limit",
                                str(args.cast_limit), "--card", args.card, "--out", out], capture_output=True, text=True)
+        tails = log_tails(out) if not any(line.startswith("RESULT") for line in done.stdout.splitlines()) else ""
     note_tripwire(done.stdout)
     lines = [line for line in done.stdout.splitlines() if line.startswith("RESULT")]
     if not lines:
-        sys.exit(f"build_compare: {binary} did not finish:\n{done.stderr[-1500:]}\n{done.stdout[-1500:]}")
+        sys.exit(f"build_compare: {binary} did not finish (exit {done.returncode}):\n{done.stderr[-1500:]}\n{done.stdout[-1500:]}\n{tails}")
     return json.loads(lines[-1][6:])
 
 
@@ -1359,15 +1402,16 @@ def run(binary, args, env=None):
     with tempfile.TemporaryDirectory(prefix="build-compare-", dir=ROOT / "pc/build") as out:
         done = subprocess.run([sys.executable, __file__, "--play", binary, "--seconds", str(args.seconds), "--card", args.card,
                                "--out", out], capture_output=True, text=True, env=env)
+        tails = log_tails(out) if not any(line.startswith("RESULT") for line in done.stdout.splitlines()) else ""
     note_tripwire(done.stdout)
     lines = [line for line in done.stdout.splitlines() if line.startswith("RESULT")]
     if not lines:
-        sys.exit(f"build_compare: {binary} did not finish:\n{done.stderr[-1500:]}")
+        sys.exit(f"build_compare: {binary} did not finish (exit {done.returncode}):\n{done.stderr[-1500:]}\n{tails}")
     return json.loads(lines[-1][6:])
 
 
-def differing(a, b):
-    return [i for i, (x, y) in enumerate(zip(a["frames"], b["frames"])) if x != y] + list(range(min(len(a["frames"]), len(b["frames"])), max(len(a["frames"]), len(b["frames"]))))
+def differing(a, b, view=view):
+    return [i for i, (x, y) in enumerate(zip(a["frames"], b["frames"])) if view(x) != view(y)] + list(range(min(len(a["frames"]), len(b["frames"])), max(len(a["frames"]), len(b["frames"]))))
 
 
 def fields(state):
@@ -1476,6 +1520,7 @@ def main():
     parser.add_argument("new", nargs="?", default=str(ROOT / "pc/build/boot64/rood_battle_probe"))
     parser.add_argument("--card", default=str(ROOT / "pc/build/test-card1.mcd"))
     parser.add_argument("--seconds", type=int, default=30)
+    parser.add_argument("--present", action="store_true", help="the comparison is of the presented picture (RPC present_dump: what the player sees) and no RPC screenshot is taken (a screenshot reads the display back and bakes the text overlay where a stale area is read, which changes what is shown). Fight, rooms, --menus")
     parser.add_argument("--vram-stream", action="store_true", help="--menus: each sampled frame also carries the VRAM stream's running digest (RPC vram_stream; both builds need it)")
     parser.add_argument("--casts", nargs="?", const="spells", help="the wider lane: cast every spell (spells[,arts])")
     parser.add_argument("--cast-limit", type=int, default=0, help="--casts: stop after this many actions")
@@ -1502,6 +1547,10 @@ def main():
         STREAM = True
     if args.vram_stream:
         os.environ["BUILD_COMPARE_VRAM_STREAM"] = "1"
+    if args.present:
+        global PRESENT
+        os.environ["BUILD_COMPARE_PRESENT"] = "1"
+        PRESENT = True
     if args.play:
         return play(args.old, args.seconds, args.card, args.out)
     if args.play_audio:

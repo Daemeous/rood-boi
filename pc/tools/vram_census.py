@@ -7,7 +7,7 @@ Plays build_compare's own routes (one game each) on BINARY (default pc/build/boo
 reported (BUILD_COMPARE_VRAM_CENSUS) and prints, per 64 x 64 block (x, y in halfwords), the counts by what touched it and the role they give it
 (pc/docs/plans/2026-11-17-vram.md, T5-0). A count is an event or a primitive, not a pixel:
   upload, fill, copy_dst, copy_src, store    the transfers that wrote or read the block
-  raster                                      rectangles the CPU rasterizer drew there
+  raster                                      rectangles the primitives drew there (the renderer's; the name is the CPU rasterizer's, retired in T5-6)
   texel, clut                                 primitives sampling texels or a CLUT row there
   display                                     the display rectangle covered it (one per vsync)
 Roles: texture (texels sampled), clut (CLUT rows sampled), frame (display or rasterized), scratch (transferred only), unused."""

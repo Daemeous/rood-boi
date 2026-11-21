@@ -1,9 +1,6 @@
 /* OpenGL presentation for the SDL window: an OpenGL 4.6 (or 3.3) core
  * context draws the PS1 display area from a VRAM texture, aspect-correct,
- * into a resizable window. SDL loads libGL/libEGL at run time, so machines
- * (or Xvfb servers) without OpenGL fall back to the software surface in
- * boot_window.c. ROOD_RENDERER=software (or x11, its old name) forces that
- * fallback. */
+ * into a resizable window. SDL loads libGL/libEGL at run time. */
 #define _POSIX_C_SOURCE 200809L
 #include "platform.h" /* pc_replace_file */
 #include "gl_api.h"
@@ -1028,9 +1025,6 @@ static SDL_Window* abandon(SDL_Window* win)
  * when unavailable. */
 SDL_Window* pc_gl_create_window(const char* title, int width, int height)
 {
-    const char* renderer = getenv("ROOD_RENDERER");
-    if (renderer && (!strcmp(renderer, "x11") || !strcmp(renderer, "software")))
-        return NULL;
     SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);

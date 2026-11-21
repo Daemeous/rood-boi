@@ -1,21 +1,19 @@
 #!/usr/bin/env python3
 """Textured polygons sample only their own texels (pc/src/gpu_hw.c
-pc_hw_set_flipped_uv and FLAG_CLAMP; pc/src/boot_polygons.inc).
+pc_hw_set_flipped_uv and FLAG_CLAMP; pc/src/boot_gpu_polygons.inc).
 
 The PS1 takes a pixel's texel at its top-left corner. A sprite drawn as a
 polygon and flipped (U running from 87 down to 63 over 24 pixels, as the
 game's "..." emote bubble does) therefore samples texels 87..64: sampled at
 pixel centres it took 86..63, and texel 63 (the edge of the neighbouring
 image in the page) showed as a thin bar beside the bubble, at every
-internal scale and on both rasterizers.
+internal scale.
 
 Draws synthetic quads with RPC gpu_draw at the title screen (no game
 imagery): a 15-bit texture whose image (texels 1..24 in U and V) is green,
 surrounded by red; quads whose UVs span the image edge to edge, plain, flipped
 in U, in V, in both, magnified 2x and minified 2:1. Checks:
 
-- the CPU rasterizer (the reference VRAM, read through the vram symbol):
-  every covered pixel is green where the PS1 samples inside the image;
 - the hardware target (RPC gpu_dump) at internal scale 1 and 4: every covered
   pixel is green (no texel outside the image), coverage is the quad's;
 - a sprite (GP0 0x65) of the same texels is unchanged.
@@ -131,16 +129,6 @@ def classify(rgb):
     return out
 
 
-def cpu_region(game):
-    rows = []
-    for y in range(BASE_Y, BASE_Y + 128):
-        raw = game.data("vram", 256, offset=(y * 1024 + BASE_X) * 2)
-        rows.append(np.frombuffer(raw, "<u2"))
-    px = np.array(rows)
-    rgb = np.stack([(px & 31) * 8, ((px >> 5) & 31) * 8, ((px >> 10) & 31) * 8], -1)
-    return classify(rgb)
-
-
 def target_region(game, path):
     game.call("gpu_dump", path=str(path))
     im = Image.open(path)
@@ -150,10 +138,8 @@ def target_region(game, path):
     return scale, classify(crop)
 
 
-def check_region(kinds, scale, label, cpu=False):
+def check_region(kinds, scale, label):
     for name, x, y, w, h, *_rest in QUADS + [SPRITE + (True,)]:
-        if cpu and not _rest[-1]:
-            continue
         inside = kinds[y * scale:(y + h) * scale, x * scale:(x + w) * scale]
         ring = kinds[max(0, y * scale - scale):(y + h + 1) * scale, max(0, x * scale - scale):(x + w + 1) * scale]
         red = int((inside == 2).sum())
@@ -182,8 +168,6 @@ def main():
             got, kinds = target_region(game, out / "target.ppm")
             check(got == scale, f"hardware target at internal scale {got}")
             check_region(kinds, got, f"hardware {got}x")
-            if scale == 1:
-                check_region(cpu_region(game), 1, "CPU rasterizer", cpu=True)
         log = pathlib.Path(game.log).read_text(errors="replace")
         check("[crash]" not in log and not re.search(r"shader.*(error|fail)", log, re.I),
               "no crash or shader error in the log")

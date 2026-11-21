@@ -34,8 +34,7 @@ extern "C" {
     X(renderer_vram, 'T') \
     X(init, 'T') \
     X(mark, 'V') \
-    X(raster_post, 'V') \
-    X(mark_raster, 'V') \
+    X(mark_drawn, 'V') \
     X(set_depth, 'A') \
     X(triangle, 'A') \
     X(rect, 'A') \
@@ -54,9 +53,9 @@ extern "C" {
     X(native_translucent, 'A') \
     X(sync, 'V') \
     X(sync_store, 'V') \
+    X(capture_read, 'V') \
     X(stale_copy, 'V') \
     X(ot_native_area, 'A') \
-    X(raster_skip, 'Q') \
     X(sync_texture, 'V') \
     X(upload_mode, 'V') \
     X(set_packet, 'A') \
@@ -113,21 +112,12 @@ void pc_hw_meter_end(pc_hw_meter_scope* scope);
 #define PC_HW_METER(name) \
     pc_hw_meter_scope pc_hw_meter_scope_ __attribute__((cleanup(pc_hw_meter_end))) = (PC_HWC_SYNC(), pc_hw_meter_begin(PC_HW_##name))
 
-/* As PC_HW_METER for a hook that is the producer's own query (it reads only the frame's tables: pc_hw_raster_skip): it does not
- * apply the recorded commands first. */
-#define PC_HW_METER_NOSYNC(name) \
-    pc_hw_meter_scope pc_hw_meter_scope_ __attribute__((cleanup(pc_hw_meter_end))) = pc_hw_meter_begin(PC_HW_##name)
-
-/* The reasons a return-value hook gave its answer (pc_hw_triangle, pc_hw_raster_skip), with what each depends on. */
+/* The reasons a return-value hook gave its answer (pc_hw_triangle), with what each depends on. */
 enum {
     PC_HW_WHY_TRI_INACTIVE,         /* the hardware path is off */
     PC_HW_WHY_TRI_SUPPRESSED,       /* suppressed (classic/UI claim) or the free camera's afterimage */
     PC_HW_WHY_TRI_EFFECT_STALE,     /* effect polygon covered by a native list (1) */
-    PC_HW_WHY_TRI_DRAWN,            /* reconstructed and queued for the GPU, the CPU rasterizer draws it too (0) */
-    PC_HW_WHY_SKIP_INACTIVE,        /* hardware path off, or no stale table this ordering table */
-    PC_HW_WHY_SKIP_DISABLED,        /* ROOD_RASTER_SKIP=0 */
-    PC_HW_WHY_SKIP_COVERED,         /* the rectangle lies inside a stale area: left out (1) */
-    PC_HW_WHY_SKIP_NOT_COVERED,     /* drawn by the CPU rasterizer (0) */
+    PC_HW_WHY_TRI_DRAWN,            /* reconstructed and queued for the GPU (0) */
     PC_HW_WHY_OT_STALE_READBACK,    /* not an answer: a stale area of the ordering table dropped because a read-back made it current */
     PC_HW_WHY_COUNT
 };

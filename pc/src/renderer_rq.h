@@ -10,6 +10,7 @@
 typedef enum {
     PC_RQ_SYNC,         /* arg x, y, w, h: the stale parts of the rectangle read back from the target; out: pc_rq_readback */
     PC_RQ_SYNC_STORE,   /* arg x, y, w, h: StoreImage's read-back (only what the renderer's VRAM lacks); out: pc_rq_readback */
+    PC_RQ_CAPTURE,      /* arg x, y, w, h: the rectangle read back from the target as it is, whole and as asked (a screenshot, a checkpoint); no stale area is touched; out: pc_rq_readback */
     PC_RQ_SYNC_TEXTURE, /* arg tpage, clut, window, u0, v0, u1, v1; in: int clip[4] or NULL; out: pc_rq_readback */
     PC_RQ_DRAIN,        /* every record applied and the GPU idle (the snapshot, rewind and photo fences) */
     PC_RQ_FRAME_STATE,  /* out: pc_renderer_frame_state: the shown picture's flags, fade and emissive lists (the header fill's) */

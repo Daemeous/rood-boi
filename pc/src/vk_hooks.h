@@ -83,6 +83,8 @@ int pc_vk_hw_pick(int x, int y, float* depth, unsigned char normal[4]);
 /* The render-target capture: the live (replay: the replay) target's colour over native rectangle x0..x1, y0..y1 at the
  * target's own resolution, for the draws after it that sample a frame buffer (WINDOW_CAPTURE); 1 when taken. */
 int pc_vk_hw_capture(int replay, int x0, int y0, int x1, int y1);
+void pc_vk_hw_text_colour_only(int on); /* text drawn from here on: colour only (G-buffer and depth untouched) */
+void pc_vk_hw_scratch(int restore, int x0, int y0, int x1, int y1); /* the live colour over the rectangle kept aside / put back (held text drawn in for a read, taken out again) */
 /* The sampled copy of native VRAM (VK_TOKEN_VRAM) over native rectangle
  * x0..x1, y0..y1 from the live (replay: the replay) target's colour, on the
  * GPU, quantized as pc_hw_sync's read-back is; 0: unavailable here. */

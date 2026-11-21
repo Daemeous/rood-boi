@@ -901,15 +901,15 @@ it checks that the driver's stop command keys a looping stream off.
 
 The window uses an OpenGL 4.6 core context, or 3.3 core where 4.6 is not
 offered (`pc/src/gl_present.c`; SDL loads libGL or libEGL at run time and
-resolves the entry points in `gl_api.h`). Without OpenGL, or with
-`ROOD_RENDERER=software` (`x11`, its old name, still works), a 640 x 480
-software surface is presented instead. The
-hardware rasterizer (`pc/src/gpu_hw.c`) mirrors every primitive, fill, VRAM
+resolves the entry points in `gl_api.h`). There is no software presenter
+(the CPU rasterizer and its 640 x 480 surface were retired in T5-6, `pc/docs/plans/2026-11-17-vram.md`):
+without Vulkan or OpenGL the game does not start (`ROOD_RENDERER=null` runs it without pixels). The
+renderer (`pc/src/gpu_hw.c`) draws every primitive, fill, VRAM
 copy and upload into a VRAM render target at `ROOD_SCALE` times native
-resolution (1-8, default 4; 0 disables it). The CPU rasterizer stays the
-reference for native VRAM, so StoreImage, effects and texture decoding are
-unchanged; textures are decoded from native VRAM in the shader and re-uploaded
-per 64x256 tile only when a draw samples a tile the CPU changed. Colors keep
+resolution (1-8, default 4; 0 is 1). The game's VRAM array holds what transfers wrote, plus what the target's
+picture was read back into it where a game read needs it (StoreImage of a drawn area, a sprite sampling the frame, screenshots);
+textures are decoded from the renderer's own VRAM copy in the shader and re-uploaded
+per 64x256 tile only when it changed. Colors keep
 8-bit precision, the four semi-transparency modes map to GL blending (opaque
 and translucent texels in separate passes), and the window is resizable with
 4:3, stretch or integer-scale presentation and nearest or bilinear filtering.
@@ -1579,7 +1579,7 @@ future text-size setting goes; RPC `ui_text {scale}` (0.25-4, not saved)
 sets it for tests. With `ui_text font` it draws the popups (numbers with a
 stat change's sign and word, and `MISS`) that much larger about their
 middle: the popup's pieces follow one another in the ordering table, so
-where its first piece is drawn the rest give its extent (`boot_polygons.inc`,
+where its first piece is drawn the rest give its extent (`boot_gpu_polygons.inc`,
 `pc_ui_text_popup_place`).
 
 **At the window's resolution (`ui_text_overlay auto`).** Drawn into the
@@ -1807,9 +1807,8 @@ ImGui texture: `pc_prompt_glyph`, `pc_prompt_device`, `pc_prompt_generation`
 in `pc/src/button_prompts.h`.
 
 **Lines (`ui_lines joined`).** The PS1 draws a line one pixel per step of
-its major axis, end pixels included (`pc/src/boot_lines.inc` is the
-reference). Upscaled, a line is a band one PS1 pixel across its minor axis
-through the pixel centres, so 1x gives exactly the CPU rasterizer's pixels
+its major axis, end pixels included (the retired CPU rasterizer's rule, last in the build tagged `t5-last-cpu-frame`). Upscaled, a line is a band one PS1 pixel across its minor axis
+through the pixel centres, so 1x gives exactly the PS1's pixels
 (halves round away from the start, as it does) and 4x is the same line 4
 pixels thick; each end pixel is drawn whole, so the segments of a polyline,
 or separate lines that share an end, meet without notches at any angle
@@ -1848,8 +1847,7 @@ along the outline through the game's vertices (the fill's edges run along
 its centre: no seams, nothing light outside it; round at turns, one output
 pixel of edge). The zoom, its overshoot, size changes, tails and mirroring
 are the game's frame by frame; with `ui_subpixel` the vertices come from the
-unrounded 16.16 rectangle (smooth zoom). The CPU rasterizer still draws the
-packets, so native VRAM is the PS1's. `ROOD_UI_DEBUG=5` prints each bubble's
+unrounded 16.16 rectangle (smooth zoom). `ROOD_UI_DEBUG=5` prints each bubble's
 points, outline and polygons.
 
 **Emote bubbles.** The small bubbles over actors (NPCs in scenes, enemies)

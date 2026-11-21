@@ -10,8 +10,7 @@ one), in the save room, unpaced:
   - standing (120 vsyncs): no read-back of the target; the emissive
     matching hashes almost nothing (unmatched textures are hashed again
     only when their VRAM changed, not every frame); loading.ppm is not
-    rewritten every frame; the CPU rasterizer leaves out what the native
-    room left stale (2D the target's picture replaces before any read);
+    rewritten every frame;
   - battle mode, the targeting sphere held: rows of the picture it samples
     are copied on the GPU (own copies), never read back (each read-back
     waited for the GPU's whole frame: the sphere and the menus dropped to
@@ -19,8 +18,8 @@ one), in the save room, unpaced:
   - the original Status screen (it redraws rows of its own picture): no
     read-back either.
 Then the same moments again in a second game with the old paths
-(ROOD_GPU_VRAM_COPY=0: read-backs; ROOD_RASTER_SKIP=0: the CPU draws
-everything): the displayed pictures (present_dump) are identical."""
+(ROOD_GPU_VRAM_COPY=0: read-backs): the displayed pictures (present_dump)
+are identical."""
 import argparse
 import os
 import pathlib
@@ -106,16 +105,13 @@ def run(args, out, card):
     check(counts["hashed_texels"] < 2000,
           f"standing: emissive matching hashes {counts['hashed_texels']:.0f} texels a vsync (< 2000)")
     check(counts["debug_ppm"] < 0.1, f"standing: loading.ppm written {counts['debug_ppm']:.2f} times a vsync")
-    check(counts["skipped_px"] > 10 * max(counts["raster_px"], 1),
-          f"standing: the CPU rasterizer leaves out the stale drawing area "
-          f"({counts['skipped_px']:.0f} pixels left out, {counts['raster_px']:.0f} drawn a vsync)")
     for scene in ("sphere", "status"):
         counts, sections = new[scene]
         print(f"      {scene}: {sections.get('vsync', 0):.3f} ms a vsync; {counts}")
         check(counts["readbacks"] == 0 and counts["gpu_copies"] > 0,
               f"{scene}: rows of its own picture copied on the GPU ({counts['gpu_copies']:.1f} a vsync), "
               f"no read-back ({counts['readbacks']:.1f})")
-    old = play(card, out, "old", {"ROOD_GPU_VRAM_COPY": "0", "ROOD_RASTER_SKIP": "0"})
+    old = play(card, out, "old", {"ROOD_GPU_VRAM_COPY": "0"})
     check(old["sphere"][0]["readbacks"] > 0, "the old path reads the sphere's rows back (the comparison means "
           f"something: {old['sphere'][0]['readbacks']:.1f} a vsync)")
     for scene in ("sphere", "status"):

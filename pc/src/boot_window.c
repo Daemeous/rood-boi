@@ -1,5 +1,5 @@
-/* SDL3 frontend for the native boot: the window (OpenGL in gl_present.c, or
- * a software surface), keyboard and gamepad input and frame pacing. SDL
+/* SDL3 frontend for the native boot: the window (Vulkan in vk_present.c, or
+ * OpenGL in gl_present.c), keyboard and gamepad input and frame pacing. SDL
  * picks the display backend: native Wayland where the compositor supports
  * it, else X11 (SDL_VIDEO_DRIVER=wayland or x11 chooses explicitly). */
 #define _POSIX_C_SOURCE 200809L
@@ -27,7 +27,6 @@ extern void pc_jitter(int) __attribute__((weak)); /* render_jitter.c (the R4 har
 #endif
 static int focused = 1;
 static SDL_Window* window;
-static SDL_Surface* image;
 static unsigned buttons;
 static int travel_key; /* a key bound to the Travel action held (fast travel) */
 static unsigned camera_keys; /* J L I K O held (camera_stick.c keyboard fallback) */
@@ -110,9 +109,6 @@ SDL_Window* pc_window_unload(int* enabled, int* run_fast)
             SDL_StopTextInput(kept);
     }
     window = NULL;
-    if (image)
-        SDL_DestroySurface(image);
-    image = NULL;
     /* SDL's video stays initialised (quitting it would close the window): the
      * next library's SDL_Init only counts it once more. */
     return kept;
@@ -129,8 +125,6 @@ void pc_window_init(int enabled, int run_fast)
          * delivers RPC/recorded input. Native VRAM stays CPU-owned; never
          * initialize a video driver, hardware target or overlay here. */
         pc_window_enabled = 1;
-        extern int pc_raster_off; /* boot_runtime.c: no CPU rasterization (T5-5) */
-        pc_raster_off = !getenv("ROOD_NULL_RASTER"); /* (ROOD_NULL_RASTER=1: rasterize as before, the comparison with the pixel-drawing null renderer) */
         /* Settings normally load from the graphical overlay. The loader
          * itself is CPU-only (hardware scale changes guard pc_hw_active). */
         extern void pc_settings_load(void);
@@ -174,8 +168,7 @@ void pc_window_init(int enabled, int run_fast)
     const char* renderer = getenv("ROOD_RENDERER");
 #ifdef ROOD_VULKAN
     /* Vulkan presentation (vk_present.c) by default; OpenGL when asked for
-     * (ROOD_RENDERER=gl, or x11 / software below) or when Vulkan is
-     * unavailable. */
+     * (ROOD_RENDERER=gl) or when Vulkan is unavailable. */
     if (!renderer || !*renderer || !strcmp(renderer, "vulkan")) {
         window = pc_vk_create_window(title, width, height);
         if (!window)
@@ -183,12 +176,10 @@ void pc_window_init(int enabled, int run_fast)
     }
     if (!window)
 #endif
-    /* OpenGL presentation when available (gl_present.c), else a software surface. */
+    /* OpenGL presentation (gl_present.c). */
     window = pc_gl_create_window(title, width, height);
-    /* Some drivers (32-bit NVIDIA) have OpenGL only through GLX: rather than
-     * a software surface on Wayland, use X11 (XWayland) when it is there. */
-    int software = renderer && (!strcmp(renderer, "x11") || !strcmp(renderer, "software"));
-    if (!window && !software && !strcmp(SDL_GetCurrentVideoDriver(), "wayland") && getenv("DISPLAY")) {
+    /* Some drivers have OpenGL only through GLX: use X11 (XWayland) on Wayland when it is there. */
+    if (!window && !strcmp(SDL_GetCurrentVideoDriver(), "wayland") && getenv("DISPLAY")) {
         fprintf(stderr, "[window] no OpenGL on Wayland; trying X11 (XWayland)\n");
         SDL_QuitSubSystem(SDL_INIT_VIDEO);
         SDL_SetHintWithPriority(SDL_HINT_VIDEO_DRIVER, "x11", SDL_HINT_OVERRIDE);
@@ -204,16 +195,9 @@ void pc_window_init(int enabled, int run_fast)
         }
     }
     if (!window) {
-        SDL_PropertiesID props = SDL_CreateProperties();
-        SDL_SetStringProperty(props, SDL_PROP_WINDOW_CREATE_TITLE_STRING, title);
-        pc_window_place(props, 640, 480);
-        window = pc_window_create(props);
-        SDL_DestroyProperties(props);
-        image = SDL_CreateSurface(640, 480, SDL_PIXELFORMAT_XRGB8888);
-        if (!window || !image) {
-            fprintf(stderr, "Cannot create window: %s\n", SDL_GetError());
-            exit(1);
-        }
+        /* (There is no software presenter: the renderer draws every pixel, T5-6.) */
+        fprintf(stderr, "Cannot create a Vulkan or OpenGL window: %s\n", SDL_GetError());
+        exit(1);
     }
     int version = SDL_GetVersion();
     fprintf(stderr, "[window] SDL %d.%d.%d, %s video\n", SDL_VERSIONNUM_MAJOR(version),
@@ -473,7 +457,6 @@ void pc_window_pixel_size(int* w, int* h)
         SDL_GetWindowSizeInPixels(window, w, h);
 }
 extern int pc_display_rgb24;
-extern int pc_display_masked __attribute__((weak)); /* boot_sdk.c SetDispMask */
 /* One image of the frame the header (filled at the request: header_for_frame) describes. */
 static void window_image(const uint16_t* vram, int x, int y, int w, int h)
 {
@@ -493,32 +476,6 @@ static void window_image(const uint16_t* vram, int x, int y, int w, int h)
         return;
     }
 #endif
-    for (int yy = 0; yy < 480; yy++) {
-        uint32_t* out = (uint32_t*)((unsigned char*)image->pixels + yy * image->pitch);
-        for (int xx = 0; xx < 640; xx++) {
-            const uint16_t* row = vram + ((y + yy * h / 480) & 511) * 1024;
-            unsigned r, g, b;
-            if (pc_display_rgb24) {
-                /* 24-bit display: R, G, B bytes packed across halfwords. */
-                int byte = x * 2 + (xx * w / 640) * 3;
-                unsigned char rgb[3];
-                for (int i = 0; i < 3; i++, byte++)
-                    rgb[i] = byte & 1 ? row[(byte >> 1) & 1023] >> 8 : row[(byte >> 1) & 1023] & 255;
-                r = rgb[0], g = rgb[1], b = rgb[2];
-            } else {
-                unsigned c = row[(x + xx * w / 640) & 1023];
-                r = (c & 31) * 255 / 31, g = ((c >> 5) & 31) * 255 / 31, b = ((c >> 10) & 31) * 255 / 31;
-            }
-            out[xx] = &pc_display_masked && pc_display_masked ? 0 : (r << 16) | (g << 8) | b; /* SetDispMask(0): black */
-        }
-    }
-    SDL_Surface* surface = SDL_GetWindowSurface(window);
-    if (!surface || !SDL_BlitSurfaceScaled(image, NULL, surface, NULL, SDL_SCALEMODE_NEAREST)
-        || !SDL_UpdateWindowSurface(window)) {
-        static int reported;
-        if (!reported++)
-            fprintf(stderr, "[window] cannot draw the software surface: %s\n", SDL_GetError());
-    }
 }
 /* The game-owned values the presenter reads (present_header.h), copied once per frame request on the game thread: the images of the
  * frame (its interpolated fractions, the display-paced fields) all read this copy. */
