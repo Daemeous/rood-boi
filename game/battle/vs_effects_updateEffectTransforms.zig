@@ -1,6 +1,5 @@
 //! Per-frame transform update of the battle's effect instances (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c).
 const common = @import("common");
-const pad = @import("common").pad;
 const psx = common.psx;
 const v = @import("views_5BF94");
 const c = @import("c_5BF94");
@@ -8,7 +7,10 @@ const c = @import("c_5BF94");
 /// orig: vs_effects_updateEffectTransforms (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c)
 /// Updates each effect transform: its attachment, world matrix, look-at and view matrix.
 pub fn vs_effects_updateEffectTransforms(arg0: ?*v.vs_effects_EffectInstance) callconv(.c) void {
-    const scratch: *v.func_800D0B30_t2 = pad.at(v.func_800D0B30_t2, 0x2C8);
+    // The loop's work area (the pad's 0x2C8): vs_effects_buildAnimatedLocalTransform writes every field it reads, the matrix included,
+    // and target is written before it is read, in each iteration.
+    var work: v.func_800D0B30_t2 = undefined;
+    const scratch = &work;
     var i: c_int = 0;
     while (i < @as(c_int, psx.get(v.g.vs_effects_package().*.?.block9Data).?.unk15)) : (i +%= 1) {
         const defs: [*]v.func_800D0B30_t = @ptrCast(@alignCast(psx.get(v.g.vs_effects_package().*.?.block10Data).?));

@@ -68,28 +68,16 @@ int vs_battle_aiResolveNavigationAreaRoute(vs_battle_aiState* state, int index, 
 typedef struct {
     unsigned char p0, p1, tested, p3, result[8];
 } obstructionCache;
-#define OBSTRUCTION_CACHE ((obstructionCache*)PC_PAD(0x3D0))
-#define OBSTRUCTION_DIRECTIONS ((D_800F16EC_t*)PC_PAD(0x3EC))
-#define OBSTRUCTION_STATES(id) ((vs_battle_aiState*)vs_nav.aiStates[id])
 
 int vs_battle_aiFlightDirectionObstruction(vs_battle_aiState* state, int direction, int ahead);
 
-#undef OBSTRUCTION_CACHE
-#undef OBSTRUCTION_DIRECTIONS
-#undef OBSTRUCTION_STATES
 
 int vs_field_groundHeightAtTile(int, int);
 typedef struct {
     unsigned char tested, valid;
 } directionalCacheBits;
-#define MOVEMENT_CHECK_CACHE ((directionalCacheBits*)PC_PAD(0x3D0))
-#define MOVEMENT_CHECK_DIRECTIONS ((D_800F16EC_t*)PC_PAD(0x3EC))
-#define MOVEMENT_CHECK_TILES (vs_nav.cells)
 int vs_battle_aiCanFlyInDirection(vs_battle_aiState* state, int direction);
 
-#undef MOVEMENT_CHECK_CACHE
-#undef MOVEMENT_CHECK_DIRECTIONS
-#undef MOVEMENT_CHECK_TILES
 
 int vs_battle_aiLowestReachableGroundHeight(vs_battle_aiState* arg0, u_int arg1);
 
@@ -111,12 +99,8 @@ typedef struct {
 int vs_battle_aiFlightDirectionObstruction(vs_battle_aiState*, int, int);
 int vs_battle_aiMinimumAiGroundHeightAlongSegment(int, int, int, int);
 void func_800E1238(vs_battle_aiState*, int);
-#define MOVEMENT_STEP_TILES (vs_nav.cells)
-#define MOVEMENT_STEP_RESULT (*(int*)PC_PAD(0x3C8))
 void func_800E0A68(vs_battle_aiState* state, int action);
 
-#undef MOVEMENT_STEP_TILES
-#undef MOVEMENT_STEP_RESULT
 
 void func_800E1238(vs_battle_aiState* arg0, int arg1);
 
@@ -131,10 +115,6 @@ void vs_battle_aiMoveAwayFromReference(vs_battle_aiState* state, int angle);
 
 u_char vs_battle_aiFilterDirectionsByGroundHeight(u_char arg0, u_int arg1, int arg2);
 
-#define TERRAIN_TILE_MASK (vs_nav.bitmap)
-#define TERRAIN_MAP_WIDTH (*(unsigned char*)PC_PAD(0x3DC))
-#define TERRAIN_MOVE_RESULT (*(int*)PC_PAD(0x3C8))
-#define TERRAIN_TILES (vs_nav.cells)
 struct vs_battle_aiState;
 int vs_battle_aiResolveNavigationAreaRoute(struct vs_battle_aiState*, int, int);
 void func_800E4BB8(vs_battle_aiState*);
@@ -143,21 +123,10 @@ void vs_battle_aiMoveWithHeightFilteredDirections(vs_battle_aiState* state);
 
 void vs_battle_aiUpdateNavigationAreaMovement(vs_battle_aiState* state);
 
-#undef TERRAIN_TILE_MASK
-#undef TERRAIN_MAP_WIDTH
-#undef TERRAIN_MOVE_RESULT
-#undef TERRAIN_TILES
 
-#define WANDER_DIRECTIONS ((D_800F16EC_t*)PC_PAD(0x3EC))
-#define WANDER_TILES (vs_nav.cells)
 
 int vs_battle_aiIsAdjacentTileStepBlocked(unsigned int, int);
 int vs_battle_aiCanWalkInDirection(vs_battle_aiState*, int);
-
-static inline D_800F16EC_t* wanderDirection(int index)
-{
-    return WANDER_DIRECTIONS + index;
-}
 
 int vs_battle_aiChooseNextWanderTile(vs_battle_aiState* state, unsigned int tile, unsigned int maxCount, int arg3);
 
@@ -180,8 +149,6 @@ static inline void wanderStartWalk(vs_battle_aiState* s)
 
 void vs_battle_aiUpdateWanderMovement(vs_battle_aiState* state, unsigned int tile, unsigned int range);
 
-#undef WANDER_DIRECTIONS
-#undef WANDER_TILES
 
 extern unsigned short (*D_800F58D8)[8];
 void vs_battle_aiDispatchAiLocomotionMode(void*, int, int);

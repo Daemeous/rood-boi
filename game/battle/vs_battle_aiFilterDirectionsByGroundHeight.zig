@@ -10,7 +10,7 @@ pub fn vs_battle_aiFilterDirectionsByGroundHeight(arg0: u8, arg1: c_uint, arg2: 
     var mask: u8 = arg0;
     const x: c_int = psx.conv(c_int, arg1 & 0xFF);
     const z: c_int = psx.conv(c_int, (arg1 >> 16) & 0xFF);
-    const offsets: *v.D_800F16EC_t = pad.at(v.D_800F16EC_t, 0x3EC);
+    const offsets: *v.D_800F16EC_t = &pad.directions(v.D_800F16EC_t)[0];
 
     var i: c_int = 0;
     while (i < 8) : (i += 1) {

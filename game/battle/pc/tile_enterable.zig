@@ -5,10 +5,6 @@ const v = @import("views_battle_movement");
 const psx = @import("common").psx;
 const pad = @import("common").pad;
 
-fn scratch8(offset: c_int) *u8 {
-    return @ptrFromInt(pad.addr(@intCast(offset)));
-}
-
 /// orig: nav_cell (pc/src/battle_movement.c)
 /// The navigation cell of tile (x, z) in the grid cached at scratchpad 0x3C0.
 fn navCell(x: c_int, z: c_int) *align(1) u16 {
@@ -28,7 +24,7 @@ pub fn tileEnterable(state: *ai.vs_battle_aiState, tile: c_uint) callconv(.c) c_
     const height = c.vs_field_groundHeightAtTile(x, z);
     const point_x = x *% 128 +% 64;
     const point_z = z *% 128 +% 64;
-    if (!(x < scratch8(0x3dc).* and z < scratch8(0x3dd).*)) return 0;
+    if (!(x < pad.move.width and z < pad.move.depth)) return 0;
     if (@as(c_int, navCell(x, z).*) & ((@as(c_int, state.f32) << 8) | 0x80b0) != 0) return 0;
     const self_size: c_int = state.collisionRadius;
     var node: ?*ai.vs_battle_actor = if (v.g.vs_battle_actors()[0]) |first| @ptrCast(@alignCast(first)) else null;

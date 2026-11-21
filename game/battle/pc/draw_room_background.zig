@@ -12,6 +12,6 @@ pub fn drawRoomBackground(mesh: [*c]c_uint, camera: *const @import("common").gte
     const packet: ?[*]c_uint = @ptrFromInt(@intFromPtr(cursor.unk0));
     // table + 2047 words, as the C does on a possibly null base.
     const table: [*c]c_uint = @ptrFromInt(@intFromPtr(cursor.unk4) +% 2047 * 4);
-    const end = c.pc_background_packets(mesh, packet, table, @ptrFromInt(pad.addr(0x100)), @ptrCast(camera));
+    const end = c.pc_background_packets(mesh, packet, table, pad.many([4]c_int, 0x100), @ptrCast(camera));
     cursor.unk0 = end;
 }

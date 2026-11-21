@@ -32,7 +32,7 @@ fn settleAxis(pos: *i16, vel: *i16) void {
 /// Advances one object by a tick: its rotation, then the motion of its mode, and its children when it falls.
 pub fn vs_field_updateGimmickMotion(object: ?*v.objectAnimationState, _: c_int) callconv(.c) void {
     const obj = object.?;
-    const scratch: *v.actorTransformScratch = pad.at(v.actorTransformScratch, 0x35C);
+    const scratch: *v.actorTransformScratch = pad.xform(v.actorTransformScratch);
     // *(int*)&object->material: the four bytes from material on.
     const mat4: *align(1) c_int = psx.byteAt(c_int, obj, @offsetOf(v.objectAnimationState, "material"));
     var step: c_int = 0;

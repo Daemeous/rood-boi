@@ -10,7 +10,7 @@ const v = @import("views_40564");
 pub fn vs_field_canActorSeparateFromOverlaps(actor: ?*v.D_800F4538_t, motion: ?*v.SVECTOR) callconv(.c) c_int {
     const a = actor.?;
     // scratchpad exclusion bytes: one `excluded` byte per slot i at 0x1F8003BC + i + 4
-    const scratch: usize = pad.addr(0x3BC);
+    const scratch: usize = @intFromPtr(pad.collision([4]u8));
 
     var k: c_int = 16;
     var clear: usize = scratch + 16;

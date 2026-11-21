@@ -44,6 +44,14 @@ RULES = {
     # the scratchpad's typed overlays reached by a PS1 offset (T14, memory lane S3): pad.addr(0xNNN) in Zig, PC_PAD(0xNNN) in C;
     # pad.at(T, off) and pad.many(T, off) are the checked form and not counted
     "pad_offset": re.compile(r"\bpad\.addr\(|\bPC_PAD\(|\bSCRATCH_AT\("),
+    # the overlays that stay shared after S3b (the checked form of the above): each is a place where two owners really use the
+    # same pad bytes at different times, listed in pc/docs/memory_layouts/s3b-pad-overlays.tsv; a single-owner use is a named
+    # native struct instead (vs_nav, vs_move) or a local, so the count falls as those are split out
+    # a read or write of the pad's blocks (vs_pad, vs_xform, vs_collision) by byte offset from C, where the typed Zig views cannot be
+    # followed: a host unit that reads by offset goes stale when the writers move (memory lane S3b, actor_native.c); counted so a
+    # split cannot leave one behind unseen
+    "pad_block_offset": re.compile(r"(?<!char )\bvs_(?:pad|xform|collision)\s*(?:\+|\[)"),
+    "pad_overlay": re.compile(r"\bpad\.(?:at|many|ptr)\(|\bVS_PAD_AT\("),
     "io_register": re.compile(r"\b0[xX]1[fF]80(?!0[0-3])[0-9a-fA-F]{4}\b"),
     "unnamed_symbol": re.compile(r"\b(?:D|func)_80[0-9a-fA-F]{6}\b"),
     # memory lane (pc/docs/plans/2026-11-16-memory-lane.md): code that reaches a field by its PS1 byte offset (S1), and

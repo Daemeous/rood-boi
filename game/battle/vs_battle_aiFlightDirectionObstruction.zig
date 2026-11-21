@@ -8,7 +8,7 @@ const c = @import("c_771A8");
 
 /// Direction table in the scratchpad (OBSTRUCTION_DIRECTIONS).
 fn dirEntry(direction: c_int) *align(1) v.D_800F16EC_t {
-    const table: [*]align(1) v.D_800F16EC_t = pad.many(v.D_800F16EC_t, 0x3EC);
+    const table: [*]align(1) v.D_800F16EC_t = pad.directions(v.D_800F16EC_t);
     return psx.at(table, direction);
 }
 
@@ -31,21 +31,21 @@ fn absU(x: c_int) c_uint {
     return psx.conv(c_uint, if (x >= 0) x else -%x);
 }
 
-/// cache->tested |= 1 << direction.
-fn markTested(cache: *v.obstructionCache, direction: c_int) void {
+/// the blockers' tested bits |= 1 << direction.
+fn markTested(cache: *pad.Move, direction: c_int) void {
     // Shift count is the low 5 bits (x86 masks it).
     const sh: u5 = psx.conv(u5, direction);
-    cache.tested = psx.conv(u8, @as(c_int, cache.tested) | (@as(c_int, 1) << sh));
+    cache.cache.bits.blockTested = psx.conv(u8, @as(c_int, cache.cache.bits.blockTested) | (@as(c_int, 1) << sh));
 }
 
 /// orig: vs_battle_aiFlightDirectionObstruction (pc/src/game/BATTLE/BATTLE.PRG/771A8.c)
 /// Tests whether a move of `state` in `direction` (`ahead` steps) is blocked by a point or an actor, caching the answer per direction.
 pub fn vs_battle_aiFlightDirectionObstruction(state: ?*v.vs_battle_aiState, direction: c_int, ahead: c_int) callconv(.c) c_int {
-    const cache: *v.obstructionCache = pad.at(v.obstructionCache, 0x3D0);
+    const cache = pad.move;
     // Shift count is the low 5 bits (x86 masks it); direction is not range-checked by the C.
     const shift: u5 = psx.conv(u5, direction);
-    if (((@as(c_int, cache.tested) >> shift) & 1) != 0)
-        return @as(c_int, psx.at(&cache.result, direction).*);
+    if (((@as(c_int, cache.cache.bits.blockTested) >> shift) & 1) != 0)
+        return @as(c_int, psx.at(&cache.blocker, direction).*);
 
     const st = state.?;
     const dir = dirEntry(direction);
@@ -69,7 +69,7 @@ pub fn vs_battle_aiFlightDirectionObstruction(state: ?*v.vs_battle_aiState, dire
         const height: c_uint = psx.conv(c_uint, (@as(c_int, st.extent) +% 32) >> 1);
         if (absU(dx) <= radius and absU(dz) <= radius and absU(dy) <= height) {
             markTested(cache, direction);
-            psx.at(&cache.result, direction).* = 1;
+            psx.at(&cache.blocker, direction).* = 1;
             return 1;
         }
     }
@@ -93,12 +93,12 @@ pub fn vs_battle_aiFlightDirectionObstruction(state: ?*v.vs_battle_aiState, dire
             psx.conv(c_uint, (@as(c_int, st.extent) +% @as(c_int, other.height)) >> 1);
         if (absU(dx) <= radius and absU(dz) <= radius and absU(dy) <= height) {
             markTested(cache, direction);
-            psx.at(&cache.result, direction).* = psx.conv(u8, a.id +% 1);
+            psx.at(&cache.blocker, direction).* = psx.conv(u8, a.id +% 1);
             return a.id +% 1;
         }
     }
 
     markTested(cache, direction);
-    psx.at(&cache.result, direction).* = 0;
+    psx.at(&cache.blocker, direction).* = 0;
     return 0;
 }

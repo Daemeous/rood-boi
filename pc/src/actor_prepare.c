@@ -69,15 +69,11 @@ void vs_render_drawModelGouraudPolygonsWithOverrides(void*, void*, void*, void*)
 void func_8008C458(int, int, void*, void*);
 int vs_gte_rsqrt(int);
 
-typedef struct {
-    char prefix[0x4C];
-    SVECTOR translation;
-} boneTransformScratch;
 static inline void vs_actors_applyLockedBoneTransform(void* actorData, MATRIX* parent, int bone, int saved)
 {
     D_800F4538_t* actor = actorData;
-    boneTransformScratch* scratch = (void*)PC_PAD(0x35C);
-    MATRIX* matrix = (void*)PC_PAD(0x3C0);
+    actorTransformScratch* scratch = VS_XFORM(actorTransformScratch);
+    MATRIX* matrix = &scratch->matrix;
     MATRIX* savedMatrix = (MATRIX*)actor->unk1890[saved - 1]; /* the saved bone matrices follow unk1890 */
     vs_gte_view view;
     vs_gte_result transformed;
@@ -98,7 +94,7 @@ static inline void vs_actors_applyLockedBoneTransform(void* actorData, MATRIX* p
 void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
 {
     D_800F4538_t* actor = actorData;
-    actorTransformScratch* scratch = (void*)PC_PAD(0x35C);
+    actorTransformScratch* scratch = VS_XFORM(actorTransformScratch);
     D_800F4538_t* source;
     int _[2] __attribute__((unused));
     actorIdentity savedIdentity;

@@ -57,8 +57,7 @@ pub fn vs_battle_aiRecoverMovement(state: ?*v.vs_battle_aiState) callconv(.c) vo
             psx.conv(c_int, quadrant *% 2);
 
         var i: c_int = 0;
-        const bounds: [*]u8 = pad.many(u8, 0x3DC);
-        const table: [*]v.D_800F16EC_t = pad.many(v.D_800F16EC_t, 0x3EC);
+        const table: [*]v.D_800F16EC_t = pad.directions(v.D_800F16EC_t);
         while (i < 4) : (i += 1) {
             direction = (direction +% i *% 2) & 7;
             const entry = &table[@intCast(direction)];
@@ -66,7 +65,7 @@ pub fn vs_battle_aiRecoverMovement(state: ?*v.vs_battle_aiState) callconv(.c) vo
             const dz: c_int = @as(c_int, psx.getBits(entry, "dz"));
             const nx: c_int = @as(c_int, psx.conv(u8, x +% psx.conv(c_uint, dx)));
             const nz: c_int = @as(c_int, psx.conv(u8, z +% psx.conv(c_uint, dz)));
-            if (nx < @as(c_int, bounds[0]) and nz < @as(c_int, bounds[1])) {
+            if (nx < @as(c_int, pad.move.width) and nz < @as(c_int, pad.move.depth)) {
                 const height: c_int = (c.vs_field_groundHeightFlagsAtTile(nx, nz) << 17) >> 17;
                 if (height > bestHeight) {
                     bestDirection = direction;

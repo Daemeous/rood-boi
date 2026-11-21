@@ -345,6 +345,8 @@ void pc_window_tick(void)
             /* A settings change still waiting for its debounced save (System) is saved first. */
             if (pc_ui_settings_flush)
                 pc_ui_settings_flush();
+            fprintf(stderr, "[exit] %s: the window asked to quit\n",
+                event.type == SDL_EVENT_QUIT ? "SDL_EVENT_QUIT" : "window close requested");
             pc_quit(); /* dev_rpc.c: the auto-snapshot first when ROOD_AUTOSNAP is set */
             break;
         case SDL_EVENT_WINDOW_FOCUS_LOST:

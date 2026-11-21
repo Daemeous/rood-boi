@@ -35,7 +35,8 @@ extern vs_scratch_t vs_scratch;
  * block, indexed by their PS1 offset from 0x1F800000 (0x68..0x3FF; the bytes below are vs_scratch and vs_view).
  * Defined in 146C.c. */
 extern unsigned char vs_pad[0x408];
-#define PC_PAD(offset) (vs_pad + (offset))
+/* A T at PS1 offset `offset` of the pad (checked at compile time to lie inside it): the overlays that stay shared. */
+#define VS_PAD_AT(T, offset) ((T*)(vs_pad + (offset) + 0 * sizeof(char[((offset) + sizeof(T) <= 0x408) ? 1 : -1])))
 /* The navigation pointers the AI reads, real pointers (memory lane S3b: they were 4-byte guest words in vs_pad at 0x37C,
  * 0x3BC, 0x3C0, 0x3C4 and 0x3F4, filled each actor update by pc_actor_scratch; the overlays at those offsets no longer
  * share them). game/common/pad.zig mirrors the layout. */
@@ -47,4 +48,42 @@ typedef struct {
     unsigned char* exits;          /* the room's exit table, D_800F58C0, non-null when the occupancy bitmap is active (was 0x3F4) */
 } vs_nav_t;
 extern vs_nav_t vs_nav;
+/* The AI movement frame (memory lane S3b): what the movement code reads and keeps between its steps, filled each actor
+ * update by pc_actor_scratch. It was the pad's bytes 0x3C8..0x3FF, shared with the collision and animation overlays
+ * at the same offsets (only one of them lives at a time on the PS1); one owner and one lifetime make it its own struct.
+ * game/common/pad.zig Move mirrors the layout. */
+typedef struct {
+    /* 0x3C8 */ int command;                  /* the action vs_battle_aiIssueActorCommand is carrying out */
+    /* 0x3CC */ unsigned char gap3CC[4];
+    union {
+        /* 0x3D0 */ unsigned cacheWord;       /* the three caches below, cleared together */
+        struct {
+            unsigned char flyTested;          /* per direction: the passability of the direction is known */
+            unsigned char flyPassable;        /* and what it is (vs_battle_aiCanFlyInDirection) */
+            unsigned char blockTested;        /* per direction: its blocking actor is known (vs_battle_aiDirectionalBlockingActor) */
+            unsigned char gap3D3;
+        };
+    };
+    /* 0x3D4 */ unsigned char blocker[8];     /* that actor's id + 1, by direction */
+    /* 0x3DC */ unsigned char width;          /* the room's navigation grid size */
+    /* 0x3DD */ unsigned char depth;
+    /* 0x3DE */ unsigned char gap3DE[2];
+    /* 0x3E0 */ signed char lookup[12];       /* the 3x3 neighbourhood's step directions (D_800F16E0..) */
+    /* 0x3EC */ unsigned char directions[8];  /* a direction's packed step: 2-bit dx, 2 unused, 2-bit dz (D_800F16EC_t) */
+    /* 0x3F4 */ unsigned char gap3F4[4];
+    /* 0x3F8 */ unsigned randomState;         /* the movement random step's seed (its low half) ... */
+    /* 0x3FC */ unsigned randomIncrement;     /* ... and increment */
+} vs_move_t;
+PSX_ASSERT_SIZE(vs_move_t, 0x38);
+extern vs_move_t vs_move;
+/* The actor transform block (memory lane S3b, second step): the registers the actor transform functions hand one another
+ * (the object offset and angles, the bone matrix and its view position, the weapon transform, the shadow's projected points),
+ * 0xA4 bytes, the PS1 pad's 0x35C..0x3FF. Several views overlay it (actorTransformScratch, boneTransformScratch,
+ * cameraTransformScratch, weaponTransformScratch, boneMatrixScratch, D_1F80035C_t), indexed from its start. Defined in 146C.c;
+ * game/common/pad.zig `xform` is the typed access. */
+extern unsigned char vs_xform[0xA4];
+#define VS_XFORM(T) ((T*)(vs_xform + 0 * sizeof(char[sizeof(T) <= 0xA4 ? 1 : -1])))
+/* The actor collision workspace (vs_field_*'s samples, probes and exclusion marks), 0x4C bytes, the pad's 0x3BC..0x407:
+ * the views are collisionScratchView, ActorCollisionSamples, D_1F8003BC_t, actorCollisionExclusion, collisionResponseScratch. */
+extern unsigned char vs_collision[0x4C];
 extern vs_view_t vs_view;

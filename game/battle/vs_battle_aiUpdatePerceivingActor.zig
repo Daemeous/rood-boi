@@ -67,7 +67,7 @@ pub fn vs_battle_aiUpdatePerceivingActor() callconv(.c) void {
 
             arg = c.vs_core_elapsedFrameCounterTicks();
             if (v.g.D_800F16F4().* < arg) break :outcome_blk .idle;
-            pad.at(c_int, 0x3FC).* = arg;
+            @as(*c_int, @ptrCast(&pad.move.randomIncrement)).* = arg;
             if (state.unk18 != 0) {
                 if (state.unk12A != 0 and state.unk138 == 6) break :outcome_blk .idle;
                 state.unk18 = 0;

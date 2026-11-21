@@ -22,7 +22,7 @@ pub fn drawMenuTargetShape(shape: [*]u8, color_in: c_uint) callconv(.c) void {
     var point: usize = @intFromPtr(&block.points);
     const scratch: [*]u32 = pad.many(u32, 0x398);
     const halves: [*]u16 = pad.many(u16, 0x398);
-    const matrix: [*c]c.MATRIX = @ptrFromInt(pad.addr(0x398));
+    const matrix: [*c]c.MATRIX = pad.at(c.MATRIX, 0x398);
     const scale = c.func_800C085C(shape + 4, shortAt(shape, 2));
     _ = c.RotMatrixYXZ_gte(@ptrFromInt(@intFromPtr(&block.unk24)), matrix);
     const factor = c.rcos(block.unk2A << 6);
@@ -50,7 +50,7 @@ pub fn drawMenuTargetShape(shape: [*]u8, color_in: c_uint) callconv(.c) void {
             const sum: c_int = @as(c_int, @as(i16, @bitCast(halves[2]))) +% @as(c_int, @as(i16, @bitCast(halves[6]))) -% bias;
             // `div $zero` has no zero check: the R3000 then leaves LO = -1 for a non-negative dividend and 1 for a negative one.
             const depth: c_int = if (divisor != 0) @divTrunc(sum, divisor) else if (sum < 0) 1 else -1;
-            c.func_800C0990(@ptrFromInt(pad.addr(0x398)), @ptrFromInt(pad.addr(0x3A0)), color -% (@as(c_uint, @bitCast(flag)) << 25), 0x20 -% depth);
+            c.func_800C0990(@ptrCast(pad.many(u8, 0x398)), @ptrCast(pad.many(u8, 0x3A0)), color -% (@as(c_uint, @bitCast(flag)) << 25), 0x20 -% depth);
         }
         var j: usize = 0;
         while (j < 3) : (j += 1) halves[4 + j] = halves[j];

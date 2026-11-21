@@ -1239,7 +1239,7 @@ static int _renderRoom(int roomIndex, void* roomData, int arg2, int arg3)
     int j;
     int const* new_var;
 
-    short (*var_s1)[4] = (void*)PC_PAD(0x100);
+    short (*var_s1)[4] = (short(*)[4])VS_PAD_AT(char, 0x100);
     int elementCount = *(int*)roomData;
     vs_gte_view view = _cameraView;
 #ifdef ROOD_PC

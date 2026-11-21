@@ -11,7 +11,7 @@ const Position = v.vs_battle_movementPosition;
 
 /// `((D_800F16EC_t*)0x1F8003EC)[direction]`: a heading's tile step.
 fn step(direction: c_int) *v.D_800F16EC_t {
-    return psx.at(pad.many(v.D_800F16EC_t, 0x3EC), direction);
+    return psx.at(pad.directions(v.D_800F16EC_t), direction);
 }
 
 /// orig: routeWord (pc/src/game/BATTLE/BATTLE.PRG/771A8.c)
@@ -156,7 +156,7 @@ pub fn vs_battle_aiResolveNavigationAreaRoute(state: ?*v.vs_battle_aiState, inde
             return stop(s, &candidate);
         }
         const passages: [*]const u8 = pad.nav.bitmap.?;
-        const width: c_int = pad.at(u8, 0x3DC).*;
+        const width: c_int = pad.move.width;
         const cell = psx.at(passages, @as(c_int, psx.getBits(&position.p, "z")) *% width +% psx.getBits(&position.p, "x")).*;
         // *direction indexes the 8 headings: below 8 in the game's table; the shift as x86 masks it.
         if ((@as(c_int, cell) >> @truncate(@as(c_uint, direction.*))) & 1 != 0) {

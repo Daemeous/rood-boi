@@ -63,5 +63,5 @@ void pc_screff2_warp_packets(
 void pc_screff2_warp(void)
 {
     pc_screff2_warp_packets(
-        (unsigned*)PC_OT_BASE, vs_effects_screenEffectOverlay->unk4, vs_effects_screenEffectOverlay->unk6, (void*)PC_PAD(0x88));
+        (unsigned*)PC_OT_BASE, vs_effects_screenEffectOverlay->unk4, vs_effects_screenEffectOverlay->unk6, VS_PAD_AT(char, 0x88));
 }

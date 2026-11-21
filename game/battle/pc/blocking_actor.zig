@@ -5,10 +5,6 @@ const v = @import("views_battle_movement");
 const psx = @import("common").psx;
 const pad = @import("common").pad;
 
-fn scratch8(offset: c_int) *u8 {
-    return @ptrFromInt(pad.addr(@intCast(offset)));
-}
-
 /// orig: direction_dx (pc/src/battle_movement.c)
 /// The signed X step in bits 0-1 of a packed direction.
 fn directionDx(packed_direction: c_int) c_int {
@@ -27,8 +23,8 @@ fn directionDz(packed_direction: c_int) c_int {
 /// in scratchpad 0x3D2 (valid bits) / 0x3D4 + dir.
 pub fn blockingActor(state: *ai.vs_battle_aiState, dir: c_int) callconv(.c) c_int {
     // Shift counts are directions 0..7; the x86 shift takes them modulo 32.
-    if ((@as(c_int, scratch8(0x3d2).*) >> @truncate(@as(c_uint, @bitCast(dir)))) & 1 != 0) return scratch8(0x3d4 +% dir).*;
-    const packed_direction: c_int = scratch8(0x3ec +% dir).*;
+    if ((@as(c_int, pad.move.cache.bits.blockTested) >> @truncate(@as(c_uint, @bitCast(dir)))) & 1 != 0) return pad.blockerAt(dir).*;
+    const packed_direction: c_int = pad.directionAt(dir).*;
     const dx = directionDx(packed_direction);
     const dz = directionDz(packed_direction);
     const radius: c_int = state.step;
@@ -39,12 +35,12 @@ pub fn blockingActor(state: *ai.vs_battle_aiState, dir: c_int) callconv(.c) c_in
     const tile_z: c_int = @intCast((tile >> 16) & 0xff);
     const neighbour: c_int = @bitCast(((z >> 7) -% @as(c_uint, @bitCast(tile_z)) +% 1) *% 4 +%
         ((x >> 7) -% @as(c_uint, @bitCast(tile_x)) +% 1));
-    const lookup: c_int = @as(i8, @bitCast(scratch8(0x3e0 +% neighbour).*));
+    const lookup: c_int = @as(i8, @bitCast(pad.lookupAt(neighbour).*));
     var open: c_int = 1;
     if (lookup >= 0) {
         if (pad.nav.exits != null) {
             const bitmap: [*]u8 = pad.nav.bitmap.?;
-            const index: c_int = @as(c_int, scratch8(0x3dc).*) *% tile_z +% tile_x;
+            const index: c_int = @as(c_int, pad.move.width) *% tile_z +% tile_x;
             open = (@as(c_int, psx.at(bitmap, index).*) >> @truncate(@as(c_uint, @bitCast(lookup)))) & 1;
         } else {
             open = c.vs_battle_aiIsAdjacentTileStepBlocked(tile, lookup);
@@ -82,7 +78,7 @@ pub fn blockingActor(state: *ai.vs_battle_aiState, dir: c_int) callconv(.c) c_in
         result = id +% 1;
         break;
     }
-    scratch8(0x3d4 +% dir).* = psx.conv(u8, result);
-    scratch8(0x3d2).* |= psx.conv(u8, @as(c_uint, 1) << @truncate(@as(c_uint, @bitCast(dir))));
+    pad.blockerAt(dir).* = psx.conv(u8, result);
+    pad.move.cache.bits.blockTested |= psx.conv(u8, @as(c_uint, 1) << @truncate(@as(c_uint, @bitCast(dir))));
     return result;
 }

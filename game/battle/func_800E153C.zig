@@ -43,7 +43,7 @@ pub fn func_800E153C(state: ?*v.vs_battle_aiState, _: c_int) callconv(.c) void {
         var i: c_int = 0;
         while (i < 4) : (i += 1) {
             const off: usize = @as(usize, @intCast(i)) * 2;
-            const entry: *v.D_800F16EC_t = @ptrFromInt(pad.addr(0x3EC) + off);
+            const entry: *align(1) v.D_800F16EC_t = &pad.directions(v.D_800F16EC_t)[off];
             psx.setBits(&dest.p, "x", psx.conv(u8, @as(c_int, psx.getBits(&st.destination168.movementPosition.p, "x")) +% @as(c_int, psx.getBits(entry, "dx"))));
             psx.setBits(&dest.p, "z", psx.conv(u8, @as(c_int, psx.getBits(&st.destination168.movementPosition.p, "z")) +% @as(c_int, psx.getBits(entry, "dz"))));
             if (c.vs_battle_aiDestinationOccupancy(@ptrCast(st), dest.raw) > 0) {

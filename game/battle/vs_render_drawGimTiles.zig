@@ -1,6 +1,5 @@
 //! Draws a GIM image at its scale (pc/src/game/BATTLE/BATTLE.PRG/5BF94.c).
 const common = @import("common");
-const pad = @import("common").pad;
 const psx = common.psx;
 const v = @import("views_5BF94");
 const c = @import("c_5BF94");
@@ -22,9 +21,11 @@ pub fn vs_render_drawGimTiles(image_arg: ?*v.gim_t, clut: c_int, ot: [*c]c_uint)
     // ROOD_PC: the anchor's start.
     const image_start = psx.get(scratch.unk0);
     var j: c_int = @as(c_int, image.unk8) + 160;
-    // Two scratchpad tables below its end: the columns' x, then the rows' y.
-    const column_x: [*]i16 = @ptrFromInt(@as(usize, @as(u32, @bitCast(@as(c_int, @bitCast(pad.guest(0x400))) - ((columns + 1) << 1)))));
-    const row_y: [*]i16 = column_x - @as(usize, @intCast(rows + 1));
+    // The columns' x and the rows' y (the pad's top 0x400 held them; a count is a byte, so 256 entries each).
+    var column_table: [256]i16 = undefined;
+    var row_table: [256]i16 = undefined;
+    const column_x: [*]i16 = &column_table;
+    const row_y: [*]i16 = &row_table;
     var i: c_int = 0;
     while (i <= columns) : (i += 1) {
         column_x[@intCast(i)] = psx.conv(i16, (((i * 2 - columns) *% scale) >> 7) +% j);

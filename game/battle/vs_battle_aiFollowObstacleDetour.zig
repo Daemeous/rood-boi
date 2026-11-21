@@ -9,7 +9,7 @@ const c = @import("c_771A8");
 
 /// `((D_800F16EC_t*)0x1F8003EC)[direction]`: a heading's tile step.
 fn step(direction: c_int) *v.D_800F16EC_t {
-    return psx.at(pad.many(v.D_800F16EC_t, 0x3EC), direction);
+    return psx.at(pad.directions(v.D_800F16EC_t), direction);
 }
 
 /// The other actor's path state in scratchpad slot `0x1F80037C + 4 * index`.

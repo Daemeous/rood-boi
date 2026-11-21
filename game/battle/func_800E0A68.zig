@@ -128,7 +128,7 @@ pub fn func_800E0A68(state: ?*v.vs_battle_aiState, action: c_int) callconv(.c) v
         return;
     }
     c.vs_battle_aiResolveDirectionalMovement(@ptrCast(s), angle, 2);
-    switch (pad.at(c_int, 0x3C8).*) {
+    switch (pad.move.command) {
         5 => {
             angle = @as(c_int, s.heading) *% (4096 / 8);
             if (c.vs_battle_aiLowestReachableGroundHeight(@ptrCast(s), @bitCast(angle)) +% s.heightBE < s.position.step.p.y) {

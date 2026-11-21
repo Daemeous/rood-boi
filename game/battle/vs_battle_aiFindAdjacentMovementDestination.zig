@@ -29,7 +29,7 @@ pub fn vs_battle_aiFindAdjacentMovementDestination(state: ?*v.vs_battle_aiState,
         count = 2;
     }
 
-    const table: [*]align(1) v.D_800F16EC_t = pad.many(v.D_800F16EC_t, 0x3EC);
+    const table: [*]align(1) v.D_800F16EC_t = pad.directions(v.D_800F16EC_t);
 
     const Exit = enum { none, blocked, done };
     const exit: Exit = blk: {

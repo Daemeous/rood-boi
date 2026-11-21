@@ -47,7 +47,7 @@ pub fn vs_battle_aiUpdateNavigationAreaMovement(state: ?*v.vs_battle_aiState) ca
         }
         if (!at_move) {
             st.flags0.b[2] = active;
-            pad.at(u8, 0x3D0).* = 0;
+            pad.move.cache.bits.flyTested = 0;
         }
     }
     // move:

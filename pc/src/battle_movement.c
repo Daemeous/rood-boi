@@ -6,13 +6,6 @@
 #include "game/BATTLE/BATTLE.PRG/ai_state.h"
 extern unsigned char* vs_battle_aiActorAiStates[];
 extern unsigned short (*D_800F58D8)[8];
-/* Scratchpad bytes and words; pointers kept there are 4-byte guest addresses
- * (SCRATCH_PTR), like every pointer stored inside the PS1-layout actor and AI
- * records read below by offset (psx_load/psx_store). */
-#define SCRATCH_AT(offset) PC_PAD(offset)
-#define SCRATCH8(offset) (*SCRATCH_AT(offset))
-#define SCRATCH32(offset) (*(unsigned*)SCRATCH_AT(offset))
-#define SCRATCH_PTR(T, offset) psx_load(T, SCRATCH_AT(offset))
 extern void pc_unimplemented(const char*);
 extern void pc_require_native_callback(unsigned, const char*, unsigned);
 extern int vs_battle_aiTryExecutePlannedActions(void*);
@@ -335,7 +328,7 @@ int vs_field_groundHeightAtWorldPosition(int x, int z);
  * 0x3EC + dir: packed direction (dx signed bits 0-1, dz signed bits 4-5);
  * 0x3E0 + 3x3 index: per-neighbour direction or -1; 0x3C0: navigation cells;
  * 0x3BC: floor cells; 0x3C4/0x3DC/0x3F4: optional occupancy bitmap.
- * SCRATCH8/SCRATCH32/SCRATCH_PTR are defined at the top of the file. */
+ * vs_move is the AI movement frame (scratch.h). */
 static int direction_dx(int packed) { return (int)((unsigned)packed << 30) >> 30; }
 static int direction_dz(int packed) { return (int)((unsigned)packed << 26) >> 30; }
 
@@ -359,19 +352,19 @@ int vs_battle_aiDirectionalBlockingActor(void* state, int dir);
 int vs_battle_aiCanWalkInDirection(void* state, int dir)
 {
     vs_battle_aiState* base = state;
-    if ((SCRATCH8(0x3d0) >> dir) & 1)
-        return (SCRATCH8(0x3d1) >> dir) & 1;
+    if ((vs_move.flyTested >> dir) & 1)
+        return (vs_move.flyPassable >> dir) & 1;
     int blocked = vs_battle_aiDirectionalBlockingActor(state, dir);
     if (!blocked) {
         unsigned tile = base->tile.raw, fine = base->unk120;
-        int packed = SCRATCH8(0x3ec + dir), probe = dir;
+        int packed = vs_move.directions[dir], probe = dir;
         int tile_x = tile & 0xff, tile_z = (tile >> 16) & 0xff;
         int next_x = ((int)(fine & 0xff) + direction_dx(packed)) >> 1;
         int next_z = ((int)((fine >> 16) & 0xff) + direction_dz(packed)) >> 1;
         if (next_x == tile_x && next_z == tile_z)
             goto done;
         if (dir & 1)
-            probe = (signed char)SCRATCH8(0x3e0 + (next_x - tile_x + 1) + (next_z - tile_z + 1) * 4);
+            probe = (signed char)vs_move.lookup[(next_x - tile_x + 1) + (next_z - tile_z + 1) * 4];
         unsigned char* cells = (unsigned char*)vs_nav.cells;
         unsigned short* cell = (unsigned short*)(cells + next_x * 2 + next_z * 64);
         if (!vs_nav.exits) {
@@ -385,7 +378,7 @@ int vs_battle_aiCanWalkInDirection(void* state, int dir)
                 goto done;
             }
             unsigned char* bitmap = vs_nav.bitmap;
-            blocked = (bitmap[tile_z * SCRATCH8(0x3dc) + tile_x] >> probe) & 1;
+            blocked = (bitmap[tile_z * vs_move.width + tile_x] >> probe) & 1;
         }
         if (blocked)
             goto done;
@@ -407,12 +400,12 @@ int vs_battle_aiCanWalkInDirection(void* state, int dir)
                 < (int)(*(unsigned short*)(floors + next_x * 2 + next_z * 64) & 0x1c00);
     }
 done:
-    SCRATCH8(0x3d0) |= 1u << dir;
+    vs_move.flyTested |= 1u << dir;
     if (blocked)
-        SCRATCH8(0x3d1) &= ~(1u << dir);
+        vs_move.flyPassable &= ~(1u << dir);
     else
-        SCRATCH8(0x3d1) |= 1u << dir;
-    return (SCRATCH8(0x3d1) >> dir) & 1;
+        vs_move.flyPassable |= 1u << dir;
+    return (vs_move.flyPassable >> dir) & 1;
 }
 
 /* 7BDD4.s: scratchpad linear-congruential step (seed half 0x3F8 + increment

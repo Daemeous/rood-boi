@@ -5,14 +5,6 @@ const pad = @import("common").pad;
 const v = @import("views_49268");
 const c = @import("c_49268");
 
-fn svAt(addr: usize) *v.SVECTOR {
-    return @ptrFromInt(addr);
-}
-
-fn matAt(addr: usize) *v.MATRIX {
-    return @ptrFromInt(addr);
-}
-
 // gte_stlvnl: the translation vector stored to three words.
 fn stlvnl(t: *[3]i32, mac: *const [3]i32) void {
     t.* = mac.*;
@@ -23,7 +15,7 @@ fn stlvnl(t: *[3]i32, mac: *const [3]i32) void {
 pub fn vs_actors_placeGimmick(object: ?*v.D_800F45E0_t, camera: ?*v.MATRIX) callconv(.c) void {
     const obj = object.?;
     const cam = camera.?;
-    const scratch: *v.weaponTransformScratch = pad.at(v.weaponTransformScratch, 0x35C);
+    const scratch: *v.weaponTransformScratch = pad.xform(v.weaponTransformScratch);
     var holderRotation: v.MATRIX = undefined;
     var anchors: [2]v.SVECTOR = undefined;
 
@@ -34,7 +26,7 @@ pub fn vs_actors_placeGimmick(object: ?*v.D_800F45E0_t, camera: ?*v.MATRIX) call
     scratch.translation.vx = scratch.position.vx;
     scratch.translation.vy = psx.conv(i16, @as(c_int, scratch.position.vy) +% 16);
     scratch.translation.vz = scratch.position.vz;
-    gte.transformTo(&mac, &view, svAt(pad.addr(0x3A8)));
+    gte.transformTo(&mac, &view, &scratch.translation);
     const attachment: c_uint = @as(c_uint, psx.getBits(&obj.unk6C[8], "actorId"));
 
     composed: {
@@ -45,36 +37,36 @@ pub fn vs_actors_placeGimmick(object: ?*v.D_800F45E0_t, camera: ?*v.MATRIX) call
             scratch.translation.vx = psx.conv(i16, @divTrunc(@as(c_int, anchors[0].vx) +% anchors[1].vx, 2));
             scratch.translation.vy = psx.conv(i16, @divTrunc(@as(c_int, anchors[0].vy) +% anchors[1].vy, 2));
             scratch.translation.vz = psx.conv(i16, @divTrunc(@as(c_int, anchors[0].vz) +% anchors[1].vz, 2));
-            gte.transformTo(&mac, &view, svAt(pad.addr(0x3A8)));
+            gte.transformTo(&mac, &view, &scratch.translation);
             const pose: *v.SVECTOR = @ptrCast(&obj.unk6C[5]);
             scratch.rotation.vx = psx.conv(i16, @as(c_int, pose.vx) +% obj.unk24);
             scratch.rotation.vy = psx.conv(i16, @as(c_int, pose.vy) +% obj.unk26);
             scratch.rotation.vz = psx.conv(i16, @as(c_int, pose.vz) +% psx.conv(i16, obj.unk28));
-            stlvnl(pad.at([3]i32, 0x3D4), &mac);
-            c.vs_core_mathBuildEulerRotationMatrixQuadrant(psx.cptr(c.SVECTOR, svAt(pad.addr(0x3E0))), psx.cptr(c.MATRIX, matAt(pad.addr(0x3C0))));
+            stlvnl(&scratch.matrix.t, &mac);
+            c.vs_core_mathBuildEulerRotationMatrixQuadrant(psx.cptr(c.SVECTOR, &scratch.rotation), psx.cptr(c.MATRIX, &scratch.matrix));
             scratch.rotation.vx = holder.?.unk0.pitch;
             scratch.rotation.vy = holder.?.unk0.facing;
             scratch.rotation.vz = holder.?.unk0.roll;
-            c.vs_core_mathBuildEulerRotationMatrixQuadrant(psx.cptr(c.SVECTOR, svAt(pad.addr(0x3E0))), psx.cptr(c.MATRIX, &holderRotation));
-            c.vs_core_mathPremultiplyRotationMatrix(psx.cptr(c.MATRIX, &holderRotation), psx.cptr(c.MATRIX, matAt(pad.addr(0x3C0))));
+            c.vs_core_mathBuildEulerRotationMatrixQuadrant(psx.cptr(c.SVECTOR, &scratch.rotation), psx.cptr(c.MATRIX, &holderRotation));
+            c.vs_core_mathPremultiplyRotationMatrix(psx.cptr(c.MATRIX, &holderRotation), psx.cptr(c.MATRIX, &scratch.matrix));
         } else if (attachment < 2) {
             if (obj.unk1A != 0) {
                 scratch.rotation.vx = obj.unk24;
                 scratch.rotation.vy = obj.unk26;
                 scratch.rotation.vz = psx.conv(i16, obj.unk28);
-                stlvnl(pad.at([3]i32, 0x3D4), &mac);
-                _ = c.RotMatrixYXZ_gte(psx.cptr(c.SVECTOR, svAt(pad.addr(0x3E0))), psx.cptr(c.MATRIX, matAt(pad.addr(0x3C0))));
-                c.vs_core_mathPremultiplyRotationMatrix(psx.cptr(c.MATRIX, cam), psx.cptr(c.MATRIX, matAt(pad.addr(0x3C0))));
+                stlvnl(&scratch.matrix.t, &mac);
+                _ = c.RotMatrixYXZ_gte(psx.cptr(c.SVECTOR, &scratch.rotation), psx.cptr(c.MATRIX, &scratch.matrix));
+                c.vs_core_mathPremultiplyRotationMatrix(psx.cptr(c.MATRIX, cam), psx.cptr(c.MATRIX, &scratch.matrix));
                 // CompMatrixLV called through the two-argument form (m0 = m0 * m1), as the C does.
                 const CompMatrixLV2 = *const fn ([*c]c.MATRIX, [*c]c.MATRIX) callconv(.c) void;
                 @as(CompMatrixLV2, @ptrCast(&c.CompMatrixLV))(
-                    psx.cptr(c.MATRIX, matAt(pad.addr(0x3C0))),
+                    psx.cptr(c.MATRIX, &scratch.matrix),
                     psx.cptr(c.MATRIX, @as(*v.MATRIX, @ptrCast(&obj.unk6C[4]))),
                 );
                 break :composed;
             }
-            matAt(pad.addr(0x3C0)).* = @as(*v.MATRIX, @ptrCast(&obj.unk6C[4])).*;
-            stlvnl(pad.at([3]i32, 0x3D4), &mac);
+            scratch.matrix = @as(*v.MATRIX, @ptrCast(&obj.unk6C[4])).*;
+            stlvnl(&scratch.matrix.t, &mac);
         } else {
             const pose: *v.SVECTOR = @ptrCast(&obj.unk6C[5]);
             scratch.rotation.vx = pose.vx;

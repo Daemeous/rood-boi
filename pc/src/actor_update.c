@@ -1,5 +1,6 @@
 /* 7DDDC.s and 7C7E0.s: actor navigation frame preparation. Native C keeps
  * its own stack; scratchpad data layout and explicit missing callees remain. */
+#include <string.h>
 #include "psx_types.h" /* psx_load/psx_store: 4-byte guest pointers */
 #include "game/BATTLE/BATTLE.PRG/ai_state.h"
 extern unsigned char* vs_battle_aiActorAiStates[];
@@ -25,7 +26,7 @@ extern void vs_battle_aiResetActorAwarenessIndicator(void*);
 extern void vs_battle_aiUnlinkEngagedActor(void*);
 extern void pc_route_continuation(void*, unsigned); /* battle_movement.c */
 
-void pc_actor_scratch(unsigned* scratch)
+void pc_actor_scratch(void)
 {
     for (int i = 16; i >= 0; --i)
         vs_nav.aiStates[i] = vs_battle_aiActorAiStates[i];
@@ -33,16 +34,20 @@ void pc_actor_scratch(unsigned* scratch)
     vs_nav.cells = D_800F58B8;
     vs_nav.bitmap = D_800F58CC;
     vs_nav.exits = D_800F58C0;
-    scratch[0x3f8 / 4] = vs_battle_aiSavedMovementRandomState;
-    scratch[0x3e0 / 4] = D_800F16E0;
-    scratch[0x3e4 / 4] = D_800F16E4;
-    scratch[0x3e8 / 4] = D_800F16E8;
-    scratch[0x3ec / 4] = D_800F16EC;
-    scratch[0x3f0 / 4] = D_800F16F0;
+    vs_move.randomState = vs_battle_aiSavedMovementRandomState;
+    memcpy(vs_move.lookup, &D_800F16E0, 4);
+    memcpy(vs_move.lookup + 4, &D_800F16E4, 4);
+    memcpy(vs_move.lookup + 8, &D_800F16E8, 4);
+    memcpy(vs_move.directions, &D_800F16EC, 4);
+    memcpy(vs_move.directions + 4, &D_800F16F0, 4);
     /* Without a navigation record (vs_battle_aiUpdateActorNavigationOverrides does not test it, unlike
      * func_800E511C) the original reads word 4 of address 0: PS1 RAM, the
      * kernel area, read here through guest RAM. */
-    scratch[0x3dc / 4] = vs_battle_aiRoomAiState ? *(unsigned*)&vs_battle_aiRoomAiState->unk4 : *(unsigned*)(rood_null_page + 4);
+    unsigned room = vs_battle_aiRoomAiState ? *(unsigned*)&vs_battle_aiRoomAiState->unk4 : *(unsigned*)(rood_null_page + 4);
+    vs_move.width = room & 0xFF;
+    vs_move.depth = room >> 8 & 0xFF;
+    vs_move.gap3DE[0] = room >> 16 & 0xFF;
+    vs_move.gap3DE[1] = room >> 24;
 }
 void vs_battle_aiCacheActorAiWorkingState(void);
 

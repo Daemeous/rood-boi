@@ -26,8 +26,6 @@ extern u_short D_800EA130[]; /* 0x8000 / n; indexed past its end as the original
 extern u_short D_800EA6B0[]; /* edge -> pair of neighbouring cell indices */
 extern short D_800EA818[];   /* 40-entry sine table: sin at i, cos at i + 8 */
 
-#define PC_MAP_SCRATCH(off) ((u_char*)PC_PAD(off))
-
 /* The rows' spans as emitted (for the hardware renderer's shapes, gpu_hw.c
  * pc_hw_span_shape; host memory only, nothing of the game's). */
 extern void pc_hw_span_shape(const void* packet, int length, float top_left, float top_right, float bottom_left,

@@ -11,7 +11,7 @@ const c = @import("c_44F14");
 /// Builds the camera transform from the view matrix, rotation and zoom, and stores it in D_800F49B8 with the source's translation.
 pub fn vs_render_prepareActorCameraMatrices(source: ?*v.MATRIX) callconv(.c) void {
     var rotation: v.MATRIX = std.mem.zeroes(v.MATRIX);
-    const scratch: *v.cameraTransformScratch = pad.at(v.cameraTransformScratch, 0x35C);
+    const scratch: *v.cameraTransformScratch = pad.xform(v.cameraTransformScratch);
     const camera_angle: *c_int = common.view.at(c_int, 0x4C);
     const camera_zoom: *c_int = common.view.at(c_int, common.view.far_clip_offset);
 

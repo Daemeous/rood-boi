@@ -5461,6 +5461,7 @@ extern void pc_vk_shutdown(void) __attribute__((weak)); /* vk_present.c, 64-bit 
  * destructors (a segfault in an NVIDIA thread after "[rpc] quit requested"). */
 static void quit_exit(void)
 {
+    fprintf(stderr, "[exit] clean quit (pc_quit)\n");
     if (pc_vk_shutdown)
         pc_vk_shutdown();
     exit(0);

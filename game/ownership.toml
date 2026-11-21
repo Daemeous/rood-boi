@@ -1128,7 +1128,6 @@ unit = "pc/src/game/BATTLE/BATTLE.PRG/49268.c"
 functions = [
     { addr = 0x800B1A68, name = "vs_actors_placeGimmick", zig = "vs_actors_placeGimmick.vs_actors_placeGimmick" },
     { addr = 0x800B217C, name = "vs_actors_buildWeaponBoneChain", zig = "weapon_model.drawWeaponModel" },
-    { addr = 0x800B26B8, name = "vs_actors_applyLockedBoneTransform", zig = "vs_actors_applyLockedBoneTransform.vs_actors_applyLockedBoneTransform" },
 ]
 
 [subsystem.battle_49268_port.views]

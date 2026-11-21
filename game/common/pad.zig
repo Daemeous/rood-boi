@@ -17,12 +17,6 @@ pub inline fn addr(offset: usize) usize {
     return @intFromPtr(vs_pad) + offset;
 }
 
-/// The same as a 32-bit guest address, for the words the game keeps its own addresses in (the image is linked
-/// below 4 GB, as every global is).
-pub inline fn guest(offset: usize) u32 {
-    return @intCast(addr(offset));
-}
-
 /// A typed view of the bytes at `offset`, for a file-scope view of a scratch area.
 pub inline fn ptr(comptime T: type, comptime offset: usize) *T {
     return @ptrCast(@alignCast(&vs_pad[offset]));
@@ -59,3 +53,72 @@ pub const nav: *Nav = if (psx.library or psx.host)
     @extern(*Nav, .{ .name = "vs_nav" })
 else
     @extern(*Nav, .{ .name = "vs_nav", .visibility = .hidden });
+
+/// The actor transform block (scratch.h vs_xform): the registers the actor transform functions hand one another, a T over its
+/// start (the views are in the lifetime table, pc/docs/memory_layouts/s3b-pad-overlays.tsv).
+pub inline fn xform(comptime T: type) *T {
+    comptime if (@sizeOf(T) > 0xA4) @compileError("pad.xform: the view is larger than the block");
+    return @ptrCast(@alignCast(xform_block));
+}
+const xform_block: *align(16) [0xA4]u8 = if (psx.library or psx.host)
+    @extern(*align(16) [0xA4]u8, .{ .name = "vs_xform" })
+else
+    @extern(*align(16) [0xA4]u8, .{ .name = "vs_xform", .visibility = .hidden });
+/// The actor collision workspace (scratch.h vs_collision), a T over its start.
+pub inline fn collision(comptime T: type) *T {
+    comptime if (@sizeOf(T) > 0x4C) @compileError("pad.collision: the view is larger than the block");
+    return @ptrCast(@alignCast(collision_block));
+}
+const collision_block: *align(16) [0x4C]u8 = if (psx.library or psx.host)
+    @extern(*align(16) [0x4C]u8, .{ .name = "vs_collision" })
+else
+    @extern(*align(16) [0x4C]u8, .{ .name = "vs_collision", .visibility = .hidden });
+
+/// The AI movement frame (pc/src/game/include/scratch.h vs_move_t): the movement code's own struct, filled each actor update by
+/// pc_actor_scratch (the pad's bytes 0x3C8..0x3FF held it, shared with the collision and animation overlays).
+pub const Move = extern struct {
+    command: c_int, // the action vs_battle_aiIssueActorCommand is carrying out
+    gap3CC: [4]u8,
+    cache: extern union {
+        word: u32, // the three caches below, cleared together
+        bits: extern struct {
+            flyTested: u8, // per direction: whether it is known to be passable (vs_battle_aiCanFlyInDirection)
+            flyPassable: u8, // and what it is
+            blockTested: u8, // per direction: its blocking actor is known
+            gap3D3: u8,
+        },
+    },
+    blocker: [8]u8, // that actor's id + 1, by direction
+    width: u8, // the room's navigation grid size
+    depth: u8,
+    gap3DE: [2]u8,
+    lookup: [12]i8, // the 3x3 neighbourhood's step directions
+    directions: [8]u8, // a direction's packed step (D_800F16EC_t)
+    gap3F4: [4]u8,
+    randomState: u32, // the movement random step's seed (its low half) ...
+    randomIncrement: u32, // ... and increment
+    comptime {
+        if (@sizeOf(Move) != 0x38 or @offsetOf(Move, "blocker") != 0xC or @offsetOf(Move, "width") != 0x14 or @offsetOf(Move, "directions") != 0x24 or @offsetOf(Move, "randomState") != 0x30)
+            @compileError("Move does not match vs_move_t");
+    }
+};
+pub const move: *Move = if (psx.library or psx.host)
+    @extern(*Move, .{ .name = "vs_move" })
+else
+    @extern(*Move, .{ .name = "vs_move", .visibility = .hidden });
+/// The packed direction steps as the caller's view of them (D_800F16EC_t, one byte each).
+pub inline fn directions(comptime T: type) [*]align(1) T {
+    comptime if (@sizeOf(T) != 1) @compileError("pad.directions: a direction is one byte");
+    return @ptrCast(&move.directions);
+}
+/// A byte of the movement frame's tables by index, unchecked as the pad's bytes were (the index is a direction, 0..7, or a
+/// neighbour cell, 0..11): the actor's blocking-actor cache, packed direction steps and neighbourhood lookup.
+pub inline fn blockerAt(index: anytype) *u8 {
+    return @ptrFromInt(@intFromPtr(&move.blocker) + @as(usize, @intCast(index)));
+}
+pub inline fn directionAt(index: anytype) *u8 {
+    return @ptrFromInt(@intFromPtr(&move.directions) + @as(usize, @intCast(index)));
+}
+pub inline fn lookupAt(index: anytype) *u8 {
+    return @ptrFromInt(@intFromPtr(&move.lookup) + @as(usize, @intCast(index)));
+}

@@ -353,7 +353,7 @@ fn probeAxisZ(l: *Locals) void {
 pub fn vs_field_resolveActorTerrainMotion(actor: ?*v.D_800F4538_t, motion: ?*v.SVECTOR, result: [*c]c_int, probeOnly: c_int) callconv(.c) c_int {
     const a = actor.?;
     const m = motion.?;
-    const scratch: *v.D_1F8003BC_t = pad.at(v.D_1F8003BC_t, 0x3BC);
+    const scratch: *v.D_1F8003BC_t = pad.collision(v.D_1F8003BC_t);
     psx.put(&scratch.actor, @as(*v.D_800F45E0_t, @ptrCast(a)));
     psx.setBits(a, "unk5AC_14", psx.getBits(a, "unk5AC_13"));
     psx.setBits(a, "unk5AC_13", 0);

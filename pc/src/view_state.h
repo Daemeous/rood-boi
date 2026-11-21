@@ -15,4 +15,9 @@ extern void* vs_scratch[4];
  * (The game's vs_pad, scratch.h.) */
 extern unsigned char vs_pad[0x408];
 
-#define PC_PAD(offset) (vs_pad + (offset))
+/* The actor transform block as the host units read it (the game's vs_xform, scratch.h): the weapon draw's texture word (tpage and
+ * clut) is at 0x34. */
+extern unsigned char vs_xform[0xA4];
+#define PC_XFORM_TEXTURE (*(const unsigned*)(vs_xform + 0x34))
+/* A T at PS1 offset `offset` of the pad (checked at compile time to lie inside it): the overlays that stay shared. */
+#define VS_PAD_AT(T, offset) ((T*)(vs_pad + (offset) + 0 * sizeof(char[((offset) + sizeof(T) <= 0x408) ? 1 : -1])))

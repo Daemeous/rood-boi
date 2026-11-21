@@ -1,7 +1,6 @@
 //! Chooses each enabled action slot's best target and writes the candidate list
 //! (pc/src/game/BATTLE/BATTLE.PRG/74088.c).
 const psx = @import("common").psx;
-const pad = @import("common").pad;
 const v = @import("views_74088");
 const c = @import("c_74088");
 
@@ -16,9 +15,10 @@ fn actorLimb(stats: *v.vs_battle_actor2, limb: c_int) *align(1) v.vs_battle_uiEq
 /// Scores every enabled action slot against every living actor and keeps the best candidate in the state.
 pub fn vs_battle_aiEnumerateActionCandidates(state: ?*v.vs_battle_aiState, threshold: c_int) callconv(.c) void {
     const st = state.?;
-    const list: *[4]v.actionCandidateEntry = pad.at([4]v.actionCandidateEntry, 0x30C);
+    // The candidate list (the pad's 0x30C): the best so far, the one being scored, and the two the part search keeps; each is written (cleared or copied) before it is read.
+    var list: [4]v.actionCandidateEntry = undefined;
 
-    c.vs_core_memoryClearAlignedWords(@ptrCast(list), @sizeOf(v.actionCandidateEntry));
+    c.vs_core_memoryClearAlignedWords(@ptrCast(&list), @sizeOf(v.actionCandidateEntry));
     list[0].distanceSquared = 256;
     psx.setBits(&list[0], "threshold", psx.conv(u16, threshold));
     c.func_800DCC94(@ptrCast(st), @ptrCast(&list[0]), 0, null);

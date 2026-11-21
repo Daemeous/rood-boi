@@ -1,13 +1,12 @@
 //! Decodes the packed animation stream into an SVECTOR's deltas (pc/src/game/BATTLE/BATTLE.PRG/44F14.c).
 const common = @import("common");
-const pad = @import("common").pad;
 const psx = common.psx;
 const v = @import("views_44F14");
 const c = @import("c_44F14");
 
 /// orig: vs_actors_decodeAnimationTrack (pc/src/game/BATTLE/BATTLE.PRG/44F14.c)
-/// Advances an SVECTOR's animation stream over the scratchpad's frame range, applying each frame's deltas.
-pub fn vs_actors_decodeAnimationTrack(offset: c_int, value: ?*v.SVECTOR, rotation: c_int) callconv(.c) void {
+/// Advances an SVECTOR's animation stream over the caller's frame range, applying each frame's deltas.
+pub fn vs_actors_decodeAnimationTrack(offset: c_int, value: ?*v.SVECTOR, rotation: c_int, frames: ?*c.animationFrameScratch) callconv(.c) void {
     const mem = struct {
         fn byte(a: usize) u8 {
             return @as(*align(1) const u8, @ptrFromInt(a)).*;
@@ -20,7 +19,7 @@ pub fn vs_actors_decodeAnimationTrack(offset: c_int, value: ?*v.SVECTOR, rotatio
         }
     };
 
-    const scratch: *align(1) c.animationFrameScratch = @ptrFromInt(pad.addr(0x3EC));
+    const scratch = frames.?;
     const val = value.?;
     const delta = psx.byteAt(v.SVECTOR, val, 0x2A0);
 

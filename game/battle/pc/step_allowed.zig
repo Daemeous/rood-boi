@@ -5,10 +5,6 @@ const v = @import("views_battle_movement");
 const psx = @import("common").psx;
 const pad = @import("common").pad;
 
-fn scratch8(offset: c_int) *u8 {
-    return @ptrFromInt(pad.addr(@intCast(offset)));
-}
-
 /// orig: nav_cell (pc/src/battle_movement.c)
 /// The navigation cell of tile (x, z) in the grid cached at scratchpad 0x3C0.
 fn navCell(x: c_int, z: c_int) *align(1) u16 {
@@ -28,7 +24,7 @@ pub fn stepAllowed(state: *ai.vs_battle_aiState, from: c_uint, to: c_uint, dir: 
     if (state.flags4.b[3] != 0) return 0;
     const x: c_int = @intCast(to & 0xff);
     const z: c_int = @intCast((to >> 16) & 0xff);
-    if (!(x < scratch8(0x3dc).* and z < scratch8(0x3dd).*)) return 0;
+    if (!(x < pad.move.width and z < pad.move.depth)) return 0;
     const cell: c_uint = navCell(x, z).*;
     if (cell & 0x30 != 0) return 0;
     if (state.flags0.b[2] == 0 and (cell & 0xf) != state.terrain132) return 0;

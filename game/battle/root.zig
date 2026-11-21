@@ -318,7 +318,6 @@ pub const vs_battle_aiUpdateNavigationAreaMovement = @import("vs_battle_aiUpdate
 pub const vs_battle_aiUpdateTargetFacing = @import("vs_battle_aiUpdateTargetFacing.zig");
 pub const vs_battle_aiSetTemporaryAwarenessIndicator = @import("vs_battle_aiSetTemporaryAwarenessIndicator.zig");
 pub const vs_battle_aiForgetAiActionTarget = @import("vs_battle_aiForgetAiActionTarget.zig");
-pub const vs_actors_applyLockedBoneTransform = @import("vs_actors_applyLockedBoneTransform.zig");
 pub const weapon_model = @import("weapon_model.zig");
 pub const vs_actors_placeGimmick = @import("vs_actors_placeGimmick.zig");
 pub const func_800C4734 = @import("func_800C4734.zig");

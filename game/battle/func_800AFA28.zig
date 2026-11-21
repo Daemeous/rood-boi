@@ -2,7 +2,6 @@
 //! the animation frame, applies the frame's root motion and bone poses
 //! (pc/src/game/BATTLE/BATTLE.PRG/44F14.c).
 const common = @import("common");
-const pad = @import("common").pad;
 const psx = common.psx;
 const v = @import("views_44F14");
 const c = @import("c_44F14");
@@ -38,7 +37,9 @@ fn poseAt(st: *v.D_800F4538_unkC54, off: c_int) [*c]c.SVECTOR {
 pub fn func_800AFA28(actor: ?*v.D_800F4538_t, state: ?*v.D_800F4538_unkC54, mode: c_int) callconv(.c) void {
     const a = actor.?;
     const st = state.?;
-    const scratch: *c.animationFrameScratch = pad.at(c.animationFrameScratch, 0x3EC);
+    // The frame range and animation data handed to each track decode (the pad's 0x3EC): written below before the first decode.
+    var track: c.animationFrameScratch = undefined;
+    const scratch = &track;
 
     // The state word at unk548_0: bit 17 cleared here, set and cleared below.
     const flags = psx.bitsAt(c_uint, &st._bits_unk548_0, 0);
@@ -107,7 +108,7 @@ pub fn func_800AFA28(actor: ?*v.D_800F4538_t, state: ?*v.D_800F4538_unkC54, mode
 
                 const rootTrack: u16 = psx.at(header, 4).*;
                 if (rootTrack != 0) {
-                    c.vs_actors_decodeAnimationTrack(@as(c_int, rootTrack), psx.cptr(c.SVECTOR, &st.unk150[41]), 0);
+                    c.vs_actors_decodeAnimationTrack(@as(c_int, rootTrack), psx.cptr(c.SVECTOR, &st.unk150[41]), 0, scratch);
 
                     var x: c_int = @as(c_int, st.unk150[41].vx);
                     if (x < 0) x +%= 3;
@@ -122,7 +123,7 @@ pub fn func_800AFA28(actor: ?*v.D_800F4538_t, state: ?*v.D_800F4538_unkC54, mode
                     a.unk0.position.vz = psx.conv(i16, @as(c_int, psx.conv(u16, a.unk0.position.vz)) +% (z >> 2));
                 }
 
-                c.vs_actors_decodeAnimationTrack(@as(c_int, psx.at(header, 3).*), psx.cptr(c.SVECTOR, &st.unk0[41]), 0);
+                c.vs_actors_decodeAnimationTrack(@as(c_int, psx.at(header, 3).*), psx.cptr(c.SVECTOR, &st.unk0[41]), 0, scratch);
 
                 i = 0;
                 if (a.unk0.nBones != 0) {
@@ -134,12 +135,14 @@ pub fn func_800AFA28(actor: ?*v.D_800F4538_t, state: ?*v.D_800F4538_unkC54, mode
                             @as(c_int, psx.at(header, i +% 5).*),
                             poseAt(st, boneOff),
                             1,
+                            scratch,
                         );
                         if ((psx.byteAt(u8, header, 3).* & 2) != 0) {
                             c.vs_actors_decodeAnimationTrack(
                                 @as(c_int, psx.at(header, i +% @as(c_int, a.unk0.nBones) +% 5).*),
                                 poseAt(st, frameOrOffset),
                                 0,
+                                scratch,
                             );
                         }
                         frameOrOffset +%= 8;

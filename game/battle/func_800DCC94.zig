@@ -2,7 +2,6 @@
 //! from every target's status, HP, MP and extra stats (pc/src/game/BATTLE/BATTLE.PRG/74088.c).
 const std = @import("std");
 const common = @import("common");
-const pad = @import("common").pad;
 const psx = common.psx;
 const v = @import("views_74088");
 const c = @import("c_74088");
@@ -67,7 +66,10 @@ pub fn func_800DCC94(state: ?*v.vs_battle_aiState, candidate: ?*v.actionCandidat
     const cand = candidate.?;
     cand.score = 0;
     psx.setBits(cand, "weight", 128);
-    const stats: *v.actionStatSnapshot = pad.at(v.actionStatSnapshot, 0x18C);
+    // One record per actor id 0..16, 0x18 bytes each (the pad's 0x18C block). vs_battle_aiCaptureActorConditionTable rewrites the
+    // record of every listed actor first, and only listed actors' records are read (a target id is at most 15).
+    var records: [17]v.actionStatSnapshot = std.mem.zeroes([17]v.actionStatSnapshot);
+    const stats: *v.actionStatSnapshot = &records[0];
     c.vs_battle_aiCaptureActorConditionTable(psx.cptr(c.actionStatSnapshot, stats));
     const st = state.?;
     if (st.special != 0 and (flags & 16) != 0) {

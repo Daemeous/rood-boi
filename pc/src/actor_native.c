@@ -781,7 +781,7 @@ int pc_object_native_take(int kind, const void* projected, const void* object, c
     unsigned* start = PC_PACKET_CURSOR;
     unsigned* end = start;
     uint32_t list = 0;
-    unsigned texture = *(const unsigned*)PC_PAD(0x390);
+    unsigned texture = PC_XFORM_TEXTURE;
     if (kind < KIND_FLAT || kind > KIND_COLORED_GROUPS)
         kind = KIND_FLAT;
     if (&pc_photo_hide_actors && pc_photo_hide_actors && pc_dev_actor_of && pc_hw_active) {

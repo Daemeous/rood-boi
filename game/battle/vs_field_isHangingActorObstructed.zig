@@ -9,7 +9,7 @@ const c = @import("c_3A1A0");
 /// Clears the actor's contact slots at its probe position, then reports whether any of the eight slots is set.
 pub fn vs_field_isHangingActorObstructed(actor: ?*v.D_800F4538_t) callconv(.c) c_int {
     const a = actor.?;
-    const scratch: *v.collisionScratchView = pad.at(v.collisionScratchView, 0x3BC);
+    const scratch: *v.collisionScratchView = pad.collision(v.collisionScratchView);
 
     const saved = psx.getBits(&a.unk0, "unkC_0");
     const radius: c_int = a.unk63C;

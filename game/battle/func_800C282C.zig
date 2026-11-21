@@ -19,5 +19,5 @@ pub fn func_800C282C() callconv(.c) ?*anyopaque {
     p[8] = psx.conv(i16, -%sinYaw);
     p[10] = psx.conv(i16, cosYaw);
     v.g.vs_battle_targetSphere().*.?.unk22 = psx.conv(i16, yaw);
-    return @ptrFromInt(pad.addr(0x350));
+    return pad.at(u8, 0x350);
 }

@@ -7,7 +7,7 @@ const v = @import("views_40564");
 /// orig: vs_field_isActorPositionUnoccupied (pc/src/game/BATTLE/BATTLE.PRG/40564.c)
 /// Returns 0 when another live, unexcluded actor's box around its position covers `position`, else 1.
 pub fn vs_field_isActorPositionUnoccupied(actor: ?*v.D_800F4538_t, position: ?*v.SVECTOR) callconv(.c) c_int {
-    const scratch: *v.actorCollisionExclusion = pad.at(v.actorCollisionExclusion, 0x3BC);
+    const scratch: *v.actorCollisionExclusion = pad.collision(v.actorCollisionExclusion);
     const a = actor.?;
     if (a.unk0.slot == 0) {
         if ((psx.bitsAt(c_uint, &a._bits_unk5AC_0, 0).* & 0x800) != 0) return 1;

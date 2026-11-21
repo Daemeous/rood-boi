@@ -17,7 +17,7 @@ fn shiftTable(bytes: c_int) void {
 
 /// The object offset of the scratchpad transform block (actorTransformScratch.offset at 0x1F80035C).
 fn objectOffset() *v.SVECTOR {
-    return @ptrFromInt(pad.addr(0x35C) + @offsetOf(v.actorTransformScratch, "offset"));
+    return &pad.xform(v.actorTransformScratch).offset;
 }
 
 /// unk17E4's colour (unk1, unk2) stepped towards unk17E8's over unk3 frames.

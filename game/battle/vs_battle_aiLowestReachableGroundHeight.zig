@@ -21,7 +21,7 @@ pub fn vs_battle_aiLowestReachableGroundHeight(arg0: ?*v.vs_battle_aiState, arg1
         if (count == -1) break;
         if (c.vs_battle_aiCanFlyInDirection(@ptrCast(arg0), psx.conv(c_int, slot)) != 0) {
             // Scratchpad direction table: one byte per slot, dx and dz are 2-bit signed fields.
-            const entry: *v.D_800F16EC_t = @ptrFromInt(pad.addr(0x3EC) + @as(usize, slot));
+            const entry: *align(1) v.D_800F16EC_t = &pad.directions(v.D_800F16EC_t)[slot];
             const h = c.vs_field_groundHeightAtTile(
                 @as(c_int, arg0.?.tile.b[0]) +% @as(c_int, psx.getBits(entry, "dx")),
                 @as(c_int, arg0.?.tile.b[2]) +% @as(c_int, psx.getBits(entry, "dz")),

@@ -26,13 +26,13 @@ pub fn func_800E1238(arg0: ?*v.vs_battle_aiState, arg1: c_int) callconv(.c) void
     self.flags4.b[3] = 1;
     c.vs_battle_aiResolveDirectionalMovement(@ptrCast(self), value, 3);
 
-    if (pad.at(c_int, 0x3C8).* != 5 and pad.at(c_int, 0x3C8).* != 7) {
+    if (pad.move.command != 5 and pad.move.command != 7) {
         c.vs_battle_aiReleaseActorAiReservations(@ptrCast(self));
         c.vs_battle_aiRecoverMovement(@ptrCast(self));
         return;
     }
 
-    if (pad.at(c_int, 0x3C8).* == 5) {
+    if (pad.move.command == 5) {
         value = @as(c_int, self.heading) *% 512;
     }
 

@@ -6,9 +6,9 @@ const v = @import("views_771A8");
 const c = @import("c_771A8");
 
 /// orig: wanderDirection (pc/src/game/BATTLE/BATTLE.PRG/771A8.c)
-/// Direction table entry `index` bytes past WANDER_DIRECTIONS (scratchpad 0x1F8003EC; a file-scope static inline).
+/// Direction table entry `index` (the movement frame's directions; a file-scope static inline).
 fn wanderDirection(index: c_int) *const v.D_800F16EC_t {
-    return @ptrFromInt(pad.addr(0x3EC) + @as(usize, @intCast(index)));
+    return &pad.directions(v.D_800F16EC_t)[@intCast(index)];
 }
 
 /// WANDER_TILES[row][col]: a u16 table of 32 columns whose guest address is in
@@ -34,7 +34,7 @@ pub fn vs_battle_aiChooseNextWanderTile(state: ?*v.vs_battle_aiState, tile: c_ui
             if (pad.nav.exits != null) {
                 const bytes: [*]const u8 = pad.nav.bitmap.?;
                 const gz = @as(c_int, psx.getBits(&st.goal.p, "z"));
-                const dc = @as(c_int, pad.at(u8, 0x3DC).*);
+                const dc = @as(c_int, pad.move.width);
                 const gx = @as(c_int, psx.getBits(&st.goal.p, "x"));
                 const idx: usize = @intCast(gz *% dc +% gx);
                 const byte: c_int = @as(c_int, bytes[idx]);

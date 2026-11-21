@@ -27,14 +27,13 @@ fn routeTarget(state: *ai.vs_battle_aiState) void {
 
 /// orig: vs_battle_aiUpdateActorNavigationOverrides (pc/src/actor_update.c)
 /// Updates every linked actor that is not flagged 0xC0: refreshes the
-/// scratchpad frame, then for each actor with an AI state (found through the
-/// scratchpad's state table) counts down its timers, copies the actor
+/// movement frame, then for each actor with an AI state (found through the
+/// navigation table) counts down its timers, copies the actor
 /// model's tile and position into the state, and either aims it at its
 /// target (idle and far), retargets a moving one that left its tile, or
 /// updates it and releases its route.
 pub fn updateActorNavigation() callconv(.c) void {
     c.vs_battle_aiCacheActorAiWorkingState();
-    const scratch: [*]c_uint = pad.many(c_uint, 0x0);
     var actor: ?*ai.vs_battle_actor = @ptrCast(@alignCast(v.g.vs_battle_actors()[0]));
     var visited: c_uint = 0;
     while (actor) |a| : (actor = @ptrCast(a.next)) {
@@ -48,7 +47,7 @@ pub fn updateActorNavigation() callconv(.c) void {
         // kernel area (read here through guest RAM).
         const base: *align(4) ai.vs_battle_aiState = if (pad.aiState(id)) |e| @ptrCast(@alignCast(e)) else @ptrFromInt(0x8000_0000);
         const route = base.route;
-        scratch[0x3fc / 4] = @bitCast(c.vs_core_elapsedFrameCounterTicks());
+        pad.move.randomIncrement = @bitCast(c.vs_core_elapsedFrameCounterTicks());
         const state = route orelse continue;
         state.waitTimer = 0;
         const countdown = &state.timer156;
@@ -78,7 +77,7 @@ pub fn updateActorNavigation() callconv(.c) void {
         state.unk120 = (x >> 6) | ((z >> 6) << 16);
         state.area = @truncate(ground);
         state.terrain132 = @bitCast(@as(u8, @truncate(ground)));
-        scratch[0x3d0 / 4] = 0;
+        pad.move.cache.word = 0;
         const target = state.unk160;
         if (state.unk125 == 0) {
             if (c.vs_core_mathSquaredVectorLength(@bitCast((target & 65535) -% x), 0, @bitCast((target >> 16) -% z)) >= 1024) {

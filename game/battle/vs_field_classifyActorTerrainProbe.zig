@@ -8,7 +8,7 @@ const c = @import("c_3A1A0");
 /// orig: vs_field_classifyActorTerrainProbe (pc/src/game/BATTLE/BATTLE.PRG/3A1A0.c)
 /// Places a point on the ground for the actor in scratchpad slot 0x1F8003BC, writing its height and flags, or returns the blocked code.
 pub fn vs_field_classifyActorTerrainProbe(point: ?*v.SVECTOR, slot: c_int) callconv(.c) c_int {
-    const sb: *v.D_1F8003BC_t = pad.at(v.D_1F8003BC_t, 0x3BC);
+    const sb: *v.D_1F8003BC_t = pad.collision(v.D_1F8003BC_t);
     const actor: *v.D_800F45E0_t = @alignCast(psx.get(sb.actor).?);
     const limit: c_int = @as(c_int, sb.unk1C[@intCast(slot & 7)]);
 

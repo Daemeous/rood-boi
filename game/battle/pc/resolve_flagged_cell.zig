@@ -4,10 +4,6 @@ const c = @import("c_battle_movement");
 const psx = @import("common").psx;
 const pad = @import("common").pad;
 
-fn scratch8(offset: c_int) *u8 {
-    return @ptrFromInt(pad.addr(@intCast(offset)));
-}
-
 /// orig: direction_dx (pc/src/battle_movement.c)
 /// The signed X step in bits 0-1 of a packed direction.
 fn directionDx(packed_direction: c_int) c_int {
@@ -34,7 +30,7 @@ pub fn resolveFlaggedCell(state: *ai.vs_battle_aiState, tile_in: c_uint, dir: c_
     var z: c_int = @intCast(tile >> 16);
     const limit: c_int = state.radiusB2;
     if (psx.byteAt(u16, @as([*]u8, @ptrFromInt(cells +% @as(usize, @intCast(z * 64 + x * 2)))), 0).* & 0x20 == 0) return tile; // 0 <= x, z <= 255
-    const packed_direction: c_int = scratch8(0x3ec +% dir).*;
+    const packed_direction: c_int = pad.directionAt(dir).*;
     var result: c_int = 0;
     const max_steps: c_int = if (limit < 3) limit else 3;
     var steps: c_int = 1;

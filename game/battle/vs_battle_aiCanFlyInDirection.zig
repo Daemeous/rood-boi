@@ -9,20 +9,20 @@ const c = @import("c_771A8");
 /// orig: vs_battle_aiCanFlyInDirection (pc/src/game/BATTLE/BATTLE.PRG/771A8.c)
 /// Whether the tile one step from `state` in `direction` can be moved to, cached per direction.
 pub fn vs_battle_aiCanFlyInDirection(state: ?*v.vs_battle_aiState, direction: c_int) callconv(.c) c_int {
-    const bits: *v.directionalCacheBits = pad.at(v.directionalCacheBits, 0x3D0);
+    const bits = &pad.move.cache.bits;
     // x86 masks a shift count to 5 bits; the object shifts by `direction` the same way.
     const shift: u5 = @truncate(@as(c_uint, @bitCast(direction)));
     const bit: c_int = @as(c_int, 1) << shift;
 
-    if (((@as(c_int, bits.tested) >> shift) & 1) != 0) {
-        return @intFromBool((@as(c_int, bits.valid) & bit) > 0);
+    if (((@as(c_int, bits.flyTested) >> shift) & 1) != 0) {
+        return @intFromBool((@as(c_int, bits.flyPassable) & bit) > 0);
     }
 
     const usable: bool = check: {
         if (c.vs_battle_aiFlightDirectionObstruction(@ptrCast(state), direction, 1) != 0) break :check false;
 
         const st = state.?;
-        const entry = psx.at(pad.many(v.D_800F16EC_t, 0x3EC), direction);
+        const entry = psx.at(pad.directions(v.D_800F16EC_t), direction);
         const x: c_int = @as(c_int, st.tile.cache.p.x) +% @as(c_int, psx.getBits(entry, "dx"));
         const z: c_int = @as(c_int, st.tile.cache.p.z) +% @as(c_int, psx.getBits(entry, "dz"));
 
@@ -50,12 +50,12 @@ pub fn vs_battle_aiCanFlyInDirection(state: ?*v.vs_battle_aiState, direction: c_
     };
 
     if (usable) {
-        bits.tested = psx.conv(u8, @as(c_int, bits.tested) | bit);
-        bits.valid = psx.conv(u8, @as(c_int, bits.valid) | bit);
+        bits.flyTested = psx.conv(u8, @as(c_int, bits.flyTested) | bit);
+        bits.flyPassable = psx.conv(u8, @as(c_int, bits.flyPassable) | bit);
         return 1;
     }
 
-    bits.tested = psx.conv(u8, @as(c_int, bits.tested) | bit);
-    bits.valid = psx.conv(u8, @as(c_int, bits.valid) & ~bit);
+    bits.flyTested = psx.conv(u8, @as(c_int, bits.flyTested) | bit);
+    bits.flyPassable = psx.conv(u8, @as(c_int, bits.flyPassable) & ~bit);
     return 0;
 }

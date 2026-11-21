@@ -120,17 +120,19 @@ void vs_actors_alignPoseRotationBranches(SVECTOR* dst, SVECTOR* src, int count);
 void func_800AF960(D_800F45E0_t* arg0) __attribute__((unused));
 void func_800AF960(D_800F45E0_t* arg0);
 
+/* The frame range and the data of the animation being decoded: func_800AFA28's local, which it hands to each
+ * vs_actors_decodeAnimationTrack (the PS1 kept it in the pad at 0x3EC). */
 struct animationFrameScratch {
     char prefix[8];
     int first, last;
-    int pad10; /* the guest pointer was here: a real pointer follows, 0x3EC + 0x14 .. 0x1C */
+    int pad10; /* the guest pointer was here: a real pointer follows, at 0x14 .. 0x1C */
     u_char* data __attribute__((packed, aligned(4))); /* bytes of the animation data: any alignment */
 };
 PSX_ASSERT_SIZE(struct animationFrameScratch, 0x1c);
-void vs_actors_decodeAnimationTrack(int, SVECTOR*, int);
+void vs_actors_decodeAnimationTrack(int, SVECTOR*, int, struct animationFrameScratch*);
 void func_800AFA28(D_800F4538_t* actor, D_800F4538_unkC54* state, int mode);
 
-void vs_actors_decodeAnimationTrack(int offset, SVECTOR* value, int rotation);
+void vs_actors_decodeAnimationTrack(int offset, SVECTOR* value, int rotation, struct animationFrameScratch* frames);
 
 int vs_field_gimmickSupportHeight(int x, int z);
 int vs_gte_rsqrt(int);

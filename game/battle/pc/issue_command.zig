@@ -26,10 +26,6 @@ fn h10(a: *ai.vs_battle_actor) *u16 { return @ptrCast(&a.unk10); }
 fn h14(a: *ai.vs_battle_actor) *u16 { return @ptrCast(&a.unk14); }
 fn s0C(a: *ai.vs_battle_actor) *c_int { return &a.unkC; }
 fn s10(a: *ai.vs_battle_actor) *c_int { return &a.unk10.s32; }
-/// A byte of the scratchpad at `offset`.
-fn scratchByte(offset: c_int) *u8 {
-    return @ptrFromInt(pad.addr(@intCast(offset)));
-}
 
 /// orig: gait_speed (pc/src/battle_movement.c)
 /// Speed selection from the actor's gait word 0x224: running (byte 1) uses
@@ -96,7 +92,7 @@ fn moveToward(state: *ai.vs_battle_aiState, actor: *ai.vs_battle_actor, angle_in
     var blocked: c_int = 0;
     var i: usize = 0;
     while (i < 4 and blocked == 0) : (i += 1) { // i < 4: the corner count
-        const dir: c_int = @as(*const i8, @ptrCast(scratchByte(0x3e0 +% corners[i][1] *% 4 +% corners[i][0]))).*;
+        const dir: c_int = @as(i8, @bitCast(pad.lookupAt(corners[i][1] *% 4 +% corners[i][0]).*));
         if (dir < 0) continue;
         if (pad.nav.exits != null) {
             const floors: usize = @intFromPtr(pad.nav.floors.?);
@@ -107,7 +103,7 @@ fn moveToward(state: *ai.vs_battle_aiState, actor: *ai.vs_battle_actor, angle_in
             const there_x = (tile_x +% corners[i][0]) -% 1;
             const there_cell: *align(1) const u16 = @ptrFromInt(floors +% @as(usize, @bitCast(@as(isize, there_z *% 64) +% @as(isize, there_x *% 2))));
             const there: c_int = (@as(c_int, there_cell.*) >> 10) & 7;
-            const index: isize = @as(c_int, scratchByte(0x3dc).*) *% tile_z +% tile_x;
+            const index: isize = @as(c_int, pad.move.width) *% tile_z +% tile_x;
             const byte: *const u8 = @ptrFromInt(bitmap +% @as(usize, @bitCast(index)));
             // dir is 0..127 here; the C shifts by it (x86 masks the amount to 5 bits).
             blocked = ((@as(c_int, byte.*) >> @truncate(@as(c_uint, @bitCast(dir)))) & 1) | @intFromBool(here < there);
@@ -153,7 +149,7 @@ fn walkToTile(state: *ai.vs_battle_aiState, actor: *ai.vs_battle_actor) void {
 /// entries). Byte 9 receives the command code.
 pub fn issueCommand(state: *ai.vs_battle_aiState, action: c_int) callconv(.c) void {
     const actor: *ai.vs_battle_actor = @ptrCast(state.actor);
-    pad.at(u32, 0x3C8).* = @bitCast(action);
+    pad.move.command = action;
     actor.unk8 = 0x80;
     actor.unkA = state.movementTargetId;
     switch (action) {

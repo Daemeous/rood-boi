@@ -784,6 +784,34 @@ static void pc_dump_stack(int sig)
     }
     write(2, "\n", 1);
 }
+/* Every exit() the process makes says so on stderr (a quit, a checkpoint, an error exit): a game that is
+ * gone without a [crash] line then either took a signal that cannot be caught (SIGKILL, SIGTERM and SIGINT:
+ * SDL's own handlers are off) or left through _exit/abort. */
+static void pc_exit_note(void) { fputs("[exit] process ending (exit)\n", stderr); }
+#ifndef _WIN32
+/* A signal from outside that ends the game (SIGTERM, SIGINT, SIGHUP, SIGPIPE) names its sender's pid on
+ * stderr, then takes its default action: the log says who stopped the game. */
+static void pc_signal_note(int sig, siginfo_t* info, void* context)
+{
+    (void)context;
+    char line[96];
+    int len = snprintf(line, sizeof line, "[exit] signal %d from pid %d (uid %d, code %d)\n", sig,
+        (int)info->si_pid, (int)info->si_uid, info->si_code);
+    write(2, line, len);
+    signal(sig, SIG_DFL);
+    raise(sig);
+}
+static void pc_signal_notes(void)
+{
+    struct sigaction action = {0};
+    action.sa_sigaction = pc_signal_note;
+    action.sa_flags = SA_SIGINFO | SA_RESETHAND;
+    sigemptyset(&action.sa_mask);
+    static const int signals[] = {SIGTERM, SIGINT, SIGHUP, SIGPIPE};
+    for (unsigned i = 0; i < sizeof signals / sizeof *signals; i++)
+        sigaction(signals[i], &action, NULL);
+}
+#endif
 /* Fatal signals print the native call stack (resolve it with
  * pc/tools/where.sh resolve) and the faulting battle frame, then re-raise. */
 static void pc_crash(int sig)
@@ -1019,7 +1047,9 @@ int main(int argc, char** argv)
 #else
     signal(SIGUSR1, pc_dump_stack);
     signal(SIGBUS, pc_crash);
+    pc_signal_notes();
 #endif
+    atexit(pc_exit_note);
     signal(SIGSEGV, pc_crash);
     signal(SIGFPE, pc_crash);
     signal(SIGILL, pc_crash);
@@ -2058,8 +2088,10 @@ void pc_title_menu_ready(void)
             pc_skip_movies = 0;
         intro_skipped_by_setting = pc_skip_logos = 0;
     }
-    if (stop_at_title)
+    if (stop_at_title) {
+        pc_log("title checkpoint reached (stop at title): exit(0)");
         exit(0);
+    }
 }
 
 

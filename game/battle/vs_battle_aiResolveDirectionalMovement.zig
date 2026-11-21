@@ -36,7 +36,7 @@ pub fn vs_battle_aiResolveDirectionalMovement(approach: ?*v.vs_battle_aiState, a
         nearest = ((quadrant +% 1) & 3) *% 2;
     }
     var point: v.vs_battle_movementPosition = state.tile.position;
-    const dxTable: [*]align(1) v.D_800F16EC_t = pad.many(v.D_800F16EC_t, 0x3EC);
+    const dxTable: [*]align(1) v.D_800F16EC_t = pad.directions(v.D_800F16EC_t);
     point._bytes[0] = psx.conv(u8, @as(c_int, point._bytes[0]) +% @as(c_int, psx.getBits(psx.at(dxTable, nearest), "dx")));
     point._bytes[2] = psx.conv(u8, @as(c_int, point._bytes[2]) +% @as(c_int, psx.getBits(psx.at(dxTable, nearest), "dz")));
 

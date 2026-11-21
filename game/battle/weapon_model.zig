@@ -17,11 +17,11 @@ fn matrixAt(base: anytype, off: isize) [*c]c.MATRIX {
 /// Steps a weapon's scale, rebuilds its bone matrices from its source matrix, and draws it on its actor's pass.
 pub fn drawWeaponModel(weapon: ?*v.vs_battle_wepModels_t, source: ?*v.MATRIX) callconv(.c) void {
     const w = weapon.?;
-    const scratch: *v.weaponTransformScratch = pad.at(v.weaponTransformScratch, 0x35C);
+    const scratch: *v.weaponTransformScratch = pad.xform(v.weaponTransformScratch);
     const actor = v.g.vs_actors_actorRecords()[psx.getBits(w, "actorId")];
 
     psx.put(&scratch.model, psx.get(w.offsets));
-    pad.at(v.MATRIX, 0x3C0).* = source.?.*;
+    scratch.matrix = source.?.*;
 
     if (w.unk13 != 0) {
         const target: c_int = w.unk12;

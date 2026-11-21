@@ -43,5 +43,5 @@ pub fn func_800C085C(scale: [*c]u8, angle: c_int) callconv(.c) ?*v.MATRIX {
         }
     }
 
-    return @ptrFromInt(pad.addr(0x350));
+    return pad.at(v.MATRIX, 0x350);
 }

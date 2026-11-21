@@ -7,7 +7,7 @@ const v = @import("views_573B8");
 /// Writes segments + 1 curve vertices from `index` on, from the basis and trig tables in the scratchpad; returns the next index.
 pub fn func_800C0758(phase: c_int, segments: c_int, index: c_int) callconv(.c) c_int {
     const trig: [*]i16 = pad.many(i16, 0x3B0);
-    const basis: [*][4]i16 = @ptrFromInt(pad.addr(0x398));
+    const basis: [*][4]i16 = pad.many([4]i16, 0x398);
     var idx = index;
     // The C takes (char*)vs_battle_targetSphere + points + index * 8 with the int product wrapped first.
     const base = v.g.vs_battle_targetSphere().*;

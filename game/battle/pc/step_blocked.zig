@@ -10,7 +10,7 @@ pub fn stepBlocked(tile: c_uint, dir: c_int) callconv(.c) c_int {
     const z: c_int = @intCast((tile >> 16) & 0xff);
     const here_raw: c_uint = @bitCast(c.vs_field_groundHeightFlagsAtTile(x, z));
     const here: c_int = @as(c_int, @bitCast(here_raw << 17)) >> 17;
-    const packed_dir: c_int = @as(*const i8, @ptrFromInt(pad.addr(@intCast(0x3ec +% dir)))).*;
+    const packed_dir: c_int = @as(i8, @bitCast(pad.directionAt(dir).*));
     const raw = c.vs_field_groundHeightFlagsAtTile(x +% directionDx(packed_dir), z +% directionDz(packed_dir));
     if (raw < 0) return 1;
     var difference: c_int = here -% (@as(c_int, @bitCast(@as(c_uint, @bitCast(raw)) << 17)) >> 17);

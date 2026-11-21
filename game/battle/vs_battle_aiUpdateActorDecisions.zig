@@ -20,7 +20,7 @@ pub fn vs_battle_aiUpdateActorDecisions() callconv(.c) void {
             if (v.g.D_800F16F4().* < value) {
                 c.vs_battle_aiIssueActorCommand(@ptrCast(state), 17);
             } else {
-                pad.at(c_int, 0x3FC).* = value;
+                @as(*c_int, @ptrCast(&pad.move.randomIncrement)).* = value;
                 if (state.unk14 != 0 and state.unk1D != 0) {
                     const height: c_int = blk: {
                         if (v.g.vs_battle_aiActorAiStates()[0]) |tail_raw| {
@@ -52,7 +52,7 @@ pub fn vs_battle_aiUpdateActorDecisions() callconv(.c) void {
                     const terrain = psx.conv(c_int, cells[@as(usize, state.tile.b[2]) * 32 + state.tile.b[0]] & 15);
                     state.area = psx.conv(u8, terrain);
                     state.terrain132 = psx.conv(i8, terrain);
-                    pad.at(c_int, 0x3D0).* = 0;
+                    @as(*c_int, @ptrCast(&pad.move.cache.word)).* = 0;
                     c.vs_battle_aiDispatchMovementBehavior(@ptrCast(state));
                     c.func_800DB7B4(@ptrCast(state));
                 }

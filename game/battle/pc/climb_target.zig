@@ -21,7 +21,7 @@ pub fn climbTarget(state: *ai.vs_battle_aiState, tile_in: c_uint, dir: c_int, st
     floor = target;
     const limit = steps -% 1;
     var taken: c_int = 0;
-    const packed_dir: c_int = @as(*const u8, @ptrFromInt(pad.addr(@intCast(0x3ec +% dir)))).*;
+    const packed_dir: c_int = pad.directionAt(dir).*;
     var x: c_int = @intCast(tile & 0xff); // a byte
     var z: c_int = @intCast((tile >> 16) & 0xff);
     while (true) {

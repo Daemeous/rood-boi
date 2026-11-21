@@ -104,7 +104,7 @@ pub fn vs_battle_aiUpdateTargetApproachMovement(s: ?*v.vs_battle_aiState, option
                 },
                 2 => {
                     st.flags0.b[3] = 1;
-                    const spad: *u8 = pad.at(u8, 0x3D0);
+                    const spad: *u8 = (&pad.move.cache.bits.flyTested);
                     spad.* = 0;
                     st.flags4.b[0] = 1;
                     st.moveX = model.x;

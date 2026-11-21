@@ -17,6 +17,6 @@ pub fn freeMovement(state: *ai.vs_battle_aiState, angle: c_int) callconv(.c) voi
         return;
     }
     state.flags0.b[2] = 1;
-    @as(*u8, @ptrFromInt(pad.addr(0) + 0x3d0)).* = 0;
+    pad.move.cache.bits.flyTested = 0;
     c.vs_battle_aiResolveDirectionalMovement(state, angle & 0xfff, 1);
 }
