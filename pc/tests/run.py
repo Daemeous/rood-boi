@@ -639,6 +639,11 @@ def suites(args, mode="egl"):
                       "(grimoires too) and the equipped weapon's Break Arts: wind-ups <= 32 vsyncs, none "
                       "presented, a 2000-vsync watchdog, clean afterwards")]
           if args.save.exists() else []),
+        *([Suite("cast_speed_smoke", [PY, str(TESTS / "cast_speed_smoke.py"), "--card", str(args.save)], 300,
+                 note="battle charging skip at fractional holds (0.75 s, 0.4 s, 1.3 s, mine and enemy, issue 25): "
+                      "Ashley's Solid Shock and the casters' room (Information on and off) never hang (a 2400-vsync "
+                      "watchdog on BATTLE's action state), the wind-ups run, no crash")]
+          if args.save.exists() else []),
         *([Suite("item357_smoke", [PY, str(TESTS / "charge_skip_soak.py"), "--card", str(args.save),
                                    "--first", "357", "--items", "1", "--only", "items", "--mode", "off"], 600,
                  note="misc item 357 (unnamed, action 0) used in battle, charging skip off: BATTLE frames the empty "

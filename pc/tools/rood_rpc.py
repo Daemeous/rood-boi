@@ -51,6 +51,7 @@ import os
 import pathlib
 import secrets
 import socket
+import signal
 import subprocess
 import sys
 import tempfile
@@ -541,6 +542,25 @@ class Game:
         if self.processes and not is_tcp(self.path) and os.path.exists(self.path):
             os.unlink(self.path)  # launched here: the game leaves its socket behind
 
+    def exit_status(self):
+        """How the game process ended, for the error of a closed connection: its exit code, or the signal that
+        killed it (a SIGKILL leaves nothing in the game's log: something outside ended it; -9), or that it is
+        still running (the game closed the connection itself)."""
+        game = self.processes[0] if self.processes else None
+        if not hasattr(game, "wait"):
+            return "game exited?"
+        try:
+            code = game.wait(timeout=2)  # (a game that is going away is given a moment to be reaped)
+        except subprocess.TimeoutExpired:
+            return f"the game (pid {game.pid}) is still running"
+        if code < 0:
+            try:
+                name = signal.Signals(-code).name
+            except ValueError:
+                name = f"signal {-code}"
+            return f"the game was killed by {name}" + (", sent from outside: nothing in its log" if code == -9 else "")
+        return f"the game exited with status {code}"
+
     # ---- protocol ----
     def call(self, method, **params):
         if PROFILE:
@@ -566,11 +586,14 @@ class Game:
         request = {"jsonrpc": "2.0", "id": self.next_id, "method": method}
         if params:
             request["params"] = params
-        self.file.write((json.dumps(request) + "\n").encode())
-        self.file.flush()
-        line = self.file.readline()
+        try:
+            self.file.write((json.dumps(request) + "\n").encode())
+            self.file.flush()
+            line = self.file.readline()
+        except (BrokenPipeError, ConnectionResetError):
+            line = b""
         if not line:
-            raise RpcError("connection closed (game exited?)")
+            raise RpcError(f"connection closed ({self.exit_status()})")
         response = json.loads(line)
         if "error" in response:
             message = response["error"]["message"]

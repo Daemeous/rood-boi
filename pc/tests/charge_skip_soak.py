@@ -55,10 +55,18 @@ class Soak(smoke.Run):
                 g.store(a2 + ".currentMP", g.value(a2 + ".maxMP"))
         g.store_data(self.actor2(0) + ".currentMP", struct.pack("<hh", 999, 999))
 
+    sweep = None  # the holds (seconds) to cycle through, one per action (--sweep)
+    sweep_at = 0
+
     def run_action(self, what):
         """From the focused row: Circle, then Circle on the target. Returns None when the game did not take
         it (no targeting), else the wind-up's counters, the vsyncs the action took and what was left."""
         g = self.g
+        if self.sweep:
+            hold = self.sweep[self.sweep_at % len(self.sweep)]
+            self.sweep_at += 1
+            g.call("skip_charging", hold_mine=hold, hold_enemy=hold)
+            print(f"  hold {hold} s: {what}", flush=True)
         g.call("skip_charging", reset=True)
         g.press("circle", vsyncs=3, settle=1)
         try:
@@ -91,6 +99,9 @@ def main():
     parser.add_argument("--items", type=int, default=40, help="misc ids from 323 to try (default 40)")
     parser.add_argument("--only", default="spells,items,arts", help="what to cast (default spells,items,arts)")
     parser.add_argument("--first", type=int, default=FIRST_MISC, help="the first misc id (default 323)")
+    parser.add_argument("--hold", type=float, default=None, help="qol_skip_charging_hold_mine and _hold_enemy (seconds) for the run")
+    parser.add_argument("--sweep", help="hold seconds to cycle through, one per action (comma list or a:b:step)")
+    parser.add_argument("--information", type=int, default=1, help="the Information option (the name window) for the run")
     parser.add_argument("--mode", default="skip", help="the option: skip (default), or off for a baseline")
     args = parser.parse_args()
     if not pathlib.Path(args.card).exists():
@@ -136,11 +147,19 @@ def main():
 
     r = Soak("soak", snap, card, env, out, socket, fast=True)
     g = r.g
+    if args.sweep:
+        if ":" in args.sweep:
+            lo, hi, step = (float(x) for x in args.sweep.split(":"))
+            r.sweep = [round(lo + k * step, 4) for k in range(int((hi - lo) / step + 1.5))]
+        else:
+            r.sweep = [float(x) for x in args.sweep.split(",")]
     ran, refused, results = [], [], []
     try:
         g.call("ui_menu", modern=True)
         g.call("skip_charging", mode=args.mode, who="all", name=smoke.NAME_SECONDS)
-        g.store("vs_main_settings.information", 1)
+        if args.hold is not None:
+            g.call("skip_charging", hold_mine=args.hold, hold_enemy=args.hold)
+        g.store("vs_main_settings.information", args.information)
         flags = g.data("vs_main_settings.menuFlags", 1)[0]
         g.store_data("vs_main_settings.menuFlags", bytes([flags | 1]))
         for name, size in SCHOOLS:
@@ -158,7 +177,7 @@ def main():
             s = res["stats"]
             ran.append(f"{kind} {what}")
             hold, shown = s["phases"][1] + s["phases"][2], sum(s["phases_presented"][1:])
-            results.append((kind, what, s["vsyncs"], hold, shown, res["vsyncs"], res["clean"]))
+            results.append((kind, what, s["vsyncs"], hold, shown, res["vsyncs"], res["clean"], s["phases"]))
             idle = (res["clean"]["camera"], res["clean"]["effects"], res["clean"]["background"],
                     res["clean"]["name window"], res["clean"]["D_800F522C"], res["clean"]["object slots"])
             skipping = args.mode == "skip"
@@ -255,8 +274,8 @@ def main():
         check(False, str(e))
     finally:
         r.close()
-    for kind, what, wind, hold, shown, n, clean in results:
-        print(f"  {kind:5} {what:28}: wind-up {wind:3} vsyncs, hold {hold:2} ({shown} presented), action {n} vsyncs")
+    for kind, what, wind, hold, shown, n, clean, phases in results:
+        print(f"  {kind:5} {what:28}: wind-up {wind:3} vsyncs {phases}, hold {hold:2} ({shown} presented), action {n} vsyncs")
     kinds = {k: sum(1 for x in results if x[0] == k) for k in ("spell", "item", "art")}
     want = {"spell": 10 * ("spells" in args.only), "item": min(3, args.items) * ("items" in args.only),
             "art": "arts" in args.only}

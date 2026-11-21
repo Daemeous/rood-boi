@@ -12,8 +12,11 @@ Runs are deterministic (no wall clock in game logic, no input), so two builds of
 the same behaviour draw the same frames. A room with enemies is entered from the
 save room checkpoint and left to play: the enemies walk, attack and cast. Every
 quarter second the frame's hash is taken and, at the end, what was cast. NEW_BINARY
-defaults to this tree's build. OLD against OLD runs first as the control: if that
-differs, the comparison proves nothing and the tool says so. Exit 0 when the frames
+defaults to this tree's build. Lean by default: OLD and NEW run once each. --control adds OLD against OLD
+again as the control (for when a lane differs and flakiness is suspected): if that differs, the comparison
+proves nothing and the tool says so. Every lane renders at 1x internal resolution (--scale N; ROOD_SCALE in the
+environment wins; a lane with the path tracer on, BUILD_COMPARE_GI other than 0, keeps the game's own default).
+Exit 0 when the frames
 match, and the sound: the room's recorded mix (this room, then zone 15 room 0 with its script) must be byte for byte the same
 (--audio off skips it; on a mismatch the first differing time is printed). Covers this fight and this sound only, not every screen or effect.
 
@@ -21,8 +24,8 @@ match, and the sound: the room's recorded mix (this room, then zone 15 room 0 wi
 
 The wider lane: instead of the fight, Ashley casts every spell of the four schools (and
 the equipped category's Break Arts) through the menus, as tests/charge_skip_soak.py does,
-and the display is hashed every few vsyncs through each action. Old, old again (the
-control) and new are compared action by action. Where the new build records them
+and the display is hashed every few vsyncs through each action. Old and new (and with --control old
+again) are compared action by action. Where the new build records them
 (RPC effect_sites), the effect polygon call sites that ran are mapped to plugin
 functions and counted against all of the build's (the coverage the frames cover).
 Slow (several minutes); its actions are the spells' effect plugins, not every one.
@@ -32,7 +35,7 @@ Slow (several minutes); its actions are the spells' effect plugins, not every on
 The menus' lane: the screens the classic UI draws, reached by the routes classic_parity.py tours them by (the
 save room's game, the classic look: the shipped plugins on, so rood.classic's claims draw what they claim;
 --claims off leaves the game's own drawing), with the display hashed every N vsyncs (default 10) through
-everything each route does. Old, old again (the control) and new are compared route by route. The routes are
+everything each route does. Old and new (with --control, old again too) are compared route by route. The routes are
 SCENES below: a new screen's route is one function there, or one of classic_parity.py's tours wrapped as the others are. Routes:
 mainmenu, manual, levelled, buff (the HUD buff rows), emote_arrow (the off-screen emote arrow and the balloons), items, magic, arts, abilities, status, score, map, data (MENU7's SAVE and LOAD file menus), setup, loot,
 storage, ending, menuf, dialogue (the talk bubble's every shape: first_bubble), title (its menu and its file menu's copy) and gameover
@@ -1262,19 +1265,28 @@ def stream_verdict(label, a, b, c):
     return 0 if changed is None else 1
 
 
+def control_run(args, first, again):
+    """The control (OLD against OLD again): run only with --control; else the first run itself, so the control
+    differs nowhere (the lane's verdict then rests on OLD against NEW alone)."""
+    if args.control:
+        return again()
+    return first
+
+
 def compare_menus(args):
     names = [n for n in args.menus.split(",") if n]
     unknown = [n for n in names if n not in SCENES]
     if unknown:
         sys.exit(f"build_compare: no route {unknown} (have {', '.join(SCENES)})")
-    first, control, new = run_menus(args.old, args, names), run_menus(args.old, args, names), run_menus(args.new, args, names)
+    first = run_menus(args.old, args, names)
+    control, new = control_run(args, first, lambda: run_menus(args.old, args, names)), run_menus(args.new, args, names)
     code = 0
     for name in names:
         a, b, c = first[name]["hashes"], control[name]["hashes"], new[name]["hashes"]
         words = [(r[name]["word_glyphs"], r[name]["status_glyphs"]) for r in (first, control, new)]
         regions = [r[name]["regions"] for r in (first, control, new)]  # ui_text regions drawn from a font / fell back: the layout path ran
         noise, changed = differing({"frames": a}, {"frames": b}), differing({"frames": a}, {"frames": c})
-        print(f"{name}: {len(a)} frames ({len(set(a))} distinct, every {args.menu_sample} vsyncs); control {len(noise)} differ; "
+        print(f"{name}: {len(a)} frames ({len(set(a))} distinct, every {args.menu_sample} vsyncs); {f'control {len(noise)} differ' if args.control else 'control skipped (--control)'}; "
               f"old against new {len(changed)} differ{f' (first at frame {changed[0]})' if changed else ''}")
         print(f"{name}: ui_text word / status glyphs drawn: old {words[0]}, control {words[1]}, new {words[2]}"
               f", of the new's, found among draw items: {new[name]['item_words']}{'' if words[0] == words[2] else '  DIFFERENT'}")
@@ -1336,14 +1348,15 @@ def run_casts(binary, args):
 
 
 def compare_casts(args):
-    first, control, new = run_casts(args.old, args), run_casts(args.old, args), run_casts(args.new, args)
+    first = run_casts(args.old, args)
+    control, new = control_run(args, first, lambda: run_casts(args.old, args)), run_casts(args.new, args)
 
     def differ(a, b):
         return [k for k in a["actions"] if a["actions"][k] != b["actions"].get(k)]
     noise, changed = differ(first, control), differ(first, new)
     done = [k for k, v in first["actions"].items() if v]
     print(f"{len(done)} actions cast ({len(first['actions']) - len(done)} refused here)")
-    print(f"control (old against old): {len(noise)} actions differ")
+    print(f"control (old against old): {len(noise)} actions differ" if args.control else "control (old against old): skipped (--control)")
     print(f"old against new: {len(changed)} actions differ{(': ' + ', '.join(changed[:8])) if changed else ''}")
     for name in changed[:3]:  # what differs first, by name (the samples' battle_state: the actors' and the effects' fields)
         a, b = first.get("states", {}).get(name), new.get("states", {}).get(name)
@@ -1380,10 +1393,13 @@ def compare_rooms(args):
     sites, code = set(), 0
     for room in args.rooms.split(";"):
         env = dict(os.environ, BUILD_COMPARE_ROOM=room)
-        first, control, new = (run(binary, args, env) for binary in (args.old, args.old, args.new))
+        first = run(args.old, args, env)
+        control, new = control_run(args, first, lambda: run(args.old, args, env)), run(args.new, args, env)
         noise, changed = differing(first, control), differing(first, new)
         sites |= set(new.get("sites") or [])
-        print(f"room {room}: casts old {len(first['casts'])} new {len(new['casts'])}; control {len(noise)} of {len(first['frames'])} frames differ; "
+        frames_n = len(first["frames"])
+        control_text = f"control {len(noise)} of {frames_n} frames differ" if args.control else "control skipped"
+        print(f"room {room}: casts old {len(first['casts'])} new {len(new['casts'])}; {control_text}; "
               f"old against new {len(changed)} differ{f' (first at {changed[0] / 4:.2f} s)' if changed else ''}", flush=True)
         if noise:
             code = 2
@@ -1503,10 +1519,11 @@ def first_difference(a, b):
 
 def compare_audio(args):
     """Old, old again (the control) and new: 0 when the new recording is the old one, byte for byte."""
-    first, control, new = run_audio(args.old, args), run_audio(args.old, args), run_audio(args.new, args)
+    first = run_audio(args.old, args)
+    control, new = control_run(args, first, lambda: run_audio(args.old, args)), run_audio(args.new, args)
     noise, changed = first_difference(first, control), first_difference(first, new)
     seconds = lambda i: i // 4 / 44100
-    print(f"audio: control {'identical' if noise is None else f'differs from {seconds(noise):.2f} s'}; "
+    print(f"audio: control {('identical' if noise is None else f'differs from {seconds(noise):.2f} s') if args.control else 'skipped'}; "
           f"old {len(first)} bytes, new {len(new)}; " + ("identical" if changed is None else f"first differs at {seconds(changed):.2f} s"))
     if noise is not None:
         print("build_compare: the control's audio differs, so the audio proves nothing")
@@ -1537,10 +1554,14 @@ def main():
     parser.add_argument("--setting", action="append", default=[], metavar="'KEY VALUE'", help="--menus: a settings.cfg line (ui_text original)")
     parser.add_argument("--aspect", choices=["4:3", "16:9"], default="4:3", help="--menus: the display's aspect")
     parser.add_argument("--stream", action="store_true", help="also compare every vsync's drawing digest (RPC stream: the words the walk draws, native marker draws, environments); fight, --rooms and --menus lanes. OLD must have the RPC")
+    parser.add_argument("--control", action="store_true", help="also run OLD against OLD again (the control): for when a lane differs and flakiness is suspected; off, each lane runs OLD and NEW once")
+    parser.add_argument("--scale", type=int, default=1, choices=range(1, 9), metavar="N", help="the internal resolution multiple every lane renders at (ROOD_SCALE; default 1; ROOD_SCALE in the environment wins; not applied when BUILD_COMPARE_GI is on: the path tracer's lanes keep the game's default)")
     parser.add_argument("--rooms", help="the fight in each of these rooms, zone,room;zone,room")
     parser.add_argument("--play-menus", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--out", help=argparse.SUPPRESS)
     args = parser.parse_args()
+    if os.environ.get("BUILD_COMPARE_GI", "0") == "0":  # (the GI / lighting replay lanes keep the game's own resolution)
+        os.environ.setdefault("ROOD_SCALE", str(args.scale))
     if args.stream:
         os.environ["BUILD_COMPARE_STREAM"] = "1"
         global STREAM
@@ -1565,12 +1586,13 @@ def main():
         return compare_menus(args)
     if args.casts:
         return compare_casts(args)
-    first, control, new = run(args.old, args), run(args.old, args), run(args.new, args)
+    first = run(args.old, args)
+    control, new = control_run(args, first, lambda: run(args.old, args)), run(args.new, args)
     noise, changed = differing(first, control), differing(first, new)
     stream = stream_verdict("fight", first.get("stream"), control.get("stream"), new.get("stream")) if STREAM else 0
     if stream == 2:
         return 2
-    print(f"control (old against old): {len(noise)} of {len(first['frames'])} frames differ")
+    print(f"control (old against old): {len(noise)} of {len(first['frames'])} frames differ" if args.control else "control (old against old): skipped (--control)")
     print(f"old against new: {len(changed)} of {len(first['frames'])} frames differ{f' (first at {changed[0] / 4:.2f} s)' if changed else ''}")
     print(f"casts: old {len(first['casts'])}, new {len(new['casts'])}; the same: {first['casts'] == new['casts']}")
     print(f"drops: old {len(first['drops'])}, new {len(new['drops'])}; the same: {first['drops'] == new['drops']}; control the same: {first['drops'] == control['drops']}")

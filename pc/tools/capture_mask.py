@@ -5,7 +5,7 @@
         --setting 'screen_copy ps1' --new-env ROOD_SCREEN_COPY=1 --new-env ROOD_CAPTURE_LOG=1
     python3 pc/tools/capture_mask.py K L
 
-build_compare plays the route in three games (old, old again, new: the same build, screen_copy ps1 and native) and keeps each
+build_compare (--control: its three games; ROOD_SCALE=4: the target's own resolution, which build_compare's lean default 1x would hide) plays the route in three games (old, old again, new: the same build, screen_copy ps1 and native) and keeps each
 sampled frame (<pid>-<n>.ppm) with the game's vsync (<pid>-<n>.vsync); ROOD_CAPTURE_LOG makes the new build log each triangle of
 a primitive drawn from the capture (`[capture] v<vsync> x,y`, VRAM pixels). For each sampled frame the old and the new pictures
 differ in, this reports the pixels outside the boxes of the capture triangles drawn within a few vsyncs of it (the render thread
