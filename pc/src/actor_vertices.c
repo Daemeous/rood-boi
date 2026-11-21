@@ -5,7 +5,7 @@
 #include <libgte.h>
 #include "gte_value.h"
 extern void pc_unimplemented(const char*);
-extern unsigned D_800F2458[];
+extern unsigned D_800F2458[0x1FE0 / 4];
 
 unsigned pc_project_bone_vertices(unsigned count, const unsigned* groups,
     const SVECTOR* vertices, MATRIX* matrices, unsigned* xy, unsigned* depth)

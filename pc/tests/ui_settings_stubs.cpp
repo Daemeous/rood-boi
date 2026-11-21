@@ -29,6 +29,7 @@ int pc_qol_fast_travel = 1, pc_qol_fast_travel_cost, pc_qol_fast_travel_flat = 1
 float pc_qol_fast_travel_scale = 0.5f, pc_qol_fast_travel_prompt_offset_x = -0.025f,
     pc_qol_fast_travel_prompt_offset_y = 0.035f, pc_qol_fast_travel_prompt_scale = 1.0f;
 float pc_ui_menu_opacity = 0.94f;
+float pc_ui_wire_width = 1.5f;
 int pc_ui_menu_tint, pc_ui_menu_tint_custom[3] = {8, 7, 7};
 // ui_theme.cpp: the theme file's ground (#110f0e), Lea Monde's colour (ui_tint.cpp)
 void pc_ui_theme_file_ground_rgb(int* r, int* g, int* b) { *r = 0x11, *g = 0x0f, *b = 0x0e; }

@@ -73,7 +73,7 @@ def scene(path):
         elif line.startswith("f "):
             w = line.split()
             a, b, c = (int(x) - 1 for x in w[1:4])
-            flags = int(line.split("flags ")[1], 16)
+            flags = int(line.split("flags ")[1].split()[0], 16)
             black = max(vertices[a][1], vertices[b][1], vertices[c][1]) == 0
             triangles.append((vertices[a][0], vertices[b][0], vertices[c][0], black, flags))
     return camera, triangles

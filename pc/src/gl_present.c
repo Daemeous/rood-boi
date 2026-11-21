@@ -1662,7 +1662,10 @@ static void update_view(int* out_w, int* out_h)
     if (area_w < 64 || area_h < 48)
         area_x = area_y = 0, area_w = window_w, area_h = window_h;
     int view_w = area_w, view_h = area_h;
-    if (pc_gl_aspect == 0 || pc_gl_aspect == 2) {
+    /* Stretch fills the window, not the editor's Game panel: a panel is any shape the user drags it to (the picture was stretched into a
+     * strip a tenth of its height), so inside one the picture keeps its aspect. */
+    int in_panel = (pc_gl_inset[0] | pc_gl_inset[1] | pc_gl_inset[2] | pc_gl_inset[3]) != 0;
+    if (pc_gl_aspect == 0 || pc_gl_aspect == 2 || in_panel) {
         /* 4:3, or 16:9 when the GTE projects widescreen (Hor+); movie frames
          * (24-bit display) are 4:3 pictures: pillarboxed in widescreen. */
         int wide = pc_gte_widescreen && !pc_display_rgb24;

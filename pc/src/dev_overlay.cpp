@@ -878,6 +878,16 @@ static void graphics_panel()
         }
         extern int pc_screen_owner, pc_screen_owner_fill[3]; /* screen_owner.c */
         extern int pc_menu_slide; /* gpu_hw.c */
+        extern float pc_menu_end_fade, pc_menu_end_fade_length; /* gpu_hw.c */
+        ImGui::SliderFloat("Menu list end rows: fade", &pc_menu_end_fade, 0.0f, 1.0f, "%.2f");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("The top and bottom row of a menu list that goes on fade out toward the list's edge: the row is drawn\n"
+                              "whole and its opacity runs down it, no bands. 0: the game's own twelve stepped lines (the classic look).\n"
+                              "Settings key menu_end_fade; RPC settings {apply: \"menu_end_fade 0.5\"}.");
+        ImGui::SliderFloat("Menu list end rows: fade length", &pc_menu_end_fade_length, 4.0f, 48.0f, "%.0f lines");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("The lines (of 240) over which the end row fades out; the row is 12 high, so past 12 it does not\n"
+                              "reach nothing. Settings key menu_end_fade_length.");
         if (pc_gte_widescreen) {
             bool slide = pc_menu_slide != 0;
             if (ImGui::Checkbox("16:9: menus slide in from the view's edges", &slide))

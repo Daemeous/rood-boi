@@ -26,10 +26,10 @@
 #include <time.h>
 
 /* The executable's own tables (game data, linked from the user's build). */
-extern char vs_main_locationZoneMapIds[] __attribute__((weak)); /* 512 x (zone, room) */
+extern char vs_main_locationZoneMapIds[1024] __attribute__((weak)); /* 512 x (zone, room) */
 extern struct {
     int lba, size;
-} vs_main_zndFiles[] __attribute__((weak)); /* by zone: ZONEnnn.ZND */
+} vs_main_zndFiles[256] __attribute__((weak)); /* by zone: ZONEnnn.ZND */
 
 #include "room_warp.h"
 #define PC_ROOMS_MAX 512

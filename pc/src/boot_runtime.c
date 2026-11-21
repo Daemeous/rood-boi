@@ -1736,7 +1736,9 @@ extern void pc_ui_bubble_packet(int, const void*, int, int, const int*) __attrib
 extern int pc_hw_suppress __attribute__((weak)); /* gpu_hw.c: the packet is left out of the hardware picture */
 extern int pc_frame_drawing_hidden __attribute__((weak)); /* draw_items.c */
 extern int pc_frame_drawing_anchor __attribute__((weak)), pc_frame_drawing_opacity __attribute__((weak));
+extern int pc_frame_drawing_fade[5] __attribute__((weak));
 extern const float* pc_frame_drawing_span __attribute__((weak));
+extern const float* pc_frame_drawing_wire __attribute__((weak));
 /* Typed draw items (draw_items.c) placed in the ordering table by marker packets: drawn where the marker is. */
 extern int pc_frame_marker(const uint32_t*, int*, int*) __attribute__((weak));
 extern void pc_frame_draw_run(int, int) __attribute__((weak));
@@ -1925,7 +1927,7 @@ void pc_draw_item_packet(void* packet)
  * slots lie within 16 entries of it) are not drawn; native lists' markers and mode packets still are. */
 extern int pc_photo_hide_game2d __attribute__((weak));
 extern int pc_photo_game2d_slots __attribute__((weak));
-extern void* vs_render_legacyOrderingTables[] __attribute__((weak)); /* (absent in the GPU probe) */
+extern void* vs_render_legacyOrderingTables[2] __attribute__((weak)); /* (absent in the GPU probe) */
 static int game2d_entry(const uint32_t* p, int* hidden)
 {
     if (!(uintptr_t)vs_render_legacyOrderingTables)
@@ -2019,8 +2021,13 @@ static void draw_packet(void* data, int chain)
                 single.anchor = pc_frame_drawing_anchor & ~0x20, single.exact = (pc_frame_drawing_anchor & 0x20) != 0;
             if (pc_frame_drawing_opacity >= 0)
                 single.opacity = (short)pc_frame_drawing_opacity;
+            if (&pc_frame_drawing_fade && pc_frame_drawing_fade[4])
+                single.has_fade = 1, single.fade_y[0] = (short)pc_frame_drawing_fade[0], single.fade_y[1] = (short)pc_frame_drawing_fade[1],
+                    single.fade_a[0] = (unsigned char)pc_frame_drawing_fade[2], single.fade_a[1] = (unsigned char)pc_frame_drawing_fade[3];
             if (&pc_frame_drawing_span && pc_frame_drawing_span)
                 single.has_span = 1, memcpy(single.span_shape, pc_frame_drawing_span, sizeof single.span_shape);
+            if (&pc_frame_drawing_wire && pc_frame_drawing_wire)
+                single.has_wire = 1, memcpy(single.wire, pc_frame_drawing_wire, sizeof single.wire);
         }
         /* An item marker is not a GPU packet: what it places is hashed as the items are lowered and drawn, so a run's index
          * (which moves when a producer becomes items) and its packet's own notes are not part of the digest. */

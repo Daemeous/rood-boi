@@ -1415,6 +1415,9 @@ void vs_mainMenu_renderTabNavigation(int mode)
 /**
  * Invoked on rows that have more rows above or below them.
  */
+#ifdef ROOD_PC
+extern float pc_menu_end_fade, pc_menu_end_fade_length; /* gpu_hw.c */
+#endif
 static void _renderScrollableRow(vs_battle_menuItem_t* menuItem)
 {
     static char previousFrameBuf = 0;
@@ -1488,6 +1491,25 @@ static void _renderScrollableRow(vs_battle_menuItem_t* menuItem)
         }
     }
 
+#ifdef ROOD_PC
+    /* The row as a plain one, faded: its opacity runs down it, from whole at the list's side to pc_menu_end_fade_length lines of
+     * fade at its outer edge (setting menu_end_fade; 0 draws the game's twelve stepped lines below, which at a higher resolution are
+     * hard bands of the background showing through). The arrow above is the game's. */
+    if (pc_menu_end_fade > 0.0f && wh != 0) {
+        int first = pc_frame_count();
+        int length = pc_menu_end_fade_length < 1.0f ? 1 : (int)pc_menu_end_fade_length;
+        int outer = (int)(255.0f * (1.0f - pc_menu_end_fade * 12.0f / (float)length));
+        outer = outer < 0 ? 0 : outer;
+        vs_battle_renderMenuItem(menuItem);
+        /* the top row (scroll 0) fades up, the bottom row down: whole at the edge next to the list, `outer` at the far one */
+        if (scroll == 0)
+            pc_frame_fade_extent(first, pc_frame_count(), outer, 255);
+        else
+            pc_frame_fade_extent(first, pc_frame_count(), 255, outer);
+        return;
+    }
+#endif
+
     i = menuItem->x + 6;
 
     if (menuItem->rowIcon != 0) {
@@ -1517,6 +1539,7 @@ static void _renderScrollableRow(vs_battle_menuItem_t* menuItem)
                 vs_battle_uiGradientStop(8 - gradientState, backgroundWidth, var_s3), xy,
                 vs_battle_uiGradientStop(gradientState, backgroundWidth, var_s3),
                 ((xy + wh - 1) & 0xFFFF) | ((xy >> 0x10) << 0x10));
+
             xy += vs_getXY(0, 1);
         }
 

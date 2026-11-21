@@ -317,7 +317,7 @@ extern short vs_event_isFieldCameraRestoreScripted;
 extern char vs_event_isStartConfirmed;
 extern u_char vs_event_isEffectWaitPending;
 extern short* vs_event_eventFileDiscRequest;
-extern char* vs_event_vibrationPatterns[];
+extern char* vs_event_vibrationPatterns[8];
 extern u_short vs_event_eventSource;
 extern char vs_event_isScanlineOverlayEnabled;
 extern void* _mpdRoomDoorSection;

@@ -17,5 +17,15 @@ pub fn uiGradientStop(gradient: c_uint, color_index: c_uint, brightness: c_int) 
         color0 = psx.at(v.g.D_800EBBB8(), (color_index >> 3) -% 2).*;
         color1 = psx.at(v.g.D_800EBBC0(), (color_index >> 3) -% 2).*;
     }
-    return @bitCast(c._lerpColor(color0, color1, brightness, @bitCast(gradient)));
+    return @bitCast(panelTint(c._lerpColor(color0, color1, brightness, @bitCast(gradient))));
+}
+
+const PanelTint = *const fn (c_uint) callconv(.c) c_uint;
+
+/// The menu tint (settings ui_menu_tint, pc/src/ui/ui_tint.cpp): every classic menu panel's gradient takes its colours from here, so a
+/// tint other than the default (Original) gives the dark-blue ones the tint's hue at their own brightness, wherever a classic menu draws.
+/// Text, icons and the 3D never come through here. Without the host hook, or at the Original tint, the colour is the game's.
+fn panelTint(color: c_uint) c_uint {
+    const hook = psx.weak(PanelTint, "pc_ui_classic_tint") orelse return color;
+    return hook(color);
 }

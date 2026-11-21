@@ -445,20 +445,20 @@ extern vs_main_CdFile vs_main_zndFiles[256];
 /**
  * 512 pairs of zone and map IDs.
  */
-extern char vs_main_locationZoneMapIds[];
+extern char vs_main_locationZoneMapIds[1024]; /* 512 locations x (zone, room) */
 extern int vs_main_statusEffectParams[][4];
 extern char vs_field_zoneMusicIds[];
-extern char D_8004FDD0[];
-extern u_short vs_main_artsPointsRequirements[][4];
-extern u_short vs_main_battleAbilitiesPointsRequirements[];
+extern char D_8004FDD0[20]; /* a battle slot's starting name: 20 bytes; its stats block holds 24, see func_8007647C */
+extern u_short vs_main_artsPointsRequirements[15][4]; /* rows 0..9 are the weapon categories; a row is the points to each of 4 arts */
+extern u_short vs_main_battleAbilitiesPointsRequirements[22]; /* one per battle ability: the kills that unlock it */
 extern vs_state_SceneTimer vs_state_sceneTimer;
-extern void* vs_render_legacyOrderingTables[];
+extern void* vs_render_legacyOrderingTables[2]; /* one per display buffer */
 extern short D_8005DFD4;
 extern short vs_render_viewportWidth;
 extern short D_8005DFD8;
 extern u_short vs_render_viewportHeight;
 extern u_int D_8005E040;
-extern void* vs_render_legacyPrimitiveBuffers[];
+extern void* vs_render_legacyPrimitiveBuffers[2]; /* one per display buffer */
 extern int vs_main_nearClip;
 extern int vs_main_projectionDistance;
 extern int vs_gametime_tickspeed;

@@ -16,6 +16,6 @@ pub fn projectObjectVertices(object: [*]u8, matrices: [*c]c.MATRIX, near_clip: c
     if (psx.weak(NativeMatrices, "pc_object_native_matrices")) |hook| hook(object, matrices, model);
     const groups: ?[*]const c_uint = @ptrFromInt(@intFromPtr(model) +% psx.byteAt(u32, model, 0x34).*);
     const vertices: ?[*]const c.SVECTOR = @ptrFromInt(@intFromPtr(model) +% psx.byteAt(u32, model, 0x38).*);
-    const screen = v.g.D_800F2458();
+    const screen: [*]c_uint = v.g.D_800F2458();
     return @bitCast(c.pc_project_bone_vertices(object[1], groups, vertices, matrices, screen, screen + 768));
 }

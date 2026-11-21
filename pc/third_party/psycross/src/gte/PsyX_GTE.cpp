@@ -516,6 +516,13 @@ int PGXP_GetCacheData(PGXPVData* out, uint lookup, ushort indexhint)
 
 #endif // USE_PGXP
 
+/* The last RotTransPers's screen position before the registers cut it to whole pixels (narrowed as the registers are in widescreen):
+ * for shapes the port draws finer than the PS1 could (the targeting sphere's wire, pc_frame_wire). Not saturated. */
+static float rood_last_sxf, rood_last_syf;
+extern "C" void pc_gte_last_projection(float* x, float* y)
+{
+	*x = rood_last_sxf, *y = rood_last_syf;
+}
 int GTE_RotTransPers(int idx, int lm)
 {
 	int h_over_sz3;
@@ -540,8 +547,10 @@ int GTE_RotTransPers(int idx, int lm)
 			sx = c + (sx - c) * 3 / 4; /* ROOD: 16:9 Hor+ */
 		}
 		C2_SX2 = Lm_G1(F(sx) >> 16);
+		rood_last_sxf = (float)((double)sx / 65536.0); /* ROOD: the unrounded screen position (the registers keep the whole pixel) */
 	}
 	C2_SY2 = Lm_G2(F((long long)C2_OFY + ((long long)C2_IR2 * h_over_sz3)) >> 16);
+	rood_last_syf = (float)((double)((long long)C2_OFY + ((long long)C2_IR2 * h_over_sz3)) / 65536.0);
 	rood_record_projection(C2_SX2, C2_SY2, C2_SZ3);
 
 #if USE_PGXP

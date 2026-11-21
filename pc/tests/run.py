@@ -165,6 +165,10 @@ def suites(args, mode="egl"):
               note="material bake: height, roughness, metal from made-up textures (sizes, mortar below "
                    "blocks, no slope from painted shading, no speckle, metal only on metal presets), targets, "
                    "dry run, tunables, refusals"),
+        Suite("room_blender", [PY, str(TESTS / "room_blender_test.py")], 60, binary=None,
+              sources=[ROOT / "pc/tools/room_blender.py", ROOT / "pc/tools/room_blender.json", ROOT / "pc/tools/blender/bake_room.py"],
+              note="the one-room Blender round trip (Gitea #20) without the game or Blender: the dump's polygons to texture boxes, "
+                   "the glTF (a primitive and material per texture, UVs over the box, tags), the maps made from a bake"),
         Suite("shader_compiler", [PY, str(TESTS / "shader_compiler_test.py")], 600, binary=None,
               sources=[TESTS / "shader_compiler_probe.cpp", ROOT / "pc/src/shader_compiler.cpp",
                        ROOT / "pc/src/shader_compiler.h", ROOT / "pc/src/vk_shader_lookup.c",
@@ -639,6 +643,15 @@ def suites(args, mode="egl"):
                       "(grimoires too) and the equipped weapon's Break Arts: wind-ups <= 32 vsyncs, none "
                       "presented, a 2000-vsync watchdog, clean afterwards")]
           if args.save.exists() else []),
+        *([Suite("battle_message_label_smoke", [PY, str(TESTS / "battle_message_label_smoke.py"), "--card", str(args.save)], 300,
+                 note="battle message box (\"No target in range!\"): its header label (CAUTION) sits at the view's left edge in 16:9 "
+                      "and the 4:3 screen's in 4:3, not inside the widened box (Gitea #21)")]
+          if args.save.exists() else []),
+        *([Suite("menu_end_fade_smoke", [PY, str(TESTS / "menu_end_fade_smoke.py"), "--card", str(args.save)], 300,
+                 note="the end rows of a menu list (OPTIONS scrolled): at 4x the setting menu_end_fade 0 (the game's stepped lines) "
+                      "differs from 1 only in those rows, and at 1 the row fades out smoothly toward the list's edge, stronger "
+                      "than at 0.5 (Gitea #16)")]
+          if args.save.exists() else []),
         *([Suite("cast_speed_smoke", [PY, str(TESTS / "cast_speed_smoke.py"), "--card", str(args.save)], 300,
                  note="battle charging skip at fractional holds (0.75 s, 0.4 s, 1.3 s, mine and enemy, issue 25): "
                       "Ashley's Solid Shock and the casters' room (Information on and off) never hang (a 2400-vsync "
@@ -776,6 +789,10 @@ def suites(args, mode="egl"):
         Suite("ui_lines_smoke", [PY, str(TESTS / "ui_lines_smoke.py")], 420,
               note="2D lines: 1x = CPU, 4x scale-thick, joins closed, no light dots along outlines; "
                    "vector talk bubbles follow the game's zoom, all shapes; options saved"),
+        Suite("wire_sphere_smoke", [PY, str(TESTS / "wire_sphere_smoke.py"), *(["--card", str(args.save)] if args.save.exists() else [])], 300,
+              note="the battle targeting sphere's wire drawn from the GTE's unrounded ends at ui_wire_width output pixels (gitea #19): thinner as the width falls"),
+        Suite("menu_tint_classic_smoke", [PY, str(TESTS / "menu_tint_classic_smoke.py"), *(["--card", str(args.save)] if args.save.exists() else [])], 300,
+              note="the menu tint on the game's own menus (gitea #17): the Command rows' panels take Slate / Crimson, the HUD and the 3D do not, the Original tint is the picture as it was"),
         Suite("text_fade_smoke", [PY, str(TESTS / "text_fade_smoke.py")], 300,
               note="text without a box fading out (type 0 closing, type 6): glyphs at the opacity, no "
                    "PS1-resolution rectangle (font, original, overlay); the game's upload is seen with it off"),
@@ -909,7 +926,7 @@ CHECKPOINT_SUITES = {
     "camera_stick_smoke", "camera_stick_menus_smoke", "editor_snap_smoke", "editor_roomload_smoke", "room_browser_smoke", "room_entry_sound_smoke", "determinism_smoke", "route_continuation_smoke", "ending_smoke",
     "light_actors_smoke", "fixture_lighting_smoke", "sky_smoke", "game_sky_smoke", "glow_stability_smoke", "lighting_presets_smoke",
     "gi_lag_smoke", "texture_animation_smoke", "save_menu_smoke", "screen_owner_smoke", "scanline_sides_smoke", "ui_text_snap_smoke", "menu_open_scale_smoke", "menu_open_slide_smoke", "camera_stick_close_smoke", "file_flash_smoke", "effect_opcode_smoke", "narrowed_2d_smoke", "weapon_slots_smoke", "ui_menus_smoke",
-    "ui_lines_smoke", "ui_text_smoke", "ui_text_columns_smoke", "button_prompts_smoke", "button_roles_symbols_smoke", "coplanar_order_smoke", "actor_room_order_smoke", "atmosphere_smoke",
+    "ui_lines_smoke", "wire_sphere_smoke", "menu_tint_classic_smoke", "ui_text_smoke", "ui_text_columns_smoke", "button_prompts_smoke", "button_roles_symbols_smoke", "coplanar_order_smoke", "actor_room_order_smoke", "atmosphere_smoke",
     "void_fog_smoke",
     "fog_sim_smoke", "fog_volume_smoke", "particles_smoke", "save_point_glow_smoke", "emissive_smoke", "ui_ashley_smoke", "ui_ashley_stability_smoke",
     "ui_equip_smoke",

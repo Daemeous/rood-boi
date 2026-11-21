@@ -182,7 +182,8 @@
  *                                (1 Vulkan ray queries, 2 Vulkan compute BVH,
  *                                3 OpenGL compute BVH), updates, resets;
  *                                dump: the field to a file (pc_probe_dump)
- *   scene_dump {path}            captured room as OBJ with vertex colours
+ *   scene_dump {path}            captured room as OBJ with vertex colours; each face's comment: tpage, clut, group, flags,
+ *                                its three vertices' texels (uv u0 v0 u1 v1 u2 v2), code, quad
  *   lights {action, baked}       room light list; action "suggest" (fit from
  *                                vertex colours), "save", "reload" (read the
  *                                room's files from disk now, dropping unsaved
@@ -2382,6 +2383,8 @@ static void handle_method(int fd, const char* request)
             double outline;
             if (real_value(member(params, "ui_bubble_outline"), &outline) && outline >= 0.25 && outline <= 8)
                 pc_ui_bubble_outline = (float)outline;
+            if (real_value(member(params, "ui_wire_width"), &outline) && outline >= 0 && outline <= 8)
+                pc_ui_wire_width = (float)outline;
         }
         if (&pc_gi_enabled && params) {
             double real;
@@ -2720,9 +2723,9 @@ static void handle_method(int fd, const char* request)
                 - 1;
         if (used < (int)sizeof result - 160)
             used += snprintf(result + used - 1, sizeof result - used + 1,
-                        ",\"ui_lines\":\"%s\",\"ui_outline_boost\":%d,\"ui_bubbles\":\"%s\",\"ui_bubble_outline\":%g}",
+                        ",\"ui_lines\":\"%s\",\"ui_outline_boost\":%d,\"ui_bubbles\":\"%s\",\"ui_bubble_outline\":%g,\"ui_wire_width\":%g}",
                         pc_ui_lines_names[pc_ui_lines ? 1 : 0], pc_ui_outline_boost,
-                        pc_ui_bubbles_names[pc_ui_bubbles ? 1 : 0], pc_ui_bubble_outline)
+                        pc_ui_bubbles_names[pc_ui_bubbles ? 1 : 0], pc_ui_bubble_outline, pc_ui_wire_width)
                 - 1;
         extern int pc_hw_scale_setting __attribute__((weak));
         if (pc_aa_string && used < (int)sizeof result - 200)

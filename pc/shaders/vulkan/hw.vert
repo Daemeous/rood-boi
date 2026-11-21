@@ -23,9 +23,11 @@ layout(location = 6) flat out uvec4 v_bounds;
 layout(location = 7) smooth centroid out float v_z_persp;
 layout(location = 8) noperspective centroid out float v_z_affine;
 layout(location = 9) flat out ivec2 v_ui;
+layout(location = 10) smooth out float v_fade; // FLAG_FADE: the opacity, per vertex (a menu list's end rows fade along their height)
 void main() {
     v_z_persp = v_z_affine = a_pos.z;
     v_normal = a_normal;
+    v_fade = a_normal.x;
     v_bounds = a_bounds;
     v_ui = a_ui;
     v_color_affine = v_color_persp = vec3(a_color.rgb) / 255.0;

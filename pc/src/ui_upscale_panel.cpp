@@ -226,6 +226,7 @@ extern "C" void pc_ui_upscale_panel(void)
                           "paper fill, drop shadow and an anti-aliased outline. Text is unchanged.");
     if (pc_ui_bubbles == PC_UI_BUBBLES_VECTOR)
         ImGui::SliderFloat("Bubble outline", &pc_ui_bubble_outline, 0.5f, 4.0f, "%.2f PS1 px");
+        ImGui::SliderFloat("Wire width", &pc_ui_wire_width, 0.0f, 6.0f, pc_ui_wire_width > 0.0f ? "%.1f px" : "game's");
     static const char* prompt_modes[] = { "Auto (last device used)", "PlayStation", "Xbox", "Nintendo",
         "Keyboard", "Original glyphs" };
     ImGui::Combo("Button prompts", &pc_button_prompts, prompt_modes, PC_PROMPTS_MODES);

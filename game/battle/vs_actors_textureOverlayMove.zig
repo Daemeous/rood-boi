@@ -48,8 +48,8 @@ pub fn vs_actors_textureOverlayMove(index: c_int, arg: [*c]u8) callconv(.c) void
         const slot: usize = actorStruct.unk5BB;
 
         const table = v.g.vs_actors_textureSlotOrigins();
-        const x: c_int = @as(*align(1) const i16, @ptrCast(table + slot * 4)).*;
-        const y: c_int = @as(*align(1) const i16, @ptrCast(table + slot * 4 + 2)).*;
+        const x: c_int = table[slot][0];
+        const y: c_int = table[slot][1];
         const row: c_int = v.g.vs_actors_textureSlotRowOffsets()[slot];
         const py: c_int = actor[partOff + 1];
         const page: c_int = v.g.D_800F2450()[v.g.vs_actors_sharedSequenceBankIndex().*];

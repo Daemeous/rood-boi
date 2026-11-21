@@ -20,7 +20,7 @@
 extern char vs_event_playbackPhase; /* an event script is running */
 extern u_int D_800F196C; /* the field loop's mode (1: Ashley walks, 5: a menu) */
 extern short vs_event_roomChangeState; /* a script room change is pending */
-extern char vs_main_locationZoneMapIds[]; /* 512 x (zone, room) */
+extern char vs_main_locationZoneMapIds[1024]; /* 512 x (zone, room) */
 void vs_field_beginBattleActionMenu(int arg0, int arg1);
 u_int vs_actors_actorStateFlags(int actorId); /* (as room_warp.c declares it) */
 int VSync(int mode);

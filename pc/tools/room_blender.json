@@ -1,0 +1,22 @@
+{
+  "about": "Tunables of pc/tools/room_blender.py (Gitea #20): the bake (Blender, per texture, from the room's geometry) and the maps made from it. Lengths in the exported room's units: 1 = 512 game units.",
+  "samples": 24,
+  "bake": {
+    "bevel_radius": 0.05,
+    "bevel_samples": 8,
+    "wear_gain": 6.0,
+    "ao_distance": 0.25,
+    "ao_samples": 16,
+    "bake_samples_note": "Cycles path samples per texel; the bevel and ambient occlusion nodes sample their own."
+  },
+  "maps": {
+    "height_base": 132.0,
+    "height_wear": -36.0,
+    "height_cavity": -22.0,
+    "rough_base": 0.8,
+    "rough_wear": -0.2,
+    "rough_cavity": 0.06,
+    "normal_strength": 2.0,
+    "note": "wear and cavity are 0..1 (edges the geometry exposes, creases it shades); cavity is 1 - the occlusion"
+  }
+}

@@ -12,7 +12,7 @@ extern int vs_field_sampleActorSupportHeight(SVECTOR*, int, int, int);
 extern MATRIX* RotMatrixYXZ_gte(SVECTOR*, MATRIX*);
 extern MATRIX* vs_core_mathPremultiplyRotationMatrix(MATRIX*, MATRIX*);
 extern MATRIX* vs_core_mathScaleMatrixColumns(MATRIX*, VECTOR*);
-extern signed char D_800F49F4;
+extern int D_800F49F4; /* the platform contact: its index plus two, 0 for none */
 extern unsigned D_800E9A68[], D_800E9AD4[];
 extern void pc_unimplemented(const char*);
 /* Native drop shadows (effect_native.c; absent in unit probes): the kept

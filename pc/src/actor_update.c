@@ -9,7 +9,8 @@ extern unsigned short (*D_800F58D0)[32];
 extern unsigned short (*D_800F58B8)[32];
 extern unsigned char *D_800F58CC, *D_800F58C0;
 extern unsigned vs_battle_aiSavedMovementRandomState;
-extern unsigned D_800F16E0, D_800F16E4, D_800F16E8, D_800F16EC, D_800F16F0;
+extern unsigned D_800F16E0, D_800F16E4, D_800F16E8;
+extern unsigned char D_800F16EC[8]; /* the eight directions' packed steps (D_800F16EC_t) */
 extern void pc_unimplemented(const char*);
 extern int vs_core_elapsedFrameCounterTicks(void);
 extern int vs_core_mathSquaredVectorLength(int, int, int);
@@ -38,8 +39,7 @@ void pc_actor_scratch(void)
     memcpy(vs_move.lookup, &D_800F16E0, 4);
     memcpy(vs_move.lookup + 4, &D_800F16E4, 4);
     memcpy(vs_move.lookup + 8, &D_800F16E8, 4);
-    memcpy(vs_move.directions, &D_800F16EC, 4);
-    memcpy(vs_move.directions + 4, &D_800F16F0, 4);
+    memcpy(vs_move.directions, D_800F16EC, 8);
     /* Without a navigation record (vs_battle_aiUpdateActorNavigationOverrides does not test it, unlike
      * func_800E511C) the original reads word 4 of address 0: PS1 RAM, the
      * kernel area, read here through guest RAM. */

@@ -11,6 +11,7 @@
 extern struct {
     char prefix[0x1FD0];
     int scales[3];
+    int pad1FDC; /* the 4th word of the last bone scale: 0x1FE0 bytes in all, up to D_800F4438 */
 } D_800F2458;
 
 typedef struct {

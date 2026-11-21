@@ -44,7 +44,7 @@ M.pages = {
   { id = "interface", title = "Interface", help = "Menus, text, 2D upscaling and button prompts.",
     rows = {
       "ui_menus", "ui_menu_opacity", "ui_menu_tint", "ui_menu_tint_r", "ui_menu_tint_g", "ui_menu_tint_b",
-      "ui_text", "ui_upscale", "ui_lines", "ui_outline_boost", "ui_bubbles",
+      "ui_text", "ui_upscale", "ui_lines", "ui_outline_boost", "ui_wire_width", "ui_bubbles",
       "button_prompts", "button_prompts_style", "button_prompts_scale", "ui_subpixel",
     } },
   { id = "controls", title = "Controls", help = "The right stick camera and vibration.",

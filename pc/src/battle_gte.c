@@ -14,7 +14,7 @@ extern D_800EB9B8_t* vs_battle_targetSphere;
 int vs_battle_aiScoreActorCondition(int a, int b, int c, int d);
 
 
-extern unsigned char _trig_table[];
+extern const unsigned char _trig_table[2052]; /* 513 (sin, cos) pairs of 16 bits */
 extern psx_long VectorNormal(VECTOR*, VECTOR*);
 /* 7B5DC.s trig lookup: interleaved 4-byte table entries, quadrant folding on
  * the (possibly reflected) angle; bits above 0xFFF are ignored, as in the

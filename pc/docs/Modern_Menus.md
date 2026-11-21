@@ -410,6 +410,12 @@ Prototype (private, placeholder data): the "Riskbreaker Menus" artifact.
   Damaged, Wounded, Good, Excellent) with a summary of the parts; a body
   part under the pointer, or stepped to with Left / Right on the row,
   titles it with that part and its HP (`pc_ui_ashley_condition_text`).
+- **Tint on the game's own menus** (Menus: Original): a tint other than the default (Leá Monde, named Original in the list while the game's own
+  menus are on) gives the classic menus' dark-blue panels and rows the tint's hue at their own brightness. The panels take their gradient colours
+  from `vs_battle_uiGradientStop` (game/battle/ui_gradient_stop.zig), which asks `pc_ui_classic_tint` (ui_tint.cpp) for the tinted colour: every
+  classic screen that draws panels that way (the Command menu, Options, Items, Status, Data, the enemy rooms' menus) follows, live while the menu
+  is open; text, icons, the HUD and the 3D never come through there. Custom and the Tint red / green / blue rows work as with the modern menus.
+  The default is the picture as it was (pc/tests/menu_tint_classic_smoke.py; build_compare --menus: 0 differ).
 - **Tint**: System > Interface > Menu tint recolours the backdrop and panels,
   as older RPGs let you set the window colour. Presets: Leá Monde (the
   theme file untouched: the default), Classic (deep navy), Slate, Crimson,

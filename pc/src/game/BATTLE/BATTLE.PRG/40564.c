@@ -190,7 +190,7 @@ int vs_actors_setTextureAnimation(int actorId, int index, int value, int mode);
 
 int vs_actors_stepTextureAnimations(D_800F4538_t* actor);
 
-extern u_char vs_actors_textureSlotOrigins[];
+extern short vs_actors_textureSlotOrigins[24][2];
 extern u_char vs_actors_textureSlotRowOffsets[];
 
 typedef struct {

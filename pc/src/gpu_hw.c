@@ -124,6 +124,22 @@ enum { PC_ANCHOR_NONE, PC_ANCHOR_LEFT, PC_ANCHOR_RIGHT, PC_ANCHOR_FILL, PC_ANCHO
     PC_ANCHOR_PROJECTED, PC_ANCHOR_SLIDE };
 static int primitive_anchor; /* of the packet being drawn (pc_hw_set_attr) */
 static int primitive_opacity = 256; /* of the packet being drawn (pc_hw_opacity_packets): 0..256 */
+/* The fade of a menu list's end rows (the top and bottom row of a list that goes on): the game dims them with twelve one-pixel lines,
+ * each a step darker, which at a higher resolution is a stair of bands. The producer (MAINMENU 58EC.c) draws the row as a plain one
+ * instead and fades it: draw_items.h pc_frame_fade gives an opacity that runs down the screen, one value to a vertex (the hardware
+ * path's 2D opacity, here per vertex). Setting menu_end_fade: its strength, 0 the game's own lines (the classic look, exactly); and
+ * menu_end_fade_length, the lines it takes to fade out. */
+float pc_menu_end_fade = 1.0f, pc_menu_end_fade_length = 12.0f;
+static int primitive_edge_fade;        /* of the packet being drawn (pc_hw_set_attr) */
+static float edge_fade_y[2], edge_fade_a[2]; /* its two lines and opacities (0..1) */
+/* The opacity (0..127, the normal's x) at screen line `y` of the packet's edge fade. */
+static int8_t edge_fade_at(float y)
+{
+    float t = edge_fade_y[1] != edge_fade_y[0] ? (y - edge_fade_y[0]) / (edge_fade_y[1] - edge_fade_y[0]) : 1.0f;
+    t = t < 0.0f ? 0.0f : t > 1.0f ? 1.0f : t;
+    float a = (edge_fade_a[0] + (edge_fade_a[1] - edge_fade_a[0]) * t) * (float)primitive_opacity / 256.0f;
+    return (int8_t)(a * 127.0f + 0.5f);
+}
 void pc_hw_set_2d(int is_2d)
 { PC_HW_METER(set_2d);
     primitive_2d = is_2d;
@@ -471,6 +487,9 @@ void pc_hw_set_attr(const pc_hw_attr* a, int screen_x, int screen_w)
     primitive_anchor = a->anchor;
     primitive_exact = a->exact;
     primitive_opacity = a->opacity;
+    primitive_edge_fade = a->has_fade;
+    if (a->has_fade)
+        edge_fade_y[0] = a->fade_y[0], edge_fade_y[1] = a->fade_y[1], edge_fade_a[0] = a->fade_a[0] / 255.0f, edge_fade_a[1] = a->fade_a[1] / 255.0f;
     anchor_left = (float)screen_x;
     anchor_right = (float)(screen_x + screen_w);
     float span_note[6] = { 0 };
@@ -583,6 +602,7 @@ void pc_hw_begin_ot(void)
     primitive_anchor = PC_ANCHOR_NONE;
     primitive_exact = 0;
     primitive_opacity = 256;
+    primitive_edge_fade = 0;
     ++edge_generation;
     if (collect_count) {
         memcpy(caster_ready, caster_collect, (size_t)collect_count * 9 * sizeof(float));
@@ -786,11 +806,13 @@ static const char* draw_vertex_source =
     "flat out vec4 v_normal;\n"
     "flat out uvec4 v_bounds;\n"
     "flat out ivec2 v_ui;\n"
+    "smooth out float v_fade;\n"
     "smooth centroid out float v_z_persp;\n"
     "noperspective centroid out float v_z_affine;\n"
     "void main() {\n"
     "    v_z_persp = v_z_affine = a_pos.z;\n"
     "    v_normal = a_normal;\n"
+    "    v_fade = a_normal.x;\n"
     "    v_bounds = a_bounds;\n"
     "    v_ui = a_ui;\n"
     "    v_color_affine = v_color_persp = vec3(a_color.rgb) / 255.0;\n"
@@ -812,6 +834,7 @@ static const char* draw_fragment_source =
     "flat in vec4 v_normal;\n"
     "flat in uvec4 v_bounds;\n" /* u min, v min, u max, v max */
     "flat in ivec2 v_ui;\n"
+    "smooth in float v_fade;\n"
     "smooth centroid in float v_z_persp;\n"
     "noperspective centroid in float v_z_affine;\n"
     "uniform int perspective;\n"
@@ -937,7 +960,7 @@ static const char* draw_fragment_source =
      * texels' colour, by coverage (texels of a recorded frame redrawn with
      * ui_text original: whole). */
     /* FLAG_FADE (2D at an opacity, text batches): v_normal.x the opacity. */
-    "    float fade = (flags & 128u) != 0u ? clamp(v_normal.x, 0.0, 1.0) : 1.0;\n"
+    "    float fade = (flags & 128u) != 0u ? clamp(v_fade, 0.0, 1.0) : 1.0;\n"
     "    if ((pass == 3 && (semi || fade < 0.5 || (text_alpha >= 0.0 && text_alpha < 0.5))) || (pass == 4 && semi)\n"
     "        || (pass == 5 && !semi)) discard;\n"
     "    color = vec4(c, float(mask));\n"
@@ -2254,7 +2277,7 @@ static void triangle_apply_body(const int* xy, const int* uv, const int* rgb, un
         blend = BLEND_TEXT + (semi ? (int)((tpage >> 5) & 3) : 4);
     /* 2D at an opacity (pc_hw_opacity_packets): over what is drawn by it, in
      * the text passes (the target's: not text from distance texels). */
-    int fade = primitive_opacity < 256 && primitive_2d && !(depth[0] | depth[1] | depth[2]) && !exact_cover;
+    int fade = (primitive_opacity < 256 || primitive_edge_fade) && primitive_2d && !(depth[0] | depth[1] | depth[2]) && !exact_cover;
     if (fade && !distance)
         blend = BLEND_TEXT_TARGET + (semi ? (int)((tpage >> 5) & 3) : 4);
     if (blend != batch_blend || memcmp(area, batch_clip, sizeof batch_clip)
@@ -2382,7 +2405,11 @@ static void triangle_apply_body(const int* xy, const int* uv, const int* rgb, un
         v->u = (uint16_t)uv[i * 2];
         v->v = (uint16_t)uv[i * 2 + 1];
         v->tpage = (uint16_t)tpage;
-        memcpy(&v->nx, normal, 4);
+        if (fade && primitive_edge_fade) { /* (an opacity of this vertex's own line) */
+            int8_t own[4] = { edge_fade_at(v->y), normal[1], normal[2], normal[3] };
+            memcpy(&v->nx, own, 4);
+        } else
+            memcpy(&v->nx, normal, 4);
         v->clut = (uint16_t)clut;
         v->window = window | triangle_tag | (capture_taken && ((tpage >> 7) & 3) == 2 ? WINDOW_CAPTURE : 0);
         if (capture_taken && ((tpage >> 7) & 3) == 2) {
@@ -2466,6 +2493,8 @@ typedef struct {
     int mask_set, mask_check;
     int is_2d, cover, extend, narrowed, anchor, opacity, uv_shift[2];
     float span[2];
+    int edge_fade; /* the packet's edge fade (primitive_edge_fade, edge_fade_*) */
+    float edge_y[2], edge_a[2];
     int sprite; /* a sprite (else a scaled quad) */
 } text_piece;
 static text_piece text_pieces[TEXT_PIECES];
@@ -2509,6 +2538,8 @@ static void text_emit(int count, const pc_ui_text_quad* quads)
         primitive_2d = p->is_2d, primitive_cover = p->cover;
         primitive_extend = p->extend, primitive_narrowed = p->narrowed, primitive_anchor = p->anchor;
         primitive_opacity = p->opacity;
+        primitive_edge_fade = p->edge_fade;
+        memcpy(edge_fade_y, p->edge_y, sizeof p->edge_y), memcpy(edge_fade_a, p->edge_a, sizeof p->edge_a);
         primitive_uv_shift[0] = p->uv_shift[0], primitive_uv_shift[1] = p->uv_shift[1];
         primitive_span[0] = p->span[0], primitive_span[1] = p->span[1];
         has_line_x = has_exact = exact_cover = has_pending_depth = has_pending_precise = 0;
@@ -2547,7 +2578,8 @@ static void text_run_flush(void)
     /* The state of whatever is being drawn now, restored after. */
     int was_2d = primitive_2d, was_cover = primitive_cover, was_extend = primitive_extend;
     int was_narrowed = primitive_narrowed, was_anchor = primitive_anchor, was_suppress = rsuppress;
-    int was_opacity = primitive_opacity;
+    int was_opacity = primitive_opacity, was_edge_fade = primitive_edge_fade;
+    float was_edge_y[2] = { edge_fade_y[0], edge_fade_y[1] }, was_edge_a[2] = { edge_fade_a[0], edge_fade_a[1] };
     int was_shift[2] = { primitive_uv_shift[0], primitive_uv_shift[1] };
     float was_span[2] = { primitive_span[0], primitive_span[1] };
     uintptr_t was_packet = current_packet;
@@ -2576,7 +2608,8 @@ static void text_run_flush(void)
     triangle_tag = 0;
     primitive_2d = was_2d, primitive_cover = was_cover, primitive_extend = was_extend;
     primitive_narrowed = was_narrowed, primitive_anchor = was_anchor, rsuppress = was_suppress;
-    primitive_opacity = was_opacity;
+    primitive_opacity = was_opacity, primitive_edge_fade = was_edge_fade;
+    memcpy(edge_fade_y, was_edge_y, sizeof was_edge_y), memcpy(edge_fade_a, was_edge_a, sizeof was_edge_a);
     primitive_uv_shift[0] = was_shift[0], primitive_uv_shift[1] = was_shift[1];
     primitive_span[0] = was_span[0], primitive_span[1] = was_span[1];
     current_packet = was_packet;
@@ -2614,6 +2647,8 @@ static void text_piece_add(const pc_ui_text_piece_info* info, int sprite, unsign
     p->rgb = rgb, p->code = code, p->window = window, p->mask_set = mask_set, p->mask_check = mask_check;
     p->is_2d = primitive_2d, p->cover = primitive_cover, p->extend = primitive_extend;
     p->narrowed = primitive_narrowed, p->anchor = primitive_anchor, p->opacity = primitive_opacity;
+    p->edge_fade = primitive_edge_fade;
+    memcpy(p->edge_y, edge_fade_y, sizeof p->edge_y), memcpy(p->edge_a, edge_fade_a, sizeof p->edge_a);
     p->uv_shift[0] = primitive_uv_shift[0], p->uv_shift[1] = primitive_uv_shift[1];
     p->span[0] = primitive_span[0], p->span[1] = primitive_span[1];
     text_emitting = 1; /* (the original does not end the run) */
@@ -2732,6 +2767,8 @@ static void rect_triangles(int x, int y, int w, int h, int u, int v, unsigned rg
             xy[i * 2 + 1] = y + c[1];
             uvs[i * 2] = u + c[0];
             uvs[i * 2 + 1] = v + c[1];
+            for (int k = 0; k < 3; k++)
+                colors[i * 3 + k] = (rgb >> (k * 8)) & 255;
         }
         pc_hw_triangle(xy, uvs, colors, code, tpage, clut, window, clip, mask_set, mask_check);
     }
@@ -2821,6 +2858,7 @@ void pc_hw_clear_exact(void)
 int pc_ui_lines = 1;         /* PC_UI_LINES_*: joined (default) or legacy */
 const char* const pc_ui_lines_names[2] = { "legacy", "joined" };
 int pc_ui_outline_boost = 0; /* 2D lines this many output pixels thicker (0-3) */
+float pc_ui_wire_width = 1.5f; /* a 3D wire's (the targeting sphere's) lines, output pixels across, drawn from their unrounded ends; 0: one native pixel as the game's */
 long pc_hw_lines_drawn;      /* line segments drawn here (RPC ui_bubbles: tests) */
 extern int pc_gl_view[4] __attribute__((weak)); /* the presented view (gl_present.c / vk_present.c) */
 static int display_rect[4];                     /* (below) */
@@ -2883,6 +2921,46 @@ void pc_hw_line(int x0, int y0, int x1, int y1, unsigned c0, unsigned c1, int se
     if (pc_ui_lines == PC_UI_LINES_LEGACY) {
         line_legacy(x0, y0, x1, y1, c0, c1, semi, tpage, clip, mask_set);
         return;
+    }
+    /* A wire the game projects (the targeting sphere): from its unrounded ends, a thin line at the output's own pixels, its edges
+     * feathered by a pixel (coverage), not a band a native pixel across between whole-pixel ends. */
+    if (cur_attr.has_wire && pc_ui_wire_width > 0.0f && pc_hw_scale > 1) {
+        float ox = (float)(x1 - (int)floorf(cur_attr.wire[2])), oy = (float)(y1 - (int)floorf(cur_attr.wire[3]));
+        float p0[2] = { cur_attr.wire[0] + ox, cur_attr.wire[1] + oy }, p1[2] = { cur_attr.wire[2] + ox, cur_attr.wire[3] + oy };
+        float ex = p1[0] - p0[0], ey = p1[1] - p0[1], length = sqrtf(ex * ex + ey * ey);
+        /* (the start the game nudges by a pixel: the ends are the ones that agree with the packet's) */
+        if (length > 0.001f && fabsf(p0[0] - (float)x0) <= 2.0f && fabsf(p0[1] - (float)y0) <= 2.0f) {
+            pc_hw_set_packet(NULL);
+            float per = pc_hw_native_per_output_now();
+            float half = pc_ui_wire_width * 0.5f * per, feather = per;
+            float nx = -ey / length, ny = ex / length;
+            float offset[4] = { -half - feather, -half, half, half + feather };
+            int cover[4] = { 0, 256, 256, 0 };
+            int rgb0[3], rgb1[3];
+            for (int ch = 0; ch < 3; ch++)
+                rgb0[ch] = (int)((c0 >> (ch * 8)) & 255), rgb1[ch] = (int)((c1 >> (ch * 8)) & 255);
+            for (int strip = 0; strip < 3; strip++) {
+                /* corners: start side a, start side b, end side a, end side b */
+                float q[4][2] = { { p0[0] + nx * offset[strip], p0[1] + ny * offset[strip] },
+                    { p0[0] + nx * offset[strip + 1], p0[1] + ny * offset[strip + 1] },
+                    { p1[0] + nx * offset[strip], p1[1] + ny * offset[strip] },
+                    { p1[0] + nx * offset[strip + 1], p1[1] + ny * offset[strip + 1] } };
+                int qc[4] = { cover[strip], cover[strip + 1], cover[strip], cover[strip + 1] };
+                static const int order[2][3] = { { 0, 1, 2 }, { 1, 3, 2 } };
+                for (int t = 0; t < 2; t++) {
+                    float xy[6];
+                    int rgb[9], uv[6] = { 0 };
+                    for (int i = 0; i < 3; i++) {
+                        int c = order[t][i];
+                        xy[i * 2] = q[c][0], xy[i * 2 + 1] = q[c][1];
+                        uv[i * 2] = qc[c];
+                        memcpy(rgb + i * 3, c < 2 ? rgb0 : rgb1, sizeof rgb0);
+                    }
+                    shape_triangle(xy, uv, rgb, semi ? 2 : 0, tpage, 0, 0, clip, mask_set, 1, NULL);
+                }
+            }
+            return;
+        }
     }
     /* A scanline fill's row (pc_hw_span_shape). */
     span_shape item_shape;

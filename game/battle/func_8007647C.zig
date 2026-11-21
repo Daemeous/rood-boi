@@ -4,7 +4,7 @@ const v = @import("views_146C");
 const c = @import("c_146C");
 
 /// orig: func_8007647C (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
-/// Resets the stats of battle slot `slot` and copies the name from D_8004FDD0; `mode` picks its flag bit.
+/// Resets the stats of battle slot `slot` and copies the name from D_8004FDD0 and the first row of the arts table; `mode` picks its flag bit.
 pub fn func_8007647C(arg0: c_int, arg1: c_int) callconv(.c) void {
     const temp_s1 = psx.at(v.g.vs_battle_actors(), arg0).*.?;
     const temp_s0 = psx.get(temp_s1.stats).?;
@@ -14,11 +14,14 @@ pub fn func_8007647C(arg0: c_int, arg1: c_int) callconv(.c) void {
     temp_s0.maxHP = 1;
     temp_s0.currentHP = 1;
 
-    var i: c_int = 0;
-    while (i < 24) : (i +%= 1) {
-        // i < 24: the name is 24 bytes.
-        psx.get(temp_s1.stats).?.name[@intCast(i)] = v.g.D_8004FDD0()[@intCast(i)];
-    }
+    // The name is 24 bytes. The original copied 24 from D_8004FDD0, a 20-byte table, so the last four were the first four bytes
+    // of the next table in the executable, vs_main_artsPointsRequirements: the first row's first two words (10 and 65 kills).
+    // Both parts are named here, so nothing depends on the two tables lying side by side.
+    const name = &psx.get(temp_s1.stats).?.name;
+    var i: usize = 0;
+    while (i < 20) : (i += 1) name[i] = v.g.D_8004FDD0()[i];
+    const arts_row: [*]const u8 = @ptrCast(v.g.vs_main_artsPointsRequirements());
+    while (i < 24) : (i += 1) name[i] = @bitCast(arts_row[i - 20]);
 
     switch (@as(c_int, arg1) & 0xFF) {
         1 => {

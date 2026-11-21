@@ -29,7 +29,7 @@ unsigned int vs_core_mathSquaredVectorLength(int, int, int);
 int vs_battle_aiIsEngagementReady(vs_battle_aiState*);
 unsigned int vs_core_mathSquaredVectorLength(int, int, int);
 
-extern unsigned int vs_battle_aiPerceptionRangesSquared[];
+extern unsigned int vs_battle_aiPerceptionRangesSquared[8];
 extern unsigned char D_800F17D8[], D_80069C18[];
 extern actorSettingsEntry vs_battle_aiWanderTimingPresets[];
 int func_800E7F8C(vs_battle_aiState*);

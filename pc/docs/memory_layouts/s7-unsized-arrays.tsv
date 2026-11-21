@@ -1,0 +1,80 @@
+# S7 first group: the 77 imports pinned as 'an array of unknown length' or 'follows one' (name, address, VS-NativePort ledger size, gap to the next import, declared type, state now, verdict)
+# batch 1 and 2 are declared sized; gimmickModelTemplates is NOT [3]: vs_field_gimmickTemplateIndices holds indices up to 0xE, so its real length is 15+ and labels sit inside it (overlap group)
+# name	address	ledger bytes	gap to next import	declared as	now	verdict
+_cdlAtv	0x800365d0	4	4	CdlATV	pinned	follows g_Sound_LfoTable (moved, short *[]): held until its extent is declared
+vs_core_mathArcTangentTable	0x80040a14		516	u_char []	pinned	not in the ledger; extent from the code per case
+D_80040C18	0x80040c18		384	short []	pinned	not in the ledger; extent from the code per case
+_nowLoading_header	0x80049150	4	4	imgHeader_t	pinned	follows D_80040D98 (pinned, short []): held until its extent is declared
+_nowLoading_data	0x80049154	-1	10376	u_long []	pinned	ledger smaller than the gap: unlabelled bytes after it
+vs_main_locationZoneMapIds	0x8004f0cc	1024	1024	char []	moved	declared with its real extent (batch 1: ledger = gap, index range checked in the code)
+vs_main_zndFiles	0x8004f4cc	2048	2048	struct {...} []	moved	declared with its real extent (batch 1: ledger = gap, index range checked in the code)
+vs_field_zoneMusicIds	0x8004fccc		260	[0]u8	moved	unsized in the source; moved because its next import moved (the mover keeps the group in its guest layout; the extent is the gap)
+D_8004FDD0	0x8004fdd0	20	20	char []	moved	[20] declared; func_8007647C copies the 20 bytes and the 4 of vs_main_artsPointsRequirements[0][0..1] (10, 65) by name: no adjacency
+vs_main_artsPointsRequirements	0x8004fde4	120	120	u_short [][4]	moved	declared with its real extent (batch 1: ledger = gap, index range checked in the code)
+vs_main_battleAbilitiesPointsRequirements	0x8004fe5c	300	44	u_short []	moved	declared with its real extent (batch 1: ledger = gap, index range checked in the code); ledger row 300 spans following labels, code indexes < 22
+randArr	0x8004ff88	388	388	int [97]	pinned	follows vs_actors_usesSecondaryBodyModel (pinned, [0]u8): held until its extent is declared
+_resetEnabled	0x80055c88	4	8	int	moved	unsized in the source; moved because its next import moved (the mover keeps the group in its guest layout; the extent is the gap)
+_buttonHeldFrameCount	0x80055c90	128	200	u_int []	pinned	ledger smaller than the gap: unlabelled bytes after it
+vs_main_nearClip	0x8005e0c8	4	8	int	moved	unsized in the source; moved because its next import moved (the mover keeps the group in its guest layout; the extent is the gap)
+vs_field_legacyBackgroundGradientPackets	0x80068c1c		664	int []	moved	unsized in the source; moved because its next import moved (the mover keeps the group in its guest layout; the extent is the gap)
+vs_field_weatherVolumeByIntensity	0x80068eb4		80	char []	moved	unsized in the source; moved because its next import moved (the mover keeps the group in its guest layout; the extent is the gap)
+D_80068F04	0x80068f04	96	96	int [][4]	moved	declared with its real extent (batch 1: ledger = gap, index range checked in the code)
+D_80068F64	0x80068f64	48	48	u_short [][4]	moved	declared with its real extent (batch 1: ledger = gap, index range checked in the code)
+D_80068F94	0x80068f94	24	24	int []	moved	declared with its real extent (batch 1: ledger = gap, index range checked in the code)
+vs_battle_labelCaptionRects	0x80068fac		264	RECT []	moved	unsized in the source; moved because its next import moved (the mover keeps the group in its guest layout; the extent is the gap)
+vs_battle_statusLabelLayouts	0x800690b4		128	CombatLabel []	moved	unsized in the source; moved because its next import moved (the mover keeps the group in its guest layout; the extent is the gap)
+vs_battle_statusLabelColors	0x80069134		16	const CVECTOR []	moved	unsized in the source; moved because its next import moved (the mover keeps the group in its guest layout; the extent is the gap)
+D_80069144	0x80069144	56	56	const RECT []	moved	declared with its real extent (batch 1: ledger = gap, index range checked in the code)
+D_8006917C	0x8006917c	104	104	const RECT []	moved	declared with its real extent (batch 1: ledger = gap, index range checked in the code)
+D_80069BBC	0x80069bbc	1376	80	u_int []	pinned	ledger row larger than the gap: it spans following labels (overlap), per case
+D_80069C0C	0x80069c0c		12	unsigned char []	pinned	not in the ledger; extent from the code per case
+D_80069C18	0x80069c18	1284	4	unsigned char []	pinned	ledger row larger than the gap: it spans following labels (overlap), per case
+vs_battle_aiPerceptionRangesSquared	0x80069c1c		32	unsigned int []	pinned	declared with its real extent (batch 2: gap and the code agree)
+_glyphWidths	0x8006ff7c	440244	224	u_char []	pinned	follows vs_ending_creditsScriptBytes (pinned, u_char []): held until its extent is declared
+D_8007005C	0x8007005c	20	11952	vs_ending_CreditsTimHeader	pinned	follows _glyphWidths (pinned, u_char []): held until its extent is declared
+D_800BD91C	0x800bd91c	20	18764	vs_ending_CreditsTimHeader	pinned	follows _debugFont (pinned, u_long []): held until its extent is declared
+vs_field_lockedDoorIndexRanges	0x800e849c		16	short []	pinned	not in the ledger; extent from the code per case
+vs_field_lockedDoorRoomPairs	0x800e84ac		92	char [][4]	pinned	not in the ledger; extent from the code per case
+vs_actors_textureSlotRowOffsets	0x800e8f90		24	u_char []	pinned	not in the ledger; extent from the code per case
+D_800E8FA8	0x800e8fa8	32	12	u_char []	pinned	ledger row larger than the gap: it spans following labels (overlap), per case
+D_800E8FC0	0x800e8fc0	1	4	char	pinned	follows vs_field_gimmickModelTemplates (moved, void *[]): held until its extent is declared
+_weaponMaterialPaletteMap	0x800e8fc8	3432	8	u_char []	pinned	ledger row larger than the gap: it spans following labels (overlap), per case
+D_800E8FD0	0x800e8fd0	3424	96	u_char []	pinned	ledger row larger than the gap: it spans following labels (overlap), per case
+vs_field_gimmickOrientationRotations	0x800e9030		96	u_char []	pinned	not in the ledger; extent from the code per case
+D_800E9090	0x800e9090	3232	12	u_char []	pinned	ledger row larger than the gap: it spans following labels (overlap), per case
+vs_field_interactingGimmickId	0x800e90a8		4	int	pinned	follows D_800E909C (pinned, u_char []): held until its extent is declared
+vs_event_skipPaletteResetCommand	0x800e9be0		8	char []	pinned	not in the ledger; extent from the code per case
+D_800E9BE8	0x800e9be8	328	4	char []	pinned	ledger row larger than the gap: it spans following labels (overlap), per case
+D_800E9BEC	0x800e9bec	324	4	u_char []	pinned	ledger row larger than the gap: it spans following labels (overlap), per case
+vs_event_menuTransitionModes	0x800e9bf0		4	u_char []	pinned	not in the ledger; extent from the code per case
+vs_event_sceneTimerModes	0x800e9bf4		4	short []	pinned	not in the ledger; extent from the code per case
+vs_event_sceneTimerResetScopes	0x800e9bf8		8	short []	pinned	not in the ledger; extent from the code per case
+vs_event_opcodeSizes	0x800e9c30		1280	u_char []	pinned	not in the ledger; extent from the code per case
+D_800EA130	0x800ea130		260	u_short []	pinned	not in the ledger; extent from the code per case
+D_800EA234	0x800ea234	1004	144	short []	pinned	ledger row larger than the gap: it spans following labels (overlap), per case
+D_800EA2C4	0x800ea2c4	860	372	short []	pinned	ledger row larger than the gap: it spans following labels (overlap), per case
+vs_battle_sphereShapeCommandStarts	0x800ea438		52	u_char []	pinned	not in the ledger; extent from the code per case
+vs_battle_sphereWireframeCommands	0x800ea46c		436	u_short []	pinned	not in the ledger; extent from the code per case
+vs_battle_positionCursorSpriteOffsets	0x800ea670		20	int []	pinned	follows vs_battle_limbNames (moved, char *[]): held until its extent is declared
+vs_battle_positionCursorSpriteSizes	0x800ea684		20	int []	pinned	follows vs_battle_positionCursorSpriteOffsets (pinned, int []): held until its extent is declared
+vs_battle_positionCursorSpriteTexCoords	0x800ea698		20	int []	pinned	follows vs_battle_positionCursorSpriteSizes (pinned, int []): held until its extent is declared
+vs_battle_positionCursorBlinkFrame	0x800ea6ac		4	u_char	pinned	follows vs_battle_positionCursorSpriteTexCoords (pinned, int []): held until its extent is declared
+D_800EB708	0x800eb708	264	172	u_char []	pinned	follows vs_event_textBoxFrameStyles (moved, u_char *[]): held until its extent is declared
+vs_render_compactGlyphWidths	0x800eb7b4		32	u_char []	pinned	follows D_800EB708 (pinned, u_char []): held until its extent is declared
+D_800EB7D4	0x800eb7d4	60	60	u_char []	pinned	declared with its real extent (batch 1: ledger = gap, index range checked in the code)
+vs_battle_characterWidths	0x800eb810	413	380	unsigned char []	moved	unsized in the source; moved because its next import moved (the mover keeps the group in its guest layout; the extent is the gap)
+D_800EB98C	0x800eb98c	32	32	u_short [16]	moved	unsized in the source; moved because its next import moved (the mover keeps the group in its guest layout; the extent is the gap)
+D_800EBD68	0x800ebd68	8	8	char []	moved	declared with its real extent (batch 1: ledger = gap, index range checked in the code)
+_spellClassCounts	0x800ebda8	4	4	u_char []	moved	declared with its real extent (batch 1: ledger = gap, index range checked in the code)
+vs_battle_chainAbilityOffsets	0x800ebdbc	16	16	char []	moved	declared with its real extent (batch 1: ledger = gap, index range checked in the code)
+vs_battle_defenseAbilityOffsets	0x800ebdcc	16	16	char []	moved	declared with its real extent (batch 1: ledger = gap, index range checked in the code)
+vs_battle_doorStrings	0x800ebddc		380	u_short []	pinned	not in the ledger; extent from the code per case
+D_800EBF58	0x800ebf58	788	768	char [][12]	pinned	ledger row larger than the gap: it spans following labels (overlap), per case
+D_800F1A50	0x800f1a50	48	24	int []	pinned	ledger row larger than the gap: it spans following labels (overlap), per case
+vs_actors_sequenceTexturePagesOneBased	0x800f244f		1	u_char []	pinned	not in the ledger; extent from the code per case
+D_800F2450	0x800f2450	8424	8	u_char []	pinned	ledger row larger than the gap: it spans following labels (overlap), per case
+vs_field_gimmickPaletteColors	0x800f4448		224	char []	pinned	not in the ledger; extent from the code per case
+vs_actors_sharedSequenceAnimationIds	0x800f4628		128	short [4][16]	moved	unsized in the source; moved because its next import moved (the mover keeps the group in its guest layout; the extent is the gap)
+vs_render_legacyActorTextureSlots	0x800f46a8		192	vs_battle_texInfo_t []	pinned	not in the ledger; extent from the code per case
+vs_event_eventSource	0x800f4be0		2	u_short	moved	unsized in the source; moved because its next import moved (the mover keeps the group in its guest layout; the extent is the gap)
+D_800F5874	0x800f5874	4	4	int	pinned	follows vs_battle_effectRenderers (moved, effectExec []): held until its extent is declared

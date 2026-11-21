@@ -44,9 +44,17 @@ extern fn vs_gte_cfc2(ctx: *Ctx, reg: c_int) callconv(.c) c_uint;
 extern fn vs_gte_cop2(ctx: *Ctx, op: c_int) callconv(.c) void;
 extern fn vs_gte_apply_matrix_lv(m: *anyopaque, v0: *anyopaque, v1: *anyopaque) callconv(.c) void;
 extern fn vs_gte_screen_current() callconv(.c) Screen;
+extern fn pc_gte_last_projection(x: *f32, y: *f32) callconv(.c) void;
 
 /// For a transform or a rotation, which do not project.
 pub const no_screen: Screen = .{ .ofx = 0, .ofy = 0, .h = 0, .dqa = 0, .dqb = 0, .zsf3 = 0, .zsf4 = 0 };
+
+/// The last `project`'s screen position before the registers cut it to whole pixels (x, y; narrowed as the registers are in widescreen).
+pub fn lastProjection() [2]f32 {
+    var p: [2]f32 = undefined;
+    pc_gte_last_projection(&p[0], &p[1]);
+    return p;
+}
 
 /// The projection the game has set so far (SetGeomOffset, SetGeomScreen).
 pub fn screenCurrent() Screen {

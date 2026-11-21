@@ -19,7 +19,7 @@ fn facingTrig(angle_in: c_uint) c_int {
             index = 0x200 - index;
             offset = 2;
         }
-        value = @as(*align(1) const u16, @ptrCast(v.g._trig_table() + offset + index * 4)).*;
+        value = @as(*align(1) const u16, @ptrCast(@as([*]const u8, v.g._trig_table()) + offset + index * 4)).*;
     }
     return if (angle & 0x800 != 0) -%value else value;
 }

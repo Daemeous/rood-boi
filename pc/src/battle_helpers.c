@@ -200,6 +200,7 @@ int vs_battle_lineModeItem(unsigned* ot, int semi, int rgb, int xy0, int xy1, in
     pc_item* it = pc_frame_add(PC_ITEM_LINE, 0);
     if (it) {
         it->flags = semi ? PC_ITEM_SEMI : 0, it->mode = (unsigned short)(mode & 0x3fff);
+        pc_frame_wire_take(it);
         it->x[0] = (short)xy0, it->y[0] = (short)(xy0 >> 16), it->x[1] = (short)xy1, it->y[1] = (short)(xy1 >> 16);
         it->rgb[0][0] = (unsigned char)rgb, it->rgb[0][1] = (unsigned char)(rgb >> 8), it->rgb[0][2] = (unsigned char)(rgb >> 16);
     }

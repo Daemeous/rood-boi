@@ -45,7 +45,7 @@ void func_800E5998(void);
 void func_800E5A74(int* arg0, func_800E5A74_t* arg1);
 
 typedef int actorSettingsCallback(vs_battle_aiState*);
-extern unsigned int vs_battle_aiPerceptionRangesSquared[];
+extern unsigned int vs_battle_aiPerceptionRangesSquared[8];
 extern unsigned short vs_battle_aiViewAngles[][2], D_800F17C8[][2];
 extern unsigned char D_800F17D8[], D_80069C18[];
 extern actorSettingsEntry vs_battle_aiWanderTimingPresets[];

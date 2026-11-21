@@ -734,7 +734,55 @@ void pc_frame_anchor(int first, int end, int anchor)
 /* Items [first, end) drawn at `opacity` (16.16: 0x10000 opaque), as the packets of a range were (the last range to name an item wins). */
 int pc_frame_drawing_hidden; /* the item being drawn is PC_ITEM_HW_HIDDEN (boot_runtime.c) */
 const float* pc_frame_drawing_span; /* the item being drawn's fill shape (boot_runtime.c), NULL none */
+const float* pc_frame_drawing_wire; /* the item being drawn's unrounded line ends (boot_runtime.c), NULL none */
+static float wire_pending[4];
+static int wire_is_pending;
+void pc_frame_wire_next(float x0, float y0, float x1, float y1)
+{
+    wire_pending[0] = x0, wire_pending[1] = y0, wire_pending[2] = x1, wire_pending[3] = y1;
+    wire_is_pending = 1;
+}
+/* The line the game did not make an item of (its depth test sent it away) leaves nothing for the next one to take. */
+void pc_frame_wire_clear(void)
+{
+    wire_is_pending = 0;
+}
+/* The line item `it` takes the ends set by pc_frame_wire_next, if any. */
+void pc_frame_wire_take(pc_item* it)
+{
+    if (!wire_is_pending)
+        return;
+    wire_is_pending = 0;
+    it->flags |= PC_ITEM_WIRE;
+    memcpy(it->wire, wire_pending, sizeof it->wire);
+}
 int pc_frame_drawing_anchor = -1, pc_frame_drawing_opacity = -1; /* the item being drawn's anchor and opacity (boot_runtime.c), -1 none */
+void pc_frame_fade_extent(int first, int end, int a0, int a1)
+{
+    int lo = 0x7fff, hi = -0x7fff;
+    for (int i = first < 0 ? 0 : first; i < end && i < pc_item_frame.count; i++) {
+        const pc_item* it = &pc_item_frame.item[i];
+        int n = it->kind == PC_ITEM_POLY ? it->verts : it->kind == PC_ITEM_LINE ? 2 : 0;
+        if (it->kind == PC_ITEM_TILE || it->kind == PC_ITEM_SPRITE) {
+            lo = it->y[0] < lo ? it->y[0] : lo, hi = it->y[0] + it->h > hi ? it->y[0] + it->h : hi;
+        }
+        for (int k = 0; k < n; k++) {
+            lo = it->y[k] < lo ? it->y[k] : lo, hi = it->y[k] + 1 > hi ? it->y[k] + 1 : hi;
+        }
+    }
+    if (hi > lo)
+        pc_frame_fade(first, end, lo, a0, hi, a1);
+}
+int pc_frame_drawing_fade[5]; /* the item being drawn's edge fade (PC_ITEM_FADE): y0, y1, a0, a1, on */
+void pc_frame_fade(int first, int end, int y0, int a0, int y1, int a1)
+{
+    for (int i = first < 0 ? 0 : first; i < end && i < pc_item_frame.count; i++) {
+        pc_item* it = &pc_item_frame.item[i];
+        it->flags |= PC_ITEM_FADE;
+        it->fade_y[0] = (short)y0, it->fade_y[1] = (short)y1;
+        it->fade_a[0] = (unsigned char)(a0 < 0 ? 0 : a0 > 255 ? 255 : a0), it->fade_a[1] = (unsigned char)(a1 < 0 ? 0 : a1 > 255 ? 255 : a1);
+    }
+}
 void pc_frame_span(int item, int length, float top_left, float top_right, float bottom_left, float bottom_right)
 {
     pc_item* it = item >= 0 && item < pc_item_frame.count ? &pc_item_frame.item[item] : NULL;
@@ -976,7 +1024,13 @@ static void draw_run(int first, int count)
         int textured_poly = it->kind == PC_ITEM_POLY && (it->flags & PC_ITEM_TEXTURED);
         pc_frame_drawing_anchor = it->flags & PC_ITEM_ANCHORED ? it->anchor : -1;
         pc_frame_drawing_opacity = it->flags & PC_ITEM_OPACITY ? it->opacity : -1;
+        if (it->flags & PC_ITEM_FADE)
+            pc_frame_drawing_fade[0] = it->fade_y[0], pc_frame_drawing_fade[1] = it->fade_y[1], pc_frame_drawing_fade[2] = it->fade_a[0],
+                pc_frame_drawing_fade[3] = it->fade_a[1], pc_frame_drawing_fade[4] = 1;
+        else
+            pc_frame_drawing_fade[4] = 0;
         pc_frame_drawing_span = it->flags & PC_ITEM_SPAN ? it->span : NULL;
+        pc_frame_drawing_wire = it->flags & PC_ITEM_WIRE ? it->wire : NULL;
         if ((it->flags & PC_ITEM_WINDOW) && it->tw != window) {
             at[18] = 0x01ffffffu; /* one word: GP0 E2, the texture window */
             at[19] = 0xe2000000u | (it->tw & 0xfffffu);
@@ -1008,7 +1062,9 @@ static void draw_run(int first, int count)
         pc_draw_item_packet(at + 2);
         pc_frame_drawing_hidden = 0;
         pc_frame_drawing_anchor = pc_frame_drawing_opacity = -1;
+        pc_frame_drawing_fade[4] = 0;
         pc_frame_drawing_span = NULL;
+        pc_frame_drawing_wire = NULL;
         if (it->flags & PC_ITEM_AFTER)
             mode = it->after; /* (left set after it) */
     }

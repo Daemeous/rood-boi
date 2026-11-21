@@ -54,8 +54,8 @@ pub fn vs_actors_textureFrameMove(actor: ?*v.D_800F4538_t, index: c_int, frame: 
     const packet: *v.DR_MOVE = @ptrCast(@alignCast(common.scratch.get().unk0));
 
     const slot: c_int = a.unk5BB;
-    const x: c_int = psx.byteAt(i16, v.g.vs_actors_textureSlotOrigins(), slot * 4).*;
-    const y: c_int = psx.byteAt(i16, v.g.vs_actors_textureSlotOrigins(), slot * 4 + 2).*;
+    const x: c_int = v.g.vs_actors_textureSlotOrigins()[@intCast(slot)][0];
+    const y: c_int = v.g.vs_actors_textureSlotOrigins()[@intCast(slot)][1];
     const row: c_int = psx.at(v.g.vs_actors_textureSlotRowOffsets(), slot).*;
     const py: c_int = overlay.y;
     const f: c_int = @as(c_int, psx.at(v.g.D_800F2450(), sel).*) & 15;

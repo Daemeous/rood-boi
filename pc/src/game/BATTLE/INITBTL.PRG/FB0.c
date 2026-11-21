@@ -8,7 +8,7 @@ extern char _loadShpState;
 extern char D_800E8F2B;
 extern char vs_actors_sharedSequenceBankIndex;
 extern char _loadEtmState;
-extern short vs_actors_textureSlotOrigins[][2];
+extern short vs_actors_textureSlotOrigins[24][2];
 extern char D_800E8FC0;
 extern char D_800F2450[];
 extern void* vs_actors_sharedSequenceData[]; /* 30DB0.c: heap buffer pointers (8 bytes each on LP64) */

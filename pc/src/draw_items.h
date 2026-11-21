@@ -51,8 +51,10 @@ enum {
     PC_ITEM_HW_HIDDEN = 1024, /* drawn into the game's own picture (VRAM) but left out of the hardware one (a rain drop solid room geometry hides) */
     PC_ITEM_OFFSET = 512, /* drawing area: x[1], y[1] is also the draw offset (GP0 E5) it sets */
     PC_ITEM_SPAN = 8192,     /* `span` is the shape of the scanline fill this line is a row of (pc_frame_span) */
+    PC_ITEM_WIRE = 32768,    /* line: `wire` is its ends unrounded (screen pixels before the drawing offset: x0, y0, x1, y1), drawn from them as a thin line (ui_wire_width) */
     PC_ITEM_ANCHORED = 2048, /* `anchor` is the widescreen anchor it draws with (pc_frame_anchor) */
     PC_ITEM_OPACITY = 4096,  /* `opacity` (0..256) is how opaque it draws (pc_frame_opacity) */
+    PC_ITEM_FADE = 16384,    /* `fade_y`, `fade_a`: its opacity runs from fade_a[0] at screen line fade_y[0] to fade_a[1] at fade_y[1] (pc_frame_fade) */
     PC_ITEM_BEFORE = 256  /* textured polygon: `before` is the draw mode (GP0 E1) set before it, whose dither and display bits it
                            * draws with (its own page word sets the rest) */
 };
@@ -91,9 +93,15 @@ typedef struct {
     unsigned short before;    /* PC_ITEM_BEFORE: likewise */
     unsigned char anchor;     /* PC_ITEM_ANCHORED: PC_ANCHOR_* (gpu_hw.c), 0x20 set when exact */
     unsigned short opacity;   /* PC_ITEM_OPACITY */
+    short fade_y[2];          /* PC_ITEM_FADE: the two screen lines (draw coordinates) the opacity is given at */
+    unsigned char fade_a[2];  /* PC_ITEM_FADE: the opacity (0..255) at each; past them the nearer one's */
     int anchor_span;          /* the items in the range that set `anchor` (the innermost range wins) */
+    float wire[4];            /* PC_ITEM_WIRE */
     float span[5];            /* PC_ITEM_SPAN: the row's length (x1 - x0) and how its ends join the rows above and below: top left, top right, bottom left, bottom right */
 } pc_item;
+
+/* The line item `it` takes the ends set by pc_frame_wire_next (if any). */
+void pc_frame_wire_take(pc_item* it);
 
 /* A new frame: the previous frame's items are dropped. */
 void pc_frame_begin(void);
@@ -213,9 +221,20 @@ void pc_frame_group(int first, int count);
 void pc_frame_mode_item(int depth, int mode);
 /* The runs a marker placed in [start, end) of packet memory are anchored as that range is (pc_hw_anchor_packets). */
 void pc_frame_anchor_markers(const void* start, const void* end, int anchor);
+/* Items [first, end) drawn with an opacity that runs down the screen: `a0` (0..255) at line `y0`, `a1` at line `y1`, linearly between
+ * and the nearer one's beyond, by each vertex's own line (a menu list's end rows fading out: setting menu_fade). Over the item's own
+ * opacity. The hardware path's 2D opacity (draw_items.h pc_frame_opacity), one value to a vertex. */
+void pc_frame_fade(int first, int end, int y0, int a0, int y1, int a1);
+/* The same over the items' own extent: `a0` at the topmost line any of them covers, `a1` at the lowest. */
+void pc_frame_fade_extent(int first, int end, int a0, int a1);
 /* Items [first, end) drawn at `opacity` (16.16, 0x10000 opaque): a faded text box's glyphs. */
 void pc_frame_opacity(int first, int end, int opacity);
 /* A horizontal line item drawn as one row of a filled shape (the area map's floor): the shape it has, as gpu_hw.c draws it at upscale. */
+/* The unrounded ends of the line item made next (battle_helpers.c vs_battle_lineModeItem takes them). */
+void pc_frame_wire_next(float x0, float y0, float x1, float y1);
+/* Nothing is left pending (called after the line was drawn, whether or not it made an item). */
+void pc_frame_wire_clear(void);
+
 void pc_frame_span(int item, int length, float top_left, float top_right, float bottom_left, float bottom_right);
 /* A copy of the VRAM rectangle `rect` (x, y, w, h: four shorts) to (x, y), drawn after what the top slot of the frame's table holds (the effects' texture
  * moves): a PC_ITEM_COPY item placed at the end of that slot by a marker made at `packet`. A copy with no size draws nothing. */

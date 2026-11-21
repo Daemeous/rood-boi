@@ -974,7 +974,16 @@ row's `vs_battle_renderMenuItem` while it slides) is `PC_ANCHOR_SLIDE`: compress
 like the other 2D but clipped to the whole view, so it travels in from the view's
 own edge to its place in the 4:3 screen, where the original's clip made it appear
 from nothing a fifth of the view in (setting `menu_slide`, on; 0 is the original's
-clipped slide; `pc/tests/menu_open_slide_smoke.py`). A picture the game loads straight into the frame buffer (the title
+clipped slide; `pc/tests/menu_open_slide_smoke.py`). The fade of a menu list's top and bottom rows
+(the rows that show the list goes on) is the game's twelve one-pixel lines, each a step darker, and
+at a higher internal resolution each line is a band of one colour with the background showing
+through. With the setting `menu_end_fade` (0..1, default 1; `menu_end_fade_length`, the lines the
+fade takes, default 12) the row is drawn whole, as a plain row, and its opacity runs down it, from
+whole at the list's side to `1 - strength` at its outer edge: `pc_frame_fade_extent` marks the
+row's items, `PC_ITEM_FADE`, and the hardware path (gpu_hw.c `edge_fade_at`) gives each vertex its
+own opacity (a smooth varying, `v_fade`). 0 draws the game's own lines. The dev panel's sliders; RPC
+`settings {apply: "menu_end_fade 0.5"}`; `pc/tests/menu_end_fade_smoke.py`.
+A picture the game loads straight into the frame buffer (the title
 screen, its copyright; the game code marks those LoadImages, `PC_UPLOAD_AS`)
 is drawn compressed like the 2D over it; StoreImage
 reads back only what native VRAM lacks (native 3D), so the CPU's own 2D

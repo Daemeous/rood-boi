@@ -1196,7 +1196,7 @@ void vs_actors_registerLoadedActor( vs_battle_actor* arg0, int arg1, int arg2, i
 
 vs_battle_actor* vs_actors_createActorWithEquipment(int arg0, int arg1, int bladeWepId, int bladeMaterial, int shieldWepId, int shieldMaterial, vs_battle_objectData_flags* arg6, int arg7);
 
-extern u_char vs_actors_usesSecondaryBodyModel[];
+extern u_char vs_actors_usesSecondaryBodyModel[256]; /* by character kind (a byte) */
 extern vs_battle_charInitData* vs_actors_zoneCharacterInitData;
 
 vs_battle_actor* vs_actors_spawnRoomEnemy( int id, mpdEnemySpawn* spawn, vs_battle_charInitData* init, int flags);

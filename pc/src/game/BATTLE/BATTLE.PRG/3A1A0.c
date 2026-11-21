@@ -61,7 +61,7 @@ int vs_battle_aiRoomNavigationCeilingHeight(void);
 int vs_actors_actorFacingDeltaToPoint(D_800F4538_t*, SVECTOR*);
 
 extern u_int* vs_field_collisionProbeTile;
-extern u_short D_800F49F4;
+extern int D_800F49F4;
 extern u_char vs_actors_supportingGimmickIndex;
 extern u_char vs_field_collisionProbeDirection;
 extern SVECTOR vs_field_collisionProbePosition;

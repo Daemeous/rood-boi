@@ -14,7 +14,7 @@
 #define STATE_BYTES 0x2C10
 #define ACTION_BYTES 52
 extern unsigned char* vs_battle_actionState;
-extern unsigned char vs_main_actions[];
+extern unsigned char vs_main_actions[13312]; /* vs_action_t[256] */
 extern unsigned D_800F196C; /* the battle's mode: 1 free, 2 while an action runs */
 extern unsigned char vs_battle_menuState;
 extern void pc_action_start_player(int kind); /* 146C.c: vs_battle_commitSelectedAction, the entry the menus' target confirmation calls */

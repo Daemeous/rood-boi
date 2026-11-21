@@ -28,8 +28,8 @@ pub fn vs_actors_stepTextureScrolling(actor: ?*v.D_800F4538_t) callconv(.c) void
     const state_base: [*]u8 = @ptrCast(&a.unk181C);
     const part_base: [*]u8 = @ptrCast(&a.texMapOverlays);
     const table = v.g.vs_actors_textureSlotOrigins();
-    const originX: c_int = @as(c_int, @as(*align(1) const i16, @ptrCast(table + page * 4)).*) << 6;
-    const originY: c_int = (@as(c_int, @as(*align(1) const i16, @ptrCast(table + page * 4 + 2)).*) << 8) +%
+    const originX: c_int = @as(c_int, table[page][0]) << 6;
+    const originY: c_int = (@as(c_int, table[page][1]) << 8) +%
         (@as(c_int, v.g.vs_actors_textureSlotRowOffsets()[page]) << 6);
     // Uninitialised in the original (the caller's register): 0 here, so the
     // first part's `bounds[2] != height` holds, as it does unless that register

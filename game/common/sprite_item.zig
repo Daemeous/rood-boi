@@ -137,6 +137,20 @@ pub fn gt4Plain(ot: ?*anyopaque, semi: bool, tpage: c_int, clut: c_int, rgb: []c
     return psx.weak(Gt4Plain, "vs_battle_gt4PlainItem").?(ot, @intFromBool(semi), tpage, clut, rgb.ptr, xy.ptr, uv.ptr);
 }
 
+const WireNext = *const fn (f32, f32, f32, f32) callconv(.c) void;
+
+/// The unrounded ends (screen pixels, before the drawing offset) of the line item `lineMode` makes next: it is drawn from them, not the whole pixels it carries.
+pub fn wireNext(x0: f32, y0: f32, x1: f32, y1: f32) void {
+    psx.weak(WireNext, "pc_frame_wire_next").?(x0, y0, x1, y1);
+}
+
+const WireClear = *const fn () callconv(.c) void;
+
+/// Drops the ends `wireNext` set if no line item took them.
+pub fn wireClear() void {
+    psx.weak(WireClear, "pc_frame_wire_clear").?();
+}
+
 const LineMode = *const fn (?*anyopaque, c_int, c_int, c_int, c_int, c_int) callconv(.c) c_int;
 
 /// A flat line at `ot`, in the draw mode `e1` (the E1 word set before it).

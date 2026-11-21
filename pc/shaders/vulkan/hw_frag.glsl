@@ -11,6 +11,7 @@ layout(location = 6) flat in uvec4 v_bounds; // u min, v min, u max, v max
 layout(location = 7) smooth centroid in float v_z_persp;
 layout(location = 8) noperspective centroid in float v_z_affine;
 layout(location = 9) flat in ivec2 v_ui; // FLAG_UI: atlas origin - v_bounds.xy, in texels
+layout(location = 10) smooth in float v_fade; // FLAG_FADE: the opacity, interpolated
 layout(push_constant) uniform Push {
     vec4 occlusion_rect; // scaled pixels: x0, y0, x1, y1
     int perspective, filtering, occlusion, pass; // pass: 0 all, 1 opaque texels only, 2 translucent texels only;
@@ -131,8 +132,8 @@ void main() {
     }
     if ((pc.pass == 1 && semi) || (pc.pass == 2 && !semi)) discard;
     // (texels of a recorded frame redrawn with ui_text original: whole)
-    // FLAG_FADE (2D at an opacity, gpu_hw.c text batches): v_normal.x the opacity.
-    float fade = (flags & 128u) != 0u ? clamp(v_normal.x, 0.0, 1.0) : 1.0;
+    // FLAG_FADE (2D at an opacity, gpu_hw.c text batches): the opacity, one value to a vertex.
+    float fade = (flags & 128u) != 0u ? clamp(v_fade, 0.0, 1.0) : 1.0;
     if ((pc.pass == 3 && (semi || fade < 0.5 || (text_alpha >= 0.0 && text_alpha < 0.5))) || (pc.pass == 4 && semi)
         || (pc.pass == 5 && !semi)) discard;
     color = vec4(c, float(mask));

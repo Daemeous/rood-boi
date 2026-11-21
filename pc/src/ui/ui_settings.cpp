@@ -576,7 +576,7 @@ void build()
         &pc_ui_menu_opacity, 0, 1, 0.02f, "%.2f"));
     {
         Row r = choice("ui_menu_tint", "Menu tint",
-            "The colour of the modern menus' backdrop and panels. Le\xc3\xa1 Monde is the theme's own; Custom is the "
+            "The colour of the modern menus' backdrop and panels, and of the game's own menus' panels. Le\xc3\xa1 Monde (Original with the game's own menus) leaves the colours as they are; the others recolour the panels; Custom is the "
             "colour from the sliders below.",
             &pc_ui_menu_tint, pc_ui_tint_names(), PC_UI_TINTS);
         r.swatch = [](const Row&, unsigned char* rgb) {
@@ -627,6 +627,12 @@ void build()
         Row r = islider("ui_outline_boost", "Outline boost", "Thicker 2D lines and bubble outlines.",
             &pc_ui_outline_boost, 0, 3, "+%d px");
         r.zero = "Off";
+        u.push_back(r.grey(need_hw));
+    }
+    {
+        Row r = fslider("ui_wire_width", "Wire width", "The targeting sphere's lines, drawn thin from their exact ends at any resolution. Off: the game's native-pixel lines.",
+            &pc_ui_wire_width, 0, 6, 0.5f, "%.1f px");
+        r.zero = "Game's";
         u.push_back(r.grey(need_hw));
     }
     u.push_back(choice("ui_bubbles", "Talk bubbles", "Vector: each bubble drawn as one smooth shape.", &pc_ui_bubbles,

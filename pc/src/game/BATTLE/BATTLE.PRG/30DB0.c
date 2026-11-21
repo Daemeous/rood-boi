@@ -19,8 +19,7 @@
 #endif
 
 typedef struct {
-    u_char unk0[0x1FE0];
-    u_short unk1FE0;
+    u_char unk0[0x1FE0]; /* the next import, D_800F4438, follows it: the u_short that was named unk1FE0 here was D_800F4438's x */
 } D_800F2458_t;
 
 typedef struct {
@@ -159,7 +158,7 @@ inline int vs_content_findSharedActorModel(vs_battle_objectData* arg0);
 
 int _loadShp(vs_battle_objectData* arg0);
 
-extern u_char vs_actors_textureSlotOrigins[];
+extern short vs_actors_textureSlotOrigins[24][2]; /* x, y of each texture slot */
 extern u_char vs_actors_textureSlotRowOffsets[];
 extern u_char D_800F22B8;
 extern int D_800F22BC;

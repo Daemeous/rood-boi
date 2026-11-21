@@ -270,6 +270,25 @@ def check_closed(s):
     s.check(st["game"]["rect"] == layout and st["reset_count"] == 2, f"reopened: the layout as left ({st['game']['rect']})")
 
 
+def check_stretch(s):
+    """Aspect "stretch to window" fills the window, not the Game panel: inside the panel the picture keeps 4:3 (gitea #18: stretched into a
+    narrow panel it looked like texture memory)."""
+    g = s.game
+    g.call("graphics", aspect=1)
+    g.run(6)
+    st = shell(s)
+    view, rect = st["view"], st["game"]["rect"]
+    s.check(inside(view, rect), f"stretch: the picture {view} is inside the Game panel {rect}")
+    s.check(abs(view[2] / view[3] - 4 / 3) < 0.01, f"stretch: the picture keeps the game's aspect inside the panel ({view[2]}x{view[3]})")
+    g.call("editor_ui", visible=False)
+    g.run(6)
+    v = shell(s)["view"]
+    s.check(v[2] == 1280 and v[3] == 720 or v[2] >= v[3] * 1.7, f"stretch, editor closed: the picture fills the window ({v})")
+    g.call("editor_ui", visible=True)
+    g.call("graphics", aspect=0)
+    g.run(6)
+
+
 def check_ini(s):
     ini = pathlib.Path(os.environ.get("ROOD_IMGUI_INI") or (ROOT / "pc/build/boot/imgui.ini"))
     s.game.call("editor_ui", visible=True)
@@ -307,7 +326,7 @@ def main():
     g.call("editor_ui", visible=True)
     g.call("lua", action="window", id="test.shell/tool", open=False)  # (open at first: check_plugin opens it)
     g.run(6)
-    sections = [check_dock, check_pick, check_commands, check_palette, check_plugin, check_reset, check_closed, check_ini]
+    sections = [check_dock, check_pick, check_commands, check_palette, check_plugin, check_reset, check_closed, check_stretch, check_ini]
     only = set(args.only.split(",")) if args.only else None
     for section in sections:
         name = section.__name__[6:]

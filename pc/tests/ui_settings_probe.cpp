@@ -111,8 +111,12 @@ static void pages()
     CHECK(pc_ui_settings_row(G, find(G, "aa"), &pr) && pr.preview);
     CHECK(pc_ui_settings_rows(D) == 12); // Images per vsync shows: interpolation is on
     CHECK(pc_ui_settings_rows(A) == (game ? 2 : 1));
-    CHECK(pc_ui_settings_rows(I) == 15); // with Menu opacity, Menu tint, Tint red, green, blue
+    CHECK(pc_ui_settings_rows(I) == 16); // with Menu opacity, Menu tint, Tint red, green, blue, and the Wire width after Outline boost
     CHECK(find(I, "ui_menu_tint") == 2 && find(I, "ui_menu_tint_b") == 5);
+    // the 2D rows in order: Lines, Outline boost, Wire width (the targeting sphere's lines), Talk bubbles
+    CHECK(find(I, "ui_outline_boost") == find(I, "ui_lines") + 1 && find(I, "ui_wire_width") == find(I, "ui_outline_boost") + 1
+        && find(I, "ui_bubbles") == find(I, "ui_wire_width") + 1);
+    CHECK(value(I, "ui_wire_width") == "1.5 px");
     CHECK(pc_ui_settings_rows(C) == (game ? 23 : 22));
     // the look inversions after the stick camera (qol_fp_invert_y, qol_map_invert)
     CHECK(find(C, "qol_fp_invert_y") == find(C, "reset_camera") + 1 && find(C, "qol_map_invert") == find(C, "reset_camera") + 2);
@@ -556,6 +560,11 @@ static bool swatch_is(const pc_ui_setting_row& r, int red, int green, int blue)
 // Menu tint: presets set the sliders; a slider makes the tint Custom with the shown colour.
 static void tint()
 {
+    // the first tint is named for the menus in use: the game's own menus (ui_menus 0) show it as no tint at all, the modern ones as Lea Monde
+    int menus_was = pc_ui_menus;
+    pc_ui_menus = 0;
+    CHECK(value(I, "ui_menu_tint") == "Original");
+    pc_ui_menus = 1;
     pc_ui_settings_flush();
     CHECK(value(I, "ui_menu_tint") == "Le\xc3\xa1 Monde" && rgb_is(I, 8, 7, 7));
     pc_ui_setting_row t = row(I, "ui_menu_tint");
@@ -598,6 +607,7 @@ static void tint()
     pc_ui_menu_tint = 9; // out of range: Leá Monde
     CHECK(pc_ui_tint_current() == PC_UI_TINT_LEA_MONDE);
     pc_ui_menu_tint = 0;
+    pc_ui_menus = menus_was;
 }
 
 static void json()

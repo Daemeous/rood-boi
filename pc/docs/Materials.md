@@ -842,6 +842,34 @@ G-buffer has no material target and the GL present pass is unchanged
 (material_smoke checks the frame is identical). Rooms without dynamic lights show no highlights either
 (the game's baked light has no direction).
 
+## Blender round trip (one room)
+
+`pc/tools/room_blender.py` takes a room out to Blender and brings maps back into the baked layer (Gitea #20; Blender 5.2
+LTS, `/usr/bin/blender`, driven headless with `blender -b -P pc/tools/blender/bake_room.py`, Cycles on the CPU at a modest
+sample count, 4 threads, nice 19):
+
+1. `export`: the room the game is in (or `--zone Z --room R`) to glTF under `pc/build/room_blender/<room>/gltf`: RPC
+   `scene_dump` (positions, vertex colours, each polygon's texels, page, CLUT, object group, flags), RPC `emissive uses`
+   (every texture in view: key, page, CLUT, UV box) and RPC `material texture` (the texels as drawn). One primitive and one
+   material per texture (the key), UVs over the texture's own box (texel `u0 + k` at `k / w`), 1 unit = 512 game units, y up,
+   each triangle turned to face the room's middle (the capture's winding is mixed). `export.json` keeps what comes back:
+   key, size, page, CLUT, box, each triangle's group and flags. Polygons the game did not draw in the view are not in `uses`
+   and so not exported.
+2. `bake`: Blender bakes each texture texel for texel from the room's geometry: `cover` (which texels a triangle covers),
+   `wear` (edge wear: a bevel node against the face's own normal) and `cavity` (1 - ambient occlusion). The tunables
+   (bevel radius, gain, occlusion distance, samples) are data: `pc/tools/room_blender.json`.
+3. `import`: `height.png`, `roughness.png` (the channels the game reads) and `normal.png` (for other tools) per texture,
+   exactly the texture's box in size, 8-bit, into `<out>/materials` (use it as `$ROOD_MATERIALS_BAKED`): wear carves the
+   height and polishes, cavity lowers and roughens; a texel no triangle covers keeps the blank template. The maps' formulas
+   are `room_blender.json`'s `maps`.
+4. `shot`: the room three times (no entry; the preset on every baked texture with the game's own derived relief; the same
+   with the baked maps) into `<out>/shots`: `plain`, `before`, `after`, `before_after.png`.
+
+A map applies where a material entry does (`shot` writes one `"rough stone"` entry per texture into a scratch user catalog).
+Everything under `pc/build/room_blender` is game art: never committed. Step 2 (materials by object, since PS1 textures are
+shared by different models) is not here: today the maps are per texture, and a texture's texels shared by several surfaces
+take whichever baked last.
+
 ## Baked maps
 
 The textures carry no height, roughness or metal of their own, so

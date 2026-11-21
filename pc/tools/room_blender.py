@@ -1,0 +1,358 @@
+#!/usr/bin/env python3
+"""One room through Blender and back (Gitea #20; pc/docs/Materials.md, "Blender round trip").
+
+    python3 pc/tools/room_blender.py export [--zone Z --room R] [--out DIR]
+    python3 pc/tools/room_blender.py bake   [--out DIR] [--samples N]
+    python3 pc/tools/room_blender.py import [--out DIR]
+    python3 pc/tools/room_blender.py shot   [--out DIR]
+    python3 pc/tools/room_blender.py all    [--zone Z --room R] [--out DIR]
+
+export  The room the game is in (or RPC room_goto Z R) to glTF: the captured room geometry (RPC scene_dump: positions,
+        baked vertex colours, each polygon's texels, texture page and CLUT, object group) with one material per
+        texture (the game's own texture content key: RPC emissive uses, the texels as drawn: RPC material texture).
+        The model is positioned in 1/512 game units, Y up, its triangles turned to face the room's middle (the room is
+        open geometry with mixed winding: the occlusion and bevel passes need the side that faces in). Each texture
+        is one primitive whose UVs run over the texture's own box (texel for texel), and export.json holds
+        what comes back to the game: key, size, page, CLUT, box, triangle tags (group, flags, polygon offset).
+bake    Blender (blender -b, Cycles on the CPU, a modest sample count) runs pc/tools/blender/bake_room.py: each texture
+        is baked texel for texel from the room's geometry: edge wear (a bevel of the geometry against its own faces),
+        cavity (ambient occlusion) and which texels any triangle covers.
+import  The bakes become maps in the baked materials layer (pc/build/materials-style layer under <out>/materials): height,
+        roughness (and normal.png for other tools) at exactly the texture's box size, 8-bit grayscale PNG, derived by
+        pc/tools/room_blender.json (the tunables). Texels no triangle covers keep the blank templates (height 128).
+shot    The room in the game twice, with an entry for each baked texture (the "rough stone" preset) and the baked layer
+        off, then on: before / after screenshots into <out>/shots.
+
+Everything under <out> (default pc/build/room_blender/<zone>-<room>) is game art derived from the game: local only,
+never committed. Only these tools are."""
+import argparse
+import base64
+import json
+import os
+import pathlib
+import re
+import shutil
+import struct
+import subprocess
+import sys
+
+import numpy as np
+from PIL import Image
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "pc/tools"))
+sys.path.insert(0, str(ROOT / "pc/tests"))
+CONFIG = ROOT / "pc/tools/room_blender.json"
+BLENDER = "/usr/bin/blender"
+SCALE = 1.0 / 512.0  # game units to glTF metres
+FACE = re.compile(r"^f (\d+) (\d+) (\d+) # tpage ([0-9a-f]+) clut ([0-9a-f]+) group (\d+) flags ([0-9a-f]+) "
+                  r"uv (\d+) (\d+) (\d+) (\d+) (\d+) (\d+) code ([0-9a-f]+) quad (\d+)")
+
+
+def config():
+    return json.loads(CONFIG.read_text())
+
+
+def room_dir(args):
+    if args.out:
+        return pathlib.Path(args.out)
+    name = f"{args.zone}-{args.room}" if args.zone is not None else "current"
+    return ROOT / "pc/build/room_blender" / name
+
+
+# ---------------------------------------------------------------------------------------------- the dump
+
+def parse_dump(path):
+    """(positions[n,3,3] float, colours[n,3,3] float 0..1, triangles: dicts of tpage, clut, group, flags, uv[3][2])."""
+    positions, colours, tris = [], [], []
+    verts = []
+    for line in pathlib.Path(path).read_text().splitlines():
+        if line.startswith("v "):
+            p = line.split()
+            verts.append([float(x) for x in p[1:7]])
+        elif line.startswith("f "):
+            m = FACE.match(line)
+            if not m:
+                continue
+            a, b, c = (int(m.group(k)) - 1 for k in (1, 2, 3))
+            tris.append({"tpage": int(m.group(4), 16), "clut": int(m.group(5), 16), "group": int(m.group(6)),
+                         "flags": int(m.group(7), 16), "uv": [[int(m.group(8)), int(m.group(9))],
+                                                              [int(m.group(10)), int(m.group(11))],
+                                                              [int(m.group(12)), int(m.group(13))]],
+                         "code": int(m.group(14), 16), "quad": int(m.group(15))})
+            positions.append([verts[a][0:3], verts[b][0:3], verts[c][0:3]])
+            colours.append([verts[a][3:6], verts[b][3:6], verts[c][3:6]])
+    return np.array(positions, np.float32), np.array(colours, np.float32), tris
+
+
+def assign(tris, uses):
+    """Each triangle's texture: the use on its page and CLUT whose box holds its texels (the smallest such box)."""
+    by = {}
+    for u in uses:
+        by.setdefault((u["tpage"], u["clut"]), []).append(u)
+    out = []
+    for t in tris:
+        us = [p[0] for p in t["uv"]], [p[1] for p in t["uv"]]
+        best, area = None, None
+        for u in by.get((t["tpage"] & 31, t["clut"]), []):
+            u0, v0, u1, v1 = u["box"]
+            if min(us[0]) >= u0 and max(us[0]) <= u1 + 1 and min(us[1]) >= v0 and max(us[1]) <= v1 + 1:
+                a = (u1 - u0 + 1) * (v1 - v0 + 1)
+                if area is None or a < area:
+                    best, area = u, a
+        out.append(best)
+    return out
+
+
+def face_inward(positions):
+    """Winding that faces the room's middle (the capture's own is mixed); returns the flip mask."""
+    centre = positions.reshape(-1, 3).mean(axis=0)
+    a, b, c = positions[:, 0], positions[:, 1], positions[:, 2]
+    n = np.cross(b - a, c - a)
+    inward = centre - positions.mean(axis=1)
+    return (n * inward).sum(axis=1) < 0
+
+
+# ---------------------------------------------------------------------------------------------- export
+
+def goto(game, zone, room):
+    import material_rollout
+    if not material_rollout.goto(game, zone, room):
+        raise SystemExit(f"room_blender: the game did not arrive in zone {zone} room {room}")
+
+
+def export(args):
+    import material_rollout
+    out = room_dir(args)
+    shutil.rmtree(out / "gltf", ignore_errors=True)
+    (out / "gltf" / "tex").mkdir(parents=True)
+    scratch = out / "scratch"
+    scratch.mkdir(parents=True, exist_ok=True)
+    margs = argparse.Namespace(card=args.card)
+    game = material_rollout.launch(scratch, margs)
+    try:
+        if args.zone is not None:
+            goto(game, args.zone, args.room)
+        game.run(30)
+        dump = out / "scene.obj"
+        game.call("scene_dump", path=str(dump))
+        uses = game.call("emissive", action="uses", keys=True)["uses"]
+        positions, colours, tris = parse_dump(dump)
+        found = assign(tris, uses)
+        keys = {}
+        for t, u in zip(tris, found):
+            if u:
+                keys.setdefault(u["key"], u)
+        textures = {}
+        for key, u in keys.items():
+            got = game.call("material", action="texture", key=key)
+            w, h = int(got["w"]), int(got["h"])
+            Image.frombytes("RGBA", (w, h), base64.b64decode(got["rgba"])).save(out / "gltf" / "tex" / f"{key}.png")
+            textures[key] = {"w": w, "h": h, "box": u["box"], "tpage": u["tpage"], "clut": u["clut"]}
+        state = game.state()
+    finally:
+        material_rollout.kill(game)
+    write_gltf(out, positions, colours, tris, found, textures)
+    meta = {"zone": state["zone"], "room": state["room"], "triangles": len(tris),
+            "unassigned": sum(1 for u in found if not u), "textures": textures,
+            "scale": SCALE}
+    (out / "export.json").write_text(json.dumps(meta, indent=1))
+    print(f"export: zone {state['zone']} room {state['room']}: {len(tris)} triangles, {len(textures)} textures, "
+          f"{meta['unassigned']} triangles with no texture box -> {out / 'gltf' / 'room.gltf'}")
+    return 0
+
+
+def write_gltf(out, positions, colours, tris, found, textures):
+    flip = face_inward(positions)
+    # glTF: x right, y up, z towards the viewer; the game's y is down and z away: a half turn about x
+    pos = positions.copy()
+    pos[..., 1] *= -1
+    pos[..., 2] *= -1
+    pos *= SCALE
+    order = np.array([[0, 1, 2]] * len(tris))
+    order[flip] = [0, 2, 1]
+    groups = {}
+    for i, u in enumerate(found):
+        groups.setdefault(u["key"] if u else "unmapped", []).append(i)
+    buffer = bytearray()
+    views, accessors, primitives, materials, images, textures_json = [], [], [], [], [], []
+    def add(data, target, kind, ctype, count, mins=None, maxs=None):
+        while len(buffer) % 4:
+            buffer.append(0)
+        views.append({"buffer": 0, "byteOffset": len(buffer), "byteLength": len(data), "target": target})
+        buffer.extend(data)
+        a = {"bufferView": len(views) - 1, "componentType": ctype, "count": count, "type": kind}
+        if mins is not None:
+            a["min"], a["max"] = mins, maxs
+        accessors.append(a)
+        return len(accessors) - 1
+    for gi, (key, idx) in enumerate(sorted(groups.items())):
+        p = np.stack([pos[i][order[i]] for i in idx]).reshape(-1, 3).astype(np.float32)
+        c = np.stack([colours[i][order[i]] for i in idx]).reshape(-1, 3).astype(np.float32)
+        t = textures.get(key)
+        uv = np.zeros((len(idx) * 3, 2), np.float32)
+        if t:
+            u0, v0 = t["box"][0], t["box"][1]
+            for n, i in enumerate(idx):
+                for k in range(3):
+                    s = tris[i]["uv"][order[i][k]]
+                    uv[n * 3 + k] = ((s[0] - u0) / t["w"], (s[1] - v0) / t["h"])
+        attrs = {"POSITION": add(p.tobytes(), 34962, "VEC3", 5126, len(p), p.min(axis=0).tolist(), p.max(axis=0).tolist()),
+                 "TEXCOORD_0": add(uv.tobytes(), 34962, "VEC2", 5126, len(uv)),
+                 "COLOR_0": add(c.tobytes(), 34962, "VEC3", 5126, len(c))}
+        materials.append({"name": key, "pbrMetallicRoughness": {"metallicFactor": 0.0, "roughnessFactor": 0.8,
+                          **({"baseColorTexture": {"index": len(textures_json)}} if t else {})},
+                          "extras": {"key": key, **({"w": t["w"], "h": t["h"]} if t else {})}})
+        if t:
+            images.append({"uri": f"tex/{key}.png"})
+            textures_json.append({"source": len(images) - 1, "sampler": 0})
+        primitives.append({"attributes": attrs, "material": len(materials) - 1, "mode": 4,
+                           "extras": {"key": key, "triangles": [{"group": tris[i]["group"], "flags": tris[i]["flags"],
+                                                                 "tpage": tris[i]["tpage"], "clut": tris[i]["clut"]}
+                                                                for i in idx]}})
+    (out / "gltf" / "room.bin").write_bytes(bytes(buffer))
+    gltf = {"asset": {"version": "2.0", "generator": "rood-boi room_blender.py"},
+            "scene": 0, "scenes": [{"nodes": [0]}], "nodes": [{"mesh": 0, "name": "room"}],
+            "meshes": [{"name": "room", "primitives": primitives}], "materials": materials,
+            "samplers": [{"magFilter": 9728, "minFilter": 9728, "wrapS": 33071, "wrapT": 33071}],
+            "images": images, "textures": textures_json, "accessors": accessors, "bufferViews": views,
+            "buffers": [{"uri": "room.bin", "byteLength": len(buffer)}]}
+    (out / "gltf" / "room.gltf").write_text(json.dumps(gltf))
+
+
+# ---------------------------------------------------------------------------------------------- bake
+
+def bake(args):
+    out = room_dir(args)
+    meta = json.loads((out / "export.json").read_text())
+    cfg = config()
+    shutil.rmtree(out / "bakes", ignore_errors=True)
+    (out / "bakes").mkdir(parents=True)
+    cmd = ["nice", "-n", "19", BLENDER, "-b", "--threads", str(args.threads), "-P", str(ROOT / "pc/tools/blender/bake_room.py"),
+           "--", str(out / "gltf" / "room.gltf"), str(out / "export.json"), str(out / "bakes"),
+           str(args.samples or cfg["samples"]), json.dumps(cfg["bake"])]
+    done = subprocess.run(cmd, capture_output=True, text=True)
+    sys.stdout.write("".join(l + "\n" for l in done.stdout.splitlines() if l.startswith("bake_room:")))
+    if done.returncode:
+        sys.stderr.write(done.stdout[-3000:] + done.stderr[-2000:])
+        return done.returncode
+    print(f"bake: {len(list((out / 'bakes').glob('*/wear.png')))} of {len(meta['textures'])} textures baked -> {out / 'bakes'}")
+    return 0
+
+
+# ---------------------------------------------------------------------------------------------- import
+
+def gray(path):
+    return np.asarray(Image.open(path).convert("L"), np.float32) / 255.0
+
+
+def maps(wear, cavity, cover, p):
+    """height, roughness and normal (uint8 arrays) from the baked wear and cavity, blank where nothing is baked."""
+    height = p["height_base"] + p["height_wear"] * wear + p["height_cavity"] * cavity
+    rough = (p["rough_base"] + p["rough_wear"] * wear + p["rough_cavity"] * cavity) * 255.0
+    height = np.where(cover > 0.5, height, 128.0)
+    rough = np.where(cover > 0.5, rough, p["rough_base"] * 255.0)
+    height = np.clip(height, 0, 255)
+    padded = np.pad(height / 255.0, 1, mode="edge")  # (a texture one texel wide has neighbours too: its own edge)
+    gx = (padded[1:-1, 2:] - padded[1:-1, :-2]) * 0.5
+    gy = (padded[2:, 1:-1] - padded[:-2, 1:-1]) * 0.5
+    n = np.stack([-gx * p["normal_strength"], -gy * p["normal_strength"], np.ones_like(gx)], axis=-1)
+    n /= np.linalg.norm(n, axis=-1, keepdims=True)
+    normal = ((n * 0.5 + 0.5) * 255.0 + 0.5).astype(np.uint8)
+    return (np.clip(height + 0.5, 0, 255).astype(np.uint8), np.clip(rough + 0.5, 0, 255).astype(np.uint8), normal)
+
+
+def import_maps(args):
+    out = room_dir(args)
+    meta = json.loads((out / "export.json").read_text())
+    p = config()["maps"]
+    layer = out / "materials"
+    shutil.rmtree(layer, ignore_errors=True)
+    done = 0
+    for key, t in meta["textures"].items():
+        d = out / "bakes" / key
+        if not (d / "wear.png").exists():
+            continue
+        wear, cavity, cover = gray(d / "wear.png"), gray(d / "cavity.png"), gray(d / "cover.png")
+        if wear.shape != (t["h"], t["w"]):
+            raise SystemExit(f"room_blender: {key}: the bake is {wear.shape[::-1]}, the texture {t['w']} x {t['h']}")
+        height, rough, normal = maps(wear, cavity, cover, p)
+        (layer / key).mkdir(parents=True, exist_ok=True)
+        Image.fromarray(height, "L").save(layer / key / "height.png")
+        Image.fromarray(rough, "L").save(layer / key / "roughness.png")
+        Image.fromarray(normal, "RGB").save(layer / key / "normal.png")
+        done += 1
+    print(f"import: {done} textures' height, roughness and normal maps -> {layer} (the baked layer: $ROOD_MATERIALS_BAKED)")
+    return 0
+
+
+# ---------------------------------------------------------------------------------------------- shot
+
+def shot(args):
+    import material_rollout
+    out = room_dir(args)
+    meta = json.loads((out / "export.json").read_text())
+    shots = out / "shots"
+    shutil.rmtree(shots, ignore_errors=True)
+    shots.mkdir(parents=True)
+    entries = [{"id": f"RB{n:03d}", "name": f"room_blender {key}", "match": {"key": key, "size": [meta["textures"][key]["w"],
+                                                                                            meta["textures"][key]["h"]]},
+                "preset": args.preset}
+               for n, key in enumerate(sorted(k for k in meta["textures"] if (out / "materials" / k / "height.png").exists()))]
+    # plain: the game as it is (no entry); before: the preset on every baked texture, the relief the game derives from the
+    # texture itself; after: the same entries with the maps the round trip made
+    for name, with_entries, baked in (("plain", False, False), ("before", True, False), ("after", True, True)):
+        scratch = out / f"shot-{name}"
+        shutil.rmtree(scratch, ignore_errors=True)
+        scratch.mkdir(parents=True)
+        (scratch / "materials.json").write_text(json.dumps({"format": 1, "presets": {},
+                                                            "entries": entries if with_entries else []}))
+        margs = argparse.Namespace(card=args.card)
+        os.environ["ROOD_MATERIALS_BAKED"] = str(out / "materials" if baked else scratch / "no-maps")
+        os.environ["ROOD_MATERIAL_CATALOG_USER"] = str(scratch / "materials.json")
+        game = material_rollout.launch(scratch, margs)
+        try:
+            if args.go:
+                goto(game, meta["zone"], meta["room"])
+            game.run(60)
+            if args.camera:
+                game.call("editor_camera", **json.loads(args.camera))
+                game.run(30)
+            path = game.present_screenshot(str(shots / f"{name}.ppm"))
+            Image.open(path).convert("RGB").save(shots / f"{name}.png")
+        finally:
+            material_rollout.kill(game)
+    before, after = (Image.open(shots / f"{n}.png") for n in ("before", "after"))
+    both = Image.new("RGB", (before.width * 2 + 10, before.height), "black")
+    both.paste(before, (0, 0))
+    both.paste(after, (before.width + 10, 0))
+    both.save(shots / "before_after.png")
+    print(f"shot: {shots} (plain, before, after, before_after.png)")
+    return 0
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("command", choices=["export", "bake", "import", "shot", "all"])
+    parser.add_argument("--zone", type=int)
+    parser.add_argument("--room", type=int)
+    parser.add_argument("--out")
+    parser.add_argument("--card", default=str(ROOT / "pc/build/test-card1.mcd"))
+    parser.add_argument("--samples", type=int, help="Cycles samples per bake (default: room_blender.json)")
+    parser.add_argument("--threads", type=int, default=4, help="Blender's threads (default 4)")
+    parser.add_argument("--preset", default="rough stone", help="shot: the material preset given to every baked texture")
+    parser.add_argument("--go", action="store_true", help="shot: warp to the exported room first")
+    parser.add_argument("--camera", help="shot: RPC editor_camera parameters (JSON)")
+    args = parser.parse_args()
+    if (args.zone is None) != (args.room is None):
+        parser.error("--zone and --room go together")
+    steps = ["export", "bake", "import", "shot"] if args.command == "all" else [args.command]
+    for step in steps:
+        code = {"export": export, "bake": bake, "import": import_maps, "shot": shot}[step](args)
+        if code:
+            return code
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

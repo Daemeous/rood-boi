@@ -29,6 +29,7 @@ enum { PC_UI_BUBBLES_ORIGINAL = 0, PC_UI_BUBBLES_VECTOR = 1 };
 extern int pc_ui_lines;           /* PC_UI_LINES_* */
 extern int pc_ui_outline_boost;   /* output pixels, 0-3 */
 extern int pc_ui_bubbles;         /* PC_UI_BUBBLES_* */
+extern float pc_ui_wire_width;     /* a 3D wire's lines (the targeting sphere's), output pixels across (gpu_hw.c; 0: the game's native-pixel band) */
 extern float pc_ui_bubble_outline; /* vector outline thickness, native pixels (0.5-4) */
 extern const char* const pc_ui_lines_names[2];
 extern const char* const pc_ui_bubbles_names[2];

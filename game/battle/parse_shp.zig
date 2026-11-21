@@ -25,9 +25,9 @@ inline fn flagWord(actor: *v.D_800F4538_t) c_uint {
 /// A texture slot's VRAM origin from vs_actors_textureSlotOrigins (x, y in 4-byte entries) and vs_actors_textureSlotRowOffsets (the y step).
 fn slotRect(slot: u8, rect: *v.RECT) void {
     const table = v.g.vs_actors_textureSlotOrigins();
-    const x: c_int = @as(c_int, psx.byteAt(i16, table, @as(isize, slot) * 4).*) << 6;
+    const x: c_int = @as(c_int, table[slot][0]) << 6;
     rect.x = psx.conv(i16, x);
-    const y: c_int = (@as(c_int, psx.byteAt(i16, table, @as(isize, slot) * 4 + 2).*) << 8) +
+    const y: c_int = (@as(c_int, table[slot][1]) << 8) +
         (@as(c_int, v.g.vs_actors_textureSlotRowOffsets()[slot]) << 6);
     rect.y = psx.conv(i16, y);
     rect.w = psx.conv(i16, @divTrunc(v.g.D_800F22C0().*, 2));

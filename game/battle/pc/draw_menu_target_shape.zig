@@ -38,19 +38,25 @@ pub fn drawMenuTargetShape(shape: [*]u8, color_in: c_uint) callconv(.c) void {
     var count: c_uint = @as(c_uint, @as(u16, @bitCast(block.unk32)));
     const divisor: c_int = if (shape[6] < shape[4]) shape[4] else shape[6];
     const bias: c_int = @as(c_int, block.unk20) << 1;
+    var here: [2]f32 = .{ 0, 0 };
+    var before: [2]f32 = .{ 0, 0 };
     while (count != 0) {
         count -%= 1;
         const ir = gte.lightTransform(&light, &background, @as(*align(1) const [3]i16, @ptrFromInt(point))); // gte_mvmva(1, 1, 0, 1, 0)
         const flag: c_int = psx.byteAt(i16, @as([*]u8, @ptrFromInt(point)), 6).*;
         point +%= 8;
         const projected = gte.project(&frame, &ir); // gte_rtps
+        before = here;
+        here = gte.lastProjection();
         scratch[0] = @bitCast(projected.sxy);
         scratch[1] = @bitCast(@as(c_int, @bitCast(projected.sz)) >> 2);
         if (flag != 0) {
             const sum: c_int = @as(c_int, @as(i16, @bitCast(halves[2]))) +% @as(c_int, @as(i16, @bitCast(halves[6]))) -% bias;
             // `div $zero` has no zero check: the R3000 then leaves LO = -1 for a non-negative dividend and 1 for a negative one.
             const depth: c_int = if (divisor != 0) @divTrunc(sum, divisor) else if (sum < 0) 1 else -1;
+            sprite_item.wireNext(here[0], here[1], before[0], before[1]); // (the segment runs from the current point to the previous one)
             c.func_800C0990(@ptrCast(pad.many(u8, 0x398)), @ptrCast(pad.many(u8, 0x3A0)), color -% (@as(c_uint, @bitCast(flag)) << 25), 0x20 -% depth);
+            sprite_item.wireClear(); // (a line the depth test sent away made no item: nothing is left for the next one)
         }
         var j: usize = 0;
         while (j < 3) : (j += 1) halves[4 + j] = halves[j];

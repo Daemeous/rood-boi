@@ -162,7 +162,7 @@ void vs_battle_setGeomOffset(unsigned* offset);
 
 
 extern unsigned short vs_field_roomAnimationTicks;
-extern unsigned char vs_main_stateFlags[];
+extern unsigned char vs_main_stateFlags[1088]; /* vs_main_flags_t */
 /* 2EA3C.s vs_field_drawMinimapScene: draw the area map. `rooms` is a count then 12-byte
  * entries (visible flag, geometry). Each room's vertices are projected into
  * scratchpad 0x100 (GTE translation 0,0,0x100); the first room (the current
