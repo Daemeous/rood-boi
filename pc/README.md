@@ -326,6 +326,7 @@ stick put them. An R3 reset in a menu waits for the field.
 | `analog_dead_zone` | 20 | percent of the stick's travel that moves nothing |
 | `analog_run` | 70 | percent of the stick's travel from which she runs (the D-pad's pace); below it she walks (the pace R2 held gives; the original has only these two). R2 still walks |
 | `rumble_strength` | 100 | percent of the game's actuator bytes sent to the gamepad's motors (0 off); the game's own Vibration option still decides what it asks for |
+| `sound_autopan_quirk` | 1 | five tracks (MUSIC047, 147, 159, 169, 172) ask for auto-pan wave types of 16 and up, which the original's table does not have: it plays 36 shorts of its own code (around Sound_Cmd_11_Nop, read from your executable at start-up) as the wave. 1: the same, as the music sounds on the original; 0: a flat wave, no pan movement. Dev tools: Graphics > Controls; RPC `settings {apply: "sound_autopan_quirk 0"}` |
 
 Rumble (`boot_sdk.c` `PadSetAct`, `boot_gamepad.c`): the game registers its
 actuator buffer and rewrites it each frame in battle and the field

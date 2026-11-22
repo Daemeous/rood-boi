@@ -28,7 +28,15 @@ extern float pc_gi_strength, pc_emitter_light, pc_emitter_radius, pc_contact_rad
     pc_haze_interior_edge, pc_haze_interior_slope, pc_glow_emissive_lift, pc_glow_emissive_disc,
     pc_baked_shadow_level, pc_baked_shadow_curve, pc_baked_shadow_sky, pc_baked_shadow_indirect,
     pc_baked_shadow_lights;
+extern int pc_key_light, pc_lights_enabled;
+extern float pc_key_light_strength;
+int pc_env_open_sky(void);
 }
+
+/* The room's key light (pc/docs/Materials.md "The key light"): its values, the room settings key_*. Their
+ * built-in values are the interior defaults; rooms open to the sky take the exterior ones. */
+static float key_intensity = 1, key_relief = 1, key_gain = 3, key_azimuth = 35, key_elevation = 45, key_view = 1,
+             key_red = 1, key_green = 1, key_blue = 1, key_specular = 1;
 
 namespace {
 struct Setting {
@@ -42,6 +50,8 @@ struct Setting {
     float base; // project default
     bool overridden; // for the current room
     float room; // the room's value when overridden
+    bool has_ext = false; // a separate project default for rooms open to the sky (the key light)
+    float ext_base = 0; // that default ("set exterior.<key> <value>" in a defaults file)
 };
 Setting settings[] = {
     { "baked_lighting", "Baked lighting", "Lighting", &pc_lights_baked, 0, 1.5f, "%.2f", false },
@@ -61,6 +71,17 @@ Setting settings[] = {
     { "baked_shadow_sky", "Baked shadow on the sun and sky", "Lighting", &pc_baked_shadow_sky, 0, 1, "%.2f", false },
     { "baked_shadow_indirect", "Baked shadow on indirect light", "Lighting", &pc_baked_shadow_indirect, 0, 1, "%.2f", false },
     { "baked_shadow_lights", "Baked shadow on the lights", "Lighting", &pc_baked_shadow_lights, 0, 1, "%.2f", false },
+    /* The key light (pc_key_light_params): a soft directional light that shows the maps' relief. */
+    { "key_intensity", "Key light: intensity", "Key light", &key_intensity, 0, 4, "%.2f", false },
+    { "key_relief", "Key light: relief only (share)", "Key light", &key_relief, 0, 1, "%.2f", false },
+    { "key_gain", "Key light: relief gain", "Key light", &key_gain, 0, 16, "%.1f", false },
+    { "key_azimuth", "Key light: azimuth (degrees)", "Key light", &key_azimuth, 0, 360, "%.0f", false },
+    { "key_elevation", "Key light: elevation (degrees)", "Key light", &key_elevation, 0, 90, "%.0f", false },
+    { "key_view", "Key light: azimuth follows the view", "Key light", &key_view, 0, 1, "toggle", false },
+    { "key_red", "Key light: red", "Key light", &key_red, 0, 1, "%.2f", false },
+    { "key_green", "Key light: green", "Key light", &key_green, 0, 1, "%.2f", false },
+    { "key_blue", "Key light: blue", "Key light", &key_blue, 0, 1, "%.2f", false },
+    { "key_specular", "Key light: highlight", "Key light", &key_specular, 0, 1, "%.2f", false },
     { "haze_density", "Haze density", "Atmosphere", &pc_fog_density, 0, 0.004f, "%.5f", true },
     { "haze_anisotropy", "Forward scattering", "Atmosphere", &pc_fog_anisotropy, -0.5f, 0.9f, "%.2f", false },
     { "haze_glow", "Glows in the haze", "Atmosphere", &pc_fog_glow, 0, 4, "%.2f", false },
@@ -109,6 +130,9 @@ bool initialised;
 int initialised_serial;
 struct LookOverride { bool active = false; float before = 0, applied = 0; };
 LookOverride look_overrides[count];
+bool exterior_class; // the room is open to the sky: the settings with an exterior default take it
+/* A setting's project default for the room's class. */
+float& dflt(Setting& s) { return exterior_class && s.has_ext ? s.ext_base : s.base; }
 /* Project defaults: each pack's lighting/<pack>/defaults.txt (lowest first),
  * then the user's (pc/user/lighting/defaults.txt, or the old
  * pc/lights/defaults.txt), which "Use as the project default" writes. */
@@ -145,8 +169,10 @@ void init()
             builtin[i] = *settings[i].value;
     initialised = true;
     initialised_serial = lighting::config_serial();
-    for (int i = 0; i < count; i++)
-        settings[i].base = *settings[i].value = builtin[i];
+    for (int i = 0; i < count; i++) {
+        settings[i].has_ext = !strncmp(settings[i].key, "key_", 4);
+        settings[i].base = settings[i].ext_base = builtin[i];
+    }
     for (const std::string& path : defaults_files()) {
         FILE* f = fopen(path.c_str(), "r");
         if (!f)
@@ -154,11 +180,18 @@ void init()
         char line[256], key[64];
         float v;
         while (fgets(line, sizeof line, f))
-            if (sscanf(line, "set %63s %f", key, &v) == 2)
-                if (Setting* s = find(key))
-                    s->base = *s->value = v;
+            if (sscanf(line, "set %63s %f", key, &v) == 2) {
+                const bool ext = !strncmp(key, "exterior.", 9);
+                if (Setting* s = find(key + (ext ? 9 : 0)))
+                    (ext ? s->ext_base : s->base) = v;
+            }
         fclose(f);
     }
+    for (Setting& s : settings) // (the exterior default of a setting with no line of its own is its interior one)
+        if (s.has_ext && !s.overridden)
+            *s.value = dflt(s);
+        else if (!s.has_ext)
+            *s.value = s.base;
 }
 } // namespace
 
@@ -201,7 +234,7 @@ extern "C" void pc_room_settings_reset(void)
     init();
     for (Setting& s : settings) {
         s.overridden = false;
-        *s.value = s.base;
+        *s.value = dflt(s);
     }
 }
 
@@ -246,7 +279,7 @@ extern "C" void pc_room_settings_set(const char* key, float value, int reset)
         return;
     pc_room_look_clear();
     s->overridden = !reset;
-    s->room = *s->value = reset ? s->base : value;
+    s->room = *s->value = reset ? dflt(*s) : value;
 }
 extern "C" int pc_room_settings_json(char* out, int size)
 {
@@ -255,7 +288,7 @@ extern "C" int pc_room_settings_json(char* out, int size)
     char item[192];
     for (int i = 0; i < count; i++) {
         snprintf(item, sizeof item, "%s\"%s\":{\"value\":%g,\"default\":%g,\"room\":%s}", i ? "," : "",
-            settings[i].key, *settings[i].value, settings[i].base, settings[i].overridden ? "true" : "false");
+            settings[i].key, *settings[i].value, dflt(settings[i]), settings[i].overridden ? "true" : "false");
         j += item;
     }
     j += "}";
@@ -282,8 +315,11 @@ static void save_defaults()
     if (!f)
         return;
     fprintf(f, "# rood-boi project defaults for per-room settings (see pc/src/room_settings.cpp)\n");
-    for (const Setting& s : settings)
+    for (const Setting& s : settings) {
         fprintf(f, "set %s %g\n", s.key, s.base);
+        if (s.has_ext)
+            fprintf(f, "set exterior.%s %g\n", s.key, s.ext_base);
+    }
     fclose(f);
 }
 
@@ -336,7 +372,7 @@ extern "C" bool pc_room_settings_page(const char* page)
         if (ImGui::BeginPopupContextItem("default")) {
             if (ImGui::MenuItem("Use as the project default")) {
                 look_overrides[&s - settings].active = false;
-                s.base = *s.value;
+                dflt(s) = *s.value;
                 s.overridden = false;
                 save_defaults();
                 changed = true;
@@ -344,7 +380,7 @@ extern "C" bool pc_room_settings_page(const char* page)
             if (ImGui::MenuItem("Reset to the project default", nullptr, false, s.overridden)) {
                 look_overrides[&s - settings].active = false;
                 s.overridden = false;
-                *s.value = s.base;
+                *s.value = dflt(s);
                 changed = true;
             }
             ImGui::EndPopup();
@@ -354,15 +390,47 @@ extern "C" bool pc_room_settings_page(const char* page)
             if (ImGui::SmallButton("reset")) {
                 look_overrides[&s - settings].active = false;
                 s.overridden = false;
-                *s.value = s.base;
+                *s.value = dflt(s);
                 changed = true;
             }
             if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("Back to the project default (%g)", s.base);
+                ImGui::SetTooltip("Back to the project default (%g)", dflt(s));
         } else if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("Project default. Change it to override for this room;\nright-click for options.");
         }
         ImGui::PopID();
     }
     return changed;
+}
+
+/* The room's key light for the present passes (scaled.frag key_), on the game thread at the frame's header: [0] azimuth
+ * and elevation in radians, whether the azimuth is turned with the view, the relief share; [4..6] colour times intensity
+ * (all zero: no key light), [7] the highlight's strength, [8] the relief gain. A room open to the sky takes the settings' exterior defaults
+ * (the lighting packs' defaults.txt "set exterior.<key>"), anywhere else the interior ones. */
+extern "C" void pc_key_light_params(float out[9])
+{
+    init();
+    const bool exterior = pc_env_open_sky() != 0;
+    if (exterior != exterior_class) { // a room change, or the sun or sky edited: the settings not overridden follow
+        exterior_class = exterior;
+        for (Setting& s : settings)
+            if (s.has_ext && !s.overridden)
+                *s.value = dflt(s);
+    }
+    for (int i = 0; i < 9; i++)
+        out[i] = 0;
+    float strength = pc_key_light_strength;
+    if (!pc_key_light || !pc_lights_enabled || !(strength > 0) || !(key_intensity > 0))
+        return;
+    auto clamp = [](float v, float lo, float hi) { return v < lo ? lo : v > hi ? hi : v; };
+    const float deg = 3.14159265f / 180.0f, gain = clamp(key_intensity, 0, 4) * clamp(strength, 0, 2);
+    out[0] = key_azimuth * deg;
+    out[1] = clamp(key_elevation, 0, 90) * deg;
+    out[2] = key_view > 0.5f ? 1.0f : 0.0f;
+    out[3] = clamp(key_relief, 0, 1);
+    out[4] = clamp(key_red, 0, 1) * gain;
+    out[5] = clamp(key_green, 0, 1) * gain;
+    out[6] = clamp(key_blue, 0, 1) * gain;
+    out[7] = clamp(key_specular, 0, 1);
+    out[8] = clamp(key_gain, 0, 16);
 }

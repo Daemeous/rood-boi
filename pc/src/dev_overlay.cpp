@@ -1122,7 +1122,7 @@ static void look_panel()
                           "semi-transparent sprite, whose outline blends with the field.");
 }
 
-extern "C" int pc_rumble_strength, pc_analog_move, pc_analog_dead_zone, pc_analog_run, pc_audio_latency_ms; /* project_settings.cpp */
+extern "C" int pc_rumble_strength, pc_analog_move, pc_analog_dead_zone, pc_analog_run, pc_audio_latency_ms, pc_sound_autopan_quirk; /* project_settings.cpp */
 /* Graphics > Controls: analog movement (analog_move.c; off by default) and the gamepad's rumble. */
 static void analog_panel()
 {
@@ -1147,6 +1147,13 @@ static void analog_panel()
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("How far ahead the audio thread keeps the sound queued for the audio device. More rides out a\n"
                           "stall on a loaded machine and delays what you hear by as much. (No audio device: unused.)");
+    bool autopan = pc_sound_autopan_quirk != 0;
+    if (ImGui::Checkbox("Original auto-pan quirk", &autopan))
+        pc_sound_autopan_quirk = autopan;
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Five tracks (MUSIC047, 147, 159, 169, 172) ask for auto-pan wave types the original's table does not\n"
+                          "have, and it plays a few bytes of its own code as the wave. On: the same, as it sounds on the\n"
+                          "original. Off: a flat wave, no pan movement. Takes effect when a note next starts its auto-pan.");
 }
 
 extern "C" int pc_qol_confirm_cross, pc_qol_field_cross_attack; /* project_settings.cpp */
@@ -2222,6 +2229,13 @@ static void details(float x, float y, float w, float h, double frame_ms)
                 ImGui::TextDisabled("Fixtures and magic glows are also listed one by one in the Outliner;\n"
                                     "effects (attacks, spells, sparks) only as a kind.");
                 if (pc_room_settings_page("Glows"))
+                    pc_lights_mark_dirty();
+                ImGui::TreePop();
+            }
+            if (ImGui::TreeNodeEx("Key light", ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::TextDisabled("A soft directional light that shows the maps' relief (Graphics > Lighting quality\n"
+                                    "> Materials: key_light, key_light_strength). Rooms open to the sky have their own defaults.");
+                if (pc_room_settings_page("Key light"))
                     pc_lights_mark_dirty();
                 ImGui::TreePop();
             }

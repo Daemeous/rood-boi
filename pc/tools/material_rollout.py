@@ -173,12 +173,13 @@ def save_thumbs(game, data, tex_dir):
     return saved
 
 
-def goto(game, zone, room, cell=None):
+def goto(game, zone, room, cell=None, enemies=False):
     """material_survey.goto, with a cell for rooms no door leads into (the
-    warp makes up a door onto it, as the game's pit falls do)."""
+    warp makes up a door onto it, as the game's pit falls do), and the room's
+    enemies when asked (their models are then drawn: the model painting round trip)."""
     game.call("editor_camera", off=1)
     extra = {"cell": cell} if cell else {}
-    game.call("room_goto", zone=zone, room=room, enemies=False, scripts=False, **extra)
+    game.call("room_goto", zone=zone, room=room, enemies=enemies, scripts=enemies, **extra)
     for _ in range(60):
         game.run(20)
         if game.call("room_goto", action="status")["phase"] in (0, 4):

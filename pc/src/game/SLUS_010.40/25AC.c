@@ -202,7 +202,31 @@ extern u_int g_Music_LoopCounter;
 FSoundChannelConfig vs_audio_seqPrimaryMusicConfig;
 FSoundChannel vs_audio_seqSavedMusicChannels[32]; /* 32 channels */
 extern FSoundInstrumentInfo g_InstrumentInfo[256];
-extern short* g_Sound_LfoTable[];
+extern short* g_Sound_LfoTable[16];
+extern int pc_sound_autopan_quirk; /* project_settings.cpp */
+/* The LFO wave types of 16 and up. The original's table held 16 wave pointers and ran on into the PS1 code's jump tables, so a
+ * type of 16 or more used a code address as a wave: every one the disc's music uses (auto pan 30, 40, 65, 72; MUSIC047, 147,
+ * 159, 169, 172) reads the 0x40 bytes of code around Sound_Cmd_11_Nop as 16-bit samples, which the wave format loops through
+ * (a run of zero samples jumps back). That is how those tracks sound on the original, so it is the default
+ * (sound_autopan_quirk 1): the bytes come from the player's own executable at start-up (pc_sound_lfo_quirk_load, called by
+ * boot_runtime.c), never from the sources. Off: a type of 16 or more is a flat wave (no modulation). */
+#define LFO_QUIRK_SHORTS 36
+#define LFO_QUIRK_START 30 /* the first sample: Sound_Cmd_11_Nop, the original table's word for every type of 16 and up */
+static short vs_audio_lfoQuirkWaves[LFO_QUIRK_SHORTS];
+static short vs_audio_lfoFlatWave[4] = { 0, 0, 0, -1 }; /* sample 0; a zero pair jumps by the next word (here back to the start) */
+static short* pc_sound_lfo_wave(u_int type)
+{
+    if (type < 16)
+        return g_Sound_LfoTable[type];
+    return pc_sound_autopan_quirk ? vs_audio_lfoQuirkWaves + LFO_QUIRK_START : vs_audio_lfoFlatWave;
+}
+/* `bytes` (LFO_QUIRK_SHORTS * 2) are the executable's bytes from 0x40 before Sound_Cmd_11_Nop on. */
+void pc_sound_lfo_quirk_load(const unsigned char* bytes)
+{
+    for (int i = 0; i < LFO_QUIRK_SHORTS; i++)
+        vs_audio_lfoQuirkWaves[i] = (short)(bytes[2 * i] | (bytes[2 * i + 1] << 8));
+}
+#define LFO_TABLE(type) pc_sound_lfo_wave(type)
 FSoundCommandParams D_80037800;
 extern int vs_audio_mixerMusicPitchScaleStep;
 extern int vs_audio_mixerTempoScaleStep;
@@ -5103,13 +5127,13 @@ void vs_audio_seqExecuteChannelStep(FSoundChannel* arg0, int arg1)
                                             : (temp_v1_6 * temp_a2_2))
                                  >> 7;
                 if (!(arg0->SfxMask & 2)) {
-                    arg0->VibratoWave = g_Sound_LfoTable[arg0->VibratoType];
+                    arg0->VibratoWave = LFO_TABLE(arg0->VibratoType);
                     arg0->VibratoDelayCurrent = arg0->VibratoDelay;
                     arg0->unkA4 = 1;
                 }
             }
             if ((temp_s0 & 2) && !(arg0->SfxMask & 2)) {
-                arg0->TremeloWave = g_Sound_LfoTable[arg0->TremeloType];
+                arg0->TremeloWave = LFO_TABLE(arg0->TremeloType);
                 arg0->TremeloDelayCurrent = arg0->TremeloDelay;
                 arg0->unkB6 = 1;
             }
@@ -5689,7 +5713,7 @@ void SoundVM_B4_Vibrato(
         VibratoBase = DepthHigh * new_var;
     }
     in_pChannel->VibratoBase = VibratoBase >> 7;
-    in_pChannel->VibratoWave = g_Sound_LfoTable[in_pChannel->VibratoType];
+    in_pChannel->VibratoWave = LFO_TABLE(in_pChannel->VibratoType);
     in_pChannel->VibratoDelayCurrent = in_pChannel->VibratoDelay;
     in_pChannel->unkA4 = 1;
 }
@@ -5780,7 +5804,7 @@ void SoundVM_B8_Tremelo(
     }
 
     in_pChannel->TremeloType = *(in_pChannel->ProgramCounter)++;
-    in_pChannel->TremeloWave = g_Sound_LfoTable[in_pChannel->TremeloType];
+    in_pChannel->TremeloWave = LFO_TABLE(in_pChannel->TremeloType);
     in_pChannel->TremeloDelayCurrent = in_pChannel->TremeloDelay;
     in_pChannel->unkB6 = 1;
 }
@@ -5832,7 +5856,7 @@ void SoundVM_BC_AutoPan(
     }
 
     in_pChannel->AutoPanType = *(in_pChannel->ProgramCounter)++;
-    in_pChannel->AutoPanWave = g_Sound_LfoTable[in_pChannel->AutoPanType];
+    in_pChannel->AutoPanWave = LFO_TABLE(in_pChannel->AutoPanType);
     in_pChannel->AutoPanRateCurrent = 1;
 }
 

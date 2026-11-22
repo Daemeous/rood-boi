@@ -50,7 +50,7 @@ def main():
     (out / "settings.cfg").write_text("light_animation 0\ndust 0\naa off\n")
     baked, user = out / "baked", out / "maps"
     env = {"ROOD_LIGHTS": str(out / "lights"), "ROOD_LIGHTING": str(ROOT / "lighting"), "ROOD_SCALE": "2",
-           "ROOD_WINDOW": "1280x960", "ROOD_GI": "0", "ROOD_SETTINGS": str(out / "settings.cfg"),
+           "ROOD_WINDOW": "1280x960", "ROOD_GI": "1" if vulkan else "0", "ROOD_SETTINGS": str(out / "settings.cfg"),
            "ROOD_MATERIAL_CATALOG_USER": str(out / "materials.json"), "ROOD_MATERIALS": str(user),
            "ROOD_MATERIAL_CATALOG": str(ROOT / "pc/assets/materials/catalog.json"),
            "ROOD_MATERIALS_SHIPPED": str(out / "shipped-maps"), "ROOD_MATERIALS_BAKED": str(baked),

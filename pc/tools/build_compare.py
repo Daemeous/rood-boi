@@ -1549,6 +1549,85 @@ def run_audio(binary, args):
         return wav.read_bytes()[44:]
 
 
+def parse_audio_rooms(text):
+    """'zone,room[=music];...' as [(zone, room, music or None)]: a room, and optionally the track (MUSIC<id>.DAT) it plays instead
+    of its own, so a track no room plays by itself can be heard."""
+    rooms = []
+    for item in text.split(";"):
+        where, _, music = item.partition("=")
+        zone, room = (int(n) for n in where.split(","))
+        rooms.append((zone, room, int(music) if music else None))
+    return rooms
+
+
+def play_audio_rooms(binary, card, out, rooms, settings, vsyncs):
+    """The sound over a list of rooms: each room is a game of its own (a fresh launch at the card's save room: the sound
+    driver and the music slots as a launch leaves them), `vsyncs` of it, with the room's track swapped in when the item
+    names one; the mixes are recorded to out/audio-<n>.wav. `settings`: 'KEY VALUE' lines applied by RPC first."""
+    os.environ.update(ROOD_BINARY=binary, ROOD_SYMBOLS=binary, ROOD_HEADLESS="egl", ROOD_RENDERER="vulkan", ROOD_ARCH="64", ROOD_TEST_SNAPSHOTS="0")
+    own_shaders()
+    sys.path[:0] = [str(ROOT / "pc/tools"), str(ROOT / "pc/tests")]
+    cover(binary)
+    from checkpoints import launch_at
+    out = pathlib.Path(out)
+    for n, (zone, room, music) in enumerate(rooms):
+        g = launch_at("save_room", card=card, fast=True, log=out / f"audio-{n}.log", audio=f"wav:{out / f'audio-{n}.wav'}", extra_env={
+            "ROOD_GI": os.environ.get("BUILD_COMPARE_GI", "0"), "ROOD_INTERPOLATE": "0", "ROOD_WINDOW": "960x720", "ROOD_LIGHTS": str(out / "lights"), "ROOD_PREFABS": str(out / "prefabs")})
+        try:
+            if settings:
+                g.call("settings", apply=list(settings))
+            def visit(zone, room, record):
+                g.call("room_goto", hold=True, zone=zone, room=room, enemies=True, scripts=False)
+                for _ in range(80):
+                    g.run(20)
+                    if g.call("room_goto", action="status")["phase"] in (0, 4):
+                        break
+                g.run(record)
+            if music is not None:
+                # The zone's own track is loaded from the disc by its id: for this game that id's file is the wanted track's, after a
+                # visit to a room of another track (an id already playing is not loaded again).
+                track = int(g.value(f"vs_field_zoneMusicIds[{zone}]"))
+                visit(*((15, 0) if zone != 15 else (48, 3)), 60)
+                for table in ("_musicLBAs", "_musicFileSizes"):
+                    g.store(f"{table}[{track}]", int(g.value(f"{table}[{music}]")))
+            visit(zone, room, vsyncs)
+        finally:
+            g.close()
+    print("RESULT")
+
+
+def run_audio_rooms(binary, args, settings=()):
+    with tempfile.TemporaryDirectory(prefix="build-compare-", dir=ROOT / "pc/build") as out:
+        command = [sys.executable, __file__, "--play-audio-rooms", args.audio_rooms, binary, "--card", args.card, "--out", out, "--audio-vsyncs", str(args.audio_vsyncs)]
+        for line in settings:
+            command += ["--audio-setting", line]
+        done = subprocess.run(command, capture_output=True, text=True)
+        wavs = [pathlib.Path(out) / f"audio-{n}.wav" for n in range(len(parse_audio_rooms(args.audio_rooms)))]
+        if "RESULT" not in done.stdout or not all(w.exists() for w in wavs):
+            sys.exit(f"build_compare: {binary} did not finish the sound run:\n{done.stderr[-1500:]}")
+        if args.keep_audio:  # one wav per room, local only
+            keep = pathlib.Path(args.keep_audio)
+            keep.mkdir(parents=True, exist_ok=True)
+            for n, w in enumerate(wavs):
+                (keep / f"{pathlib.Path(binary).name}{'-' + '-'.join(s.replace(' ', '=') for s in settings) if settings else ''}-room{n}.wav").write_bytes(w.read_bytes())
+        return b"".join(w.read_bytes()[44:] for w in wavs)  # the samples (the 44-byte header's length is only updated once a second)
+
+
+def compare_audio_rooms(args):
+    """The audio lane over rooms: OLD, OLD again (the control, with --control) and NEW (with the --audio-setting lines applied),
+    each room's recorded mix byte for byte. 0 when NEW's recording is OLD's."""
+    first = run_audio_rooms(args.old, args)
+    control, new = control_run(args, first, lambda: run_audio_rooms(args.old, args)), run_audio_rooms(args.new, args, args.audio_setting)
+    noise, changed = first_difference(first, control), first_difference(first, new)
+    seconds = lambda i: i // 4 / 44100
+    print(f"audio rooms {args.audio_rooms}: control {('identical' if noise is None else f'differs from {seconds(noise):.2f} s') if args.control else 'skipped'}; "
+          f"old {len(first)} bytes ({seconds(len(first)):.1f} s), new {len(new)}; " + ("identical" if changed is None else f"first differs at {seconds(changed):.2f} s"))
+    if noise is not None:
+        print("build_compare: the control's audio differs, so the audio proves nothing")
+        return 2
+    return 0 if changed is None else 1
+
+
 def first_difference(a, b):
     """The first differing byte of two recordings (None when equal), found in blocks."""
     n, step = min(len(a), len(b)), 1 << 16
@@ -1586,6 +1665,11 @@ def main():
     parser.add_argument("--play", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--play-casts", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--play-audio", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--play-audio-rooms", metavar="ROOMS", help=argparse.SUPPRESS)
+    parser.add_argument("--audio-rooms", metavar="'zone,room[=music];...'", help="only the sound lane, over these rooms (=music: the id of MUSIC<id>.DAT the zone plays there): each room's recorded mix, old against new, byte for byte")
+    parser.add_argument("--audio-vsyncs", type=int, default=900, help="--audio-rooms: vsyncs recorded in each room")
+    parser.add_argument("--audio-setting", action="append", default=[], metavar="'KEY VALUE'", help="--audio-rooms: a settings line applied to NEW only, by RPC (sound_autopan_quirk 0)")
+    parser.add_argument("--keep-audio", metavar="DIR", help="--audio-rooms: keep each recording as a wav in DIR (local only: game audio is never committed)")
     parser.add_argument("--audio", choices=["on", "off"], default="on", help="the sound lane after the fight: the room's recorded mix, old, old again and new, byte for byte")
     parser.add_argument("--menus", nargs="?", const="ending,menuf", help="the menus' lane: the routes to play (see the top of this file)")
     parser.add_argument("--menu-sample", type=int, default=MENU_SAMPLE, help="--menus: vsyncs between display hashes")
@@ -1618,6 +1702,10 @@ def main():
         return play(args.old, args.seconds, args.card, args.out)
     if args.play_audio:
         return play_audio(args.old, args.card, args.out)
+    if args.play_audio_rooms:
+        return play_audio_rooms(args.old, args.card, args.out, parse_audio_rooms(args.play_audio_rooms), args.audio_setting, args.audio_vsyncs)
+    if args.audio_rooms:
+        return compare_audio_rooms(args)
     if args.play_casts:
         return play_casts(args.old, args.card, args.out, args.casts, args.cast_limit)
     if args.play_menus:

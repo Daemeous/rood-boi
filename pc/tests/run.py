@@ -169,10 +169,20 @@ def suites(args, mode="egl"):
               sources=[ROOT / "pc/tools/room_blender.py", ROOT / "pc/tools/room_blender.json", ROOT / "pc/tools/blender/bake_room.py"],
               note="the one-room Blender round trip (Gitea #20) without the game or Blender: the dump's polygons to texture boxes, "
                    "the glTF (a primitive and material per texture, UVs over the box, tags), the maps made from a bake"),
+        Suite("model_blender", [PY, str(TESTS / "model_blender_test.py")], 60, binary=None,
+              sources=[ROOT / "pc/tools/model_blender.py", ROOT / "pc/tools/room_blender.py", ROOT / "pc/tools/room_blender.json"],
+              note="a model through the Blender bake (Gitea #20) without the game or Blender: the model's settings over the room's, an "
+                   "entry per texture keyed by the model, the maps cut from an atlas bake into each texture's folder"),
         Suite("paint_roundtrip", [PY, str(TESTS / "paint_roundtrip_test.py")], 60, binary=None,
-              sources=[ROOT / "pc/tools/paint_roundtrip.py", ROOT / "pc/tools/room_blender.py"],
+              sources=[ROOT / "pc/tools/paint_roundtrip.py", ROOT / "pc/tools/subcraft_project.py", ROOT / "pc/tools/room_blender.py"],
               note="the painting round trip without the game: the seed (the bake's normals, texel for texel), nothing written unpainted, one "
                    "texel on one object, a painted normal alone, a model's atlas cut into its boxes, a glTF a painter re-saved"),
+        Suite("aseprite", [PY, str(TESTS / "aseprite_test.py")], 60, binary=None,
+              sources=[ROOT / "pc/tools/aseprite_io.py", ROOT / "pc/tools/miniws.py", ROOT / "pc/tools/paint_live.py",
+                       ROOT / "pc/tools/paint_roundtrip.py", ROOT / "pc/tools/room_blender.py"],
+              note="painting metal and roughness in Aseprite without Aseprite or the game: the .aseprite reader (offsets, linked and "
+                   "raw cels, groups, palettes, other colour depths), the export's files, import and watch writing only the painted "
+                   "channel and texels, the WebSocket framing, the live bridge up to the RPC call"),
         Suite("build_compare_shaders", [PY, str(TESTS / "build_compare_shaders_test.py")], 60, binary=None,
               sources=[ROOT / "pc/tools/build_compare.py"],
               note="build_compare runs each probe with the shaders it was built with (every lane that launches a game calls own_shaders)"),
@@ -386,6 +396,16 @@ def suites(args, mode="egl"):
                        "on one object, painting while the game runs shows without a reload, maps found by name",
                   sources=[TESTS / "paint_roundtrip_smoke.py", ROOT / "pc/tools/paint_roundtrip.py", ROOT / "pc/tools/room_blender.py",
                            ROOT / "pc/src/materials.cpp", ROOT / "pc/src/render.c"]),
+            Suite("aseprite_smoke", [PY, str(TESTS / "aseprite_smoke.py"), "--card", str(args.save)], 900,
+                  note="Aseprite painting reaches the running game: a saved .aseprite imported by watch changes the picture, strokes over "
+                       "the WebSocket bridge change it with no file written (latency measured), erasing resets",
+                  sources=[TESTS / "aseprite_smoke.py", ROOT / "pc/tools/paint_live.py", ROOT / "pc/tools/paint_roundtrip.py",
+                           ROOT / "pc/tools/miniws.py", ROOT / "pc/src/materials.cpp", ROOT / "pc/src/material_editor.cpp"]),
+            Suite("model_blender_smoke", [PY, str(TESTS / "model_blender_smoke.py"), "--card", str(args.save)], 600,
+                  note="a model through Blender and back: Ashley's glTF opens in Blender (one mesh, welded, outward, UVs in the atlas), the "
+                       "bake and import make her textures' maps in the folder of her model, and they change her picture in the game",
+                  sources=[TESTS / "model_blender_smoke.py", ROOT / "pc/tools/model_blender.py", ROOT / "pc/tools/room_blender.py",
+                           ROOT / "pc/tools/paint_roundtrip.py", ROOT / "pc/tools/blender/check_gltf.py", ROOT / "pc/tools/blender/bake_room.py"]),
             Suite("material_graph_smoke", [PY, str(TESTS / "material_graph_smoke.py"), "--card", str(args.save)], 600,
                   note="node material graphs: the node library and generation (RPC material_graph), the standard "
                        "surface as a graph byte-identical in the Keep (Vulkan), a tint graph live through the hot "
@@ -467,6 +487,9 @@ def suites(args, mode="egl"):
             Suite("material_relief_smoke", [PY, str(TESTS / "material_relief_smoke.py"), "--card", str(args.save)], 300,
                   note="the relief fades to flat where the texture is stretched: the Keep's arch side smooth, the broad "
                        "faces unchanged and still bumped; the limits are tunables"),
+            Suite("material_key_light_smoke", [PY, str(TESTS / "material_key_light_smoke.py"), "--card", str(args.save)], 300,
+                  note="the per-room key light: its data (tunables, room settings, exterior and interior defaults), steady and "
+                       "deterministic frames, off byte-identical, the walls' relief shows with the mean luminance kept"),
             Suite("material_baked_smoke", [PY, str(TESTS / "material_baked_smoke.py"), "--card", str(args.save)], 300,
                   note="the baked material layer: picked up live, under the user's maps, materials_baked off "
                        "byte-identical to no baked layer"),

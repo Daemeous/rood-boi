@@ -162,6 +162,9 @@ typedef struct {
     /* The relief under the baked and indirect light (emissive.h): relief_baked, relief_indirect,
      * relief_reach, relief_overhead (scaled.frag material3_). */
     float material3[4];
+    /* The room's key light (room_settings.cpp pc_key_light_params): [0] azimuth, elevation (radians), relative to
+     * the view (0/1), relief share; [1] colour x intensity, highlight share (scaled.frag key_). */
+    float key[3][4];
 } present_ubo;
 
 /* ---- swapchain ---- */
@@ -1192,6 +1195,11 @@ void pc_vk_present(const uint16_t* vram, int x, int y, int w, int h)
             pu->material3[2] = pc_ph()->relief_reach < 0 ? 0 : pc_ph()->relief_reach > 4096 ? 4096 : pc_ph()->relief_reach;
             pu->material3[3] = pc_ph()->relief_overhead < 0 ? 0 : pc_ph()->relief_overhead > 1 ? 1 : pc_ph()->relief_overhead;
             pu->material[2] = !pc_ph()->gl_show_depth && pc_material_active() ? 1.0f : 0.0f;
+            /* The key light shows the maps' relief: nothing to show (no material in view, the specular switch off)
+             * leaves the frame exactly as it was. */
+            if (pu->material[2] > 0)
+                for (int i = 0; i < 4; i++)
+                    pu->key[0][i] = pc_ph()->key_light[i], pu->key[1][i] = pc_ph()->key_light[4 + i], pu->key[2][i] = i ? 0 : pc_ph()->key_light[8];
             if (pu->material[2] > 0 && gi && pc_vk_reflect_bind && pc_vk_reflect_bind(&reflect_view))
                 pu->material[3] = 1;
             vk_descriptors_image(&d, 23, t->material.view, vk.nearest);

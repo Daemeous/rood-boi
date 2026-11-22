@@ -106,7 +106,8 @@ std::vector<std::string> categories(const std::vector<Entry>& all, const std::st
 {
     std::vector<std::string> out;
     for (const Entry& e : all)
-        if ((kind.empty() || e.kind == kind) && std::find(out.begin(), out.end(), e.category) == out.end())
+        if ((kind.empty() || e.kind == kind) && e.category != kind_label(e.kind) /* (the kind's own chip says it) */
+            && std::find(out.begin(), out.end(), e.category) == out.end())
             out.push_back(e.category);
     return out;
 }

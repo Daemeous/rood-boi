@@ -215,6 +215,8 @@ fog 68ea4c1200a3f6 pos=1,2,3 confine=2
 """)
     write(bad / "default/rooms/zone09_room99.txt", "rood-lighting 2\n")
     write(bad / "default/rooms/lights.txt", "rood-lighting 2\n")
+    write(bad / "default/defaults.txt", "set key_gain 3\nset exterior.key_gain 2\nset exterior.haze_density 0.001\n"
+          "set no_such_key 1\nset exterior.key_nothing 1\nset key_azimuth many\nkey_gain 3\n")
     write(bad / "default/generated/zone09_room17.txt", "rood-lighting 2\noverride light:x intensity=1\nbogus line here\n")
     result = subprocess.run(lint + [str(bad)], capture_output=True, text=True, cwd=ROOT)
     report = result.stdout
@@ -224,12 +226,24 @@ fog 68ea4c1200a3f6 pos=1,2,3 confine=2
               "the environment items are env:sun, env:sky and env:fog", "'zenith' is not a field of the sun",
               "post:room: sets tonemapper", "post:cutscene: its preset cinematic sets tonemapper",
               "shape must be one of box, room, point, disc, surface", "render must be pixel",
-              "confine must be 0 or 1"]
+              "confine must be 0 or 1", "haze_density: only the key light's settings (key_*) have an exterior default",
+              "no_such_key: no such room setting", "key_nothing: no such room setting", "many: not a number",
+              "expected: set <key> <number>"]
     if (ROOT / "data/SLUS_010.40").exists():
         expect.append("zone 9 room 99 is not a room of the game")
     for e in expect:
         check(e in report, f"lint reports: {e}")
     check(result.returncode == 1, "the lint fails on errors")
+    # The key light's per-room values are ordinary settings (pc/docs/Materials.md "The key light").
+    keyed = lf.parse_text("rood-lighting 2\nset key_azimuth value=200\nset key_intensity value=1.5\n"
+                          "set key_relief value=0.25\n")
+    check(not keyed.errors and [e.id for e in keyed.entries] == ["set:key_azimuth", "set:key_intensity", "set:key_relief"],
+          f"a room file's key light settings parse ({keyed.errors})")
+    good = tmp / "good"
+    write(good / "default/rooms/zone09_room17.txt", "rood-lighting 2\nset key_azimuth value=200\nset key_intensity value=1.5\nset key_relief value=0.25\n")
+    write(good / "default/defaults.txt", (ROOT / "lighting/default/defaults.txt").read_text())
+    ok = subprocess.run(lint + [str(good)], capture_output=True, text=True, cwd=ROOT)
+    check(ok.returncode == 0 and "0 errors" in ok.stdout, f"the key light settings and the pack's defaults.txt pass the lint: {ok.stdout.strip()}")
     # The README's example parses as written.
     readme = (ROOT / "lighting/README.md").read_text()
     example = readme.split("```\n", 2)[1].split("```")[0]

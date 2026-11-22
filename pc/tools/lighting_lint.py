@@ -244,6 +244,30 @@ def check_values(report, path, e, prefabs, settings):
                     report("error", path, e.line, f"{e.id}: '{key}' is not a parameter of prefab '{prefab}'")
 
 
+def lint_defaults(report, path, settings):
+    """A pack's defaults.txt: `set <key> <number>` lines, the keys per-room settings; `exterior.<key>` (the default
+    of rooms open to the sky) only for the settings that have one (the key light's, key_*)."""
+    for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        line = re.sub(r"\s*#.*$", "", line).strip()
+        if not line:
+            continue
+        parts = line.split()
+        if len(parts) != 3 or parts[0] != "set":
+            report("error", path, n, "expected: set <key> <number>")
+            continue
+        key = parts[1]
+        exterior = key.startswith("exterior.")
+        key = key[9:] if exterior else key
+        if settings is not None and key not in settings:
+            report("error", path, n, f"{key}: no such room setting (pc/src/room_settings.cpp)")
+        elif exterior and not key.startswith("key_"):
+            report("error", path, n, f"{key}: only the key light's settings (key_*) have an exterior default")
+        try:
+            float(parts[2])
+        except ValueError:
+            report("error", path, n, f"{parts[2]}: not a number")
+
+
 def lint_file(report, path, kind, rooms, prefabs, settings, fix):
     m = NAME.match(path.name)
     if not m:
@@ -319,6 +343,8 @@ def main():
                     count += 1
                     if lint_file(report, path, kind, rooms, prefabs, settings, args.fix):
                         names.add(path.name)
+        if (root / pack / "defaults.txt").is_file():
+            lint_defaults(report, root / pack / "defaults.txt", settings)
         for extra in sorted((root / pack).iterdir()) if (root / pack).is_dir() else []:
             if extra.is_dir() and extra.name not in ("generated", "rooms"):
                 report("warning", extra, 0, "unexpected directory (a pack has generated/ and rooms/)")

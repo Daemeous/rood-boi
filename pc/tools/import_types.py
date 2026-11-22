@@ -8,7 +8,7 @@ in.json lists names; out.json maps each name found to its declared type:
 type's size with PS1 (mipsel ILP32) layout rules, "element": for arrays,
 {"size", "ps1_size", "pointer"}, "pointer_words": the type is pointers
 (through any arrays), "pointer_kind": "pointer" (host pointers anywhere
-inside), "psx_ptr" (only 4-byte guest addresses) or null, and for structs
+inside) or null, and for structs
 (or arrays of them) "fields": the flattened PS1 field offsets}.
 build_boot.py --arch 64 uses it to find the
 imports whose layout differs on LP64 (pointers and 8-byte longs): those cannot
@@ -47,8 +47,7 @@ def ps1_layout(t, fields=None):
                 max_align = max(max_align, min(4, field.type.strip_typedefs().sizeof))
                 continue
             size, align = ps1_layout(field.type)
-            # psx_ptr is packed, aligned(4): its zero-length pointer array
-            # adds no alignment beyond the host's.
+            # a packed or under-aligned member keeps the host's alignment
             host_align = field.type.strip_typedefs().alignof if hasattr(field.type, "alignof") else align
             if host_align < align:
                 align = host_align
@@ -78,25 +77,16 @@ def ps1_layout(t, fields=None):
     return size, max(1, size)
 
 
-def is_psx_ptr(t):
-    """psx_ptr(T): a 4-byte guest address struct (raw + zero-length T* array)."""
-    t = t.strip_typedefs()
-    return t.code == gdb.TYPE_CODE_STRUCT and [f.name for f in t.fields()] == ["raw", "psx_type_"]
-
-
 def pointer_kind(t, depth=0):
-    """'pointer' if t holds host pointers (8 bytes on LP64), 'psx_ptr' if it
-    holds only 4-byte guest addresses (psx_ptr), else None."""
+    """'pointer' if t holds host pointers (8 bytes on LP64), else None."""
     t = t.strip_typedefs()
     if t.code in (gdb.TYPE_CODE_PTR, gdb.TYPE_CODE_REF):
         return "pointer"
-    if is_psx_ptr(t):
-        return "psx_ptr"
     if t.code == gdb.TYPE_CODE_ARRAY:
         return pointer_kind(t.target(), depth + 1)
     if t.code in (gdb.TYPE_CODE_STRUCT, gdb.TYPE_CODE_UNION) and depth < 16:
         kinds = {pointer_kind(f.type, depth + 1) for f in t.fields() if not f.bitsize}
-        return "pointer" if "pointer" in kinds else "psx_ptr" if "psx_ptr" in kinds else None
+        return "pointer" if "pointer" in kinds else None
     return None
 
 
@@ -117,10 +107,10 @@ def layout_fields(t, base=0, prefix="", depth=0):
             entry["stride"] = ps1_layout(element)[0]
             out.append(entry)
             if (element.strip_typedefs().code in (gdb.TYPE_CODE_STRUCT, gdb.TYPE_CODE_UNION)
-                    and not is_psx_ptr(element) and depth < 4):
+                    and depth < 4):
                 out += layout_fields(element, base + offset, path + "[0]", depth + 1)
             continue
-        if stripped.code in (gdb.TYPE_CODE_STRUCT, gdb.TYPE_CODE_UNION) and not is_psx_ptr(stripped) and depth < 4:
+        if stripped.code in (gdb.TYPE_CODE_STRUCT, gdb.TYPE_CODE_UNION) and depth < 4:
             out.append(entry)
             out += layout_fields(stripped, base + offset, path, depth + 1)
             continue
@@ -145,9 +135,9 @@ def describe(symbol):
         leaf = leaf.target().strip_typedefs()
     # Every 4-byte PS1 word is a pointer (scalars and arrays of pointers).
     info["pointer_words"] = leaf.code == gdb.TYPE_CODE_PTR
-    # Host pointers or psx_ptr anywhere inside (pc/tools/lp64_alias_scan.py).
+    # Host pointers anywhere inside (pc/tools/lp64_alias_scan.py).
     info["pointer_kind"] = pointer_kind(t)
-    if leaf.code in (gdb.TYPE_CODE_STRUCT, gdb.TYPE_CODE_UNION) and not is_psx_ptr(leaf) and leaf.sizeof:
+    if leaf.code in (gdb.TYPE_CODE_STRUCT, gdb.TYPE_CODE_UNION) and leaf.sizeof:
         info["fields"] = layout_fields(leaf)
         info["leaf_ps1_size"] = ps1_layout(leaf)[0]
     return info

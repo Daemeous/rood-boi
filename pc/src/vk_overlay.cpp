@@ -76,6 +76,17 @@ static ImVector<ImTextureData*> shadow_list;
 /* The texture a draw command named, by handle, in each snapshot list (parallel to its CmdBuffer). */
 static std::vector<std::vector<int>> command_textures;
 
+/* The handle each context texture goes by. ImTextureData::UniqueID is the font atlas's own count ("unique per atlas"): every texture
+ * the application registers (the library's thumbnails, the prompt glyphs, the UI text) has 0 there, so keying by it made them
+ * one texture, the last created. A handle is made at the create and kept to the destroy. */
+static std::unordered_map<const ImTextureData*, int> texture_handles;
+static int texture_handle_next = 1;
+static int texture_handle(const ImTextureData* tex)
+{
+    auto found = texture_handles.find(tex);
+    return found != texture_handles.end() ? found->second : 0;
+}
+
 static void texture_ops_collect(ImDrawData* data)
 {
     if (!data->Textures)
@@ -84,12 +95,15 @@ static void texture_ops_collect(ImDrawData* data)
         if (tex->Status == ImTextureStatus_OK || tex->Status == ImTextureStatus_Destroyed)
             continue;
         TextureOp op;
-        op.uid = tex->UniqueID, op.width = tex->Width, op.height = tex->Height, op.format = tex->Format;
+        op.uid = tex->Status == ImTextureStatus_WantCreate ? (texture_handles[tex] = texture_handle_next++) : texture_handle(tex);
+        if (!op.uid)
+            continue; /* (an update or destroy of a texture never created here) */
+        op.width = tex->Width, op.height = tex->Height, op.format = tex->Format;
         op.bytes_per_pixel = tex->BytesPerPixel, op.rect = tex->UpdateRect;
         if (tex->Status == ImTextureStatus_WantCreate) {
             op.kind = TextureOp::Create;
             op.pixels.assign((const unsigned char*)tex->Pixels, (const unsigned char*)tex->Pixels + tex->GetSizeInBytes());
-            tex->SetTexID((ImTextureID)(uintptr_t)tex->UniqueID);
+            tex->SetTexID((ImTextureID)(uintptr_t)op.uid);
             tex->SetStatus(ImTextureStatus_OK);
         } else if (tex->Status == ImTextureStatus_WantUpdates) {
             op.kind = TextureOp::Update;
@@ -102,6 +116,7 @@ static void texture_ops_collect(ImDrawData* data)
             op.kind = TextureOp::Destroy;
             tex->SetTexID(ImTextureID_Invalid);
             tex->SetStatus(ImTextureStatus_Destroyed);
+            texture_handles.erase(tex);
         }
         texture_ops.push_back(std::move(op));
     }
@@ -216,7 +231,7 @@ extern "C" void pc_vk_overlay_snapshot(void)
         ImDrawList* clone = list->CloneOutput(); /* (not AddDrawList: it checks the writer's pointers, a clone has none) */
         command_textures.emplace_back();
         for (ImDrawCmd& cmd : clone->CmdBuffer) {
-            int uid = cmd.TexRef._TexData ? cmd.TexRef._TexData->UniqueID : 0;
+            int uid = cmd.TexRef._TexData ? texture_handle(cmd.TexRef._TexData) : 0;
             command_textures.back().push_back(uid);
             cmd.TexRef._TexData = nullptr; /* (the draw reads the renderer's texture, never the context's object) */
             cmd.TexRef._TexID = ImTextureID_Invalid;

@@ -76,6 +76,12 @@ layout(std140, binding = 0) uniform Present {
     // turns the light's change along the surface into its tilt, w the share of light from above.
     // Debug view (view_mode) 12: the baked and indirect factors (r, g; 0.5 = 1) and the baked tilt (b).
     vec4 material3_;
+    // The room's key light (room_settings.cpp pc_key_light_params): [0] x azimuth, y elevation (radians),
+    // z 1 the azimuth is relative to the view's, w the relief share (1: it only reshapes the light the
+    // surface already has by its normal map, 0: a plain additive light); [1] rgb colour x intensity (all
+    // zero: off), w the highlight's strength; [2].x the relief gain (how many times the maps' slopes the
+    // relief share exaggerates).
+    vec4 key_[3];
 } u;
 #include "material_pack.glsl"
 layout(binding = 23) uniform sampler2D material_tex; // the material target (material_pack.glsl)
@@ -395,6 +401,18 @@ vec4 gi_at(vec2 display, vec3 world, vec3 wn, out vec4 extra_out) {
 // surface (a point light h above it, x along: grad E / E = 3x / (h^2 + x^2) where the tilt is x / h),
 // so tau = reach x grad E / E, reach about the light's height over the surface; plus a share of light
 // from above (the world's up along the surface: what we read bumps by when nothing else tells).
+// The room's key light (pc/docs/Materials.md "The key light"): its direction toward the light, in the world
+// (y down; the sun's convention: azimuth 0 from +z, 90 from +x), turned with the view's when relative.
+bool key_on() { return dot(u.key_[1].rgb, vec3(1.0)) > 0.0; }
+vec3 key_direction() {
+    float az = u.key_[0].x;
+    if (u.key_[0].z > 0.5) {
+        vec3 fwd = inverse_rotation() * vec3(0.0, 0.0, 1.0); // the view's heading: the light comes from behind it
+        az += atan(-fwd.x, -fwd.z);
+    }
+    float e = u.key_[0].y;
+    return vec3(cos(e) * sin(az), -sin(e), cos(e) * cos(az));
+}
 float relief_luma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
 // The gradient along the surface of a scalar from its values at two screen-axis neighbours' offsets
 // a and b (world vectors along the surface, 0 when that axis has no neighbour) and their changes.
@@ -654,7 +672,7 @@ void main() {
             lit_done = haze_done = fogvol_done = particles_done = true;
         }
     }
-    if (!lit_done && (light_count > 0 || baked != 1.0 || gi_on != 0 || view_mode != 0 || u.quality1.y != 0 || u.env_mode.z != 0) && view_mode != 1) {
+    if (!lit_done && (light_count > 0 || baked != 1.0 || gi_on != 0 || view_mode != 0 || u.quality1.y != 0 || u.env_mode.z != 0 || key_on()) && view_mode != 1) {
         ivec2 q = texel(uv);
         vec4 n = texelFetch(normal_tex, q, 0);
         if (n.a > 0.5 && d > 0.0) { // lit 3D surface (not under UI): its view-space position
@@ -732,6 +750,24 @@ void main() {
             // The cavities' ambient occlusion (the baked, indirect and sky light; never the direct lights').
             float m_cav = has_mat ? 1.0 - mp.cavity * clamp(u.material2_.y, 0.0, 1.0) * min(u.material2_.x, 1.0) : 1.0;
             vec3 m_r = reflect(-m_view, n_s);
+            // The key light: with its relief share k (key_[0].w) it reshapes the room's own (baked, indirect, sky)
+            // light by the normal map, 1 + G I dot(n_s - n, l) per unit of flat area (a flat surface keeps its light,
+            // and over slopes that cancel the mean is unchanged), and with the rest (1 - k) it is a plain light
+            // (diffuse and the same GGX lobe as every light), dimmed by the baked shadow.
+            float f_key = 1.0;
+            if (key_on()) {
+                vec3 kl = key_direction();
+                vec3 kc = u.key_[1].rgb;
+                float kr = clamp(u.key_[0].w, 0.0, 1.0);
+                if (m_relief && kr > 0.0) {
+                    float x = kr * u.key_[2].x * relief_luma(kc) * dot(n_s - world_normal, kl);
+                    f_key = 1.0 + 0.9 * tanh(x / 0.9); // (linear near 1, odd about it: the mean kept; 0.1..1.9)
+                }
+                if (kr < 1.0) sum += kc * (1.0 - kr) * max(dot(n_s, kl), 0.0) * bsh.x * ao;
+                if (has_mat && u.key_[1].w > 0.0)
+                    spec += kc * u.key_[1].w * bsh.x * ao * max(spec_brdf(n_s, m_view, kl, m_alpha, m_f0, m_f90, 0.0)
+                        - kr * spec_brdf(world_normal, m_view, kl, m_alpha, m_f0, m_f90, 0.0), vec3(0.0));
+            }
             for (int i = 0; i < light_count; i++) {
                 vec3 centre = lights[i].pos.xyz;
                 if (window_aperture(i)) centre = window_centre(i, world);
@@ -776,6 +812,7 @@ void main() {
             if (u.env_mode.y != 0) {
                 vec3 sky = env_ambient(world_normal);
                 if (r_indirect) sky *= f_sky;
+                sky *= f_key;
                 sum += sky * ao * m_cav * bsh.x;
             }
             if (has_mat && env_sun_on()) { // the sun's highlight: its disc's angular size widens the lobe
@@ -789,8 +826,9 @@ void main() {
             vec3 indirect = vec3(0.0); // (the material's environment where no reflection is traced)
             vec3 gi_lit = gi.rgb; // on the relief (relief_indirect)
             if (r_indirect) gi_lit *= f_indirect;
+            gi_lit *= f_key;
             if ((gi_on & 1) != 0) { indirect = gi.rgb * ao * gi_strength * bsh.y; sum += (gi_lit * ao * m_cav + extra.gba) * gi_strength * bsh.y; } // indirect + glows
-            else if ((gi_on & (64 | 256)) != 0) { indirect = gi.rgb * ao * gi_strength * bsh.y; sum += (r_indirect ? gi_lit * ao * gi_strength * bsh.y : indirect) * m_cav; } // probes alone (no traced GI result)
+            else if ((gi_on & (64 | 256)) != 0) { indirect = gi.rgb * ao * gi_strength * bsh.y; sum += ((r_indirect || f_key != 1.0) ? gi_lit * ao * gi_strength * bsh.y : indirect) * m_cav; } // probes alone (no traced GI result)
             if (view_mode == 11) { color = vec4(bsh, 1.0); return; }
             if (view_mode == 3) { color = vec4(shade.a > 0.75 ? albedo : shade.rgb, 1.0); return; }
             if (view_mode == 4) { color = vec4(min(shade.a > 0.75 ? vertex_light * 0.5 : shade.rgb, vec3(1.0)), 1.0); return; }
@@ -828,6 +866,7 @@ void main() {
                 // The baked light under the same split as the dynamic light (baked_energy; 0: untouched).
                 vec3 kb = mix(vec3(1.0), kd, clamp(u.material2_.w, 0.0, 1.0) * min(u.material_.x, 1.0));
                 if (r_baked) c *= f_baked; // the baked light on the relief (relief_baked)
+                c *= f_key; // and under the key light
                 c = c * baked * baked_vis * ao * m_cav * kb + albedo * sum * mix(vec3(1.0), kd, min(u.material_.x, 1.0)) + spec;
             } else {
                 if ((view_mode >= 6 && view_mode <= 10) || view_mode == 12) { color = vec4(0.0, 0.0, 0.0, 1.0); return; }

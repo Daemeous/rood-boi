@@ -113,6 +113,7 @@ typedef struct {
     int light_count;
     pc_light_gpu lights[PC_LIGHTS_MAX];
     float baked_shadow[5];
+    float key_light[9]; /* the room's key light (room_settings.cpp pc_key_light_params) */
     /* the menu (ui/): active, its backdrop, the model's light */
     int menu_active, menu_backdrop_ok, menu_light_ok;
     float menu_backdrop[4];

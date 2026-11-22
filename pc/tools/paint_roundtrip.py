@@ -3,8 +3,13 @@
 the maps in a painter").
 
     python3 pc/tools/paint_roundtrip.py export room  [--zone Z --room R] [--out DIR]
-    python3 pc/tools/paint_roundtrip.py export model (--model HASH | --model-at X,Y) [--out DIR]
-    python3 pc/tools/paint_roundtrip.py import DIR   [--layer DIR] [--catalog FILE] [--preset NAME]
+    python3 pc/tools/paint_roundtrip.py export model (--model HASH | --model-at X,Y) [--zone Z --room R] [--out DIR]
+    python3 pc/tools/paint_roundtrip.py paint  (room|model) ...   export, then open paint.gltf in SubCraft (or Blender)
+    python3 pc/tools/paint_roundtrip.py (export|paint) ... --painter aseprite   also <out>/aseprite/<material>.aseprite (Metal, Roughness layers)
+    python3 pc/tools/paint_roundtrip.py watch DIR     import each .aseprite file when it is saved
+    python3 pc/tools/paint_roundtrip.py palette DIR   rewrite the swatches of DIR/aseprite/*.aseprite from the preset files (pixels untouched)
+    python3 pc/tools/paint_roundtrip.py live DIR      watch, and take strokes live from the Aseprite extension (pc/tools/paint_live.py)
+    python3 pc/tools/paint_roundtrip.py import DIR   [--layer DIR] [--catalog FILE] [--normal-format auto|opengl|directx] [--keep-seed]
 
 export  A glTF 2.0 file (paint.gltf) of the room the game is in (or of one model: a character, weapon or prop, as it stands in the
         newest frame) with the PBR metallic-roughness material: one material per object and texture (a texture used by more than
@@ -15,8 +20,13 @@ export  A glTF 2.0 file (paint.gltf) of the room the game is in (or of one model
 import  Reads what the painter saved: the glTF with its images, or the images it wrote by name next to it (<material>_<Map>.png:
         BaseColor, Roughness, Metallic, Normal, AO or OcclusionRoughnessMetallic / ORM / MetallicRoughness, any case), and writes the
         channels that differ from the seed as the user material layer's maps of that object (<layer>/<key>/@<object>/roughness.png,
-        metal.png, normal.png, occlusion.png), with a user catalog entry for each painted object so the maps apply. Unpainted
+        metal.png, normal.png, occlusion.png), with a user catalog entry for each painted object so the maps apply. A painter's file
+        name may carry a prefix (SubCraft writes <mesh>_<material>_<Map>.png), its images may be bigger than the texture (they are
+        averaged down, normals renormalised; the game reads maps only at the texture's size) and its normals DirectX (named so, or
+        --normal-format). Unpainted
         channels write nothing: an export imported without painting changes nothing.
+        Also the .aseprite files (aseprite_io.py): their Metal, Roughness and Material layers (preset swatches: material_presets.py) are the maps, a transparent pixel keeps the game's
+        value, a file newer than the PNGs wins its channel, and a map follows its layer (an emptied layer resets it).
 Only the game's own files are read and written; the folder it exports is game art and stays on the machine."""
 import argparse
 import hashlib
@@ -25,15 +35,23 @@ import os
 import pathlib
 import re
 import shutil
+import struct
+import subprocess
 import sys
+import threading
+import time
 import urllib.parse
+import zlib
 
 import numpy as np
 from PIL import Image
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
+os.environ.setdefault("ROOD_ARCH", "64")  # the 32-bit build is retired: run by hand, these tools use the 64-bit game
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
+import aseprite_io as ase  # noqa: E402
+import material_presets as mp  # noqa: E402
 import room_blender as rb  # noqa: E402
 
 CHANNELS = ("basecolor", "metallicroughness", "normal", "occlusion")
@@ -44,10 +62,17 @@ ALIASES = {
     "metallicroughness": ("metallicroughness", "occlusionroughnessmetallic", "orm", "metallic_roughness", "mr", "rma"),
     "roughness": ("roughness", "rough"),
     "metal": ("metallic", "metalness", "metal"),
-    "normal": ("normal", "normalopengl", "normaldirectx", "nrm"),
+    "normal": ("normal", "normalopengl", "normal_opengl", "normalgl", "normal_gl", "normaldirectx", "normal_directx", "normaldx", "normal_dx", "nrm"),
     "occlusion": ("occlusion", "ambientocclusion", "ambient_occlusion", "ao"),
 }
-DEFAULT_ROUGHNESS = 204  # (0.8: what an unpainted texture reads as)
+DIRECTX = re.compile(r"(directx|(?<![a-z])dx(?![a-z])|normaldx)")  # a name that says its normal map is DirectX (green down)
+ASE_LAYERS = {"metal": "Metal", "roughness": "Roughness"}  # the channel layers of a material's .aseprite file (the Game colour layer under them)
+ASE_MATERIAL = mp.LAYER  # the layer painted with the preset swatches (above Metal and Roughness): one stroke sets metal and roughness together
+ASE_COLOUR = "Game colour (reference)"
+ASE_MATERIAL_OPACITY = 178  # (70%)
+ASE_METAL_OPACITY = 153  # (60%: the colour shows through; display only, import reads the cel's pixels)
+STANDARD = {"roughness": 1.0, "specular": 0.0, "metal": 0.0, "auto_height": False, "bump": 1.0}  # what a texture with no catalog entry is (materials.cpp surface_of)
+RESERVED = {"id", "name", "where", "review", "match", "scope", "object", "preset", "parent"}  # (an entry's own identity, not its look)
 
 
 def safe(label):
@@ -60,6 +85,77 @@ def user_layer():
 
 def user_catalog():
     return pathlib.Path(os.environ.get("ROOD_MATERIAL_CATALOG_USER") or (pathlib.Path(os.environ.get("ROOD_LIGHTS") or ROOT / "pc/user/lighting") / "materials.json"))
+
+
+def catalog_files(user=None):
+    """The catalogs the game reads, the shipped one first and the user's after it (a user entry of the same id replaces it in place)."""
+    shipped = os.environ.get("ROOD_MATERIAL_CATALOG") or str(pathlib.Path(os.environ.get("ROOD_MATERIALS_SHIPPED") or ROOT / "pc/assets/materials") / "catalog.json")
+    return [pathlib.Path(shipped), pathlib.Path(user) if user else user_catalog()]
+
+
+def load_catalog(files):
+    """({id: raw preset or entry}, [raw entries in the game's order]) of catalog files (a missing or unreadable one is empty)."""
+    byid, entries = {}, []
+    for path in files:
+        try:
+            data = json.loads(pathlib.Path(path).read_text())
+        except (OSError, ValueError):
+            continue
+        for name, preset in (data.get("presets") or {}).items():
+            byid[name] = preset
+        for e in data.get("entries") or []:
+            old = next((i for i, x in enumerate(entries) if x.get("id") == e.get("id")), None)
+            if old is None:
+                entries.append(e)
+            else:
+                entries[old] = e
+            byid[e.get("id")] = e
+    return byid, entries
+
+
+def in_scope(entry, zone, room):
+    scope = entry.get("scope") or {}
+    rooms = [scope["room"]] if "room" in scope else scope.get("rooms")
+    return rooms is None or (zone is not None and [zone, room] in [list(r) for r in rooms])
+
+
+def object_ids(rec):
+    return {rec["object"]} if rec.get("object") and rec["object"].startswith("g") else ({f"m{rec['model']}"} if rec.get("model") else set())
+
+
+def entry_for(files, rec, key, w, h, zone=None, room=None):
+    """The raw catalog entry the game draws texture `key` (w x h) of `rec`'s object with, or None: an entry for the object first (the last
+    that matches), else the entry the game itself said the texture had when it was exported (`rec["entry"]`: it knows palettes)."""
+    byid, entries = load_catalog(files)
+    mine = object_ids(rec)
+    for e in reversed(entries):
+        obj = e.get("object")
+        if not obj or not in_scope(e, zone, room):
+            continue
+        ids = {f"g{g:x}" for g in obj.get("groups", [])} | {f"m{m}" for m in obj.get("models", [])}
+        m = e.get("match") or {}
+        if mine & ids and not m.get("clut") and (m.get("key", key) == key) and (not m.get("size") or list(m["size"]) == [w, h]):
+            return e
+    return byid.get(rec.get("entry") or "")
+
+
+def surface_of(files, rec, key, w, h, zone=None, room=None):
+    """What the game draws texture `key` with now: ({roughness, specular, metal, auto_height, bump}, the entry's other values (a master's
+    parameters)), the standard no-entry surface when nothing matches. Presets and parents resolve as materials.cpp does."""
+    byid, _ = load_catalog(files)
+    entry = entry_for(files, rec, key, w, h, zone, room)
+    chain, seen = [], set()
+    while entry is not None and id(entry) not in seen:
+        seen.add(id(entry))
+        chain.append(entry)
+        entry = byid.get(entry.get("parent") or entry.get("preset") or "")
+    values, extra = dict(STANDARD), {}
+    for e in reversed(chain):
+        for name, value in e.items():
+            if name in RESERVED:
+                continue
+            (values if name in STANDARD else extra)[name] = value
+    return values, extra
 
 
 def seed_layers(extra=()):
@@ -82,15 +178,17 @@ def read_map(layers, key, obj, name):
     return None
 
 
-def seed_images(layers, key, obj, rgba):
-    """The four images an export starts a painter with: the game's texture and the maps the game has (or neutral ones)."""
+def seed_images(layers, key, obj, rgba, surface=None):
+    """The four images an export starts a painter with: the game's texture and the maps the game has (else the entry's uniform values,
+    `surface`: surface_of's values, the standard no-entry ones when there is none)."""
     h, w = rgba.shape[:2]
+    surface = surface or STANDARD
     rough = read_map(layers, key, obj, "roughness")
     metal = read_map(layers, key, obj, "metal")
     mr = np.zeros((h, w, 3), np.uint8)
     mr[..., 0] = 255
-    mr[..., 1] = rough if rough is not None and rough.shape == (h, w) else DEFAULT_ROUGHNESS
-    mr[..., 2] = metal if metal is not None and metal.shape == (h, w) else 0
+    mr[..., 1] = rough if rough is not None and rough.shape == (h, w) else uniform(surface, "roughness")
+    mr[..., 2] = metal if metal is not None and metal.shape == (h, w) else uniform(surface, "metal")
     normal = read_map(layers, key, obj, "normal")
     if normal is None or normal.shape[:2] != (h, w):
         normal = np.zeros((h, w, 3), np.uint8)
@@ -101,16 +199,21 @@ def seed_images(layers, key, obj, rgba):
     return {"basecolor": rgba, "metallicroughness": mr, "normal": normal, "occlusion": occlusion}
 
 
-def atlas_images(layers, obj, slices, w, h):
+def uniform(surface, channel):
+    """A uniform fraction as the 8-bit value of a map."""
+    return int(round(float(surface[channel]) * 255))
+
+
+def atlas_images(layers, obj, slices, w, h, surfaces=None):
     """A model's page as one set of images: each box of it (a use: slices of {key, box, rgba}) pasted where it lies in the page, the
     rest empty (transparent colour, neutral maps), so a painter has one coherent atlas to paint on."""
     out = {"basecolor": np.zeros((h, w, 4), np.uint8), "metallicroughness": np.zeros((h, w, 3), np.uint8),
            "normal": np.zeros((h, w, 3), np.uint8), "occlusion": np.full((h, w), 255, np.uint8)}
-    out["metallicroughness"][...] = (255, DEFAULT_ROUGHNESS, 0)
+    out["metallicroughness"][...] = (255, uniform(STANDARD, "roughness"), uniform(STANDARD, "metal"))
     out["normal"][...] = (128, 128, 255)
     for sl in slices:
         u0, v0, u1, v1 = sl["box"]
-        part = seed_images(layers, sl["key"], obj, sl["rgba"])
+        part = seed_images(layers, sl["key"], obj, sl["rgba"], (surfaces or {}).get(sl["key"]))
         for channel in CHANNELS:
             out[channel][v0:v1 + 1, u0:u1 + 1] = part[channel]
     return out
@@ -122,10 +225,31 @@ def save_image(path, array):
     Image.fromarray(array, mode).save(path)
 
 
-def write_package(out, positions, colours, tris, found, textures, labels, rgba_of, meta, layers):
+def write_aseprite(path, images):
+    """A material's .aseprite file for a pixel painter: the game's colour (locked), then Metal (60% opacity so the colour shows through)
+    and Roughness (hidden), as RGBA gray from the maps the game has, then Material (70%, empty: painted with the palette's preset swatches);
+    a transparent pixel of a layer keeps the game's value. The palette is the presets' swatches, named, then grays (material_presets.py)."""
+    h, w = images["basecolor"].shape[:2]
+    mr = images["metallicroughness"]
+
+    def gray(values):
+        out = np.empty((h, w, 4), np.uint8)
+        out[..., :3] = values[..., None]
+        out[..., 3] = 255
+        return out
+    path.parent.mkdir(parents=True, exist_ok=True)
+    ase.write(path, w, h, [{"name": ASE_COLOUR, "pixels": images["basecolor"], "locked": True},
+                           {"name": ASE_LAYERS["metal"], "pixels": gray(mr[..., 2]), "opacity": ASE_METAL_OPACITY},
+                           {"name": ASE_LAYERS["roughness"], "pixels": gray(mr[..., 1]), "visible": False},
+                           {"name": ASE_MATERIAL, "pixels": np.zeros((h, w, 4), np.uint8), "opacity": ASE_MATERIAL_OPACITY}],
+              palette=mp.palette(mp.load()))
+
+
+def write_package(out, positions, colours, tris, found, textures, labels, rgba_of, meta, layers, outward=False, aseprite=False):
     """paint.gltf, tex/, seed/ and seed.json in `out`. textures: {label: {w, h, box, key?, object?, ...}}, rgba_of: {key: RGBA array}."""
     shutil.rmtree(out / "tex", ignore_errors=True)
     shutil.rmtree(out / "seed", ignore_errors=True)
+    shutil.rmtree(out / "aseprite", ignore_errors=True)
     pbr, records = {}, {}
     for label in sorted(set(labels)):
         t = textures.get(label)
@@ -134,7 +258,14 @@ def write_package(out, positions, colours, tris, found, textures, labels, rgba_o
         key = t.get("texture", label)
         obj = t.get("object", "")
         atlas = t.get("atlas")
-        images = atlas_images(layers, obj, atlas, t["w"], t["h"]) if atlas else seed_images(layers, key, obj, rgba_of[key])
+        rec = {"object": obj, "model": t.get("model"), "entry": t.get("entry", "")}
+        zone, room = meta.get("zone"), meta.get("room")
+        if atlas:
+            surfaces = {sl["key"]: surface_of(catalog_files(), {**rec, "entry": sl.get("entry", "")}, sl["key"], sl["box"][2] - sl["box"][0] + 1,
+                                             sl["box"][3] - sl["box"][1] + 1, zone, room)[0] for sl in atlas}
+            images = atlas_images(layers, obj, atlas, t["w"], t["h"], surfaces)
+        else:
+            images = seed_images(layers, key, obj, rgba_of[key], surface_of(catalog_files(), rec, key, t["w"], t["h"], zone, room)[0])
         files = {"name": safe(label)}
         for channel in CHANNELS:
             name = f"{safe(label)}_{NAMES[channel]}.png"
@@ -142,10 +273,12 @@ def write_package(out, positions, colours, tris, found, textures, labels, rgba_o
             save_image(out / "seed" / name, images[channel])
             files[channel] = f"tex/{name}"
         pbr[label] = files
+        if aseprite:
+            write_aseprite(out / "aseprite" / f"{safe(label)}.aseprite", images)
         records[label] = {"key": key, "object": obj, "w": t["w"], "h": t["h"], "group_offset": t.get("group_offset"),
-                          "model": t.get("model"), "files": {c: files[c] for c in CHANNELS},
+                          "model": t.get("model"), "entry": t.get("entry", ""), "files": {c: files[c] for c in CHANNELS},
                           **({"slices": [{k: v for k, v in sl.items() if k != "rgba"} for sl in atlas]} if atlas else {})}
-    rb.write_gltf(out, positions, colours, tris, found, textures, labels, pbr=pbr, folder=".", name="paint")
+    rb.write_gltf(out, positions, colours, tris, found, textures, labels, pbr=pbr, folder=".", name="paint", outward=outward)
     (out / "seed.json").write_text(json.dumps({"version": 1, **meta, "labels": records}, indent=1))
     return records
 
@@ -163,7 +296,7 @@ def export_package(args):
     game = material_rollout.launch(scratch, argparse.Namespace(card=args.card))
     try:
         if args.zone is not None:
-            rb.goto(game, args.zone, args.room)
+            rb.goto(game, args.zone, args.room, enemies=args.target == "model")  # (a model: the room's enemies are there to export)
         game.run(30)
         dump = out / "scene.obj"
         model = args.model
@@ -183,6 +316,9 @@ def export_package(args):
             groups = game.call("material", action="groups")["groups"]
         uses = game.call("emissive", action="uses", keys=True)["uses"]
         positions, colours, tris = rb.parse_dump(dump)
+        if args.target == "model":  # the model stands at the origin, its feet on the ground (the painter's view of it; the pose is the game's)
+            lo, hi = positions.reshape(-1, 3).min(axis=0), positions.reshape(-1, 3).max(axis=0)
+            positions = positions - np.array([(lo[0] + hi[0]) / 2, hi[1], (lo[2] + hi[2]) / 2], np.float32)  # (y is down)
         found = rb.assign(tris, uses)
         textures, rgba_of = {}, {}
         for t, u in zip(tris, found):
@@ -191,7 +327,7 @@ def export_package(args):
                 w, h = int(got["w"]), int(got["h"])
                 rgba = np.frombuffer(__import__("base64").b64decode(got["rgba"]), np.uint8).reshape(h, w, 4).copy()
                 rgba_of[u["key"]] = rgba
-                textures[u["key"]] = {"w": w, "h": h, "box": u["box"], "tpage": u["tpage"], "clut": u["clut"]}
+                textures[u["key"]] = {"w": w, "h": h, "box": u["box"], "tpage": u["tpage"], "clut": u["clut"], "entry": u.get("entry", "")}
         state = game.state()
     finally:
         material_rollout.kill(game)
@@ -204,7 +340,7 @@ def export_package(args):
                 continue
             label = f"m{model}_p{u['tpage'] & 31}_c{u['clut']:04x}"
             labels.append(label)
-            slices.setdefault(label, {})[u["key"]] = {"key": u["key"], "box": [int(b) for b in u["box"]], "rgba": rgba_of[u["key"]]}
+            slices.setdefault(label, {})[u["key"]] = {"key": u["key"], "box": [int(b) for b in u["box"]], "rgba": rgba_of[u["key"]], "entry": u.get("entry", "")}
             split.setdefault(label, {"w": 256, "h": 256, "box": [0, 0, 255, 255], "tpage": u["tpage"], "clut": u["clut"],
                                      "object": f"m{model}", "model": model})
         for label, boxes in slices.items():
@@ -214,7 +350,8 @@ def export_package(args):
     else:
         labels, textures = rb.split_shared(tris, found, groups, textures, always=True)
         meta = {"target": "room", "zone": state["zone"], "room": state["room"]}
-    records = write_package(out, positions, colours, tris, found, textures, labels, rgba_of, meta, seed_layers(args.bake))
+    records = write_package(out, positions, colours, tris, found, textures, labels, rgba_of, meta, seed_layers(args.bake),
+                             outward=args.target == "model", aseprite=getattr(args, "painter", None) == "aseprite")
     print(f"export: {meta['target']} {meta.get('model') or '%s-%s' % (meta['zone'], meta['room'])}: {len(tris)} triangles, "
           f"{len(records)} materials -> {out / 'paint.gltf'} (images in {out / 'tex'})")
     return 0
@@ -223,8 +360,13 @@ def export_package(args):
 # ---------------------------------------------------------------------------------------------- import
 
 def find_images(folder, label_safe, gltf):
-    """{channel or 'roughness'/'metal'/...: path} the painter left for a material: its glTF's, then files named after it."""
-    found = {}
+    """{channel or 'roughness'/'metal'/...: path} the painter left for a material: its glTF's images and the files it exported by name
+    (`<mesh>_<material>_<Map>.png` as SubCraft writes them, `<material>_<Map>.png`, any case); of two for one map the newer wins, so
+    an export made after the package was written beats the package's own images."""
+    cands = {}
+
+    def add(channel, path):
+        cands.setdefault(channel, []).append(path)
     if gltf:
         by = {m.get("name", ""): m for m in gltf.get("materials", [])}
         m = by.get(label_safe) or next((v for k, v in by.items() if k.split(".")[0] == label_safe), None)
@@ -239,36 +381,175 @@ def find_images(folder, label_safe, gltf):
                                  ("normal", m.get("normalTexture")), ("occlusion", m.get("occlusionTexture"))):
                 path = uri(ref)
                 if path and path.exists():
-                    found[channel] = path
-    prefix = label_safe.lower()
+                    add(channel, path)
+    ase_file = ase_path(folder, label_safe)
+    if ase_file.exists():
+        for channel, rgba in read_ase_channels(ase_file).items():
+            add(channel, AseSource(ase_file, rgba))
+    label = re.escape(label_safe.lower())
+    pattern = re.compile(rf"(?:.*[_.\- ])?{label}[_.\- ]+(.+)")
     for path in folder.rglob("*"):
         if path.suffix.lower() not in (".png", ".tga", ".tif", ".tiff", ".bmp") or "seed" in path.parts:
             continue
-        stem = path.stem.lower()
-        if not stem.startswith(prefix):
+        hit = pattern.fullmatch(path.stem.lower())
+        if not hit:
             continue
-        rest = stem[len(prefix):].lstrip("_.- ")
         for channel, names in ALIASES.items():
-            if rest in names and channel not in found:
-                found[channel] = path
-    return found
+            if hit.group(1) in names:
+                add(channel, path)
+    best = {channel: max(paths, key=lambda p: p.stat().st_mtime_ns) for channel, paths in cands.items()}
+    packed = best.get("metallicroughness")
+    for channel in ASE_LAYERS:  # (a packed image the painter saved after the .aseprite file is the newer: it wins that channel)
+        if isinstance(best.get(channel), AseSource) and packed is not None and packed.stat().st_mtime_ns > best[channel].stat().st_mtime_ns:
+            del best[channel]
+            best.pop("material", None)  # (the file's Material layer goes with it: the packed export is the painter's newer work)
+    return best
 
 
-def fit(array, h, w):
-    """`array` as h x w (nearest: a painter's export at a whole multiple of the texture's size is read at each texel's middle)."""
-    if array.shape[:2] == (h, w):
-        return array
+_warned = set()
+
+
+def warn_once(message):
+    if message not in _warned:
+        _warned.add(message)
+        print(f"import: {message}")
+
+
+def resample(array, h, w, normal=False):
+    """`array` as h x w: a painter's export is often bigger than the game's tiny textures (SubCraft's default is 2048), so it is
+    averaged down (an area filter; a normal map is renormalised after it), or repeated up when it is smaller. The game reads maps texel for
+    texel at the texture's size, so nothing else renders."""
     ah, aw = array.shape[:2]
-    if ah % h or aw % w:
-        raise SystemExit(f"paint_roundtrip: an image is {aw} x {ah}, the texture {w} x {h}: export the painter's maps at the texture's size or a whole multiple of it")
-    return array[ah // h // 2::ah // h, aw // w // 2::aw // w][:h, :w]
+    if (ah, aw) == (h, w):
+        return array
+    warn_once(f"images are not the texture's size (e.g. {aw} x {ah} for {w} x {h}): resampled to the texture's size "
+              f"({'area average' if ah >= h and aw >= w else 'repeated'}); the game only reads maps at the texture's size")
+    if ah < h or aw < w:
+        return np.asarray(Image.fromarray(array).resize((w, h), Image.NEAREST))
+    planes = array if array.ndim == 3 else array[..., None]
+    if normal:
+        planes = (planes.astype(np.float32) - 128) / 127.5
+    out = np.stack([np.asarray(Image.fromarray(planes[..., c].astype(np.float32), "F").resize((w, h), Image.BOX))
+                    for c in range(planes.shape[2])], axis=2)
+    if normal:
+        out = out / np.maximum(np.linalg.norm(out, axis=2, keepdims=True), 1e-6)
+        out = 128 + out * 127.5
+    out = np.clip(np.rint(out), 0, 255).astype(np.uint8)
+    return out if array.ndim == 3 else out[..., 0]
+
+
+def is_directx(path, normal_format):
+    """Whether a normal map file is DirectX (green down): the format asked for, or by its name (`normalDX`, `Normal_DirectX`, ...)."""
+    if normal_format != "auto":
+        return normal_format == "directx"
+    return bool(DIRECTX.search(path.stem.lower()))
+
+
+def flip_green(array):
+    out = array.copy()
+    out[..., 1] = 255 - out[..., 1]
+    return out
+
+
+def keep_seed(now, was):
+    """`now` with the painter's untouched flat fill (the value most of the image has: what a painter exports where nothing is painted)
+    replaced by the seed's own map, so painting a corner does not flatten the rest of the map the game already has."""
+    flat = now.reshape(-1, now.shape[-1]) if now.ndim == 3 else now.reshape(-1, 1)
+    values, counts = np.unique(flat, axis=0, return_counts=True)
+    top = counts.argmax()
+    if counts[top] * 2 < len(flat):
+        return now
+    mask = (flat == values[top]).all(axis=1).reshape(now.shape[:2])
+    out = now.copy()
+    out[mask] = was[mask]
+    return out
 
 
 def load(path, mode):
     return np.asarray(Image.open(path).convert(mode))
 
 
+class AseSource:
+    """A channel layer of a material's .aseprite file: its cel pixels as a canvas-sized RGBA image (transparent: keep the game's value).
+    Stands in for a Path in find_images' candidates (stat), the newest file winning."""
+
+    def __init__(self, path, rgba):
+        self.path, self.rgba = path, rgba
+
+    def stat(self):
+        return self.path.stat()
+
+
+def ase_path(folder, label_safe):
+    return pathlib.Path(folder) / "aseprite" / f"{label_safe}.aseprite"
+
+
+def read_ase_channels(path):
+    """{channel: RGBA canvas} of the Metal and Roughness layers of an .aseprite file (a layer without a cel is all transparent, so an
+    emptied layer resets); nothing for a layer the file does not have, or a file that cannot be read."""
+    try:
+        sprite = ase.read(path)
+    except (ValueError, OSError, KeyError, EOFError, zlib.error, struct.error) as e:
+        warn_once(f"{path.name}: not read ({e}); a file Aseprite is still writing is read again on its next save")
+        return {}
+    out = {}
+    for channel, name in {**ASE_LAYERS, "material": ASE_MATERIAL}.items():
+        layer = sprite.layer(name)
+        if layer is not None:
+            out[channel] = layer.pixels if layer.pixels is not None else np.zeros((sprite.height, sprite.width, 4), np.uint8)
+    return out
+
+
+def over_seed(rgba, seed):
+    """A channel layer's map: where the layer is not transparent its gray (luminance), elsewhere the game's value (`seed`)."""
+    r, g, b = (rgba[..., i].astype(np.uint32) for i in range(3))
+    gray = (r * 299 + g * 587 + b * 114 + 500) // 1000
+    return np.where(rgba[..., 3] > 0, gray, seed).astype(np.uint8)
+
+
+def layered_map(rgba, seed, preset=None):
+    """A map from a channel layer's canvas (`rgba`, None: no layer), the Material layer's preset values (`preset`: (values, mask) from
+    material_presets.expand, None: no preset anywhere) and the game's own map (`seed`). Per texel: the channel layer's gray where it is
+    opaque and (where a preset applies) differs from the game's value, else the preset's value, else the game's value. (The layer is
+    exported as the game's own values, so a pixel still at the game's value is untouched, not a stroke; to force the game's value over a
+    preset, paint it a level off.)"""
+    out = seed.astype(np.uint8)
+    if preset is not None:
+        values, mask = preset
+        out = np.where(mask, values, out).astype(np.uint8)
+    if rgba is None:
+        return out
+    painted = rgba[..., 3] > 0
+    gray = over_seed(rgba, seed)
+    if preset is not None:
+        painted &= gray != seed
+    return np.where(painted, gray, out).astype(np.uint8)
+
+
+def neutral_map(channel, h, w):
+    return np.full((h, w), uniform(STANDARD, channel), np.uint8)
+
+
+def stale(path, array, was):
+    """Whether `array` has to be written to `path`: it differs from the map there, or (no map there) from the seed `was`."""
+    if path.exists():
+        have = load(path, "L")
+        return have.shape != array.shape or not np.array_equal(have, array)
+    return was is None or not np.array_equal(array, was)
+
+
+_catalog_lock = threading.Lock()
+
+
 def import_package(args):
+    result = run_import(args)
+    print(f"import: {result['written']} maps for {len(result['changed'])} materials into {result['layer']}"
+          + (f", {result['entries']} catalog entries added" if result["entries"] else ""))
+    return 0
+
+
+def run_import(args, only=None, say=print):
+    """Imports what the painter left for the materials `only` (default: all). Returns {written, changed: [(label, rec, names)], entries, layer}."""
     folder = pathlib.Path(args.dir)
     seed = json.loads((folder / "seed.json").read_text())
     gltf_path = folder / "paint.gltf"
@@ -276,68 +557,103 @@ def import_package(args):
     layer = pathlib.Path(args.layer) if args.layer else user_layer()
     changed_labels, written = [], 0
     for label, rec in seed["labels"].items():
+        if only is not None and label not in only:
+            continue
         key, obj, h, w = rec["key"], rec["object"], rec["h"], rec["w"]
         label_safe = safe(label)
         images = find_images(folder, label_safe, gltf)
 
         def painted(channel, mode):
-            """The painter's image of `channel` as the seed's shape, and the pristine one (None when it is not there)."""
-            if channel not in images:
-                return None, None
+            """The painter's image of `channel` as the seed's shape (DirectX normals turned to OpenGL), and the pristine one."""
             seed_path = folder / "seed" / pathlib.Path(rec["files"][channel]).name
-            return fit(load(images[channel], mode), h, w), load(seed_path, mode)
-        maps = {}
+            now = resample(load(images[channel], mode), h, w, normal=channel == "normal")
+            if channel == "normal" and is_directx(images[channel], args.normal_format):
+                now = flip_green(now)
+            return now, load(seed_path, mode)
+
+        def differs(now, was):
+            """A painter's export is the seed through its own float pipeline, a level off here and there (and a renormalised normal map
+            too): a change of one level is not a stroke."""
+            return np.abs(now.astype(int) - was).max() > 1
+
+        def kept(now, was):
+            return keep_seed(now, was) if args.keep_seed else now
+        maps, exact, seeds = {}, set(), {}
         if "metallicroughness" in images:
             now, was = painted("metallicroughness", "RGB")
-            if not np.array_equal(now[..., 1], was[..., 1]):
-                maps["roughness"] = now[..., 1]
-            if not np.array_equal(now[..., 2], was[..., 2]):
-                maps["metal"] = now[..., 2]
-        for channel, mode in (("roughness", "L"), ("metal", "L")):
-            if channel in images:  # separate maps (Roughness, Metallic files)
-                now = fit(load(images[channel], mode), h, w)
+            if differs(now[..., 1], was[..., 1]):
+                maps["roughness"] = kept(now[..., 1], was[..., 1])
+            if differs(now[..., 2], was[..., 2]):
+                maps["metal"] = kept(now[..., 2], was[..., 2])
+            if "occlusion" not in images and differs(now[..., 0], was[..., 0]):  # an ORM pack: R is the occlusion
+                maps["occlusion"] = kept(now[..., 0], was[..., 0])
+        material = images.get("material") if isinstance(images.get("material"), AseSource) else None
+        presets = expanded = None
+        for channel in ("roughness", "metal"):
+            layer_source = images.get(channel) if isinstance(images.get(channel), AseSource) else None
+            mat = material if channel not in images or layer_source is not None else None  # (a PNG saved after the file is the newer: it wins)
+            if channel in images or mat is not None:  # separate maps (Roughness, Metallic files), or the layers of the .aseprite
                 was = painted_seed(folder, rec, channel, h, w)
-                if was is None or not np.array_equal(now, was):
-                    maps[channel] = now
+                if layer_source is not None or mat is not None:  # the layers' pixels are the map exactly (no resampling, no tolerance)
+                    rgba = layer_source.rgba if layer_source is not None else None
+                    if any(s.rgba.shape[:2] != (h, w) for s in (layer_source, mat) if s is not None):
+                        shape = (layer_source or mat).rgba.shape
+                        warn_once(f"{label_safe}.aseprite is {shape[1]} x {shape[0]}, the texture {w} x {h}: not imported (do not resize the canvas)")
+                        continue
+                    if mat is not None and expanded is None:
+                        presets = mp.load(warn=warn_once)
+                        expanded = mp.expand(mat.rgba, presets)
+                    seeds[channel] = was if was is not None else neutral_map(channel, h, w)
+                    maps[channel] = layered_map(rgba, seeds[channel], (expanded or {}).get(channel))
+                    exact.add(channel)
+                    continue
+                now = resample(load(images[channel], "L"), h, w)
+                if was is None or differs(now, was):
+                    maps[channel] = kept(now, was) if was is not None else now
         for channel, name, mode in (("normal", "normal", "RGB"), ("occlusion", "occlusion", "L")):
             if channel in images:
                 now, was = painted(channel, mode)
-                if not np.array_equal(now, was):
-                    maps[name] = now
+                if differs(now, was):
+                    maps[name] = kept(now, was)
         if "basecolor" in images:
             now, was = painted("basecolor", "RGBA")
             if not np.array_equal(now, was):
-                print(f"import: {label}: the base colour was edited; it is not imported (the game's texture is the base colour)")
+                say(f"import: {label}: the base colour was edited; it is not imported (the game's texture is the base colour)")
         if not maps:
             continue
         if rec.get("slices"):  # a model's page: each box of it is a texture of the game, cut from the atlas
             for sl in rec["slices"]:
                 u0, v0, u1, v1 = sl["box"]
+                dest = layer / sl["key"] / f"@{obj}"
                 cut = {name: np.ascontiguousarray(array[v0:v1 + 1, u0:u1 + 1]) for name, array in maps.items()}
                 was = {name: seed_slice(folder, rec, name, sl["box"]) for name in cut}
-                cut = {name: array for name, array in cut.items() if was[name] is None or not np.array_equal(array, was[name])}
+                cut = {name: array for name, array in cut.items()
+                       if (stale(dest / f"{name}.png", array, was[name]) if name in exact
+                           else was[name] is None or np.abs(array.astype(int) - was[name]).max() > 1)}
                 if not cut:
                     continue
-                dest = layer / sl["key"] / f"@{obj}"
                 dest.mkdir(parents=True, exist_ok=True)
                 for name, array in cut.items():
                     save_image(dest / f"{name}.png", array)
                     written += 1
                 write_normal_parts(dest, cut)
-                changed_labels.append((label, {**rec, "key": sl["key"], "w": u1 - u0 + 1, "h": v1 - v0 + 1}, sorted(cut)))
-                print(f"import: {label}: {sl['key']}: {', '.join(sorted(cut))} -> {dest}")
+                changed_labels.append((label, {**rec, "key": sl["key"], "entry": sl.get("entry", ""), "w": u1 - u0 + 1, "h": v1 - v0 + 1}, sorted(cut)))
+                say(f"import: {label}: {sl['key']}: {', '.join(sorted(cut))} -> {dest}")
             continue
         dest = layer / key / (f"@{obj}" if obj else "")
+        maps = {name: array for name, array in maps.items() if name not in exact or stale(dest / f"{name}.png", array, seeds[name])}
+        if not maps:
+            continue
         dest.mkdir(parents=True, exist_ok=True)
         for name, array in maps.items():
             save_image(dest / f"{name}.png", np.ascontiguousarray(array))
             written += 1
         write_normal_parts(dest, maps)
         changed_labels.append((label, rec, sorted(maps)))
-        print(f"import: {label}: {', '.join(sorted(maps))} -> {dest}")
-    entries = ensure_entries(args, seed, changed_labels)
-    print(f"import: {written} maps for {len(changed_labels)} materials into {layer}" + (f", {entries} catalog entries added" if entries else ""))
-    return 0
+        say(f"import: {label}: {', '.join(sorted(maps))} -> {dest}")
+    with _catalog_lock:
+        entries = ensure_entries(args, seed, changed_labels)
+    return {"written": written, "changed": changed_labels, "entries": entries, "layer": layer}
 
 
 def seed_slice(folder, rec, name, box):
@@ -373,7 +689,8 @@ def painted_seed(folder, rec, channel, h, w):
 
 def ensure_entries(args, seed, changed):
     """A user catalog entry for each painted object (a map only applies where an entry matches): its texture on its room group or model,
-    the preset a neutral surface. An entry that is there already is left as it is."""
+    with the values the game drew that object's texture with until now (the entry it matched, resolved; the standard no-entry surface
+    when it had none), so a first import changes only what was painted. An entry that is there already is left as it is."""
     path = pathlib.Path(args.catalog) if args.catalog else user_catalog()
     data = json.loads(path.read_text()) if path.exists() else {"format": 2, "presets": {}, "entries": []}
     ids = {e["id"] for e in data.get("entries", [])}
@@ -384,7 +701,10 @@ def ensure_entries(args, seed, changed):
         if entry_id in ids:
             continue
         entry = {"id": entry_id, "name": f"painted {key}" + (f" on {obj}" if obj else ""), "where": "paint_roundtrip",
-                 "match": {"key": key, "size": [rec["w"], rec["h"]]}, "preset": args.preset}
+                 "match": {"key": key, "size": [rec["w"], rec["h"]]}}
+        values, extra = surface_of(catalog_files(path), rec, key, rec["w"], rec["h"], seed.get("zone"), seed.get("room"))
+        entry.update(extra)
+        entry.update({n: (bool(v) if n == "auto_height" else float(v)) for n, v in values.items()})
         room = [seed["zone"], seed["room"]] if seed.get("target") == "room" else None
         if obj and rec.get("group_offset") is not None:
             entry["object"] = {"groups": [rec["group_offset"]]}
@@ -404,10 +724,90 @@ def ensure_entries(args, seed, changed):
     return added
 
 
+def watch_package(args, stop=None, say=print):
+    """Imports each material's .aseprite file when it is saved: polls <dir>/aseprite every 0.2 s, and once a file's stamp has not moved for
+    `args.debounce` seconds imports that material (as `import` does, the other materials untouched). `stop`: a threading.Event."""
+    folder = pathlib.Path(args.dir)
+    seed = json.loads((folder / "seed.json").read_text())
+    by_file = {ase_path(folder, safe(label)): label for label in seed["labels"]}
+    ns = argparse.Namespace(dir=str(folder), layer=getattr(args, "layer", None), catalog=getattr(args, "catalog", None),
+                            normal_format="auto", keep_seed=False)
+    seen = {}
+    for path in by_file:  # (what is there now is not an edit: only a later save is)
+        if path.exists():
+            seen[path] = (path.stat().st_mtime_ns, path.stat().st_size)
+    pending = {}
+    say(f"watch: {len(by_file)} materials in {folder / 'aseprite'}; save in Aseprite (Ctrl+S) to import; Ctrl+C stops")
+    stop = stop or threading.Event()
+    try:
+        while not stop.is_set():
+            now = time.monotonic()
+            for path, label in by_file.items():
+                try:
+                    st = path.stat()
+                except OSError:
+                    continue
+                stamp = (st.st_mtime_ns, st.st_size)
+                if seen.get(path) != stamp:
+                    seen[path] = stamp
+                    pending[path] = now
+            for path, since in list(pending.items()):
+                if now - since < args.debounce:
+                    continue
+                del pending[path]
+                started = time.monotonic()
+                result = run_import(ns, only={by_file[path]}, say=lambda *_: None)
+                names = sorted({n for _, _, ns_ in result["changed"] for n in ns_})
+                say(f"watch: {time.strftime('%H:%M:%S')} {path.name}: " + (f"{', '.join(names)} imported" if names else "nothing changed")
+                    + f" ({(time.monotonic() - started) * 1000:.0f} ms)")
+            stop.wait(0.2)
+    except KeyboardInterrupt:
+        say("watch: stopped")
+    return 0
+
+
+def open_painter(out, painter):
+    """Starts a painter on the package's paint.gltf, detached: SubCraft when it is on the PATH (and `painter` is auto or subcraft),
+    else Blender. Returns what it started, or None."""
+    gltf = pathlib.Path(out) / "paint.gltf"
+    if painter == "aseprite":
+        files = sorted((pathlib.Path(out) / "aseprite").glob("*.aseprite"))
+        if not shutil.which("aseprite") or not files or len(files) > 6:
+            return None, pathlib.Path(out) / "aseprite"
+        subprocess.Popen(["aseprite", *map(str, files)], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        return "Aseprite", files[0]
+    if painter in ("auto", "subcraft") and shutil.which("subcraft"):
+        command, name = ["subcraft", str(gltf)], "SubCraft"
+        try:  # a project with the game's texture already in it (subcraft_project.py); the plain glTF when its format is not known
+            import subcraft_project
+            command[1] = str(subcraft_project.build(out, pathlib.Path(out) / "paint.subcraft"))
+        except subcraft_project.FormatMismatch as e:
+            print(f"paint: {e}", file=sys.stderr)
+            print("paint: opening paint.gltf instead: its base colour has to be added by hand (see Materials.md)", file=sys.stderr)
+    elif painter in ("auto", "blender") and shutil.which("blender"):
+        command, name = ["blender", "--python-expr", f"import bpy; bpy.ops.import_scene.gltf(filepath={str(gltf)!r})"], "Blender"
+    else:
+        return None, gltf
+    subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    return name, (pathlib.Path(command[1]) if name == "SubCraft" else gltf)
+
+
+def refresh_palettes(args, say=print):
+    """The palette of each .aseprite file of the package set to the presets' swatches (named) and the grays; nothing else in the file changes."""
+    presets = mp.load()
+    entries = mp.palette(presets)
+    files = sorted((pathlib.Path(args.dir) / "aseprite").glob("*.aseprite"))
+    for path in files:
+        ase.set_palette(path, entries)
+    say(f"palette: {len(presets)} presets ({', '.join(p['name'] for p in presets)}) in {len(files)} files; close and reopen them in Aseprite")
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
     e = sub.add_parser("export")
+    pt = sub.add_parser("paint", help="export, then open the package in SubCraft (or Blender): the arguments of export, plus --painter")
     e.add_argument("target", choices=["room", "model"])
     e.add_argument("--zone", type=int)
     e.add_argument("--room", type=int)
@@ -416,15 +816,57 @@ def main():
     e.add_argument("--bake", action="append", default=[], help="a bake's materials folder (room_blender.py <out>/materials) to seed the maps from, the geometry-based normals included; also $ROOD_MATERIALS_BAKED")
     e.add_argument("--out")
     e.add_argument("--card", default=str(ROOT / "pc/build/test-card1.mcd"))
+    painters = ["auto", "subcraft", "blender", "aseprite"]
+    e.add_argument("--painter", choices=painters, default="auto", help="aseprite: also write <out>/aseprite/<material>.aseprite (Metal and Roughness layers for a pixel painter; Materials.md)")
+    pt.add_argument("--painter", choices=painters, default="auto")
+    for flag in e._actions[1:]:
+        if flag.dest == "painter":
+            continue
+        if flag.option_strings or flag.dest == "target":
+            kwargs = {k: getattr(flag, k) for k in ("default", "help", "choices") if getattr(flag, k, None) is not None}
+            pt.add_argument(*(flag.option_strings or [flag.dest]), **({"action": "append"} if flag.dest == "bake" else {}), **kwargs)
     i = sub.add_parser("import")
     i.add_argument("dir")
     i.add_argument("--layer", help="the maps' layer (default: the user layer, ROOD_MATERIALS or <lighting>/materials)")
     i.add_argument("--catalog", help="the user catalog file (default: ROOD_MATERIAL_CATALOG_USER or <lighting>/materials.json)")
-    i.add_argument("--preset", default="stone", help="the preset of the entries made for painted objects")
+    i.add_argument("--normal-format", choices=["auto", "opengl", "directx"], default="auto",
+                   help="the painter's normal maps: auto (DirectX when the file's name says so: normalDX, Normal_DirectX), opengl, or directx (green is flipped)")
+    i.add_argument("--keep-seed", action="store_true",
+                   help="where a painted map still has the painter's flat fill (most of the image), keep the game's own map there instead")
+    pal = sub.add_parser("palette", help="rewrite the palette of the package's .aseprite files from the preset files (material_presets.py); pixels untouched; close the files in Aseprite first")
+    pal.add_argument("dir")
+    for name, text in (("watch", "import a material's .aseprite file each time it is saved (Ctrl+C stops)"),
+                       ("live", "watch, and take strokes live from the Aseprite extension over a WebSocket (pc/tools/aseprite/)")):
+        w = sub.add_parser(name, help=text)
+        w.add_argument("dir")
+        w.add_argument("--layer", help="the maps' layer (default: the user layer)")
+        w.add_argument("--catalog", help="the user catalog file")
+        w.add_argument("--debounce", type=float, default=0.3, help="seconds a file must be still before it is imported")
+        if name == "live":
+            w.add_argument("--port", type=int, default=47480, help="the WebSocket port on localhost (the extension's default)")
+            w.add_argument("--rpc", help="the game's RPC socket (default: ROOD_RPC or pc/build/boot/rpc.sock)")
+            w.add_argument("--no-watch", action="store_true", help="do not also import saved files")
     args = parser.parse_args()
-    if args.command == "export" and (args.zone is None) != (args.room is None):
+    if args.command == "watch":
+        return watch_package(args)
+    if args.command == "palette":
+        return refresh_palettes(args)
+    if args.command == "live":
+        import paint_live
+        return paint_live.live(args)
+    if args.command in ("export", "paint") and (args.zone is None) != (args.room is None):
         parser.error("--zone and --room go together")
-    return export_package(args) if args.command == "export" else import_package(args)
+    if args.command == "import":
+        return import_package(args)
+    status = export_package(args)
+    if args.command == "paint" and not status:
+        out = args.out or ROOT / "pc/user/paint" / (f"model-{args.model}" if args.target == "model" and args.model else
+                                                    f"room-{args.zone}-{args.room}" if args.zone is not None else args.target)
+        started, opened = open_painter(out, args.painter)
+        print(f"paint: {started} opened {opened}; paint, export the maps into that folder, then: "
+              f"python3 pc/tools/paint_roundtrip.py import {out}" if started else
+              f"paint: neither subcraft nor blender is on the PATH; open {pathlib.Path(out) / 'paint.gltf'} in your painter")
+    return status
 
 
 if __name__ == "__main__":

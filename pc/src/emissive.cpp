@@ -39,6 +39,7 @@ float pc_roughness_bias = 0.0f;
 int pc_reflection_bounces = 1;
 float pc_bump_strength = 1.0f;
 int pc_auto_height = 1;
+float pc_baked_texture_relief = 1.0f;
 float pc_auto_height_strength = 0.5f;
 float pc_bump_occlusion = 0.5f;
 float pc_relief_aniso = 4.0f;
@@ -49,6 +50,8 @@ float pc_relief_baked = 2.0f;
 float pc_relief_indirect = 2.0f;
 float pc_relief_reach = 96.0f;
 float pc_relief_overhead = 0.6f;
+int pc_key_light = 0;  /* off by default: the owner prefers the bake without it (2026-11-22, Gitea #20) */
+float pc_key_light_strength = 1.0f;
 int pc_auto_height_preview = 0;
 const uint16_t* pc_native_vram(void);
 const uint16_t* pc_hw_emissive_vram(int renderer_side) __attribute__((weak));
@@ -940,7 +943,7 @@ bool materials_changed = true, any_material, material_dirty = true;
 bool material_recheck; /* some use's palette grew a variant: update_materials resolves the uses again */
 uint32_t applied_material_catalog, applied_material_maps;
 int material_zone = -1, material_room = -1, material_on = -1;
-float applied_relief[3] = { -1, -1, -1 }; /* the estimate's switch, strength, preview the planes have */
+float applied_relief[4] = { -1, -1, -1, -1 }; /* the estimate's switch, strength, preview the planes have */
 int material_uses, material_cells;
 std::vector<MaterialUse> material_list;
 /* What the uses' cached materials were resolved and stamped for (Use::mat_*,
@@ -1597,7 +1600,7 @@ static void match_use(Use& u)
 static bool relief_changed()
 {
     return applied_relief[0] != (float)pc_auto_height || applied_relief[1] != pc_auto_height_strength
-        || applied_relief[2] != (float)pc_auto_height_preview;
+        || applied_relief[2] != (float)pc_auto_height_preview || applied_relief[3] != pc_baked_texture_relief;
 }
 /* A use's relief (pc/docs/Materials.md "Height and normals"): heights in
  * height units (one unit: bump_strength texels of depth) per texel of its
@@ -1608,6 +1611,7 @@ static bool relief_changed()
  * (dark seams and gaps low, bright faces high), times auto_height_strength.
  * Both times the entry's bump. Transparent texels take the median. Returns
  * 0 (no relief), 1 (painted) or 2 (estimated). */
+static int estimate_heights(const Use* u, const materials::Surface& value, int w, int h, std::vector<float>& out);
 static int use_heights(const Use* u, const materials::Surface& value, int w, int h, std::vector<float>& out)
 {
     out.clear();
@@ -1617,8 +1621,21 @@ static int use_heights(const Use* u, const materials::Surface& value, int w, int
         out.resize((size_t)w * h);
         for (size_t i = 0; i < out.size(); i++)
             out[i] = map->values[i] / 255.0f * bump;
+        /* A baked map holds what the geometry shows (edges, bevels), nothing inside a texture: the texture's own
+         * estimate (mortar, grain) goes on top of it (baked_texture_relief). A painted map is the whole relief. */
+        float share = std::clamp(pc_baked_texture_relief, 0.0f, 1.0f);
+        std::vector<float> est;
+        if (map->baked && share > 0 && estimate_heights(u, value, w, h, est) == 2)
+            for (size_t i = 0; i < out.size(); i++)
+                out[i] += est[i] * share;
         return 1;
     }
+    return estimate_heights(u, value, w, h, out);
+}
+static int estimate_heights(const Use* u, const materials::Surface& value, int w, int h, std::vector<float>& out)
+{
+    out.clear();
+    float bump = value.bump;
     float strength = std::clamp(pc_auto_height_strength, 0.0f, 2.0f);
     if (!((value.auto_height && pc_auto_height) || pc_auto_height_preview) || strength <= 0 || bump <= 0)
         return 0;
@@ -1867,7 +1884,7 @@ static void make_stamp(const Use& u, MaterialStamp& out)
         strength = materials::normal_strength(u.key, u.mat_object);
     }
     /* (anything but a painted height map, when the estimate was tried) */
-    out.colours = !(height_map && height_map->w == w && height_map->h == h)
+    out.colours = (!(height_map && height_map->w == w && height_map->h == h) || (height_map->baked && pc_baked_texture_relief > 0))
         && ((v.auto_height && pc_auto_height) || pc_auto_height_preview);
     uint8_t s = (uint8_t)std::clamp((int)lroundf(v.specular * 255.0f), 0, 255);
     uint8_t m = (uint8_t)std::clamp((int)lroundf(v.metal * 255.0f), 0, 255);
@@ -2037,7 +2054,7 @@ static void write_materials(bool fresh = false)
     }
     applied_material_maps = materials::generation();
     applied_relief[0] = (float)pc_auto_height, applied_relief[1] = pc_auto_height_strength;
-    applied_relief[2] = (float)pc_auto_height_preview;
+    applied_relief[2] = (float)pc_auto_height_preview, applied_relief[3] = pc_baked_texture_relief;
     current_room(&material_zone, &material_room);
     uint32_t catalog = materials::catalog_generation();
     if (catalog != resolved_catalog || zone != material_zone || room != material_room)

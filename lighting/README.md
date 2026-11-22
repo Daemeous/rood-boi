@@ -103,6 +103,13 @@ item was deleted or regenerated under it). It is never dropped: the editor
 lists it under Outliner > Layers (and keeps it in your user layer until you
 discard it), RPC `lighting` reports it and the lint fails on it.
 
+## Key light
+
+`set key_<name> value=...` lines give a room its key light (a soft directional light that shows the maps' relief; pc/docs/Materials.md
+"The key light"): `key_intensity key_relief key_gain key_azimuth key_elevation key_view key_red key_green key_blue key_specular`.
+Their project defaults are `lighting/<pack>/defaults.txt` (`set key_gain 3`; `set exterior.key_gain 3` for a room open to the sky,
+one with an `env sun` or `env sky`).
+
 ## Environment
 
 A room open to the sky has `env sun` and `env sky` (`pc/src/environment.cpp`;

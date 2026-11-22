@@ -20,8 +20,7 @@ new names reads an older build, and the other way round.
 Sidecar format (tab separated, one record per line):
     build  <binary size> <name>
     type   <id> <kind> <size> <name> <extra>      kinds: s struct, u union, i signed, n unsigned, f float, b bool,
-                                                  p pointer (extra: target id or -), P guest pointer (psx_ptr;
-                                                  extra: target id), a array (extra: "elem count"), v void
+                                                  p pointer (extra: target id or -), a array (extra: "elem count"), v void
     fld    <type id> <name> <byte offset> <type id> <bit size> <bit offset>   (bit size 0: not a bit field; the bit
                                                   offset counts from the start of the struct; name - is anonymous)
     sym    <name> <address> <size> <type id or -> <d data, f function>
@@ -839,15 +838,6 @@ class _Builder:
                     t["fields"][i] = f
             return tid
         t["fields"] = fields
-        if kind == "s" and [f[0] for f in fields] == ["raw", "psx_type_"]:
-            # a psx_ptr: a guest pointer to the target of psx_type_'s element pointer
-            ptype = self.t.types[fields[1][2]]
-            target = "-"
-            if ptype["kind"] == "a":
-                elem = self.t.types[int(ptype["extra"].split()[0])]
-                if elem["kind"] == "p":
-                    target = elem["extra"]
-            t["kind"], t["fields"], t["extra"] = "P", [], target
         return tid
 
     def knowledge(self, tid, depth=0, seen=None):

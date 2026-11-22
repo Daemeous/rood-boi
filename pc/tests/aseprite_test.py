@@ -1,0 +1,497 @@
+#!/usr/bin/env python3
+"""The Aseprite round trip without Aseprite or the game (Gitea #20): pc/tools/aseprite_io.py, the .aseprite files of paint_roundtrip.py
+(export --painter aseprite, import, watch), the WebSocket (miniws.py) and the live bridge (paint_live.py) up to the RPC call.
+
+    python3 pc/tests/aseprite_test.py"""
+import argparse
+import json
+import os
+import pathlib
+import shutil
+import socket
+import struct
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+import zlib
+
+import numpy as np
+from PIL import Image
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "pc/tools"))
+os.environ["ROOD_PAINT_PRESETS_USER"] = os.path.join(tempfile.gettempdir(), "aseprite_test_no_user_presets.json")  # (the owner's own file is not read)
+import aseprite_io as ase  # noqa: E402
+import material_presets as mp  # noqa: E402
+import miniws  # noqa: E402
+import paint_live  # noqa: E402
+import paint_roundtrip as pr  # noqa: E402
+import room_blender as rb  # noqa: E402
+
+failures = 0
+
+
+def check(ok, message):
+    global failures
+    print(("ok:   " if ok else "FAIL: ") + message)
+    failures += not ok
+
+
+def chunk(kind, body):
+    return struct.pack("<IH", 6 + len(body), kind) + body
+
+
+def build(path, w, h, layers, frames, depth=32, palette=None, old_palette=None, transparent=0):
+    """A file the way Aseprite lays it out, with the variations the writer does not make. layers: (name, kind, flags, level);
+    frames: per frame a list of cels (layer index, x, y, kind 0|1|2, data: RGBA/gray/index array, or the linked frame)."""
+    body = b""
+    for fi, cels in enumerate(frames):
+        chunks = []
+        if fi == 0:
+            if palette:
+                chunks.append(chunk(0x2019, struct.pack("<III8x", len(palette), 0, len(palette) - 1)
+                                    + b"".join(struct.pack("<HBBBB", 0, *c) for c in palette)))
+            if old_palette:
+                chunks.append(chunk(0x0004, struct.pack("<HBB", 1, 0, len(old_palette) % 256) + b"".join(bytes(c) for c in old_palette)))
+            for name, kind, flags, level in layers:
+                n = name.encode()
+                chunks.append(chunk(0x2004, struct.pack("<HHHHHHB3x", flags, kind, level, 0, 0, 0, 255) + struct.pack("<H", len(n)) + n))
+        chunks.append(chunk(0x2008, b"\0" * 4))  # an unknown chunk the reader must skip
+        for index, x, y, kind, data in cels:
+            head = struct.pack("<HhhBHh5x", index, x, y, 255, kind, 0)
+            if kind == 1:
+                chunks.append(chunk(0x2005, head + struct.pack("<H", data)))
+                continue
+            payload = np.ascontiguousarray(data, np.uint8)
+            hh, ww = payload.shape[:2]
+            raw = payload.tobytes()
+            chunks.append(chunk(0x2005, head + struct.pack("<HH", ww, hh) + (raw if kind == 0 else zlib.compress(raw))))
+        frame_body = b"".join(chunks)
+        body += struct.pack("<IHHHHI", 16 + len(frame_body), 0xF1FA, len(chunks), 100, 0, len(chunks)) + frame_body
+    header = struct.pack("<IHHHHHI", 128 + len(body), 0xA5E0, len(frames), w, h, depth, 1) + struct.pack("<HII", 100, 0, 0)
+    header += struct.pack("<B3xH", transparent, 256)
+    header = header.ljust(128, b"\0")
+    pathlib.Path(path).write_bytes(header + body)
+
+
+def gray(values):
+    out = np.empty(values.shape + (4,), np.uint8)
+    out[..., :3] = values[..., None]
+    out[..., 3] = 255
+    return out
+
+
+with tempfile.TemporaryDirectory() as d:
+    d = pathlib.Path(d)
+
+    # ---------------------------------------------------------------- the file format
+    rgba = np.random.default_rng(1).integers(0, 256, (6, 8, 4), dtype=np.uint8)
+    ase.write(d / "a.aseprite", 8, 6, [{"name": "Base", "pixels": rgba, "locked": True},
+                                       {"name": "Metal", "pixels": gray(np.full((6, 8), 40, np.uint8)), "opacity": 153},
+                                       {"name": "Roughness", "pixels": gray(np.full((6, 8), 200, np.uint8)), "visible": False}])
+    a = ase.read(d / "a.aseprite")
+    check([layer.name for layer in a.layers] == ["Base", "Metal", "Roughness"] and (a.width, a.height) == (8, 6), "the writer's file reads back: layers bottom to top")
+    check(np.array_equal(a.layers[0].pixels, rgba) and (a.layers[1].pixels[..., 0] == 40).all(), "...with their pixels")
+    check(a.layers[0].locked and not a.layers[1].locked and a.layers[1].opacity == 153 and not a.layers[2].visible and a.layers[1].visible, "...locked, visible and opacity flags")
+    raw = (d / "a.aseprite").read_bytes()
+    check(struct.unpack_from("<I", raw, 0)[0] == len(raw) and raw[4:6] == b"\xe0\xa5", "the header's size and magic are right")
+
+    # as Aseprite saves: a group with a layer inside, a stray user layer above, order changed (Roughness under Metal), a partial cel at an
+    # offset, a linked cel in a second frame, an unknown chunk, a palette chunk and the old one
+    layers = [("Game colour (reference)", 0, 3, 0), ("Roughness", 0, 3, 0), ("Group", 1, 3, 0), ("Sketch", 0, 3, 1), ("Metal", 0, 3, 0), ("User", 0, 3, 0)]
+    patch = gray(np.array([[250, 251], [252, 253]], np.uint8))
+    build(d / "b.aseprite", 8, 6, layers,
+          [[(0, 0, 0, 2, rgba), (1, 0, 0, 2, gray(np.full((6, 8), 9, np.uint8))), (3, 7, 5, 2, patch), (4, 3, 2, 2, patch), (5, 0, 0, 0, rgba)],
+           [(4, 0, 0, 1, 0)]], palette=[(0, 0, 0, 255), (255, 255, 255, 255)], old_palette=[(1, 2, 3)])
+    b = ase.read(d / "b.aseprite")
+    check([layer.name for layer in b.layers] == [n for n, *_ in layers] and b.layer("Group") is None and b.layer("metal") is not None, "layer groups are listed but never found as channels; names match in any case")
+    m = b.layer("Metal").pixels
+    check(m.shape == (6, 8, 4) and (m[2:4, 3:5, 0] == patch[..., 0]).all() and (m[..., 3] > 0).sum() == 4, "a cel that covers part of the canvas sits at its offset, the rest transparent")
+    check((b.layer("Sketch").pixels[5, 7, 0] == 250) and (b.layer("Sketch").pixels[..., 3] > 0).sum() == 1, "a cel hanging off the canvas's corner is clipped")
+    for kind, depth, data, expect in ((0, 16, np.dstack([np.full((6, 8), 77, np.uint8), np.full((6, 8), 255, np.uint8)]), 77),
+                                      (2, 8, np.full((6, 8), 1, np.uint8), 255)):
+        build(d / f"c{depth}.aseprite", 8, 6, [("Metal", 0, 3, 0)], [[(0, 0, 0, kind, data)]], depth=depth,
+              palette=[(0, 0, 0, 255), (255, 255, 255, 255)], transparent=0)
+        c = ase.read(d / f"c{depth}.aseprite").layer("Metal").pixels
+        check((c[..., 0] == expect).all() and (c[..., 3] == 255).all(), f"colour depth {depth} reads as RGBA ({'grayscale' if depth == 16 else 'indexed through the palette'})")
+    build(d / "linked.aseprite", 8, 6, [("Metal", 0, 3, 0)], [[(0, 0, 0, 0, gray(np.full((6, 8), 5, np.uint8)))], [(0, 0, 0, 1, 0)]])
+    check((ase.read(d / "linked.aseprite").layer("Metal").pixels[..., 0] == 5).all(), "a raw cel (type 0) reads")
+    try:
+        (d / "junk").write_bytes(b"not an aseprite file" * 20)
+        ase.read(d / "junk")
+        check(False, "junk is refused")
+    except ValueError:
+        check(True, "a file that is not Aseprite's is refused with a ValueError")
+
+    # ---------------------------------------------------------------- a package with .aseprite files
+    positions = np.array([[[0, 0, 0], [512, 0, 0], [0, 0, 512]], [[512, 0, 0], [512, 0, 512], [0, 0, 512]]], np.float32)
+    colours = np.full((2, 3, 3), 0.5, np.float32)
+    tris = [{"tpage": 17, "clut": 1, "group": 0, "flags": 0, "uv": [[0, 0], [7, 0], [0, 5]], "polygon": 0x108},
+            {"tpage": 17, "clut": 1, "group": 1, "flags": 0, "uv": [[7, 0], [7, 5], [0, 5]], "polygon": 0x208}]
+    uses = [{"key": "aaaaaaaaaa", "tpage": 17, "clut": 1, "box": [0, 0, 7, 5]}]
+    found = rb.assign(tris, uses)
+    groups = [{"offset": 0x100, "first": 0x108, "end": 0x128}, {"offset": 0x200, "first": 0x208, "end": 0x228}]
+    textures = {"aaaaaaaaaa": {"w": 8, "h": 6, "box": [0, 0, 7, 5], "tpage": 17, "clut": 1}}
+    labels, split = rb.split_shared(tris, found, groups, textures, always=True)
+    base = np.zeros((6, 8, 4), np.uint8)
+    base[..., :3] = (139, 98, 65)
+    base[..., 3] = 255
+    bake = d / "bake"
+    (bake / "aaaaaaaaaa" / "@g100").mkdir(parents=True)
+    Image.fromarray(np.full((6, 8), 120, np.uint8), "L").save(bake / "aaaaaaaaaa" / "@g100" / "roughness.png")
+    Image.fromarray(np.tile(np.arange(8, dtype=np.uint8) * 20, (6, 1)), "L").save(bake / "aaaaaaaaaa" / "@g100" / "metal.png")
+
+    def make_package(name):
+        pkg = d / name
+        pkg.mkdir()
+        pr.write_package(pkg, positions, colours, tris, found, split, labels, {"aaaaaaaaaa": base}, {"target": "room", "zone": 9, "room": 17},
+                         pr.seed_layers([bake]), aseprite=True)
+        return pkg
+    pkg = make_package("pkg")
+    check(sorted(p.name for p in (pkg / "aseprite").iterdir()) == ["aaaaaaaaaa_g100.aseprite", "aaaaaaaaaa_g200.aseprite"], "an .aseprite file per material, named as the material")
+    sprite = ase.read(pkg / "aseprite" / "aaaaaaaaaa_g100.aseprite")
+    names = [layer.name for layer in sprite.layers]
+    check(names == ["Game colour (reference)", "Metal", "Roughness", "Material"] and (sprite.width, sprite.height) == (8, 6), f"layers bottom to top at the texture's own size: {names}")
+    check(sprite.layers[3].opacity == 178 and sprite.layers[3].visible and not sprite.layers[3].pixels.any(), "Material above them at 70%, shown, empty")
+    check(sprite.layers[0].locked and np.array_equal(sprite.layers[0].pixels, base), "the game's colour is locked and is the texture")
+    check(sprite.layers[1].opacity == 153 and sprite.layers[1].visible and not sprite.layers[2].visible, "Metal at about 60% and shown, Roughness hidden")
+    check((sprite.layers[2].pixels[..., 0] == 120).all() and (sprite.layers[1].pixels[..., 0] == np.arange(8) * 20).all(), "Metal and Roughness are seeded from the game's maps")
+
+    def args_for(source, name):
+        return argparse.Namespace(dir=str(source), layer=str(d / f"layer-{name}"), catalog=str(d / f"cat-{name}.json"), normal_format="auto", keep_seed=False)
+
+    def tree(root):
+        return sorted(str(p.relative_to(root)) for p in pathlib.Path(root).rglob("*") if p.is_file()) if pathlib.Path(root).exists() else []
+
+    r = pr.run_import(args_for(pkg, "none"), say=lambda *_: None)
+    check(not r["changed"] and not tree(d / "layer-none") and not (d / "cat-none.json").exists(), "an exported .aseprite imported unpainted writes nothing (no map, no catalog entry)")
+
+    # a pencil stroke: one texel of Metal, as Aseprite saves it (a fresh file: order changed, a user layer above, a group, the cel at an offset)
+    one = make_package("one")
+    time.sleep(0.01)
+    s = ase.read(one / "aseprite" / "aaaaaaaaaa_g100.aseprite")
+    layout = [("Game colour (reference)", 0, 1, 0), ("Notes", 0, 3, 0), ("Folder", 1, 3, 0), ("Roughness", 0, 3, 0), ("Metal", 0, 3, 0)]
+    patch = np.zeros((2, 3, 4), np.uint8)
+    patch[1, 1] = (255, 255, 255, 255)  # (a texel at (5, 2) of the canvas)
+    build(one / "aseprite" / "aaaaaaaaaa_g100.aseprite", 8, 6, layout,
+          [[(0, 0, 0, 2, base), (1, 0, 0, 2, np.full((6, 8, 4), 255, np.uint8)), (3, 0, 0, 2, s.layers[2].pixels), (4, 4, 1, 2, patch)]])
+    result = pr.run_import(args_for(one, "one"), say=lambda *_: None)
+    layer = d / "layer-one"
+    check(tree(layer) == ["aaaaaaaaaa/@g100/metal.png"], f"a stroke on Metal writes that channel only (no roughness, no other object): {tree(layer)}")
+    metal = np.asarray(Image.open(layer / "aaaaaaaaaa/@g100/metal.png"))
+    seed_metal = np.tile(np.arange(8, dtype=np.uint8) * 20, (6, 1))
+    expect = seed_metal.copy()
+    expect[2, 5] = 255
+    check(np.array_equal(metal, expect), "...and only that texel differs from the game's map (the rest of the layer, in or out of the cel, is the game's)")
+    entries = json.loads((d / "cat-one.json").read_text())["entries"]
+    check(len(entries) == 1 and entries[0]["object"] == {"groups": [0x100]}, "...with the catalog entry of that object")
+
+    # erase to reset: the layer's cel emptied imports the game's map again, over the file the stroke wrote
+    build(one / "aseprite" / "aaaaaaaaaa_g100.aseprite", 8, 6, layout[:1] + layout[3:], [[(0, 0, 0, 2, base)]])
+    pr.run_import(args_for(one, "one"), say=lambda *_: None)
+    metal = np.asarray(Image.open(layer / "aaaaaaaaaa/@g100/metal.png"))
+    check(np.array_equal(metal, seed_metal), "erasing the strokes (an emptied layer) resets the map to the game's: the written file follows")
+
+    # roughness alone, a soft-edged (partially opaque) texel still counts as painted; the colour layer is never imported
+    two = make_package("two")
+    time.sleep(0.01)
+    rough = s.layers[2].pixels.copy()
+    rough[0, 0] = (30, 30, 30, 90)
+    edited = np.array(base)
+    edited[0, 0, :3] = 1
+    build(two / "aseprite" / "aaaaaaaaaa_g100.aseprite", 8, 6, layout[:1] + layout[3:], [[(0, 0, 0, 2, edited), (1, 0, 0, 2, rough)]])
+    pr.run_import(args_for(two, "two"), say=lambda *_: None)
+    check(tree(d / "layer-two") == ["aaaaaaaaaa/@g100/roughness.png"] and int(np.asarray(Image.open(d / "layer-two/aaaaaaaaaa/@g100/roughness.png"))[0, 0]) == 30,
+          "a roughness stroke writes roughness.png only; an edited colour layer is not imported")
+
+    # newest wins: a PNG painter's packed export newer than the .aseprite beats it
+    three = make_package("three")
+    time.sleep(0.05)
+    mr_path = three / "tex" / "aaaaaaaaaa_g100_MetallicRoughness.png"
+    mr = np.asarray(Image.open(mr_path).convert("RGB")).copy()
+    mr[3, 3, 2] = 255
+    pr.save_image(mr_path, mr)
+    pr.run_import(args_for(three, "three"), say=lambda *_: None)
+    got = np.asarray(Image.open(d / "layer-three/aaaaaaaaaa/@g100/metal.png"))
+    check(tree(d / "layer-three") == ["aaaaaaaaaa/@g100/metal.png"] and int(got[3, 3]) == 255, "a PNG export saved after the .aseprite file is the newer: it wins its channel")
+
+    # ---------------------------------------------------------------- watch
+    four = make_package("four")
+    stop, lines = threading.Event(), []
+    ns = argparse.Namespace(dir=str(four), layer=str(d / "layer-four"), catalog=str(d / "cat-four.json"), debounce=0.3)
+    thread = threading.Thread(target=pr.watch_package, args=(ns, stop, lines.append))
+    thread.start()
+    time.sleep(0.5)
+    started = time.monotonic()
+    path = four / "aseprite" / "aaaaaaaaaa_g100.aseprite"
+    column = np.zeros((6, 8, 4), np.uint8)
+    column[:, 1] = 255
+    build(path, 8, 6, layout[:1] + layout[3:], [[(0, 0, 0, 2, base), (1, 0, 0, 2, column)]])
+    # (the Roughness layer is all 255 in column 1 only)
+    for _ in range(40):
+        if (d / "layer-four/aaaaaaaaaa/@g100/roughness.png").exists():
+            break
+        time.sleep(0.05)
+    took = time.monotonic() - started
+    stop.set()
+    thread.join()
+    rough = np.asarray(Image.open(d / "layer-four/aaaaaaaaaa/@g100/roughness.png")) if (d / "layer-four/aaaaaaaaaa/@g100/roughness.png").exists() else None
+    check(rough is not None and (rough[:, 1] == 255).all() and (rough[:, 2] == 120).all(), "watch imports a saved file's channel")
+    check(took < 1.0, f"...within a second of the save ({took * 1000:.0f} ms, debounced 300 ms)")
+    check(sum("aaaaaaaaaa_g100.aseprite" in line for line in lines) == 1, f"...one line per import: {[line for line in lines if 'g100' in line]}")
+
+    # ---------------------------------------------------------------- the WebSocket
+    left, right = socket.socketpair()
+    server, client = miniws.WebSocket(left), miniws.WebSocket(right, client=True)
+    result = {}
+    t = threading.Thread(target=lambda: result.update(path=server.accept()))
+    t.start()
+    client.connect("localhost", "/live")
+    t.join()
+    check(result["path"] == "/live", "the handshake: Sec-WebSocket-Accept is checked by the client and the path is the server's")
+    big = bytes(range(256)) * 300
+    client.send("hello")
+    client.send(b"\x00\x01binary")
+    client.send(big)  # (64-bit length)
+    client.send(b"x" * 200)  # (16-bit length)
+    right.sendall(miniws.frame(miniws.TEXT, b"frag", mask=True, fin=False) + miniws.frame(miniws.PING, b"p", mask=True)
+                  + miniws.frame(miniws.CONT, b"men", mask=True, fin=False) + miniws.frame(miniws.CONT, b"ts", mask=True))
+    got = [server.recv() for _ in range(5)]
+    check(got[0] == (miniws.TEXT, b"hello") and got[1] == (miniws.BINARY, b"\x00\x01binary") and got[2] == (miniws.BINARY, big) and got[3][1] == b"x" * 200,
+          "masked client frames: text, binary, 16-bit and 64-bit lengths")
+    check(got[4] == (miniws.TEXT, b"fragments"), "a fragmented message is joined, with a ping in the middle")
+    pong = right.recv(16)
+    check(pong[:2] == b"\x8a\x01" and pong[2:3] == b"p", "the ping was answered with a pong")
+    server.send("ok")
+    check(client.recv() == (miniws.TEXT, b"ok"), "the server's frames are unmasked and read by the client")
+    right.sendall(miniws.frame(miniws.CLOSE, struct.pack(">H", 1000), mask=True))
+    check(server.recv() is None, "a close frame ends the message stream")
+    left.close(), right.close()
+    left, right = socket.socketpair()
+    right.sendall(b"GET / HTTP/1.1\r\nHost: x\r\n\r\n")
+    try:
+        miniws.WebSocket(left).accept()
+        check(False, "a plain HTTP request is refused")
+    except miniws.Closed:
+        check(right.recv(64).startswith(b"HTTP/1.1 400"), "a request that is not a WebSocket upgrade gets a 400")
+    check(miniws.accept_key("dGhlIHNhbXBsZSBub25jZQ==") == "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=", "the accept key is RFC 6455's example")
+
+    # ---------------------------------------------------------------- the bridge (without a game)
+    five = make_package("five")
+    bridge = paint_live.Bridge(five, layer=str(d / "layer-five"), catalog=str(d / "cat-five.json"))
+    pushed = []
+    bridge.push = lambda key, obj, channel, array: pushed.append((key, obj, channel, array.copy())) or True
+    cel = np.zeros((2, 3, 4), np.uint8)
+    cel[1, 1] = (255, 255, 255, 255)
+
+    def message(layer_name, cel, x, y, material="aaaaaaaaaa_g100"):
+        header = json.dumps({"material": material, "layer": layer_name, "x": x, "y": y, "w": cel.shape[1], "h": cel.shape[0], "canvas": [8, 6]}).encode()
+        return struct.pack(">I", len(header)) + header + cel.tobytes()
+    reply = bridge.message(None, miniws.BINARY, message("Metal", cel, 4, 1))
+    check(reply["ok"] and reply["game"] and len(pushed) == 1, f"a stroke message is applied and pushed: {reply}")
+    key, obj, channel, array = pushed[0]
+    check((key, obj, channel) == ("aaaaaaaaaa", "g100", "metal") and np.array_equal(array, expect), "...as that object's metal map: the stroke over the game's values, same as import")
+    check(not (d / "layer-five").exists() and len((json.loads((d / "cat-five.json").read_text()))["entries"]) == 1, "...no map file written, the catalog entry made")
+    again = bridge.message(None, miniws.BINARY, message("Metal", cel, 4, 1))
+    check(again["note"] == "unchanged" and len(pushed) == 1, "the same stroke again pushes nothing")
+    bad = bridge.message(None, miniws.BINARY, message("Metal", cel, 4, 1, material="nope"))
+    check(not bad["ok"] and len(pushed) == 1, "a material that is not in the package is refused")
+    resized = json.dumps({"material": "aaaaaaaaaa_g100", "layer": "Metal", "x": 0, "y": 0, "w": 0, "h": 0, "canvas": [16, 12]}).encode()
+    check(not bridge.message(None, miniws.BINARY, struct.pack(">I", len(resized)) + resized)["ok"], "a resized canvas is refused")
+    empty = json.dumps({"material": "aaaaaaaaaa_g100", "layer": "Metal", "x": 0, "y": 0, "w": 0, "h": 0, "canvas": [8, 6]}).encode()
+    bridge.message(None, miniws.BINARY, struct.pack(">I", len(empty)) + empty)
+    check(len(pushed) == 2 and np.array_equal(pushed[1][3], seed_metal), "an emptied layer (no cel) pushes the game's map back")
+    check(not bridge.message(None, miniws.BINARY, b"\x00")["ok"], "a short message is refused, not a crash")
+
+    # ---------------------------------------------------------------- material presets (swatches on the Material layer)
+    presets = mp.load()
+    by = {p["id"]: p for p in presets}
+    check(len(presets) >= 10 and all(0 <= p["metal"] <= 1 and 0 <= p["roughness"] <= 1 for p in presets), f"the shipped presets: {len(presets)}, values 0..1")
+    check({"polished_steel", "worn_steel", "dark_iron", "rusted_iron", "gold", "bronze_brass", "silver", "leather", "cloth", "stone", "wood", "skin"} <= set(by), "...the starter set")
+    rgbs = [p["rgb"] for p in presets]
+    check(all(max(c) - min(c) >= 60 for c in rgbs) and min(max(abs(a - b) for a, b in zip(x, y)) for i, x in enumerate(rgbs) for y in rgbs[:i]) > 40,
+          "...swatches are never gray and every two differ clearly")
+    sprite = ase.read(pkg / "aseprite" / "aaaaaaaaaa_g100.aseprite")
+    check([e[4] for e in sprite.palette[:len(presets)]] == [p["name"] for p in presets] and [e[:3] for e in sprite.palette[:len(presets)]] == rgbs,
+          "the exported file's palette has the swatches, named")
+    check(sprite.palette[len(presets)][:4] == (0, 0, 0, 255) and sprite.palette[-1][:4] == (255, 255, 255, 255) and sprite.palette[-1][4] == "1.0", "...then the grays")
+
+    steel, gold = by["worn_steel"], by["gold"]
+    sw = np.zeros((6, 8, 4), np.uint8)  # the Material layer: worn steel top left 3 x 2, gold bottom right 2 x 2, a stray colour, a half-transparent steel
+    sw[0:2, 0:3] = (*steel["rgb"], 255)
+    sw[4:6, 6:8] = (*gold["rgb"], 255)
+    sw[3, 3] = (1, 2, 3, 255)
+    sw[3, 4] = (*steel["rgb"], 90)
+    got = mp.expand(sw, presets)
+    metal_v, metal_m = got["metal"]
+    rough_v, rough_m = got["roughness"]
+    check(metal_m.sum() == 6 + 4 + 1 and (metal_v[0:2, 0:3] == 255).all() and (rough_v[0:2, 0:3] == round(steel["roughness"] * 255)).all()
+          and (rough_v[4:6, 6:8] == round(gold["roughness"] * 255)).all() and not metal_m[3, 3], "expand: each swatch is its preset's metal and roughness; a stray colour is no preset")
+    check(metal_m[3, 4], "...a translucent stroke of a swatch still counts")
+    near = sw.copy()
+    near[5, 0] = (*(np.array(steel["rgb"]) - 5), 255)
+    check(mp.expand(near, presets)["metal"][1][5, 0], "...a colour within a few levels of a swatch is that swatch (a brush's blending)")
+    check(not mp.expand(np.zeros((6, 8, 4), np.uint8), presets), "...an empty layer expands to nothing")
+
+    # through the import: Material alone, then with a Metal stroke on top (precedence)
+    six = make_package("six")
+    spath = six / "aseprite" / "aaaaaaaaaa_g100.aseprite"
+
+    def save_layers(path, material=None, metal=None, rough=None):
+        rows = [{"name": ly.name, "pixels": ly.pixels, "locked": ly.locked, "visible": ly.visible, "opacity": ly.opacity} for ly in ase.read(path).layers]
+        if material is not None:
+            rows[3]["pixels"] = material
+        if metal is not None:
+            rows[1]["pixels"] = metal
+        if rough is not None:
+            rows[2]["pixels"] = rough
+        ase.write(path, 8, 6, rows, palette=ase.read(path).palette)
+    save_layers(spath, material=sw)
+    r = pr.run_import(args_for(six, "six"), say=lambda *_: None)
+    check(sorted(n for _, _, ns_ in r["changed"] for n in ns_) == ["metal", "roughness"], f"import: a Material stroke alone writes metal and roughness: {r['changed'] and r['changed'][0][2]}")
+    out_metal = np.asarray(Image.open(d / "layer-six/aaaaaaaaaa/@g100/metal.png"))
+    out_rough = np.asarray(Image.open(d / "layer-six/aaaaaaaaaa/@g100/roughness.png"))
+    seed_m = np.tile(np.arange(8, dtype=np.uint8) * 20, (6, 1))
+    check((out_metal[0:2, 0:3] == 255).all() and (out_rough[0:2, 0:3] == 107).all() and (out_rough[4:6, 6:8] == 51).all(), "...the swatches' values where painted")
+    outside = np.ones((6, 8), bool)
+    outside[0:2, 0:3] = outside[4:6, 6:8] = outside[3, 4] = False
+    check((out_metal[outside] == seed_m[outside]).all() and (out_rough[outside] == 120).all(), "...the game's own values everywhere else")
+    # precedence: Metal painted at (0,0) = 40 (differs from the game's 0? the seed there is 0: yes), Roughness layer left as exported (the game's values)
+    mpx = ase.read(spath).layer("Metal").pixels.copy()
+    mpx[0, 1, :3] = 40
+    mpx[0, 0, :3] = 0  # (still the game's value 0 at (0,0): untouched, so the preset's metal shows)
+    save_layers(spath, metal=mpx)
+    pr.run_import(args_for(six, "six"), say=lambda *_: None)
+    out_metal = np.asarray(Image.open(d / "layer-six/aaaaaaaaaa/@g100/metal.png"))
+    out_rough = np.asarray(Image.open(d / "layer-six/aaaaaaaaaa/@g100/roughness.png"))
+    check(out_metal[0, 1] == 40 and out_metal[0, 0] == 255 and out_metal[0, 2] == 255, "precedence: a Metal pixel painted over a swatch wins, an untouched one gives way to the preset")
+    check((out_rough[0:2, 0:3] == 107).all(), "...and the other channel (Roughness left as exported) is the preset's still")
+    # no Material strokes: exactly the old import; an emptied Material resets
+    save_layers(spath, material=np.zeros((6, 8, 4), np.uint8), metal=np.asarray(ase.read(pkg / "aseprite" / "aaaaaaaaaa_g100.aseprite").layer("Metal").pixels))
+    pr.run_import(args_for(six, "six"), say=lambda *_: None)
+    out_metal = np.asarray(Image.open(d / "layer-six/aaaaaaaaaa/@g100/metal.png"))
+    check((out_metal == seed_m).all(), "an emptied Material layer (and Metal back to the game's) resets the map to the game's")
+
+    # a Material layer alone (no Metal / Roughness layer in the file: a user's own file)
+    seven = make_package("seven")
+    build(seven / "aseprite" / "aaaaaaaaaa_g100.aseprite", 8, 6, [("Game colour (reference)", 0, 3, 0), ("Material", 0, 3, 0)], [[(0, 0, 0, 2, base), (1, 0, 0, 2, sw)]])
+    pr.run_import(args_for(seven, "seven"), say=lambda *_: None)
+    check(np.asarray(Image.open(d / "layer-seven/aaaaaaaaaa/@g100/metal.png"))[0, 0] == 255, "a file with only a Material layer imports it")
+
+    # user presets: override a value, add a swatch, drop one
+    user = d / "user-presets.json"
+    user.write_text(json.dumps({"presets": [{"id": "worn_steel", "colour": "#2962ff", "metal": 0.5, "roughness": 0.3},
+                                            {"id": "mud", "name": "Mud", "colour": "#aabb00", "roughness": 1.0},
+                                            {"id": "stone", "disabled": True},
+                                            {"id": "broken", "colour": "nonsense"}, {"colour": "#fff"}]}))
+    warned = []
+    merged = mp.load([mp.shipped_file(), user], warn=warned.append)
+    ids = [p["id"] for p in merged]
+    check(ids.index("worn_steel") == ids.index("polished_steel") + 1 and next(p for p in merged if p["id"] == "worn_steel")["metal"] == 0.5, "a user preset of the same id replaces the shipped one in place")
+    check(ids[-1] == "mud" and "stone" not in ids and "broken" not in ids and len(warned) == 2, f"...a new id is added after, disabled drops, broken ones are skipped with a warning ({warned})")
+    exp = mp.expand(sw, merged)
+    check("metal" in exp and (exp["metal"][0][0:2, 0:3] == round(0.5 * 255)).all() and not mp.expand(np.full((2, 2, 4), 255, np.uint8), merged), "...and the expansion follows")
+    mud = np.zeros((1, 1, 4), np.uint8)
+    mud[0, 0] = (0xaa, 0xbb, 0x00, 255)
+    mv = mp.expand(mud, merged)
+    check("metal" not in mv and mv["roughness"][0][0, 0] == 255, "a preset with only roughness leaves metal alone")
+    check(mp.load([d / "nope.json"]) == [] and mp.load([user, d / "nope.json"], warn=lambda *_: None), "a missing file is skipped")
+    (d / "bad.json").write_text("{not json")
+    check(mp.load([mp.shipped_file(), d / "bad.json"], warn=warned.append) == presets, "a broken user file is warned about and the shipped presets stay")
+
+    # the palette command: new swatches into existing files, pixels untouched
+    before = ase.read(spath)
+    names_before = [(ly.name, ly.opacity, ly.flags) for ly in before.layers]
+    os.environ["ROOD_PAINT_PRESETS_USER"] = str(user)
+    pr.refresh_palettes(argparse.Namespace(dir=str(six)), say=lambda *_: None)
+    after = ase.read(spath)
+    check([e[4] for e in after.palette[:len(merged)]] == [p["name"] for p in merged] and after.palette[-1][4] == "1.0", "palette: the file's palette is the new swatches, named")
+    check([(ly.name, ly.opacity, ly.flags) for ly in after.layers] == names_before
+          and all((a.pixels is None and b.pixels is None) or np.array_equal(a.pixels, b.pixels) for a, b in zip(before.layers, after.layers)), "...layers and pixels untouched")
+    odd = d / "odd.aseprite"  # a file as Aseprite lays it out: old palette, an unknown chunk, two frames
+    build(odd, 8, 6, [("Metal", 0, 3, 0)], [[(0, 0, 0, 2, gray(seed_m))], [(0, 0, 0, 1, 0)]], old_palette=[(1, 2, 3), (4, 5, 6)])
+    ase.set_palette(odd, [(9, 8, 7, 255, "Nine")])
+    o = ase.read(odd)
+    check(o.palette == [(9, 8, 7, 255, "Nine")] and np.array_equal(o.layer("Metal").pixels[..., 0], seed_m), "set_palette on a two-frame file with an old-style palette and an unknown chunk keeps the pixels")
+    os.environ["ROOD_PAINT_PRESETS_USER"] = os.path.join(tempfile.gettempdir(), "aseprite_test_no_user_presets.json")
+
+    # the bridge: Material strokes, precedence, and presets in the greeting
+    eight = make_package("eight")
+    bridge = paint_live.Bridge(eight, layer=str(d / "layer-eight"), catalog=str(d / "cat-eight.json"))
+    pushed = []
+    bridge.push = lambda key, obj, channel, array: pushed.append((key, obj, channel, array.copy())) or True
+    hello = bridge.message(None, miniws.TEXT, b"hello")
+    check([p["name"] for p in hello["presets"]] == [p["name"] for p in presets] and hello["presets"][1]["colour"] == "#2962ff", "the bridge's hello carries the presets for the extension's window")
+    reply = bridge.message(None, miniws.BINARY, message("Material", sw, 0, 0))
+    check(reply["ok"] and sorted(c for _, _, c, _ in pushed) == ["metal", "roughness"], f"a Material stroke pushes both maps: {reply}")
+    maps = {c: a for _, _, c, a in pushed}
+    check((maps["metal"][0:2, 0:3] == 255).all() and (maps["roughness"][4:6, 6:8] == 51).all() and (maps["roughness"][outside] == 120).all() and (maps["metal"][outside] == seed_m[outside]).all(),
+          "...the preset values over the game's maps, same as import")
+    pushed.clear()
+    stroke_px = np.zeros((1, 1, 4), np.uint8)
+    stroke_px[0, 0] = (40, 40, 40, 255)
+    bridge.message(None, miniws.BINARY, message("Metal", stroke_px, 1, 0))
+    check(len(pushed) == 1 and pushed[0][2] == "metal" and pushed[0][3][0, 1] == 40 and pushed[0][3][0, 0] == 255 and pushed[0][3][1, 2] == 255,
+          "then a Metal stroke over the swatch: only metal is pushed, the stroke wins its texel, the swatch stays elsewhere")
+    pushed.clear()
+    bridge.message(None, miniws.BINARY, message("Material", np.zeros((0, 0, 4), np.uint8), 0, 0))
+    maps = {c: a for _, _, c, a in pushed}
+    check((maps["roughness"] == 120).all() and maps["metal"][0, 1] == 40 and maps["metal"][0, 0] == seed_m[0, 0], "erasing the Material layer returns the game's values, the Metal stroke staying")
+    # a bridge that starts after a saved file: its Material layer is the baseline
+    nine = make_package("nine")
+    save_layers(nine / "aseprite" / "aaaaaaaaaa_g100.aseprite", material=sw)
+    bridge = paint_live.Bridge(nine, layer=str(d / "layer-nine"), catalog=str(d / "cat-nine.json"))
+    pushed = []
+    bridge.push = lambda key, obj, channel, array: pushed.append((key, obj, channel, array.copy())) or True
+    bridge.message(None, miniws.BINARY, message("Roughness", np.zeros((0, 0, 4), np.uint8), 0, 0))
+    check(len(pushed) == 1 and (pushed[0][3][0:2, 0:3] == 107).all(), "a Roughness message uses the saved file's Material layer for what the extension has not sent yet")
+    # a changed preset file reaches the materials the bridge holds
+    n0 = len(pushed)
+    user.write_text(json.dumps({"presets": [{"id": "worn_steel", "colour": "#2962ff", "metal": 1.0, "roughness": 0.9}]}))
+    os.environ["ROOD_PAINT_PRESETS_USER"] = str(user)
+    bridge.message(None, miniws.BINARY, message("Metal", stroke_px, 5, 5))
+    check(any(c == "roughness" and (a[0:2, 0:3] == round(0.9 * 255)).all() for _, _, c, a in pushed[n0:]), "a changed preset file is re-read on the next message: the swatch's new values are pushed")
+
+    # ---------------------------------------------------------------- real Aseprite (batch, no window; skipped when it is not installed)
+    os.environ["ROOD_PAINT_PRESETS_USER"] = os.path.join(tempfile.gettempdir(), "aseprite_test_no_user_presets.json")
+    if shutil.which("aseprite"):
+        ten = make_package("ten")
+        tpath = ten / "aseprite" / "aaaaaaaaaa_g100.aseprite"
+        script = d / "stroke.lua"
+        script.write_text(f'''local s = app.open("{tpath}")
+local layer
+for _, l in ipairs(s.layers) do if l.name == "Material" then layer = l end end
+app.layer = layer
+local cel = layer:cel(1) or s:newCel(layer, 1)
+app.useTool{{ tool = "pencil", color = Color{{ r = {steel["rgb"][0]}, g = {steel["rgb"][1]}, b = {steel["rgb"][2]} }}, layer = layer, cel = cel,
+  points = {{ Point(1, 1), Point(3, 1) }}, brush = Brush(1) }}
+s:saveAs("{d / "saved.aseprite"}")
+''')
+        env = {**os.environ, "XDG_CONFIG_HOME": str(d / "cfg"), "HOME": str(d)}
+        env.pop("DISPLAY", None)
+        run = subprocess.run(["nice", "-n", "10", "aseprite", "-b", "--script", str(script)], env=env, capture_output=True, text=True, timeout=60)
+        saved = ase.read(d / "saved.aseprite") if (d / "saved.aseprite").exists() else None
+        check(saved is not None and [e[:3] for e in saved.palette[:len(presets)]] == rgbs, f"real Aseprite opens the exported file and saves it with the swatch colours as its palette ({run.stderr[-200:]})")
+        names_kept = saved is not None and [e[4] for e in saved.palette[:len(presets)]] == [p["name"] for p in presets]
+        print(f"note: Aseprite {'keeps' if names_kept else 'drops'} the palette entries' names when it saves (the names are in the exported file; the extension\'s window lists them either way)")
+        shutil.copy(d / "saved.aseprite", tpath)
+        pr.run_import(args_for(ten, "ten"), say=lambda *_: None)
+        got_m = np.asarray(Image.open(d / "layer-ten/aaaaaaaaaa/@g100/metal.png"))
+        got_r = np.asarray(Image.open(d / "layer-ten/aaaaaaaaaa/@g100/roughness.png"))
+        check((got_m[1, 1:4] == 255).all() and (got_r[1, 1:4] == 107).all() and got_m[1, 0] == seed_m[1, 0] and got_r[1, 4] == 120,
+              "a pencil stroke with the Worn steel swatch on the Material layer, made and saved by real Aseprite, imports as that preset's metal and roughness")
+        # the palette command on a file Aseprite wrote
+        user.write_text(json.dumps({"presets": [{"id": "mud", "name": "Mud", "colour": "#aabb00", "roughness": 1.0}]}))
+        os.environ["ROOD_PAINT_PRESETS_USER"] = str(user)
+        pr.refresh_palettes(argparse.Namespace(dir=str(ten)), say=lambda *_: None)
+        os.environ["ROOD_PAINT_PRESETS_USER"] = os.path.join(tempfile.gettempdir(), "aseprite_test_no_user_presets.json")
+        script.write_text(f'local s = app.open("{tpath}") print(#s.layers, #s.palettes[1], s.palettes[1]:getColor(12).green)')
+        run = subprocess.run(["aseprite", "-b", "--script", str(script)], env=env, capture_output=True, text=True, timeout=60)
+        check(run.stdout.split() == ["4", str(len(presets) + 1 + mp.PALETTE_GRAYS), str(0xbb)], f"a file Aseprite wrote opens in it again after `palette`, with the new swatches: {run.stdout.split()}")
+    else:
+        print("skip: aseprite is not installed (the real-Aseprite checks)")
+
+print(f"{'FAIL' if failures else 'PASS'}: aseprite round trip ({failures} failures)")
+sys.exit(1 if failures else 0)

@@ -298,6 +298,10 @@ void poll(); /* (a slice of the files per call, at most every 50 ms) */
 void forget(); /* reload everything on the next look */
 void reload(); /* forget(), and read both catalog files again */
 
+/* Sets a channel of a texture (and of its object, "" for the texture's own) in memory, as the user layer's: no file is
+ * written. It holds until that file is written (its stamp changes), then the file wins; the editor's live painting. */
+bool set_live(const std::string& key, const std::string& object, const std::string& name, int w, int h,
+    const uint8_t* values, std::string* error);
 /* Writes a channel into the user layer (a grayscale PNG). */
 bool write_channel(const std::string& key, const std::string& name, int w, int h, const uint8_t* values,
     std::string* error);

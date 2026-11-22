@@ -79,7 +79,7 @@ def main():
     check(base.shape[:2] == (rec0["h"], rec0["w"]), "the base colour is the game's texture texel for texel")
 
     # no loss: nothing painted, nothing written
-    ns = argparse.Namespace(dir=str(pkg), layer=str(maps), catalog=str(catalog), preset="stone")
+    ns = argparse.Namespace(dir=str(pkg), layer=str(maps), catalog=str(catalog), normal_format="auto", keep_seed=False)
     pr.import_package(ns)
     check(not list(maps.rglob("*.png")) and not catalog.exists(), "an export imported without painting writes no map and no catalog entry")
 
@@ -106,16 +106,46 @@ def main():
         quiet = ~(np.abs(base_frame - shot("base2")).max(2) > 0)
         check(not (np.abs(base_frame - shot("base3")).max(2) > 0)[quiet].any(), "the material view is steady")
 
+        # the first import of an object leaves everything else as the game drew it: an unpainted package changes no pixel, one texel only
+        # the pixels around it (the entry the import makes is the surface the texture had, not a preset)
+        rec = seed["labels"][label]
+        texel = mp["texel"]
+        pr.import_package(argparse.Namespace(dir=str(pkg), layer=str(maps), catalog=str(catalog), normal_format="auto", keep_seed=False))
+        g.call("redraw")
+        g.wait_presents(6)
+        check(not (np.abs(shot("unchanged") - base_frame).max(2) > 0)[quiet].any() and not catalog.exists(), "an unchanged import: the picture is byte-identical")
+        first = out / "pkg-first"
+        shutil.copytree(pkg, first)
+        fpath = first / rec["files"]["metallicroughness"]
+        fmr = load(fpath).copy()
+        fmr[texel[1], texel[0], 2] = 255
+        pr.save_image(fpath, fmr)
+        pr.import_package(argparse.Namespace(dir=str(first), layer=str(maps), catalog=str(catalog), normal_format="auto", keep_seed=False))
+        for _ in range(8):
+            g.call("redraw")
+            g.wait_presents(6)
+            texel_frame = shot("first-texel")
+            if (np.abs(texel_frame - base_frame).max(2) > 0)[quiet].any():
+                break
+        near = (np.abs(texel_frame - base_frame).max(2) > 0) & quiet
+        ys, xs = np.nonzero(near)
+        check(catalog.exists() and near.any() and near.mean() < 0.01 and abs(xs.mean() - feet[0]) < 48 and abs(ys.mean() - feet[1]) < 48,
+              f"a first import with one painted texel changes only the pixels around it ({int(near.sum())} pixels, {near.mean() * 100:.2f}% of the frame)")
+        shutil.rmtree(maps, ignore_errors=True)
+        catalog.unlink()
+        g.call("redraw")
+        g.wait_presents(6)
+        check(not (np.abs(shot("first-reset") - base_frame).max(2) > 0)[quiet].any(), "...and removing the maps and the entry puts the picture back")
+
         # one texel painted metal lands on that object only
         one = out / "pkg-one"
         shutil.copytree(pkg, one)
-        rec = seed["labels"][label]
         path = one / rec["files"]["metallicroughness"]
         mr = load(path).copy()
         mr[2, 3, 2] = 255
         pr.save_image(path, mr)
         one_layer, one_catalog = out / "one-layer", out / "one-catalog.json"
-        pr.import_package(argparse.Namespace(dir=str(one), layer=str(one_layer), catalog=str(one_catalog), preset="stone"))
+        pr.import_package(argparse.Namespace(dir=str(one), layer=str(one_layer), catalog=str(one_catalog), normal_format="auto", keep_seed=False))
         folders = sorted(str(f.relative_to(one_layer)) for f in one_layer.rglob("*.png"))
         obj = rec["object"]
         check(folders == [f"{rec['key']}/@{obj}/metal.png"], f"the one texel is one map of that object: {folders}")
@@ -132,7 +162,7 @@ def main():
         mr = load(path).copy()
         mr[..., 1], mr[..., 2] = 30, 255
         pr.save_image(path, mr)
-        pr.import_package(argparse.Namespace(dir=str(everything), layer=str(maps), catalog=str(catalog), preset="stone"))
+        pr.import_package(argparse.Namespace(dir=str(everything), layer=str(maps), catalog=str(catalog), normal_format="auto", keep_seed=False))
         for _ in range(8):  # (the watch looks at the files a few times a second; a paused game redraws)
             g.call("redraw")
             g.wait_presents(6)
@@ -150,7 +180,7 @@ def main():
         relief_before = shot("relief-before")
         again = out / "pkg-normal"
         shutil.copytree(pkg, again)
-        pr.import_package(argparse.Namespace(dir=str(again), layer=str(maps), catalog=str(catalog), preset="stone"))
+        pr.import_package(argparse.Namespace(dir=str(again), layer=str(maps), catalog=str(catalog), normal_format="auto", keep_seed=False))
         g.call("redraw")
         g.wait_presents(6)
         check(not (np.abs(shot("relief-unpainted") - relief_before).max(2) > 0)[quiet].any(), "importing the unpainted normals changes no shading normal")
@@ -158,7 +188,7 @@ def main():
         tilted = load(npath).copy()
         tilted[...] = (230, 128, 200)  # a strong lean along x
         pr.save_image(npath, tilted)
-        pr.import_package(argparse.Namespace(dir=str(again), layer=str(maps), catalog=str(catalog), preset="stone"))
+        pr.import_package(argparse.Namespace(dir=str(again), layer=str(maps), catalog=str(catalog), normal_format="auto", keep_seed=False))
         for _ in range(8):
             g.call("redraw")
             g.wait_presents(6)
@@ -209,7 +239,7 @@ def main():
         row, col = box[1] + hit["texel"][1], box[0] + hit["texel"][0]
         atlas[row, col, 2] = 255  # one texel metal
         pr.save_image(mpath, atlas)
-        pr.import_package(argparse.Namespace(dir=str(mpkg), layer=str(maps), catalog=str(catalog), preset="stone"))
+        pr.import_package(argparse.Namespace(dir=str(mpkg), layer=str(maps), catalog=str(catalog), normal_format="auto", keep_seed=False))
         folders = sorted(str(f.relative_to(maps)) for f in maps.rglob("metal.png") if "@m4b8870d7" in str(f))
         check(folders == [f"{hit['key']}/@m4b8870d7/metal.png"], f"the one texel is one map of her box for her model: {folders}")
         one = None
@@ -220,9 +250,10 @@ def main():
             if one.any():
                 break
         check(one.any(), f"the texel changes her picture with the game running ({int(one.sum())} pixels)")
+        check(one.mean() < 0.01, f"...and only the pixels of that texel, nothing else of her or the room ({one.mean() * 100:.2f}% of the frame)")
         atlas[..., 2] = 255  # the whole page: where she is, for comparison
         pr.save_image(mpath, atlas)
-        pr.import_package(argparse.Namespace(dir=str(mpkg), layer=str(maps), catalog=str(catalog), preset="stone"))
+        pr.import_package(argparse.Namespace(dir=str(mpkg), layer=str(maps), catalog=str(catalog), normal_format="auto", keep_seed=False))
         for _ in range(8):
             g.call("redraw")
             g.wait_presents(6)
@@ -244,7 +275,7 @@ def main():
         rough = np.repeat(np.repeat(np.full(src.shape[:2], 77, np.uint8), 2, 0), 2, 1)
         Image.fromarray(rough, "L").save(named / "tex" / f"{stem}_Roughness.png")
         named_layer = out / "named-layer"
-        pr.import_package(argparse.Namespace(dir=str(named), layer=str(named_layer), catalog=str(out / "named.json"), preset="stone"))
+        pr.import_package(argparse.Namespace(dir=str(named), layer=str(named_layer), catalog=str(out / "named.json"), normal_format="auto", keep_seed=False))
         got = named_layer / rec["key"] / f"@{obj}" / "roughness.png"
         check(got.exists() and int(load(got, "L").min()) == 77 and load(got, "L").shape == (rec["h"], rec["w"]),
               "maps found by name beside the files (Roughness.png) and read from twice the texture's size")

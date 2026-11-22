@@ -5,8 +5,9 @@ Prisoners' Niche (zone 15 room 0) and Underdark Fishmarket (zone 48 room 3):
 an entry sound effect slides the auto-pan depth (opcode DF) of a channel that
 never enabled auto-pan (opcode BC), so Sound_UpdateSlidesAndDelays reads the
 channel's NULL LFO wave. The PS1 reads its RAM at address 0; the PC build
-crashed there (SIGSEGV, 64-bit) until ROOD_PC read it through guest RAM
-guest RAM's base (25AC.c LFO_WAVE).
+crashed there (SIGSEGV, 64-bit) until 25AC.c's LFO_WAVE read a NULL wave as
+pc_null_object, the object that stands for that PS1 address 0. (Wave types of
+16 and up are a different path: pc_sound_lfo_wave, setting sound_autopan_quirk.)
 
 The crash needs the sound channels as a fresh launch leaves them (after
 other rooms' effects the channel may hold a wave), so each room gets its own

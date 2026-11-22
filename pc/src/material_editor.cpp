@@ -940,6 +940,26 @@ std::string base64(const uint8_t* data, size_t n)
     return s;
 }
 
+std::vector<uint8_t> unbase64(const std::string& s)
+{
+    std::vector<uint8_t> out;
+    uint32_t acc = 0;
+    int bits = 0;
+    for (char c : s) {
+        int v = c >= 'A' && c <= 'Z' ? c - 'A' : c >= 'a' && c <= 'z' ? c - 'a' + 26 : c >= '0' && c <= '9' ? c - '0' + 52
+            : c == '+' ? 62 : c == '/' ? 63 : -1;
+        if (v < 0)
+            continue;
+        acc = acc << 6 | (uint32_t)v;
+        bits += 6;
+        if (bits >= 8) {
+            bits -= 8;
+            out.push_back((uint8_t)(acc >> bits & 255));
+        }
+    }
+    return out;
+}
+
 /* The panel's "Textures in this room": the survey of the view, refreshed
  * about once a second while shown, with each texture's thumbnail (from
  * VRAM), its share of the view and its entry, or a preset to give it one. */
@@ -1249,7 +1269,9 @@ extern "C" void pc_material_panel(void)
  * default roughness), value, rects: [[x0, y0, x1, y1]...], tool (pencil,
  * rectangle, fill, eraser), at: [x, y]} | map {key, channel} (its map: size
  * and values' sum) | undo (the last map stroke) | preview {auto_height:
- * bool} (the height estimate on every material in view) | reload (both
+ * bool} (the height estimate on every material in view) | map_set {key, object,
+ * channel, w, h, data: base64 gray} (a map in memory as the user layer's, until
+ * its file is written) | reload (both
  * catalogs and the maps read again from disk)}. */
 extern "C" int pc_material_rpc(const char* params_text, char* out, int size)
 {
@@ -1342,6 +1364,21 @@ extern "C" int pc_material_rpc(const char* params_text, char* out, int size)
         material_survey::Result r;
         material_survey::survey(r, (int)grid, (int)cull);
         return reply(survey_json(r, m && m->type == Json::Bool && m->boolean), out, size);
+    }
+    if (action == "map_set") { /* {key, object?, channel, w, h, data: base64 gray}: a map in memory, as the user layer's (paint_roundtrip.py live) */
+        const Json *k = params.get("key"), *c = params.get("channel"), *d = params.get("data"), *o = params.get("object");
+        float w = 0, h = 0;
+        if (!k || k->type != Json::String || !c || c->type != Json::String || !d || d->type != Json::String
+            || !number(params, "w", &w) || !number(params, "h", &h) || w < 1 || h < 1 || w > 4096 || h > 4096)
+            return fail("material map_set: needs key, channel, w, h and data (base64, w x h bytes)", out, size);
+        std::vector<uint8_t> values = unbase64(d->string);
+        if (values.size() != (size_t)w * (size_t)h)
+            return fail("material map_set: data is not w x h bytes", out, size);
+        if (!materials::known_channel(c->string))
+            return fail("material map_set: channel is emissive, roughness, height or metal", out, size);
+        if (!materials::set_live(k->string, o && o->type == Json::String ? o->string : "", c->string, (int)w, (int)h, values.data(), &error))
+            return fail("material map_set: " + error, out, size);
+        return reply(Json::object(), out, size);
     }
     if (action == "texture") { /* a texture in view as RGBA (base64): the survey's contact sheet */
         const Json* k = params.get("key");

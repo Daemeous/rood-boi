@@ -68,6 +68,8 @@ extern int pc_reflection_bounces;
 extern float pc_bump_strength;
 extern int pc_auto_height;
 extern float pc_auto_height_strength;
+/* How much of a texture's own estimate (mortar, grain) goes on top of a baked height map, 0..1 (0: the bake alone). */
+extern float pc_baked_texture_relief;
 extern float pc_bump_occlusion;
 /* Where the relief fades to flat (material.glsl relief_keep): the texture' stretch (long side over short side of a
  * pixel's footprint in the texture) and its texels per pixel at which the fade starts (gone at twice); 0: no limit. */
@@ -79,6 +81,11 @@ extern float pc_baked_energy;
  * (0..2; 0: as without), the reach (world units) that turns the light's change along the surface
  * into the tilt of its direction, and the share of a light-from-above prior in that tilt (0..1). */
 extern float pc_relief_baked, pc_relief_indirect, pc_relief_reach, pc_relief_overhead;
+/* The per-room key light (room_settings.cpp pc_key_light_params; scaled.frag key_; pc/docs/Materials.md "The key
+ * light"): the global switch and a strength multiplier on every room's key light (the room's own values are
+ * room settings, key_*). */
+extern int pc_key_light;
+extern float pc_key_light_strength;
 /* The editor's preview of the height estimate on every entry in view
  * (material_editor.cpp; not a setting). */
 extern int pc_auto_height_preview;

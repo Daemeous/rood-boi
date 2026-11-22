@@ -61,6 +61,8 @@ static void model()
     check(shown(all, f, fav).size() == 1, "a kind and a category");
     std::vector<std::string> cats = categories(all, "prefab");
     check(cats.size() == 2 && cats[0] == "Fire" && cats[1] == "My prefabs", "a kind's categories in order");
+    for (const std::string& c : categories(all, ""))
+        check(c != "Lights", "no category is a kind's own chip");
     std::vector<std::string> kinds = kinds_present(all);
     check(kinds.size() == 6 && kinds.front() == "light" && kinds.back() == "thing", "the kinds present, in order");
     check(kind_label("fog") == "Fog volumes" && kind_label("emitter") == "Emitters" && kind_label("thing") == "thing",

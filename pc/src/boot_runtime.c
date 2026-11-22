@@ -180,6 +180,7 @@ static unsigned texture_window, mask_set, mask_check;
 void vs_main_exec(void);
 /* Overlay statics restart on each overlay load (overlay_statics.c). */
 extern void pc_overlay_statics_init(void);
+extern void pc_sound_lfo_quirk_load(const unsigned char* bytes); /* 25AC.c */
 extern void pc_overlay_statics_loaded(int);
 /* Plugins (pc/src/lua, pc/docs/Extensions.md "Where Lua runs"); weak: probes link this file alone. */
 extern void pc_lua_init(void) __attribute__((weak));
@@ -1165,6 +1166,11 @@ int main(int argc, char** argv)
         return 1;
     if (fread((void*)(uintptr_t)address, 1, size, f) != size)
         return 1;
+    /* The sound driver's LFO quirk (25AC.c pc_sound_lfo_quirk_load): 72 bytes of the executable's code, by file offset. */
+    unsigned char lfo_quirk[72];
+    if (fseek(f, 0x939C, SEEK_SET) || fread(lfo_quirk, 1, sizeof lfo_quirk, f) != sizeof lfo_quirk)
+        return 1;
+    pc_sound_lfo_quirk_load(lfo_quirk);
     fclose(f);
     pc_log(sizeof(void*) == 8
             ? "64-bit native game startup; original RAM data loaded, MIPS code is non-executable"

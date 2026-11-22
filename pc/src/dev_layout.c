@@ -320,7 +320,7 @@ static int fail(char* error, size_t size, const char* format, const char* a)
 static int follow(uintptr_t* address, const Type* t, int (*readable)(uintptr_t, uintptr_t), char* error,
     size_t error_size)
 {
-    size_t width = t->kind == 'P' ? 4 : sizeof(void*);
+    size_t width = sizeof(void*);
     if (!t->target)
         return fail(error, error_size, "a void pointer cannot be followed%s", NULL);
     if (!readable || !readable(*address, width))
@@ -389,7 +389,7 @@ int dev_layout_resolve(const char* path, int (*readable)(uintptr_t, uintptr_t), 
                 address += (uintptr_t)index * type_at(type)->size;
                 if (limit != (size_t)~0)
                     limit -= (size_t)index * type_at(type)->size;
-            } else if (t->kind == 'p' || t->kind == 'P') {
+            } else if (t->kind == 'p') {
                 if (!follow(&address, t, readable, error, error_size))
                     return 0;
                 type = t->target;
@@ -418,7 +418,7 @@ int dev_layout_resolve(const char* path, int (*readable)(uintptr_t, uintptr_t), 
         }
         member[n] = 0;
         path += n;
-        if (t->kind == 'p' || t->kind == 'P') {
+        if (t->kind == 'p') {
             if (!follow(&address, t, readable, error, error_size))
                 return 0;
             type = t->target;
@@ -471,7 +471,7 @@ int dev_layout_format_value(const dev_layout_ref* ref, char* out, size_t size)
         return 1;
     }
     int word = (t->kind == 's' || t->kind == 'u') && (t->size == 1 || t->size == 2 || t->size == 4 || t->size == 8);
-    if (!word && t->kind != 'i' && t->kind != 'n' && t->kind != 'b' && t->kind != 'p' && t->kind != 'P' && t->kind != 'f')
+    if (!word && t->kind != 'i' && t->kind != 'n' && t->kind != 'b' && t->kind != 'p' && t->kind != 'f')
         return 0;  /* (a struct or union of one word: a group of bit fields, as a number) */
     unsigned w = t->size;
     if (w == 0 || w > 8)
@@ -503,7 +503,7 @@ int dev_layout_store_value(const dev_layout_ref* ref, long long value)
 {
     const Type* t = type_at(ref->type);
     int word = t && (t->kind == 's' || t->kind == 'u') && (t->size == 1 || t->size == 2 || t->size == 4 || t->size == 8);
-    if (!t || (!word && t->kind != 'i' && t->kind != 'n' && t->kind != 'b' && t->kind != 'p' && t->kind != 'P'))
+    if (!t || (!word && t->kind != 'i' && t->kind != 'n' && t->kind != 'b' && t->kind != 'p'))
         return 0;
     if (ref->bitsize) {
         unsigned bytes = (unsigned)(ref->bitshift + ref->bitsize + 7) / 8;
@@ -515,7 +515,7 @@ int dev_layout_store_value(const dev_layout_ref* ref, long long value)
         memcpy((void*)ref->address, &v, bytes);
         return 1;
     }
-    unsigned w = t->kind == 'P' ? 4 : t->size;
+    unsigned w = t->size;
     if (w == 0 || w > 8)
         return 0;
     uint64_t v = (uint64_t)value;

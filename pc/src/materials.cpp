@@ -214,6 +214,12 @@ struct Cached {
     Channel channel;
 };
 std::map<std::pair<std::string, std::string>, Cached> cache;
+/* Maps set in memory (set_live): by folder and name, with the user file's stamp when set; a change of that file ends them. */
+struct Live {
+    Channel channel;
+    long long stamp = 0;
+};
+std::map<std::pair<std::string, std::string>, Live> live_maps;
 uint32_t files_generation = 1;
 int applied_baked = -1; /* pc_materials_baked the cache was loaded with */
 
@@ -233,6 +239,14 @@ void load(const std::string& key, const std::string& name, Cached& c)
     c.channel = Channel();
     for (int layer = 0; layer < LAYERS; layer++)
         c.stamps[layer] = layer_stamp(layer, key, name);
+    if (auto live = live_maps.find({ key, name }); live != live_maps.end()) {
+        if (live->second.stamp == c.stamps[USER]) { /* (the file is as it was: the map in memory is the newer) */
+            c.channel = live->second.channel;
+            c.present = true;
+            return;
+        }
+        live_maps.erase(live); /* (the file was written since: it wins) */
+    }
     for (int layer = 0; layer < LAYERS && !c.present; layer++) {
         if (!c.stamps[layer])
             continue;
@@ -373,6 +387,30 @@ void forget()
     ++files_generation;
 }
 
+bool set_live(const std::string& key, const std::string& object, const std::string& name, int w, int h,
+    const uint8_t* values, std::string* error)
+{
+    if (!valid_key(key) || !valid_name(name) || object.size() > 120
+        || object.find_first_not_of("0123456789abcdefgmp+") != std::string::npos || w <= 0 || h <= 0) {
+        if (error)
+            *error = "bad texture key, object, channel name or size";
+        return false;
+    }
+    check_baked();
+    std::string folder = object.empty() ? key : key + "/@" + object;
+    Live& l = live_maps[{ folder, name }];
+    l.channel = Channel();
+    l.channel.w = w, l.channel.h = h;
+    l.channel.values.assign(values, values + (size_t)w * h);
+    l.channel.path = "(memory)";
+    l.stamp = layer_stamp(USER, folder, name);
+    auto found = cache.find({ folder, name });
+    if (found == cache.end())
+        found = cache.emplace(std::make_pair(folder, name), Cached()).first;
+    load(folder, name, found->second);
+    ++files_generation;
+    return true;
+}
 bool write_channel(const std::string& key, const std::string& name, int w, int h, const uint8_t* values,
     std::string* error)
 {

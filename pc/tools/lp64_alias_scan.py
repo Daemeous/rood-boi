@@ -4,11 +4,10 @@
 splat names words inside structs and arrays separately, so the decompiled
 units often reach one guest word under two names: vs_effects_actionRequestPointer is
 D_800F56C8.unkD0 (0x800F56C8 + 0xD0), vs_actors_zoneCharacterInitData is _zoneContext.zndEnemies.
-On the PS1 and the 32-bit build both names are the same 4 bytes. On LP64,
-build_boot.py moves an import whose declared type holds pointers (8 bytes
-each) to a native slot, while a struct import whose pointers are psx_ptr
-(4-byte guest addresses) keeps its PS1 address: the two names become two
-storages, and a write through one never reaches the other.
+On the PS1 both names are the same 4 bytes. On LP64, build_boot.py moves an
+import to a native slot while a name for the same bytes inside another
+import stays at its PS1 address: the two names become two storages, and a
+write through one never reaches the other.
 
 This tool reads the mover's view of every data import
 (pc/build/boot64/lp64_imports.json, written by `build_boot.py --arch 64`:

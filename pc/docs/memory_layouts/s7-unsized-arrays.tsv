@@ -1,7 +1,7 @@
 # S7 first group: the 77 imports pinned as 'an array of unknown length' or 'follows one' (name, address, VS-NativePort ledger size, gap to the next import, declared type, state now, verdict)
 # batch 1 and 2 are declared sized; gimmickModelTemplates is NOT [3]: vs_field_gimmickTemplateIndices holds indices up to 0xE, so its real length is 15+ and labels sit inside it (overlap group)
 # name	address	ledger bytes	gap to next import	declared as	now	verdict
-_cdlAtv	0x800365d0	4	4	CdlATV	pinned	follows g_Sound_LfoTable (moved, short *[]): held until its extent is declared
+_cdlAtv	0x800365d0	4	4	CdlATV	moved	g_Sound_LfoTable is declared with its real extent (short *[16]; types of 16 and up go through pc_sound_lfo_wave, sound_autopan_quirk), so nothing unsized precedes it
 vs_core_mathArcTangentTable	0x80040a14		516	u_char []	pinned	not in the ledger; extent from the code per case
 D_80040C18	0x80040c18		384	short []	pinned	not in the ledger; extent from the code per case
 _nowLoading_header	0x80049150	4	4	imgHeader_t	pinned	follows D_80040D98 (pinned, short []): held until its extent is declared

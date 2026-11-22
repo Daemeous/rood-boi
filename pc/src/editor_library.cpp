@@ -279,7 +279,7 @@ Source fog_source()
     s.list = [](std::vector<Entry>& out) {
         Entry plain;
         plain.kind = "fog", plain.id = "", plain.item = "fog:";
-        plain.name = "Fog volume", plain.category = "Fog volumes";
+        plain.name = "Fog volume", plain.category = "Plain";
         plain.description = "A new fog volume with the default look (pick a preset in Details after).";
         plain.tags = { "volume", "mist" };
         out.push_back(plain);

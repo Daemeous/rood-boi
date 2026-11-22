@@ -1,0 +1,18 @@
+{
+ "format": 1,
+ "comment": "Material presets for painting in Aseprite (pc/tools/material_presets.py): paint a swatch on the Material layer and the bridge sets the metal and roughness maps from it. CC0, no game data. Add or override presets in the user file (pc/user/lighting/paint-presets.json, $ROOD_PAINT_PRESETS_USER): an entry with the same id replaces this one, a new id adds a swatch, \"disabled\": true drops one. colour: a distinct swatch (never a gray), metal and roughness 0..1; other channels (height, emissive, alpha...) can be added to a preset later and are carried as they are.",
+ "presets": [
+  {"id": "polished_steel", "name": "Polished steel", "colour": "#82b1ff", "metal": 1.0, "roughness": 0.12, "notes": "mirror-like blades and plate"},
+  {"id": "worn_steel", "name": "Worn steel", "colour": "#2962ff", "metal": 1.0, "roughness": 0.42, "notes": "scuffed, used weapons and armour"},
+  {"id": "dark_iron", "name": "Dark iron", "colour": "#651fff", "metal": 0.9, "roughness": 0.62, "notes": "blackened, cast or wrought iron"},
+  {"id": "rusted_iron", "name": "Rusted iron", "colour": "#ff1744", "metal": 0.4, "roughness": 0.85, "notes": "corroded: mostly oxide, a little bare metal"},
+  {"id": "gold", "name": "Gold", "colour": "#ffea00", "metal": 1.0, "roughness": 0.2},
+  {"id": "bronze_brass", "name": "Bronze / brass", "colour": "#ff9100", "metal": 1.0, "roughness": 0.32},
+  {"id": "silver", "name": "Silver", "colour": "#64ffda", "metal": 1.0, "roughness": 0.15},
+  {"id": "leather", "name": "Leather", "colour": "#d500f9", "metal": 0.0, "roughness": 0.6},
+  {"id": "cloth", "name": "Cloth", "colour": "#ff80ab", "metal": 0.0, "roughness": 0.92},
+  {"id": "stone", "name": "Stone", "colour": "#76ff03", "metal": 0.0, "roughness": 0.85},
+  {"id": "wood", "name": "Wood", "colour": "#00c853", "metal": 0.0, "roughness": 0.72},
+  {"id": "skin", "name": "Skin", "colour": "#ffab91", "metal": 0.0, "roughness": 0.55}
+ ]
+}

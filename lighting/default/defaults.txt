@@ -1,0 +1,25 @@
+# Project defaults for the per-room settings (pc/src/room_settings.cpp), lowest layer: a room's own "set" lines and the
+# user's pc/user/lighting/defaults.txt change them. "exterior." lines are the defaults of rooms open to the sky (a room
+# with an env sun or sky), for the settings that have a separate exterior value (the key light, below).
+# The key light (pc/docs/Materials.md "The key light"): a soft directional light that shows the normal maps' relief.
+# Interiors: a dim fill from above and the viewer's side; exteriors: a sun-like light from above.
+set key_intensity 1
+set key_relief 1
+set key_gain 3
+set key_azimuth 35
+set key_elevation 45
+set key_view 1
+set key_red 1
+set key_green 1
+set key_blue 1
+set key_specular 1
+set exterior.key_intensity 1
+set exterior.key_relief 1
+set exterior.key_gain 3
+set exterior.key_azimuth 35
+set exterior.key_elevation 50
+set exterior.key_view 1
+set exterior.key_red 0.85
+set exterior.key_green 0.92
+set exterior.key_blue 1
+set exterior.key_specular 1

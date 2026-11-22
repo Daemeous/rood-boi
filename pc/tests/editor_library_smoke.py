@@ -69,6 +69,13 @@ from editor_selection_smoke import centre, distance, finish, pinned_card, start 
 from editor_schema_smoke import close, schema, value  # noqa: E402
 
 
+KIND_LABELS = {"light": "Lights", "prefab": "Light actors", "fixture": "Fixtures", "fog": "Fog volumes", "emitter": "Emitters"}
+
+
+def rood_kind_label(kind):
+    return KIND_LABELS.get(kind, kind)
+
+
 def lib(s, **params):
     return s.game.call("editor_library", **params)
 
@@ -333,6 +340,37 @@ def check_panel(s):
     lib(s, action="filter", kind="")
 
 
+def check_tiles(s):
+    """The tiles show their thumbnails (not another texture of the UI, as the font's atlas once was) and the chips are unique."""
+    from PIL import Image
+    g = s.game
+    lib(s, action="filter", kind="", category="", search="", favourites=False, mine=False)
+    lib(s, action="view", mode="grid", docked=True)
+    g.call("editor_ui", tab="library")
+    g.run(20)
+    r = lib(s)
+    kinds = [rood_kind_label(k) for k in r["kinds"]]
+    chips = ["All"] + kinds + r["categories"] + ["Favourites", "Mine"]
+    s.check(len(chips) == len(set(chips)), f"every chip once ({chips})")
+    checked = 0
+    for kind in ("light", "prefab", "fixture", "fog"):  # a screenshot per kind's tiles: the first three of each
+        lib(s, action="filter", kind=kind)
+        g.run(14)
+        shown = [e for e in lib(s)["entries"] if e["tile"] and e["thumb"]][:3]
+        files = {t["item"]: pathlib.Path(t["file"]) for t in lib(s, action="thumbs", items=[e["item"] for e in shown])["thumbs"]
+                 if t["file"]}
+        image = Image.open(g.present_screenshot(s.work / f"library-{kind}.png")).convert("RGB")
+        for e in shown:
+            x, y, w, _ = (int(round(v)) for v in e["tile"])
+            thumb = Image.frombytes("RGBA", (96, 96), files[e["item"]].read_bytes()[HEADER:]).convert("RGB").resize((w, w), Image.BILINEAR)
+            crop = image.crop((x, y, x + w, y + w))
+            diff = sum(abs(a - b) for pa, pb in zip(crop.getdata(), thumb.getdata()) for a, b in zip(pa, pb)) / (w * w * 3)
+            checked += 1
+            s.check(diff < 40, f"{e['item']}: the tile shows its thumbnail, not another texture (mean difference {diff:.1f} of 255)")
+    s.check(checked >= 8, f"tiles of every kind were compared ({checked})")
+    lib(s, action="filter", kind="")
+
+
 def check_save(s):
     g, p = s.game, s.player
     floor, _ = floor_and_wall(s)
@@ -591,7 +629,7 @@ def check_manage(s):
     g.call("editor_ui", tab="outliner")
 
 
-SECTIONS = [check_sources, check_filters, check_drops, check_thumbs, check_panel, check_save, check_save_groups, check_manage,
+SECTIONS = [check_sources, check_filters, check_drops, check_thumbs, check_panel, check_tiles, check_save, check_save_groups, check_manage,
             check_emitters]
 
 

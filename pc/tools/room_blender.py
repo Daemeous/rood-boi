@@ -42,6 +42,7 @@ import numpy as np
 from PIL import Image
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
+os.environ.setdefault("ROOD_ARCH", "64")  # the 32-bit build is retired: run by hand, these tools use the 64-bit game
 sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
 CONFIG = ROOT / "pc/tools/room_blender.json"
@@ -152,11 +153,58 @@ def face_inward(positions):
     return (n * inward).sum(axis=1) < 0
 
 
+def face_outward(positions):
+    """Winding that faces away from the model's own surface (a character, weapon or prop is drawn without culling: its winding is
+    mixed); returns the flip mask. Triangles are welded by position; across each edge two triangles share, the winding is made
+    consistent (the one a flood fill from a triangle sets), and each connected piece then faces outward as a whole: the side its
+    area-weighted normals leave the piece's middle by (the divergence: the signed volume of a closed piece)."""
+    n = len(positions)
+    ids = {}
+    corner = np.array([[ids.setdefault(tuple(np.round(p * 64.0).astype(np.int64)), len(ids)) for p in tri] for tri in positions])
+    edges = {}
+    for t in range(n):
+        for k in range(3):
+            a, b = corner[t][k], corner[t][(k + 1) % 3]
+            if a != b:
+                edges.setdefault((min(a, b), max(a, b)), []).append((t, a < b))
+    near = [[] for _ in range(n)]  # (triangle, the flip the neighbour needs to wind the same way across the shared edge)
+    for sides in edges.values():
+        if len(sides) == 2:
+            (t0, f0), (t1, f1) = sides
+            near[t0].append((t1, f0 == f1))
+            near[t1].append((t0, f0 == f1))
+    flip = np.zeros(n, bool)
+    piece = np.full(n, -1)
+    pieces = 0
+    for start in range(n):
+        if piece[start] >= 0:
+            continue
+        piece[start] = pieces
+        stack = [start]
+        while stack:
+            t = stack.pop()
+            for u, differs in near[t]:
+                if piece[u] < 0:
+                    piece[u] = pieces
+                    flip[u] = flip[t] ^ differs
+                    stack.append(u)
+        pieces += 1
+    a, b, c = positions[:, 0], positions[:, 1], positions[:, 2]
+    area_normal = np.cross(b - a, c - a) * np.where(flip, -1.0, 1.0)[:, None]  # (twice the area)
+    middle = positions.mean(axis=1)
+    for q in range(pieces):
+        mine = piece == q
+        centre = middle[mine].mean(axis=0)
+        if ((middle[mine] - centre) * area_normal[mine]).sum() < 0:
+            flip[mine] = ~flip[mine]
+    return flip
+
+
 # ---------------------------------------------------------------------------------------------- export
 
-def goto(game, zone, room):
+def goto(game, zone, room, enemies=False):
     import material_rollout
-    if not material_rollout.goto(game, zone, room):
+    if not material_rollout.goto(game, zone, room, enemies=enemies):
         raise SystemExit(f"room_blender: the game did not arrive in zone {zone} room {room}")
 
 
@@ -204,10 +252,11 @@ def export(args):
     return 0
 
 
-def write_gltf(out, positions, colours, tris, found, textures, labels=None, pbr=None, folder="gltf", name="room"):
+def write_gltf(out, positions, colours, tris, found, textures, labels=None, pbr=None, folder="gltf", name="room", outward=False):
     """`pbr` ({label: {channel: uri}}): the painting round trip's glTF (pc/tools/paint_roundtrip.py): each label's material takes its own
-    images (basecolor, metallicroughness, normal, occlusion) in place of the shared texture's."""
-    flip = face_inward(positions)
+    images (basecolor, metallicroughness, normal, occlusion) in place of the shared texture's. `outward`: a model's faces point away from
+    its surface (a room's face the room's middle)."""
+    flip = face_outward(positions) if outward else face_inward(positions)
     # glTF: x right, y up, z towards the viewer; the game's y is down and z away: a half turn about x
     pos = positions.copy()
     pos[..., 1] *= -1
@@ -280,22 +329,28 @@ def write_gltf(out, positions, colours, tris, found, textures, labels=None, pbr=
 
 # ---------------------------------------------------------------------------------------------- bake
 
-def bake(args):
-    out = room_dir(args)
-    meta = json.loads((out / "export.json").read_text())
-    cfg = config()
-    shutil.rmtree(out / "bakes", ignore_errors=True)
-    (out / "bakes").mkdir(parents=True)
-    cmd = ["nice", "-n", "19", BLENDER, "-b", "--threads", str(args.threads), "-P", str(ROOT / "pc/tools/blender/bake_room.py"),
-           "--", str(out / "gltf" / "room.gltf"), str(out / "export.json"), str(out / "bakes"),
-           str(args.samples or cfg["samples"]), json.dumps(cfg["bake"])]
+def run_bake(gltf, meta, bakes, samples, threads, params):
+    """Blender (pc/tools/blender/bake_room.py) bakes each texture of `gltf` (the materials `meta` ({"textures": {name: {w, h}}}) names) into
+    <bakes>/<name>/{cover,wear,cavity}.png; the exit status."""
+    shutil.rmtree(bakes, ignore_errors=True)
+    bakes.mkdir(parents=True)
+    cmd = ["nice", "-n", "19", BLENDER, "-b", "--threads", str(threads), "-P", str(ROOT / "pc/tools/blender/bake_room.py"),
+           "--", str(gltf), str(meta), str(bakes), str(samples), json.dumps(params)]
     done = subprocess.run(cmd, capture_output=True, text=True)
     sys.stdout.write("".join(l + "\n" for l in done.stdout.splitlines() if l.startswith("bake_room:")))
     if done.returncode:
         sys.stderr.write(done.stdout[-3000:] + done.stderr[-2000:])
-        return done.returncode
-    print(f"bake: {len(list((out / 'bakes').glob('*/wear.png')))} of {len(meta['textures'])} textures baked -> {out / 'bakes'}")
-    return 0
+    return done.returncode
+
+
+def bake(args):
+    out = room_dir(args)
+    meta = json.loads((out / "export.json").read_text())
+    cfg = config()
+    code = run_bake(out / "gltf" / "room.gltf", out / "export.json", out / "bakes", args.samples or cfg["samples"], args.threads, cfg["bake"])
+    if not code:
+        print(f"bake: {len(list((out / 'bakes').glob('*/wear.png')))} of {len(meta['textures'])} textures baked -> {out / 'bakes'}")
+    return code
 
 
 # ---------------------------------------------------------------------------------------------- import
@@ -456,6 +511,14 @@ def import_maps(args):
 
 # ---------------------------------------------------------------------------------------------- shot
 
+def side_by_side(before, after, path):
+    """The two pictures side by side (a black gap between) in one PNG."""
+    both = Image.new("RGB", (before.width * 2 + 10, before.height), "black")
+    both.paste(before, (0, 0))
+    both.paste(after, (before.width + 10, 0))
+    both.save(path)
+
+
 def shot(args):
     import material_rollout
     out = room_dir(args)
@@ -512,11 +575,8 @@ def shot(args):
                 game.call("lights", action="reload")
         finally:
             material_rollout.kill(game)
-    before, after = (Image.open(shots / f"{n}.png") for n in ("before", "after"))
-    both = Image.new("RGB", (before.width * 2 + 10, before.height), "black")
-    both.paste(before, (0, 0))
-    both.paste(after, (before.width + 10, 0))
-    both.save(shots / "before_after.png")
+    before = Image.open(shots / "before.png")
+    side_by_side(before, Image.open(shots / "after.png"), shots / "before_after.png")
     if args.light_at:
         grid = Image.new("RGB", (before.width * 2 + 10, before.height * 2 + 10), "black")
         for row, name in enumerate(("before", "after")):

@@ -29,6 +29,7 @@ extern int pc_hw_view_camera(float r[3][3], float t[3], float* h, float* ofx, fl
 extern int pc_hw_replay_camera(float r[3][3], float t[3]) __attribute__((weak));
 extern int pc_hw_replay_projection(float* h, float* ofx, float* ofy) __attribute__((weak));
 extern void pc_baked_shadow_params(float out[5]);
+extern void pc_key_light_params(float out[9]);
 extern int pc_ui_menu_active(void) __attribute__((weak));
 extern int pc_ui_menu_backdrop(float rgba[4]) __attribute__((weak));
 extern int pc_ui_menu_model_light(pc_menu_light* out) __attribute__((weak));
@@ -237,6 +238,7 @@ int pc_present_header_fill(void)
     h->light_count = h->projection_ok ? pc_lights_list(h->lights, PC_LIGHTS_MAX) : 0;
     h->out_count = pc_lights_output(h->out_keys, h->out_importance, PC_LIGHTS_MAX, &h->lights_frame); /* (straight after the list the pick goes by) */
     pc_baked_shadow_params(h->baked_shadow);
+    pc_key_light_params(h->key_light);
     /* the menu */
     h->menu_active = pc_ui_menu_active && pc_ui_menu_active();
     h->menu_backdrop_ok = pc_ui_menu_backdrop && pc_ui_menu_backdrop(h->menu_backdrop);

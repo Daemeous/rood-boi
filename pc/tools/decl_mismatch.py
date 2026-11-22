@@ -258,8 +258,7 @@ class Dwarf:
                         return name + ("." + inner if inner else "")
             return None
         if tag == "DW_TAG_array_type":
-            # psx_ptr(T) is {u32 raw; T* psx_type_[0];}: a zero-length
-            # array is a type tag, not storage.
+            # a zero-length array is a type tag, not storage.
             subranges = [self.dies[c][1] for c in children if self.dies[c][0] == "DW_TAG_subrange_type"]
             first = subranges[0] if subranges else {}
             upper = number(first.get("DW_AT_upper_bound", ""))

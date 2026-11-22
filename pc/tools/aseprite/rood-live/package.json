@@ -1,0 +1,12 @@
+{
+  "name": "rood-live",
+  "displayName": "Rood live",
+  "description": "Live metal and roughness painting for the rood-boi PC port: strokes in the Metal, Roughness and Material (preset swatch) layers reach the running game (paint_roundtrip.py live).",
+  "version": "1.1.0",
+  "author": { "name": "rood-boi" },
+  "license": "CC0-1.0",
+  "categories": ["Scripts"],
+  "contributes": {
+    "scripts": [ { "path": "./rood-live.lua" } ]
+  }
+}

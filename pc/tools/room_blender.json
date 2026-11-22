@@ -104,5 +104,25 @@
     "rough_cavity": 0.28,
     "min_area": 10,
     "floor": 0.3
+  },
+  "model": {
+    "about": "Tunables of pc/tools/model_blender.py (a character, weapon or prop through the same bake): `bake` and `maps` replace the room's values of the same names (a model is a fraction of a room's size: lengths are in the exported model's units, 1 = 512 game units); `preset` is the material preset of the entries a shot gives each baked texture; `shot` frames the model (the camera's distance in model sizes, its pitch in degrees, how many redraws to wait for the frame to settle, the views (the graphics view_mode of each: the lit picture, the shading normals with the relief, the material target)).",
+    "preset": "stone",
+    "bake": {
+      "bevel_radius": 0.006,
+      "ao_distance": 0.04
+    },
+    "maps": {},
+    "shot": {
+      "distance": 3.6,
+      "pitch": -6,
+      "settle": 30,
+      "converge": 30,
+      "views": {
+        "": 0,
+        "relief": 9,
+        "material": 6
+      }
+    }
   }
 }

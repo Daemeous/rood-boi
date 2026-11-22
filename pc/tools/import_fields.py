@@ -87,7 +87,7 @@ def canon(type_text):
     """A member's type as a class that ours and the ledger agree on: sized primitives, 'ptr', or the typedef's name."""
     t = re.sub(r"\b(const|volatile|struct|union|enum|register)\b", " ", type_text)
     t = re.sub(r"\s+", " ", t).strip()
-    if "*" in t or t.startswith("psx_ptr"):
+    if "*" in t:
         return "ptr"
     t = re.sub(r"\bunsigned (int|char|short|long)\b", r"u_\1", t)
     t = {"u_char": "char", "unsigned char": "char", "u_short": "short", "unsigned short": "short",

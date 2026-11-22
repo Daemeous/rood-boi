@@ -135,7 +135,7 @@ def main():
                 print("FAIL: could not reach the Keep")
                 return 1
             game.call("editor_camera", off=1)
-            game.call("graphics", interpolate=False, view_mode=9, bump_strength=1)
+            game.call("graphics", interpolate=False, view_mode=9, bump_strength=1, key_light=0)  # (the key light: its own smoke)
             on = shot("normals-limited")
             game.call("graphics", relief_aniso=0, relief_footprint=0)
             off = shot("normals-unlimited")

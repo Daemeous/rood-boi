@@ -68,6 +68,26 @@ with tempfile.TemporaryDirectory() as d:
           "UVs run over the texture's own box: texel u0 at 0, a texel k of w at k / w")
     check(len(prims[0]["extras"]["triangles"]) == 2 and prims[0]["extras"]["triangles"][0]["group"] == 4,
           "each primitive keeps its triangles' tags")
+# a model's faces turn outward whatever way they were drawn (no culling: the winding is mixed); a room's face its middle
+def tetra(winding, at=0.0):
+    v = np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]], np.float32) + at
+    faces = [(0, 2, 1), (0, 1, 3), (0, 3, 2), (1, 2, 3)]  # (each seen from outside)
+    return np.array([[v[i] for i in (f if w else f[::-1])] for f, w in zip(faces, winding)], np.float32)
+
+
+def outward(positions, flip):
+    """Whether each face, turned over where `flip` says, points away from its piece's middle."""
+    first, second, third = positions[:, 0], np.where(flip[:, None], positions[:, 2], positions[:, 1]), np.where(flip[:, None], positions[:, 1], positions[:, 2])
+    return (np.cross(second - first, third - first) * (positions.mean(axis=1) - positions.reshape(-1, 3).mean(axis=0))).sum(axis=1) > 0
+
+
+for winding in ([1, 1, 1, 1], [0, 1, 0, 0], [0, 0, 0, 0]):
+    t = tetra(winding)
+    check(outward(t, rb.face_outward(t)).all(), f"a closed piece drawn with winding {winding} is turned outward as a whole")
+check(not outward(tetra([0, 1, 0, 0]), np.zeros(4, bool)).all(), "(the winding as drawn is not outward: the flags do the turning)")
+pieces = np.concatenate([tetra([1, 0, 1, 1]), tetra([0, 0, 0, 0], 5.0)])
+flip = rb.face_outward(pieces)
+check(outward(pieces[:4], flip[:4]).all() and outward(pieces[4:], flip[4:]).all(), "two separate pieces are each turned outward on their own")
 # a texture shared by two room groups is baked per group (materials by object)
 GROUPS = [{"offset": 0x100, "first": 0x108, "end": 0x108 + 2 * 32}, {"offset": 0x200, "first": 0x208, "end": 0x208 + 32}]
 shared = [{"tpage": 17, "clut": 0x38b8, "group": 0, "flags": 0, "uv": [[10, 20], [41, 20], [10, 50]], "polygon": 0x108},

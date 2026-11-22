@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Typed views of game state for owned Zig code (pc/docs/porting/PORTING.md
 §2, §7), from the DWARF of the original unit's object of the same build: the
-layouts GCC used on that target (ILP32; LP64 with psx_ptr; the native moves),
+layouts GCC used on that target (LP64: the native moves),
 so the views are right on every build by construction.
 
 Two halves:
   - inside gdb (dump): the requested types and globals as JSON (fields with
-    bit positions and sizes, signedness, arrays, pointers, psx_ptr);
+    bit positions and sizes, signedness, arrays, pointers);
   - emit(dump, names): the Zig module: extern structs/unions with explicit
     padding, align(1) where C is misaligned,
     a `bitfields` table per struct (psx.getBits/setBits), comptime asserts of
@@ -56,19 +56,10 @@ def _dump(type_names, global_names, lenient=False):
         except AttributeError:
             return not re.match(r"(unsigned|u_|_Bool|bool)", str(t))
 
-    def is_psx_ptr(t):
-        return [f.name for f in t.fields()] == ["raw", "psx_type_"]
-
-    def psx_target(t):
-        # psx_type_ is T* [0]: the array's element is T*, its target T.
-        return t.fields()[1].type.strip_typedefs().target().target()
-
     def ref(t, context):
         if t.code == gdb.TYPE_CODE_TYPEDEF:
             target = t.strip_typedefs()
             if target.code in (gdb.TYPE_CODE_STRUCT, gdb.TYPE_CODE_UNION):
-                if is_psx_ptr(target):
-                    return {"kind": "psx_ptr", "target": pointee(psx_target(target), context)}
                 return named(str(t), target)
             return ref(target, context)
         code = t.code
@@ -84,8 +75,6 @@ def _dump(type_names, global_names, lenient=False):
             count = 0 if t.sizeof == 0 else max(0, high - low + 1)
             return {"kind": "array", "count": count, "elem": ref(t.target(), context)}
         if code in (gdb.TYPE_CODE_STRUCT, gdb.TYPE_CODE_UNION):
-            if is_psx_ptr(t):
-                return {"kind": "psx_ptr", "target": pointee(psx_target(t), context)}
             return named(t.tag or context, t)
         if code == gdb.TYPE_CODE_VOID:
             return {"kind": "opaque", "name": "void"}
@@ -249,8 +238,6 @@ class Emitter:
             return r["size"]
         if k == "ptr":
             return self.ptr
-        if k == "psx_ptr":
-            return 4
         if k == "array":
             return r["count"] * self.size(r["elem"])
         return self.d["types"][r["name"]]["size"]
@@ -261,8 +248,6 @@ class Emitter:
             return min(r["size"], self.max_align)
         if k == "ptr":
             return self.ptr
-        if k == "psx_ptr":
-            return 4
         if k == "array":
             return self.align(r["elem"])
         return self.layout(r["name"])["align"]

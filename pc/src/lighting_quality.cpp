@@ -32,7 +32,8 @@ extern int pc_lights_enabled, pc_gi_enabled, pc_rt_shadows, pc_baked_shadows, pc
 extern float pc_gi_resolution, pc_shadow_softness, pc_fog_density, pc_shadow_history;
 extern int pc_gl_compute;
 /* Material response (emissive.h): the specular switch and its tunables. */
-extern int pc_specular, pc_reflection_bounces, pc_auto_height;
+extern int pc_specular, pc_reflection_bounces, pc_auto_height, pc_key_light;
+extern float pc_key_light_strength, pc_baked_texture_relief;
 extern float pc_specular_strength, pc_roughness_bias, pc_bump_strength, pc_auto_height_strength, pc_bump_occlusion,
     pc_env_specular, pc_baked_energy, pc_relief_aniso, pc_relief_footprint, pc_relief_baked, pc_relief_indirect,
     pc_relief_reach, pc_relief_overhead;
@@ -152,6 +153,7 @@ Key keys[] = {
     { "auto_height", BOOL, &pc_auto_height, nullptr, 0, false },
     { "auto_height_strength", FLOAT_KEY, &pc_auto_height_strength, nullptr, 0, false },
     /* The baked maps (pc/build/materials, material_bake.py) under the shipped and the user's. */
+    { "baked_texture_relief", FLOAT_KEY, &pc_baked_texture_relief, nullptr, 0, false },
     { "materials_baked", BOOL, &pc_materials_baked, nullptr, 0, false },
     { "bump_occlusion", FLOAT_KEY, &pc_bump_occlusion, nullptr, 0, false },
     { "relief_aniso", FLOAT_KEY, &pc_relief_aniso, nullptr, 0, false },
@@ -163,6 +165,9 @@ Key keys[] = {
     { "relief_indirect", FLOAT_KEY, &pc_relief_indirect, nullptr, 0, false },
     { "relief_reach", FLOAT_KEY, &pc_relief_reach, nullptr, 0, false },
     { "relief_overhead", FLOAT_KEY, &pc_relief_overhead, nullptr, 0, false },
+    /* The per-room key light (room settings key_*, room_settings.cpp): its switch and global strength. */
+    { "key_light", BOOL, &pc_key_light, nullptr, 0, false },
+    { "key_light_strength", FLOAT_KEY, &pc_key_light_strength, nullptr, 0, false },
     /* The material preview's sphere (Window > Material preview; material_preview.cpp). */
     { "material_preview_size", FLOAT_KEY, &pc_material_preview_size, nullptr, 0, false },
     { "material_preview_light", FLOAT_KEY, &pc_material_preview_light, nullptr, 0, false },
@@ -1037,6 +1042,9 @@ extern "C" void pc_lighting_panel(void)
             if (pc_auto_height)
                 ImGui::SliderFloat("Estimate strength", &pc_auto_height_strength, 0, 2, "%.2f");
             checkbox("Baked maps", &pc_materials_baked);
+            ImGui::SliderFloat("Texture relief on baked maps", &pc_baked_texture_relief, 0, 1, "%.2f");
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+                ImGui::SetTooltip("baked_texture_relief: the texture's own relief estimate (mortar, grain) added over a baked\nheight map, which only holds what the geometry shows. 0: the bake alone.");
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
                 ImGui::SetTooltip("materials_baked: height, roughness and metal maps derived from each texture by\n"
                                   "pc/tools/material_bake.py (pc/build/materials). Painted and shipped maps win;\n"
@@ -1063,6 +1071,12 @@ extern "C" void pc_lighting_panel(void)
                     ImGui::SetTooltip("relief_overhead: the share of light from above in the baked and indirect light's\n"
                                       "direction on walls (where their own change says little).");
             }
+            checkbox("Key light", &pc_key_light);
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+                ImGui::SetTooltip("key_light: a soft directional light per room that shows the normal-map relief (the\n"
+                                  "room's values: Lighting tab > Key light). Off: as without it.");
+            if (pc_key_light)
+                ImGui::SliderFloat("Key light strength", &pc_key_light_strength, 0, 2, pc_key_light_strength > 0 ? "%.2f" : "Off");
             ImGui::SliderFloat("Relief stretch limit", &pc_relief_aniso, 0, 16, pc_relief_aniso > 0 ? "%.1f x" : "No limit");
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
                 ImGui::SetTooltip("relief_aniso: the relief fades to flat where the texture is stretched this much\n"

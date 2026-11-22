@@ -816,6 +816,9 @@ Materials, RPC `graphics`):
 | `relief_indirect` | the relief under the indirect light (probes, path traced) and the sky's ambient, 0..4; 0: as before | 2 |
 | `relief_reach` | world units that turn the light's relative change along the surface into its tilt (about the light's height over the surface); also sets the gradient's footprint (reach / 8, 8..64); 0: no tilt from it | 96 |
 | `relief_overhead` | the tilt toward the world's up added on walls (light from above), 0..1 | 0.6 |
+| `baked_texture_relief` | how much of a texture's own relief estimate (mortar, grain: `auto_height` entries) goes on top of a *baked* height map, which holds only what the geometry shows; painted maps are never added to; 0: the bake alone | 1 |
+| `key_light` | the per-room key light (below, "The key light"); 0: the picture without it (the default: the owner prefers the bake alone) | 0 |
+| `key_light_strength` | a multiplier on every room's key light, 0..2 | 1 |
 
 No maps and no flags: the picture is byte-identical (material_smoke).
 
@@ -841,6 +844,45 @@ the maps match (RPC, the editor, the planes on the CPU) but the GL
 G-buffer has no material target and the GL present pass is unchanged
 (material_smoke checks the frame is identical). Rooms without dynamic lights show no highlights either
 (the game's baked light has no direction).
+
+## The key light (Gitea #20)
+
+The baked maps only shade light that has a direction, and most of a room's light does not: the PS1's vertex colours ignore
+normals, and some rooms (City Walls South) have no dynamic light at all. The key light is a soft, directional light per room
+whose main job is to **show the relief**: by default it only reshapes the room's own light by the normal map and adds nothing
+to its brightness, so the original art's lighting and mood stay. Vulkan only (OpenGL draws no relief or material).
+
+- **Relief share** (`key_relief`, 0..1, default 1). With share `k` the light reshapes the baked, indirect and sky light by the
+  relief: `1 + k G I dot(n_s - n, l)` per unit of flat area (`G` the gain, `I` the intensity, `l` the light's direction,
+  `n_s` the bent normal, `n` the geometry's), through a smooth odd limit (0.1..1.9) so it never goes black or blows out. A flat
+  surface keeps exactly its light, and over slopes that cancel the mean is unchanged (the faces turned toward the light gain what
+  the faces turned away lose). The other `1 - k` is a plain light (`I` times the cosine of `n_s`, the baked shadow
+  (`baked_shadow_*`) and the ambient occlusion dimming it): `k` 1 is the relief alone, 0 a real light that also brightens.
+  Roughness and metal count as for every light: its highlight is the same GGX lobe
+  (`key_specular` times the lobe of the bent normal minus `k` times that of the geometry's: a relief-only key adds a
+  highlight only where the relief makes one), so rough stone shows a faint one and glossy or metal surfaces a sharp one.
+- **Where it applies.** Pixels with a material (so, in a room with baked or estimated maps, the relief's pixels): a room, model
+  or prop without maps gets nothing from the relief share. The frame is exactly the old one when the key light is off, when no
+  material is in view, when the specular switch is off (`specular 0`), and in the Original lighting preset (dynamic lights off).
+  The frame is deterministic (a function of the room settings, the view and the frame; nothing time-based).
+- **Direction.** `key_azimuth` and `key_elevation` (degrees; the sun's convention, azimuth 0 from +z, 90 from +x). With
+  `key_view` 1 (the default) the azimuth is added to the direction away from where the camera looks, so that a room whose
+  camera is turned the other way shows the same relief (the game's cameras are fixed per room, but they differ between rooms);
+  0: the world's direction.
+- **Where the data lives.** The light's values are room settings (`pc/src/room_settings.cpp`, the Lighting tab > Key light,
+  RPC `room_settings`, `set key_<name> value=` in a room's lighting file like `haze_density`): `key_intensity` (0..4, 1),
+  `key_relief` (1), `key_gain` (0..16, 3: how many times the maps' slopes the relief share exaggerates: the baked maps are
+  shallow, 0.1 and under in slope), `key_azimuth` (35), `key_elevation` (45), `key_view` (1), `key_red`, `key_green`,
+  `key_blue` (colour, 1), `key_specular` (1). Their project defaults are `lighting/default/defaults.txt`, one set for
+  rooms under a roof (`set key_...`) and one for rooms open to the sky (`set exterior.key_...`: those with an `env sun` or
+  `env sky`, which the generator writes for the open rooms; the game's data has no other exterior flag, so there is no
+  per-zone table). Exterior default: a cool light a little higher (50 degrees); interior: neutral, 45 degrees. A pack, the
+  user's `pc/user/lighting/defaults.txt` ("Use as the project default" in the panel) and a room's own lines override them.
+  `pc/tools/lighting_lint.py` checks the file. The global switch `key_light` and multiplier `key_light_strength` (0..2) are
+  lighting-quality settings (settings file, Graphics > Lighting quality > Materials, RPC `graphics`); `key_light 0` is the
+  picture without it, byte for byte.
+- **Not touched.** Lanterns, candles, glows and every emissive's intensity; the dynamic lights' own relief; shadows,
+  GI and the traced reflections' rays.
 
 ## Materials by object
 
@@ -899,6 +941,29 @@ in each layer), so the texels they share stop taking whichever baked last. `shot
 (texture, group) (`object {groups}`, scoped to the room), which is what gives the group its variant (Materials by object);
 a texture on a single group keeps one entry and its maps in `<key>/` as before.
 
+### A model through the same bake (Gitea #20)
+
+`pc/tools/model_blender.py` does the room's steps for a character, weapon or prop (`all --model 4b8870d7 [--zone Z --room R]
+[--yaw DEG]`, out under `pc/build/model_blender/<model>`): `export` is `paint_roundtrip.py export model` (with `--zone` and `--room`
+the room is warped to with its enemies; the hashes in a view come from `material pick`), `bake` the same Blender script on
+`paint.gltf` (one atlas per page and palette, UVs over the 256 x 256 page), `import` cuts each of the model's textures (the
+boxes of the atlas: the game's own, `slices` of `seed.json`) from the bakes and writes height, roughness and normal into
+`<out>/materials/<texture>/@m<model>/`, and `shot` puts the model in the game twice in the same paused frame (an entry per texture,
+`object {models}`, preset from `room_blender.json` `model.preset`; the maps then copied into the user layer the game watches):
+`before_after.png` and one pair per view of `model.shot.views` (the shading normals with the relief, the material target). The
+`model` section of `room_blender.json` lays its `bake` (a model is a fraction of a room: a smaller bevel and occlusion distance) and
+`maps` over the room's values, and frames the shot.
+
+What a model export is: the model as the newest frame draws it (the game's pose: an idle stance, a mid-attack frame; there is no bind
+pose to ask the renderer for, and the skeleton is not in the dump), moved to the origin with its feet on the ground, the faces turned outward (a model is drawn without culling and its winding is
+mixed: `room_blender.face_outward` makes the winding alike across every edge two triangles share, then turns each connected piece
+so it faces away from its middle). `pc/tools/blender/check_gltf.py` opens a package in Blender and reports meshes, materials,
+UVs, welded joints, winding and size (`blender -b -P pc/tools/blender/check_gltf.py -- paint.gltf [preview.png]`; with a preview,
+renders from each side with back faces culled). Two limits: a texel two triangles share (a left and a right arm drawn from the
+same texels, a mirrored face) holds the one baked last; and the maps are keyed by the model's hash, which also names the VRAM
+page it was loaded into: the same character loaded at another page is another hash with the same texture keys, so a model needs
+its own export and import per hash (two copies of one girl seen in the Undercity, `dfcf8792` at page 18 and `266d0792` at page 10, with the same 194 texture keys).
+
 ### Metal and roughness from the colours (Gitea #20 step 3): an optional seed, off by default
 
 `room_blender.json` `metal.enabled` is false: maps are painted in a painter (next section). Set it true to seed `import` with this guess.
@@ -931,10 +996,63 @@ round trip is glTF 2.0 with the PBR metallic-roughness material and PNG textures
 - Blender's texture paint also works.
 
 glTF covers both: they read the mesh and material from it, and what they write back is PNG files per texture set, which is what
-`import` reads. (Nothing needed adding for them; if a painter names its maps differently, `ALIASES` in `paint_roundtrip.py` is the
-list.) Both can paint at 8 bits; the maps are 8-bit.
+`import` reads. The maps are 8-bit.
 
-**Steps**
+**The short way**
+
+```
+python3 pc/tools/paint_roundtrip.py paint model --model 4b8870d7 --out pc/user/paint/ashley     # export, then open it in SubCraft
+python3 pc/tools/paint_roundtrip.py import pc/user/paint/ashley                                  # after you export the maps there
+```
+
+`paint` is `export` plus opening the package in SubCraft (as `paint.subcraft`, see below) when it is on the PATH (Blender otherwise; `--painter subcraft|blender`
+forces one). It takes everything `export` takes (`room`, `--zone/--room`, `--model`, `--model-at`, `--bake`, `--out`).
+
+**Steps in SubCraft** (0.4.5; menu names are from its own docs, "check" marks what to look at on your screen)
+
+1. Run the `paint` line above. SubCraft opens `paint.subcraft`, a project the export writes next to `paint.gltf` (`subcraft_project.py`):
+   no New Project window, the model with one texture set per material (named as the material, 256 x 256 for a character page, the
+   smallest power of two that holds a room texture), the **Albedo filter** of each set on *Nearest* (so the game's colour is
+   pixelated, not blurred; check: Texture Set Settings), and a Fill layer **Game texture (seed)** at the bottom of each set with the
+   game's base colour, roughness, metal, normal (the geometry bake's relief) and occlusion. Paint on layers above it. What you
+   export is then the game's maps with your paint on top, so unpainted areas import unchanged and `--keep-seed` is not needed.
+   The project is written for SubCraft 0.4.5 (project schema 18); with any other version `paint` says so and opens the plain
+   `paint.gltf` instead, and then you set the New Project window: **Template** *PBR Metallic Roughness*, **Resolution** 256 x 256
+   (2048 also imports, averaged down), **Texture sets** *By material*, **Normal maps** *OpenGL (Y+)*, no high-poly; the game's
+   colour is then not in it: drag `tex/<material>_BaseColor.png` onto the layer stack (Assets/Shelf imports, UV projection,
+   Albedo filter Nearest in Texture Set Settings; check) so you do not paint blind.
+2. Paint on the *Metallic* and *Roughness* channels (the channel list in the Layers panel; check), on a Paint layer above the seed
+   layer (the Fill layer's own *Filtering* box reads Bilinear | HQ; it has no effect at the texture's own size).
+3. **Export** (Ctrl+Shift+E; the *Export Textures* window). Template *PBR Metallic Roughness* (or glTF 2.0 / Godot 4 ORM). Set the
+   export folder to the package folder (`pc/user/paint/ashley`; check that the window's folder is that one) and tick only the maps
+   you painted (Roughness, Metallic, and Normal / AO if you painted those): unticked maps are not exported and so cannot disturb the
+   game's own. SubCraft writes `paint_<material>_<Map>.png` (`<model name>_<texture set>_<Map>`); the import reads that, a prefix of
+   any other name, or `<material>_<Map>.png`. Of two files for one map the newer wins, so the export beats the package's own images.
+4. `python3 pc/tools/paint_roundtrip.py import pc/user/paint/ashley`. Add `--keep-seed` only with the plain-glTF fallback (no seed layer), when you painted only part of a map: SubCraft
+   fills the rest with one flat value, and `--keep-seed` turns that flat fill back into the game's own map there (a painted flat
+   area that is most of the image would be mistaken for it: paint something non-flat or leave the flag off).
+5. With the game running the maps show without a reload (it watches those files). Paint, export, import, look.
+
+**Steps in Blender** (texture paint)
+
+1. `python3 pc/tools/paint_roundtrip.py paint model --model 4b8870d7 --out pc/user/paint/ashley --painter blender` (the glTF is
+   imported). Or File > Import > glTF 2.0.
+2. Switch to the *Texture Paint* workspace and, in the tool settings, set the paint *Mode* to *Image* and pick the image
+   `<material>_MetallicRoughness` (check: Blender lists the material's images there). Blender paints colours, not single channels:
+   the brush colour is the map. Keep red at 1 (the glTF's occlusion is a separate image, so red is not read), green is the roughness
+   and blue the metal, for example (1, 0.3, 1) is smooth metal and (1, 0.9, 0) rough non-metal. Set the brush *Blend* to *Mix*, strength 1,
+   and turn colour management to *Standard / Non-Color* for that image (check: Image Editor > Image > Color Space = Non-Color).
+3. Image > Save the painted images (or Image > Save All Images) over the files in `tex/`. Blender writes them in place, which is what
+   `import` reads (they are newer than the package's).
+4. `import`, as above.
+
+**Settings so `import` just works**: resolution 256 (or any size), by material, OpenGL normals, PBR Metallic Roughness template,
+export into the package folder. The game reads a map only at its texture's size (texel for texel), so a higher-resolution paint is
+always averaged down to it (normals renormalised) and a smaller one repeated up; the game itself does not take bigger maps.
+
+Everything below is the package's workings.
+
+**Steps (any painter)**
 
 1. Start the game and go to the room (or have the model on screen). From the repository root:
    `python3 pc/tools/paint_roundtrip.py export room --out pc/user/paint/my-room` (a model: `export model --model 4b8870d7`, the hash
@@ -944,14 +1062,14 @@ list.) Both can paint at 8 bits; the maps are 8-bit.
    room groups has an image set for each, so each object owns its texels), one `m<model>_p<page>_c<palette>` atlas per page of a model.
    Its base colour is the game's texture texel for texel (set the painter's sampling to nearest); `tex/` holds BaseColor,
    MetallicRoughness (G roughness, B metal), Normal and Occlusion images, seeded from the maps the game has (or neutral).
-3. Paint metallicRoughness, normal and occlusion. Do not edit the base colour (it is not imported) and keep the resolution, or a
-   whole multiple of it.
+3. Paint metallicRoughness, normal and occlusion. Do not edit the base colour (it is not imported).
 4. Save the glTF where it was (its images next to it), or export the texture set as PNGs into the folder named `<material>_<Map>.png`
-   (BaseColor, Roughness, Metallic, Normal, AO, or ORM / OcclusionRoughnessMetallic / MetallicRoughness packed).
+   (BaseColor, Roughness, Metallic, Normal, AO, or ORM / OcclusionRoughnessMetallic / MetallicRoughness packed; an ORM's R is the occlusion).
 5. `python3 pc/tools/paint_roundtrip.py import pc/user/paint/my-room`. Each map that differs from its seed becomes the user layer's map
    of that object (`<user lighting>/materials/<texture>/@<object>/metal.png`, `roughness.png`, `normal.png` with `normal_x.png` and
-   `normal_y.png`, `occlusion.png`) and a user catalog entry (`PT-<texture>-<object>`, preset stone: change it in Details >
-   Material) makes the object use them; the user layer wins over the baked one.
+   `normal_y.png`, `occlusion.png`) and a user catalog entry (`PT-<texture>-<object>`: the values the game drew that texture with until then, its matched entry resolved, or the
+   no-entry surface (roughness 1, no specular, no metal) when it had none, so a first import changes only what was painted; change
+   it in Details > Material) makes the object use them; the user layer wins over the baked one.
 6. With the game running, the maps and the entry show without a reload (the game watches those files). Paint, import, look.
 
 An export imported without painting changes nothing: only maps that differ from the seed are written, and the seed copies in `seed/`
@@ -960,6 +1078,74 @@ stays where nothing is painted over it (the game reads that relief from the bake
 painted normal replaces the relief of its object (the game reads `normal_x.png` and `normal_y.png` from the user layer only, and
 uses them in place of the height, with the strength recorded in `normal.json` beside them: the bake's `maps.normal_strength`, so the two cannot drift). The occlusion map is kept for other tools: the game does not read it yet. Everything exported is
 game art: it stays in `pc/user` or `pc/build`, never in git.
+
+### Painting metal and roughness per pixel in Aseprite (live)
+
+For a true one-pixel brush with the game's colour under it, paint in Aseprite (1.3 or later; tested with 1.3.18.6-dev). The game shows
+each stroke as you paint it.
+
+1. **Install Aseprite** (`yay -S aseprite` builds it from source), then the extension: `python3 pc/tools/aseprite/build_extension.py`
+   writes `pc/build/aseprite/rood-live.aseprite-extension`; double-click it, or Aseprite > Edit > Preferences > Extensions > Add
+   Extension. (Once; restart Aseprite.)
+2. **Export** the model or room with the game running: `python3 pc/tools/paint_roundtrip.py paint model --model 4b8870d7 --out
+   pc/user/paint/ashley --painter aseprite` (or `export room ... --painter aseprite`). It writes `pc/user/paint/ashley/aseprite/<material>.aseprite`
+   at each texture's own size (no scaling), and opens Aseprite on them when it is on the PATH and there are up to six.
+3. **Start the bridge**: `python3 pc/tools/paint_roundtrip.py live pc/user/paint/ashley`. It listens on `ws://127.0.0.1:47480` (`--port`) and
+   also watches the .aseprite files, so a save (Ctrl+S) imports the maps into the user layer (what survives a restart of the game).
+   `watch` alone does only the saves. Neither needs the game to run: without it the files are still written and read.
+4. **Paint.** Open a `.aseprite` file. The first time, Aseprite asks to let the script open a network connection (and read files): tick
+   *Give full trust to this script*. A small "Rood live" window shows the state (connected, game running or not). Layers, bottom to top:
+   - *Game colour (reference)*: the texture, locked; look at it, do not paint it (an edit is not imported).
+   - *Metal*: grayscale, white = metal, shown at 60% so the colour shows through (the opacity is display only: the game reads the pixels).
+   - *Roughness*: grayscale (white = rough), hidden. Click its eye to show it and hide Metal when you paint roughness (one channel at a
+     time reads best). The pencil, 1 px, nearest everywhere (View > Pixel grid on). Select the layer, pick white or a gray, paint.
+   - *Material* (top, 70%): paint a **kind of material** in one stroke, see below. Empty until you paint.
+5. **Ctrl+S** to keep it. **Erase** with the eraser (or delete the cel): a transparent pixel means *keep the game's value*, so erasing
+   returns that texel to what the game had when you exported; an opaque gray sets it. Do not resize the canvas or rename the layers
+   (extra layers of your own are ignored).
+
+**Painting a kind of material (the Material layer).** Instead of one layer and then the other, paint with a *preset swatch*: each
+swatch colour of the file's palette is one material (Polished steel, Worn steel, Dark iron, Rusted iron, Gold, Bronze / brass, Silver,
+Leather, Cloth, Stone, Wood, Skin), and one stroke on the *Material* layer sets that texel's metal **and** roughness together. The
+"Rood live" window lists the presets as buttons: click "Worn steel" and the foreground colour becomes its swatch and the Material layer
+is selected (the window's *Swatch* line shows the active preset's metal and roughness; pick from the palette and it says so as well).
+Then paint with the pencil (a brush's blended edges still count when within a few levels of a swatch; a colour that is none of the
+swatches is ignored). Erase to take the preset away. Transparent = no preset.
+
+Precedence per texel: a **Metal or Roughness layer pixel painted over the Material** (opaque and different from the game's value,
+which is what those layers are exported with) wins for its own channel (fine-tuning on top of a preset), else the **Material
+layer's preset**, else the game's value. One caveat: a Metal or Roughness pixel still at the game's own value counts as untouched, so
+to force the game's value over a preset paint it one level off. Metal and Roughness layers you never touch give way to the presets
+completely; files without Metal or Roughness layers (only Material) import too.
+
+The presets are data. Shipped: `pc/assets/materials/paint-presets.json` (CC0, no game data): per preset `id`, `name`, `colour` (the
+swatch: distinct, never a gray), `metal` and `roughness` (0..1), optional `notes`; other channels (height, emissive, alpha...) can be
+added to a preset later, they are carried as given. Starter values (metal / roughness): Polished steel 1.0 / 0.12 (#82b1ff), Worn
+steel 1.0 / 0.42 (#2962ff), Dark iron 0.9 / 0.62 (#651fff), Rusted iron 0.4 / 0.85 (#ff1744), Gold 1.0 / 0.2 (#ffea00), Bronze / brass
+1.0 / 0.32 (#ff9100), Silver 1.0 / 0.15 (#64ffda), Leather 0 / 0.6 (#d500f9), Cloth 0 / 0.92 (#ff80ab), Stone 0 / 0.85 (#76ff03),
+Wood 0 / 0.72 (#00c853), Skin 0 / 0.55 (#ffab91). Yours go in `pc/user/lighting/paint-presets.json` (`$ROOD_PAINT_PRESETS_USER`, or
+`<$ROOD_LIGHTS>/paint-presets.json`): `{"presets": [{"id": "worn_steel", "colour": "#2962ff", "metal": 0.8, "roughness": 0.5},
+{"id": "mud", "name": "Mud", "colour": "#aabb00", "roughness": 1.0}]}`: an entry of a shipped id replaces it in place, a new id adds a
+swatch after the shipped ones, `"disabled": true` drops one; a preset with only `roughness` leaves metal to the lower layers. A change
+of a preset's *values* reaches the game on the next stroke of `live` (and the next `import`); a change of a preset's *colour* or a new
+or dropped preset needs the palette refreshed in existing files: `python3 pc/tools/paint_roundtrip.py palette pc/user/paint/ashley`
+(close the files in Aseprite first; pixels and layers are untouched; re-exporting does the same and also resets your work). Strokes
+already painted keep their old colour, so change a colour only for presets you have not painted with. The swatches are written into the
+palette with their names (the format's colour names); Aseprite 1.3.18 does not show them and drops the names when it saves (the
+colours stay), which is why the extension's window lists the presets by name. A contributor's Material layer is part of their
+.aseprite file like the others, so a shared pack carries it and imports on the owner's side with the owner's presets.
+
+How it works: the extension sends the changed layer's cel (about 10 times a second and once more when the stroke ends) as a WebSocket
+frame (all three layers when it connects: the bridge keeps the last cel of each); the bridge turns them into the maps exactly as `import` does and puts it into the running game's memory (`material map_set`),
+no file per stroke, the game's next frame draws it (about 80 ms with the screenshot's own cost in `aseprite_smoke`). The
+in-memory map holds until a file of that map is written; the save's import then replaces it with the same pixels.
+A Material stroke pushes both maps. `import` reads the .aseprite files too (the newest file of a channel wins over PNG exports).
+
+Reinstall the extension after updating it (`build_extension.py`, version 1.1.0: the Material layer, the preset buttons).
+
+Version notes: needs `sprite.events`, `WebSocket`, `Image.bytes` and `Timer` (all present in 1.3.18.6-dev; checked in a headless run: the
+extension connects, the bridge receives the strokes, the status window opens); the Lua is `pc/tools/aseprite/rood-live/rood-live.lua`
+(a package.json beside it). The sprite must be in RGB colour mode. Height is not exported (the import never writes the relief).
 
 ## Baked maps
 
