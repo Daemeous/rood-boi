@@ -225,6 +225,18 @@ typedef struct {
     char unk24[4];
 } D_800E8594_t;
 
+/* The packed room-geometry record vs_field_drawRoomTriggerMarker hands vs_render_drawRoomGeometry (the floor marker's animated quad), 0x7c bytes at
+ * 0x800e8548: a nine-word header, the view matrix the marker copies in each frame, the vertex and colour block it fills, and the RECT the texture
+ * animation moves from. The decomp's labels cut it in four (vs_battle_mapCompletionFlags runs to 0x800e856c and covers the header, D_800E856C,
+ * D_800E8594, D_800E85A0 inside the vertex block, D_800E85BC): it is the tail of vs_battle_mapCompletionFlags, one object. */
+typedef struct {
+    int header[9];
+    MATRIX matrix;
+    char gap[8];
+    D_800E8594_t vertex;
+    RECT textureSource;
+} vs_field_triggerMarkerBlock_t;
+
 typedef struct {
     int unk0[4];
 } func_80077DF0_t2;
@@ -665,10 +677,6 @@ extern int vs_battle_regeneratingLimb;
 extern int vs_battle_targetingRiskTimer;
 extern short vs_field_lockedDoorIndexRanges[8]; /* the first row of each of the 7 sigil door sections, then the end: 0 2 8 15 20 21 22 23 */
 extern char vs_field_lockedDoorRoomPairs[23][4]; /* (zone, map) pairs of two rooms a locked door joins */
-extern MATRIX vs_field_triggerMarkerMatrix;
-extern D_800E8594_t vs_field_triggerMarkerVertex;
-extern char vs_field_triggerMarkerRecordTail[];
-extern RECT vs_field_triggerMarkerTextureSource;
 extern RECT D_800E85C4;
 extern int vs_field_isMenuRequestQueued;
 extern int vs_effects_tintedActor;

@@ -232,7 +232,14 @@ static void _pcLeavesEnd(int first)
     }
 }
 #endif
-extern P_CODE vs_ending_rankHeadingTint[];
+/* The rank screens' colour words (two each: the tint and its fade code), file-scope so the mover moves them (they were block-scope externs). */
+extern P_CODE vs_ending_congratulationsTint[2];
+extern P_CODE vs_ending_scoreTint[2];
+extern P_CODE vs_ending_countingScoreTint[2];
+extern P_CODE vs_ending_mapCompletionTint[2];
+extern P_CODE vs_ending_countingMapCompletionTint[2];
+extern P_CODE vs_ending_rankHeadingTint[2];
+extern P_CODE vs_ending_rankLabelTint[2];
 extern short titleThresholds[];
 extern u_int rankScores[];
 extern short vs_ending_creditsIllustrationBrightness;
@@ -1826,8 +1833,6 @@ void vs_ending_drawRankBackground(int arg0)
 
 static void _renderCongratulations(int arg0, int arg1, int arg2)
 {
-    extern P_CODE vs_ending_congratulationsTint[2];
-
     if (arg2 < 0) {
         arg2 = 0;
     }
@@ -1847,8 +1852,6 @@ static void _renderCongratulations(int arg0, int arg1, int arg2)
 
 static void _renderScore(int arg0, int arg1, int arg2, int arg3 __attribute__((unused)))
 {
-    extern P_CODE vs_ending_scoreTint[];
-
     char sp10[10];
     int i;
     int v0;
@@ -1898,8 +1901,6 @@ static void _renderScore(int arg0, int arg1, int arg2, int arg3 __attribute__((u
 static void _renderIncrementalScore(
     int arg0, int arg1, int arg2, int arg3 __attribute__((unused)))
 {
-    extern P_CODE vs_ending_countingScoreTint[];
-
     char sp18[16];
     int temp_s2;
     int var_s1;
@@ -1972,8 +1973,6 @@ static void _renderIncrementalScore(
 static void _renderMapCompletion(
     int arg0, int arg1, int arg2, int arg3 __attribute__((unused)))
 {
-    extern P_CODE vs_ending_mapCompletionTint[];
-
 #ifdef ROOD_PC
     /* sprintf writes four bytes; the PS1 overran into unused frame space. */
     char sp10[4];
@@ -2020,8 +2019,6 @@ static void _renderMapCompletion(
 static void _renderIncrementalMapCompletion(
     int arg0, int arg1, int arg2, int arg3 __attribute__((unused)))
 {
-    extern P_CODE vs_ending_countingMapCompletionTint[];
-
 #ifdef ROOD_PC
     /* sprintf writes four bytes; the PS1 overran into unused frame space. */
     char sp18[4];
@@ -2108,8 +2105,6 @@ static void _renderRiskbreakerRankHeader(int x, int y, int timer)
 
 void _renderRiskbreakerRank(int x, int y, int timer)
 {
-    extern P_CODE vs_ending_rankLabelTint[];
-
     int xInset;
     int i;
 

@@ -214,6 +214,12 @@ def suites(args, mode="egl"):
         Suite("snapshot_resume_smoke", [PY, str(TESTS / "snapshot_resume_smoke.py")], 300,
               note="64-bit: the engine relinked elsewhere resumes a snapshot through RPC restart at the same "
                    "moment and state (and as the original build does 60 vsyncs on); other game code refused"),
+        Suite("plugin_images_smoke", [PY, str(TESTS / "plugin_images_smoke.py")], 600,
+              note="64-bit: each effect plug-in's tables are its own data section (Gitea #2): a re-read of the same plug-in file puts them back "
+                   "(A, B, A, A with changed tables), a mark and a save state during a cast hold and restore them exactly"),
+        Suite("capture_pure_smoke", [PY, str(TESTS / "capture_pure_smoke.py")], 300,
+              note="a screenshot does not change the game (Gitea #26): the state hash before equals the hash after, and the game run on from a mark "
+                   "equals with or without one"),
         Suite("engine_reload_smoke", [PY, str(TESTS / "engine_reload_smoke.py")], 600,
               note="64-bit: the engine library (build_boot.py --engine-library) reloads in place at a vsync: "
                    "state, pause and settings survive, a rebuilt unit takes effect, a broken library falls "

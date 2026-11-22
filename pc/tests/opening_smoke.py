@@ -3,6 +3,7 @@
 import pathlib
 import subprocess
 import os
+import sys
 
 # Keep tests off the player's saves (a save makes the title default to
 # Continue): an empty slot 1 and no slot 2, relative to the repository root.
@@ -14,19 +15,34 @@ os.environ.setdefault("ROOD_CARD2", f"{out}/test-card2-absent.mcd")
 os.environ.setdefault("ROOD_SCALE", "1")
 
 root = pathlib.Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(root / "pc/tools"))
+from rood_rpc import headless_env, headless_mode, start_xvfb  # noqa: E402
+
+env = dict(os.environ)
+xvfb = None
+if headless_mode()[0] == "egl":
+    headless_env("egl", env)
+else:
+    xvfb, env["DISPLAY"] = start_xvfb()
+    env["SDL_VIDEO_DRIVER"] = "x11"
+    env.pop("WAYLAND_DISPLAY", None)
 capture = root / out / "opening-checkpoint.ppm"
 capture.unlink(missing_ok=True)
 result = subprocess.run(
     [
         (("pc/build/boot64" if os.environ.get("ROOD_ARCH") == "64" else "pc/build/boot") + "/rood_battle_probe"),
+        "--window",  # (the renderer draws the card: headless under pc/tests/run.py, ROOD_HEADLESS)
         "--skip-movies",
         "--fast",
         "--opening-checkpoint",
     ],
     cwd=root,
+    env=env,
     capture_output=True,
     timeout=60,
 )
+if xvfb:
+    xvfb.terminate()
 (root / out / "opening-test.log").write_bytes(result.stdout + result.stderr)
 if result.returncode or b"OPENING SCRIPT CHECKPOINT" not in result.stderr:
     raise SystemExit("Opening script failed; see " + out + "/opening-test.log")

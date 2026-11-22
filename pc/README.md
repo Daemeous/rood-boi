@@ -108,7 +108,7 @@ missing or empty file becomes a raw image on the first save.
 For a deterministic headless title checkpoint:
 
 ```sh
-pc/build/boot/rood_boot --skip-movies --title-checkpoint
+pc/build/boot/rood_boot --window --skip-movies --title-checkpoint
 ```
 
 It exits successfully only when the original title code reaches its input loop.
@@ -2854,9 +2854,11 @@ Run `python3 pc/tests/event_callbacks_test.py` for callback generation/call test
 
 ```sh
 python3 pc/tools/build_boot.py --battle
-pc/build/boot/rood_battle_probe --skip-movies --fast --opening-checkpoint
+pc/build/boot/rood_battle_probe --window --skip-movies --fast --opening-checkpoint
 python3 pc/tests/opening_smoke.py
 ```
+
+The title, opening and battle-frame checkpoints dump the picture the renderer draws, so they need `--window` (headless: `ROOD_HEADLESS=egl` or `xvfb`); without it the game says so and exits.
 
 This follows the title's idle/demo route and captures
 `pc/build/boot/opening-checkpoint.ppm` after the original GIM 26 background reaches
@@ -2890,7 +2892,7 @@ rendering remains unvalidated and other actor packet paths remain fail-fast.
 python3 pc/tools/build_boot.py --battle
 python3 pc/tests/scene_smoke.py
 # Or choose another observational frame count:
-pc/build/boot/rood_battle_probe --skip-movies --fast --battle-frame-checkpoint 4000
+pc/build/boot/rood_battle_probe --window --skip-movies --fast --battle-frame-checkpoint 4000
 ```
 
 The original title idle/demo route now runs 4,000 battle frames and renders the

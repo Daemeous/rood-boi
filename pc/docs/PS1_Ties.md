@@ -170,9 +170,10 @@ items (`pc/src/draw_items.c`, `pc/docs/plans/2026-11-08-frames-as-data.md`); the
 lists with reference packets. The frame's ordering tables hold no packets and no links (2026-11-17: `pc_frame_table_clear` zeroes a table,
 `pc_frame_table_draw` draws the runs placed in it, `pc_frame_table_check` is the tripwire for a packet written into one), the texture
 moves are copy items (`pc_frame_move`), the lint rule `gpu_packet_writes` is 0 and no 24-bit link word is written or read in game or
-engine code. What is left of T4 is the packets the host still lowers items to and the 3D packet builders' reference packets. 12 packet and ordering-table imports stay pinned
-in guest RAM (`vs_menu_textBoxOrderingTables`, `vs_field_triggerMarkerMatrix`, `vs_field_triggerMarkerVertex`, `vs_field_triggerMarkerTextureSource`, `D_800E9C00`, `vs_event_defaultScreenTint`, `D_800E9C0C`,
-`vs_render_framebufferEffectOffset`, `vs_render_framebufferEffectTint`, `vs_battle_mapCompletionFlags`, `vs_main_drawEnv`, `vs_main_dispEnv`).
+engine code. What is left of T4 is the packets the host still lowers items to and the 3D packet builders' reference packets. No packet or ordering-table import stays pinned (2026-11-21, S9 step 4 / Gitea #2): the mover matched DRAWENV, DISPENV and P_CODE by type name as "GPU packet storage" (they are plain data:
+PutDrawEnv and PutDispEnv read fields, a P_CODE is a colour word copied as a value), the text boxes' tables are `u_long [3 * 34]` slots, and the trigger marker's pieces are one record, the tail of
+`vs_battle_mapCompletionFlags` (an `int [47]`). What the lint's `vram_pointer` counts (`pc_native_vram()`, the renderer's own VRAM array) and its `io_register` GPU entries
+(unbuilt `libpress/LIBPRESS.c`, MDEC and DMA constants) are not RAM-block pins: T5 and the unbuilt file, not S9.
 
 **To replace.** Very large. The code that writes packets is spread through every overlay
 (`pc/src/game/BATTLE`, `EFFECT`, `MENU`, `TITLE`, `ENDING`, the packet macros in the shared headers).
@@ -545,9 +546,7 @@ Why the 301 are pinned (each counted once, in this order; `lp64_imports.json` sa
 - 11 hold pointers or a type whose layout differs (psx_ptr structs, tables of function or data pointers
   that are not moved natively): T13 has to widen them first. (Before 2026-11-11 this count held every
   unsized array, 206 of them: a table declared `u_char x[]` is plain data whose extent is the only unknown.)
-- 13 are GPU packet or ordering-table storage whose address is taken, or touch it (the GPU links 24 bits of a
-  RAM address, `next_packet` in `boot_runtime.c`; vs_menu_textBoxOrderingTables starts the ordering-table pages; the two P_CODE
-  words and their bodies; vs_field_triggerMarkerMatrix and vs_field_triggerMarkerVertex, inside a block vs_field_drawRoomTriggerMarker reaches as vs_field_triggerMarkerRecordTail - 0x58).
+- 0 are GPU packet or ordering-table storage (was 13: a type-name match, and the ordering tables hold slots only since 2026-11-17).
   Any other import whose address is taken may move: a native copy is a pointer like the guest one (the
   address is below 4 GB), the region keeps the guest layout, and a taken import extends to the next import
   because its declared size cannot be trusted (ENDING's image blobs are declared as their 20-byte header).

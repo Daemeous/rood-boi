@@ -2112,7 +2112,14 @@ def lp64_native_imports():
     overlay_images = {"ending": ending_image, "title": title_image}
     overlay_sections = {"ending": ("rood_ovl_ending_ending_prg_data", "ENDING/ENDING.PRG"),
                         "title": ("rood_ovl_title_title_prg_data", "TITLE/TITLE.PRG")}
+    def plugin_image(owner):
+        """The file of effect plug-in `owner` (plgNNN), loaded at 0x800F9800."""
+        path = root / "data/EFFECT" / ("PLG" + owner[3:] + ".BIN")
+        return path.read_bytes() if path.is_file() else b""
     def image_bytes(address, size, owner=None):
+        if owner and owner.startswith("plg"):
+            image = plugin_image(owner)
+            return image[address - 0x800F9800: address - 0x800F9800 + size] if address - 0x800F9800 + size <= len(image) else None
         for base, image in ([(0x80068800, overlay_images[owner])] if owner in overlay_images else image_ranges):
             if base <= address and address + size <= base + len(image):
                 return image[address - base: address - base + size]
@@ -2126,6 +2133,14 @@ def lp64_native_imports():
     # objects use there are a separate group: their extents, regions and
     # restart are ENDING's.
     def group(name):
+        # An effect plug-in's own data (EFFECT/PLGnnn.BIN: its tables, imports the link used to place in the shared plug-in slot at
+        # 0x800F9800): the plug-in's own group, its region, its restart (S9 step 3). Only imports of one plug-in; the same offset named by
+        # two plug-ins is two objects.
+        if 0x800F9800 <= addresses[name] < 0x80102800 and battle:
+            keys = users.get(name, set())
+            if len(keys) == 1 and next(iter(keys)).startswith("plg"):
+                return next(iter(keys))
+            return None
         keys = users.get(name, set())
         if "ending" in keys and len(keys) > 1 and 0x80068800 <= addresses[name] < 0x80068800 + len(ending_image):
             raise RuntimeError(f"LP64 import {name} is shared by ENDING and {keys - {'ending'}}")
@@ -2134,6 +2149,10 @@ def lp64_native_imports():
                 return overlay_group
         return None
     groups = {n: group(n) for n in data}
+    def plugin_of(name):
+        """The effect plug-in an import belongs to ('' for any other: the other groups keep their single address space)."""
+        g = groups.get(name) or ""
+        return g if g.startswith("plg") else ""
     ordered = {g: sorted({addresses[n] for n in data if groups[n] == g}) for g in set(groups.values())}
     # Each moved import covers its PS1 extent (up to the next known symbol, or
     # its declared size). Overlapping or adjacent ones form one region: splat
@@ -2213,6 +2232,10 @@ def lp64_native_imports():
             attributes += f', section("{section_name}")'
             overlay_statics.setdefault(overlay_file, set()).add("data")
             win_overlay_statics.setdefault(overlay_file, set()).add("data")
+        elif owner.startswith("plg"):
+            attributes += f', section("rood_ovl_effect_{owner}_bin_data")'
+            overlay_statics.setdefault(f"EFFECT/{owner.upper()}.BIN", set()).add("data")
+            win_overlay_statics.setdefault(f"EFFECT/{owner.upper()}.BIN", set()).add("data")
         elif battle and 0x80068800 <= start < battle_end:
             attributes += ', section("rood_ovl_battle_battle_prg_data")'
             overlay_statics.setdefault("BATTLE/BATTLE.PRG", set()).add("data")
@@ -2329,7 +2352,7 @@ def lp64_native_imports():
     def pointed_into(start, end, keys=(), group="", self_name=None):
         """Whether a word the port can follow points into [start, end): see above. Words inside a moved import (or a still-candidate one)
         do not count; those inside a pinned import, or in no import, do."""
-        allowed = None if start < 0x80068800 else {"main", group} if group else {"main", "battle", "init"}
+        allowed = None if start < 0x80068800 else {"main", "battle", "init"} if group.startswith("plg") else {"main", group} if group else {"main", "battle", "init"}
         i = bisect.bisect_left(word_values, start)
         while i < len(word_values) and word_values[i] < end:
             word, loc, source = word_sources[i]
@@ -2381,11 +2404,11 @@ def lp64_native_imports():
         before = previous.get(groups[n] or "")
         if before is not None and addresses[before] != addresses[n] and declarations.get(declared_name(before)) \
                 and complete_size(before) == 0:
-            incomplete_before.add(addresses[n])
+            incomplete_before.add((plugin_of(n), addresses[n]))
         previous[groups[n] or ""] = n
-    by_address = {}
+    by_address = {}  # (group, address) -> names: one name per object (the same offset named by two plug-ins is two objects)
     for n in data:
-        by_address[addresses[n]] = by_address.get(addresses[n], 0) + 1
+        by_address[(plugin_of(n), addresses[n])] = by_address.get((plugin_of(n), addresses[n]), 0) + 1
     plain = []
     pinned = {}  # import -> why it keeps its PS1 address (lp64_imports.json, PS1_Ties.md T15)
     def plain_array(name):
@@ -2398,12 +2421,13 @@ def lp64_native_imports():
     # D4.c names those reads now (pc_phantom_pain_ripple), so nothing depends on the imports lying side by side and the table moves like any other.)
     OVERRUN = set()
     def packet_storage(name):
-        """Taking the address of GPU packet and ordering-table storage hands it to the GPU's links (24 bits of a
-        guest RAM address): that, and nothing else about an address being taken, keeps an import in guest RAM."""
+        """Primitive packets and ordering-table storage. No packet is linked in guest RAM any more (the frame is items and tables of slots:
+        pc_frame_table_clear writes no link, boot_runtime.c adopt() walks none, pc_frame_table_check is the tripwire for a link written by
+        hand), so nothing here keeps an import at its PS1 address by the GPU's links. What is left is the packet types themselves, and
+        none is imported by name: DRAWENV and DISPENV (PutDrawEnv and PutDispEnv read their fields, boot_sdk.c) and P_CODE (a colour word
+        copied as a value) are plain data."""
         types = " ".join(str(info.get("type")) for _, info in declarations.get(declared_name(name), []))
-        # (named: a block the code reaches by arithmetic from a neighbour's label, vs_field_drawRoomTriggerMarker: vs_field_triggerMarkerRecordTail - 0x58, which holds
-        # these two inside it, is a packet built in pieces under four names)
-        return name in ("vs_menu_textBoxOrderingTables", "vs_field_triggerMarkerMatrix", "vs_field_triggerMarkerVertex") or bool(re.search(r"\b(P_CODE|POLY_\w+|TILE\w*|SPRT\w*|LINE_\w+|DR_\w+|DRAWENV|DISPENV|DMA\w*)\b", types))
+        return bool(re.search(r"\b(POLY_\w+|TILE\w*|SPRT\w*|LINE_\w+|DR_\w+|DMA\w*)\b", types))
     def unrelated(name, other):
         """Two imports of overlays that are never loaded together (TITLE's and BATTLE's data share addresses):
         their extents may cross without being one object."""
@@ -2416,6 +2440,8 @@ def lp64_native_imports():
         while j < len(sorted_data) and (addresses[sorted_data[j]] == addresses[n] or groups[sorted_data[j]] != groups[n]):
             j += 1
         next_address[n] = addresses[sorted_data[j]] if j < len(sorted_data) else None
+        if next_address[n] is None and (groups[n] or "").startswith("plg"):
+            next_address[n] = 0x800F9800 + len(plugin_image(groups[n]))  # the last table of a plug-in runs to the end of its file
     candidates = {}  # import -> (start, size, class of its place, unsized)
     overlaps = {}  # candidate -> the imports its extent crosses
     for name in sorted(data - moved):
@@ -2441,7 +2467,7 @@ def lp64_native_imports():
             pinned[name] = "holds pointers or an LP64-sized type"
         elif not (0 < size <= (0x10000 if unsized else PLAIN_MAX)):
             pinned[name] = "type incomplete or larger than %#x bytes" % PLAIN_MAX
-        elif by_address[start] != 1:
+        elif by_address[(plugin_of(name), start)] != 1:
             pinned[name] = "another name at its address"
         else:
             in_exe = end <= 0x80068800
@@ -2451,9 +2477,10 @@ def lp64_native_imports():
             # (The program's and INITBTL's code reads BATTLE's variables while BATTLE is the loaded overlay, as the game's own save and battle set-up do:
             # one native object in BATTLE's section is re-initialised when BATTLE loads, as the guest bytes are overwritten.)
             in_battle_bss = battle_end <= start and end <= 0x800F9800 and not group_name and not keys & {"ending"}
-            if 0x800F9800 <= start < 0x80102800:
+            in_plugin = group_name.startswith("plg") and end <= 0x800F9800 + len(plugin_image(group_name))
+            if 0x800F9800 <= start < 0x80102800 and not in_plugin:
                 pinned[name] = "in the plug-in slot: the link places it in pc_plugin_slot, not at its PS1 address"
-            elif not (in_exe or in_battle or in_ending or in_title or in_battle_bss):
+            elif not (in_exe or in_battle or in_ending or in_title or in_battle_bss or in_plugin):
                 pinned[name] = "shared between BATTLE, INITBTL and the program or menus (one object over several overlays)"
             elif False:  # (the pointer-word test runs after the candidates are known: see below)
                 pinned[name] = "a pointer word in a game file points into it"
@@ -2474,9 +2501,10 @@ def lp64_native_imports():
                 changed = True
     # A packet is written in pieces under several names (a P_CODE word, then its body): what touches packet storage
     # is packet storage too.
-    packets = [(addresses[n], addresses[n] + max(complete_size(n), 4)) for n in data if packet_storage(n)]
+    packets = [(addresses[n], addresses[n] + max(complete_size(n), 4), n) for n in data if packet_storage(n)]
     for name in [n for n in candidates if any(
-            start <= addresses[n] + candidates[n][1] and addresses[n] <= end for start, end in packets)]:
+            start <= addresses[n] + candidates[n][1] and addresses[n] <= end and not unrelated(n, who)
+            for start, end, who in packets)]:
         pinned[name] = "touches GPU packet or ordering-table storage"
         del candidates[name]
     # An unsized array may run into what follows it: it moves only together with the next import (one region,
@@ -2498,16 +2526,19 @@ def lp64_native_imports():
         for name in sorted(candidates, key=lambda n: addresses[n]):
             start, size, kind, unsized = candidates[name]
             if unsized:
-                follower = next((n for n in candidates if addresses[n] == start + size and n != name), None)
-                if follower is None or candidates[follower][2] != kind:
+                follower = next((n for n in candidates if addresses[n] == start + size and n != name and (candidates[n][2] == kind or not plugin_of(name))), None)
+                # (the last table of a plug-in runs to the end of its file: nothing follows it)
+                at_file_end = kind[0].startswith("plg") and start + size == 0x800F9800 + len(plugin_image(kind[0]))
+                if (follower is None and not at_file_end) or (follower is not None and candidates[follower][2] != kind):
                     pinned[name] = "an array of unknown length whose next import stays at its address"
                     del candidates[name]
                     changed = True
                     break
         else:
             for name in sorted(candidates, key=lambda n: addresses[n]):
-                if addresses[name] in incomplete_before and not any(
-                        candidates.get(p, (0, 0, 0, False))[3] and addresses[p] + candidates[p][1] == addresses[name] for p in candidates):
+                if (plugin_of(name), addresses[name]) in incomplete_before and not any(
+                        candidates.get(p, (0, 0, 0, False))[3] and addresses[p] + candidates[p][1] == addresses[name]
+                        and plugin_of(p) == plugin_of(name) for p in candidates):
                     pinned[name] = "follows an array of unknown length"
                     del candidates[name]
                     changed = True
@@ -2516,7 +2547,7 @@ def lp64_native_imports():
     # labelled at each reference: the bytes between the labels are the table's): a member after an array
     # extends to the next import, so the region covers those bytes.
     extended_to = None
-    for name in sorted(candidates, key=lambda n: addresses[n]):
+    for name in sorted(candidates, key=lambda n: (plugin_of(n), addresses[n])):
         start, size, kind, unsized = candidates[name]
         if unsized or name in taken_names or extended_to == start:
             following = next_address[name]
@@ -2528,7 +2559,7 @@ def lp64_native_imports():
             extended_to = None
     # Touching imports of one place share a region: the layout of the guest copy is the layout of the native one.
     spans = []
-    for name in sorted(candidates, key=lambda n: addresses[n]):
+    for name in sorted(candidates, key=lambda n: (plugin_of(n), addresses[n])):
         start, size, kind, _ = candidates[name]
         if spans and spans[-1][4] == kind and spans[-1][1] >= start:
             spans[-1][1] = max(spans[-1][1], start + size)
@@ -2544,6 +2575,10 @@ def lp64_native_imports():
             attributes += f', section("{section_name}")'
             overlay_statics.setdefault(overlay_file, set()).add("data")
             win_overlay_statics.setdefault(overlay_file, set()).add("data")
+        elif group_name.startswith("plg"):
+            attributes += f', section("rood_ovl_effect_{group_name}_bin_data")'
+            overlay_statics.setdefault(f"EFFECT/{group_name.upper()}.BIN", set()).add("data")
+            win_overlay_statics.setdefault(f"EFFECT/{group_name.upper()}.BIN", set()).add("data")
         elif in_battle:
             attributes += ', section("rood_ovl_battle_battle_prg_data")'
             overlay_statics.setdefault("BATTLE/BATTLE.PRG", set()).add("data")

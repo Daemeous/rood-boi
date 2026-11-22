@@ -7,6 +7,7 @@ const c = @import("c_146C");
 /// orig: vs_field_drawRoomTriggerMarkers (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// Advances each room section-9 timer and shows its effect while the timer runs.
 pub fn vs_field_drawRoomTriggerMarkers() callconv(.c) void {
+    const marker: *v.vs_field_triggerMarkerBlock_t = @ptrCast(&v.g.vs_battle_mapCompletionFlags()[16]); // the marker's record (the tail of vs_battle_mapCompletionFlags)
     if (psx.get(v.g.vs_battle_roomData().section9)) |first| {
         var s3 = first;
         var s2: c_int = 1;
@@ -35,14 +36,14 @@ pub fn vs_field_drawRoomTriggerMarkers() callconv(.c) void {
 
             if (s3.unkB != 0 and s3.unk6 < 0x10) {
                 if (s2 != 0) {
-                    c.vs_main_memcpy(v.g.vs_field_triggerMarkerMatrix(), common.view.at(anyopaque, common.view.matrix_offset), @sizeOf(v.MATRIX));
+                    c.vs_main_memcpy(&marker.matrix, common.view.at(anyopaque, common.view.matrix_offset), @sizeOf(v.MATRIX));
                     v.g.vs_field_triggerMarkerFrameTicks().* = psx.conv(u16, @as(c_int, v.g.vs_field_triggerMarkerFrameTicks().*) +% v.g.vs_gametime_tickspeed().*);
                     if (@as(c_int, v.g.vs_field_triggerMarkerFrameTicks().*) >= 8) {
                         v.g.vs_field_triggerMarkerFrameTicks().* = psx.conv(u16, @as(c_int, v.g.vs_field_triggerMarkerFrameTicks().*) -% 8);
                         s2 = @rem(@as(c_int, v.g.vs_field_roomAnimationTicks().*) >> 3, 5);
-                        v.g.vs_field_triggerMarkerTextureSource().x = psx.conv(i16, (s2 *% 8) +% 0x48);
+                        marker.textureSource.x = psx.conv(i16, (s2 *% 8) +% 0x48);
                         v.g.D_800E85C4().x = psx.conv(i16, (s2 *% 4) +% 4);
-                        _ = c.MoveImage(psx.cptr(c.RECT, v.g.vs_field_triggerMarkerTextureSource()), 0x40, 0x180);
+                        _ = c.MoveImage(psx.cptr(c.RECT, &marker.textureSource), 0x40, 0x180);
                         _ = c.MoveImage(psx.cptr(c.RECT, v.g.D_800E85C4()), 0, 0x140);
                     }
                     s2 = 0;

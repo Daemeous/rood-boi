@@ -107,10 +107,6 @@ data	BATTLE/BATTLE.PRG	D_800E8494	vs_battle_regeneratingLimb	high	G00034
 data	BATTLE/BATTLE.PRG	D_800E8498	vs_battle_targetingRiskTimer	high	G00035
 data	BATTLE/BATTLE.PRG	D_800E849C	vs_field_lockedDoorIndexRanges	high	G00036
 data	BATTLE/BATTLE.PRG	D_800E84AC	vs_field_lockedDoorRoomPairs	high	G00037
-data	BATTLE/BATTLE.PRG	D_800E856C	vs_field_triggerMarkerMatrix	high	G00039
-data	BATTLE/BATTLE.PRG	D_800E8594	vs_field_triggerMarkerVertex	high	G00040
-data	BATTLE/BATTLE.PRG	D_800E85A0	vs_field_triggerMarkerRecordTail	high	G00041
-data	BATTLE/BATTLE.PRG	D_800E85BC	vs_field_triggerMarkerTextureSource	high	G00042
 data	BATTLE/BATTLE.PRG	D_800E85CC	vs_field_textureEffectHandlers	high	G00044
 data	BATTLE/BATTLE.PRG	D_800E85E8	vs_field_roomEffectOpcodeHandlers	high	G00045
 data	BATTLE/BATTLE.PRG	D_800E8634	vs_battle_lockedLabelHalfHeights	high	G00047

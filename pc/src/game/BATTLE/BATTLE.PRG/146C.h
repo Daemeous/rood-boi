@@ -1130,7 +1130,9 @@ int vs_field_finishTiledBackgroundLoad(void);
 int vs_field_releaseTiledBackground(void);
 void vs_battle_exec(void);
 
-extern int vs_battle_mapCompletionFlags[];
+/* The decomp's label covers the 16 words of completion masks and the first nine words of the trigger marker's record (146C.c vs_field_triggerMarkerBlock):
+ * 0x800e8508 to 0x800e85c4, 47 words, one object. */
+extern int vs_battle_mapCompletionFlags[47];
 extern char vs_battle_loadObjectDataState;
 extern _zoneContext_t _zoneContext;
 extern vs_battle_lootListNode* _lootListHead;

@@ -1101,6 +1101,12 @@ int main(int argc, char** argv)
             return 1;
         }
     }
+    /* The pictures these checkpoints dump are drawn by the renderer only (the software rasterizer is gone: T5-6): without a window nothing is drawn and
+     * the dump would be an empty frame that looks like a failure of the game. */
+    if (!window && (stop_at_title || stop_at_opening || stop_at_battle_frame)) {
+        fprintf(stderr, "this checkpoint dumps the picture the renderer draws: pass --window (ROOD_HEADLESS=egl or xvfb needs no display)\n");
+        return 1;
+    }
     /* Guest memory first: the window's graphics driver (Vulkan and its
      * layers especially) maps memory of its own, which must not land in the
      * guest's fixed ranges. */
@@ -2125,11 +2131,23 @@ unsigned pc_battle_frame_count(void) { return battle_frames; }
 /* Developer RPC screenshot: the displayed frame as a binary PPM. */
 int pc_capture_display(const char* path, int* width, int* height)
 {
-    if (pc_hw_sync)
+    /* Looking at the game does not change it (Gitea #26): the display rectangle is read back from the renderer into the VRAM array
+     * for the picture below, and the array is put back as it was after (the game's VRAM is its state: a state hash or a save state
+     * taken after a screenshot must equal one taken without). */
+    uint16_t* kept = NULL; /* (not a static: this unit's statics are the game's state) */
+    int synced = pc_hw_sync != 0 && (kept = malloc(sizeof vram)) != NULL;
+    if (synced) {
+        memcpy(kept, vram, sizeof vram);
         pc_present_post(&(pc_present_request) { PC_PRESENT_SYNC, vram, display_x, display_y, display_w, display_h });
+    }
     FILE* f = fopen(path, "wb");
-    if (!f)
+    if (!f) {
+        if (synced) {
+            memcpy(vram, kept, sizeof vram);
+            free(kept);
+        }
         return -1;
+    }
     fprintf(f, "P6\n%d %d\n255\n", display_w, display_h);
     for (int y = 0; y < display_h; y++) {
         unsigned char row[1024 * 3];
@@ -2139,6 +2157,10 @@ int pc_capture_display(const char* path, int* width, int* height)
     }
     *width = display_w;
     *height = display_h;
+    if (synced) {
+        memcpy(vram, kept, sizeof vram);
+        free(kept);
+    }
     return fclose(f) ? -1 : 0;
 }
 /* Present the current frame again (paused developer view). */

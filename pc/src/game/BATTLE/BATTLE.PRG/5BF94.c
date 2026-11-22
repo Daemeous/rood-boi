@@ -367,7 +367,7 @@ extern u_char vs_battle_firstColumnEntryCount;
 extern char D_800F4CB8;
 extern char vs_battle_fontBank;
 extern int _fontBrightness;
-extern u_long vs_menu_textBoxOrderingTables;
+extern u_long vs_menu_textBoxOrderingTables[3 * 34]; /* the text boxes' three pages of 34 slots (func_800CB83C): slots only, no packet is linked in them */
 extern char vs_battle_shortcutInvoked;
 extern char vs_menu_sceneNotificationTimer;
 extern char D_800F4E69;
