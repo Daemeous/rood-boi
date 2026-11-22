@@ -287,6 +287,24 @@ const Channel* channel(const std::string& key, const std::string& name, const st
     }
     return found->second.present ? &found->second.channel : channel(key, name); /* else the texture's own */
 }
+namespace { std::string read_text(const std::string& path); bool number_field(const prefab::Json& j, const char* name, float* out); }
+static std::map<std::string, long long> json_watch; /* the normal.json files read, by path: their stamp when read */
+float normal_strength(const std::string& key, const std::string& object)
+{
+    if (!valid_key(key) || object.size() > 120 || object.find_first_not_of("0123456789abcdefgmp+") != std::string::npos)
+        return 2.0f;
+    std::string path = user_dir() + "/" + key + (object.empty() ? "" : "/@" + object) + "/normal.json";
+    json_watch[path] = stamp(path); /* (poll() looks at it: an edit of the strength is read again at once) */
+    prefab::Json j;
+    std::string error;
+    float strength = 2.0f;
+    if (prefab::json_parse(read_text(path).c_str(), j, &error) && j.type == prefab::Json::Object) {
+        float v;
+        if (number_field(j, "strength", &v) && v > 0.05f && v < 100.0f)
+            strength = v;
+    }
+    return strength;
+}
 std::vector<Present> channels(const std::string& key)
 {
     std::vector<Present> out;
@@ -329,6 +347,11 @@ void poll()
     if (now - last < 50)
         return;
     last = now;
+    for (auto& w : json_watch) /* normal.json (the strength of a painted normal): few, and read where the planes are made */
+        if (stamp(w.first) != w.second) {
+            w.second = stamp(w.first);
+            ++files_generation;
+        }
     auto it = cache.lower_bound(next);
     for (size_t n = 0; n < 256 && n < cache.size(); n++, ++it) {
         if (it == cache.end())

@@ -50,7 +50,7 @@ from checkpoints import launch_at  # noqa: E402
 from editor_cutaway_smoke import default_card  # noqa: E402
 
 ZONE, ROOM = 32, 3
-SECTION12 = 0xA8  # vs_battle_roomData.section12 (psx_ptr), its length at 0x48
+SECTION12 = 0xA8  # vs_battle_roomData.section12 (a pointer), its length at 0x48
 SECTION12_LEN = 0x48
 ENTRY = 184  # sizeof(_mpdRoomSection12)
 SETTLE = 40  # vsyncs after a change (lighting filters)

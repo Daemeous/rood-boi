@@ -47,7 +47,7 @@ functions = [
 [subsystem.battle_5BF94.views]
 types = ["vs_battle_textBox", "vs_battle_stringContext_t", "vs_action_t"]
 globals = ["vs_menu_sceneNotificationBuffer", "vs_menu_sceneNotificationTimer", "D_800F4E69", "vs_battle_stringContext", "vs_main_actions",
-           "vs_battle_menuStrings", "vs_battle_textBoxes", "D_800EBF58", "vs_battle_doorStrings"]
+           "vs_battle_menuStrings", "vs_battle_textBoxes", "vs_battle_doorStrings"]
 
 # Battle's main loop and its per-frame function sit at the vsync, where snapshots, rewind and the hot-reload
 # host cut the stack. The development host's Zig below them is a reloadable library: a saved or rewound stack
@@ -977,7 +977,7 @@ functions = [
 
 [subsystem.battle_58578_port.views]
 types = ["D_800EB9B8_t", "D_800EB9B8_unk990", "D_800F45E0_t", "MATRIX", "SVECTOR", "_mpdRoomSection3", "_sphericalCamera", "func_800C0FA8_t2", "func_800C1564_flags", "func_800C1564_t", "func_800C4794_t", "func_800C5798_t", "menuCircleVertex", "pc_classic_target_line", "pc_classic_target_marker", "pc_classic_target_row"]
-globals = ["D_800EA234", "D_800EA2C4", "vs_battle_sphereShapeCommandStarts", "vs_battle_sphereWireframeCommands", "vs_battle_positionCursorSpriteOffsets", "vs_battle_positionCursorSpriteSizes", "vs_battle_positionCursorSpriteTexCoords", "vs_battle_positionCursorBlinkFrame", "vs_battle_targetSphere", "vs_field_gimmickInstances", "vs_battle_targetColumnTopOffset", "pc_gte_anchored", "vs_battle_cursorBrightnessAnimation", "vs_battle_rowAnimationSteps", "vs_scratch", "vs_view"]
+globals = ["D_800EA130", "vs_battle_positionCursorSpriteOffsets", "vs_battle_positionCursorSpriteSizes", "vs_battle_positionCursorSpriteTexCoords", "vs_battle_positionCursorBlinkFrame", "vs_battle_targetSphere", "vs_field_gimmickInstances", "vs_battle_targetColumnTopOffset", "pc_gte_anchored", "vs_battle_cursorBrightnessAnimation", "vs_battle_rowAnimationSteps", "vs_scratch", "vs_view"]
 
 [subsystem.battle_44F14_port]
 overlay = "battle"

@@ -10,6 +10,11 @@
 #include "button_prompts.h"
 #include "ui/ui_shell.h"
 
+extern "C" int pc_gim_text; /* gim_text.cpp: GIM pictures of text as real text */
+extern "C" char pc_gim_text_fill[1024];
+extern "C" int pc_gim_text_fill_force;
+extern "C" float pc_gim_text_size, pc_gim_text_gradient, pc_gim_text_caps;
+
 extern "C" int pc_hw_scale, pc_hw_active;
 
 namespace {
@@ -227,6 +232,27 @@ extern "C" void pc_ui_upscale_panel(void)
     if (pc_ui_bubbles == PC_UI_BUBBLES_VECTOR)
         ImGui::SliderFloat("Bubble outline", &pc_ui_bubble_outline, 0.5f, 4.0f, "%.2f PS1 px");
         ImGui::SliderFloat("Wire width", &pc_ui_wire_width, 0.0f, 6.0f, pc_ui_wire_width > 0.0f ? "%.1f px" : "game's");
+    ImGui::SeparatorText("Pictures of text (GIM)");
+    {
+        bool on = pc_gim_text != 0;
+        if (ImGui::Checkbox("Real text for GIM pictures", &on))
+            pc_gim_text = on;
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("The intro quote, the briefing pages and the staff cards are pictures. With the modern fonts (Text) and your text pack for a\n"
+                              "picture (pc/user/gim_text/<FILE>.txt, from pc/tools/gim_text_pack.py), its words are drawn as text at the picture's places\n"
+                              "and in its colours. Settings gim_text, gim_text_size, gim_text_gradient, gim_text_caps, gim_text_fill; the font is the pictures style (HUD typography).");
+        ImGui::SliderFloat("Words size", &pc_gim_text_size, 0.5f, 1.5f, "%.2f x the line");
+        ImGui::SliderFloat("Gradient", &pc_gim_text_gradient, 0.0f, 1.0f, "%.2f");
+        ImGui::SliderFloat("Small capitals", &pc_gim_text_caps, 0.0f, 1.0f, pc_gim_text_caps > 0.0f ? "%.2f of the capitals" : "off");
+        ImGui::InputText("Fill", pc_gim_text_fill, sizeof pc_gim_text_fill);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("The words' colour as data: [STEM-or-glob=]type [angle=N] [scope=block|line] [strength=X] | pos:rrggbb ...; ...\n"
+                              "e.g. STAFF*=linear angle=0 | 0:9d5006 0.5:ffd24a 1:7a3d10. Empty: each picture's own fill from its pack.\n"
+                              "Applies at once; the pack's fill lines are re-read as they change.");
+        bool force = pc_gim_text_fill_force != 0;
+        if (ImGui::Checkbox("Fill wins over the pack's", &force))
+            pc_gim_text_fill_force = force;
+    }
     static const char* prompt_modes[] = { "Auto (last device used)", "PlayStation", "Xbox", "Nintendo",
         "Keyboard", "Original glyphs" };
     ImGui::Combo("Button prompts", &pc_button_prompts, prompt_modes, PC_PROMPTS_MODES);

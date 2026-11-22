@@ -127,10 +127,29 @@ extern int vs_ending_creditsRipplePhaseAngle;
 extern int vs_ending_creditsRippleScaleFrame;
 extern u_char vs_ending_creditsRippleDistanceGrid[4][16];
 #ifdef ROOD_PC
-/* The logo mesh reads column 16 and row 4, past the table into the next row
- * and the data after it, as the PS1 does; flat reads keep GCC from assuming
- * the loops stop early. */
-#define _phantomPainRsqrt(i, j) (((u_char*)vs_ending_creditsRippleDistanceGrid)[(i) * 16 + (j)])
+/* The logo mesh reads column 16 and row 4: flat byte offsets 0..80 of the 64-byte grid. The 16 bytes past it on the PS1 are the three illustration
+ * words (brightness, texture page x, palette y), a pad and the first two decode cursors' low words (credits data addresses), and the picture of the
+ * credits shows what they hold. Named here, so nothing depends on those imports lying side by side: the three words by value, and zero for the
+ * cursors (the port's cursors are 8-byte native pointers elsewhere; the bytes at that place in guest RAM were never written). */
+extern short vs_ending_creditsIllustrationBrightness;
+extern short vs_ending_creditsIllustrationTexturePageX;
+extern u_short vs_ending_creditsIllustrationPaletteY;
+static inline unsigned pc_phantom_pain_ripple(int i, int j)
+{
+    int k = i * 16 + j;
+    if (k < 64)
+        return ((const u_char*)vs_ending_creditsRippleDistanceGrid)[k];
+    switch (k - 64) {
+    case 0: return (unsigned short)vs_ending_creditsIllustrationBrightness & 0xFF;
+    case 1: return (unsigned short)vs_ending_creditsIllustrationBrightness >> 8;
+    case 2: return (unsigned short)vs_ending_creditsIllustrationTexturePageX & 0xFF;
+    case 3: return (unsigned short)vs_ending_creditsIllustrationTexturePageX >> 8;
+    case 4: return vs_ending_creditsIllustrationPaletteY & 0xFF;
+    case 5: return vs_ending_creditsIllustrationPaletteY >> 8;
+    default: return 0;
+    }
+}
+#define _phantomPainRsqrt(i, j) pc_phantom_pain_ripple(i, j)
 #else
 #define _phantomPainRsqrt(i, j) vs_ending_creditsRippleDistanceGrid[i][j]
 #endif
@@ -249,7 +268,7 @@ extern int vs_ending_resultsAnimationFrame;
 extern int vs_ending_isLeavingResults;
 extern int _incrementingScore;
 extern int _incrementingMapCompletion;
-extern u_char _riskbreakerRanks[][4];
+extern u_char _riskbreakerRanks[16][4];
 extern u_char* vs_ending_creditsDecodeBackreferenceCursor;
 extern u_char* vs_ending_creditsDecodeInputCursor;
 extern u_char* vs_ending_creditsDecodeOutputCursor;
@@ -1412,7 +1431,7 @@ static void _do_updateClearGameStats(void)
 static void vs_ending_creditsAllocateRenderBuffers(void)
 {
     vs_ending_creditsInitializeDisplay(0x140, 0xF0, 0x200, 0, 0, 0);
-    vs_main_initHeap((vs_main_HeapHeader*)VS_MAIN_HEAP_ADDRESS, VS_MAIN_HEAP_SIZE);
+    vs_main_initHeap((vs_main_HeapHeader*)ROOD_HEAP_BASE, VS_MAIN_HEAP_SIZE);
 }
 
 static void _updateClearGameStats(void) { _do_updateClearGameStats(); }

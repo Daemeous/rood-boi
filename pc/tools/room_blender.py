@@ -92,7 +92,7 @@ def assign(tris, uses):
     """Each triangle's texture: the use on its page and CLUT whose box holds its texels (the smallest such box)."""
     by = {}
     for u in uses:
-        by.setdefault((u["tpage"], u["clut"]), []).append(u)
+        by.setdefault((u["tpage"] & 31, u["clut"]), []).append(u)  # (the page, not its colour depth: a model's polygons carry the depth bits)
     out = []
     for t in tris:
         us = [p[0] for p in t["uv"]], [p[1] for p in t["uv"]]
@@ -119,7 +119,7 @@ def object_of(tri, groups):
     return None
 
 
-def split_shared(tris, found, groups, textures):
+def split_shared(tris, found, groups, textures, always=False):
     """Per triangle its bake label and the textures with the split ones added. A texture used by more than one room group
     is baked once per group (`<key>@g<offset hex>`: the same texture, the group's own triangles), so the texels they share
     stop taking whichever baked last; the rest keep their key. The split entries say which texture and object they are."""
@@ -127,7 +127,7 @@ def split_shared(tris, found, groups, textures):
     for t, u in zip(tris, found):
         if u:
             seen.setdefault(u["key"], set()).add(object_of(t, groups))
-    shared = {k for k, o in seen.items() if len(o - {None}) > 1}
+    shared = set(seen) if always else {k for k, o in seen.items() if len(o - {None}) > 1}  # (always: every object owns its own)
     labels, out = [], dict(textures)
     for t, u in zip(tris, found):
         if not u:
@@ -204,7 +204,9 @@ def export(args):
     return 0
 
 
-def write_gltf(out, positions, colours, tris, found, textures, labels=None):
+def write_gltf(out, positions, colours, tris, found, textures, labels=None, pbr=None, folder="gltf", name="room"):
+    """`pbr` ({label: {channel: uri}}): the painting round trip's glTF (pc/tools/paint_roundtrip.py): each label's material takes its own
+    images (basecolor, metallicroughness, normal, occlusion) in place of the shared texture's."""
     flip = face_inward(positions)
     # glTF: x right, y up, z towards the viewer; the game's y is down and z away: a half turn about x
     pos = positions.copy()
@@ -242,24 +244,38 @@ def write_gltf(out, positions, colours, tris, found, textures, labels=None):
         attrs = {"POSITION": add(p.tobytes(), 34962, "VEC3", 5126, len(p), p.min(axis=0).tolist(), p.max(axis=0).tolist()),
                  "TEXCOORD_0": add(uv.tobytes(), 34962, "VEC2", 5126, len(uv)),
                  "COLOR_0": add(c.tobytes(), 34962, "VEC3", 5126, len(c))}
-        materials.append({"name": key, "pbrMetallicRoughness": {"metallicFactor": 0.0, "roughnessFactor": 0.8,
-                          **({"baseColorTexture": {"index": len(textures_json)}} if t else {})},
-                          "extras": {"key": key, **({"w": t["w"], "h": t["h"]} if t else {})}})
-        if t:
-            images.append({"uri": f"tex/{t.get('texture', key)}.png"})
-            textures_json.append({"source": len(images) - 1, "sampler": 0})
+        if pbr is not None and key in pbr:
+            files = pbr[key]
+            material = {"name": files["name"], "pbrMetallicRoughness": {"metallicFactor": 1.0, "roughnessFactor": 1.0}}
+            for channel, slot in (("basecolor", "baseColorTexture"), ("metallicroughness", "metallicRoughnessTexture"),
+                                  ("normal", "normalTexture"), ("occlusion", "occlusionTexture")):
+                if channel not in files:
+                    continue
+                images.append({"uri": files[channel]})
+                textures_json.append({"source": len(images) - 1, "sampler": 0})
+                ref = {"index": len(textures_json) - 1}
+                (material["pbrMetallicRoughness"] if slot in ("baseColorTexture", "metallicRoughnessTexture") else material)[slot] = ref
+            material["extras"] = {"key": key, **({"w": t["w"], "h": t["h"]} if t else {})}
+            materials.append(material)
+        else:
+            materials.append({"name": key, "pbrMetallicRoughness": {"metallicFactor": 0.0, "roughnessFactor": 0.8,
+                              **({"baseColorTexture": {"index": len(textures_json)}} if t else {})},
+                              "extras": {"key": key, **({"w": t["w"], "h": t["h"]} if t else {})}})
+            if t:
+                images.append({"uri": f"tex/{t.get('texture', key)}.png"})
+                textures_json.append({"source": len(images) - 1, "sampler": 0})
         primitives.append({"attributes": attrs, "material": len(materials) - 1, "mode": 4,
                            "extras": {"key": key, "triangles": [{"group": tris[i]["group"], "flags": tris[i]["flags"],
                                                                  "tpage": tris[i]["tpage"], "clut": tris[i]["clut"]}
                                                                 for i in idx]}})
-    (out / "gltf" / "room.bin").write_bytes(bytes(buffer))
+    (out / folder / f"{name}.bin").write_bytes(bytes(buffer))
     gltf = {"asset": {"version": "2.0", "generator": "rood-boi room_blender.py"},
-            "scene": 0, "scenes": [{"nodes": [0]}], "nodes": [{"mesh": 0, "name": "room"}],
-            "meshes": [{"name": "room", "primitives": primitives}], "materials": materials,
+            "scene": 0, "scenes": [{"nodes": [0]}], "nodes": [{"mesh": 0, "name": name}],
+            "meshes": [{"name": name, "primitives": primitives}], "materials": materials,
             "samplers": [{"magFilter": 9728, "minFilter": 9728, "wrapS": 33071, "wrapT": 33071}],
             "images": images, "textures": textures_json, "accessors": accessors, "bufferViews": views,
-            "buffers": [{"uri": "room.bin", "byteLength": len(buffer)}]}
-    (out / "gltf" / "room.gltf").write_text(json.dumps(gltf))
+            "buffers": [{"uri": f"{name}.bin", "byteLength": len(buffer)}]}
+    (out / folder / f"{name}.gltf").write_text(json.dumps(gltf))
 
 
 # ---------------------------------------------------------------------------------------------- bake
@@ -304,6 +320,99 @@ def maps(wear, cavity, cover, p):
     return (np.clip(height + 0.5, 0, 255).astype(np.uint8), np.clip(rough + 0.5, 0, 255).astype(np.uint8), normal)
 
 
+def window(x, lo, hi, soft):
+    """1 inside [lo, hi], falling to 0 over `soft` outside it."""
+    return np.clip((x - (lo - soft)) / max(soft, 1e-6), 0, 1) * np.clip(((hi + soft) - x) / max(soft, 1e-6), 0, 1)
+
+
+def hue_degrees(rgb):
+    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    mx, mn = rgb.max(-1), rgb.min(-1)
+    d = np.maximum(mx - mn, 1e-6)
+    h = np.where(mx == r, ((g - b) / d) % 6, np.where(mx == g, (b - r) / d + 2, (r - g) / d + 4)) * 60.0
+    return h
+
+
+def classify_metal(rgba, cfg):
+    """(metal 0..1, the metal's own roughness; nan where none) per texel from the texture's colours; zero for a texture that has too
+    little or too much that looks like metal (room_blender.json "metal")."""
+    rgb = rgba[..., :3].astype(np.float32) / 255.0
+    opaque = rgba[..., 3] > 127
+    mx, mn = rgb.max(-1), rgb.min(-1)
+    sat = np.where(mx > 1e-6, (mx - mn) / np.maximum(mx, 1e-6), 0.0)
+    lum = rgb @ np.array([0.299, 0.587, 0.114], np.float32)
+    hue = hue_degrees(rgb)
+    metal = np.zeros(sat.shape, np.float32)
+    rough = np.full(sat.shape, np.nan, np.float32)
+    for m in cfg["materials"]:
+        soft = m["soft"]
+        rule = m.get("neutral")
+        if rule:  # the greys of a texture that has colour too
+            coloured = float(((sat >= rule["colour_sat"]) & opaque).sum()) / max(1, int(opaque.sum()))
+            if coloured < rule["colour_share"]:
+                continue
+            w = window(sat, 0.0, rule["sat_max"], soft["sat"]) * window(lum, *m["lum"], soft["lum"]) * m["metal"]
+            better = w > metal
+            metal = np.where(better, w, metal)
+            rough = np.where(better, m["rough"], rough)
+            continue
+        lo, hi = m["hue"]
+        centre, half = (lo + hi) / 2.0, (hi - lo) / 2.0
+        distance = np.abs((hue - centre + 180.0) % 360.0 - 180.0)  # (the hue circle)
+        h = np.clip((half + soft["hue"] - distance) / max(soft["hue"], 1e-6), 0, 1)
+        h = np.where(sat < 0.02, 1.0, h)  # (a true grey has no hue)
+        w = h * window(sat, *m["sat"], soft["sat"]) * window(lum, *m["lum"], soft["lum"]) * m["metal"]
+        better = w > metal
+        metal = np.where(better, w, metal)
+        rough = np.where(better, m["rough"], rough)
+    metal = np.where(opaque & (metal >= cfg.get("floor", 0.0)), metal, 0.0)  # (the soft edge of a window is not a metal)
+    hit = metal > 0.5
+    if opaque.any():
+        share = hit.sum() / float(opaque.sum())
+        if share < cfg["min_share"] or share > cfg["max_share"]:
+            return np.zeros_like(metal), rough
+    n = cfg.get("despeckle", 0)
+    if n > 0:  # a metal texel needs `n` metal texels among its eight neighbours (a gate's bar, not a speckle)
+        padded = np.pad(hit.astype(np.int32), 1)
+        around = sum(padded[1 + dy:padded.shape[0] - 1 + dy, 1 + dx:padded.shape[1] - 1 + dx]
+                     for dy in (-1, 0, 1) for dx in (-1, 0, 1) if dx or dy)
+        metal = np.where(hit & (around < n), 0.0, metal)
+    area = cfg.get("min_area", 0)
+    if area > 1:  # a piece of metal is a bar or a band, not a few texels: connected pieces (four ways) under `min_area` texels go
+        hit = metal > 0.5
+        seen = np.zeros(hit.shape, bool)
+        for y0, x0 in zip(*np.nonzero(hit)):
+            if seen[y0, x0]:
+                continue
+            stack, piece = [(y0, x0)], []
+            seen[y0, x0] = True
+            while stack:
+                y, x = stack.pop()
+                piece.append((y, x))
+                for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    yy, xx = y + dy, x + dx
+                    if 0 <= yy < hit.shape[0] and 0 <= xx < hit.shape[1] and hit[yy, xx] and not seen[yy, xx]:
+                        seen[yy, xx] = True
+                        stack.append((yy, xx))
+            if len(piece) < area:
+                for y, x in piece:
+                    metal[y, x] = 0.0
+    return metal, rough
+
+
+def metal_maps(rgba, wear, cavity, cover, rough, cfg):
+    """(metal uint8 or None when the texture has none, roughness uint8 with the metal's own roughness where it is metal): polished at
+    worn edges, dull and dirty in crevices."""
+    metal, own = classify_metal(rgba, cfg)
+    if metal.max() < 0.05:
+        return None, rough
+    metal = np.clip(metal * (1.0 + cfg["wear_boost"] * wear - cfg["cavity_drop"] * cavity), 0.0, 1.0)
+    shaped = np.clip((np.nan_to_num(own, nan=0.5) + cfg["rough_wear"] * wear + cfg["rough_cavity"] * cavity) * 255.0, 0, 255)
+    blend = np.clip(metal / 0.5, 0.0, 1.0)  # (a metal texel's roughness is the metal's; between, the surface's)
+    rough = np.clip(rough.astype(np.float32) * (1.0 - blend) + shaped * blend + 0.5, 0, 255).astype(np.uint8)
+    return np.clip(metal * 255.0 + 0.5, 0, 255).astype(np.uint8), rough
+
+
 def map_dir(layer, key, t):
     """Where a baked texture's maps go: <layer>/<key>/ (the texture's), or <layer>/<key>/@<object>/ for a texture baked per
     room group (the game reads the object's maps for an entry keyed by that object: materials.h channel)."""
@@ -316,7 +425,7 @@ def import_maps(args):
     p = config()["maps"]
     layer = out / "materials"
     shutil.rmtree(layer, ignore_errors=True)
-    done = 0
+    done = metals = 0
     for key, t in meta["textures"].items():
         d = out / "bakes" / key
         if not (d / "wear.png").exists():
@@ -326,12 +435,22 @@ def import_maps(args):
         if wear.shape != (t["h"], t["w"]):
             raise SystemExit(f"room_blender: {key}: the bake is {wear.shape[::-1]}, the texture {t['w']} x {t['h']}")
         height, rough, normal = maps(wear, cavity, cover, p)
+        cfg = config().get("metal", {})
+        picture = out / "gltf" / "tex" / f"{t.get('texture', key)}.png"
+        metal = None
+        if cfg.get("enabled") and picture.exists():
+            rgba = np.asarray(Image.open(picture).convert("RGBA"))
+            if rgba.shape[:2] == wear.shape:
+                metal, rough = metal_maps(rgba, wear, cavity, cover, rough, cfg)
         dest.mkdir(parents=True, exist_ok=True)
+        if metal is not None:
+            Image.fromarray(metal, "L").save(dest / "metal.png")
+            metals += 1
         Image.fromarray(height, "L").save(dest / "height.png")
         Image.fromarray(rough, "L").save(dest / "roughness.png")
         Image.fromarray(normal, "RGB").save(dest / "normal.png")
         done += 1
-    print(f"import: {done} textures' height, roughness and normal maps -> {layer} (the baked layer: $ROOD_MATERIALS_BAKED)")
+    print(f"import: {done} textures' height, roughness and normal maps, {metals} of them with a metal map -> {layer} (the baked layer: $ROOD_MATERIALS_BAKED)")
     return 0
 
 
@@ -375,6 +494,22 @@ def shot(args):
                 game.run(30)
             path = game.present_screenshot(str(shots / f"{name}.ppm"))
             Image.open(path).convert("RGB").save(shots / f"{name}.png")
+            if args.light_at:
+                # a light beside the picked spot, on two sides: the highlights should move with it
+                x, y = (int(v) for v in args.light_at.split(","))
+                at = game.call("material", action="pick", x=x, y=y)["world"]
+                for side, dx in (("a", -260), ("b", 260)):
+                    game.call("lights", action="reload")
+                    game.call("lights", action="add", position=[at[0] + dx, at[1] - 150, at[2] + 60])
+                    game.run(20)
+                    path = game.present_screenshot(str(shots / f"{name}-lit-{side}.ppm"))
+                    Image.open(path).convert("RGB").save(shots / f"{name}-lit-{side}.png")
+                    game.call("graphics", view_mode=7)  # the specular lobe alone: where the highlights are
+                    game.run(4)
+                    path = game.present_screenshot(str(shots / f"{name}-spec-{side}.ppm"))
+                    Image.open(path).convert("RGB").save(shots / f"{name}-spec-{side}.png")
+                    game.call("graphics", view_mode=0)
+                game.call("lights", action="reload")
         finally:
             material_rollout.kill(game)
     before, after = (Image.open(shots / f"{n}.png") for n in ("before", "after"))
@@ -382,6 +517,12 @@ def shot(args):
     both.paste(before, (0, 0))
     both.paste(after, (before.width + 10, 0))
     both.save(shots / "before_after.png")
+    if args.light_at:
+        grid = Image.new("RGB", (before.width * 2 + 10, before.height * 2 + 10), "black")
+        for row, name in enumerate(("before", "after")):
+            for col, side in enumerate(("a", "b")):
+                grid.paste(Image.open(shots / f"{name}-lit-{side}.png").convert("RGB"), (col * (before.width + 10), row * (before.height + 10)))
+        grid.save(shots / "highlights.png")
     print(f"shot: {shots} (plain, before, after, before_after.png)")
     return 0
 
@@ -398,6 +539,7 @@ def main():
     parser.add_argument("--preset", default="rough stone", help="shot: the material preset given to every baked texture")
     parser.add_argument("--go", action="store_true", help="shot: warp to the exported room first")
     parser.add_argument("--camera", help="shot: RPC editor_camera parameters (JSON)")
+    parser.add_argument("--light-at", help="shot: X,Y a pixel of the view: a light is put beside what is there, on one side and the other (highlights.png: before above, after below)")
     args = parser.parse_args()
     if (args.zone is None) != (args.room is None):
         parser.error("--zone and --room go together")

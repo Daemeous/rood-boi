@@ -18,5 +18,91 @@
     "rough_cavity": 0.06,
     "normal_strength": 2.0,
     "note": "wear and cavity are 0..1 (edges the geometry exposes, creases it shades); cavity is 1 - the occlusion"
+  },
+  "metal": {
+    "about": "OPTIONAL SEED, off by default (maps are painted in a painter: pc/tools/paint_roundtrip.py, pc/docs/Materials.md). Metal and roughness from the texture's own colours, per texel (iron: cool, low saturation, dark to mid; brass: warm and saturated), then shaped by the geometry's wear and cavity. A texture takes a metal map only when metal texels are a share of it between min_share and max_share (stone that is cool grey all over is not iron; a gate's bars in a stone wall are). hue in degrees, sat and lum 0..1; soft = how far outside a range the weight falls to 0. A material with \"neutral\" matches the greys (saturation under sat_max) of a texture that also has colour: colour_share of its texels at saturation colour_sat or more (iron bands over wood planks, studs on a door); a texture that is grey all over is stone.",
+    "enabled": false,
+    "materials": [
+      {
+        "name": "iron bands",
+        "neutral": {
+          "sat_max": 0.08,
+          "colour_share": 0.2,
+          "colour_sat": 0.3
+        },
+        "hue": [
+          0,
+          360
+        ],
+        "sat": [
+          0.0,
+          0.08
+        ],
+        "lum": [
+          0.1,
+          0.55
+        ],
+        "soft": {
+          "hue": 0,
+          "sat": 0.03,
+          "lum": 0.04
+        },
+        "metal": 0.9,
+        "rough": 0.42
+      },
+      {
+        "name": "iron",
+        "hue": [
+          185,
+          265
+        ],
+        "sat": [
+          0.06,
+          0.4
+        ],
+        "lum": [
+          0.05,
+          0.55
+        ],
+        "soft": {
+          "hue": 15,
+          "sat": 0.04,
+          "lum": 0.06
+        },
+        "metal": 0.9,
+        "rough": 0.42
+      },
+      {
+        "name": "brass",
+        "hue": [
+          30,
+          60
+        ],
+        "sat": [
+          0.6,
+          1.0
+        ],
+        "lum": [
+          0.5,
+          0.95
+        ],
+        "soft": {
+          "hue": 8,
+          "sat": 0.05,
+          "lum": 0.08
+        },
+        "metal": 0.9,
+        "rough": 0.3
+      }
+    ],
+    "min_share": 0.04,
+    "max_share": 0.5,
+    "despeckle": 4,
+    "wear_boost": 0.35,
+    "cavity_drop": 0.55,
+    "rough_wear": -0.18,
+    "rough_cavity": 0.28,
+    "min_area": 10,
+    "floor": 0.3
   }
 }

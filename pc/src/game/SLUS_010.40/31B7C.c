@@ -1,7 +1,7 @@
 #include "common.h"
 #include <libgte.h>
 
-extern u_char vs_core_mathArcTangentTable[];
+extern u_char vs_core_mathArcTangentTable[516]; /* 513 entries (0..512) and 3 of padding */
 
 long ratan2(long y, long x)
 {

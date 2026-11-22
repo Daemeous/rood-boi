@@ -702,7 +702,7 @@ extern short vs_render_framebufferEffectRoll;
 extern int vs_render_framebufferEffectScale[];
 extern int vs_render_framebufferEffectUsesPreviousFrame;
 extern u_int vs_render_framebufferEffectDepth;
-extern int D_800F1A50[];
+extern int D_800F1A50[6]; /* 24 bytes to vs_render_framebufferEffectOffset */
 extern vs_render_FramebufferEffectTranslation vs_render_framebufferEffectOffset;
 extern P_CODE vs_render_framebufferEffectTint;
 extern char D_800F1A9C[];
@@ -1236,8 +1236,6 @@ void func_800790BC(void);
 int vs_battle_resolveActorDefeat(int arg0, int arg1, int arg2);
 
 void vs_battle_finishActionSequence(void);
-extern int D_800F19D8;
-extern int D_800F19EC;
 
 void vs_battle_finishActionSequence(void);
 

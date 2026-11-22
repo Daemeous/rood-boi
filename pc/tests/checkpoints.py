@@ -184,7 +184,7 @@ def _record(game, work, label, frames):
         if os.environ.get("ROOD_CHECKPOINT_DEBUG") == str(i):  # both states at that vsync, for snapshot_diff.py
             game.call("snapshot", action="save", path=str(work / f"{label}-{i:03d}.snap"))
         rows.append({"vsync": h["vsync"], "image": image,
-                     **{k: h[k] for k in ("ram", "scratch", "io", "vram", "overlays")}})
+                     **{k: h[k] for k in ("ram", "heap", "io", "vram", "overlays")}})
     return rows
 
 
@@ -246,7 +246,7 @@ def validate(name, card=None, work=None, log=print):
     resume_time = time.monotonic() - start
     first_image = next((i for i in range(len(booted)) if all(booted[j]["image"] == resumed[j]["image"]
                                                              for j in range(i, len(booted)))), None)
-    state_keys = ("ram", "scratch", "io", "vram", "overlays")
+    state_keys = ("ram", "heap", "io", "vram", "overlays")
     # Row i is the state after i + 1 vsyncs; row WARMUP - 1 is the checkpoint.
     differs = [(i, r["vsync"], [k for k in state_keys if a[k] != r[k]]) for i, (a, r) in enumerate(zip(booted, resumed))
                if any(a[k] != r[k] for k in state_keys)]

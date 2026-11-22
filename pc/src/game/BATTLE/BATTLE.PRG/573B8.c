@@ -216,7 +216,7 @@ int func_800C0758(int phase, int segments, int index);
 
 MATRIX* func_800C085C(u_char* scale, int angle);
 
-extern u_char vs_core_mathArcTangentTable[];
+extern u_char vs_core_mathArcTangentTable[516];
 
 void func_800C0990(SVECTOR* start, SVECTOR* end, u_int color, int intensity);
 

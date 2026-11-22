@@ -70,7 +70,9 @@ void vs_battle_aiReleaseActorAiReservations(vs_battle_aiState*);
 int func_800E7698(vs_battle_aiState*);
 void vs_battle_aiUpdateBossOrbitTracking(vs_battle_aiState*);
 
-extern p_file_t vs_effects_emptyPackage;
+/* The default effect package: a P-file chain of 9 blocks (0x10000 to 0xB0000, 20988 bytes) and its end marker, 20992 bytes (read by the block walk, so its
+ * words are file data: bytes of tables, never pointers). */
+extern u_char vs_effects_emptyPackage[20992];
 extern D_800F16EC_t D_800F16EC[8];
 extern int vs_effects_curveSamples[];
 extern char vs_effects_secondaryRequest[232];

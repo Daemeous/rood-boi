@@ -19,7 +19,7 @@ pub inline fn addr(offset: usize) usize {
 
 /// A typed view of the bytes at `offset`, for a file-scope view of a scratch area.
 pub inline fn ptr(comptime T: type, comptime offset: usize) *T {
-    return @ptrCast(@alignCast(&vs_pad[offset]));
+    return @ptrCast(@alignCast(@as([*]u8, @ptrCast(vs_pad)) + offset));
 }
 
 /// The scratch bytes at `offset` as a T (a PS1 offset), checked at compile time to lie inside the 0x408 bytes (the 1 KB pad and 8 bytes for the real pointers that follow its last overlays): the same

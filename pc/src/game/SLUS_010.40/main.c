@@ -30,7 +30,7 @@ static char _submenuSlot[0x9800] __attribute__((aligned(16)));
 static char _effPurgeSlot[0x4800] __attribute__((aligned(16)));
 /* The plug-ins' tables are imports placed in it by the link (imports.ld: pc_plugin_slot + their offset). */
 char pc_plugin_slot[0x9000] __attribute__((aligned(16)));
-_Static_assert(VS_MAIN_HEAP_SIZE == ROOD_HEAP_SIZE && VS_MAIN_HEAP_ADDRESS == ROOD_HEAP_BASE, "the heap arena: psx_types.h and main.h agree");
+_Static_assert(VS_MAIN_HEAP_SIZE == ROOD_HEAP_SIZE, "the heap arena: psx_types.h and main.h agree");
 void* const vs_overlay_slots[5] = { (void*)(ROOD_GUEST_RAM_BASE + 0x68800), _mainMenuSlot, _submenuSlot,
     pc_plugin_slot, _effPurgeSlot };
 
@@ -8346,7 +8346,7 @@ static void _sysReinit(void)
     InitGeom();
     DrawSyncCallback(_gpuSyncVoidCallback);
     VSyncCallback(_vSyncVoidCallback);
-    vs_main_initHeap((vs_main_HeapHeader*)VS_MAIN_HEAP_ADDRESS, VS_MAIN_HEAP_SIZE);
+    vs_main_initHeap((vs_main_HeapHeader*)ROOD_HEAP_BASE, VS_MAIN_HEAP_SIZE);
     _initCdQueue();
     _diskReset();
     _loadMenuSound();

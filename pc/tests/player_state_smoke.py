@@ -55,7 +55,7 @@ SAME_FIELDS = ["kind", "id", "name", "material", "category", "dp", "dp_max", "pp
 
 def hashes(g):
     h = g.call("snapshot", action="hash")
-    return {k: h[k] for k in ("ram", "scratch", "io", "state", "overlays", "vram")}
+    return {k: h[k] for k in ("ram", "heap", "io", "state", "overlays", "vram")}
 
 
 def lua(g, code):

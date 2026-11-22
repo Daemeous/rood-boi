@@ -42,12 +42,12 @@ def one_run(card, out, socket, index):
             for _ in range(80):
                 game.run(10)
                 h = game.call("snapshot", action="hash")
-                trace.append((h["vsync"], h["ram"], h["scratch"], h["state"], h["io"], h["vram"], h["overlays"]))
+                trace.append((h["vsync"], h["ram"], h["heap"], h["state"], h["io"], h["vram"], h["overlays"]))
                 if game.call("room_goto", action="status")["phase"] in (0, 4):
                     break
             game.run(120)
             h = game.call("snapshot", action="hash")  # (every sort of memory the snapshot holds, the overlays' statics too)
-            trace.append((h["vsync"], h["ram"], h["scratch"], h["state"], h["io"], h["vram"], h["overlays"]))
+            trace.append((h["vsync"], h["ram"], h["heap"], h["state"], h["io"], h["vram"], h["overlays"]))
         arrived = (game.state()["zone"], game.state()["room"]) == ROOMS[-1]
     finally:
         game.close()
@@ -94,7 +94,7 @@ def story_run(out, socket, scene, settle, index):
         for _ in range(30):
             game.run(10)
             h = game.call("snapshot", action="hash")
-            trace.append((h["vsync"], h["ram"], h["scratch"], h["state"], h["io"], h["vram"], h["overlays"],
+            trace.append((h["vsync"], h["ram"], h["heap"], h["state"], h["io"], h["vram"], h["overlays"],
                           game.call("vram_stream")["total"]["hash"]))
     finally:
         game.close()

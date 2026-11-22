@@ -52,9 +52,8 @@ BENIGN = {}
 # (wrong declarations are fixed instead; pc/docs/LP64_Audit.md, "Import
 # aliases"). Only REVIEWs are silenced: a HAZARD for the pair still reports.
 REVIEWED = {
-    ("D_800F4438", "D_800F2458"):
-        "the shared scale VECTOR after the 63 bone matrices (vs_actors_skeletonPose[63]); 30DB0.c's "
-        "D_800F2458.unk1FE0 is the low half of its vx (a u_short load that matches); no pointers",
+    # (empty: D_800F4438, the shared scale VECTOR after the 63 bone matrices, is no longer inside D_800F2458: the container's
+    # declaration is 8160 bytes (0x1FE0) now, so the vector is its own import and nothing aliases)
 }
 
 # Containers whose declaration is larger than the data the game addresses

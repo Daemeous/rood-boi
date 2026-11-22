@@ -4,6 +4,23 @@ const pad = @import("common").pad;
 const v = @import("views_58578");
 const c = @import("c_58578");
 
+/// The battle menu's data block D_800EA130 (1264 bytes): the target sphere's tables are views into it, at the offsets the old labels had.
+fn menuBlock() [*]u8 {
+    return @ptrCast(v.g.D_800EA130());
+}
+fn sphereBasis() [*]i16 {
+    return @ptrCast(@alignCast(menuBlock() + 0x104)); // D_800EA234: 72 shorts
+}
+fn sphereVertices() [*]i16 {
+    return @ptrCast(@alignCast(menuBlock() + 0x194)); // D_800EA2C4: 186 shorts, negated in place
+}
+fn sphereStarts() [*]u8 {
+    return menuBlock() + 0x308; // vs_battle_sphereShapeCommandStarts: 52 bytes
+}
+fn sphereCommands() [*]u16 {
+    return @ptrCast(@alignCast(menuBlock() + 0x33C)); // vs_battle_sphereWireframeCommands: 218 words
+}
+
 /// orig: func_800C253C (pc/src/game/BATTLE/BATTLE.PRG/58578.c)
 /// Lays out the menu circle's vertices for `type_` from its command list and records the vertex count.
 pub fn func_800C253C(type_: c_int) callconv(.c) void {
@@ -30,17 +47,17 @@ pub fn func_800C253C(type_: c_int) callconv(.c) void {
         shape = type_ +% 0x2D;
     }
 
-    var command: c_int = @as(c_int, psx.at(v.g.vs_battle_sphereShapeCommandStarts(), shape).*);
-    var count: c_int = @as(c_int, psx.at(v.g.vs_battle_sphereShapeCommandStarts(), shape +% 1).*) -% command;
+    var command: c_int = @as(c_int, psx.at(sphereStarts(), shape).*);
+    var count: c_int = @as(c_int, psx.at(sphereStarts(), shape +% 1).*) -% command;
     var cmd_pos: c_int = command;
 
     while (count > 0) : (count -%= 1) {
-        command = @as(c_int, psx.at(v.g.vs_battle_sphereWireframeCommands(), cmd_pos).*);
+        command = @as(c_int, psx.at(sphereCommands(), cmd_pos).*);
         cmd_pos +%= 1;
         switch ((command >> 14) & 3) {
             0 => {
                 var s: c_int = (command << 2) & 0x7C;
-                const table = v.g.D_800EA234();
+                const table = sphereBasis();
                 i = 0;
                 while (i < 3) : (i += 1) {
                     psx.at(basis, i).* = psx.at(table, s).*;
@@ -64,7 +81,7 @@ pub fn func_800C253C(type_: c_int) callconv(.c) void {
             },
             2 => {
                 var src: c_int = command & 0x3FF;
-                const table = v.g.D_800EA2C4();
+                const table = sphereVertices();
                 command = ((command >> 10) & 7) + 2;
                 j = 0;
                 while (j < 2) : (j += 1) {

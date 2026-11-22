@@ -44,10 +44,10 @@ void vs_battle_drawSphereVolumeWireframe(func_800C1564_t* shape, int color);
 int func_800C0758(int phase, int segments, int index);
 int func_800C2368(int step, int radius, int index);
 
-extern short D_800EA234[];
-extern short D_800EA2C4[];
-extern u_char vs_battle_sphereShapeCommandStarts[];
-extern u_short vs_battle_sphereWireframeCommands[];
+/* The battle menu's data block D_800EA130 (1264 bytes) and the target sphere's tables in it: the area map's reciprocals (130 words), then the sphere's
+ * basis words (D_800EA234, 72 shorts, +0x104), its vertices (D_800EA2C4, 186 shorts, +0x194, negated in place by the wireframe interpreter), the command
+ * starts of each shape (52 bytes, +0x308) and the wireframe commands (218 words, +0x33C). One object, the old labels are offsets into it. */
+extern u_short D_800EA130[632];
 extern int vs_battle_positionCursorSpriteOffsets[5]; /* index = marker part + 2 * set, three parts a set */
 extern int vs_battle_positionCursorSpriteSizes[5];
 extern int vs_battle_positionCursorSpriteTexCoords[5];

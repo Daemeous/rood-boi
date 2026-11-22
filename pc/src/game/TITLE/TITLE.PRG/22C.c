@@ -3273,8 +3273,16 @@ typedef struct {
     char data[240][192];
 } menuBg_t;
 
-extern fontTable_t _fontTable[];
-extern u_long _debugFont[];
+extern fontTable_t _fontTable[2];
+/* The overlay's picture data, at file scope with the sizes its image gives (splat.yaml): the publisher logo (32 bytes of CLUT, then 256 x 48 4-bit
+ * pixels), the developer logo (to titleData), the title screen's run-length coded background (to _menuCopyright), the copyright line (180 x 24 15-bit
+ * pixels). StCdIntrFlag is the executable's, set by the CD interrupt (libcd/C_002.c). */
+extern char publisher_clut[6176];
+extern char developer[896];
+extern u_int _titleScreenBg[55733];
+extern u_short _menuCopyright[4320];
+extern int StCdIntrFlag;
+extern u_long _debugFont[4928]; /* 256 x 154 4-bit pixels */
 extern uiTable_t _uiTable;
 extern menuBg_t _saveMenuBg_clut;
 
@@ -3617,7 +3625,6 @@ static void _decDCToutCallback(void)
     int index;
     u_int dataSize;
 
-    extern int StCdIntrFlag;
     if (StCdIntrFlag != 0) {
         StCdInterrupt();
         StCdIntrFlag = 0;
@@ -3730,8 +3737,6 @@ static void _playMovie(DslLOC* loc)
 
 static void _displayPublisherAndDeveloper()
 {
-    extern char publisher_clut[];
-    extern char developer[];
 
     DISPENV disp;
     DRAWENV draw;
@@ -3973,7 +3978,6 @@ static void _copyTitleBgData(void)
 #endif
 
     for (; i < MENUBGSZ / sizeof(int);) {
-        extern u_int _titleScreenBg[];
 
         pixelCounts = _titleScreenBg[i++];
         for (j = pixelCounts & 0xFFFF; j != 0; --j) {
@@ -4001,7 +4005,7 @@ static void _copyTitleBgData(void)
         DrawSync(0);
     }
     setRECT(&rect, 480, 394, 16, 1);
-    LoadImage(&rect, (u_long*)_menuItemOutlineClut);
+    LoadImage(&rect, (u_long*)_menuItemTextClut[2]);
     DrawSync(0);
     vs_main_freeHeap(data);
 }
@@ -4118,7 +4122,6 @@ static void _fadeInMenuCopyright(u_short* arg0, int textBlendFactor)
     dst = src + (180 * 24);
 
     for (i = 0; i < (180 * 24); ++i) {
-        extern u_short _menuCopyright[];
 
         r1 = src[i];
         r0 = _menuCopyright[i];

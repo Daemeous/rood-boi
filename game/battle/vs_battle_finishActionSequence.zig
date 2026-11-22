@@ -23,9 +23,11 @@ fn link(k: c_int) *v.vs_battle_ActionRequest {
 /// still busy (vs_actors_isActorActionAnimationBusy), plays every hit's reaction and every link user's own (vs_battle_resolveActorDefeat), then, unless
 /// in battle state 3, ends the action (func_80073898 when vs_event_evaluateRoomEventTriggers(0xC) answers 1, else vs_items_openPendingEnemyLoot).
 pub fn vs_battle_finishActionSequence() callconv(.c) void {
-    const mode = psx.Global(c_int, "D_800F19EC").ptr().*;
+    const spherical = v.g.vs_battle_cameraCurrentSpherical();
+    // D_800F19EC and D_800F19D8 were this camera's delta.mode and values.distance (the labels sit inside the struct).
+    const mode = spherical.delta.mode;
     const projection = v.g.vs_main_projectionDistance();
-    const camera = &v.g.vs_battle_cameraCurrentSpherical().values;
+    const camera = &spherical.values;
     if (mode == 1 or mode == 3) {
         if (projection.* > 512) {
             projection.* -%= 64;
@@ -52,7 +54,7 @@ pub fn vs_battle_finishActionSequence() callconv(.c) void {
             }
         }
     }
-    if (projection.* == 0x200 and psx.Global(c_int, "D_800F19D8").ptr().* == state().unk2C0C and c._isLookAtAtDestination() != 0) {
+    if (projection.* == 0x200 and camera.distance == state().unk2C0C and c._isLookAtAtDestination() != 0) {
         var idle = true;
         var k: c_int = 0;
         // unk4C has 30 entries; the hit count unk4A is not bounded by the C.

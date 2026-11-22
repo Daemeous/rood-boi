@@ -39,7 +39,7 @@ everything each route does. Old and new (with --control, old again too) are comp
 SCENES below: a new screen's route is one function there, or one of classic_parity.py's tours wrapped as the others are. Routes:
 mainmenu, manual, levelled, buff (the HUD buff rows), emote_arrow (the off-screen emote arrow and the balloons), items, magic, arts, abilities, status, score, map, data (MENU7's SAVE and LOAD file menus), setup, loot,
 storage, ending, menuf, dialogue (the talk bubble's every shape: first_bubble), title (its menu and its file menu's copy) and gameover
-(MENU7's game over LOAD). opening_events (the opening played through, the scanlines forced on) and script_<zone>_<room> (a room's own event script, for the rooms with a door into them) and platforms (the platform shadows of rooms 9-5, 15-7, 24-2, 25-2, 32-0) and story_<scene id> (a story scene of pc/assets/cutscenes/story.json played as the cutscene player plays it, from the title: the rooms and events no warp reaches; the wipes, the screen effect, its border).
+(MENU7's game over LOAD). opening_quote (the opening skipped to its quote: JO.GIM), opening_events (the opening played through, the scanlines forced on) and script_<zone>_<room> (a room's own event script, for the rooms with a door into them) and platforms (the platform shadows of rooms 9-5, 15-7, 24-2, 25-2, 32-0) and story_<scene id> (a story scene of pc/assets/cutscenes/story.json played as the cutscene player plays it, from the title: the rooms and events no warp reaches; the wipes, the screen effect, its border).
 """
 import argparse
 import atexit
@@ -78,6 +78,15 @@ def loot(g):
         drops.append([g.value(node + "->actorId"), hashlib.sha256(g.data(node + "->loot")).hexdigest()[:16]])
         node += "->next"
     return drops
+
+
+def own_shaders():
+    """The game reloads shaders from $ROOD_SHADERS (default pc/shaders/vulkan of the working directory) over the SPIR-V
+    built into the binary (pc/src/shader_reload.cpp), so a probe built from one tree would draw with another tree's
+    shader sources. An empty folder turns that off: each probe draws with the shaders it was built with."""
+    empty = ROOT / "pc/build/build-compare-no-shaders"
+    empty.mkdir(parents=True, exist_ok=True)
+    os.environ.update(ROOD_SHADERS=str(empty), ROOD_SHADERS_GENERATED=str(empty))
 
 
 def cover(binary):
@@ -234,6 +243,7 @@ def census_write(g, name):
 def play(binary, seconds, card, out):
     """In a process of its own (ROOD_BINARY is read at import): the hashes, the casts and the drops, as JSON on stdout."""
     os.environ.update(ROOD_BINARY=binary, ROOD_SYMBOLS=binary, ROOD_HEADLESS="egl", ROOD_RENDERER="vulkan", ROOD_ARCH="64", ROOD_TEST_SNAPSHOTS="0")
+    own_shaders()
     sys.path[:0] = [str(ROOT / "pc/tools"), str(ROOT / "pc/tests")]
     cover(binary)
     out = pathlib.Path(out)
@@ -302,6 +312,7 @@ def play_casts(binary, card, out, kinds, limit):
     the effect polygon call sites the build recorded (empty for a build without the RPC)."""
     os.environ.update(ROOD_BINARY=binary, ROOD_SYMBOLS=os.environ.get("ROOD_CAST_SYMBOLS", binary), ROOD_HEADLESS="egl",
                       ROOD_RENDERER="vulkan", ROOD_ARCH="64", ROOD_TEST_SNAPSHOTS="0")
+    own_shaders()
     sys.path[:0] = [str(ROOT / "pc/tools"), str(ROOT / "pc/tests")]
     cover(binary)
     from checkpoints import launch_at
@@ -679,7 +690,8 @@ def hashed(g, out, sample, hashes, taken=None, first=None):
                 keep = os.environ.get("BUILD_COMPARE_KEEP")  # (a directory: every sampled frame kept, for looking at a difference)
                 if keep:
                     pathlib.Path(keep).mkdir(parents=True, exist_ok=True)
-                    (pathlib.Path(keep) / f"{os.getpid()}-{len(hashes) - 1:04d}.ppm").write_bytes(shot.read_bytes())
+                    # (--present: the presented picture, present.ppm; else the RPC screenshot's)
+                    (pathlib.Path(keep) / f"{os.getpid()}-{len(hashes) - 1:04d}.ppm").write_bytes(((out / "present.ppm") if PRESENT and not os.environ.get("BUILD_COMPARE_ITEMS") else shot).read_bytes())
                     (pathlib.Path(keep) / f"{os.getpid()}-{len(hashes) - 1:04d}.vsync").write_text(str(g.status()["vsync"]))  # (the game's vsync: what a log of the build says it drew then)
     g.run = stepping
 
@@ -810,7 +822,7 @@ STORY_ROUTES = ("room-001-00-s000", "room-003-00-s000", "evt-0001", "evt-0002", 
 STORY_SETTLE = {"evt-0069": 30}  # vsyncs run before a scene is sampled
 STORY_WARPS = ("room-034-00-s034", "room-032-17-s038")  # the scenes with a border, played again with the screen warp set
 STORY_SCALED = ("room-001-00-s000",)  # the scenes with GIM images, played again with them drawn at another scale
-CHECKPOINT = {"dialogue": "first_bubble", "emote_arrow": "first_bubble", "title": "title", "opening": "title", "opening_events": "title", **{f"story_{i}": "title" for i in STORY_ROUTES}, **{f"story_{i}_warp": "title" for i in STORY_WARPS}, **{f"story_{i}_scaled": "title" for i in STORY_SCALED}}  # (the routes that do not start in the save room)
+CHECKPOINT = {"dialogue": "first_bubble", "emote_arrow": "first_bubble", "title": "title", "opening": "title", "opening_events": "title", "opening_quote": "title", **{f"story_{i}": "title" for i in STORY_ROUTES}, **{f"story_{i}_warp": "title" for i in STORY_WARPS}, **{f"story_{i}_scaled": "title" for i in STORY_SCALED}}  # (the routes that do not start in the save room)
 
 
 def scene_dialogue(g, cp):
@@ -916,6 +928,18 @@ def scene_opening(g, cp):
         g.run(60)
         if step % 4 == 3:
             g.press("circle", vsyncs=2, settle=4)
+
+
+def scene_opening_quote(g, cp):
+    """The opening's quote (JO.GIM, the intro quote of A. J. Durai): New Game from the title (no card: Start), the manor's picture card (the
+    first 15 s), then Start again, which skips the opening to the quote; the quote held on screen (gitea #14: the picture drawn as real text)."""
+    g.run(60)
+    g.press("start", vsyncs=4, settle=90)
+    for _ in range(15):
+        g.run(60)
+    g.press("start", vsyncs=4, settle=0)
+    for _ in range(10):
+        g.run(60)
 
 
 def popups(scale):
@@ -1113,7 +1137,7 @@ SCENES = {"levelled": scene_levelled, "ending": scene_ending, "menuf": scene_men
           "magic": tour("magic"), "arts": tour("arts"), "abilities": tour("abilities"), "data": tour("data"),
           "loot": tour("loot"), "storage": tour("storage"), "dialogue": scene_dialogue, "title": scene_title,
           "gameover": scene_gameover, "damage": popups(1), "damage_x2": popups(2), "actor_word_x2": parity_tour("actor_word", 2),
-          "text_band_x2": parity_tour("text_band", 2), "buff_x2": parity_tour("buff", 2), "transition": scene_transition, "areamap": scene_areamap, "opening": scene_opening, "opening_events": scene_opening_events,
+          "text_band_x2": parity_tour("text_band", 2), "buff_x2": parity_tour("buff", 2), "transition": scene_transition, "areamap": scene_areamap, "opening": scene_opening, "opening_events": scene_opening_events, "opening_quote": scene_opening_quote,
           **{f"script_{z}_{r}": room_script(z, r) for z, r in ((9, 0), (48, 3), (9, 2), (22, 0), (9, 1), (22, 4), (22, 6), (24, 0), (24, 4), (24, 11), (24, 15), (25, 1), (39, 0), (40, 22), (41, 2), (49, 1), (49, 5), (50, 6), (50, 22), (51, 2), (51, 6), (53, 1), (53, 23), (53, 29), (54, 1), (55, 3), (55, 12), (56, 14), (56, 22))}, **{f"story_{i}": story_scene(i) for i in STORY_ROUTES}, **{f"story_{i}_warp": story_scene(i, warp=True) for i in STORY_WARPS}, **{f"story_{i}_scaled": story_scene(i, scaled=3000) for i in STORY_SCALED}, "platforms": platforms(), "forest": weather(40, 0), "rain": weather(48, 1), "snow": weather_kind(2), "fall": weather_kind(4),
           **{n: parity_tour(n) for n in ("gauges", "figure", "status_icons", "battle_mode", "buff", "actor_word", "timer", "text_band",
                                         "target_row", "target_line", "ability_icons")}}
@@ -1135,6 +1159,7 @@ def play_menus(binary, card, out, names, sample, claims, aspect="4:3", extra_env
     """The routes of `names`, each in a game of its own: {route: [display hashes]}."""
     os.environ.update(ROOD_BINARY=binary, ROOD_SYMBOLS=binary, ROOD_HEADLESS="egl", ROOD_RENDERER=renderer, ROOD_ARCH="64",
                       ROOD_TEST_SNAPSHOTS="0")
+    own_shaders()
     sys.path[:0] = [str(ROOT / "pc/tools"), str(ROOT / "pc/tests")]
     cover(binary)
     import classic_parity as cp
@@ -1158,7 +1183,7 @@ def play_menus(binary, card, out, names, sample, claims, aspect="4:3", extra_env
     results = {}
     for name in names:
         card_copy = out / f"card-{name}.mcd"
-        if name in ("dialogue", "emote_arrow", "opening", "opening_events") or name.startswith("story_"):  # (no card: the title's cursor then rests on New Game, the checkpoint's way in)
+        if name in ("dialogue", "emote_arrow", "opening", "opening_events", "opening_quote") or name.startswith("story_"):  # (no card: the title's cursor then rests on New Game, the checkpoint's way in)
             card_copy = out / "no-card.mcd"
         else:
             card_copy.write_bytes(pathlib.Path(card).read_bytes())
@@ -1493,6 +1518,7 @@ def play_audio(binary, card, out):
     """The sound: the fight's room, then room 0 of zone 15 with its script (its entry sound effects), the mix recorded
     to out/audio.wav. Everything the sound drivers do reaches the wav, which no frame or actor field shows."""
     os.environ.update(ROOD_BINARY=binary, ROOD_SYMBOLS=binary, ROOD_HEADLESS="egl", ROOD_RENDERER="vulkan", ROOD_ARCH="64", ROOD_TEST_SNAPSHOTS="0")
+    own_shaders()
     sys.path[:0] = [str(ROOT / "pc/tools"), str(ROOT / "pc/tests")]
     cover(binary)
     from checkpoints import launch_at

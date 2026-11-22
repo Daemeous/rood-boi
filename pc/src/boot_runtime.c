@@ -848,15 +848,8 @@ static void pc_crash(int sig)
     signal(sig, SIG_DFL);
     raise(sig);
 }
-/* psx_set() (pc/src/psx_types.h) was given a host pointer with no 4-byte
- * guest address: a PS1-layout field cannot hold it. Stop with the stack. */
-__attribute__((noreturn)) void pc_psx_bad_pointer(const void* pointer)
-{
-    fprintf(stderr, "[lp64] %p has no guest address (psx_set on a PS1-layout field)\n", pointer);
-    abort(); /* pc_crash prints the stack */
-}
 /* The game's stack on 64 bits. The PS1's stack was guest RAM, and game code
- * keeps addresses of its locals in 4-byte fields (psx_ptr members, guest
+ * keeps addresses of its locals in 4-byte fields (guest
  * words, effect spawn records built on the stack), so the game thread runs on
  * a stack mapped below 2 GB (MAP_32BIT), where every address fits 32 bits. */
 #ifdef _WIN32
@@ -1031,7 +1024,7 @@ static void run_game_on_low_stack(void)
 /* Guest memory at its PS1 addresses (RAM, scratchpad, the I/O page); NULL
  * when a range is taken. */
 /* See psx_types.h: where the game's reads through the original's NULLs land. */
-unsigned char rood_null_page[0x10000] __attribute__((aligned(16)));
+unsigned char pc_null_object[0x10000] __attribute__((aligned(16)));
 /* The port arena's place, for game/common/port_arena.zig (the one definition is psx_types.h's). */
 const uintptr_t rood_arena_base = ROOD_ARENA_BASE;
 const unsigned rood_arena_size = ROOD_ARENA_SIZE;
@@ -1049,16 +1042,16 @@ static void* map_guest(uintptr_t address, size_t size)
 #endif
 }
 #ifndef _WIN32
-/* The scratchpad and the I/O page are part of the image (build_boot.py links
- * this section at 0x1f800000): the kernel starts the heap (brk) at a random
+/* The I/O page is part of the image (build_boot.py links this section at
+ * ROOD_IO_BASE): the kernel starts the heap (brk) at a random
  * point up to 1 GB past the image's end (x86-64), and the pinned game region
- * (snapshot_layout.py) ends a little over 100 MB below 0x1f800000, so the
+ * (snapshot_layout.py) ends a little over 100 MB below it, so the
  * heap the C and C++ runtimes allocate before main covered the pages about
  * once in 5000 launches ("guest mapping: File exists"). Ending the image at
  * them puts the heap above them. */
 __asm__(".section rood_guest_pages,\"aw\",@nobits\n"
         ".balign 4096\n"
-        "pc_guest_pages: .space 0x2000\n"
+        "pc_guest_pages: .space 0x1000\n"
         ".previous");
 extern char pc_guest_pages[];
 #endif
@@ -1114,22 +1107,20 @@ int main(int argc, char** argv)
     void* ram = map_guest(ROOD_GUEST_RAM_BASE, ROOD_GUEST_RAM_SIZE);
     void* arenas = map_guest(ROOD_ARENA_BASE, ROOD_ARENA_SIZE);
 #ifdef _WIN32
-    /* Windows reserves in 64 KB granules: the scratchpad and the I/O page
-     * (below) are one allocation. */
-    void* scratch = map_guest(0x1f800000, 0x2000);
-    void* io = scratch;
+    /* Windows reserves in 64 KB granules: the I/O page is the second 4 KB of its granule's first 8 KB. */
+    void* io_granule = map_guest(ROOD_IO_BASE & ~0xFFFFul, 0x2000);
+    void* io = io_granule;
 #else
-    if (pc_guest_pages != (char*)(uintptr_t)0x1f800000) {
-        fprintf(stderr, "guest mapping: rood_guest_pages is linked at %p, not 0x1f800000 (build_boot.py)\n",
+    if (pc_guest_pages != (char*)(uintptr_t)ROOD_IO_BASE) {
+        fprintf(stderr, "guest mapping: rood_guest_pages is linked at %p, not at the I/O page (build_boot.py)\n",
             (void*)pc_guest_pages);
         return 1;
     }
-    void* scratch = pc_guest_pages;
     /* I/O page: the sound driver writes SPU registers (0x1F801C00..) here;
      * pc/src/audio_spu.cpp synchronises them into the software SPU. */
-    void* io = pc_guest_pages + 0x1000;
+    void* io = pc_guest_pages;
 #endif
-    if (!ram || !arenas || !scratch || !io) {
+    if (!ram || !arenas || !io) {
         perror("guest mapping");
         return 1;
     }

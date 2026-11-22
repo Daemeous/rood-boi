@@ -486,7 +486,7 @@ void vs_boot_initializeGameplayOverlay(int startState __attribute__((unused)))
     DrawSync(0);
     DrawSync(0);
     vs_main_resetSound();
-    vs_main_initHeap((vs_main_HeapHeader*)VS_MAIN_HEAP_ADDRESS, VS_MAIN_HEAP_SIZE);
+    vs_main_initHeap((vs_main_HeapHeader*)ROOD_HEAP_BASE, VS_MAIN_HEAP_SIZE);
     vs_render_legacyPrimitiveBuffers[1] = 0;
     vs_render_legacyPrimitiveBuffers[0] = NULL;
     vs_render_legacyOrderingTables[0] = vs_main_allocHeap(0x2088);

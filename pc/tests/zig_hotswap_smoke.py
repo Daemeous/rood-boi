@@ -31,7 +31,7 @@ FUNCTION = "vs_actors_transformRootOffset"
 # Two bytes at the top of guest RAM, which nothing uses: the edited function writes the first; the
 # live-frame probe uses the second to call VSync once.
 MARK, ONCE = 0x801FFFF0, 0x801FFFF1
-STATE_KEYS = ("ram", "scratch", "io", "state", "overlays", "vram", "vsync")
+STATE_KEYS = ("ram", "heap", "io", "state", "overlays", "vram", "vsync")
 FRAMES = 600
 
 

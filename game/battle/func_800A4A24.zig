@@ -7,7 +7,7 @@ const c = @import("c_3A1A0");
 /// orig: func_800A4A24 (pc/src/game/BATTLE/BATTLE.PRG/3A1A0.c)
 /// Lists the room's platforms (vs_field_collectMovingPlatformPositions) into the C's static table and
 /// returns the entry whose unk6 is `arg0 - 2`. None: PS1 address 0 (the PC C
-/// returns psx.lowRam where the PS1 returned NULL, which callers read).
+/// returns psx.nullObject where the PS1 returned NULL, which callers read).
 /// The PS1 returned a pointer into its stack frame (BUG in the original); the
 /// PC C keeps the table static (the build globalises it: views
 /// func_800A4A24__sp10), so the caller's reads see the listed values.
@@ -20,5 +20,5 @@ pub fn func_800A4A24(arg0: c_int) callconv(.c) ?*v.func_8008D2C0_t {
         const entry = psx.at(table, i);
         if (@as(c_int, entry.unk6) == id) return entry;
     }
-    return @alignCast(psx.lowRam(v.func_8008D2C0_t));
+    return @alignCast(psx.nullObject(v.func_8008D2C0_t));
 }

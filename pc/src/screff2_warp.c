@@ -6,7 +6,7 @@
 #include "view_state.h"
 #include "draw_items.h"
 #include "pc/src/game/GIM/SCREFF2.PRG/0.h"
-extern unsigned short D_80040C18[];
+int pc_root_table(int index); /* boot_sdk.c */
 static unsigned warped_position(unsigned xy, const unsigned short* factors)
 {
     int x = (short)xy - 160, y = (short)(xy >> 16) - 112;
@@ -22,7 +22,7 @@ static unsigned warped_position(unsigned xy, const unsigned short* factors)
         /* Preserve this routine's MIPS variable arithmetic shift, including
          * its masked shift count for tiny nonzero radii. */
         int index = ((int)distance >> ((24 - leading) & 31)) - 64;
-        unsigned value = (unsigned)D_80040C18[index] << (((31 - leading) >> 1) & 31);
+        unsigned value = (unsigned)pc_root_table(index) << (((31 - leading) >> 1) & 31);
         radius = (int)value >> 12;
         if (radius >= 444)
             radius = 443;

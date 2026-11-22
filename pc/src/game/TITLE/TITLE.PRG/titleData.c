@@ -3,7 +3,9 @@
 int _movieWidth = 0;
 int _movieHeight = 0;
 
-u_short _menuItemTextClut[][16] = {
+/* The menu items' palettes: rows 0 and 1 the text, rows 2 and 3 the outline (the game's two arrays lay side by side; the menu reads row 3 as
+ * the second text blend: _setMenuItemClut(.., 1, 3), so they are one table). */
+u_short _menuItemTextClut[4][16] = {
     { vs_getRGB5551(0, 0, 0, 0), vs_getRGB5551(0, 0, 2, 1), vs_getRGB5551(2, 0, 3, 1),
         vs_getRGB5551(3, 0, 4, 1), vs_getRGB5551(6, 0, 0, 1), vs_getRGB5551(9, 1, 0, 1),
         vs_getRGB5551(11, 2, 0, 1), vs_getRGB5551(13, 3, 0, 1),
@@ -18,10 +20,7 @@ u_short _menuItemTextClut[][16] = {
         vs_getRGB5551(31, 21, 10, 1), vs_getRGB5551(27, 22, 15, 1),
         vs_getRGB5551(31, 22, 12, 1), vs_getRGB5551(31, 23, 13, 1),
         vs_getRGB5551(31, 25, 16, 1), vs_getRGB5551(31, 27, 18, 1),
-        vs_getRGB5551(31, 28, 19, 1) }
-};
-
-u_short _menuItemOutlineClut[][16] = {
+        vs_getRGB5551(31, 28, 19, 1) },
     { vs_getRGB5551(0, 0, 0, 0), vs_getRGB5551(0, 0, 1, 1), vs_getRGB5551(0, 0, 4, 1),
         vs_getRGB5551(0, 0, 5, 1), vs_getRGB5551(0, 0, 8, 1), vs_getRGB5551(0, 0, 10, 1),
         vs_getRGB5551(0, 0, 12, 1), vs_getRGB5551(0, 0, 14, 1),

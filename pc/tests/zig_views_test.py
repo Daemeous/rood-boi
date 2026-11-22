@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """pc/tools/zig_views.py: a synthetic unit with bitfields (unsigned chars,
--funsigned-char), a psx_ptr (4 bytes on both builds), a union, arrays, an
+-funsigned-char), a native pointer in a nested struct, a union, arrays, an
 unsized global array, a native pointer, a nested anonymous struct and a packed
 struct is compiled for 32 and 64 bits; its DWARF becomes Zig views (with a
 renamed global, field and bitfield, PORTING.md §16); a C program writes a
@@ -21,7 +21,7 @@ UNIT = r"""
 #include "pc/src/psx_types.h"
 typedef struct { unsigned char lo : 3; unsigned char hi : 5; signed char s : 4; } Bits;
 typedef struct Node Node;
-struct Node { psx_ptr(Node) next; short x, y; };
+struct Node { Node* next; short x, y; };
 typedef struct {
     char id;
     Bits bits;
@@ -46,7 +46,7 @@ int main(void) {
     memset(&rec, 0, sizeof rec);
     rec.id = 200; rec.bits.lo = 5; rec.bits.hi = 17; rec.bits.s = -3;
     rec.u.h[0] = 0x1234; rec.u.h[1] = -2; rec.arr[2] = 77;
-    rec.native = (Node*)(unsigned long)0x4000; psx_set_raw(rec.node.next, Node*, 0x1000);
+    rec.native = (Node*)(unsigned long)0x4000; rec.node.next = (Node*)(unsigned long)0x1000;
     rec.node.y = -9; rec.inner.z = 123456; rec.wide = -5;
     for (unsigned i = 0; i < sizeof rec; i++) printf("%u,", ((unsigned char*)&rec)[i]);
     return 0;

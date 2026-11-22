@@ -899,6 +899,68 @@ in each layer), so the texels they share stop taking whichever baked last. `shot
 (texture, group) (`object {groups}`, scoped to the room), which is what gives the group its variant (Materials by object);
 a texture on a single group keeps one entry and its maps in `<key>/` as before.
 
+### Metal and roughness from the colours (Gitea #20 step 3): an optional seed, off by default
+
+`room_blender.json` `metal.enabled` is false: maps are painted in a painter (next section). Set it true to seed `import` with this guess.
+
+`import` also writes `metal.png` (and the metal's own roughness into `roughness.png`) for a texture whose colours look like metal:
+`room_blender.json` `metal` lists the materials as colour windows (hue, saturation, luminance with a soft edge) and, for
+`neutral` ones, the greys of a texture that also has colour (iron bands over brown planks, studs on a door: a texture grey all
+over is stone). A texture takes the map only when metal texels are `min_share` to `max_share` of it, pieces under `min_area`
+texels or `despeckle` neighbours go, and the geometry shapes it: worn edges polish (`wear_boost`, `rough_wear`), crevices dirty
+(`cavity_drop`, `rough_cavity`). Colour is a weak signal (the first room: 8 of 484 baked textures, the chest's bands and a few
+barrels): the windows are data to tune, and `shot --light-at X,Y` puts a light beside a spot on each side (`highlights.png`: before
+above, after below; `*-spec-*.png`: the specular lobe alone) to look at the result.
+
+In the renderer a metal texel's specular fraction is full (`emissive.cpp` make_stamp: the cell's specular is the larger of the entry's
+and its metal): F0 is albedo x specular, so an entry's dielectric 0.3 had made baked iron a dull third of itself. Roughness and metal
+planes feed the raster lighting (GGX lobe, baked light reflected as the environment) and the traced reflections alike; `material
+pick` now also says where the pick landed (`world`).
+
+## Painting the maps in a painter
+
+Metal, roughness, normals and occlusion are painted in a texture-painting program on the whole mesh, not in the dev tools. The
+round trip is glTF 2.0 with the PBR metallic-roughness material and PNG textures, which both open-source painters take:
+
+- **TextureCraft** (github.com/storytold/texturecraft, Rust): reads glTF/GLB, FBX, COLLADA, USD, Alembic, OBJ, PLY, STL; writes PNG,
+  JPEG, TGA, TIFF, BMP, WEBP, EXR and HDR at 8, 16 or 32 bits through an output template with channel packing, and textured
+  OBJ/GLB/USD. Its README does not say how the PBR maps are named or packed: set the template to the names below.
+- **SubCraft** (github.com/Aalzard/subcraft, Rust): imports OBJ, glTF/GLB, FBX, USD, Alembic, PLY, STL and "a whole texture set matched
+  by file name"; exports texture sets through templates (PBR metal/rough, Unreal ORM, Unity, Godot 4, glTF) and the scene as OBJ,
+  glTF, GLB or USDA.
+- Blender's texture paint also works.
+
+glTF covers both: they read the mesh and material from it, and what they write back is PNG files per texture set, which is what
+`import` reads. (Nothing needed adding for them; if a painter names its maps differently, `ALIASES` in `paint_roundtrip.py` is the
+list.) Both can paint at 8 bits; the maps are 8-bit.
+
+**Steps**
+
+1. Start the game and go to the room (or have the model on screen). From the repository root:
+   `python3 pc/tools/paint_roundtrip.py export room --out pc/user/paint/my-room` (a model: `export model --model 4b8870d7`, the hash
+   in `material pick`'s object text without the m, or `--model-at X,Y` for a pixel of the view). To start the normal maps from the
+   geometry bake the game shows, add `--bake <room_blender out>/materials` (or set `ROOD_MATERIALS_BAKED` as you run the game).
+2. Open `paint.gltf` in the painter. A material per object and texture: `<texture>_g<group>` for a room (a texture used by several
+   room groups has an image set for each, so each object owns its texels), one `m<model>_p<page>_c<palette>` atlas per page of a model.
+   Its base colour is the game's texture texel for texel (set the painter's sampling to nearest); `tex/` holds BaseColor,
+   MetallicRoughness (G roughness, B metal), Normal and Occlusion images, seeded from the maps the game has (or neutral).
+3. Paint metallicRoughness, normal and occlusion. Do not edit the base colour (it is not imported) and keep the resolution, or a
+   whole multiple of it.
+4. Save the glTF where it was (its images next to it), or export the texture set as PNGs into the folder named `<material>_<Map>.png`
+   (BaseColor, Roughness, Metallic, Normal, AO, or ORM / OcclusionRoughnessMetallic / MetallicRoughness packed).
+5. `python3 pc/tools/paint_roundtrip.py import pc/user/paint/my-room`. Each map that differs from its seed becomes the user layer's map
+   of that object (`<user lighting>/materials/<texture>/@<object>/metal.png`, `roughness.png`, `normal.png` with `normal_x.png` and
+   `normal_y.png`, `occlusion.png`) and a user catalog entry (`PT-<texture>-<object>`, preset stone: change it in Details >
+   Material) makes the object use them; the user layer wins over the baked one.
+6. With the game running, the maps and the entry show without a reload (the game watches those files). Paint, import, look.
+
+An export imported without painting changes nothing: only maps that differ from the seed are written, and the seed copies in `seed/`
+are never edited. The geometry-based normals (`normal.png` of the bake) are the seed of the normal map, so the relief the owner likes
+stays where nothing is painted over it (the game reads that relief from the bake's `height.png`, which an import never writes); a
+painted normal replaces the relief of its object (the game reads `normal_x.png` and `normal_y.png` from the user layer only, and
+uses them in place of the height, with the strength recorded in `normal.json` beside them: the bake's `maps.normal_strength`, so the two cannot drift). The occlusion map is kept for other tools: the game does not read it yet. Everything exported is
+game art: it stays in `pc/user` or `pc/build`, never in git.
+
 ## Baked maps
 
 The textures carry no height, roughness or metal of their own, so

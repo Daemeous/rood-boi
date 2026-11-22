@@ -39,6 +39,7 @@ enum {
     PC_UI_TEXT_DIGITS,
     PC_UI_TEXT_STATUS,
     PC_UI_TEXT_LABELS,
+    PC_UI_TEXT_PICTURES, /* the words of the GIM pictures of text drawn as real text (gim_text.cpp; ui_text_pictures_*) */
     PC_UI_TEXT_STYLES
 };
 typedef struct {
@@ -265,6 +266,42 @@ void pc_ui_text_get_stats(pc_ui_text_stats* s);
  * leading or trailing); other control bytes and pictographs are skipped.
  * Returns the UTF-8 length. For the modern menus (pc/src/ui). */
 int pc_ui_text_decode(const unsigned char* text, int max_bytes, char* out, int out_size);
+
+/* Lines of a picture of text drawn as real text (gim_text.cpp, gitea #14). The game's picture drawer (vs_render_drawGimTiles and the
+ * scanline wipe) makes a sprite item per line (a carrier: 1 x 1, the texels PC_PICTURE_U / V and CLUT PC_PICTURE_CLUT) at the place the
+ * picture is drawn in the ordering table and registers its command word with the line: the hardware path draws the line's glyph image
+ * there instead (anti-aliased at any resolution, coloured by the fill, in the game's draw order: its brightness, the wipes and the fades
+ * the game draws over the picture apply to it). A line of one picture, the screen's PS1 pixels (the picture's mapping, before the
+ * window's); the fill runs in the same pixels. */
+#define PC_PICTURE_U 254
+#define PC_PICTURE_V 255
+#define PC_PICTURE_CLUT 0xFFFE
+typedef struct {
+    char text[192];           /* UTF-8 */
+    int plain;                /* ordinary case, not small capitals */
+    float caps;               /* a small capital's height against a capital's (0: none) */
+    float size;               /* the words' width against the line's box (1: as wide) */
+    float box[4];             /* the line's box: x0, y0, x1, y1 */
+    int linear, per_line;     /* fill: a gradient (else flat), the gradient per line (else across `block`) */
+    float angle, strength;    /* degrees (0: left to right), 0 the average colour .. 1 the stops */
+    int nstops;
+    float pos[8];             /* stops: position 0..1 */
+    unsigned colour[8];       /* 0xRRGGBB */
+    float block[4];           /* the fill's block: all the picture's lines together */
+    float clip[2];            /* a wide line is set as pieces (an image is at most 255 texels across): this piece's x range, PS1 pixels (clip[1] <= clip[0]: all) */
+} pc_ui_picture_line;
+typedef struct {
+    int image;                /* the line's glyph image (ui_upscale: pc_ui_text_image_*) */
+    float x, y;               /* its top-left in PS1 pixels */
+    int w, h;                 /* its texels */
+    int col0, col1, row0, row1; /* the part of it this carrier draws (a wipe's slice of a scanline) */
+} pc_ui_picture_quad;
+/* The carrier whose command word is `command` draws `line` (the part [col0, col1) x [row0, row1) of its image; col1 <= col0: all). */
+void pc_ui_text_picture_add(const void* command, const pc_ui_picture_line* line, int col0, int col1, int row0, int row1);
+/* The image's box on screen for `line`, as the layout makes it (the caller sizes a wipe's slices by it); 0: the font cannot set it. */
+int pc_ui_text_picture_extent(const pc_ui_picture_line* line, float* x, float* y, int* w, int* h);
+/* gpu_hw.c: the carrier sprite with this command word, texels and CLUT: its quad; 0: not a carrier (or too old). */
+int pc_ui_text_picture_quad(const void* command, int u, int v, int w, int h, unsigned clut, pc_ui_picture_quad* quad);
 
 /* Distance texels: what ui_text.c and button_prompts.c put in the 2D atlas
  * for text and icons (PS1 colours, 0..0xffff, are MMPX's), so the hardware

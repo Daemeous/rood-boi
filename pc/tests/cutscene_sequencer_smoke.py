@@ -112,7 +112,7 @@ def main():
         check(cs()["frame"] == frame, "photo restoration leaves the capture boundary unchanged")
         check(True, "clean lighting capture restores photo ownership, visibility and camera")
         state_after = game.call("snapshot", action="hash")
-        check(all(state_after[k] == state_before[k] for k in ("ram", "scratch", "io", "overlays", "vram")),
+        check(all(state_after[k] == state_before[k] for k in ("ram", "heap", "io", "overlays", "vram")),
               "clean lighting capture preserves game state hashes")
         # Lossless RGB conversion lets the existing PPM comparison inspect every
         # pixel while retaining the original PNG as a capture artifact.
@@ -256,7 +256,7 @@ def main():
                   f"re-enabling starts from the original game camera ({initial} -> {restored})")
             cs(action="camera", on=False)
         state_after = game.call("snapshot", action="hash")
-        check(all(state_after[k] == state_before[k] for k in ("ram", "scratch", "io", "overlays", "vram")),
+        check(all(state_after[k] == state_before[k] for k in ("ram", "heap", "io", "overlays", "vram")),
               "free camera navigation leaves game state hashes unchanged")
         key("f1", True)
         key("f1", False)

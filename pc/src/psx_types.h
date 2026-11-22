@@ -1,46 +1,16 @@
-/* Guest-pointer and layout helpers for the 64-bit (LP64) port.
+/* Layout helpers and the guest memory's extents for the 64-bit (LP64) port.
  *
- * Why: under LP64 a pointer is 8 bytes, so every struct that overlays PS1
- * data (the original image, disc files, the scratchpad, save data) would
- * shift every field after a pointer. Those structs keep the PS1 layout and
- * store a 4-byte guest address instead: guest memory stays mapped low
- * (RAM at 0x80000000, scratchpad at 0x1F800000), so a zero-extended guest
- * address is a valid host pointer and the accessors cost nothing. Structs
- * the game builds itself (runtime state) take the native layout instead,
- * with their literal sizes and offsets replaced by PSX_SIZE/PSX_OFFSET.
+ * Structs that overlay PS1 data (disc files, save data) keep the PS1 layout; a pointer in a struct the game builds itself is a native
+ * pointer (the 4-byte guest pointer words and their psx_ptr/psx_get/psx_set accessors are gone: no struct holds one). PSX_SIZE and
+ * PSX_OFFSET give a literal the original wrote its native value, and PSX_ASSERT_SIZE/OFFSET fail the build, not memory, where a layout
+ * is load-bearing:
  *
- * The header is safe to include from matched src/ code: on the PS1 (and the
- * 32-bit PC build) psx_ptr(T) is plain T*, the accessors are the identity
- * and PSX_SIZE/PSX_OFFSET expand to the original literal, so objects stay
- * byte-identical. Only an LP64 ROOD_PC build sees the 4-byte type.
- *
- *   typedef struct {
- *       psx_ptr(struct Node) next;    // 4 bytes on every target
- *       short x, y;
- *   } Node;                           // PS1 layout: 8 bytes
  *   PSX_ASSERT_SIZE(Node, 8);
  *   PSX_ASSERT_OFFSET(Node, x, 4);
- *
- *   Node* n = psx_get(node->next);    // read: node->next on the PS1
- *   psx_set(node->next, other);       // write: node->next = other
- *   psx_postinc(p->cursor);           // p->cursor++ (psx_add: +=)
- *   psx_set_raw(p->next, Node*, addr); // p->next = (Node*)addr
- *   u_int a = psx_to_int(u_int, n);    // (u_int)n, n a guest address
- *   n = psx_to_ptr(Node*, a);          // (Node*)a, zero-extended
- *   n = psx_load(Node*, buf + 8);      // a guest pointer stored at buf + 8
- *   psx_store(buf + 8, n);             // store one there
  *   vs_main_bzero(state, PSX_SIZE(State, 0xC4));        // runtime struct
  *   p = (u8*)actor + PSX_OFFSET(Actor, position, 0x34); // byte offsets
  *
- * psx_ptr fields of separately declared structs are distinct C types: copy
- * one into another with psx_copy(dst, src) rather than plain assignment.
- * Declare one field per psx_ptr(T) (on the PS1 "psx_ptr(T) a, b;" would make
- * b a T). Use PSX_ASSERT_* at file scope only.
- *
- * The LP64 branch is chosen by ROOD_PC_LP64, which build_boot.py --arch 64
- * passes, not by __LP64__: src/ is preprocessed without -m32, so host
- * macros do not describe the target. The header includes nothing, because
- * src/ is preprocessed with -nostdinc against the PS1 SDK headers.
+ * The header includes nothing, because src/ is preprocessed with -nostdinc against the PS1 SDK headers.
  */
 #ifndef ROOD_PSX_TYPES_H
 #define ROOD_PSX_TYPES_H
@@ -50,6 +20,9 @@
  * in the first 4 GB of the host for natively placed objects). */
 #define ROOD_GUEST_RAM_BASE 0x80000000
 #define ROOD_PS1_RAM_SIZE 0x200000
+/* The hardware registers' page (SPU, DMA, root counters: the sound driver and libpress write them by address): one 4 KB page in the host image,
+ * written by the game and read by pc/src/audio_spu.cpp. The scratchpad below it (0x1F800000) is gone: its overlays are native objects. */
+#define ROOD_IO_BASE 0x1F801000u
 /* The guest window: the PS1's 2 MB, where the original's executable, overlays and statics sit. */
 #define ROOD_GUEST_RAM_SIZE ROOD_PS1_RAM_SIZE
 /* The arenas (memory lane S4, S6): the game heap and the port arena live in their own mapping, at an address we
@@ -74,119 +47,10 @@ static inline int rood_guest_memory(__UINTPTR_TYPE__ address, __UINTPTR_TYPE__ s
         || (in_arena < ROOD_ARENA_SIZE && size <= ROOD_ARENA_SIZE - in_arena);
 }
 
-#if defined(ROOD_PC_LP64) /* only the PC passes it */
-
-/* A 4-byte, 4-aligned guest address that remembers its target type T. The
- * zero-length member costs no storage; only its type is used. */
-#define psx_ptr(T)                                                             \
-    struct __attribute__((packed, aligned(4))) {                               \
-        __UINT32_TYPE__ raw;                                                   \
-        T* psx_type_[0];                                                       \
-    }
-
 /* Where the PC C reads (and clears) fields through what the original left NULL
  * (the PS1's physical address 0): 64 KiB of zeroes, defined in boot_runtime.c,
  * the same page the Zig side's psx.lowRam hands out. */
-extern unsigned char rood_null_page[0x10000];
-
-/* Called when native code stores a host pointer that has no guest address
- * (above 4 GB); provided by the runtime. */
-extern void pc_psx_bad_pointer(const void* pointer)
-    __attribute__((noreturn));
-
-static inline __UINT32_TYPE__ psx_addr(const void* pointer) {
-    __UINTPTR_TYPE__ value = (__UINTPTR_TYPE__)pointer;
-    if (value >> 32) {
-        pc_psx_bad_pointer(pointer);
-    }
-    return (__UINT32_TYPE__)value;
-}
-
-#define psx_get(field)                                                         \
-    ((__typeof__((field).psx_type_[0]))(__UINTPTR_TYPE__)(field).raw)
-/* The unevaluated assignment to a T* keeps the type check (and warnings) a
- * plain assignment has; a conditional would also reject char* -> u_char*. */
-#define psx_set(field, pointer)                                                \
-    ((void)sizeof((__typeof__((field).psx_type_[0])){0} = (pointer)),          \
-     (field).raw = psx_addr(pointer))
-#define psx_copy(dst, src) ((dst).raw = (src).raw)
-#define psx_raw(field) ((field).raw)
-/* field++ and field += n: pointer arithmetic in units of T, same results;
- * field is evaluated once. */
-#define psx_postinc(field)                                                     \
-    ({                                                                         \
-        __typeof__(&(field)) psx_f_ = &(field);                                \
-        __typeof__(psx_get(*psx_f_)) psx_old_ = psx_get(*psx_f_);              \
-        psx_set(*psx_f_, psx_old_ + 1);                                        \
-        psx_old_;                                                              \
-    })
-#define psx_add(field, n)                                                      \
-    ({                                                                         \
-        __typeof__(&(field)) psx_f_ = &(field);                                \
-        __typeof__(psx_get(*psx_f_)) psx_new_ = psx_get(*psx_f_) + (n);        \
-        psx_set(*psx_f_, psx_new_);                                            \
-        psx_new_;                                                              \
-    })
-/* field = (T)value for a guest address held as an integer (or a pointer
- * already known to be a guest address): stored without the range check.
- * T must be the field's pointer type. */
-#define psx_set_raw(field, T, value)                                           \
-    ((void)sizeof(0 ? (field).psx_type_[0] : (T)0),                            \
-     (T)(__UINTPTR_TYPE__)((field).raw                                         \
-                           = (__UINT32_TYPE__)(__UINTPTR_TYPE__)(value)))
-
-/* (T)integer and (T)pointer for guest addresses kept in 32-bit integers
- * (sound command parameters, offsets added to a pointer's address): the
- * integer is zero-extended (a sign-extended 0x80000000 would be a bad
- * pointer) and the pointer is checked to have a guest address. */
-#define psx_to_ptr(T, value)                                                   \
-    ((T)(__UINTPTR_TYPE__)(__UINT32_TYPE__)(value))
-#define psx_to_int(T, pointer) ((T)psx_addr(pointer))
-#else /* PS1, or the 32-bit PC build: pointers are already 4 bytes. */
-
-#define psx_ptr(T) T*
-#define psx_get(field) (field)
-#define psx_set(field, pointer) ((field) = (pointer))
-#define psx_copy(dst, src) ((dst) = (src))
-#define psx_raw(field) ((unsigned long)(field))
-#define psx_postinc(field) ((field)++)
-#define psx_add(field, n) ((field) += (n))
-#define psx_set_raw(field, T, value) ((field) = (T)(value))
-#define psx_to_ptr(T, value) ((T)(value))
-#define psx_to_int(T, pointer) ((T)(pointer))
-
-#endif
-
-/* A guest pointer stored at a byte address, for port code that reads PS1
- * layouts by offset (the translated BATTLE assembly: `*(T*)(base + 0x68)`,
- * scratchpad slots): the word is 4 bytes on every target, so load it as a
- * u32 and widen it, never as a host pointer.
- *   cb = psx_load(int (*)(void*), base + 0x68);  // *(int (**)(void*))(base + 0x68)
- *   psx_store(base + 0x18c, record);             // *(void**)(base + 0x18c) = record
- * On ILP32 both are exactly the pointer-typed load and store. */
-#define psx_load(T, address)                                                   \
-    psx_to_ptr(T, *(const __UINT32_TYPE__*)(const void*)(address))
-#define psx_store(address, pointer)                                            \
-    ((void)(*(__UINT32_TYPE__*)(void*)(address)                                \
-             = psx_to_int(__UINT32_TYPE__, pointer)))
-
-/* The k-th 4-byte guest pointer word from base, for game code that reads and
- * writes PS1 pointer slots through T** (the AI state table in vs_pad, the
- * ordering table's own entries). On the
- * PS1 and the 32-bit build they are exactly the original `((T*)(base))[k]`
- * (so matched code compiles the same); under LP64 the stride stays 4 bytes.
- *   state = psx_slot_get(vs_battle_aiState*, PC_PAD(0x37C), id); // *(T**)...
- *   psx_slot_set(void*, entry, 0, poly + 1);                    // entry[0] = ...
- * base may be an integer address or any pointer. */
-#if defined(ROOD_PC_LP64) /* only the PC passes it */
-#define psx_slot_get(T, base, k)                                               \
-    psx_load(T, (__UINTPTR_TYPE__)(base) + 4 * (k))
-#define psx_slot_set(T, base, k, value)                                        \
-    psx_store((__UINTPTR_TYPE__)(base) + 4 * (k), (T)(value))
-#else
-#define psx_slot_get(T, base, k) (((T*)(base))[k])
-#define psx_slot_set(T, base, k, value) (((T*)(base))[k] = (value))
-#endif
+extern unsigned char pc_null_object[0x10000];
 
 /* The SDK's long: 32 bits on the PS1. The 64-bit build reads the SDK headers
  * with long spelled int (pc/include/psx_sdk_long_begin.h), so port code that

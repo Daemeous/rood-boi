@@ -51,7 +51,7 @@ from checkpoints import launch_at  # noqa: E402
 SCALE = int(os.environ.get("ROOD_TEST_SCALE", "1"))
 
 M, N, A = 300, 600, 140  # marks every 30 frames: M is a mark, A is not
-STATE_KEYS = ("ram", "scratch", "io", "overlays", "vram")
+STATE_KEYS = ("ram", "heap", "io", "overlays", "vram")
 
 
 def main():

@@ -1426,6 +1426,9 @@ pixel's corner as the PS1 does, not one past the image (`pc_hw_set_flipped_uv`).
 | `ui_text_word_space`, `ui_text_edge_margin`, `ui_text_popup_scale` | 1.5, 0.15, 1 | line layout's space (x the font's), the PS1 pixels an outline's anti-aliased edge keeps from the box the game draws it in, the battle number popups' size |
 | `ui_text_info_words`, `ui_text_info_slack`, `ui_text_info_tracking` | 1, 0.5, 0.75 | with `ui_text font`: the menus' small-capital labels (WEAPON, UNDEAD, ATTACK/STR) set as words with the font's own spacing (0: letter by letter in the game's boxes), the PS1 pixels such a word may run past the game's before it is condensed, the most PS1 pixels a gap is opened towards the game's width (below) |
 | `ui_text_descender_lift` | 1 | 0..1: the HUD digits (old-style figures: 3 4 5 7 9 descend) rise together by this much of the room their deepest descender lacks below the baseline, into the room above them, so the figures keep their shape; what is still lacking is squeezed (0: squeezed only, a 5's bowl flattened) |
+| `gim_text`, `gim_text_size`, `gim_text_caps` | 1, 1, 0.8 | with `ui_text font`, the pictures of text the game stores as images (GIM: the intro quote, the briefing pages, the staff cards) drawn as real text from the player's text pack (below): on/off, the words' width against the picture's line (1: as wide), the small capitals' height against the capitals' (0: none). The font, weight and spacing are the `pictures` style (`ui_text_pictures_font`, `_embolden`, `_stretch`, ...; Graphics > 2D / UI > HUD typography). A picture with no pack is drawn as the game draws it, and `ui_text original` always is |
+| `gim_text_gradient` | 1 | 0..1: how much of the fill's colour variation is used (0: the fill's average colour everywhere, 1: as the fill says) |
+| `gim_text_fill`, `gim_text_fill_force` | none, 0 | a fill (below) for pictures, set globally: `[NAME-or-glob=]fill; ...` (an entry with no `NAME=` is for every picture; `STAFF*=` for the staff cards); used where the picture's pack has no fill, or over the pack's too with `gim_text_fill_force 1`. Also settings RPC keys, and the Graphics panel's "Pictures of text (GIM)" (Fill, "Fill wins over the pack's"); live, no restart |
 | `ui_lines` | `joined` | 2D lines (GP0 0x40-0x5F: the map, the minimap, the targeting sphere, talk bubble outlines) at the internal resolution. `joined`: one PS1 pixel thick at any scale, joins closed, no light dots along outlines (below). `legacy`: the earlier one-pixel quads, for comparison |
 | `ui_outline_boost` | 0 | 2D lines (and vector bubble outlines) 0-3 output pixels thicker: a bolder inked look |
 | `ui_bubbles` | `original` | `original`: talk bubbles drawn from the game's packets. `vector`: each bubble the game builds drawn as one smooth shape, the emote bubbles over actors too (below) |
@@ -1433,6 +1436,37 @@ pixel's corner as the PS1 does, not one past the image (`pc_hw_set_flipped_uv`).
 | `ui_menu_opacity` | 0.94 | modern menus: the backdrop's opacity over the game (0..1; panels scale with it); 0.94 is the theme's own |
 | `ui_menu_tint` | `lea_monde` | modern menus: the backdrop and panel colour: `lea_monde` (the theme file's own colours), `classic`, `slate`, `crimson`, `verdant` or `custom` (or 0..5) |
 | `ui_menu_tint_custom` | `8 7 7` | red, green and blue, 0..31 each (clamped), used when `ui_menu_tint` is `custom` |
+
+#### Pictures of text (GIM): the text pack and the fill
+
+The game stores some of its text as pictures (`data/GIM/*.GIM`: the intro quote JO, the briefing pages DEMO_*, the staff cards STAFF*). With `ui_text font`
+and a text pack for a picture, the game leaves out the picture's words (only the pixels inside the pack's line boxes: ornaments such as the staff cards'
+rule stay) and draws them as real text at the same places, whatever the resolution. The pack is the player's own and stays out of the repository
+(`pc/user/gim_text/<NAME>.txt`, or the directory `ROOD_GIM_TEXT` names): it holds the game's text.
+
+`python3 pc/tools/gim_text_pack.py [--ocr auto|off] NAME ...` (`JO DEMO_001 STAFF*`) writes it from the player's own disc files: per image the boxes
+of its lines of ink, their words (tesseract's guess when it is installed: yours to correct), and a default fill. Whatever you edit by hand wins and survives
+re-runs: a line's words are kept while its box is the same, a `fill` line without `measured` is kept as written. The pack is re-read as it changes (about once
+a second), so edits show without a restart.
+
+    [1]                                       the image of the file (0: the first)
+    fill linear angle=0 scope=block strength=1 measured | 0:3b1c05 0.46:72380c 0.52:d16a14 0.6:803f0e 1:542908
+    line 56 23 270 33 | The body is but a vessel for the soul,      the box in the image's pixels, its words (a leading ~: ordinary case, not small capitals)
+
+Everything in a pack is in the picture's own pixels, once: the boxes and, from them, the fills' extents. The words are drawn where the game draws the picture, through the
+mapping it draws the picture with (the 320 x 240 screen compressed into the view's 4:3 area, centred, as the picture's own tiles are), so 4:3 and 16:9 differ only in that
+transform and the words' size follows the picture's scale on screen; there is no per-aspect data. The words are items in the game's draw order (a one-pixel carrier sprite per line
+in the ordering table, replaced by the line's glyph image as the game's own text is, with `ui_text_overlay` choosing the window's resolution or the internal one): the game's
+brightness, its scanline wipes and the fades and veils it draws over a picture apply to them, with no case for any screen.
+
+A **fill** says how the words are coloured; it is data, and the renderer has no cases for particular pictures. `type [angle=N] [scope=S] [strength=X] | stops`:
+`type` is `flat` (the first stop's colour) or `linear` (a gradient; room is left for `radial`), `angle` is in degrees (0: left to right, 90: top to bottom;
+default 0), `scope` is `block` (the gradient runs across all of the picture's lines together; default) or `line` (each line on its own), `strength` 0..1 is
+how much of the stops' variation is used (0: their average; multiplied by `gim_text_gradient`), and the stops are `position:rrggbb` (position 0..1) in any
+number, or a lone `rrggbb` for a flat fill. The measuring tool writes a flat fill when the ink's colour hardly varies across the block (the quote) and otherwise
+a left-to-right `linear` one fitted (up to five stops) to the median ink colour of each column (the staff cards: a bright band through the middle), and marks it
+`measured`. `gim_text_fill` (settings, RPC `gim_text_fill`, the Graphics panel) sets one for all pictures or per name or glob, below the pack's own fill or,
+with `gim_text_fill_force`, over it.
 
 Nothing is shipped: each region a 2D primitive samples (texture page, CLUT,
 texel rectangle) is decoded from the game's own VRAM when drawn and

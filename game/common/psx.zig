@@ -1,5 +1,5 @@
 //! Guest memory helpers for owned code (pc/docs/Ownership.md): the PS1's
-//! 4-byte guest pointers, bitfields at DWARF positions, C's integer
+//! pointer-field accessors, bitfields at DWARF positions, C's integer
 //! conversions, and guest/host globals reached the way GCC's objects reach
 //! them (PC-relative, no .refptr stubs on Windows).
 const std = @import("std");
@@ -12,51 +12,11 @@ pub fn GuestPtr(comptime T: type) type {
     return if (@alignOf(T) > 4) *align(4) T else *T;
 }
 
-/// A PS1-layout pointer field: the guest address in 4 bytes on every target.
-pub fn Ptr(comptime T: type) type {
-    return extern struct {
-        raw: u32 align(4),
-        pub const Target = T;
-        pub fn ptr(self: @This()) ?GuestPtr(T) {
-            return if (self.raw == 0) null else @ptrFromInt(self.raw);
-        }
-        pub fn set(self: *@This(), p: ?GuestPtr(T)) void {
-            self.raw = addr(p);
-        }
-    };
-}
-
-/// A pointer as a guest address (psx_types.h psx_addr): fatal above 4 GB.
-pub fn addr(p: anytype) u32 {
-    const value: usize = switch (@typeInfo(@TypeOf(p))) {
-        .null => 0, // a literal `null` (psx_set(field, NULL))
-        .optional => if (p) |q| @intFromPtr(q) else 0,
-        else => @intFromPtr(p),
-    };
-    if (comptime @sizeOf(usize) > 4) {
-        if (value > std.math.maxInt(u32)) badPointer(value);
-    }
-    return @truncate(value);
-}
-
-extern fn pc_psx_bad_pointer(pointer: usize) callconv(.c) noreturn;
-fn badPointer(value: usize) noreturn {
-    pc_psx_bad_pointer(value);
-}
-
-fn GetResult(comptime F: type) type {
-    return switch (@typeInfo(F)) {
-        .optional, .pointer => F,
-        .@"struct" => if (@hasDecl(F, "Target")) ?GuestPtr(F.Target) else @compileError("psx.get: " ++ @typeName(F) ++ " is not a pointer field"),
-        else => @compileError("psx.get: " ++ @typeName(F) ++ " is not a pointer field"),
-    };
-}
-
-/// psx_get: a native pointer or a 4-byte guest pointer's target.
-pub fn get(field: anytype) GetResult(@TypeOf(field)) {
+/// psx_get: a pointer field's value (the fields are native pointers; the name is the original's).
+pub fn get(field: anytype) @TypeOf(field) {
     return switch (@typeInfo(@TypeOf(field))) {
         .optional, .pointer => field,
-        else => field.ptr(),
+        else => @compileError("psx.get: " ++ @typeName(@TypeOf(field)) ++ " is not a pointer field"),
     };
 }
 
@@ -181,50 +141,33 @@ pub inline fn weak(comptime F: type, comptime name: []const u8) ?F {
     ));
 }
 
-/// psx_set on a pointer field: a native pointer field takes the pointer, a
-/// psx_ptr field its guest address (psx_addr: fatal above 4 GB).
+/// psx_set on a pointer field: the pointer, at the field's own alignment (a literal null clears an optional field).
 pub fn put(field: anytype, p: anytype) void {
     const F = @typeInfo(@TypeOf(field)).pointer.child;
     if (@TypeOf(p) == @TypeOf(null)) {
         switch (@typeInfo(F)) {
             .optional => field.* = null,
-            .pointer => @compileError("psx.put: null into a non-optional pointer field"),
-            else => field.raw = 0,
+            else => @compileError("psx.put: null into a non-optional pointer field"),
         }
         return;
     }
     switch (@typeInfo(F)) {
         .optional, .pointer => field.* = @ptrCast(@alignCast(p)),
-        else => field.raw = addr(p),
+        else => @compileError("psx.put: " ++ @typeName(F) ++ " is not a pointer field"),
     }
 }
 
-/// psx_copy: one pointer field into another as stored, never made a
-/// pointer on the way (a stale guest link need not be aligned).
+/// psx_copy: one pointer field into another as stored.
 pub fn copy(dst: anytype, src: anytype) void {
-    switch (@typeInfo(@TypeOf(src))) {
-        .optional, .pointer => dst.* = src,
-        else => dst.raw = src.raw,
-    }
+    dst.* = src;
 }
 
-/// psx_raw: a psx_ptr field's 4-byte guest address, a native field's address.
-pub fn rawOf(field: anytype) u32 {
-    return switch (@typeInfo(@TypeOf(field))) {
-        .optional, .pointer => addr(field),
-        else => field.raw,
-    };
-}
-
-/// Where the host maps the PS1's 2 MB of main RAM (T12; psx_types.h ROOD_GUEST_RAM_BASE).
-pub const guest_ram_base: u32 = 0x80000000;
-
-/// The 64 KiB of zeroes (rood_null_page, boot_runtime.c) where the PC C's
+/// The 64 KiB of zeroes (pc_null_object, boot_runtime.c) where the PC C's
 /// safety guards read instead of NULL: the original read PS1 address 0
 /// (PORTING.md §5.3). One page, shared with the C.
 var test_null_page: [0x10000]u8 align(16) = std.mem.zeroes([0x10000]u8);
-pub inline fn lowRam(comptime T: type) *align(1) T {
-    return @ptrCast(if (builtin.is_test) &test_null_page else Global([0x10000]u8, "rood_null_page").ptr());
+pub inline fn nullObject(comptime T: type) *align(1) T {
+    return @ptrCast(if (builtin.is_test) &test_null_page else Global([0x10000]u8, "pc_null_object").ptr());
 }
 
 /// Struct names, one per line (or `raw`: base types of one byte, void, integers), that `byteAt` rejects at
@@ -344,16 +287,6 @@ pub fn cptr(comptime CT: type, p: anytype) [*c]CT {
     return if (comptime have >= need) @ptrCast(p) else @ptrCast(@alignCast(p));
 }
 
-test "Ptr is 4 bytes and round-trips a low address" {
-    const Node = extern struct { next: Ptr(u32), x: i16, y: i16 };
-    try std.testing.expectEqual(@as(usize, 8), @sizeOf(Node));
-    try std.testing.expectEqual(@as(usize, 4), @offsetOf(Node, "x"));
-    var n = Node{ .next = .{ .raw = 0 }, .x = 1, .y = 2 };
-    try std.testing.expect(get(n.next) == null);
-    n.next.raw = 0x1000;
-    try std.testing.expectEqual(@as(usize, 0x1000), @intFromPtr(get(n.next).?));
-}
-
 test "get passes native pointers through" {
     var x: u32 = 5;
     const p: ?*u32 = &x;
@@ -428,30 +361,20 @@ test "at: an over-aligned base gives the element its own alignment" {
     try std.testing.expect(@typeInfo(AtResult(*[4]u32)).pointer.attrs.@"align" == null);
 }
 
-test "put and rawOf store a pointer field the C way" {
-    const Node = extern struct { next: Ptr(u32), native: ?*u32 };
+test "put stores a native pointer field the C way" {
+    const Node = extern struct { native: ?*u32 };
     var x: u32 = 1;
-    var n = Node{ .next = .{ .raw = 0 }, .native = null };
-    const guest: *u32 = @ptrFromInt(0x1000);
-    put(&n.next, guest);
+    var n = Node{ .native = null };
     put(&n.native, &x);
-    try std.testing.expectEqual(@as(u32, 0x1000), rawOf(n.next));
     try std.testing.expectEqual(&x, n.native.?);
-    put(&n.next, @as(?*u32, null));
-    try std.testing.expectEqual(@as(u32, 0), n.next.raw);
-    // A literal null, as a spec writes psx_set(field, NULL) (wave 2's 73700 specs).
-    put(&n.next, guest);
-    put(&n.next, null);
     put(&n.native, null);
-    try std.testing.expectEqual(@as(u32, 0), n.next.raw);
     try std.testing.expectEqual(@as(?*u32, null), n.native);
-    try std.testing.expectEqual(@as(u32, 0), addr(null));
 }
 
-test "byteAt and lowRam are unaligned views" {
+test "byteAt and nullObject are unaligned views" {
     var bytes = [_]u8{ 0, 0x34, 0x12, 0 };
     try std.testing.expectEqual(@as(u16, 0x1234), byteAt(u16, &bytes, 1).*);
-    try std.testing.expectEqual(@as(u32, 0), lowRam(u32).*);
+    try std.testing.expectEqual(@as(u32, 0), nullObject(u32).*);
 }
 
 test "weak: an absent hook is null at run time" {

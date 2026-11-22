@@ -8,15 +8,15 @@ Two halves:
   - inside gdb (dump): the requested types and globals as JSON (fields with
     bit positions and sizes, signedness, arrays, pointers, psx_ptr);
   - emit(dump, names): the Zig module: extern structs/unions with explicit
-    padding, align(1) where C is misaligned, psx.Ptr(T) for psx_ptr fields,
+    padding, align(1) where C is misaligned,
     a `bitfields` table per struct (psx.getBits/setBits), comptime asserts of
     every offset and size, and `g.<global>()` accessors (psx.Global).
 Readable names (PORTING.md §16) come from battle/MEANINGS.tsv's zig_name
 column: a global's accessor, a field (`Type.field` rows) or a bitfield is
 emitted under its readable name with an `/// orig:` comment; the symbol and
 the offsets stay the original's. Pointer targets outside the requested set
-are ?*anyopaque; a native pointer is ?*T at T's own alignment (psx.Ptr keeps the
-guest address's 4).
+are ?*anyopaque; a native pointer is ?*T at T's own alignment.
+
 
     python3 pc/tools/zig_views.py OBJ OUT.zig --types T... --globals G... [--names MEANINGS.tsv]
 """
@@ -237,9 +237,6 @@ class Emitter:
             if t["kind"] == "array":  # rows: the C indexes the pointer (`grid[z][x]`)
                 return "?[*]" + self.ztype(t)
             return "?*" + self.ztype(t)
-        if k == "psx_ptr":
-            t = r["target"]
-            return f"psx.Ptr({'anyopaque' if t['kind'] in ('opaque', 'fn') else self.ztype(t)})"
         if k == "array":
             return f"[{r['count']}]{self.ztype(r['elem'])}"
         if k == "named":

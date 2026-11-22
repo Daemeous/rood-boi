@@ -2,7 +2,7 @@
  * BATTLE.PRG 72B70.s and its 7BDD4.s/7C7E0.s helpers. Guest structure offsets
  * keep the original ABI; return values reproduce the original $v0 where C
  * callers test them. */
-#include "psx_types.h" /* psx_load/psx_store: 4-byte guest pointers */
+#include "psx_types.h"
 #include "game/BATTLE/BATTLE.PRG/ai_state.h"
 extern unsigned char* vs_battle_aiActorAiStates[];
 extern unsigned short (*D_800F58D8)[8];
@@ -61,7 +61,7 @@ void vs_battle_aiPatrolWaypoints(void* state);
 void vs_battle_aiDispatchMovementBehavior(void* state);
 
 
-/* Guest words at 0x800F58xx hold 32-bit guest addresses (see psx_load). */
+/* The words at 0x800F58xx are the navigation pointers (vs_nav). */
 extern D_800F58BC_t* vs_battle_aiRoomAiState;
 extern unsigned short (*D_800F58B8)[32];
 extern int vs_core_mathSquaredVectorLength(int, int, int);

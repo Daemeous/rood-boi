@@ -1854,6 +1854,18 @@ static void make_stamp(const Use& u, MaterialStamp& out)
     const materials::Channel* height_map = materials::channel(u.key, "height", u.mat_object);
     std::vector<float> heights;
     int relief = use_heights(&u, v, w, h, heights);
+    /* A normal map painted over in a painter (paint_roundtrip.py writes normal_x.png and normal_y.png, 8 bits: 128 + n x 127.5, beside
+     * normal.png) gives the relief's slopes directly, over a height map and the estimate: only from the user's layer, so the baked
+     * normals (the shipped look: the same relief, through height.png) are never read twice. */
+    const materials::Channel* nx_map = materials::channel(u.key, "normal_x", u.mat_object);
+    const materials::Channel* ny_map = materials::channel(u.key, "normal_y", u.mat_object);
+    float strength = 2.0f;
+    bool painted_normal = nx_map && ny_map && nx_map->w == w && nx_map->h == h && ny_map->w == w && ny_map->h == h
+        && !nx_map->shipped && !nx_map->baked && !ny_map->shipped && !ny_map->baked;
+    if (painted_normal) {
+        relief = 1;
+        strength = materials::normal_strength(u.key, u.mat_object);
+    }
     /* (anything but a painted height map, when the estimate was tried) */
     out.colours = !(height_map && height_map->w == w && height_map->h == h)
         && ((v.auto_height && pc_auto_height) || pc_auto_height_preview);
@@ -1876,9 +1888,27 @@ static void make_stamp(const Use& u, MaterialStamp& out)
             size_t i = (size_t)by * w + bx;
             uint8_t* c = &out.cells[i * PC_MATERIAL_PLANES]; /* roughness, specular, metal, slopes, cavity */
             c[0] = map ? map->values[i] : r;
-            c[1] = s, c[2] = metal_map ? metal_map->values[i] : m;
+            c[2] = metal_map ? metal_map->values[i] : m;
+            /* A metal reflects its own colour at every angle (F0 = albedo x specular: material.glsl's lobe): its specular fraction is
+             * full whatever the entry's dielectric one (a 0.3 made the iron a dull third of itself). */
+            c[1] = std::max(s, c[2]);
             c[6] = (uint8_t)slot;
-            if (relief) {
+            if (relief && painted_normal) {
+                /* the inverse of room_blender.py maps(): n = (-gx s, -gy s, 1) normalised, s = the strength the map was made with
+                 * (normal.json beside it: materials::normal_strength) */
+                float nx = nx_map->values[i] / 127.5f - 1.0f, ny = ny_map->values[i] / 127.5f - 1.0f;
+                float nz = std::sqrt(std::max(1.0f - nx * nx - ny * ny, 1e-4f));
+                float gx = -nx / (nz * strength) * v.bump, gy = -ny / (nz * strength) * v.bump;
+                c[3] = (uint8_t)std::clamp((int)lroundf(128.0f + gx * 63.5f), 1, 255);
+                c[4] = (uint8_t)std::clamp((int)lroundf(128.0f + gy * 63.5f), 1, 255);
+                if (heights.size() == (size_t)w * h) {
+                    float around = 0;
+                    for (int dy = -1; dy <= 1; dy++)
+                        for (int dx = -1; dx <= 1; dx++)
+                            around += dx || dy ? height(bx + dx, by + dy) : 0.0f;
+                    c[5] = (uint8_t)lroundf(std::clamp((around / 8.0f - height(bx, by)) * 2.0f, 0.0f, 1.0f) * 255.0f);
+                }
+            } else if (relief) {
                 float gx = (height(bx + 1, by - 1) + 2 * height(bx + 1, by) + height(bx + 1, by + 1)
                                - height(bx - 1, by - 1) - 2 * height(bx - 1, by) - height(bx - 1, by + 1)) / 8.0f;
                 float gy = (height(bx - 1, by + 1) + 2 * height(bx, by + 1) + height(bx + 1, by + 1)
@@ -2567,6 +2597,15 @@ static void rebuild_variants()
             render_mesh_variants(kv.first, nullptr);
     }
     variants_live = live;
+}
+/* The newest mesh of a model (its content hash), 0 when none is known (materials by object: the model painting round trip). */
+uint32_t emissive::model_mesh(uint32_t model)
+{
+    uint32_t found = 0;
+    for (const auto& kv : mesh_info)
+        if (kv.second.kind == SURFACE_MODEL && kv.second.model == model && kv.first > found)
+            found = kv.first;
+    return found;
 }
 std::vector<emissive::RoomGroup> emissive::room_groups()
 {

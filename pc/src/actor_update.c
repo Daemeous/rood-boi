@@ -1,7 +1,7 @@
 /* 7DDDC.s and 7C7E0.s: actor navigation frame preparation. Native C keeps
  * its own stack; scratchpad data layout and explicit missing callees remain. */
 #include <string.h>
-#include "psx_types.h" /* psx_load/psx_store: 4-byte guest pointers */
+#include "psx_types.h"
 #include "game/BATTLE/BATTLE.PRG/ai_state.h"
 extern unsigned char* vs_battle_aiActorAiStates[];
 extern D_800F58BC_t* vs_battle_aiRoomAiState;
@@ -43,7 +43,7 @@ void pc_actor_scratch(void)
     /* Without a navigation record (vs_battle_aiUpdateActorNavigationOverrides does not test it, unlike
      * func_800E511C) the original reads word 4 of address 0: PS1 RAM, the
      * kernel area, read here through guest RAM. */
-    unsigned room = vs_battle_aiRoomAiState ? *(unsigned*)&vs_battle_aiRoomAiState->unk4 : *(unsigned*)(rood_null_page + 4);
+    unsigned room = vs_battle_aiRoomAiState ? *(unsigned*)&vs_battle_aiRoomAiState->unk4 : *(unsigned*)(pc_null_object + 4);
     vs_move.width = room & 0xFF;
     vs_move.depth = room >> 8 & 0xFF;
     vs_move.gap3DE[0] = room >> 16 & 0xFF;

@@ -58,7 +58,9 @@ fn mapSpanShapes() void {
 /// orig: pc_map_recip (pc/src/map_view.c)
 /// 0x8000 / n, read past the table's end as the original does.
 fn mapRecip(dy: c_int) c_int {
-    return psx.byteAt(u16, v.g.D_800EA130(), @as(isize, dy *% 2)).*;
+    // 130 reciprocals, then the sphere's tables as words (the original read on through them): inside the 632-word block, else refused (0).
+    if (c.pc_table_index_ok("D_800EA130", dy, 632, "area map scanline count", 0, 0) == 0) return 0;
+    return @as(*const [632]u16, v.g.D_800EA130())[@intCast(dy)];
 }
 
 /// orig: pc_map_step (pc/src/map_view.c)

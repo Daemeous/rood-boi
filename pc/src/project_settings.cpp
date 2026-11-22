@@ -263,6 +263,11 @@ const char* pc_memory_card_path_setting(int slot);
 }
 static const char* const window_mode_names[3] = { "windowed", "borderless", "fullscreen" };
 
+extern "C" int pc_gim_text; /* gim_text.cpp */
+extern "C" float pc_gim_text_size, pc_gim_text_gradient, pc_gim_text_caps;
+extern "C" char pc_gim_text_fill[1024];
+extern "C" int pc_gim_text_fill_force;
+
 namespace {
 struct Entry {
     const char* key;
@@ -294,6 +299,11 @@ const Entry entries[] = {
     I("ui_outline_boost", pc_ui_outline_boost),
     F("ui_bubble_outline", pc_ui_bubble_outline),
     F("ui_wire_width", pc_ui_wire_width),
+    I("gim_text", pc_gim_text),
+    I("gim_text_fill_force", pc_gim_text_fill_force), /* GIM pictures of text as real text (gim_text.cpp), 0 off */
+    F("gim_text_size", pc_gim_text_size),
+    F("gim_text_gradient", pc_gim_text_gradient),
+    F("gim_text_caps", pc_gim_text_caps),
     I("native_occlusion", pc_native_occlusion),
     I("native_room_order", pc_native_room_order),
     I("room_texture_lod", pc_room_texture_lod),
@@ -701,6 +711,13 @@ int apply_line(const char* line, int* scale, bool now)
             pc_ui_menu_tint = tint;
         return 1;
     }
+    if (!strcmp(key, "gim_text_fill")) { /* the global fill of the GIM pictures' words: `[STEM-or-glob=]fill; ...` ("-" or empty: none; gim_text.cpp) */
+        while (*rest == ' ' || *rest == '\t')
+            ++rest;
+        snprintf(pc_gim_text_fill, sizeof pc_gim_text_fill, "%s", strcmp(rest, "-") ? rest : "");
+        pc_gim_text_fill[strcspn(pc_gim_text_fill, "\r\n")] = 0;
+        return 1;
+    }
     if (!strcmp(key, "ui_menu_tint_custom")) { /* r g b, 0..31 each (clamped) */
         int rgb[3];
         char extra[2];
@@ -972,6 +989,7 @@ extern "C" void pc_settings_write(FILE* f)
     fprintf(f, "screen_copy %s\n", pc_hw_screen_copy ? "native" : "ps1");
     fprintf(f, "gameplay_walls %s\n", pc_gameplay_walls ? "smart" : "original");
     pc_occlusion_settings_write(f);
+    fprintf(f, "gim_text_fill %s\n", *pc_gim_text_fill ? pc_gim_text_fill : "-");
     fprintf(f, "ui_menu_tint %s\n", pc_ui_tint_id(pc_ui_tint_current()));
     fprintf(f, "ui_menu_tint_custom %d %d %d\n", pc_ui_menu_tint_custom[0], pc_ui_menu_tint_custom[1],
         pc_ui_menu_tint_custom[2]);

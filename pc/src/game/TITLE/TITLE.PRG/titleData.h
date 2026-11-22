@@ -3,8 +3,7 @@
 
 extern int _movieWidth;
 extern int _movieHeight;
-extern u_short _menuItemTextClut[][16];
-extern u_short _menuItemOutlineClut[][16];
+extern u_short _menuItemTextClut[4][16];
 extern int textUvs[];
 extern int textTpages[];
 extern int outlineUvs[];

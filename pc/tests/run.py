@@ -169,6 +169,16 @@ def suites(args, mode="egl"):
               sources=[ROOT / "pc/tools/room_blender.py", ROOT / "pc/tools/room_blender.json", ROOT / "pc/tools/blender/bake_room.py"],
               note="the one-room Blender round trip (Gitea #20) without the game or Blender: the dump's polygons to texture boxes, "
                    "the glTF (a primitive and material per texture, UVs over the box, tags), the maps made from a bake"),
+        Suite("paint_roundtrip", [PY, str(TESTS / "paint_roundtrip_test.py")], 60, binary=None,
+              sources=[ROOT / "pc/tools/paint_roundtrip.py", ROOT / "pc/tools/room_blender.py"],
+              note="the painting round trip without the game: the seed (the bake's normals, texel for texel), nothing written unpainted, one "
+                   "texel on one object, a painted normal alone, a model's atlas cut into its boxes, a glTF a painter re-saved"),
+        Suite("build_compare_shaders", [PY, str(TESTS / "build_compare_shaders_test.py")], 60, binary=None,
+              sources=[ROOT / "pc/tools/build_compare.py"],
+              note="build_compare runs each probe with the shaders it was built with (every lane that launches a game calls own_shaders)"),
+        Suite("rt_skin_stride", [PY, str(TESTS / "rt_skin_stride_test.py")], 60, binary=None,
+              sources=[ROOT / "pc/shaders/vulkan/rt_skin.comp", ROOT / "pc/src/vk_hw.h"],
+              note="rt_skin.comp's vertex and polygon strides follow VK_MESH_VERTEX_BYTES (no game)"),
         Suite("shader_compiler", [PY, str(TESTS / "shader_compiler_test.py")], 600, binary=None,
               sources=[TESTS / "shader_compiler_probe.cpp", ROOT / "pc/src/shader_compiler.cpp",
                        ROOT / "pc/src/shader_compiler.h", ROOT / "pc/src/vk_shader_lookup.c",
@@ -365,6 +375,11 @@ def suites(args, mode="egl"):
                        "only, the file keeps `object`, groups without a room are refused",
                   sources=[TESTS / "material_object_smoke.py", ROOT / "pc/src/materials.cpp",
                            ROOT / "pc/src/material_instances.cpp", ROOT / "pc/src/material_editor.cpp"]),
+            Suite("paint_roundtrip_smoke", [PY, str(TESTS / "paint_roundtrip_smoke.py"), "--card", str(args.save)], 900,
+                  note="the paint round trip: the room as a glTF per object, imported unpainted writes nothing, one texel painted metal lands "
+                       "on one object, painting while the game runs shows without a reload, maps found by name",
+                  sources=[TESTS / "paint_roundtrip_smoke.py", ROOT / "pc/tools/paint_roundtrip.py", ROOT / "pc/tools/room_blender.py",
+                           ROOT / "pc/src/materials.cpp", ROOT / "pc/src/render.c"]),
             Suite("material_graph_smoke", [PY, str(TESTS / "material_graph_smoke.py"), "--card", str(args.save)], 600,
                   note="node material graphs: the node library and generation (RPC material_graph), the standard "
                        "surface as a graph byte-identical in the Keep (Vulkan), a tint graph live through the hot "
@@ -652,6 +667,12 @@ def suites(args, mode="egl"):
                       "(grimoires too) and the equipped weapon's Break Arts: wind-ups <= 32 vsyncs, none "
                       "presented, a 2000-vsync watchdog, clean afterwards")]
           if args.save.exists() else []),
+        *([Suite("gim_text_smoke", [PY, str(TESTS / "gim_text_smoke.py")], 3000,
+                 note="pictures of text as real text (gitea #14): a pack made from the staff card's and the quote's own ink replaces their lines (one band of "
+                      "changed rows per line), the rule under the title stays, the words follow the game's scanline wipe and the quote's fade, with "
+                      "ui_text_overlay auto and off and at 16:9; original text with or without a pack, and modern text with no pack, are the picture "
+                      "byte for byte")]
+          if (ROOT / "data/GIM/STAFF004.GIM").exists() else []),
         *([Suite("battle_message_label_smoke", [PY, str(TESTS / "battle_message_label_smoke.py"), "--card", str(args.save)], 300,
                  note="battle message box (\"No target in range!\"): its header label (CAUTION) sits at the view's left edge in 16:9 "
                       "and the 4:3 screen's in 4:3, not inside the widened box (Gitea #21)")]

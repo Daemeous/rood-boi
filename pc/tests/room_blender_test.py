@@ -98,6 +98,34 @@ with tempfile.TemporaryDirectory() as d2:
     check(sorted(m["name"] for m in g2["materials"]) == ["aaaaaaaaaa@g100", "aaaaaaaaaa@g200", "bbbbbbbbbb"]
           and {i["uri"] for i in g2["images"]} == {"tex/aaaaaaaaaa.png", "tex/bbbbbbbbbb.png"},
           "one primitive and material per (texture, group), sharing the texture's image")
+# metal from the texture's colours: grey bands over brown planks are iron; a texture grey all over, or without a band, is not
+cfg = rb.config()["metal"]
+planks = np.zeros((20, 31, 4), np.uint8)
+planks[..., :3] = (139, 98, 65)
+planks[..., 3] = 255
+planks[:, 8:12, :3] = 65  # two iron bands, 4 texels wide
+planks[:, 20:24, :3] = 65
+metal, own = rb.classify_metal(planks, cfg)
+check(metal[:, 9].min() > 0.8 and metal[:, 0].max() == 0 and metal[:, 14].max() == 0 and abs(own[5, 9] - 0.42) < 1e-6,
+      "grey bands over brown planks are iron (metal 0.9, its roughness), the planks are not")
+stone = np.full((20, 31, 4), 255, np.uint8)
+stone[..., :3] = 90
+check(rb.classify_metal(stone, cfg)[0].max() == 0, "a texture that is grey all over is stone, not iron")
+speck = planks.copy()
+speck[:, 8:12, :3] = (139, 98, 65)
+speck[:, 20:24, :3] = (139, 98, 65)
+speck[3:5, 9:11, :3] = 65  # (four texels: under min_area)
+check(rb.classify_metal(speck, cfg)[0].max() == 0, "one grey texel is a speck, not a piece of metal")
+wear = np.zeros(planks.shape[:2], np.float32)
+wear[:, 9] = 1.0
+cavity = np.zeros_like(wear)
+cavity[:, 22] = 1.0
+cover = np.ones_like(wear)
+rough = np.full(wear.shape, 204, np.uint8)
+m8, r8 = rb.metal_maps(planks, wear, cavity, cover, rough, cfg)
+check(m8 is not None and m8[5, 9] > m8[5, 10] > 0 and m8[5, 22] < m8[5, 21] and r8[5, 9] < r8[5, 10] < r8[5, 22] < 204 and r8[5, 0] == 204,
+      "metal is stronger and smoother at a worn edge, weaker and rougher in a crevice, the planks keep their roughness")
+check(rb.metal_maps(stone, wear, cavity, cover, rough, cfg)[0] is None, "a texture with no metal gets no metal map")
 p = {"height_base": 140.0, "height_wear": -70.0, "height_cavity": -45.0, "rough_base": 0.8, "rough_wear": -0.3,
      "rough_cavity": 0.14, "normal_strength": 3.0}
 wear = np.zeros((4, 1), np.float32)

@@ -279,6 +279,10 @@ const Channel* channel(const std::string& key, const std::string& name);
 /* The same for an object (an entry's ObjectRef::text(): "g47a4", "m4b8870d7"): <materials>/<key>/@<object>/<channel>.png
  * over the texture's own, in each layer as every map is (the object's maps apply to its variant only). */
 const Channel* channel(const std::string& key, const std::string& name, const std::string& object);
+/* How strong a painted normal map's relief is (the user layer's normal_x.png / normal_y.png of a texture, for an object): the `strength` of
+ * the normal.json beside them (paint_roundtrip.py writes it from room_blender.json maps.normal_strength, the strength the bake turned the
+ * height into normals with, so the game and the bake cannot drift apart); 2 where there is none. */
+float normal_strength(const std::string& key, const std::string& object);
 /* The channel files a texture has: name, and which layer the one in use is in. */
 struct Present {
     std::string name, path;

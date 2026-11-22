@@ -42,6 +42,7 @@
 #include "ui_labels.h"
 #include "ui_msdf.h"
 #include <math.h>
+#include <pthread.h>
 #include <stddef.h>
 #include <time.h>
 #include <stdlib.h>
@@ -77,7 +78,12 @@ unsigned pc_ui_text_generation = 1;
             1.0f, 1.0f, 0.02f },                                                                                 \
         { "labels", "pc/third_party/fonts/ChakraPetch/ChakraPetch-Bold.ttf", 1.26f, 0.0f, 0.0f, 0.0f, 0, 1,     \
             1.0f, 1.0f, 0.0f },                                                                                  \
+        { "pictures", "pc/third_party/fonts/Alegreya/Alegreya[wght].ttf", 1.0f, 0.0f, 0.02f, 0.0f, 0, 0,        \
+            1.0f, 0.0f, 0.0f },                                                                                  \
     }
+/* Image ids of the pictures' lines (below, after the status words' and the small-capital words' ids). */
+#define PICTURE_JOBS 256
+#define PICTURE_IMAGE_BASE ((1 << 20) + 16 * 24 + 64 * 24)
 pc_ui_text_style pc_ui_text_styles[PC_UI_TEXT_STYLES] = STYLE_DEFAULTS;
 static const pc_ui_text_style defaults[PC_UI_TEXT_STYLES] = STYLE_DEFAULTS; /* (settings save what differs) */
 
@@ -2137,8 +2143,12 @@ static uint64_t image_hash(const text_image* im)
 }
 
 static const text_image* status_image(int image);
+static int picture_image_key(int image, uint64_t* key, int* w, int* h);
+static int picture_image_render(int image, int factor, uint32_t* out);
 int pc_ui_text_image_key(int image, uint64_t* key, int* w, int* h)
 {
+    if (picture_image_key(image, key, w, h))
+        return 1;
     const text_image* im = status_image(image);
     if (!im && (image < 0 || image >= image_count))
         return 0;
@@ -2177,6 +2187,8 @@ static int draw_image(const text_image* im, int factor, uint32_t* out)
 static const text_image* status_image(int image);
 int pc_ui_text_image_render(int image, int factor, uint32_t* out)
 {
+    if (image >= PICTURE_IMAGE_BASE && image < PICTURE_IMAGE_BASE + PICTURE_JOBS)
+        return picture_image_render(image, factor, out);
     const text_image* status = status_image(image);
     if (status) {
         if (!draw_image(status, factor, out)) {
@@ -3159,4 +3171,282 @@ int pc_ui_text_json(char* out, int size)
     if (used < size)
         used += snprintf(out + used, (size_t)(size - used), "]}");
     return used;
+}
+
+/* ---- the GIM pictures' lines as real text (gim_text.cpp, gitea #14) ----
+ *
+ * A carrier sprite the picture's drawer made (ui_text.h) registers with the line it stands for; gpu_hw.c asks for its quad as it draws it.
+ * The line is one image: the words set in the pictures style (Alegreya by default; ui_text_pictures_*) across the line's box, each texel
+ * a distance with a direct colour (the fill at that texel), so it is drawn anti-aliased at the window's or the internal resolution like
+ * the game's own text, in the ordering table's place. */
+#define PICTURE_CARRIERS 4096
+#define PICTURE_GLYPHS 160
+typedef struct {
+    pc_ui_picture_line line;
+    unsigned stamp;
+    unsigned generation; /* pc_ui_text_generation the layout was made at; 0: not made */
+    int ok;
+    int count;
+    const glyph_field* glyph[PICTURE_GLYPHS];
+    float pen[PICTURE_GLYPHS]; /* field-unit pens, in PS1 pixels from the origin */
+    float gs[PICTURE_GLYPHS];  /* a glyph's own scale against the line's (small capitals) */
+    float s, bold;             /* PS1 pixels per field pixel; the field offset of the weight */
+    float base;                /* baseline y, PS1 pixels */
+    float x, y;                /* the image's origin */
+    int w, h;
+} picture_job;
+typedef struct {
+    const void* command;
+    int job, col0, col1, row0, row1;
+    unsigned stamp;
+} picture_carrier;
+static picture_job picture_jobs[PICTURE_JOBS];
+static picture_carrier picture_carriers[PICTURE_CARRIERS];
+static int picture_next_job, picture_next_carrier;
+static pthread_mutex_t picture_lock = PTHREAD_MUTEX_INITIALIZER;
+
+static unsigned picture_utf8(const char** c)
+{
+    const unsigned char* p = (const unsigned char*)*c;
+    unsigned cp = *p++;
+    int more = cp >= 0xf0 ? 3 : cp >= 0xe0 ? 2 : cp >= 0xc0 ? 1 : 0;
+    cp = more == 3 ? cp & 7 : more == 2 ? cp & 15 : more == 1 ? cp & 31 : cp;
+    while (more-- > 0 && (*p & 0xc0) == 0x80)
+        cp = cp << 6 | (*p++ & 63);
+    *c = (const char*)p;
+    return cp;
+}
+
+/* The line set in the font: glyphs, pens, the scale that makes the words as wide as the box (times the size), the baseline, the image's box. */
+static int picture_layout(picture_job* j)
+{
+    if (j->generation == pc_ui_text_generation)
+        return j->ok;
+    j->generation = pc_ui_text_generation, j->ok = 0, j->count = 0;
+    const pc_ui_text_style* st = &pc_ui_text_styles[PC_UI_TEXT_PICTURES];
+    font_file* f = font_for(st->font);
+    const glyph_field* cap = field(PC_UI_TEXT_PICTURES, 'H');
+    if (!f || !cap)
+        return 0;
+    const pc_ui_picture_line* l = &j->line;
+    float pen = 0, x0 = 1e9f, x1 = -1e9f, top = 0, depth = 0;
+    int previous = 0;
+    for (const char* c = l->text; *c && j->count < PICTURE_GLYPHS;) {
+        unsigned cp = picture_utf8(&c), drawn = cp;
+        float gs = 1.0f;
+        if (!l->plain && l->caps > 0.0f && ((cp >= 'a' && cp <= 'z') || (cp >= 0xe0 && cp <= 0xfe && cp != 0xf7)))
+            drawn = cp >= 0xe0 ? cp - 0x20 : upper(cp), gs = l->caps;
+        int index = stbtt_FindGlyphIndex(&f->info, (int)drawn), advance, bearing;
+        if (previous && index)
+            pen += stbtt_GetGlyphKernAdvance(&f->info, previous, index) * f->scale * gs;
+        if (cp != ' ') {
+            const glyph_field* g = field(PC_UI_TEXT_PICTURES, drawn);
+            if (g) {
+                j->glyph[j->count] = g, j->pen[j->count] = pen, j->gs[j->count++] = gs;
+                x0 = fminf(x0, pen + g->x0 * gs), x1 = fmaxf(x1, pen + g->x1 * gs);
+                top = fmaxf(top, g->top * gs), depth = fmaxf(depth, -g->bottom * gs);
+            }
+        }
+        stbtt_GetGlyphHMetrics(&f->info, index, &advance, &bearing);
+        pen += advance * f->scale * gs;
+        previous = index;
+    }
+    if (!j->count || x1 <= x0)
+        return 0;
+    float want = (l->box[2] - l->box[0]) * fmaxf(l->size, 0.1f);
+    j->s = want / ((x1 - x0) * st->stretch);
+    j->bold = st->embolden * SDF_EM;
+    float sx = j->s * st->stretch, mid = (l->box[1] + l->box[3]) * 0.5f, centre = (l->box[0] + l->box[2]) * 0.5f;
+    j->base = mid + cap->top * j->s * 0.5f;
+    float ink0 = centre - (x1 - x0) * sx * 0.5f - x0 * sx; /* the origin of pen 0 */
+    for (int i = 0; i < j->count; i++)
+        j->pen[i] = ink0 + j->pen[i] * sx;
+    float pad = 3.0f + fmaxf(j->bold, 0.0f) * j->s;
+    j->x = floorf(centre - (x1 - x0) * sx * 0.5f - pad);
+    j->y = floorf(j->base - top * j->s - pad);
+    j->w = (int)ceilf(centre + (x1 - x0) * sx * 0.5f + pad - j->x);
+    j->h = (int)ceilf(j->base + depth * j->s + pad - j->y);
+    j->s = j->s, (void)sx;
+    if (l->clip[1] > l->clip[0]) { /* (one piece of a wide line) */
+        float cx0 = fmaxf(j->x, floorf(l->clip[0])), cx1 = fminf(j->x + (float)j->w, ceilf(l->clip[1]));
+        if (cx1 <= cx0)
+            return 0;
+        j->x = cx0, j->w = (int)(cx1 - cx0);
+    }
+    if (j->w <= 0 || j->h <= 0 || j->w > 1023 || j->h > 255)
+        return 0;
+    return j->ok = 1;
+}
+
+static uint16_t picture_555(unsigned rgb)
+{
+    return (uint16_t)(((rgb >> 16 & 255) >> 3) | ((rgb >> 8 & 255) >> 3) << 5 | ((rgb & 255) >> 3) << 10);
+}
+
+static unsigned picture_fill(const pc_ui_picture_line* l, float x, float y)
+{
+    if (l->nstops <= 0)
+        return 0xffffff;
+    if (!l->linear || l->nstops == 1)
+        return l->colour[0];
+    const float* r = l->per_line ? l->box : l->block;
+    float a = l->angle * 3.14159265f / 180.0f, ca = cosf(a), sa = sinf(a);
+    float extent = fmaxf(fabsf((r[2] - r[0]) * ca) + fabsf((r[3] - r[1]) * sa), 1.0f);
+    float t = ((x - (r[0] + r[2]) * 0.5f) * ca + (y - (r[1] + r[3]) * 0.5f) * sa) / extent + 0.5f;
+    t = fminf(fmaxf(t, 0.0f), 1.0f);
+    int n = 1;
+    while (n + 1 < l->nstops && l->pos[n] < t)
+        n++;
+    float u = l->pos[n] > l->pos[n - 1] ? fminf(fmaxf((t - l->pos[n - 1]) / (l->pos[n] - l->pos[n - 1]), 0.0f), 1.0f) : (t >= l->pos[n] ? 1.0f : 0.0f);
+    unsigned out = 0;
+    for (int sh = 0; sh < 24; sh += 8)
+        out |= ((unsigned)((float)(l->colour[n - 1] >> sh & 255) * (1.0f - u) + (float)(l->colour[n] >> sh & 255) * u + 0.5f) & 255) << sh;
+    return out;
+}
+
+static unsigned picture_average(const pc_ui_picture_line* l)
+{
+    unsigned long sum[3] = { 0, 0, 0 };
+    pc_ui_picture_line flat = *l;
+    for (int i = 0; i < 32; i++) {
+        flat.angle = l->angle;
+        const float* r = l->per_line ? l->box : l->block;
+        float a = l->angle * 3.14159265f / 180.0f, ca = cosf(a), sa = sinf(a);
+        float extent = fmaxf(fabsf((r[2] - r[0]) * ca) + fabsf((r[3] - r[1]) * sa), 1.0f), t = (i + 0.5f) / 32.0f;
+        unsigned c = picture_fill(l, (r[0] + r[2]) * 0.5f + (t - 0.5f) * extent * ca, (r[1] + r[3]) * 0.5f + (t - 0.5f) * extent * sa);
+        for (int k = 0; k < 3; k++)
+            sum[k] += c >> (16 - 8 * k) & 255;
+    }
+    return (unsigned)(sum[0] / 32) << 16 | (unsigned)(sum[1] / 32) << 8 | (unsigned)(sum[2] / 32);
+}
+
+static unsigned picture_hash(const picture_job* j)
+{
+    const unsigned char* b = (const unsigned char*)&j->line;
+    unsigned long long h = 1469598103934665603ull ^ pc_ui_text_generation;
+    for (size_t i = 0; i < sizeof j->line; i++)
+        h = (h ^ b[i]) * 1099511628211ull;
+    return (unsigned)(h ^ h >> 32);
+}
+
+/* The single-channel distance (picture words: the median of the three channels spikes out of an acute serif corner at a size this large). */
+static float distance_plain(const glyph_field* g, float x, float y)
+{
+    unsigned char* m = g->msdf;
+    ((glyph_field*)g)->msdf = NULL;
+    float d = distance_at(g, x, y);
+    ((glyph_field*)g)->msdf = m;
+    return d;
+}
+
+static int picture_image_key(int image, uint64_t* key, int* w, int* h)
+{
+    if (image < PICTURE_IMAGE_BASE || image >= PICTURE_IMAGE_BASE + PICTURE_JOBS)
+        return 0;
+    pthread_mutex_lock(&picture_lock);
+    picture_job* j = &picture_jobs[image - PICTURE_IMAGE_BASE];
+    int ok = j->line.text[0] && picture_layout(j) && j->w <= 255; /* (a wide line is drawn as pieces: gim_text.cpp) */
+    if (ok)
+        *key = ((uint64_t)picture_hash(j) << 32 | (uint32_t)(j->w << 12 | j->h)) | 1, *w = j->w, *h = j->h;
+    pthread_mutex_unlock(&picture_lock);
+    return ok;
+}
+
+static int picture_image_render(int image, int factor, uint32_t* out)
+{
+    pthread_mutex_lock(&picture_lock);
+    picture_job* j = &picture_jobs[image - PICTURE_IMAGE_BASE];
+    if (!j->line.text[0] || !picture_layout(j)) {
+        pthread_mutex_unlock(&picture_lock);
+        return 0;
+    }
+    picture_job job = *j;
+    pthread_mutex_unlock(&picture_lock);
+    const pc_ui_picture_line* l = &job.line;
+    float inv = 1.0f / (float)factor, sx = job.s * pc_ui_text_styles[PC_UI_TEXT_PICTURES].stretch;
+    unsigned average = picture_average(l);
+    float mix = fminf(fmaxf(l->strength, 0.0f), 1.0f);
+    int w = job.w * factor, rows = job.h * factor;
+    for (int y = 0; y < rows; y++) {
+        float yo = job.y + ((float)y + 0.5f) * inv;
+        for (int x = 0; x < w; x++) {
+            float xo = job.x + ((float)x + 0.5f) * inv, best = -1e9f;
+            for (int i = 0; i < job.count; i++) {
+                const glyph_field* g = job.glyph[i];
+                float gs = job.gs[i], fx = (xo - job.pen[i]) / (sx * gs), fy = (job.base - yo) / (job.s * gs);
+                if (fx < g->x0 - SDF_PAD || fx > g->x1 + SDF_PAD)
+                    continue;
+                float d = (distance_plain(g, fx, fy) + job.bold) * fminf(job.s * gs, sx * gs);
+                best = fmaxf(best, d);
+            }
+            unsigned fill = picture_fill(l, xo, yo), a = average, c = 0;
+            for (int sh = 0; sh < 24; sh += 8)
+                c |= ((unsigned)((float)(a >> sh & 255) + ((float)(fill >> sh & 255) - (float)(a >> sh & 255)) * mix + 0.5f) & 255) << sh;
+            out[y * w + x] = pc_ui_dist_direct(best, picture_555(c));
+        }
+    }
+    return 1;
+}
+
+int pc_ui_text_picture_extent(const pc_ui_picture_line* line, float* x, float* y, int* w, int* h)
+{
+    picture_job job;
+    memset(&job, 0, sizeof job);
+    job.line = *line;
+    pthread_mutex_lock(&picture_lock);
+    int ok = picture_layout(&job);
+    pthread_mutex_unlock(&picture_lock);
+    if (ok)
+        *x = job.x, *y = job.y, *w = job.w, *h = job.h;
+    return ok;
+}
+
+void pc_ui_text_picture_add(const void* command, const pc_ui_picture_line* line, int col0, int col1, int row0, int row1)
+{
+    pthread_mutex_lock(&picture_lock);
+    unsigned now = pc_vsync_count ? pc_vsync_count() : 0;
+    int job = -1;
+    for (int i = 0; i < PICTURE_JOBS && job < 0; i++) /* (the same line this frame: its image is shared) */
+        if (picture_jobs[i].stamp == now && picture_jobs[i].line.text[0] && !memcmp(&picture_jobs[i].line, line, sizeof *line))
+            job = i;
+    if (job < 0) {
+        job = picture_next_job;
+        picture_next_job = (picture_next_job + 1) % PICTURE_JOBS;
+        picture_jobs[job].line = *line;
+        picture_jobs[job].generation = 0;
+        picture_jobs[job].ok = 0;
+    }
+    picture_jobs[job].stamp = now;
+    picture_carrier* c = &picture_carriers[picture_next_carrier];
+    picture_next_carrier = (picture_next_carrier + 1) % PICTURE_CARRIERS;
+    c->command = command, c->job = job, c->col0 = col0, c->col1 = col1, c->row0 = row0, c->row1 = row1, c->stamp = now;
+    pthread_mutex_unlock(&picture_lock);
+}
+
+int pc_ui_text_picture_quad(const void* command, int u, int v, int w, int h, unsigned clut, pc_ui_picture_quad* q)
+{
+    if (pc_ui_text != PC_UI_TEXT_FONT || !command || u != PC_PICTURE_U || v != PC_PICTURE_V || w != 1 || h != 1 || clut != PC_PICTURE_CLUT)
+        return 0;
+    unsigned now = pc_vsync_count ? pc_vsync_count() : 0;
+    int found = 0;
+    pthread_mutex_lock(&picture_lock);
+    for (int k = 1; k <= PICTURE_CARRIERS && !found; k++) {
+        const picture_carrier* c = &picture_carriers[(picture_next_carrier - k + PICTURE_CARRIERS) % PICTURE_CARRIERS];
+        if (!c->command)
+            break;
+        if (now - c->stamp > CALL_AGE)
+            break;
+        if (c->command != command)
+            continue;
+        picture_job* j = &picture_jobs[c->job];
+        if (!picture_layout(j))
+            break;
+        q->image = PICTURE_IMAGE_BASE + c->job;
+        q->x = j->x, q->y = j->y, q->w = j->w, q->h = j->h;
+        q->col0 = c->col1 > c->col0 ? c->col0 : 0, q->col1 = c->col1 > c->col0 ? c->col1 : j->w;
+        q->row0 = c->row1 > c->row0 ? c->row0 : 0, q->row1 = c->row1 > c->row0 ? c->row1 : j->h;
+        found = 1;
+    }
+    pthread_mutex_unlock(&picture_lock);
+    return found;
 }

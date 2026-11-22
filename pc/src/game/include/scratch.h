@@ -36,7 +36,14 @@ extern vs_scratch_t vs_scratch;
  * Defined in 146C.c. */
 extern unsigned char vs_pad[0x408];
 /* A T at PS1 offset `offset` of the pad (checked at compile time to lie inside it): the overlays that stay shared. */
-#define VS_PAD_AT(T, offset) ((T*)(vs_pad + (offset) + 0 * sizeof(char[((offset) + sizeof(T) <= 0x408) ? 1 : -1])))
+static inline void* vs_pad_at_(unsigned long offset)
+{
+    unsigned char* base = vs_pad;
+    return base + offset;
+}
+#ifndef VS_PAD_AT
+#define VS_PAD_AT(T, offset) ((T*)vs_pad_at_((offset) + 0 * sizeof(char[((offset) + sizeof(T) <= 0x408) ? 1 : -1])))
+#endif
 /* The navigation pointers the AI reads, real pointers (memory lane S3b: they were 4-byte guest words in vs_pad at 0x37C,
  * 0x3BC, 0x3C0, 0x3C4 and 0x3F4, filled each actor update by pc_actor_scratch; the overlays at those offsets no longer
  * share them). game/common/pad.zig mirrors the layout. */
@@ -82,7 +89,26 @@ extern vs_move_t vs_move;
  * cameraTransformScratch, weaponTransformScratch, boneMatrixScratch, D_1F80035C_t), indexed from its start. Defined in 146C.c;
  * game/common/pad.zig `xform` is the typed access. */
 extern unsigned char vs_xform[0xA4];
-#define VS_XFORM(T) ((T*)(vs_xform + 0 * sizeof(char[sizeof(T) <= 0xA4 ? 1 : -1])))
+#define VS_XFORM(T) ((T*)((0 * sizeof(char[sizeof(T) <= 0xA4 ? 1 : -1])) + (char*)(void*)vs_xform))
+/* The block as the drop shadow (actor_shadow.c) and the weapon draw use it: the shadow's 18 projected points (screen xy at 0x14, depth at
+ * 0x5C), the anchor it was placed at (x, height and z, in the words the last points overwrite once placed), and the weapon's texture word
+ * (tpage and clut) at 0x34. */
+typedef struct {
+    char gap0[0x14];
+    union {
+        unsigned xy[18];
+        struct {
+            unsigned gap14[(0x34 - 0x14) / 4];
+            unsigned texture; /* 0x34 */
+            unsigned gap38[(0x54 - 0x38) / 4];
+            short anchorX;  /* 0x54 */
+            short anchorHeight; /* 0x56 */
+            unsigned anchorZ;   /* 0x58 */
+        };
+    };
+    unsigned depth[18];
+} vs_xform_shadow_t;
+PSX_ASSERT_SIZE(vs_xform_shadow_t, 0xA4);
 /* The actor collision workspace (vs_field_*'s samples, probes and exclusion marks), 0x4C bytes, the pad's 0x3BC..0x407:
  * the views are collisionScratchView, ActorCollisionSamples, D_1F8003BC_t, actorCollisionExclusion, collisionResponseScratch. */
 extern unsigned char vs_collision[0x4C];

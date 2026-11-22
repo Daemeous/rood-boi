@@ -1109,6 +1109,74 @@ static int instance_palette(const draw_list* list, const list_instance* in, floa
             blend_transform(&was[b], &now[b], t, &out[b]);
     return 1;
 }
+/* A model as it stands in the newest list that draws `mesh`: the scene dump's format (scene_capture.c pc_scene_dump: "v x y z r g b",
+ * "f i j k # tpage .. clut .. group .. flags .. uv .. code .. quad .. polygon .."), the polygons' vertices through the instance's bone
+ * palette (game units, the pose of that frame), a quad as its two triangles. Returns the triangles written, -1 when no list draws it
+ * or the file cannot be written (the model painting round trip: pc/docs/Materials.md). */
+int render_mesh_dump(render_mesh mesh, const char* path)
+{
+    mesh_slot* slot = lookup(mesh);
+    if (!slot || !slot->cpu)
+        return -1;
+    const draw_list* list = NULL;
+    const list_instance* in = NULL;
+    for (int i = 0; i < LIST_RING; i++) {
+        const draw_list* l = &lists[i];
+        if (!l->id || (list && l->id < list->id))
+            continue;
+        for (int k = 0; k < l->count; k++)
+            if (l->instances[k].mesh == mesh && !l->instances[k].blend)
+                list = l, in = &l->instances[k];
+    }
+    if (!list)
+        return -1;
+    render_transform palette[RENDER_MAX_BONES];
+    int bones = in->bones;
+    if (bones > 0)
+        instance_palette(list, in, 1.0f, palette);
+    FILE* f = fopen(path, "w");
+    if (!f)
+        return -1;
+    int triangles = 0;
+    fprintf(f, "# rood-boi model dump, %d polygons\n", slot->polygons);
+    for (int pass = 0; pass < 2; pass++) { /* vertices, then faces */
+        int v = 0;
+        for (int i = 0; i < slot->polygons; i++) {
+            const render_polygon* p = &slot->cpu[i];
+            if (p->flags & RENDER_POLY_SPRITE)
+                continue;
+            int quad = (p->flags & RENDER_POLY_QUAD) != 0;
+            static const int order[2][3] = { { 0, 1, 2 }, { 1, 3, 2 } };
+            for (int t = 0; t < (quad ? 2 : 1); t++) {
+                if (!pass) {
+                    for (int k = 0; k < 3; k++) {
+                        int c = order[t][k];
+                        float world[3] = { p->position[c][0], p->position[c][1], p->position[c][2] };
+                        if (bones > 0) { /* (a model without a skeleton has one transform) */
+                            const render_transform* b = &palette[p->bone[c] < bones ? p->bone[c] : 0];
+                            for (int a = 0; a < 3; a++)
+                                world[a] = b->rotation[a][0] * p->position[c][0] + b->rotation[a][1] * p->position[c][1]
+                                    + b->rotation[a][2] * p->position[c][2] + b->translation[a];
+                        }
+                        fprintf(f, "v %g %g %g %.4f %.4f %.4f\n", world[0], world[1], world[2], p->rgb[c][0] / 255.0, p->rgb[c][1] / 255.0,
+                            p->rgb[c][2] / 255.0);
+                    }
+                } else {
+                    /* (the page and CLUT as the draw takes them: an instance's override over the polygon's own, emissive.cpp note_instance) */
+                    unsigned page = p->tpage | ((in->override & RENDER_OVERRIDE_TEXTURE) ? in->tpage : 0);
+                    unsigned clut = (in->override & RENDER_OVERRIDE_TEXTURE) ? (in->clut + p->clut) & 0xffff : p->clut;
+                    fprintf(f, "f %d %d %d # tpage %04x clut %04x group 0 flags 00000000 uv %d %d %d %d %d %d code %02x quad %d polygon %x\n",
+                        v * 3 + 1, v * 3 + 2, v * 3 + 3, page, clut, p->uv[order[t][0]][0], p->uv[order[t][0]][1],
+                        p->uv[order[t][1]][0], p->uv[order[t][1]][1], p->uv[order[t][2]][0], p->uv[order[t][2]][1], p->code,
+                        quad ? 1 + t : 0, (unsigned)i);
+                    ++triangles;
+                }
+                ++v;
+            }
+        }
+    }
+    return fclose(f) ? -1 : triangles;
+}
 /* Where list `id` draws in `target` (native VRAM pixels x, y, w, h within
  * its drawing area; MSAA copies and syncs only that much): each instance's
  * per-bone boxes of its polygons through the palette it is drawn with,

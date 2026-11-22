@@ -3,7 +3,7 @@
 #include "common.h"
 #include "pc/src/game/BATTLE/BATTLE.PRG/146C.h"
 #include "pc/src/game/BATTLE/BATTLE.PRG/3A1A0.h"
-#include "psx_types.h" /* psx_load/psx_store: 4-byte guest pointers */
+#include "psx_types.h"
 #include "draw_items.h"
 #include <sys/types.h>
 #include <libgte.h>
@@ -60,7 +60,7 @@ void pc_actor_shadow(D_800F4538_t* actor)
     if (position->vy > floor)
         floor = position->vy;
     unsigned radius = actor->shadowRadius;
-    int extent = ((*(short*)(vs_xform + 0x56) - floor) >> 3) + radius;
+    int extent = ((VS_XFORM(vs_xform_shadow_t)->anchorHeight - floor) >> 3) + radius;
     if (extent < 20)
         extent = 20;
     unsigned size = (unsigned)extent << 7;
@@ -106,11 +106,11 @@ transform:;
     vs_core_mathScaleMatrixColumns(&rotation, &scale);
     vs_gte_screen screen = vs_gte_screen_current();
     vs_gte_view camera_view = vs_gte_view_of(camera, screen);
-    SVECTOR origin = { *(short*)(vs_xform + 0x54), (short)floor, (short)*(unsigned*)(vs_xform + 0x58), 0 };
+    SVECTOR origin = { VS_XFORM(vs_xform_shadow_t)->anchorX, (short)floor, (short)VS_XFORM(vs_xform_shadow_t)->anchorZ, 0 };
     vs_gte_transform_to((VECTOR*)rotation.t, &camera_view, &origin);
     vs_gte_view view = vs_gte_view_of(&rotation, screen);
-    unsigned* xy = (unsigned*)(vs_xform + 0x14);
-    unsigned* depth = (unsigned*)(vs_xform + 0x5C);
+    unsigned* xy = VS_XFORM(vs_xform_shadow_t)->xy;
+    unsigned* depth = VS_XFORM(vs_xform_shadow_t)->depth;
     for (unsigned i = 0; i < 18; i += 3) {
         for (unsigned j = 0; j < 3; ++j) {
             SVECTOR vertex = { (short)(D_800E9A68[i + j] & 0xffff), 0, (short)(D_800E9A68[i + j] >> 16), 0 };

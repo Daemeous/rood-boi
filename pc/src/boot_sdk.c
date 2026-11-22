@@ -507,7 +507,33 @@ void pc_frame_table_clear(u_long* ot, int n, int reverse)
  * VectorNormalS and VectorNormalSS. Normalizes (x, y, z) in place to 4096
  * and returns the squared length. Keeps the original reciprocal-square-root
  * table and GTE register effects. */
-extern short D_80040D98[];
+extern short D_80040D98[192];
+extern short D_80040C18[192];
+extern u_char vs_core_mathArcTangentTable[516];
+/* The square-root tables of 32154.s are 192 entries each (the argument is normalized to 64..255 and indexed minus 64), laid side by side:
+ * the arctangent table (516 bytes), the root table D_80040C18, the reciprocal table D_80040D98. The original's index goes to -64 when the
+ * normalized argument is 0 (a zero vector: normalize3 has no early out; screff2_warp's tiny radii shift by a masked count), and reads the
+ * 64 entries before the table: the end of the table before it. Those reads are named here; any other index is refused and logged. */
+int pc_root_table(int index)
+{
+    if (index >= 0 && index < 192)
+        return (unsigned short)D_80040C18[index];
+    if (index >= -64 && index < 0) {
+        const u_char* tail = vs_core_mathArcTangentTable + 516 + 2 * index;
+        return tail[0] | tail[1] << 8;
+    }
+    pc_table_index_ok("square root table", index, 192, "normalized argument", 0, 0);
+    return 0;
+}
+int pc_reciprocal_table(int index)
+{
+    if (index >= 0 && index < 192)
+        return D_80040D98[index];
+    if (index >= -64 && index < 0)
+        return (unsigned short)D_80040C18[192 + index];
+    pc_table_index_ok("reciprocal table", index, 192, "normalized argument", 0, 0);
+    return 0;
+}
 static unsigned normalize3(int* x, int* y, int* z)
 {
     MTC2(*x, 9);
@@ -519,7 +545,7 @@ static unsigned normalize3(int* x, int* y, int* z)
     unsigned leading = MFC2(31) & ~1u;
     unsigned scaled = leading >= 24 ? sum << ((leading - 24) & 31)
                                     : (unsigned)((int)sum >> ((24 - leading) & 31));
-    int reciprocal = D_80040D98[(int)scaled - 64];
+    int reciprocal = pc_reciprocal_table((int)scaled - 64);
     MTC2(*x, 9);
     MTC2(*y, 10);
     MTC2(*z, 11);
@@ -649,7 +675,6 @@ MATRIX* vs_core_mathPremultiplyRotationMatrix(MATRIX* a, MATRIX* b);
 MATRIX* vs_core_mathScaleMatrixColumns(MATRIX* matrix, VECTOR* scale);
 
 
-extern short D_80040C18[];
 /* 32154.s: table-based square roots, with the original leading-zero scaling. */
 psx_long SquareRoot12(psx_long value)
 {
@@ -660,7 +685,7 @@ psx_long SquareRoot12(psx_long value)
     leading &= 30;
     unsigned scaled = leading >= 24 ? (unsigned)value << ((leading - 24) & 31)
                                     : (unsigned)(value >> ((24 - leading) & 31));
-    unsigned root = (int)D_80040C18[(int)scaled - 64];
+    unsigned root = (unsigned)pc_root_table((int)scaled - 64);
     int exponent = (19 - (int)leading) >> 1;
     return exponent > 0 ? root << (exponent & 31) : root >> ((-exponent) & 31);
 }
@@ -673,7 +698,7 @@ int vs_gte_rsqrt(int value)
     leading &= 30;
     unsigned scaled = leading >= 24 ? (unsigned)value << ((leading - 24) & 31)
                                     : (unsigned)(value >> ((24 - leading) & 31));
-    unsigned root = (int)D_80040C18[(int)scaled - 64];
+    unsigned root = (unsigned)pc_root_table((int)scaled - 64);
     return (root << (((31 - leading) >> 1) & 31)) >> 12;
 }
 

@@ -58,7 +58,7 @@ from checkpoints import launch_at  # noqa: E402
 from card_fixtures import card_guard, default_save  # noqa: E402
 from photo_foundation_smoke import ppm, difference  # noqa: E402
 
-DIGEST = ("ram", "scratch", "io", "vram", "overlays", "vsync")
+DIGEST = ("ram", "heap", "io", "vram", "overlays", "vsync")
 PLUGIN = "rood.photo"
 
 
@@ -646,7 +646,7 @@ def run(out, card):
         g.wait_presents(20)
         g.call("system", key="h", down=False)
         kept = digest()
-        check(kept["vsync"] == held_keep["vsync"] and kept["scratch"] == held_keep["scratch"] and still_ranges() == held_ranges,
+        check(kept["vsync"] == held_keep["vsync"] and kept["heap"] == held_keep["heap"] and still_ranges() == held_ranges,
               "the game itself still held (the vsync, the scratchpad, the overlays' statics; only the sound's state moves)")
         press("f12")
         until("and it leaves", lambda: nothing_held(photo()) and value("M.state.active") is False)

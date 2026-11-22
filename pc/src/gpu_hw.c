@@ -2737,9 +2737,46 @@ static int status_rect(int x, int y, int w, int h, int u, int v, unsigned rgb, u
     return 1;
 }
 
+/* A carrier sprite of a picture of text (ui_text.h: the picture's drawer made it where the picture is drawn): its line's glyph image, drawn as the
+ * status words' images are (both layouts), the part the carrier asks for, at the carrier's place and colour (its brightness), in the order the game drew it. */
+static int gim_words_rect(int x, int y, int w, int h, int u, int v, unsigned rgb, unsigned code, unsigned tpage, unsigned clut,
+    unsigned window, const int* clip, int mask_set, int mask_check)
+{
+    pc_ui_picture_quad q;
+    const void* command = &pc_gpu_command ? pc_gpu_command : NULL;
+    if (!pc_ui_text_picture_quad(command, u, v, w, h, clut, &q))
+        return 0;
+    int found = pc_ui_upscale_lookup_image(q.image, pc_hw_scale, text_offset);
+    if (found < 0) { /* the atlas is full: as pc_hw_triangle does */
+        flush();
+        pc_ui_upscale_reset();
+        forget_recordings();
+        found = pc_ui_upscale_lookup_image(q.image, pc_hw_scale, text_offset);
+    }
+    if (found > 0) {
+        text_piece p;
+        memset(&p, 0, sizeof p);
+        p.info = (pc_ui_text_piece_info){ (float)x, (float)y, 1.0f, u, v, h, tpage, clut, { clip[0], clip[1], clip[2], clip[3] } };
+        p.rgb = rgb, p.code = code, p.window = window, p.mask_set = mask_set, p.mask_check = mask_check;
+        p.is_2d = primitive_2d, p.cover = primitive_cover, p.extend = primitive_extend;
+        p.narrowed = primitive_narrowed, p.anchor = primitive_anchor, p.opacity = primitive_opacity;
+        text_bounds[0] = text_bounds[1] = 0, text_bounds[2] = q.w, text_bounds[3] = q.h;
+        for (int tag = 0; tag < 2; tag++) {
+            triangle_tag = tag ? TEXT_TAG_LINE : TEXT_TAG_CELL;
+            text_quad((float)x + (float)q.col0, (float)y + (float)q.row0, (float)x + (float)q.col1, (float)y + (float)q.row1, q.col0, q.row0,
+                q.col1, q.row1, 1, &p);
+        }
+        triangle_tag = 0;
+    }
+    return 1;
+}
+
 void pc_hw_rect(int x, int y, int w, int h, int u, int v, unsigned rgb, unsigned code,
     unsigned tpage, unsigned clut, unsigned window, const int* clip, int mask_set, int mask_check)
 { PC_HW_METER(rect);
+    if (!text_emitting && pc_hw_active && !rsuppress && (code & 4) && pc_ui_text_layout_on(pc_hw_scale)
+        && gim_words_rect(x, y, w, h, u, v, rgb, code, tpage, clut, window, clip, mask_set, mask_check))
+        return;
     if (!text_emitting && pc_hw_active && !rsuppress && (code & 4) && pc_ui_text_layout_on(pc_hw_scale)
         && status_rect(x, y, w, h, u, v, rgb, code, tpage, clut, window, clip, mask_set, mask_check))
         return;

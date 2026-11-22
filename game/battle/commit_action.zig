@@ -48,7 +48,7 @@ pub fn commitAction(kind: c_int) callconv(.c) void {
     state().unk0 = 0;
     if (state().unk8.primaryTarget.target.targetActor == 0) {
         // ROOD_PC guard: the ability menu state is null until the menu first opens; the PS1 reads address 0.
-        const ability: *align(1) v.D_800F18EC_t = if (psx.Global(?*v.D_800F18EC_t, "D_800F18EC").ptr().*) |p| p else psx.lowRam(v.D_800F18EC_t);
+        const ability: *align(1) v.D_800F18EC_t = if (psx.Global(?*v.D_800F18EC_t, "D_800F18EC").ptr().*) |p| p else psx.nullObject(v.D_800F18EC_t);
         if (ability.unk2 != 7) {
             if (ability.unk2 == 8) {
                 _ = c.vs_battle_decreaseMiscCount(@as(c_int, ability.executeAbility.u16[1]));

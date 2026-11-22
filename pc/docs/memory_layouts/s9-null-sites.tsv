@@ -1,0 +1,20 @@
+# S9: the NULL-TABLE sites: where the original read or wrote through a NULL pointer (the PS1 address 0) and the port reads pc_null_object instead (a native 64 KiB zero object in boot_runtime.c, not guest memory: deleting the RAM window does not touch it)
+# site	what the line is
+game/battle/commit_action.zig:51	const ability: *align(1) v.D_800F18EC_t = if (psx.Global(?*v.D_800F18EC_t, "D_800F18EC").ptr().*) |p| p else psx.nullObject(v.D_800F18EC_t);
+game/battle/func_8009DDF4.zig:11	const temp: *align(1) v.D_800F4538_t = if (slot) |p| p else psx.nullObject(v.D_800F4538_t);
+game/battle/func_800A1720.zig:22	arg2[6] = @as(c_int, psx.nullObject(v.D_800F4538_t).unk0.position.vy);
+game/battle/func_800A17BC.zig:11	const src: *align(1) const v.MATRIX = if (matrix != null) @ptrCast(matrix) else psx.nullObject(v.MATRIX);
+game/battle/func_800A4A24.zig:23	return @alignCast(psx.nullObject(v.func_8008D2C0_t));
+game/battle/func_800A9530.zig:23	return @alignCast(psx.nullObject(v.func_8008D2C0_t));
+game/battle/func_800C0700.zig:10	const shape: *v.D_800EB9B8_t = if (v.g.vs_battle_targetSphere().*) |p| p else @alignCast(psx.nullObject(v.D_800EB9B8_t));
+game/battle/pc/release_room_flag.zig:15	const low_ram: [*]u8 = @ptrCast(psx.nullObject(u8));
+game/battle/pc/tile_enterable.zig:37	const other: *align(4) ai.vs_battle_aiState = if (pad.aiState(id)) |w| @ptrCast(@alignCast(w)) else @alignCast(@ptrCast(psx.nullObject(ai.vs_battle_aiState)));
+game/battle/vs_actors_anchorPoint.zig:32	const actor: *align(1) v.D_800F4538_t = if (slot) |s| @as(*align(1) v.D_800F4538_t, s) else psx.nullObject(v.D_800F4538_t);
+game/battle/vs_actors_anchorPoint.zig:43	const actor: *align(1) v.D_800F4538_t = if (slot) |s| @as(*align(1) v.D_800F4538_t, s) else psx.nullObject(v.D_800F4538_t);
+game/battle/vs_actors_updateActorPlatformContact.zig:11	var contact: *align(1) v.func_8008D2C0_t = psx.nullObject(v.func_8008D2C0_t);
+game/battle/vs_field_sampleActorCollisionPerimeter.zig:59	const word: c_uint = if (tile != null) tile[0] else psx.nullObject(c_uint).*;
+pc/src/actor_update.c:46	unsigned room = vs_battle_aiRoomAiState ? *(unsigned*)&vs_battle_aiRoomAiState->unk4 : *(unsigned*)(pc_null_object + 4);
+pc/src/game/BATTLE/BATTLE.PRG/40564.c:105	return (func_8008D2C0_t*)pc_null_object;
+pc/src/game/MENU/MENU4.PRG/120.c:2124	D_800F4538_t* preview = vs_actors_actorRecords[1] ? vs_actors_actorRecords[1] : (D_800F4538_t*)pc_null_object;
+pc/src/game/SLUS_010.40/25AC.c:176	(g_pSavedMousicConfig ? g_pSavedMousicConfig : (FSoundChannelConfig*)pc_null_object)
+pc/src/game/SLUS_010.40/25AC.c:185	((field) ? (field) : (short*)pc_null_object)

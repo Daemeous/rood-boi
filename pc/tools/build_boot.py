@@ -942,6 +942,7 @@ if battle:
         ("pc/src/classic/classic_bridge.c", "classic_bridge"),
         ("pc/src/classic/menu_model.c", "classic_menu_model"),
         ("pc/src/weapon_slots.c", "weapon_slots"),
+        ("pc/src/gim_text_bridge.c", "gim_text_bridge"),
         ("pc/src/button_roles.c", "button_roles"),
         ("pc/src/text_lines.c", "text_lines"),
         ("pc/src/ui/menu_bridge.c", "ui_menu_bridge"),
@@ -1460,6 +1461,7 @@ for source in [
     root / "pc/src/ui/ui_score_draw.cpp",
     root / "pc/src/prompt_glyphs.cpp",
     root / "pc/src/fast_travel_prompt.cpp",
+    root / "pc/src/gim_text.cpp",
     root / "pc/src/savestate_notice.cpp",
     root / "pc/src/hud/hud_elements.cpp",
     root / "pc/src/hud/hud_draw.cpp",
@@ -2236,7 +2238,7 @@ def lp64_native_imports():
     # stays pinned when anything could still reach it by address: another import inside, at or around it
     # (an incomplete array before it may run into it), a pointer word in any overlay file, a user that
     # would see it from the wrong overlay. T10/T15 (pc/docs/PS1_Ties.md).
-    PLAIN_MAX = 0x20000
+    PLAIN_MAX = 0x40000
     def address_taken(obj):
         """Imports an object uses other than by a PC-relative load or store: its address is taken (lea, an
         absolute or GOT reference, a relocation in data). Declared types lie about size (vs_menu_textBoxOrderingTables is a u_long
@@ -2302,7 +2304,9 @@ def lp64_native_imports():
         ranges = []
         for i, (offset, kind) in enumerate(starts):
             end = starts[i + 1][0] if i + 1 < len(starts) else size
-            if str(kind) not in ("c", "hasm", "asm", "code", "header") and offset < end:
+            # Pixel data (the decompilation's image types) holds no pointers either: a word of a texture or a palette that happens to look like an
+            # address is a colour pair, not something the code follows.
+            if str(kind) not in ("c", "hasm", "asm", "code", "header", "indexed", "rgb555", "rleRgb555", "rgb555Sized", "pad") and offset < end:
                 ranges.append((offset, end))
         return ranges
     word_sources = []  # (value, location, source file key)
@@ -2372,12 +2376,13 @@ def lp64_native_imports():
             break
         return None
     incomplete_before = set()  # addresses whose nearest import before is an incomplete array (its extent is unknown)
-    previous = None
+    previous = {}  # per place (the executable and BATTLE, ENDING's overlay, TITLE's): an array of another overlay is at its own addresses
     for n in sorted(data, key=lambda n: addresses[n]):
-        if previous is not None and addresses[previous] != addresses[n] and declarations.get(declared_name(previous)) \
-                and complete_size(previous) == 0:
+        before = previous.get(groups[n] or "")
+        if before is not None and addresses[before] != addresses[n] and declarations.get(declared_name(before)) \
+                and complete_size(before) == 0:
             incomplete_before.add(addresses[n])
-        previous = n
+        previous[groups[n] or ""] = n
     by_address = {}
     for n in data:
         by_address[addresses[n]] = by_address.get(addresses[n], 0) + 1
@@ -2389,10 +2394,9 @@ def lp64_native_imports():
         return bool(infos) and any(info.get("size") == 0 for _, info in infos) and not any(
             info.get("pointer") or info.get("pointer_words") or (info.get("element") or {}).get("pointer")
             or not (info.get("ps1_size") or obj.stem.endswith("_zig")) for obj, info in infos)
-    # ENDING's wave table vs_ending_creditsRippleDistanceGrid[4][16] (D4.c, the Phantom Pain wave) is read at [i + 1][j + 1], one row and one column
-    # past its end: the 16 bytes after it are vs_ending_creditsIllustrationBrightness..6C and the credits' text pointers, and the picture of the
-    # credits shows what those bytes hold. The table and the three variables stay in guest RAM with them.
-    OVERRUN = {"vs_ending_creditsRippleDistanceGrid", "vs_ending_creditsIllustrationBrightness", "vs_ending_creditsIllustrationTexturePageX", "vs_ending_creditsIllustrationPaletteY"}
+    # (ENDING's wave table vs_ending_creditsRippleDistanceGrid[4][16] was read at [i + 1][j + 1], past its end into three illustration words and the decode cursors:
+    # D4.c names those reads now (pc_phantom_pain_ripple), so nothing depends on the imports lying side by side and the table moves like any other.)
+    OVERRUN = set()
     def packet_storage(name):
         """Taking the address of GPU packet and ordering-table storage hands it to the GPU's links (24 bits of a
         guest RAM address): that, and nothing else about an address being taken, keeps an import in guest RAM."""
@@ -2441,10 +2445,12 @@ def lp64_native_imports():
             pinned[name] = "another name at its address"
         else:
             in_exe = end <= 0x80068800
-            in_battle = 0x80068800 <= start and end <= battle_end and not group_name and not keys & {"ending", "main"}
+            in_battle = 0x80068800 <= start and end <= battle_end and not group_name and not keys & {"ending"}
             in_ending = group_name == "ending" and end <= 0x80068800 + len(ending_image)
             in_title = group_name == "title" and end <= 0x80068800 + len(title_image)
-            in_battle_bss = battle_end <= start and end <= 0x800F9800 and not group_name and not keys & {"ending", "main"}
+            # (The program's and INITBTL's code reads BATTLE's variables while BATTLE is the loaded overlay, as the game's own save and battle set-up do:
+            # one native object in BATTLE's section is re-initialised when BATTLE loads, as the guest bytes are overwritten.)
+            in_battle_bss = battle_end <= start and end <= 0x800F9800 and not group_name and not keys & {"ending"}
             if 0x800F9800 <= start < 0x80102800:
                 pinned[name] = "in the plug-in slot: the link places it in pc_plugin_slot, not at its PS1 address"
             elif not (in_exe or in_battle or in_ending or in_title or in_battle_bss):
@@ -2905,7 +2911,7 @@ if engine_library:
         engine_boundary.publish_library(staged, library)
     except (RuntimeError, ValueError, OSError) as error:
         raise SystemExit(f"engine library boundary: {error}")
-    host_link = ["gcc", "-m64", "-no-pie", "-Wl,--section-start=rood_guest_pages=0x1f800000",  # as the static link
+    host_link = ["gcc", "-m64", "-no-pie", "-Wl,--section-start=rood_guest_pages=0x1f801000",  # as the static link
                  "-Wl,--gc-sections", *link_compress_flags, "-Wl,--wrap=free,--wrap=realloc",  # (engine_host.c: a library block the host frees leaves the registry)
                  *[str(o) for o in host_objects], str(out / "engine_boundary.o"), *pin_args, str(out / "imports.ld"),
                  "-Wl,--dynamic-list=" + str(out / "host_exports.list"),
@@ -2941,9 +2947,8 @@ link = (
         # it. 64 bits: links are guest-only; non-PIE keeps native addresses
         # below 4 GB (psx_ptr fields can hold them).
         *(["-m64", "-no-pie"] if arch64 else ["-m32", "-no-pie", "-Wl,-Ttext-segment=0x00400000"]),
-        # The scratchpad and the I/O page (boot_runtime.c): the image's last
-        # pages, so the heap starts above them.
-        "-Wl,--section-start=rood_guest_pages=0x1f800000",
+        # The I/O page (boot_runtime.c): the image's last page, so the heap starts above it.
+        "-Wl,--section-start=rood_guest_pages=0x1f801000",
         "-Wl,--gc-sections",
         *link_compress_flags,
         *[str(o) for o in objects],

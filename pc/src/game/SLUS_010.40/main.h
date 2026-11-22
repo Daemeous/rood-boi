@@ -586,8 +586,7 @@ int vs_main_getCurrentMusicId(void);
 void vs_audio_stopSfx(int arg0, int arg1);
 void vs_main_wait(void);
 void vs_main_initHeap(vs_main_HeapHeader* node, u_int value);
-/* The game's heap: a free list in fixed RAM after the overlay slots (T12). */
-#define VS_MAIN_HEAP_ADDRESS 0x100000000ull /* ROOD_HEAP_BASE (psx_types.h): the heap arena, in its own mapping */
+/* The game's heap: a free list in its own arena (ROOD_HEAP_BASE, psx_types.h). */
 #define VS_MAIN_HEAP_SIZE 0xF2000
 void vs_main_resetGame(void);
 int vs_main_processSoundQueue(void);

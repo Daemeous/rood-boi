@@ -1,5 +1,5 @@
 /* Native translations of the room navigation setup in BATTLE/7E05C.s. */
-#include "psx_types.h" /* psx_load/psx_store: 4-byte guest pointers */
+#include "psx_types.h"
 extern void* vs_main_allocHeap(unsigned);
 extern void* vs_main_allocHeapR(unsigned);
 extern void vs_main_freeHeapR(void*);

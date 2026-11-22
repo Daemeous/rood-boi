@@ -514,6 +514,10 @@ extern int pc_hw_dump(const char* path, int replay) __attribute__((weak));
 extern int pc_hw_set_scale(int scale) __attribute__((weak));
 extern int pc_hw_active __attribute__((weak)), pc_hw_scale __attribute__((weak));
 extern int pc_gl_filter __attribute__((weak)), pc_gl_aspect __attribute__((weak));
+extern int pc_gim_text __attribute__((weak)); /* gim_text.cpp */
+extern float pc_gim_text_size __attribute__((weak)), pc_gim_text_gradient __attribute__((weak)), pc_gim_text_caps __attribute__((weak));
+extern char pc_gim_text_fill[1024] __attribute__((weak));
+extern int pc_gim_text_fill_force __attribute__((weak));
 extern int pc_gl_aa __attribute__((weak));
 /* Anti-aliasing (antialias.h). */
 extern int pc_aa_parse(const char*) __attribute__((weak));
@@ -1227,8 +1231,6 @@ static int readable(uintptr_t address, uintptr_t length)
         return 0;
     if (rood_guest_memory(address, length))
         return 1;
-    if (address >= 0x1F800000ul && end <= 0x1F800400ul)
-        return 1;
     return address >= (uintptr_t)__data_start && end <= (uintptr_t)_end;
 }
 static int writable(uintptr_t address, uintptr_t length)
@@ -1236,7 +1238,6 @@ static int writable(uintptr_t address, uintptr_t length)
     uintptr_t end = address + length;
     return length <= 65536 && end >= address
         && (rood_guest_memory(address, length)
-            || (address >= 0x1F800000ul && end <= 0x1F800400ul)
             /* host data: the game state that holds pointers (the battle menu's records) is defined natively */
             || (address >= (uintptr_t)__data_start && end <= (uintptr_t)_end));
 }
@@ -1822,6 +1823,13 @@ static void handle_method(int fd, const char* request)
         }
         pc_weapon_slots_json(result, sizeof result);
         reply(fd, id, result);
+    } else if (!strcmp(method, "gim_text")) {
+        /* GIM pictures as real text (gim_text.cpp): replies {drawn}, the pictures' lines drawn as carriers so far (the fill, size, small capitals and the
+         * pictures typography are the graphics keys gim_text_*; tests). */
+        extern unsigned pc_gim_text_drawn __attribute__((weak));
+        char text[96];
+        snprintf(text, sizeof text, "{\"drawn\":%u}", &pc_gim_text_drawn ? pc_gim_text_drawn : 0u);
+        reply(fd, id, text);
     } else if (!strcmp(method, "weather")) {
         /* Starts the room's weather of kind 0..4 as the room's script command does (BATTLE vs_field_setRoomWeather: the room needs its
          * weather section); 1 rain, 2 snow, 3 motes, 4 falling particles. */
@@ -2385,6 +2393,27 @@ static void handle_method(int fd, const char* request)
                 pc_ui_bubble_outline = (float)outline;
             if (real_value(member(params, "ui_wire_width"), &outline) && outline >= 0 && outline <= 8)
                 pc_ui_wire_width = (float)outline;
+            /* GIM pictures of text as real text (gim_text.cpp): gim_text 0/1, gim_text_size 0.1..3, gim_text_gradient 0..1, gim_text_caps 0..1, gim_text_bold 0..2,
+             * gim_text_font (a TrueType file; "" the default). */
+            if (&pc_gim_text) {
+                if (number_value(member(params, "gim_text"), &n))
+                    pc_gim_text = n != 0;
+                else if (bool_value(member(params, "gim_text"), &flag))
+                    pc_gim_text = flag;
+                if (real_value(member(params, "gim_text_size"), &outline) && outline >= 0.1 && outline <= 3)
+                    pc_gim_text_size = (float)outline;
+                if (real_value(member(params, "gim_text_gradient"), &outline) && outline >= 0 && outline <= 1)
+                    pc_gim_text_gradient = (float)outline;
+                if (real_value(member(params, "gim_text_caps"), &outline) && outline >= 0 && outline <= 1)
+                    pc_gim_text_caps = (float)outline;
+                /* gim_text_fill: the global fill of the words, `[STEM-or-glob=]type [angle=N] [scope=block|line] [strength=X] | pos:rrggbb ...; ...` ("" none);
+                 * gim_text_fill_force 0/1: it wins over the pack's fills */
+                char fill[sizeof pc_gim_text_fill];
+                if (string_value(member(params, "gim_text_fill"), fill, sizeof fill))
+                    snprintf(pc_gim_text_fill, sizeof pc_gim_text_fill, "%s", fill);
+                if (bool_value(member(params, "gim_text_fill_force"), &flag))
+                    pc_gim_text_fill_force = flag;
+            }
         }
         if (&pc_gi_enabled && params) {
             double real;
@@ -2723,9 +2752,11 @@ static void handle_method(int fd, const char* request)
                 - 1;
         if (used < (int)sizeof result - 160)
             used += snprintf(result + used - 1, sizeof result - used + 1,
-                        ",\"ui_lines\":\"%s\",\"ui_outline_boost\":%d,\"ui_bubbles\":\"%s\",\"ui_bubble_outline\":%g,\"ui_wire_width\":%g}",
+                        ",\"ui_lines\":\"%s\",\"ui_outline_boost\":%d,\"ui_bubbles\":\"%s\",\"ui_bubble_outline\":%g,\"ui_wire_width\":%g,\"gim_text\":%d,\"gim_text_size\":%g,\"gim_text_gradient\":%g,\"gim_text_caps\":%g}",
                         pc_ui_lines_names[pc_ui_lines ? 1 : 0], pc_ui_outline_boost,
-                        pc_ui_bubbles_names[pc_ui_bubbles ? 1 : 0], pc_ui_bubble_outline, pc_ui_wire_width)
+                        pc_ui_bubbles_names[pc_ui_bubbles ? 1 : 0], pc_ui_bubble_outline, pc_ui_wire_width,
+                        &pc_gim_text ? pc_gim_text : 0, &pc_gim_text_size ? (double)pc_gim_text_size : 0.0, &pc_gim_text_gradient ? (double)pc_gim_text_gradient : 0.0,
+                        &pc_gim_text_caps ? (double)pc_gim_text_caps : 0.0)
                 - 1;
         extern int pc_hw_scale_setting __attribute__((weak));
         if (pc_aa_string && used < (int)sizeof result - 200)

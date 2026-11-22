@@ -234,6 +234,7 @@ struct RoomGroup {
     unsigned offset, tris, total;
 };
 std::vector<RoomGroup> room_groups();
+uint32_t model_mesh(uint32_t model); /* a model's (content hash) mesh handle, 0 none */
 /* The planes at a texel (emissive.h PC_MATERIAL_*: roughness, specular, metal, slopes u and v, cavity). */
 bool material_at(unsigned u, unsigned v, unsigned tpage, int out[PC_MATERIAL_PLANES]);
 

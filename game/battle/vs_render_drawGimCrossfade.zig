@@ -34,6 +34,18 @@ pub fn vs_render_drawGimCrossfade(image_arg: ?*v.gim_t, clut: c_int, ot: [*c]c_u
     const columns: c_int = dims[0];
     const height: c_int = @as(c_int, dims[1]) * 15;
     const top: c_int = @as(c_int, image.unkA) - ((height >> 1) - 120);
+    // ROOD_PC: a picture of text the player's pack has the words of (gim_text.cpp): what its boxes cover is left out of the tiles (the rest is drawn as before) and
+    // carriers of its lines are added, at the picture's brightness (the picture here is laid out from the left edge at its offset).
+    const Replace = *const fn (?*v.gim_t) callconv(.c) c_int;
+    const Words = *const fn (?*v.gim_t, c_int, c_int, c_int, c_int, c_int, c_int, [*c]c_uint, ?*const i16, ?*const i16) callconv(.c) void;
+    const Boxes = *const fn (*[64]c_int) callconv(.c) c_int;
+    const replaced: bool = if (psx.weak(Replace, "pc_gim_text_replace")) |ask| ask(image) != 0 else false;
+    var boxes: [64]c_int = undefined;
+    var box_count: usize = 0;
+    if (replaced) {
+        if (psx.weak(Boxes, "pc_gim_text_boxes")) |get| box_count = @intCast(@max(get(&boxes), 0));
+        if (psx.weak(Words, "pc_gim_text_words")) |words| words(image, columns, dims[1], 4096, columns * 32 - 160, top + (height >> 1) - 120, @min(alpha - 263, 0x7F), ot, null, null); // (oy: the offset `top` came from; alpha: the picture's brightness, as it was before |= 256 and += 7)
+    }
     var column: c_int = 0;
     while (column < columns) : (column += 1) {
         _ = sprite_item.sprite(ot, 384, (column * 64) | (top << 16), 64 | (height << 16), @bitCast(tpage(2, 1, page, 256)), 0);
@@ -56,7 +68,60 @@ pub fn vs_render_drawGimCrossfade(image_arg: ?*v.gim_t, clut: c_int, ot: [*c]c_u
                 const atlas = tile >> 2;
                 const uv = ((tile << 6) & 192) | (((atlas & 31) * 15) << 8) | clut;
                 const tx = ((@as(c_int, image.unk2) - 18) << 6) + (atlas & 448);
-                _ = sprite_item.sprite(ot, 128, (((y * 30 - height) >> 1) + x - top) << 16, 0xF0040, @bitCast(tpage(mode, 0, tx, 256)), uv);
+                const at_y = ((y * 30 - height) >> 1) + x - top;
+                // (the tile less the boxes of the words: pieces of it)
+                var pieces: [32][4]c_int = undefined;
+                pieces[0] = .{ 0, 0, 64, 15 };
+                var n: usize = 1;
+                var bi: usize = 0;
+                while (bi < box_count) : (bi += 1) {
+                    const bx0 = boxes[bi * 4] - 1 - column * 64;
+                    const by0 = boxes[bi * 4 + 1] - 1 - y * 15;
+                    const bx1 = boxes[bi * 4 + 2] + 1 - column * 64;
+                    const by1 = boxes[bi * 4 + 3] - y * 15;
+                    var next: [32][4]c_int = undefined;
+                    var m: usize = 0;
+                    var pi: usize = 0;
+                    while (pi < n) : (pi += 1) {
+                        const r = pieces[pi];
+                        if (bx1 <= r[0] or bx0 >= r[2] or by1 <= r[1] or by0 >= r[3] or m + 4 > next.len) {
+                            if (m < next.len) {
+                                next[m] = r;
+                                m += 1;
+                            }
+                            continue;
+                        }
+                        const cy0 = @max(by0, r[1]);
+                        const cy1 = @min(by1, r[3]);
+                        if (cy0 > r[1]) {
+                            next[m] = .{ r[0], r[1], r[2], cy0 };
+                            m += 1;
+                        }
+                        if (cy1 < r[3]) {
+                            next[m] = .{ r[0], cy1, r[2], r[3] };
+                            m += 1;
+                        }
+                        if (bx0 > r[0]) {
+                            next[m] = .{ r[0], cy0, bx0, cy1 };
+                            m += 1;
+                        }
+                        if (bx1 < r[2]) {
+                            next[m] = .{ bx1, cy0, r[2], cy1 };
+                            m += 1;
+                        }
+                    }
+                    pieces = next;
+                    n = m;
+                }
+                var pi: usize = 0;
+                while (pi < n) : (pi += 1) {
+                    const r = pieces[pi];
+                    _ = sprite_item.sprite(ot, 128, r[0] | ((at_y + r[1]) << 16), ((r[3] - r[1]) << 16) | (r[2] - r[0]), @bitCast(tpage(mode, 0, tx, 256)), (uv & ~@as(c_int, 0xffff)) | ((uv & 0xff) + r[0]) | ((((uv >> 8) & 0xff) + r[1]) << 8));
+                }
+                if (n != 1 or pieces[0][0] != 0 or pieces[0][1] != 0 or pieces[0][2] != 64 or pieces[0][3] != 15) {
+                    // (what the boxes took out was black texels of the picture too, which the blend darkens the frame by: the tile's own place, black, drawn before its pieces)
+                    sprite_item.tileFlat(ot, false, 0, at_y << 16, 64 | (15 << 16));
+                }
             }
         }
         c.vs_render_setGimWorkspaceDrawArea(ot, page);

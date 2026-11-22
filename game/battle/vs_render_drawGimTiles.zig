@@ -21,6 +21,7 @@ pub fn vs_render_drawGimTiles(image_arg: ?*v.gim_t, clut: c_int, ot: [*c]c_uint)
     // ROOD_PC: the anchor's start.
     const image_start = psx.get(scratch.unk0);
     var j: c_int = @as(c_int, image.unk8) + 160;
+    const origin_x: c_int = j - 160;
     // The columns' x and the rows' y (the pad's top 0x400 held them; a count is a byte, so 256 entries each).
     var column_table: [256]i16 = undefined;
     var row_table: [256]i16 = undefined;
@@ -35,6 +36,15 @@ pub fn vs_render_drawGimTiles(image_arg: ?*v.gim_t, clut: c_int, ot: [*c]c_uint)
     while (i <= rows) : (i += 1) {
         row_y[@intCast(i)] = psx.conv(i16, (((i * 2 - rows) *% scale *% 15) >> 13) +% j);
     }
+    // ROOD_PC: a picture of text the player's pack has the words of (gim_text.cpp) is drawn as real text: what its pack's boxes cover is left out of the tiles,
+    // and carriers of its lines are added where the tiles are (below).
+    const Replace = *const fn (?*v.gim_t) callconv(.c) c_int;
+    const replaced: bool = if (psx.weak(Replace, "pc_gim_text_replace")) |ask| ask(image) != 0 else false;
+    const origin_y: c_int = j - 120;
+    // ROOD_PC: the boxes of the replaced words (the picture's pixels); only what they cover is left out of the tiles, so its ornaments and background stay.
+    const Boxes = *const fn (*[64]c_int) callconv(.c) c_int;
+    var boxes: [64]c_int = undefined;
+    const box_count: usize = if (replaced) (if (psx.weak(Boxes, "pc_gim_text_boxes")) |get| @intCast(@max(get(&boxes), 0)) else 0) else 0;
     const color: c_int = @as(u16, @bitCast(image.unkE));
     if (color != 0) {
         const r = ((color << 3) & 0xF8) * alpha;
@@ -61,6 +71,10 @@ pub fn vs_render_drawGimTiles(image_arg: ?*v.gim_t, clut: c_int, ot: [*c]c_uint)
     }
     const quad_color: c_int = alpha | (alpha << 8) | (alpha << 16); // (the packet's command byte, 0x2C + 2 * D_800F51C8, is the item's flags)
     alpha |= @as(c_int, v.g.D_800F51C8().*) << 8;
+    if (replaced) { // (added before the tiles: the ordering table draws the last added first, so the words come over what the tiles draw)
+        const Words = *const fn (?*v.gim_t, c_int, c_int, c_int, c_int, c_int, c_int, [*c]c_uint, ?*const i16, ?*const i16) callconv(.c) void;
+        if (psx.weak(Words, "pc_gim_text_words")) |words| words(image, columns, rows, scale, origin_x, origin_y, alpha, ot, null, null);
+    }
     j = 0;
     while (j < rows) : (j += 1) {
         const top: c_int = row_y[@intCast(j)];
@@ -88,7 +102,82 @@ pub fn vs_render_drawGimTiles(image_arg: ?*v.gim_t, clut: c_int, ot: [*c]c_uint)
                 vv = (vv & 0x1F00) * 15;
                 const tpage: c_int = ((@as(c_int, psx.getBits(image, "unk0_2")) & 3) << 7) | (1 << 5) | (0x100 >> 4) | (((((@as(c_int, image.unk2) - 18) << 6) + ((tile >> 2) & 0x1C0)) & 0x3FF) >> 6);
                 const tpage_word: c_int = tpage | @as(c_int, @bitCast(@as(c_uint, 0xE1000000)));
-                if (scale == 4096) {
+                // The tile's rectangle (64 x 15 texels) minus the boxes of the words: what is left of it, as pieces.
+                var pieces: [96][4]c_int = undefined;
+                var piece_count: usize = 1;
+                pieces[0] = .{ 0, 0, 64, 15 };
+                var carved = false;
+                var bi: usize = 0;
+                while (bi < box_count) : (bi += 1) {
+                    const bx0 = boxes[bi * 4] - 1 - i * 64;
+                    const by0 = boxes[bi * 4 + 1] - 1 - j * 15;
+                    const bx1 = boxes[bi * 4 + 2] + 1 - i * 64;
+                    const by1 = boxes[bi * 4 + 3] - j * 15; // (no margin below: a rule under the words stays)
+                    var next: [96][4]c_int = undefined;
+                    var next_count: usize = 0;
+                    var pi: usize = 0;
+                    while (pi < piece_count) : (pi += 1) {
+                        const r = pieces[pi];
+                        if (bx1 <= r[0] or bx0 >= r[2] or by1 <= r[1] or by0 >= r[3] or next_count + 4 > next.len) {
+                            if (next_count < next.len) {
+                                next[next_count] = r;
+                                next_count += 1;
+                            }
+                            continue;
+                        }
+                        carved = true;
+                        const cy0 = @max(by0, r[1]);
+                        const cy1 = @min(by1, r[3]);
+                        if (cy0 > r[1]) {
+                            next[next_count] = .{ r[0], r[1], r[2], cy0 };
+                            next_count += 1;
+                        }
+                        if (cy1 < r[3]) {
+                            next[next_count] = .{ r[0], cy1, r[2], r[3] };
+                            next_count += 1;
+                        }
+                        if (bx0 > r[0]) {
+                            next[next_count] = .{ r[0], cy0, bx0, cy1 };
+                            next_count += 1;
+                        }
+                        if (bx1 < r[2]) {
+                            next[next_count] = .{ bx1, cy0, r[2], cy1 };
+                            next_count += 1;
+                        }
+                    }
+                    pieces = next;
+                    piece_count = next_count;
+                }
+                if (carved) {
+                    var pi: usize = 0;
+                    while (pi < piece_count) : (pi += 1) {
+                        const r = pieces[pi];
+                        if (scale == 4096) { // (1:1: a sprite of the piece's texels, as the whole tile is drawn)
+                            _ = sprite_item.sprite(ot, alpha, (left + r[0]) | ((top + r[1]) << 16), ((r[3] - r[1]) << 16) | (r[2] - r[0]), tpage_word, (u + r[0]) | (vv + (r[1] << 8)) | clut);
+                            continue;
+                        }
+                        const sx0 = left + @divTrunc((right - left) * r[0], 64);
+                        const sx1 = left + @divTrunc((right - left) * r[2], 64);
+                        const sy0 = top + @divTrunc((bottom - top) * r[1], 15);
+                        const sy1 = top + @divTrunc((bottom - top) * r[3], 15);
+                        var u_l = u + r[0];
+                        var u_r = u + r[2];
+                        u_l -= u_l >> 8;
+                        u_r -= u_r >> 8;
+                        const v0 = vv + (r[1] << 8);
+                        const v1 = vv + (r[3] << 8);
+                        const clut_word: c_uint = @bitCast(u | vv | clut);
+                        const page_word: c_uint = @bitCast((u + 64 - ((u + 64) >> 8)) | vv | (tpage << 16));
+                        const corners = [4]c_int{ (sx0 & 0xFFFF) | (sy0 << 16), sx1 | (sy0 << 16), (sx0 & 0xFFFF) | (sy1 << 16), sx1 | (sy1 << 16) };
+                        const texels = [4]c_int{ u_l | v0, u_r | v0, u_l | v1, u_r | v1 };
+                        const item = sprite_item.ft4(ot, false, (alpha & 0x100) != 0, @intCast(page_word >> 16), @intCast(clut_word >> 16), quad_color, &corners, &texels);
+                        sprite_item.before(item, tpage_word & 0x3FFF);
+                    }
+                    // (the background after the pieces: the ordering table draws what was added last first, so the flat tile is under them)
+                    if (color != 0 and (color != 0x8000 or (alpha >> 8) == 0)) {
+                        sprite_item.tileFlat(ot, semi, background, (left & 0xFFFF) | (top << 16), (right -% left) | ((bottom -% top) << 16));
+                    }
+                } else if (scale == 4096) {
                     _ = sprite_item.sprite(ot, alpha, left | (top << 16), 0xF0040, tpage_word, u | vv | clut);
                 } else {
                     // A textured quad of the tile's corners (x0, top), (right, top), (x0, bottom), (right, bottom): the texels as the words held

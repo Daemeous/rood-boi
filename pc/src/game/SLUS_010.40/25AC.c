@@ -173,7 +173,7 @@ extern FSoundChannelConfig* g_pSavedMousicConfig;
 /* With no saved music config the original reads (and clears) fields through
  * NULL, i.e. PS1 physical RAM at 0, which the host maps at 0x80000000. */
 #define SAVED_MUSIC_CONFIG                                                       \
-    (g_pSavedMousicConfig ? g_pSavedMousicConfig : (FSoundChannelConfig*)rood_null_page)
+    (g_pSavedMousicConfig ? g_pSavedMousicConfig : (FSoundChannelConfig*)pc_null_object)
 #else
 #define SAVED_MUSIC_CONFIG g_pSavedMousicConfig
 #endif
@@ -182,7 +182,7 @@ extern FSoundChannelConfig* g_pSavedMousicConfig;
  * reads a NULL wave: PS1 physical RAM at 0, as above. Zone 15 room
  * 0's and zone 48 room 3's entry sound effects slide the auto-pan depth. */
 #define LFO_WAVE(field)                                                         \
-    ((field) ? (field) : (short*)rood_null_page)
+    ((field) ? (field) : (short*)pc_null_object)
 #else
 #define LFO_WAVE(field) (field)
 #endif

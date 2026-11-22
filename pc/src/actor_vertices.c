@@ -1,6 +1,6 @@
 /* BATTLE/4B16C.s: transform cumulative bone vertex groups into the original
  * screen/depth arrays, each vertex projected through its group's matrix (gte_value.h). */
-#include "psx_types.h" /* psx_load/psx_store: 4-byte guest pointers */
+#include "psx_types.h"
 #include <sys/types.h>
 #include <libgte.h>
 #include "gte_value.h"

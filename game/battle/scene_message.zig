@@ -33,7 +33,11 @@ pub fn displaySceneMessage(message: c_int, action: c_int, held: c_int) callconv(
     } else {
         if (action != 0) {
             // D_800EBF58[(action - 0x1CA) * 2]: a 12-byte row's address, before the table for action < 0x1CA.
-            psx.put(&v.g.stringContext().strings[0], psx.at(v.g.D_800EBF58(), (action -% 0x1CA) *% 2));
+            // The rows (64 of 12 bytes) follow the 380 bytes of text in the door sigils' block; the row a script's action selects is checked.
+            const row: c_int = (action -% 0x1CA) *% 2;
+            if (c.pc_table_index_ok("vs_battle_doorStrings rows", row, 64, "scene message action", @intCast(action), 0) != 0) {
+                psx.put(&v.g.stringContext().strings[0], @as([*]u8, @ptrCast(v.g.sceneMessages())) + 380 + @as(usize, @intCast(row)) * 12);
+            }
         }
         _ = c.vs_battle_printf(@ptrCast(v.g.nameWindowText().*.?),
             @ptrCast(psx.at(v.g.sceneMessages(), psx.at(v.g.sceneMessages(), message).*)));

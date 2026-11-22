@@ -1,7 +1,7 @@
 /* Native equivalents of hand-written game assembly, added only when verified. */
 /* pc/src/game/BATTLE/BATTLE.PRG/7E05C.s: func_800E6EAC returns immediately.
  * Its delay slot only writes caller-saved $t0 (the following function's lui). */
-#include "psx_types.h" /* psx_load/psx_store: 4-byte guest pointers */
+#include "psx_types.h"
 #include "game/BATTLE/BATTLE.PRG/ai_state.h"
 #include "draw_items.h"
 #include "scratch.h"

@@ -17,5 +17,5 @@ pub fn vs_effects_initializeEffectResources() callconv(.c) void {
     // ROOD_PC branch: vs_effects_actionRequestPointer is D_800F56C8.unkD0, stored as a guest pointer in the struct.
     psx.put(&v.g.D_800F56C8().unkD0, v.g.vs_effects_actionRequest());
     c.vs_effects_selectEffectResourceContext(0);
-    c.vs_effects_bindEffectPackageBlocks(psx.cptr(c.p_file_t, v.g.vs_effects_emptyPackage()));
+    c.vs_effects_bindEffectPackageBlocks(@ptrCast(@alignCast(v.g.vs_effects_emptyPackage())));
 }

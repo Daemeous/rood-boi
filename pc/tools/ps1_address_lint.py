@@ -23,7 +23,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 BASELINE = ROOT / "pc/tools/ps1_address_baseline.json"
 C_SUFFIXES = {".c", ".h", ".inc", ".cpp", ".hpp"}
 TREES = [("pc/src", C_SUFFIXES), ("game", C_SUFFIXES | {".zig"})]
-SKIP = ("pc/src/third_party/",)
+SKIP = ("pc/src/third_party/", "pc/src/lua/sha256.cpp")  # (sha256.cpp: the hash's round constants)
 # Python tools and tests: only the rules of PY_RULES count there (and only they, not the C ones, count in C)
 PY_TREES = [("pc/tools", {".py"}), ("pc/tests", {".py"})]
 RAW_API_TESTS = ("pc/tests/rpc_smoke.py", "pc/tests/ownership_smoke.py", "pc/tests/zig_hotswap_smoke.py", "pc/tests/layout_smoke.py", "pc/tests/port_arena_smoke.py")

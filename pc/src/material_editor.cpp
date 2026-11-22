@@ -20,6 +20,7 @@
 #include "imgui.h"
 #include "emissive.h"
 #include "emissive_internal.h"
+#include "render.h"
 #include "materials.h"
 #include "material_survey.h"
 #include "material_editor.h"
@@ -351,6 +352,10 @@ Json pick_json(const TexturePick& p)
     room.items.push_back(Json::num(p.zone));
     room.items.push_back(Json::num(p.room));
     j.set("room", room);
+    Json world = Json::array(); /* where the pick landed (game units), e.g. to put a light beside it */
+    for (int k = 0; k < 3; k++)
+        world.items.push_back(Json::num(p.world[k]));
+    j.set("world", world);
     const materials::Entry* e = materials::find_match(p.key, p.w(), p.h(),
         emissive::pick_palettes(p.clut_key, p.tpage, p.clut), p.zone, p.room);
     j.set("entry", Json::str(e ? e->id : ""));
@@ -1313,6 +1318,21 @@ extern "C" int pc_material_rpc(const char* params_text, char* out, int size)
         }
         Json j = Json::object();
         j.set("groups", list);
+        return reply(j, out, size);
+    }
+    if (action == "model_dump") { /* {model: "4b8870d7", path}: the model as it stands in the newest frame, in scene_dump's format (render_mesh_dump) */
+        const Json* m = params.get("model");
+        const Json* path = params.get("path");
+        if (!m || m->type != Json::String || !path || path->type != Json::String)
+            return fail("material model_dump needs model (8 hex digits) and path", out, size);
+        uint32_t mesh = emissive::model_mesh((uint32_t)strtoul(m->string.c_str(), nullptr, 16));
+        if (!mesh)
+            return fail("material model_dump: no mesh of model " + m->string + " (it is not drawn now)", out, size);
+        int n = render_mesh_dump(mesh, path->string.c_str());
+        if (n < 0)
+            return fail("material model_dump: the model is not in a drawn list, or the file cannot be written", out, size);
+        Json j = Json::object();
+        j.set("triangles", Json::num(n));
         return reply(j, out, size);
     }
     if (action == "survey") {

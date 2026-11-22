@@ -22,7 +22,10 @@ extern D_800EB9B8_t* vs_battle_targetSphere;
 
 extern void pc_unimplemented(const char*);
 /* A 32-bit guest word: the battle menu state block's address. */
-extern u_short D_800EA130[]; /* 0x8000 / n; indexed past its end as the original */
+/* The battle menu's data block, 0x800EA130..0x800EA620 (1264 bytes): the area map's 0x8000 / n table (n = 0..129, 130 words), then the target sphere's
+ * tables (battle_gte / 58578.c: D_800EA130 + 0x104, +0x194, +0x308, +0x33C). The map reads the reciprocal at any scanline count: past the 130 words, the
+ * words of the sphere tables after it, as the original did; the whole block is one object here (632 words), and an index outside it is refused. */
+extern u_short D_800EA130[632];
 extern u_short D_800EA6B0[]; /* edge -> pair of neighbouring cell indices */
 extern short D_800EA818[];   /* 40-entry sine table: sin at i, cos at i + 8 */
 
