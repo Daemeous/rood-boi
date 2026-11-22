@@ -1,59 +1,50 @@
-"""Check a later VKP scene reached by 4,000 original battle frames.
+"""Check a later VKP scene reached by the game's own frames (the idle cutscene after the title).
 
-The captured frame is the picture of the PS1 display area (read back from the renderer's target at the checkpoint). Since the room and the characters are native lists (S5.2 / S5.3,
-c5a2cfdcf: no longer built as packets) it holds only the 2D the game draws: here the scene's talk bubble on black. The 3D (the room, the
-actor) is checked by the renderer's own suites; this one keeps what the 2D frame can show: the checkpoint is reached and the dialogue's
-bubble and text are drawn."""
-
+The game runs unpaced from the title with no input; the idle cutscene plays: a room (native lists, drawn by the renderer), its
+characters, and the dialogue bubbles, which are vector bubbles drawn over the picture, not pixels of the PS1 frame (so the PS1
+frame the old version of this test read back, a 2D picture of the display area, only held the loading screen's text). What this
+checks is the picture the game presents: at eight points in the cutscene (a cut fades through black now and then) at least five pictures are a lit 3D scene (many colours, a good part of it not
+black), and a dialogue bubble (a light grey box with dark text) is on screen at some of them (the bubbles come and go)."""
+import os
 import pathlib
 import subprocess
-import os
+import sys
 
-# Keep tests off the player's saves (a save makes the title default to
-# Continue): an empty slot 1 and no slot 2, relative to the repository root.
-# ROOD_OUT (pc/tests/run.py) gives parallel runs their own files.
-out = os.environ.get("ROOD_OUT") or "pc/build/boot"
-os.environ.setdefault("ROOD_CARD1", f"{out}/test-card1.mcd")
-os.environ.setdefault("ROOD_CARD2", f"{out}/test-card2-absent.mcd")
-# Software GL under Xvfb is slow at 4x; these tests cover game logic at 1x.
-os.environ.setdefault("ROOD_SCALE", "1")
+import numpy as np
+from PIL import Image
 
-root = pathlib.Path(__file__).resolve().parents[2]
-capture = root / out / "battle-checkpoint.ppm"
-capture.unlink(missing_ok=True)
-result = subprocess.run(
-    [
-        (("pc/build/boot64" if os.environ.get("ROOD_ARCH") == "64" else "pc/build/boot") + "/rood_battle_probe"),
-        "--skip-movies",
-        "--fast",
-        "--battle-frame-checkpoint",
-        "4000",
-    ],
-    cwd=root,
-    capture_output=True,
-    timeout=180,
-)
-(root / out / "scene-test.log").write_bytes(result.stdout + result.stderr)
-if result.returncode or b"BATTLE FRAME CHECKPOINT: 4000" not in result.stderr:
-    raise SystemExit("Scene checkpoint failed; see " + out + "/scene-test.log")
-assert b"ROOM RENDER CHECKPOINT" not in result.stderr
-magic, dimensions, maximum, pixels = capture.read_bytes().split(b"\n", 3)
-assert magic == b"P6" and maximum == b"255"
-width, height = map(int, dimensions.split())
-assert (width, height) == (320, 224) and len(pixels) == width * height * 3
-colors = {pixels[i : i + 3] for i in range(0, len(pixels), 3)}
-nonblack = sum(pixels[i : i + 3] != b"\0\0\0" for i in range(0, len(pixels), 3))
-bright = sum(
-    min(pixels[(y * width + x) * 3 : (y * width + x) * 3 + 3]) >= 180
-    for y in range(10, 100)
-    for x in range(10, 185)
-)
-actor = sum(
-    pixels[(y * width + x) * 3 : (y * width + x) * 3 + 3] != b"\0\0\0"
-    for y in range(65, 215)
-    for x in range(200, 310)
-)
-assert len(colors) > 10 and nonblack > 5000, "Later scene missing"
-assert bright > 2000, "Dialogue missing"
-assert actor == 0, "The CPU frame holds 3D again: restore the scene and actor checks (nonblack > 25000, actor > 7000)"
-print(f"PASS: 4,000 original scene frames, {len(colors)} colors, {nonblack} nonblack pixels, the dialogue bubble present (2D only: the 3D is native)")
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "pc/tools"))
+import rood_rpc  # noqa: E402
+from rood_rpc import Game  # noqa: E402
+
+# (the title's idle play starts the cutscene; fast, so the vsyncs come as fast as the machine can make them)
+POINTS = tuple(range(13000, 21000, 1000))
+out = pathlib.Path(os.environ.get("ROOD_OUT") or "pc/build/boot") / "scene_smoke"
+out.mkdir(parents=True, exist_ok=True)
+game = Game.launch(fast=True, log=out / "game.log", extra_env={"ROOD_SCALE": "1"}, args=("--battle-frame-checkpoint", "900000"))
+bubbles = lit = 0
+try:
+    for n, point in enumerate(POINTS):
+        waited = 0
+        while game.status()["vsync"] < point:
+            subprocess.run(["sleep", "0.2"])
+            waited += 1
+            if waited > 600:
+                raise SystemExit(f"Scene did not reach vsync {point} in two minutes")
+        path = game.present_screenshot(str(out / f"scene-{n}.png"))
+        frame = np.asarray(Image.open(path).convert("RGB")).astype(np.int32)
+        flat = frame.reshape(-1, 3)
+        colours = len({tuple(p) for p in flat[::7]})
+        nonblack = float((flat.max(1) > 24).mean())
+        light = float(((flat.min(1) >= 170) & (flat.max(1) - flat.min(1) <= 24)).mean())
+        print(f"vsync {point}: {colours} colours, {nonblack * 100:.0f}% not black, {light * 100:.1f}% bubble-light", flush=True)
+        lit += colours > 200 and nonblack > 0.15 # (a cut between scenes fades through black: not every picture is a scene)
+        bubbles += light > 0.015
+finally:
+    game.close()
+log = pathlib.Path(game.log).read_text(errors="replace")
+assert "[crash]" not in log and "[vk] validation:" not in log, "crash or validation message; see " + game.log
+assert lit >= 5, f"Later scene missing: a lit scene in {lit} of {len(POINTS)} pictures"
+assert bubbles >= 2, f"Dialogue missing: a bubble in {bubbles} of {len(POINTS)} pictures"
+print(f"PASS: the idle cutscene's 3D scene ({lit} of {len(POINTS)} pictures) and dialogue bubbles ({bubbles}) are presented")

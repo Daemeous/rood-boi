@@ -241,3 +241,49 @@ there's some subtle displacement". Two causes, two pieces of work:
   depth/normal estimators, after upscaling the tiny textures; weights download
   only with the user's OK; game art never leaves the machine). Instances (part
   3) take these maps as their texture inputs.
+
+## Plan 2026-11-21: materials by object (Gitea #20 step 2)
+
+The design's "later step": an entry may be keyed by an object as well as by texture or palette, so two objects
+that share a texture (PS1 art is full of them) take different materials. Decisions (the builder's):
+
+1. **Identity: what the game already names stably.** The emissive scopes already use it
+   (`pc/docs/Emissive.md` Scope; `emissive.cpp` `scope_bits`): a room **group** (the room geometry block a native
+   room mesh draws: its byte offset in the room data, the same on every visit; `pc_emissive_room_mesh`), a room
+   **polygon** (byte offset, for a finer cut), and a **model** (the content hash of a character, weapon or prop:
+   every copy, "per kind"). A single instance of a model (this crate among crates) has no identity yet: not in this
+   step. Entry field `object`: `{"room": [z, r], "groups": [offsets], "polygons": [offsets], "models": [hashes]}`
+   (room needed for groups and polygons). An entry without `object` is what it is today.
+2. **Resolution.** For a drawn polygon: the object entries naming its group, polygon or model, in the
+   room, that match its texture (`match` key/size/clut as today, or no `match`: every texture of the object) win
+   over the texture and palette entries; the usual layering (shipped, user, narrower scope, last wins) orders them
+   among themselves. Nothing else changes: with no object entry the frames are bit-identical.
+3. **Draw: a per-polygon variant id, not another copy of the planes.** The material planes are per texel of VRAM,
+   so a shared texture's cells are shared. A polygon gets a **variant** (1..65535, 0 none: a 16-bit vertex
+   attribute beside the 16-bit scope bits, set from the CPU the same way (`render_mesh_emissive_scope`'s twin; per
+   mesh and polygon, re-uploaded only on change)). A variant is an (object entry, texture use) pair; its cells are
+   the same seven planes (`make_stamp`, with the object entry's values and the object's own maps) laid box-relative
+   in an atlas below the planes, shelf-packed by each variant's real box size and grown on demand (the slot map
+   image is re-created taller; its limit is the device's 2D size, 16384 rows; one record per variant, in a table
+   the shader indexes: the box's origin and the atlas cell). `material_texel`/`material_graph_slot` read the atlas
+   when the polygon's variant is not 0 and the planes otherwise. Past the atlas's limit the rest fall back to the
+   texture entry, with a log line and the editor's warning. The packet path (native room off) has no variants,
+   like scopes; GL draws no response.
+4. **Maps by object.** The loader gets one more level: `<materials>/<key>/@<object id>/<channel>.png` over the
+   texture's own, per layer as today (`materials::channel(key, channel, object)`); an object id is the entry's
+   object text, short form. A map applies to the object's variant only.
+5. **API.** Catalog: `object` on an entry (format stays 1 for a reader that ignores it; instances carry it, so
+   `format: 2` as for any new field). RPC `material`: `pick` reports the picked object (kind, room, group or
+   polygon, model), `new {object: true}` assigns the pick's object instead of its texture, `set`/`list` carry
+   `object`. Details > Material: the assignment row gets **Assign to: this texture | this object** (the object
+   named: "group 0x1a40 of 29/3", "model 4b8870d7"), and the list marks object entries.
+6. **Blender import** (`room_blender.py`): every export triangle already has its group. Where a texture is used by
+   more than one group, `import` writes the maps per (texture, group) under `@<group>/` and a user entry per
+   object with the baked preset; a texture of one group stays as today. The scratch catalog of `shot` does the same.
+7. **Tests**: `material_object_smoke` (an object entry beats the texture entry for its object only, in the pick and
+   in the G-buffer's material target; another object of the same texture is unchanged; no entry: unchanged),
+   the catalog/format round trip, `room_blender_test` for the per-object output; `material_smoke`,
+   `material_instances_smoke`, `material_review_smoke` unchanged.
+
+Order: catalog and resolution (data, RPC, tests) first, then the variant draw, then the editor row, then the
+Blender import; each its own commit.

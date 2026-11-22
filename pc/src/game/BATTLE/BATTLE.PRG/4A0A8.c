@@ -286,20 +286,27 @@ static void _toNormalIntegerVector(VECTOR*, VECTOR*);
 extern int D_800E9B34[];
 extern int D_800E9B4C[];
 extern char D_800E9B58[];
-extern char vs_event_skipPaletteResetCommand[];
-extern char D_800E9BE8[];
-extern u_char D_800E9BEC[];
-extern u_char vs_event_menuTransitionModes[];
-extern short vs_event_sceneTimerModes[];
-extern short vs_event_sceneTimerResetScopes[];
+extern char vs_event_skipPaletteResetCommand[8]; /* the command the skip runs three times (byte 1 is set) */
+extern char D_800E9BE8[4]; /* the marker command the skip walks to (memcmp of 4 bytes) */
+extern u_char D_800E9BEC[4]; /* the four placement directions (a loop to 4) */
+extern u_char vs_event_menuTransitionModes[4]; /* script[1] 10..12 select 0..2 */
+extern short vs_event_sceneTimerModes[2]; /* by a script byte: index-checked (pc_event_index_ok); the disc uses no timer start (event_table_scan.py) */
+extern short vs_event_sceneTimerResetScopes[4];
+extern void pc_table_index_refused(const char*, long, long, const char*, unsigned long, unsigned long);
+/* The event block being run, set by vs_event_initializeEventScriptData: where an offset in a log is counted from. */
+extern u_char* pc_event_scriptBase;
+/* An index a script supplies for a table declared with the extent the data needs: 1 when it is inside, else it is logged once (the event and the
+ * offset of the opcode) and the caller refuses the access: no silent clamp to a wrong entry. */
+int pc_event_index_ok(const char* table, int length, int index, const u_char* at);
+void pc_event_setBase(u_char* data);
 extern void vs_event_specialSubroutineScript;
 extern short D_800E9C00[];
 extern u_char vs_event_fieldCameraReturnCommands[];
 extern short vs_event_orbitReturnHeightOffsets[];
 extern u_char vs_event_orbitReturnFirstCommand;
 extern u_char vs_event_orbitReturnSecondCommand;
-extern u_char vs_event_opcodeSizes[];
-extern u_char* vs_event_textBoxFrameStyles[];
+extern u_char vs_event_opcodeSizes[256]; /* the size of each event opcode, by opcode byte */
+extern u_char* vs_event_textBoxFrameStyles[16]; /* shapes 0..8 are static, 9..15 are set from an event script block */
 extern D_800EB9BC_t* vs_render_gimLayers;
 extern int D_800F19C8;
 extern u_short vs_event_scanlineOverlayFrame;
@@ -1564,3 +1571,16 @@ int (*_opcodeFunctionTable[256])(u_char*, short) = {
     vs_event_commandFinishEvent, /* 0xfe */
     vs_event_commandFinishEvent, /* 0xff */
 };
+
+u_char* pc_event_scriptBase;
+
+void pc_event_setBase(u_char* data) { pc_event_scriptBase = data; }
+
+int pc_event_index_ok(const char* table, int length, int index, const u_char* at)
+{
+    if ((unsigned)index < (unsigned)length)
+        return 1;
+    pc_table_index_refused(table, index, length, "event, offset", ((unsigned long)vs_event_eventSource << 12) | (unsigned short)_evtFile,
+        (unsigned long)(at - pc_event_scriptBase));
+    return 0;
+}

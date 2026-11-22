@@ -28,6 +28,7 @@ extern int pc_lights_enabled;
 void pc_lights_mark_dirty(void);
 /* Room weather (2842C.c); scripts can turn rain on/off mid-scene. */
 int pc_weather_raining(void);
+unsigned pc_frame_vsync_count(void);
 /* The game's sky (BATTLE 146C.c; pc/docs/Vulkan_Renderer.md "The game's sky"): the
  * background sphere's five ring colours (0x00BBGGRR: zenith, 26.5 degrees up, the
  * horizon, 26.5 down, the nadir), set from the room's section B by vs_field_initializeRoomBackgroundColors and
@@ -125,7 +126,7 @@ struct GameSky {
                             * panorama: its top, middle and bottom tile rows' means, then black) */
     float zenith[3] = {}, horizon[3] = {}, ground[3] = {};
 };
-GameSky game_sky()
+GameSky game_sky_read()
 {
     GameSky g;
     if (!&vs_field_backgroundGradientColors[0] || !&vs_field_isSolidBackground)
@@ -252,6 +253,20 @@ GameSky game_sky()
         g.ground[k] = 0.5f * (g.ring[3][k] + g.ring[4][k]);
     }
     return g;
+}
+/* The sky is read from the renderer's VRAM and the game's tables, which move with how far the
+ * render thread has got, not with the game: read once per game frame so every present of that
+ * frame (paused redraws, interpolation images) lights with the same sky. */
+GameSky game_sky()
+{
+    static GameSky cached;
+    static unsigned cached_frame = ~0u;
+    unsigned frame = pc_frame_vsync_count();
+    if (frame != cached_frame) {
+        cached = game_sky_read();
+        cached_frame = frame;
+    }
+    return cached;
 }
 const char* game_sky_kind(int kind)
 {

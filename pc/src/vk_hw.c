@@ -31,7 +31,8 @@ typedef struct {
 static VkDescriptorSetLayout draw_set, upload_set;
 static int vram_storage; /* the VRAM image is a storage image (pc_vk_hw_vram_from_target) */
 static VkPipelineLayout draw_layout, upload_layout;
-static VkPipeline opaque_pipeline, blend_pipelines[4], cover_pipeline, upload_pipeline;
+static VkPipeline opaque_pipeline, blend_pipelines[4], cover_pipeline, upload_pipeline, upload_picture_pipeline;
+static vk_image picture_image; /* a state file's picture (pc_vk_hw_upload_picture): RGBA8 1024 x 512, made on first use */
 /* Text from distance texels (gpu_hw.c BLEND_TEXT): its solid pixels' G-buffer
  * and depth (colour untouched), its colour added / subtracted by coverage
  * ("over": cover_pipeline). */
@@ -315,6 +316,9 @@ int pc_vk_hw_init(int scale, size_t vertex_size)
                    ufs = VK_SHADER(upload_frag);
     upload_pipeline = target_pipeline(uvs, ufs, upload_layout, NULL, NULL, 0, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
         -1, 0x000f);
+    VkShaderModule pfs = VK_SHADER(upload_picture_frag);
+    upload_picture_pipeline = target_pipeline(uvs, pfs, upload_layout, NULL, NULL, 0, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP, -1, 0x000f);
+    vkDestroyShaderModule(vk.device, pfs, NULL);
     vkDestroyShaderModule(vk.device, vs, NULL);
     vkDestroyShaderModule(vk.device, fs, NULL);
     vkDestroyShaderModule(vk.device, uvs, NULL);
@@ -417,6 +421,46 @@ void pc_vk_hw_upload_material(const uint8_t* planes, int row0, int row1)
     for (int i = 0; i < PC_MATERIAL_PLANES; i++)
         upload_slot_rows(planes + ((size_t)i * 512 + row0) * PC_EMISSIVE_MAP_W, PC_MATERIAL_ROW + i * 512 + row0,
             row1 - row0);
+}
+
+/* Materials by object (emissive.h pc_material_variants): the variants' records and cells, `rows` rows of the map. The image
+ * is created when the first variant exists and grown (twice the rows, up to the device's limit) by making a new one: the
+ * old one goes once the frames in flight that read it are done. */
+void pc_vk_hw_upload_variants(const uint8_t* map, int rows)
+{
+    if (rows <= 0 || !map)
+        return;
+    if (!vk_hw.variants.image || rows > vk_hw.variant_rows) {
+        int capacity = vk_hw.variant_rows < 256 ? 256 : vk_hw.variant_rows;
+        while (capacity < rows)
+            capacity *= 2;
+        if (capacity > (int)vk.properties.limits.maxImageDimension2D)
+            capacity = (int)vk.properties.limits.maxImageDimension2D;
+        if (rows > capacity)
+            return;
+        vk_image fresh = { 0 };
+        if (!vk_image_create(&fresh, PC_EMISSIVE_MAP_W, capacity, VK_FORMAT_R8_UINT,
+                VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT))
+            return;
+        if (vk_hw.variants.image)
+            vk_image_destroy_later(&vk_hw.variants);
+        vk_hw.variants = fresh;
+        vk_hw.variant_rows = capacity;
+    }
+    vk_end_rendering();
+    VkDeviceSize bytes = (VkDeviceSize)rows * PC_EMISSIVE_MAP_W;
+    vk_slice slice = vk_arena(bytes, 16);
+    if (!slice.data)
+        return;
+    memcpy(slice.data, map, (size_t)bytes);
+    VkBufferImageCopy region = { .bufferOffset = slice.offset,
+        .bufferRowLength = PC_EMISSIVE_MAP_W,
+        .bufferImageHeight = (uint32_t)rows,
+        .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+        .imageOffset = { 0, 0, 0 },
+        .imageExtent = { PC_EMISSIVE_MAP_W, (uint32_t)rows, 1 } };
+    vkCmdCopyBufferToImage(vk_cmd(), slice.buffer, vk_hw.variants.image, VK_IMAGE_LAYOUT_GENERAL, 1, &region);
+    vk_barrier();
 }
 
 /* ---- packet batches ---- */
@@ -675,6 +719,51 @@ void pc_vk_hw_upload_rect(int x, int y, int w, int h)
     vkCmdPushConstants(cmd, upload_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof push, &push);
     vkCmdDraw(cmd, 4, 1, 0, 0);
     /* The image itself; then mark it unlit (G-buffer cleared, depth kept). */
+    VkClearAttachment clears[4];
+    for (int i = 0; i < 4; i++)
+        clears[i] = (VkClearAttachment){ VK_IMAGE_ASPECT_COLOR_BIT, (uint32_t)(i + 1), { .color = { { 0, 0, 0, 0 } } } };
+    vkCmdClearAttachments(cmd, 4, clears, 1, &rect);
+}
+/* A state file's picture of the target (1024 x 512 RGBA8, the target's own values at the 1x grid) over the whole target: the pixels the
+ * game's array lacks come back exactly (at a larger scale each texel covers scale x scale). The G-buffer is marked unlit as an upload does. */
+void pc_vk_hw_upload_picture(const uint8_t* rgba)
+{
+    if (!rgba || !upload_picture_pipeline)
+        return;
+    vk_end_rendering();
+    if (!picture_image.image
+        && !vk_image_create(&picture_image, 1024, 512, VK_FORMAT_R8G8B8A8_UNORM,
+            VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT))
+        return;
+    vk_slice slice = vk_arena((VkDeviceSize)1024 * 512 * 4, 16);
+    if (!slice.data)
+        return;
+    memcpy(slice.data, rgba, (size_t)1024 * 512 * 4);
+    VkBufferImageCopy region = { .bufferOffset = slice.offset,
+        .bufferRowLength = 1024,
+        .bufferImageHeight = 512,
+        .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+        .imageExtent = { 1024, 512, 1 } };
+    vkCmdCopyBufferToImage(vk_cmd(), slice.buffer, picture_image.image, VK_IMAGE_LAYOUT_GENERAL, 1, &region);
+    vk_barrier();
+    VkClearRect rect;
+    if (!clear_rect(0, 0, 1024, 512, &rect))
+        return;
+    vk_begin_rendering(&live_attachments);
+    VkCommandBuffer cmd = vk_cmd();
+    VkViewport viewport = { 0, 0, (float)vk_hw.width, (float)vk_hw.height, 0, 1 };
+    vkCmdSetViewport(cmd, 0, 1, &viewport);
+    vkCmdSetScissor(cmd, 0, 1, &rect.rect);
+    vkCmdSetDepthTestEnable(cmd, VK_FALSE);
+    vkCmdSetDepthWriteEnable(cmd, VK_FALSE);
+    vkCmdSetDepthCompareOp(cmd, VK_COMPARE_OP_ALWAYS);
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, upload_picture_pipeline);
+    vk_descriptors d = { 0 };
+    vk_descriptors_image(&d, 0, picture_image.view, vk.nearest);
+    vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, upload_layout);
+    upload_push push = { { 0, 0, 1024, 512 }, (float)vk_hw.scale };
+    vkCmdPushConstants(cmd, upload_layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof push, &push);
+    vkCmdDraw(cmd, 4, 1, 0, 0);
     VkClearAttachment clears[4];
     for (int i = 0; i < 4; i++)
         clears[i] = (VkClearAttachment){ VK_IMAGE_ASPECT_COLOR_BIT, (uint32_t)(i + 1), { .color = { { 0, 0, 0, 0 } } } };

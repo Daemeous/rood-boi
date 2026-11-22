@@ -27,6 +27,8 @@ typedef struct {
     vk_image room_key, room_only;
     vk_image vram; /* native VRAM, R16_UINT 1024 x 512 */
     vk_image emissive; /* emissive texels' slot map, R8_UINT 4096 x 516 (emissive.h) */
+    vk_image variants; /* materials by object: the variants' records and cells, R8_UINT 4096 x rows (emissive.h; grown on demand; image 0 until a variant exists) */
+    int variant_rows; /* its height */
     vk_image dummy_depth; /* 1 x 1 depth for unused depth bindings */
     vk_image dummy_color; /* 1 x 1 colour for unused colour bindings */
     /* MSAA (antialias.h; gpu_hw.c decides when): multisampled twins of a
@@ -72,7 +74,7 @@ typedef struct {
  * instances are translucent: not casters); returns how many were written. */
 int pc_vk_movers(uint32_t list, float t, vk_mover* out, int max);
 /* render.c's mesh_vertex size (bytes). */
-#define VK_MESH_VERTEX_BYTES 40
+#define VK_MESH_VERTEX_BYTES 44
 
 #ifdef __cplusplus
 }

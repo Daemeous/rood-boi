@@ -23,6 +23,7 @@ fn packetEnd(p: *v.DR_MOVE) void {
 pub fn vs_actors_stepTextureScrolling(actor: ?*v.D_800F4538_t) callconv(.c) void {
     const a = actor.?;
     const page: usize = a.unk5BB;
+    if (c.pc_table_index_ok("vs_actors_textureSlotOrigins", @intCast(page), 24, "actor texture slot", page, 0) == 0) return;
     // The part bounds (unk614 from byte 8), the scroll states (unk181C) and the part records (texMapOverlays).
     const bounds_base: [*]u8 = @as([*]u8, @ptrCast(&a.unk614)) + 8;
     const state_base: [*]u8 = @ptrCast(&a.unk181C);

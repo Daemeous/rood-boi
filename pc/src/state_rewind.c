@@ -45,6 +45,8 @@ extern void pc_scene_camera_state_save(void*) __attribute__((weak)); /* scene_ca
 extern void pc_scene_camera_state_load(const void*) __attribute__((weak));
 extern void pc_cd_release(void) __attribute__((weak));
 extern void pc_hwc_resync(void) __attribute__((weak));
+extern void pc_hwc_resync_picture(const uint8_t* picture) __attribute__((weak));
+extern int pc_hwc_capture_picture(uint8_t* rgba) __attribute__((weak)); /* hw_cmd.c: the target's own pixels (RGBA8 1024 x 512) */
 extern void pc_hw_forget_timeline(void) __attribute__((weak)); /* gpu_hw.c: the host held for the frame the game was in */
 extern void pc_photo_state_replaced(void) __attribute__((weak));
 extern void pc_input_rewound(void) __attribute__((weak));
@@ -59,6 +61,8 @@ static struct rewind_mark {
     snap_context context;
     pc_state_range ranges[MAX_RANGES];
     char *memory, *stack, *spu, *fog;
+    uint8_t* picture; /* the renderer's target as it was (RGBA8 1024 x 512, 2 MB), NULL when none was read */
+    int has_picture;
     uintptr_t sp;
     size_t stack_bytes, bytes;
     size_t memory_cap, stack_cap, spu_cap, fog_cap; /* kept between marks of a slot (no fresh pages to fault in) */
@@ -143,6 +147,11 @@ __attribute__((noinline)) int pc_snapshot_mark_slot(int slot, char* error, int s
     mark.sp = sp;
     memcpy(mark.stack, (void*)sp, mark.stack_bytes);
     mark.bytes = bytes + mark.stack_bytes + (size_t)mark.spu_size + (size_t)mark.fog_size;
+    /* The renderer draws every pixel of the frame (T5-6): what a primitive drew lives in the target and the game's array lacks it, so the
+     * mark keeps the target's own pixels too and the rewind puts them back (the opening's card stays where a rewind to a mark after it lands). */
+    mark.has_picture = 0;
+    if (slot != PHOTO_SLOT && pc_hwc_capture_picture && !(!mark.picture && !(mark.picture = malloc((size_t)1024 * 512 * 4))))
+        mark.has_picture = pc_hwc_capture_picture(mark.picture), mark.bytes += mark.has_picture ? (size_t)1024 * 512 * 4 : 0;
     mark.valid = 1;
     return 0;
 oom:
@@ -158,8 +167,9 @@ void pc_snapshot_drop_slot(int slot)
         return;
     struct rewind_mark* m = marks[slot];
     m->valid = 0;
-    free(m->memory); free(m->stack); free(m->spu); free(m->fog);
+    free(m->memory); free(m->stack); free(m->spu); free(m->fog); free(m->picture);
     m->memory = m->stack = m->spu = m->fog = NULL;
+    m->picture = NULL, m->has_picture = 0;
     m->bytes = m->memory_cap = m->stack_cap = m->spu_cap = m->fog_cap = 0;
 }
 int pc_snapshot_slot_valid(int slot) { return slot >= 0 && slot < SLOTS && marks[slot] && marks[slot]->valid; }
@@ -206,7 +216,8 @@ static __attribute__((noreturn)) void restore(void)
     if (restoring != PHOTO_SLOT) {
         if (pc_photo_state_replaced) pc_photo_state_replaced();
         if (pc_hw_forget_timeline) pc_hw_forget_timeline();
-        if (pc_hwc_resync) pc_hwc_resync();
+        if (mark.has_picture && pc_hwc_resync_picture) pc_hwc_resync_picture(mark.picture);
+        else if (pc_hwc_resync) pc_hwc_resync();
         pc_rpc_rewound();
     }
     /* Same process/thread: the TLS stack canary has not changed. The rest of

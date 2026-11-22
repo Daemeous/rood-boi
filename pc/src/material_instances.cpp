@@ -126,6 +126,11 @@ Json instance_info(const materials::Instance& i)
         if (!i.clut.empty()) m.set("clut", Json::str(i.clut));
         j.set("match", m);
         j.set("scope", scope_json(i));
+        if (!i.object.empty()) {
+            Json o = material_object_json(i.object);
+            o.set("text", Json::str(i.object.text()));
+            j.set("object", o);
+        }
     }
     Json children = Json::array();
     for (const materials::Instance& c : materials::instances())
@@ -332,7 +337,7 @@ bool assign(materials::Instance& i, const std::string& key, int w, int h, const 
         if (i.rooms.size() == 1) i.zone = i.rooms[0].first, i.room = i.rooms[0].second, i.rooms.clear();
         else if (!i.rooms.empty()) i.zone = i.rooms[0].first, i.room = i.rooms[0].second;
     }
-    if (i.key.empty() && i.clut.empty()) { *error = "assign needs a texture key or a palette"; return false; }
+    if (i.key.empty() && i.clut.empty() && i.object.empty()) { *error = "assign needs a texture key, a palette or an object"; return false; }
     return true;
 }
 /* The part-2 selection's texture: the primary (inspected surface or model). */
@@ -343,7 +348,10 @@ bool selection_texture(emissive::TexturePick& out, std::string* error)
     out = it->pick;
     return true;
 }
-bool assign_selection(materials::Instance& i, bool palette, std::string* error)
+/* `object` not "" ("group", "polygon", "model", "auto": the natural one): for the selection's object, not its
+ * texture everywhere; `wide`: every texture of that object (no match). A model's is for every room. */
+bool assign_selection(materials::Instance& i, bool palette, std::string* error, const std::string& object = "",
+    bool wide = false)
 {
     emissive::TexturePick p;
     if (!selection_texture(p, error)) return false;
@@ -351,6 +359,12 @@ bool assign_selection(materials::Instance& i, bool palette, std::string* error)
     i.assigned = true;
     i.key = palette ? "" : p.key, i.clut = p.clut_key, i.w = palette ? 0 : p.w(), i.h = palette ? 0 : p.h();
     i.set_room(p.zone, p.room);
+    i.object = materials::ObjectRef();
+    if (!object.empty()) {
+        if (!material_pick_object(p, object == "auto" ? std::string() : object, i.object, error)) return false;
+        if (wide) i.key.clear(), i.clut.clear(), i.w = i.h = 0;
+        if (!i.object.models.empty()) i.set_room(-1, -1);
+    }
     return true;
 }
 } // namespace
@@ -566,6 +580,8 @@ extern "C" void pc_material_instances_window(void)
             ImGui::Text("Every texture with palette %s%s", i.clut.c_str(), i.w > 0 ? " of its size" : "");
         else
             ImGui::Text("Texture %s %d x %d%s", i.key.c_str(), i.w, i.h, i.clut.empty() ? "" : " (this palette only)");
+        if (i.assigned && !i.object.empty())
+            ImGui::Text("For the object %s%s", i.object.text().c_str(), i.key.empty() && i.clut.empty() ? ": all its textures" : " only");
         if (i.assigned) {
             if (!i.rooms.empty()) ImGui::Text("Scope: %d rooms", (int)i.rooms.size());
             else if (i.zone >= 0) ImGui::Text("Scope: room %d/%d", i.zone, i.room);
@@ -585,6 +601,21 @@ extern "C" void pc_material_instances_window(void)
             }
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("The texture under the selected surface or model, scoped to this room");
             ImGui::SameLine();
+            if (ImGui::Button("...this object's")) {
+                std::string error;
+                if (assign_selection(i, false, &error, "auto")) changed = true;
+                else snprintf(status_line, sizeof status_line, "%s", error.c_str());
+            }
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("This texture, on the selected object only (a room's group, or every copy of a model): it wins "
+                                  "over the texture's own entry there, and nowhere else");
+            ImGui::SameLine();
+            if (ImGui::Button("...all of its textures")) {
+                std::string error;
+                if (assign_selection(i, false, &error, "auto", true)) changed = true;
+                else snprintf(status_line, sizeof status_line, "%s", error.c_str());
+            }
+            ImGui::SameLine();
             if (ImGui::Button("...its palette")) {
                 std::string error;
                 if (assign_selection(i, true, &error)) changed = true;
@@ -592,7 +623,7 @@ extern "C" void pc_material_instances_window(void)
             }
             if (i.assigned) {
                 ImGui::SameLine();
-                if (ImGui::Button("Unassign")) i.assigned = false, i.key.clear(), i.clut.clear(), i.w = i.h = 0, changed = true;
+                if (ImGui::Button("Unassign")) i.assigned = false, i.key.clear(), i.clut.clear(), i.w = i.h = 0, i.object = materials::ObjectRef(), changed = true;
             }
         }
         bool review = i.review == "new";
@@ -658,7 +689,7 @@ extern "C" void pc_material_instances_window(void)
 /* RPC material_instance: {action: list {offset, limit, masters, brief} (default) | masters | get {id, slots} |
  * json {id} | set {id, params {name: value |
  * null}, reset [names], name, where, review} | parent {id, parent} | new {id, parent} | duplicate {id, of} | assign {id,
- * key, size, clut, scope} | assign_selection {id, palette} | unassign {id} | remove {id} | select {id} |
+ * key, size, clut, scope, object {groups, polygons, models}} | assign_selection {id, palette, object: group|polygon|model|true, object_wide} | unassign {id} | remove {id} | select {id} |
  * save | revert | validate | migrate {out} | status (the catalog's generations and file reads)}. */
 extern "C" int pc_material_instance_rpc(const char* params_text, char* out, int size)
 {
@@ -788,12 +819,18 @@ extern "C" int pc_material_instance_rpc(const char* params_text, char* out, int 
         int w = 0, h = 0;
         if (const Json* s = params.get("size"); s && s->type == Json::Array && s->items.size() == 2)
             w = (int)s->items[0].number, h = (int)s->items[1].number;
+        i.object = materials::ObjectRef();
+        if (const Json* o = params.get("object"); o && !material_object_from_json(*o, i.object, &error)) return fail(error, out, size);
         if (!assign(i, str(params, "key"), w, h, str(params, "clut"), params.get("scope"), &error)) return fail(error, out, size);
     } else if (action == "assign_selection") {
         const Json* p = params.get("palette");
-        if (!assign_selection(i, p && p->type == Json::Bool && p->boolean, &error)) return fail(error, out, size);
+        const Json* o = params.get("object"); /* "group" | "polygon" | "model" | true (the natural one) */
+        const Json* wide = params.get("object_wide");
+        std::string level = o && o->type == Json::String ? o->string : o && o->type == Json::Bool && o->boolean ? "auto" : "";
+        if (!assign_selection(i, p && p->type == Json::Bool && p->boolean, &error, level, wide && wide->type == Json::Bool && wide->boolean))
+            return fail(error, out, size);
     } else if (action == "unassign") {
-        i.assigned = false, i.key.clear(), i.clut.clear(), i.w = i.h = 0;
+        i.assigned = false, i.key.clear(), i.clut.clear(), i.w = i.h = 0, i.object = materials::ObjectRef();
     } else
         return fail("unknown action " + action, out, size);
     if (i.root && (action == "assign" || action == "assign_selection")) return fail("a preset is not assigned; make a child", out, size);

@@ -5,6 +5,15 @@
 #include <string>
 #include "materials.h"
 
+namespace prefab { struct Json; }
+namespace emissive { struct TexturePick; }
+/* What a pick belongs to, as an entry's object (level "group", "polygon", "model" or "": the natural one), the object
+ * read from / written as RPC JSON {"groups": [], "polygons": [], "models": []} (material_editor.cpp). */
+bool material_pick_object(const emissive::TexturePick& pick, const std::string& level, materials::ObjectRef& out,
+    std::string* error);
+bool material_object_from_json(const prefab::Json& o, materials::ObjectRef& out, std::string* error);
+prefab::Json material_object_json(const materials::ObjectRef& r);
+
 /* The entry's response controls (preset, roughness, specular, metal, the
  * height estimate, relief): whether they changed it. */
 bool material_entry_fields(materials::Entry& e);

@@ -842,6 +842,30 @@ G-buffer has no material target and the GL present pass is unchanged
 (material_smoke checks the frame is identical). Rooms without dynamic lights show no highlights either
 (the game's baked light has no direction).
 
+## Materials by object
+
+An entry may be keyed by an object as well as by texture or palette (Gitea #20 step 2; plan in
+`plans/2026-10-27-materials-and-inspection-design.md`): `"object": {"groups": [..], "polygons": [..], "models": ["4b8870d7"]}`
+beside `match` and `scope`. A group is the room geometry block a native room mesh draws (its byte offset in the room
+data), a polygon a room polygon (byte offset), a model the content hash of a character, weapon or prop (every copy).
+Groups and polygons need a room scope. With `match` the entry is for that texture of the object; without it, for every
+texture of the object. An object entry is never found by the texture lookup (`find_match`): only
+`materials::find_object_match` returns it, for a polygon of its object, and it wins over the texture and palette
+entries there. The file is `format: 2` when it holds one. The picker (`material pick`) reports the pick's `object`
+(`groups`, `polygon_offset`, `text`) and `object_entry` (the object entry that applies to it); RPC `material_instance`
+`assign {object}` and `assign_selection {object: group|polygon|model|true, object_wide}` make one; `material` `new`
+and `set` take the same. The Materials panel assigns "...this object's" texture or "...all of its textures". The
+draw: a polygon of the object carries a **variant** (a 16-bit vertex attribute, `render_mesh_variants`, set by
+`emissive.cpp` `rebuild_variants` where the catalog, the room, the meshes or the uses' keys change) per (entry, texture
+use); the variant's seven planes (made as a use's, with the entry's values) sit box-relative in a second image,
+`vk_hw.variants` (R8_UINT, 4096 wide, grown on demand up to the device's limit): rows 0-127 hold an 8-byte record per
+variant (box origin and size, cells' place), the planes below are shelf-packed. `variant_texel` (`native_frag.glsl`)
+reads it for polygons with a variant, else `material_texel` as before (a texel outside the variant's box too). Past the
+limit the rest use the texture's own entry (log line; RPC `material list` `variants {count, rows, overflow}`). A model
+drawn with another page and CLUT over its own takes its first instance's. The packet path and OpenGL have no variants
+(as for scopes). An object entry with no texture hashes every size of texture while it exists (as a palette entry
+does).
+
 ## Blender round trip (one room)
 
 `pc/tools/room_blender.py` takes a room out to Blender and brings maps back into the baked layer (Gitea #20; Blender 5.2
@@ -866,9 +890,14 @@ sample count, 4 threads, nice 19):
    with the baked maps) into `<out>/shots`: `plain`, `before`, `after`, `before_after.png`.
 
 A map applies where a material entry does (`shot` writes one `"rough stone"` entry per texture into a scratch user catalog).
-Everything under `pc/build/room_blender` is game art: never committed. Step 2 (materials by object, since PS1 textures are
-shared by different models) is not here: today the maps are per texture, and a texture's texels shared by several surfaces
-take whichever baked last.
+Everything under `pc/build/room_blender` is game art: never committed. Textures shared by several room groups (PS1
+textures are, by different models and walls) are baked once per group: `export` finds each triangle's group (the scene dump
+carries its polygon's byte offset, RPC `material groups` the groups' blocks), splits a texture used by more than one group
+into `<key>@g<offset>` primitives and materials, and `import` writes their maps under
+`<out>/materials/<key>/@g<offset>/` (`materials::channel(key, name, object)`: the object's folder over the texture's own,
+in each layer), so the texels they share stop taking whichever baked last. `shot` writes an object entry for each such
+(texture, group) (`object {groups}`, scoped to the room), which is what gives the group its variant (Materials by object);
+a texture on a single group keeps one entry and its maps in `<key>/` as before.
 
 ## Baked maps
 
@@ -942,7 +971,9 @@ python3 pc/tools/material_bake.py --keys 9a87cf9633,d83ebe3791 [--method classic
 
 ## Editing (Details > Material)
 
-The emissive panel's texture picker: **Pick texture**, click a surface.
+The emissive panel's texture picker: **Pick texture**, click a surface; the picked object (a room's group, or a model) is listed with its entry if it has
+one, else *New entry for this texture on this object* and *...for all of this object's textures* (`material new
+{object}` over RPC) make an entry for that object only; the Materials panel does the same from the selection.
 The panel lists the catalog (`*` your entries, `[n here]` textures in view)
 and edits the selected entry: preset, roughness, specular, metal (greyed
 while they come from the preset), this room only, this palette only, needs

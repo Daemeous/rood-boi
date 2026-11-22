@@ -461,7 +461,7 @@ extern u_char D_800F4C70[2][16];
 extern u_char D_800F4CB0;
 extern u_char D_800F4CB1;
 extern char D_800F4CB8;
-extern char _fontTable;
+extern char vs_battle_fontBank;
 extern int _fontBrightness;
 extern u_long D_800F4CD0;
 extern char vs_battle_shortcutInvoked;
@@ -1548,7 +1548,7 @@ int vs_battle_printVariableWidthFontChar(u_int glyphId, int x, int y, u_long* ot
         return x + 6;
     }
 
-    glyphId += _fontTable * 0xBD;
+    glyphId += vs_battle_fontBank * 0xBD;
     sprite =
         vs_battle_setSprite(_fontBrightness, (x & 0xFFFF) | (y << 0x10), 0xC000C, ot + 3);
     sprite[1] = 0xE100002D;
@@ -1565,7 +1565,7 @@ int vs_battle_printVariableWidthFontChar(u_int glyphId, int x, int y, u_long* ot
 
 void vs_battle_setFontStyle(int arg0)
 {
-    _fontTable = 0;
+    vs_battle_fontBank = 0;
     _fontBrightness = 384;
     D_800F4CB8 = arg0;
 }
@@ -1599,12 +1599,12 @@ void _printVariableWidthFont(vs_battle_textBox* arg0)
 
     if (charsRemaining != 0) {
 
-        _fontTable = arg0->unk0.unk0_0 != 4;
+        vs_battle_fontBank = arg0->unk0.unk0_0 != 4;
         _fontBrightness = arg0->brightness;
         D_800F4CB8 = (1 - (*((char*)arg0) & 1)) * 4;
 
         if (arg0->unk0.unk0_0 == 2) {
-            _fontTable = 0;
+            vs_battle_fontBank = 0;
             D_800F4CB8 = 0;
         }
         currentString = psx_get(arg0->string);
@@ -1706,9 +1706,9 @@ void _printVariableWidthFont(vs_battle_textBox* arg0)
                         printY += opcodeParam >> 3;
                     } else {
                         if (opcodeParam == 6) { // Font table 0
-                            _fontTable = 0;
+                            vs_battle_fontBank = 0;
                         } else if (opcodeParam == 5) { // Font table 1
-                            _fontTable = 1;
+                            vs_battle_fontBank = 1;
                         } else if (opcodeParam == 4) { // Justify
                             justify ^= 1;
                             if (justify != 0) {
@@ -1864,11 +1864,11 @@ __asm__("glabel _printFixedWidthFontChar;"
         "sra        $v0, $t6, 16;"
         "sll        $t6, $v0, 16;"
         "lui        $a1, 0xFF;"
-        "lui        $v0, %hi(_fontTable);"
+        "lui        $v0, %hi(vs_battle_fontBank);"
         "or         $a1, 0xFFFF;"
         "lui        $t2, %hi(D_800F51B8);"
         "lui        $a0, %hi(D_800F4CB8);"
-        "lbu        $v0, %lo(_fontTable)($v0);"
+        "lbu        $v0, %lo(vs_battle_fontBank)($v0);"
         "lbu        $a2, %lo(D_800F4CB8)($a0);"
         "sll        $v1, $v0, 1;"
         "addu       $v1, $v0;"
@@ -1978,13 +1978,13 @@ void _printFixedWidthFont(vs_battle_textBox* ctx, int scale)
         int printY = (ctx->unk26 << 0x10) + ((ctx->yIndent - ctx->y) * scale);
 
         D_800F4CB8 = (1 - (*((char*)ctx) & 1)) * 4;
-        _fontTable = ctx->unk0.unk0_0 != 4;
+        vs_battle_fontBank = ctx->unk0.unk0_0 != 4;
         _fontBrightness = ctx->brightness;
 
         temp_s6 = printX;
 
         if (ctx->unk0.unk0_0 == 2) {
-            _fontTable = 0;
+            vs_battle_fontBank = 0;
             D_800F4CB8 = 0;
         }
 
@@ -2036,9 +2036,9 @@ void _printFixedWidthFont(vs_battle_textBox* ctx, int scale)
                         printY += (opcodeParam >> 3) * scale;
                     } else {
                         if (opcodeParam == 6) { // Font table 0
-                            _fontTable = 0;
+                            vs_battle_fontBank = 0;
                         } else if (opcodeParam == 5) { // Font table 1
-                            _fontTable = 1;
+                            vs_battle_fontBank = 1;
                         } else if (opcodeParam == 4) { // Justify
                             justify ^= 1;
                             if (justify != 0) {
@@ -2197,7 +2197,7 @@ void _renderTextImmediate(vs_battle_textBox* arg0, int arg1)
 #endif
         StoreImage(&rect, (void*)buf);
 
-    _fontTable = 1;
+    vs_battle_fontBank = 1;
 
     while (1) {
         u_int currentChar = *str++;
@@ -2205,11 +2205,11 @@ void _renderTextImmediate(vs_battle_textBox* arg0, int arg1)
         if (currentChar < 0xEC) {
             if (currentChar < '\f') {
                 if (currentChar != ' ') {
-                    currentChar += _fontTable * 21 * 9;
+                    currentChar += vs_battle_fontBank * 21 * 9;
                     if (((width - 12) >= printX) && ((height - 12) >= printY)) {
 #ifdef ROOD_PC
                         if (buf == NULL)
-                            _pcFadeGlyph(currentChar - _fontTable * 21 * 9, x + printX,
+                            _pcFadeGlyph(currentChar - vs_battle_fontBank * 21 * 9, x + printX,
                                 y + printY);
                         else
 #endif
@@ -2260,9 +2260,9 @@ void _renderTextImmediate(vs_battle_textBox* arg0, int arg1)
                     printY += opcodeParam >> 3;
                 } else {
                     if (opcodeParam == 6) {
-                        _fontTable = 0;
+                        vs_battle_fontBank = 0;
                     } else if (opcodeParam == 5) {
-                        _fontTable = 1;
+                        vs_battle_fontBank = 1;
                     } else if (opcodeParam == 4) {
                         justify ^= 1;
                         if (justify != 0) {

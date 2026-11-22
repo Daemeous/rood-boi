@@ -47,6 +47,8 @@ extern float pc_emissive;
 /* Plane 6 (part 4): the node material graph's slot (0 none; material_graph.h). */
 #define PC_MATERIAL_PLANES 7
 #define PC_MATERIAL_MAP_H (512 * PC_MATERIAL_PLANES)
+/* Materials by object: the variants' map, a second image (emissive.cpp variants; nonzero when it changed). */
+int pc_material_variants(const uint8_t** map, int* rows);
 /* The switch (lighting quality key `specular`, 0: the specular lobe off
  * entirely, the picture exactly the one without materials) and the
  * tunables (settings, Lighting panel, RPC lighting): global specular

@@ -345,6 +345,29 @@ haze (`scaled.frag`). Integrated GPUs start at GI resolution 1.5 (3 on discrete 
 (skinning, BLAS refits, TLAS), surface, trace, haze, temporal, filter,
 present.
 
+### The path-traced picture follows the game's frames (Gitea #13)
+
+The picture the path tracer presents for a game frame does not depend on how many times the machine
+presented it or how long it took. A paused game redraws at 60 Hz and after every served request, and
+the interpolation draws several images per vsync, so the inputs are the game frame and the image's place
+in it, never the present count or the wall clock:
+
+- The GI frame index (the trace's random numbers), the temporal history and NRD's `frame_index` advance
+  once per distinct (vsync, phase) image. `vrt_run` hashes everything the trace and the accumulation read
+  (its uniforms, the lights, the camera, the accumulation settings) with the header's `vsync_count` and
+  the phase; the same signature again is the same image, and the trace, the filter and NRD are all
+  skipped together (`vrt.result` keeps the picture).
+- Light animation runs on game seconds, `(vsync + phase) / 59.94` (`pc_frame_vsync_count`,
+  `pc_frame_phase`: the present's own, 0 for what the game thread works out at a header fill, since
+  `pc_present_phase` belongs to the render thread). The dev-panel setting `light_clock` ("Lights animate
+  on the wall clock", `project_settings`) restores the wall clock for lights the game does not drive.
+- The light budget's hysteresis counts game frames, the game's sky (read from VRAM and the game's tables)
+  is read once per game frame, and NRD's `timeDeltaBetweenFrames` is a game frame (1/60 s per image
+  interval).
+- Test: `gi_repeat_smoke` (the GI target is bit-identical after many redraws of one game frame);
+  `build_compare.py --present --control` of the GI platforms route with eight busy processes gave control 0
+  and old against new 0 differing frames, twice (before: 143 to 156 of 178).
+
 ### NRD (`vk_nrd.cpp`, `rt_nrd_in.comp`, `rt_nrd_out.comp`)
 
 The "Ultra" denoiser, following NVIDIA's RELAX sample usage: NVIDIA NRD

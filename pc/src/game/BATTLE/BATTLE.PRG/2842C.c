@@ -214,7 +214,7 @@ extern int D_800F2274;
 int vs_core_mathAddPackedScreenCoordinates(int, int);
 int vs_field_gimmickSubtype(int);
 void func_8009651C(SVECTOR*, int);
-extern char D_800691E4[];
+extern char D_800691E4[4]; /* the format "%d" */
 extern RECT vs_battle_labelCaptionRects[];
 typedef struct {
     u_char count;

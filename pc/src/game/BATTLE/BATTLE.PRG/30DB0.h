@@ -29,7 +29,7 @@ typedef struct {
 extern vs_menu_FrameworkPreviewPoseState* vs_battle_unusedGlobal1[];
 extern int vs_battle_unusedGlobal2;
 extern _wepModelOffsets* vs_battle_commonWepBuffs[2];
-extern vs_battle_texInfo_t vs_render_legacyActorTextureSlots[];
+extern vs_battle_texInfo_t vs_render_legacyActorTextureSlots[24]; /* the actors' texture slots, as vs_actors_textureSlotOrigins */
 extern vs_battle_texInfo_t vs_battle_wepTextures[20];
 extern char D_800F49DC;
 

@@ -698,7 +698,7 @@ void vs_effects_clearTextureAnimation(void* sprite); /* a func_800D6CF_t, cleare
 void vs_effects_restartTextureAnimation(func_800D6CF_t* arg0, int arg1, int arg2);
 
 extern u_short vs_battle_menuStrings[];
-extern char* vs_battle_limbNames[];
+extern char* vs_battle_limbNames[20]; /* the 20 limb names, by name index */
 extern char vs_battle_characterWidths[];
 extern u_short vs_battle_statusStrings[];
 extern char D_800EB9AE;
@@ -744,4 +744,4 @@ extern vs_battle_stringContext_t vs_battle_stringContext;
 extern vs_battle_menuState_t vs_battle_menuState;
 extern SVECTOR vs_effects_effectOrigin[];
 extern vs_effects_EffectInstance* vs_effects_currentInstance;
-extern effectExec vs_battle_effectRenderers[];
+extern effectExec vs_battle_effectRenderers[8]; /* by the 3-bit effectRenderer field */

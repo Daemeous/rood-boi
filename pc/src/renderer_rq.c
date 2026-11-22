@@ -8,11 +8,11 @@
 #include <string.h>
 
 extern void pc_hw_drain(void) __attribute__((weak));
-extern void pc_hw_resync(const uint16_t*) __attribute__((weak));
+extern void pc_hw_resync(const uint16_t*, const uint8_t*) __attribute__((weak));
 extern void pc_hw_stale_get(pc_stale_set* out); /* gpu_hw.c: the renderer's stale set */
 extern void pc_hw_sync(int, int, int, int) __attribute__((weak));
 extern void pc_hw_sync_store(int, int, int, int) __attribute__((weak));
-extern void pc_hw_capture_read(int, int, int, int) __attribute__((weak));
+extern void pc_hw_capture_read(int, int, int, int, int) __attribute__((weak));
 extern void pc_hw_sync_texture(unsigned, unsigned, unsigned, int, int, int, int, const int*) __attribute__((weak));
 extern void pc_hw_readback_into(pc_rq_readback* reply); /* gpu_hw.c: where the next read-backs put their pixels (NULL: the game's array) */
 
@@ -29,7 +29,7 @@ void pc_rq_run(pc_rq* rq)
         if (rq->kind == PC_RQ_SYNC && pc_hw_sync)
             pc_hw_sync(rq->arg[0], rq->arg[1], rq->arg[2], rq->arg[3]);
         else if (rq->kind == PC_RQ_CAPTURE && pc_hw_capture_read)
-            pc_hw_capture_read(rq->arg[0], rq->arg[1], rq->arg[2], rq->arg[3]);
+            pc_hw_capture_read(rq->arg[0], rq->arg[1], rq->arg[2], rq->arg[3], rq->arg[4]);
         else if (rq->kind == PC_RQ_SYNC_STORE && pc_hw_sync_store)
             pc_hw_sync_store(rq->arg[0], rq->arg[1], rq->arg[2], rq->arg[3]);
         else if (rq->kind == PC_RQ_SYNC_TEXTURE && pc_hw_sync_texture)
@@ -48,7 +48,7 @@ void pc_rq_run(pc_rq* rq)
         break;
     case PC_RQ_RESYNC:
         if (pc_hw_resync)
-            pc_hw_resync(rq->in);
+            pc_hw_resync(rq->in, rq->in2);
         if (rq->out && rq->out_bytes == sizeof(pc_stale_set))
             pc_hw_stale_get(rq->out); /* the restored state's stale areas: the producer's copy becomes it */
         break;

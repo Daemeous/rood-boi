@@ -1,0 +1,23 @@
+# S7: the event and gimmick tables declared with the extent the data needs (the scan: pc/tools/event_table_scan.py over the player's own disc; its report is not committed)
+# name	extent	what bounds it	access
+vs_event_opcodeSizes	256	an opcode byte	by opcode (any byte): in range by construction
+vs_event_menuTransitionModes	4	the opcode's switch: script[1] 10..12 select 0..2 (the fourth byte is the next table's padding)	not checked: code-bounded
+vs_event_skipPaletteResetCommand	8	the command the skip runs three times (byte 1 is set by the code)	not checked: code-bounded
+D_800E9BE8	4	memcmp of 4 bytes (the skip's marker command)	not checked: code-bounded
+D_800E9BEC	4	a loop to 4 (the dialog placement directions)	not checked: code-bounded
+vs_event_sceneTimerModes	2	its data: two shorts (1, 2); the index is a script byte (opcode 0x5A byte 3). The disc: 15 timer opcodes, all resets (byte 1 = 0): no start, so no index is ever used	index-checked (pc_event_index_ok): outside, logged once with the event id and the opcode's offset in the block, and the opcode is refused
+vs_event_sceneTimerResetScopes	4	its data: four shorts (0..3); the index is a script byte (opcode 0x5A byte 2); same scan result	index-checked, as above
+vs_field_gimmickTemplateIndices	8	the room objects' actor ids on the disc: 0..6 (324 objects in the 301 MPDs, the low byte createAuxiliaryActor stores); its first eight entries are 0 0 1 2 1 2 2 0 (the later bytes are other tables: 0xD, 0xE are not template indices)	index-checked (pc_gimmick_index_ok): the object is refused (-2) and logged once
+vs_field_gimmickModelTemplates	3	the entries those ids select: 0, 1, 2 (D_800E8FC0 and the bytes after the third pointer are other imports)	index-checked as above (the index is the template index)
+vs_field_gimmickPaletteColors	224	seven palettes of 32 bytes (the 0xE0 bytes vs_field_setGimmickPaletteTable copies), by actor id 0..6	index-checked (id < 7)
+D_800E8FA8	12	min(actor id, 5) * 2 + 1 at most	not checked: code-bounded
+# The scan: 512 event scripts, every main thread's opcodes (sized by vs_event_opcodeSizes) walk exactly from byte 16 to the first data block the header points at (so the walk is the scripts' own code, not a guess); opcode 0x5A appears 15 times, all resets.
+# The checks make the data-derived extents safe for a modded or unusual script: an index outside the declared extent is refused, never clamped to a wrong entry.
+# Batch 2: the texture slot and locked-door tables (the scan now reads data/OBJ/*.SHP too: 202 files, 10 share another's texture; (width, height) -> slots n = height / 64, or 8 for a 256-wide texture: n is at most 8)
+vs_actors_textureSlotOrigins / vs_actors_textureSlotRowOffsets / vs_render_legacyActorTextureSlots	24 each	the game's 24 texture slots (96 bytes of x, y; 24 y steps; 24 8-byte slot records). The search ranges stay inside them (12..20, 0..12), but the fallback starts at slot 20 and a model takes n slots: 4 shapes are 256 x 256 (n = 8), so 20 + 7 = 27 would run past the table in the original (only if a second 8-slot model loads while 4..11 are taken)	index-checked: the slot an actor carries (origins, row offsets: every reader), and the refCount runs (parse_shp's assignment and copy, releaseActorModel's release) are refused beyond slot 23 (the load fails, -2) and logged once
+vs_field_lockedDoorIndexRanges	8	its data: 0 2 8 15 20 21 22 23, the first row of each of 7 sigil door sections and the end	the section a door's data supplies (vs_field_beginDoorToggle: action - 0x1CA) is checked < 7 in vs_field_markSigilDoorUnlocked and vs_field_roomSigilDoorUnlockByte (MENU5's caller already tests < 7)
+vs_field_lockedDoorRoomPairs	[23][4]	the last range value (23 rows); the 24th row of the data (0, 254, 63, 255) is the next table's	rows come from the ranges' own constants: not checked
+# Not declared, with the reason (the same scan would not settle them):
+D_800EA130 (the area map's 0x8000 / n table)	-	read past the table's end by the original (pc_map_recip's comment): an OVERRUN case, the bytes after it are other tables	kept pinned
+D_800EA234, D_800EA2C4, vs_battle_sphereShapeCommandStarts, vs_battle_sphereWireframeCommands (the target sphere's wireframe interpreter)	-	read-only constants indexed by the interpreter's own command stream: the VS-NativePort ledger gives 1004 and 860 bytes against 144 and 372 to the next label (other imports sit inside), so the extents need the whole region decoded, not an index bound from data	kept pinned
+vs_battle_doorStrings, D_800EBF58 (the door sigil names)	-	indexed by (action - 0x1CA) * 2 from a script's message call: the ledger's 788 bytes against 768 to the next label (overlap); needs the scene-message callers' action range from the scripts	kept pinned

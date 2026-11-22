@@ -17,6 +17,7 @@ layout(location = 10) noperspective in vec3 v_bary;
 layout(location = 11) flat in uint v_order;
 layout(binding = 2) uniform usampler2D vram;
 layout(binding = 6) uniform usampler2D emissive_map; // emissive texels' slot map (emissive.glsl)
+layout(binding = 10) uniform usampler2D variant_map; // materials by object: variant records and cells (variant_texel)
 // MSAA (native_ms.frag): the surfaces' depth read from multisampled twins, sample 0.
 #ifdef SURFACE_MS
 layout(binding = 3) uniform sampler2DMS surface_depth;
@@ -64,6 +65,40 @@ float bayer8(ivec2 q) {
 }
 float occl_threshold(ivec2 q) {
     return u.occl_params.w > 0.5 ? fract(52.9829189 * fract(dot(vec2(q) + 0.5, vec2(0.06711056, 0.00583715)))) : bayer8(q);
+}
+// Materials by object (pc/src/emissive.cpp variants, pc/docs/Materials.md): a polygon of an object that has its own
+// entry carries a variant (v_state.x >> 8). Rows 0-127 of the variant map hold 8-byte records (variant * 8: the box's
+// u0, v0, width - 1, height - 1, and the cells' x and y as 16 bits each); a variant's cells are the seven planes of
+// material.glsl stacked, each `height` rows, box-relative. False where the texel lies outside the variant's box (the
+// texture's own planes then answer).
+bool variant_texel(uint variant, uint u, uint v, uint win, out vec4 material, out vec4 relief, out uint slot)
+{
+    uint mx = (win & 31u) * 8u, my = ((win >> 5) & 31u) * 8u;
+    u = ((u & ~mx) | ((((win >> 10) & 31u) * 8u) & mx)) & 255u;
+    v = ((v & ~my) | ((((win >> 15) & 31u) * 8u) & my)) & 255u;
+    int rec = int(variant) * 8, rx = rec & 4095, ry = rec >> 12;
+    uint u0 = texelFetch(variant_map, ivec2(rx, ry), 0).r, v0 = texelFetch(variant_map, ivec2(rx + 1, ry), 0).r;
+    uint w = texelFetch(variant_map, ivec2(rx + 2, ry), 0).r + 1u, h = texelFetch(variant_map, ivec2(rx + 3, ry), 0).r + 1u;
+    material = vec4(0.0), relief = vec4(0.0), slot = 0u;
+    if (u < u0 || v < v0 || u >= u0 + w || v >= v0 + h)
+        return false;
+    int ax = int(texelFetch(variant_map, ivec2(rx + 4, ry), 0).r | (texelFetch(variant_map, ivec2(rx + 5, ry), 0).r << 8));
+    int ay = int(texelFetch(variant_map, ivec2(rx + 6, ry), 0).r | (texelFetch(variant_map, ivec2(rx + 7, ry), 0).r << 8));
+    ivec2 cell = ivec2(ax + int(u - u0), ay + int(v - v0));
+    int ph = int(h);
+    uint r = texelFetch(variant_map, cell, 0).r;
+    uint sp = texelFetch(variant_map, cell + ivec2(0, ph), 0).r;
+    uint m = texelFetch(variant_map, cell + ivec2(0, 2 * ph), 0).r;
+    uint su = texelFetch(variant_map, cell + ivec2(0, 3 * ph), 0).r;
+    slot = texelFetch(variant_map, cell + ivec2(0, 6 * ph), 0).r;
+    if (su != 0u) {
+        uint sv = texelFetch(variant_map, cell + ivec2(0, 4 * ph), 0).r;
+        uint cv = texelFetch(variant_map, cell + ivec2(0, 5 * ph), 0).r;
+        relief = vec4((float(su) - 128.0) / 63.5, (float(sv) - 128.0) / 63.5, float(cv) / 255.0, 1.0);
+    }
+    if (sp != 0u || m != 0u || su != 0u)
+        material = vec4(float(r) / 255.0, float(sp) / 255.0, float(m) / 255.0, 1.0);
+    return true;
 }
 void main() {
     // The editor's cutaway: inside the cone from the eye to the focus (its
@@ -219,10 +254,14 @@ void main() {
             emissive_apply(at.x & 255u, at.y & 255u, tpage, u.window, t, v_state.w >> 16, c, albedo, shade);
         // Material response: the texel's own cell (nearest, like the colour).
         if (u.materials != 0) {
-            material = material_texel(at.x & 255u, at.y & 255u, tpage, u.window, relief);
-            // A node material graph on this texel (material_graph.glsl: the generated include, the
-            // slot from the seventh plane): it decides the surface inputs, the lighting stays.
-            uint slot = material_graph_slot(at.x & 255u, at.y & 255u, tpage, u.window);
+            // The polygon's variant (an entry for its object), else the texture's own planes.
+            uint slot = 0u;
+            if ((v_state.x >> 8) == 0u || !variant_texel(v_state.x >> 8, at.x & 255u, at.y & 255u, u.window, material, relief, slot)) {
+                material = material_texel(at.x & 255u, at.y & 255u, tpage, u.window, relief);
+                // A node material graph on this texel (material_graph.glsl: the generated include, the
+                // slot from the seventh plane): it decides the surface inputs, the lighting stays.
+                slot = material_graph_slot(at.x & 255u, at.y & 255u, tpage, u.window);
+            }
             if (slot != 0u) {
                 GraphIn gi;
                 gi.texel = texel / 31.0, gi.vcolor = v_color, gi.uv = v_uv, gi.normal = normalize(v_normal);

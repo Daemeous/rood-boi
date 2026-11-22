@@ -103,6 +103,8 @@ void pc_hwc_before_write(int x, int y, int w, int h);
 void pc_hwc_stale_copy(int sx, int sy, int dx, int dy, int w, int h);
 void pc_hwc_fence_store(int x, int y, int w, int h);
 void pc_hwc_fence_sync(int x, int y, int w, int h); /* a capture: the rectangle of the display read back */
+void pc_hwc_resync_picture(const uint8_t* picture); /* pc_hwc_resync with a state file's picture of the target over it */
+int pc_hwc_capture_picture(uint8_t* rgba); /* the target's own pixels (RGBA8 1024 x 512): no state of the game or the renderer changes */
 /* The fences of the snapshot, rewind, photo and reload paths (renderer_rq.h): pc_hwc_drain returns when every record is applied and the
  * GPU is idle; pc_hwc_resync rebuilds the renderer's state from the game's VRAM after a restore. */
 void pc_hwc_drain(void);

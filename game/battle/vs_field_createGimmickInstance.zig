@@ -14,6 +14,9 @@ pub fn vs_field_createGimmickInstance(arg0: ?*v.vs_battle_objectData) callconv(.
     const t = v.g.vs_field_gimmickInstances();
 
     if (psx.at(t, obj.index).* != null) return -3;
+    // The ids the disc's room objects use are 0..6 (pc/tools/event_table_scan.py): the tables take no more; anything else is refused.
+    if (c.pc_gimmick_index_ok("vs_field_gimmickPaletteColors", 7, obj.actorId, obj.index) == 0 or
+        c.pc_gimmick_index_ok("vs_field_gimmickTemplateIndices", 8, obj.actorId, obj.index) == 0) return -2;
 
     const raw = psx.get(obj.destination);
     const fetched: ?*v.D_800F45E0_t = if (raw) |p| @ptrCast(@alignCast(p)) else null;
@@ -40,6 +43,10 @@ pub fn vs_field_createGimmickInstance(arg0: ?*v.vs_battle_objectData) callconv(.
         c.vs_main_memcpy(@ptrCast(s1), @ptrCast(psx.at(t, obj.dataAddr).*), @intCast(object_bytes));
     } else {
         const idx = v.g.vs_field_gimmickTemplateIndices()[obj.actorId];
+        if (c.pc_gimmick_index_ok("vs_field_gimmickModelTemplates", 3, idx, obj.index) == 0) {
+            psx.at(t, obj.index).* = null;
+            return -2;
+        }
         const ent: *v.D_800E8FB4_t = @ptrCast(@alignCast(psx.at(v.g.vs_field_gimmickModelTemplates(), idx).*.?));
         psx.fieldAt(i32, &s1.unk0, 0).* = ent.unk0;
         s1.unk4 = ent.unk4;
@@ -70,7 +77,7 @@ pub fn vs_field_createGimmickInstance(arg0: ?*v.vs_battle_objectData) callconv(.
     s1.unkF = psx.conv(u8, obj.index);
     psx.setBits(&s1.unk6C[8], "actorId", psx.conv(u3, obj.actorId));
 
-    const src = v.g.vs_field_gimmickPaletteColors() + @as(usize, psx.getBits(&s1.unk6C[8], "actorId")) *% 32;
+    const src = @as([*]u8, @ptrCast(v.g.vs_field_gimmickPaletteColors())) + @as(usize, psx.getBits(&s1.unk6C[8], "actorId")) *% 32;
     c.vs_main_memcpy(@ptrCast(var_s0), @ptrCast(src), @sizeOf(v.D_800F4538_t2));
     c.vs_main_loadClut(@ptrCast(var_s0), 0xD, @as(c_uint, s1.unkF) *% 0x10, 0x10);
 

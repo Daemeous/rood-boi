@@ -36,7 +36,7 @@ pub fn printVariableWidthFontChar(glyph_id: c_uint, x: c_int, y: c_int, ot: [*c]
         return x +% 6;
     }
 
-    const glyphId: c_uint = glyph_id +% psx.conv(c_uint, @as(c_int, v.g._fontTable().*) *% 0xBD);
+    const glyphId: c_uint = glyph_id +% psx.conv(c_uint, @as(c_int, v.g.vs_battle_fontBank().*) *% 0xBD);
 
     const xy: c_uint = (@as(c_uint, @bitCast(x)) & 0xFFFF) | (@as(c_uint, @bitCast(y)) << 16);
     const glyphRow: c_int = psx.conv(c_int, glyphId / 21);

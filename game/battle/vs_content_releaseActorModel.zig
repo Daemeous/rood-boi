@@ -70,7 +70,9 @@ pub fn vs_content_releaseActorModel(slot: c_int) callconv(.c) c_int {
         if (psx.getBits(temp, "unk5B0_5") != 0) {
             var i: c_int = 0;
             while (i < @as(c_int, psx.getBits(&temp.unk0, "unk8_4")) +% 1) : (i +%= 1) {
-                psx.at(v.g.vs_render_legacyActorTextureSlots(), @as(c_int, temp.unk5BB) +% i).refCount -%= 1;
+                const at: c_int = @as(c_int, temp.unk5BB) +% i;
+                if (c.pc_table_index_ok("vs_render_legacyActorTextureSlots", at, 24, "actor texture slot", @intCast(at), @intCast(i)) == 0) break;
+                psx.at(v.g.vs_render_legacyActorTextureSlots(), at).refCount -%= 1;
             }
 
             if (temp.unk5BB == 20) {

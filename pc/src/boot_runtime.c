@@ -53,6 +53,7 @@ static void vram_note_written(int x, int y, int w, int h)
         for (int b = b0; b < b1 && b < 32; b++)
             vram_drawn[c] &= ~(1u << b);
 }
+int pc_vram_drawn_bit(int column, int band) { return (int)(vram_drawn[column & 15] >> (band & 31) & 1); } /* a cell (64 x 16) a primitive drew in */
 /* The oracle's digest of the game's array: FNV-1a over the cells no primitive drew in (snapshot.c). */
 uint64_t pc_vram_transfer_digest(uint64_t h)
 {
@@ -191,6 +192,28 @@ void pc_unimplemented(const char* name)
     exit(2);
 }
 void pc_log(const char* message) { fprintf(stderr, "[boot] %s\n", message); }
+/* A table index the data should not produce (a table declared with the extent the disc's data needs, pc/tools/event_table_scan.py): the access is refused
+ * by the caller; this logs it once per table, with where it came from. */
+void pc_table_index_refused(const char* table, long index, long length, const char* where, unsigned long first, unsigned long second)
+{
+    static const char* seen[16] __attribute__((section(".data.rood_host")));
+    for (int i = 0; i < 16; i++) {
+        if (seen[i] == table)
+            return;
+        if (!seen[i]) {
+            seen[i] = table;
+            break;
+        }
+    }
+    fprintf(stderr, "[table] %s: index %ld is outside 0..%ld (%s %#lx, %#lx): refused\n", table, index, length - 1, where, first, second);
+}
+int pc_table_index_ok(const char* table, long index, long length, const char* where, unsigned long first, unsigned long second)
+{
+    if (index >= 0 && index < length)
+        return 1;
+    pc_table_index_refused(table, index, length, where, first, second);
+    return 0;
+}
 /* An effect script's command byte past the table's 49 (vs_effects_runScript): the cursor is not on a command. The script ends;
  * reported at most once per 60 battle frames. */
 void pc_effect_bad_opcode(int opcode, int cursor)

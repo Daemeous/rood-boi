@@ -2105,8 +2105,13 @@ def lp64_native_imports():
     image_ranges = [(base, image) for _, image, base in images]
     # ENDING loads over BATTLE (both at 0x80068800): its regions read its image.
     ending_image = (root / "data/ENDING/ENDING.PRG").read_bytes() if battle else b""
+    # TITLE loads there too: the same, with its own image (a TITLE import defined with BATTLE's bytes at its address would be wrong).
+    title_image = (root / "data/TITLE/TITLE.PRG").read_bytes() if battle else b""
+    overlay_images = {"ending": ending_image, "title": title_image}
+    overlay_sections = {"ending": ("rood_ovl_ending_ending_prg_data", "ENDING/ENDING.PRG"),
+                        "title": ("rood_ovl_title_title_prg_data", "TITLE/TITLE.PRG")}
     def image_bytes(address, size, owner=None):
-        for base, image in ([(0x80068800, ending_image)] if owner == "ending" else image_ranges):
+        for base, image in ([(0x80068800, overlay_images[owner])] if owner in overlay_images else image_ranges):
             if base <= address and address + size <= base + len(image):
                 return image[address - base: address - base + size]
         return None
@@ -2119,12 +2124,13 @@ def lp64_native_imports():
     # objects use there are a separate group: their extents, regions and
     # restart are ENDING's.
     def group(name):
-        if not 0x80068800 <= addresses[name] < 0x80068800 + len(ending_image):
-            return None
         keys = users.get(name, set())
-        if "ending" in keys and len(keys) > 1:
+        if "ending" in keys and len(keys) > 1 and 0x80068800 <= addresses[name] < 0x80068800 + len(ending_image):
             raise RuntimeError(f"LP64 import {name} is shared by ENDING and {keys - {'ending'}}")
-        return "ending" if keys == {"ending"} else None
+        for overlay_group, image in overlay_images.items():
+            if keys == {overlay_group} and 0x80068800 <= addresses[name] < 0x80068800 + len(image):
+                return overlay_group
+        return None
     groups = {n: group(n) for n in data}
     ordered = {g: sorted({addresses[n] for n in data if groups[n] == g}) for g in set(groups.values())}
     # Each moved import covers its PS1 extent (up to the next known symbol, or
@@ -2177,6 +2183,8 @@ def lp64_native_imports():
             regions.append(span)
     moved = {name for region in regions for name in region[2]}
     definitions = []
+    placements = []  # (kind, group, start, end, region, pad): where each moved import's bytes went (pointer words are relocated into them)
+    deferred = {}  # index in definitions -> (attributes, region, count, words, owner): a pointer region's initial words, relocated at the end
     for start, end, names, owner in regions:
         # Other imports inside would keep reading the guest copy (symbols
         # nothing imports do not matter).
@@ -2198,10 +2206,11 @@ def lp64_native_imports():
             continue
         region = f"rood_lp64_{start:08x}" + (f"_{owner}" if owner else "")
         attributes = "__attribute__((used, aligned(8)"
-        if owner == "ending":
-            attributes += ', section("rood_ovl_ending_ending_prg_data")'
-            overlay_statics.setdefault("ENDING/ENDING.PRG", set()).add("data")
-            win_overlay_statics.setdefault("ENDING/ENDING.PRG", set()).add("data")
+        if owner in overlay_sections:
+            section_name, overlay_file = overlay_sections[owner]
+            attributes += f', section("{section_name}")'
+            overlay_statics.setdefault(overlay_file, set()).add("data")
+            win_overlay_statics.setdefault(overlay_file, set()).add("data")
         elif battle and 0x80068800 <= start < battle_end:
             attributes += ', section("rood_ovl_battle_battle_prg_data")'
             overlay_statics.setdefault("BATTLE/BATTLE.PRG", set()).add("data")
@@ -2209,12 +2218,15 @@ def lp64_native_imports():
         attributes += "))"
         count = (end - start) // 4
         content = image_bytes(start, end - start, owner)
+        if owner in overlay_images and content is None:
+            raise RuntimeError(f"LP64 region {start:#x}-{end:#x} ({', '.join(names)}) of overlay group {owner} is outside its image")
+        placements.append(("ptr", owner or "", start, end, region, 0))
         if content is None or not any(content):
             definitions.append(f"{attributes} unsigned long long {region}[{count}];")
         else:
             words = struct.unpack_from(f"<{count}I", content)
-            definitions.append(f"{attributes} unsigned long long {region}[{count}] = {{ "
-                               + ", ".join(f"{w:#x}" for w in words) + " };")
+            deferred[len(definitions)] = (attributes, region, count, words, owner or "")
+            definitions.append(None)
         for name in names:
             offset = 2 * (addresses[name] - start)
             definitions.append(f'__asm__(".globl {name}\\n.type {name}, @object\\n'
@@ -2269,17 +2281,62 @@ def lp64_native_imports():
             name = match.group(2)
             if name in data and (match.group(1) or not match.group(3)):
                 taken_names.add(name)
-    seen_words = []
-    for path in [root / "data/SLUS_010.40", *sorted((root / "data").rglob("*.PRG")),
-                 *sorted((root / "data/EFFECT").glob("*.BIN"))]:
-        if path.is_file():
-            blob = path.read_bytes()
-            blob = blob[: len(blob) // 4 * 4]
-            seen_words += [w for w in struct.unpack(f"<{len(blob) // 4}I", blob) if 0x80010000 <= w < 0x80200000]
-    seen_words = sorted(set(seen_words))
-    def pointed_into(start, end):
-        i = bisect.bisect_left(seen_words, start)
-        return i < len(seen_words) and seen_words[i] < end
+    # The words of the data the guest copy holds that look like a RAM address, with where they sit: a word of a game file only matters if the port follows
+    # it from guest RAM, which it does through the data imports that keep their PS1 address (the words inside a pinned import) and over
+    # the bytes between imports (an array read past its end, a table reached by arithmetic); never through code or through a moved import, whose words
+    # the mover relocates. Code is told from data by the decompilation's segment types (config/<file>/splat.yaml). The overlays share addresses, so
+    # an overlay's words only count for the executable's data and its own (and BATTLE's for what BATTLE's image holds).
+    import yaml
+    def data_ranges(config, size):
+        spec = yaml.safe_load((root / config).read_text())
+        starts = []
+        for segment in spec["segments"]:
+            if not isinstance(segment, dict):
+                continue
+            for sub in segment.get("subsegments", [segment]):
+                if isinstance(sub, dict):
+                    starts.append((sub["start"], sub["type"]))
+                elif len(sub) > 1:
+                    starts.append((sub[0], sub[1]))
+        starts.sort()
+        ranges = []
+        for i, (offset, kind) in enumerate(starts):
+            end = starts[i + 1][0] if i + 1 < len(starts) else size
+            if str(kind) not in ("c", "hasm", "asm", "code", "header") and offset < end:
+                ranges.append((offset, end))
+        return ranges
+    word_sources = []  # (value, location, source file key)
+    for key, path, base, config, skip in [("main", root / "data/SLUS_010.40", 0x80010000 - 0x800, "config/SLUS_010.40/splat.yaml", 0x800),
+                                          ("battle", root / "data/BATTLE/BATTLE.PRG", 0x80068800, "config/BATTLE/BATTLE.PRG/splat.yaml", 0),
+                                          ("init", root / "data/BATTLE/INITBTL.PRG", 0x80068800, "config/BATTLE/INITBTL.PRG/splat.yaml", 0),
+                                          ("ending", root / "data/ENDING/ENDING.PRG", 0x80068800, "config/ENDING/ENDING.PRG/splat.yaml", 0),
+                                          ("title", root / "data/TITLE/TITLE.PRG", 0x80068800, "config/TITLE/TITLE.PRG/splat.yaml", 0)]:
+        if not path.is_file():
+            continue
+        blob = path.read_bytes()
+        for lo, hi in data_ranges(config, len(blob)):
+            lo = max(lo, skip) + (-max(lo, skip) % 4)
+            for offset in range(lo, min(hi, len(blob)) - 3, 4):
+                word = struct.unpack_from("<I", blob, offset)[0]
+                if 0x80010000 <= word < 0x80200000:
+                    word_sources.append((word, base + offset, key))
+    word_sources.sort()
+    word_values = [w[0] for w in word_sources]
+    def pointed_into(start, end, keys=(), group="", self_name=None):
+        """Whether a word the port can follow points into [start, end): see above. Words inside a moved import (or a still-candidate one)
+        do not count; those inside a pinned import, or in no import, do."""
+        allowed = None if start < 0x80068800 else {"main", group} if group else {"main", "battle", "init"}
+        i = bisect.bisect_left(word_values, start)
+        while i < len(word_values) and word_values[i] < end:
+            word, loc, source = word_sources[i]
+            i += 1
+            if allowed is not None and source not in allowed:
+                continue
+            holder = import_at(loc, source)
+            if holder is not None and holder != self_name and (holder in moved or holder in candidates):
+                continue
+            return True
+        return False
     def complete_size(name):
         infos = declarations.get(declared_name(name), [])
         sizes = [info["ps1_size"] for _, info in infos if info.get("size")]
@@ -2293,6 +2350,27 @@ def lp64_native_imports():
     covers = [(addresses[n], addresses[n] + max(complete_size(n), 4), n) for n in data]
     covers += [(start, end, names[0]) for start, end, names, _ in regions]
     covers.sort()
+    cover_index = {}
+    def import_at(loc, source):
+        """The import whose extent holds an address, among the imports of the place the source file is loaded in."""
+        if not cover_index:
+            for n in data:
+                size = complete_size(n)
+                if not size and next_address.get(n) is not None:
+                    size = next_address[n] - addresses[n]
+                cover_index.setdefault(groups[n] or "", []).append((addresses[n], addresses[n] + max(size, 4), n))
+            for start, end, names, owner in regions:
+                cover_index.setdefault(owner or "", []).append((start, end, names[0]))
+            for entries in cover_index.values():
+                entries.sort()
+        entries = cover_index.get(source if source in overlay_images else "", [])
+        i = bisect.bisect_right([e[0] for e in entries], loc) - 1
+        while i >= 0 and entries[i][0] <= loc:
+            if loc < entries[i][1]:
+                return entries[i][2]
+            i -= 1
+            break
+        return None
     incomplete_before = set()  # addresses whose nearest import before is an incomplete array (its extent is unknown)
     previous = None
     for n in sorted(data, key=lambda n: addresses[n]):
@@ -2365,17 +2443,18 @@ def lp64_native_imports():
             in_exe = end <= 0x80068800
             in_battle = 0x80068800 <= start and end <= battle_end and not group_name and not keys & {"ending", "main"}
             in_ending = group_name == "ending" and end <= 0x80068800 + len(ending_image)
+            in_title = group_name == "title" and end <= 0x80068800 + len(title_image)
             in_battle_bss = battle_end <= start and end <= 0x800F9800 and not group_name and not keys & {"ending", "main"}
             if 0x800F9800 <= start < 0x80102800:
                 pinned[name] = "in the plug-in slot: the link places it in pc_plugin_slot, not at its PS1 address"
-            elif not (in_exe or in_battle or in_ending or in_battle_bss):
+            elif not (in_exe or in_battle or in_ending or in_title or in_battle_bss):
                 pinned[name] = "shared between BATTLE, INITBTL and the program or menus (one object over several overlays)"
-            elif pointed_into(start, end):
+            elif False:  # (the pointer-word test runs after the candidates are known: see below)
                 pinned[name] = "a pointer word in a game file points into it"
             elif name in taken_names and not unsized and packet_storage(name):
                 pinned[name] = "GPU packet or ordering-table storage whose address is taken (the GPU links 24 bits of a guest RAM address)"
             else:
-                candidates[name] = (start, size, (group_name, in_exe, in_battle, in_ending), unsized)
+                candidates[name] = (start, size, (group_name, in_exe, in_battle, in_ending, in_title), unsized)
                 overlaps[name] = [who for a, b, who in covers if a < end and b > start and who != name and not unrelated(name, who)]
     # Imports whose extents cross (members of a larger declaration, or neighbours declared wider than their labels)
     # are one object: they move together, in one region, or not at all.
@@ -2396,6 +2475,17 @@ def lp64_native_imports():
         del candidates[name]
     # An unsized array may run into what follows it: it moves only together with the next import (one region,
     # the layout kept), and an import after an array that stays moves with it or not at all.
+    # The pointer-word test, to a fixpoint (pinning an import puts its own words in the count).
+    changed = True
+    while changed:
+        changed = False
+        for name in sorted(candidates, key=lambda n: addresses[n]):
+            start, size, kind, unsized = candidates[name]
+            if pointed_into(start, start + size, users.get(name, set()), kind[0], name):
+                pinned[name] = "a pointer word in a game file points into it"
+                del candidates[name]
+                changed = True
+                break
     changed = True
     while changed:
         changed = False
@@ -2441,12 +2531,13 @@ def lp64_native_imports():
             spans.append([start, start + size, [name], kind[0], kind])
     for start, end, names, group_name, kind in spans:
         size = end - start
-        in_battle, in_ending = kind[2], kind[3]
+        in_battle, in_ending, in_title = kind[2], kind[3], kind[4]
         attributes = "__attribute__((used, aligned(8)"
-        if in_ending:
-            attributes += ', section("rood_ovl_ending_ending_prg_data")'
-            overlay_statics.setdefault("ENDING/ENDING.PRG", set()).add("data")
-            win_overlay_statics.setdefault("ENDING/ENDING.PRG", set()).add("data")
+        if in_ending or in_title:
+            section_name, overlay_file = overlay_sections["ending" if in_ending else "title"]
+            attributes += f', section("{section_name}")'
+            overlay_statics.setdefault(overlay_file, set()).add("data")
+            win_overlay_statics.setdefault(overlay_file, set()).add("data")
         elif in_battle:
             attributes += ', section("rood_ovl_battle_battle_prg_data")'
             overlay_statics.setdefault("BATTLE/BATTLE.PRG", set()).add("data")
@@ -2456,6 +2547,9 @@ def lp64_native_imports():
         # (the region starts at an address of the guest's alignment: a member keeps the alignment it had)
         pad = start % 8
         content = image_bytes(start, size, group_name)
+        if group_name in overlay_images and content is None:
+            raise RuntimeError(f"LP64 plain data {start:#x}+{size:#x} ({', '.join(names)}) of overlay group {group_name} is outside its image")
+        placements.append(("plain", group_name or "", start, start + size, region, pad))
         if content is None or not any(content):
             definitions.append(f"{attributes} unsigned char {region}[{pad + size}];")
         else:
@@ -2489,8 +2583,26 @@ def lp64_native_imports():
             word = struct.unpack_from("<I", image, offset)[0]
             if word in moved_addresses:
                 print(f"LP64 import {moved_addresses[word]}: its PS1 address appears in guest data at {base + offset:#x}")
+    # A pointer word of a moved region that points into another moved import is the guest address of an object that no longer lives
+    # there: it becomes that object's native address (an address constant; the link is non-PIE). The words of an overlay group see
+    # its own imports and the executable's, the others the executable's and BATTLE's.
+    relocated_words = []
+    def relocate(word, owner):
+        for kind, group_of, lo, hi, region, pad in placements:
+            if lo <= word < hi and (group_of == owner or (owner in overlay_images and group_of == "" and hi <= 0x80068800)):
+                relocated_words.append(word)
+                offset = 2 * (word - lo) if kind == "ptr" else pad + word - lo
+                return f"(unsigned long long)((char*)&{region}[0] + {offset})"
+        return f"{word:#x}"
+    for index, (attributes, region, count, words, owner) in deferred.items():
+        definitions[index] = (f"{attributes} unsigned long long {region}[{count}] = {{ "
+                              + ", ".join(relocate(w, owner) if 0x80010000 <= w < 0x80200000 else f"{w:#x}" for w in words) + " };")
+    if relocated_words:
+        print(f"LP64: {len(relocated_words)} pointer words relocated to moved imports")
+    declarations_text = "".join(f"extern unsigned {'long long' if kind == 'ptr' else 'char'} {region}[];\n"
+                                for kind, _, _, _, region, _ in placements)
     source = out / "native_imports.c"
-    source.write_text("/* Generated by build_boot.py --arch 64: data imports with an LP64 layout. */\n"
+    source.write_text("/* Generated by build_boot.py --arch 64: data imports with an LP64 layout. */\n" + declarations_text
                       + "\n".join(definitions) + "\n")
     obj = out / "native_imports.o"
     if not coff:

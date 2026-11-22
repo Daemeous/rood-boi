@@ -316,8 +316,8 @@ extern union {
     u_char u8[4];
 } D_800EB9D0;
 extern u_int* _menuBgUnpackedBuf;
-extern u_char D_800EB708[];
-extern u_char vs_render_compactGlyphWidths[];
+extern u_char D_800EB708[172]; /* two bits per glyph pair: index < 26 * 26, read at index >> 2 */
+extern u_char vs_render_compactGlyphWidths[32]; /* two 4-bit widths per byte, by glyph >> 1 */
 extern u_char D_800EB7D4[60];
 extern int* vs_menu_sceneNotificationBuffer;
 extern u_int D_800EBBB8[];
@@ -364,7 +364,7 @@ extern u_char vs_battle_targetColumnEntries[2][16];
 extern u_char vs_battle_secondColumnEntryCount;
 extern u_char vs_battle_firstColumnEntryCount;
 extern char D_800F4CB8;
-extern char _fontTable;
+extern char vs_battle_fontBank;
 extern int _fontBrightness;
 extern u_long vs_menu_textBoxOrderingTables;
 extern char vs_battle_shortcutInvoked;
@@ -512,11 +512,11 @@ __asm__("glabel _printFixedWidthFontChar;"
         "sra        $v0, $t6, 16;"
         "sll        $t6, $v0, 16;"
         "lui        $a1, 0xFF;"
-        "lui        $v0, %hi(_fontTable);"
+        "lui        $v0, %hi(vs_battle_fontBank);"
         "or         $a1, 0xFFFF;"
         "lui        $t2, %hi(vs_menu_activeTextBoxOrderingTable);"
         "lui        $a0, %hi(D_800F4CB8);"
-        "lbu        $v0, %lo(_fontTable)($v0);"
+        "lbu        $v0, %lo(vs_battle_fontBank)($v0);"
         "lbu        $a2, %lo(D_800F4CB8)($a0);"
         "sll        $v1, $v0, 1;"
         "addu       $v1, $v0;"
@@ -841,7 +841,7 @@ void func_800CD158(int id);
 
 int func_800CD3A0(int arg0, int arg1);
 
-extern u_char* vs_event_textBoxFrameStyles[];
+extern u_char* vs_event_textBoxFrameStyles[16];
 
 #define POINT_X(p) (((short*)&points[p])[0])
 #define POINT_Y(p) (((short*)&points[p])[1])

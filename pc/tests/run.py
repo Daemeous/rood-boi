@@ -239,6 +239,8 @@ def suites(args, mode="egl"):
               note="ray-traced surfaces follow the picture's camera (Vulkan)"),
         Suite("nrd_smoke", [PY, str(TESTS / "nrd_smoke.py")], 300,
               note="NVIDIA NRD denoises the indirect light (Vulkan built with NRD)"),
+        Suite("gi_repeat_smoke", [PY, str(TESTS / "gi_repeat_smoke.py")], 300,
+              note="a paused game redrawn many times keeps its path-traced picture (the GI target is bit-identical)"),
         Suite("probe_gi_smoke", [PY, str(TESTS / "probe_gi_smoke.py")], 600,
               note="probe GI: converges, energy vs path traced, stable, no wall leak, light/room changes"),
         Suite("hw_calls_smoke", [PY, str(TESTS / "hw_calls_smoke.py")], 300,
@@ -283,7 +285,8 @@ def suites(args, mode="egl"):
         Suite("window_smoke", [PY, str(TESTS / "window_smoke.py")], 180, binary="rood_boot",
               note="X11 events on Xvfb"),
         Suite("opening_smoke", [PY, str(TESTS / "opening_smoke.py")], 120),
-        Suite("scene_smoke", [PY, str(TESTS / "scene_smoke.py")], 300),
+        Suite("scene_smoke", [PY, str(TESTS / "scene_smoke.py")], 300,
+              note="the title's idle cutscene presented: a lit 3D scene and dialogue bubbles in the presented picture"),
         *([Suite("editor_cutaway_smoke", [PY, str(TESTS / "editor_cutaway_smoke.py"), "--card", str(args.save)], 300,
                  note="free camera sees into the save room; game camera unchanged"),
             Suite("editor_undo_smoke", [PY, str(TESTS / "editor_undo_smoke.py"), "--card", str(args.save)], 300,
@@ -356,6 +359,12 @@ def suites(args, mode="egl"):
                   sources=[TESTS / "material_instances_smoke.py", ROOT / "pc/src/materials.cpp",
                            ROOT / "pc/src/material_instances.cpp", ROOT / "pc/src/material_preview.cpp",
                            ROOT / "pc/assets/materials/masters/standard_surface.json"]),
+            Suite("material_object_smoke", [PY, str(TESTS / "material_object_smoke.py"), "--card", str(args.save)], 300,
+                  note="materials by object: the pick names its room group and polygon, an instance assigned to the "
+                       "selection's object (this texture, all of its textures, one polygon) applies to that object "
+                       "only, the file keeps `object`, groups without a room are refused",
+                  sources=[TESTS / "material_object_smoke.py", ROOT / "pc/src/materials.cpp",
+                           ROOT / "pc/src/material_instances.cpp", ROOT / "pc/src/material_editor.cpp"]),
             Suite("material_graph_smoke", [PY, str(TESTS / "material_graph_smoke.py"), "--card", str(args.save)], 600,
                   note="node material graphs: the node library and generation (RPC material_graph), the standard "
                        "surface as a graph byte-identical in the Keep (Vulkan), a tint graph live through the hot "
@@ -793,6 +802,10 @@ def suites(args, mode="egl"):
               note="the battle targeting sphere's wire drawn from the GTE's unrounded ends at ui_wire_width output pixels (gitea #19): thinner as the width falls"),
         Suite("menu_tint_classic_smoke", [PY, str(TESTS / "menu_tint_classic_smoke.py"), *(["--card", str(args.save)] if args.save.exists() else [])], 300,
               note="the menu tint on the game's own menus (gitea #17): the Command rows' panels take Slate / Crimson, the HUD and the 3D do not, the Original tint is the picture as it was"),
+        Suite("lane_frozen_test", [PY, str(TESTS / "lane_frozen_test.py")], 300,
+              note="build_compare lanes do not follow their worktree (Gitea #13): shader_reload 0 and frozen plugins: an edited shader stage and plugin reload nothing; without them both reload"),
+        Suite("rood_rpc_launch_test", [PY, str(TESTS / "rood_rpc_launch_test.py")], 300,
+              note="games launched by rood_rpc: one from a short-lived thread survives it (PDEATHSIG follows the thread: Gitea #3's shape); one whose script ends on an exception does not outlive it"),
         Suite("text_fade_smoke", [PY, str(TESTS / "text_fade_smoke.py")], 300,
               note="text without a box fading out (type 0 closing, type 6): glyphs at the opacity, no "
                    "PS1-resolution rectangle (font, original, overlay); the game's upload is seen with it off"),
@@ -949,7 +962,7 @@ CHECKPOINT_SUITES = {
 # those: in a full run the capped ones form a queue of their own (their
 # summed time / --heavy-jobs is a floor for the run's wall time).
 HEAVY_SUITES = {
-    "glow_stability_smoke", "save_point_glow_smoke", "probe_gi_smoke", "gi_smoke", "gi_lag_smoke", "nrd_smoke",
+    "glow_stability_smoke", "save_point_glow_smoke", "probe_gi_smoke", "gi_smoke", "gi_repeat_smoke", "gi_lag_smoke", "nrd_smoke",
     "rt_camera_smoke", "sky_smoke", "game_sky_smoke", "lighting_presets_smoke", "emissive_smoke", "ui_ashley_stability_smoke",
 }
 

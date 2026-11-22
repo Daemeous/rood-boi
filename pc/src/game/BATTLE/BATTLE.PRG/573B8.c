@@ -7,7 +7,7 @@
 #include "build/src/include/lbas.h"
 #include <libetc.h>
 
-extern u_char vs_event_opcodeSizes[];
+extern u_char vs_event_opcodeSizes[256]; /* the size of each event opcode, by opcode byte */
 extern int (*_opcodeFunctionTable[])(u_char*, short);
 /* Where a jumping opcode handler sends the script (game/battle/event_jump.zig): the handlers return an int, which cannot hold an address; read in the same step. */
 u_char* vs_event_jumpTarget;

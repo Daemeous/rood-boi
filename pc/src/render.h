@@ -77,6 +77,8 @@ int render_mesh_polygons(render_mesh mesh); /* -1 when the handle is stale */
  * Scope): per polygon, the scope bits of the entries it may glow with
  * (bits[i] for polygon i; NULL: none). Kept across render_mesh_update. */
 int render_mesh_emissive_scope(render_mesh mesh, const uint16_t* bits);
+int render_mesh_variants(render_mesh mesh, const uint16_t* ids);
+int render_mesh_polygon_texture(render_mesh mesh, int index, unsigned* tpage, unsigned* clut, unsigned char box[4]);
 
 /* ---- cameras and lists ---- */
 

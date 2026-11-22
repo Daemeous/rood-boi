@@ -94,12 +94,26 @@ def cover(binary):
                           COV_TARGETS=str(work / "targets.txt"), COV_LOG=log)
 
 
+def frozen_plugins(out):
+    """The shipped plugins as they are now, copied into the lane's folder: the game watches its plugin files and reloads a changed one, and
+    shader files likewise (setting shader_reload, off in every lane below), so a lane that runs while its worktree is switched or edited
+    (a checkout, a merge, a rebuild) would draw with the files of the moment they changed: a run of the GI platforms lane differed from its
+    own control for its whole length that way (Gitea #13: shaders hot reloaded at boot, 'rood.options files changed: reloading'). The lane
+    tests the build and its files as they were when it started."""
+    import shutil
+    dst = pathlib.Path(out) / "shipped-plugins"
+    if not dst.exists():
+        shutil.copytree(ROOT / "pc/plugins", dst)
+    return str(dst)
+
+
 def start(card, out, name):
     """A game in the fight's room, scripts off, the settings the comparison needs."""
     from checkpoints import launch_at
     g = launch_at("save_room", card=card, fast=True, log=out / f"{name}.log", extra_env={
         "ROOD_GI": os.environ.get("BUILD_COMPARE_GI", "0"), "ROOD_INTERPOLATE": "0", "ROOD_SETTINGS": str(out / "settings.cfg"), "ROOD_AUDIO": "none",
-        "ROOD_WINDOW": "960x720", "ROOD_LIGHTS": str(out / "lights"), "ROOD_PREFABS": str(out / "prefabs")})
+        "ROOD_WINDOW": "960x720", "ROOD_LIGHTS": str(out / "lights"), "ROOD_PREFABS": str(out / "prefabs"),
+        "ROOD_PLUGINS_SHIPPED": frozen_plugins(out)})
     g.call("graphics", interpolate=False)
     g.call("room_goto", hold=True, zone=ROOM[0], room=ROOM[1], enemies=True, scripts=False)
     for _ in range(80):
@@ -223,7 +237,7 @@ def play(binary, seconds, card, out):
     sys.path[:0] = [str(ROOT / "pc/tools"), str(ROOT / "pc/tests")]
     cover(binary)
     out = pathlib.Path(out)
-    (out / "settings.cfg").write_text("qol_skip_charging 0\nui_menus 0\n" + os.environ.get("BUILD_COMPARE_SETTINGS", ""))
+    (out / "settings.cfg").write_text("qol_skip_charging 0\nui_menus 0\nshader_reload 0\n" + os.environ.get("BUILD_COMPARE_SETTINGS", ""))
     g = start(card, out, "fight")
     sites = []
     try:
@@ -298,8 +312,11 @@ def play_casts(binary, card, out, kinds, limit):
     (out / "lighting").mkdir()
     env = {"ROOD_PERF": "1"} if os.environ.get("BUILD_COMPARE_PERF") else {}
     env |= {"ROOD_WINDOW": "960x720", "ROOD_LIGHTS": str(out / "lights"), "ROOD_PREFABS": str(out / "prefabs"),
-           "ROOD_LIGHTING": str(out / "lighting"), "ROOD_GI": os.environ.get("BUILD_COMPARE_GI", "0"), "ROOD_INTERPOLATE": "0", "ROOD_AUDIO": "none", "ROOD_OUT": str(out)}
+           "ROOD_LIGHTING": str(out / "lighting"), "ROOD_GI": os.environ.get("BUILD_COMPARE_GI", "0"), "ROOD_INTERPOLATE": "0", "ROOD_AUDIO": "none", "ROOD_OUT": str(out),
+           "ROOD_PLUGINS_SHIPPED": frozen_plugins(out)}
     os.environ.pop("ROOD_SETTINGS", None)
+    (out / "settings.cfg").write_text("shader_reload 0\n")  # (the shaders as built: no reload from the worktree)
+    env["ROOD_SETTINGS"] = str(out / "settings.cfg")
     card_copy = out / "card1.mcd"
     card_copy.write_bytes(pathlib.Path(card).read_bytes())
     socket = f"/tmp/rood-bcompare-{os.getpid()}.sock"
@@ -1126,7 +1143,7 @@ def play_menus(binary, card, out, names, sample, claims, aspect="4:3", extra_env
     out = pathlib.Path(out)
     (out / "plugins").mkdir()
     settings = out / "settings.cfg"
-    lines = {"ui_menus": "0", "ui_text": "font", "interpolate": "0", "aspect": aspect}
+    lines = {"ui_menus": "0", "ui_text": "font", "interpolate": "0", "aspect": aspect, "shader_reload": "0"}
     lines.update(kv.split(" ", 1) for kv in settings_lines)
     settings.write_text("".join(f"{k} {v}\n" for k, v in lines.items()))
     env = {"ROOD_SETTINGS": str(settings), "ROOD_PLUGINS": str(out / "plugins"), "ROOD_PLUGIN_DATA": str(out / "plugin_data"),
@@ -1137,8 +1154,7 @@ def play_menus(binary, card, out, names, sample, claims, aspect="4:3", extra_env
     env.update(kv.split("=", 1) for kv in extra_env)
     if renderer == "null":  # (the CPU reference frame: no GPU, the original drawing; quicker and the manual opens)
         env["SDL_VIDEO_DRIVER"] = "invalid-null-classic-parity"
-    if claims == "on":
-        env["ROOD_PLUGINS_SHIPPED"] = str(ROOT / "pc/plugins")
+    env["ROOD_PLUGINS_SHIPPED"] = frozen_plugins(out)
     results = {}
     for name in names:
         card_copy = out / f"card-{name}.mcd"

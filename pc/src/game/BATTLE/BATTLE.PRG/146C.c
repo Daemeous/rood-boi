@@ -663,8 +663,8 @@ extern short (*_statCalculators[])(vs_action_t*, _hitEntity_t*, _hitEntity_t*, i
 extern int vs_battle_vitalsTickCounter;
 extern int vs_battle_regeneratingLimb;
 extern int vs_battle_targetingRiskTimer;
-extern short vs_field_lockedDoorIndexRanges[];
-extern char vs_field_lockedDoorRoomPairs[][4];
+extern short vs_field_lockedDoorIndexRanges[8]; /* the first row of each of the 7 sigil door sections, then the end: 0 2 8 15 20 21 22 23 */
+extern char vs_field_lockedDoorRoomPairs[23][4]; /* (zone, map) pairs of two rooms a locked door joins */
 extern MATRIX vs_field_triggerMarkerMatrix;
 extern D_800E8594_t vs_field_triggerMarkerVertex;
 extern char vs_field_triggerMarkerRecordTail[];

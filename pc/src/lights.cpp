@@ -271,17 +271,20 @@ void rood_lights::track_room()
 
 /* ---- animation time and selection ---- */
 
-/* Light animation is a function of this time: sampled once per presented
- * frame (gpu_hw.c calls pc_lights_new_frame after each present), so every
- * renderer pass of a frame (present shader, path tracer, haze) sees the
- * same lights; RPC actors {time} fixes it. */
+/* Light animation is a function of this time. By default (setting light_clock 0) the game's own: its vsync count and the
+ * image's place in the vsync (interpolation), so the picture a frame has is the same whatever the machine is doing (the path
+ * tracer's accumulation, the GI and NRD histories and the lights' flicker all follow the game's frames; Gitea #13) and a game
+ * paused holds its lights still. With light_clock 1 the wall clock, sampled once per presented frame (gpu_hw.c calls
+ * pc_lights_new_frame after each present), so every renderer pass of a frame (present shader, path tracer, haze) sees the
+ * same lights and a paused game's lights go on flickering (the editor's preview). RPC actors {time} fixes it either way. */
+extern "C" unsigned pc_frame_vsync_count(void); /* present_header.c */
+extern "C" float pc_frame_phase(void);
+extern "C" int pc_light_clock = 0;
 static bool frame_time_stale = true;
 static double frame_time, fixed_time = -1, last_sample;
-extern "C" void pc_lights_frame_tick(void);
 extern "C" void pc_lights_new_frame(void)
 {
     frame_time_stale = true;
-    pc_lights_frame_tick();
 }
 extern "C" void pc_lights_set_time(double t) { fixed_time = t; } /* < 0: the clock */
 extern "C" double pc_lights_time(void) { return rood_lights::light_time(); }
@@ -289,6 +292,8 @@ double rood_lights::light_time()
 {
     if (fixed_time >= 0)
         return fixed_time;
+    if (!pc_light_clock)
+        return ((double)pc_frame_vsync_count() + (double)pc_frame_phase()) / 59.94;
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
     double t = now.tv_sec + now.tv_nsec * 1e-9;
@@ -1685,7 +1690,14 @@ struct Kept {
     unsigned frame;
 };
 std::vector<std::pair<int, Kept>> kept_by_budget;
-unsigned lights_frame = 1;
+/* The frame the light budgets' hysteresis (which lights were kept last frame, and so stay) is counted in: the game's own, its vsync and
+ * the image's place in it, not the count of presents: a paused game is redrawn as often as the machine and the requests make, and
+ * each redraw would have moved the kept sets on, so with more lights than the budget the picks flipped from present to present and the
+ * picture depended on how many presents there had been (Gitea #13). The same frame asked twice picks the same lights. */
+unsigned light_frame_id()
+{
+    return pc_frame_vsync_count() * 1024u + (unsigned)(pc_frame_phase() * 1000.0f);
+}
 /* The last pc_lights_world output's keys and importance (shadow map picks). */
 std::vector<std::string> output_keys;
 std::vector<float> output_importance;
@@ -1720,7 +1732,6 @@ extern "C" int pc_lights_wanted(void) { return wanted_lights; }
 static int last_dropped;
 extern "C" int pc_lights_last_dropped(void) { return last_dropped; }
 extern "C" void pc_lights_set_dropped(int n) { dropped_lights = n; }
-extern "C" void pc_lights_frame_tick(void) { ++lights_frame; }
 extern "C" int pc_lights_world(float position[][4], float color[][4], float direction[][4],
     float extent_right[][4], float extent_up[][4], int shadows[], int max)
 {
@@ -1813,8 +1824,8 @@ extern "C" int pc_lights_world(float position[][4], float color[][4], float dire
             chosen.push_back(candidates[i]);
         last_dropped = (int)candidates.size() - max;
         candidates.swap(chosen);
-        if (kept->frame != lights_frame) { /* once per frame per budget */
-            kept->frame = lights_frame;
+        if (kept->frame != light_frame_id()) { /* once per frame per budget */
+            kept->frame = light_frame_id();
             kept->keys.clear();
             for (const Candidate& c : candidates)
                 if (!c.key.empty())
@@ -2011,7 +2022,7 @@ extern "C" int pc_lights_output(unsigned long long* keys, float* importance, int
             h = (h ^ c) * 1099511628211ull;
         keys[i] = h, importance[i] = output_importance[i];
     }
-    *frame = lights_frame;
+    *frame = light_frame_id();
     return n;
 }
 extern "C" void pc_lights_shadow_pick(int count, int* wants, int slots)
@@ -2037,8 +2048,8 @@ extern "C" void pc_lights_shadow_pick(int count, int* wants, int slots)
     std::stable_sort(order.begin(), order.end(), [&](int a, int b) { return score[a] > score[b]; });
     for (size_t k = slots; k < order.size(); k++)
         wants[order[k]] = 0;
-    if (kept->frame != lights_frame) {
-        kept->frame = lights_frame;
+    if (kept->frame != light_frame_id()) {
+        kept->frame = light_frame_id();
         kept->keys.clear();
         for (int k = 0; k < slots && k < (int)order.size(); k++)
             kept->keys.push_back(output_keys[order[k]]);
@@ -2276,6 +2287,13 @@ extern "C" void pc_lights_global_settings(void)
         animate = animated;
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("Light actors' flicker and pulse (settings key light_animation)");
+    bool clock = pc_light_clock != 0;
+    if (ImGui::Checkbox("Lights animate on the wall clock", &clock))
+        pc_light_clock = clock;
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Off: the lights' flicker follows the game's frames, so the same frame is the same picture\n"
+                          "whatever the machine is doing (and a paused game's lights hold still). On: the real clock,\n"
+                          "so a paused game's lights go on flickering (the editor's preview). Settings key light_clock.");
 }
 
 extern "C" bool* pc_lights_probe_mode(void) { return &probe_mode; }

@@ -429,6 +429,38 @@ def _exit_on_direct_hooks():
 atexit.register(_exit_on_direct_hooks)
 
 
+def _die_with_parent():
+    """In the game's child process (Popen preexec_fn): sent SIGTERM when the process that launched it ends, so a script that ends on an
+    exception without closing its game (a timeout in a menu walk, a failed RPC) leaves no orphan holding the GPU and a window for hours (the
+    game logs its own [exit]). Linux; elsewhere nothing. PDEATHSIG follows the launching THREAD, not the process: a game launched from a
+    worker thread would be signalled when that thread ended, mid-run, so launch() sets this only from the main thread and the rest are
+    reaped by _reap_launched at the end of the script."""
+    try:
+        import ctypes
+        import signal
+        ctypes.CDLL("libc.so.6", use_errno=True).prctl(1, signal.SIGTERM)  # PR_SET_PDEATHSIG
+    except (OSError, AttributeError):
+        pass
+
+
+_launched = []  # the games launched here (Popen), for _reap_launched
+
+
+def _reap_launched():
+    """At the end of the script (atexit): a game still running is asked to quit (SIGTERM: its own exit is logged), then killed after 5 s."""
+    live = [p for p in _launched if p.poll() is None]
+    for p in live:
+        p.terminate()
+    for p in live:
+        try:
+            p.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            p.kill()
+
+
+atexit.register(_reap_launched)
+
+
 class Game:
     def __init__(self, path=DEFAULT_SOCKET, processes=()):
         self.path = path
@@ -493,7 +525,9 @@ class Game:
         log_file = open(log or OUT / "rpc-game.log", "w")
         game = subprocess.Popen(
             [str(BINARY), "--window"] + ([] if movies else ["--skip-movies"]) + (["--fast"] if fast else [])
-            + list(args), cwd=ROOT, env=env, stdout=log_file, stderr=subprocess.STDOUT)
+            + list(args), cwd=ROOT, env=env, stdout=log_file, stderr=subprocess.STDOUT,
+            preexec_fn=_die_with_parent if threading.current_thread() is threading.main_thread() else None)
+        _launched.append(game)
         processes.insert(0, game)
         watch_stops(game.pid)
         start = time.monotonic()

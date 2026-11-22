@@ -65,6 +65,7 @@ typedef struct {
     uint16_t tpage, clut;
     uint8_t bias, uv_effect;
     uint16_t emissive_scope; /* emissive texels: the polygon's scope bits (render_mesh_emissive_scope) */
+    uint16_t variant; /* materials by object: the polygon's variant (0 none; render_mesh_variants) */
 } mesh_vertex;
 typedef struct {
     uint32_t generation; /* odd while live */
@@ -72,6 +73,7 @@ typedef struct {
     int polygons, triangles;
     render_polygon* cpu; /* the polygons (world-space triangles for the path tracer) */
     uint16_t* scope; /* per polygon: emissive scope bits (NULL: none) */
+    uint16_t* variant; /* per polygon: its material variant (NULL: none) */
 } mesh_slot;
 static mesh_slot* meshes;
 static int mesh_count, live_meshes, live_polygons, mesh_updates;
@@ -104,7 +106,7 @@ static void face_normal(const render_polygon* p, float n[3])
         n[k] = length > 0 ? n[k] / length : 0;
 }
 /* Four vertices per polygon (triangles repeat their last). */
-static mesh_vertex* mesh_vertices(const render_polygon* polygons, int count, const uint16_t* scope)
+static mesh_vertex* mesh_vertices(const render_polygon* polygons, int count, const uint16_t* scope, const uint16_t* variant)
 {
     mesh_vertex* vertices = calloc((size_t)count * 4, sizeof *vertices);
     if (!vertices)
@@ -136,6 +138,7 @@ static mesh_vertex* mesh_vertices(const render_polygon* polygons, int count, con
             v->bias = p->bias;
             v->uv_effect = p->uv_effect;
             v->emissive_scope = scope ? scope[i] : 0;
+            v->variant = variant ? variant[i] : 0;
         }
     }
     return vertices;
@@ -160,7 +163,7 @@ render_mesh render_mesh_create(const render_polygon* polygons, int count)
         meshes = grown;
         memset(&meshes[mesh_count++], 0, sizeof *meshes);
     }
-    mesh_vertex* vertices = mesh_vertices(polygons, count, NULL);
+    mesh_vertex* vertices = mesh_vertices(polygons, count, NULL, NULL);
     render_polygon* cpu = malloc((size_t)count * sizeof *cpu);
     if (!vertices || !cpu) {
         free(vertices);
@@ -212,6 +215,7 @@ created:
     slot->polygons = count;
     slot->cpu = cpu;
     slot->scope = NULL;
+    slot->variant = NULL;
     slot->triangles = 0;
     for (int i = 0; i < count; i++)
         slot->triangles += polygons[i].flags & RENDER_POLY_QUAD ? 2 : 1;
@@ -232,7 +236,7 @@ int render_mesh_update(render_mesh mesh, const render_polygon* polygons, int cou
         for (int k = 0; k < 4; k++)
             if (polygons[i].bone[k] >= RENDER_MAX_BONES)
                 return 0;
-    mesh_vertex* vertices = mesh_vertices(polygons, count, slot->scope);
+    mesh_vertex* vertices = mesh_vertices(polygons, count, slot->scope, slot->variant);
     if (!vertices)
         return 0;
     size_t bytes = (size_t)count * 4 * sizeof *vertices;
@@ -257,6 +261,7 @@ int render_mesh_update(render_mesh mesh, const render_polygon* polygons, int cou
     ++mesh_updates;
     return 1;
 }
+static int mesh_rebuild(mesh_slot* slot);
 /* Emissive scopes (emissive.cpp): the vertices again with the polygons'
  * scope bits (the polygons stay). */
 int render_mesh_emissive_scope(render_mesh mesh, const uint16_t* bits)
@@ -274,7 +279,12 @@ int render_mesh_emissive_scope(render_mesh mesh, const uint16_t* bits)
         free(slot->scope);
         slot->scope = NULL;
     }
-    mesh_vertex* vertices = mesh_vertices(slot->cpu, slot->polygons, slot->scope);
+    return mesh_rebuild(slot);
+}
+/* The vertices again from the polygons, the scope bits and the variants. */
+static int mesh_rebuild(mesh_slot* slot)
+{
+    mesh_vertex* vertices = mesh_vertices(slot->cpu, slot->polygons, slot->scope, slot->variant);
     if (!vertices)
         return 0;
     size_t bytes = (size_t)slot->polygons * 4 * sizeof *vertices;
@@ -293,6 +303,46 @@ int render_mesh_emissive_scope(render_mesh mesh, const uint16_t* bits)
     gl_BufferData(GL_ARRAY_BUFFER, (GLsizeiptr)bytes, vertices, GL_STATIC_DRAW);
     gl_BindBuffer(GL_ARRAY_BUFFER, 0);
     free(vertices);
+    return 1;
+}
+/* Materials by object (emissive.cpp): each polygon's variant (0 none; NULL: all none), the vertices again when they
+ * changed. */
+int render_mesh_variants(render_mesh mesh, const uint16_t* ids)
+{
+    mesh_slot* slot = lookup(mesh);
+    if (!slot || !slot->cpu)
+        return 0;
+    if (!ids && !slot->variant)
+        return 1;
+    if (ids) {
+        if (!slot->variant && !(slot->variant = malloc((size_t)slot->polygons * sizeof *slot->variant)))
+            return 0;
+        if (!memcmp(slot->variant, ids, (size_t)slot->polygons * sizeof *slot->variant))
+            return 1;
+        memcpy(slot->variant, ids, (size_t)slot->polygons * sizeof *slot->variant);
+    } else {
+        free(slot->variant);
+        slot->variant = NULL;
+    }
+    return mesh_rebuild(slot);
+}
+/* A polygon's texture as the mesh holds it now: page and depth (tpage & 0x19f), CLUT and UV box (u0, v0, u1, v1);
+ * 0 for a polygon without a texture or an index out of range. */
+int render_mesh_polygon_texture(render_mesh mesh, int index, unsigned* tpage, unsigned* clut, unsigned char box[4])
+{
+    mesh_slot* slot = lookup(mesh);
+    if (!slot || !slot->cpu || index < 0 || index >= slot->polygons)
+        return 0;
+    const render_polygon* p = &slot->cpu[index];
+    if (!(p->code & 4))
+        return 0;
+    int n = p->flags & RENDER_POLY_QUAD ? 4 : 3;
+    box[0] = box[1] = 255, box[2] = box[3] = 0;
+    for (int v = 0; v < n; v++) {
+        box[0] = p->uv[v][0] < box[0] ? p->uv[v][0] : box[0], box[1] = p->uv[v][1] < box[1] ? p->uv[v][1] : box[1];
+        box[2] = p->uv[v][0] > box[2] ? p->uv[v][0] : box[2], box[3] = p->uv[v][1] > box[3] ? p->uv[v][1] : box[3];
+    }
+    *tpage = p->tpage & 0x19f, *clut = p->clut;
     return 1;
 }
 void render_mesh_destroy(render_mesh mesh)
@@ -315,6 +365,8 @@ void render_mesh_destroy(render_mesh mesh)
     slot->cpu = NULL;
     free(slot->scope);
     slot->scope = NULL;
+    free(slot->variant);
+    slot->variant = NULL;
     slot->generation = (slot->generation + 1) & 0xffff; /* even: free */
     --live_meshes;
     live_polygons -= slot->polygons;

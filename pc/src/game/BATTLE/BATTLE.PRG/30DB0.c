@@ -96,15 +96,15 @@ extern u_char _loadShpState;
 extern u_char D_800E8F29;
 extern u_char vs_actors_sharedSequenceBankIndex;
 extern u_char _loadEtmState;
-extern u_char D_800E8FA8[];
-extern void* vs_field_gimmickModelTemplates[];
+extern u_char D_800E8FA8[12]; /* by min(actor id, 5) * 2 */
+extern void* vs_field_gimmickModelTemplates[3]; /* the three object models the disc uses (event_table_scan.py); index-checked */
 extern char D_800E8FC0;
 extern int D_800E8FC4;
 extern u_char _weaponMaterialPaletteMap[];
 extern u_char vs_field_gimmickOrientationRotations[];
 extern u_char D_800E9090[];
-extern u_char D_800E909C[];
-extern u_char vs_field_gimmickTemplateIndices[];
+extern u_char D_800E909C[0xD0]; /* see 40564.c: bytes up to D_800E916C */
+extern u_char vs_field_gimmickTemplateIndices[8]; /* by actor id 0..7: index-checked */
 extern void* _wepFileData;
 extern int _wepFileLoaded;
 extern vs_main_CdFile _wepFile;
@@ -120,7 +120,10 @@ extern u_char vs_actors_sequenceTexturePagesOneBased[];
 extern u_char D_800F2450[];
 extern D_800F2458_t D_800F2458;
 extern VECTOR D_800F4438;
-extern char vs_field_gimmickPaletteColors[];
+extern char vs_field_gimmickPaletteColors[224]; /* 7 palettes of 32 bytes (the 0xE0 vs_field_setGimmickPaletteTable copies), by actor id: index-checked */
+extern void pc_table_index_refused(const char*, long, long, const char*, unsigned long, unsigned long);
+/* An index a room object supplies for a table sized from the disc's data: 1 when inside, else logged once and refused (the caller fails the object). */
+int pc_gimmick_index_ok(const char* table, int length, int index, int object);
 extern int D_800F457C;
 extern int D_800F4580;
 extern int D_800F45D8;
@@ -159,7 +162,7 @@ inline int vs_content_findSharedActorModel(vs_battle_objectData* arg0);
 int _loadShp(vs_battle_objectData* arg0);
 
 extern short vs_actors_textureSlotOrigins[24][2]; /* x, y of each texture slot */
-extern u_char vs_actors_textureSlotRowOffsets[];
+extern u_char vs_actors_textureSlotRowOffsets[24]; /* by texture slot, as vs_actors_textureSlotOrigins */
 extern u_char D_800F22B8;
 extern int D_800F22BC;
 extern int D_800F22C0;
@@ -327,3 +330,11 @@ void func_800A11D8(int arg0, int arg1, MATRIX* arg2, u_long* arg3);
 
 int vs_actors_targetPoint(int arg0, int arg1, SVECTOR* arg2, int arg3);
 
+
+int pc_gimmick_index_ok(const char* table, int length, int index, int object)
+{
+    if ((unsigned)index < (unsigned)length)
+        return 1;
+    pc_table_index_refused(table, index, length, "object slot, -", (unsigned long)object, 0);
+    return 0;
+}

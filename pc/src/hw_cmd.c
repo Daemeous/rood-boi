@@ -503,10 +503,12 @@ void pc_hwc_drain(void)
     pc_rq rq = { .kind = PC_RQ_DRAIN };
     pc_renderer_rq(&rq);
 }
-void pc_hwc_resync(void)
+void pc_hwc_resync(void) { pc_hwc_resync_picture(NULL); }
+/* The same with a state file's picture of the target (RGBA8, 1024 x 512) put over it, or NULL. */
+void pc_hwc_resync_picture(const uint8_t* picture)
 {
     pc_stale_set stale;
-    pc_rq rq = { .kind = PC_RQ_RESYNC, .in = pc_native_vram(), .in_bytes = 1024 * 512 * sizeof(uint16_t), .out = &stale, .out_bytes = sizeof stale };
+    pc_rq rq = { .kind = PC_RQ_RESYNC, .in = pc_native_vram(), .in_bytes = 1024 * 512 * sizeof(uint16_t), .in2 = picture, .out = &stale, .out_bytes = sizeof stale };
     pc_renderer_rq(&rq);
     pc_hwr_stale = stale; /* (a restore may have changed what the renderer holds stale) */
 }
@@ -518,6 +520,20 @@ void pc_hwc_fence_sync(int x, int y, int w, int h)
     pc_rq rq = { .kind = PC_RQ_CAPTURE, .arg = { x, y, w, h }, .out = &reply, .out_bytes = sizeof reply };
     pc_renderer_rq(&rq);
     pc_rq_readback_apply(&reply, (uint16_t*)(uintptr_t)pc_native_vram());
+}
+/* The whole target as a capture reads it, its own pixels (RGBA8, 1024 x 512, the 1x grid) into `rgba` and nothing else: the game's VRAM, its
+ * statics and the renderer's state are as they were (a state file's picture). False when there is no renderer to read. */
+int pc_hwc_capture_picture(uint8_t* rgba)
+{
+    pc_rq_readback reply;
+    pc_rq rq = { .kind = PC_RQ_CAPTURE, .arg = { 0, 0, 1024, 512, 2 }, .out = &reply, .out_bytes = sizeof reply };
+    pc_renderer_rq(&rq);
+    int ok = reply.count == 1 && reply.rect[0].w == 1024 && reply.rect[0].h == 512 && reply.rect[0].pixels;
+    if (ok)
+        memcpy(rgba, reply.rect[0].pixels, (size_t)1024 * 512 * 4);
+    for (int i = 0; i < reply.count; i++)
+        free(reply.rect[i].pixels);
+    return ok;
 }
 /* ---- the emissive matcher's inputs (hw_cmd.h) ---- */
 /* The instance keys already noted, as emissive.cpp keys them (a mesh and, with a texture override, its page and CLUT): the

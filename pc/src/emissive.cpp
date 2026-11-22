@@ -869,6 +869,7 @@ struct Use {
      * (for material_stamps). listed: it writes anything (info: its line in
      * material_list). */
     std::string mat_key, mat_id;
+    std::string mat_object; /* a variant's object (materials by object): its maps are read from the object's folder first */
     int mat_slot = 0; /* the node graph's slot of the entry's instance (material_graph.h), 0 none */
     std::vector<uint16_t> mat_clut;
     materials::Surface mat_value;
@@ -1611,7 +1612,7 @@ static int use_heights(const Use* u, const materials::Surface& value, int w, int
 {
     out.clear();
     float bump = value.bump;
-    const materials::Channel* map = materials::channel(u->key, "height");
+    const materials::Channel* map = materials::channel(u->key, "height", u->mat_object);
     if (map && map->w == w && map->h == h) {
         out.resize((size_t)w * h);
         for (size_t i = 0; i < out.size(); i++)
@@ -1844,13 +1845,13 @@ static void make_stamp(const Use& u, MaterialStamp& out)
 {
     const materials::Surface& v = u.mat_value;
     int w = u.box[2] - u.box[0] + 1, h = u.box[3] - u.box[1] + 1;
-    const materials::Channel* map = materials::channel(u.key, "roughness");
+    const materials::Channel* map = materials::channel(u.key, "roughness", u.mat_object);
     if (map && (map->w != w || map->h != h))
         map = nullptr; /* never stretched (pc/docs/Materials.md) */
-    const materials::Channel* metal_map = materials::channel(u.key, "metal");
+    const materials::Channel* metal_map = materials::channel(u.key, "metal", u.mat_object);
     if (metal_map && (metal_map->w != w || metal_map->h != h))
         metal_map = nullptr;
-    const materials::Channel* height_map = materials::channel(u.key, "height");
+    const materials::Channel* height_map = materials::channel(u.key, "height", u.mat_object);
     std::vector<float> heights;
     int relief = use_heights(&u, v, w, h, heights);
     /* (anything but a painted height map, when the estimate was tried) */
@@ -2395,6 +2396,188 @@ static void apply_scopes(bool all)
     scope_pending.clear();
 }
 
+
+/* ---- materials by object: the variants ---- */
+
+/* A polygon of an object that has an entry of its own (materials.h find_object_match) carries a variant, an
+ * (entry, texture use) pair; its cells are the use's seven planes made with the entry's values, laid box-relative in
+ * the variants' map below a table of 8-byte records (native_frag.glsl variant_texel):
+ *   rows 0-127: per variant at byte variant * 8: u0, v0, width - 1, height - 1, cells x (16 bits), cells y (16 bits)
+ *   below: each variant's seven planes stacked, `height` rows each, shelf-packed by their sizes.
+ * The map grows with the variants (the image is made again, vk_hw.c); past the limit the rest of them fall back to
+ * the texture's own entry (counted: RPC material list `variants`). */
+namespace {
+constexpr int VARIANT_TABLE_ROWS = 128, VARIANT_MAX_ROWS = 16384, VARIANT_MAX = 65535;
+std::vector<uint8_t> variant_map;
+int variant_rows = 0;
+bool variant_dirty = true, variant_upload = false, variants_live = false;
+int variant_count_now = 0, variant_overflow = 0;
+struct VariantBlock {
+    int w = 0, h = 0, u0 = 0, v0 = 0, x = 0, y = 0;
+    bool placed = false;
+    std::vector<uint8_t> cells; /* w * h * PC_MATERIAL_PLANES, as a stamp's */
+};
+/* The palette keys a use's entry lookup reads (as resolve_material). */
+std::vector<std::string> use_palette_keys(const Use& u)
+{
+    std::vector<std::string> cluts;
+    if (!materials::catalog_needs_clut(u.key))
+        return cluts;
+    std::vector<uint16_t> clut;
+    clut_runs(u, [&](const uint16_t* p, int n) { clut.insert(clut.end(), p, p + n); });
+    const PaletteKey& k = palette_key(u, clut);
+    cluts.push_back(k.key);
+    for (const std::string& v : k.variants)
+        if (v != k.key)
+            cluts.push_back(v);
+    return cluts;
+}
+} // namespace
+static void rebuild_variants()
+{
+    variant_dirty = false;
+    bool objects = materials::catalog_has_objects() && pc_specular != 0;
+    if (!objects && !variants_live)
+        return;
+    int zone = -1, room = -1;
+    current_room(&zone, &room);
+    std::map<std::pair<std::string, uint64_t>, int> ids; /* (entry, use) -> variant (1 based) */
+    std::vector<VariantBlock> blocks;
+    std::map<uint32_t, std::vector<uint16_t>> per_mesh;
+    variant_overflow = 0;
+    for (auto& kv : mesh_info) {
+        const MeshInfo& info = kv.second;
+        if (!objects || (info.kind != SURFACE_ROOM && info.kind != SURFACE_MODEL))
+            continue;
+        int n = render_mesh_polygons(kv.first);
+        if (n <= 0)
+            continue;
+        std::vector<uint16_t> out((size_t)n, 0);
+        bool any = false;
+        /* A model drawn with another page and CLUT over its own (an actor's palette): the first such instance's
+         * (the mesh has one set of variants, however many instances draw it). */
+        bool over = false;
+        unsigned over_page = 0, over_clut = 0;
+        if (auto mi = mesh_instances.find(kv.first); mi != mesh_instances.end())
+            for (uint64_t ik : mi->second)
+                if (!over && (uint32_t)ik != 0xffffffffu)
+                    over = true, over_page = (unsigned)(ik >> 16) & 0xffff, over_clut = (unsigned)ik & 0xffff;
+        for (int i = 0; i < n; i++) {
+            unsigned page, clut;
+            unsigned char box[4];
+            if (!render_mesh_polygon_texture(kv.first, i, &page, &clut, box))
+                continue;
+            if (over)
+                page = (page | over_page) & 0x19f, clut = (over_clut + clut) & 0xffff;
+            uint64_t k = use_key(page, clut, box);
+            auto found = uses.find(k);
+            if (found == uses.end() || found->second.key.empty())
+                continue;
+            Use& u = found->second;
+            materials::ObjectId id;
+            if (info.kind == SURFACE_ROOM) {
+                id.group = (int)info.offset;
+                id.polygon = (int)(i < (int)info.tris ? info.offset + 8 + i * 32
+                                                       : info.offset + 8 + info.tris * 32 + (i - info.tris) * 40);
+            } else {
+                char hash[16];
+                snprintf(hash, sizeof hash, "%08x", info.model);
+                id.model = hash;
+            }
+            int w = u.box[2] - u.box[0] + 1, h = u.box[3] - u.box[1] + 1;
+            const materials::Entry* e = materials::find_object_match(id, u.key, w, h, use_palette_keys(u), zone, room);
+            if (!e)
+                continue;
+            auto key = std::make_pair(e->id, k);
+            auto it = ids.find(key);
+            if (it == ids.end()) {
+                if (blocks.size() >= (size_t)VARIANT_MAX) {
+                    ++variant_overflow;
+                    continue;
+                }
+                Use tmp = u; /* the use as if the object's entry were its entry */
+                tmp.mat_value = e->value, tmp.mat_slot = pc_material_graph_slot(e->id.c_str());
+                tmp.mat_object = e->object.text();
+                MaterialStamp st;
+                make_stamp(tmp, st);
+                VariantBlock b;
+                b.w = w, b.h = h, b.u0 = u.box[0], b.v0 = u.box[1];
+                b.cells = st.cells;
+                if (b.cells.empty()) { /* no response of its own: the planes' default (roughness 255, the rest 0) */
+                    b.cells.assign((size_t)w * h * PC_MATERIAL_PLANES, 0);
+                    for (size_t c = 0; c < (size_t)w * h; c++)
+                        b.cells[c * PC_MATERIAL_PLANES] = 255;
+                }
+                blocks.push_back(std::move(b));
+                it = ids.emplace(key, (int)blocks.size()).first;
+            }
+            out[(size_t)i] = (uint16_t)it->second;
+            any = true;
+        }
+        if (any)
+            per_mesh[kv.first] = std::move(out);
+    }
+    /* Shelf packing below the records; blocks that do not fit are left out (their polygons fall back). */
+    int x = 0, y = VARIANT_TABLE_ROWS, shelf = 0, placed = 0;
+    for (VariantBlock& b : blocks) {
+        int bh = b.h * PC_MATERIAL_PLANES;
+        if (x + b.w > PC_EMISSIVE_MAP_W)
+            y += shelf, x = 0, shelf = 0;
+        if (y + bh > VARIANT_MAX_ROWS)
+            break;
+        b.x = x, b.y = y, b.placed = true;
+        x += b.w, shelf = std::max(shelf, bh), ++placed;
+    }
+    int rows = placed ? y + shelf : 0;
+    if (placed < (int)blocks.size()) {
+        variant_overflow += (int)blocks.size() - placed;
+        fprintf(stderr, "[materials] %d object materials past the variants' map: they use the texture's own entry\n",
+            (int)blocks.size() - placed);
+        for (auto& pm : per_mesh)
+            for (uint16_t& v : pm.second)
+                if (v > placed)
+                    v = 0;
+    }
+    std::vector<uint8_t> map;
+    if (placed) {
+        map.assign((size_t)rows * PC_EMISSIVE_MAP_W, 0);
+        for (int v = 0; v < placed; v++) {
+            const VariantBlock& b = blocks[(size_t)v];
+            size_t rec = (size_t)(v + 1) * 8;
+            uint8_t* r = &map[(rec >> 12) * PC_EMISSIVE_MAP_W + (rec & 4095)];
+            r[0] = (uint8_t)b.u0, r[1] = (uint8_t)b.v0, r[2] = (uint8_t)(b.w - 1), r[3] = (uint8_t)(b.h - 1);
+            r[4] = (uint8_t)(b.x & 255), r[5] = (uint8_t)(b.x >> 8), r[6] = (uint8_t)(b.y & 255), r[7] = (uint8_t)(b.y >> 8);
+            for (int py = 0; py < b.h; py++)
+                for (int px = 0; px < b.w; px++)
+                    for (int k = 0; k < PC_MATERIAL_PLANES; k++)
+                        map[(size_t)(b.y + k * b.h + py) * PC_EMISSIVE_MAP_W + b.x + px]
+                            = b.cells[((size_t)py * b.w + px) * PC_MATERIAL_PLANES + k];
+        }
+    }
+    if (map != variant_map)
+        variant_map.swap(map), variant_rows = rows, variant_upload = true;
+    variant_count_now = placed;
+    /* The polygons' ids: set where a mesh has variants, cleared where it had them. */
+    bool live = !per_mesh.empty();
+    for (auto& kv : mesh_info) {
+        auto pm = per_mesh.find(kv.first);
+        if (pm != per_mesh.end())
+            render_mesh_variants(kv.first, pm->second.data());
+        else if (variants_live)
+            render_mesh_variants(kv.first, nullptr);
+    }
+    variants_live = live;
+}
+std::vector<emissive::RoomGroup> emissive::room_groups()
+{
+    std::vector<RoomGroup> out;
+    for (const auto& kv : mesh_info)
+        if (kv.second.kind == SURFACE_ROOM)
+            out.push_back({ kv.second.offset, kv.second.tris, kv.second.total });
+    std::sort(out.begin(), out.end(), [](const RoomGroup& a, const RoomGroup& b) { return a.offset < b.offset; });
+    return out;
+}
+void emissive::variant_stats(int* count, int* rows, int* overflow) { *count = variant_count_now, *rows = variant_rows, *overflow = variant_overflow; }
 static int emissive_sync_body(int* row0, int* row1);
 /* Publish what the game side samples (the changed map rows, the VRAM, the keyed uses). */
 namespace { bool any_object_lights(); }
@@ -2469,6 +2652,7 @@ static int emissive_sync_body(int* row0, int* row1)
         for (auto& kv : uses)
             kv.second.state = 0;
         marks_changed = params_changed = true;
+        variant_dirty = true;
     }
     if (strength != applied_strength)
         params_changed = true;
@@ -2501,6 +2685,7 @@ static int emissive_sync_body(int* row0, int* row1)
         if (budget <= 0)
             break;
         int was = u.entry;
+        variant_dirty = true; /* (a key computed: an object's polygons may now match) */
         match_use(u);
         budget -= (long)(u.box[2] - u.box[0] + 1) * (u.box[3] - u.box[1] + 1);
         if (u.entry != was)
@@ -2514,7 +2699,7 @@ static int emissive_sync_body(int* row0, int* row1)
         params_changed = true; /* the slots' scope bits */
         apply_scopes(true);
     } else if (!scope_pending.empty())
-        apply_scopes(false);
+        apply_scopes(false), variant_dirty = true;
     if (params_changed || strength != applied_strength) {
         write_params(strength);
         dirty_row0 = std::min(dirty_row0, 512), dirty_row1 = std::max(dirty_row1, PC_EMISSIVE_AMOUNT_ROW);
@@ -2540,7 +2725,10 @@ static int emissive_sync_body(int* row0, int* row1)
             check_materials();
         material_dirty = true;
         materials_changed = false;
+        variant_dirty = true;
     }
+    if (variant_dirty)
+        rebuild_variants();
     marks_changed = params_changed = false;
     *row0 = dirty_row0, *row1 = dirty_row1;
     dirty_row0 = PC_EMISSIVE_MAP_H, dirty_row1 = 0;
@@ -2582,7 +2770,15 @@ extern "C" int pc_material_rows(const uint8_t** planes, int* row0, int* row1)
         material_row0 = 512, material_row1 = 0;
     return dirty;
 }
-extern "C" int pc_material_active(void) { return any_material && pc_specular != 0; }
+extern "C" int pc_material_active(void) { return (any_material && pc_specular != 0) || variant_count_now > 0; }
+/* Materials by object: the variants' map (rows of PC_EMISSIVE_MAP_W bytes); nonzero when it changed since the last call. */
+extern "C" int pc_material_variants(const uint8_t** map, int* rows)
+{
+    *map = variant_map.data(), *rows = variant_rows;
+    bool changed = variant_upload;
+    variant_upload = false;
+    return changed && variant_rows > 0;
+}
 
 namespace emissive {
 /* The slot of a texel position, 0 none. */

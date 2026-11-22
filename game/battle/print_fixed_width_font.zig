@@ -19,11 +19,11 @@ pub fn printFixedWidthFont(box_arg: ?*v.vs_battle_textBox, scale: c_int) callcon
         var print_x: c_int = (@as(c_int, box.unk24) << 16) +% ((@as(c_int, box.xIndent) - box.x) *% scale);
         var print_y: c_int = (@as(c_int, box.unk26) << 16) +% ((@as(c_int, box.yIndent) - box.y) *% scale);
         v.g.D_800F4CB8().* = psx.conv(u8, (1 - (@as(c_int, @as(*const u8, @ptrCast(box)).*) & 1)) * 4);
-        v.g._fontTable().* = @intFromBool(psx.getBits(&box.flags, "unk0_0") != 4);
+        v.g.vs_battle_fontBank().* = @intFromBool(psx.getBits(&box.flags, "unk0_0") != 4);
         v.g._fontBrightness().* = box.brightness;
         const line_start = print_x;
         if (psx.getBits(&box.flags, "unk0_0") == 2) {
-            v.g._fontTable().* = 0;
+            v.g.vs_battle_fontBank().* = 0;
             v.g.D_800F4CB8().* = 0;
         }
         var done: c_int = box.brightness;
@@ -67,9 +67,9 @@ pub fn printFixedWidthFont(box_arg: ?*v.vs_battle_textBox, scale: c_int) callcon
                         if ((param & 0xF8) != 0) {
                             print_y = @bitCast(@as(c_uint, @bitCast(print_y)) +% (param >> 3) *% @as(c_uint, @bitCast(scale)));
                         } else if (param == 6) {
-                            v.g._fontTable().* = 0;
+                            v.g.vs_battle_fontBank().* = 0;
                         } else if (param == 5) {
-                            v.g._fontTable().* = 1;
+                            v.g.vs_battle_fontBank().* = 1;
                         } else if (param == 4) {
                             justify ^= 1;
                             if (justify != 0) {

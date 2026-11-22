@@ -23,7 +23,7 @@ pub fn fixedFontChar(cursor: *?*anyopaque, character: c_int, x: c_uint, y: c_uin
         }
         return @bitCast(x +% scale *% 6);
     }
-    const glyph: c_uint = @bitCast(character +% @as(c_int, v.g._fontTable().*) *% 189);
+    const glyph: c_uint = @bitCast(character +% @as(c_int, v.g.vs_battle_fontBank().*) *% 189);
     // The text boxes' table: the glyph is a draw item placed at its box's slot (a box's slots are four apiece, the glyphs' the fourth).
     const table: [*]c_uint = @ptrFromInt(@as(usize, v.g.vs_menu_activeTextBoxOrderingTable().*));
     const slot: *c_uint = &table[@as(usize, v.g.D_800F4E80().*) *% 4 +% 3];

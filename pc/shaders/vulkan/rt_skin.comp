@@ -9,7 +9,7 @@
 // mover's last skinned pose), for motion vectors.
 layout(local_size_x = 64) in;
 struct Tri { vec4 a, b, c; uvec4 info; };
-layout(std430, binding = 0) readonly buffer Mesh { uint words[]; } mesh; // 10 words per vertex
+layout(std430, binding = 0) readonly buffer Mesh { uint words[]; } mesh; // 11 words per vertex
 layout(std430, binding = 1) readonly buffer Palette { vec4 rows[]; } palette; // 3 rows per bone
 layout(std430, binding = 2) writeonly buffer Out { Tri tris[]; } dst;
 layout(std430, binding = 3) readonly buffer Previous { Tri tris[]; } previous;
@@ -20,7 +20,7 @@ layout(push_constant) uniform Push {
 } pc;
 const float NAN = uintBitsToFloat(0x7fc00000u);
 vec3 skin(uint v, out uint rgb, out uint uv) {
-    uint w = v * 10u;
+    uint w = v * 11u;
     vec3 p = vec3(uintBitsToFloat(mesh.words[w]), uintBitsToFloat(mesh.words[w + 1u]), uintBitsToFloat(mesh.words[w + 2u]));
     uint b = min(mesh.words[w + 7u] >> 24, pc.bones - 1u);
     rgb = pc.override_color != 0u ? pc.color : mesh.words[w + 6u] & 0xffffffu;
@@ -52,7 +52,7 @@ void main() {
     if (poly >= pc.polygons) return;
     vec3 p[4]; uint rgb[4], uv[4];
     for (uint i = 0u; i < 4u; i++) p[i] = skin(poly * 4u + i, rgb[i], uv[i]);
-    uint w = poly * 40u;
+    uint w = poly * 44u; // four vertices of 11 words
     uint code = mesh.words[w + 6u] >> 24, polygon_flags = (mesh.words[w + 7u] >> 16) & 255u;
     uint tpage = mesh.words[w + 8u] & 0xffffu, clut = mesh.words[w + 8u] >> 16;
     if (pc.override_texture != 0u) { tpage |= pc.tpage; clut = (pc.clut + clut) & 0xffffu; }

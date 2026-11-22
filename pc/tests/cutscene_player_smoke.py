@@ -15,7 +15,8 @@ From the title menu (no card: the cursor on New Game), RPC cutscene start
   - capture: a PNG of the frame; capture next 3: three PNGs, frames N..N+2;
   - repro: written at N (the state at the mark before N, the log, the
     settings), the take moved elsewhere, the repro opened (RPC jump): at N
-    again, the same hashes and native picture;
+    again, the same hashes and native picture (the file carries the renderer's target as it was: exactly the same at the internal
+    resolution 1, the default here; ROOD_TEST_SCALE=N runs it at N with a tolerance for the resolution the file does not hold);
   - slow motion: 1/4 plays 24 frames in no less than about 4x their time;
   - instant replay: a rolling take while playing on (input included), the
     hotkey freezes it, back 200 frames and forward again: the same state;
@@ -47,6 +48,8 @@ sys.path.insert(0, str(ROOT / "pc/tools"))
 from rood_rpc import OUT, BINARY, Deadline, RpcError, wait_for_file  # noqa: E402
 from checkpoints import launch_at  # noqa: E402
 
+SCALE = int(os.environ.get("ROOD_TEST_SCALE", "1"))
+
 M, N, A = 300, 600, 140  # marks every 30 frames: M is a mark, A is not
 STATE_KEYS = ("ram", "scratch", "io", "overlays", "vram")
 
@@ -71,7 +74,8 @@ def main():
 
     game = launch_at("title", fast=True, log=out / "game.log", socket_path=socket, extra_env={
         "ROOD_CARD1": str(out / "absent-card1.mcd"), "ROOD_CARD2": str(out / "absent-card2.mcd"),
-        "ROOD_CUTSCENES": str(cutscenes), "ROOD_PHOTOS": str(out / "photos"), "ROOD_WINDOW": "640x480"})
+        "ROOD_CUTSCENES": str(cutscenes), "ROOD_PHOTOS": str(out / "photos"), "ROOD_WINDOW": "640x480",
+        "ROOD_SCALE": str(SCALE)})
 
     def cs(**params):
         return game.call("cutscene", **params)
@@ -97,6 +101,22 @@ def main():
     def native(path):
         game.screenshot(path)
         return hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()[:16]
+
+    def picture(path):
+        import numpy as np
+        from PIL import Image
+        game.screenshot(path)
+        return np.asarray(Image.open(path).convert("RGB")).astype(int)
+
+    def same_picture(a, b):
+        """A loaded state's picture and the live one. The file carries the target's pixels at the 1x grid: at the internal resolution 1 a
+        loaded repro matches the live frame exactly; at a larger one each saved texel stands for scale x scale target pixels, so what a
+        draw blended over at the finer grid differs (the fire's glow over the castle): ROOD_TEST_SCALE=2 or more accepts at most 3% of
+        the pixels differing and at most 1% beyond 16 levels (measured at 2: 2% and 0.45%)."""
+        d = abs(a - b).max(2)
+        if SCALE == 1:
+            return not d.any()
+        return (d > 0).mean() < 0.03 and (d > 16).mean() < 0.01 and (d > 64).sum() < 60
 
     def presented(frame, path):
         """Go to `frame` (forward); the picture presented by its last vsync (stepped, as present_dump wants)."""
@@ -138,6 +158,7 @@ def main():
               f"an event script runs, its place shown: {s['event']}")
         first = hashes()
         first_native = native(out / "first.ppm")
+        first_picture = picture(out / "first-picture.ppm")
 
         s = go(A)
         check(s["replaying"] and s["frame"] == A, f"back to frame {A} (between marks): replaying the log")
@@ -178,7 +199,7 @@ def main():
         go(A)
         cs(action="jump", repro=str(repro))
         s = settle("jump")
-        check(s["frame"] == N and s["scene"] == "opening" and hashes() == first and native(out / "jump.ppm") == first_native,
+        check(s["frame"] == N and s["scene"] == "opening" and hashes() == first and same_picture(first_picture, picture(out / "jump.ppm")),
               f"the repro opens on frame {N} with the same state and picture ({s['frame']}, {s['message']})")
 
         cs(action="speed", value=4)
@@ -211,11 +232,23 @@ def main():
         s = go(frozen)
         check(hashes() == live_hash and native(out / "replay-again.ppm") == live_native and s["divergences"] == 0,
               f"instant replay: 200 frames back and forward again, the same state and picture")
-        cs(action="camera", on=True)
-        check(cs()["camera"], "the free camera holds the frame")
+        # (the free camera needs a frame outside a room transition; the freeze lands where the clock was, so it may stand in one:
+        # step back until the camera takes)
+        at = frozen
+        while True:
+            try:
+                cs(action="camera", on=True)
+                break
+            except RpcError as e:
+                if "room transition" not in str(e) or at < 60:
+                    raise
+                at -= 40
+                go(at)
+        check(cs()["camera"], f"the free camera holds the frame (frame {at})")
+        before_camera = hashes()
         cs(action="camera", on=False)
         s = settle("camera off")
-        check(not s["camera"] and hashes() == live_hash, "the free camera off: the game's state as it was")
+        check(not s["camera"] and hashes() == before_camera, "the free camera off: the game's state as it was")
         cs(action="stop")
         cs(action="settings", instant_replay=0)
         log = pathlib.Path(game.log).read_text(errors="replace")

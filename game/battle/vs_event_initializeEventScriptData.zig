@@ -13,6 +13,7 @@ fn half(p: [*c]u8, off: usize) u16 {
 /// vs_event_vibrationPatterns[0..7] from its header's offsets (a zero entry: none), the main thread at data + 16
 /// (the three others stopped), and the script state, text boxes and flags 16..31 and 168 reset.
 pub fn vs_event_initializeEventScriptData(data: [*c]u8) callconv(.c) void {
+    c.pc_event_setBase(data); // where a log's offset is counted from (pc_event_index_ok)
     // (u_short*)(data + offset): stored by its bits, as the C does (an odd offset is not 2-aligned)
     @as(*usize, @ptrCast(v.g.vs_event_dialogStrings())).* = @intFromPtr(data + half(data, 2));
     var table = data + half(data, 4);

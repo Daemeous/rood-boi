@@ -23,11 +23,11 @@ pub fn printVariableWidthFont(box_arg: ?*v.vs_battle_textBox) callconv(.c) void 
     var chars_remaining: c_int = box.speed;
     if (chars_remaining == 0) return;
 
-    v.g._fontTable().* = @intFromBool(psx.getBits(&box.flags, "unk0_0") != 4);
+    v.g.vs_battle_fontBank().* = @intFromBool(psx.getBits(&box.flags, "unk0_0") != 4);
     v.g._fontBrightness().* = box.brightness;
     v.g.D_800F4CB8().* = psx.conv(u8, (1 - (@as(c_int, @as(*const u8, @ptrCast(box)).*) & 1)) * 4);
     if (psx.getBits(&box.flags, "unk0_0") == 2) {
-        v.g._fontTable().* = 0;
+        v.g.vs_battle_fontBank().* = 0;
         v.g.D_800F4CB8().* = 0;
     }
     var current_string: [*c]u8 = @ptrCast(psx.get(box.string));
@@ -116,9 +116,9 @@ pub fn printVariableWidthFont(box_arg: ?*v.vs_battle_textBox) callconv(.c) void 
                     if ((param & 0xF8) != 0) {
                         print_y = @bitCast(@as(c_uint, @bitCast(print_y)) +% (param >> 3));
                     } else if (param == 6) {
-                        v.g._fontTable().* = 0;
+                        v.g.vs_battle_fontBank().* = 0;
                     } else if (param == 5) {
-                        v.g._fontTable().* = 1;
+                        v.g.vs_battle_fontBank().* = 1;
                     } else if (param == 4) {
                         justify ^= 1;
                         if (justify != 0) {

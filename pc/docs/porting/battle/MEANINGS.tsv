@@ -66,7 +66,7 @@ vs_battle_screenTransitionWipeAngle	Screen transition wipe angle	per-transition
 _firstPersonViewEnabled	First-person view on	per-mode	
 vs_battle_doorEntered	Door id used to enter the room	per-room	
 _evtFile	Current event file id	per-event	
-_fontTable	Font table (an overlay-local name: TITLE has its own _fontTable; the build renames to _fontTable__battle)	static	
+vs_battle_fontBank	Font page selector, 0 or 1 (renamed from _fontTable, which TITLE also names; TITLE keeps _fontTable)	static	
 vs_state_sceneTimer	Game clock (hours, minutes, seconds, frames)	static (save data)	
 vs_battle_cameraTransition	Battle camera transition record (from/to camera state, clips, projection)	per-transition	
 _opcodeFunctionTable	Event script opcode handlers (256), native C function pointers (event_callbacks.inc rehomes the guest table)	static (const in practice)	

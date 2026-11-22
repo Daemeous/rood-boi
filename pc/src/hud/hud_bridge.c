@@ -1451,7 +1451,7 @@ void pc_hud_bridge_release(int kind, const pc_hud_spawn* s)
  *   cursor   vs_battle_drawCursor's hand at a place (brightness from
  *            vs_battle_cursorBrightnessAnimation)
  *   bar      vs_battle_renderStatBar (HP, MP, RISK) */
-extern u_char D_800EB708[], vs_render_compactGlyphWidths[]; /* the info capitals' kerning and widths (5BF94.c) */
+extern u_char D_800EB708[172], vs_render_compactGlyphWidths[32]; /* the info capitals' kerning and widths (5BF94.c) */
 extern void pc_text_status(const void* first, const void* end) __attribute__((weak)); /* ui_text.c */
 extern void pc_text_status_typeset(const void* first, const void* end, const pc_text_typeset* typeset)
     __attribute__((weak));
@@ -1840,7 +1840,7 @@ static void band_packets(const pc_hud_classic_cmd* c, int shadowed)
  * element's box (text_box_id), its font state set for each and given back after. */
 #define BOX_GLYPHS 512
 static int text_glyphs[BOX_GLYPHS][6];
-extern char _fontTable, D_800F4CB8;
+extern char vs_battle_fontBank, D_800F4CB8;
 extern int _fontBrightness;
 int vs_battle_printVariableWidthFontChar(u_int glyphId, int x, int y, u_long* ot); /* 5BF94.c */
 void pc_classic_text_begin(void) { text_recording = 1, text_glyph_count = 0; }
@@ -1850,7 +1850,7 @@ void pc_classic_text_char(int glyph, int x, int y)
     if (!text_recording || text_glyph_count >= BOX_GLYPHS)
         return;
     g = text_glyphs[text_glyph_count++];
-    g[0] = glyph, g[1] = _fontTable, g[2] = D_800F4CB8, g[3] = x, g[4] = y, g[5] = _fontBrightness;
+    g[0] = glyph, g[1] = vs_battle_fontBank, g[2] = D_800F4CB8, g[3] = x, g[4] = y, g[5] = _fontBrightness;
 }
 int pc_classic_text_muted(void) { return shadowing; } /* (the parity gate's copies: not ui_text's) */
 int pc_hud_box_text_glyphs(const int** out)
@@ -1860,13 +1860,13 @@ int pc_hud_box_text_glyphs(const int** out)
 }
 static void char_packets(const pc_hud_classic_cmd* c, int shadowed)
 {
-    char table = _fontTable, style = D_800F4CB8;
+    char table = vs_battle_fontBank, style = D_800F4CB8;
     int brightness = _fontBrightness;
     if (shadowed)
         box_shadow_id = text_box_id;
-    _fontTable = (char)c->b, D_800F4CB8 = (char)c->c, _fontBrightness = c->d;
+    vs_battle_fontBank = (char)c->b, D_800F4CB8 = (char)c->c, _fontBrightness = c->d;
     vs_battle_printVariableWidthFontChar((u_int)c->a, c->x, c->y, (shadowed ? box_shadow : vs_menu_activeTextBoxOrderingTable) + text_box_id * 4);
-    _fontTable = table, D_800F4CB8 = style, _fontBrightness = brightness;
+    vs_battle_fontBank = table, D_800F4CB8 = style, _fontBrightness = brightness;
 }
 
 /* An image by the game's own drawer, as vs_render_drawGimLayer calls it (D_800F51C8 cleared first: the drawers set it);
@@ -2060,13 +2060,13 @@ static void emit_command_packets(const pc_hud_classic_cmd* c, u_long* ot, int ki
             break;
         }
         case PC_HUD_CMD_FONT_TEXT: {
-            char table = _fontTable, style = D_800F4CB8;
+            char table = vs_battle_fontBank, style = D_800F4CB8;
             int brightness = _fontBrightness, k, x = c->x;
             vs_battle_setFontStyle(c->a);
             for (k = 0; k < c->length; ++k) /* (b: a fixed step, the pen moved by it whatever the glyph's width) */
                 x = c->b ? (vs_battle_printVariableWidthFontChar((u_char)c->text[k], x, c->y, ot - 3), x + c->b)
                          : vs_battle_printVariableWidthFontChar((u_char)c->text[k], x, c->y, ot - 3);
-            _fontTable = table, D_800F4CB8 = style, _fontBrightness = brightness;
+            vs_battle_fontBank = table, D_800F4CB8 = style, _fontBrightness = brightness;
             break;
         }
         case PC_HUD_CMD_MENU_INT:

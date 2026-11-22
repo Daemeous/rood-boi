@@ -88,6 +88,7 @@ static struct {
      * replay (interpolated) frame; a burst of dumps of the next updates. */
     float eye[3];
     int replay, dump_left, dump_index;
+    unsigned run_signature; /* what the last update was of (vrt_run): the same again is a repeat of the picture, not a new frame */
     char dump_path[400];
     /* NRD: its camera (orthonormal view, projection) of the previous
      * update, and what resets its history. */
@@ -1250,6 +1251,10 @@ static void vrt_run(const float to_image[16], const float eye[3], float footprin
     memcpy(u->emitter_col, emitter_col, sizeof emitter_col);
     memcpy(u->emitter_shape, emitter_shape, sizeof emitter_shape);
     memcpy(u->emitter_shadow, emitter_shadow, sizeof emitter_shadow);
+    /* (past the count: what an earlier frame left in the header's slot, never read by the trace: not part of its inputs) */
+    for (int i = emitter_count < 0 ? 0 : emitter_count > 32 ? 32 : emitter_count; i < 32; i++)
+        memset(u->emitter_pos[i], 0, sizeof u->emitter_pos[i]), memset(u->emitter_col[i], 0, sizeof u->emitter_col[i]),
+            memset(u->emitter_shape[i], 0, sizeof u->emitter_shape[i]), memset(u->emitter_shadow[i], 0, sizeof u->emitter_shadow[i]);
     memcpy(u->room_lo, room_lo, sizeof room_lo);
     memcpy(u->room_hi, room_hi, sizeof room_hi);
     u->i0[0] = vrt_light_count;
@@ -1264,7 +1269,6 @@ static void vrt_run(const float to_image[16], const float eye[3], float footprin
     u->i3[0] = (int)pc_glow_casts;
     u->i2[1] = pc_ph()->fog_steps < 2 ? 2 : pc_ph()->fog_steps > 64 ? 64 : pc_ph()->fog_steps;
     u->i2[2] = pc_ph()->gi_trace_debug;
-    u->i2[3] = (int)++vrt.frame;
     u->f0[0] = pc_ph()->light_size;
     u->f0[1] = pc_ph()->gi_baked_bounce;
     u->f0[2] = pc_ph()->emitter_light;
@@ -1278,6 +1282,31 @@ static void vrt_run(const float to_image[16], const float eye[3], float footprin
     u->f2[2] = pc_ph()->roughness_bias; /* the reflections (rt_reflect.comp) */
     u->f2[3] = (float)(pc_ph()->reflection_bounces < 0 ? 0 : pc_ph()->reflection_bounces > 2 ? 2 : pc_ph()->reflection_bounces);
     u->env = env_now;
+    /* The same picture again (a paused game redrawn, once for each request served and at 60 Hz: as many as the wall clock lets
+     * the machine make between two steps) is not a new frame: the trace's random numbers (the frame index) and the temporal
+     * and NRD histories advance on the game's frames and its interpolation images only, so the picture a step ends on does
+     * not depend on how many times the machine redrew it (Gitea #13). What a frame is of: the game's vsync and the image's
+     * place in it, the camera and eye, every input of the trace (its uniforms, the lights) and of the accumulation. */
+    {
+        extern float pc_present_phase;
+        extern unsigned pc_hw_history_cut;
+        float phase = pc_present_phase;
+        int accumulation[6] = { pc_ph()->gi_denoise, pc_ph()->nrd_max_frames, pc_ph()->nrd_glow, vrt.size[0], vrt.size[1],
+            (int)pc_hw_history_cut };
+        float history[3] = { pc_ph()->shadow_history, pc_ph()->shadow_motion_history, footprint };
+        unsigned signature = 2166136261u, vsync = pc_ph()->vsync_count; /* (the frame as requested: the game thread runs on) */
+        signature = vrt_hash(signature, u, sizeof *u);
+        signature = vrt_hash(signature, vrt_lights_slice.data, (size_t)vrt_light_count * sizeof(pc_light_gpu)); /* (the lights in it: the slice holds one more than none) */
+        signature = vrt_hash(signature, to_image, 16 * sizeof(float));
+        signature = vrt_hash(signature, &vsync, sizeof vsync);
+        signature = vrt_hash(signature, &phase, sizeof phase);
+        signature = vrt_hash(signature, accumulation, sizeof accumulation);
+        signature = vrt_hash(signature, history, sizeof history);
+        if (vrt.history_valid && signature == vrt.run_signature)
+            return; /* the images already hold this frame's result (vrt.result) */
+        vrt.run_signature = signature;
+    }
+    u->i2[3] = (int)++vrt.frame;
     vk_descriptors d = { 0 };
     vrt_trace_descriptors(&d, ubo);
     vrt_dispatch(vrt.trace, vrt.trace_layout, &d);

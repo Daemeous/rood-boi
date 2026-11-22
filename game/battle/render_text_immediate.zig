@@ -96,7 +96,7 @@ pub fn renderTextImmediate(arg0: ?*v.vs_battle_textBox, arg1_in: c_int) callconv
     };
     if (buf) |b| _ = c.StoreImage(@ptrCast(&rect), @ptrCast(@alignCast(b)));
 
-    v.g._fontTable().* = 1;
+    v.g.vs_battle_fontBank().* = 1;
 
     while (true) {
         var currentChar: c_uint = str[0];
@@ -105,12 +105,12 @@ pub fn renderTextImmediate(arg0: ?*v.vs_battle_textBox, arg1_in: c_int) callconv
         if (currentChar < 0xEC) {
             if (currentChar < 229) {
                 if (currentChar != 143) {
-                    currentChar +%= @as(c_uint, v.g._fontTable().*) *% 21 *% 9;
+                    currentChar +%= @as(c_uint, v.g.vs_battle_fontBank().*) *% 21 *% 9;
                     if (@as(c_uint, @bitCast(width -% 12)) >= printX and @as(c_uint, @bitCast(height -% 12)) >= printY) {
                         if (buf) |b| {
                             c.vs_render_blendGlyphIntoPixels(@ptrCast(psx.at(b, printX +% printY *% @as(c_uint, @bitCast(width)))), currentChar, width, @bitCast(arg1));
                         } else {
-                            fadeGlyph(currentChar -% @as(c_uint, v.g._fontTable().*) *% 21 *% 9,
+                            fadeGlyph(currentChar -% @as(c_uint, v.g.vs_battle_fontBank().*) *% 21 *% 9,
                                 x +% @as(c_int, @bitCast(printX)), y +% @as(c_int, @bitCast(printY)));
                         }
                     }
@@ -153,9 +153,9 @@ pub fn renderTextImmediate(arg0: ?*v.vs_battle_textBox, arg1_in: c_int) callconv
                     if (opcodeParam & 0xF8 != 0) {
                         printY +%= opcodeParam >> 3;
                     } else if (opcodeParam == 6) {
-                        v.g._fontTable().* = 0;
+                        v.g.vs_battle_fontBank().* = 0;
                     } else if (opcodeParam == 5) {
-                        v.g._fontTable().* = 1;
+                        v.g.vs_battle_fontBank().* = 1;
                     } else if (opcodeParam == 4) {
                         justify ^= 1;
                         if (justify != 0) {

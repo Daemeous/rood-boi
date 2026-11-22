@@ -23,7 +23,9 @@ inline fn flagWord(actor: *v.D_800F4538_t) c_uint {
 }
 
 /// A texture slot's VRAM origin from vs_actors_textureSlotOrigins (x, y in 4-byte entries) and vs_actors_textureSlotRowOffsets (the y step).
-fn slotRect(slot: u8, rect: *v.RECT) void {
+fn slotRect(slot: u8, rect: *v.RECT) bool {
+    // The tables hold 24 slots (the disc's shapes need at most 8 from slot 20 in the fallback: pc/tools/event_table_scan.py); a slot the data puts outside is refused.
+    if (c.pc_table_index_ok("vs_actors_textureSlotOrigins", slot, 24, "actor texture slot", slot, 0) == 0) return false;
     const table = v.g.vs_actors_textureSlotOrigins();
     const x: c_int = @as(c_int, table[slot][0]) << 6;
     rect.x = psx.conv(i16, x);
@@ -32,6 +34,7 @@ fn slotRect(slot: u8, rect: *v.RECT) void {
     rect.y = psx.conv(i16, y);
     rect.w = psx.conv(i16, @divTrunc(v.g.D_800F22C0().*, 2));
     rect.h = psx.conv(i16, v.g.D_800F22C4().*);
+    return true;
 }
 
 /// orig: _parseShp (pc/src/game/BATTLE/BATTLE.PRG/30DB0.c)
@@ -64,7 +67,7 @@ pub fn parseShp(object: *v.vs_battle_objectData) callconv(.c) c_int {
             v.g.D_800F22C0().* = 0x80;
             v.g.D_800F22C4().* = 0x80;
             c.vs_main_memcpy(&a.unk11A4, @constCast(f.cluts), @as(c_uint, clutCount.*) * 4);
-            slotRect(a.unk5BB, &rect);
+            if (!slotRect(a.unk5BB, &rect)) return -2;
             _ = loadImage(psx.cptr(c.RECT, &rect), f.cluts + @as(usize, clutCount.*) * 4);
             object.variant = 0;
             actor_opt = a;
@@ -110,7 +113,9 @@ pub fn parseShp(object: *v.vs_battle_objectData) callconv(.c) c_int {
         if (psx.getBits(actor, "unk5B0_5") != 0 and actor.unk5BB != 0xFF) {
             var i: c_int = 0;
             while (i < @as(c_int, psx.getBits(&actor.unk0, "unk8_4")) + 1) : (i += 1) { // i <= 7
-                psx.at(textures, @as(c_int, actor.unk5BB) + i).refCount +%= 1;
+                const at: c_int = @as(c_int, actor.unk5BB) + i;
+                if (c.pc_table_index_ok("vs_render_legacyActorTextureSlots", at, 24, "actor texture slot", @intCast(at), @intCast(i)) == 0) break;
+                psx.at(textures, at).refCount +%= 1;
             }
         }
         psx.fieldAt(v.vs_battle_objectData_flags, &actor.unk0.currentTileX, 0).* = object.placement;
@@ -233,6 +238,8 @@ pub fn parseShp(object: *v.vs_battle_objectData) callconv(.c) c_int {
             if (stage == .parse) {
                 var j: c_int = 0;
                 while (j < n) : (j += 1) {
+                    // (the fallback at slot 20 with an 8-slot texture would run past the 24)
+                    if (c.pc_table_index_ok("vs_render_legacyActorTextureSlots", i +% j, 24, "actor texture slot", @intCast(i), @intCast(j)) == 0) return -2;
                     psx.at(textures, i +% j).refCount = 1;
                 }
                 actor.unk5BB = psx.conv(u8, i);
@@ -243,7 +250,7 @@ pub fn parseShp(object: *v.vs_battle_objectData) callconv(.c) c_int {
                     slot.tpage = psx.conv(i16, @as(c_int, slot.tpage) & ~@as(c_int, 0x180));
                 }
                 c.vs_main_memcpy(&actor.unk11A4, @constCast(f.cluts), @as(c_uint, clutCount.*) * 4);
-                slotRect(actor.unk5BB, &rect);
+                if (!slotRect(actor.unk5BB, &rect)) return -2;
                 _ = loadImage(psx.cptr(c.RECT, &rect), f.texture);
                 pass.* = 1;
                 return -1;
@@ -255,7 +262,9 @@ pub fn parseShp(object: *v.vs_battle_objectData) callconv(.c) c_int {
         const count: c_int = @as(c_int, actor.unk0.nOther) + actor.unk0.nTriangles + actor.unk0.nQuads;
         const header = psx.get(actor.unk0.model).?;
         var prim: usize = @intFromPtr(header) +% header.polyOffset;
-        const texV: c_int = @as(c_int, v.g.vs_actors_textureSlotRowOffsets()[actor.unk5BB]) << 6;
+        const slot_index: c_int = actor.unk5BB;
+        if (c.pc_table_index_ok("vs_actors_textureSlotRowOffsets", slot_index, 24, "actor texture slot", @intCast(slot_index), 0) == 0) return -2;
+        const texV: c_int = @as(c_int, v.g.vs_actors_textureSlotRowOffsets()[@intCast(slot_index)]) << 6;
         if (psx.getBits(&actor.unk0, "unk8_3") == 0) {
             var k: c_int = 0;
             while (k < count) : (k += 1) {

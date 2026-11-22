@@ -344,7 +344,8 @@ extern void pc_fog_state_save(void* out) __attribute__((weak));
 extern int pc_fog_state_load(const void* in, int size) __attribute__((weak));
 extern void pc_cd_restored(void) __attribute__((weak));   /* cd_drive.c: reopen the disc */
 extern void pc_cd_release(void) __attribute__((weak));    /* cd_drive.c: close it before a load */
-extern void pc_hwc_resync(void) __attribute__((weak));     /* gpu_hw.c: the target from native VRAM */
+extern void pc_hwc_resync(void) __attribute__((weak));
+extern void pc_hwc_resync_picture(const uint8_t* picture) __attribute__((weak));     /* gpu_hw.c: the target from native VRAM */
 extern void pc_hw_forget_timeline(void) __attribute__((weak)); /* gpu_hw.c: what the host held for the frame the game was in */
 extern void pc_scene_forget_camera(void) __attribute__((weak)); /* scene_capture.c */
 extern void pc_photo_state_replaced(void) __attribute__((weak));
@@ -436,7 +437,7 @@ static uint64_t layout_key(void) { return &pc_snapshot_layout_key ? pc_snapshot_
 /* ---- the file ---- */
 #define MAGIC "ROODSNAP"
 #define VERSION 2 /* 2: the stack from the vsync boundary, code and layout keys */
-enum { CHUNK_END, CHUNK_MEMORY, CHUNK_SPU, CHUNK_LOG, CHUNK_FOG };
+enum { CHUNK_END, CHUNK_MEMORY, CHUNK_SPU, CHUNK_LOG, CHUNK_FOG, CHUNK_PICTURE }; /* PICTURE: the renderer's target as it was, 8 bits a channel at the 1x grid (1024 x 512 RGBA8) */
 typedef struct {
     char magic[8];
     uint32_t version, pointer_size;
@@ -501,6 +502,7 @@ static void make_parent(const char* path)
         }
 }
 
+static const uint8_t* save_picture; /* pc_snapshot_point's picture of the target (CHUNK_PICTURE), while it writes */
 static int write_file(const char* path, uintptr_t sp, char* error, int esize)
 {
     size_t stack_size;
@@ -567,6 +569,8 @@ static int write_file(const char* path, uintptr_t sp, char* error, int esize)
     if (ok && log)
         ok = write_chunk(f, CHUNK_LOG, NULL, log, log_size);
     free(log);
+    if (ok && save_picture)
+        ok = write_chunk(f, CHUNK_PICTURE, NULL, save_picture, (uint64_t)1024 * 512 * 4);
     ok = ok && write_chunk(f, CHUNK_END, NULL, NULL, 0);
     ok = !fclose(f) && ok;
     if (!ok || pc_replace_file(part, path)) {
@@ -590,10 +594,17 @@ int pc_snapshot_available(void)
  * stack from the boundary down is saved, the host frames above it are not. */
 extern int pc_game_snapshot_safe(void) __attribute__((weak));
 extern void pc_hwc_drain(void) __attribute__((weak)); /* hw_cmd.c: the renderer has applied everything posted and its GPU work is done */
+extern int pc_hwc_capture_picture(uint8_t* rgba) __attribute__((weak)); /* hw_cmd.c: the target's own pixels, 1024 x 512 RGBA8 */
 __attribute__((noinline)) int pc_snapshot_point(const char* path, char* error, int size)
 {
     if (pc_hwc_drain)
         pc_hwc_drain(); /* (a capture reads the game's state after the renderer's work on it has finished) */
+    /* The renderer draws every pixel of the frame (T5-6): what a primitive drew lives in the GPU target until something reads it back,
+     * and native VRAM, which the file holds, lacks it (a loaded state then showed the loading screen where the opening's picture stood:
+     * cutscene_player_smoke's repro). The target's own pixels are read into a picture of their own (the array and every state of the
+     * game and the renderer stay as they were) that the file carries as a chunk of its own; a load puts it back over the target. */
+    static uint8_t picture[1024 * 512 * 4];
+    save_picture = pc_hwc_capture_picture && pc_hwc_capture_picture(picture) ? picture : NULL;
     if (pc_game_snapshot_safe && !pc_game_snapshot_safe()) {
         snprintf(error, (size_t)size, "save refused: owned frame live or incomplete unwind");
         return -1;
@@ -603,7 +614,9 @@ __attribute__((noinline)) int pc_snapshot_point(const char* path, char* error, i
         snprintf(error, (size_t)size, "not inside a vsync of the game (pc_tick through pc_vsync_boundary)");
         return -1;
     }
-    return write_file(path, sp, error, size);
+    int saved = write_file(path, sp, error, size);
+    save_picture = NULL;
+    return saved;
 }
 
 /* RPC snapshot {action:"autosave"}, restart and a clean quit: ROOD_AUTOSNAP,
@@ -839,7 +852,7 @@ static const char* prepare(const char* path, prepared* p)
                 stack_at = at;
             } else
                 why = "a memory range this build does not have";
-        } else if (c->tag != CHUNK_SPU && c->tag != CHUNK_FOG && c->tag != CHUNK_LOG)
+        } else if (c->tag != CHUNK_SPU && c->tag != CHUNK_FOG && c->tag != CHUNK_LOG && c->tag != CHUNK_PICTURE)
             why = "unknown chunk";
     }
     if (chunks && !why && !stack)
@@ -863,9 +876,12 @@ static const char* prepare(const char* path, prepared* p)
  * step: it may be running on it), and free its chunks: the stack image is
  * returned (the caller frees it). Guest memory is written before the SPU is
  * checked, so a failure there exits. */
+static uint8_t restored_picture[1024 * 512 * 4]; /* a state file's picture (CHUNK_PICTURE), for the resync that ends the load */
+static int have_picture;
 static char* apply(prepared* p, const char* path, int replay_log, size_t* stack_bytes)
 {
     char* stack_image = NULL;
+    have_picture = 0;
     *stack_bytes = 0;
     if (pc_sound_lock)
         pc_sound_lock(); /* the audio thread ticks the driver: not while its state is copied */
@@ -883,6 +899,9 @@ static char* apply(prepared* p, const char* path, int replay_log, size_t* stack_
                 fprintf(stderr, "[snapshot] cannot resume %s: the SPU state does not fit\n", path);
                 exit(1); /* guest memory is already written */
             }
+        } else if (c->tag == CHUNK_PICTURE) {
+            if (c->size == sizeof restored_picture)
+                memcpy(restored_picture, data, sizeof restored_picture), have_picture = 1;
         } else if (c->tag == CHUNK_FOG) {
             if (pc_fog_state_load && !pc_fog_state_load(data, (int)c->size))
                 fprintf(stderr, "[snapshot] the interactive fog's state does not fit: it starts at rest\n");
@@ -906,7 +925,9 @@ static char* apply(prepared* p, const char* path, int replay_log, size_t* stack_
         pc_hw_forget_timeline();
     if (pc_scene_forget_camera)
         pc_scene_forget_camera(); /* (a resumed state keeps no camera: the next frame sets it) */
-    if (pc_hwc_resync)
+    if (have_picture && pc_hwc_resync_picture)
+        pc_hwc_resync_picture(restored_picture); /* (the target as it was saved: the cells a primitive drew in are stale again) */
+    else if (pc_hwc_resync)
         pc_hwc_resync();
     return stack_image;
 }

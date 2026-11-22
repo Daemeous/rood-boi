@@ -386,6 +386,67 @@ side cannot truncate silently; the Zig side's explicit `@truncate` calls are the
 With these done the arena moves by changing `ROOD_ARENA_BASE` (one constant, tested by the aliased build above before the real move), and the
 `psx_addr` limit and the low stack (the game stack at 0x6000_0000 holds locals' addresses in the same 32-bit words) go after it.
 
+### 3.8 S7: per-overlay images in the mover, pointer-word relocation, and what the 'pointer word in a file' test should be (draft 2026-11-21)
+
+**What goes wrong today (measured).** `lp64_native_imports` (build_boot.py) defines a moved import natively, with its initial bytes read from an image: the
+executable's for `in_exe`, BATTLE.PRG's for `in_battle`, ENDING.PRG's for the `ending` group (its own regions, section `rood_ovl_ending_ending_prg_data`, restarted
+when the overlay reloads). TITLE has no group: its imports (the `__title` names, `_uiTable`, `_debugFont`, `_menuItemTextClut__title`, ...) fall into `in_battle`'s
+address test and would be defined with BATTLE's bytes at the same addresses. That is the 1-level pixel difference in the map, items, status, title and ending lanes
+when an overlay-aware filter moved them: the title screen is on screen for the first frames of every menu route, drawn from the wrong table.
+The menu overlays (MAINMENU, MENUn) are not the same problem: they load into native slots (main.c `_mainMenuSlot`, `_submenuSlot`) and their statics are compiled
+natively; only the BATTLE-range objects they share (the spell-id arrays: users main + menu0) matter, and those already read BATTLE's image.
+
+**Why `pointed_into` pins things it need not.** It scans every word of every game file (SLUS, all PRGs, the effect BINs) for a value inside the import. What matters is
+different: a pointer word that is *read from guest RAM at its PS1 address*. Native code never reads the PRGs' bytes (it is compiled from source, with symbols); the
+bytes that live in guest RAM and are read are the initial contents of the data imports that stay pinned (and files loaded into buffers, which are not imports).
+So an import X can move when every word that points into X lies (a) inside a data import that is itself moved (the mover rewrites it) or (b) outside every
+import (a PRG's code, a jump table, another overlay's data: never read from guest RAM by the port).
+
+**Plan, three steps, each proven alone (menu lanes at 0 each time).**
+
+1. *TITLE as a group.* Generalise `groups[name]` / `group()` / `ending_image`: an overlay group has a PRG image (data/TITLE/TITLE.PRG at 0x80068800), its own
+   section `rood_ovl_title_title_prg_data` registered in `overlay_statics` and `win_overlay_statics` for 'TITLE/TITLE.PRG' (restarted on reload as BATTLE's and ENDING's
+   are), and its imports (users == {'title'}) are classified `in_title` instead of falling into `in_battle`. `image_bytes(address, size, owner)` takes the group's image.
+   Proof of this step alone: temporarily apply the overlay-aware filter (frees `_uiTable`, `_debugFont`, `_menuItemTextClut__title`, five ENDING/TITLE tables) and the
+   five lanes that differed (map, items, status, title, ending) must be 0 again; fight, 8 rooms, casts, story and the other menu routes 0; snapshot_resume and
+   engine_rewind. A build-time self-check compares every moved region's initial bytes with its group's image (a mismatch fails the build).
+2. *Pointer-word relocation.* Where a moved region's initial pointer word (zero-extended PS1 address today) points into another moved region, the definition
+   becomes `(unsigned long long)&target_region[k]` (an address constant; the link is -fno-pie) instead of the literal. Used by `_spellIds` -> the four spell-id arrays,
+   and by any pointer table into a moved object. The loaders that copy the BATTLE image into guest RAM are unchanged (guest copies of moved objects become unused).
+   Proof: magic menu route, casts spells (the spell classes), `is_spell_class_unlocked`'s callers, rooms/fights, snapshot_resume (the moved region is in the snapshot's
+   image range: the words are now native addresses, which are the same in every run because the image is linked at fixed addresses).
+3. *The test.* Replace `pointed_into` by the per-import-content rule above: build, for every data import (moved or pinned), the words inside its extent, and pin X
+   only when a word inside a *pinned* import points into it. Proof: the set of newly freed imports is printed and each is checked against s7-pointer-words.tsv's
+   real-pointer rows (spell arrays freed by step 2; vs_main_inventoryIndices' MAINMENU words are in no import: freed; D_8007709C's ENDING pointer variable is
+   an import in the ending group: relocated); all lanes at 0, the Windows build, lint.
+
+**Risks and how they are caught.** (a) A word read from guest RAM that is in no import (an array running past its import's end into unlabelled bytes): the OVERRUN
+list exists for the known cases; the lanes and the rewind/snapshot smokes compare actor and frame state, which would show a stale table. (b) Restart semantics:
+objects of an overlay group are reset when the overlay reloads, as on the PS1; a TITLE object moved into a section that is not registered would keep values across
+loads: step 1's self-check also asserts every moved region sits in a registered overlay section or the exe's. (c) The 1-level pixel cases are the regression test for
+step 1 and are kept in the lane list (map, items, status, title, ending) for every step.
+
+**Size.** One working day for the three steps with proof (two lane runs per step; the story lane is 12 routes, about 9 minutes). Step 1 is the structural change
+(the group generalisation); steps 2 and 3 are local to the definitions and the pinning test.
+
+**What the game still loads into guest RAM as bytes, and whether the code follows a PS1 address in it (checked 2026-11-21).** The rule "a word in no import is
+irrelevant" needs this to hold:
+
+| Loaded raw into guest RAM | Followed as a PS1 address? | Counts as |
+|---|---|---|
+| The executable (SLUS_010.40), at 0x80010000: its data | only through the data imports (symbols at their PS1 addresses); no code converts a guest word to a pointer | the words inside **pinned** imports; the rest of the data segments is conservative (see below) |
+| BATTLE, INITBTL, ENDING, TITLE (PRGs) into slot 0 at 0x80068800: their data | the same: native code reads it only through imports; the code part is never executed | as above; an overlay's words count only for the executable's and its own imports |
+| The menu overlays (MAINMENU, MENU0..F) into the native slots `_mainMenuSlot`, `_submenuSlot` | no: their statics are compiled natively; the loaded bytes are inert | nothing |
+| The effect plug-ins (EFFECT/*.BIN) into `pc_plugin_slot` | no: their words are read as data; build_boot.py refuses a plug-in source with a guest-address conversion (`guest_conversion`) | nothing |
+| Heap files: MPD, ZND, ZUD, SHP, SEQ, WEP, ARM, TIM, the effect package, event scripts, SYD, MON.BIN | no: S6's decoders read offsets, never addresses (memory_layouts/s6-*.tsv); the event script's tables are built from offsets (`vs_event_initializeEventScriptData`) | nothing |
+| GPU packets and ordering tables | the GPU links hold 24 bits of a guest RAM address: those imports stay pinned (the `packet_storage` rule, T4's) | pinned |
+| Saves, sound banks | no addresses (T22; T18's driver words are native pointers or ids) | nothing |
+
+Evidence that nothing follows a guest word: no code outside the macro definitions in psx_types.h uses `psx_get`, `psx_set`, `psx_load`, `psx_store`, `psx_to_ptr` or
+`psx_to_int` (lint `guest_pointer_access` 22 and `address_as_integer` 6, all of them in psx_types.h), and `psx.addr`/`psx.rawOf` have no callers. The unlabelled
+bytes of a data segment that a pinned array reads past its end into are the one remaining way to follow a word: `OVERRUN` lists the known cases and the lanes and
+the rewind/snapshot smokes show a stale table; step 3 also pins an import when a word in an **unlabelled data segment** (by splat's segment types, not code) points into it.
+
 ## 4. What breaks when layouts change
 
 | Thing | Breaks how | Handling |

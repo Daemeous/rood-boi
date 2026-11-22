@@ -1466,6 +1466,10 @@ static void emissive_sync(void)
         int m0, m1;
         if (pc_material_rows(&planes, &m0, &m1))
             pc_vk_hw_upload_material(planes, m0, m1);
+        const uint8_t* variants = NULL;
+        int variant_rows;
+        if (pc_material_variants(&variants, &variant_rows))
+            pc_vk_hw_upload_variants(variants, variant_rows);
         return;
     }
 #endif
@@ -3488,7 +3492,8 @@ void pc_hw_forget_timeline_now(void)
 }
 /* After a restore (save state, rewind, engine reload, photo): the renderer's state rebuilt from the game's VRAM `vram` (the
  * request's input, valid until it returns). */
-void pc_hw_resync(const uint16_t* vram)
+extern int pc_vram_drawn_bit(int column, int band);
+void pc_hw_resync(const uint16_t* vram, const uint8_t* picture)
 { PC_HW_METER(resync);
     pc_vram_stream_rebase();
     if (!pc_hw_active)
@@ -3501,6 +3506,18 @@ void pc_hw_resync(const uint16_t* vram)
     memset(&cstale, 0, sizeof cstale);
     mark_dirty_tiles(0xffffffffu);
     pc_hw_upload(0, 0, 1024, 512, vram);
+    /* A state file's picture (snapshot.c): the target holds what the primitives drew, which the array lacks, in the cells the game's own
+     * mask says a primitive drew in: stale again, as they were when the state was saved. */
+    if (picture) {
+#ifdef ROOD_VULKAN
+        if (pc_vk_on())
+            pc_vk_hw_upload_picture(picture); /* (the target's own pixels, exactly) */
+#endif
+        for (int c = 0; c < 16; c++)
+            for (int b = 0; b < 32; b++)
+                if (pc_vram_drawn_bit(c, b))
+                    pc_stale_mark(&cstale, (int[4]) { c * 64, b * 16, 64, 16 }, PC_STALE_MISSING);
+    }
 }
 /* Every drawing the renderer has been given is done (the records are applied before this runs): the batch drawn, the GPU idle.
  * The snapshot, rewind and photo fences. */
@@ -4433,7 +4450,7 @@ static void sync_kinds(int x, int y, int w, int h, int kinds)
  * the same pixels read as 64 x 224 and as 320 x 224 differ in 1,903 channel values), so a read whose extent followed the stale areas
  * gave a picture that depended on how the frame happened to be drawn. The pixels go to the game's VRAM and the renderer's like a
  * read-back's; the stale areas stay as they are. */
-void pc_hw_capture_read(int x, int y, int w, int h)
+void pc_hw_capture_read(int x, int y, int w, int h, int pure)
 { PC_HW_METER(capture_read);
     if (!pc_hw_active || w <= 0 || h <= 0 || x < 0 || y < 0 || x + w > 1024 || y + h > 512 || !readback_reply)
         return;
@@ -4445,6 +4462,16 @@ void pc_hw_capture_read(int x, int y, int w, int h)
         ms_end_over(x0, y0, x1 - x0, y1 - y0);
     static unsigned char pixels[1024 * 512 * 4];
     read_native_pixels(target_fbo, x0, y0, x1, y1, pixels);
+    if (pure == 2) { /* the target's own pixels, 8 bits a channel (a state file's picture: nothing else changes) */
+        uint16_t* raw = readback_reply->count < 8 ? malloc((size_t)w * (size_t)h * 4) : NULL;
+        if (!raw)
+            return;
+        memcpy(raw, pixels, (size_t)w * (size_t)h * 4);
+        int k = readback_reply->count++;
+        readback_reply->rect[k].x = x0, readback_reply->rect[k].y = y0, readback_reply->rect[k].w = w, readback_reply->rect[k].h = h;
+        readback_reply->rect[k].pixels = raw;
+        return;
+    }
     uint16_t* packed = readback_reply->count < 8 ? malloc((size_t)w * (size_t)h * sizeof *packed) : NULL;
     if (!packed)
         return;

@@ -237,3 +237,7 @@ typedef unsigned long psx_ulong;
 #endif
 
 #endif
+
+/* An index the data supplies for a table declared with the extent the data needs: 1 when 0 <= index < length, else it is logged once per table
+ * (boot_runtime.c, with where and two numbers of context) and the caller refuses the access: no silent clamp to a wrong entry. */
+int pc_table_index_ok(const char* table, long index, long length, const char* where, unsigned long first, unsigned long second);

@@ -228,6 +228,7 @@ extern float pc_menu_end_fade, pc_menu_end_fade_length; /* gpu_hw.c */
 #include "shader_reload.h" /* shader_reload, shader_reload_poll_ms */
 #endif
 extern bool pc_lights_show_gizmos;
+extern "C" int pc_light_clock; /* lights.cpp: the lights animate on the wall clock (1) or the game's frames (0) */
 extern "C" int pc_save_states; /* savestate_slots.c: the save state slots' keys act (0 off, default) */
 namespace rood_lights {
 extern int animate; /* light actors' flicker and pulse (lights.cpp) */
@@ -314,6 +315,7 @@ const Entry entries[] = {
     I("probe_budget", pc_probe_budget),
     I("probe_show", pc_probe_show),
     I("light_animation", rood_lights::animate),
+    I("light_clock", pc_light_clock), /* 0 the lights animate on the game's frames (the same picture whatever the machine does), 1 on the wall clock (a paused game's lights keep flickering) */
     I("environment", pc_env_global), /* the rooms' sun and sky (environment.cpp) */
     F("emissive", pc_emissive), /* glowing surfaces (emissive.cpp, pc/docs/Emissive.md): strength 0..2, 0 off */
     I("fog", pc_fog_global), /* the rooms' ground fog and fog volumes (atmosphere.cpp) */

@@ -210,7 +210,7 @@ static int vk_native_pipelines(int set, int samples)
                    fs = set ? VK_SHADER(native_ms_frag) /* surfaces multisampled */
                             : VK_SHADER(native_frag);
     static const VkVertexInputBindingDescription binding = { 0, sizeof(mesh_vertex), VK_VERTEX_INPUT_RATE_VERTEX };
-    static const VkVertexInputAttributeDescription attributes[8] = {
+    static const VkVertexInputAttributeDescription attributes[9] = {
         { 0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(mesh_vertex, position) },
         { 1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(mesh_vertex, normal) },
         { 2, 0, VK_FORMAT_R8G8B8A8_UINT, offsetof(mesh_vertex, r) },
@@ -219,6 +219,7 @@ static int vk_native_pipelines(int set, int samples)
         { 5, 0, VK_FORMAT_R8_UINT, offsetof(mesh_vertex, bias) },
         { 6, 0, VK_FORMAT_R8_UINT, offsetof(mesh_vertex, uv_effect) },
         { 7, 0, VK_FORMAT_R16_UINT, offsetof(mesh_vertex, emissive_scope) },
+        { 8, 0, VK_FORMAT_R16_UINT, offsetof(mesh_vertex, variant) },
     };
     static const VkFormat formats[5] = { VK_TARGET_FORMAT, VK_TARGET_FORMAT, VK_TARGET_FORMAT, VK_TARGET_FORMAT,
         VK_MATERIAL_FORMAT };
@@ -229,7 +230,7 @@ static int vk_native_pipelines(int set, int samples)
         .topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY,
         .binding = &binding,
         .attributes = attributes,
-        .attribute_count = 8,
+        .attribute_count = 9,
         .color_count = 5,
         .color_formats = formats,
         .depth_format = vk.depth_format,
@@ -256,13 +257,15 @@ static int vk_native_init(void)
         return vk_native_ready;
     vk_native_ready = 0;
     /* 7: the node material graphs' values table (material_graph.cpp; read only by a generated include).
-     * 8, 9: the room list's order key and its own depth (pc_native_actor_window). */
-    VkDescriptorType types[10] = { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+     * 8, 9: the room list's order key and its own depth (pc_native_actor_window).
+     * 10: the material variants' atlas (materials by object: emissive.cpp variants, vk_hw.c). */
+    VkDescriptorType types[11] = { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
         VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
         VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
         VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER };
-    vk_native_set = vk_push_layout(types, 10);
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER };
+    vk_native_set = vk_push_layout(types, 11);
     VkPipelineLayoutCreateInfo layout = { .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
         .setLayoutCount = 1,
         .pSetLayouts = &vk_native_set };
@@ -394,6 +397,7 @@ static mesh_slot* vk_use_instance(vk_draw_state* s, const draw_list* list, const
         (VkDeviceSize)s->graph_count * 16);
     vk_descriptors_image(&d, 8, s->room_key, vk.nearest);
     vk_descriptors_image(&d, 9, s->room_only, vk.nearest);
+    vk_descriptors_image(&d, 10, vk_hw.variants.image ? vk_hw.variants.view : vk_hw.emissive.view, vk.nearest);
     vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_native_layout);
     return mesh;
 }

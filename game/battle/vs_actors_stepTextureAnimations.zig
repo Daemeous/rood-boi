@@ -5,6 +5,11 @@ const psx = common.psx;
 const v = @import("views_40564");
 const c = @import("c_40564");
 
+/// The first slot's key row `row`: rows of 28 two-byte keys from D_800E909C (row 0 is not a key row).
+fn keyRow(row: anytype) [*]v.vs_actors_TextureAnimationKey {
+    return @ptrCast(@as([*]u8, @ptrCast(v.g.D_800E909C())) + @as(usize, row) * 56);
+}
+
 /// orig: vs_actors_stepTextureAnimations (pc/src/game/BATTLE/BATTLE.PRG/40564.c)
 /// Advances the texture animation slots of `actor` (frame timers, table wrap) and draws each slot's frame.
 pub fn vs_actors_stepTextureAnimations(actor: ?*v.D_800F4538_t) callconv(.c) c_int {
@@ -27,7 +32,7 @@ pub fn vs_actors_stepTextureAnimations(actor: ?*v.D_800F4538_t) callconv(.c) c_i
         if (mode == 0 or mode == 1) {
             const row: c_uint = psx.getBits(slot, "unk0_0");
             var p: *v.vs_actors_TextureAnimationKey = if (i == 0)
-                psx.at(@as([*]v.vs_actors_TextureAnimationKey, @ptrCast(psx.at(v.g.D_800E909C(), row))), slot.keyIndex)
+                psx.at(keyRow(row), slot.keyIndex)
             else
                 psx.at(@as([*]v.vs_actors_TextureAnimationKey, @ptrCast(psx.at(v.g.D_800E916C(), row))), slot.keyIndex);
 
@@ -41,7 +46,7 @@ pub fn vs_actors_stepTextureAnimations(actor: ?*v.D_800F4538_t) callconv(.c) c_i
                 if (p.frame == 0) {
                     slot.keyIndex = 0;
                     p = if (i == 0)
-                        &psx.at(v.g.D_800E909C(), psx.getBits(slot, "unk0_0"))[0]
+                        &keyRow(psx.getBits(slot, "unk0_0"))[0]
                     else
                         &psx.at(v.g.D_800E916C(), psx.getBits(slot, "unk0_0"))[0];
                 }

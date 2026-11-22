@@ -48,9 +48,9 @@ extern short D_800EA234[];
 extern short D_800EA2C4[];
 extern u_char vs_battle_sphereShapeCommandStarts[];
 extern u_short vs_battle_sphereWireframeCommands[];
-extern int vs_battle_positionCursorSpriteOffsets[];
-extern int vs_battle_positionCursorSpriteSizes[];
-extern int vs_battle_positionCursorSpriteTexCoords[];
+extern int vs_battle_positionCursorSpriteOffsets[5]; /* index = marker part + 2 * set, three parts a set */
+extern int vs_battle_positionCursorSpriteSizes[5];
+extern int vs_battle_positionCursorSpriteTexCoords[5];
 extern u_char vs_battle_positionCursorBlinkFrame;
 
 extern D_800EB9B8_t* vs_battle_targetSphere;

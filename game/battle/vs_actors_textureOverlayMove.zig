@@ -44,8 +44,9 @@ pub fn vs_actors_textureOverlayMove(index: c_int, arg: [*c]u8) callconv(.c) void
             dstX = @divTrunc(dstX, 2);
         }
 
-        const packet = packetBegin();
         const slot: usize = actorStruct.unk5BB;
+        if (c.pc_table_index_ok("vs_actors_textureSlotOrigins", @intCast(slot), 24, "actor texture slot", slot, 0) == 0) return;
+        const packet = packetBegin();
 
         const table = v.g.vs_actors_textureSlotOrigins();
         const x: c_int = table[slot][0];

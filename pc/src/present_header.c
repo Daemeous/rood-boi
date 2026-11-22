@@ -187,6 +187,19 @@ void pc_present_emitters_ensure(void)
                                                      PC_EMITTERS_MAX)
                                                : 0;
 }
+/* The game's vsync a frame is of: the presenter's header's (the frame as requested, whatever the game thread has run on to since), else
+ * the live count. For what the lights and the traced lighting do over the game's own time (lights.cpp, vk_rt.inc). */
+/* The image's place in the game frame: the phase of the present being drawn, 0 for what the game thread
+ * works out for a frame at its fill (pc_present_phase is the render thread's, moving with its progress). */
+float pc_frame_phase(void)
+{
+    extern float pc_present_phase;
+    return pc_present_inside ? pc_present_phase : 0.0f;
+}
+unsigned pc_frame_vsync_count(void)
+{
+    return pc_present_inside ? pc_present_header_cur->vsync_count : pc_vsync_count();
+}
 int pc_present_header_fill(void)
 {
     pthread_mutex_lock(&slot_lock);

@@ -53,6 +53,8 @@ void pc_vk_hw_upload_rects(const uint16_t* vram, const int (*rects)[4], int coun
 void pc_vk_hw_upload_emissive(const uint8_t* map, int row0, int row1);
 /* The material planes (emissive.h PC_MATERIAL_*) into the slot map image. */
 void pc_vk_hw_upload_material(const uint8_t* planes, int row0, int row1);
+void pc_vk_hw_upload_picture(const uint8_t* rgba); /* a state file's picture of the target over the whole target (vk_hw.c) */
+void pc_vk_hw_upload_variants(const uint8_t* map, int rows); /* the variants' map (emissive.h pc_material_variants): all `rows` rows, the image grown to hold them */
 void pc_vk_hw_draw_batch(unsigned fbo, const void* vertices, int count, int blend, const int* clip, int occlusion,
     const int* occlusion_rect);
 void pc_vk_hw_fill(unsigned fbo, int x, int y, int w, int h, int r, int g, int b);

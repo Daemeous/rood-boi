@@ -52,7 +52,7 @@ extern u_char* vs_event_threadCursors[];
 extern int (*_opcodeFunctionTable[256])(u_char*, short);
 /* Operand sizes come from the interpreter's own table (573B8.c: vs_event_opcodeSize).
  * These are raw operand bytes; actor resolution is limited to source-verified handlers. */
-extern u_char vs_event_opcodeSizes[];
+extern u_char vs_event_opcodeSizes[256]; /* the size of each event opcode, by opcode byte */
 extern int vs_event_resolveScriptActorReference(u_short);
 /* What the running event waits for from the player (the cutscene viewer's auto-advance, cutscene.cpp):
  * the PS1 pad bits a thread waits on (op 0x15, vs_battle_script_buttonPressed: its mask; op 0x11,

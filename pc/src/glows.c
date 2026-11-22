@@ -1128,18 +1128,28 @@ int pc_glows_update(const pc_glow_fragment* fragments, int count, const float (*
      * of similar strength do not trade places), in id order. */
     static float rank[MAX_TRACKS][2];
     int candidates = 0;
-    for (int k = 0; k < track_count; k++) {
-        track* t = &tracks[k];
-        int was = t->traced;
-        t->traced = 0;
-        if (t->muted || t->presence < 0.01f || luminance(t->out_rgb) < 1e-4f)
-            continue;
-        float score = (t->origin == PC_GLOW_ORIGIN_BAKED ? 1e9f : t->power * t->presence) * (was ? 1.5f : 1.0f);
-        rank[candidates][0] = score, rank[candidates++][1] = (float)k;
+    /* (chosen once per game frame, like everything that is remembered: with the 1.5x edge, one more call
+     * on the same frame could change who is kept, and the picture would depend on how many times it was drawn) */
+    if (advance) {
+        for (int k = 0; k < track_count; k++) {
+            track* t = &tracks[k];
+            int was = t->traced;
+            t->traced = 0;
+            if (t->muted || t->presence < 0.01f || luminance(t->out_rgb) < 1e-4f)
+                continue;
+            float score = (t->origin == PC_GLOW_ORIGIN_BAKED ? 1e9f : t->power * t->presence) * (was ? 1.5f : 1.0f);
+            rank[candidates][0] = score, rank[candidates++][1] = (float)k;
+        }
+        qsort(rank, (size_t)candidates, sizeof rank[0], by_score_desc);
+        for (int i = 0; i < candidates && i < max; i++)
+            tracks[(int)rank[i][1]].traced = 1;
+    } else {
+        for (int k = 0; k < track_count; k++) { /* only what an edit has silenced since leaves */
+            track* t = &tracks[k];
+            if (t->muted || t->presence < 0.01f || luminance(t->out_rgb) < 1e-4f)
+                t->traced = 0;
+        }
     }
-    qsort(rank, (size_t)candidates, sizeof rank[0], by_score_desc);
-    for (int i = 0; i < candidates && i < max; i++)
-        tracks[(int)rank[i][1]].traced = 1;
     /* At most `max` emitters' worth of light in all, as before (a hall of
      * lit windows: dozens of pieces). */
     float pieces = 0;

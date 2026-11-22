@@ -708,9 +708,9 @@ int pc_scene_dump(const char* path)
                 v->position[2], v->rgb[0] / 255.0, v->rgb[1] / 255.0, v->rgb[2] / 255.0);
         }
     for (int i = 0; i < triangle_count; ++i)
-        fprintf(f, "f %d %d %d # tpage %04x clut %04x group %d flags %08x uv %d %d %d %d %d %d code %02x quad %d\n", i * 3 + 1,
+        fprintf(f, "f %d %d %d # tpage %04x clut %04x group %d flags %08x uv %d %d %d %d %d %d code %02x quad %d polygon %x\n", i * 3 + 1,
             i * 3 + 2, i * 3 + 3, triangles[i].tpage, triangles[i].clut, triangles[i].group, triangles[i].flags,
             triangles[i].vertex[0].u, triangles[i].vertex[0].v, triangles[i].vertex[1].u, triangles[i].vertex[1].v,
-            triangles[i].vertex[2].u, triangles[i].vertex[2].v, triangles[i].code, triangles[i].quad);
+            triangles[i].vertex[2].u, triangles[i].vertex[2].v, triangles[i].code, triangles[i].quad, triangles[i].polygon);
     return fclose(f) ? -1 : 0;
 }

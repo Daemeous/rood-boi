@@ -34,6 +34,25 @@ struct Surface {
     bool auto_height = false;
     float bump = 1.0f;
 };
+/* Which objects an entry is for (an entry may be keyed by object as well as by texture or palette:
+ * pc/docs/plans/2026-10-27-materials-and-inspection-design.md "materials by object"). A room's group (the room
+ * geometry block a native room mesh draws: its byte offset in the room data), a room polygon (byte offset) or a
+ * model (the content hash, 8 hex digits: every copy of a character, weapon or prop). Groups and polygons need the
+ * entry's room scope. Empty: not an object entry. */
+struct ObjectRef {
+    std::vector<unsigned> groups, polygons;
+    std::vector<std::string> models;
+    bool empty() const { return groups.empty() && polygons.empty() && models.empty(); }
+    bool operator==(const ObjectRef& o) const { return groups == o.groups && polygons == o.polygons && models == o.models; }
+    /* A short text naming it (map folders, the panel): "g1a40", "p1a48", "m4b8870d7", joined by "+". */
+    std::string text() const;
+};
+/* What a drawn polygon belongs to (for find_object_match). */
+struct ObjectId {
+    int group = -1, polygon = -1; /* byte offsets in the room data (room polygons); -1 none */
+    std::string model;            /* a model's hash ("" none) */
+};
+bool object_matches(const ObjectRef& r, const ObjectId& o);
 /* Catalog presets and layered entries: absent or unmatched means Surface{}
  * and must never alter the old shading path. A map overrides roughness only.
  * clut is optional but required for keys that are not unique by themselves.
@@ -46,6 +65,7 @@ struct Entry {
     /* scope {"rooms": [[zone, room], ...]}: the rooms when it names more
      * than one (zone/room are then the first); empty for one room or none. */
     std::vector<std::pair<int, int>> rooms;
+    ObjectRef object; /* not empty: for these objects only (and then match names the texture, or none: all of theirs) */
     Surface value;
     /* Which fields the entry sets itself (1 roughness, 2 specular, 4
      * metal, 8 auto_height, 16 bump); the rest come from its preset. */
@@ -121,6 +141,7 @@ struct Instance {
     std::string key, clut;
     int w = 0, h = 0, zone = -1, room = -1;
     std::vector<std::pair<int, int>> rooms;
+    ObjectRef object; /* as Entry::object */
     bool root = false; /* read from a file's `presets` (written back there) */
     bool user = false, preview = false, pending = false;
     bool in_scope(int z, int r) const;
@@ -172,6 +193,14 @@ const Entry* find_match(const std::string& key, int w, int h, const std::string&
  * the first variant that has one. One variant: find_match above. */
 const Entry* find_match(const std::string& key, int w, int h, const std::vector<std::string>& cluts, int zone,
     int room);
+/* The object entries: the entry for a polygon of `obj` drawn with this texture (key, size, palette variants), in the
+ * room, that is for that object (the last matching one), or nullptr: valid until the catalog is next read. It wins
+ * over find_match for those polygons only. */
+const Entry* find_object_match(const ObjectId& obj, const std::string& key, int w, int h,
+    const std::vector<std::string>& cluts, int zone, int room);
+/* Whether the catalog has any object entry (then the draws are walked for their objects), and whether any names
+ * no texture (every size and palette of its objects counts). */
+bool catalog_has_objects();
 /* Whether any entry names a texture of this size (and so its key is worth
  * hashing), and whether any entry needs the palette's key. */
 bool catalog_has_size(int w, int h);
@@ -247,6 +276,9 @@ uint8_t blank_value(const std::string& name);
 /* A texture's channel map (the user's over the shipped one over the baked
  * one), or nullptr. */
 const Channel* channel(const std::string& key, const std::string& name);
+/* The same for an object (an entry's ObjectRef::text(): "g47a4", "m4b8870d7"): <materials>/<key>/@<object>/<channel>.png
+ * over the texture's own, in each layer as every map is (the object's maps apply to its variant only). */
+const Channel* channel(const std::string& key, const std::string& name, const std::string& object);
 /* The channel files a texture has: name, and which layer the one in use is in. */
 struct Present {
     std::string name, path;

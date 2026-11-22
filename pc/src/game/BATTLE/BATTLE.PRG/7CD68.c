@@ -48,7 +48,7 @@ typedef int actorSettingsCallback(vs_battle_aiState*);
 extern unsigned int vs_battle_aiPerceptionRangesSquared[8];
 extern unsigned short vs_battle_aiViewAngles[][2], D_800F17C8[][2];
 extern unsigned char D_800F17D8[], D_80069C18[];
-extern actorSettingsEntry vs_battle_aiWanderTimingPresets[];
+extern actorSettingsEntry vs_battle_aiWanderTimingPresets[8]; /* indexed by three bits of an actor settings word */
 extern int D_800F58C0;
 extern unsigned short* D_800F58C8;
 extern int (*vs_battle_aiDecisionCallbacks[])(vs_battle_aiState*);

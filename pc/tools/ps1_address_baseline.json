@@ -5,14 +5,14 @@
  "pad_block_offset": 10,
  "pad_overlay": 56,
  "io_register": 46,
- "unnamed_symbol": 7508,
- "byte_offset_access": 353,
+ "unnamed_symbol": 7506,
+ "byte_offset_access": 349,
  "ram_reference": 35,
- "unnamed_field": 11606,
+ "unnamed_field": 11605,
  "guest_pointer_field": 2,
  "guest_pointer_access": 22,
  "address_as_integer": 6,
- "zig_raw_memory": 571,
+ "zig_raw_memory": 567,
  "gpu_packet_writes": 0,
  "ordering_table": 0,
  "lift_bridge": 3,
@@ -22,6 +22,6 @@
  "vram_frame_readers": 9,
  "cpu_raster": 0,
  "stale_area": 0,
- "tool_address_read": 0,
- "vram_readback": 60
+ "vram_readback": 60,
+ "tool_address_read": 0
 }

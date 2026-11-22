@@ -74,6 +74,92 @@ std::string new_id(const std::vector<materials::Entry>& all)
             return id;
     }
 }
+/* What a pick belongs to, as an entry's object (materials.h ObjectRef), at a level: "group" (a room polygon's group,
+ * the geometry block its mesh draws), "polygon", "model" (a character, weapon or prop: every copy); "" the natural
+ * one (a room's group, a model). False with `error` where the pick has no such identity. */
+bool object_of(const TexturePick& p, const std::string& level, materials::ObjectRef& out, std::string* error)
+{
+    out = materials::ObjectRef();
+    char hash[16];
+    if (p.kind == emissive::SURFACE_MODEL && (level.empty() || level == "model")) {
+        snprintf(hash, sizeof hash, "%08x", p.model);
+        out.models.push_back(hash);
+        return true;
+    }
+    if (p.kind == emissive::SURFACE_ROOM && (level.empty() || level == "group" || level == "polygon")) {
+        if (level == "polygon") {
+            out.polygons.push_back(p.polygon);
+            return true;
+        }
+        int kind;
+        unsigned offset, tris, total;
+        uint32_t model;
+        if (!emissive::mesh_detail(p.mesh, &kind, &offset, &tris, &total, &model) || kind != emissive::SURFACE_ROOM) {
+            *error = "the pick's room group is unknown";
+            return false;
+        }
+        out.groups.push_back(offset);
+        return true;
+    }
+    *error = std::string("the pick is not ") + (level.empty() ? "an object" : "a " + level);
+    return false;
+}
+/* The entry's object read from RPC JSON {"groups": [], "polygons": [], "models": []}; {} or null clears it. */
+bool object_from_json(const Json& o, materials::ObjectRef& out, std::string* error)
+{
+    out = materials::ObjectRef();
+    if (o.type == Json::Null) return true;
+    if (o.type != Json::Object) {
+        *error = "object must be an object";
+        return false;
+    }
+    for (const char* name : { "groups", "polygons" })
+        if (const Json* l = o.get(name)) {
+            if (l->type != Json::Array) { *error = std::string(name) + " must be a list"; return false; }
+            for (const Json& n : l->items) {
+                if (n.type != Json::Number || n.number < 0 || n.number > 16777215) { *error = std::string(name) + ": offsets"; return false; }
+                (name[0] == 'g' ? out.groups : out.polygons).push_back((unsigned)n.number);
+            }
+        }
+    if (const Json* l = o.get("models")) {
+        if (l->type != Json::Array) { *error = "models must be a list"; return false; }
+        for (const Json& m : l->items) {
+            if (m.type != Json::String || m.string.size() != 8) { *error = "models: 8 hex digits each"; return false; }
+            out.models.push_back(m.string);
+        }
+    }
+    return true;
+}
+Json object_json(const materials::ObjectRef& r)
+{
+    Json o = Json::object();
+    for (int k = 0; k < 2; k++) {
+        Json a = Json::array();
+        for (unsigned n : k ? r.polygons : r.groups) a.items.push_back(Json::num(n));
+        if (!a.items.empty()) o.set(k ? "polygons" : "groups", a);
+    }
+    if (!r.models.empty()) {
+        Json a = Json::array();
+        for (const std::string& m : r.models) a.items.push_back(Json::str(m));
+        o.set("models", a);
+    }
+    return o;
+}
+/* RPC `new` with `object` ("group", "polygon", "model" or true: the natural one): the entry is for the pick's object,
+ * not its texture everywhere (still this texture's: the match stays; `object_wide` true drops it: every texture of
+ * the object). A model's entry is for every copy of it, in every room. */
+bool give_object(materials::Entry& e, const TexturePick& from, const Json& params, std::string* error)
+{
+    const Json* o = params.get("object");
+    if (!o || (o->type == Json::Bool && !o->boolean)) return true;
+    std::string level = o->type == Json::String ? o->string : "";
+    if (!object_of(from, level, e.object, error)) return false;
+    if (const Json* w = params.get("object_wide"); w && w->type == Json::Bool && w->boolean)
+        e.key.clear(), e.clut.clear(), e.w = e.h = 0;
+    if (!e.object.models.empty()) e.set_room(-1, -1);
+    e.where = (e.object.models.empty() ? "object " : "model ") + e.object.text();
+    return true;
+}
 /* A new user entry for a picked texture: this palette, this room, a fully
  * rough dielectric (no visible change until edited). */
 materials::Entry entry_for(const TexturePick& p, const std::vector<materials::Entry>& all)
@@ -268,6 +354,30 @@ Json pick_json(const TexturePick& p)
     const materials::Entry* e = materials::find_match(p.key, p.w(), p.h(),
         emissive::pick_palettes(p.clut_key, p.tpage, p.clut), p.zone, p.room);
     j.set("entry", Json::str(e ? e->id : ""));
+    {
+        /* the picked object (an entry keyed by it wins for its polygons: materials.h find_object_match) */
+        materials::ObjectRef r;
+        std::string why;
+        const std::string none;
+        j.set("kind", Json::str(p.kind == emissive::SURFACE_ROOM ? "room" : p.kind == emissive::SURFACE_MODEL ? "model" : "other"));
+        if (object_of(p, none, r, &why)) {
+            Json o = object_json(r);
+            o.set("text", Json::str(r.text()));
+            if (p.kind == emissive::SURFACE_ROOM) {
+                char hex[16];
+                snprintf(hex, sizeof hex, "%x", p.polygon);
+                o.set("polygon_offset", Json::str(hex));
+            }
+            j.set("object", o);
+            materials::ObjectId id;
+            if (!r.groups.empty()) id.group = (int)r.groups[0];
+            if (p.kind == emissive::SURFACE_ROOM) id.polygon = (int)p.polygon;
+            if (!r.models.empty()) id.model = r.models[0];
+            const materials::Entry* oe = materials::find_object_match(id, p.key, p.w(), p.h(),
+                emissive::pick_palettes(p.clut_key, p.tpage, p.clut), p.zone, p.room);
+            j.set("object_entry", Json::str(oe ? oe->id : ""));
+        }
+    }
     int m[PC_MATERIAL_PLANES];
     if (emissive::material_at((unsigned)p.u, (unsigned)p.v, p.tpage, m)) {
         Json at = Json::array(); /* roughness, specular, metal, slope u, slope v, cavity */
@@ -322,6 +432,13 @@ Json list_json(bool with_entries = true)
         uses.items.push_back(x);
     }
     j.set("uses", uses);
+    {
+        int count, rows, overflow;
+        emissive::variant_stats(&count, &rows, &overflow);
+        Json v = Json::object(); /* materials by object: the variants the polygons carry */
+        v.set("count", Json::num(count)), v.set("rows", Json::num(rows)), v.set("overflow", Json::num(overflow));
+        j.set("variants", v);
+    }
     Json entries = Json::array();
     if (with_entries)
         for (const materials::Entry& e : materials::catalog_entries())
@@ -623,7 +740,11 @@ void entry_editor(const materials::Entry& original)
     bool changed = false;
     ImGui::PushID(e.id.c_str());
     ImGui::SeparatorText(e.id.c_str());
-    if (e.key.empty())
+    if (!e.object.empty())
+        ImGui::TextDisabled("%s, for the object %s: %s%s", e.user ? "your entry" : "curated", e.object.text().c_str(),
+            e.key.empty() && e.clut.empty() ? "all its textures" : e.key.empty() ? "its textures with this palette" : "this texture only",
+            scope_text(e).c_str());
+    else if (e.key.empty())
         ImGui::TextDisabled("%s, every texture with palette %s%s", e.user ? "your entry" : "curated", e.clut.c_str(),
             scope_text(e).c_str());
     else
@@ -1047,6 +1168,39 @@ extern "C" void pc_material_panel(void)
             selected = n.id;
             all = materials::catalog_entries();
         }
+        /* Or for the picked object only (a room's group, every copy of a model): it wins over the texture's entry there. */
+        materials::ObjectRef object;
+        std::string why;
+        if (material_pick_object(picked, std::string(), object, &why)) {
+            materials::ObjectId id;
+            if (!object.groups.empty()) id.group = (int)object.groups[0];
+            if (picked.kind == emissive::SURFACE_ROOM) id.polygon = (int)picked.polygon;
+            if (!object.models.empty()) id.model = object.models[0];
+            const materials::Entry* oe = materials::find_object_match(id, picked.key, picked.w(), picked.h(),
+                emissive::pick_palettes(picked.clut_key, picked.tpage, picked.clut), picked.zone, picked.room);
+            ImGui::Text("Object: %s%s%s", object.text().c_str(), oe ? ", its entry: " : "", oe ? oe->id.c_str() : "");
+            if (oe) {
+                ImGui::SameLine();
+                if (ImGui::SmallButton("Select it")) selected = oe->id;
+            } else {
+                for (int wide = 0; wide < 2; wide++) {
+                    if (wide) ImGui::SameLine();
+                    if (ImGui::SmallButton(wide ? "New entry for all of this object's textures" : "New entry for this texture on this object")) {
+                        materials::Entry n = entry_for(picked, all);
+                        n.object = object;
+                        if (wide) n.key.clear(), n.clut.clear(), n.w = n.h = 0;
+                        if (!n.object.models.empty()) n.set_room(-1, -1);
+                        n.where = (n.object.models.empty() ? "object " : "model ") + n.object.text();
+                        materials::set_pending(n);
+                        selected = n.id;
+                        all = materials::catalog_entries();
+                    }
+                    if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+                        ImGui::SetTooltip(wide ? "Every texture of the picked object (a room's group, or every copy of a model)"
+                                               : "The picked texture, on the picked object only: it wins over the texture's own entry there");
+                }
+            }
+        }
     }
     if (status_line[0])
         ImGui::TextWrapped("%s", status_line);
@@ -1146,6 +1300,21 @@ extern "C" int pc_material_rpc(const char* params_text, char* out, int size)
         }
         return reply(pick_json(ok ? p : TexturePick()), out, size);
     }
+    if (action == "groups") { /* the room's native groups: what an entry's object `groups` name (materials by object) */
+        Json list = Json::array();
+        for (const emissive::RoomGroup& g : emissive::room_groups()) {
+            Json x = Json::object();
+            x.set("offset", Json::num(g.offset));
+            x.set("triangles", Json::num(g.tris));
+            x.set("polygons", Json::num(g.total));
+            x.set("first", Json::num(g.offset + 8));
+            x.set("end", Json::num(g.offset + 8 + g.tris * 32 + (g.total - g.tris) * 40));
+            list.items.push_back(x);
+        }
+        Json j = Json::object();
+        j.set("groups", list);
+        return reply(j, out, size);
+    }
     if (action == "survey") {
         float grid = 160, cull = 1;
         number(params, "grid", &grid), number(params, "cull", &cull);
@@ -1188,12 +1357,16 @@ extern "C" int pc_material_rpc(const char* params_text, char* out, int size)
             materials::Entry e = entry_with_preset(from, p->string, share, all, pal && pal->type == Json::Bool && pal->boolean);
             if (!apply_fields(e, params, &error))
                 return fail("material new: " + error, out, size);
+            if (!give_object(e, from, params, &error))
+                return fail("material new: " + error, out, size);
             materials::set_pending(e);
             selected = e.id;
             return reply(entry_info(e), out, size);
         }
         materials::Entry e = entry_for(from, all);
         if (!apply_fields(e, params, &error))
+            return fail("material new: " + error, out, size);
+        if (!give_object(e, from, params, &error))
             return fail("material new: " + error, out, size);
         materials::set_pending(e);
         selected = e.id;
@@ -1216,6 +1389,8 @@ extern "C" int pc_material_rpc(const char* params_text, char* out, int size)
             }
             if (!apply_fields(e, *j, &error))
                 return fail("material set: " + error, out, size);
+            if (const Json* ob = j->get("object"); ob && !object_from_json(*ob, e.object, &error))
+                return fail("material set: " + error, out, size);
         } else {
             const materials::Entry* old = find_entry(id_param(), all);
             if (!old)
@@ -1223,8 +1398,11 @@ extern "C" int pc_material_rpc(const char* params_text, char* out, int size)
             e = *old;
             if (!apply_fields(e, params, &error))
                 return fail("material set: " + error, out, size);
+            if (const Json* ob = params.get("object"); ob && !object_from_json(*ob, e.object, &error))
+                return fail("material set: " + error, out, size);
         }
-        if (e.key.size() != 10 || e.w < 1 || e.h < 1 || e.w > 256 || e.h > 256)
+        if (e.object.empty() ? (e.key.size() != 10 || e.w < 1 || e.h < 1 || e.w > 256 || e.h > 256)
+                             : (!e.key.empty() && (e.key.size() != 10 || e.w < 1 || e.h < 1 || e.w > 256 || e.h > 256)))
             return fail("material set: the entry needs match key and size", out, size);
         materials::set_pending(e);
         selected = e.id;
@@ -1341,3 +1519,13 @@ extern "C" int pc_material_rpc(const char* params_text, char* out, int size)
     }
     return fail("material: unknown action " + action, out, size);
 }
+
+bool material_pick_object(const TexturePick& pick, const std::string& level, materials::ObjectRef& out, std::string* error)
+{
+    return object_of(pick, level, out, error);
+}
+bool material_object_from_json(const Json& o, materials::ObjectRef& out, std::string* error)
+{
+    return object_from_json(o, out, error);
+}
+Json material_object_json(const materials::ObjectRef& r) { return object_json(r); }

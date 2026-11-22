@@ -224,6 +224,16 @@ struct PaletteInfo {
 };
 std::vector<PaletteInfo> palette_list();
 int material_cell_count();
+/* Materials by object (emissive.cpp variants): how many (entry, texture) variants the polygons carry now, the rows of
+ * their map and how many did not fit (their polygons use the texture's own entry). */
+void variant_stats(int* count, int* rows, int* overflow);
+/* The room's native groups now (materials by object: an entry's `groups` are these `offset`s): the group's block offset in
+ * the room data, its triangles and its polygons (triangles, then quads: polygon i's byte offset is offset + 8 + i * 32,
+ * a quad's offset + 8 + tris * 32 + (i - tris) * 40). */
+struct RoomGroup {
+    unsigned offset, tris, total;
+};
+std::vector<RoomGroup> room_groups();
 /* The planes at a texel (emissive.h PC_MATERIAL_*: roughness, specular, metal, slopes u and v, cavity). */
 bool material_at(unsigned u, unsigned v, unsigned tpage, int out[PC_MATERIAL_PLANES]);
 

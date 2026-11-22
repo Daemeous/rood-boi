@@ -46,8 +46,12 @@ void vs_actors_setActorTileTurn(int, func_8006EBF8_t_fields*, int, int);
 void vs_actors_textureFrameMove(D_800F4538_t*, int, int);
 
 extern u_char vs_actors_sharedSequenceBankIndex;
-extern vs_actors_TextureAnimationKey D_800E909C[][28];
-extern vs_actors_TextureAnimationKey D_800E916C[][8];
+/* The first actor slot's texture animations: rows of 28 keys (56 bytes, ended by a key whose frame is 0), selected by an animation
+ * number 1..3; row 0 is never a key row (0 means none) and holds other tables, among them the byte table vs_actors_setActorWeaponDrawn
+ * reads by actor model. The three key rows and row 0 take the 0xD0 bytes up to D_800E916C (the third row's data ends 0x18 bytes
+ * before it; the zeros after are not read: its terminator comes first). Rows are at D_800E909C + 56 * row. */
+extern u_char D_800E909C[0xD0];
+extern vs_actors_TextureAnimationKey D_800E916C[3][8]; /* the second slot: rows of 8 keys, animation numbers 1 and 2 (row 0 unused) */
 extern u_char D_800F2450[];
 extern void* D_800F4768;
 extern char D_800F49DC;
@@ -191,7 +195,7 @@ int vs_actors_setTextureAnimation(int actorId, int index, int value, int mode);
 int vs_actors_stepTextureAnimations(D_800F4538_t* actor);
 
 extern short vs_actors_textureSlotOrigins[24][2];
-extern u_char vs_actors_textureSlotRowOffsets[];
+extern u_char vs_actors_textureSlotRowOffsets[24]; /* by texture slot, as vs_actors_textureSlotOrigins */
 
 typedef struct {
     u_char overlay;

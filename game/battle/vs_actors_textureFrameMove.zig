@@ -54,6 +54,7 @@ pub fn vs_actors_textureFrameMove(actor: ?*v.D_800F4538_t, index: c_int, frame: 
     const packet: *v.DR_MOVE = @ptrCast(@alignCast(common.scratch.get().unk0));
 
     const slot: c_int = a.unk5BB;
+    if (c.pc_table_index_ok("vs_actors_textureSlotOrigins", slot, 24, "actor texture slot", @intCast(slot), 0) == 0) return;
     const x: c_int = v.g.vs_actors_textureSlotOrigins()[@intCast(slot)][0];
     const y: c_int = v.g.vs_actors_textureSlotOrigins()[@intCast(slot)][1];
     const row: c_int = psx.at(v.g.vs_actors_textureSlotRowOffsets(), slot).*;

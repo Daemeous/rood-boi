@@ -68,6 +68,36 @@ with tempfile.TemporaryDirectory() as d:
           "UVs run over the texture's own box: texel u0 at 0, a texel k of w at k / w")
     check(len(prims[0]["extras"]["triangles"]) == 2 and prims[0]["extras"]["triangles"][0]["group"] == 4,
           "each primitive keeps its triangles' tags")
+# a texture shared by two room groups is baked per group (materials by object)
+GROUPS = [{"offset": 0x100, "first": 0x108, "end": 0x108 + 2 * 32}, {"offset": 0x200, "first": 0x208, "end": 0x208 + 32}]
+shared = [{"tpage": 17, "clut": 0x38b8, "group": 0, "flags": 0, "uv": [[10, 20], [41, 20], [10, 50]], "polygon": 0x108},
+          {"tpage": 17, "clut": 0x38b8, "group": 0, "flags": 0, "uv": [[10, 20], [41, 20], [10, 50]], "polygon": 0x128},
+          {"tpage": 17, "clut": 0x38b8, "group": 1, "flags": 0, "uv": [[10, 20], [41, 20], [10, 50]], "polygon": 0x208},
+          {"tpage": 17, "clut": 0x38b8, "group": 2, "flags": 0, "uv": [[200, 200], [201, 200], [200, 201]], "polygon": 0x300}]
+check([rb.object_of(t, GROUPS) for t in shared] == [0x100, 0x100, 0x200, None],
+      "a triangle's room group: the block whose polygons hold its polygon offset")
+found = rb.assign(shared, USES)
+textures2 = {"aaaaaaaaaa": {"w": 32, "h": 31, "box": [10, 20, 41, 50], "tpage": 17, "clut": 0x38b8},
+             "bbbbbbbbbb": {"w": 256, "h": 256, "box": [0, 0, 255, 255], "tpage": 17, "clut": 0x38b8}}
+labels, split = rb.split_shared(shared, found, GROUPS, textures2)
+check(labels == ["aaaaaaaaaa@g100", "aaaaaaaaaa@g100", "aaaaaaaaaa@g200", "bbbbbbbbbb"],
+      f"a texture on two groups is split per group, one on a single group keeps its key ({labels})")
+check(split["aaaaaaaaaa@g200"]["texture"] == "aaaaaaaaaa" and split["aaaaaaaaaa@g200"]["object"] == "g200"
+      and split["aaaaaaaaaa@g200"]["group_offset"] == 0x200 and "aaaaaaaaaa" in split, "the split entries name their texture and object")
+check(rb.map_dir(pathlib.Path("L"), "aaaaaaaaaa@g200", split["aaaaaaaaaa@g200"]) == pathlib.Path("L/aaaaaaaaaa/@g200")
+      and rb.map_dir(pathlib.Path("L"), "bbbbbbbbbb", split["bbbbbbbbbb"]) == pathlib.Path("L/bbbbbbbbbb"),
+      "an object's maps go in <key>/@<object>/, a texture's own in <key>/")
+with tempfile.TemporaryDirectory() as d2:
+    o2 = pathlib.Path(d2)
+    (o2 / "gltf" / "tex").mkdir(parents=True)
+    pos2 = np.zeros((4, 3, 3), np.float32)
+    pos2[:, 1, 0] = 1
+    pos2[:, 2, 2] = 1
+    rb.write_gltf(o2, pos2, np.zeros((4, 3, 3), np.float32), shared, found, split, labels)
+    g2 = json.loads((o2 / "gltf" / "room.gltf").read_text())
+    check(sorted(m["name"] for m in g2["materials"]) == ["aaaaaaaaaa@g100", "aaaaaaaaaa@g200", "bbbbbbbbbb"]
+          and {i["uri"] for i in g2["images"]} == {"tex/aaaaaaaaaa.png", "tex/bbbbbbbbbb.png"},
+          "one primitive and material per (texture, group), sharing the texture's image")
 p = {"height_base": 140.0, "height_wear": -70.0, "height_cavity": -45.0, "rough_base": 0.8, "rough_wear": -0.3,
      "rough_cavity": 0.14, "normal_strength": 3.0}
 wear = np.zeros((4, 1), np.float32)

@@ -1,6 +1,6 @@
 /* Portable packet emitter for 5BF94.c's hand-written fixed-width glyph routine.
  * Positions and advances remain 16.16; the atlas uses 21 columns of 12 pixels. */
-extern unsigned char _fontTable, D_800F4CB8, D_800F4E80;
+extern unsigned char vs_battle_fontBank, D_800F4CB8, D_800F4E80;
 extern unsigned _fontBrightness;
 extern unsigned char vs_battle_characterWidths[];
 /* A 32-bit guest word holding the OT base (BATTLE 0x800F51B8). */

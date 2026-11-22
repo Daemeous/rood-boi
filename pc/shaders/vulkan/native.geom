@@ -14,12 +14,13 @@ layout(location = 4) flat in uvec2 g_page[];
 layout(location = 5) flat in uint g_bias[];
 layout(location = 6) flat in uint g_effect[];
 layout(location = 7) flat in uint g_scope[];
+layout(location = 8) flat in uint g_variant[];
 layout(location = 0) noperspective centroid out vec3 v_color_affine;
 layout(location = 1) noperspective centroid out vec2 v_uv_affine;
 layout(location = 2) smooth centroid out vec3 v_color_persp;
 layout(location = 3) smooth centroid out vec2 v_uv_persp;
 layout(location = 4) smooth centroid out float v_z;
-layout(location = 5) flat out uvec4 v_state; // flags, tpage, clut, effect | halved << 8 | emissive scope bits << 16
+layout(location = 5) flat out uvec4 v_state; // flags | material variant << 8, tpage, clut, effect | halved << 8 | emissive scope bits << 16
 layout(location = 6) flat out vec3 v_normal;
 layout(location = 7) flat out uvec4 v_bounds;
 layout(location = 8) smooth centroid out vec3 v_view; // view space, rows' scales divided out (cutaway)
@@ -51,7 +52,7 @@ void emit(int i) {
     v_color_affine = v_color_persp = col[i] / 255.0;
     v_uv_affine = v_uv_persp = uv[i];
     v_z = q.z - z_near;
-    v_state = uvec4(pcode & 7u, tpage, clut, effect | (halved << 8) | (g_scope[0] << 16));
+    v_state = uvec4((pcode & 7u) | (g_variant[0] << 8), tpage, clut, effect | (halved << 8) | (g_scope[0] << 16));
     v_normal = n;
     v_view = q * u.cut_scale.xyz;
     v_cut = cut | (tri_edges << 1) | (occl_bits << 4);

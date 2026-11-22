@@ -270,6 +270,23 @@ const Channel* channel(const std::string& key, const std::string& name)
     }
     return found->second.present ? &found->second.channel : nullptr;
 }
+const Channel* channel(const std::string& key, const std::string& name, const std::string& object)
+{
+    if (object.empty())
+        return channel(key, name);
+    if (!valid_key(key) || !valid_name(name) || object.size() > 120
+        || object.find_first_not_of("0123456789abcdefgmp+") != std::string::npos)
+        return nullptr;
+    check_baked();
+    /* (the cache is by key and name: the object is a folder under the key) */
+    std::string folder = key + "/@" + object;
+    auto found = cache.find({ folder, name });
+    if (found == cache.end()) {
+        found = cache.emplace(std::make_pair(folder, name), Cached()).first;
+        load(folder, name, found->second);
+    }
+    return found->second.present ? &found->second.channel : channel(key, name); /* else the texture's own */
+}
 std::vector<Present> channels(const std::string& key)
 {
     std::vector<Present> out;
@@ -574,6 +591,8 @@ struct CatalogState {
      * entries by palette, in catalog order; what needs a palette's key. */
     std::unordered_map<std::string, std::vector<size_t>> by_key, by_clut;
     std::unordered_set<std::string> clut_keys; /* keys some entry names with a palette */
+    std::vector<size_t> object_at; /* the entries that are for objects (find_object_match; never in by_key/by_clut) */
+    bool object_wide = false; /* an object entry names no texture: every size counts */
     bool palette_clut = false; /* a palette entry with a palette (then every key needs it) */
     std::vector<std::string> problems;
     std::unordered_map<std::string, size_t> entry_at; /* instance id -> its entry in `entries` */
@@ -658,6 +677,36 @@ bool extra_params(const Json& j, const Master& m, std::map<std::string, float>& 
     return true;
 }
 bool parse_scope(const Json& j, Instance& e);
+/* The entry's optional `object`: {"groups": [offset...], "polygons": [offset...], "models": ["4b8870d7"...]}. */
+static bool parse_object(const Json& j, Instance& e)
+{
+    const Json* o = j.get("object");
+    if (!o) return true;
+    if (o->type != Json::Object) return false;
+    auto offsets = [&](const char* name, std::vector<unsigned>& out) {
+        const Json* list = o->get(name);
+        if (!list) return true;
+        if (list->type != Json::Array) return false;
+        for (const Json& n : list->items) {
+            if (n.type != Json::Number || !std::isfinite(n.number) || n.number < 0 || n.number > 16777215
+                || n.number != (unsigned)n.number) return false;
+            if (std::find(out.begin(), out.end(), (unsigned)n.number) == out.end()) out.push_back((unsigned)n.number);
+        }
+        return true;
+    };
+    if (!offsets("groups", e.object.groups) || !offsets("polygons", e.object.polygons)) return false;
+    if (const Json* list = o->get("models")) {
+        if (list->type != Json::Array) return false;
+        for (const Json& m : list->items) {
+            if (m.type != Json::String || m.string.size() != 8
+                || m.string.find_first_not_of("0123456789abcdef") != std::string::npos) return false;
+            if (std::find(e.object.models.begin(), e.object.models.end(), m.string) == e.object.models.end())
+                e.object.models.push_back(m.string);
+        }
+    }
+    return !e.object.empty();
+}
+static bool finish_entry(const Json& j, Instance& e);
 /* An entry of either file as an instance. `presets`: the preset names known
  * so far (an entry naming an unknown one is invalid, as before). */
 bool parse_entry(const Json& j, const std::map<std::string, Master>& masters, Instance& e)
@@ -679,8 +728,10 @@ bool parse_entry(const Json& j, const std::map<std::string, Master>& masters, In
     if (j.get("metal")) { if (!number_field(j, "metal", &v)) return false; e.own["metal"] = v; }
     if (!relief_fields(j, e.own) || !extra_params(j, m, e.own)) return false;
     if (e.id.empty()) return false;
+    if (!parse_object(j, e)) return false;
     const Json* match = j.get("match");
-    if (!match) return parse_scope(j, e); /* an unassigned instance (format 2) */
+    /* (an object entry without match is for all the textures of its objects) */
+    if (!match) { e.assigned = !e.object.empty(); return finish_entry(j, e); } /* else an unassigned instance (format 2) */
     if (match->type != Json::Object) return false;
     e.assigned = true;
     e.key = string_field(*match, "key"), e.clut = string_field(*match, "clut");
@@ -689,7 +740,7 @@ bool parse_entry(const Json& j, const std::map<std::string, Master>& masters, In
      * that size, when it names one). A texture's own entry wins over it. */
     bool palette_entry = !match->get("key");
     if (palette_entry && !valid_key(e.clut)) return false;
-    if (palette_entry && !size) return parse_scope(j, e);
+    if (palette_entry && !size) return finish_entry(j, e);
     if (!size || size->type != Json::Array || size->items.size() != 2
         || size->items[0].type != Json::Number || size->items[1].type != Json::Number) return false;
     if (!std::isfinite(size->items[0].number) || !std::isfinite(size->items[1].number)
@@ -698,7 +749,7 @@ bool parse_entry(const Json& j, const std::map<std::string, Master>& masters, In
     e.w = (int)size->items[0].number, e.h = (int)size->items[1].number;
     if ((!palette_entry && !valid_key(e.key)) || (e.clut.size() && !valid_key(e.clut))
         || size->items[0].number != e.w || size->items[1].number != e.h) return false;
-    return parse_scope(j, e);
+    return finish_entry(j, e);
 }
 /* The entry's optional scope: {"room": [zone, room]} or {"rooms": [[zone,
  * room], ...]} (one or more rooms, no repeats). */
@@ -729,6 +780,14 @@ bool parse_scope(const Json& j, Instance& e)
     }
     e.zone = e.rooms[0].first, e.room = e.rooms[0].second;
     if (e.rooms.size() == 1) e.rooms.clear();
+    return true;
+}
+/* The scope, and what an object entry needs of it: a group or a polygon names a room. */
+static bool finish_entry(const Json& j, Instance& e)
+{
+    if (!parse_scope(j, e)) return false;
+    if (!e.object.groups.empty() || !e.object.polygons.empty())
+        if (e.zone < 0) return false;
     return true;
 }
 void upsert(std::vector<Instance>& list, const Instance& e)
@@ -833,7 +892,7 @@ bool derive_entry(const std::vector<Instance>& list, const std::unordered_map<st
     if (!resolve_in(list, by_id, i, values, &chain, error)) return false;
     e = Entry();
     e.id = i.id, e.name = i.name, e.where = i.where, e.review = i.review;
-    e.key = i.key, e.clut = i.clut, e.w = i.w, e.h = i.h, e.zone = i.zone, e.room = i.room, e.rooms = i.rooms;
+    e.key = i.key, e.clut = i.clut, e.w = i.w, e.h = i.h, e.zone = i.zone, e.room = i.room, e.rooms = i.rooms, e.object = i.object;
     e.value = surface_of(values);
     e.explicit_fields = own_mask(i);
     e.user = i.user, e.preview = i.preview;
@@ -873,9 +932,17 @@ void rebuild_catalog()
         cc.entries.push_back(e);
     }
     cc.palette_entries = cc.palette_clut = false;
-    cc.by_key.clear(), cc.by_clut.clear(), cc.clut_keys.clear();
+    cc.by_key.clear(), cc.by_clut.clear(), cc.clut_keys.clear(), cc.object_at.clear(), cc.object_wide = false;
     for (size_t i = 0; i < cc.entries.size(); i++) {
         const Entry& e = cc.entries[i];
+        if (!e.object.empty()) { /* for objects: found by find_object_match, never by the texture's own lookup */
+            cc.object_at.push_back(i);
+            if (e.w > 0) cc.sizes[(e.w - 1) << 8 | (e.h - 1)] = true;
+            else cc.object_wide = true;
+            if (!e.clut.empty() && e.key.empty()) cc.palette_clut = true;
+            else if (!e.clut.empty()) cc.clut_keys.insert(e.key);
+            continue;
+        }
         if (e.w > 0) cc.sizes[(e.w - 1) << 8 | (e.h - 1)] = true;
         cc.palette_entries |= e.key.empty();
         (e.key.empty() ? cc.by_clut[e.clut] : cc.by_key[e.key]).push_back(i);
@@ -918,7 +985,7 @@ bool values_only(const Instance& old, const Instance& edited)
 {
     return old.parent == edited.parent && old.master == edited.master && old.root == edited.root
         && old.assigned == edited.assigned && old.key == edited.key && old.clut == edited.clut && old.w == edited.w
-        && old.h == edited.h && old.zone == edited.zone && old.room == edited.room && old.rooms == edited.rooms
+        && old.h == edited.h && old.object == edited.object && old.zone == edited.zone && old.room == edited.room && old.rooms == edited.rooms
         && old.name == edited.name && old.where == edited.where && old.review == edited.review;
 }
 /* A value edit laid over the catalog in place: the instance's own values, then
@@ -1080,7 +1147,7 @@ Instance instance_of(const Entry& e)
     if (e.explicit_fields & 8) i.own["auto_height"] = e.value.auto_height ? 1.0f : 0.0f;
     if (e.explicit_fields & 16) i.own["bump"] = e.value.bump;
     i.assigned = true;
-    i.key = e.key, i.clut = e.clut, i.w = e.w, i.h = e.h, i.zone = e.zone, i.room = e.room, i.rooms = e.rooms;
+    i.key = e.key, i.clut = e.clut, i.w = e.w, i.h = e.h, i.zone = e.zone, i.room = e.room, i.rooms = e.rooms, i.object = e.object;
     i.user = e.user, i.preview = e.preview;
     /* A pending edit of a root (a preset edited in Details > Material is
      * never an Entry: roots are not assigned), so nothing to keep here. */
@@ -1132,6 +1199,42 @@ const Entry* find_match(const std::string& key, int w, int h, const std::vector<
             }
     return nullptr;
 }
+std::string ObjectRef::text() const
+{
+    std::string t;
+    char b[16];
+    for (unsigned g : groups) snprintf(b, sizeof b, "g%x", g), t += (t.empty() ? "" : "+") + std::string(b);
+    for (unsigned p : polygons) snprintf(b, sizeof b, "p%x", p), t += (t.empty() ? "" : "+") + std::string(b);
+    for (const std::string& m : models) t += (t.empty() ? "m" : "+m") + m;
+    return t;
+}
+bool object_matches(const ObjectRef& r, const ObjectId& o)
+{
+    if (o.group >= 0 && std::find(r.groups.begin(), r.groups.end(), (unsigned)o.group) != r.groups.end()) return true;
+    if (o.polygon >= 0 && std::find(r.polygons.begin(), r.polygons.end(), (unsigned)o.polygon) != r.polygons.end()) return true;
+    return !o.model.empty() && std::find(r.models.begin(), r.models.end(), o.model) != r.models.end();
+}
+const Entry* find_object_match(const ObjectId& obj, const std::string& key, int w, int h,
+    const std::vector<std::string>& cluts, int zone, int room)
+{
+    const std::vector<Entry>& entries = current_catalog();
+    auto clut_ok = [&](const Entry& e) {
+        if (e.clut.empty()) return true;
+        return std::find(cluts.begin(), cluts.end(), e.clut) != cluts.end();
+    };
+    for (auto i = catalog_cache.object_at.rbegin(); i != catalog_cache.object_at.rend(); ++i) {
+        const Entry& e = entries[*i];
+        if (!e.in_scope(zone, room) || !object_matches(e.object, obj)) continue;
+        if (e.key.empty() ? clut_ok(e) && (e.w == 0 || (e.w == w && e.h == h)) : e.key == key && e.w == w && e.h == h && clut_ok(e))
+            return &e;
+    }
+    return nullptr;
+}
+bool catalog_has_objects()
+{
+    current_catalog();
+    return !catalog_cache.object_at.empty();
+}
 bool catalog_needs_clut(const std::string& key)
 {
     return catalog_cache.palette_clut || catalog_cache.clut_keys.count(key) > 0;
@@ -1139,7 +1242,7 @@ bool catalog_needs_clut(const std::string& key)
 bool catalog_has_palette_entries()
 {
     current_catalog();
-    return catalog_cache.palette_entries;
+    return catalog_cache.palette_entries || catalog_cache.object_wide; /* (an object entry with no texture: every size) */
 }
 Surface match(const std::string& key, int w, int h, const std::string& clut, int zone, int room)
 {
@@ -1149,7 +1252,7 @@ Surface match(const std::string& key, int w, int h, const std::string& clut, int
 bool catalog_has_size(int w, int h)
 {
     if (w < 1 || h < 1 || w > 256 || h > 256) return false;
-    return catalog_cache.palette_entries || catalog_cache.sizes.count((w - 1) << 8 | (h - 1)) > 0;
+    return catalog_cache.palette_entries || catalog_cache.object_wide || catalog_cache.sizes.count((w - 1) << 8 | (h - 1)) > 0;
 }
 uint32_t catalog_generation()
 {
@@ -1201,7 +1304,7 @@ static Json instance_to_json(const Instance& i, bool* format2)
             m.set("size", size);
         }
         if (!i.clut.empty()) m.set("clut", Json::str(i.clut));
-        j.set("match", m);
+        if (!m.members.empty() || i.object.empty()) j.set("match", m);
     } else if (format2)
         *format2 = true;
     if (!i.rooms.empty()) {
@@ -1222,6 +1325,23 @@ static Json instance_to_json(const Instance& i, bool* format2)
         Json scope = Json::object();
         scope.set("room", room);
         j.set("scope", scope);
+    }
+    if (!i.object.empty()) {
+        Json o = Json::object();
+        auto list = [&](const char* name, const std::vector<unsigned>& v) {
+            if (v.empty()) return;
+            Json a = Json::array();
+            for (unsigned n : v) a.items.push_back(Json::num(n));
+            o.set(name, a);
+        };
+        list("groups", i.object.groups), list("polygons", i.object.polygons);
+        if (!i.object.models.empty()) {
+            Json a = Json::array();
+            for (const std::string& m : i.object.models) a.items.push_back(Json::str(m));
+            o.set("models", a);
+        }
+        j.set("object", o);
+        if (format2) *format2 = true;
     }
     /* preset: the root preset the chain ends in (old readers); parent: the
      * actual parent when it is not that preset. */

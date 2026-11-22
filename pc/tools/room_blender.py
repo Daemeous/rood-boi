@@ -12,14 +12,16 @@ export  The room the game is in (or RPC room_goto Z R) to glTF: the captured roo
         texture (the game's own texture content key: RPC emissive uses, the texels as drawn: RPC material texture).
         The model is positioned in 1/512 game units, Y up, its triangles turned to face the room's middle (the room is
         open geometry with mixed winding: the occlusion and bevel passes need the side that faces in). Each texture
-        is one primitive whose UVs run over the texture's own box (texel for texel), and export.json holds
-        what comes back to the game: key, size, page, CLUT, box, triangle tags (group, flags, polygon offset).
+        is one primitive whose UVs run over the texture's own box (texel for texel); a texture used by more than one room
+        group is one primitive per group (`<key>@g<block offset>`), baked on its own. export.json holds what comes back
+        to the game: key, size, page, CLUT, box, and for the split ones the texture and object.
 bake    Blender (blender -b, Cycles on the CPU, a modest sample count) runs pc/tools/blender/bake_room.py: each texture
         is baked texel for texel from the room's geometry: edge wear (a bevel of the geometry against its own faces),
         cavity (ambient occlusion) and which texels any triangle covers.
 import  The bakes become maps in the baked materials layer (pc/build/materials-style layer under <out>/materials): height,
         roughness (and normal.png for other tools) at exactly the texture's box size, 8-bit grayscale PNG, derived by
-        pc/tools/room_blender.json (the tunables). Texels no triangle covers keep the blank templates (height 128).
+        pc/tools/room_blender.json (the tunables). Texels no triangle covers keep the blank templates (height 128). A texture
+        baked per room group has its maps in <key>/@g<offset>/ (materials by object: read for that group's entry only).
 shot    The room in the game twice, with an entry for each baked texture (the "rough stone" preset) and the baked layer
         off, then on: before / after screenshots into <out>/shots.
 
@@ -46,7 +48,7 @@ CONFIG = ROOT / "pc/tools/room_blender.json"
 BLENDER = "/usr/bin/blender"
 SCALE = 1.0 / 512.0  # game units to glTF metres
 FACE = re.compile(r"^f (\d+) (\d+) (\d+) # tpage ([0-9a-f]+) clut ([0-9a-f]+) group (\d+) flags ([0-9a-f]+) "
-                  r"uv (\d+) (\d+) (\d+) (\d+) (\d+) (\d+) code ([0-9a-f]+) quad (\d+)")
+                  r"uv (\d+) (\d+) (\d+) (\d+) (\d+) (\d+) code ([0-9a-f]+) quad (\d+)(?: polygon ([0-9a-f]+))?")
 
 
 def config():
@@ -79,7 +81,8 @@ def parse_dump(path):
                          "flags": int(m.group(7), 16), "uv": [[int(m.group(8)), int(m.group(9))],
                                                               [int(m.group(10)), int(m.group(11))],
                                                               [int(m.group(12)), int(m.group(13))]],
-                         "code": int(m.group(14), 16), "quad": int(m.group(15))})
+                         "code": int(m.group(14), 16), "quad": int(m.group(15)),
+                         "polygon": int(m.group(16), 16) if m.group(16) else None})
             positions.append([verts[a][0:3], verts[b][0:3], verts[c][0:3]])
             colours.append([verts[a][3:6], verts[b][3:6], verts[c][3:6]])
     return np.array(positions, np.float32), np.array(colours, np.float32), tris
@@ -102,6 +105,42 @@ def assign(tris, uses):
                     best, area = u, a
         out.append(best)
     return out
+
+
+def object_of(tri, groups):
+    """The room group (its block's byte offset in the room data) a triangle's polygon lies in: `groups` from RPC material
+    groups ({offset, first, end}); None where the dump has no polygon offsets or none holds it."""
+    p = tri.get("polygon")
+    if p is None:
+        return None
+    for g in groups:
+        if g["first"] <= p < g["end"]:
+            return g["offset"]
+    return None
+
+
+def split_shared(tris, found, groups, textures):
+    """Per triangle its bake label and the textures with the split ones added. A texture used by more than one room group
+    is baked once per group (`<key>@g<offset hex>`: the same texture, the group's own triangles), so the texels they share
+    stop taking whichever baked last; the rest keep their key. The split entries say which texture and object they are."""
+    seen = {}
+    for t, u in zip(tris, found):
+        if u:
+            seen.setdefault(u["key"], set()).add(object_of(t, groups))
+    shared = {k for k, o in seen.items() if len(o - {None}) > 1}
+    labels, out = [], dict(textures)
+    for t, u in zip(tris, found):
+        if not u:
+            labels.append("unmapped")
+        elif u["key"] in shared and object_of(t, groups) is not None:
+            off = object_of(t, groups)
+            label = f"{u['key']}@g{off:x}"
+            if label not in out and u["key"] in textures:
+                out[label] = {**textures[u["key"]], "texture": u["key"], "object": f"g{off:x}", "group_offset": off}
+            labels.append(label)
+        else:
+            labels.append(u["key"])
+    return labels, out
 
 
 def face_inward(positions):
@@ -143,6 +182,7 @@ def export(args):
         for t, u in zip(tris, found):
             if u:
                 keys.setdefault(u["key"], u)
+        groups = game.call("material", action="groups")["groups"]
         textures = {}
         for key, u in keys.items():
             got = game.call("material", action="texture", key=key)
@@ -152,17 +192,19 @@ def export(args):
         state = game.state()
     finally:
         material_rollout.kill(game)
-    write_gltf(out, positions, colours, tris, found, textures)
+    labels, textures = split_shared(tris, found, groups, textures)
+    write_gltf(out, positions, colours, tris, found, textures, labels)
     meta = {"zone": state["zone"], "room": state["room"], "triangles": len(tris),
             "unassigned": sum(1 for u in found if not u), "textures": textures,
             "scale": SCALE}
     (out / "export.json").write_text(json.dumps(meta, indent=1))
-    print(f"export: zone {state['zone']} room {state['room']}: {len(tris)} triangles, {len(textures)} textures, "
+    print(f"export: zone {state['zone']} room {state['room']}: {len(tris)} triangles, {len(textures)} textures "
+          f"({sum(1 for t in textures.values() if 'object' in t)} of them per room group), "
           f"{meta['unassigned']} triangles with no texture box -> {out / 'gltf' / 'room.gltf'}")
     return 0
 
 
-def write_gltf(out, positions, colours, tris, found, textures):
+def write_gltf(out, positions, colours, tris, found, textures, labels=None):
     flip = face_inward(positions)
     # glTF: x right, y up, z towards the viewer; the game's y is down and z away: a half turn about x
     pos = positions.copy()
@@ -173,7 +215,7 @@ def write_gltf(out, positions, colours, tris, found, textures):
     order[flip] = [0, 2, 1]
     groups = {}
     for i, u in enumerate(found):
-        groups.setdefault(u["key"] if u else "unmapped", []).append(i)
+        groups.setdefault(labels[i] if labels else u["key"] if u else "unmapped", []).append(i)
     buffer = bytearray()
     views, accessors, primitives, materials, images, textures_json = [], [], [], [], [], []
     def add(data, target, kind, ctype, count, mins=None, maxs=None):
@@ -204,7 +246,7 @@ def write_gltf(out, positions, colours, tris, found, textures):
                           **({"baseColorTexture": {"index": len(textures_json)}} if t else {})},
                           "extras": {"key": key, **({"w": t["w"], "h": t["h"]} if t else {})}})
         if t:
-            images.append({"uri": f"tex/{key}.png"})
+            images.append({"uri": f"tex/{t.get('texture', key)}.png"})
             textures_json.append({"source": len(images) - 1, "sampler": 0})
         primitives.append({"attributes": attrs, "material": len(materials) - 1, "mode": 4,
                            "extras": {"key": key, "triangles": [{"group": tris[i]["group"], "flags": tris[i]["flags"],
@@ -262,6 +304,12 @@ def maps(wear, cavity, cover, p):
     return (np.clip(height + 0.5, 0, 255).astype(np.uint8), np.clip(rough + 0.5, 0, 255).astype(np.uint8), normal)
 
 
+def map_dir(layer, key, t):
+    """Where a baked texture's maps go: <layer>/<key>/ (the texture's), or <layer>/<key>/@<object>/ for a texture baked per
+    room group (the game reads the object's maps for an entry keyed by that object: materials.h channel)."""
+    return layer / t["texture"] / f"@{t['object']}" if "object" in t else layer / key
+
+
 def import_maps(args):
     out = room_dir(args)
     meta = json.loads((out / "export.json").read_text())
@@ -273,14 +321,15 @@ def import_maps(args):
         d = out / "bakes" / key
         if not (d / "wear.png").exists():
             continue
+        dest = map_dir(layer, key, t)
         wear, cavity, cover = gray(d / "wear.png"), gray(d / "cavity.png"), gray(d / "cover.png")
         if wear.shape != (t["h"], t["w"]):
             raise SystemExit(f"room_blender: {key}: the bake is {wear.shape[::-1]}, the texture {t['w']} x {t['h']}")
         height, rough, normal = maps(wear, cavity, cover, p)
-        (layer / key).mkdir(parents=True, exist_ok=True)
-        Image.fromarray(height, "L").save(layer / key / "height.png")
-        Image.fromarray(rough, "L").save(layer / key / "roughness.png")
-        Image.fromarray(normal, "RGB").save(layer / key / "normal.png")
+        dest.mkdir(parents=True, exist_ok=True)
+        Image.fromarray(height, "L").save(dest / "height.png")
+        Image.fromarray(rough, "L").save(dest / "roughness.png")
+        Image.fromarray(normal, "RGB").save(dest / "normal.png")
         done += 1
     print(f"import: {done} textures' height, roughness and normal maps -> {layer} (the baked layer: $ROOD_MATERIALS_BAKED)")
     return 0
@@ -295,17 +344,23 @@ def shot(args):
     shots = out / "shots"
     shutil.rmtree(shots, ignore_errors=True)
     shots.mkdir(parents=True)
-    entries = [{"id": f"RB{n:03d}", "name": f"room_blender {key}", "match": {"key": key, "size": [meta["textures"][key]["w"],
-                                                                                            meta["textures"][key]["h"]]},
-                "preset": args.preset}
-               for n, key in enumerate(sorted(k for k in meta["textures"] if (out / "materials" / k / "height.png").exists()))]
+    zr = [meta["zone"], meta["room"]]
+    entries = []
+    for n, name in enumerate(sorted(k for k, t in meta["textures"].items() if (map_dir(out / "materials", k, t) / "height.png").exists())):
+        t = meta["textures"][name]
+        e = {"id": f"RB{n:03d}", "name": f"room_blender {name}",
+             "match": {"key": t.get("texture", name), "size": [t["w"], t["h"]]}, "preset": args.preset}
+        if "object" in t:  # a texture shared by room groups: an entry for each group (its own maps)
+            e["object"] = {"groups": [t["group_offset"]]}
+            e["scope"] = {"room": zr}
+        entries.append(e)
     # plain: the game as it is (no entry); before: the preset on every baked texture, the relief the game derives from the
     # texture itself; after: the same entries with the maps the round trip made
     for name, with_entries, baked in (("plain", False, False), ("before", True, False), ("after", True, True)):
         scratch = out / f"shot-{name}"
         shutil.rmtree(scratch, ignore_errors=True)
         scratch.mkdir(parents=True)
-        (scratch / "materials.json").write_text(json.dumps({"format": 1, "presets": {},
+        (scratch / "materials.json").write_text(json.dumps({"format": 2, "presets": {},
                                                             "entries": entries if with_entries else []}))
         margs = argparse.Namespace(card=args.card)
         os.environ["ROOD_MATERIALS_BAKED"] = str(out / "materials" if baked else scratch / "no-maps")
