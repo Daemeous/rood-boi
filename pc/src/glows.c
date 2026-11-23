@@ -49,6 +49,7 @@ uint32_t pc_glow_casts;
  * its centre, as before), 1 their glowing side (default), 2 solid (RPC glows
  * {shapes}; ROOD_GLOW_SHAPES; comparisons). */
 int pc_glow_shapes = -1;
+extern int pc_photo_hide_savepoints __attribute__((weak)); /* photo_ui.cpp */
 /* A column's shadows (rt_lights.glsl emitter_shadow): rays aim at a core
  * this fraction of its radius (the fixture type's glow_shadow_core first;
  * RPC glows {shadow_core}); the light still comes from the whole side. */
@@ -1123,6 +1124,10 @@ int pc_glows_update(const pc_glow_fragment* fragments, int count, const float (*
         t->out_baked_weight = t->out_shape[3] > 0 && pc_glow_column_baked > 0 ? pc_glow_column_baked * scale : 0;
         if (solo_alive && t->id != solo_id && !t->muted)
             t->muted = 2;
+        /* The photo mode leaves the save point out (photo.h): the light of its column goes with it. */
+        if (&pc_photo_hide_savepoints && pc_photo_hide_savepoints && !t->muted && t->origin == PC_GLOW_ORIGIN_ROOM
+            && t->group >= 0 && t->group < group_count && groups[t->group].animated && save_point_room)
+            t->muted = 5;
     }
     /* The tracers' glows: the strongest (kept ones get a 1.5x edge, so two
      * of similar strength do not trade places), in id order. */

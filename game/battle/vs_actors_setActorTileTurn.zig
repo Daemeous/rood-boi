@@ -37,7 +37,7 @@ pub fn vs_actors_setActorTileTurn(slot: c_int, target: ?*v.func_8006EBF8_t_field
 
     turn: {
         if (mode == 0) {
-            actor.unk0.unk18 = 0;
+            actor.unk0.turnFrames = 0;
             break :turn;
         }
         if (mode == -1) {
@@ -45,16 +45,16 @@ pub fn vs_actors_setActorTileTurn(slot: c_int, target: ?*v.func_8006EBF8_t_field
                 angle = -%angle;
             }
             angle *%= rate;
-            actor.unk0.unk18 = psx.conv(u16, @divTrunc(angle, 4096));
+            actor.unk0.turnFrames = psx.conv(u16, @divTrunc(angle, 4096));
             if ((angle & 0xFFF) != 0) {
-                actor.unk0.unk18 = psx.conv(u16, @divTrunc(angle, 4096) +% 1);
+                actor.unk0.turnFrames = psx.conv(u16, @divTrunc(angle, 4096) +% 1);
             }
-            if (actor.unk0.unk18 == 0) {
+            if (actor.unk0.turnFrames == 0) {
                 break :turn;
             }
             return;
         }
-        actor.unk0.unk18 = psx.conv(u16, mode);
+        actor.unk0.turnFrames = psx.conv(u16, mode);
         return;
     }
 

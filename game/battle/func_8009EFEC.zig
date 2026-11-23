@@ -32,9 +32,9 @@ pub fn func_8009EFEC(actorId: c_int, target: ?*v.SVECTOR, mode: c_int) callconv(
             facingDelta = angle;
         }
         a.unk0.facingDelta = psx.conv(i16, facingDelta);
-        a.unk0.unk18 = 0xA;
+        a.unk0.turnFrames = 0xA;
         if (a.unk63C >= 0x80) {
-            a.unk0.unk18 = 0x14;
+            a.unk0.turnFrames = 0x14;
         }
         var animation: [*c]u16 = null;
         _ = c.vs_actors_findActorAnimationHeader(@ptrCast(actor), 0xBF, &animation);
@@ -53,9 +53,9 @@ pub fn func_8009EFEC(actorId: c_int, target: ?*v.SVECTOR, mode: c_int) callconv(
             const fallback: ?*v.D_800F4538_t = psx.at(v.g.vs_actors_actorRecords(), actorId).*;
             if (fallback) |fb| {
                 fb.unk0.facingDelta = psx.conv(i16, c.vs_actors_actorFacingDeltaToPoint(@ptrCast(fb), @ptrCast(target)));
-                fb.unk0.unk18 = 0xA;
+                fb.unk0.turnFrames = 0xA;
                 if (fb.unk63C >= 0x81) {
-                    fb.unk0.unk18 = 0x14;
+                    fb.unk0.turnFrames = 0x14;
                 }
                 const pitch: c_int = c.vs_actors_pitchToPoint(@ptrCast(fb), @ptrCast(target));
                 var reactionAnimation: c_int = 0x48;

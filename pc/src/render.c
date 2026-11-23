@@ -611,7 +611,7 @@ static void blend_transform(const render_transform* a, const render_transform* b
  * carried by its blended parent
  * (its offset in the parent's frame lerped), so limbs swing on arcs at full
  * length. The game builds bone i at parent * (-length, 0, 0) with
- * Rz*Ry*Rx angles keyed linearly per 30 Hz tick (func_800B28A8,
+ * Rz*Ry*Rx angles keyed linearly per 30 Hz tick (vs_actors_drawActorModel,
  * vs_actors_decodeAnimationTrack); the hierarchy is not passed in but found in the data:
  * each bone's parent is the earlier bone in whose frame its offset stays
  * the same in both palettes. Both palettes are reproduced exactly at t = 0

@@ -36,7 +36,7 @@ int ui_hide(lua_State* L)
             const char* key;
             int bit;
         } layers[] = { { "hud", PC_PHOTO_HIDE_HUD }, { "game2d", PC_PHOTO_HIDE_GAME2D },
-            { "overlay", PC_PHOTO_HIDE_OVERLAY } };
+            { "overlay", PC_PHOTO_HIDE_OVERLAY }, { "savepoints", PC_PHOTO_HIDE_SAVEPOINTS } };
         for (const auto& l : layers) {
             lua_getfield(L, 1, l.key);
             if (lua_toboolean(L, -1))
@@ -61,8 +61,9 @@ int ui_hide(lua_State* L)
         while (lua_next(L, 1)) {
             lua_pop(L, 1);
             const char* k = lua_type(L, -1) == LUA_TSTRING ? lua_tostring(L, -1) : "";
-            if (strcmp(k, "hud") && strcmp(k, "game2d") && strcmp(k, "overlay") && strcmp(k, "actors"))
-                return luaL_error(L, "rood.ui.hide: unknown layer '%s' (hud, game2d, overlay, actors)", k);
+            if (strcmp(k, "hud") && strcmp(k, "game2d") && strcmp(k, "overlay") && strcmp(k, "actors")
+                && strcmp(k, "savepoints"))
+                return luaL_error(L, "rood.ui.hide: unknown layer '%s' (hud, game2d, overlay, actors, savepoints)", k);
         }
     }
     if (pc_photo_ui_hide)
@@ -86,6 +87,8 @@ int ui_hidden(lua_State* L)
     lua_setfield(L, -2, "game2d");
     lua_pushboolean(L, (flags & PC_PHOTO_HIDE_OVERLAY) != 0);
     lua_setfield(L, -2, "overlay");
+    lua_pushboolean(L, (flags & PC_PHOTO_HIDE_SAVEPOINTS) != 0);
+    lua_setfield(L, -2, "savepoints");
     /* the tunables (RPC photo {hud_words, hud_timer, actors_held}): what the HUD and the actors take along */
     lua_pushboolean(L, &pc_photo_hud_words && pc_photo_hud_words);
     lua_setfield(L, -2, "hud_words");

@@ -29,7 +29,7 @@ pub fn vs_actors_setActorTileTranslation(arg0: c_int, arg1: ?*v.func_8006EBF8_t_
     }
 
     if (arg2 == 0) {
-        actor.unk0.unk1A = 0;
+        actor.unk0.translationFrames = 0;
         addVector(&actor.unk0.position, &actor.unk0.unk34);
         return;
     }
@@ -48,15 +48,15 @@ pub fn vs_actors_setActorTileTranslation(arg0: c_int, arg1: ?*v.func_8006EBF8_t_
         if (temp < 0) temp = -%temp;
         dist = c.vs_gte_rsqrt(dist +% temp) *% arg3;
         temp = @divTrunc(dist, 128);
-        actor.unk0.unk1A = psx.conv(u16, temp);
+        actor.unk0.translationFrames = psx.conv(u16, temp);
         if ((dist & 0x7F) != 0) {
-            actor.unk0.unk1A = psx.conv(u16, temp +% 1);
+            actor.unk0.translationFrames = psx.conv(u16, temp +% 1);
         }
-        if (actor.unk0.unk1A == 0) {
+        if (actor.unk0.translationFrames == 0) {
             addVector(&actor.unk0.position, &actor.unk0.unk34);
         }
         return;
     }
 
-    actor.unk0.unk1A = psx.conv(u16, arg2);
+    actor.unk0.translationFrames = psx.conv(u16, arg2);
 }

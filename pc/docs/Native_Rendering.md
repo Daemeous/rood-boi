@@ -1228,7 +1228,7 @@ tracks; the pose is piecewise linear in Euler space and changes once per
 tick. There is no fractional time anywhere: at 30 fps one tick per frame,
 at 15 fps two ticks per frame with the middle one never drawn. Changing
 animation crossfades `unk704` toward the new pose by k/n of the remaining
-distance per frame (`vs_actors_blendActorPose`). `func_800B28A8` then composes the bone
+distance per frame (`vs_actors_blendActorPose`). `vs_actors_drawActorModel` then composes the bone
 matrices: bone i at parent × (-length of the parent, 0, 0), rotation
 parent (unscaled) × Euler, column scales accumulated separately, plus
 special bones (head look, spinning, camera-facing billboards). Weapons and
@@ -1334,7 +1334,7 @@ for an exact in-between pose instead of the slerp, evaluate the animation
 at fractional ticks natively: keep each actor's previous and current
 `unk704` (post-blend Euler angles, 0x550 bytes), lerp the angles with the
 ±4096 wrap the game's own blend uses, and compose the bones with a
-side-effect-free copy of `func_800B28A8`'s maths (the game's copy mutates
+side-effect-free copy of `vs_actors_drawActorModel`'s maths (the game's copy mutates
 spin bones, sway counters and the bone tables, so it cannot be called
 twice), snapping across `vs_actors_alignPoseRotationBranches`'s Euler flip at a crossfade's
 start, loop resets and animation changes without a blend. The skeleton

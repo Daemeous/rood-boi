@@ -236,8 +236,8 @@ void pc_rpc_battle_state(char* out, unsigned size)
             put(&j, "tileX", o->unk0.currentTileX); put(&j, "tileZ", o->unk0.currentTileZ);
             put(&j, "flags8", *(unsigned*)((char*)&o->unk0 + 8)); put(&j, "flagsC", *(unsigned*)((char*)&o->unk0 + 0xC));
             put(&j, "flags5AC", VS_OBJECT_FLAGS5AC(o)); F(&j, o, animationId); F(&j, o, unk5B9); F(&j, o, unk5BA);
-            F(&j, o, unk5BC); F(&j, o, unk6E6); F(&j, o, unk17FD); F(&j, o, unk18D2); F(&j, o, unk18D4);
-            F(&j, &o->unkC54, unk540); F(&j, &o->unkC54, unk542); F(&j, &o->unk704, unk540); F(&j, &o->unk704, unk542);
+            F(&j, o, unk5BC); F(&j, o, unk6E6); F(&j, o, companionSlot); F(&j, o, unk18D2); F(&j, o, unk18D4);
+            F(&j, &o->pose, frame); F(&j, &o->pose, unk542); F(&j, &o->blendPose, frame); F(&j, &o->blendPose, unk542);
             put(&j, "unk6EE", o->unk6EE); put(&j, "unk6EF", o->unk6EF);
             j.p += sprintf(j.p, "\"end\":0},");
         }

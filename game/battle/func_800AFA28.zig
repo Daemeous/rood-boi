@@ -45,9 +45,9 @@ pub fn func_800AFA28(actor: ?*v.D_800F4538_t, state: ?*v.D_800F4538_unkC54, mode
     const flags = psx.bitsAt(c_uint, &st._bits_unk548_0, 0);
     flags.* &= 0xFFFD_FFFF;
 
-    var frameOrOffset: c_int = @as(c_int, psx.conv(i16, st.unk540));
+    var frameOrOffset: c_int = @as(c_int, psx.conv(i16, st.frame));
     var i: c_int = 0;
-    if (a.unk5B2 != 0) {
+    if (a.framesPerStep != 0) {
         const shadow = &a.unk1864;
         while (true) {
             if (shadow.unk4 != 0) {
@@ -66,32 +66,32 @@ pub fn func_800AFA28(actor: ?*v.D_800F4538_t, state: ?*v.D_800F4538_unkC54, mode
                 shadow.radiusShrinkRate = psx.conv(u16, @as(c_int, shadow.radiusShrinkRate) +% delta);
                 shadow.unk5 -%= 1;
             }
-            if (@as(c_int, psx.conv(i16, st.unk540)) >= @as(c_int, psx.conv(u16, a.unk5BC))) {
+            if (@as(c_int, psx.conv(i16, st.frame)) >= @as(c_int, psx.conv(u16, a.unk5BC))) {
                 flags.* |= 0x20000;
-                const queued = a.unk6E0;
+                const queued = a.queuedAnimation;
                 if (queued != 0) {
-                    queueAnimation()(@as(c_int, a.unk0.slot), @as(c_int, a.unk6E0), @as(c_int, a.unk6E1), @as(c_int, a.unk6E2));
-                    a.unk6E0 = 0;
+                    queueAnimation()(@as(c_int, a.unk0.slot), @as(c_int, a.queuedAnimation), @as(c_int, a.unk6E1), @as(c_int, a.unk6E2));
+                    a.queuedAnimation = 0;
                     return;
                 }
             }
             if ((psx.bitsAt(c_uint, &a.unk0._bits_skip, 0).* & 4) != 0) {
-                if (@as(c_int, st.unk542) == @as(c_int, psx.conv(i16, st.unk540))) {
+                if (@as(c_int, st.unk542) == @as(c_int, psx.conv(i16, st.frame))) {
                     frameEvent()(@ptrCast(a), @ptrCast(st), mode);
                 }
             }
-            if (@as(c_int, psx.conv(i16, st.unk540)) >= @as(c_int, psx.conv(u16, a.unk5BC))) {
-                st.unk540 -%= 1;
+            if (@as(c_int, psx.conv(i16, st.frame)) >= @as(c_int, psx.conv(u16, a.unk5BC))) {
+                st.frame -%= 1;
                 flags.* |= 0x10000;
             }
-            st.unk540 +%= 1;
+            st.frame +%= 1;
             i +%= 1;
-            if (i >= @as(c_int, a.unk5B2)) break;
+            if (i >= @as(c_int, a.framesPerStep)) break;
         }
     }
 
     // update_bones:
-    const frame: c_int = @as(c_int, psx.conv(i16, st.unk540));
+    const frame: c_int = @as(c_int, psx.conv(i16, st.frame));
     if (frame != 1 and (flags.* & 0x10000) == 0) {
         const lastFrame = frame -% 1;
         if (psx.bitsAt(u8, &st._bits_unk548_0, 1).* == 0) {
@@ -108,17 +108,17 @@ pub fn func_800AFA28(actor: ?*v.D_800F4538_t, state: ?*v.D_800F4538_unkC54, mode
 
                 const rootTrack: u16 = psx.at(header, 4).*;
                 if (rootTrack != 0) {
-                    c.vs_actors_decodeAnimationTrack(@as(c_int, rootTrack), psx.cptr(c.SVECTOR, &st.unk150[41]), 0, scratch);
+                    c.vs_actors_decodeAnimationTrack(@as(c_int, rootTrack), psx.cptr(c.SVECTOR, &st.scaleKeys[41]), 0, scratch);
 
-                    var x: c_int = @as(c_int, st.unk150[41].vx);
+                    var x: c_int = @as(c_int, st.scaleKeys[41].vx);
                     if (x < 0) x +%= 3;
                     a.unk0.position.vx = psx.conv(i16, @as(c_int, psx.conv(u16, a.unk0.position.vx)) +% (x >> 2));
 
-                    var y: c_int = @as(c_int, st.unk150[41].vy);
+                    var y: c_int = @as(c_int, st.scaleKeys[41].vy);
                     if (y < 0) y +%= 3;
                     a.unk0.position.vy = psx.conv(i16, @as(c_int, psx.conv(u16, a.unk0.position.vy)) +% (y >> 2));
 
-                    var z: c_int = @as(c_int, st.unk150[41].vz);
+                    var z: c_int = @as(c_int, st.scaleKeys[41].vz);
                     if (z < 0) z +%= 3;
                     a.unk0.position.vz = psx.conv(i16, @as(c_int, psx.conv(u16, a.unk0.position.vz)) +% (z >> 2));
                 }

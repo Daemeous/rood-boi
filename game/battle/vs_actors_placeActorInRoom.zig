@@ -62,10 +62,10 @@ pub fn vs_actors_placeActorInRoom(actorId: c_int, placement: ?*v.vs_field_ActorP
     }
 
     c.vs_actors_saveActorGroundedTransform(@ptrCast(actor));
-    actor.unk0.unk1A = 0;
+    actor.unk0.translationFrames = 0;
     value = psx.byteAt(u8, pl, 3).*;
     actor.unk0.facingDelta = 0;
-    actor.unk0.unk18 = 0;
+    actor.unk0.turnFrames = 0;
     actor.unk18D2 = 0;
     actor.unk18D4 = 0;
     actor.unk18D6 = 0;

@@ -17,8 +17,8 @@ pub fn func_800A2CD4(arg0: ?*v.D_800F4538_t) callconv(.c) void {
             _ = c.vs_actors_playActorAnimation(a.unk0.slot, 9, 0, 8);
             _ = c.vs_actors_translateActorToTileAtRate(a.unk0.slot, @ptrCast(&a.unk5EC), -1);
             _ = c.vs_actors_turnActorToAtRate(a.unk0.slot, a.unk5EC.pad, 8);
-            a.unk5CA = a.unk0.unk1A;
-            a.unk0.unk1A = 0;
+            a.unk5CA = a.unk0.translationFrames;
+            a.unk0.translationFrames = 0;
             if (a.unk5CA != 0) {
                 psx.setBits(&a.unk0, "unkB_4", 2);
                 return;
@@ -42,7 +42,7 @@ pub fn func_800A2CD4(arg0: ?*v.D_800F4538_t) callconv(.c) void {
         },
         3 => {
             // The word at 0x119C has no view field: read it at its offset.
-            if (a.unk0.unk1A == 0 and (psx.bitsAt(c_uint, &a.unkC54._bits_unk548_0, 0).* & 0x20000) != 0) {
+            if (a.unk0.translationFrames == 0 and (psx.bitsAt(c_uint, &a.pose._bits_unk548_0, 0).* & 0x20000) != 0) {
                 block10(a);
             }
         },
@@ -51,12 +51,12 @@ pub fn func_800A2CD4(arg0: ?*v.D_800F4538_t) callconv(.c) void {
             _ = c.vs_actors_queueActorAnimation(a.unk0.slot, 0x25, 8, 0);
             _ = c.vs_actors_translateActorToOverTime(a.unk0.slot, @ptrCast(&a.unk5EC), -1);
             _ = c.vs_actors_turnActorToAtRate(a.unk0.slot, a.unk5EC.pad, 8);
-            const temp: u16 = a.unk0.unk1A;
-            a.unk0.unk1A = 0;
+            const temp: u16 = a.unk0.translationFrames;
+            a.unk0.translationFrames = 0;
             a.unk5CA = temp;
             psx.setBits(&a.unk0, "unkA_5", 1);
             if (a.unk5CA == 0) {
-                a.unk6E0 = 0;
+                a.queuedAnimation = 0;
                 block17(a);
                 return;
             }

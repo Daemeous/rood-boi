@@ -60,7 +60,7 @@ local S = {
   filter_keys = {}, -- post keys the filter set
   capturing = nil,
   -- the plugin's own values (rows with `state`)
-  own = { mode = 1, guides = 1, bars = 1, filter = 1, filter_amount = 1, show_ashley = true, show_others = true },
+  own = { mode = 1, guides = 1, bars = 1, filter = 1, filter_amount = 1, show_ashley = true, show_others = true, show_save_points = true },
 }
 M.state = S
 local d = rood.draw
@@ -182,7 +182,7 @@ end
 function M.apply_hide()
   local a, o = S.own.show_ashley ~= false, S.own.show_others ~= false
   local actors = (a and o) and "none" or (not a and not o) and "all" or (a and "others" or "ashley")
-  rood.ui.hide { hud = true, game2d = true, overlay = true, actors = actors }
+  rood.ui.hide { hud = true, game2d = true, overlay = true, actors = actors, savepoints = S.own.show_save_points == false }
 end
 
 local apply_filter
@@ -192,7 +192,7 @@ local function apply_row(row)
     S.own[row.state] = v
     if row.state == "filter" or row.state == "filter_amount" then apply_filter() end
     if row.state == "bars" then set("format_color", choices(row)[v].value) end
-    if row.state == "show_ashley" or row.state == "show_others" then M.apply_hide() end
+    if row.state == "show_ashley" or row.state == "show_others" or row.state == "show_save_points" then M.apply_hide() end
     return
   end
   local value = v
@@ -397,7 +397,7 @@ function M.reset_all()
   for key in pairs(S.filter_keys) do rood.post.reset(key) end
   S.filter_keys = {}
   rood.post.reset()
-  S.own = { mode = 1, guides = 1, bars = 1, filter = 1, filter_amount = 1, show_ashley = true, show_others = true }
+  S.own = { mode = 1, guides = 1, bars = 1, filter = 1, filter_amount = 1, show_ashley = true, show_others = true, show_save_points = true }
   M.apply_hide()
   S.touched = {}
   rood.camera.set { collision = M.camera.collision }
@@ -551,7 +551,7 @@ function M.enter()
   rood.camera.set { collision = M.camera.collision }
   S.start_pose = rood.camera.get()
   S.origin = S.start_pose.target
-  S.own = { show_ashley = true, show_others = true }
+  S.own = { show_ashley = true, show_others = true, show_save_points = true }
   M.apply_hide()
   ok, why = rood.input.capture(on_input)
   if not ok then
@@ -562,7 +562,7 @@ function M.enter()
   S.active, S.card, S.tab, S.row, S.touched, S.keys, S.rep, S.notice = true, true, 1, 1, {}, {}, nil, nil
   S.top = {}
   S.own = { mode = 1, guides = rood.settings.get(SET.grid) and 2 or 1, bars = 1, filter = 1, filter_amount = 1,
-            show_ashley = true, show_others = true }
+            show_ashley = true, show_others = true, show_save_points = true }
   S.filters = filters()
   S.filter_keys = {}
   read_rows()

@@ -49,6 +49,10 @@ pc_tex_handle pc_tex_page_handle(const pc_tex_versions* versions, unsigned tpage
 pc_tex_handle pc_tex_palette_handle(const pc_tex_versions* versions, unsigned tpage, unsigned clut);
 /* What one draw samples, from the words its primitive carries. */
 pc_tex_sampling pc_tex_describe(const pc_tex_versions* versions, unsigned tpage, unsigned clut, unsigned window, const int uv_box[4]);
+/* The VRAM a sampling reaches, as inclusive rectangles {x0, y0, x1, y1}: [0] the texels under its box (x in halfwords, not wrapped: x1 may pass 1023), [1] the
+ * palette's row (16 or 256 entries; only for the 4- and 8-bit modes). Returns how many (1 or 2). A draw that goes through a texture window, or whose box wraps
+ * the page, reaches its whole page: its caller describes it with the whole-page box. */
+int pc_tex_reach(const pc_tex_sampling* sampling, int rects[2][4]);
 /* Whether the handle still names the resource's current contents. */
 int pc_tex_current(const pc_tex_versions* versions, pc_tex_handle handle);
 /* Whether the texels under the sampling's box are as they were when it was described. */

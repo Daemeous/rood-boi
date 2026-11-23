@@ -52,8 +52,8 @@ pub fn vs_actors_restartActorAnimationEvents(arg0: ?*v.D_800F4538_t) callconv(.c
         count = @as(c_int, op[1]) + 0xFF;
     }
 
-    actor.unk704.unk542 = psx.conv(u16, count);
-    psx.put(&actor.unk704.unk544, next);
+    actor.blendPose.unk542 = psx.conv(u16, count);
+    psx.put(&actor.blendPose.unk544, next);
 
-    decode()(actor, &actor.unk704, 2, &next[0]);
+    decode()(actor, &actor.blendPose, 2, &next[0]);
 }

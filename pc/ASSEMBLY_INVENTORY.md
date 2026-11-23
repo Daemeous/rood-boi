@@ -9,7 +9,7 @@
 | `src/BATTLE/BATTLE.PRG/146C.c` | `vs_actors_executeQueuedActorCommands` |
 | `src/BATTLE/BATTLE.PRG/146C.c` | `vs_field_drawRoomScene` |
 | `src/BATTLE/BATTLE.PRG/146C.c` | `vs_field_drawMovingPlatformShadows` |
-| `src/BATTLE/BATTLE.PRG/49268.c` | `func_800B28A8` |
+| `src/BATTLE/BATTLE.PRG/49268.c` | `vs_actors_drawActorModel` |
 | `src/BATTLE/BATTLE.PRG/4A0A8.c` | `vs_event_scriptSetAshleyBattleMode` |
 | `src/BATTLE/BATTLE.PRG/771A8.c` | `vs_battle_aiResolveDirectionalMovement` |
 | `src/EFFECT/PLG052.BIN/0.c` | `func_800F9800` |

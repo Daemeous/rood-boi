@@ -8,7 +8,7 @@ const v = @import("views_30DB0");
 pub fn func_8009F940(index: c_int, flag: c_int, first: ?*v.D_800F4538_unk58_2, second: ?*v.D_800F4538_unk58_2) callconv(.c) void {
     const temp = psx.at(v.g.vs_actors_actorRecords(), index).*;
     if (temp) |t| {
-        t.unk17FD = psx.conv(u8, flag);
+        t.companionSlot = psx.conv(u8, flag);
         if (flag != 0) {
             @as(*align(1) c_int, @ptrCast(&t.unk6F4)).* = @as(*align(1) const c_int, @ptrCast(first.?)).*;
             t.unk6F8 = second.?.*;

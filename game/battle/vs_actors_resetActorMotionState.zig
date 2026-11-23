@@ -12,11 +12,11 @@ pub fn vs_actors_resetActorMotionState(index: c_int, _: c_int) callconv(.c) void
         slot.unk0.scaleZ = 0x1000;
         slot.unk17FC = -2;
         slot.unk0.unk11 = 0;
-        slot.unk5C8 = 0;
-        slot.unk0.unk18 = 0;
+        slot.scaleFrames = 0;
+        slot.unk0.turnFrames = 0;
         @as(*align(1) i32, @ptrCast(&slot.unk0.pitch)).* = 0; // *(int*)&unk24: pitch and facing
         @as(*align(1) i32, @ptrCast(&slot.unk0.roll)).* = 0; // *(int*)&unk28: roll and unk2A
-        slot.unk0.unk1A = 0;
+        slot.unk0.translationFrames = 0;
         slot.unk0.unk16 = 0;
         slot.unk0.unk14 = 0;
         psx.setBits(&slot.unk0, "unkA_0", 0);
@@ -34,8 +34,8 @@ pub fn vs_actors_resetActorMotionState(index: c_int, _: c_int) callconv(.c) void
         psx.setBits(&slot.unk180C[1], "unk0_0", 0);
         psx.setBits(slot, "unk5AC_22", 0);
         _ = c.vs_actors_setActorTint(index, null);
-        if (slot.unk17FD == 1) {
-            slot.unk17FD = 0;
+        if (slot.companionSlot == 1) {
+            slot.companionSlot = 0;
         }
         psx.setBits(&slot.unk0, "unk9_7", 1);
         var sp10: v.D_800F4538_unk64 = undefined;
@@ -56,7 +56,7 @@ pub fn vs_actors_resetActorMotionState(index: c_int, _: c_int) callconv(.c) void
             var_a2 = 1;
         }
         _ = c.vs_actors_playActorAnimation(index, var_a2, 0, 0);
-        slot.unk6E0 = 0;
+        slot.queuedAnimation = 0;
         slot.unk6EC = 0;
         slot.unk6EE = 0;
         slot.unk6EF = 0;

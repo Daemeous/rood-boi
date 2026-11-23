@@ -1870,3 +1870,5 @@ function	MAINMENU.PRG	func_800FA238	vs_field_isGimmickWithinHeightBand	high	F024
 function	MAINMENU.PRG	func_800FA2CC	vs_menu_frameworkResetAshleyEquipmentPose	high	F02470
 function	INITBTL.PRG	func_800FA35C	vs_boot_initializeGameplayOverlay	high	F01858
 function	MAINMENU.PRG	func_800FA3FC	vs_menu_frameworkQueueAshleyWeaponAnimations	high	F02471
+function	BATTLE/BATTLE.PRG	func_800B28A8	vs_actors_drawActorModel	high	F01023
+function	BATTLE/BATTLE.PRG	func_800B002C	vs_actors_updateMotionAndLookAt	med	F04130

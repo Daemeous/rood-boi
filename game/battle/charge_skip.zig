@@ -96,7 +96,7 @@ pub fn skip(phase: c_int) callconv(.c) c_int {
     c.vs_audio_stopSfx(0x7E, 0x36);
     // the index is a u8, the table has 17 entries: the C does not check
     const actor = psx.at(v.g.vs_actors_actorRecords(), block().queue[block().unk0 & 3].primaryTarget.target.targetActor).*;
-    if (actor != null and actor.?.unk0.unk18 != 0) {
+    if (actor != null and actor.?.unk0.turnFrames != 0) {
         const unk0 = &actor.?.unk0;
         unk0.pitch = psx.conv(i16, (@as(c_int, unk0.pitch) +% unk0.rotationStepX) & 0xFFF);
         unk0.facing = psx.conv(i16, (@as(c_int, unk0.facing) +% unk0.facingDelta) & 0xFFF);
@@ -104,7 +104,7 @@ pub fn skip(phase: c_int) callconv(.c) c_int {
         unk0.rotationStepX = 0;
         unk0.facingDelta = 0;
         unk0.rotationStepZ = 0;
-        unk0.unk18 = 0;
+        unk0.turnFrames = 0;
     }
     c.func_800CF920();
     if (v.g.pc_charge_skip_pump().* != 0) c.charge_skip_load();

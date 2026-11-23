@@ -413,8 +413,8 @@ extern int pc_hw_menu_studio __attribute__((weak)); /* gpu_hw.c */
 static void no_rim_copy(void)
 {
     D_800F4538_t* clone = vs_actors_actorRecords[1];
-    if (clone && clone->unk17FD == 1 && &pc_hw_menu_studio && pc_hw_menu_studio)
-        clone->unk17FD = 0;
+    if (clone && clone->companionSlot == 1 && &pc_hw_menu_studio && pc_hw_menu_studio)
+        clone->companionSlot = 0;
 }
 
 /* A full-screen tile behind everything this frame (the ordering table's
@@ -531,7 +531,7 @@ static u_int clone_units(void)
     if (!a)
         return 0;
     n = heap_units(VS_OBJECT_REGION);
-    if (a->unk17FD >= 2)
+    if (a->companionSlot >= 2)
         n += heap_units(VS_OBJECT_REGION);
     for (i = 0; i < 2; ++i) {
         int k = a->unk0.slot * 2 + i;

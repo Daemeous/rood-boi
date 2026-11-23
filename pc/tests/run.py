@@ -663,6 +663,15 @@ def suites(args, mode="egl"):
                       "a render sees no stick, so her pose and place are the held moment's whatever the camera "
                       "or the stick does")]
           if args.save.exists() else []),
+        *([Suite("photo_firstmove_smoke", [PY, str(TESTS / "photo_firstmove_smoke.py"), "--card", str(args.save)], 300,
+                 note="photo mode: a hold asked while the game runs lands render_frames later with its last frames kept; "
+                      "a render replays them, so the first render is the held picture exactly (Ashley walking, the column, "
+                      "the NPC), and held, rendered and resumed the game is the run that never held")]
+          if args.save.exists() else []),
+        *([Suite("photo_savepoint_smoke", [PY, str(TESTS / "photo_savepoint_smoke.py"), "--card", str(args.save)], 300,
+                 note="photo mode hides save points (rood.ui.hide{savepoints}): the save room's circle and column leave the "
+                      "picture (and nothing else), shown again the same picture, the state digest held")]
+          if args.save.exists() else []),
         *([Suite("photo_pace_smoke", [PY, str(TESTS / "photo_pace_smoke.py"), "--card", str(args.save)], 300,
                  note="photo mode in real time: turning the camera keeps play's present rate (a render's time "
                       "counts toward the field; it once ran about 37 pictures a second against 60)")]
@@ -849,6 +858,10 @@ def suites(args, mode="egl"):
                  note="rood.game inventory / weapons / armour / equipment / workshop / combine / craftable and RPC "
                       "game_state / combine_preview: the records, the Items screen's lists, Lua tables once per vsync; "
                       "the preview leaves the state hash unchanged and equals the original Combine screen's record")]
+          if args.save.exists() else []),
+        *([Suite("data_menu_gutter_smoke", [PY, str(TESTS / "data_menu_gutter_smoke.py"), "--card", str(args.save)], 300,
+                 note="the original Data page in 16:9 and 4:3: the field HUD kept drawn behind its picture shows nowhere "
+                      "beside it (the view's sides are black; Gitea #33)")]
           if args.save.exists() else []),
         *([Suite("ui_data_smoke", [PY, str(TESTS / "ui_data_smoke.py"), "--card", str(args.save)], 600,
                  note="Data screen (MENU7 under a native frame): save bytes = the original's by pad and by mouse "
@@ -1044,10 +1057,10 @@ CHECKPOINT_SUITES = {
     "transition_fade_smoke", "title_fade_smoke", "ui_loot_smoke", "ui_workshop_smoke", "player_state_smoke", "window_mode_smoke",
     "options_classic_smoke", "options_confirm_smoke", "quit_smoke",
     "ui_map_smoke", "ui_manual_smoke", "hud_label_solid_smoke", "damage_numbers_smoke", "platform_shadow_smoke",
-    "ui_ashley_backdrop_smoke", "ui_data_smoke", "ui_container_smoke", "interp_menu_2d_smoke",
+    "ui_ashley_backdrop_smoke", "ui_data_smoke", "data_menu_gutter_smoke", "ui_container_smoke", "interp_menu_2d_smoke",
     "ui_ashley_detail_smoke", "ui_score_smoke", "snapshot_resume_smoke", "engine_reload_smoke", "engine_reload_render_smoke", "frame_cost_smoke",
     "hud_bench_smoke", "classic_hud_smoke", "classic_panels_smoke",
-    "repl_smoke", "lua_imgui_smoke", "photo_foundation_smoke", "photo_engine_reload_smoke", "photo_mode_smoke", "photo_pose_smoke", "photo_pace_smoke", "photo_full_room_smoke",
+    "repl_smoke", "lua_imgui_smoke", "photo_foundation_smoke", "photo_engine_reload_smoke", "photo_mode_smoke", "photo_pose_smoke", "photo_firstmove_smoke", "photo_savepoint_smoke", "photo_pace_smoke", "photo_full_room_smoke",
     "cutscene_player_smoke", "cutscene_viewer_smoke", "cutscene_sequencer_smoke", "cutscene_freecam_smoke",
     "text_fade_smoke", "menu_fade_smoke", "ui_text_msdf_smoke",
 }

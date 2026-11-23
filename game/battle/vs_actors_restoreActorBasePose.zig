@@ -27,9 +27,9 @@ pub fn vs_actors_restoreActorBasePose(actorId: c_int, animation: c_int) callconv
                 if (!skipMove) {
                     const movementFlags = psx.bitsAt(u32, &a.unk0._bits_skip, 0).*;
                     if ((movementFlags & 0x180000) == 0x100000) {
-                        if (psx.fieldAt(u32, &a.unk0.unk18, 0).* != 0) {
-                            a.unk0.unk1A = 0;
-                            a.unk0.unk18 = 0;
+                        if (psx.fieldAt(u32, &a.unk0.turnFrames, 0).* != 0) {
+                            a.unk0.translationFrames = 0;
+                            a.unk0.turnFrames = 0;
                             a.unk0.position.vx = psx.conv(i16, @as(c_int, psx.conv(u16, a.unk0.position.vx)) +%
                                 @as(c_int, psx.conv(u16, a.unk0.unk34.vx)));
                             a.unk0.position.vy = psx.conv(i16, @as(c_int, psx.conv(u16, a.unk0.position.vy)) +%
@@ -95,9 +95,9 @@ pub fn vs_actors_restoreActorBasePose(actorId: c_int, animation: c_int) callconv
             if ((psx.bitsAt(u32, &a.unk0._bits_skip, 0).* & 0x180000) != 0x100000) {
                 psx.bitsAt(u32, &a.unk0._bits_skip, 0).* &= 0xFFE7FFFF;
             }
-            a.unk5C8 = 0;
-            a.unk0.unk18 = 0;
-            a.unk0.unk1A = 0;
+            a.scaleFrames = 0;
+            a.unk0.turnFrames = 0;
+            a.unk0.translationFrames = 0;
             psx.bitsAt(u32, &a.unk0._bits_skip, 0).* &= 0xFFFFBFFF;
             _ = c.vs_actors_resetActorRunMomentum(actorId);
         }

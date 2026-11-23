@@ -93,7 +93,7 @@ pub fn vs_actors_updateAndDrawRoomModels(camera: [*c]v.MATRIX) callconv(.c) void
                     fadeColour(actor);
                     loadTexture(entries, i, actor);
                     if (common.object.flags5AC(actor).* & 3 != 0) c.vs_actors_updateActorRoute(i, @ptrCast(actor));
-                    if (v.g.vs_gametime_tickspeed().* == 4) actor.unk5B2 *%= 2;
+                    if (v.g.vs_gametime_tickspeed().* == 4) actor.framesPerStep *%= 2;
                     // PC: Ashley's stride at the pace of her speed (analog_move.c: a continuous analog pace): a frame with
                     // no step due leaves the pose as it is; the original steps every frame.
                     if (common.analog.stepDue(actor, i)) {
@@ -103,16 +103,16 @@ pub fn vs_actors_updateAndDrawRoomModels(camera: [*c]v.MATRIX) callconv(.c) void
                         // once: the eased scale, turn and position (the facing's 12-frame turn, tweened moves) and the transform
                         // block her draw reads (her root offset; else the last actor's stays and she is drawn at its position).
                         // Only the animation's frame is gated by the stride's pace.
-                        c.func_800B002C(@ptrCast(actor), 0);
+                        c.vs_actors_updateMotionAndLookAt(@ptrCast(actor), 0);
                     }
                     if (i == 0) common.analog.poseActor(actor, camera); // PC: her stride between its ticks (the draw only)
-                    actor.unk5B2 = psx.conv(u8, ((common.object.flags5B0(actor).* >> 3) & 1) +% 1);
+                    actor.framesPerStep = psx.conv(u8, ((common.object.flags5B0(actor).* >> 3) & 1) +% 1);
                 } else {
                     c.vs_actors_actorRootOffset(@ptrCast(actor));
                 }
                 if (common.object.flags8(actor).* & 0x2000 != 0) {
                     if (psx.at(entries, actor.unk0.attachParent).*) |parent| {
-                        c.func_800B28A8(@ptrCast(actor), @ptrCast(psx.at(&parent.bones, actor.unk0.unk13)), 0);
+                        c.vs_actors_drawActorModel(@ptrCast(actor), @ptrCast(psx.at(&parent.bones, actor.unk0.unk13)), 0);
                     } else {
                         // The C's block-scope statics (globalised by the build).
                         const reported = v.g.func_800AEF94__reported();
@@ -124,14 +124,14 @@ pub fn vs_actors_updateAndDrawRoomModels(camera: [*c]v.MATRIX) callconv(.c) void
                                 @as(c_int, actor.unk0.unk13), @as(c_int, actor.unk0.attachParent));
                             c.pc_log(&line);
                         }
-                        c.func_800B28A8(@ptrCast(actor), @ptrCast(v.g.func_800AEF94__zero()), 0);
+                        c.vs_actors_drawActorModel(@ptrCast(actor), @ptrCast(v.g.func_800AEF94__zero()), 0);
                     }
                 } else {
-                    c.func_800B28A8(@ptrCast(actor), @ptrCast(camera), 0);
-                    const attachmentId = actor.unk17FD;
+                    c.vs_actors_drawActorModel(@ptrCast(actor), @ptrCast(camera), 0);
+                    const attachmentId = actor.companionSlot;
                     if (attachmentId != 0) {
                         if (attachmentId >= 2) {
-                            const attached = psx.at(entries, actor.unk17FD).*.?;
+                            const attached = psx.at(entries, actor.companionSlot).*.?;
                             c.vs_actors_stepTextureAnimations(@ptrCast(attached));
                             if (attached.unk0.palettePulse.unk0 != 0) c.vs_actors_updatePalettePulse(@ptrCast(attached), null, 0);
                             if (common.object.flags8(attached).* & 0xF00 != 0) c.vs_actors_updateActorAppearanceTransition(@ptrCast(attached));
@@ -142,8 +142,8 @@ pub fn vs_actors_updateAndDrawRoomModels(camera: [*c]v.MATRIX) callconv(.c) void
                         }
                         shiftTable(@as(c_int, actor.unk6F4.unk3) *% 4);
                         shift(actor, 1);
-                        c.func_800B002C(@ptrCast(actor), @as(c_int, actor.unk17FD));
-                        c.func_800B28A8(@ptrCast(actor), @ptrCast(camera), actor.unk17FD);
+                        c.vs_actors_updateMotionAndLookAt(@ptrCast(actor), @as(c_int, actor.companionSlot));
+                        c.vs_actors_drawActorModel(@ptrCast(actor), @ptrCast(camera), actor.companionSlot);
                         shiftTable(-(@as(c_int, actor.unk6F4.unk3) *% 4));
                         shift(actor, -1);
                     }

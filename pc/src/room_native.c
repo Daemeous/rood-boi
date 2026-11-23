@@ -444,6 +444,7 @@ static float next_cut, next_cut_previous; /* pc_room_native_group_cut */
 static int next_cut_ghost;
 
 extern int pc_live_camera_active(void) __attribute__((weak));
+extern int pc_photo_hide_savepoints __attribute__((weak)); /* photo_ui.cpp */
 /* vs_render_drawRoomGeometry begins: returns 2 when the native list takes this block's opaque
  * polygons (the semi-transparent ones stay packets with a marker), 0 to draw them
  * all as packets (the hardware path is off). */
@@ -694,6 +695,7 @@ static const void* editor_data; /* the room block the per-group state belongs to
 static unsigned editor_count, editor_signature, editor_length;
 static unsigned char editor_hidden[EDITOR_MAX_GROUPS]; /* hidden in the Outliner */
 static signed char editor_black[EDITOR_MAX_GROUPS]; /* -1 unknown, else 0/1 */
+static signed char editor_save[EDITOR_MAX_GROUPS]; /* holds the save point's scrolling materials: -1 unknown, else 0/1 */
 
 static unsigned editor_block_signature(const void* data, unsigned count)
 {
@@ -728,6 +730,7 @@ static const void* editor_block(const void* data)
         editor_length = length;
         memset(editor_hidden, 0, sizeof editor_hidden);
         memset(editor_black, -1, sizeof editor_black);
+        memset(editor_save, -1, sizeof editor_save);
     }
     return room;
 }
@@ -761,6 +764,88 @@ int pc_room_group_black(const void* data, unsigned index)
     if (!editor_block(data) || index >= editor_count)
         return 0;
     return group_is_black(data, index);
+}
+/* The save point's groups. Its column holds a polygon of a UV scroll (room texture effect type 2: scrolling materials are
+ * also used elsewhere, so the group must hold a semi-transparent polygon too, as the column is: additive light); the
+ * sigil under it, its caps and the rest of the fixture are the semi-transparent polygons that touch it (bounds within 24
+ * units: glows.c groups the fixture's polygons the same way). Worked out for the whole room at once. */
+static void group_bounds(const void* data, unsigned index, int box[6], int* semi, int* scroll)
+{
+    unsigned tris = 0, quads = 0;
+    const unsigned* geometry = pc_room_group_geometry(data, editor_length, index, &tris, &quads);
+    const unsigned char* record = (const unsigned char*)data + 4 + index * 0x40;
+    unsigned shift = (*(const unsigned*)record & 0x800) ? 0 : 3;
+    int count = 0;
+    const pc_uv_effect* effects = pc_uv_effects(&count);
+    *semi = *scroll = 0;
+    for (int k = 0; k < 3; k++)
+        box[k] = 1 << 30, box[k + 3] = -(1 << 30);
+    if (!geometry)
+        return;
+    unsigned first = (unsigned)((const char*)geometry - (const char*)data) + 8;
+    const unsigned* poly = geometry + 2;
+    for (unsigned i = 0; i < tris + quads; ++i) {
+        int quad = i >= tris;
+        if ((poly[3] >> 24) & 2)
+            *semi = 1;
+        unsigned at = first + (quad ? tris * 32 + (i - tris) * 40 : i * 32);
+        for (int e = 0; e < count; e++)
+            if (effects[e].type == 2 && effects[e].polygon == at)
+                *scroll = 1;
+        int v[3] = { (short)poly[0], (short)(poly[0] >> 16), (short)poly[1] };
+        const signed char* d = (const signed char*)poly + 6;
+        const signed char* deltas[4] = { NULL, d, d + 3, (const signed char*)(poly + 8) };
+        for (int k = 0; k < (quad ? 4 : 3); k++)
+            for (int a = 0; a < 3; a++) {
+                int c = v[a] + (k ? (int)((unsigned)(int)deltas[k][a] << shift) : 0);
+                if (c < box[a])
+                    box[a] = c;
+                if (c > box[a + 3])
+                    box[a + 3] = c;
+            }
+        poly += quad ? 10 : 8;
+    }
+}
+static void work_out_save_points(const void* data)
+{
+    static int box[EDITOR_MAX_GROUPS][6];
+    static signed char semi[EDITOR_MAX_GROUPS], scroll[EDITOR_MAX_GROUPS];
+    for (unsigned i = 0; i < editor_count; i++) {
+        int s, c;
+        group_bounds(data, i, box[i], &s, &c);
+        semi[i] = (signed char)s, scroll[i] = (signed char)c;
+        editor_save[i] = (signed char)(s && c);
+    }
+    for (int changed = 1; changed;) {
+        changed = 0;
+        for (unsigned i = 0; i < editor_count; i++) {
+            if (editor_save[i] || !semi[i])
+                continue;
+            for (unsigned j = 0; j < editor_count && !editor_save[i]; j++) {
+                if (!editor_save[j] || i == j)
+                    continue;
+                int touch = 1;
+                for (int k = 0; k < 3 && touch; k++)
+                    touch = box[i][k] <= box[j][k + 3] + 24 && box[j][k] <= box[i][k + 3] + 24;
+                if (touch)
+                    editor_save[i] = 1, changed = 1;
+            }
+        }
+    }
+}
+static int group_is_save_point(const void* data, unsigned index)
+{
+    if (editor_save[index] < 0)
+        work_out_save_points(data);
+    return editor_save[index];
+}
+/* vs_render_drawRoomGeometry, while the photo mode hides save points (photo.h): 1 when group `index` of block `data` is
+ * the save point's circle or column. */
+int pc_room_savepoint_hidden(const void* data, unsigned index)
+{
+    if (!&pc_photo_hide_savepoints || !pc_photo_hide_savepoints || !data || !editor_block(data) || index >= editor_count)
+        return 0;
+    return group_is_save_point(data, index);
 }
 /* The facing mask vs_render_drawRoomGeometry tests while the free camera flies: the bits
  * scene_submit.inc sets for a game camera with the free camera's yaw (from

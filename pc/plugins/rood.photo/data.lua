@@ -140,7 +140,7 @@ M.bars = {
 -- A row: id, label, kind (slider, choice, toggle, action) and what it changes:
 --   post = key (rood.post; `component` 1-4 of a colour / vec4 key, 4 the master), camera = fov / roll /
 --   collision (rood.camera), setting = a setting of this plugin's, state = mode / guides / bars / filter /
---   filter_amount / show_ashley / show_others (the plugin's own; `default` its first value, else 1).
+--   filter_amount / show_ashley / show_others / show_save_points (the plugin's own; `default` its first value, else 1).
 -- Sliders: min, max, step (a held left / right repeats), fmt (string.format of the value times `scale`), or
 -- show = a unit main.lua formats (focal: a field of view as a focal length; metres: a GTE depth; percent).
 -- Choices: choices = a list above (by name), its items { label, value }. needs = { id, value }: the row is
@@ -159,6 +159,7 @@ M.tabs = {
     { id = "collision", label = "Collision", kind = "toggle", camera = "collision" },
     { id = "show_ashley", label = "Show Ashley", kind = "toggle", state = "show_ashley", default = true },
     { id = "show_others", label = "Show others", kind = "toggle", state = "show_others", default = true },
+    { id = "show_save_points", label = "Show save points", kind = "toggle", state = "show_save_points", default = true },
     { id = "reset_camera", label = "Reset camera", kind = "action", action = "reset_camera" },
   } },
   { id = "lens", label = "Lens", rows = {

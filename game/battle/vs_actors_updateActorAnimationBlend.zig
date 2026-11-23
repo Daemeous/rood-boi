@@ -9,15 +9,15 @@ const c = @import("c_44F14");
 /// Advances the unit's pose animation one step, or copies the current pose into the working copy when no step is due.
 pub fn vs_actors_updateActorAnimationBlend(unit_opt: ?*v.D_800F4538_t) callconv(.c) void {
     const unit = unit_opt.?;
-    c.func_800AFA28(@ptrCast(unit), @ptrCast(&unit.unkC54), 0);
+    c.func_800AFA28(@ptrCast(unit), @ptrCast(&unit.pose), 0);
 
     tail: {
         if (unit.unk5CC != 0) {
             if (unit.unk5CC == 1) {
-                c.vs_actors_alignPoseRotationBranches(@ptrCast(&unit.unk704.unk0), @ptrCast(&unit.unkC54.unk0), unit.unk0.nBones);
+                c.vs_actors_alignPoseRotationBranches(@ptrCast(&unit.blendPose.unk0), @ptrCast(&unit.pose.unk0), unit.unk0.nBones);
             }
 
-            const v5b2: c_int = unit.unk5B2;
+            const v5b2: c_int = unit.framesPerStep;
 
             if (v5b2 != 1) {
                 const next: c_int = @as(c_int, unit.unk5CC) + 0xFF;
@@ -31,17 +31,17 @@ pub fn vs_actors_updateActorAnimationBlend(unit_opt: ?*v.D_800F4538_t) callconv(
             }
 
             c.vs_actors_blendActorPose(
-                @ptrCast(&unit.unk704),
-                @ptrCast(&unit.unkC54),
+                @ptrCast(&unit.blendPose),
+                @ptrCast(&unit.pose),
                 unit.unk0.nBones,
                 unit.unk5CC,
                 unit.unk5CD,
             );
 
-            psx.setBits(&unit.unk704, "unk548_16", psx.getBits(&unit.unkC54, "unk548_16"));
-            psx.setBits(&unit.unk704, "unk548_17", psx.getBits(&unit.unkC54, "unk548_17"));
+            psx.setBits(&unit.blendPose, "holdingLastFrame", psx.getBits(&unit.pose, "holdingLastFrame"));
+            psx.setBits(&unit.blendPose, "reachedEnd", psx.getBits(&unit.pose, "reachedEnd"));
 
-            c.func_800B002C(@ptrCast(unit), 0);
+            c.vs_actors_updateMotionAndLookAt(@ptrCast(unit), 0);
 
             unit.unk5CC +%= 1;
 
@@ -53,6 +53,6 @@ pub fn vs_actors_updateActorAnimationBlend(unit_opt: ?*v.D_800F4538_t) callconv(
         }
     }
 
-    c.vs_main_memcpy(@ptrCast(&unit.unk704), @ptrCast(&unit.unkC54), @as(c_uint, @sizeOf(v.D_800F4538_unkC54)));
-    c.func_800B002C(@ptrCast(unit), 0);
+    c.vs_main_memcpy(@ptrCast(&unit.blendPose), @ptrCast(&unit.pose), @as(c_uint, @sizeOf(v.D_800F4538_unkC54)));
+    c.vs_actors_updateMotionAndLookAt(@ptrCast(unit), 0);
 }

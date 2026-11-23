@@ -12,7 +12,7 @@ pub fn vs_actors_queueActorAnimation(index: c_int, value0: c_int, value1: c_int,
     }
     const rec = record.?;
 
-    rec.unk6E0 = psx.conv(u8, value0);
+    rec.queuedAnimation = psx.conv(u8, value0);
     rec.unk6E1 = psx.conv(u8, value1);
     rec.unk6E2 = psx.conv(u8, value2);
 

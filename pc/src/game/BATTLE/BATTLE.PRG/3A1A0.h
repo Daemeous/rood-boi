@@ -59,15 +59,15 @@ typedef struct {
 
 typedef struct {
     SVECTOR unk0[42];
-    SVECTOR unk150[42];
+    SVECTOR scaleKeys[42];
     SVECTOR unk2A0[42];
     SVECTOR unk3F0[42];
-    u_short unk540;
+    u_short frame;
     u_short unk542;
     u_char* unk544;
     int unk548_0 : 16;
-    int unk548_16 : 1;
-    int unk548_17 : 1;
+    int holdingLastFrame : 1;
+    int reachedEnd : 1;
     int unk548_18 : 14;
     int unk54C;
 } D_800F4538_unkC54;
@@ -163,8 +163,8 @@ typedef struct {
     u_char unk13;
     u_short unk14;
     u_short unk16;
-    u_short unk18;
-    u_short unk1A;
+    u_short turnFrames;
+    u_short translationFrames;
     SVECTOR position;
     short rotationX;
     short facing;
@@ -247,7 +247,7 @@ typedef struct {
     u_char unk5B0_5 : 1;
     u_char unk5B0_6 : 2;
     u_char unk5B1;
-    u_char unk5B2;
+    u_char framesPerStep;
     u_char unk5B3;
     u_char unk5B4;
     u_char unk5B5;
@@ -263,7 +263,7 @@ typedef struct {
     u_short unk5C2;
     u_short unk5C4;
     u_short unk5C6;
-    u_short unk5C8;
+    u_short scaleFrames;
     u_short unk5CA;
     char unk5CC;
     char unk5CD;
@@ -298,7 +298,7 @@ typedef struct {
     u_int spSeqLbas[4];
     int unk6BC[8];
     int unk6DC;
-    u_char unk6E0;
+    u_char queuedAnimation;
     u_char unk6E1;
     u_char unk6E2;
     u_char unk6E3;
@@ -317,8 +317,8 @@ typedef struct {
     D_800F4538_unk58 unk6F4;
     D_800F4538_unk58_2 unk6F8;
     SVECTOR unk6FC;
-    D_800F4538_unkC54 unk704;
-    D_800F4538_unkC54 unkC54;
+    D_800F4538_unkC54 blendPose;
+    D_800F4538_unkC54 pose;
     u_char unk11A4[0x280];
     u_char unk1424[0x3C0];
     D_800F4538_unk64 unk17E4;
@@ -326,7 +326,7 @@ typedef struct {
     u_char unk17EC[8];
     SVECTOR unk17F4;
     signed char unk17FC;
-    u_char unk17FD;
+    u_char companionSlot;
     u_char unk17FE;
     u_char unk17FF;
     short unk1800;
@@ -530,7 +530,7 @@ typedef struct {
     u_int unk5AC_25 : 7;
     u_char unk5B0;
     u_char unk5B1;
-    u_char unk5B2;
+    u_char framesPerStep;
     u_char unk5B3;
     u_char unk5B4;
     u_char unk5B5;
@@ -546,7 +546,7 @@ typedef struct {
     u_char unk5C1;
     u_short unk5C2;
     int unk5C4;
-    int unk5C8;
+    int scaleFrames;
     char unk5CC;
     char unk5CD;
     short unk5CE;
@@ -566,7 +566,7 @@ typedef struct {
     u_short unk654;
     u_short unk656;
     u_char unk658[0x88];
-    u_char unk6E0;
+    u_char queuedAnimation;
     u_char unk6E1;
     u_char unk6E2;
     u_char unk6E3;
@@ -584,11 +584,11 @@ typedef struct {
     D_800F4538_unk58_2 unk6F8;
     int unk6FC;
     int unk700;
-    D_800F4538_unkC54 unk704;
-    D_800F4538_unkC54 unkC54;
+    D_800F4538_unkC54 blendPose;
+    D_800F4538_unkC54 pose;
     u_char unk11A4[0x658];
     u_char unk17FC;
-    u_char unk17FD;
+    u_char companionSlot;
     u_char unk17FE;
     u_char unk17FF;
     u_char unk1800[0x3C];

@@ -9,8 +9,8 @@ pub fn vs_actors_stopActorMotion(arg0: c_int) callconv(.c) void {
     const temp_s0 = psx.at(v.g.vs_actors_actorRecords(), arg0).*;
     if (temp_s0) |t| {
         c.vs_actors_clearActorMovementModes(arg0);
-        t.unk0.unk1A = 0;
-        t.unk0.unk18 = 0;
+        t.unk0.translationFrames = 0;
+        t.unk0.turnFrames = 0;
         @as(*align(1) c_int, @ptrCast(&t.unk0.unk34)).* = 0;
     }
 }

@@ -12,7 +12,7 @@ pub fn vs_actors_updateActorRoute(arg0: c_int, arg1: ?*v.D_800F4538_t) callconv(
 
     switch (@as(c_int, psx.getBits(p, "unk5AC_0"))) {
         1 => {
-            if (p.unk0.unk18 == 0) {
+            if (p.unk0.turnFrames == 0) {
                 if (psx.getBits(&p.unk0, "unkA_5") != 0) {
                     c.vs_actors_playActorAnimation(arg0, 0x1F, 0, 8);
                 } else {
@@ -29,7 +29,7 @@ pub fn vs_actors_updateActorRoute(arg0: c_int, arg1: ?*v.D_800F4538_t) callconv(
             }
         },
         2 => {
-            if (p.unk0.unk1A == 0) {
+            if (p.unk0.translationFrames == 0) {
                 c.vs_actors_playActorAnimation(arg0, 1, 0, 8);
 
                 var temp_a1: c_int = @as(c_int, psx.conv(u16, p.unk5EC.pad));

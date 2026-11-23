@@ -131,7 +131,7 @@ pub fn vs_actors_moveActorWithCollision(index: c_int, direction_in: c_int, dista
         if (psx.conv(c_uint, i -% 0x400) <= 0x800) {
             return fall(actor);
         }
-        if (actor.unk0.unk1A != 0) {
+        if (actor.unk0.translationFrames != 0) {
             return 3;
         }
         direction = @as(c_int, psx.conv(u16, actor.unk1800));
@@ -152,7 +152,7 @@ pub fn vs_actors_moveActorWithCollision(index: c_int, direction_in: c_int, dista
         turning = 1;
         psx.setBits(&actor.unk0, "unkA_3", 0);
         psx.setBits(&actor.unk0, "unk9_6", 0);
-        actor.unk0.unk1A = 0;
+        actor.unk0.translationFrames = 0;
         actor.unk0.unk34.vx = 0;
         actor.unk0.unk34.vy = 0;
         actor.unk0.unk34.vz = 0;

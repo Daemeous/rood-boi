@@ -22,6 +22,7 @@
 #include <cstring>
 #include <ctime>
 #include <deque>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -42,6 +43,7 @@ int pc_snapshot_rewind_slot(int slot, char* error, int size) __attribute__((weak
 void pc_snapshot_drop_slot(int slot) __attribute__((weak));
 int pc_snapshot_slot_valid(int slot) __attribute__((weak));
 unsigned pc_vsync_count(void);
+int pc_rpc_is_paused(void) __attribute__((weak)); /* dev_rpc.c: the RPC holds the game at a boundary */
 unsigned pc_battle_frame_count(void) __attribute__((weak));
 extern "C" void pc_hwc_resync(void) __attribute__((weak)); /* hw_cmd.c: the renderer rebuilt from the game's VRAM (a request) */
 int pc_hw_photo_mark(void) __attribute__((weak));
@@ -56,7 +58,8 @@ int pc_ui_data_visible(void) __attribute__((weak));                       /* the
 }
 
 namespace {
-constexpr int SLOT = 1; /* state_rewind.c: the photo mode's */
+constexpr int SLOT = 1;      /* state_rewind.c: the photo mode's */
+constexpr int LEAD_SLOT = 2; /* state_rewind.c: the moment the hold was asked at (renders replay from it) */
 enum Phase { RUNNING, ASKED, HELD, RENDERING };
 const char* const PHASES[] = { "running", "asked", "held", "rendering" };
 Phase phase = RUNNING;
@@ -72,6 +75,35 @@ double render_start, last_render_ms;
 int render_frames = 4;    /* game frames a render runs (RPC photo render_frames) */
 int render_max_vsyncs = 40;
 std::string last_error;
+
+/* ---- the lead and the history (Gitea #34) ----
+ *
+ * A render re-runs game frames, so a render from the held moment M ended render_frames frames on. The hold is therefore
+ * asked in two steps: the game keeps running live for render_frames frames from the boundary it was asked at (L), the
+ * pad and the sticks it reads recorded per vsync (the history), then M is held. A render rewinds to L and replays those
+ * frames with the recorded inputs until it reaches M: the last picture is M's, drawn by the photo camera; then M's own
+ * mark is put back (the state, the sound and the vsync are exactly M's). Nothing runs unless a hold is asked; a hold the
+ * game cannot lead (the RPC pauses it, a state replaced) renders as before, from M for render_frames frames. */
+bool lead;              /* ASKED: L is marked and the game runs on towards M */
+unsigned lead_vsync, lead_frames;
+bool history_ok;        /* HELD: L is marked and the history covers L..M */
+bool history_recording; /* the pad and the sticks the game reads are logged */
+bool history_replay;    /* a render replays them */
+struct Inputs {
+    bool has_buttons = false;
+    unsigned buttons = 0;
+    bool has_stick[2] = { false, false };
+    float stick[2][2] = {};
+    int valid[2] = { 0, 0 };
+};
+std::map<unsigned, Inputs> history;
+void lead_drop()
+{
+    lead = history_ok = history_recording = history_replay = false;
+    history.clear();
+    if (pc_snapshot_drop_slot)
+        pc_snapshot_drop_slot(LEAD_SLOT);
+}
 
 /* ---- the sound while held (pc_photo_pause_audio) ---- */
 struct AudioWish {
@@ -264,6 +296,7 @@ extern "C" void pc_photo_state_replaced(void)
         pc_hw_photo_drop();
     if (pc_snapshot_drop_slot)
         pc_snapshot_drop_slot(SLOT);
+    lead_drop(); /* (the history belonged to the old state) */
     redraw_wanted = !pausers.empty() && (had_camera || redraw_wanted || rendered);
     rendered = false;
     if (phase == RENDERING || landing)
@@ -297,13 +330,16 @@ extern "C" int pc_photo_poll(void)
     if (landing) { /* at M again (state_rewind.c restored it), the render's picture kept */
         landing = false;
         pc_photo_rendering = 0;
+        history_replay = false;
         sound_hold(false);
         phase = HELD;
     }
     if (phase == RENDERING) {
         ++render_vsyncs;
         unsigned frames = pc_battle_frame_count ? pc_battle_frame_count() - render_start_frames : 0;
-        if (((int)frames < render_frames || render_vsyncs < 2) && (int)render_vsyncs < render_max_vsyncs)
+        /* (from L the replay is done on reaching M: the history's last frame; from M, after render_frames frames) */
+        bool running = history_replay ? pc_vsync_count() < held_vsync : ((int)frames < render_frames || render_vsyncs < 2);
+        if (running && (int)render_vsyncs < render_max_vsyncs)
             return 1; /* this vsync runs too */
         last_render_ms = (now_seconds() - render_start) * 1000;
         ++renders;
@@ -314,6 +350,7 @@ extern "C" int pc_photo_poll(void)
         /* It could not: the game is a render ahead of M (never seen so far: the mark was taken). */
         landing = false;
         pc_photo_rendering = 0;
+        history_replay = false;
         sound_hold(false);
         phase = HELD;
         last_error = std::string("rewind failed: ") + error;
@@ -323,6 +360,7 @@ extern "C" int pc_photo_poll(void)
     if (phase == ASKED) {
         if (pausers.empty()) {
             phase = RUNNING;
+            lead_drop();
             restore_wanted = redraw_wanted = false;
             view_borrowed = view_captured = false;
             if (pc_hw_photo_drop)
@@ -330,14 +368,46 @@ extern "C" int pc_photo_poll(void)
             return 0;
         }
         std::string why = unsafe();
-        if (!why.empty())
-            return 0; /* asked again at the next boundary */
+        if (!why.empty()) {
+            lead_drop(); /* a mark taken before it became unsafe is not the moment held */
+            return 0;    /* asked again at the next boundary */
+        }
+        if (pc_snapshot_mark_slot && pc_snapshot_rewind_slot && &pc_hw_active && pc_hw_active) {
+            bool paused_by_rpc = pc_rpc_is_paused && pc_rpc_is_paused();
+            if (lead && paused_by_rpc)
+                lead_drop(); /* the game does not run on: held where it stands, rendered from there */
+            if (!lead && !paused_by_rpc && !history_ok) {
+                char error[160] = "";
+                if (!pc_snapshot_mark_slot(LEAD_SLOT, error, (int)sizeof error)) {
+                    lead = history_recording = true;
+                    history.clear();
+                    lead_vsync = pc_vsync_count();
+                    lead_frames = pc_battle_frame_count ? pc_battle_frame_count() : 0;
+                    return 0; /* the game runs on */
+                }
+            }
+            if (lead) {
+                unsigned frames = pc_battle_frame_count ? pc_battle_frame_count() - lead_frames : 0;
+                if ((int)frames < render_frames || pc_vsync_count() - lead_vsync < 2)
+                    return 0; /* still leading */
+                lead = history_recording = false;
+            }
+        }
         phase = HELD;
         held_vsync = pc_vsync_count();
         rendered = false;
         audio_next = 0;
         audio_vsyncs = 0;
-        fprintf(stderr, "[photo] held at vsync %u (%s)\n", held_vsync, pausers.front().c_str());
+        if (pc_snapshot_slot_valid && pc_snapshot_slot_valid(LEAD_SLOT)) {
+            /* M's own mark (the state, the sound, the vsync a render returns to) */
+            char error[160] = "";
+            if (pc_snapshot_mark_slot(SLOT, error, (int)sizeof error))
+                lead_drop();
+            else
+                history_ok = true;
+        }
+        fprintf(stderr, "[photo] held at vsync %u (%s)%s\n", held_vsync, pausers.front().c_str(),
+            history_ok ? ", its last frames kept" : "");
     }
     if (phase != HELD)
         return 0;
@@ -390,6 +460,7 @@ extern "C" int pc_photo_poll(void)
             pc_hw_photo_drop();
         if (pc_snapshot_drop_slot)
             pc_snapshot_drop_slot(SLOT);
+        lead_drop();
         fprintf(stderr, "[photo] resumed at vsync %u\n", pc_vsync_count());
         return 0;
     }
@@ -441,6 +512,16 @@ extern "C" int pc_photo_poll(void)
     render_start_frames = pc_battle_frame_count ? pc_battle_frame_count() : 0;
     render_start = now_seconds();
     last_error.clear();
+    if (history_ok && pc_snapshot_slot_valid(LEAD_SLOT)) {
+        /* From L, the frames the game ran live replayed with the inputs it read (does not return when it rewinds:
+         * the next poll is at L, this render's first vsync). */
+        char error[160] = "";
+        history_replay = true;
+        pc_snapshot_rewind_slot(LEAD_SLOT, error, (int)sizeof error);
+        history_replay = false;
+        fprintf(stderr, "[photo] cannot replay from the lead (%s): rendered from the held moment\n", error);
+        lead_drop();
+    }
     return 1;
 }
 
@@ -459,8 +540,8 @@ extern "C" int pc_photo_rpc(const char* params, char* out, int size)
     char head[512];
     snprintf(head, sizeof head,
         "{\"phase\":\"%s\",\"owners\":[%s],\"held_vsync\":%u,\"renders\":%u,\"last_render_ms\":%.2f,"
-        "\"last_render_vsyncs\":%u,\"render_frames\":%d,\"audio_vsyncs\":%u,\"audio\":%d,\"redraw_wanted\":%s,\"mark\":%s,\"error\":%s",
-        PHASES[phase], owners.c_str(), held_vsync, renders, last_render_ms, render_vsyncs, render_frames,
+        "\"last_render_vsyncs\":%u,\"history\":%s,\"render_frames\":%d,\"audio_vsyncs\":%u,\"audio\":%d,\"redraw_wanted\":%s,\"mark\":%s,\"error\":%s",
+        PHASES[phase], owners.c_str(), held_vsync, renders, last_render_ms, render_vsyncs, history_ok ? "true" : "false", render_frames,
         audio_vsyncs, audio_mode(&audio_gain_now), redraw_wanted ? "true" : "false", pc_snapshot_slot_valid && pc_snapshot_slot_valid(SLOT) ? "true" : "false",
         photo::json_quote(last_error).c_str());
     std::string reply = head;
@@ -497,6 +578,7 @@ extern "C" void pc_photo_resume(const char* owner)
     pausers.erase(std::remove(pausers.begin(), pausers.end(), owner), pausers.end());
     if (pausers.empty() && phase == ASKED) {
         phase = RUNNING;
+        lead_drop();
         restore_wanted = redraw_wanted = false;
         view_borrowed = view_captured = false;
         if (pc_hw_photo_drop)
@@ -567,6 +649,7 @@ extern "C" int pc_photo_engine_unload(char* why, int size)
     redraw_wanted = false;
     if (pc_snapshot_drop_slot)
         pc_snapshot_drop_slot(SLOT);
+    lead_drop();
     pc_photo_rendering = 0; /* (crosses the reload: a host-owned block) */
     return 0;
 }
@@ -581,5 +664,45 @@ extern "C" int pc_photo_notice_next(char* owner, int owner_size, char* what, int
     copy_out(what, what_size, notices.front().what);
     copy_out(reason, reason_size, notices.front().reason);
     notices.pop_front();
+    return 1;
+}
+
+/* ------------------------------------------------------------ the history (the inputs the game read)
+ *
+ * boot_window.c (the pad, the camera stick) and analog_move.c (the left stick) log what they gave the game at each
+ * vsync while the lead runs, and give it back to a render that replays it. */
+extern "C" int pc_photo_history_replaying(void) { return pc_photo_rendering && history_replay; }
+extern "C" void pc_photo_history_note_buttons(unsigned vsync, unsigned pad)
+{
+    if (!history_recording)
+        return;
+    Inputs& i = history[vsync];
+    i.has_buttons = true, i.buttons = pad;
+}
+extern "C" int pc_photo_history_take_buttons(unsigned vsync, unsigned* pad)
+{
+    if (!history_replay)
+        return 0;
+    auto it = history.find(vsync);
+    *pad = it != history.end() && it->second.has_buttons ? it->second.buttons : 0;
+    return 1;
+}
+/* which: 0 the camera stick, 1 the left stick */
+extern "C" void pc_photo_history_note_stick(int which, unsigned vsync, const float v[2], int valid)
+{
+    if (!history_recording)
+        return;
+    Inputs& i = history[vsync];
+    i.has_stick[which] = true, i.stick[which][0] = v[0], i.stick[which][1] = v[1], i.valid[which] = valid;
+}
+extern "C" int pc_photo_history_take_stick(int which, unsigned vsync, float v[2], int* valid)
+{
+    if (!history_replay)
+        return 0;
+    auto it = history.find(vsync);
+    bool has = it != history.end() && it->second.has_stick[which];
+    v[0] = has ? it->second.stick[which][0] : 0, v[1] = has ? it->second.stick[which][1] : 0;
+    if (valid)
+        *valid = has ? it->second.valid[which] : 0;
     return 1;
 }

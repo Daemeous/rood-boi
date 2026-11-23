@@ -25,6 +25,8 @@ extern int pc_photo_full_room;
 int pc_editor_photo_camera(void);
 /* 1 while a plugin's free camera flies with photo_full_room on. */
 int pc_room_photo_whole(void);
+/* The photo mode hides save points (rood.ui.hide{savepoints}): 1 when this group of the room block is the save point's. */
+int pc_room_savepoint_hidden(const void* data, unsigned index);
 
 /* render.c: the cutaway for the frames drawn from now on (the free camera's
  * focus in world space; on 0 while the game camera is in use; amount 0..1

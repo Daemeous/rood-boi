@@ -72,6 +72,6 @@ pub fn vs_battle_playChainAbilityAnimation(arg0: c_int, arg1: ?*v.SVECTOR, arg2:
     }
 
     actor.unk0.facingDelta = psx.conv(i16, turn);
-    actor.unk0.unk18 = 0xA;
+    actor.unk0.turnFrames = 0xA;
     _ = c.vs_actors_playActorAnimation(arg0, anim, 0, 8);
 }

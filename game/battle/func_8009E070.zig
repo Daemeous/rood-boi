@@ -32,9 +32,9 @@ pub fn func_8009E070(slot: c_int, position: ?*v.SVECTOR, kind: c_int) callconv(.
     const result = c.vs_actors_actorFacingDeltaToPoint(@ptrCast(temp), @ptrCast(position));
     const t = temp.?;
     t.unk0.facingDelta = psx.conv(i16, result);
-    t.unk0.unk18 = 0xA;
+    t.unk0.turnFrames = 0xA;
     t.unk1846 = 0;
     psx.setBits(t, "unk5AC_20", 1);
     _ = c.vs_actors_playActorAnimation(slot, var_s1, 0, 6);
-    t.unk6E0 = 0;
+    t.queuedAnimation = 0;
 }

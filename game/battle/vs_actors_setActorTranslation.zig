@@ -14,7 +14,7 @@ pub fn vs_actors_setActorTranslation(slot: c_int, step: ?*v.SVECTOR, mode: c_int
     actor.unk0.unk34.vz = s.vz;
 
     if (mode == 0) {
-        actor.unk0.unk1A = 0;
+        actor.unk0.translationFrames = 0;
         applyMove(actor, s);
         return;
     }
@@ -35,17 +35,17 @@ pub fn vs_actors_setActorTranslation(slot: c_int, step: ?*v.SVECTOR, mode: c_int
         if (temp < 0) temp = -%temp;
 
         dist = psx.conv(c_int, c.vs_gte_rsqrt(dist +% temp)) *% @as(c_int, actor.unk5C2);
-        actor.unk0.unk1A = psx.conv(u16, @divTrunc(dist, 128));
+        actor.unk0.translationFrames = psx.conv(u16, @divTrunc(dist, 128));
         if ((dist & 0x7F) != 0) {
-            actor.unk0.unk1A = psx.conv(u16, @divTrunc(dist, 128) +% 1);
+            actor.unk0.translationFrames = psx.conv(u16, @divTrunc(dist, 128) +% 1);
         }
-        if (actor.unk0.unk1A == 0) {
+        if (actor.unk0.translationFrames == 0) {
             applyMove(actor, s);
         }
         return;
     }
 
-    actor.unk0.unk1A = psx.conv(u16, mode);
+    actor.unk0.translationFrames = psx.conv(u16, mode);
 }
 
 /// The move tail of vs_actors_setActorTranslation (its `move:` label): adds the step to the position and updates the tile.

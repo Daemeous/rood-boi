@@ -93,7 +93,6 @@ struct Published {
     uint32_t map_generation = 1;
     int scope_zone = -1, scope_room = -1;
 };
-static std::atomic<uint32_t> pub_light_dirty; /* VRAM tiles changed since the game side last looked (the lights' caches) */
 /* One use as the game side reads it (use_list, palette_list, key_texel, the editors); the catalog entry is its index. */
 struct UseLite {
     std::string key, mat_id;
@@ -905,7 +904,6 @@ struct Use {
     int state = 0; /* 0 to compute, 1 computed */
     std::string key; /* "" when no catalog size matches (not hashed) */
     int entry = -1, item = -1;
-    uint32_t tiles = 0; /* VRAM tiles under its texels */
     /* The page and palette (with their versions) its key and CLUT key were taken from: an unmatched use is hashed again only
      * when one of them changed (same resources, same keys, same result). */
     pc_tex_sampling seen = {};
@@ -930,7 +928,7 @@ std::unordered_map<uint64_t, Use> uses;
 std::unordered_map<uint64_t, std::vector<uint64_t>> instance_uses; /* instance key -> uses */
 std::unordered_map<uint32_t, std::vector<uint64_t>> mesh_instances; /* mesh -> instance keys */
 std::unordered_set<int> sizes; /* (w - 1) << 8 | (h - 1) of every match */
-uint32_t applied_generation, dirty_tiles;
+uint32_t applied_generation;
 float applied_strength = -1;
 bool marks_changed = true, params_changed = true, any_marks, marks_on;
 std::vector<uint8_t> the_map(PC_EMISSIVE_MAP_W * PC_EMISSIVE_MAP_H);
@@ -977,7 +975,7 @@ std::unordered_set<uint32_t> scope_pending; /* meshes noted since the bits were 
 uint16_t slot_scope_bit[MAX_SLOTS]; /* per slot: its scope bit + 1 (0: everywhere it is marked) */
 int scope_zone = -1, scope_room = -1; /* the room the marks were written for */
 int scope_overflow; /* scoped entries left unmarked (more than 16 at once) */
-uint32_t light_dirty_tiles; /* VRAM tiles changed since the lights' emission was last integrated */
+uint32_t lights_checked_epoch; /* the view's version epoch the lights' caches were last checked at */
 uint32_t applied_materials; /* materials::generation() the marks were written with */
 std::vector<MapProblem> problems;
 uint32_t light_pages, marked_pages; /* bit per texture page (tpage & 31): a light entry's / any marked use */
@@ -1047,16 +1045,6 @@ uint64_t use_key(unsigned page, unsigned clut, const uint8_t box[4])
 {
     return (uint64_t)page << 48 | (uint64_t)clut << 32 | (uint64_t)box[0] << 24 | (uint64_t)box[1] << 16
         | (uint64_t)box[2] << 8 | box[3];
-}
-uint32_t tiles_of(unsigned page, const uint8_t box[4])
-{
-    int tx = (int)(page & 15) * 64, ty = (int)((page >> 4) & 1) * 256, depth = (int)((page >> 7) & 3);
-    int shift = depth == 0 ? 2 : depth == 1 ? 1 : 0;
-    int x0 = tx + (box[0] >> shift), x1 = tx + (box[2] >> shift);
-    uint32_t mask = 0;
-    for (int x = x0 & ~63; x <= x1; x += 64)
-        mask |= 1u << (((ty >> 8) & 1) * 16 + ((x & 1023) >> 6));
-    return mask;
 }
 } // namespace
 
@@ -1558,7 +1546,7 @@ static void match_use(Use& u)
         if (!u.key.empty())
             note_material(u);
         u.key.clear();
-        u.has_seen = false;
+        remember_vram(u); /* (an unmatched use is tried again when the texels under it change) */
         return;
     }
     std::string was = u.key;
@@ -2344,7 +2332,6 @@ extern "C" void pc_emissive_note_instance(uint32_t mesh, const void* polygons, i
             Use u;
             u.page = (uint16_t)page, u.clut = (uint16_t)pc;
             memcpy(u.box, box, 4);
-            u.tiles = tiles_of(page, box);
             it = uses.emplace(k, u).first;
         }
         it->second.refs++;
@@ -2375,7 +2362,6 @@ extern "C" void pc_emissive_mesh_gone(uint32_t mesh)
     }
     mesh_instances.erase(mi);
 }
-extern "C" void pc_emissive_vram_dirty(uint32_t tiles) { dirty_tiles |= tiles, light_dirty_tiles |= tiles; }
 extern "C" void pc_emissive_room_mesh(uint32_t mesh, unsigned offset, unsigned tris, unsigned quads)
 {
     if (!mesh)
@@ -2725,8 +2711,6 @@ static void publish(int r0, int r1)
     pub.palettes.clear();
     for (const auto& kv : palette_keys)
         pub.palettes[kv.first] = { kv.second.key, palette_identity_of(kv.second), kv.second.variants };
-    pub_light_dirty |= light_dirty_tiles;
-    light_dirty_tiles = 0;
     if (pub.planes.size() != material_planes.size()) {
         pub.planes = material_planes;
         pub_row0 = 512, pub_row1 = 0;
@@ -2798,9 +2782,8 @@ static int emissive_sync_body(int* row0, int* row1)
      * drawn elsewhere, or nothing at all, cost a comparison). */
     for (auto& kv : uses)
         if (kv.second.entry < 0 && kv.second.state == 1
-            && (!kv.second.key.empty() ? !vram_unchanged(kv.second) : (kv.second.tiles & dirty_tiles) != 0))
+            && (!kv.second.key.empty() ? !vram_unchanged(kv.second) : !texels_unchanged(kv.second)))
             kv.second.state = 0;
-    dirty_tiles = 0;
     sync_keys.clear();
     long budget = 1 << 21; /* texels hashed per frame */
     for (auto& kv : uses) {
@@ -2971,8 +2954,8 @@ template <typename F> void for_texels(const float uv[6], F&& visit)
         visit((int)(w0 * u0 + w1 * u1 + w2 * u2) & 255, (int)(w0 * v0 + w1 * v1 + w2 * v2) & 255);
     }
 }
-/* VRAM tiles a triangle's texels and CLUT lie in (pc_emissive_vram_dirty's). */
-uint32_t triangle_tiles(const float uv[6], unsigned tpage, unsigned clut)
+/* The page, palette and box (with their versions) a triangle's texels lie in: a cached emission is current while they are. */
+pc_tex_sampling sampling_for_triangle(const float uv[6], unsigned tpage, unsigned clut)
 {
     int box_i[4] = { 255, 255, 0, 0 };
     for (int k = 0; k < 3; k++) {
@@ -2980,12 +2963,14 @@ uint32_t triangle_tiles(const float uv[6], unsigned tpage, unsigned clut)
         box_i[0] = std::min(box_i[0], u), box_i[1] = std::min(box_i[1], v);
         box_i[2] = std::max(box_i[2], std::min(255, u + 1)), box_i[3] = std::max(box_i[3], std::min(255, v + 1));
     }
-    uint8_t box[4] = { (uint8_t)box_i[0], (uint8_t)box_i[1], (uint8_t)box_i[2], (uint8_t)box_i[3] };
-    uint32_t tiles = tiles_of(tpage & 0x19f, box);
-    int cx = (int)(clut & 63) * 16, cy = (int)((clut >> 6) & 511), width = ((tpage >> 7) & 3) == 1 ? 256 : 16;
-    for (int x = cx & ~63; x < cx + width && x < 1024; x += 64)
-        tiles |= 1u << (((cy >> 8) & 1) * 16 + (x >> 6));
-    return tiles;
+    return sampling_of(emissive_view(), tpage & 0x19f, clut, box_i);
+}
+/* Whether what a sampling was taken from has changed (a view without versions: always). */
+bool sampling_stale(const pc_tex_sampling& seen)
+{
+    pc_tex_view view = emissive_view();
+    return !view.versions || !pc_tex_box_current(view.versions, &seen)
+        || (seen.palette.id != 0 && !pc_tex_current(view.versions, seen.palette));
 }
 } // namespace
 
@@ -3109,7 +3094,7 @@ struct ObjectKeyHash {
     size_t operator()(const ObjectKey& k) const { return (size_t)(k.a * 0x9e3779b97f4a7c15ull ^ k.b); }
 };
 struct ObjectLight {
-    uint32_t tiles;
+    pc_tex_sampling seen; /* what its emission was integrated from (versions) */
     float rgb[3];
     bool lit;
     float reach, lift; /* its entries' light_reach, light_lift */
@@ -3121,7 +3106,7 @@ int object_cache_zone = -1, object_cache_room = -1;
 /* ---- room triangles (the captured scene) */
 struct RoomLight {
     int index; /* scene triangle */
-    uint32_t tiles;
+    pc_tex_sampling seen; /* what its emission was integrated from (versions) */
     bool fresh; /* rgb is current */
     float rgb[3];
     int texels; /* its texels, and the glowing share's amount */
@@ -3147,17 +3132,17 @@ void refresh_lights()
     int scene = pc_scene_serial(), uvs = pc_scene_uv_serial();
     uint32_t map = use_pub() ? pub.map_generation : map_generation;
     /* Emission again where the texels changed: VRAM under them (palette
-     * and VRAM animations) or their UVs (room texture effects). The renderer's dirty tiles reach this side through the
-     * published block (taken here, once). */
-    uint32_t dirty = use_pub() ? pub_light_dirty.exchange(0) : light_dirty_tiles;
-    if (!use_pub())
-        light_dirty_tiles = 0;
-    if (dirty) {
-        for (RoomLight& l : room_lights)
-            if (l.tiles & dirty)
-                l.fresh = false;
-        for (auto it = object_cache.begin(); it != object_cache.end();)
-            it = it->second.tiles & dirty ? object_cache.erase(it) : std::next(it);
+     * and VRAM animations: their versions) or their UVs (room texture effects). */
+    {
+        pc_tex_view view = emissive_view();
+        if (!view.versions || view.versions->epoch != lights_checked_epoch) {
+            lights_checked_epoch = view.versions ? view.versions->epoch : 0;
+            for (RoomLight& l : room_lights)
+                if (sampling_stale(l.seen))
+                    l.fresh = false;
+            for (auto it = object_cache.begin(); it != object_cache.end();)
+                it = sampling_stale(it->second.seen) ? object_cache.erase(it) : std::next(it);
+        }
     }
     if (uvs != lights_uv) {
         lights_uv = uvs;
@@ -3182,7 +3167,7 @@ void refresh_lights()
         if (!tl.candidate)
             continue;
         light_at[(size_t)i] = (int)found.size();
-        found.push_back({ i, triangle_tiles(uv, t->tpage, t->clut), false, { 0, 0, 0 }, 0, 0, tl.reach, tl.lift });
+        found.push_back({ i, sampling_for_triangle(uv, t->tpage, t->clut), false, { 0, 0, 0 }, 0, 0, tl.reach, tl.lift });
     }
     /* Another set of light triangles, or another lift (glows.c puts its
      * groups' centres in front of them): the groups again. */
@@ -3344,7 +3329,7 @@ void object_sink(void* context, const float w[9], const uint8_t* /*rgb*/, const 
             return scope_allows(e, scope_zone, scope_room, kind, polygon, model);
         });
         ObjectLight l;
-        l.tiles = triangle_tiles(fuv, tpage, clut);
+        l.seen = sampling_for_triangle(fuv, tpage, clut);
         l.lit = tl.amount > 0;
         l.reach = tl.reach, l.lift = tl.lift;
         light_rgb(tl, l.rgb);

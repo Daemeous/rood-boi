@@ -189,8 +189,9 @@ static long entry_count, entry_texels;
 typedef struct {
     uint64_t key; /* page, CLUT, rectangle (0: empty slot) */
     uint64_t hash;   /* its last content */
-    uint32_t stamp;  /* tile generation it was read at */
-    uint32_t tiles;  /* tiles it reads (texels and CLUT) */
+    pc_tex_sampling seen; /* the page, palette and box (with their versions) it was read at */
+    int has_seen;
+    unsigned epoch;       /* the check-everything epoch it was read in (the prompts changed) */
     int changes, last_change, bypass_until, last_used;
     int16_t x, y; /* its offset: entry's atlas origin - the decoded rectangle's origin (in texels) */
 } location;
@@ -198,7 +199,7 @@ typedef struct {
 static location locations[LOCATION_SLOTS];
 static long location_count;
 
-static uint32_t tile_generation[32], generation = 1;
+static unsigned epoch = 1; /* bumped when every region's content must be checked again (what the prompts show changed) */
 static int frame;
 static int debug = -1; /* ROOD_UI_DEBUG: 1 events, 2 every new region and decision */
 static int areas[8][5]; /* drawing areas: x, y, w, h, last frame used */
@@ -236,25 +237,6 @@ static double now_ms(void)
     struct timespec t;
     clock_gettime(CLOCK_MONOTONIC, &t);
     return t.tv_sec * 1e3 + t.tv_nsec / 1e6;
-}
-static uint32_t tiles_for(int x0, int y0, int x1, int y1)
-{
-    uint32_t mask = 0;
-    if (x1 - x0 >= 1023)
-        x0 = 0, x1 = 1023;
-    for (int y = y0 & ~255; y <= y1; y += 256)
-        for (int x = x0 & ~63; x <= x1; x += 64)
-            mask |= 1u << (((y & 511) >> 8) * 16 + ((x & 1023) >> 6));
-    return mask;
-}
-void pc_ui_upscale_tiles_changed(uint32_t tiles)
-{
-    if (!tiles)
-        return;
-    ++generation;
-    for (int t = 0; t < 32; t++)
-        if (tiles & (1u << t))
-            tile_generation[t] = generation;
 }
 void pc_ui_upscale_draw_area(const int* clip)
 {
@@ -534,11 +516,20 @@ static int overlaps_drawing(int x0, int y0, int x1, int y1)
     }
     return 0;
 }
+/* Whether the texels a region of a page covers lie in a drawing area (the page's rows: render-to-texture is not UI art). */
+static int overlaps_texels(unsigned tpage, unsigned clut, int u0, int v0, int u1, int v1)
+{
+    int box[4] = { u0, v0, u1, v1 }, reach[2][4];
+    pc_tex_sampling sampling = pc_tex_describe(NULL, tpage, clut, 0, box);
+    pc_tex_reach(&sampling, reach);
+    return overlaps_drawing(reach[0][0], reach[0][1], reach[0][2], reach[0][3]);
+}
 #define CONTEXT 3 /* texels of page context around strips (MMPX reads 3 away) */
 static uint16_t decode_buffer[256 * 256];
-int pc_ui_upscale_lookup(const uint16_t* vram, unsigned tpage, unsigned clut, unsigned window, int u0, int v0,
+int pc_ui_upscale_lookup(pc_tex_view view, unsigned tpage, unsigned clut, unsigned window, int u0, int v0,
     int u1, int v1, int scale, int16_t offset[2])
 {
+    const uint16_t* vram = view.image;
     if (!vram || (window & 0x3ff) || u0 < 0 || v0 < 0 || u1 > 255 || v1 > 255 || u1 < u0 || v1 < v0)
         return 0;
     /* ui_text: a glyph the font draws (whatever ui_upscale is). */
@@ -575,7 +566,7 @@ int pc_ui_upscale_lookup(const uint16_t* vram, unsigned tpage, unsigned clut, un
         static unsigned prompt_generation;
         if (prompt_generation != pc_button_prompts_generation()) {
             prompt_generation = pc_button_prompts_generation();
-            pc_ui_upscale_tiles_changed(0xffffffffu);
+            ++epoch;
         }
         key |= 1ull << 62 | 1ull << 61; /* page bits stop at 55; ui_text's generation below 61 */
     } else if (text) {
@@ -598,9 +589,7 @@ int pc_ui_upscale_lookup(const uint16_t* vram, unsigned tpage, unsigned clut, un
     }
     if (u0 != region[0] || v0 != region[1] || u1 != region[2] || v1 != region[3]) {
         /* No context from a framebuffer next to the page. */
-        int tx = (int)(tpage & 15) * 64, ty = (int)((tpage >> 4) & 1) * 256;
-        int shift = depth == 0 ? 2 : depth == 1 ? 1 : 0;
-        if (overlaps_drawing(tx + (u0 >> shift), ty + v0, tx + (u1 >> shift), ty + v1))
+        if (overlaps_texels(tpage, clut, u0, v0, u1, v1))
             u0 = region[0], v0 = region[1], u1 = region[2], v1 = region[3];
     }
     int w = u1 - u0 + 1, h = v1 - v0 + 1;
@@ -617,22 +606,16 @@ int pc_ui_upscale_lookup(const uint16_t* vram, unsigned tpage, unsigned clut, un
         ++location_count;
         int tx = (int)(tpage & 15) * 64, ty = (int)((tpage >> 4) & 1) * 256;
         int shift = depth == 0 ? 2 : depth == 1 ? 1 : 0;
-        loc->tiles = tiles_for(tx + (u0 >> shift), ty + v0, tx + (u1 >> shift), ty + v1);
-        if (depth < 2) {
-            int cx = (int)(clut & 63) * 16, cy = (int)((clut >> 6) & 511);
-            loc->tiles |= tiles_for(cx, cy, cx + (depth ? 255 : 15), cy);
-        }
     }
     if (loc->bypass_until > frame) {
         ++stats.bypassed;
         frame_ms_acc += now_ms() - start;
         return 0;
     }
-    /* Unchanged tiles since it was read: the same content. */
-    int current = !fresh && loc->hash;
-    for (int t = 0; t < 32 && current; t++)
-        if ((loc->tiles & (1u << t)) && tile_generation[t] > loc->stamp)
-            current = 0;
+    /* Unchanged texels and palette since it was read (their versions): the same content. A view without versions keeps nothing. */
+    int current = !fresh && loc->hash && loc->has_seen && loc->epoch == epoch && view.versions
+        && pc_tex_box_current(view.versions, &loc->seen)
+        && (loc->seen.palette.id == 0 || pc_tex_current(view.versions, loc->seen.palette));
     loc->last_used = frame;
     if (current) {
         ++stats.hits;
@@ -642,9 +625,7 @@ int pc_ui_upscale_lookup(const uint16_t* vram, unsigned tpage, unsigned clut, un
     }
     /* Render-to-texture (the framebuffer as a texture) is not UI art. */
     {
-        int tx = (int)(tpage & 15) * 64, ty = (int)((tpage >> 4) & 1) * 256;
-        int shift = depth == 0 ? 2 : depth == 1 ? 1 : 0;
-        if (overlaps_drawing(tx + (u0 >> shift), ty + v0, tx + (u1 >> shift), ty + v1)) {
+        if (overlaps_texels(tpage, clut, u0, v0, u1, v1)) {
             if (debug > 1)
                 fprintf(stderr, "[ui] page %x clut %x uv %d,%d..%d,%d is in a drawing area: nearest\n", tpage, clut, u0,
                     v0, u1, v1);
@@ -657,7 +638,13 @@ int pc_ui_upscale_lookup(const uint16_t* vram, unsigned tpage, unsigned clut, un
     if (text) /* the glyph, where it sits in the page (strips of different glyphs can match) and the fonts */
         hash = mix64(hash ^ glyph_key ^ ((uint64_t)u0 | (uint64_t)v0 << 8 | (uint64_t)u1 << 16 | (uint64_t)v1 << 24
                                             | (uint64_t)(clut & 0xffff) << 32)) | 1;
-    loc->stamp = generation;
+    {
+        static const pc_tex_versions none;
+        int box[4] = { u0, v0, u1, v1 };
+        loc->seen = pc_tex_describe(view.versions ? view.versions : &none, tpage, clut, 0, box);
+        loc->has_seen = view.versions != NULL;
+        loc->epoch = epoch;
+    }
     if (loc->hash && loc->hash != hash) {
         /* Content that changes on most frames (animations drawn into VRAM,
          * streamed images) is not cached: nearest for a while. */

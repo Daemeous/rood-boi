@@ -13,7 +13,7 @@ pub fn vs_actors_updateActorSteering(arg0: ?*v.D_800F4538_t, arg1: c_int, arg2: 
     if (arg1 == facing) {
         return;
     }
-    if (u.unk18 != 0) {
+    if (u.turnFrames != 0) {
         if (arg2.?.unk6 == 0) {
             var delta: c_int = arg1 -% ((facing +% @as(c_int, u.facingDelta)) & 0xFFF);
             if (delta >= 4096 / 2) {
@@ -30,7 +30,7 @@ pub fn vs_actors_updateActorSteering(arg0: ?*v.D_800F4538_t, arg1: c_int, arg2: 
                 delta +%= 4096;
             }
             u.facingDelta = psx.conv(i16, delta);
-            u.unk18 = 12;
+            u.turnFrames = 12;
         }
     } else {
         c.vs_actors_turnActorToOverTime(@as(c_int, u.slot), psx.conv(c_short, arg1), 12);
@@ -40,8 +40,8 @@ pub fn vs_actors_updateActorSteering(arg0: ?*v.D_800F4538_t, arg1: c_int, arg2: 
         if (delta < 0) {
             delta = 0 -% delta;
         }
-        if (@as(c_int, u.unk18) < delta) {
-            u.unk18 = psx.conv(u16, delta);
+        if (@as(c_int, u.turnFrames) < delta) {
+            u.turnFrames = psx.conv(u16, delta);
         }
     }
 }

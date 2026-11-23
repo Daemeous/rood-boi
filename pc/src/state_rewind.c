@@ -3,7 +3,8 @@
  * because the game stack itself is restored. Slots: 0 the RPC's (snapshot
  * mark / rewind: the RPC pauses at the rewound vsync and the hardware target
  * is rebuilt from native VRAM), 1 the photo mode's (photo.cpp: the frozen
- * moment a render returns to, the picture kept, the RPC left as it is), and
+ * moment a render returns to, the picture kept, the RPC left as it is), 2 the photo mode's
+ * lead (the moment its hold was asked at: a render replays the recorded frames from it), and
  * PC_REWIND_TAKE_FIRST.. the cutscene player's ring (cutscene.cpp; restored
  * like the RPC's). A slot's bookkeeping is allocated on first use. */
 #include "snapshot_context.h"
@@ -51,10 +52,11 @@ extern void pc_hw_forget_timeline(void) __attribute__((weak)); /* gpu_hw.c: the 
 extern void pc_photo_state_replaced(void) __attribute__((weak));
 extern void pc_input_rewound(void) __attribute__((weak));
 #define MAX_RANGES 170
-#define PC_REWIND_TAKE_FIRST 2   /* cutscene.cpp's slots: PC_REWIND_TAKE_FIRST .. + PC_REWIND_TAKE_SLOTS - 1 */
+#define PC_REWIND_TAKE_FIRST 3   /* cutscene.cpp's slots: PC_REWIND_TAKE_FIRST .. + PC_REWIND_TAKE_SLOTS - 1 */
 #define PC_REWIND_TAKE_SLOTS 512
 #define SLOTS (PC_REWIND_TAKE_FIRST + PC_REWIND_TAKE_SLOTS) /* 0: the RPC's, 1: the photo mode's */
 #define PHOTO_SLOT 1
+#define PHOTO_LEAD_SLOT 2 /* the photo mode's lead: the moment a hold was asked at (photo.cpp: renders replay from it) */
 static struct rewind_mark {
     int valid, count, spu_size, fog_size;
     char camera[256];
@@ -150,7 +152,7 @@ __attribute__((noinline)) int pc_snapshot_mark_slot(int slot, char* error, int s
     /* The renderer draws every pixel of the frame (T5-6): what a primitive drew lives in the target and the game's array lacks it, so the
      * mark keeps the target's own pixels too and the rewind puts them back (the opening's card stays where a rewind to a mark after it lands). */
     mark.has_picture = 0;
-    if (slot != PHOTO_SLOT && pc_hwc_capture_picture && !(!mark.picture && !(mark.picture = malloc((size_t)1024 * 512 * 4))))
+    if (slot != PHOTO_SLOT && slot != PHOTO_LEAD_SLOT && pc_hwc_capture_picture && !(!mark.picture && !(mark.picture = malloc((size_t)1024 * 512 * 4))))
         mark.has_picture = pc_hwc_capture_picture(mark.picture), mark.bytes += mark.has_picture ? (size_t)1024 * 512 * 4 : 0;
     mark.valid = 1;
     return 0;
@@ -213,7 +215,7 @@ static __attribute__((noreturn)) void restore(void)
     if (pc_input_rewound) pc_input_rewound();
     /* The photo mode's slot keeps the hardware target (the render's picture: photo.cpp resyncs before
      * the next one and at resume) and the RPC as it is (photo.cpp knows it landed). */
-    if (restoring != PHOTO_SLOT) {
+    if (restoring != PHOTO_SLOT && restoring != PHOTO_LEAD_SLOT) {
         if (pc_photo_state_replaced) pc_photo_state_replaced();
         if (pc_hw_forget_timeline) pc_hw_forget_timeline();
         if (mark.has_picture && pc_hwc_resync_picture) pc_hwc_resync_picture(mark.picture);

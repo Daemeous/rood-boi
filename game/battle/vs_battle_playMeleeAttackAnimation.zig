@@ -10,9 +10,9 @@ pub fn vs_battle_playMeleeAttackAnimation(arg0: c_int, arg1: ?*v.SVECTOR, arg2: 
     const temp_s0: ?*v.D_800F4538_t = psx.at(v.g.vs_actors_actorRecords(), arg0).*;
     if (temp_s0) |s0| {
         s0.unk0.facingDelta = psx.conv(i16, c.vs_actors_actorFacingDeltaToPoint(@ptrCast(s0), @ptrCast(arg1)));
-        s0.unk0.unk18 = 0xA;
+        s0.unk0.turnFrames = 0xA;
         if (s0.unk63C >= 0x81) {
-            s0.unk0.unk18 = 0x14;
+            s0.unk0.turnFrames = 0x14;
         }
 
         const temp_v0: c_int = c.vs_actors_pitchToPoint(@ptrCast(s0), @ptrCast(arg1));

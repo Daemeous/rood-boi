@@ -253,6 +253,12 @@ extern int pc_photo_input_event(const void* event) __attribute__((weak));
 extern int pc_photo_input_escape(const void* event) __attribute__((weak));
 extern unsigned pc_photo_input_swallowed __attribute__((weak));
 extern void pc_photo_input_tick(void) __attribute__((weak));
+/* photo.cpp: the pad and the camera stick the game read while the hold's lead ran, logged and given back to a render. */
+extern unsigned pc_vsync_count(void);
+extern void pc_photo_history_note_buttons(unsigned vsync, unsigned pad) __attribute__((weak));
+extern int pc_photo_history_take_buttons(unsigned vsync, unsigned* pad) __attribute__((weak));
+extern void pc_photo_history_note_stick(int which, unsigned vsync, const float v[2], int valid) __attribute__((weak));
+extern int pc_photo_history_take_stick(int which, unsigned vsync, float v[2], int* valid) __attribute__((weak));
 extern void pc_photo_action(const char* name, const char* device) __attribute__((weak));
 static int photo_blind(void)
 {
@@ -261,10 +267,19 @@ static int photo_blind(void)
 /* Raw host camera controls must respect binding capture, including the element held
  * after capture completed (not merely whether the settings prompt is visible). */
 int pc_window_pad_captured(void) { return capture_filter(NULL); }
+static unsigned window_buttons(void);
 unsigned pc_window_buttons(void)
 {
-    if (&pc_photo_rendering && pc_photo_rendering)
-        return 0;
+    unsigned pad = 0;
+    if (&pc_photo_rendering && pc_photo_rendering) /* a render: what the game read at this vsync live, or nothing */
+        return pc_photo_history_take_buttons && pc_photo_history_take_buttons(pc_vsync_count(), &pad) ? pad : 0;
+    pad = window_buttons();
+    if (pc_photo_history_note_buttons)
+        pc_photo_history_note_buttons(pc_vsync_count(), pad);
+    return pad;
+}
+static unsigned window_buttons(void)
+{
     if (photo_blind()) {
         pc_input_buttons(0, 0); /* (a recording's vsync still counted) */
         return 0;
@@ -281,7 +296,19 @@ unsigned pc_window_buttons(void)
     return pc_camera_stick_buttons(result);
 }
 /* The camera's stick: the gamepad's right stick and the keys (focused). */
+static int window_stick(float out[2]);
 int pc_window_stick(float out[2])
+{
+    int valid = 0;
+    if (&pc_photo_rendering && pc_photo_rendering && pc_photo_history_take_stick
+        && pc_photo_history_take_stick(0, pc_vsync_count(), out, &valid))
+        return valid;
+    valid = window_stick(out);
+    if (pc_photo_history_note_stick)
+        pc_photo_history_note_stick(0, pc_vsync_count(), out, valid);
+    return valid;
+}
+static int window_stick(float out[2])
 {
     int valid = focused && !photo_blind();
     out[0] = out[1] = 0;

@@ -18,9 +18,9 @@ pub fn boneViewMatrix(actorId: c_int, bone: c_int, _: ?*v.MATRIX) callconv(.c) ?
             scratch.matrix = psx.at(psx.byteAt(v.MATRIX, weapon, 32), bone -% 63).*;
         } else if (bone == 255) {
             // Root offset: three u16 fields at +0x84C.. halved, scaled by unk183C / 4096.
-            scratch.offset.vx = psx.conv(i16, @as(c_int, @as(i16, @bitCast(a.unk704.unk0[41].vx))) >> 1);
-            scratch.offset.vy = psx.conv(i16, @as(c_int, @as(i16, @bitCast(a.unk704.unk0[41].vy))) >> 1);
-            scratch.offset.vz = psx.conv(i16, @as(c_int, @as(i16, @bitCast(a.unk704.unk0[41].vz))) >> 1);
+            scratch.offset.vx = psx.conv(i16, @as(c_int, @as(i16, @bitCast(a.blendPose.unk0[41].vx))) >> 1);
+            scratch.offset.vy = psx.conv(i16, @as(c_int, @as(i16, @bitCast(a.blendPose.unk0[41].vy))) >> 1);
+            scratch.offset.vz = psx.conv(i16, @as(c_int, @as(i16, @bitCast(a.blendPose.unk0[41].vz))) >> 1);
             const scale: c_int = a.unk183C;
             scratch.offset.vx = psx.conv(i16, @divTrunc(@as(c_int, scratch.offset.vx) *% scale, 4096));
             scratch.offset.vy = psx.conv(i16, @divTrunc(@as(c_int, scratch.offset.vy) *% scale, 4096));

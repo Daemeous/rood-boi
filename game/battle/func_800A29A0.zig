@@ -23,7 +23,7 @@ pub fn func_800A29A0(arg0: ?*v.D_800F4538_t) callconv(.c) void {
                 if (a.unk0.unk13 == 0xFC) {
                     const d = psx.at(v.g.vs_actors_actorRecords(), a.unk0.attachParent).*.?;
                     v2 = @intFromBool((((psx.bitsAt(c_uint, &d.unk0._bits_skip, 0).* >> 8) & 0xF)) < 9);
-                } else if ((psx.bitsAt(c_uint, &a.unkC54._bits_unk548_0, 0).* & 0x20000) != 0) {
+                } else if ((psx.bitsAt(c_uint, &a.pose._bits_unk548_0, 0).* & 0x20000) != 0) {
                     v2 = a.unk5CC;
                 } else {
                     take = false;
@@ -66,8 +66,8 @@ fn case4(a: *v.D_800F4538_t) void {
 
 /// Case 5 of the original switch: clears the status's state nibble, or sets it to 5 when the target is busy.
 fn case5(a: *v.D_800F4538_t, word: *align(1) c_uint) void {
-    if (a.unk17FD >= 2) {
-        const d = psx.at(v.g.vs_actors_actorRecords(), a.unk17FD).*.?;
+    if (a.companionSlot >= 2) {
+        const d = psx.at(v.g.vs_actors_actorRecords(), a.companionSlot).*.?;
         if ((psx.bitsAt(c_uint, &d.unk0._bits_skip, 0).* & 0x0F00_0000) != 0) {
             word.* = (word.* & 0xF0FF_FFFF) | 0x0500_0000;
             return;

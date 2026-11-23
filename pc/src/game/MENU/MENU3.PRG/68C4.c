@@ -59,8 +59,8 @@ int _loadObjectData(int category, int wepId, int material)
         temp_s1->unk0.weaponDrawn = 0;
 
         vs_actors_playActorAnimation(1, 1, 0, 0);
-        func_800AFA28(temp_s1, &temp_s1->unkC54, 1);
-        vs_main_memcpy(&temp_s1->unk704, &temp_s1->unkC54, sizeof temp_s1->unk704);
+        func_800AFA28(temp_s1, &temp_s1->pose, 1);
+        vs_main_memcpy(&temp_s1->blendPose, &temp_s1->pose, sizeof temp_s1->blendPose);
 
         for (i = 0; i < 2; ++i) {
             if (vs_battle_unusedGlobal1[i] != NULL) {

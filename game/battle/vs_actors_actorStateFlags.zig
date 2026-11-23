@@ -19,13 +19,13 @@ pub fn vs_actors_actorStateFlags(actorId: c_int) callconv(.c) c_uint {
         if (psx.getBits(a, "unk5AC_0") != 0) {
             out.* |= 0x18;
         } else {
-            if (a.unk0.unk1A != 0) out.* |= 8;
-            if (a.unk0.unk18 != 0) out.* |= 0x10;
+            if (a.unk0.translationFrames != 0) out.* |= 8;
+            if (a.unk0.turnFrames != 0) out.* |= 0x10;
         }
-        if (a.unk5C8 != 0) out.* |= 0x20;
+        if (a.scaleFrames != 0) out.* |= 0x20;
         if (psx.getBits(&a.unk0, "unk9_7") != 0) out.* |= 0x40;
-        if (psx.getBits(&a.unkC54, "unk548_16") != 0) out.* |= 0x08000080;
-        if (psx.getBits(&a.unkC54, "unk548_17") != 0) out.* |= 0x100;
+        if (psx.getBits(&a.pose, "holdingLastFrame") != 0) out.* |= 0x08000080;
+        if (psx.getBits(&a.pose, "reachedEnd") != 0) out.* |= 0x100;
         if (psx.getBits(a, "unk5AC_4") != 0) out.* |= 0x200;
         if (a.unk0.attachParent != 0xFF) out.* |= 0x400;
 

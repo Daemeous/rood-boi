@@ -14,7 +14,7 @@ pub fn vs_actors_setActorRotation(slot: c_int, speed: ?*v.SVECTOR, timer: c_int)
     a.unk0.rotationStepZ = src.vz;
 
     if (timer != 0 and timer != -1) {
-        a.unk0.unk18 = psx.conv(u16, timer);
+        a.unk0.turnFrames = psx.conv(u16, timer);
         return;
     }
 
@@ -30,15 +30,15 @@ pub fn vs_actors_setActorRotation(slot: c_int, speed: ?*v.SVECTOR, timer: c_int)
         if (m < mz) m = mz;
 
         m *%= @as(c_int, a.unk5C0);
-        a.unk0.unk18 = psx.conv(u16, @divTrunc(m, 4096));
+        a.unk0.turnFrames = psx.conv(u16, @divTrunc(m, 4096));
         if ((m & 0xFFF) != 0) {
-            a.unk0.unk18 = psx.conv(u16, @divTrunc(m, 4096) +% 1);
+            a.unk0.turnFrames = psx.conv(u16, @divTrunc(m, 4096) +% 1);
         }
 
         // unk18 is read back after the u16 store, as the C reads it.
-        if (a.unk0.unk18 != 0) return;
+        if (a.unk0.turnFrames != 0) return;
     } else {
-        a.unk0.unk18 = 0;
+        a.unk0.turnFrames = 0;
     }
 
     // recenter:

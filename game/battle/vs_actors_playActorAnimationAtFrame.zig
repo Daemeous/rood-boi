@@ -20,11 +20,11 @@ pub fn vs_actors_playActorAnimationAtFrame(arg0: c_int, arg1: c_int, arg2: c_int
     const temp_s0: *v.D_800F4538_t = psx.at(v.g.vs_actors_actorRecords(), arg0).*.?;
 
     if (remaining > 0) {
-        temp_s0.unk5B2 = psx.conv(u8, remaining);
-        c.func_800AFA28(@ptrCast(temp_s0), @ptrCast(&temp_s0.unkC54), 1);
+        temp_s0.framesPerStep = psx.conv(u8, remaining);
+        c.func_800AFA28(@ptrCast(temp_s0), @ptrCast(&temp_s0.pose), 1);
     }
 
-    temp_s0.unk5B2 = 1;
+    temp_s0.framesPerStep = 1;
 
     return 0;
 }

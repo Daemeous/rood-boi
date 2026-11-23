@@ -727,6 +727,12 @@ static const uint16_t* native_vram;
 static uint16_t rvram[1024 * 512];
 static pc_tex_versions rvram_versions; /* what changed where, per 64 x 16 cell (tex_provider.h): the renderer's copy's handles' versions */
 static const uint16_t* renderer_vram;
+/* The renderer's VRAM with its versions (the native-VRAM comparison has none: nothing is cached on versions then). */
+static pc_tex_view renderer_view(void)
+{
+    pc_tex_view view = { renderer_vram, renderer_vram == rvram ? &rvram_versions : NULL };
+    return view;
+}
 /* The renderer's copy with its versions, for the provider's readers on the renderer's thread. */
 pc_tex_view pc_hw_tex_view_now(void) { pc_tex_view view = { renderer_vram, &rvram_versions }; return view; }
 const uint16_t* pc_hw_renderer_vram_now(void) { PC_HW_METER(renderer_vram); return renderer_vram; }
@@ -755,13 +761,6 @@ static void rvram_put(int x, int y, int w, int h, const uint16_t* pixels)
         return;
     if (!pixels && !native_vram)
         return;
-    {
-        /* The readers keyed on tiles (UI text and upscale caches, emissive) learn of it as the renderer's VRAM changes, not
-         * when the game notes it: they read the renderer's copy. */
-        uint32_t tiles = tiles_for(x < 0 ? 0 : x, y < 0 ? 0 : y, x + w > 1024 ? 1023 : x + w - 1, y + h > 512 ? 511 : y + h - 1);
-        pc_ui_upscale_tiles_changed(tiles);
-        pc_emissive_vram_dirty(tiles);
-    }
     if (x >= 0 && y >= 0 && x + w <= 1024 && y + h <= 512) {
         for (int row = 0; row < h; row++)
             memcpy(rvram + (size_t)(y + row) * 1024 + x, pixels ? pixels + (size_t)row * w : native_vram + (size_t)(y + row) * 1024 + x,
@@ -781,11 +780,6 @@ static void rvram_apply(int x, int y, int w, int h) { rvram_put(x, y, w, h, NULL
 static void rvram_copy(int sx, int sy, int dx, int dy, int w, int h, int mask_set, int mask_check)
 {
     pc_tex_written(&rvram_versions, dx, dy, w, h);
-    {
-        uint32_t tiles = tiles_for(dx < 0 ? 0 : dx, dy < 0 ? 0 : dy, dx + w > 1024 ? 1023 : dx + w - 1, dy + h > 512 ? 511 : dy + h - 1);
-        pc_ui_upscale_tiles_changed(tiles);
-        pc_emissive_vram_dirty(tiles);
-    }
     for (int y = 0; y < h; y++)
         for (int x = 0; x < w; x += 16) {
             uint16_t block[16];
@@ -1329,8 +1323,6 @@ void pc_hw_mark(int x0, int y0, int x1, int y1)
     if (pc_hw_active) {
         uint32_t tiles = tiles_for(x0, y0, x1, y1);
         mark_dirty(x0, y0, x1, y1);
-        pc_ui_upscale_tiles_changed(tiles);
-        pc_emissive_vram_dirty(tiles);
     }
 }
 /* Replay statistics (RPC vram_stream "renderer"): frames drawn as interpolated, batches redrawn with undone writes, batches
@@ -1984,8 +1976,6 @@ static void overlay_update(void)
  * texture window, or reaching a page edge (it may wrap), its whole page. */
 static void sampled_bands(unsigned tpage, unsigned clut, unsigned window, const int* uv, uint32_t bands[16])
 {
-    int tx = (tpage & 15) * 64, ty = ((tpage >> 4) & 1) * 256, depth = (tpage >> 7) & 3;
-    int shift = depth == 0 ? 2 : depth == 1 ? 1 : 0;
     int u0 = 0, v0 = 0, u1 = 255, v1 = 255;
     if (!(window & 0x3ff)) {
         u0 = v0 = 255, u1 = v1 = 0;
@@ -2003,11 +1993,10 @@ static void sampled_bands(unsigned tpage, unsigned clut, unsigned window, const 
             --v0, ++v1;
     }
     memset(bands, 0, 16 * sizeof *bands);
-    bands_for(tx + (u0 >> shift), ty + v0, tx + (u1 >> shift), ty + v1, bands);
-    if (depth < 2) {
-        int cx = (clut & 63) * 16, cy = (clut >> 6) & 511;
-        bands_for(cx, cy, cx + (depth ? 255 : 15), cy, bands);
-    }
+    int box[4] = { u0, v0, u1, v1 }, reach[2][4];
+    pc_tex_sampling sampling = pc_tex_describe(NULL, tpage, clut, window, box); /* (what the draw reaches: geometry, no versions) */
+    for (int k = 0, n = pc_tex_reach(&sampling, reach); k < n; k++)
+        bands_for(reach[k][0], reach[k][1], reach[k][2], reach[k][3], bands);
 }
 static int report_mask_check;
 /* Depth (GTE SZ) for the next pc_hw_triangle only; primitives without it are 2D. */
@@ -2267,7 +2256,7 @@ static void triangle_apply_body(const int* xy, const int* uv, const int* rgb, un
             distance = 1;
         } else if (ui && textured && !(depth[0] | depth[1] | depth[2])) {
             int u1 =bounds[2] > bounds[0] ? bounds[2] - 1 : bounds[0], v1 = bounds[3] > bounds[1] ? bounds[3] - 1 : bounds[1];
-            int found = pc_ui_upscale_lookup(renderer_vram, tpage, clut, window, bounds[0], bounds[1], u1, v1, pc_hw_scale,
+            int found = pc_ui_upscale_lookup(renderer_view(), tpage, clut, window, bounds[0], bounds[1], u1, v1, pc_hw_scale,
                 ui_offset);
             if (found < 0) {
                 /* The atlas is full: draw what uses it, then start it afresh
@@ -2275,7 +2264,7 @@ static void triangle_apply_body(const int* xy, const int* uv, const int* rgb, un
                 flush();
                 pc_ui_upscale_reset();
                 forget_recordings();
-                found = pc_ui_upscale_lookup(renderer_vram, tpage, clut, window, bounds[0], bounds[1], u1, v1, pc_hw_scale,
+                found = pc_ui_upscale_lookup(renderer_view(), tpage, clut, window, bounds[0], bounds[1], u1, v1, pc_hw_scale,
                     ui_offset);
             }
             if (found > 0)
@@ -3282,7 +3271,7 @@ static void screen_owner_primitive(int x0, int y0, int x1, int y1, unsigned code
         return; /* only opaque rectangles stand for a picture (a polygon's bounds are not its pixels) */
     if (bounds_has_uv) {
         /* every texel it samples is drawn (the renderer's VRAM: T5, follows it) */
-        pc_tex_view view = { renderer_vram, renderer_vram == rvram ? &rvram_versions : NULL }; /* (the native-VRAM comparison has no versions) */
+        pc_tex_view view = renderer_view();
         if (!renderer_vram || !pc_screen_owner_texels_opaque(view, bounds_tpage, bounds_clut, bounds_uv))
             return;
     }
@@ -4476,8 +4465,6 @@ static void sync_kinds(int x, int y, int w, int h, int kinds)
     }
     pc_vram_taint(x0, y0, x1, y1); /* ROOD_VRAM_STREAM_CHECK: not the stream's */
     mark_dirty(x0, y0, x1 - 1, y1 - 1); /* the sampled copy follows */
-    pc_ui_upscale_tiles_changed(tiles_for(x0, y0, x1 - 1, y1 - 1));
-    pc_emissive_vram_dirty(tiles_for(x0, y0, x1 - 1, y1 - 1));
     ++pc_hw_syncs;
     /* The game's VRAM is current there now. */
     for (int k = 0; k < cstale.ot_count;) {
@@ -4531,8 +4518,6 @@ void pc_hw_capture_read(int x, int y, int w, int h, int pure)
     rvram_put(x0, y0, w, h, packed);
     pc_vram_taint(x0, y0, x1, y1);
     mark_dirty(x0, y0, x1 - 1, y1 - 1);
-    pc_ui_upscale_tiles_changed(tiles_for(x0, y0, x1 - 1, y1 - 1));
-    pc_emissive_vram_dirty(tiles_for(x0, y0, x1 - 1, y1 - 1));
 }
 /* A VRAM copy (the hardware target copies too): a stale source makes the
  * destination stale (copied back when something reads it), rather than
@@ -4656,32 +4641,34 @@ void pc_hw_sync_texture(unsigned tpage, unsigned clut, unsigned window, int u0, 
     own_count = 0, own_want_valid = 0;
     if (!pc_stale_any(&cstale))
         return;
-    int tx = (tpage & 15) * 64, ty = ((tpage >> 4) & 1) * 256, depth = (tpage >> 7) & 3;
+    int depth = (tpage >> 7) & 3;
     if ((window & 0x3ff) || u0 < 0 || v0 < 0 || u1 > 255 || v1 > 255 || u1 < u0 || v1 < v0)
         u0 = v0 = 0, u1 = v1 = 255; /* windowed or wrapping: the whole page */
-    int shift = depth == 0 ? 2 : depth == 1 ? 1 : 0;
-    int x0 = tx + (u0 >> shift), x1 = tx + (u1 >> shift);
+    int box[4] = { u0, v0, u1, v1 }, reach[2][4];
+    pc_tex_sampling sampling = pc_tex_describe(NULL, tpage, clut, window, box);
+    pc_tex_reach(&sampling, reach);
+    int x0 = reach[0][0], x1 = reach[0][2], ty0 = reach[0][1];
     if (sync_debug < 0)
         sync_debug = getenv("ROOD_SYNC_DEBUG") != NULL;
     own_want_valid = 0;
     if (own_copies_enabled()) { /* (the sampled copy takes its texels on the GPU: the CPU rasterizer that read them back into the game's VRAM is gone, and a read-back per sampling draw stalls the renderer and bakes the held text; ROOD_GPU_VRAM_COPY=0 reads back) */
-        own_want[0] = x0, own_want[1] = ty + v0, own_want[2] = (x1 > 1023 ? 1023 : x1) + 1, own_want[3] = ty + v1 + 1;
+        own_want[0] = x0, own_want[1] = ty0, own_want[2] = (x1 > 1023 ? 1023 : x1) + 1, own_want[3] = reach[0][3] + 1;
         own_want_valid = depth == 2;
-        own_add(x0, ty + v0, (x1 > 1023 ? 1023 : x1) - x0 + 1, v1 - v0 + 1);
+        own_add(x0, ty0, (x1 > 1023 ? 1023 : x1) - x0 + 1, v1 - v0 + 1);
         if (depth < 2)
-            own_add((clut & 63) * 16, (clut >> 6) & 511, depth ? 256 : 16, 1);
+            own_add(reach[1][0], reach[1][1], reach[1][2] - reach[1][0] + 1, 1);
         own_active = own_count > 0;
         if (sync_debug && own_count)
             fprintf(stderr, "[sync] own copy: texture page %x clut %x uv %d,%d..%d,%d into %d,%d %dx%d\n", tpage, clut,
                 u0, v0, u1, v1, clip[0], clip[1], clip[2], clip[3]);
         return;
     }
-    pc_hw_sync(x0, ty + v0, (x1 > 1023 ? 1023 : x1) - x0 + 1, v1 - v0 + 1);
+    pc_hw_sync(x0, ty0, (x1 > 1023 ? 1023 : x1) - x0 + 1, v1 - v0 + 1);
     if (depth < 2) {
         if (sync_debug)
             fprintf(stderr, "[sync] texture page %x clut %x window %x uv %d,%d..%d,%d packet %p\n", tpage, clut, window,
                 u0, v0, u1, v1, (void*)current_packet);
-        pc_hw_sync((clut & 63) * 16, (clut >> 6) & 511, depth ? 256 : 16, 1);
+        pc_hw_sync(reach[1][0], reach[1][1], reach[1][2] - reach[1][0] + 1, 1);
     }
 }
 

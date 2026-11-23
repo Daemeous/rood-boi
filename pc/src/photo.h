@@ -93,10 +93,21 @@ int pc_photo_camera_move(const char* owner, float right, float up, float forward
 
 /* ---- ui ---- */
 enum { PC_PHOTO_HIDE_HUD = 1, PC_PHOTO_HIDE_GAME2D = 2, PC_PHOTO_HIDE_OVERLAY = 4,
-    PC_PHOTO_HIDE_ASHLEY = 8, PC_PHOTO_HIDE_OTHERS = 16 /* the actors (rood.ui.hide{actors}) */ };
+    PC_PHOTO_HIDE_ASHLEY = 8, PC_PHOTO_HIDE_OTHERS = 16 /* the actors (rood.ui.hide{actors}) */,
+    PC_PHOTO_HIDE_SAVEPOINTS = 32 /* the save point's circle and column (rood.ui.hide{savepoints}) */ };
+/* Nonzero while a save point is left out of the picture (room_native.c pc_room_savepoint_hidden: the room's groups that
+ * hold the save point's scrolling materials; the lights generated from them, glows.c). */
+extern int pc_photo_hide_savepoints;
 /* The characters not drawn (actor_native.c: their models, weapons and shields; every owner's together):
  * bit 1 Ashley (actor slot 0), bit 2 the others (enemies, NPCs). */
 extern int pc_photo_hide_actors;
+/* The history (photo.cpp): the pad and the sticks the game read while the hold's lead ran, given back to a render that
+ * replays them. Notes log (only while the lead runs); takes return 1 and the value while a render replays, else 0. */
+int pc_photo_history_replaying(void);
+void pc_photo_history_note_buttons(unsigned vsync, unsigned pad);
+int pc_photo_history_take_buttons(unsigned vsync, unsigned* pad);
+void pc_photo_history_note_stick(int which, unsigned vsync, const float v[2], int valid); /* 0 camera, 1 left */
+int pc_photo_history_take_stick(int which, unsigned vsync, float v[2], int* valid);
 /* Tunables (RPC photo params, 1 by default): the HUD hidden takes the words over the actors (hud_words)
  * and the time attack's timer (hud_timer) with it; a hidden character's held weapon and shield go with
  * it (actors_held: dev_state.c pc_dev_actor_of). */

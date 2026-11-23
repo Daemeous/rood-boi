@@ -50,13 +50,21 @@ static int clampi(int v, int lo, int hi) { return v < lo ? lo : v > hi ? hi : v;
  * no buttons (boot_window.c pc_window_buttons) and no live stick. */
 extern int pc_photo_input_captured __attribute__((weak));
 extern int pc_photo_rendering __attribute__((weak));
+extern unsigned pc_vsync_count(void);
+/* photo.cpp's history: the sticks the game read while the hold's lead ran, given back to a render that replays them. */
+extern int pc_photo_history_replaying(void) __attribute__((weak));
+extern void pc_photo_history_note_stick(int which, unsigned vsync, const float v[2], int valid) __attribute__((weak));
+extern int pc_photo_history_take_stick(int which, unsigned vsync, float v[2], int* valid) __attribute__((weak));
 
 /* The left stick (-1..1, down +y): the RPC's hold, else the gamepad. While the photo mode has the input its camera is
- * the stick's, and a render that read it would walk Ashley and run her stride at the stick's pace, camera step after
- * step. A render sees the stick as the last live frame read it instead (frozen at capture): her pose is the one play
- * would draw next, at the blend fraction she was last drawn at, the same whatever the stick or the camera does. */
+ * the stick's. A render that replays the lead's frames (photo.cpp) reads the stick as it was read live at each vsync.
+ * One that has no lead (the hold was asked while the RPC held the game) runs from the held moment instead, and would
+ * walk Ashley and run her stride at the stick's pace, camera step after step: it sees the stick as the last live frame
+ * read it (frozen at capture), and her pose is the one play would draw next, at the blend fraction she was last drawn at. */
 static void stick(float out[2])
 {
+    if (&pc_photo_rendering && pc_photo_rendering && pc_photo_history_take_stick && pc_photo_history_take_stick(1, pc_vsync_count(), out, NULL))
+        return;
     if ((&pc_photo_input_captured && pc_photo_input_captured) || (&pc_photo_rendering && pc_photo_rendering)) {
         out[0] = pc_analog_st.last_stick[0];
         out[1] = pc_analog_st.last_stick[1];
@@ -66,6 +74,8 @@ static void stick(float out[2])
         pc_controller_left_stick(out);
     pc_analog_st.last_stick[0] = out[0];
     pc_analog_st.last_stick[1] = out[1];
+    if (pc_photo_history_note_stick)
+        pc_photo_history_note_stick(1, pc_vsync_count(), out, 1);
 }
 
 /* The movement the stick asks for: *x and *z in the pad vector's units (ratan2's arguments, x
@@ -126,7 +136,8 @@ int pc_analog_anim_steps(int slot, int base, int animation)
     int id = animation >= 100 ? animation - 100 : animation;
     int stride = (id >= 13 && id <= 16) || id == 19 || id == 20;
     pose_acc = 0;
-    if (slot == 0 && stride && pc_analog_move && &pc_photo_rendering && pc_photo_rendering) {
+    if (slot == 0 && stride && pc_analog_move && &pc_photo_rendering && pc_photo_rendering
+        && !(pc_photo_history_replaying && pc_photo_history_replaying())) {
         /* A photo render: her stride stays on the tick it was drawn at (the carried fraction, which the blend draws, is
          * the held moment's: anim_acc is restored with the state), so the held picture of her is the last live one. */
         pose_acc = anim_acc;

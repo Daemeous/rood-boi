@@ -228,7 +228,7 @@ def check_view_modes(s):
     g = s.game
     modes = inspect(s, action="view_modes")
     names = [m["name"] for m in modes["modes"]]
-    for want in ("lit", "unlit", "lighting", "base_colour", "normals", "roughness", "metal", "emissive", "ao", "wireframe"):
+    for want in ("lit", "unlit", "lighting", "base_colour", "normals", "relief_normals", "cavities", "roughness", "metal", "emissive", "ao", "wireframe"):
         s.check(want in names, f"view mode {want} is listed")
     original = modes["current"]
     s.check(original == "lit", f"the test starts lit ({original!r})")

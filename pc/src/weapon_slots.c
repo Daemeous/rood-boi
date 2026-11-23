@@ -546,9 +546,9 @@ static void finish_models(D_800F4538_t* a, int animation)
 {
     a->unk187C = 0;
     vs_actors_playActorAnimation(0, animation, 0, 0);
-    func_800AFA28(a, &a->unkC54, 1);
-    vs_main_memcpy(&a->unk704, &a->unkC54, sizeof a->unk704);
-    a->unkC54.unk540 = 0;
+    func_800AFA28(a, &a->pose, 1);
+    vs_main_memcpy(&a->blendPose, &a->pose, sizeof a->blendPose);
+    a->pose.frame = 0;
     vs_actors_setActorWeaponDrawn(0, a->unk0.weaponDrawn, 2);
 }
 

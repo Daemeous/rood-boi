@@ -115,8 +115,8 @@ pub fn startAnimation(actorId: c_int, animation: c_int, _: c_int, blendFrames_: 
         actor.unk6E3 = v.g.D_800F49DC().*;
         actor.unk187C = token;
         actor.unk5BC = psx.conv(i16, frames[0]);
-        c.vs_actors_initializeActorAnimationPose(@ptrCast(actor), &actor.unkC54);
-        actor.unk6E0 = 0;
+        c.vs_actors_initializeActorAnimationPose(@ptrCast(actor), &actor.pose);
+        actor.queuedAnimation = 0;
         c.vs_actors_beginActorShadowBlend(@ptrCast(actor), blendFrames);
         if (actor.unk63C >= 0x80) {
             blendFrames *%= 2;

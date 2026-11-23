@@ -350,7 +350,7 @@ pub fn parseShp(object: *v.vs_battle_objectData) callconv(.c) c_int {
     actor.unk0.scaleX = 0x1000;
     actor.unk0.scaleY = 0x1000;
     actor.unk0.scaleZ = 0x1000;
-    actor.unk5B2 = 1;
+    actor.framesPerStep = 1;
     psx.setBits(&actor.unk0, "unkC_0", 0);
     psx.setBits(&actor.unk0, "unkC_4", 0);
     psx.setBits(actor, "unk5AC_11", 0);
@@ -401,7 +401,7 @@ pub fn parseShp(object: *v.vs_battle_objectData) callconv(.c) c_int {
     } else if (object.unk11 == 0xFC) {
         actor.unk0.attachParent = object.actorId;
         actor.unk0.unk13 = 0xFC;
-        psx.at(actors, actor.unk0.attachParent).*.?.unk17FD = psx.conv(u8, object.index);
+        psx.at(actors, actor.unk0.attachParent).*.?.companionSlot = psx.conv(u8, object.index);
         psx.at(actors, actor.unk0.attachParent).*.?.unk6F4.unk0 = 0;
         psx.at(actors, actor.unk0.attachParent).*.?.unk6F4.unk1 = 0;
         psx.at(actors, actor.unk0.attachParent).*.?.unk6F4.unk2 = 0;

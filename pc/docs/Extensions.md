@@ -832,7 +832,7 @@ and room files never see it, and the game's state is untouched (below).
 | `game.pause` | `rood.game.pause([{audio, duck}]) -> true \| nil, why`, `resume()`; `rood.game.paused()` (any plugin) needs no grant |
 | `camera` | `rood.camera.begin()`, `finish()`, `active()`, `get()`, `set{...}`, `orbit(yaw, pitch[, zoom])`, `move(right, up, forward)` |
 | `post` | `rood.post.list()`, `get(key)`, `set(key, value)`, `reset([key])`, `overrides()` |
-| `ui.hide` | `rood.ui.hide{hud, game2d, overlay, actors}` (no table: the three layers), `show()`, `hidden()` |
+| `ui.hide` | `rood.ui.hide{hud, game2d, overlay, actors, savepoints}` (no table: the three layers), `show()`, `hidden()` |
 | `capture` | `rood.capture.photo{scale, path, done} -> path, id[, note]`, `status(id)`, `folder` |
 | `input.capture` | `rood.input.capture(fn)`, `release()`, `captured()`, `state()` |
 
@@ -859,16 +859,27 @@ transition, memory card I/O (a card file open, the save screen). The title
 and the attract demo may be held.
 
 What changes the picture while held (the camera, the hidden HUD and 2D) is
-drawn by a **render**: the game runs from the held moment M for
-`render_frames` game frames (4; RPC `photo {render_frames}`) with nothing to
-see or hear (no presents, no audio, no input, no Lua ticks, deterministic
-scanline timing so every render of M is the same, memory card writes
-refused, RPC requests waiting), then its state is rewound to M
-(`state_rewind.c`'s photo slot; the RPC's `snapshot mark` slot is its own)
-while the picture stays. So the game's state, its digest (RPC `snapshot
-hash`), its vsync and every `rood.game` query stay M's the whole time; the
-picture shows the moment four frames on, the same each render. A render
-costs the CPU time of those frames, unpaced: about 5 ms (8 vsyncs). Renders
+drawn by a **render**: the game runs again, with nothing to see or hear (no
+presents, no audio, no Lua ticks, deterministic scanline timing so every
+render of M is the same, memory card writes refused, RPC requests waiting).
+A hold asked while the game runs is led: the game goes on live for
+`render_frames` game frames (4; RPC `photo {render_frames}`) from the vsync it
+was asked at (L; marked in `state_rewind.c`'s slot 2, the lead), the pad and the sticks it
+reads logged per vsync (boot_window.c, analog_move.c: the history), and then
+M is held (marked in the photo slot, 1; the RPC's `snapshot mark` slot is its
+own): about 67 ms after the ask. A render rewinds to L, replays those frames
+with the logged inputs until it reaches M, so its last picture is M's
+exactly, drawn by the photo camera; then M's mark is put back while the
+picture stays. So the game's state, its digest (RPC `snapshot hash`), its
+vsync and every `rood.game` query stay M's the whole time, and the first
+render shows what was on the screen when the hold began (a first render
+used to be the moment four frames on, so everything that moved shifted
+once: Gitea #34). Normal play pays nothing: a mark is taken when a hold is
+asked, and the history is logged only during the lead. A hold the game cannot
+lead (asked while the RPC holds the game at a vsync, or the mark fails) is
+held at once and rendered as before: from M for `render_frames` frames, then
+back to it (RPC `photo` `history` says which). A render costs the CPU time of
+those frames, unpaced: about 5 ms (8 vsyncs). Renders
 need the hardware renderer and save states (x86); without them the camera
 and the hidden layers do not show while held (RPC `photo` says why).
 Resuming continues from M exactly. Each camera session also checkpoints its
@@ -965,6 +976,9 @@ and shield it holds (their own records, `vs_battle_wepModels`, by their
 holder's slot; RPC `photo {actors_held}`, 1 by default); props stay);
 `hidden().actors` says which (nil: none); `hidden().hud_words`,
 `hud_timer`, `actors_held` the tunables.
+`savepoints = true`: the save point left out (room_native.c `pc_room_savepoint_hidden`: the room's groups that hold its
+scrolling column and the semi-transparent pieces touching it, its sigil and caps, not drawn; its generated glow light
+muted, glows.c; the room's baked floor light stays); `hidden().savepoints`; the card's Show save points row.
 While held, a change is drawn by a render.
 
 ### rood.capture
@@ -1419,7 +1433,7 @@ applies):
 
 | Tab | Rows (post keys) |
 |---|---|
-| Camera | Camera Orbit / Free; Field of view 10-110 degrees shown with the focal length giving it on a 24 mm sensor (`rood.camera` fov); Roll -45..45 degrees; Move speed (the Camera speed setting); Collision (`rood.camera` collision); Show Ashley, Show others (`rood.ui.hide{actors}`); Reset camera |
+| Camera | Camera Orbit / Free; Field of view 10-110 degrees shown with the focal length giving it on a 24 mm sensor (`rood.camera` fov); Roll -45..45 degrees; Move speed (the Camera speed setting); Collision (`rood.camera` collision); Show Ashley, Show others (`rood.ui.hide{actors}`), Show save points (`rood.ui.hide{savepoints}`, on by default); Reset camera |
 | Lens | Depth of field (`dof`); Focus: Camera subject, On Ashley, Screen centre, Cursor, Manual (`dof_focus`); Focus distance in metres (Manual; `dof_focus_depth`); Model Physical / Artistic (`dof_model`); Aperture f/1.2-f/22 in stops (Physical; `dof_fstop`); Blur amount (Artistic; `dof_aperture`); Lens mm or From FOV (`dof_focal_length`); Max blur, Near blur (`dof_max_blur`, `dof_near_blur`); Bokeh blades (Round, 3-9), Blade curve, Bokeh rotation, Anamorphic squeeze, Bokeh edge Soft / Even / Rim, Highlights, Bokeh fringe, Cat's eye (`bokeh_*`) |
 | Effects | Vignette, Vignette size, Vignette shape (`vignette`, `vignette_gain`, `vignette_roundness`); Lens distortion (`lens_distortion`); Grain, Grain size, Grain colour; Aberration px; Bloom, Bloom threshold, Bloom size; Sharpen; Tilt-shift, its band, width and blur |
 | Colour | Filter: Off, Noir, Sepia, Faded, Vivid, Warm, Cold, Bleach, Teal & orange (grades), then every post preset (Film, Cinematic, Clean, the user's); Filter strength (a grade blended over the picture's own values); Exposure EV; Contrast, Saturation (the master of `contrast`, `saturation`); Temperature K, Tint; LUT strength (with a LUT set) |

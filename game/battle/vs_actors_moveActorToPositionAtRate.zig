@@ -59,7 +59,7 @@ pub fn vs_actors_moveActorToPositionAtRate(arg0: c_int, arg1: ?*v.SVECTOR, arg2:
         } else {
             temp_s0.unk0.facing = psx.conv(i16, @as(c_int, temp_a2));
         }
-        temp_s0.unk0.unk18 = 0;
+        temp_s0.unk0.turnFrames = 0;
         c.vs_actors_translateActorToAtRate(arg0, psx.cptr(c.SVECTOR, s), 0);
         return;
     }

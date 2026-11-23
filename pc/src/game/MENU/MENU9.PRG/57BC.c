@@ -53,7 +53,7 @@ void func_801080C8(void)
     p->animationId = 33;
     p->unk0.weaponDrawn = 0;
 
-    vs_actors_initializeActorAnimationPose(p, &p->unk704);
+    vs_actors_initializeActorAnimationPose(p, &p->blendPose);
     vs_actors_setActorDisplayFlags(1, 3);
     func_8009F940(1, 0, NULL, NULL);
 }

@@ -43,7 +43,7 @@ void vs_battle_aiReleaseAiDestinationTile();
 u_int vs_actors_translateActorToTileAtRate(u_char, void*, int);
 void vs_actors_actorRootOffset(D_800F4538_t*);
 void vs_render_prepareActorCameraMatrices(MATRIX*);
-void func_800B28A8(void*, MATRIX*, int);
+void vs_actors_drawActorModel(void*, MATRIX*, int);
 int vs_field_collectMovingPlatformPositions(func_8008D2C0_t*);
 short vs_field_ceilingHeightAt(int arg0, int arg1);
 D_800F4538_t* vs_field_findActorOccupyingTile(int, int, int, int);

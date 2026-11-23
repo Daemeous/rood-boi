@@ -43,8 +43,8 @@ pub fn vs_actors_blendActorPoseHalfway(dst: ?*v.D_800F4538_unkC54, src: ?*v.D_80
         }
         dv.vz = psx.conv(i16, @as(c_int, dv.vz) +% (z >> 1));
 
-        const ev = psx.at(&d.unk150, i);
-        const es = psx.at(&s.unk150, i);
+        const ev = psx.at(&d.scaleKeys, i);
+        const es = psx.at(&s.scaleKeys, i);
         ev.vx = psx.conv(i16, (@as(c_int, es.vx) +% @as(c_int, ev.vx)) >> 1);
         ev.vy = psx.conv(i16, (@as(c_int, es.vy) +% @as(c_int, ev.vy)) >> 1);
         ev.vz = psx.conv(i16, (@as(c_int, es.vz) +% @as(c_int, ev.vz)) >> 1);

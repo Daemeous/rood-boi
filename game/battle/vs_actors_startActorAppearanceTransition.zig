@@ -16,7 +16,7 @@ pub fn vs_actors_startActorAppearanceTransition(arg0: c_int, arg1: c_int) callco
         2 => psx.setBits(&temp_a0.unk0, "unk9_0", 9),
         else => {},
     }
-    if (@as(c_int, temp_a0.unk17FD) > 1) {
-        c.vs_actors_startActorAppearanceTransition(@as(c_int, temp_a0.unk17FD), arg1);
+    if (@as(c_int, temp_a0.companionSlot) > 1) {
+        c.vs_actors_startActorAppearanceTransition(@as(c_int, temp_a0.companionSlot), arg1);
     }
 }

@@ -12,7 +12,7 @@ from one recorded frame (RPC redraw): its colours and its depth view
 (graphics show_depth: 2D pixels magenta, 3D grey).
 
   - the model view's own light: graphics menu_studio 1 and the clone's rim
-    copy left out (vs_actors_actorRecords[1]->unk17FD 0; MAINMENU vs_menu_frameworkResetActorPreviewPose sets 1:
+    copy left out (vs_actors_actorRecords[1]->companionSlot 0; MAINMENU vs_menu_frameworkResetActorPreviewPose sets 1:
     a second copy 2 units off and 64 ordering-table entries behind, in its
     own colour, drawn after the clone).
   - the light is data (theme.json "menu_model_light", ui/menu_light.h; here
@@ -20,7 +20,7 @@ from one recorded frame (RPC redraw): its colours and its depth view
     rig; the key's intensity doubled brightens the model's left half (the
     key comes from the upper left) by at least LIT_MIN on average, and set
     back the picture is the same as before to within 1 per channel.
-  - no gaps: the clone alone (unk17FD forced 0, so nothing fills what the
+  - no gaps: the clone alone (companionSlot forced 0, so nothing fills what the
     geometry leaves open), at most GAP_MAX pixels over all the views of 2D enclosed by
     the model's 3D pixels in thin holes (a component that 3 erosions take
     away: under about one PS1 pixel across; wider ones are gaps between
@@ -211,11 +211,11 @@ def main():
              "the Ashley model")
         g.run(8)
         address = clone()
-        rim = g.value("vs_actors_actorRecords[1]->unk17FD") if address else -1
+        rim = g.value("vs_actors_actorRecords[1]->companionSlot") if address else -1
         studio = g.call("graphics").get("menu_studio")
         check(studio == 1 and rim == 0,
               f"the model view's own light: graphics menu_studio {studio} (want 1), the clone's rim copy "
-              f"unk17FD {rim} (want 0: left out)")
+              f"companionSlot {rim} (want 0: left out)")
         scale = g.call("graphics").get("scale")
         k = min(WINDOW[0] / 960, WINDOW[1] / 720)
         rect = ui()["ashley"]["model_rect"]
@@ -257,13 +257,13 @@ def main():
             colour, depth = pictures(g, out / f"view{view}")
             # the clone alone (nothing behind it): gaps
             g.call("pause", paused=False)
-            g.store("vs_actors_actorRecords[1]->unk17FD", 0)
+            g.store("vs_actors_actorRecords[1]->companionSlot", 0)
             g.run(3)
             g.call("pause", paused=True)
             alone_count = g.call("render_stats")["object_instances"]
             alone, alone_depth = pictures(g, out / f"view{view}-alone")
             n_gap, holes = gaps(alone_depth, box)
-            g.store("vs_actors_actorRecords[1]->unk17FD", rim)
+            g.store("vs_actors_actorRecords[1]->companionSlot", rim)
             g.call("pause", paused=False)
             total_gap += n_gap
             extra.append(shown - alone_count)

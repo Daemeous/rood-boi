@@ -21,7 +21,7 @@ pub fn vs_actors_isActorActionAnimationBusy(arg0: c_int) callconv(.c) c_int {
         return 1;
     }
 
-    if (psx.getBits(&t.unkC54, "unk548_16") == 0) {
+    if (psx.getBits(&t.pose, "holdingLastFrame") == 0) {
         var temp_a0: c_int = t.animationId;
         if (temp_a0 >= 100) {
             temp_a0 -%= 100;

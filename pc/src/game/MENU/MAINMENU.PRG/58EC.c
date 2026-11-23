@@ -1193,6 +1193,29 @@ static void _anchorPicture(int first)
     (void)first;
 #endif
 }
+/* The background picture's ordering-table slot. */
+static u_long* _backgroundSlot(void) { return vs_scratch.unk4 + _backgroundOtOffset * 4; }
+
+#ifdef ROOD_PC
+/* The picture is opaque over the whole 4:3 screen (fade 16) and the original draws nothing outside it. In 16:9 the 2D the game keeps
+ * drawn behind it (the HUD on a screen that does not slide it out, as the Data page's: its panels hug the view's edges) would show
+ * in the view's sides, sliced where the picture begins. A black tile in the picture's slot, spread over the whole view, covers
+ * them (submitted after the picture, drawn before it: the items of a slot draw in the opposite order). Outside the classic site,
+ * so the Lua background (rood.classic, which places its picture in the 4:3 screen) and the game's own draw alike get it. */
+static void _coverViewBehindPicture(int fadeStep)
+{
+    int first;
+    u_long* before = _backgroundSlot();
+
+    if (fadeStep != 16) {
+        return;
+    }
+    first = pc_frame_count();
+    vs_battle_tileFlatItem(before, 0, 0, 0, vs_getWH(320, 240));
+    pc_frame_anchor(first, pc_frame_count(), PC_ANCHOR_COVER);
+}
+#endif
+
 /* menu_fade plain (project_settings.cpp pc_menu_fade_levels): a step of the fade (1..15 of 16) as the field dimmed to black by a
  * black tile at an opacity, then the menu's picture at an opacity over it, from black (the same eight game frames; no
  * subtraction, no previous screen blended in). The classic Lua's menu_background draws the same from the same levels. */
@@ -1239,7 +1262,7 @@ static void _renderBackground(int brightness)
     u_long* prim;
 
     int uCoord = 0;
-    u_long* before = vs_scratch.unk4 + _backgroundOtOffset * 4;
+    u_long* before = _backgroundSlot();
 
     if (vs_main_frameBuf == 0) {
         uCoord = 320;
@@ -1887,6 +1910,7 @@ void vs_mainMenu_renderScreen(void)
         _plainFadeLevels(fadeStep, &pcBackground.dim, &pcBackground.open);
         PC_CLASSIC(PC_CLASSIC_SITE_MENU_BACKGROUND, &pcBackground, 0, 0,
             _renderBackground(fadeStep));
+        _coverViewBehindPicture(fadeStep);
 #else
         _renderBackground(fadeStep);
 #endif

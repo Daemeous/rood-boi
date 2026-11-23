@@ -39,13 +39,13 @@ void vs_menu_frameworkCloneActorPreview(int arg0)
 
     vs_battle_populateDataSlot(&sp10);
 
-    if (temp_s2->unk17FD >= 2) {
-        temp_s0 = vs_actors_actorRecords[temp_s2->unk17FD];
+    if (temp_s2->companionSlot >= 2) {
+        temp_s0 = vs_actors_actorRecords[temp_s2->companionSlot];
         temp_v0 = vs_main_allocHeap(VS_OBJECT_REGION);
         sp10.dataType = 2;
         sp10.index = 16;
         sp10.modelId = temp_s0->unk6E6;
-        sp10.dataAddr = temp_s2->unk17FD;
+        sp10.dataAddr = temp_s2->companionSlot;
         sp10.destination = temp_v0;
         sp10.actorId = 1;
         sp10.unk11 = 0xFC;
@@ -197,7 +197,7 @@ int vs_menu_frameworkDrawActorPreview(MATRIX* arg0)
 
     vs_render_prepareActorCameraMatrices(arg0);
 
-    temp_s1->unk5B2 =
+    temp_s1->framesPerStep =
         ((int)(vs_gametime_tickspeed + (((u_int)vs_gametime_tickspeed) >> 0x1F))) >> 1;
 
     if (temp_s1->unk0.freeze) {
@@ -207,21 +207,21 @@ int vs_menu_frameworkDrawActorPreview(MATRIX* arg0)
         vs_actors_actorRootOffset(temp_s1);
     }
 
-    func_800B28A8(temp_s1, arg0, 0);
+    vs_actors_drawActorModel(temp_s1, arg0, 0);
 
-    if (temp_s1->unk17FD > 1) {
+    if (temp_s1->companionSlot > 1) {
         vs_actors_stepTextureScrolling(vs_actors_actorRecords[16]);
     }
 
-    if (temp_s1->unk17FD != 0) {
+    if (temp_s1->companionSlot != 0) {
         new_var2 = (temp_s1->unk6F4.unk3 * 4) + 0xC0;
         vs_scratch.unk4 += new_var2;
 
         applyVector(&temp_s1->unk0.position, temp_s1->unk6F4.unk0, temp_s1->unk6F4.unk1,
             temp_s1->unk6F4.unk2, +=);
 
-        func_800B002C(temp_s1, temp_s1->unk17FD);
-        func_800B28A8(temp_s1, arg0, temp_s1->unk17FD);
+        vs_actors_updateMotionAndLookAt(temp_s1, temp_s1->companionSlot);
+        vs_actors_drawActorModel(temp_s1, arg0, temp_s1->companionSlot);
 
         new_var3 = (temp_s1->unk6F4.unk3 * 4) + 0xC0;
         vs_scratch.unk4 -= new_var3;
@@ -338,12 +338,12 @@ void vs_menu_frameworkResetAshleyEquipmentPose(void)
     temp_s1->unk6E3 = D_800F49DC;
     temp_s1->unk5BC = *sp10;
 
-    vs_actors_initializeActorAnimationPose(temp_s1, &temp_s1->unkC54);
-    func_800AFA28(temp_s1, &temp_s1->unkC54, 1);
-    vs_main_memcpy(&temp_s1->unk704, &temp_s1->unkC54, sizeof temp_s1->unk704);
+    vs_actors_initializeActorAnimationPose(temp_s1, &temp_s1->pose);
+    func_800AFA28(temp_s1, &temp_s1->pose, 1);
+    vs_main_memcpy(&temp_s1->blendPose, &temp_s1->pose, sizeof temp_s1->blendPose);
 
-    temp_s1->unkC54.unk540 = 0;
-    temp_s1->unk6E0 = 0;
+    temp_s1->pose.frame = 0;
+    temp_s1->queuedAnimation = 0;
     temp_s1->unk5CD = 0;
     temp_s1->unk5CC = 0;
 }

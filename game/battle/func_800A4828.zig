@@ -10,9 +10,9 @@ pub fn func_800A4828(index: c_int, matrix: ?*v.MATRIX) callconv(.c) void {
     const temp = psx.at(v.g.vs_actors_actorRecords(), index).*.?;
     const visible = psx.getBits(&temp.unk0, "visible");
     psx.setBits(&temp.unk0, "visible", 0);
-    temp.unk5B2 = 1;
+    temp.framesPerStep = 1;
     c.vs_render_prepareActorCameraMatrices(@ptrCast(matrix));
     c.vs_actors_actorRootOffset(@ptrCast(temp));
-    c.func_800B28A8(@ptrCast(temp), @ptrCast(matrix), 0);
+    c.vs_actors_drawActorModel(@ptrCast(temp), @ptrCast(matrix), 0);
     psx.setBits(&temp.unk0, "visible", visible);
 }

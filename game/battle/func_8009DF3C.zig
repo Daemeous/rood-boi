@@ -46,6 +46,6 @@ pub fn func_8009DF3C(slot: c_int, command: c_int) callconv(.c) void {
 
     _ = c.vs_actors_playActorAnimation(slot, var_s0, 0, var_s1);
     if (command < 3) {
-        c.vs_main_memcpy(&temp.unk704, &temp.unkC54, @as(c_uint, @sizeOf(v.D_800F4538_unkC54)));
+        c.vs_main_memcpy(&temp.blendPose, &temp.pose, @as(c_uint, @sizeOf(v.D_800F4538_unkC54)));
     }
 }

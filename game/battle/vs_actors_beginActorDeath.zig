@@ -15,7 +15,7 @@ pub fn vs_actors_beginActorDeath(actorId: c_int, context: ?*anyopaque, animate: 
                 c.vs_field_setMovingPlatformActor(@as(c_int, low) -% 2, -1);
                 psx.setBits(&actor.unk0, "unkC_0", 0);
             }
-            actor.unk0.unk1A = 0;
+            actor.unk0.translationFrames = 0;
             actor.unk0.unk34.vx = 0;
             actor.unk0.unk34.vz = 0;
             // The vertical speed is kept only when falling-free: unkF == 0, mode 3, vy > 0.
@@ -41,8 +41,8 @@ pub fn vs_actors_beginActorDeath(actorId: c_int, context: ?*anyopaque, animate: 
         } else {
             psx.setBits(&actor.unk0, "unk9_0", 2);
         }
-        if (actor.unk17FD >= 2) {
-            c.vs_actors_beginActorDeath(@as(c_int, actor.unk17FD), context, animate);
+        if (actor.companionSlot >= 2) {
+            c.vs_actors_beginActorDeath(@as(c_int, actor.companionSlot), context, animate);
         }
     } else {
         if (psx.at(v.g.vs_field_gimmickInstances(), actorId).*) |object| {

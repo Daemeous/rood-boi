@@ -91,7 +91,7 @@ static inline void vs_actors_applyLockedBoneTransform(void* actorData, MATRIX* p
     actor->bones[bone] = *matrix;
 }
 
-void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
+void vs_actors_drawActorModel(void* actorData, MATRIX* parent, char arg2)
 {
     D_800F4538_t* actor = actorData;
     actorTransformScratch* scratch = VS_XFORM(actorTransformScratch);
@@ -116,9 +116,9 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
     *(int*)&scratch->translation = *(int*)&scratch->offset;
     *(int*)&scratch->translation.vz = *(int*)&scratch->offset.vz;
     transformed = vs_gte_transform(&view, &scratch->translation);
-    scratch->rotation.vx = actor->unk704.unk0[0].vx >> 1;
-    scratch->rotation.vy = actor->unk704.unk0[0].vy >> 1;
-    scratch->rotation.vz = actor->unk704.unk0[0].vz >> 1;
+    scratch->rotation.vx = actor->blendPose.unk0[0].vx >> 1;
+    scratch->rotation.vy = actor->blendPose.unk0[0].vy >> 1;
+    scratch->rotation.vz = actor->blendPose.unk0[0].vz >> 1;
     scratch->matrix.t[0] = transformed.mac[1];
     scratch->matrix.t[1] = transformed.mac[2];
     scratch->matrix.t[2] = transformed.mac[3];
@@ -168,9 +168,9 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
     }
     *vs_actors_skeletonPose = scratch->matrix;
 
-    D_800F2458.boneScales[0].vx = scratch->scale.vx = actor->unk704.unk150[0].vx;
-    D_800F2458.boneScales[0].vy = scratch->scale.vy = actor->unk704.unk150[0].vy;
-    D_800F2458.boneScales[0].vz = scratch->scale.vz = actor->unk704.unk150[0].vz;
+    D_800F2458.boneScales[0].vx = scratch->scale.vx = actor->blendPose.scaleKeys[0].vx;
+    D_800F2458.boneScales[0].vy = scratch->scale.vy = actor->blendPose.scaleKeys[0].vy;
+    D_800F2458.boneScales[0].vz = scratch->scale.vz = actor->blendPose.scaleKeys[0].vz;
     if (scratch->scale.vx != 64 || scratch->scale.vy != 64 || scratch->scale.vz != 64) {
         scratch->scale.vx <<= 6;
         scratch->scale.vy <<= 6;
@@ -193,9 +193,9 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
             scratch->translation.vz = 0;
             scratch->translation.vx = -length;
             transformed = vs_gte_transform(&view, &scratch->translation);
-            scratch->rotation.vx = actor->unk704.unk0[i].vx >> 1;
-            scratch->rotation.vy = actor->unk704.unk0[i].vy >> 1;
-            scratch->rotation.vz = actor->unk704.unk0[i].vz >> 1;
+            scratch->rotation.vx = actor->blendPose.unk0[i].vx >> 1;
+            scratch->rotation.vy = actor->blendPose.unk0[i].vy >> 1;
+            scratch->rotation.vz = actor->blendPose.unk0[i].vz >> 1;
             value = (i + scratch->model->armatures)->unk8;
 
             switch (value) {
@@ -283,8 +283,8 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
                 vs_core_mathPremultiplyRotationMatrix(&D_800F2458.boneMatrices[parentBone], &scratch->matrix);
             }
 
-            if (*(int*)&actor->unk704.unk150[i] == 0x400040
-                && actor->unk704.unk150[i].vz == 64) {
+            if (*(int*)&actor->blendPose.scaleKeys[i] == 0x400040
+                && actor->blendPose.scaleKeys[i].vz == 64) {
                 D_800F2458.boneScales[i].vx = scratch->scale.vx =
                     D_800F2458.boneScales[parentBone].vx;
                 D_800F2458.boneScales[i].vy = scratch->scale.vy =
@@ -295,9 +295,9 @@ void func_800B28A8(void* actorData, MATRIX* parent, char arg2)
                 scratch->scale.vx = D_800F2458.boneScales[parentBone].vx;
                 scratch->scale.vy = D_800F2458.boneScales[parentBone].vy;
                 scratch->scale.vz = D_800F2458.boneScales[parentBone].vz;
-                scratch->scale.vx *= actor->unk704.unk150[i].vx;
-                scratch->scale.vy *= actor->unk704.unk150[i].vy;
-                scratch->scale.vz *= actor->unk704.unk150[i].vz;
+                scratch->scale.vx *= actor->blendPose.scaleKeys[i].vx;
+                scratch->scale.vy *= actor->blendPose.scaleKeys[i].vy;
+                scratch->scale.vz *= actor->blendPose.scaleKeys[i].vz;
                 scratch->scale.vx >>= 6;
                 scratch->scale.vy >>= 6;
                 scratch->scale.vz >>= 6;

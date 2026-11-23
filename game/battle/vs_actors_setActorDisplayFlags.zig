@@ -35,8 +35,8 @@ pub fn vs_actors_setActorDisplayFlags(actorId: c_int, arg1: c_int) callconv(.c) 
             psx.setBits(m, "unk8_4", psx.conv(u1, new_var1));
         }
 
-        if (@as(c_int, t.unk17FD) >= 2) {
-            c.vs_actors_setActorDisplayFlags(@as(c_int, t.unk17FD), arg1);
+        if (@as(c_int, t.companionSlot) >= 2) {
+            c.vs_actors_setActorDisplayFlags(@as(c_int, t.companionSlot), arg1);
         }
     }
 }

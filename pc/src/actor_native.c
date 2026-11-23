@@ -582,7 +582,7 @@ void pc_native_world_point(const double view[3], float out[3])
     }
 }
 /* The list being filled: a model drawn again right after itself in the same
- * frame (BATTLE/44F14.c draws some actors twice through func_800B28A8: a
+ * frame (BATTLE/44F14.c draws some actors twice through vs_actors_drawActorModel: a
  * second, slightly offset copy with its own colour and an ordering-table
  * shift) joins the same list, so the PS1 order interleaves both copies as
  * the ordering table does. */

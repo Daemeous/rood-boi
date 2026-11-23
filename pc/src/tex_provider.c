@@ -3,6 +3,7 @@
 #include "vram_texels.h"
 
 enum { PAGE_ID = 0x100000, PALETTE_ID = 0x200000 };
+static unsigned tpage_of(const pc_tex_sampling* s);
 
 static inline uint32_t* cell_at(pc_tex_versions* t, int cx, int cy) { return &t->cell[cy & (PC_TEX_CELLS_Y - 1)][cx & (PC_TEX_CELLS_X - 1)]; }
 
@@ -79,6 +80,9 @@ static uint32_t box_version(const pc_tex_versions* t, unsigned tpage, pc_tex_mod
 }
 pc_tex_sampling pc_tex_describe(const pc_tex_versions* t, unsigned tpage, unsigned clut, unsigned window, const int uv_box[4])
 {
+    static const pc_tex_versions none; /* (geometry only: versions of 0) */
+    if (!t)
+        t = &none;
     pc_tex_sampling s;
     s.mode = mode_of(tpage);
     s.page = pc_tex_page_handle(t, tpage);
@@ -88,6 +92,20 @@ pc_tex_sampling pc_tex_describe(const pc_tex_versions* t, unsigned tpage, unsign
     s.window = window;
     s.box_version = box_version(t, tpage, s.mode, uv_box);
     return s;
+}
+int pc_tex_reach(const pc_tex_sampling* s, int rects[2][4])
+{
+    unsigned tpage = tpage_of(s);
+    int shift = s->mode == PC_TEX_INDEXED4 ? 2 : s->mode == PC_TEX_INDEXED8 ? 1 : 0;
+    int tx = pc_tex_page_x(tpage), ty = pc_tex_page_y(tpage);
+    rects[0][0] = tx + (s->box[0] >> shift), rects[0][1] = ty + s->box[1];
+    rects[0][2] = tx + (s->box[2] >> shift), rects[0][3] = ty + s->box[3];
+    if (s->mode == PC_TEX_DIRECT16)
+        return 1;
+    unsigned clut = s->palette.id & 0x7fff;
+    rects[1][0] = (int)(clut & 63) * 16, rects[1][1] = (int)(clut >> 6 & 511);
+    rects[1][2] = rects[1][0] + palette_width(s->mode) - 1, rects[1][3] = rects[1][1];
+    return 2;
 }
 int pc_tex_box_current(const pc_tex_versions* t, const pc_tex_sampling* s)
 {

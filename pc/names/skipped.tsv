@@ -526,9 +526,7 @@ function	func_800AE474	merged by the Zig objects (identical code)	Actors::Ignore
 function	func_800AEEC4	ambiguous: several rows (shared address range)	Actors::StepSoundTransition
 function	func_800AF960	confidence med (deferred)	vs_actors_advanceShadowBlend
 function	func_800AFA28	confidence med (deferred)	vs_actors_advanceSkeletalAnimation
-function	func_800B002C	confidence med (deferred)	vs_actors_updateMotionAndLookAt
 function	func_800B16F4	duplicate: 3 originals share the name	vs_core_mathLookupRotationSineCosine
-function	func_800B28A8	duplicate: 2 originals share the name	vs_actors_drawActorModel
 function	func_800B4B14	confidence med (deferred)	vs_render_drawActorGroundShadow
 function	func_800B516C	confidence med (deferred)	vs_render_drawModelFlatPolygonsWithOverrides
 function	func_800B64CC	confidence med (deferred)	vs_actors_queueNavigationTileTarget

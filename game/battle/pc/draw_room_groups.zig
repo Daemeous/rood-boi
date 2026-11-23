@@ -20,6 +20,7 @@ const EditorHidden = *const fn (?*const anyopaque, c_uint) callconv(.c) c_int;
 const WallsFrame = *const fn (?*const anyopaque, c_uint, c_uint) callconv(.c) c_int;
 const WallsGroup = *const fn (c_uint, c_int, [*c]f32, [*c]f32, [*c]c_int) callconv(.c) c_int;
 const OcclusionFrame = *const fn (c_int) callconv(.c) void;
+const SavePointHidden = *const fn (?*const anyopaque, c_uint) callconv(.c) c_int;
 const PhotoWhole = *const fn () callconv(.c) c_int;
 const SceneRoomData = *const fn () callconv(.c) ?*const anyopaque;
 
@@ -68,6 +69,9 @@ pub fn drawRoomGroups(data: [*]u8, mode: c_uint) callconv(.c) void {
         if (free_camera != 0) facing = free_facing;
         if (@intFromPtr(packet) >= @intFromPtr(limit)) break;
         if (flags & hidden_flags != 0 or ((flags >> 15) & mode & 1) != 0) continue;
+        if (psx.weak(SavePointHidden, "pc_room_savepoint_hidden")) |save| {
+            if (save(data, i) != 0) continue; // PC: the photo mode hides save points (rood.ui.hide{savepoints})
+        }
         if (free_camera != 0) {
             if (psx.weak(EditorHidden, "pc_room_editor_hidden")) |hidden| {
                 if (hidden(data, i) != 0) continue;

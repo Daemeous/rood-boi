@@ -145,7 +145,7 @@ typedef struct {
     int unk4;
 } intPair;
 
-void func_800B002C(D_800F4538_t* actor, int arg1);
+void vs_actors_updateMotionAndLookAt(D_800F4538_t* actor, int arg1);
 
 void vs_actors_transformRootOffset(D_800F4538_t* actor);
 

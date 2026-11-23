@@ -19,6 +19,7 @@
 extern "C" {
 int pc_photo_hide_game2d;
 int pc_photo_hide_actors;
+int pc_photo_hide_savepoints;
 /* Tunables (RPC photo {hud_words, hud_timer, actors_held}; rood.ui.hidden() reports them): rood.ui.hide{hud}
  * also hides the words over the actors (damage, MISS, ailments) and the time attack's timer; a hidden
  * character's held weapon and shield go with it. */
@@ -45,6 +46,7 @@ void hidden_update()
     }
     pc_photo_hide_game2d = (flags & PC_PHOTO_HIDE_GAME2D) != 0;
     pc_photo_hide_actors = (flags & PC_PHOTO_HIDE_ASHLEY ? 1 : 0) | (flags & PC_PHOTO_HIDE_OTHERS ? 2 : 0);
+    pc_photo_hide_savepoints = (flags & PC_PHOTO_HIDE_SAVEPOINTS) != 0;
 }
 
 std::vector<std::pair<std::string, float>> formats;
@@ -153,6 +155,7 @@ void reset()
     format_colours.clear();
     hidden_flags = 0;
     pc_photo_hide_actors = 0;
+    pc_photo_hide_savepoints = 0;
     pc_photo_hide_game2d = 0; /* (crosses an engine reload: a host-owned block) */
 }
 void json(std::string& out)

@@ -12,8 +12,8 @@ pub fn requestTurn(id: c_int, position: [*]const c_int, b: c_int) callconv(.c) v
     const a = v.g.vs_actors_actorRecords()[@intCast(id)].?;
     const flags = psx.bitsAt(u8, &a.unk0._bits_skip, 3);
     if (flags.* & 0xf != 0) return;
-    const linked: c_int = a.unk17FD;
-    a.unk0.unk1A = 0;
+    const linked: c_int = a.companionSlot;
+    a.unk0.translationFrames = 0;
     psx.fieldAt(c_int, &a.unk5EC, 0).* = position[0];
     psx.fieldAt(c_uint, &a.unk5EC, 4).* = @as(c_uint, @bitCast(b)) << 16;
     flags.* = 1;

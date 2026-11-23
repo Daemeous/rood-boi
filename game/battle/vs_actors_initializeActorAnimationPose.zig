@@ -14,12 +14,12 @@ pub fn vs_actors_initializeActorAnimationPose(arg0: ?*anyopaque, arg1: ?*anyopaq
         c.vs_actors_restartActorAnimationEvents(@ptrCast(actor));
     }
     psx.setBits(actor, "unk5AC_23", 0);
-    pose.unk540 = 0;
+    pose.frame = 0;
     psx.bitsAt(u8, &pose._bits_unk548_0, 1).* = 0;
-    pose.unk150[41].vx = 0;
-    pose.unk150[41].vy = 0;
-    pose.unk150[41].vz = 0;
-    pose.unk150[41].pad = 0;
+    pose.scaleKeys[41].vx = 0;
+    pose.scaleKeys[41].vy = 0;
+    pose.scaleKeys[41].vz = 0;
+    pose.scaleKeys[41].pad = 0;
     pose.unk3F0[41].pad = 0;
 
     var headerC: [*c]c_ushort = null;
@@ -44,12 +44,12 @@ pub fn vs_actors_initializeActorAnimationPose(arg0: ?*anyopaque, arg1: ?*anyopaq
         pose.unk542 = psx.conv(u16, value);
         psx.put(&pose.unk544, data);
     }
-    psx.setBits(pose, "unk548_16", 0);
+    psx.setBits(pose, "holdingLastFrame", 0);
     psx.bitsAt(u8, &pose._bits_unk548_0, 0).* = actor.animationId;
 
     if (header[4] != 0) {
         const data: *align(1) u8 = @ptrFromInt(dataBase +% psx.conv(u32, header[4]));
-        c.vs_actors_decodeInitialPoseVector(psx.cptr(c.SVECTOR, &pose.unk150[41]), @ptrCast(data), 0xFF);
+        c.vs_actors_decodeInitialPoseVector(psx.cptr(c.SVECTOR, &pose.scaleKeys[41]), @ptrCast(data), 0xFF);
     }
 
     const frame: c_int = psx.byteAt(u8, header, 2).*;
@@ -74,7 +74,7 @@ pub fn vs_actors_initializeActorAnimationPose(arg0: ?*anyopaque, arg1: ?*anyopaq
         while (i < actor.unk0.nBones) : (i +%= 1) {
             const hi: usize = @intCast(@as(c_int, actor.unk0.nBones) +% i +% 5);
             var data: *align(1) u8 = @ptrFromInt(dataBase +% psx.conv(u32, header[hi]));
-            const sv = psx.at(&pose.unk150, i);
+            const sv = psx.at(&pose.scaleKeys, i);
             if (data.* == 0xFE and psx.byteAt(u8, data, 1).* == 1) {
                 data = psx.byteAt(u8, data, 2);
                 c.vs_actors_decodeInitialPoseVector(psx.cptr(c.SVECTOR, sv), @ptrCast(data), frame);
@@ -95,7 +95,7 @@ pub fn vs_actors_initializeActorAnimationPose(arg0: ?*anyopaque, arg1: ?*anyopaq
     } else {
         i = 0;
         while (i < actor.unk0.nBones) : (i +%= 1) {
-            const sv = psx.at(&pose.unk150, i);
+            const sv = psx.at(&pose.scaleKeys, i);
             sv.vx = 0x40;
             sv.vy = 0x40;
             sv.vz = 0x40;

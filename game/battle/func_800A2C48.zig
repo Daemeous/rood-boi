@@ -10,11 +10,11 @@ pub fn func_800A2C48(entity: ?*v.D_800F4538_t) callconv(.c) void {
     const e = entity.?;
     // &unk5DC[4] is one past the array's end (the address of unk5EC): psx.at does not bounds-check.
     _ = c.vs_actors_translateActorToTileAtRate(e.unk0.slot, @ptrCast(psx.at(&e.unk5DC, 4)), 0);
-    e.unk6E0 = 0;
+    e.queuedAnimation = 0;
     psx.setBits(&e.unk0, "unkB_0", 4);
     c.func_800A29A0(@ptrCast(entity));
-    if (e.unk17FD >= 2) {
+    if (e.companionSlot >= 2) {
         // The C indexes the 17-entry table with an unchecked u8: psx.at, not a bounds-checked index.
-        c.func_800A2C48(@ptrCast(psx.at(v.g.vs_actors_actorRecords(), e.unk17FD).*));
+        c.func_800A2C48(@ptrCast(psx.at(v.g.vs_actors_actorRecords(), e.companionSlot).*));
     }
 }

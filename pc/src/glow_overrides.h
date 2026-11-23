@@ -92,7 +92,7 @@ typedef struct {
     float strength; /* the tracers get color * strength (a room glow spanning several 96-unit pieces) */
     int observed; /* the source drew glowing triangles this frame */
     int triangles; /* how many */
-    int muted; /* 1 muted, 2 left out by a solo, 3 its category is off, 4 its fixture type suppresses it */
+    int muted; /* 1 muted, 2 left out by a solo, 3 its category is off, 4 its fixture type suppresses it, 5 the photo mode hides save points */
     int overridden; /* has an override */
     int traced; /* among the emitters the tracers use this frame */
     int category; /* PC_GLOW_FIXTURE / _MAGIC / _EFFECT */

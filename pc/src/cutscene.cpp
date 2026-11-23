@@ -88,7 +88,7 @@ unsigned pad_focus_vsync = 0;
 namespace {
 using cutscene::Scene;
 
-enum { TAKE_FIRST = 2, TAKE_SLOTS = 512 }; // state_rewind.c's PC_REWIND_TAKE_FIRST / _SLOTS
+enum { TAKE_FIRST = 3, TAKE_SLOTS = 512 }; // state_rewind.c's PC_REWIND_TAKE_FIRST / _SLOTS
 const char* const CAPTURE_OWNER = "cutscene.capture";
 const char* const CAMERA_OWNER = "cutscene.camera";
 

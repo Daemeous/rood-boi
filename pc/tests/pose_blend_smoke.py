@@ -115,7 +115,7 @@ def main():
             poses, roots = ashley_poses(read(path))
             digest = game.call("snapshot", action="hash")
             p = game.state()["player"]
-            return (poses, roots), digest, (p["x"], p["z"]), game.value("vs_actors_actorRecords[0]->unkC54.unk540")
+            return (poses, roots), digest, (p["x"], p["z"]), game.value("vs_actors_actorRecords[0]->pose.frame")
 
         walk(0, 0.3, shots="off")
         walk(100, 0.3, shots="on")

@@ -85,7 +85,7 @@ fn execute(actor: *v.D_800F4538_t, state: *v.D_800F4538_unkC54, mode: c_int, id:
                 wait.* -%= 1;
                 if (wait.* == 0) return .next;
             }
-            state.unk540 -%= 1;
+            state.frame -%= 1;
             return .done;
         },
         26, 27 => {
@@ -273,8 +273,8 @@ fn execute(actor: *v.D_800F4538_t, state: *v.D_800F4538_unkC54, mode: c_int, id:
         56, 57 => c.vs_actors_setActorBonePoseLock(@ptrCast(actor), s[1], op - 56),
         58 => {
             psx.setBits(&actor.unk0, "unk9_0", 2);
-            if (actor.unk17FD >= 2) {
-                psx.setBits(&psx.at(v.g.vs_actors_actorRecords(), actor.unk17FD).*.?.unk0, "unk9_0", 2);
+            if (actor.companionSlot >= 2) {
+                psx.setBits(&psx.at(v.g.vs_actors_actorRecords(), actor.companionSlot).*.?.unk0, "unk9_0", 2);
             }
         },
         59 => {
@@ -355,10 +355,10 @@ pub fn vs_actors_runAnimationEvents(actor: ?*v.D_800F4538_t, state: ?*v.D_800F45
             .reload => {
                 arg = st.unk542;
                 script = @ptrCast(psx.get(st.unk544).?);
-                st.unk540 = 0;
+                st.frame = 0;
             },
         }
-        const counter: c_int = if (mode >= 2) @as(u16, @bitCast(a.unk5BC)) else @as(i16, @bitCast(st.unk540));
+        const counter: c_int = if (mode >= 2) @as(u16, @bitCast(a.unk5BC)) else @as(i16, @bitCast(st.frame));
         if (!(counter < arg)) continue;
         return 0;
     }

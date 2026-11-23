@@ -310,6 +310,8 @@ const std::vector<rood_inspect::ViewMode>& modes()
         { "base_colour", "Base colour", false },
         { "vertex_colours", "Vertex colours", false },
         { "normals", "World normals", false },
+        { "relief_normals", "Relief normals", true },
+        { "cavities", "Cavities", true },
         { "roughness", "Roughness", true },
         { "metal", "Metal", true },
         { "emissive", "Emissive", true },
@@ -318,14 +320,15 @@ const std::vector<rood_inspect::ViewMode>& modes()
     };
     return m;
 }
-/* The shader's value per name (scaled.frag view_mode; GL has 0-5 and 11). */
+/* The shader's value per name (scaled.frag view_mode; GL has 0-5 and 11). "normals" is the geometry's;
+ * "relief_normals" (9) bends it by the material's height, "cavities" (10) is the relief's ambient occlusion. */
 int shader_value(const std::string& name)
 {
     static const struct {
         const char* name;
         int value;
     } table[] = { { "lit", 0 }, { "unlit", 1 }, { "lighting", 2 }, { "base_colour", 3 }, { "vertex_colours", 4 },
-        { "normals", 5 }, { "roughness", 13 }, { "metal", 14 }, { "emissive", 15 }, { "ao", 16 }, { "wireframe", 0 } };
+        { "normals", 5 }, { "relief_normals", 9 }, { "cavities", 10 }, { "roughness", 13 }, { "metal", 14 }, { "emissive", 15 }, { "ao", 16 }, { "wireframe", 0 } };
     for (const auto& t : table)
         if (name == t.name)
             return t.value;

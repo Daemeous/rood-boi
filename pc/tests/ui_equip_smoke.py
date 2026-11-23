@@ -89,8 +89,8 @@ MASKS = [
     for k in range(6)
 ] + [
     ("object0", ("bones",), ("bones_end",), "bones[42]: the pose matrices, recomputed from the animation every frame"),
-    ("object0", ("unk6FC",), ("unk704",), "unk6FC: already differs between two processes before any menu (pose sway)"),
-    ("object0", ("unk704",), ("unk11A4",), "unk704, unkC54: the animation frame buffers (func_800AFA28); "
+    ("object0", ("unk6FC",), ("blendPose",), "unk6FC: already differs between two processes before any menu (pose sway)"),
+    ("object0", ("blendPose",), ("unk11A4",), "blendPose, pose: the animation frame buffers (func_800AFA28); "
                                "their phase follows the frame count, " + FRAMES),
 ] + [
     ("models", ("model", i), ("model", i, 1),
@@ -451,7 +451,7 @@ def set_offsets(g):
     def at(record, member=""):
         return g.field(record + member, length=0).address - g.field(record, length=0).address
     obj, stats = "vs_actors_actorRecords[0][0]", ACTOR2 + "[0]"
-    for key in ("bones", "unk6FC", "unk704", "unk11A4"):
+    for key in ("bones", "unk6FC", "blendPose", "unk11A4"):
         OFFSETS[(key,)] = at(obj, "." + key)
     OFFSETS[("bones_end",)] = OFFSETS[("bones",)] + g.field(obj + ".bones", length=0).size
     OFFSETS[("currentHP",)], OFFSETS[("currentMP",)] = at(stats, ".currentHP"), at(stats, ".currentMP")

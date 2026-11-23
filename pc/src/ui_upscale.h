@@ -7,6 +7,7 @@
 #ifndef ROOD_UI_UPSCALE_H
 #define ROOD_UI_UPSCALE_H
 #include <stdint.h>
+#include "tex_provider.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -30,7 +31,7 @@ int pc_ui_upscale_factor(int scale);
  * or an icon drawn from a font (distance texels, ui_text.h); 0 to sample it
  * nearest; -1 when the atlas is full: the caller draws what it queued, calls
  * pc_ui_upscale_reset and asks again. */
-int pc_ui_upscale_lookup(const uint16_t* vram, unsigned tpage, unsigned clut, unsigned window, int u0, int v0,
+int pc_ui_upscale_lookup(pc_tex_view view, unsigned tpage, unsigned clut, unsigned window, int u0, int v0,
     int u1, int v1, int scale, int16_t offset[2]);
 /* A laid-out glyph's image (ui_text.h pc_ui_text_quad.image): as
  * pc_ui_upscale_lookup (2: found), offset[] its atlas origin (its texels
@@ -41,7 +42,6 @@ int pc_ui_upscale_lookup_image(int image, int scale, int16_t offset[2]);
 void pc_ui_upscale_prepare(void);
 void pc_ui_upscale_reset(void);
 /* VRAM tiles (gpu_hw.c's 64 x 256 tile bits) changed. */
-void pc_ui_upscale_tiles_changed(uint32_t tiles);
 /* A drawing area used this frame (render-to-texture sources are not UI). */
 void pc_ui_upscale_draw_area(const int* clip);
 /* A new ordering table (game frame). */

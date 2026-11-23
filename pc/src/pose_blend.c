@@ -9,7 +9,7 @@
  *    blend from the animation before at the start of a walk) on a scratch copy of the actor, with events and queued
  *    animations off (an end of the animation: no blend this frame);
  *  - the two poses are blended as the game itself keys them, linearly in the bones' Euler angles (13-bit, shortest way
- *    round) and in the scale vectors; the actor's bone chain (func_800B28A8, no drawing: the visible bit is cleared in
+ *    round) and in the scale vectors; the actor's bone chain (vs_actors_drawActorModel, no drawing: the visible bit is cleared in
  *    the copy) and its weapons' chains (vs_actors_buildWeaponBoneChain) are built from that on copies, into this unit's
  *    buffers, so bones keep their lengths and the weapons stay in the hand;
  *  - the renderer is told which matrices to draw instead of the actor's and the weapons' (pc_pose_blend_matrices, asked by
@@ -88,7 +88,7 @@ static int blend_scale(int from, int to, int s) { return from + (((to - from) * 
 void pc_pose_blend_actor(D_800F4538_t* actor, MATRIX* camera)
 {
     int s = &pc_analog_pose_progress ? pc_analog_pose_progress() : 0;
-    if (s <= 0 || actor->unk17FD != 0 || (*flags_of(actor) & FLAG_ATTACHED) || !actor->unk0.nBones
+    if (s <= 0 || actor->companionSlot != 0 || (*flags_of(actor) & FLAG_ATTACHED) || !actor->unk0.nBones
         || actor->unk0.nBones > 41)
         return;
     /* One tick on: the game's own step (the decode and, at the start of a walk, the blend from the pose before) run on a
@@ -96,31 +96,31 @@ void pc_pose_blend_actor(D_800F4538_t* actor, MATRIX* camera)
     unsigned char block[sizeof vs_xform];
     memcpy(block, vs_xform, sizeof block);
     memcpy(&ahead, actor, sizeof ahead);
-    ahead.unk5B2 = 1;
-    ahead.unk6E0 = 0;
-    ahead.unk5C8 = 0;
-    ahead.unk0.unk18 = 0;
-    ahead.unk0.unk1A = 0;
+    ahead.framesPerStep = 1;
+    ahead.queuedAnimation = 0;
+    ahead.scaleFrames = 0;
+    ahead.unk0.turnFrames = 0;
+    ahead.unk0.translationFrames = 0;
     *flags_of(&ahead) &= ~FLAG_STEPS;
     vs_actors_updateActorAnimationBlend(&ahead);
     memcpy(vs_xform, block, sizeof block);
-    if (ahead.unkC54.unk548_16 || ahead.unkC54.unk548_17 || ahead.unkC54.unk540 != (u_short)(actor->unkC54.unk540 + 1))
+    if (ahead.pose.holdingLastFrame || ahead.pose.reachedEnd || ahead.pose.frame != (u_short)(actor->pose.frame + 1))
         return;
     memcpy(&blended, actor, sizeof blended);
     for (int i = 0; i < actor->unk0.nBones; i++) {
-        SVECTOR* r = &blended.unk704.unk0[i];
-        const SVECTOR* to = &ahead.unk704.unk0[i];
+        SVECTOR* r = &blended.blendPose.unk0[i];
+        const SVECTOR* to = &ahead.blendPose.unk0[i];
         r->vx = blend_angle(r->vx, to->vx, s);
         r->vy = blend_angle(r->vy, to->vy, s);
         r->vz = blend_angle(r->vz, to->vz, s);
-        SVECTOR* k = &blended.unk704.unk150[i];
-        const SVECTOR* kt = &ahead.unk704.unk150[i];
+        SVECTOR* k = &blended.blendPose.scaleKeys[i];
+        const SVECTOR* kt = &ahead.blendPose.scaleKeys[i];
         k->vx = blend_scale(k->vx, kt->vx, s);
         k->vy = blend_scale(k->vy, kt->vy, s);
         k->vz = blend_scale(k->vz, kt->vz, s);
     }
     *flags_of(&blended) &= ~FLAG_VISIBLE;
-    func_800B28A8(&blended, camera, 0);
+    vs_actors_drawActorModel(&blended, camera, 0);
     blended_ready = 1;
     map_add(actor->bones, blended.bones);
 }

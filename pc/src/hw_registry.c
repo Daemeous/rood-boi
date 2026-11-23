@@ -3,6 +3,7 @@
  * are the producer's: the walk's code registers them and reads them back (pc_hw_resolve gives each packet its attributes by value), and the
  * renderer is told what it needs in the records, never by looking in these tables. */
 #include "hw_registry.h"
+#include "tex_provider.h"
 #include "render.h"
 #include "hw_meter.h"
 #include "gpu_attr.h"
@@ -464,15 +465,16 @@ int pc_hwr_texture_stale(unsigned tpage, unsigned clut, unsigned window, int u0,
         return 1;
     if (!pc_stale_meets(pc_hwr_stale.missing, 0, 0, 1024, 512))
         return 0;
-    int tx = (int)(tpage & 15) * 64, ty = (int)((tpage >> 4) & 1) * 256, depth = (int)((tpage >> 7) & 3);
     if ((window & 0x3ff) || u0 < 0 || v0 < 0 || u1 > 255 || v1 > 255 || u1 < u0 || v1 < v0)
         u0 = v0 = 0, u1 = v1 = 255;
-    int shift = depth == 0 ? 2 : depth == 1 ? 1 : 0;
-    int x0 = tx + (u0 >> shift), x1 = tx + (u1 >> shift);
     if (pc_hw_own_copies_enabled())
         return 0; /* (own copies, on the renderer's side: no read-back) */
-    int rects[2][4] = { { x0, ty + v0, (x1 > 1023 ? 1023 : x1) - x0 + 1, v1 - v0 + 1 }, { (int)(clut & 63) * 16, (int)((clut >> 6) & 511), depth ? 256 : 16, 1 } };
-    for (int k = 0; k < (depth < 2 ? 2 : 1); k++) {
+    int box[4] = { u0, v0, u1, v1 }, reach[2][4];
+    pc_tex_sampling sampling = pc_tex_describe(NULL, tpage, clut, window, box);
+    int count = pc_tex_reach(&sampling, reach);
+    int rects[2][4] = { { reach[0][0], reach[0][1], (reach[0][2] > 1023 ? 1023 : reach[0][2]) - reach[0][0] + 1, v1 - v0 + 1 },
+        { reach[1][0], reach[1][1], reach[1][2] - reach[1][0] + 1, 1 } };
+    for (int k = 0; k < count; k++) {
         const int* q = rects[k];
         if (q[2] <= 0 || q[3] <= 0)
             continue;

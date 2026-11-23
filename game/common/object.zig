@@ -10,7 +10,7 @@ inline fn header(a: anytype) @TypeOf(if (@hasField(@typeInfo(@TypeOf(a)).pointer
 /// unk0's flag run: bytes 8..B, the movement and drawing flags.
 /// The actor's pose steps due this frame (the animation's speed: 1, 2 hasted).
 pub inline fn animationSteps(a: anytype) *u8 {
-    return &a.unk5B2;
+    return &a.framesPerStep;
 }
 
 pub inline fn flags8(a: anytype) *align(1) c_uint {
@@ -30,7 +30,7 @@ pub inline fn flags5B0(a: anytype) *align(1) c_uint {
 }
 /// unkC54's flag run.
 pub inline fn flags119C(a: anytype) *align(1) c_uint {
-    return psx.bitsAt(c_uint, &a.unkC54._bits_unk548_0, 0);
+    return psx.bitsAt(c_uint, &a.pose._bits_unk548_0, 0);
 }
 
 /// The room an object takes in its actor's heap block: the struct rounded up to 0x100 bytes (VS_OBJECT_REGION).

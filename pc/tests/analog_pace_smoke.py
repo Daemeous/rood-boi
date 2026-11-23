@@ -47,7 +47,7 @@ def main():
     game = field_game(out, card)
     try:
         def pose():
-            return (game.value("vs_actors_actorRecords[0]->animationId"), game.value("vs_actors_actorRecords[0]->unkC54.unk540"))
+            return (game.value("vs_actors_actorRecords[0]->animationId"), game.value("vs_actors_actorRecords[0]->pose.frame"))
 
         def hold(travel, shot=None):
             """From the marked moment: (units covered, pose changes, the positions) over HOLD vsyncs after her turn."""

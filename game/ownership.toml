@@ -1002,7 +1002,7 @@ functions = [
     { addr = 0x800AF960, name = "func_800AF960", zig = "func_800AF960.func_800AF960" },
     { addr = 0x800AFA28, name = "func_800AFA28", zig = "func_800AFA28.func_800AFA28" },
     { addr = 0x800AFDE8, name = "vs_actors_decodeAnimationTrack", zig = "vs_actors_decodeAnimationTrack.vs_actors_decodeAnimationTrack" },
-    { addr = 0x800B002C, name = "func_800B002C", zig = "func_800B002C.func_800B002C" },
+    { addr = 0x800B002C, name = "vs_actors_updateMotionAndLookAt", zig = "vs_actors_updateMotionAndLookAt.vs_actors_updateMotionAndLookAt" },
     { addr = 0x800B0908, name = "vs_field_updateGimmickMotion", zig = "vs_field_updateGimmickMotion.vs_field_updateGimmickMotion" },
     { addr = 0x800B101C, name = "vs_field_updateGimmickReactionAnimation", zig = "vs_field_updateGimmickReactionAnimation.vs_field_updateGimmickReactionAnimation" },
     { addr = 0x800B13CC, name = "vs_field_gimmickSupportHeightBelow", zig = "vs_field_gimmickSupportHeightBelow.vs_field_gimmickSupportHeightBelow" },

@@ -14,19 +14,19 @@ pub fn vs_actors_setActorYawTurn(index: c_int, turn: c_short, mode: c_int) callc
     // The C's `goto recenter` enters the recentring tail from the -1 branch.
     var recenter = false;
     if (mode == 0) {
-        a.unk0.unk18 = 0;
+        a.unk0.turnFrames = 0;
         recenter = true;
     } else if (mode == -1) {
         if (m < 0) m = -%m;
         const speed: c_int = m *% @as(c_int, a.unk5C0);
-        a.unk0.unk18 = psx.conv(u16, @divTrunc(speed, 4096));
+        a.unk0.turnFrames = psx.conv(u16, @divTrunc(speed, 4096));
         if ((speed & 0xFFF) != 0) {
-            a.unk0.unk18 = psx.conv(u16, @divTrunc(speed, 4096) +% 1);
+            a.unk0.turnFrames = psx.conv(u16, @divTrunc(speed, 4096) +% 1);
         }
-        if (a.unk0.unk18 != 0) return;
+        if (a.unk0.turnFrames != 0) return;
         recenter = true;
     } else {
-        a.unk0.unk18 = psx.conv(u16, mode);
+        a.unk0.turnFrames = psx.conv(u16, mode);
     }
 
     if (recenter) {
