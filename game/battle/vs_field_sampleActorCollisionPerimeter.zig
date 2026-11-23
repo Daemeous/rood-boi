@@ -56,7 +56,7 @@ pub fn vs_field_sampleActorCollisionPerimeter(actor: ?*v.D_800F4538_t, diagonal:
 
     // ROOD_PC: off the floor the tile lookup is NULL; the original reads PS1 address 0.
     const tile = c.vs_field_findCollisionCellAtPosition(psx.cptr(c.SVECTOR, &a.unk0.position), 0);
-    const word: c_uint = if (tile != null) tile[0] else psx.nullObject(c_uint).*;
+    const word: c_uint = if (tile != null) tile[0] else psx.absent(c_uint, @src()).*;
     samples.centerAttribute = psx.conv(u8, (word >> 5) & 1);
 
     const pos = &a.unk0.position;

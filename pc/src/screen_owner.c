@@ -122,51 +122,38 @@ int pc_screen_owner_side_runs(const int clip[4], int right, int runs[][2], int m
 
 #define CACHE 64
 static struct {
+    pc_tex_sampling seen; /* the page, palette and box (with their versions) the answer was taken from */
     unsigned tpage, clut;
     int uv[4];
-    uint32_t tiles;
     int valid, opaque;
 } cache[CACHE];
 static int cache_next;
 
-void pc_screen_owner_vram_changed(uint32_t tiles)
+static int texels_opaque(pc_tex_view view, const pc_tex_sampling* s)
 {
-    for (int i = 0; i < CACHE; i++)
-        if (cache[i].valid && (cache[i].tiles & tiles))
-            cache[i].valid = 0;
-}
-
-static int texels_opaque(const uint16_t* vram, unsigned tpage, unsigned clut, const int uv[4])
-{
-    int depth = (int)(tpage >> 7 & 3), tx = (int)(tpage & 15) * 64, ty = (int)(tpage >> 4 & 1) * 256;
-    int cx = (int)(clut & 63) * 16, cy = (int)(clut >> 6 & 511);
-    for (int v = uv[1]; v <= uv[3]; v++)
-        for (int u = uv[0]; u <= uv[2]; u++) {
-            unsigned texel;
-            if (depth == 0) {
-                unsigned word = pc_vram_at(vram, tx + (u >> 2), ty + v);
-                texel = pc_vram_at(vram, cx + (int)(word >> ((u & 3) * 4) & 15), cy);
-            } else if (depth == 1) {
-                unsigned word = pc_vram_at(vram, tx + (u >> 1), ty + v);
-                texel = pc_vram_at(vram, cx + (int)(word >> ((u & 1) * 8) & 255), cy);
-            } else
-                texel = pc_vram_at(vram, tx + u, ty + v);
-            if (texel == 0)
+    for (int v = s->box[1]; v <= s->box[3]; v++)
+        for (int u = s->box[0]; u <= s->box[2]; u++)
+            if (pc_tex_texel(view, s, u, v) == 0)
                 return 0;
-        }
     return 1;
 }
 
-int pc_screen_owner_texels_opaque(const uint16_t* vram, unsigned tpage, unsigned clut, const int uv[4], uint32_t tiles)
+int pc_screen_owner_texels_opaque(pc_tex_view view, unsigned tpage, unsigned clut, const int uv[4])
 {
-    if (uv[2] < uv[0] || uv[3] < uv[1])
+    if (uv[2] < uv[0] || uv[3] < uv[1] || !view.image)
         return 0;
     for (int i = 0; i < CACHE; i++)
-        if (cache[i].valid && cache[i].tpage == tpage && cache[i].clut == clut && !memcmp(cache[i].uv, uv, sizeof cache[i].uv))
+        if (cache[i].valid && cache[i].tpage == tpage && cache[i].clut == clut && !memcmp(cache[i].uv, uv, sizeof cache[i].uv)
+            && view.versions && pc_tex_box_current(view.versions, &cache[i].seen)
+            && (cache[i].seen.palette.id == 0 || pc_tex_current(view.versions, cache[i].seen.palette)))
             return cache[i].opaque;
-    int opaque = texels_opaque(vram, tpage, clut, uv);
+    static const pc_tex_versions none;
+    pc_tex_sampling s = pc_tex_describe(view.versions ? view.versions : &none, tpage, clut, 0, uv);
+    int opaque = texels_opaque(view, &s);
+    if (!view.versions)
+        return opaque;
     int at = cache_next++ % CACHE;
-    cache[at].tpage = tpage, cache[at].clut = clut, cache[at].tiles = tiles, cache[at].valid = 1, cache[at].opaque = opaque;
+    cache[at].seen = s, cache[at].tpage = tpage, cache[at].clut = clut, cache[at].valid = 1, cache[at].opaque = opaque;
     memcpy(cache[at].uv, uv, sizeof cache[at].uv);
     return opaque;
 }

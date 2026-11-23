@@ -16,7 +16,7 @@ pub fn vs_field_findInteractableGimmickAhead(actorId: c_int) callconv(.c) c_int 
 
     var direction: c_int = @as(c_int, actor.unk0.facing) +% 0x200;
     direction &= 0xFFF;
-    direction = @divTrunc(direction, 1024);
+    direction = if (actorId == 0) common.analog.cardinal(direction) else @divTrunc(direction, 1024); // PC: Ashley's side with hysteresis (analog_move.c)
     v.g.vs_field_gimmickInteractionDirection().* = direction;
 
     const oldX: c_int = actor.unk0.currentTileX;

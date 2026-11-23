@@ -1,5 +1,6 @@
 //! Ends an actor's move state, or clears a stalled object's state (pc/src/game/BATTLE/BATTLE.PRG/30DB0.c).
-const psx = @import("common").psx;
+const common = @import("common");
+const psx = common.psx;
 const v = @import("views_30DB0");
 const c = @import("c_30DB0");
 
@@ -61,7 +62,7 @@ pub fn vs_actors_restoreActorBasePose(actorId: c_int, animation: c_int) callconv
                                 if (move) {
                                     // moveFromReaction: facing is masked to 0..0xFFF, so the division is non-negative.
                                     const facing: c_int = (@as(c_int, a.unk0.facing) +% 0x200) & 0xFFF;
-                                    const direction = @divTrunc(facing, 1024);
+                                    const direction = if (actorId == 0) common.analog.cardinal(facing) else @divTrunc(facing, 1024); // PC: with hysteresis (analog_move.c)
                                     var tileDx: c_int = 0;
                                     var tileDz: c_int = 0;
                                     if (direction < 2) {

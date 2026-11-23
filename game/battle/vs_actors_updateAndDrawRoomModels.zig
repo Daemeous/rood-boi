@@ -78,6 +78,7 @@ fn shift(a: *Actor, sign: c_int) void {
 /// room objects (vs_field_gimmickInstances) at depth + 16, the selected one animated.
 pub fn vs_actors_updateAndDrawRoomModels(camera: [*c]v.MATRIX) callconv(.c) void {
     c.vs_render_prepareActorCameraMatrices(@ptrCast(camera));
+    common.analog.poseBegin();
     var i: c_int = 0;
     const entries = v.g.vs_actors_actorRecords();
     while (true) {
@@ -93,8 +94,18 @@ pub fn vs_actors_updateAndDrawRoomModels(camera: [*c]v.MATRIX) callconv(.c) void
                     loadTexture(entries, i, actor);
                     if (common.object.flags5AC(actor).* & 3 != 0) c.vs_actors_updateActorRoute(i, @ptrCast(actor));
                     if (v.g.vs_gametime_tickspeed().* == 4) actor.unk5B2 *%= 2;
-                    c.vs_actors_updateActorAnimationBlend(@ptrCast(actor));
-                    actor.unk5B2 = 1;
+                    // PC: Ashley's stride at the pace of her speed (analog_move.c: a continuous analog pace): a frame with
+                    // no step due leaves the pose as it is; the original steps every frame.
+                    if (common.analog.stepDue(actor, i)) {
+                        c.vs_actors_updateActorAnimationBlend(@ptrCast(actor));
+                    } else {
+                        // PC: no pose step due (her slowed stride): the rest of the frame's update still runs as in the original,
+                        // once: the eased scale, turn and position (the facing's 12-frame turn, tweened moves) and the transform
+                        // block her draw reads (her root offset; else the last actor's stays and she is drawn at its position).
+                        // Only the animation's frame is gated by the stride's pace.
+                        c.func_800B002C(@ptrCast(actor), 0);
+                    }
+                    if (i == 0) common.analog.poseActor(actor, camera); // PC: her stride between its ticks (the draw only)
                     actor.unk5B2 = psx.conv(u8, ((common.object.flags5B0(actor).* >> 3) & 1) +% 1);
                 } else {
                     c.vs_actors_actorRootOffset(@ptrCast(actor));
@@ -154,6 +165,7 @@ pub fn vs_actors_updateAndDrawRoomModels(camera: [*c]v.MATRIX) callconv(.c) void
                 if (psx.at(entries, @as(u8, @truncate(psx.byteAt(c_uint, weapon, 8).*)) & 0xF).*) |actor| {
                     const flags = common.object.flags8(actor).*;
                     if (flags & 1 == 0 and flags & 2 != 0 and flags & 0x1000 == 0) {
+                        if (actor.unk0.slot == 0) common.analog.poseWeapon(weapon, actor);
                         c.vs_actors_buildWeaponBoneChain(@ptrCast(weapon), @ptrCast(psx.at(&actor.bones, weapon.unkD)));
                     }
                 }

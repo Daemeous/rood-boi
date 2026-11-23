@@ -23,4 +23,31 @@ static inline const pc_vram_word* pc_vram_clut(const pc_vram_word* v, unsigned c
 {
     return pc_vram_row(v, (int)(clut >> 6 & 511)) + (clut & 63) * 16;
 }
+
+/* The texture seam (T5-7 prelude): how a texel of a texture page is found from the words a primitive carries. The readers that recognise,
+ * hash, light or upscale an image ask here for a texel of (tpage, clut, u, v) and never decode a page by hand; the day the renderer owns
+ * the pages as resources, this is the one place that changes. `depth` is the tpage word's bits 7-8 (0: 4-bit, 1: 8-bit, 2: 15-bit), (tx, ty)
+ * the page's origin in VRAM (x in halfwords). The index is the CLUT entry the page holds (4 and 8 bits) or the colour itself (15 bits). */
+static inline unsigned pc_tex_index_at(const pc_vram_word* v, int depth, int tx, int ty, int u, int row)
+{
+    if (depth == 0)
+        return (pc_vram_at(v, tx + (u >> 2), ty + row) >> ((u & 3) * 4)) & 15;
+    if (depth == 1)
+        return (pc_vram_at(v, tx + (u >> 1), ty + row) >> ((u & 1) * 8)) & 255;
+    return pc_vram_at(v, tx + u, ty + row);
+}
+static inline int pc_tex_depth(unsigned tpage) { return (int)(tpage >> 7 & 3); }
+static inline int pc_tex_page_x(unsigned tpage) { return (int)(tpage & 15) * 64; }
+static inline int pc_tex_page_y(unsigned tpage) { return (int)(tpage >> 4 & 1) * 256; }
+/* The raw texel (u, row) of the page a tpage word names. */
+static inline unsigned pc_tex_index(const pc_vram_word* v, unsigned tpage, int u, int row)
+{
+    return pc_tex_index_at(v, pc_tex_depth(tpage), pc_tex_page_x(tpage), pc_tex_page_y(tpage), u, row);
+}
+/* Its colour: through the CLUT a clut word names for 4- and 8-bit pages, as is for 15-bit ones. */
+static inline unsigned pc_tex_colour(const pc_vram_word* v, unsigned tpage, unsigned clut, int u, int row)
+{
+    unsigned index = pc_tex_index(v, tpage, u, row);
+    return pc_tex_depth(tpage) >= 2 ? index : pc_vram_at(v, (int)(clut & 63) * 16 + (int)index, (int)(clut >> 6 & 511));
+}
 #endif

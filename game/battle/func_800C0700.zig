@@ -1,13 +1,18 @@
 //! Copies a record into the target shape and clears its unk2A
 //! (pc/src/game/BATTLE/BATTLE.PRG/573B8.c).
+const std = @import("std");
 const psx = @import("common").psx;
 const v = @import("views_573B8");
 
 /// orig: func_800C0700 (pc/src/game/BATTLE/BATTLE.PRG/573B8.c)
 /// Copies the record at `src` into the target shape's unk10 and clears its unk2A.
 pub fn func_800C0700(arg0: ?*v.func_800C1564_t) callconv(.c) void {
-    // ROOD_PC: with the shape freed, the original writes PS1 address 0 (psx.nullObject).
-    const shape: *v.D_800EB9B8_t = if (v.g.vs_battle_targetSphere().*) |p| p else @alignCast(psx.nullObject(v.D_800EB9B8_t));
+    // ROOD_PC: with the shape freed, the original writes PS1 address 0 (the write is dropped).
+    var absent_shape: v.D_800EB9B8_t = undefined;
+    const shape: *v.D_800EB9B8_t = if (v.g.vs_battle_targetSphere().*) |p| p else blk: {
+        absent_shape = std.mem.zeroes(v.D_800EB9B8_t);
+        break :blk &absent_shape;
+    };
     shape.unk0[1] = arg0.?.*;
     shape.unk2A = 0;
 }

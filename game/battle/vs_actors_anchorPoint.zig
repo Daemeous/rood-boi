@@ -29,7 +29,7 @@ pub fn vs_actors_anchorPoint(arg0: c_int, arg1: c_int, arg2: ?*v.SVECTOR, arg3: 
     if (arg1 == 0xFD) {
         // ROOD_PC: an empty slot reads physical address 0 (the PS1 behaviour).
         const slot = psx.at(v.g.vs_actors_actorRecords(), arg0).*;
-        const actor: *align(1) v.D_800F4538_t = if (slot) |s| @as(*align(1) v.D_800F4538_t, s) else psx.nullObject(v.D_800F4538_t);
+        const actor: *align(1) v.D_800F4538_t = if (slot) |s| @as(*align(1) v.D_800F4538_t, s) else psx.absent(v.D_800F4538_t, @src());
         arg2.?.* = actor.unk0.position;
         return 0;
     }
@@ -40,7 +40,7 @@ pub fn vs_actors_anchorPoint(arg0: c_int, arg1: c_int, arg2: ?*v.SVECTOR, arg3: 
     } else if (arg1 == 0xFA) {
         const slot = psx.at(v.g.vs_actors_actorRecords(), arg0).*;
         // ROOD_PC: an empty slot reads physical address 0 (the PS1 behaviour).
-        const actor: *align(1) v.D_800F4538_t = if (slot) |s| @as(*align(1) v.D_800F4538_t, s) else psx.nullObject(v.D_800F4538_t);
+        const actor: *align(1) v.D_800F4538_t = if (slot) |s| @as(*align(1) v.D_800F4538_t, s) else psx.absent(v.D_800F4538_t, @src());
 
         arg2.?.* = actor.unk0.position;
         // ONE is 4096.

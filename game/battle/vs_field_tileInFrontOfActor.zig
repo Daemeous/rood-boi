@@ -1,6 +1,7 @@
 //! Derives a 90-degree facing sector from a packed direction word and
 //! nudges three axis bytes of the output (pc/src/game/BATTLE/BATTLE.PRG/146C.c).
-const psx = @import("common").psx;
+const common = @import("common");
+const psx = common.psx;
 const v = @import("views_146C");
 
 /// orig: vs_field_tileInFrontOfActor (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
@@ -15,7 +16,7 @@ pub fn vs_field_tileInFrontOfActor(info: ?*v.func_8006EBF8_t, offsets: [*c]u8) c
     offsets[2] = psx.getBits(&a.location.packedTile.fields, "unk0_16");
     offsets[1] = psx.getBits(&a.location.packedTile.fields, "unk0_8");
 
-    var_v1 = var_v1 >> 10;
+    var_v1 = common.analog.cardinal(var_v1); // PC: Ashley's side with hysteresis under analog movement (analog_move.c); else var_v1 >> 10
     switch (var_v1) {
         0 => offsets[2] -%= 1,
         1 => offsets[0] -%= 1,

@@ -54,7 +54,7 @@ static int luma555(uint16_t c) { return (c & 31) * 299 + (c >> 5 & 31) * 587 + (
 static const uint16_t* clut_of(const uint16_t* vram) { return pc_vram_row(vram, 220) + 992; }
 static int index_at(const uint16_t* vram, int u, int v)
 {
-    return (pc_vram_at(vram, PAGE_X + (u >> 2), PAGE_Y + v) >> ((u & 3) * 4)) & 15;
+    return (int)pc_tex_index_at(vram, 0, PAGE_X, PAGE_Y, u, v);
 }
 static uint32_t image_hash(const uint16_t* vram, const emote_image* e)
 {

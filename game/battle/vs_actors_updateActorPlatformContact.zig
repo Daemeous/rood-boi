@@ -8,7 +8,7 @@ const c = @import("c_3A1A0");
 pub fn vs_actors_updateActorPlatformContact(actor: ?*v.D_800F4538_t, mode: c_int) callconv(.c) void {
     const a = actor.?;
     // Uninitialised in the original for a mode other than 0..2: reads address 0, as the PS1 would.
-    var contact: *align(1) v.func_8008D2C0_t = psx.nullObject(v.func_8008D2C0_t);
+    var contact: *align(1) v.func_8008D2C0_t = psx.absent(v.func_8008D2C0_t, @src());
 
     switch (mode) {
         0 => {

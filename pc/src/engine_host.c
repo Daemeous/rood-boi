@@ -50,8 +50,7 @@ extern const struct rood_owned rood_engine_owned[];
 extern const int rood_engine_owned_count;
 extern void rood_engine_unbound(void);
 
-/* The base the library is linked at (build_boot.py): above the game stack
- * (0x60000000..0x64000000), below guest RAM. */
+/* The base the library is linked at (build_boot.py), clear of the pinned game region and the arenas. */
 #define ENGINE_BASE 0x64000000u
 #define GAME_BASE 0x18000000u /* the game's pinned code and state (snapshot_layout.py) */
 

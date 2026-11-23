@@ -2,6 +2,7 @@
 // uses and their content keys, the slot map the draw shaders read, the CPU
 // evaluation for glows, and the RPC. The editor panel is emissive_editor.cpp.
 #include "vram_texels.h"
+#include "tex_provider.h"
 #include "emissive.h"
 #include "emissive_internal.h"
 
@@ -13,6 +14,7 @@
 #include <sys/stat.h>
 #include <algorithm>
 #include <atomic>
+#include <mutex>
 #include <array>
 #include <memory>
 #include <unordered_map>
@@ -55,6 +57,7 @@ float pc_key_light_strength = 1.0f;
 int pc_auto_height_preview = 0;
 const uint16_t* pc_native_vram(void);
 const uint16_t* pc_hw_emissive_vram(int renderer_side) __attribute__((weak));
+pc_tex_view pc_hw_emissive_tex_view(int renderer_side) __attribute__((weak));
 int pc_hw_present_all_lists(uint32_t* lists, int max) __attribute__((weak));
 }
 /* The emissive state the game side samples (T1 R4d): the renderer publishes it once per frame at the end of its sync (a copy of
@@ -72,6 +75,8 @@ static PublishedStats pub_stats;
 struct Published {
     bool ready = false, any_marks = false, any_object_lights = false;
     std::vector<uint16_t> vram;
+    pc_tex_versions versions; /* the renderer's versions as of the same copy */
+    bool has_versions = false;
     std::vector<uint8_t> map;
     std::vector<uint8_t> planes; /* the material planes (material_at) */
     int marked_uses = 0, marked_cells = 0, scope_overflow = 0, material_cells = 0;
@@ -99,12 +104,19 @@ struct UseLite {
 static Published pub;
 static std::vector<UseLite> pub_uses;
 static bool use_pub() { return pub.ready && !in_renderer_sync && !force_live; }
-static const uint16_t* emissive_vram(void)
+static pc_tex_view emissive_view(void)
 {
-    if (use_pub())
-        return ++pub_stats.vram, pub.vram.data();
-    return pc_hw_emissive_vram ? pc_hw_emissive_vram(in_renderer_sync) : pc_native_vram();
+    if (use_pub()) {
+        ++pub_stats.vram;
+        pc_tex_view view = { pub.vram.data(), pub.has_versions ? &pub.versions : nullptr };
+        return view;
+    }
+    if (pc_hw_emissive_tex_view)
+        return pc_hw_emissive_tex_view(in_renderer_sync);
+    pc_tex_view view = { pc_native_vram(), nullptr };
+    return view;
 }
+static const uint16_t* emissive_vram(void) { return emissive_view().image; }
 
 using prefab::Json;
 
@@ -199,65 +211,86 @@ uint16_t vram_at(int x, int y)
     const uint16_t* v = emissive_vram();
     return v ? pc_vram_at(v, x, y) : 0;
 }
+/* The sampling a page, CLUT and box name, over the view now (tex_provider.h); without versions in the view, handles with version 0. */
+static pc_tex_sampling sampling_of(const pc_tex_view& view, unsigned tpage, unsigned clut, const int box[4])
+{
+    static const pc_tex_versions none = {};
+    return pc_tex_describe(view.versions ? view.versions : &none, tpage, clut, 0, box);
+}
 /* Texel (u, v) of a page: its colour and CLUT index (16-bit pages: the colour). */
 uint16_t texel(unsigned u, unsigned v, unsigned tpage, unsigned clut, unsigned* index)
 {
-    int tx = (int)(tpage & 15) * 64, ty = (int)((tpage >> 4) & 1) * 256;
-    int cx = (int)(clut & 63) * 16, cy = (int)((clut >> 6) & 511);
-    unsigned depth = (tpage >> 7) & 3;
+    pc_tex_view view = emissive_view();
     u &= 255, v &= 255;
-    if (depth == 0) {
-        unsigned i = (vram_at(tx + (int)(u >> 2), ty + (int)v) >> ((u & 3) * 4)) & 15;
+    if (!view.image) {
         if (index)
-            *index = i;
-        return vram_at(cx + (int)i, cy);
+            *index = 0;
+        return 0;
     }
-    if (depth == 1) {
-        unsigned i = (vram_at(tx + (int)(u >> 1), ty + (int)v) >> ((u & 1) * 8)) & 255;
-        if (index)
-            *index = i;
-        return vram_at(cx + (int)i, cy);
-    }
-    uint16_t t = vram_at(tx + (int)u, ty + (int)v);
+    int box[4] = { (int)u, (int)v, (int)u, (int)v };
+    pc_tex_sampling s = sampling_of(view, tpage, clut, box);
     if (index)
-        *index = t;
-    return t;
+        *index = pc_tex_index(view.image, tpage, (int)u, (int)v);
+    return (uint16_t)pc_tex_texel(view, &s, (int)u, (int)v);
+}
+/* What a key is computed from, with the versions of what it read: while they are current the key is the same (the provider's content lookup). */
+struct KeyMemo {
+    uint32_t page_version, palette_version;
+    std::string key;
+};
+static std::map<std::array<uint32_t, 8>, KeyMemo> key_memo; /* (the game side and the renderer each ask: under memo_lock; not thread_local, which a reloaded engine library cannot unload) */
+static std::mutex memo_lock;
+static bool memo_get(const std::array<uint32_t, 8>& at, const pc_tex_sampling& s, bool palette, std::string* out)
+{
+    std::lock_guard<std::mutex> lock(memo_lock);
+    auto it = key_memo.find(at);
+    if (it == key_memo.end() || it->second.page_version != s.page.version || (palette && it->second.palette_version != s.palette.version))
+        return false;
+    *out = it->second.key;
+    return true;
+}
+static void memo_put(const std::array<uint32_t, 8>& at, const pc_tex_sampling& s, const std::string& key)
+{
+    std::lock_guard<std::mutex> lock(memo_lock);
+    if (key_memo.size() > 8192)
+        key_memo.clear();
+    key_memo[at] = { s.page.version, s.palette.version, key };
 }
 /* fixture_lib.py's ikey: md5 of the texel indices under the box (rows of v,
- * u along each row, uint16 little-endian) and the box's extents. */
+ * u along each row, uint16 little-endian) and the box's extents. The indices come from the provider
+ * (pc_tex_box_indices) and are not read from VRAM here; the key is remembered per (page, box) while the page's version holds. */
 std::string content_key(unsigned tpage, unsigned clut, int u0, int v0, int u1, int v1)
 {
+    pc_tex_view view = emissive_view();
+    int box[4] = { u0, v0, u1, v1 };
+    pc_tex_sampling s = sampling_of(view, tpage, clut, box);
+    std::array<uint32_t, 8> at = { 1, s.page.id, (uint32_t)u0, (uint32_t)v0, (uint32_t)u1, (uint32_t)v1, 0, 0 };
+    std::string cached;
+    if (view.versions && s.page.version && memo_get(at, s, false, &cached))
+        return cached;
     Md5 m;
-    uint8_t row[512];
-    const uint16_t* vram = emissive_vram();
-    int depth = (int)((tpage >> 7) & 3);
-    int tx = (int)(tpage & 15) * 64, ty = (int)((tpage >> 4) & 1) * 256;
+    std::vector<uint16_t> indices;
+    int width = u1 - u0 + 1, height = v1 - v0 + 1;
+    if (width > 0 && height > 0 && view.image) {
+        indices.resize((size_t)width * (size_t)height);
+        indices.resize(pc_tex_box_indices(view, &s, indices.data(), indices.size()));
+    }
     for (int v = v0; v <= v1; v++) {
+        uint8_t row[512];
         int n = 0;
-        if (vram && depth <= 2) { /* (the indices straight from the page's row: texel() without its CLUT reads) */
-            const uint16_t* line = pc_vram_row(vram, ty + (v & 255));
-            for (int u = u0; u <= u1; u++) {
-                unsigned uu = (unsigned)u & 255, i;
-                if (depth == 0)
-                    i = (line[(tx + (int)(uu >> 2)) & 1023] >> ((uu & 3) * 4)) & 15;
-                else if (depth == 1)
-                    i = (line[(tx + (int)(uu >> 1)) & 1023] >> ((uu & 1) * 8)) & 255;
-                else
-                    i = line[(tx + (int)uu) & 1023];
-                row[n++] = (uint8_t)i, row[n++] = (uint8_t)(i >> 8);
-            }
-        } else
-            for (int u = u0; u <= u1; u++) {
-                unsigned i = 0;
-                texel((unsigned)u, (unsigned)v, tpage, clut, &i);
-                row[n++] = (uint8_t)i, row[n++] = (uint8_t)(i >> 8);
-            }
+        for (int u = u0; u <= u1; u++) {
+            size_t at_index = (size_t)(v - v0) * (size_t)width + (size_t)(u - u0);
+            unsigned i = at_index < indices.size() ? indices[at_index] : 0;
+            row[n++] = (uint8_t)i, row[n++] = (uint8_t)(i >> 8);
+        }
         m.add(row, (size_t)n);
     }
     uint8_t size[2] = { (uint8_t)(u1 - u0), (uint8_t)(v1 - v0) };
     m.add(size, 2);
     char hex[11];
     m.hex(hex, 10);
+    if (view.versions && s.page.version)
+        memo_put(at, s, hex);
     return hex;
 }
 /* The CLUT's colours (16 or 256 entries, uint16 little-endian): md5, 10 digits. */
@@ -266,15 +299,26 @@ std::string clut_key(unsigned tpage, unsigned clut)
     unsigned depth = (tpage >> 7) & 3;
     if (depth >= 2)
         return "";
-    int n = depth == 0 ? 16 : 256, cx = (int)(clut & 63) * 16, cy = (int)((clut >> 6) & 511);
+    pc_tex_view view = emissive_view();
+    static const int whole[4] = { 0, 0, 255, 255 };
+    pc_tex_sampling s = sampling_of(view, tpage, clut, whole);
+    std::array<uint32_t, 8> at = { 2, s.palette.id, 0, 0, 0, 0, 0, 0 };
+    std::string cached;
+    if (view.versions && s.palette.version && memo_get(at, s, true, &cached))
+        return cached;
+    uint16_t colours[256] = {};
+    if (view.image)
+        pc_tex_palette_colours(view, &s, colours, 256); /* (without an image the entries read as zero, as vram_at did) */
+    int n = depth == 0 ? 16 : 256;
     Md5 m;
     for (int i = 0; i < n; i++) {
-        uint16_t c = vram_at(cx + i, cy);
-        uint8_t b[2] = { (uint8_t)c, (uint8_t)(c >> 8) };
+        uint8_t b[2] = { (uint8_t)colours[i], (uint8_t)(colours[i] >> 8) };
         m.add(b, 2);
     }
     char hex[11];
     m.hex(hex, 10);
+    if (view.versions && s.palette.version)
+        memo_put(at, s, hex);
     return hex;
 }
 
@@ -861,11 +905,10 @@ struct Use {
     std::string key; /* "" when no catalog size matches (not hashed) */
     int entry = -1, item = -1;
     uint32_t tiles = 0; /* VRAM tiles under its texels */
-    /* The VRAM its key and CLUT key were taken from (its texels' halfwords,
-     * row by row, then the CLUT's): an unmatched use is hashed again only
-     * when this changed (same VRAM, same keys, same result). */
-    std::vector<uint16_t> seen;
-    size_t seen_texels = 0; /* how many of `seen` are its texels' (the rest: its CLUT's) */
+    /* The page and palette (with their versions) its key and CLUT key were taken from: an unmatched use is hashed again only
+     * when one of them changed (same resources, same keys, same result). */
+    pc_tex_sampling seen = {};
+    bool has_seen = false;
     /* Its material (write_materials), kept while nothing it depends on
      * changed: the entry that matched (resolved for material_serial from key
      * mat_key and the palette's colours mat_clut), and the cells it writes
@@ -1410,86 +1453,51 @@ std::vector<std::array<float, 9>> texture_triangles(const std::string& clut, con
     }
     return out;
 }
-/* A use's CLUT (16 or 256 entries; none at 16 bits) as runs of halfwords. */
-template <typename F> static void clut_runs(const Use& u, F run)
+/* A use's CLUT now (16 or 256 colours; none at 16 bits), from the provider. */
+static std::vector<uint16_t> use_clut(const Use& u)
 {
-    const uint16_t* vram = emissive_vram();
+    std::vector<uint16_t> out;
+    pc_tex_view view = emissive_view();
     int depth = (int)((u.page >> 7) & 3);
-    if (!vram || depth >= 2)
-        return;
-    int cx = (int)(u.clut & 63) * 16, cy = (int)((u.clut >> 6) & 511), n = depth == 0 ? 16 : 256;
-    const uint16_t* row = pc_vram_row(vram, cy);
-    int first = std::min(n, 1024 - cx);
-    run(row + cx, first);
-    if (first < n)
-        run(row, n - first);
+    if (!view.image || depth >= 2)
+        return out;
+    int box[4] = { u.box[0], u.box[1], u.box[2], u.box[3] };
+    pc_tex_sampling sampling = sampling_of(view, u.page, u.clut, box);
+    out.resize(depth == 0 ? 16 : 256);
+    out.resize(pc_tex_palette_colours(view, &sampling, out.data(), out.size()));
+    return out;
 }
-/* The VRAM a use's keys read (Use::seen), visited as runs of halfwords:
- * the rows of its texels, then the CLUT (16 or 256 entries; none at 16 bits). */
-template <typename F> static void texel_runs(const Use& u, F run)
-{
-    const uint16_t* vram = emissive_vram();
-    if (!vram)
-        return;
-    int tx = (int)(u.page & 15) * 64, ty = (int)((u.page >> 4) & 1) * 256, depth = (int)((u.page >> 7) & 3);
-    int shift = depth == 0 ? 2 : depth == 1 ? 1 : 0;
-    int x0 = tx + (u.box[0] >> shift), x1 = tx + (u.box[2] >> shift);
-    for (int v = u.box[1]; v <= u.box[3]; v++) {
-        const uint16_t* row = pc_vram_row(vram, ty + v);
-        for (int x = x0; x <= x1;) { /* (a run stops at VRAM's right edge: it wraps) */
-            int at = x & 1023, n = std::min(x1 - x + 1, 1024 - at);
-            run(row + at, n);
-            x += n;
-        }
-    }
-}
-template <typename F> static void use_vram(const Use& u, F run)
-{
-    if (!emissive_vram())
-        return;
-    texel_runs(u, run);
-    clut_runs(u, run);
-}
+/* What a use's keys read is remembered as its handles' versions; `texels` and `palette` ask whether those resources are the same still. */
 static void remember_vram(Use& u)
 {
-    u.seen.clear();
-    texel_runs(u, [&](const uint16_t* p, int n) { u.seen.insert(u.seen.end(), p, p + n); });
-    u.seen_texels = u.seen.size();
-    clut_runs(u, [&](const uint16_t* p, int n) { u.seen.insert(u.seen.end(), p, p + n); });
+    pc_tex_view view = emissive_view();
+    u.has_seen = view.image && view.versions;
+    if (u.has_seen) {
+        int box[4] = { u.box[0], u.box[1], u.box[2], u.box[3] };
+        u.seen = sampling_of(view, u.page, u.clut, box);
+    }
 }
-/* Only its CLUT again (its texels are the ones `seen` holds: a palette animation changes no texel). */
+/* Only its CLUT again (its texels are the ones `seen` names: a palette animation changes no texel). */
 static void remember_clut(Use& u)
 {
-    u.seen.resize(u.seen_texels);
-    clut_runs(u, [&](const uint16_t* p, int n) { u.seen.insert(u.seen.end(), p, p + n); });
+    pc_tex_view view = emissive_view();
+    if (!u.has_seen || !view.versions) {
+        remember_vram(u);
+        return;
+    }
+    u.seen.palette = pc_tex_palette_handle(view.versions, u.page, u.clut);
+}
+static bool texels_unchanged(const Use& u)
+{
+    pc_tex_view view = emissive_view();
+    return u.has_seen && view.image && view.versions && pc_tex_box_current(view.versions, &u.seen);
 }
 static bool vram_unchanged(const Use& u)
 {
-    if (u.seen.empty())
+    pc_tex_view view = emissive_view();
+    if (!texels_unchanged(u))
         return false;
-    size_t at = 0;
-    bool same = true;
-    use_vram(u, [&](const uint16_t* p, int n) {
-        if (same && (at + (size_t)n > u.seen.size() || memcmp(p, u.seen.data() + at, (size_t)n * 2)))
-            same = false;
-        at += (size_t)n;
-    });
-    return same && at == u.seen.size();
-}
-/* Whether the texels (not the CLUT) of a use's Use::seen are VRAM's still:
- * then its key (of their indices) is the same. */
-static bool texels_unchanged(const Use& u)
-{
-    if (u.seen.empty() || !emissive_vram())
-        return false;
-    size_t at = 0;
-    bool same = true;
-    texel_runs(u, [&](const uint16_t* p, int n) {
-        if (same && (at + (size_t)n > u.seen.size() || memcmp(p, u.seen.data() + at, (size_t)n * 2)))
-            same = false;
-        at += (size_t)n;
-    });
-    return same;
+    return u.seen.palette.id == 0 || pc_tex_current(view.versions, u.seen.palette);
 }
 /* ROOD_MATERIAL_CHECK=1: the planes' incremental writes are checked
  * (check_materials), and the keys kept when only a CLUT changed. */
@@ -1548,7 +1556,7 @@ static void match_use(Use& u)
         if (!u.key.empty())
             note_material(u);
         u.key.clear();
-        u.seen.clear();
+        u.has_seen = false;
         return;
     }
     std::string was = u.key;
@@ -1700,14 +1708,7 @@ static bool same_surface(const materials::Surface& a, const materials::Surface& 
 }
 static bool clut_unchanged(const Use& u)
 {
-    size_t at = 0;
-    bool same = true;
-    clut_runs(u, [&](const uint16_t* p, int n) {
-        if (same && (at + (size_t)n > u.mat_clut.size() || memcmp(p, u.mat_clut.data() + at, (size_t)n * 2)))
-            same = false;
-        at += (size_t)n;
-    });
-    return same && at == u.mat_clut.size();
+    return use_clut(u) == u.mat_clut;
 }
 /* The palette in CLUT slot (tpage's depth, clut) with colours `colours`
  * (its CLUT now): its key hashed once per slot and colours, a new key added
@@ -1811,8 +1812,7 @@ static bool resolve_material(Use& u, bool fresh, bool* changed)
         && ((!u.mat_found && !u.mat_palette) || clut_unchanged(u))) /* (a use no palette entry can match ignores its CLUT) */
         return u.mat_found;
     int w = u.box[2] - u.box[0] + 1, h = u.box[3] - u.box[1] + 1;
-    std::vector<uint16_t> clut;
-    clut_runs(u, [&](const uint16_t* p, int n) { clut.insert(clut.end(), p, p + n); });
+    std::vector<uint16_t> clut = use_clut(u);
     if (resolved_serial != material_serial)
         resolved.clear(), resolved_serial = material_serial;
     Resolved fresh_one, *r = &fresh_one;
@@ -2470,8 +2470,7 @@ std::vector<std::string> use_palette_keys(const Use& u)
     std::vector<std::string> cluts;
     if (!materials::catalog_needs_clut(u.key))
         return cluts;
-    std::vector<uint16_t> clut;
-    clut_runs(u, [&](const uint16_t* p, int n) { clut.insert(clut.end(), p, p + n); });
+    std::vector<uint16_t> clut = use_clut(u);
     const PaletteKey& k = palette_key(u, clut);
     cluts.push_back(k.key);
     for (const std::string& v : k.variants)
@@ -2645,8 +2644,14 @@ static void publish(int r0, int r1)
         r0 = 0, r1 = 0;
     } else if (r1 > r0)
         memcpy(&pub.map[(size_t)r0 * PC_EMISSIVE_MAP_W], &the_map[(size_t)r0 * PC_EMISSIVE_MAP_W], (size_t)(r1 - r0) * PC_EMISSIVE_MAP_W);
-    if (const uint16_t* v = emissive_vram())
-        memcpy(pub.vram.data(), v, 1024 * 512 * sizeof(uint16_t));
+    {
+        pc_tex_view view = emissive_view();
+        if (view.image)
+            memcpy(pub.vram.data(), view.image, 1024 * 512 * sizeof(uint16_t));
+        pub.has_versions = view.versions != nullptr;
+        if (view.versions)
+            pub.versions = *view.versions;
+    }
     pub.any_marks = any_marks;
     pub.any_object_lights = any_object_lights();
     pub.marked_uses = marked_uses, pub.marked_cells = marked_cells, pub.scope_overflow = scope_overflow;

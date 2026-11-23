@@ -40,8 +40,8 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import symbol_names  # noqa: E402
 
 # The highest end of the image: the kernel starts the heap at a random point
-# up to 1 GB past it (64 bits), and the game stack is at 0x60000000.
-HEAP_LIMIT = 0x60000000 - 0x40000000
+# up to 1 GB past it (64 bits), and the arenas and the game stack start at 4 GB (psx_types.h).
+HEAP_LIMIT = 0x100000000 - 0x40000000
 
 
 def _kind(name):
@@ -220,7 +220,7 @@ def script(base, pinned, state_sections):
         if kind == "data":
             lines.append("  . = ALIGN(0x1000);")
     # Linux puts the heap (brk) up to 1 GB past the image's end (x86-64 ASLR):
-    # it must never reach the game stack (boot_runtime.c, 0x60000000).
+    # it must never reach the game stack (psx_types.h ROOD_STACK_BASE).
     lines += ["  rood_game_end = .;",
               f'  ASSERT(rood_game_end <= {HEAP_LIMIT:#x}, "the game region grew past {HEAP_LIMIT:#x}: the heap could '
               f'start on the game stack (snapshot_layout.py)")',

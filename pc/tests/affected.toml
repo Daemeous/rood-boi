@@ -558,8 +558,17 @@ suites = ["input:*", "window_smoke", "system_settings_smoke", "camera_stick_smok
           "analog_move_smoke"]
 
 [[rule]]
-paths = ["pc/src/analog_move.c", "pc/src/boot_sdk.c", "game/battle/vs_actors_updateAshleyMovementInput.zig"]
-suites = ["analog_move_smoke", "input:*", "camera_stick_smoke", "camera_options_smoke"]
+paths = ["pc/src/actor_native.c"]
+suites = ["pose_blend_smoke", "animation_smoke"]
+
+[[rule]]
+paths = ["pc/src/analog_move.c", "pc/src/analog_state.*", "pc/src/boot_sdk.c", "game/battle/vs_actors_updateAshleyMovementInput.zig",
+         "game/battle/vs_actors_moveActorWithCollision.zig", "game/battle/vs_actors_updateAndDrawRoomModels.zig",
+         "game/common/analog.zig", "game/battle/vs_field_findInteractableGimmickAhead.zig",
+         "game/battle/vs_field_refreshAshleyInteractionTile.zig", "game/battle/vs_field_tileInFrontOfActor.zig",
+         "game/battle/vs_actors_restoreActorBasePose.zig", "pc/src/pose_blend.c"]
+suites = ["analog_corner_smoke", "analog_turn_smoke", "pose_blend_smoke", "analog_move_smoke", "analog_angle_smoke", "analog_pace_smoke", "analog_interact_smoke", "enemy_free_angle_smoke",
+          "analog_sweep_smoke", "input:*", "camera_stick_smoke", "camera_options_smoke"]
 
 [[rule]]
 paths = ["pc/src/camera_stick.*"]

@@ -374,7 +374,7 @@ def objcopy(args, obj):
 
 
 # Host units whose statics are game state (state_sections).
-STATE_HOST_UNITS = {"runtime", "cd_drive", "mdec", "xa_audio", "audio_libspu", "gte", "gte_value", "libgte", "inline"}
+STATE_HOST_UNITS = {"analog_state", "runtime", "cd_drive", "mdec", "xa_audio", "audio_libspu", "gte", "gte_value", "libgte", "inline"}
 # --engine-library: the host executable's units besides the game's own (src/
 # and the pc/src units built like them) and the generated tables: those whose
 # state is game state, or that read or drive it outside a frame (save states,
@@ -916,6 +916,7 @@ if battle:
         ("pc/src/battle_movement.c", "battle_movement"),
         ("pc/src/battle_motion.c", "battle_motion"),
         ("pc/src/actor_prepare.c", "actor_prepare"),
+        ("pc/src/pose_blend.c", "pose_blend"),
         ("pc/src/actor_vertices.c", "actor_vertices"),
         ("pc/src/actor_packets.c", "actor_packets"),
         ("pc/src/actor_blend.c", "actor_blend"),
@@ -1202,7 +1203,7 @@ for name in ["runtime", "window", "controller", "gamepad"]:
             and name in STATE_HOST_UNITS:
         state_sections(obj)
     objects.append(obj)
-for name in ["ownership", "audio_libspu", "audio_output", "input_record", "cd_drive", "xa_audio", "mdec", "memory_card", "dev_rpc", "dev_layout", "charge_skip", "camera_stick", "analog_move", "gl_present", "gpu_hw", "render", "render_state", "draw_items", "room_native", "gameplay_walls", "occlusion", "room_effects", "actor_native", "effect_native", "scene_capture", "floor_grid", "shadows", "ptgi", "glows", "overlay_statics", "ui_upscale", "antialias", "ui_text", "button_prompts", "ui_bubbles", "ui_emotes", "room_catalog", "fast_travel_rules", "ui/item_names", "ui/vs_encode", "ui/manual_parse", "ui/manual_cache", "ui/data_plan", "ui/score_format", "ui/score_nav", "ui/mon_parse", "ui/score_mon", "snapshot", "state_diff", "state_rewind", "savestate_slots", "frame_cost", "render_jitter", "render_thread", "present_header", "hw_meter", "hw_cmd", "hw_registry", "screen_owner", "hw_calls", "renderer_rq", "display_confirm", "quit_options", "ui/option_actions", "ui/options_nav", "ui/option_style", "ui/option_peek", "host_format", "classic/classic_parity"] + (["vk_core", "vk_shader_lookup", "vk_hw", "vk_present", "vk_shadows"] if arch64 else []) \
+for name in ["ownership", "audio_libspu", "audio_output", "input_record", "cd_drive", "xa_audio", "mdec", "memory_card", "dev_rpc", "dev_layout", "charge_skip", "camera_stick", "analog_move", "gl_present", "gpu_hw", "render", "render_state", "draw_items", "room_native", "gameplay_walls", "occlusion", "room_effects", "actor_native", "effect_native", "scene_capture", "floor_grid", "shadows", "ptgi", "glows", "overlay_statics", "ui_upscale", "antialias", "ui_text", "button_prompts", "ui_bubbles", "ui_emotes", "room_catalog", "fast_travel_rules", "ui/item_names", "ui/vs_encode", "ui/manual_parse", "ui/manual_cache", "ui/data_plan", "ui/score_format", "ui/score_nav", "ui/mon_parse", "ui/score_mon", "snapshot", "state_diff", "state_rewind", "savestate_slots", "frame_cost", "render_jitter", "render_thread", "present_header", "hw_meter", "hw_cmd", "hw_registry", "screen_owner", "tex_provider", "analog_state", "hw_calls", "renderer_rq", "display_confirm", "quit_options", "ui/option_actions", "ui/options_nav", "ui/option_style", "ui/option_peek", "host_format", "classic/classic_parity"] + (["vk_core", "vk_shader_lookup", "vk_hw", "vk_present", "vk_shadows"] if arch64 else []) \
         + (["engine_host", "engine_reload", "engine_alloc"] if engine_library else []):
     obj = out / (name.replace("/", "_") + ".o")
     # ui_text rasterizes fonts with the stb_truetype that Dear ImGui vendors.
@@ -2857,7 +2858,7 @@ if win:
 # Save states across engine rebuilds (pc/tools/snapshot_layout.py): the
 # game's code, read-only data and state at a fixed address after the engine
 # (64 bits: 0x18000000; the heap starts up to 1 GB past the image's end, which
-# must stay below the game stack at 0x60000000), and the keys a snapshot is
+# must stay below the arenas at 4 GB), and the keys a snapshot is
 # checked against.
 pin_args = []
 if arch64:
@@ -2938,7 +2939,7 @@ if engine_library:
         exports.write_text(exports.read_text().replace("};", "".join(f"  {n};\n" for n in sorted(imports)) + "};"))
     run(["gcc", "-m64", "-c", str(out / "engine_boundary.S"), "-o", str(out / "engine_boundary.o")])
     library = out / "librood_engine.so"
-    # Linked to load at 0x64000000 (above the game stack, below guest RAM;
+    # Linked to load at 0x64000000 (clear of the pinned game region and the arenas;
     # glibc takes it as a hint): engine addresses fit a 4-byte psx_ptr, as
     # in the non-PIE static build.
     library_link = ["g++", "-m64", "-shared", "-Wl,-Ttext-segment=0x64000000",

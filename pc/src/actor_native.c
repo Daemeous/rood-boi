@@ -78,11 +78,17 @@ static const char* const kind_names[4] = { "flat", "coloured", "flat grouped", "
 
 static const void *last_object, *last_model;
 static const gte_matrix* last_matrices;
+/* The matrices the palette is taken from: last_matrices, or what pose_blend.c drew in their place (Ashley's slowed stride
+ * between its ticks, setting anim_blend). last_matrices stays the game's: it names the draw (palette records). */
+static const gte_matrix* draw_matrices;
+extern const void* pc_pose_blend_matrices(const void*) __attribute__((weak));
 void pc_object_native_matrices(const void* object, const void* matrices, const void* model)
 {
     last_object = object;
     last_matrices = matrices;
     last_model = model;
+    const void* blend = &pc_pose_blend_matrices ? pc_pose_blend_matrices(matrices) : 0;
+    draw_matrices = blend ? blend : matrices;
 }
 
 /* ---- meshes ---- */
@@ -666,7 +672,7 @@ static uint32_t submit(int kind, const void* object, const void* model, unsigned
     }
     render_transform palette[RENDER_MAX_BONES];
     for (int b = 0; b < c->bones; b++)
-        world_transform(&last_matrices[b], &palette[b]);
+        world_transform(&draw_matrices[b], &palette[b]);
     /* The previous frame's palette of the same draw (the n-th draw of this
      * model with these matrices in the frame). */
     palette_record* rec = NULL;

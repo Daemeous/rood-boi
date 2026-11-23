@@ -20,6 +20,10 @@
  * pointers; no 32-bit word names them (the sound driver's words are pointer-sized since T18). ROOD_ARENA_SIZE is what is mapped (pages nobody touches cost nothing). */
 #define ROOD_ARENA_BASE 0x100000000ull
 #define ROOD_ARENA_SIZE 0x200000
+/* The game's stack (boot_runtime.c): 64 MB just above the arenas, at an address every process keeps, so a save state's frames (saved frame
+ * pointers, return addresses, pointers to locals) mean the same when it resumes in a new process. Pointers are 64 bits: nothing needs it below 4 GB. */
+#define ROOD_STACK_BASE (ROOD_ARENA_BASE + 0x4000000ull)
+#define ROOD_STACK_SIZE (64u << 20)
 /* The game heap's arena: its used size is the original's (VS_MAIN_HEAP_SIZE); the snapshot saves this much of it. */
 #define ROOD_HEAP_BASE ROOD_ARENA_BASE
 #define ROOD_HEAP_SIZE 0xF2000
@@ -35,11 +39,6 @@ static inline int rood_guest_memory(__UINTPTR_TYPE__ address, __UINTPTR_TYPE__ s
     __UINTPTR_TYPE__ in_arena = address - ROOD_ARENA_BASE;
     return in_arena < ROOD_ARENA_SIZE && size <= ROOD_ARENA_SIZE - in_arena;
 }
-
-/* Where the PC C reads (and clears) fields through what the original left NULL
- * (the PS1's physical address 0): 64 KiB of zeroes, defined in boot_runtime.c,
- * the same page the Zig side's psx.lowRam hands out. */
-extern unsigned char pc_null_object[0x10000];
 
 /* The SDK's long: 32 bits on the PS1. The 64-bit build reads the SDK headers
  * with long spelled int (pc/include/psx_sdk_long_begin.h), so port code that

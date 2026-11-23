@@ -787,7 +787,7 @@ static void pc_dump_stack(int sig)
     int n = CaptureStackBackTrace(0, 62, frames, NULL);
 #else
     /* The frame-pointer chain (the build keeps frame pointers), each link checked: backtrace() unwinds by CFI, which the game's
-     * own stack (mapped below 2 GB, run_game_on_low_stack) does not describe past its first frame: it ran off the stack and
+     * own stack (mapped at ROOD_STACK_BASE, run_game_on_low_stack) does not describe past its first frame: it ran off the stack and
      * the report of a stop (pc_unimplemented) died of a segmentation fault instead of printing. */
     int n = 0;
     void** fp = __builtin_frame_address(0);
@@ -849,13 +849,10 @@ static void pc_crash(int sig)
     signal(sig, SIG_DFL);
     raise(sig);
 }
-/* The game's stack on 64 bits. The PS1's stack was guest RAM, and game code
- * keeps addresses of its locals in 4-byte fields (guest
- * words, effect spawn records built on the stack), so the game thread runs on
- * a stack mapped below 2 GB (MAP_32BIT), where every address fits 32 bits. */
+/* The game's stack: the game thread runs on a stack of its own at a fixed address (ROOD_STACK_BASE), which save states need. */
 #ifdef _WIN32
 /* Windows cannot place a thread's or a fiber's stack, so the main thread
- * switches to one allocated below 2 GB: rood_call_on_stack(top, fn) calls
+ * switches to one of its own: rood_call_on_stack(top, fn) calls
  * fn with rsp = top. Its unwind info (frame pointer rbp) lets stack walks
  * and exception dispatch cross back to the original stack. */
 extern void rood_call_on_stack(void* top, void (*fn)(void));
@@ -907,27 +904,25 @@ static LONG WINAPI pc_exception(EXCEPTION_POINTERS* info)
     pc_dump_stack(0);
     _exit(3);
 }
-/* Reserved in main before the window: graphics drivers reserve much of the
- * address space below 2 GB when they load. At Linux's fixed address when it
+/* Reserved in main before the window. At ROOD_STACK_BASE (psx_types.h) when it
  * is free: a save state (snapshot.c) holds the game's stack and resumes it in
  * a new process, where every saved frame pointer and return address must mean
  * the same; elsewhere (taken) only resuming in a new process is lost. Host
  * statics (.data.rood_host): a snapshot of this unit's state must not carry
  * another process's. */
-#define GAME_STACK_BASE 0x60000000u
 static char* game_stack __attribute__((section(".data.rood_host"))) = NULL;
 static int game_stack_fixed __attribute__((section(".data.rood_host"))) = 0;
-static const size_t game_stack_size = 64u << 20;
+static const size_t game_stack_size = ROOD_STACK_SIZE;
 static int reserve_game_stack(void)
 {
-    game_stack = VirtualAlloc((void*)(uintptr_t)GAME_STACK_BASE, game_stack_size, MEM_RESERVE | MEM_COMMIT,
+    game_stack = VirtualAlloc((void*)(uintptr_t)ROOD_STACK_BASE, game_stack_size, MEM_RESERVE | MEM_COMMIT,
         PAGE_READWRITE);
-    game_stack_fixed = game_stack == (char*)(uintptr_t)GAME_STACK_BASE;
+    game_stack_fixed = game_stack == (char*)(uintptr_t)ROOD_STACK_BASE;
     if (!game_stack_fixed)
-        fprintf(stderr, "[snapshot] game stack: 0x%x is taken; save states load only in this session\n",
-            GAME_STACK_BASE);
-    for (uintptr_t at = 0x02000000; !game_stack && at + game_stack_size <= 0x7f000000; at += 1u << 20)
-        game_stack = VirtualAlloc((void*)at, game_stack_size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+        fprintf(stderr, "[snapshot] game stack: 0x%llx is taken; save states load only in this session\n",
+            (unsigned long long)ROOD_STACK_BASE);
+    if (!game_stack)
+        game_stack = VirtualAlloc(NULL, game_stack_size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     return game_stack != NULL;
 }
 /* snapshot.c: the stack's range. Unlike Linux, a stack elsewhere still saves
@@ -969,35 +964,34 @@ static void run_game(void)
  * before the window: a save state (snapshot.c) holds the game's stack and
  * resumes it in a new process, where every saved frame pointer and return
  * address must mean the same. Elsewhere (taken) only snapshots are lost. */
-#define GAME_STACK_BASE 0x60000000u
-#define GAME_STACK_SIZE (64u << 20)
+#define GAME_STACK_SIZE ROOD_STACK_SIZE
 static char* game_stack;
 static int game_stack_fixed;
 static void reserve_game_stack(void)
 {
-    void* p = mmap((void*)(uintptr_t)GAME_STACK_BASE, GAME_STACK_SIZE, PROT_READ | PROT_WRITE,
+    void* p = mmap((void*)(uintptr_t)ROOD_STACK_BASE, GAME_STACK_SIZE, PROT_READ | PROT_WRITE,
         MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED_NOREPLACE, -1, 0);
-    if (p != MAP_FAILED && (uintptr_t)p == GAME_STACK_BASE) {
+    if (p != MAP_FAILED && (uintptr_t)p == ROOD_STACK_BASE) {
         game_stack = p;
         game_stack_fixed = 1;
         return;
     }
     if (p != MAP_FAILED)
         munmap(p, GAME_STACK_SIZE); /* an old kernel's hint, not the address */
-    fprintf(stderr, "[snapshot] game stack: 0x%x is taken; save states are off\n", GAME_STACK_BASE);
+    fprintf(stderr, "[snapshot] game stack: 0x%llx is taken; save states are off\n", (unsigned long long)ROOD_STACK_BASE);
     FILE* maps = fopen("/proc/self/maps", "r"); /* by what */
     char line[512];
     while (maps && fgets(line, sizeof line, maps)) {
         unsigned long lo, hi;
-        if (sscanf(line, "%lx-%lx", &lo, &hi) == 2 && lo < GAME_STACK_BASE + GAME_STACK_SIZE && hi > GAME_STACK_BASE)
+        if (sscanf(line, "%lx-%lx", &lo, &hi) == 2 && lo < ROOD_STACK_BASE + GAME_STACK_SIZE && hi > ROOD_STACK_BASE)
             fprintf(stderr, "[snapshot]   %s", line);
     }
     if (maps)
         fclose(maps);
     p = mmap(NULL, GAME_STACK_SIZE, PROT_READ | PROT_WRITE,
-        MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | (sizeof(void*) == 8 ? MAP_32BIT : 0), -1, 0);
+        MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
     if (p == MAP_FAILED) {
-        perror("game stack below 2 GB");
+        perror("game stack");
         exit(1);
     }
     game_stack = p;
@@ -1029,8 +1023,6 @@ static void run_game_on_low_stack(void)
 #endif
 /* Guest memory at its PS1 addresses (RAM, scratchpad, the I/O page); NULL
  * when a range is taken. */
-/* See psx_types.h: where the game's reads through the original's NULLs land. */
-unsigned char pc_null_object[0x10000] __attribute__((aligned(16)));
 /* The port arena's place, for game/common/port_arena.zig (the one definition is psx_types.h's). */
 const uintptr_t rood_arena_base = ROOD_ARENA_BASE;
 const unsigned rood_arena_size = ROOD_ARENA_SIZE;
@@ -1109,7 +1101,7 @@ int main(int argc, char** argv)
     }
 #ifdef _WIN32
     if (!reserve_game_stack()) {
-        fprintf(stderr, "game stack below 2 GB: no free range\n");
+        fprintf(stderr, "game stack: no free range\n");
         return 1;
     }
 #else

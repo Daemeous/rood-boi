@@ -11,6 +11,7 @@
 #ifndef ROOD_SCREEN_OWNER_H
 #define ROOD_SCREEN_OWNER_H
 #include <stdint.h>
+#include "tex_provider.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -36,12 +37,9 @@ void pc_screen_owner_side_drawn(const int clip[4], int right, int y0, int y1);
 int pc_screen_owner_side_runs(const int clip[4], int right, int runs[][2], int max);
 
 /* Whether every texel a textured rectangle samples (its page, CLUT and inclusive texel rectangle uv: u0, v0, u1, v1) is
- * drawn (not the value 0, which the GPU skips): the answer is kept per (page, CLUT, rectangle) until a write to VRAM
- * touches `tiles` (pc_screen_owner_vram_changed). `tiles` of the texels and CLUT are the caller's (gpu_hw.c tiles_for).
- * T5: reads the renderer's VRAM; it follows whatever replaces that array. */
-int pc_screen_owner_texels_opaque(const uint16_t* vram, unsigned tpage, unsigned clut, const int uv[4], uint32_t tiles);
-/* VRAM tiles (gpu_hw.c tiles_for) were written. */
-void pc_screen_owner_vram_changed(uint32_t tiles);
+ * drawn (not the value 0, which the GPU skips): the answer is kept per (page, CLUT, rectangle) until the texels under the box
+ * or the palette change (their versions in the view, tex_provider.h; a view without versions keeps nothing). */
+int pc_screen_owner_texels_opaque(pc_tex_view view, unsigned tpage, unsigned clut, const int uv[4]);
 
 #ifdef __cplusplus
 }

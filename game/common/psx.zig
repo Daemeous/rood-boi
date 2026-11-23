@@ -162,12 +162,18 @@ pub fn copy(dst: anytype, src: anytype) void {
     dst.* = src;
 }
 
-/// The 64 KiB of zeroes (pc_null_object, boot_runtime.c) where the PC C's
-/// safety guards read instead of NULL: the original read PS1 address 0
-/// (PORTING.md §5.3). One page, shared with the C.
-var test_null_page: [0x10000]u8 align(16) = std.mem.zeroes([0x10000]u8);
-pub inline fn nullObject(comptime T: type) *align(1) T {
-    return @ptrCast(if (builtin.is_test) &test_null_page else Global([0x10000]u8, "pc_null_object").ptr());
+/// Where the original only READ through NULL, i.e. the PS1's low RAM at address 0, which the port reads as zeroes: a zeroed constant object
+/// of type T (one per `site`: `@src()` of the call). The original's low RAM held the BIOS's, but only fields under offset 0x80 of such a
+/// read can be told from zeroes, and no lane reaches a site that reads beyond. A site that WRITES there uses a local of its own
+/// (the writes are dropped).
+pub fn absent(comptime T: type, comptime site: std.builtin.SourceLocation) *T {
+    const Storage = struct {
+        const object: T = std.mem.zeroes(T);
+        comptime {
+            _ = site;
+        }
+    };
+    return @constCast(&Storage.object);
 }
 
 /// Struct names, one per line (or `raw`: base types of one byte, void, integers), that `byteAt` rejects at
@@ -371,10 +377,10 @@ test "put stores a native pointer field the C way" {
     try std.testing.expectEqual(@as(?*u32, null), n.native);
 }
 
-test "byteAt and nullObject are unaligned views" {
+test "byteAt and absent are unaligned views" {
     var bytes = [_]u8{ 0, 0x34, 0x12, 0 };
     try std.testing.expectEqual(@as(u16, 0x1234), byteAt(u16, &bytes, 1).*);
-    try std.testing.expectEqual(@as(u32, 0), nullObject(u32).*);
+    try std.testing.expectEqual(@as(u32, 0), absent(u32, @src()).*);
 }
 
 test "weak: an absent hook is null at run time" {

@@ -170,19 +170,21 @@ extern FSpuVoiceInfo g_SpuVoiceInfo[VOICE_COUNT];
 FSoundChannel g_ActiveMusicChannels[0x20];
 extern FSoundChannelConfig* g_pSavedMousicConfig;
 #ifdef ROOD_PC
-/* With no saved music config the original reads (and clears) fields through
- * NULL, i.e. PS1 physical RAM at 0, which the host maps at 0x80000000. */
+/* With no saved music config the original reads fields through NULL, i.e. PS1 physical RAM at 0: zeroes
+ * (the fields it reads sit under offset 0x80, where that RAM is zero). */
+static FSoundChannelConfig vs_audio_noSavedMusicConfig; /* (read only) */
 #define SAVED_MUSIC_CONFIG                                                       \
-    (g_pSavedMousicConfig ? g_pSavedMousicConfig : (FSoundChannelConfig*)pc_null_object)
+    (g_pSavedMousicConfig ? g_pSavedMousicConfig : &vs_audio_noSavedMusicConfig)
 #else
 #define SAVED_MUSIC_CONFIG g_pSavedMousicConfig
 #endif
 #ifdef ROOD_PC
 /* A depth slide (opcodes DD/DE/DF) on a channel whose LFO was never enabled
- * reads a NULL wave: PS1 physical RAM at 0, as above. Zone 15 room
+ * reads a NULL wave: PS1 physical RAM at 0, zeroes (only its first three halfwords are read). Zone 15 room
  * 0's and zone 48 room 3's entry sound effects slide the auto-pan depth. */
+static short vs_audio_noWave[4]; /* (read only) */
 #define LFO_WAVE(field)                                                         \
-    ((field) ? (field) : (short*)pc_null_object)
+    ((field) ? (field) : vs_audio_noWave)
 #else
 #define LFO_WAVE(field) (field)
 #endif

@@ -17,9 +17,9 @@ pub fn func_800A1720(arg0: c_int, arg1: c_int, arg2: [*c]c_int, arg3: [*c]c_int)
 
     if (arg1 == 0xFD) {
         const slot: ?*v.D_800F4538_t = psx.at(v.g.vs_actors_actorRecords(), arg0).*;
-        // ROOD_PC: empty slot, read PS1 address 0 (at 0x80000000) as func_800A17BC does.
+        // ROOD_PC: empty slot, read PS1 address 0 (zeroes) as func_800A17BC does.
         if (slot == null) {
-            arg2[6] = @as(c_int, psx.nullObject(v.D_800F4538_t).unk0.position.vy);
+            arg2[6] = @as(c_int, psx.absent(v.D_800F4538_t, @src()).unk0.position.vy);
             return 0;
         }
 

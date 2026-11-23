@@ -547,7 +547,7 @@ static int digits_sign(int code, int u, int v, int w, glyph_info* g)
 
 static int page_index(const uint16_t* vram, int page_x, int u, int v)
 {
-    return (pc_vram_at(vram, page_x + (u >> 2), v) >> ((u & 3) * 4)) & 15;
+    return (int)pc_tex_index_at(vram, 0, page_x, 0, u, v);
 }
 /* The game's small-capital tables (BATTLE.PRG's data, native objects the import link defines): 4-bit widths and page positions of ' '..'Z'. */
 extern unsigned char vs_render_compactGlyphWidths[32], vs_render_compactGlyphIndices[0x3c], vs_battle_characterWidths[];
@@ -735,7 +735,7 @@ void pc_ui_text_forget_signs(void)
 
 static int texel4(const uint16_t* vram, int page_x, int page_y, int u, int v)
 {
-    return (pc_vram_at(vram, page_x + (u >> 2), page_y + v) >> ((u & 3) * 4)) & 15;
+    return (int)pc_tex_index_at(vram, 0, page_x, page_y, u, v);
 }
 
 unsigned pc_ui_text_glyph_at(unsigned tpage, unsigned clut, int u0, int v0, int u1, int v1)

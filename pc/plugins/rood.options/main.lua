@@ -53,7 +53,8 @@ M.pages = {
       "camera_stick_zoom", "camera_stick_invert_y", "camera_stick_zoom_speed", "camera_stick_collision",
       "camera_stick_r3_reset", "camera_stick_idle_reset", "camera_stick_keys", "reset_camera",
       "qol_fp_invert_y", "qol_map_invert", "qol_map_controls", "qol_confirm_cross", "qol_field_cross_attack",
-      "analog_move", "analog_dead_zone", "analog_run", "rumble_strength",
+      "analog_move", "analog_dead_zone", "analog_pace", "analog_run", "analog_curve", "analog_min_speed",
+      "analog_anim_rate", "anim_blend", "analog_hysteresis", "rumble_strength",
       "vibration",
       -- the classic screen reaches Bindings from here; the modern list shows it as an entry
       { page = "bindings", where = "classic" },

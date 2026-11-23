@@ -356,7 +356,7 @@ typedef struct {
 
 static int page_index(const uint16_t* vram, int page_x, int u, int v)
 {
-    return (pc_vram_at(vram, page_x + (u >> 2), v) >> ((u & 3) * 4)) & 15;
+    return (int)pc_tex_index_at(vram, 0, page_x, 0, u, v);
 }
 
 /* PS1 pad bits of the font's 0xAE-0xB1 and of the sprites in reading order. */

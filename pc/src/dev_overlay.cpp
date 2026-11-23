@@ -1122,7 +1122,8 @@ static void look_panel()
                           "semi-transparent sprite, whose outline blends with the field.");
 }
 
-extern "C" int pc_rumble_strength, pc_analog_move, pc_analog_dead_zone, pc_analog_run, pc_audio_latency_ms, pc_sound_autopan_quirk; /* project_settings.cpp */
+extern "C" int pc_rumble_strength, pc_analog_move, pc_analog_dead_zone, pc_analog_run, pc_audio_latency_ms, pc_analog_pace,
+    pc_analog_curve, pc_analog_min_speed, pc_analog_anim_rate, pc_analog_hysteresis, pc_enemy_free_angle, pc_anim_blend, pc_sound_autopan_quirk; /* project_settings.cpp */
 /* Graphics > Controls: analog movement (analog_move.c; off by default) and the gamepad's rumble. */
 static void analog_panel()
 {
@@ -1135,10 +1136,28 @@ static void analog_panel()
                           "directions. Off: the original. The D-pad and the keyboard always work as before.");
     ImGui::BeginDisabled(!analog);
     ImGui::SliderInt("Analog dead zone %", &pc_analog_dead_zone, 0, 60);
-    ImGui::SliderInt("Analog run from %", &pc_analog_run, 10, 100);
+    bool pace = pc_analog_pace != 0;
+    if (ImGui::Checkbox("Speed by pressure", &pace))
+        pc_analog_pace = pace;
+    ImGui::SliderInt("Analog run from % (two paces)", &pc_analog_run, 10, 100);
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Stick travel at which she runs; below it she walks (the pace R2 held gives).");
+        ImGui::SetTooltip("Two paces only: the stick travel at which she runs; below it she walks (the pace R2 held gives).");
+    ImGui::SliderInt("Pressure curve %", &pc_analog_curve, 25, 400);
+    ImGui::SliderInt("Slowest speed %", &pc_analog_min_speed, 0, 50);
+    ImGui::SliderInt("Stride follows speed %", &pc_analog_anim_rate, 0, 100);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("How much the stride's playback follows her speed (0: the original's fixed rate).");
+    ImGui::SliderInt("Stride pose blend %", &pc_anim_blend, 0, 100);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Her slowed stride is drawn between its animation ticks, so the feet move on every image at a\n"
+                          "light push (draw only; game state is the same). 0: the original's stepped poses.");
+    ImGui::SliderInt("Interaction hold (degrees)", &pc_analog_hysteresis, 0, 44);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Past the diagonal, the facing must turn this far before a chest, door or block picks the other side.");
     ImGui::EndDisabled();
+    bool enemies = pc_enemy_free_angle != 0;
+    if (ImGui::Checkbox("Enemies: exact free-angle steps", &enemies))
+        pc_enemy_free_angle = enemies;
     ImGui::SliderInt("Rumble strength %", &pc_rumble_strength, 0, 100);
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("The gamepad's motors, scaled from what the game asks for (its own Vibration option\n"

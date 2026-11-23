@@ -8,6 +8,11 @@ inline fn header(a: anytype) @TypeOf(if (@hasField(@typeInfo(@TypeOf(a)).pointer
 }
 
 /// unk0's flag run: bytes 8..B, the movement and drawing flags.
+/// The actor's pose steps due this frame (the animation's speed: 1, 2 hasted).
+pub inline fn animationSteps(a: anytype) *u8 {
+    return &a.unk5B2;
+}
+
 pub inline fn flags8(a: anytype) *align(1) c_uint {
     return psx.bitsAt(c_uint, &header(a)._bits_skip, 0);
 }

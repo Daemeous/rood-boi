@@ -30,6 +30,9 @@ typedef struct {
 /* The block-scope static of the original function: the Zig reaches this storage through the views
  * (battle_statics.py, STATE.tsv). */
 static func_8008D2C0_t func_800A4A24__platforms[4] __attribute__((used));
+#ifdef ROOD_PC
+static func_8008D2C0_t func_800A4A24__none; /* what a lookup that finds no platform returns (read-only: zeroes) */
+#endif
 
 void pc_frame_move(unsigned* packet, const short* rect, int x, int y);
 int vs_field_collectMovingPlatformPositions(func_8008D2C0_t*);
@@ -101,8 +104,8 @@ static inline func_8008D2C0_t* func_800A4A24(int id)
         }
     }
 #ifdef ROOD_PC
-    /* No matching platform: see 3A1A0.c (reads of PS1 address 0). */
-    return (func_8008D2C0_t*)pc_null_object;
+    /* No matching platform: see 3A1A0.c (the original's callers read PS1 address 0: zeroes). */
+    return &func_800A4A24__none;
 #else
     return NULL;
 #endif

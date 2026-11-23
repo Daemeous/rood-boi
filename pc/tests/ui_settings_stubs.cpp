@@ -21,7 +21,9 @@ float pc_emissive = 1.0f; // emissive.cpp: glowing surfaces' strength
 int pc_dust; // particles.cpp: dust motes (0 off)
 int pc_qol_map_invert, pc_qol_fp_invert_y, pc_qol_map_controls, pc_qol_skip_charging, pc_qol_skip_charging_who;
 int pc_qol_confirm_cross, pc_qol_field_cross_attack;
-int pc_analog_move, pc_analog_dead_zone = 20, pc_analog_run = 70, pc_rumble_strength = 100;
+int pc_analog_move = 1, pc_analog_dead_zone = 20, pc_analog_run = 70, pc_rumble_strength = 100;
+int pc_analog_pace = 1, pc_analog_curve = 100, pc_analog_min_speed = 10, pc_analog_anim_rate = 100, pc_analog_hysteresis = 15;
+int pc_enemy_free_angle, pc_anim_blend = 100;
 float pc_qol_skip_charging_name = 1.0f;
 float pc_qol_skip_charging_hold_mine = 0.0f, pc_qol_skip_charging_hold_enemy = 0.35f;
 int pc_qol_fast_travel = 1, pc_qol_fast_travel_cost, pc_qol_fast_travel_flat = 15, pc_qol_fast_travel_prompt = 1,

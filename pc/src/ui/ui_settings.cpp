@@ -48,7 +48,8 @@ extern float pc_qol_skip_charging_hold_mine, pc_qol_skip_charging_hold_enemy; /*
 extern int pc_skip_intro;        /* project_settings.cpp; boot_runtime.c */
 extern int pc_save_states;       /* project_settings.cpp; savestate_slots.c */
 extern int pc_qol_map_invert, pc_qol_fp_invert_y; /* project_settings.cpp; MENU5, BATTLE vs_field_updateFirstPersonCamera */
-extern int pc_analog_move, pc_analog_dead_zone, pc_analog_run, pc_rumble_strength; /* analog_move.c, boot_gamepad.c */
+extern int pc_analog_move, pc_analog_dead_zone, pc_analog_run, pc_rumble_strength, pc_analog_pace, pc_analog_curve,
+    pc_analog_min_speed, pc_analog_anim_rate, pc_analog_hysteresis, pc_enemy_free_angle, pc_anim_blend; /* analog_move.c, boot_gamepad.c */
 extern int pc_qol_map_controls;                   /* project_settings.cpp; map_pad.h */
 extern int pc_qol_confirm_cross, pc_qol_field_cross_attack; /* project_settings.cpp; button_roles.c */
 extern int pc_ui_menus;          /* project_settings.cpp; ui_shell */
@@ -717,9 +718,35 @@ void build()
     c.push_back(islider("analog_dead_zone", "Analog dead zone", "How far the stick moves before Ashley does.",
         &pc_analog_dead_zone, 0, 60, "%d%%")
                     .grey(need_analog));
+    c.push_back(toggle("analog_pace", "Analog speed by pressure",
+        "How hard the stick is pushed is how fast Ashley goes, and her stride keeps pace. Off: the original's two "
+        "paces, a walk and a run.",
+        &pc_analog_pace)
+                    .grey(need_analog));
     c.push_back(islider("analog_run", "Analog run from",
-        "The stick's travel at which Ashley runs; below it she walks (the pace R2 held gives).", &pc_analog_run,
-        10, 100, "%d%%")
+        "With two paces: the stick's travel at which Ashley runs; below it she walks (the pace R2 held gives).",
+        &pc_analog_run, 10, 100, "%d%%")
+                    .grey(need_analog));
+    c.push_back(islider("analog_curve", "Analog pressure curve",
+        "How the push turns into speed: 100 is straight, more is gentler at the start.", &pc_analog_curve, 25, 400,
+        "%d%%")
+                    .grey(need_analog));
+    c.push_back(islider("analog_min_speed", "Analog slowest speed",
+        "Her speed at the edge of the dead zone, as a share of the run.", &pc_analog_min_speed, 0, 50, "%d%%")
+                    .grey(need_analog));
+    c.push_back(islider("analog_anim_rate", "Analog stride follows speed",
+        "How much her stride's playback follows her speed, so her feet do not slide: 0 is the original's fixed "
+        "rate.",
+        &pc_analog_anim_rate, 0, 100, "%d%%")
+                    .grey(need_analog));
+    c.push_back(islider("anim_blend", "Analog stride smoothing",
+        "Her slowed stride is drawn between its animation steps, so her feet move smoothly at a light push (0: the "
+        "original's stepped poses).",
+        &pc_anim_blend, 0, 100, "%d%%")
+                    .grey(need_analog));
+    c.push_back(islider("analog_hysteresis", "Analog interaction hold",
+        "Degrees past the diagonal her facing must turn before chests, doors and blocks pick the other side.",
+        &pc_analog_hysteresis, 0, 44, "%d")
                     .grey(need_analog));
     c.push_back(islider("rumble_strength", "Rumble strength",
         "The gamepad's motors, from what the game asks for (its Vibration option below decides whether it asks).",

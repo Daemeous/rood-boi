@@ -42,8 +42,8 @@ void pc_actor_scratch(void)
     memcpy(vs_move.directions, D_800F16EC, 8);
     /* Without a navigation record (vs_battle_aiUpdateActorNavigationOverrides does not test it, unlike
      * func_800E511C) the original reads word 4 of address 0: PS1 RAM, the
-     * kernel area, read here through guest RAM. */
-    unsigned room = vs_battle_aiRoomAiState ? *(unsigned*)&vs_battle_aiRoomAiState->unk4 : *(unsigned*)(pc_null_object + 4);
+     * kernel area, which is zero below offset 0x80. */
+    unsigned room = vs_battle_aiRoomAiState ? *(unsigned*)&vs_battle_aiRoomAiState->unk4 : 0u;
     vs_move.width = room & 0xFF;
     vs_move.depth = room >> 8 & 0xFF;
     vs_move.gap3DE[0] = room >> 16 & 0xFF;

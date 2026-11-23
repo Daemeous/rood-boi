@@ -79,8 +79,8 @@ int pc_qol_map_invert, pc_qol_fp_invert_y;
 /* rumble_strength: the gamepad's motors, percent of what the game's actuator
  * bytes ask for (boot_gamepad.c; the game's own Vibration setting still gates
  * what it asks for); 0 is off. analog_move: the left stick walks and runs
- * Ashley at any angle (analog_move.c; off by default: the d-pad's eight
- * directions, as the original); analog_dead_zone and analog_run are percent of
+ * Ashley at any angle (analog_move.c; on by default, a gamepad's stick: the d-pad's eight
+ * directions stay the original's); analog_dead_zone and analog_run are percent of
  * the stick's travel: below the dead zone nothing moves, from analog_run up
  * Ashley runs (the D-pad's pace), between she walks (the pace R2 held gives). */
 int pc_rumble_strength = 100;
@@ -93,7 +93,19 @@ int pc_audio_latency_ms = 50;
  * bytes of the PS1 executable's code as their wave on the original (25AC.c pc_sound_lfo_wave). 1 (default): the same, so those
  * tracks sound as they did; 0: a flat wave, no pan movement. */
 int pc_sound_autopan_quirk = 1;
-int pc_analog_move, pc_analog_dead_zone = 20, pc_analog_run = 70;
+int pc_analog_move = 1, pc_analog_dead_zone = 20, pc_analog_run = 70;
+/* analog_pace: 1 (default) the stick's pressure is Ashley's speed, continuous (analog_min_speed percent of the run at the
+ * dead zone's edge, the run at a full push, along analog_curve percent: 100 linear, 25..400); 0 the original's two paces
+ * (analog_run). analog_anim_rate: how far her stride's playback follows the speed (0 the original's fixed rate, 100 the
+ * feet keep up). analog_hysteresis: degrees past a 45 degree boundary her facing must go before chests, doors, blocks
+ * and the step lock pick the other of two tile directions (0 the original's nearest; analog_move.c). enemy_free_angle:
+ * the enemies' free-angle steps carry the step's lost fraction too, so their heading is exact (0 the original's). */
+int pc_analog_pace = 1, pc_analog_curve = 100, pc_analog_min_speed = 10, pc_analog_anim_rate = 100, pc_analog_hysteresis = 15;
+int pc_enemy_free_angle;
+/* anim_blend: percent; Ashley's slowed stride is drawn at the fraction between its animation ticks (pose_blend.c), so a
+ * light push on the stick moves her feet on every image instead of every few. 0 is the original's stepped poses; game
+ * state is the same either way (draw only). */
+int pc_anim_blend = 100;
 /* hud_label_opaque: the battle stat bars' label (HP, MP, RISK) is drawn as an
  * opaque sprite (1, default), like its digits; 0 draws the original's
  * semi-transparent one (BATTLE _renderStatBar, sprite flag 0x180). */
@@ -419,7 +431,14 @@ const Entry entries[] = {
     I("sound_autopan_quirk", pc_sound_autopan_quirk), /* 1: the original's auto pan of types 16 and up; 0: flat */
     I("analog_move", pc_analog_move),
     I("analog_dead_zone", pc_analog_dead_zone), /* percent of the stick's travel */
-    I("analog_run", pc_analog_run), /* percent: at or past it Ashley runs */
+    I("analog_run", pc_analog_run), /* percent: at or past it Ashley runs (analog_pace 0) */
+    I("analog_pace", pc_analog_pace), /* 1 continuous speed by the stick's pressure, 0 the original's two paces */
+    I("analog_curve", pc_analog_curve), /* percent exponent of the pressure's curve: 25..400 */
+    I("analog_min_speed", pc_analog_min_speed), /* percent of the run at the dead zone's edge: 0..50 */
+    I("analog_anim_rate", pc_analog_anim_rate), /* percent: the stride follows the speed, 0..100 */
+    I("analog_hysteresis", pc_analog_hysteresis), /* degrees: interaction's tile direction, 0..44 */
+    I("anim_blend", pc_anim_blend), /* percent: her slowed stride drawn between its ticks, 0..100 */
+    I("enemy_free_angle", pc_enemy_free_angle), /* the enemies' free-angle steps carry their lost fraction */
     I("hud_label_opaque", pc_hud_label_opaque), /* the stat bars' label opaque (1) or the original's 0x180 (0) */
     F("menu_fade_dip", pc_menu_fade_dip), /* menu_fade plain: where the field is black, 0.05..0.95 of the fade */
     I("opacity_2d", pc_opacity_2d), /* 2D at an opacity as primitives (1) or the game's read-back (0; ROOD_OPACITY_2D wins) */

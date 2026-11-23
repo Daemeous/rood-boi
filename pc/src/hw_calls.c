@@ -31,7 +31,8 @@ extern void pc_hw_detail_view_now(int);
 extern int pc_hw_present_world_now(void);
 extern int pc_hw_present_menu_model_now(void);
 extern const uint16_t* pc_hw_renderer_vram_now(void);
-extern void pc_hw_vram_copy_now(uint16_t* dst);
+extern void pc_hw_vram_copy_now(uint16_t* dst, pc_tex_versions* versions);
+extern pc_tex_view pc_hw_emissive_tex_view_now(void);
 extern const uint16_t* pc_hw_emissive_vram_now(void);
 extern int pc_hw_active;
 extern const uint16_t* pc_native_vram(void);
@@ -190,8 +191,9 @@ void pc_hw_supersample(int view_h, int display_h)
  * thread had reached). The copy stays right until something more is posted (pc_rt_pushed), so the many reads of one moment are one copy. On the
  * renderer's own thread, or with the thread off, the array itself. */
 static uint16_t vram_copy[1024 * 512];
+static pc_tex_versions vram_copy_versions; /* (the versions of the cells, as of the same request) */
 static unsigned long long vram_key = ~0ull;
-static void vram_copy_call(void* p) { pc_hw_vram_copy_now(p); }
+static void vram_copy_call(void* p) { pc_hw_vram_copy_now(p, &vram_copy_versions); }
 static const uint16_t* game_side_vram(void)
 {
     pc_hwc_flush();
@@ -207,16 +209,19 @@ const uint16_t* pc_hw_renderer_vram(void)
         return pc_hw_renderer_vram_now();
     return game_side_vram();
 }
-/* emissive.cpp's VRAM (T1 R4d): the renderer's copy, current (the commands pending are applied); renderer_side: the caller is the renderer's. */
-const uint16_t* pc_hw_emissive_vram(int renderer_side)
+/* The same with its versions (tex_provider.h): where the game side copies the array, it copies the versions of the same request. */
+pc_tex_view pc_hw_emissive_tex_view(int renderer_side)
 {
     if (renderer_side || pc_rt_on_thread() || !pc_rt_active()) {
         if (!renderer_side)
-            pc_hwc_flush(); /* (a reader on the game side: the commands pending first) */
-        return pc_hw_emissive_vram_now();
+            pc_hwc_flush();
+        return pc_hw_emissive_tex_view_now();
     }
-    return pc_hw_active ? game_side_vram() : pc_native_vram();
+    pc_tex_view view = { pc_hw_active ? game_side_vram() : pc_native_vram(), pc_hw_active ? &vram_copy_versions : NULL };
+    return view;
 }
+/* emissive.cpp's VRAM (T1 R4d): the renderer's copy, current (the commands pending are applied); renderer_side: the caller is the renderer's. */
+const uint16_t* pc_hw_emissive_vram(int renderer_side) { return pc_hw_emissive_tex_view(renderer_side).image; }
 
 /* The picture's camera (what the presented picture's surfaces were drawn with, or the interpolated frame's): asked for per query by the lights,
  * the editors and the pickers. The renderer answers after everything posted before; the answer holds until something more is posted, so the

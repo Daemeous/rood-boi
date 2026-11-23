@@ -1,4 +1,5 @@
 //! Fires a weapon-drawn actor's attack at its target and clears its idle state (pc/src/game/BATTLE/BATTLE.PRG/30DB0.c).
+const std = @import("std");
 const psx = @import("common").psx;
 const v = @import("views_30DB0");
 const c = @import("c_30DB0");
@@ -6,9 +7,13 @@ const c = @import("c_30DB0");
 /// orig: func_8009DDF4 (pc/src/game/BATTLE/BATTLE.PRG/30DB0.c)
 /// Runs the weapon-drawn attack of actor `arg0` against `arg1`, then clears its idle flags.
 pub fn func_8009DDF4(arg0: c_int, arg1: ?*v.SVECTOR) callconv(.c) void {
-    // ROOD_PC: an empty actor slot reads through NULL, which maps to PS1 address 0 at 0x80000000.
+    // ROOD_PC: an empty actor slot reads through NULL, reads PS1 address 0 (zeroes; its writes are dropped).
     const slot = psx.at(v.g.vs_actors_actorRecords(), arg0).*;
-    const temp: *align(1) v.D_800F4538_t = if (slot) |p| p else psx.nullObject(v.D_800F4538_t);
+    var absent_actor: v.D_800F4538_t = undefined;
+    const temp: *align(1) v.D_800F4538_t = if (slot) |p| p else blk: {
+        absent_actor = std.mem.zeroes(v.D_800F4538_t);
+        break :blk &absent_actor;
+    };
     const hdr: *align(1) v.vs_actors_ModelInstance = &temp.unk0;
 
     if (psx.getBits(hdr, "weaponDrawn") != 0 and

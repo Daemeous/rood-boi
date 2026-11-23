@@ -432,7 +432,7 @@ T15 and T13.
 the original executable's data is no longer copied anywhere (every import is a native object), and the
 BATTLE/TITLE/ENDING overlay slot is a native buffer of the program. What stays: an I/O page that holds
 sound chip registers (T18b), the arenas above 4 GB (the game heap, initialised with `0xF2000` bytes, and
-the port arena), and a 64 MB game stack at a fixed address below 2 GB.
+the port arena), and a 64 MB game stack at a fixed address (ROOD_STACK_BASE, just above the arenas; fixed because save states resume its frames in a new process, no longer below 2 GB).
 
 **Player feels.** Hard budgets: anything that does not fit the PS1's memory cannot exist, which limits
 what content the game can hold.
@@ -716,7 +716,7 @@ motors (`pc_controller_rumble`, small motor on/off, large motor 0..255, scaled b
 does use it: `vs_main_setVibrateParams` (called each frame in battle and the field, and the title's fades) turns the
 vibration blocks of effect and event scripts into the bytes while its Vibration option is On (confirmed by
 sampling the bytes in a fight: the large motor ramps on hits, the small one blips).
-The left stick can give the game analog movement (`analog_move`, off by default): see Status.
+The left stick can give the game analog movement (`analog_move`, on by default for a stick): see Status.
 
 **Player feels.** Digital movement only (as the original); input is read once per field and acted on at the
 game's frame, so input can land up to a game frame late (**unconfirmed**; not measured).

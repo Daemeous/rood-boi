@@ -35,6 +35,7 @@ extern void pc_ui_bubbles_frame(void) __attribute__((weak));
 #include "renderer_rq.h" /* the read-backs reply with their pixels */
 #include "renderer_frame_state.h"
 #include "hw_registry.h" /* the producer-owned registrations of a table */
+#include "tex_provider.h" /* handles and versions over the renderer's VRAM */
 #include "screen_owner.h" /* a screen that owns the display: the sides cleared when opaque 2D covers the area */
 #include "hw_calls.h"    /* the game side's calls into the renderer: requests (the renderer's own uses of them just run) */
 #include "gl_shaders.h" /* PC_GLSL_MS_RESOLVE (pc/shaders/vulkan/ms_resolve.glsl) */
@@ -724,19 +725,32 @@ static const uint16_t* native_vram;
  * text and upscale lookups and the replays' undo read this array, not the game's: pixels only the CPU rasterizer wrote are
  * not in it unless a read-back brought them. ROOD_VRAM_RENDERER=native samples the game's array again (the comparison). */
 static uint16_t rvram[1024 * 512];
+static pc_tex_versions rvram_versions; /* what changed where, per 64 x 16 cell (tex_provider.h): the renderer's copy's handles' versions */
 static const uint16_t* renderer_vram;
+/* The renderer's copy with its versions, for the provider's readers on the renderer's thread. */
+pc_tex_view pc_hw_tex_view_now(void) { pc_tex_view view = { renderer_vram, &rvram_versions }; return view; }
 const uint16_t* pc_hw_renderer_vram_now(void) { PC_HW_METER(renderer_vram); return renderer_vram; }
 /* A copy of the renderer's VRAM for the game thread's readers (hw_calls.c pc_hw_renderer_vram: it runs as a request, after the records the caller made). */
-void pc_hw_vram_copy_now(uint16_t* dst) { memcpy(dst, renderer_vram, sizeof rvram); }
+void pc_hw_vram_copy_now(uint16_t* dst, pc_tex_versions* versions)
+{
+    memcpy(dst, renderer_vram, sizeof rvram);
+    *versions = rvram_versions;
+}
 static uint32_t tiles_for(int x0, int y0, int x1, int y1);
 /* emissive.cpp's VRAM (T1 R4d): the renderer's copy, current (the commands pending are applied), not a hook the walk counts. */
 const uint16_t* pc_hw_emissive_vram_now(void) { return pc_hw_active ? renderer_vram : native_vram; }
+pc_tex_view pc_hw_emissive_tex_view_now(void)
+{
+    pc_tex_view view = { pc_hw_active ? renderer_vram : native_vram, pc_hw_active ? &rvram_versions : NULL };
+    return view;
+}
 /* The renderer's VRAM takes the rectangle (x, y, w, h) (wrapping at the edges as the hardware does): from `pixels`, the rectangle's
  * rows in order as the game's array held them when the event happened (the records carry them: nothing here reads the game's
  * memory), or, with NULL, from the game's array now (the read-backs and the renderer's own resyncs, on the game's thread). */
 #define RVRAM_CURRENT ((const uint16_t*)1) /* (rvram_put: the renderer's copy has the rectangle already) */
 static void rvram_put(int x, int y, int w, int h, const uint16_t* pixels)
 {
+    pc_tex_written(&rvram_versions, x, y, w, h);
     if (pixels == RVRAM_CURRENT)
         return;
     if (!pixels && !native_vram)
@@ -747,7 +761,6 @@ static void rvram_put(int x, int y, int w, int h, const uint16_t* pixels)
         uint32_t tiles = tiles_for(x < 0 ? 0 : x, y < 0 ? 0 : y, x + w > 1024 ? 1023 : x + w - 1, y + h > 512 ? 511 : y + h - 1);
         pc_ui_upscale_tiles_changed(tiles);
         pc_emissive_vram_dirty(tiles);
-        pc_screen_owner_vram_changed(tiles);
     }
     if (x >= 0 && y >= 0 && x + w <= 1024 && y + h <= 512) {
         for (int row = 0; row < h; row++)
@@ -767,11 +780,11 @@ static void rvram_apply(int x, int y, int w, int h) { rvram_put(x, y, w, h, NULL
  * It carries no pixels: the copy's source is in the renderer's VRAM as the stream and the raster posts made it. */
 static void rvram_copy(int sx, int sy, int dx, int dy, int w, int h, int mask_set, int mask_check)
 {
+    pc_tex_written(&rvram_versions, dx, dy, w, h);
     {
         uint32_t tiles = tiles_for(dx < 0 ? 0 : dx, dy < 0 ? 0 : dy, dx + w > 1024 ? 1023 : dx + w - 1, dy + h > 512 ? 511 : dy + h - 1);
         pc_ui_upscale_tiles_changed(tiles);
         pc_emissive_vram_dirty(tiles);
-        pc_screen_owner_vram_changed(tiles);
     }
     for (int y = 0; y < h; y++)
         for (int x = 0; x < w; x += 16) {
@@ -1118,6 +1131,7 @@ void pc_hw_init_now(const uint16_t* vram)
         pc_settings_env_override("internal_resolution"); /* not saved as the user's (project_settings.cpp) */
     native_vram = vram;
     memcpy(rvram, vram, sizeof rvram);
+    pc_tex_written_all(&rvram_versions);
     {
         const char* which = getenv("ROOD_VRAM_RENDERER");
         renderer_vram = which && !strcmp(which, "native") ? vram : rvram;
@@ -3268,12 +3282,8 @@ static void screen_owner_primitive(int x0, int y0, int x1, int y1, unsigned code
         return; /* only opaque rectangles stand for a picture (a polygon's bounds are not its pixels) */
     if (bounds_has_uv) {
         /* every texel it samples is drawn (the renderer's VRAM: T5, follows it) */
-        int px = (int)(bounds_tpage & 15) * 64, py = (int)(bounds_tpage >> 4 & 1) * 256, depth = (int)(bounds_tpage >> 7 & 3);
-        int span = depth == 0 ? 4 : depth == 1 ? 2 : 1;
-        uint32_t tiles = tiles_for(px + bounds_uv[0] / span, py + bounds_uv[1], px + bounds_uv[2] / span, py + bounds_uv[3])
-            | tiles_for((int)(bounds_clut & 63) * 16, (int)(bounds_clut >> 6 & 511), (int)(bounds_clut & 63) * 16 + 255,
-                (int)(bounds_clut >> 6 & 511));
-        if (!renderer_vram || !pc_screen_owner_texels_opaque(renderer_vram, bounds_tpage, bounds_clut, bounds_uv, tiles))
+        pc_tex_view view = { renderer_vram, renderer_vram == rvram ? &rvram_versions : NULL }; /* (the native-VRAM comparison has no versions) */
+        if (!renderer_vram || !pc_screen_owner_texels_opaque(view, bounds_tpage, bounds_clut, bounds_uv))
             return;
     }
     /* What opaque 2D reaches of the view's sides: a full-view cover, an extension, an edge-anchored one. */

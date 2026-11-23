@@ -6,9 +6,9 @@ const c = @import("c_38C1C");
 /// orig: func_800A17BC (pc/src/game/BATTLE/BATTLE.PRG/38C1C.c)
 /// Copies an actor part's matrix to `outMatrix` and its armature's first value to `outArmature`.
 pub fn func_800A17BC(actorSlot: c_int, armatureIndex: c_int, outMatrix: ?*anyopaque, outArmature: [*c]c_int) callconv(.c) c_int {
-    // ROOD_PC: an empty actor slot gives NULL here; the PS1 copies the matrix from address 0 (0x80000000 on the host).
+    // ROOD_PC: an empty actor slot gives NULL here; the PS1 copies the matrix from address 0 (zeroes).
     const matrix = c.func_800A1DE8(actorSlot, armatureIndex, psx.cptr(c.MATRIX, v.g.D_800F49B8()));
-    const src: *align(1) const v.MATRIX = if (matrix != null) @ptrCast(matrix) else psx.nullObject(v.MATRIX);
+    const src: *align(1) const v.MATRIX = if (matrix != null) @ptrCast(matrix) else psx.absent(v.MATRIX, @src());
     const m = src.*;
     const dst: *align(1) v.MATRIX = @ptrCast(outMatrix.?);
     dst.* = m;

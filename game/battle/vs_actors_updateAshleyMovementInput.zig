@@ -3,7 +3,15 @@ const psx = @import("common").psx;
 const v = @import("views_146C");
 const c = @import("c_146C");
 
-const AnalogMove = *const fn (*c_int, *c_int, *c_int) callconv(.c) c_int;
+const AnalogMove = *const fn (*c_int, *c_int, *c_int, c_int) callconv(.c) c_int;
+const AnalogIdle = *const fn () callconv(.c) void;
+
+/// The run speed (the stat in whole units, as the request's 12-bit fixed point) at `frac` of 4096 of it: the run itself at 4096.
+fn runSpeed(stat: anytype, frac: c_int) c_int {
+    const full: c_int = @as(c_int, stat) *% 4096;
+    if (frac >= 4096) return full;
+    return @intCast(@divTrunc(@as(i64, full) * frac, 4096));
+}
 
 /// orig: vs_actors_updateAshleyMovementInput (pc/src/game/BATTLE/BATTLE.PRG/146C.c)
 /// Reads the camera input and steers the camera by the stick, the d-pad or the buttons.
@@ -25,6 +33,7 @@ pub fn vs_actors_updateAshleyMovementInput() callconv(.c) c_int {
         } else {
             c.vs_actors_setDirectMovement(0, 0, 0);
         }
+        if (psx.weak(AnalogIdle, "pc_analog_move_idle")) |idle| idle();
     } else {
         c.vs_field_updateCameraOrbitInput();
 
@@ -78,16 +87,18 @@ pub fn vs_actors_updateAshleyMovementInput() callconv(.c) c_int {
             }
         }
 
-        // PC: the left stick's own heading and pace (pc/src/analog_move.c, the setting analog_move, off by default).
+        // PC: the left stick's own heading and pace (pc/src/analog_move.c, the setting analog_move, on by default: a gamepad's stick).
         var analog_walk = false; // the walking pace: the one R2 held gives (stats unk31); the D-pad's own is the run
+        var analog_frac: c_int = 4096; // a continuous pace: the share of the run speed, 4096 the run itself
         if (psx.weak(AnalogMove, "pc_analog_move_get")) |analog| {
             var ax: c_int = 0;
             var az: c_int = 0;
-            var run: c_int = 0;
-            if (analog(&ax, &az, &run) != 0) {
+            var frac: c_int = 4096;
+            if (analog(&ax, &az, &frac, @intFromBool(pad[1] != 0 or pad[3] != 0)) != 0) {
                 pad[1] = psx.conv(@TypeOf(pad[1]), ax);
                 pad[3] = psx.conv(@TypeOf(pad[3]), az);
-                analog_walk = run == 0;
+                analog_walk = frac < 0;
+                if (frac >= 0) analog_frac = frac;
             }
         }
 
@@ -110,9 +121,9 @@ pub fn vs_actors_updateAshleyMovementInput() callconv(.c) c_int {
                     c.vs_actors_setDirectMovement(0, angle, @as(c_int, temp_s0.?.unk31) *% 4096);
                 }
             } else if ((v.g.vs_main_buttonsPressed().all & (1 << 7)) != 0) {
-                c.vs_actors_beginActorJumpMovement(0, angle, @as(c_int, temp_s0.?.unk33) *% 4096);
+                c.vs_actors_beginActorJumpMovement(0, angle, runSpeed(temp_s0.?.unk33, analog_frac));
             } else {
-                c.vs_actors_setDirectMovement(0, angle, @as(c_int, temp_s0.?.unk33) *% 4096);
+                c.vs_actors_setDirectMovement(0, angle, runSpeed(temp_s0.?.unk33, analog_frac));
             }
         } else if ((temp_s1 & 0x80000) == 0 and (v.g.vs_main_buttonsPressed().all & (1 << 7)) != 0) {
             c.vs_actors_beginActorJumpMovement(0, (c.ratan2(0, 0) +% cam.values.yaw +% 2048) & 0xFFF, 0);

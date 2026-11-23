@@ -117,7 +117,7 @@ static void pages()
     CHECK(find(I, "ui_outline_boost") == find(I, "ui_lines") + 1 && find(I, "ui_wire_width") == find(I, "ui_outline_boost") + 1
         && find(I, "ui_bubbles") == find(I, "ui_wire_width") + 1);
     CHECK(value(I, "ui_wire_width") == "1.5 px");
-    CHECK(pc_ui_settings_rows(C) == (game ? 23 : 22));
+    CHECK(pc_ui_settings_rows(C) == (game ? 29 : 28)); // with the six analog pace, curve, speed, stride, smoothing and hold rows
     // the look inversions after the stick camera (qol_fp_invert_y, qol_map_invert)
     CHECK(find(C, "qol_fp_invert_y") == find(C, "reset_camera") + 1 && find(C, "qol_map_invert") == find(C, "reset_camera") + 2);
     CHECK(value(C, "qol_map_invert") == "Off" && change(C, "qol_map_invert", 1) == 1 && pc_qol_map_invert == 1);

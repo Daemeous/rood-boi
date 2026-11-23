@@ -22,7 +22,7 @@ pub fn vs_field_refreshAshleyInteractionTile(arg0: ?*v.D_800F4538_t) callconv(.c
 
         var temp_v1_2: c_int = @as(c_int, actor.unk0.facing) +% 0x200;
         temp_v1_2 &= 0xFFF;
-        temp_v1_2 = @divTrunc(temp_v1_2, 1024);
+        temp_v1_2 = common.analog.cardinal(temp_v1_2); // PC: with hysteresis under analog movement (analog_move.c)
 
         var var_a2: c_int = 0;
         var var_a3: c_int = 0;

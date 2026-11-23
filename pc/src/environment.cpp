@@ -149,20 +149,12 @@ GameSky game_sky_read()
                 if (!t.w && !t.h)
                     continue;
                 unsigned tpage = (unsigned char)vs_field_legacyBackgroundTexturePage | (t.colors[1][3] << 7);
-                int base_x = (tpage & 15) * 64, base_y = ((tpage >> 4) & 1) * 256, depth = (tpage >> 7) & 3;
                 double tex[3] = { 0, 0, 0 };
                 int texels = 0;
                 for (int v = t.y; v < t.y + t.h; v += 2)
                     for (int u = t.x; u < t.x + t.w; u += 2) {
-                        uint16_t col;
-                        if (depth == 0) {
-                            uint16_t w = (uint16_t)pc_vram_at(vram, base_x + u / 4, base_y + v);
-                            col = pc_vram_row(vram, 238)[768 + ((w >> ((u & 3) * 4)) & 15)];
-                        } else if (depth == 1) {
-                            uint16_t w = (uint16_t)pc_vram_at(vram, base_x + u / 2, base_y + v);
-                            col = pc_vram_row(vram, 238)[768 + ((w >> ((u & 1) * 8)) & 255)];
-                        } else
-                            col = (uint16_t)pc_vram_at(vram, base_x + u, base_y + v);
+                        /* (the background's colours sit in the CLUT row at (768, 238): clut word 238 << 6 | 48) */
+                        uint16_t col = (uint16_t)pc_tex_colour(vram, tpage, 238u << 6 | 48, u, v);
                         if (!col)
                             continue; /* transparent */
                         tex[0] += (col & 31) * 8, tex[1] += ((col >> 5) & 31) * 8, tex[2] += ((col >> 10) & 31) * 8;
@@ -204,9 +196,8 @@ GameSky game_sky_read()
         int seen = 0;
         for (int v = 248; v < 250; v++)
             for (int u = 248; u < 250; u++) {
-                uint16_t word = pc_vram_row(vram, 256 + v)[64 + u / 4];
-                int index = (word >> ((u & 3) * 4)) & 15;
-                uint16_t c = pc_vram_row(vram, 226)[784 + index];
+                /* tpage 0x11 (4-bit, page x 64, y 256) through CLUT 0x38B1 (x 784, y 226) */
+                uint16_t c = (uint16_t)pc_tex_colour(vram, 0x11, 0x38B1, u, v);
                 if (!c)
                     continue; /* transparent: not drawn */
                 texel[0] += (c & 31) * 8, texel[1] += ((c >> 5) & 31) * 8, texel[2] += ((c >> 10) & 31) * 8;

@@ -9,10 +9,10 @@ From a copy of the card (skipped without one), in its save room with the
 weapon sheathed. Ashley's facing follows her heading, so it is the heading's
 measure (her position is also stopped by the walls of a small room):
 
-- off (the default): the left stick (RPC input {left_stick}) does not turn or
+- off (analog_move 0; on is the default for a gamepad's stick): the left stick (RPC input {left_stick}) does not turn or
   move her; the D-pad turns her to the camera-relative cardinal facings and
   moves her, with R2 faster
-- on: the stick at 0, 30, 45, 60, 90, 180 and 270 degrees from forward faces
+- on (with analog_pace 0, the original's two paces; the continuous speed is analog_pace_smoke's): the stick at 0, 30, 45, 60, 90, 180 and 270 degrees from forward faces
   her at the D-pad-forward facing plus that angle (within 3 degrees of the
   game's own 12-bit angle), at any deflection past the dead zone;
   inside the dead zone nothing changes; the D-pad still gives the same facings
@@ -109,6 +109,13 @@ def main():
             b = pos()
             return b[0] - a[0], b[1] - a[1]
 
+        def same(a, b):
+            """The same pace: the stick's steps carry their lost fraction (the D-pad's truncate), so the same
+            distance within 15% (the walk loses most to the truncation) and the same way within 3 degrees, not the same whole units."""
+            da, db = math.hypot(*a), math.hypot(*b)
+            turn = abs(math.degrees(math.atan2(a[1], a[0]) - math.atan2(b[1], b[0])))
+            return db > 0 and abs(da / db - 1) <= 0.15 and min(turn, 360 - turn) <= 3
+
         game.run(300)
         for _ in range(2):  # leave battle mode: the weapon sheathed
             game.press("cross", vsyncs=3, settle=30)
@@ -119,7 +126,9 @@ def main():
             return [travel * math.sin(r), -travel * math.cos(r)]
 
         # ---- off: the stick is the D-pad's, nothing more ----
-        check(game.call("settings", get="analog_move")["line"] == "analog_move 0", "analog_move is off by default")
+        check(game.call("settings", get="analog_move")["line"] == "analog_move 1", "analog_move is on by default")
+        check(game.call("settings", get="analog_pace")["line"] == "analog_pace 1", "analog_pace is 1 by default")
+        settings("analog_move 0", "analog_pace 0")  # (the original's two paces: the speeds below are the D-pad's and R2's)
         base_f = hold(buttons=["up"])
         check(idle(left_stick=stick_at(90, 1.0)), "off: the stick at 1.0 does not turn or move her")
         right_f = hold(buttons=["right"])
@@ -146,15 +155,15 @@ def main():
         run, walk = trial("down", "dpad"), trial("down", "dpad+r2")  # the original: R2 held is the slower pace
         dr, dw = math.hypot(*run), math.hypot(*walk)
         check(dw > 0 and dr > 1.5 * dw, f"the D-pad's run and R2's walk: {dr:.0f} and {dw:.0f} units in 20 vsyncs")
-        check(trial("down", "stick", 0.5) == walk, "on: half travel walks exactly as D-pad + R2")
-        check(trial("down", "stick", 1.0) == run, "on: full travel runs exactly as the D-pad")
-        check(trial("down", "stick", 0.69) == walk, "on: travel 0.69 (just under analog_run 70) walks")
-        check(trial("down", "stick", 0.71) == run, "on: travel 0.71 runs")
-        check(trial("down", "stick+r2", 1.0) == walk, "on: R2 held with full travel still walks")
+        check(same(trial("down", "stick", 0.5), walk), "on: half travel walks as D-pad + R2 does")
+        check(same(trial("down", "stick", 1.0), run), "on: full travel runs as the D-pad does")
+        check(same(trial("down", "stick", 0.69), walk), "on: travel 0.69 (just under analog_run 70) walks")
+        check(same(trial("down", "stick", 0.71), run), "on: travel 0.71 runs")
+        check(same(trial("down", "stick+r2", 1.0), walk), "on: R2 held with full travel still walks")
         check(trial("down", "dpad") == run and trial("down", "dpad+r2") == walk, "on: the D-pad's paces are unchanged")
         settings("analog_run 40")
-        check(trial("down", "stick", 0.5) == run, "analog_run 40: half travel runs")
-        check(trial("down", "stick", 0.3) == walk, "analog_run 40: travel 0.3 walks")
+        check(same(trial("down", "stick", 0.5), run), "analog_run 40: half travel runs")
+        check(same(trial("down", "stick", 0.3), walk), "analog_run 40: travel 0.3 walks")
         settings("analog_run 70", "analog_dead_zone 60")
         check(idle(left_stick=stick_at(120, 0.5)), "analog_dead_zone 60: travel 0.5 does nothing")
         settings("analog_dead_zone 20")

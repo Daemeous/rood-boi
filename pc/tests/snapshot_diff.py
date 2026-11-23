@@ -69,7 +69,8 @@ class Symbols:
 
 def stack_range(snapshot):
     """The game stack chunk: the one ending at the stack's top (not a known range)."""
-    return max(snapshot["memory"].items(), key=lambda kv: kv[0] + len(kv[1]) if kv[0] < 0x80000000 else -1)
+    # (the arenas and the stack are the chunks in 4..8 GB, ROOD_ARENA_BASE..: the stack is the one that ends highest)
+    return max(snapshot["memory"].items(), key=lambda kv: kv[0] + len(kv[1]) if 0x100000000 <= kv[0] < 0x200000000 else -1)
 
 
 def aslr_words(x, y):

@@ -322,7 +322,13 @@ stick put them. An R3 reset in a menu waits for the field.
 | `qol_map_invert` | 0 | the map screen pans the other way on both axes (D-pad, the left stick the game reads as the D-pad, arrow keys) |
 | `qol_map_controls` | 0 | the map screen's right stick and triggers: 0 Modern (the right stick turns and tilts, L2 / R2 alone zoom out / in), 1 Original (the PlayStation's: L2 / R2 with the right stick, the right stick pans) |
 | `qol_fp_invert_y` | 0 | in the first-person view up looks down and down looks up (D-pad and right stick; left and right unchanged) |
-| `analog_move` | 0 | the left stick walks and runs Ashley at any angle (`pc/src/analog_move.c`, BATTLE `vs_actors_updateAshleyMovementInput`); off: the D-pad's eight directions, as the original. The D-pad and the keyboard are unchanged either way |
+| `analog_move` | 1 | the left stick walks and runs Ashley at any angle (`pc/src/analog_move.c`, BATTLE `vs_actors_updateAshleyMovementInput`); on by default (a gamepad's stick; the keyboard has none); off: the D-pad's eight directions. The D-pad and the keyboard are unchanged either way |
+| `analog_pace` | 1 | 1: the stick's pressure is her speed, continuous (`analog_min_speed` of the run at the dead zone's edge, the run at a full push, along `analog_curve`); 0: the original's two paces (`analog_run`) |
+| `analog_curve` / `analog_min_speed` | 100 / 10 | the pressure curve's exponent in percent (25..400; 100 straight) / the speed at the dead zone's edge, percent of the run (0..50) |
+| `analog_anim_rate` | 100 | percent (0..100): her one stride cycle (the original plays animations 13 and 14 at the walk and the run alike, so the feet slide at the walk) follows her speed, in whole game frames with a carried fraction; 0 the original's fixed rate |
+| `anim_blend` | 100 | percent (0..100): her slowed stride (see `analog_anim_rate`) is drawn at the fraction between the animation tick the game holds and the next one (`pc/src/pose_blend.c`: the next tick decoded on a copy, the bones' angles blended as the animation keys them, her bone chain and weapons rebuilt from that for the draw only), so at a light push her feet move on every image, shadows and ray-traced reflections included; game state is the same with it on or off; 0 the original's stepped poses |
+| `analog_hysteresis` | 15 | degrees (0..44): chests, doors, blocks and the one-tile step lock take the nearest of four tile directions from her facing; the one chosen holds until the facing is this far past the diagonal (only while the stick was the last input) |
+| `enemy_free_angle` | 0 | the enemies' steps carry the fraction the engine truncates, so their free-angle steps go at the true heading (their routes and logic are unchanged) |
 | `analog_dead_zone` | 20 | percent of the stick's travel that moves nothing |
 | `analog_run` | 70 | percent of the stick's travel from which she runs (the D-pad's pace); below it she walks (the pace R2 held gives; the original has only these two). R2 still walks |
 | `rumble_strength` | 100 | percent of the game's actuator bytes sent to the gamepad's motors (0 off); the game's own Vibration option still decides what it asks for |
@@ -337,7 +343,7 @@ any nonzero byte) to SDL's high-frequency motor and byte 1 (the large motor,
 0..255) to the low-frequency one, each field. The pad reports a DualShock-shaped
 extended ID so the small motor's byte carries that on/off. RPC `rumble` reads
 what was sent (the recording backend without a gamepad).
-`pc/tests/analog_move_smoke.py` tests it and the analog movement.
+`pc/tests/analog_move_smoke.py` tests it and the analog movement; `analog_angle_smoke`, `analog_pace_smoke`, `analog_interact_smoke`, `enemy_free_angle_smoke` and `analog_sweep_smoke` the angles, the speed and stride, the interaction side, the enemies and a sweep of rooms.
 
 The two `qol_` options come from eremtsov's QoL mod (CC0) and are off by
 default: editor Graphics > Controls, the modern menus' System > Controls,

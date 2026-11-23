@@ -21,6 +21,8 @@ inline fn areaWord(actor: *v.D_800F4538_t) c_uint {
     return psx.fieldAt(c_uint, &actor.unk0._bits_skip, 4).*;
 }
 
+const RemainderFn = *const fn (c_int) callconv(.c) ?[*]c_int;
+
 /// Label `fall` of vs_actors_moveActorWithCollision: the actor starts to fall; always returns 3.
 fn fall(actor: *v.D_800F4538_t) c_int {
     actor.unk0.unk34.vy = 3;
@@ -92,6 +94,7 @@ pub fn vs_actors_moveActorWithCollision(index: c_int, direction_in: c_int, dista
     var turning: c_int = 0;
     var animation: c_int = 0;
     var i: c_int = 0;
+    var carry: ?[*]c_int = null;
 
     if (index >= 17) {
         return 3;
@@ -304,8 +307,19 @@ pub fn vs_actors_moveActorWithCollision(index: c_int, direction_in: c_int, dista
             return done(actor, distance, direction, status);
         }
         const angle: c_int = 0xC00 -% direction;
-        motion.vx = psx.conv(i16, @divTrunc(c.rcos(angle) *% speed, 0x1000000));
-        motion.vz = psx.conv(i16, @divTrunc(c.rsin(angle) *% speed, 0x1000000));
+        var stepX: c_int = c.rcos(angle) *% speed;
+        var stepZ: c_int = c.rsin(angle) *% speed;
+        // PC: the step's lost fraction carried to the next frame (analog_move.c: Ashley under analog movement, the
+        // enemies under enemy_free_angle), so the heading is not bent by the truncation to whole units.
+        carry = if (psx.weak(RemainderFn, "pc_analog_step_remainder")) |f| f(index) else null;
+        if (carry) |rem| {
+            stepX +%= rem[0];
+            stepZ +%= rem[1];
+            rem[0] = stepX -% @divTrunc(stepX, 0x1000000) *% 0x1000000;
+            rem[1] = stepZ -% @divTrunc(stepZ, 0x1000000) *% 0x1000000;
+        }
+        motion.vx = psx.conv(i16, @divTrunc(stepX, 0x1000000));
+        motion.vz = psx.conv(i16, @divTrunc(stepZ, 0x1000000));
     }
 
     // move:
@@ -322,7 +336,27 @@ pub fn vs_actors_moveActorWithCollision(index: c_int, direction_in: c_int, dista
         motion.vz = psx.conv(i16, @divTrunc(@as(c_int, motion.vz), 4));
     }
     v.g.D_800E90BC().* = 0;
+    const askedX: c_int = motion.vx;
+    const askedZ: c_int = motion.vz;
     status = c.vs_field_resolveActorTerrainMotion(@ptrCast(actor), psx.cptr(c.SVECTOR, &motion), &result, @as(c_int, input.?.pad));
+    if (carry != null and status != 3) {
+        // PC (a stick's free-angle step): the wall contacts' repulsion only pushes an actor off a wall; it must not turn a
+        // slide the other way. A slide along a stair-stepped wall into a notch met the contact push (8 to 16 units a frame,
+        // against a slide of 2 or 3) and was carried back out, to run in again: a ratchet. Where the push on an axis
+        // reverses what the step asked on that axis, the actor rests there (the step is stopped at the contact, as the
+        // D-pad's whole-unit slide stops at a corner) instead of being pushed back; a push along the step, or on an axis
+        // the step did not ask for, is the original's.
+        const outX: c_int = motion.vx;
+        const outZ: c_int = motion.vz;
+        if (askedX != 0 and outX != 0 and (askedX < 0) != (outX < 0)) motion.vx = 0;
+        if (askedZ != 0 and outZ != 0 and (askedZ < 0) != (outZ < 0)) motion.vz = 0;
+    }
+    if (status != 0) {
+        if (carry) |rem| { // a step the terrain changed or refused: its fraction is no longer owed
+            rem[0] = 0;
+            rem[1] = 0;
+        }
+    }
     switch (status) {
         0 => {
             distance = @divTrunc(speed, 4096);

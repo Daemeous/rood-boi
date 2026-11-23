@@ -356,6 +356,29 @@ def suites(args, mode="egl"):
             Suite("analog_move_smoke", [PY, str(TESTS / "analog_move_smoke.py"), "--card", str(args.save)], 300,
                   note="analog movement (stick angle, walk/run, dead zone; off: unchanged) and rumble (actuator "
                        "bytes to the host motors, strength)"),
+            Suite("analog_angle_smoke", [PY, str(TESTS / "analog_angle_smoke.py"), "--card", str(args.save)], 300,
+                  note="analog movement at odd angles: displacement and facing follow the stick (70, 110, 160, "
+                       "200 degrees) to 1.5 degrees (the step's lost fraction carried), walls slide; screenshots"),
+            Suite("analog_pace_smoke", [PY, str(TESTS / "analog_pace_smoke.py"), "--card", str(args.save)], 300,
+                  note="analog speed by pressure at 30/60/100%, the stride's rate follows it (feet do not slide), "
+                       "analog_anim_rate 0 and analog_pace 0 as the original, curve, floor, deterministic"),
+            Suite("analog_turn_smoke", [PY, str(TESTS / "analog_turn_smoke.py"), "--card", str(args.save)], 300,
+                  note="her turn takes the same time at 30%, 60% and 100% of the stick (only the stride's frame is gated by its pace)"),
+            Suite("analog_corner_smoke", [PY, str(TESTS / "analog_corner_smoke.py"), "--card", str(args.save)], 300,
+                  note="a stick pressed into stair-stepped walls at odd headings does not ratchet: no back-and-forth over "
+                       "120 game frames (Snowfly Forest 290-320 degrees and three more rooms)"),
+            Suite("pose_blend_smoke", [PY, str(TESTS / "pose_blend_smoke.py"), "--card", str(args.save)], 300,
+                  note="anim_blend: Ashley's slowed stride (30% stick) is drawn between its ticks: a new pose on every "
+                       "image, bones keep their length, game state bit-identical on and off, a full push unchanged"),
+            Suite("analog_interact_smoke", [PY, str(TESTS / "analog_interact_smoke.py"), "--card", str(args.save)],
+                  300, note="interaction's tile direction holds past the 45 degree boundary (analog_hysteresis); the "
+                            "D-pad, hysteresis 0 and analog_move 0 are the original's rounding"),
+            Suite("enemy_free_angle_smoke", [PY, str(TESTS / "enemy_free_angle_smoke.py"), "--card", str(args.save)],
+                  300, note="enemy_free_angle on/off: an enemy's free-angle steps carry their lost fraction (exact "
+                            "heading); off is the original's truncated steps"),
+            Suite("analog_sweep_smoke", [PY, str(TESTS / "analog_sweep_smoke.py"), "--card", str(args.save)], 600,
+                  note="odd-angle sweep (13, 37, 52, 77 degrees) in rooms with walls, doors, stairs, ledges: no "
+                       "stuck, jitter, fall or clip"),
             Suite("camera_options_smoke", [PY, str(TESTS / "camera_options_smoke.py"), "--card", str(args.save)],
                   300, note="map panning and first-person up/down inversions off and on; the right stick looks "
                             "around in first person; R3 leaves it"),

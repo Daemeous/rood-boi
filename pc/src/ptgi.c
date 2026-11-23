@@ -438,17 +438,8 @@ extern const uint16_t* pc_renderer_vram(void);
 extern const float* pc_hw_emissives(int* count, const void** surfaces);
 static uint16_t vram_texel(unsigned u, unsigned v, unsigned tpage, unsigned clut)
 {
-    const uint16_t* vram = pc_renderer_vram();
-    unsigned tx = (tpage & 15) * 64, ty = ((tpage >> 4) & 1) * 256, depth = (tpage >> 7) & 3;
-    unsigned cx = (clut & 63) * 16, cy = (clut >> 6) & 511;
     u &= 255, v &= 255;
-#define AT(x, y) pc_vram_at(vram, (x), (y))
-    if (depth == 0)
-        return AT(cx + ((AT(tx + (u >> 2), ty + v) >> ((u & 3) * 4)) & 15), cy);
-    if (depth == 1)
-        return AT(cx + ((AT(tx + (u >> 1), ty + v) >> ((u & 1) * 8)) & 255), cy);
-    return AT(tx + u, ty + v);
-#undef AT
+    return (uint16_t)pc_tex_colour(pc_renderer_vram(), tpage, clut, (int)u, (int)v);
 }
 typedef pc_glow_fragment glow;
 static void add_glow(glow* g, int* n, int max, const float p[3][3], const uint8_t rgb[3][3], const uint8_t uv[3][2],

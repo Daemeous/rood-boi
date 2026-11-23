@@ -8,3 +8,4 @@ pub const view = @import("view.zig");
 pub const scratch = @import("scratch.zig");
 pub const pad = @import("pad.zig");
 pub const port_arena = @import("port_arena.zig");
+pub const analog = @import("analog.zig");

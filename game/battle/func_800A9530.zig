@@ -20,7 +20,7 @@ fn platformById(arg0: c_int) *v.func_8008D2C0_t {
         const entry = psx.at(table, i);
         if (@as(c_int, entry.id) == id) return entry;
     }
-    return @alignCast(psx.nullObject(v.func_8008D2C0_t));
+    return psx.absent(v.func_8008D2C0_t, @src()); // no platform: the original's callers read zeroes
 }
 
 /// The actor's flag word at byte 0x5AC.

@@ -5,10 +5,12 @@
 #define PC_HW_CALLS_H
 #include <stddef.h>
 #include <stdint.h>
+#include "tex_provider.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
 void pc_hw_init(const uint16_t* vram);
+pc_tex_view pc_hw_emissive_tex_view(int renderer_side); /* emissive.cpp: the renderer's copy with its versions (none: no versions to key on) */
 int pc_hw_dump(const char* path, int replay_target);
 int pc_hw_redraw(int area[4]);
 int pc_hw_redraw_present(void);
