@@ -75,6 +75,15 @@ std::string new_id(const std::vector<materials::Entry>& all)
             return id;
     }
 }
+/* A model's ids for object matching: the entry-style text (10 digit content key or 8 digit legacy id) and the legacy id the pick has. */
+static void set_model_id(materials::ObjectId& id, const std::string& text, uint32_t legacy)
+{
+    char hash[16];
+    snprintf(hash, sizeof hash, "%08x", legacy);
+    id.legacy = hash;
+    if (text.size() == 10)
+        id.model = text;
+}
 /* What a pick belongs to, as an entry's object (materials.h ObjectRef), at a level: "group" (a room polygon's group,
  * the geometry block its mesh draws), "polygon", "model" (a character, weapon or prop: every copy); "" the natural
  * one (a room's group, a model). False with `error` where the pick has no such identity. */
@@ -83,8 +92,10 @@ bool object_of(const TexturePick& p, const std::string& level, materials::Object
     out = materials::ObjectRef();
     char hash[16];
     if (p.kind == emissive::SURFACE_MODEL && (level.empty() || level == "model")) {
+        std::string legacy, content;
         snprintf(hash, sizeof hash, "%08x", p.model);
-        out.models.push_back(hash);
+        /* the content key where the model has one (it follows the model into any texture page), else the legacy id */
+        out.models.push_back(emissive::model_ids(p.mesh, &legacy, &content) && !content.empty() ? content : std::string(hash));
         return true;
     }
     if (p.kind == emissive::SURFACE_ROOM && (level.empty() || level == "group" || level == "polygon")) {
@@ -368,6 +379,11 @@ Json pick_json(const TexturePick& p)
         if (object_of(p, none, r, &why)) {
             Json o = object_json(r);
             o.set("text", Json::str(r.text()));
+            if (p.kind == emissive::SURFACE_MODEL) {
+                char legacy[16];
+                snprintf(legacy, sizeof legacy, "%08x", p.model);
+                o.set("legacy", Json::str(legacy)); /* (the text names the content key where the model has one) */
+            }
             if (p.kind == emissive::SURFACE_ROOM) {
                 char hex[16];
                 snprintf(hex, sizeof hex, "%x", p.polygon);
@@ -377,7 +393,7 @@ Json pick_json(const TexturePick& p)
             materials::ObjectId id;
             if (!r.groups.empty()) id.group = (int)r.groups[0];
             if (p.kind == emissive::SURFACE_ROOM) id.polygon = (int)p.polygon;
-            if (!r.models.empty()) id.model = r.models[0];
+            if (!r.models.empty()) set_model_id(id, r.models[0], p.model);
             const materials::Entry* oe = materials::find_object_match(id, p.key, p.w(), p.h(),
                 emissive::pick_palettes(p.clut_key, p.tpage, p.clut), p.zone, p.room);
             j.set("object_entry", Json::str(oe ? oe->id : ""));
@@ -1200,7 +1216,7 @@ extern "C" void pc_material_panel(void)
             materials::ObjectId id;
             if (!object.groups.empty()) id.group = (int)object.groups[0];
             if (picked.kind == emissive::SURFACE_ROOM) id.polygon = (int)picked.polygon;
-            if (!object.models.empty()) id.model = object.models[0];
+            if (!object.models.empty()) set_model_id(id, object.models[0], picked.model);
             const materials::Entry* oe = materials::find_object_match(id, picked.key, picked.w(), picked.h(),
                 emissive::pick_palettes(picked.clut_key, picked.tpage, picked.clut), picked.zone, picked.room);
             ImGui::Text("Object: %s%s%s", object.text().c_str(), oe ? ", its entry: " : "", oe ? oe->id.c_str() : "");
@@ -1347,7 +1363,7 @@ extern "C" int pc_material_rpc(const char* params_text, char* out, int size)
         const Json* path = params.get("path");
         if (!m || m->type != Json::String || !path || path->type != Json::String)
             return fail("material model_dump needs model (8 hex digits) and path", out, size);
-        uint32_t mesh = emissive::model_mesh((uint32_t)strtoul(m->string.c_str(), nullptr, 16));
+        uint32_t mesh = emissive::model_mesh_by_id(m->string); /* (its legacy id or its content key) */
         if (!mesh)
             return fail("material model_dump: no mesh of model " + m->string + " (it is not drawn now)", out, size);
         int n = render_mesh_dump(mesh, path->string.c_str());
@@ -1355,6 +1371,17 @@ extern "C" int pc_material_rpc(const char* params_text, char* out, int size)
             return fail("material model_dump: the model is not in a drawn list, or the file cannot be written", out, size);
         Json j = Json::object();
         j.set("triangles", Json::num(n));
+        return reply(j, out, size);
+    }
+    if (action == "model_ids") { /* the model meshes known now: legacy id, content key (paint_roundtrip.py rekey) */
+        Json list = Json::array();
+        for (const auto& row : emissive::all_model_ids()) {
+            Json x = Json::object();
+            x.set("mesh", Json::str(row[0])), x.set("legacy", Json::str(row[1])), x.set("content", Json::str(row[2]));
+            list.items.push_back(x);
+        }
+        Json j = Json::object();
+        j.set("models", list);
         return reply(j, out, size);
     }
     if (action == "survey") {
@@ -1378,6 +1405,14 @@ extern "C" int pc_material_rpc(const char* params_text, char* out, int size)
             return fail("material map_set: channel is emissive, roughness, height or metal", out, size);
         if (!materials::set_live(k->string, o && o->type == Json::String ? o->string : "", c->string, (int)w, (int)h, values.data(), &error))
             return fail("material map_set: " + error, out, size);
+        return reply(Json::object(), out, size);
+    }
+    if (action == "map_clear") { /* {key, object?, channel}: a map_set map taken away (the layers' own map, or none, shows again) */
+        const Json *k = params.get("key"), *c = params.get("channel"), *o = params.get("object");
+        if (!k || k->type != Json::String || !c || c->type != Json::String || !materials::known_channel(c->string))
+            return fail("material map_clear: needs key and channel (emissive, roughness, height or metal)", out, size);
+        if (!materials::clear_live(k->string, o && o->type == Json::String ? o->string : "", c->string, &error))
+            return fail("material map_clear: " + error, out, size);
         return reply(Json::object(), out, size);
     }
     if (action == "texture") { /* a texture in view as RGBA (base64): the survey's contact sheet */

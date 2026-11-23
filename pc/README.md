@@ -413,6 +413,9 @@ look; RPC `weapon_slots {name_ticks}`, any of them through RPC `settings
 | `qol_weapon_slots_name_ticks` | 150 | how long a swapped weapon's name stays in the information bar, game ticks (60 a second) |
 | `qol_weapon_slots_label0` ... `qol_weapon_slots_label7` | `242 99 237 101`, `214 108 213 115`, `252 111 247 113`, `223 126 223 127`, `94 99 89 101`, `71 112 70 115`, `103 117 98 113`, `81 124 80 127` | each overlay label's text x, y and bullet x, y with the overlay slid in (PS1 pixels; 0-3 the button group, 4-7 the D-pad group's up, left, right, down) |
 | `qol_weapon_slots_hint` | `160 142` | x, y of the line under the overlay (what Select does) |
+| `qol_weapon_slots_text_cap` | `7` | with `ui_text font` the names and the hint are set in the labels style (`ui_text_labels_*`, like the overlay's own words): their capitals' height in PS1 pixels at labels size 1 |
+| `qol_weapon_slots_text_dy` | `5` | ... how far below the game's glyph row (PS1 pixels) |
+| `qol_weapon_slots_color0` ... `3` | `255 255 255`, `255 255 28`, `255 80 72`, `144 144 168` | ... the lettering's red green blue: white, yellow (equipped), orange (assign mode), dim (the hint) |
 
 `pc/src/weapon_slots.c` documents the details; `pc/tests/weapon_slots_smoke.py`
 tests it (option off, swaps, assign mode, shields, saving and reloading).

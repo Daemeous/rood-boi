@@ -432,6 +432,27 @@ static void draw_small(const u_char* text, int xy, int max, int flags)
     }
 }
 
+/* hud/hud_draw.cpp: with ui_text font a line is queued for the labels style (1: the game's glyphs are not drawn). */
+extern int pc_weapon_slots_text_add(const char* utf8, int x, int y, int align, int palette) __attribute__((weak));
+extern int pc_ui_text_decode(const unsigned char* text, int max_bytes, char* out, int out_size);
+extern int pc_weapon_slots_text_json(char* out, int size) __attribute__((weak)); /* hud/hud_draw.cpp */
+
+/* draw_small's line, set in the labels style when ui_text font is on: the palette's colour (4..7 -> 0..3), the alignment
+ * (flags bits 0-2: 0 left, 3 centre, 6 right). */
+static void draw_text(const u_char* text, int xy, int max, int flags)
+{
+    char utf8[64];
+    int align = (flags & 7) == 6 ? 2 : (flags & 7) == 3 ? 1 : 0;
+    /* (a string decoded for the modern menus collapses its blanks: the hint's gap between its two halves stays) */
+    const char* gap = text == hints[0] ? "SELECT: ASSIGN    START: SHIELD" : NULL;
+    if (gap != NULL)
+        snprintf(utf8, sizeof utf8, "%s", gap);
+    if (pc_weapon_slots_text_add != NULL && (gap != NULL || pc_ui_text_decode(text, max, utf8, sizeof utf8) > 0)
+        && pc_weapon_slots_text_add(utf8, (short)xy, xy >> 16, align, (flags >> 3) - 4))
+        return;
+    draw_small(text, xy, max, flags);
+}
+
 /* button_prompts.c: the D-pad's arms with a usable action (its mode actions). */
 void pc_button_prompts_cross_action(int arm, int usable);
 
@@ -464,11 +485,11 @@ int pc_weapon_slots_label(int id)
         step = -step;
     func_800C9F98(((xy[2] + step) & 0xFFFF) | (xy[3] << 16), w ? 0x180 : 0x140);
     if (w) { /* an empty slot shows the bullet only */
-        draw_small((const u_char*)w->name, ((xy[0] + step) & 0xFFFF) | (xy[1] << 16), t[0],
+        draw_text((const u_char*)w->name, ((xy[0] + step) & 0xFFFF) | (xy[1] << 16), t[0],
             ((id & 1) * 6) | (palettes[s.assign * 2 + (w->isEquipped & 1)] << 3));
     }
     if (id == 4 && vs_battle_shortcutHudAnimationStep == 0) /* the line under the overlay: what Select does */
-        draw_small(hints[s.assign], (pc_qol_weapon_slots_hint[0] & 0xFFFF) | (pc_qol_weapon_slots_hint[1] << 16), 30,
+        draw_text(hints[s.assign], (pc_qol_weapon_slots_hint[0] & 0xFFFF) | (pc_qol_weapon_slots_hint[1] << 16), 30,
             3 | (palettes[4 + s.assign] << 3));
     return 0;
 }
@@ -694,6 +715,10 @@ void pc_weapon_slots_json(char* out, unsigned size)
         p += sprintf(p, ",\"actor_weapon\":%d,\"actor_shield\":%d,\"actor_category\":%d,\"weapon_drawn\":%d",
             actor->weapon.index, actor->shield.index, vs_actors_actorRecords[0]->unk5B1,
             vs_battle_characterState->weaponDrawn & 1);
+    }
+    if (pc_weapon_slots_text_json) { /* the typography the lines were last drawn with (RPC weapon_slots) */
+        p += sprintf(p, ",\"text\":");
+        p += pc_weapon_slots_text_json(p, 900);
     }
     sprintf(p, "}");
 }

@@ -4,6 +4,7 @@
     python3 pc/tests/paint_roundtrip_test.py"""
 import argparse
 import json
+import os
 import pathlib
 import sys
 import tempfile
@@ -308,5 +309,46 @@ with tempfile.TemporaryDirectory() as tmp:
     shipped.write_text(json.dumps({"entries": [{"id": "O", "match": {"key": "dddddddddd", "size": [4, 4]}, "roughness": 0.3, "object": {"models": ["4b8870d7"]}}]}))
     values, _ = pr.surface_of(files, {"object": "m4b8870d7", "model": "4b8870d7"}, "dddddddddd", 4, 4)
     check(values["roughness"] == 0.3, "an entry made for the model wins")
+# rekey: the user's tree moves to the content keys losslessly (copies, the old stay), and an unchanged tree is left byte-identical
+with tempfile.TemporaryDirectory() as tmp:
+    tmp = pathlib.Path(tmp)
+    cat, maps = tmp / "materials.json", tmp / "maps"
+    for key in ("aaaaaaaaaa", "bbbbbbbbbb"):
+        (maps / key / "@m4b8870d7").mkdir(parents=True)
+        (maps / key / "@m4b8870d7" / "metal.png").write_bytes(b"metal-" + key.encode())
+    (maps / "aaaaaaaaaa" / "@g100").mkdir()
+    (maps / "aaaaaaaaaa" / "@g100" / "metal.png").write_bytes(b"room")
+    entries = [{"id": f"PT-{k}-m4b8870d7", "match": {"key": k, "size": [4, 4]}, "object": {"models": ["4b8870d7"]}} for k in ("aaaaaaaaaa", "bbbbbbbbbb")]
+    entries.append({"id": "PT-room", "match": {"key": "aaaaaaaaaa", "size": [4, 4]}, "object": {"groups": [256]}})
+    cat.write_text(json.dumps({"format": 2, "entries": entries}))
+
+    def snapshot():
+        return {str(f.relative_to(tmp)): f.read_bytes() for f in sorted(tmp.rglob("*")) if f.is_file()}
+    before = snapshot()
+    report = pr.rekey_tree(cat, maps, {})
+    check(snapshot() == before and report["entries"] == 0, "rekey with nothing to alias leaves the tree byte-identical")
+    report = pr.rekey_tree(cat, maps, {"4b8870d7": "1a2b3c4d5e"}, apply=False)
+    check(snapshot() == before and report["entries"] == 2 and report["copied"] == 2, "a dry run reports and writes nothing")
+    report = pr.rekey_tree(cat, maps, {"4b8870d7": "1a2b3c4d5e"})
+    after = snapshot()
+    got = json.loads(cat.read_text())["entries"]
+    check([e["object"] for e in got] == [{"models": ["1a2b3c4d5e"]}, {"models": ["1a2b3c4d5e"]}, {"groups": [256]}] and [e["id"] for e in got] == [e["id"] for e in entries],
+          "the entries name the content key (their ids and the room entry as they were)")
+    check(after["maps/aaaaaaaaaa/@m1a2b3c4d5e/metal.png"] == b"metal-aaaaaaaaaa" and after["maps/bbbbbbbbbb/@m1a2b3c4d5e/metal.png"] == b"metal-bbbbbbbbbb"
+          and all(after[k] == v for k, v in before.items() if k.startswith("maps/")), "the maps are copied to the content folder, every old file is still there unchanged")
+    again = pr.rekey_tree(cat, maps, {"4b8870d7": "1a2b3c4d5e"})
+    check(again["entries"] == 0 and snapshot() == after, "rekey twice changes nothing more")
+    (maps / "aaaaaaaaaa" / "@m4b8870d7" / "metal.png").write_bytes(b"newer")  # painted again on the legacy id after migrating
+    cat.write_text(json.dumps({"format": 2, "entries": [entries[0]]}))
+    report = pr.rekey_tree(cat, maps, {"4b8870d7": "1a2b3c4d5e"})
+    check(len(report["conflicts"]) == 1 and (maps / "aaaaaaaaaa/@m1a2b3c4d5e/metal.png").read_bytes() == b"newer", f"a conflict is listed and the newer file wins: {report['conflicts']}")
+    # the export's object ids: the content key, the legacy id it was loaded under, and the ids the alias file maps to it
+    alias = tmp / "aliases.json"
+    alias.write_text(json.dumps({"deadbeef": "1a2b3c4d5e", "bad": "x"}))
+    os.environ["ROOD_MODEL_ALIASES"] = str(alias)
+    ids = pr.object_ids({"model": "1a2b3c4d5e", "model_legacy": "4b8870d7", "object": "m1a2b3c4d5e"})
+    check(ids == {"m1a2b3c4d5e", "m4b8870d7", "mdeadbeef"}, f"a model's object ids: {sorted(ids)}")
+    check(pr.object_ids({"model": "4b8870d7", "object": "m4b8870d7"}) == {"m4b8870d7"}, "an old package (the legacy id only) has its own id")
+    del os.environ["ROOD_MODEL_ALIASES"]
 print("FAIL" if failures else "PASS")
 sys.exit(1 if failures else 0)

@@ -1,5 +1,6 @@
--- Rood live (CC0). Sends the strokes painted in the "Metal", "Roughness" and "Material" layers (the last is painted with the palette's
--- preset swatches: one stroke sets metal and roughness together) of a sprite made by
+-- Rood live (CC0). Sends the strokes painted in the channel layers ("Height", "Metal", "Roughness"...: the bridge's greeting names them, from
+-- pc/tools/aseprite/channels.json) and the preset layer ("Material": painted with the palette's
+-- preset swatches, one stroke sets every channel the preset has) of a sprite made by
 -- `paint_roundtrip.py export ... --painter aseprite` to `paint_roundtrip.py live <package>` over a WebSocket on localhost,
 -- which puts the map into the running game. Needs Aseprite 1.3 or later (sprite.events, WebSocket, Image.bytes, Timer),
 -- the sprite in RGB colour mode, and the permission Aseprite asks for the first time (network access: give it).
@@ -9,7 +10,8 @@
 local DEFAULT_PORT = 47480
 local SEND_INTERVAL = 0.1 -- seconds: about 10 updates a second; the last change of a stroke goes out on the next tick
 local COLOUR_LAYER = "Game colour (reference)"
-local CHANNELS = { Metal = true, Roughness = true, Material = true }
+local CHANNELS = {}           -- layer name -> true, filled from the bridge's greeting (the channel table is the bridge's)
+local PRESET_LAYER = "Material" -- (the greeting says it)
 
 local function flag(name) return WebSocketMessageType and WebSocketMessageType[name] or -1 end
 
@@ -20,7 +22,7 @@ function init(plugin)
   local ws, timer, dialog
   local status = { text = "not connected" }
   local flush, ensureTimer
-  local presets = {} -- from the bridge's greeting: { name, rgb = "rrggbb", metal, roughness }
+  local presets = {} -- from the bridge's greeting: { name, rgb = "rrggbb", about = "metal 1, roughness 0.12" }
   local dirty = {}    -- layer name -> sprite
   local attached = {} -- sprites whose events are hooked
 
@@ -35,7 +37,7 @@ function init(plugin)
       local hex = string.format("%02x%02x%02x", c.red, c.green, c.blue)
       for _, p in ipairs(presets) do
         if p.rgb == hex then
-          return string.format("%s: metal %s, roughness %s", p.name, p.metal or "-", p.roughness or "-")
+          return string.format("%s: %s", p.name, p.about ~= "" and p.about or "-")
         end
       end
       return "(not a preset swatch)"
@@ -55,7 +57,7 @@ function init(plugin)
       local sprite = app.sprite
       if sprite then -- (to the Material layer: the swatch is painted there)
         for _, layer in ipairs(sprite.layers) do
-          if layer.name == "Material" and not layer.isGroup then app.layer = layer end
+          if layer.name == PRESET_LAYER and not layer.isGroup then app.layer = layer end
         end
       end
     end)
@@ -65,7 +67,7 @@ function init(plugin)
   local function readPresets(message)
     local list = {}
     for name, rgb, rest in message:gmatch('{"name":%s*"([^"]*)",%s*"colour":%s*"#(%x%x%x%x%x%x)"([^}]*)}') do
-      list[#list + 1] = { name = name, rgb = rgb:lower(), metal = rest:match('"metal":%s*([%d%.]+)'), roughness = rest:match('"roughness":%s*([%d%.]+)') }
+      list[#list + 1] = { name = name, rgb = rgb:lower(), about = rest:match('"about":%s*"([^"]*)"') or "" }
     end
     if #list == 0 then return end
     local same = #list == #presets
@@ -98,14 +100,24 @@ function init(plugin)
     end)
   end
 
+  -- the layers the bridge paints: {"layers":[{"layer":"Height","channel":"height"},...],"preset_layer":"Material"}
+  local function readLayers(message)
+    local found = {}
+    for layer in message:gmatch('{"layer":%s*"([^"]*)",%s*"channel"') do found[layer] = true end
+    local preset = message:match('"preset_layer":%s*"([^"]*)"')
+    if preset then found[preset], PRESET_LAYER = true, preset end
+    if next(found) == nil then return end
+    CHANNELS = found
+    for _, sprite in ipairs(attached) do -- (the bridge learns every layer)
+      for name in pairs(CHANNELS) do dirty[name] = sprite end
+    end
+    ensureTimer()
+  end
+
   local function onReceive(messageType, message)
     if messageType == flag("OPEN") then
       show("connected; waiting for the game")
-      ws:sendText("hello")
-      for _, sprite in ipairs(attached) do -- (the bridge learns every layer, the Material one included)
-        for name in pairs(CHANNELS) do dirty[name] = sprite end
-      end
-      ensureTimer()
+      ws:sendText("hello") -- (its reply names the layers; every layer of an attached sprite is sent then)
     elseif messageType == flag("CLOSE") then
       show("bridge not running (paint_roundtrip.py live <package>)")
     elseif messageType == flag("TEXT") then
@@ -113,6 +125,7 @@ function init(plugin)
       local game = message:match('"game":%s*(%a+)') == "true"
       local note = message:match('"note":%s*"([^"]*)"') or ""
       local ms = message:match('"ms":%s*([%d%.]+)')
+      if message:find('"layers"', 1, true) then readLayers(message) end
       if message:find('"presets"', 1, true) then readPresets(message) end
       if not ok then show("refused: " .. note)
       elseif game then show("live: game running" .. (ms and (" (" .. ms .. " ms)") or ""))

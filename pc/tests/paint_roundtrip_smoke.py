@@ -240,8 +240,8 @@ def main():
         atlas[row, col, 2] = 255  # one texel metal
         pr.save_image(mpath, atlas)
         pr.import_package(argparse.Namespace(dir=str(mpkg), layer=str(maps), catalog=str(catalog), normal_format="auto", keep_seed=False))
-        folders = sorted(str(f.relative_to(maps)) for f in maps.rglob("metal.png") if "@m4b8870d7" in str(f))
-        check(folders == [f"{hit['key']}/@m4b8870d7/metal.png"], f"the one texel is one map of her box for her model: {folders}")
+        folders = sorted(str(f.relative_to(maps)) for f in maps.rglob("metal.png") if f"@m{mrec['model']}" in str(f))
+        check(folders == [f"{hit['key']}/@m{mrec['model']}/metal.png"], f"the one texel is one map of her box for her model: {folders}")
         one = None
         for _ in range(8):
             g.call("redraw")

@@ -25,6 +25,7 @@ sys.path.insert(0, str(ROOT / "pc/tools"))
 os.environ["ROOD_PAINT_PRESETS_USER"] = os.path.join(tempfile.gettempdir(), "aseprite_test_no_user_presets.json")  # (the owner's own file is not read)
 import aseprite_io as ase  # noqa: E402
 import material_presets as mp  # noqa: E402
+import paint_channels as pch  # noqa: E402
 import miniws  # noqa: E402
 import paint_live  # noqa: E402
 import paint_roundtrip as pr  # noqa: E402
@@ -153,11 +154,13 @@ with tempfile.TemporaryDirectory() as d:
     check(sorted(p.name for p in (pkg / "aseprite").iterdir()) == ["aaaaaaaaaa_g100.aseprite", "aaaaaaaaaa_g200.aseprite"], "an .aseprite file per material, named as the material")
     sprite = ase.read(pkg / "aseprite" / "aaaaaaaaaa_g100.aseprite")
     names = [layer.name for layer in sprite.layers]
-    check(names == ["Game colour (reference)", "Metal", "Roughness", "Material"] and (sprite.width, sprite.height) == (8, 6), f"layers bottom to top at the texture's own size: {names}")
-    check(sprite.layers[3].opacity == 178 and sprite.layers[3].visible and not sprite.layers[3].pixels.any(), "Material above them at 70%, shown, empty")
+    check(names == ["Game colour (reference)", "Height", "Metal", "Roughness", "Material"] and (sprite.width, sprite.height) == (8, 6), f"layers bottom to top (the channel table's order) at the texture's own size: {names}")
+    check(sprite.layer("Material").opacity == 178 and sprite.layer("Material").visible and not sprite.layer("Material").pixels.any(), "Material above them at 70%, shown, empty")
     check(sprite.layers[0].locked and np.array_equal(sprite.layers[0].pixels, base), "the game's colour is locked and is the texture")
-    check(sprite.layers[1].opacity == 153 and sprite.layers[1].visible and not sprite.layers[2].visible, "Metal at about 60% and shown, Roughness hidden")
-    check((sprite.layers[2].pixels[..., 0] == 120).all() and (sprite.layers[1].pixels[..., 0] == np.arange(8) * 20).all(), "Metal and Roughness are seeded from the game's maps")
+    check(sprite.layer("Metal").opacity == 153 and sprite.layer("Metal").visible and not sprite.layer("Roughness").visible and not sprite.layer("Height").visible,
+          "Metal at about 60% and shown, Roughness and Height hidden")
+    check((sprite.layer("Roughness").pixels[..., 0] == 120).all() and (sprite.layer("Metal").pixels[..., 0] == np.arange(8) * 20).all(), "Metal and Roughness are seeded from the game's maps")
+    check((sprite.layer("Height").pixels[..., 0] == 128).all() and (sprite.layer("Height").pixels[..., 3] == 255).all(), "Height is seeded flat (128) where the game has no height map")
 
     def args_for(source, name):
         return argparse.Namespace(dir=str(source), layer=str(d / f"layer-{name}"), catalog=str(d / f"cat-{name}.json"), normal_format="auto", keep_seed=False)
@@ -176,7 +179,7 @@ with tempfile.TemporaryDirectory() as d:
     patch = np.zeros((2, 3, 4), np.uint8)
     patch[1, 1] = (255, 255, 255, 255)  # (a texel at (5, 2) of the canvas)
     build(one / "aseprite" / "aaaaaaaaaa_g100.aseprite", 8, 6, layout,
-          [[(0, 0, 0, 2, base), (1, 0, 0, 2, np.full((6, 8, 4), 255, np.uint8)), (3, 0, 0, 2, s.layers[2].pixels), (4, 4, 1, 2, patch)]])
+          [[(0, 0, 0, 2, base), (1, 0, 0, 2, np.full((6, 8, 4), 255, np.uint8)), (3, 0, 0, 2, s.layer("Roughness").pixels), (4, 4, 1, 2, patch)]])
     result = pr.run_import(args_for(one, "one"), say=lambda *_: None)
     layer = d / "layer-one"
     check(tree(layer) == ["aaaaaaaaaa/@g100/metal.png"], f"a stroke on Metal writes that channel only (no roughness, no other object): {tree(layer)}")
@@ -197,7 +200,7 @@ with tempfile.TemporaryDirectory() as d:
     # roughness alone, a soft-edged (partially opaque) texel still counts as painted; the colour layer is never imported
     two = make_package("two")
     time.sleep(0.01)
-    rough = s.layers[2].pixels.copy()
+    rough = s.layer("Roughness").pixels.copy()
     rough[0, 0] = (30, 30, 30, 90)
     edited = np.array(base)
     edited[0, 0, :3] = 1
@@ -342,11 +345,11 @@ with tempfile.TemporaryDirectory() as d:
     def save_layers(path, material=None, metal=None, rough=None):
         rows = [{"name": ly.name, "pixels": ly.pixels, "locked": ly.locked, "visible": ly.visible, "opacity": ly.opacity} for ly in ase.read(path).layers]
         if material is not None:
-            rows[3]["pixels"] = material
+            rows[4]["pixels"] = material
         if metal is not None:
-            rows[1]["pixels"] = metal
+            rows[2]["pixels"] = metal
         if rough is not None:
-            rows[2]["pixels"] = rough
+            rows[3]["pixels"] = rough
         ase.write(path, 8, 6, rows, palette=ase.read(path).palette)
     save_layers(spath, material=sw)
     r = pr.run_import(args_for(six, "six"), say=lambda *_: None)
@@ -454,6 +457,103 @@ with tempfile.TemporaryDirectory() as d:
     bridge.message(None, miniws.BINARY, message("Metal", stroke_px, 5, 5))
     check(any(c == "roughness" and (a[0:2, 0:3] == round(0.9 * 255)).all() for _, _, c, a in pushed[n0:]), "a changed preset file is re-read on the next message: the swatch's new values are pushed")
 
+    # ---------------------------------------------------------------- the Height channel (the channel table's row; no code of its own)
+    check([r["channel"] for r in pch.ROWS] == ["height", "metal", "roughness"] and all(pch.blank(c) == b for c, b in (("height", 128), ("metal", 0), ("roughness", 255))),
+          "the channel table: height, metal, roughness in layer order, blank values as the game's blank_value")
+    hbake = d / "hbake"
+    (hbake / "aaaaaaaaaa" / "@g100").mkdir(parents=True)
+    game_height = np.tile(np.arange(8, dtype=np.uint8) * 10 + 40, (6, 1))
+    Image.fromarray(game_height, "L").save(hbake / "aaaaaaaaaa" / "@g100" / "height.png")
+
+    def make_height_package(name):
+        pkg = d / name
+        pkg.mkdir()
+        pr.write_package(pkg, positions, colours, tris, found, split, labels, {"aaaaaaaaaa": base}, {"target": "room", "zone": 9, "room": 17},
+                         pr.seed_layers([hbake]), aseprite=True)
+        return pkg
+    hpkg = make_height_package("hpkg")
+    hfile = hpkg / "aseprite" / "aaaaaaaaaa_g100.aseprite"
+    check(np.array_equal(ase.read(hfile).layer("Height").pixels[..., 0], game_height), "the Height layer is seeded from the game's height map")
+    check(np.array_equal(pr.painted_seed(hpkg, json.loads((hpkg / "seed.json").read_text())["labels"]["aaaaaaaaaa@g100"], "height", 6, 8), game_height)
+          and (hpkg / "seed" / "aaaaaaaaaa_g100_Height.png").exists(), "...and the package keeps it as the seed (seed/<material>_Height.png)")
+    r = pr.run_import(args_for(hpkg, "hnone"), say=lambda *_: None)
+    check(not r["changed"] and not tree(d / "layer-hnone"), "a Height layer left as the game's imports nothing (the relief estimate is not replaced by flat)")
+    time.sleep(0.01)
+    hl = ase.read(hfile)
+    px = hl.layer("Height").pixels.copy()
+    px[2, 3, :3] = 250  # a raised texel
+    px[4, 6, :3] = 5    # a sunk one
+    hrows = [{"name": ly.name, "pixels": ly.pixels, "locked": ly.locked, "visible": ly.visible, "opacity": ly.opacity} for ly in hl.layers]
+    hrows[1]["pixels"] = px
+    ase.write(hfile, 8, 6, hrows, palette=hl.palette)
+    r = pr.run_import(args_for(hpkg, "hone"), say=lambda *_: None)
+    check(tree(d / "layer-hone") == ["aaaaaaaaaa/@g100/height.png"], f"a stroke on Height writes height.png and nothing else (no normal): {tree(d / 'layer-hone')}")
+    got = np.asarray(Image.open(d / "layer-hone/aaaaaaaaaa/@g100/height.png"))
+    want = game_height.copy()
+    want[2, 3], want[4, 6] = 250, 5
+    check(np.array_equal(got, want), "...the game's height with only the painted texels changed")
+    entry = json.loads((d / "cat-hone.json").read_text())["entries"][0]
+    check(entry["bump"] > 0, "...and its catalog entry has relief on (bump > 0), which a painted height needs")
+    flat_cat = d / "flat-shipped.json"
+    flat_cat.write_text(json.dumps({"entries": [{"id": "Z", "match": {"key": "zzzzzzzzzz"}, "bump": 0, "roughness": 0.5}]}))
+    was_env = os.environ.get("ROOD_MATERIAL_CATALOG")
+    os.environ["ROOD_MATERIAL_CATALOG"] = str(flat_cat)
+    zrec = {"key": "aaaaaaaaaa", "object": "g100", "w": 8, "h": 6, "model": None, "entry": "Z", "group_offset": 0x100}
+    zargs = argparse.Namespace(catalog=str(d / "cat-z.json"))
+    pr.ensure_entries(zargs, {"target": "room", "zone": 9, "room": 17}, [("z", zrec, ["metal"])])
+    pr.ensure_entries(zargs, {"target": "room", "zone": 9, "room": 17}, [("z", {**zrec, "object": "g200", "group_offset": 0x200}, ["height"])])
+    zentries = {e["id"]: e for e in json.loads((d / "cat-z.json").read_text())["entries"]}
+    check(zentries["PT-aaaaaaaaaa-g100"]["bump"] == 0 and zentries["PT-aaaaaaaaaa-g200"]["bump"] == 1.0 and zentries["PT-aaaaaaaaaa-g200"]["roughness"] == 0.5,
+          "a painted height on a surface with bump 0 turns it on (1); painting metal on it keeps the 0; the rest of the entry is the game's")
+    if was_env is None:
+        del os.environ["ROOD_MATERIAL_CATALOG"]
+    else:
+        os.environ["ROOD_MATERIAL_CATALOG"] = was_env
+    # the Material layer's presets carry height when they have it
+    user_presets = d / "height-presets.json"
+    user_presets.write_text(json.dumps({"presets": [{"id": "bumpy", "name": "Bumpy", "colour": "#12ab34", "height": 1.0}]}))
+    os.environ["ROOD_PAINT_PRESETS_USER"] = str(user_presets)
+    bumpy = [p for p in mp.load() if p["id"] == "bumpy"][0]
+    sw_h = np.zeros((6, 8, 4), np.uint8)
+    sw_h[0:2, 0:2] = (*bumpy["rgb"], 255)
+    got_h = mp.expand(sw_h, mp.load())
+    check(sorted(got_h) == ["height"] and (got_h["height"][0][0:2, 0:2] == 255).all() and got_h["height"][1][0:2, 0:2].all(), "a preset with a height value expands to the height channel only")
+    hbridge = paint_live.Bridge(make_height_package("hlive"), layer=str(d / "layer-hlive"), catalog=str(d / "cat-hlive.json"))
+    hpushed = []
+    hbridge.push = lambda key, obj, channel, array: hpushed.append((key, obj, channel, array.copy())) or True
+    hello = hbridge.message(None, miniws.TEXT, b"hello")
+    check([x["layer"] for x in hello["layers"]] == ["Height", "Metal", "Roughness"] and hello["preset_layer"] == "Material"
+          and next(p for p in hello["presets"] if p["name"] == "Bumpy")["about"] == "height 1", f"the bridge's greeting names the layers and each preset's values: {hello['layers']}")
+    unpainted = ase.read(hbridge.folder / "aseprite" / "aaaaaaaaaa_g100.aseprite").layer("Height").pixels
+    reply = hbridge.message(None, miniws.BINARY, message("Height", unpainted, 0, 0))
+    check(reply["ok"] and reply["note"] == "unchanged" and not hpushed, f"a Height layer still at the game's values pushes nothing (the game keeps its estimate): {reply}")
+    stroke_h = np.zeros((1, 1, 4), np.uint8)
+    stroke_h[0, 0] = (250, 250, 250, 255)
+    reply = hbridge.message(None, miniws.BINARY, message("height", stroke_h, 2, 3))
+    key, obj, channel, array = hpushed[-1]
+    expect_h = game_height.copy()
+    expect_h[3, 2] = 250
+    check(reply["ok"] and (key, obj, channel) == ("aaaaaaaaaa", "g100", "height") and np.array_equal(array, expect_h), "a Height stroke is pushed as that object's height map: the stroke over the game's values (the layer name is any case)")
+    reply = hbridge.message(None, miniws.BINARY, message("Material", sw_h, 0, 0))
+    check(hpushed[-1][2] == "height" and (hpushed[-1][3][0:2, 0:2] == 255).all() and hpushed[-1][3][3, 2] == 250, "a Material swatch with a height value is pushed as height, the Height stroke staying")
+    # erasing back to the game's values: a map the game had is pushed again, where it had none the map set in memory is taken away
+    hpushed.clear()
+    hbridge.message(None, miniws.BINARY, message("Height", np.zeros((0, 0, 4), np.uint8), 0, 0))
+    hbridge.message(None, miniws.BINARY, message("Material", np.zeros((0, 0, 4), np.uint8), 0, 0))
+    check(hpushed and hpushed[-1][2] == "height" and np.array_equal(hpushed[-1][3], game_height), "the Height layer erased: the game's own height map (it had one) is pushed back")
+    nomap = paint_live.Bridge(make_package("nomap"), layer=str(d / "layer-nomap"), catalog=str(d / "cat-nomap.json"))
+    npushed, ncleared = [], []
+    nomap.push = lambda key, obj, channel, array: npushed.append((key, obj, channel, array.copy())) or True
+    nomap.clear = lambda key, obj, channel: ncleared.append((key, obj, channel)) or True
+    nomap.message(None, miniws.BINARY, message("Height", stroke_h, 2, 3))
+    check([c for _, _, c, _ in npushed] == ["height"] and not ncleared, "a Height stroke on a texture the game has no height map for is pushed")
+    nomap.message(None, miniws.BINARY, message("Height", np.zeros((0, 0, 4), np.uint8), 0, 0))
+    check(ncleared == [("aaaaaaaaaa", "g100", "height")] and len(npushed) == 1, "...and erased, the map is taken away (the game's estimate shows again), not flat 128 pushed")
+    nomap.message(None, miniws.BINARY, message("Metal", stroke_h, 2, 3))
+    nomap.message(None, miniws.BINARY, message("Metal", np.zeros((0, 0, 4), np.uint8), 0, 0))
+    check(("aaaaaaaaaa", "g100", "metal") not in ncleared and npushed[-1][2] == "metal", "(metal, which this texture's game has a map for, is pushed back as before)")
+    os.environ["ROOD_PAINT_PRESETS_USER"] = os.path.join(tempfile.gettempdir(), "aseprite_test_no_user_presets.json")
+
     # ---------------------------------------------------------------- real Aseprite (batch, no window; skipped when it is not installed)
     os.environ["ROOD_PAINT_PRESETS_USER"] = os.path.join(tempfile.gettempdir(), "aseprite_test_no_user_presets.json")
     if shutil.which("aseprite"):
@@ -489,7 +589,7 @@ s:saveAs("{d / "saved.aseprite"}")
         os.environ["ROOD_PAINT_PRESETS_USER"] = os.path.join(tempfile.gettempdir(), "aseprite_test_no_user_presets.json")
         script.write_text(f'local s = app.open("{tpath}") print(#s.layers, #s.palettes[1], s.palettes[1]:getColor(12).green)')
         run = subprocess.run(["aseprite", "-b", "--script", str(script)], env=env, capture_output=True, text=True, timeout=60)
-        check(run.stdout.split() == ["4", str(len(presets) + 1 + mp.PALETTE_GRAYS), str(0xbb)], f"a file Aseprite wrote opens in it again after `palette`, with the new swatches: {run.stdout.split()}")
+        check(run.stdout.split() == [str(len(pch.ROWS) + 2), str(len(presets) + 1 + mp.PALETTE_GRAYS), str(0xbb)], f"a file Aseprite wrote opens in it again after `palette`, with the new swatches: {run.stdout.split()}")
     else:
         print("skip: aseprite is not installed (the real-Aseprite checks)")
 

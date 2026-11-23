@@ -50,8 +50,14 @@ struct ObjectRef {
 /* What a drawn polygon belongs to (for find_object_match). */
 struct ObjectId {
     int group = -1, polygon = -1; /* byte offsets in the room data (room polygons); -1 none */
-    std::string model;            /* a model's hash ("" none) */
+    std::string model;            /* a model's content key (model_key.h: 10 hex digits; "" none) */
+    std::string legacy;           /* its legacy id (8 hex digits: the hash with the texture page in it; "" none) */
 };
+/* Model ids in entries (`object.models`): a content key (10 hex digits) names the model whatever page it loads into; a legacy id (8 digits)
+ * the model as loaded at one page, which also matches the model it is an alias of: <lighting>/model_aliases.json ({legacy: content}, read
+ * with the catalogs; written by paint_roundtrip.py rekey) and the pairs the game has seen drawn (note_model). */
+std::string model_alias(const std::string& legacy);
+void note_model(const std::string& legacy, const std::string& content);
 bool object_matches(const ObjectRef& r, const ObjectId& o);
 /* Catalog presets and layered entries: absent or unmatched means Surface{}
  * and must never alter the old shading path. A map overrides roughness only.
@@ -302,6 +308,8 @@ void reload(); /* forget(), and read both catalog files again */
  * written. It holds until that file is written (its stamp changes), then the file wins; the editor's live painting. */
 bool set_live(const std::string& key, const std::string& object, const std::string& name, int w, int h,
     const uint8_t* values, std::string* error);
+/* Takes a map set in memory away again: the channel is what the layers hold (the user's file, the shipped, the baked), or nothing. */
+bool clear_live(const std::string& key, const std::string& object, const std::string& name, std::string* error);
 /* Writes a channel into the user layer (a grayscale PNG). */
 bool write_channel(const std::string& key, const std::string& name, int w, int h, const uint8_t* values,
     std::string* error);

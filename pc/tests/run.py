@@ -174,13 +174,15 @@ def suites(args, mode="egl"):
               note="a model through the Blender bake (Gitea #20) without the game or Blender: the model's settings over the room's, an "
                    "entry per texture keyed by the model, the maps cut from an atlas bake into each texture's folder"),
         Suite("paint_roundtrip", [PY, str(TESTS / "paint_roundtrip_test.py")], 60, binary=None,
-              sources=[ROOT / "pc/tools/paint_roundtrip.py", ROOT / "pc/tools/subcraft_project.py", ROOT / "pc/tools/room_blender.py"],
+              sources=[ROOT / "pc/tools/paint_roundtrip.py", ROOT / "pc/tools/subcraft_project.py", ROOT / "pc/tools/room_blender.py",
+                       ROOT / "pc/tools/paint_channels.py", ROOT / "pc/tools/aseprite/channels.json"],
               note="the painting round trip without the game: the seed (the bake's normals, texel for texel), nothing written unpainted, one "
                    "texel on one object, a painted normal alone, a model's atlas cut into its boxes, a glTF a painter re-saved"),
         Suite("aseprite", [PY, str(TESTS / "aseprite_test.py")], 60, binary=None,
               sources=[ROOT / "pc/tools/aseprite_io.py", ROOT / "pc/tools/miniws.py", ROOT / "pc/tools/paint_live.py",
-                       ROOT / "pc/tools/paint_roundtrip.py", ROOT / "pc/tools/room_blender.py"],
-              note="painting metal and roughness in Aseprite without Aseprite or the game: the .aseprite reader (offsets, linked and "
+                       ROOT / "pc/tools/paint_roundtrip.py", ROOT / "pc/tools/room_blender.py", ROOT / "pc/tools/paint_channels.py",
+                       ROOT / "pc/tools/material_presets.py", ROOT / "pc/tools/aseprite/channels.json"],
+              note="painting height, metal and roughness in Aseprite without Aseprite or the game (the channel table's rows): the .aseprite reader (offsets, linked and "
                    "raw cels, groups, palettes, other colour depths), the export's files, import and watch writing only the painted "
                    "channel and texels, the WebSocket framing, the live bridge up to the RPC call"),
         Suite("build_compare_shaders", [PY, str(TESTS / "build_compare_shaders_test.py")], 60, binary=None,
@@ -423,7 +425,7 @@ def suites(args, mode="egl"):
                   note="Aseprite painting reaches the running game: a saved .aseprite imported by watch changes the picture, strokes over "
                        "the WebSocket bridge change it with no file written (latency measured), erasing resets",
                   sources=[TESTS / "aseprite_smoke.py", ROOT / "pc/tools/paint_live.py", ROOT / "pc/tools/paint_roundtrip.py",
-                           ROOT / "pc/tools/miniws.py", ROOT / "pc/src/materials.cpp", ROOT / "pc/src/material_editor.cpp"]),
+                           ROOT / "pc/tools/paint_channels.py", ROOT / "pc/tools/aseprite/channels.json", ROOT / "pc/tools/miniws.py", ROOT / "pc/src/materials.cpp", ROOT / "pc/src/material_editor.cpp"]),
             Suite("model_blender_smoke", [PY, str(TESTS / "model_blender_smoke.py"), "--card", str(args.save)], 600,
                   note="a model through Blender and back: Ashley's glTF opens in Blender (one mesh, welded, outward, UVs in the atlas), the "
                        "bake and import make her textures' maps in the folder of her model, and they change her picture in the game",
@@ -510,6 +512,18 @@ def suites(args, mode="egl"):
             Suite("material_relief_smoke", [PY, str(TESTS / "material_relief_smoke.py"), "--card", str(args.save)], 300,
                   note="the relief fades to flat where the texture is stretched: the Keep's arch side smooth, the broad "
                        "faces unchanged and still bumped; the limits are tunables"),
+            Suite("material_height_paint_smoke", [PY, str(TESTS / "material_height_paint_smoke.py"), "--card", str(args.save)], 300,
+                  note="a painted height map (RPC material map_set, what the Aseprite Height layer sends) shades as the baked one does: "
+                       "a flat one is the estimate's picture, painted_texture_relief 0 makes it the whole relief, a ramp painted equals the "
+                       "same ramp baked at each share, a column of texels changes only its own pixels, map_clear takes it away",
+                  sources=[TESTS / "material_height_paint_smoke.py", ROOT / "pc/src/emissive.cpp", ROOT / "pc/src/materials.cpp",
+                           ROOT / "pc/src/material_editor.cpp"]),
+            Suite("model_key_smoke", [PY, str(TESTS / "model_key_smoke.py"), "--card", str(args.save)], 300,
+                  note="a model's paint follows its content key: Ashley is named by it (pick, model_ids), the user's own Ashley paint (copied, "
+                       "never written) is the same picture migrated to content keys, from the content folders alone, and through an alias line "
+                       "for a legacy id that is not hers (skipped without that paint)",
+                  sources=[TESTS / "model_key_smoke.py", ROOT / "pc/src/model_key.c", ROOT / "pc/src/actor_native.c",
+                           ROOT / "pc/src/materials.cpp", ROOT / "pc/src/emissive.cpp", ROOT / "pc/tools/paint_roundtrip.py"]),
             Suite("material_key_light_smoke", [PY, str(TESTS / "material_key_light_smoke.py"), "--card", str(args.save)], 300,
                   note="the per-room key light: its data (tunables, room settings, exterior and interior defaults), steady and "
                        "deterministic frames, off byte-identical, the walls' relief shows with the mean luminance kept"),
@@ -643,6 +657,11 @@ def suites(args, mode="egl"):
                       "input and camera its own), each card row live through rood.post, the camera keys, a PNG, "
                       "Cross / the pad button / Start leave with everything restored (state digest, post values, "
                       "the picture, settings.cfg)")]
+          if args.save.exists() else []),
+        *([Suite("photo_pose_smoke", [PY, str(TESTS / "photo_pose_smoke.py"), "--card", str(args.save)], 300,
+                 note="photo mode: the left stick (analog_move, anim_blend on) never changes the held picture of Ashley: "
+                      "a render sees no stick, so her pose and place are the held moment's whatever the camera "
+                      "or the stick does")]
           if args.save.exists() else []),
         *([Suite("photo_pace_smoke", [PY, str(TESTS / "photo_pace_smoke.py"), "--card", str(args.save)], 300,
                  note="photo mode in real time: turning the camera keeps play's present rate (a render's time "
@@ -1028,7 +1047,7 @@ CHECKPOINT_SUITES = {
     "ui_ashley_backdrop_smoke", "ui_data_smoke", "ui_container_smoke", "interp_menu_2d_smoke",
     "ui_ashley_detail_smoke", "ui_score_smoke", "snapshot_resume_smoke", "engine_reload_smoke", "engine_reload_render_smoke", "frame_cost_smoke",
     "hud_bench_smoke", "classic_hud_smoke", "classic_panels_smoke",
-    "repl_smoke", "lua_imgui_smoke", "photo_foundation_smoke", "photo_engine_reload_smoke", "photo_mode_smoke", "photo_pace_smoke", "photo_full_room_smoke",
+    "repl_smoke", "lua_imgui_smoke", "photo_foundation_smoke", "photo_engine_reload_smoke", "photo_mode_smoke", "photo_pose_smoke", "photo_pace_smoke", "photo_full_room_smoke",
     "cutscene_player_smoke", "cutscene_viewer_smoke", "cutscene_sequencer_smoke", "cutscene_freecam_smoke",
     "text_fade_smoke", "menu_fade_smoke", "ui_text_msdf_smoke",
 }

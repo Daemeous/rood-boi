@@ -70,6 +70,8 @@ extern int pc_auto_height;
 extern float pc_auto_height_strength;
 /* How much of a texture's own estimate (mortar, grain) goes on top of a baked height map, 0..1 (0: the bake alone). */
 extern float pc_baked_texture_relief;
+/* The same for a painted height map (the user's layer, a live map_set): 0..1 (0: the painting alone is the relief). */
+extern float pc_painted_texture_relief;
 extern float pc_bump_occlusion;
 /* Where the relief fades to flat (material.glsl relief_keep): the texture' stretch (long side over short side of a
  * pixel's footprint in the texture) and its texels per pixel at which the fade starts (gone at twice); 0: no limit. */
@@ -108,7 +110,7 @@ void pc_emissive_frame_room(int valid, int zone, int room); /* hw_cmd.c: the roo
  * offset + 8 + 32 i, quads 40 bytes each after the triangles);
  * actor_native.c built a mesh of the model whose content hash is `model`. */
 void pc_emissive_room_mesh(uint32_t mesh, unsigned offset, unsigned tris, unsigned quads);
-void pc_emissive_model_mesh(uint32_t mesh, uint32_t model);
+void pc_emissive_model_mesh(uint32_t mesh, uint32_t model, uint64_t key); /* key: the content key (model_key.h), 0 none */
 /* gpu_hw.c: native VRAM changed in these 64 x 256 tiles (16 x 2). */
 void pc_emissive_vram_dirty(uint32_t tiles);
 /* Before a frame's first draw: matches new uses, rebuilds the map when

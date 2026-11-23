@@ -816,7 +816,8 @@ Materials, RPC `graphics`):
 | `relief_indirect` | the relief under the indirect light (probes, path traced) and the sky's ambient, 0..4; 0: as before | 2 |
 | `relief_reach` | world units that turn the light's relative change along the surface into its tilt (about the light's height over the surface); also sets the gradient's footprint (reach / 8, 8..64); 0: no tilt from it | 96 |
 | `relief_overhead` | the tilt toward the world's up added on walls (light from above), 0..1 | 0.6 |
-| `baked_texture_relief` | how much of a texture's own relief estimate (mortar, grain: `auto_height` entries) goes on top of a *baked* height map, which holds only what the geometry shows; painted maps are never added to; 0: the bake alone | 1 |
+| `baked_texture_relief` | how much of a texture's own relief estimate (mortar, grain: `auto_height` entries) goes on top of a *baked* height map, which holds only what the geometry shows; 0: the bake alone | 1 |
+| `painted_texture_relief` | the same for a *painted* height map (the user's layer, a live `map_set`: the Aseprite Height layer, which starts as the baked one); 0: the painting alone is the relief; shipped maps are never added to | 1 |
 | `key_light` | the per-room key light (below, "The key light"); 0: the picture without it (the default: the owner prefers the bake alone) | 0 |
 | `key_light_strength` | a multiplier on every room's key light, 0..2 | 1 |
 
@@ -1079,7 +1080,7 @@ painted normal replaces the relief of its object (the game reads `normal_x.png` 
 uses them in place of the height, with the strength recorded in `normal.json` beside them: the bake's `maps.normal_strength`, so the two cannot drift). The occlusion map is kept for other tools: the game does not read it yet. Everything exported is
 game art: it stays in `pc/user` or `pc/build`, never in git.
 
-### Painting metal and roughness per pixel in Aseprite (live)
+### Painting height, metal and roughness per pixel in Aseprite (live)
 
 For a true one-pixel brush with the game's colour under it, paint in Aseprite (1.3 or later; tested with 1.3.18.6-dev). The game shows
 each stroke as you paint it.
@@ -1096,9 +1097,16 @@ each stroke as you paint it.
 4. **Paint.** Open a `.aseprite` file. The first time, Aseprite asks to let the script open a network connection (and read files): tick
    *Give full trust to this script*. A small "Rood live" window shows the state (connected, game running or not). Layers, bottom to top:
    - *Game colour (reference)*: the texture, locked; look at it, do not paint it (an edit is not imported).
+   - *Height*: grayscale relief, hidden; 128 is flat, brighter is raised, darker is sunk (the layer order is the channel table's,
+     below). Seeded from the game's `height.png` for that texture where there is one (the baked or a painted one); where there is none it
+     is flat 128 and the game's own relief estimate (mortar, grain of `auto_height` entries) stands until you paint: **a layer left as
+     exported writes and pushes nothing**. Once you paint, the map is the game's whole height for that object, with the texture's own
+     estimate still added on top by `painted_texture_relief` (below), exactly as a baked map gets `baked_texture_relief`. The relief
+     needs the entry's `bump` above 0: the import's catalog entry turns a 0 into the standard 1 when height is painted. Erasing the
+     layer where the game had no height map takes the map out of the game again (`material map_clear`), so its estimate shows.
    - *Metal*: grayscale, white = metal, shown at 60% so the colour shows through (the opacity is display only: the game reads the pixels).
    - *Roughness*: grayscale (white = rough), hidden. Click its eye to show it and hide Metal when you paint roughness (one channel at a
-     time reads best). The pencil, 1 px, nearest everywhere (View > Pixel grid on). Select the layer, pick white or a gray, paint.
+     time reads best; Height is hidden the same way). The pencil, 1 px, nearest everywhere (View > Pixel grid on). Select the layer, pick white or a gray, paint.
    - *Material* (top, 70%): paint a **kind of material** in one stroke, see below. Empty until you paint.
 5. **Ctrl+S** to keep it. **Erase** with the eraser (or delete the cel): a transparent pixel means *keep the game's value*, so erasing
    returns that texel to what the game had when you exported; an opaque gray sets it. Do not resize the canvas or rename the layers
@@ -1119,8 +1127,9 @@ to force the game's value over a preset paint it one level off. Metal and Roughn
 completely; files without Metal or Roughness layers (only Material) import too.
 
 The presets are data. Shipped: `pc/assets/materials/paint-presets.json` (CC0, no game data): per preset `id`, `name`, `colour` (the
-swatch: distinct, never a gray), `metal` and `roughness` (0..1), optional `notes`; other channels (height, emissive, alpha...) can be
-added to a preset later, they are carried as given. Starter values (metal / roughness): Polished steel 1.0 / 0.12 (#82b1ff), Worn
+swatch: distinct, never a gray), `metal`, `roughness` and `height` (0..1, whichever of the channel table's rows has `"presets": true`; a
+preset with no `height` leaves Height to its layer and the game), optional `notes`; channels the table does not have yet (emissive,
+alpha...) are carried as given. Starter values (metal / roughness): Polished steel 1.0 / 0.12 (#82b1ff), Worn
 steel 1.0 / 0.42 (#2962ff), Dark iron 0.9 / 0.62 (#651fff), Rusted iron 0.4 / 0.85 (#ff1744), Gold 1.0 / 0.2 (#ffea00), Bronze / brass
 1.0 / 0.32 (#ff9100), Silver 1.0 / 0.15 (#64ffda), Leather 0 / 0.6 (#d500f9), Cloth 0 / 0.92 (#ff80ab), Stone 0 / 0.85 (#76ff03),
 Wood 0 / 0.72 (#00c853), Skin 0 / 0.55 (#ffab91). Yours go in `pc/user/lighting/paint-presets.json` (`$ROOD_PAINT_PRESETS_USER`, or
@@ -1136,12 +1145,32 @@ colours stay), which is why the extension's window lists the presets by name. A 
 .aseprite file like the others, so a shared pack carries it and imports on the owner's side with the owner's presets.
 
 How it works: the extension sends the changed layer's cel (about 10 times a second and once more when the stroke ends) as a WebSocket
-frame (all three layers when it connects: the bridge keeps the last cel of each); the bridge turns them into the maps exactly as `import` does and puts it into the running game's memory (`material map_set`),
+frame (every layer when it connects: the bridge keeps the last cel of each); the bridge turns them into the maps exactly as `import` does and puts it into the running game's memory (`material map_set`),
 no file per stroke, the game's next frame draws it (about 80 ms with the screenshot's own cost in `aseprite_smoke`). The
 in-memory map holds until a file of that map is written; the save's import then replaces it with the same pixels.
-A Material stroke pushes both maps. `import` reads the .aseprite files too (the newest file of a channel wins over PNG exports).
+A Material stroke pushes every channel its preset sets. `import` reads the .aseprite files too (the newest file of a channel wins over PNG exports).
 
-Reinstall the extension after updating it (`build_extension.py`, version 1.1.0: the Material layer, the preset buttons).
+**The channel table.** The channels are one table, `pc/tools/aseprite/channels.json` (read by `paint_roundtrip.py`, `paint_live.py` and
+`material_presets.py` through `pc/tools/paint_channels.py`): per row the game's map name (`channel`), its Aseprite `layer`, the `blank`
+value of a map nobody painted (height 128, metal 0, roughness 255: the same as `materials.cpp` `blank_value`), where the export gets the
+game's current map (`seed`: a plane of the glTF's metallicRoughness image, or an image of its own: `tex/<material>_Height.png`, with the
+untouched copy in `seed/`), whether presets can set it, and how the layer is exported (visible, opacity). Layers are written bottom to
+top in table order under the Material layer. The bridge's greeting names the layers and each preset's values to the extension, so the
+extension has no list of its own: a new channel (alpha, emissive) is a row. A package exported before the Height row has no height seed:
+its Height is flat 128 (re-export to seed it). Height is not read from PNG exports of other painters (SubCraft writes a Height image of
+its own that is not the game's relief); the Aseprite layer is its painter.
+
+**How a painted height shades.** The same as a baked one: `use_heights` (emissive.cpp) gives a map's texels as heights times the entry's
+`bump`, adds the texture's own estimate on top, and the Sobel slopes, the sunk (cavity) term and everything downstream (relief normal,
+bent lights, GGX, baked light, indirect, sky) are the same code. The share of the estimate is a tunable per origin: `baked_texture_relief`
+for the baked layer, `painted_texture_relief` (default 1, the same) for the user's layer and maps set live; a shipped map is the whole
+relief. Because the Height layer starts as the game's own map and the estimate keeps its share, the first stroke changes only the texels
+it touched; set `painted_texture_relief` to 0 for the painting alone to be the relief. RPC `material map_set` (key, object?, channel
+`height`, w, h, base64 gray) sets a map in memory, `material map_clear` (key, object?, channel) takes it away. A map of an *object* (`@g...`,
+`@m...`) shows only where a catalog entry names that object (the import and the bridge write it); a map of the texture key alone shows on
+every use of the texture. Smoke: `pc/tests/material_height_paint_smoke.py`.
+
+Reinstall the extension after updating it (`build_extension.py`, version 1.2.0: the layers come from the bridge, the Height layer).
 
 Version notes: needs `sprite.events`, `WebSocket`, `Image.bytes` and `Timer` (all present in 1.3.18.6-dev; checked in a headless run: the
 extension connects, the bridge receives the strokes, the status window opens); the Lua is `pc/tools/aseprite/rood-live/rood-live.lua`
@@ -1265,3 +1294,23 @@ palettes).
 - The relief under the glows' light (`gi_extra`'s gba, traced) and the
   baked light's direction from the room's fixtures (the lighting pack's
   fixture catalog knows where the lanterns are) where they are known.
+
+### Model keys (materials of a model follow the model)
+
+A model's paint used to be keyed by `m` + 8 hex digits, the hash `actor_native.c mesh_for` makes of the model and the texture page it was loaded into, so
+one character had two ids (Ashley at two pages) and a pack made on one machine might not match another. Models now also have a **content key**:
+`m` + 10 hex digits, `pc_model_content_key` (`pc/src/model_key.c`, tested by `model_key_test`), a hash of the object header, vertex groups, vertices and
+polygon records with each texture-coordinate v taken relative to the first polygon's page bits (the loader adds the texture slot's row to every v: the page
+enters a model only there). The same model has the same key at any slot, in any room, on any machine. (Spike S2: no collisions over 657 files.)
+
+- `object.models` in an entry takes either: a 10 digit content key, or an 8 digit legacy id. A legacy id matches the model drawn with that id (as before) and
+  any model its alias names: `<lighting>/model_aliases.json` (`$ROOD_MODEL_ALIASES`), `{"4b8870d7": "1a2b3c4d5e"}`, read with the catalogs (RPC `material
+  action=reload` re-reads it), plus the pairs the game has seen drawn this run. Map folders are the entry's own text (`<texture>/@m<id>/`), so an unmigrated tree
+  keeps working untouched.
+- `material pick` names a model by its content key (`object.text` = `m<key>`, `object.legacy` the legacy id). `material model_ids` lists every model mesh known:
+  `{legacy, content}`. `model_dump` takes either id. New exports (`paint_roundtrip.py export model`) key the package, its entries and its map folders by the content
+  key and keep the legacy id in `seed.json` (`model_legacy`).
+- **Migration** (`paint_roundtrip.py rekey [--visit Z,R ...] [--apply]`): asks the game for the ids of the models in the rooms visited, merges them into
+  `model_aliases.json`, and with `--apply` moves the user catalog's model entries to the content key and COPIES their map folders to `@m<content>` (the legacy
+  folders stay, a conflicting file: the newer wins and it is listed). Run it again after visiting more rooms: a model loaded at another page has another legacy
+  id, which only the alias lets an old entry reach. Nothing is deleted; `model_key_smoke.py` proves the owner's Ashley paint is the same picture before and after.

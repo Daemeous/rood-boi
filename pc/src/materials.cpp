@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <filesystem>
 #include <map>
@@ -411,6 +412,23 @@ bool set_live(const std::string& key, const std::string& object, const std::stri
     ++files_generation;
     return true;
 }
+bool clear_live(const std::string& key, const std::string& object, const std::string& name, std::string* error)
+{
+    if (!valid_key(key) || !valid_name(name) || object.size() > 120
+        || object.find_first_not_of("0123456789abcdefgmp+") != std::string::npos) {
+        if (error)
+            *error = "bad texture key, object or channel name";
+        return false;
+    }
+    std::string folder = object.empty() ? key : key + "/@" + object;
+    if (live_maps.erase({ folder, name })) {
+        auto found = cache.find({ folder, name });
+        if (found != cache.end())
+            load(folder, name, found->second);
+        ++files_generation;
+    }
+    return true;
+}
 bool write_channel(const std::string& key, const std::string& name, int w, int h, const uint8_t* values,
     std::string* error)
 {
@@ -738,7 +756,7 @@ bool extra_params(const Json& j, const Master& m, std::map<std::string, float>& 
     return true;
 }
 bool parse_scope(const Json& j, Instance& e);
-/* The entry's optional `object`: {"groups": [offset...], "polygons": [offset...], "models": ["4b8870d7"...]}. */
+/* The entry's optional `object`: {"groups": [offset...], "polygons": [offset...], "models": ["4b8870d7" (legacy id), "1a2b3c4d5e" (content key)...]}. */
 static bool parse_object(const Json& j, Instance& e)
 {
     const Json* o = j.get("object");
@@ -759,7 +777,7 @@ static bool parse_object(const Json& j, Instance& e)
     if (const Json* list = o->get("models")) {
         if (list->type != Json::Array) return false;
         for (const Json& m : list->items) {
-            if (m.type != Json::String || m.string.size() != 8
+            if (m.type != Json::String || (m.string.size() != 8 && m.string.size() != 10)
                 || m.string.find_first_not_of("0123456789abcdef") != std::string::npos) return false;
             if (std::find(e.object.models.begin(), e.object.models.end(), m.string) == e.object.models.end())
                 e.object.models.push_back(m.string);
@@ -1269,11 +1287,51 @@ std::string ObjectRef::text() const
     for (const std::string& m : models) t += (t.empty() ? "m" : "+m") + m;
     return t;
 }
+static std::string alias_path()
+{
+    const char* e = getenv("ROOD_MODEL_ALIASES");
+    return e && *e ? e : pc_path_join("ROOD_LIGHTS", "pc/user/lighting", "model_aliases.json");
+}
+static std::map<std::string, std::string> aliases_file, aliases_seen; /* legacy -> content: the file's, and what the game drew */
+static long long aliases_stamp = -1;
+static std::chrono::steady_clock::time_point aliases_checked;
+std::string model_alias(const std::string& legacy)
+{
+    auto now = std::chrono::steady_clock::now();
+    if (aliases_stamp < 0 || now - aliases_checked > std::chrono::milliseconds(500)) {
+        aliases_checked = now;
+        std::string path = alias_path();
+        long long s = stamp(path);
+        if (s != aliases_stamp) {
+            aliases_stamp = s;
+            aliases_file.clear();
+            Json j;
+            if (s && prefab::json_parse(read_text(path).c_str(), j) && j.type == Json::Object)
+                for (const auto& kv : j.members)
+                    if (kv.second.type == Json::String && kv.first.size() == 8 && kv.second.string.size() == 10)
+                        aliases_file[kv.first] = kv.second.string;
+        }
+    }
+    auto it = aliases_file.find(legacy);
+    if (it != aliases_file.end())
+        return it->second;
+    auto seen = aliases_seen.find(legacy);
+    return seen == aliases_seen.end() ? std::string() : seen->second;
+}
+void note_model(const std::string& legacy, const std::string& content)
+{
+    if (legacy.size() == 8 && content.size() == 10)
+        aliases_seen[legacy] = content;
+}
 bool object_matches(const ObjectRef& r, const ObjectId& o)
 {
     if (o.group >= 0 && std::find(r.groups.begin(), r.groups.end(), (unsigned)o.group) != r.groups.end()) return true;
     if (o.polygon >= 0 && std::find(r.polygons.begin(), r.polygons.end(), (unsigned)o.polygon) != r.polygons.end()) return true;
-    return !o.model.empty() && std::find(r.models.begin(), r.models.end(), o.model) != r.models.end();
+    for (const std::string& m : r.models) {
+        if (m.size() == 10 ? m == o.model : (!o.legacy.empty() && m == o.legacy) || (!o.model.empty() && model_alias(m) == o.model))
+            return true;
+    }
+    return false;
 }
 const Entry* find_object_match(const ObjectId& obj, const std::string& key, int w, int h,
     const std::vector<std::string>& cluts, int zone, int room)
@@ -1625,6 +1683,7 @@ void reload()
 {
     forget();
     masters_stamp = -2;
+    aliases_stamp = -1; /* (the model aliases too) */
     file_layer.stale = true;
     ++pending_serial; /* (the catalog is read again on the next look) */
 }

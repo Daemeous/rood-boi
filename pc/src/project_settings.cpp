@@ -68,6 +68,13 @@ int pc_qol_weapon_slots_label[8][4] = {
     { 94, 99, 89, 101 }, { 71, 112, 70, 115 }, { 103, 117, 98, 113 }, { 81, 124, 80, 127 },
 };
 int pc_qol_weapon_slots_hint[2] = { 160, 142 };
+/* With ui_text font the labels and the hint are set in the labels style (hud/hud_draw.cpp pc_weapon_slots_text_draw): its
+ * font, stretch, tracking and outline are ui_text_labels_*; qol_weapon_slots_text_cap is the capitals' height in PS1 pixels
+ * at labels size 1 (7: the overlay's own words), qol_weapon_slots_text_dy moves them down (PS1 pixels, from the capitals'
+ * middle on the game's glyph row's), qol_weapon_slots_color0..3 the lettering's red, green, blue for the game's palettes
+ * (white, yellow, orange, dim). */
+float pc_qol_weapon_slots_text_cap = 7.0f, pc_qol_weapon_slots_text_dy = 5.0f;
+int pc_qol_weapon_slots_color[4][3] = { { 255, 255, 255 }, { 255, 255, 28 }, { 255, 80, 72 }, { 144, 144, 168 } };
 /* skip_intro: start at the title, without the publisher and developer logos
  * and the intro movie (boot_runtime.c); off by default (the original start). */
 int pc_skip_intro;
@@ -462,6 +469,12 @@ const Entry entries[] = {
     IN("qol_weapon_slots_label6", pc_qol_weapon_slots_label[6], 4),
     IN("qol_weapon_slots_label7", pc_qol_weapon_slots_label[7], 4),
     IN("qol_weapon_slots_hint", pc_qol_weapon_slots_hint, 2),
+    F("qol_weapon_slots_text_cap", pc_qol_weapon_slots_text_cap),
+    F("qol_weapon_slots_text_dy", pc_qol_weapon_slots_text_dy),
+    IN("qol_weapon_slots_color0", pc_qol_weapon_slots_color[0], 3),
+    IN("qol_weapon_slots_color1", pc_qol_weapon_slots_color[1], 3),
+    IN("qol_weapon_slots_color2", pc_qol_weapon_slots_color[2], 3),
+    IN("qol_weapon_slots_color3", pc_qol_weapon_slots_color[3], 3),
     I("qol_skip_charging", pc_qol_skip_charging), /* 0 off, 1 skip (apply_line: older 2 is 1) */
     I("qol_skip_charging_who", pc_qol_skip_charging_who), /* 0 mine, 1 all */
     F("qol_skip_charging_name", pc_qol_skip_charging_name), /* seconds, 0..2 */

@@ -79,9 +79,9 @@ def main():
     layer = out / "ashley" / "materials"
     rec = seed["labels"][label]
     folders = sorted(f.parent for f in layer.rglob("height.png"))
-    check(len(folders) == len(rec["slices"]) and all(f.name == f"@m{ASHLEY}" for f in folders), f"maps for each of her textures, in the folder of her model ({len(folders)})")
+    check(len(folders) == len(rec["slices"]) and all(f.name == f"@m{rec['model']}" for f in folders), f"maps for each of her textures, in the folder of her model ({len(folders)})")
     sl = rec["slices"][0]
-    rough = np.asarray(Image.open(layer / sl["key"] / f"@m{ASHLEY}" / "roughness.png"))
+    rough = np.asarray(Image.open(layer / sl["key"] / f"@m{rec['model']}" / "roughness.png"))
     box = sl["box"]
     check(rough.shape == (box[3] - box[1] + 1, box[2] - box[0] + 1), "each cut to its texture's size")
     allrough = np.concatenate([np.asarray(Image.open(f / "roughness.png")).ravel() for f in folders])

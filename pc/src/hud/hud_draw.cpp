@@ -283,3 +283,105 @@ struct Register {
     }
 } register_renderer;
 } // namespace
+
+// ---- the quick menu's own text (weapon_slots.c) ----
+// The weapon slots' labels and hint are text the port adds (no baked image behind them). With ui_text font they are
+// set in the labels style, the face the L2 overlay's own words (ITEMS, CHAIN, ...) have: its font, stretch, tracking
+// and outline come from the style (pc_ui_text_styles, settings ui_text_labels_*), the cap height is the original
+// label's (7) times its size, and the colours are qol_weapon_slots_color0..3. weapon_slots.c queues each line as the
+// game draws the overlay; the lines are drawn in the next present (pc_weapon_slots_text_draw, dev_overlay.cpp) and
+// last a few vsyncs, so a present between two game frames keeps them.
+extern "C" {
+extern float pc_qol_weapon_slots_text_cap, pc_qol_weapon_slots_text_dy;
+extern int pc_qol_weapon_slots_color[4][3];
+unsigned pc_vsync_count(void) __attribute__((weak));
+}
+namespace {
+struct Line {
+    char text[64];
+    int x, y, align, palette;
+    unsigned stamp;
+};
+Line lines[16];
+unsigned drawn_total; // presents that drew the lines
+int line_count;
+unsigned line_stamp;
+const unsigned LINE_LIFE = 3; // vsyncs a line stays drawn after the game last set it
+unsigned now() { return pc_vsync_count ? pc_vsync_count() : 0; }
+// The labels style's typography (ui_text_labels_*) in the HUD renderer's terms.
+hud::Style text_style()
+{
+    const pc_ui_text_style& labels = pc_ui_text_styles[PC_UI_TEXT_LABELS];
+    hud::Style st;
+    st.font = PC_UI_TEXT_LABELS;
+    st.cap = pc_qol_weapon_slots_text_cap * (labels.size > 0.1f ? labels.size : 0.1f);
+    st.stroke = labels.outline ? labels.stroke : 0.0f;
+    st.stroke_color = 0;
+    st.tracking = labels.tracking;
+    st.stretch = labels.stretch > 0.25f ? labels.stretch : 1.0f;
+    st.anchor = hud::V_MIDDLE;
+    return st;
+}
+} // namespace
+
+// 1 when the line is queued (the caller does not draw the game's glyphs): ui_text font and a picture to draw in.
+// align: 0 left, 1 centre, 2 right; palette 0..3 (white, yellow, orange, dim).
+extern "C" int pc_weapon_slots_text_add(const char* utf8, int x, int y, int align, int palette)
+{
+    if (pc_ui_text != PC_UI_TEXT_FONT || pc_gl_view[2] <= 0 || pc_gl_view[3] <= 0 || !utf8)
+        return 0;
+    unsigned t = now();
+    if (t != line_stamp) { // a new game frame: the lines of the last one are replaced
+        line_count = 0;
+        line_stamp = t;
+    }
+    if (line_count == (int)(sizeof lines / sizeof lines[0]))
+        return 1;
+    Line& l = lines[line_count++];
+    std::snprintf(l.text, sizeof l.text, "%s", utf8);
+    l.x = x, l.y = y, l.align = align, l.palette = palette < 0 ? 0 : palette > 3 ? 3 : palette;
+    l.stamp = t;
+    return 1;
+}
+
+extern "C" void pc_weapon_slots_text_draw(void)
+{
+    if (!line_count || pc_ui_text != PC_UI_TEXT_FONT || pc_gl_view[2] <= 0 || pc_gl_view[3] <= 0)
+        return;
+    if (now() - line_stamp > LINE_LIFE)
+        return;
+    hud::Style st = text_style();
+    ++drawn_total;
+    ImDrawList* dl = ImGui::GetForegroundDrawList();
+    Map m;
+    dl->PushClipRect(ImVec2(m.vx, m.vy), ImVec2(m.vx + m.vw, m.vy + m.vh), true);
+    for (int i = 0; i < line_count; ++i) {
+        const Line& l = lines[i];
+        hud::Command c = {};
+        c.type = hud::CMD_TEXT;
+        c.anchor = 0; // the shortcut overlay is anchored with the centre (BATTLE 5BF94.c)
+        c.x = (float)l.x, c.y = (float)l.y + pc_qol_weapon_slots_text_dy;
+        c.alpha = 1.0f;
+        c.length = (unsigned)std::strlen(l.text);
+        const int* rgb = pc_qol_weapon_slots_color[l.palette];
+        c.color = (unsigned)(rgb[0] & 255) << 16 | (unsigned)(rgb[1] & 255) << 8 | (unsigned)(rgb[2] & 255);
+        st.align = l.align == 1 ? hud::ALIGN_CENTRE : l.align == 2 ? hud::ALIGN_RIGHT : hud::ALIGN_LEFT;
+        draw_text(dl, m, c, st, l.text);
+    }
+    dl->PopClipRect();
+}
+
+// RPC weapon_slots: {drawn, font, stretch, tracking, stroke, cap, lines}: the labels-style typography the lines are set in
+// now (tests: the same as ui_text's labels style), the lines the game set last, and how many presents drew them. Returns
+// the length.
+extern "C" int pc_weapon_slots_text_json(char* out, int size)
+{
+    hud::Style st = text_style();
+    int n = std::snprintf(out, (size_t)size,
+        "{\"drawn\":%u,\"font\":\"%s\",\"stretch\":%.4f,\"tracking\":%.4f,\"stroke\":%.4f,\"cap\":%.4f,\"lines\":[",
+        drawn_total, pc_ui_text_styles[PC_UI_TEXT_LABELS].font, st.stretch, st.tracking, st.stroke, st.cap);
+    for (int i = 0; i < line_count && now() - line_stamp <= LINE_LIFE && n < size - 100; ++i)
+        n += std::snprintf(out + n, (size_t)(size - n), "%s\"%s\"", i ? "," : "", lines[i].text);
+    n += std::snprintf(out + n, (size_t)(size - n), "]}");
+    return n;
+}

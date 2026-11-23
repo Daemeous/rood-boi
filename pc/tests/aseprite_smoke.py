@@ -13,6 +13,7 @@ Exports the save room with --painter aseprite, starts a headless game on the use
 - an emptied layer (erase to reset) puts the game's own picture back.
 - a Material stroke (a preset's swatch colour on the Material layer) sets both maps at once: the picture changes, the bridge holds a
   metal and a roughness map for it, and erasing the layer puts the game's picture back.
+- a Height stroke (a ramp over the texture) changes the relief in the relief normals view (Vulkan), erasing puts it back.
 """
 import argparse
 import json
@@ -99,9 +100,9 @@ def main():
             """The file as Aseprite saves it: the layers it was exported with, Metal / Roughness replaced."""
             rows = [{"name": ly.name, "pixels": ly.pixels, "locked": ly.locked, "visible": ly.visible, "opacity": ly.opacity} for ly in ase.read(path).layers]
             if metal is not None:
-                rows[1]["pixels"] = metal
+                rows[2]["pixels"] = metal
             if roughness is not None:
-                rows[2]["pixels"] = roughness
+                rows[3]["pixels"] = roughness
             ase.write(path, w, h, rows)
 
         def white(value=255):
@@ -207,6 +208,24 @@ def main():
             if changed(again, before) < changed(picture, before) // 4:
                 break
         check(changed(again, before) < changed(picture, before) // 4, "erasing the Material layer puts the picture back")
+        # Height: the layer's relief reaches the game (the relief normals view; a ramp over the texture), erasing puts the picture back
+        g.call("graphics", view_mode=9, bump_strength=1)
+        before = shot("height-before")
+        quiet = quiet & ~(np.abs(before - shot("height-before2")).max(2) > 0)
+        ramp = white()
+        ramp[..., :3] = (np.arange(w) * 255 // max(w - 1, 1)).astype(np.uint8)[None, :, None]
+        started, reply = stroke("Height", ramp)
+        check(reply["ok"] and reply["game"] and reply["note"] == "", f"a Height stroke is accepted and pushed: {reply}")
+        took4, picture = until_changed(started, before, "height")
+        check(took4 is not None and changed(picture, before) > 20, f"a Height ramp over the texture changes the relief ({changed(picture, before)} pixels)")
+        check((label, "height") in bridge.sent and (bridge.sent[(label, "height")][:, -1] == 255).all(), "...as the object's height map (the bridge pushed channel height)")
+        print(f"live: Height stroke to changed picture {took4 * 1000:.0f} ms (bridge {reply['ms']} ms)", flush=True)
+        stroke("Height", np.zeros((0, 0, 4), np.uint8))
+        for _ in range(10):
+            again = shot("height-erased")
+            if changed(again, before) < changed(picture, before) // 4:
+                break
+        check(changed(again, before) < changed(picture, before) // 4, "erasing the Height layer puts the relief back")
         ws.close()
     except RpcError as e:
         check(False, f"RPC error {e}")

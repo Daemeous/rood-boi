@@ -79,6 +79,7 @@ extern "C" void pc_lua_dev_windows(void);
 extern "C" int pc_lua_dev_keys(void);
 extern "C" int pc_lua_dev_replaced(const char* name);
 extern "C" void pc_fast_travel_prompt_draw(void); /* fast_travel_prompt.cpp */
+extern "C" void pc_weapon_slots_text_draw(void); /* hud/hud_draw.cpp: the weapon slots' labels in the labels style */
 extern "C" void pc_hud_frame(void);               /* lua_api_hud.cpp: claimed HUD elements */
 extern "C" void pc_hud_panels(float dt, int view_w, int view_h); /* lua_api_hud.cpp: plugins' panels (rood.draw.panel) */
 extern "C" void pc_savestate_notice_hud(void);  /* savestate_notice.cpp: the save state slots' notice */
@@ -1200,6 +1201,8 @@ static void button_roles_panel()
 extern "C" int pc_qol_weapon_slots; /* project_settings.cpp; weapon_slots.c */
 /* project_settings.cpp: the weapon slots' name time and their labels' and hint's places (weapon_slots.c). */
 extern "C" int pc_qol_weapon_slots_name_ticks, pc_qol_weapon_slots_label[8][4], pc_qol_weapon_slots_hint[2];
+extern "C" float pc_qol_weapon_slots_text_cap, pc_qol_weapon_slots_text_dy; /* hud/hud_draw.cpp */
+extern "C" int pc_qol_weapon_slots_color[4][3];
 extern "C" int pc_skip_intro;       /* project_settings.cpp; boot_runtime.c */
 extern "C" int pc_qol_skip_charging, pc_qol_skip_charging_who; /* project_settings.cpp; charge_skip.c */
 extern "C" float pc_qol_skip_charging_name;                     /* project_settings.cpp; charge_skip.inc */
@@ -1233,6 +1236,23 @@ static void gameplay_panel()
         ImGui::DragInt2("Hint line", pc_qol_weapon_slots_hint, 0.25f, 0, 320);
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Settings qol_weapon_slots_hint: x, y of the line under the overlay (what Select does).");
+        ImGui::DragFloat("Text cap height", &pc_qol_weapon_slots_text_cap, 0.05f, 3.0f, 14.0f, "%.2f");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Settings qol_weapon_slots_text_cap: with ui_text font the names and the hint are set in the\n"
+                              "labels style (ui_text_labels_*); this is their capitals' height in PS1 pixels at its size 1.");
+        ImGui::DragFloat("Text down", &pc_qol_weapon_slots_text_dy, 0.05f, -10.0f, 20.0f, "%.2f");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Settings qol_weapon_slots_text_dy: PS1 pixels the text sits below the game's glyph row.");
+        static const char* const colors[4] = { "White", "Yellow (equipped)", "Orange (assign)", "Dim (hint)" };
+        for (int i = 0; i < 4; i++) {
+            float c[3] = { pc_qol_weapon_slots_color[i][0] / 255.0f, pc_qol_weapon_slots_color[i][1] / 255.0f,
+                pc_qol_weapon_slots_color[i][2] / 255.0f };
+            if (ImGui::ColorEdit3(colors[i], c, ImGuiColorEditFlags_NoInputs))
+                for (int k = 0; k < 3; k++)
+                    pc_qol_weapon_slots_color[i][k] = (int)(c[k] * 255.0f + 0.5f);
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Settings qol_weapon_slots_color%d: red green blue of the lettering (ui_text font).", i);
+        }
         ImGui::TreePop();
     }
     ImGui::Combo("Battle charging", &pc_qol_skip_charging, "Off\0Skip\0");
@@ -2586,6 +2606,7 @@ extern "C" void pc_overlay_frame(int width, int height)
         pc_fast_travel_prompt_hud(); /* (before the pass: a claimed prompt is drawn by it) */
     if (!hide_hud) {
         pc_savestate_notice_hud(); /* the save state slots' notice, the same way */
+        pc_weapon_slots_text_draw();
         pc_hud_frame(); /* HUD elements plugins claim (pc/src/hud): over the picture, under the menus */
     }
     pc_ui_draw_frame((float)dt); /* modern menus (pc/src/ui) over the game picture */

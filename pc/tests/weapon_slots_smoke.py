@@ -206,6 +206,49 @@ def main():
         check(moved > 4 * back + 1, f"qol_weapon_slots_label0: the label leaves its place when moved "
                                     f"(difference {moved:.1f}), back at the default ({back:.1f})")
         game.run(30)
+
+        # Typography (gitea #32): with ui_text font the names and the hint are set in the labels style, the face the
+        # overlay's own words (ITEMS, CHAIN ...) have, whatever its settings are; ui_text original keeps the game's glyphs.
+        def labels_style():
+            return {st["name"]: st for st in game.call("ui_text")["styles"]}["labels"]
+
+        def held():
+            """The overlay slid in (it stays open for a while after L2 + R2): a few vsyncs, the lines the game set."""
+            game.run(3)
+            return ws()["text"]
+        overlay(settle=40, hold=60)
+        game.call("settings", apply="ui_text original")
+        t0 = held()
+        t1 = held()
+        check(t1["drawn"] == t0["drawn"] and ws()["overlay"] == 1 and not t1["lines"],
+              f"ui_text original: the game's glyphs, nothing set in the labels style (drawn {t0['drawn']} -> {t1['drawn']})")
+        game.call("settings", apply="ui_text font")
+        t3 = held()
+        lab = labels_style()
+        check(t3["drawn"] > t1["drawn"] and "SELECT: ASSIGN    START: SHIELD" in t3["lines"] and len(t3["lines"]) >= 3,
+              f"ui_text font: the names and the hint are set as text ({t3['lines']})")
+        check(t3["font"] == lab["font"] and abs(t3["stretch"] - lab["stretch"]) < 1e-3
+              and abs(t3["tracking"] - lab["tracking"]) < 1e-3 and abs(t3["stroke"] - lab["stroke"]) < 1e-3,
+              f"... in the labels style's font, stretch, tracking and outline "
+              f"({t3['font'].rsplit('/', 1)[-1]}, {t3['stretch']}, {t3['tracking']}, {t3['stroke']})")
+        # ... and they follow it: another labels stretch and size change what is drawn.
+        game.call("ui_text", style="labels", stretch=lab["stretch"] * 0.8)
+        t4 = held()
+        check(abs(t4["stretch"] - lab["stretch"] * 0.8) < 1e-3, f"the labels style's stretch moves the lines' ({t4['stretch']})")
+        game.call("ui_text", style="labels", stretch=lab["stretch"], size=lab["size"] * 1.2)
+        t5 = held()
+        check(abs(t5["cap"] - t3["cap"] * 1.2) < 1e-2, f"the labels style's size moves their capital height ({t3['cap']} -> {t5['cap']})")
+        game.call("ui_text", style="labels", size=lab["size"])
+        shot("overlay-labels-style")
+        overlay("select", hold=60, settle=40)
+        t6 = held()
+        check(ws()["assign"] == 1 and "ASSIGN: PRESS A SLOT" in t6["lines"],
+              f"assign mode: its prompt is in the labels style too ({t6['lines']})")
+        shot("assign-labels-style")
+        overlay("select", hold=60)
+        check(ws()["assign"] == 0, "Select again: out of assign mode")
+        game.call("settings", apply="ui_text original")
+        overlay(settle=25, hold=90)  # (the Triangle below goes to the overlay, as before this part)
         ws(name_ticks=40)  # the next swap's name: 40 ticks, not 150
         game.call("input", buttons=["triangle"], vsyncs=3)
         w = wait_swap()

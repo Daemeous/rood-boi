@@ -46,12 +46,26 @@ static int pose_acc; /* her stride's carried fraction (1/256 tick) this frame wh
 
 static int clampi(int v, int lo, int hi) { return v < lo ? lo : v > hi ? hi : v; }
 
-/* The left stick (-1..1, down +y): the RPC's hold, else the gamepad. */
+/* photo.cpp: a plugin captures the input, or a photo mode render runs (the game from the frozen moment): the game sees
+ * no buttons (boot_window.c pc_window_buttons) and no live stick. */
+extern int pc_photo_input_captured __attribute__((weak));
+extern int pc_photo_rendering __attribute__((weak));
+
+/* The left stick (-1..1, down +y): the RPC's hold, else the gamepad. While the photo mode has the input its camera is
+ * the stick's, and a render that read it would walk Ashley and run her stride at the stick's pace, camera step after
+ * step. A render sees the stick as the last live frame read it instead (frozen at capture): her pose is the one play
+ * would draw next, at the blend fraction she was last drawn at, the same whatever the stick or the camera does. */
 static void stick(float out[2])
 {
-    if (pc_rpc_left_stick && pc_rpc_left_stick(out))
+    if ((&pc_photo_input_captured && pc_photo_input_captured) || (&pc_photo_rendering && pc_photo_rendering)) {
+        out[0] = pc_analog_st.last_stick[0];
+        out[1] = pc_analog_st.last_stick[1];
         return;
-    pc_controller_left_stick(out);
+    }
+    if (!(pc_rpc_left_stick && pc_rpc_left_stick(out)))
+        pc_controller_left_stick(out);
+    pc_analog_st.last_stick[0] = out[0];
+    pc_analog_st.last_stick[1] = out[1];
 }
 
 /* The movement the stick asks for: *x and *z in the pad vector's units (ratan2's arguments, x
@@ -112,6 +126,12 @@ int pc_analog_anim_steps(int slot, int base, int animation)
     int id = animation >= 100 ? animation - 100 : animation;
     int stride = (id >= 13 && id <= 16) || id == 19 || id == 20;
     pose_acc = 0;
+    if (slot == 0 && stride && pc_analog_move && &pc_photo_rendering && pc_photo_rendering) {
+        /* A photo render: her stride stays on the tick it was drawn at (the carried fraction, which the blend draws, is
+         * the held moment's: anim_acc is restored with the state), so the held picture of her is the last live one. */
+        pose_acc = anim_acc;
+        return 0;
+    }
     if (slot != 0 || !active || !run_frac || pc_analog_anim_rate <= 0 || !stride || base <= 0) {
         anim_acc = 0;
         return base;

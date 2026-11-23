@@ -9,6 +9,7 @@ struct pc_analog_state {
     int sticky;                              /* the last movement input was the stick (not the D-pad) */
     int latch;                               /* the tile direction interaction last chose (-1: none) */
     int anim_acc;                            /* Ashley's stride playback fraction (1/256 frame) */
+    float last_stick[2];                     /* the left stick the last live frame read (a photo render's stick) */
     int remainders[PC_ANALOG_ACTORS][2];     /* each actor's lost step fractions (units / 0x1000000) */
 };
 extern struct pc_analog_state pc_analog_st;

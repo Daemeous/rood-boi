@@ -62,7 +62,7 @@ def seed(out):
 
 def export(args):
     if not args.model:
-        raise SystemExit("model_blender: --model HASH (8 hex digits: RPC material pick's object text without the m)")
+        raise SystemExit("model_blender: --model ID (RPC material pick's object text without the m: the 10 digit content key, or the 8 digit legacy id)")
     out = model_dir(args)
     code = pr.export_package(argparse.Namespace(target="model", zone=args.zone, room=args.room, model=args.model, model_at=None,
                                                 bake=[], out=str(out), card=args.card))

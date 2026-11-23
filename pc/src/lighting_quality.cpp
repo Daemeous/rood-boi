@@ -33,7 +33,7 @@ extern float pc_gi_resolution, pc_shadow_softness, pc_fog_density, pc_shadow_his
 extern int pc_gl_compute;
 /* Material response (emissive.h): the specular switch and its tunables. */
 extern int pc_specular, pc_reflection_bounces, pc_auto_height, pc_key_light;
-extern float pc_key_light_strength, pc_baked_texture_relief;
+extern float pc_key_light_strength, pc_baked_texture_relief, pc_painted_texture_relief;
 extern float pc_specular_strength, pc_roughness_bias, pc_bump_strength, pc_auto_height_strength, pc_bump_occlusion,
     pc_env_specular, pc_baked_energy, pc_relief_aniso, pc_relief_footprint, pc_relief_baked, pc_relief_indirect,
     pc_relief_reach, pc_relief_overhead;
@@ -154,6 +154,7 @@ Key keys[] = {
     { "auto_height_strength", FLOAT_KEY, &pc_auto_height_strength, nullptr, 0, false },
     /* The baked maps (pc/build/materials, material_bake.py) under the shipped and the user's. */
     { "baked_texture_relief", FLOAT_KEY, &pc_baked_texture_relief, nullptr, 0, false },
+    { "painted_texture_relief", FLOAT_KEY, &pc_painted_texture_relief, nullptr, 0, false },
     { "materials_baked", BOOL, &pc_materials_baked, nullptr, 0, false },
     { "bump_occlusion", FLOAT_KEY, &pc_bump_occlusion, nullptr, 0, false },
     { "relief_aniso", FLOAT_KEY, &pc_relief_aniso, nullptr, 0, false },
@@ -1045,6 +1046,9 @@ extern "C" void pc_lighting_panel(void)
             ImGui::SliderFloat("Texture relief on baked maps", &pc_baked_texture_relief, 0, 1, "%.2f");
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
                 ImGui::SetTooltip("baked_texture_relief: the texture's own relief estimate (mortar, grain) added over a baked\nheight map, which only holds what the geometry shows. 0: the bake alone.");
+            ImGui::SliderFloat("Texture relief on painted maps", &pc_painted_texture_relief, 0, 1, "%.2f");
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
+                ImGui::SetTooltip("painted_texture_relief: the same for a painted height map (the user's layer, or one painted live in\nAseprite), which starts as the baked one. 0: the painting alone is the relief.");
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_ForTooltip))
                 ImGui::SetTooltip("materials_baked: height, roughness and metal maps derived from each texture by\n"
                                   "pc/tools/material_bake.py (pc/build/materials). Painted and shipped maps win;\n"

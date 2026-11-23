@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Material presets for painting a KIND of material in Aseprite in one stroke (Gitea #20; Materials.md "Painting metal and roughness
-per pixel in Aseprite (live)"). A preset is data: id, name, colour (its swatch), metal and roughness 0..1, optional notes, and any
-other channel a later design adds (height, emissive, alpha...: carried as given, expanded only for the channels in CHANNELS).
+per pixel in Aseprite (live)"). A preset is data: id, name, colour (its swatch), 0..1 values for the channels of the table (paint_channels.py: metal, roughness,
+height...), optional notes; a value for a channel the table does not have is carried as given, never expanded.
 
 The files: the shipped pc/assets/materials/paint-presets.json ($ROOD_PAINT_PRESETS) and the user's <lighting>/paint-presets.json
 ($ROOD_PAINT_PRESETS_USER; <lighting> = $ROOD_LIGHTS or pc/user/lighting). The user file is read after the shipped one: an entry of the
@@ -16,10 +16,12 @@ import sys
 
 import numpy as np
 
+import paint_channels as pc
+
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-CHANNELS = ("metal", "roughness")  # the preset values that become maps now (0..1 -> 8-bit gray, as the game's maps are)
+CHANNELS = pc.PRESET_CHANNELS  # the preset values that become maps (the channel table's: 0..1 -> 8-bit gray, as the game's maps are)
 TOLERANCE = 8  # per RGB channel
-LAYER = "Material"
+LAYER = pc.PRESET_LAYER["layer"]
 PALETTE_GRAYS = 11  # after the swatches: 0.0, 0.1 ... 1.0 as gray, for the Metal and Roughness layers
 
 
@@ -141,4 +143,9 @@ def expand(rgba, presets):
 
 
 def describe(presets):
-    return "\n".join(f"{p['name']:<16} {p['colour'] if 'colour' in p else ''}  metal {p.get('metal', '-')}  roughness {p.get('roughness', '-')}" for p in presets)
+    return "\n".join(f"{p['name']:<16} {p['colour'] if 'colour' in p else ''}  " + "  ".join(f"{c} {p.get(c, '-')}" for c in CHANNELS) for p in presets)
+
+
+def about(preset):
+    """The values a preset sets, as text for the extension's swatch line: 'metal 1.0, roughness 0.12' (a channel it does not set is left out)."""
+    return ", ".join(f"{c} {preset[c]:g}" for c in CHANNELS if c in preset)

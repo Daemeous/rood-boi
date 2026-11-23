@@ -1,0 +1,12 @@
+{
+ "format": 1,
+ "comment": "The paint channels of a material's .aseprite file (pc/tools/paint_channels.py reads this; the Aseprite extension learns the layers from the bridge's greeting, so a new channel is a row here and nothing else). Rows are bottom to top above the reference layer. channel: the game's map name (RPC material map_set, <layer>/<key>/[@object/]<channel>.png); layer: the .aseprite layer; blank: the value of a map that is not painted (8-bit gray; what the game reads when there is none); encoding: gray (RGBA gray layers, luminance is the value); seed: where the export gets the game's current map (image: its file in the package's tex/ and seed/, plane: the colour plane of a packed image, none for a file of its own); presets: a preset's value of this channel (0..1 of the 8-bit range) can be painted with the Material layer's swatches; visible, opacity: how the layer is exported. Look values (how the game shades a channel) are not here: they are the lighting settings and the catalog.",
+ "reference": {"layer": "Game colour (reference)"},
+ "preset_layer": {"layer": "Material", "opacity": 178},
+ "channels": [
+  {"channel": "height", "layer": "Height", "blank": 128, "encoding": "gray", "seed": {"image": "height"}, "presets": true, "visible": false, "opacity": 255,
+   "about": "relief: 128 is flat, brighter is raised, darker is sunk"},
+  {"channel": "metal", "layer": "Metal", "blank": 0, "encoding": "gray", "seed": {"image": "metallicroughness", "plane": 2}, "presets": true, "visible": true, "opacity": 153},
+  {"channel": "roughness", "layer": "Roughness", "blank": 255, "encoding": "gray", "seed": {"image": "metallicroughness", "plane": 1}, "presets": true, "visible": false, "opacity": 255}
+ ]
+}

@@ -234,7 +234,10 @@ struct RoomGroup {
     unsigned offset, tris, total;
 };
 std::vector<RoomGroup> room_groups();
-uint32_t model_mesh(uint32_t model); /* a model's (content hash) mesh handle, 0 none */
+uint32_t model_mesh(uint32_t model); /* a model's (legacy id) mesh handle, 0 none */
+uint32_t model_mesh_by_id(const std::string& id); /* the same by its 8 digit legacy id or its 10 digit content key */
+bool model_ids(uint32_t mesh, std::string* legacy, std::string* content);
+std::vector<std::array<std::string, 3>> all_model_ids(); /* {mesh, legacy, content} of every model mesh known */
 /* The planes at a texel (emissive.h PC_MATERIAL_*: roughness, specular, metal, slopes u and v, cavity). */
 bool material_at(unsigned u, unsigned v, unsigned tpage, int out[PC_MATERIAL_PLANES]);
 

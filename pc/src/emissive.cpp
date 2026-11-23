@@ -42,6 +42,7 @@ int pc_reflection_bounces = 1;
 float pc_bump_strength = 1.0f;
 int pc_auto_height = 1;
 float pc_baked_texture_relief = 1.0f;
+float pc_painted_texture_relief = 1.0f;
 float pc_auto_height_strength = 0.5f;
 float pc_bump_occlusion = 0.5f;
 float pc_relief_aniso = 4.0f;
@@ -962,7 +963,8 @@ struct Highlight {
 struct MeshInfo {
     int kind = SURFACE_OTHER;
     unsigned offset = 0, tris = 0, total = 0;
-    uint32_t model = 0;
+    uint32_t model = 0; /* a model's legacy id (the content hash with its texture page in it) */
+    uint64_t key = 0;   /* its content key (model_key.h; 0 none) */
     std::vector<uint16_t> applied;
 };
 std::unordered_map<uint32_t, MeshInfo> mesh_info;
@@ -986,7 +988,7 @@ bool materials_changed = true, any_material, material_dirty = true;
 bool material_recheck; /* some use's palette grew a variant: update_materials resolves the uses again */
 uint32_t applied_material_catalog, applied_material_maps;
 int material_zone = -1, material_room = -1, material_on = -1;
-float applied_relief[4] = { -1, -1, -1, -1 }; /* the estimate's switch, strength, preview the planes have */
+float applied_relief[5] = { -1, -1, -1, -1, -1 }; /* the estimate's switch, strength, preview the planes have */
 int material_uses, material_cells;
 std::vector<MaterialUse> material_list;
 /* What the uses' cached materials were resolved and stamped for (Use::mat_*,
@@ -1608,7 +1610,17 @@ static void match_use(Use& u)
 static bool relief_changed()
 {
     return applied_relief[0] != (float)pc_auto_height || applied_relief[1] != pc_auto_height_strength
-        || applied_relief[2] != (float)pc_auto_height_preview || applied_relief[3] != pc_baked_texture_relief;
+        || applied_relief[2] != (float)pc_auto_height_preview || applied_relief[3] != pc_baked_texture_relief
+        || applied_relief[4] != pc_painted_texture_relief;
+}
+/* How much of the texture's own estimate goes on top of a height map, 0..1: the baked layer's and the painted ones (the user's layer, and
+ * maps set live: what the Aseprite paint loop writes) have a share each; a shipped map is the whole relief. A painted map starts as the
+ * game's own (baked) one, so the same share keeps its first stroke from changing the texels it did not touch. */
+static float estimate_share(const materials::Channel& map)
+{
+    if (map.shipped)
+        return 0.0f;
+    return std::clamp(map.baked ? pc_baked_texture_relief : pc_painted_texture_relief, 0.0f, 1.0f);
 }
 /* A use's relief (pc/docs/Materials.md "Height and normals"): heights in
  * height units (one unit: bump_strength texels of depth) per texel of its
@@ -1630,10 +1642,11 @@ static int use_heights(const Use* u, const materials::Surface& value, int w, int
         for (size_t i = 0; i < out.size(); i++)
             out[i] = map->values[i] / 255.0f * bump;
         /* A baked map holds what the geometry shows (edges, bevels), nothing inside a texture: the texture's own
-         * estimate (mortar, grain) goes on top of it (baked_texture_relief). A painted map is the whole relief. */
-        float share = std::clamp(pc_baked_texture_relief, 0.0f, 1.0f);
+         * estimate (mortar, grain) goes on top of it (baked_texture_relief); a painted map the same (painted_texture_relief). A
+         * shipped map is the whole relief. */
+        float share = estimate_share(*map);
         std::vector<float> est;
-        if (map->baked && share > 0 && estimate_heights(u, value, w, h, est) == 2)
+        if (share > 0 && estimate_heights(u, value, w, h, est) == 2)
             for (size_t i = 0; i < out.size(); i++)
                 out[i] += est[i] * share;
         return 1;
@@ -1884,7 +1897,7 @@ static void make_stamp(const Use& u, MaterialStamp& out)
         strength = materials::normal_strength(u.key, u.mat_object);
     }
     /* (anything but a painted height map, when the estimate was tried) */
-    out.colours = (!(height_map && height_map->w == w && height_map->h == h) || (height_map->baked && pc_baked_texture_relief > 0))
+    out.colours = (!(height_map && height_map->w == w && height_map->h == h) || estimate_share(*height_map) > 0)
         && ((v.auto_height && pc_auto_height) || pc_auto_height_preview);
     uint8_t s = (uint8_t)std::clamp((int)lroundf(v.specular * 255.0f), 0, 255);
     uint8_t m = (uint8_t)std::clamp((int)lroundf(v.metal * 255.0f), 0, 255);
@@ -2055,6 +2068,7 @@ static void write_materials(bool fresh = false)
     applied_material_maps = materials::generation();
     applied_relief[0] = (float)pc_auto_height, applied_relief[1] = pc_auto_height_strength;
     applied_relief[2] = (float)pc_auto_height_preview, applied_relief[3] = pc_baked_texture_relief;
+    applied_relief[4] = pc_painted_texture_relief;
     current_room(&material_zone, &material_room);
     uint32_t catalog = materials::catalog_generation();
     if (catalog != resolved_catalog || zone != material_zone || room != material_room)
@@ -2373,13 +2387,19 @@ extern "C" void pc_emissive_room_mesh(uint32_t mesh, unsigned offset, unsigned t
     m.applied.clear();
     scope_pending.insert(mesh);
 }
-extern "C" void pc_emissive_model_mesh(uint32_t mesh, uint32_t model)
+extern "C" void pc_emissive_model_mesh(uint32_t mesh, uint32_t model, uint64_t key)
 {
     if (!mesh)
         return;
     MeshInfo& m = mesh_info[mesh];
     m.kind = SURFACE_MODEL;
     m.model = model;
+    m.key = key;
+    if (key) {
+        char legacy[16], content[16];
+        snprintf(legacy, sizeof legacy, "%08x", model), snprintf(content, sizeof content, "%010llx", (unsigned long long)key);
+        materials::note_model(legacy, content);
+    }
     m.applied.clear();
     scope_pending.insert(mesh);
 }
@@ -2528,7 +2548,11 @@ static void rebuild_variants()
             } else {
                 char hash[16];
                 snprintf(hash, sizeof hash, "%08x", info.model);
-                id.model = hash;
+                id.legacy = hash;
+                if (info.key) {
+                    snprintf(hash, sizeof hash, "%010llx", (unsigned long long)info.key);
+                    id.model = hash;
+                }
             }
             int w = u.box[2] - u.box[0] + 1, h = u.box[3] - u.box[1] + 1;
             const materials::Entry* e = materials::find_object_match(id, u.key, w, h, use_palette_keys(u), zone, room);
@@ -2622,6 +2646,46 @@ uint32_t emissive::model_mesh(uint32_t model)
         if (kv.second.kind == SURFACE_MODEL && kv.second.model == model && kv.first > found)
             found = kv.first;
     return found;
+}
+/* The newest mesh of a model by either id: its 8 digit legacy id or its 10 digit content key (0 none). */
+uint32_t emissive::model_mesh_by_id(const std::string& id)
+{
+    uint32_t found = 0;
+    if (id.size() != 8 && id.size() != 10)
+        return 0;
+    if (id.find_first_not_of("0123456789abcdef") != std::string::npos)
+        return 0;
+    unsigned long long want = strtoull(id.c_str(), nullptr, 16);
+    for (const auto& kv : mesh_info)
+        if (kv.second.kind == SURFACE_MODEL && (id.size() == 8 ? kv.second.model == want : kv.second.key == want) && kv.first > found)
+            found = kv.first;
+    return found;
+}
+/* A model mesh's ids: legacy (8 digits) and content key (10; "" when it has none). False for a mesh that is no model. */
+bool emissive::model_ids(uint32_t mesh, std::string* legacy, std::string* content)
+{
+    auto it = mesh_info.find(mesh);
+    if (it == mesh_info.end() || it->second.kind != SURFACE_MODEL)
+        return false;
+    char text[16];
+    snprintf(text, sizeof text, "%08x", it->second.model);
+    *legacy = text;
+    if (it->second.key)
+        snprintf(text, sizeof text, "%010llx", (unsigned long long)it->second.key), *content = text;
+    else
+        content->clear();
+    return true;
+}
+/* Every model mesh known now: {mesh, legacy, content}. */
+std::vector<std::array<std::string, 3>> emissive::all_model_ids()
+{
+    std::vector<std::array<std::string, 3>> out;
+    for (const auto& kv : mesh_info) {
+        std::string legacy, content;
+        if (kv.second.kind == SURFACE_MODEL && model_ids(kv.first, &legacy, &content))
+            out.push_back({ std::to_string(kv.first), legacy, content });
+    }
+    return out;
 }
 std::vector<emissive::RoomGroup> emissive::room_groups()
 {

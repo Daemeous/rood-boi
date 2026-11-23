@@ -5,7 +5,7 @@ the maps in a painter").
     python3 pc/tools/paint_roundtrip.py export room  [--zone Z --room R] [--out DIR]
     python3 pc/tools/paint_roundtrip.py export model (--model HASH | --model-at X,Y) [--zone Z --room R] [--out DIR]
     python3 pc/tools/paint_roundtrip.py paint  (room|model) ...   export, then open paint.gltf in SubCraft (or Blender)
-    python3 pc/tools/paint_roundtrip.py (export|paint) ... --painter aseprite   also <out>/aseprite/<material>.aseprite (Metal, Roughness layers)
+    python3 pc/tools/paint_roundtrip.py (export|paint) ... --painter aseprite   also <out>/aseprite/<material>.aseprite (a layer per channel: Height, Metal, Roughness)
     python3 pc/tools/paint_roundtrip.py watch DIR     import each .aseprite file when it is saved
     python3 pc/tools/paint_roundtrip.py palette DIR   rewrite the swatches of DIR/aseprite/*.aseprite from the preset files (pixels untouched)
     python3 pc/tools/paint_roundtrip.py live DIR      watch, and take strokes live from the Aseprite extension (pc/tools/paint_live.py)
@@ -25,7 +25,7 @@ import  Reads what the painter saved: the glTF with its images, or the images it
         averaged down, normals renormalised; the game reads maps only at the texture's size) and its normals DirectX (named so, or
         --normal-format). Unpainted
         channels write nothing: an export imported without painting changes nothing.
-        Also the .aseprite files (aseprite_io.py): their Metal, Roughness and Material layers (preset swatches: material_presets.py) are the maps, a transparent pixel keeps the game's
+        Also the .aseprite files (aseprite_io.py): their channel layers (paint_channels.py: Height, Metal, Roughness) and the Material layer (preset swatches: material_presets.py) are the maps, a transparent pixel keeps the game's
         value, a file newer than the PNGs wins its channel, and a map follows its layer (an emptied layer resets it).
 Only the game's own files are read and written; the folder it exports is game art and stays on the machine."""
 import argparse
@@ -52,10 +52,11 @@ sys.path.insert(0, str(ROOT / "pc/tools"))
 sys.path.insert(0, str(ROOT / "pc/tests"))
 import aseprite_io as ase  # noqa: E402
 import material_presets as mp  # noqa: E402
+import paint_channels as pch  # noqa: E402
 import room_blender as rb  # noqa: E402
 
-CHANNELS = ("basecolor", "metallicroughness", "normal", "occlusion")
-NAMES = {"basecolor": "BaseColor", "metallicroughness": "MetallicRoughness", "normal": "Normal", "occlusion": "Occlusion"}
+CHANNELS = ("basecolor", "metallicroughness", "normal", "occlusion", "height")  # the package's images (height: a file of its own, not in the glTF)
+NAMES = {"basecolor": "BaseColor", "metallicroughness": "MetallicRoughness", "normal": "Normal", "occlusion": "Occlusion", "height": "Height"}
 # the names painters give a map (lower case, without the material's name and the separator)
 ALIASES = {
     "basecolor": ("basecolor", "base_color", "albedo", "diffuse", "color"),
@@ -65,12 +66,16 @@ ALIASES = {
     "normal": ("normal", "normalopengl", "normal_opengl", "normalgl", "normal_gl", "normaldirectx", "normal_directx", "normaldx", "normal_dx", "nrm"),
     "occlusion": ("occlusion", "ambientocclusion", "ambient_occlusion", "ao"),
 }
+# (no "height" here: the Height layer of the .aseprite file is the painter for height; SubCraft and the like export a Height image of their own that is
+# not the game's relief, and the package's tex/<material>_Height.png is only the seed's copy)
 DIRECTX = re.compile(r"(directx|(?<![a-z])dx(?![a-z])|normaldx)")  # a name that says its normal map is DirectX (green down)
-ASE_LAYERS = {"metal": "Metal", "roughness": "Roughness"}  # the channel layers of a material's .aseprite file (the Game colour layer under them)
-ASE_MATERIAL = mp.LAYER  # the layer painted with the preset swatches (above Metal and Roughness): one stroke sets metal and roughness together
-ASE_COLOUR = "Game colour (reference)"
-ASE_MATERIAL_OPACITY = 178  # (70%)
-ASE_METAL_OPACITY = 153  # (60%: the colour shows through; display only, import reads the cel's pixels)
+# the layers of a material's .aseprite file come from the channel table (pc/tools/aseprite/channels.json): the reference colour, one layer
+# per channel (display opacity and visibility only: import reads the cel's pixels), the preset layer above them
+ASE_LAYERS = pch.LAYERS
+ASE_MATERIAL = mp.LAYER  # the layer painted with the preset swatches (above the channel layers): one stroke sets every channel the preset has
+ASE_COLOUR = pch.REFERENCE
+ASE_MATERIAL_OPACITY = pch.PRESET_LAYER["opacity"]
+PACKED = {c: pch.seed_image(c) for c in pch.NAMES if pch.seed_image(c)[1] is not None}  # channels that live in a plane of the glTF's metallicRoughness image
 STANDARD = {"roughness": 1.0, "specular": 0.0, "metal": 0.0, "auto_height": False, "bump": 1.0}  # what a texture with no catalog entry is (materials.cpp surface_of)
 RESERVED = {"id", "name", "where", "review", "match", "scope", "object", "preset", "parent"}  # (an entry's own identity, not its look)
 
@@ -120,7 +125,14 @@ def in_scope(entry, zone, room):
 
 
 def object_ids(rec):
-    return {rec["object"]} if rec.get("object") and rec["object"].startswith("g") else ({f"m{rec['model']}"} if rec.get("model") else set())
+    if rec.get("object") and rec["object"].startswith("g"):
+        return {rec["object"]}
+    if not rec.get("model"):
+        return set()
+    # a model is its content key (10 hex digits) and the legacy ids it was loaded under (8: model_aliases.json names them)
+    ids = {rec["model"], rec.get("model_legacy") or rec["model"]}
+    ids |= {legacy for legacy, content in model_aliases().items() if content == rec["model"]}
+    return {f"m{i}" for i in ids if i}
 
 
 def entry_for(files, rec, key, w, h, zone=None, room=None):
@@ -137,6 +149,107 @@ def entry_for(files, rec, key, w, h, zone=None, room=None):
         if mine & ids and not m.get("clut") and (m.get("key", key) == key) and (not m.get("size") or list(m["size"]) == [w, h]):
             return e
     return byid.get(rec.get("entry") or "")
+
+
+def rekey_tree(catalog_path, layer, aliases, apply=True):
+    """Moves a user tree to the models' content keys, losslessly (design 7.2): for each user catalog entry that names a model by a legacy id
+    with an alias (`aliases`: {legacy: content}), its map folders <layer>/<texture>/@m<legacy> are COPIED to @m<content> (the legacy ones stay;
+    where both exist the newer file wins and the conflict is listed) and the entry names the content key instead (its id is kept). Nothing
+    is written without `apply`. Returns {entries, folders, copied, conflicts}."""
+    catalog_path, layer = pathlib.Path(catalog_path), pathlib.Path(layer)
+    out = {"entries": 0, "folders": 0, "copied": 0, "conflicts": []}
+    try:
+        data = json.loads(catalog_path.read_text())
+    except (OSError, ValueError):
+        return out
+    changed = False
+    for entry in data.get("entries", []):
+        models = (entry.get("object") or {}).get("models")
+        if not models or not any(m in aliases for m in models):
+            continue
+        new = []
+        for m in models:
+            to = aliases.get(m, m)
+            if to not in new:
+                new.append(to)
+            if to == m:
+                continue
+            key = (entry.get("match") or {}).get("key")
+            for src in ([layer / key / f"@m{m}"] if key else sorted(layer.glob(f"*/@m{m}"))):
+                if not src.is_dir():
+                    continue
+                dst = src.parent / f"@m{to}"
+                out["folders"] += 1
+                for f in sorted(src.iterdir()):
+                    target = dst / f.name
+                    if target.exists() and target.read_bytes() != f.read_bytes():
+                        newer = f.stat().st_mtime_ns > target.stat().st_mtime_ns
+                        out["conflicts"].append(f"{target.relative_to(layer)}: {'the legacy file is newer and wins' if newer else 'the content-key file is newer and stays'}")
+                        if not newer:
+                            continue
+                    elif target.exists():
+                        continue
+                    if apply:
+                        dst.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(f, target)
+                    out["copied"] += 1
+        entry["object"]["models"] = new
+        out["entries"] += 1
+        changed = True
+    if changed and apply:
+        tmp = catalog_path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(data, indent=1) + "\n")
+        os.replace(tmp, catalog_path)
+    return out
+
+
+def rekey(args):
+    """`rekey`: asks the game (after visiting the rooms named by --visit Z,R) for every model's legacy id and content key, merges them into
+    model_aliases.json (the game reads it, so old ids and unmigrated entries keep working), and with --apply moves the user catalog and maps
+    to the content keys (rekey_tree: copies, never moves; the old ones stay)."""
+    import material_rollout
+    scratch = ROOT / "pc/build/rekey"
+    scratch.mkdir(parents=True, exist_ok=True)
+    game = material_rollout.launch(scratch, argparse.Namespace(card=args.card))
+    pairs = {}
+    try:
+        for visit in [None] + (args.visit or []):
+            if visit:
+                zone, room = (int(v) for v in visit.split(","))
+                rb.goto(game, zone, room, enemies=True)
+            game.run(30)
+            for r in game.call("material", action="model_ids")["models"]:
+                if r["content"]:
+                    pairs[r["legacy"]] = r["content"]
+    finally:
+        material_rollout.kill(game)
+    path = aliases_file()
+    aliases = {**model_aliases(path), **pairs}
+    print(f"rekey: {len(pairs)} models seen, {len(set(pairs.values()))} content keys, {len(aliases)} aliases in {path}")
+    if not args.apply:
+        print("rekey: dry run (--apply writes the aliases and moves the tree)")
+        return 0
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(dict(sorted(aliases.items())), indent=1) + "\n")
+    report = rekey_tree(args.catalog or user_catalog(), args.layer or user_layer(), aliases)
+    print(f"rekey: {report['entries']} entries now name the content key, {report['copied']} map files copied from {report['folders']} folders; "
+          f"{len(report['conflicts'])} conflicts")
+    for line in report["conflicts"]:
+        print("  " + line)
+    return 0
+
+
+def aliases_file():
+    return pathlib.Path(os.environ.get("ROOD_MODEL_ALIASES") or (pathlib.Path(os.environ.get("ROOD_LIGHTS") or ROOT / "pc/user/lighting") / "model_aliases.json"))
+
+
+def model_aliases(path=None):
+    """{legacy id (8 hex): content key (10 hex)} of the user's model_aliases.json (the game reads it too: materials.cpp model_alias)."""
+    try:
+        data = json.loads(pathlib.Path(path or aliases_file()).read_text())
+    except (OSError, ValueError):
+        return {}
+    return {k: v for k, v in data.items() if isinstance(v, str) and len(k) == 8 and len(v) == 10}
 
 
 def surface_of(files, rec, key, w, h, zone=None, room=None):
@@ -189,6 +302,9 @@ def seed_images(layers, key, obj, rgba, surface=None):
     mr[..., 0] = 255
     mr[..., 1] = rough if rough is not None and rough.shape == (h, w) else uniform(surface, "roughness")
     mr[..., 2] = metal if metal is not None and metal.shape == (h, w) else uniform(surface, "metal")
+    height = read_map(layers, key, obj, "height")
+    if height is None or height.shape != (h, w):
+        height = np.full((h, w), pch.blank("height"), np.uint8)
     normal = read_map(layers, key, obj, "normal")
     if normal is None or normal.shape[:2] != (h, w):
         normal = np.zeros((h, w, 3), np.uint8)
@@ -196,7 +312,19 @@ def seed_images(layers, key, obj, rgba, surface=None):
     occlusion = read_map(layers, key, obj, "occlusion")
     if occlusion is None or occlusion.shape != (h, w):
         occlusion = np.full((h, w), 255, np.uint8)
-    return {"basecolor": rgba, "metallicroughness": mr, "normal": normal, "occlusion": occlusion}
+    return {"basecolor": rgba, "metallicroughness": mr, "normal": normal, "occlusion": occlusion, "height": height}
+
+
+def game_maps(layers, key, obj, h, w):
+    """The channels of the table the game has a map for (a file of the right size in a layer it reads) for texture `key` of `obj`: what an
+    exported seed is the game's own values of; the others' seeds are the blank value standing in for no map (the live bridge puts no map back
+    for those, so the estimate or the entry's own value shows again)."""
+    out = []
+    for channel in pch.NAMES:
+        got = read_map(layers, key, obj, channel)
+        if got is not None and got.shape == (h, w):
+            out.append(channel)
+    return out
 
 
 def uniform(surface, channel):
@@ -208,8 +336,9 @@ def atlas_images(layers, obj, slices, w, h, surfaces=None):
     """A model's page as one set of images: each box of it (a use: slices of {key, box, rgba}) pasted where it lies in the page, the
     rest empty (transparent colour, neutral maps), so a painter has one coherent atlas to paint on."""
     out = {"basecolor": np.zeros((h, w, 4), np.uint8), "metallicroughness": np.zeros((h, w, 3), np.uint8),
-           "normal": np.zeros((h, w, 3), np.uint8), "occlusion": np.full((h, w), 255, np.uint8)}
-    out["metallicroughness"][...] = (255, uniform(STANDARD, "roughness"), uniform(STANDARD, "metal"))
+           "normal": np.zeros((h, w, 3), np.uint8), "occlusion": np.full((h, w), 255, np.uint8),
+           "height": np.full((h, w), pch.blank("height"), np.uint8)}
+    out["metallicroughness"][...] = (255, pch.blank("roughness"), pch.blank("metal"))
     out["normal"][...] = (128, 128, 255)
     for sl in slices:
         u0, v0, u1, v1 = sl["box"]
@@ -226,23 +355,29 @@ def save_image(path, array):
 
 
 def write_aseprite(path, images):
-    """A material's .aseprite file for a pixel painter: the game's colour (locked), then Metal (60% opacity so the colour shows through)
-    and Roughness (hidden), as RGBA gray from the maps the game has, then Material (70%, empty: painted with the palette's preset swatches);
-    a transparent pixel of a layer keeps the game's value. The palette is the presets' swatches, named, then grays (material_presets.py)."""
+    """A material's .aseprite file for a pixel painter: the game's colour (locked), then a layer per channel of the table (Height, Metal,
+    Roughness...: RGBA gray from the maps the game has, shown or hidden and at the opacity the table says), then Material (empty: painted
+    with the palette's preset swatches); a transparent pixel of a layer keeps the game's value. The palette is the presets' swatches, named,
+    then grays (material_presets.py)."""
     h, w = images["basecolor"].shape[:2]
-    mr = images["metallicroughness"]
 
     def gray(values):
         out = np.empty((h, w, 4), np.uint8)
         out[..., :3] = values[..., None]
         out[..., 3] = 255
         return out
+    layers = [{"name": ASE_COLOUR, "pixels": images["basecolor"], "locked": True}]
+    for channel in pch.NAMES:
+        row = pch.BY_CHANNEL[channel]
+        image, plane = pch.seed_image(channel)
+        values = images[image] if plane is None else images[image][..., plane]
+        layer = {"name": row["layer"], "pixels": gray(values), "opacity": row["opacity"]}
+        if not row["visible"]:
+            layer["visible"] = False
+        layers.append(layer)
+    layers.append({"name": ASE_MATERIAL, "pixels": np.zeros((h, w, 4), np.uint8), "opacity": ASE_MATERIAL_OPACITY})
     path.parent.mkdir(parents=True, exist_ok=True)
-    ase.write(path, w, h, [{"name": ASE_COLOUR, "pixels": images["basecolor"], "locked": True},
-                           {"name": ASE_LAYERS["metal"], "pixels": gray(mr[..., 2]), "opacity": ASE_METAL_OPACITY},
-                           {"name": ASE_LAYERS["roughness"], "pixels": gray(mr[..., 1]), "visible": False},
-                           {"name": ASE_MATERIAL, "pixels": np.zeros((h, w, 4), np.uint8), "opacity": ASE_MATERIAL_OPACITY}],
-              palette=mp.palette(mp.load()))
+    ase.write(path, w, h, layers, palette=mp.palette(mp.load()))
 
 
 def write_package(out, positions, colours, tris, found, textures, labels, rgba_of, meta, layers, outward=False, aseprite=False):
@@ -258,14 +393,18 @@ def write_package(out, positions, colours, tris, found, textures, labels, rgba_o
         key = t.get("texture", label)
         obj = t.get("object", "")
         atlas = t.get("atlas")
-        rec = {"object": obj, "model": t.get("model"), "entry": t.get("entry", "")}
+        rec = {"object": obj, "model": t.get("model"), "model_legacy": t.get("model_legacy"), "entry": t.get("entry", "")}
         zone, room = meta.get("zone"), meta.get("room")
+        own_maps = None
         if atlas:
             surfaces = {sl["key"]: surface_of(catalog_files(), {**rec, "entry": sl.get("entry", "")}, sl["key"], sl["box"][2] - sl["box"][0] + 1,
                                              sl["box"][3] - sl["box"][1] + 1, zone, room)[0] for sl in atlas}
             images = atlas_images(layers, obj, atlas, t["w"], t["h"], surfaces)
+            for sl in atlas:
+                sl["maps"] = game_maps(layers, sl["key"], obj, sl["box"][3] - sl["box"][1] + 1, sl["box"][2] - sl["box"][0] + 1)
         else:
             images = seed_images(layers, key, obj, rgba_of[key], surface_of(catalog_files(), rec, key, t["w"], t["h"], zone, room)[0])
+            own_maps = game_maps(layers, key, obj, t["h"], t["w"])
         files = {"name": safe(label)}
         for channel in CHANNELS:
             name = f"{safe(label)}_{NAMES[channel]}.png"
@@ -276,7 +415,8 @@ def write_package(out, positions, colours, tris, found, textures, labels, rgba_o
         if aseprite:
             write_aseprite(out / "aseprite" / f"{safe(label)}.aseprite", images)
         records[label] = {"key": key, "object": obj, "w": t["w"], "h": t["h"], "group_offset": t.get("group_offset"),
-                          "model": t.get("model"), "entry": t.get("entry", ""), "files": {c: files[c] for c in CHANNELS},
+                          "model": t.get("model"), "model_legacy": t.get("model_legacy"), "entry": t.get("entry", ""), "files": {c: files[c] for c in CHANNELS},
+                          **({"maps": own_maps} if own_maps is not None else {}),
                           **({"slices": [{k: v for k, v in sl.items() if k != "rgba"} for sl in atlas]} if atlas else {})}
     rb.write_gltf(out, positions, colours, tris, found, textures, labels, pbr=pbr, folder=".", name="paint", outward=outward)
     (out / "seed.json").write_text(json.dumps({"version": 1, **meta, "labels": records}, indent=1))
@@ -310,6 +450,11 @@ def export_package(args):
             if not model:
                 raise SystemExit("paint_roundtrip: export model needs --model HASH or --model-at X,Y")
             game.call("material", action="model_dump", model=model, path=str(dump))
+            # the model's ids: its content key names its materials (it follows the model into any texture page); the legacy id is kept beside
+            row = next((r for r in game.call("material", action="model_ids")["models"] if model in (r["legacy"], r["content"])), None)
+            model_legacy = row["legacy"] if row else (model if len(model) == 8 else "")
+            if row and row["content"]:
+                model = row["content"]
             groups = []
         else:
             game.call("scene_dump", path=str(dump))
@@ -342,11 +487,11 @@ def export_package(args):
             labels.append(label)
             slices.setdefault(label, {})[u["key"]] = {"key": u["key"], "box": [int(b) for b in u["box"]], "rgba": rgba_of[u["key"]], "entry": u.get("entry", "")}
             split.setdefault(label, {"w": 256, "h": 256, "box": [0, 0, 255, 255], "tpage": u["tpage"], "clut": u["clut"],
-                                     "object": f"m{model}", "model": model})
+                                     "object": f"m{model}", "model": model, "model_legacy": model_legacy})
         for label, boxes in slices.items():
             split[label]["atlas"] = sorted(boxes.values(), key=lambda b: b["key"])
         textures = split
-        meta = {"target": "model", "model": model}
+        meta = {"target": "model", "model": model, "model_legacy": model_legacy}
     else:
         labels, textures = rb.split_shared(tris, found, groups, textures, always=True)
         meta = {"target": "room", "zone": state["zone"], "room": state["room"]}
@@ -399,7 +544,7 @@ def find_images(folder, label_safe, gltf):
                 add(channel, path)
     best = {channel: max(paths, key=lambda p: p.stat().st_mtime_ns) for channel, paths in cands.items()}
     packed = best.get("metallicroughness")
-    for channel in ASE_LAYERS:  # (a packed image the painter saved after the .aseprite file is the newer: it wins that channel)
+    for channel in PACKED:  # (a packed image the painter saved after the .aseprite file is the newer: it wins that channel)
         if isinstance(best.get(channel), AseSource) and packed is not None and packed.stat().st_mtime_ns > best[channel].stat().st_mtime_ns:
             del best[channel]
             best.pop("material", None)  # (the file's Material layer goes with it: the packed export is the painter's newer work)
@@ -527,7 +672,7 @@ def layered_map(rgba, seed, preset=None):
 
 
 def neutral_map(channel, h, w):
-    return np.full((h, w), uniform(STANDARD, channel), np.uint8)
+    return np.full((h, w), pch.blank(channel), np.uint8)
 
 
 def stale(path, array, was):
@@ -581,15 +726,14 @@ def run_import(args, only=None, say=print):
         maps, exact, seeds = {}, set(), {}
         if "metallicroughness" in images:
             now, was = painted("metallicroughness", "RGB")
-            if differs(now[..., 1], was[..., 1]):
-                maps["roughness"] = kept(now[..., 1], was[..., 1])
-            if differs(now[..., 2], was[..., 2]):
-                maps["metal"] = kept(now[..., 2], was[..., 2])
+            for channel, (_, plane) in PACKED.items():
+                if differs(now[..., plane], was[..., plane]):
+                    maps[channel] = kept(now[..., plane], was[..., plane])
             if "occlusion" not in images and differs(now[..., 0], was[..., 0]):  # an ORM pack: R is the occlusion
                 maps["occlusion"] = kept(now[..., 0], was[..., 0])
         material = images.get("material") if isinstance(images.get("material"), AseSource) else None
         presets = expanded = None
-        for channel in ("roughness", "metal"):
+        for channel in pch.NAMES:
             layer_source = images.get(channel) if isinstance(images.get(channel), AseSource) else None
             mat = material if channel not in images or layer_source is not None else None  # (a PNG saved after the file is the newer: it wins)
             if channel in images or mat is not None:  # separate maps (Roughness, Metallic files), or the layers of the .aseprite
@@ -659,7 +803,7 @@ def run_import(args, only=None, say=print):
 def seed_slice(folder, rec, name, box):
     """The seed's `name` map over a box of an atlas (roughness and metal from the packed image; normal, occlusion as they are)."""
     u0, v0, u1, v1 = box
-    if name in ("roughness", "metal"):
+    if name in pch.BY_CHANNEL:
         whole = painted_seed(folder, rec, name, rec["h"], rec["w"])
     else:
         path = folder / "seed" / pathlib.Path(rec["files"][name]).name
@@ -679,23 +823,27 @@ def write_normal_parts(dest, maps):
 
 
 def painted_seed(folder, rec, channel, h, w):
-    """The seed's roughness or metal (from its packed image) for painters that write them as separate files."""
-    path = folder / "seed" / pathlib.Path(rec["files"]["metallicroughness"]).name
-    if not path.exists():
+    """The seed's map of a table channel (roughness, metal, height...): from the packed image's plane, or the channel's own image; None when
+    the package has none (one made before the channel was in the table: the channel's blank value stands in)."""
+    image, plane = pch.seed_image(channel)
+    name = (rec.get("files") or {}).get(image)
+    path = folder / "seed" / pathlib.Path(name).name if name else None
+    if path is None or not path.exists():
         return None
-    mr = load(path, "RGB")
-    return mr[..., 1] if channel == "roughness" else mr[..., 2]
+    got = load(path, "RGB" if plane is not None else "L")
+    return got[..., plane] if plane is not None else got
 
 
 def ensure_entries(args, seed, changed):
     """A user catalog entry for each painted object (a map only applies where an entry matches): its texture on its room group or model,
     with the values the game drew that object's texture with until now (the entry it matched, resolved; the standard no-entry surface
-    when it had none), so a first import changes only what was painted. An entry that is there already is left as it is."""
+    when it had none), so a first import changes only what was painted; but a painted height on a surface whose bump was 0 turns it to the standard
+    (1), or the painting would show nothing. An entry that is there already is left as it is."""
     path = pathlib.Path(args.catalog) if args.catalog else user_catalog()
     data = json.loads(path.read_text()) if path.exists() else {"format": 2, "presets": {}, "entries": []}
     ids = {e["id"] for e in data.get("entries", [])}
     added = 0
-    for label, rec, _ in changed:
+    for label, rec, names in changed:
         key, obj = rec["key"], rec["object"]
         entry_id = f"PT-{key}" + (f"-{obj}" if obj else "")
         if entry_id in ids:
@@ -705,6 +853,8 @@ def ensure_entries(args, seed, changed):
         values, extra = surface_of(catalog_files(path), rec, key, rec["w"], rec["h"], seed.get("zone"), seed.get("room"))
         entry.update(extra)
         entry.update({n: (bool(v) if n == "auto_height" else float(v)) for n, v in values.items()})
+        if "height" in names and entry.get("bump", 1.0) <= 0:  # (a painted height shows through bump: an entry that had none gets the standard 1)
+            entry["bump"] = STANDARD["bump"]
         room = [seed["zone"], seed["room"]] if seed.get("target") == "room" else None
         if obj and rec.get("group_offset") is not None:
             entry["object"] = {"groups": [rec["group_offset"]]}
@@ -811,7 +961,7 @@ def main():
     e.add_argument("target", choices=["room", "model"])
     e.add_argument("--zone", type=int)
     e.add_argument("--room", type=int)
-    e.add_argument("--model", help="a model's content hash (8 hex digits: RPC material pick's object text without the m)")
+    e.add_argument("--model", help="a model's content key (10 hex digits: RPC material pick's object text without the m) or its legacy id (8)")
     e.add_argument("--model-at", help="X,Y: the model under a pixel of the view")
     e.add_argument("--bake", action="append", default=[], help="a bake's materials folder (room_blender.py <out>/materials) to seed the maps from, the geometry-based normals included; also $ROOD_MATERIALS_BAKED")
     e.add_argument("--out")
@@ -835,6 +985,12 @@ def main():
                    help="where a painted map still has the painter's flat fill (most of the image), keep the game's own map there instead")
     pal = sub.add_parser("palette", help="rewrite the palette of the package's .aseprite files from the preset files (material_presets.py); pixels untouched; close the files in Aseprite first")
     pal.add_argument("dir")
+    rk = sub.add_parser("rekey", help="move the user's model paint to the models' content keys: the game's ids into model_aliases.json, with --apply the entries and maps (copied)")
+    rk.add_argument("--visit", action="append", metavar="Z,R", help="a room to visit first so its models are loaded (repeatable)")
+    rk.add_argument("--apply", action="store_true", help="write model_aliases.json and the migrated catalog and maps (else a dry run)")
+    rk.add_argument("--layer", help="the maps' layer (default: the user layer)")
+    rk.add_argument("--catalog", help="the user catalog file")
+    rk.add_argument("--card", default=str(ROOT / "pc/build/test-card1.mcd"), help="the memory card the game starts from")
     for name, text in (("watch", "import a material's .aseprite file each time it is saved (Ctrl+C stops)"),
                        ("live", "watch, and take strokes live from the Aseprite extension over a WebSocket (pc/tools/aseprite/)")):
         w = sub.add_parser(name, help=text)
@@ -851,6 +1007,8 @@ def main():
         return watch_package(args)
     if args.command == "palette":
         return refresh_palettes(args)
+    if args.command == "rekey":
+        return rekey(args)
     if args.command == "live":
         import paint_live
         return paint_live.live(args)

@@ -37,6 +37,7 @@
 #include "psx_types.h"
 #include "render.h"
 #include <math.h>
+#include "model_key.h"
 #include "view_state.h"
 #include <stdint.h>
 #include <stdio.h>
@@ -49,7 +50,7 @@ extern int pc_gte_widescreen;
 extern int pc_hw_active;
 extern void render_count_object_mesh_built(void);
 /* emissive.cpp: the model a mesh draws (its content hash: emissive scopes). */
-extern void pc_emissive_model_mesh(uint32_t mesh, uint32_t model) __attribute__((weak));
+extern void pc_emissive_model_mesh(uint32_t mesh, uint32_t model, uint64_t key) __attribute__((weak));
 extern int pc_live_camera_active(void) __attribute__((weak));
 /* photo.h (rood.ui.hide{actors}): bit 1 Ashley, bit 2 the other characters not drawn; dev_state.c. */
 extern int pc_photo_hide_actors __attribute__((weak));
@@ -106,6 +107,7 @@ typedef struct {
     const void* model;
     int kind;
     unsigned hash;
+    uint64_t key; /* the content key (model_key.h) */
     render_mesh mesh; /* 0: the model could not be built (stays packets) */
     int bones;
     uint32_t used; /* frame serial */
@@ -382,6 +384,8 @@ static model_mesh* mesh_for(const void* object, const void* model, int kind, uin
     c->kind = kind;
     c->hash = hash;
     c->used = serial;
+    if (words)
+        c->key = pc_model_content_key(kind, obj, m.groups, m.group_count, m.vertices, m.vertex_count, (const unsigned*)model, m.records, m.counts);
     if (!words && (m.counts[0] || m.counts[1] || m.counts[2])) {
         static int logged;
         if (logged++ < 8)
@@ -399,7 +403,7 @@ static model_mesh* mesh_for(const void* object, const void* model, int kind, uin
     }
     c->mesh = build_mesh(&m, kind, bone_of, &c->bones, &c->sort, &c->polygons, &c->semi);
     if (c->mesh && pc_emissive_model_mesh)
-        pc_emissive_model_mesh(c->mesh, hash);
+        pc_emissive_model_mesh(c->mesh, hash, c->key);
     render_count_object_mesh_built();
     return c;
 }
