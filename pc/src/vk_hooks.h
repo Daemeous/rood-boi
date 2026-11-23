@@ -49,6 +49,14 @@ void pc_vk_hw_resize(int scale);
 void pc_vk_hw_idle(void); /* the GPU has finished everything submitted (a drain) */
 /* Native VRAM rectangles (x, y, w, h; inside VRAM) into its sampled copy (VK_TOKEN_VRAM). */
 void pc_vk_hw_upload_rects(const uint16_t* vram, const int (*rects)[4], int count);
+/* The texture resources (vk_hw.h tex_pages and the others): page layer `layer` from 256 x 256 halfwords; palette `slot` (256 halfwords) for the CLUT word `clut` (`wide`: the
+ * 256-entry palette's table half); a layer or slot read back (synchronously). 0 when the resources are not made. */
+int pc_vk_hw_tex_ready(void);
+void pc_vk_hw_tex_page(int layer, const uint16_t* texels);
+void pc_vk_hw_tex_palette(int slot, unsigned clut, int wide, const uint16_t* colours);
+int pc_vk_hw_tex_read_page(int layer, int u0, int v0, int u1, int v1, uint16_t* out);
+int pc_vk_hw_tex_read_palette(int slot, uint16_t* out);
+int pc_vk_hw_tex_read_vram(int x, int y, int w, int h, uint16_t* out); /* the sampled copy (what the draws read) */
 /* Emissive texels' slot map (emissive.h): rows [row0, row1) of the CPU copy. */
 void pc_vk_hw_upload_emissive(const uint8_t* map, int row0, int row1);
 /* The material planes (emissive.h PC_MATERIAL_*) into the slot map image. */

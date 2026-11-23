@@ -17,6 +17,9 @@ layout(location = 10) noperspective in vec3 v_bary;
 layout(location = 11) flat in uint v_order;
 layout(binding = 2) uniform usampler2D vram;
 layout(binding = 6) uniform usampler2D emissive_map; // emissive texels' slot map (emissive.glsl)
+layout(binding = 11) uniform usampler2D tex_pages; // the texture resources (T5-7b, tex_resources.glsl)
+layout(binding = 12) uniform usampler2D tex_palettes;
+layout(binding = 13) uniform usampler2D tex_table;
 layout(binding = 10) uniform usampler2D variant_map; // materials by object: variant records and cells (variant_texel)
 // MSAA (native_ms.frag): the surfaces' depth read from multisampled twins, sample 0.
 #ifdef SURFACE_MS
@@ -38,6 +41,7 @@ layout(location = 2) out vec4 albedo_out;
 layout(location = 3) out vec4 shade_out;
 layout(location = 4) out vec4 material_out; // material_pack.glsl (all 0: no material)
 #include "vram.glsl"
+#include "tex_resources.glsl"
 #include "emissive.glsl"
 #include "material_graph.glsl"
 #include "material.glsl"
@@ -223,7 +227,7 @@ void main() {
         vec2 sh = e != 0u ? uv_effects[e].shift.xy * k : vec2(0.0);
         bool moving = sh != vec2(0.0);
         if (moving) at = uvec2(uv_wrap(ivec2(floor(clamp(v_uv + 0.0001, vec2(v_bounds.xy), vec2(v_bounds.zw) + 0.999) + sh)), e, k));
-        uint t = texel_at(at.x & 255u, at.y & 255u, tpage, clut, u.window);
+        uint t = texel_choice(at.x & 255u, at.y & 255u, tpage, clut, u.window);
         vec3 texel = rgb(t);
         if (u.filtering != 0) {
             vec2 q = v_uv - 0.5 + sh;
@@ -234,7 +238,7 @@ void main() {
             for (int i = 0; i < 4; i++) {
                 ivec2 s = clamp(base + ivec2(i & 1, i >> 1), ivec2(floor(vec2(v_bounds.xy) + sh)), ivec2(floor(vec2(v_bounds.zw) + sh)));
                 if (moving) s = uv_wrap(s, e, k);
-                uint tk = texel_at(uint(s.x) & 255u, uint(s.y) & 255u, tpage, clut, u.window);
+                uint tk = texel_choice(uint(s.x) & 255u, uint(s.y) & 255u, tpage, clut, u.window);
                 float w = ((i & 1) != 0 ? f.x : 1.0 - f.x) * ((i >> 1) != 0 ? f.y : 1.0 - f.y);
                 if (tk != 0u) { sum += rgb(tk) * w; cover += w; }
             }

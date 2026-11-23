@@ -26,6 +26,10 @@ typedef struct {
      * (VK_TOKEN_ROOM_KEY, VK_TOKEN_ROOM_ONLY: pc_native_actor_window). */
     vk_image room_key, room_only;
     vk_image vram; /* native VRAM, R16_UINT 1024 x 512 */
+    /* The texture resources (T5-7b, tex_provider.h; pc/docs/plans/2026-11-17-vram.md): the decoded pages (an atlas of 256 x 256 layers, 12 across: layer l at
+     * (l % 12 * 256, l / 12 * 256), R16_UINT), the palettes (256 entries a row, a slot a row) and the table that names a CLUT's slot (128 x 512: x is the CLUT's
+     * x in 16s, 64 further for the 256-entry palette; y its row; the value is the slot + 1, 0 none). Filled from the renderer's VRAM; apart from the VRAM image. */
+    vk_image tex_pages, tex_palettes, tex_table;
     vk_image emissive; /* emissive texels' slot map, R8_UINT 4096 x 516 (emissive.h) */
     vk_image variants; /* materials by object: the variants' records and cells, R8_UINT 4096 x rows (emissive.h; grown on demand; image 0 until a variant exists) */
     int variant_rows; /* its height */

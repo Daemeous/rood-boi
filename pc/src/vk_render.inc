@@ -259,13 +259,14 @@ static int vk_native_init(void)
     /* 7: the node material graphs' values table (material_graph.cpp; read only by a generated include).
      * 8, 9: the room list's order key and its own depth (pc_native_actor_window).
      * 10: the material variants' atlas (materials by object: emissive.cpp variants, vk_hw.c). */
-    VkDescriptorType types[11] = { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+    VkDescriptorType types[14] = { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
         VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
         VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
         VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
         VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER };
-    vk_native_set = vk_push_layout(types, 11);
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER }; /* 11 to 13: the texture resources (native_frag.glsl) */
+    vk_native_set = vk_push_layout(types, 14);
     VkPipelineLayoutCreateInfo layout = { .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
         .setLayoutCount = 1,
         .pSetLayouts = &vk_native_set };
@@ -398,6 +399,9 @@ static mesh_slot* vk_use_instance(vk_draw_state* s, const draw_list* list, const
     vk_descriptors_image(&d, 8, s->room_key, vk.nearest);
     vk_descriptors_image(&d, 9, s->room_only, vk.nearest);
     vk_descriptors_image(&d, 10, vk_hw.variants.image ? vk_hw.variants.view : vk_hw.emissive.view, vk.nearest);
+    vk_descriptors_image(&d, 11, vk_hw.tex_pages.view, vk.nearest);
+    vk_descriptors_image(&d, 12, vk_hw.tex_palettes.view, vk.nearest);
+    vk_descriptors_image(&d, 13, vk_hw.tex_table.view, vk.nearest);
     vk_descriptors_push(&d, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_native_layout);
     return mesh;
 }

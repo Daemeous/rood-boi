@@ -268,6 +268,9 @@ int pc_vk_hw_init(int scale, size_t vertex_size)
         || !vk_image_create(&vk_hw.vram, 1024, 512, VK_FORMAT_R16_UINT,
             VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT
                 | (vram_storage ? VK_IMAGE_USAGE_STORAGE_BIT : 0))
+        || !vk_image_create(&vk_hw.tex_pages, 12 * 256, 8 * 256, VK_FORMAT_R16_UINT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT)
+        || !vk_image_create(&vk_hw.tex_palettes, 256, 1024, VK_FORMAT_R16_UINT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT)
+        || !vk_image_create(&vk_hw.tex_table, 128, 512, VK_FORMAT_R16_UINT, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT)
         || !vk_image_create(&vk_hw.emissive, PC_EMISSIVE_MAP_W, PC_EMISSIVE_MAP_H + PC_MATERIAL_MAP_H, VK_FORMAT_R8_UINT,
             VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT)
         || !vk_image_create(&vk_hw.dummy_depth, 1, 1, vk.depth_format,
@@ -275,10 +278,12 @@ int pc_vk_hw_init(int scale, size_t vertex_size)
         || !vk_image_create(&vk_hw.dummy_color, 1, 1, VK_FORMAT_R16G16B16A16_SFLOAT,
             VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT))
         return 0;
-    VkDescriptorType draw_types[5] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+    VkDescriptorType draw_types[8] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
         VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER };
-    draw_set = vk_push_layout(draw_types, 5);
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER };
+    draw_set = vk_push_layout(draw_types, 8); /* 5 to 7: the texture resources (hw_frag.glsl) */
     upload_set = vk_push_layout(draw_types, 1);
     VkPushConstantRange draw_range = { VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(draw_push) };
     VkPipelineLayoutCreateInfo layout = { .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
@@ -381,6 +386,57 @@ void pc_vk_hw_upload_rects(const uint16_t* vram, const int (*rects)[4], int coun
     if (n)
         vkCmdCopyBufferToImage(cmd, buffer, vk_hw.vram.image, VK_IMAGE_LAYOUT_GENERAL, (uint32_t)n, regions);
     vk_barrier();
+}
+
+/* ---- the texture resources (T5-7b) ---- */
+
+int pc_vk_hw_tex_ready(void) { return vk_hw.tex_pages.image != VK_NULL_HANDLE; }
+/* `w` x `h` halfwords at (x, y) of `image`, from the CPU. */
+static void tex_upload(const vk_image* image, int x, int y, int w, int h, const uint16_t* texels)
+{
+    vk_end_rendering();
+    VkCommandBuffer cmd = vk_cmd();
+    vk_slice slice = vk_arena((VkDeviceSize)w * h * 2, 16);
+    if (!slice.data)
+        return;
+    memcpy(slice.data, texels, (size_t)w * h * 2);
+    VkBufferImageCopy region = { .bufferOffset = slice.offset,
+        .bufferRowLength = (uint32_t)w,
+        .bufferImageHeight = (uint32_t)h,
+        .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+        .imageOffset = { x, y, 0 },
+        .imageExtent = { (uint32_t)w, (uint32_t)h, 1 } };
+    vkCmdCopyBufferToImage(cmd, slice.buffer, image->image, VK_IMAGE_LAYOUT_GENERAL, 1, &region);
+    vk_barrier();
+}
+void pc_vk_hw_tex_page(int layer, const uint16_t* texels)
+{
+    if (pc_vk_hw_tex_ready() && layer >= 0 && layer < 96)
+        tex_upload(&vk_hw.tex_pages, layer % 12 * 256, layer / 12 * 256, 256, 256, texels);
+}
+void pc_vk_hw_tex_palette(int slot, unsigned clut, int wide, const uint16_t* colours)
+{
+    if (!pc_vk_hw_tex_ready() || slot < 0 || slot >= 1024)
+        return;
+    tex_upload(&vk_hw.tex_palettes, 0, slot, 256, 1, colours);
+    uint16_t entry = (uint16_t)(slot + 1);
+    tex_upload(&vk_hw.tex_table, (int)(clut & 63) + (wide ? 64 : 0), (int)(clut >> 6 & 511), 1, 1, &entry);
+}
+int pc_vk_hw_tex_read_page(int layer, int u0, int v0, int u1, int v1, uint16_t* out)
+{
+    if (!pc_vk_hw_tex_ready() || layer < 0 || layer >= 96)
+        return 0;
+    return vk_read_image(&vk_hw.tex_pages, VK_IMAGE_ASPECT_COLOR_BIT, layer % 12 * 256 + u0, layer / 12 * 256 + v0, u1 - u0 + 1, v1 - v0 + 1, out, 2);
+}
+int pc_vk_hw_tex_read_palette(int slot, uint16_t* out)
+{
+    if (!pc_vk_hw_tex_ready() || slot < 0 || slot >= 1024)
+        return 0;
+    return vk_read_image(&vk_hw.tex_palettes, VK_IMAGE_ASPECT_COLOR_BIT, 0, slot, 256, 1, out, 2);
+}
+int pc_vk_hw_tex_read_vram(int x, int y, int w, int h, uint16_t* out)
+{
+    return vk_read_image(&vk_hw.vram, VK_IMAGE_ASPECT_COLOR_BIT, x, y, w, h, out, 2);
 }
 
 /* Rows of the slot map image from a CPU copy (`rows` rows at image row `at`). */
@@ -489,6 +545,9 @@ void pc_vk_hw_draw_batch(unsigned fbo, const void* vertices, int count, int blen
     VkImageView atlas = (VkImageView)pc_ui_upscale_vk_view();
     vk_descriptors_image(&d, 2, atlas ? atlas : vk_hw.vram.view, vk.nearest);
     vk_descriptors_image(&d, 3, vk_hw.emissive.view, vk.nearest);
+    vk_descriptors_image(&d, 5, vk_hw.tex_pages.view, vk.nearest);
+    vk_descriptors_image(&d, 6, vk_hw.tex_palettes.view, vk.nearest);
+    vk_descriptors_image(&d, 7, vk_hw.tex_table.view, vk.nearest);
     vk_descriptors_image(&d, 4, vk_hw.copy.view, vk.nearest); /* the capture (pc_vk_hw_capture): screen copies at the target's resolution */
     draw_push push = { .perspective = pc_hw_draw_perspective, .filtering = pc_hw_draw_filter, .occlusion = occlusion,
         .ui_scale = atlas ? pc_ui_upscale_draw_factor() : 0, .emissive = pc_hw_emissive(NULL),

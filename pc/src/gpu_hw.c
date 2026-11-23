@@ -36,6 +36,7 @@ extern void pc_ui_bubbles_frame(void) __attribute__((weak));
 #include "renderer_frame_state.h"
 #include "hw_registry.h" /* the producer-owned registrations of a table */
 #include "tex_provider.h" /* handles and versions over the renderer's VRAM */
+#include "vram_texels.h" /* the texture decode (pc_tex_index_at) the resources are filled with */
 #include "screen_owner.h" /* a screen that owns the display: the sides cleared when opaque 2D covers the area */
 #include "hw_calls.h"    /* the game side's calls into the renderer: requests (the renderer's own uses of them just run) */
 #include "gl_shaders.h" /* PC_GLSL_MS_RESOLVE (pc/shaders/vulkan/ms_resolve.glsl) */
@@ -679,6 +680,7 @@ static int text_bounds[4]; /* the image's texels (0, 0, w, h) */
 /* The vertex's window word (texture window: bits 0..19): the screen copy it samples is the render-target capture, at the
  * target's resolution (Vulkan: pc_vk_hw_capture, hw_frag.glsl binding 4), not the PS1-resolution copy of VRAM. */
 #define WINDOW_CAPTURE (1u << 28)
+#define WINDOW_RESOURCE (1u << 27) /* the draw samples the texture resources (tex_resources.glsl; tex_note) */
 static int capture_taken; /* the primitive being drawn: a capture of the texels it samples is in place */
 /* screen_copy native (default) | ps1: a screen copy is sampled from the capture, at the target's resolution, or from the PS1's
  * (the PS1-resolution copy of VRAM, as it was). OpenGL: the copy's pixels the average of the target's block, or its middle. */
@@ -1939,6 +1941,8 @@ static void overlay_hold(void)
     for (int t = 0; t < triangles; t++) {
         overlay_triangle* o = &overlay[overlay_count++];
         memcpy(o->v, batch + t * 3, sizeof o->v);
+        for (int k = 0; k < 3; k++)
+            o->v[k].window &= ~WINDOW_RESOURCE; /* (drawn later, once the resources may have moved on: the VRAM image it samples then, as before) */
         memcpy(o->clip, batch_clip, sizeof o->clip);
         o->blend = batch_blend;
         float x0 = fminf(o->v[0].x, fminf(o->v[1].x, o->v[2].x)), x1 = fmaxf(o->v[0].x, fmaxf(o->v[1].x, o->v[2].x));
@@ -1974,7 +1978,7 @@ static void overlay_update(void)
 /* The VRAM a triangle with texel coordinates `uv` samples (its texels, a
  * texel around them, and its CLUT row), dirty_bands' layout; through a
  * texture window, or reaching a page edge (it may wrap), its whole page. */
-static void sampled_bands(unsigned tpage, unsigned clut, unsigned window, const int* uv, uint32_t bands[16])
+static void sample_box(unsigned window, const int* uv, int box[4])
 {
     int u0 = 0, v0 = 0, u1 = 255, v1 = 255;
     if (!(window & 0x3ff)) {
@@ -1992,12 +1996,195 @@ static void sampled_bands(unsigned tpage, unsigned clut, unsigned window, const 
         else
             --v0, ++v1;
     }
+    box[0] = u0, box[1] = v0, box[2] = u1, box[3] = v1;
+}
+static void sampled_bands(unsigned tpage, unsigned clut, unsigned window, const int* uv, uint32_t bands[16])
+{
+    int box[4], reach[2][4];
+    sample_box(window, uv, box);
     memset(bands, 0, 16 * sizeof *bands);
-    int box[4] = { u0, v0, u1, v1 }, reach[2][4];
     pc_tex_sampling sampling = pc_tex_describe(NULL, tpage, clut, window, box); /* (what the draw reaches: geometry, no versions) */
     for (int k = 0, n = pc_tex_reach(&sampling, reach); k < n; k++)
         bands_for(reach[k][0], reach[k][1], reach[k][2], reach[k][3], bands);
 }
+#ifdef ROOD_VULKAN
+/* ---- the texture resources (T5-7b slices 1 and 2; pc/docs/plans/2026-11-17-vram.md) ----
+ * The pages and palettes a pure-upload draw samples, kept as resources in vk_hw.c (tex_pages, tex_palettes, tex_table) and refilled from the renderer's VRAM when their
+ * handle's version has moved. A draw that samples the frame (own copies) is not one: it stays on the VRAM image. ROOD_TEX_CHECK=1 fills them for every textured draw and
+ * compares what the draw reaches with the sampled copy of VRAM (what the shaders read now): a texel that differs is counted and the first few are printed. */
+enum { TEX_LAYERS = 96, TEX_SLOTS = 1024 };
+static int tex_check = -1, tex_switch = -1;
+static uint32_t tex_layer_version[TEX_LAYERS];
+static int tex_layer_filled[TEX_LAYERS];
+static int16_t tex_slot_of[2 * 32768]; /* clut | wide << 15 -> slot + 1 */
+static uint32_t tex_slot_version[TEX_SLOTS];
+static int tex_slots_used;
+static unsigned long long tex_stat_boxes, tex_stat_texels, tex_stat_bad, tex_stat_skipped, tex_stat_fills, tex_stat_draws, tex_stat_lists;
+static uint64_t tex_seen[8192]; /* (layer version, palette version, box) already compared */
+static void tex_report(void)
+{
+    if (tex_stat_boxes || tex_stat_bad || tex_stat_draws || tex_stat_lists)
+        fprintf(stderr, "[tex] check: %llu boxes compared (%llu texels), %llu texels differ, %llu boxes skipped, %llu fills, %llu draws read the resources, %llu native lists\n", tex_stat_boxes,
+            tex_stat_texels, tex_stat_bad, tex_stat_skipped, tex_stat_fills, tex_stat_draws, tex_stat_lists);
+}
+static int tex_pure; /* the textured draw being made reads the resources (tex_note; WINDOW_RESOURCE) */
+static int tex_layer_of(unsigned tpage)
+{
+    int depth = pc_tex_depth(tpage);
+    return (depth > 2 ? 2 : depth) * 32 + (int)(tpage & 0x1f);
+}
+static void tex_fill_page(unsigned tpage, int layer, uint32_t version)
+{
+    static uint16_t texels[256 * 256];
+    flush(); /* what is batched samples the layer as it is: drawn before it changes (as the VRAM image's uploads are) */
+    int depth = pc_tex_depth(tpage), tx = pc_tex_page_x(tpage), ty = pc_tex_page_y(tpage);
+    for (int v = 0; v < 256; v++)
+        for (int u = 0; u < 256; u++)
+            texels[v * 256 + u] = (uint16_t)pc_tex_index_at(rvram, depth > 2 ? 2 : depth, tx, ty, u, v);
+    pc_vk_hw_tex_page(layer, texels);
+    tex_layer_version[layer] = version, tex_layer_filled[layer] = 1;
+    ++tex_stat_fills;
+}
+static int tex_fill_palette(unsigned tpage, unsigned clut, uint32_t version)
+{
+    int wide = pc_tex_depth(tpage) == 1;
+    unsigned key = (clut & 0x7fff) | (unsigned)wide << 15;
+    int slot = tex_slot_of[key] - 1;
+    if (slot < 0) {
+        if (tex_slots_used == TEX_SLOTS)
+            return -1;
+        slot = tex_slots_used++;
+        tex_slot_of[key] = (int16_t)(slot + 1);
+        tex_slot_version[slot] = 0;
+    } else if (tex_slot_version[slot] == version)
+        return slot;
+    uint16_t colours[256] = { 0 };
+    flush(); /* (as for a page) */
+    int cx = (int)(clut & 63) * 16, cy = (int)(clut >> 6 & 511);
+    for (int i = 0; i < (wide ? 256 : 16); i++)
+        colours[i] = (uint16_t)pc_vram_at(rvram, cx + i, cy);
+    pc_vk_hw_tex_palette(slot, clut, wide, colours);
+    tex_slot_version[slot] = version;
+    ++tex_stat_fills;
+    return slot;
+}
+static void tex_init(void)
+{
+    if (tex_check >= 0)
+        return;
+    {
+        const char* env = getenv("ROOD_TEX_CHECK");
+        tex_check = env && *env && *env != '0';
+        env = getenv("ROOD_TEX_RESOURCES"); /* on by default; 0 reads the VRAM image everywhere */
+        tex_switch = !(env && *env == '0');
+        if (tex_check || tex_switch)
+            atexit(tex_report);
+    }
+}
+/* Whether the resources for (tpage, clut) over `box` can be read by a draw now (the page and palette current, nothing of them lying under an own copy of the frame), and
+ * brought up to date if so. Fills `*sampling`, `*layer` and `*slot` (-1: no palette). */
+static int tex_ensure(unsigned tpage, unsigned clut, unsigned window, const int box[4], pc_tex_sampling* sampling, int* layer, int* slot)
+{
+    tex_init();
+    if (!(tex_check || tex_switch) || renderer_vram != rvram || !pc_vk_hw_tex_ready())
+        return 0;
+    *sampling = pc_tex_describe(&rvram_versions, tpage, clut, window, box);
+    {
+        /* Not a pure-upload page where the sampled copy holds the target's pixels (an own copy of the frame this draw or an earlier one made, not yet folded
+         * back): such a draw samples the VRAM image (the hybrid; the frame-sampling draws move to captures in a later step). */
+        int span[2][4], n = pc_tex_reach(sampling, span);
+        uint32_t bands[16] = { 0 };
+        for (int k = 0; k < n; k++)
+            bands_for(span[k][0], span[k][1], span[k][2], span[k][3], bands);
+        for (int c = 0; c < 16; c++)
+            if (bands[c] & own_bands[c])
+                return 0;
+    }
+    *layer = tex_layer_of(tpage);
+    if (!tex_layer_filled[*layer] || tex_layer_version[*layer] != sampling->page.version)
+        tex_fill_page(tpage, *layer, sampling->page.version);
+    *slot = -1;
+    if (sampling->mode != PC_TEX_DIRECT16 && (*slot = tex_fill_palette(tpage, clut, sampling->palette.version)) < 0)
+        return 0;
+    return 1;
+}
+/* A native list is about to draw: whether every page and palette its polygons sample is a pure-upload resource (brought up to date), so the whole list may read
+ * them (WINDOW_RESOURCE in its window word). One polygon that is not decides for the list. */
+static int tex_list_visit(void* context, unsigned tpage, unsigned clut)
+{
+    static const int whole[4] = { 0, 0, 255, 255 };
+    pc_tex_sampling s;
+    int layer, slot;
+    (void)context;
+    return !tex_ensure(tpage, clut, 0, whole, &s, &layer, &slot); /* nonzero stops the walk */
+}
+static int tex_list_pure(uint32_t list)
+{
+    tex_pure = 0;
+    tex_init();
+    if (!tex_switch || renderer_vram != rvram || !pc_vk_hw_tex_ready())
+        return 0;
+    int stopped = render_list_pages(list, tex_list_visit, NULL);
+    if (!stopped)
+        ++tex_stat_lists;
+    return !stopped;
+}
+/* A textured draw is about to sample (tpage, clut) over `box`, after its uploads: bring the resources up to date and, in check mode, compare. */
+static void tex_note(unsigned tpage, unsigned clut, unsigned window, const int box[4])
+{
+    tex_pure = 0;
+    pc_tex_sampling s;
+    int layer, slot;
+    if (!tex_ensure(tpage, clut, window, box, &s, &layer, &slot))
+        return;
+    tex_pure = tex_switch; /* (the page and its palette are current: the draw may read them) */
+    tex_stat_draws += (unsigned long long)tex_switch;
+    if (!tex_check)
+        return;
+    uint64_t seen = ((uint64_t)layer << 56 ^ (uint64_t)s.page.version << 32 ^ (uint64_t)s.palette.version << 8 ^ (uint64_t)(box[0] | box[1] << 8 | box[2] << 16 | box[3] << 24)) * 0x9e3779b97f4a7c15ull | 1;
+    uint64_t* at = &tex_seen[seen >> 51 & 8191];
+    if (*at == seen)
+        return;
+    *at = seen;
+    int reach[2][4], count = pc_tex_reach(&s, reach);
+    if (reach[0][2] > 1023 || (count > 1 && reach[1][2] > 1023)) { /* (a page or palette across the right edge: the rectangle read does not wrap) */
+        ++tex_stat_skipped;
+        return;
+    }
+    static uint16_t vram_box[256 * 256], layer_box[256 * 256], colours[256];
+    int w = reach[0][2] - reach[0][0] + 1, h = reach[0][3] - reach[0][1] + 1;
+    int u0 = box[0] & 255, v0 = box[1] & 255, u1 = box[2] & 255, v1 = box[3] & 255;
+    if (u1 < u0 || v1 < v0 || !pc_vk_hw_tex_read_vram(reach[0][0], reach[0][1], w, h, vram_box)
+        || !pc_vk_hw_tex_read_page(layer, u0, v0, u1, v1, layer_box)) {
+        ++tex_stat_skipped;
+        return;
+    }
+    int depth = pc_tex_depth(tpage) > 2 ? 2 : pc_tex_depth(tpage), shift = depth == 0 ? 2 : depth == 1 ? 1 : 0, bad = 0;
+    ++tex_stat_boxes;
+    for (int v = v0; v <= v1; v++)
+        for (int u = u0; u <= u1; u++) {
+            unsigned word = vram_box[(size_t)(v - v0) * (size_t)w + (size_t)((u >> shift) - (u0 >> shift))];
+            unsigned want = depth == 0 ? (word >> ((u & 3) * 4)) & 15 : depth == 1 ? (word >> ((u & 1) * 8)) & 255 : word;
+            unsigned got = layer_box[(size_t)(v - v0) * (size_t)(u1 - u0 + 1) + (size_t)(u - u0)];
+            ++tex_stat_texels;
+            if (want != got && ++bad <= 4 && tex_stat_bad + (unsigned long long)bad <= 16)
+                fprintf(stderr, "[tex] page %x clut %x (u %d v %d): the sampled copy has %x, the layer %x\n", tpage, clut, u, v, want, got);
+        }
+    tex_stat_bad += (unsigned long long)bad;
+    if (count > 1 && slot >= 0 && pc_vk_hw_tex_read_vram(reach[1][0], reach[1][1], reach[1][2] - reach[1][0] + 1, 1, vram_box)
+        && pc_vk_hw_tex_read_palette(slot, colours)) {
+        for (int i = 0; i <= reach[1][2] - reach[1][0]; i++)
+            if (vram_box[i] != colours[i] && ++tex_stat_bad <= 16)
+                fprintf(stderr, "[tex] page %x clut %x palette entry %d: the sampled copy has %x, the resource %x\n", tpage, clut, i, vram_box[i], colours[i]);
+    }
+    if (tex_stat_boxes % 500 == 0)
+        tex_report();
+}
+#else
+static int tex_pure;
+static void tex_note(unsigned tpage, unsigned clut, unsigned window, const int box[4]) { (void)tpage, (void)clut, (void)window, (void)box; }
+static int tex_list_pure(uint32_t list) { (void)list; return 0; }
+#endif
 static int report_mask_check;
 /* Depth (GTE SZ) for the next pc_hw_triangle only; primitives without it are 2D. */
 void pc_hw_set_depth(const int* depth)
@@ -2293,6 +2480,7 @@ static void triangle_apply_body(const int* xy, const int* uv, const int* rgb, un
         batch_blend = blend;
         memcpy(batch_clip, area, sizeof batch_clip);
     }
+    tex_pure = 0;
     if (textured) {
         if (!own_active)
             own_fold(); /* (a textured primitive drawn without pc_hw_sync_texture) */
@@ -2304,6 +2492,11 @@ static void triangle_apply_body(const int* xy, const int* uv, const int* rgb, un
         }
         if (own_count)
             own_apply();
+        else {
+            int box[4];
+            sample_box(window, uv, box);
+            tex_note(tpage, clut, window, box); /* (a draw that samples the frame stays on the VRAM image) */
+        }
     }
     uint8_t flags = (uint8_t)((textured ? FLAG_TEXTURED : 0) | (textured && (code & 1) ? FLAG_RAW : 0)
         | (semi || exact_cover ? FLAG_SEMI : 0) | (mask_set ? FLAG_MASK : 0) | (exact_cover ? FLAG_COVER : 0)
@@ -2418,7 +2611,7 @@ static void triangle_apply_body(const int* xy, const int* uv, const int* rgb, un
         } else
             memcpy(&v->nx, normal, 4);
         v->clut = (uint16_t)clut;
-        v->window = window | triangle_tag | (capture_taken && ((tpage >> 7) & 3) == 2 ? WINDOW_CAPTURE : 0);
+        v->window = window | triangle_tag | (tex_pure ? WINDOW_RESOURCE : 0) | (capture_taken && ((tpage >> 7) & 3) == 2 ? WINDOW_CAPTURE : 0);
         if (capture_taken && ((tpage >> 7) & 3) == 2) {
             if (capture_log < 0)
                 capture_log = getenv("ROOD_CAPTURE_LOG") != NULL;
@@ -4014,6 +4207,8 @@ static int draw_native(GLuint fbo, uint32_t list, const int* clip, int ox, int o
     memcpy(target.clip, clip, sizeof target.clip);
     target.ox = ox, target.oy = oy;
     target.window = window;
+    if (fbo != replay.fbo && camera == NULL && tex_list_pure(list))
+        target.window |= WINDOW_RESOURCE; /* every page the list samples is a current pure-upload resource (a replay samples the VRAM image as it rewrites it) */
     target.mask_set = mask;
     target.vram = native_texture;
     target.perspective = pc_hw_draw_perspective;
@@ -4976,6 +5171,8 @@ static void record_vertices(const hw_vertex* batch, int batch_count, int batch_b
     op->first = rec->vertex_count;
     op->count = batch_count;
     memcpy(rec->vertices + rec->vertex_count, batch, (size_t)batch_count * sizeof *batch);
+    for (int v = 0; v < batch_count; v++)
+        rec->vertices[rec->vertex_count + v].window &= ~WINDOW_RESOURCE; /* (a replay samples the VRAM image as it rewrites it, not the resources as they are now) */
     /* What it samples and covers (replay_frame: rewritten since?). */
     int texels[4] = { 1024, 512, 0, 0 }, cluts[4] = { 1024, 512, 0, 0 }, bounds[4] = { 1024, 512, 0, 0 };
     op->has_world = 0;

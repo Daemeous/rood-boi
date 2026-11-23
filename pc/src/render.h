@@ -237,6 +237,10 @@ int render_list_triangles(uint32_t list, render_triangle_sink emit, void* contex
  * the others cost nothing: not transformed). */
 int render_list_triangles_where(uint32_t list, int (*keep)(void* context, uint32_t mesh), render_triangle_sink emit,
     void* context);
+/* The texture pages and CLUTs a list's polygons sample (each instance's polygons with the instance's overrides): `visit` is called for each distinct pair as met
+ * (a run of equal pairs once), and returns nonzero to stop. Returns 1 when stopped, 0 when the walk finished, -1 when the list is gone. Costs a walk of the
+ * polygons, no transform: for the texture resources (gpu_hw.c tex_list_pure). */
+int render_list_pages(uint32_t list, int (*visit)(void* context, unsigned tpage, unsigned clut), void* context);
 /* Finished frames so far (game-side code keys "the previous frame" on it). */
 uint32_t render_frame_serial(void);
 /* Link the list into a PS1 ordering table: writes a three-word marker

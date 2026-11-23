@@ -12,7 +12,8 @@ with its capabilities granted (as photo_foundation_smoke), driven from the REPL:
   - held, the HUD and 2D hidden, the free camera turned about Ashley (half a turn, from
     above): every group the room has is drawn (below), and where the room's mesh projects (its front faces, the
     exact projection the render used: RPC scene_dump's camera) the picture is not black:
-    at most 6 % of those pixels, at least 3 points more with photo full_room 0 (the
+    at most 5 % of those pixels (measured 4.6 %: the room's own dark shading, vertex colours 0 in its lower
+    walls, not dropped polygons: painted flat, every polygon of the view is covered; nothing is left out), at least 3 points more with photo full_room 0 (the
     editor's rules: the game's cutaway for the free camera's yaw: the near beams, crates
     and wall gone), which shows what the test catches;
   - the camera given back (finish): the render is the game camera's again, byte for byte
@@ -252,7 +253,7 @@ def run(out, card):
         check(share > 0.3, f"the room's front faces cover the view ({share:.0%})")
         whole = black_share(turned, mask)
         whole_room(f"turned ({play_stats['instances']} in play)")
-        check(whole <= 0.06, f"the picture is not black where the room's mesh projects ({whole:.1%} black)")
+        check(whole <= 0.05, f"the picture is not black where the room's mesh projects ({whole:.1%} black)")
 
         # the editor's rules (the game's cutaway for the free camera's yaw): what the user saw
         rendered(lambda: photo(full_room=0), "photo full_room 0")

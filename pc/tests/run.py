@@ -599,6 +599,9 @@ def suites(args, mode="egl"):
                       "enemy in their compressed boxes on every landing frame; the area-targeting floor "
                       "fill drawn projected (no bands beside it) with smooth edges")]
           if args.save.exists() else []),
+        *([Suite("tex_resources_smoke", [PY, str(TESTS / "tex_resources_smoke.py"), "--card", str(args.save)], 300,
+                 note="T5-7b: the page and palette resources (ROOD_TEX_CHECK) equal the sampled copy of VRAM over every box a draw samples")]
+          if args.save.exists() and args.renderer == "vulkan" else []),
         *([Suite("port_arena_smoke", [PY, str(TESTS / "port_arena_smoke.py"), "--card", str(args.save)], 300,
                  note="memory lane S6: the port arena is a snapshot range, holds the decoded weapon file's header "
                       "and nothing left over, and a rewind restores it")]

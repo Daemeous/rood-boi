@@ -1369,6 +1369,37 @@ static int emit_triangles(uint32_t id, int translucent, int (*keep)(void*, uint3
     }
     return emitted;
 }
+int render_list_pages(uint32_t id, int (*visit)(void*, unsigned, unsigned), void* context)
+{
+    draw_list* list = find_list(id);
+    if (!list)
+        return -1;
+    unsigned seen[8][2];
+    int seen_count = 0;
+    for (int i = 0; i < list->count; i++) {
+        const list_instance* in = &list->instances[i];
+        mesh_slot* mesh = lookup(in->mesh);
+        if (!mesh || !mesh->cpu)
+            continue;
+        for (int p = 0; p < mesh->polygons; p++) {
+            const render_polygon* poly = &mesh->cpu[p];
+            unsigned tpage = effective_tpage(in, poly), clut = effective_clut(in, poly);
+            int known = 0;
+            for (int k = 0; k < seen_count && !known; k++)
+                known = seen[k][0] == tpage && seen[k][1] == clut;
+            if (known)
+                continue;
+            if (visit(context, tpage, clut))
+                return 1;
+            seen[seen_count % 8][0] = tpage, seen[seen_count % 8][1] = clut;
+            if (seen_count < 8)
+                ++seen_count;
+            else
+                seen_count = 8; /* (a ring of recent pairs: the rest are asked again, which is cheap once current) */
+        }
+    }
+    return 0;
+}
 int render_list_triangles(uint32_t id, render_triangle_sink emit, void* context)
 {
     return emit_triangles(id, 0, NULL, emit, context);

@@ -31,12 +31,16 @@ layout(binding = 1) uniform sampler2D room_depth;
 layout(binding = 2) uniform usampler2D ui_atlas; // 2D regions magnified with MMPX
 layout(binding = 3) uniform usampler2D emissive_map; // emissive texels' slot map (emissive.glsl)
 layout(binding = 4) uniform sampler2D capture; // the render-target capture (vk_hw.c pc_vk_hw_capture): a frame buffer at the target's resolution
+layout(binding = 5) uniform usampler2D tex_pages; // the texture resources (T5-7b, vk_hw.h): decoded pages, palettes, the CLUT -> slot table
+layout(binding = 6) uniform usampler2D tex_palettes;
+layout(binding = 7) uniform usampler2D tex_table;
 layout(location = 0) out vec4 color;
 layout(location = 1) out vec4 normal_out;
 layout(location = 2) out vec4 albedo_out;
 layout(location = 3) out vec4 shade_out;
 layout(location = 4) out vec4 material_out; // material_pack.glsl (lit textured 3D packets only)
 #include "vram.glsl"
+#include "tex_resources.glsl"
 #include "text_dist.glsl"
 #include "emissive.glsl"
 #include "material.glsl"
@@ -94,7 +98,7 @@ void main() {
             ivec2 q = ivec2(floor(v_uv + 0.0001));
             // FLAG_CLAMP (2D): the texels the PS1 samples, [min, max - 1].
             if ((flags & 32u) != 0u) q = clamp(q, ivec2(v_bounds.xy), max(ivec2(v_bounds.zw) - 1, ivec2(v_bounds.xy)));
-            t = texel_at(uint(q.x) & 255u, uint(q.y) & 255u, tpage, clut, win);
+            t = texel_choice(uint(q.x) & 255u, uint(q.y) & 255u, tpage, clut, win);
             texel = rgb(t);
         }
         if (pc.filtering != 0 && v_normal.w > 0.5) {
@@ -105,7 +109,7 @@ void main() {
             float cover = 0.0;
             for (int k = 0; k < 4; k++) {
                 ivec2 q = clamp(base + ivec2(k & 1, k >> 1), ivec2(v_bounds.xy), ivec2(v_bounds.zw));
-                uint tk = texel_at(uint(q.x) & 255u, uint(q.y) & 255u, tpage, clut, win);
+                uint tk = texel_choice(uint(q.x) & 255u, uint(q.y) & 255u, tpage, clut, win);
                 float w = ((k & 1) != 0 ? f.x : 1.0 - f.x) * ((k >> 1) != 0 ? f.y : 1.0 - f.y);
                 if (tk != 0u) { sum += rgb(tk) * w; cover += w; }
             }
